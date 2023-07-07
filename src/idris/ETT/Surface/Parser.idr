@@ -1,4 +1,4 @@
-module ExtTT.Surface.Parser
+module ETT.Surface.Parser
 
 import Data.Fin
 
@@ -12,11 +12,11 @@ import Data.Util
 
 import Data.Location
 
-import ExtTT.Core.VarName
+import ETT.Core.VarName
 
-import ExtTT.Surface.SemanticToken
-import ExtTT.Surface.Language
-import ExtTT.Surface.ParserUtil
+import ETT.Surface.SemanticToken
+import ETT.Surface.Language
+import ETT.Surface.ParserUtil
 
 import Data.List.Elem
 

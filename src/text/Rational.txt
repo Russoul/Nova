@@ -1,0 +1,89 @@
+ℚ type
+(n d : ℤ) (d ≢ +0) ⊦ n÷d : ℚ
+(a b c d : ℤ) (b ≢ +0) (d ≢ +0) (a * d ≡ c * b) ⊦ a÷b = c÷d : ℚ
+
+(x : ℚ) ⊦ A type
+(a b : ℤ) (b ≢ +0) ⊦ f(a, b) : A(a÷b)
+(a b c d : ℤ) (b ≢ +0) (d ≢ +0) (a * d ≡ c * b) ⊦ f(a÷b) = f(c÷d) : ℚ
+                                                     :       :
+                                                  A(a÷b) = A(c÷d)
+----------------------------------------------------------------------
+(x : ℚ) ⊦ ℚ-elim a.b.f : A(x)
+
+(a b : ℤ) (b ≢ +0) ⊦ (ℚ-elim a.b.f)((a÷b) / x) = f(a,b) : A(a÷b)
+
+
+//(a÷b + c÷d) = (a * d + c * b)÷(b * d)
+
+(p q : ℚ) ⊦ (p + q) : ℚ
+∎
+//By induction on a
+* (a b : ℤ) (b ≢ 0) (q : ℚ) ⊦ (a÷b + q) : ℚ
+  //By induction on q
+  * (a b c d : ℤ) (b ≢ 0) (d ≢ 0) ⊦ (a÷b + c÷d) ≔ (a * d + c * b)÷(b * d) : ℚ
+  * (a b c d e f : ℤ) (b ≢ 0) (d ≢ 0) (f ≢ 0) (c * f ≡ d * e) ⊦ (a÷b + c%d) = (a÷b + e÷f) : ℚ
+    //By definition
+    (a b c d e f : ℤ) (b ≢ 0) (d ≢ 0) (f ≢ 0) ⊦ (a * d + c * b)÷(b * d) = (a * f + e * b)÷(b * f) : ℚ
+    //It's enough to show
+    (a b c d e f : ℤ) (b ≢ 0) (d ≢ 0) (f ≢ 0) ⊦ (a * d + c * b) * (b * f) = (a * f + e * b) * (b * d) : ℚ
+    //By multiplication distributiving over addition on the right
+    (a b c d e f : ℤ) (b ≢ 0) (d ≢ 0) (f ≢ 0) ⊦ a * d * (b * f) + c * b * (b * f) = a * f * (b * d) + e * b * (b * d) : ℚ
+    //By commutativity and distributivity of multiplication
+    (a b c d e f : ℤ) (b ≢ 0) (d ≢ 0) (f ≢ 0) ⊦ a * d * b * f + c * b * b * f = a * d * b * f + e * b * (b * d) : ℚ
+    //By left cancellation property of addition
+    (a b c d e f : ℤ) (b ≢ 0) (d ≢ 0) (f ≢ 0) ⊦ c * b * b * f = e * b * (b * d) : ℚ
+    //By commutativity and associativity of multiplication
+    (a b c d e f : ℤ) (b ≢ 0) (d ≢ 0) (f ≢ 0) ⊦ c * f * (b * b) = e * d * (b * b) : ℚ
+    //By right cancellation property of multiplication
+    (a b c d e f : ℤ) (b ≢ 0) (d ≢ 0) (f ≢ 0) ⊦ c * f = e * d : ℚ
+    //By commutativity of multiplication
+    (a b c d e f : ℤ) (b ≢ 0) (d ≢ 0) (f ≢ 0) ⊦ c * f = d * e : ℚ
+    //By hypothesis
+* (a b c d : ℤ) (b ≢ +0) (d ≢ +0) (a * d ≡ c * b) (q : ℚ) ⊦ (a÷b + q) = (c÷d + q) : ℚ
+  //By induction on q
+  (a b c d e f : ℤ) (b ≢ +0) (d ≢ +0) (f ≢ +0) (a * d ≡ c * b) ⊦ (a÷b + e÷f) = (c÷d + e÷f) : ℚ
+  //By definition
+  (a b c d e f : ℤ) (b ≢ +0) (d ≢ +0) (f ≢ +0) (a * d ≡ c * b) ⊦ (a * f + e * b)÷(b * f) = (c * f + e * d)÷(d * f) : ℚ
+  //It's enough to show
+  (a b c d e f : ℤ) (b ≢ +0) (d ≢ +0) (f ≢ +0) (a * d ≡ c * b) ⊦ (a * f + e * b) * (d * f) = (c * f + e * d) * (b * f) : ℚ
+  //By distributive, commutative and associative properties of multiplication
+  (a b c d e f : ℤ) (b ≢ +0) (d ≢ +0) (f ≢ +0) (a * d ≡ c * b) ⊦ a * f * d * f + e * d * b * f = c * f * b * f + e * d * b * f : ℚ
+  //By right cancellation property of addition
+  (a b c d e f : ℤ) (b ≢ +0) (d ≢ +0) (f ≢ +0) (a * d ≡ c * b) ⊦ a * f * d * f = c * f * b * f : ℚ
+  //By commutative and associative properties of multiplication
+  (a b c d e f : ℤ) (b ≢ +0) (d ≢ +0) (f ≢ +0) (a * d ≡ c * b) ⊦ a * d * (f * f) = c * b * (f * f) : ℚ
+  //By right cancellation property of multiplication
+  (a b c d e f : ℤ) (b ≢ +0) (d ≢ +0) (f ≢ +0) (a * d ≡ c * b) ⊦ a * d = c * b : ℚ
+  //By hypothesis ∎
+
+
+(p q : ℚ) ⊦ (p * q) : ℚ
+∎
+//By induction on p
+* (a b : ℤ) (b ≢ 0) (q : ℚ) ⊦ (a÷b * q) : ℚ
+  //By induction on q
+  * (a b c d : ℤ) (b ≢ 0) (d ≢ 0) ⊦ (a÷b * c÷d) ≔ (a * c)÷(b * d) : ℚ
+  * (a b : ℤ) (c₀ d₀ c₁ d₁) (b ≢ 0) (d₀ ≢ 0) (d₁ ≢ 0) (c₀ * d₁ ≡ c₁ * d₀) ⊦ (a÷b * c₀÷d₀) ≡ (a÷b * c₁÷d₁)
+    (a b : ℤ) (c₀ d₀ c₁ d₁) (b ≢ 0) (d₀ ≢ 0) (d₁ ≢ 0) (c₀ * d₁ ≡ c₁ * d₀) ⊦ (a * c₀)÷(b * d₀) ≡ (a * c₁)÷(b * d₁)
+    //It's enough to show
+    (a b : ℤ) (c₀ d₀ c₁ d₁) (b ≢ 0) (d₀ ≢ 0) (d₁ ≢ 0) (c₀ * d₁ ≡ c₁ * d₀) ⊦ (a * c₀) * (b * d₁) ≡ (a * c₁) * (b * d₀)
+    (a b : ℤ) (c₀ d₀ c₁ d₁) (b ≢ 0) (d₀ ≢ 0) (d₁ ≢ 0) (c₀ * d₁ ≡ c₁ * d₀) ⊦ (a * b) * (c₀ * d₁) ≡ (a * b) * (c₁ * d₀)
+    (a b : ℤ) (c₀ d₀ c₁ d₁) (b ≢ 0) (d₀ ≢ 0) (d₁ ≢ 0) (c₀ * d₁ ≡ c₁ * d₀) ⊦ c₀ * d₁ ≡ c₁ * d₀
+    //Trivial
+* (a₀ b₀ a₁ b₁ : ℤ) (b₀ ≢ 0) (b₁ ≢ 0) (a₀ * b₁ ≡ a₁ * b₀) (q : ℚ) ⊦ (a₀÷b₀ * q) ≡ (a₁÷b₁ * q)
+  //By induction on q
+  * (a₀ b₀ a₁ b₁ c d : ℤ) (b₀ ≢ 0) (b₁ ≢ 0) (d ≢ 0) (a₀ * b₁ ≡ a₁ * b₀) ⊦ (a₀÷b₀ * c÷d) ≡ (a₁÷b₁ * c÷d)
+    (a₀ b₀ a₁ b₁ c d : ℤ) (b₀ ≢ 0) (b₁ ≢ 0) (d ≢ 0) (a₀ * b₁ ≡ a₁ * b₀) ⊦ (a₀ * c)÷(b₀ * d) ≡ (a₁ * c)÷(b₁ * d)
+    //It's enough to show
+    (a₀ b₀ a₁ b₁ c d : ℤ) (b₀ ≢ 0) (b₁ ≢ 0) (d ≢ 0) (a₀ * b₁ ≡ a₁ * b₀) ⊦ (a₀ * c) * (b₁ * d) ≡ (a₁ * c) * (b₀ * d)
+    (a₀ b₀ a₁ b₁ c d : ℤ) (b₀ ≢ 0) (b₁ ≢ 0) (d ≢ 0) (a₀ * b₁ ≡ a₁ * b₀) ⊦ (c * d) * (a₀ * b₁) ≡ (c * d) * (a₁ * b₀)
+    (a₀ b₀ a₁ b₁ c d : ℤ) (b₀ ≢ 0) (b₁ ≢ 0) (d ≢ 0) (a₀ * b₁ ≡ a₁ * b₀) ⊦ (a₀ * b₁) ≡ (a₁ * b₀)
+    //Trivial ∎
+
+//Right cancellation property of ℚ
+(a b k : ℤ) (b ≢ +0) (k ≢ +0) ⊦ (a * k)÷(b * k) ≡ a÷b
+∎
+//By definition of ℤ, it's enough to show
+(a b k : ℤ) (b ≢ +0) (k ≢ +0) ⊦ (a * k) * b ≡ a * (b * k)
+(a b k : ℤ) (b ≢ +0) (k ≢ +0) ⊦ (a * b) * k ≡ (a * b) * k
+//Trivial ∎

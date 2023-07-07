@@ -1,0 +1,11 @@
+wk-elem gamma ty id
+inst-ctx-empty gamma
+inst-pi ty X A Y
+inst-universe X
+inst-exp Y A B
+inst-el A A
+inst-el B B
+inst-ctx-var A A
+inst-ctx-var B A
+id
+exit

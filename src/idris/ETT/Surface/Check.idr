@@ -1,15 +1,15 @@
-module ExtTT.Surface.Check
+module ETT.Surface.Check
 
 import Data.Location
 import Data.List1
 
 import Control.Monad.FailSt
 
-import ExtTT.Core.Language
-import ExtTT.Core.Substitution
-import ExtTT.Core.Conversion
+import ETT.Core.Language
+import ETT.Core.Substitution
+import ETT.Core.Conversion
 
-import ExtTT.Surface.Language
+import ETT.Surface.Language
 
 -- Σ ⊦ Γ ctx
 -- ----------------------
@@ -41,10 +41,10 @@ import ExtTT.Surface.Language
 -- -------------------------------------------
 -- ⟦Σ | Γ ⊦ a₀ ≡ a₁ ∈ A ~> a₀' ≡ a₁' ∈ A' type⟧
 
-{- CoreTypE = ExtTT.Core.Language.C.TypE
-CoreElem = ExtTT.Core.Language.D.Elem
-SurfaceTerm = ExtTT.Surface.Language.Term
-%hide ExtTT.Surface.Language.VarName
+{- CoreTypE = ETT.Core.Language.C.TypE
+CoreElem = ETT.Core.Language.D.Elem
+SurfaceTerm = ETT.Surface.Language.Term
+%hide ETT.Surface.Language.VarName
 
 
 mkErrorMsg : Range -> String -> String

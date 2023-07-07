@@ -1,4 +1,4 @@
-module ExtTT.Core.VarName
+module ETT.Core.VarName
 
 public export
 VarName : Type

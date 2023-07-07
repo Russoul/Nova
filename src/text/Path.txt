@@ -1,0 +1,56 @@
+
+
+y - - - x
+|       |
+|       |
+x - - - x
+
+(x y : A) (p : x ≡ y) ⊦ p⁻¹ : y ≡ x
+∎
+p⁻¹ ≔ i ↦ com j. A 0 1 ∂(i) [i = 0 ↪ p j | i = 1 ↪ x | j = 0 ↪ x] ∎
+
+(x y : A) ⊦ (x ≡ y) ≃ (y ≡ x)
+∎
+//It's enough to show
+//f : (x ≡ y) → (y ≡ x)
+//such that
+//IsEquiv f
+//Take f ≔ (p ↦ p⁻¹)
+//We need to show IsEquiv (p ↦ p⁻¹)
+//That is
+(p : y ≡ x) ⊦ Contr(Fibre(_⁻¹, p))
+//That is
+(p : y ≡ x) ⊦ Contr((q : x ≡ y) ⨯ (q⁻¹ ≡ p))
+(p : y ≡ x) ⊦ c : (q : x ≡ y) ⨯ (q⁻¹ ≡ p)
+(p : y ≡ x) ⊦ (o : (q : x ≡ y) ⨯ (q⁻¹ ≡ p)) → o ≡ c
+
+//Take c ≔ (p⁻¹, DoubleInverseLemma(p) : (p⁻¹)⁻¹ ≡ p)
+//Hence we need to show:
+(p : y ≡ x) ⊦ (o : (q : x ≡ y) ⨯ (q⁻¹ ≡ p)) → o ≡ c
+//Which is equivalent to
+(p : y ≡ x) (q : x ≡ y) (d : q⁻¹ ≡ p) ⊦ (q, d) ≡ (p⁻¹, DoubleInverseLemma(p))
+//Which is equivalent to
+* (p : y ≡ x) (q : x ≡ y) (d : q⁻¹ ≡ p) ⊦ A : q ≡ p⁻¹
+  //cong _⁻¹ d : (q⁻¹)⁻¹ ≡ p
+  //DoubleInverseLemma(q)⁻¹ ∙ cong _⁻¹ d : q ≡ p⁻¹
+* (p : y ≡ x) (q : x ≡ y) (d : q⁻¹ ≡ p) ⊦ (transp (X ↦ (X⁻¹ ≡ p)) A d) ≡ DoubleInverseLemma(p)
+                                          cong _⁻¹ A ∙ d ∙ A
+  (p : y ≡ x) (q : x ≡ y) (d : q⁻¹ ≡ p) ⊦ ((cong _⁻¹ A)⁻¹ ∙ d ∙ Refl) ≡ DoubleInverseLemma(p)
+  (p : y ≡ x) (q : x ≡ y) (d : q⁻¹ ≡ p) ⊦ ((cong _⁻¹ A)⁻¹ ∙ d) ≡ DoubleInverseLemma(p)
+  (p : y ≡ x) (q : x ≡ y) (d : q⁻¹ ≡ p) ⊦ ((cong _⁻¹ (DoubleInverseLemma(q)⁻¹ ∙ cong _⁻¹ d))⁻¹ ∙ d) ≡ DoubleInverseLemma(p)
+  (p : y ≡ x) (q : x ≡ y) (d : q⁻¹ ≡ p) ⊦ ((cong _⁻¹ (DoubleInverseLemma(q)⁻¹ ∙ cong _⁻¹ d))⁻¹ ∙ d) ≡ DoubleInverseLemma(p)
+
+
+  //(cong _⁻¹ (DoubleInverseLemma(q)⁻¹ ∙ cong _⁻¹ d))⁻¹ ∙ d
+  //≡
+  //(cong _⁻¹ (DoubleInverseLemma(q)⁻¹) ∙ cong _⁻¹ (cong _⁻¹ d))⁻¹ ∙ d
+  //≡
+  //(cong _⁻¹ (DoubleInverseLemma(q)⁻¹) ∙ d)⁻¹ ∙ d
+  //≡
+  //d⁻¹ ∙ (cong _⁻¹ (DoubleInverseLemma(q)⁻¹))⁻¹ ∙ d
+  //≡
+  //d⁻¹ ∙ (cong _⁻¹ (DoubleInverseLemma(q))) ∙ d
+
+  //By induction on d
+
+  //(cong _⁻¹ (DoubleInverseLemma(q))) ≡ DoubleInverseLemma(q⁻¹)

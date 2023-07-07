@@ -1,0 +1,89 @@
+//Pair-eliminatation
+(X : 𝕌) ((x : A) (y : B) ⊦ f : X) (p : A ⨯ B) ⊦ (⨯)-elim x.y.f p ≔ f(p.π₁, p.π₂) : X
+
+//Notation:
+((x, y) ↦ f(x, y)) ≔ p ↦ (⨯)-elim x.y.f p
+
+//Theorem
+((x : A) (y : B) ⊦ f : C) (a : A) (b : B) ⊦ ((x, y) ↦ f(x, y)) (a, b) ≡ f(a, b) : C
+∎
+//By unfolding notation
+((x : A) (y : B) ⊦ f : C) (a : A) (b : B) ⊦ (p ↦ (⨯)-elim x.y.f p) (a, b) ≡ f(a, b) : C
+//By function elimination
+((x : A) (y : B) ⊦ f : C) (a : A) (b : B) ⊦ (⨯)-elim x.y.f (a, b) ≡ f(a, b) : C
+//By definition
+((x : A) (y : B) ⊦ f : C) (a : A) (b : B) ⊦ f((a, b).π₁, (a, b).π₂) ≡ f(a, b) : C
+//By (⨯)-elimination
+((x : A) (y : B) ⊦ f : C) (a : A) (b : B) ⊦ f(a, b) ≡ f(a, b) : C
+//By reflexivity ∎
+
+//Right-action
+{X : 𝕌} (f : A → B) ⊦ X ⨯ f ≔ (x, y) ↦ (x, f y) : X ⨯ A → X ⨯ B
+
+//Right-action preserves identity
+{X A : 𝕌} ⊦ X ⨯ id ≔ id : X ⨯ A → X ⨯ A
+∎
+//By definition
+{X A : 𝕌} ⊦ ((x, y) ↦ (x, id y)) ≡ id : X ⨯ A → X ⨯ A
+//By definition
+{X A : 𝕌} ⊦ ((x, y) ↦ (x, y)) ≡ id : X ⨯ A → X ⨯ A
+//By function extensionality
+{X A : 𝕌} (p : X ⨯ A) ⊦ ((x, y) ↦ (x, y)) p ≡ id p : X ⨯ A → X ⨯ A
+//By definition
+{X A : 𝕌} (p : X ⨯ A) ⊦ ((x, y) ↦ (x, y)) p ≡ p : X ⨯ A → X ⨯ A
+//By flattening p
+{X A : 𝕌} (x : X) (a : A) ⊦ ((x, y) ↦ (x, y)) (x, a) ≡ (x, a) : X ⨯ A → X ⨯ A
+//By notation definition
+{X A : 𝕌} (x : X) (a : A) ⊦ (p ↦ (⨯)-elim x.y.(x, y) p) (x, a) ≡ (x, a) : X ⨯ A → X ⨯ A
+//By function elimination
+{X A : 𝕌} (x : X) (a : A) ⊦ ((⨯)-elim x.y.(x, y) (x, a)) ≡ (x, a) : X ⨯ A → X ⨯ A
+//By definition
+{X A : 𝕌} (x : X) (a : A) ⊦ ((x, a).π₁, (x, a).π₂) ≡ (x, a) : X ⨯ A → X ⨯ A
+//By (⨯)-elimination
+{X A : 𝕌} (x : X) (a : A) ⊦ (x, a) ≡ (x, a) : X ⨯ A → X ⨯ A
+//By reflexivity ∎
+
+//Right-action preserves composition
+{X A B C : 𝕌} (f : A → B) (g : B → C) ⊦ X ⨯ (g ∘ f) ≡ (X ⨯ g) ∘ (X ⨯ f) : X ⨯ A → X ⨯ C
+∎
+//By definition
+{X A B C : 𝕌} (f : A → B) (g : B → C) ⊦ (x, y) ↦ (x, (g ∘ f) y) ≡ ((x, y) ↦ (x, g y)) ∘ ((x, y) ↦ (x, f y)) : X ⨯ A → X ⨯ C
+//By function extensionality and flattening
+{X A B C : 𝕌} (f : A → B) (g : B → C) (x : X) (a : A)
+⊦
+((x, y) ↦ (x, (g ∘ f) y)) (x, a)
+≡
+(((x, y) ↦ (x, g y)) ∘ ((x, y) ↦ (x, f y))) (x, a)
+: X ⨯ C
+//
+{X A B C : 𝕌} (f : A → B) (g : B → C) (x : X) (a : A)
+⊦
+((x, (g ∘ f) a))
+≡
+(((x, y) ↦ (x, g y)) ∘ ((x, y) ↦ (x, f y))) (x, a)
+: X ⨯ C
+//By definition
+{X A B C : 𝕌} (f : A → B) (g : B → C) (x : X) (a : A)
+⊦
+((x, (g ∘ f) a))
+≡
+((x, y) ↦ (x, g y)) (((x, y) ↦ (x, f y)) (x, a))
+: X ⨯ C
+//
+{X A B C : 𝕌} (f : A → B) (g : B → C) (x : X) (a : A)
+⊦
+((x, (g ∘ f) a))
+≡
+((x, y) ↦ (x, g y)) (x, f a)
+: X ⨯ C
+//
+{X A B C : 𝕌} (f : A → B) (g : B → C) (x : X) (a : A)
+⊦
+(x, g (f a))
+≡
+(x, g (f a))
+: X ⨯ C
+//By reflexivity ∎
+
+
+//Right-action is an endofunctor functor on 𝕌 seen as category

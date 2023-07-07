@@ -1,0 +1,464 @@
+//Isomorphism of types
+(A B : 𝕌) ⊦ (A ≅ B) ≔ (f : A → B) ⨯ (g : B → A) ⨯ (f ∘ g ≡ id) ⨯ (g ∘ f ≡ id)
+
+//Isomorphism is reflexive
+{A : 𝕌} ⊦ id : (A ≅ A)
+∎
+* (A : 𝕌) ⊦ f ≔ id : A → A
+* (A : 𝕌) ⊦ g ≔ id : A → A
+* (A : 𝕌) ⊦ f ∘ g ≡ id
+  //By definition
+  (A : 𝕌) ⊦ id ∘ id ≡ id
+  //By id left unit
+  (A : 𝕌) ⊦ id ≡ id
+  //By reflexivity
+* (A : 𝕌) ⊦ g ∘ f ≡ id
+  //By definition
+  (A : 𝕌) ⊦ id ∘ id ≡ id
+  //By id left unit
+  (A : 𝕌) ⊦ id ≡ id
+  //By reflexivity ∎
+
+//Isomorphism is symmetric
+{A B : 𝕌} (I : A ≅ B) ⊦ I⁻¹ : (B ≅ A)
+∎
+* (A B : 𝕌) (I : A ≅ B) ⊦ f : B → A
+  //By definition of I
+  (A B : 𝕌) (f : A → B) (g : B → A) (f ∘ g ≡ id) (g ∘ f ≡ id) ⊦ ?f ≔ g : B → A
+* (A B : 𝕌) (I : A ≅ B) ⊦ ?g : A → B
+  //By definition of I
+  (A B : 𝕌) (f : A → B) (g : B → A) (f ∘ g ≡ id) (g ∘ f ≡ id) ⊦ ?g ≔ f : A → B
+* (A B : 𝕌) (I : A ≅ B) ⊦ ?f ∘ ?g ≡ id
+  //By definition
+  (A B : 𝕌) (f : A → B) (g : B → A) (f ∘ g ≡ id) (g ∘ f ≡ id) ⊦ g ∘ f ≡ id
+  //By hypothesis
+* (A B : 𝕌) (I : A ≅ B) ⊦ ?g ∘ ?f ≡ id
+  //By definition
+  (A B : 𝕌) (f : A → B) (g : B → A) (f ∘ g ≡ id) (g ∘ f ≡ id) ⊦ f ∘ g ≡ id
+  //By hypothesis ∎
+
+//Isomorphism is transitive
+{A B C : 𝕌} (I : A ≅ B) (J : B ≅ C) ⊦ J ∘ I : (A ≅ C)
+∎
+//By definition
+{A B C : 𝕌}
+(f : A → B) (f⁻¹ : B → A) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id)
+(g : B → C) (g⁻¹ : C → B) (g ∘ g⁻¹ ≡ id) (g⁻¹ ∘ g ≡ id)
+⊦
+A ≅ C
+//By definition of iso
+
+  {A B C : 𝕌}
+* (f : A → B) (f⁻¹ : B → A) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id)
+  (g : B → C) (g⁻¹ : C → B) (g ∘ g⁻¹ ≡ id) (g⁻¹ ∘ g ≡ id)
+  ⊦
+  ?f ≔ g ∘ f : A → C
+
+
+  {A B C : 𝕌}
+* (f : A → B) (f⁻¹ : B → A) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id)
+  (g : B → C) (g⁻¹ : C → B) (g ∘ g⁻¹ ≡ id) (g⁻¹ ∘ g ≡ id)
+  ⊦
+  ?g ≔ f⁻¹ ∘ g⁻¹ : C → A
+
+  {A B C : 𝕌}
+* (f : A → B) (f⁻¹ : B → A) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id)
+  (g : B → C) (g⁻¹ : C → B) (g ∘ g⁻¹ ≡ id) (g⁻¹ ∘ g ≡ id)
+  ⊦
+  ?f ∘ ?g ≡ id
+
+  //By definition
+
+  {A B C : 𝕌}
+  (f : A → B) (f⁻¹ : B → A) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id)
+  (g : B → C) (g⁻¹ : C → B) (g ∘ g⁻¹ ≡ id) (g⁻¹ ∘ g ≡ id)
+  ⊦
+  (g ∘ f) ∘ (f⁻¹ ∘ g⁻¹) ≡ id
+
+  {A B C : 𝕌}
+  (f : A → B) (f⁻¹ : B → A) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id)
+  (g : B → C) (g⁻¹ : C → B) (g ∘ g⁻¹ ≡ id) (g⁻¹ ∘ g ≡ id)
+  ⊦
+  g ∘ (f ∘ f⁻¹) ∘ g⁻¹ ≡ id
+
+  {A B C : 𝕌}
+  (f : A → B) (f⁻¹ : B → A) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id)
+  (g : B → C) (g⁻¹ : C → B) (g ∘ g⁻¹ ≡ id) (g⁻¹ ∘ g ≡ id)
+  ⊦
+  g ∘ id ∘ g⁻¹ ≡ id
+
+  {A B C : 𝕌}
+  (f : A → B) (f⁻¹ : B → A) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id)
+  (g : B → C) (g⁻¹ : C → B) (g ∘ g⁻¹ ≡ id) (g⁻¹ ∘ g ≡ id)
+  ⊦
+  g ∘ g⁻¹ ≡ id
+
+  {A B C : 𝕌}
+  (f : A → B) (f⁻¹ : B → A) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id)
+  (g : B → C) (g⁻¹ : C → B) (g ∘ g⁻¹ ≡ id) (g⁻¹ ∘ g ≡ id)
+  ⊦
+  id ≡ id
+
+  //By reflexivity
+
+  {A B C : 𝕌}
+* (f : A → B) (f⁻¹ : B → A) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id)
+  (g : B → C) (g⁻¹ : C → B) (g ∘ g⁻¹ ≡ id) (g⁻¹ ∘ g ≡ id)
+  ⊦
+  (f⁻¹ ∘ g⁻¹) ∘ (g ∘ f) ≡ id
+
+  {A B C : 𝕌}
+  (f : A → B) (f⁻¹ : B → A) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id)
+  (g : B → C) (g⁻¹ : C → B) (g ∘ g⁻¹ ≡ id) (g⁻¹ ∘ g ≡ id)
+  ⊦
+  f⁻¹ ∘ (g⁻¹ ∘ g) ∘ f ≡ id
+
+  {A B C : 𝕌}
+  (f : A → B) (f⁻¹ : B → A) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id)
+  (g : B → C) (g⁻¹ : C → B) (g ∘ g⁻¹ ≡ id) (g⁻¹ ∘ g ≡ id)
+  ⊦
+  f⁻¹ ∘ id ∘ f ≡ id
+
+  {A B C : 𝕌}
+  (f : A → B) (f⁻¹ : B → A) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id)
+  (g : B → C) (g⁻¹ : C → B) (g ∘ g⁻¹ ≡ id) (g⁻¹ ∘ g ≡ id)
+  ⊦
+  f⁻¹ ∘ f ≡ id
+
+  {A B C : 𝕌}
+  (f : A → B) (f⁻¹ : B → A) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id)
+  (g : B → C) (g⁻¹ : C → B) (g ∘ g⁻¹ ≡ id) (g⁻¹ ∘ g ≡ id)
+  ⊦
+  id ≡ id
+
+  //By reflexivity ∎
+
+//Iso inverse unit
+id⁻¹ ≡ id : A ≅ A
+∎
+//By definition
+(id, id, *, *)⁻¹ ≡ (id, id, *, *) : A ≅ A
+//By definition
+(id, id, *, *) ≡ (id, id, *, *) : A ≅ A
+//By reflexivity ∎
+
+//Iso composition left unit
+id ∘ I ≡ I : A ≅ B
+∎
+//By uniqueness of Σ
+id ∘ (I.π₁, I.π₂.π₁, I.π₂.π₂.π₁, I.π₂.π₂.π₂) ≡ (I.π₁, I.π₂.π₁, I.π₂.π₂.π₁, I.π₂.π₂.π₂) : A ≅ B
+//By definition of id
+(id, id, *, *) ∘ (I.π₁, I.π₂.π₁, I.π₂.π₂.π₁, I.π₂.π₂.π₂) ≡ (I.π₁, I.π₂.π₁, I.π₂.π₂.π₁, I.π₂.π₂.π₂) : A ≅ B
+//By uniqueness of (≡)
+(id, id, *, *) ∘ (I.π₁, I.π₂.π₁, *, *) ≡ (I.π₁, I.π₂.π₁, *, *) : A ≅ B
+//By definition of (∘)
+(id ∘ I.π₁, I.π₂.π₁ ∘ id, *, *) ≡ (I.π₁, I.π₂.π₁, *, *) : A ≅ B
+//By composition left unit
+(I.π₁, I.π₂.π₁ ∘ id, *, *) ≡ (I.π₁, I.π₂.π₁, *, *) : A ≅ B
+//By composition right unit
+(I.π₁, I.π₂.π₁, *, *) ≡ (I.π₁, I.π₂.π₁, *, *) : A ≅ B
+//By reflexivity ∎
+
+//Iso composition right unit
+I ∘ id ≡ I : A ≅ B
+∎
+//By uniqueness of Σ
+(I.π₁, I.π₂.π₁, I.π₂.π₂.π₁, I.π₂.π₂.π₂) ∘ id ≡ (I.π₁, I.π₂.π₁, I.π₂.π₂.π₁, I.π₂.π₂.π₂) : A ≅ B
+//By uniqueness of (≡)
+(I.π₁, I.π₂.π₁, *, *) ∘ id ≡ (I.π₁, I.π₂.π₁, *, *) : A ≅ B
+//By definition of (∘)
+(I.π₁ ∘ id, id ∘ I.π₂.π₁, *, *) ≡ (I.π₁, I.π₂.π₁, *, *) : A ≅ B
+//By left and right unit of composition
+(I.π₁, I.π₂.π₁, *, *) ≡ (I.π₁, I.π₂.π₁, *, *) : A ≅ B
+//By reflexivity ∎
+
+//Iso composition associative
+(I : A ≅ B) (J : B ≅ C) (K : C ≅ D) ⊦ K ∘ (J ∘ I) ≡ (K ∘ J) ∘ I : A ≅ D
+∎
+//By uniqueness of Σ
+(I : A ≅ B) (J : B ≅ C) (K : C ≅ D)
+⊦
+(K.π₁, K.π₂.π₁, K.π₂.π₂.π₁, K.π₂.π₂.π₂) ∘ ((J.π₁, J.π₂.π₁, J.π₂.π₂.π₁, J.π₂.π₂.π₂) ∘ (I.π₁, I.π₂.π₁, I.π₂.π₂.π₁, I.π₂.π₂.π₂))
+≡
+((K.π₁, K.π₂.π₁, K.π₂.π₂.π₁, K.π₂.π₂.π₂) ∘ (J.π₁, J.π₂.π₁, J.π₂.π₂.π₁, J.π₂.π₂.π₂)) ∘ (I.π₁, I.π₂.π₁, I.π₂.π₂.π₁, I.π₂.π₂.π₂)
+:
+A ≅ D
+//By uniqueness of (≡)
+(I : A ≅ B) (J : B ≅ C) (K : C ≅ D)
+⊦
+(K.π₁, K.π₂.π₁, *, *) ∘ ((J.π₁, J.π₂.π₁, *, *) ∘ (I.π₁, I.π₂.π₁, *, *))
+≡
+((K.π₁, K.π₂.π₁, *, *) ∘ (J.π₁, J.π₂.π₁, *, *)) ∘ (I.π₁, I.π₂.π₁, *, *)
+:
+A ≅ D
+//By definition
+(K.π₁, K.π₂.π₁, *, *) ∘ ((J.π₁ ∘ I.π₁, I.π₂.π₁ ∘ J.π₂.π₁, *, *))
+≡
+((K.π₁ ∘ J.π₁, J.π₂.π₁ ∘ K.π₂.π₁, *, *)) ∘ (I.π₁, I.π₂.π₁, *, *)
+:
+A ≅ D
+//By definition
+(K.π₁ ∘ (J.π₁ ∘ I.π₁), (I.π₂.π₁ ∘ J.π₂.π₁) ∘ K.π₂.π₁, *, *)
+≡
+((K.π₁ ∘ J.π₁) ∘ I.π₁, I.π₂.π₁ ∘ (J.π₂.π₁ ∘ K.π₂.π₁), *, *)
+:
+A ≅ D
+//By associativity of function composition
+((K.π₁ ∘ J.π₁) ∘ I.π₁, (I.π₂.π₁ ∘ J.π₂.π₁) ∘ K.π₂.π₁, *, *)
+≡
+((K.π₁ ∘ J.π₁) ∘ I.π₁, (I.π₂.π₁ ∘ J.π₂.π₁) ∘ K.π₂.π₁, *, *)
+:
+A ≅ D
+//By reflexivity ∎
+
+//𝕌 is a groupoid
+//* Objects are A : 𝕌
+//* Given A B : 𝕌
+//  morphisms between A and B are (A ≅ B)
+//* Given A : 𝕌
+//  id : A ≅ A
+//* Given I : A ≅ B
+//        J : B ≅ C
+//  composition of morphisms (J ∘ I) is composition of isos
+//* Given I : A ≅ B
+//  The inverse morphism I⁻¹ is the inverse of iso
+//* Iso inverse unit law
+//* Iso composition left and right unit laws
+//* Iso composition is associative
+
+//Iso post-composition
+(A B₀ B₁ : 𝕌) (I : B₀ ≅ B₁) ⊦ (A → I) : (A → B₀) ≅ (A → B₁)
+∎
+(A B₀ B₁ : 𝕌) (f : B₀ → B₁) (f⁻¹ : B₁ → B₀) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id) ⊦ (A → B₀) ≅ (A → B₁)
+* (A B₀ B₁ : 𝕌) (f : B₀ → B₁) (f⁻¹ : B₁ → B₀) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id) ⊦ ?f ≔ (A → f) : (A → B₀) → (A → B₁)
+* (A B₀ B₁ : 𝕌) (f : B₀ → B₁) (f⁻¹ : B₁ → B₀) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id) ⊦ ?g ≔ (A → f⁻¹) : (A → B₁) → (A → B₀)
+* (A B₀ B₁ : 𝕌) (f : B₀ → B₁) (f⁻¹ : B₁ → B₀) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id) ⊦ ?f ∘ ?g ≡ id
+  //By definition
+  (A B₀ B₁ : 𝕌) (f : B₀ → B₁) (f⁻¹ : B₁ → B₀) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id) ⊦ (A → f) ∘ (A → f⁻¹) ≡ id
+  //By functoriality of post-composition
+  (A B₀ B₁ : 𝕌) (f : B₀ → B₁) (f⁻¹ : B₁ → B₀) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id) ⊦ (A → f ∘ f⁻¹) ≡ id
+  //By hypothesis
+  (A B₀ B₁ : 𝕌) (f : B₀ → B₁) (f⁻¹ : B₁ → B₀) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id) ⊦ (A → id) ≡ id
+  //By functoriality of post-composition
+  (A B₀ B₁ : 𝕌) (f : B₀ → B₁) (f⁻¹ : B₁ → B₀) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id) ⊦ id ≡ id
+  //By reflexivity
+* (A B₀ B₁ : 𝕌) (f : B₀ → B₁) (f⁻¹ : B₁ → B₀) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id) ⊦ ?g ∘ ?f ≡ id
+  //By definition
+  (A B₀ B₁ : 𝕌) (f : B₀ → B₁) (f⁻¹ : B₁ → B₀) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id) ⊦ (A → f⁻¹) ∘ (A → f) ≡ id
+  //By functoriality of post-composition
+  (A B₀ B₁ : 𝕌) (f : B₀ → B₁) (f⁻¹ : B₁ → B₀) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id) ⊦ (A → f⁻¹ ∘ f) ≡ id
+  //By hypothesis
+  (A B₀ B₁ : 𝕌) (f : B₀ → B₁) (f⁻¹ : B₁ → B₀) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id) ⊦ (A → id) ≡ id
+  //By functoriality of post-composition
+  (A B₀ B₁ : 𝕌) (f : B₀ → B₁) (f⁻¹ : B₁ → B₀) (f ∘ f⁻¹ ≡ id) (f⁻¹ ∘ f ≡ id) ⊦ id ≡ id ∎
+
+//Iso post-composition preserves identity
+{X A : 𝕌} ⊦ (X → id) ≡ id : (X → A) ≅ (X → A)
+∎
+//By definition
+{X A : 𝕌} ⊦ ((X → id), (X → id), *, *) ≡ id : (X → A) ≅ (X → A)
+//By functoriality of post-composition functor
+{X A : 𝕌} ⊦ (id, id, *, *) ≡ id : (X → A) ≅ (X → A)
+//By definition
+{X A : 𝕌} ⊦ (id, id, *, *) ≡ (id, id, *, *) : (X → A) ≅ (X → A)
+//By reflexivity ∎
+
+//Iso post-composition preserves composition
+{X A : 𝕌} (I : A ≅ B) (J : B ≅ C) ⊦ (X → (J ∘ I)) ≡ (X → J) ∘ (X → I) : (X → A) ≅ (X → C)
+∎
+//By definition iso-composition
+{X A : 𝕌} (I : A ≅ B) (J : B ≅ C)
+⊦
+(X → (J.π₁ ∘ I.π₁, I.π₂.π₁ ∘ J.π₂.π₁, *, *))
+≡
+((X → J).π₁ ∘ (X → I).π₁, (X → I).π₂.π₁ ∘ (X → J).π₂.π₂, *, *)
+:
+(X → A) ≅ (X → C)
+//By definition
+(X → (J.π₁ ∘ I.π₁, I.π₂.π₁ ∘ J.π₂.π₁, *, *))
+≡
+((X → J.π₁) ∘ (X → I.π₁), (X → I.π₂.π₁) ∘ (X → J.π₂.π₂), *, *)
+:
+(X → A) ≅ (X → C)
+//
+(X → J.π₁ ∘ I.π₁, X → I.π₂.π₁ ∘ J.π₂.π₁, *, *)
+≡
+((X → J.π₁) ∘ (X → I.π₁), (X → I.π₂.π₁) ∘ (X → J.π₂.π₂), *, *)
+:
+(X → A) ≅ (X → C)
+//By functoriality of post-composition functor
+(X → J.π₁ ∘ I.π₁, X → I.π₂.π₁ ∘ J.π₂.π₁, *, *)
+≡
+(X → J.π₁ ∘ I.π₁, X → I.π₂.π₁ ∘ J.π₂.π₂, *, *)
+:
+(X → A) ≅ (X → C)
+//By reflexivity ∎
+
+//Iso post-composition preserves inverse
+{X A B : 𝕌} (I : A ≅ B) ⊦ (X → I⁻¹) ≡ (X → I)⁻¹ : (X → B) ≅ (X → A)
+∎
+//By uniqueness of Σ
+{X A B : 𝕌} (I : A ≅ B) ⊦ (X → (I.π₁, I.π₂.π₁, *, *)⁻¹) ≡ (X → (I.π₁, I.π₂.π₁, *, *))⁻¹ : (X → B) ≅ (X → A)
+//By definition of inverse
+{X A B : 𝕌} (I : A ≅ B) ⊦ (X → (I.π₂.π₁, I.π₁, *, *)) ≡ (X → (I.π₁, I.π₂.π₁, *, *))⁻¹ : (X → B) ≅ (X → A)
+//By definition of post-composition endo-functor on 𝕌-groupoid
+{X A B : 𝕌} (I : A ≅ B) ⊦ (X → I.π₂.π₁, X → I.π₁, *, *) ≡ (X → I.π₁, X → I.π₂.π₁, *, *)⁻¹ : (X → B) ≅ (X → A)
+//By definition of inverse
+{X A B : 𝕌} (I : A ≅ B) ⊦ (X → I.π₂.π₁, X → I.π₁, *, *) ≡ (X → I.π₂.π₁, X → I.π₁, *, *) : (X → B) ≅ (X → A)
+//By reflexivity ∎
+
+//Iso post-composition is an endo-functor on 𝕌 seen as groupoid
+//* It preserves identity
+//* It preserves composition
+//* It preserves inverse
+
+//Iso right-action
+(A B₀ B₁ : 𝕌) (I : B₀ ≅ B₁) ⊦ (A ⨯ I) : (A ⨯ B₀) ≅ (A ⨯ B₁)
+∎
+//It's enough to define
+* (A B₀ B₁ : 𝕌) (I : B₀ ≅ B₁) ⊦ ?f ≔ A ⨯ I.π₁ : (A ⨯ B₀) → (A ⨯ B₁)
+* (A B₀ B₁ : 𝕌) (I : B₀ ≅ B₁) ⊦ ?g ≔ A ⨯ I.π₂.π₁ : (A ⨯ B₁) → (A ⨯ B₀)
+* (A B₀ B₁ : 𝕌) (I : B₀ ≅ B₁) ⊦ ?f ∘ ?g ≡ id
+  //By definition
+  (A B₀ B₁ : 𝕌) (I : B₀ ≅ B₁) ⊦ (A ⨯ I.π₁) ∘ (A ⨯ I.π₂.π₁) ≡ id
+  //By functoriality of right-action
+  (A B₀ B₁ : 𝕌) (I : B₀ ≅ B₁) ⊦ (A ⨯ (I.π₁ ∘ I.π₂.π₁)) ≡ id
+  //By hypothesis
+  (A B₀ B₁ : 𝕌) (I : B₀ ≅ B₁) ⊦ (A ⨯ id) ≡ id
+  //By functoriality of right-action
+  (A B₀ B₁ : 𝕌) (I : B₀ ≅ B₁) ⊦ id ≡ id
+  //By reflexivity
+* (A B₀ B₁ : 𝕌) (I : B₀ ≅ B₁) ⊦ ?g ∘ ?f ≡ id
+  //By definition
+  (A B₀ B₁ : 𝕌) (I : B₀ ≅ B₁) ⊦ (A ⨯ I.π₂.π₁) ∘ (A ⨯ I.π₁) ≡ id
+  //By functoriality of right-action
+  (A B₀ B₁ : 𝕌) (I : B₀ ≅ B₁) ⊦ (A ⨯ (I.π₂.π₁ ∘ I.π₁)) ≡ id
+  //By hypothesis
+  (A B₀ B₁ : 𝕌) (I : B₀ ≅ B₁) ⊦ (A ⨯ id) ≡ id
+  //By functoriality of right-action
+  (A B₀ B₁ : 𝕌) (I : B₀ ≅ B₁) ⊦ id ≡ id
+  //By reflexivity ∎
+
+//Iso right-action preserves identity
+(X A : 𝕌) ⊦ (X ⨯ id) ≡ id : (X ⨯ A) ≅ (X ⨯ A)
+∎
+//By definition
+(X A : 𝕌) ⊦ (X ⨯ id, X ⨯ id, *, *) ≡ (id, id, *, *) : (X ⨯ A) ≅ (X ⨯ A)
+//By functoriality of right-action
+(X A : 𝕌) ⊦ (id, id, *, *) ≡ (id, id, *, *) : (X ⨯ A) ≅ (X ⨯ A)
+//By reflexivity ∎
+
+//Iso right-action preserves inverse
+(X A B : 𝕌) (I : A ≅ B) ⊦ (X ⨯ I⁻¹) ≡ (X ⨯ I)⁻¹ : (X ⨯ B) ≅ (X ⨯ A)
+∎
+//By definition
+(X A B : 𝕌) (I : A ≅ B) ⊦ (X ⨯ I⁻¹.π₁, X ⨯ I⁻¹.π₂.π₁, *, *) ≡ ((X ⨯ I).π₂.π₁, (X ⨯ I).π₁, *, *) : (X ⨯ B) ≅ (X ⨯ A)
+//
+(X A B : 𝕌) (I : A ≅ B) ⊦
+(X ⨯ (I.π₂.π₁, I.π₁, *, *).π₁, X ⨯ (I.π₂.π₁, I.π₁, *, *).π₂.π₁, *, *)
+≡
+((X ⨯ I).π₂.π₁, (X ⨯ I).π₁, *, *)
+:
+(X ⨯ B) ≅ (X ⨯ A)
+//
+(X A B : 𝕌) (I : A ≅ B) ⊦
+(X ⨯ I.π₂.π₁, X ⨯ I.π₁, *, *)
+≡
+((X ⨯ I).π₂.π₁, (X ⨯ I).π₁, *, *)
+:
+(X ⨯ B) ≅ (X ⨯ A)
+//
+(X A B : 𝕌) (I : A ≅ B) ⊦
+(X ⨯ I.π₂.π₁, X ⨯ I.π₁, *, *)
+≡
+(X ⨯ I.π₂.π₁, (X ⨯ I).π₁, *, *)
+:
+(X ⨯ B) ≅ (X ⨯ A)
+//
+(X A B : 𝕌) (I : A ≅ B) ⊦
+(X ⨯ I.π₂.π₁, X ⨯ I.π₁, *, *)
+≡
+(X ⨯ I.π₂.π₁, X ⨯ I.π₁, *, *)
+:
+(X ⨯ B) ≅ (X ⨯ A)
+//By reflexivity ∎
+
+//Iso right-action preserves composition
+(X A B C) (I : A ≅ B) (J : B ≅ C) ⊦ (X ⨯ (J ∘ I)) ≡ (X ⨯ J) ∘ (X ⨯ I) : (X ⨯ A) ≅ (X ⨯ C)
+∎
+(X A B C)
+(I : A → B) (I⁻¹ : B → A) (I ∘ I⁻¹ ≡ id) (I⁻¹ ∘ I ≡ id)
+(J : B → C) (J⁻¹ : C → B) (J ∘ J⁻¹ ≡ id) (J⁻¹ ∘ J ≡ id)
+⊦
+(X ⨯ ((J, J⁻¹, *, *) ∘ (I, I⁻¹, *, *))) ≡ (X ⨯ (J, J⁻¹, *, *)) ∘ (X ⨯ (I, I⁻¹, *, *)) : (X ⨯ A) ≅ (X ⨯ C)
+//
+(X A B C)
+(I : A → B) (I⁻¹ : B → A) (I ∘ I⁻¹ ≡ id) (I⁻¹ ∘ I ≡ id)
+(J : B → C) (J⁻¹ : C → B) (J ∘ J⁻¹ ≡ id) (J⁻¹ ∘ J ≡ id)
+⊦
+(X ⨯ ((J, J⁻¹, *, *) ∘ (I, I⁻¹, *, *))) ≡ (X ⨯ J, X ⨯ J⁻¹, *, *) ∘ (X ⨯ I, X ⨯ I⁻¹, *, *) : (X ⨯ A) ≅ (X ⨯ C)
+//
+(X A B C)
+(I : A → B) (I⁻¹ : B → A) (I ∘ I⁻¹ ≡ id) (I⁻¹ ∘ I ≡ id)
+(J : B → C) (J⁻¹ : C → B) (J ∘ J⁻¹ ≡ id) (J⁻¹ ∘ J ≡ id)
+⊦
+(X ⨯ (J ∘ I, I⁻¹ ∘ J⁻¹, *, *)) ≡ (X ⨯ J, X ⨯ J⁻¹, *, *) ∘ (X ⨯ I, X ⨯ I⁻¹, *, *) : (X ⨯ A) ≅ (X ⨯ C)
+//
+(X A B C)
+(I : A → B) (I⁻¹ : B → A) (I ∘ I⁻¹ ≡ id) (I⁻¹ ∘ I ≡ id)
+(J : B → C) (J⁻¹ : C → B) (J ∘ J⁻¹ ≡ id) (J⁻¹ ∘ J ≡ id)
+⊦
+(X ⨯ (J ∘ I), X ⨯ (I⁻¹ ∘ J⁻¹), *, *) ≡ (X ⨯ J, X ⨯ J⁻¹, *, *) ∘ (X ⨯ I, X ⨯ I⁻¹, *, *) : (X ⨯ A) ≅ (X ⨯ C)
+//
+(X A B C)
+(I : A → B) (I⁻¹ : B → A) (I ∘ I⁻¹ ≡ id) (I⁻¹ ∘ I ≡ id)
+(J : B → C) (J⁻¹ : C → B) (J ∘ J⁻¹ ≡ id) (J⁻¹ ∘ J ≡ id)
+⊦
+(X ⨯ (J ∘ I), X ⨯ (I⁻¹ ∘ J⁻¹), *, *) ≡ ((X ⨯ J) ∘ (X ⨯ I), (X ⨯ I⁻¹) ∘ (X ⨯ J⁻¹), *, *) : (X ⨯ A) ≅ (X ⨯ C)
+//
+(X A B C)
+(I : A → B) (I⁻¹ : B → A) (I ∘ I⁻¹ ≡ id) (I⁻¹ ∘ I ≡ id)
+(J : B → C) (J⁻¹ : C → B) (J ∘ J⁻¹ ≡ id) (J⁻¹ ∘ J ≡ id)
+⊦
+(X ⨯ (J ∘ I), X ⨯ (I⁻¹ ∘ J⁻¹), *, *) ≡ (X ⨯ (J ∘ I), X ⨯ I⁻¹ ∘ J⁻¹, *, *) : (X ⨯ A) ≅ (X ⨯ C)
+//By reflexivity ∎
+
+//Iso right-action is an endo-functor on 𝕌 seen as groupoid
+
+(A B : 𝕌) (propA : IsProp(A)) (propB : IsProp(B)) ⊦
+  downgrade : (A ≅ B) → (A ⇔ B)
+  downgrade (f, g, _, _) = (f, g)
+
+(A B : 𝕌) (propA : IsProp(A)) (propB : IsProp(B)) ⊦
+  upgrade : (A ⇔ B) → (A ≅ B)
+  upgrade (f, g) = (f, g, H, G)
+ where
+  H : (y : B) → f (g y) ≡ y ∈ B
+  H y = propB (f (g y)) y
+
+  G : (x : A) → g (f x) ≡ x ∈ A
+  G x = propA (f (g x)) x
+
+
+(A B : 𝕌) (propA : IsProp(A)) (propB : IsProp(B)) ⊦
+  propUniv : (A ≅ B) ≅ (A ⇔ B)
+  propUniv = (downgrade, upgrade, H, G)
+ where
+  (f : A ⇔ B) ⊦
+    H' : downgrade (upgrade f) ≡ f ∈ (A ⇔ B)
+    H' = iffIsProp(_, _, propA, propB))
+
+  H : downgrade ∘ upgrade ≡ id ∈ (A ⇔ B) → (A ⇔ B)
+  H = fun-ext H'
+
+  //TODO:
+  G : upgrade ∘ downgrade ≡ id ∈ (A ≅ B) → (A ≅ B)
+
+singelton-contractibility : ∀ {A, t} → ((x : A) ⨯ (x ≡ t)) ≅ 𝟙
+singelton-contractibility = (const (), const (t, Refl), Refl, Refl)
+
+curry : ((x : A) → (y : B x) → C x y) ≅ ((p : (x : A) ⨯ B x) → C p.π₁ p.π₂)
+curry = (ψ p ↦ ψ p.π₁ p.π₂, ψ x y ↦ ψ (x, y), Refl, Refl)
+
+swap : ((x y : A) → P x y) ≅ ((y : A) → (x : A) → P x y)
+swap = (ψ y x ↦ ψ x y, ψ x y ↦ ψ y x, Refl, Refl)

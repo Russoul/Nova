@@ -1,4 +1,4 @@
-module ExtTT.Core.Pretty
+module ETT.Core.Pretty
 
 import Control.Monad.FailSt
 
@@ -9,8 +9,8 @@ import Data.Util
 import Text.PrettyPrint.Prettyprinter.Render.Terminal
 import Text.PrettyPrint.Prettyprinter
 
-import ExtTT.Core.Language
-import ExtTT.Core.Substitution
+import ETT.Core.Language
+import ETT.Core.Substitution
 
 -- (x : A{≥0}) → A{≥0}
 -- e{≥3} ≡ e{≥3} ∈ e{≥0}
@@ -25,6 +25,10 @@ data Ann = Keyword | ContextVar | SignatureVar | Form | Elim | Intro
 public export
 parens' : Doc Ann -> Doc Ann
 parens' = enclose (annotate Keyword lparen) (annotate Keyword rparen)
+
+public export
+brackets' : Doc Ann -> Doc Ann
+brackets' = enclose (annotate Keyword lbracket) (annotate Keyword rbracket)
 
 Level = Fin 5
 
@@ -143,14 +147,14 @@ prettyContextVar sig i = FailSt.do
 mutual
   public export
   prettySubstContextNu' : SnocList VarName -> SnocList VarName -> SubstContextNF -> M (Doc Ann)
-  prettySubstContextNu' sig ctx (WkN ctx0 tel) = return (pretty "↑\{natToSuperscript (length tel)}")
-  prettySubstContextNu' sig ctx (Ext sigma ty t) = return $ parens' $
+  prettySubstContextNu' sig ctx (WkN k) = return (pretty "↑\{natToSuperscript k}")
+  prettySubstContextNu' sig ctx (Ext sigma t) = return $ parens' $
     !(prettySubstContext' sig ctx sigma)
      <+>
     annotate Keyword ","
      <++>
     !(prettyElem sig ctx t 0)
-  prettySubstContextNu' sig ctx (Terminal x) = return "·"
+  prettySubstContextNu' sig ctx Terminal = return "·"
 
   public export
   prettySubstContext' : SnocList VarName -> SnocList VarName -> SubstContext -> M (Doc Ann)
@@ -300,8 +304,8 @@ mutual
     annotate Form "∈"
      <++>
     !(prettyElem sig ctx ty 0)
-  prettyElem' sig ctx (EqVal {}) =
-    return $ annotate Intro "Refl"
+  prettyElem' sig ctx EqVal =
+    return $ annotate Intro "*"
   prettyElem' sig ctx (EqElim ty a0 x h schema r a1 a) = FailSt.do
     return $
       annotate Elim "J"
@@ -419,9 +423,15 @@ mutual
      <++>
     annotate Keyword "⊦"
      <++>
+    brackets' (annotate ContextVar (pretty x))
+     <++>
     !(prettyTypE sig (map fst $ tail ctx) a 0)
      <++>
+    annotate Keyword "="
+     <++>
     !(prettyTypE sig (map fst $ tail ctx) b 0)
+     <++>
+    annotate Keyword "type"
 
   public export
   prettySignature' : SnocList VarName -> List (VarName, SignatureEntry) -> M (Doc Ann)

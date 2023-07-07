@@ -1,0 +1,2 @@
+IsProp : 𝕌 → 𝕌
+IsProp A = (x y : A) → x ≡ y

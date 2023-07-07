@@ -1,0 +1,95 @@
+
+Γ ⊦ A type
+-----------------
+Γ ⊦ Stream A type
+
+Γ ⊦ s : Stream A
+------------------------
+Γ ⊦ s.head : A
+
+Γ ⊦ s : Stream A
+------------------------
+Γ ⊦ s.tail : Stream A
+
+Γ ⊦ X type
+Γ ⊦ f : X → A ⨯ X
+Γ ⊦ t : X
+-------------------------------
+Γ ⊦ Stream-intro f t : Stream A
+
+    (Stream-intro f t).head = (f t).π₁
+    (Stream-intro f t).tail = Stream-intro f (f t).π₂
+
+Γ ⊦ f : X → Stream A
+Γ ⊦ h : X → A
+Γ ⊦ t : X → Stream A
+Γ ⊦ (A ⨯ f) ∘ (h, t) ≡ (.head, .tail) ∘ f
+-----------------------------------------
+Γ ⊦ f ≡ Stream-intro (h, t)
+
+R : Stream A → Stream A → 𝕌
+R-head : (xs, ys : Stream A) → R xs ys → xs.head ≡ ys.head
+R-tail : (xs, ys : Stream A) → R xs ys → R xs.tail ys.tail
+-----------------------------------------------
+co₁ : ((xs, ys : Stream A) ⨯ R xs ys) → Stream A
+co₁ (xs, ys, h) = xs
+
+co₁-helper : ((xs, ys : Stream A) ⨯ R xs ys) → A ⨯ ((xs, ys : Stream A) ⨯ R xs ys)
+co₁-helper (xs, ys, h) = (xs.head, xs.tail, ys.tail, R-tail xs ys h)
+
+co₂ : ((xs, ys : Stream A) ⨯ R xs ys) → Stream A
+co₂ (xs, ys, h) = ys
+
+co₂-helper : ((xs, ys : Stream A) ⨯ R xs ys) → A ⨯ ((xs, ys : Stream A) ⨯ R xs ys)
+co₂-helper (xs, ys, h) = (xs.head, xs.tail, ys.tail, R-tail xs ys h)
+
+(A ⨯ co₁) ∘ co₁-helper = (.head, .tail) ∘ co₁
+<=>
+(xs ys : Stream A) (h : R xs ys) ⊦
+  ((A ⨯ co₁) ∘ co₁-helper) (xs, ys, h) = ((.head, .tail) ∘ co₁) (xs, ys, h)
+<=>
+(xs ys : Stream A) (h : R xs ys) ⊦
+  (A ⨯ co₁) (xs.head, xs.tail, ys.tail, R-tail xs ys h) = (.head, .tail) xs
+<=>
+(xs ys : Stream A) (h : R xs ys) ⊦
+  (xs.head, xs.tail) = (xs.head, xs.tail)
+<=>
+𝟙
+
+//hence co₁ is a co-algebra hom into final co-algebra
+
+(A ⨯ co₂) ∘ co₂-helper = (.head, .tail) ∘ co₂
+<=>
+(xs ys : Stream A) (h : R xs ys) ⊦
+  ((A ⨯ co₂) ∘ co₂-helper) (xs, ys, h) = ((.head, .tail) ∘ co₂) (xs, ys, h)
+<=>
+(xs ys : Stream A) (h : R xs ys) ⊦
+  (A ⨯ co₂) (xs.head, xs.tail, ys.tail, R-tail xs ys h) = (.head, .tail) ys
+<=>
+(xs ys : Stream A) (h : R xs ys) ⊦
+  (xs.head, ys.tail) = (ys.head, ys.tail)
+<=>
+(xs ys : Stream A) (h : R xs ys) ⊦
+  (ys.head, ys.tail) = (ys.head, ys.tail)
+<=>
+𝟙
+
+//hence co₂ is a co-algebra hom into final co-algebra
+
+//By initiality of Stream, co₁ = co₂:
+
+co₁ ≡ co₂ : ((xs, ys : Stream A) ⨯ R xs ys) → A ⨯ ((xs, ys : Stream A) ⨯ R xs ys)
+<=>
+(xs ys : Stream A) (h : R xs ys) ⊦
+  co₁ (xs, ys, h) ≡ co₂ (xs, ys, h)
+<=>
+(xs ys : Stream A) (h : R xs ys) ⊦
+  xs ≡ ys
+
+//Can we show that:
+
+(h₀, h₁ : R xs ys) ⊦ h₀ ≡ h₁
+
+//I don't think we can, so we need an extra assumption
+// isProp (R xs ys)
+// for (xs ≡ ys) ≅ R xs ys

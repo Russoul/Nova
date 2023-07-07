@@ -1,4 +1,4 @@
-module ExtTT.Test.Test
+module ETT.Test.Test
 
 import Control.Monad.FailSt
 
@@ -8,15 +8,15 @@ import System
 import Text.Parser.CharUtil
 import Text.Parser.Fork
 
-import ExtTT.Core.Language
-import ExtTT.Core.Substitution
-import ExtTT.Core.Assistant
+import ETT.Core.Language
+import ETT.Core.Substitution
+import ETT.Core.Assistant
 
-import ExtTT.Surface.SemanticToken
-import ExtTT.Surface.Language
-import ExtTT.Surface.ParserUtil
-import ExtTT.Surface.Parser
-import ExtTT.Surface.Check
+import ETT.Surface.SemanticToken
+import ETT.Surface.Language
+import ETT.Surface.ParserUtil
+import ETT.Surface.Parser
+import ETT.Surface.Check
 
 runAssistant : Signature -> M ()
 runAssistant sig = FailSt.do
@@ -28,23 +28,28 @@ runAssistant sig = FailSt.do
         | Left err => FailSt.do
             io $ putStrLn (show err)
             runAssistant sig
-      sig' <- compute sig transformation
+      Right sig' <- try $ compute sig transformation
+        | Left err => FailSt.do
+            io $ putStrLn err
+            runAssistant sig
       runAssistant sig'
     False => FailSt.do
       io $ putStrLn "Bye!"
       return ()
 
-main : IO ()
-main = do
+assistantApp : IO ()
+assistantApp = do
+   Right () <- eval (runAssistant [<]) ()
+     | Left err => die err
+   pure ()
+
+parserTestApp : IO ()
+parserTestApp = do
    Right contents <- readFile "src/proto0/ParserTest.proto0"
      | Left err => die (show err)
    let Right (st, parsed) = parseFull' (MkParsingSt [<]) surfaceFile contents
      | Left err => die (show err)
    putStrLn "Parsed successfully!"
-   {- Right sig <- eval (checkFile Empty parsed) ()
-     | Left err => die err
-   putStrLn "Checked successfully!" -}
-   Right () <- eval (runAssistant Empty) ()
-     | Left err => die err
-   pure ()
 
+main : IO ()
+main = assistantApp

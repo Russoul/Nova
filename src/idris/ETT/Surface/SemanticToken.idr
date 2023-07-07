@@ -1,4 +1,4 @@
-module ExtTT.Surface.SemanticToken
+module ETT.Surface.SemanticToken
 
 import Data.AVL
 import Data.Maybe

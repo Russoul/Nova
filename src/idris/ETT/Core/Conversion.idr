@@ -1,9 +1,9 @@
-module ExtTT.Core.Conversion
+module ETT.Core.Conversion
 
 import Control.Monad.FailSt
 
-import ExtTT.Core.Language
-import ExtTT.Core.Substitution
+import ETT.Core.Language
+import ETT.Core.Substitution
 
 -- Checking equality of terms modulo substitution rules
 
@@ -66,8 +66,6 @@ mutual
     public export
     convNu : TypE -> TypE -> M Bool
     convNu (PiTy x0 a0 b0) (PiTy x1 a1 b1) =
-      return (x0 == x1)
-       `and`
       conv a0 a1
        `and`
       conv b0 b1

@@ -1,0 +1,41 @@
+
+Γ ⊦ A type
+------------
+Γ ⊦ ‖A‖ type
+
+Γ ⊦ a : A
+-------------
+Γ ⊦ |a| : ‖A‖
+
+Γ ⊦ a₀ a₁ : ‖A‖
+-----------------
+Γ ⊦ a₀ = a₁ : ‖A‖
+
+Γ (x : ‖A‖) ⊦ B type
+Γ (x : A) ⊦ f : B(|x| / x)
+Γ (x₀ x₁ : A) ⊦ p : f(x₀) ≡ f(x₁)
+-------------------------------------------
+Γ (x : ‖A‖) ⊦ ‖‖-elim x.B x.f x₀.x₁.p : B
+
+
+//Define
+Γ ⊦ A type
+Γ ⊦ (x : A) ⊦ B type
+------------------------------
+Γ ⊦ ∃(x : A) B ≔ ‖(x : A) ⨯ B‖
+
+
+(a₀ a₁ : A) ⊦ ‖a₀ ≡ a₁‖ ≃ (a₀ ≡ a₁)
+∎
+//First we need to construct:
+(a₀ a₁ : A) ⊦ ‖a₀ ≡ a₁‖ → (a₀ ≡ a₁)
+//It's enough to construct
+(a₀ ≡ a₁) → (a₀ ≡ a₁)
+//which is identity
+// And show that
+(p q : a₀ ≡ a₁) ⊦ id p ≡ id q
+// Which is true by UIP
+//Secondly, in other direction (a₀ ≡ a₁) → ‖a₀ ≡ a₁‖
+// By |_|
+//maps compose to identity both ways because both types are mere propositions.
+∎

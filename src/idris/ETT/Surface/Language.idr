@@ -1,9 +1,9 @@
-module ExtTT.Surface.Language
+module ETT.Surface.Language
 
 import Data.Location
 import Data.List1
 
-import ExtTT.Core.VarName
+import ETT.Core.VarName
 
 -- h ::= Z | Refl | x | S | ℕ-elim | J | ℕ | 𝕌
 

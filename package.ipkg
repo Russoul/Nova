@@ -1,0 +1,33 @@
+package exttt
+
+depends = contrib
+
+modules = Control.Monad.FailSt
+
+        , Data.AVL
+        , Data.Location
+        , Data.Util
+
+        , ETT.Core.Language
+        , ETT.Core.Substitution
+        , ETT.Core.Evaluation
+        , ETT.Core.Conversion
+        , ETT.Core.Pretty
+        , ETT.Core.Assistant
+
+        , ETT.Surface.Check
+        , ETT.Surface.Language
+        , ETT.Surface.Parser
+        , ETT.Surface.ParserUtil
+        , ETT.Surface.SemanticToken
+
+        , ETT.Test.Test
+
+        , Text.Parser.CharUtil
+        , Text.Parser.Fork
+
+main = ETT.Test.Test
+
+executable = xtt
+
+sourcedir = "src/idris"

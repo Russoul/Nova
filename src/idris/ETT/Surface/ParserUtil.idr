@@ -1,4 +1,4 @@
-module ExtTT.Surface.ParserUtil
+module ETT.Surface.ParserUtil
 
 import Data.List.Elem
 import Data.Fin
@@ -18,8 +18,8 @@ import Data.Util
 
 import Data.Location
 
-import ExtTT.Core.VarName
-import ExtTT.Surface.SemanticToken
+import ETT.Core.VarName
+import ETT.Surface.SemanticToken
 
 -----------------------------------------------------------
 -------------- Utililies for HOTT parser ------------------
@@ -242,7 +242,7 @@ public export
 initialParsingSt : ParsingSt
 initialParsingSt = MkParsingSt [<]
 
-||| Grammar specialised for ExtTT:
+||| Grammar specialised for ETT:
 ||| token is Token
 ||| state is context info & semantic info
 public export

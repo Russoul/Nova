@@ -1,0 +1,28 @@
+test0 : ℕ
+
+test1 : El ℕ
+
+test2 : El ℕ → El ℕ
+
+test3 : (A : 𝕌) → El A
+
+test4 : test0 ≡ test0 ∈ ℕ
+
+id : (A : 𝕌) → El A → El A
+
+test5 : id ℕ Z ≡ id ℕ Z ∈ ℕ --This won't check because it's stuck on Z : El ℕ
+
+plus0 : (x : ℕ) → (y : ℕ) → ℕ
+
+plus1 : ℕ → ℕ → ℕ
+
+ℕ-rec : (X : 𝕌) → El X → (El X → El X) → (ℕ → El X)
+
+ℕ-rec-def : ℕ-rec ≡ (X ↦ z ↦ s ↦ x ↦ ℕ-elim (x. El X) z (x. h. s h) x) ∈ (X : 𝕌) → El X → (El X → El X) → (ℕ → El X)
+
+{-
+plus1-def : plus1 ≡ (x ↦ y ↦ ℕ-rec ℕ y (x ↦ S x) x) ∈ ℕ → ℕ → ℕ
+
+test1 : (x : ℕ) → (y : ℕ) → (x ≡ y ∈ ℕ) → (S x ≡ S y ∈ ℕ)
+
+fun-ext : (A : 𝕌) → (B : El A → 𝕌) → (f : (x : El A) → El (B x)) → (g : (x : El A) → El (B x)) → (f ≡ g ∈ (x : A) → El (B x)) -}

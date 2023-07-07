@@ -1,0 +1,153 @@
+
+//From ℕ-elim (ℕ-induction) we can derive ℕ-rec and ℕ-unique (ℕ-initial):
+
+//Using ℕ-pattern-matching lemma
+ℕ-rec : A → (A → A) → (ℕ → A)
+ℕ-rec z s 0 = z
+ℕ-rec z s (S t) = s (ℕ-rec z s t)
+
+ℕ-unique : (f : ℕ → A) (f 0 ≡ a₀) ((x : ℕ) → f (S x) ≡ a₁ (f x)) → f ≡ ℕ-rec a₀ a₁
+ℕ-unique f p q = fun-ext (H f p q x)
+ where
+  H : (f : ℕ → A) (f 0 ≡ a₀) ((x : ℕ) → f (S x) ≡ a₁ (f x)) (x : ℕ) → f x ≡ ℕ-rec a₀ a₁ x
+  H f p q 0 = Refl
+  H f p q (S x) = Refl
+
+//How do we pack ℕ-rec and ℕ-unique together to form up ℕ-elim?
+
+//We want to define:
+A : ℕ → 𝕌
+z : A 0
+s : (x : ℕ) → A x → A (S x)
+---------------------------
+ℕ-elim A z s : (x : ℕ) → A x
+ℕ-elim A z s 0 = z
+ℕ-elim A z s (S t) = s t (ℕ-elim A z s t)
+
+∎
+//We can implement:
+F : ℕ → Σ A
+F = ℕ-rec (0, z) ((x, y) ↦ (S x, s x y))
+
+//F satisfies the following equations:
+F 0 = (0, z)
+F (S x) = ℕ-rec (0, z) ((x, y) ↦ (S x, s x y)) (S x)
+        = (S (F x).π₁, s (F x).π₁ (F x).π₂)
+
+//Let's show that
+π₁ ∘ F = id
+
+           ⟨const 0, S⟩
+    𝟙 + ℕ    - - - - - - > ℕ
+      |                    |
+ id   |                    | id
+      |                    |
+      v                    v
+    𝟙 + ℕ    - - - - - - > ℕ
+           ⟨const 0, S⟩
+
+
+F ∘ const 0 = const z
+F ∘ S = s ∘ F
+
+
+  const 0        S
+𝟙 - - - >  ℕ  - - - - > ℕ
+ \         |            |
+    \    F |            | F
+const z \  v            v
+           Σ A - - - > Σ A
+                 s
+
+                       ⟨const 0, S⟩
+               𝟙 + ℕ    - - - - - - > ℕ
+                |                     |
+ 𝟙 + (π₁ ∘ F)   |                     | π₁ ∘ F
+                |                     |
+                v                     v
+              𝟙 + ℕ    - - - - - - >  ℕ
+                     ⟨const 0, S⟩
+
+(𝟙 + F) : 𝟙 + ℕ → 𝟙 + Σ A
+(𝟙 + π₁) : 𝟙 + Σ A → 𝟙 + ℕ
+
+𝟙 + (π₁ ∘ F) = (𝟙 + π₁) ∘ (𝟙 + F)
+
+  π₁ ∘ F ∘ ⟨const 0, S⟩
+= π₁ ∘ ⟨F ∘ const 0, F ∘ S⟩
+= π₁ ∘ ⟨const z, s ∘ F⟩
+
+
+  ⟨const 0, S⟩ ∘ (𝟙 + (π₁ ∘ F))
+= ⟨const 0, S ∘ π₁ ∘ F⟩
+
+(Left ()) ↦ 0 ↦ π₁ (F 0) = π₁ (0, ...) = 0
+(Right x) ↦ S x ↦ π₁ (F (S x)) = π₁ (S x, s (F x)) = S x
+
+(Left ()) ↦ (Left ()) ↦ 0
+(Right x) ↦ (Right (F x).π₁) = Right (x, ...).π₁) = Right x ↦ S x
+
+//Hence we have
+ℕ-elim : Π A
+ℕ-elim = x ↦ (F x).π₂
+
+//Let's check the equations:
+ℕ-elim 0 = (F 0).π₂ = z
+ℕ-elim (S x) = (F (S x)).π₂ = s x (ℕ-elim x)
+
+
+//Can we do something similar with co-data?
+
+//we have
+
+Stream-corec : (X → A) → (X → X) → (X → Stream A)
+(Stream-corec h t x).head = h x
+(Stream-corec h t x).tail = Stream-corec h t (t x)
+
+Stream-unique : (f : X → Stream) ((f x).head = h x) ((f x).tail = f (t x)) → f ≡ Stream-corec f h t
+
+B xs ← xs.head
+≅
+α : C → Stream A
+f : (xs : Stream A) ⨯ B xs → C
+
+
+c : C
+-----------
+(f (xs, t) = c) ⇒ xs = α c
+
+x : X
+---------
+f : A x → B x
+
+
+(x : A) ⊦ B type
+----------------
+B ← (x : A) type
+
+f : B ← (a/x : A)
+a₀ : A
+b : B[a₀/x]
+---------------
+f b : A
+
+f : B ← (a/x : A)
+b : B[a/x]
+-----------------
+f b = a : A
+
+
+h : B xs ← xs.head
+t : B xs ← xs.tail
+------------------
+Stream-coind : Σ B → Stream A
+(f t).π₁ =
+
+
+(xs : Stream A) ⨯ B xs → (x : A) ⨯ (xs : Stream A) ⨯ B (x :: xs)
+
+h : (
+h : (x : A) ⨯ (xs : B x) ⨯ B (
+----------------------------------
+Stream-coind : (xs : Stream A) ⨯ B
+
