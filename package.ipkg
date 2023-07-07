@@ -28,6 +28,6 @@ modules = Control.Monad.FailSt
 
 main = ETT.Test.Test
 
-executable = xtt
+executable = ett
 
 sourcedir = "src/idris"
