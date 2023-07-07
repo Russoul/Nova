@@ -31,6 +31,8 @@ data Transformation : Type where
   WkTypE : VarName -> VarName -> Transformation
   ||| Σ (?Γ ctx) (?Γ ⊦ ?A type) (?Γ ⊦ ?x : ?A) ⇛ Σ
   WkElem : VarName -> VarName -> VarName -> Transformation
+  ||| Σ (?Γ ctx) (?Γ ⊦ ?A type) (?Γ ⊦ ?e : ?A) (?Γ ⊦ ?x ≔ ?e : ?A) ⇛ Σ
+  WkLetElem : VarName -> VarName -> VarName -> VarName -> Transformation
   ||| Σ₀ Σ₁(ε/?Γ) ⇒ Σ₀ (?Γ ctx) Σ₁
   InstCtxEmpty : VarName -> Transformation
   ||| Σ₀ (?Γ ctx) (?Γ ⊦ ?A type) Σ₁(?Γ (x : ?A) / ?Γ) ⇒ Σ₀ (?Γ ctx) Σ₁
@@ -107,6 +109,19 @@ compute target (WkElem ctxN typeN elemN) =
   -- Σ (Γ ctx) (Γ ⊦ A type) (Γ ⊦ a : A)
   return $
     target :< (ctxN, CtxEntry) :< (typeN, TypEEntry Var) :< (elemN, ElemEntry (VarN 1) (SignatureVarElim 0 Id))
+compute target (WkLetElem ctxN typeN elemN letN) =
+  -- Σ (Γ ctx) (Γ ⊦ A type) Γ ⊦ A type
+  -- Σ (Γ ctx) (Γ ⊦ A type) (Γ ⊦ a : A)
+  return $
+    target
+      :<
+    (ctxN, CtxEntry)
+      :<
+    (typeN, TypEEntry Var)
+      :<
+    (elemN, ElemEntry (VarN 1) (SignatureVarElim 0 Id))
+      :<
+    (letN, LetElemEntry (VarN 2) (SignatureVarElim 0 Id) (SignatureVarElim 1 Id))
 compute target (InstCtxEmpty x) = FailSt.do
   -- Σ₀ (A ctx) ⊦ Σ₁
   -- Σ₀ ⊦ Σ₁(id, ε)
@@ -300,6 +315,20 @@ wkElem = do
   pure (WkElem v0 v1 v2)
 
 public export
+wkLetElem : Rule Transformation
+wkLetElem = do
+  delim_ "wk-let-elem"
+  spaceDelim
+  v0 <- varName
+  spaceDelim
+  v1 <- varName
+  spaceDelim
+  v2 <- varName
+  spaceDelim
+  v3 <- varName
+  pure (WkLetElem v0 v1 v2 v3)
+
+public export
 instCtxEmpty : Rule Transformation
 instCtxEmpty = do
   delim_ "inst-ctx-empty"
@@ -481,6 +510,7 @@ transformation = id
              <|> wkCtx
              <|> wkTypE
              <|> wkElem
+             <|> wkLetElem
              <|> instCtxEmpty
              <|> instCtxCons
              <|> instTypEExp

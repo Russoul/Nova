@@ -1,4 +1,4 @@
-wk-elem gamma ty id
+wk-let-elem gamma ty e id
 inst-ctx-empty gamma
 inst-pi ty X A Y
 inst-universe X

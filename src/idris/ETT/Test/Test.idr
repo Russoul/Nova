@@ -22,6 +22,7 @@ runAssistant : Signature -> M ()
 runAssistant sig = FailSt.do
   io $ putStrLn "Enter command:"
   input <- io $ getLine
+  io $ putStrLn "Processing: \{input}"
   case input /= "exit" of
     True => do
       let Right (st, transformation) = parseFull' (MkParsingSt [<]) transformation input
@@ -32,6 +33,7 @@ runAssistant sig = FailSt.do
         | Left err => FailSt.do
             io $ putStrLn err
             runAssistant sig
+      io $ putStrLn "✔"
       runAssistant sig'
     False => FailSt.do
       io $ putStrLn "Bye!"
