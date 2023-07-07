@@ -131,6 +131,7 @@ localise (xs :< x) (S k) = FailSt.do
 public export
 prettySignatureVar : SnocList VarName -> Nat -> M (Doc Ann)
 prettySignatureVar sig i = FailSt.do
+  -- return (annotate SignatureVar (pretty $ "χ" ++ natToSuperscript i))
   (n, 0) <- localise sig i
     | (n, k) =>
         return (annotate SignatureVar (pretty n <+> "{" <+> pretty k <+> "}"))
@@ -139,6 +140,7 @@ prettySignatureVar sig i = FailSt.do
 public export
 prettyContextVar : SnocList VarName -> Nat -> M (Doc Ann)
 prettyContextVar sig i = FailSt.do
+  -- return (annotate SignatureVar (pretty $ "x" ++ natToSuperscript i))
   (n, 0) <- localise sig i
     | (n, k) =>
         return (annotate ContextVar (pretty n <+> "{" <+> pretty k <+> "}"))
@@ -248,7 +250,7 @@ mutual
        <++>
       annotate Intro "↦"
        <++>
-      !(prettyElem sig ctx f 0)
+      !(prettyElem sig (ctx :< x) f 0)
   prettyElem' sig ctx (PiElim f x a b e) =
     return $
       !(prettyElem sig ctx f 3)

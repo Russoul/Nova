@@ -1,4 +1,4 @@
-wk-elem gamma ty fun-ext
+wk-let-elem gamma ty fun-ext-impl fun-ext
 inst-ctx-empty gamma
 inst-pi ty X A Y
 inst-universe X
@@ -86,7 +86,7 @@ inst-ctx-var q x
 inst-ty-refl eq
 inst-ctx-var f f
 inst-ctx-var g g
-inst-lam fun-ext α
+inst-lam fun-ext-impl α
 inst-lam α α
 inst-lam α α
 inst-lam α α
@@ -105,9 +105,8 @@ inst-universe Y
 inst-ctx-var B B
 inst-ctx-var x x
 inst-ty-refl eq0
-rename-sig-var 0 eq'
 rename-sig-var 1 f'
-inst-pi-elim a₀ U x V f e eq
+inst-pi-elim a₀ U x V f'' e eq
 inst-el U U
 inst-ctx-var U A
 inst-el V V
@@ -118,7 +117,7 @@ inst-universe Q
 inst-ctx-var B B
 inst-ctx-var x x
 inst-ty-refl eq0
-inst-ctx-var f f
+inst-ctx-var f'' f
 inst-ctx-var e x
 inst-ty-refl eq
 inst-pi-elim a₁ U x V g e eq
@@ -135,8 +134,8 @@ inst-ty-refl eq0
 inst-ctx-var g g
 inst-ctx-var e x
 inst-ty-refl eq
-inst-ctx-var f' p
-inst-ty-refl eq'
+inst-ctx-var f p
+inst-ty-refl f'
 id
 exit
 

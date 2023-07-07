@@ -196,7 +196,7 @@ compute target (InstElemLam solveN newN) = FailSt.do
     | _ => throw "\{solveN} is not an 'elem' entry"
   let PiTy x a b = runSubst ty
     | _ => throw "\{solveN} is not a Π-type"
-  let ctx' = subst (Ext ctx x a) Wk
+  let ctx' = Ext ctx x a
   return $
     sig0 :< (newN, ElemEntry ctx' b)
       ++
