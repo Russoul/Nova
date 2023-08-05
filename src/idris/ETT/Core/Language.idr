@@ -11,14 +11,14 @@ mutual
       ||| ε
       Empty : Context
       ||| Γ (x : A)
-      Ext : Context -> VarName -> TypE -> Context
+      Ext : Context -> VarName -> Elem -> Context
       ||| χ
       SignatureVarElim : Nat -> Context
 
   public export
   data SignatureEntryInstance : Type where
     CtxEntryInstance : Context -> SignatureEntryInstance
-    TypEEntryInstance : TypE -> SignatureEntryInstance
+    TypeEntryInstance : Elem -> SignatureEntryInstance
     ElemEntryInstance : Elem -> SignatureEntryInstance
     LetEntryInstance : SignatureEntryInstance
     EqTyEntryInstance : SignatureEntryInstance
@@ -72,35 +72,17 @@ mutual
       ||| ext(σ, A, t)
       Ext : SubstContext -> Elem -> SubstContextNF
 
-  namespace C
-    public export
-    data TypE : Type where
-      ||| (x : A) → B
-      PiTy : VarName -> TypE -> TypE -> TypE
-      ||| A(σ)
-      ContextSubstElim : TypE -> SubstContext -> TypE
-      ||| A(σ)
-      SignatureSubstElim : TypE -> SubstSignature -> TypE
-      ||| a₀ ≡ a₁ ∈ A
-      EqTy : Elem -> Elem -> TypE -> TypE
-      ||| ℕ
-      NatTy : TypE
-      ||| 𝕌
-      UniverseTy : TypE
-      ||| χ
-      SignatureVarElim : Nat -> SubstContext -> TypE
-      ||| El e
-      El : Elem -> TypE
-
   namespace D
     public export
     data Elem : Type where
       ||| (x : A) → B
       PiTy : VarName -> Elem -> Elem -> Elem
       ||| x ↦ f
-      PiVal : VarName -> TypE -> TypE -> Elem -> Elem
+      PiVal : VarName -> Elem -> Elem -> Elem -> Elem
       ||| (f : (x : A) → B) e
-      PiElim : Elem -> VarName -> TypE -> TypE -> Elem -> Elem
+      PiElim : Elem -> VarName -> Elem -> Elem -> Elem -> Elem
+      ||| 𝕌
+      Universe : Elem
       ||| 0
       NatVal0 : Elem
       ||| S t
@@ -108,7 +90,7 @@ mutual
       ||| ℕ
       NatTy : Elem
       ||| ℕ-elim x.A z x.h.s t
-      NatElim : VarName -> TypE -> Elem -> VarName -> VarName -> Elem -> Elem -> Elem
+      NatElim : VarName -> Elem -> Elem -> VarName -> VarName -> Elem -> Elem -> Elem
       ||| t(σ)
       ContextSubstElim : Elem -> SubstContext -> Elem
       ||| t[σ]
@@ -122,7 +104,7 @@ mutual
       ||| *
       EqVal : Elem
       ||| J A a₀ x.p.B r a₁ a
-      EqElim : TypE -> Elem -> VarName -> VarName -> TypE -> Elem -> Elem -> Elem -> Elem
+      EqElim : Elem -> Elem -> VarName -> VarName -> Elem -> Elem -> Elem -> Elem -> Elem
 
   public export
   Spine : Type
@@ -135,10 +117,10 @@ mutual
 public export
 data SignatureEntry : Type where
   CtxEntry : SignatureEntry
-  TypEEntry : Context -> SignatureEntry
-  ElemEntry : Context -> TypE -> SignatureEntry
-  LetElemEntry : Context -> Elem -> TypE -> SignatureEntry
-  EqTyEntry : Context -> TypE -> TypE -> SignatureEntry
+  TypeEntry : Context -> SignatureEntry
+  ElemEntry : Context -> Elem -> SignatureEntry
+  LetElemEntry : Context -> Elem -> Elem -> SignatureEntry
+  EqTyEntry : Context -> Elem -> Elem -> SignatureEntry
 
 Signature = SnocList (VarName, SignatureEntry)
 
@@ -146,15 +128,15 @@ public export
 extend : Signature -> VarName -> SignatureEntry -> Signature
 extend sig x e = sig :< (x, e)
 
-namespace TypE
+namespace Elem
   ||| Σ (Γ ⊦ A type) Γ ⊦ A type
   public export
-  Var : TypE
+  Var : Elem
   Var = SignatureVarElim 0 Id
 
   ||| Σ₀ (Γ ⊦ A type) Σ₁ Γ(↑(1 + |Σ₁|)) ⊦ A type
   public export
-  VarN : Nat -> TypE
+  VarN : Nat -> Elem
   VarN n = SignatureVarElim n Id
 
 namespace Context
@@ -163,10 +145,6 @@ namespace Context
   Var = SignatureVarElim 0
 
 namespace Elem
-  public export
-  VarN : Nat -> Elem
-  VarN = ContextVarElim
-
   public export
   CtxVar : Elem
   CtxVar = ContextVarElim 0

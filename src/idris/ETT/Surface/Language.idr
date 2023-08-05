@@ -27,10 +27,10 @@ mutual
     NatVal1 : Range -> Head
     NatElim : Range -> Head
     EqVal : Range -> Head
-    EqElim : Range -> Head
     NatTy : Range -> Head
     UniverseTy : Range -> Head
     El : Range -> Head
+    Hole : Range -> VarName -> Head
 
   public export
   data Term : Type where
@@ -58,12 +58,12 @@ range (App r y xs) = r
 
 public export
 Show Head where
+  show (Hole _ x) = "Hole(\{x})"
   show (Var _ x) = "Var(\{x})"
   show (NatVal0 x) = "Z"
   show (NatVal1 x) = "S"
   show (NatElim x) = "ℕ-elim"
   show (EqVal x) = "Refl"
-  show (EqElim x) = "J"
   show (NatTy x) = "ℕ"
   show (UniverseTy x) = "𝕌"
   show (El x) = "El"
@@ -80,3 +80,4 @@ Show Term where
 public export
 data TopLevel : Type where
   TypingSignature : Range -> VarName -> Term -> TopLevel
+  LetSignature : Range -> VarName -> Term -> Term -> TopLevel

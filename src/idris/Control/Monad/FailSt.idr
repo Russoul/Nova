@@ -436,13 +436,6 @@ namespace FailSt
   clockWhen False msg m = m
   clockWhen True msg m = clock msg m
 
-  ||| Convert the time in the given clock to nanoseconds.
-  public export
-  toNano : Clock type -> Integer
-  toNano (MkClock seconds nanoseconds) =
-    let scale = 1000000000
-     in scale * seconds + nanoseconds
-
   public export
   clockThresholdD : FromString e => (a -> FailStM e s String) -> Integer -> FailStM e s a -> FailStM e s a
   clockThresholdD msg threshold m = FailSt.do

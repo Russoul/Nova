@@ -1,0 +1,8 @@
+wk-let-elem gamma ty fun-ext-impl fun-ext
+inst-ctx-empty gamma
+inst-surface-type ty (A : 𝕌) → (B : A → 𝕌) → (f : (x : A) → B x) → (g : (x : A) → B x) → (p : (x : A) → f x ≡ g x ∈ B x) → f ≡ g ∈ (x : A) → B x
+inst-surface-elem fun-ext-impl A ↦ B ↦ f ↦ g ↦ p ↦ ?todo
+fun-ext todo x todo
+inst-surface-elem todo p x
+id
+exit

@@ -11,6 +11,7 @@ import Text.PrettyPrint.Prettyprinter
 
 import ETT.Core.Language
 import ETT.Core.Substitution
+import ETT.Core.Shrinking
 
 -- (x : A{≥0}) → A{≥0}
 -- e{≥3} ≡ e{≥3} ∈ e{≥0}
@@ -32,35 +33,17 @@ brackets' = enclose (annotate Keyword lbracket) (annotate Keyword rbracket)
 
 Level = Fin 5
 
-wrapTypE : TypE -> Level -> Doc Ann -> M (Doc Ann)
-wrapTypE (PiTy {}) lvl doc =
-  case lvl <= 0 of
-    True => return doc
-    False => return (parens' doc)
-wrapTypE tm@(ContextSubstElim {}) lvl doc =
-  wrapTypE (runSubst tm) lvl doc
-wrapTypE tm@(SignatureSubstElim {}) lvl doc =
-  wrapTypE (runSubst tm) lvl doc
-wrapTypE (EqTy l r ty) lvl doc =
-  case lvl <= 1 of
-    True => return doc
-    False => return (parens' doc)
-wrapTypE NatTy lvl doc = return doc
-wrapTypE UniverseTy lvl doc = return doc
-wrapTypE (SignatureVarElim k _) lvl doc =
-  case lvl <= 3 of
-    True => return doc
-    False => return (parens' doc)
-wrapTypE (El x) lvl doc =
-  case lvl <= 3 of
-    True => return doc
-    False => return (parens' doc)
-
 wrapElem : Elem -> Level -> Doc Ann -> M (Doc Ann)
-wrapElem (PiTy {}) lvl doc =
-  case lvl <= 0 of
-    True => return doc
-    False => return (parens' doc)
+wrapElem (PiTy x dom cod) lvl doc =
+  case !(shrink cod 1 0) of
+    Nothing =>
+      case lvl <= 0 of
+        True => return doc
+        False => return (parens' doc)
+    Just _ =>
+      case lvl <= 2 of
+        True => return doc
+        False => return (parens' doc)
 wrapElem (PiVal {}) lvl doc =
   case lvl <= 0 of
     True => return doc
@@ -70,6 +53,10 @@ wrapElem (PiElim {}) lvl doc =
     True => return doc
     False => return (parens' doc)
 wrapElem NatVal0 lvl doc =
+  case lvl <= 4 of
+    True => return doc
+    False => return (parens' doc)
+wrapElem Universe lvl doc =
   case lvl <= 4 of
     True => return doc
     False => return (parens' doc)
@@ -166,84 +153,35 @@ mutual
   prettySubstContext : SnocList VarName -> SnocList VarName -> SubstContext -> M (Doc Ann)
   prettySubstContext sig ctx sigma = prettySubstContext' sig ctx sigma
 
-  prettyTypE' : SnocList VarName
-             -> SnocList VarName
-             -> TypE
-             -> M (Doc Ann)
-  prettyTypE' sig ctx (PiTy x dom cod) = FailSt.do
-    return $
-      annotate Form lparen
-       <+>
-      annotate ContextVar (pretty x)
-       <++>
-      annotate Keyword ":"
-       <++>
-      !(prettyTypE sig ctx dom 0)
-       <+>
-      annotate Form rparen
-       <++>
-      annotate Keyword "→"
-       <++>
-      !(prettyTypE sig (ctx :< x) cod 0)
-  prettyTypE' sig ctx tm@(ContextSubstElim {}) =
-   prettyTypE' sig ctx (runSubst tm)
-  prettyTypE' sig ctx tm@(SignatureSubstElim {}) =
-   prettyTypE' sig ctx (runSubst tm)
-  prettyTypE' sig ctx (EqTy l r ty) = return $
-    !(prettyElem sig ctx l 3)
-     <++>
-    annotate Form "≡"
-     <++>
-    !(prettyElem sig ctx r 3)
-     <++>
-    annotate Form "∈"
-     <++>
-    !(prettyTypE sig ctx ty 0)
-  prettyTypE' sig ctx NatTy =
-    return $ annotate Form "ℕ"
-  prettyTypE' sig ctx UniverseTy =
-    return $ annotate Form "𝕌"
-  prettyTypE' sig ctx (SignatureVarElim k sigma) = FailSt.do
-    x <- prettySignatureVar sig k
-    return $
-      x
-       <+>
-      parens' !(prettySubstContext sig ctx sigma)
-  prettyTypE' sig ctx (El e) = FailSt.do
-    return $
-      annotate Form "El"
-       <++>
-      !(prettyElem sig ctx e 4)
-
-  public export
-  prettyTypE : SnocList VarName
-            -> SnocList VarName
-            -> TypE
-            -> Level
-            -> M (Doc Ann)
-  prettyTypE sig ctx tm lvl =
-    wrapTypE tm lvl !(prettyTypE' sig ctx tm)
-
   public export
   prettyElem' : SnocList VarName
              -> SnocList VarName
              -> Elem
              -> M (Doc Ann)
-  prettyElem' sig ctx (PiTy x dom cod) =
-    return $
-      annotate Intro lparen
-       <+>
-      annotate ContextVar (pretty x)
-       <++>
-      annotate Keyword ":"
-       <++>
-      !(prettyElem sig ctx dom 0)
-       <+>
-      annotate Intro rparen
-       <++>
-      annotate Keyword "→"
-       <++>
-      !(prettyElem sig (ctx :< x) cod 0)
+  prettyElem' sig ctx (PiTy x dom cod) = FailSt.do
+    case !(shrink cod 1 0) of
+      Nothing => FailSt.do
+        return $
+          annotate Intro lparen
+           <+>
+          annotate ContextVar (pretty x)
+           <++>
+          annotate Keyword ":"
+           <++>
+          !(prettyElem sig ctx dom 0)
+           <+>
+          annotate Intro rparen
+           <++>
+          annotate Keyword "→"
+           <++>
+          !(prettyElem sig (ctx :< x) cod 0)
+      Just cod => FailSt.do
+        return $
+          !(prettyElem sig ctx dom 3)
+           <++>
+          annotate Keyword "→"
+           <++>
+          !(prettyElem sig ctx cod 2)
   prettyElem' sig ctx (PiVal x _ _ f) =
     return $
       annotate ContextVar (pretty x)
@@ -258,6 +196,8 @@ mutual
       !(prettyElem sig ctx e 4)
   prettyElem' sig ctx NatVal0 =
     return $ annotate Intro "0"
+  prettyElem' sig ctx Universe =
+    return $ annotate Form "𝕌"
   prettyElem' sig ctx (NatVal1 e) = return $
     annotate Intro "S"
       <++>
@@ -268,7 +208,7 @@ mutual
     return $
       annotate Elim "ℕ-elim"
        <++>
-      parens' (annotate ContextVar (pretty x) <+> annotate Keyword "." <++> !(prettyTypE sig (ctx :< x) schema 0))
+      parens' (annotate ContextVar (pretty x) <+> annotate Keyword "." <++> !(prettyElem sig (ctx :< x) schema 0))
        <++>
       !(prettyElem sig ctx z 4)
        <++>
@@ -312,7 +252,7 @@ mutual
     return $
       annotate Elim "J"
        <++>
-      !(prettyTypE sig ctx ty 4)
+      !(prettyElem sig ctx ty 4)
        <++>
       !(prettyElem sig ctx a0 4)
        <++>
@@ -324,7 +264,7 @@ mutual
                 <+>
                annotate Keyword "."
                 <++>
-               !(prettyTypE sig (ctx :< x :< h) schema 0)
+               !(prettyElem sig (ctx :< x :< h) schema 0)
               )
        <++>
       !(prettyElem sig ctx r 4)
@@ -342,7 +282,7 @@ mutual
   prettyElem sig ctx tm lvl =
     wrapElem tm lvl !(prettyElem' sig ctx tm)
 
-  tail : Context -> SnocList (VarName, TypE)
+  tail : Context -> SnocList (VarName, Elem)
   tail Empty = [<]
   tail (SignatureVarElim {}) = [<]
   tail (Ext tyes x ty) = tail tyes :< (x, ty)
@@ -355,7 +295,7 @@ mutual
   public export
   prettyTelescope : SnocList VarName
                  -> SnocList VarName
-                 -> List (VarName, TypE)
+                 -> List (VarName, Elem)
                  -> M (Doc Ann)
   prettyTelescope sig ctx [] = return ""
   prettyTelescope sig ctx ((x, ty) :: tyes) = return $
@@ -365,7 +305,7 @@ mutual
      <++>
     annotate Keyword ":"
      <++>
-    !(prettyTypE sig ctx ty 0)
+    !(prettyElem sig ctx ty 0)
      <+>
     rparen
      <++>
@@ -388,7 +328,7 @@ mutual
    -- Γ ⊦ χ : A
    -- Γ ⊦ χ ≔ e : A
   prettySignatureEntry sig x CtxEntry = return (pretty x <++> annotate Keyword "ctx")
-  prettySignatureEntry sig x (TypEEntry ctx) = return $
+  prettySignatureEntry sig x (TypeEntry ctx) = return $
     !(prettyContext sig ctx)
      <++>
     annotate Keyword "⊦"
@@ -405,7 +345,7 @@ mutual
      <++>
     annotate Keyword ":"
      <++>
-    !(prettyTypE sig (map fst $ tail ctx) ty 0)
+    !(prettyElem sig (map fst $ tail ctx) ty 0)
   prettySignatureEntry sig x (LetElemEntry ctx e ty) = return $
     !(prettyContext sig ctx)
      <++>
@@ -419,7 +359,7 @@ mutual
      <++>
     annotate Keyword ":"
      <++>
-    !(prettyTypE sig (map fst $ tail ctx) ty 0)
+    !(prettyElem sig (map fst $ tail ctx) ty 0)
   prettySignatureEntry sig x (EqTyEntry ctx a b) = return $
     !(prettyContext sig ctx)
      <++>
@@ -427,11 +367,11 @@ mutual
      <++>
     brackets' (annotate ContextVar (pretty x))
      <++>
-    !(prettyTypE sig (map fst $ tail ctx) a 0)
+    !(prettyElem sig (map fst $ tail ctx) a 0)
      <++>
     annotate Keyword "="
      <++>
-    !(prettyTypE sig (map fst $ tail ctx) b 0)
+    !(prettyElem sig (map fst $ tail ctx) b 0)
      <++>
     annotate Keyword "type"
 

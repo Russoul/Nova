@@ -10,8 +10,8 @@ import Text.Parser.Fork
 
 import ETT.Core.Language
 import ETT.Core.Substitution
-import ETT.Core.Assistant
 
+import ETT.Surface.Assistant
 import ETT.Surface.SemanticToken
 import ETT.Surface.Language
 import ETT.Surface.ParserUtil
@@ -22,6 +22,9 @@ runAssistant : Signature -> M ()
 runAssistant sig = FailSt.do
   io $ putStrLn "Enter command:"
   input <- io $ getLine
+  -- Skip empty lines:
+  let False = input == ""
+       | True => runAssistant sig
   io $ putStrLn "Processing: \{input}"
   case input /= "exit" of
     True => do
@@ -52,6 +55,17 @@ parserTestApp = do
    let Right (st, parsed) = parseFull' (MkParsingSt [<]) surfaceFile contents
      | Left err => die (show err)
    putStrLn "Parsed successfully!"
+
+{- checkTestApp : IO ()
+checkTestApp = do
+   Right contents <- readFile "src/proto0/CheckTest.proto0"
+     | Left err => die (show err)
+   let Right (st, parsed) = parseFull' (MkParsingSt [<]) surfaceFile contents
+     | Left err => die (show err)
+   putStrLn "Parsed successfully!"
+   Right sig <- eval (checkFile [<] parsed) (MkCheckSt [<])
+     | Left err => die err
+   putStrLn "Checked successfully!" -}
 
 main : IO ()
 main = assistantApp

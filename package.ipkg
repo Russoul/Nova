@@ -13,8 +13,9 @@ modules = Control.Monad.FailSt
         , ETT.Core.Evaluation
         , ETT.Core.Conversion
         , ETT.Core.Pretty
-        , ETT.Core.Assistant
+        , ETT.Core.Shrinking
 
+        , ETT.Surface.Assistant
         , ETT.Surface.Check
         , ETT.Surface.Language
         , ETT.Surface.Parser

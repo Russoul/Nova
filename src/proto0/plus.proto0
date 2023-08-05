@@ -1,0 +1,27 @@
+wk-let-elem gamma ty impl plus
+inst-ctx-empty gamma
+inst-exp ty A B
+inst-exp B B C
+inst-nat A
+inst-nat B
+inst-nat C
+inst-lam impl impl
+inst-lam impl impl
+rename-ctx-var 1 0 y
+rename-ctx-var 1 1 x
+inst-nat-elim impl z s R
+inst-ctx-var z x
+inst-nat-suc s s
+inst-ctx-var s R
+wk-let-elem gamma ty e one
+inst-ctx-empty gamma
+inst-nat ty
+inst-nat-suc e e
+inst-nat-0 e
+wk-let-elem gamma ty e two
+inst-ctx-empty gamma
+inst-nat ty
+inst-nat-suc e e
+inst-sig-var e one
+id
+exit

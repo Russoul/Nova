@@ -1,0 +1,42 @@
+wk-let-elem gamma ty e id
+inst-ctx-empty gamma
+inst-surface-type ty (A : 𝕌) → A → A
+inst-surface-elem e A ↦ x ↦ x
+id
+
+wk-let-elem gamma ty fun-ext-impl fun-ext
+inst-ctx-empty gamma
+inst-surface-type ty (A : 𝕌) → (B : A → 𝕌) → (f : (x : A) → B x) → (g : (x : A) → B x) → (p : (x : A) → f x ≡ g x ∈ B x) → f ≡ g ∈ (x : A) → B x
+inst-surface-elem fun-ext-impl A ↦ B ↦ f ↦ g ↦ p ↦ ?todo
+fun-ext todo x todo
+inst-surface-elem todo p x
+id
+
+
+wk-let-elem gamma ty impl plus
+inst-ctx-empty gamma
+inst-surface-type ty ℕ → ℕ → ℕ
+inst-surface-elem impl x ↦ y ↦ ℕ-elim (x. ℕ) ?z (x. h. ?s) x
+inst-surface-elem z y
+inst-surface-elem s S h
+id
+
+wk-let-elem gamma ty impl one
+inst-ctx-empty gamma
+inst-surface-type ty ℕ
+inst-surface-elem impl S Z
+id
+
+wk-let-elem gamma ty impl two
+inst-ctx-empty gamma
+inst-surface-type ty ℕ
+inst-surface-elem impl S one
+id
+
+wk-let-elem gamma ty impl three
+inst-ctx-empty gamma
+inst-surface-type ty ℕ
+inst-surface-elem impl S two
+id
+
+exit

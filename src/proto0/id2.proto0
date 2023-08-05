@@ -1,0 +1,6 @@
+wk-let-elem gamma ty e id
+inst-ctx-empty gamma
+inst-surface-type ty (A : 𝕌) → A → A
+inst-surface-elem e A ↦ x ↦ x
+id
+exit

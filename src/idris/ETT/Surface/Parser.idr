@@ -61,12 +61,6 @@ eqValHead = do
   pure (EqVal r)
 
 public export
-eqElimHead : Rule Head
-eqElimHead = do
-  r <- spName "J"
-  pure (EqElim r)
-
-public export
 elHead : Rule Head
 elHead = do
   r <- spName "El"
@@ -79,8 +73,15 @@ varHead = do
   pure (Var (fst x) (snd x))
 
 public export
+holeHead : Rule Head
+holeHead = do
+  l <- delim "?"
+  x <- located varName
+  pure (Hole (l + fst x) (snd x))
+
+public export
 head : Rule Head
-head = zeroHead <|> oneHead <|> natElimHead <|> natTyHead <|> universeTyHead <|> eqValHead <|> eqElimHead <|> elHead <|> varHead
+head = zeroHead <|> oneHead <|> natElimHead <|> natTyHead <|> universeTyHead <|> eqValHead <|> elHead <|> varHead <|> holeHead
 
 mutual
   public export
@@ -215,8 +216,22 @@ mutual
     pure (TypingSignature (fst x + fst ty) (snd x) (snd ty))
 
   public export
+  letSignature : Rule TopLevel
+  letSignature = do
+    x <- located varName
+    spaceDelim
+    delim_ "≔"
+    spaceDelim
+    rhs <- term 0
+    spaceDelim
+    delim_ ":"
+    spaceDelim
+    ty <- located (term 0)
+    pure (LetSignature (fst x + fst ty) (snd x) rhs (snd ty))
+
+  public export
   topLevel : Rule TopLevel
-  topLevel = typingSignature
+  topLevel = typingSignature <|> letSignature
 
   public export
   surfaceFile : Rule (List1 TopLevel)

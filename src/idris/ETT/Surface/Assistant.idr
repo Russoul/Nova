@@ -1,9 +1,12 @@
-module ETT.Core.Assistant
+module ETT.Surface.Assistant
 
 -- Assistant given a (typed) signature Σ
 -- Provides a set of transformations over Σ which result in a new (typed) signature Σ'
 
 import Control.Monad.FailSt
+
+import Data.Fin
+import Data.Location
 
 import public Text.Parser.Fork
 import Text.Lexer
@@ -18,6 +21,9 @@ import ETT.Core.Conversion
 import ETT.Core.Pretty
 import ETT.Core.VarName
 
+import ETT.Surface.Check
+import ETT.Surface.Language
+import ETT.Surface.Parser
 import ETT.Surface.ParserUtil
 
 ||| Signature transformation
@@ -63,13 +69,27 @@ data Transformation : Type where
   FunExt : (alpha, x, beta : VarName) -> Transformation
   ||| Σ ⇒ Σ E
   DebugDropLast : Transformation
+  ||| Σ₀ (Γ ⊦ z : A(0/x)) (Γ (x : ℕ) (h : A) ⊦ s : A(S x / x)) Σ₁(x. ℕ-elim x.A z x.h.s x / α) ⇒ Σ₀ (Γ (x : ℕ) ⊦ α : A) Σ₁
+  InstNatElim : (alpha, z, s, h : VarName) -> Transformation
+  InstNatZero : VarName -> Transformation
+  InstNatSuc : VarName -> VarName -> Transformation
+  ||| Σ₀ Σ₁(t/?) ⇒ Σ₀ (Γ ⊦ A type) Σ₁
+  InstSurfaceType : VarName -> SurfaceTerm -> Transformation
+  ||| Σ₀ Σ₁(t/?) ⇒ Σ₀ (Γ ⊦ ? : A) Σ₁
+  InstSurfaceElem : VarName -> SurfaceTerm -> Transformation
 
+fromCheckM : CheckSt -> CheckM a -> M (a, CheckSt)
+fromCheckM initial f = FailSt.do
+  mapState (const ()) (const initial) $ FailSt.do
+     x <- f
+     st <- get
+     return (x, st)
 
-funTy : TypE -> TypE -> TypE
+funTy : Elem -> Elem -> Elem
 funTy a b = PiTy "_" a (ContextSubstElim b Wk)
 
 ||| Γ₀ (xᵢ : A) Γ₁ ⊦ xᵢ : A
-lookupContext : Context -> VarName -> Maybe (Elem, TypE)
+lookupContext : Context -> VarName -> Maybe (Elem, Elem)
 lookupContext Empty x = Nothing
 lookupContext (SignatureVarElim i) x = Nothing
 lookupContext (Ext ctx x ty) y = FailSt.do
@@ -103,12 +123,12 @@ compute target Id = FailSt.do
   io $ putStrLn (renderDocTerm !(prettySignature [<] target))
   return target
 compute target (WkCtx ctxN) = return (target :< (ctxN, CtxEntry))
-compute target (WkTypE ctxN typeN) = return (target :< (ctxN, CtxEntry) :< (typeN, TypEEntry Var))
+compute target (WkTypE ctxN typeN) = return (target :< (ctxN, CtxEntry) :< (typeN, TypeEntry Var))
 compute target (WkElem ctxN typeN elemN) =
   -- Σ (Γ ctx) (Γ ⊦ A type) Γ ⊦ A type
   -- Σ (Γ ctx) (Γ ⊦ A type) (Γ ⊦ a : A)
   return $
-    target :< (ctxN, CtxEntry) :< (typeN, TypEEntry Var) :< (elemN, ElemEntry (VarN 1) (SignatureVarElim 0 Id))
+    target :< (ctxN, CtxEntry) :< (typeN, TypeEntry Var) :< (elemN, ElemEntry (VarN 1) (SignatureVarElim 0 Id))
 compute target (WkLetElem ctxN typeN elemN letN) =
   -- Σ (Γ ctx) (Γ ⊦ A type) Γ ⊦ A type
   -- Σ (Γ ctx) (Γ ⊦ A type) (Γ ⊦ a : A)
@@ -117,7 +137,7 @@ compute target (WkLetElem ctxN typeN elemN letN) =
       :<
     (ctxN, CtxEntry)
       :<
-    (typeN, TypEEntry Var)
+    (typeN, TypeEntry Var)
       :<
     (elemN, ElemEntry (VarN 1) (SignatureVarElim 0 Id))
       :<
@@ -133,29 +153,29 @@ compute target (InstCtxCons ctxN newCtxN typeN binderN) = FailSt.do
   -- Σ₀ (Γ ctx) (Γ ⊦ A type) ⊦ Σ₁(↑², Γ (x : A))
   (sig0, CtxEntry, sig1) <- splitByVarName target ctxN
     | _ => throw "\{ctxN} is not a 'ctx' entry"
-  return ((sig0 :< (newCtxN, CtxEntry) :< (typeN, TypEEntry Var))
+  return ((sig0 :< (newCtxN, CtxEntry) :< (typeN, TypeEntry Var))
             ++
           Signature.subst sig1 (Ext (WkN 2) (CtxEntryInstance $ Ext (VarN 1) binderN Var))
          )
 compute target (InstTypEExp solveMe dom cod) = FailSt.do
   -- Σ₀ (Γ ⊦ A type) ⊦ Σ₁
   -- Σ₀ (Γ ⊦ A type) (Γ(↑) ⊦ B type) ⊦ Σ₁(↑², A₁ → B₀)
-  (sig0, TypEEntry ctx, sig1) <- splitByVarName target solveMe
+  (sig0, TypeEntry ctx, sig1) <- splitByVarName target solveMe
     | _ => throw "\{solveMe} is not a 'type' entry"
-  return $ (sig0 :< (dom, TypEEntry ctx)) :< (cod, TypEEntry (subst ctx (the SubstSignature Wk)))
+  return $ (sig0 :< (dom, TypeEntry ctx)) :< (cod, TypeEntry (subst ctx (the SubstSignature Wk)))
              ++
            Signature.subst sig1 (Ext (WkN 2)
-             (TypEEntryInstance $ funTy (SignatureVarElim 1 Id) (SignatureVarElim 0 Id)))
+             (TypeEntryInstance $ funTy (SignatureVarElim 1 Id) (SignatureVarElim 0 Id)))
 compute target (InstTypEPi solveMe dom x cod) = FailSt.do
   -- Σ₀ (Γ ⊦ A type) ⊦ Σ₁
   -- Σ₀ (Γ ⊦ A type) (Γ(↑) (x : A) ⊦ B type) ⊦ Σ₁(↑², (x : A₁) → B₀)
-  (sig0, TypEEntry ctx, sig1) <- splitByVarName target solveMe
+  (sig0, TypeEntry ctx, sig1) <- splitByVarName target solveMe
     | _ => throw "\{solveMe} is not a 'type' entry"
-  return $ (sig0 :< (dom, TypEEntry ctx)) :< (cod, TypEEntry $ Ext (subst ctx (the SubstSignature Wk)) x (SignatureVarElim 0 Id))
+  return $ (sig0 :< (dom, TypeEntry ctx)) :< (cod, TypeEntry $ Ext (subst ctx (the SubstSignature Wk)) x (SignatureVarElim 0 Id))
              ++
            Signature.subst sig1
              (Ext (WkN 2)
-                  (TypEEntryInstance $ PiTy x
+                  (TypeEntryInstance $ PiTy x
                                         (SignatureVarElim 1 Id)
                                         (SignatureVarElim 0 Id)
                   )
@@ -163,32 +183,48 @@ compute target (InstTypEPi solveMe dom x cod) = FailSt.do
 compute target (InstTypENat x) = FailSt.do
   -- Σ₀ (Γ ⊦ χ type) ⊦ Σ₁
   -- Σ₀ ⊦ Σ₁(id, ℕ)
-  (sig0, TypEEntry ctx, sig1) <- splitByVarName target x
+  (sig0, TypeEntry ctx, sig1) <- splitByVarName target x
     | _ => throw "\{x} is not a 'type' entry"
-  return (sig0 ++ subst sig1 (Ext Id (TypEEntryInstance NatTy)))
+  return (sig0 ++ subst sig1 (Ext Id (TypeEntryInstance NatTy)))
+compute target (InstNatZero x) = FailSt.do
+  -- Σ₀ (Γ ⊦ x : ℕ) ⊦ Σ₁
+  -- Σ₀ ⊦ Σ₁(id, 0)
+  (sig0, ElemEntry ctx ty, sig1) <- splitByVarName target x
+    | _ => throw "\{x} is not an 'elem' entry"
+  let NatTy = runSubst ty
+    | _ => throw "Not ℕ"
+  return (sig0 ++ subst sig1 (Ext Id (ElemEntryInstance NatVal0)))
+compute target (InstNatSuc x t) = FailSt.do
+  -- Σ₀ (Γ ⊦ x : ℕ) ⊦ Σ₁
+  -- Σ₀ (Γ ⊦ t : ℕ) ⊦ Σ₁(↑, S t₀)
+  (sig0, ElemEntry ctx ty, sig1) <- splitByVarName target x
+    | _ => throw "\{x} is not an 'elem' entry"
+  let NatTy = runSubst ty
+    | _ => throw "Not ℕ"
+  return (sig0 ++ [< (t, ElemEntry ctx NatTy)] ++ subst sig1 (Ext Wk (ElemEntryInstance (NatVal1 SigVar))))
 compute target (InstTypEUniverse x) = FailSt.do
   -- Σ₀ (Γ ⊦ χ type) ⊦ Σ₁
   -- Σ₀ ⊦ Σ₁(id, 𝕌)
-  (sig0, TypEEntry ctx, sig1) <- splitByVarName target x
+  (sig0, TypeEntry ctx, sig1) <- splitByVarName target x
     | _ => throw "\{x} is not a 'type' entry"
-  return (sig0 ++ subst sig1 (Ext Id (TypEEntryInstance UniverseTy)))
+  return (sig0 ++ subst sig1 (Ext Id (TypeEntryInstance Universe)))
 compute target (InstTypEEl solveN typeN) = FailSt.do
   -- Σ₀ (Γ ⊦ χ type) ⊦ Σ₁
   -- Σ₀ (Γ ⊦ A : 𝕌) ⊦ Σ₁(↑, El A₀)
-  (sig0, TypEEntry ctx, sig1) <- splitByVarName target solveN
+  (sig0, TypeEntry ctx, sig1) <- splitByVarName target solveN
     | _ => throw "\{solveN} is not a 'type' entry"
-  return (sig0 :< (typeN, ElemEntry ctx UniverseTy) ++ subst sig1 (Ext Wk (TypEEntryInstance $ El (SignatureVarElim 0 Id))))
+  return (sig0 :< (typeN, ElemEntry ctx Universe) ++ subst sig1 (Ext Wk (TypeEntryInstance (SignatureVarElim 0 Id))))
 compute target (InstTypEEq solveN typeN leftN rightN) = FailSt.do
   -- Σ₀ (Γ ⊦ A type) ⊦ Σ₁
   -- Σ₀ (Γ ⊦ A type) (Γ(↑) ⊦ a₀ : A) (Γ(↑²) ⊦ a₁ : A) ⊦ Σ₁(↑³, a₀ ≡ a₁ ∈ A)
-  (sig0, TypEEntry ctx, sig1) <- splitByVarName target solveN
+  (sig0, TypeEntry ctx, sig1) <- splitByVarName target solveN
     | _ => throw "\{solveN} is not a 'type' entry"
   let ctx' = subst ctx (the SubstSignature Wk)
   let ctx'' = subst ctx (the SubstSignature (Chain Wk Wk))
   let ctx''' = subst ctx (the SubstSignature (Chain (Chain Wk Wk) Wk))
-  return $ (sig0 :< (typeN, TypEEntry ctx) :< (leftN, ElemEntry ctx' Var) :< (rightN, ElemEntry ctx'' (SignatureVarElim 1 Id)))
+  return $ (sig0 :< (typeN, TypeEntry ctx) :< (leftN, ElemEntry ctx' Var) :< (rightN, ElemEntry ctx'' (SignatureVarElim 1 Id)))
              ++
-           Signature.subst sig1 (Ext (WkN 3) (TypEEntryInstance $ EqTy (SignatureVarElim 1 Id) (SignatureVarElim 0 Id) (SignatureVarElim 2 Id)))
+           Signature.subst sig1 (Ext (WkN 3) (TypeEntryInstance $ EqTy (SignatureVarElim 1 Id) (SignatureVarElim 0 Id) (SignatureVarElim 2 Id)))
 compute target (InstElemLam solveN newN) = FailSt.do
   -- Σ₀ (Γ ⊦ f : (x : A) → B) ⊦ Σ₁
   -- Σ₀ (Γ (x : A) ⊦ f : B) ⊦ Σ₁(↑, λ x A(↑) B(↑) f)
@@ -211,6 +247,22 @@ compute target (InstContextVar solveN varN) = FailSt.do
     | False => throw "Context variable's type doesn't match the expected type"
   return $
     sig0 ++ subst sig1 (Ext Id (ElemEntryInstance sol))
+compute target (InstSurfaceType solveN surfaceTm) = FailSt.do
+  -- σ : Σ₀ Σ₀' ⇒ Σ₀ (Γ ⊦ A type)
+  --  Σ₀ Σ₀' Σ₁(↑(Σ₀), tm) ⇒ Σ₀ (Γ ⊦ A type) Σ₁
+  --
+  (sig0, TypeEntry ctx, sig1) <- splitByVarName target solveN
+    | _ => throw "\{solveN} is not a 'elem' entry"
+  (tm, MkCheckSt holes) <- fromCheckM (MkCheckSt [<]) $ checkElem sig0 ctx surfaceTm Universe
+  return $
+    sig0 ++ toSignature holes ++ subst sig1 (Ext (WkN (length holes)) (TypeEntryInstance tm))
+compute target (InstSurfaceElem solveN surfaceTm) = FailSt.do
+  --  Σ₀ (Γ ⊦ x : A) ⊦ Σ₁
+  (sig0, ElemEntry ctx ty, sig1) <- splitByVarName target solveN
+    | _ => throw "\{solveN} is not a 'elem' entry"
+  (tm, MkCheckSt holes) <- fromCheckM (MkCheckSt [<]) $ checkElem sig0 ctx surfaceTm ty
+  return $
+    sig0 ++ toSignature holes ++ subst sig1 (Ext (WkN (length holes)) (ElemEntryInstance tm))
 compute target (RenameSigVar i x) = FailSt.do
   (sig0, _, e, sig1) <- splitByIndex target i
   return (extend sig0 x e ++ sig1)
@@ -226,7 +278,7 @@ compute target (RenameCtxVar i j x) = FailSt.do
 
   renameEntry : SignatureEntry -> Nat -> VarName -> M SignatureEntry
   renameEntry CtxEntry j x = throw "Can't rename here"
-  renameEntry (TypEEntry ctx) j x = return $ TypEEntry !(renameCtx ctx j x)
+  renameEntry (TypeEntry ctx) j x = return $ TypeEntry !(renameCtx ctx j x)
   renameEntry (ElemEntry ctx ty) j x = return $ ElemEntry !(renameCtx ctx j x) ty
   renameEntry (LetElemEntry ctx e ty) j x = return $ LetElemEntry !(renameCtx ctx j x) e ty
   renameEntry (EqTyEntry ctx a b) j x = return $ EqTyEntry !(renameCtx ctx j x) a b
@@ -239,7 +291,7 @@ compute target (InstPiElim n dom x cod f e eq) = FailSt.do
    --     Σ₁(↑⁵, ap f₂ x X₄ Y₃ e₁)
   (sig0, ElemEntry ctx ty, sig1) <- splitByVarName target n
     | _ => throw "\{n} is not a 'elem' entry"
-  let sig = extend (extend sig0 dom (TypEEntry ctx)) cod (TypEEntry (Ext (subst ctx Wk) x Var))
+  let sig = extend (extend sig0 dom (TypeEntry ctx)) cod (TypeEntry (Ext (subst ctx Wk) x Var))
   let sig = extend sig f (ElemEntry (subst ctx (WkN 2)) (PiTy x (VarN 1) Var))
   let sig = extend sig e (ElemEntry (subst ctx (WkN 3)) (VarN 2))
   let sig = extend sig eq (EqTyEntry (subst ctx (WkN 4)) (SignatureVarElim 2 (Ext Id SigVar)) (SignatureSubstElim ty (WkN 4)))
@@ -269,6 +321,30 @@ compute target (FunExt alpha x beta) = FailSt.do
                )
              )
   return (sig ++ subst sig1 (Ext Wk (ElemEntryInstance EqVal)))
+compute target (InstNatElim alpha z s h) = FailSt.do
+  --   Σ₀ (Γ ⊦ z : A(0/x)) (Γ (x : ℕ) (h : A) ⊦ s : A(S x / x)) Σ₁(x. ℕ-elim x.A z x.h.s x / α) ⇒ Σ₀ (Γ (x : ℕ) ⊦ α : A) Σ₁
+  --   Σ₀ (Γ ⊦ z : A(id, 0)) (Γ(↑) (x : ℕ) (h : A(↑)) ⊦ s : A(↑)(↑², S x₁)) Σ₁(↑², ℕ-elim A(↑²)[↑², x₀] z₁[↑] s₀[↑] x₀) ⇒ Σ₀ (Γ (x : ℕ) ⊦ α : A) Σ₁
+  (sig0, ElemEntry ctx ty, sig1) <- splitByVarName target alpha
+    | _ => throw "\{alpha} is not an 'elem' entry"
+  let Ext gamma x lastTy = ctx
+    | _ => throw "Invalid context (1)"
+  let NatTy = runSubst lastTy
+    | _ => throw "Invalid context (2)"
+  let sig = sig0 :< (z, ElemEntry gamma (ContextSubstElim ty (Ext Id NatVal0)))
+                 :< (s, ElemEntry (Ext (Ext (subst gamma Wk) x NatTy) h (SignatureSubstElim ty Wk)) (ContextSubstElim (SignatureSubstElim ty Wk) (Ext (WkN 2) (NatVal1 (VarN 1)))))
+  let sig = sig ++ subst sig1 (Ext (WkN 2)
+                    (ElemEntryInstance $
+                      NatElim x
+                              (ContextSubstElim (SignatureSubstElim ty (Chain Wk Wk)) (Ext (WkN 2) (VarN 0)))
+                              (SignatureVarElim 1 Wk)
+                              x
+                              h
+                              -- Γ (x : ℕ) (h : A) ⊦ s
+                              -- Γ (x : ℕ) ⊦ ℕ _ _ x.h.s(↑⁺⁺)
+                              (SignatureVarElim 0 (UnderN 2 Wk))
+                              CtxVar
+                    ))
+  return sig
 compute (xs :< _) DebugDropLast = FailSt.do
   return xs
 compute [<] DebugDropLast = FailSt.do
@@ -499,6 +575,58 @@ funExt = do
   pure (FunExt x y z)
 
 public export
+instNatZero : Rule Transformation
+instNatZero = do
+  delim_ "inst-nat-0"
+  spaceDelim
+  x <- varName
+  pure (InstNatZero x)
+
+public export
+instNatSuc : Rule Transformation
+instNatSuc = do
+  delim_ "inst-nat-suc"
+  spaceDelim
+  x <- varName
+  spaceDelim
+  y <- varName
+  pure (InstNatSuc x y)
+
+public export
+instNatElim : Rule Transformation
+instNatElim = do
+  delim_ "inst-nat-elim"
+  spaceDelim
+  x <- varName
+  spaceDelim
+  y <- varName
+  spaceDelim
+  z <- varName
+  spaceDelim
+  w <- varName
+  pure (InstNatElim x y z w)
+
+public export
+instSurfaceType : Rule Transformation
+instSurfaceType = do
+  delim_ "inst-surface-type"
+  spaceDelim
+  x <- varName
+  spaceDelim
+  tm <- term 0
+  pure (InstSurfaceType x tm)
+
+public export
+instSurfaceElem : Rule Transformation
+instSurfaceElem = do
+  delim_ "inst-surface-elem"
+  spaceDelim
+  x <- varName
+  spaceDelim
+  tm <- term 0
+  pure (InstSurfaceElem x tm)
+
+public export
 debugDropLast : Rule Transformation
 debugDropLast = do
   delim_ "debug-drop-last"
@@ -521,9 +649,14 @@ transformation = id
              <|> instElemLam
              <|> instTypEEq
              <|> instContextVar
+             <|> instNatElim
+             <|> instNatZero
+             <|> instNatSuc
              <|> renameSignatureVar
              <|> renameContextVar
              <|> instPiElim
              <|> instTyRefl
+             <|> instSurfaceType
+             <|> instSurfaceElem
              <|> funExt
              <|> debugDropLast

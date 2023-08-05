@@ -1,0 +1,8 @@
+wk-let-elem gamma ty impl plus
+inst-ctx-empty gamma
+inst-surface-type ty ℕ → ℕ → ℕ
+inst-surface-elem impl x ↦ y ↦ ℕ-elim (x. ℕ) ?z (x. h. ?s) x
+inst-surface-elem z y
+inst-surface-elem s S h
+id
+exit

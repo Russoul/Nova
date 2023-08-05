@@ -89,9 +89,16 @@ mutual
     -- Σ (Δ ⊦ χ : A) | Γ ⊦ χ₁₊ᵢ(ē)[τ, t] = χᵢ(ē[τ, t])[τ]
     substSignatureVar 0 (Ext tau (ElemEntryInstance t)) sigma1 spine = FailSt.do
       subst (SignatureSubstElim t sigma1) spine
+    substSignatureVar 0 (Ext tau (TypeEntryInstance t)) sigma1 spine =
+      subst (SignatureSubstElim t sigma1) spine
     substSignatureVar (S k) (Ext tau _) sigma1 spine =
       substSignatureVar k tau sigma1 spine
-    substSignatureVar 0 (Ext tau _) sigma1 spine = assert_total $ idris_crash "Elem.substSignatureVar(...)"
+    substSignatureVar 0 (Ext tau (CtxEntryInstance _)) sigma1 spine =
+      assert_total $ idris_crash "Elem.substSignatureVar(CtxEntryInstance)"
+    substSignatureVar 0 (Ext tau (LetEntryInstance {})) sigma1 spine =
+      assert_total $ idris_crash "Elem.substSignatureVar(LetEntryInstance)"
+    substSignatureVar 0 (Ext tau EqTyEntryInstance) sigma1 spine =
+      assert_total $ idris_crash "Elem.substSignatureVar(EqEntryInstance)"
     substSignatureVar x Terminal sigma1 spine = assert_total $ idris_crash "substSignatureVar(Terminal)"
 
     ||| xᵢ(σ : Γ₁ ⇒ Γ₂)(τ : Γ₀ ⇒ Γ₁)
@@ -113,31 +120,14 @@ mutual
     substContextVar : Nat -> SubstContext -> SubstContext -> Elem
     substContextVar x sigma tau = substContextVarNu x (runSubst sigma) tau
 
-    namespace TypE
-      ||| χᵢ[σ][τ](ē)
-      public export
-      substSignatureVar : Nat -> SubstSignature -> SubstSignature -> SubstContext -> TypE
-      substSignatureVar x Id Id spine = SignatureVarElim x spine
-      substSignatureVar x Id sigma1 spine = substSignatureVar x sigma1 Id spine
-      substSignatureVar x Wk sigma1 spine = substSignatureVar (S x) sigma1 Id spine
-      substSignatureVar x (Chain Id tau) sigma spine = substSignatureVar x tau sigma spine
-      substSignatureVar x (Chain tau0 tau1) sigma1 spine = substSignatureVar x tau0 (Chain tau1 sigma1) spine
-      -- Σ (Δ ⊦ χ : A) | Γ ⊦ χ₀(ē)[τ, t] = t(ē[τ, t])
-      -- Σ (Δ ⊦ χ : A) | Γ ⊦ χ₁₊ᵢ(ē)[τ, t] = χᵢ(ē[τ, t])[τ]
-      -- t[τ](ē)
-      substSignatureVar 0 (Ext tau (TypEEntryInstance t)) sigma1 spine = FailSt.do
-        subst (SignatureSubstElim t sigma1) spine
-      substSignatureVar (S k) (Ext tau _) sigma1 spine =
-        substSignatureVar k tau sigma1 spine
-      substSignatureVar 0 (Ext tau _) sigma1 spine = assert_total $ idris_crash "TypE.substSignatureVar(...)"
-      substSignatureVar x Terminal sigma1 spine = assert_total $ idris_crash "substSignatureVar(Terminal)"
-
   namespace B
     ||| t(σ)
     public export
     subst : Elem -> SubstContext -> Elem
     -- ℕ(σ) = ℕ
     subst NatTy sigma = NatTy
+    -- 𝕌(σ) = 𝕌
+    subst Universe sigma = Universe
     -- (π A B)(σ) = π A(σ) B(σ⁺(El A))
     subst (PiTy x a b) sigma =
       PiTy x (ContextSubstElim a sigma) (ContextSubstElim b (Under sigma))
@@ -201,26 +191,6 @@ mutual
                (ContextSubstElim a1 tau)
                (ContextSubstElim a tau)
 
-  namespace E
-    ||| t(σ)
-    public export
-    subst : TypE -> SubstContext -> TypE
-    -- (Π A B)(σ) = Π A(σ) B(σ⁺(A))
-    subst (PiTy x a b) sigma =
-      PiTy x (ContextSubstElim a sigma) (ContextSubstElim b (Under sigma))
-    -- t(σ)(τ) = t(σ ∘ τ)
-    subst (ContextSubstElim t tau) sigma =
-      subst t (Chain tau sigma)
-    subst (SignatureSubstElim t tau) sigma =
-      subst (subst t tau) sigma
-    subst (EqTy a0 a1 ty) tau = EqTy (ContextSubstElim a0 tau) (ContextSubstElim a1 tau) (ContextSubstElim ty tau)
-    subst NatTy tau = NatTy
-    subst UniverseTy tau = UniverseTy
-    -- χ(ē)(τ) = χ(σ(τ))
-    subst (SignatureVarElim i sigma) tau =
-      SignatureVarElim i (Chain sigma tau)
-    subst (El u) tau = El (ContextSubstElim u tau)
-
   namespace C
     public export
     subst : Elem -> SubstSignature -> Elem
@@ -235,6 +205,7 @@ mutual
           (SignatureSubstElim e sigma)
     subst NatVal0 sigma = NatVal0
     subst NatTy sigma = NatTy
+    subst Universe sigma = Universe
     subst (NatVal1 t) sigma = NatVal1 (SignatureSubstElim t sigma)
     subst (NatElim x schema z y h s t) sigma =
       NatElim
@@ -262,21 +233,6 @@ mutual
                (SignatureSubstElim r tau)
                (SignatureSubstElim a1 tau)
                (SignatureSubstElim a tau)
-
-  namespace F
-    public export
-    subst : TypE -> SubstSignature -> TypE
-    subst (PiTy x a b) sigma = PiTy x (SignatureSubstElim a sigma) (SignatureSubstElim b sigma)
-    subst (ContextSubstElim t sigma) tau =
-      subst (subst t sigma) tau
-    subst (SignatureSubstElim t sigma0) sigma1 =
-      subst t (Chain sigma0 sigma1)
-    subst (EqTy a0 a1 ty) tau = EqTy (SignatureSubstElim a0 tau) (SignatureSubstElim a1 tau) (SignatureSubstElim ty tau)
-    subst NatTy tau = NatTy
-    subst UniverseTy tau = UniverseTy
-    -- χ(ē)[τ] = χ[τ][id](ē[τ])
-    subst (SignatureVarElim i sigma) tau = substSignatureVar i tau Id (subst sigma tau)
-    subst (El u) tau = El (SignatureSubstElim u tau)
 
   namespace List
     public export
@@ -353,7 +309,8 @@ mutual
       public export
       Under : SubstSignature -> SignatureEntry -> SubstSignature
       Under sigma CtxEntry = Ext (Chain sigma Wk) (CtxEntryInstance Var)
-      Under sigma (TypEEntry ctx) = Ext (Chain sigma Wk) (TypEEntryInstance $ SignatureVarElim 0 Id)
+      Under sigma (TypeEntry ctx) =
+        Ext (Chain sigma Wk) (TypeEntryInstance $ SignatureVarElim 0 Id)
       Under sigma (ElemEntry ctx ty) =
         Ext (Chain sigma Wk) (ElemEntryInstance $ SignatureVarElim 0 Id)
       Under sigma (LetElemEntry ctx e ty) =
@@ -386,7 +343,7 @@ namespace SignatureEntry
   public export
   subst : SignatureEntry -> SubstSignature -> SignatureEntry
   subst CtxEntry sigma = CtxEntry
-  subst (TypEEntry ctx) sigma = TypEEntry (subst ctx sigma)
+  subst (TypeEntry ctx) sigma = TypeEntry (subst ctx sigma)
   subst (ElemEntry ctx ty) sigma = ElemEntry (subst ctx sigma) (SignatureSubstElim ty sigma)
   subst (LetElemEntry ctx e ty) sigma = LetElemEntry (subst ctx sigma) (SignatureSubstElim e sigma) (SignatureSubstElim ty sigma)
   subst (EqTyEntry ctx a b) sigma = EqTyEntry (subst ctx sigma) (SignatureSubstElim a sigma) (SignatureSubstElim b sigma)
@@ -402,13 +359,6 @@ namespace Signature
   subst : Signature -> SubstSignature -> Signature
   subst sig sigma = cast {to = Signature} (subst (cast {to = List _} sig) sigma)
 
-namespace TypE
-  public export
-  runSubst : TypE -> TypE
-  runSubst (ContextSubstElim t sigma) = subst t sigma
-  runSubst (SignatureSubstElim t sigma) = subst t sigma
-  runSubst t = t
-
 namespace Elem
   public export
   runSubst : Elem -> Elem
@@ -417,7 +367,7 @@ namespace Elem
   runSubst t = t
 
 public export
-toContext : SnocList (VarName, TypE) -> Context
+toContext : SnocList (VarName, Elem) -> Context
 toContext [<] = Empty
 toContext (tyes :< (x, ty)) = Ext (toContext tyes) x ty
 
@@ -425,7 +375,7 @@ toContext (tyes :< (x, ty)) = Ext (toContext tyes) x ty
 ||| ε ⊦ id = · : ε
 ||| Γ (x : A) ⊦ id = Γ (x : A) : ε
 ||| n = |Γ|
-idSpine : SnocList (VarName, TypE) -> Spine
+idSpine : SnocList (VarName, Elem) -> Spine
 idSpine [<] = [<]
 idSpine (tyes :< (x, ty)) =
   subst (idSpine tyes) (the SubstContext Wk) :< ContextVarElim 0
@@ -438,7 +388,7 @@ mutual
   ||| ------------------
   ||| Γ ⊦ toSpine(σ) : Δ
   public export
-  toSpineNu : SnocList (VarName, TypE) -> SubstContext -> Spine
+  toSpineNu : SnocList (VarName, Elem) -> SubstContext -> Spine
   toSpineNu delta Id = idSpine delta
   -- ↑ : Γ (x : A) ⇒ Γ
   -- Γ (x : A) ⊦ toSpine(↑) : Γ
@@ -456,7 +406,7 @@ mutual
   toSpineNu delta (SignatureSubstElim x y) = assert_total $ idris_crash "toSpineNu(SignatureSubstElim)"
 
   public export
-  toSpine : SnocList (VarName, TypE) -> SubstContext -> Spine
+  toSpine : SnocList (VarName, Elem) -> SubstContext -> Spine
   toSpine delta sigma = toSpineNu delta (runSubst sigma)
 
 public export
@@ -465,6 +415,10 @@ quote Terminal = Terminal
 quote (WkN k) = WkN k
 quote (Ext sigma a) = Ext sigma a
 
+-- x y z w ⊦ ·, 3, 2, 1, 0 = ↑⁴, 3, 2, 1, 0 = id : x y z w
+-- ·, 4, 3, 2, 1, 0 = ↑⁵, 4, 3, 2, 1, 0 = id
+-- ↑⁵
+-- terminal can be always reduced to weakening but for that we need to know length of the context...
 public export
 eval : SubstContext -> SubstContextNF
 eval Id = WkN 0
