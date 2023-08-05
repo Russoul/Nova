@@ -3,13 +3,7 @@ module ETT.Core.Substitution
 import Data.List
 import Data.SnocList
 
-import Control.Monad.FailSt
-
 import ETT.Core.Language
-
-public export
-M : Type -> Type
-M = FailStM String ()
 
 mutual
   namespace A

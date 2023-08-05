@@ -1,7 +1,5 @@
 module ETT.Core.Pretty
 
-import Control.Monad.FailSt
-
 import Data.Fin
 import Data.String
 import Data.Util
@@ -10,8 +8,9 @@ import Text.PrettyPrint.Prettyprinter.Render.Terminal
 import Text.PrettyPrint.Prettyprinter
 
 import ETT.Core.Language
-import ETT.Core.Substitution
+import ETT.Core.Monad
 import ETT.Core.Shrinking
+import ETT.Core.Substitution
 
 -- (x : A{≥0}) → A{≥0}
 -- e{≥3} ≡ e{≥3} ∈ e{≥0}
@@ -109,7 +108,7 @@ public export
 localise : SnocList VarName -> Nat -> M (VarName, Nat)
 localise [<] idx = throw "Exception in 'localise'"
 localise (xs :< x) Z = return (x, 0)
-localise (xs :< x) (S k) = FailSt.do
+localise (xs :< x) (S k) = M.do
   (name, idx) <- localise xs k
   case name == x of
     True => return (name, S idx)
@@ -117,7 +116,7 @@ localise (xs :< x) (S k) = FailSt.do
 
 public export
 prettySignatureVar : SnocList VarName -> Nat -> M (Doc Ann)
-prettySignatureVar sig i = FailSt.do
+prettySignatureVar sig i = M.do
   -- return (annotate SignatureVar (pretty $ "χ" ++ natToSuperscript i))
   (n, 0) <- localise sig i
     | (n, k) =>
@@ -126,7 +125,7 @@ prettySignatureVar sig i = FailSt.do
 
 public export
 prettyContextVar : SnocList VarName -> Nat -> M (Doc Ann)
-prettyContextVar sig i = FailSt.do
+prettyContextVar sig i = M.do
   -- return (annotate SignatureVar (pretty $ "x" ++ natToSuperscript i))
   (n, 0) <- localise sig i
     | (n, k) =>
@@ -158,9 +157,9 @@ mutual
              -> SnocList VarName
              -> Elem
              -> M (Doc Ann)
-  prettyElem' sig ctx (PiTy x dom cod) = FailSt.do
+  prettyElem' sig ctx (PiTy x dom cod) = M.do
     case !(shrink cod 1 0) of
-      Nothing => FailSt.do
+      Nothing => M.do
         return $
           annotate Intro lparen
            <+>
@@ -175,7 +174,7 @@ mutual
           annotate Keyword "→"
            <++>
           !(prettyElem sig (ctx :< x) cod 0)
-      Just cod => FailSt.do
+      Just cod => M.do
         return $
           !(prettyElem sig ctx dom 3)
            <++>
@@ -204,7 +203,7 @@ mutual
     !(prettyElem sig ctx e 4)
   prettyElem' sig ctx NatTy =
     return $ annotate Intro "ℕ"
-  prettyElem' sig ctx (NatElim x schema z y h s t) = FailSt.do
+  prettyElem' sig ctx (NatElim x schema z y h s t) = M.do
     return $
       annotate Elim "ℕ-elim"
        <++>
@@ -230,7 +229,7 @@ mutual
     prettyElem' sig ctx (runSubst tm)
   prettyElem' sig ctx (ContextVarElim k) =
     prettyContextVar ctx k
-  prettyElem' sig ctx (SignatureVarElim k sigma) = FailSt.do
+  prettyElem' sig ctx (SignatureVarElim k sigma) = M.do
     x <- prettySignatureVar sig k
     return $
       x
@@ -248,7 +247,7 @@ mutual
     !(prettyElem sig ctx ty 0)
   prettyElem' sig ctx EqVal =
     return $ annotate Intro "*"
-  prettyElem' sig ctx (EqElim ty a0 x h schema r a1 a) = FailSt.do
+  prettyElem' sig ctx (EqElim ty a0 x h schema r a1 a) = M.do
     return $
       annotate Elim "J"
        <++>

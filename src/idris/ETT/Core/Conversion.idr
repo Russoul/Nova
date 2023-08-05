@@ -1,8 +1,7 @@
 module ETT.Core.Conversion
 
-import Control.Monad.FailSt
-
 import ETT.Core.Language
+import ETT.Core.Monad
 import ETT.Core.Substitution
 
 -- Checking equality of terms modulo substitution rules
@@ -45,7 +44,7 @@ mutual
       conv a0 a1 `and` conv b0 b1 `and` conv ty0 ty1
     convNu (EqVal {}) (EqVal {}) = return True
     convNu (EqElim ty0 a0 x0 h0 schema0 r0 b0 p0) (EqElim ty1 a1 x1 h1 schema1 r1 b1 p1) =
-      let and = FailSt.and in
+      let and = M.and in
       conv ty0 ty1
         `and`
       conv a0 a1

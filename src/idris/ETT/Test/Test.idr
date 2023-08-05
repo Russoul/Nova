@@ -1,7 +1,5 @@
 module ETT.Test.Test
 
-import Control.Monad.FailSt
-
 import System.File.ReadWrite
 import System
 
@@ -9,6 +7,7 @@ import Text.Parser.CharUtil
 import Text.Parser.Fork
 
 import ETT.Core.Language
+import ETT.Core.Monad
 import ETT.Core.Substitution
 
 import ETT.Surface.Assistant
@@ -19,7 +18,7 @@ import ETT.Surface.Parser
 import ETT.Surface.Check
 
 runAssistant : Signature -> M ()
-runAssistant sig = FailSt.do
+runAssistant sig = M.do
   io $ putStrLn "Enter command:"
   input <- io $ getLine
   -- Skip empty lines:
@@ -29,16 +28,16 @@ runAssistant sig = FailSt.do
   case input /= "exit" of
     True => do
       let Right (st, transformation) = parseFull' (MkParsingSt [<]) transformation input
-        | Left err => FailSt.do
+        | Left err => M.do
             io $ putStrLn (show err)
             runAssistant sig
       Right sig' <- try $ compute sig transformation
-        | Left err => FailSt.do
+        | Left err => M.do
             io $ putStrLn err
             runAssistant sig
       io $ putStrLn "✔"
       runAssistant sig'
-    False => FailSt.do
+    False => M.do
       io $ putStrLn "Bye!"
       return ()
 

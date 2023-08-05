@@ -1,7 +1,6 @@
 module ETT.Core.Evaluation
 
-import Control.Monad.FailSt
-
+import ETT.Core.Monad
 import ETT.Core.Language
 import ETT.Core.Substitution
 
@@ -22,7 +21,7 @@ lookupLetElemSignature : Signature -> Nat -> M Elem
 lookupLetElemSignature [<] x = throw "lookupLetElemSignature(1)"
 lookupLetElemSignature (sig :< (_, LetElemEntry ctx e ty)) 0 = return $ SignatureSubstElim e Wk
 lookupLetElemSignature (sig :< (_, _)) 0 = throw "lookupLetElemSignature(2)"
-lookupLetElemSignature (sig :< (_, _)) (S k) = FailSt.do
+lookupLetElemSignature (sig :< (_, _)) (S k) = M.do
   t <- lookupLetElemSignature sig k
   return (SignatureSubstElim t Wk)
 
@@ -35,13 +34,13 @@ mutual
   evalNu sig Universe = return Universe
   evalNu sig (PiTy x a b) = return (PiTy x a b)
   evalNu sig (PiVal x a b f) = return (PiVal x a b f)
-  evalNu sig (PiElim f x a b e) = FailSt.do
+  evalNu sig (PiElim f x a b e) = M.do
     PiVal _ _ _ f <- eval sig f
       | _ => throw "eval(PiElim)"
     eval sig (ContextSubstElim f (Ext Terminal e))
   evalNu sig NatVal0 = return NatVal0
   evalNu sig (NatVal1 t) = return (NatVal1 t)
-  evalNu sig (NatElim x schema z y h s t) = FailSt.do
+  evalNu sig (NatElim x schema z y h s t) = M.do
     t <- eval sig t
     case t of
       NatVal0 => eval sig z
@@ -51,7 +50,7 @@ mutual
   evalNu sig (SignatureSubstElim t sigma) = throw "eval(SignatureSubstElim)"
   evalNu sig (ContextVarElim x) = throw "eval(ContextVarElim)"
   -- Σ₀ (Γ ⊦ x ≔ e : A) Σ₁ ⊦ x σ = e(↑(1 + |Σ₁|))(σ)
-  evalNu sig (SignatureVarElim x spine) = FailSt.do
+  evalNu sig (SignatureVarElim x spine) = M.do
    t <- lookupLetElemSignature sig x
    eval sig (ContextSubstElim t spine)
   evalNu sig (EqTy a0 a1 ty) = return $ EqTy a0 a1 ty

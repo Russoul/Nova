@@ -1,19 +1,19 @@
 package exttt
 
-depends = contrib
+depends = contrib, just-a-monad
 
-modules = Control.Monad.FailSt
-
-        , Data.AVL
+modules =
+          Data.AVL
         , Data.Location
         , Data.Util
 
-        , ETT.Core.Language
-        , ETT.Core.Substitution
-        , ETT.Core.Evaluation
         , ETT.Core.Conversion
+        , ETT.Core.Evaluation
+        , ETT.Core.Language
+        , ETT.Core.Monad
         , ETT.Core.Pretty
         , ETT.Core.Shrinking
+        , ETT.Core.Substitution
 
         , ETT.Surface.Assistant
         , ETT.Surface.Check

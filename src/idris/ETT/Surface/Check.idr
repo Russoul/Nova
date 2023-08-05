@@ -5,11 +5,10 @@ import Data.List1
 import Data.List
 import Data.SnocList
 
-import Control.Monad.FailSt
-
-import ETT.Core.Language
-import ETT.Core.Substitution
 import ETT.Core.Conversion
+import ETT.Core.Language
+import ETT.Core.Monad
+import ETT.Core.Substitution
 
 import ETT.Surface.Language
 
@@ -55,21 +54,21 @@ record CheckSt where
 
 public export
 CheckM : Type -> Type
-CheckM = FailStM String CheckSt
+CheckM = M String CheckSt
 
 mkErrorMsg : Range -> String -> String
 mkErrorMsg r msg = "\{msg}\n\{show r}"
 
 public export
 numberOfHoles : CheckM Nat
-numberOfHoles = FailSt.do
+numberOfHoles = M.do
   MkCheckSt holes <- get
   return (length holes)
 
 ||| Register a new hole with a unique name.
 ||| Ensures that the name is unique.
 registerHole : Signature -> Range -> Context -> VarName -> CoreElem -> CheckM ()
-registerHole sig r ctx x tm = FailSt.do
+registerHole sig r ctx x tm = M.do
   MkCheckSt holes <- get
   let Nothing = find (\(n, _) => n == x) sig $> () <|> find (\(_, n, _) => n == x) holes $> ()
     | _ => throw $ mkErrorMsg r "Hole with that name already exists: \{x}"
@@ -82,12 +81,12 @@ toSignature = map (\(ctx, x, ty) => (x, ElemEntry ctx ty))
 
 ||| Full signature is computed by appending registered holes to the prefix.
 computeSignature : (prefix_ : Signature) -> CheckM Signature
-computeSignature pr = FailSt.do
+computeSignature pr = M.do
   MkCheckSt holes <- get
   return $ pr ++ toSignature holes
 
 liftM : M a -> CheckM a
-liftM f = FailSt.do
+liftM f = M.do
   st <- get
   mapState (const st) (const ()) f
 
@@ -95,7 +94,7 @@ liftM f = FailSt.do
 lookupContext : Context -> VarName -> Maybe (CoreElem, CoreElem)
 lookupContext Empty x = Nothing
 lookupContext (SignatureVarElim k) x = Nothing
-lookupContext (Ext ctx x ty) y = FailSt.do
+lookupContext (Ext ctx x ty) y = M.do
   case x == y of
     True => Just (ContextVarElim 0, ContextSubstElim ty Wk)
     False => do
@@ -109,31 +108,31 @@ lookupContext (Ext ctx x ty) y = FailSt.do
 ||| Σ Δ(↑(x Σ₁)) ⊦ A(↑(x Σ₁)) type
 lookupSignature : Signature -> VarName -> Maybe (Context, Nat, CoreElem)
 lookupSignature [<] x = Nothing
-lookupSignature (sig :< (x, CtxEntry)) y = FailSt.do
+lookupSignature (sig :< (x, CtxEntry)) y = M.do
   case x == y of
     True => Nothing
     False => do
       (ctx, i, ty) <- lookupSignature sig y
       Just (subst ctx SubstSignature.Wk, S i, SignatureSubstElim ty Wk)
-lookupSignature (sig :< (x, TypeEntry {})) y = FailSt.do
+lookupSignature (sig :< (x, TypeEntry {})) y = M.do
   case x == y of
     True => Nothing
     False => do
       (ctx, i, ty) <- lookupSignature sig y
       Just (subst ctx SubstSignature.Wk, S i, SignatureSubstElim ty Wk)
-lookupSignature (sig :< (x, EqTyEntry {})) y = FailSt.do
+lookupSignature (sig :< (x, EqTyEntry {})) y = M.do
   case x == y of
     True => Nothing
     False => do
       (ctx, i, ty) <- lookupSignature sig y
       Just (subst ctx SubstSignature.Wk, S i, SignatureSubstElim ty Wk)
-lookupSignature (sig :< (x, ElemEntry ctx ty)) y = FailSt.do
+lookupSignature (sig :< (x, ElemEntry ctx ty)) y = M.do
   case x == y of
     True => Just (subst ctx SubstSignature.Wk, 0, SignatureSubstElim ty Wk)
     False => do
       (ctx, i, ty) <- lookupSignature sig y
       Just (subst ctx SubstSignature.Wk, S i, SignatureSubstElim ty Wk)
-lookupSignature (sig :< (x, LetElemEntry ctx _ ty)) y = FailSt.do
+lookupSignature (sig :< (x, LetElemEntry ctx _ ty)) y = M.do
   case x == y of
     True => Just (subst ctx SubstSignature.Wk, 0, SignatureSubstElim ty Wk)
     False => do
@@ -144,11 +143,11 @@ mutual
   ||| Γ ⊦ (f : F) ⟦ē⁺⟧ ⇝ t : B
   public export
   checkElimNu : Signature -> Context -> CoreElem -> CoreElem -> Elim -> CoreElem -> CheckM CoreElem
-  checkElimNu sig ctx f fTy [] exp = FailSt.do
+  checkElimNu sig ctx f fTy [] exp = M.do
     True <- liftM $ conv fTy exp
       | False => throw "The term is non-checkable (0)"
     return f
-  checkElimNu sig ctx f (PiTy x a b) (([], e) :: es) exp = FailSt.do
+  checkElimNu sig ctx f (PiTy x a b) (([], e) :: es) exp = M.do
     d0 <- numberOfHoles
     e' <- checkElem sig ctx e a
     d1 <- numberOfHoles
@@ -166,23 +165,23 @@ mutual
 
   public export
   checkElemNu : Signature -> Context -> SurfaceTerm -> CoreElem -> CheckM CoreElem
-  checkElemNu sig ctx (PiTy r x a b) Universe = FailSt.do
+  checkElemNu sig ctx (PiTy r x a b) Universe = M.do
     a' <- checkElem sig ctx a Universe
     aNHoles <- numberOfHoles
     b' <- checkElem sig (Ext ctx x a') b Universe
     bNHoles <- numberOfHoles
     return (PiTy x (SignatureSubstElim a' (WkN $ bNHoles `minus` aNHoles)) b')
-  checkElemNu sig ctx (PiTy r x a b) _ = FailSt.do
+  checkElemNu sig ctx (PiTy r x a b) _ = M.do
     throw (mkErrorMsg r "While checking (_ : _) → _: computed type doesn't match expected type")
-  checkElemNu sig ctx (FunTy r a b) Universe = FailSt.do
+  checkElemNu sig ctx (FunTy r a b) Universe = M.do
     a' <- checkElem sig ctx a Universe
     aNHoles <- numberOfHoles
     b' <- checkElem sig ctx b Universe
     bNHoles <- numberOfHoles
     return (PiTy "_" (SignatureSubstElim a' (WkN $ bNHoles `minus` aNHoles)) (ContextSubstElim b' Wk))
-  checkElemNu sig ctx (FunTy r a b) _ = FailSt.do
+  checkElemNu sig ctx (FunTy r a b) _ = M.do
     throw (mkErrorMsg r "While checking _ → _: computed type doesn't match expected type")
-  checkElemNu sig ctx (EqTy r a b ty) Universe = FailSt.do
+  checkElemNu sig ctx (EqTy r a b ty) Universe = M.do
     ty' <- checkElem sig ctx ty Universe
     tyNHoles <- numberOfHoles
     a' <- checkElem sig ctx a ty'
@@ -190,18 +189,18 @@ mutual
     b' <- checkElem sig ctx b (SignatureSubstElim ty' (WkN $ aNHoles `minus` tyNHoles))
     bNHoles <- numberOfHoles
     return (EqTy (SignatureSubstElim a' (WkN $ bNHoles `minus` aNHoles)) b' (SignatureSubstElim ty' (WkN $ bNHoles `minus` tyNHoles)))
-  checkElemNu sig ctx (EqTy r a b ty) _ = FailSt.do
+  checkElemNu sig ctx (EqTy r a b ty) _ = M.do
     throw (mkErrorMsg r "While checking _ ≡ _ ∈ _: computed type doesn't match expected type")
-  checkElemNu sig ctx (PiVal r x f) (PiTy _ a b) = FailSt.do
+  checkElemNu sig ctx (PiVal r x f) (PiTy _ a b) = M.do
     d0 <- numberOfHoles
     f' <- checkElem sig (Ext ctx x a) f b
     d1 <- numberOfHoles
     return (PiVal x (SignatureSubstElim a (WkN $ d1 `minus` d0)) (SignatureSubstElim b (WkN $ d1 `minus` d0)) f')
-  checkElemNu sig ctx (PiVal r x f) _ = FailSt.do
+  checkElemNu sig ctx (PiVal r x f) _ = M.do
     throw (mkErrorMsg r "While checking _ ↦ _: computed type doesn't match expected type")
-  checkElemNu sig ctx (App _ (Var r x) es) ty = FailSt.do
+  checkElemNu sig ctx (App _ (Var r x) es) ty = M.do
     let Just (v, vTy) = lookupContext ctx x
-      | Nothing => FailSt.do
+      | Nothing => M.do
           -- Σ₀ (x : A) Σ₁ ⊦ x ē
           let Just (Empty, i, ty') = lookupSignature !(computeSignature sig) x
             | Just (_, _) => throw (mkErrorMsg r "non-empty signature context not supported yet")
@@ -209,10 +208,10 @@ mutual
           checkElim sig ctx (SignatureVarElim i Terminal) ty' es ty
     checkElim sig ctx v vTy es ty
   checkElemNu sig ctx (App r (NatVal0 x) []) NatTy = return NatVal0
-  checkElemNu sig ctx (App r (NatVal1 x) [([], e)]) NatTy = FailSt.do
+  checkElemNu sig ctx (App r (NatVal1 x) [([], e)]) NatTy = M.do
     e' <- checkElem sig ctx e NatTy
     return (NatVal1 e')
-  checkElemNu sig ctx (App r (NatElim _) [([x], schema), ([], z), ([y, h], s), ([], t)]) ty = FailSt.do
+  checkElemNu sig ctx (App r (NatElim _) [([x], schema), ([], z), ([y, h], s), ([], t)]) ty = M.do
     d0 <- numberOfHoles
     schema' <- checkElem sig (Ext ctx x NatTy) schema Universe
     d1 <- numberOfHoles
@@ -239,7 +238,7 @@ mutual
       False => throw (mkErrorMsg r "While checking Refl: computed type doesn't match expected type")
   checkElemNu sig ctx (App _ (NatTy _) []) Universe = return NatTy
   checkElemNu sig ctx (App _ (UniverseTy _) []) Universe = return Universe
-  checkElemNu sig ctx (App _ (Hole r x) []) ty = FailSt.do
+  checkElemNu sig ctx (App _ (Hole r x) []) ty = M.do
     registerHole sig r ctx x ty
     return $ SignatureVarElim 0 Id
   checkElemNu sig ctx tm ty = throw (mkErrorMsg (range tm) "While checking \{show tm}: can't check")
@@ -261,15 +260,15 @@ mutual
 
   public export
   checkTypingSignature : Signature -> Range -> VarName -> SurfaceTerm -> CheckM (Context, VarName, CoreElem)
-  checkTypingSignature sig r x tm = FailSt.do
-    print_ Debug "About to check \{x}: \{show tm}"
+  checkTypingSignature sig r x tm = M.do
+    print_ Debug STDOUT "About to check \{x}: \{show tm}"
     tm' <- checkElem sig Empty tm Universe
     return (Empty, x, tm')
 
   public export
   checkLetSignature : Signature -> Range -> VarName -> SurfaceTerm -> SurfaceTerm -> CheckM (Context, VarName, CoreElem, CoreElem)
-  checkLetSignature sig r x rhs tm = FailSt.do
-    print_ Debug "About to check \{x}: \{show tm}"
+  checkLetSignature sig r x rhs tm = M.do
+    print_ Debug STDOUT "About to check \{x}: \{show tm}"
     tm' <- checkElem sig Empty tm Universe
     d1 <- numberOfHoles
     rhs' <- checkElem sig Empty rhs tm'
@@ -279,10 +278,10 @@ mutual
 
   public export
   checkTopLevel : Signature -> TopLevel -> CheckM (VarName, SignatureEntry)
-  checkTopLevel sig (TypingSignature r x ty) = FailSt.do
+  checkTopLevel sig (TypingSignature r x ty) = M.do
     (ctx, x, ty) <- checkTypingSignature sig r x ty
     return (x, ElemEntry ctx ty)
-  checkTopLevel sig (LetSignature r x rhs ty) = FailSt.do
+  checkTopLevel sig (LetSignature r x rhs ty) = M.do
     (ctx, x, rhs, ty) <- checkLetSignature sig r x rhs ty
     return (x, LetElemEntry ctx rhs ty)
 
@@ -291,9 +290,9 @@ mutual
  --  *) checking signature Y and signature X invalidates the the context of X (because more holes get added)
   {- public export
   checkFile : Signature -> List1 TopLevel -> CheckM Signature
-  checkFile sig (top ::: []) = FailSt.do
+  checkFile sig (top ::: []) = M.do
     (x, e) <- checkTopLevel sig top
     return (sig :< (x, e))
-  checkFile sig (top ::: top' :: more) = FailSt.do
+  checkFile sig (top ::: top' :: more) = M.do
     (x, e) <- checkTopLevel sig top
     checkFile (sig :< (x, e)) (top' ::: more) -}

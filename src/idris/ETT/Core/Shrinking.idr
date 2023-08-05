@@ -3,20 +3,19 @@ module ETT.Core.Shrinking
 import Data.List
 import Data.SnocList
 
-import Control.Monad.FailSt
-
+import ETT.Core.Monad
 import ETT.Core.Language
 import ETT.Core.Substitution
 
 public export
 Mb : Type -> Type
-Mb = FailStM String () . Maybe
+Mb = M String () . Maybe
 
 namespace Mb
   %inline
   public export
   (>>=) : Mb a -> (a -> Mb b) -> Mb b
-  m >>= f = FailSt.do
+  m >>= f = M.do
     Just x <- m
       | Nothing => return Nothing
     f x
@@ -29,12 +28,12 @@ namespace Mb
   %inline
   public export
   return : a -> Mb a
-  return x = FailSt.return (Just x)
+  return x = M.return (Just x)
 
   %inline
   public export
   nothing : Mb a
-  nothing = FailSt.return Nothing
+  nothing = M.return Nothing
 
 mutual
   namespace SubstContextNF
