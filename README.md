@@ -1,6 +1,10 @@
 # Extensional-TT
 Extensional Type Theory
 
+### Dependencies
+
+[Just-a-Monad](https://github.com/Russoul/Just-a-Monad)
+
 ### Running example files:
 
 ```
