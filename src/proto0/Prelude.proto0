@@ -7,9 +7,7 @@ id
 wk-let-elem gamma ty fun-ext-impl fun-ext
 inst-ctx-empty gamma
 inst-surface-type ty (A : 𝕌) → (B : A → 𝕌) → (f : (x : A) → B x) → (g : (x : A) → B x) → (p : (x : A) → f x ≡ g x ∈ B x) → f ≡ g ∈ (x : A) → B x
-inst-surface-elem fun-ext-impl A ↦ B ↦ f ↦ g ↦ p ↦ ?todo
-fun-ext todo x todo
-inst-surface-elem todo p x
+inst-surface-elem fun-ext-impl A ↦ B ↦ f ↦ g ↦ p ↦ Π⁼ f g p
 id
 
 
@@ -50,6 +48,23 @@ inst-surface-elem r J (α. h. α x ≡ x ∈ ℕ) ?r (sym (ℕ → ℕ) (((x : �
 inst-surface-elem r J (α. h. α ≡ x ∈ ℕ) ?r (sym ℕ (((y : ℕ) ↦ ℕ-elim (x. ℕ) y (x.h. S h) Z) x) (ℕ-elim (x. ℕ) x (x.h. S h) Z) (Π-β (y. ℕ-elim (x. ℕ) y (x.h. S h) Z) x))
 inst-surface-elem r J (α. h. α ≡ x ∈ ℕ) ?r (sym ℕ (ℕ-elim (x. ℕ) x (x. h. S h) Z) x (ℕ-β-Z (x. ℕ) x (x. h. S h)))
 inst-surface-elem r Refl
+id
+
+wk-let-elem gamma1 ty1 impl1 Happly
+inst-ctx-empty gamma1
+inst-surface-type ty1 (A : 𝕌) → (B : A → 𝕌) → (f : (x : A) → B x) → (g : (x : A) → B x) → (p : f ≡ g ∈ (x : A) → B x) → (x : A) → (f x ≡ g x ∈ B x)
+inst-surface-elem impl1 A ↦ B ↦ f ↦ g ↦ p ↦ x ↦ J (α. h. f x ≡ α x ∈ B x) Refl p
+id
+
+wk-let-elem gamma0 ty0 impl0 plus-left-suc
+inst-ctx-empty gamma0
+inst-surface-type ty0 (t : ℕ) → (x : ℕ) → plus (S t) x ≡ S (plus t x) ∈ ℕ
+inst-surface-elem impl0 t ↦ x ↦ ?impl0
+inst-surface-elem impl0 J (α. h. α (S t) x ≡ S (plus t x) ∈ ℕ) ?impl0 (sym (ℕ → ℕ → ℕ) plus (x ↦ y ↦ ℕ-elim (x. ℕ) y (x. h. S h) x) !plus)
+inst-surface-elem impl0 J (α. h. α x ≡ S (plus t x) ∈ ℕ) ?impl0 (sym (ℕ → ℕ) (((x : ℕ) ↦ (y : ℕ) ↦ ℕ-elim (x. ℕ) y (x. h. S h) x) (S t)) (y ↦ ℕ-elim (x. ℕ) y (x. h. S h) (S t)) (Π-β (x. (y : ℕ) ↦ ℕ-elim (x. ℕ) y (x. h. S h) x) (S t)))
+inst-surface-elem impl0 J (α. h. α ≡ S (plus t x) ∈ ℕ) ?impl0 (sym ℕ (((y : ℕ) ↦ ℕ-elim (x. ℕ) y (x. h. S h) (S t)) x) (ℕ-elim (x. ℕ) x (x. h. S h) (S t)) (Π-β (y. ℕ-elim (x. ℕ) y (x. h. S h) (S t)) x))
+inst-surface-elem impl0 J (α. h. α ≡ S (plus t x) ∈ ℕ) ?impl0 (sym ℕ (ℕ-elim (x. ℕ) x (x. h. S h) (S t)) (S (ℕ-elim (x. ℕ) x (x. h. S h) t)) (ℕ-β-S (x. ℕ) x (x. h. S h) t))
+--inst-surface-elem impl0 J (α. h. S α ≡ S (plus t x) ∈ ℕ) ?impl0 ?todo
 id
 
 wk-let-elem gamma ty impl one

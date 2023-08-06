@@ -6,6 +6,7 @@ import Data.List
 import Data.SnocList
 import Data.Fin
 import Data.Location
+import Data.Vect
 
 import Text.PrettyPrint.Prettyprinter.Render.Terminal
 import Text.PrettyPrint.Prettyprinter
@@ -179,18 +180,21 @@ lookupLetSignature (sig :< (x, LetElemEntry ctx rhs ty)) y = M.do
       (ctx, i, rhs, ty) <- lookupLetSignature sig y
       Just (subst ctx SubstSignature.Wk, S i, SignatureSubstElim rhs Wk, SignatureSubstElim ty Wk)
 
+public export
+updating : Vect n Elem -> CheckM a -> CheckM (a, Vect n Elem)
+updating ts f = M.do
+  d0 <- numberOfHoles
+  x <- f
+  d1 <- numberOfHoles
+  return (x, map (\t => SignatureSubstElim t (WkN $ d1 `minus` d0)) ts)
+
 mutual
   public export
   inferElimNu : Signature -> Context -> CoreElem -> CoreElem -> Elim -> CheckM (CoreElem, CoreElem)
   inferElimNu sig ctx f fTy [] = M.do
     return (f, fTy)
   inferElimNu sig ctx f (PiTy x a b) (([], e) :: es) = M.do
-    d0 <- numberOfHoles
-    e' <- checkElem sig ctx e a
-    d1 <- numberOfHoles
-    let f = SignatureSubstElim f (WkN $ d1 `minus` d0)
-    let a = SignatureSubstElim a (WkN $ d1 `minus` d0)
-    let b = SignatureSubstElim b (WkN $ d1 `minus` d0)
+    (e', [f, a, b]) <- updating [f, a, b] $ checkElem sig ctx e a
     inferElim sig ctx (PiElim f x a b e') (ContextSubstElim b (Ext Id e')) es
   inferElimNu sig ctx f fTy (([], e) :: xs) = M.do
     throw "The term is non-checkable (1) \{renderDocTerm !(liftM $ prettyElem (map fst sig) (map fst (tail ctx)) f 0)} : \{renderDocTerm !(liftM $ prettyElem (map fst sig) (map fst (tail ctx)) fTy 0)}"
@@ -202,10 +206,7 @@ mutual
   public export
   checkElim : Signature -> Context -> CoreElem -> CoreElem -> Elim -> CoreElem -> CheckM CoreElem
   checkElim sig ctx f fTy es exp = M.do
-    d0 <- numberOfHoles
-    (tm, got) <- inferElim sig ctx f fTy es
-    d1 <- numberOfHoles
-    let exp = SignatureSubstElim exp (WkN $ d1 `minus` d0)
+    ((tm, got), [f, fTy, exp]) <- updating [f, fTy, exp] $ inferElim sig ctx f fTy es
     True <- liftM $ conv got exp
       | False => throw "The term is non-checkable (expected type doesn't match the inferred)\nExpected: \{renderDocTerm !(liftM $ prettyElem (map fst sig) (map fst (tail ctx)) exp 0)}\nInferred: \{renderDocTerm !(liftM $ prettyElem (map fst sig) (map fst (tail ctx)) got 0)}"
     return tm
@@ -232,74 +233,69 @@ mutual
           inferElim sig ctx (SignatureVarElim i Terminal) ty' es
     inferElim sig ctx v vTy es
   inferElem sig ctx (App r (PiBeta _) (([x], f) :: ([], e) :: es)) = M.do
-    d0 <- numberOfHoles
     (e', eTy) <- inferElem sig ctx e
-    d1 <- numberOfHoles
-    (f', fTy) <- inferElem sig (Ext ctx x eTy) f
-    d2 <- numberOfHoles
-    let e' = SignatureSubstElim e' (WkN $ d2 `minus` d1)
-    let eTy = SignatureSubstElim eTy (WkN $ d2 `minus` d1)
+    ((f', fTy), [e', eTy]) <- updating [e', eTy] $ inferElem sig (Ext ctx x eTy) f
     inferElim sig ctx EqVal (EqTy (PiElim (PiVal x eTy fTy f') x eTy fTy e') (ContextSubstElim f' (Ext Id e')) (ContextSubstElim fTy (Ext Id e'))) es
   -- ℕ-β-Z (x. A) z (x. h. s) : ℕ-elim (x. A) z (x. h. s) Z ≡ z ∈ A[Z/x]
   inferElem sig ctx (App r (NatBetaZ _) (([x], schema) :: ([], z) :: ([y, h], s) :: es)) = M.do
     schema <- checkElem sig (Ext ctx x NatTy) schema Universe
-    d0 <- numberOfHoles
-    z <- checkElem sig ctx z (ContextSubstElim schema (Ext Id NatVal0))
-    d1 <- numberOfHoles
-    let schema = SignatureSubstElim schema (WkN $ d1 `minus` d0)
-    s <- checkElem sig (Ext (Ext ctx y NatTy) h schema) s (ContextSubstElim schema (Ext (WkN 2) (NatVal1 (VarN 1))))
-    d2 <- numberOfHoles
-    let schema = SignatureSubstElim schema (WkN $ d2 `minus` d1)
-    let z = SignatureSubstElim z (WkN $ d2 `minus` d1)
+    (z, [schema]) <- updating [schema] $ checkElem sig ctx z (ContextSubstElim schema (Ext Id NatVal0))
+    (s, [schema, z]) <- updating [schema, z] $ checkElem sig (Ext (Ext ctx y NatTy) h schema) s (ContextSubstElim schema (Ext (WkN 2) (NatVal1 (VarN 1))))
     inferElim sig ctx EqVal (EqTy (NatElim x schema z y h s NatVal0) z (ContextSubstElim schema (Ext Id NatVal0))) es
+  -- ℕ-β-S (x. A) z (x. h. s) (S t) : ℕ-elim (x. A) z (x. h. s) (S t) ≡ s(t/x, ℕ-elim (x. A) z (x. h. s) t/h) ∈ A[S t/x]
+  inferElem sig ctx (App r (NatBetaS _) (([x], schema) :: ([], z) :: ([y, h], s) :: ([], t) :: es)) = M.do
+    schema <- checkElem sig (Ext ctx x NatTy) schema Universe
+    (z, [schema]) <- updating [schema] $ checkElem sig ctx z (ContextSubstElim schema (Ext Id NatVal0))
+    (s, [schema, z]) <- updating [schema, z] $ checkElem sig (Ext (Ext ctx y NatTy) h schema) s (ContextSubstElim schema (Ext (WkN 2) (NatVal1 (VarN 1))))
+    (t, [schema, z, s]) <- updating [schema, z, s] $ checkElem sig ctx t NatTy
+    inferElim sig ctx EqVal (EqTy
+                              (NatElim x schema z y h s (NatVal1 t))
+                              (ContextSubstElim s (Ext (Ext Id t) (NatElim x schema z y h s t)))
+                              (ContextSubstElim schema (Ext Id (NatVal1 t)))
+                            )
+                            es
   inferElem sig ctx (AnnotatedPiVal r x ty f) = M.do
     ty <- checkElem sig ctx ty Universe
-    d0 <- numberOfHoles
-    (f, fTy) <- inferElem sig (Ext ctx x ty) f
-    d1 <- numberOfHoles
-    let ty = SignatureSubstElim ty (WkN $ d1 `minus` d0)
+    ((f, fTy), [ty]) <- updating [ty] $ inferElem sig (Ext ctx x ty) f
     return (PiVal x ty fTy f, PiTy x ty fTy)
   inferElem sig ctx (App r (NatElim _) (([x], schema) :: ([], z) :: ([y, h], s) :: ([], t) :: es)) = M.do
-    d0 <- numberOfHoles
     schema' <- checkElem sig (Ext ctx x NatTy) schema Universe
-    d1 <- numberOfHoles
-    z' <- checkElem sig ctx z (ContextSubstElim schema' (Ext Id NatVal0))
-    d2 <- numberOfHoles
-    let schema' = SignatureSubstElim schema' (WkN $ d2 `minus` d1)
+    (z', [schema']) <- updating [schema'] $ checkElem sig ctx z (ContextSubstElim schema' (Ext Id NatVal0))
     -- Γ (x : ℕ) ⊦ C type
     -- Γ (x : ℕ) (h : C) ⊦ C (↑², S x₁)
-    s' <- checkElem sig (Ext (Ext ctx y NatTy) h schema') s (ContextSubstElim schema' (Ext (WkN 2) (NatVal1 (VarN 1))))
-    d3 <- numberOfHoles
-    t' <- checkElem sig ctx t NatTy
-    d4 <- numberOfHoles
-    let schema' = SignatureSubstElim schema' (WkN $ d4 `minus` d2)
-    let z' = SignatureSubstElim z' (WkN $ d4 `minus` d2)
-    let s' = SignatureSubstElim s' (WkN $ d4 `minus` d3)
-    let exp = ContextSubstElim schema' (Ext Id t')
-    inferElim sig ctx (NatElim x schema' z' y h s' t') exp es
+    (s', [schema', z']) <- updating [schema', z'] $
+         checkElem sig (Ext (Ext ctx y NatTy) h schema') s (ContextSubstElim schema' (Ext (WkN 2) (NatVal1 (VarN 1))))
+    (t', [schema', z', s']) <- updating [schema', z', s'] $ checkElem sig ctx t NatTy
+    inferElim sig ctx (NatElim x schema' z' y h s' t') (ContextSubstElim schema' (Ext Id t')) es
   inferElem sig ctx (App r0 (EqElim _) (([x, h], schema) :: ([], r) :: ([], e) :: es)) = M.do
     (e', eTy) <- inferElem sig ctx e
-    d0 <- numberOfHoles
     let EqTy a0 a1 ty = runSubst eTy
       | _ => throw (mkErrorMsg r0 "Last argument of J must be an instance of equality")
-    schema' <- checkElem sig (Ext (Ext ctx x ty) h (EqTy (ContextSubstElim a0 Wk) CtxVar (ContextSubstElim ty Wk))) schema Universe
-    d1 <- numberOfHoles
-    let e' = SignatureSubstElim e' (WkN $ d1 `minus` d0)
-    let a0 = SignatureSubstElim a0 (WkN $ d1 `minus` d0)
-    let a1 = SignatureSubstElim a1 (WkN $ d1 `minus` d0)
-    let ty = SignatureSubstElim ty (WkN $ d1 `minus` d0)
-    r' <- checkElem sig ctx r (ContextSubstElim schema' (Ext (Ext Id a0) EqVal))
-    d2 <- numberOfHoles
-    let e' = SignatureSubstElim e' (WkN $ d2 `minus` d1)
-    let a0 = SignatureSubstElim a0 (WkN $ d2 `minus` d1)
-    let a1 = SignatureSubstElim a1 (WkN $ d2 `minus` d1)
-    let ty = SignatureSubstElim ty (WkN $ d2 `minus` d1)
+    (schema', [e', eTy, a0, a1, ty]) <- updating [e', eTy, a0, a1, ty] $
+       checkElem sig (Ext (Ext ctx x ty) h (EqTy (ContextSubstElim a0 Wk) CtxVar (ContextSubstElim ty Wk))) schema Universe
+    (r', [e', eTy, a0, a1, ty, schema']) <- updating [e', eTy, a0, a1, ty, schema'] $
+       checkElem sig ctx r (ContextSubstElim schema' (Ext (Ext Id a0) EqVal))
     inferElim sig ctx r' (ContextSubstElim schema' (Ext (Ext Id a1) e')) es
   inferElem sig ctx (App r (Unfold r0 x) es) = M.do
     let Just (Empty, i, rhs, ty') = lookupLetSignature !(computeSignature sig) x
       | Just (_, _) => throw (mkErrorMsg r "non-empty signature context not supported yet")
       | Nothing => throw (mkErrorMsg r "Undefined name: \{x}")
     inferElim sig ctx EqVal (EqTy (SignatureVarElim i Terminal) rhs ty') es
+  -- Π⁼ f g p : f ≡ g ∈ (x : A) → B
+  inferElem sig ctx (App r (PiEq r0) (([], f) :: ([], g) :: ([], p) :: es)) = M.do
+    (f, fTy) <- inferElem sig ctx f
+    let PiTy x a b = runSubst fTy
+         | _ => throw (mkErrorMsg r "LHS doesn't have a Π-type")
+    (g, [f, fTy, a, b]) <- updating [f, fTy, a, b] $ checkElem sig ctx g (PiTy x a b)
+    -- (x : A) → (f(↑) : (x : A(↑)) → B(↑)⁺) x₀ ≡ (g(↑) : (x : A(↑)) → B(↑)⁺) x₀ ∈ B
+    (p, [f, fTy, a, b, g]) <- updating [f, fTy, a, b, g] $ checkElem sig ctx p (PiTy x a
+              (EqTy
+                (PiElim (ContextSubstElim f Wk) x (ContextSubstElim a Wk) (ContextSubstElim b (Under Wk)) CtxVar)
+                (PiElim (ContextSubstElim g Wk) x (ContextSubstElim a Wk) (ContextSubstElim b (Under Wk)) CtxVar)
+                b
+              )
+            )
+    inferElim sig ctx EqVal (EqTy f g (PiTy x a b)) es
   inferElem sig ctx (App _ (Tm _ f) es) = M.do
     (f, fTy) <- inferElem sig ctx f
     inferElim sig ctx f fTy es
@@ -321,35 +317,26 @@ mutual
   checkElemNu : Signature -> Context -> SurfaceTerm -> CoreElem -> CheckM CoreElem
   checkElemNu sig ctx (PiTy r x a b) Universe = M.do
     a' <- checkElem sig ctx a Universe
-    aNHoles <- numberOfHoles
-    b' <- checkElem sig (Ext ctx x a') b Universe
-    bNHoles <- numberOfHoles
-    return (PiTy x (SignatureSubstElim a' (WkN $ bNHoles `minus` aNHoles)) b')
+    (b', [a']) <- updating [a'] $ checkElem sig (Ext ctx x a') b Universe
+    return (PiTy x a' b')
   checkElemNu sig ctx (PiTy r x a b) _ = M.do
     throw (mkErrorMsg r "While checking (_ : _) → _: computed type doesn't match expected type")
   checkElemNu sig ctx (FunTy r a b) Universe = M.do
     a' <- checkElem sig ctx a Universe
-    aNHoles <- numberOfHoles
-    b' <- checkElem sig ctx b Universe
-    bNHoles <- numberOfHoles
-    return (PiTy "_" (SignatureSubstElim a' (WkN $ bNHoles `minus` aNHoles)) (ContextSubstElim b' Wk))
+    (b', [a']) <- updating [a'] $ checkElem sig ctx b Universe
+    return (PiTy "_" a' (ContextSubstElim b' Wk))
   checkElemNu sig ctx (FunTy r a b) _ = M.do
     throw (mkErrorMsg r "While checking _ → _: computed type doesn't match expected type")
   checkElemNu sig ctx (EqTy r a b ty) Universe = M.do
     ty' <- checkElem sig ctx ty Universe
-    tyNHoles <- numberOfHoles
-    a' <- checkElem sig ctx a ty'
-    aNHoles <- numberOfHoles
-    b' <- checkElem sig ctx b (SignatureSubstElim ty' (WkN $ aNHoles `minus` tyNHoles))
-    bNHoles <- numberOfHoles
-    return (EqTy (SignatureSubstElim a' (WkN $ bNHoles `minus` aNHoles)) b' (SignatureSubstElim ty' (WkN $ bNHoles `minus` tyNHoles)))
+    (a', [ty']) <- updating [ty'] $ checkElem sig ctx a ty'
+    (b', [ty', a']) <- updating [ty', a'] $ checkElem sig ctx b ty'
+    return (EqTy a' b' ty')
   checkElemNu sig ctx (EqTy r a b ty) _ = M.do
     throw (mkErrorMsg r "While checking _ ≡ _ ∈ _: computed type doesn't match expected type")
   checkElemNu sig ctx (PiVal r x f) (PiTy _ a b) = M.do
-    d0 <- numberOfHoles
-    f' <- checkElem sig (Ext ctx x a) f b
-    d1 <- numberOfHoles
-    return (PiVal x (SignatureSubstElim a (WkN $ d1 `minus` d0)) (SignatureSubstElim b (WkN $ d1 `minus` d0)) f')
+    (f', [a, b]) <- updating [a, b] $ checkElem sig (Ext ctx x a) f b
+    return (PiVal x a b f')
   checkElemNu sig ctx (PiVal r x f) _ = M.do
     throw (mkErrorMsg r "While checking _ ↦ _: computed type doesn't match expected type")
   checkElemNu sig ctx (App _ (Var r x) es) ty = M.do
@@ -379,10 +366,7 @@ mutual
     registerHole sig r ctx x ty
     return $ SignatureVarElim 0 Id
   checkElemNu sig ctx tm exp = M.do
-    d0 <- numberOfHoles
-    (tm, got) <- inferElem sig ctx tm
-    d1 <- numberOfHoles
-    let exp = SignatureSubstElim exp (WkN $ d1 `minus` d0)
+    ((tm, got), [exp]) <- updating [exp] $ inferElem sig ctx tm
     True <- liftM $ conv got exp
       | False => throw "The term is non-checkable (expected type doesn't match the inferred)\nExpected: \{renderDocTerm !(liftM $ prettyElem (map fst sig) (map fst (tail ctx)) exp 0)}\nInferred: \{renderDocTerm !(liftM $ prettyElem (map fst sig) (map fst (tail ctx)) got 0)}"
     return tm
@@ -414,10 +398,7 @@ mutual
   checkLetSignature sig r x rhs tm = M.do
     print_ Debug STDOUT "About to check \{x}: \{show tm}"
     tm' <- checkElem sig Empty tm Universe
-    d1 <- numberOfHoles
-    rhs' <- checkElem sig Empty rhs tm'
-    d2 <- numberOfHoles
-    let tm' = SignatureSubstElim tm' (WkN $ d2 `minus` d1)
+    (rhs', [tm']) <- updating [tm'] $ checkElem sig Empty rhs tm'
     return (Empty, x, rhs', tm')
 
   public export

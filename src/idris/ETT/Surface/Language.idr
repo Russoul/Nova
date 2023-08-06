@@ -5,7 +5,7 @@ import Data.List1
 
 import ETT.Core.VarName
 
--- h ::= Z | Refl | x | S | ℕ-elim | J | ℕ | 𝕌 | !x | ?x | Π-β | ℕ-β-Z | ℕ-β-S
+-- h ::= Z | Refl | x | S | ℕ-elim | J | ℕ | 𝕌 | !x | ?x | Π-β | ℕ-β-Z | ℕ-β-S | Π⁼
 
 -- e{0} = x ↦ e{≥0} | (x : e{≥0}) → e{≥0} | (x : e{≥0}) ↦ e{≥0}
 -- e{1} = e{≥3} ≡ e{≥3} ∈ e{≥0}
@@ -36,6 +36,7 @@ mutual
     PiBeta : Range -> Head
     NatBetaZ : Range -> Head
     NatBetaS : Range -> Head
+    PiEq : Range -> Head
     Tm : Range -> Term -> Head
 
   public export
@@ -82,6 +83,7 @@ mutual
     show (NatTy x) = "ℕ"
     show (UniverseTy x) = "𝕌"
     show (El x) = "El"
+    show (PiEq x) = "PiEq"
     show (Tm x tm) = "Tm(\{show tm})"
 
   public export

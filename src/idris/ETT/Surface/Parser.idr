@@ -110,6 +110,12 @@ natBetaSHead = do
   r <- spName "ℕ-β-S"
   pure (NatBetaS r)
 
+public export
+piEqHead : Rule Head
+piEqHead = do
+  r <- spName "Π⁼"
+  pure (PiEq r)
+
 mutual
   public export
   head : Rule Head
@@ -127,6 +133,7 @@ mutual
      <|> natBetaZHead
      <|> natBetaSHead
      <|> jHead
+     <|> piEqHead
 
   public export
   head2 : Rule Head
