@@ -654,6 +654,9 @@ keywords = [ "Z"
            , "El"
            , "."
            , "→"
+           , "Π-β"
+           , "ℕ-β-Z"
+           , "ℕ-β-S"
            ]
 
 public export

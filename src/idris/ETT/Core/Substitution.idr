@@ -149,7 +149,7 @@ mutual
               y
               h
               (ContextSubstElim s (UnderN 2 sigma))
-              t
+              (ContextSubstElim t sigma)
     -- t(σ₀)(σ₁) = t(σ₀ ∘ σ₁)
     subst (ContextSubstElim t tau) sigma =
       subst t (Chain tau sigma)

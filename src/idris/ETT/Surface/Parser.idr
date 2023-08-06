@@ -49,6 +49,12 @@ natTyHead = do
   pure (NatTy r)
 
 public export
+jHead : Rule Head
+jHead = do
+  r <- spName "J"
+  pure (EqElim r)
+
+public export
 universeTyHead : Rule Head
 universeTyHead = do
   r <- spName "𝕌"
@@ -80,10 +86,52 @@ holeHead = do
   pure (Hole (l + fst x) (snd x))
 
 public export
-head : Rule Head
-head = zeroHead <|> oneHead <|> natElimHead <|> natTyHead <|> universeTyHead <|> eqValHead <|> elHead <|> varHead <|> holeHead
+unfoldHead : Rule Head
+unfoldHead = do
+  l <- delim "!"
+  x <- located varName
+  pure (Unfold (l + fst x) (snd x))
+
+public export
+piBetaHead : Rule Head
+piBetaHead = do
+  r <- spName "Π-β"
+  pure (PiBeta r)
+
+public export
+natBetaZHead : Rule Head
+natBetaZHead = do
+  r <- spName "ℕ-β-Z"
+  pure (NatBetaZ r)
+
+public export
+natBetaSHead : Rule Head
+natBetaSHead = do
+  r <- spName "ℕ-β-S"
+  pure (NatBetaS r)
 
 mutual
+  public export
+  head : Rule Head
+  head = zeroHead
+     <|> oneHead
+     <|> natElimHead
+     <|> natTyHead
+     <|> universeTyHead
+     <|> eqValHead
+     <|> elHead
+     <|> varHead
+     <|> holeHead
+     <|> unfoldHead
+     <|> piBetaHead
+     <|> natBetaZHead
+     <|> natBetaSHead
+     <|> jHead
+
+  public export
+  head2 : Rule Head
+  head2 = head <|> (inParentheses (located $ term 0) <&> uncurry Tm)
+
   public export
   section : Rule (Range, VarName, Term)
   section = do
@@ -131,10 +179,20 @@ mutual
     f <- located (term 0)
     pure (PiVal (fst x + fst f) (snd x) (snd f))
 
+  public export
+  annotatedPiVal : Rule Term
+  annotatedPiVal = do
+    (r, r0, x, ty) <- located section
+    spaceDelim
+    delim_ "↦"
+    spaceDelim
+    f <- located (term 0)
+    pure (AnnotatedPiVal (r + fst f) x ty (snd f))
+
   ||| Parse a Term exactly at level 0
   public export
   term0 : Rule Term
-  term0 = piTy <|> piVal
+  term0 = piTy <|> piVal <|> annotatedPiVal
 
   public export
   eqTy : Rule Term
@@ -158,7 +216,7 @@ mutual
   public export
   app : Rule Term
   app = do
-    (p0, h) <- located head
+    (p0, h) <- located head2
     (p1, es) <- located elim
     guard "elimination spine must be non-empty" (length es > 0)
     pure (App (p0 + p1) h es)

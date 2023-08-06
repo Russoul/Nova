@@ -252,6 +252,7 @@ compute target (InstSurfaceType solveN surfaceTm) = M.do
   --
   (sig0, TypeEntry ctx, sig1) <- splitByVarName target solveN
     | _ => throw "\{solveN} is not a 'elem' entry"
+  print_ Debug STDOUT "Checking: \{show surfaceTm}"
   (tm, MkCheckSt holes) <- fromCheckM (MkCheckSt [<]) $ checkElem sig0 ctx surfaceTm Universe
   return $
     sig0 ++ toSignature holes ++ subst sig1 (Ext (WkN (length holes)) (TypeEntryInstance tm))
@@ -259,6 +260,7 @@ compute target (InstSurfaceElem solveN surfaceTm) = M.do
   --  Σ₀ (Γ ⊦ x : A) ⊦ Σ₁
   (sig0, ElemEntry ctx ty, sig1) <- splitByVarName target solveN
     | _ => throw "\{solveN} is not a 'elem' entry"
+  print_ Debug STDOUT "Checking: \{show surfaceTm}"
   (tm, MkCheckSt holes) <- fromCheckM (MkCheckSt [<]) $ checkElem sig0 ctx surfaceTm ty
   return $
     sig0 ++ toSignature holes ++ subst sig1 (Ext (WkN (length holes)) (ElemEntryInstance tm))

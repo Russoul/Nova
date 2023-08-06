@@ -21,6 +21,37 @@ inst-surface-elem z y
 inst-surface-elem s S h
 id
 
+wk-let-elem gamma1 ty1 impl1 test0
+inst-ctx-empty gamma1
+inst-surface-type ty1 plus ≡ (x ↦ y ↦ ℕ-elim (x. ℕ) y (x. h. S h) x) ∈ ℕ → ℕ → ℕ
+inst-surface-elem impl1 !plus
+id
+
+wk-let-elem gamma ty sym-impl sym
+inst-ctx-empty gamma
+inst-surface-type ty (A : 𝕌) → (x : A) → (y : A) → (x ≡ y ∈ A) → (y ≡ x ∈ A)
+inst-surface-elem sym-impl A ↦ x ↦ y ↦ p ↦ ?todo
+inst-surface-elem todo J (α. h. α ≡ x ∈ A) ?r p
+inst-surface-elem r Refl
+
+wk-let-elem gamma ty impl test1
+inst-ctx-cons gamma gamma tyty xxx
+inst-ctx-empty gamma
+inst-surface-type tyty ℕ
+inst-surface-type ty (((x : ℕ) ↦ (y : ℕ) ↦ ℕ-elim (x. ℕ) y (x. h. S h) x) Z) ≡ (y ↦ ℕ-elim (x. ℕ) y (x. h. S h) Z) ∈ ℕ → ℕ
+inst-surface-elem impl Π-β (z. (y : ℕ) ↦ ℕ-elim (x. ℕ) y (x. h. S h) z) Z
+
+wk-let-elem gamma0 ty0 impl0 plus-left-zero
+inst-ctx-empty gamma0
+inst-surface-type ty0 (x : ℕ) → plus Z x ≡ x ∈ ℕ
+inst-surface-elem impl0 x ↦ ?impl0
+inst-surface-elem impl0 J (α. h. α Z x ≡ x ∈ ℕ) ?r (sym (ℕ → ℕ → ℕ) plus (x ↦ y ↦ ℕ-elim (x. ℕ) y (x. h. S h) x) (!plus))
+inst-surface-elem r J (α. h. α x ≡ x ∈ ℕ) ?r (sym (ℕ → ℕ) (((x : ℕ) ↦ (y : ℕ) ↦ ℕ-elim (x. ℕ) y (x.h. S h) x) Z) (y ↦ ℕ-elim (x. ℕ) y (x.h. S h) Z) (Π-β (x. (y : ℕ) ↦ ℕ-elim (x. ℕ) y (x.h. S h) x) Z))
+inst-surface-elem r J (α. h. α ≡ x ∈ ℕ) ?r (sym ℕ (((y : ℕ) ↦ ℕ-elim (x. ℕ) y (x.h. S h) Z) x) (ℕ-elim (x. ℕ) x (x.h. S h) Z) (Π-β (y. ℕ-elim (x. ℕ) y (x.h. S h) Z) x))
+inst-surface-elem r J (α. h. α ≡ x ∈ ℕ) ?r (sym ℕ (ℕ-elim (x. ℕ) x (x. h. S h) Z) x (ℕ-β-Z (x. ℕ) x (x. h. S h)))
+inst-surface-elem r Refl
+id
+
 wk-let-elem gamma ty impl one
 inst-ctx-empty gamma
 inst-surface-type ty ℕ
@@ -38,5 +69,12 @@ inst-ctx-empty gamma
 inst-surface-type ty ℕ
 inst-surface-elem impl S two
 id
+
+-- wk-let-elem gamma ty impl plus-commut
+-- inst-ctx-empty gamma
+-- inst-surface-type ty (x : ℕ) → (y : ℕ) → plus x y ≡ plus y x ∈ ℕ
+-- inst-surface-elem impl x ↦ y ↦ ?todo
+-- inst-surface-elem todo ℕ-elim (x. (y : ℕ) → plus x y ≡ plus y x ∈ ℕ) (y ↦ ?z) (x. α. y ↦ ?s) x y
+-- id
 
 exit

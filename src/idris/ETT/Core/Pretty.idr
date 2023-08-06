@@ -281,6 +281,7 @@ mutual
   prettyElem sig ctx tm lvl =
     wrapElem tm lvl !(prettyElem' sig ctx tm)
 
+  public export
   tail : Context -> SnocList (VarName, Elem)
   tail Empty = [<]
   tail (SignatureVarElim {}) = [<]

@@ -1,5 +1,7 @@
 module ETT.Test.Test
 
+import Data.String
+
 import System.File.ReadWrite
 import System
 
@@ -23,6 +25,9 @@ runAssistant sig = M.do
   input <- io $ getLine
   -- Skip empty lines:
   let False = input == ""
+       | True => runAssistant sig
+  -- Skip comments:
+  let False = isPrefixOf "--" (trim input)
        | True => runAssistant sig
   io $ putStrLn "Processing: \{input}"
   case input /= "exit" of

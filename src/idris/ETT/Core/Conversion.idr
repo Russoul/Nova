@@ -35,11 +35,10 @@ mutual
     convNu (SignatureSubstElim {}) b = throw "convNu(SignatureSubstElim)"
     convNu (ContextVarElim x0) (ContextVarElim x1) =
       return (x0 == x1)
-    convNu (SignatureVarElim x0 spine0) (SignatureVarElim x1 spine1) =
-      ?convNu0
-      {- return (x0 == x1)
+    convNu (SignatureVarElim x0 sigma) (SignatureVarElim x1 tau) =
+     return (x0 == x1)
         `and`
-      conv spine0 spine1 -}
+      conv sigma tau
     convNu (EqTy a0 b0 ty0) (EqTy a1 b1 ty1) =
       conv a0 a1 `and` conv b0 b1 `and` conv ty0 ty1
     convNu (EqVal {}) (EqVal {}) = return True
@@ -70,11 +69,26 @@ mutual
     conv [<] (_ :< _) = throw "conv([<], _ :< _)"
     conv (ts0 :< t0) (ts1 :< t1) = conv ts0 ts1 `and` conv t0 t1
 
-  namespace SubstContext
-    -- σ₀ = σ₁ : Γ ⇒ Δ
-    -- <=>
-    -- (γ : Γ) ⊦ toSpine(σ₀) = toSpine(σ₁) : Δ
+  namespace SubstContextNF
     public export
-    conv : (delta : SnocList (VarName, Elem)) -> SubstContext -> SubstContext -> M Bool
-    conv delta sigma0 sigma1 = conv (toSpine delta sigma0) (toSpine delta sigma1)
+    conv : SubstContextNF -> SubstContextNF -> M Bool
+    conv Terminal Terminal = return True
+    conv Terminal (WkN k) = return True
+    conv Terminal (Ext x y) = return True
+    conv (WkN k) Terminal = return True
+    conv (WkN k) (WkN j) = return (k == j)
+    conv (WkN k) (Ext sigma t) = conv (WkN (S k)) sigma `and` conv (ContextVarElim k) t
+    conv (Ext x y) Terminal = return True
+    conv (Ext sigma t) (WkN k) = conv (WkN (S k)) sigma `and` conv (ContextVarElim k) t
+    conv (Ext sigma t) (Ext tau p) = conv sigma tau `and` conv t p
 
+  namespace SubstContext
+    public export
+    conv : SubstContext -> SubstContext -> M Bool
+    conv sigma tau = conv (eval sigma) (eval tau)
+
+
+-- Ext σ t = Ext σ' t' <=> σ = σ' ^ t = t'
+-- Terminal = _ <=> 𝟙
+-- Ext σ t = Wk k <=> σ = Wk (S k) ^ t = Var k
+-- Wk k = Wk n <=> k = n
