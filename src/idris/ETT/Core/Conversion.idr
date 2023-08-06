@@ -42,19 +42,6 @@ mutual
     convNu (EqTy a0 b0 ty0) (EqTy a1 b1 ty1) =
       conv a0 a1 `and` conv b0 b1 `and` conv ty0 ty1
     convNu (EqVal {}) (EqVal {}) = return True
-    convNu (EqElim ty0 a0 x0 h0 schema0 r0 b0 p0) (EqElim ty1 a1 x1 h1 schema1 r1 b1 p1) =
-      let and = M.and in
-      conv ty0 ty1
-        `and`
-      conv a0 a1
-        `and`
-      conv schema0 schema1
-        `and`
-      conv r0 r1
-        `and`
-      conv b0 b1
-        `and`
-      conv p0 p1
     convNu _ _ = return False
 
     public export

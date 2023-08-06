@@ -89,10 +89,6 @@ wrapElem (EqVal {}) lvl doc =
   case lvl <= 4 of
     True => return doc
     False => return (parens' doc)
-wrapElem (EqElim {}) lvl doc =
-  case lvl <= 3 of
-    True => return doc
-    False => return (parens' doc)
 
 ||| Examples:
 ||| i .j. ⊦ j
@@ -247,30 +243,6 @@ mutual
     !(prettyElem sig ctx ty 0)
   prettyElem' sig ctx EqVal =
     return $ annotate Intro "*"
-  prettyElem' sig ctx (EqElim ty a0 x h schema r a1 a) = M.do
-    return $
-      annotate Elim "J"
-       <++>
-      !(prettyElem sig ctx ty 4)
-       <++>
-      !(prettyElem sig ctx a0 4)
-       <++>
-      parens' (annotate ContextVar (pretty x)
-                <+>
-               annotate Keyword "."
-                <+>
-               annotate ContextVar (pretty h)
-                <+>
-               annotate Keyword "."
-                <++>
-               !(prettyElem sig (ctx :< x :< h) schema 0)
-              )
-       <++>
-      !(prettyElem sig ctx r 4)
-       <++>
-      !(prettyElem sig ctx a1 4)
-       <++>
-      !(prettyElem sig ctx a 4)
 
   public export
   prettyElem : SnocList VarName

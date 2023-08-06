@@ -132,14 +132,6 @@ mutual
       return (EqTy a b c)
     shrinkNu EqVal gamma1Len gamma2Len = Mb.do
       return EqVal
-    shrinkNu (EqElim ty a0 x h schema r a1 a) gamma1Len gamma2Len = Mb.do
-      ty <- shrink ty gamma1Len gamma2Len
-      a0 <- shrink a0 gamma1Len gamma2Len
-      schema <- shrink schema gamma1Len (2 + gamma2Len)
-      r <- shrink r gamma1Len gamma2Len
-      a1 <- shrink a1 gamma1Len gamma2Len
-      a <- shrink a gamma1Len gamma2Len
-      return (EqElim ty a0 x h schema r a1 a)
 
     ||| Γ₀ ⊦ Γ₁ ctx
     ||| Γ₀ ⊦ Γ₂ ctx

@@ -55,7 +55,6 @@ mutual
    eval sig (ContextSubstElim t spine)
   evalNu sig (EqTy a0 a1 ty) = return $ EqTy a0 a1 ty
   evalNu sig EqVal = return EqVal
-  evalNu sig (EqElim ty a0 x p schema r a1 a) = eval sig r
 
   ||| Σ ⊦ a ⇝ a' : A
   ||| Σ must only contain let-elem's

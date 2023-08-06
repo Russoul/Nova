@@ -165,25 +165,6 @@ mutual
     subst (SignatureVarElim k sigma) tau = SignatureVarElim k (Chain sigma tau)
     subst (EqTy a0 a1 ty) tau = EqTy (ContextSubstElim a0 tau) (ContextSubstElim a1 tau) (ContextSubstElim ty tau)
     subst EqVal tau = EqVal
-    -- Δ ⊦ A type
-    -- Δ ⊦ a₀ : A
-    -- σ : Γ ⇒ Δ
-    -- (J A a₀ B r a₁ a)(σ) = J A(σ) a₀(σ) B(σ⁺(A (x₀ ≡ a₀(↑ Δ A) ∈ A(↑)) ε)) r(σ) a₁(σ) a(σ)
-    subst (EqElim ty a0 x p schema r a1 a) tau =
-        EqElim (ContextSubstElim ty tau)
-               (ContextSubstElim a0 tau)
-               x
-               p
-               -- τ : Δ ⇒ Γ
-               -- Γ ⊦ a₀ : A
-               -- Γ ⊦ (x : A) (p : x ≡ a₀(↑ Γ A) ∈ A(↑ Γ A))
-               (ContextSubstElim schema
-                 (UnderN 2 tau
-                 )
-               )
-               (ContextSubstElim r tau)
-               (ContextSubstElim a1 tau)
-               (ContextSubstElim a tau)
 
   namespace C
     public export
@@ -218,15 +199,6 @@ mutual
     subst (SignatureVarElim k tau) sigma = substSignatureVar k sigma Id (subst tau sigma)
     subst (EqTy a0 a1 ty) tau = EqTy (SignatureSubstElim a0 tau) (SignatureSubstElim a1 tau) (SignatureSubstElim ty tau)
     subst EqVal tau = EqVal
-    subst (EqElim ty a0 x p schema r a1 a) tau =
-        EqElim (SignatureSubstElim ty tau)
-               (SignatureSubstElim a0 tau)
-               x
-               p
-               (SignatureSubstElim schema tau)
-               (SignatureSubstElim r tau)
-               (SignatureSubstElim a1 tau)
-               (SignatureSubstElim a tau)
 
   namespace List
     public export

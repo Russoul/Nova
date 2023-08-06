@@ -103,8 +103,6 @@ mutual
       EqTy : Elem -> Elem -> Elem -> Elem
       ||| *
       EqVal : Elem
-      ||| J A a₀ x.p.B r a₁ a
-      EqElim : Elem -> Elem -> VarName -> VarName -> Elem -> Elem -> Elem -> Elem -> Elem
 
   public export
   Spine : Type
