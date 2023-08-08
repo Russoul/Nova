@@ -116,11 +116,22 @@ public export
 data SignatureEntry : Type where
   CtxEntry : SignatureEntry
   TypeEntry : Context -> SignatureEntry
-  ElemEntry : Context -> Elem -> SignatureEntry
-  LetElemEntry : Context -> Elem -> Elem -> SignatureEntry
+  ElemEntry : Context -> Elem -> (strict : Bool) -> SignatureEntry
+  ||| strict <=> substitution is automatic
+  LetElemEntry : Context -> Elem -> Elem -> (strict : Bool) -> SignatureEntry
   EqTyEntry : Context -> Elem -> Elem -> SignatureEntry
 
 Signature = SnocList (VarName, SignatureEntry)
+
+
+public export
+data ConstraintEntry : Type where
+  ||| Σ Ω Γ ⊦ a₀ ~ a₁ : A
+  ElemConstraint : Context -> Elem -> Elem -> Elem -> ConstraintEntry
+  ||| Σ Ω ⊦ σ₀ ~ σ₁ : Γ ⇒ Δ
+  SubstContextConstraint : SubstContext -> SubstContext -> Context -> Context -> ConstraintEntry
+
+Constraints = SnocList ConstraintEntry
 
 public export
 extend : Signature -> VarName -> SignatureEntry -> Signature

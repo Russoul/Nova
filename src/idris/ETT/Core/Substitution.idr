@@ -277,9 +277,9 @@ mutual
       Under sigma CtxEntry = Ext (Chain sigma Wk) (CtxEntryInstance Var)
       Under sigma (TypeEntry ctx) =
         Ext (Chain sigma Wk) (TypeEntryInstance $ SignatureVarElim 0 Id)
-      Under sigma (ElemEntry ctx ty) =
+      Under sigma (ElemEntry ctx ty str) =
         Ext (Chain sigma Wk) (ElemEntryInstance $ SignatureVarElim 0 Id)
-      Under sigma (LetElemEntry ctx e ty) =
+      Under sigma (LetElemEntry ctx e ty str) =
         Ext (Chain sigma Wk) LetEntryInstance
       Under sigma (EqTyEntry ctx a b) =
         Ext (Chain sigma Wk) EqTyEntryInstance
@@ -310,8 +310,8 @@ namespace SignatureEntry
   subst : SignatureEntry -> SubstSignature -> SignatureEntry
   subst CtxEntry sigma = CtxEntry
   subst (TypeEntry ctx) sigma = TypeEntry (subst ctx sigma)
-  subst (ElemEntry ctx ty) sigma = ElemEntry (subst ctx sigma) (SignatureSubstElim ty sigma)
-  subst (LetElemEntry ctx e ty) sigma = LetElemEntry (subst ctx sigma) (SignatureSubstElim e sigma) (SignatureSubstElim ty sigma)
+  subst (ElemEntry ctx ty str) sigma = ElemEntry (subst ctx sigma) (SignatureSubstElim ty sigma) str
+  subst (LetElemEntry ctx e ty str) sigma = LetElemEntry (subst ctx sigma) (SignatureSubstElim e sigma) (SignatureSubstElim ty sigma) str
   subst (EqTyEntry ctx a b) sigma = EqTyEntry (subst ctx sigma) (SignatureSubstElim a sigma) (SignatureSubstElim b sigma)
 
 namespace EntryList

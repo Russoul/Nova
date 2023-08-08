@@ -35,6 +35,12 @@ namespace Mb
   nothing : Mb a
   nothing = M.return Nothing
 
+  public export
+  liftM : M a -> Mb a
+  liftM f = M.do
+    x <- f
+    return (Just x)
+
 mutual
   namespace SubstContextNF
     ||| Γ₀ ⊦ Γ₁ ctx

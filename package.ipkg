@@ -14,6 +14,7 @@ modules =
         , ETT.Core.Pretty
         , ETT.Core.Shrinking
         , ETT.Core.Substitution
+        , ETT.Core.Unification
 
         , ETT.Surface.Assistant
         , ETT.Surface.Check
