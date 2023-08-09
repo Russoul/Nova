@@ -18,6 +18,7 @@ modules =
 
         , ETT.Surface.Assistant
         , ETT.Surface.Check
+        , ETT.Surface.Elaboration
         , ETT.Surface.Language
         , ETT.Surface.Parser
         , ETT.Surface.ParserUtil
