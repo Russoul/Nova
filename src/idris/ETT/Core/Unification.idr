@@ -185,11 +185,11 @@ mutual
         goNu Terminal index = nothing
         -- ↑ⁱ
         goNu (WkN i) index =
-          case i < k of
+          case k >= i of
             -- We won't find k
-            True => nothing
+            False => nothing
             -- We'll find k
-            False => return (index + (i `minus` k))
+            True => return (index + (k `minus` i))
         -- due to the conditions imposed on σ, t must be a variable up to (~)
         goNu (Ext sigma t) index = Mb.do
           case !(liftM $ openEval sig omega t) of
@@ -731,9 +731,9 @@ namespace Progress2
     ||| The new Ω may contain new instantiations and new constraints.
     Success : Omega -> Progress2
     ||| We haven't progressed at all.
-    Stuck : String -> Progress2
+    Stuck : List (ConstraintEntry, String) -> Progress2
     ||| Ω ≃ ⊥ // The list of constraints is contradictive.
-    Disunifier : String -> Progress2
+    Disunifier : ConstraintEntry -> String -> Progress2
 
 ||| Try solving the constraints in the list by passing through it once.
 progressEntries : Signature
@@ -741,13 +741,17 @@ progressEntries : Signature
                -> List ConstraintEntry
                -> Bool
                -> UnifyM Progress2
-progressEntries sig cs [] False = return (Stuck "No progress made")
+progressEntries sig cs [] False = return (Stuck [])
 progressEntries sig cs [] True = return (Success cs)
 progressEntries sig cs (e :: es) progressMade =
   case !(progressEntry sig cs e) of
     Success cs' new => progressEntries sig cs' (new <>> es) True
-    Stuck str => progressEntries sig !(addConstraint cs e) es progressMade
-    Disunifier str => return (Disunifier str)
+    Stuck str =>
+      case !(progressEntries sig !(addConstraint cs e) es progressMade) of
+        Stuck list => return (Stuck ((e, str) :: list))
+        Success omega => return (Success omega)
+        Disunifier e s => return (Disunifier e s)
+    Disunifier str => return (Disunifier e str)
 
 namespace Fixpoint
   ||| The end-product of solving a list of constraints
@@ -756,9 +760,9 @@ namespace Fixpoint
     ||| At least some progress has been made but nothing else can be done.
     Success : Omega -> Fixpoint
     ||| No progress has been made at all.
-    Stuck : String -> Fixpoint
+    Stuck : List (ConstraintEntry, String) -> Fixpoint
     ||| Ω ≃ ⊥ // The list of constraints is contradictive.
-    Disunifier : String -> Fixpoint
+    Disunifier : ConstraintEntry -> String -> Fixpoint
 
 ||| Extract all constraints from Ω.
 getConstraints : Omega -> List ConstraintEntry
@@ -793,11 +797,11 @@ containsNamedHolesOnly omega = H (map snd (List.inorder omega))
 progressEntriesFixpoint : Signature -> Omega -> List ConstraintEntry -> Bool -> UnifyM Fixpoint
 progressEntriesFixpoint sig cs todo progress = M.do
   case !(progressEntries sig cs todo False) of
-    Stuck str =>
+    Stuck list =>
       case progress of
         True => return (Success !(addConstraintN cs todo))
-        False => return (Stuck "No progress made")
-    Disunifier str => return (Disunifier str)
+        False => return (Stuck list)
+    Disunifier e str => return (Disunifier e str)
     Success cs' => progressEntriesFixpoint sig (onlyMetas cs') (getConstraints cs') True
 
 public export

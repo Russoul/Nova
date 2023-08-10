@@ -87,7 +87,7 @@ mutual
       Just (LetType _ rhs) => openEval sig omega (ContextSubstElim rhs sigma)
       Just _ => return (OmegaVarElim k sigma)
       Nothing => throw "openEval(OmegaVarElim)"
-  openEvalNu sig omega( EqTy a0 a1 ty) = return $ EqTy a0 a1 ty
+  openEvalNu sig omega (EqTy a0 a1 ty) = return $ EqTy a0 a1 ty
   openEvalNu sig omega EqVal = return EqVal
 
   ||| Σ ⊦ a ⇝ a' : A

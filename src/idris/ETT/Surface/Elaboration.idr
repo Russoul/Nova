@@ -5,6 +5,9 @@ import Data.List
 import Data.List1
 import Data.SnocList
 
+import Text.PrettyPrint.Prettyprinter.Render.Terminal
+import Text.PrettyPrint.Prettyprinter
+
 import ETT.Core.Conversion
 import ETT.Core.Evaluation
 import ETT.Core.Language
@@ -481,9 +484,9 @@ namespace Elaboration.Progress2
     ||| We store the list of problems to solve.
     Success : Omega -> List ElaborationEntry -> Progress2
     ||| We haven't progressed at all.
-    Stuck : String -> Progress2
+    Stuck : List (ElaborationEntry, String) -> Progress2
     ||| We've hit an error.
-    Error : String -> Progress2
+    Error : ElaborationEntry -> String -> Progress2
 
 ||| Try solving the constraints in the list by passing through it once.
 progressEntries : Signature
@@ -492,13 +495,17 @@ progressEntries : Signature
                -> List ElaborationEntry
                -> Bool
                -> UnifyM Elaboration.Progress2.Progress2
-progressEntries sig cs stuck [] False = return (Stuck "No progress made")
+progressEntries sig cs stuck [] False = return (Stuck [])
 progressEntries sig cs stuck [] True = return (Success cs (cast stuck))
 progressEntries sig cs stuck (e :: es) progressMade =
   case !(elabEntry sig cs e) of
     Success cs' new => progressEntries sig cs' stuck (new ++ es) True
-    Stuck str => progressEntries sig cs (stuck :< e) es progressMade
-    Error str => return (Error str)
+    Stuck str =>
+      case !(progressEntries sig cs (stuck :< e) es progressMade) of
+        Stuck list => return (Stuck ((e, str) :: list))
+        Success cs' new => return (Success cs' new)
+        Error e s => return (Error e s)
+    Error str => return (Error e str)
 
 namespace Elaboration.Fixpoint
   public export
@@ -506,8 +513,12 @@ namespace Elaboration.Fixpoint
     ||| We've solved all elaboration constraints, all unification problems and all unnamed holes.
     ||| Ω can only contain named holes and solved holes at this point.
     Success : Omega -> Fixpoint
-    ||| We got stuck for good or hit something is impossible to elaborate.
-    Error : String -> Fixpoint
+    ||| We got stuck for good.
+    ||| Ω might have changed, so we record the last one.
+    Stuck : Omega -> List (ElaborationEntry, String) -> List (ConstraintEntry, String) -> Fixpoint
+    ||| We hit a unification error or elaboration error.
+    ||| Ω might have changed, so we record the last one.
+    Error : Omega -> Either (ElaborationEntry, String) (ConstraintEntry, String) -> Fixpoint
 
 ||| Try solving the problems in the list until either no constraints are left or each and every one is stuck.
 ||| Between rounds of solving problems we try solving unification problems.
@@ -517,12 +528,12 @@ progressEntriesFixpoint sig cs todo = M.do
     True => return (Success cs)
     False => M.do
       case !(progressEntries sig cs [<] todo False) of
-        Stuck str => M.do
+        Stuck stuckElaborations => M.do
           case !(Unification.solve sig cs) of
-            Stuck _ => return (Error "Both unification and elaboration are stuck")
-            Disunifier err => return (Error "Got a disunifier: \{err}")
+            Stuck stuckConstraints => return (Stuck cs stuckElaborations stuckConstraints)
+            Disunifier e err => return (Error cs (Right (e, err)))
             Success cs => progressEntriesFixpoint sig cs todo
-        Error str => return (Error str)
+        Error e str => return (Error cs (Left (e, str)))
         Success cs' todo => progressEntriesFixpoint sig cs' todo
 
 ||| Try solving all elaboration and unification problems.
@@ -541,7 +552,18 @@ elabTopLevelEntry sig omega (TypingSignature r x ty) = M.do
   (omega, ty') <- newTypeMeta omega Empty SolveByElaboration
   let probs = [TypeElaboration Empty ty ty']
   Success omega <- solve sig omega probs
-    | Error err => throw "Error during elaboration: \{err}"
+    | Stuck omega stuckElab stuckCons => M.do
+        print_ Debug STDOUT "----------- Stuck unification constraints: -------------"
+        forList_ stuckCons $ \(con, str) => M.do
+          print_ Debug STDOUT (renderDocTerm !(liftM $ prettyConstraintEntry sig omega con))
+          print_ Debug STDOUT "Reason: \{str}"
+        throw "Elaboration failed"
+    | Error omega (Left (elab, err)) => ?todo2
+    | Error omega (Right (con, err)) => M.do
+        print_ Debug STDOUT "----------- Disunifier found: -------------"
+        print_ Debug STDOUT (renderDocTerm !(liftM $ prettyConstraintEntry sig omega con))
+        print_ Debug STDOUT "Reason: \{err}"
+        throw "Elaboration failed"
   let sig = sig :< (x, ElemEntry Empty (OmegaVarElim ty' Id))
   let omega = subst omega Wk
   return (sig, omega)
@@ -550,7 +572,18 @@ elabTopLevelEntry sig omega (LetSignature r x ty rhs) = M.do
   (omega, rhs') <- newElemMeta omega Empty (OmegaVarElim ty' Id) SolveByElaboration
   let probs = [TypeElaboration Empty ty ty', ElemElaboration Empty rhs rhs' (OmegaVarElim ty' Id)]
   Success omega <- solve sig omega probs
-    | Error err => throw "Error during elaboration: \{err}"
+    | Stuck omega stuckElab stuckCons => M.do
+        print_ Debug STDOUT "----------- Stuck unification constraints: -------------"
+        forList_ stuckCons $ \(con, str) => M.do
+          print_ Debug STDOUT (renderDocTerm !(liftM $ prettyConstraintEntry sig omega con))
+          print_ Debug STDOUT "Reason: \{str}"
+        throw "Elaboration failed"
+    | Error omega (Left (elab, err)) => ?todo21
+    | Error omega (Right (con, err)) => M.do
+        print_ Debug STDOUT "----------- Disunifier found: -------------"
+        print_ Debug STDOUT (renderDocTerm !(liftM $ prettyConstraintEntry sig omega con))
+        print_ Debug STDOUT "Reason: \{err}"
+        throw "Elaboration failed"
   let sig = sig :< (x, LetElemEntry Empty (OmegaVarElim rhs' Id) (OmegaVarElim ty' Id))
   let omega = subst omega Wk
   return (sig, omega)
