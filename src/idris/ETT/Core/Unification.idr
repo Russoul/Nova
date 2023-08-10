@@ -358,116 +358,6 @@ namespace Elem
   ||| A, a₀, a₁ are head-neutral w.r.t. substitution.
   public export
   unifyElemNu : Signature -> Omega -> Context -> Elem -> Elem -> Elem -> M Result
-  unifyElemNu sig cs ctx (PiTy x0 dom0 cod0) (PiTy x1 dom1 cod1) ty = FailSt.do
-    return (Success [ ElemConstraint ctx dom0 dom1 Universe
-                    , ElemConstraint (Ext ctx x0 dom0) cod0 cod1 Universe
-                    ]
-                    []
-           )
-  unifyElemNu sig cs ctx (PiTy x0 dom0 cod0) b ty = M.do
-    case !(isRigid sig cs b) of
-      True => return (Disunifier "Π vs something else rigid")
-      False => return (Stuck "Π vs something else flex")
-  unifyElemNu sig cs ctx (PiVal x0 dom0 cod0 f0) (PiVal x1 dom1 cod1 f1) ty = FailSt.do
-    return (Success [ ElemConstraint ctx dom0 dom1 Universe
-                    , ElemConstraint (Ext ctx x0 dom0) cod0 cod1 Universe
-                    , ElemConstraint (Ext ctx x0 dom0) f0 f1 cod0
-                    ]
-                    []
-           )
-  unifyElemNu sig cs ctx (PiVal x0 a0 b0 f0) b ty = M.do
-    case !(isRigid sig cs b) of
-      True => return (Disunifier "λ vs something else rigid")
-      False => return (Stuck "λ vs something else flex")
-  unifyElemNu sig cs ctx (PiElim f0 x0 dom0 cod0 e0) (PiElim f1 x1 dom1 cod1 e1) ty = M.do
-    return (Success [ElemConstraint ctx dom0 dom1 Universe
-                    , ElemConstraint (Ext ctx x0 dom0) cod0 cod1 Universe
-                    , ElemConstraint ctx f0 f1 (PiTy x0 dom0 cod0)
-                    , ElemConstraint ctx e0 e1 dom0
-                    ]
-                    []
-           )
-  unifyElemNu sig cs ctx (PiElim f0 x0 dom0 cod0 e0) b ty = M.do
-    case !(isRigid sig cs b) of
-      True => return (Disunifier "app vs something else rigid")
-      False => return (Stuck "app vs something else flex")
-  unifyElemNu sig cs ctx Universe Universe ty =
-    return (Success [] [])
-  unifyElemNu sig cs ctx Universe b ty = M.do
-    case !(isRigid sig cs b) of
-      True => return (Disunifier "𝕌 vs something else rigid")
-      False => return (Stuck "𝕌 vs something else flex")
-  unifyElemNu sig cs ctx NatVal0 NatVal0 ty =
-    return (Success [] [])
-  unifyElemNu sig cs ctx NatVal0 b ty = M.do
-    case !(isRigid sig cs b) of
-      True => return (Disunifier "Z vs something else rigid")
-      False => return (Stuck "Z vs something else flex")
-  unifyElemNu sig cs ctx (NatVal1 t0) (NatVal1 t1) ty = M.do
-    return (Success [ ElemConstraint ctx t0 t1 NatTy] [])
-  unifyElemNu sig cs ctx (NatVal1 x) b ty = M.do
-    case !(isRigid sig cs b) of
-      True => return (Disunifier "S _ vs something else rigid")
-      False => return (Stuck "S _ vs something else flex")
-  unifyElemNu sig cs ctx NatTy NatTy ty = return (Success [] [])
-  unifyElemNu sig cs ctx NatTy b ty = M.do
-    case !(isRigid sig cs b) of
-      True => return (Disunifier "S vs something else rigid")
-      False => return (Stuck "S vs something else flex")
-  unifyElemNu sig cs ctx (NatElim x0 schema0 z0 y0 h0 s0 t0) (NatElim x1 schema1 z1 y1 h1 s1 t1) ty = M.do
-    return (Success [  ElemConstraint (Ext ctx x0 NatTy) schema0 schema1 Universe,
-                       ElemConstraint ctx z0 z1 (ContextSubstElim schema0 (Ext Id NatVal0)),
-                       ElemConstraint (Ext (Ext ctx y0 NatTy) h0 schema0) s0 s1 (ContextSubstElim schema0 (Ext (WkN 2) (NatVal1 (VarN 1)))),
-                       ElemConstraint ctx t0 t1 NatTy] [])
-
-  unifyElemNu sig cs ctx (NatElim x0 schema0 z0 y0 h0 s0 t0) b ty = M.do
-    case !(isRigid sig cs b) of
-      True => return (Disunifier "ℕ-elim vs something else rigid")
-      False => return (Stuck "ℕ-elim vs something else flex")
-  unifyElemNu sig cs ctx (ContextSubstElim x y) b ty = assert_total $ idris_crash "unifyElemNu(ContextSubstElim)"
-  unifyElemNu sig cs ctx (SignatureSubstElim x y) b ty = assert_total $ idris_crash "unifyElemNu(SignatureSubstElim)"
-  unifyElemNu sig cs ctx (ContextVarElim k0) (ContextVarElim k1) ty = M.do
-    case k0 == k1 of
-      True => return (Success [] [])
-      False => return (Disunifier "xᵢ vs xⱼ where i ≠ j")
-  unifyElemNu sig cs ctx (ContextVarElim k) b ty = M.do
-    case !(isRigid sig cs b) of
-      True => return (Disunifier "xᵢ vs something else rigid")
-      False => return (Stuck "xᵢ vs something else flex")
-  unifyElemNu sig cs ctx (EqTy p0 q0 ty0) (EqTy p1 q1 ty1) _ = M.do
-    return (Success [  ElemConstraint ctx ty0 ty1 Universe,
-                       ElemConstraint ctx p0 p1 ty0,
-                       ElemConstraint ctx q0 q1 ty0] [])
-  unifyElemNu sig cs ctx (EqTy p0 q0 ty0) b _ = M.do
-    case !(isRigid sig cs b) of
-      True => return (Disunifier "(≡) vs something else rigid")
-      False => return (Stuck "(≡) vs something else flex")
-  unifyElemNu sig cs ctx EqVal EqVal ty = return (Success [] [])
-  unifyElemNu sig cs ctx EqVal b ty = M.do
-    case !(isRigid sig cs b) of
-      True => return (Disunifier "* vs something else rigid")
-      False => return (Stuck "* vs something else flex")
-  unifyElemNu sig cs ctx (SignatureVarElim k0 sigma0) (SignatureVarElim k1 sigma1) ty = M.do
-    case (k0 == k1) of
-      False => return (Disunifier "χᵢ vs χⱼ where i ≠ j")
-      True =>
-        return (Success [ SubstContextConstraint sigma0 sigma1 ctx (getCtx k0)] [])
-       where
-        getCtx : Nat -> Context
-        getCtx k =
-          case (splitAt sig k) of
-            Nothing => assert_total $ idris_crash "invertNu(SignatureVarElim)(1)"
-            Just (_, (_, e), rest) =>
-              case subst e (WkN $ 1 + length rest) of
-               CtxEntry => assert_total $ idris_crash "invertNu(SignatureVarElim)(2)"
-               TypeEntry xi => xi
-               ElemEntry xi {} => xi
-               LetElemEntry xi {} => xi
-               EqTyEntry {} => assert_total $ idris_crash "invertNu(SignatureVarElim)(3)"
-  unifyElemNu sig cs ctx (SignatureVarElim k0 sigma0) b ty = M.do
-    case !(isRigid sig cs b) of
-      True => return (Disunifier "χᵢ vs something else rigid")
-      False => return (Stuck "χᵢ vs something else flex")
   unifyElemNu sig cs ctx a@(OmegaVarElim k0 sigma0) b@(OmegaVarElim k1 sigma1) ty = M.do
     let Just entry0 = lookup k0 cs
          | _ => assert_total $ idris_crash "unifyElemNu(OmegaVarElim(1))"
@@ -492,7 +382,7 @@ namespace Elem
           False => return (Disunifier "χᵢ vs χⱼ, where i ≠ j")
           True =>
             case e of
-              LetElem target {} => return (Success [ SubstContextConstraint sigma0 sigma1 ctx target] [])
+              LetElem target {} => return (Success [SubstContextConstraint sigma0 sigma1 ctx target] [])
               _ => assert_total $ idris_crash "unifyElemNu(SignatureVarElim, SignatureVarElim)(1)"
   unifyElemNu sig cs ctx a@(OmegaVarElim k sigma) b ty = M.do
     -- we now that b is rigid here
@@ -504,64 +394,98 @@ namespace Elem
        case entry of
          -- We've got a hole, try solving it
          MetaElem hctx hty SolveByUnification => trySolveElem sig cs ctx k hctx hty sigma b ty
-         -- We've got something rigid, that's a disunifier
-         _ => return (Disunifier "? vs something else rigid")
-
-  public export
-  unifyElem : Signature -> Omega -> Context -> Elem -> Elem -> Elem -> M Result
-  unifyElem sig cs ctx a b ty = unifyElemNu sig cs ctx !(openEval sig cs a) !(openEval sig cs b) !(openEval sig cs ty)
-
-namespace Type'
-  ||| Σ Ω Γ ⊦ A₀ ~ A₁ type
-  ||| A₀ and A₁ are head-neutral w.r.t. substitution.
-  public export
-  unifyTypeNu : Signature -> Omega -> Context -> Elem -> Elem -> M Result
-  unifyTypeNu sig cs ctx (PiTy x0 dom0 cod0) (PiTy x1 dom1 cod1) = FailSt.do
+         MetaElem hctx hty SolveByElaboration => return (Stuck "?(solve by elaboration) vs something else rigid")
+         MetaType {} => assert_total $ idris_crash "unifyElemNu(OmegaVarElim, _)(1)"
+         LetElem {} => assert_total $ idris_crash "unifyElemNu(OmegaVarElim, _)(2)"
+         LetType {} => assert_total $ idris_crash "unifyElemNu(OmegaVarElim, _)(3)"
+         TypeConstraint {} => assert_total $ idris_crash "unifyElemNu(OmegaVarElim, _)(4)"
+         ElemConstraint {} => assert_total $ idris_crash "unifyElemNu(OmegaVarElim, _)(5)"
+         SubstContextConstraint {} => assert_total $ idris_crash "unifyElemNu(OmegaVarElim, _)(6)"
+  unifyElemNu sig cs ctx a b@(OmegaVarElim k sigma) ty = M.do
+    -- we now that a is rigid here
+    case !(isRigid sig cs b) of
+      True => return (Disunifier "rigid χᵢ vs something else rigid")
+      False => M.do
+       let Just entry = lookup k cs
+            | _ => assert_total $ idris_crash "unifyElemNu(SignatureVarElim(3))"
+       case entry of
+         -- We've got a hole, try solving it
+         MetaElem hctx hty SolveByUnification => trySolveElem sig cs ctx k hctx hty sigma a ty
+         MetaElem hctx hty SolveByElaboration => return (Stuck "?(solve by elaboration) vs something else rigid")
+         MetaType {} => assert_total $ idris_crash "unifyElemNu(OmegaVarElim, _)(1)"
+         LetElem {} => assert_total $ idris_crash "unifyElemNu(OmegaVarElim, _)(2)"
+         LetType {} => assert_total $ idris_crash "unifyElemNu(OmegaVarElim, _)(3)"
+         TypeConstraint {} => assert_total $ idris_crash "unifyElemNu(OmegaVarElim, _)(4)"
+         ElemConstraint {} => assert_total $ idris_crash "unifyElemNu(OmegaVarElim, _)(5)"
+         SubstContextConstraint {} => assert_total $ idris_crash "unifyElemNu(OmegaVarElim, _)(6)"
+  unifyElemNu sig cs ctx (PiTy x0 dom0 cod0) (PiTy x1 dom1 cod1) ty = FailSt.do
     return (Success [ ElemConstraint ctx dom0 dom1 Universe
                     , ElemConstraint (Ext ctx x0 dom0) cod0 cod1 Universe
                     ]
                     []
            )
-  unifyTypeNu sig cs ctx (PiTy x0 dom0 cod0) b = M.do
-    case !(isRigid sig cs b) of
-      True => return (Disunifier "Π vs something else rigid")
-      False => return (Stuck "Π vs something else flex")
-  unifyTypeNu sig cs ctx Universe Universe =
+  unifyElemNu sig cs ctx (PiTy x0 dom0 cod0) b ty = M.do
+    return (Disunifier "Π vs something else rigid")
+  unifyElemNu sig cs ctx (PiVal x0 dom0 cod0 f0) (PiVal x1 dom1 cod1 f1) ty = FailSt.do
+    return (Success [ TypeConstraint ctx dom0 dom1
+                    , TypeConstraint (Ext ctx x0 dom0) cod0 cod1
+                    , ElemConstraint (Ext ctx x0 dom0) f0 f1 cod0
+                    ]
+                    []
+           )
+  unifyElemNu sig cs ctx (PiVal x0 a0 b0 f0) b ty = M.do
+    return (Disunifier "λ vs something else rigid")
+  unifyElemNu sig cs ctx (PiElim f0 x0 dom0 cod0 e0) (PiElim f1 x1 dom1 cod1 e1) ty = M.do
+    return (Success [TypeConstraint ctx dom0 dom1
+                    , TypeConstraint (Ext ctx x0 dom0) cod0 cod1
+                    , ElemConstraint ctx f0 f1 (PiTy x0 dom0 cod0)
+                    , ElemConstraint ctx e0 e1 dom0
+                    ]
+                    []
+           )
+  unifyElemNu sig cs ctx (PiElim f0 x0 dom0 cod0 e0) b ty = M.do
+    return (Disunifier "app vs something else rigid")
+  unifyElemNu sig cs ctx Universe Universe ty =
     return (Success [] [])
-  unifyTypeNu sig cs ctx Universe b = M.do
-    case !(isRigid sig cs b) of
-      True => return (Disunifier "𝕌 vs something else rigid")
-      False => return (Stuck "𝕌 vs something else flex")
-  unifyTypeNu sig cs ctx NatTy NatTy = return (Success [] [])
-  unifyTypeNu sig cs ctx NatTy b = M.do
-    case !(isRigid sig cs b) of
-      True => return (Disunifier "S vs something else rigid")
-      False => return (Stuck "S vs something else flex")
-  unifyTypeNu sig cs ctx (ContextSubstElim x y) b = assert_total $ idris_crash "unifyTypeNu(ContextSubstElim)"
-  unifyTypeNu sig cs ctx (SignatureSubstElim x y) b = assert_total $ idris_crash "unifyTypeNu(SignatureSubstElim)"
-  unifyTypeNu sig cs ctx (EqTy p0 q0 ty0) (EqTy p1 q1 ty1) = M.do
-    return (Success [  ElemConstraint ctx ty0 ty1 Universe,
-                       ElemConstraint ctx p0 p1 ty0,
-                       ElemConstraint ctx q0 q1 ty0] [])
-  unifyTypeNu sig cs ctx (EqTy p0 q0 ty0) b = M.do
-    case !(isRigid sig cs b) of
-      True => return (Disunifier "(≡) vs something else rigid")
-      False => return (Stuck "(≡) vs something else flex")
-  unifyTypeNu sig cs ctx (ContextVarElim k0) (ContextVarElim k1) = M.do
+  unifyElemNu sig cs ctx Universe b ty = M.do
+    return (Disunifier "𝕌 vs something else rigid")
+  unifyElemNu sig cs ctx NatVal0 NatVal0 ty =
+    return (Success [] [])
+  unifyElemNu sig cs ctx NatVal0 b ty = M.do
+    return (Disunifier "Z vs something else rigid")
+  unifyElemNu sig cs ctx (NatVal1 t0) (NatVal1 t1) ty = M.do
+    return (Success [ ElemConstraint ctx t0 t1 NatTy] [])
+  unifyElemNu sig cs ctx (NatVal1 x) b ty = M.do
+    return (Disunifier "S _ vs something else rigid")
+  unifyElemNu sig cs ctx NatTy NatTy ty = return (Success [] [])
+  unifyElemNu sig cs ctx NatTy b ty = M.do
+    return (Disunifier "S vs something else rigid")
+  unifyElemNu sig cs ctx (NatElim x0 schema0 z0 y0 h0 s0 t0) (NatElim x1 schema1 z1 y1 h1 s1 t1) ty = M.do
+    return (Success [  TypeConstraint (Ext ctx x0 NatTy) schema0 schema1,
+                       ElemConstraint ctx z0 z1 (ContextSubstElim schema0 (Ext Id NatVal0)),
+                       ElemConstraint (Ext (Ext ctx y0 NatTy) h0 schema0) s0 s1 (ContextSubstElim schema0 (Ext (WkN 2) (NatVal1 (VarN 1)))),
+                       ElemConstraint ctx t0 t1 NatTy] [])
+
+  unifyElemNu sig cs ctx (NatElim x0 schema0 z0 y0 h0 s0 t0) b ty = M.do
+    return (Disunifier "ℕ-elim vs something else rigid")
+  unifyElemNu sig cs ctx (ContextSubstElim x y) b ty = assert_total $ idris_crash "unifyElemNu(ContextSubstElim)"
+  unifyElemNu sig cs ctx (SignatureSubstElim x y) b ty = assert_total $ idris_crash "unifyElemNu(SignatureSubstElim)"
+  unifyElemNu sig cs ctx (ContextVarElim k0) (ContextVarElim k1) ty = M.do
     case k0 == k1 of
       True => return (Success [] [])
       False => return (Disunifier "xᵢ vs xⱼ where i ≠ j")
-  unifyTypeNu sig cs ctx (ContextVarElim k) b = M.do
-    case !(isRigid sig cs b) of
-      True => return (Disunifier "xᵢ vs something else rigid")
-      False => return (Stuck "xᵢ vs something else flex")
-  unifyTypeNu sig cs ctx a@(PiElim f0 x0 dom0 cod0 e0) b@(PiElim f1 x1 dom1 cod1 e1) = M.do
-    return (Success [ElemConstraint ctx a b Universe] [])
-  unifyTypeNu sig cs ctx (PiElim f0 x0 dom0 cod0 e0) b = M.do
-    case !(isRigid sig cs b) of
-      True => return (Disunifier "app vs something else rigid")
-      False => return (Stuck "app vs something else flex")
-  unifyTypeNu sig cs ctx (SignatureVarElim k0 sigma0) (SignatureVarElim k1 sigma1) = M.do
+  unifyElemNu sig cs ctx (ContextVarElim k) b ty = M.do
+    return (Disunifier "xᵢ vs something else rigid")
+  unifyElemNu sig cs ctx (EqTy p0 q0 ty0) (EqTy p1 q1 ty1) _ = M.do
+    return (Success [  ElemConstraint ctx ty0 ty1 Universe,
+                       ElemConstraint ctx p0 p1 ty0,
+                       ElemConstraint ctx q0 q1 ty0] [])
+  unifyElemNu sig cs ctx (EqTy p0 q0 ty0) b _ = M.do
+    return (Disunifier "(≡) vs something else rigid")
+  unifyElemNu sig cs ctx EqVal EqVal ty = return (Success [] [])
+  unifyElemNu sig cs ctx EqVal b ty = M.do
+    return (Disunifier "* vs something else rigid")
+  unifyElemNu sig cs ctx (SignatureVarElim k0 sigma0) (SignatureVarElim k1 sigma1) ty = M.do
     case (k0 == k1) of
       False => return (Disunifier "χᵢ vs χⱼ where i ≠ j")
       True =>
@@ -578,10 +502,18 @@ namespace Type'
                ElemEntry xi {} => xi
                LetElemEntry xi {} => xi
                EqTyEntry {} => assert_total $ idris_crash "invertNu(SignatureVarElim)(3)"
-  unifyTypeNu sig cs ctx (SignatureVarElim k0 sigma0) b = M.do
-    case !(isRigid sig cs b) of
-      True => return (Disunifier "χᵢ vs something else rigid")
-      False => return (Stuck "χᵢ vs something else flex")
+  unifyElemNu sig cs ctx (SignatureVarElim k0 sigma0) b ty = M.do
+    return (Disunifier "χᵢ vs something else rigid")
+
+  public export
+  unifyElem : Signature -> Omega -> Context -> Elem -> Elem -> Elem -> M Result
+  unifyElem sig cs ctx a b ty = unifyElemNu sig cs ctx !(openEval sig cs a) !(openEval sig cs b) !(openEval sig cs ty)
+
+namespace Type'
+  ||| Σ Ω Γ ⊦ A₀ ~ A₁ type
+  ||| A₀ and A₁ are head-neutral w.r.t. substitution.
+  public export
+  unifyTypeNu : Signature -> Omega -> Context -> Elem -> Elem -> M Result
   unifyTypeNu sig cs ctx a@(OmegaVarElim k0 sigma0) b@(OmegaVarElim k1 sigma1) = M.do
     let Just entry0 = lookup k0 cs
          | _ => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim(1))"
@@ -618,8 +550,86 @@ namespace Type'
        case entry of
          -- We've got a hole, try solving it
          MetaType hctx SolveByUnification => trySolveType sig cs ctx k hctx sigma b
-         -- We've got something rigid, that's a disunifier
-         _ => return (Disunifier "? vs something else rigid")
+         MetaType hctx SolveByElaboration => return (Stuck "?(solve by elaboration) vs something else rigid")
+         -- This is possible, when the type is 𝕌
+         MetaElem hctx _ SolveByUnification => trySolveType sig cs ctx k hctx sigma b
+         MetaElem hctx _ SolveByElaboration => return (Stuck "?(solve by elaboration) vs something else rigid")
+         LetElem {} => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim, _)(2)"
+         LetType {} => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim, _)(3)"
+         TypeConstraint {} => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim, _)(4)"
+         ElemConstraint {} => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim, _)(5)"
+         SubstContextConstraint {} => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim, _)(6)"
+  unifyTypeNu sig cs ctx a b@(OmegaVarElim k sigma) = M.do
+    -- we now that a is rigid here
+    case !(isRigid sig cs b) of
+      True => return (Disunifier "rigid χᵢ vs something else rigid")
+      False => M.do
+       let Just entry = lookup k cs
+            | _ => assert_total $ idris_crash "unifyTypeNu(SignatureVarElim(3))"
+       case entry of
+         -- We've got a hole, try solving it
+         MetaType hctx SolveByUnification => trySolveType sig cs ctx k hctx sigma a
+         MetaType hctx SolveByElaboration => return (Stuck "?(solve by elaboration) vs something else rigid")
+         -- This is possible, when the type is 𝕌
+         MetaElem hctx _ SolveByUnification => trySolveType sig cs ctx k hctx sigma a
+         MetaElem hctx _ SolveByElaboration => return (Stuck "?(solve by elaboration) vs something else rigid")
+         LetElem {} => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim, _)(2)"
+         LetType {} => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim, _)(3)"
+         TypeConstraint {} => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim, _)(4)"
+         ElemConstraint {} => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim, _)(5)"
+         SubstContextConstraint {} => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim, _)(6)"
+  unifyTypeNu sig cs ctx (PiTy x0 dom0 cod0) (PiTy x1 dom1 cod1) = FailSt.do
+    return (Success [ TypeConstraint ctx dom0 dom1
+                    , TypeConstraint (Ext ctx x0 dom0) cod0 cod1
+                    ]
+                    []
+           )
+  unifyTypeNu sig cs ctx (PiTy x0 dom0 cod0) b = M.do
+    return (Disunifier "Π vs something else rigid")
+  unifyTypeNu sig cs ctx Universe Universe =
+    return (Success [] [])
+  unifyTypeNu sig cs ctx Universe b = M.do
+    return (Disunifier "𝕌 vs something else rigid")
+  unifyTypeNu sig cs ctx NatTy NatTy = return (Success [] [])
+  unifyTypeNu sig cs ctx NatTy b = M.do
+    return (Disunifier "S vs something else rigid")
+  unifyTypeNu sig cs ctx (ContextSubstElim x y) b = assert_total $ idris_crash "unifyTypeNu(ContextSubstElim)"
+  unifyTypeNu sig cs ctx (SignatureSubstElim x y) b = assert_total $ idris_crash "unifyTypeNu(SignatureSubstElim)"
+  unifyTypeNu sig cs ctx (EqTy p0 q0 ty0) (EqTy p1 q1 ty1) = M.do
+    return (Success [  TypeConstraint ctx ty0 ty1,
+                       ElemConstraint ctx p0 p1 ty0,
+                       ElemConstraint ctx q0 q1 ty0] [])
+  unifyTypeNu sig cs ctx (EqTy p0 q0 ty0) b = M.do
+    return (Disunifier "(≡) vs something else rigid")
+  unifyTypeNu sig cs ctx (ContextVarElim k0) (ContextVarElim k1) = M.do
+    case k0 == k1 of
+      True => return (Success [] [])
+      False => return (Disunifier "xᵢ vs xⱼ where i ≠ j")
+  unifyTypeNu sig cs ctx (ContextVarElim k) b = M.do
+    return (Disunifier "xᵢ vs something else rigid")
+  unifyTypeNu sig cs ctx a@(PiElim f0 x0 dom0 cod0 e0) b@(PiElim f1 x1 dom1 cod1 e1) = M.do
+    return (Success [ElemConstraint ctx a b Universe] [])
+  unifyTypeNu sig cs ctx (PiElim f0 x0 dom0 cod0 e0) b = M.do
+    return (Disunifier "app vs something else rigid")
+  unifyTypeNu sig cs ctx (SignatureVarElim k0 sigma0) (SignatureVarElim k1 sigma1) = M.do
+    case (k0 == k1) of
+      False => return (Disunifier "χᵢ vs χⱼ where i ≠ j")
+      True =>
+        return (Success [ SubstContextConstraint sigma0 sigma1 ctx (getCtx k0)] [])
+       where
+        getCtx : Nat -> Context
+        getCtx k =
+          case (splitAt sig k) of
+            Nothing => assert_total $ idris_crash "invertNu(SignatureVarElim)(1)"
+            Just (_, (_, e), rest) =>
+              case subst e (WkN $ 1 + length rest) of
+               CtxEntry => assert_total $ idris_crash "invertNu(SignatureVarElim)(2)"
+               TypeEntry xi => xi
+               ElemEntry xi {} => xi
+               LetElemEntry xi {} => xi
+               EqTyEntry {} => assert_total $ idris_crash "invertNu(SignatureVarElim)(3)"
+  unifyTypeNu sig cs ctx (SignatureVarElim k0 sigma0) b = M.do
+    return (Disunifier "χᵢ vs something else rigid")
   unifyTypeNu sig cs ctx _ _ = assert_total $ idris_crash "unifyTypeNu"
 
   public export

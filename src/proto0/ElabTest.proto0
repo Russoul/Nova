@@ -5,7 +5,7 @@ assume test2 : ℕ → ℕ
 
 assume test3 : (A : 𝕌) → A
 
-let test31 : Z ≡ Z ∈ ℕ
+let test31 : Z ≡ ? ∈ ℕ
            ≔ Refl
 
 assume test4 : test0 ≡ Z ∈ ℕ
