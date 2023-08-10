@@ -97,6 +97,11 @@ mutual
       -- Σ₀ (Γ ⊦ χ : A) Σ₁ Δ ⊦ χ σ
       sigma <- shrink sigma gamma1Len gamma2Len
       return (SignatureVarElim k sigma)
+    shrinkNu (OmegaVarElim k sigma) gamma1Len gamma2Len = Mb.do
+      -- Σ₀ (Γ ⊦ χ : A) Σ₁ ⊦ σ : Δ ⇒ Γ
+      -- Σ₀ (Γ ⊦ χ : A) Σ₁ Δ ⊦ χ σ
+      sigma <- shrink sigma gamma1Len gamma2Len
+      return (OmegaVarElim k sigma)
     shrinkNu (EqTy a b c) gamma1Len gamma2Len = Mb.do
       a <- shrink a gamma1Len gamma2Len
       b <- shrink b gamma1Len gamma2Len

@@ -12,7 +12,7 @@ import Data.Util
 
 import Data.Location
 
-import ETT.Core.VarName
+import ETT.Core.Name
 
 import ETT.Surface.SemanticToken
 import ETT.Surface.Language
@@ -67,12 +67,6 @@ eqValHead = do
   pure (EqVal r)
 
 public export
-elHead : Rule Head
-elHead = do
-  r <- spName "El"
-  pure (El r)
-
-public export
 varHead : Rule Head
 varHead = do
   x <- located varName
@@ -84,6 +78,12 @@ holeHead = do
   l <- delim "?"
   x <- located varName
   pure (Hole (l + fst x) (snd x))
+
+public export
+unnamedHoleHead : Rule Head
+unnamedHoleHead = do
+  l <- delim "?"
+  pure (UnnamedHole l)
 
 public export
 unfoldHead : Rule Head
@@ -125,9 +125,9 @@ mutual
      <|> natTyHead
      <|> universeTyHead
      <|> eqValHead
-     <|> elHead
      <|> varHead
      <|> holeHead
+     <|> unnamedHoleHead
      <|> unfoldHead
      <|> piBetaHead
      <|> natBetaZHead

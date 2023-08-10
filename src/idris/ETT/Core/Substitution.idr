@@ -163,6 +163,7 @@ mutual
     -- Σ Γ ⊦ χ(σ)
     -- Σ₀ Γ(τ) ⊦ χ(σ)(τ) = χ(σ ∘ τ)
     subst (SignatureVarElim k sigma) tau = SignatureVarElim k (Chain sigma tau)
+    subst (OmegaVarElim k sigma) tau = OmegaVarElim k (Chain sigma tau)
     subst (EqTy a0 a1 ty) tau = EqTy (ContextSubstElim a0 tau) (ContextSubstElim a1 tau) (ContextSubstElim ty tau)
     subst EqVal tau = EqVal
 
@@ -196,6 +197,7 @@ mutual
     subst (SignatureSubstElim t sigma0) sigma1 =
       subst t (Chain sigma0 sigma1)
     subst (ContextVarElim k) sigma = ContextVarElim k
+    subst (OmegaVarElim k tau) sigma = OmegaVarElim k (subst tau sigma)
     subst (SignatureVarElim k tau) sigma = substSignatureVar k sigma Id (subst tau sigma)
     subst (EqTy a0 a1 ty) tau = EqTy (SignatureSubstElim a0 tau) (SignatureSubstElim a1 tau) (SignatureSubstElim ty tau)
     subst EqVal tau = EqVal
@@ -277,9 +279,9 @@ mutual
       Under sigma CtxEntry = Ext (Chain sigma Wk) (CtxEntryInstance Var)
       Under sigma (TypeEntry ctx) =
         Ext (Chain sigma Wk) (TypeEntryInstance $ SignatureVarElim 0 Id)
-      Under sigma (ElemEntry ctx ty str) =
+      Under sigma (ElemEntry ctx ty) =
         Ext (Chain sigma Wk) (ElemEntryInstance $ SignatureVarElim 0 Id)
-      Under sigma (LetElemEntry ctx e ty str) =
+      Under sigma (LetElemEntry ctx e ty) =
         Ext (Chain sigma Wk) LetEntryInstance
       Under sigma (EqTyEntry ctx a b) =
         Ext (Chain sigma Wk) EqTyEntryInstance
@@ -310,8 +312,8 @@ namespace SignatureEntry
   subst : SignatureEntry -> SubstSignature -> SignatureEntry
   subst CtxEntry sigma = CtxEntry
   subst (TypeEntry ctx) sigma = TypeEntry (subst ctx sigma)
-  subst (ElemEntry ctx ty str) sigma = ElemEntry (subst ctx sigma) (SignatureSubstElim ty sigma) str
-  subst (LetElemEntry ctx e ty str) sigma = LetElemEntry (subst ctx sigma) (SignatureSubstElim e sigma) (SignatureSubstElim ty sigma) str
+  subst (ElemEntry ctx ty) sigma = ElemEntry (subst ctx sigma) (SignatureSubstElim ty sigma)
+  subst (LetElemEntry ctx e ty) sigma = LetElemEntry (subst ctx sigma) (SignatureSubstElim e sigma) (SignatureSubstElim ty sigma)
   subst (EqTyEntry ctx a b) sigma = EqTyEntry (subst ctx sigma) (SignatureSubstElim a sigma) (SignatureSubstElim b sigma)
 
 namespace EntryList

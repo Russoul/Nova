@@ -1,8 +1,9 @@
 module ETT.Core.Language
 
 import Data.SnocList
+import Data.AVL
 
-import public ETT.Core.VarName
+import public ETT.Core.Name
 
 mutual
   namespace Context
@@ -99,6 +100,8 @@ mutual
       ContextVarElim : Nat -> Elem
       ||| Xᵢ(σ)
       SignatureVarElim : Nat -> SubstContext -> Elem
+      ||| Xᵢ(σ)
+      OmegaVarElim : OmegaName -> SubstContext -> Elem
       ||| a₀ ≡ a₁ ∈ A
       EqTy : Elem -> Elem -> Elem -> Elem
       ||| *
@@ -116,22 +119,65 @@ public export
 data SignatureEntry : Type where
   CtxEntry : SignatureEntry
   TypeEntry : Context -> SignatureEntry
-  ElemEntry : Context -> Elem -> (strict : Bool) -> SignatureEntry
-  ||| strict <=> substitution is automatic
-  LetElemEntry : Context -> Elem -> Elem -> (strict : Bool) -> SignatureEntry
+  ElemEntry : Context -> Elem -> SignatureEntry
+  LetElemEntry : Context -> Elem -> Elem -> SignatureEntry
   EqTyEntry : Context -> Elem -> Elem -> SignatureEntry
 
 Signature = SnocList (VarName, SignatureEntry)
 
-
 public export
-data ConstraintEntry : Type where
-  ||| Σ Ω Γ ⊦ a₀ ~ a₁ : A
-  ElemConstraint : Context -> Elem -> Elem -> Elem -> ConstraintEntry
-  ||| Σ Ω ⊦ σ₀ ~ σ₁ : Γ ⇒ Δ
-  SubstContextConstraint : SubstContext -> SubstContext -> Context -> Context -> ConstraintEntry
+data MetaKind = SolveByUnification | SolveByElaboration
+
+namespace OmegaEntry
+  public export
+  data OmegaEntry : Type where
+    ||| Γ ⊦ type
+    MetaType : Context -> MetaKind -> OmegaEntry
+    ||| Γ ⊦ T
+    LetType : Context -> (rhs : Elem) -> OmegaEntry
+    ||| Γ ⊦ T type
+    MetaElem : Context -> Elem -> MetaKind -> OmegaEntry
+    ||| Γ ⊦ t : T
+    LetElem : Context -> (rhs : Elem) -> (ty : Elem) -> OmegaEntry
+    ||| Σ Ω Γ ⊦ A₀ ~ A₁ type
+    TypeConstraint : Context -> Elem -> Elem -> OmegaEntry
+    ||| Γ ⊦ a₀ ~ a₁ : A
+    ElemConstraint : Context -> Elem -> Elem -> Elem -> OmegaEntry
+    ||| σ₀ ~ σ₁ : Γ ⇒ Δ
+    SubstContextConstraint : SubstContext -> SubstContext -> Context -> Context -> OmegaEntry
+
+Omega = OrdTree (OmegaName, OmegaEntry) ByFst
+
+namespace ConstraintEntry
+  public export
+  data ConstraintEntry : Type where
+    ||| Σ Ω Γ ⊦ A₀ ~ A₁ type
+    TypeConstraint : Context -> Elem -> Elem -> ConstraintEntry
+    ||| Σ Ω Γ ⊦ a₀ ~ a₁ : A
+    ElemConstraint : Context -> Elem -> Elem -> Elem -> ConstraintEntry
+    ||| Σ Ω ⊦ σ₀ ~ σ₁ : Γ ⇒ Δ
+    SubstContextConstraint : SubstContext -> SubstContext -> Context -> Context -> ConstraintEntry
 
 Constraints = SnocList ConstraintEntry
+
+public export
+toOmegaEntry : ConstraintEntry -> OmegaEntry
+toOmegaEntry (TypeConstraint x y z) = TypeConstraint x y z
+toOmegaEntry (ElemConstraint x y z w) = ElemConstraint x y z w
+toOmegaEntry (SubstContextConstraint x y z w) = SubstContextConstraint x y z w
+
+public export
+mbConstraintEntry : OmegaEntry -> Maybe ConstraintEntry
+mbConstraintEntry (MetaType x y) = Nothing
+mbConstraintEntry (LetType x rhs) = Nothing
+mbConstraintEntry (MetaElem x y k) = Nothing
+mbConstraintEntry (LetElem x rhs ty) = Nothing
+mbConstraintEntry (ElemConstraint x y z w) = Just (ElemConstraint x y z w)
+mbConstraintEntry (TypeConstraint x y z) = Just (TypeConstraint x y z)
+mbConstraintEntry (SubstContextConstraint x y z w) = Just (SubstContextConstraint x y z w)
+
+public export
+mbTypingEntry : OmegaEntry -> Maybe ConstraintEntry
 
 public export
 extend : Signature -> VarName -> SignatureEntry -> Signature

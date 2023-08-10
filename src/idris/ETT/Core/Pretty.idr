@@ -81,6 +81,10 @@ wrapElem (SignatureVarElim {}) lvl doc =
   case lvl <= 3 of
     True => return doc
     False => return (parens' doc)
+wrapElem (OmegaVarElim {}) lvl doc =
+  case lvl <= 3 of
+    True => return doc
+    False => return (parens' doc)
 wrapElem (EqTy {}) lvl doc =
   case lvl <= 1 of
     True => return doc
@@ -227,6 +231,12 @@ mutual
     prettyContextVar ctx k
   prettyElem' sig ctx (SignatureVarElim k sigma) = M.do
     x <- prettySignatureVar sig k
+    return $
+      x
+       <+>
+      parens' !(prettySubstContext sig ctx sigma)
+  prettyElem' sig ctx (OmegaVarElim k sigma) = M.do
+    let x = annotate Elim (pretty k)
     return $
       x
        <+>

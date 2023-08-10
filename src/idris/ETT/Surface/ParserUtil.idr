@@ -18,7 +18,7 @@ import Data.Util
 
 import Data.Location
 
-import ETT.Core.VarName
+import ETT.Core.Name
 import ETT.Surface.SemanticToken
 
 -----------------------------------------------------------

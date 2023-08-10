@@ -11,6 +11,7 @@ modules =
         , ETT.Core.Evaluation
         , ETT.Core.Language
         , ETT.Core.Monad
+        , ETT.Core.Name
         , ETT.Core.Pretty
         , ETT.Core.Shrinking
         , ETT.Core.Substitution

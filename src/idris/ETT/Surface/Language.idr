@@ -3,7 +3,7 @@ module ETT.Surface.Language
 import Data.Location
 import Data.List1
 
-import ETT.Core.VarName
+import ETT.Core.Name
 
 -- h ::= Z | Refl | x | S | ℕ-elim | J | ℕ | 𝕌 | !x | ?x | Π-β | ℕ-β-Z | ℕ-β-S | Π⁼
 
@@ -30,8 +30,8 @@ mutual
     EqVal : Range -> Head
     NatTy : Range -> Head
     UniverseTy : Range -> Head
-    El : Range -> Head
     Hole : Range -> VarName -> Head
+    UnnamedHole : Range -> Head
     Unfold : Range -> VarName -> Head
     PiBeta : Range -> Head
     NatBetaZ : Range -> Head
@@ -74,6 +74,7 @@ mutual
     show (NatBetaS _) = "ℕ-β-S"
     show (Unfold _ x) = "Unfold(\{x})"
     show (Hole _ x) = "Hole(\{x})"
+    show (UnnamedHole _) = "UnnamedHole"
     show (Var _ x) = "Var(\{x})"
     show (NatVal0 x) = "Z"
     show (NatVal1 x) = "S"
@@ -82,7 +83,6 @@ mutual
     show (EqVal x) = "Refl"
     show (NatTy x) = "ℕ"
     show (UniverseTy x) = "𝕌"
-    show (El x) = "El"
     show (PiEq x) = "PiEq"
     show (Tm x tm) = "Tm(\{show tm})"
 
