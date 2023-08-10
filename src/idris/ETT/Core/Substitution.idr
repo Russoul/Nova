@@ -2,6 +2,7 @@ module ETT.Core.Substitution
 
 import Data.List
 import Data.SnocList
+import Data.AVL
 
 import ETT.Core.Language
 
@@ -326,6 +327,23 @@ namespace Signature
   public export
   subst : Signature -> SubstSignature -> Signature
   subst sig sigma = cast {to = Signature} (subst (cast {to = List _} sig) sigma)
+
+namespace OmegaEntry
+  public export
+  subst : OmegaEntry -> SubstSignature -> OmegaEntry
+  subst (MetaType ctx k) sigma = MetaType (subst ctx sigma) k
+  subst (LetType ctx rhs) sigma = LetType (subst ctx sigma) (SignatureSubstElim rhs sigma)
+  subst (MetaElem ctx ty k) sigma = MetaElem (subst ctx sigma) (SignatureSubstElim ty sigma) k
+  subst (LetElem ctx rhs ty) sigma = LetElem (subst ctx sigma) (SignatureSubstElim rhs sigma) (SignatureSubstElim ty sigma)
+  subst (TypeConstraint ctx a b) sigma = TypeConstraint (subst ctx sigma) (SignatureSubstElim a sigma) (SignatureSubstElim b sigma)
+  subst (ElemConstraint ctx a b ty) sigma = ElemConstraint (subst ctx sigma) (SignatureSubstElim a sigma) (SignatureSubstElim b sigma) (SignatureSubstElim ty sigma)
+  subst (SubstContextConstraint tau0 tau1 source target) sigma =
+    SubstContextConstraint (SignatureSubstElim tau0 sigma) (SignatureSubstElim tau1 sigma) (subst source sigma) (subst target sigma)
+
+namespace Omega
+  public export
+  subst : Omega -> SubstSignature -> Omega
+  subst omega sigma = unsafeMap (\(x, t) => (x, subst t sigma)) omega
 
 namespace Elem
   public export

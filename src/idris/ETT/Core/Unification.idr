@@ -22,6 +22,10 @@ record UnifySt where
   nextOmegaIdx : Nat
 
 public export
+initialUnifySt : UnifySt
+initialUnifySt = MkUnifySt 0
+
+public export
 UnifyM : Type -> Type
 UnifyM = JustAMonad.M String UnifySt
 
@@ -543,6 +547,20 @@ namespace Type'
     case !(isRigid sig cs b) of
       True => return (Disunifier "(≡) vs something else rigid")
       False => return (Stuck "(≡) vs something else flex")
+  unifyTypeNu sig cs ctx (ContextVarElim k0) (ContextVarElim k1) = M.do
+    case k0 == k1 of
+      True => return (Success [] [])
+      False => return (Disunifier "xᵢ vs xⱼ where i ≠ j")
+  unifyTypeNu sig cs ctx (ContextVarElim k) b = M.do
+    case !(isRigid sig cs b) of
+      True => return (Disunifier "xᵢ vs something else rigid")
+      False => return (Stuck "xᵢ vs something else flex")
+  unifyTypeNu sig cs ctx a@(PiElim f0 x0 dom0 cod0 e0) b@(PiElim f1 x1 dom1 cod1 e1) = M.do
+    return (Success [ElemConstraint ctx a b Universe] [])
+  unifyTypeNu sig cs ctx (PiElim f0 x0 dom0 cod0 e0) b = M.do
+    case !(isRigid sig cs b) of
+      True => return (Disunifier "app vs something else rigid")
+      False => return (Stuck "app vs something else flex")
   unifyTypeNu sig cs ctx (SignatureVarElim k0 sigma0) (SignatureVarElim k1 sigma1) = M.do
     case (k0 == k1) of
       False => return (Disunifier "χᵢ vs χⱼ where i ≠ j")
@@ -712,7 +730,7 @@ namespace Progress2
     ||| We've traversed the list of pending constraints once.
     ||| The new Ω may contain new instantiations and new constraints.
     Success : Omega -> Progress2
-    ||| We've haven't progressed at all.
+    ||| We haven't progressed at all.
     Stuck : String -> Progress2
     ||| Ω ≃ ⊥ // The list of constraints is contradictive.
     Disunifier : String -> Progress2
@@ -735,9 +753,9 @@ namespace Fixpoint
   ||| The end-product of solving a list of constraints
   public export
   data Fixpoint : Type where
-    ||| We've solved all constraints.
+    ||| At least some progress has been made but nothing else can be done.
     Success : Omega -> Fixpoint
-    ||| Some constraints are left unsolved and we can't make a single step forward.
+    ||| No progress has been made at all.
     Stuck : String -> Fixpoint
     ||| Ω ≃ ⊥ // The list of constraints is contradictive.
     Disunifier : String -> Fixpoint
@@ -757,17 +775,31 @@ onlyMetas omega = fromList $ mapMaybe H (List.inorder omega)
   H (x, MetaType ctx s) = Just (x, MetaType ctx s)
   H _ = Nothing
 
+public export
+containsNamedHolesOnly : Omega -> Bool
+containsNamedHolesOnly omega = H (map snd (List.inorder omega))
+ where
+  H : List OmegaEntry -> Bool
+  H [] = True
+  H (LetElem {} :: es) = H es
+  H (LetType {} :: es) = H es
+  H (MetaType {} :: es) = False
+  H (MetaElem {} :: es) = False
+  H (TypeConstraint {} :: es) = False
+  H (ElemConstraint {} :: es) = False
+  H (SubstContextConstraint {} :: es) = False
+
 ||| Try solving the constraints in the list until either no constraints are left or each and every one is stuck.
-progressEntriesFixpoint : Signature -> Omega -> List ConstraintEntry -> UnifyM Fixpoint
-progressEntriesFixpoint sig cs todo = M.do
+progressEntriesFixpoint : Signature -> Omega -> List ConstraintEntry -> Bool -> UnifyM Fixpoint
+progressEntriesFixpoint sig cs todo progress = M.do
   case !(progressEntries sig cs todo False) of
-    Stuck str => return (Stuck str)
+    Stuck str =>
+      case progress of
+        True => return (Success !(addConstraintN cs todo))
+        False => return (Stuck "No progress made")
     Disunifier str => return (Disunifier str)
-    Success cs' =>
-      case (getConstraints cs') of
-        [] => return (Success cs')
-        todo => progressEntriesFixpoint sig (onlyMetas cs') todo
+    Success cs' => progressEntriesFixpoint sig (onlyMetas cs') (getConstraints cs') True
 
 public export
 solve : Signature -> Omega -> UnifyM Fixpoint
-solve sig cs = progressEntriesFixpoint sig (onlyMetas cs) (getConstraints cs)
+solve sig cs = progressEntriesFixpoint sig (onlyMetas cs) (getConstraints cs) False

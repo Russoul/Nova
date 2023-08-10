@@ -273,26 +273,30 @@ mutual
   public export
   typingSignature : Rule TopLevel
   typingSignature = do
-    x <- located varName
+    l <- delim "assume"
+    spaceDelim
+    x <- varName
     spaceDelim
     delim_ ":"
     spaceDelim
     ty <- located (term 0)
-    pure (TypingSignature (fst x + fst ty) (snd x) (snd ty))
+    pure (TypingSignature (l + fst ty) x (snd ty))
 
   public export
   letSignature : Rule TopLevel
   letSignature = do
-    x <- located varName
+    l <- delim "let"
     spaceDelim
-    delim_ "≔"
-    spaceDelim
-    rhs <- term 0
+    x <- varName
     spaceDelim
     delim_ ":"
     spaceDelim
-    ty <- located (term 0)
-    pure (LetSignature (fst x + fst ty) (snd x) rhs (snd ty))
+    ty <- term 0
+    spaceDelim
+    delim_ "≔"
+    spaceDelim
+    rhs <- located (term 0)
+    pure (LetSignature (l + fst rhs) x ty (snd rhs))
 
   public export
   topLevel : Rule TopLevel

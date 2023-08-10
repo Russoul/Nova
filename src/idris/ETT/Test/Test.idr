@@ -1,6 +1,7 @@
 module ETT.Test.Test
 
 import Data.String
+import Data.AVL
 
 import System.File.ReadWrite
 import System
@@ -11,15 +12,15 @@ import Text.Parser.Fork
 import ETT.Core.Language
 import ETT.Core.Monad
 import ETT.Core.Substitution
+import ETT.Core.Unification
 
-import ETT.Surface.Assistant
 import ETT.Surface.SemanticToken
 import ETT.Surface.Language
 import ETT.Surface.ParserUtil
 import ETT.Surface.Parser
-import ETT.Surface.Check
+import ETT.Surface.Elaboration
 
-runAssistant : Signature -> M ()
+{- runAssistant : Signature -> M ()
 runAssistant sig = M.do
   io $ putStrLn "Enter command:"
   input <- io $ getLine
@@ -50,7 +51,7 @@ assistantApp : IO ()
 assistantApp = do
    Right () <- eval (runAssistant [<]) ()
      | Left err => die err
-   pure ()
+   pure () -}
 
 parserTestApp : IO ()
 parserTestApp = do
@@ -60,16 +61,16 @@ parserTestApp = do
      | Left err => die (show err)
    putStrLn "Parsed successfully!"
 
-{- checkTestApp : IO ()
-checkTestApp = do
-   Right contents <- readFile "src/proto0/CheckTest.proto0"
+checkElabApp : IO ()
+checkElabApp = do
+   Right contents <- readFile "src/proto0/ElabTest.proto0"
      | Left err => die (show err)
    let Right (st, parsed) = parseFull' (MkParsingSt [<]) surfaceFile contents
      | Left err => die (show err)
    putStrLn "Parsed successfully!"
-   Right sig <- eval (checkFile [<] parsed) (MkCheckSt [<])
+   Right (sig, omega) <- eval (elabFile [<] empty parsed) initialUnifySt
      | Left err => die err
-   putStrLn "Checked successfully!" -}
+   putStrLn "Checked successfully!"
 
 main : IO ()
-main = assistantApp
+main = checkElabApp

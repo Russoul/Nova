@@ -18,14 +18,14 @@ import ETT.Core.Language
 import ETT.Core.Monad
 import ETT.Core.Pretty
 import ETT.Core.Substitution
-import ETT.Core.VarName
+import ETT.Core.Name
 
 import ETT.Surface.Check
 import ETT.Surface.Language
 import ETT.Surface.Parser
 import ETT.Surface.ParserUtil
 
-||| Signature transformation
+{- ||| Signature transformation
 public export
 data Transformation : Type where
   ||| Σ ⇛ Σ
@@ -660,4 +660,4 @@ transformation = id
              <|> instSurfaceType
              <|> instSurfaceElem
              <|> funExt
-             <|> debugDropLast
+             <|> debugDropLast -}

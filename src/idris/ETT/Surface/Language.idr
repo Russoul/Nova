@@ -98,5 +98,8 @@ mutual
 
 public export
 data TopLevel : Type where
+  ||| assume x : T
   TypingSignature : Range -> VarName -> Term -> TopLevel
+  ||| let x : T
+  |||       ≔ t
   LetSignature : Range -> VarName -> Term -> Term -> TopLevel

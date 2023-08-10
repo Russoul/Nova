@@ -20,7 +20,7 @@ import ETT.Core.Pretty
 
 import ETT.Surface.Language
 
--- Σ ⊦ Γ ctx
+{- -- Σ ⊦ Γ ctx
 -- ----------------------
 -- ⟦Σ | Γ ⊦ A ~> A' type⟧
 
@@ -420,4 +420,4 @@ mutual
     return (sig :< (x, e))
   checkFile sig (top ::: top' :: more) = M.do
     (x, e) <- checkTopLevel sig top
-    checkFile (sig :< (x, e)) (top' ::: more) -}
+    checkFile (sig :< (x, e)) (top' ::: more) -} -}

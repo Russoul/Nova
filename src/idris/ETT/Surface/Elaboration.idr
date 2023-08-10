@@ -1,6 +1,9 @@
 module ETT.Surface.Elaboration
 
 import Data.AVL
+import Data.List
+import Data.List1
+import Data.SnocList
 
 import ETT.Core.Conversion
 import ETT.Core.Evaluation
@@ -230,11 +233,9 @@ elabElemNu sig omega ctx (App _ (EqElim _) (([x, h], schema) :: ([], r) :: ([], 
 elabElemNu sig omega ctx (App r (EqElim x) _) meta ty =
   return (Error "J applied to a wrong number of arguments")
 elabElemNu sig omega ctx (App r (EqVal x) []) meta (EqTy a b t) = M.do
-  case !(liftM $ conv sig omega a b) of
-    True => M.do
-      let omega = instantiateByElaboration omega meta EqVal
-      return (Success omega [])
-    False => return (Stuck "Refl : a₀ ≡ b₀ ∈ _ where a₀ and b₀ are not convertible")
+  omega <- addConstraint omega (ElemConstraint ctx a b t)
+  let omega = instantiateByElaboration omega meta EqVal
+  return (Success omega [])
 elabElemNu sig omega ctx tm@(App r (EqVal x) []) meta ty = M.do
   (omega, t') <- newTypeMeta omega ctx SolveByUnification
   (omega, a') <- newElemMeta omega ctx (OmegaVarElim t' Id) SolveByUnification
@@ -355,18 +356,18 @@ elabType sig omega ctx (PiTy r x dom cod) meta = M.do
   (omega, dom') <- newTypeMeta omega ctx SolveByElaboration
   (omega, cod') <- newTypeMeta omega (Ext ctx x (OmegaVarElim dom' Id)) SolveByElaboration
   let omega = instantiateByElaboration omega meta (PiTy x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id))
-  return (Success omega [ElemElaboration ctx dom dom' Universe, ElemElaboration (Ext ctx x (OmegaVarElim dom' Id)) cod cod' Universe])
+  return (Success omega [TypeElaboration ctx dom dom', TypeElaboration (Ext ctx x (OmegaVarElim dom' Id)) cod cod'])
 elabType sig omega ctx (FunTy r dom cod) meta = M.do
   (omega, dom') <- newTypeMeta omega ctx SolveByElaboration
   (omega, cod') <- newTypeMeta omega ctx SolveByElaboration
   let omega = instantiateByElaboration omega meta (PiTy "_" (OmegaVarElim dom' Id) (ContextSubstElim (OmegaVarElim cod' Id) Wk))
-  return (Success omega [ElemElaboration ctx dom dom' Universe, ElemElaboration ctx cod cod' Universe])
+  return (Success omega [TypeElaboration ctx dom dom', TypeElaboration ctx cod cod'])
 elabType sig omega ctx (EqTy r a b t) meta = M.do
   (omega, t') <- newTypeMeta omega ctx SolveByElaboration
   (omega, a') <- newElemMeta omega ctx (OmegaVarElim t' Id) SolveByElaboration
   (omega, b') <- newElemMeta omega ctx (OmegaVarElim t' Id) SolveByElaboration
   let omega = instantiateByElaboration omega meta (EqTy (OmegaVarElim a' Id) (OmegaVarElim b' Id) (OmegaVarElim t' Id))
-  return (Success omega [ElemElaboration ctx t t' Universe,
+  return (Success omega [TypeElaboration ctx t t',
                          ElemElaboration ctx a a' (OmegaVarElim t' Id),
                          ElemElaboration ctx b b' (OmegaVarElim t' Id)
                         ]
@@ -375,8 +376,8 @@ elabType sig omega ctx (PiVal r x f) meta =
   return (Error "_ ↦ _ is not a type")
 elabType sig omega ctx (AnnotatedPiVal r x t f) meta =
   return (Error "(_ : _) ↦ _ is not a type")
-elabType sig omega ctx (App r (Var r0 x) es) meta =
-  return (Error "x ē is not a type")
+elabType sig omega ctx tm@(App r (Var r0 x) es) meta =
+  return (Success omega [ElemElaboration ctx tm meta Universe])
 elabType sig omega ctx (App r (NatVal0 x) _) meta = M.do
   return (Error "Z is not a type")
 elabType sig omega ctx (App r (NatVal1 _) _) meta = M.do
@@ -452,7 +453,7 @@ elabElemElim : Signature
             -> OmegaName
             -> CoreElem
             -> UnifyM Elaboration.Result
-elabElemElim sig omega ctx head headTy es p ty = elabElemElim sig omega ctx head !(liftM $ openEval sig omega headTy) es p ty
+elabElemElim sig omega ctx head headTy es p ty = elabElemElimNu sig omega ctx head !(liftM $ openEval sig omega headTy) es p ty
 
 public export
 elabEntry : Signature
@@ -469,3 +470,97 @@ elabEntry sig omega (ElaborateWhenConvertible ctx a b e) = M.do
   case !(liftM $ conv sig omega a b) of
     True => return (Success omega [e])
     False => return (Stuck "Not convertible yet")
+
+namespace Elaboration.Progress2
+  ||| The intermediate results of solving a list of constraints (reflects whether at least some progress has been made).
+  public export
+  data Progress2 : Type where
+    ||| We've traversed the list of pending elaboration problems once.
+    ||| At least one step has been made.
+    ||| We store a new Ω that can contain new holes and new constraints.
+    ||| We store the list of problems to solve.
+    Success : Omega -> List ElaborationEntry -> Progress2
+    ||| We haven't progressed at all.
+    Stuck : String -> Progress2
+    ||| We've hit an error.
+    Error : String -> Progress2
+
+||| Try solving the constraints in the list by passing through it once.
+progressEntries : Signature
+               -> Omega
+               -> (stuck : SnocList ElaborationEntry)
+               -> List ElaborationEntry
+               -> Bool
+               -> UnifyM Elaboration.Progress2.Progress2
+progressEntries sig cs stuck [] False = return (Stuck "No progress made")
+progressEntries sig cs stuck [] True = return (Success cs (cast stuck))
+progressEntries sig cs stuck (e :: es) progressMade =
+  case !(elabEntry sig cs e) of
+    Success cs' new => progressEntries sig cs' stuck (new ++ es) True
+    Stuck str => progressEntries sig cs (stuck :< e) es progressMade
+    Error str => return (Error str)
+
+namespace Elaboration.Fixpoint
+  public export
+  data Fixpoint : Type where
+    ||| We've solved all elaboration constraints, all unification problems and all unnamed holes.
+    ||| Ω can only contain named holes and solved holes at this point.
+    Success : Omega -> Fixpoint
+    ||| We got stuck for good or hit something is impossible to elaborate.
+    Error : String -> Fixpoint
+
+||| Try solving the problems in the list until either no constraints are left or each and every one is stuck.
+||| Between rounds of solving problems we try solving unification problems.
+progressEntriesFixpoint : Signature -> Omega -> List ElaborationEntry -> UnifyM Elaboration.Fixpoint.Fixpoint
+progressEntriesFixpoint sig cs todo = M.do
+  case containsNamedHolesOnly cs && isNil todo of
+    True => return (Success cs)
+    False => M.do
+      case !(progressEntries sig cs [<] todo False) of
+        Stuck str => M.do
+          case !(Unification.solve sig cs) of
+            Stuck _ => return (Error "Both unification and elaboration are stuck")
+            Disunifier err => return (Error "Got a disunifier: \{err}")
+            Success cs => progressEntriesFixpoint sig cs todo
+        Error str => return (Error str)
+        Success cs' todo => progressEntriesFixpoint sig cs' todo
+
+||| Try solving all elaboration and unification problems.
+public export
+solve : Signature -> Omega -> List ElaborationEntry -> UnifyM Elaboration.Fixpoint.Fixpoint
+solve sig omega todo = progressEntriesFixpoint sig omega todo
+
+||| Elaborates a top-level entry and adds it to the signature in case of success.
+||| Throws on elaboration or unification error.
+public export
+elabTopLevelEntry : Signature
+                 -> Omega
+                 -> TopLevel
+                 -> UnifyM (Signature, Omega)
+elabTopLevelEntry sig omega (TypingSignature r x ty) = M.do
+  (omega, ty') <- newTypeMeta omega Empty SolveByElaboration
+  let probs = [TypeElaboration Empty ty ty']
+  Success omega <- solve sig omega probs
+    | Error err => throw "Error during elaboration: \{err}"
+  let sig = sig :< (x, ElemEntry Empty (OmegaVarElim ty' Id))
+  let omega = subst omega Wk
+  return (sig, omega)
+elabTopLevelEntry sig omega (LetSignature r x ty rhs) = M.do
+  (omega, ty') <- newTypeMeta omega Empty SolveByElaboration
+  (omega, rhs') <- newElemMeta omega Empty (OmegaVarElim ty' Id) SolveByElaboration
+  let probs = [TypeElaboration Empty ty ty', ElemElaboration Empty rhs rhs' (OmegaVarElim ty' Id)]
+  Success omega <- solve sig omega probs
+    | Error err => throw "Error during elaboration: \{err}"
+  let sig = sig :< (x, LetElemEntry Empty (OmegaVarElim rhs' Id) (OmegaVarElim ty' Id))
+  let omega = subst omega Wk
+  return (sig, omega)
+
+public export
+elabFile : Signature
+        -> Omega
+        -> List1 TopLevel
+        -> UnifyM (Signature, Omega)
+elabFile sig omega (e ::: []) = elabTopLevelEntry sig omega e
+elabFile sig omega (e ::: e' :: es) = M.do
+  (sig, omega) <- elabTopLevelEntry sig omega e
+  elabFile sig omega (e' ::: es)
