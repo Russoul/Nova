@@ -5,7 +5,7 @@ import Data.List1
 
 import ETT.Core.Name
 
--- h ::= Z | Refl | x | S | ℕ-elim | J | ℕ | 𝕌 | !x | ?x | Π-β | ℕ-β-Z | ℕ-β-S | Π⁼
+-- h ::= Z | Refl | x | S | ℕ-elim | J | ℕ | 𝕌 | !x | ?x | Π-β | Π-η | Π⁼ | ℕ-β-Z | ℕ-β-S
 
 -- e{0} = x ↦ e{≥0} | (x : e{≥0}) → e{≥0} | (x : e{≥0}) ↦ e{≥0}
 -- e{1} = e{≥3} ≡ e{≥3} ∈ e{≥0}
@@ -34,6 +34,7 @@ mutual
     UnnamedHole : Range -> Maybe (List VarName) -> Head
     Unfold : Range -> VarName -> Head
     PiBeta : Range -> Head
+    PiEta : Range -> Head
     NatBetaZ : Range -> Head
     NatBetaS : Range -> Head
     PiEq : Range -> Head
@@ -70,6 +71,7 @@ mutual
   partial
   Show Head where
     show (PiBeta _) = "Π-β"
+    show (PiEta _) = "Π-η"
     show (NatBetaZ _) = "ℕ-β-Z"
     show (NatBetaS _) = "ℕ-β-S"
     show (Unfold _ x) = "Unfold(\{x})"

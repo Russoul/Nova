@@ -333,6 +333,15 @@ elabElemNu sig omega ctx (App r (PiBeta r0) [([x], f), ([], e)]) meta ty = M.do
                          ElemElimElaboration ctx EqVal (EqTy (PiElim (PiVal x (OmegaVarElim dom Id) (OmegaVarElim cod Id) (OmegaVarElim f' Id)) x (OmegaVarElim dom Id) (OmegaVarElim cod Id) (OmegaVarElim e' Id)) (OmegaVarElim f' (Ext Id (OmegaVarElim e' Id))) (OmegaVarElim cod (Ext Id (OmegaVarElim e' Id)))) [] meta ty])
 elabElemNu sig omega ctx (App r (PiBeta r0) _) meta ty =
   return (Error "Π-β applied to a wrong number of arguments")
+-- Π-η f : (x ↦ f x) ≡ f ∈ (x : A) → B
+elabElemNu sig omega ctx (App r (PiEta r0) [([], f)]) meta ty = M.do
+  (omega, dom) <- newTypeMeta omega ctx SolveByUnification
+  (omega, cod) <- newTypeMeta omega (Ext ctx "_" (OmegaVarElim dom Id)) SolveByUnification
+  (omega, f') <- newElemMeta omega ctx (PiTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id)) SolveByElaboration
+  return (Success omega [ElemElaboration ctx f f' (PiTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id)),
+                         ElemElimElaboration ctx EqVal (EqTy (PiVal "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id) (PiElim (OmegaVarElim f' Wk) "_" (OmegaVarElim dom Wk) (OmegaVarElim cod (Under Wk)) CtxVar)) (OmegaVarElim f' Id) (PiTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id))) [] meta ty])
+elabElemNu sig omega ctx (App r (PiEta r0) _) meta ty =
+  return (Error "Π-η applied to a wrong number of arguments")
 -- ℕ-β-Z (x. A) z (y. h. s) : ℕ-elim (x. A) z (y. h. s) Z ≡ z ∈ A[Z/x]
 elabElemNu sig omega ctx (App r (NatBetaZ r0) (([x], schema) :: ([], z) :: ([y, h], s) :: [])) meta ty = M.do
   (omega, schema') <- newTypeMeta omega (Ext ctx x NatTy) SolveByElaboration
@@ -483,6 +492,8 @@ elabType sig omega ctx (App r (Unfold r0 x) _) meta = M.do
   return (Error "! is not a type")
 elabType sig omega ctx (App r (PiBeta r0) _) meta = M.do
   return (Error "Π-β is not a type")
+elabType sig omega ctx (App r (PiEta r0) _) meta = M.do
+  return (Error "Π-η is not a type")
 elabType sig omega ctx (App r (NatBetaZ r0) _) meta = M.do
   return (Error "ℕ-β-Z is not a type")
 elabType sig omega ctx (App r (NatBetaS r0) _) meta = M.do

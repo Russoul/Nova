@@ -118,6 +118,12 @@ piBetaHead = do
   pure (PiBeta r)
 
 public export
+piEtaHead : Rule Head
+piEtaHead = do
+  r <- spName "Π-η"
+  pure (PiEta r)
+
+public export
 natBetaZHead : Rule Head
 natBetaZHead = do
   r <- spName "ℕ-β-Z"
@@ -151,10 +157,11 @@ mutual
      <|> unnamedHoleHead
      <|> unfoldHead
      <|> piBetaHead
+     <|> piEtaHead
+     <|> piEqHead
      <|> natBetaZHead
      <|> natBetaSHead
      <|> jHead
-     <|> piEqHead
 
   public export
   head2 : Rule Head
