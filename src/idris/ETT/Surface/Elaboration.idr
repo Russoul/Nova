@@ -33,6 +33,14 @@ data ElaborationEntry : Type where
   |||
   ElaborateWhenConvertible : Context -> CoreElem -> CoreElem -> ElaborationEntry -> ElaborationEntry
 
+partial
+public export
+Show ElaborationEntry where
+  show (ElemElaboration ctx tm p ty) = "... ⊦ ⟦\{show tm}⟧ ⇝ ... : ..."
+  show (TypeElaboration ctx tm p) = "... ⊦ ⟦\{show tm}⟧ ⇝ ... type"
+  show (ElemElimElaboration x y z xs str w) = "ElemElimElaboration"
+  show (ElaborateWhenConvertible x y z w) = "ElaborateWhenConvertible"
+
 namespace Elaboration
   public export
   data Result : Type where
@@ -131,6 +139,15 @@ lookupLetSignature (sig :< (x, LetElemEntry ctx rhs ty)) y = M.do
     False => do
       (ctx, i, rhs, ty) <- lookupLetSignature sig y
       Just (subst ctx SubstSignature.Wk, S i, SignatureSubstElim rhs Wk, SignatureSubstElim ty Wk)
+
+public export
+pickPrefix : List (VarName, Elem) -> List VarName -> Maybe (List (VarName, Elem))
+pickPrefix ctx [] = Just []
+pickPrefix [] (x :: xs) = Nothing
+pickPrefix ((x', ty) :: ctx) (x :: xs) =
+  case (x' == x) of
+    True => pickPrefix ctx xs <&> ((x, ty) ::)
+    False => Nothing
 
 ||| Σ Ω Γ ⊦ ⟦t⟧ ⇝ p : A
 ||| A is head-neutral w.r.t. open evaluation.
@@ -262,13 +279,40 @@ elabElemNu sig omega ctx (App r (UniverseTy x) []) meta ty =
   return (Error "We don't have 𝕌 : 𝕌!")
 elabElemNu sig omega ctx (App r (UniverseTy x) _) meta ty =
   return (Error "𝕌 applied to a wrong number of arguments")
-elabElemNu sig omega ctx (App r (UnnamedHole r0) []) meta ty = M.do
+elabElemNu sig omega ctx (App r (UnnamedHole r0 Nothing) []) meta ty = M.do
   (omega, n) <- newElemMeta omega ctx ty SolveByUnification
   let omega = instantiateByElaboration omega meta (OmegaVarElim n Id)
   return (Success omega [])
-elabElemNu sig omega ctx (App r (UnnamedHole x) _) meta ty =
+elabElemNu sig omega ctx (App r (UnnamedHole r0 (Just vars)) []) meta ty = M.do
+  let Just regctx = asRegularContext ctx
+     | Nothing => return (Error "Context is not regular")
+  let Just regctxPrefix = pickPrefix (cast regctx) vars
+    | Nothing => return (Error "Invalid context prefix")
+  let ctxPrefix = fromRegularContext (cast regctxPrefix)
+  (omega, n) <- newElemMeta omega ctxPrefix ty SolveByUnification
+  let omega = instantiateByElaboration omega meta (OmegaVarElim n (WkN (length regctx `minus` length regctxPrefix)))
+  return (Success omega [])
+elabElemNu sig omega ctx (App r (UnnamedHole x _) _) meta ty =
   return (Error "? applied to arguments not supported")
-elabElemNu sig omega ctx (App r (Hole r0 x) es) meta ty = ?todo_15
+elabElemNu sig omega ctx (App r (Hole r0 n Nothing) es) meta ty = M.do
+  case (lookup n omega) of
+    Just _ => return (Error "Hole already exists: \{n}")
+    Nothing => M.do
+      omega <- newElemMeta omega ctx n ty NoSolve
+      let omega = instantiateByElaboration omega meta (OmegaVarElim n Id)
+      return (Success omega [])
+elabElemNu sig omega ctx (App r (Hole r0 n (Just vars)) es) meta ty = M.do
+  case (lookup n omega) of
+    Just _ => return (Error "Hole already exists: \{n}")
+    Nothing => M.do
+      let Just regctx = asRegularContext ctx
+         | Nothing => return (Error "Context is not regular")
+      let Just regctxPrefix = pickPrefix (cast regctx) vars
+        | Nothing => return (Error "Invalid context prefix")
+      let ctxPrefix = fromRegularContext (cast regctxPrefix)
+      omega <- newElemMeta omega ctxPrefix n ty SolveByUnification
+      let omega = instantiateByElaboration omega meta (OmegaVarElim n (WkN (length regctx `minus` length regctxPrefix)))
+      return (Success omega [])
 elabElemNu sig omega ctx (App r (Unfold r0 x) []) meta ty = M.do
   case lookupLetSignature sig x of
     Just (Empty, idx, vRhs, vTy) =>
@@ -401,13 +445,40 @@ elabType sig omega ctx (App r (UniverseTy x) []) meta = M.do
   return (Success omega [])
 elabType sig omega ctx (App r (UniverseTy x) _) meta =
   return (Error "𝕌 applied to a wrong number of arguments")
-elabType sig omega ctx (App r (UnnamedHole r0) []) meta = M.do
+elabType sig omega ctx (App r (UnnamedHole r0 Nothing) []) meta = M.do
   (omega, n) <- newTypeMeta omega ctx SolveByUnification
   let omega = instantiateByElaboration omega meta (OmegaVarElim n Id)
   return (Success omega [])
-elabType sig omega ctx (App r (UnnamedHole x) _) meta =
+elabType sig omega ctx (App r (UnnamedHole r0 (Just vars)) []) meta = M.do
+  let Just regctx = asRegularContext ctx
+     | Nothing => return (Error "Context is not regular")
+  let Just regctxPrefix = pickPrefix (cast regctx) vars
+    | Nothing => return (Error "Invalid context prefix")
+  let ctxPrefix = fromRegularContext (cast regctxPrefix)
+  (omega, n) <- newTypeMeta omega ctxPrefix SolveByUnification
+  let omega = instantiateByElaboration omega meta (OmegaVarElim n (WkN (length regctx `minus` length regctxPrefix)))
+  return (Success omega [])
+elabType sig omega ctx (App r (UnnamedHole x vars) _) meta =
   return (Error "? applied to arguments not supported")
-elabType sig omega ctx (App r (Hole r0 x) es) meta = ?todo_155
+elabType sig omega ctx (App r (Hole r0 n Nothing) es) meta =
+  case (lookup n omega) of
+    Just _ => return (Error "Hole already exists: \{n}")
+    Nothing => M.do
+      omega <- newTypeMeta omega ctx n NoSolve
+      let omega = instantiateByElaboration omega meta (OmegaVarElim n Id)
+      return (Success omega [])
+elabType sig omega ctx (App r (Hole r0 n (Just vars)) es) meta =
+  case (lookup n omega) of
+    Just _ => return (Error "Hole already exists: \{n}")
+    Nothing => M.do
+      let Just regctx = asRegularContext ctx
+         | Nothing => return (Error "Context is not regular")
+      let Just regctxPrefix = pickPrefix (cast regctx) vars
+        | Nothing => return (Error "Invalid context prefix")
+      let ctxPrefix = fromRegularContext (cast regctxPrefix)
+      omega <- newTypeMeta omega ctxPrefix n SolveByUnification
+      let omega = instantiateByElaboration omega meta (OmegaVarElim n (WkN (length regctx `minus` length regctxPrefix)))
+      return (Success omega [])
 elabType sig omega ctx (App r (Unfold r0 x) _) meta = M.do
   return (Error "! is not a type")
 elabType sig omega ctx (App r (PiBeta r0) _) meta = M.do
@@ -441,7 +512,11 @@ elabElemElimNu sig omega ctx head (PiTy x dom cod) (([], e) :: es) meta ty = M.d
   (omega, e') <- newElemMeta omega ctx dom SolveByElaboration
   return (Success omega [ElemElaboration ctx e e' dom,
                          ElemElimElaboration ctx (PiElim head x dom cod (OmegaVarElim e' Id)) (ContextSubstElim cod (Ext Id (OmegaVarElim e' Id))) es meta ty])
-elabElemElimNu sig omega ctx head headTy (([], e) :: es) meta ty = return (Stuck "Waiting on the head type")
+elabElemElimNu sig omega ctx head headTy args@(([], e) :: es) meta ty = M.do
+  (omega, dom) <- newTypeMeta omega ctx SolveByUnification
+  (omega, cod) <- newTypeMeta omega (Ext ctx "_" (OmegaVarElim dom Id)) SolveByUnification
+  omega <- addConstraint omega (TypeConstraint ctx headTy (PiTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id)))
+  return (Success omega [ElemElimElaboration ctx head (PiTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id)) args meta ty])
 elabElemElimNu sig omega ctx head headTy ((_, e) :: es) meta ty =
   return (Error "Invalid elimination")
 
@@ -557,8 +632,16 @@ elabTopLevelEntry sig omega (TypingSignature r x ty) = M.do
         forList_ stuckCons $ \(con, str) => M.do
           print_ Debug STDOUT (renderDocTerm !(liftM $ prettyConstraintEntry sig omega con))
           print_ Debug STDOUT "Reason: \{str}"
+        print_ Debug STDOUT "----------- Stuck elaboration constraints: -------------"
+        forList_ stuckElab $ \(elab, err) => M.do
+          print_ Debug STDOUT (show elab)
+          print_ Debug STDOUT "Reason: \{err}"
         throw "Elaboration failed"
-    | Error omega (Left (elab, err)) => ?todo2
+    | Error omega (Left (elab, err)) => M.do
+        print_ Debug STDOUT "----------- Elaborator failed: -------------"
+        print_ Debug STDOUT (show elab)
+        print_ Debug STDOUT "Reason: \{err}"
+        throw "Elaboration failed"
     | Error omega (Right (con, err)) => M.do
         print_ Debug STDOUT "----------- Disunifier found: -------------"
         print_ Debug STDOUT (renderDocTerm !(liftM $ prettyConstraintEntry sig omega con))
@@ -577,8 +660,16 @@ elabTopLevelEntry sig omega (LetSignature r x ty rhs) = M.do
         forList_ stuckCons $ \(con, str) => M.do
           print_ Debug STDOUT (renderDocTerm !(liftM $ prettyConstraintEntry sig omega con))
           print_ Debug STDOUT "Reason: \{str}"
+        print_ Debug STDOUT "----------- Stuck elaboration constraints: -------------"
+        forList_ stuckElab $ \(elab, err) => M.do
+          print_ Debug STDOUT (show elab)
+          print_ Debug STDOUT "Reason: \{err}"
         throw "Elaboration failed"
-    | Error omega (Left (elab, err)) => ?todo21
+    | Error omega (Left (elab, err)) => M.do
+        print_ Debug STDOUT "----------- Elaborator failed: -------------"
+        print_ Debug STDOUT (show elab)
+        print_ Debug STDOUT "Reason: \{err}"
+        throw "Elaboration failed"
     | Error omega (Right (con, err)) => M.do
         print_ Debug STDOUT "----------- Disunifier found: -------------"
         print_ Debug STDOUT (renderDocTerm !(liftM $ prettyConstraintEntry sig omega con))

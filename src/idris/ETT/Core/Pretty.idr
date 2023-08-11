@@ -422,6 +422,110 @@ mutual
   prettySignature : Signature -> Omega -> Signature -> M (Doc Ann)
   prettySignature sig omega sig' = prettySignature' sig omega (toList sig')
 
+  public export
+  prettyMetaKind : MetaKind -> Doc Ann
+  prettyMetaKind NoSolve = "NoSolve"
+  prettyMetaKind SolveByUnification = "SolveByUnification"
+  prettyMetaKind SolveByElaboration = "SolveByElaboration"
+
+  public export
+  prettyOmegaEntry : Signature -> Omega -> OmegaName -> OmegaEntry -> M (Doc Ann)
+  prettyOmegaEntry sig omega n (MetaType ctx k) = M.do
+   return $
+    !(prettyContext sig omega ctx)
+     <++>
+    annotate Keyword "⊦"
+     <++>
+    pretty n
+     <++>
+    annotate Keyword "type"
+     <++>
+    parens' (prettyMetaKind k)
+  prettyOmegaEntry sig omega n (LetType ctx rhs) = M.do
+   return $
+    !(prettyContext sig omega ctx)
+     <++>
+    annotate Keyword "⊦"
+     <++>
+    pretty n
+     <++>
+    annotate Keyword "≔"
+     <++>
+    !(prettyElem sig omega (map fst $ tail ctx) rhs 0)
+     <++>
+    annotate Keyword "type"
+  prettyOmegaEntry sig omega n (MetaElem ctx ty k) = M.do
+   return $
+    !(prettyContext sig omega ctx)
+     <++>
+    annotate Keyword "⊦"
+     <++>
+    pretty n
+     <++>
+    annotate Keyword ":"
+     <++>
+    !(prettyElem sig omega (map fst $ tail ctx) ty 0)
+     <++>
+    parens' (prettyMetaKind k)
+  prettyOmegaEntry sig omega n (LetElem ctx rhs ty) = M.do
+   return $
+    !(prettyContext sig omega ctx)
+     <++>
+    annotate Keyword "⊦"
+     <++>
+    pretty n
+     <++>
+    annotate Keyword ":"
+     <++>
+    !(prettyElem sig omega (map fst $ tail ctx) ty 0)
+     <++>
+    annotate Keyword "≔"
+     <++>
+    !(prettyElem sig omega (map fst $ tail ctx) rhs 0)
+  prettyOmegaEntry sig omega n (TypeConstraint ctx a b) = M.do
+   return $
+    !(prettyContext sig omega ctx)
+     <++>
+    annotate Keyword "⊦"
+     <++>
+    !(prettyElem sig omega (map fst $ tail ctx) a 0)
+     <++>
+    annotate Keyword "="
+     <++>
+    !(prettyElem sig omega (map fst $ tail ctx) b 0)
+     <++>
+    annotate Keyword "type"
+  prettyOmegaEntry sig omega n (ElemConstraint ctx a b ty) = M.do
+   return $
+    !(prettyContext sig omega ctx)
+     <++>
+    annotate Keyword "⊦"
+     <++>
+    !(prettyElem sig omega (map fst $ tail ctx) a 0)
+     <++>
+    annotate Keyword "="
+     <++>
+    !(prettyElem sig omega (map fst $ tail ctx) b 0)
+     <++>
+    annotate Keyword ":"
+     <++>
+    !(prettyElem sig omega (map fst $ tail ctx) ty 0)
+  prettyOmegaEntry sig omega n (SubstContextConstraint sigma tau source target) = M.do
+   return $
+    !(prettySubstContext sig omega [<] sigma)
+     <++>
+    annotate Keyword "="
+     <++>
+    !(prettySubstContext sig omega [<] tau)
+     <++>
+    annotate Keyword ":"
+     <++>
+    !(prettyContext sig omega source)
+     <++>
+    annotate Keyword "⇒"
+     <++>
+    !(prettyContext sig omega target)
+
 public export
 renderDocAnsi : Doc AnsiStyle
              -> String

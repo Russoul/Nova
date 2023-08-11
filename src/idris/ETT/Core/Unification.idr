@@ -74,9 +74,11 @@ isRigid sig omega (OmegaVarElim x sigma) =
     Just (LetElem {}) => assert_total $ idris_crash "isRigid(SignatureVarElim)(1)"
     Just (LetType {}) => assert_total $ idris_crash "isRigid(SignatureVarElim)(1')"
     Just (MetaElem _ _ SolveByUnification) => return False
-    Just (MetaElem _ _ SolveByElaboration) => return True
+    Just (MetaElem _ _ SolveByElaboration) => return False
+    Just (MetaElem _ _ NoSolve) => return True
     Just (MetaType _ SolveByUnification) => return False
-    Just (MetaType _ SolveByElaboration) => return True
+    Just (MetaType _ SolveByElaboration) => return False
+    Just (MetaType _ NoSolve) => return True
     Just _ => assert_total $ idris_crash "isRigid(SignatureVarElim)(2)"
     Nothing => assert_total $ idris_crash "isRigid(SignatureVarElim)(3)"
 isRigid sig omega (EqTy x y z) = return True
@@ -378,12 +380,15 @@ namespace Elem
         trySolveElem sig cs ctx k1 hctx1 hty1 sigma1 a ty
       -- Both sides are rigid
       (e, _) =>
-        case (k0 == k1) of
-          False => return (Disunifier "χᵢ vs χⱼ, where i ≠ j")
+        case (!(isRigid sig cs a) && !(isRigid sig cs b)) of
           True =>
-            case e of
-              LetElem target {} => return (Success [SubstContextConstraint sigma0 sigma1 ctx target] [])
-              _ => assert_total $ idris_crash "unifyElemNu(SignatureVarElim, SignatureVarElim)(1)"
+           case (k0 == k1) of
+             False => return (Disunifier "χᵢ vs χⱼ, where i ≠ j")
+             True =>
+               case e of
+                 LetElem target {} => return (Success [SubstContextConstraint sigma0 sigma1 ctx target] [])
+                 _ => assert_total $ idris_crash "unifyElemNu(SignatureVarElim, SignatureVarElim)(1)"
+          False => return (Stuck "χᵢ vs χⱼ, where i ≠ j, flex")
   unifyElemNu sig cs ctx a@(OmegaVarElim k sigma) b ty = M.do
     -- we now that b is rigid here
     case !(isRigid sig cs a) of
@@ -395,6 +400,7 @@ namespace Elem
          -- We've got a hole, try solving it
          MetaElem hctx hty SolveByUnification => trySolveElem sig cs ctx k hctx hty sigma b ty
          MetaElem hctx hty SolveByElaboration => return (Stuck "?(solve by elaboration) vs something else rigid")
+         MetaElem hctx hty NoSolve => return (Stuck "?(no solve) vs something else rigid")
          MetaType {} => assert_total $ idris_crash "unifyElemNu(OmegaVarElim, _)(1)"
          LetElem {} => assert_total $ idris_crash "unifyElemNu(OmegaVarElim, _)(2)"
          LetType {} => assert_total $ idris_crash "unifyElemNu(OmegaVarElim, _)(3)"
@@ -412,6 +418,7 @@ namespace Elem
          -- We've got a hole, try solving it
          MetaElem hctx hty SolveByUnification => trySolveElem sig cs ctx k hctx hty sigma a ty
          MetaElem hctx hty SolveByElaboration => return (Stuck "?(solve by elaboration) vs something else rigid")
+         MetaElem hctx hty NoSolve => return (Stuck "?(no solve) vs something else rigid")
          MetaType {} => assert_total $ idris_crash "unifyElemNu(OmegaVarElim, _)(1)"
          LetElem {} => assert_total $ idris_crash "unifyElemNu(OmegaVarElim, _)(2)"
          LetType {} => assert_total $ idris_crash "unifyElemNu(OmegaVarElim, _)(3)"
@@ -534,12 +541,15 @@ namespace Type'
         trySolveType sig cs ctx k1 hctx1 sigma1 a
       -- Both sides are rigid
       (e, _) =>
-        case (k0 == k1) of
-          False => return (Disunifier "χᵢ vs χⱼ, where i ≠ j")
+        case (!(isRigid sig cs a) && !(isRigid sig cs b)) of
           True =>
-            case e of
-              LetType target {} => return (Success [ SubstContextConstraint sigma0 sigma1 ctx target] [])
-              _ => assert_total $ idris_crash "unifyTypeNu(SignatureVarElim, SignatureVarElim)(1)"
+            case (k0 == k1) of
+              False => return (Disunifier "χᵢ vs χⱼ, where i ≠ j")
+              True =>
+                case e of
+                  LetType target {} => return (Success [ SubstContextConstraint sigma0 sigma1 ctx target] [])
+                  _ => assert_total $ idris_crash "unifyTypeNu(SignatureVarElim, SignatureVarElim)(1)"
+          False => return (Stuck "χᵢ vs χⱼ, where i ≠ j, flex")
   unifyTypeNu sig cs ctx a@(OmegaVarElim k sigma) b = M.do
     -- we now that b is rigid here
     case !(isRigid sig cs a) of
@@ -551,9 +561,11 @@ namespace Type'
          -- We've got a hole, try solving it
          MetaType hctx SolveByUnification => trySolveType sig cs ctx k hctx sigma b
          MetaType hctx SolveByElaboration => return (Stuck "?(solve by elaboration) vs something else rigid")
+         MetaType hctx NoSolve => return (Stuck "?(no solve) vs something else rigid")
          -- This is possible, when the type is 𝕌
          MetaElem hctx _ SolveByUnification => trySolveType sig cs ctx k hctx sigma b
          MetaElem hctx _ SolveByElaboration => return (Stuck "?(solve by elaboration) vs something else rigid")
+         MetaElem hctx _ NoSolve => return (Stuck "?(no solve) vs something else rigid")
          LetElem {} => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim, _)(2)"
          LetType {} => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim, _)(3)"
          TypeConstraint {} => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim, _)(4)"
@@ -570,9 +582,11 @@ namespace Type'
          -- We've got a hole, try solving it
          MetaType hctx SolveByUnification => trySolveType sig cs ctx k hctx sigma a
          MetaType hctx SolveByElaboration => return (Stuck "?(solve by elaboration) vs something else rigid")
+         MetaType hctx NoSolve => return (Stuck "?(no solve) vs something else rigid")
          -- This is possible, when the type is 𝕌
          MetaElem hctx _ SolveByUnification => trySolveType sig cs ctx k hctx sigma a
          MetaElem hctx _ SolveByElaboration => return (Stuck "?(solve by elaboration) vs something else rigid")
+         MetaElem hctx _ NoSolve => return (Stuck "?(no solve) vs something else rigid")
          LetElem {} => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim, _)(2)"
          LetType {} => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim, _)(3)"
          TypeConstraint {} => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim, _)(4)"
@@ -694,17 +708,35 @@ addConstraint omega e = M.do
   x <- nextOmegaName
   return $ insert (x, toOmegaEntry e) omega
 
-public export
-newTypeMeta : Omega -> Context -> MetaKind -> UnifyM (Omega, OmegaName)
-newTypeMeta omega ctx k = M.do
-  n <- nextOmegaName
-  return (insert (n, MetaType ctx k) omega, n)
+namespace Named
+  ||| The name must be unique!
+  public export
+  newTypeMeta : Omega -> Context -> OmegaName -> MetaKind -> UnifyM Omega
+  newTypeMeta omega ctx n k = M.do
+    case lookup n omega of
+      Just _ => throw "newTypeMeta, name already exists: \{n}"
+      Nothing => return (insert (n, MetaType ctx k) omega)
 
-public export
-newElemMeta : Omega -> Context -> Elem -> MetaKind -> UnifyM (Omega, OmegaName)
-newElemMeta omega ctx ty k = M.do
-  n <- nextOmegaName
-  return (insert (n, MetaElem ctx ty k) omega, n)
+  ||| The name must be unique!
+  public export
+  newElemMeta : Omega -> Context -> OmegaName -> Elem -> MetaKind -> UnifyM Omega
+  newElemMeta omega ctx n ty k = M.do
+    case lookup n omega of
+      Just _ => throw "newElemMeta, name already exists: \{n}"
+      Nothing => return (insert (n, MetaElem ctx ty k) omega)
+
+namespace Nameless
+  public export
+  newTypeMeta : Omega -> Context -> MetaKind -> UnifyM (Omega, OmegaName)
+  newTypeMeta omega ctx k = M.do
+    n <- nextOmegaName
+    return (!(Named.newTypeMeta omega ctx n k), n)
+
+  public export
+  newElemMeta : Omega -> Context -> Elem -> MetaKind -> UnifyM (Omega, OmegaName)
+  newElemMeta omega ctx ty k = M.do
+    n <- nextOmegaName
+    return (!(Named.newElemMeta omega ctx n ty k), n)
 
 public export
 addConstraintN : Omega -> List ConstraintEntry -> UnifyM Omega
@@ -797,8 +829,10 @@ containsNamedHolesOnly omega = H (map snd (List.inorder omega))
   H [] = True
   H (LetElem {} :: es) = H es
   H (LetType {} :: es) = H es
-  H (MetaType {} :: es) = False
-  H (MetaElem {} :: es) = False
+  H (MetaType ctx NoSolve :: es) = H es
+  H (MetaType ctx _ :: es) = False
+  H (MetaElem ctx ty NoSolve :: es) = H es
+  H (MetaElem ctx ty _ :: es) = False
   H (TypeConstraint {} :: es) = False
   H (ElemConstraint {} :: es) = False
   H (SubstContextConstraint {} :: es) = False

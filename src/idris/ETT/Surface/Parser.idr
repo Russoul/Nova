@@ -1,6 +1,7 @@
 module ETT.Surface.Parser
 
 import Data.Fin
+import Data.Maybe
 
 import public Text.Parser.Fork
 
@@ -77,13 +78,31 @@ holeHead : Rule Head
 holeHead = do
   l <- delim "?"
   x <- located varName
-  pure (Hole (l + fst x) (snd x))
+  pure (Hole (l + fst x) (snd x) Nothing)
+
+public export
+holeVarsHead : Rule Head
+holeVarsHead = do
+  l0 <- delim "?"
+  x <- varName
+  l1 <- delim "("
+  ls <- sepBy (optSpaceDelim *> delim "," <* optSpaceDelim) varName
+  l1 <- delim ")"
+  pure (Hole (l0 + l1) x (Just ls))
+
+public export
+unnamedHoleVarsHead : Rule Head
+unnamedHoleVarsHead = do
+  l0 <- delim "?("
+  ls <- sepBy (optSpaceDelim *> delim "," <* optSpaceDelim) varName
+  l1 <- delim ")"
+  pure (UnnamedHole (l0 + l1) (Just ls))
 
 public export
 unnamedHoleHead : Rule Head
 unnamedHoleHead = do
   l <- delim "?"
-  pure (UnnamedHole l)
+  pure (UnnamedHole l Nothing)
 
 public export
 unfoldHead : Rule Head
@@ -126,7 +145,9 @@ mutual
      <|> universeTyHead
      <|> eqValHead
      <|> varHead
+     <|> holeVarsHead
      <|> holeHead
+     <|> unnamedHoleVarsHead
      <|> unnamedHoleHead
      <|> unfoldHead
      <|> piBetaHead
@@ -166,22 +187,12 @@ mutual
     pure (PiTy (l + fst b) x a (snd b))
 
   public export
-  funTy : Rule Term
-  funTy = do
-    (l, a) <- located (term 3)
-    spaceDelim
-    delim_ "→"
-    commit
-    spaceDelim
-    b <- located (term 2)
-    pure (FunTy (l + fst b) a (snd b))
-
-  public export
   piVal : Rule Term
   piVal = do
     x <- located varName
     spaceDelim
     delim_ "↦"
+    commit
     spaceDelim
     f <- located (term 0)
     pure (PiVal (fst x + fst f) (snd x) (snd f))
@@ -192,33 +203,10 @@ mutual
     (r, r0, x, ty) <- located section
     spaceDelim
     delim_ "↦"
+    commit
     spaceDelim
     f <- located (term 0)
     pure (AnnotatedPiVal (r + fst f) x ty (snd f))
-
-  ||| Parse a Term exactly at level 0
-  public export
-  term0 : Rule Term
-  term0 = piTy <|> piVal <|> annotatedPiVal
-
-  public export
-  eqTy : Rule Term
-  eqTy = do
-    a <- located (term 3)
-    spaceDelim
-    delim_ "≡"
-    spaceDelim
-    b <- term 3
-    spaceDelim
-    delim_ "∈"
-    spaceDelim
-    ty <- located (term 0)
-    pure (EqTy (fst a + fst ty) (snd a) b (snd ty))
-
-  ||| Parse a Term exactly at level 1
-  public export
-  term1 : Rule Term
-  term1 = eqTy
 
   public export
   app : Rule Term
@@ -227,11 +215,6 @@ mutual
     (p1, es) <- located elim
     guard "elimination spine must be non-empty" (length es > 0)
     pure (App (p0 + p1) h es)
-
-  ||| Parse a Term exactly at level 2
-  public export
-  term2 : Rule Term
-  term2 = funTy
 
   ||| Parse a Term exactly at level 3
   public export
@@ -243,14 +226,51 @@ mutual
   term4 : Rule Term
   term4 = (located head <&> (\(p, x) => App p x [])) <|> inParentheses (term 0)
 
+  public export
+  continueEq : (Range, Term) -> Rule Term
+  continueEq a = do
+    spaceDelim
+    delim_ "≡"
+    commit
+    spaceDelim
+    b <- term 3
+    spaceDelim
+    delim_ "∈"
+    spaceDelim
+    ty <- located (term 0)
+    pure (EqTy (fst a + fst ty) (snd a) b (snd ty))
+
+  public export
+  continueExp : (Range, Term) -> Rule Term
+  continueExp (l, a) = do
+    spaceDelim
+    delim_ "→"
+    commit
+    spaceDelim
+    b <- located (term 2)
+    pure (FunTy (l + fst b) a (snd b))
+
+  ||| Continue an e{≥3}
+  public export
+  continue : (Range, Term) -> Bool -> Rule Term
+  continue lhs True = continueEq lhs <|> continueExp lhs
+  continue lhs False = continueExp lhs
+
+  public export
+  op : Bool -> Rule Term
+  op both = do
+    a <- located (term3 <|> term4)
+    t <- optional (continue a both)
+    pure (fromMaybe (snd a) t)
+
   ||| Parse a TypE at level ≥ n
   public export
   term : Level -> Rule Term
-  term 0 = term0 <|> term1 <|> term2 <|> term3 <|> term4
-  term 1 =           term1 <|> term2 <|> term3 <|> term4
-  term 2 =                     term2 <|> term3 <|> term4
-  term 3 =                               term3 <|> term4
-  term 4 =                                         term4
+  term 0 = piTy <|> piVal <|> annotatedPiVal <|> op True
+  term 1 =                                       op True
+  term 2 =                                       op False
+  term 3 =                                       term3 <|> term4
+  term 4 =                                       term4
 
 
   public export

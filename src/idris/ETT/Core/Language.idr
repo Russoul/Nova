@@ -126,7 +126,7 @@ data SignatureEntry : Type where
 Signature = SnocList (VarName, SignatureEntry)
 
 public export
-data MetaKind = SolveByUnification | SolveByElaboration
+data MetaKind = NoSolve | SolveByUnification | SolveByElaboration
 
 namespace OmegaEntry
   public export
@@ -239,3 +239,16 @@ SignatureInst = SnocList Elem
 public export
 ContextInst : Type
 ContextInst = SnocList Elem
+
+public export
+asRegularContext : Context -> Maybe (SnocList (VarName, Elem))
+asRegularContext Empty = Just [<]
+asRegularContext (Ext ctx x ty) = do
+  ctx <- asRegularContext ctx
+  Just (ctx :< (x, ty))
+asRegularContext (SignatureVarElim k) = Nothing
+
+public export
+fromRegularContext : SnocList (VarName, Elem) -> Context
+fromRegularContext [<] = Empty
+fromRegularContext (xs :< (x, ty)) = Ext (fromRegularContext xs) x ty

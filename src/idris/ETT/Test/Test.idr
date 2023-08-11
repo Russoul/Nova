@@ -9,10 +9,14 @@ import System
 import Text.Parser.CharUtil
 import Text.Parser.Fork
 
+import Text.PrettyPrint.Prettyprinter.Render.Terminal
+import Text.PrettyPrint.Prettyprinter
+
 import ETT.Core.Language
 import ETT.Core.Monad
 import ETT.Core.Substitution
 import ETT.Core.Unification
+import ETT.Core.Pretty
 
 import ETT.Surface.SemanticToken
 import ETT.Surface.Language
@@ -70,6 +74,19 @@ checkElabApp = do
    putStrLn "Parsed successfully!"
    Right (sig, omega) <- eval (elabFile [<] empty parsed) initialUnifySt
      | Left err => die err
+   putStrLn "------------ Named holes ---------------"
+   for_ (List.inorder omega) $ \(x, e) => Prelude.do
+     case e of
+       MetaType ctx NoSolve => Prelude.do
+         Right doc <- eval (prettyOmegaEntry sig omega x e) ()
+           | Left err => die err
+         putStrLn (renderDocTerm doc)
+       MetaElem ctx ty NoSolve => Prelude.do
+         Right doc <- eval (prettyOmegaEntry sig omega x e) ()
+           | Left err => die err
+         putStrLn (renderDocTerm doc)
+       _ => pure ()
+   putStrLn "----------------------------------------"
    putStrLn "Checked successfully!"
 
 main : IO ()

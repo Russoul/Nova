@@ -30,8 +30,8 @@ mutual
     EqVal : Range -> Head
     NatTy : Range -> Head
     UniverseTy : Range -> Head
-    Hole : Range -> VarName -> Head
-    UnnamedHole : Range -> Head
+    Hole : Range -> VarName -> Maybe (List VarName) -> Head
+    UnnamedHole : Range -> Maybe (List VarName) -> Head
     Unfold : Range -> VarName -> Head
     PiBeta : Range -> Head
     NatBetaZ : Range -> Head
@@ -73,8 +73,8 @@ mutual
     show (NatBetaZ _) = "ℕ-β-Z"
     show (NatBetaS _) = "ℕ-β-S"
     show (Unfold _ x) = "Unfold(\{x})"
-    show (Hole _ x) = "Hole(\{x})"
-    show (UnnamedHole _) = "UnnamedHole"
+    show (Hole _ x ls) = "Hole(\{x}, \{show ls})"
+    show (UnnamedHole _ ls) = "UnnamedHole(\{show ls})"
     show (Var _ x) = "Var(\{x})"
     show (NatVal0 x) = "Z"
     show (NatVal1 x) = "S"
