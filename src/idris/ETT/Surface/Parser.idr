@@ -183,6 +183,21 @@ mutual
       pure (l + r, snd x, ty)
 
   public export
+  implicitSection : Rule (Range, VarName, Term)
+  implicitSection = do
+    l <- delim "{"
+    optSpaceDelim
+    x <- located varName
+    spaceDelim
+    delim_ ":"
+    mustWork $ do
+      spaceDelim
+      ty <- term 0
+      optSpaceDelim
+      r <- delim "}"
+      pure (l + r, snd x, ty)
+
+  public export
   continuePi : (Range, Range, VarName, Term) -> Rule Term
   continuePi (l, lx, x, a) = do
     spaceDelim
@@ -191,6 +206,16 @@ mutual
     spaceDelim
     b <- located (term 0)
     pure (PiTy (l + fst b) x a (snd b))
+
+  public export
+  continueImplicitPi : (Range, Range, VarName, Term) -> Rule Term
+  continueImplicitPi (l, lx, x, a) = do
+    spaceDelim
+    delim_ "→"
+    commit
+    spaceDelim
+    b <- located (term 0)
+    pure (ImplicitPiTy (l + fst b) x a (snd b))
 
   public export
   continueSigma : (Range, Range, VarName, Term) -> Rule Term
@@ -214,20 +239,29 @@ mutual
     pure (PiVal (fst x + fst f) (snd x) (snd f))
 
   public export
-  continueAnnPiVal : (Range, Range, VarName, Term) -> Rule Term
-  continueAnnPiVal (r, r0, x, ty) = do
+  implicitPiVal : Rule Term
+  implicitPiVal = do
+    l0 <- delim "{"
+    x <- varName
+    delim_ "}"
     spaceDelim
     delim_ "↦"
     commit
     spaceDelim
     f <- located (term 0)
-    pure (AnnotatedPiVal (r + fst f) x ty (snd f))
+    pure (ImplicitPiVal (l0 + fst f) x (snd f))
 
   public export
   sectionBinder : Rule Term
   sectionBinder = do
     s <- located section
-    continuePi s <|> continueSigma s <|> continueAnnPiVal s
+    continuePi s <|> continueSigma s
+
+  public export
+  implicitPi : Rule Term
+  implicitPi = do
+    s <- located implicitSection
+    continueImplicitPi s
 
   public export
   app : Rule Term
@@ -310,11 +344,11 @@ mutual
   ||| Parse a TypE at level ≥ n
   public export
   term : Level -> Rule Term
-  term 0 =           sectionBinder <|> piVal <|> op True
-  term 1 =                                       op True
-  term 2 =                                       op False
-  term 3 =                                       term3 <|> term4
-  term 4 =                                       term4
+  term 0 = sectionBinder <|> implicitPi <|> piVal <|> implicitPiVal <|> op True
+  term 1 =                                            op True
+  term 2 =                                            op False
+  term 3 =                                            term3 <|> term4
+  term 4 =                                            term4
 
 
   public export
@@ -329,10 +363,20 @@ mutual
   termArg1 = (term 4 <&> ([], )) <|> inParentheses termArg0
 
   public export
+  termImplicitArg : Rule ElimEntry
+  termImplicitArg = do
+    delim_ "{"
+    optSpaceDelim
+    t <- term 0
+    optSpaceDelim
+    delim_ "}"
+    pure (ImplicitArg t)
+
+  public export
   elim : Rule Elim
   elim = many $ do
     spaceDelim
-    (Arg <$> termArg1) <|> (Pi1 <$ delim_ ".π₁") <|> (Pi2 <$ delim_ ".π₂")
+    (Arg <$> termArg1) <|> (Pi1 <$ delim_ ".π₁") <|> (Pi2 <$ delim_ ".π₂") <|> termImplicitArg
 
   public export
   typingSignature : Rule TopLevel
