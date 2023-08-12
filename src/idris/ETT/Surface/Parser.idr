@@ -183,15 +183,24 @@ mutual
       pure (l + r, snd x, ty)
 
   public export
-  piTy : Rule Term
-  piTy = do
-    (l, x, a) <- section
+  continuePi : (Range, Range, VarName, Term) -> Rule Term
+  continuePi (l, lx, x, a) = do
     spaceDelim
     delim_ "→"
     commit
     spaceDelim
     b <- located (term 0)
     pure (PiTy (l + fst b) x a (snd b))
+
+  public export
+  continueSigma : (Range, Range, VarName, Term) -> Rule Term
+  continueSigma (l, lx, x, a) = do
+    spaceDelim
+    delim_ "⨯"
+    commit
+    spaceDelim
+    b <- located (term 0)
+    pure (SigmaTy (l + fst b) x a (snd b))
 
   public export
   piVal : Rule Term
@@ -205,15 +214,20 @@ mutual
     pure (PiVal (fst x + fst f) (snd x) (snd f))
 
   public export
-  annotatedPiVal : Rule Term
-  annotatedPiVal = do
-    (r, r0, x, ty) <- located section
+  continueAnnPiVal : (Range, Range, VarName, Term) -> Rule Term
+  continueAnnPiVal (r, r0, x, ty) = do
     spaceDelim
     delim_ "↦"
     commit
     spaceDelim
     f <- located (term 0)
     pure (AnnotatedPiVal (r + fst f) x ty (snd f))
+
+  public export
+  sectionBinder : Rule Term
+  sectionBinder = do
+    s <- located section
+    continuePi s <|> continueSigma s <|> continueAnnPiVal s
 
   public export
   app : Rule Term
@@ -228,10 +242,23 @@ mutual
   term3 : Rule Term
   term3 = app
 
+  pair : Rule Term
+  pair = do
+    l0 <- delim "("
+    a <- term 0
+    optSpaceDelim
+    delim_ ","
+    optSpaceDelim
+    b <- term 0
+    l1 <- delim ")"
+    pure (SigmaVal (l0 + l1) a b)
+
   ||| Parse a Term exactly at level 3
   public export
   term4 : Rule Term
-  term4 = (located head <&> (\(p, x) => App p x [])) <|> inParentheses (term 0)
+  term4 = (located head <&> (\(p, x) => App p x []))
+      <|> inParentheses (term 0)
+      <|> pair
 
   public export
   continueEq : (Range, Term) -> Rule Term
@@ -257,10 +284,20 @@ mutual
     b <- located (term 2)
     pure (FunTy (l + fst b) a (snd b))
 
+  public export
+  continueProd : (Range, Term) -> Rule Term
+  continueProd (l, a) = do
+    spaceDelim
+    delim_ "⨯"
+    commit
+    spaceDelim
+    b <- located (term 3)
+    pure (ProdTy (l + fst b) a (snd b))
+
   ||| Continue an e{≥3}
   public export
   continue : (Range, Term) -> Bool -> Rule Term
-  continue lhs True = continueEq lhs <|> continueExp lhs
+  continue lhs True = continueEq lhs <|> continueProd lhs <|> continueExp lhs
   continue lhs False = continueExp lhs
 
   public export
@@ -273,7 +310,7 @@ mutual
   ||| Parse a TypE at level ≥ n
   public export
   term : Level -> Rule Term
-  term 0 = piTy <|> piVal <|> annotatedPiVal <|> op True
+  term 0 =           sectionBinder <|> piVal <|> op True
   term 1 =                                       op True
   term 2 =                                       op False
   term 3 =                                       term3 <|> term4
@@ -295,7 +332,7 @@ mutual
   elim : Rule Elim
   elim = many $ do
     spaceDelim
-    termArg1
+    (Arg <$> termArg1) <|> (Pi1 <$ delim_ ".π₁") <|> (Pi2 <$ delim_ ".π₂")
 
   public export
   typingSignature : Rule TopLevel

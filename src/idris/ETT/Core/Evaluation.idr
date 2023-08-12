@@ -27,11 +27,21 @@ mutual
   closedEvalNu sig omega NatTy = return NatTy
   closedEvalNu sig omega Universe = return Universe
   closedEvalNu sig omega (PiTy x a b) = return (PiTy x a b)
+  closedEvalNu sig omega (SigmaTy x a b) = return (SigmaTy x a b)
   closedEvalNu sig omega (PiVal x a b f) = return (PiVal x a b f)
+  closedEvalNu sig omega (SigmaVal a b) = return (SigmaVal a b)
   closedEvalNu sig omega (PiElim f x a b e) = M.do
     PiVal _ _ _ f <- closedEval sig omega f
       | _ => throw "closedEval(PiElim)"
     closedEval sig omega (ContextSubstElim f (Ext Terminal e))
+  closedEvalNu sig omega (SigmaElim1 f x a b) = M.do
+    SigmaVal p q <- closedEval sig omega f
+      | _ => throw "closedEval(SigmaElim1)"
+    closedEval sig omega p
+  closedEvalNu sig omega (SigmaElim2 f x a b) = M.do
+    SigmaVal p q <- closedEval sig omega f
+      | _ => throw "closedEval(SigmaElim2)"
+    closedEval sig omega q
   closedEvalNu sig omega NatVal0 = return NatVal0
   closedEvalNu sig omega (NatVal1 t) = return (NatVal1 t)
   closedEvalNu sig omega (NatElim x schema z y h s t) = M.do
@@ -68,9 +78,15 @@ mutual
   openEvalNu sig omega NatTy = return NatTy
   openEvalNu sig omega Universe = return Universe
   openEvalNu sig omega (PiTy x a b) = return (PiTy x a b)
+  openEvalNu sig omega (SigmaTy x a b) = return (SigmaTy x a b)
   openEvalNu sig omega (PiVal x a b f) = return (PiVal x a b f)
+  openEvalNu sig omega (SigmaVal a b) = return (SigmaVal a b)
   openEvalNu sig omega (PiElim f x a b e) = M.do
     return (PiElim f x a b e)
+  openEvalNu sig omega (SigmaElim1 f x a b) = M.do
+    return (SigmaElim1 f x a b)
+  openEvalNu sig omega (SigmaElim2 f x a b) = M.do
+    return (SigmaElim2 f x a b)
   openEvalNu sig omega NatVal0 = return NatVal0
   openEvalNu sig omega (NatVal1 t) = return (NatVal1 t)
   openEvalNu sig omega (NatElim x schema z y h s t) = M.do

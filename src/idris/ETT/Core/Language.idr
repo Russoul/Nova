@@ -78,10 +78,18 @@ mutual
     data Elem : Type where
       ||| (x : A) → B
       PiTy : VarName -> Elem -> Elem -> Elem
+      ||| (x : A) ⨯ B
+      SigmaTy : VarName -> Elem -> Elem -> Elem
       ||| x ↦ f
       PiVal : VarName -> Elem -> Elem -> Elem -> Elem
+      ||| (a, b)
+      SigmaVal : Elem -> Elem -> Elem
       ||| (f : (x : A) → B) e
       PiElim : Elem -> VarName -> Elem -> Elem -> Elem -> Elem
+      ||| (p : (x : A) ⨯ B) .π₁
+      SigmaElim1 : Elem -> VarName -> Elem -> Elem -> Elem
+      ||| (p : (x : A) ⨯ B) .π₁
+      SigmaElim2 : Elem -> VarName -> Elem -> Elem -> Elem
       ||| 𝕌
       Universe : Elem
       ||| 0

@@ -7,17 +7,17 @@ import ETT.Core.Name
 
 -- h ::= Z | Refl | x | S | ℕ-elim | J | ℕ | 𝕌 | !x | ?x | Π-β | Π-η | Π⁼ | ℕ-β-Z | ℕ-β-S
 
--- e{0} = x ↦ e{≥0} | (x : e{≥0}) → e{≥0} | (x : e{≥0}) ↦ e{≥0}
--- e{1} = e{≥3} ≡ e{≥3} ∈ e{≥0}
+-- e{0} = x ↦ e{≥0} | (x : e{≥0}) → e{≥0} | (x : {≥0}) ⨯ e{≥0} | (x : e{≥0}) ↦ e{≥0}
+-- e{1} = e{≥3} ≡ e{≥3} ∈ e{≥0} | e{≥3} ⨯ e{≥3}
 -- e{2} = e{≥3} → e{≥2}
 -- e{3} = h ē⁺ where |ē⁺| > 0
--- e{4} = h | (e{≥0})
+-- e{4} = h | (e{≥0}) | (e{≥0}, e{≥0})
 
 -- e⁺{0} = x̅.̅ e{≥0}
--- e⁺{1} = e{≥4} | (e⁺{≥0})
+-- e⁺{1} = e{≥4} | (e⁺{≥0}) | .π₁ | .π₂
 -- ē⁺ ::= ␣ e⁺{1} ē⁺ | ·
 
--- top-level ::= x : A
+-- top-level ::= assume x : e{≥0} | let x : e{≥0} ≔ e{≥0}
 
 mutual
   public export
@@ -43,9 +43,12 @@ mutual
   public export
   data Term : Type where
     PiTy : Range -> VarName -> Term -> Term -> Term
+    SigmaTy : Range -> VarName -> Term -> Term -> Term
     FunTy : Range -> Term -> Term -> Term
+    ProdTy : Range -> Term -> Term -> Term
     EqTy : Range -> Term -> Term -> Term -> Term
     PiVal : Range -> VarName -> Term -> Term
+    SigmaVal : Range -> Term -> Term -> Term
     AnnotatedPiVal : Range -> VarName -> Term -> Term -> Term
     App : Range -> Head -> Elim -> Term
 
@@ -53,20 +56,37 @@ mutual
   TermArg : Type
   TermArg = (List VarName, Term)
 
+  namespace ElimEntry
+    public export
+    data ElimEntry : Type where
+      Arg : TermArg -> ElimEntry
+      Pi1 : ElimEntry
+      Pi2 : ElimEntry
+
   public export
   Elim : Type
-  Elim = List TermArg
+  Elim = List ElimEntry
 
 public export
 range : Term -> Range
 range (PiTy r str y z) = r
+range (SigmaTy r str y z) = r
 range (FunTy r y z) = r
+range (ProdTy r a b) = r
 range (EqTy r y z w) = r
 range (PiVal r str y) = r
+range (SigmaVal r a b) = r
 range (AnnotatedPiVal r str y _) = r
 range (App r y xs) = r
 
 mutual
+  partial
+  public export
+  Show ElimEntry where
+    show (Arg arg) = "Arg(\{show arg})"
+    show Pi1 = ".π₁"
+    show Pi2 = ".π₂"
+
   public export
   partial
   Show Head where

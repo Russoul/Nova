@@ -14,10 +14,11 @@ import ETT.Core.Substitution
 import ETT.Core.Evaluation
 
 -- (x : A{≥0}) → A{≥0}
+-- (x : A{≥0}) ⨯ A{≥0}
 -- e{≥3} ≡ e{≥3} ∈ e{≥0}
--- El e{≥4}
 
 -- x ↦ e{≥0}
+-- (e{≥0}, e{≥0})
 -- S e{≥4}
 
 public export
@@ -26,6 +27,10 @@ data Ann = Keyword | ContextVar | SignatureVar | Form | Elim | Intro
 public export
 parens' : Doc Ann -> Doc Ann
 parens' = enclose (annotate Keyword lparen) (annotate Keyword rparen)
+
+public export
+introParens' : Doc Ann -> Doc Ann
+introParens' = enclose (annotate Intro lparen) (annotate Intro rparen)
 
 public export
 brackets' : Doc Ann -> Doc Ann
@@ -44,11 +49,33 @@ wrapElem (PiTy x dom cod) lvl doc =
       case lvl <= 2 of
         True => return doc
         False => return (parens' doc)
+wrapElem (SigmaTy x dom cod) lvl doc =
+  case !(shrink cod 1 0) of
+    Nothing =>
+      case lvl <= 0 of
+        True => return doc
+        False => return (parens' doc)
+    Just _ =>
+      case lvl <= 1 of
+        True => return doc
+        False => return (parens' doc)
 wrapElem (PiVal {}) lvl doc =
   case lvl <= 0 of
     True => return doc
     False => return (parens' doc)
+wrapElem (SigmaVal {}) lvl doc =
+  case lvl <= 4 of
+    True => return doc
+    False => return (parens' doc)
 wrapElem (PiElim {}) lvl doc =
+  case lvl <= 3 of
+    True => return doc
+    False => return (parens' doc)
+wrapElem (SigmaElim1 {}) lvl doc =
+  case lvl <= 3 of
+    True => return doc
+    False => return (parens' doc)
+wrapElem (SigmaElim2 {}) lvl doc =
   case lvl <= 3 of
     True => return doc
     False => return (parens' doc)
@@ -183,6 +210,30 @@ mutual
           annotate Keyword "→"
            <++>
           !(prettyElem sig omega ctx cod 2)
+  prettyElem' sig omega ctx (SigmaTy x dom cod) = M.do
+    case !(shrink cod 1 0) of
+      Nothing => M.do
+        return $
+          annotate Intro lparen
+           <+>
+          annotate ContextVar (pretty x)
+           <++>
+          annotate Keyword ":"
+           <++>
+          !(prettyElem sig omega ctx dom 0)
+           <+>
+          annotate Intro rparen
+           <++>
+          annotate Keyword "⨯"
+           <++>
+          !(prettyElem sig omega (ctx :< x) cod 0)
+      Just cod => M.do
+        return $
+          !(prettyElem sig omega ctx dom 4)
+           <++>
+          annotate Keyword "⨯"
+           <++>
+          !(prettyElem sig omega ctx cod 4)
   prettyElem' sig omega ctx (PiVal x _ _ f) =
     return $
       annotate ContextVar (pretty x)
@@ -190,11 +241,28 @@ mutual
       annotate Intro "↦"
        <++>
       !(prettyElem sig omega (ctx :< x) f 0)
+  prettyElem' sig omega ctx (SigmaVal a b) =
+    return $ introParens' $
+      !(prettyElem sig omega ctx a 0)
+       <+>
+      annotate Intro ","
+       <++>
+      !(prettyElem sig omega ctx b 0)
   prettyElem' sig omega ctx (PiElim f x a b e) =
     return $
       !(prettyElem sig omega ctx f 3)
        <++>
       !(prettyElem sig omega ctx e 4)
+  prettyElem' sig omega ctx (SigmaElim1 f x a b) =
+    return $
+      !(prettyElem sig omega ctx f 3)
+       <++>
+      annotate Elim ".π₁"
+  prettyElem' sig omega ctx (SigmaElim2 f x a b) =
+    return $
+      !(prettyElem sig omega ctx f 3)
+       <++>
+      annotate Elim ".π₂"
   prettyElem' sig omega ctx NatVal0 =
     return $ annotate Intro "0"
   prettyElem' sig omega ctx Universe =

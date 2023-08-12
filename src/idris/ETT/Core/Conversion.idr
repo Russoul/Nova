@@ -15,10 +15,18 @@ mutual
     convNu : Signature -> Omega -> Elem -> Elem -> M Bool
     convNu sig omega (PiTy x0 a0 b0) (PiTy x1 a1 b1) =
       conv sig omega a0 a1 `and` conv sig omega b0 b1
+    convNu sig omega (SigmaTy x0 a0 b0) (SigmaTy x1 a1 b1) =
+      conv sig omega a0 a1 `and` conv sig omega b0 b1
     convNu sig omega (PiVal x0 _ _ f0) (PiVal x1 _ _ f1) =
       conv sig omega f0 f1
+    convNu sig omega (SigmaVal p0 q0) (SigmaVal p1 q1) =
+      conv sig omega p0 p1 `and` conv sig omega q0 q1
     convNu sig omega (PiElim f0 x0 a0 b0 e0) (PiElim f1 x1 a1 b1 e1) =
       conv sig omega f0 f1 `and` conv sig omega e0 e1
+    convNu sig omega (SigmaElim1 f0 x0 a0 b0) (SigmaElim1 f1 x1 a1 b1) =
+      conv sig omega f0 f1
+    convNu sig omega (SigmaElim2 f0 x0 a0 b0) (SigmaElim2 f1 x1 a1 b1) =
+      conv sig omega f0 f1
     convNu sig omega NatVal0 NatVal0 = return True
     convNu sig omega Universe Universe = return True
     convNu sig omega NatTy NatTy = return True

@@ -57,17 +57,35 @@ mutual
       a <- shrink a gamma1Len gamma2Len
       b <- shrink b gamma1Len (S gamma2Len)
       return (PiTy x a b)
+    shrinkNu (SigmaTy x a b) gamma1Len gamma2Len = Mb.do
+      a <- shrink a gamma1Len gamma2Len
+      b <- shrink b gamma1Len (S gamma2Len)
+      return (SigmaTy x a b)
     shrinkNu (PiVal x a b f) gamma1Len gamma2Len = Mb.do
       a <- shrink a gamma1Len gamma2Len
       b <- shrink b gamma1Len (S gamma2Len)
       f <- shrink f gamma1Len (S gamma2Len)
       return (PiVal x a b f)
+    shrinkNu (SigmaVal a b) gamma1Len gamma2Len = Mb.do
+      a <- shrink a gamma1Len gamma2Len
+      b <- shrink b gamma1Len gamma2Len
+      return (SigmaVal a b)
     shrinkNu (PiElim f x a b e) gamma1Len gamma2Len = Mb.do
       f <- shrink f gamma1Len gamma2Len
       a <- shrink a gamma1Len gamma2Len
       b <- shrink b gamma1Len (S gamma2Len)
       e <- shrink e gamma1Len gamma2Len
       return (PiElim f x a b e)
+    shrinkNu (SigmaElim1 f x a b) gamma1Len gamma2Len = Mb.do
+      f <- shrink f gamma1Len gamma2Len
+      a <- shrink a gamma1Len gamma2Len
+      b <- shrink b gamma1Len (S gamma2Len)
+      return (SigmaElim1 f x a b)
+    shrinkNu (SigmaElim2 f x a b) gamma1Len gamma2Len = Mb.do
+      f <- shrink f gamma1Len gamma2Len
+      a <- shrink a gamma1Len gamma2Len
+      b <- shrink b gamma1Len (S gamma2Len)
+      return (SigmaElim2 f x a b)
     shrinkNu Universe gamma1Len gamma2Len = Mb.do
       return Universe
     shrinkNu NatVal0 gamma1Len gamma2Len = Mb.do

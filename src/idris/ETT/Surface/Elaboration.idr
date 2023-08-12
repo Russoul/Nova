@@ -167,12 +167,28 @@ elabElemNu sig omega ctx (PiTy r x dom cod) meta Universe = M.do
 elabElemNu sig omega ctx tm@(PiTy r x dom cod) meta ty = M.do
   omega <- addConstraint omega (TypeConstraint ctx ty Universe)
   return (Success omega [ElaborateWhenConvertible ctx ty Universe (ElemElaboration ctx tm meta ty)])
+elabElemNu sig omega ctx (SigmaTy r x dom cod) meta Universe = M.do
+  (omega, dom') <- newElemMeta omega ctx Universe SolveByElaboration
+  (omega, cod') <- newElemMeta omega (Ext ctx x (OmegaVarElim dom' Id)) Universe SolveByElaboration
+  let omega = instantiateByElaboration omega meta (SigmaTy x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id))
+  return (Success omega [ElemElaboration ctx dom dom' Universe, ElemElaboration (Ext ctx x (OmegaVarElim dom' Id)) cod cod' Universe])
+elabElemNu sig omega ctx tm@(SigmaTy r x dom cod) meta ty = M.do
+  omega <- addConstraint omega (TypeConstraint ctx ty Universe)
+  return (Success omega [ElaborateWhenConvertible ctx ty Universe (ElemElaboration ctx tm meta ty)])
 elabElemNu sig omega ctx (FunTy r dom cod) meta Universe = M.do
   (omega, dom') <- newElemMeta omega ctx Universe SolveByElaboration
   (omega, cod') <- newElemMeta omega ctx Universe SolveByElaboration
   let omega = instantiateByElaboration omega meta (PiTy "_" (OmegaVarElim dom' Id) (ContextSubstElim (OmegaVarElim cod' Id) Wk))
   return (Success omega [ElemElaboration ctx dom dom' Universe, ElemElaboration ctx cod cod' Universe])
 elabElemNu sig omega ctx tm@(FunTy x y z) meta ty = M.do
+  omega <- addConstraint omega (TypeConstraint ctx ty Universe)
+  return (Success omega [ElaborateWhenConvertible ctx ty Universe (ElemElaboration ctx tm meta ty)])
+elabElemNu sig omega ctx (ProdTy r dom cod) meta Universe = M.do
+  (omega, dom') <- newElemMeta omega ctx Universe SolveByElaboration
+  (omega, cod') <- newElemMeta omega ctx Universe SolveByElaboration
+  let omega = instantiateByElaboration omega meta (SigmaTy "_" (OmegaVarElim dom' Id) (ContextSubstElim (OmegaVarElim cod' Id) Wk))
+  return (Success omega [ElemElaboration ctx dom dom' Universe, ElemElaboration ctx cod cod' Universe])
+elabElemNu sig omega ctx tm@(ProdTy x y z) meta ty = M.do
   omega <- addConstraint omega (TypeConstraint ctx ty Universe)
   return (Success omega [ElaborateWhenConvertible ctx ty Universe (ElemElaboration ctx tm meta ty)])
 elabElemNu sig omega ctx (EqTy r a b t) meta Universe = M.do
@@ -197,6 +213,16 @@ elabElemNu sig omega ctx tm@(PiVal r x f) meta ty = M.do
   (omega, cod) <- newTypeMeta omega (Ext ctx x (OmegaVarElim dom Id)) SolveByUnification
   omega <- addConstraint omega (TypeConstraint ctx ty (PiTy x (OmegaVarElim dom Id) (OmegaVarElim cod Id)))
   return (Success omega [ElaborateWhenConvertible ctx ty (PiTy x (OmegaVarElim dom Id) (OmegaVarElim cod Id)) (ElemElaboration ctx tm meta ty)])
+elabElemNu sig omega ctx (SigmaVal r a b) meta (SigmaTy _ dom cod) = M.do
+  (omega, a') <- newElemMeta omega ctx dom SolveByElaboration
+  (omega, b') <- newElemMeta omega ctx (ContextSubstElim cod (Ext Id (OmegaVarElim a' Id))) SolveByElaboration
+  let omega = instantiateByElaboration omega meta (SigmaVal (OmegaVarElim a' Id) (OmegaVarElim b' Id))
+  return (Success omega [ElemElaboration ctx a a' dom, ElemElaboration ctx b b' (ContextSubstElim cod (Ext Id (OmegaVarElim a' Id)))])
+elabElemNu sig omega ctx tm@(SigmaVal r a b) meta ty = M.do
+  (omega, dom) <- newTypeMeta omega ctx SolveByUnification
+  (omega, cod) <- newTypeMeta omega (Ext ctx "_" (OmegaVarElim dom Id)) SolveByUnification
+  omega <- addConstraint omega (TypeConstraint ctx ty (SigmaTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id)))
+  return (Success omega [ElaborateWhenConvertible ctx ty (SigmaTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id)) (ElemElaboration ctx tm meta ty)])
 elabElemNu sig omega ctx (AnnotatedPiVal r x t f) meta ty = ?todo_4
 elabElemNu sig omega ctx (App r (Var r0 x) es) meta ty = M.do
   case lookupContext ctx x of
@@ -217,7 +243,7 @@ elabElemNu sig omega ctx tm@(App r (NatVal0 x) []) meta ty = M.do
   return (Success omega [ElaborateWhenConvertible ctx ty NatTy (ElemElaboration ctx tm meta ty)])
 elabElemNu sig omega ctx (App r (NatVal0 x) (_ :: _)) meta ty =
   return (Error "Z applied to a spine")
-elabElemNu sig omega ctx (App r (NatVal1 _) [([], t)]) meta NatTy = M.do
+elabElemNu sig omega ctx (App r (NatVal1 _) [Arg ([], t)]) meta NatTy = M.do
   (omega, t') <- newElemMeta omega ctx NatTy SolveByElaboration
   let omega = instantiateByElaboration omega meta (NatVal1 (OmegaVarElim t' Id))
   return (Success omega [ElemElaboration ctx t t' NatTy])
@@ -226,7 +252,7 @@ elabElemNu sig omega ctx tm@(App r (NatVal1 _) [t]) meta ty = M.do
   return (Success omega [ElaborateWhenConvertible ctx ty NatTy (ElemElaboration ctx tm meta ty)])
 elabElemNu sig omega ctx (App r (NatVal1 x) _) meta ty =
   return (Error "S applied to a wrong number of arguments")
-elabElemNu sig omega ctx (App r (NatElim _) (([x], schema) :: ([], z) :: ([y, h], s) :: ([], t) :: es)) meta ty = M.do
+elabElemNu sig omega ctx (App r (NatElim _) (Arg ([x], schema) :: Arg ([], z) :: Arg ([y, h], s) :: Arg ([], t) :: es)) meta ty = M.do
   (omega, schema') <- newTypeMeta omega (Ext ctx x NatTy) SolveByElaboration
   (omega, z') <- newElemMeta omega ctx (ContextSubstElim (OmegaVarElim schema' Id) (Ext Id NatVal0)) SolveByElaboration
   (omega, s') <- newElemMeta omega (Ext (Ext ctx y NatTy) h (OmegaVarElim schema' Id))
@@ -239,7 +265,7 @@ elabElemNu sig omega ctx (App r (NatElim _) (([x], schema) :: ([], z) :: ([y, h]
                          ElemElimElaboration ctx (NatElim x (OmegaVarElim schema' Id) (OmegaVarElim z' Id) y h (OmegaVarElim s' Id) (OmegaVarElim t' Id)) (OmegaVarElim schema' (Ext Id (OmegaVarElim t' Id))) es meta ty])
 elabElemNu sig omega ctx (App r (NatElim _) _) meta ty =
   return (Error "S applied to a wrong number of arguments")
-elabElemNu sig omega ctx (App _ (EqElim _) (([x, h], schema) :: ([], r) :: ([], e) :: es)) meta ty = M.do
+elabElemNu sig omega ctx (App _ (EqElim _) (Arg ([x, h], schema) :: Arg ([], r) :: Arg ([], e) :: es)) meta ty = M.do
   (omega, t') <- newTypeMeta omega ctx SolveByUnification
   (omega, a') <- newElemMeta omega ctx (OmegaVarElim t' Id) SolveByUnification
   (omega, b') <- newElemMeta omega ctx (OmegaVarElim t' Id) SolveByUnification
@@ -323,7 +349,7 @@ elabElemNu sig omega ctx (App r (Unfold r0 x) []) meta ty = M.do
 elabElemNu sig omega ctx (App r (Unfold r0 x) _) meta ty = M.do
   return (Error "!\{x} applied to a wrong number of arguments")
 -- Π-β (x. f) e : (x ↦ f) e ≡ f[e/x] ∈ B[e/x]
-elabElemNu sig omega ctx (App r (PiBeta r0) [([x], f), ([], e)]) meta ty = M.do
+elabElemNu sig omega ctx (App r (PiBeta r0) [Arg ([x], f), Arg ([], e)]) meta ty = M.do
   (omega, dom) <- newTypeMeta omega ctx SolveByUnification
   (omega, cod) <- newTypeMeta omega (Ext ctx x (OmegaVarElim dom Id)) SolveByUnification
   (omega, f') <- newElemMeta omega (Ext ctx x (OmegaVarElim dom Id)) (OmegaVarElim cod Id) SolveByElaboration
@@ -334,7 +360,7 @@ elabElemNu sig omega ctx (App r (PiBeta r0) [([x], f), ([], e)]) meta ty = M.do
 elabElemNu sig omega ctx (App r (PiBeta r0) _) meta ty =
   return (Error "Π-β applied to a wrong number of arguments")
 -- Π-η f : (x ↦ f x) ≡ f ∈ (x : A) → B
-elabElemNu sig omega ctx (App r (PiEta r0) [([], f)]) meta ty = M.do
+elabElemNu sig omega ctx (App r (PiEta r0) [Arg ([], f)]) meta ty = M.do
   (omega, dom) <- newTypeMeta omega ctx SolveByUnification
   (omega, cod) <- newTypeMeta omega (Ext ctx "_" (OmegaVarElim dom Id)) SolveByUnification
   (omega, f') <- newElemMeta omega ctx (PiTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id)) SolveByElaboration
@@ -343,7 +369,7 @@ elabElemNu sig omega ctx (App r (PiEta r0) [([], f)]) meta ty = M.do
 elabElemNu sig omega ctx (App r (PiEta r0) _) meta ty =
   return (Error "Π-η applied to a wrong number of arguments")
 -- ℕ-β-Z (x. A) z (y. h. s) : ℕ-elim (x. A) z (y. h. s) Z ≡ z ∈ A[Z/x]
-elabElemNu sig omega ctx (App r (NatBetaZ r0) (([x], schema) :: ([], z) :: ([y, h], s) :: [])) meta ty = M.do
+elabElemNu sig omega ctx (App r (NatBetaZ r0) (Arg ([x], schema) :: Arg ([], z) :: Arg ([y, h], s) :: [])) meta ty = M.do
   (omega, schema') <- newTypeMeta omega (Ext ctx x NatTy) SolveByElaboration
   (omega, z') <- newElemMeta omega ctx (ContextSubstElim (OmegaVarElim schema' Id) (Ext Id NatVal0)) SolveByElaboration
   (omega, s') <- newElemMeta omega (Ext (Ext ctx y NatTy) h (OmegaVarElim schema' Id))
@@ -355,7 +381,7 @@ elabElemNu sig omega ctx (App r (NatBetaZ r0) (([x], schema) :: ([], z) :: ([y, 
 elabElemNu sig omega ctx (App r (NatBetaZ r0) _) meta ty =
   return (Error "ℕ-β-Z applied to a wrong number of arguments")
 -- ℕ-β-S (x. A) z (y. h. s) t : ℕ-elim (x. A) z (y. h. s) (S t) ≡ s[t/x, ℕ-elim (x. A) z (y. h. s) t/h] ∈ A[S t/x]
-elabElemNu sig omega ctx (App r (NatBetaS r0) [([x], schema), ([], z), ([y, h], s), ([], t)]) meta ty = M.do
+elabElemNu sig omega ctx (App r (NatBetaS r0) [Arg ([x], schema), Arg ([], z), Arg ([y, h], s), Arg ([], t)]) meta ty = M.do
   (omega, schema') <- newTypeMeta omega (Ext ctx x NatTy) SolveByElaboration
   (omega, z') <- newElemMeta omega ctx (ContextSubstElim (OmegaVarElim schema' Id) (Ext Id NatVal0)) SolveByElaboration
   (omega, s') <- newElemMeta omega (Ext (Ext ctx y NatTy) h (OmegaVarElim schema' Id))
@@ -369,7 +395,7 @@ elabElemNu sig omega ctx (App r (NatBetaS r0) [([x], schema), ([], z), ([y, h], 
 elabElemNu sig omega ctx (App r (NatBetaS r0) _) meta ty =
   return (Error "ℕ-β-S applied to a wrong number of arguments")
 -- Π⁼ (x. f) (y. g) (z. p) : (x ↦ f) ≡ (y ↦ g) ∈ (z : A) → B
-elabElemNu sig omega ctx (App r (PiEq r0) [([x], f), ([y], g), ([z], p)]) meta ty = M.do
+elabElemNu sig omega ctx (App r (PiEq r0) [Arg ([x], f), Arg ([y], g), Arg ([z], p)]) meta ty = M.do
   (omega, dom) <- newTypeMeta omega ctx SolveByUnification
   (omega, cod) <- newTypeMeta omega (Ext ctx z (OmegaVarElim dom Id)) SolveByUnification
   (omega, f') <- newElemMeta omega (Ext ctx x (OmegaVarElim dom Id)) (OmegaVarElim cod Id) SolveByElaboration
@@ -413,10 +439,20 @@ elabType sig omega ctx (PiTy r x dom cod) meta = M.do
   (omega, cod') <- newTypeMeta omega (Ext ctx x (OmegaVarElim dom' Id)) SolveByElaboration
   let omega = instantiateByElaboration omega meta (PiTy x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id))
   return (Success omega [TypeElaboration ctx dom dom', TypeElaboration (Ext ctx x (OmegaVarElim dom' Id)) cod cod'])
+elabType sig omega ctx (SigmaTy r x dom cod) meta = M.do
+  (omega, dom') <- newTypeMeta omega ctx SolveByElaboration
+  (omega, cod') <- newTypeMeta omega (Ext ctx x (OmegaVarElim dom' Id)) SolveByElaboration
+  let omega = instantiateByElaboration omega meta (SigmaTy x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id))
+  return (Success omega [TypeElaboration ctx dom dom', TypeElaboration (Ext ctx x (OmegaVarElim dom' Id)) cod cod'])
 elabType sig omega ctx (FunTy r dom cod) meta = M.do
   (omega, dom') <- newTypeMeta omega ctx SolveByElaboration
   (omega, cod') <- newTypeMeta omega ctx SolveByElaboration
   let omega = instantiateByElaboration omega meta (PiTy "_" (OmegaVarElim dom' Id) (ContextSubstElim (OmegaVarElim cod' Id) Wk))
+  return (Success omega [TypeElaboration ctx dom dom', TypeElaboration ctx cod cod'])
+elabType sig omega ctx (ProdTy r dom cod) meta = M.do
+  (omega, dom') <- newTypeMeta omega ctx SolveByElaboration
+  (omega, cod') <- newTypeMeta omega ctx SolveByElaboration
+  let omega = instantiateByElaboration omega meta (SigmaTy "_" (OmegaVarElim dom' Id) (ContextSubstElim (OmegaVarElim cod' Id) Wk))
   return (Success omega [TypeElaboration ctx dom dom', TypeElaboration ctx cod cod'])
 elabType sig omega ctx (EqTy r a b t) meta = M.do
   (omega, t') <- newTypeMeta omega ctx SolveByElaboration
@@ -430,6 +466,8 @@ elabType sig omega ctx (EqTy r a b t) meta = M.do
          )
 elabType sig omega ctx (PiVal r x f) meta =
   return (Error "_ ↦ _ is not a type")
+elabType sig omega ctx (SigmaVal r a b) meta =
+  return (Error "(_, _) is not a type")
 elabType sig omega ctx (AnnotatedPiVal r x t f) meta =
   return (Error "(_ : _) ↦ _ is not a type")
 elabType sig omega ctx tm@(App r (Var r0 x) es) meta =
@@ -519,16 +557,20 @@ elabElemElimNu sig omega ctx head headTy [] meta ty = M.do
   omega <- addConstraint omega (TypeConstraint ctx headTy ty)
   let omega = instantiateByElaboration omega meta head
   return (Success omega [])
-elabElemElimNu sig omega ctx head (PiTy x dom cod) (([], e) :: es) meta ty = M.do
+elabElemElimNu sig omega ctx head (PiTy x dom cod) (Arg ([], e) :: es) meta ty = M.do
   (omega, e') <- newElemMeta omega ctx dom SolveByElaboration
   return (Success omega [ElemElaboration ctx e e' dom,
                          ElemElimElaboration ctx (PiElim head x dom cod (OmegaVarElim e' Id)) (ContextSubstElim cod (Ext Id (OmegaVarElim e' Id))) es meta ty])
-elabElemElimNu sig omega ctx head headTy args@(([], e) :: es) meta ty = M.do
+elabElemElimNu sig omega ctx head (SigmaTy x dom cod) (Pi1 :: es) meta ty = M.do
+  return (Success omega [ElemElimElaboration ctx (SigmaElim1 head x dom cod) dom es meta ty])
+elabElemElimNu sig omega ctx head (SigmaTy x dom cod) (Pi2 :: es) meta ty = M.do
+  return (Success omega [ElemElimElaboration ctx (SigmaElim2 head x dom cod) (ContextSubstElim cod (Ext Id (SigmaElim1 head x dom cod))) es meta ty])
+elabElemElimNu sig omega ctx head headTy args@(Arg ([], e) :: es) meta ty = M.do
   (omega, dom) <- newTypeMeta omega ctx SolveByUnification
   (omega, cod) <- newTypeMeta omega (Ext ctx "_" (OmegaVarElim dom Id)) SolveByUnification
   omega <- addConstraint omega (TypeConstraint ctx headTy (PiTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id)))
   return (Success omega [ElemElimElaboration ctx head (PiTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id)) args meta ty])
-elabElemElimNu sig omega ctx head headTy ((_, e) :: es) meta ty =
+elabElemElimNu sig omega ctx head headTy (_ :: es) meta ty =
   return (Error "Invalid elimination")
 
 ||| Σ Ω Γ ⊦ (t : T) ⟦ē⟧ ⇝ t' : A
