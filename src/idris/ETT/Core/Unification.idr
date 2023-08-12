@@ -58,10 +58,13 @@ namespace Result
 public export
 isRigid : Signature -> Omega -> Elem -> M Bool
 isRigid sig omega (PiTy str x y) = return True
+isRigid sig omega (ImplicitPiTy str x y) = return True
 isRigid sig omega (SigmaTy str x y) = return True
 isRigid sig omega (PiVal str x y z) = return True
+isRigid sig omega (ImplicitPiVal str x y z) = return True
 isRigid sig omega (SigmaVal {}) = return True
 isRigid sig omega (PiElim x str y z w) = return True
+isRigid sig omega (ImplicitPiElim x str y z w) = return True
 isRigid sig omega (SigmaElim1 {}) = return True
 isRigid sig omega (SigmaElim2 {}) = return True
 isRigid sig omega Universe = return True
@@ -157,6 +160,10 @@ mutual
       dom' <- invert sig omega ctx delta sigma dom
       cod' <- invert sig omega (Ext ctx x dom) (Ext delta x dom') (Under sigma) cod
       return (PiTy x dom' cod')
+    invertNu sig omega ctx delta sigma (ImplicitPiTy x dom cod) = Mb.do
+      dom' <- invert sig omega ctx delta sigma dom
+      cod' <- invert sig omega (Ext ctx x dom) (Ext delta x dom') (Under sigma) cod
+      return (ImplicitPiTy x dom' cod')
     invertNu sig omega ctx delta sigma (SigmaTy x dom cod) = Mb.do
       dom' <- invert sig omega ctx delta sigma dom
       cod' <- invert sig omega (Ext ctx x dom) (Ext delta x dom') (Under sigma) cod
@@ -166,6 +173,11 @@ mutual
       cod' <- invert sig omega (Ext ctx x dom) (Ext delta x dom') (Under sigma) cod
       f' <- invert sig omega (Ext ctx x dom) (Ext delta x dom') (Under sigma) f
       return (PiVal x dom' cod' f')
+    invertNu sig omega ctx delta sigma (ImplicitPiVal x dom cod f) = Mb.do
+      dom' <- invert sig omega ctx delta sigma dom
+      cod' <- invert sig omega (Ext ctx x dom) (Ext delta x dom') (Under sigma) cod
+      f' <- invert sig omega (Ext ctx x dom) (Ext delta x dom') (Under sigma) f
+      return (ImplicitPiVal x dom' cod' f')
     invertNu sig omega ctx delta sigma (SigmaVal p q) = Mb.do
       p' <- invert sig omega ctx delta sigma p
       q' <- invert sig omega ctx delta sigma q
@@ -176,6 +188,12 @@ mutual
       cod' <- invert sig omega (Ext ctx x dom) (Ext delta x dom') (Under sigma) cod
       e' <- invert sig omega ctx delta sigma e
       return (PiElim f' x dom' cod' e')
+    invertNu sig omega ctx delta sigma (ImplicitPiElim f x dom cod e) = Mb.do
+      f' <- invert sig omega ctx delta sigma f
+      dom' <- invert sig omega ctx delta sigma dom
+      cod' <- invert sig omega (Ext ctx x dom) (Ext delta x dom') (Under sigma) cod
+      e' <- invert sig omega ctx delta sigma e
+      return (ImplicitPiElim f' x dom' cod' e')
     invertNu sig omega ctx delta sigma (SigmaElim1 f x dom cod) = Mb.do
       f' <- invert sig omega ctx delta sigma f
       dom' <- invert sig omega ctx delta sigma dom
@@ -304,13 +322,19 @@ mutual
   occursNu : Signature -> Omega -> Elem -> OmegaName -> M Bool
   occursNu sig omega (PiTy x dom cod) k =
     occurs sig omega dom k `or` occurs sig omega cod k
+  occursNu sig omega (ImplicitPiTy x dom cod) k =
+    occurs sig omega dom k `or` occurs sig omega cod k
   occursNu sig omega (SigmaTy x dom cod) k =
     occurs sig omega dom k `or` occurs sig omega cod k
   occursNu sig omega (PiVal x dom cod f) k =
     occurs sig omega dom k `or` occurs sig omega cod k `or` occurs sig omega f k
+  occursNu sig omega (ImplicitPiVal x dom cod f) k =
+    occurs sig omega dom k `or` occurs sig omega cod k `or` occurs sig omega f k
   occursNu sig omega (SigmaVal p q) k =
     occurs sig omega p k `or` occurs sig omega q k
   occursNu sig omega (PiElim f x dom cod e) k =
+    occurs sig omega f k `or` occurs sig omega dom k `or` occurs sig omega cod k `or` occurs sig omega e k
+  occursNu sig omega (ImplicitPiElim f x dom cod e) k =
     occurs sig omega f k `or` occurs sig omega dom k `or` occurs sig omega cod k `or` occurs sig omega e k
   occursNu sig omega (SigmaElim1 f x dom cod) k =
     occurs sig omega f k `or` occurs sig omega dom k `or` occurs sig omega cod k
@@ -461,14 +485,22 @@ namespace Elem
                     ]
                     []
            )
+  unifyElemNu sig cs ctx (PiTy x0 dom0 cod0) b ty = M.do
+    return (Disunifier "Π vs something else rigid")
+  unifyElemNu sig cs ctx (ImplicitPiTy x0 dom0 cod0) (ImplicitPiTy x1 dom1 cod1) ty = FailSt.do
+    return (Success [ ElemConstraint ctx dom0 dom1 Universe
+                    , ElemConstraint (Ext ctx x0 dom0) cod0 cod1 Universe
+                    ]
+                    []
+           )
+  unifyElemNu sig cs ctx (ImplicitPiTy x0 dom0 cod0) b ty = M.do
+    return (Disunifier "Πⁱ vs something else rigid")
   unifyElemNu sig cs ctx (SigmaTy x0 dom0 cod0) (SigmaTy x1 dom1 cod1) ty = FailSt.do
     return (Success [ ElemConstraint ctx dom0 dom1 Universe
                     , ElemConstraint (Ext ctx x0 dom0) cod0 cod1 Universe
                     ]
                     []
            )
-  unifyElemNu sig cs ctx (PiTy x0 dom0 cod0) b ty = M.do
-    return (Disunifier "Π vs something else rigid")
   unifyElemNu sig cs ctx (SigmaTy x0 dom0 cod0) b ty = M.do
     return (Disunifier "Σ vs something else rigid")
   unifyElemNu sig cs ctx (PiVal x0 dom0 cod0 f0) (PiVal x1 dom1 cod1 f1) ty = FailSt.do
@@ -477,6 +509,12 @@ namespace Elem
            )
   unifyElemNu sig cs ctx (PiVal {}) b ty = M.do
     return (Disunifier "λ vs something else rigid")
+  unifyElemNu sig cs ctx (ImplicitPiVal x0 dom0 cod0 f0) (ImplicitPiVal x1 dom1 cod1 f1) ty = FailSt.do
+    return (Success [ElemConstraint (Ext ctx x0 dom0) f0 f1 cod0]
+                    []
+           )
+  unifyElemNu sig cs ctx (ImplicitPiVal {}) b ty = M.do
+    return (Disunifier "λⁱ vs something else rigid")
   unifyElemNu sig cs ctx (SigmaVal p0 q0) (SigmaVal p1 q1) (SigmaTy x a b) = FailSt.do
     return (Success [ElemConstraint ctx p0 p1 a, ElemConstraint ctx q0 q1 (ContextSubstElim b (Ext Id p0))]
                     []
@@ -495,6 +533,16 @@ namespace Elem
            )
   unifyElemNu sig cs ctx (PiElim f0 x0 dom0 cod0 e0) b ty = M.do
     return (Disunifier "app vs something else rigid")
+  unifyElemNu sig cs ctx (ImplicitPiElim f0 x0 dom0 cod0 e0) (ImplicitPiElim f1 x1 dom1 cod1 e1) ty = M.do
+    return (Success [TypeConstraint ctx dom0 dom1
+                    , TypeConstraint (Ext ctx x0 dom0) cod0 cod1
+                    , ElemConstraint ctx f0 f1 (ImplicitPiTy x0 dom0 cod0)
+                    , ElemConstraint ctx e0 e1 dom0
+                    ]
+                    []
+           )
+  unifyElemNu sig cs ctx (ImplicitPiElim f0 x0 dom0 cod0 e0) b ty = M.do
+    return (Disunifier "appⁱ vs something else rigid")
   unifyElemNu sig cs ctx (SigmaElim1 f0 x0 dom0 cod0) (SigmaElim1 f1 x1 dom1 cod1) ty = M.do
     return (Success [ TypeConstraint ctx dom0 dom1
                     , TypeConstraint (Ext ctx x0 dom0) cod0 cod1
@@ -661,6 +709,14 @@ namespace Type'
            )
   unifyTypeNu sig cs ctx (PiTy x0 dom0 cod0) b = M.do
     return (Disunifier "Π vs something else rigid")
+  unifyTypeNu sig cs ctx (ImplicitPiTy x0 dom0 cod0) (ImplicitPiTy x1 dom1 cod1) = FailSt.do
+    return (Success [ TypeConstraint ctx dom0 dom1
+                    , TypeConstraint (Ext ctx x0 dom0) cod0 cod1
+                    ]
+                    []
+           )
+  unifyTypeNu sig cs ctx (ImplicitPiTy x0 dom0 cod0) b = M.do
+    return (Disunifier "Πⁱ vs something else rigid")
   unifyTypeNu sig cs ctx (SigmaTy x0 dom0 cod0) (SigmaTy x1 dom1 cod1) = FailSt.do
     return (Success [ TypeConstraint ctx dom0 dom1
                     , TypeConstraint (Ext ctx x0 dom0) cod0 cod1
@@ -694,6 +750,10 @@ namespace Type'
     return (Success [ElemConstraint ctx a b Universe] [])
   unifyTypeNu sig cs ctx (PiElim f0 x0 dom0 cod0 e0) b = M.do
     return (Disunifier "app vs something else rigid")
+  unifyTypeNu sig cs ctx a@(ImplicitPiElim f0 x0 dom0 cod0 e0) b@(ImplicitPiElim f1 x1 dom1 cod1 e1) = M.do
+    return (Success [ElemConstraint ctx a b Universe] [])
+  unifyTypeNu sig cs ctx (ImplicitPiElim f0 x0 dom0 cod0 e0) b = M.do
+    return (Disunifier "appⁱ vs something else rigid")
   unifyTypeNu sig cs ctx a@(SigmaElim1 f0 x0 dom0 cod0) b@(SigmaElim1 f1 x1 dom1 cod1) = M.do
     return (Success [ElemConstraint ctx a b Universe] [])
   unifyTypeNu sig cs ctx (SigmaElim1 f0 x0 dom0 cod0) b = M.do

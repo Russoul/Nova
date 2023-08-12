@@ -126,17 +126,27 @@ mutual
     -- (π A B)(σ) = π A(σ) B(σ⁺(El A))
     subst (PiTy x a b) sigma =
       PiTy x (ContextSubstElim a sigma) (ContextSubstElim b (Under sigma))
+    subst (ImplicitPiTy x a b) sigma =
+      ImplicitPiTy x (ContextSubstElim a sigma) (ContextSubstElim b (Under sigma))
     -- (π A B)(σ) = π A(σ) B(σ⁺(El A))
     subst (SigmaTy x a b) sigma =
       SigmaTy x (ContextSubstElim a sigma) (ContextSubstElim b (Under sigma))
     -- (λ A B f)(σ) = λ A B(σ⁺(A)) f(σ⁺(A))
     subst (PiVal x a b f) sigma =
       PiVal x (ContextSubstElim a sigma) (ContextSubstElim b (Under sigma)) (ContextSubstElim f (Under sigma))
+    subst (ImplicitPiVal x a b f) sigma =
+      ImplicitPiVal x (ContextSubstElim a sigma) (ContextSubstElim b (Under sigma)) (ContextSubstElim f (Under sigma))
     subst (SigmaVal a b) sigma =
       SigmaVal (ContextSubstElim a sigma) (ContextSubstElim b sigma)
     -- (ap f A B e)(σ) = ap f(σ) A(σ) B(σ⁺(A)) e(σ)
     subst (PiElim f x a b e) sigma =
       PiElim (ContextSubstElim f sigma)
+             x
+             (ContextSubstElim a sigma)
+             (ContextSubstElim b (Under sigma))
+             (ContextSubstElim e sigma)
+    subst (ImplicitPiElim f x a b e) sigma =
+      ImplicitPiElim (ContextSubstElim f sigma)
              x
              (ContextSubstElim a sigma)
              (ContextSubstElim b (Under sigma))
@@ -187,11 +197,20 @@ mutual
     public export
     subst : Elem -> SubstSignature -> Elem
     subst (PiTy x a b) sigma = PiTy x (SignatureSubstElim a sigma) (SignatureSubstElim b sigma)
+    subst (ImplicitPiTy x a b) sigma = ImplicitPiTy x (SignatureSubstElim a sigma) (SignatureSubstElim b sigma)
     subst (SigmaTy x a b) sigma = SigmaTy x (SignatureSubstElim a sigma) (SignatureSubstElim b sigma)
     subst (PiVal x a b f) sigma = PiVal x (SignatureSubstElim a sigma) (SignatureSubstElim b sigma) (SignatureSubstElim f sigma)
+    subst (ImplicitPiVal x a b f) sigma = ImplicitPiVal x (SignatureSubstElim a sigma) (SignatureSubstElim b sigma) (SignatureSubstElim f sigma)
     subst (SigmaVal a b) sigma = SigmaVal (SignatureSubstElim a sigma) (SignatureSubstElim b sigma)
     subst (PiElim f x a b e) sigma =
       PiElim
+          (SignatureSubstElim f sigma)
+          x
+          (SignatureSubstElim a sigma)
+          (SignatureSubstElim b sigma)
+          (SignatureSubstElim e sigma)
+    subst (ImplicitPiElim f x a b e) sigma =
+      ImplicitPiElim
           (SignatureSubstElim f sigma)
           x
           (SignatureSubstElim a sigma)

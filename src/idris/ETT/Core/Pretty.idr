@@ -33,6 +33,14 @@ introParens' : Doc Ann -> Doc Ann
 introParens' = enclose (annotate Intro lparen) (annotate Intro rparen)
 
 public export
+introBraces' : Doc Ann -> Doc Ann
+introBraces' = enclose (annotate Intro lbrace) (annotate Intro rbrace)
+
+public export
+elimBraces' : Doc Ann -> Doc Ann
+elimBraces' = enclose (annotate Elim lbrace) (annotate Elim rbrace)
+
+public export
 brackets' : Doc Ann -> Doc Ann
 brackets' = enclose (annotate Keyword lbracket) (annotate Keyword rbracket)
 
@@ -49,6 +57,10 @@ wrapElem (PiTy x dom cod) lvl doc =
       case lvl <= 2 of
         True => return doc
         False => return (parens' doc)
+wrapElem (ImplicitPiTy x dom cod) lvl doc =
+  case lvl <= 0 of
+    True => return doc
+    False => return (parens' doc)
 wrapElem (SigmaTy x dom cod) lvl doc =
   case !(shrink cod 1 0) of
     Nothing =>
@@ -63,11 +75,19 @@ wrapElem (PiVal {}) lvl doc =
   case lvl <= 0 of
     True => return doc
     False => return (parens' doc)
+wrapElem (ImplicitPiVal {}) lvl doc =
+  case lvl <= 0 of
+    True => return doc
+    False => return (parens' doc)
 wrapElem (SigmaVal {}) lvl doc =
   case lvl <= 4 of
     True => return doc
     False => return (parens' doc)
 wrapElem (PiElim {}) lvl doc =
+  case lvl <= 3 of
+    True => return doc
+    False => return (parens' doc)
+wrapElem (ImplicitPiElim {}) lvl doc =
   case lvl <= 3 of
     True => return doc
     False => return (parens' doc)
@@ -210,6 +230,21 @@ mutual
           annotate Keyword "→"
            <++>
           !(prettyElem sig omega ctx cod 2)
+  prettyElem' sig omega ctx (ImplicitPiTy x dom cod) = M.do
+    return $
+      annotate Intro lbrace
+       <+>
+      annotate ContextVar (pretty x)
+       <++>
+      annotate Keyword ":"
+       <++>
+      !(prettyElem sig omega ctx dom 0)
+       <+>
+      annotate Intro rbrace
+       <++>
+      annotate Keyword "→"
+       <++>
+      !(prettyElem sig omega (ctx :< x) cod 0)
   prettyElem' sig omega ctx (SigmaTy x dom cod) = M.do
     case !(shrink cod 1 0) of
       Nothing => M.do
@@ -241,6 +276,13 @@ mutual
       annotate Intro "↦"
        <++>
       !(prettyElem sig omega (ctx :< x) f 0)
+  prettyElem' sig omega ctx (ImplicitPiVal x _ _ f) =
+    return $
+      introBraces' (annotate ContextVar (pretty x))
+       <++>
+      annotate Intro "↦"
+       <++>
+      !(prettyElem sig omega (ctx :< x) f 0)
   prettyElem' sig omega ctx (SigmaVal a b) =
     return $ introParens' $
       !(prettyElem sig omega ctx a 0)
@@ -253,6 +295,11 @@ mutual
       !(prettyElem sig omega ctx f 3)
        <++>
       !(prettyElem sig omega ctx e 4)
+  prettyElem' sig omega ctx (ImplicitPiElim f x a b e) =
+    return $
+      !(prettyElem sig omega ctx f 3)
+       <++>
+      elimBraces' !(prettyElem sig omega ctx e 0)
   prettyElem' sig omega ctx (SigmaElim1 f x a b) =
     return $
       !(prettyElem sig omega ctx f 3)

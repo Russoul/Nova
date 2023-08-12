@@ -57,6 +57,10 @@ mutual
       a <- shrink a gamma1Len gamma2Len
       b <- shrink b gamma1Len (S gamma2Len)
       return (PiTy x a b)
+    shrinkNu (ImplicitPiTy x a b) gamma1Len gamma2Len = Mb.do
+      a <- shrink a gamma1Len gamma2Len
+      b <- shrink b gamma1Len (S gamma2Len)
+      return (ImplicitPiTy x a b)
     shrinkNu (SigmaTy x a b) gamma1Len gamma2Len = Mb.do
       a <- shrink a gamma1Len gamma2Len
       b <- shrink b gamma1Len (S gamma2Len)
@@ -66,6 +70,11 @@ mutual
       b <- shrink b gamma1Len (S gamma2Len)
       f <- shrink f gamma1Len (S gamma2Len)
       return (PiVal x a b f)
+    shrinkNu (ImplicitPiVal x a b f) gamma1Len gamma2Len = Mb.do
+      a <- shrink a gamma1Len gamma2Len
+      b <- shrink b gamma1Len (S gamma2Len)
+      f <- shrink f gamma1Len (S gamma2Len)
+      return (ImplicitPiVal x a b f)
     shrinkNu (SigmaVal a b) gamma1Len gamma2Len = Mb.do
       a <- shrink a gamma1Len gamma2Len
       b <- shrink b gamma1Len gamma2Len
@@ -76,6 +85,12 @@ mutual
       b <- shrink b gamma1Len (S gamma2Len)
       e <- shrink e gamma1Len gamma2Len
       return (PiElim f x a b e)
+    shrinkNu (ImplicitPiElim f x a b e) gamma1Len gamma2Len = Mb.do
+      f <- shrink f gamma1Len gamma2Len
+      a <- shrink a gamma1Len gamma2Len
+      b <- shrink b gamma1Len (S gamma2Len)
+      e <- shrink e gamma1Len gamma2Len
+      return (ImplicitPiElim f x a b e)
     shrinkNu (SigmaElim1 f x a b) gamma1Len gamma2Len = Mb.do
       f <- shrink f gamma1Len gamma2Len
       a <- shrink a gamma1Len gamma2Len
