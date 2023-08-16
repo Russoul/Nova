@@ -430,6 +430,7 @@ varFirstSym = is "first symbol of a variable" $ isSymbol $ \x =>
  || x == '⊤'
  || x == '∃'
  || x == '⁼'
+ || x == '-'
 
 ||| a-Z|A-Z|0-9|_|₀-₉|α-ω|Α-Ω|'|ℕ|ℤ|𝕀|𝕊|𝕋|𝕌|ℙ|𝔽|𝟘-𝟡|⊥|⊤|∃|ᵢ
 public export
@@ -438,7 +439,6 @@ varNextSym = is "symbol of a variable" $ isSymbol $ \x =>
     isLower x
  || isUpper x
  || isDigit x
- || x == '_'
  || x == '\''
  || isSubscriptDigit x
  || isSuperscriptDigit x
@@ -458,13 +458,13 @@ varNextSym = is "symbol of a variable" $ isSymbol $ \x =>
  || x == '∃'
  || x == 'ᵢ'
  || x == '⁼'
+ || x == '-'
 
 ||| !@#$%^&*=+-,.:⋍≡∘⨯ᐅ><⇒⤇∨∧
 public export
 isOperatorSym : Char -> Bool
 isOperatorSym x = elem x $
-  the (List _) [ '!'
-               , '@'
+  the (List _) [ '@'
                , '#'
                , '$'
                , '%'
@@ -473,11 +473,10 @@ isOperatorSym x = elem x $
                , '*'
                , '='
                , '+'
-               , '-'
                , ','
                , '.'
-               , ':'
                , '⋍'
+               , '≅'
                , '≡'
                , '∘'
                , '⨯'
@@ -487,7 +486,10 @@ isOperatorSym x = elem x $
                , '⇒'
                , '⤇'
                , '∨'
-               , '∧']
+               , '∧'
+               , '→'
+               , '≡'
+               , '∈']
 
 public export
 located : Rule a -> Rule (Range, a)
@@ -602,11 +604,10 @@ commaDelim = do
   delim_ ","
   optSpaceDelim
 
+public export
 opIdent : Rule String
 opIdent = do
-  char_ '('
   op <- some (is "operator" $ isSymbol isOperatorSym)
-  char_ ')'
   pure $ pack (map toChar (forget op))
 
 nonOpIdent : Rule String
@@ -615,10 +616,32 @@ nonOpIdent = map (<+) (map toChar varFirstSym) <*> map (pack . map toChar) (many
 concatSepBy : String -> List1 String -> String
 concatSepBy sep (x ::: xs) = foldl (\acc, s => acc ++ sep ++ s) x xs
 
+(<++>) : Rule String -> Lazy (Rule String) -> Rule String
+f <++> g = do
+  x <- f
+  y <- g
+  pure (x ++ y)
+
+opAppIdent : Rule String
+opAppIdent = ((delim_ "_" $> "_") <++> continue1') <|> (opIdent <++> continue2')
+ where
+  mutual
+    continue1 : Rule String
+    continue1 = (opIdent <++> continue2) <|> pure ""
+
+    continue2 : Rule String
+    continue2 = ((delim_ "_" $> "_") <++> continue1) <|> pure ""
+
+    continue1' : Rule String
+    continue1' = opIdent <++> continue2
+
+    continue2' : Rule String
+    continue2' = (delim_ "_" $> "_") <++> continue1
+
 public export
-preident : Rule String
-preident =
-  map (concatSepBy "-") $ sepBy1 (Rule.char_ '-') (map (\x => "(" ++ x ++ ")") opIdent <|> nonOpIdent)
+prevarIdent : Rule String
+prevarIdent =
+  nonOpIdent <|> opAppIdent
 
 thatManyConsumption : Nat -> Bool -> Bool
 thatManyConsumption Z     = const False
@@ -666,14 +689,14 @@ keywords = [ "Z"
 public export
 varName : Rule VarName
 varName = do
-  x <- preident
+  x <- prevarIdent
   guard "ident" (not $ elem x keywords)
   pure x
 
 public export
 spName : (s : String) -> {auto _ : Elem s ParserUtil.keywords} -> Rule Range
 spName expected = do
-  (r, x) <- located preident
+  (r, x) <- located prevarIdent
   guard "Expected special name: \{expected}" (x == expected)
   pure r
 

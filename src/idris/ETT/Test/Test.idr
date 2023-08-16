@@ -23,6 +23,7 @@ import ETT.Surface.Language
 import ETT.Surface.ParserUtil
 import ETT.Surface.Parser
 import ETT.Surface.Elaboration
+import ETT.Surface.Operator
 
 {- runAssistant : Signature -> M ()
 runAssistant sig = M.do
@@ -72,7 +73,7 @@ checkElabApp = do
    let Right (st, parsed) = parseFull' (MkParsingSt [<]) surfaceFile contents
      | Left err => die (show err)
    putStrLn "Parsed successfully!"
-   Right (sig, omega) <- eval (elabFile [<] empty parsed) initialUnifySt
+   Right (sig, omega) <- eval (elabFile [<] empty [<] parsed) initialUnifySt
      | Left err => die err
    putStrLn "------------ Named holes ---------------"
    for_ (List.inorder omega) $ \(x, e) => Prelude.do

@@ -2,6 +2,10 @@ module ETT.Surface.Parser
 
 import Data.Fin
 import Data.Maybe
+import Data.AlternatingList
+import Data.AlternatingList1
+import Data.AlternatingSnocList
+import Data.AlternatingSnocList1
 
 import public Text.Parser.Fork
 
@@ -18,12 +22,13 @@ import ETT.Core.Name
 import ETT.Surface.SemanticToken
 import ETT.Surface.Language
 import ETT.Surface.ParserUtil
+import ETT.Surface.Operator
 
 import Data.List.Elem
 
 public export
 Level : Type
-Level = Fin 5
+Level = Fin 4
 
 public export
 zeroHead : Rule Head
@@ -269,86 +274,95 @@ mutual
     (p0, h) <- located head2
     (p1, es) <- located elim
     guard "elimination spine must be non-empty" (length es > 0)
-    pure (App (p0 + p1) h es)
+    pure (OpLayer (p0 + p1) (ConsB (p0 + p1, h, es) []))
 
   ||| Parse a Term exactly at level 3
   public export
   term3 : Rule Term
   term3 = app
 
-  pair : Rule Term
-  pair = do
-    l0 <- delim "("
-    a <- term 0
-    optSpaceDelim
-    delim_ ","
-    optSpaceDelim
-    b <- term 0
-    l1 <- delim ")"
-    pure (SigmaVal (l0 + l1) a b)
-
   ||| Parse a Term exactly at level 3
   public export
   term4 : Rule Term
-  term4 = (located head <&> (\(p, x) => App p x []))
+  term4 = (located head <&> (\(p, x) => OpLayer p (ConsB (p, x, []) [])))
       <|> inParentheses (term 0)
-      <|> pair
 
   public export
-  continueEq : (Range, Term) -> Rule Term
-  continueEq a = do
-    spaceDelim
-    delim_ "≡"
-    commit
-    spaceDelim
-    b <- term 3
-    spaceDelim
-    delim_ "∈"
-    spaceDelim
-    ty <- located (term 0)
-    pure (EqTy (fst a + fst ty) (snd a) b (snd ty))
+  simpleExpr : Rule (Range, Head, Elim)
+  simpleExpr =
+    (do
+      (p0, h) <- located head2
+      (p1, es) <- located elim
+      guard "elimination spine must be non-empty" (length es > 0)
+      pure (p0 + p1, h, es)
+    )
+     <|>
+    (located head <&> (\(p, x) => (p, x, [])))
+     <|>
+    (located (inParentheses (term 0)) <&> (\(p, x) => (p, Tm p x, [])))
 
   public export
-  continueExp : (Range, Term) -> Rule Term
-  continueExp (l, a) = do
-    spaceDelim
-    delim_ "→"
-    commit
-    spaceDelim
-    b <- located (term 2)
-    pure (FunTy (l + fst b) a (snd b))
+  simpleExprTerm : Rule Term
+  simpleExprTerm = simpleExpr <&> (\(r, h, e) => OpLayer r (ConsB (r, h, e) []))
 
   public export
-  continueProd : (Range, Term) -> Rule Term
-  continueProd (l, a) = do
+  continueSimpleExpr : AlternatingSnocList True (Range, String) (Range, Head, Elim)
+                    -> Rule (AlternatingSnocList1 False (Range, String) (Range, Head, Elim))
+  continueSimpleExpr list = do
     spaceDelim
-    delim_ "⨯"
-    commit
-    spaceDelim
-    b <- located (term 3)
-    pure (ProdTy (l + fst b) a (snd b))
-
-  ||| Continue an e{≥3}
-  public export
-  continue : (Range, Term) -> Bool -> Rule Term
-  continue lhs True = continueEq lhs <|> continueProd lhs <|> continueExp lhs
-  continue lhs False = continueExp lhs
+    t <- simpleExpr
+    pure (SnocB list t)
 
   public export
-  op : Bool -> Rule Term
-  op both = do
-    a <- located (term3 <|> term4)
-    t <- optional (continue a both)
-    pure (fromMaybe (snd a) t)
+  continueOp : AlternatingSnocList False (Range, String) (Range, Head, Elim)
+            -> Rule (AlternatingSnocList1 True (Range, String) (Range, Head, Elim))
+  continueOp list = do
+    spaceDelim
+    t <- located opIdent
+    pure (SnocA list t)
+
+  mutual
+    public export
+    continueManyTrue : AlternatingSnocList1 True (Range, String) (Range, Head, Elim) ->
+                       Rule (k ** AlternatingSnocList1 k (Range, String) (Range, Head, Elim))
+    continueManyTrue list = do
+      (continueSimpleExpr (forget list) >>= continueManyFalse) <|> pure (_ ** list)
+
+    public export
+    continueManyFalse : AlternatingSnocList1 False (Range, String) (Range, Head, Elim) ->
+                        Rule (k ** AlternatingSnocList1 k (Range, String) (Range, Head, Elim))
+    continueManyFalse list = do
+      (continueOp (forget list) >>= continueManyTrue) <|> pure (_ ** list)
+
+  public export
+  opLayerTrue : Rule (k ** AlternatingSnocList1 k (Range, String) (Range, Head, Elim))
+  opLayerTrue = do
+    s <- located opIdent
+    continueManyTrue (SnocA [<] s)
+
+  public export
+  opLayerFalse : Rule (k ** AlternatingSnocList1 k (Range, String) (Range, Head, Elim))
+  opLayerFalse = do
+    s <- simpleExpr
+    continueManyFalse (SnocB [<] s)
+
+  public export
+  opLayer : Rule (k ** AlternatingSnocList1 k (Range, String) (Range, Head, Elim))
+  opLayer = opLayerFalse <|> opLayerTrue
+
+  public export
+  opLayerTerm : Rule Term
+  opLayerTerm = do
+    (l, t) <- located opLayer
+    pure (OpLayer l (snd $ toList1 $ snd t))
 
   ||| Parse a TypE at level ≥ n
   public export
   term : Level -> Rule Term
-  term 0 = sectionBinder <|> implicitPi <|> piVal <|> implicitPiVal <|> op True
-  term 1 =                                            op True
-  term 2 =                                            op False
-  term 3 =                                            term3 <|> term4
-  term 4 =                                            term4
+  term 0 = sectionBinder <|> implicitPi <|> piVal <|> implicitPiVal <|> opLayerTerm
+  term 1 =                                            opLayerTerm
+  term 2 =                                            simpleExprTerm
+  term 3 =                                            term4
 
 
   public export
@@ -360,7 +374,7 @@ mutual
 
   public export
   termArg1 : Rule (List VarName, Term)
-  termArg1 = (term 4 <&> ([], )) <|> inParentheses termArg0
+  termArg1 = (term 3 <&> ([], )) <|> inParentheses termArg0
 
   public export
   termImplicitArg : Rule ElimEntry
@@ -382,6 +396,7 @@ mutual
   typingSignature : Rule TopLevel
   typingSignature = do
     l <- delim "assume"
+    commit
     spaceDelim
     x <- varName
     spaceDelim
@@ -394,6 +409,7 @@ mutual
   letSignature : Rule TopLevel
   letSignature = do
     l <- delim "let"
+    commit
     spaceDelim
     x <- varName
     spaceDelim
@@ -406,9 +422,71 @@ mutual
     rhs <- located (term 0)
     pure (LetSignature (l + fst rhs) x ty (snd rhs))
 
+  namespace TopLevel
+    public export
+    continueLevel : AlternatingSnocList True String Nat
+                 -> Rule (AlternatingSnocList1 False String Nat)
+    continueLevel list = do
+      spaceDelim
+      delim_ "e"
+      n <- inBraces (delim_ "≥" *> nat)
+      pure (SnocB list n)
+
+    public export
+    continueOp : AlternatingSnocList False String Nat
+              -> Rule (AlternatingSnocList1 True String Nat)
+    continueOp list = do
+      spaceDelim
+      t <- opIdent
+      pure (SnocA list t)
+
+    mutual
+      public export
+      continueManyTrue : AlternatingSnocList1 True String Nat ->
+                         Rule (k ** AlternatingSnocList1 k String Nat)
+      continueManyTrue list = do
+        (continueLevel (forget list) >>= continueManyFalse) <|> pure (_ ** list)
+
+      public export
+      continueManyFalse : AlternatingSnocList1 False String Nat ->
+                          Rule (k ** AlternatingSnocList1 k String Nat)
+      continueManyFalse list = do
+        (continueOp (forget list) >>= continueManyTrue) <|> pure (_ ** list)
+
+  public export
+  opSyntaxTrue : Rule (k ** AlternatingSnocList1 k String Nat)
+  opSyntaxTrue = do
+    s <- opIdent
+    continueManyTrue (SnocA [<] s)
+
+  public export
+  opSyntaxFalse : Rule (k ** AlternatingSnocList1 k String Nat)
+  opSyntaxFalse = do
+    delim_ "e"
+    n <- inBraces (delim_ "≥" *> nat)
+    continueManyFalse (SnocB [<] n)
+
+  public export
+  opSyntax : Rule (k ** AlternatingSnocList1 k String Nat)
+  opSyntax = opSyntaxFalse <|> opSyntaxTrue
+
+  public export
+  syntax : Rule TopLevel
+  syntax = do
+    l <- delim "syntax"
+    commit
+    spaceDelim
+    op <- opSyntax
+    spaceDelim
+    delim_ ":"
+    spaceDelim
+    delim_ "e"
+    n <- located (inBraces nat)
+    pure (Syntax (l + fst n) (MkOperator _ (snd $ toList1 $ snd op) (snd n)))
+
   public export
   topLevel : Rule TopLevel
-  topLevel = typingSignature <|> letSignature
+  topLevel = typingSignature <|> letSignature <|> syntax
 
   public export
   surfaceFile : Rule (List1 TopLevel)

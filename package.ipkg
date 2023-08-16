@@ -6,6 +6,10 @@ modules =
           Data.AVL
         , Data.Location
         , Data.Util
+        , Data.AlternatingList
+        , Data.AlternatingList1
+        , Data.AlternatingSnocList
+        , Data.AlternatingSnocList1
 
         , ETT.Core.Conversion
         , ETT.Core.Evaluation
@@ -21,9 +25,11 @@ modules =
         , ETT.Surface.Check
         , ETT.Surface.Elaboration
         , ETT.Surface.Language
+        , ETT.Surface.Operator
         , ETT.Surface.Parser
         , ETT.Surface.ParserUtil
         , ETT.Surface.SemanticToken
+        , ETT.Surface.Shunting
 
         , ETT.Test.Test
 

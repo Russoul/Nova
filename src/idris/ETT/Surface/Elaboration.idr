@@ -19,9 +19,11 @@ import ETT.Core.Substitution
 import ETT.Core.Unification
 
 import ETT.Surface.Language
+import ETT.Surface.Shunting
+import ETT.Surface.Operator
 
 CoreElem = ETT.Core.Language.D.Elem
-SurfaceTerm = ETT.Surface.Language.Term
+SurfaceTerm = ETT.Surface.Language.OpFreeTerm.OpFreeTerm
 
 public export
 data ElaborationEntry : Type where
@@ -30,7 +32,7 @@ data ElaborationEntry : Type where
   ||| Γ ⊦ ⟦A⟧ ⇝ A' type
   TypeElaboration : Context -> SurfaceTerm -> OmegaName -> ElaborationEntry
   ||| Γ ⊦ (t : T) ⟦ē⟧ ⇝ p : C
-  ElemElimElaboration : Context -> CoreElem -> CoreElem -> Elim -> OmegaName -> CoreElem -> ElaborationEntry
+  ElemElimElaboration : Context -> CoreElem -> CoreElem -> OpFreeElim -> OmegaName -> CoreElem -> ElaborationEntry
 
 partial
 public export
@@ -557,6 +559,8 @@ elabType sig omega ctx (App r (NatBetaS r0) _) meta = M.do
   return (Error "ℕ-β-S is not a type")
 elabType sig omega ctx (App r (PiEq r0) _) meta = M.do
   return (Error "Π⁼ is not a type")
+elabType sig omega ctx (App r (Tm _ tm) []) meta = M.do
+  return (Success omega [TypeElaboration ctx tm meta])
 elabType sig omega ctx (App r (Tm _ tm) es) meta = M.do
   return (Error "_ _ is not a type")
 
@@ -568,7 +572,7 @@ elabElemElimNu : Signature
               -> Context
               -> CoreElem
               -> CoreElem
-              -> Elim
+              -> OpFreeElim
               -> OmegaName
               -> CoreElem
               -> UnifyM Elaboration.Result
@@ -606,7 +610,7 @@ elabElemElim : Signature
             -> Context
             -> CoreElem
             -> CoreElem
-            -> Elim
+            -> OpFreeElim
             -> OmegaName
             -> CoreElem
             -> UnifyM Elaboration.Result
@@ -696,7 +700,7 @@ solve sig omega todo = progressEntriesFixpoint sig omega todo
 public export
 elabTopLevelEntry : Signature
                  -> Omega
-                 -> TopLevel
+                 -> OpFreeTopLevel
                  -> UnifyM (Signature, Omega)
 elabTopLevelEntry sig omega (TypingSignature r x ty) = M.do
   print_ Debug STDOUT "Elaborating \{x}"
@@ -759,9 +763,24 @@ elabTopLevelEntry sig omega (LetSignature r x ty rhs) = M.do
 public export
 elabFile : Signature
         -> Omega
+        -> SnocList Operator
         -> List1 TopLevel
         -> UnifyM (Signature, Omega)
-elabFile sig omega (e ::: []) = elabTopLevelEntry sig omega e
-elabFile sig omega (e ::: e' :: es) = M.do
-  (sig, omega) <- elabTopLevelEntry sig omega e
-  elabFile sig omega (e' ::: es)
+elabFile sig omega ops (Syntax r op ::: []) =
+  return (sig, omega)
+elabFile sig omega ops (TypingSignature r x ty ::: []) = M.do
+  write "Before shunting:\n\{show (TypingSignature r x ty)}"
+  elabTopLevelEntry sig omega !(liftMb "shunting failed" $ shuntTopLevel (cast ops) (TypingSignature r x ty))
+elabFile sig omega ops (LetSignature r x ty rhs ::: []) = M.do
+  write "Before shunting:\n\{show (LetSignature r x ty rhs)}"
+  elabTopLevelEntry sig omega !(liftMb "shunting failed" $ shuntTopLevel (cast ops) (LetSignature r x ty rhs))
+elabFile sig omega ops (Syntax r op ::: e' :: es) = M.do
+  elabFile sig omega (ops :< op) (e' ::: es)
+elabFile sig omega ops (TypingSignature r x ty ::: e' :: es) = M.do
+  write "Before shunting:\n\{show (TypingSignature r x ty)}"
+  (sig, omega) <- elabTopLevelEntry sig omega !(liftMb "shunting failed" $ shuntTopLevel (cast ops) (TypingSignature r x ty))
+  elabFile sig omega ops (e' ::: es)
+elabFile sig omega ops (LetSignature r x ty rhs ::: e' :: es) = M.do
+  write "Before shunting:\n\{show (LetSignature r x ty rhs)}"
+  (sig, omega) <- elabTopLevelEntry sig omega !(liftMb "shunting failed" $ shuntTopLevel (cast ops) (LetSignature r x ty rhs))
+  elabFile sig omega ops (e' ::: es)

@@ -36,6 +36,13 @@ liftM f = M.do
   mapState (const st) (const ()) f
 
 public export
+liftMb : String -> Mb a -> UnifyM a
+liftMb err f = M.do
+ case !(liftM f) of
+   Just x => return x
+   Nothing => throw err
+
+public export
 nextOmegaName : UnifyM OmegaName
 nextOmegaName = M.do
   MkUnifySt idx <- get
