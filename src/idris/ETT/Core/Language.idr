@@ -198,22 +198,6 @@ extend : Signature -> VarName -> SignatureEntry -> Signature
 extend sig x e = sig :< (x, e)
 
 namespace Elem
-  ||| Σ (Γ ⊦ A type) Γ ⊦ A type
-  public export
-  Var : Elem
-  Var = SignatureVarElim 0 Id
-
-  ||| Σ₀ (Γ ⊦ A type) Σ₁ Γ(↑(1 + |Σ₁|)) ⊦ A type
-  public export
-  VarN : Nat -> Elem
-  VarN n = SignatureVarElim n Id
-
-namespace Context
-  public export
-  Var : Context
-  Var = SignatureVarElim 0
-
-namespace Elem
   public export
   CtxVar : Elem
   CtxVar = ContextVarElim 0
@@ -226,10 +210,9 @@ namespace Elem
   SigVarN : Nat -> Elem
   SigVarN n = SignatureVarElim n Id
 
-namespace Context
   public export
-  VarN : Nat -> Context
-  VarN = SignatureVarElim
+  CtxVarN : Nat -> Elem
+  CtxVarN n = ContextVarElim n
 
 namespace Context
   ||| ↑(Γ, Δ) : Γ Δ ⇒ Γ
@@ -266,3 +249,8 @@ public export
 fromRegularContext : SnocList (VarName, Elem) -> Context
 fromRegularContext [<] = Empty
 fromRegularContext (xs :< (x, ty)) = Ext (fromRegularContext xs) x ty
+
+public export
+isImplicitPi : Elem -> Bool
+isImplicitPi (ImplicitPiTy str x y) = True
+isImplicitPi _ = False

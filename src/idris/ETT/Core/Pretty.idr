@@ -165,20 +165,25 @@ localise (xs :< x) (S k) = M.do
 public export
 prettySignatureVar : Signature -> Nat -> M (Doc Ann)
 prettySignatureVar sig i = M.do
-  -- return (annotate SignatureVar (pretty $ "χ" ++ natToSuperscript i))
-  (n, 0) <- localise (map fst sig) i
-    | (n, k) =>
-        return (annotate SignatureVar (pretty n <+> "{" <+> pretty k <+> "}"))
-  return (annotate SignatureVar (pretty n))
+  --
+  case !(try (localise (map fst sig) i)) of
+    Right ok =>
+      case ok of
+        (n, 0) => return (annotate SignatureVar (pretty n))
+        (n, k) => return (annotate SignatureVar (pretty n <+> "{" <+> pretty k <+> "}"))
+    Left _ =>
+      return (annotate Elim (pretty $ "χ" ++ natToSuperscript i ++ " <broken index>"))
 
 public export
 prettyContextVar : SnocList VarName -> Nat -> M (Doc Ann)
-prettyContextVar sig i = M.do
-  -- return (annotate SignatureVar (pretty $ "x" ++ natToSuperscript i))
-  (n, 0) <- localise sig i
-    | (n, k) =>
-        return (annotate ContextVar (pretty n <+> "{" <+> pretty k <+> "}"))
-  return (annotate ContextVar (pretty n))
+prettyContextVar ctx i = M.do
+  case !(try (localise ctx i)) of
+    Right ok =>
+      case ok of
+        (n, 0) => return (annotate SignatureVar (pretty n))
+        (n, k) => return (annotate SignatureVar (pretty n <+> "{" <+> pretty k <+> "}"))
+    Left _ =>
+      return (annotate Elim (pretty $ "x" ++ natToSuperscript i ++ " <broken index>"))
 
 mutual
   public export

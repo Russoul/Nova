@@ -272,11 +272,11 @@ elabElemNu sig omega ctx (App r (NatElim _) (Arg ([x], schema) :: Arg ([], z) ::
   (omega, schema') <- newTypeMeta omega (Ext ctx x NatTy) SolveByElaboration
   (omega, z') <- newElemMeta omega ctx (ContextSubstElim (OmegaVarElim schema' Id) (Ext Id NatVal0)) SolveByElaboration
   (omega, s') <- newElemMeta omega (Ext (Ext ctx y NatTy) h (OmegaVarElim schema' Id))
-                                  (ContextSubstElim (OmegaVarElim schema' Id) (Ext (WkN 2) (NatVal1 (VarN 1)))) SolveByElaboration
+                                  (ContextSubstElim (OmegaVarElim schema' Id) (Ext (WkN 2) (NatVal1 (CtxVarN 1)))) SolveByElaboration
   (omega, t') <- newElemMeta omega ctx NatTy SolveByElaboration
   return (Success omega [TypeElaboration (Ext ctx x NatTy) schema schema',
                          ElemElaboration ctx z z' (ContextSubstElim (OmegaVarElim schema' Id) (Ext Id NatVal0)),
-                         ElemElaboration (Ext (Ext ctx y NatTy) h (OmegaVarElim schema' Id)) s s' (ContextSubstElim (OmegaVarElim schema' Id) (Ext (WkN 2) (NatVal1 (VarN 1)))),
+                         ElemElaboration (Ext (Ext ctx y NatTy) h (OmegaVarElim schema' Id)) s s' (ContextSubstElim (OmegaVarElim schema' Id) (Ext (WkN 2) (NatVal1 (CtxVarN 1)))),
                          ElemElaboration ctx t t' NatTy,
                          ElemElimElaboration ctx (NatElim x (OmegaVarElim schema' Id) (OmegaVarElim z' Id) y h (OmegaVarElim s' Id) (OmegaVarElim t' Id)) (OmegaVarElim schema' (Ext Id (OmegaVarElim t' Id))) es meta ty])
 elabElemNu sig omega ctx (App r (NatElim _) _) meta ty =
@@ -285,11 +285,11 @@ elabElemNu sig omega ctx (App _ (EqElim _) (Arg ([x, h], schema) :: Arg ([], r) 
   (omega, t') <- newTypeMeta omega ctx SolveByUnification
   (omega, a') <- newElemMeta omega ctx (OmegaVarElim t' Id) SolveByUnification
   (omega, b') <- newElemMeta omega ctx (OmegaVarElim t' Id) SolveByUnification
-  (omega, schema') <- newTypeMeta omega (Ext (Ext ctx x (OmegaVarElim t' Id)) h (EqTy (ContextSubstElim (OmegaVarElim a' Id) Wk) Var (ContextSubstElim (OmegaVarElim t' Id) Wk))) SolveByElaboration
+  (omega, schema') <- newTypeMeta omega (Ext (Ext ctx x (OmegaVarElim t' Id)) h (EqTy (ContextSubstElim (OmegaVarElim a' Id) Wk) CtxVar (ContextSubstElim (OmegaVarElim t' Id) Wk))) SolveByElaboration
   (omega, r') <- newElemMeta omega ctx (OmegaVarElim schema' (Ext (Ext Id (OmegaVarElim a' Id)) EqVal)) SolveByElaboration
   (omega, e') <- newElemMeta omega ctx (EqTy (OmegaVarElim a' Id) (OmegaVarElim b' Id) (OmegaVarElim t' Id)) SolveByElaboration
   return (Success omega [ElemElaboration ctx e e' (EqTy (OmegaVarElim a' Id) (OmegaVarElim b' Id) (OmegaVarElim t' Id)),
-                         TypeElaboration (Ext (Ext ctx x (OmegaVarElim t' Id)) h (EqTy (ContextSubstElim (OmegaVarElim a' Id) Wk) Var (ContextSubstElim (OmegaVarElim t' Id) Wk))) schema schema',
+                         TypeElaboration (Ext (Ext ctx x (OmegaVarElim t' Id)) h (EqTy (ContextSubstElim (OmegaVarElim a' Id) Wk) CtxVar (ContextSubstElim (OmegaVarElim t' Id) Wk))) schema schema',
                          ElemElaboration ctx r r' (OmegaVarElim schema' (Ext (Ext Id (OmegaVarElim a' Id)) EqVal)),
                          ElemElimElaboration ctx (OmegaVarElim r' Id) (OmegaVarElim schema' (Ext (Ext Id (OmegaVarElim b' Id)) (OmegaVarElim e' Id))) es meta ty])
 elabElemNu sig omega ctx (App r (EqElim x) _) meta ty =
@@ -389,10 +389,10 @@ elabElemNu sig omega ctx (App r (NatBetaZ r0) (Arg ([x], schema) :: Arg ([], z) 
   (omega, schema') <- newTypeMeta omega (Ext ctx x NatTy) SolveByElaboration
   (omega, z') <- newElemMeta omega ctx (ContextSubstElim (OmegaVarElim schema' Id) (Ext Id NatVal0)) SolveByElaboration
   (omega, s') <- newElemMeta omega (Ext (Ext ctx y NatTy) h (OmegaVarElim schema' Id))
-                                  (ContextSubstElim (OmegaVarElim schema' Id) (Ext (WkN 2) (NatVal1 (VarN 1)))) SolveByElaboration
+                                  (ContextSubstElim (OmegaVarElim schema' Id) (Ext (WkN 2) (NatVal1 (CtxVarN 1)))) SolveByElaboration
   return (Success omega [TypeElaboration (Ext ctx x NatTy) schema schema',
                          ElemElaboration ctx z z' (ContextSubstElim (OmegaVarElim schema' Id) (Ext Id NatVal0)),
-                         ElemElaboration (Ext (Ext ctx y NatTy) h (OmegaVarElim schema' Id)) s s' (ContextSubstElim (OmegaVarElim schema' Id) (Ext (WkN 2) (NatVal1 (VarN 1)))),
+                         ElemElaboration (Ext (Ext ctx y NatTy) h (OmegaVarElim schema' Id)) s s' (ContextSubstElim (OmegaVarElim schema' Id) (Ext (WkN 2) (NatVal1 (CtxVarN 1)))),
                          ElemElimElaboration ctx EqVal (EqTy (NatElim x (OmegaVarElim schema' Id) (OmegaVarElim z' Id) y h (OmegaVarElim s' Id) NatVal0) (OmegaVarElim z' Id) (OmegaVarElim schema' (Ext Id NatVal0))) [] meta ty])
 elabElemNu sig omega ctx (App r (NatBetaZ r0) _) meta ty =
   return (Error "ℕ-β-Z applied to a wrong number of arguments")
@@ -401,11 +401,11 @@ elabElemNu sig omega ctx (App r (NatBetaS r0) [Arg ([x], schema), Arg ([], z), A
   (omega, schema') <- newTypeMeta omega (Ext ctx x NatTy) SolveByElaboration
   (omega, z') <- newElemMeta omega ctx (ContextSubstElim (OmegaVarElim schema' Id) (Ext Id NatVal0)) SolveByElaboration
   (omega, s') <- newElemMeta omega (Ext (Ext ctx y NatTy) h (OmegaVarElim schema' Id))
-                                  (ContextSubstElim (OmegaVarElim schema' Id) (Ext (WkN 2) (NatVal1 (VarN 1)))) SolveByElaboration
+                                  (ContextSubstElim (OmegaVarElim schema' Id) (Ext (WkN 2) (NatVal1 (CtxVarN 1)))) SolveByElaboration
   (omega, t') <- newElemMeta omega ctx NatTy SolveByElaboration
   return (Success omega [TypeElaboration (Ext ctx x NatTy) schema schema',
                          ElemElaboration ctx z z' (ContextSubstElim (OmegaVarElim schema' Id) (Ext Id NatVal0)),
-                         ElemElaboration (Ext (Ext ctx y NatTy) h (OmegaVarElim schema' Id)) s s' (ContextSubstElim (OmegaVarElim schema' Id) (Ext (WkN 2) (NatVal1 (VarN 1)))),
+                         ElemElaboration (Ext (Ext ctx y NatTy) h (OmegaVarElim schema' Id)) s s' (ContextSubstElim (OmegaVarElim schema' Id) (Ext (WkN 2) (NatVal1 (CtxVarN 1)))),
                          ElemElaboration ctx t t' NatTy,
                          ElemElimElaboration ctx EqVal (EqTy (NatElim x (OmegaVarElim schema' Id) (OmegaVarElim z' Id) y h (OmegaVarElim s' Id) (NatVal1 (OmegaVarElim t' Id))) (OmegaVarElim s' (Ext (Ext Id (OmegaVarElim t' Id)) (NatElim x (OmegaVarElim schema' Id) (OmegaVarElim z' Id) y h (OmegaVarElim s' Id) (OmegaVarElim t' Id)))) (OmegaVarElim schema' (Ext Id (NatVal1 (OmegaVarElim t' Id))))) [] meta ty])
 elabElemNu sig omega ctx (App r (NatBetaS r0) _) meta ty =
@@ -576,14 +576,6 @@ elabElemElimNu : Signature
               -> OmegaName
               -> CoreElem
               -> UnifyM Elaboration.Result
-elabElemElimNu sig omega ctx head headTy [] meta ty = M.do
-  omega <- addConstraint omega (TypeConstraint ctx headTy ty)
-  let omega = instantiateByElaboration omega meta head
-  return (Success omega [])
-elabElemElimNu sig omega ctx head (PiTy x dom cod) (Arg ([], e) :: es) meta ty = M.do
-  (omega, e') <- newElemMeta omega ctx dom SolveByElaboration
-  return (Success omega [ElemElaboration ctx e e' dom,
-                         ElemElimElaboration ctx (PiElim head x dom cod (OmegaVarElim e' Id)) (ContextSubstElim cod (Ext Id (OmegaVarElim e' Id))) es meta ty])
 elabElemElimNu sig omega ctx head (ImplicitPiTy x dom cod) (ImplicitArg e :: es) meta ty = M.do
   (omega, e') <- newElemMeta omega ctx dom SolveByElaboration
   return (Success omega [ElemElaboration ctx e e' dom,
@@ -591,6 +583,18 @@ elabElemElimNu sig omega ctx head (ImplicitPiTy x dom cod) (ImplicitArg e :: es)
 elabElemElimNu sig omega ctx head (ImplicitPiTy x dom cod) es meta ty = M.do
   (omega, e') <- newElemMeta omega ctx dom SolveByUnification
   return (Success omega [ElemElimElaboration ctx (ImplicitPiElim head x dom cod (OmegaVarElim e' Id)) (ContextSubstElim cod (Ext Id (OmegaVarElim e' Id))) es meta ty])
+elabElemElimNu sig omega ctx head headTy [] meta ty = M.do
+  -- We have to make sure that the head is is rigid (so that it can't become {_ : _} → _ later)
+  case !(liftM (isRigid sig omega headTy)) of
+    True => M.do
+      omega <- addConstraint omega (TypeConstraint ctx headTy ty)
+      let omega = instantiateByElaboration omega meta head
+      return (Success omega [])
+    False => return (Stuck "Head type is not rigid; headTy: \{renderDocTerm !(liftM $ prettyElem sig omega (map fst (tail ctx)) headTy 0)}; expectedTy: \{renderDocTerm !(liftM $ prettyElem sig omega (map fst (tail ctx)) ty 0)}")
+elabElemElimNu sig omega ctx head (PiTy x dom cod) (Arg ([], e) :: es) meta ty = M.do
+  (omega, e') <- newElemMeta omega ctx dom SolveByElaboration
+  return (Success omega [ElemElaboration ctx e e' dom,
+                         ElemElimElaboration ctx (PiElim head x dom cod (OmegaVarElim e' Id)) (ContextSubstElim cod (Ext Id (OmegaVarElim e' Id))) es meta ty])
 elabElemElimNu sig omega ctx head (SigmaTy x dom cod) (Pi1 :: es) meta ty = M.do
   return (Success omega [ElemElimElaboration ctx (SigmaElim1 head x dom cod) dom es meta ty])
 elabElemElimNu sig omega ctx head (SigmaTy x dom cod) (Pi2 :: es) meta ty = M.do
@@ -600,8 +604,8 @@ elabElemElimNu sig omega ctx head (SigmaTy x dom cod) (Pi2 :: es) meta ty = M.do
   (omega, cod) <- newTypeMeta omega (Ext ctx "_" (OmegaVarElim dom Id)) SolveByUnification
   omega <- addConstraint omega (TypeConstraint ctx headTy (PiTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id)))
   return (Success omega [ElemElimElaboration ctx head (PiTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id)) args meta ty]) -}
-elabElemElimNu sig omega ctx head headTy (_ :: es) meta ty =
-  return (Stuck "Waiting on head, head: \{renderDocTerm !(liftM $ prettyElem sig omega (map fst (tail ctx)) head 0)}; headTy: \{renderDocTerm !(liftM $ prettyElem sig omega (map fst (tail ctx)) headTy 0)}")
+elabElemElimNu sig omega ctx head headTy elim meta ty =
+  return (Stuck "Waiting on head, head: \{renderDocTerm !(liftM $ prettyElem sig omega (map fst (tail ctx)) head 0)}; headTy: \{renderDocTerm !(liftM $ prettyElem sig omega (map fst (tail ctx)) headTy 0)}; elim: \{show elim}")
 
 ||| Σ Ω Γ ⊦ (t : T) ⟦ē⟧ ⇝ t' : A
 public export
@@ -614,7 +618,7 @@ elabElemElim : Signature
             -> OmegaName
             -> CoreElem
             -> UnifyM Elaboration.Result
-elabElemElim sig omega ctx head headTy es p ty = elabElemElimNu sig omega ctx head !(liftM $ openEval sig omega headTy) es p ty
+elabElemElim sig omega ctx head headTy es p ty = elabElemElimNu sig omega ctx head !(liftM $ openEval sig omega headTy) es p !(liftM $ openEval sig omega ty)
 
 public export
 elabEntry : Signature
@@ -769,18 +773,18 @@ elabFile : Signature
 elabFile sig omega ops (Syntax r op ::: []) =
   return (sig, omega)
 elabFile sig omega ops (TypingSignature r x ty ::: []) = M.do
-  write "Before shunting:\n\{show (TypingSignature r x ty)}"
-  elabTopLevelEntry sig omega !(liftMb "shunting failed" $ shuntTopLevel (cast ops) (TypingSignature r x ty))
+  -- write "Before shunting:\n\{show (TypingSignature r x ty)}"
+  elabTopLevelEntry sig omega !(liftMEither $ shuntTopLevel (cast ops) (TypingSignature r x ty))
 elabFile sig omega ops (LetSignature r x ty rhs ::: []) = M.do
-  write "Before shunting:\n\{show (LetSignature r x ty rhs)}"
-  elabTopLevelEntry sig omega !(liftMb "shunting failed" $ shuntTopLevel (cast ops) (LetSignature r x ty rhs))
+  -- write "Before shunting:\n\{show (LetSignature r x ty rhs)}"
+  elabTopLevelEntry sig omega !(liftMEither $ shuntTopLevel (cast ops) (LetSignature r x ty rhs))
 elabFile sig omega ops (Syntax r op ::: e' :: es) = M.do
   elabFile sig omega (ops :< op) (e' ::: es)
 elabFile sig omega ops (TypingSignature r x ty ::: e' :: es) = M.do
-  write "Before shunting:\n\{show (TypingSignature r x ty)}"
-  (sig, omega) <- elabTopLevelEntry sig omega !(liftMb "shunting failed" $ shuntTopLevel (cast ops) (TypingSignature r x ty))
+  -- write "Before shunting:\n\{show (TypingSignature r x ty)}"
+  (sig, omega) <- elabTopLevelEntry sig omega !(liftMEither $ shuntTopLevel (cast ops) (TypingSignature r x ty))
   elabFile sig omega ops (e' ::: es)
 elabFile sig omega ops (LetSignature r x ty rhs ::: e' :: es) = M.do
-  write "Before shunting:\n\{show (LetSignature r x ty rhs)}"
-  (sig, omega) <- elabTopLevelEntry sig omega !(liftMb "shunting failed" $ shuntTopLevel (cast ops) (LetSignature r x ty rhs))
+  -- write "Before shunting:\n\{show (LetSignature r x ty rhs)}"
+  (sig, omega) <- elabTopLevelEntry sig omega !(liftMEither $ shuntTopLevel (cast ops) (LetSignature r x ty rhs))
   elabFile sig omega ops (e' ::: es)

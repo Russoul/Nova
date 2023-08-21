@@ -13,47 +13,6 @@ import ETT.Core.Monad
 import ETT.Surface.Language
 import ETT.Surface.Operator
 
--- 5 + 5
--- a + b + c + d
-
--- *) a/5, (b + c + d)/5
--- *) (a + b)/5, (c + d)/5
--- *) (a + b + c)/5, d/5
-
--- 5 + 5 + 5
--- a + b + c + d
-
--- *) a/5, (b + c + d)/(5 + 5)
---    *) a/5, b/5, (c + d)/5
---    *) a/5, (b + c)/5, d/5
--- *) (a + b)/5, (c + d)/(5 + 5)
---    *) (a + b)/5, c/5, d/5
--- *) (a + b + c)/5, d/(5 + 5)
---    (a + b + c)/5, ∅
-
--- - 2
-
--- - x + if x then - x else - 2
-
--- if 2 then 2
-
--- if x then true else if x then false else true
-
--- 2 then
-
--- (x) then (true else if x then false else true)
--- (x then true else if x) then (false else true)
-
-
-
--- op ...
-
--- app []
-
--- app op ...
-
--- []
-
 ||| Match the given alternating list *layer* against the *op*, generating all possible splits of *layer* by *op*.
 ||| Initial value of *before* is empty.
 ||| Example1:
@@ -105,12 +64,14 @@ getRange (ConsB (r, x) []) = r
 getRange (ConsA (r, x) (ConsB y zs)) = r + getRange (ConsB y zs)
 getRange (ConsB (r, x) (ConsA y zs)) = r + getRange (ConsA y zs)
 
-processApp : Range -> String -> List OpFreeTerm -> Mb OpFreeTerm
-processApp r "_≡_∈_" [a, b, ty] = return (EqTy r a b ty)
-processApp r "_⨯_" [a, b] = return (ProdTy r a b)
-processApp r "_,_" [a, b] = return (SigmaVal r a b)
-processApp r "_→_" [a, b] = return (FunTy r a b)
-processApp r op list = return (App r (Var r op) (map (\t => Arg ([], t)) list))
+||| Preprocess builtin operators: we want to map specific applications to
+||| builtin operators.
+processApp : Range -> String -> List OpFreeTerm -> OpFreeTerm
+processApp r "_≡_∈_" [a, b, ty] = EqTy r a b ty
+processApp r "_⨯_" [a, b] = ProdTy r a b
+processApp r "_,_" [a, b] = SigmaVal r a b
+processApp r "_→_" [a, b] = FunTy r a b
+processApp r op list = App r (Var r op) (map (\t => Arg ([], t)) list)
 
 mutual
   ||| Try shunting the *layer* via the given operator at specified *lvl* by generating all possible
@@ -122,63 +83,63 @@ mutual
        -> Range
        -> (layer : AlternatingList k1 (Range, String) (Range, Head, Elim))
        -> Nat
-       -> Mb OpFreeTerm
+       -> MEither String OpFreeTerm
   tryOp ops op@(MkOperator k seq oplvl) range layer lvl = M.do
     case (oplvl >= lvl) of
-      False => nothing
+      False => error "\{toName op}'s level is \{show oplvl} but the target lvl is ≥\{show lvl}"
       True => M.do
         r <- forList (match (forget seq) layer) $ \list => M.do
           forList list $ \(n, layer) =>
             case layer of
               (_ ** []) => M.do
-                M.return Nothing
+                M.return (Left "Nothing to parse at target level \{show n}")
               (_ ** ConsA x smth) => shunt ops (OpLayer (getRange (ConsA x smth)) (ConsA x smth)) n
               (_ ** ConsB x smth) => shunt ops (OpLayer (getRange (ConsB x smth)) (ConsB x smth)) n
-        write "Trying op:"
+        {- write "Trying op:"
         write (toName op)
-        write "\{show r}"
+        write "\{show r}" -}
         let r = map sequence r
-        write "\{show r}"
-        let Just r = exactlyOne r
-             | Nothing => nothing
-        write "\{show r}"
-        processApp range (toName op) r
+        -- write "\{show r}"
+        let Right r = exactlyOne r
+             | Left err => error err
+        -- write "\{show r}"
+        return $ Right $ processApp range (toName op) r
    where
-    none : List (Maybe a) -> Bool
+    none : List (Either String a) -> Bool
     none [] = True
-    none (Nothing :: rest) = none rest
-    none (Just _ :: rest) = False
+    none (Left err :: rest) = none rest
+    none (Right x :: rest) = False
 
-    exactlyOne : List (Maybe a) -> Maybe a
-    exactlyOne [] = Nothing
-    exactlyOne (Just x :: rest) =
+    exactlyOne : List (Either String a) -> Either String a
+    exactlyOne [] = Left "No alternatives work"
+    exactlyOne (Right x :: rest) =
       case none rest of
-        True => Just x
-        False => Nothing
-    exactlyOne (Nothing :: rest) = exactlyOne rest
+        True => Right x
+        False => Left "Multiple alternatives pass through"
+    exactlyOne (Left err :: rest) = exactlyOne rest
 
   public export
-  shuntElimEntry : List Operator -> ElimEntry -> Mb OpFreeElimEntry
-  shuntElimEntry ops (Arg (xs, t)) = Mb.do
+  shuntElimEntry : List Operator -> ElimEntry -> MEither String OpFreeElimEntry
+  shuntElimEntry ops (Arg (xs, t)) = MEither.do
     return (Arg (xs, !(shunt ops t 0)))
-  shuntElimEntry ops Pi1 = Mb.do
+  shuntElimEntry ops Pi1 = MEither.do
     return Pi1
-  shuntElimEntry ops Pi2 = Mb.do
+  shuntElimEntry ops Pi2 = MEither.do
     return Pi2
-  shuntElimEntry ops (ImplicitArg t) = Mb.do
+  shuntElimEntry ops (ImplicitArg t) = MEither.do
     return (ImplicitArg !(shunt ops t 0))
 
   public export
-  shuntElim : List Operator -> Elim -> Mb OpFreeElim
-  shuntElim ops [] = Mb.do
+  shuntElim : List Operator -> Elim -> MEither String OpFreeElim
+  shuntElim ops [] = MEither.do
     return []
-  shuntElim ops (e :: es) = Mb.do
+  shuntElim ops (e :: es) = MEither.do
     e <- shuntElimEntry ops e
     es <- shuntElim ops es
     return (e :: es)
 
   public export
-  shuntHead : List Operator -> Head -> Mb OpFreeHead
+  shuntHead : List Operator -> Head -> MEither String OpFreeHead
   shuntHead ops (Var x str) = return (Var x str)
   shuntHead ops (NatVal0 x) = return (NatVal0 x)
   shuntHead ops (NatVal1 x) = return (NatVal1 x)
@@ -195,51 +156,51 @@ mutual
   shuntHead ops (NatBetaZ x) = return (NatBetaZ x)
   shuntHead ops (NatBetaS x) = return (NatBetaS x)
   shuntHead ops (PiEq x) = return (PiEq x)
-  shuntHead ops (Tm r tm) = Mb.do
+  shuntHead ops (Tm r tm) = MEither.do
     return (Tm r !(shunt ops tm 0))
 
   ||| Shunt the given term at the specified *lvl*.
   public export
-  shunt : List Operator -> Term -> (lvl : Nat) -> Mb OpFreeTerm
-  shunt ops (PiTy r x dom cod) lvl = Mb.do
+  shunt : List Operator -> Term -> (lvl : Nat) -> MEither String OpFreeTerm
+  shunt ops (PiTy r x dom cod) lvl = MEither.do
     case (lvl > 0) of
-      True => nothing
-      False => Mb.do
+      True => error "Can't parse (_ : _) → _ at level \{show lvl}"
+      False => MEither.do
        dom <- shunt ops dom 0
        cod <- shunt ops cod 0
        return (PiTy r x dom cod)
-  shunt ops (ImplicitPiTy r x dom cod) lvl = Mb.do
+  shunt ops (ImplicitPiTy r x dom cod) lvl = MEither.do
     case (lvl > 0) of
-      True => nothing
-      False => Mb.do
+      True => error "Can't parse {_ : _} → _ at level \{show lvl}"
+      False => MEither.do
         dom <- shunt ops dom 0
         cod <- shunt ops cod 0
         return (ImplicitPiTy r x dom cod)
-  shunt ops (SigmaTy r x dom cod) lvl = Mb.do
+  shunt ops (SigmaTy r x dom cod) lvl = MEither.do
     case (lvl > 0) of
-      True => nothing
-      False => Mb.do
+      True => error "Can't parse (_ : _) ⨯ _ at level \{show lvl}"
+      False => MEither.do
        dom <- shunt ops dom 0
        cod <- shunt ops cod 0
        return (SigmaTy r x dom cod)
-  shunt ops (PiVal r x f) lvl = Mb.do
+  shunt ops (PiVal r x f) lvl = MEither.do
     case (lvl > 0) of
-      True => nothing
-      False => Mb.do
+      True => error "Can't parse _ ↦ _ at level \{show lvl}"
+      False => MEither.do
        f <- shunt ops f 0
        return (PiVal r x f)
-  shunt ops (ImplicitPiVal r x f) lvl = Mb.do
+  shunt ops (ImplicitPiVal r x f) lvl = MEither.do
     case (lvl > 0) of
-      True => nothing
-      False => Mb.do
+      True => error "Can't parse {_} ↦ _ at level \{show lvl}"
+      False => MEither.do
        f <- shunt ops f 0
        return (ImplicitPiVal r x f)
-  shunt ops (OpLayer r (ConsB (r0, head, elim) [])) lvl = Mb.do
+  shunt ops (OpLayer r (ConsB (r0, head, elim) [])) lvl = MEither.do
     return (App r0 !(shuntHead ops head) !(shuntElim ops elim))
-  shunt ops (OpLayer r (ConsA (_, op) [])) lvl = Mb.do
+  shunt ops (OpLayer r (ConsA (_, op) [])) lvl = MEither.do
     return (App r (Var r op) [])
-  shunt ops (OpLayer r layer) lvl = Mb.do
-    liftM $ write "ops: \{show (map toName ops)}"
+  shunt ops (OpLayer r layer) lvl = MEither.do
+    -- liftM $ write "ops: \{show (map toName ops)}"
     -- Shunt the *layer* at specified level by trying each operator from *ops* and making
     -- sure exactly one gets through.
     exactlyOne ops
@@ -248,27 +209,26 @@ mutual
     none [] = return True
     none (o :: os) = M.do
       case !(tryOp ops o r (forget layer) lvl) of
-        Nothing => none os
-        Just r => return False
+        Left err => none os
+        Right r => return False
 
-    exactlyOne : List Operator -> Mb OpFreeTerm
-    exactlyOne [] = nothing
+    exactlyOne : List Operator -> MEither String OpFreeTerm
+    exactlyOne [] = error "No operators left to try"
     exactlyOne (o :: os) = M.do
       case !(tryOp ops o r (forget layer) lvl) of
-        Nothing => exactlyOne os
-        Just r => M.do
+        Left err => exactlyOne os
+        Right r => M.do
           True <- none os
-            | False => nothing
-          return (Just r)
+            | False => error "Multiple alternatives pass through"
+          return (Right r)
 
   public export
-  shuntTopLevel : List Operator -> TopLevel -> Mb OpFreeTopLevel
-  shuntTopLevel ops (TypingSignature r x ty) = Mb.do
+  shuntTopLevel : List Operator -> TopLevel -> MEither String OpFreeTopLevel
+  shuntTopLevel ops (TypingSignature r x ty) = MEither.do
     ty <- shunt ops ty 0
     return (TypingSignature r x ty)
-  shuntTopLevel ops (LetSignature r x ty rhs) = Mb.do
+  shuntTopLevel ops (LetSignature r x ty rhs) = MEither.do
     ty <- shunt ops ty 0
     rhs <- shunt ops rhs 0
     return (LetSignature r x ty rhs)
-  shuntTopLevel ops (Syntax x y) = nothing
-
+  shuntTopLevel ops (Syntax x y) = error "Trying to shunt a syntax definition"

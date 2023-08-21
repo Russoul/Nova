@@ -5,12 +5,17 @@ import Data.SnocList
 import Data.Util
 import Data.Maybe
 import Data.AVL
+import Data.Fin
 
+import Text.PrettyPrint.Prettyprinter.Render.Terminal
+import Text.PrettyPrint.Prettyprinter
+
+import ETT.Core.Evaluation
 import ETT.Core.Language
 import ETT.Core.Monad
-import ETT.Core.Substitution
-import ETT.Core.Evaluation
+import ETT.Core.Pretty
 import ETT.Core.Shrinking
+import ETT.Core.Substitution
 
 
 -- Unification is performed relative to a sub-relation of definitional equality:
@@ -41,6 +46,13 @@ liftMb err f = M.do
  case !(liftM f) of
    Just x => return x
    Nothing => throw err
+
+public export
+liftMEither : MEither String a -> UnifyM a
+liftMEither f = M.do
+ case !(liftM f) of
+   Right x => return x
+   Left err => throw err
 
 public export
 nextOmegaName : UnifyM OmegaName
@@ -586,7 +598,7 @@ namespace Elem
   unifyElemNu sig cs ctx (NatElim x0 schema0 z0 y0 h0 s0 t0) (NatElim x1 schema1 z1 y1 h1 s1 t1) ty = M.do
     return (Success [  TypeConstraint (Ext ctx x0 NatTy) schema0 schema1,
                        ElemConstraint ctx z0 z1 (ContextSubstElim schema0 (Ext Id NatVal0)),
-                       ElemConstraint (Ext (Ext ctx y0 NatTy) h0 schema0) s0 s1 (ContextSubstElim schema0 (Ext (WkN 2) (NatVal1 (VarN 1)))),
+                       ElemConstraint (Ext (Ext ctx y0 NatTy) h0 schema0) s0 s1 (ContextSubstElim schema0 (Ext (WkN 2) (NatVal1 (CtxVarN 1)))),
                        ElemConstraint ctx t0 t1 NatTy] [])
 
   unifyElemNu sig cs ctx (NatElim x0 schema0 z0 y0 h0 s0 t0) b ty = M.do
@@ -723,7 +735,7 @@ namespace Type'
                     []
            )
   unifyTypeNu sig cs ctx (ImplicitPiTy x0 dom0 cod0) b = M.do
-    return (Disunifier "Πⁱ vs something else rigid")
+    return (Disunifier "Πⁱ vs something else rigid: \{renderDocTerm !(prettyElem sig cs (map fst (tail ctx)) b 0)}")
   unifyTypeNu sig cs ctx (SigmaTy x0 dom0 cod0) (SigmaTy x1 dom1 cod1) = FailSt.do
     return (Success [ TypeConstraint ctx dom0 dom1
                     , TypeConstraint (Ext ctx x0 dom0) cod0 cod1

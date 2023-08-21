@@ -325,7 +325,7 @@ mutual
       ||| σ⁺(Γ ⊦ A = B type) : Σ₀ (Γ(σ) ⊦ A(σ) = B(σ) type) ⇒ Σ₁ (Γ ⊦ A = B type)
       public export
       Under : SubstSignature -> SignatureEntry -> SubstSignature
-      Under sigma CtxEntry = Ext (Chain sigma Wk) (CtxEntryInstance Var)
+      Under sigma CtxEntry = Ext (Chain sigma Wk) (CtxEntryInstance (SignatureVarElim 0))
       Under sigma (TypeEntry ctx) =
         Ext (Chain sigma Wk) (TypeEntryInstance $ SignatureVarElim 0 Id)
       Under sigma (ElemEntry ctx ty) =
