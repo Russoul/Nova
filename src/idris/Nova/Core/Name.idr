@@ -1,4 +1,4 @@
-module ETT.Core.Name
+module Nova.Core.Name
 
 ||| Name in a (local) context Γ.
 public export

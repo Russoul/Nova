@@ -1,9 +1,9 @@
-module ETT.Core.Conversion
+module Nova.Core.Conversion
 
-import ETT.Core.Language
-import ETT.Core.Monad
-import ETT.Core.Substitution
-import ETT.Core.Evaluation
+import Nova.Core.Language
+import Nova.Core.Monad
+import Nova.Core.Substitution
+import Nova.Core.Evaluation
 
 -- Checking equality of terms modulo substitution rules
 

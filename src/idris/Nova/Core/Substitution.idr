@@ -1,10 +1,10 @@
-module ETT.Core.Substitution
+module Nova.Core.Substitution
 
 import Data.List
 import Data.SnocList
 import Data.AVL
 
-import ETT.Core.Language
+import Nova.Core.Language
 
 mutual
   namespace A

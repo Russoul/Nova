@@ -1,11 +1,11 @@
-module ETT.Core.Evaluation
+module Nova.Core.Evaluation
 
 import Data.Util
 import Data.AVL
 
-import ETT.Core.Monad
-import ETT.Core.Language
-import ETT.Core.Substitution
+import Nova.Core.Monad
+import Nova.Core.Language
+import Nova.Core.Substitution
 
 -- Closed term evaluation
 

@@ -1,11 +1,11 @@
-module ETT.Core.Shrinking
+module Nova.Core.Shrinking
 
 import Data.List
 import Data.SnocList
 
-import ETT.Core.Monad
-import ETT.Core.Language
-import ETT.Core.Substitution
+import Nova.Core.Monad
+import Nova.Core.Language
+import Nova.Core.Substitution
 
 mutual
   namespace SubstContextNF

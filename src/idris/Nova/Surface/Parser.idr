@@ -1,4 +1,4 @@
-module ETT.Surface.Parser
+module Nova.Surface.Parser
 
 import Data.Fin
 import Data.Maybe
@@ -17,12 +17,12 @@ import Data.Util
 
 import Data.Location
 
-import ETT.Core.Name
+import Nova.Core.Name
 
-import ETT.Surface.SemanticToken
-import ETT.Surface.Language
-import ETT.Surface.ParserUtil
-import ETT.Surface.Operator
+import Nova.Surface.SemanticToken
+import Nova.Surface.Language
+import Nova.Surface.ParserUtil
+import Nova.Surface.Operator
 
 import Data.List.Elem
 

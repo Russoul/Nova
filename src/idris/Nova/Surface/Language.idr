@@ -1,12 +1,12 @@
-module ETT.Surface.Language
+module Nova.Surface.Language
 
 import Data.Location
 import Data.List1
 import Data.AlternatingList
 import Data.AlternatingList1
 
-import ETT.Core.Name
-import ETT.Surface.Operator
+import Nova.Core.Name
+import Nova.Surface.Operator
 
 -- h ::= Z | Refl | x | S | ℕ-elim | J | ℕ | 𝕌 | !x | ?x | Π-β | Π-η | Π⁼ | ℕ-β-Z | ℕ-β-S
 

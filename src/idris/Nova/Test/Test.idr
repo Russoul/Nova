@@ -1,4 +1,4 @@
-module ETT.Test.Test
+module Nova.Test.Test
 
 import Data.String
 import Data.AVL
@@ -12,18 +12,18 @@ import Text.Parser.Fork
 import Text.PrettyPrint.Prettyprinter.Render.Terminal
 import Text.PrettyPrint.Prettyprinter
 
-import ETT.Core.Language
-import ETT.Core.Monad
-import ETT.Core.Substitution
-import ETT.Core.Unification
-import ETT.Core.Pretty
+import Nova.Core.Language
+import Nova.Core.Monad
+import Nova.Core.Substitution
+import Nova.Core.Unification
+import Nova.Core.Pretty
 
-import ETT.Surface.SemanticToken
-import ETT.Surface.Language
-import ETT.Surface.ParserUtil
-import ETT.Surface.Parser
-import ETT.Surface.Elaboration
-import ETT.Surface.Operator
+import Nova.Surface.SemanticToken
+import Nova.Surface.Language
+import Nova.Surface.ParserUtil
+import Nova.Surface.Parser
+import Nova.Surface.Elaboration
+import Nova.Surface.Operator
 
 {- runAssistant : Signature -> M ()
 runAssistant sig = M.do

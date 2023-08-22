@@ -1,4 +1,4 @@
-module ETT.Surface.Elaboration
+module Nova.Surface.Elaboration
 
 import Data.AVL
 import Data.List
@@ -9,21 +9,21 @@ import Data.Fin
 import Text.PrettyPrint.Prettyprinter.Render.Terminal
 import Text.PrettyPrint.Prettyprinter
 
-import ETT.Core.Conversion
-import ETT.Core.Evaluation
-import ETT.Core.Language
-import ETT.Core.Monad
-import ETT.Core.Name
-import ETT.Core.Pretty
-import ETT.Core.Substitution
-import ETT.Core.Unification
+import Nova.Core.Conversion
+import Nova.Core.Evaluation
+import Nova.Core.Language
+import Nova.Core.Monad
+import Nova.Core.Name
+import Nova.Core.Pretty
+import Nova.Core.Substitution
+import Nova.Core.Unification
 
-import ETT.Surface.Language
-import ETT.Surface.Shunting
-import ETT.Surface.Operator
+import Nova.Surface.Language
+import Nova.Surface.Shunting
+import Nova.Surface.Operator
 
-CoreElem = ETT.Core.Language.D.Elem
-SurfaceTerm = ETT.Surface.Language.OpFreeTerm.OpFreeTerm
+CoreElem = Nova.Core.Language.D.Elem
+SurfaceTerm = Nova.Surface.Language.OpFreeTerm.OpFreeTerm
 
 public export
 data ElaborationEntry : Type where

@@ -1,4 +1,4 @@
-module ETT.Surface.ParserUtil
+module Nova.Surface.ParserUtil
 
 import Data.List.Elem
 import Data.Fin
@@ -18,8 +18,8 @@ import Data.Util
 
 import Data.Location
 
-import ETT.Core.Name
-import ETT.Surface.SemanticToken
+import Nova.Core.Name
+import Nova.Surface.SemanticToken
 
 -----------------------------------------------------------
 -------------- Utililies for HOTT parser ------------------
@@ -242,7 +242,7 @@ public export
 initialParsingSt : ParsingSt
 initialParsingSt = MkParsingSt [<]
 
-||| Grammar specialised for ETT:
+||| Grammar specialised for Nova:
 ||| token is Token
 ||| state is context info & semantic info
 public export

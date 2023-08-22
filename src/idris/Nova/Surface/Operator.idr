@@ -1,9 +1,9 @@
-module ETT.Surface.Operator
+module Nova.Surface.Operator
 
 import Data.AlternatingList
 import Data.AlternatingList1
 
-import ETT.Core.Name
+import Nova.Core.Name
 
 public export
 record Operator where

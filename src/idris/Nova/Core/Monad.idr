@@ -1,11 +1,11 @@
-module ETT.Core.Monad
+module Nova.Core.Monad
 
 import public Control.Monad.JustAMonad
 
 import Data.List
 import Data.SnocList
 
-import ETT.Core.Language
+import Nova.Core.Language
 
 public export
 M : Type -> Type

@@ -1,4 +1,4 @@
-module ETT.Core.Pretty
+module Nova.Core.Pretty
 
 import Data.Fin
 import Data.String
@@ -7,11 +7,11 @@ import Data.Util
 import Text.PrettyPrint.Prettyprinter.Render.Terminal
 import Text.PrettyPrint.Prettyprinter
 
-import ETT.Core.Language
-import ETT.Core.Monad
-import ETT.Core.Shrinking
-import ETT.Core.Substitution
-import ETT.Core.Evaluation
+import Nova.Core.Language
+import Nova.Core.Monad
+import Nova.Core.Shrinking
+import Nova.Core.Substitution
+import Nova.Core.Evaluation
 
 -- (x : A{≥0}) → A{≥0}
 -- (x : A{≥0}) ⨯ A{≥0}

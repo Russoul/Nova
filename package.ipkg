@@ -1,4 +1,4 @@
-package exttt
+package nova
 
 depends = contrib, just-a-monad
 
@@ -11,33 +11,31 @@ modules =
         , Data.AlternatingSnocList
         , Data.AlternatingSnocList1
 
-        , ETT.Core.Conversion
-        , ETT.Core.Evaluation
-        , ETT.Core.Language
-        , ETT.Core.Monad
-        , ETT.Core.Name
-        , ETT.Core.Pretty
-        , ETT.Core.Shrinking
-        , ETT.Core.Substitution
-        , ETT.Core.Unification
+        , Nova.Core.Conversion
+        , Nova.Core.Evaluation
+        , Nova.Core.Language
+        , Nova.Core.Monad
+        , Nova.Core.Name
+        , Nova.Core.Pretty
+        , Nova.Core.Shrinking
+        , Nova.Core.Substitution
+        , Nova.Core.Unification
 
-        , ETT.Surface.Assistant
-        , ETT.Surface.Check
-        , ETT.Surface.Elaboration
-        , ETT.Surface.Language
-        , ETT.Surface.Operator
-        , ETT.Surface.Parser
-        , ETT.Surface.ParserUtil
-        , ETT.Surface.SemanticToken
-        , ETT.Surface.Shunting
+        , Nova.Surface.Elaboration
+        , Nova.Surface.Language
+        , Nova.Surface.Operator
+        , Nova.Surface.Parser
+        , Nova.Surface.ParserUtil
+        , Nova.Surface.SemanticToken
+        , Nova.Surface.Shunting
 
-        , ETT.Test.Test
+        , Nova.Test.Test
 
         , Text.Parser.CharUtil
         , Text.Parser.Fork
 
-main = ETT.Test.Test
+main = Nova.Test.Test
 
-executable = ett
+executable = nova
 
 sourcedir = "src/idris"

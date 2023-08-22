@@ -1,9 +1,9 @@
-module ETT.Core.Language
+module Nova.Core.Language
 
 import Data.SnocList
 import Data.AVL
 
-import public ETT.Core.Name
+import public Nova.Core.Name
 
 mutual
   namespace Context

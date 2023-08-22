@@ -1,4 +1,4 @@
-module ETT.Surface.SemanticToken
+module Nova.Surface.SemanticToken
 
 import Data.AVL
 import Data.Maybe

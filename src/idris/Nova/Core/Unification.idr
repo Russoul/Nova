@@ -1,4 +1,4 @@
-module ETT.Core.Unification
+module Nova.Core.Unification
 
 import Data.List
 import Data.SnocList
@@ -10,12 +10,12 @@ import Data.Fin
 import Text.PrettyPrint.Prettyprinter.Render.Terminal
 import Text.PrettyPrint.Prettyprinter
 
-import ETT.Core.Evaluation
-import ETT.Core.Language
-import ETT.Core.Monad
-import ETT.Core.Pretty
-import ETT.Core.Shrinking
-import ETT.Core.Substitution
+import Nova.Core.Evaluation
+import Nova.Core.Language
+import Nova.Core.Monad
+import Nova.Core.Pretty
+import Nova.Core.Shrinking
+import Nova.Core.Substitution
 
 
 -- Unification is performed relative to a sub-relation of definitional equality:

@@ -1,4 +1,4 @@
-module ETT.Surface.Shunting
+module Nova.Surface.Shunting
 
 import Data.Location
 
@@ -7,11 +7,11 @@ import Data.AlternatingList1
 import Data.AlternatingSnocList
 import Data.AlternatingSnocList1
 
-import ETT.Core.Name
-import ETT.Core.Monad
+import Nova.Core.Name
+import Nova.Core.Monad
 
-import ETT.Surface.Language
-import ETT.Surface.Operator
+import Nova.Surface.Language
+import Nova.Surface.Operator
 
 ||| Match the given alternating list *layer* against the *op*, generating all possible splits of *layer* by *op*.
 ||| Initial value of *before* is empty.
