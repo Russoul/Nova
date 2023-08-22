@@ -1,2 +1,2 @@
 run:
-		cat $(file) | rlwrap ./build/exec/ett
+		cat $(file) | rlwrap ./build/exec/nova
