@@ -28,6 +28,7 @@ modules =
         , Nova.Surface.ParserUtil
         , Nova.Surface.SemanticToken
         , Nova.Surface.Shunting
+        , Nova.Surface.ModuleSystem
 
         , Nova.Test.Test
 

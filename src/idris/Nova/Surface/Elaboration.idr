@@ -769,15 +769,17 @@ elabFile : Signature
         -> Omega
         -> SnocList Operator
         -> List1 TopLevel
-        -> UnifyM (Signature, Omega)
+        -> UnifyM (Signature, Omega, SnocList Operator)
 elabFile sig omega ops (Syntax r op ::: []) =
-  return (sig, omega)
+  return (sig, omega, ops :< op)
 elabFile sig omega ops (TypingSignature r x ty ::: []) = M.do
   -- write "Before shunting:\n\{show (TypingSignature r x ty)}"
-  elabTopLevelEntry sig omega !(liftMEither $ shuntTopLevel (cast ops) (TypingSignature r x ty))
+  (sig, omega) <- elabTopLevelEntry sig omega !(liftMEither $ shuntTopLevel (cast ops) (TypingSignature r x ty))
+  return (sig, omega, ops)
 elabFile sig omega ops (LetSignature r x ty rhs ::: []) = M.do
   -- write "Before shunting:\n\{show (LetSignature r x ty rhs)}"
-  elabTopLevelEntry sig omega !(liftMEither $ shuntTopLevel (cast ops) (LetSignature r x ty rhs))
+  (sig, omega) <- elabTopLevelEntry sig omega !(liftMEither $ shuntTopLevel (cast ops) (LetSignature r x ty rhs))
+  return (sig, omega, ops)
 elabFile sig omega ops (Syntax r op ::: e' :: es) = M.do
   elabFile sig omega (ops :< op) (e' ::: es)
 elabFile sig omega ops (TypingSignature r x ty ::: e' :: es) = M.do
