@@ -67,11 +67,11 @@ mutual
   namespace Term
     public export
     data Term : Type where
-      PiTy : Range -> VarName -> Term -> Term -> Term
-      ImplicitPiTy : Range -> VarName -> Term -> Term -> Term
-      SigmaTy : Range -> VarName -> Term -> Term -> Term
-      PiVal : Range -> VarName -> Term -> Term
-      ImplicitPiVal : Range -> VarName -> Term -> Term
+      PiTy : Range -> List1 VarName -> Term -> Term -> Term
+      ImplicitPiTy : Range -> List1 VarName -> Term -> Term -> Term
+      SigmaTy : Range -> List1 VarName -> Term -> Term -> Term
+      PiVal : Range -> List1 VarName -> Term -> Term
+      ImplicitPiVal : Range -> List1 VarName -> Term -> Term
       OpLayer : {k : _} -> Range -> AlternatingList1 k (Range, String) (Range, Head, Elim) -> Term
 
   namespace OpFreeTerm
@@ -165,8 +165,8 @@ mutual
     show (PiTy _ x a b) = "PiTy(\{show a}, \{show b})"
     show (SigmaTy _ x a b) = "SigmaTy(\{show a}, \{show b})"
     show (ImplicitPiTy _ x a b) = "ImplicitPiTy(\{show a}, \{show b})"
-    show (PiVal _ x f) = "PiVal(\{x}, \{show f})"
-    show (ImplicitPiVal _ x f) = "ImplicitPiVal(\{x}, \{show f})"
+    show (PiVal _ x f) = "PiVal(\{show x}, \{show f})"
+    show (ImplicitPiVal _ x f) = "ImplicitPiVal(\{show x}, \{show f})"
     show (OpLayer _ list) = "OpLayer(\{show list})"
 
 mutual

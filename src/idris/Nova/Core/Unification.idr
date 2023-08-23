@@ -6,6 +6,7 @@ import Data.Util
 import Data.Maybe
 import Data.AVL
 import Data.Fin
+import Data.Location
 
 import Text.PrettyPrint.Prettyprinter.Render.Terminal
 import Text.PrettyPrint.Prettyprinter
@@ -17,6 +18,7 @@ import Nova.Core.Pretty
 import Nova.Core.Shrinking
 import Nova.Core.Substitution
 
+import Nova.Surface.SemanticToken
 
 -- Unification is performed relative to a sub-relation of definitional equality:
 -- (~) implies (=)
@@ -25,10 +27,12 @@ public export
 record UnifySt where
   constructor MkUnifySt
   nextOmegaIdx : Nat
+  --FIX: this should be relocated to ElabM
+  semanticTokens : SnocList SemanticToken
 
 public export
 initialUnifySt : UnifySt
-initialUnifySt = MkUnifySt 0
+initialUnifySt = MkUnifySt 0 [<]
 
 public export
 UnifyM : Type -> Type
@@ -57,9 +61,13 @@ liftMEither f = M.do
 public export
 nextOmegaName : UnifyM OmegaName
 nextOmegaName = M.do
-  MkUnifySt idx <- get
-  set (MkUnifySt (S idx))
+  MkUnifySt idx toks <- get
+  set (MkUnifySt (S idx) toks)
   return ("?\{show idx}")
+
+public export
+addSemanticToken : SemanticToken -> UnifyM ()
+addSemanticToken t = update {semanticTokens $= (:< t)}
 
 namespace Result
   ||| Unification step result while solving a constraint.

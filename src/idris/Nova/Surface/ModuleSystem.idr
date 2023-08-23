@@ -47,49 +47,51 @@ public export
 checkModule : Signature
            -> Omega
            -> SnocList Operator
-           -> UnifySt
+           -> (nextOmegaIdx : Nat)
            -> (novaDirectory : String)
            -> (modName : String)
-           -> IO (Signature, Omega, SnocList Operator, UnifySt, SnocList SemanticToken)
-checkModule sig omega ops unifySt novaDirectory modName = Prelude.do
+           -> IO (Either String (Signature, Omega, SnocList Operator, Nat, String, SnocList SemanticToken))
+checkModule sig omega ops nextOmegaIdx novaDirectory modName = Prelude.do
   let mod = novaDirectory </> (modName ++ ".nova")
   putStrLn "About to process file: \{mod}"
   Right source <- readFile mod
-    | Left err => die "Can't read module: \{mod}; reason: \{show err}"
+    | Left err => pure $ Left "Can't read module: \{mod}; reason: \{show err}"
   let Right (MkParsingSt toks, surfaceSyntax) = parseFull' (MkParsingSt [<]) surfaceFile source
-    | Left err => die ("Parsing error:\n" ++ show err)
+    | Left err => pure $ Left ("Parsing error:\n" ++ show err)
   putStrLn "File parsed successfully!"
-  Right (unifySt, sig, omega, ops) <- run (elabFile sig omega ops surfaceSyntax) unifySt
-    | Left err => die ("Elaboration error:\n" ++ err)
+  Right (MkUnifySt nextOmegaIdx moreToks, sig, omega, ops) <- run (elabFile sig omega ops surfaceSyntax) (MkUnifySt nextOmegaIdx [<])
+    | Left err => pure $ Left ("Elaboration error:\n" ++ err)
   putStrLn "File elaborated successfully!"
   putStrLn "------------ Named holes ---------------"
   for_ (List.inorder omega) $ \(x, e) => Prelude.do
     case e of
       MetaType ctx NoSolve => Prelude.do
         Right doc <- eval (prettyOmegaEntry sig omega x e) ()
-          | Left err => die err
+          | Left err => die err -- Those should never fail
         putStrLn (renderDocTerm doc)
       MetaElem ctx ty NoSolve => Prelude.do
         Right doc <- eval (prettyOmegaEntry sig omega x e) ()
-          | Left err => die err
+          | Left err => die err -- Those should never fail
         putStrLn (renderDocTerm doc)
       _ => Prelude.do
         pure ()
   putStrLn "----------------------------------------"
-  pure (sig, omega, ops, unifySt, toks)
+  pure $ Right (sig, omega, ops, nextOmegaIdx, source, toks ++ moreToks)
 
 
 public export
 checkModules : Signature
             -> Omega
             -> SnocList Operator
-            -> UnifySt
-            -> (toks : OrdTree (String, SnocList SemanticToken) ByFst)
+            -> (nextOmegaIdx : Nat) --   absolute filename   src     toks
+            -> (toks : SnocList (String, String, SnocList SemanticToken))
             -> (novaDirectory : String)
-            -> (modNames : List String)
-            -> IO (Signature, Omega, SnocList Operator, UnifySt, OrdTree (String, SnocList SemanticToken) ByFst)
-checkModules sig omega ops unifySt toks novaDirectory [] = pure (sig, omega, ops, unifySt, toks)
-checkModules sig omega ops unifySt toks novaDirectory (n :: ns) = Prelude.do
-  (sig, omega, ops, unifySt, ntoks) <- checkModule sig omega ops unifySt novaDirectory n
-  checkModules sig omega ops unifySt (insert (n, ntoks) toks) novaDirectory ns
+            -> (modNames : List String)     --                                  absolute filename   src     toks
+            -> IO (Either String (Signature, Omega, SnocList Operator, Nat, List (String, String, SnocList SemanticToken)))
+checkModules sig omega ops nextOmegaIdx toks novaDirectory [] = pure $ Right (sig, omega, ops, nextOmegaIdx, cast toks)
+checkModules sig omega ops nextOmegaIdx toks novaDirectory (n :: ns) = Prelude.do
+  Right (sig, omega, ops, nextOmegaIdx, source, ntoks) <- checkModule sig omega ops nextOmegaIdx novaDirectory n
+    | Left err => pure (Left err)
+  let mod = novaDirectory </> (n ++ ".nova")
+  checkModules sig omega ops nextOmegaIdx (toks :< (mod, source, ntoks)) novaDirectory ns
 

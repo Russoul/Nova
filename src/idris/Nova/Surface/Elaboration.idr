@@ -5,6 +5,7 @@ import Data.List
 import Data.List1
 import Data.SnocList
 import Data.Fin
+import Data.Location
 
 import Text.PrettyPrint.Prettyprinter.Render.Terminal
 import Text.PrettyPrint.Prettyprinter
@@ -21,6 +22,7 @@ import Nova.Core.Unification
 import Nova.Surface.Language
 import Nova.Surface.Shunting
 import Nova.Surface.Operator
+import Nova.Surface.SemanticToken
 
 CoreElem = Nova.Core.Language.D.Elem
 SurfaceTerm = Nova.Surface.Language.OpFreeTerm.OpFreeTerm
@@ -243,10 +245,12 @@ elabElemNu sig omega ctx tm@(SigmaVal r a b) meta ty = M.do
 elabElemNu sig omega ctx (App r (Var r0 x) es) meta ty = M.do
   case lookupContext ctx x of
     Just (vTm, vTy) => M.do
+      addSemanticToken (r0, BoundVarAnn)
       return (Success omega [ElemElimElaboration ctx vTm vTy es meta ty])
     Nothing =>
       case lookupSignature sig x of
-        Just (Empty, idx, vTy) =>
+        Just (Empty, idx, vTy) => M.do
+          addSemanticToken (r0, ElimAnn)
           return (Success omega [ElemElimElaboration ctx (SignatureVarElim idx Terminal) vTy es meta ty])
         Just (sigCtx, idx, ty) =>
           return (Error "Non-empty signature context not supported yet for name: \{x}")

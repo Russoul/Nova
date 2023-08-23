@@ -623,20 +623,20 @@ f <++> g = do
   pure (x ++ y)
 
 opAppIdent : Rule String
-opAppIdent = ((delim_ "_" $> "_") <++> continue1') <|> (opIdent <++> continue2')
+opAppIdent = ((str_ "_" $> "_") <++> continue1') <|> (opIdent <++> continue2')
  where
   mutual
     continue1 : Rule String
     continue1 = (opIdent <++> continue2) <|> pure ""
 
     continue2 : Rule String
-    continue2 = ((delim_ "_" $> "_") <++> continue1) <|> pure ""
+    continue2 = ((str_ "_" $> "_") <++> continue1) <|> pure ""
 
     continue1' : Rule String
     continue1' = opIdent <++> continue2
 
     continue2' : Rule String
-    continue2' = (delim_ "_" $> "_") <++> continue1
+    continue2' = (str_ "_" $> "_") <++> continue1
 
 public export
 prevarIdent : Rule String
@@ -700,3 +700,9 @@ spName expected = do
   guard "Expected special name: \{expected}" (x == expected)
   pure r
 
+public export
+withAnn : TermAnn -> Rule a -> Rule a
+withAnn ann t = do
+  (l, x) <- located t
+  appendSemanticToken (l, ann)
+  pure x

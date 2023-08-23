@@ -1,6 +1,7 @@
 module Nova.Surface.Shunting
 
 import Data.Location
+import Data.List1
 
 import Data.AlternatingList
 import Data.AlternatingList1
@@ -162,39 +163,72 @@ mutual
   ||| Shunt the given term at the specified *lvl*.
   public export
   shunt : List Operator -> Term -> (lvl : Nat) -> MEither String OpFreeTerm
-  shunt ops (PiTy r x dom cod) lvl = MEither.do
+  shunt ops (PiTy r (x ::: []) dom cod) lvl = MEither.do
     case (lvl > 0) of
       True => error "Can't parse (_ : _) → _ at level \{show lvl}"
       False => MEither.do
        dom <- shunt ops dom 0
        cod <- shunt ops cod 0
        return (PiTy r x dom cod)
-  shunt ops (ImplicitPiTy r x dom cod) lvl = MEither.do
+  shunt ops (PiTy r (x ::: y :: zs) dom cod) lvl = MEither.do
+    case (lvl > 0) of
+      True => error "Can't parse (_ : _) → _ at level \{show lvl}"
+      False => MEither.do
+       dom' <- shunt ops dom 0
+       cod' <- shunt ops (PiTy r (y ::: zs) dom cod) 0
+       return (PiTy r x dom' cod')
+  shunt ops (ImplicitPiTy r (x ::: []) dom cod) lvl = MEither.do
     case (lvl > 0) of
       True => error "Can't parse {_ : _} → _ at level \{show lvl}"
       False => MEither.do
         dom <- shunt ops dom 0
         cod <- shunt ops cod 0
         return (ImplicitPiTy r x dom cod)
-  shunt ops (SigmaTy r x dom cod) lvl = MEither.do
+  shunt ops (ImplicitPiTy r (x ::: y :: zs) dom cod) lvl = MEither.do
+    case (lvl > 0) of
+      True => error "Can't parse {_ : _} → _ at level \{show lvl}"
+      False => MEither.do
+        dom' <- shunt ops dom 0
+        cod' <- shunt ops (ImplicitPiTy r (y ::: zs) dom cod) 0
+        return (ImplicitPiTy r x dom' cod')
+  shunt ops (SigmaTy r (x ::: []) dom cod) lvl = MEither.do
     case (lvl > 0) of
       True => error "Can't parse (_ : _) ⨯ _ at level \{show lvl}"
       False => MEither.do
        dom <- shunt ops dom 0
        cod <- shunt ops cod 0
        return (SigmaTy r x dom cod)
-  shunt ops (PiVal r x f) lvl = MEither.do
+  shunt ops (SigmaTy r (x ::: y :: zs) dom cod) lvl = MEither.do
+    case (lvl > 0) of
+      True => error "Can't parse (_ : _) ⨯ _ at level \{show lvl}"
+      False => MEither.do
+       dom' <- shunt ops dom 0
+       cod' <- shunt ops (SigmaTy r (y ::: zs) dom cod) 0
+       return (SigmaTy r x dom' cod')
+  shunt ops (PiVal r (x ::: []) f) lvl = MEither.do
     case (lvl > 0) of
       True => error "Can't parse _ ↦ _ at level \{show lvl}"
       False => MEither.do
        f <- shunt ops f 0
        return (PiVal r x f)
-  shunt ops (ImplicitPiVal r x f) lvl = MEither.do
+  shunt ops (PiVal r (x ::: y :: zs) f) lvl = MEither.do
+    case (lvl > 0) of
+      True => error "Can't parse _ ↦ _ at level \{show lvl}"
+      False => MEither.do
+       f' <- shunt ops (PiVal r (y ::: zs) f) 0
+       return (PiVal r x f')
+  shunt ops (ImplicitPiVal r (x ::: []) f) lvl = MEither.do
     case (lvl > 0) of
       True => error "Can't parse {_} ↦ _ at level \{show lvl}"
       False => MEither.do
        f <- shunt ops f 0
        return (ImplicitPiVal r x f)
+  shunt ops (ImplicitPiVal r (x ::: y :: zs) f) lvl = MEither.do
+    case (lvl > 0) of
+      True => error "Can't parse {_} ↦ _ at level \{show lvl}"
+      False => MEither.do
+       f' <- shunt ops (ImplicitPiVal r (y ::: zs) f) 0
+       return (ImplicitPiVal r x f')
   shunt ops (OpLayer r (ConsB (r0, head, elim) [])) lvl = MEither.do
     return (App r0 !(shuntHead ops head) !(shuntElim ops elim))
   shunt ops (OpLayer r (ConsA (_, op) [])) lvl = MEither.do

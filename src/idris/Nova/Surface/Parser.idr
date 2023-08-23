@@ -34,42 +34,49 @@ public export
 zeroHead : Rule Head
 zeroHead = do
   r <- spName "Z"
+  appendSemanticToken (r, ElemAnn)
   pure (NatVal0 r)
 
 public export
 oneHead : Rule Head
 oneHead = do
   r <- spName "S"
+  appendSemanticToken (r, ElemAnn)
   pure (NatVal1 r)
 
 public export
 natElimHead : Rule Head
 natElimHead = do
   r <- spName "ℕ-elim"
+  appendSemanticToken (r, ElimAnn)
   pure (NatElim r)
 
 public export
 natTyHead : Rule Head
 natTyHead = do
   r <- spName "ℕ"
+  appendSemanticToken (r, TypAnn)
   pure (NatTy r)
 
 public export
 jHead : Rule Head
 jHead = do
   r <- spName "J"
+  appendSemanticToken (r, ElimAnn)
   pure (EqElim r)
 
 public export
 universeTyHead : Rule Head
 universeTyHead = do
   r <- spName "𝕌"
+  appendSemanticToken (r, TypAnn)
   pure (UniverseTy r)
 
 public export
 eqValHead : Rule Head
 eqValHead = do
   r <- spName "Refl"
+  appendSemanticToken (r, ElemAnn)
   pure (EqVal r)
 
 public export
@@ -83,6 +90,7 @@ holeHead : Rule Head
 holeHead = do
   l <- delim "?"
   x <- located varName
+  appendSemanticToken (l + fst x, UnsolvedMetaAnn)
   pure (Hole (l + fst x) (snd x) Nothing)
 
 public export
@@ -93,6 +101,7 @@ holeVarsHead = do
   l1 <- delim "("
   ls <- sepBy (optSpaceDelim *> delim "," <* optSpaceDelim) varName
   l1 <- delim ")"
+  appendSemanticToken (l0 + l1, UnsolvedMetaAnn)
   pure (Hole (l0 + l1) x (Just ls))
 
 public export
@@ -101,12 +110,14 @@ unnamedHoleVarsHead = do
   l0 <- delim "?("
   ls <- sepBy (optSpaceDelim *> delim "," <* optSpaceDelim) varName
   l1 <- delim ")"
+  appendSemanticToken (l0 + l1, UnsolvedMetaAnn)
   pure (UnnamedHole (l0 + l1) (Just ls))
 
 public export
 unnamedHoleHead : Rule Head
 unnamedHoleHead = do
   l <- delim "?"
+  appendSemanticToken (l, UnsolvedMetaAnn)
   pure (UnnamedHole l Nothing)
 
 public export
@@ -114,36 +125,42 @@ unfoldHead : Rule Head
 unfoldHead = do
   l <- delim "!"
   x <- located varName
+  appendSemanticToken (l + fst x, ElemAnn)
   pure (Unfold (l + fst x) (snd x))
 
 public export
 piBetaHead : Rule Head
 piBetaHead = do
   r <- spName "Π-β"
+  appendSemanticToken (r, ElemAnn)
   pure (PiBeta r)
 
 public export
 piEtaHead : Rule Head
 piEtaHead = do
   r <- spName "Π-η"
+  appendSemanticToken (r, ElemAnn)
   pure (PiEta r)
 
 public export
 natBetaZHead : Rule Head
 natBetaZHead = do
   r <- spName "ℕ-β-Z"
+  appendSemanticToken (r, ElemAnn)
   pure (NatBetaZ r)
 
 public export
 natBetaSHead : Rule Head
 natBetaSHead = do
   r <- spName "ℕ-β-S"
+  appendSemanticToken (r, ElemAnn)
   pure (NatBetaS r)
 
 public export
 piEqHead : Rule Head
 piEqHead = do
   r <- spName "Π⁼"
+  appendSemanticToken (r, ElemAnn)
   pure (PiEq r)
 
 mutual
@@ -173,60 +190,60 @@ mutual
   head2 = head <|> (inParentheses (located $ term 0) <&> uncurry Tm)
 
   public export
-  section : Rule (Range, VarName, Term)
+  section : Rule (Range, List1 VarName, Term)
   section = do
-    l <- delim "("
+    l <- keyword TypAnn "("
     optSpaceDelim
-    x <- located varName
+    x <- sepBy1 spaceDelim boundVarName
     spaceDelim
     delim_ ":"
     mustWork $ do
       spaceDelim
       ty <- term 0
       optSpaceDelim
-      r <- delim ")"
-      pure (l + r, snd x, ty)
+      r <- keyword TypAnn ")"
+      pure (l + r, x, ty)
 
   public export
-  implicitSection : Rule (Range, VarName, Term)
+  implicitSection : Rule (Range, List1 VarName, Term)
   implicitSection = do
-    l <- delim "{"
+    l <- keyword TypAnn "{"
     optSpaceDelim
-    x <- located varName
+    x <- sepBy1 spaceDelim boundVarName
     spaceDelim
     delim_ ":"
     mustWork $ do
       spaceDelim
       ty <- term 0
       optSpaceDelim
-      r <- delim "}"
-      pure (l + r, snd x, ty)
+      r <- keyword TypAnn "}"
+      pure (l + r, x, ty)
 
   public export
-  continuePi : (Range, Range, VarName, Term) -> Rule Term
+  continuePi : (Range, Range, List1 VarName, Term) -> Rule Term
   continuePi (l, lx, x, a) = do
     spaceDelim
-    delim_ "→"
+    keyword_ TypAnn "→"
     commit
     spaceDelim
     b <- located (term 0)
     pure (PiTy (l + fst b) x a (snd b))
 
   public export
-  continueImplicitPi : (Range, Range, VarName, Term) -> Rule Term
+  continueImplicitPi : (Range, Range, List1 VarName, Term) -> Rule Term
   continueImplicitPi (l, lx, x, a) = do
     spaceDelim
-    delim_ "→"
+    keyword_ TypAnn "→"
     commit
     spaceDelim
     b <- located (term 0)
     pure (ImplicitPiTy (l + fst b) x a (snd b))
 
   public export
-  continueSigma : (Range, Range, VarName, Term) -> Rule Term
+  continueSigma : (Range, Range, List1 VarName, Term) -> Rule Term
   continueSigma (l, lx, x, a) = do
     spaceDelim
-    delim_ "⨯"
+    keyword_ TypAnn "⨯"
     commit
     spaceDelim
     b <- located (term 0)
@@ -235,9 +252,9 @@ mutual
   public export
   piVal : Rule Term
   piVal = do
-    x <- located varName
+    x <- located (sepBy1 spaceDelim boundVarName)
     spaceDelim
-    delim_ "↦"
+    keyword_ ElemAnn "↦"
     commit
     spaceDelim
     f <- located (term 0)
@@ -246,11 +263,11 @@ mutual
   public export
   implicitPiVal : Rule Term
   implicitPiVal = do
-    l0 <- delim "{"
-    x <- varName
-    delim_ "}"
+    l0 <- keyword ElemAnn "{"
+    x <- sepBy1 spaceDelim boundVarName
+    keyword_ ElemAnn "}"
     spaceDelim
-    delim_ "↦"
+    keyword_ ElemAnn "↦"
     commit
     spaceDelim
     f <- located (term 0)
@@ -365,10 +382,16 @@ mutual
   term 3 =                                            term4
 
 
+  boundVarName : Rule VarName
+  boundVarName = do
+    x <- located varName
+    appendSemanticToken (fst x, BoundVarAnn)
+    pure (snd x)
+
   public export
   termArg0 : Rule (List VarName, Term)
   termArg0 = do
-    xs <- many (varName <* delim "." <* optSpaceDelim)
+    xs <- many (boundVarName <* delim "." <* optSpaceDelim)
     e <- term 0
     pure (xs, e)
 
@@ -398,12 +421,13 @@ mutual
     l <- delim "assume"
     commit
     spaceDelim
-    x <- varName
+    x <- located varName
+    appendSemanticToken (fst x, ElimAnn)
     spaceDelim
     delim_ ":"
     spaceDelim
     ty <- located (term 0)
-    pure (TypingSignature (l + fst ty) x (snd ty))
+    pure (TypingSignature (l + fst ty) (snd x) (snd ty))
 
   public export
   letSignature : Rule TopLevel
@@ -411,7 +435,8 @@ mutual
     l <- delim "let"
     commit
     spaceDelim
-    x <- varName
+    x <- located varName
+    appendSemanticToken (fst x, ElimAnn)
     spaceDelim
     delim_ ":"
     spaceDelim
@@ -420,7 +445,7 @@ mutual
     delim_ "≔"
     spaceDelim
     rhs <- located (term 0)
-    pure (LetSignature (l + fst rhs) x ty (snd rhs))
+    pure (LetSignature (l + fst rhs) (snd x) ty (snd rhs))
 
   namespace TopLevel
     public export
@@ -428,8 +453,8 @@ mutual
                  -> Rule (AlternatingSnocList1 False String Nat)
     continueLevel list = do
       spaceDelim
-      delim_ "e"
-      n <- inBraces (delim_ "≥" *> nat)
+      keyword_ BoundVarAnn "e"
+      n <- inBraces (delim_ "≥" *> withAnn ElemAnn nat)
       pure (SnocB list n)
 
     public export
@@ -437,7 +462,7 @@ mutual
               -> Rule (AlternatingSnocList1 True String Nat)
     continueOp list = do
       spaceDelim
-      t <- opIdent
+      t <- withAnn BoundVarAnn opIdent
       pure (SnocA list t)
 
     mutual
@@ -456,14 +481,14 @@ mutual
   public export
   opSyntaxTrue : Rule (k ** AlternatingSnocList1 k String Nat)
   opSyntaxTrue = do
-    s <- opIdent
+    s <- withAnn BoundVarAnn opIdent
     continueManyTrue (SnocA [<] s)
 
   public export
   opSyntaxFalse : Rule (k ** AlternatingSnocList1 k String Nat)
   opSyntaxFalse = do
-    delim_ "e"
-    n <- inBraces (delim_ "≥" *> nat)
+    keyword_ BoundVarAnn "e"
+    n <- inBraces (delim_ "≥" *> withAnn ElemAnn nat)
     continueManyFalse (SnocB [<] n)
 
   public export
@@ -480,8 +505,8 @@ mutual
     spaceDelim
     delim_ ":"
     spaceDelim
-    delim_ "e"
-    n <- located (inBraces nat)
+    keyword_ BoundVarAnn "e"
+    n <- located (inBraces (withAnn ElemAnn nat))
     pure (Syntax (l + fst n) (MkOperator _ (snd $ toList1 $ snd op) (snd n)))
 
   public export
