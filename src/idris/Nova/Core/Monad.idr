@@ -9,6 +9,7 @@ import Nova.Core.Language
 
 public export
 M : Type -> Type
+--               vvvvvv for critical errors only
 M = JustAMonad.M String ()
 
 public export

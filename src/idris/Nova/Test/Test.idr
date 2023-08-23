@@ -36,8 +36,8 @@ checkEverything : IO ()
 checkEverything = Prelude.do
    Just modules <- readModuleDescription moduleDescriptionFile
      | Nothing => die "Can't read module description file: \{moduleDescriptionFile}"
-   Right (sig, omega, ops, unifySt, modules) <- checkModules [<] empty [<] 0 empty novaDirectory modules
-     | Left err => die err
+   Right (sig, omega, ops, nextOmegaIdx, namedHoles, modules) <- checkModules [<] empty [<] 0 empty empty novaDirectory modules
+     | Left (f, r, err) => die (renderDocTerm err)
    pure ()
 
 main : IO ()

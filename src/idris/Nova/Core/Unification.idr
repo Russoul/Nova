@@ -27,15 +27,14 @@ public export
 record UnifySt where
   constructor MkUnifySt
   nextOmegaIdx : Nat
-  --FIX: this should be relocated to ElabM
-  semanticTokens : SnocList SemanticToken
 
 public export
 initialUnifySt : UnifySt
-initialUnifySt = MkUnifySt 0 [<]
+initialUnifySt = MkUnifySt 0
 
 public export
 UnifyM : Type -> Type
+  --                  vvvvvv for critical errors only
 UnifyM = JustAMonad.M String UnifySt
 
 public export
@@ -61,13 +60,9 @@ liftMEither f = M.do
 public export
 nextOmegaName : UnifyM OmegaName
 nextOmegaName = M.do
-  MkUnifySt idx toks <- get
-  set (MkUnifySt (S idx) toks)
+  MkUnifySt idx <- get
+  set (MkUnifySt (S idx))
   return ("?\{show idx}")
-
-public export
-addSemanticToken : SemanticToken -> UnifyM ()
-addSemanticToken t = update {semanticTokens $= (:< t)}
 
 namespace Result
   ||| Unification step result while solving a constraint.

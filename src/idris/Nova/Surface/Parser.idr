@@ -88,7 +88,7 @@ varHead = do
 public export
 holeHead : Rule Head
 holeHead = do
-  l <- delim "?"
+  l <- exact "?"
   x <- located varName
   appendSemanticToken (l + fst x, UnsolvedMetaAnn)
   pure (Hole (l + fst x) (snd x) Nothing)
@@ -96,27 +96,27 @@ holeHead = do
 public export
 holeVarsHead : Rule Head
 holeVarsHead = do
-  l0 <- delim "?"
+  l0 <- exact "?"
   x <- varName
-  l1 <- delim "("
+  l1 <- exact "("
   ls <- sepBy (optSpaceDelim *> delim "," <* optSpaceDelim) varName
-  l1 <- delim ")"
+  l1 <- exact ")"
   appendSemanticToken (l0 + l1, UnsolvedMetaAnn)
   pure (Hole (l0 + l1) x (Just ls))
 
 public export
 unnamedHoleVarsHead : Rule Head
 unnamedHoleVarsHead = do
-  l0 <- delim "?("
+  l0 <- exact "?("
   ls <- sepBy (optSpaceDelim *> delim "," <* optSpaceDelim) varName
-  l1 <- delim ")"
+  l1 <- exact ")"
   appendSemanticToken (l0 + l1, UnsolvedMetaAnn)
   pure (UnnamedHole (l0 + l1) (Just ls))
 
 public export
 unnamedHoleHead : Rule Head
 unnamedHoleHead = do
-  l <- delim "?"
+  l <- exact "?"
   appendSemanticToken (l, UnsolvedMetaAnn)
   pure (UnnamedHole l Nothing)
 
@@ -413,7 +413,7 @@ mutual
   elim : Rule Elim
   elim = many $ do
     spaceDelim
-    (Arg <$> termArg1) <|> (Pi1 <$ delim_ ".π₁") <|> (Pi2 <$ delim_ ".π₂") <|> termImplicitArg
+    located ((Arg <$> termArg1) <|> (Pi1 <$ delim_ ".π₁") <|> (Pi2 <$ delim_ ".π₂") <|> termImplicitArg)
 
   public export
   typingSignature : Rule TopLevel

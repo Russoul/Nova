@@ -114,11 +114,11 @@ mutual
 
   public export
   Elim : Type
-  Elim = List ElimEntry
+  Elim = List (Range, ElimEntry)
 
   public export
   OpFreeElim : Type
-  OpFreeElim = List OpFreeElimEntry
+  OpFreeElim = List (Range, OpFreeElimEntry)
 
 public export
 range : Term -> Range
@@ -250,3 +250,17 @@ Show OpFreeTopLevel where
     "assume \{x} : \{show ty}"
   show (LetSignature r x ty rhs) =
     "let \{x} : \{show ty} ≔ \{show rhs}"
+
+namespace OpFreeTerm
+  public export
+  range : OpFreeTerm -> Range
+  range (PiTy x str y z) = x
+  range (ImplicitPiTy x str y z) = x
+  range (SigmaTy x str y z) = x
+  range (PiVal x str y) = x
+  range (ImplicitPiVal x str y) = x
+  range (ProdTy x y z) = x
+  range (FunTy x y z) = x
+  range (EqTy x y z w) = x
+  range (SigmaVal x y z) = x
+  range (App x y xs) = x

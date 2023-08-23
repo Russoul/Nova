@@ -48,19 +48,25 @@ checkModule : Signature
            -> Omega
            -> SnocList Operator
            -> (nextOmegaIdx : Nat)
+           -> OrdTree (String, List (Range, String)) ByFst
            -> (novaDirectory : String)
            -> (modName : String)
-           -> IO (Either String (Signature, Omega, SnocList Operator, Nat, String, SnocList SemanticToken))
-checkModule sig omega ops nextOmegaIdx novaDirectory modName = Prelude.do
+           -> IO (Either (Maybe Range, Doc Ann) (Signature, Omega, SnocList Operator, Nat, OrdTree (String, List (Range, String)) ByFst, String, SnocList SemanticToken))
+checkModule sig omega ops nextOmegaIdx namedHoles novaDirectory modName = Prelude.do
   let mod = novaDirectory </> (modName ++ ".nova")
   putStrLn "About to process file: \{mod}"
   Right source <- readFile mod
-    | Left err => pure $ Left "Can't read module: \{mod}; reason: \{show err}"
+    | Left err => pure $ Left (Nothing, pretty $ "Can't read module: \{mod}; reason: \{show err}")
   let Right (MkParsingSt toks, surfaceSyntax) = parseFull' (MkParsingSt [<]) surfaceFile source
-    | Left err => pure $ Left ("Parsing error:\n" ++ show err)
+    | Left err => pure $ Left (Nothing, pretty $ "Parsing error:\n" ++ show err)
   putStrLn "File parsed successfully!"
-  Right (MkUnifySt nextOmegaIdx moreToks, sig, omega, ops) <- run (elabFile sig omega ops surfaceSyntax) (MkUnifySt nextOmegaIdx [<])
-    | Left err => pure $ Left ("Elaboration error:\n" ++ err)
+  let params = MkParams mod
+  Right (MkElabSt (MkUnifySt nextOmegaIdx) moreToks namedHoles, Right (sig, omega, ops)) <- run (elabFile @{params} sig omega ops surfaceSyntax) (MkElabSt (MkUnifySt nextOmegaIdx) [<] namedHoles)
+    | Right (MkElabSt (MkUnifySt nextOmegaIdx) moreToks namedHoles, Left (x, range, err)) => Prelude.do
+       Right doc <- eval (pretty sig err) ()
+         | Left err => pure $ Left (Just range, pretty ("Critical error:" ++ err))
+       pure (Left (Just range, pretty "Error while elaborating top-level definition \{x}" <+> hardline <+> doc))
+    | Left err => pure $ Left (Nothing, pretty ("Critical error:" ++ err))
   putStrLn "File elaborated successfully!"
   putStrLn "------------ Named holes ---------------"
   for_ (List.inorder omega) $ \(x, e) => Prelude.do
@@ -76,22 +82,25 @@ checkModule sig omega ops nextOmegaIdx novaDirectory modName = Prelude.do
       _ => Prelude.do
         pure ()
   putStrLn "----------------------------------------"
-  pure $ Right (sig, omega, ops, nextOmegaIdx, source, toks ++ moreToks)
+  pure $ Right (sig, omega, ops, nextOmegaIdx, namedHoles, source, toks ++ moreToks)
 
 
 public export
 checkModules : Signature
             -> Omega
             -> SnocList Operator
-            -> (nextOmegaIdx : Nat) --   absolute filename   src     toks
+            -> (nextOmegaIdx : Nat)
+            -> OrdTree (String, List (Range, String)) ByFst
+                  --   absolute filename   src     toks
             -> (toks : SnocList (String, String, SnocList SemanticToken))
             -> (novaDirectory : String)
-            -> (modNames : List String)     --                                  absolute filename   src     toks
-            -> IO (Either String (Signature, Omega, SnocList Operator, Nat, List (String, String, SnocList SemanticToken)))
-checkModules sig omega ops nextOmegaIdx toks novaDirectory [] = pure $ Right (sig, omega, ops, nextOmegaIdx, cast toks)
-checkModules sig omega ops nextOmegaIdx toks novaDirectory (n :: ns) = Prelude.do
-  Right (sig, omega, ops, nextOmegaIdx, source, ntoks) <- checkModule sig omega ops nextOmegaIdx novaDirectory n
-    | Left err => pure (Left err)
+            -> (modNames : List String)     --                                                                                  absolute filename   src     toks
+            --             vvvvvv filename
+            -> IO (Either (String, Maybe Range, Doc Ann) (Signature, Omega, SnocList Operator, Nat, OrdTree (String, List (Range, String)) ByFst, List (String, String, SnocList SemanticToken)))
+checkModules sig omega ops nextOmegaIdx namedHoles toks novaDirectory [] = pure $ Right (sig, omega, ops, nextOmegaIdx, namedHoles, cast toks)
+checkModules sig omega ops nextOmegaIdx namedHoles toks novaDirectory (n :: ns) = Prelude.do
   let mod = novaDirectory </> (n ++ ".nova")
-  checkModules sig omega ops nextOmegaIdx (toks :< (mod, source, ntoks)) novaDirectory ns
+  Right (sig, omega, ops, nextOmegaIdx, namedHoles, source, ntoks) <- checkModule sig omega ops nextOmegaIdx namedHoles novaDirectory n
+    | Left (r, err) => pure (Left (mod, r, err))
+  checkModules sig omega ops nextOmegaIdx namedHoles (toks :< (mod, source, ntoks)) novaDirectory ns
 

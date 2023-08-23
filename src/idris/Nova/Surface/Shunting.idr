@@ -72,7 +72,7 @@ processApp r "_≡_∈_" [a, b, ty] = EqTy r a b ty
 processApp r "_⨯_" [a, b] = ProdTy r a b
 processApp r "_,_" [a, b] = SigmaVal r a b
 processApp r "_→_" [a, b] = FunTy r a b
-processApp r op list = App r (Var r op) (map (\t => Arg ([], t)) list)
+processApp r op list = App r (Var r op) (map (\t => (range t, Arg ([], t))) list)
 
 mutual
   ||| Try shunting the *layer* via the given operator at specified *lvl* by generating all possible
@@ -134,10 +134,10 @@ mutual
   shuntElim : List Operator -> Elim -> MEither String OpFreeElim
   shuntElim ops [] = MEither.do
     return []
-  shuntElim ops (e :: es) = MEither.do
+  shuntElim ops ((r, e) :: es) = MEither.do
     e <- shuntElimEntry ops e
     es <- shuntElim ops es
-    return (e :: es)
+    return ((r, e) :: es)
 
   public export
   shuntHead : List Operator -> Head -> MEither String OpFreeHead

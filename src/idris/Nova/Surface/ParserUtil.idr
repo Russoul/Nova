@@ -474,7 +474,6 @@ isOperatorSym x = elem x $
                , '='
                , '+'
                , ','
-               , '.'
                , '⋍'
                , '≅'
                , '≡'
@@ -502,6 +501,12 @@ located_ : Rule a -> Rule Range
 located_ x = do
   t <- bounds x
   pure (cast t.bounds)
+
+public export
+exact : String -> Rule Range
+exact x = do
+  r <- located (str_ x)
+  pure (fst r)
 
 public export
 keyword : TermAnn -> String -> Rule Range
