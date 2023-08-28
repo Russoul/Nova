@@ -6,6 +6,8 @@ syntax e{≥3} , e{≥2} : e{2}
 
 syntax e{≥2} ≡ e{≥2} ∈ e{≥2} : e{1}
 
+syntax e{≥3} $ e{≥3} : e{0}
+
 let test0 : ℕ
           ≔ Z
 
@@ -30,8 +32,8 @@ let sym : {A : 𝕌} → {a₀ a₁ : A} → (a₀ ≡ a₁ ∈ A) → (a₁ ≡
 let fun-eta : (A : 𝕌) → (B : A → 𝕌) → (f : (x : A) → B x) → ((x ↦ f x) ≡ f ∈ ((x : A) → B x))
             ≔ A B f ↦ Π-η f
 
-let fun-ext : (A : 𝕌) → (B : A → 𝕌) → (f g : (x : A) → B x) → (p : (x : A) → f x ≡ g x ∈ B x) → f ≡ g ∈ ((x : A) → B x)
-            ≔ A B f g p ↦ J ? ? (α. h. α ≡ g ∈ ?) (J ? ? (α. h. ?(A , B , f , g , p) ≡ α ∈ ?) (Π⁼ (x. ?) (x. ?) (x. p x)) ? (Π-η ?)) ? (Π-η ?)
+let fun-ext : {A : 𝕌} → {B : A → 𝕌} → {f g : (x : A) → B x} → (p : (x : A) → f x ≡ g x ∈ B x) → f ≡ g ∈ ((x : A) → B x)
+            ≔ {A B f g} ↦ p ↦ J ? ? (α. h. α ≡ g ∈ ?) (J ? ? (α. h. ?(A , B , f , g , p) ≡ α ∈ ?) (Π⁼ (x. ?) (x. ?) (x. p x)) ? (Π-η ?)) ? (Π-η ?)
 
 let happly' : (A : 𝕌) → (B : 𝕌) → (f : A → B) → (g : A → B) → (p : f ≡ g ∈ ?) → (x : A) → f x ≡ g x ∈ ?
             ≔ A B f g p ↦ x ↦ J ? ? (α.h. f x ≡ α x ∈ ?) Refl ? p
@@ -54,13 +56,10 @@ syntax e{≥4} @ e{≥5} : e{4}
 
 syntax e{≥6} * e{≥7} : e{6}
 
+-- 0   + y = y
+-- S x + y = S (x + y)
 let _+_ : ℕ → ℕ → ℕ
         ≔ x y ↦ ℕ-elim (z. ℕ) y (x. h. S h) x
-
--- mult 0 y = 0
--- mult (1 + x) y = y + mult x y
-let _*_ : ℕ → ℕ → ℕ
-        ≔ x y ↦ ℕ-elim (x. ℕ) Z (x. h. y + h) x
 
 let plus-left-Z : (x : ℕ) → Z + x ≡ x ∈ ℕ
                 ≔ x ↦ J ? ?
@@ -78,7 +77,6 @@ let plus-left-Z : (x : ℕ) → Z + x ≡ x ∈ ℕ
                         )
                         ?
                         (sym !_+_)
-
 
 let plus-left-S : (t : ℕ) → (x : ℕ) → (S t + x) ≡ S (t + x) ∈ ℕ
                 ≔ t ↦ x ↦ J ? ?
@@ -112,46 +110,82 @@ let plus-left-S : (t : ℕ) → (x : ℕ) → (S t + x) ≡ S (t + x) ∈ ℕ
                             ?
                             (sym !_+_)
 
-{-
+let plus-right-Z : (x : ℕ) → x + Z ≡ x ∈ ℕ
+                 ≔ x ↦ ℕ-elim (x. x + Z ≡ x ∈ ℕ)
+                              (J ? ? (α. h. α ≡ Z ∈ ℕ) Refl ? (sym (plus-left-Z Z)))
+                              (x. h. J ? ? (α. h. α ≡ S x ∈ ℕ) (S-cong h) ? (sym (plus-left-S x Z)))
+                              x
+
+-- (x y : ℕ) (h : x + S y ≡ S (x + y) ∈ ℕ) ⊦ S x + S y ≡ S (S x + y)
+--                                           S (x + S y) ≡ S (S x + y)
+--                                           x + S y ≡ S x + y
+--                                           x + S y ≡ S (x + y)
+let plus-right-S : (x y : ℕ) → (x + S y) ≡ S (x + y) ∈ ℕ
+                 ≔ x y ↦ ℕ-elim (x. (x + S y) ≡ S (x + y) ∈ ℕ)
+                                (tac rewrite⁻¹ (☐ ≡ _ ∈ _) (plus-left-Z (S y));
+                                     exact (S-cong (tac rewrite⁻¹ (_ ≡ ☐ ∈ _) (plus-left-Z y); trivial;));
+                                )
+                                (x. h. tac rewrite⁻¹ (☐ ≡ _ ∈ _) (plus-left-S ? ?);
+                                           exact S-cong (tac rewrite⁻¹ (_ ≡ ☐ ∈ _) (plus-left-S ? ?); exact h;);
+                                )
+                                x
+
+
+let plus-commut : (x y : ℕ) → x + y ≡ y + x ∈ ℕ
+                ≔ x y ↦
+                   ℕ-elim (x. (y : ℕ) → x + y ≡ y + x ∈ ℕ)
+                          (y ↦ tac
+                             rewrite⁻¹ (☐ ≡ _ ∈ _) (plus-left-Z ?);
+                             rewrite⁻¹ (_ ≡ ☐ ∈ _) (plus-right-Z ?);
+                             trivial;
+                          )
+                          (x. h. y ↦ tac
+                            rewrite⁻¹ (☐ ≡ _ ∈ _) (plus-left-S ? ?);
+                            rewrite⁻¹ (_ ≡ ☐ ∈ _) (plus-right-S ? ?);
+                            exact (S-cong (h ?));
+                          )
+                          x y
+
+-- 0 * y = 0
+-- (1 + x) * y = y + x * y
+let _*_ : ℕ → ℕ → ℕ
+        ≔ x y ↦ ℕ-elim (x. ℕ) Z (x. h. y + h) x
+
 
 let mult-left-Z : (x : ℕ) → Z * x ≡ Z ∈ ?
-                ≔ x ↦ J (α.h. α Z x ≡ Z ∈ ?)
-                        (J (α.h. α x ≡ Z ∈ ?)
-                           (J (α.h. α ≡ Z ∈ ?)
-                              (J (α.h. α ≡ Z ∈ ?)
-                                 Refl
-                                 (sym (ℕ-β-Z (x. ?) ? (x.h. ?)))
-                              )
-                              (sym (Π-β (x. ?) ?))
-                           )
-                           (sym {? → ?} (Π-β (x. ?) ?))
-                        )
-                        (sym !_*_)
+                ≔ x ↦ tac
+                    reduce ☐ _ _ ≡ _ ∈ _;
+                    reduce ☐ _ ≡ _ ∈ _;
+                    reduce ☐ ≡ _ ∈ _;
+                    reduce ☐ ≡ _ ∈ _;
+                    trivial;
 
 
 let mult-left-S : (t : ℕ) → (x : ℕ) → (S t * x) ≡ (x + t * x) ∈ ?
-                ≔ t ↦ x ↦
-                          J (α.h. α (S t) x ≡ (x + t * x) ∈ ?)
-                            (J (α.h. α x ≡ (x + t * x) ∈ ?)
-                               (J (α.h. α ≡ (x + t * x) ∈ ?)
-                                  (J (α.h. α ≡ (x + t * x) ∈ ?)
-                                     (J (α. h. (x + α) ≡ ?(t , x) ∈ ?)
-                                        (J (α. h. (x + α x) ≡ ?(t , x) ∈ ?)
-                                           (J (α. h. (x + α) ≡ ?(t , x) ∈ ?)
-                                              Refl
-                                              ((happly' ? ? ? ? (happly' ? ? ? ? !_*_ t) x))
-                                           )
-                                           (the (? ≡ ? ∈ ? → ?) (Π-β (x. ?) t))
-                                        )
-                                        (Π-β (y. ?) x)
-                                     )
-                                     (sym (ℕ-β-S (x. ?) ? (x. h. ?) ?))
-                                  )
-                                  (sym (Π-β (x. ?) ?))
-                               )
-                               (sym {? → ?} (Π-β (x. ?) ?))
-                            )
-                            (sym !_*_) -}
+                ≔ t x ↦ tac
+                    reduce ☐ _ _ ≡ _ ∈ _;
+                    reduce ☐ _ ≡ _ ∈ _;
+                    reduce ☐ ≡ _ ∈ _;
+                    reduce ☐ ≡ _ ∈ _;
+                    reduce _ ≡ _ + ☐ _ _ ∈ _;
+                    reduce _ ≡ _ + ☐ _ ∈ _;
+                    reduce _ ≡ _ + ☐ ∈ _;
+                    trivial;
+
+let Nat-eta : (A : ℕ → 𝕌)
+            → (f : (x : ℕ) → A x)
+            → (z : A Z)
+            → (s : (x : ℕ) → A x → A (S x))
+            → (f Z ≡ z ∈ ?)
+            → ((x : ℕ) → f (S x) ≡ s x (f x) ∈ ?)
+            → (f ≡ (x ↦ ℕ-elim (x. A x) z (x. h. s x h) x) ∈ ?)
+            ≔ A f z s c0 c1 ↦ fun-ext (x ↦ tac reduce _ ≡ ☐ ∈ _;
+                                               exact ℕ-elim
+                                                       (x. f x ≡ ℕ-elim (x. A x) z (x.h. s x h) x ∈ A x)
+                                                       (tac reduce _ ≡ ☐ ∈ _; exact c0;)
+                                                       (x. h. tac reduce _ ≡ ☐ ∈ _; rewrite (_ ≡ _ ☐ ∈ _) h; exact c1 x;)
+                                                       x;
+                                      )
 
 syntax e{≥6} ∘ e{≥5} : e{5}
 
@@ -162,4 +196,3 @@ let _∘_ : {A : 𝕌} → {B : 𝕌} → {C : 𝕌} → (g : B → C) → (f : 
 
 let _≅_ : 𝕌 → 𝕌 → 𝕌
         ≔ A B ↦ (f : A → B) ⨯ (g : B → A) ⨯ (g ∘ f ≡ id ∈ ?) ⨯ (f ∘ g ≡ id ∈ ?)
-

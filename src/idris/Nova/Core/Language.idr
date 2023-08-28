@@ -6,23 +6,10 @@ import Data.AVL
 import public Nova.Core.Name
 
 mutual
-  namespace Context
-    public export
-    data Context : Type where
-      ||| ε
-      Empty : Context
-      ||| Γ (x : A)
-      Ext : Context -> VarName -> Elem -> Context
-      ||| χ
-      SignatureVarElim : Nat -> Context
-
   public export
   data SignatureEntryInstance : Type where
-    CtxEntryInstance : Context -> SignatureEntryInstance
-    TypeEntryInstance : Elem -> SignatureEntryInstance
     ElemEntryInstance : Elem -> SignatureEntryInstance
     LetEntryInstance : SignatureEntryInstance
-    EqTyEntryInstance : SignatureEntryInstance
 
   namespace SubstSignature
     ||| σ : Σ₀ ⇒ Σ₁
@@ -122,6 +109,10 @@ mutual
       EqVal : Elem
 
   public export
+  Context : Type
+  Context = SnocList (VarName, Elem)
+
+  public export
   Spine : Type
   Spine = SnocList Elem
 
@@ -131,11 +122,10 @@ mutual
 
 public export
 data SignatureEntry : Type where
-  CtxEntry : SignatureEntry
-  TypeEntry : Context -> SignatureEntry
+  ||| Γ ⊦ A
   ElemEntry : Context -> Elem -> SignatureEntry
+  ||| Γ ⊦ a : A
   LetElemEntry : Context -> Elem -> Elem -> SignatureEntry
-  EqTyEntry : Context -> Elem -> Elem -> SignatureEntry
 
 Signature = SnocList (VarName, SignatureEntry)
 
@@ -231,26 +221,23 @@ namespace Signature
 
 public export
 SignatureInst : Type
-SignatureInst = SnocList Elem
+SignatureInst = SnocList SignatureEntryInstance
 
 public export
 ContextInst : Type
 ContextInst = SnocList Elem
 
 public export
-asRegularContext : Context -> Maybe (SnocList (VarName, Elem))
-asRegularContext Empty = Just [<]
-asRegularContext (Ext ctx x ty) = do
-  ctx <- asRegularContext ctx
-  Just (ctx :< (x, ty))
-asRegularContext (SignatureVarElim k) = Nothing
-
-public export
-fromRegularContext : SnocList (VarName, Elem) -> Context
-fromRegularContext [<] = Empty
-fromRegularContext (xs :< (x, ty)) = Ext (fromRegularContext xs) x ty
-
-public export
 isImplicitPi : Elem -> Bool
 isImplicitPi (ImplicitPiTy str x y) = True
 isImplicitPi _ = False
+
+public export
+isMetaType : OmegaEntry -> Bool
+isMetaType (MetaType {}) = True
+isMetaType _ = False
+
+public export
+isMetaElem : OmegaEntry -> Bool
+isMetaElem (MetaElem {}) = True
+isMetaElem _ = False

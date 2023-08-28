@@ -44,14 +44,14 @@ liftM f = M.do
   mapState (const st) (const ()) f
 
 public export
-liftMb : String -> Mb a -> UnifyM a
-liftMb err f = M.do
+liftMMaybe : String -> M (Maybe a) -> UnifyM a
+liftMMaybe err f = M.do
  case !(liftM f) of
    Just x => return x
    Nothing => throw err
 
 public export
-liftMEither : MEither String a -> UnifyM a
+liftMEither : M (Either String a) -> UnifyM a
 liftMEither f = M.do
  case !(liftM f) of
    Right x => return x
@@ -127,24 +127,22 @@ mutual
           -> (gamma : Context)
           -> (delta : Context)
           -> (xi : Context)
-          -> Mb SubstContext
-    invert sig omega sigma Terminal gamma delta xi = Mb.do return Terminal
+          -> M (Maybe SubstContext)
+    invert sig omega sigma Terminal gamma delta xi = MMaybe.do return Terminal
     -- σ : Γ₀ Γ₁ ⇒ Δ
     -- ↑(Γ₁) : Γ₀ Γ₁ ⇒ Γ₀
     -- ? : Δ ⇒ Γ₀ such that ? ∘ σ ~ ↑(Γ₁)
     --
     -- in that case ↑ᵏ = ·
-    invert sig omega sigma (WkN k) gamma delta Empty = Mb.do return Terminal
+    invert sig omega sigma (WkN k) gamma delta [<] = MMaybe.do return Terminal
     -- in that case ↑ᵏ = (↑ᵏ⁺¹, k)
-    invert sig omega sigma (WkN k) gamma delta xi@(Ext _ _ _) =
+    invert sig omega sigma (WkN k) gamma delta xi@(_ :< _) =
       SubstContextNF.invert sig omega sigma (Ext (WkN (S k)) (ContextVarElim k)) gamma delta xi
-    -- TODO: IDK how to find the inverse in that case:
-    invert sig omega sigma (WkN k) gamma delta (SignatureVarElim j) = nothing
-    invert sig omega sigma (Ext tau t) gamma delta (Ext xi {}) = Mb.do
+    invert sig omega sigma (Ext tau t) gamma delta (xi :< _) = MMaybe.do
       tau' <- invert sig omega sigma tau gamma delta xi
       t' <- invert sig omega gamma delta sigma t
       return (Ext tau' t')
-    invert sig omega sigma (Ext tau t) gamma delta _ = Mb.do
+    invert sig omega sigma (Ext tau t) gamma delta _ = MMaybe.do
       assert_total $ idris_crash "SubstContextNF.invert(Ext)"
 
   namespace SubstContext
@@ -160,7 +158,7 @@ mutual
           -> (gamma : Context)
           -> (delta : Context)
           -> (omega : Context)
-          -> Mb SubstContext
+          -> M (Maybe SubstContext)
     invert sig omega sigma tau = invert sig omega sigma (eval tau)
 
   namespace Elem
@@ -177,75 +175,75 @@ mutual
             -> (delta : Context)
             -> (sigma : SubstContext)
             -> (t : Elem)
-            -> Mb Elem
-    invertNu sig omega ctx delta sigma (PiTy x dom cod) = Mb.do
+            -> M (Maybe Elem)
+    invertNu sig omega ctx delta sigma (PiTy x dom cod) = MMaybe.do
       dom' <- invert sig omega ctx delta sigma dom
-      cod' <- invert sig omega (Ext ctx x dom) (Ext delta x dom') (Under sigma) cod
+      cod' <- invert sig omega (ctx :< (x, dom)) (delta :< (x, dom')) (Under sigma) cod
       return (PiTy x dom' cod')
-    invertNu sig omega ctx delta sigma (ImplicitPiTy x dom cod) = Mb.do
+    invertNu sig omega ctx delta sigma (ImplicitPiTy x dom cod) = MMaybe.do
       dom' <- invert sig omega ctx delta sigma dom
-      cod' <- invert sig omega (Ext ctx x dom) (Ext delta x dom') (Under sigma) cod
+      cod' <- invert sig omega (ctx :< (x, dom)) (delta :< (x, dom')) (Under sigma) cod
       return (ImplicitPiTy x dom' cod')
-    invertNu sig omega ctx delta sigma (SigmaTy x dom cod) = Mb.do
+    invertNu sig omega ctx delta sigma (SigmaTy x dom cod) = MMaybe.do
       dom' <- invert sig omega ctx delta sigma dom
-      cod' <- invert sig omega (Ext ctx x dom) (Ext delta x dom') (Under sigma) cod
+      cod' <- invert sig omega (ctx :< (x, dom)) (delta :< (x, dom')) (Under sigma) cod
       return (SigmaTy x dom' cod')
-    invertNu sig omega ctx delta sigma (PiVal x dom cod f) = Mb.do
+    invertNu sig omega ctx delta sigma (PiVal x dom cod f) = MMaybe.do
       dom' <- invert sig omega ctx delta sigma dom
-      cod' <- invert sig omega (Ext ctx x dom) (Ext delta x dom') (Under sigma) cod
-      f' <- invert sig omega (Ext ctx x dom) (Ext delta x dom') (Under sigma) f
+      cod' <- invert sig omega (ctx :< (x, dom)) (delta :< (x, dom')) (Under sigma) cod
+      f' <- invert sig omega (ctx :< (x, dom)) (delta :< (x, dom')) (Under sigma) f
       return (PiVal x dom' cod' f')
-    invertNu sig omega ctx delta sigma (ImplicitPiVal x dom cod f) = Mb.do
+    invertNu sig omega ctx delta sigma (ImplicitPiVal x dom cod f) = MMaybe.do
       dom' <- invert sig omega ctx delta sigma dom
-      cod' <- invert sig omega (Ext ctx x dom) (Ext delta x dom') (Under sigma) cod
-      f' <- invert sig omega (Ext ctx x dom) (Ext delta x dom') (Under sigma) f
+      cod' <- invert sig omega (ctx :< (x, dom)) (delta :< (x, dom')) (Under sigma) cod
+      f' <- invert sig omega (ctx :< (x, dom)) (delta :< (x, dom')) (Under sigma) f
       return (ImplicitPiVal x dom' cod' f')
-    invertNu sig omega ctx delta sigma (SigmaVal p q) = Mb.do
+    invertNu sig omega ctx delta sigma (SigmaVal p q) = MMaybe.do
       p' <- invert sig omega ctx delta sigma p
       q' <- invert sig omega ctx delta sigma q
       return (SigmaVal p' q')
-    invertNu sig omega ctx delta sigma (PiElim f x dom cod e) = Mb.do
+    invertNu sig omega ctx delta sigma (PiElim f x dom cod e) = MMaybe.do
       f' <- invert sig omega ctx delta sigma f
       dom' <- invert sig omega ctx delta sigma dom
-      cod' <- invert sig omega (Ext ctx x dom) (Ext delta x dom') (Under sigma) cod
+      cod' <- invert sig omega (ctx :< (x, dom)) (delta :< (x, dom')) (Under sigma) cod
       e' <- invert sig omega ctx delta sigma e
       return (PiElim f' x dom' cod' e')
-    invertNu sig omega ctx delta sigma (ImplicitPiElim f x dom cod e) = Mb.do
+    invertNu sig omega ctx delta sigma (ImplicitPiElim f x dom cod e) = MMaybe.do
       f' <- invert sig omega ctx delta sigma f
       dom' <- invert sig omega ctx delta sigma dom
-      cod' <- invert sig omega (Ext ctx x dom) (Ext delta x dom') (Under sigma) cod
+      cod' <- invert sig omega (ctx :< (x, dom)) (delta :< (x, dom')) (Under sigma) cod
       e' <- invert sig omega ctx delta sigma e
       return (ImplicitPiElim f' x dom' cod' e')
-    invertNu sig omega ctx delta sigma (SigmaElim1 f x dom cod) = Mb.do
+    invertNu sig omega ctx delta sigma (SigmaElim1 f x dom cod) = MMaybe.do
       f' <- invert sig omega ctx delta sigma f
       dom' <- invert sig omega ctx delta sigma dom
-      cod' <- invert sig omega (Ext ctx x dom) (Ext delta x dom') (Under sigma) cod
+      cod' <- invert sig omega (ctx :< (x, dom)) (delta :< (x, dom')) (Under sigma) cod
       return (SigmaElim1 f' x dom' cod')
-    invertNu sig omega ctx delta sigma (SigmaElim2 f x dom cod) = Mb.do
+    invertNu sig omega ctx delta sigma (SigmaElim2 f x dom cod) = MMaybe.do
       f' <- invert sig omega ctx delta sigma f
       dom' <- invert sig omega ctx delta sigma dom
-      cod' <- invert sig omega (Ext ctx x dom) (Ext delta x dom') (Under sigma) cod
+      cod' <- invert sig omega (ctx :< (x, dom)) (delta :< (x, dom')) (Under sigma) cod
       return (SigmaElim2 f' x dom' cod')
-    invertNu sig omega ctx delta sigma Universe = Mb.do return Universe
-    invertNu sig omega ctx delta sigma NatVal0 = Mb.do return NatVal0
-    invertNu sig omega ctx delta sigma (NatVal1 t) = Mb.do
+    invertNu sig omega ctx delta sigma Universe = MMaybe.do return Universe
+    invertNu sig omega ctx delta sigma NatVal0 = MMaybe.do return NatVal0
+    invertNu sig omega ctx delta sigma (NatVal1 t) = MMaybe.do
       t <- invert sig omega ctx delta sigma t
       return (NatVal1 t)
-    invertNu sig omega ctx delta sigma NatTy = Mb.do return NatTy
-    invertNu sig omega ctx delta sigma (NatElim x schema z y h s t) = Mb.do
-      schema' <- invert sig omega (Ext ctx x NatTy) (Ext delta x NatTy) (Under sigma) schema
+    invertNu sig omega ctx delta sigma NatTy = MMaybe.do return NatTy
+    invertNu sig omega ctx delta sigma (NatElim x schema z y h s t) = MMaybe.do
+      schema' <- invert sig omega (ctx :< (x, NatTy)) (delta :< (x, NatTy)) (Under sigma) schema
       z' <- invert sig omega ctx delta sigma z
-      s' <- invert sig omega (Ext (Ext ctx y NatTy) h schema) (Ext (Ext delta y NatTy) h schema') (Under (Under sigma)) s
+      s' <- invert sig omega (ctx :< (y, NatTy) :< (h, schema)) (delta :< (y, NatTy) :< (h,  schema')) (Under (Under sigma)) s
       t' <- invert sig omega ctx delta sigma t
       return (NatElim x schema' z' y h s' t')
     invertNu sig omega ctx delta sigma (ContextSubstElim x y) = assert_total $ idris_crash "invertNu(ContextSubstElim)"
     invertNu sig omega ctx delta sigma (SignatureSubstElim x y) = assert_total $ idris_crash "invertNu(SignatureSubstElim)"
-    invertNu sig omega ctx delta sigma (ContextVarElim k) = Mb.do
+    invertNu sig omega ctx delta sigma (ContextVarElim k) = MMaybe.do
       index <- go sigma 0
       return (ContextVarElim index)
      where
       mutual
-        goNu : SubstContextNF -> Nat -> Mb Nat
+        goNu : SubstContextNF -> Nat -> M (Maybe Nat)
         goNu Terminal index = nothing
         -- ↑ⁱ
         goNu (WkN i) index =
@@ -255,7 +253,7 @@ mutual
             -- We'll find k
             True => return (index + (k `minus` i))
         -- due to the conditions imposed on σ, t must be a variable up to (~)
-        goNu (Ext sigma t) index = Mb.do
+        goNu (Ext sigma t) index = MMaybe.do
           case !(liftM $ openEval sig omega t) of
             ContextVarElim i =>
               case (i == k) of
@@ -263,7 +261,7 @@ mutual
                 False => go sigma (S index)
             _ => assert_total $ idris_crash "invertNu(ContextVarElim)"
 
-        go : SubstContext -> Nat -> Mb Nat
+        go : SubstContext -> Nat -> M (Maybe Nat)
         go sigma index = goNu (eval sigma) index
     -- σ : Γ ⇒ Δ
     -- Γ ⊦ χᵢ (τ : Γ ⇒ Ω)
@@ -271,7 +269,7 @@ mutual
     -- Γ ⊦ χᵢ (ρ ∘ σ) = χᵢ τ
     -- that is, we need to find ρ : Δ ⇒ Ω
     -- such that (ρ ∘ σ) ~ τ
-    invertNu sig omega ctx delta sigma (SignatureVarElim k tau) = Mb.do
+    invertNu sig omega ctx delta sigma (SignatureVarElim k tau) = MMaybe.do
       tau' <- invert sig omega sigma tau ctx delta getCtx
       return (SignatureVarElim k tau')
      where
@@ -281,12 +279,9 @@ mutual
           Nothing => assert_total $ idris_crash "invertNu(SignatureVarElim)(1)"
           Just (_, (_, e), rest) =>
             case subst e (WkN $ 1 + length rest) of
-             CtxEntry => assert_total $ idris_crash "invertNu(SignatureVarElim)(2)"
-             TypeEntry xi => xi
              ElemEntry xi {} => xi
              LetElemEntry xi {} => xi
-             EqTyEntry {} => assert_total $ idris_crash "invertNu(SignatureVarElim)(3)"
-    invertNu sig omega ctx delta sigma (OmegaVarElim k tau) = Mb.do
+    invertNu sig omega ctx delta sigma (OmegaVarElim k tau) = MMaybe.do
       tau' <- invert sig omega sigma tau ctx delta getOmega
       return (OmegaVarElim k tau')
      where
@@ -299,15 +294,15 @@ mutual
           Just (LetType xi {}) => xi
           Just (MetaType xi {}) => xi
           Just _ => assert_total $ idris_crash "invertNu(OmegaVarElim)(2)"
-    invertNu sig omega ctx delta sigma (EqTy a b ty) = Mb.do
+    invertNu sig omega ctx delta sigma (EqTy a b ty) = MMaybe.do
       a <- invert sig omega ctx delta sigma a
       b <- invert sig omega ctx delta sigma b
       ty <- invert sig omega ctx delta sigma ty
       return (EqTy a b ty)
-    invertNu sig omega ctx delta sigma EqVal = Mb.do return EqVal
+    invertNu sig omega ctx delta sigma EqVal = MMaybe.do return EqVal
 
     public export
-    invert : Signature -> Omega -> Context -> Context -> SubstContext -> Elem -> Mb Elem
+    invert : Signature -> Omega -> Context -> Context -> SubstContext -> Elem -> M (Maybe Elem)
     invert sig omega ctx delta sigma tm = invertNu sig omega ctx delta sigma !(liftM $ openEval sig omega tm)
 
 mutual
@@ -503,7 +498,7 @@ namespace Elem
          SubstContextConstraint {} => assert_total $ idris_crash "unifyElemNu(OmegaVarElim, _)(6)"
   unifyElemNu sig cs ctx (PiTy x0 dom0 cod0) (PiTy x1 dom1 cod1) ty = FailSt.do
     return (Success [ ElemConstraint ctx dom0 dom1 Universe
-                    , ElemConstraint (Ext ctx x0 dom0) cod0 cod1 Universe
+                    , ElemConstraint (ctx :< (x0, dom0)) cod0 cod1 Universe
                     ]
                     []
            )
@@ -511,7 +506,7 @@ namespace Elem
     return (Disunifier "Π vs something else rigid")
   unifyElemNu sig cs ctx (ImplicitPiTy x0 dom0 cod0) (ImplicitPiTy x1 dom1 cod1) ty = FailSt.do
     return (Success [ ElemConstraint ctx dom0 dom1 Universe
-                    , ElemConstraint (Ext ctx x0 dom0) cod0 cod1 Universe
+                    , ElemConstraint (ctx :< (x0, dom0)) cod0 cod1 Universe
                     ]
                     []
            )
@@ -519,20 +514,20 @@ namespace Elem
     return (Disunifier "Πⁱ vs something else rigid")
   unifyElemNu sig cs ctx (SigmaTy x0 dom0 cod0) (SigmaTy x1 dom1 cod1) ty = FailSt.do
     return (Success [ ElemConstraint ctx dom0 dom1 Universe
-                    , ElemConstraint (Ext ctx x0 dom0) cod0 cod1 Universe
+                    , ElemConstraint (ctx :< (x0, dom0)) cod0 cod1 Universe
                     ]
                     []
            )
   unifyElemNu sig cs ctx (SigmaTy x0 dom0 cod0) b ty = M.do
     return (Disunifier "Σ vs something else rigid")
   unifyElemNu sig cs ctx (PiVal x0 dom0 cod0 f0) (PiVal x1 dom1 cod1 f1) ty = FailSt.do
-    return (Success [ElemConstraint (Ext ctx x0 dom0) f0 f1 cod0]
+    return (Success [ElemConstraint (ctx :< (x0, dom0)) f0 f1 cod0]
                     []
            )
   unifyElemNu sig cs ctx (PiVal {}) b ty = M.do
     return (Disunifier "λ vs something else rigid")
   unifyElemNu sig cs ctx (ImplicitPiVal x0 dom0 cod0 f0) (ImplicitPiVal x1 dom1 cod1 f1) ty = FailSt.do
-    return (Success [ElemConstraint (Ext ctx x0 dom0) f0 f1 cod0]
+    return (Success [ElemConstraint (ctx :< (x0, dom0)) f0 f1 cod0]
                     []
            )
   unifyElemNu sig cs ctx (ImplicitPiVal {}) b ty = M.do
@@ -547,7 +542,7 @@ namespace Elem
     return (Disunifier "(_, _) vs something else rigid")
   unifyElemNu sig cs ctx (PiElim f0 x0 dom0 cod0 e0) (PiElim f1 x1 dom1 cod1 e1) ty = M.do
     return (Success [TypeConstraint ctx dom0 dom1
-                    , TypeConstraint (Ext ctx x0 dom0) cod0 cod1
+                    , TypeConstraint (ctx :< (x0, dom0)) cod0 cod1
                     , ElemConstraint ctx f0 f1 (PiTy x0 dom0 cod0)
                     , ElemConstraint ctx e0 e1 dom0
                     ]
@@ -557,7 +552,7 @@ namespace Elem
     return (Disunifier "app vs something else rigid")
   unifyElemNu sig cs ctx (ImplicitPiElim f0 x0 dom0 cod0 e0) (ImplicitPiElim f1 x1 dom1 cod1 e1) ty = M.do
     return (Success [TypeConstraint ctx dom0 dom1
-                    , TypeConstraint (Ext ctx x0 dom0) cod0 cod1
+                    , TypeConstraint (ctx :< (x0, dom0)) cod0 cod1
                     , ElemConstraint ctx f0 f1 (ImplicitPiTy x0 dom0 cod0)
                     , ElemConstraint ctx e0 e1 dom0
                     ]
@@ -567,7 +562,7 @@ namespace Elem
     return (Disunifier "appⁱ vs something else rigid")
   unifyElemNu sig cs ctx (SigmaElim1 f0 x0 dom0 cod0) (SigmaElim1 f1 x1 dom1 cod1) ty = M.do
     return (Success [ TypeConstraint ctx dom0 dom1
-                    , TypeConstraint (Ext ctx x0 dom0) cod0 cod1
+                    , TypeConstraint (ctx :< (x0, dom0)) cod0 cod1
                     , ElemConstraint ctx f0 f1 (SigmaTy x0 dom0 cod0)
                     ]
                     []
@@ -576,7 +571,7 @@ namespace Elem
     return (Disunifier "π₁ vs something else rigid")
   unifyElemNu sig cs ctx (SigmaElim2 f0 x0 dom0 cod0) (SigmaElim2 f1 x1 dom1 cod1) ty = M.do
     return (Success [TypeConstraint ctx dom0 dom1
-                    , TypeConstraint (Ext ctx x0 dom0) cod0 cod1
+                    , TypeConstraint (ctx :< (x0, dom0)) cod0 cod1
                     , ElemConstraint ctx f0 f1 (SigmaTy x0 dom0 cod0)
                     ]
                     []
@@ -599,9 +594,9 @@ namespace Elem
   unifyElemNu sig cs ctx NatTy b ty = M.do
     return (Disunifier "S vs something else rigid")
   unifyElemNu sig cs ctx (NatElim x0 schema0 z0 y0 h0 s0 t0) (NatElim x1 schema1 z1 y1 h1 s1 t1) ty = M.do
-    return (Success [  TypeConstraint (Ext ctx x0 NatTy) schema0 schema1,
+    return (Success [  TypeConstraint (ctx :< (x0, NatTy)) schema0 schema1,
                        ElemConstraint ctx z0 z1 (ContextSubstElim schema0 (Ext Id NatVal0)),
-                       ElemConstraint (Ext (Ext ctx y0 NatTy) h0 schema0) s0 s1 (ContextSubstElim schema0 (Ext (WkN 2) (NatVal1 (CtxVarN 1)))),
+                       ElemConstraint (ctx :< (y0, NatTy) :< (h0, schema0)) s0 s1 (ContextSubstElim schema0 (Ext (WkN 2) (NatVal1 (CtxVarN 1)))),
                        ElemConstraint ctx t0 t1 NatTy] [])
 
   unifyElemNu sig cs ctx (NatElim x0 schema0 z0 y0 h0 s0 t0) b ty = M.do
@@ -635,11 +630,8 @@ namespace Elem
             Nothing => assert_total $ idris_crash "invertNu(SignatureVarElim)(1)"
             Just (_, (_, e), rest) =>
               case subst e (WkN $ 1 + length rest) of
-               CtxEntry => assert_total $ idris_crash "invertNu(SignatureVarElim)(2)"
-               TypeEntry xi => xi
                ElemEntry xi {} => xi
                LetElemEntry xi {} => xi
-               EqTyEntry {} => assert_total $ idris_crash "invertNu(SignatureVarElim)(3)"
   unifyElemNu sig cs ctx (SignatureVarElim k0 sigma0) b ty = M.do
     return (Disunifier "χᵢ vs something else rigid")
 
@@ -725,7 +717,7 @@ namespace Type'
          SubstContextConstraint {} => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim, _)(6)"
   unifyTypeNu sig cs ctx (PiTy x0 dom0 cod0) (PiTy x1 dom1 cod1) = FailSt.do
     return (Success [ TypeConstraint ctx dom0 dom1
-                    , TypeConstraint (Ext ctx x0 dom0) cod0 cod1
+                    , TypeConstraint (ctx :< (x0, dom0)) cod0 cod1
                     ]
                     []
            )
@@ -733,15 +725,15 @@ namespace Type'
     return (Disunifier "Π vs something else rigid")
   unifyTypeNu sig cs ctx (ImplicitPiTy x0 dom0 cod0) (ImplicitPiTy x1 dom1 cod1) = FailSt.do
     return (Success [ TypeConstraint ctx dom0 dom1
-                    , TypeConstraint (Ext ctx x0 dom0) cod0 cod1
+                    , TypeConstraint (ctx :< (x0, dom0)) cod0 cod1
                     ]
                     []
            )
   unifyTypeNu sig cs ctx (ImplicitPiTy x0 dom0 cod0) b = M.do
-    return (Disunifier "Πⁱ vs something else rigid: \{renderDocTerm !(prettyElem sig cs (map fst (tail ctx)) b 0)}")
+    return (Disunifier "Πⁱ vs something else rigid: \{renderDocTerm !(prettyElem sig cs (map fst ctx) b 0)}")
   unifyTypeNu sig cs ctx (SigmaTy x0 dom0 cod0) (SigmaTy x1 dom1 cod1) = FailSt.do
     return (Success [ TypeConstraint ctx dom0 dom1
-                    , TypeConstraint (Ext ctx x0 dom0) cod0 cod1
+                    , TypeConstraint (ctx :< (x0, dom0)) cod0 cod1
                     ]
                     []
            )
@@ -796,11 +788,8 @@ namespace Type'
             Nothing => assert_total $ idris_crash "invertNu(SignatureVarElim)(1)"
             Just (_, (_, e), rest) =>
               case subst e (WkN $ 1 + length rest) of
-               CtxEntry => assert_total $ idris_crash "invertNu(SignatureVarElim)(2)"
-               TypeEntry xi => xi
                ElemEntry xi {} => xi
                LetElemEntry xi {} => xi
-               EqTyEntry {} => assert_total $ idris_crash "invertNu(SignatureVarElim)(3)"
   unifyTypeNu sig cs ctx (SignatureVarElim k0 sigma0) b = M.do
     return (Disunifier "χᵢ vs something else rigid")
   unifyTypeNu sig cs ctx _ _ = assert_total $ idris_crash "unifyTypeNu"
@@ -818,16 +807,16 @@ namespace SubstContextNF
     case (k == j) of
       True => return (Success [] [])
       False => return (Disunifier "↑ⁱ vs iᵏ where i ≠ k")
-  unify sig cs (WkN k) (Ext sigma t) source (Ext target x ty) =
+  unify sig cs (WkN k) (Ext sigma t) source (target :< (x, ty)) =
     return (Success [  SubstContextConstraint sigma (WkN (S k)) source target,
                        ElemConstraint source t (ContextVarElim k) (ContextSubstElim ty sigma)] [])
   unify sig cs (WkN k) (Ext sigma t) source target = return (Stuck "↑ⁿ vs (_, _) where the target context is not an extension")
   unify sig cs (Ext x y) Terminal source target = return (Success [] [])
-  unify sig cs (Ext sigma t) (WkN k) source (Ext target x ty) =
+  unify sig cs (Ext sigma t) (WkN k) source (target :< (x, ty)) =
     return (Success [  SubstContextConstraint sigma (WkN (S k)) source target,
                        ElemConstraint source t (ContextVarElim k) (ContextSubstElim ty sigma)] [])
   unify sig cs (Ext sigma t) (WkN k) source target = return (Stuck "↑ⁿ vs (_, _) where the target context is not an extension")
-  unify sig cs (Ext sigma p) (Ext tau q) source (Ext target x ty) =
+  unify sig cs (Ext sigma p) (Ext tau q) source (target :< (x, ty)) =
     return (Success [  SubstContextConstraint sigma tau source target,
                        ElemConstraint source p q (ContextSubstElim ty sigma)] [])
   unify sig cs (Ext sigma p) (Ext tau q) source target = return (Stuck "(_, _) vs (_, _) where the target context is not an extension")
@@ -989,8 +978,10 @@ containsNamedHolesOnly omega = H (map snd (List.inorder omega))
   H (LetElem {} :: es) = H es
   H (LetType {} :: es) = H es
   H (MetaType ctx NoSolve :: es) = H es
+  H (MetaType ctx SolveByElaboration :: es) = H es
   H (MetaType ctx _ :: es) = False
   H (MetaElem ctx ty NoSolve :: es) = H es
+  H (MetaElem ctx ty SolveByElaboration :: es) = H es
   H (MetaElem ctx ty _ :: es) = False
   H (TypeConstraint {} :: es) = False
   H (ElemConstraint {} :: es) = False

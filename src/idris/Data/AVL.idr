@@ -261,6 +261,14 @@ namespace OrdTree
   unite left right =
     foldl (\tree, x => insert x tree) right left
 
+  public export
+  unite3 : {ord : _} -> (m : OrdTree a ord) -> (n : OrdTree a ord) -> (o : OrdTree a ord) -> OrdTree a ord
+  unite3 m n o = unite (unite m n) o
+
+  public export
+  unite4 : {ord : _} -> OrdTree a ord -> OrdTree a ord -> OrdTree a ord -> OrdTree a ord -> OrdTree a ord
+  unite4 m n o p = unite (unite (unite m n) o) p
+
   ||| O(log n)
   public export
   lookup : {ord : _} -> k -> OrdTree (k, v) (ByFst @{ord}) -> Maybe v

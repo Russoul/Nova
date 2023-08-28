@@ -8,18 +8,19 @@ import Data.AlternatingList1
 import Nova.Core.Name
 import Nova.Surface.Operator
 
--- h ::= Z | Refl | x | S | ℕ-elim | J | ℕ | 𝕌 | !x | ?x | Π-β | Π-η | Π⁼ | ℕ-β-Z | ℕ-β-S
+-- h ::= Z | Refl | x | S | ℕ-elim | J | ℕ | 𝕌 | !x | ?x | Π-β | Π-η | Π⁼ | ℕ-β-Z | ℕ-β-S | (e{≥0}) | _ | ☐
 
--- e{0} = x ↦ e{≥0} | {x} ↦ e{≥0} | (x : e{≥0}) → e{≥0} | {x : e{≥0} → e{≥0}} | (x : {≥0}) ⨯ e{≥0}
--- e{1} = op e{≥2} op ... e{≥2} op | e{≥2} op e{≥2} ... op e{≥3}
+-- e{0} = x ↦ e{≥0} | {x} ↦ e{≥0} | (x : e{≥0}) → e{≥0} | {x : e{≥0}} → e{≥0} | (x : e{≥0}) ⨯ e{≥0}
+-- e{1} = op e{≥2} op ... e{≥2} op | e{≥2} op e{≥2} ... op e{≥2}
 -- e{2} = h ē⁺ where |ē⁺| > 0
--- e{3} = h | (e{≥0})
+-- e{3} = h | (e{≥0}) | \|e{≥0}\|
 
 -- e⁺{0} = x̅.̅ e{≥0}
 -- e⁺{1} = e{≥3} | (e⁺{≥0}) | .π₁ | .π₂ | {e{≥0}}
 -- ē⁺ ::= ␣ e⁺{1} ē⁺ | ·
 
 -- top-level ::= assume x : e{≥0} | let x : e{≥0} ≔ e{≥0}
+
 
 mutual
   namespace Head
@@ -41,6 +42,10 @@ mutual
       NatBetaZ : Range -> Head
       NatBetaS : Range -> Head
       PiEq : Range -> Head
+      ||| Only used for paths.
+      Underscore : Range -> Head
+      ||| Only used for paths.
+      Box : Range -> Head
       Tm : Range -> Term -> Head
 
   namespace OpFreeHead
@@ -62,6 +67,10 @@ mutual
       NatBetaZ : Range -> OpFreeHead
       NatBetaS : Range -> OpFreeHead
       PiEq : Range -> OpFreeHead
+      ||| Only used for paths.
+      Underscore : Range -> OpFreeHead
+      ||| Only used for paths.
+      Box : Range -> OpFreeHead
       Tm : Range -> OpFreeTerm -> OpFreeHead
 
   namespace Term
@@ -73,6 +82,53 @@ mutual
       PiVal : Range -> List1 VarName -> Term -> Term
       ImplicitPiVal : Range -> List1 VarName -> Term -> Term
       OpLayer : {k : _} -> Range -> AlternatingList1 k (Range, String) (Range, Head, Elim) -> Term
+      Tac : Range -> Tactic -> Term
+
+  namespace Tactic
+    public export
+    data Tactic : Type where
+      ||| id
+      Id : Range -> Tactic
+      ||| α
+      ||| β
+      Composition : Range -> List1 Tactic -> Tactic
+      ||| reduce ρ
+      Reduce : Range -> Term -> Tactic
+      ||| exact t
+      Exact : Range -> Term -> Tactic
+      ||| * α
+      ||| * β
+      ||| ...
+      ||| * γ
+      Split : Range -> SnocList Tactic -> Tactic -> Tactic
+      Trivial : Range -> Tactic
+      ||| rewrite⁻¹ e{≥4} e{≥4}
+      RewriteInv : Range -> Term -> Term -> Tactic
+      ||| rewrite e{≥4} e{≥4}
+      Rewrite : Range -> Term -> Term -> Tactic
+
+  namespace OpFreeTactic
+    public export
+    data OpFreeTactic : Type where
+      ||| id
+      Id : Range -> OpFreeTactic
+      ||| α
+      ||| β
+      Composition : Range -> List1 OpFreeTactic -> OpFreeTactic
+      ||| reduce ρ
+      Reduce : Range -> OpFreeTerm -> OpFreeTactic
+      ||| exact t
+      Exact : Range -> OpFreeTerm -> OpFreeTactic
+      ||| * α
+      ||| * β
+      ||| ...
+      ||| * γ
+      Split : Range -> SnocList OpFreeTactic -> OpFreeTactic -> OpFreeTactic
+      Trivial : Range -> OpFreeTactic
+      ||| rewrite⁻¹ e{≥4} e{≥4}
+      RewriteInv : Range -> OpFreeTerm -> OpFreeTerm -> OpFreeTactic
+      ||| rewrite e{≥4} e{≥4}
+      Rewrite : Range -> OpFreeTerm -> OpFreeTerm -> OpFreeTactic
 
   namespace OpFreeTerm
     public export
@@ -87,6 +143,7 @@ mutual
       EqTy : Range -> OpFreeTerm -> OpFreeTerm -> OpFreeTerm -> OpFreeTerm
       SigmaVal : Range -> OpFreeTerm -> OpFreeTerm -> OpFreeTerm
       App : Range -> OpFreeHead -> OpFreeElim -> OpFreeTerm
+      Tac : Range -> OpFreeTactic -> OpFreeTerm
 
   public export
   TermArg : Type
@@ -128,6 +185,7 @@ range (SigmaTy r str y z) = r
 range (PiVal r str y) = r
 range (ImplicitPiVal r str y) = r
 range (OpLayer r ls) = r
+range (Tac r _) = r
 
 mutual
   covering
@@ -157,6 +215,8 @@ mutual
     show (NatTy x) = "ℕ"
     show (UniverseTy x) = "𝕌"
     show (PiEq x) = "PiEq"
+    show (Underscore x) = "_"
+    show (Box x) = "☐"
     show (Tm x tm) = "Tm(\{show tm})"
 
   public export
@@ -168,6 +228,7 @@ mutual
     show (PiVal _ x f) = "PiVal(\{show x}, \{show f})"
     show (ImplicitPiVal _ x f) = "ImplicitPiVal(\{show x}, \{show f})"
     show (OpLayer _ list) = "OpLayer(\{show list})"
+    show (Tac _ alpha) = "Tac(...)"
 
 mutual
   covering
@@ -197,6 +258,8 @@ mutual
     show (NatTy x) = "ℕ"
     show (UniverseTy x) = "𝕌"
     show (PiEq x) = "PiEq"
+    show (Underscore x) = "_"
+    show (Box x) = "☐"
     show (Tm x tm) = "Tm(\{show tm})"
 
   public export
@@ -212,6 +275,7 @@ mutual
     show (EqTy _ a b ty) = "EqTy(\{show a}, \{show b}, \{show ty})"
     show (SigmaVal _ a b) = "SigmaVal(\{show a}, \{show b})"
     show (App _ head list) = "App(\{show head}, \{show list})"
+    show (Tac _ alpha) = "Tac(...)"
 
 namespace Term
   public export
@@ -264,3 +328,70 @@ namespace OpFreeTerm
   range (EqTy x y z w) = x
   range (SigmaVal x y z) = x
   range (App x y xs) = x
+  range (Tac r _) = r
+
+{-
+||| A predicate on the term-language defining when a term is a valid path.
+-- FIX: This definition makes idris type-checker stall. Almost certainly this is about deep patterns.
+public export
+isValidPath : OpFreeTerm -> Bool
+isValidPath (PiTy x str dom (App _ (Underscore _) [])) = isValidPath dom
+isValidPath (PiTy x str (App _ (Underscore _) []) cod) = isValidPath cod
+isValidPath (PiTy x str _ _) = False
+isValidPath (ImplicitPiTy x str (App _ (Underscore _) []) cod) = isValidPath cod
+isValidPath (ImplicitPiTy x str dom (App _ (Underscore _) [])) = isValidPath dom
+isValidPath (ImplicitPiTy x str dom cod) = False
+isValidPath (SigmaTy x str (App _ (Underscore _) []) cod) = isValidPath cod
+isValidPath (SigmaTy x str dom (App _ (Underscore _) [])) = isValidPath dom
+isValidPath (SigmaTy x str dom cod) = False
+isValidPath (PiVal x str f) = isValidPath f
+isValidPath (ImplicitPiVal x str f) = isValidPath f
+isValidPath (ProdTy x (App _ (Underscore _) []) cod) = isValidPath cod
+isValidPath (ProdTy x dom (App _ (Underscore _) [])) = isValidPath dom
+isValidPath (ProdTy x dom cod) = False
+isValidPath (FunTy x (App _ (Underscore _) []) cod) = isValidPath cod
+isValidPath (FunTy x dom (App _ (Underscore _) [])) = isValidPath dom
+isValidPath (FunTy x dom cod) = False
+isValidPath (EqTy _ a (App _ (Underscore _) []) (App _ (Underscore _) [])) = isValidPath a
+isValidPath (EqTy _ (App _ (Underscore _) []) b (App _ (Underscore _) [])) = isValidPath b
+isValidPath (EqTy _ (App _ (Underscore _) []) (App _ (Underscore _) []) c) = isValidPath c
+isValidPath (EqTy _ a b c) = False
+isValidPath (SigmaVal x a (App _ (Underscore _) [])) = isValidPath a
+isValidPath (SigmaVal x (App _ (Underscore _) []) b) = isValidPath b
+isValidPath (SigmaVal x a b) = False
+isValidPath (App _ (Var x str) es) = False
+isValidPath (App _ (NatVal0 x) es) = False
+isValidPath (App _ (NatVal1 x) [(_, (Arg ([], t)))]) = isValidPath t
+isValidPath (App _ (NatVal1 x) es) = False
+isValidPath (App _ (NatElim x) [(_, Arg ([], schema)),
+                                (_, Arg ([], (App _ (Underscore _) []))),
+                                (_, Arg ([], (App _ (Underscore _) []))),
+                                (_, Arg ([], (App _ (Underscore _) [])))]) = isValidPath schema
+isValidPath (App _ (NatElim x) [(_, Arg ([], (App _ (Underscore _) []))),
+                                (_, Arg ([], z)),
+                                (_, Arg ([], (App _ (Underscore _) []))),
+                                (_, Arg ([], (App _ (Underscore _) [])))]) = isValidPath z
+isValidPath (App _ (NatElim x) [(_, Arg ([], (App _ (Underscore _) []))),
+                                (_, Arg ([], (App _ (Underscore _) []))),
+                                (_, Arg ([], s)),
+                                (_, Arg ([], (App _ (Underscore _) [])))]) = isValidPath s
+isValidPath (App _ (NatElim x) [(_, Arg ([], (App _ (Underscore _) []))),
+                                (_, Arg ([], (App _ (Underscore _) []))),
+                                (_, Arg ([], (App _ (Underscore _) []))),
+                                (_, Arg ([], t))]) = isValidPath t
+isValidPath (App _ (NatElim x) es) = False
+isValidPath (App _ (EqElim x) es) = False
+isValidPath (App _ (EqVal x) es) = False
+isValidPath (App _ (NatTy x) es) = False
+isValidPath (App _ (UniverseTy x) es) = False
+isValidPath (App _ (Hole x str mstrs) es) = False
+isValidPath (App _ (UnnamedHole x mstrs) es) = False
+isValidPath (App _ (Unfold x str) es) = False
+isValidPath (App _ (PiBeta x) es) = False
+isValidPath (App _ (PiEta x) es) = False
+isValidPath (App _ (NatBetaZ x) es) = False
+isValidPath (App _ (NatBetaS x) es) = False
+isValidPath (App _ (PiEq x) es) = False
+isValidPath (App _ (Underscore x) es) = False
+isValidPath (App _ (Box x) es) = True
+isValidPath (App _ (Tm x y) es) = ?ff_28 -}

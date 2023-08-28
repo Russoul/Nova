@@ -1,6 +1,7 @@
 module Nova.Surface.Parser
 
 import Data.Fin
+import Data.Util
 import Data.Maybe
 import Data.AlternatingList
 import Data.AlternatingList1
@@ -36,6 +37,18 @@ zeroHead = do
   r <- spName "Z"
   appendSemanticToken (r, ElemAnn)
   pure (NatVal0 r)
+
+public export
+underscoreHead : Rule Head
+underscoreHead = do
+  r <- delim "_"
+  pure (Underscore r)
+
+public export
+boxHead : Rule Head
+boxHead = do
+  r <- delim "☐"
+  pure (Box r)
 
 public export
 oneHead : Rule Head
@@ -184,6 +197,8 @@ mutual
      <|> natBetaZHead
      <|> natBetaSHead
      <|> jHead
+     <|> underscoreHead
+     <|> boxHead
 
   public export
   head2 : Rule Head
@@ -293,6 +308,17 @@ mutual
     guard "elimination spine must be non-empty" (length es > 0)
     pure (OpLayer (p0 + p1) (ConsB (p0 + p1, h, es) []))
 
+  public export
+  tactic : Rule Tactic
+
+  public export
+  tac : Rule Term
+  tac = do
+    l <- delim "tac"
+    spaceDelim
+    (r, alpha) <- located tactic
+    pure (Tac (l + r) alpha)
+
   ||| Parse a Term exactly at level 3
   public export
   term3 : Rule Term
@@ -376,7 +402,7 @@ mutual
   ||| Parse a TypE at level ≥ n
   public export
   term : Level -> Rule Term
-  term 0 = sectionBinder <|> implicitPi <|> piVal <|> implicitPiVal <|> opLayerTerm
+  term 0 = sectionBinder <|> implicitPi <|> piVal <|> implicitPiVal <|> tac <|> opLayerTerm
   term 1 =                                            opLayerTerm
   term 2 =                                            simpleExprTerm
   term 3 =                                            term4
@@ -517,3 +543,86 @@ mutual
   surfaceFile : Rule (List1 TopLevel)
   surfaceFile = do
     sepBy1 spaceDelimDef topLevel
+
+mutual
+  tactic = composition <|> split <|> exact <|> reduce <|> id <|> trivial <|> rewriteInv <|> rewrite'
+
+  public export
+  compositionArg : Rule Tactic
+  compositionArg = split <|> exact <|> reduce <|> id <|> trivial <|> rewriteInv <|> rewrite'
+
+  ensureColumn : (col : Int) -> Rule a -> Rule a
+  ensureColumn col f = do
+    (r, t) <- located f
+    guard "wrong column" (snd r.start == col)
+    pure t
+
+  continueComposition : (column : Int) -> Rule (List Tactic)
+  continueComposition column = do
+    [| (spaceDelim *> compositionArg <* delim_ ";") :: continueComposition column |] <|> pure []
+
+  public export
+  composition : Rule Tactic
+  composition = do
+    (l, t) <- located compositionArg
+    delim_ ";"
+    (r, rest) <- located (continueComposition (snd l.start))
+    pure (Composition (l + r) (t ::: rest))
+
+  public export
+  id : Rule Tactic
+  id = delim "id" <&> Id
+
+  public export
+  trivial : Rule Tactic
+  trivial = delim "trivial" <&> Trivial
+
+  public export
+  exact : Rule Tactic
+  exact = do
+    l <- delim "exact"
+    spaceDelim
+    (r, tm) <- located (term 0)
+    pure (Exact (l + r) tm)
+
+  public export
+  reduce : Rule Tactic
+  reduce = do
+    l <- delim "reduce"
+    spaceDelim
+    (r, tm) <- located (term 0)
+    pure (Reduce (l + r) tm)
+
+  continueSplit : (col : Int) -> Rule (List Tactic)
+  continueSplit col = do
+    [| (spaceDelim *> delim "*" *> spaceDelim *> tactic) :: continueSplit col |] <|> pure []
+
+  public export
+  split : Rule Tactic
+  split = do
+    l <- delim "*"
+    spaceDelim
+    alpha <- tactic
+    (r, alphas) <- located $ continueSplit (snd l.start)
+    let (as, a) = toSnocList1 $ alpha ::: alphas
+    pure (Split (l + r) as a)
+
+  public export
+  rewriteInv : Rule Tactic
+  rewriteInv = do
+    l <- delim "rewrite⁻¹"
+    spaceDelim
+    rho <- term 3
+    spaceDelim
+    e <- located (term 3)
+    pure (RewriteInv (l + fst e) rho (snd e))
+
+  public export
+  rewrite' : Rule Tactic
+  rewrite' = do
+    l <- delim "rewrite"
+    spaceDelim
+    rho <- term 3
+    spaceDelim
+    e <- located (term 3)
+    pure (Rewrite (l + fst e) rho (snd e))

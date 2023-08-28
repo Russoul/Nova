@@ -9,16 +9,6 @@ import Nova.Core.Substitution
 
 -- Closed term evaluation
 
-lookupContextInst : ContextInst -> Nat -> M Elem
-lookupContextInst [<] _ = throw "Exception in lookupContextInst"
-lookupContextInst (ts :< t) 0 = return t
-lookupContextInst (ts :< t) (S k) = lookupContextInst ts k
-
-lookupSignatureInst : SignatureInst -> Nat -> M Elem
-lookupSignatureInst [<] _ = throw "Exception in lookupSignatureInst"
-lookupSignatureInst (ts :< t) 0 = return t
-lookupSignatureInst (ts :< t) (S k) = lookupSignatureInst ts k
-
 mutual
   ||| Σ ⊦ a ⇝ a' : A
   ||| Σ must only contain let-elem's

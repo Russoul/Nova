@@ -421,3 +421,12 @@ splitAt (xs :< x) 0 = Just (xs, x, [<])
 splitAt (xs :< x) (S n) = do
   (left, center, right) <- splitAt xs n
   pure (left, center, right :< x)
+
+public export
+toSnocList1Acc : SnocList a -> List1 a -> (SnocList a, a)
+toSnocList1Acc rest (x ::: []) = (rest, x)
+toSnocList1Acc rest (x ::: y :: zs) = toSnocList1Acc (rest :< x) (y ::: zs)
+
+public export
+toSnocList1 : List1 a -> (SnocList a, a)
+toSnocList1 list = toSnocList1Acc [<] list

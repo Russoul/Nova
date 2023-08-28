@@ -566,6 +566,16 @@ inParentheses p = do
   pure t
 
 public export
+inBars : Rule a -> Rule a
+inBars p = do
+  delim_ "|"
+  optSpaceDelim
+  t <- p
+  optSpaceDelim
+  delim_ "|"
+  pure t
+
+public export
 inBraces : Rule a -> Rule a
 inBraces p = do
   delim_ "{"
@@ -689,6 +699,7 @@ keywords = [ "Z"
            , "Π⁼"
            , "ℕ-β-Z"
            , "ℕ-β-S"
+           , "tac"
            ]
 
 public export

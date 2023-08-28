@@ -10,9 +10,12 @@ modules =
         , Data.AlternatingList1
         , Data.AlternatingSnocList
         , Data.AlternatingSnocList1
+        , Data.Interpolation
 
+        , Nova.Core.Context
         , Nova.Core.Conversion
         , Nova.Core.Evaluation
+        , Nova.Core.FreeVariable
         , Nova.Core.Language
         , Nova.Core.Monad
         , Nova.Core.Name
@@ -29,6 +32,9 @@ modules =
         , Nova.Surface.SemanticToken
         , Nova.Surface.Shunting
         , Nova.Surface.ModuleSystem
+
+        , Nova.Surface.Tactic.Reduce
+        , Nova.Surface.Tactic.Trivial
 
         , Nova.Test.Test
 

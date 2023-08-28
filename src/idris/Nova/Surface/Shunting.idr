@@ -2,6 +2,7 @@ module Nova.Surface.Shunting
 
 import Data.Location
 import Data.List1
+import Data.Interpolation
 
 import Data.AlternatingList
 import Data.AlternatingList1
@@ -84,7 +85,7 @@ mutual
        -> Range
        -> (layer : AlternatingList k1 (Range, String) (Range, Head, Elim))
        -> Nat
-       -> MEither String OpFreeTerm
+       -> M (Either String OpFreeTerm)
   tryOp ops op@(MkOperator k seq oplvl) range layer lvl = M.do
     case (oplvl >= lvl) of
       False => error "\{toName op}'s level is \{show oplvl} but the target lvl is ≥\{show lvl}"
@@ -120,7 +121,7 @@ mutual
     exactlyOne (Left err :: rest) = exactlyOne rest
 
   public export
-  shuntElimEntry : List Operator -> ElimEntry -> MEither String OpFreeElimEntry
+  shuntElimEntry : List Operator -> ElimEntry -> M (Either String OpFreeElimEntry)
   shuntElimEntry ops (Arg (xs, t)) = MEither.do
     return (Arg (xs, !(shunt ops t 0)))
   shuntElimEntry ops Pi1 = MEither.do
@@ -131,7 +132,7 @@ mutual
     return (ImplicitArg !(shunt ops t 0))
 
   public export
-  shuntElim : List Operator -> Elim -> MEither String OpFreeElim
+  shuntElim : List Operator -> Elim -> M (Either String OpFreeElim)
   shuntElim ops [] = MEither.do
     return []
   shuntElim ops ((r, e) :: es) = MEither.do
@@ -140,7 +141,7 @@ mutual
     return ((r, e) :: es)
 
   public export
-  shuntHead : List Operator -> Head -> MEither String OpFreeHead
+  shuntHead : List Operator -> Head -> M (Either String OpFreeHead)
   shuntHead ops (Var x str) = return (Var x str)
   shuntHead ops (NatVal0 x) = return (NatVal0 x)
   shuntHead ops (NatVal1 x) = return (NatVal1 x)
@@ -157,12 +158,40 @@ mutual
   shuntHead ops (NatBetaZ x) = return (NatBetaZ x)
   shuntHead ops (NatBetaS x) = return (NatBetaS x)
   shuntHead ops (PiEq x) = return (PiEq x)
+  shuntHead ops (Underscore x) = return (Underscore x)
+  shuntHead ops (Box x) = return (Box x)
   shuntHead ops (Tm r tm) = MEither.do
     return (Tm r !(shunt ops tm 0))
 
+  public export
+  shuntTactic : List Operator -> Tactic -> M (Either String OpFreeTactic)
+  shuntTactic ops (Id x) = return (Id x)
+  shuntTactic ops (Trivial x) = return (Trivial x)
+  shuntTactic ops (Composition r alphas) = MEither.do
+    alphas <- forList1 alphas (shuntTactic ops)
+    return (Composition r alphas)
+  shuntTactic ops (Reduce r tm) = MEither.do
+    tm <- shunt ops tm 0
+    return (Reduce r tm)
+  shuntTactic ops (Exact r tm) = MEither.do
+    tm <- shunt ops tm 0
+    return (Exact r tm)
+  shuntTactic ops (Split r alphas beta) = MEither.do
+    alphas <- forSnocList alphas (shuntTactic ops)
+    beta <- shuntTactic ops beta
+    return (Split r alphas beta)
+  shuntTactic ops (RewriteInv r a b) = MEither.do
+    a <- shunt ops a 0
+    b <- shunt ops b 0
+    return (RewriteInv r a b)
+  shuntTactic ops (Rewrite r a b) = MEither.do
+    a <- shunt ops a 0
+    b <- shunt ops b 0
+    return (Rewrite r a b)
+
   ||| Shunt the given term at the specified *lvl*.
   public export
-  shunt : List Operator -> Term -> (lvl : Nat) -> MEither String OpFreeTerm
+  shunt : List Operator -> Term -> (lvl : Nat) -> M (Either String OpFreeTerm)
   shunt ops (PiTy r (x ::: []) dom cod) lvl = MEither.do
     case (lvl > 0) of
       True => error "Can't parse (_ : _) → _ at level \{show lvl}"
@@ -229,11 +258,17 @@ mutual
       False => MEither.do
        f' <- shunt ops (ImplicitPiVal r (y ::: zs) f) 0
        return (ImplicitPiVal r x f')
+  shunt ops (Tac r alpha) lvl = MEither.do
+    case (lvl > 0) of
+      True => error "Can't parse tac ... at level \{show lvl}"
+      False => MEither.do
+        alpha <- shuntTactic ops alpha
+        return (Tac r alpha)
   shunt ops (OpLayer r (ConsB (r0, head, elim) [])) lvl = MEither.do
     return (App r0 !(shuntHead ops head) !(shuntElim ops elim))
   shunt ops (OpLayer r (ConsA (_, op) [])) lvl = MEither.do
     return (App r (Var r op) [])
-  shunt ops (OpLayer r layer) lvl = MEither.do
+  shunt ops tm@(OpLayer r layer) lvl = MEither.do
     -- liftM $ write "ops: \{show (map toName ops)}"
     -- Shunt the *layer* at specified level by trying each operator from *ops* and making
     -- sure exactly one gets through.
@@ -246,8 +281,8 @@ mutual
         Left err => none os
         Right r => return False
 
-    exactlyOne : List Operator -> MEither String OpFreeTerm
-    exactlyOne [] = error "No operators left to try"
+    exactlyOne : List Operator -> M (Either String OpFreeTerm)
+    exactlyOne [] = error "No operators left to try out of \{map toName ops} at range \{show r} for term \{show tm}"
     exactlyOne (o :: os) = M.do
       case !(tryOp ops o r (forget layer) lvl) of
         Left err => exactlyOne os
@@ -257,7 +292,7 @@ mutual
           return (Right r)
 
   public export
-  shuntTopLevel : List Operator -> TopLevel -> MEither String OpFreeTopLevel
+  shuntTopLevel : List Operator -> TopLevel -> M (Either String OpFreeTopLevel)
   shuntTopLevel ops (TypingSignature r x ty) = MEither.do
     ty <- shunt ops ty 0
     return (TypingSignature r x ty)
