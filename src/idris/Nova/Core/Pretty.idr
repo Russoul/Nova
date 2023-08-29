@@ -317,7 +317,7 @@ mutual
        <++>
       annotate Elim ".π₂"
   prettyElem' sig omega ctx NatVal0 =
-    return $ annotate Intro "0"
+    return $ annotate Intro "Z"
   prettyElem' sig omega ctx Universe =
     return $ annotate Form "𝕌"
   prettyElem' sig omega ctx (NatVal1 e) = return $

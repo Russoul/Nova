@@ -6,7 +6,15 @@ syntax e{≥3} , e{≥2} : e{2}
 
 syntax e{≥2} ≡ e{≥2} ∈ e{≥2} : e{1}
 
-syntax e{≥3} $ e{≥3} : e{0}
+syntax e{≥4} + e{≥5} : e{4}
+
+syntax e{≥4} @ e{≥5} : e{4}
+
+syntax e{≥6} * e{≥7} : e{6}
+
+syntax e{≥6} ∘ e{≥5} : e{5}
+
+syntax e{≥10} ≅ e{≥10} : e{9}
 
 let test0 : ℕ
           ≔ Z
@@ -49,12 +57,6 @@ let transp : (A : 𝕌) → (B : A → 𝕌) → {a₀ a₁ : A} → (a : a₀ �
 
 let S-cong : {x y : ℕ} → (e : x ≡ y ∈ ?) → S x ≡ S y ∈ ?
            ≔ {x y} ↦ e ↦ J ? ? (z. h. S x ≡ S z ∈ ?) Refl ? e
-
-syntax e{≥4} + e{≥5} : e{4}
-
-syntax e{≥4} @ e{≥5} : e{4}
-
-syntax e{≥6} * e{≥7} : e{6}
 
 -- 0   + y = y
 -- S x + y = S (x + y)
@@ -160,6 +162,14 @@ let mult-left-Z : (x : ℕ) → Z * x ≡ Z ∈ ?
                     reduce ☐ ≡ _ ∈ _;
                     trivial;
 
+let mult-right-Z : (x : ℕ) → x * Z ≡ Z ∈ ?
+                 ≔ x ↦ tac
+                     reduce ☐ _ _ ≡ _ ∈ _;
+                     reduce ☐ _ ≡ _ ∈ _;
+                     reduce ☐ ≡ _ ∈ _;
+                     rewrite⁻¹ (ℕ-elim _ _ ☐ _ ≡ _ ∈ _) (plus-left-Z ?);
+                     exact ℕ-elim (x. ℕ-elim (x. ℕ) Z (x.h. h) x ≡ Z ∈ ℕ) (tac reduce ☐ ≡ _ ∈ _; trivial;) (x. h. tac reduce ☐ ≡ _ ∈ _; exact h;) x;
+
 
 let mult-left-S : (t : ℕ) → (x : ℕ) → (S t * x) ≡ (x + t * x) ∈ ?
                 ≔ t x ↦ tac
@@ -186,10 +196,6 @@ let Nat-eta : (A : ℕ → 𝕌)
                                                        (x. h. tac reduce _ ≡ ☐ ∈ _; rewrite (_ ≡ _ ☐ ∈ _) h; exact c1 x;)
                                                        x;
                                       )
-
-syntax e{≥6} ∘ e{≥5} : e{5}
-
-syntax e{≥10} ≅ e{≥10} : e{9}
 
 let _∘_ : {A : 𝕌} → {B : 𝕌} → {C : 𝕌} → (g : B → C) → (f : A → B) → A → C
         ≔ {A B C} ↦ g f x ↦ g (f x)
