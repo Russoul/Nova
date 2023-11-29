@@ -654,13 +654,13 @@ mutual
   applyRewriteNu sig omega gamma (PiTy x dom cod) (PiTy r _ pdom (App _ (Underscore _) [])) prf direct = MEither.do
     (omega, dom) <- applyRewrite sig omega gamma dom pdom prf direct
     return (omega, PiTy x dom cod)
-  applyRewriteNu sig omega gamma (PiTy x dom cod) (ProdTy r pdom (App _ (Underscore _) [])) prf direct = MEither.do
+  applyRewriteNu sig omega gamma (PiTy x dom cod) (FunTy r pdom (App _ (Underscore _) [])) prf direct = MEither.do
     (omega, dom) <- applyRewrite sig omega gamma dom pdom prf direct
     return (omega, PiTy x dom cod)
   applyRewriteNu sig omega gamma (PiTy x dom cod) (PiTy r _ (App _ (Underscore _) []) pcod) prf direct = MEither.do
     (omega, cod) <- applyRewrite sig omega (gamma :< (x, dom)) cod pcod prf direct
     return (omega, PiTy x dom cod)
-  applyRewriteNu sig omega gamma (PiTy x dom cod) (ProdTy r (App _ (Underscore _) []) pcod) prf direct = MEither.do
+  applyRewriteNu sig omega gamma (PiTy x dom cod) (FunTy r (App _ (Underscore _) []) pcod) prf direct = MEither.do
     (omega, cod) <- applyRewrite sig omega (gamma :< (x, dom)) cod pcod prf direct
     return (omega, PiTy x dom cod)
   applyRewriteNu sig omega gamma (PiTy x dom cod) p prf direct = error (range p)
