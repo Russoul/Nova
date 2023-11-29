@@ -107,6 +107,14 @@ mutual
       EqTy : Elem -> Elem -> Elem -> Elem
       ||| *
       EqVal : Elem
+      ||| 𝟘
+      ZeroTy : Elem
+      ||| 𝟙
+      OneTy : Elem
+      ||| ()
+      OneVal : Elem
+      ||| 𝟘-elim t
+      ZeroElim : Elem -> Elem
 
   public export
   Context : Type

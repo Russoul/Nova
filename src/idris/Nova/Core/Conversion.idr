@@ -36,6 +36,9 @@ mutual
     convNu sig omega NatVal0 NatVal0 = return True
     convNu sig omega Universe Universe = return True
     convNu sig omega NatTy NatTy = return True
+    convNu sig omega ZeroTy ZeroTy = return True
+    convNu sig omega OneTy OneTy = return True
+    convNu sig omega OneVal OneVal = return True
     convNu sig omega (NatVal1 t0) (NatVal1 t1) =
       conv sig omega t0 t1
     convNu sig omega (NatElim x0 schema0 z0 y0 h0 s0 t0) (NatElim x1 schema1 z1 y1 h1 s1 t1) =
@@ -45,6 +48,8 @@ mutual
         `and`
       conv sig omega s0 s1
         `and`
+      conv sig omega t0 t1
+    convNu sig omega (ZeroElim t0) (ZeroElim t1) =
       conv sig omega t0 t1
     convNu sig omega (ContextSubstElim {}) b = throw "convNu(ContextSubstElim)"
     convNu sig omega (SignatureSubstElim {}) b = throw "convNu(SignatureSubstElim)"

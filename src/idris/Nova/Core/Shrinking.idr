@@ -110,12 +110,21 @@ mutual
       return (NatVal1 t)
     shrinkNu NatTy gamma1Len gamma2Len = MMaybe.do
       return NatTy
+    shrinkNu ZeroTy gamma1Len gamma2Len = MMaybe.do
+      return ZeroTy
+    shrinkNu OneTy gamma1Len gamma2Len = MMaybe.do
+      return OneTy
+    shrinkNu OneVal gamma1Len gamma2Len = MMaybe.do
+      return OneVal
     shrinkNu (NatElim x schema z y h s t) gamma1Len gamma2Len = MMaybe.do
       schema <- shrink schema gamma1Len (S gamma2Len)
       z <- shrink z gamma1Len gamma2Len
       s <- shrink s gamma1Len (2 + gamma2Len)
       t <- shrink t gamma1Len gamma2Len
       return (NatElim x schema z y h s t)
+    shrinkNu (ZeroElim t) gamma1Len gamma2Len = MMaybe.do
+      t <- shrink t gamma1Len gamma2Len
+      return (ZeroElim t)
     shrinkNu (ContextSubstElim x y) gamma1Len gamma2Len = throw "shrink(ContextSubstElim)"
     shrinkNu (SignatureSubstElim x y) gamma1Len gamma2Len = throw "shrink(SignatureSubstElim)"
     shrinkNu (ContextVarElim k) gamma1Len gamma2Len =

@@ -8,7 +8,8 @@ import Data.AlternatingList1
 import Nova.Core.Name
 import Nova.Surface.Operator
 
--- h ::= Z | Refl | x | S | ℕ-elim | J | ℕ | 𝕌 | !x | ?x | Π-β | Π-η | Π⁼ | ℕ-β-Z | ℕ-β-S | (e{≥0}) | _ | ☐
+
+-- h ::= tt | Z | Refl | x | S | ℕ-elim | 𝟘-elim | J | 𝟘 | 𝟙 | ℕ | 𝕌 | !x | ?x | Π-β | Π-η | Π⁼ | Σ-β₁ | Σ-β₂ | Σ-η | Σ⁼ | 𝟙⁼ | ℕ-β-Z | ℕ-β-S | (e{≥0}) | _ | ☐
 
 -- e{0} = x ↦ e{≥0} | {x} ↦ e{≥0} | (x : e{≥0}) → e{≥0} | {x : e{≥0}} → e{≥0} | (x : e{≥0}) ⨯ e{≥0}
 -- e{1} = op e{≥2} op ... e{≥2} op | e{≥2} op e{≥2} ... op e{≥2}
@@ -30,18 +31,27 @@ mutual
       NatVal0 : Range -> Head
       NatVal1 : Range -> Head
       NatElim : Range -> Head
+      ZeroElim : Range -> Head
       EqElim : Range -> Head
       EqVal : Range -> Head
       NatTy : Range -> Head
+      ZeroTy : Range -> Head
+      OneTy : Range -> Head
+      OneVal : Range -> Head
       UniverseTy : Range -> Head
       Hole : Range -> VarName -> Maybe (List VarName) -> Head
       UnnamedHole : Range -> Maybe (List VarName) -> Head
       Unfold : Range -> VarName -> Head
       PiBeta : Range -> Head
       PiEta : Range -> Head
+      SigmaBeta1 : Range -> Head
+      SigmaBeta2 : Range -> Head
+      SigmaEta : Range -> Head
+      SigmaEq : Range -> Head
       NatBetaZ : Range -> Head
       NatBetaS : Range -> Head
       PiEq : Range -> Head
+      OneEq : Range -> Head
       ||| Only used for paths.
       Underscore : Range -> Head
       ||| Only used for paths.
@@ -55,9 +65,13 @@ mutual
       NatVal0 : Range -> OpFreeHead
       NatVal1 : Range -> OpFreeHead
       NatElim : Range -> OpFreeHead
+      ZeroElim : Range -> OpFreeHead
       EqElim : Range -> OpFreeHead
       EqVal : Range -> OpFreeHead
       NatTy : Range -> OpFreeHead
+      ZeroTy : Range -> OpFreeHead
+      OneTy : Range -> OpFreeHead
+      OneVal : Range -> OpFreeHead
       UniverseTy : Range -> OpFreeHead
       Hole : Range -> VarName -> Maybe (List VarName) -> OpFreeHead
       UnnamedHole : Range -> Maybe (List VarName) -> OpFreeHead
@@ -67,6 +81,11 @@ mutual
       NatBetaZ : Range -> OpFreeHead
       NatBetaS : Range -> OpFreeHead
       PiEq : Range -> OpFreeHead
+      SigmaBeta1 : Range -> OpFreeHead
+      SigmaBeta2 : Range -> OpFreeHead
+      SigmaEta : Range -> OpFreeHead
+      SigmaEq : Range -> OpFreeHead
+      OneEq : Range -> OpFreeHead
       ||| Only used for paths.
       Underscore : Range -> OpFreeHead
       ||| Only used for paths.
@@ -210,11 +229,20 @@ mutual
     show (NatVal0 x) = "Z"
     show (NatVal1 x) = "S"
     show (NatElim x) = "ℕ-elim"
+    show (ZeroElim x) = "𝟘-elim"
     show (EqElim x) = "J"
     show (EqVal x) = "Refl"
     show (NatTy x) = "ℕ"
+    show (ZeroTy x) = "𝟘"
+    show (OneTy x) = "𝟙"
+    show (OneVal x) = "()"
     show (UniverseTy x) = "𝕌"
     show (PiEq x) = "PiEq"
+    show (SigmaBeta1 x) = "SigmaBeta1"
+    show (SigmaBeta2 x) = "SigmaBeta2"
+    show (SigmaEta x) = "SigmaEta"
+    show (SigmaEq x) = "SigmaEq"
+    show (OneEq x) = "OneEq"
     show (Underscore x) = "_"
     show (Box x) = "☐"
     show (Tm x tm) = "Tm(\{show tm})"
@@ -252,12 +280,21 @@ mutual
     show (Var _ x) = "Var(\{x})"
     show (NatVal0 x) = "Z"
     show (NatVal1 x) = "S"
+    show (OneVal x) = "()"
     show (NatElim x) = "ℕ-elim"
+    show (ZeroElim x) = "𝟘-elim"
     show (EqElim x) = "J"
     show (EqVal x) = "Refl"
     show (NatTy x) = "ℕ"
+    show (ZeroTy x) = "𝟘"
+    show (OneTy x) = "𝟙"
     show (UniverseTy x) = "𝕌"
     show (PiEq x) = "PiEq"
+    show (SigmaBeta1 x) = "SigmaBeta1"
+    show (SigmaBeta2 x) = "SigmaBeta2"
+    show (SigmaEta x) = "SigmaEta"
+    show (SigmaEq x) = "SigmaEq"
+    show (OneEq x) = "OneEq"
     show (Underscore x) = "_"
     show (Box x) = "☐"
     show (Tm x tm) = "Tm(\{show tm})"

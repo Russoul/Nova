@@ -15,6 +15,10 @@ mutual
   public export
   closedEvalNu : Signature -> Omega -> Elem -> M Elem
   closedEvalNu sig omega NatTy = return NatTy
+  closedEvalNu sig omega ZeroTy = return ZeroTy
+  closedEvalNu sig omega OneTy = return OneTy
+  closedEvalNu sig omega OneVal = return OneVal
+  closedEvalNu sig omega (ZeroElim t) = throw "closedEval(ZeroElim)"
   closedEvalNu sig omega Universe = return Universe
   closedEvalNu sig omega (PiTy x a b) = return (PiTy x a b)
   closedEvalNu sig omega (ImplicitPiTy x a b) = return (ImplicitPiTy x a b)
@@ -72,6 +76,11 @@ mutual
   public export
   openEvalNu : Signature -> Omega -> Elem -> M Elem
   openEvalNu sig omega NatTy = return NatTy
+  openEvalNu sig omega ZeroTy = return ZeroTy
+  openEvalNu sig omega OneTy = return OneTy
+  openEvalNu sig omega OneVal = return OneVal
+  openEvalNu sig omega (ZeroElim t) = M.do
+    return (ZeroElim t)
   openEvalNu sig omega Universe = return Universe
   openEvalNu sig omega (PiTy x a b) = return (PiTy x a b)
   openEvalNu sig omega (ImplicitPiTy x a b) = return (ImplicitPiTy x a b)

@@ -116,7 +116,23 @@ wrapElem NatTy lvl doc =
   case lvl <= 4 of
     True => return doc
     False => return (parens' doc)
+wrapElem ZeroTy lvl doc =
+  case lvl <= 4 of
+    True => return doc
+    False => return (parens' doc)
+wrapElem OneTy lvl doc =
+  case lvl <= 4 of
+    True => return doc
+    False => return (parens' doc)
+wrapElem OneVal lvl doc =
+  case lvl <= 4 of
+    True => return doc
+    False => return (parens' doc)
 wrapElem (NatElim str x y str1 str2 z w) lvl doc =
+  case lvl <= 3 of
+    True => return doc
+    False => return (parens' doc)
+wrapElem (ZeroElim _) lvl doc =
   case lvl <= 3 of
     True => return doc
     False => return (parens' doc)
@@ -325,7 +341,18 @@ mutual
       <++>
     !(prettyElem sig omega ctx e 4)
   prettyElem' sig omega ctx NatTy =
-    return $ annotate Intro "ℕ"
+    return $ annotate Form "ℕ"
+  prettyElem' sig omega ctx ZeroTy =
+    return $ annotate Form "𝟘"
+  prettyElem' sig omega ctx OneTy =
+    return $ annotate Form "𝟙"
+  prettyElem' sig omega ctx OneVal =
+    return $ annotate Intro "()"
+  prettyElem' sig omega ctx (ZeroElim t) = M.do
+    return $
+      annotate Elim "𝟘-elim"
+       <++>
+      !(prettyElem sig omega ctx t 4)
   prettyElem' sig omega ctx (NatElim x schema z y h s t) = M.do
     return $
       annotate Elim "ℕ-elim"

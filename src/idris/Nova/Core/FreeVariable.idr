@@ -57,6 +57,11 @@ mutual
   freeOmegaNameNu sig omega NatVal0 = return empty
   freeOmegaNameNu sig omega (NatVal1 t) = freeOmegaName sig omega t
   freeOmegaNameNu sig omega NatTy = return empty
+  freeOmegaNameNu sig omega ZeroTy = return empty
+  freeOmegaNameNu sig omega OneTy = return empty
+  freeOmegaNameNu sig omega OneVal = return empty
+  freeOmegaNameNu sig omega (ZeroElim t) = M.do
+    freeOmegaName sig omega t
   freeOmegaNameNu sig omega (NatElim x schema z y h s t) = M.do
     [| unite4
          (freeOmegaName sig omega schema)

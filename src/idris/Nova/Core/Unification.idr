@@ -15,7 +15,6 @@ import Nova.Core.Evaluation
 import Nova.Core.Language
 import Nova.Core.Monad
 import Nova.Core.Pretty
-import Nova.Core.Shrinking
 import Nova.Core.Substitution
 
 import Nova.Surface.SemanticToken
@@ -93,6 +92,10 @@ isRigid sig omega Universe = return True
 isRigid sig omega NatVal0 = return True
 isRigid sig omega (NatVal1 x) = return True
 isRigid sig omega NatTy = return True
+isRigid sig omega ZeroTy = return True
+isRigid sig omega OneTy = return True
+isRigid sig omega OneVal = return True
+isRigid sig omega (ZeroElim t) = return True
 isRigid sig omega (NatElim str x y str1 str2 z w) = return True
 isRigid sig omega (ContextSubstElim x y) = assert_total $ idris_crash "isRigid(ContextSubstElim)"
 isRigid sig omega (SignatureSubstElim x y) = assert_total $ idris_crash "isRigid(SignatureSubstElim)"
@@ -230,6 +233,12 @@ mutual
       t <- invert sig omega ctx delta sigma t
       return (NatVal1 t)
     invertNu sig omega ctx delta sigma NatTy = MMaybe.do return NatTy
+    invertNu sig omega ctx delta sigma ZeroTy = MMaybe.do return ZeroTy
+    invertNu sig omega ctx delta sigma OneTy = MMaybe.do return OneTy
+    invertNu sig omega ctx delta sigma OneVal = MMaybe.do return OneVal
+    invertNu sig omega ctx delta sigma (ZeroElim t) = MMaybe.do
+      t' <- invert sig omega ctx delta sigma t
+      return (ZeroElim t')
     invertNu sig omega ctx delta sigma (NatElim x schema z y h s t) = MMaybe.do
       schema' <- invert sig omega (ctx :< (x, NatTy)) (delta :< (x, NatTy)) (Under sigma) schema
       z' <- invert sig omega ctx delta sigma z
@@ -361,6 +370,11 @@ mutual
   occursNu sig omega NatVal0 k = return False
   occursNu sig omega (NatVal1 t) k = occurs sig omega t k
   occursNu sig omega NatTy k = return False
+  occursNu sig omega ZeroTy k = return False
+  occursNu sig omega OneTy k = return False
+  occursNu sig omega OneVal k = return False
+  occursNu sig omega (ZeroElim t) k =
+    occurs sig omega t k
   occursNu sig omega (NatElim x schema z y h s t) k =
     occurs sig omega schema k `or` occurs sig omega z k `or` occurs sig omega s k `or` occurs sig omega t k
   occursNu sig omega (ContextSubstElim x y) k = assert_total $ idris_crash "occursNu(ContextSubstElim)"
@@ -586,13 +600,23 @@ namespace Elem
     return (Success [] [])
   unifyElemNu sig cs ctx NatVal0 b ty = M.do
     return (Disunifier "Z vs something else rigid")
+  unifyElemNu sig cs ctx OneVal OneVal _ =
+    return (Success [] [])
+  unifyElemNu sig cs ctx OneVal b ty = M.do
+    return (Disunifier "() vs something else rigid")
   unifyElemNu sig cs ctx (NatVal1 t0) (NatVal1 t1) ty = M.do
     return (Success [ ElemConstraint ctx t0 t1 NatTy] [])
   unifyElemNu sig cs ctx (NatVal1 x) b ty = M.do
     return (Disunifier "S _ vs something else rigid")
   unifyElemNu sig cs ctx NatTy NatTy ty = return (Success [] [])
   unifyElemNu sig cs ctx NatTy b ty = M.do
-    return (Disunifier "S vs something else rigid")
+    return (Disunifier "ℕ vs something else rigid")
+  unifyElemNu sig cs ctx ZeroTy ZeroTy ty = return (Success [] [])
+  unifyElemNu sig cs ctx ZeroTy b ty = M.do
+    return (Disunifier "𝟘 vs something else rigid")
+  unifyElemNu sig cs ctx OneTy OneTy ty = return (Success [] [])
+  unifyElemNu sig cs ctx OneTy b ty = M.do
+    return (Disunifier "𝟙 vs something else rigid")
   unifyElemNu sig cs ctx (NatElim x0 schema0 z0 y0 h0 s0 t0) (NatElim x1 schema1 z1 y1 h1 s1 t1) ty = M.do
     return (Success [  TypeConstraint (ctx :< (x0, NatTy)) schema0 schema1,
                        ElemConstraint ctx z0 z1 (ContextSubstElim schema0 (Ext Id NatVal0)),
@@ -601,6 +625,10 @@ namespace Elem
 
   unifyElemNu sig cs ctx (NatElim x0 schema0 z0 y0 h0 s0 t0) b ty = M.do
     return (Disunifier "ℕ-elim vs something else rigid")
+  unifyElemNu sig cs ctx (ZeroElim t0) (ZeroElim t1) ty = M.do
+    return (Success [ElemConstraint ctx t0 t1 ZeroTy] [])
+  unifyElemNu sig cs ctx (ZeroElim t0) b ty = M.do
+    return (Disunifier "𝟘-elim vs something else rigid")
   unifyElemNu sig cs ctx (ContextSubstElim x y) b ty = assert_total $ idris_crash "unifyElemNu(ContextSubstElim)"
   unifyElemNu sig cs ctx (SignatureSubstElim x y) b ty = assert_total $ idris_crash "unifyElemNu(SignatureSubstElim)"
   unifyElemNu sig cs ctx (ContextVarElim k0) (ContextVarElim k1) ty = M.do
@@ -745,7 +773,13 @@ namespace Type'
     return (Disunifier "𝕌 vs something else rigid")
   unifyTypeNu sig cs ctx NatTy NatTy = return (Success [] [])
   unifyTypeNu sig cs ctx NatTy b = M.do
-    return (Disunifier "S vs something else rigid")
+    return (Disunifier "ℕ vs something else rigid")
+  unifyTypeNu sig cs ctx ZeroTy ZeroTy = return (Success [] [])
+  unifyTypeNu sig cs ctx ZeroTy b = M.do
+    return (Disunifier "𝟘 vs something else rigid")
+  unifyTypeNu sig cs ctx OneTy OneTy = return (Success [] [])
+  unifyTypeNu sig cs ctx OneTy b = M.do
+    return (Disunifier "𝟙 vs something else rigid")
   unifyTypeNu sig cs ctx (ContextSubstElim x y) b = assert_total $ idris_crash "unifyTypeNu(ContextSubstElim)"
   unifyTypeNu sig cs ctx (SignatureSubstElim x y) b = assert_total $ idris_crash "unifyTypeNu(SignatureSubstElim)"
   unifyTypeNu sig cs ctx (EqTy p0 q0 ty0) (EqTy p1 q1 ty1) = M.do
@@ -764,6 +798,14 @@ namespace Type'
     return (Success [ElemConstraint ctx a b Universe] [])
   unifyTypeNu sig cs ctx (PiElim f0 x0 dom0 cod0 e0) b = M.do
     return (Disunifier "app vs something else rigid")
+  unifyTypeNu sig cs ctx a@(NatElim {}) b@(NatElim {}) = M.do
+    return (Success [ElemConstraint ctx a b Universe] [])
+  unifyTypeNu sig cs ctx a@(NatElim {}) b = M.do
+    return (Disunifier "ℕ-elim vs something else rigid")
+  unifyTypeNu sig cs ctx a@(ZeroElim {}) b@(ZeroElim {}) = M.do
+    return (Success [ElemConstraint ctx a b Universe] [])
+  unifyTypeNu sig cs ctx a@(ZeroElim {}) b = M.do
+    return (Disunifier "𝟘-elim vs something else rigid")
   unifyTypeNu sig cs ctx a@(ImplicitPiElim f0 x0 dom0 cod0 e0) b@(ImplicitPiElim f1 x1 dom1 cod1 e1) = M.do
     return (Success [ElemConstraint ctx a b Universe] [])
   unifyTypeNu sig cs ctx (ImplicitPiElim f0 x0 dom0 cod0 e0) b = M.do

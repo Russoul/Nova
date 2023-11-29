@@ -115,6 +115,14 @@ mutual
     subst : Elem -> SubstContext -> Elem
     -- ℕ(σ) = ℕ
     subst NatTy sigma = NatTy
+    -- 𝟘(σ) = 𝟘
+    subst ZeroTy sigma = ZeroTy
+    -- 𝟙(σ) = 𝟙
+    subst OneTy sigma = OneTy
+    -- ()(σ) = ()
+    subst OneVal sigma = OneVal
+    -- (𝟘-elim t)(σ) = 𝟘-elim t(σ)
+    subst (ZeroElim t) sigma = ZeroElim (ContextSubstElim t sigma)
     -- 𝕌(σ) = 𝕌
     subst Universe sigma = Universe
     -- (π A B)(σ) = π A(σ) B(σ⁺(El A))
@@ -224,6 +232,10 @@ mutual
           (SignatureSubstElim b sigma)
     subst NatVal0 sigma = NatVal0
     subst NatTy sigma = NatTy
+    subst ZeroTy sigma = ZeroTy
+    subst OneTy sigma = OneTy
+    subst OneVal sigma = OneVal
+    subst (ZeroElim t) sigma = ZeroElim (SignatureSubstElim t sigma)
     subst Universe sigma = Universe
     subst (NatVal1 t) sigma = NatVal1 (SignatureSubstElim t sigma)
     subst (NatElim x schema z y h s t) sigma =

@@ -16,6 +16,8 @@ syntax e{≥6} ∘ e{≥5} : e{5}
 
 syntax e{≥10} ≅ e{≥10} : e{9}
 
+syntax e{≥10} ++ e{≥10} : e{4}
+
 let test0 : ℕ
           ≔ Z
 
@@ -49,8 +51,8 @@ let happly' : (A : 𝕌) → (B : 𝕌) → (f : A → B) → (g : A → B) → 
 let happly : (A : 𝕌) → (B : A → 𝕌) → (f : (x : A) → B x) → (g : (x : A) → B x) → (p : f ≡ g ∈ ?) → (x : A) → f x ≡ g x ∈ ?
            ≔ A B f g p x ↦ J ? ? (α.h. f x ≡ α x ∈ ?) Refl ? p
 
-let cong : (A : 𝕌) → (B : 𝕌) → (f : A → B) → (a₀ : A) → (a₁ : A) → (a : a₀ ≡ a₁ ∈ ?) → f a₀ ≡ f a₁ ∈ ?
-         ≔ A B f a₀ a₁ a ↦ J ? ? (x. h. f a₀ ≡ f x ∈ ?) Refl ? a
+let cong : {A B : 𝕌} → (f : A → B) → {a₀ a₁ : A} → (a : a₀ ≡ a₁ ∈ ?) → f a₀ ≡ f a₁ ∈ ?
+         ≔ {A B} ↦ f ↦ {a₀ a₁} ↦ a ↦ J ? ? (x. h. f a₀ ≡ f x ∈ ?) Refl ? a
 
 let transp : (A : 𝕌) → (B : A → 𝕌) → {a₀ a₁ : A} → (a : a₀ ≡ a₁ ∈ ?) → B a₀ → B a₁
            ≔ A B ↦ {a₀ a₁} ↦ a ↦ t ↦ J ? ? (α. h. B α) t ? a
@@ -58,10 +60,98 @@ let transp : (A : 𝕌) → (B : A → 𝕌) → {a₀ a₁ : A} → (a : a₀ �
 let S-cong : {x y : ℕ} → (e : x ≡ y ∈ ?) → S x ≡ S y ∈ ?
            ≔ {x y} ↦ e ↦ J ? ? (z. h. S x ≡ S z ∈ ?) Refl ? e
 
+
+let pred' : ℕ → ℕ
+          ≔ x ↦ ℕ-elim (x. ℕ) Z (x.h. x) x
+
+let pred'-S : (x : ℕ) → pred' (S x) ≡ x ∈ ℕ
+            ≔ x ↦ tac
+                reduce ☐ _ _ ≡ _ ∈ _;
+                reduce ☐ ≡ _ ∈ _;
+                reduce ☐ ≡ _ ∈ _;
+                trivial;
+
+let S-cong-inv-H0 : {x y : ℕ} → (e : pred' (S x) ≡ pred' (S y) ∈ ?) → x ≡ y ∈ ?
+              ≔ {x y} ↦ tac
+                   rewrite⁻¹ ((x : ☐ ≡ _ ∈ _) → _) (pred'-S ?);
+                   rewrite⁻¹ ((x : _ ≡ ☐ ∈ _) → _) (pred'-S ?);
+                   exact id;
+
+let S-cong-inv : {x y : ℕ} → (e : S x ≡ S y ∈ ?) → x ≡ y ∈ ?
+              ≔ {x y} ↦ e ↦ S-cong-inv-H0 (cong pred' e)
+
+let Vect : ℕ → 𝕌 → 𝕌
+         ≔ n A ↦ ℕ-elim (x. 𝕌) 𝟙 (x.H. A ⨯ H) n
+
+let nil : {A : 𝕌} → Vect Z A
+        ≔ {A} ↦ tac reduce ☐ _ _;
+                    reduce ☐ _;
+                    reduce ☐;
+                    reduce ☐;
+                    exact tt;
+
+let Vect-Z : {A : 𝕌} → Vect Z A ≡ 𝟙 ∈ 𝕌
+               ≔ {A} ↦ tac
+                     reduce ☐ _ _ ≡ _ ∈ _;
+                     reduce ☐ _ ≡ _ ∈ _;
+                     reduce ☐ ≡ _ ∈ _;
+                     reduce ☐ ≡ _ ∈ _;
+                     trivial;
+
+let Vect-S : {A : 𝕌} → {n : ℕ} → Vect (S n) A ≡ A ⨯ Vect n A ∈ 𝕌
+               ≔ {A n} ↦ tac
+                     reduce ☐ _ _ ≡ _ ∈ _;
+                     reduce ☐ _ ≡ _ ∈ _;
+                     reduce ☐ ≡ _ ∈ _;
+                     reduce ☐ ≡ _ ∈ _;
+                     reduce _ ≡ ((x : _) ⨯ ☐ _ _) ∈ _;
+                     reduce _ ≡ ((x : _) ⨯ ☐ _) ∈ _;
+                     reduce _ ≡ ((x : _) ⨯ ☐) ∈ _;
+                     trivial;
+
+let nil-unique : {A : 𝕌} → (xs : Vect Z A) → xs ≡ nil ∈ ?
+               ≔ {A} ↦ tac
+                   rewrite⁻¹ ((x : ☐) → _) Vect-Z;
+                   rewrite⁻¹ ((x : _) → _ ≡ _ ∈ ☐) Vect-Z;
+                   exact (xs ↦ 𝟙⁼ ? ?);
+
+
+let cons : {A : 𝕌} → {n : ℕ} → A → Vect n A → Vect (S n) A
+         ≔ {A n} ↦ x xs ↦ tac
+             rewrite⁻¹ ☐ Vect-S;
+             exact x , xs;
+
+-- (p .π₁ , p .π₂) ≡ p
+let prod-η : {A B : 𝕌} → (p : A ⨯ B) → (p .π₁ , p .π₂) ≡ p ∈ ?
+           ≔ {A B} ↦ p ↦ Σ-η p
+
+let Vect-elim : {A : 𝕌}
+              → {n : ℕ}
+              → (P : (n : ℕ) → Vect n A → 𝕌)
+              → (nil : P Z nil)
+              → (cons : (n : ℕ) → (x : A) → (xs : Vect n A) → P n xs → P (S n) (cons x xs))
+              → (xs : Vect n A)
+              → P n xs
+              ≔ {A n} ↦ P nil cons xs ↦ ℕ-elim (n. (xs : Vect n A) → P n xs)
+                  (tac rewrite⁻¹ (_ → _ ☐) (nil-unique xs);
+                       exact (xs ↦ nil);)
+                  -- (n : ℕ) (h : (xs : Vect n A) → P n xs) ⊦ s : (xs : A ⨯ Vect n A) → P (S n) xs (NoSolve)
+                  -- xs.π₁ : A
+                  -- xs.π₂ : Vect n A
+                  -- h xs.π₂ : P n xs.π₂
+                  -- cons n xs.π₁ xs.π₂ (h xs.π₂) : P (S n) (cons xs.π₁ xs.π₂)
+                  (n. h. tac
+                    rewrite⁻¹ (☐ → _) Vect-S;
+                    rewrite (_ → _ ☐) (Σ-η xs);
+                    exact ?s;
+                  )
+                  n xs
+
 -- 0   + y = y
 -- S x + y = S (x + y)
 let _+_ : ℕ → ℕ → ℕ
         ≔ x y ↦ ℕ-elim (z. ℕ) y (x. h. S h) x
+
 
 let plus-left-Z : (x : ℕ) → Z + x ≡ x ∈ ℕ
                 ≔ x ↦ J ? ?
@@ -197,7 +287,36 @@ let Nat-eta : (A : ℕ → 𝕌)
                                                        x;
                                       )
 
-let _∘_ : {A : 𝕌} → {B : 𝕌} → {C : 𝕌} → (g : B → C) → (f : A → B) → A → C
+
+let trans : {A : 𝕌}
+          → {x y z : A}
+          → (x ≡ y ∈ A)
+          → (y ≡ z ∈ A)
+          → (x ≡ z ∈ A)
+          ≔ {A x y z} ↦ p q ↦
+              tac rewrite (_ ≡ ☐ ∈ _) q;
+                  rewrite (_ ≡ ☐ ∈ _) p;
+                  trivial;
+
+-- x + y ≡ x + z → y ≡ z
+let ℕ-left-cancel : (x y z : ℕ) → (x + y ≡ x + z ∈ ℕ) → (y ≡ z ∈ ℕ)
+                  ≔ x y z p ↦ ℕ-elim (x. (x + y ≡ x + z ∈ ℕ) → (y ≡ z ∈ ℕ))
+                  -- (x : ℕ) (y : ℕ) (z : ℕ) (p : _+_(·) x y ≡ _+_(·) x z ∈ ℕ)  ⊦ z : (_+_(·) 0 y ≡ _+_(·) 0 z ∈ ℕ) → (y ≡ z ∈ ℕ) (NoSolve)
+                    (tac rewrite⁻¹ ((x : ☐ ≡ _ ∈ _) → _) (plus-left-Z ?);
+                         rewrite⁻¹ ((x : _ ≡ ☐ ∈ _) → _) (plus-left-Z ?);
+                         exact id;)
+                  -- (x : ℕ) (y : ℕ) (z : ℕ) (p : _+_(·) x y ≡ _+_(·) x z ∈ ℕ) (x : ℕ) (h : (x + y ≡ x + z ∈ ℕ) → (y ≡ z ∈ ℕ))  ⊦
+                  -- s : (S (x + y) ≡ S (x + z) ∈ ℕ) → (y ≡ z ∈ ℕ) (NoSolve)
+                    (x.h. tac rewrite⁻¹ ((x : ☐ ≡ _ ∈ _) → _) (plus-left-S ? ?);
+                              rewrite⁻¹ ((x : _ ≡ ☐ ∈ _) → _) (plus-left-S ? ?);
+                              exact (t ↦ h (S-cong-inv t));
+                    )
+                    x p
+
+let _++_ : {A : 𝕌} → {m n : ℕ} → Vect m A → Vect n A → Vect (m + n) A
+         ≔ {A m n} ↦ xs ys ↦ ?ff
+
+let _∘_ : {A B C : 𝕌} → (B → C) → (A → B) → (A → C)
         ≔ {A B C} ↦ g f x ↦ g (f x)
 
 let _≅_ : 𝕌 → 𝕌 → 𝕌

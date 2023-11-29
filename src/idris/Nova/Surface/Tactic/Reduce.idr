@@ -22,13 +22,15 @@ mutual
   ||| See Surface/Language for a description of being a valid path.
   public export
   applyReduceNu : Signature -> Omega -> Elem -> OpFreeTerm -> M (Either Range Elem)
+  applyReduceNu sig omega el (App _ (Tm _ tm) []) = MEither.do
+    applyReduce sig omega el tm
   applyReduceNu sig omega (PiTy x dom cod) (PiTy r _ pdom (App _ (Underscore _) [])) = MEither.do
     return $ PiTy x !(applyReduce sig omega dom pdom) cod
-  applyReduceNu sig omega (PiTy x dom cod) (ProdTy r pdom (App _ (Underscore _) [])) = MEither.do
+  applyReduceNu sig omega (PiTy x dom cod) (FunTy r pdom (App _ (Underscore _) [])) = MEither.do
     return $ PiTy x !(applyReduce sig omega dom pdom) cod
   applyReduceNu sig omega (PiTy x dom cod) (PiTy r _ (App _ (Underscore _) []) pcod) = MEither.do
     return $ PiTy x dom !(applyReduce sig omega cod pcod)
-  applyReduceNu sig omega (PiTy x dom cod) (ProdTy r (App _ (Underscore _) []) pcod) = MEither.do
+  applyReduceNu sig omega (PiTy x dom cod) (FunTy r (App _ (Underscore _) []) pcod) = MEither.do
     return $ PiTy x dom !(applyReduce sig omega cod pcod)
   applyReduceNu sig omega (PiTy x dom cod) p = error (range p)
   applyReduceNu sig omega (ImplicitPiTy x dom cod) (ImplicitPiTy r _ pdom (App _ (Underscore _) [])) = MEither.do
@@ -125,7 +127,11 @@ mutual
   applyReduceNu sig omega (NatVal1 t) (App r (NatVal1 _) [(_, Arg ([], p))]) = MEither.do
     return $ NatVal1 !(applyReduce sig omega t p)
   applyReduceNu sig omega (NatVal1 t) p = error (range p)
+  applyReduceNu sig omega OneVal p = error (range p)
   applyReduceNu sig omega NatTy p = error (range p)
+  applyReduceNu sig omega ZeroTy p = error (range p)
+  applyReduceNu sig omega OneTy p = error (range p)
+  applyReduceNu sig omega (ZeroElim t) p = error (range p)
   -- ⟦ℕ-elim (x. A) z (x. h. s) 0 | ☐⟧ = z
   -- ⟦ℕ-elim (x. A) z (x. h. s) (S t) | ☐⟧ = s(t/x, ℕ-elim (x. A) z (x. h. s) t/h)
   applyReduceNu sig omega (NatElim x schema z y h s t) (App r (Box _) []) = MEither.do

@@ -39,6 +39,13 @@ zeroHead = do
   pure (NatVal0 r)
 
 public export
+oneValHead : Rule Head
+oneValHead = do
+  r <- spName "tt"
+  appendSemanticToken (r, ElemAnn)
+  pure (OneVal r)
+
+public export
 underscoreHead : Rule Head
 underscoreHead = do
   r <- delim "_"
@@ -65,11 +72,32 @@ natElimHead = do
   pure (NatElim r)
 
 public export
+zeroElimHead : Rule Head
+zeroElimHead = do
+  r <- spName "𝟘-elim"
+  appendSemanticToken (r, ElimAnn)
+  pure (ZeroElim r)
+
+public export
 natTyHead : Rule Head
 natTyHead = do
   r <- spName "ℕ"
   appendSemanticToken (r, TypAnn)
   pure (NatTy r)
+
+public export
+zeroTyHead : Rule Head
+zeroTyHead = do
+  r <- spName "𝟘"
+  appendSemanticToken (r, TypAnn)
+  pure (ZeroTy r)
+
+public export
+oneTyHead : Rule Head
+oneTyHead = do
+  r <- spName "𝟙"
+  appendSemanticToken (r, TypAnn)
+  pure (OneTy r)
 
 public export
 jHead : Rule Head
@@ -149,11 +177,32 @@ piBetaHead = do
   pure (PiBeta r)
 
 public export
+sigmaBeta1Head : Rule Head
+sigmaBeta1Head = do
+  r <- spName "Σ-β₁"
+  appendSemanticToken (r, ElemAnn)
+  pure (SigmaBeta1 r)
+
+public export
+sigmaBeta2Head : Rule Head
+sigmaBeta2Head = do
+  r <- spName "Σ-β₂"
+  appendSemanticToken (r, ElemAnn)
+  pure (SigmaBeta2 r)
+
+public export
 piEtaHead : Rule Head
 piEtaHead = do
   r <- spName "Π-η"
   appendSemanticToken (r, ElemAnn)
   pure (PiEta r)
+
+public export
+sigmaEtaHead : Rule Head
+sigmaEtaHead = do
+  r <- spName "Σ-η"
+  appendSemanticToken (r, ElemAnn)
+  pure (SigmaEta r)
 
 public export
 natBetaZHead : Rule Head
@@ -176,13 +225,32 @@ piEqHead = do
   appendSemanticToken (r, ElemAnn)
   pure (PiEq r)
 
+public export
+sigmaEqHead : Rule Head
+sigmaEqHead = do
+  r <- spName "Σ⁼"
+  appendSemanticToken (r, ElemAnn)
+  pure (SigmaEq r)
+
+public export
+oneEqHead : Rule Head
+oneEqHead = do
+  r <- spName "𝟙⁼"
+  appendSemanticToken (r, ElemAnn)
+  pure (OneEq r)
+
 mutual
   public export
   head : Rule Head
   head = zeroHead
+     <|> oneEqHead
      <|> oneHead
+     <|> oneValHead
      <|> natElimHead
+     <|> zeroElimHead
      <|> natTyHead
+     <|> zeroTyHead
+     <|> oneTyHead
      <|> universeTyHead
      <|> eqValHead
      <|> varHead
@@ -194,6 +262,10 @@ mutual
      <|> piBetaHead
      <|> piEtaHead
      <|> piEqHead
+     <|> sigmaBeta1Head
+     <|> sigmaBeta2Head
+     <|> sigmaEtaHead
+     <|> sigmaEqHead
      <|> natBetaZHead
      <|> natBetaSHead
      <|> jHead
