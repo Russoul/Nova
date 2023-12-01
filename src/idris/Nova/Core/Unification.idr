@@ -12,6 +12,7 @@ import Text.PrettyPrint.Prettyprinter.Render.Terminal
 import Text.PrettyPrint.Prettyprinter
 
 import Nova.Core.Evaluation
+import Nova.Core.Conversion
 import Nova.Core.Language
 import Nova.Core.Monad
 import Nova.Core.Pretty
@@ -875,9 +876,18 @@ namespace SubstContext
 namespace ConstraintEntry
   public export
   unify : Signature -> Omega -> ConstraintEntry -> M Result
-  unify sig cs (TypeConstraint ctx a b) = unifyType sig cs ctx a b
-  unify sig cs (ElemConstraint ctx a b ty) = unifyElem sig cs ctx a b ty
-  unify sig cs (SubstContextConstraint sigma tau source target) = unifySubstContext sig cs sigma tau source target
+  unify sig cs (TypeConstraint ctx a b) = M.do
+    case !(conv sig cs a b) of
+      True => return (Success [] [])
+      False => unifyType sig cs ctx a b
+  unify sig cs (ElemConstraint ctx a b ty) = M.do
+    case !(conv sig cs a b) of
+      True => return (Success [] [])
+      False => unifyElem sig cs ctx a b ty
+  unify sig cs (SubstContextConstraint sigma tau source target) = M.do
+    case !(conv sig cs sigma tau) of
+      True => return (Success [] [])
+      False => unifySubstContext sig cs sigma tau source target
 
 public export
 instantiate : Omega -> OmegaName -> Elem -> Omega

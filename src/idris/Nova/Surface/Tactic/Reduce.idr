@@ -82,9 +82,9 @@ mutual
     case es' of
       [<] => error r
       (es :< (_, Arg ([], App _ (Underscore _) []))) => MEither.do
-        return $ PiElim !(applyReduce sig omega f (App r h (cast es))) x a b e
+        return $ ImplicitPiElim !(applyReduce sig omega f (App r h (cast es))) x a b e
       (es :< (_, Arg ([], pe))) => MEither.do
-        return $ PiElim f x a b !(applyReduce sig omega e pe)
+        return $ ImplicitPiElim f x a b !(applyReduce sig omega e pe)
       (es :< (r, _)) => MEither.do
         error r
   applyReduceNu sig omega (ImplicitPiElim f x a b e) p = error (range p)

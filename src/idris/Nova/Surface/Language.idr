@@ -20,7 +20,7 @@ import Nova.Surface.Operator
 -- e⁺{1} = e{≥3} | (e⁺{≥0}) | .π₁ | .π₂ | {e{≥0}}
 -- ē⁺ ::= ␣ e⁺{1} ē⁺ | ·
 
--- top-level ::= assume x : e{≥0} | let x : e{≥0} ≔ e{≥0}
+-- top-level ::= assume x : e{≥0} | let x : e{≥0} ≔ e{≥0} | define x : e{≥0} ≔ e{≥0}
 
 
 mutual
@@ -125,6 +125,8 @@ mutual
       RewriteInv : Range -> Term -> Term -> Tactic
       ||| rewrite e{≥4} e{≥4}
       Rewrite : Range -> Term -> Term -> Tactic
+      ||| Let x ≔ e{≥0}
+      Let : Range -> VarName -> Term -> Tactic
 
   namespace OpFreeTactic
     public export
@@ -148,6 +150,8 @@ mutual
       RewriteInv : Range -> OpFreeTerm -> OpFreeTerm -> OpFreeTactic
       ||| rewrite e{≥4} e{≥4}
       Rewrite : Range -> OpFreeTerm -> OpFreeTerm -> OpFreeTactic
+      ||| let x ≔ t
+      Let : Range -> VarName -> OpFreeTerm -> OpFreeTactic
 
   namespace OpFreeTerm
     public export
@@ -322,6 +326,9 @@ namespace Term
     ||| let x : T
     |||       ≔ t
     LetSignature : Range -> VarName -> Term -> Term -> TopLevel
+    ||| define x : T
+    |||          ≔ t
+    DefineSignature : Range -> VarName -> Term -> Term -> TopLevel
     ||| syntax ... : ...
     Syntax : Range -> Operator -> TopLevel
 
@@ -333,6 +340,9 @@ namespace OpFreeTerm
     ||| let x : T
     |||       ≔ t
     LetSignature : Range -> VarName -> OpFreeTerm -> OpFreeTerm -> OpFreeTopLevel
+    ||| define x : T
+    |||          ≔ t
+    DefineSignature : Range -> VarName -> OpFreeTerm -> OpFreeTerm -> OpFreeTopLevel
 
 covering
 public export
@@ -341,6 +351,8 @@ Show TopLevel where
     "assume \{x} : \{show ty}"
   show (LetSignature r x ty rhs) =
     "let \{x} : \{show ty} ≔ \{show rhs}"
+  show (DefineSignature r x ty rhs) =
+    "define \{x} : \{show ty} ≔ \{show rhs}"
   show (Syntax r op) =
     "syntax ..."
 
@@ -351,6 +363,8 @@ Show OpFreeTopLevel where
     "assume \{x} : \{show ty}"
   show (LetSignature r x ty rhs) =
     "let \{x} : \{show ty} ≔ \{show rhs}"
+  show (DefineSignature r x ty rhs) =
+    "define \{x} : \{show ty} ≔ \{show rhs}"
 
 namespace OpFreeTerm
   public export

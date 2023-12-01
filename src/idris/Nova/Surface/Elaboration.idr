@@ -121,12 +121,72 @@ namespace Elaboration.Fixpoint
     ||| Ω might have changed, so we record the last one.
     Error : Omega -> Either (ElaborationEntry, String) (ConstraintEntry, String) -> Fixpoint
 
+partial
+public export
+Show ElaborationEntry where
+  show (ElemElaboration ctx tm p ty) = "... ⊦ ⟦\{show tm}⟧ ⇝ ... : ..."
+  show (TypeElaboration ctx tm p) = "... ⊦ ⟦\{show tm}⟧ ⇝ ... type"
+  show (ElemElimElaboration x y z xs str w) = "ElemElimElaboration"
+
 namespace TopLevelError
     public export
     data TopLevelError : Type where
       Stuck : Omega -> List (ElaborationEntry, String) -> List (ConstraintEntry, String) -> TopLevelError
       UnificationError : Omega -> (ConstraintEntry, String) -> TopLevelError
       ElaborationError : Omega -> (ElaborationEntry, String) -> TopLevelError
+
+    public export
+    pretty : Signature -> TopLevelError -> M (Doc Ann)
+    pretty sig (Stuck omega stuckElab stuckCons) = M.do
+      return $
+        "----------- Stuck unification constraints: -------------"
+         <+>
+        hardline
+         <+>
+        vsep !(forList stuckCons $ \(con, str) => M.do
+               return $
+                 !(prettyConstraintEntry sig omega con)
+                  <+>
+                 hardline
+                  <+>
+                 pretty "Reason: \{str}"
+              )
+         <+>
+        hardline
+         <+>
+        "----------- Stuck elaboration constraints: -------------"
+         <+>
+        vsep !(forList stuckElab $ \(elab, err) => M.do
+          return $
+            pretty (show elab)
+             <+>
+            hardline
+             <+>
+            pretty "Reason: \{err}")
+    pretty sig (UnificationError omega (con, err)) = M.do
+      return $
+        "----------- Disunifier found: -------------"
+         <+>
+        hardline
+         <+>
+        !(prettyConstraintEntry sig omega con)
+         <+>
+        hardline
+         <+>
+        pretty "Reason: \{err}"
+    pretty sig (ElaborationError omega (elab, err)) = M.do
+      return $
+         "----------- Elaborator failed: -------------"
+          <+>
+         hardline
+          <+>
+         pretty (show elab)
+          <+>
+         hardline
+          <+>
+         pretty "Reason: \{err}"
+
+
 
 
 public export
@@ -135,13 +195,6 @@ range (ElemElaboration ctx tm n ty) = range tm
 range (TypeElaboration ctx tm n) = range tm
 range (ElemElimElaboration ctx head headTy [] n ty) = MkRange (0, 0) (0, 0) -- FIX: we need to come up with something in that case
 range (ElemElimElaboration ctx head headTy ((r, _) :: _) n ty) = r
-
-partial
-public export
-Show ElaborationEntry where
-  show (ElemElaboration ctx tm p ty) = "... ⊦ ⟦\{show tm}⟧ ⇝ ... : ..."
-  show (TypeElaboration ctx tm p) = "... ⊦ ⟦\{show tm}⟧ ⇝ ... type"
-  show (ElemElimElaboration x y z xs str w) = "ElemElimElaboration"
 
 namespace Elaboration
   public export
@@ -289,7 +342,12 @@ mutual
             return (Success omega [ElemElimElaboration ctx (SignatureVarElim idx Terminal) vTy es meta ty])
           Just (sigCtx, idx, ty) =>
             return (Error "Non-empty signature context not supported yet for name: \{x}")
-          Nothing => return (Error "Undefined name: \{x}")
+          Nothing =>
+            case lookup x omega of
+              Just (LetElem [<] _ vTy) => M.do
+                addSemanticToken (r0, ElimAnn)
+                return (Success omega [ElemElimElaboration ctx (OmegaVarElim x Terminal) vTy es meta ty])
+              _ => return (Error "Undefined name: \{x}")
   elabElemNu sig omega ctx (App r (NatVal0 x) []) meta NatTy = M.do
     let omega = instantiateByElaboration omega meta NatVal0
     return (Success omega [])
@@ -1031,7 +1089,9 @@ mutual
         case (containsNamedHolesOnly omega) of
           True => return (Right (omega, [<], \_ => [< ElemEntryInstance (OmegaVarElim m' Id)]))
           False => return (Left "Stuck elaborating exact term; have some unsolved holes: \{renderDocNoAnn !(Elab.liftM $ prettyOmega sig omega)}" )
-      Stuck omega elabs cons => return (Left "Stuck elaborating the exact term; number of unsolved elabs: \{show (length elabs)}; number of unsolved constraints \{show (length cons)}")
+      Stuck omega elabs cons => M.do
+        let err = Stuck omega elabs cons
+        return (Left "Stuck elaborating the exact term;\n \{renderDocNoAnn !(liftM $ pretty sig err)}")
       Error {} => return (Left "Error elaborating the exact term")
   elabTactic sig omega (Exact r tm) target = return (Left "Wrong target context for exact tactic")
   elabTactic sig omega (Split r [<] alpha) target =
@@ -1048,6 +1108,29 @@ mutual
       | _ => return (Left "Error elaborating Split")
     return (Right (omega, [<], \x => interpA x ++ interpB x))
   elabTactic sig omega (Split r (betas :< beta) alpha) target = return (Left "Wrong target context for split tactic")
+  elabTactic sig omega (Let r x e) target =  M.do
+    (omega, ty') <- liftUnifyM $ newTypeMeta omega [<] SolveByUnification
+    let ty = OmegaVarElim ty' Id
+    (omega, e') <- liftUnifyM $ newElemMeta omega [<] ty SolveByElaboration
+    -- Σ (x ≔ t : A)
+    let source = target :< (x, LetElemEntry [<] (OmegaVarElim e' Id) ty)
+    let
+      f : SignatureInst -> SignatureInst
+      f [<] = assert_total $ idris_crash "elabTactic/let"
+      f (ts :< t) = ts
+    case !(Elaboration.solve sig omega [ElemElaboration [<] e e' ty]) of
+      Success omega => M.do
+        return (Right (omega, source, f))
+                  --FIX:
+      Stuck omega [] [] =>
+        case (containsNamedHolesOnly omega) of
+          True => M.do
+            return (Right (omega, source, f))
+          False => return (Left "Stuck elaborating exact term; have some unsolved holes: \{renderDocNoAnn !(Elab.liftM $ prettyOmega sig omega)}" )
+      Stuck omega elabs cons => M.do
+        let err = Stuck omega elabs cons
+        return (Left "Stuck elaborating RHS of let;\n \{renderDocNoAnn !(liftM $ pretty sig err)}")
+      Error {} => return (Left "Error elaborating RHS of let")
 
   ||| Σ Ω Γ ⊦ (t : T) ⟦ē⟧ ⇝ t' : A
   ||| Where T is head-neutral w.r.t. open evaluation.
@@ -1175,60 +1258,6 @@ mutual
   solve : Params => Signature -> Omega -> List ElaborationEntry -> ElabM Elaboration.Fixpoint.Fixpoint
   solve sig omega todo = progressEntriesFixpoint sig omega todo
 
-  namespace TopLevelError
-    public export
-    pretty : Signature -> TopLevelError -> M (Doc Ann)
-    pretty sig (Stuck omega stuckElab stuckCons) = M.do
-      return $
-        "----------- Stuck unification constraints: -------------"
-         <+>
-        hardline
-         <+>
-        vsep !(forList stuckCons $ \(con, str) => M.do
-               return $
-                 !(prettyConstraintEntry sig omega con)
-                  <+>
-                 hardline
-                  <+>
-                 pretty "Reason: \{str}"
-              )
-         <+>
-        hardline
-         <+>
-        "----------- Stuck elaboration constraints: -------------"
-         <+>
-        vsep !(forList stuckElab $ \(elab, err) => M.do
-          return $
-            pretty (show elab)
-             <+>
-            hardline
-             <+>
-            pretty "Reason: \{err}")
-    pretty sig (UnificationError omega (con, err)) = M.do
-      return $
-        "----------- Disunifier found: -------------"
-         <+>
-        hardline
-         <+>
-        !(prettyConstraintEntry sig omega con)
-         <+>
-        hardline
-         <+>
-        pretty "Reason: \{err}"
-    pretty sig (ElaborationError omega (elab, err)) = M.do
-      return $
-         "----------- Elaborator failed: -------------"
-          <+>
-         hardline
-          <+>
-         pretty (show elab)
-          <+>
-         hardline
-          <+>
-         pretty "Reason: \{err}"
-
-
-
 ||| Elaborates a top-level entry and adds it to the signature in case of success.
 ||| Throws on elaboration or unification error.
 public export
@@ -1259,6 +1288,17 @@ elabTopLevelEntry sig omega (LetSignature r x ty rhs) = M.do
     | Error omega (Right (con, err)) => return (Left (UnificationError omega (con, err)))
   let sig = sig :< (x, LetElemEntry [<] (OmegaVarElim rhs' Id) (OmegaVarElim ty' Id))
   let omega = subst omega Wk
+  return (Right (sig, omega))
+elabTopLevelEntry sig omega (DefineSignature r x ty rhs) = M.do
+  print_ Debug STDOUT "Elaborating \{x}"
+  (omega, ty') <- liftUnifyM $ newTypeMeta omega [<] SolveByElaboration
+  (omega, rhs') <- liftUnifyM $ newElemMeta omega [<] (OmegaVarElim ty' Id) SolveByElaboration
+  let probs = [TypeElaboration [<] ty ty', ElemElaboration [<] rhs rhs' (OmegaVarElim ty' Id)]
+  Success omega <- solve sig omega probs
+    | Stuck omega stuckElab stuckCons => return (Left (Stuck omega stuckElab stuckCons))
+    | Error omega (Left (elab, err)) => return (Left (ElaborationError omega (elab, err)))
+    | Error omega (Right (con, err)) => return (Left (UnificationError omega (con, err)))
+  let omega = insert (x, LetElem [<] (OmegaVarElim rhs' Id) (OmegaVarElim ty' Id)) omega
   return (Right (sig, omega))
 
 public export
@@ -1292,5 +1332,13 @@ elabFile sig omega ops (TypingSignature r x ty ::: e' :: es) = M.do
 elabFile sig omega ops (LetSignature r x ty rhs ::: e' :: es) = M.do
   -- write "Before shunting:\n\{show (LetSignature r x ty rhs)}"
   Right (sig, omega) <- elabTopLevelEntry sig omega !(liftMEither $ shuntTopLevel (cast ops) (LetSignature r x ty rhs))
+    | Left err => return (Left (x, r, err))
+  elabFile sig omega ops (e' ::: es)
+elabFile sig omega ops (DefineSignature r x ty rhs ::: []) = M.do
+  Right (sig, omega) <- elabTopLevelEntry sig omega !(liftMEither $ shuntTopLevel (cast ops) (DefineSignature r x ty rhs))
+    | Left err => return (Left (x, r, err))
+  return (Right (sig, omega, ops))
+elabFile sig omega ops (DefineSignature r x ty rhs ::: e' :: es) = M.do
+  Right (sig, omega) <- elabTopLevelEntry sig omega !(liftMEither $ shuntTopLevel (cast ops) (DefineSignature r x ty rhs))
     | Left err => return (Left (x, r, err))
   elabFile sig omega ops (e' ::: es)

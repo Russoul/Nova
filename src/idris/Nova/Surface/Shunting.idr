@@ -197,6 +197,9 @@ mutual
     a <- shunt ops a 0
     b <- shunt ops b 0
     return (Rewrite r a b)
+  shuntTactic ops (Let r x e) = MEither.do
+    e <- shunt ops e 0
+    return (Let r x e)
 
   ||| Shunt the given term at the specified *lvl*.
   public export
@@ -309,4 +312,8 @@ mutual
     ty <- shunt ops ty 0
     rhs <- shunt ops rhs 0
     return (LetSignature r x ty rhs)
+  shuntTopLevel ops (DefineSignature r x ty rhs) = MEither.do
+    ty <- shunt ops ty 0
+    rhs <- shunt ops rhs 0
+    return (DefineSignature r x ty rhs)
   shuntTopLevel ops (Syntax x y) = error "Trying to shunt a syntax definition"

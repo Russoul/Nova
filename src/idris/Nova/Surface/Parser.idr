@@ -545,6 +545,25 @@ mutual
     rhs <- located (term 0)
     pure (LetSignature (l + fst rhs) (snd x) ty (snd rhs))
 
+  public export
+  defineSignature : Rule TopLevel
+  defineSignature = do
+    l <- delim "define"
+    commit
+    spaceDelim
+    x <- located varName
+    appendSemanticToken (fst x, ElimAnn)
+    spaceDelim
+    delim_ ":"
+    spaceDelim
+    ty <- term 0
+    spaceDelim
+    delim_ "≔"
+    spaceDelim
+    rhs <- located (term 0)
+    pure (DefineSignature (l + fst rhs) (snd x) ty (snd rhs))
+
+
   namespace TopLevel
     public export
     continueLevel : AlternatingSnocList True String Nat
@@ -609,7 +628,7 @@ mutual
 
   public export
   topLevel : Rule TopLevel
-  topLevel = typingSignature <|> letSignature <|> syntax
+  topLevel = typingSignature <|> letSignature <|> defineSignature <|> syntax
 
   public export
   surfaceFile : Rule (List1 TopLevel)
@@ -617,11 +636,11 @@ mutual
     sepBy1 spaceDelimDef topLevel
 
 mutual
-  tactic = composition <|> split <|> exact <|> reduce <|> id <|> trivial <|> rewriteInv <|> rewrite'
+  tactic = composition <|> split <|> exact <|> reduce <|> id <|> trivial <|> rewriteInv <|> let' <|> rewrite'
 
   public export
   compositionArg : Rule Tactic
-  compositionArg = split <|> exact <|> reduce <|> id <|> trivial <|> rewriteInv <|> rewrite'
+  compositionArg = split <|> exact <|> reduce <|> id <|> trivial <|> rewriteInv <|> let' <|> rewrite'
 
   ensureColumn : (col : Int) -> Rule a -> Rule a
   ensureColumn col f = do
@@ -688,6 +707,18 @@ mutual
     spaceDelim
     e <- located (term 3)
     pure (RewriteInv (l + fst e) rho (snd e))
+
+  public export
+  let' : Rule Tactic
+  let' = do
+    l <- delim "let"
+    spaceDelim
+    x <- varName
+    spaceDelim
+    delim_ "≔"
+    spaceDelim
+    e <- located (term 0)
+    pure (Let (l + fst e) x (snd e))
 
   public export
   rewrite' : Rule Tactic
