@@ -7,6 +7,8 @@ import Nova.Core.Monad
 import Nova.Core.Language
 import Nova.Core.Substitution
 
+-- FIX: Shrinking is semantically incorrect in extensional TT.
+
 mutual
   namespace SubstContextNF
     ||| Γ₀ ⊦ Γ₁ ctx
