@@ -20,6 +20,7 @@ modules =
         , Nova.Core.Monad
         , Nova.Core.Name
         , Nova.Core.Pretty
+        , Nova.Core.Rigidity
         , Nova.Core.Shrinking
         , Nova.Core.Substitution
         , Nova.Core.Unification

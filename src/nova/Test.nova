@@ -6,6 +6,8 @@ syntax e{≥3} , e{≥2} : e{2}
 
 syntax e{≥2} ≡ e{≥2} ∈ e{≥2} : e{1}
 
+syntax e{≥2} ≡ e{≥2} type : e{1}
+
 syntax e{≥4} + e{≥5} : e{4}
 
 syntax e{≥4} @ e{≥5} : e{4}
@@ -108,6 +110,11 @@ let Vect-S : {A : 𝕌} → {n : ℕ} → Vect (S n) A ≡ A ⨯ Vect n A ∈ �
                      reduce _ ≡ ((x : _) ⨯ ☐ _) ∈ _;
                      reduce _ ≡ ((x : _) ⨯ ☐) ∈ _;
                      trivial;
+
+define Vect-El : {A : 𝕌} → {n : ℕ} → El (Vect n A) ≡ Vect n (El A)
+               ≔ ?prf
+
+assume bug : {A : 𝕌} → (xs : Vect Z A) → xs ≡ nil ∈ Vect Z A
 
 define nil-unique : {A : 𝕌} → (xs : Vect Z A) → xs ≡ nil ∈ ?
                   ≔ {A} ↦ tac

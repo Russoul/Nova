@@ -52,6 +52,7 @@ mutual
       NatBetaS : Range -> Head
       PiEq : Range -> Head
       OneEq : Range -> Head
+      El : Range -> Head
       ||| Only used for paths.
       Underscore : Range -> Head
       ||| Only used for paths.
@@ -86,6 +87,7 @@ mutual
       SigmaEta : Range -> OpFreeHead
       SigmaEq : Range -> OpFreeHead
       OneEq : Range -> OpFreeHead
+      El : Range -> OpFreeHead
       ||| Only used for paths.
       Underscore : Range -> OpFreeHead
       ||| Only used for paths.
@@ -163,7 +165,8 @@ mutual
       ImplicitPiVal : Range -> VarName -> OpFreeTerm -> OpFreeTerm
       ProdTy : Range -> OpFreeTerm -> OpFreeTerm -> OpFreeTerm
       FunTy : Range -> OpFreeTerm -> OpFreeTerm -> OpFreeTerm
-      EqTy : Range -> OpFreeTerm -> OpFreeTerm -> OpFreeTerm -> OpFreeTerm
+      TyEqTy : Range -> OpFreeTerm -> OpFreeTerm -> OpFreeTerm
+      ElEqTy : Range -> OpFreeTerm -> OpFreeTerm -> OpFreeTerm -> OpFreeTerm
       SigmaVal : Range -> OpFreeTerm -> OpFreeTerm -> OpFreeTerm
       App : Range -> OpFreeHead -> OpFreeElim -> OpFreeTerm
       Tac : Range -> OpFreeTactic -> OpFreeTerm
@@ -247,6 +250,7 @@ mutual
     show (SigmaEta x) = "SigmaEta"
     show (SigmaEq x) = "SigmaEq"
     show (OneEq x) = "OneEq"
+    show (El x) = "El"
     show (Underscore x) = "_"
     show (Box x) = "☐"
     show (Tm x tm) = "Tm(\{show tm})"
@@ -299,6 +303,7 @@ mutual
     show (SigmaEta x) = "SigmaEta"
     show (SigmaEq x) = "SigmaEq"
     show (OneEq x) = "OneEq"
+    show (El x) = "El"
     show (Underscore x) = "_"
     show (Box x) = "☐"
     show (Tm x tm) = "Tm(\{show tm})"
@@ -313,7 +318,8 @@ mutual
     show (ImplicitPiVal _ x f) = "ImplicitPiVal(\{x}, \{show f})"
     show (ProdTy _ a b) = "ProdTy(\{show a}, \{show b})"
     show (FunTy _ a b) = "FunTy(\{show a}, \{show b})"
-    show (EqTy _ a b ty) = "EqTy(\{show a}, \{show b}, \{show ty})"
+    show (TyEqTy _ a b) = "TyEqTy(\{show a}, \{show b})"
+    show (ElEqTy _ a b ty) = "ElEqTy(\{show a}, \{show b}, \{show ty})"
     show (SigmaVal _ a b) = "SigmaVal(\{show a}, \{show b})"
     show (App _ head list) = "App(\{show head}, \{show list})"
     show (Tac _ alpha) = "Tac(...)"
@@ -376,7 +382,8 @@ namespace OpFreeTerm
   range (ImplicitPiVal x str y) = x
   range (ProdTy x y z) = x
   range (FunTy x y z) = x
-  range (EqTy x y z w) = x
+  range (TyEqTy x y z) = x
+  range (ElEqTy x y z w) = x
   range (SigmaVal x y z) = x
   range (App x y xs) = x
   range (Tac r _) = r

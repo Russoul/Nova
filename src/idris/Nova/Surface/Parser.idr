@@ -239,6 +239,13 @@ oneEqHead = do
   appendSemanticToken (r, ElemAnn)
   pure (OneEq r)
 
+public export
+elHead : Rule Head
+elHead = do
+  r <- spName "El"
+  appendSemanticToken (r, ElimAnn)
+  pure (El r)
+
 mutual
   public export
   head : Rule Head
@@ -269,6 +276,7 @@ mutual
      <|> natBetaZHead
      <|> natBetaSHead
      <|> jHead
+     <|> elHead
      <|> underscoreHead
      <|> boxHead
 

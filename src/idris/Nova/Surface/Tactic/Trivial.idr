@@ -11,9 +11,9 @@ import Nova.Core.Conversion
 
 import Nova.Surface.Language
 
--- This module contains support code for the trivial tactic
+-- This module contains support code for the "trivial" tactic
 
-applyTrivialNu : Signature -> Omega -> Elem -> M (Maybe Elem)
+applyTrivialNu : Signature -> Omega -> Typ -> M (Maybe Elem)
 applyTrivialNu sig omega (EqTy a b ty) = MMaybe.do
   case !(liftM $ conv sig omega a b) of
     True => MMaybe.do
@@ -22,5 +22,5 @@ applyTrivialNu sig omega (EqTy a b ty) = MMaybe.do
 applyTrivialNu sig omega _ = nothing
 
 public export
-applyTrivial : Signature -> Omega -> Elem -> M (Maybe Elem)
+applyTrivial : Signature -> Omega -> Typ -> M (Maybe Elem)
 applyTrivial sig omega ty = applyTrivialNu sig omega !(liftM $ openEval sig omega ty)

@@ -1,0 +1,233 @@
+
+r : 𝐈
+(i : 𝐈) ⊦ A type
+(i : 𝐈) (x : A) ⊦ B type
+M : A(r/i)
+(x₀ : A(0/i)) ⊦ N₀ : B(0/i, x₀/x)
+(x₁ : A(1/i)) ⊦ N₁ : B(1/i, x₁/x)
+(x₀ : A(0/i)) (x₁ : A(1/i)) (x : Bridge (i. A) x₀ x₁) ⊦ N : Bridge (i. B(x i)) N₀ N₁
+------------------------------------------------------------------------------------
+extent r M x.N₀ x.N₁ x₀.x₁.x.N : B(r/i, M/x)
+
+extent 0 M x.N₀ x.N₁ x₀.x₁.x.N = N₀(M/x₀) : B(0/i, M/x)
+extent 1 M x.N₀ x.N₁ x₀.x₁.x.N = N₁(M/x₁) : B(1/i, M/x)
+extent i M x.N₀ x.N₁ x₀.x₁.x.N = N(M(0/i)/x₀, M(1/i)/x₁, (i ↦ M)/x) i : B(i/i, M/x)
+
+Bridge (i. (x : A) → B) F₀ F₁
+≃
+(x₀ : A(0/i)) (x₁ : A(1/i)) (x : Bridge (i. A) x₀ x₁) → Bridge (i. B(x i)) (F₀ x₀) (F₁ x₁)
+∎
+=>) to α x₀ x₁ x i = α i (x i)
+<=) from α i x = extent i x (x₀. F₀ x₀) (x₁. F₁ x₁) (x₀.x₁.x. α x₀ x₁ x)
+><) (α : Bridge (i. (x : A) → B) F₀ F₁) ⊦
+        (i x ↦ extend i x (x₀. F₀ x₀) (x₁. F₁ x₁) (x₀.x₁.x. (x₀ x₁ x i ↦ α i (x i)) x₀ x₁ x)) = α
+    <=>
+    (i : 𝐈) (α : Bridge (i. (x : A) → B) F₀ F₁) ⊦
+        (i x ↦ extend i x (x₀. F₀ x₀) (x₁. F₁ x₁) (x₀.x₁.x. (x₀ x₁ x i ↦ α i (x i)) x₀ x₁ x)) i = α i
+    <=>
+    (i : 𝐈) (α : Bridge (i. (x : A) → B) F₀ F₁) (x : A) ⊦
+        (i x ↦ extend i x (x₀. F₀ x₀) (x₁. F₁ x₁) (x₀.x₁.x. (x₀ x₁ x i ↦ α i (x i)) x₀ x₁ x)) i x = α i x
+    <=>
+    (i : 𝐈) (α : Bridge (i. (x : A) → B) F₀ F₁) (x : A) ⊦
+        (extend i x (x₀. F₀ x₀) (x₁. F₁ x₁) (x₀.x₁.x. (x₀ x₁ x i ↦ α i (x i)) x₀ x₁ x)) = α i x
+    <=>
+    (i : 𝐈) (α : Bridge (i. (x : A) → B) F₀ F₁) (x : A) ⊦
+        (extend i x (x₀. F₀ x₀) (x₁. F₁ x₁) (x₀.x₁.x. (i ↦ α i (x i)))) = α i x
+    <=>
+    (i : 𝐈) (α : Bridge (i. (x : A) → B) F₀ F₁) (x : A) ⊦
+        (x₀.x₁.x. (i ↦ α i (x i)))[i ↦ x / x] i = α i x
+    <=>
+    (i : 𝐈) (α : Bridge (i. (x : A) → B) F₀ F₁) (x : A) ⊦
+        ((i ↦ α i ((i ↦ x) i))) i = α i x
+    <=>
+    (i : 𝐈) (α : Bridge (i. (x : A) → B) F₀ F₁) (x : A) ⊦
+        (i ↦ α i x) i = α i x
+    <=>
+    (i : 𝐈) (α : Bridge (i. (x : A) → B) F₀ F₁) (x : A) ⊦
+        α i x = α i x ✔
+<>) (α : (x₀ : A(0/i)) (x₁ : A(1/i)) (x : Bridge (i. A) x₀ x₁) → Bridge (i. B(x i)) (F₀ x₀) (F₁ x₁)) ⊦ to (from α) = α
+    <=>
+    (α : (x₀ : A(0/i)) (x₁ : A(1/i)) (x : Bridge (i. A) x₀ x₁) → Bridge (i. B(x i)) (F₀ x₀) (F₁ x₁)) ⊦
+      to (i x ↦ extent i x (x₀. F₀ x₀) (x₁. F₁ x₁) (x₀.x₁.x. α x₀ x₁ x)) = α
+    <=>
+    (α : (x₀ : A(0/i)) (x₁ : A(1/i)) (x : Bridge (i. A) x₀ x₁) → Bridge (i. B(x i)) (F₀ x₀) (F₁ x₁)) ⊦
+      (x₀ x₁ x i ↦ (i x ↦ extent i x (x₀. F₀ x₀) (x₁. F₁ x₁) (x₀.x₁.x. α x₀ x₁ x)) i (x i)) = α
+    <=>
+    (α : (x₀ : A(0/i)) (x₁ : A(1/i)) (x : Bridge (i. A) x₀ x₁) → Bridge (i. B(x i)) (F₀ x₀) (F₁ x₁))
+    (x₀ : A(0/i))
+    (x₁ : A(1/i))
+    (x : Bridge (i. A) x₀ x₁)
+      ⊦
+      (x₀ x₁ x i ↦ (i x ↦ extent i x (x₀. F₀ x₀) (x₁. F₁ x₁) (x₀.x₁.x. α x₀ x₁ x)) i (x i)) x₀ x₁ x = α x₀ x₁ x
+    <=>
+    (i : 𝐈)
+    (α : (x₀ : A(0/i)) (x₁ : A(1/i)) (x : Bridge (i. A) x₀ x₁) → Bridge (i. B(x i)) (F₀ x₀) (F₁ x₁))
+    (x₀ : A(0/i))
+    (x₁ : A(1/i))
+    (x : Bridge (i. A) x₀ x₁)
+      ⊦
+      (extent i (x i) (x₀. F₀ x₀) (x₁. F₁ x₁) (x₀.x₁.x. α x₀ x₁ x)) = α x₀ x₁ x i
+    <=>
+    (i : 𝐈)
+    (α : (x₀ : A(0/i)) (x₁ : A(1/i)) (x : Bridge (i. A) x₀ x₁) → Bridge (i. B(x i)) (F₀ x₀) (F₁ x₁))
+    (x₀ : A(0/i))
+    (x₁ : A(1/i))
+    (x : Bridge (i. A) x₀ x₁)
+      ⊦
+      (x₀.x₁.x. α x₀ x₁ x)[i ↦ x i / x] i = α x₀ x₁ x i
+    <=>
+    (i : 𝐈)
+    (α : (x₀ : A(0/i)) (x₁ : A(1/i)) (x : Bridge (i. A) x₀ x₁) → Bridge (i. B(x i)) (F₀ x₀) (F₁ x₁))
+    (x₀ : A(0/i))
+    (x₁ : A(1/i))
+    (x : Bridge (i. A) x₀ x₁)
+      ⊦
+      α x₀ x₁ x i = α x₀ x₁ x i ✔
+
+
+r : 𝐈
+(x₀ : A₀) (x₁ : A₁) ⊦ R type
+-----------------------------
+Gel r A₀ A₁ x₀.x₁.R type
+Gel 0 A₀ A₁ x₀.x₁.R = A₀ type
+Gel 1 A₀ A₁ x₀.x₁.R = A₁ type
+
+M₀ : A₀
+M₁ : A₁
+M : R(M₀, M₁)
+-------------------
+gel r M₀ M₁ M : Gel r A₀ A₁ x₀.x₁.R
+gel 0 M₀ M₁ M = M₀ : A₀
+gel 1 M₀ M₁ M = M₁ : A₁
+
+(i : 𝐈) ⊦ M : Gel i A₀ A₁ x₀.x₁.R
+-----------------------
+ungel i.M : R(M(0/i), M(1/i))
+
+ungel (i. gel i M₀ M₁ M) = M : R(M₀, M₁)
+
+gel r M(0/i) M(1/i) (ungel i.M) = M(r/i) : Gel r A₀ A₁ x₀.x₁.R
+
+
+-------------- Theorem proving ----------------
+
+Th.
+Bridge 𝕌 A B ≅ (A → B → 𝕌)
+∎
+=>) to C a₀ a₁ = Bridge (i. C i) a₀ a₁
+<=) from R i = Gel i A B (x₀.x₁. R x₀ x₁)
+><) i (C : Bridge 𝕌 A B) ⊦ Gel i A B (x₀.x₁. Bridge (i. C i) x₀ x₁) ≡ C i
+    //Definitional iso
+    =>) f x = ungel (i. x) i
+    <=) g x = gel i x(0/i) x(1/i) (i ↦ x)
+    ><) (x : Gel i A B (x₀.x₁. Bridge (i. C i) x₀ x₁)) ⊦
+          gel i x(0/i) x(1/i) (ungel (i. x)) ≡ x ✔
+    ><) (x : C i) ⊦ x ≡ x ✔
+><) (R : A → B → 𝕌) (a : A) (b : B) ⊦ Bridge (i. Gel i A B (x₀.x₁. R x₀ x₁)) a b ≡ R a b
+    //Definitional iso
+    =>) f x = ungel (i. x i)
+    <=) g x i = gel i a b x
+    =>) x ≡ x ✔
+    <=) x = x ✔
+∎
+
+
+Th.
+Bridge (i. (x : A) ⨯ B) p₀ p₁ ≅ (x : Bridge (i. A) p₀.π₁ p₁.π₁) ⨯ Bridge (i. B (x i / x)) p₀.π₂ p₁.π₂
+∎
+=>) f p = (i ↦ p i .π₁, i ↦ p i .π₂)
+<=) g (p, q) = i ↦ (p i, q i)
+><) ✔
+<>) ✔ ∎
+
+
+
+((X : 𝕌) → X → X) ≅ 𝟙
+
+F : ((X : 𝕌) → X → X)
+-----------------------------
+Bridge ((X : 𝕌) → X → X) F F
+
+Bridge ((X : 𝕌) → X → X) F F
+≅
+(X₀ X₁ : 𝕌) (X : Bridge 𝕌 X₀ X₁) → Bridge (i. X i → X i) (F X₀) (F X₁)
+≅
+(X₀ X₁ : 𝕌) (X : Bridge 𝕌 X₀ X₁) (x₀ : X₀) (x₁ : X₁) (x : Bridge (i. X i) x₀ x₁) → Bridge (i. X i) (F X₀ x₀) (F X₁ x₁)
+≅
+(X₀ X₁ : 𝕌) (X : X₀ → X₁ → 𝕌) (x₀ : X₀) (x₁ : X₁) (x : Bridge (i. Gel i X₀ X₁ X) x₀ x₁) → Bridge (i. Gel i X₀ X₁ X) (F X₀ x₀) (F X₁ x₁)
+≅
+(X₀ X₁ : 𝕌) (X : X₀ → X₁ → 𝕌) (x₀ : X₀) (x₁ : X₁) (x : X x₀ x₁) → X (F X₀ x₀) (F X₁ x₁)
+//We got exactly the theorem we'd get from the usual relational interpretation
+
+//Lemma
+p q : Gel i R
+-------------
+(p = q) ≃ (p(0/i) = q(0/i)) ⨯ (p(1/i) = q(1/i)) ⨯ (ungel (i. p) = ungel (i. q))
+∎
+f α = coe (j. (p(0/i) = (α j)(0/i)) ⨯ (p(1/i) = (α j)(1/i)) ⨯ (ungel (i. p) = ungel (i. α j))) 0 1
+          (Refl, Refl, Refl)
+g (α, β, γ) = Refl
+
+//Lemma
+R : A → B → 𝕌
+a : A
+b : B
+-----------------------------------------------------
+((g : Gel i R) ⨯ (g(0/i) = a) ⨯ (g(1/i) = b)) ≅ R a b
+∎
+=>) f (α, l, r) = ungel (i. α)
+<=) g r = gel i a b r, *, *
+><) (α : Gel i R) (p : g(0/i) = a) (q : g(1/i) = b) ⊦ g α = (ungel (i. α), p, q)
+    (α : Gel i R) (p : g(0/i) = a) (q : g(1/i) = b) ⊦ g (ungel (i. α)) = (α, p, q)
+    (α : Gel i R) (p : g(0/i) = a) (q : g(1/i) = b) ⊦ (gel i a b (ungel (i. α)), *, *) = (α, p, q)
+    (α : Gel i R) (p : g(0/i) = a) (q : g(1/i) = b) ⊦ gel i a b (ungel (i. α)) = α ✔
+<>) (r : R a b) ⊦ f (g r) = r
+    (r : R a b) ⊦ (ungel (i. gel i a b r) = r ✔ ∎
+
+
+R : Pointed → Pointed → 𝕌
+r : R p₀ p₁
+----------------------------
+p₀ ~ p₁
+
+i ↦ (gel i p₀ p₁ r : Gel i R) : Bridge (i. Gel i R) p₀ p₁
+
+Pointed = (A : 𝕌) ⨯ A
+((P : Pointed) → P.π₁) ≅ 𝟙
+∎
+It's enough to show that
+for every F : (P : Pointed) → P.π₁
+((X, x) ↦ x) ≡ F
+which is equivalent to
+(p : Pointed) ⊦ F p ≡ p.π₂
+
+the following type is inhabited:
+Bridge ((P : Pointed) → P.π₁) F F
+≅ //By characterisation of Bridges in dependent product
+  //Notation (a₀ ~ a₁) ≔ Bridge (i. _) a₀ a₁
+(p₀ p₁ : Pointed) (p : p₀ ~ p₁) → Bridge (i. (p i).π₁) (F p₀) (F p₁)
+//Take p₁ ≔ (𝟙, ())
+(p₀ : Pointed) (p : p₀ ~ (𝟙, ())) → Bridge (i. (p i).π₁) (F p₀) (F (𝟙, ()))
+≅ //By characterisation of Bridges in dependent sum
+(p₀ : Pointed) (p : (X : p₀.π₁ ~ 𝟙) ⨯ Bridge (i. X i) p₀.π₂ ()) → Bridge (i. (p i).π₁) (F p₀) (F (𝟙, ()))
+≅
+(p₀ : Pointed) (X : p₀.π₁ ~ 𝟙) (q : Bridge (i. X i) p₀.π₂ ()) → Bridge (i. X i) (F p₀) (F (𝟙, ()))
+≅ //By characterisation of Bridge in the universe
+(p₀ : Pointed) (X : p₀.π₁ → 𝟙 → 𝕌) (q : Bridge (i. Gel i X) p₀.π₂ ()) → Bridge (i. Gel i X) (F p₀) (F (𝟙, ()))
+let X : p₀.π₁ → 𝟙 → 𝕌
+    X x _ = (x ≡ p₀.π₂)
+(p₀ : Pointed) (q : Bridge (i. Gel i X) p₀.π₂ ()) → Bridge (i. Gel i X) (F p₀) (F (𝟙, ()))
+≅ //By charactersation of Bridge-in-Gel
+(p₀ : Pointed) (q : X p₀.π₂ ()) → X (F p₀) (F (𝟙, ()))
+//By definition
+(p₀ : Pointed) (q : p₀.π₂ ≡ p₀.π₂) → X (F p₀) (F (𝟙, ()))
+//Assume we have UIP at p₀.π₁
+(p₀ : Pointed) → X (F p₀) (F (𝟙, ()))
+//rename
+(p : Pointed) → X (F p) (F (𝟙, ()))
+//Substitute X
+(p : Pointed) → F p ≡ p.π₂
+//But this is exactly what we needed to show ∎
+
+
+

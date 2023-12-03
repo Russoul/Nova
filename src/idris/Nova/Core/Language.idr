@@ -62,6 +62,36 @@ mutual
 
   namespace D
     public export
+    data Typ : Type where
+      ||| 𝟘
+      ZeroTy : Typ
+      ||| 𝟙
+      OneTy : Typ
+      ||| 𝕌
+      UniverseTy : Typ
+      ||| ℕ
+      NatTy : Typ
+      ||| (x : A) → B
+      PiTy : VarName -> Typ -> Typ -> Typ
+      ||| {x : A} → B
+      ImplicitPiTy : VarName -> Typ -> Typ -> Typ
+      ||| (x : A) ⨯ B
+      SigmaTy : VarName -> Typ -> Typ -> Typ
+      ||| A ≡ B
+      TyEqTy : Typ -> Typ -> Typ
+      ||| a₀ ≡ a₁ ∈ A
+      ElEqTy : Elem -> Elem -> Typ -> Typ
+      ||| El A
+      El : Elem -> Typ
+      ||| t(σ)
+      ContextSubstElim : Typ -> SubstContext -> Typ
+      ||| t(σ)
+      SignatureSubstElim : Typ -> SubstSignature -> Typ
+      ||| Xᵢ(σ)
+      OmegaVarElim : OmegaName -> SubstContext -> Typ
+
+  namespace E
+    public export
     data Elem : Type where
       ||| (x : A) → B
       PiTy : VarName -> Elem -> Elem -> Elem
@@ -70,21 +100,19 @@ mutual
       ||| (x : A) ⨯ B
       SigmaTy : VarName -> Elem -> Elem -> Elem
       ||| x ↦ f
-      PiVal : VarName -> Elem -> Elem -> Elem -> Elem
+      PiVal : VarName -> Typ -> Typ -> Elem -> Elem
       ||| {x} ↦ f
-      ImplicitPiVal : VarName -> Elem -> Elem -> Elem -> Elem
+      ImplicitPiVal : VarName -> Typ -> Typ -> Elem -> Elem
       ||| (a, b)
       SigmaVal : Elem -> Elem -> Elem
       ||| (f : (x : A) → B) e
-      PiElim : Elem -> VarName -> Elem -> Elem -> Elem -> Elem
+      PiElim : Elem -> VarName -> Typ -> Typ -> Elem -> Elem
       ||| {f : {x : A} → B} e
-      ImplicitPiElim : Elem -> VarName -> Elem -> Elem -> Elem -> Elem
+      ImplicitPiElim : Elem -> VarName -> Typ -> Typ -> Elem -> Elem
       ||| (p : (x : A) ⨯ B) .π₁
-      SigmaElim1 : Elem -> VarName -> Elem -> Elem -> Elem
+      SigmaElim1 : Elem -> VarName -> Typ -> Typ -> Elem
       ||| (p : (x : A) ⨯ B) .π₁
-      SigmaElim2 : Elem -> VarName -> Elem -> Elem -> Elem
-      ||| 𝕌
-      Universe : Elem
+      SigmaElim2 : Elem -> VarName -> Typ -> Typ -> Elem
       ||| 0
       NatVal0 : Elem
       ||| S t
@@ -92,7 +120,7 @@ mutual
       ||| ℕ
       NatTy : Elem
       ||| ℕ-elim x.A z x.h.s t
-      NatElim : VarName -> Elem -> Elem -> VarName -> VarName -> Elem -> Elem -> Elem
+      NatElim : VarName -> Typ -> Elem -> VarName -> VarName -> Elem -> Elem -> Elem
       ||| t(σ)
       ContextSubstElim : Elem -> SubstContext -> Elem
       ||| t[σ]
@@ -103,9 +131,11 @@ mutual
       SignatureVarElim : Nat -> SubstContext -> Elem
       ||| Xᵢ(σ)
       OmegaVarElim : OmegaName -> SubstContext -> Elem
+      ||| A ≡ B
+      TyEqTy : Elem -> Elem -> Elem
       ||| a₀ ≡ a₁ ∈ A
-      EqTy : Elem -> Elem -> Elem -> Elem
-      ||| *
+      ElEqTy : Elem -> Elem -> Elem -> Elem
+      ||| Refl
       EqVal : Elem
       ||| 𝟘
       ZeroTy : Elem
@@ -118,7 +148,7 @@ mutual
 
   public export
   Context : Type
-  Context = SnocList (VarName, Elem)
+  Context = SnocList (VarName, Typ)
 
   public export
   Spine : Type
@@ -131,9 +161,9 @@ mutual
 public export
 data SignatureEntry : Type where
   ||| Γ ⊦ A
-  ElemEntry : Context -> Elem -> SignatureEntry
+  ElemEntry : Context -> Typ -> SignatureEntry
   ||| Γ ⊦ a : A
-  LetElemEntry : Context -> Elem -> Elem -> SignatureEntry
+  LetElemEntry : Context -> Elem -> Typ -> SignatureEntry
 
 Signature = SnocList (VarName, SignatureEntry)
 
@@ -146,15 +176,15 @@ namespace OmegaEntry
     ||| Γ ⊦ type
     MetaType : Context -> MetaKind -> OmegaEntry
     ||| Γ ⊦ T
-    LetType : Context -> (rhs : Elem) -> OmegaEntry
+    LetType : Context -> (rhs : Typ) -> OmegaEntry
     ||| Γ ⊦ T type
-    MetaElem : Context -> Elem -> MetaKind -> OmegaEntry
+    MetaElem : Context -> Typ -> MetaKind -> OmegaEntry
     ||| Γ ⊦ t : T
-    LetElem : Context -> (rhs : Elem) -> (ty : Elem) -> OmegaEntry
+    LetElem : Context -> (rhs : Elem) -> (ty : Typ) -> OmegaEntry
     ||| Σ Ω Γ ⊦ A₀ ~ A₁ type
-    TypeConstraint : Context -> Elem -> Elem -> OmegaEntry
+    TypeConstraint : Context -> Typ -> Typ -> OmegaEntry
     ||| Γ ⊦ a₀ ~ a₁ : A
-    ElemConstraint : Context -> Elem -> Elem -> Elem -> OmegaEntry
+    ElemConstraint : Context -> Elem -> Elem -> Typ -> OmegaEntry
     ||| σ₀ ~ σ₁ : Γ ⇒ Δ
     SubstContextConstraint : SubstContext -> SubstContext -> Context -> Context -> OmegaEntry
 
@@ -164,9 +194,9 @@ namespace ConstraintEntry
   public export
   data ConstraintEntry : Type where
     ||| Σ Ω Γ ⊦ A₀ ~ A₁ type
-    TypeConstraint : Context -> Elem -> Elem -> ConstraintEntry
+    TypeConstraint : Context -> Typ -> Typ -> ConstraintEntry
     ||| Σ Ω Γ ⊦ a₀ ~ a₁ : A
-    ElemConstraint : Context -> Elem -> Elem -> Elem -> ConstraintEntry
+    ElemConstraint : Context -> Elem -> Elem -> Typ -> ConstraintEntry
     ||| Σ Ω ⊦ σ₀ ~ σ₁ : Γ ⇒ Δ
     SubstContextConstraint : SubstContext -> SubstContext -> Context -> Context -> ConstraintEntry
 
