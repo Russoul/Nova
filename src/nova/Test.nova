@@ -111,10 +111,19 @@ let Vect-S : {A : 𝕌} → {n : ℕ} → Vect (S n) A ≡ A ⨯ Vect n A ∈ �
                      reduce _ ≡ ((x : _) ⨯ ☐) ∈ _;
                      trivial;
 
-define Vect-El : {A : 𝕌} → {n : ℕ} → El (Vect n A) ≡ Vect n (El A)
-               ≔ ?prf
-
-assume bug : {A : 𝕌} → (xs : Vect Z A) → xs ≡ nil ∈ Vect Z A
+define Vect-El : {A : 𝕌} → {n : ℕ} → El (Vect n A) ≡ Vect n (El A) type
+               ≔ {A n} ↦ ℕ-elim (n. El (Vect n A) ≡ Vect n (El A) type)
+                   (tac rewrite⁻¹ (El ☐ ≡ _ type) Vect-Z;
+                        rewrite⁻¹ (_ ≡ ☐ type) Vect-Z;
+                        trivia;
+                   )
+                   (n.H. tac
+                     rewrite⁻¹ (El ☐ ≡ _ type) Vect-S;
+                     rewrite⁻¹ (_ ⨯ ☐ ≡ _ type);
+                     rewrite⁻¹ (_ ≡ ☐ type);
+                     trivial;
+                   )
+                   n
 
 define nil-unique : {A : 𝕌} → (xs : Vect Z A) → xs ≡ nil ∈ ?
                   ≔ {A} ↦ tac
