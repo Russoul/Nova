@@ -153,9 +153,7 @@ isOperatorSym x = elem x $
                , '→'
                , '≡'
                , '∈'
-               , ':'
-               , '['
-               , ']' ]
+               , ':' ]
 
 namespace Special
   ||| name and op can't be a special symbol
