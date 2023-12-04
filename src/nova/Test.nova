@@ -20,6 +20,8 @@ syntax e{≥10} ≅ e{≥10} : e{9}
 
 syntax e{≥10} ++ e{≥10} : e{4}
 
+syntax e{≥10} :: e{≥10} : e{4}
+
 let test0 : ℕ
           ≔ Z
 
@@ -119,7 +121,7 @@ define nil-unique : {A : 𝕌} → (xs : Vect Z A) → xs ≡ nil {A} ∈ Vect Z
                       exact (xs ↦ 𝟙⁼ ? ?);
 
 
-let cons : {A : 𝕌} → {n : ℕ} → A → Vect n A → Vect (S n) A
+let _::_ : {A : 𝕌} → {n : ℕ} → A → Vect n A → Vect (S n) A
          ≔ {A n} ↦ x xs ↦ tac
              rewrite⁻¹ ☐ Vect-S;
              exact x , xs;
@@ -132,7 +134,7 @@ define Vect-elim-H : {A : 𝕌}
                    → (P : (n : ℕ) → Vect n A → 𝕌)
                    → (n : ℕ)
                    → (xs : A ⨯ Vect n A)
-                   → P (S n) (cons (xs .π₁) (xs .π₂))
+                   → P (S n) (xs .π₁ :: xs .π₂)
                    → P (S n) (tac rewrite⁻¹ ☐ Vect-S; exact (xs .π₁ , xs .π₂);)
                    ≔ {A} ↦ P n xs ↦ tac
                        reduce _ (☐ _ _ _ _) → _;
@@ -146,7 +148,7 @@ let Vect-elim : {A : 𝕌}
               → {n : ℕ}
               → (P : (n : ℕ) → Vect n A → 𝕌)
               → (nil : P Z nil)
-              → (cons : (n : ℕ) → (x : A) → (xs : Vect n A) → P n xs → P (S n) (cons x xs))
+              → (cons : (n : ℕ) → (x : A) → (xs : Vect n A) → P n xs → P (S n) (x :: xs))
               → (xs : Vect n A)
               → P n xs
               ≔ {A n} ↦ P nil cons xs ↦ ℕ-elim (n. (xs : Vect n A) → P n xs)
@@ -168,7 +170,7 @@ let Vect-elim : {A : 𝕌}
 define Vect-elim-nil : {A : 𝕌}
                      → (P : (n : ℕ) → Vect n A → 𝕌)
                      → (onNil : P Z nil)
-                     → (onCons : (n : ℕ) → (x : A) → (xs : Vect n A) → P n xs → P (S n) (cons x xs))
+                     → (onCons : (n : ℕ) → (x : A) → (xs : Vect n A) → P n xs → P (S n) (x :: xs))
                      → Vect-elim P onNil onCons nil ≡ onNil ∈ ?
                      ≔ {A} ↦ P onNil onCons ↦ tac
                           reduce ☐ _ _ _ _ _ _ ≡ _ ∈ _;
@@ -186,10 +188,10 @@ define Vect-elim-cons : {A : 𝕌}
                       → {n : ℕ}
                       → (P : (n : ℕ) → Vect n A → 𝕌)
                       → (onNil : P Z nil)
-                      → (onCons : (n : ℕ) → (x : A) → (xs : Vect n A) → P n xs → P (S n) (cons x xs))
+                      → (onCons : (n : ℕ) → (x : A) → (xs : Vect n A) → P n xs → P (S n) (x :: xs))
                       → (x : A)
                       → (xs : Vect n A)
-                      → Vect-elim P onNil onCons (cons x xs) ≡ onCons n x xs (Vect-elim P onNil onCons xs) ∈ ?
+                      → Vect-elim P onNil onCons (x :: xs) ≡ onCons n x xs (Vect-elim P onNil onCons xs) ∈ ?
                       ≔ {A n} ↦ P onNil onCons x xs ↦ tac
                           reduce ☐ _ _ _ _ _ _ ≡ _ ∈ _;
                           reduce ☐ _ _ _ _ _ ≡ _ ∈ _;
