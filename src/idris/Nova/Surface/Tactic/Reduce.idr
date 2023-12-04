@@ -53,13 +53,18 @@ mutual
     applyReduceNu sig omega (ContextSubstElim x y) f = assert_total $ idris_crash "applyReduceNu(_[_])"
     applyReduceNu sig omega (SignatureSubstElim x y) f = assert_total $ idris_crash "applyReduceNu(_[_])"
     applyReduceNu sig omega (OmegaVarElim str x) p = error (range p)
-    applyReduceNu sig omega (EqTy a b ty) (EqTy _ pa (App _ (Underscore _) []) (App _ (Underscore _) [])) = MEither.do
-      return (EqTy !(applyReduce sig omega a pa) b ty)
-    applyReduceNu sig omega (EqTy a b ty) (EqTy _ (App _ (Underscore _) []) pb (App _ (Underscore _) [])) = MEither.do
-      return (EqTy a !(applyReduce sig omega b pb) ty)
-    applyReduceNu sig omega (EqTy a b ty) (EqTy _ (App _ (Underscore _) []) (App _ (Underscore _) []) pty) = MEither.do
-      return (EqTy a b !(applyReduce sig omega ty pty))
-    applyReduceNu sig omega (EqTy a b ty) p = error (range p)
+    applyReduceNu sig omega (TyEqTy a b) (TyEqTy _ pa (App _ (Underscore _) [])) = MEither.do
+      return (TyEqTy !(applyReduce sig omega a pa) b)
+    applyReduceNu sig omega (TyEqTy a b) (TyEqTy _ (App _ (Underscore _) []) pb) = MEither.do
+      return (TyEqTy a !(applyReduce sig omega b pb))
+    applyReduceNu sig omega (TyEqTy a b) p = error (range p)
+    applyReduceNu sig omega (ElEqTy a b ty) (ElEqTy _ pa (App _ (Underscore _) []) (App _ (Underscore _) [])) = MEither.do
+      return (ElEqTy !(applyReduce sig omega a pa) b ty)
+    applyReduceNu sig omega (ElEqTy a b ty) (ElEqTy _ (App _ (Underscore _) []) pb (App _ (Underscore _) [])) = MEither.do
+      return (ElEqTy a !(applyReduce sig omega b pb) ty)
+    applyReduceNu sig omega (ElEqTy a b ty) (ElEqTy _ (App _ (Underscore _) []) (App _ (Underscore _) []) pty) = MEither.do
+      return (ElEqTy a b !(applyReduce sig omega ty pty))
+    applyReduceNu sig omega (ElEqTy a b ty) p = error (range p)
 
     public export
     applyReduce : Signature -> Omega -> Typ -> OpFreeTerm -> M (Either Range Typ)
@@ -220,14 +225,20 @@ mutual
         Just (x, _) => error (range p)
         Nothing => throw "applyReduceNu(SignatureVarElim)"
     applyReduceNu sig omega (OmegaVarElim str x) p = error (range p)
-    applyReduceNu sig omega (EqTy a b ty) (EqTy _ pa (App _ (Underscore _) []) (App _ (Underscore _) [])) = MEither.do
-      return (EqTy !(applyReduce sig omega a pa) b ty)
-    applyReduceNu sig omega (EqTy a b ty) (EqTy _ (App _ (Underscore _) []) pb (App _ (Underscore _) [])) = MEither.do
-      return (EqTy a !(applyReduce sig omega b pb) ty)
-    applyReduceNu sig omega (EqTy a b ty) (EqTy _ (App _ (Underscore _) []) (App _ (Underscore _) []) pty) = MEither.do
-      return (EqTy a b !(applyReduce sig omega ty pty))
-    applyReduceNu sig omega (EqTy a b ty) p = error (range p)
-    applyReduceNu sig omega EqVal p = error (range p)
+    applyReduceNu sig omega (TyEqTy a b) (TyEqTy _ pa (App _ (Underscore _) [])) = MEither.do
+      return (TyEqTy !(applyReduce sig omega a pa) b)
+    applyReduceNu sig omega (TyEqTy a b) (TyEqTy _ (App _ (Underscore _) []) pb) = MEither.do
+      return (TyEqTy a !(applyReduce sig omega b pb))
+    applyReduceNu sig omega (TyEqTy a b) p = error (range p)
+    applyReduceNu sig omega (ElEqTy a b ty) (ElEqTy _ pa (App _ (Underscore _) []) (App _ (Underscore _) [])) = MEither.do
+      return (ElEqTy !(applyReduce sig omega a pa) b ty)
+    applyReduceNu sig omega (ElEqTy a b ty) (ElEqTy _ (App _ (Underscore _) []) pb (App _ (Underscore _) [])) = MEither.do
+      return (ElEqTy a !(applyReduce sig omega b pb) ty)
+    applyReduceNu sig omega (ElEqTy a b ty) (ElEqTy _ (App _ (Underscore _) []) (App _ (Underscore _) []) pty) = MEither.do
+      return (ElEqTy a b !(applyReduce sig omega ty pty))
+    applyReduceNu sig omega (ElEqTy a b ty) p = error (range p)
+    applyReduceNu sig omega TyEqVal p = error (range p)
+    applyReduceNu sig omega ElEqVal p = error (range p)
 
     public export
     applyReduce : Signature -> Omega -> Elem -> OpFreeTerm -> M (Either Range Elem)

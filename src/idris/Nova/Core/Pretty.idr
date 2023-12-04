@@ -214,7 +214,11 @@ wrapElem (ElEqTy {}) lvl doc =
   case lvl <= 1 of
     True => return doc
     False => return (parens' doc)
-wrapElem (EqVal {}) lvl doc =
+wrapElem (TyEqVal {}) lvl doc =
+  case lvl <= 4 of
+    True => return doc
+    False => return (parens' doc)
+wrapElem (ElEqVal {}) lvl doc =
   case lvl <= 4 of
     True => return doc
     False => return (parens' doc)
@@ -581,8 +585,10 @@ mutual
     annotate Form "∈"
      <++>
     !(prettyElem sig omega ctx ty 0)
-  prettyElem' sig omega ctx EqVal =
-    return $ annotate Intro "*"
+  prettyElem' sig omega ctx TyEqVal =
+    return $ annotate Intro "Refl"
+  prettyElem' sig omega ctx ElEqVal =
+    return $ annotate Intro "Refl"
 
   public export
   prettyElem : Signature
@@ -847,8 +853,8 @@ prettyOmega' sig omega ((x, e) :: es) = return $
    <+>
   hardline
    <+>
-  !(prettyOmega' sig omega es)
+  !(prettyOmega' sig (insert (x, e) omega) es)
 
 public export
 prettyOmega : Signature -> Omega -> M (Doc Ann)
-prettyOmega sig omega = prettyOmega' sig omega (filter (\(_, x) => isMetaType x || isMetaElem x) (List.inorder omega))
+prettyOmega sig omega = prettyOmega' sig empty (List.inorder omega)

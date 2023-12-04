@@ -64,7 +64,8 @@ mutual
         _ => throw "closedEval(OmegaVarElim)"
     closedEvalNu sig omega (TyEqTy a0 a1) = return $ TyEqTy a0 a1
     closedEvalNu sig omega (ElEqTy a0 a1 ty) = return $ ElEqTy a0 a1 ty
-    closedEvalNu sig omega EqVal = return EqVal
+    closedEvalNu sig omega TyEqVal = return TyEqVal
+    closedEvalNu sig omega ElEqVal = return ElEqVal
 
     ||| Σ ⊦ a ⇝ a' : A
     ||| Σ must only contain let-elem's
@@ -113,7 +114,8 @@ mutual
         _ => throw "openEval(OmegaVarElim)"
     openEvalNu sig omega (TyEqTy a0 a1) = return $ TyEqTy a0 a1
     openEvalNu sig omega (ElEqTy a0 a1 ty) = return $ ElEqTy a0 a1 ty
-    openEvalNu sig omega EqVal = return EqVal
+    openEvalNu sig omega TyEqVal = return TyEqVal
+    openEvalNu sig omega ElEqVal = return ElEqVal
 
     ||| Σ ⊦ a ⇝ a' : A
     ||| Computes head-normal form w.r.t. (~) relation used in unification.

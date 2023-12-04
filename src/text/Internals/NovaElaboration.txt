@@ -1,3 +1,11 @@
+//////////// Preface ////////////
+
+This file contains an elaboration specification for Nova's surface language.
+
+/////////////////////////////////
+
+TODO: Bring the file up-to-date
+
 
 α, β, γ ::= α ; α ... ; α | id | reduce ρ | exact t | * α * α ... * α
 

@@ -8,6 +8,7 @@ import System.File
 import System.Path
 import System
 
+import Text.Lexing.Token
 import Text.PrettyPrint.Prettyprinter.Render.Terminal
 import Text.PrettyPrint.Prettyprinter
 
@@ -21,7 +22,7 @@ import Nova.Surface.Elaboration
 import Nova.Surface.Language
 import Nova.Surface.Operator
 import Nova.Surface.Parser
-import Nova.Surface.ParserUtil
+import Nova.Surface.ParserGeneral
 import Nova.Surface.SemanticToken
 
 ||| A string is said to be a dash break if

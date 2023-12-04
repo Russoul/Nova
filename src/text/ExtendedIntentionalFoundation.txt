@@ -6,6 +6,10 @@ We have:
  * Equality type: (a₀ ≡ a₁ ∈ A)
  * A universe: 𝕌
 
+////////// Notes ///////////
+
+Key feature: contexts can contain type families!
+Fun-ext is provable!
 
 //////////// Presentation /////////////
 

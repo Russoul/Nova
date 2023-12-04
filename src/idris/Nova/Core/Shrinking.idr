@@ -210,8 +210,10 @@ mutual
       b <- shrink b gamma1Len gamma2Len
       c <- shrink c gamma1Len gamma2Len
       return (ElEqTy a b c)
-    shrinkNu EqVal gamma1Len gamma2Len = MMaybe.do
-      return EqVal
+    shrinkNu TyEqVal gamma1Len gamma2Len = MMaybe.do
+      return TyEqVal
+    shrinkNu ElEqVal gamma1Len gamma2Len = MMaybe.do
+      return ElEqVal
 
     ||| Γ₀ ⊦ Γ₁ ctx
     ||| Γ₀ ⊦ Γ₂ ctx

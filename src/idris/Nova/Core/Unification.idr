@@ -334,7 +334,8 @@ mutual
       b <- invert sig omega ctx delta sigma b
       ty <- invert sig omega ctx delta sigma ty
       return (ElEqTy a b ty)
-    invertNu sig omega ctx delta sigma EqVal = MMaybe.do return EqVal
+    invertNu sig omega ctx delta sigma TyEqVal = MMaybe.do return TyEqVal
+    invertNu sig omega ctx delta sigma ElEqVal = MMaybe.do return ElEqVal
 
     public export
     invert : Signature -> Omega -> Context -> Context -> SubstContext -> Elem -> M (Maybe Elem)
@@ -434,7 +435,8 @@ mutual
     occursNu sig omega (OmegaVarElim j sigma) k = return (j == k) `or` occurs sig omega sigma k
     occursNu sig omega (TyEqTy a b) k = occurs sig omega a k `or` occurs sig omega b k
     occursNu sig omega (ElEqTy a b ty) k = occurs sig omega a k `or` occurs sig omega b k `or` occurs sig omega ty k
-    occursNu sig omega EqVal k = return False
+    occursNu sig omega TyEqVal k = return False
+    occursNu sig omega ElEqVal k = return False
 
     public export
     occurs : Signature -> Omega -> Elem -> OmegaName -> M Bool
@@ -706,9 +708,12 @@ namespace Elem
                        ElemConstraint ctx q0 q1 (El ty0)] [] [])
   unifyElemNu sig cs ctx (ElEqTy p0 q0 ty0) b _ = M.do
     return (Disunifier "(≡) vs something else rigid")
-  unifyElemNu sig cs ctx EqVal EqVal ty = return (Success [] [] [])
-  unifyElemNu sig cs ctx EqVal b ty = M.do
-    return (Disunifier "* vs something else rigid")
+  unifyElemNu sig cs ctx TyEqVal TyEqVal ty = return (Success [] [] [])
+  unifyElemNu sig cs ctx TyEqVal b ty = M.do
+    return (Disunifier "Refl vs something else rigid")
+  unifyElemNu sig cs ctx ElEqVal ElEqVal ty = return (Success [] [] [])
+  unifyElemNu sig cs ctx ElEqVal b ty = M.do
+    return (Disunifier "Refl vs something else rigid")
   unifyElemNu sig cs ctx (SignatureVarElim k0 sigma0) (SignatureVarElim k1 sigma1) ty = M.do
     case (k0 == k1) of
       False => return (Disunifier "χᵢ vs χⱼ where i ≠ j")
@@ -856,7 +861,9 @@ namespace Type'
          ElemConstraint {} => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim, _)(5)"
          SubstContextConstraint {} => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim, _)(6)"
   unifyTypeNu sig cs ctx (El a0) (El a1) = M.do
-    return (Stuck "El a₀ vs El a₁ where a₀ doesn't convert with a₁")
+    case !(liftM $ isRigid sig cs a0) || !(liftM $ isRigid sig cs a1) of
+      True => return (Success [ElemConstraint ctx a0 a1 UniverseTy] [] [])
+      False => return (Stuck "El a₀ vs El a₁ where a₀ doesn't convert with a₁, both are flex")
   unifyTypeNu sig cs ctx (El el) other = M.do
     case !(liftM $ isRigid sig cs other) of
       True => unifyElAgainstRigid sig cs ctx el other
@@ -1185,10 +1192,10 @@ containsNamedHolesOnly omega = H (map snd (List.inorder omega))
   H (LetType {} :: es) = H es
   H (MetaType ctx NoSolve :: es) = H es
   H (MetaType ctx SolveByElaboration :: es) = H es
-  H (MetaType ctx _ :: es) = False
+  H (MetaType ctx SolveByUnification :: es) = False
   H (MetaElem ctx ty NoSolve :: es) = H es
   H (MetaElem ctx ty SolveByElaboration :: es) = H es
-  H (MetaElem ctx ty _ :: es) = False
+  H (MetaElem ctx ty SolveByUnification :: es) = False
   H (TypeConstraint {} :: es) = False
   H (ElemConstraint {} :: es) = False
   H (SubstContextConstraint {} :: es) = False

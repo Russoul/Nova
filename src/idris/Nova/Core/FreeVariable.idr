@@ -40,7 +40,9 @@ mutual
     freeOmegaNameNu sig omega (OmegaVarElim j sigma) = M.do
       sigma <- freeOmegaName sig omega sigma
       return (insert j sigma)
-    freeOmegaNameNu sig omega (EqTy a b ty) = M.do
+    freeOmegaNameNu sig omega (TyEqTy a b) = M.do
+      [| unite (freeOmegaName sig omega a) (freeOmegaName sig omega b) |]
+    freeOmegaNameNu sig omega (ElEqTy a b ty) = M.do
       [| unite3 (freeOmegaName sig omega a) (freeOmegaName sig omega b) (freeOmegaName sig omega ty) |]
 
     ||| Compute free occurrences of Ω variables in the term modulo open evaluation.
@@ -103,9 +105,12 @@ mutual
     freeOmegaNameNu sig omega (OmegaVarElim j sigma) = M.do
       sigma <- freeOmegaName sig omega sigma
       return (insert j sigma)
-    freeOmegaNameNu sig omega (EqTy a b ty) = M.do
+    freeOmegaNameNu sig omega (TyEqTy a b) = M.do
+      [| unite (freeOmegaName sig omega a) (freeOmegaName sig omega b) |]
+    freeOmegaNameNu sig omega (ElEqTy a b ty) = M.do
       [| unite3 (freeOmegaName sig omega a) (freeOmegaName sig omega b) (freeOmegaName sig omega ty) |]
-    freeOmegaNameNu sig omega EqVal = return empty
+    freeOmegaNameNu sig omega TyEqVal = return empty
+    freeOmegaNameNu sig omega ElEqVal = return empty
 
     ||| Compute free occurrences of Ω variables in the term modulo open evaluation.
     public export

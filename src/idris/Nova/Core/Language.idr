@@ -136,7 +136,9 @@ mutual
       ||| a₀ ≡ a₁ ∈ A
       ElEqTy : Elem -> Elem -> Elem -> Elem
       ||| Refl
-      EqVal : Elem
+      TyEqVal : Elem
+      ||| Refl
+      ElEqVal : Elem
       ||| 𝟘
       ZeroTy : Elem
       ||| 𝟙

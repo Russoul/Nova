@@ -1,4 +1,11 @@
-//////////// Type Theory: Extensional MLTT /////////////
+////////// Preface //////////
+
+This file contains a formalisation of Nova's type theory: Extensional Type Theory.
+We present the theory intrinsically: https://ncatlab.org/nlab/show/intrinsic+and+extrinsic+views+of+typing.
+Nova's surface language is assigned meaning through the process of elaboration. See NovaElaboration.txt for details.
+
+//////////// Type Theory /////////////
+
 We have:
  * Empty type: 𝟘
  * Unit type: 𝟙

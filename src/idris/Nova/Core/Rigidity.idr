@@ -80,7 +80,8 @@ mutual
         Nothing => assert_total $ idris_crash "isRigidNu(SignatureVarElim)(3)"
     isRigidNu sig omega (TyEqTy x y) = return True
     isRigidNu sig omega (ElEqTy x y z) = return True
-    isRigidNu sig omega EqVal = return True
+    isRigidNu sig omega TyEqVal = return True
+    isRigidNu sig omega ElEqVal = return True
 
     ||| A term is rigid if
     ||| there is no (~) that changes its constructor.

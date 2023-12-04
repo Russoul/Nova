@@ -192,7 +192,8 @@ mutual
     subst (OmegaVarElim k sigma) tau = OmegaVarElim k (Chain sigma tau)
     subst (TyEqTy a0 a1) tau = TyEqTy (ContextSubstElim a0 tau) (ContextSubstElim a1 tau)
     subst (ElEqTy a0 a1 ty) tau = ElEqTy (ContextSubstElim a0 tau) (ContextSubstElim a1 tau) (ContextSubstElim ty tau)
-    subst EqVal tau = EqVal
+    subst TyEqVal tau = TyEqVal
+    subst ElEqVal tau = ElEqVal
 
   namespace C
     public export
@@ -254,7 +255,8 @@ mutual
     subst (SignatureVarElim k tau) sigma = substSignatureVar k sigma Id (subst tau sigma)
     subst (TyEqTy a0 a1) tau = TyEqTy (SignatureSubstElim a0 tau) (SignatureSubstElim a1 tau)
     subst (ElEqTy a0 a1 ty) tau = ElEqTy (SignatureSubstElim a0 tau) (SignatureSubstElim a1 tau) (SignatureSubstElim ty tau)
-    subst EqVal tau = EqVal
+    subst TyEqVal tau = TyEqVal
+    subst ElEqVal tau = ElEqVal
 
   namespace D
     public export

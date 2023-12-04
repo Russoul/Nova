@@ -29,7 +29,8 @@ modules =
         , Nova.Surface.Language
         , Nova.Surface.Operator
         , Nova.Surface.Parser
-        , Nova.Surface.ParserUtil
+        , Nova.Surface.ParserCategorical
+        , Nova.Surface.ParserGeneral
         , Nova.Surface.SemanticToken
         , Nova.Surface.Shunting
         , Nova.Surface.ModuleSystem
@@ -39,8 +40,8 @@ modules =
 
         , Nova.Test.Test
 
-        , Text.Parser.CharUtil
-        , Text.Parser.Fork
+        , Text.Parsing.CharUtil
+        , Text.Parsing.Fork
 
 main = Nova.Test.Test
 
