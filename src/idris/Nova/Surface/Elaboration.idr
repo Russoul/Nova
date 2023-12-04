@@ -293,6 +293,20 @@ namespace Elaboration
     -- FIX: Add range?
     Error : String -> Result
 
+  public export
+  prettyResult : Signature -> Elaboration.Result -> M (Doc Ann)
+  prettyResult sig (Success omega new) = M.do
+    return $
+      "Success, sub-problems:"
+       <+>
+      hardline
+       <+>
+      vsep !(forList new (pretty sig omega))
+  prettyResult sig (Stuck reason) = M.do
+    return (pretty "Stuck, reason: \{reason}")
+  prettyResult sig (Error reason) = M.do
+    return (pretty "Error, reason: \{reason}")
+
 namespace Typ
   public export
   instantiateByElaboration : Omega -> OmegaName -> Typ -> Omega
@@ -1408,18 +1422,31 @@ mutual
               -> ElabM Elaboration.Result
   elabElemElim sig omega ctx head headTy es p ty = elabElemElimNu sig omega ctx head !(Elab.liftM $ openEval sig omega headTy) es p !(Elab.liftM $ openEval sig omega ty)
 
+  --TODO: We just insert some logging for debug here
   public export
   elabEntry : Params
            => Signature
            -> Omega
            -> ElaborationEntry
            -> ElabM Elaboration.Result
-  elabEntry sig omega (ElemElaboration ctx tm p ty) =
-    elabElem sig omega ctx tm p ty
-  elabEntry sig omega (TypeElaboration ctx tm p) =
-    elabType sig omega ctx tm p
-  elabEntry sig omega (ElemElimElaboration ctx head headTy es p ty) =
-    elabElemElim sig omega ctx head headTy es p ty
+  elabEntry sig omega entry = M.do
+    let go : Signature
+          -> Omega
+          -> ElaborationEntry
+          -> ElabM Elaboration.Result
+        go sig omega (ElemElaboration ctx tm p ty) =
+          elabElem sig omega ctx tm p ty
+        go sig omega (TypeElaboration ctx tm p) =
+          elabType sig omega ctx tm p
+        go sig omega (ElemElimElaboration ctx head headTy es p ty) =
+          elabElemElim sig omega ctx head headTy es p ty
+    result <- go sig omega entry
+    {- print_ Debug STDOUT "--------- Elaborating ---------"
+    print_ Debug STDOUT (renderDocTerm !(liftM $ pretty sig omega entry))
+    print_ Debug STDOUT "Result:"
+    print_ Debug STDOUT (renderDocTerm !(liftM $ prettyResult sig result))
+    print_ Debug STDOUT "-------------------------------" -}
+    return result
 
   namespace Elaboration.Progress2
     ||| The intermediate results of solving a list of constraints (reflects whether at least some progress has been made).

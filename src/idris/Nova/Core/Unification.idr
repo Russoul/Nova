@@ -752,28 +752,40 @@ namespace Type'
   unifyElAgainstRigid sig omega ctx el (PiTy x dom cod) = M.do
     dom' <- nextOmegaName
     cod' <- nextOmegaName
-    return (Success [ElemConstraint ctx el (PiTy x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id)) UniverseTy]
+    return (Success [ ElemConstraint ctx el (PiTy x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id)) UniverseTy
+                     -- Original problem still persists, but gets simplified!
+                    , TypeConstraint ctx (El (PiTy x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id))) (PiTy x dom cod)
+                    ]
                     [(ctx, dom', Right UniverseTy), (ctx :< (x, El $ OmegaVarElim dom' Id), cod', Right UniverseTy)]
                     []
            )
   unifyElAgainstRigid sig omega ctx el (ImplicitPiTy x dom cod) = M.do
     dom' <- nextOmegaName
     cod' <- nextOmegaName
-    return (Success [ElemConstraint ctx el (ImplicitPiTy x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id)) UniverseTy]
+    return (Success [ ElemConstraint ctx el (ImplicitPiTy x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id)) UniverseTy
+                     -- Original problem still persists, but gets simplified!
+                    , TypeConstraint ctx (El (ImplicitPiTy x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id))) (ImplicitPiTy x dom cod)
+                    ]
                     [(ctx, dom', Right UniverseTy), (ctx :< (x, El $ OmegaVarElim dom' Id), cod', Right UniverseTy)]
                     []
            )
   unifyElAgainstRigid sig omega ctx el (SigmaTy x dom cod) = M.do
     dom' <- nextOmegaName
     cod' <- nextOmegaName
-    return (Success [ElemConstraint ctx el (SigmaTy x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id)) UniverseTy]
+    return (Success [ElemConstraint ctx el (SigmaTy x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id)) UniverseTy
+                     -- Original problem still persists, but gets simplified!
+                    , TypeConstraint ctx (El (SigmaTy x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id))) (SigmaTy x dom cod)
+                    ]
                     [(ctx, dom', Right UniverseTy), (ctx :< (x, El $ OmegaVarElim dom' Id), cod', Right UniverseTy)]
                     []
            )
   unifyElAgainstRigid sig omega ctx el (TyEqTy a0 a1) = M.do
     a0' <- nextOmegaName
     a1' <- nextOmegaName
-    return (Success [ElemConstraint ctx el (TyEqTy (OmegaVarElim a0' Id) (OmegaVarElim a1' Id)) UniverseTy]
+    return (Success [ElemConstraint ctx el (TyEqTy (OmegaVarElim a0' Id) (OmegaVarElim a1' Id)) UniverseTy
+                     -- Original problem still persists, but gets simplified!
+                    , TypeConstraint ctx (El $ TyEqTy (OmegaVarElim a0' Id) (OmegaVarElim a1' Id)) (TyEqTy a0 a1)
+                    ]
                     [(ctx, a0', Right UniverseTy), (ctx, a1', Right UniverseTy)]
                     []
            )
@@ -781,7 +793,10 @@ namespace Type'
     a0' <- nextOmegaName
     a1' <- nextOmegaName
     ty' <- nextOmegaName
-    return (Success [ElemConstraint ctx el (ElEqTy (OmegaVarElim a0' Id) (OmegaVarElim a1' Id) (OmegaVarElim ty' Id)) UniverseTy]
+    return (Success [ElemConstraint ctx el (ElEqTy (OmegaVarElim a0' Id) (OmegaVarElim a1' Id) (OmegaVarElim ty' Id)) UniverseTy
+                     -- Original problem still persists, but gets simplified!
+                    , TypeConstraint ctx (El $ ElEqTy (OmegaVarElim a0' Id) (OmegaVarElim a1' Id) (OmegaVarElim ty' Id)) (ElEqTy a0 a1 ty)
+                    ]
                     [(ctx, ty', Right UniverseTy), (ctx, a0', Right (El $ OmegaVarElim ty' Id)), (ctx, a1', Right (El $ OmegaVarElim ty' Id))]
                     []
            )
@@ -861,9 +876,10 @@ namespace Type'
          ElemConstraint {} => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim, _)(5)"
          SubstContextConstraint {} => assert_total $ idris_crash "unifyTypeNu(OmegaVarElim, _)(6)"
   unifyTypeNu sig cs ctx (El a0) (El a1) = M.do
-    case !(liftM $ isRigid sig cs a0) || !(liftM $ isRigid sig cs a1) of
+    return (Success [ElemConstraint ctx a0 a1 UniverseTy] [] [])
+    {- case !(liftM $ isRigid sig cs a0) || !(liftM $ isRigid sig cs a1) of
       True => return (Success [ElemConstraint ctx a0 a1 UniverseTy] [] [])
-      False => return (Stuck "El a₀ vs El a₁ where a₀ doesn't convert with a₁, both are flex")
+      False => return (Stuck "El a₀ vs El a₁ where a₀ doesn't convert with a₁, both are flex") -}
   unifyTypeNu sig cs ctx (El el) other = M.do
     case !(liftM $ isRigid sig cs other) of
       True => unifyElAgainstRigid sig cs ctx el other
@@ -1116,15 +1132,55 @@ namespace Progress
     ||| Ω ≃ ⊥ // The list of constraints is contradictive.
     Disunifier : String -> Progress
 
+  public export
+  prettyProgress : Signature -> Progress.Progress -> M (Doc Ann)
+  prettyProgress sig (Success omega cs) = M.do
+    return $
+      "Success, sub-problems:"
+       <+>
+      hardline
+       <+>
+      !(prettyConstraints sig omega cs)
+  prettyProgress sig (Stuck reason) = M.do
+    return (pretty "Stuck, reason: \{reason}")
+  prettyProgress sig (Disunifier reason) = M.do
+    return (pretty "Disunifier, reason: \{reason}")
+
 progressEntry : Signature -> Omega -> ConstraintEntry -> UnifyM Progress
-progressEntry sig cs e = M.do
-  case !(unify sig cs e) of
-    Success new metas is => M.do
-      let cs = instantiateN cs is
-      cs <- addMetaN cs metas
-      return (Success cs (cast new))
-    Stuck str => return (Stuck str)
-    Disunifier str => return (Disunifier str)
+progressEntry sig omega entry = M.do
+  {- print_ Debug STDOUT "--------- Unifying ---------"
+  print_ Debug STDOUT (renderDocTerm !(liftM $ prettyConstraintEntry sig omega entry)) -}
+  let go : Signature -> Omega -> ConstraintEntry -> UnifyM Progress
+      go sig cs e = M.do
+        case !(unify sig cs e) of
+          Success new metas is => M.do
+            let metaToOmegaEntry : (Context, OmegaName, Either () Typ) -> (VarName, OmegaEntry)
+                metaToOmegaEntry (ctx, idx, Left ()) = (idx, MetaType ctx SolveByUnification)
+                metaToOmegaEntry (ctx, idx, Right ty) = (idx, MetaElem ctx ty SolveByUnification)
+            let letToOmegaEntry : (OmegaName, Either Typ Elem) -> (VarName, OmegaEntry)
+                letToOmegaEntry (idx, Left ty) =
+                  case (lookup idx omega) of
+                    Just (MetaType ctx _) => (idx, LetType ctx ty)
+                    _ => assert_total $ idris_crash "letToOmegaEntry"
+                letToOmegaEntry (idx, Right rhs) =
+                  case (lookup idx omega) of
+                    Just (MetaElem ctx ty _) => (idx, LetElem ctx rhs ty)
+                    _ => assert_total $ idris_crash "letToOmegaEntry"
+
+            {- print_ Debug STDOUT "New metas:"
+            print_ Debug STDOUT (renderDocTerm !(liftM $ prettyOmega' sig omega (map metaToOmegaEntry metas)))
+            print_ Debug STDOUT "Solutions:"
+            print_ Debug STDOUT (renderDocTerm !(liftM $ prettyOmega' sig omega (map letToOmegaEntry is))) -}
+            let cs = instantiateN cs is
+            cs <- addMetaN cs metas
+            return (Success cs (cast new))
+          Stuck str => return (Stuck str)
+          Disunifier str => return (Disunifier str)
+  progress <- go sig omega entry
+  {- print_ Debug STDOUT "Progress:"
+  print_ Debug STDOUT (renderDocTerm !(liftM $ prettyProgress sig progress))
+  print_ Debug STDOUT "-------------------------------" -}
+  return progress
 
 namespace Progress2
   ||| The intermediate results of solving a list of constraints (reflects whether at least some progress has been made).

@@ -703,6 +703,10 @@ mutual
      <++>
     !(prettyContext sig omega target)
 
+  public export
+  prettyConstraints : Signature -> Omega -> Constraints -> M (Doc Ann)
+  prettyConstraints sig omega cs =
+    return $ vsep !(forList (cast cs) (prettyConstraintEntry sig omega))
 
   public export
   prettySignature' : Signature -> Omega -> List (VarName, SignatureEntry) -> M (Doc Ann)
