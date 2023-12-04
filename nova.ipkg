@@ -4,13 +4,13 @@ depends = contrib, just-a-monad
 
 modules =
           Data.AVL
-        , Data.Location
-        , Data.Util
         , Data.AlternatingList
         , Data.AlternatingList1
         , Data.AlternatingSnocList
         , Data.AlternatingSnocList1
         , Data.Interpolation
+        , Data.Location
+        , Data.Util
 
         , Nova.Core.Context
         , Nova.Core.Conversion
@@ -27,18 +27,21 @@ modules =
 
         , Nova.Surface.Elaboration
         , Nova.Surface.Language
+        , Nova.Surface.ModuleSystem
         , Nova.Surface.Operator
         , Nova.Surface.Parser
         , Nova.Surface.ParserCategorical
         , Nova.Surface.ParserGeneral
         , Nova.Surface.SemanticToken
         , Nova.Surface.Shunting
-        , Nova.Surface.ModuleSystem
 
         , Nova.Surface.Tactic.Reduce
         , Nova.Surface.Tactic.Trivial
 
         , Nova.Test.Test
+
+        , Text.Lexing.Token
+        , Text.Lexing.Tokeniser
 
         , Text.Parsing.CharUtil
         , Text.Parsing.Fork
