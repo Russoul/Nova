@@ -71,13 +71,13 @@ mutual
     convNu sig omega (NatVal1 t0) (NatVal1 t1) =
       conv sig omega t0 t1
     convNu sig omega (NatElim x0 schema0 z0 y0 h0 s0 t0) (NatElim x1 schema1 z1 y1 h1 s1 t1) =
+      conv sig omega t0 t1
+        `and`
       conv sig omega schema0 schema1
         `and`
       conv sig omega z0 z1
         `and`
       conv sig omega s0 s1
-        `and`
-      conv sig omega t0 t1
     convNu sig omega (ZeroElim t0) (ZeroElim t1) =
       conv sig omega t0 t1
     convNu sig omega (ContextSubstElim {}) b = throw "convNu(ContextSubstElim)"

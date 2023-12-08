@@ -169,6 +169,12 @@ data SignatureEntry : Type where
 
 Signature = SnocList (VarName, SignatureEntry)
 
+namespace SignatureEntry
+  public export
+  getContext : SignatureEntry -> Context
+  getContext (ElemEntry ctx ty)= ctx
+  getContext (LetElemEntry ctx rhs ty) = ctx
+
 public export
 data MetaKind = NoSolve | SolveByUnification | SolveByElaboration
 
@@ -192,6 +198,26 @@ namespace OmegaEntry
 
 Omega = OrdTree (OmegaName, OmegaEntry) ByFst
 
+namespace MetaBindingEntry
+  public export
+  data MetaBindingEntry : Type where
+    ||| Γ ⊦ type
+    MetaType : Context -> MetaKind -> MetaBindingEntry
+    ||| Γ ⊦ T type
+    MetaElem : Context -> Typ -> MetaKind -> MetaBindingEntry
+
+namespace BindingEntry
+  public export
+  data BindingEntry : Type where
+    ||| Γ ⊦ type
+    MetaType : Context -> MetaKind -> BindingEntry
+    ||| Γ ⊦ T
+    LetType : Context -> (rhs : Typ) -> BindingEntry
+    ||| Γ ⊦ T type
+    MetaElem : Context -> Typ -> MetaKind -> BindingEntry
+    ||| Γ ⊦ t : T
+    LetElem : Context -> (rhs : Elem) -> (ty : Typ) -> BindingEntry
+
 namespace ConstraintEntry
   public export
   data ConstraintEntry : Type where
@@ -204,11 +230,24 @@ namespace ConstraintEntry
 
 Constraints = SnocList ConstraintEntry
 
-public export
-toOmegaEntry : ConstraintEntry -> OmegaEntry
-toOmegaEntry (TypeConstraint x y z) = TypeConstraint x y z
-toOmegaEntry (ElemConstraint x y z w) = ElemConstraint x y z w
-toOmegaEntry (SubstContextConstraint x y z w) = SubstContextConstraint x y z w
+Bindings = SnocList (OmegaName, BindingEntry)
+
+MetaBindings = SnocList (OmegaName, MetaBindingEntry)
+
+namespace ConstraintEntry
+  public export
+  toOmegaEntry : ConstraintEntry -> OmegaEntry
+  toOmegaEntry (TypeConstraint x y z) = TypeConstraint x y z
+  toOmegaEntry (ElemConstraint x y z w) = ElemConstraint x y z w
+  toOmegaEntry (SubstContextConstraint x y z w) = SubstContextConstraint x y z w
+
+namespace BindingEntry
+  public export
+  toOmegaEntry : BindingEntry -> OmegaEntry
+  toOmegaEntry (MetaType ctx kind) = MetaType ctx kind
+  toOmegaEntry (LetType ctx rhs) = LetType ctx rhs
+  toOmegaEntry (MetaElem ctx ty kind) = MetaElem ctx ty kind
+  toOmegaEntry (LetElem ctx rhs ty) = LetElem ctx rhs ty
 
 public export
 mbConstraintEntry : OmegaEntry -> Maybe ConstraintEntry
@@ -220,8 +259,39 @@ mbConstraintEntry (ElemConstraint x y z w) = Just (ElemConstraint x y z w)
 mbConstraintEntry (TypeConstraint x y z) = Just (TypeConstraint x y z)
 mbConstraintEntry (SubstContextConstraint x y z w) = Just (SubstContextConstraint x y z w)
 
+namespace OmegaEntry
+  public export
+  mbMetaBindingEntry : OmegaEntry -> Maybe MetaBindingEntry
+  mbMetaBindingEntry (MetaType ctx ty) = Just (MetaType ctx ty)
+  mbMetaBindingEntry (LetType {}) = Nothing
+  mbMetaBindingEntry (MetaElem ctx ty kind) = Just (MetaElem ctx ty kind)
+  mbMetaBindingEntry (LetElem {}) = Nothing
+  mbMetaBindingEntry (TypeConstraint {}) = Nothing
+  mbMetaBindingEntry (ElemConstraint {}) = Nothing
+  mbMetaBindingEntry (SubstContextConstraint {}) = Nothing
+
+namespace BindingEntry
+  public export
+  mbMetaBindingEntry : BindingEntry -> Maybe MetaBindingEntry
+  mbMetaBindingEntry (MetaType ctx ty) = Just (MetaType ctx ty)
+  mbMetaBindingEntry (LetType {}) = Nothing
+  mbMetaBindingEntry (MetaElem ctx ty kind) = Just (MetaElem ctx ty kind)
+  mbMetaBindingEntry (LetElem {}) = Nothing
+
 public export
-mbTypingEntry : OmegaEntry -> Maybe ConstraintEntry
+mbBindingEntry : OmegaEntry -> Maybe BindingEntry
+mbBindingEntry (MetaType ctx ty) = Just (MetaType ctx ty)
+mbBindingEntry (LetType ctx rhs) = Just (LetType ctx rhs)
+mbBindingEntry (MetaElem ctx ty kind) = Just (MetaElem ctx ty kind)
+mbBindingEntry (LetElem ctx rhs ty) = Just (LetElem ctx rhs ty)
+mbBindingEntry (TypeConstraint {}) = Nothing
+mbBindingEntry (ElemConstraint {}) = Nothing
+mbBindingEntry (SubstContextConstraint {}) = Nothing
+
+namespace Binding
+  public export
+  toOmega : List (OmegaName, BindingEntry) -> Omega
+  toOmega = fromList . map (mapSnd toOmegaEntry)
 
 public export
 extend : Signature -> VarName -> SignatureEntry -> Signature

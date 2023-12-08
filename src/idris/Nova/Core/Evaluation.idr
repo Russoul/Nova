@@ -90,17 +90,29 @@ mutual
     openEvalNu sig omega (ImplicitPiVal x a b f) = return (ImplicitPiVal x a b f)
     openEvalNu sig omega (SigmaVal a b) = return (SigmaVal a b)
     openEvalNu sig omega (PiElim f x a b e) = M.do
-      return (PiElim f x a b e)
+      PiVal _ _ _ f <- openEval sig omega f
+        | f => return (PiElim f x a b e)
+      openEval sig omega (ContextSubstElim f (Ext Id e))
     openEvalNu sig omega (ImplicitPiElim f x a b e) = M.do
-      return (ImplicitPiElim f x a b e)
+      ImplicitPiVal _ _ _ f <- openEval sig omega f
+        | f => return (ImplicitPiElim f x a b e)
+      openEval sig omega (ContextSubstElim f (Ext Id e))
     openEvalNu sig omega (SigmaElim1 f x a b) = M.do
-      return (SigmaElim1 f x a b)
+      SigmaVal p q <- openEval sig omega f
+        | f => return (SigmaElim1 f x a b)
+      openEval sig omega p
     openEvalNu sig omega (SigmaElim2 f x a b) = M.do
-      return (SigmaElim2 f x a b)
+      SigmaVal p q <- openEval sig omega f
+        | f => return (SigmaElim2 f x a b)
+      openEval sig omega q
     openEvalNu sig omega NatVal0 = return NatVal0
     openEvalNu sig omega (NatVal1 t) = return (NatVal1 t)
     openEvalNu sig omega (NatElim x schema z y h s t) = M.do
-      return (NatElim x schema z y h s t)
+      t <- openEval sig omega t
+      case t of
+        NatVal0 => openEval sig omega z
+        NatVal1 t => openEval sig omega (ContextSubstElim s (Ext (Ext Id t) (NatElim x schema z y h s t)))
+        t => return (NatElim x schema z y h s t)
     openEvalNu sig omega (ContextSubstElim t sigma) = throw "openEval(ContextSubstElim)"
     openEvalNu sig omega (SignatureSubstElim t sigma) = throw "openEval(SignatureSubstElim)"
     openEvalNu sig omega (ContextVarElim x) = return (ContextVarElim x)
@@ -111,7 +123,12 @@ mutual
       case (lookup k omega) of
         Just (LetElem _ rhs _) => openEval sig omega (ContextSubstElim rhs sigma)
         Just (MetaElem {}) => return (OmegaVarElim k sigma)
-        _ => throw "openEval(OmegaVarElim)"
+        Just (LetType {}) => throw "openEval/Elem(OmegaVarElim(LetType))"
+        Just (MetaType {}) => throw "openEval/Elem(OmegaVarElim(MetaType))"
+        Just (TypeConstraint {}) => throw "openEval/Elem(OmegaVarElim(TypeConstraint))"
+        Just (ElemConstraint {}) => throw "openEval/Elem(OmegaVarElim(ElemConstraint))"
+        Just (SubstContextConstraint {}) => throw "openEval/Elem(OmegaVarElim(SubstConstraint))"
+        Nothing => throw "openEval/Elem(OmegaVarElim(Nothing))"
     openEvalNu sig omega (TyEqTy a0 a1) = return $ TyEqTy a0 a1
     openEvalNu sig omega (ElEqTy a0 a1 ty) = return $ ElEqTy a0 a1 ty
     openEvalNu sig omega TyEqVal = return TyEqVal
@@ -189,7 +206,12 @@ mutual
       case (lookup k omega) of
         Just (LetType _ rhs) => openEval sig omega (ContextSubstElim rhs sigma)
         Just (MetaType {}) => return (OmegaVarElim k sigma)
-        _ => throw "openEval(OmegaVarElim)"
+        Just (LetElem {}) => throw "openEval/Type(OmegaVarElim(LetElem))"
+        Just (MetaElem {}) => throw "openEval/Type(OmegaVarElim(MetaElem))"
+        Just (TypeConstraint {}) => throw "openEval/Type(OmegaVarElim(TypeConstraint))"
+        Just (ElemConstraint {}) => throw "openEval/Type(OmegaVarElim(ElemConstraint))"
+        Just (SubstContextConstraint {}) => throw "openEval/Type(OmegaVarElim(SubstConstraint))"
+        Nothing => throw "openEval/Type(OmegaVarElim(Nothing))"
     openEvalNu sig omega (TyEqTy a0 a1) = return $ TyEqTy a0 a1
     openEvalNu sig omega (ElEqTy a0 a1 ty) = return $ ElEqTy a0 a1 ty
 

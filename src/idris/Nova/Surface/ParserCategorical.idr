@@ -96,7 +96,7 @@ varFirstSym = is "first symbol of a variable" $ isSymbol $ \x =>
  || x == '⁼'
  || x == '-'
 
-||| a-Z|A-Z|0-9|_|₀-₉|α-ω|Α-Ω|'|ℕ|ℤ|𝕀|𝕊|𝕋|𝕌|ℙ|𝔽|𝟘-𝟡|⊥|⊤|∃|ᵢ|-
+||| a-Z|A-Z|0-9|₀-₉|α-ω|Α-Ω|'|ℕ|ℤ|𝕀|𝕊|𝕋|𝕌|ℙ|𝔽|𝟘-𝟡|⊥|⊤|∃|ᵢ|-
 public export
 varNextSym : Rule Token
 varNextSym = is "symbol of a variable" $ isSymbol $ \x =>

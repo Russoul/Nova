@@ -857,8 +857,8 @@ prettyOmega' sig omega ((x, e) :: es) = return $
    <+>
   hardline
    <+>
-  !(prettyOmega' sig (insert (x, e) omega) es)
+  !(prettyOmega' sig omega es)
 
 public export
 prettyOmega : Signature -> Omega -> M (Doc Ann)
-prettyOmega sig omega = prettyOmega' sig empty (List.inorder omega)
+prettyOmega sig omega = prettyOmega' sig omega (List.inorder omega)

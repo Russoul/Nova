@@ -6,4 +6,9 @@ This file contains a unification algorithm used in Nova.
 
 TODO: Write the stuff down
 
-
+ℕ-elim x.A₀ z₀ (x. h. s₀) t₀ ~ ℕ-elim x.A₁ z₁ (x. h. s₁) t₁ : _
+<=>
+if (t₀ ~?~ t₁)
+  x ⊦ A₀ ~ A₁ type
+  z₀ ~ z₁ : A₀(Z/x)
+  x h ⊦ s₀ ~ s₁ : A₀(S x/x)

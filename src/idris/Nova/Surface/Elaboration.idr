@@ -770,7 +770,8 @@ mutual
     let True = isEmpty free
       | False => return (Stuck "Type contains free Ω variables: \{show (List.inorder free)}")
     Right (omega, [<], interp) <- elabTactic sig omega alpha [< ("_", ElemEntry ctx ty)]
-      | Left err => return (Error err)
+             -- FIX:        vvvvv This is inefficient! Instead we should check that Ω is okay to solve that tactic and give it exactly one try!
+      | Left err => return (Stuck err)
       | Right (_, interp) => return (Error "Source signature of the tactic must be ε, but it is not.")
     let [< ElemEntryInstance solution] = interp [<]
       | _ => throw "elabElemNu(Tac)"
@@ -976,7 +977,7 @@ mutual
     ||| OpFreeTerm must represent a valid path!
     ||| See Surface/Language for a description of being a valid path.
     public export
-    applyRewriteNu : Params => Signature -> Omega -> Context -> Typ -> OpFreeTerm -> SurfaceTerm -> Bool -> ElabM (Either Range (Omega, Typ))
+    applyRewriteNu : Params => Signature -> Omega -> Context -> Typ -> OpFreeTerm -> SurfaceTerm -> Bool -> ElabM (Either (Range, Doc Ann) (Omega, Typ))
     applyRewriteNu sig omega gamma el (App _ (Tm _ tm) []) prf direct = MEither.do
       applyRewrite sig omega gamma el tm prf direct
     applyRewriteNu sig omega gamma (El el) p prf direct = MEither.do
@@ -994,21 +995,21 @@ mutual
     applyRewriteNu sig omega gamma (PiTy x dom cod) (FunTy r (App _ (Underscore _) []) pcod) prf direct = MEither.do
       (omega, cod) <- applyRewrite sig omega (gamma :< (x, dom)) cod pcod prf direct
       return (omega, PiTy x dom cod)
-    applyRewriteNu sig omega gamma (PiTy x dom cod) p prf direct = error (range p)
+    applyRewriteNu sig omega gamma (PiTy x dom cod) p prf direct = error (range p, "Failing at (_ : _) →")
     applyRewriteNu sig omega gamma (ImplicitPiTy x dom cod) (ImplicitPiTy r _ pdom (App _ (Underscore _) [])) prf direct = MEither.do
       (omega, dom) <- applyRewrite sig omega gamma dom pdom prf direct
       return (omega, ImplicitPiTy x dom cod)
     applyRewriteNu sig omega gamma (ImplicitPiTy x dom cod) (ImplicitPiTy r _ (App _ (Underscore _) []) pcod) prf direct = MEither.do
       (omega, cod) <- applyRewrite sig omega (gamma :< (x, dom)) cod pcod prf direct
       return (omega, ImplicitPiTy x dom cod)
-    applyRewriteNu sig omega gamma (ImplicitPiTy x dom cod) p prf direct = error (range p)
+    applyRewriteNu sig omega gamma (ImplicitPiTy x dom cod) p prf direct = error (range p, "Failing at {_ : _} →")
     applyRewriteNu sig omega gamma (SigmaTy x dom cod) (SigmaTy r _ pdom (App _ (Underscore _) [])) prf direct = MEither.do
       (omega, dom) <- applyRewrite sig omega gamma dom pdom prf direct
       return (omega, SigmaTy x dom cod)
     applyRewriteNu sig omega gamma (SigmaTy x dom cod) (SigmaTy r _ (App _ (Underscore _) []) pcod) prf direct = MEither.do
       (omega, cod) <- applyRewrite sig omega (gamma :< (x, dom)) cod pcod prf direct
       return (omega, SigmaTy x dom cod)
-    applyRewriteNu sig omega gamma (SigmaTy x dom cod) p prf direct = error (range p)
+    applyRewriteNu sig omega gamma (SigmaTy x dom cod) p prf direct = error (range p, "Failing at (_ : _) ⨯ _")
     -- We need to figure out how to support this.
     -- Note that the endpoint is a type!
     -- This won't work:
@@ -1016,21 +1017,21 @@ mutual
     -- Γ ⊦ p : e₀ ≡ e ∈ 𝕌
     -- ⟦Γ | e | ☐ | p, True⟧ = e₀
     applyRewriteNu sig omega gamma e (App r (Box _) []) prf b = MEither.do
-      error r
-    applyRewriteNu sig omega gamma NatTy p prf direct = error (range p)
-    applyRewriteNu sig omega gamma ZeroTy p prf direct = error (range p)
-    applyRewriteNu sig omega gamma OneTy p prf direct = error (range p)
-    applyRewriteNu sig omega gamma UniverseTy p prf direct = error (range p)
+      error (r, "☐ unsupport at a type")
+    applyRewriteNu sig omega gamma NatTy p prf direct = error (range p, "Failing at ℕ")
+    applyRewriteNu sig omega gamma ZeroTy p prf direct = error (range p, "Failing at 𝟘")
+    applyRewriteNu sig omega gamma OneTy p prf direct = error (range p, "Failing at 𝟙")
+    applyRewriteNu sig omega gamma UniverseTy p prf direct = error (range p, "Failing at 𝕌")
     applyRewriteNu sig omega gamma (ContextSubstElim x y) f prf direct = assert_total $ idris_crash "applyRewriteNu(_[_])"
     applyRewriteNu sig omega gamma (SignatureSubstElim x y) f prf direct = assert_total $ idris_crash "applyRewriteNu(_[_])"
-    applyRewriteNu sig omega gamma (OmegaVarElim str x) p prf direct = error (range p)
+    applyRewriteNu sig omega gamma (OmegaVarElim {}) p prf direct = error (range p, "Failing at Ωᵢ")
     applyRewriteNu sig omega gamma (TyEqTy a b) (TyEqTy _ pa (App _ (Underscore _) [])) prf direct = MEither.do
       (omega, a) <- applyRewrite sig omega gamma a pa prf direct
       return (omega, TyEqTy a b)
     applyRewriteNu sig omega gamma (TyEqTy a b) (TyEqTy _ (App _ (Underscore _) []) pb) prf direct = MEither.do
       (omega, b) <- applyRewrite sig omega gamma b pb prf direct
       return (omega, TyEqTy a b)
-    applyRewriteNu sig omega gamma (TyEqTy a b) p prf direct = error (range p)
+    applyRewriteNu sig omega gamma (TyEqTy a b) p prf direct = error (range p, "Failing at _ ≡ _ type")
     applyRewriteNu sig omega gamma (ElEqTy a b ty) (ElEqTy _ pa (App _ (Underscore _) []) (App _ (Underscore _) [])) prf direct = MEither.do
       (omega, a) <- applyRewrite sig omega gamma a pa prf direct
       return (omega, ElEqTy a b ty)
@@ -1040,10 +1041,10 @@ mutual
     applyRewriteNu sig omega gamma (ElEqTy a b ty) (ElEqTy _ (App _ (Underscore _) []) (App _ (Underscore _) []) pty) prf direct = MEither.do
       (omega, ty) <- applyRewrite sig omega gamma ty pty prf direct
       return (omega, ElEqTy a b ty)
-    applyRewriteNu sig omega gamma (ElEqTy a b ty) p prf direct = error (range p)
+    applyRewriteNu sig omega gamma (ElEqTy a b ty) p prf direct = error (range p, "Failing at _ ≡ _ ∈ _")
 
     public export
-    applyRewrite : Params => Signature -> Omega -> Context -> Typ -> OpFreeTerm -> SurfaceTerm -> Bool -> ElabM (Either Range (Omega, Typ))
+    applyRewrite : Params => Signature -> Omega -> Context -> Typ -> OpFreeTerm -> SurfaceTerm -> Bool -> ElabM (Either (Range, Doc Ann) (Omega, Typ))
     applyRewrite sig omega gamma t p prf direct = MEither.do
       applyRewriteNu sig omega gamma !(ElabEither.liftM $ openEval sig omega t) p prf direct
 
@@ -1054,7 +1055,7 @@ mutual
     ||| OpFreeTerm must represent a valid path!
     ||| See Surface/Language for a description of being a valid path.
     public export
-    applyRewriteNu : Params => Signature -> Omega -> Context -> Elem -> OpFreeTerm -> SurfaceTerm -> Bool -> ElabM (Either Range (Omega, Elem))
+    applyRewriteNu : Params => Signature -> Omega -> Context -> Elem -> OpFreeTerm -> SurfaceTerm -> Bool -> ElabM (Either (Range, Doc Ann) (Omega, Elem))
     applyRewriteNu sig omega gamma el (App _ (Tm _ tm) []) prf direct = MEither.do
       applyRewrite sig omega gamma el tm prf direct
     applyRewriteNu sig omega gamma (PiTy x dom cod) (PiTy r _ pdom (App _ (Underscore _) [])) prf direct = MEither.do
@@ -1069,36 +1070,36 @@ mutual
     applyRewriteNu sig omega gamma (PiTy x dom cod) (FunTy r (App _ (Underscore _) []) pcod) prf direct = MEither.do
       (omega, cod) <- applyRewrite sig omega (gamma :< (x, El dom)) cod pcod prf direct
       return (omega, PiTy x dom cod)
-    applyRewriteNu sig omega gamma (PiTy x dom cod) p prf direct = error (range p)
+    applyRewriteNu sig omega gamma (PiTy x dom cod) p prf direct = error (range p, "Failing at (_ : _) → _")
     applyRewriteNu sig omega gamma (ImplicitPiTy x dom cod) (ImplicitPiTy r _ pdom (App _ (Underscore _) [])) prf direct = MEither.do
       (omega, dom) <- applyRewrite sig omega gamma dom pdom prf direct
       return (omega, ImplicitPiTy x dom cod)
     applyRewriteNu sig omega gamma (ImplicitPiTy x dom cod) (ImplicitPiTy r _ (App _ (Underscore _) []) pcod) prf direct = MEither.do
       (omega, cod) <- applyRewrite sig omega (gamma :< (x, El dom)) cod pcod prf direct
       return (omega, ImplicitPiTy x dom cod)
-    applyRewriteNu sig omega gamma (ImplicitPiTy x dom cod) p prf direct = error (range p)
+    applyRewriteNu sig omega gamma (ImplicitPiTy x dom cod) p prf direct = error (range p, "Failing at {_ : _} → _")
     applyRewriteNu sig omega gamma (SigmaTy x dom cod) (SigmaTy r _ pdom (App _ (Underscore _) [])) prf direct = MEither.do
       (omega, dom) <- applyRewrite sig omega gamma dom pdom prf direct
       return (omega, SigmaTy x dom cod)
     applyRewriteNu sig omega gamma (SigmaTy x dom cod) (SigmaTy r _ (App _ (Underscore _) []) pcod) prf direct = MEither.do
       (omega, cod) <- applyRewrite sig omega (gamma :< (x, El dom)) cod pcod prf direct
       return (omega, SigmaTy x dom cod)
-    applyRewriteNu sig omega gamma (SigmaTy x dom cod) p prf direct = error (range p)
+    applyRewriteNu sig omega gamma (SigmaTy x dom cod) p prf direct = error (range p, "Failing at (_ : _) ⨯ _")
     applyRewriteNu sig omega gamma (PiVal x a b body) (PiVal r _ pbody) prf direct = MEither.do
       (omega, body) <- applyRewrite sig omega (gamma :< (x, a)) body pbody prf direct
       return (omega, PiVal x a b body)
-    applyRewriteNu sig omega gamma (PiVal x a b body) p prf direct = error (range p)
+    applyRewriteNu sig omega gamma (PiVal x a b body) p prf direct = error (range p, "_ ↦ _")
     applyRewriteNu sig omega gamma (ImplicitPiVal x a b body) (ImplicitPiVal r _ pbody) prf direct = MEither.do
       (omega, body) <- applyRewrite sig omega (gamma :< (x, a)) body pbody prf direct
       return (omega, ImplicitPiVal x a b body)
-    applyRewriteNu sig omega gamma (ImplicitPiVal x a b body) p prf direct = error (range p)
+    applyRewriteNu sig omega gamma (ImplicitPiVal x a b body) p prf direct = error (range p, "{_} ↦ _")
     applyRewriteNu sig omega gamma (SigmaVal a b) (SigmaVal r pa (App _ (Underscore _) [])) prf direct = MEither.do
       (omega, a) <- applyRewrite sig omega gamma a pa prf direct
       return (omega, SigmaVal a b)
     applyRewriteNu sig omega gamma (SigmaVal a b) (SigmaVal r (App _ (Underscore _) []) pb) prf direct = MEither.do
       (omega, b) <- applyRewrite sig omega gamma b pb prf direct
       return (omega, SigmaVal a b)
-    applyRewriteNu sig omega gamma (SigmaVal a b) p prf direct = error (range p)
+    applyRewriteNu sig omega gamma (SigmaVal a b) p prf direct = error (range p, "_, _")
     -- Γ ⊦ p : e₀ ≡ e ∈ A
     -- ⟦Γ | e | ☐ | p, True⟧ = e₀
     applyRewriteNu sig omega gamma e (App r (Box _) []) prf True = MEither.do
@@ -1108,14 +1109,23 @@ mutual
       case !(mapResult Right (Elaboration.solve sig omega [ElemElaboration gamma prf prf' (ElEqTy (OmegaVarElim e0' Id) e (OmegaVarElim ty' Id))])) of
         Success omega => MEither.do
           return (omega, OmegaVarElim e0' Id)
-                    --FIX:
-        Stuck omega [] [] =>
-          case (containsNamedHolesOnly omega) of
-            True => MEither.do
-              return (omega, OmegaVarElim e0' Id)
-            False => error r
-        Stuck omega elabs cons => error r
-        Error {} => error r
+        Stuck omega [] cons =>
+          return (omega, OmegaVarElim e0' Id)
+        Stuck omega elabs cons => MEither.do
+          {- write "rewrite failed at ☐, got stuck elaborations:" <&> Right
+          doc <- ElabEither.liftM $ pretty sig (Stuck omega elabs cons)
+          write (renderDocTerm doc) <&> Right -}
+          error (r, "..")
+        Error omega (Left err) => MEither.do
+          {- let err = ElaborationError omega err
+          write "rewrite failed at ☐:" <&> Right
+          write (renderDocTerm !(ElabEither.liftM $ pretty sig err)) <&> Right -}
+          error (r, "..")
+        Error omega (Right err) => MEither.do
+          {- let err = UnificationError omega err
+          write "rewrite failed at ☐:" <&> Right
+          write (renderDocTerm !(ElabEither.liftM $ pretty sig err)) <&> Right -}
+          error (r, "..")
     -- Γ ⊦ p : e ≡ e₀ ∈ A
     -- ⟦Γ | e | ☐ | p, False⟧ = e₀
     applyRewriteNu sig omega gamma e (App r (Box _) []) prf False = MEither.do
@@ -1125,31 +1135,27 @@ mutual
       case !(mapResult Right (Elaboration.solve sig omega [ElemElaboration gamma prf prf' (ElEqTy e (OmegaVarElim e0' Id) (OmegaVarElim ty' Id))])) of
         Success omega => MEither.do
           return (omega, OmegaVarElim e0' Id)
-                    --FIX:
-        Stuck omega [] [] =>
-          case (containsNamedHolesOnly omega) of
-            True => MEither.do
-              return (omega, OmegaVarElim e0' Id)
-            False => MEither.do
-              write "rewrite⁻¹: elaboration stuck, unsolved metas" <&> Right
-              error r
+        Stuck omega [] cons =>
+          return (omega, OmegaVarElim e0' Id)
         Stuck omega elabs cons => MEither.do
-          write "rewrite⁻¹: elaboration stuck, unsolved elabs and cons" <&> Right
-          error r
+          {- write "rewrite⁻¹ failed at ☐, got stuck elaborations:" <&> Right
+          doc <- ElabEither.liftM $ pretty sig (Stuck omega elabs cons)
+          write (renderDocTerm doc) <&> Right -}
+          error (r, "..")
         Error omega (Left err) => MEither.do
-          let err = ElaborationError omega err
+          {- let err = ElaborationError omega err
           write "rewrite⁻¹ failed at ☐:" <&> Right
-          write (renderDocTerm !(ElabEither.liftM $ pretty sig err)) <&> Right
-          error r
+          write (renderDocTerm !(ElabEither.liftM $ pretty sig err)) <&> Right -}
+          error (r, "..")
         Error omega (Right err) => MEither.do
-          let err = UnificationError omega err
+          {- let err = UnificationError omega err
           write "rewrite⁻¹ failed at ☐:" <&> Right
-          write (renderDocTerm !(ElabEither.liftM $ pretty sig err)) <&> Right
-          error r
+          write (renderDocTerm !(ElabEither.liftM $ pretty sig err)) <&> Right -}
+          error (r, "..")
     applyRewriteNu sig omega gamma (PiElim f x a b e) (App r h es) prf direct = MEither.do
       let es' = cast {to = SnocList (Range, OpFreeElimEntry)} es
       case es' of
-        [<] => error r
+        [<] => error (r, "..")
         (es :< (_, Arg ([], App _ (Underscore _) []))) => MEither.do
           (omega, f) <- applyRewrite sig omega gamma f (App r h (cast es)) prf direct
           return (omega, PiElim f x a b e)
@@ -1157,25 +1163,25 @@ mutual
           (omega, e) <- applyRewrite sig omega gamma e pe prf direct
           return (omega, PiElim f x a b e)
         (es :< (r, _)) => MEither.do
-          error r
-    applyRewriteNu sig omega gamma (PiElim f x a b e) p prf direct = error (range p)
+          error (r, "..")
+    applyRewriteNu sig omega gamma (PiElim f x a b e) p prf direct = error (range p, "Failing at _ _")
     applyRewriteNu sig omega gamma (ImplicitPiElim f x a b e) (App r h es) prf direct = MEither.do
       let es' = cast {to = SnocList (Range, OpFreeElimEntry)} es
       case es' of
-        [<] => error r
+        [<] => error (r, "Failing at _ {_}")
         (es :< (_, Arg ([], App _ (Underscore _) []))) => MEither.do
           (omega, f) <- applyRewrite sig omega gamma f (App r h (cast es)) prf direct
-          return (omega, PiElim f x a b e)
+          return (omega, ImplicitPiElim f x a b e)
         (es :< (_, Arg ([], pe))) => MEither.do
           (omega, e) <- applyRewrite sig omega gamma e pe prf direct
-          return (omega, PiElim f x a b e)
+          return (omega, ImplicitPiElim f x a b e)
         (es :< (r, _)) => MEither.do
-          error r
-    applyRewriteNu sig omega gamma (ImplicitPiElim f x a b e) p prf direct = error (range p)
+          error (r, "Failing at _ {_}")
+    applyRewriteNu sig omega gamma (ImplicitPiElim f x a b e) p prf direct = error (range p, "Failing at _ {_}")
     applyRewriteNu sig omega gamma (SigmaElim1 f x a b) (App r h es) prf direct = MEither.do
       let es' = cast {to = SnocList (Range, OpFreeElimEntry)} es
       case es' of
-        [<] => error r
+        [<] => error (r, "Failing at _ .π₁")
         (es :< (_, Arg ([], App _ (Underscore _) []))) => MEither.do
           (omega, f) <- applyRewrite sig omega gamma f (App r h (cast es)) prf direct
           return (omega, SigmaElim1 f x a b)
@@ -1183,12 +1189,12 @@ mutual
           (omega, f) <- applyRewrite sig omega gamma f (App r h (cast es)) prf direct
           return (omega, SigmaElim1 f x a b)
         (es :< (r, _)) => MEither.do
-          error r
-    applyRewriteNu sig omega gamma (SigmaElim1 f x a b) p prf direct = error (range p)
+          error (r, "Failing at _ .π₁")
+    applyRewriteNu sig omega gamma (SigmaElim1 f x a b) p prf direct = error (range p, "Failing at _ .π₁")
     applyRewriteNu sig omega gamma (SigmaElim2 f x a b) (App r h es) prf direct = MEither.do
       let es' = cast {to = SnocList (Range, OpFreeElimEntry)} es
       case es' of
-        [<] => error r
+        [<] => error (r, "Failing at _ .π₂")
         (es :< (_, Arg ([], App _ (Underscore _) []))) => MEither.do
           (omega, f) <- applyRewrite sig omega gamma f (App r h (cast es)) prf direct
           return (omega, SigmaElim2 f x a b)
@@ -1196,23 +1202,23 @@ mutual
           (omega, f) <- applyRewrite sig omega gamma f (App r h (cast es)) prf direct
           return (omega, SigmaElim2 f x a b)
         (es :< (r, _)) => MEither.do
-          error r
-    applyRewriteNu sig omega gamma (SigmaElim2 f x a b) p prf direct = error (range p)
-    applyRewriteNu sig omega gamma NatVal0 p prf direct = error (range p)
+          error (r, "Failing at _ .π₂")
+    applyRewriteNu sig omega gamma (SigmaElim2 f x a b) p prf direct = error (range p, "Failing at _ .π₂")
+    applyRewriteNu sig omega gamma NatVal0 p prf direct = error (range p, "Z")
     applyRewriteNu sig omega gamma (NatVal1 t) (App r (NatVal1 _) [(_, Arg ([], p))]) prf direct = MEither.do
       (omega, t) <- applyRewrite sig omega gamma t p prf direct
       return (omega, NatVal1 t)
-    applyRewriteNu sig omega gamma (NatVal1 t) p prf direct = error (range p)
-    applyRewriteNu sig omega gamma NatTy p prf direct = error (range p)
-    applyRewriteNu sig omega gamma ZeroTy p prf direct = error (range p)
-    applyRewriteNu sig omega gamma OneTy p prf direct = error (range p)
-    applyRewriteNu sig omega gamma OneVal p prf direct = error (range p)
+    applyRewriteNu sig omega gamma (NatVal1 t) p prf direct = error (range p, "Failing at S _")
+    applyRewriteNu sig omega gamma NatTy p prf direct = error (range p, "Failing at ℕ")
+    applyRewriteNu sig omega gamma ZeroTy p prf direct = error (range p, "Failing at 𝟘")
+    applyRewriteNu sig omega gamma OneTy p prf direct = error (range p, "Failing at 𝟙")
+    applyRewriteNu sig omega gamma OneVal p prf direct = error (range p, "Failing at ()")
     applyRewriteNu sig omega gamma (ZeroElim t) (App r (ZeroElim _)
                                                        [(_, Arg ([], pt))]
                                                 ) prf direct = MEither.do
       (omega, t) <- applyRewrite sig omega gamma t pt prf direct
       return (omega, ZeroElim t)
-    applyRewriteNu sig omega gamma (ZeroElim t) p prf direct = error (range p)
+    applyRewriteNu sig omega gamma (ZeroElim t) p prf direct = error (range p, "Failing at 𝟘")
     applyRewriteNu sig omega gamma (NatElim x schema z y h s t) (App r (NatElim _)
                                                               [(_, Arg ([], pschema)),
                                                                (_, Arg ([], pz)),
@@ -1232,20 +1238,20 @@ mutual
         (App _ (Underscore _) [], App _ (Underscore _) [], App _ (Underscore _) [], pt) => MEither.do
           (omega, t) <- applyRewrite sig omega gamma t pt prf direct
           return (omega, NatElim x schema z y h s t)
-        _ => error r
-    applyRewriteNu sig omega gamma (NatElim x schema z y h s t) p prf direct = error (range p)
+        _ => error (r, "Failing at ℕ-elim")
+    applyRewriteNu sig omega gamma (NatElim x schema z y h s t) p prf direct = error (range p, "Failing at ℕ-elim")
     applyRewriteNu sig omega gamma (ContextSubstElim x y) f prf direct = assert_total $ idris_crash "applyRewriteNu(_[_])"
     applyRewriteNu sig omega gamma (SignatureSubstElim x y) f prf direct = assert_total $ idris_crash "applyRewriteNu(_[_])"
-    applyRewriteNu sig omega gamma (ContextVarElim k) p prf direct = error (range p)
-    applyRewriteNu sig omega gamma (SignatureVarElim k sigma) p prf direct = error (range p)
-    applyRewriteNu sig omega gamma (OmegaVarElim str x) p prf direct = error (range p)
+    applyRewriteNu sig omega gamma (ContextVarElim k) p prf direct = error (range p, "Failing at xᵢ")
+    applyRewriteNu sig omega gamma (SignatureVarElim k sigma) p prf direct = error (range p, "Failing at Xᵢ")
+    applyRewriteNu sig omega gamma (OmegaVarElim str x) p prf direct = error (range p, "Failing at Ωᵢ")
     applyRewriteNu sig omega gamma (TyEqTy a b) (TyEqTy _ pa (App _ (Underscore _) [])) prf direct = MEither.do
       (omega, a) <- applyRewrite sig omega gamma a pa prf direct
       return (omega, TyEqTy a b)
     applyRewriteNu sig omega gamma (TyEqTy a b) (TyEqTy _ (App _ (Underscore _) []) pb) prf direct = MEither.do
       (omega, b) <- applyRewrite sig omega gamma b pb prf direct
       return (omega, TyEqTy a b)
-    applyRewriteNu sig omega gamma (TyEqTy a b) p prf direct = error (range p)
+    applyRewriteNu sig omega gamma (TyEqTy a b) p prf direct = error (range p, "Failing at _ ≡ _ type")
     applyRewriteNu sig omega gamma (ElEqTy a b ty) (ElEqTy _ pa (App _ (Underscore _) []) (App _ (Underscore _) [])) prf direct = MEither.do
       (omega, a) <- applyRewrite sig omega gamma a pa prf direct
       return (omega, ElEqTy a b ty)
@@ -1255,16 +1261,17 @@ mutual
     applyRewriteNu sig omega gamma (ElEqTy a b ty) (ElEqTy _ (App _ (Underscore _) []) (App _ (Underscore _) []) pty) prf direct = MEither.do
       (omega, ty) <- applyRewrite sig omega gamma ty pty prf direct
       return (omega, ElEqTy a b ty)
-    applyRewriteNu sig omega gamma (ElEqTy a b ty) p prf direct = error (range p)
-    applyRewriteNu sig omega gamma TyEqVal p prf direct = error (range p)
-    applyRewriteNu sig omega gamma ElEqVal p prf direct = error (range p)
+    applyRewriteNu sig omega gamma (ElEqTy a b ty) p prf direct = error (range p, "Failing at _ ≡ _ ∈ _")
+    applyRewriteNu sig omega gamma TyEqVal p prf direct = error (range p, "Failing at Refl")
+    applyRewriteNu sig omega gamma ElEqVal p prf direct = error (range p, "Failing at Refl")
 
     public export
-    applyRewrite : Params => Signature -> Omega -> Context -> Elem -> OpFreeTerm -> SurfaceTerm -> Bool -> ElabM (Either Range (Omega, Elem))
+    applyRewrite : Params => Signature -> Omega -> Context -> Elem -> OpFreeTerm -> SurfaceTerm -> Bool -> ElabM (Either (Range, Doc Ann) (Omega, Elem))
     applyRewrite sig omega gamma t p prf direct = MEither.do
       applyRewriteNu sig omega gamma !(ElabEither.liftM $ openEval sig omega t) p prf direct
 
   ||| Ξ Ω ⊦ ⟦α⟧ ⇝ α' : Σ₁ ⇒ Σ₀
+  -- FIX: elabTactic calls `solve` which, when fails, only shows stuck *local* elaboration problems. That is misleading!
   public export
   elabTactic : Params
             => Signature
@@ -1299,7 +1306,7 @@ mutual
   elabTactic sig omega (RewriteInv r path prf) [< (x, ElemEntry ctx ty)] = M.do
     case !(applyRewrite sig omega ctx ty path prf False) of
       Left r0 => M.do
-        write "Rewrite⁻¹ failed at \{show r0}"
+        -- write "Rewrite⁻¹ failed at \{show r0}"
         return (Left "rewrite⁻¹ failed at \{show r0}")
       Right (omega, ty0) => return (Right (omega, [< (x, ElemEntry ctx ty0)], id))
   elabTactic sig omega (RewriteInv r path prf) target = MEither.do
@@ -1307,7 +1314,7 @@ mutual
   elabTactic sig omega (Rewrite r path prf) [< (x, ElemEntry ctx ty)] = M.do
     case !(applyRewrite sig omega ctx ty path prf True) of
       Left r0 => M.do
-        write "Rewrite failed at \{show r0}"
+        -- write "Rewrite failed at \{show r0}"
         return (Left "rewrite failed at \{show r0}")
       Right (omega, ty0) => return (Right (omega, [< (x, ElemEntry ctx ty0)], id))
   elabTactic sig omega (Rewrite r path prf) target = MEither.do
@@ -1315,12 +1322,10 @@ mutual
   elabTactic sig omega (Exact r tm) [< (x, ElemEntry ctx ty)] = M.do
     (omega, m') <- liftUnifyM $ newElemMeta omega ctx ty SolveByElaboration
     case !(Elaboration.solve sig omega [ElemElaboration ctx tm m' ty]) of
-      Success omega => return (Right (omega, [<], \_ => [< ElemEntryInstance (OmegaVarElim m' Id)]))
-                  --FIX:
-      Stuck omega [] [] =>
-        case (containsNamedHolesOnly omega) of
-          True => return (Right (omega, [<], \_ => [< ElemEntryInstance (OmegaVarElim m' Id)]))
-          False => return (Left "Stuck elaborating exact term; have some unsolved holes: \{renderDocNoAnn !(Elab.liftM $ prettyOmega sig omega)}" )
+      Success omega =>
+         return (Right (omega, [<], \_ => [< ElemEntryInstance (OmegaVarElim m' Id)]))
+      Stuck omega [] cons =>
+         return (Right (omega, [<], \_ => [< ElemEntryInstance (OmegaVarElim m' Id)]))
       Stuck omega elabs cons => M.do
         let err = Stuck omega elabs cons
         return (Left "Stuck elaborating the exact term;\n \{renderDocNoAnn !(liftM $ pretty sig err)}")
