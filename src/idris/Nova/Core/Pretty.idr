@@ -47,6 +47,66 @@ brackets' = enclose (annotate Keyword lbracket) (annotate Keyword rbracket)
 
 Level = Fin 5
 
+wrapTyp : Typ -> Level -> Doc Ann -> M (Doc Ann)
+wrapTyp (PiTy x dom cod) lvl doc =
+  case !(shrink cod 1 0) of
+    Nothing =>
+      case lvl <= 0 of
+        True => return doc
+        False => return (parens' doc)
+    Just _ =>
+      case lvl <= 2 of
+        True => return doc
+        False => return (parens' doc)
+wrapTyp (ImplicitPiTy x dom cod) lvl doc =
+  case lvl <= 0 of
+    True => return doc
+    False => return (parens' doc)
+wrapTyp (SigmaTy x dom cod) lvl doc =
+  case !(shrink cod 1 0) of
+    Nothing =>
+      case lvl <= 0 of
+        True => return doc
+        False => return (parens' doc)
+    Just _ =>
+      case lvl <= 1 of
+        True => return doc
+        False => return (parens' doc)
+wrapTyp NatTy lvl doc =
+  case lvl <= 4 of
+    True => return doc
+    False => return (parens' doc)
+wrapTyp ZeroTy lvl doc =
+  case lvl <= 4 of
+    True => return doc
+    False => return (parens' doc)
+wrapTyp OneTy lvl doc =
+  case lvl <= 4 of
+    True => return doc
+    False => return (parens' doc)
+wrapTyp UniverseTy lvl doc =
+  case lvl <= 4 of
+    True => return doc
+    False => return (parens' doc)
+wrapTyp tm@(ContextSubstElim {}) lvl doc = assert_total $ idris_crash "wrapTyp(ContextSubstElim)"
+wrapTyp tm@(SignatureSubstElim {}) lvl doc = assert_total $ idris_crash "wrapTyp(SignatureSubstElim)"
+wrapTyp (OmegaVarElim {}) lvl doc =
+  case lvl <= 3 of
+    True => return doc
+    False => return (parens' doc)
+wrapTyp (TyEqTy {}) lvl doc =
+  case lvl <= 1 of
+    True => return doc
+    False => return (parens' doc)
+wrapTyp (ElEqTy {}) lvl doc =
+  case lvl <= 1 of
+    True => return doc
+    False => return (parens' doc)
+wrapTyp (El {}) lvl doc =
+  case lvl <= 3 of
+    True => return doc
+    False => return (parens' doc)
+
 wrapElem : Elem -> Level -> Doc Ann -> M (Doc Ann)
 wrapElem (PiTy x dom cod) lvl doc =
   case !(shrink cod 1 0) of
@@ -104,10 +164,6 @@ wrapElem NatVal0 lvl doc =
   case lvl <= 4 of
     True => return doc
     False => return (parens' doc)
-wrapElem Universe lvl doc =
-  case lvl <= 4 of
-    True => return doc
-    False => return (parens' doc)
 wrapElem (NatVal1 x) lvl doc =
   case lvl <= 3 of
     True => return doc
@@ -150,11 +206,19 @@ wrapElem (OmegaVarElim {}) lvl doc =
   case lvl <= 3 of
     True => return doc
     False => return (parens' doc)
-wrapElem (EqTy {}) lvl doc =
+wrapElem (TyEqTy {}) lvl doc =
   case lvl <= 1 of
     True => return doc
     False => return (parens' doc)
-wrapElem (EqVal {}) lvl doc =
+wrapElem (ElEqTy {}) lvl doc =
+  case lvl <= 1 of
+    True => return doc
+    False => return (parens' doc)
+wrapElem (TyEqVal {}) lvl doc =
+  case lvl <= 4 of
+    True => return doc
+    False => return (parens' doc)
+wrapElem (ElEqVal {}) lvl doc =
   case lvl <= 4 of
     True => return doc
     False => return (parens' doc)
@@ -189,7 +253,7 @@ prettySignatureVar sig i = M.do
         (n, 0) => return (annotate SignatureVar (pretty n))
         (n, k) => return (annotate SignatureVar (pretty n <+> "{" <+> pretty k <+> "}"))
     Left _ =>
-      return (annotate Elim (pretty $ "χ" ++ natToSuperscript i ++ " <broken index>"))
+      return (annotate Elim (pretty $ "χ" ++ natToSuperscript i ++ " <broken index #\{show (length sig)}>"))
 
 public export
 prettyContextVar : SnocList VarName -> Nat -> M (Doc Ann)
@@ -200,7 +264,7 @@ prettyContextVar ctx i = M.do
         (n, 0) => return (annotate SignatureVar (pretty n))
         (n, k) => return (annotate SignatureVar (pretty n <+> "{" <+> pretty k <+> "}"))
     Left _ =>
-      return (annotate Elim (pretty $ "x" ++ natToSuperscript i ++ " <broken index>"))
+      return (annotate Elim (pretty $ "x" ++ natToSuperscript i ++ " <broken index #\{show (length ctx)}>"))
 
 mutual
   public export
@@ -221,6 +285,124 @@ mutual
   public export
   prettySubstContext : Signature -> Omega -> SnocList VarName -> SubstContext -> M (Doc Ann)
   prettySubstContext sig omega ctx sigma = prettySubstContext' sig omega ctx sigma
+
+  public export
+  prettyTyp' : Signature
+            -> Omega
+            -> SnocList VarName
+            -> Typ
+            -> M (Doc Ann)
+  prettyTyp' sig omega ctx (El a) =
+    return $
+      annotate Elim "El"
+       <++>
+      !(prettyElem sig omega ctx a 4)
+  prettyTyp' sig omega ctx (PiTy x dom cod) = M.do
+    case !(shrink cod 1 0) of
+      Nothing => M.do
+        return $
+          annotate Intro lparen
+           <+>
+          annotate ContextVar (pretty x)
+           <++>
+          annotate Keyword ":"
+           <++>
+          !(prettyTyp sig omega ctx dom 0)
+           <+>
+          annotate Intro rparen
+           <++>
+          annotate Keyword "→"
+           <++>
+          !(prettyTyp sig omega (ctx :< x) cod 0)
+      Just cod => M.do
+        return $
+          !(prettyTyp sig omega ctx dom 3)
+           <++>
+          annotate Keyword "→"
+           <++>
+          !(prettyTyp sig omega ctx cod 2)
+  prettyTyp' sig omega ctx (ImplicitPiTy x dom cod) = M.do
+    return $
+      annotate Intro lbrace
+       <+>
+      annotate ContextVar (pretty x)
+       <++>
+      annotate Keyword ":"
+       <++>
+      !(prettyTyp sig omega ctx dom 0)
+       <+>
+      annotate Intro rbrace
+       <++>
+      annotate Keyword "→"
+       <++>
+      !(prettyTyp sig omega (ctx :< x) cod 0)
+  prettyTyp' sig omega ctx (SigmaTy x dom cod) = M.do
+    case !(shrink cod 1 0) of
+      Nothing => M.do
+        return $
+          annotate Intro lparen
+           <+>
+          annotate ContextVar (pretty x)
+           <++>
+          annotate Keyword ":"
+           <++>
+          !(prettyTyp sig omega ctx dom 0)
+           <+>
+          annotate Intro rparen
+           <++>
+          annotate Keyword "⨯"
+           <++>
+          !(prettyTyp sig omega (ctx :< x) cod 0)
+      Just cod => M.do
+        return $
+          !(prettyTyp sig omega ctx dom 4)
+           <++>
+          annotate Keyword "⨯"
+           <++>
+          !(prettyTyp sig omega ctx cod 4)
+  prettyTyp' sig omega ctx NatTy =
+    return $ annotate Form "ℕ"
+  prettyTyp' sig omega ctx ZeroTy =
+    return $ annotate Form "𝟘"
+  prettyTyp' sig omega ctx OneTy =
+    return $ annotate Form "𝟙"
+  prettyTyp' sig omega ctx UniverseTy =
+    return $ annotate Form "𝕌"
+  prettyTyp' sig omega ctx tm@(ContextSubstElim {}) = assert_total $ idris_crash "prettyTyp'(ContextSubstElim)"
+  prettyTyp' sig omega ctx tm@(SignatureSubstElim {}) = assert_total $ idris_crash "prettyTyp'(SignatureSubstElim)"
+  prettyTyp' sig omega ctx (OmegaVarElim k sigma) = M.do
+    let x = annotate Elim (pretty k)
+    return $
+      x
+       <+>
+      parens' !(prettySubstContext sig omega ctx sigma)
+  prettyTyp' sig omega ctx (TyEqTy l r) = return $
+    !(prettyTyp sig omega ctx l 3)
+     <++>
+    annotate Form "≡"
+     <++>
+    !(prettyTyp sig omega ctx r 3)
+  prettyTyp' sig omega ctx (ElEqTy l r ty) = return $
+    !(prettyElem sig omega ctx l 3)
+     <++>
+    annotate Form "≡"
+     <++>
+    !(prettyElem sig omega ctx r 3)
+     <++>
+    annotate Form "∈"
+     <++>
+    !(prettyTyp sig omega ctx ty 0)
+
+  public export
+  prettyTyp : Signature
+           -> Omega
+           -> SnocList VarName
+           -> Typ
+           -> Level
+           -> M (Doc Ann)
+  prettyTyp sig omega ctx tm lvl = M.do
+    tm <- openEval sig omega tm
+    wrapTyp tm lvl !(prettyTyp' sig omega ctx tm)
 
   public export
   prettyElem' : Signature
@@ -334,8 +516,6 @@ mutual
       annotate Elim ".π₂"
   prettyElem' sig omega ctx NatVal0 =
     return $ annotate Intro "Z"
-  prettyElem' sig omega ctx Universe =
-    return $ annotate Form "𝕌"
   prettyElem' sig omega ctx (NatVal1 e) = return $
     annotate Intro "S"
       <++>
@@ -357,7 +537,7 @@ mutual
     return $
       annotate Elim "ℕ-elim"
        <++>
-      parens' (annotate ContextVar (pretty x) <+> annotate Keyword "." <++> !(prettyElem sig omega (ctx :< x) schema 0))
+      parens' (annotate ContextVar (pretty x) <+> annotate Keyword "." <++> !(prettyTyp sig omega (ctx :< x) schema 0))
        <++>
       !(prettyElem sig omega ctx z 4)
        <++>
@@ -389,7 +569,13 @@ mutual
       x
        <+>
       parens' !(prettySubstContext sig omega ctx sigma)
-  prettyElem' sig omega ctx (EqTy l r ty) = return $
+  prettyElem' sig omega ctx (TyEqTy l r) = return $
+    !(prettyElem sig omega ctx l 3)
+     <++>
+    annotate Form "≡"
+     <++>
+    !(prettyElem sig omega ctx r 3)
+  prettyElem' sig omega ctx (ElEqTy l r ty) = return $
     !(prettyElem sig omega ctx l 3)
      <++>
     annotate Form "≡"
@@ -399,8 +585,10 @@ mutual
     annotate Form "∈"
      <++>
     !(prettyElem sig omega ctx ty 0)
-  prettyElem' sig omega ctx EqVal =
-    return $ annotate Intro "*"
+  prettyElem' sig omega ctx TyEqVal =
+    return $ annotate Intro "Refl"
+  prettyElem' sig omega ctx ElEqVal =
+    return $ annotate Intro "Refl"
 
   public export
   prettyElem : Signature
@@ -417,7 +605,7 @@ mutual
   prettyTelescope : Signature
                  -> Omega
                  -> SnocList VarName
-                 -> List (VarName, Elem)
+                 -> List (VarName, Typ)
                  -> M (Doc Ann)
   prettyTelescope sig omega ctx [] = return ""
   prettyTelescope sig omega ctx ((x, ty) :: tyes) = return $
@@ -427,7 +615,7 @@ mutual
      <++>
     annotate Keyword ":"
      <++>
-    !(prettyElem sig omega ctx ty 0)
+    !(prettyTyp sig omega ctx ty 0)
      <+>
     rparen
      <++>
@@ -453,7 +641,7 @@ mutual
      <++>
     annotate Keyword ":"
      <++>
-    !(prettyElem sig omega (map fst ctx) ty 0)
+    !(prettyTyp sig omega (map fst ctx) ty 0)
   prettySignatureEntry sig omega x (LetElemEntry ctx e ty) = return $
     !(prettyContext sig omega ctx)
      <++>
@@ -467,7 +655,7 @@ mutual
      <++>
     annotate Keyword ":"
      <++>
-    !(prettyElem sig omega (map fst ctx) ty 0)
+    !(prettyTyp sig omega (map fst ctx) ty 0)
 
   public export
   prettyConstraintEntry : Signature -> Omega -> ConstraintEntry -> M (Doc Ann)
@@ -477,11 +665,11 @@ mutual
      <++>
     annotate Keyword "⊦"
      <++>
-    !(prettyElem sig omega (map fst ctx) a 0)
+    !(prettyTyp sig omega (map fst ctx) a 0)
      <++>
     annotate Keyword "="
      <++>
-    !(prettyElem sig omega (map fst ctx) b 0)
+    !(prettyTyp sig omega (map fst ctx) b 0)
      <++>
     annotate Keyword "type"
   prettyConstraintEntry sig omega (ElemConstraint ctx a b ty) = M.do
@@ -498,7 +686,7 @@ mutual
      <++>
     annotate Keyword ":"
      <++>
-    !(prettyElem sig omega (map fst ctx) ty 0)
+    !(prettyTyp sig omega (map fst ctx) ty 0)
   prettyConstraintEntry sig omega (SubstContextConstraint sigma tau source target) = M.do
    return $
     !(prettySubstContext sig omega [<] sigma)
@@ -515,6 +703,10 @@ mutual
      <++>
     !(prettyContext sig omega target)
 
+  public export
+  prettyConstraints : Signature -> Omega -> Constraints -> M (Doc Ann)
+  prettyConstraints sig omega cs =
+    return $ vsep !(forList (cast cs) (prettyConstraintEntry sig omega))
 
   public export
   prettySignature' : Signature -> Omega -> List (VarName, SignatureEntry) -> M (Doc Ann)
@@ -559,7 +751,7 @@ mutual
      <++>
     annotate Keyword "≔"
      <++>
-    !(prettyElem sig omega (map fst ctx) rhs 0)
+    !(prettyTyp sig omega (map fst ctx) rhs 0)
      <++>
     annotate Keyword "type"
   prettyOmegaEntry sig omega n (MetaElem ctx ty k) = M.do
@@ -572,7 +764,7 @@ mutual
      <++>
     annotate Keyword ":"
      <++>
-    !(prettyElem sig omega (map fst ctx) ty 0)
+    !(prettyTyp sig omega (map fst ctx) ty 0)
      <++>
     parens' (prettyMetaKind k)
   prettyOmegaEntry sig omega n (LetElem ctx rhs ty) = M.do
@@ -583,24 +775,24 @@ mutual
      <++>
     pretty n
      <++>
-    annotate Keyword ":"
-     <++>
-    !(prettyElem sig omega (map fst ctx) ty 0)
-     <++>
     annotate Keyword "≔"
      <++>
     !(prettyElem sig omega (map fst ctx) rhs 0)
+     <++>
+    annotate Keyword ":"
+     <++>
+    !(prettyTyp sig omega (map fst ctx) ty 0)
   prettyOmegaEntry sig omega n (TypeConstraint ctx a b) = M.do
    return $
     !(prettyContext sig omega ctx)
      <++>
     annotate Keyword "⊦"
      <++>
-    !(prettyElem sig omega (map fst ctx) a 0)
+    !(prettyTyp sig omega (map fst ctx) a 0)
      <++>
     annotate Keyword "="
      <++>
-    !(prettyElem sig omega (map fst ctx) b 0)
+    !(prettyTyp sig omega (map fst ctx) b 0)
      <++>
     annotate Keyword "type"
   prettyOmegaEntry sig omega n (ElemConstraint ctx a b ty) = M.do
@@ -617,7 +809,7 @@ mutual
      <++>
     annotate Keyword ":"
      <++>
-    !(prettyElem sig omega (map fst ctx) ty 0)
+    !(prettyTyp sig omega (map fst ctx) ty 0)
   prettyOmegaEntry sig omega n (SubstContextConstraint sigma tau source target) = M.do
    return $
     !(prettySubstContext sig omega [<] sigma)
@@ -669,4 +861,4 @@ prettyOmega' sig omega ((x, e) :: es) = return $
 
 public export
 prettyOmega : Signature -> Omega -> M (Doc Ann)
-prettyOmega sig omega = prettyOmega' sig omega (filter (\(_, x) => isMetaType x || isMetaElem x) (List.inorder omega))
+prettyOmega sig omega = prettyOmega' sig omega (List.inorder omega)

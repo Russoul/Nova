@@ -1,4 +1,4 @@
-module Text.Parser.CharUtil
+module Text.Parsing.CharUtil
 
 import Data.List
 import Data.List1
@@ -7,8 +7,7 @@ import Data.Either
 import Data.String
 import Data.Fin
 
-import Text.Parser.Fork
-import Text.Lexer
+import Text.Parsing.Fork
 
 ------------- Utilities for grammars over Char ----------------
 

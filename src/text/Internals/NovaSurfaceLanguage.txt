@@ -1,0 +1,11 @@
+///////// Preface ////////
+
+
+Internal syntactic categories
+  * name
+
+Visible syntactic categories
+  * op
+  * var
+  * special
+  * space

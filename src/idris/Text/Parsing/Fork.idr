@@ -1,4 +1,4 @@
-module Text.Parser.Fork
+module Text.Parsing.Fork
 
 import Data.Bool
 import Data.List

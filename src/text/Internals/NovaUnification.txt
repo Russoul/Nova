@@ -1,54 +1,14 @@
+///////// Preface //////////
 
-                       π a b
-                     | eq t a b
-                     | nat
-                     | U
-                     | zero
-                     | suc t
-                     | λ A B f
-                     | ap f A B e
-                     | *
-                     | χᵢ
-                     | χᵢ σ
-                     | t(σ)
-                     | t(σ)
-                     | ℕ-elim A z s t
+This file contains a unification algorithm used in Nova.
 
+////////////////////////////
 
-//(~) is a sub-equality relation.
-//(~) implies (=)
+TODO: Write the stuff down
 
-(x : A₀) → B₀ ~ (x : A₁) → B₁ type
+ℕ-elim x.A₀ z₀ (x. h. s₀) t₀ ~ ℕ-elim x.A₁ z₁ (x. h. s₁) t₁ : _
 <=>
-A₀ ~ A₁ type
-(x : A₀) ⊦ B₀ ~ B₀ type
-
-(p₀ ≡ q₀ ∈ A₀) ~ (p₁ ≡ q₁ ∈ A₁)
-<=>
-A₀ ~ A₁ type
-p₀ ~ p₁ : A₀
-q₀ ~ q₁ : A₀
-
-(x ↦ f₀) ~ (x ↦ f₁) : (x : A) → B
-<=>
-(x : A) ⊦ f₀ ~ f₁ : B
-
-xᵢ ~ xⱼ : A
-<=>
-i = j
-
-Γ ⊦ xᵢ σ₀ ~ xⱼ σ₁ : A
-<=>
-i = j
-σ₀ ~ σ₁ : Γ ⇒ Δ
-
-(f₀ : (x : A₀) → B₀) e₀ ~ (f₁ : (x : A₁) → B₁) e₁ : A
-<=>
-(x : A₀) → B₀ ~ (x : A₁) → B₁ type
-f₀ ~ f₁ : (x : A₀) → B₀
-e₀ ~ e₁ : A₀
-
-Γ ⊦ ? σ ~ t : A
-//σ is invertible
-<=>
-Δ ⊦ ? ≔ t[σ⁻¹] : A[σ⁻¹]
+if (t₀ ~?~ t₁)
+  x ⊦ A₀ ~ A₁ type
+  z₀ ~ z₁ : A₀(Z/x)
+  x h ⊦ s₀ ~ s₁ : A₀(S x/x)

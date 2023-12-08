@@ -123,8 +123,6 @@ mutual
     subst OneVal sigma = OneVal
     -- (𝟘-elim t)(σ) = 𝟘-elim t(σ)
     subst (ZeroElim t) sigma = ZeroElim (ContextSubstElim t sigma)
-    -- 𝕌(σ) = 𝕌
-    subst Universe sigma = Universe
     -- (π A B)(σ) = π A(σ) B(σ⁺(El A))
     subst (PiTy x a b) sigma =
       PiTy x (ContextSubstElim a sigma) (ContextSubstElim b (Under sigma))
@@ -192,8 +190,10 @@ mutual
     -- Σ₀ Γ(τ) ⊦ χ(σ)(τ) = χ(σ ∘ τ)
     subst (SignatureVarElim k sigma) tau = SignatureVarElim k (Chain sigma tau)
     subst (OmegaVarElim k sigma) tau = OmegaVarElim k (Chain sigma tau)
-    subst (EqTy a0 a1 ty) tau = EqTy (ContextSubstElim a0 tau) (ContextSubstElim a1 tau) (ContextSubstElim ty tau)
-    subst EqVal tau = EqVal
+    subst (TyEqTy a0 a1) tau = TyEqTy (ContextSubstElim a0 tau) (ContextSubstElim a1 tau)
+    subst (ElEqTy a0 a1 ty) tau = ElEqTy (ContextSubstElim a0 tau) (ContextSubstElim a1 tau) (ContextSubstElim ty tau)
+    subst TyEqVal tau = TyEqVal
+    subst ElEqVal tau = ElEqVal
 
   namespace C
     public export
@@ -236,7 +236,6 @@ mutual
     subst OneTy sigma = OneTy
     subst OneVal sigma = OneVal
     subst (ZeroElim t) sigma = ZeroElim (SignatureSubstElim t sigma)
-    subst Universe sigma = Universe
     subst (NatVal1 t) sigma = NatVal1 (SignatureSubstElim t sigma)
     subst (NatElim x schema z y h s t) sigma =
       NatElim
@@ -254,8 +253,60 @@ mutual
     subst (ContextVarElim k) sigma = ContextVarElim k
     subst (OmegaVarElim k tau) sigma = OmegaVarElim k (subst tau sigma)
     subst (SignatureVarElim k tau) sigma = substSignatureVar k sigma Id (subst tau sigma)
-    subst (EqTy a0 a1 ty) tau = EqTy (SignatureSubstElim a0 tau) (SignatureSubstElim a1 tau) (SignatureSubstElim ty tau)
-    subst EqVal tau = EqVal
+    subst (TyEqTy a0 a1) tau = TyEqTy (SignatureSubstElim a0 tau) (SignatureSubstElim a1 tau)
+    subst (ElEqTy a0 a1 ty) tau = ElEqTy (SignatureSubstElim a0 tau) (SignatureSubstElim a1 tau) (SignatureSubstElim ty tau)
+    subst TyEqVal tau = TyEqVal
+    subst ElEqVal tau = ElEqVal
+
+  namespace D
+    public export
+    subst : Typ -> SubstSignature -> Typ
+    subst (PiTy x a b) sigma = PiTy x (SignatureSubstElim a sigma) (SignatureSubstElim b sigma)
+    subst (ImplicitPiTy x a b) sigma = ImplicitPiTy x (SignatureSubstElim a sigma) (SignatureSubstElim b sigma)
+    subst (SigmaTy x a b) sigma = SigmaTy x (SignatureSubstElim a sigma) (SignatureSubstElim b sigma)
+    subst NatTy sigma = NatTy
+    subst ZeroTy sigma = ZeroTy
+    subst OneTy sigma = OneTy
+    subst UniverseTy sigma = UniverseTy
+    subst (El a) sigma = El (SignatureSubstElim a sigma)
+    subst (ContextSubstElim t sigma) tau =
+      subst (subst t sigma) tau
+    subst (SignatureSubstElim t sigma0) sigma1 =
+      subst t (Chain sigma0 sigma1)
+    subst (OmegaVarElim k tau) sigma = OmegaVarElim k (subst tau sigma)
+    subst (TyEqTy a0 a1) tau = TyEqTy (SignatureSubstElim a0 tau) (SignatureSubstElim a1 tau)
+    subst (ElEqTy a0 a1 ty) tau = ElEqTy (SignatureSubstElim a0 tau) (SignatureSubstElim a1 tau) (SignatureSubstElim ty tau)
+
+  namespace E
+    ||| t(σ)
+    public export
+    subst : Typ -> SubstContext -> Typ
+    -- ℕ(σ) = ℕ
+    subst NatTy sigma = NatTy
+    -- 𝟘(σ) = 𝟘
+    subst ZeroTy sigma = ZeroTy
+    -- 𝟙(σ) = 𝟙
+    subst OneTy sigma = OneTy
+    -- 𝕌(σ) = 𝕌
+    subst UniverseTy sigma = UniverseTy
+    subst (El a) sigma = El (ContextSubstElim a sigma)
+    -- (π A B)(σ) = π A(σ) B(σ⁺(El A))
+    subst (PiTy x a b) sigma =
+      PiTy x (ContextSubstElim a sigma) (ContextSubstElim b (Under sigma))
+    subst (ImplicitPiTy x a b) sigma =
+      ImplicitPiTy x (ContextSubstElim a sigma) (ContextSubstElim b (Under sigma))
+    -- (π A B)(σ) = π A(σ) B(σ⁺(El A))
+    subst (SigmaTy x a b) sigma =
+      SigmaTy x (ContextSubstElim a sigma) (ContextSubstElim b (Under sigma))
+    -- t(σ₀)(σ₁) = t(σ₀ ∘ σ₁)
+    subst (ContextSubstElim t tau) sigma =
+      subst t (Chain tau sigma)
+    -- t(σ)(τ) = t(τ)(σ)
+    subst (SignatureSubstElim t tau) sigma =
+      subst (subst t tau) sigma
+    subst (OmegaVarElim k sigma) tau = OmegaVarElim k (Chain sigma tau)
+    subst (TyEqTy a0 a1) tau = TyEqTy (ContextSubstElim a0 tau) (ContextSubstElim a1 tau)
+    subst (ElEqTy a0 a1 ty) tau = ElEqTy (ContextSubstElim a0 tau) (ContextSubstElim a1 tau) (ContextSubstElim ty tau)
 
   namespace List
     public export
@@ -366,6 +417,13 @@ namespace Omega
 namespace Elem
   public export
   runSubst : Elem -> Elem
+  runSubst (ContextSubstElim t sigma) = subst t sigma
+  runSubst (SignatureSubstElim t sigma) = subst t sigma
+  runSubst t = t
+
+namespace Typ
+  public export
+  runSubst : Typ -> Typ
   runSubst (ContextSubstElim t sigma) = subst t sigma
   runSubst (SignatureSubstElim t sigma) = subst t sigma
   runSubst t = t

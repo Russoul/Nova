@@ -15,11 +15,17 @@ TODO:
  * induction-recursion
  * co-inductive types
  * stronger universes
-
+ * type families in contexts?
 
 /////////////// Notes /////////////////
 
 * Element relation is defined on types quotiented by the equivalence relation
+
+* TODO: This will be merged into NovaFoundation!
+     In particular I already know how to implement:
+        * Indexed quotient-inductive types (schemas)
+        * Infinite externally-indexed hierarchy of universes
+
 
 
 //////////// Presentation /////////////

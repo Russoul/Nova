@@ -1,0 +1,310 @@
+Main idea:
+relationally parametric functions preserve all relations!
+
+//
+Want to show that:
+((X : 𝕌) → X → X) ≅ 𝟙
+∎
+=>) const ()
+<=) const id
+<>) trivial
+><) f : (X : 𝕌) → X → X
+    f ≡ id
+    (X : 𝕌) (x : X) ⊦ f X x ≡ x
+    R̅ : 𝟙 → X → 𝕌
+    R̅ () y = x ≡ y
+    //Using parametricity we have the following truthful fact:
+    (A : 𝕌) (B : 𝕌) (R : Rel A B) (a : A) (b : B) (r : R a b) → R (α A a) (β B b)
+    //Take A ≔ 𝟙
+    (B : 𝕌) (R : Rel 𝟙 B) (a : 𝟙) (b : B) (r : R a b) → R (α 𝟙 a) (β B b)
+    (B : 𝕌) (R : Rel 𝟙 B) (b : B) (r : R () b) → R (α 𝟙 ()) (β B b)
+    //Rename B to X
+    (X : 𝕌) (R : Rel 𝟙 X) (x : X) (r : R () x) → R (α 𝟙 ()) (β X x)
+    //Take R ≔ R̅
+    (X : 𝕌) (x : X) (r : R̅ () x) → R̅ (α 𝟙 ()) (β X x)
+    //By definition
+    (X : 𝕌) (x : X) (r : x ≡ x) → β X x ≡ x
+    //Contract
+    (X : 𝕌) (x : X) → β X x ≡ x
+    //Take α = β = f
+    (X : 𝕌) (x : X) → f X x ≡ x
+    //This is exactly what we wanted to prove ∎
+
+
+//Define:
+𝔹 = (X : 𝕌) → X → X → X
+//Show that Bool ≅ 𝔹
+∎
+=>) to False = X t f ↦ f
+    to True = X t f ↦ t
+<=) from k = k Bool True False
+><) from . to = id
+    (x : Bool) ⊦ from (to x) = x : Bool
+    *) from (to True) = True
+       from (X t f ↦ t) = True
+       True = True ✔
+
+    *) from (to False) = False
+       from (X t f ↦ f) = False
+       False = False ✔
+<>) to . from = id
+    (b : 𝔹) ⊦ to (from b) = b : 𝔹
+    (b : 𝔹) ⊦ to (from b) = b : (X : 𝕌) → X → X → X
+    (k : 𝔹) (A : 𝕌) (t f : A) ⊦ to (k Bool True False) A t f = k A t f : A
+    //Define a relation
+                                R̅ : Bool → A → 𝕌
+                                R̅ b a = to b A t f ≡ a
+
+   ⟦(X : 𝕌) → X → X → X⟧(f, g)
+   =
+   (A B : 𝕌) (R : A → B → 𝕌) → ⟦R → R → R⟧(f A, g B)
+   =
+   (A B : 𝕌) (R : A → B → 𝕌) (a₀ : A) (b₀ : B) (r₀ : R a₀ b₀) → ⟦R → R⟧(f A a₀, g B b₀)
+   =
+   (A B : 𝕌) (R : A → B → 𝕌) (a₀ : A) (b₀ : B) (r₀ : R a₀ b₀) (a₁ : A) (b₁ : B) (r₁ : R a₁ b₁) → R (f A a₀ a₁) (g B b₀ b₁)
+   //Take A ≔ Bool
+   (B : 𝕌) (R : Bool → B → 𝕌) (a₀ : Bool) (b₀ : B) (r₀ : R a₀ b₀) (a₁ : Bool) (b₁ : B) (r₁ : R a₁ b₁) → R (f Bool a₀ a₁) (g B b₀ b₁)
+   //Take B ≔ A
+   (A : 𝕌) (R : Bool → A → 𝕌) (a₀ : Bool) (b₀ : A) (r₀ : R a₀ b₀) (a₁ : Bool) (b₁ : A) (r₁ : R a₁ b₁) → R (f Bool a₀ a₁) (g A b₀ b₁)
+   //Reorder
+   (A : 𝕌) (b₀ b₁ : A) (a₀ a₁ : Bool) (R : Bool → A → 𝕌) (r₀ : R a₀ b₀) (r₁ : R a₁ b₁) → R (f Bool a₀ a₁) (g A b₀ b₁)
+   //rename b₀ ⇝ t, b₁ ⇝ f
+   (A : 𝕌) (t f : A) (a₀ a₁ : Bool) (R : Bool → A → 𝕌) (r₀ : R a₀ t) (r₁ : R a₁ f) → R (f Bool a₀ a₁) (g A t f)
+   //Take R ≔ R̅
+   (A : 𝕌) (t f : A) (a₀ a₁ : Bool) (r₀ : to a₀ A t f ≡ t) (r₁ : to a₁ A t f ≡ f) →  to (f Bool a₀ a₁) A t f ≡ g A t f
+   ≅
+   (A : 𝕌) (t f : A) → to (f Bool True False) A t f ≡ g A t f
+
+   (k : 𝔹) (A : 𝕌) (t f : A) → to (f Bool True False) A t f ≡ g A t f
+   //pick g ≔ k
+   (k : 𝔹) (A : 𝕌) (t f : A) → to (f Bool True False) A t f ≡ k A t f
+   //pick f ≔ k
+   (k : 𝔹) (A : 𝕌) (t f : A) → to (k Bool True False) A t f ≡ k A t f
+   //This is exactly what we wanted to prove ∎
+
+
+
+
+
+⟦(X : 𝕌) → X → X⟧(f, f)
+=
+(A : 𝕌) (B : 𝕌) (r : Rel A B) → ⟦X → X⟧(f A, f B)
+=
+(A : 𝕌) (B : 𝕌) (R : Rel A B) (a : A) (b : B) (r : R a b) → ⟦X⟧(f A a, f B b)
+=
+(A : 𝕌) (B : 𝕌) (R : Rel A B) (a : A) (b : B) (r : R a b) → R (f A a) (f B b)
+
+
+(f : ((X : 𝕌) → X → X)) ⊦
+  (A : 𝕌) (a : A) → f A a = a
+
+
+  (A : 𝕌) (R : Rel A A) (a₀ : A) (a₁ : A) (r : R a₀ a₁) → R (f A a₀) (f A a₁)
+  // R x y = f A x ≡ y
+  (A : 𝕌) (a₀ : A) (a₁ : A) (r : f A a₀ ≡ a₁) → f A a₁ = f A a₁
+
+
+typeRel : 𝕌 → 𝕌 → 𝕌
+typeRel A B = A → B → 𝕌
+
+funRel : (A → B) → (A → B) → Prop
+funRel f g = (x₀ x₁ : A) → A x₀ x₁ → B (f x₀) (g x₁)
+
+depRel : ((x : A) → B) → ((x : A) → B) → Prop
+depRel f g = (x₀ x₁ : A) → (x : A x₀ x₁) → B x (f x₀) (g x₁)
+
+pairRel : (A ⨯ B) → (A ⨯ B) → Prop
+pairRel p q = A p.π₁ q.π₁ ⨯ B p.π₂ q.π₂
+
+sigmaRel : ((x : A) ⨯ B) → ((x : A) ⨯ B) → Prop
+sigmaRel p q = (r : A p.π₁ q.π₁) ⨯ B r p.π₂ q.π₂
+
+f x₀ : B x₀
+g x₁ : B x₁
+
+⟦(X : 𝕌) → X → X⟧(f, g)
+=
+(A B : 𝕌) (R : A → B → 𝕌) → ⟦X → X⟧(R, f A, f B)
+=
+(A B : 𝕌) (R : A → B → 𝕌) (a : A) (b : B) (r : A = B) → R (f A a) (f B b)
+
+
+
+(∀A. ∀B. A ⨯ B → A) ≅ 𝟙
+//
+...
+f : ∀A. ∀B. A ⨯ B → A
+(A B : 𝕌) (p : A ⨯ B) ⊦ f A B p = p.π₁
+
+⟦∀A. ∀B. A ⨯ B → A⟧(f, g)
+=
+(A₀ : 𝕌) (A₁ : 𝕌) (A : A₀ → A₁ → 𝕌) → ⟦∀B. A ⨯ B → A⟧(f A₀, g A₁)
+=
+(A₀ : 𝕌) (A₁ : 𝕌) (A : A₀ → A₁ → 𝕌) (B₀ : 𝕌) (B₁ : 𝕌) (B : B₀ → B₁ → 𝕌) → ⟦A ⨯ B → A⟧(f A₀ B₀, g A₁ B₁)
+=
+(A₀ : 𝕌) (A₁ : 𝕌) (A : A₀ → A₁ → 𝕌) (B₀ : 𝕌) (B₁ : 𝕌) (B : B₀ → B₁ → 𝕌)
+(p₀ : A₀ ⨯ B₀) (p₁ : A₁ ⨯ B₁) (p : ⟦A ⨯ B⟧(p₀, p₁)) → ⟦A⟧(f A₀ B₀ p₀, g A₁ B₁ p₁)
+=
+(A₀ : 𝕌) (A₁ : 𝕌) (A : A₀ → A₁ → 𝕌) (B₀ : 𝕌) (B₁ : 𝕌) (B : B₀ → B₁ → 𝕌)
+(p₀ : A₀ ⨯ B₀) (p₁ : A₁ ⨯ B₁) (p : ⟦A⟧(p₀.π₁, p₁.π₁) ⨯ ⟦B⟧(p₀.π₂, p₁.π₂)) → ⟦A⟧(f A₀ B₀ p₀, g A₁ B₁ p₁)
+=
+(A₀ : 𝕌) (A₁ : 𝕌) (A : A₀ → A₁ → 𝕌) (B₀ : 𝕌) (B₁ : 𝕌) (B : B₀ → B₁ → 𝕌)
+(p₀ : A₀ ⨯ B₀) (p₁ : A₁ ⨯ B₁) (p : A p₀.π₁ p₁.π₁ ⨯ B p₀.π₂ p₁.π₂) → ⟦A⟧(f A₀ B₀ p₀, g A₁ B₁ p₁)
+=
+(A₀ : 𝕌) (A₁ : 𝕌) (A : A₀ → A₁ → 𝕌) (B₀ : 𝕌) (B₁ : 𝕌) (B : B₀ → B₁ → 𝕌)
+(p₀ : A₀ ⨯ B₀) (p₁ : A₁ ⨯ B₁) (p : A p₀.π₁ p₁.π₁ ⨯ B p₀.π₂ p₁.π₂) → A (f A₀ B₀ p₀) (g A₁ B₁ p₁)
+//pick A₁ ≔ 𝟙, B₁ ≔ 𝟙, B _ _ ≔ 𝟙
+=
+(A B : 𝕌) (p : A ⨯ B) (R : A → 𝟙 → 𝕌) (p : R p.π₁ () ⨯ 𝟙) → R (f A B p) (g 𝟙 𝟙 ())
+//R x _ = x ≡ p.π₁
+(A B : 𝕌) (p : A ⨯ B) (p : p.π₁ ≡ p.π₁) → f A B p ≡ p.π₁
+//
+(A B : 𝕌) (p : A ⨯ B) → f A B p ≡ p.π₁
+//Exactly what we wanted to show!
+
+//Define
+Monoid = (A : 𝕌) ⨯ A ⨯ (A ⨯ A → A)
+//where L are monoid laws
+⟦Monoid⟧(M₀, M₁)
+=
+⟦(A : 𝕌) ⨯ A ⨯ (A ⨯ A → A)⟧(M₀, M₁)
+=
+(A : ⟦𝕌⟧(M₀.π₁, M₁.π₁)) ⨯ ⟦A ⨯ (A ⨯ A → A)⟧(M₀.π₂, M₁.π₂)
+=
+(A : M₀.π₁ → M₁.π₁ → 𝕌) ⨯ ⟦A⟧(M₀.π₂.π₁, M₁.π₂.π₁) ⨯ ⟦A ⨯ A → A⟧(M₀.π₂.π₂, M₁.π₂.π₂)
+=
+(A : M₀.π₁ → M₁.π₁ → 𝕌) ⨯ A M₀.π₂.π₁ M₁.π₂.π₁ ⨯ ⟦A ⨯ A → A⟧(M₀.π₂.π₂, M₁.π₂.π₂)
+=
+(A : M₀.π₁ → M₁.π₁ → 𝕌) ⨯ A M₀.π₂.π₁ M₁.π₂.π₁ ⨯ ((p₀ : ⟦A ⨯ A⟧₀) (p₁ : ⟦A ⨯ A⟧₁) (p : ⟦A ⨯ A⟧(p₀, p₁)) → ⟦A⟧(M₀.π₂.π₂ p₀, M₁.π₂.π₂ p₁))
+=
+(A : M₀.π₁ → M₁.π₁ → 𝕌) ⨯ A M₀.π₂.π₁ M₁.π₂.π₁ ⨯
+  ((p₀ : M₀.π₁ ⨯ M₀.π₁) (p₁ : M₁.π₁ ⨯ M₁.π₁) (p : ⟦A⟧(p₀.π₁, p₁.π₁) ⨯ ⟦A⟧(p₀.π₂, p₁.π₂)) → ⟦A⟧(M₀.π₂.π₂ p₀, M₁.π₂.π₂ p₁))
+=
+(A : M₀.π₁ → M₁.π₁ → 𝕌) ⨯ A M₀.π₂.π₁ M₁.π₂.π₁ ⨯
+  ((p₀ : M₀.π₁ ⨯ M₀.π₁) (p₁ : M₁.π₁ ⨯ M₁.π₁) (p : A p₀.π₁ p₁.π₁ ⨯ A p₀.π₂ p₁.π₂) → A M₀.π₂.π₂ p₀ M₁.π₂.π₂ p₁)
+
+
+((M : Monoid) → M.π₁) ≅ 𝟙
+∎
+...
+f : (M : Monoid) → M.π₁
+(M : Monoid) → f M ≡ M.π₂.π₁
+
+⟦(M : Monoid) → M.π₁⟧(f, g)
+=
+(M₀, M₁ : Monoid) (M : ⟦Monoid⟧(M₀, M₁)) → ⟦M.π₁⟧(f M₀, g M₁)
+=
+(M₀, M₁ : Monoid)
+(M : (A : M₀.π₁ → M₁.π₁ → 𝕌) ⨯ A M₀.π₂.π₁ M₁.π₂.π₁ ⨯
+  ((p₀ : M₀.π₁ ⨯ M₀.π₁) (p₁ : M₁.π₁ ⨯ M₁.π₁) (p : A p₀.π₁ p₁.π₁ ⨯ A p₀.π₂ p₁.π₂) → A M₀.π₂.π₂ p₀ M₁.π₂.π₂ p₁))
+→ ⟦M.π₁⟧(f M₀, g M₁)
+=
+(M₀, M₁ : Monoid)
+(M : (A : M₀.π₁ → M₁.π₁ → 𝕌) ⨯ A M₀.π₂.π₁ M₁.π₂.π₁ ⨯
+  ((p₀ : M₀.π₁ ⨯ M₀.π₁) (p₁ : M₁.π₁ ⨯ M₁.π₁) (p : A p₀.π₁ p₁.π₁ ⨯ A p₀.π₂ p₁.π₂) → A M₀.π₂.π₂ p₀ M₁.π₂.π₂ p₁))
+→ M.π₁ (f M₀) (g M₁)
+≅
+(M₀, M₁ : Monoid)
+(A : M₀.π₁ → M₁.π₁ → 𝕌)
+(0 : A M₀.π₂.π₁ M₁.π₂.π₁)
+(_+_ : (p₀ : M₀.π₁ ⨯ M₀.π₁) (p₁ : M₁.π₁ ⨯ M₁.π₁) (p : A p₀.π₁ p₁.π₁ ⨯ A p₀.π₂ p₁.π₂) → A M₀.π₂.π₂ p₀ M₁.π₂.π₂ p₁)
+→ A (f M₀) (g M₁)
+//Pick M₁ ≔ Unit
+(M₀ : Monoid)
+(A : M₀.π₁ → 𝟙 → 𝕌)
+(0 : A M₀.π₂.π₁ ())
+(_+_ : (p₀ : M₀.π₁ ⨯ M₀.π₁) (p : A p₀.π₁ () ⨯ A p₀.π₂ ()) → A M₀.π₂.π₂ p₀ ())
+→ A (f M₀) (g Unit)
+//pick A x () = x ≡ M₀.π₂.π₁
+(M₀ : Monoid)
+(0 : M₀.π₂.π₁ ≡ M₀.π₂.π₁)
+(_+_ : (p₀ : M₀.π₁ ⨯ M₀.π₁) (p : p₀.π₁ ≡ M₀.π₂.π₁ ⨯ p₀.π₂ ≡ M₀.π₂.π₁) → (M₀.π₂.π₂ p₀) ≡ M₀.π₂.π₁)
+→ f M₀ ≡ M₀.π₂.π₁
+≅
+(M₀ : Monoid)
+(_+_ : (p₀ : M₀.π₁ ⨯ M₀.π₁) (p : p₀.π₁ ≡ M₀.π₂.π₁ ⨯ p₀.π₂ ≡ M₀.π₂.π₁) → (M₀.π₂.π₂ p₀) ≡ M₀.π₂.π₁)
+→ f M₀ ≡ M₀.π₂.π₁
+≅
+(M₀ : Monoid)
+(_+_ : (M₀.π₂.π₂ (M₀.π₂.π₁, M₀.π₂.π₁)) ≡ M₀.π₂.π₁)
+→ f M₀ ≡ M₀.π₂.π₁
+≅
+(M₀ : Monoid)
+(_+_ : (M₀.π₂.π₂ (M₀.π₂.π₁, M₀.π₂.π₁)) ≡ M₀.π₂.π₁) //true by monoid identity law
+→ f M₀ ≡ M₀.π₂.π₁
+≅
+(M₀ : Monoid) → f M₀ ≡ M₀.π₂.π₁
+
+
+T type
+t : T
+ext : ⟦T⟧(t)
+
+ext : (A : 𝕌) (B : 𝕌) (R : Rel A B) (a : A) (b : B) (r : R a b) → R (α A a) (α B b)
+
+⟦A → B⟧(f, g) = (a₀ : ⟦A⟧₀) (a₁ : ⟦A⟧₁) (a : ⟦A⟧(a₀, a₁)) → ⟦B⟧(f a₀, g a₁)
+
+Intuition behind cubical TT:
+(x : 𝕀) ⊦ M : A
+There is a path x.A between
+A(0/x) and A(1/x)
+moreover via univalence we have an equivalence:
+A(0/x) ≃ A(1/x)
+Then
+M(0/x) corresponds M(1/x) across the isomorphism via x.M
+
+Similarly, intuition behind parametric TT:
+(x : 𝐈) ⊦ M : A
+There is a relation x.A between A(0/x) and A(1/x)
+and moreover
+x.M is a proof that M(0/x) and M(1/x) stand in the relation
+
+Ω ⊦ M : A
+=> //weakening ✔
+Ω (x : 𝐈) ⊦ M(↑) : A(↑)
+
+Ω (x : 𝐈) (y : 𝐈) ⊦ M : A
+=> //exchange ✔
+Ω (y : 𝐈) (x : 𝐈) ⊦ M(⟷) : A(⟷)
+
+Ω (x : 𝐈) (y : 𝐈) ⊦ M : A
+=> //contraction ✗
+Ω (z : 𝐈) ⊦ M[z/x, z/y] : A[z/x, z/y]
+
+But we have fresh substitution.
+So basically it's like having structural substitution but restricting to only affine variable use.
+
+
+(x : 𝐈) ⊦ A type
+M₀ : A(0/x)
+M₁ : A(1/x)
+---------------------
+Bridge x.A M₀ M₁ type
+
+(x : 𝐈) ⊦ M : A
+--------------------------------
+x ↦ M : Bridge x.A M(0/x) M(1/x)
+
+P : Bridge x.A M₀ M₁
+r : 𝐈
+r is fresh in P
+--------------------
+P r : A(r/x)
+
+
+((X : 𝕌) → X) ≅ 𝟘
+∎
+=>) f : (X : 𝕌) → X
+
+    f 𝟘 : 𝟘
+<=) // easy
+><) //easy
+<>) //easy ∎
+//Proof doesn't require parametricity
+
+
+(x : ℕ) ctx ✔
+(x : ℕ) ⊦ (x ≡ 1) type ✔
+(x : ℕ) ⊦ x = 1 : ℕ ✗
+---------------------------------------------
+(x : ℕ) ⊦ Sing (x ≡ 1) Refl type

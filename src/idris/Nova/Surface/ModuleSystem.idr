@@ -8,6 +8,7 @@ import System.File
 import System.Path
 import System
 
+import Text.Lexing.Token
 import Text.PrettyPrint.Prettyprinter.Render.Terminal
 import Text.PrettyPrint.Prettyprinter
 
@@ -21,7 +22,7 @@ import Nova.Surface.Elaboration
 import Nova.Surface.Language
 import Nova.Surface.Operator
 import Nova.Surface.Parser
-import Nova.Surface.ParserUtil
+import Nova.Surface.ParserGeneral
 import Nova.Surface.SemanticToken
 
 ||| A string is said to be a dash break if
@@ -62,10 +63,10 @@ checkModule sig omega ops nextOmegaIdx namedHoles novaDirectory modName = Prelud
   putStrLn "File parsed successfully!"
   let params = MkParams mod
   Right (MkElabSt (MkUnifySt nextOmegaIdx) moreToks namedHoles, Right (sig, omega, ops)) <- run (elabFile @{params} sig omega ops surfaceSyntax) (MkElabSt (MkUnifySt nextOmegaIdx) [<] namedHoles)
-    | Right (MkElabSt (MkUnifySt nextOmegaIdx) moreToks namedHoles, Left (x, range, err)) => Prelude.do
+    | Right (MkElabSt (MkUnifySt nextOmegaIdx) moreToks namedHoles, Left (x, range, sig, err)) => Prelude.do
        Right doc <- eval (pretty sig err) ()
          | Left err => pure $ Left (Just range, pretty ("Critical error:" ++ err))
-       pure (Left (Just range, pretty "Error while elaborating top-level definition \{x}" <+> hardline <+> doc))
+       pure (Left (Just range, pretty "Error while elaborating top-level definition (#\{show (length sig)}) \{x}" <+> hardline <+> doc))
     | Left err => pure $ Left (Nothing, pretty ("Critical error:" ++ err))
   putStrLn "File elaborated successfully!"
   putStrLn "------------ Named holes ---------------"

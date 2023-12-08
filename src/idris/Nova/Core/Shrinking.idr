@@ -46,6 +46,63 @@ mutual
       sigma <- shrink (eval sigma) gamma1Len gamma2Len
       return (quote sigma)
 
+  namespace Typ
+    ||| Γ₀ ⊦ Γ₁ ctx
+    ||| Γ₀ ⊦ Γ₂ ctx
+    ||| Γ₀ Γ₁ Γ₂ ⊦ A type
+    ||| Γ₀ Γ₂ ⊦ shrink[A] type
+    ||| A must be head-neutral w.r.t. substitution
+    public export
+    shrinkNu : Typ -> (gamma1Len : Nat) -> (gamma2Len : Nat) -> M (Maybe Typ)
+    shrinkNu (PiTy x a b) gamma1Len gamma2Len = MMaybe.do
+      a <- shrink a gamma1Len gamma2Len
+      b <- shrink b gamma1Len (S gamma2Len)
+      return (PiTy x a b)
+    shrinkNu (ImplicitPiTy x a b) gamma1Len gamma2Len = MMaybe.do
+      a <- shrink a gamma1Len gamma2Len
+      b <- shrink b gamma1Len (S gamma2Len)
+      return (ImplicitPiTy x a b)
+    shrinkNu (SigmaTy x a b) gamma1Len gamma2Len = MMaybe.do
+      a <- shrink a gamma1Len gamma2Len
+      b <- shrink b gamma1Len (S gamma2Len)
+      return (SigmaTy x a b)
+    shrinkNu (El a) gamma1Len gamma2Len = MMaybe.do
+      a <- shrink a gamma1Len gamma2Len
+      return (El a)
+    shrinkNu NatTy gamma1Len gamma2Len = MMaybe.do
+      return NatTy
+    shrinkNu ZeroTy gamma1Len gamma2Len = MMaybe.do
+      return ZeroTy
+    shrinkNu OneTy gamma1Len gamma2Len = MMaybe.do
+      return OneTy
+    shrinkNu UniverseTy gamma1Len gamma2Len = MMaybe.do
+      return UniverseTy
+    shrinkNu (ContextSubstElim x y) gamma1Len gamma2Len = throw "shrink(ContextSubstElim)"
+    shrinkNu (SignatureSubstElim x y) gamma1Len gamma2Len = throw "shrink(SignatureSubstElim)"
+    shrinkNu (OmegaVarElim k sigma) gamma1Len gamma2Len = MMaybe.do
+      -- Σ₀ (Γ ⊦ χ : A) Σ₁ ⊦ σ : Δ ⇒ Γ
+      -- Σ₀ (Γ ⊦ χ : A) Σ₁ Δ ⊦ χ σ
+      sigma <- shrink sigma gamma1Len gamma2Len
+      return (OmegaVarElim k sigma)
+    shrinkNu (TyEqTy a b) gamma1Len gamma2Len = MMaybe.do
+      a <- shrink a gamma1Len gamma2Len
+      b <- shrink b gamma1Len gamma2Len
+      return (TyEqTy a b)
+    shrinkNu (ElEqTy a b c) gamma1Len gamma2Len = MMaybe.do
+      a <- shrink a gamma1Len gamma2Len
+      b <- shrink b gamma1Len gamma2Len
+      c <- shrink c gamma1Len gamma2Len
+      return (ElEqTy a b c)
+
+    ||| Γ₀ ⊦ Γ₁ ctx
+    ||| Γ₀ ⊦ Γ₂ ctx
+    ||| Γ₀ Γ₂ ⊦ A type
+    ||| Γ₀ Γ₁ Γ₂ ⊦ t : A
+    ||| Γ₀ Γ₂ ⊦ shrink[t] : A
+    public export
+    shrink : Typ -> (gamma1Len : Nat) -> (gamma2Len : Nat) -> M (Maybe Typ)
+    shrink t gamma1Len gamma2Len = shrinkNu (runSubst t) gamma1Len gamma2Len
+
   namespace Elem
     ||| Γ₀ ⊦ Γ₁ ctx
     ||| Γ₀ ⊦ Γ₂ ctx
@@ -103,8 +160,6 @@ mutual
       a <- shrink a gamma1Len gamma2Len
       b <- shrink b gamma1Len (S gamma2Len)
       return (SigmaElim2 f x a b)
-    shrinkNu Universe gamma1Len gamma2Len = MMaybe.do
-      return Universe
     shrinkNu NatVal0 gamma1Len gamma2Len = MMaybe.do
       return NatVal0
     shrinkNu (NatVal1 t) gamma1Len gamma2Len = MMaybe.do
@@ -146,13 +201,19 @@ mutual
       -- Σ₀ (Γ ⊦ χ : A) Σ₁ Δ ⊦ χ σ
       sigma <- shrink sigma gamma1Len gamma2Len
       return (OmegaVarElim k sigma)
-    shrinkNu (EqTy a b c) gamma1Len gamma2Len = MMaybe.do
+    shrinkNu (TyEqTy a b) gamma1Len gamma2Len = MMaybe.do
+      a <- shrink a gamma1Len gamma2Len
+      b <- shrink b gamma1Len gamma2Len
+      return (TyEqTy a b)
+    shrinkNu (ElEqTy a b c) gamma1Len gamma2Len = MMaybe.do
       a <- shrink a gamma1Len gamma2Len
       b <- shrink b gamma1Len gamma2Len
       c <- shrink c gamma1Len gamma2Len
-      return (EqTy a b c)
-    shrinkNu EqVal gamma1Len gamma2Len = MMaybe.do
-      return EqVal
+      return (ElEqTy a b c)
+    shrinkNu TyEqVal gamma1Len gamma2Len = MMaybe.do
+      return TyEqVal
+    shrinkNu ElEqVal gamma1Len gamma2Len = MMaybe.do
+      return ElEqVal
 
     ||| Γ₀ ⊦ Γ₁ ctx
     ||| Γ₀ ⊦ Γ₂ ctx

@@ -1,0 +1,30 @@
+syntax e{≥3} ⨯ e{≥2} : e{2}
+
+syntax e{≥3} → e{≥2} : e{2}
+
+syntax e{≥3} , e{≥2} : e{2}
+
+syntax e{≥2} ≡ e{≥2} ∈ e{≥2} : e{1}
+
+syntax e{≥2} ≡ e{≥2} type : e{1}
+
+syntax e{≥4} + e{≥5} : e{4}
+
+syntax e{≥4} @ e{≥5} : e{4}
+
+syntax e{≥6} * e{≥7} : e{6}
+
+syntax e{≥6} ∘ e{≥5} : e{5}
+
+syntax e{≥10} ≅ e{≥10} : e{9}
+
+syntax e{≥10} ++ e{≥10} : e{4}
+
+syntax e{≥10} :: e{≥10} : e{4}
+
+define the : (A : 𝕌) → A → A
+           ≔ A x ↦ x
+
+let id : {A : 𝕌} → A → A
+       ≔ {A} ↦ x ↦ x
+

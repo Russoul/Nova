@@ -10,6 +10,36 @@ import Nova.Core.Evaluation
 -- This equality-check procedure is *incomplete*. It can't be, because equality is undecidable.
 
 mutual
+  namespace Typ
+    public export
+    convNu : Signature -> Omega -> Typ -> Typ -> M Bool
+    convNu sig omega (PiTy x0 a0 b0) (PiTy x1 a1 b1) =
+      conv sig omega a0 a1 `and` conv sig omega b0 b1
+    convNu sig omega (ImplicitPiTy x0 a0 b0) (ImplicitPiTy x1 a1 b1) =
+      conv sig omega a0 a1 `and` conv sig omega b0 b1
+    convNu sig omega (SigmaTy x0 a0 b0) (SigmaTy x1 a1 b1) =
+      conv sig omega a0 a1 `and` conv sig omega b0 b1
+    convNu sig omega NatTy NatTy = return True
+    convNu sig omega ZeroTy ZeroTy = return True
+    convNu sig omega OneTy OneTy = return True
+    convNu sig omega UniverseTy UniverseTy = return True
+    convNu sig omega (El a0) (El a1) = conv sig omega a0 a1
+    convNu sig omega (ContextSubstElim {}) b = throw "convNu(ContextSubstElim)"
+    convNu sig omega (SignatureSubstElim {}) b = throw "convNu(SignatureSubstElim)"
+    convNu sig omega (OmegaVarElim x0 sigma) (OmegaVarElim x1 tau) =
+     return (x0 == x1)
+        `and`
+      conv sig omega sigma tau
+    convNu sig omega (TyEqTy a0 b0) (TyEqTy a1 b1) =
+      conv sig omega a0 a1 `and` conv sig omega b0 b1
+    convNu sig omega (ElEqTy a0 b0 ty0) (ElEqTy a1 b1 ty1) =
+      conv sig omega a0 a1 `and` conv sig omega b0 b1 `and` conv sig omega ty0 ty1
+    convNu _ _ _ _ = return False
+
+    public export
+    conv : Signature -> Omega -> Typ -> Typ -> M Bool
+    conv sig omega a b = convNu sig omega !(openEval sig omega a) !(openEval sig omega b)
+
   namespace Elem
     public export
     convNu : Signature -> Omega -> Elem -> Elem -> M Bool
@@ -34,7 +64,6 @@ mutual
     convNu sig omega (SigmaElim2 f0 x0 a0 b0) (SigmaElim2 f1 x1 a1 b1) =
       conv sig omega f0 f1
     convNu sig omega NatVal0 NatVal0 = return True
-    convNu sig omega Universe Universe = return True
     convNu sig omega NatTy NatTy = return True
     convNu sig omega ZeroTy ZeroTy = return True
     convNu sig omega OneTy OneTy = return True
@@ -42,13 +71,13 @@ mutual
     convNu sig omega (NatVal1 t0) (NatVal1 t1) =
       conv sig omega t0 t1
     convNu sig omega (NatElim x0 schema0 z0 y0 h0 s0 t0) (NatElim x1 schema1 z1 y1 h1 s1 t1) =
+      conv sig omega t0 t1
+        `and`
       conv sig omega schema0 schema1
         `and`
       conv sig omega z0 z1
         `and`
       conv sig omega s0 s1
-        `and`
-      conv sig omega t0 t1
     convNu sig omega (ZeroElim t0) (ZeroElim t1) =
       conv sig omega t0 t1
     convNu sig omega (ContextSubstElim {}) b = throw "convNu(ContextSubstElim)"
@@ -63,9 +92,12 @@ mutual
      return (x0 == x1)
         `and`
       conv sig omega sigma tau
-    convNu sig omega (EqTy a0 b0 ty0) (EqTy a1 b1 ty1) =
+    convNu sig omega (TyEqTy a0 b0) (TyEqTy a1 b1) =
+      conv sig omega a0 a1 `and` conv sig omega b0 b1
+    convNu sig omega (ElEqTy a0 b0 ty0) (ElEqTy a1 b1 ty1) =
       conv sig omega a0 a1 `and` conv sig omega b0 b1 `and` conv sig omega ty0 ty1
-    convNu sig omega (EqVal {}) (EqVal {}) = return True
+    convNu sig omega (TyEqVal {}) (TyEqVal {}) = return True
+    convNu sig omega (ElEqVal {}) (ElEqVal {}) = return True
     convNu _ _ _ _ = return False
 
     public export

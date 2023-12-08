@@ -1,5 +1,8 @@
 .PHONY: build install run
 
+clean:
+		rm -rf build
+
 build:
 		idris2 --build
 

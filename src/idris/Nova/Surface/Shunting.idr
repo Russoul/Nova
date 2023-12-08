@@ -69,7 +69,8 @@ getRange (ConsB (r, x) (ConsA y zs)) = r + getRange (ConsA y zs)
 ||| Preprocess builtin operators: we want to map specific applications to
 ||| builtin operators.
 processApp : Range -> String -> List OpFreeTerm -> OpFreeTerm
-processApp r "_≡_∈_" [a, b, ty] = EqTy r a b ty
+processApp r "_≡_type" [a, b] = TyEqTy r a b
+processApp r "_≡_∈_" [a, b, ty] = ElEqTy r a b ty
 processApp r "_⨯_" [a, b] = ProdTy r a b
 processApp r "_,_" [a, b] = SigmaVal r a b
 processApp r "_→_" [a, b] = FunTy r a b
@@ -167,6 +168,7 @@ mutual
   shuntHead ops (NatBetaZ x) = return (NatBetaZ x)
   shuntHead ops (NatBetaS x) = return (NatBetaS x)
   shuntHead ops (OneEq x) = return (OneEq x)
+  shuntHead ops (El x) = return (El x)
   shuntHead ops (Underscore x) = return (Underscore x)
   shuntHead ops (Box x) = return (Box x)
   shuntHead ops (Tm r tm) = MEither.do

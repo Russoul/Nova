@@ -8,7 +8,7 @@ import Nova.Core.Substitution
 ||| Σ ⊦ Δ(↑(x Σ₁))
 ||| Σ Δ(↑(x Σ₁)) ⊦ A(↑(x Σ₁)) type
 public export
-lookupSignature : Signature -> VarName -> Maybe (Context, Nat, Elem)
+lookupSignature : Signature -> VarName -> Maybe (Context, Nat, Typ)
 lookupSignature [<] x = Nothing
 lookupSignature (sig :< (x, ElemEntry ctx ty)) y = M.do
   case x == y of
@@ -25,7 +25,7 @@ lookupSignature (sig :< (x, LetElemEntry ctx _ ty)) y = M.do
 
 ||| TODO: Factor this out
 public export
-lookupLetSignature : Signature -> VarName -> Maybe (Context, Nat, Elem, Elem)
+lookupLetSignature : Signature -> VarName -> Maybe (Context, Nat, Elem, Typ)
 lookupLetSignature [<] x = Nothing
 lookupLetSignature (sig :< (x, ElemEntry ctx ty)) y = M.do
   case x == y of
