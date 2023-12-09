@@ -1,0 +1,9 @@
+package nova-bin
+
+depends = contrib, just-a-monad
+
+sourcedir = "src/idris"
+
+main = Nova.Test.Test
+
+executable = nova

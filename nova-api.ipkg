@@ -1,0 +1,49 @@
+package nova-api
+
+depends = contrib, just-a-monad
+
+modules =
+          Data.AVL
+        , Data.AlternatingList
+        , Data.AlternatingList1
+        , Data.AlternatingSnocList
+        , Data.AlternatingSnocList1
+        , Data.Interpolation
+        , Data.Location
+        , Data.Util
+
+        , Nova.Core.Context
+        , Nova.Core.Conversion
+        , Nova.Core.Evaluation
+        , Nova.Core.FreeVariable
+        , Nova.Core.Language
+        , Nova.Core.Monad
+        , Nova.Core.Name
+        , Nova.Core.Pretty
+        , Nova.Core.Rigidity
+        , Nova.Core.Shrinking
+        , Nova.Core.Substitution
+        , Nova.Core.Unification
+
+        , Nova.Surface.Elaboration
+        , Nova.Surface.Language
+        , Nova.Surface.ModuleSystem
+        , Nova.Surface.Operator
+        , Nova.Surface.Parser
+        , Nova.Surface.ParserCategorical
+        , Nova.Surface.ParserGeneral
+        , Nova.Surface.SemanticToken
+        , Nova.Surface.Shunting
+
+        , Nova.Surface.Tactic.Trivial
+        , Nova.Surface.Tactic.Unfold
+
+        , Nova.Test.Test
+
+        , Text.Lexing.Token
+        , Text.Lexing.Tokeniser
+
+        , Text.Parsing.CharUtil
+        , Text.Parsing.Fork
+
+sourcedir = "src/idris"

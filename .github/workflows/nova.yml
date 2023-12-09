@@ -1,0 +1,64 @@
+name: nova
+
+on:
+  push:
+    branches:
+      - 'main'
+  pull_request:
+    branches:
+      - '*'
+
+env:
+  ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+  SCHEME: scheme
+  # The idris2 commit we build upon
+  IDRIS2_REMOTE: "idris-lang"
+  IDRIS2_HASH: "86c53e607"
+
+jobs:
+
+  #
+  # Boostrapping and Previous Version Builds
+  #
+
+  build-idris2-master-test-our-branch:
+    runs-on: ubuntu-22.04
+    env:
+      IDRIS2_CG: chez
+      IDRIS2_TESTS_CG: chez
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install build dependencies
+        run: |
+          echo "::add-path::$HOME/.idris2/bin"
+          # In case we want the latest commit:
+          # echo "IDRIS2_HASH=$(git ls-remote git://github.com/idris-lang/Idris2 | \
+          #         grep refs/heads/master | cut -f1)" >> $GITHUB_ENV
+          # echo "deb http://security.ubuntu.com/ubuntu hirsute universe" | sudo tee -a /etc/apt/sources.list
+          sudo apt-get update
+          sudo apt-get install -y chezscheme
+      - name: Cache Idris2
+        id: idris2-cache
+        uses: actions/cache@v2
+        with:
+          path: Idris2
+          key: ${{ env.IDRIS2_HASH }}
+      - name: Build Idris2
+        if: steps.idris2-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone https://github.com/${{ env.IDRIS2_REMOTE }}/Idris2
+          cd Idris2
+          git reset --hard ${{ env.IDRIS2_HASH }}
+          make bootstrap && make install
+          make clean && make all
+          cd ..
+      - name: Install Idris2
+        run: |
+          cd Idris2
+          make install
+          cd ..
+      - name: Build and test Nova
+        run: |
+          make build-bin
+          make test
