@@ -13,6 +13,7 @@ env:
   SCHEME: scheme
   # The idris2 commit we build upon
   IDRIS2_REMOTE: "idris-lang"
+  RUSSOUL_REMOTE: "russoul"
   IDRIS2_HASH: "86c53e607"
 
 jobs:
@@ -57,6 +58,12 @@ jobs:
         run: |
           cd Idris2
           make install
+          cd ..
+      - name: Install Just-A-Monad
+        run: |
+          git clone https://github.com/${{ env.RUSSOUL_REMOTE }}/Just-a-Monad
+          cd Just-a-Monad
+          idris2 --install
           cd ..
       - name: Build and test Nova
         run: |
