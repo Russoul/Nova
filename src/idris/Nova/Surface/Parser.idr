@@ -619,11 +619,11 @@ mutual
     sepBy1 spaceDelimDef topLevel
 
 mutual
-  tactic = composition <|> split <|> exact <|> reduce <|> id <|> trivial <|> rewriteInv <|> let' <|> rewrite'
+  tactic = composition <|> split <|> exact <|> unfold <|> id <|> trivial <|> rewriteInv <|> let' <|> rewrite'
 
   public export
   compositionArg : Rule Tactic
-  compositionArg = split <|> exact <|> reduce <|> id <|> trivial <|> rewriteInv <|> let' <|> rewrite'
+  compositionArg = split <|> exact <|> unfold <|> id <|> trivial <|> rewriteInv <|> let' <|> rewrite'
 
   ensureColumn : (col : Int) -> Rule a -> Rule a
   ensureColumn col f = do
@@ -660,12 +660,12 @@ mutual
     pure (Exact (l + r) tm)
 
   public export
-  reduce : Rule Tactic
-  reduce = do
-    l <- delim "reduce"
+  unfold : Rule Tactic
+  unfold = do
+    l <- delim "unfold"
     spaceDelim
     (r, tm) <- located (term 0)
-    pure (Reduce (l + r) tm)
+    pure (Unfold (l + r) tm)
 
   continueSplit : (col : Int) -> Rule (List Tactic)
   continueSplit col = do

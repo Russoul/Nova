@@ -37,7 +37,7 @@ let pred' : ℕ → ℕ
 
 define pred'-S : (x : ℕ) → pred' (S x) ≡ x ∈ ℕ
                ≔ x ↦ tac
-                   reduce ☐ _ _ ≡ _ ∈ _;
+                   unfold ☐ ≡ _ ∈ _;
                    trivial;
 
 define S-cong-inv-H0 : {x y : ℕ} → (e : pred' (S x) ≡ pred' (S y) ∈ ?) → x ≡ y ∈ ?
@@ -53,18 +53,18 @@ let Vect : ℕ → 𝕌 → 𝕌
          ≔ n A ↦ ℕ-elim (x. 𝕌) 𝟙 (x.H. A ⨯ H) n
 
 let nil : {A : 𝕌} → Vect Z A
-        ≔ {A} ↦ tac reduce ☐ _ _;
+        ≔ {A} ↦ tac unfold ☐;
                     exact tt;
 
 let Vect-Z : {A : 𝕌} → Vect Z A ≡ 𝟙 ∈ 𝕌
                ≔ {A} ↦ tac
-                     reduce ☐ _ _ ≡ _ ∈ _;
+                     unfold ☐ ≡ _ ∈ _;
                      trivial;
 
 let Vect-S : {A : 𝕌} → {n : ℕ} → Vect (S n) A ≡ A ⨯ Vect n A ∈ 𝕌
                ≔ {A n} ↦ tac
-                     reduce ☐ _ _ ≡ _ ∈ _;
-                     reduce _ ≡ ((x : _) ⨯ ☐ _ _) ∈ _;
+                     unfold ☐ ≡ _ ∈ _;
+                     unfold _ ≡ ((x : _) ⨯ ☐ _ _) ∈ _;
                      trivial;
 
 define nil-unique : {A : 𝕌} → (xs : Vect Z A) → xs ≡ nil {A} ∈ Vect Z A
@@ -91,7 +91,7 @@ define Vect-elim-H : {A : 𝕌}
                    → P (S n) (xs .π₁ :: xs .π₂)
                    → P (S n) (tac rewrite⁻¹ ☐ Vect-S; exact (xs .π₁ , xs .π₂);)
                    ≔ {A} ↦ P n xs ↦ tac
-                       reduce _ (☐ _ _ _ _) → _;
+                       unfold P _ ☐ → _;
                        exact id;
 
 let Vect-elim : {A : 𝕌}
@@ -123,7 +123,7 @@ define Vect-elim-nil : {A : 𝕌}
                      → (onCons : (n : ℕ) → (x : A) → (xs : Vect n A) → P n xs → P (S n) (x :: xs))
                      → Vect-elim P onNil onCons nil ≡ onNil ∈ ?
                      ≔ {A} ↦ P onNil onCons ↦ tac
-                          reduce ☐ _ _ _ _ _ _ ≡ _ ∈ _;
+                          unfold ☐ ≡ _ ∈ _;
                           trivial;
 
 define Vect-elim-cons : {A : 𝕌}
@@ -135,14 +135,14 @@ define Vect-elim-cons : {A : 𝕌}
                       → (xs : Vect n A)
                       → Vect-elim P onNil onCons (x :: xs) ≡ onCons n x xs (Vect-elim P onNil onCons xs) ∈ ?
                       ≔ {A n} ↦ P onNil onCons x xs ↦ tac
-                          reduce ☐ _ _ _ _ _ _ ≡ _ ∈ _;
-                          reduce ☐ _ _ ≡ _ ∈ _;
-                          reduce _ _ (☐ _ _ _ _ .π₁) _ _ ≡ _ ∈ _;
-                          reduce _ _ _ (☐ _ _ _ _ .π₂) _ ≡ _ ∈ _;
-                          reduce _ _ _ _ (ℕ-elim _ _ (xs ↦ ☐ _ _ _ _) _ _) ≡ _ ∈ _;
-                          reduce _ _ _ _ (ℕ-elim _ _ _ _ (☐ _ _ _ _ .π₂)) ≡ _ ∈ _;
-                          reduce _ ≡ _ _ _ _ (☐ _ _ _ _ _ _) ∈ _;
-                          reduce _ ≡ _ _ _ _ (ℕ-elim _ _ (xs ↦ ☐ _ _ _ _) _ _) ∈ _;
+                          unfold ☐ ≡ _ ∈ _;
+                          unfold ☐ ≡ _ ∈ _;
+                          unfold onCons _ _ ☐ _ ≡ _ ∈ _;
+                          unfold onCons _ ☐ _ _ ≡ _ ∈ _;
+                          unfold onCons _ _ _ (ℕ-elim _ _ (xs ↦ ☐) n _) ≡ _ ∈ _;
+                          unfold onCons _ _ _ (ℕ-elim _ _ _ _ ☐) ≡ _ ∈ _;
+                          unfold _ ≡ onCons _ _ _ ☐ ∈ _;
+                          unfold _ ≡ onCons _ _ _ (ℕ-elim _ _ (xs ↦ ☐) n _) ∈ _;
                           trivial;
 
 
@@ -213,20 +213,20 @@ let _*_ : ℕ → ℕ → ℕ
 
 define mult-left-Z : (x : ℕ) → Z * x ≡ Z ∈ ?
                     ≔ x ↦ tac
-                        reduce ☐ _ _ ≡ _ ∈ _;
+                        unfold ☐ ≡ _ ∈ _;
                         trivial;
 
 define mult-right-Z : (x : ℕ) → x * Z ≡ Z ∈ ?
                     ≔ x ↦ tac
-                        reduce ☐ _ _ ≡ _ ∈ _;
+                        unfold ☐ ≡ _ ∈ _;
                         rewrite⁻¹ (ℕ-elim _ _ ☐ _ ≡ _ ∈ _) (plus-left-Z ?);
                         exact ℕ-elim (x. ℕ-elim (x. ℕ) Z (x.h. h) x ≡ Z ∈ ℕ) (tac trivial;) (x. h. tac exact h;) x;
 
 
 define mult-left-S : (t : ℕ) → (x : ℕ) → (S t * x) ≡ (x + t * x) ∈ ?
                    ≔ t x ↦ tac
-                       reduce ☐ _ _ ≡ _ ∈ _;
-                       reduce _ ≡ _ + ☐ _ _ ∈ _;
+                       unfold ☐ ≡ _ ∈ _;
+                       unfold _ ≡ _ + ☐ ∈ _;
                        trivial;
 
 
@@ -278,21 +278,23 @@ let _++_ : {A : 𝕌} → {m n : ℕ} → Vect m A → Vect n A → Vect (m + n)
 
 define append-left-nil : {A : 𝕌} → {n : ℕ} → (xs : Vect n A) → nil ++ xs ≡ (tac rewrite⁻¹ (_ ☐ _) (plus-left-Z ?); exact xs;) ∈ ?
                        ≔ {A n} ↦ xs ↦
-                            tac reduce ☐ _ _ _ _ _ ≡ _ ∈ _;
-                                reduce ☐ _ _ _ _ _ _ ≡ _ ∈ _;
+                            tac unfold ☐ ≡ _ ∈ _;
+                                unfold ☐ ≡ _ ∈ _;
                                 trivial;
 -- BUG:                                                                                        vvvvvvvvvvv doesn't parse as operator
 define append-left-cons : {A : 𝕌} → {m n : ℕ} → (x : A) → (xs : Vect m A) → (ys : Vect n A) → ((_::_ x xs) ++ ys ≡ (tac rewrite⁻¹ (_ ☐ _) (plus-left-S ? ?); exact x :: (xs ++ ys);) ∈ ?)
                         ≔ {A m n} ↦ x xs ys ↦ tac
-                            reduce ☐ _ _ _ _ _ ≡ _ ∈ _;
-                            reduce ☐ _ _ _ _ _ _ ≡ _ ∈ _;
-                            reduce ☐ _ _ ≡ _ ∈ _;
-                            reduce _ ≡ ☐ _ _ _ _ _ ∈ _;
-                            reduce ☐ _ _ _ _ .π₁ , _ ≡ _ ∈ _;
-                            reduce _ ≡ _ , ☐ _ _ _ _ _ ∈ _;
-                            reduce _ ≡ _ , ☐ _ _ _ _ _ _ ∈ _;
-                            reduce _ , ℕ-elim _ _ _ (☐ _ _ _ _ .π₂) ≡ _ ∈ _;
+                            unfold ☐ ≡ _ ∈ _;
+                            unfold ☐ ≡ _ ∈ _;
+                            unfold ☐ ≡ _ ∈ _;
+                            unfold _ ≡ ☐ ∈ _;
+                            unfold ☐ , _ ≡ _ ∈ _;
+                            unfold _ ≡ _ , ☐  ∈ _;
+                            unfold _ ≡ _ , ☐ ∈ _;
+                            unfold _ , ℕ-elim _ _ _ m ☐ ≡ _ ∈ _;
                             trivial;
+
+-- xs ++ [] = xs
 
 define append-right-nil : {A : 𝕌} → {n : ℕ} → (xs : Vect n A) → xs ++ nil ≡ (tac rewrite⁻¹ (_ ☐ _) (plus-right-Z ?); exact xs;) ∈ ?
                        ≔ {A n} ↦ xs ↦ Vect-elim (n xs ↦ xs ++ nil ≡ (tac rewrite⁻¹ (_ ☐ _) (plus-right-Z ?); exact xs;) ∈ ?)
@@ -303,7 +305,7 @@ define append-right-nil : {A : 𝕌} → {n : ℕ} → (xs : Vect n A) → xs ++
 -- reverseH xs nil = xs
 -- reverseH xs (y :: ys) = reverseH (y :: xs) ys
 
-define reverseH : {A : 𝕌} → {m n : ℕ} → Vect m A → Vect n A → Vect (m + n) A
+let reverseH : {A : 𝕌} → {m n : ℕ} → Vect m A → Vect n A → Vect (m + n) A
                 ≔  {A m n} ↦ xs ys ↦ Vect-elim
                      (n ys ↦ (m : ℕ) → Vect m A → Vect (m + n) A)
                      (m xs ↦ tac rewrite⁻¹ (_ ☐ _) (plus-right-Z ?); exact xs;)
@@ -312,9 +314,39 @@ define reverseH : {A : 𝕌} → {m n : ℕ} → Vect m A → Vect n A → Vect 
                      ys m xs
 
 
-define reverseH-nil : {A : 𝕌} → {n : ℕ} → (xs : Vect n A) → reverseH xs nil ≡ (tac rewrite⁻¹ (_ ☐ _) (plus-right-Z ?); exact xs;) ∈ ?
-                   ≔ {A n} ↦ xs ↦ tac rewrite⁻¹ (☐ _ _ ≡ _ ∈ _) (Vect-elim-nil (n ↦ ys ↦ (m : ℕ) → Vect m A → Vect (m + n) A) ? ?); trivial;
+-- reverseH xs [] = xs
 
+define reverseH-nil : {A : 𝕌} → {n : ℕ} → (xs : Vect n A) → reverseH xs nil ≡ (tac rewrite⁻¹ (_ ☐ _) (plus-right-Z ?); exact xs;) ∈ ?
+                   ≔ {A n} ↦ xs ↦ tac unfold ☐ ≡ _ ∈ _; rewrite⁻¹ (☐ _ _ ≡ _ ∈ _) (Vect-elim-nil (n ↦ ys ↦ (m : ℕ) → Vect m A → Vect (m + n) A) ? ?); trivial;
+
+-- reverseH xs (y :: ys) = reverse (y :: xs) ys
+
+-- reverseH xs (y :: ys) : Vect (m + S n) A
+-- reverseH (y :: xs) ys : Vect (S m + n) A
+
+define reverseH-cons : {A : 𝕌} → {m n : ℕ} → (xs : Vect m A) → (y : A) → (ys : Vect n A) →
+                         (tac rewrite (_ ☐ _) (plus-right-S ? ?); exact reverseH xs (y :: ys);)
+                            ≡
+                         (tac rewrite (_ ☐ _) (plus-left-S ? ?); exact reverseH (y :: xs) ys;)
+                            ∈
+                         Vect (S (m + n)) A
+
+-- reverseH xs (y :: ys) = reverseH (y :: xs) ys
+
+                     ≔ {A m n} ↦ xs y ys ↦ tac
+                       unfold ☐ ≡ _ ∈ _;
+                       unfold ☐ ≡ _ ∈ _;
+                       unfold ☐ ≡ _ ∈ _;
+                       unfold ℕ-elim _ _ (x ↦ ☐) _ _ _ _ ≡ _ ∈ _;
+                       unfold ℕ-elim _ _ _ _ ☐ _ _ ≡ _ ∈ _;
+                       unfold ℕ-elim _ _ _ _ _ _ (☐ :: _) ≡ _ ∈ _;
+                       unfold _ ≡ ☐ ∈ _;
+                       unfold _ ≡ ☐ ∈ _;
+                       unfold _ ≡ ℕ-elim _ _ (x ↦ ☐) _ _ _ _ ∈ _;
+                       trivial;
+
+
+-- (_::_(·) {A} {n} y ys .π₂)
 
 -- reverse : Vect m → Vect n A → Vect (m + n)
 -- reverse xs [] = xs : Vect (m + 0) A
