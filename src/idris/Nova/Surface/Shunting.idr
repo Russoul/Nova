@@ -181,9 +181,9 @@ mutual
   shuntTactic ops (Composition r alphas) = MEither.do
     alphas <- forList1 alphas (shuntTactic ops)
     return (Composition r alphas)
-  shuntTactic ops (Reduce r tm) = MEither.do
+  shuntTactic ops (Unfold r tm) = MEither.do
     tm <- shunt ops tm 0
-    return (Reduce r tm)
+    return (Unfold r tm)
   shuntTactic ops (Exact r tm) = MEither.do
     tm <- shunt ops tm 0
     return (Exact r tm)

@@ -28,7 +28,7 @@ import Nova.Surface.Shunting
 import Nova.Surface.Operator
 import Nova.Surface.SemanticToken
 
-import Nova.Surface.Tactic.Reduce
+import Nova.Surface.Tactic.Unfold
 import Nova.Surface.Tactic.Trivial
 
 CoreTyp = Nova.Core.Language.D.Typ
@@ -1296,13 +1296,13 @@ mutual
     Right (omega, source, restInterp) <- elabTactic sig omega (Composition r (beta ::: gammas)) alphaSource
       | Left err => return (Left err)
     return (Right (omega, source, restInterp . alphaInterp))
-  -- ⟦reduce ρ⟧ : ε (Γ ⊦ B) ⇒ ε (Γ ⊦ A)
-  elabTactic sig omega (Reduce r path) [< (x, ElemEntry ctx ty)] = M.do
-   Right ty' <- Elab.liftM $ applyReduce sig omega ty path
+  -- ⟦unfold ρ⟧ : ε (Γ ⊦ B) ⇒ ε (Γ ⊦ A)
+  elabTactic sig omega (Unfold r path) [< (x, ElemEntry ctx ty)] = M.do
+   Right ty' <- Elab.liftM $ applyUnfold sig omega (map fst ctx) ty path
      | Left r => --FIX: use the range
-                 return (Left "Can't apply 'reduce', range: \{show r}, ρ: \{show path}")
+                 return (Left "Can't apply 'unfold', range: \{show r}, ρ: \{show path}")
    return (Right (omega, [< (x, ElemEntry ctx ty')], id))
-  elabTactic sig omega (Reduce r path) _ = return (Left "Target context is empty or its last entry is a let")
+  elabTactic sig omega (Unfold r path) _ = return (Left "Target context is empty or its last entry is a let")
   elabTactic sig omega (RewriteInv r path prf) [< (x, ElemEntry ctx ty)] = M.do
     case !(applyRewrite sig omega ctx ty path prf False) of
       Left r0 => M.do

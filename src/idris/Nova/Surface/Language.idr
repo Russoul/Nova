@@ -113,8 +113,8 @@ mutual
       ||| α
       ||| β
       Composition : Range -> List1 Tactic -> Tactic
-      ||| reduce ρ
-      Reduce : Range -> Term -> Tactic
+      ||| unfold ρ
+      Unfold : Range -> Term -> Tactic
       ||| exact t
       Exact : Range -> Term -> Tactic
       ||| * α
@@ -138,8 +138,8 @@ mutual
       ||| α
       ||| β
       Composition : Range -> List1 OpFreeTactic -> OpFreeTactic
-      ||| reduce ρ
-      Reduce : Range -> OpFreeTerm -> OpFreeTactic
+      ||| unfold ρ
+      Unfold : Range -> OpFreeTerm -> OpFreeTactic
       ||| exact t
       Exact : Range -> OpFreeTerm -> OpFreeTactic
       ||| * α

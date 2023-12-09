@@ -35,8 +35,8 @@ modules =
         , Nova.Surface.SemanticToken
         , Nova.Surface.Shunting
 
-        , Nova.Surface.Tactic.Reduce
         , Nova.Surface.Tactic.Trivial
+        , Nova.Surface.Tactic.Unfold
 
         , Nova.Test.Test
 
