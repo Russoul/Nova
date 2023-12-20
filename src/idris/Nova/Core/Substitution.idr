@@ -86,8 +86,12 @@ mutual
       subst (SignatureSubstElim t sigma1) spine
     substSignatureVar (S k) (Ext tau _) sigma1 spine =
       substSignatureVar k tau sigma1 spine
-    substSignatureVar 0 (Ext tau (LetEntryInstance {})) sigma1 spine =
-      assert_total $ idris_crash "Elem.substSignatureVar(LetEntryInstance)"
+    substSignatureVar 0 (Ext tau (LetElemEntryInstance {})) sigma1 spine =
+      assert_total $ idris_crash "Elem.substSignatureVar(LetElemEntryInstance)"
+    substSignatureVar 0 (Ext tau (TypeEntryInstance t)) sigma1 spine = FailSt.do
+      assert_total $ idris_crash "Elem.substSignatureVar(TypeEntryInstance)"
+    substSignatureVar 0 (Ext tau (LetTypeEntryInstance {})) sigma1 spine =
+      assert_total $ idris_crash "Elem.substSignatureVar(LetTypeEntryInstance)"
     substSignatureVar x Terminal sigma1 spine = assert_total $ idris_crash "substSignatureVar(Terminal)"
 
     ||| xᵢ(σ : Γ₁ ⇒ Γ₂)(τ : Γ₀ ⇒ Γ₁)
@@ -260,6 +264,27 @@ mutual
 
   namespace D
     public export
+    substSignatureVar : Nat -> SubstSignature -> SubstSignature -> SubstContext -> Typ
+    substSignatureVar x Id Id spine = SignatureVarElim x spine
+    substSignatureVar x Id sigma1 spine = substSignatureVar x sigma1 Id spine
+    substSignatureVar x Wk sigma1 spine = substSignatureVar (S x) sigma1 Id spine
+    substSignatureVar x (Chain Id tau) sigma spine = substSignatureVar x tau sigma spine
+    substSignatureVar x (Chain tau0 tau1) sigma1 spine = substSignatureVar x tau0 (Chain tau1 sigma1) spine
+    -- Σ (Δ ⊦ χ : A) | Γ ⊦ χ₀(ē)[τ, t] = t(ē[τ, t])
+    -- Σ (Δ ⊦ χ : A) | Γ ⊦ χ₁₊ᵢ(ē)[τ, t] = χᵢ(ē[τ, t])[τ]
+    substSignatureVar 0 (Ext tau (ElemEntryInstance t)) sigma1 spine = FailSt.do
+      assert_total $ idris_crash "Elem.substSignatureVar(ElemEntryInstance)"
+    substSignatureVar (S k) (Ext tau _) sigma1 spine =
+      substSignatureVar k tau sigma1 spine
+    substSignatureVar 0 (Ext tau (LetElemEntryInstance {})) sigma1 spine =
+      assert_total $ idris_crash "Elem.substSignatureVar(LetElemEntryInstance)"
+    substSignatureVar 0 (Ext tau (TypeEntryInstance t)) sigma1 spine = FailSt.do
+      subst (SignatureSubstElim t sigma1) spine
+    substSignatureVar 0 (Ext tau (LetTypeEntryInstance {})) sigma1 spine =
+      assert_total $ idris_crash "Elem.substSignatureVar(LetTypeEntryInstance)"
+    substSignatureVar x Terminal sigma1 spine = assert_total $ idris_crash "substSignatureVar(Terminal)"
+
+    public export
     subst : Typ -> SubstSignature -> Typ
     subst (PiTy x a b) sigma = PiTy x (SignatureSubstElim a sigma) (SignatureSubstElim b sigma)
     subst (ImplicitPiTy x a b) sigma = ImplicitPiTy x (SignatureSubstElim a sigma) (SignatureSubstElim b sigma)
@@ -276,6 +301,7 @@ mutual
     subst (OmegaVarElim k tau) sigma = OmegaVarElim k (subst tau sigma)
     subst (TyEqTy a0 a1) tau = TyEqTy (SignatureSubstElim a0 tau) (SignatureSubstElim a1 tau)
     subst (ElEqTy a0 a1 ty) tau = ElEqTy (SignatureSubstElim a0 tau) (SignatureSubstElim a1 tau) (SignatureSubstElim ty tau)
+    subst (SignatureVarElim k tau) sigma = substSignatureVar k sigma Id (subst tau sigma)
 
   namespace E
     ||| t(σ)
@@ -307,6 +333,7 @@ mutual
     subst (OmegaVarElim k sigma) tau = OmegaVarElim k (Chain sigma tau)
     subst (TyEqTy a0 a1) tau = TyEqTy (ContextSubstElim a0 tau) (ContextSubstElim a1 tau)
     subst (ElEqTy a0 a1 ty) tau = ElEqTy (ContextSubstElim a0 tau) (ContextSubstElim a1 tau) (ContextSubstElim ty tau)
+    subst (SignatureVarElim k sigma) tau = SignatureVarElim k (Chain sigma tau)
 
   namespace List
     public export
@@ -354,12 +381,18 @@ mutual
       ||| σ⁺(E) : Σ₀ E(σ) ⇒ Σ₁ E
       ||| σ⁺(Γ ⊦ x : A) : Σ₀ (Γ(σ) ⊦ x : A(σ)) ⇒ Σ₁ (Γ ⊦ x : A)
       ||| σ⁺(Γ ⊦ x ≔ e : A) : Σ₀ (Γ(σ) ⊦ x ≔ e(σ) : A(σ)) ⇒ Σ₁ (Γ ⊦ x ≔ e : A)
+      ||| σ⁺(Γ ⊦ X type) : Σ₀ (Γ(σ) ⊦ X type) ⇒ Σ₁ (Γ ⊦ X type)
+      ||| σ⁺(Γ ⊦ X ≔ A type) : Σ₀ (Γ(σ) ⊦ X ≔ A(σ) type) ⇒ Σ₁ (Γ ⊦ X ≔ A type)
       public export
       Under : SubstSignature -> SignatureEntry -> SubstSignature
       Under sigma (ElemEntry ctx ty) =
         Ext (Chain sigma Wk) (ElemEntryInstance $ SignatureVarElim 0 Id)
       Under sigma (LetElemEntry ctx e ty) =
-        Ext (Chain sigma Wk) LetEntryInstance
+        Ext (Chain sigma Wk) LetElemEntryInstance
+      Under sigma (TypeEntry ctx) =
+        Ext (Chain sigma Wk) (TypeEntryInstance $ SignatureVarElim 0 Id)
+      Under sigma (LetTypeEntry ctx rhs) =
+        Ext (Chain sigma Wk) LetTypeEntryInstance
 
       ||| σ : Σ₀ ⇒ Σ₁
       ||| Σ₁ ⊦ Δ sig
@@ -385,6 +418,8 @@ namespace SignatureEntry
   subst : SignatureEntry -> SubstSignature -> SignatureEntry
   subst (ElemEntry ctx ty) sigma = ElemEntry (subst ctx sigma) (SignatureSubstElim ty sigma)
   subst (LetElemEntry ctx e ty) sigma = LetElemEntry (subst ctx sigma) (SignatureSubstElim e sigma) (SignatureSubstElim ty sigma)
+  subst (TypeEntry ctx) sigma = TypeEntry (subst ctx sigma)
+  subst (LetTypeEntry ctx rhs) sigma = LetTypeEntry (subst ctx sigma) (SignatureSubstElim rhs sigma)
 
 namespace EntryList
   public export

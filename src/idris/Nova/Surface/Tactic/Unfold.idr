@@ -57,6 +57,23 @@ mutual
     applyUnfoldNu sig omega ctx (ElEqTy a b ty) (ElEqTy _ pa pb pty) = MEither.do
       return (ElEqTy !(applyUnfold sig omega ctx a pa) !(applyUnfold sig omega ctx b pb) !(applyUnfold sig omega ctx ty pty))
     applyUnfoldNu sig omega ctx (ElEqTy a b ty) p = error (range p)
+    applyUnfoldNu sig omega ctx tm@(SignatureVarElim x subst) (App r (Var _ y) []) = MEither.do
+      case !(liftM $ conv sig omega subst Terminal) of
+        True =>
+          case lookupSignature sig x of
+            Just (x, _) =>
+              case x == y of
+                True => return tm
+                False => error r
+            Nothing => throw "applyUnfoldNu(SignatureVarElim)"
+        False => error r
+    applyUnfoldNu sig omega ctx tm@(SignatureVarElim x sigma) (App r (Box _) []) = MEither.do
+      case lookupSignature sig x of
+        Just (x, LetTypeEntry ctx rhs) =>
+          return (ContextSubstElim rhs sigma)
+        Just (x, _) => error r
+        Nothing => throw "applyUnfoldNu(SignatureVarElim)"
+    applyUnfoldNu sig omega ctx (SignatureVarElim x sigma) p = error (range p)
 
     public export
     applyUnfold : Signature -> Omega -> SnocList VarName -> Typ -> OpFreeTerm -> M (Either Range Typ)

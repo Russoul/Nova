@@ -266,6 +266,21 @@ define ℕ-left-cancel : (x y z : ℕ) → (x + y ≡ x + z ∈ ℕ) → (y ≡ 
                        )
                        x p
 
+define plus-assoc : (x y z : ℕ) → x + (y + z) ≡ (x + y) + z ∈ ℕ
+                  ≔ x y z ↦ ℕ-elim (y. x + (y + z) ≡ (x + y) + z ∈ ℕ)
+                      -- x + z = x + z
+                      (tac rewrite⁻¹ (_ ☐ ≡ _ ∈ _) (plus-left-Z ?);
+                           rewrite⁻¹ (_ ≡ _ ☐ _ ∈ _) (plus-right-Z ?);
+                           exact Refl;
+                      )
+                      (y. H.
+                        tac rewrite⁻¹ (_ ☐ ≡ _ ∈ _) (plus-left-S ? ?);
+                            rewrite⁻¹ (☐ ≡ _ ∈ _) (plus-right-S ? ?);
+                            rewrite⁻¹ (_ ≡ _ ☐ _ ∈ _) (plus-right-S ? ?);
+                            rewrite⁻¹ (_ ≡ ☐ ∈ _) (plus-left-S ? ?);
+                            exact cong (x ↦ S x) H;
+                      )
+                      y
 
 -- [] ++ ys = ys
 -- (x :: xs) ++ ys = x :: (xs ++ ys)
@@ -360,3 +375,26 @@ let _∘_ : {A B C : 𝕌} → (B → C) → (A → B) → (A → C)
 
 let _≅_ : 𝕌 → 𝕌 → 𝕌
         ≔ A B ↦ (f : A → B) ⨯ (g : B → A) ⨯ (g ∘ f ≡ id ∈ ?) ⨯ (f ∘ g ≡ id ∈ ?)
+
+let-type Monoid
+     ≔ (A : 𝕌)
+         ⨯ (z : A)
+         ⨯ (_+_ : A → A → A)
+         ⨯ ((x : A) → z + x ≡ x ∈ A)
+         ⨯ ((x : A) → x + z ≡ x ∈ A)
+         ⨯ ((x y z : A) → x + (y + z) ≡ (x + y) + z ∈ A)
+
+let-type Commut-Monoid
+     ≔ (A : 𝕌)
+         ⨯ (z : A)
+         ⨯ (_+_ : A → A → A)
+         ⨯ ((x : A) → z + x ≡ x ∈ A)
+         ⨯ ((x : A) → x + z ≡ x ∈ A)
+         ⨯ ((x y z : A) → x + (y + z) ≡ (x + y) + z ∈ A)
+         ⨯ ((x y : A) → x + y ≡ y + x ∈ A)
+
+define ℕ-Monoid : Monoid
+                ≔ tac unfold ☐; exact ℕ, Z, _+_ , plus-left-Z, plus-right-Z, plus-assoc;
+
+define ℕ-Commut-Monoid : Commut-Monoid
+                ≔ tac unfold ☐; exact ℕ, Z, _+_ , plus-left-Z, plus-right-Z, plus-assoc, plus-commut;

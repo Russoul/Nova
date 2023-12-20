@@ -106,6 +106,10 @@ wrapTyp (El {}) lvl doc =
   case lvl <= 3 of
     True => return doc
     False => return (parens' doc)
+wrapTyp (SignatureVarElim {}) lvl doc =
+  case lvl <= 3 of
+    True => return doc
+    False => return (parens' doc)
 
 wrapElem : Elem -> Level -> Doc Ann -> M (Doc Ann)
 wrapElem (PiTy x dom cod) lvl doc =
@@ -392,6 +396,12 @@ mutual
     annotate Form "∈"
      <++>
     !(prettyTyp sig omega ctx ty 0)
+  prettyTyp' sig omega ctx (SignatureVarElim k sigma) = M.do
+    x <- prettySignatureVar sig k
+    return $
+      x
+       <+>
+      parens' !(prettySubstContext sig omega ctx sigma)
 
   public export
   prettyTyp : Signature
@@ -632,6 +642,8 @@ mutual
   prettySignatureEntry : Signature -> Omega -> VarName -> SignatureEntry -> M (Doc Ann)
    -- Γ ⊦ χ : A
    -- Γ ⊦ χ ≔ e : A
+   -- Γ ⊦ χ type
+   -- Γ ⊦ χ ≔ A type
   prettySignatureEntry sig omega x (ElemEntry ctx ty) = return $
     !(prettyContext sig omega ctx)
      <++>
@@ -656,6 +668,26 @@ mutual
     annotate Keyword ":"
      <++>
     !(prettyTyp sig omega (map fst ctx) ty 0)
+  prettySignatureEntry sig omega x (TypeEntry ctx) = return $
+    !(prettyContext sig omega ctx)
+     <++>
+    annotate Keyword "⊦"
+     <++>
+    annotate ContextVar (pretty x)
+     <++>
+    annotate Keyword "type"
+  prettySignatureEntry sig omega x (LetTypeEntry ctx e) = return $
+    !(prettyContext sig omega ctx)
+     <++>
+    annotate Keyword "⊦"
+     <++>
+    annotate ContextVar (pretty x)
+     <++>
+    annotate Keyword "≔"
+     <++>
+    !(prettyTyp sig omega (map fst ctx) e 0)
+     <++>
+    annotate Keyword "type"
 
   public export
   prettyConstraintEntry : Signature -> Omega -> ConstraintEntry -> M (Doc Ann)
