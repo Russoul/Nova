@@ -14,7 +14,7 @@ env:
   # The idris2 commit we build upon
   IDRIS2_REMOTE: "idris-lang"
   RUSSOUL_REMOTE: "russoul"
-  IDRIS2_HASH: "86c53e607"
+  IDRIS2_HASH: "4cb45daba4b6b1c32f2f0dd7195daebe531cb335"
 
 jobs:
 
