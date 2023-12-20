@@ -9,7 +9,9 @@ mutual
   public export
   data SignatureEntryInstance : Type where
     ElemEntryInstance : Elem -> SignatureEntryInstance
-    LetEntryInstance : SignatureEntryInstance
+    LetElemEntryInstance : SignatureEntryInstance
+    TypeEntryInstance : Typ -> SignatureEntryInstance
+    LetTypeEntryInstance : SignatureEntryInstance
 
   namespace SubstSignature
     ||| σ : Σ₀ ⇒ Σ₁
@@ -89,6 +91,8 @@ mutual
       SignatureSubstElim : Typ -> SubstSignature -> Typ
       ||| Xᵢ(σ)
       OmegaVarElim : OmegaName -> SubstContext -> Typ
+      ||| Xᵢ(σ)
+      SignatureVarElim : Nat -> SubstContext -> Typ
 
   namespace E
     public export
@@ -166,6 +170,10 @@ data SignatureEntry : Type where
   ElemEntry : Context -> Typ -> SignatureEntry
   ||| Γ ⊦ a : A
   LetElemEntry : Context -> Elem -> Typ -> SignatureEntry
+  ||| Γ ⊦ type
+  TypeEntry : Context -> SignatureEntry
+  ||| Γ ⊦ A
+  LetTypeEntry : Context -> Typ -> SignatureEntry
 
 Signature = SnocList (VarName, SignatureEntry)
 
@@ -174,6 +182,8 @@ namespace SignatureEntry
   getContext : SignatureEntry -> Context
   getContext (ElemEntry ctx ty)= ctx
   getContext (LetElemEntry ctx rhs ty) = ctx
+  getContext (TypeEntry ctx)= ctx
+  getContext (LetTypeEntry ctx rhs) = ctx
 
 public export
 data MetaKind = NoSolve | SolveByUnification | SolveByElaboration

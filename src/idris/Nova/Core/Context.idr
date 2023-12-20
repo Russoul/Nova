@@ -8,37 +8,86 @@ import Nova.Core.Substitution
 ||| Σ ⊦ Δ(↑(x Σ₁))
 ||| Σ Δ(↑(x Σ₁)) ⊦ A(↑(x Σ₁)) type
 public export
-lookupSignature : Signature -> VarName -> Maybe (Context, Nat, Typ)
-lookupSignature [<] x = Nothing
-lookupSignature (sig :< (x, ElemEntry ctx ty)) y = M.do
+lookupElemSignature : Signature -> VarName -> Maybe (Context, Nat, Typ)
+lookupElemSignature [<] x = Nothing
+lookupElemSignature (sig :< (x, ElemEntry ctx ty)) y = do
   case x == y of
     True => Just (subst ctx SubstSignature.Wk, 0, SignatureSubstElim ty Wk)
     False => do
-      (ctx, i, ty) <- lookupSignature sig y
+      (ctx, i, ty) <- lookupElemSignature sig y
       Just (subst ctx SubstSignature.Wk, S i, SignatureSubstElim ty Wk)
-lookupSignature (sig :< (x, LetElemEntry ctx _ ty)) y = M.do
+lookupElemSignature (sig :< (x, LetElemEntry ctx _ ty)) y = do
   case x == y of
     True => Just (subst ctx SubstSignature.Wk, 0, SignatureSubstElim ty Wk)
     False => do
-      (ctx, i, ty) <- lookupSignature sig y
+      (ctx, i, ty) <- lookupElemSignature sig y
       Just (subst ctx SubstSignature.Wk, S i, SignatureSubstElim ty Wk)
+lookupElemSignature (sig :< (x, TypeEntry {})) y = do
+  (ctx, i, ty) <- lookupElemSignature sig y
+  Just (subst ctx SubstSignature.Wk, S i, SignatureSubstElim ty Wk)
+lookupElemSignature (sig :< (x, LetTypeEntry {})) y = do
+  (ctx, i, ty) <- lookupElemSignature sig y
+  Just (subst ctx SubstSignature.Wk, S i, SignatureSubstElim ty Wk)
 
-||| TODO: Factor this out
 public export
-lookupLetSignature : Signature -> VarName -> Maybe (Context, Nat, Elem, Typ)
-lookupLetSignature [<] x = Nothing
-lookupLetSignature (sig :< (x, ElemEntry ctx ty)) y = M.do
+lookupTypeSignature : Signature -> VarName -> Maybe (Context, Nat)
+lookupTypeSignature [<] x = Nothing
+lookupTypeSignature (sig :< (x, ElemEntry ctx ty)) y = do
+  (ctx, i) <- lookupTypeSignature sig y
+  Just (subst ctx SubstSignature.Wk, S i)
+lookupTypeSignature (sig :< (x, LetElemEntry ctx _ ty)) y = do
+  (ctx, i) <- lookupTypeSignature sig y
+  Just (subst ctx SubstSignature.Wk, S i)
+lookupTypeSignature (sig :< (x, TypeEntry ctx)) y = do
   case x == y of
-    True => Nothing
+    True => Just (subst ctx SubstSignature.Wk, 0)
     False => do
-      (ctx, i, rhs, ty) <- lookupLetSignature sig y
-      Just (subst ctx SubstSignature.Wk, S i, SignatureSubstElim rhs Wk, SignatureSubstElim ty Wk)
-lookupLetSignature (sig :< (x, LetElemEntry ctx rhs ty)) y = M.do
+      (ctx, i) <- lookupTypeSignature sig y
+      Just (subst ctx SubstSignature.Wk, S i)
+lookupTypeSignature (sig :< (x, LetTypeEntry ctx rhs)) y = do
+  case x == y of
+    True => Just (subst ctx SubstSignature.Wk, 0)
+    False => do
+      (ctx, i) <- lookupTypeSignature sig y
+      Just (subst ctx SubstSignature.Wk, S i)
+
+public export
+lookupLetElemSignature : Signature -> VarName -> Maybe (Context, Nat, Elem, Typ)
+lookupLetElemSignature [<] x = Nothing
+lookupLetElemSignature (sig :< (x, ElemEntry ctx ty)) y = do
+ (ctx, i, rhs, ty) <- lookupLetElemSignature sig y
+ Just (subst ctx SubstSignature.Wk, S i, SignatureSubstElim rhs Wk, SignatureSubstElim ty Wk)
+lookupLetElemSignature (sig :< (x, TypeEntry {})) y = do
+ (ctx, i, rhs, ty) <- lookupLetElemSignature sig y
+ Just (subst ctx SubstSignature.Wk, S i, SignatureSubstElim rhs Wk, SignatureSubstElim ty Wk)
+lookupLetElemSignature (sig :< (x, LetTypeEntry {})) y = do
+ (ctx, i, rhs, ty) <- lookupLetElemSignature sig y
+ Just (subst ctx SubstSignature.Wk, S i, SignatureSubstElim rhs Wk, SignatureSubstElim ty Wk)
+lookupLetElemSignature (sig :< (x, LetElemEntry ctx rhs ty)) y = do
   case x == y of
     True => Just (subst ctx SubstSignature.Wk, 0, SignatureSubstElim rhs Wk, SignatureSubstElim ty Wk)
     False => do
-      (ctx, i, rhs, ty) <- lookupLetSignature sig y
+      (ctx, i, rhs, ty) <- lookupLetElemSignature sig y
       Just (subst ctx SubstSignature.Wk, S i, SignatureSubstElim rhs Wk, SignatureSubstElim ty Wk)
+
+public export
+lookupLetTypeSignature : Signature -> VarName -> Maybe (Context, Nat, Typ)
+lookupLetTypeSignature [<] x = Nothing
+lookupLetTypeSignature (sig :< (x, ElemEntry ctx ty)) y = do
+ (ctx, i, rhs) <- lookupLetTypeSignature sig y
+ Just (subst ctx SubstSignature.Wk, S i, SignatureSubstElim rhs Wk)
+lookupLetTypeSignature (sig :< (x, TypeEntry {})) y = do
+ (ctx, i, rhs) <- lookupLetTypeSignature sig y
+ Just (subst ctx SubstSignature.Wk, S i, SignatureSubstElim rhs Wk)
+lookupLetTypeSignature (sig :< (x, LetElemEntry {})) y = do
+ (ctx, i, rhs) <- lookupLetTypeSignature sig y
+ Just (subst ctx SubstSignature.Wk, S i, SignatureSubstElim rhs Wk)
+lookupLetTypeSignature (sig :< (x, LetTypeEntry ctx rhs)) y = do
+  case x == y of
+    True => Just (subst ctx SubstSignature.Wk, 0, SignatureSubstElim rhs Wk)
+    False => do
+      (ctx, i, rhs) <- lookupLetTypeSignature sig y
+      Just (subst ctx SubstSignature.Wk, S i, SignatureSubstElim rhs Wk)
 
 namespace Index
   ||| Looks up a signature entry by index. Weakens the result to be typed in the original signature.

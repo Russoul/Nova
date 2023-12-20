@@ -185,6 +185,20 @@ mutual
       b <- invert sig omega ctx delta sigma b
       ty <- invert sig omega ctx delta sigma ty
       return (ElEqTy a b ty)
+    invertNu sig omega ctx delta sigma (SignatureVarElim k tau) = MMaybe.do
+      tau' <- invert sig omega sigma tau ctx delta getCtx
+      return (SignatureVarElim k tau')
+     where
+      getCtx : Context
+      getCtx =
+        case (splitAt sig k) of
+          Nothing => assert_total $ idris_crash "invertNu(SignatureVarElim)(1)"
+          Just (_, (_, e), rest) =>
+            case subst e (WkN $ 1 + length rest) of
+             TypeEntry xi {} => xi
+             LetTypeEntry xi rhs => xi
+             ElemEntry {} => assert_total $ idris_crash "invertNu(SignatureVarElim)(ElemEntry)"
+             LetElemEntry {} => assert_total $ idris_crash "invertNu(SignatureVarElim)(LetElemEntry)"
 
     public export
     invert : Signature -> Omega -> Context -> Context -> SubstContext -> Typ -> M (Maybe Typ)
@@ -315,6 +329,8 @@ mutual
             case subst e (WkN $ 1 + length rest) of
              ElemEntry xi {} => xi
              LetElemEntry xi {} => xi
+             TypeEntry {} => assert_total $ idris_crash "invertNu(SignatureVarElim)(TypeEntry)"
+             LetTypeEntry {} => assert_total $ idris_crash "invertNu(SignatureVarElim)(LetTypeEntry)"
     invertNu sig omega ctx delta sigma (OmegaVarElim k tau) = MMaybe.do
       tau' <- invert sig omega sigma tau ctx delta getOmega
       return (OmegaVarElim k tau')
@@ -393,6 +409,7 @@ mutual
     occursNu sig omega (OmegaVarElim j sigma) k = return (j == k) `or` occurs sig omega sigma k
     occursNu sig omega (TyEqTy a b) k = occurs sig omega a k `or` occurs sig omega b k
     occursNu sig omega (ElEqTy a b ty) k = occurs sig omega a k `or` occurs sig omega b k `or` occurs sig omega ty k
+    occursNu sig omega (SignatureVarElim j sigma) k = occurs sig omega sigma k
 
     public export
     occurs : Signature -> Omega -> Typ -> OmegaName -> M Bool
@@ -711,6 +728,8 @@ namespace Type'
   -- El ? = 𝕌 type <=> ⊥
   unifyElAgainstRigid sig omega ctx el UniverseTy = M.do
     return (Disunifier "El ? = 𝕌 doesn't have solutions for ?")
+  unifyElAgainstRigid sig omega ctx el (SignatureVarElim {}) = M.do
+    return (Stuck "El ? = Xᵢ σ")
   unifyElAgainstRigid sig omega ctx el NatTy = M.do
     return (Success [ ElemConstraint ctx el NatTy UniverseTy] [] [])
   unifyElAgainstRigid sig omega ctx el (PiTy x dom cod) = M.do
@@ -1125,6 +1144,7 @@ progressElemMetaNu sig omega ctx idx (El x) = return (Stuck "No canonical Elem e
 progressElemMetaNu sig omega ctx idx (ContextSubstElim x y) = assert_total $ idris_crash "progressElemMetaNu(ContextSubstElim)"
 progressElemMetaNu sig omega ctx idx (SignatureSubstElim x y) = assert_total $ idris_crash "progressElemMetaNu(SignatureSubstElim)"
 progressElemMetaNu sig omega ctx idx (OmegaVarElim str x) = return (Stuck "No canonical Elem exists")
+progressElemMetaNu sig omega ctx idx (SignatureVarElim str x) = return (Stuck "No canonical Elem exists")
 
 progressMeta : Signature -> Omega -> OmegaName -> MetaBindingEntry -> UnifyM MetaProgress
 progressMeta sig omega idx (MetaType ctx _) = return (Stuck "Skipping Type meta")

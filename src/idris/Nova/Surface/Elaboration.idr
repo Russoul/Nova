@@ -14,7 +14,7 @@ import Text.PrettyPrint.Prettyprinter
 import Nova.Core.Context
 import Nova.Core.Conversion
 import Nova.Core.Evaluation
-import Nova.Core.FreeVariable
+import Nova.Core.Occurrence
 import Nova.Core.Language
 import Nova.Core.Monad
 import Nova.Core.Name
@@ -452,7 +452,7 @@ mutual
         addSemanticToken (r0, BoundVarAnn)
         return (Success omega [ElemElimElaboration ctx vTm vTy es meta ty])
       Nothing =>
-        case lookupSignature sig x of
+        case lookupElemSignature sig x of
           Just ([<], idx, vTy) => M.do
             addSemanticToken (r0, ElimAnn)
             return (Success omega [ElemElimElaboration ctx (SignatureVarElim idx Terminal) vTy es meta ty])
@@ -608,12 +608,18 @@ mutual
         let omega = Elem.instantiateByElaboration omega meta (OmegaVarElim n (WkN (length ctx `minus` length regctxPrefix)))
         return (Success omega [])
   elabElemNu sig omega ctx (App r (Unfold r0 x) []) meta ty = M.do
-    case lookupLetSignature sig x of
+    case lookupLetElemSignature sig x of
       Just ([<], idx, vRhs, vTy) =>
         return (Success omega [ElemElimElaboration ctx ElEqVal (ElEqTy (SignatureVarElim idx Id) vRhs vTy) [] meta ty])
       Just (sigCtx, idx, vRhs, vTy) =>
         return (Error "Non-empty signature context not supported yet for signature name: \{x}")
-      Nothing => return (Error "Undefined signature name: \{x}")
+      Nothing =>
+        case lookupLetTypeSignature sig x of
+          Just ([<], idx, vRhs) =>
+            return (Success omega [ElemElimElaboration ctx TyEqVal (TyEqTy (SignatureVarElim idx Id) vRhs) [] meta ty])
+          Just (sigCtx, idx, vRhs) =>
+            return (Error "Non-empty signature context not supported yet for signature name: \{x}")
+          Nothing => return (Error "Undefined signature name: \{x}")
   elabElemNu sig omega ctx (App r (Unfold r0 x) _) meta ty = M.do
     return (Error "!\{x} applied to a wrong number of arguments")
   -- Π-β A (x. B) (x. f) e : (x ↦ f) e ≡ f[e/x] ∈ B[e/x]
@@ -856,9 +862,29 @@ mutual
   elabType sig omega ctx (SigmaVal r a b) meta =
     return (Error "(_, _) is not a type")
   elabType sig omega ctx tm@(App r (Var r0 x) es) meta = M.do
-    (omega, t') <- liftUnifyM $ newElemMeta omega ctx UniverseTy SolveByElaboration
-    let omega = Typ.instantiateByElaboration omega meta (El (OmegaVarElim t' Id))
-    return (Success omega [ElemElaboration ctx tm t' UniverseTy])
+    case (lookupTypeSignature sig x, es) of
+      (Just ([<], idx), []) => M.do
+        addSemanticToken (r0, ElimAnn)
+        let omega = Typ.instantiateByElaboration omega meta (SignatureVarElim idx Terminal)
+        return (Success omega [])
+      (Just ([<], idx), _ :: _) => M.do
+        return (Error "Type variable \{x} applied to a spine")
+      (Just (_ :< _, idx), _) =>
+        return (Error "Non-empty signature context not supported yet for name: \{x}")
+      (Nothing, es) =>
+        case (lookup x omega, es) of
+          (Just (LetType [<] _), []) => M.do
+            addSemanticToken (r0, ElimAnn)
+            let omega = Typ.instantiateByElaboration omega meta (OmegaVarElim x Terminal)
+            return (Success omega [])
+          (Just (LetType (_ :< _) _), _) => M.do
+            return (Error "Non-empty signature context not supported yet for name: \{x}")
+          (Just (LetType [<] _), _ :: _) => M.do
+            return (Error "Type variable \{x} applied to a spine")
+          _ => M.do
+           (omega, t') <- liftUnifyM $ newElemMeta omega ctx UniverseTy SolveByElaboration
+           let omega = Typ.instantiateByElaboration omega meta (El (OmegaVarElim t' Id))
+           return (Success omega [ElemElaboration ctx tm t' UniverseTy])
   elabType sig omega ctx (App r (OneVal x) _) meta = M.do
     return (Error "() is not a type")
   elabType sig omega ctx (App r (NatVal0 x) _) meta = M.do
@@ -1042,6 +1068,7 @@ mutual
       (omega, ty) <- applyRewrite sig omega gamma ty pty prf direct
       return (omega, ElEqTy a b ty)
     applyRewriteNu sig omega gamma (ElEqTy a b ty) p prf direct = error (range p, "Failing at _ ≡ _ ∈ _")
+    applyRewriteNu sig omega gamma (SignatureVarElim k sigma) p prf direct = error (range p, "Failing at Xᵢ")
 
     public export
     applyRewrite : Params => Signature -> Omega -> Context -> Typ -> OpFreeTerm -> SurfaceTerm -> Bool -> ElabM (Either (Range, Doc Ann) (Omega, Typ))
@@ -1552,6 +1579,27 @@ elabTopLevelEntry sig omega (DefineSignature r x ty rhs) = M.do
     | Error omega (Right (con, err)) => return (Left (UnificationError omega (con, err)))
   let omega = insert (x, LetElem [<] (OmegaVarElim rhs' Id) (OmegaVarElim ty' Id)) omega
   return (Right (sig, omega))
+elabTopLevelEntry sig omega (LetTypeSignature r x rhs) = M.do
+  print_ Debug STDOUT "Elaborating \{x}"
+  (omega, rhs') <- liftUnifyM $ newTypeMeta omega [<] SolveByElaboration
+  let probs = [TypeElaboration [<] rhs rhs']
+  Success omega <- solve sig omega probs
+    | Stuck omega stuckElab stuckCons => return (Left (Stuck omega stuckElab stuckCons))
+    | Error omega (Left (elab, err)) => return (Left (ElaborationError omega (elab, err)))
+    | Error omega (Right (con, err)) => return (Left (UnificationError omega (con, err)))
+  let sig = sig :< (x, LetTypeEntry [<] (OmegaVarElim rhs' Id))
+  let omega = subst omega Wk
+  return (Right (sig, omega))
+elabTopLevelEntry sig omega (DefineTypeSignature r x rhs) = M.do
+  print_ Debug STDOUT "Elaborating \{x}"
+  (omega, rhs') <- liftUnifyM $ newTypeMeta omega [<] SolveByElaboration
+  let probs = [TypeElaboration [<] rhs rhs']
+  Success omega <- solve sig omega probs
+    | Stuck omega stuckElab stuckCons => return (Left (Stuck omega stuckElab stuckCons))
+    | Error omega (Left (elab, err)) => return (Left (ElaborationError omega (elab, err)))
+    | Error omega (Right (con, err)) => return (Left (UnificationError omega (con, err)))
+  let omega = insert (x, LetType [<] (OmegaVarElim rhs' Id)) omega
+  return (Right (sig, omega))
 
 public export
 elabFile : Params
@@ -1575,6 +1623,18 @@ elabFile sig omega ops (LetSignature r x ty rhs ::: []) = M.do
   Right (sig, omega) <- elabTopLevelEntry sig omega !(liftMEither $ shuntTopLevel (cast ops) (LetSignature r x ty rhs))
     | Left err => return (Left (x, r, sig, err))
   return (Right (sig, omega, ops))
+elabFile sig omega ops (LetTypeSignature r x rhs ::: []) = M.do
+  Right (sig, omega) <- elabTopLevelEntry sig omega !(liftMEither $ shuntTopLevel (cast ops) (LetTypeSignature r x rhs))
+    | Left err => return (Left (x, r, sig, err))
+  return (Right (sig, omega, ops))
+elabFile sig omega ops (DefineTypeSignature r x rhs ::: []) = M.do
+  Right (sig, omega) <- elabTopLevelEntry sig omega !(liftMEither $ shuntTopLevel (cast ops) (DefineTypeSignature r x rhs))
+    | Left err => return (Left (x, r, sig, err))
+  return (Right (sig, omega, ops))
+elabFile sig omega ops (DefineSignature r x ty rhs ::: []) = M.do
+  Right (sig, omega) <- elabTopLevelEntry sig omega !(liftMEither $ shuntTopLevel (cast ops) (DefineSignature r x ty rhs))
+    | Left err => return (Left (x, r, sig, err))
+  return (Right (sig, omega, ops))
 elabFile sig omega ops (Syntax r op ::: e' :: es) = M.do
   elabFile sig omega (ops :< op) (e' ::: es)
 elabFile sig omega ops (TypingSignature r x ty ::: e' :: es) = M.do
@@ -1587,11 +1647,15 @@ elabFile sig omega ops (LetSignature r x ty rhs ::: e' :: es) = M.do
   Right (sig, omega) <- elabTopLevelEntry sig omega !(liftMEither $ shuntTopLevel (cast ops) (LetSignature r x ty rhs))
     | Left err => return (Left (x, r, sig, err))
   elabFile sig omega ops (e' ::: es)
-elabFile sig omega ops (DefineSignature r x ty rhs ::: []) = M.do
-  Right (sig, omega) <- elabTopLevelEntry sig omega !(liftMEither $ shuntTopLevel (cast ops) (DefineSignature r x ty rhs))
+elabFile sig omega ops (LetTypeSignature r x rhs ::: e' :: es) = M.do
+  Right (sig, omega) <- elabTopLevelEntry sig omega !(liftMEither $ shuntTopLevel (cast ops) (LetTypeSignature r x rhs))
     | Left err => return (Left (x, r, sig, err))
-  return (Right (sig, omega, ops))
+  elabFile sig omega ops (e' ::: es)
 elabFile sig omega ops (DefineSignature r x ty rhs ::: e' :: es) = M.do
   Right (sig, omega) <- elabTopLevelEntry sig omega !(liftMEither $ shuntTopLevel (cast ops) (DefineSignature r x ty rhs))
+    | Left err => return (Left (x, r, sig, err))
+  elabFile sig omega ops (e' ::: es)
+elabFile sig omega ops (DefineTypeSignature r x rhs ::: e' :: es) = M.do
+  Right (sig, omega) <- elabTopLevelEntry sig omega !(liftMEither $ shuntTopLevel (cast ops) (DefineTypeSignature r x rhs))
     | Left err => return (Left (x, r, sig, err))
   elabFile sig omega ops (e' ::: es)

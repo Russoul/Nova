@@ -34,6 +34,10 @@ mutual
       conv sig omega a0 a1 `and` conv sig omega b0 b1
     convNu sig omega (ElEqTy a0 b0 ty0) (ElEqTy a1 b1 ty1) =
       conv sig omega a0 a1 `and` conv sig omega b0 b1 `and` conv sig omega ty0 ty1
+    convNu sig omega (SignatureVarElim x0 sigma) (SignatureVarElim x1 tau) =
+     return (x0 == x1)
+        `and`
+      conv sig omega sigma tau
     convNu _ _ _ _ = return False
 
     public export

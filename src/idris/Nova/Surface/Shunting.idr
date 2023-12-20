@@ -318,4 +318,10 @@ mutual
     ty <- shunt ops ty 0
     rhs <- shunt ops rhs 0
     return (DefineSignature r x ty rhs)
+  shuntTopLevel ops (LetTypeSignature r x rhs) = MEither.do
+    rhs <- shunt ops rhs 0
+    return (LetTypeSignature r x rhs)
+  shuntTopLevel ops (DefineTypeSignature r x rhs) = MEither.do
+    rhs <- shunt ops rhs 0
+    return (DefineTypeSignature r x rhs)
   shuntTopLevel ops (Syntax x y) = error "Trying to shunt a syntax definition"

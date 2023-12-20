@@ -1,4 +1,4 @@
-module Nova.Core.FreeVariable
+module Nova.Core.Occurrence
 
 import Data.AVL
 
@@ -44,6 +44,7 @@ mutual
       [| unite (freeOmegaName sig omega a) (freeOmegaName sig omega b) |]
     freeOmegaNameNu sig omega (ElEqTy a b ty) = M.do
       [| unite3 (freeOmegaName sig omega a) (freeOmegaName sig omega b) (freeOmegaName sig omega ty) |]
+    freeOmegaNameNu sig omega (SignatureVarElim j sigma) = freeOmegaName sig omega sigma
 
     ||| Compute free occurrences of Ω variables in the term modulo open evaluation.
     public export

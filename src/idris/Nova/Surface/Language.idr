@@ -20,7 +20,7 @@ import Nova.Surface.Operator
 -- e⁺{1} = e{≥3} | (e⁺{≥0}) | .π₁ | .π₂ | {e{≥0}}
 -- ē⁺ ::= ␣ e⁺{1} ē⁺ | ·
 
--- top-level ::= assume x : e{≥0} | let x : e{≥0} ≔ e{≥0} | define x : e{≥0} ≔ e{≥0}
+-- top-level ::= assume x : e{≥0} | let x : e{≥0} ≔ e{≥0} | define x : e{≥0} ≔ e{≥0} | let-type x ≔ e{≥0} | define-type x ≔ e{≥0}
 
 
 mutual
@@ -127,7 +127,7 @@ mutual
       RewriteInv : Range -> Term -> Term -> Tactic
       ||| rewrite e{≥4} e{≥4}
       Rewrite : Range -> Term -> Term -> Tactic
-      ||| Let x ≔ e{≥0}
+      ||| let x ≔ e{≥0}
       Let : Range -> VarName -> Term -> Tactic
 
   namespace OpFreeTactic
@@ -337,6 +337,10 @@ namespace Term
     DefineSignature : Range -> VarName -> Term -> Term -> TopLevel
     ||| syntax ... : ...
     Syntax : Range -> Operator -> TopLevel
+    ||| let-type x ≔ t
+    LetTypeSignature : Range -> VarName -> Term -> TopLevel
+    ||| define-type x ≔ t
+    DefineTypeSignature : Range -> VarName -> Term -> TopLevel
 
 namespace OpFreeTerm
   public export
@@ -349,6 +353,10 @@ namespace OpFreeTerm
     ||| define x : T
     |||          ≔ t
     DefineSignature : Range -> VarName -> OpFreeTerm -> OpFreeTerm -> OpFreeTopLevel
+    ||| let-type x ≔ t
+    LetTypeSignature : Range -> VarName -> OpFreeTerm -> OpFreeTopLevel
+    ||| define-type x ≔ t
+    DefineTypeSignature : Range -> VarName -> OpFreeTerm -> OpFreeTopLevel
 
 covering
 public export
@@ -361,6 +369,10 @@ Show TopLevel where
     "define \{x} : \{show ty} ≔ \{show rhs}"
   show (Syntax r op) =
     "syntax ..."
+  show (LetTypeSignature r x rhs) =
+    "let-type \{x} ≔ \{show rhs}"
+  show (DefineTypeSignature r x rhs) =
+    "define-type \{x} ≔ \{show rhs}"
 
 covering
 public export
@@ -371,6 +383,10 @@ Show OpFreeTopLevel where
     "let \{x} : \{show ty} ≔ \{show rhs}"
   show (DefineSignature r x ty rhs) =
     "define \{x} : \{show ty} ≔ \{show rhs}"
+  show (LetTypeSignature r x rhs) =
+    "let-type \{x} ≔ \{show rhs}"
+  show (DefineTypeSignature r x rhs) =
+    "define-type \{x} ≔ \{show rhs}"
 
 namespace OpFreeTerm
   public export

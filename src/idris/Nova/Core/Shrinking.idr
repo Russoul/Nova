@@ -93,6 +93,11 @@ mutual
       b <- shrink b gamma1Len gamma2Len
       c <- shrink c gamma1Len gamma2Len
       return (ElEqTy a b c)
+    shrinkNu (SignatureVarElim k sigma) gamma1Len gamma2Len = MMaybe.do
+      -- Σ₀ (Γ ⊦ χ : A) Σ₁ ⊦ σ : Δ ⇒ Γ
+      -- Σ₀ (Γ ⊦ χ : A) Σ₁ Δ ⊦ χ σ
+      sigma <- shrink sigma gamma1Len gamma2Len
+      return (SignatureVarElim k sigma)
 
     ||| Γ₀ ⊦ Γ₁ ctx
     ||| Γ₀ ⊦ Γ₂ ctx

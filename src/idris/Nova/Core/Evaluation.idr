@@ -7,8 +7,6 @@ import Nova.Core.Monad
 import Nova.Core.Language
 import Nova.Core.Substitution
 
---TODO: El should evaluate both in closed and open cases
-
 -- Closed term evaluation
 
 mutual
@@ -171,6 +169,7 @@ mutual
         _ => throw "closedEval(OmegaVarElim)"
     closedEvalNu sig omega (TyEqTy a0 a1) = return $ TyEqTy a0 a1
     closedEvalNu sig omega (ElEqTy a0 a1 ty) = return $ ElEqTy a0 a1 ty
+    closedEvalNu sig omega (SignatureVarElim idx tau) = return (SignatureVarElim idx tau)
 
     ||| Σ ⊦ a ⇝ a' : A
     ||| Σ must only contain let-elem's
@@ -214,6 +213,8 @@ mutual
         Nothing => throw "openEval/Type(OmegaVarElim(Nothing))"
     openEvalNu sig omega (TyEqTy a0 a1) = return $ TyEqTy a0 a1
     openEvalNu sig omega (ElEqTy a0 a1 ty) = return $ ElEqTy a0 a1 ty
+    openEvalNu sig omega (SignatureVarElim k sigma) = M.do
+      return (SignatureVarElim k sigma)
 
     ||| Σ ⊦ a ⇝ a' : A
     ||| Computes head-normal form w.r.t. (~) relation used in unification.

@@ -546,6 +546,33 @@ mutual
     rhs <- located (term 0)
     pure (DefineSignature (l + fst rhs) (snd x) ty (snd rhs))
 
+  public export
+  letTypeSignature : Rule TopLevel
+  letTypeSignature = do
+    l <- delim "let-type"
+    commit
+    spaceDelim
+    x <- located var
+    appendSemanticToken (fst x, ElimAnn)
+    spaceDelim
+    delim_ "≔"
+    spaceDelim
+    rhs <- located (term 0)
+    pure (LetTypeSignature (l + fst rhs) (snd x) (snd rhs))
+
+  public export
+  defineTypeSignature : Rule TopLevel
+  defineTypeSignature = do
+    l <- delim "define-type"
+    commit
+    spaceDelim
+    x <- located var
+    appendSemanticToken (fst x, ElimAnn)
+    spaceDelim
+    delim_ "≔"
+    spaceDelim
+    rhs <- located (term 0)
+    pure (DefineTypeSignature (l + fst rhs) (snd x) (snd rhs))
 
   namespace TopLevel
     public export
@@ -611,7 +638,7 @@ mutual
 
   public export
   topLevel : Rule TopLevel
-  topLevel = typingSignature <|> letSignature <|> defineSignature <|> syntax
+  topLevel = typingSignature <|> letTypeSignature <|> defineTypeSignature <|> letSignature <|> defineSignature <|> syntax
 
   public export
   surfaceFile : Rule (List1 TopLevel)
