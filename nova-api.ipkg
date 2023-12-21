@@ -15,6 +15,7 @@ modules =
         , Nova.Core.Context
         , Nova.Core.Conversion
         , Nova.Core.Evaluation
+        , Nova.Core.Inference
         , Nova.Core.Language
         , Nova.Core.Monad
         , Nova.Core.Name

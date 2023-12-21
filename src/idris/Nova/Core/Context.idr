@@ -1,5 +1,9 @@
 module Nova.Core.Context
 
+import Data.Fin
+import Data.Util
+import Data.AVL
+
 import Nova.Core.Language
 import Nova.Core.Substitution
 
@@ -94,7 +98,38 @@ namespace Index
   public export
   lookupSignature : Signature -> Nat -> Maybe (VarName, SignatureEntry)
   lookupSignature [<] _ = Nothing
-  lookupSignature (_ :< (x, t)) Z = Just (x, t)
+  lookupSignature (_ :< (x, t)) Z = Just (x, subst t Wk)
   lookupSignature (sig :< _) (S k) = do
     (x, e) <- lookupSignature sig k
     pure (x, subst e Wk)
+
+  ||| Weakens the type.
+  public export
+  lookupContext : Context -> Nat -> Maybe (VarName, Typ)
+  lookupContext ctx idx = do
+    (_, (x, ty), _) <- mbIndex idx ctx
+    pure (x, ContextSubstElim ty (Context.WkN (S idx)))
+
+||| In case the entry is an element entry, return the context and the type.
+public export
+mbElemSignature : SignatureEntry -> Maybe (Context, Typ)
+mbElemSignature (ElemEntry ctx ty) = Just (ctx, ty)
+mbElemSignature (LetElemEntry ctx rhs ty) = Just (ctx, ty)
+mbElemSignature (TypeEntry sx) = Nothing
+mbElemSignature (LetTypeEntry sx x) = Nothing
+
+namespace Omega
+  public export
+  lookupOmega : Omega -> OmegaName -> Maybe OmegaEntry
+  lookupOmega omega x = OrdTree.lookup x omega
+
+  ||| In case the entry is an element entry, return the context and the type.
+  public export
+  mbElemSignature : OmegaEntry -> Maybe (Context, Typ)
+  mbElemSignature (MetaType {}) = Nothing
+  mbElemSignature (LetType {}) = Nothing
+  mbElemSignature (MetaElem ctx ty _) = Just (ctx, ty)
+  mbElemSignature (LetElem ctx rhs ty) = Just (ctx, ty)
+  mbElemSignature (TypeConstraint sx x y) = Nothing
+  mbElemSignature (ElemConstraint sx x y z) = Nothing
+  mbElemSignature (SubstContextConstraint x y sx sy) = Nothing

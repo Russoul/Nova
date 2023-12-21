@@ -139,10 +139,12 @@ mutual
       b <- shrink b gamma1Len (S gamma2Len)
       f <- shrink f gamma1Len (S gamma2Len)
       return (ImplicitPiVal x a b f)
-    shrinkNu (SigmaVal a b) gamma1Len gamma2Len = MMaybe.do
+    shrinkNu (SigmaVal x a b p q) gamma1Len gamma2Len = MMaybe.do
       a <- shrink a gamma1Len gamma2Len
-      b <- shrink b gamma1Len gamma2Len
-      return (SigmaVal a b)
+      b <- shrink b gamma1Len (S gamma2Len)
+      p <- shrink p gamma1Len gamma2Len
+      q <- shrink q gamma1Len gamma2Len
+      return (SigmaVal x a b p q)
     shrinkNu (PiElim f x a b e) gamma1Len gamma2Len = MMaybe.do
       f <- shrink f gamma1Len gamma2Len
       a <- shrink a gamma1Len gamma2Len
@@ -184,9 +186,10 @@ mutual
       s <- shrink s gamma1Len (2 + gamma2Len)
       t <- shrink t gamma1Len gamma2Len
       return (NatElim x schema z y h s t)
-    shrinkNu (ZeroElim t) gamma1Len gamma2Len = MMaybe.do
+    shrinkNu (ZeroElim ty t) gamma1Len gamma2Len = MMaybe.do
+      ty <- shrink ty gamma1Len gamma2Len
       t <- shrink t gamma1Len gamma2Len
-      return (ZeroElim t)
+      return (ZeroElim ty t)
     shrinkNu (ContextSubstElim x y) gamma1Len gamma2Len = throw "shrink(ContextSubstElim)"
     shrinkNu (SignatureSubstElim x y) gamma1Len gamma2Len = throw "shrink(SignatureSubstElim)"
     shrinkNu (ContextVarElim k) gamma1Len gamma2Len =
@@ -215,10 +218,13 @@ mutual
       b <- shrink b gamma1Len gamma2Len
       c <- shrink c gamma1Len gamma2Len
       return (ElEqTy a b c)
-    shrinkNu TyEqVal gamma1Len gamma2Len = MMaybe.do
-      return TyEqVal
-    shrinkNu ElEqVal gamma1Len gamma2Len = MMaybe.do
-      return ElEqVal
+    shrinkNu (TyEqVal ty) gamma1Len gamma2Len = MMaybe.do
+      ty <- shrink ty gamma1Len gamma2Len
+      return (TyEqVal ty)
+    shrinkNu (ElEqVal ty e) gamma1Len gamma2Len = MMaybe.do
+      ty <- shrink ty gamma1Len gamma2Len
+      e <- shrink e gamma1Len gamma2Len
+      return (ElEqVal ty e)
 
     ||| Γ₀ ⊦ Γ₁ ctx
     ||| Γ₀ ⊦ Γ₂ ctx

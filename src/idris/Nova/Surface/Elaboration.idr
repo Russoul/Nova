@@ -436,10 +436,10 @@ mutual
     (omega, cod) <- liftUnifyM $ newTypeMeta omega (ctx :< (x, OmegaVarElim dom Id)) SolveByUnification
     omega <- liftUnifyM $ addConstraint omega (TypeConstraint ctx ty (ImplicitPiTy x (OmegaVarElim dom Id) (OmegaVarElim cod Id)))
     return (Success omega [ElemElaboration ctx tm meta (ImplicitPiTy x (OmegaVarElim dom Id) (OmegaVarElim cod Id))])
-  elabElemNu sig omega ctx (SigmaVal r a b) meta (SigmaTy _ dom cod) = M.do
+  elabElemNu sig omega ctx (SigmaVal r a b) meta (SigmaTy x dom cod) = M.do
     (omega, a') <- liftUnifyM $ newElemMeta omega ctx dom SolveByElaboration
     (omega, b') <- liftUnifyM $ newElemMeta omega ctx (ContextSubstElim cod (Ext Id (OmegaVarElim a' Id))) SolveByElaboration
-    let omega = Elem.instantiateByElaboration omega meta (SigmaVal (OmegaVarElim a' Id) (OmegaVarElim b' Id))
+    let omega = Elem.instantiateByElaboration omega meta (SigmaVal x dom cod (OmegaVarElim a' Id) (OmegaVarElim b' Id))
     return (Success omega [ElemElaboration ctx a a' dom, ElemElaboration ctx b b' (ContextSubstElim cod (Ext Id (OmegaVarElim a' Id)))])
   elabElemNu sig omega ctx tm@(SigmaVal r a b) meta ty = M.do
     (omega, dom) <- liftUnifyM $ newTypeMeta omega ctx SolveByUnification
@@ -505,7 +505,7 @@ mutual
   elabElemNu sig omega ctx (App r (ZeroElim _) ((_, Arg ([], t)) :: es)) meta ty = M.do
     (omega, t') <- liftUnifyM $ newElemMeta omega ctx ZeroTy SolveByElaboration
     return (Success omega [ElemElaboration ctx t t' ZeroTy,
-                           ElemElimElaboration ctx (ZeroElim (OmegaVarElim t' Id)) ty es meta ty])
+                           ElemElimElaboration ctx (ZeroElim ty (OmegaVarElim t' Id)) ty es meta ty])
   elabElemNu sig omega ctx (App r (ZeroElim _) _) meta ty =
     return (Error "𝟘-elim applied to a wrong number of arguments")
   elabElemNu sig omega ctx (App _ (EqElim _) ((_, Arg ([], elemTy)) :: (_, Arg ([], a0)) :: (_, Arg ([x, h], schema)) :: (_, Arg ([], r)) :: (_, Arg ([], a1)) :: (_, Arg ([], e)) :: es)) meta ty = M.do
@@ -513,24 +513,24 @@ mutual
     (omega, a') <- liftUnifyM $ newElemMeta omega ctx (OmegaVarElim t' Id) SolveByElaboration
     (omega, b') <- liftUnifyM $ newElemMeta omega ctx (OmegaVarElim t' Id) SolveByElaboration
     (omega, schema') <- liftUnifyM $ newTypeMeta omega ((ctx :< (x, OmegaVarElim t' Id)) :< (h, ElEqTy (ContextSubstElim (OmegaVarElim a' Id) Wk) CtxVar (ContextSubstElim (OmegaVarElim t' Id) Wk))) SolveByElaboration
-    (omega, r') <- liftUnifyM $ newElemMeta omega ctx (OmegaVarElim schema' (Ext (Ext Id (OmegaVarElim a' Id)) ElEqVal)) SolveByElaboration
+    (omega, r') <- liftUnifyM $ newElemMeta omega ctx (OmegaVarElim schema' (Ext (Ext Id (OmegaVarElim a' Id)) (ElEqVal (OmegaVarElim t' Id) (OmegaVarElim a' Id)))) SolveByElaboration
     (omega, e') <- liftUnifyM $ newElemMeta omega ctx (ElEqTy (OmegaVarElim a' Id) (OmegaVarElim b' Id) (OmegaVarElim t' Id)) SolveByElaboration
     return (Success omega [TypeElaboration ctx elemTy t',
                            ElemElaboration ctx a0 a' (OmegaVarElim t' Id),
                            ElemElaboration ctx a1 b' (OmegaVarElim t' Id),
                            ElemElaboration ctx e e' (ElEqTy (OmegaVarElim a' Id) (OmegaVarElim b' Id) (OmegaVarElim t' Id)),
                            TypeElaboration (ctx :< (x, OmegaVarElim t' Id) :< (h, (ElEqTy (ContextSubstElim (OmegaVarElim a' Id) Wk) CtxVar (ContextSubstElim (OmegaVarElim t' Id) Wk)))) schema schema',
-                           ElemElaboration ctx r r' (OmegaVarElim schema' (Ext (Ext Id (OmegaVarElim a' Id)) ElEqVal)),
+                           ElemElaboration ctx r r' (OmegaVarElim schema' (Ext (Ext Id (OmegaVarElim a' Id)) (ElEqVal (OmegaVarElim t' Id) (OmegaVarElim a' Id)))),
                            ElemElimElaboration ctx (OmegaVarElim r' Id) (OmegaVarElim schema' (Ext (Ext Id (OmegaVarElim b' Id)) (OmegaVarElim e' Id))) es meta ty])
   elabElemNu sig omega ctx (App r (EqElim x) _) meta ty =
     return (Error "J applied to a wrong number of arguments")
   elabElemNu sig omega ctx (App r (EqVal x) []) meta (TyEqTy a b) = M.do
     omega <- liftUnifyM $ addConstraint omega (TypeConstraint ctx a b)
-    let omega = Elem.instantiateByElaboration omega meta TyEqVal
+    let omega = Elem.instantiateByElaboration omega meta (TyEqVal a)
     return (Success omega [])
   elabElemNu sig omega ctx (App r (EqVal x) []) meta (ElEqTy a b t) = M.do
     omega <- liftUnifyM $ addConstraint omega (ElemConstraint ctx a b t)
-    let omega = Elem.instantiateByElaboration omega meta ElEqVal
+    let omega = Elem.instantiateByElaboration omega meta (ElEqVal t a)
     return (Success omega [])
   elabElemNu sig omega ctx tm@(App r (EqVal x) []) meta ty = M.do
     -- We can have one of:
@@ -610,13 +610,13 @@ mutual
   elabElemNu sig omega ctx (App r (Unfold r0 x) []) meta ty = M.do
     case lookupLetElemSignature sig x of
       Just ([<], idx, vRhs, vTy) =>
-        return (Success omega [ElemElimElaboration ctx ElEqVal (ElEqTy (SignatureVarElim idx Id) vRhs vTy) [] meta ty])
+        return (Success omega [ElemElimElaboration ctx (ElEqVal vTy (SignatureVarElim idx Id)) (ElEqTy (SignatureVarElim idx Id) vRhs vTy) [] meta ty])
       Just (sigCtx, idx, vRhs, vTy) =>
         return (Error "Non-empty signature context not supported yet for signature name: \{x}")
       Nothing =>
         case lookupLetTypeSignature sig x of
           Just ([<], idx, vRhs) =>
-            return (Success omega [ElemElimElaboration ctx TyEqVal (TyEqTy (SignatureVarElim idx Id) vRhs) [] meta ty])
+            return (Success omega [ElemElimElaboration ctx (TyEqVal (SignatureVarElim idx Id)) (TyEqTy (SignatureVarElim idx Id) vRhs) [] meta ty])
           Just (sigCtx, idx, vRhs) =>
             return (Error "Non-empty signature context not supported yet for signature name: \{x}")
           Nothing => return (Error "Undefined signature name: \{x}")
@@ -632,7 +632,22 @@ mutual
                            TypeElaboration (ctx :< (x', OmegaVarElim dom' Id)) cod cod',
                            ElemElaboration (ctx :< (x, OmegaVarElim dom' Id)) f f' (OmegaVarElim cod' Id),
                            ElemElaboration ctx e e' (OmegaVarElim dom' Id),
-                           ElemElimElaboration ctx ElEqVal (ElEqTy (PiElim (PiVal x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id) (OmegaVarElim f' Id)) x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id) (OmegaVarElim e' Id)) (OmegaVarElim f' (Ext Id (OmegaVarElim e' Id))) (OmegaVarElim cod' (Ext Id (OmegaVarElim e' Id)))) [] meta ty])
+                           ElemElimElaboration ctx
+                             (ElEqVal
+                               (OmegaVarElim cod' (Ext Id (OmegaVarElim e' Id)))
+                               (PiElim (PiVal x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id) (OmegaVarElim f' Id))
+                                       x
+                                       (OmegaVarElim dom' Id)
+                                       (OmegaVarElim cod' Id)
+                                       (OmegaVarElim e' Id)
+                               )
+                             )
+                             (ElEqTy
+                               (PiElim (PiVal x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id) (OmegaVarElim f' Id)) x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id) (OmegaVarElim e' Id))
+                               (OmegaVarElim f' (Ext Id (OmegaVarElim e' Id)))
+                               (OmegaVarElim cod' (Ext Id (OmegaVarElim e' Id)))
+                             )
+                             [] meta ty])
   elabElemNu sig omega ctx (App r (PiBeta r0) _) meta ty =
     return (Error "Π-β applied to a wrong number of arguments")
   -- Π-η f : (x ↦ f x) ≡ f ∈ (x : A) → B
@@ -641,7 +656,17 @@ mutual
     (omega, cod) <- liftUnifyM $ newTypeMeta omega (ctx :< ("_", OmegaVarElim dom Id)) SolveByUnification
     (omega, f') <- liftUnifyM $ newElemMeta omega ctx (PiTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id)) SolveByElaboration
     return (Success omega [ElemElaboration ctx f f' (PiTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id)),
-                           ElemElimElaboration ctx ElEqVal (ElEqTy (PiVal "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id) (PiElim (OmegaVarElim f' Wk) "_" (OmegaVarElim dom Wk) (OmegaVarElim cod (Under Wk)) CtxVar)) (OmegaVarElim f' Id) (PiTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id))) [] meta ty])
+                           ElemElimElaboration ctx
+                             (ElEqVal
+                               (PiTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id))
+                               (PiVal "_"
+                                 (OmegaVarElim dom Id)
+                                 (OmegaVarElim cod Id)
+                                 (PiElim (OmegaVarElim f' Wk) "_" (OmegaVarElim dom Wk) (OmegaVarElim cod (Under Wk)) CtxVar)
+                               )
+                             )
+                             (ElEqTy (PiVal "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id) (PiElim (OmegaVarElim f' Wk) "_" (OmegaVarElim dom Wk) (OmegaVarElim cod (Under Wk)) CtxVar)) (OmegaVarElim f' Id) (PiTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id)))
+                             [] meta ty])
   elabElemNu sig omega ctx (App r (PiEta r0) _) meta ty =
     return (Error "Π-η applied to a wrong number of arguments")
   -- Σ-β₁ A (x. B) a b : (a , b) .π₁ ≡ a ∈ A
@@ -654,7 +679,17 @@ mutual
                            TypeElaboration (ctx :< (x, OmegaVarElim dom' Id)) cod cod',
                            ElemElaboration ctx a a' (OmegaVarElim dom' Id),
                            ElemElaboration ctx b b' (OmegaVarElim cod' (Ext Id (OmegaVarElim a' Id))),
-                           ElemElimElaboration ctx ElEqVal (ElEqTy (SigmaElim1 (SigmaVal (OmegaVarElim a' Id) (OmegaVarElim b' Id)) x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id)) (OmegaVarElim a' Id) (OmegaVarElim dom' Id)) [] meta ty])
+                           ElemElimElaboration ctx
+                             (ElEqVal
+                               (OmegaVarElim dom' Id)
+                               (SigmaElim1
+                                  (SigmaVal x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id) (OmegaVarElim a' Id) (OmegaVarElim b' Id))
+                                  x
+                                  (OmegaVarElim dom' Id)
+                                  (OmegaVarElim cod' Id)
+                               )
+                             )
+                             (ElEqTy (SigmaElim1 (SigmaVal x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id) (OmegaVarElim a' Id) (OmegaVarElim b' Id)) x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id)) (OmegaVarElim a' Id) (OmegaVarElim dom' Id)) [] meta ty])
   elabElemNu sig omega ctx (App r (SigmaBeta1 r0) _) meta ty =
     return (Error "Σ-β₁ applied to a wrong number of arguments")
   -- Σ-β₂ A (x. B) a b : (a , b) .π₂ ≡ b ∈ B(a/x)
@@ -667,7 +702,17 @@ mutual
                            TypeElaboration (ctx :< (x, OmegaVarElim dom' Id)) cod cod',
                            ElemElaboration ctx a a' (OmegaVarElim dom' Id),
                            ElemElaboration ctx b b' (OmegaVarElim cod' (Ext Id (OmegaVarElim a' Id))),
-                           ElemElimElaboration ctx ElEqVal (ElEqTy (SigmaElim2 (SigmaVal (OmegaVarElim a' Id) (OmegaVarElim b' Id)) x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id)) (OmegaVarElim b' Id) (OmegaVarElim cod' (Ext Id (OmegaVarElim a' Id)))) [] meta ty])
+                           ElemElimElaboration ctx
+                             (ElEqVal
+                               (OmegaVarElim cod' (Ext Id (OmegaVarElim a' Id)))
+                               (SigmaElim2
+                                 (SigmaVal x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id) (OmegaVarElim a' Id) (OmegaVarElim b' Id))
+                                 x
+                                 (OmegaVarElim dom' Id)
+                                 (OmegaVarElim cod' Id)
+                               )
+                             )
+                             (ElEqTy (SigmaElim2 (SigmaVal x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id) (OmegaVarElim a' Id) (OmegaVarElim b' Id)) x (OmegaVarElim dom' Id) (OmegaVarElim cod' Id)) (OmegaVarElim b' Id) (OmegaVarElim cod' (Ext Id (OmegaVarElim a' Id)))) [] meta ty])
   elabElemNu sig omega ctx (App r (SigmaBeta2 r0) _) meta ty =
     return (Error "Σ-β₂ applied to a wrong number of arguments")
   -- Σ-η p : (p .π₁ , p .π₂) ≡ p ∈ (x : A) ⨯ B
@@ -676,7 +721,12 @@ mutual
     (omega, cod) <- liftUnifyM $ newTypeMeta omega (ctx :< ("_", OmegaVarElim dom Id)) SolveByUnification
     (omega, p') <- liftUnifyM $ newElemMeta omega ctx (SigmaTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id)) SolveByElaboration
     return (Success omega [ElemElaboration ctx p p' (SigmaTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id)),
-                           ElemElimElaboration ctx ElEqVal (ElEqTy (SigmaVal (SigmaElim1 (OmegaVarElim p' Id) "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id)) (SigmaElim2 (OmegaVarElim p' Id) "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id))) (OmegaVarElim p' Id) (SigmaTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id))) [] meta ty])
+                           ElemElimElaboration ctx
+                             (ElEqVal
+                               (SigmaTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id))
+                               (SigmaVal "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id) (SigmaElim1 (OmegaVarElim p' Id) "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id)) (SigmaElim2 (OmegaVarElim p' Id) "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id)))
+                             )
+                             (ElEqTy (SigmaVal "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id) (SigmaElim1 (OmegaVarElim p' Id) "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id)) (SigmaElim2 (OmegaVarElim p' Id) "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id))) (OmegaVarElim p' Id) (SigmaTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id))) [] meta ty])
   elabElemNu sig omega ctx (App r (SigmaEta r0) _) meta ty =
     return (Error "Σ-η applied to a wrong number of arguments")
   -- ℕ-β-Z (x. A) z (y. h. s) : ℕ-elim (x. A) z (y. h. s) Z ≡ z ∈ A[Z/x]
@@ -688,7 +738,12 @@ mutual
     return (Success omega [TypeElaboration (ctx :< (x, NatTy)) schema schema',
                            ElemElaboration ctx z z' (ContextSubstElim (OmegaVarElim schema' Id) (Ext Id NatVal0)),
                            ElemElaboration (ctx :< (y, NatTy) :< (h, OmegaVarElim schema' Id)) s s' (ContextSubstElim (OmegaVarElim schema' Id) (Ext (WkN 2) (NatVal1 (CtxVarN 1)))),
-                           ElemElimElaboration ctx ElEqVal (ElEqTy (NatElim x (OmegaVarElim schema' Id) (OmegaVarElim z' Id) y h (OmegaVarElim s' Id) NatVal0) (OmegaVarElim z' Id) (OmegaVarElim schema' (Ext Id NatVal0))) [] meta ty])
+                           ElemElimElaboration ctx
+                             (ElEqVal
+                                (OmegaVarElim schema' (Ext Id NatVal0))
+                                (NatElim x (OmegaVarElim schema' Id) (OmegaVarElim z' Id) y h (OmegaVarElim s' Id) NatVal0)
+                             )
+                             (ElEqTy (NatElim x (OmegaVarElim schema' Id) (OmegaVarElim z' Id) y h (OmegaVarElim s' Id) NatVal0) (OmegaVarElim z' Id) (OmegaVarElim schema' (Ext Id NatVal0))) [] meta ty])
   elabElemNu sig omega ctx (App r (NatBetaZ r0) _) meta ty =
     return (Error "ℕ-β-Z applied to a wrong number of arguments")
   -- ℕ-β-S (x. A) z (y. h. s) t : ℕ-elim (x. A) z (y. h. s) (S t) ≡ s[t/x, ℕ-elim (x. A) z (y. h. s) t/h] ∈ A[S t/x]
@@ -702,7 +757,12 @@ mutual
                            ElemElaboration ctx z z' (ContextSubstElim (OmegaVarElim schema' Id) (Ext Id NatVal0)),
                            ElemElaboration (ctx :< (y, NatTy) :< (h, OmegaVarElim schema' Id)) s s' (ContextSubstElim (OmegaVarElim schema' Id) (Ext (WkN 2) (NatVal1 (CtxVarN 1)))),
                            ElemElaboration ctx t t' NatTy,
-                           ElemElimElaboration ctx ElEqVal (ElEqTy (NatElim x (OmegaVarElim schema' Id) (OmegaVarElim z' Id) y h (OmegaVarElim s' Id) (NatVal1 (OmegaVarElim t' Id))) (OmegaVarElim s' (Ext (Ext Id (OmegaVarElim t' Id)) (NatElim x (OmegaVarElim schema' Id) (OmegaVarElim z' Id) y h (OmegaVarElim s' Id) (OmegaVarElim t' Id)))) (OmegaVarElim schema' (Ext Id (NatVal1 (OmegaVarElim t' Id))))) [] meta ty])
+                           ElemElimElaboration ctx
+                             (ElEqVal
+                               (OmegaVarElim schema' (Ext Id (NatVal1 (OmegaVarElim t' Id))))
+                               (NatElim x (OmegaVarElim schema' Id) (OmegaVarElim z' Id) y h (OmegaVarElim s' Id) (NatVal1 (OmegaVarElim t' Id)))
+                             )
+                             (ElEqTy (NatElim x (OmegaVarElim schema' Id) (OmegaVarElim z' Id) y h (OmegaVarElim s' Id) (NatVal1 (OmegaVarElim t' Id))) (OmegaVarElim s' (Ext (Ext Id (OmegaVarElim t' Id)) (NatElim x (OmegaVarElim schema' Id) (OmegaVarElim z' Id) y h (OmegaVarElim s' Id) (OmegaVarElim t' Id)))) (OmegaVarElim schema' (Ext Id (NatVal1 (OmegaVarElim t' Id))))) [] meta ty])
   elabElemNu sig omega ctx (App r (NatBetaS r0) _) meta ty =
     return (Error "ℕ-β-S applied to a wrong number of arguments")
   -- 𝟙⁼ a b : a ≡ b ∈ 𝟙
@@ -711,9 +771,9 @@ mutual
     (omega, b') <- liftUnifyM $ newElemMeta omega ctx OneTy SolveByElaboration
     return (Success omega [ElemElaboration ctx a a' OneTy,
                            ElemElaboration ctx b b' OneTy,
-                           ElemElimElaboration ctx ElEqVal (ElEqTy (OmegaVarElim a' Id)
-                                                                 (OmegaVarElim b' Id)
-                                                                 OneTy) [] meta ty])
+                           ElemElimElaboration ctx
+                             (ElEqVal OneTy (OmegaVarElim a' Id))
+                             (ElEqTy (OmegaVarElim a' Id) (OmegaVarElim b' Id) OneTy) [] meta ty])
   elabElemNu sig omega ctx (App r (OneEq r0) _) meta ty =
     return (Error "𝟙⁼ applied to a wrong number of arguments")
   -- Π⁼ (x. f) (y. g) (z. p) : (x ↦ f) ≡ (y ↦ g) ∈ (z : A) → B
@@ -726,9 +786,13 @@ mutual
     return (Success omega [ElemElaboration (ctx :< (x, OmegaVarElim dom Id)) f f' (OmegaVarElim cod Id),
                            ElemElaboration (ctx :< (y, OmegaVarElim dom Id)) g g' (OmegaVarElim cod Id),
                            ElemElaboration (ctx :< (z, OmegaVarElim dom Id)) p p' (ElEqTy (OmegaVarElim f' Id) (OmegaVarElim g' Id) (OmegaVarElim cod Id)),
-                           ElemElimElaboration ctx ElEqVal (ElEqTy (PiVal x (OmegaVarElim dom Id) (OmegaVarElim cod Id) (OmegaVarElim f' Id))
-                                                               (PiVal y (OmegaVarElim dom Id) (OmegaVarElim cod Id) (OmegaVarElim g' Id))
-                                                               (PiTy z (OmegaVarElim dom Id) (OmegaVarElim cod Id))) [] meta ty])
+                           ElemElimElaboration ctx
+                             (ElEqVal (PiTy z (OmegaVarElim dom Id) (OmegaVarElim cod Id))
+                                      (PiVal x (OmegaVarElim dom Id) (OmegaVarElim cod Id) (OmegaVarElim f' Id))
+                             )
+                             (ElEqTy (PiVal x (OmegaVarElim dom Id) (OmegaVarElim cod Id) (OmegaVarElim f' Id))
+                                     (PiVal y (OmegaVarElim dom Id) (OmegaVarElim cod Id) (OmegaVarElim g' Id))
+                                     (PiTy z (OmegaVarElim dom Id) (OmegaVarElim cod Id))) [] meta ty])
   elabElemNu sig omega ctx (App r (PiEq r0) _) meta ty =
     return (Error "Π⁼ applied to a wrong number of arguments")
   -- Σ⁼ a₀ b₀ a₁ b₁ a b : (a₀ , b₀) ≡ (a₁ , b₁) ∈ (_ : A) ⨯ B
@@ -747,9 +811,14 @@ mutual
                            ElemElaboration ctx b0 b0' (OmegaVarElim cod (Ext Id (OmegaVarElim a0' Id))),
                            ElemElaboration ctx b1 b1' (OmegaVarElim cod (Ext Id (OmegaVarElim a1' Id))),
                            ElemElaboration ctx b b' (ElEqTy (OmegaVarElim b0' Id) (OmegaVarElim b1' Id) (OmegaVarElim cod (Ext Id (OmegaVarElim a1' Id)))),
-                           ElemElimElaboration ctx ElEqVal (ElEqTy (SigmaVal (OmegaVarElim a0' Id) (OmegaVarElim b0' Id))
-                                                                 (SigmaVal (OmegaVarElim a1' Id) (OmegaVarElim b1' Id))
-                                                                 (SigmaTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id))) [] meta ty])
+                           ElemElimElaboration ctx
+                             (ElEqVal
+                               (SigmaTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id))
+                               (SigmaVal "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id) (OmegaVarElim a0' Id) (OmegaVarElim b0' Id))
+                             )
+                             (ElEqTy (SigmaVal "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id) (OmegaVarElim a0' Id) (OmegaVarElim b0' Id))
+                                     (SigmaVal "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id) (OmegaVarElim a1' Id) (OmegaVarElim b1' Id))
+                                     (SigmaTy "_" (OmegaVarElim dom Id) (OmegaVarElim cod Id))) [] meta ty])
   elabElemNu sig omega ctx (App r (SigmaEq r0) _) meta ty =
     return (Error "Σ⁼ applied to a wrong number of arguments")
   elabElemNu sig omega ctx (App r (Tm _ tm) []) meta ty = M.do
@@ -1120,13 +1189,13 @@ mutual
       (omega, body) <- applyRewrite sig omega (gamma :< (x, a)) body pbody prf direct
       return (omega, ImplicitPiVal x a b body)
     applyRewriteNu sig omega gamma (ImplicitPiVal x a b body) p prf direct = error (range p, "{_} ↦ _")
-    applyRewriteNu sig omega gamma (SigmaVal a b) (SigmaVal r pa (App _ (Underscore _) [])) prf direct = MEither.do
+    applyRewriteNu sig omega gamma (SigmaVal x dom cod a b) (SigmaVal r pa (App _ (Underscore _) [])) prf direct = MEither.do
       (omega, a) <- applyRewrite sig omega gamma a pa prf direct
-      return (omega, SigmaVal a b)
-    applyRewriteNu sig omega gamma (SigmaVal a b) (SigmaVal r (App _ (Underscore _) []) pb) prf direct = MEither.do
+      return (omega, SigmaVal x dom cod a b)
+    applyRewriteNu sig omega gamma (SigmaVal x dom cod a b) (SigmaVal r (App _ (Underscore _) []) pb) prf direct = MEither.do
       (omega, b) <- applyRewrite sig omega gamma b pb prf direct
-      return (omega, SigmaVal a b)
-    applyRewriteNu sig omega gamma (SigmaVal a b) p prf direct = error (range p, "_, _")
+      return (omega, SigmaVal x dom cod a b)
+    applyRewriteNu sig omega gamma (SigmaVal x dom cod a b) p prf direct = error (range p, "_, _")
     -- Γ ⊦ p : e₀ ≡ e ∈ A
     -- ⟦Γ | e | ☐ | p, True⟧ = e₀
     applyRewriteNu sig omega gamma e (App r (Box _) []) prf True = MEither.do
@@ -1240,12 +1309,12 @@ mutual
     applyRewriteNu sig omega gamma ZeroTy p prf direct = error (range p, "Failing at 𝟘")
     applyRewriteNu sig omega gamma OneTy p prf direct = error (range p, "Failing at 𝟙")
     applyRewriteNu sig omega gamma OneVal p prf direct = error (range p, "Failing at ()")
-    applyRewriteNu sig omega gamma (ZeroElim t) (App r (ZeroElim _)
+    applyRewriteNu sig omega gamma (ZeroElim ty t) (App r (ZeroElim _)
                                                        [(_, Arg ([], pt))]
                                                 ) prf direct = MEither.do
       (omega, t) <- applyRewrite sig omega gamma t pt prf direct
-      return (omega, ZeroElim t)
-    applyRewriteNu sig omega gamma (ZeroElim t) p prf direct = error (range p, "Failing at 𝟘")
+      return (omega, ZeroElim ty t)
+    applyRewriteNu sig omega gamma (ZeroElim ty t) p prf direct = error (range p, "Failing at 𝟘")
     applyRewriteNu sig omega gamma (NatElim x schema z y h s t) (App r (NatElim _)
                                                               [(_, Arg ([], pschema)),
                                                                (_, Arg ([], pz)),
@@ -1289,8 +1358,8 @@ mutual
       (omega, ty) <- applyRewrite sig omega gamma ty pty prf direct
       return (omega, ElEqTy a b ty)
     applyRewriteNu sig omega gamma (ElEqTy a b ty) p prf direct = error (range p, "Failing at _ ≡ _ ∈ _")
-    applyRewriteNu sig omega gamma TyEqVal p prf direct = error (range p, "Failing at Refl")
-    applyRewriteNu sig omega gamma ElEqVal p prf direct = error (range p, "Failing at Refl")
+    applyRewriteNu sig omega gamma (TyEqVal _) p prf direct = error (range p, "Failing at Refl")
+    applyRewriteNu sig omega gamma (ElEqVal _ _) p prf direct = error (range p, "Failing at Refl")
 
     public export
     applyRewrite : Params => Signature -> Omega -> Context -> Elem -> OpFreeTerm -> SurfaceTerm -> Bool -> ElabM (Either (Range, Doc Ann) (Omega, Elem))

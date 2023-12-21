@@ -116,9 +116,9 @@ mutual
     applyUnfoldNu sig omega ctx (ImplicitPiVal x a b body) (ImplicitPiVal r _ pbody) = MEither.do
       return $ ImplicitPiVal x a b !(applyUnfold sig omega (ctx :< x) body pbody)
     applyUnfoldNu sig omega ctx (ImplicitPiVal x a b body) p = error (range p)
-    applyUnfoldNu sig omega ctx (SigmaVal a b) (SigmaVal r pa pb) = MEither.do
-      return $ SigmaVal !(applyUnfold sig omega ctx a pa) !(applyUnfold sig omega ctx b pb)
-    applyUnfoldNu sig omega ctx (SigmaVal a b) p = error (range p)
+    applyUnfoldNu sig omega ctx (SigmaVal x dom cod a b) (SigmaVal r pa pb) = MEither.do
+      return $ SigmaVal x dom cod !(applyUnfold sig omega ctx a pa) !(applyUnfold sig omega ctx b pb)
+    applyUnfoldNu sig omega ctx (SigmaVal x dom cod a b) p = error (range p)
     applyUnfoldNu sig omega ctx (PiElim f x a b e) (App r h es) = MEither.do
       let es' = cast {to = SnocList (Range, OpFreeElimEntry)} es
       case es' of
@@ -163,7 +163,7 @@ mutual
     applyUnfoldNu sig omega ctx NatTy p = error (range p)
     applyUnfoldNu sig omega ctx ZeroTy p = error (range p)
     applyUnfoldNu sig omega ctx OneTy p = error (range p)
-    applyUnfoldNu sig omega ctx (ZeroElim t) p = error (range p)
+    applyUnfoldNu sig omega ctx (ZeroElim ty t) p = error (range p)
     applyUnfoldNu sig omega ctx (NatElim x schema z y h s t) (App r (NatElim _)
                                                               [(_, Arg ([], pschema)),
                                                                (_, Arg ([], pz)),
@@ -195,8 +195,8 @@ mutual
     applyUnfoldNu sig omega ctx (ElEqTy a b ty) (ElEqTy _ pa pb pty) = MEither.do
       return (ElEqTy !(applyUnfold sig omega ctx a pa) !(applyUnfold sig omega ctx b pb) !(applyUnfold sig omega ctx ty pty))
     applyUnfoldNu sig omega ctx (ElEqTy a b ty) p = error (range p)
-    applyUnfoldNu sig omega ctx TyEqVal p = error (range p)
-    applyUnfoldNu sig omega ctx ElEqVal p = error (range p)
+    applyUnfoldNu sig omega ctx (TyEqVal ty) p = error (range p)
+    applyUnfoldNu sig omega ctx (ElEqVal ty e) p = error (range p)
     applyUnfoldNu sig omega ctx tm@(SignatureVarElim x subst) (App r (Var _ y) []) = MEither.do
       case !(liftM $ conv sig omega subst Terminal) of
         True =>
@@ -216,7 +216,7 @@ mutual
     applyUnfoldNuHelper sig omega (SigmaTy str x y) r = error r
     applyUnfoldNuHelper sig omega (PiVal str x y z) r = error r
     applyUnfoldNuHelper sig omega (ImplicitPiVal str x y z) r = error r
-    applyUnfoldNuHelper sig omega (SigmaVal x y) r = error r
+    applyUnfoldNuHelper sig omega (SigmaVal _ _ _ x y) r = error r
     applyUnfoldNuHelper sig omega (PiElim f x dom cod e) r = MEither.do
       f <- applyUnfoldNuHelper sig omega f r
       return (PiElim f x dom cod e)
@@ -247,12 +247,12 @@ mutual
     applyUnfoldNuHelper sig omega (OmegaVarElim str x) r = error r
     applyUnfoldNuHelper sig omega (TyEqTy x y) r = error r
     applyUnfoldNuHelper sig omega (ElEqTy x y z) r = error r
-    applyUnfoldNuHelper sig omega TyEqVal r = error r
-    applyUnfoldNuHelper sig omega ElEqVal r = error r
+    applyUnfoldNuHelper sig omega (TyEqVal _) r = error r
+    applyUnfoldNuHelper sig omega (ElEqVal _ _) r = error r
     applyUnfoldNuHelper sig omega ZeroTy r = error r
     applyUnfoldNuHelper sig omega OneTy r = error r
     applyUnfoldNuHelper sig omega OneVal r = error r
-    applyUnfoldNuHelper sig omega (ZeroElim x) r = error r
+    applyUnfoldNuHelper sig omega (ZeroElim ty x) r = error r
 
     public export
     applyUnfold : Signature -> Omega -> SnocList VarName -> Elem -> OpFreeTerm -> M (Either Range Elem)

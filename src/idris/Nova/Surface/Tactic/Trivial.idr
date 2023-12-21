@@ -17,12 +17,12 @@ applyTrivialNu : Signature -> Omega -> Typ -> M (Maybe Elem)
 applyTrivialNu sig omega (TyEqTy a b) = MMaybe.do
   case !(liftM $ conv sig omega a b) of
     True => MMaybe.do
-      return TyEqVal
+      return (TyEqVal a)
     False => nothing
 applyTrivialNu sig omega (ElEqTy a b ty) = MMaybe.do
   case !(liftM $ conv sig omega a b) of
     True => MMaybe.do
-      return ElEqVal
+      return (ElEqVal ty a)
     False => nothing
 applyTrivialNu sig omega _ = nothing
 
