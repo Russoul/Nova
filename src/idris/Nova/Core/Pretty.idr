@@ -192,7 +192,7 @@ wrapElem (NatElim str x y str1 str2 z w) lvl doc =
   case lvl <= 3 of
     True => return doc
     False => return (parens' doc)
-wrapElem (ZeroElim _) lvl doc =
+wrapElem (ZeroElim _ _) lvl doc =
   case lvl <= 3 of
     True => return doc
     False => return (parens' doc)
@@ -497,7 +497,7 @@ mutual
       annotate Intro "↦"
        <++>
       !(prettyElem sig omega (ctx :< x) f 0)
-  prettyElem' sig omega ctx (SigmaVal a b) =
+  prettyElem' sig omega ctx (SigmaVal _ _ _ a b) =
     return $ introParens' $
       !(prettyElem sig omega ctx a 0)
        <+>
@@ -538,7 +538,7 @@ mutual
     return $ annotate Form "𝟙"
   prettyElem' sig omega ctx OneVal =
     return $ annotate Intro "()"
-  prettyElem' sig omega ctx (ZeroElim t) = M.do
+  prettyElem' sig omega ctx (ZeroElim _ t) = M.do
     return $
       annotate Elim "𝟘-elim"
        <++>
@@ -595,9 +595,9 @@ mutual
     annotate Form "∈"
      <++>
     !(prettyElem sig omega ctx ty 0)
-  prettyElem' sig omega ctx TyEqVal =
+  prettyElem' sig omega ctx (TyEqVal _) =
     return $ annotate Intro "Refl"
-  prettyElem' sig omega ctx ElEqVal =
+  prettyElem' sig omega ctx (ElEqVal _ _) =
     return $ annotate Intro "Refl"
 
   public export

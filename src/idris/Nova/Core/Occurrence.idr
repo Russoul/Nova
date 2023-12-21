@@ -64,8 +64,8 @@ mutual
       [| unite3 (freeOmegaName sig omega dom) (freeOmegaName sig omega cod) (freeOmegaName sig omega f) |]
     freeOmegaNameNu sig omega (ImplicitPiVal x dom cod f) =
       [| unite3 (freeOmegaName sig omega dom) (freeOmegaName sig omega cod) (freeOmegaName sig omega f) |]
-    freeOmegaNameNu sig omega (SigmaVal p q) =
-      [| unite (freeOmegaName sig omega p) (freeOmegaName sig omega q) |]
+    freeOmegaNameNu sig omega (SigmaVal x a b p q) = M.do
+      [| unite4 (freeOmegaName sig omega a) (freeOmegaName sig omega b) (freeOmegaName sig omega p) (freeOmegaName sig omega q) |]
     freeOmegaNameNu sig omega (PiElim f x dom cod e) = M.do
       [|
          unite4 (freeOmegaName sig omega f)
@@ -90,8 +90,8 @@ mutual
     freeOmegaNameNu sig omega ZeroTy = return empty
     freeOmegaNameNu sig omega OneTy = return empty
     freeOmegaNameNu sig omega OneVal = return empty
-    freeOmegaNameNu sig omega (ZeroElim t) = M.do
-      freeOmegaName sig omega t
+    freeOmegaNameNu sig omega (ZeroElim ty t) = M.do
+      [| unite (freeOmegaName sig omega ty) (freeOmegaName sig omega t) |]
     freeOmegaNameNu sig omega (NatElim x schema z y h s t) = M.do
       [| unite4
            (freeOmegaName sig omega schema)
@@ -110,8 +110,9 @@ mutual
       [| unite (freeOmegaName sig omega a) (freeOmegaName sig omega b) |]
     freeOmegaNameNu sig omega (ElEqTy a b ty) = M.do
       [| unite3 (freeOmegaName sig omega a) (freeOmegaName sig omega b) (freeOmegaName sig omega ty) |]
-    freeOmegaNameNu sig omega TyEqVal = return empty
-    freeOmegaNameNu sig omega ElEqVal = return empty
+    freeOmegaNameNu sig omega (TyEqVal ty) = freeOmegaName sig omega ty
+    freeOmegaNameNu sig omega (ElEqVal ty e) = M.do
+      [| unite (freeOmegaName sig omega ty) (freeOmegaName sig omega e) |]
 
     ||| Compute free occurrences of Ω variables in the term modulo open evaluation.
     public export

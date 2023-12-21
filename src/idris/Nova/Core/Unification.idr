@@ -241,10 +241,12 @@ mutual
       cod' <- invert sig omega (ctx :< (x, dom)) (delta :< (x, dom')) (Under sigma) cod
       f' <- invert sig omega (ctx :< (x, dom)) (delta :< (x, dom')) (Under sigma) f
       return (ImplicitPiVal x dom' cod' f')
-    invertNu sig omega ctx delta sigma (SigmaVal p q) = MMaybe.do
+    invertNu sig omega ctx delta sigma (SigmaVal x dom cod p q) = MMaybe.do
+      dom' <- invert sig omega ctx delta sigma dom
+      cod' <- invert sig omega (ctx :< (x, dom)) (delta :< (x, dom')) (Under sigma) cod
       p' <- invert sig omega ctx delta sigma p
       q' <- invert sig omega ctx delta sigma q
-      return (SigmaVal p' q')
+      return (SigmaVal x dom' cod' p' q')
     invertNu sig omega ctx delta sigma (PiElim f x dom cod e) = MMaybe.do
       f' <- invert sig omega ctx delta sigma f
       dom' <- invert sig omega ctx delta sigma dom
@@ -275,9 +277,10 @@ mutual
     invertNu sig omega ctx delta sigma ZeroTy = MMaybe.do return ZeroTy
     invertNu sig omega ctx delta sigma OneTy = MMaybe.do return OneTy
     invertNu sig omega ctx delta sigma OneVal = MMaybe.do return OneVal
-    invertNu sig omega ctx delta sigma (ZeroElim t) = MMaybe.do
+    invertNu sig omega ctx delta sigma (ZeroElim ty t) = MMaybe.do
+      ty' <- invert sig omega ctx delta sigma ty
       t' <- invert sig omega ctx delta sigma t
-      return (ZeroElim t')
+      return (ZeroElim ty' t')
     invertNu sig omega ctx delta sigma (NatElim x schema z y h s t) = MMaybe.do
       schema' <- invert sig omega (ctx :< (x, NatTy)) (delta :< (x, NatTy)) (Under sigma) schema
       z' <- invert sig omega ctx delta sigma z
@@ -353,8 +356,13 @@ mutual
       b <- invert sig omega ctx delta sigma b
       ty <- invert sig omega ctx delta sigma ty
       return (ElEqTy a b ty)
-    invertNu sig omega ctx delta sigma TyEqVal = MMaybe.do return TyEqVal
-    invertNu sig omega ctx delta sigma ElEqVal = MMaybe.do return ElEqVal
+    invertNu sig omega ctx delta sigma (TyEqVal ty) = MMaybe.do
+      ty' <- invert sig omega ctx delta sigma ty
+      return (TyEqVal ty')
+    invertNu sig omega ctx delta sigma (ElEqVal ty e) = MMaybe.do
+      ty' <- invert sig omega ctx delta sigma ty
+      e' <- invert sig omega ctx delta sigma e
+      return (ElEqVal ty' e')
 
     public export
     invert : Signature -> Omega -> Context -> Context -> SubstContext -> Elem -> M (Maybe Elem)
@@ -428,8 +436,8 @@ mutual
       occurs sig omega dom k `or` occurs sig omega cod k `or` occurs sig omega f k
     occursNu sig omega (ImplicitPiVal x dom cod f) k =
       occurs sig omega dom k `or` occurs sig omega cod k `or` occurs sig omega f k
-    occursNu sig omega (SigmaVal p q) k =
-      occurs sig omega p k `or` occurs sig omega q k
+    occursNu sig omega (SigmaVal x a b p q) k =
+      occurs sig omega a k `or` occurs sig omega b k `or` occurs sig omega p k `or` occurs sig omega q k
     occursNu sig omega (PiElim f x dom cod e) k =
       occurs sig omega f k `or` occurs sig omega dom k `or` occurs sig omega cod k `or` occurs sig omega e k
     occursNu sig omega (ImplicitPiElim f x dom cod e) k =
@@ -444,8 +452,8 @@ mutual
     occursNu sig omega ZeroTy k = return False
     occursNu sig omega OneTy k = return False
     occursNu sig omega OneVal k = return False
-    occursNu sig omega (ZeroElim t) k =
-      occurs sig omega t k
+    occursNu sig omega (ZeroElim ty t) k =
+      occurs sig omega ty k `or` occurs sig omega t k
     occursNu sig omega (NatElim x schema z y h s t) k =
       occurs sig omega schema k `or` occurs sig omega z k `or` occurs sig omega s k `or` occurs sig omega t k
     occursNu sig omega (ContextSubstElim x y) k = assert_total $ idris_crash "occursNu(ContextSubstElim)"
@@ -455,8 +463,10 @@ mutual
     occursNu sig omega (OmegaVarElim j sigma) k = return (j == k) `or` occurs sig omega sigma k
     occursNu sig omega (TyEqTy a b) k = occurs sig omega a k `or` occurs sig omega b k
     occursNu sig omega (ElEqTy a b ty) k = occurs sig omega a k `or` occurs sig omega b k `or` occurs sig omega ty k
-    occursNu sig omega TyEqVal k = return False
-    occursNu sig omega ElEqVal k = return False
+    occursNu sig omega (TyEqVal ty) k =
+      occurs sig omega ty k
+    occursNu sig omega (ElEqVal ty e) k =
+      occurs sig omega ty k `or` occurs sig omega e k
 
     public export
     occurs : Signature -> Omega -> Elem -> OmegaName -> M Bool
@@ -535,7 +545,7 @@ namespace Elem
     case !(unifyElemElimNu sig omega ctx f0 f1) of
       Success cons metas lets => return (Success cons metas lets)
       nope => return nope
-  unifyElemElimNu sig omega ctx (ZeroElim t0) (ZeroElim t1) = M.do
+  unifyElemElimNu sig omega ctx (ZeroElim _ t0) (ZeroElim _ t1) = M.do
     case !(unifyElemElimNu sig omega ctx t0 t1) of
       Success cons metas lets => return (Success cons metas lets)
       nope => return nope
@@ -674,7 +684,7 @@ namespace Elem
                     []
                     []
            )
-  unifyElemIntroNu sig cs ctx (SigmaVal p0 q0) (SigmaVal p1 q1) (SigmaTy x a b) = FailSt.do
+  unifyElemIntroNu sig cs ctx (SigmaVal x a b p0 q0) (SigmaVal _ _ _ p1 q1) _ = FailSt.do
     return (Success [ElemConstraint ctx p0 p1 a, ElemConstraint ctx q0 q1 (ContextSubstElim b (Ext Id p0))]
                     []
                     []
@@ -697,8 +707,8 @@ namespace Elem
     return (Success [  ElemConstraint ctx ty0 ty1 UniverseTy,
                        ElemConstraint ctx p0 p1 (El ty0),
                        ElemConstraint ctx q0 q1 (El ty0)] [] [])
-  unifyElemIntroNu sig cs ctx TyEqVal TyEqVal ty = return (Success [] [] [])
-  unifyElemIntroNu sig cs ctx ElEqVal ElEqVal ty = return (Success [] [] [])
+  unifyElemIntroNu sig cs ctx (TyEqVal _) (TyEqVal _) ty = return (Success [] [] [])
+  unifyElemIntroNu sig cs ctx (ElEqVal _ _) (ElEqVal _ _) ty = return (Success [] [] [])
   unifyElemIntroNu sig cs ctx a b ty = return (Stuck "UnifyElemIntroNu rule doesn't apply")
 
   public export
@@ -1135,7 +1145,7 @@ progressElemMetaNu sig omega ctx idx ty@(SigmaTy x dom cod) = M.do
   a <- nextOmegaName
   b <- nextOmegaName
   return (Success
-            (insert (idx, LetElem ctx (SigmaVal (OmegaVarElim a Id) (OmegaVarElim b Id)) ty) omega)
+            (insert (idx, LetElem ctx (SigmaVal x dom cod (OmegaVarElim a Id) (OmegaVarElim b Id)) ty) omega)
             [ (ctx, a, dom), (ctx, b, (ContextSubstElim cod (Ext Id (OmegaVarElim a Id))))] []
          )
 progressElemMetaNu sig omega ctx idx (TyEqTy a b) = return (Stuck "No canonical Elem exists")

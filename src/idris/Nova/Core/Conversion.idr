@@ -57,7 +57,7 @@ mutual
       conv sig omega f0 f1
     convNu sig omega (ImplicitPiVal x0 _ _ f0) (ImplicitPiVal x1 _ _ f1) =
       conv sig omega f0 f1
-    convNu sig omega (SigmaVal p0 q0) (SigmaVal p1 q1) =
+    convNu sig omega (SigmaVal _ _ _ p0 q0) (SigmaVal _ _ _ p1 q1) =
       conv sig omega p0 p1 `and` conv sig omega q0 q1
     convNu sig omega (PiElim f0 x0 a0 b0 e0) (PiElim f1 x1 a1 b1 e1) =
       conv sig omega f0 f1 `and` conv sig omega e0 e1
@@ -82,7 +82,7 @@ mutual
       conv sig omega z0 z1
         `and`
       conv sig omega s0 s1
-    convNu sig omega (ZeroElim t0) (ZeroElim t1) =
+    convNu sig omega (ZeroElim _ t0) (ZeroElim _ t1) =
       conv sig omega t0 t1
     convNu sig omega (ContextSubstElim {}) b = throw "convNu(ContextSubstElim)"
     convNu sig omega (SignatureSubstElim {}) b = throw "convNu(SignatureSubstElim)"

@@ -63,7 +63,7 @@ mutual
     isRigidNu sig omega ZeroTy = return True
     isRigidNu sig omega OneTy = return True
     isRigidNu sig omega OneVal = return True
-    isRigidNu sig omega (ZeroElim t) = return True
+    isRigidNu sig omega (ZeroElim _ t) = return True
     isRigidNu sig omega (NatElim str x y str1 str2 z w) = return True
     isRigidNu sig omega (ContextSubstElim x y) = assert_total $ idris_crash "isRigidNu(ContextSubstElim)"
     isRigidNu sig omega (SignatureSubstElim x y) = assert_total $ idris_crash "isRigidNu(SignatureSubstElim)"
@@ -81,8 +81,8 @@ mutual
         Nothing => assert_total $ idris_crash "isRigidNu(SignatureVarElim)(3)"
     isRigidNu sig omega (TyEqTy x y) = return True
     isRigidNu sig omega (ElEqTy x y z) = return True
-    isRigidNu sig omega TyEqVal = return True
-    isRigidNu sig omega ElEqVal = return True
+    isRigidNu sig omega (TyEqVal _) = return True
+    isRigidNu sig omega (ElEqVal _ _) = return True
 
     ||| A term is rigid if
     ||| there is no (~) that changes its constructor.

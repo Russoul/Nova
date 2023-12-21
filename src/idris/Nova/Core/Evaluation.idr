@@ -19,13 +19,13 @@ mutual
     closedEvalNu sig omega ZeroTy = return ZeroTy
     closedEvalNu sig omega OneTy = return OneTy
     closedEvalNu sig omega OneVal = return OneVal
-    closedEvalNu sig omega (ZeroElim t) = throw "closedEval(ZeroElim)"
+    closedEvalNu sig omega (ZeroElim ty t) = throw "closedEval(ZeroElim)"
     closedEvalNu sig omega (PiTy x a b) = return (PiTy x a b)
     closedEvalNu sig omega (ImplicitPiTy x a b) = return (ImplicitPiTy x a b)
     closedEvalNu sig omega (SigmaTy x a b) = return (SigmaTy x a b)
     closedEvalNu sig omega (PiVal x a b f) = return (PiVal x a b f)
     closedEvalNu sig omega (ImplicitPiVal x a b f) = return (ImplicitPiVal x a b f)
-    closedEvalNu sig omega (SigmaVal a b) = return (SigmaVal a b)
+    closedEvalNu sig omega (SigmaVal x a b p q) = return (SigmaVal x a b p q)
     closedEvalNu sig omega (PiElim f x a b e) = M.do
       PiVal _ _ _ f <- closedEval sig omega f
         | _ => throw "closedEval(PiElim)"
@@ -35,11 +35,11 @@ mutual
         | _ => throw "closedEval(ImplicitPiElim)"
       closedEval sig omega (ContextSubstElim f (Ext Terminal e))
     closedEvalNu sig omega (SigmaElim1 f x a b) = M.do
-      SigmaVal p q <- closedEval sig omega f
+      SigmaVal _ _ _ p q <- closedEval sig omega f
         | _ => throw "closedEval(SigmaElim1)"
       closedEval sig omega p
     closedEvalNu sig omega (SigmaElim2 f x a b) = M.do
-      SigmaVal p q <- closedEval sig omega f
+      SigmaVal _ _ _ p q <- closedEval sig omega f
         | _ => throw "closedEval(SigmaElim2)"
       closedEval sig omega q
     closedEvalNu sig omega NatVal0 = return NatVal0
@@ -62,8 +62,8 @@ mutual
         _ => throw "closedEval(OmegaVarElim)"
     closedEvalNu sig omega (TyEqTy a0 a1) = return $ TyEqTy a0 a1
     closedEvalNu sig omega (ElEqTy a0 a1 ty) = return $ ElEqTy a0 a1 ty
-    closedEvalNu sig omega TyEqVal = return TyEqVal
-    closedEvalNu sig omega ElEqVal = return ElEqVal
+    closedEvalNu sig omega (TyEqVal ty) = return (TyEqVal ty)
+    closedEvalNu sig omega (ElEqVal ty e) = return (ElEqVal ty e)
 
     ||| Σ ⊦ a ⇝ a' : A
     ||| Σ must only contain let-elem's
@@ -79,14 +79,14 @@ mutual
     openEvalNu sig omega OneTy = return OneTy
     openEvalNu sig omega NatTy = return NatTy
     openEvalNu sig omega OneVal = return OneVal
-    openEvalNu sig omega (ZeroElim t) = M.do
-      return (ZeroElim t)
+    openEvalNu sig omega (ZeroElim ty t) = M.do
+      return (ZeroElim ty t)
     openEvalNu sig omega (PiTy x a b) = return (PiTy x a b)
     openEvalNu sig omega (ImplicitPiTy x a b) = return (ImplicitPiTy x a b)
     openEvalNu sig omega (SigmaTy x a b) = return (SigmaTy x a b)
     openEvalNu sig omega (PiVal x a b f) = return (PiVal x a b f)
     openEvalNu sig omega (ImplicitPiVal x a b f) = return (ImplicitPiVal x a b f)
-    openEvalNu sig omega (SigmaVal a b) = return (SigmaVal a b)
+    openEvalNu sig omega (SigmaVal x a b p q) = return (SigmaVal x a b p q)
     openEvalNu sig omega (PiElim f x a b e) = M.do
       PiVal _ _ _ f <- openEval sig omega f
         | f => return (PiElim f x a b e)
@@ -96,11 +96,11 @@ mutual
         | f => return (ImplicitPiElim f x a b e)
       openEval sig omega (ContextSubstElim f (Ext Id e))
     openEvalNu sig omega (SigmaElim1 f x a b) = M.do
-      SigmaVal p q <- openEval sig omega f
+      SigmaVal _ _ _ p q <- openEval sig omega f
         | f => return (SigmaElim1 f x a b)
       openEval sig omega p
     openEvalNu sig omega (SigmaElim2 f x a b) = M.do
-      SigmaVal p q <- openEval sig omega f
+      SigmaVal _ _ _ p q <- openEval sig omega f
         | f => return (SigmaElim2 f x a b)
       openEval sig omega q
     openEvalNu sig omega NatVal0 = return NatVal0
@@ -129,8 +129,8 @@ mutual
         Nothing => throw "openEval/Elem(OmegaVarElim(Nothing))"
     openEvalNu sig omega (TyEqTy a0 a1) = return $ TyEqTy a0 a1
     openEvalNu sig omega (ElEqTy a0 a1 ty) = return $ ElEqTy a0 a1 ty
-    openEvalNu sig omega TyEqVal = return TyEqVal
-    openEvalNu sig omega ElEqVal = return ElEqVal
+    openEvalNu sig omega (TyEqVal ty) = return (TyEqVal ty)
+    openEvalNu sig omega (ElEqVal ty e) = return (ElEqVal ty e)
 
     ||| Σ ⊦ a ⇝ a' : A
     ||| Computes head-normal form w.r.t. (~) relation used in unification.

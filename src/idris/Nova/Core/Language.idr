@@ -108,7 +108,7 @@ mutual
       ||| {x} ↦ f
       ImplicitPiVal : VarName -> Typ -> Typ -> Elem -> Elem
       ||| (a, b)
-      SigmaVal : Elem -> Elem -> Elem
+      SigmaVal : VarName -> Typ -> Typ -> Elem -> Elem -> Elem
       ||| (f : (x : A) → B) e
       PiElim : Elem -> VarName -> Typ -> Typ -> Elem -> Elem
       ||| {f : {x : A} → B} e
@@ -140,17 +140,17 @@ mutual
       ||| a₀ ≡ a₁ ∈ A
       ElEqTy : Elem -> Elem -> Elem -> Elem
       ||| Refl
-      TyEqVal : Elem
+      TyEqVal : Typ -> Elem
       ||| Refl
-      ElEqVal : Elem
+      ElEqVal : Typ -> Elem -> Elem
       ||| 𝟘
       ZeroTy : Elem
       ||| 𝟙
       OneTy : Elem
       ||| ()
       OneVal : Elem
-      ||| 𝟘-elim t
-      ZeroElim : Elem -> Elem
+      ||| 𝟘-elim A t
+      ZeroElim : Typ -> Elem -> Elem
 
   public export
   Context : Type
