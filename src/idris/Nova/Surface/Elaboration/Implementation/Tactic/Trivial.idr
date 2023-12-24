@@ -1,4 +1,4 @@
-module Nova.Surface.Tactic.Trivial
+module Nova.Surface.Elaboration.Implementation.Tactic.Trivial
 
 import Data.Location
 import Data.SnocList

@@ -1,4 +1,4 @@
-module Nova.Surface.Tactic.Unfold
+module Nova.Surface.Elaboration.Implementation.Tactic.Unfold
 
 import Data.Fin
 import Data.Location

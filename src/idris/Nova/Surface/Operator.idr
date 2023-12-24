@@ -8,8 +8,8 @@ import Nova.Core.Name
 public export
 record Operator where
   constructor MkOperator
-  k : Bool
-  seq : AlternatingList1 k String Nat
+  index : Bool
+  seq : AlternatingList1 index String Nat
   lvl : Nat
 
 public export

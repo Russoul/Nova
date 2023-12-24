@@ -27,6 +27,16 @@ modules =
         , Nova.Core.Unification
 
         , Nova.Surface.Elaboration
+        , Nova.Surface.Elaboration.Implementation
+        , Nova.Surface.Elaboration.Implementation.Common
+        , Nova.Surface.Elaboration.Implementation.Elem
+        , Nova.Surface.Elaboration.Implementation.Solve
+        , Nova.Surface.Elaboration.Implementation.Tactic
+        , Nova.Surface.Elaboration.Implementation.Tactic.Trivial
+        , Nova.Surface.Elaboration.Implementation.Tactic.Unfold
+        , Nova.Surface.Elaboration.Implementation.TopLevel
+        , Nova.Surface.Elaboration.Implementation.Typ
+        , Nova.Surface.Elaboration.Interface
         , Nova.Surface.Language
         , Nova.Surface.ModuleSystem
         , Nova.Surface.Operator
@@ -35,9 +45,6 @@ modules =
         , Nova.Surface.ParserGeneral
         , Nova.Surface.SemanticToken
         , Nova.Surface.Shunting
-
-        , Nova.Surface.Tactic.Trivial
-        , Nova.Surface.Tactic.Unfold
 
         , Nova.Test.Test
 
