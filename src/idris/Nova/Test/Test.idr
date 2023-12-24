@@ -16,17 +16,10 @@ import Text.PrettyPrint.Prettyprinter
 
 import Nova.Core.Language
 import Nova.Core.Monad
-import Nova.Core.Substitution
-import Nova.Core.Unification
 import Nova.Core.Pretty
 
-import Nova.Surface.Elaboration
-import Nova.Surface.Language
 import Nova.Surface.ModuleSystem
 import Nova.Surface.Operator
-import Nova.Surface.Parser
-import Nova.Surface.ParserCategorical
-import Nova.Surface.ParserGeneral
 import Nova.Surface.SemanticToken
 
 novaDirectory = "src/nova"

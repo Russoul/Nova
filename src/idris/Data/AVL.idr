@@ -10,6 +10,8 @@ import public Data.Util
 -- Original source is a haskell implementation:
 -- https://gist.github.com/timjb/8292342
 
+%hide Prelude.ord
+
 data Balance = MinusOne | Zero | PlusOne
 
 infixl 5 `unite`

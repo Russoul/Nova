@@ -110,6 +110,18 @@ namespace Index
     (_, (x, ty), _) <- mbIndex idx ctx
     pure (x, ContextSubstElim ty (Context.WkN (S idx)))
 
+namespace VarName
+  ||| Γ₀ (xᵢ : A) Γ₁ ⊦ xᵢ : A
+  public export
+  lookupContext : Context -> VarName -> Maybe (Elem, Typ)
+  lookupContext [<] x = Nothing
+  lookupContext (ctx :< (x, ty)) y = M.do
+    case x == y of
+      True => Just (ContextVarElim 0, ContextSubstElim ty Wk)
+      False => do
+        (t, ty) <- lookupContext ctx y
+        Just (ContextSubstElim t Wk, ContextSubstElim ty Wk)
+
 ||| In case the entry is an element entry, return the context and the type.
 public export
 mbElemSignature : SignatureEntry -> Maybe (Context, Typ)
