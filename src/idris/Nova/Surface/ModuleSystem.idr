@@ -49,7 +49,7 @@ readModuleDescription npkg = do
   pure (Just ls)
 
 -- ||| For common Σ Ω:
--- ||| ε ⊦ ⟦?A, ?z, ?p, ?⟧ ⇝ _ : Comm-Monoid
+-- ||| ε ⊦ ⟦?A, ?z, ?p, ?⟧ ⇝ _ : Commut-Monoid
 public export
 postProblem1 : Signature
             -> Omega
@@ -61,11 +61,13 @@ postProblem1 sig omega ops = M.do
     | Left err => throw (show err)
   let params = MkParams Nothing {solveNamedHoles = True}
   commMonoidTy <- Elab.liftM $
-    lookupSignatureIdxE sig "Comm-Monoid" `M.(<&>)` (\idx => Typ.SignatureVarElim idx Terminal)
+    lookupSignatureIdxE sig "Commut-Monoid" `M.(<&>)` (\idx => Typ.SignatureVarElim idx Terminal)
   (omega, midx) <- liftUnifyM $ newElemMeta omega [<] commMonoidTy SolveByElaboration
   let prob = ElemElaboration [<] !(Elab.liftM $ shunt (cast ops) tm 0 >>= M.fromEither) midx commMonoidTy
   Success omega <- solve sig omega [prob]
-    | _ => throw "postProblem1: Couldn't elaborate the term"
+    | Stuck omega stuckElab stuckCons => throw $ renderDocTerm !(Elab.liftM $ pretty sig (Stuck omega stuckElab stuckCons))
+    | Error omega (Left (elab, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (ElaborationError omega (elab, err)))
+    | Error omega (Right (con, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (UnificationError omega (con, err)))
   write "Result of postProblem1:"
   write (renderDocTerm !(Elab.liftM $ prettyElem sig omega [<] (OmegaVarElim midx Terminal) 0))
   return (sig, omega)

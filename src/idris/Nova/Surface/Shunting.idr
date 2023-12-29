@@ -286,6 +286,7 @@ mutual
     return (App r0 !(shuntHead ops head) !(shuntElim ops elim))
   shunt ops (OpLayer r (ConsA (_, op) [])) lvl = MEither.do
     return (App r (Var r op) [])
+  shunt ops (InParens _ t) lvl = shunt ops t 0
   shunt ops tm@(OpLayer r layer) lvl = MEither.do
     -- liftM $ write "ops: \{show (map toName ops)}"
     -- Shunt the *layer* at specified level by trying each operator from *ops* and making

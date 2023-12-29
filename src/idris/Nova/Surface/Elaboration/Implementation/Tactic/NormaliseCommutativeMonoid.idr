@@ -105,7 +105,7 @@ public export
 elab0 : Params => Signature -> Omega -> Context -> OpFreeTerm -> Typ -> Elem -> ElabM Elem
 elab0 sig omega gamma monoidInstTerm ty tm = M.do
   commMonoidTy <- Elab.liftM $
-    lookupSignatureIdxE sig "Comm-Monoid" `M.(<&>)` (\idx => Typ.SignatureVarElim idx Terminal)
+    lookupSignatureIdxE sig "Commut-Monoid" `M.(<&>)` (\idx => Typ.SignatureVarElim idx Terminal)
   (omega, tidx) <- liftUnifyM $ newElemMeta omega [<] commMonoidTy SolveByElaboration
   let prob = ElemElaboration [<] monoidInstTerm tidx commMonoidTy
   case !(Elaboration.Interface.solve sig omega [prob]) of

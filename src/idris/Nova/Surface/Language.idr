@@ -3,6 +3,7 @@ module Nova.Surface.Language
 import Data.AlternatingList
 import Data.AlternatingList1
 import Data.Fin
+import Data.SnocList
 import Data.List1
 import Data.Location
 
@@ -106,6 +107,7 @@ mutual
       PiVal : Range -> List1 VarName -> Term -> Term
       ImplicitPiVal : Range -> List1 VarName -> Term -> Term
       OpLayer : {k : _} -> Range -> AlternatingList1 k (Range, String) (Range, Head, Elim) -> Term
+      InParens : Range -> Term -> Term
       Tac : Range -> Tactic -> Term
 
   namespace Tactic
@@ -227,6 +229,7 @@ range (PiVal r str y) = r
 range (ImplicitPiVal r str y) = r
 range (OpLayer r ls) = r
 range (Tac r _) = r
+range (InParens r _) = r
 
 mutual
   covering
@@ -279,7 +282,22 @@ mutual
     show (PiVal _ x f) = "PiVal(\{show x}, \{show f})"
     show (ImplicitPiVal _ x f) = "ImplicitPiVal(\{show x}, \{show f})"
     show (OpLayer _ list) = "OpLayer(\{show list})"
-    show (Tac _ alpha) = "Tac(...)"
+    show (Tac _ alpha) = "Tac(\{show alpha})"
+    show (InParens _ t) = "InParens(\{show t})"
+
+  public export
+  covering
+  Show Tactic where
+    show (Id x) = "Id"
+    show (Composition x xs) = "Composition(\{show xs})"
+    show (Unfold x y) = "Unfold(\{show y})"
+    show (Exact x y) = "Exact(\{show y})"
+    show (Split x sx y) = "Split(\{show sx}, \{show y})"
+    show (Trivial x) = "Trivial"
+    show (RewriteInv x y z) = "RewriteInv(\{show y}, \{show z})"
+    show (Rewrite x y z) = "Rewrite(\{show y}, \{show z})"
+    show (Let x str y) = "Let(\{str}, \{show y})"
+    show (NormaliseCommutativeMonoid x y z w) = "NormaliseCommutativeMonoid(...)"
 
 mutual
   covering

@@ -387,7 +387,7 @@ mutual
   public export
   term4 : Rule Term
   term4 = (located head <&> (\(p, x) => OpLayer p (ConsB (p, x, []) [])))
-      <|> inParentheses (term 0)
+      <|> (located (inParentheses (term 0)) <&> (\(l, x) => InParens l x))
 
   public export
   simpleExpr : Rule (Range, Head, Elim)
