@@ -41,23 +41,23 @@ UnifyM : Type -> Type
   --                  vvvvvv for critical errors only
 UnifyM = JustAMonad.M String UnifySt
 
-public export
-liftM : M a -> UnifyM a
-liftM f = M.do
-  st <- get
-  mapState (const st) (const ()) f
+namespace UnifyM
+  public export
+  liftM : M a -> UnifyM a
+  liftM f = M.do
+    st <- get
+    mapState (const st) (const ()) f
 
-public export
-liftMMaybe : String -> M (Maybe a) -> UnifyM a
-liftMMaybe err f = M.do
- case !(liftM f) of
-   Just x => return x
-   Nothing => throw err
+  namespace Maybe
+    public export
+    liftM : M a -> UnifyM (Maybe a)
+    liftM f = M.do
+      UnifyM.liftM f <&> Just
 
 public export
 liftMEither : M (Either String a) -> UnifyM a
 liftMEither f = M.do
- case !(liftM f) of
+ case !(UnifyM.liftM f) of
    Right x => return x
    Left err => throw err
 
@@ -67,6 +67,8 @@ nextOmegaName = M.do
   MkUnifySt idx <- get
   set (MkUnifySt (S idx))
   return ("?\{show idx}")
+
+%hide UnifyM.Maybe.liftM
 
 namespace Result
   ||| Unification step result while solving a constraint.

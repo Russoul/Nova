@@ -425,3 +425,5 @@ Nova.Surface.Elaboration.Interface.elabTactic sig omega (Let r x e) target =  M.
       let err = Stuck omega elabs cons
       return (Left "Stuck elaborating RHS of let;\n \{renderDocNoAnn !(liftM $ pretty sig err)}")
     Error {} => return (Left "Error elaborating RHS of let")
+Nova.Surface.Elaboration.Interface.elabTactic sig omega (NormaliseCommutativeMonoid {}) _ = M.do
+  return (Left "Not implemented yet")

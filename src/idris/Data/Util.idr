@@ -430,3 +430,8 @@ toSnocList1Acc rest (x ::: y :: zs) = toSnocList1Acc (rest :< x) (y ::: zs)
 public export
 toSnocList1 : List1 a -> (SnocList a, a)
 toSnocList1 list = toSnocList1Acc [<] list
+
+public export
+asList1 : (xxs : List a) -> (fromList xxs === Just (x ::: xs)) => List1 a
+asList1 [] @{prf} = absurd prf
+asList1 (x :: xs) = x ::: xs

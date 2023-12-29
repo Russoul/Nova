@@ -194,6 +194,7 @@ namespace Special
             , "?"
             , "!"
             , "type"
+            , "$"
             ]
 
 public export

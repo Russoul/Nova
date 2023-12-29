@@ -161,7 +161,7 @@ Nova.Surface.Elaboration.Interface.elabType sig omega ctx (App r (Hole r0 n Noth
     Nothing => M.do
       omega <- liftUnifyM $ newTypeMeta omega ctx n NoSolve
       let omega = Typ.instantiateByElaboration omega meta (OmegaVarElim n Id)
-      addNamedHole (the Params %search).absFilePath r0 n
+      discard $ forMaybe (the Params %search).absFilePath (\path => addNamedHole path r0 n)
       return (Success omega [])
 Nova.Surface.Elaboration.Interface.elabType sig omega ctx (App r (Hole r0 n (Just vars)) es) meta =
   case (lookup n omega) of

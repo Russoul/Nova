@@ -5,6 +5,7 @@ import Data.Util
 import Data.AVL
 
 import Nova.Core.Language
+import Nova.Core.Monad
 import Nova.Core.Substitution
 
 ||| Σ = Σ₀ (Δ ⊦ x : A) Σ₁
@@ -92,6 +93,28 @@ lookupLetTypeSignature (sig :< (x, LetTypeEntry ctx rhs)) y = do
     False => do
       (ctx, i, rhs) <- lookupLetTypeSignature sig y
       Just (subst ctx SubstSignature.Wk, S i, SignatureSubstElim rhs Wk)
+
+namespace VarName
+  public export
+  lookupSignature : Signature -> VarName -> Maybe (Nat, SignatureEntry)
+  lookupSignature [<] y = Nothing
+  lookupSignature (sig :< (x, e)) y =
+    case x == y of
+      True => Just (0, subst e Wk)
+      False => do
+        (idx, e) <- lookupSignature sig y
+        Just (S idx, subst e Wk)
+
+  public export
+  lookupSignatureE : Signature -> VarName -> M (Nat, SignatureEntry)
+  lookupSignatureE sig x =
+    case (lookupSignature sig x) of
+      Nothing => throw "Can't look up \{x} in Σ"
+      Just sig => return sig
+
+  public export
+  lookupSignatureIdxE : Signature -> VarName -> M Nat
+  lookupSignatureIdxE sig x = lookupSignatureE sig x <&> fst
 
 namespace Index
   ||| Looks up a signature entry by index. Weakens the result to be typed in the original signature.

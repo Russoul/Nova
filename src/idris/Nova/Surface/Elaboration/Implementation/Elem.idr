@@ -199,9 +199,9 @@ elabElemNuOtherwise sig omega ctx (App r (Hole r0 n Nothing) es) meta ty = M.do
   case (lookup n omega) of
     Just _ => return (Error "Hole already exists: \{n}")
     Nothing => M.do
-      omega <- liftUnifyM $ newElemMeta omega ctx n ty NoSolve
+      omega <- liftUnifyM $ newElemMeta omega ctx n ty (case solveNamedHoles %search of False => NoSolve; True => SolveByUnification)
       let omega = Elem.instantiateByElaboration omega meta (OmegaVarElim n Id)
-      addNamedHole (the Params %search).absFilePath r0 n
+      discard $ forMaybe (the Params %search).absFilePath (\path => addNamedHole path r0 n)
       return (Success omega [])
 elabElemNuOtherwise sig omega ctx (App r (Hole r0 n (Just vars)) es) meta ty = M.do
   case (lookup n omega) of
@@ -210,7 +210,7 @@ elabElemNuOtherwise sig omega ctx (App r (Hole r0 n (Just vars)) es) meta ty = M
       let Just regctxPrefix = pickPrefix (cast ctx) vars
         | Nothing => return (Error "Invalid context prefix")
       let ctxPrefix = cast regctxPrefix
-      omega <- liftUnifyM $ newElemMeta omega ctxPrefix n ty SolveByUnification
+      omega <- liftUnifyM $ newElemMeta omega ctxPrefix n ty (case solveNamedHoles %search of False => NoSolve; True => SolveByUnification)
       let omega = Elem.instantiateByElaboration omega meta (OmegaVarElim n (WkN (length ctx `minus` length regctxPrefix)))
       return (Success omega [])
 elabElemNuOtherwise sig omega ctx (App r (Unfold r0 x) []) meta ty = M.do

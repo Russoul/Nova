@@ -13,8 +13,8 @@ import Nova.Surface.Language
 import Nova.Surface.Operator
 import Nova.Surface.SemanticToken
 
-CoreTyp = Nova.Core.Language.D.Typ
-CoreElem = Nova.Core.Language.E.Elem
+CoreTyp = Nova.Core.Language.Typ.Typ
+CoreElem = Nova.Core.Language.Elem.Elem
 SurfaceTerm = Nova.Surface.Language.OpFreeTerm.OpFreeTerm
 
 public export
@@ -29,8 +29,11 @@ public export
 record Params where
   [noHints] -- Make sure the machine won't try to synthesise an arbitrary element of that type when we %search
   constructor MkParams
-  ||| Absolute path to a file we are currently elaborating.
-  absFilePath : String
+  ||| Just the absolute path to the file we are currently elaborating.
+  ||| Or nothing in case we are in interactive mode.
+  absFilePath : Maybe String
+  ||| Whether to solve named holes by unification (True) or not solve them at all (False).
+  solveNamedHoles : Bool
 
 public export
 initialElabSt : ElabSt

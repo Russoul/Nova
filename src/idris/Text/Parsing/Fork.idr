@@ -604,3 +604,24 @@ public export
 guard : String -> Bool -> Grammar s tok ()
 guard msg True = pure ()
 guard msg False = fail msg
+
+public export
+mapState : (s -> s', s' -> s) -> Grammar s tok a -> Grammar s' tok a
+mapState f (Empty val) = Empty val
+mapState f (Terminal str x) = Terminal str x
+mapState f (NextIs str x) = NextIs str x
+mapState f EOF = EOF
+mapState f (Fail location fatal str) = Fail location fatal str
+mapState f (Try x) = Try (mapState f x)
+mapState f Commit = Commit
+mapState f (MustWork x) = MustWork (mapState f x)
+mapState f (Bind x y) = do
+  v <- mapState f x
+  mapState f (y v)
+mapState f (Alt x y) = Alt (mapState f x) (mapState f y)
+mapState f (Bounds x) = Bounds (mapState f x)
+mapState f Position = Position
+mapState (f, g) (Set x) = Set (f x)
+mapState (f, g) Get = do
+  x <- Get
+  Empty (g x)

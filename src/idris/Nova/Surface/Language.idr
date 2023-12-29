@@ -1,12 +1,15 @@
 module Nova.Surface.Language
 
-import Data.Location
-import Data.List1
 import Data.AlternatingList
 import Data.AlternatingList1
+import Data.Fin
+import Data.List1
+import Data.Location
 
 import Nova.Core.Name
 import Nova.Surface.Operator
+
+import Solver.CommutativeMonoid.Language
 
 
 -- h ::= tt | Z | Refl | x | S | ℕ-elim | 𝟘-elim | J | 𝟘 | 𝟙 | ℕ | 𝕌 | !x | ?x | Π-β | Π-η | Π⁼ | Σ-β₁ | Σ-β₂ | Σ-η | Σ⁼ | 𝟙⁼ | ℕ-β-Z | ℕ-β-S | (e{≥0}) | _ | ☐
@@ -129,6 +132,12 @@ mutual
       Rewrite : Range -> Term -> Term -> Tactic
       ||| let x ≔ e{≥0}
       Let : Range -> VarName -> Term -> Tactic
+      ||| normalise-comm-monoid ρ ω t
+      NormaliseCommutativeMonoid : Range
+                                -> Term
+                                -> (vars : SnocList String ** Term (Fin (length vars)))
+                                -> Term
+                                -> Tactic
 
   namespace OpFreeTactic
     public export
@@ -154,6 +163,12 @@ mutual
       Rewrite : Range -> OpFreeTerm -> OpFreeTerm -> OpFreeTactic
       ||| let x ≔ t
       Let : Range -> VarName -> OpFreeTerm -> OpFreeTactic
+      ||| normalise-comm-monoid ρ ω t
+      NormaliseCommutativeMonoid : Range
+                                -> OpFreeTerm
+                                -> (vars : SnocList String ** Term (Fin (length vars)))
+                                -> OpFreeTerm
+                                -> OpFreeTactic
 
   namespace OpFreeTerm
     public export

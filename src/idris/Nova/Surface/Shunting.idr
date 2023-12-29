@@ -192,16 +192,20 @@ mutual
     beta <- shuntTactic ops beta
     return (Split r alphas beta)
   shuntTactic ops (RewriteInv r a b) = MEither.do
-    a <- shunt ops a 0
-    b <- shunt ops b 0
+    a <- shunt ops a 3
+    b <- shunt ops b 3
     return (RewriteInv r a b)
   shuntTactic ops (Rewrite r a b) = MEither.do
-    a <- shunt ops a 0
-    b <- shunt ops b 0
+    a <- shunt ops a 3
+    b <- shunt ops b 3
     return (Rewrite r a b)
   shuntTactic ops (Let r x e) = MEither.do
     e <- shunt ops e 0
     return (Let r x e)
+  shuntTactic ops (NormaliseCommutativeMonoid r a o b) = MEither.do
+    a <- shunt ops a 3
+    b <- shunt ops b 3
+    return (NormaliseCommutativeMonoid r a o b)
 
   ||| Shunt the given term at the specified *lvl*.
   public export

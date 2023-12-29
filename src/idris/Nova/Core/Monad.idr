@@ -49,6 +49,23 @@ namespace MMaybe
     x <- f
     return (Just x)
 
+  public export
+  guard : Bool -> M e s (Maybe ())
+  guard False = M.do return Nothing
+  guard True = M.do return (Just ())
+
+  public export
+  mapResult : (a -> b) -> M e s (Maybe a) -> M e s (Maybe b)
+  mapResult f t = M.mapResult (map f) t
+
+  public export
+  (<$>) : (a -> b) -> M e s (Maybe a) -> M e s (Maybe b)
+  (<$>) = MMaybe.mapResult
+
+  public export
+  (<&>) : M e s (Maybe a) -> (a -> b) -> M e s (Maybe b)
+  (<&>) = flip MMaybe.mapResult
+
 namespace MEither
   %inline
   public export
