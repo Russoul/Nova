@@ -126,6 +126,14 @@ namespace Index
     (x, e) <- lookupSignature sig k
     pure (x, subst e Wk)
 
+  ||| Looks up a signature entry by index. Weakens the result to be typed in the original signature.
+  public export
+  lookupSignatureE : Signature -> Nat -> M (VarName, SignatureEntry)
+  lookupSignatureE sig x =
+    case lookupSignature sig x of
+      Nothing => throw "lookupSignatureE failed"
+      Just t => return t
+
   ||| Weakens the type.
   public export
   lookupContext : Context -> Nat -> Maybe (VarName, Typ)
