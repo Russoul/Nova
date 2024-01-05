@@ -6,6 +6,7 @@ import Data.AVL
 import Nova.Core.Monad
 import Nova.Core.Language
 import Nova.Core.Substitution
+import Nova.Core.Context
 
 -- Closed term evaluation
 
@@ -54,7 +55,9 @@ mutual
     closedEvalNu sig omega (SignatureSubstElim t sigma) = throw "closedEval(SignatureSubstElim)"
     closedEvalNu sig omega (ContextVarElim x) = throw "closedEval(ContextVarElim)"
     closedEvalNu sig omega (SignatureVarElim k sigma) = M.do
-      return (SignatureVarElim k sigma)
+      (_, LetElemEntry ctx rhs _) <- lookupSignatureE sig k
+        | _ => return (SignatureVarElim k sigma)
+      closedEval sig omega (ContextSubstElim rhs sigma)
     -- Σ Ω₀ (Δ ⊦ x ≔ t : T) Ω₁ ⊦ x σ = t(σ)
     closedEvalNu sig omega (OmegaVarElim x sigma) = M.do
       case (lookup x omega) of
@@ -70,6 +73,123 @@ mutual
     public export
     closedEval : Signature -> Omega -> Elem -> M Elem
     closedEval sig omega tm = closedEvalNu sig omega (runSubst tm)
+
+    public export
+    closedNormaliseNu : Signature -> Omega -> Elem -> M Elem
+    closedNormaliseNu sig omega (PiTy x dom cod) = M.do
+      return $
+        PiTy x
+          !(closedNormalise sig omega dom)
+          !(closedNormalise sig omega cod)
+    closedNormaliseNu sig omega (ImplicitPiTy x dom cod) = M.do
+      return $
+        ImplicitPiTy x
+          !(closedNormalise sig omega dom)
+          !(closedNormalise sig omega cod)
+    closedNormaliseNu sig omega (SigmaTy x dom cod) = M.do
+      return $
+        SigmaTy x
+          !(closedNormalise sig omega dom)
+          !(closedNormalise sig omega cod)
+    closedNormaliseNu sig omega (PiVal x a b f) = M.do
+      return $
+        PiVal x a b !(closedNormalise sig omega f)
+    closedNormaliseNu sig omega (ImplicitPiVal x a b f) = M.do
+      return $
+        ImplicitPiVal x a b !(closedNormalise sig omega f)
+    closedNormaliseNu sig omega (SigmaVal x a b p q) = M.do
+      return $
+        SigmaVal x a b
+          !(closedNormalise sig omega p)
+          !(closedNormalise sig omega q)
+    closedNormaliseNu sig omega (PiElim f x a b e) = M.do
+      return $
+        PiElim
+          !(closedNormalise sig omega f)
+          x
+          a
+          b
+          !(closedNormalise sig omega e)
+    closedNormaliseNu sig omega (ImplicitPiElim f x a b e) = M.do
+      return $
+        ImplicitPiElim
+          !(closedNormalise sig omega f)
+          x
+          a
+          b
+          !(closedNormalise sig omega e)
+    closedNormaliseNu sig omega (SigmaElim1 p x a b) = M.do
+      return $
+        SigmaElim1
+          !(closedNormalise sig omega p)
+          x
+          a
+          b
+    closedNormaliseNu sig omega (SigmaElim2 p x a b) = M.do
+      return $
+        SigmaElim2
+          !(closedNormalise sig omega p)
+          x
+          a
+          b
+    closedNormaliseNu sig omega NatVal0 = M.do
+      return NatVal0
+    closedNormaliseNu sig omega (NatVal1 t) = M.do
+      return $
+        NatVal1
+          !(closedNormalise sig omega t)
+    closedNormaliseNu sig omega NatTy = M.do
+      return NatTy
+    closedNormaliseNu sig omega (NatElim x schema z y h s t) = M.do
+      return $
+        NatElim
+          x
+          !(closedNormalise sig omega schema) -- That's a type. Do we really want to normalise?
+          !(closedNormalise sig omega z)
+          y
+          h
+          !(closedNormalise sig omega s)
+          !(closedNormalise sig omega t)
+    closedNormaliseNu sig omega (ContextSubstElim x y) = assert_total $ idris_crash "closedNormaliseNu(ContextSubstElim)"
+    closedNormaliseNu sig omega (SignatureSubstElim x y) = assert_total $ idris_crash "closedNormaliseNu(SignatureSubstElim)"
+    closedNormaliseNu sig omega (ContextVarElim k) = assert_total $ idris_crash "closedNormaliseNu(ContextVarElim)"
+    closedNormaliseNu sig omega (SignatureVarElim k x) = assert_total $ idris_crash "closedNormaliseNu(SignatureVarElim)"
+    closedNormaliseNu sig omega (OmegaVarElim str x) = assert_total $ idris_crash "closedNormaliseNu(OmegaVarElim)"
+    closedNormaliseNu sig omega (TyEqTy a b) = M.do
+      return $
+        TyEqTy
+          !(closedNormalise sig omega a)
+          !(closedNormalise sig omega b)
+    closedNormaliseNu sig omega (ElEqTy a0 a1 ty) = M.do
+      return $
+        ElEqTy
+          !(closedNormalise sig omega a0)
+          !(closedNormalise sig omega a1)
+          !(closedNormalise sig omega ty)
+    closedNormaliseNu sig omega (TyEqVal a) = M.do
+      return $
+        TyEqVal
+          a -- Don't care
+    closedNormaliseNu sig omega (ElEqVal ty el) = M.do
+      return $
+        ElEqVal
+          ty -- Don't care
+          el -- Don't care
+    closedNormaliseNu sig omega ZeroTy = M.do
+      return ZeroTy
+    closedNormaliseNu sig omega OneTy = M.do
+      return OneTy
+    closedNormaliseNu sig omega OneVal = M.do
+      return OneVal
+    closedNormaliseNu sig omega (ZeroElim ty t) = M.do
+      return $
+        ZeroElim
+          ty -- Don't care
+          !(closedNormalise sig omega t) -- Do we care? The elements are unique up to equality
+
+    public export
+    closedNormalise : Signature -> Omega -> Elem -> M Elem
+    closedNormalise sig omega el = closedNormaliseNu sig omega !(closedEval sig omega el)
 
     ||| Σ ⊦ a ⇝ a' : A
     ||| Σ must only contain let-elem's
@@ -169,13 +289,60 @@ mutual
         _ => throw "closedEval(OmegaVarElim)"
     closedEvalNu sig omega (TyEqTy a0 a1) = return $ TyEqTy a0 a1
     closedEvalNu sig omega (ElEqTy a0 a1 ty) = return $ ElEqTy a0 a1 ty
-    closedEvalNu sig omega (SignatureVarElim idx tau) = return (SignatureVarElim idx tau)
+    closedEvalNu sig omega (SignatureVarElim k sigma) = M.do
+      (_, LetTypeEntry ctx rhs) <- lookupSignatureE sig k
+        | _ => return (SignatureVarElim k sigma)
+      closedEval sig omega (ContextSubstElim rhs sigma)
 
     ||| Σ ⊦ a ⇝ a' : A
     ||| Σ must only contain let-elem's
     public export
     closedEval : Signature -> Omega -> Typ -> M Typ
     closedEval sig omega tm = closedEvalNu sig omega (runSubst tm)
+
+    public export
+    closedNormaliseNu : Signature -> Omega -> Typ -> M Typ
+    closedNormaliseNu sig omega ZeroTy = return ZeroTy
+    closedNormaliseNu sig omega OneTy = return OneTy
+    closedNormaliseNu sig omega UniverseTy = return UniverseTy
+    closedNormaliseNu sig omega NatTy = return NatTy
+    closedNormaliseNu sig omega (PiTy x dom cod) = M.do
+      return $
+        PiTy x
+          !(closedNormalise sig omega dom)
+          !(closedNormalise sig omega cod)
+    closedNormaliseNu sig omega (ImplicitPiTy x dom cod) = M.do
+      return $
+        ImplicitPiTy x
+          !(closedNormalise sig omega dom)
+          !(closedNormalise sig omega cod)
+    closedNormaliseNu sig omega (SigmaTy x dom cod) = M.do
+      return $
+        SigmaTy x
+          !(closedNormalise sig omega dom)
+          !(closedNormalise sig omega cod)
+    closedNormaliseNu sig omega (TyEqTy a b) = M.do
+      return $
+        TyEqTy
+          !(closedNormalise sig omega a)
+          !(closedNormalise sig omega b)
+    closedNormaliseNu sig omega (ElEqTy a0 a1 ty) = M.do
+      return $
+        ElEqTy
+          !(closedNormalise sig omega a0)
+          !(closedNormalise sig omega a1)
+          !(closedNormalise sig omega ty)
+    closedNormaliseNu sig omega (El el) = M.do
+      return $
+        El !(closedNormalise sig omega el)
+    closedNormaliseNu sig omega (ContextSubstElim x y) = assert_total $ idris_crash "closedNormaliseNu(ContextSubstElim)"
+    closedNormaliseNu sig omega (SignatureSubstElim x y) = assert_total $ idris_crash "closedNormaliseNu(SignatureSubstElim)"
+    closedNormaliseNu sig omega (OmegaVarElim x sigma) = assert_total $ idris_crash "closedNormaliseNu(OmegaVarElim)"
+    closedNormaliseNu sig omega (SignatureVarElim k sigma) = assert_total $ idris_crash "closedNormaliseNu(SignatureVarElim)"
+
+    public export
+    closedNormalise : Signature -> Omega -> Typ -> M Typ
+    closedNormalise sig omega ty = closedNormaliseNu sig omega !(closedEval sig omega ty)
 
     ||| Σ ⊦ a ⇝ a' : A
     ||| Σ must only contain let-elem's
