@@ -452,7 +452,7 @@ elabElemNuOtherwise sig omega ctx (Tac r alpha) meta ty = M.do
     | False => return (Stuck "Type contains free Ω variables: \{show (List.inorder free)}")
   Right (omega, [<], interp) <- elabTactic sig omega alpha [< ("_", ElemEntry ctx ty)]
            -- FIX:        vvvvv This is inefficient! Instead we should check that Ω is okay to solve that tactic and give it exactly one try!
-    | Left err => return (Stuck err)
+    | Left (r, reason) => return (Stuck ("At" ++ show r ++ ", reason: " ++ renderDocTerm reason))
     | Right (_, interp) => return (Error "Source signature of the tactic must be ε, but it is not.")
   let [< ElemEntryInstance solution] = interp [<]
     | _ => throw "elabElemNuOtherwise(Tac)"

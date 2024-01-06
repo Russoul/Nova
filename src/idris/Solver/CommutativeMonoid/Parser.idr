@@ -1,6 +1,7 @@
 module Solver.CommutativeMonoid.Parser
 
 import Data.Fin
+import Data.List
 import Data.SnocList
 
 import Text.Lexing.Token
@@ -20,7 +21,10 @@ var = (pack . forget . map toChar <$> some (is "char" (isSymbol isAlpha)))
 
 public export
 parseContext : Rule (SnocList String)
-parseContext = (cast . forget <$> sepBy1 space var) <|> (str_ "ε" $> [<])
+parseContext = do
+  result <- (cast . forget <$> sepBy1 space var) <|> (str_ "ε" $> [<])
+  guard "Variables must be pairwise unique" (length (nub (cast {to = List String} result)) == length result)
+  pure result
 
 mutual
   public export

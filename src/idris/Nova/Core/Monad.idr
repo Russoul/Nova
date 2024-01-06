@@ -44,6 +44,11 @@ namespace MMaybe
   nothing = M.return Nothing
 
   public export
+  fromMaybe : Maybe a -> M e s (Maybe a)
+  fromMaybe x = M.do
+    return x
+
+  public export
   liftM : M e s a -> M e s (Maybe a)
   liftM f = M.do
     x <- f

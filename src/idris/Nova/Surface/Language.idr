@@ -136,7 +136,7 @@ mutual
       Let : Range -> VarName -> Term -> Tactic
       ||| normalise-comm-monoid ρ ω t
       NormaliseCommutativeMonoid : Range
-                                -> Term
+                                -> Term -- vars can't contain duplicates
                                 -> (vars : SnocList String ** Term (Fin (length vars)))
                                 -> Term
                                 -> Tactic

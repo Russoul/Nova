@@ -20,6 +20,7 @@ import Nova.Core.Monad
 import Nova.Core.Pretty
 import Nova.Core.Substitution
 import Nova.Core.Unification
+import Nova.Core.Evaluation
 
 import Nova.Surface.Shunting
 import Nova.Surface.Elaboration
@@ -56,20 +57,64 @@ postProblem1 : Signature
             -> SnocList Operator
             -> ElabM (Signature, Omega)
 postProblem1 sig omega ops = M.do
-  let tm = "?A, ?z, ?p, ?"
-  let Right (_, tm) = parseFull' (MkParsingSt [<]) (term 0) tm
+  let syntm0 = "?A, ?z, ?p, ?"
+  let syntm1 = "ℕ-Commut-Monoid"
+  let synty =
+    """
+      (A : 𝕌)
+         ⨯ (z : A)
+         ⨯ (_+_ : A → A → A)
+         ⨯ ((x : A) → z + x ≡ x ∈ A)
+         ⨯ ((x : A) → x + z ≡ x ∈ A)
+         ⨯ ((x y z : A) → x + (y + z) ≡ (x + y) + z ∈ A)
+         ⨯ ((x y : A) → x + y ≡ y + x ∈ A)
+    """
+  let Right (_, syntm0) = parseFull' (MkParsingSt [<]) (term 0) syntm0
+    | Left err => throw (show err)
+  let Right (_, syntm1) = parseFull' (MkParsingSt [<]) (term 0) syntm1
+    | Left err => throw (show err)
+  let Right (_, synty) = parseFull' (MkParsingSt [<]) (term 0) synty
     | Left err => throw (show err)
   let params = MkParams Nothing {solveNamedHoles = True}
-  commMonoidTy <- Elab.liftM $
-    lookupSignatureIdxE sig "Commut-Monoid" `M.(<&>)` (\idx => Typ.SignatureVarElim idx Terminal)
-  (omega, midx) <- liftUnifyM $ newElemMeta omega [<] commMonoidTy SolveByElaboration
-  let prob = ElemElaboration [<] !(Elab.liftM $ shunt (cast ops) tm 0 >>= M.fromEither) midx commMonoidTy
-  Success omega <- solve sig omega [prob]
-    | Stuck omega stuckElab stuckCons => throw $ renderDocTerm !(Elab.liftM $ pretty sig (Stuck omega stuckElab stuckCons))
+  (omega, tymidx) <- liftUnifyM $ newTypeMeta omega [<] SolveByElaboration
+  let ty = Typ.OmegaVarElim tymidx Terminal
+  (omega, midx0) <- liftUnifyM $ newElemMeta omega [<] ty SolveByElaboration
+  (omega, midx1) <- liftUnifyM $ newElemMeta omega [<] ty SolveByElaboration
+  let prob1 = TypeElaboration [<] !(Elab.liftM $ shunt (cast ops) synty 0 >>= M.fromEither) tymidx
+  let prob2 = ElemElaboration [<] !(Elab.liftM $ shunt (cast ops) syntm0 0 >>= M.fromEither) midx0 ty
+  let prob3 = ElemElaboration [<] !(Elab.liftM $ shunt (cast ops) syntm1 0 >>= M.fromEither) midx1 ty
+  let el0 = OmegaVarElim midx0 Terminal
+  let el1 = OmegaVarElim midx1 Terminal
+  omega <- liftUnifyM $ addConstraint omega (ElemConstraint [<] el0 el1 ty)
+  Success omega <- solve sig omega [prob1, prob2, prob3]
+    | Stuck omega stuckElab stuckCons => M.do
+         write "Result of postProblem1 (stuck):"
+         write (renderDocTerm !(Elab.liftM $ prettyElem sig omega [<] el0 0))
+         throw $ renderDocTerm !(Elab.liftM $ pretty sig (Stuck omega stuckElab stuckCons))
     | Error omega (Left (elab, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (ElaborationError omega (elab, err)))
     | Error omega (Right (con, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (UnificationError omega (con, err)))
   write "Result of postProblem1:"
-  write (renderDocTerm !(Elab.liftM $ prettyElem sig omega [<] (OmegaVarElim midx Terminal) 0))
+  write (renderDocTerm !(Elab.liftM $ prettyElem sig omega [<] el0 0))
+  return (sig, omega)
+
+public export
+postProblem2 : Signature
+            -> Omega
+            -> SnocList Operator
+            -> ElabM (Signature, Omega)
+postProblem2 sig omega ops = M.do
+  let Right (_, syntm) = parseFull' (MkParsingSt [<]) (term 0) "four"
+    | Left err => throw (show err)
+  let params = MkParams Nothing {solveNamedHoles = True}
+  (omega, midx) <- liftUnifyM $ newElemMeta omega [<] NatTy SolveByElaboration
+  let myResult = Elem.OmegaVarElim midx Terminal
+  let prob1 = ElemElaboration [<] !(Elab.liftM $ shunt (cast ops) syntm 0 >>= M.fromEither) midx NatTy
+  Success omega <- solve sig omega [prob1]
+    | Stuck omega stuckElab stuckCons => throw $ renderDocTerm !(Elab.liftM $ pretty sig (Stuck omega stuckElab stuckCons))
+    | Error omega (Left (elab, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (ElaborationError omega (elab, err)))
+    | Error omega (Right (con, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (UnificationError omega (con, err)))
+  write "Result of postProblem2:"
+  write (renderDocTerm !(Elab.liftM $ prettyElem sig omega [<] !(Elab.liftM $ closedNormalise sig omega myResult) 0))
   return (sig, omega)
 
 public export
@@ -160,6 +205,7 @@ checkEverything : Signature
 checkEverything sig omega ops nextOmegaIdx namedHoles toks novaDirectory modNames = IOEither.do
   (sig, omega, ops, nextOmegaIdx, namedHoles, ntoks) <- checkModules sig omega ops nextOmegaIdx namedHoles toks novaDirectory modNames
   (MkElabSt (MkUnifySt nextOmegaIdx) moreToks namedHoles, (sig, omega)) <-
-    map (bimap (\x => (Nothing, Nothing, pretty x)) id) (run (postProblem1 sig omega ops) (MkElabSt (MkUnifySt nextOmegaIdx) [<] namedHoles))
+    map (bimap (\x => (Nothing, Nothing, pretty x)) id) (run (postProblem2 sig omega ops) (MkElabSt (MkUnifySt nextOmegaIdx) [<] namedHoles))
   pure (sig, omega, ops, nextOmegaIdx, namedHoles, ntoks)
+
 

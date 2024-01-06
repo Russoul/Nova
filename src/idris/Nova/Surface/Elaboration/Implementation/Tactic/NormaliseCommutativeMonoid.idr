@@ -6,40 +6,41 @@ import Data.List1
 import Data.Location
 import Data.SnocList
 import Data.Util
+import Data.Either
+
+import Text.PrettyPrint.Prettyprinter
 
 import Nova.Core.Context
 import Nova.Core.Conversion
 import Nova.Core.Evaluation
 import Nova.Core.Language
 import Nova.Core.Monad
+import Nova.Core.Pretty
 import Nova.Core.Substitution
 import Nova.Core.Unification
 import Nova.Core.Util
 
 import Nova.Surface.Language
 import Nova.Surface.Elaboration.Interface
+import Nova.Surface.Elaboration.Implementation.Tactic.TermLens
 
 import Solver.CommutativeMonoid
 
-||| TODO: Think about how to preserve naming
 public export
-interpContext : Nat -> Context
-interpContext Z = [<]
-interpContext (S k) = interpContext k :< ("_", NatTy)
+interpContext : SnocList String -> Context
+interpContext [<] = [<]
+interpContext (xs :< x) = interpContext xs :< (x, NatTy)
 
-||| For every Γ ctx
-||| We get x̄
-||| and |x̄| : Γ ⇒ ⟦x̄⟧
+||| Given x̄ and a (Γ ctx) try constructing σ : Γ ⇒ ⟦x̄⟧
 public export
-Vars : Signature -> Omega -> Context -> M (Nat, SubstContext)
-Vars sig omega [<] = return (0, Terminal)
-Vars sig omega (gamma :< (_, ty)) = M.do
-  (n, subst) <- Vars sig omega gamma
-  NatTy <- openEval sig omega ty
-    | _ => M.do
-    return (n, Chain subst Wk)
-
-  return (S n, Under subst)
+mbSubst : Signature -> Omega -> Context -> SnocList String -> M (Maybe SubstContext)
+mbSubst sig omega ctx [<] = MMaybe.do return Terminal
+mbSubst sig omega ctx (xs :< x) = MMaybe.do
+  sigma <- mbSubst sig omega ctx xs
+  (tm, ty) <- fromMaybe $ lookupContext ctx x
+  NatTy <- liftM $ openEval sig omega ty
+    | _ => nothing
+  return (Ext sigma tm)
 
 public export
 interpTerm : Signature -> Term (Fin n) -> M Elem
@@ -126,3 +127,24 @@ elab0 sig omega gamma monoidInstTerm ty tm = M.do
      ?af
     _ => throw "Couldn't check the commutative monoid instance"
 
+||| Σ₀ ⊦ ? ⇛ Σ (Γ ⊦ x : A)
+public export
+elabNormaliseComm : Params
+                 => Signature
+                 -> Omega
+                 -> Range
+                 -> OpFreeTerm
+                 -> (vars : SnocList String ** Term (Fin (length vars)))
+                 -> OpFreeTerm
+                 -> Signature
+                 -> ElabM (Either (Range, Doc Ann) (Omega, Signature, SignatureInst -> SignatureInst))
+elabNormaliseComm sig omega r path (vars ** monoidTm) monoidInst (target :< (x, ElemEntry ctx ty)) = MEither.do
+  MkLens focusedR focusedCtx (Right (focused, setFocused)) <- Elab.liftM $ Typ.lens sig omega ctx ty path
+    | _ => error (r, "Wrong focused term for 'normalise-commut-monoid'")
+  subst <- mapResult (maybeToEither (r, "Can't find the given monoid variables in the context")) $
+          Elab.liftM $ mbSubst sig omega focusedCtx vars
+  tmInterp <- ElabEither.liftM $ interpTerm sig monoidTm
+  -- omega <- addConstraint omega (ElemConstraint focusedCtx tmInterp )
+  ?todo
+elabNormaliseComm sig omega r path monoidTm monoidInst _ = MEither.do
+  error (r, "Wrong context for tactic 'normalise-commmut-monoid'")

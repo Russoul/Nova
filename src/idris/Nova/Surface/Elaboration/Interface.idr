@@ -4,9 +4,12 @@ import Data.AVL
 import Data.List1
 import Data.Location
 
+import Text.PrettyPrint.Prettyprinter
+
 import Nova.Core.Language
 import Nova.Core.Monad
 import Nova.Core.Name
+import Nova.Core.Pretty
 import Nova.Core.Unification
 
 import Nova.Surface.Language
@@ -184,7 +187,7 @@ elabTactic : Params
           -> Omega
           -> OpFreeTactic
           -> (target : Signature)
-          -> ElabM (Either String (Omega, Signature, SignatureInst -> SignatureInst))
+          -> ElabM (Either (Range, Doc Ann) (Omega, Signature, SignatureInst -> SignatureInst))
 
 ||| Elaborate a .nova file parsed in advance.
 public export
