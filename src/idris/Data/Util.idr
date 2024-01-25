@@ -145,23 +145,29 @@ reflow : String -> Doc ann
 reflow = fillSep . words
 
 namespace SnocList
--- TODO PR to Idris2
--- TODO: Ordering doesn't make sense: we should order elements right-to-left in a SnocList.
--- NOTE: Or does it? I think Ohad has actually set up the Prelude's SnocList operations to
--- NOTE: act left-to-right ??
-public export
-quicksortBy : (a -> a -> Bool) -> SnocList a -> SnocList a
-quicksortBy o [<] = [<]
-quicksortBy o (xs :< x) =
- let smaller  = filter (not . o x) xs
-     bigger   = filter       (o x) xs
-     left     = quicksortBy o smaller
-     right    = quicksortBy o bigger in
-     left :< x ++ right
+  -- TODO PR to Idris2
+  -- TODO: Ordering doesn't make sense: we should order elements right-to-left in a SnocList.
+  -- NOTE: Or does it? I think Ohad has actually set up the Prelude's SnocList operations to
+  -- NOTE: act left-to-right ??
+  public export
+  quicksortBy : (a -> a -> Bool) -> SnocList a -> SnocList a
+  quicksortBy o [<] = [<]
+  quicksortBy o (xs :< x) =
+   let smaller  = filter (not . o x) xs
+       bigger   = filter       (o x) xs
+       left     = quicksortBy o smaller
+       right    = quicksortBy o bigger in
+       left :< x ++ right
 
-public export
-quicksort : Ord a => SnocList a -> SnocList a
-quicksort xs = quicksortBy (<) xs
+  public export
+  quicksort : Ord a => SnocList a -> SnocList a
+  quicksort xs = quicksortBy (<) xs
+
+  public export
+  index : (xs : SnocList a) -> Fin (length xs) -> a
+  index [<] _ impossible
+  index (xs :< x) FZ = x
+  index (xs :< x) (FS k) = index xs k
 
 namespace List
   public export

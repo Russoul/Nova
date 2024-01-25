@@ -51,11 +51,7 @@ mutual
   public export
   parseTerm : (vars : SnocList String) -> Rule (Term (Fin (length vars)))
   parseTerm vars =
-    parseVarTerm vars
-      <|>
     parsePlusTerm vars
-      <|>
-    parseZeroTerm vars
       <|>
     inParens (parseTerm vars)
 

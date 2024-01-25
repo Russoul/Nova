@@ -142,12 +142,13 @@ namespace Elaboration
 
 ||| Try solving all elaboration and unification problems.
 public export
-solve : Params => Signature -> Omega -> List ElaborationEntry -> ElabM Elaboration.Fixpoint.Fixpoint
+solve : Params => SnocList Operator -> Signature -> Omega -> List ElaborationEntry -> ElabM Elaboration.Fixpoint.Fixpoint
 
 ||| Σ Ω Γ ⊦ ⟦t⟧ ⇝ p : A
 public export
 elabElem : Params
-        => Signature
+        => SnocList Operator
+        -> Signature
         -> Omega
         -> Context
         -> SurfaceTerm
@@ -159,7 +160,8 @@ elabElem : Params
 ||| Here we implicitly insert El to convert from 𝕌 to type
 public export
 elabType : Params
-        => Signature
+        => SnocList Operator
+        -> Signature
         -> Omega
         -> Context
         -> SurfaceTerm
@@ -169,7 +171,8 @@ elabType : Params
 ||| Σ Ω Γ ⊦ (t : T) ⟦ē⟧ ⇝ t' : A
 public export
 elabElemElim : Params
-            => Signature
+            => SnocList Operator
+            -> Signature
             -> Omega
             -> Context
             -> CoreElem
@@ -183,7 +186,8 @@ elabElemElim : Params
 -- FIX: elabTactic calls `solve` which, when fails, only shows stuck *local* elaboration problems. That is misleading!
 public export
 elabTactic : Params
-          => Signature
+          => SnocList Operator
+          -> Signature
           -> Omega
           -> OpFreeTactic
           -> (target : Signature)
@@ -192,11 +196,11 @@ elabTactic : Params
 ||| Elaborate a .nova file parsed in advance.
 public export
 elabFile : Params
-        => Signature
+        => SnocList Operator
+        -> Signature
         -> Omega
-        -> SnocList Operator
         -> List1 TopLevel
         --                vvvvvv def name
         --                        vvvvv def range
         --                               vvvvvvvvv elaborated so far
-        -> ElabM (Either (String, Range, Signature, TopLevelError) (Signature, Omega, SnocList Operator))
+        -> ElabM (Either (String, Range, Signature, TopLevelError) (SnocList Operator, Signature, Omega))

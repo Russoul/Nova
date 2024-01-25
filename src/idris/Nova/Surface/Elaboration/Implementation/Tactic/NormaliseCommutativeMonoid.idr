@@ -9,6 +9,7 @@ import Data.Util
 import Data.Either
 
 import Text.PrettyPrint.Prettyprinter
+import Text.Lexing.Token
 
 import Nova.Core.Context
 import Nova.Core.Conversion
@@ -19,45 +20,65 @@ import Nova.Core.Pretty
 import Nova.Core.Substitution
 import Nova.Core.Unification
 import Nova.Core.Util
+import Nova.Core.Inference
 
-import Nova.Surface.Language
-import Nova.Surface.Elaboration.Interface
 import Nova.Surface.Elaboration.Implementation.Tactic.TermLens
+import Nova.Surface.Elaboration.Interface
+import Nova.Surface.Elaboration.Pretty
+import Nova.Surface.Language
+import Nova.Surface.Operator
+import Nova.Surface.Parser
+import Nova.Surface.ParserGeneral
+import Nova.Surface.SemanticToken
+import Nova.Surface.Shunting
 
 import Solver.CommutativeMonoid
 
+||| ε ⊦ T type
+||| x̄
+||| ----------
+||| ⟦x̄⟧ T ctx
 public export
-interpContext : SnocList String -> Context
-interpContext [<] = [<]
-interpContext (xs :< x) = interpContext xs :< (x, NatTy)
+interpContext : SnocList String -> Typ -> Context
+interpContext [<] ty = [<]
+interpContext (xs :< x) ty = interpContext xs ty :< (x, ty)
 
-||| Given x̄ and a (Γ ctx) try constructing σ : Γ ⇒ ⟦x̄⟧
+||| Given x̄ and a (Γ ctx) try constructing σ : Γ ⇒ ⟦x̄⟧ T
 public export
-mbSubst : Signature -> Omega -> Context -> SnocList String -> M (Maybe SubstContext)
-mbSubst sig omega ctx [<] = MMaybe.do return Terminal
-mbSubst sig omega ctx (xs :< x) = MMaybe.do
-  sigma <- mbSubst sig omega ctx xs
+mbSubst : Signature -> Omega -> Context -> SnocList String -> Typ -> M (Maybe SubstContext)
+mbSubst sig omega ctx [<] ty = MMaybe.do return Terminal
+mbSubst sig omega ctx (xs :< x) ty0 = MMaybe.do
+  sigma <- mbSubst sig omega ctx xs ty0
   (tm, ty) <- fromMaybe $ lookupContext ctx x
-  NatTy <- liftM $ openEval sig omega ty
+  True <- liftM $ conv sig omega ty0 ty
     | _ => nothing
   return (Ext sigma tm)
 
+||| ε ⊦ M type
+||| ε ⊦ 0 : M
+||| ε ⊦ _+_ : M → M → M
+||| (M, 0, _+_) forms a commutative monoid
+||| x̄ ⊦ e
+||| ---------------
+||| ⟦x̄⟧ M ⊦ ⟦e⟧ (M, 0, _+_) : M
+||| (⟦x̄₀⟧ M) (x : M) (⟦x̄₁⟧ M) ⊦ ⟦x⟧ (M, 0, _+_) = x : M
+||| ⟦x̄⟧ M ⊦ ⟦Zero⟧ (M, 0, _+_) = 0 : M
+||| ⟦x̄⟧ M ⊦ ⟦Plus p q⟧ (M, 0, _+_) = ⟦p⟧ (M, 0, _+_) + ⟦q⟧ (M, 0, _+_) : M
 public export
-interpTerm : Signature -> Term (Fin n) -> M Elem
-interpTerm sig (Var x) = return $ ContextVarElim (finToNat x)
-interpTerm sig Zero = return NatVal0
-interpTerm sig (Plus a b) = M.do
-  idx <- lookupSignatureIdxE sig "_+_"
-  a <- interpTerm sig a
-  b <- interpTerm sig b
+interpTerm : Signature -> Typ -> Elem -> Elem -> Term (Fin n) -> M Elem
+interpTerm sig ty zero plus (Var x) = return $ ContextVarElim (finToNat x)
+interpTerm sig ty zero plus Zero = return zero
+interpTerm sig ty zero plus (Plus a b) = M.do
+  a <- interpTerm sig ty zero plus a
+  b <- interpTerm sig ty zero plus b
   -- ((_+_ : ℕ → ℕ → ℕ) a : ℕ → ℕ) b
   return $
-    PiElim (PiElim (SignatureVarElim idx Terminal) "_" NatTy (funTy NatTy NatTy) a)
+    PiElim
+      (PiElim plus "_" ty (funTy ty ty) a)
       "_"
-      NatTy
-      NatTy
+      ty
+      ty
       b
-
 
 ||| Assumes Σ Ω Γ ⊦ t : ℕ
 ||| And t is head-neutral w.r.t. evaluation
@@ -80,57 +101,11 @@ parseNatCommutativeMonoidNu plusIndex f (PiElim (PiElim (SignatureVarElim i _) _
 parseNatCommutativeMonoidNu plusIndex f el = MMaybe.do
   nothing
 
--- ||| x̄ ⊦ m ∈ FreeCommMonoid
--- ||| σ : x̄ ⇒ Γ
--- ||| -----------------------
--- ||| Γ ⊦ ⟦m | σ⟧ : M
--- ||| Γ ⊦ ⟦x | σ⟧ = σ(x) : M
--- ||| Γ ⊦ ⟦a + b | σ⟧ = ⟦a | σ⟧ + [b | σ⟧ : M
--- ||| Γ ⊦ ⟦0 | σ⟧ = Z : M
---
--- ||| For common Σ Ω:
--- ||| Γ ⊦ E type
--- ||| Γ ⊦ e : E
--- ||| ε ⊦ t ∈ SurfaceTerm
--- ||| ---------------------
--- ||| ε ⊦ A : 𝕌
--- ||| ε ⊦ z : A
--- ||| ε ⊦ _+_ : A → A → A
--- ||| ε ⊦ t' = (A, z, _+_, ?) : Comm-Monoid
--- ||| ε ⊦ E = A type
--- ||| x̄
--- ||| σ : x̄ ⇒ Γ
--- ||| x̄ ⊦ m ∈ CommMonoid
--- ||| Γ ⊦ e = ⟦m | σ⟧ : A
-public export
-elab0 : Params => Signature -> Omega -> Context -> OpFreeTerm -> Typ -> Elem -> ElabM Elem
-elab0 sig omega gamma monoidInstTerm ty tm = M.do
-  commMonoidTy <- Elab.liftM $
-    lookupSignatureIdxE sig "Commut-Monoid" `M.(<&>)` (\idx => Typ.SignatureVarElim idx Terminal)
-  (omega, tidx) <- liftUnifyM $ newElemMeta omega [<] commMonoidTy SolveByElaboration
-  let prob = ElemElaboration [<] monoidInstTerm tidx commMonoidTy
-  case !(Elaboration.Interface.solve sig omega [prob]) of
-    Success omega => M.do
-     (omega, tyidx) <- liftUnifyM $ newElemMeta omega [<] UniverseTy SolveByUnification
-     (omega, zidx) <- liftUnifyM $ newElemMeta omega [<] (El (Elem.OmegaVarElim tyidx Terminal)) SolveByUnification
-     (omega, pidx) <- liftUnifyM $ newElemMeta omega [<]
-            (funTyN1 $
-              asList1 [ El (Elem.OmegaVarElim tyidx Terminal)
-                      , El (Elem.OmegaVarElim tyidx Terminal)
-                      , El (Elem.OmegaVarElim tyidx Terminal)
-                      ]
-            ) SolveByUnification
-     (omega, holeIdx) <- liftUnifyM $ newElemMeta omega [<] ?holeTy SolveByUnification
-     -- ε ⊦ ⟦A, z, _+_, ?⟧ ⇝ _ : Comm-Monoid
-     -- ⟦A, z, _+_, ?⟧ = π 𝕌 (A. Is-Commut-Monoid A) A ⟦z, _+_, ?⟧
-     -- = π 𝕌 (A. Is-Commut-Monoid A) A (π (El A) )
-     ?af
-    _ => throw "Couldn't check the commutative monoid instance"
-
 ||| Σ₀ ⊦ ? ⇛ Σ (Γ ⊦ x : A)
 public export
 elabNormaliseComm : Params
-                 => Signature
+                 => SnocList Operator
+                 -> Signature
                  -> Omega
                  -> Range
                  -> OpFreeTerm
@@ -138,13 +113,77 @@ elabNormaliseComm : Params
                  -> OpFreeTerm
                  -> Signature
                  -> ElabM (Either (Range, Doc Ann) (Omega, Signature, SignatureInst -> SignatureInst))
-elabNormaliseComm sig omega r path (vars ** monoidTm) monoidInst (target :< (x, ElemEntry ctx ty)) = MEither.do
+elabNormaliseComm ops sig omega r path (vars ** monoidTm) monoidInst (target :< (x, ElemEntry ctx ty)) = MEither.do
   MkLens focusedR focusedCtx (Right (focused, setFocused)) <- Elab.liftM $ Typ.lens sig omega ctx ty path
     | _ => error (r, "Wrong focused term for 'normalise-commut-monoid'")
+  focusedTy <- MEither.liftM $ Elab.liftM $ infer sig omega focusedCtx focused
+
+  let synty =
+    """
+      (A : 𝕌)
+         ⨯ (z : A)
+         ⨯ (_+_ : A → A → A)
+         ⨯ ((x : A) → z + x ≡ x ∈ A)
+         ⨯ ((x : A) → x + z ≡ x ∈ A)
+         ⨯ ((x y z : A) → x + (y + z) ≡ (x + y) + z ∈ A)
+         ⨯ ((x y : A) → x + y ≡ y + x ∈ A)
+    """
+  let Right (_, synty) = parseFull' (MkParsingSt [<]) (term 0) synty
+    | Left err => throw (show err)
+  (omega, tymidx) <- MEither.liftM $ liftUnifyM $ newTypeMeta omega [<] SolveByElaboration
+  let commMonoidTy = Typ.OmegaVarElim tymidx Terminal
+  let prob1 = TypeElaboration [<] !(MEither.liftM $ Elab.liftM $ shunt (cast ops) synty 0 `M.(>>=)` M.fromEither) tymidx
+  Success omega <- MEither.liftM $ solve @{MkParams Nothing {solveNamedHoles = False}} ops sig omega [prob1]
+    | Stuck omega stuckElab stuckCons => M.do
+         write "(Unexpected error) Result elaborating expected monoid type in elabNormaliseComm (stuck):"
+         write (renderDocTerm !(Elab.liftM $ prettyTyp sig omega [<] commMonoidTy 0))
+         throw $ renderDocTerm !(Elab.liftM $ pretty sig (Stuck omega stuckElab stuckCons))
+    | Error omega (Left (elab, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (ElaborationError omega (elab, err)))
+    | Error omega (Right (con, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (UnificationError omega (con, err)))
+
+
+  (omega, monoidInstIdx) <- MEither.liftM $ liftUnifyM $ newElemMeta omega [<] commMonoidTy SolveByElaboration
+  let monoidInstTm = Elem.OmegaVarElim monoidInstIdx Terminal
+  let prob1 = ElemElaboration [<] monoidInst monoidInstIdx commMonoidTy
+  Success omega <- MEither.liftM $ solve ops sig omega [prob1]
+    | Stuck omega stuckElab stuckCons => M.do
+         write "Result elaborating monoid type in elabNormaliseComm (stuck):"
+         write (renderDocTerm !(Elab.liftM $ prettyElem sig omega [<] monoidInstTm 0))
+         throw $ renderDocTerm !(Elab.liftM $ pretty sig (Stuck omega stuckElab stuckCons))
+    | Error omega (Left (elab, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (ElaborationError omega (elab, err)))
+    | Error omega (Right (con, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (UnificationError omega (con, err)))
+
+
+  -- FIX: names must be unique every time
+  let syntm0 = "?A, ?z, ?p, ?"
+  let Right (_, syntm0) = parseFull' (MkParsingSt [<]) (term 0) syntm0
+    | Left err => throw (show err)
+  (omega, midx0) <- MEither.liftM $ liftUnifyM $ newElemMeta omega [<] commMonoidTy SolveByElaboration
+  let prob2 = ElemElaboration [<] !(MEither.liftM $ Elab.liftM $ shunt (cast ops) syntm0 0 `M.(>>=)` M.fromEither) midx0 commMonoidTy
+  let el0 = OmegaVarElim midx0 Terminal
+  omega <- MEither.liftM $ liftUnifyM $ addConstraint omega (ElemConstraint [<] el0 monoidInstTm commMonoidTy)
+  Success omega <- MEither.liftM $ solve @{MkParams Nothing {solveNamedHoles = True}} ops sig omega [prob2]
+    | Stuck omega stuckElab stuckCons => M.do
+         write "Result of postProblem1 (stuck):"
+         write (renderDocTerm !(Elab.liftM $ prettyElem sig omega [<] el0 0))
+         throw $ renderDocTerm !(Elab.liftM $ pretty sig (Stuck omega stuckElab stuckCons))
+    | Error omega (Left (elab, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (ElaborationError omega (elab, err)))
+    | Error omega (Right (con, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (UnificationError omega (con, err)))
+  let monoidTy = El (Elem.OmegaVarElim "A" Terminal)
+  let monoidZero = Elem.OmegaVarElim "z" Terminal
+  let monoidPlus = Elem.OmegaVarElim "p" Terminal
   subst <- mapResult (maybeToEither (r, "Can't find the given monoid variables in the context")) $
-          Elab.liftM $ mbSubst sig omega focusedCtx vars
-  tmInterp <- ElabEither.liftM $ interpTerm sig monoidTm
-  -- omega <- addConstraint omega (ElemConstraint focusedCtx tmInterp )
-  ?todo
-elabNormaliseComm sig omega r path monoidTm monoidInst _ = MEither.do
+          Elab.liftM $ mbSubst sig omega focusedCtx vars monoidTy
+  tmInterp <- MEither.liftM $ Elab.liftM $ interpTerm sig monoidTy monoidZero monoidPlus monoidTm
+  omega <- MEither.liftM $ liftUnifyM $ addConstraint omega (TypeConstraint focusedCtx focusedTy monoidTy)
+  omega <- MEither.liftM $ liftUnifyM $ addConstraint omega (ElemConstraint focusedCtx (ContextSubstElim tmInterp subst) focused monoidTy)
+  Success omega <- MEither.liftM $ liftUnifyM $ Unification.solve sig omega
+    | _ => error (r, "Failed to solve unification constraints")
+  let monoidTm' = normaliseAlg monoidTm
+  MEither.liftM $ write "Original monoid term: \{renderDocNoAnn {ann = Unit} $ CommutativeMonoid.Language.prettyTerm vars monoidTm}"
+  MEither.liftM $ write "Normalised monoid term: \{renderDocNoAnn {ann = Unit} $ CommutativeMonoid.Language.prettyTerm vars monoidTm'}"
+  tmInterp' <- MEither.liftM $ Elab.liftM $ interpTerm sig monoidTy monoidZero monoidPlus monoidTm'
+  let ty' = setFocused (ContextSubstElim tmInterp' subst)
+  return (omega, target :< (x, ElemEntry ctx ty'), id)
+elabNormaliseComm ops sig omega r path monoidTm monoidInst _ = MEither.do
   error (r, "Wrong context for tactic 'normalise-commmut-monoid'")

@@ -2,6 +2,10 @@ module Solver.CommutativeMonoid.Language
 
 import Data.Fin
 import Data.List1
+import Data.Util
+
+import Text.PrettyPrint.Prettyprinter.Render.Terminal
+import Text.PrettyPrint.Prettyprinter
 
 public export
 data Term : Type -> Type where
@@ -12,6 +16,18 @@ data Term : Type -> Type where
   -- x + 0 = x
   -- x + (y + z) = (x + y) + z
   -- x + y = y + x
+
+public export
+Show a => Show (Term a) where
+  show (Var x) = "Var \{show x}"
+  show Zero = "0"
+  show (Plus x y) = "(\{show x}) + (\{show y})"
+
+public export
+prettyTerm : (ctx : SnocList String) -> Term (Fin (length ctx)) -> Doc ann
+prettyTerm ctx (Var x) = pretty (index ctx x)
+prettyTerm ctx Zero = pretty "0"
+prettyTerm ctx (Plus x y) = parens (prettyTerm ctx x) <++> "+" <++> parens (prettyTerm ctx y)
 
 public export
 Functor Term where
@@ -26,6 +42,7 @@ Functor Term where
 public export
 mult : Nat -> Term (Fin n) -> Term (Fin n)
 mult Z t = Zero
+mult 1 t = t
 mult (S n) t = Plus t (mult n t)
 
 namespace Fin
@@ -35,7 +52,8 @@ namespace Fin
    where
     go : (k : Nat) -> (Fin k -> Term (Fin n)) -> Term (Fin n)
     go 0 f = Zero
-    go (S k) f = Plus (f FZ) (go k (f . FS))
+    go 1 f = f 0
+    go (S k) f = Plus (go k (f . FS)) (f FZ)
 
 namespace List1
   public export

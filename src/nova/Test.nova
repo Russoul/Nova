@@ -302,8 +302,8 @@ define append-left-nil : {A : 𝕌} → {n : ℕ} → (xs : Vect n A) → nil ++
                             tac unfold ☐ ≡ _ ∈ _;
                                 unfold ☐ ≡ _ ∈ _;
                                 trivial;
--- BUG:                                                                                        vvvvvvvvvvv doesn't parse as operator
-define append-left-cons : {A : 𝕌} → {m n : ℕ} → (x : A) → (xs : Vect m A) → (ys : Vect n A) → ((_::_ x xs) ++ ys ≡ (tac rewrite⁻¹ (_ ☐ _) (plus-left-S ? ?); exact x :: (xs ++ ys);) ∈ ?)
+
+define append-left-cons : {A : 𝕌} → {m n : ℕ} → (x : A) → (xs : Vect m A) → (ys : Vect n A) → ((x :: xs) ++ ys ≡ (tac rewrite⁻¹ (_ ☐ _) (plus-left-S ? ?); exact x :: (xs ++ ys);) ∈ ?)
                         ≔ {A m n} ↦ x xs ys ↦ tac
                             unfold ☐ ≡ _ ∈ _;
                             unfold ☐ ≡ _ ∈ _;
@@ -390,7 +390,7 @@ let-type Monoid
          ⨯ ((x : A) → x + z ≡ x ∈ A)
          ⨯ ((x y z : A) → x + (y + z) ≡ (x + y) + z ∈ A)
 
-let Is-Commut-Monoid : 𝕌 → 𝕌
+define Is-Commut-Monoid : 𝕌 → 𝕌
      ≔ A ↦ (z : A)
          ⨯ (_+_ : A → A → A)
          ⨯ ((x : A) → z + x ≡ x ∈ A)
@@ -398,14 +398,20 @@ let Is-Commut-Monoid : 𝕌 → 𝕌
          ⨯ ((x y z : A) → x + (y + z) ≡ (x + y) + z ∈ A)
          ⨯ ((x y : A) → x + y ≡ y + x ∈ A)
 
-let-type Commut-Monoid
+define-type Commut-Monoid
      ≔ (A : 𝕌) ⨯ Is-Commut-Monoid A
 
 define ℕ-Monoid : Monoid
                 ≔ tac unfold ☐; exact ℕ, Z, _+_ , plus-left-Z, plus-right-Z, plus-assoc;
 
 define ℕ-Commut-Monoid : Commut-Monoid
-                ≔ tac unfold ☐; unfold (x : _) ⨯ ☐; exact ℕ, Z, _+_ , plus-left-Z, plus-right-Z, plus-assoc, plus-commut;
+                ≔ ℕ, Z, _+_ , plus-left-Z, plus-right-Z, plus-assoc, plus-commut
+
+define test-commut-monoid-solver : (x y : ℕ) → x + Z + y ≡ y + Z + x ∈ ℕ
+                                 ≔ x y ↦ tac
+                                     normalise-comm-monoid (☐ ≡ _ ∈ _) (x y ⊦ x + 0 + y) ℕ-Commut-Monoid;
+                                     normalise-comm-monoid (_ ≡ ☐ ∈ _) (x y ⊦ y + 0 + x) ℕ-Commut-Monoid;
+                                     exact ?t;
 
 let one : ℕ
         ≔ S Z

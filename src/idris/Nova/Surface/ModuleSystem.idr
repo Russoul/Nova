@@ -1,5 +1,7 @@
 module Nova.Surface.ModuleSystem
 
+import Control.Monad.IOEither
+
 import Data.AVL
 import Data.Fin
 import Data.Location
@@ -52,11 +54,11 @@ readModuleDescription npkg = do
 -- ||| For common Σ Ω:
 -- ||| ε ⊦ ⟦?A, ?z, ?p, ?⟧ ⇝ _ : Commut-Monoid
 public export
-postProblem1 : Signature
+postProblem1 : SnocList Operator
+            -> Signature
             -> Omega
-            -> SnocList Operator
             -> ElabM (Signature, Omega)
-postProblem1 sig omega ops = M.do
+postProblem1 ops sig omega = M.do
   let syntm0 = "?A, ?z, ?p, ?"
   let syntm1 = "ℕ-Commut-Monoid"
   let synty =
@@ -86,7 +88,7 @@ postProblem1 sig omega ops = M.do
   let el0 = OmegaVarElim midx0 Terminal
   let el1 = OmegaVarElim midx1 Terminal
   omega <- liftUnifyM $ addConstraint omega (ElemConstraint [<] el0 el1 ty)
-  Success omega <- solve sig omega [prob1, prob2, prob3]
+  Success omega <- solve ops sig omega [prob1, prob2, prob3]
     | Stuck omega stuckElab stuckCons => M.do
          write "Result of postProblem1 (stuck):"
          write (renderDocTerm !(Elab.liftM $ prettyElem sig omega [<] el0 0))
@@ -98,18 +100,18 @@ postProblem1 sig omega ops = M.do
   return (sig, omega)
 
 public export
-postProblem2 : Signature
+postProblem2 : SnocList Operator
+            -> Signature
             -> Omega
-            -> SnocList Operator
             -> ElabM (Signature, Omega)
-postProblem2 sig omega ops = M.do
+postProblem2 ops sig omega = M.do
   let Right (_, syntm) = parseFull' (MkParsingSt [<]) (term 0) "four"
     | Left err => throw (show err)
   let params = MkParams Nothing {solveNamedHoles = True}
   (omega, midx) <- liftUnifyM $ newElemMeta omega [<] NatTy SolveByElaboration
   let myResult = Elem.OmegaVarElim midx Terminal
   let prob1 = ElemElaboration [<] !(Elab.liftM $ shunt (cast ops) syntm 0 >>= M.fromEither) midx NatTy
-  Success omega <- solve sig omega [prob1]
+  Success omega <- solve ops sig omega [prob1]
     | Stuck omega stuckElab stuckCons => throw $ renderDocTerm !(Elab.liftM $ pretty sig (Stuck omega stuckElab stuckCons))
     | Error omega (Left (elab, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (ElaborationError omega (elab, err)))
     | Error omega (Right (con, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (UnificationError omega (con, err)))
@@ -118,29 +120,33 @@ postProblem2 sig omega ops = M.do
   return (sig, omega)
 
 public export
-checkModule : Signature
+checkModule : SnocList Operator
+           -> Signature
            -> Omega
-           -> SnocList Operator
            -> (nextOmegaIdx : Nat)
            -> OrdTree (String, List (Range, String)) ByFst
            -> (novaDirectory : String)
            -> (modName : String)
-           -> IO (Either (Maybe Range, Doc Ann) (Signature, Omega, SnocList Operator, Nat, OrdTree (String, List (Range, String)) ByFst, String, SnocList SemanticToken))
-checkModule sig omega ops nextOmegaIdx namedHoles novaDirectory modName = Prelude.do
+           -> IO (Either (Maybe Range, Doc Ann) (SnocList Operator, Signature, Omega, Nat, OrdTree (String, List (Range, String)) ByFst, String, SnocList SemanticToken))
+checkModule ops sig omega nextOmegaIdx namedHoles novaDirectory modName = Prelude.do
   let mod = novaDirectory </> (modName ++ ".nova")
   putStrLn "About to process file: \{mod}"
   Right source <- readFile mod
-    | Left err => pure $ Left (Nothing, pretty $ "Can't read module: \{mod}; reason: \{show err}")
+    | Left err => Prelude.do
+        pure $ Left (Nothing, pretty $ "Can't read module: \{mod}; reason: \{show err}")
   let Right (MkParsingSt toks, surfaceSyntax) = parseFull' (MkParsingSt [<]) surfaceFile source
-    | Left err => pure $ Left (Nothing, pretty $ "Parsing error:\n" ++ show err)
+    | Left err => Prelude.do
+        pure $ Left (Nothing, pretty $ "Parsing error:\n" ++ show err)
   putStrLn "File parsed successfully!"
   let params = MkParams (Just mod) {solveNamedHoles = False}
-  Right (MkElabSt (MkUnifySt nextOmegaIdx) moreToks namedHoles, Right (sig, omega, ops)) <- run (elabFile @{params} sig omega ops surfaceSyntax) (MkElabSt (MkUnifySt nextOmegaIdx) [<] namedHoles)
+  Right (MkElabSt (MkUnifySt nextOmegaIdx) moreToks namedHoles, Right (ops, sig, omega)) <- run (elabFile @{params} ops sig omega surfaceSyntax) (MkElabSt (MkUnifySt nextOmegaIdx) [<] namedHoles)
     | Right (MkElabSt (MkUnifySt nextOmegaIdx) moreToks namedHoles, Left (x, range, sig, err)) => Prelude.do
        Right doc <- eval (pretty sig err) ()
-         | Left err => pure $ Left (Just range, pretty ("Critical error:" ++ err))
+         | Left err => Prelude.do
+             pure $ Left (Just range, pretty ("Critical error:" ++ err))
        pure (Left (Just range, pretty "Error while elaborating top-level definition (#\{show (length sig)}) \{x}" <+> hardline <+> doc))
-    | Left err => pure $ Left (Nothing, pretty ("Critical error:" ++ err))
+    | Left err => Prelude.do
+        pure $ Left (Nothing, pretty ("Critical error:" ++ err))
   putStrLn "File elaborated successfully!"
   putStrLn "------------ Named holes ---------------"
   for_ (List.inorder omega) $ \(x, e) => Prelude.do
@@ -156,13 +162,13 @@ checkModule sig omega ops nextOmegaIdx namedHoles novaDirectory modName = Prelud
       _ => Prelude.do
         pure ()
   putStrLn "----------------------------------------"
-  pure $ Right (sig, omega, ops, nextOmegaIdx, namedHoles, source, toks ++ moreToks)
+  pure $ Right (ops, sig, omega, nextOmegaIdx, namedHoles, source, toks ++ moreToks)
 
 
 public export
-checkModules : Signature
+checkModules : SnocList Operator
+            -> Signature
             -> Omega
-            -> SnocList Operator
             -> (nextOmegaIdx : Nat)
             -> OrdTree (String, List (Range, String)) ByFst
                   --   absolute filename   src     toks
@@ -170,30 +176,20 @@ checkModules : Signature
             -> (novaDirectory : String)
             -> (modNames : List String)     --                                                                                  absolute filename   src     toks
             --             vvvvvvvvvvvv filename
-            -> IO (Either (Maybe String, Maybe Range, Doc Ann) (Signature, Omega, SnocList Operator, Nat, OrdTree (String, List (Range, String)) ByFst, List (String, String, SnocList SemanticToken)))
-checkModules sig omega ops nextOmegaIdx namedHoles toks novaDirectory [] = pure $ Right (sig, omega, ops, nextOmegaIdx, namedHoles, cast toks)
-checkModules sig omega ops nextOmegaIdx namedHoles toks novaDirectory (n :: ns) = Prelude.do
+            -> IO (Either (Maybe String, Maybe Range, Doc Ann) (SnocList Operator, Signature, Omega, Nat, OrdTree (String, List (Range, String)) ByFst, List (String, String, SnocList SemanticToken)))
+checkModules ops sig omega nextOmegaIdx namedHoles toks novaDirectory [] = Prelude.do
+  pure $ Right (ops, sig, omega, nextOmegaIdx, namedHoles, cast toks)
+checkModules ops sig omega nextOmegaIdx namedHoles toks novaDirectory (n :: ns) = Prelude.do
   let mod = novaDirectory </> (n ++ ".nova")
-  Right (sig, omega, ops, nextOmegaIdx, namedHoles, source, ntoks) <- checkModule sig omega ops nextOmegaIdx namedHoles novaDirectory n
-    | Left (r, err) => pure (Left (Just mod, r, err))
-  checkModules sig omega ops nextOmegaIdx namedHoles (toks :< (mod, source, ntoks)) novaDirectory ns
-
-namespace IOEither
-  public export
-  (>>=) : IO (Either e a) -> (a -> IO (Either e b)) -> IO (Either e b)
-  (f >>= g) = Prelude.do
-    case !f of
-      Left e => io_pure (Left e)
-      Right x => g x
-
-  public export
-  pure : a -> IO (Either e a)
-  pure x = io_pure (Right x)
+  Right (ops, sig, omega, nextOmegaIdx, namedHoles, source, ntoks) <- checkModule ops sig omega nextOmegaIdx namedHoles novaDirectory n
+    | Left (r, err) => Prelude.do
+        pure (Left (Just mod, r, err))
+  checkModules ops sig omega nextOmegaIdx namedHoles (toks :< (mod, source, ntoks)) novaDirectory ns
 
 public export
-checkEverything : Signature
+checkEverything : SnocList Operator
+               -> Signature
                -> Omega
-               -> SnocList Operator
                -> (nextOmegaIdx : Nat)
                -> OrdTree (String, List (Range, String)) ByFst
                      --   absolute filename   src     toks
@@ -201,11 +197,11 @@ checkEverything : Signature
                -> (novaDirectory : String)
                -> (modNames : List String)     --                                                                                  absolute filename   src     toks
                --             vvvvvvvvvvvv filename
-               -> IO (Either (Maybe String, Maybe Range, Doc Ann) (Signature, Omega, SnocList Operator, Nat, OrdTree (String, List (Range, String)) ByFst, List (String, String, SnocList SemanticToken)))
-checkEverything sig omega ops nextOmegaIdx namedHoles toks novaDirectory modNames = IOEither.do
-  (sig, omega, ops, nextOmegaIdx, namedHoles, ntoks) <- checkModules sig omega ops nextOmegaIdx namedHoles toks novaDirectory modNames
+               -> IO (Either (Maybe String, Maybe Range, Doc Ann) (SnocList Operator, Signature, Omega, Nat, OrdTree (String, List (Range, String)) ByFst, List (String, String, SnocList SemanticToken)))
+checkEverything ops sig omega nextOmegaIdx namedHoles toks novaDirectory modNames = IOEither.do
+  (ops, sig, omega, nextOmegaIdx, namedHoles, ntoks) <- checkModules ops sig omega nextOmegaIdx namedHoles toks novaDirectory modNames
   (MkElabSt (MkUnifySt nextOmegaIdx) moreToks namedHoles, (sig, omega)) <-
-    map (bimap (\x => (Nothing, Nothing, pretty x)) id) (run (postProblem2 sig omega ops) (MkElabSt (MkUnifySt nextOmegaIdx) [<] namedHoles))
-  pure (sig, omega, ops, nextOmegaIdx, namedHoles, ntoks)
+    map (bimap (\x => (Nothing, Nothing, pretty x)) id) (run (postProblem2 ops sig omega) (MkElabSt (MkUnifySt nextOmegaIdx) [<] namedHoles))
+  pure (ops, sig, omega, nextOmegaIdx, namedHoles, ntoks)
 
 
