@@ -44,10 +44,32 @@ namespace MMaybe
   nothing = M.return Nothing
 
   public export
+  fromMaybe : Maybe a -> M e s (Maybe a)
+  fromMaybe x = M.do
+    return x
+
+  public export
   liftM : M e s a -> M e s (Maybe a)
   liftM f = M.do
     x <- f
     return (Just x)
+
+  public export
+  guard : Bool -> M e s (Maybe ())
+  guard False = M.do return Nothing
+  guard True = M.do return (Just ())
+
+  public export
+  mapResult : (a -> b) -> M e s (Maybe a) -> M e s (Maybe b)
+  mapResult f t = M.mapResult (map f) t
+
+  public export
+  (<$>) : (a -> b) -> M e s (Maybe a) -> M e s (Maybe b)
+  (<$>) = MMaybe.mapResult
+
+  public export
+  (<&>) : M e s (Maybe a) -> (a -> b) -> M e s (Maybe b)
+  (<&>) = flip MMaybe.mapResult
 
 namespace MEither
   %inline

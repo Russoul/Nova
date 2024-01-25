@@ -23,6 +23,10 @@ import Nova.Surface.ParserGeneral
 import Nova.Surface.ParserCategorical
 import Nova.Surface.Operator
 
+import Solver.CommutativeMonoid.Parser
+import Solver.CommutativeMonoid.Language
+
+%hide CommutativeMonoid.Parser.Rule
 
 public export
 Level : Type
@@ -267,12 +271,11 @@ mutual
     x <- sepBy1 spaceDelim varBound
     spaceDelim
     delim_ ":"
-    mustWork $ do
-      spaceDelim
-      ty <- term 0
-      optSpaceDelim
-      r <- specialAnn TypAnn ")"
-      pure (l + r, x, ty)
+    spaceDelim
+    ty <- term 0
+    optSpaceDelim
+    r <- specialAnn TypAnn ")"
+    pure (l + r, x, ty)
 
   public export
   implicitSection : Rule (Range, List1 VarName, Term)
@@ -282,12 +285,11 @@ mutual
     x <- sepBy1 spaceDelim varBound
     spaceDelim
     specialAnn_ KeywordAnn ":"
-    mustWork $ do
-      spaceDelim
-      ty <- term 0
-      optSpaceDelim
-      r <- specialAnn TypAnn "}"
-      pure (l + r, x, ty)
+    spaceDelim
+    ty <- term 0
+    optSpaceDelim
+    r <- specialAnn TypAnn "}"
+    pure (l + r, x, ty)
 
   public export
   continuePi : (Range, Range, List1 VarName, Term) -> Rule Term
@@ -383,7 +385,7 @@ mutual
   public export
   term4 : Rule Term
   term4 = (located head <&> (\(p, x) => OpLayer p (ConsB (p, x, []) [])))
-      <|> inParentheses (term 0)
+      <|> (located (inParentheses (term 0)) <&> (\(l, x) => InParens l x))
 
   public export
   simpleExpr : Rule (Range, Head, Elim)
@@ -646,11 +648,11 @@ mutual
     sepBy1 spaceDelimDef topLevel
 
 mutual
-  tactic = composition <|> split <|> exact <|> unfold <|> id <|> trivial <|> rewriteInv <|> let' <|> rewrite'
+  tactic = composition <|> split <|> exact <|> unfold <|> id <|> trivial <|> rewriteInv <|> let' <|> rewrite' <|> normaliseCommutativeMonoid
 
   public export
   compositionArg : Rule Tactic
-  compositionArg = split <|> exact <|> unfold <|> id <|> trivial <|> rewriteInv <|> let' <|> rewrite'
+  compositionArg = split <|> exact <|> unfold <|> id <|> trivial <|> rewriteInv <|> let' <|> rewrite' <|> normaliseCommutativeMonoid
 
   ensureColumn : (col : Int) -> Rule a -> Rule a
   ensureColumn col f = do
@@ -717,6 +719,19 @@ mutual
     spaceDelim
     e <- located (term 3)
     pure (RewriteInv (l + fst e) rho (snd e))
+
+  public export
+  normaliseCommutativeMonoid : Rule Tactic
+  normaliseCommutativeMonoid = do
+    l <- delim "normalise-comm-monoid"
+    spaceDelim
+    rho <- term 3
+    spaceDelim
+    st <- get
+    omega <- inParentheses (mapState (const st, const ()) CommutativeMonoid.Parser.parseContextualTerm)
+    spaceDelim
+    inst <- located (term 3)
+    pure (NormaliseCommutativeMonoid (l + fst inst) rho omega (snd inst))
 
   public export
   let' : Rule Tactic

@@ -39,21 +39,22 @@ import Nova.Surface.Elaboration.Pretty
 --TODO: We just insert some logging for debug here
 public export
 elabEntry : Params
-         => Signature
+         => SnocList Operator
+         -> Signature
          -> Omega
          -> ElaborationEntry
          -> ElabM Elaboration.Result
-elabEntry sig omega entry = M.do
+elabEntry ops sig omega entry = M.do
   let go : Signature
         -> Omega
         -> ElaborationEntry
         -> ElabM Elaboration.Result
       go sig omega (ElemElaboration ctx tm p ty) =
-        elabElem sig omega ctx tm p ty
+        elabElem ops sig omega ctx tm p ty
       go sig omega (TypeElaboration ctx tm p) =
-        elabType sig omega ctx tm p
+        elabType ops sig omega ctx tm p
       go sig omega (ElemElimElaboration ctx head headTy es p ty) =
-        elabElemElim sig omega ctx head headTy es p ty
+        elabElemElim ops sig omega ctx head headTy es p ty
   result <- go sig omega entry
   {- print_ Debug STDOUT "--------- Elaborating ---------"
   print_ Debug STDOUT (renderDocTerm !(liftM $ pretty sig omega entry))
@@ -76,41 +77,44 @@ data IntermediateResult : Type where
   Error : ElaborationEntry -> String -> IntermediateResult
 
 progressEntriesH : Params
-                => Signature
+                => SnocList Operator
+                -> Signature
                 -> Omega
                 -> (stuck : SnocList (ElaborationEntry, String))
                 -> List ElaborationEntry
                 -> Bool
                 -> ElabM IntermediateResult
-progressEntriesH sig cs stuck [] False = return (Stuck (cast stuck))
-progressEntriesH sig cs stuck [] True = return (Success cs (cast stuck))
-progressEntriesH sig cs stuck (e :: es) progressMade =
-  case !(elabEntry sig cs e) of
-    Success cs' new => progressEntriesH sig cs' stuck (new ++ es) True
-    Stuck reason => progressEntriesH sig cs (stuck :< (e, reason)) es progressMade
+progressEntriesH ops sig cs stuck [] False = return (Stuck (cast stuck))
+progressEntriesH ops sig cs stuck [] True = return (Success cs (cast stuck))
+progressEntriesH ops sig cs stuck (e :: es) progressMade =
+  case !(elabEntry ops sig cs e) of
+    Success cs' new => progressEntriesH ops sig cs' stuck (new ++ es) True
+    Stuck reason => progressEntriesH ops sig cs (stuck :< (e, reason)) es progressMade
     Error str => return (Error e str)
 
 progressEntries : Params
-               => Signature
+               => SnocList Operator
+               -> Signature
                -> Omega
                -> List ElaborationEntry
                -> ElabM IntermediateResult
-progressEntries sig cs list = progressEntriesH sig cs [<] list False
+progressEntries ops sig cs list = progressEntriesH ops sig cs [<] list False
 
 ||| Try solving the problems in the list until either no constraints are left or each and every one is stuck.
 ||| Between rounds of solving problems we try solving unification problems.
-progressEntriesFixpoint : Params => Signature -> Omega -> List ElaborationEntry -> ElabM Elaboration.Fixpoint.Fixpoint
-progressEntriesFixpoint sig cs todo = M.do
+progressEntriesFixpoint : Params => SnocList Operator -> Signature -> Omega -> List ElaborationEntry -> ElabM Elaboration.Fixpoint.Fixpoint
+progressEntriesFixpoint ops sig cs todo = M.do
   case containsNamedHolesOnly cs && isNil todo of
     True => return (Success cs)
     False => M.do
-      case !(progressEntries sig cs todo) of
+      case !(progressEntries ops sig cs todo) of
         Stuck stuckElaborations => M.do
           case !(liftUnifyM $ Unification.solve sig cs) of
             Stuck stuckConstraints => return (Stuck cs stuckElaborations stuckConstraints)
             Disunifier e err => return (Error cs (Right (e, err)))
-            Success cs => progressEntriesFixpoint sig cs todo
+            Success cs => progressEntriesFixpoint ops sig cs todo
         Error e str => return (Error cs (Left (e, str)))
-        Success cs todo => progressEntriesFixpoint sig cs (map fst todo)
+        Success cs todo => progressEntriesFixpoint ops sig cs (map fst todo)
 
-Nova.Surface.Elaboration.Interface.solve sig omega todo = progressEntriesFixpoint sig omega todo
+Nova.Surface.Elaboration.Interface.solve ops sig omega todo = progressEntriesFixpoint ops sig omega todo
+

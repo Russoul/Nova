@@ -102,7 +102,8 @@ let Vect-elim : {A : 𝕌}
               → (xs : Vect n A)
               → P n xs
               ≔ {A n} ↦ P nil cons xs ↦ ℕ-elim (n. (xs : Vect n A) → P n xs)
-                  (tac rewrite⁻¹ (_ → _ ☐) (nil-unique xs);
+                  (tac
+                       rewrite⁻¹ (_ → _ ☐) (nil-unique xs);
                        exact (xs ↦ nil);
                   )
                   -- (n : ℕ) (h : (xs : Vect n A) → P n xs) ⊦ s : (xs : A ⨯ Vect n A) → P (S n) (xs.π₁, xs.π₂)
@@ -282,6 +283,11 @@ define plus-assoc : (x y z : ℕ) → x + (y + z) ≡ (x + y) + z ∈ ℕ
                       )
                       y
 
+-- x + y + z + y + z + y + x = x + x + y + y + y + z + z
+-- Proof using a commutative-monad solver tactic
+-- define test-nat-solver-0 : (x y z : ℕ) → x + y + z + y + z + y + x ≡ x + x + y + y + y + z + z ∈ ℕ
+--                          ≔ x y z ↦ tac normalise-nat ☐ ≡ _ ∈ _; trivial;
+
 -- [] ++ ys = ys
 -- (x :: xs) ++ ys = x :: (xs ++ ys)
 
@@ -296,8 +302,8 @@ define append-left-nil : {A : 𝕌} → {n : ℕ} → (xs : Vect n A) → nil ++
                             tac unfold ☐ ≡ _ ∈ _;
                                 unfold ☐ ≡ _ ∈ _;
                                 trivial;
--- BUG:                                                                                        vvvvvvvvvvv doesn't parse as operator
-define append-left-cons : {A : 𝕌} → {m n : ℕ} → (x : A) → (xs : Vect m A) → (ys : Vect n A) → ((_::_ x xs) ++ ys ≡ (tac rewrite⁻¹ (_ ☐ _) (plus-left-S ? ?); exact x :: (xs ++ ys);) ∈ ?)
+
+define append-left-cons : {A : 𝕌} → {m n : ℕ} → (x : A) → (xs : Vect m A) → (ys : Vect n A) → ((x :: xs) ++ ys ≡ (tac rewrite⁻¹ (_ ☐ _) (plus-left-S ? ?); exact x :: (xs ++ ys);) ∈ ?)
                         ≔ {A m n} ↦ x xs ys ↦ tac
                             unfold ☐ ≡ _ ∈ _;
                             unfold ☐ ≡ _ ∈ _;
@@ -384,17 +390,55 @@ let-type Monoid
          ⨯ ((x : A) → x + z ≡ x ∈ A)
          ⨯ ((x y z : A) → x + (y + z) ≡ (x + y) + z ∈ A)
 
-let-type Commut-Monoid
-     ≔ (A : 𝕌)
-         ⨯ (z : A)
+define Is-Commut-Monoid : 𝕌 → 𝕌
+     ≔ A ↦ (z : A)
          ⨯ (_+_ : A → A → A)
          ⨯ ((x : A) → z + x ≡ x ∈ A)
          ⨯ ((x : A) → x + z ≡ x ∈ A)
          ⨯ ((x y z : A) → x + (y + z) ≡ (x + y) + z ∈ A)
          ⨯ ((x y : A) → x + y ≡ y + x ∈ A)
 
+define-type Commut-Monoid
+     ≔ (A : 𝕌) ⨯ Is-Commut-Monoid A
+
 define ℕ-Monoid : Monoid
                 ≔ tac unfold ☐; exact ℕ, Z, _+_ , plus-left-Z, plus-right-Z, plus-assoc;
 
 define ℕ-Commut-Monoid : Commut-Monoid
-                ≔ tac unfold ☐; exact ℕ, Z, _+_ , plus-left-Z, plus-right-Z, plus-assoc, plus-commut;
+                ≔ ℕ, Z, _+_ , plus-left-Z, plus-right-Z, plus-assoc, plus-commut
+
+define test-commut-monoid-solver : (x y : ℕ) → x + Z + y + x + x + Z + Z + y ≡ x + x + Z + y + y + Z + x ∈ ℕ
+                                 ≔ x y ↦ tac
+                                     normalise-comm-monoid (☐ ≡ _ ∈ _) (x y ⊦ x + 0 + y + x + x + 0 + 0 + y) ℕ-Commut-Monoid;
+                                     normalise-comm-monoid (_ ≡ ☐ ∈ _) (x y ⊦ x + x + 0 + y + y + 0 + x) ℕ-Commut-Monoid;
+                                     exact Refl;
+
+
+let List : 𝕌 → 𝕌
+         ≔ A ↦ (n : ℕ) ⨯ Vect n A
+
+let lnil : {A : 𝕌} → List A
+         ≔ {A} ↦ tac
+             unfold ☐;
+             exact Z, nil;
+
+let lcons : {A : 𝕌} → A → List A → List A
+          ≔ {A} ↦ x ↦ tac
+              unfold ☐ → _;
+              unfold _ → ☐;
+              exact (xs ↦ S (xs .π₁) , (tac rewrite⁻¹ ☐ Vect-S; exact x, xs .π₂;));
+
+-- TODO:
+assume lrec : {A X : 𝕌} → X → (A → List A → X → X) → List A → X
+
+let lappend : {A : 𝕌} → List A → List A → List A
+            ≔ {A} ↦ xs ys ↦ lrec {A} {List A} ys (x xs h ↦ lcons x h) xs
+
+let one : ℕ
+        ≔ S Z
+
+let two : ℕ
+        ≔ one + one
+
+let four : ℕ
+   ≔ two * two

@@ -3,7 +3,9 @@ package nova-api
 depends = contrib, just-a-monad
 
 modules =
-          Data.AVL
+          Control.Monad.IOEither
+
+        , Data.AVL
         , Data.AlternatingList
         , Data.AlternatingList1
         , Data.AlternatingSnocList
@@ -25,6 +27,7 @@ modules =
         , Nova.Core.Shrinking
         , Nova.Core.Substitution
         , Nova.Core.Unification
+        , Nova.Core.Util
 
         , Nova.Surface.Elaboration
         , Nova.Surface.Elaboration.Implementation
@@ -32,11 +35,14 @@ modules =
         , Nova.Surface.Elaboration.Implementation.Elem
         , Nova.Surface.Elaboration.Implementation.Solve
         , Nova.Surface.Elaboration.Implementation.Tactic
+        , Nova.Surface.Elaboration.Implementation.Tactic.NormaliseCommutativeMonoid
+        , Nova.Surface.Elaboration.Implementation.Tactic.TermLens
         , Nova.Surface.Elaboration.Implementation.Tactic.Trivial
         , Nova.Surface.Elaboration.Implementation.Tactic.Unfold
         , Nova.Surface.Elaboration.Implementation.TopLevel
         , Nova.Surface.Elaboration.Implementation.Typ
         , Nova.Surface.Elaboration.Interface
+        , Nova.Surface.Elaboration.Pretty
         , Nova.Surface.Language
         , Nova.Surface.ModuleSystem
         , Nova.Surface.Operator
@@ -46,12 +52,19 @@ modules =
         , Nova.Surface.SemanticToken
         , Nova.Surface.Shunting
 
-        , Nova.Test.Test
+        , Solver.CommutativeMonoid
+        , Solver.CommutativeMonoid.Evaluation
+        , Solver.CommutativeMonoid.Language
+        , Solver.CommutativeMonoid.Normalisation
+        , Solver.CommutativeMonoid.Parser
+        , Solver.CommutativeMonoid.Quotation
+        , Solver.CommutativeMonoid.Value
 
         , Text.Lexing.Token
         , Text.Lexing.Tokeniser
 
         , Text.Parsing.CharUtil
         , Text.Parsing.Fork
+        , Text.Parsing.TokenUtil
 
 sourcedir = "src/idris"

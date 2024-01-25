@@ -108,6 +108,7 @@ varNextSym = is "symbol of a variable" $ isSymbol $ \x =>
  || isSuperscriptDigit x
  || isSmallGreekLetter x
  || isCapitalGreekLetter x
+ || x == 'ₘ' -- FIX: I am currently using this for "machine" names. This is a hack as no one is stopping the user from entering 'ₘ' as well!
  || x == 'ℕ'
  || x == 'ℤ'
  || x == '𝕀'
@@ -194,6 +195,7 @@ namespace Special
             , "?"
             , "!"
             , "type"
+            , "$"
             ]
 
 public export

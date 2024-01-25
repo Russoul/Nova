@@ -1,12 +1,16 @@
 module Nova.Surface.Language
 
-import Data.Location
-import Data.List1
 import Data.AlternatingList
 import Data.AlternatingList1
+import Data.Fin
+import Data.SnocList
+import Data.List1
+import Data.Location
 
 import Nova.Core.Name
 import Nova.Surface.Operator
+
+import Solver.CommutativeMonoid.Language
 
 
 -- h ::= tt | Z | Refl | x | S | ℕ-elim | 𝟘-elim | J | 𝟘 | 𝟙 | ℕ | 𝕌 | !x | ?x | Π-β | Π-η | Π⁼ | Σ-β₁ | Σ-β₂ | Σ-η | Σ⁼ | 𝟙⁼ | ℕ-β-Z | ℕ-β-S | (e{≥0}) | _ | ☐
@@ -103,6 +107,7 @@ mutual
       PiVal : Range -> List1 VarName -> Term -> Term
       ImplicitPiVal : Range -> List1 VarName -> Term -> Term
       OpLayer : {k : _} -> Range -> AlternatingList1 k (Range, String) (Range, Head, Elim) -> Term
+      InParens : Range -> Term -> Term
       Tac : Range -> Tactic -> Term
 
   namespace Tactic
@@ -129,6 +134,12 @@ mutual
       Rewrite : Range -> Term -> Term -> Tactic
       ||| let x ≔ e{≥0}
       Let : Range -> VarName -> Term -> Tactic
+      ||| normalise-comm-monoid ρ ω t
+      NormaliseCommutativeMonoid : Range
+                                -> Term -- vars can't contain duplicates
+                                -> (vars : SnocList String ** Term (Fin (length vars)))
+                                -> Term
+                                -> Tactic
 
   namespace OpFreeTactic
     public export
@@ -154,6 +165,12 @@ mutual
       Rewrite : Range -> OpFreeTerm -> OpFreeTerm -> OpFreeTactic
       ||| let x ≔ t
       Let : Range -> VarName -> OpFreeTerm -> OpFreeTactic
+      ||| normalise-comm-monoid ρ ω t
+      NormaliseCommutativeMonoid : Range
+                                -> OpFreeTerm
+                                -> (vars : SnocList String ** Term (Fin (length vars)))
+                                -> OpFreeTerm
+                                -> OpFreeTactic
 
   namespace OpFreeTerm
     public export
@@ -212,6 +229,7 @@ range (PiVal r str y) = r
 range (ImplicitPiVal r str y) = r
 range (OpLayer r ls) = r
 range (Tac r _) = r
+range (InParens r _) = r
 
 mutual
   covering
@@ -264,7 +282,22 @@ mutual
     show (PiVal _ x f) = "PiVal(\{show x}, \{show f})"
     show (ImplicitPiVal _ x f) = "ImplicitPiVal(\{show x}, \{show f})"
     show (OpLayer _ list) = "OpLayer(\{show list})"
-    show (Tac _ alpha) = "Tac(...)"
+    show (Tac _ alpha) = "Tac(\{show alpha})"
+    show (InParens _ t) = "InParens(\{show t})"
+
+  public export
+  covering
+  Show Tactic where
+    show (Id x) = "Id"
+    show (Composition x xs) = "Composition(\{show xs})"
+    show (Unfold x y) = "Unfold(\{show y})"
+    show (Exact x y) = "Exact(\{show y})"
+    show (Split x sx y) = "Split(\{show sx}, \{show y})"
+    show (Trivial x) = "Trivial"
+    show (RewriteInv x y z) = "RewriteInv(\{show y}, \{show z})"
+    show (Rewrite x y z) = "Rewrite(\{show y}, \{show z})"
+    show (Let x str y) = "Let(\{str}, \{show y})"
+    show (NormaliseCommutativeMonoid x y z w) = "NormaliseCommutativeMonoid(...)"
 
 mutual
   covering

@@ -372,7 +372,7 @@ mutual
       case (lookup k omega) of
         Just (LetType _ rhs) => openEval sig omega (ContextSubstElim rhs sigma)
         Just (MetaType {}) => return (OmegaVarElim k sigma)
-        Just (LetElem {}) => throw "openEval/Type(OmegaVarElim(LetElem))"
+        Just (LetElem {}) => throw "openEval/Type(OmegaVarElim(LetElem(\{k})))"
         Just (MetaElem {}) => throw "openEval/Type(OmegaVarElim(MetaElem))"
         Just (TypeConstraint {}) => throw "openEval/Type(OmegaVarElim(TypeConstraint))"
         Just (ElemConstraint {}) => throw "openEval/Type(OmegaVarElim(ElemConstraint))"

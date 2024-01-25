@@ -7,6 +7,7 @@ import Data.Location
 import Text.Lexing.Token
 import Text.Lexing.Tokeniser
 import public Text.Parsing.Fork
+import public Text.Parsing.TokenUtil
 
 import Nova.Surface.SemanticToken
 
@@ -70,60 +71,6 @@ parseFull' st act xs =
   mapFst head (parseFull st act (fastUnpack xs))
 
 public export
-char : Char -> Rule Token
-char x = is ("Expected symbol: " ++ cast x) (isSymbol (== x))
-
-public export
-char_ : Char -> Rule ()
-char_ = ignore . char
-
-namespace List1
-  public export
-  str : List1 Char -> Rule (List1 Token)
-  str (x ::: []) = map singleton (char x)
-  str (x ::: a :: as) = map cons (char x) <*> str (a ::: as)
-
-namespace String
-  public export
-  str : String -> Rule (List1 Token)
-  str s =
-    case unpack s of --FIX: RETHINK THIS
-      [] => fail "[Internal error] Attempt to parse an empty string"
-      (x :: xs) => List1.str (x ::: xs) <|> fail "Expected string: \{s}"
-
-public export
-str_ : String -> Rule ()
-str_ = ignore . str
-
-public export
-digit : Rule (Fin 10)
-digit = 0 <$ char_ '0'
-    <|> 1 <$ char_ '1'
-    <|> 2 <$ char_ '2'
-    <|> 3 <$ char_ '3'
-    <|> 4 <$ char_ '4'
-    <|> 5 <$ char_ '5'
-    <|> 6 <$ char_ '6'
-    <|> 7 <$ char_ '7'
-    <|> 8 <$ char_ '8'
-    <|> 9 <$ char_ '9'
-
-public export
-digits : Rule (List1 (Fin 10))
-digits = some digit
-
-public export
-nat : Rule Nat
-nat = do
-  n <- digits
-  pure (convert ([<] <>< (forget n)) 1)
- where
-  -- decimal = {1, 10, 100, ...}
-  convert : SnocList (Fin 10) -> (decimal : Nat) -> Nat
-  convert [<] _ = 0
-  convert (left :< x) decimal = convert left (decimal * 10) + finToNat x * decimal
-
-public export
 located : Rule a -> Rule (Range, a)
 located x = do
   t <- bounds x
@@ -159,10 +106,6 @@ delim = exactAnn KeywordAnn
 public export
 delim_ : String -> Rule ()
 delim_ = exactAnn_ KeywordAnn
-
-public export
-space : Rule ()
-space = ignore $ is "whitespace" isSpace
 
 public export
 spaceDelim : Rule ()

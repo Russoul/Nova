@@ -62,7 +62,7 @@ mutual
       ||| ext(σ, A, t)
       Ext : SubstContext -> Elem -> SubstContextNF
 
-  namespace D
+  namespace Typ
     public export
     data Typ : Type where
       ||| 𝟘
@@ -94,7 +94,7 @@ mutual
       ||| Xᵢ(σ)
       SignatureVarElim : Nat -> SubstContext -> Typ
 
-  namespace E
+  namespace Elem
     public export
     data Elem : Type where
       ||| (x : A) → B

@@ -4,17 +4,20 @@ import Data.AVL
 import Data.List1
 import Data.Location
 
+import Text.PrettyPrint.Prettyprinter
+
 import Nova.Core.Language
 import Nova.Core.Monad
 import Nova.Core.Name
+import Nova.Core.Pretty
 import Nova.Core.Unification
 
 import Nova.Surface.Language
 import Nova.Surface.Operator
 import Nova.Surface.SemanticToken
 
-CoreTyp = Nova.Core.Language.D.Typ
-CoreElem = Nova.Core.Language.E.Elem
+CoreTyp = Nova.Core.Language.Typ.Typ
+CoreElem = Nova.Core.Language.Elem.Elem
 SurfaceTerm = Nova.Surface.Language.OpFreeTerm.OpFreeTerm
 
 public export
@@ -29,8 +32,11 @@ public export
 record Params where
   [noHints] -- Make sure the machine won't try to synthesise an arbitrary element of that type when we %search
   constructor MkParams
-  ||| Absolute path to a file we are currently elaborating.
-  absFilePath : String
+  ||| Just the absolute path to the file we are currently elaborating.
+  ||| Or nothing in case we are in interactive mode.
+  absFilePath : Maybe String
+  ||| Whether to solve named holes by unification (True) or not solve them at all (False).
+  solveNamedHoles : Bool
 
 public export
 initialElabSt : ElabSt
@@ -136,12 +142,13 @@ namespace Elaboration
 
 ||| Try solving all elaboration and unification problems.
 public export
-solve : Params => Signature -> Omega -> List ElaborationEntry -> ElabM Elaboration.Fixpoint.Fixpoint
+solve : Params => SnocList Operator -> Signature -> Omega -> List ElaborationEntry -> ElabM Elaboration.Fixpoint.Fixpoint
 
 ||| Σ Ω Γ ⊦ ⟦t⟧ ⇝ p : A
 public export
 elabElem : Params
-        => Signature
+        => SnocList Operator
+        -> Signature
         -> Omega
         -> Context
         -> SurfaceTerm
@@ -153,7 +160,8 @@ elabElem : Params
 ||| Here we implicitly insert El to convert from 𝕌 to type
 public export
 elabType : Params
-        => Signature
+        => SnocList Operator
+        -> Signature
         -> Omega
         -> Context
         -> SurfaceTerm
@@ -163,7 +171,8 @@ elabType : Params
 ||| Σ Ω Γ ⊦ (t : T) ⟦ē⟧ ⇝ t' : A
 public export
 elabElemElim : Params
-            => Signature
+            => SnocList Operator
+            -> Signature
             -> Omega
             -> Context
             -> CoreElem
@@ -177,20 +186,21 @@ elabElemElim : Params
 -- FIX: elabTactic calls `solve` which, when fails, only shows stuck *local* elaboration problems. That is misleading!
 public export
 elabTactic : Params
-          => Signature
+          => SnocList Operator
+          -> Signature
           -> Omega
           -> OpFreeTactic
           -> (target : Signature)
-          -> ElabM (Either String (Omega, Signature, SignatureInst -> SignatureInst))
+          -> ElabM (Either (Range, Doc Ann) (Omega, Signature, SignatureInst -> SignatureInst))
 
 ||| Elaborate a .nova file parsed in advance.
 public export
 elabFile : Params
-        => Signature
+        => SnocList Operator
+        -> Signature
         -> Omega
-        -> SnocList Operator
         -> List1 TopLevel
         --                vvvvvv def name
         --                        vvvvv def range
         --                               vvvvvvvvv elaborated so far
-        -> ElabM (Either (String, Range, Signature, TopLevelError) (Signature, Omega, SnocList Operator))
+        -> ElabM (Either (String, Range, Signature, TopLevelError) (SnocList Operator, Signature, Omega))
