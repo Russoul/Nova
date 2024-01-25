@@ -80,27 +80,6 @@ interpTerm sig ty zero plus (Plus a b) = M.do
       ty
       b
 
-||| Assumes Σ Ω Γ ⊦ t : ℕ
-||| And t is head-neutral w.r.t. evaluation
-||| Parses a term of the form:
-||| t ::= 0 | t + t | x
--- Is it possible to generalise this to arbitrary comm monoid?
-public export
-parseNatCommutativeMonoidNu : (plusIndex : Nat) -> (Nat -> Maybe (Fin n)) -> Elem -> M (Maybe (Term (Either Nat (Fin n))))
-parseNatCommutativeMonoidNu plusIndex f NatVal0 = MMaybe.do
-  return Zero
-parseNatCommutativeMonoidNu plusIndex f (ContextVarElim k) = MMaybe.do
-  let Just k = f k
-    | Nothing => assert_total $ idris_crash "parseNatCommutativeMonoidNu"
-  return (Var (Right k))
-parseNatCommutativeMonoidNu plusIndex f (PiElim (PiElim (SignatureVarElim i _) _ _ _ a) _ _ _ b) = MMaybe.do
-  guard (i == plusIndex)
-  a <- parseNatCommutativeMonoidNu plusIndex f a
-  b <- parseNatCommutativeMonoidNu plusIndex f b
-  return (Plus a b)
-parseNatCommutativeMonoidNu plusIndex f el = MMaybe.do
-  nothing
-
 ||| Σ₀ ⊦ ? ⇛ Σ (Γ ⊦ x : A)
 public export
 elabNormaliseComm : Params
