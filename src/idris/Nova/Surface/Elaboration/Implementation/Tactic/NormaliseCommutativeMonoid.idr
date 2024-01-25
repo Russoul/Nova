@@ -154,8 +154,11 @@ elabNormaliseComm ops sig omega r path (vars ** monoidTm) monoidInst (target :< 
     | Error omega (Right (con, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (UnificationError omega (con, err)))
 
 
-  -- FIX: names must be unique every time
-  let syntm0 = "?A, ?z, ?p, ?"
+  -- FIX: I totally hate this. This will be fixed by nameless representation of Ω though. We should speed up the migration!
+  aindex <- MEither.liftM $ liftUnifyM $ Unification.nextOmegaIdx
+  zindex <- MEither.liftM $ liftUnifyM $ Unification.nextOmegaIdx
+  pindex <- MEither.liftM $ liftUnifyM $ Unification.nextOmegaIdx
+  let syntm0 = "?Aₘ\{natToSubscript aindex}, ?zₘ\{natToSubscript zindex}, ?pₘ\{natToSubscript pindex}, ?"
   let Right (_, syntm0) = parseFull' (MkParsingSt [<]) (term 0) syntm0
     | Left err => throw (show err)
   (omega, midx0) <- MEither.liftM $ liftUnifyM $ newElemMeta omega [<] commMonoidTy SolveByElaboration
@@ -169,9 +172,9 @@ elabNormaliseComm ops sig omega r path (vars ** monoidTm) monoidInst (target :< 
          throw $ renderDocTerm !(Elab.liftM $ pretty sig (Stuck omega stuckElab stuckCons))
     | Error omega (Left (elab, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (ElaborationError omega (elab, err)))
     | Error omega (Right (con, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (UnificationError omega (con, err)))
-  let monoidTy = El (Elem.OmegaVarElim "A" Terminal)
-  let monoidZero = Elem.OmegaVarElim "z" Terminal
-  let monoidPlus = Elem.OmegaVarElim "p" Terminal
+  let monoidTy = El (Elem.OmegaVarElim "Aₘ\{natToSubscript aindex}" Terminal)
+  let monoidZero = Elem.OmegaVarElim "zₘ\{natToSubscript zindex}" Terminal
+  let monoidPlus = Elem.OmegaVarElim "pₘ\{natToSubscript pindex}" Terminal
   subst <- mapResult (maybeToEither (r, "Can't find the given monoid variables in the context")) $
           Elab.liftM $ mbSubst sig omega focusedCtx vars monoidTy
   tmInterp <- MEither.liftM $ Elab.liftM $ interpTerm sig monoidTy monoidZero monoidPlus monoidTm

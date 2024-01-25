@@ -407,11 +407,32 @@ define ℕ-Monoid : Monoid
 define ℕ-Commut-Monoid : Commut-Monoid
                 ≔ ℕ, Z, _+_ , plus-left-Z, plus-right-Z, plus-assoc, plus-commut
 
-define test-commut-monoid-solver : (x y : ℕ) → x + Z + y ≡ y + Z + x ∈ ℕ
+define test-commut-monoid-solver : (x y : ℕ) → x + Z + y + x + x + Z + Z + y ≡ x + x + Z + y + y + Z + x ∈ ℕ
                                  ≔ x y ↦ tac
-                                     normalise-comm-monoid (☐ ≡ _ ∈ _) (x y ⊦ x + 0 + y) ℕ-Commut-Monoid;
-                                     normalise-comm-monoid (_ ≡ ☐ ∈ _) (x y ⊦ y + 0 + x) ℕ-Commut-Monoid;
-                                     exact ?t;
+                                     normalise-comm-monoid (☐ ≡ _ ∈ _) (x y ⊦ x + 0 + y + x + x + 0 + 0 + y) ℕ-Commut-Monoid;
+                                     normalise-comm-monoid (_ ≡ ☐ ∈ _) (x y ⊦ x + x + 0 + y + y + 0 + x) ℕ-Commut-Monoid;
+                                     exact Refl;
+
+
+let List : 𝕌 → 𝕌
+         ≔ A ↦ (n : ℕ) ⨯ Vect n A
+
+let lnil : {A : 𝕌} → List A
+         ≔ {A} ↦ tac
+             unfold ☐;
+             exact Z, nil;
+
+let lcons : {A : 𝕌} → A → List A → List A
+          ≔ {A} ↦ x ↦ tac
+              unfold ☐ → _;
+              unfold _ → ☐;
+              exact (xs ↦ S (xs .π₁) , (tac rewrite⁻¹ ☐ Vect-S; exact x, xs .π₂;));
+
+-- TODO:
+assume lrec : {A X : 𝕌} → X → (A → List A → X → X) → List A → X
+
+let lappend : {A : 𝕌} → List A → List A → List A
+            ≔ {A} ↦ xs ys ↦ lrec {A} {List A} ys (x xs h ↦ lcons x h) xs
 
 let one : ℕ
         ≔ S Z

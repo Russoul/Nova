@@ -68,6 +68,13 @@ nextOmegaName = M.do
   set (MkUnifySt (S idx))
   return ("?\{show idx}")
 
+public export
+nextOmegaIdx : UnifyM Nat
+nextOmegaIdx = M.do
+  MkUnifySt idx <- get
+  set (MkUnifySt (S idx))
+  return idx
+
 %hide UnifyM.Maybe.liftM
 
 namespace Result
