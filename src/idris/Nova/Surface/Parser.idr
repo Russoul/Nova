@@ -271,12 +271,11 @@ mutual
     x <- sepBy1 spaceDelim varBound
     spaceDelim
     delim_ ":"
-    mustWork $ do
-      spaceDelim
-      ty <- term 0
-      optSpaceDelim
-      r <- specialAnn TypAnn ")"
-      pure (l + r, x, ty)
+    spaceDelim
+    ty <- term 0
+    optSpaceDelim
+    r <- specialAnn TypAnn ")"
+    pure (l + r, x, ty)
 
   public export
   implicitSection : Rule (Range, List1 VarName, Term)
@@ -286,12 +285,11 @@ mutual
     x <- sepBy1 spaceDelim varBound
     spaceDelim
     specialAnn_ KeywordAnn ":"
-    mustWork $ do
-      spaceDelim
-      ty <- term 0
-      optSpaceDelim
-      r <- specialAnn TypAnn "}"
-      pure (l + r, x, ty)
+    spaceDelim
+    ty <- term 0
+    optSpaceDelim
+    r <- specialAnn TypAnn "}"
+    pure (l + r, x, ty)
 
   public export
   continuePi : (Range, Range, List1 VarName, Term) -> Rule Term
