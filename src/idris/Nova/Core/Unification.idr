@@ -36,10 +36,12 @@ public export
 initialUnifySt : UnifySt
 initialUnifySt = MkUnifySt 0
 
+||| The error type is a type represents critical unexpected unrecoverable errors.
+||| By design, we are not supposed to ever try/catch those!
+||| Don't use CriticalError for any other kind of error (e.g. recoverable / expected).
 public export
 UnifyM : Type -> Type
-  --                  vvvvvv for critical errors only
-UnifyM = JustAMonad.M String UnifySt
+UnifyM = JustAMonad.M CriticalError UnifySt
 
 namespace UnifyM
   public export
@@ -53,13 +55,6 @@ namespace UnifyM
     liftM : M a -> UnifyM (Maybe a)
     liftM f = M.do
       UnifyM.liftM f <&> Just
-
-public export
-liftMEither : M (Either String a) -> UnifyM a
-liftMEither f = M.do
- case !(UnifyM.liftM f) of
-   Right x => return x
-   Left err => throw err
 
 public export
 nextOmegaName : UnifyM OmegaName
@@ -1028,7 +1023,7 @@ namespace Named
   newTypeMeta : Omega -> Context -> OmegaName -> MetaKind -> UnifyM Omega
   newTypeMeta omega ctx n k = M.do
     case lookup n omega of
-      Just _ => throw "newTypeMeta, name already exists: \{n}"
+      Just _ => criticalError "newTypeMeta, name already exists: \{n}"
       Nothing => return (insert (n, MetaType ctx k) omega)
 
   ||| The name must be unique!
@@ -1036,7 +1031,7 @@ namespace Named
   newElemMeta : Omega -> Context -> OmegaName -> Typ -> MetaKind -> UnifyM Omega
   newElemMeta omega ctx n ty k = M.do
     case lookup n omega of
-      Just _ => throw "newElemMeta, name already exists: \{n}"
+      Just _ => criticalError "newElemMeta, name already exists: \{n}"
       Nothing => return (insert (n, MetaElem ctx ty k) omega)
 
 namespace Nameless

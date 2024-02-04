@@ -101,24 +101,25 @@ elabTopLevelSyn ops sig omega (Syntax r op) =
   return (Right (ops :< op, sig, omega))
 elabTopLevelSyn ops sig omega (TypingSignature r x ty) = M.do
   -- write "Before shunting:\n\{show (TypingSignature r x ty)}"
-  Right (sig, omega) <- elabTopLevelEntry ops sig omega !(liftMEither $ shuntTopLevel (cast ops) (TypingSignature r x ty))
+  -- FIX:                                                              vvvvvvvvvvvvvvv shouldn't be critical error
+  Right (sig, omega) <- elabTopLevelEntry ops sig omega !(Elab.liftM $ asCriticalError $ shuntTopLevel (cast ops) (TypingSignature r x ty))
     | Left err => return (Left (x, r, sig, err))
   return (Right (ops, sig, omega))
 elabTopLevelSyn ops sig omega (LetSignature r x ty rhs) = M.do
   -- write "Before shunting:\n\{show (LetSignature r x ty rhs)}"
-  Right (sig, omega) <- elabTopLevelEntry ops sig omega !(liftMEither $ shuntTopLevel (cast ops) (LetSignature r x ty rhs))
+  Right (sig, omega) <- elabTopLevelEntry ops sig omega !(Elab.liftM $ asCriticalError $ shuntTopLevel (cast ops) (LetSignature r x ty rhs))
     | Left err => return (Left (x, r, sig, err))
   return (Right (ops, sig, omega))
 elabTopLevelSyn ops sig omega (LetTypeSignature r x rhs) = M.do
-  Right (sig, omega) <- elabTopLevelEntry ops sig omega !(liftMEither $ shuntTopLevel (cast ops) (LetTypeSignature r x rhs))
+  Right (sig, omega) <- elabTopLevelEntry ops sig omega !(Elab.liftM $ asCriticalError $ shuntTopLevel (cast ops) (LetTypeSignature r x rhs))
     | Left err => return (Left (x, r, sig, err))
   return (Right (ops, sig, omega))
 elabTopLevelSyn ops sig omega (DefineTypeSignature r x rhs) = M.do
-  Right (sig, omega) <- elabTopLevelEntry ops sig omega !(liftMEither $ shuntTopLevel (cast ops) (DefineTypeSignature r x rhs))
+  Right (sig, omega) <- elabTopLevelEntry ops sig omega !(Elab.liftM $ asCriticalError $ shuntTopLevel (cast ops) (DefineTypeSignature r x rhs))
     | Left err => return (Left (x, r, sig, err))
   return (Right (ops, sig, omega))
 elabTopLevelSyn ops sig omega (DefineSignature r x ty rhs) = M.do
-  Right (sig, omega) <- elabTopLevelEntry ops sig omega !(liftMEither $ shuntTopLevel (cast ops) (DefineSignature r x ty rhs))
+  Right (sig, omega) <- elabTopLevelEntry ops sig omega !(Elab.liftM $ asCriticalError $ shuntTopLevel (cast ops) (DefineSignature r x ty rhs))
     | Left err => return (Left (x, r, sig, err))
   return (Right (ops, sig, omega))
 

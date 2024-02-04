@@ -239,7 +239,7 @@ wrapElem (ElEqVal {}) lvl doc =
 ||| that have the *same root*.
 public export
 localise : SnocList VarName -> Nat -> M (VarName, Nat)
-localise [<] idx = throw "Exception in 'localise'"
+localise [<] idx = criticalError "Critical error in 'localise'"
 localise (xs :< x) Z = return (x, 0)
 localise (xs :< x) (S k) = M.do
   (name, idx) <- localise xs k

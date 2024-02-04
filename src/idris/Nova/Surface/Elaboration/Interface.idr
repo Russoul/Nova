@@ -42,9 +42,12 @@ public export
 initialElabSt : ElabSt
 initialElabSt = MkElabSt initialUnifySt [<] empty
 
+||| The error type is a type represents critical unexpected unrecoverable errors.
+||| By design, we are not supposed to ever try/catch those!
+||| Don't use CriticalError for any other kind of error (e.g. recoverable / expected).
 public export
 ElabM : Type -> Type
-ElabM = JustAMonad.M String ElabSt
+ElabM = JustAMonad.M CriticalError ElabSt
 
 namespace Elab
   public export
@@ -59,13 +62,6 @@ namespace ElabEither
   liftM f = M.do
     t <- Elab.liftM f
     return (Right t)
-
-public export
-liftMEither : M (Either String a) -> ElabM a
-liftMEither f = M.do
- case !(Elab.liftM f) of
-   Right x => return x
-   Left err => throw err
 
 public export
 liftUnifyM : UnifyM a -> ElabM a

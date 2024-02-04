@@ -456,7 +456,7 @@ elabElemNuOtherwise ops sig omega ctx (Tac r alpha) meta ty = M.do
     | Left (r, reason) => return (Stuck ("At" ++ show r ++ ", reason: " ++ renderDocTerm reason))
     | Right (_, interp) => return (Error "Source signature of the tactic must be ε, but it is not.")
   let [< ElemEntryInstance solution] = interp [<]
-    | _ => throw "elabElemNuOtherwise(Tac)"
+    | _ => criticalError "elabElemNuOtherwise(Tac)"
   let omega = instantiateByElaboration omega meta solution
   return (Success omega [])
 elabElemNuOtherwise ops sig omega ctx (App r (Underscore r0) _) meta ty =
