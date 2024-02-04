@@ -77,8 +77,8 @@ mutual
       return OneTy
     shrinkNu UniverseTy gamma1Len gamma2Len = MMaybe.do
       return UniverseTy
-    shrinkNu (ContextSubstElim x y) gamma1Len gamma2Len = throw "shrink(ContextSubstElim)"
-    shrinkNu (SignatureSubstElim x y) gamma1Len gamma2Len = throw "shrink(SignatureSubstElim)"
+    shrinkNu (ContextSubstElim x y) gamma1Len gamma2Len = criticalError "shrink(ContextSubstElim)"
+    shrinkNu (SignatureSubstElim x y) gamma1Len gamma2Len = criticalError "shrink(SignatureSubstElim)"
     shrinkNu (OmegaVarElim k sigma) gamma1Len gamma2Len = MMaybe.do
       -- Σ₀ (Γ ⊦ χ : A) Σ₁ ⊦ σ : Δ ⇒ Γ
       -- Σ₀ (Γ ⊦ χ : A) Σ₁ Δ ⊦ χ σ
@@ -190,8 +190,8 @@ mutual
       ty <- shrink ty gamma1Len gamma2Len
       t <- shrink t gamma1Len gamma2Len
       return (ZeroElim ty t)
-    shrinkNu (ContextSubstElim x y) gamma1Len gamma2Len = throw "shrink(ContextSubstElim)"
-    shrinkNu (SignatureSubstElim x y) gamma1Len gamma2Len = throw "shrink(SignatureSubstElim)"
+    shrinkNu (ContextSubstElim x y) gamma1Len gamma2Len = criticalError "shrink(ContextSubstElim)"
+    shrinkNu (SignatureSubstElim x y) gamma1Len gamma2Len = criticalError "shrink(SignatureSubstElim)"
     shrinkNu (ContextVarElim k) gamma1Len gamma2Len =
       case k < gamma2Len of
         True => return (ContextVarElim k)

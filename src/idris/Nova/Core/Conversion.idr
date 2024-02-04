@@ -24,8 +24,8 @@ mutual
     convNu sig omega OneTy OneTy = return True
     convNu sig omega UniverseTy UniverseTy = return True
     convNu sig omega (El a0) (El a1) = conv sig omega a0 a1
-    convNu sig omega (ContextSubstElim {}) b = throw "convNu(ContextSubstElim)"
-    convNu sig omega (SignatureSubstElim {}) b = throw "convNu(SignatureSubstElim)"
+    convNu sig omega (ContextSubstElim {}) b = criticalError "convNu(ContextSubstElim)"
+    convNu sig omega (SignatureSubstElim {}) b = criticalError "convNu(SignatureSubstElim)"
     convNu sig omega (OmegaVarElim x0 sigma) (OmegaVarElim x1 tau) =
      return (x0 == x1)
         `and`
@@ -84,8 +84,8 @@ mutual
       conv sig omega s0 s1
     convNu sig omega (ZeroElim _ t0) (ZeroElim _ t1) =
       conv sig omega t0 t1
-    convNu sig omega (ContextSubstElim {}) b = throw "convNu(ContextSubstElim)"
-    convNu sig omega (SignatureSubstElim {}) b = throw "convNu(SignatureSubstElim)"
+    convNu sig omega (ContextSubstElim {}) b = criticalError "convNu(ContextSubstElim)"
+    convNu sig omega (SignatureSubstElim {}) b = criticalError "convNu(SignatureSubstElim)"
     convNu sig omega (ContextVarElim x0) (ContextVarElim x1) =
       return (x0 == x1)
     convNu sig omega (SignatureVarElim x0 sigma) (SignatureVarElim x1 tau) =
@@ -112,8 +112,8 @@ mutual
     public export
     conv : Signature -> Omega -> Spine -> Spine -> M Bool
     conv sig omega [<] [<] = return True
-    conv sig omega (_ :< _) [<] = throw "conv(_ :< _, [<])"
-    conv sig omega [<] (_ :< _) = throw "conv([<], _ :< _)"
+    conv sig omega (_ :< _) [<] = criticalError "conv(_ :< _, [<])"
+    conv sig omega [<] (_ :< _) = criticalError "conv([<], _ :< _)"
     conv sig omega (ts0 :< t0) (ts1 :< t1) = conv sig omega ts0 ts1 `and` conv sig omega t0 t1
 
   namespace SubstContextNF

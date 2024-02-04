@@ -109,7 +109,7 @@ namespace VarName
   lookupSignatureE : Signature -> VarName -> M (Nat, SignatureEntry)
   lookupSignatureE sig x =
     case (lookupSignature sig x) of
-      Nothing => throw "Can't look up \{x} in Σ"
+      Nothing => criticalError "Can't look up \{x} in Σ"
       Just sig => return sig
 
   public export
@@ -131,7 +131,7 @@ namespace Index
   lookupSignatureE : Signature -> Nat -> M (VarName, SignatureEntry)
   lookupSignatureE sig x =
     case lookupSignature sig x of
-      Nothing => throw "lookupSignatureE failed"
+      Nothing => criticalError "lookupSignatureE failed"
       Just t => return t
 
   ||| Weakens the type.

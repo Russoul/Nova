@@ -8,10 +8,36 @@ import Data.SnocList
 
 import Nova.Core.Language
 
+||| Critical/unexpected/unrecoverable error.
+public export
+record CriticalError where
+  constructor MkCriticalError
+  msg : String
+
+public export
+Show CriticalError where
+  show (MkCriticalError x) = "Critical error:\n\{x}"
+
+||| The error type is a type represents critical unexpected unrecoverable errors.
+||| By design, we are not supposed to ever try/catch those!
+||| Don't use CriticalError for any other kind of error (e.g. recoverable / expected).
+||| FIX: we should rename this one!
 public export
 M : Type -> Type
---               vvvvvv for critical errors only
-M = JustAMonad.M String ()
+M = JustAMonad.M CriticalError ()
+
+%inline
+public export
+criticalError : (msg : String) -> JustAMonad.M CriticalError st a
+criticalError msg = M.do
+  throw (MkCriticalError msg)
+
+public export
+asCriticalError : JustAMonad.M CriticalError st (Either String a) -> JustAMonad.M CriticalError st a
+asCriticalError f = M.do
+  case !f of
+    Left err => criticalError err
+    Right ok => return ok
 
 namespace M
   %inline
@@ -94,6 +120,13 @@ namespace MEither
   public export
   error : e' -> M e s (Either e' a)
   error x = M.return (Left x)
+
+  public export
+  mapError : (e -> e') -> M e0 s (Either e a) -> M e0 s (Either e' a)
+  mapError f m = M.do
+    case !m of
+      Left err => return (Left (f err))
+      Right ok => return ok
 
   public export
   liftM : M e s a -> M e s (Either e' a)

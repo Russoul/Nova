@@ -108,29 +108,33 @@ elabNormaliseComm ops sig omega r path (vars ** monoidTm) monoidInst (target :< 
          ⨯ ((x y : A) → x + y ≡ y + x ∈ A)
     """
   let Right (_, synty) = parseFull' (MkParsingSt [<]) (term 0) synty
-    | Left err => throw (show err)
+    | Left err => criticalError (show err)
   (omega, tymidx) <- MEither.liftM $ liftUnifyM $ newTypeMeta omega [<] SolveByElaboration
   let commMonoidTy = Typ.OmegaVarElim tymidx Terminal
-  let prob1 = TypeElaboration [<] !(MEither.liftM $ Elab.liftM $ shunt (cast ops) synty 0 `M.(>>=)` M.fromEither) tymidx
+  let prob1 = TypeElaboration [<] !(MEither.mapError (\x => (r, pretty x)) $ Elab.liftM $ shunt (cast ops) synty 0) tymidx
   Success omega <- MEither.liftM $ solve @{MkParams Nothing {solveNamedHoles = False}} ops sig omega [prob1]
     | Stuck omega stuckElab stuckCons => M.do
          write "(Unexpected error) Result elaborating expected monoid type in elabNormaliseComm (stuck):"
          write (renderDocTerm !(Elab.liftM $ prettyTyp sig omega [<] commMonoidTy 0))
-         throw $ renderDocTerm !(Elab.liftM $ pretty sig (Stuck omega stuckElab stuckCons))
-    | Error omega (Left (elab, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (ElaborationError omega (elab, err)))
-    | Error omega (Right (con, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (UnificationError omega (con, err)))
+         criticalError $ renderDocTerm !(Elab.liftM $ pretty sig (Stuck omega stuckElab stuckCons))
+    | Error omega (Left (elab, err)) => MEither.do
+      error (r, !(MEither.liftM $ Elab.liftM $ pretty sig (ElaborationError omega (elab, err))))
+    | Error omega (Right (con, err)) => MEither.do
+      error (r, !(MEither.liftM $ Elab.liftM $ pretty sig (UnificationError omega (con, err))))
 
 
   (omega, monoidInstIdx) <- MEither.liftM $ liftUnifyM $ newElemMeta omega [<] commMonoidTy SolveByElaboration
   let monoidInstTm = Elem.OmegaVarElim monoidInstIdx Terminal
   let prob1 = ElemElaboration [<] monoidInst monoidInstIdx commMonoidTy
   Success omega <- MEither.liftM $ solve ops sig omega [prob1]
-    | Stuck omega stuckElab stuckCons => M.do
-         write "Result elaborating monoid type in elabNormaliseComm (stuck):"
-         write (renderDocTerm !(Elab.liftM $ prettyElem sig omega [<] monoidInstTm 0))
-         throw $ renderDocTerm !(Elab.liftM $ pretty sig (Stuck omega stuckElab stuckCons))
-    | Error omega (Left (elab, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (ElaborationError omega (elab, err)))
-    | Error omega (Right (con, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (UnificationError omega (con, err)))
+    | Stuck omega stuckElab stuckCons => MEither.do
+         MEither.liftM $ write "Result elaborating monoid type in elabNormaliseComm (stuck):"
+         MEither.liftM $ write (renderDocTerm !(MEither.liftM $ Elab.liftM $ prettyElem sig omega [<] monoidInstTm 0))
+         error (r, !(MEither.liftM $ Elab.liftM $ pretty sig (Stuck omega stuckElab stuckCons)))
+    | Error omega (Left (elab, err)) => MEither.do
+      error (r, !(MEither.liftM $ Elab.liftM $ pretty sig (ElaborationError omega (elab, err))))
+    | Error omega (Right (con, err)) => MEither.do
+      error (r, !(MEither.liftM $ Elab.liftM $ pretty sig (UnificationError omega (con, err))))
 
 
   -- FIX: I totally hate this. This will be fixed by nameless representation of Ω though. We should speed up the migration!
@@ -139,18 +143,18 @@ elabNormaliseComm ops sig omega r path (vars ** monoidTm) monoidInst (target :< 
   pindex <- MEither.liftM $ liftUnifyM $ Unification.nextOmegaIdx
   let syntm0 = "?Aₘ\{natToSubscript aindex}, ?zₘ\{natToSubscript zindex}, ?pₘ\{natToSubscript pindex}, ?"
   let Right (_, syntm0) = parseFull' (MkParsingSt [<]) (term 0) syntm0
-    | Left err => throw (show err)
+    | Left err => criticalError (show err)
   (omega, midx0) <- MEither.liftM $ liftUnifyM $ newElemMeta omega [<] commMonoidTy SolveByElaboration
-  let prob2 = ElemElaboration [<] !(MEither.liftM $ Elab.liftM $ shunt (cast ops) syntm0 0 `M.(>>=)` M.fromEither) midx0 commMonoidTy
+  let prob2 = ElemElaboration [<] !(MEither.mapError (\x => (r, pretty x)) $ Elab.liftM $ shunt (cast ops) syntm0 0) midx0 commMonoidTy
   let el0 = OmegaVarElim midx0 Terminal
   omega <- MEither.liftM $ liftUnifyM $ addConstraint omega (ElemConstraint [<] el0 monoidInstTm commMonoidTy)
   Success omega <- MEither.liftM $ solve @{MkParams Nothing {solveNamedHoles = True}} ops sig omega [prob2]
-    | Stuck omega stuckElab stuckCons => M.do
-         write "Result of postProblem1 (stuck):"
-         write (renderDocTerm !(Elab.liftM $ prettyElem sig omega [<] el0 0))
-         throw $ renderDocTerm !(Elab.liftM $ pretty sig (Stuck omega stuckElab stuckCons))
-    | Error omega (Left (elab, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (ElaborationError omega (elab, err)))
-    | Error omega (Right (con, err)) => throw $ renderDocTerm !(Elab.liftM $ pretty sig (UnificationError omega (con, err)))
+    | Stuck omega stuckElab stuckCons => MEither.do
+         MEither.liftM $ write "Result of postProblem1 (stuck):"
+         MEither.liftM $ write (renderDocTerm !(MEither.liftM $ Elab.liftM $ prettyElem sig omega [<] el0 0))
+         error (r, !(MEither.liftM $ Elab.liftM $ pretty sig (Stuck omega stuckElab stuckCons)))
+    | Error omega (Left (elab, err)) => error (r, !(MEither.liftM $ Elab.liftM $ pretty sig (ElaborationError omega (elab, err))))
+    | Error omega (Right (con, err)) => error (r, !(MEither.liftM $ Elab.liftM $ pretty sig (UnificationError omega (con, err))))
   let monoidTy = El (Elem.OmegaVarElim "Aₘ\{natToSubscript aindex}" Terminal)
   let monoidZero = Elem.OmegaVarElim "zₘ\{natToSubscript zindex}" Terminal
   let monoidPlus = Elem.OmegaVarElim "pₘ\{natToSubscript pindex}" Terminal

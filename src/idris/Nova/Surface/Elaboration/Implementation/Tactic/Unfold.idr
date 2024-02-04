@@ -65,14 +65,14 @@ mutual
               case x == y of
                 True => return tm
                 False => error r
-            Nothing => throw "applyUnfoldNu(SignatureVarElim)"
+            Nothing => criticalError "applyUnfoldNu(SignatureVarElim)"
         False => error r
     applyUnfoldNu sig omega ctx tm@(SignatureVarElim x sigma) (App r (Box _) []) = MEither.do
       case lookupSignature sig x of
         Just (x, LetTypeEntry ctx rhs) =>
           return (ContextSubstElim rhs sigma)
         Just (x, _) => error r
-        Nothing => throw "applyUnfoldNu(SignatureVarElim)"
+        Nothing => criticalError "applyUnfoldNu(SignatureVarElim)"
     applyUnfoldNu sig omega ctx (SignatureVarElim x sigma) p = error (range p)
 
     public export
@@ -205,9 +205,9 @@ mutual
               case x == y of
                 True => return tm
                 False => error r
-            Nothing => throw "applyUnfoldNu(SignatureVarElim)"
+            Nothing => criticalError "applyUnfoldNu(SignatureVarElim)"
         False => error r
-    applyUnfoldNu sig omega ctx (SignatureVarElim x sigma) p = throw "applyUnfold(1): \{show p}"
+    applyUnfoldNu sig omega ctx (SignatureVarElim x sigma) p = criticalError "applyUnfold(1): \{show p}"
 
     public export
     applyUnfoldNuHelper : Signature -> Omega -> Elem -> Range -> M (Either Range Elem)
@@ -243,7 +243,7 @@ mutual
         Just (x, LetElemEntry ctx rhs ty) =>
           return (ContextSubstElim rhs sigma)
         Just (x, _) => error r
-        Nothing => throw "applyUnfoldNu(SignatureVarElim)"
+        Nothing => criticalError "applyUnfoldNu(SignatureVarElim)"
     applyUnfoldNuHelper sig omega (OmegaVarElim str x) r = error r
     applyUnfoldNuHelper sig omega (TyEqTy x y) r = error r
     applyUnfoldNuHelper sig omega (ElEqTy x y z) r = error r
