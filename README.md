@@ -5,6 +5,7 @@ A programming language based on [extensional Martin Lof Type Theory](https://nca
 ### Dependencies
 
 [Just-a-Monad](https://github.com/Russoul/Just-a-Monad)
+
 [Just-a-Parser](https://github.com/Russoul/Just-a-Parser)
 
 ### Tooling
