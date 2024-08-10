@@ -1,6 +1,7 @@
 module Nova.Surface.Elaboration.Implementation.Tactic.TermLens
 
-import Data.Location
+import Me.Russoul.Data.Location
+
 import Data.String
 
 import Text.PrettyPrint.Prettyprinter

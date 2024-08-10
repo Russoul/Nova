@@ -1,15 +1,15 @@
 module Nova.Test.Test
 
+import Me.Russoul.Data.Location
+import Me.Russoul.Text.Parser
+
 import Data.String
 import Data.AVL
-import Data.Location
 
 import System.File.ReadWrite
 import System.File
 import System.Path
 import System
-
-import Text.Parsing.Fork
 
 import Text.PrettyPrint.Prettyprinter.Render.Terminal
 import Text.PrettyPrint.Prettyprinter

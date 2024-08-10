@@ -1,19 +1,19 @@
 module Nova.Surface.Parser
 
+import Me.Russoul.Data.Location
+import Me.Russoul.Text.Lexer.Token
+import public Me.Russoul.Text.Parser
+
 import Data.AlternatingList
 import Data.AlternatingList1
 import Data.AlternatingSnocList
 import Data.AlternatingSnocList1
 import Data.Fin
-import Data.Location
 import Data.Maybe
 import Data.Util
 import Data.Util
 import Data.List.Elem
 
-
-import Text.Lexing.Token
-import public Text.Parsing.Fork
 
 import Nova.Core.Name
 

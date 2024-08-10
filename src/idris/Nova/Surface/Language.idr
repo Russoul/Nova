@@ -1,11 +1,12 @@
 module Nova.Surface.Language
 
+import Me.Russoul.Data.Location
+
 import Data.AlternatingList
 import Data.AlternatingList1
 import Data.Fin
 import Data.SnocList
 import Data.List1
-import Data.Location
 
 import Nova.Core.Name
 import Nova.Surface.Operator

@@ -1,11 +1,11 @@
 module Nova.Surface.SemanticToken
 
+import Me.Russoul.Data.Location
+
 import Data.AVL
 import Data.Maybe
 import Data.SnocList
 import Data.Util
-
-import Data.Location
 
 import Text.PrettyPrint.Prettyprinter.Render.Terminal
 import Text.PrettyPrint.Prettyprinter

@@ -1,11 +1,12 @@
 module Nova.Surface.Elaboration.Implementation.Typ
 
+import Me.Russoul.Data.Location
+
 import Data.AVL
 import Data.List
 import Data.List1
 import Data.SnocList
 import Data.Fin
-import Data.Location
 import Data.String
 
 import Text.PrettyPrint.Prettyprinter.Render.Terminal

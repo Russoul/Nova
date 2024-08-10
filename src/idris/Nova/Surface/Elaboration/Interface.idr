@@ -1,8 +1,9 @@
 module Nova.Surface.Elaboration.Interface
 
+import Me.Russoul.Data.Location
+
 import Data.AVL
 import Data.List1
-import Data.Location
 
 import Text.PrettyPrint.Prettyprinter
 

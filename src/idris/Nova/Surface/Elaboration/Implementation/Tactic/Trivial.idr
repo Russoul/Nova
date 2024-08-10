@@ -1,6 +1,7 @@
 module Nova.Surface.Elaboration.Implementation.Tactic.Trivial
 
-import Data.Location
+import Me.Russoul.Data.Location
+
 import Data.SnocList
 
 import Nova.Core.Context

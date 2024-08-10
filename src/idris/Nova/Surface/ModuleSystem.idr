@@ -1,10 +1,12 @@
 module Nova.Surface.ModuleSystem
 
+import Me.Russoul.Data.Location
+import Me.Russoul.Text.Lexer.Token
+
 import Control.Monad.IOEither
 
 import Data.AVL
 import Data.Fin
-import Data.Location
 import Data.String
 import Data.SnocList
 
@@ -12,7 +14,6 @@ import System.File
 import System.Path
 import System
 
-import Text.Lexing.Token
 import Text.PrettyPrint.Prettyprinter.Render.Terminal
 import Text.PrettyPrint.Prettyprinter
 

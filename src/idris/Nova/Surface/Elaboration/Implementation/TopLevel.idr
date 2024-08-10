@@ -1,10 +1,11 @@
 module Nova.Surface.Elaboration.Implementation.TopLevel
 
+import Me.Russoul.Data.Location
+
 import Data.AVL
 import Data.List
 import Data.List1
 import Data.Fin
-import Data.Location
 import Data.String
 
 import Nova.Core.Context

@@ -1,13 +1,13 @@
 module Nova.Surface.ParserGeneral
 
+import Me.Russoul.Data.Location
+import Me.Russoul.Text.Lexer.Token
+import Me.Russoul.Text.Lexer
+import public Me.Russoul.Text.Parser
+import public Me.Russoul.Text.Parser.OverToken
+
 import Data.Fin
 import Data.SnocList
-import Data.Location
-
-import Text.Lexing.Token
-import Text.Lexing.Tokeniser
-import public Text.Parsing.Fork
-import public Text.Parsing.TokenUtil
 
 import Nova.Surface.SemanticToken
 

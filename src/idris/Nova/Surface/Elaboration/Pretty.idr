@@ -1,8 +1,9 @@
 module Nova.Surface.Elaboration.Pretty
 
+import Me.Russoul.Data.Location
+
 import Data.AVL
 import Data.Fin
-import Data.Location
 import Data.SnocList
 import Data.String
 

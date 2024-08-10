@@ -1,0 +1,3 @@
+[submodule "Just-a-Parser"]
+	path = Just-a-Parser
+	url = https://github.com/Russoul/Just-a-Parser.git

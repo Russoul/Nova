@@ -1,6 +1,6 @@
 package nova-bin
 
-depends = contrib, just-a-monad
+depends = contrib, just-a-monad, just-a-parser
 
 sourcedir = "src/idris"
 

@@ -1,15 +1,16 @@
 module Nova.Surface.Elaboration.Implementation.Tactic.NormaliseCommutativeMonoid
 
+import Me.Russoul.Data.Location
+import Me.Russoul.Text.Lexer.Token
+
 import Data.AVL
 import Data.Fin
 import Data.List1
-import Data.Location
 import Data.SnocList
 import Data.Util
 import Data.Either
 
 import Text.PrettyPrint.Prettyprinter
-import Text.Lexing.Token
 
 import Nova.Core.Context
 import Nova.Core.Conversion

@@ -1,7 +1,8 @@
 module Nova.Surface.Elaboration.Implementation.Tactic.Unfold
 
+import Me.Russoul.Data.Location
+
 import Data.Fin
-import Data.Location
 import Data.SnocList
 import Data.Util
 

@@ -1,6 +1,6 @@
 package nova-api
 
-depends = contrib, just-a-monad
+depends = contrib, just-a-monad, just-a-parser
 
 modules =
           Control.Monad.IOEither
@@ -11,7 +11,6 @@ modules =
         , Data.AlternatingSnocList
         , Data.AlternatingSnocList1
         , Data.Interpolation
-        , Data.Location
         , Data.Util
 
         , Nova.Core.Context
@@ -59,12 +58,5 @@ modules =
         , Solver.CommutativeMonoid.Parser
         , Solver.CommutativeMonoid.Quotation
         , Solver.CommutativeMonoid.Value
-
-        , Text.Lexing.Token
-        , Text.Lexing.Tokeniser
-
-        , Text.Parsing.CharUtil
-        , Text.Parsing.Fork
-        , Text.Parsing.TokenUtil
 
 sourcedir = "src/idris"

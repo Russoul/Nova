@@ -1,12 +1,12 @@
 module Solver.CommutativeMonoid.Parser
 
+import Me.Russoul.Text.Lexer.Token
+import Me.Russoul.Text.Parser
+import Me.Russoul.Text.Parser.OverToken
+
 import Data.Fin
 import Data.List
 import Data.SnocList
-
-import Text.Lexing.Token
-import Text.Parsing.Fork
-import Text.Parsing.TokenUtil
 
 import Solver.CommutativeMonoid.Language
 

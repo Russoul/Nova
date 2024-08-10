@@ -1,12 +1,13 @@
 module Nova.Core.Unification
 
+import Me.Russoul.Data.Location
+
 import Data.List
 import Data.SnocList
 import Data.Util
 import Data.Maybe
 import Data.AVL
 import Data.Fin
-import Data.Location
 
 import Text.PrettyPrint.Prettyprinter.Render.Terminal
 import Text.PrettyPrint.Prettyprinter

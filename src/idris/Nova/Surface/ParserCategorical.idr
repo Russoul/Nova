@@ -1,10 +1,11 @@
 module Nova.Surface.ParserCategorical
 
+import Me.Russoul.Data.Location
+import Me.Russoul.Text.Lexer.Token
+
 import Data.List.Elem
 import Data.String.Extra
-import Data.Location
 
-import Text.Lexing.Token
 
 import Nova.Surface.SemanticToken
 import Nova.Surface.ParserGeneral
