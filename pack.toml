@@ -1,0 +1,24 @@
+[idris2]
+url   = "https://github.com/idris-lang/Idris2"
+commit  = "913b74960461be07d4cd3a82208f1a4e66113efb"
+
+[custom.all.just-a-parser]
+type        = "github"
+url         = "https://github.com/Russoul/Just-a-Parser"
+commit      = "1220108ddd5c02e8a0502532de291153e29e6bc7"
+ipkg        = "just-a-parser.ipkg"
+packagePath = false
+
+[custom.all.lsp-lib]
+type        = "github"
+url         = "https://github.com/idris-community/lsp-lib"
+commit      = "ca77e80a392b8cfeee3aaeb150069957699cdb82"
+ipkg        = "lsp-lib.ipkg"
+packagePath = false
+
+[custom.all.idris2-lsp]
+type        = "github"
+url         = "https://github.com/Russoul/idris2-lsp"
+commit      = "bb61440ce2e436aca7cf2bf0f9472b087f8099cc"
+ipkg        = "idris2-lsp.ipkg"
+packagePath = true
