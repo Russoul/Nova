@@ -238,7 +238,9 @@ define Nat-eta : (A : ℕ → 𝕌)
                → (f Z ≡ z ∈ ?)
                → ((x : ℕ) → f (S x) ≡ s x (f x) ∈ ?)
                → (f ≡ (x ↦ ℕ-elim (x. A x) z (x. h. s x h) x) ∈ ?)
-               ≔ A f z s c0 c1 ↦ fun-ext (x ↦ ℕ-elim (x. f x ≡ ℕ-elim (x. A x) z (x.h. s x h) x ∈ A x) c0 (x.h. tac rewrite (_ ≡ _ ☐ ∈ _) h; exact c1 x;) x)
+               ≔ A f z s c0 c1 ↦
+                  fun-ext
+                    (x ↦ ℕ-elim (x. f x ≡ ℕ-elim (x. A x) z (x.h. s x h) x ∈ A x) c0 (x.h. tac rewrite (_ ≡ _ ☐ ∈ _) h; exact c1 x;) x)
 
 
 define trans : {A : 𝕌}
@@ -297,7 +299,7 @@ let _++_ : {A : 𝕌} → {m n : ℕ} → Vect m A → Vect n A → Vect (m + n)
             (m x xs h ↦ tac rewrite⁻¹ (_ ☐ _) (plus-left-S ? ?); rewrite⁻¹ ☐ Vect-S; exact x, h;)
             xs
 
-define append-left-nil : {A : 𝕌} → {n : ℕ} → (xs : Vect n A) → nil ++ xs ≡ (tac rewrite⁻¹ (_ ☐ _) (plus-left-Z ?); exact xs;) ∈ ?
+let append-left-nil : {A : 𝕌} → {n : ℕ} → (xs : Vect n A) → nil ++ xs ≡ (tac rewrite⁻¹ (_ ☐ _) (plus-left-Z ?); exact xs;) ∈ ?
                        ≔ {A n} ↦ xs ↦
                             tac unfold ☐ ≡ _ ∈ _;
                                 unfold ☐ ≡ _ ∈ _;
@@ -428,8 +430,12 @@ let lcons : {A : 𝕌} → A → List A → List A
               unfold _ → ☐;
               exact (xs ↦ S (xs .π₁) , (tac rewrite⁻¹ ☐ Vect-S; exact x, xs .π₂;));
 
--- TODO:
-assume lrec : {A X : 𝕌} → X → (A → List A → X → X) → List A → X
+let lrec : {A X : 𝕌} → X → (A → List A → X → X) → List A → X
+         ≔ {A X} ↦ nil ↦ cons ↦ xs ↦
+             Vect-elim (n vs ↦ X) nil (n x xs h ↦ cons x (tac unfold ☐; exact n, xs;) h) (the (Vect (tac
+               unfold-ctx _ (_ : ☐);
+               exact xs .π₁;
+               ) A) (tac unfold-ctx _ (_ : ☐); exact xs .π₂;))
 
 let lappend : {A : 𝕌} → List A → List A → List A
             ≔ {A} ↦ xs ys ↦ lrec {A} {List A} ys (x xs h ↦ lcons x h) xs

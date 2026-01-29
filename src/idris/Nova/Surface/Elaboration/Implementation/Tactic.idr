@@ -186,6 +186,14 @@ Nova.Surface.Elaboration.Interface.elabTactic ops sig omega (Unfold r path) [< (
  return (Right (omega, [< (x, ElemEntry ctx ty')], id))
 Nova.Surface.Elaboration.Interface.elabTactic ops sig omega (Unfold r path) _ = MEither.do
   error (r, "Target context is empty or its last entry is a let")
+-- ⟦unfold ρ⟧ : ε (Γ' ⊦ A) ⇒ ε (Γ ⊦ A)
+Nova.Surface.Elaboration.Interface.elabTactic ops sig omega (UnfoldCtx r path) [< (x, ElemEntry ctx ty)] = M.do
+  Right ctx' <- Elab.liftM $ Ctx.applyUnfold sig omega ctx path
+    | Left r => --FIX: use the range
+                return (Left (r, pretty "Can't apply 'unfold-ctx'"))
+  return (Right (omega, [< (x, ElemEntry ctx' ty)], id))
+Nova.Surface.Elaboration.Interface.elabTactic ops sig omega (UnfoldCtx r path) _ = MEither.do
+  error (r, "Target context is empty or its last entry is a let")
 Nova.Surface.Elaboration.Interface.elabTactic ops sig omega (RewriteInv r path prf) [< (x, ElemEntry ctx ty)] = MEither.do
   (omega, ty0) <- applyRewrite ops sig omega ctx ty path prf False
   return (omega, [< (x, ElemEntry ctx ty0)], id)

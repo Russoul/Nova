@@ -1,9 +1,10 @@
 package nova-api
 
-depends = contrib, just-a-monad, just-a-parser
+depends = contrib, just-a-parser
 
 modules =
           Control.Monad.IOEither
+        , Control.Monad.JustAMonad
 
         , Data.AVL
         , Data.AlternatingList

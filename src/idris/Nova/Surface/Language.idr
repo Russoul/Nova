@@ -111,6 +111,15 @@ mutual
       InParens : Range -> Term -> Term
       Tac : Range -> Tactic -> Term
 
+  namespace CtxPath
+    ||| cᵖ ::= _ (_ : t) _ ... _
+    public export
+    record CtxPath where
+      constructor MkCtxPath
+      range : Range
+      here : Term
+      skipped : Nat
+
   namespace Tactic
     public export
     data Tactic : Type where
@@ -121,6 +130,8 @@ mutual
       Composition : Range -> List1 Tactic -> Tactic
       ||| unfold ρ
       Unfold : Range -> Term -> Tactic
+      ||| unfold-ctx cᵖ
+      UnfoldCtx : Range -> CtxPath -> Tactic
       ||| exact t
       Exact : Range -> Term -> Tactic
       ||| * α
@@ -152,6 +163,8 @@ mutual
       Composition : Range -> List1 OpFreeTactic -> OpFreeTactic
       ||| unfold ρ
       Unfold : Range -> OpFreeTerm -> OpFreeTactic
+      ||| unfold-ctx ρ
+      UnfoldCtx : Range -> OpFreeCtxPath -> OpFreeTactic
       ||| exact t
       Exact : Range -> OpFreeTerm -> OpFreeTactic
       ||| * α
@@ -188,6 +201,14 @@ mutual
       SigmaVal : Range -> OpFreeTerm -> OpFreeTerm -> OpFreeTerm
       App : Range -> OpFreeHead -> OpFreeElim -> OpFreeTerm
       Tac : Range -> OpFreeTactic -> OpFreeTerm
+
+  namespace OpFreeCtxPath
+    public export
+    record OpFreeCtxPath where
+      constructor MkOpFreeCtxPath
+      range : Range
+      here : OpFreeTerm
+      skipped : Nat
 
   public export
   TermArg : Type
@@ -288,9 +309,15 @@ mutual
 
   public export
   covering
+  Show CtxPath where
+    show (MkCtxPath _ here n) = "CtxPath(\{show here}, \{show n})"
+
+  public export
+  covering
   Show Tactic where
     show (Id x) = "Id"
     show (Composition x xs) = "Composition(\{show xs})"
+    show (UnfoldCtx x p) = "UnfoldCtx(\{show p})"
     show (Unfold x y) = "Unfold(\{show y})"
     show (Exact x y) = "Exact(\{show y})"
     show (Split x sx y) = "Split(\{show sx}, \{show y})"

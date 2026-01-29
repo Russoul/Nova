@@ -149,6 +149,12 @@ checkModule ops sig omega nextOmegaIdx namedHoles novaDirectory modName = Prelud
     | Left err => Prelude.do
         pure $ Left (Nothing, pretty ("Critical error:" ++ show err))
   putStrLn "File elaborated successfully!"
+  p <- run (prettySignature sig omega sig) ()
+  case p of
+    Left err =>
+      putStrLn (show err)
+    Right (_, p) =>
+      putStrLn (renderDocTerm $ p)
   putStrLn "------------ Named holes ---------------"
   for_ (List.inorder omega) $ \(x, e) => Prelude.do
     case e of

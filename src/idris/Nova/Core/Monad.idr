@@ -108,6 +108,26 @@ namespace MEither
 
   %inline
   public export
+  (<&>) : M e s (Either e' a) -> (a -> b) -> M e s (Either e' b)
+  t <&> f = M.mapResult (map f) t
+
+  %inline
+  public export
+  pure : a -> M e s (Either e' a)
+  pure x = return (Right x)
+
+  %inline
+  public export
+  (<*>) : M e s (Either e' (a -> b)) -> M e s (Either e' a) -> M e s (Either e' b)
+  (f <*> g) (ch, x) = Prelude.do
+    (ch, Right (x, Right fun)) <- f (ch, x)
+      | (ch, Left err) => io_pure (ch, Left err)
+      | (ch, Right (s, Left err)) => io_pure (ch, Right (s, Left err))
+    (ch, c) <- g (ch, x)
+    io_pure (ch, map (mapSnd (map fun)) c)
+
+  %inline
+  public export
   (>>) : M e s (Either e' ()) -> M e s (Either e' b) -> M e s (Either e' b)
   (>>) m f = MEither.(>>=) m (const f)
 

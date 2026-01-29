@@ -18,6 +18,21 @@ import Nova.Surface.Language
 -- This tactic unfolds the head symbol once and computes normal form of the result
 
 mutual
+  namespace Ctx
+    ||| Try applying reduce tactic on a well-typed ctx
+    ||| Γ ctx
+    ||| The term must be head-neutral w.r.t. open evaluation
+    ||| OpFreeCtxPath must represent a valid path!
+    ||| See Surface/Language for a description of being a valid path.
+    public export
+    applyUnfold : Signature -> Omega -> Context -> OpFreeCtxPath -> M (Either Range Context)
+    applyUnfold sig omega (ctx :< (x, typ)) (MkOpFreeCtxPath r here 0) = MEither.do
+      typ <- applyUnfold sig omega (map fst ctx) typ here
+      return (ctx :< (x, typ))
+    applyUnfold sig omega (ctx :< (x, typ)) (MkOpFreeCtxPath r here (S n)) = with MEither.(<&>)
+      applyUnfold sig omega ctx (MkOpFreeCtxPath r here n) <&> (:< (x, typ))
+    applyUnfold sig omega [<] (MkOpFreeCtxPath r here _) = MEither.error r
+
   namespace Typ
     ||| Try applying reduce tactic on a well-typed term
     ||| Γ ⊦ t : T

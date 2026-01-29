@@ -648,11 +648,11 @@ mutual
     sepBy1 spaceDelimDef topLevel
 
 mutual
-  tactic = composition <|> split <|> exact <|> unfold <|> id <|> trivial <|> rewriteInv <|> let' <|> rewrite' <|> normaliseCommutativeMonoid
+  tactic = composition <|> split <|> exact <|> unfoldCtx <|> unfold <|> id <|> trivial <|> rewriteInv <|> let' <|> rewrite' <|> normaliseCommutativeMonoid
 
   public export
   compositionArg : Rule Tactic
-  compositionArg = split <|> exact <|> unfold <|> id <|> trivial <|> rewriteInv <|> let' <|> rewrite' <|> normaliseCommutativeMonoid
+  compositionArg = split <|> exact <|> unfoldCtx <|> unfold <|> id <|> trivial <|> rewriteInv <|> let' <|> rewrite' <|> normaliseCommutativeMonoid
 
   ensureColumn : (col : Int) -> Rule a -> Rule a
   ensureColumn col f = do
@@ -689,12 +689,41 @@ mutual
     pure (Exact (l + r) tm)
 
   public export
+  ctxPath : Rule CtxPath
+  ctxPath = do
+    l <- delim "_"
+    spaceDelim
+    commit
+    delim_ "("
+    optSpaceDelim
+    delim_ "_"
+    optSpaceDelim
+    delim_ ":"
+    optSpaceDelim
+    commit
+    here <- term 0
+    optSpaceDelim
+    delim_ ")"
+    (r, n) <- located $ length <$> many (spaceDelim *> delim_ "_")
+    pure $ MkCtxPath (l + r) here n
+
+
+  public export
   unfold : Rule Tactic
   unfold = do
     l <- delim "unfold"
     spaceDelim
     (r, tm) <- located (term 0)
     pure (Unfold (l + r) tm)
+
+  public export
+  unfoldCtx : Rule Tactic
+  unfoldCtx = do
+    l <- delim "unfold-ctx"
+    spaceDelim
+    commit
+    (r, tm) <- located ctxPath
+    pure (UnfoldCtx (l + r) tm)
 
   continueSplit : (col : Int) -> Rule (List Tactic)
   continueSplit col = do

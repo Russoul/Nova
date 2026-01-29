@@ -176,6 +176,11 @@ mutual
     return (Tm r !(shunt ops tm 0))
 
   public export
+  shuntCtxPath : List Operator -> CtxPath -> M (Either String OpFreeCtxPath)
+  shuntCtxPath ops (MkCtxPath range here skipped) =
+    MEither.[| MkOpFreeCtxPath (pure range) (shunt ops here 0) (pure skipped) |]
+
+  public export
   shuntTactic : List Operator -> Tactic -> M (Either String OpFreeTactic)
   shuntTactic ops (Id x) = return (Id x)
   shuntTactic ops (Trivial x) = return (Trivial x)
@@ -185,6 +190,9 @@ mutual
   shuntTactic ops (Unfold r tm) = MEither.do
     tm <- shunt ops tm 0
     return (Unfold r tm)
+  shuntTactic ops (UnfoldCtx r tm) = MEither.do
+    tm <- shuntCtxPath ops tm
+    return (UnfoldCtx r tm)
   shuntTactic ops (Exact r tm) = MEither.do
     tm <- shunt ops tm 0
     return (Exact r tm)
