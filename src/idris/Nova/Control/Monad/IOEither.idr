@@ -1,4 +1,4 @@
-module Control.Monad.IOEither
+module Nova.Control.Monad.IOEither
 
 public export
 (>>=) : IO (Either e a) -> (a -> IO (Either e b)) -> IO (Either e b)

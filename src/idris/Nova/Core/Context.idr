@@ -5,7 +5,6 @@ import Data.Util
 import Data.AVL
 
 import Nova.Core.Language
-import Nova.Core.Monad
 import Nova.Core.Substitution
 
 ||| Σ = Σ₀ (Δ ⊦ x : A) Σ₁
@@ -106,15 +105,15 @@ namespace VarName
         Just (S idx, subst e Wk)
 
   public export
-  lookupSignatureE : Signature -> VarName -> M (Nat, SignatureEntry)
+  lookupSignatureE : Signature -> VarName -> (Nat, SignatureEntry)
   lookupSignatureE sig x =
-    case (lookupSignature sig x) of
-      Nothing => criticalError "Can't look up \{x} in Σ"
-      Just sig => return sig
+    case lookupSignature sig x of
+      Nothing => assert_total $ idris_crash "Can't look up \{x} in Σ"
+      Just sig => sig
 
   public export
-  lookupSignatureIdxE : Signature -> VarName -> M Nat
-  lookupSignatureIdxE sig x = lookupSignatureE sig x <&> fst
+  lookupSignatureIdxE : Signature -> VarName -> Nat
+  lookupSignatureIdxE sig x = fst (lookupSignatureE sig x)
 
 namespace Index
   ||| Looks up a signature entry by index. Weakens the result to be typed in the original signature.
@@ -128,11 +127,11 @@ namespace Index
 
   ||| Looks up a signature entry by index. Weakens the result to be typed in the original signature.
   public export
-  lookupSignatureE : Signature -> Nat -> M (VarName, SignatureEntry)
+  lookupSignatureE : Signature -> Nat -> (VarName, SignatureEntry)
   lookupSignatureE sig x =
     case lookupSignature sig x of
-      Nothing => criticalError "lookupSignatureE failed"
-      Just t => return t
+      Nothing => assert_total $ idris_crash "lookupSignatureE failed"
+      Just t => t
 
   ||| Weakens the type.
   public export

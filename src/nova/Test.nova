@@ -428,7 +428,7 @@ let lcons : {A : 𝕌} → A → List A → List A
           ≔ {A} ↦ x ↦ tac
               unfold ☐ → _;
               unfold _ → ☐;
-              exact (xs ↦ S (xs .π₁) , (tac rewrite⁻¹ ☐ Vect-S; exact x, xs .π₂;));
+              exact (xs ↦ S (xs .π₁) , x :: xs .π₂);
 
 let lrec : {A X : 𝕌} → X → (A → List A → X → X) → List A → X
          ≔ {A X} ↦ nil ↦ cons ↦ xs ↦
@@ -436,6 +436,31 @@ let lrec : {A X : 𝕌} → X → (A → List A → X → X) → List A → X
                unfold-ctx _ (_ : ☐);
                exact xs .π₁;
                ) A) (tac unfold-ctx _ (_ : ☐); exact xs .π₂;))
+
+define lrec-nil : {A X : 𝕌} → (nil : X) → (cons : A → List A → X → X) → (xs : List A) → lrec nil cons lnil ≡ nil ∈ X
+                ≔ {A X} ↦ nil cons xs ↦ tac
+                  unfold ☐ ≡ _ ∈ _;
+                  unfold ☐ ≡ _ ∈ _;
+                  unfold ☐ ≡ _ ∈ _;
+                  trivial;
+
+define lrec-cons : {A X : 𝕌} → (nil : X) → (cons : A → List A → X → X) → (x : A) → (xs : List A) →
+                    lrec nil cons (lcons x xs) ≡ cons x xs (lrec nil cons xs) ∈ X
+                ≔ {A X} ↦ nil cons x xs ↦ ?ff
+
+{-
+(A : 𝕌) (X : 𝕌) (nil : El X) (cons : El A → El (List(·) A) → El X → El X) (x : El A) (xs : El (List(·) A)) ⊦
+h : Vect-elim
+      (n ↦ vs ↦ X)
+      nil
+      (n ↦ x ↦ xs ↦ h ↦ cons x (n, xs) h)
+      (x :: xs .π₂)
+  ≡ cons
+     x
+     xs
+     (Vect-elim (n ↦ vs ↦ X) nil (n ↦ x ↦ xs ↦ h ↦ cons x (n, xs) h) (xs .π₂))
+
+-}
 
 let lappend : {A : 𝕌} → List A → List A → List A
             ≔ {A} ↦ xs ys ↦ lrec {A} {List A} ys (x xs h ↦ lcons x h) xs

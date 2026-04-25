@@ -2,7 +2,10 @@ module Nova.Surface.Shunting
 
 import Me.Russoul.Data.Location
 
+import Nova.Control.Monad.Id
+
 import Data.List1
+import Data.SnocList
 import Data.Interpolation
 
 import Data.AlternatingList
@@ -11,7 +14,6 @@ import Data.AlternatingSnocList
 import Data.AlternatingSnocList1
 
 import Nova.Core.Name
-import Nova.Core.Monad
 
 import Nova.Surface.Language
 import Nova.Surface.Operator
@@ -54,7 +56,7 @@ match (ConsA op rest) (ConsA (_, op') rest') =
     False => []
 match (ConsA op rest) _ = []
 match (ConsB app []) layer = [[(app, (_ ** layer))]]
-match (ConsB app (ConsA op rest)) layer = do
+match (ConsB app (ConsA op rest)) layer = Prelude.do
   (head, tail) <- matchN [<] op layer
   xs <- match rest (snd tail)
   pure ((app, head) :: xs)
@@ -87,27 +89,23 @@ mutual
        -> Range
        -> (layer : AlternatingList k1 (Range, String) (Range, Head, Elim))
        -> Nat
-       -> M (Either String OpFreeTerm)
-  tryOp ops op@(MkOperator k seq oplvl) range layer lvl = M.do
-    case (oplvl >= lvl) of
-      False => error "\{toName op}'s level is \{show oplvl} but the target lvl is ≥\{show lvl}"
-      True => M.do
-        r <- forList (match (forget seq) layer) $ \list => M.do
-          forList list $ \(n, layer) =>
+       -> Either String OpFreeTerm
+  tryOp ops op@(MkOperator k seq oplvl) range layer lvl =
+    case oplvl >= lvl of
+      False => Left "\{toName op}'s level is \{show oplvl} but the target lvl is ≥\{show lvl}"
+      True => Id.do
+        r <- Id.List.for (match (forget seq) layer) $ \list => Id.do
+          Id.List.for list $ \(n, layer) =>
             case layer of
-              (_ ** []) => M.do
-                M.return (Left "Nothing to parse at target level \{show n}")
+              (_ ** []) => Id.do
+                Id.pure (Left "Nothing to parse at target level \{show n}")
               (_ ** ConsA x smth) => shunt ops (OpLayer (getRange (ConsA x smth)) (ConsA x smth)) n
               (_ ** ConsB x smth) => shunt ops (OpLayer (getRange (ConsB x smth)) (ConsB x smth)) n
-        {- write "Trying op:"
-        write (toName op)
-        write "\{show r}" -}
         let r = map sequence r
-        -- write "\{show r}"
         let Right r = exactlyOne r
-             | Left err => error err
+             | Left err => Left err
         -- write "\{show r}"
-        return $ Right $ processApp range (toName op) r
+        Right $ processApp range (toName op) r
    where
     none : List (Either String a) -> Bool
     none [] = True
@@ -123,219 +121,219 @@ mutual
     exactlyOne (Left err :: rest) = exactlyOne rest
 
   public export
-  shuntElimEntry : List Operator -> ElimEntry -> M (Either String OpFreeElimEntry)
-  shuntElimEntry ops (Arg (xs, t)) = MEither.do
-    return (Arg (xs, !(shunt ops t 0)))
-  shuntElimEntry ops Pi1 = MEither.do
-    return Pi1
-  shuntElimEntry ops Pi2 = MEither.do
-    return Pi2
-  shuntElimEntry ops (ImplicitArg t) = MEither.do
-    return (ImplicitArg !(shunt ops t 0))
+  shuntElimEntry : List Operator -> ElimEntry -> Either String OpFreeElimEntry
+  shuntElimEntry ops (Arg (xs, t)) = Prelude.do
+    pure (Arg (xs, !(shunt ops t 0)))
+  shuntElimEntry ops Pi1 = Prelude.do
+    pure Pi1
+  shuntElimEntry ops Pi2 = Prelude.do
+    pure Pi2
+  shuntElimEntry ops (ImplicitArg t) = Prelude.do
+    pure (ImplicitArg !(shunt ops t 0))
 
   public export
-  shuntElim : List Operator -> Elim -> M (Either String OpFreeElim)
-  shuntElim ops [] = MEither.do
-    return []
-  shuntElim ops ((r, e) :: es) = MEither.do
+  shuntElim : List Operator -> Elim -> Either String OpFreeElim
+  shuntElim ops [] = Prelude.do
+    pure []
+  shuntElim ops ((r, e) :: es) = Prelude.do
     e <- shuntElimEntry ops e
     es <- shuntElim ops es
-    return ((r, e) :: es)
+    pure ((r, e) :: es)
 
   public export
-  shuntHead : List Operator -> Head -> M (Either String OpFreeHead)
-  shuntHead ops (Var x str) = return (Var x str)
-  shuntHead ops (NatVal0 x) = return (NatVal0 x)
-  shuntHead ops (NatVal1 x) = return (NatVal1 x)
-  shuntHead ops (OneVal x) = return (OneVal x)
-  shuntHead ops (NatElim x) = return (NatElim x)
-  shuntHead ops (ZeroElim x) = return (ZeroElim x)
-  shuntHead ops (EqElim x) = return (EqElim x)
-  shuntHead ops (EqVal x) = return (EqVal x)
-  shuntHead ops (NatTy x) = return (NatTy x)
-  shuntHead ops (ZeroTy x) = return (ZeroTy x)
-  shuntHead ops (OneTy x) = return (OneTy x)
-  shuntHead ops (UniverseTy x) = return (UniverseTy x)
-  shuntHead ops (Hole x str mstrs) = return (Hole x str mstrs)
-  shuntHead ops (UnnamedHole x mstrs) = return (UnnamedHole x mstrs)
-  shuntHead ops (Unfold x str) = return (Unfold x str)
-  shuntHead ops (PiBeta x) = return (PiBeta x)
-  shuntHead ops (PiEta x) = return (PiEta x)
-  shuntHead ops (PiEq x) = return (PiEq x)
-  shuntHead ops (SigmaBeta1 x) = return (SigmaBeta1 x)
-  shuntHead ops (SigmaBeta2 x) = return (SigmaBeta2 x)
-  shuntHead ops (SigmaEta x) = return (SigmaEta x)
-  shuntHead ops (SigmaEq x) = return (SigmaEq x)
-  shuntHead ops (NatBetaZ x) = return (NatBetaZ x)
-  shuntHead ops (NatBetaS x) = return (NatBetaS x)
-  shuntHead ops (OneEq x) = return (OneEq x)
-  shuntHead ops (El x) = return (El x)
-  shuntHead ops (Underscore x) = return (Underscore x)
-  shuntHead ops (Box x) = return (Box x)
-  shuntHead ops (Tm r tm) = MEither.do
-    return (Tm r !(shunt ops tm 0))
+  shuntHead : List Operator -> Head -> Either String OpFreeHead
+  shuntHead ops (Var x str) = Prelude.pure (Var x str)
+  shuntHead ops (NatVal0 x) = Prelude.pure (NatVal0 x)
+  shuntHead ops (NatVal1 x) = Prelude.pure (NatVal1 x)
+  shuntHead ops (OneVal x) = Prelude.pure (OneVal x)
+  shuntHead ops (NatElim x) = Prelude.pure (NatElim x)
+  shuntHead ops (ZeroElim x) = Prelude.pure (ZeroElim x)
+  shuntHead ops (EqElim x) = Prelude.pure (EqElim x)
+  shuntHead ops (EqVal x) = Prelude.pure (EqVal x)
+  shuntHead ops (NatTy x) = Prelude.pure (NatTy x)
+  shuntHead ops (ZeroTy x) = Prelude.pure (ZeroTy x)
+  shuntHead ops (OneTy x) = Prelude.pure (OneTy x)
+  shuntHead ops (UniverseTy x) = Prelude.pure (UniverseTy x)
+  shuntHead ops (Hole x str mstrs) = Prelude.pure (Hole x str mstrs)
+  shuntHead ops (UnnamedHole x mstrs) = Prelude.pure (UnnamedHole x mstrs)
+  shuntHead ops (Unfold x str) = Prelude.pure (Unfold x str)
+  shuntHead ops (PiBeta x) = Prelude.pure (PiBeta x)
+  shuntHead ops (PiEta x) = Prelude.pure (PiEta x)
+  shuntHead ops (PiEq x) = Prelude.pure (PiEq x)
+  shuntHead ops (SigmaBeta1 x) = Prelude.pure (SigmaBeta1 x)
+  shuntHead ops (SigmaBeta2 x) = Prelude.pure (SigmaBeta2 x)
+  shuntHead ops (SigmaEta x) = Prelude.pure (SigmaEta x)
+  shuntHead ops (SigmaEq x) = Prelude.pure (SigmaEq x)
+  shuntHead ops (NatBetaZ x) = Prelude.pure (NatBetaZ x)
+  shuntHead ops (NatBetaS x) = Prelude.pure (NatBetaS x)
+  shuntHead ops (OneEq x) = Prelude.pure (OneEq x)
+  shuntHead ops (El x) = Prelude.pure (El x)
+  shuntHead ops (Underscore x) = Prelude.pure (Underscore x)
+  shuntHead ops (Box x) = Prelude.pure (Box x)
+  shuntHead ops (Tm r tm) = Prelude.do
+    Prelude.pure (Tm r !(shunt ops tm 0))
 
   public export
-  shuntCtxPath : List Operator -> CtxPath -> M (Either String OpFreeCtxPath)
+  shuntCtxPath : List Operator -> CtxPath -> Either String OpFreeCtxPath
   shuntCtxPath ops (MkCtxPath range here skipped) =
-    MEither.[| MkOpFreeCtxPath (pure range) (shunt ops here 0) (pure skipped) |]
+    Prelude.[| MkOpFreeCtxPath (pure range) (shunt ops here 0) (pure skipped) |]
 
   public export
-  shuntTactic : List Operator -> Tactic -> M (Either String OpFreeTactic)
-  shuntTactic ops (Id x) = return (Id x)
-  shuntTactic ops (Trivial x) = return (Trivial x)
-  shuntTactic ops (Composition r alphas) = MEither.do
-    alphas <- forList1 alphas (shuntTactic ops)
-    return (Composition r alphas)
-  shuntTactic ops (Unfold r tm) = MEither.do
+  shuntTactic : List Operator -> Tactic -> Either String OpFreeTactic
+  shuntTactic ops (Id x) = Prelude.pure (Id x)
+  shuntTactic ops (Trivial x) = Prelude.pure (Trivial x)
+  shuntTactic ops (Composition r alphas) = Prelude.do
+    alphas <- for alphas (shuntTactic ops)
+    Prelude.pure (Composition r alphas)
+  shuntTactic ops (Unfold r tm) = Prelude.do
     tm <- shunt ops tm 0
-    return (Unfold r tm)
-  shuntTactic ops (UnfoldCtx r tm) = MEither.do
+    Prelude.pure (Unfold r tm)
+  shuntTactic ops (UnfoldCtx r tm) = Prelude.do
     tm <- shuntCtxPath ops tm
-    return (UnfoldCtx r tm)
-  shuntTactic ops (Exact r tm) = MEither.do
+    Prelude.pure (UnfoldCtx r tm)
+  shuntTactic ops (Exact r tm) = Prelude.do
     tm <- shunt ops tm 0
-    return (Exact r tm)
-  shuntTactic ops (Split r alphas beta) = MEither.do
-    alphas <- forSnocList alphas (shuntTactic ops)
+    Prelude.pure (Exact r tm)
+  shuntTactic ops (Split r alphas beta) = Prelude.do
+    alphas <- for alphas (shuntTactic ops)
     beta <- shuntTactic ops beta
-    return (Split r alphas beta)
-  shuntTactic ops (RewriteInv r a b) = MEither.do
+    Prelude.pure (Split r alphas beta)
+  shuntTactic ops (RewriteInv r a b) = Prelude.do
     a <- shunt ops a 3
     b <- shunt ops b 3
-    return (RewriteInv r a b)
-  shuntTactic ops (Rewrite r a b) = MEither.do
+    Prelude.pure (RewriteInv r a b)
+  shuntTactic ops (Rewrite r a b) = Prelude.do
     a <- shunt ops a 3
     b <- shunt ops b 3
-    return (Rewrite r a b)
-  shuntTactic ops (Let r x e) = MEither.do
+    Prelude.pure (Rewrite r a b)
+  shuntTactic ops (Let r x e) = Prelude.do
     e <- shunt ops e 0
-    return (Let r x e)
-  shuntTactic ops (NormaliseCommutativeMonoid r a o b) = MEither.do
+    Prelude.pure (Let r x e)
+  shuntTactic ops (NormaliseCommutativeMonoid r a o b) = Prelude.do
     a <- shunt ops a 3
     b <- shunt ops b 3
-    return (NormaliseCommutativeMonoid r a o b)
+    Prelude.pure (NormaliseCommutativeMonoid r a o b)
 
   ||| Shunt the given term at the specified *lvl*.
   public export
-  shunt : List Operator -> Term -> (lvl : Nat) -> M (Either String OpFreeTerm)
-  shunt ops (PiTy r (x ::: []) dom cod) lvl = MEither.do
+  shunt : List Operator -> Term -> (lvl : Nat) -> Either String OpFreeTerm
+  shunt ops (PiTy r (x ::: []) dom cod) lvl = Prelude.do
     case (lvl > 0) of
-      True => error "Can't parse (_ : _) → _ at level \{show lvl}"
-      False => MEither.do
+      True => Left "Can't parse (_ : _) → _ at level \{show lvl}"
+      False => Prelude.do
        dom <- shunt ops dom 0
        cod <- shunt ops cod 0
-       return (PiTy r x dom cod)
-  shunt ops (PiTy r (x ::: y :: zs) dom cod) lvl = MEither.do
+       pure (PiTy r x dom cod)
+  shunt ops (PiTy r (x ::: y :: zs) dom cod) lvl = Prelude.do
     case (lvl > 0) of
-      True => error "Can't parse (_ : _) → _ at level \{show lvl}"
-      False => MEither.do
+      True => Left "Can't parse (_ : _) → _ at level \{show lvl}"
+      False => Prelude.do
        dom' <- shunt ops dom 0
        cod' <- shunt ops (PiTy r (y ::: zs) dom cod) 0
-       return (PiTy r x dom' cod')
-  shunt ops (ImplicitPiTy r (x ::: []) dom cod) lvl = MEither.do
+       pure (PiTy r x dom' cod')
+  shunt ops (ImplicitPiTy r (x ::: []) dom cod) lvl = Prelude.do
     case (lvl > 0) of
-      True => error "Can't parse {_ : _} → _ at level \{show lvl}"
-      False => MEither.do
+      True => Left "Can't parse {_ : _} → _ at level \{show lvl}"
+      False => Prelude.do
         dom <- shunt ops dom 0
         cod <- shunt ops cod 0
-        return (ImplicitPiTy r x dom cod)
-  shunt ops (ImplicitPiTy r (x ::: y :: zs) dom cod) lvl = MEither.do
+        pure (ImplicitPiTy r x dom cod)
+  shunt ops (ImplicitPiTy r (x ::: y :: zs) dom cod) lvl = Prelude.do
     case (lvl > 0) of
-      True => error "Can't parse {_ : _} → _ at level \{show lvl}"
-      False => MEither.do
+      True => Left "Can't parse {_ : _} → _ at level \{show lvl}"
+      False => Prelude.do
         dom' <- shunt ops dom 0
         cod' <- shunt ops (ImplicitPiTy r (y ::: zs) dom cod) 0
-        return (ImplicitPiTy r x dom' cod')
-  shunt ops (SigmaTy r (x ::: []) dom cod) lvl = MEither.do
+        pure (ImplicitPiTy r x dom' cod')
+  shunt ops (SigmaTy r (x ::: []) dom cod) lvl = Prelude.do
     case (lvl > 0) of
-      True => error "Can't parse (_ : _) ⨯ _ at level \{show lvl}"
-      False => MEither.do
+      True => Left "Can't parse (_ : _) ⨯ _ at level \{show lvl}"
+      False => Prelude.do
        dom <- shunt ops dom 0
        cod <- shunt ops cod 0
-       return (SigmaTy r x dom cod)
-  shunt ops (SigmaTy r (x ::: y :: zs) dom cod) lvl = MEither.do
+       pure (SigmaTy r x dom cod)
+  shunt ops (SigmaTy r (x ::: y :: zs) dom cod) lvl = Prelude.do
     case (lvl > 0) of
-      True => error "Can't parse (_ : _) ⨯ _ at level \{show lvl}"
-      False => MEither.do
+      True => Left "Can't parse (_ : _) ⨯ _ at level \{show lvl}"
+      False => Prelude.do
        dom' <- shunt ops dom 0
        cod' <- shunt ops (SigmaTy r (y ::: zs) dom cod) 0
-       return (SigmaTy r x dom' cod')
-  shunt ops (PiVal r (x ::: []) f) lvl = MEither.do
+       pure (SigmaTy r x dom' cod')
+  shunt ops (PiVal r (x ::: []) f) lvl = Prelude.do
     case (lvl > 0) of
-      True => error "Can't parse _ ↦ _ at level \{show lvl}"
-      False => MEither.do
+      True => Left "Can't parse _ ↦ _ at level \{show lvl}"
+      False => Prelude.do
        f <- shunt ops f 0
-       return (PiVal r x f)
-  shunt ops (PiVal r (x ::: y :: zs) f) lvl = MEither.do
+       pure (PiVal r x f)
+  shunt ops (PiVal r (x ::: y :: zs) f) lvl = Prelude.do
     case (lvl > 0) of
-      True => error "Can't parse _ ↦ _ at level \{show lvl}"
-      False => MEither.do
+      True => Left "Can't parse _ ↦ _ at level \{show lvl}"
+      False => Prelude.do
        f' <- shunt ops (PiVal r (y ::: zs) f) 0
-       return (PiVal r x f')
-  shunt ops (ImplicitPiVal r (x ::: []) f) lvl = MEither.do
+       pure (PiVal r x f')
+  shunt ops (ImplicitPiVal r (x ::: []) f) lvl = Prelude.do
     case (lvl > 0) of
-      True => error "Can't parse {_} ↦ _ at level \{show lvl}"
-      False => MEither.do
+      True => Left "Can't parse {_} ↦ _ at level \{show lvl}"
+      False => Prelude.do
        f <- shunt ops f 0
-       return (ImplicitPiVal r x f)
-  shunt ops (ImplicitPiVal r (x ::: y :: zs) f) lvl = MEither.do
+       pure (ImplicitPiVal r x f)
+  shunt ops (ImplicitPiVal r (x ::: y :: zs) f) lvl = Prelude.do
     case (lvl > 0) of
-      True => error "Can't parse {_} ↦ _ at level \{show lvl}"
-      False => MEither.do
+      True => Left "Can't parse {_} ↦ _ at level \{show lvl}"
+      False => Prelude.do
        f' <- shunt ops (ImplicitPiVal r (y ::: zs) f) 0
-       return (ImplicitPiVal r x f')
-  shunt ops (Tac r alpha) lvl = MEither.do
+       pure (ImplicitPiVal r x f')
+  shunt ops (Tac r alpha) lvl = Prelude.do
     case (lvl > 0) of
-      True => error "Can't parse tac ... at level \{show lvl}"
-      False => MEither.do
+      True => Left "Can't parse tac ... at level \{show lvl}"
+      False => Prelude.do
         alpha <- shuntTactic ops alpha
-        return (Tac r alpha)
-  shunt ops (OpLayer r (ConsB (r0, head, elim) [])) lvl = MEither.do
-    return (App r0 !(shuntHead ops head) !(shuntElim ops elim))
-  shunt ops (OpLayer r (ConsA (_, op) [])) lvl = MEither.do
-    return (App r (Var r op) [])
+        pure (Tac r alpha)
+  shunt ops (OpLayer r (ConsB (r0, head, elim) [])) lvl = Prelude.do
+    pure (App r0 !(shuntHead ops head) !(shuntElim ops elim))
+  shunt ops (OpLayer r (ConsA (_, op) [])) lvl = Prelude.do
+    pure (App r (Var r op) [])
   shunt ops (InParens _ t) lvl = shunt ops t 0
-  shunt ops tm@(OpLayer r layer) lvl = MEither.do
+  shunt ops tm@(OpLayer r layer) lvl = Prelude.do
     -- liftM $ write "ops: \{show (map toName ops)}"
     -- Shunt the *layer* at specified level by trying each operator from *ops* and making
     -- sure exactly one gets through.
     exactlyOne ops
    where
-    none : List Operator -> M Bool
-    none [] = return True
-    none (o :: os) = M.do
-      case !(tryOp ops o r (forget layer) lvl) of
+    none : List Operator -> Bool
+    none [] = True
+    none (o :: os) =
+      case tryOp ops o r (forget layer) lvl of
         Left err => none os
-        Right r => return False
+        Right r => False
 
-    exactlyOne : List Operator -> M (Either String OpFreeTerm)
-    exactlyOne [] = error "No operators left to try out of \{map toName ops} at range \{show r} for term \{show tm}"
-    exactlyOne (o :: os) = M.do
-      case !(tryOp ops o r (forget layer) lvl) of
+    exactlyOne : List Operator -> Either String OpFreeTerm
+    exactlyOne [] = Left "No operators left to try out of \{map toName ops} at range \{show r} for term \{show tm}"
+    exactlyOne (o :: os) =
+      case tryOp ops o r (forget layer) lvl of
         Left err => exactlyOne os
-        Right r => M.do
+        Right r => Id.do
           True <- none os
-            | False => error "Multiple alternatives pass through"
-          return (Right r)
+            | False => Left "Multiple alternatives pass through"
+          pure (Right r)
 
   public export
-  shuntTopLevel : List Operator -> TopLevel -> M (Either String OpFreeTopLevel)
-  shuntTopLevel ops (TypingSignature r x ty) = MEither.do
+  shuntTopLevel : List Operator -> TopLevel -> Either String OpFreeTopLevel
+  shuntTopLevel ops (TypingSignature r x ty) = Prelude.do
     ty <- shunt ops ty 0
-    return (TypingSignature r x ty)
-  shuntTopLevel ops (LetSignature r x ty rhs) = MEither.do
-    ty <- shunt ops ty 0
-    rhs <- shunt ops rhs 0
-    return (LetSignature r x ty rhs)
-  shuntTopLevel ops (DefineSignature r x ty rhs) = MEither.do
+    pure (TypingSignature r x ty)
+  shuntTopLevel ops (LetSignature r x ty rhs) = Prelude.do
     ty <- shunt ops ty 0
     rhs <- shunt ops rhs 0
-    return (DefineSignature r x ty rhs)
-  shuntTopLevel ops (LetTypeSignature r x rhs) = MEither.do
+    pure (LetSignature r x ty rhs)
+  shuntTopLevel ops (DefineSignature r x ty rhs) = Prelude.do
+    ty <- shunt ops ty 0
     rhs <- shunt ops rhs 0
-    return (LetTypeSignature r x rhs)
-  shuntTopLevel ops (DefineTypeSignature r x rhs) = MEither.do
+    pure (DefineSignature r x ty rhs)
+  shuntTopLevel ops (LetTypeSignature r x rhs) = Prelude.do
     rhs <- shunt ops rhs 0
-    return (DefineTypeSignature r x rhs)
-  shuntTopLevel ops (Syntax x y) = error "Trying to shunt a syntax definition"
+    pure (LetTypeSignature r x rhs)
+  shuntTopLevel ops (DefineTypeSignature r x rhs) = Prelude.do
+    rhs <- shunt ops rhs 0
+    pure (DefineTypeSignature r x rhs)
+  shuntTopLevel ops (Syntax x y) = Left "Trying to shunt a syntax definition"

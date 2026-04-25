@@ -1,7 +1,8 @@
 module Nova.Core.Conversion
 
+import Nova.Control.Monad.Id
+
 import Nova.Core.Language
-import Nova.Core.Monad
 import Nova.Core.Substitution
 import Nova.Core.Evaluation
 
@@ -12,22 +13,22 @@ import Nova.Core.Evaluation
 mutual
   namespace Typ
     public export
-    convNu : Signature -> Omega -> Typ -> Typ -> M Bool
-    convNu sig omega (PiTy x0 a0 b0) (PiTy x1 a1 b1) =
-      conv sig omega a0 a1 `and` conv sig omega b0 b1
+    convNu : Signature -> Omega -> Typ -> Typ -> EvalM Bool
+    convNu sig omega (PiTy x0 a0 b0) (PiTy x1 a1 b1) = Id.do
+      [| conv sig omega a0 a1 `Id.and` conv sig omega b0 b1 |]
     convNu sig omega (ImplicitPiTy x0 a0 b0) (ImplicitPiTy x1 a1 b1) =
       conv sig omega a0 a1 `and` conv sig omega b0 b1
     convNu sig omega (SigmaTy x0 a0 b0) (SigmaTy x1 a1 b1) =
       conv sig omega a0 a1 `and` conv sig omega b0 b1
-    convNu sig omega NatTy NatTy = return True
-    convNu sig omega ZeroTy ZeroTy = return True
-    convNu sig omega OneTy OneTy = return True
-    convNu sig omega UniverseTy UniverseTy = return True
+    convNu sig omega NatTy NatTy = pure True
+    convNu sig omega ZeroTy ZeroTy = pure True
+    convNu sig omega OneTy OneTy = pure True
+    convNu sig omega UniverseTy UniverseTy = pure True
     convNu sig omega (El a0) (El a1) = conv sig omega a0 a1
-    convNu sig omega (ContextSubstElim {}) b = criticalError "convNu(ContextSubstElim)"
-    convNu sig omega (SignatureSubstElim {}) b = criticalError "convNu(SignatureSubstElim)"
+    convNu sig omega (ContextSubstElim {}) b = assert_total $ idris_crash "convNu(ContextSubstElim)"
+    convNu sig omega (SignatureSubstElim {}) b = assert_total $ idris_crash "convNu(SignatureSubstElim)"
     convNu sig omega (OmegaVarElim x0 sigma) (OmegaVarElim x1 tau) =
-     return (x0 == x1)
+     pure (x0 == x1)
         `and`
       conv sig omega sigma tau
     convNu sig omega (TyEqTy a0 b0) (TyEqTy a1 b1) =
@@ -35,18 +36,18 @@ mutual
     convNu sig omega (ElEqTy a0 b0 ty0) (ElEqTy a1 b1 ty1) =
       conv sig omega a0 a1 `and` conv sig omega b0 b1 `and` conv sig omega ty0 ty1
     convNu sig omega (SignatureVarElim x0 sigma) (SignatureVarElim x1 tau) =
-     return (x0 == x1)
+     pure (x0 == x1)
         `and`
       conv sig omega sigma tau
-    convNu _ _ _ _ = return False
+    convNu _ _ _ _ = pure False
 
     public export
-    conv : Signature -> Omega -> Typ -> Typ -> M Bool
+    conv : Signature -> Omega -> Typ -> Typ -> EvalM Bool
     conv sig omega a b = convNu sig omega !(openEval sig omega a) !(openEval sig omega b)
 
   namespace Elem
     public export
-    convNu : Signature -> Omega -> Elem -> Elem -> M Bool
+    convNu : Signature -> Omega -> Elem -> Elem -> EvalM Bool
     convNu sig omega (PiTy x0 a0 b0) (PiTy x1 a1 b1) =
       conv sig omega a0 a1 `and` conv sig omega b0 b1
     convNu sig omega (ImplicitPiTy x0 a0 b0) (ImplicitPiTy x1 a1 b1) =
@@ -67,11 +68,11 @@ mutual
       conv sig omega f0 f1
     convNu sig omega (SigmaElim2 f0 x0 a0 b0) (SigmaElim2 f1 x1 a1 b1) =
       conv sig omega f0 f1
-    convNu sig omega NatVal0 NatVal0 = return True
-    convNu sig omega NatTy NatTy = return True
-    convNu sig omega ZeroTy ZeroTy = return True
-    convNu sig omega OneTy OneTy = return True
-    convNu sig omega OneVal OneVal = return True
+    convNu sig omega NatVal0 NatVal0 = pure True
+    convNu sig omega NatTy NatTy = pure True
+    convNu sig omega ZeroTy ZeroTy = pure True
+    convNu sig omega OneTy OneTy = pure True
+    convNu sig omega OneVal OneVal = pure True
     convNu sig omega (NatVal1 t0) (NatVal1 t1) =
       conv sig omega t0 t1
     convNu sig omega (NatElim x0 schema0 z0 y0 h0 s0 t0) (NatElim x1 schema1 z1 y1 h1 s1 t1) =
@@ -84,54 +85,54 @@ mutual
       conv sig omega s0 s1
     convNu sig omega (ZeroElim _ t0) (ZeroElim _ t1) =
       conv sig omega t0 t1
-    convNu sig omega (ContextSubstElim {}) b = criticalError "convNu(ContextSubstElim)"
-    convNu sig omega (SignatureSubstElim {}) b = criticalError "convNu(SignatureSubstElim)"
+    convNu sig omega (ContextSubstElim {}) b = assert_total $ idris_crash "convNu(ContextSubstElim)"
+    convNu sig omega (SignatureSubstElim {}) b = assert_total $ idris_crash "convNu(SignatureSubstElim)"
     convNu sig omega (ContextVarElim x0) (ContextVarElim x1) =
-      return (x0 == x1)
+      pure (x0 == x1)
     convNu sig omega (SignatureVarElim x0 sigma) (SignatureVarElim x1 tau) =
-     return (x0 == x1)
+     pure (x0 == x1)
         `and`
       conv sig omega sigma tau
     convNu sig omega (OmegaVarElim x0 sigma) (OmegaVarElim x1 tau) =
-     return (x0 == x1)
+     pure (x0 == x1)
         `and`
       conv sig omega sigma tau
     convNu sig omega (TyEqTy a0 b0) (TyEqTy a1 b1) =
       conv sig omega a0 a1 `and` conv sig omega b0 b1
     convNu sig omega (ElEqTy a0 b0 ty0) (ElEqTy a1 b1 ty1) =
       conv sig omega a0 a1 `and` conv sig omega b0 b1 `and` conv sig omega ty0 ty1
-    convNu sig omega (TyEqVal {}) (TyEqVal {}) = return True
-    convNu sig omega (ElEqVal {}) (ElEqVal {}) = return True
-    convNu _ _ _ _ = return False
+    convNu sig omega (TyEqVal {}) (TyEqVal {}) = pure True
+    convNu sig omega (ElEqVal {}) (ElEqVal {}) = pure True
+    convNu _ _ _ _ = pure False
 
     public export
-    conv : Signature -> Omega -> Elem -> Elem -> M Bool
+    conv : Signature -> Omega -> Elem -> Elem -> EvalM Bool
     conv sig omega a b = convNu sig omega !(openEval sig omega a) !(openEval sig omega b)
 
   namespace ExtSpine
     public export
-    conv : Signature -> Omega -> Spine -> Spine -> M Bool
-    conv sig omega [<] [<] = return True
-    conv sig omega (_ :< _) [<] = criticalError "conv(_ :< _, [<])"
-    conv sig omega [<] (_ :< _) = criticalError "conv([<], _ :< _)"
+    conv : Signature -> Omega -> Spine -> Spine -> EvalM Bool
+    conv sig omega [<] [<] = pure True
+    conv sig omega (_ :< _) [<] = assert_total $ idris_crash "conv(_ :< _, [<])"
+    conv sig omega [<] (_ :< _) = assert_total $ idris_crash "conv([<], _ :< _)"
     conv sig omega (ts0 :< t0) (ts1 :< t1) = conv sig omega ts0 ts1 `and` conv sig omega t0 t1
 
   namespace SubstContextNF
     public export
-    conv : Signature -> Omega -> SubstContextNF -> SubstContextNF -> M Bool
-    conv sig omega Terminal Terminal = return True
-    conv sig omega Terminal (WkN k) = return True
-    conv sig omega Terminal (Ext x y) = return True
-    conv sig omega (WkN k) Terminal = return True
-    conv sig omega (WkN k) (WkN j) = return (k == j)
+    conv : Signature -> Omega -> SubstContextNF -> SubstContextNF -> EvalM Bool
+    conv sig omega Terminal Terminal = pure True
+    conv sig omega Terminal (WkN k) = pure True
+    conv sig omega Terminal (Ext x y) = pure True
+    conv sig omega (WkN k) Terminal = pure True
+    conv sig omega (WkN k) (WkN j) = pure (k == j)
     conv sig omega (WkN k) (Ext sigma t) = conv sig omega (WkN (S k)) sigma `and` conv sig omega (ContextVarElim k) t
-    conv sig omega (Ext x y) Terminal = return True
+    conv sig omega (Ext x y) Terminal = pure True
     conv sig omega (Ext sigma t) (WkN k) = conv sig omega (WkN (S k)) sigma `and` conv sig omega (ContextVarElim k) t
     conv sig omega (Ext sigma t) (Ext tau p) = conv sig omega sigma tau `and` conv sig omega t p
 
   namespace SubstContext
     public export
-    conv : Signature -> Omega -> SubstContext -> SubstContext -> M Bool
+    conv : Signature -> Omega -> SubstContext -> SubstContext -> EvalM Bool
     conv sig omega sigma tau = conv sig omega (eval sigma) (eval tau)
 
 

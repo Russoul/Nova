@@ -2,6 +2,9 @@ module Nova.Surface.Elaboration.Implementation.Solve
 
 import Me.Russoul.Data.Location
 
+import Nova.Control.Monad.Id
+import Nova.Control.Monad.St
+
 import Data.AVL
 import Data.List
 import Data.List1
@@ -17,7 +20,6 @@ import Nova.Core.Conversion
 import Nova.Core.Evaluation
 import Nova.Core.Occurrence
 import Nova.Core.Language
-import Nova.Core.Monad
 import Nova.Core.Name
 import Nova.Core.Pretty
 import Nova.Core.Rigidity
@@ -45,7 +47,7 @@ elabEntry : Params
          -> Omega
          -> ElaborationEntry
          -> ElabM Elaboration.Result
-elabEntry ops sig omega entry = M.do
+elabEntry ops sig omega entry = St.do
   let go : Signature
         -> Omega
         -> ElaborationEntry
@@ -62,7 +64,7 @@ elabEntry ops sig omega entry = M.do
   print_ Debug STDOUT "Result:"
   print_ Debug STDOUT (renderDocTerm !(liftM $ prettyResult sig result))
   print_ Debug STDOUT "-------------------------------" -}
-  return result
+  pure result
 
 ||| The intermediate results of solving a list of constraints (reflects whether at least some progress has been made).
 public export
@@ -85,13 +87,13 @@ progressEntriesH : Params
                 -> List ElaborationEntry
                 -> Bool
                 -> ElabM IntermediateResult
-progressEntriesH ops sig cs stuck [] False = return (Stuck (cast stuck))
-progressEntriesH ops sig cs stuck [] True = return (Success cs (cast stuck))
-progressEntriesH ops sig cs stuck (e :: es) progressMade =
+progressEntriesH ops sig cs stuck [] False = St.pure (Stuck (cast stuck))
+progressEntriesH ops sig cs stuck [] True = St.pure (Success cs (cast stuck))
+progressEntriesH ops sig cs stuck (e :: es) progressMade = St.do
   case !(elabEntry ops sig cs e) of
     Success cs' new => progressEntriesH ops sig cs' stuck (new ++ es) True
     Stuck reason => progressEntriesH ops sig cs (stuck :< (e, reason)) es progressMade
-    Error str => return (Error e str)
+    Error str => St.pure (Error e str)
 
 progressEntries : Params
                => SnocList Operator
@@ -104,17 +106,17 @@ progressEntries ops sig cs list = progressEntriesH ops sig cs [<] list False
 ||| Try solving the problems in the list until either no constraints are left or each and every one is stuck.
 ||| Between rounds of solving problems we try solving unification problems.
 progressEntriesFixpoint : Params => SnocList Operator -> Signature -> Omega -> List ElaborationEntry -> ElabM Elaboration.Fixpoint.Fixpoint
-progressEntriesFixpoint ops sig cs todo = M.do
+progressEntriesFixpoint ops sig cs todo = St.do
   case containsNamedHolesOnly cs && isNil todo of
-    True => return (Success cs)
-    False => M.do
+    True => St.pure (Success cs)
+    False => St.do
       case !(progressEntries ops sig cs todo) of
-        Stuck stuckElaborations => M.do
+        Stuck stuckElaborations => St.do
           case !(liftUnifyM $ Unification.solve sig cs) of
-            Stuck stuckConstraints => return (Stuck cs stuckElaborations stuckConstraints)
-            Disunifier e err => return (Error cs (Right (e, err)))
+            Stuck stuckConstraints => St.pure (Stuck cs stuckElaborations stuckConstraints)
+            Disunifier e err => St.pure (Error cs (Right (e, err)))
             Success cs => progressEntriesFixpoint ops sig cs todo
-        Error e str => return (Error cs (Left (e, str)))
+        Error e str => St.pure (Error cs (Left (e, str)))
         Success cs todo => progressEntriesFixpoint ops sig cs (map fst todo)
 
 Nova.Surface.Elaboration.Interface.solve ops sig omega todo = progressEntriesFixpoint ops sig omega todo

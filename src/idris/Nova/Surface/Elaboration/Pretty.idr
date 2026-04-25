@@ -2,6 +2,9 @@ module Nova.Surface.Elaboration.Pretty
 
 import Me.Russoul.Data.Location
 
+import Nova.Control.Monad.Id
+import Nova.Control.Monad.Reader
+
 import Data.AVL
 import Data.Fin
 import Data.SnocList
@@ -11,7 +14,6 @@ import Text.PrettyPrint.Prettyprinter.Render.Terminal
 import Text.PrettyPrint.Prettyprinter
 
 import Nova.Core.Language
-import Nova.Core.Monad
 import Nova.Core.Name
 import Nova.Core.Pretty
 import Nova.Core.Unification
@@ -32,9 +34,9 @@ Show ElaborationEntry where
 
 namespace ElaborationEntry
   public export
-  pretty : Signature -> Omega -> ElaborationEntry -> M (Doc Ann)
-  pretty sig omega (ElemElaboration ctx tm p ty) = M.do
-    return $
+  pretty : Signature -> Omega -> ElaborationEntry -> PrettyM (Doc Ann)
+  pretty sig omega (ElemElaboration ctx tm p ty) = Reader.do
+    pure $
       !(prettyContext sig omega ctx)
       <++>
       "⊦"
@@ -52,8 +54,8 @@ namespace ElaborationEntry
       ":"
       <++>
       !(prettyTyp sig omega (map fst ctx) ty 0)
-  pretty sig omega (TypeElaboration ctx tm p) = M.do
-    return $
+  pretty sig omega (TypeElaboration ctx tm p) = Reader.do
+    pure $
       !(prettyContext sig omega ctx)
       <++>
       "⊦"
@@ -69,8 +71,8 @@ namespace ElaborationEntry
       pretty p
       <++>
       "type"
-  pretty sig omega (ElemElimElaboration ctx head headTy tm p ty) = M.do
-    return $
+  pretty sig omega (ElemElimElaboration ctx head headTy tm p ty) = Reader.do
+    pure $
       !(prettyContext sig omega ctx)
       <++>
       "⊦"
@@ -99,82 +101,92 @@ namespace ElaborationEntry
       <++>
       !(prettyTyp sig omega (map fst ctx) ty 0)
 
+  public export
+  prettyDefault : Signature -> Omega -> ElaborationEntry -> Doc Ann
+  prettyDefault sig omega entry = pretty sig omega entry prettyCfgDefault
+
 namespace TopLevelError
-    public export
-    pretty : Signature -> TopLevelError -> M (Doc Ann)
-    pretty sig (Stuck omega stuckElab stuckCons) = M.do
-      let unsolvedMetas = filter (\(_, x) => isMetaType x || isMetaElem x) (List.inorder omega)
-      return $
-        pretty "----------- Stuck unification constraints (#\{show (length stuckCons)}): -------------"
-         <+>
-        hardline
-         <+>
-        vsep !(forList stuckCons $ \(con, str) => M.do
-               return $
-                 !(prettyConstraintEntry sig omega con)
-                  <+>
-                 hardline
-                  <+>
-                 pretty "Reason: \{str}"
-              )
-         <+>
-        hardline
-         <+>
-        pretty "----------- Unsolved meta variables (#\{show (length unsolvedMetas)}): -------------"
-         <+>
-        hardline
-         <+>
-        !(prettyOmega' sig omega unsolvedMetas)
-         <+>
-        hardline
-         <+>
-        pretty "----------- Stuck elaboration constraints (#\{show (length stuckElab)}): -------------"
-         <+>
-        hardline
-         <+>
-        vsep !(forList stuckElab $ \(elab, err) => M.do
-          return $
-            !(pretty sig omega elab)
-             <+>
-            hardline
-             <+>
-            pretty "Reason: \{err}")
-    pretty sig (UnificationError omega (con, err)) = M.do
-      return $
-        "----------- Disunifier found: -------------"
-         <+>
-        hardline
-         <+>
-        !(prettyConstraintEntry sig omega con)
-         <+>
-        hardline
-         <+>
-        pretty "Reason: \{err}"
-    pretty sig (ElaborationError omega (elab, err)) = M.do
-      return $
-         "----------- Elaborator failed: -------------"
-          <+>
-         hardline
-          <+>
-         pretty (show elab)
-          <+>
-         hardline
-          <+>
-         pretty "Reason: \{err}"
+  public export
+  pretty : Signature -> TopLevelError -> PrettyM (Doc Ann)
+  pretty sig (Stuck omega stuckElab stuckCons) = Reader.do
+    let unsolvedMetas = filter (\(_, x) => isMetaType x || isMetaElem x) (List.inorder omega)
+    pure $
+      pretty "----------- Stuck unification constraints (#\{show (length stuckCons)}): -------------"
+       <+>
+      hardline
+       <+>
+      vsep !(List.for stuckCons $ \(con, str) => Reader.do
+             pure $
+               !(prettyConstraintEntry sig omega con)
+                <+>
+               hardline
+                <+>
+               pretty "Reason: \{str}"
+            )
+       <+>
+      hardline
+       <+>
+      pretty "----------- Unsolved meta variables (#\{show (length unsolvedMetas)}): -------------"
+       <+>
+      hardline
+       <+>
+      !(prettyOmega' sig omega unsolvedMetas)
+       <+>
+      hardline
+       <+>
+      pretty "----------- Stuck elaboration constraints (#\{show (length stuckElab)}): -------------"
+       <+>
+      hardline
+       <+>
+      vsep !(List.for stuckElab $ \(elab, err) => Reader.do
+        pure $
+          !(pretty sig omega elab)
+           <+>
+          hardline
+           <+>
+          pretty "Reason: \{err}")
+  pretty sig (UnificationError omega (con, err)) = Reader.do
+    pure $
+      "----------- Disunifier found: -------------"
+       <+>
+      hardline
+       <+>
+      !(prettyConstraintEntry sig omega con)
+       <+>
+      hardline
+       <+>
+      pretty "Reason: \{err}"
+  pretty sig (ElaborationError omega (elab, err)) = Reader.do
+    pure $
+       "----------- Elaborator failed: -------------"
+        <+>
+       hardline
+        <+>
+       pretty (show elab)
+        <+>
+       hardline
+        <+>
+       pretty "Reason: \{err}"
 
-
+  public export
+  prettyDefault : Signature -> TopLevelError -> Doc Ann
+  prettyDefault sig err = pretty sig err prettyCfgDefault
 
 namespace Elaboration
   public export
-  prettyResult : Signature -> Elaboration.Result -> M (Doc Ann)
-  prettyResult sig (Success omega new) = M.do
-    return $
+  prettyResult : Signature -> Elaboration.Result -> PrettyM (Doc Ann)
+  prettyResult sig (Success omega new) = Reader.do
+    pure $
       "Success, sub-problems:"
        <+>
       hardline
        <+>
-      vsep !(forList new (pretty sig omega))
-  prettyResult sig (Stuck reason) = M.do
-    return (pretty "Stuck, reason: \{reason}")
-  prettyResult sig (Error reason) = M.do
-    return (pretty "Error, reason: \{reason}")
+      vsep !(List.for new (pretty sig omega))
+  prettyResult sig (Stuck reason) = Reader.do
+    pure (pretty "Stuck, reason: \{reason}")
+  prettyResult sig (Error reason) = Reader.do
+    pure (pretty "Error, reason: \{reason}")
+
+  public export
+  prettyResultDefault : Signature -> Elaboration.Result -> Doc Ann
+  prettyResultDefault sig r = prettyResult sig r prettyCfgDefault

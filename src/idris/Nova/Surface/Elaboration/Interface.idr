@@ -2,13 +2,17 @@ module Nova.Surface.Elaboration.Interface
 
 import Me.Russoul.Data.Location
 
+import Nova.Control.Monad.Id
+import Nova.Control.Monad.St
+import Nova.Control.Monad.StEither
+
 import Data.AVL
 import Data.List1
 
 import Text.PrettyPrint.Prettyprinter
 
+import Nova.Core.Evaluation
 import Nova.Core.Language
-import Nova.Core.Monad
 import Nova.Core.Name
 import Nova.Core.Pretty
 import Nova.Core.Unification
@@ -48,31 +52,22 @@ initialElabSt = MkElabSt initialUnifySt [<] empty
 ||| Don't use CriticalError for any other kind of error (e.g. recoverable / expected).
 public export
 ElabM : Type -> Type
-ElabM = JustAMonad.M CriticalError ElabSt
+ElabM = St ElabSt
 
 namespace Elab
   public export
-  liftM : M a -> ElabM a
-  liftM f = M.do
-    st <- get
-    mapState (const st) (const ()) f
-
-namespace ElabEither
-  public export
-  liftM : M a -> ElabM (Either e a)
-  liftM f = M.do
-    t <- Elab.liftM f
-    return (Right t)
+  liftEvalM : EvalM a -> ElabM a
+  liftEvalM = St.pure
 
 public export
 liftUnifyM : UnifyM a -> ElabM a
-liftUnifyM f = M.do
+liftUnifyM f = St.do
   MkElabSt _ toks namedHoles <- get
   mapState (\u => MkElabSt u toks namedHoles) (.unifySt) f
 
 public export
 liftUnifyM' : UnifyM a -> ElabM (Either e a)
-liftUnifyM' f = M.do
+liftUnifyM' f = St.do
   liftUnifyM f <&> Right
 
 public export
@@ -81,9 +76,9 @@ addSemanticToken t = update {toks $= (:< t)}
 
 public export
 addNamedHole : (absFilePath : String) -> (locInThatFile : Range) -> (idx : String) -> ElabM ()
-addNamedHole path r idx = M.do
+addNamedHole path r idx = St.do
   holes <- get <&> namedHoles
-  case lookup path holes of
+  case OrdTree.lookup path holes of
     Nothing => update {namedHoles $= insert (path, [(r, idx)])}
     Just list => update {namedHoles $= insert (path, ((r, idx) :: list))}
 
@@ -188,7 +183,7 @@ elabTactic : Params
           -> Omega
           -> OpFreeTactic
           -> (target : Signature)
-          -> ElabM (Either (Range, Doc Ann) (Omega, Signature, SignatureInst -> SignatureInst))
+          -> StEither (Range, Doc Ann) ElabSt (Omega, Signature, SignatureInst -> SignatureInst)
 
 ||| Elaborate a .nova file parsed in advance.
 public export

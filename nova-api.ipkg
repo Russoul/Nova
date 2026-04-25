@@ -1,10 +1,16 @@
 package nova-api
+version = 0.0.1
 
 depends = contrib, just-a-parser
 
 modules =
-          Control.Monad.IOEither
-        , Control.Monad.JustAMonad
+          Nova.Control.Monad.EitherSt
+        , Nova.Control.Monad.Id
+        , Nova.Control.Monad.IOEither
+        , Nova.Control.Monad.MaybeSt
+        , Nova.Control.Monad.Reader
+        , Nova.Control.Monad.St
+        , Nova.Control.Monad.StEither
 
         , Data.AVL
         , Data.AlternatingList
@@ -19,7 +25,6 @@ modules =
         , Nova.Core.Evaluation
         , Nova.Core.Inference
         , Nova.Core.Language
-        , Nova.Core.Monad
         , Nova.Core.Name
         , Nova.Core.Occurrence
         , Nova.Core.Pretty

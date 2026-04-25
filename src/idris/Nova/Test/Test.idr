@@ -15,7 +15,6 @@ import Text.PrettyPrint.Prettyprinter.Render.Terminal
 import Text.PrettyPrint.Prettyprinter
 
 import Nova.Core.Language
-import Nova.Core.Monad
 import Nova.Core.Pretty
 
 import Nova.Surface.ModuleSystem

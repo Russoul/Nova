@@ -3,7 +3,11 @@ module Nova.Surface.ModuleSystem
 import Me.Russoul.Data.Location
 import Me.Russoul.Text.Lexer.Token
 
-import Control.Monad.IOEither
+import Nova.Control.Monad.Id
+import Nova.Control.Monad.Reader
+import Nova.Control.Monad.St
+
+import Nova.Control.Monad.IOEither
 
 import Data.AVL
 import Data.Fin
@@ -19,7 +23,6 @@ import Text.PrettyPrint.Prettyprinter
 
 import Nova.Core.Context
 import Nova.Core.Language
-import Nova.Core.Monad
 import Nova.Core.Pretty
 import Nova.Core.Substitution
 import Nova.Core.Unification
@@ -59,7 +62,7 @@ postProblem1 : SnocList Operator
             -> Signature
             -> Omega
             -> ElabM (Signature, Omega)
-postProblem1 ops sig omega = M.do
+postProblem1 ops sig omega = St.do
   let syntm0 = "?A, ?z, ?p, ?"
   let syntm1 = "ℕ-Commut-Monoid"
   let synty =
@@ -73,52 +76,53 @@ postProblem1 ops sig omega = M.do
          ⨯ ((x y : A) → x + y ≡ y + x ∈ A)
     """
   let Right (_, syntm0) = parseFull' (MkParsingSt [<]) (term 0) syntm0
-    | Left err => criticalError (show err)
+    | Left err => assert_total $ idris_crash (show err)
   let Right (_, syntm1) = parseFull' (MkParsingSt [<]) (term 0) syntm1
-    | Left err => criticalError (show err)
+    | Left err => assert_total $ idris_crash (show err)
   let Right (_, synty) = parseFull' (MkParsingSt [<]) (term 0) synty
-    | Left err => criticalError (show err)
+    | Left err => assert_total $ idris_crash (show err)
   let params = MkParams Nothing {solveNamedHoles = True}
   (omega, tymidx) <- liftUnifyM $ newTypeMeta omega [<] SolveByElaboration
   let ty = Typ.OmegaVarElim tymidx Terminal
   (omega, midx0) <- liftUnifyM $ newElemMeta omega [<] ty SolveByElaboration
   (omega, midx1) <- liftUnifyM $ newElemMeta omega [<] ty SolveByElaboration
-  let prob1 = TypeElaboration [<] !(Elab.liftM $ asCriticalError $ shunt (cast ops) synty 0) tymidx
-  let prob2 = ElemElaboration [<] !(Elab.liftM $ asCriticalError $ shunt (cast ops) syntm0 0) midx0 ty
-  let prob3 = ElemElaboration [<] !(Elab.liftM $ asCriticalError$ shunt (cast ops) syntm1 0) midx1 ty
+  --  FIX:                          vvvvvv should not be critical
+  let prob1 = TypeElaboration [<] (expect $ shunt (cast ops) synty 0) tymidx
+  let prob2 = ElemElaboration [<] (expect $ shunt (cast ops) syntm0 0) midx0 ty
+  let prob3 = ElemElaboration [<] (expect $ shunt (cast ops) syntm1 0) midx1 ty
   let el0 = OmegaVarElim midx0 Terminal
   let el1 = OmegaVarElim midx1 Terminal
   omega <- liftUnifyM $ addConstraint omega (ElemConstraint [<] el0 el1 ty)
   Success omega <- solve ops sig omega [prob1, prob2, prob3]
-    | Stuck omega stuckElab stuckCons => M.do
-         write "Result of postProblem1 (stuck):"
-         write (renderDocTerm !(Elab.liftM $ prettyElem sig omega [<] el0 0))
-         criticalError $ renderDocTerm !(Elab.liftM $ pretty sig (Stuck omega stuckElab stuckCons))
-    | Error omega (Left (elab, err)) => criticalError $ renderDocTerm !(Elab.liftM $ pretty sig (ElaborationError omega (elab, err)))
-    | Error omega (Right (con, err)) => criticalError $ renderDocTerm !(Elab.liftM $ pretty sig (UnificationError omega (con, err)))
-  write "Result of postProblem1:"
-  write (renderDocTerm !(Elab.liftM $ prettyElem sig omega [<] el0 0))
-  return (sig, omega)
+    | Stuck omega stuckElab stuckCons => St.do
+         -- write "Result of postProblem1 (stuck):"
+         -- write (renderDocTerm !(Elab.liftM $ prettyElem sig omega [<] el0 0))
+         assert_total $ idris_crash $ renderDocTerm (prettyDefault sig (Stuck omega stuckElab stuckCons))
+    | Error omega (Left (elab, err)) => assert_total $ idris_crash $ renderDocTerm (prettyDefault sig (ElaborationError omega (elab, err)))
+    | Error omega (Right (con, err)) => assert_total $ idris_crash $ renderDocTerm (prettyDefault sig (UnificationError omega (con, err)))
+  -- write "Result of postProblem1:"
+  -- write (renderDocTerm (prettyElem sig omega [<] el0 0 prettyCfgDefault))
+  pure (sig, omega)
 
 public export
 postProblem2 : SnocList Operator
             -> Signature
             -> Omega
             -> ElabM (Signature, Omega)
-postProblem2 ops sig omega = M.do
+postProblem2 ops sig omega = St.do
   let Right (_, syntm) = parseFull' (MkParsingSt [<]) (term 0) "four"
-    | Left err => criticalError (show err)
+    | Left err => assert_total $ idris_crash (show err)
   let params = MkParams Nothing {solveNamedHoles = True}
   (omega, midx) <- liftUnifyM $ newElemMeta omega [<] NatTy SolveByElaboration
   let myResult = Elem.OmegaVarElim midx Terminal
-  let prob1 = ElemElaboration [<] !(Elab.liftM $ asCriticalError $ shunt (cast ops) syntm 0) midx NatTy
+  let prob1 = ElemElaboration [<] (expect $ shunt (cast ops) syntm 0) midx NatTy
   Success omega <- solve ops sig omega [prob1]
-    | Stuck omega stuckElab stuckCons => criticalError $ renderDocTerm !(Elab.liftM $ pretty sig (Stuck omega stuckElab stuckCons))
-    | Error omega (Left (elab, err)) => criticalError $ renderDocTerm !(Elab.liftM $ pretty sig (ElaborationError omega (elab, err)))
-    | Error omega (Right (con, err)) => criticalError $ renderDocTerm !(Elab.liftM $ pretty sig (UnificationError omega (con, err)))
-  write "Result of postProblem2:"
-  write (renderDocTerm !(Elab.liftM $ prettyElem sig omega [<] !(Elab.liftM $ closedNormalise sig omega myResult) 0))
-  return (sig, omega)
+    | Stuck omega stuckElab stuckCons => assert_total $ idris_crash $ renderDocTerm (prettyDefault sig (Stuck omega stuckElab stuckCons))
+    | Error omega (Left (elab, err)) => assert_total $ idris_crash $ renderDocTerm (prettyDefault sig (ElaborationError omega (elab, err)))
+    | Error omega (Right (con, err)) => assert_total $ idris_crash $ renderDocTerm (prettyDefault sig (UnificationError omega (con, err)))
+  -- write "Result of postProblem2:"
+  -- write (renderDocTerm !(Elab.liftM $ prettyElem sig omega [<] !(Elab.liftM $ closedNormalise sig omega myResult) 0))
+  pure (sig, omega)
 
 public export
 checkModule : SnocList Operator
@@ -140,31 +144,25 @@ checkModule ops sig omega nextOmegaIdx namedHoles novaDirectory modName = Prelud
         pure $ Left (Nothing, pretty $ "Parsing error:\n" ++ show err)
   putStrLn "File parsed successfully!"
   let params = MkParams (Just mod) {solveNamedHoles = False}
-  Right (MkElabSt (MkUnifySt nextOmegaIdx) moreToks namedHoles, Right (ops, sig, omega)) <- run (elabFile @{params} ops sig omega surfaceSyntax) (MkElabSt (MkUnifySt nextOmegaIdx) [<] namedHoles)
-    | Right (MkElabSt (MkUnifySt nextOmegaIdx) moreToks namedHoles, Left (x, range, sig, err)) => Prelude.do
-       Right doc <- eval (pretty sig err) ()
-         | Left err => Prelude.do
-             pure $ Left (Just range, pretty ("Critical error:" ++ show err))
+  let (MkElabSt (MkUnifySt nextOmegaIdx) moreToks namedHoles, Right (ops, sig, omega)) = run
+        (elabFile @{params} ops sig omega surfaceSyntax)
+        (MkElabSt (MkUnifySt nextOmegaIdx) [<] namedHoles)
+    | (MkElabSt (MkUnifySt nextOmegaIdx) moreToks namedHoles, Left (x, range, sig, err)) => Prelude.do
+       let doc = pretty sig err prettyCfgDefault
        pure (Left (Just range, pretty "Error while elaborating top-level definition (#\{show (length sig)}) \{x}" <+> hardline <+> doc))
-    | Left err => Prelude.do
-        pure $ Left (Nothing, pretty ("Critical error:" ++ show err))
+    -- | Left err => Prelude.do
+    --     pure $ Left (Nothing, pretty ("Critical error:" ++ show err))
   putStrLn "File elaborated successfully!"
-  p <- run (prettySignature sig omega sig) ()
-  case p of
-    Left err =>
-      putStrLn (show err)
-    Right (_, p) =>
-      putStrLn (renderDocTerm $ p)
+  let p = prettySignature sig omega sig prettyCfgDefault
+  putStrLn (renderDocTerm p)
   putStrLn "------------ Named holes ---------------"
   for_ (List.inorder omega) $ \(x, e) => Prelude.do
     case e of
       MetaType ctx NoSolve => Prelude.do
-        Right doc <- eval (prettyOmegaEntry sig omega x e) ()
-          | Left err => die (show err) -- Those should never fail
+        let doc = prettyOmegaEntry sig omega x e prettyCfgDefault
         putStrLn (renderDocTerm doc)
       MetaElem ctx ty NoSolve => Prelude.do
-        Right doc <- eval (prettyOmegaEntry sig omega x e) ()
-          | Left err => die (show err) -- Those should never fail
+        let doc = prettyOmegaEntry sig omega x e prettyCfgDefault
         putStrLn (renderDocTerm doc)
       _ => Prelude.do
         pure ()
@@ -207,8 +205,8 @@ checkEverything : SnocList Operator
                -> IO (Either (Maybe String, Maybe Range, Doc Ann) (SnocList Operator, Signature, Omega, Nat, OrdTree (String, List (Range, String)) ByFst, List (String, String, SnocList SemanticToken)))
 checkEverything ops sig omega nextOmegaIdx namedHoles toks novaDirectory modNames = IOEither.do
   (ops, sig, omega, nextOmegaIdx, namedHoles, ntoks) <- checkModules ops sig omega nextOmegaIdx namedHoles toks novaDirectory modNames
-  (MkElabSt (MkUnifySt nextOmegaIdx) moreToks namedHoles, (sig, omega)) <-
-    map (bimap (\x => (Nothing, Nothing, pretty (show x))) id) (run (postProblem2 ops sig omega) (MkElabSt (MkUnifySt nextOmegaIdx) [<] namedHoles))
+  -- (MkElabSt (MkUnifySt nextOmegaIdx) moreToks namedHoles, (sig, omega)) <-
+  --   map (bimap (\x => (Nothing, Nothing, pretty (show x))) id) (run (postProblem2 ops sig omega) (MkElabSt (MkUnifySt nextOmegaIdx) [<] namedHoles))
   pure (ops, sig, omega, nextOmegaIdx, namedHoles, ntoks)
 
 

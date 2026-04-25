@@ -1,4 +1,5 @@
 package nova-bin
+version = 0.0.1
 
 depends = contrib, just-a-parser
 

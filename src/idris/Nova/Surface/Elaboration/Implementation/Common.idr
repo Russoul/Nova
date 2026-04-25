@@ -14,7 +14,6 @@ import Text.PrettyPrint.Prettyprinter
 
 import Nova.Core.Context
 import Nova.Core.Language
-import Nova.Core.Monad
 import Nova.Core.Name
 import Nova.Core.Pretty
 import Nova.Core.Unification

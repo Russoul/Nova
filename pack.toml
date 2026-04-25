@@ -7,22 +7,18 @@ type        = "github"
 url         = "https://github.com/Russoul/Just-a-Parser"
 commit      = "1220108ddd5c02e8a0502532de291153e29e6bc7"
 ipkg        = "just-a-parser.ipkg"
-packagePath = false
 
 [custom.all.nova-api]
 type        = "local"
 path        = "."
 ipkg        = "nova-api.ipkg"
-packagePath = true
 
 [custom.all.nova-bin]
 type        = "local"
 path        = "."
 ipkg        = "nova-bin.ipkg"
-packagePath = true
 
 [custom.all.nova-lsp]
 type        = "local"
-path        = "/Users/russoul/Projects/Nova-LSP"
+path        = "/Users/russoul/Projects/nova-lsp"
 ipkg        = "nova-lsp.ipkg"
-packagePath = true
