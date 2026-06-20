@@ -286,6 +286,28 @@ id ∘ σ = σ : Γ₀ ⇒ Γ₁
 -----------------------------
 σ, t = σ', t' : Γ₀ ⇒ Γ₁ A
 
+// Conversion rules for substitution
+
+σ : Γ ⇒ Δ
+Γ = Γ' ctx
+-----------
+σ : Γ' ⇒ Δ
+
+σ : Γ ⇒ Δ
+Δ = Δ' ctx
+-----------
+σ : Γ ⇒ Δ'
+
+σ = τ : Γ ⇒ Δ
+Γ = Γ' ctx
+-----------
+σ = τ : Γ' ⇒ Δ
+
+σ = τ : Γ ⇒ Δ
+Δ = Δ' ctx
+-----------
+σ = τ : Γ ⇒ Δ'
+
 ///////// Inference rules (type) //////////
 
 Γ₁ ⊦ A type
@@ -392,6 +414,18 @@ id ∘ σ = σ : Γ₀ ⇒ Γ₁
 --------------------
 Γ ⊦ A = C type
 
+// Conversion rules for type
+
+Γ ⊦ A type
+Γ = Γ' ctx
+-----------
+Γ' ⊦ A type
+
+Γ ⊦ A = B type
+Γ = Γ' ctx
+-----------
+Γ' ⊦ A = B type
+
 // Congruence rules for type constructors
 
 Γ₁ ⊦ A = A' type
@@ -491,6 +525,18 @@ id ∘ σ = σ : Γ₀ ⇒ Γ₁
 Γ ⊦ Δ' = Δ'' tel
 --------------------
 Γ ⊦ Δ = Δ'' tel
+
+// Conversion rules for telescope
+
+Γ ⊦ Δ tel
+Γ = Γ' ctx
+-----------
+Γ' ⊦ Δ tel
+
+Γ ⊦ Δ = Δ' tel
+Γ = Γ' ctx
+-----------
+Γ' ⊦ Δ = Δ' tel
 
 // Congruence rules for telescope constructors
 
@@ -778,10 +824,27 @@ id ∘ σ = σ : Γ₀ ⇒ Γ₁
 --------------------
 Γ ⊦ a = c : A
 
-Γ ⊦ a = b : A          // Type conversion
+Γ ⊦ a = b : A          // Type conversion for element equality
 Γ ⊦ A = B type
 --------------------
 Γ ⊦ a = b : B
+
+// Conversion rules for element
+
+Γ ⊦ a : A
+Γ ⊦ A = B type
+--------------------
+Γ ⊦ a : B
+
+Γ ⊦ a : A
+Γ = Γ' ctx
+--------------------
+Γ' ⊦ a : A
+
+Γ ⊦ a = b : A
+Γ = Γ' ctx
+--------------------
+Γ' ⊦ a = b : A
 
 // Congruence rules for element constructors
 
@@ -929,6 +992,28 @@ id ∘ σ = σ : Γ₀ ⇒ Γ₁
 Γ ⊦ ē' = ē'' : Δ
 --------------------
 Γ ⊦ ē = ē'' : Δ
+
+// Conversion rules for element list
+
+Γ ⊦ ē : Δ
+Γ = Γ' ctx
+-----------
+Γ' ⊦ ē : Δ
+
+Γ ⊦ ē : Δ
+Γ ⊦ Δ = Δ' tel
+--------------
+Γ ⊦ ē : Δ'
+
+Γ ⊦ ē = ē' : Δ
+Γ = Γ' ctx
+-----------
+Γ' ⊦ ē = ē' : Δ
+
+Γ ⊦ ē = ē' : Δ
+Γ ⊦ Δ = Δ' tel
+--------------
+Γ ⊦ ē = ē' : Δ'
 
 // Congruence rules for element list constructors
 
