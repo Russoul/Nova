@@ -10,12 +10,6 @@ public export
 Under : SubstContext -> SubstContext
 Under sigma = Ext (Chain sigma Wk) (CtxVar 0)
 
-||| UnderN n σ = σ⁺ⁿ
-public export
-UnderN : Nat -> SubstContext -> SubstContext
-UnderN 0 sigma = sigma
-UnderN (S k) sigma = UnderN k (Under sigma)
-
 mutual
   ||| ☐ᵢ(σ)
   substContextVar : Nat -> SubstContext -> Elem
@@ -63,7 +57,7 @@ mutual
     subst (NatElim motive z s t) sigma =
       NatElim (Typ.subst motive (Under sigma))
               (subst z sigma)
-              (subst s (UnderN 2 sigma))
+              (subst s (Under (Under sigma)))
               (subst t sigma)
     subst (ZeroElim t)        sigma = ZeroElim (subst t sigma)
     subst (CtxVar i)          sigma = substContextVar i sigma
