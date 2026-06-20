@@ -6,5 +6,6 @@ depends = contrib, just-a-parser
 modules = Nova.Foundation.Syntax
         , Nova.Foundation.Substitution
         , Nova.Foundation.Pretty
+        , Nova.Foundation.Derivation
 
 sourcedir = "src/idris"
