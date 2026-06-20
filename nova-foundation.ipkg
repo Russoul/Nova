@@ -1,0 +1,10 @@
+package nova-foundation
+version = 0.1.0
+
+depends = contrib, just-a-parser
+
+modules = Nova.Foundation.Syntax
+        , Nova.Foundation.Substitution
+        , Nova.Foundation.Pretty
+
+sourcedir = "src/idris"

@@ -1,6 +1,6 @@
 module Nova.Surface.Elaboration.Implementation.Tactic.TermLens
 
-import Me.Russoul.Data.Location
+import Me.Russoul.Text.Range
 
 import Nova.Control.Monad.Id
 

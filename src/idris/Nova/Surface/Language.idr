@@ -1,6 +1,6 @@
 module Nova.Surface.Language
 
-import Me.Russoul.Data.Location
+import Me.Russoul.Text.Range
 
 import Data.AlternatingList
 import Data.AlternatingList1

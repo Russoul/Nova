@@ -1,8 +1,7 @@
 ////////// Preface //////////
 
 This file contains a formalisation of Nova's type theory: Extensional Type Theory.
-We present the theory intrinsically: https://ncatlab.org/nlab/show/intrinsic+and+extrinsic+views+of+typing.
-Nova's surface language is assigned meaning through the process of elaboration. See NovaElaboration.txt for details.
+We present the theory extrinsically: https://ncatlab.org/nlab/show/intrinsic+and+extrinsic+views+of+typing
 
 //////////// Type Theory /////////////
 
@@ -18,686 +17,522 @@ We have:
 
 /////////////// Notes /////////////////
 
-* We don't define definitional equality relation and then quotient types by it. Instead we simply reuse equality of the meta-theory
+* We don't define definitional equality relation and then quotient types by it.
+   Instead we simply reuse extensional, proof-irrelevant equality of the meta-theory
 
-* Sometimes we use named substitution syntax / implicit weakening in the presentation
+* Substituion is algorithmic: there is a program that reduces out all substitutions in a type/term/telescope/list/etc.
 
+* Equality is undecidable. Hence "type-checking" is likewise so.
+
+///////////// Syntax ///////////////
+
+// typing context
+Γ ::= ε    // empty typing context
+    | Γ T  // extended typing context
+
+// typing context substitution
+σ, τ ::=
+       ·             // unique substitution into the empty context
+     | σ, t          // substitution into an extended context
+     | σ ∘ σ         // composition of substitutions
+     | id            // identity substitution
+     | ↑             // weakening substitution
+
+// element
+t ::= t(σ)           // (Typing) context substitution
+    | λ t            // dependent product type introduction
+    | t t            // dependent product type elimination
+    | t .π₁          // dependent sum type elimination (1)
+    | t .π₂          // dependent sum type elimination (2)
+    | t , t          // dependent sum type introduction
+    | t → t          // element of the universe (encodes Π)
+    | t ⨯ t          // element of the universe (encodes Σ)
+    | ℕ              // element of the universe
+    | 𝟘              // element of the universe
+    | 𝟙              // element of the universe
+    | t ≡ t ∈ t      // element of the universe
+    | ()             // the only element of 𝟙
+    | Z
+    | S t
+    | ℕ-elim T t t t
+    | 𝟘-elim t
+    | ☐ᵢ             // i-th element in the typing context
+    | Refl           // reflexive equality proof
+
+// type
+T ::= 𝕌              // universe type
+    | T → T          // dependent product type (Π)
+    | T ⨯ T          // dependent sum type (Σ)
+    | t ≡ t ∈ T      // extensional equality type
+    | ℕ
+    | 𝟘
+    | 𝟙
+    | El t           // Every element of the universe is a type
+    | T(σ)           // (Typing) context substitution
+
+// (type) telescope
+Δ ::= ε | T Δ
+
+// (element) list
+ē ::= · | e ē
 
 /////// Judgement forms /////////
 
-Σ sig   // signature
+Γ ctx  // (typing) context
 
-Σ ⊦ E entry // signature entry
+Γ ctx
+Δ ctx
+------------- // (typing context) substitution
+σ : Γ ⇒ Δ
 
-Σ ⊦ E entry
------------ // signature entry instance
-Σ ⊦ e : E
-
-Σ₀ sig
-Σ₁ sig
------------ // signature substitution
-σ : Σ₀ ⇒ Σ₁
-
-Σ ⊦ Γ ctx  // context
-
-Σ ⊦ Γ ctx
-Σ ⊦ Δ ctx
-------------- // context substitution
-Σ ⊦ σ : Γ ⇒ Δ
-
-Σ ⊦ Γ ctx
+Γ ctx
 ------------ // type
-Σ Γ ⊦ A type
+Γ ⊦ A type
 
-Σ ⊦ Γ ctx
+Γ ctx
 ----------- // telescope
-Σ Γ ⊦ Δ tel
+Γ ⊦ Δ tel
 
-Σ Γ ⊦ A type
+Γ ⊦ A type
 ------------ // element
-Σ Γ ⊦ a : A
+Γ ⊦ a : A
 
-Σ Γ ⊦ Δ tel
------------ // telescope instance
-Σ Γ ⊦ ē : Δ
-
-Σ sig
----------- // dependent signature
-Σ ⊦ Ξ dsig
-
-Σ ⊦ Ξ₀ dsig
-Σ ⊦ Ξ₁ dsig
---------------- // dependent signature substitution
-Σ ⊦ ξ : Ξ₀ ⇒ Ξ₁
-
-Σ ⊦ Ξ dsig
----------- // dependent signature instance
-Σ ⊦ ē : Ξ
-
-///////// Inference rules (sig) //////////
-
-ε sig
-
-Σ sig
-Σ ⊦ E entry
------------
-Σ E sig
-
-Σ sig
-Σ ⊦ Ξ dsig
------------------------------ // By meta-level induction
-Σ Ξ sig
-Σ ε = Σ
-Σ (E Ξ) = (Σ E) Ξ
-
-///////// Inference rules (sig entry) //////////
-
-Σ sig
--------------------- // universally-bound type
-Σ ⊦ (Γ ⊦ type) entry
-
-Σ Γ ⊦ A type
----------------------- // let-bound type
-Σ ⊦ (Γ ⊦ A type) entry
-
-Σ Γ ⊦ A type
------------------ // universally-bound element of given type
-Σ ⊦ (Γ ⊦ A) entry
-
-Σ Γ ⊦ a : A
---------------------- // let-bound element of given type
-Σ ⊦ (Γ ⊦ a : A) entry
-
-Σ₀ sig
-Σ₁ sig
-σ : Σ₀ ⇒ Σ₁
-Σ₁ ⊦ E entry
------------------------------------------  //Defined by meta-level induction
-Σ₀ ⊦ E(σ) entry
-     (Γ ⊦ A)(σ) = Γ(σ) ⊦ A(σ)
-     (Γ ⊦ a : A)(σ) = Γ(σ) ⊦ a(σ) : A(σ)
-     (Γ ⊦ type)(σ) = Γ(σ) ⊦ type
-     (Γ ⊦ A type)(σ) = Γ(σ) ⊦ A(σ) type
-
-///////// Inference rules (sig entry instance) //////////
-
-Σ Γ ⊦ A type
---------------------
-Σ ⊦ γ.A : (Γ ⊦ type)
-
-Σ Γ ⊦ a : A type
------------------
-Σ ⊦ γ.a : (Γ ⊦ A)
-
-Σ Γ ⊦ a : A
--------------------
-Σ ⊦ _ : (Γ ⊦ a : A)
-
-Σ Γ ⊦ A type
---------------------
-Σ ⊦ _ : (Γ ⊦ A type)
-
-Σ₁ ⊦ E entry
-Σ₁ ⊦ e : E
-σ : Σ₀ ⇒ Σ₁
---------------------------------------- //Defined by meta-level induction
-Σ₀ ⊦ e(σ) : E(σ)
-     (γ.a)(σ) = γ. a(σ) : (Γ(σ) ⊦ A(σ))
-     (γ.A)(σ) = γ. A(σ) : (Γ(σ) ⊦ type)
-     _(σ) = _ : (Γ(σ) ⊦ a(σ) : A(σ))
-     _(σ) = _ : (Γ(σ) ⊦ A(σ) type)
-
-///////// Inference rules (sig substitution) //////////
-
-Σ sig
----------
-· : Σ ⇒ ε
-
-σ : Σ₀ ⇒ Σ₁
-Σ₁ ⊦ E entry
-Σ₀ ⊦ e : E(σ)
-----------------------
-σ, e : Σ₀ ⇒ Σ₁ E
-
-τ : Σ₀ ⇒ Σ₁
-σ : Σ₁ ⇒ Σ₂
----------------
-σ ∘ τ : Σ₀ ⇒ Σ₂
-
-Σ ⊦ E entry
------------
-↑ : Σ E ⇒ Σ
-
-Σ sig
-----------
-id : Σ ⇒ Σ
-
-σ : Σ ⇒ ε
--------------
-σ = · : Σ ⇒ ε
-
-σ : Σ₀ ⇒ Σ₁
---------------------
-id ∘ σ = σ : Σ₀ ⇒ Σ₁
-
-σ : Σ₀ ⇒ Σ₁
---------------------
-σ ∘ id = σ : Σ₀ ⇒ Σ₁
-
-σ₁₀ : Σ₁ ⇒ Σ₀
-σ₂₁ : Σ₂ ⇒ Σ₁
-σ₃₂ : Σ₃ ⇒ Σ₂
------------------------------------------------
-σ₁₀ ∘ (σ₂₁ ∘ σ₃₂) = (σ₁₀ ∘ σ₂₁) ∘ σ₃₂ : Σ₃ ⇒ Σ₀
-
-σ : Σ₁ ⇒ Σ₀
-Σ₀ ⊦ E entry
-Σ₁ ⊦ e : E(σ)
-----------------------------
-↑ ∘ (σ, e) = σ : Σ₁ ⇒ Σ₀
-
-τ : Σ₀ ⇒ Σ₁
-σ : Σ₁ ⇒ Σ₂
-Σ₂ ⊦ E entry
-Σ₁ ⊦ e : E(σ)
---------------------------------------------
-(σ, e) ∘ τ = (σ ∘ τ, e(τ)) : Σ₀ ⇒ Σ₂ E
-
+Γ ⊦ Δ tel
+----------- // list
+Γ ⊦ ē : Δ
 
 ///////// Inference rules (ctx) //////////
 
-Σ ⊦ ε ctx
+ε ctx
 
-Σ Γ ⊦ A type
-------------
-Σ ⊦ Γ A ctx
-
-σ : Σ₀ ⇒ Σ₁
-Γ₁ ⊦ Γ ctx
---------------- //Defined by meta-level induction on Γ
-Σ₀ ⊦ Γ(σ) ctx
-     ε(σ) ≔ ε
-     (Γ A)(σ) ≔ Γ(σ) A(σ)
+Γ ⊦ A type
+----------
+Γ A ctx
 
 ///////// Inference rules (ctx substitution) //////////
 
-Σ ⊦ Γ ctx
+Γ ctx
 -------------
-Σ ⊦ · : Γ ⇒ ε
+· : Γ ⇒ ε
 
-Σ ⊦ Γ ctx
+Γ ctx
 --------------
-Σ ⊦ id : Γ ⇒ Γ
+id : Γ ⇒ Γ
 
-Σ ⊦ Γ A ctx
+Γ A ctx
 ---------------
-Σ ⊦ ↑ : Γ A ⇒ Γ
+↑ : Γ A ⇒ Γ
 
-Σ ⊦ σ : Δ ⇒ Γ
-Σ ⊦ τ : Ξ ⇒ Δ
+// Definition:
+↑⁰ = id
+↑¹⁺ⁿ = ↑ ∘ ↑ⁿ
+
+σ : Γ₁ ⇒ Γ₂
+τ : Γ₀ ⇒ Γ₁
+-------------------
+σ ∘ τ : Γ₀ ⇒ Γ₂
+
+σ : Γ₀ ⇒ Γ₁
+Γ₁ ⊦ A type
+Γ₀ ⊦ t : A(σ)
+--------------------
+σ, t : Γ₀ ⇒ Γ₁ A
+
+Γ ctx
+σ : Γ ⇒ ε
 -----------------
-Σ ⊦ σ ∘ τ : Ξ ⇒ Γ
+σ = · : Γ ⇒ ε
 
-Σ ⊦ σ : Δ ⇒ Γ
-Σ Γ ⊦ A type
-Σ Δ ⊦ t : A(σ)
-------------------
-Σ ⊦ σ, t : Δ ⇒ Γ A
-
-σ : Σ₀ ⇒ Σ₁
-Σ₁ ⊦ τ : Γ ⇒ Δ
+σ : Γ₀ ⇒ Γ₁
 -----------------------
-Σ₀ ⊦ τ(σ) : Γ(σ) ⇒ Δ(σ)
+σ ∘ id = σ : Γ₀ ⇒ Γ₁
 
-Σ ⊦ Γ ctx
-Σ ⊦ σ : Γ ⇒ ε
------------------
-Σ ⊦ σ = · : Γ ⇒ ε
+σ : Γ₀ ⇒ Γ₁
+------------------------
+id ∘ σ = σ : Γ₀ ⇒ Γ₁
 
-Σ ⊦ σ : Γ ⇒ Δ
-----------------------
-Σ ⊦ σ ∘ id = σ : Γ ⇒ Δ
-
-Σ ⊦ σ : Γ ⇒ Δ
-----------------------
-Σ ⊦ id ∘ σ = σ : Γ ⇒ Δ
-
-Σ ⊦ σ₁₀ : Γ₁ ⇒ Γ₀
-Σ ⊦ σ₂₁ : Γ₂ ⇒ Γ₁
-Σ ⊦ σ₃₂ : Γ₃ ⇒ Γ₂
+σ₁₀ : Γ₁ ⇒ Γ₀
+σ₂₁ : Γ₂ ⇒ Γ₁
+σ₃₂ : Γ₃ ⇒ Γ₂
 ---------------------------------------------------
-Σ ⊦ σ₁₀ ∘ (σ₂₁ ∘ σ₃₂) = (σ₁₀ ∘ σ₂₁) ∘ σ₃₂ : Γ₃ ⇒ Γ₀
+σ₁₀ ∘ (σ₂₁ ∘ σ₃₂) = (σ₁₀ ∘ σ₂₁) ∘ σ₃₂ : Γ₃ ⇒ Γ₀
 
-Σ ⊦ σ : Δ ⇒ Γ
-Σ Γ ⊦ A type
-Σ Δ ⊦ t : A(σ)
---------------------------
-Σ ⊦ ↑ ∘ (σ, t) = σ : Δ ⇒ Γ
+σ : Γ₀ ⇒ Γ₁
+Γ₁ ⊦ A type
+Γ₀ ⊦ t : A(σ)
+----------------------------
+↑ ∘ (σ, t) = σ : Γ₀ ⇒ Γ₁
 
-Σ ⊦ τ : Γ₀ ⇒ Γ₁
-Σ ⊦ σ : Γ₁ ⇒ Γ₂
-Σ Γ₂ ⊦ A type
-Σ Γ₁ ⊦ t : A(σ)
+τ : Γ₀ ⇒ Γ₁
+σ : Γ₁ ⇒ Γ₂
+Γ₂ ⊦ A type
+Γ₁ ⊦ t : A(σ)
 ------------------------------------------
-Σ ⊦ (σ, t) ∘ τ = (σ ∘ τ, t(τ)) : Γ₀ ⇒ Γ₂ A
+(σ, t) ∘ τ = (σ ∘ τ, t(τ)) : Γ₀ ⇒ Γ₂ A
+
+σ : Γ₀ ⇒ Γ₁
+Γ₁ ⊦ A : 𝕌
+------------------------
+σ⁺ : Γ₀ A(σ) ⇒ Γ₁ A
+    σ⁺ ≔ σ ∘ ↑, x₀
 
 ///////// Inference rules (type) //////////
 
-Σ Γ ⊦ 𝟘 type
-
-Σ Γ ⊦ 𝟙 type
-
-Σ Γ ⊦ ℕ type
-
-Σ Γ ⊦ 𝕌 type
-
-Σ Γ ⊦ A : 𝕌
+Γ₁ ⊦ A type
+σ : Γ₀ ⇒ Γ₁
 ---------------
-Σ Γ ⊦ El A type
+Γ₀ ⊦ A(σ) type
 
-Σ Γ ⊦ A type
-Σ Γ A ⊦ B type
-----------------
-Σ Γ ⊦ A → B type
+Γ ⊦ A type
+--------------------
+Γ ⊦ A(id) = A type
 
-Σ Γ ⊦ A type
-Σ Γ A ⊦ B type
-----------------
-Σ Γ ⊦ A ⨯ B type
+Γ₂ ⊦ A type
+σ : Γ₁ ⇒ Γ₂
+τ : Γ₀ ⇒ Γ₁
+------------------------------
+Γ₀ ⊦ A(σ)(τ) = A(σ ∘ τ) type
 
-Σ Γ ⊦ A type
-Σ Γ ⊦ B type
-------------------
-Σ Γ ⊦ (A ≡ B) type
+Γ ⊦ 𝟘 type
 
-Σ Γ ⊦ A type
-Σ Γ ⊦ a₀ : A
-Σ Γ ⊦ a₁ : A
-------------------------
-Σ Γ ⊦ (a₀ ≡ a₁ ∈ A) type
+Γ ⊦ El 𝟘 = 𝟘 type  // NOTE: The two `𝟘`s have different meaning
 
-Σ₁ Γ ⊦ A type
-σ : Σ₀ ⇒ Σ₁
+σ : Γ₀ ⇒ Γ₁
 -------------------
-Σ₀ Γ(σ) ⊦ A(σ) type
+Γ₀ ⊦ 𝟘(σ) = 𝟘 type
 
-Σ Γ ⊦ A type
-Σ ⊦ σ : Δ ⇒ Γ
+Γ ⊦ 𝟙 type
+
+Γ ⊦ El 𝟙 = 𝟙 type
+
+σ : Γ₀ ⇒ Γ₁
+--------------------
+Γ₀ ⊦ 𝟙(σ) = 𝟙 type
+
+Γ ⊦ ℕ type
+
+Γ ⊦ El ℕ = ℕ type
+
+σ : Γ₀ ⇒ Γ₁
+--------------------
+Γ₀ ⊦ ℕ(σ) = ℕ type
+
+Γ ⊦ 𝕌 type
+
+σ : Γ₀ ⇒ Γ₁
+--------------------
+Γ₀ ⊦ 𝕌(σ) = 𝕌 type
+
+Γ ⊦ A : 𝕌
 ---------------
-Σ Δ ⊦ A(σ) type
+Γ ⊦ El A type
 
-Σ Γ ⊦ El 𝟘 = ℕ type
-
-Σ Γ ⊦ El 𝟙 = ℕ type
-
-Σ Γ ⊦ El ℕ = ℕ type
-
-Σ Γ ⊦ El 𝕌 = 𝕌 type
-
-Σ Γ ⊦ A : 𝕌
-Σ Γ (El A) ⊦ B : 𝕌
------------------------------------
-Σ Γ ⊦ El (A → B) = (El A → El B) type
-
-Σ Γ ⊦ A : 𝕌
-Σ Γ (El A) ⊦ B : 𝕌
------------------------------------
-Σ Γ ⊦ El (A ⨯ B) = (El A ⨯ El B) type
-
-Σ Γ ⊦ A : 𝕌
-Σ Γ ⊦ a₀ : El A
-Σ Γ ⊦ a₁ : El A
----------------------------------------------
-Σ Γ ⊦ El(a₀ ≡ a₁ ∈ A) = (a₀ ≡ a₁ ∈ El A) type
-
-Σ Γ ⊦ A : 𝕌
-Σ Γ ⊦ B : 𝕌
--------------------------------------
-Σ Γ ⊦ El (A ≡ B) = (El A ≡ El B) type
-
-Σ ⊦ σ : Δ ⇒ Γ
----------------------
-Σ Δ ⊦ 𝟘(σ) = ℕ type
-
-Σ ⊦ σ : Δ ⇒ Γ
----------------------
-Σ Δ ⊦ 𝟙(σ) = ℕ type
-
-Σ ⊦ σ : Δ ⇒ Γ
----------------------
-Σ Δ ⊦ ℕ(σ) = ℕ type
-
-Σ ⊦ σ : Δ ⇒ Γ
----------------------
-Σ Δ ⊦ 𝕌(σ) = 𝕌 type
-
-Σ ⊦ σ : Δ ⇒ Γ
-Σ Γ ⊦ A type
----------------------------------
-Σ ⊦ σ⁺ : Δ A(σ) ⇒ Γ A
-    σ⁺ ≔ σ ∘ ↑, x₀
-
-Σ ⊦ σ : Δ ⇒ Γ
-------------------------------------
-Σ Δ ⊦ (A → B)(σ) = A → B(σ⁺(A)) type
-
-Σ ⊦ σ : Δ ⇒ Γ
-------------------------------------
-Σ Δ ⊦ (A ⨯ B)(σ) = A ⨯ B(σ⁺(A)) type
-
-Σ ⊦ σ : Δ ⇒ Γ
--------------------------------------
-Σ Δ ⊦ (A ≡ B)(σ) = (A(σ) ≡ B(σ)) type
-
-Σ ⊦ σ : Δ ⇒ Γ
-----------------------------------------------------
-Σ Δ ⊦ (a₀ ≡ a₁ ∈ A)(σ) = (a₀(σ) ≡ a₁(σ) ∈ A(σ)) type
-
-Σ ⊦ σ : Δ ⇒ Γ
-Σ ⊦ τ : Ξ ⇒ Δ
+σ : Γ₀ ⇒ Γ₁
 -------------------------------
-Σ Ξ ⊦ A(σ)(τ) = A(σ ∘ τ) type
+Γ₀ ⊦ (El t)(σ) = El t(σ) type
 
-Σ (Γ ⊦ X : type) Γ ⊦ X type
+Γ ⊦ A type
+Γ A ⊦ B type
+σ : Γ₀ ⇒ Γ₁
+-------------------------------------
+Γ₀ ⊦ (A → B)(σ) = A(σ) → B(σ⁺) type
 
-Σ (Γ ⊦ X ≔ A : type) Γ ⊦ X type
+Γ ⊦ A : 𝕌
+Γ (El A) ⊦ B : 𝕌
+-----------------------------------
+Γ ⊦ El (A → B) = El A → El B type
+
+Γ ⊦ A type
+Γ A ⊦ B type
+σ : Γ₀ ⇒ Γ₁
+-------------------------------------
+Γ₀ ⊦ (A ⨯ B)(σ) = A(σ) ⨯ B(σ⁺) type
+
+Γ ⊦ A : 𝕌
+Γ (El A) ⊦ B : 𝕌
+-----------------------------------
+Γ ⊦ El (A ⨯ B) = El A ⨯ El B type
+
+Γ₁ ⊦ A type
+Γ₁ ⊦ a₀ : A
+Γ₁ ⊦ a₁ : A
+σ : Γ₀ ⇒ Γ₁
+--------------------------------------------------
+Γ ⊦ (a₀ ≡ a₁ ∈ A)(σ) = a₀(σ) ≡ a₁(σ) ∈ A(σ) type
+
+Γ ⊦ A : 𝕌
+Γ ⊦ a₀ : El A
+Γ ⊦ a₁ : El A
+--------------------------------------------
+Γ ⊦ El (a₀ ≡ a₁ ∈ A) = a₀ ≡ a₁ ∈ El A type
 
 ///////// Inference rules (tel) //////////
 
-Σ ⊦ Γ ctx
+Γ ctx
 -----------
-Σ Γ ⊦ ε tel
+Γ ⊦ ε tel
 
-Σ Γ A ⊦ Δ tel
+Γ A ⊦ Δ tel
 -------------
-Σ Γ ⊦ A Δ tel
+Γ ⊦ A Δ tel
 
-σ : Σ₀ ⇒ Σ₁
-Σ₁ Γ ⊦ Δ tel
-------------------  //Defined by meta-level induction
-Σ₀ Γ(σ) ⊦ Δ(σ) tel
-          ε(σ) = ε
-          (A Δ)(σ) = A(σ) Δ(σ)
-
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
-Σ Γ₁ ⊦ Δ tel
-------------------  //Defined by meta-level induction
-Σ Γ₀ ⊦ Δ(σ) tel
+σ : Γ₀ ⇒ Γ₁
+Γ₁ ⊦ Δ tel
+------------------  // Defined by meta-level induction
+Γ₀ ⊦ Δ(σ) tel
        ε(σ) = ε
        (A Δ)(σ) = A(σ) Δ(σ⁺)
 
 ///////// Inference rules (elem) //////////
 
-Σ Γ ⊦ 𝟘 : 𝕌
+Γ ⊦ 𝟘 : 𝕌
 
-Σ Γ ⊦ 𝟙 : 𝕌
+Γ ⊦ El 𝟘 = 𝟘 type
 
-Σ Γ ⊦ ℕ : 𝕌
-
-Σ Γ ⊦ () : 𝟙
-
-Σ Γ ⊦ Z : ℕ
-
-Σ Γ ⊦ t : ℕ
--------------
-Σ Γ ⊦ S t : ℕ
-
-Σ Γ ⊦ A : 𝕌
-Σ Γ (El A) ⊦ B : 𝕌
-----------------------
-Σ Γ ⊦ A → B : 𝕌
-
-Σ Γ ⊦ A : 𝕌
-Σ Γ (El A) ⊦ B : 𝕌
-----------------------
-Σ Γ ⊦ A ⨯ B : 𝕌
-
-Σ Γ ⊦ A : 𝕌
-Σ Γ ⊦ a₀ : El A
-Σ Γ ⊦ a₁ : El A
------------------------
-Σ Γ ⊦ (a₀ ≡ a₁ ∈ A) : 𝕌
-
-Σ Γ A ⊦ f : B
------------------
-Σ Γ ⊦ λ f : A → B
-
-Σ Γ ⊦ f : A → B
-Σ Γ ⊦ e : A
---------------------
-Σ Γ ⊦ f e : B(id, e)
-
-Σ Γ ⊦ a : A
-Σ Γ ⊦ b : B(id, a)
-----------------------------
-Σ Γ ⊦ a , b : A ⨯ B
-
-Σ Γ ⊦ t : A ⨯ B
----------------
-Σ Γ ⊦ t .π₁ : A
-
-Σ Γ ⊦ t : A ⨯ B
-------------------------------------
-Σ Γ ⊦ t .π₂ : B(id, (t : A ⨯ B) .π₁)
-
-Σ Γ ⊦ A type
---------------------
-Σ Γ ⊦ Refl : (A ≡ A)
-
-Σ Γ ⊦ a : A
-------------------------
-Σ Γ ⊦ Refl : (a ≡ a ∈ A)
-
-------------------------
-Σ Γ (x : 𝟘) ⊦ 𝟘-elim : A
-
-Σ Γ (x : ℕ) ⊦ A type
-Σ Γ ⊦ z : A(Z / x)
-Σ Γ (x : ℕ) (h : A) ⊦ s : A(S x / x)
-Σ Γ ⊦ t : ℕ
-------------------------------------
-Σ Γ ⊦ ℕ-elim A z h.s t : A(t / x)
-
+σ : Γ₀ ⇒ Γ₁
 -------------------
-Σ Γ (x : A) ⊦ x : A
+Γ₀ ⊦ 𝟘(σ) = 𝟘 : 𝕌
 
+Γ ⊦ 𝟙 : 𝕌
+
+Γ ⊦ El 𝟙 = 𝟙 type
+
+σ : Γ₀ ⇒ Γ₁
+-------------------
+Γ₀ ⊦ 𝟙(σ) = 𝟙 : 𝕌
+
+Γ ⊦ ℕ : 𝕌
+
+Γ ⊦ El ℕ = ℕ type
+
+σ : Γ₀ ⇒ Γ₁
+-------------------
+Γ₀ ⊦ ℕ(σ) = ℕ : 𝕌
+
+Γ ⊦ () : 𝟙
+
+Γ ⊦ Z : ℕ
+
+σ : Γ₀ ⇒ Γ₁
+-------------------
+Γ₀ ⊦ Z(σ) = Z : ℕ
+
+Γ ⊦ t : ℕ
+-------------
+Γ ⊦ S t : ℕ
+
+Γ₁ ⊦ t : ℕ
+σ : Γ₀ ⇒ Γ₁
+----------------------------
+Γ₀ ⊦ (S t)(σ) = S t(σ) : ℕ
+
+Γ ⊦ A : 𝕌
+Γ (El A) ⊦ B : 𝕌
+------------------
+Γ ⊦ A → B : 𝕌
+
+Γ₁ ⊦ A : 𝕌
+Γ₁ (El A) ⊦ B : 𝕌
+σ : Γ₀ ⇒ Γ₁
+------------------------------------
+Γ₀ ⊦ (A → B)(σ) = A → B(σ⁺(A)) : 𝕌
+
+Γ ⊦ A : 𝕌
+Γ (El A) ⊦ B : 𝕌
+------------------
+Γ ⊦ A ⨯ B : 𝕌
+
+Γ₁ ⊦ A : 𝕌
+Γ₁ (El A) ⊦ B : 𝕌
+σ : Γ₀ ⇒ Γ₁
+------------------------------------
+Γ₀ ⊦ (A ⨯ B)(σ) = A ⨯ B(σ⁺(A)) : 𝕌
+
+Γ ⊦ A : 𝕌
+Γ ⊦ a₀ : El A
+Γ ⊦ a₁ : El A
 -----------------------
-Σ (Γ ⊦ x : A) Γ ⊦ x : A
+Γ ⊦ (a₀ ≡ a₁ ∈ A) : 𝕌
 
----------------------------
-Σ (Γ ⊦ x ≔ a : A) Γ ⊦ x : A
+Γ₁ ⊦ A : 𝕌
+Γ₁ ⊦ a₀ : El A
+Γ₁ ⊦ a₁ : El A
+σ : Γ₀ ⇒ Γ₁
+----------------------------------------------------
+Γ₀ ⊦ (a₀ ≡ a₁ ∈ A)(σ) = (a₀(σ) ≡ a₁(σ) ∈ A(σ)) : 𝕌
 
-Σ Γ ⊦ t : A
-Σ ⊦ σ : Δ ⇒ Γ
+Γ A ⊦ f : B
 -----------------
-Σ Δ ⊦ t(σ) : A(σ)
+Γ ⊦ λ f : A → B
 
-Σ₁ Γ ⊦ t : A
-σ : Σ₀ ⇒ Σ₁
----------------------
-Σ₀ Γ(σ) ⊦ t(σ) : A(σ)
+Γ₁ A ⊦ f : B
+σ : Γ₀ ⇒ Γ₁
+----------------------------------------
+Γ₀ ⊦ (λ f)(σ) = λ f(σ⁺) : A(σ) → B(σ⁺)
 
-Σ Γ ⊦ t : 𝟙
-----------------
-Σ Γ ⊦ t = () : 𝟙
+Γ ⊦ f : A → B
+Γ ⊦ e : A
+--------------------
+Γ ⊦ f e : B(id, e)
 
-Σ Γ (x : A) ⊦ f : B
-Σ Γ ⊦ e : A
----------------------------------------
-Σ | Γ ⊦ (x ↦ f) e = f(e / x) : B(e / x)
+Γ₁ ⊦ f : A → B
+Γ₁ ⊦ e : A
+σ : Γ₀ ⇒ Γ₁
+----------------------------------------
+Γ₀ ⊦ (f e)(σ) = f(σ) e(σ) : B(σ, e(σ))
 
-Σ Γ ⊦ f : (x : A) → B
--------------------------------
-Σ Γ ⊦ x ↦ f x = f : (x : A) → B
+Γ ⊦ a : A
+Γ ⊦ b : B(id, a)
+----------------------------
+Γ ⊦ a , b : A ⨯ B
 
-Σ Γ (x : A) ⊦ B type
-Σ Γ ⊦ a : A
-Σ Γ ⊦ b : B(a / x)
---------------------------
-Σ Γ ⊦ (a, b) .π₁ = a : A
+Γ₁ ⊦ a : A
+Γ₁ ⊦ b : B(id, a)
+σ : Γ₀ ⇒ Γ₁
+----------------------------------------------
+Γ₀ ⊦ (a , b)(σ) = a(σ) , b(σ) : A(σ) ⨯ B(σ⁺)
 
-Σ Γ (x : A) ⊦ B type
-Σ Γ ⊦ a : A
-Σ Γ ⊦ b : B(a / x)
--------------------------------
-Σ Γ ⊦ (a, b) .π₂ = b : B(a / x)
+Γ ⊦ t : A ⨯ B
+---------------
+Γ ⊦ t .π₁ : A
 
-Σ Γ ⊦ t : (x : A) ⨯ B
----------------------------------------
-Σ Γ ⊦ (t .π₁ , t .π₂) = t : (x : A) ⨯ B
-
-Σ Γ ⊦ A ctx
-Σ ⊦ σ : Δ ⇒ Γ
-Σ Δ ⊦ t : A(σ)
--------------------------
-Σ Δ ⊦ x₀(σ, t) = t : A(σ)
-
-σ : Σ₀ ⇒ Σ₁
-Σ₀ ⊦ γ.t : (Γ(σ) ⊦ A(σ))
--------------------------------
-Σ₀ Γ(σ) ⊦ x₀(σ, γ.t) = t : A(σ)
-
-σ : Σ₀ ⇒ Σ₁
-Σ₀ ⊦ _ : (Γ(σ) ⊦ γ.t : A(σ))
------------------------------
-Σ₀ Γ(σ) ⊦ x₀(σ, _) = t : A(σ)
-
-Σ Γ ⊦ xᵢ : B
----------------------------
-Σ Γ A ⊦ xᵢ(↑) = xᵢ₊₁ : B(↑)
-
-Σ ⊦ σ : Δ ⇒ Γ
-Σ ⊦ τ : Ξ ⇒ Δ
-Σ Γ ⊦ A type
+Γ₁ ⊦ t : A ⨯ B
+σ : Γ₀ ⇒ Γ₁
 -----------------------------------
-Σ Ξ ⊦ t(σ)(τ) = t(σ ∘ τ) : A(σ ∘ τ)
+Γ₀ ⊦ (t .π₁)(σ) = t(σ) .π₁ : A(σ)
 
-Σ Γ (x : ℕ) ⊦ A type
-Σ Γ ⊦ z : A(Z / x)
-Σ Γ (x : ℕ) (h : A) ⊦ s : A(S x / x)
+Γ ⊦ t : A ⨯ B
+---------------------------
+Γ ⊦ t .π₂ : B(id, t .π₁)
+
+Γ₁ ⊦ t : A ⨯ B
+σ : Γ₀ ⇒ Γ₁
+---------------------------------------------
+Γ₀ ⊦ (t .π₂)(σ) = t(σ) .π₂ : B(σ, t(σ) .π₁)
+
+Γ ⊦ a : A
+------------------------
+Γ ⊦ Refl : (a ≡ a ∈ A)
+
+Γ₁ ⊦ a : A
+σ : Γ₀ ⇒ Γ₁
+--------------------------------------------
+Γ₀ ⊦ Refl(σ) = Refl : (a(σ) ≡ a(σ) ∈ A(σ))
+
+Γ₁ ⊦ A type
+Γ₁ ⊦ t : 𝟘
+σ : Γ₀ ⇒ Γ₁
 -----------------------------------------
-Σ Γ ⊦ ℕ-elim x.A z x.h.s Z = z : A(Z / x)
+Γ₀ ⊦ (𝟘-elim t)(σ) = 𝟘-elim t(σ) : A(σ)
 
-Σ Γ (x : ℕ) ⊦ A type
-Σ Γ ⊦ z : A(Z / x)
-Σ Γ (x : ℕ) (h : A) ⊦ s : A(S x / x)
-Σ Γ ⊦ t : ℕ
+Γ ℕ ⊦ A type
+Γ ⊦ z : A(id, Z)
+Γ ℕ A ⊦ s : A(↑, S ☐₀)
+Γ ⊦ t : ℕ
+-------------------------------
+Γ ⊦ ℕ-elim A z s t : A(id, t)
+
+Γ₁ ℕ ⊦ A type
+Γ₁ ⊦ z : A(id, Z)
+Γ₁ ℕ A ⊦ s : A(↑, S ☐₀)
+Γ₁ ⊦ t : ℕ
+σ : Γ₀ ⇒ Γ₁
+-----------------------------------------------------------------------
+Γ₀ ⊦ (ℕ-elim A z s t)(σ) = ℕ-elim A(σ⁺) z(σ) s(σ⁺⁺) t(σ) : A(σ, t(σ))
+
+|Γ₁| = n
+------------------------
+Γ₀ A Γ₁ ⊦ ☐ₙ : A(↑¹⁺ⁿ)
+
+Γ₁ ⊦ t : A
+σ : Γ₀ ⇒ Γ₁
+------------------
+Γ₀ ⊦ t(σ) : A(σ)
+
+Γ ⊦ t : 𝟙
+----------------
+Γ ⊦ t = () : 𝟙
+
+Γ A ⊦ f : B
+Γ ⊦ e : A
+-----------------------------------
+Γ ⊦ (λ f) e = f(id, e) : B(id, e)
+
+Γ ⊦ f : A → B
+----------------------------------
+Γ ⊦ λ (f(↑) ☐₀) = f : A → B
+
+Γ A ⊦ B type
+Γ ⊦ a : A
+Γ ⊦ b : B(id, a)
+------------------------
+Γ ⊦ (a, b) .π₁ = a : A
+
+Γ A ⊦ B type
+Γ ⊦ a : A
+Γ ⊦ b : B(id, a)
+-------------------------------
+Γ ⊦ (a, b) .π₂ = b : B(id, a)
+
+Γ ⊦ t : A ⨯ B
+---------------------------------
+Γ ⊦ (t .π₁ , t .π₂) = t : A ⨯ B
+
+Γ₁ ⊦ A ctx
+σ : Γ₀ ⇒ Γ₁
+Γ₀ ⊦ t : A(σ)
+--------------------------
+Γ₀ ⊦ ☐₀(σ, t) = t : A(σ)
+
+...
+-------------------------
+Γ ⊦ ☐ᵢ(↑) = ☐ᵢ₊₁ : ...
+
+σ : Γ₁ ⇒ Γ₂
+τ : Γ₀ ⇒ Γ₁
+Γ₂ ⊦ A type
+------------------------------------
+Γ₀ ⊦ t(σ)(τ) = t(σ ∘ τ) : A(σ ∘ τ)
+
+Γ ℕ ⊦ A type
+Γ ⊦ z : A(id, Z)
+Γ ℕ A ⊦ s : A(↑, S ☐₀)
+----------------------------------------
+Γ ⊦ ℕ-elim A z s Z = z : A(id, Z)
+
+Γ ℕ ⊦ A type
+Γ ⊦ z : A(id, Z)
+Γ ℕ A ⊦ s : A(↑, S ☐₀)
+Γ ⊦ t : ℕ
 ------------------------------------------------------------------------
-Σ Γ ⊦ ℕ-elim x.A z x.h.s (S t) = s(t, ℕ-elim x.A z x.h.s t) : A(S t / x)
-
-Γ ⊦ p : A ≡ B
---------------------          //
-Γ ⊦ A = B type                // Note: Those two rules are enough to derive J and its β and η rules
-                              // Pretty sure (J, J-β, J-η) is equivalent to those rules.
-Γ ⊦ p : A ≡ B                 //
-----------------------------  //
-Γ ⊦ p = Refl : (A ≡ B)
+Γ ⊦ ℕ-elim A z s (S t) = s(id, t, ℕ-elim A z s t) : A(id, S t)
 
 Γ ⊦ a : a₀ ≡ a₁ ∈ A
---------------------          //
-Γ ⊦ a₀ = a₁ : A               // Note: Those two rules are enough to derive J and its β and η rules
-                              // Pretty sure (J, J-β, J-η) is equivalent to those rules.
-Γ ⊦ a : a₀ ≡ a₁ ∈ A           //
-----------------------------  //
-Γ ⊦ a = Refl : (a₀ ≡ a₁ ∈ A)
+--------------------         // Note: Those two rules are enough to derive J and its β and η rules
+Γ ⊦ a₀ = a₁ : A             // Pretty sure (J, J-β, J-η) is equivalent to this rule.
+
 
 ///////// Inference rules (elem list) //////////
 
-Σ Γ ⊦ · : ε
+Γ ⊦ · : ε
 
-Σ Γ ⊦ Δ tel
-Σ Γ ⊦ e : A
-Σ Γ ⊦ ē : Δ(e / x)
----------------------
-Σ Γ ⊦ e ē : (x : A) Δ
-
-Σ Γ₁ ⊦ Δ tel
-Σ Γ₁ ⊦ ē : Δ
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
----------------------------------------------- //Defined by meta-level induction
-Σ Γ₀ ⊦ ē(σ) : Δ(σ)
-       ·(σ) ≔ · : ε
-       (e ē)(σ) ≔ e(σ) ē(σ) : (x : A(σ)) Δ(σ⁺)
-
-Σ₁ Γ ⊦ Δ tel
-Σ₁ Γ ⊦ ē : Δ
-σ : Σ₀ ⇒ Σ₁
------------------------------------------------- //Defined by meta-level induction
-Σ₀ Γ(σ) ⊦ ē(σ) : Δ(σ)
-          ·(σ) ≔ · : ε
-          (e ē)(σ) ≔ e(σ) ē(σ) : (x : A(σ)) Δ(σ)
-
-Σ Γ ⊦ · = · : ε
-
-Σ Γ ⊦ e₀ = e₁ : A
-Σ Γ ⊦ ē₀ = ē₁ : Δ(e₀)
--------------------------------
-Σ Γ ⊦ e₀ ē₀ = e₁ ē₁ : (x : A) Δ
-
-///////// Inference rules (dsig) //////////
-
-Σ ⊦ ε dsig
-
-Σ ⊦ E entry
-Σ (x : E) ⊦ Ξ dsig
+Γ ⊦ Δ tel
+Γ ⊦ e : A
+Γ ⊦ ē : Δ(id, e)
 ------------------
-Σ ⊦ (x : E) Ξ dsig
+Γ ⊦ e ē : A Δ
 
-Σ₁ ⊦ Ξ dsig
-σ : Σ₀ ⇒ Σ₁
--------------------------------------- //Defined by meta-level induction
-Σ₀ ⊦ Ξ(σ) dsig
-     ε(σ) = ε
-     ((x : E) Ξ)(σ) = (x : E(σ)) Ξ(σ⁺)
+Γ₁ ⊦ Δ tel
+Γ₁ ⊦ ē : Δ
+σ : Γ₀ ⇒ Γ₁
+---------------------------------------------- //Defined by meta-level induction
+Γ₀ ⊦ ē(σ) : Δ(σ)
+       ·(σ) ≔ · : ε
+       (e ē)(σ) ≔ e(σ) ē(σ) : A(σ) Δ(σ⁺)
 
-///////// Inference rules (dsig substitution) //////////
+Γ ⊦ · = · : ε
 
-Σ ⊦ Ξ dsig
---------------
-Σ ⊦ id : Ξ ⇒ Ξ
-
-Σ ⊦ ξ₀₁ : Ξ₀ ⇒ Ξ₁
-Σ ⊦ ξ₁₂ : Ξ₁ ⇒ Ξ₂
------------------------
-Σ ⊦ ξ₁₂ ∘ ξ₀₁ : Ξ₀ ⇒ Ξ₂
-
-Σ Ξ₀ ⊦ e : E
-Σ ⊦ ξ : Ξ₀ ⇒ Ξ₁(e / x)
----------------------------
-Σ ⊦ e , ξ : Ξ₀ ⇒ (x : E) Ξ₁
-
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ⊦ e : A
---------------------------------------------------
-Σ ⊦ (Γ ⊦ let x ≔ e : A) : (Γ ⊦ x ≔ e : A) Ξ(↑) ⇒ Ξ
-
-???
--------------------------------
-Σ ⊦ rewrite p t : (Γ ⊦ x : A) Ξ
-
-Σ ⊦ Ξ dsig
--------------
-Σ ⊦ · : Ξ ⇒ ε
-
-///////// Inference rules (dsig instance) //////////
-
-Σ ⊦ · : ε
-
-Σ ⊦ E entry
-Σ (x : E) ⊦ Ξ dsig
-Σ ⊦ e : E
-Σ ⊦ ē : Ξ(e / x)
--------------------
-Σ ⊦ e ē : (x : E) Ξ
-
-Σ ⊦ ξ : Ξ₀ ⇒ Ξ₁
-Σ ⊦ ē : Ξ₀
---------------- //Defined by meta-level induction
-Σ ⊦ ξ ē : Ξ₁
-    id ē = ē
-    (ξ₁₂ ∘ ξ₀₁) ē = ξ₁₂ (ξ₀₁ ē)
-    · ē = ·
-    (Γ ⊦ let x ≔ e : A) (_, ē) = ē
-    (e , ξ) ē = e (ξ ē)
-
+Γ ⊦ e₀ = e₁ : A
+Γ ⊦ ē₀ = ē₁ : Δ(id, e₀)
+-------------------------
+Γ ⊦ e₀ ē₀ = e₁ ē₁ : A Δ

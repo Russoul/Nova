@@ -1,24 +1,29 @@
+collection = "nightly-250914"
+
+[install]
+safety-prompt = false
+
 [idris2]
 url   = "https://github.com/idris-lang/Idris2"
-commit  = "913b74960461be07d4cd3a82208f1a4e66113efb"
+commit  = "0e9b01d0400593fa99b320c56f6e77406a4eb968"
 
 [custom.all.just-a-parser]
 type        = "github"
 url         = "https://github.com/Russoul/Just-a-Parser"
-commit      = "1220108ddd5c02e8a0502532de291153e29e6bc7"
+commit      = "6851d06fe1701905f8a65902d6ad8a1b67532757"
 ipkg        = "just-a-parser.ipkg"
+packagePath = false
 
-[custom.all.nova-api]
-type        = "local"
-path        = "."
-ipkg        = "nova-api.ipkg"
+[custom.all.lsp-lib]
+type        = "github"
+url         = "https://github.com/idris-community/lsp-lib"
+commit      = "ca77e80a392b8cfeee3aaeb150069957699cdb82"
+ipkg        = "lsp-lib.ipkg"
+packagePath = false
 
-[custom.all.nova-bin]
-type        = "local"
-path        = "."
-ipkg        = "nova-bin.ipkg"
-
-[custom.all.nova-lsp]
-type        = "local"
-path        = "/Users/russoul/Projects/nova-lsp"
-ipkg        = "nova-lsp.ipkg"
+[custom.all.idris2-lsp]
+type        = "github"
+url         = "https://github.com/Russoul/idris2-lsp"
+commit      = "c5c6b6f15ae16073b3f30c4623d727ae5a575f04"
+ipkg        = "idris2-lsp.ipkg"
+packagePath = true

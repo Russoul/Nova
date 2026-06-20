@@ -1,6 +1,7 @@
 module Nova.Surface.SemanticToken
 
-import Me.Russoul.Data.Location
+import Me.Russoul.Text.Range
+import Me.Russoul.Text.Position
 
 import Data.AVL
 import Data.Maybe
@@ -50,8 +51,8 @@ SemanticToken = (Range, TermAnn)
 
 public export
 SemanticTokens : Type
-SemanticTokens = OrdTree (FileName, String, SnocList SemanticToken) ByFst
+SemanticTokens = OrdTree (String, String, SnocList SemanticToken) ByFst
 
 public export
 sortSemanticTokens : SnocList SemanticToken -> SnocList SemanticToken
-sortSemanticTokens = quicksort @{Ord.ByFst @{Range.Inst}}
+sortSemanticTokens = quicksort @{Ord.ByFst}

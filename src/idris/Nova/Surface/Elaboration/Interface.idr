@@ -1,6 +1,7 @@
 module Nova.Surface.Elaboration.Interface
 
-import Me.Russoul.Data.Location
+import Me.Russoul.Text.Range
+import Me.Russoul.Text.Position
 
 import Nova.Control.Monad.Id
 import Nova.Control.Monad.St
@@ -95,7 +96,7 @@ public export
 range : ElaborationEntry -> Range
 range (ElemElaboration ctx tm n ty) = range tm
 range (TypeElaboration ctx tm n) = range tm
-range (ElemElimElaboration ctx head headTy [] n ty) = MkRange (0, 0) (0, 0) -- FIX: we need to come up with something in that case
+range (ElemElimElaboration ctx head headTy [] n ty) = MkRange (MkPosition 0 0) (MkPosition 0 0) -- FIX: we need to come up with something in that case
 range (ElemElimElaboration ctx head headTy ((r, _) :: _) n ty) = r
 
 namespace Elaboration.Fixpoint

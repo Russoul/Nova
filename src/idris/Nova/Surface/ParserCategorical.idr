@@ -1,6 +1,6 @@
 module Nova.Surface.ParserCategorical
 
-import Me.Russoul.Data.Location
+import Me.Russoul.Text.Range
 import Me.Russoul.Text.Lexer.Token
 
 import Data.List.Elem

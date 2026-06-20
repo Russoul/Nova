@@ -1,7 +1,5 @@
 module Nova.Core.Unification
 
-import Me.Russoul.Data.Location
-
 import Data.List
 import Data.SnocList
 import Data.Util

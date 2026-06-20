@@ -1,0 +1,147 @@
+0 : ℕ
+S : ℕ -> ℕ
+ℕ-elim : (P : ℕ -> 𝕌) (z : P 0) (s : (n : ℕ) -> P n -> P (S n)) -> (n : ℕ) -> P n
+ℕ-elim-0 P z s : ℕ-elim P z s 0 = z ∈ P 0
+ℕ-elim-S P z s x : ℕ-elim P z s (S x) = s x (ℕ-elim P z s x) ∈ P (S x)
+
+ℕ-elim-U : (P : ℕ -> 𝕌) (z : P 0) (s : (n : ℕ) -> P n -> P (S n)) (f : (x : ℕ) -> P x)
+           -> f 0 = z -> ((n : ℕ) -> f (S n) = s n (f n)) -> f = ℕ-elim P z s // Provable
+
+f x = ℕ-elim P z s
+∎
+- f 0 = ℕ-elim P z s 0 = z
+  =
+  z
+- ∀n. (f n = ℕ-elim P z s n) -> f (S n) = ℕ-elim P z s (S n) = s n (ℕ-elim P z s n)
+                                   =                              |
+                                s n (f n) - - - - - - - - - - - - -
+                                   ^                              ^
+                                   |                              |
+                                   f n - - - - - - - - - - - - - ℕ-elim P z s n        ∎
+
+[] : Vect 0 A
+(::) : A -> Vect n A -> Vect (S n) A
+Vect-elim : (P : (n : ℕ) -> Vect n A -> 𝕌) (nil : P 0 []) (cons : (n : ℕ) (x : A) (xs : Vect n A) -> P n xs -> P (S n) (x :: xs))
+            (n : ℕ)
+            (xs : Vect n A)
+            ->
+            P n xs
+Vect-elim-nil P nil cons : Vect-elim P nil cons 0 [] = nil ∈ P 0 []
+Vect-elim-cons P nil cons n x xs : Vect-elim P nil cons (S n) (x :: xs) = cons n x xs (Vect-elim P nil cons n xs) ∈ P (S n) (x :: xs)
+Vect-elim-U : (P : (n : ℕ) -> Vect n A -> 𝕌) (nil : P 0 []) (cons : (n : ℕ) (x : A) (xs : Vect n A) -> P n xs -> P (S n) (x :: xs))
+              (f : (n : ℕ) -> (xs : Vect n A) -> P n xs)
+              -> f 0 [] = nil -> ((n : ℕ) (x : A) (xs : Vect n A) -> f (S n) (x :: xs) = cons n x xs (f n xs))
+              -> f = Vect-elim P nil cons // Provable
+
+
+(+) : ℕ -> ℕ -> ℕ
+plus-left-0 m : 0 + m = m ∈ ℕ
+plus-left-S m n : S n + m = S (n + m) ∈ ℕ
+
+// Prove that (+) and its two defining equations define a unique function.
+
+ℕ-elim-U (const $ ℕ -> ℕ) (\x. x) (\n. \h. \m. S (h m)) (+) (funext $ \m. plus-left-0 m)
+         (\n. funext $ \m. plus-left-S m n) : (+) = ℕ-elim (const $ ℕ -> ℕ) (\x. x) (\n. \h. \m. S (h m))
+
+
+(A : 𝕌) (x : A) (y : A) |- (x = y ∈ A) : 𝕌
+{A : 𝕌} {x : A} |- Refl : x = x ∈ A
+J : (A : 𝕌) (a₀ : A) (B : Σ (x : A) (a₀ = x) -> 𝕌) (r : B (a₀, Refl)) (a₁ : A) (p : a₀ = a₁) -> B (a₁, p)
+J-Refl : J A a₀ B r a₀ Refl = r ∈ B (a₀, Refl)
+J-U : (A : 𝕌) (a₀ : A) (B : Σ (x : A) (a₀ = x) -> 𝕌) (r : B (a₀, Refl)) (f : (w : Σ (x : A) (a₀ = x)) -> B w)
+      -> f = J A a₀ B (f (a₀, Refl))        // Provable from J and J-Refl
+
+
+
+sym-ap : (f : A -> B) -> (α : x = y ∈ A) -> ap f (α⁻¹) = (ap f α)⁻¹
+sym-ap f Refl = ? : ap f (Refl⁻¹) = (ap f Refl)⁻¹ = Refl⁻¹ = Refl
+                       =
+                    ap f Refl
+                       =
+                       Refl
+
+
+(++) : Vect m A -> Vect n A -> Vect (m + n) A
+append-left-nil ys : [] ++ ys = coe (Vect (plus-left-0 n) A)⁻¹ ys ∈ Vect (0 + n) A
+append-left-cons x xs ys : x :: xs ++ ys = coe (Vect (plus-left-S n m) A)⁻¹ (x :: xs ++ ys)
+
+
+
+Stream : 𝕌 -> 𝕌
+(.head) : Stream A -> A
+(.tail) : Stream A -> Stream A
+Stream-corec : (S -> A ⨯ S) -> S -> Stream A
+Stream-corec-head f s .head = f s .π₁
+Stream-corec-tail f s .tail = Stream-corec f (f s .π₂)
+Stream-recoc-unique : (g : S -> A ⨯ S) (f : S -> Stream A) -> (∀s. (f s .head = g s .π₁) -> (f s .tail = f (g s .π₂))) -> f = Stream-corec g
+
+
+nats : ℕ -> Stream ℕ          //
+nats n .head = n              // = 𝟙
+nats n .tail = nats (S n)     //
+
+Contr A ≜ (c : A) ⨯ ((x : A) -> c = x)
+
+{A : 𝕌} (B : A -> 𝕌) (p : a = a' ∈ A) (b : B a) (b' : B a') |- b = b' ∈ B / p ≜ (transp A B p b = b' ∈ B a') : 𝕌
+
+
+sigma⁼ : (A : 𝕌) (B : A -> 𝕌) (p : a = a' ∈ A) (q : b = b' ∈ B / p) -> (a, b) = (a', b') ∈ Σ (x : A) (B x)
+sigma⁼-β : sigma⁼ A B Refl (q : b = b' ∈ B / Refl) = ? A B (coe () q)
+=
+
+? : (A : 𝕌) (B : A -> 𝕌) (q : transp A B Refl b = b' ∈ B a') -> (a, b) = (a', b') ∈ Σ (x : A) (B x)
+
+? : (A : 𝕌) (B : A -> 𝕌) (q : b = b' ∈ B a') -> (a, b) = (a', b') ∈ Σ (x : A) (B x)
+
+
+contractibility-of-singletons : (A : 𝕌) (a₀ : A) -> Contr ((x : A) ⨯ a₀ = x)
+contractibility-of-singletons A a₀ = ((a₀, Refl), \(p : (x : A) ⨯ a₀ = x). (a₀, Refl) = p}
+
+Equiv A B ≜ Σ (R : A ⨯ B -> 𝕌) Σ (f : (x : A) -> Contr ((y : B) ⨯ R x y))
+                                 (g : (y : B) -> Contr ((x : A) ⨯ R x y))
+
+
+coe : A = B -> Equiv A B
+coe Refl = ((=), \x. contractibility-of-singletons x, ?)
+
+IsEquiv f ≜ ((R, α, β) : Equiv A B) ⨯ f = \x. α x .π₁ .π₁
+
+? : Contr (IsEquiv f)
+
+ua : IsEquiv coe // Univalence axiom
+
+
+Γ (x : A) (p : a₀ = x) |- f : B x p
+
+Γ (x : A) (p : a₀ = x) |- f = J A a₀ B f[a₀ / x, Refl / p] x p : B
+
+Δ |- f[a₀ / x, Refl / p] = J A a₀ B f[a₀ / x, Refl / p] a₀ Refl : B[a₀ / x, Refl / p]
+                                  =
+                           f[a₀ / x, Refl / p]
+
+// eta rule must hold on canonical substitutions!
+
+Γ (x : A) (y : B) ⊦ f : C
+------------------------------------
+Γ (p : (x : A) ⨯ B) ⊦ proj x.y.f : C
+
+
+Γ (p : (x : A) ⨯ B) ⊦ f : C
+
+Γ (p : (x : A) ⨯ B) ⊦ f = proj x.y. f[(x, y)]  : C
+Δ ⊦ f[σ, (a, b)] = f[σ, (a, b)] : C
+
+
+Γ ((x : A) -> B) (x : A) |- f : B
+Γ ((x : A) -> B) (x : A) |- f = @ : B
+
+
+f : S¹ -> X
+f Base = a
+
+ap f Loop = b ∈ a = a
+
+
+f : S¹ -> X
+f Base = a
+f (Loop i) = b | i = 0 ∨ i = 1 ↪ a

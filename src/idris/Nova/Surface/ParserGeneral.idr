@@ -1,6 +1,6 @@
 module Nova.Surface.ParserGeneral
 
-import Me.Russoul.Data.Location
+import Me.Russoul.Text.Range
 import Me.Russoul.Text.Lexer.Token
 import Me.Russoul.Text.Lexer
 import public Me.Russoul.Text.Parser
@@ -34,53 +34,30 @@ appendSemanticToken tok = do
   update {semToks $= (:< tok)}
 
 ||| Run the parser on the list of tokens,
-||| expecting partial consumption of the input.
-export
-parsePartial : (initial : ParsingSt)
-            -> (act : Grammar ParsingSt Token ty)
-            -> (xs : List (WithBounds Token))
-            -> Either
-                  (List1 (ParsingError Token ParsingSt))
-                  (ParsingSt, List (WithBounds Token), ty)
-parsePartial st act xs = do
-  (toks, x, rest) <- parseWith st act xs
-  Right (toks, rest, x)
-
-||| Run the parser on the list of tokens,
 ||| expecting full consumption of the input.
 ||| Trims leading & trailing whitespace.
 export
 parseFull : (initial : ParsingSt)
          -> (act : Grammar ParsingSt Token ty)
          -> (xs : List Char)
-         -> Either (List1 (ParsingError Token ParsingSt)) (ParsingSt, ty)
+         -> Either (ParsingError Token ParsingSt) (ParsingSt, ty)
+         -- -> Either (ParsingError tok st) (st, Maybe Range, ty, List (Range, tok))
 parseFull st act xs = do
   let (toks0, tok) = tokenise xs
   let st = {semToks $= (++ (toks0 <&> (, CommentAnn)))} st
-  (st, x, []) <- parseWith st act tok
-    | (_, x, toks@(tok :: _)) =>
-        Left (singleton $ Error "Some input left unconsumed" st (Just tok.bounds))
+  (st, _, x, _) <- parseWith st (act <* eof) tok
   Right (st, x)
-
-export
-parseFull' : (initial : ParsingSt)
-          -> (act : Grammar ParsingSt Token ty)
-          -> (xs : String)
-          -> Either (ParsingError Token ParsingSt) (ParsingSt, ty)
-parseFull' st act xs =
-  mapFst head (parseFull st act (fastUnpack xs))
 
 public export
 located : Rule a -> Rule (Range, a)
 located x = do
-  t <- bounds x
-  pure (cast t.bounds, t.val)
+  (Just r, t) <- bounds x
+    | _ => assert_total $ idris_crash "No bounds"
+  pure (r, t)
 
 public export
 located_ : Rule a -> Rule Range
-located_ x = do
-  t <- bounds x
-  pure (cast t.bounds)
+located_ x = map fst (located x)
 
 public export
 exact : String -> Rule Range

@@ -1,6 +1,6 @@
 module Nova.Surface.Elaboration.Implementation.Common
 
-import Me.Russoul.Data.Location
+import Me.Russoul.Text.Range
 
 import Data.AVL
 import Data.List

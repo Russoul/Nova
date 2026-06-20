@@ -1,6 +1,6 @@
 module Nova.Surface.Elaboration.Pretty
 
-import Me.Russoul.Data.Location
+import Me.Russoul.Text.Range
 
 import Nova.Control.Monad.Id
 import Nova.Control.Monad.Reader
