@@ -1,0 +1,9 @@
+package nova-foundation-tests
+version = 0.1.0
+
+depends = contrib, just-a-parser, test
+
+sourcedir = "src/idris"
+
+main = Nova.Foundation.Test.Main
+executable = nova-foundation-tests
