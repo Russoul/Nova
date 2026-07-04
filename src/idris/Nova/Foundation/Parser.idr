@@ -20,6 +20,7 @@ sp : Rule ()
 sp = optSpace
 
 -- Parse content surrounded by parentheses
+export
 inParen : Rule a -> Rule a
 inParen p = do
   char_ '('
@@ -134,7 +135,7 @@ mutual
 
   -- Atomic elements: constants, or parenthesised expression.
   -- After '(' peek for ')' to distinguish () = OneIntro from (e).
-  covering
+  export covering
   parseElemAtom : Rule Elem
   parseElemAtom =
         (str_ "☐" $> CtxVar)

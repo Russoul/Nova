@@ -3,6 +3,11 @@ version = 0.1.0
 
 depends = contrib, just-a-parser, test
 
+modules = Nova.Foundation.Syntax
+        , Nova.Foundation.Derivation
+        , Nova.Foundation.Parser
+        , Nova.Foundation.Derivation.Parser
+
 sourcedir = "src/idris"
 
 main = Nova.Foundation.Test.Main

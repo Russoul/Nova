@@ -6,6 +6,8 @@ import Test.Golden
 
 import Nova.Foundation.Syntax
 import Nova.Foundation.Parser
+import Nova.Foundation.Derivation
+import Nova.Foundation.Derivation.Parser
 
 -- ===== Display helpers for top-level aliases =====
 
@@ -40,16 +42,24 @@ showSpine es = "[" ++ joinWith ", " (map show es) ++ "]"
 -- ===== Parser mode =====
 -- Invoked as: nova-foundation-tests run PARSER INPUT
 
+joinWith : String -> List String -> String
+joinWith _ []       = ""
+joinWith _ [x]      = x
+joinWith sep (x :: xs) = x ++ sep ++ joinWith sep xs
+
 runParse : String -> String -> IO ()
 runParse parser input =
   case parser of
-    "sub"   => putStrLn $ either (const "ERROR") show (runParser parseSub input)
-    "ty"    => putStrLn $ either (const "ERROR") show (runParser parseTy input)
-    "elem"  => putStrLn $ either (const "ERROR") show (runParser parseElem input)
-    "ctx"   => putStrLn $ either (const "ERROR") showCtx (runParser parseCtx input)
-    "tel"   => putStrLn $ either (const "ERROR") showTel (runParser parseTel input)
-    "spine" => putStrLn $ either (const "ERROR") showSpine (runParser parseSpine input)
-    _       => putStrLn "ERROR: unknown parser '\{parser}'"
+    "sub"          => putStrLn $ either (const "ERROR") show (runParser parseSub input)
+    "ty"           => putStrLn $ either (const "ERROR") show (runParser parseTy input)
+    "elem"         => putStrLn $ either (const "ERROR") show (runParser parseElem input)
+    "ctx"          => putStrLn $ either (const "ERROR") showCtx (runParser parseCtx input)
+    "tel"          => putStrLn $ either (const "ERROR") showTel (runParser parseTel input)
+    "spine"        => putStrLn $ either (const "ERROR") showSpine (runParser parseSpine input)
+    "compute"      => putStrLn $ either (const "ERROR") show (runParser parseComputeRule input)
+    "typing"       => putStrLn $ either (const "ERROR") show (runParser parseTypingRule input)
+    "typing-list"  => putStrLn $ either (const "ERROR") (joinWith "\n" . map show) (runParser parseListTypingRule input)
+    _              => putStrLn "ERROR: unknown parser '\{parser}'"
 
 -- ===== Test suite mode =====
 -- Invoked as: nova-foundation-tests PATH_TO_SELF [golden-options...]
