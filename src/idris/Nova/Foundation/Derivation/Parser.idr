@@ -108,9 +108,16 @@ mkTyWfRule _ _               = fail "substituted type cannot be a direct TyWf ru
 -- Parse the content after "Γ ⊦".
 parseTurnstileContent : Ctx -> Rule TypingRule
 parseTurnstileContent ctx =
-  -- 1. Type form: parseTy followed by keyword "type"
-  (do ty <- parseTy; sp; str_ "type"
-      mkTyWfRule ctx ty) <|>
+  -- 1. Type form: parseTy followed by "=" Ty type [via Ty] or "type"
+  (do ty0 <- parseTy; sp
+      (do str_ "="; sp; ty1 <- parseTy; sp; str_ "type"
+          -- optional "via mid"
+          (do sp; str_ "via"; sp; tyMid <- parseTy
+              pure (TyEqTrans ctx ty0 tyMid ty1)) <|>
+          if ty0 == ty1
+            then pure (TyEqRefl ctx ty0)
+            else pure (TyEqSym ctx ty1 ty0)) <|>
+      (str_ "type" *> mkTyWfRule ctx ty0)) <|>
   -- 2. Refl : e ∈ A  (ElemWfRefl)
   (do str_ "Refl"; sp; char_ ':'; sp
       e <- parseElemAtom; sp; str_ "∈"; sp; ty <- parseTy
@@ -125,9 +132,19 @@ parseTurnstileContent ctx =
         _ => fail "expected sigma type in sigma elimination annotation") <|>
   -- 4. General elem dispatch
   (do e <- parseElem
-      -- With type annotation ": ty"
-      (do sp; char_ ':'; sp; ty <- parseTy
-          case (e, ty) of
+      -- "e = e' : A [via mid]" — ElemEq rules
+      (do sp; str_ "="; sp; e1 <- parseElem; sp; char_ ':'; sp; ty <- parseTy
+          (do sp; str_ "via"; sp; eMid <- parseElem
+              pure (ElemEqTrans ctx e eMid e1 ty)) <|>
+          if e == e1
+            then pure (ElemEqRefl ctx e ty)
+            else pure (ElemEqSym ctx e1 e ty)) <|>
+      -- With type annotation ": ty0"
+      (do sp; char_ ':'; sp; ty0 <- parseTy
+          -- ElemWfTyCoe: "e : ty0 ↝ ty1"
+          (do sp; str_ "↝"; sp; ty1 <- parseTy
+              pure (ElemWfTyCoe ctx e ty0 ty1)) <|>
+          case (e, ty0) of
             (ZeroElim t, a)               => pure (ElemWfZeroElim ctx t a)
             (NatElim z s t, a)            => pure (ElemWfNatElim ctx z s t a)
             (PiIntro f, PiTy a b)         => pure (ElemWfPiIntro ctx f a b)
@@ -166,6 +183,19 @@ parseAfterCtx ctx =
       case ctx of
         [<]         => pure CtxWfEmpty
         gamma :< ty => pure (CtxWfExt gamma ty)) <|>
+  -- CtxEq rules: "= Γ₁ ctx [via Γmid]" or ElemWfCtxCoe: "= Γ₁ ⊦ e : A"
+  (do str_ "="; sp; ctx1 <- parseCtx; sp
+      -- ElemWfCtxCoe: "= ctx1 ⊦ e : A"
+      (do str_ "⊦"; sp
+          e <- parseElem; sp; char_ ':'; sp; ty <- parseTy
+          pure (ElemWfCtxCoe ctx ctx1 e ty)) <|>
+      -- CtxEq rules: "= ctx1 ctx [via ctxMid]"
+      (do str_ "ctx"
+          (do sp; str_ "via"; sp; ctxMid <- parseCtx
+              pure (CtxEqTrans ctx ctxMid ctx1)) <|>
+          if ctx == ctx1
+            then pure (CtxEqRefl ctx)
+            else pure (CtxEqSym ctx1 ctx))) <|>
   -- "| α" then "ctx", "⊦ A | β type", or "⊦ a | β : A | γ type"
   (do char_ '|'; sp; alpha <- parseComputeRule; sp
       (str_ "ctx" $> CtxWfCompute ctx alpha) <|>

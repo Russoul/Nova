@@ -204,6 +204,40 @@ data TypingRule : Type where
   TyWfCompute : Ctx -> ComputeRule -> Ty -> ComputeRule -> TypingRule
   ||| Γ | α ⊦ a | α : A | α type
   ElemWfCompute : Ctx -> ComputeRule -> Elem -> ComputeRule -> Ty -> ComputeRule -> TypingRule
+  ||| Γ ⊦ a : A₀
+  ||| Γ ⊦ A₀ = A₁ type
+  ||| ---------------- (Γ ⊦ a : A₀ = A₁)
+  ||| Γ ⊦ a : A₁
+  ElemWfTyCoe : Ctx -> Elem -> Ty -> Ty -> TypingRule
+  ||| Γ₀ ⊦ a : A₀
+  ||| Γ₀ = Γ₁ ctx
+  ||| ---------------- (Γ₀ = Γ₁ ⊦ a : A)
+  ||| Γ₁ ⊦ a : A
+  ElemWfCtxCoe : Ctx -> Ctx -> Elem -> Ty -> TypingRule
+  -- Context equality
+  CtxEqRefl  : Ctx -> TypingRule
+  CtxEqSym   : Ctx -> Ctx -> TypingRule
+  CtxEqTrans : Ctx -> Ctx -> Ctx -> TypingRule
+  -- Substitution equality
+  SubEqRefl  : Sub -> Ctx -> Ctx -> TypingRule
+  SubEqSym   : Sub -> Sub -> Ctx -> Ctx -> TypingRule
+  SubEqTrans : Sub -> Sub -> Sub -> Ctx -> Ctx -> TypingRule
+  -- Type equality
+  TyEqRefl  : Ctx -> Ty -> TypingRule
+  TyEqSym   : Ctx -> Ty -> Ty -> TypingRule
+  TyEqTrans : Ctx -> Ty -> Ty -> Ty -> TypingRule
+  -- Element equality
+  ElemEqRefl  : Ctx -> Elem -> Ty -> TypingRule
+  ElemEqSym   : Ctx -> Elem -> Elem -> Ty -> TypingRule
+  ElemEqTrans : Ctx -> Elem -> Elem -> Elem -> Ty -> TypingRule
+  -- Telescope equality
+  TelEqRefl  : Ctx -> Tel -> TypingRule
+  TelEqSym   : Ctx -> Tel -> Tel -> TypingRule
+  TelEqTrans : Ctx -> Tel -> Tel -> Tel -> TypingRule
+  -- Spine equality
+  SpineEqRefl  : Ctx -> Spine -> Tel -> TypingRule
+  SpineEqSym   : Ctx -> Spine -> Spine -> Tel -> TypingRule
+  SpineEqTrans : Ctx -> Spine -> Spine -> Spine -> Tel -> TypingRule
 
 covering
 showCtxRep : Ctx -> String
@@ -260,9 +294,29 @@ Show TypingRule where
   show (ElemWfEqTy ctx l r ty)       = "ElemWfEqTy (\{showCtxRep ctx}) (\{show l}) (\{show r}) (\{show ty})"
   show (ElemWfRefl ctx e ty)         = "ElemWfRefl (\{showCtxRep ctx}) (\{show e}) (\{show ty})"
   show (ElemWfSubElim t ty sigma gamma delta) = "ElemWfSubElim (\{show t}) (\{show ty}) (\{show sigma}) (\{showCtxRep gamma}) (\{showCtxRep delta})"
+  show (ElemWfTyCoe ctx e ty0 ty1)   = "ElemWfTyCoe (\{showCtxRep ctx}) (\{show e}) (\{show ty0}) (\{show ty1})"
+  show (ElemWfCtxCoe ctx0 ctx1 e ty) = "ElemWfCtxCoe (\{showCtxRep ctx0}) (\{showCtxRep ctx1}) (\{show e}) (\{show ty})"
   show (CtxWfCompute ctx cr)         = "CtxWfCompute (\{showCtxRep ctx}) (\{show cr})"
   show (TyWfCompute ctx a ty b)      = "TyWfCompute (\{showCtxRep ctx}) (\{show a}) (\{show ty}) (\{show b})"
   show (ElemWfCompute ctx a e b ty c) = "ElemWfCompute (\{showCtxRep ctx}) (\{show a}) (\{show e}) (\{show b}) (\{show ty}) (\{show c})"
+  show (CtxEqRefl ctx)               = "CtxEqRefl (\{showCtxRep ctx})"
+  show (CtxEqSym ctx0 ctx1)          = "CtxEqSym (\{showCtxRep ctx0}) (\{showCtxRep ctx1})"
+  show (CtxEqTrans ctx0 ctx1 ctx2)   = "CtxEqTrans (\{showCtxRep ctx0}) (\{showCtxRep ctx1}) (\{showCtxRep ctx2})"
+  show (SubEqRefl s g d)             = "SubEqRefl (\{show s}) (\{showCtxRep g}) (\{showCtxRep d})"
+  show (SubEqSym s0 s1 g d)          = "SubEqSym (\{show s0}) (\{show s1}) (\{showCtxRep g}) (\{showCtxRep d})"
+  show (SubEqTrans s0 s1 s2 g d)     = "SubEqTrans (\{show s0}) (\{show s1}) (\{show s2}) (\{showCtxRep g}) (\{showCtxRep d})"
+  show (TyEqRefl ctx ty)             = "TyEqRefl (\{showCtxRep ctx}) (\{show ty})"
+  show (TyEqSym ctx ty0 ty1)         = "TyEqSym (\{showCtxRep ctx}) (\{show ty0}) (\{show ty1})"
+  show (TyEqTrans ctx ty0 ty1 ty2)   = "TyEqTrans (\{showCtxRep ctx}) (\{show ty0}) (\{show ty1}) (\{show ty2})"
+  show (ElemEqRefl ctx e ty)         = "ElemEqRefl (\{showCtxRep ctx}) (\{show e}) (\{show ty})"
+  show (ElemEqSym ctx e0 e1 ty)      = "ElemEqSym (\{showCtxRep ctx}) (\{show e0}) (\{show e1}) (\{show ty})"
+  show (ElemEqTrans ctx e0 e1 e2 ty) = "ElemEqTrans (\{showCtxRep ctx}) (\{show e0}) (\{show e1}) (\{show e2}) (\{show ty})"
+  show (TelEqRefl ctx tel)           = "TelEqRefl (\{showCtxRep ctx}) (\{show tel})"
+  show (TelEqSym ctx tel0 tel1)      = "TelEqSym (\{showCtxRep ctx}) (\{show tel0}) (\{show tel1})"
+  show (TelEqTrans ctx tel0 tel1 tel2) = "TelEqTrans (\{showCtxRep ctx}) (\{show tel0}) (\{show tel1}) (\{show tel2})"
+  show (SpineEqRefl ctx spine tel)       = "SpineEqRefl (\{showCtxRep ctx}) (\{show spine}) (\{show tel})"
+  show (SpineEqSym ctx s0 s1 tel)        = "SpineEqSym (\{showCtxRep ctx}) (\{show s0}) (\{show s1}) (\{show tel})"
+  show (SpineEqTrans ctx s0 s1 s2 tel)   = "SpineEqTrans (\{showCtxRep ctx}) (\{show s0}) (\{show s1}) (\{show s2}) (\{show tel})"
 
 Rejection : Type
 Rejection = ()
@@ -286,6 +340,38 @@ tyWfDerivable ctx ty sp = rejectUnless $ contains (ctx, ty) sp.tyWf
 export
 elemWfDerivable : Ctx -> Elem -> Ty -> Truth -> Either Rejection ()
 elemWfDerivable ctx elem ty sp = rejectUnless $ contains (ctx, elem, ty) sp.elemWf
+
+export
+tyEqDerivable : Ctx -> Ty -> Ty -> Truth -> Either Rejection ()
+tyEqDerivable ctx ty0 ty1 sp = rejectUnless $ contains (ctx, ty0, ty1) sp.tyEq
+
+export
+ctxEqDerivable : Ctx -> Ctx -> Truth -> Either Rejection ()
+ctxEqDerivable ctx0 ctx1 sp = rejectUnless $ contains (ctx0, ctx1) sp.ctxEq
+
+export
+subEqDerivable : Sub -> Sub -> Ctx -> Ctx -> Truth -> Either Rejection ()
+subEqDerivable s0 s1 g d sp = rejectUnless $ contains (s0, s1, g, d) sp.subEq
+
+export
+elemEqDerivable : Ctx -> Elem -> Elem -> Ty -> Truth -> Either Rejection ()
+elemEqDerivable ctx e0 e1 ty sp = rejectUnless $ contains (ctx, e0, e1, ty) sp.elemEq
+
+export
+telWfDerivable : Ctx -> Tel -> Truth -> Either Rejection ()
+telWfDerivable ctx tel sp = rejectUnless $ contains (ctx, tel) sp.telWf
+
+export
+telEqDerivable : Ctx -> Tel -> Tel -> Truth -> Either Rejection ()
+telEqDerivable ctx t0 t1 sp = rejectUnless $ contains (ctx, t0, t1) sp.telEq
+
+export
+spineWfDerivable : Ctx -> Spine -> Tel -> Truth -> Either Rejection ()
+spineWfDerivable ctx spine tel sp = rejectUnless $ contains (ctx, spine, tel) sp.spineWf
+
+export
+spineEqDerivable : Ctx -> Spine -> Spine -> Tel -> Truth -> Either Rejection ()
+spineEqDerivable ctx s0 s1 tel sp = rejectUnless $ contains (ctx, s0, s1, tel) sp.spineEq
 
 mutual
   computeCtx : ComputeRule -> Ctx -> Either Rejection Ctx
@@ -368,18 +454,21 @@ step (CtxWfExt gamma ty) sp = do
 step (CtxWfCompute gamma rule) sp = do
   ctxWfDerivable gamma sp
   gamma' <- computeCtx rule gamma
-  Right $ {ctxWf $= insert gamma'} sp
+  Right $ {ctxWf $= insert gamma', ctxEq $= insert (gamma, gamma')} sp
 step (TyWfCompute gamma alpha ty beta) sp = do
   tyWfDerivable gamma ty sp
   gamma' <- computeCtx alpha gamma
   ty' <- computeTy beta ty
-  Right $ {ctxWf $= insert gamma', tyWf $= insert (gamma', ty')} sp
+  Right $ {ctxWf $= insert gamma', ctxEq $= insert (gamma, gamma'),
+           tyWf $= insert (gamma', ty'), tyEq $= insert (gamma', ty, ty')} sp
 step (ElemWfCompute gamma alpha t beta ty zeta) sp = do
   elemWfDerivable gamma t ty sp
   gamma' <- computeCtx alpha gamma
   t' <- computeElem beta t
   ty' <- computeTy zeta ty
-  Right $ {ctxWf $= insert gamma', tyWf $= insert (gamma', ty'), elemWf $= insert (gamma', t', ty')} sp
+  Right $ {ctxWf $= insert gamma', ctxEq $= insert (gamma, gamma'),
+           tyWf $= insert (gamma', ty'), tyEq $= insert (gamma', ty, ty'),
+           elemWf $= insert (gamma', t', ty'), elemEq $= insert (gamma', t, t', ty')} sp
 step (TyWfZero gamma) sp = do
   ctxWfDerivable gamma sp
   Right $ {tyWf $= insert (gamma, ZeroTy)} sp
@@ -506,6 +595,81 @@ step (ElemWfRefl gamma e ty) sp = do
 step (ElemWfSubElim t ty sigma gamma delta) sp = do
   elemWfDerivable gamma t ty sp
   Right $ {elemWf $= insert (delta, SubstElim t sigma, SubstElim ty sigma)} sp
+-- Γ ⊦ a : A₀
+-- Γ ⊦ A₀ = A₁ type
+-- ----------------
+-- Γ ⊦ a : A₁
+step (ElemWfTyCoe ctx e ty0 ty1) sp = do
+  elemWfDerivable ctx e ty0 sp
+  tyEqDerivable ctx ty0 ty1 sp
+  Right $ {elemWf $= insert (ctx, e, ty1)} sp
+-- Γ₀ ⊦ a : A
+-- Γ₀ = Γ₁ ctx
+-- ------------
+-- Γ₁ ⊦ a : A
+step (ElemWfCtxCoe ctx0 ctx1 e ty) sp = do
+  elemWfDerivable ctx0 e ty sp
+  ctxEqDerivable ctx0 ctx1 sp
+  Right $ {elemWf $= insert (ctx1, e, ty)} sp
+step (CtxEqRefl ctx) sp = do
+  ctxWfDerivable ctx sp
+  Right $ {ctxEq $= insert (ctx, ctx)} sp
+step (CtxEqSym ctx0 ctx1) sp = do
+  ctxEqDerivable ctx0 ctx1 sp
+  Right $ {ctxEq $= insert (ctx1, ctx0)} sp
+step (CtxEqTrans ctx0 ctx1 ctx2) sp = do
+  ctxEqDerivable ctx0 ctx1 sp
+  ctxEqDerivable ctx1 ctx2 sp
+  Right $ {ctxEq $= insert (ctx0, ctx2)} sp
+step (SubEqRefl s g d) sp =
+  Right $ {subEq $= insert (s, s, g, d)} sp
+step (SubEqSym s0 s1 g d) sp = do
+  subEqDerivable s0 s1 g d sp
+  Right $ {subEq $= insert (s1, s0, g, d)} sp
+step (SubEqTrans s0 s1 s2 g d) sp = do
+  subEqDerivable s0 s1 g d sp
+  subEqDerivable s1 s2 g d sp
+  Right $ {subEq $= insert (s0, s2, g, d)} sp
+step (TyEqRefl ctx ty) sp = do
+  tyWfDerivable ctx ty sp
+  Right $ {tyEq $= insert (ctx, ty, ty)} sp
+step (TyEqSym ctx ty0 ty1) sp = do
+  tyEqDerivable ctx ty0 ty1 sp
+  Right $ {tyEq $= insert (ctx, ty1, ty0)} sp
+step (TyEqTrans ctx ty0 ty1 ty2) sp = do
+  tyEqDerivable ctx ty0 ty1 sp
+  tyEqDerivable ctx ty1 ty2 sp
+  Right $ {tyEq $= insert (ctx, ty0, ty2)} sp
+step (ElemEqRefl ctx e ty) sp = do
+  elemWfDerivable ctx e ty sp
+  Right $ {elemEq $= insert (ctx, e, e, ty)} sp
+step (ElemEqSym ctx e0 e1 ty) sp = do
+  elemEqDerivable ctx e0 e1 ty sp
+  Right $ {elemEq $= insert (ctx, e1, e0, ty)} sp
+step (ElemEqTrans ctx e0 e1 e2 ty) sp = do
+  elemEqDerivable ctx e0 e1 ty sp
+  elemEqDerivable ctx e1 e2 ty sp
+  Right $ {elemEq $= insert (ctx, e0, e2, ty)} sp
+step (TelEqRefl ctx tel) sp = do
+  telWfDerivable ctx tel sp
+  Right $ {telEq $= insert (ctx, tel, tel)} sp
+step (TelEqSym ctx tel0 tel1) sp = do
+  telEqDerivable ctx tel0 tel1 sp
+  Right $ {telEq $= insert (ctx, tel1, tel0)} sp
+step (TelEqTrans ctx tel0 tel1 tel2) sp = do
+  telEqDerivable ctx tel0 tel1 sp
+  telEqDerivable ctx tel1 tel2 sp
+  Right $ {telEq $= insert (ctx, tel0, tel2)} sp
+step (SpineEqRefl ctx spine tel) sp = do
+  spineWfDerivable ctx spine tel sp
+  Right $ {spineEq $= insert (ctx, spine, spine, tel)} sp
+step (SpineEqSym ctx s0 s1 tel) sp = do
+  spineEqDerivable ctx s0 s1 tel sp
+  Right $ {spineEq $= insert (ctx, s1, s0, tel)} sp
+step (SpineEqTrans ctx s0 s1 s2 tel) sp = do
+  spineEqDerivable ctx s0 s1 tel sp
+  spineEqDerivable ctx s1 s2 tel sp
+  Right $ {spineEq $= insert (ctx, s0, s2, tel)} sp
 
 public export
 record ContextualRejection where

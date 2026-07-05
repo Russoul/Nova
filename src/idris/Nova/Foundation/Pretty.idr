@@ -272,6 +272,10 @@ prettyTypingRule (ElemWfRefl ctx e ty) =
   prettyCtx ctx ++ " ⊦ Refl : " ++ prettyElemAtom e ++ " ∈ " ++ prettyTy ty
 prettyTypingRule (ElemWfSubElim t ty sigma gamma delta) =
   prettyCtx delta ++ " ⊦ " ++ prettyElem (SubstElim t sigma) ++ " : " ++ prettyTy ty
+prettyTypingRule (ElemWfTyCoe ctx e ty0 ty1) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyElem e ++ " : " ++ prettyTy ty0 ++ " ↝ " ++ prettyTy ty1
+prettyTypingRule (ElemWfCtxCoe ctx0 ctx1 e ty) =
+  prettyCtx ctx0 ++ " = " ++ prettyCtx ctx1 ++ " ⊦ " ++ prettyElem e ++ " : " ++ prettyTy ty
 prettyTypingRule (CtxWfCompute ctx alpha) =
   prettyCtx ctx ++ " | " ++ prettyComputeRule alpha ++ " ctx"
 prettyTypingRule (TyWfCompute ctx alpha ty beta) =
@@ -281,3 +285,39 @@ prettyTypingRule (ElemWfCompute ctx alpha e beta ty gamma) =
   prettyCtx ctx ++ " | " ++ prettyComputeRule alpha ++
   " ⊦ " ++ prettyElem e ++ " | " ++ prettyComputeRule beta ++
   " : " ++ prettyTy ty ++ " | " ++ prettyComputeRule gamma ++ " type"
+prettyTypingRule (CtxEqRefl ctx) =
+  prettyCtx ctx ++ " = " ++ prettyCtx ctx ++ " ctx"
+prettyTypingRule (CtxEqSym ctx0 ctx1) =
+  prettyCtx ctx1 ++ " = " ++ prettyCtx ctx0 ++ " ctx"
+prettyTypingRule (CtxEqTrans ctx0 ctx1 ctx2) =
+  prettyCtx ctx0 ++ " = " ++ prettyCtx ctx2 ++ " ctx via " ++ prettyCtx ctx1
+prettyTypingRule (SubEqRefl s g d) =
+  prettyCtx g ++ " ⊦ " ++ prettySub s ++ " = " ++ prettySub s ++ " : " ++ prettyCtx d
+prettyTypingRule (SubEqSym s0 s1 g d) =
+  prettyCtx g ++ " ⊦ " ++ prettySub s1 ++ " = " ++ prettySub s0 ++ " : " ++ prettyCtx d
+prettyTypingRule (SubEqTrans s0 s1 s2 g d) =
+  prettyCtx g ++ " ⊦ " ++ prettySub s0 ++ " = " ++ prettySub s2 ++ " : " ++ prettyCtx d ++ " via " ++ prettySub s1
+prettyTypingRule (TyEqRefl ctx ty) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyTy ty ++ " = " ++ prettyTy ty ++ " type"
+prettyTypingRule (TyEqSym ctx ty0 ty1) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyTy ty1 ++ " = " ++ prettyTy ty0 ++ " type"
+prettyTypingRule (TyEqTrans ctx ty0 ty1 ty2) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyTy ty0 ++ " = " ++ prettyTy ty2 ++ " type via " ++ prettyTy ty1
+prettyTypingRule (ElemEqRefl ctx e ty) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyElem e ++ " = " ++ prettyElem e ++ " : " ++ prettyTy ty
+prettyTypingRule (ElemEqSym ctx e0 e1 ty) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyElem e1 ++ " = " ++ prettyElem e0 ++ " : " ++ prettyTy ty
+prettyTypingRule (ElemEqTrans ctx e0 e1 e2 ty) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyElem e0 ++ " = " ++ prettyElem e2 ++ " : " ++ prettyTy ty ++ " via " ++ prettyElem e1
+prettyTypingRule (TelEqRefl ctx tel) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyTel tel ++ " = " ++ prettyTel tel ++ " tel"
+prettyTypingRule (TelEqSym ctx tel0 tel1) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyTel tel1 ++ " = " ++ prettyTel tel0 ++ " tel"
+prettyTypingRule (TelEqTrans ctx tel0 tel1 tel2) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyTel tel0 ++ " = " ++ prettyTel tel2 ++ " tel via " ++ prettyTel tel1
+prettyTypingRule (SpineEqRefl ctx spine tel) =
+  prettyCtx ctx ++ " ⊦ " ++ prettySpine spine ++ " = " ++ prettySpine spine ++ " : " ++ prettyTel tel
+prettyTypingRule (SpineEqSym ctx s0 s1 tel) =
+  prettyCtx ctx ++ " ⊦ " ++ prettySpine s1 ++ " = " ++ prettySpine s0 ++ " : " ++ prettyTel tel
+prettyTypingRule (SpineEqTrans ctx s0 s1 s2 tel) =
+  prettyCtx ctx ++ " ⊦ " ++ prettySpine s0 ++ " = " ++ prettySpine s2 ++ " : " ++ prettyTel tel ++ " via " ++ prettySpine s1
