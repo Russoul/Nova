@@ -3,9 +3,14 @@ version = 0.1.0
 
 depends = contrib, just-a-parser
 
+executable = nova-foundation-app
+main = Nova.Foundation.Application
+
 modules = Nova.Foundation.Syntax
         , Nova.Foundation.Derivation
         , Nova.Foundation.Parser
         , Nova.Foundation.Derivation.Parser
+        , Nova.Foundation.Pretty
+        , Nova.Foundation.Application
 
 sourcedir = "src/idris"

@@ -1,197 +1,283 @@
 module Nova.Foundation.Pretty
 
-import Data.String
 import Data.SnocList
-
-import Text.PrettyPrint.Prettyprinter.Render.Terminal
-import Text.PrettyPrint.Prettyprinter
-
 import Nova.Foundation.Syntax
+import Nova.Foundation.Derivation
 
-public export
-data Ann = Keyword | ContextVar | Form | Elim | Intro
+%default covering
 
-public export
-parens' : Doc Ann -> Doc Ann
-parens' = enclose (annotate Keyword lparen) (annotate Keyword rparen)
-
-public export
-introParens' : Doc Ann -> Doc Ann
-introParens' = enclose (annotate Intro lparen) (annotate Intro rparen)
-
-Level : Type
-Level = Nat
-
-natToSubscript : Nat -> String
-natToSubscript n = pack (map sub (unpack (show n)))
-  where
-    sub : Char -> Char
-    sub '0' = '₀'; sub '1' = '₁'; sub '2' = '₂'
-    sub '3' = '₃'; sub '4' = '₄'; sub '5' = '₅'
-    sub '6' = '₆'; sub '7' = '₇'; sub '8' = '₈'
-    sub '9' = '₉'; sub c = c
-
--- Precedences: 0 = outermost (λ, →, ⨯, ≡∈), 1 = ⨯ body, 2 = ≡ args,
---              3 = application spine, 4 = atoms
-wrapTyp : Typ -> Level -> Doc Ann -> Doc Ann
-wrapTyp UniverseTy _ doc = doc
-wrapTyp NatTy _ doc = doc
-wrapTyp ZeroTy _ doc = doc
-wrapTyp OneTy _ doc = doc
-wrapTyp (El _) lvl doc = if lvl > 3 then parens' doc else doc
-wrapTyp (PiTy _ _) lvl doc = if lvl > 0 then parens' doc else doc
-wrapTyp (SigmaTy _ _) lvl doc = if lvl > 1 then parens' doc else doc
-wrapTyp (EqTy _ _ _) lvl doc = if lvl > 1 then parens' doc else doc
-wrapTyp (SubstElim _ _) lvl doc = if lvl > 3 then parens' doc else doc
-
-wrapElem : Elem -> Level -> Doc Ann -> Doc Ann
-wrapElem NatTy _ doc = doc
-wrapElem ZeroTy _ doc = doc
-wrapElem OneTy _ doc = doc
-wrapElem NatIntro0 _ doc = doc
-wrapElem OneIntro _ doc = doc
-wrapElem Refl _ doc = doc
-wrapElem (CtxVar _) _ doc = doc
-wrapElem (SigmaIntro _ _) _ doc = doc  -- always wrapped in introParens'
-wrapElem (PiTy _ _) lvl doc = if lvl > 0 then parens' doc else doc
-wrapElem (SigmaTy _ _) lvl doc = if lvl > 1 then parens' doc else doc
-wrapElem (EqTy _ _ _) lvl doc = if lvl > 1 then parens' doc else doc
-wrapElem (PiIntro _) lvl doc = if lvl > 0 then parens' doc else doc
-wrapElem (PiElim _ _) lvl doc = if lvl > 3 then parens' doc else doc
-wrapElem (SigmaElim1 _) lvl doc = if lvl > 3 then parens' doc else doc
-wrapElem (SigmaElim2 _) lvl doc = if lvl > 3 then parens' doc else doc
-wrapElem (NatIntro1 _) lvl doc = if lvl > 3 then parens' doc else doc
-wrapElem (NatElim _ _ _ _) lvl doc = if lvl > 3 then parens' doc else doc
-wrapElem (ZeroElim _) lvl doc = if lvl > 3 then parens' doc else doc
-wrapElem (SubstElim _ _) lvl doc = if lvl > 3 then parens' doc else doc
+-- ===== Sub and Elem (mutually recursive) =====
 
 mutual
-  ||| depth = number of enclosing context binders (for de Bruijn index display)
-  public export
-  prettySubstContext : Nat -> SubstContext -> Doc Ann
-  prettySubstContext _ Terminal = annotate Keyword "·"
-  prettySubstContext _ Id = annotate Keyword "id"
-  prettySubstContext _ Wk = annotate Keyword "↑"
-  prettySubstContext depth (Chain s t) =
-    prettySubstContext depth s <++> annotate Keyword "∘" <++> prettySubstContext depth t
-  prettySubstContext depth (Ext s t) =
-    parens' (prettySubstContext depth s <+> annotate Keyword "," <++> prettyElem depth t 0)
+  export
+  prettySub : Sub -> String
+  prettySub (Ext s e) = prettySub s ++ ", " ++ prettyElemNoComma e
+  prettySub s = prettySubChain s
 
-  public export
-  prettyTyp' : Nat -> Typ -> Doc Ann
-  prettyTyp' _ UniverseTy = annotate Form "𝕌"
-  prettyTyp' _ NatTy = annotate Form "ℕ"
-  prettyTyp' _ ZeroTy = annotate Form "𝟘"
-  prettyTyp' _ OneTy = annotate Form "𝟙"
-  prettyTyp' depth (El t) =
-    annotate Elim "El" <++> prettyElem depth t 4
-  prettyTyp' depth (PiTy a b) =
-    prettyTyp depth a 3 <++> annotate Keyword "→" <++> prettyTyp (S depth) b 0
-  prettyTyp' depth (SigmaTy a b) =
-    prettyTyp depth a 2 <++> annotate Keyword "⨯" <++> prettyTyp (S depth) b 1
-  prettyTyp' depth (EqTy t0 t1 a) =
-    prettyElem depth t0 2 <++>
-    annotate Form "≡" <++>
-    prettyElem depth t1 2 <++>
-    annotate Form "∈" <++>
-    prettyTyp depth a 0
-  prettyTyp' depth (SubstElim t sigma) =
-    prettyTyp depth t 4 <+> parens' (prettySubstContext depth sigma)
+  prettySubChain : Sub -> String
+  prettySubChain (Chain s t) = prettySubAtom s ++ " ∘ " ++ prettySubChain t
+  prettySubChain s = prettySubAtom s
 
-  public export
-  prettyTyp : Nat -> Typ -> Level -> Doc Ann
-  prettyTyp depth tm lvl = wrapTyp tm lvl (prettyTyp' depth tm)
+  prettySubAtom : Sub -> String
+  prettySubAtom Terminal = "·"
+  prettySubAtom Id = "id"
+  prettySubAtom Wk = "↑"
+  prettySubAtom s = "(" ++ prettySub s ++ ")"
 
-  public export
-  prettyElem' : Nat -> Elem -> Doc Ann
-  prettyElem' depth (SubstElim t sigma) =
-    prettyElem depth t 4 <+> parens' (prettySubstContext depth sigma)
-  prettyElem' depth (PiIntro f) =
-    annotate Keyword "λ" <++> prettyElem (S depth) f 0
-  prettyElem' depth (PiElim f e) =
-    prettyElem depth f 3 <++> prettyElem depth e 4
-  prettyElem' depth (SigmaElim1 t) =
-    prettyElem depth t 3 <++> annotate Elim ".π₁"
-  prettyElem' depth (SigmaElim2 t) =
-    prettyElem depth t 3 <++> annotate Elim ".π₂"
-  prettyElem' depth (SigmaIntro a b) =
-    introParens' (prettyElem depth a 0 <+> annotate Intro "," <++> prettyElem depth b 0)
-  prettyElem' depth (PiTy a b) =
-    prettyElem depth a 3 <++> annotate Keyword "→" <++> prettyElem (S depth) b 0
-  prettyElem' depth (SigmaTy a b) =
-    prettyElem depth a 2 <++> annotate Keyword "⨯" <++> prettyElem (S depth) b 1
-  prettyElem' _ NatTy = annotate Form "ℕ"
-  prettyElem' _ ZeroTy = annotate Form "𝟘"
-  prettyElem' _ OneTy = annotate Form "𝟙"
-  prettyElem' depth (EqTy t0 t1 a) =
-    prettyElem depth t0 2 <++>
-    annotate Form "≡" <++>
-    prettyElem depth t1 2 <++>
-    annotate Form "∈" <++>
-    prettyElem depth a 0
-  prettyElem' _ OneIntro = annotate Intro "()"
-  prettyElem' _ NatIntro0 = annotate Intro "Z"
-  prettyElem' depth (NatIntro1 t) =
-    annotate Intro "S" <++> prettyElem depth t 4
-  prettyElem' depth (NatElim motive z s t) =
-    annotate Elim "ℕ-elim"
-      <++>
-    parens' (annotate Keyword "☐" <+> annotate Keyword "." <++> prettyTyp (S depth) motive 0)
-      <++>
-    prettyElem depth z 4
-      <++>
-    parens' (    annotate Keyword "☐"
-             <+> annotate Keyword "."
-             <+> annotate Keyword "☐"
-             <+> annotate Keyword "."
-             <++> prettyElem (S (S depth)) s 0)
-      <++>
-    prettyElem depth t 4
-  prettyElem' depth (ZeroElim t) =
-    annotate Elim "𝟘-elim" <++> prettyElem depth t 4
-  prettyElem' _ (CtxVar i) =
-    annotate ContextVar (pretty $ "☐" ++ natToSubscript i)
-  prettyElem' _ Refl = annotate Intro "Refl"
+  export
+  prettyElem : Elem -> String
+  prettyElem (SigmaIntro e e') = prettyElemNoComma e ++ ", " ++ prettyElem e'
+  prettyElem e = prettyElemNoComma e
 
-  public export
-  prettyElem : Nat -> Elem -> Level -> Doc Ann
-  prettyElem depth tm lvl = wrapElem tm lvl (prettyElem' depth tm)
+  export
+  prettyElemNoComma : Elem -> String
+  prettyElemNoComma (Elem.PiTy e e') = prettyElemPrefix e ++ " → " ++ prettyElemNoComma e'
+  prettyElemNoComma (Elem.SigmaTy e e') = prettyElemPrefix e ++ " ⨯ " ++ prettyElemNoComma e'
+  prettyElemNoComma (Elem.EqTy e0 e1 e2) =
+    prettyElemPrefix e0 ++ " ≡ " ++ prettyElemPrefix e1 ++ " ∈ " ++ prettyElemPrefix e2
+  prettyElemNoComma e = prettyElemPrefix e
 
-||| Pretty-print a typing context as a space-separated telescope of types.
-||| Each type is printed in the sub-context formed by all preceding types.
-public export
-prettyCtx : Ctx -> Doc Ann
-prettyCtx ctx = go 0 (toList ctx)
+  prettyElemPrefix : Elem -> String
+  prettyElemPrefix (PiIntro e) = "λ " ++ prettyElemAtom e
+  prettyElemPrefix (ZeroElim e) = "𝟘-elim " ++ prettyElemAtom e
+  prettyElemPrefix (NatIntro1 e) = "S " ++ prettyElemAtom e
+  prettyElemPrefix (NatElim z s t) =
+    "ℕ-elim " ++ prettyElemAtom z ++ " " ++ prettyElemAtom s ++ " " ++ prettyElemAtom t
+  prettyElemPrefix e = prettyElemPostfix e
+
+  prettyElemPostfix : Elem -> String
+  prettyElemPostfix (SigmaElim1 e) = prettyElemPostfix e ++ " .π₁"
+  prettyElemPostfix (SigmaElim2 e) = prettyElemPostfix e ++ " .π₂"
+  prettyElemPostfix (PiElim e) = prettyElemPostfix e ++ " @"
+  prettyElemPostfix (SubstElim e s) = prettyElemPostfix e ++ "(" ++ prettySub s ++ ")"
+  prettyElemPostfix e = prettyElemAtom e
+
+  export
+  prettyElemAtom : Elem -> String
+  prettyElemAtom CtxVar = "☐"
+  prettyElemAtom OneIntro = "()"
+  prettyElemAtom NatIntro0 = "Z"
+  prettyElemAtom Refl = "Refl"
+  prettyElemAtom Elem.ZeroTy = "𝟘"
+  prettyElemAtom Elem.OneTy = "𝟙"
+  prettyElemAtom Elem.NatTy = "ℕ"
+  prettyElemAtom e = "(" ++ prettyElem e ++ ")"
+
+-- ===== Ty =====
+
+mutual
+  export
+  prettyTy : Ty -> String
+  prettyTy (Ty.EqTy e0 e1 a) =
+    prettyElemAtom e0 ++ " ≡ " ++ prettyElemAtom e1 ++ " ∈ " ++ prettyTyArrow a
+  prettyTy ty = prettyTyArrow ty
+
+  prettyTyArrow : Ty -> String
+  prettyTyArrow (Ty.PiTy a b) = prettyTyEl a ++ " → " ++ prettyTyArrow b
+  prettyTyArrow (Ty.SigmaTy a b) = prettyTyEl a ++ " ⨯ " ++ prettyTyArrow b
+  prettyTyArrow ty = prettyTyEl ty
+
+  prettyTyEl : Ty -> String
+  prettyTyEl (El e) = "El " ++ prettyElemAtom e
+  prettyTyEl ty = prettyTyPostfix ty
+
+  prettyTyPostfix : Ty -> String
+  prettyTyPostfix (Ty.SubstElim ty s) = prettyTyPostfix ty ++ "(" ++ prettySub s ++ ")"
+  prettyTyPostfix ty = prettyTyAtom ty
+
+  prettyTyAtom : Ty -> String
+  prettyTyAtom Ty.ZeroTy = "𝟘"
+  prettyTyAtom Ty.OneTy = "𝟙"
+  prettyTyAtom Ty.NatTy = "ℕ"
+  prettyTyAtom Ty.UniverseTy = "𝕌"
+  prettyTyAtom ty = "(" ++ prettyTy ty ++ ")"
+
+-- ===== Ctx, Tel, Spine =====
+
+export
+prettyCtx : Ctx -> String
+prettyCtx [<] = "ε"
+prettyCtx ctx = go ctx
   where
-    go : Nat -> List Typ -> Doc Ann
-    go _ [] = annotate Form "ε"
-    go depth (ty :: rest) = prettyTyp depth ty 0 <++> go (S depth) rest
+    go : Ctx -> String
+    go [<] = "ε"
+    go (g :< ty) = go g ++ " ᐅ " ++ prettyTy ty
 
-||| Δ(σ) — telescope printed with increasing depth under each binder.
-public export
-prettyTel : Nat -> Tel -> Doc Ann
-prettyTel _ [] = annotate Form "ε"
-prettyTel depth (ty :: rest) = prettyTyp depth ty 0 <++> prettyTel (S depth) rest
+export
+prettyTel : Tel -> String
+prettyTel [] = "ε"
+prettyTel (ty :: rest) = prettyTy ty ++ " ◁ " ++ prettyTel rest
 
-||| ē — element list, all elements printed at the same depth.
-public export
-prettyElemList : Nat -> ElemList -> Doc Ann
-prettyElemList _ [] = annotate Keyword "·"
-prettyElemList depth (e :: rest) = prettyElem depth e 0 <++> prettyElemList depth rest
+export
+prettySpine : Spine -> String
+prettySpine [] = "·"
+prettySpine (e :: es) = prettyElemNoComma e ++ go es
+  where
+    go : Spine -> String
+    go [] = ""
+    go (e' :: es') = ", " ++ prettyElemNoComma e' ++ go es'
 
-toAnsiStyle : Ann -> AnsiStyle
-toAnsiStyle Keyword    = color Yellow
-toAnsiStyle ContextVar = color BrightBlack
-toAnsiStyle Form       = color Cyan
-toAnsiStyle Elim       = color Red
-toAnsiStyle Intro      = color Green
+-- ===== ComputeRule =====
 
-public export
-renderDocTerm : Doc Ann -> String
-renderDocTerm doc =
-  renderString $ layoutPretty defaultLayoutOptions (reAnnotate toAnsiStyle doc)
+mutual
+  export
+  prettyComputeRule : ComputeRule -> String
+  prettyComputeRule (InSigmaIntro a b) = prettyComputeNoComma a ++ ", " ++ prettyComputeRule b
+  prettyComputeRule cr = prettyComputeNoComma cr
 
-public export
-renderDocNoAnn : Doc ann -> String
-renderDocNoAnn doc =
-  renderString $ layoutPretty defaultLayoutOptions (unAnnotate doc)
+  prettyComputeNoComma : ComputeRule -> String
+  prettyComputeNoComma (InPiTy a b) = prettyComputePrefix a ++ " → " ++ prettyComputeNoComma b
+  prettyComputeNoComma (InSigmaTy a b) = prettyComputePrefix a ++ " ⨯ " ++ prettyComputeNoComma b
+  prettyComputeNoComma (InEqTy a b c) =
+    prettyComputePrefix a ++ " ≡ " ++ prettyComputePostfix b ++ " ∈ " ++ prettyComputePostfix c
+  prettyComputeNoComma (InExt a b) = prettyComputePrefix a ++ " ᐅ " ++ prettyComputeNoComma b
+  prettyComputeNoComma cr = prettyComputePrefix cr
+
+  prettyComputePrefix : ComputeRule -> String
+  prettyComputePrefix (InPiIntro a) = "λ " ++ prettyComputeAtom a
+  prettyComputePrefix (InZeroElim a) = "𝟘-elim " ++ prettyComputeAtom a
+  prettyComputePrefix (InNatIntro1 a) = "S " ++ prettyComputeAtom a
+  prettyComputePrefix (InNatElim a b c) =
+    "ℕ-elim " ++ prettyComputeAtom a ++ " " ++ prettyComputeAtom b ++ " " ++ prettyComputeAtom c
+  prettyComputePrefix (InEl a) = "El " ++ prettyComputeAtom a
+  prettyComputePrefix cr = prettyComputePostfix cr
+
+  prettyComputePostfix : ComputeRule -> String
+  prettyComputePostfix (InSigmaElim1 a) = prettyComputePostfix a ++ " .π₁"
+  prettyComputePostfix (InSigmaElim2 a) = prettyComputePostfix a ++ " .π₂"
+  prettyComputePostfix (InPiElim a) = prettyComputePostfix a ++ " @"
+  prettyComputePostfix (InSubstElim a) = prettyComputePostfix a ++ " _"
+  prettyComputePostfix cr = prettyComputeAtom cr
+
+  prettyComputeAtom : ComputeRule -> String
+  prettyComputeAtom Here = "↓"
+  prettyComputeAtom Id = "id"
+  prettyComputeAtom cr = "(" ++ prettyComputeRule cr ++ ")"
+
+-- ===== Judgement forms =====
+-- (Use concrete underlying types since Idris2 does not reduce type aliases for unification.)
+
+export
+prettyCtxWf : Ctx -> String
+prettyCtxWf ctx = prettyCtx ctx ++ " ctx"
+
+export
+prettyCtxEq : (Ctx, Ctx) -> String
+prettyCtxEq (g0, g1) = prettyCtx g0 ++ " = " ++ prettyCtx g1 ++ " ctx"
+
+export
+prettyTyWf : (Ctx, Ty) -> String
+prettyTyWf (ctx, ty) = prettyCtx ctx ++ " ⊦ " ++ prettyTy ty ++ " type"
+
+export
+prettyTyEq : (Ctx, Ty, Ty) -> String
+prettyTyEq (ctx, a, b) = prettyCtx ctx ++ " ⊦ " ++ prettyTy a ++ " = " ++ prettyTy b ++ " type"
+
+export
+prettySubWf : (Sub, Ctx, Ctx) -> String
+prettySubWf (s, g, d) = prettySub s ++ " : " ++ prettyCtx g ++ " ⇒ " ++ prettyCtx d
+
+export
+prettySubEq : (Sub, Sub, Ctx, Ctx) -> String
+prettySubEq (s0, s1, g, d) =
+  prettySub s0 ++ " = " ++ prettySub s1 ++ " : " ++ prettyCtx g ++ " ⇒ " ++ prettyCtx d
+
+export
+prettyElemWf : (Ctx, Elem, Ty) -> String
+prettyElemWf (ctx, e, ty) = prettyCtx ctx ++ " ⊦ " ++ prettyElem e ++ " : " ++ prettyTy ty
+
+export
+prettyElemEq : (Ctx, Elem, Elem, Ty) -> String
+prettyElemEq (ctx, e0, e1, ty) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyElem e0 ++ " = " ++ prettyElem e1 ++ " : " ++ prettyTy ty
+
+export
+prettyTelWf : (Ctx, Tel) -> String
+prettyTelWf (ctx, tel) = prettyCtx ctx ++ " ⊦ " ++ prettyTel tel ++ " tel"
+
+export
+prettyTelEq : (Ctx, Tel, Tel) -> String
+prettyTelEq (ctx, t0, t1) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyTel t0 ++ " = " ++ prettyTel t1 ++ " tel"
+
+export
+prettySpineWf : (Ctx, Spine, Tel) -> String
+prettySpineWf (ctx, spine, tel) =
+  prettyCtx ctx ++ " ⊦ " ++ prettySpine spine ++ " : " ++ prettyTel tel
+
+export
+prettySpineEq : (Ctx, Spine, Spine, Tel) -> String
+prettySpineEq (ctx, s0, s1, tel) =
+  prettyCtx ctx ++ " ⊦ " ++ prettySpine s0 ++ " = " ++ prettySpine s1 ++ " : " ++ prettyTel tel
+
+-- ===== TypingRule =====
+
+export
+prettyTypingRule : TypingRule -> String
+prettyTypingRule CtxWfEmpty =
+  "ε ctx"
+prettyTypingRule (CtxWfExt g ty) =
+  prettyCtx (g :< ty) ++ " ctx"
+prettyTypingRule (TyWfZero ctx) =
+  prettyCtx ctx ++ " ⊦ 𝟘 type"
+prettyTypingRule (TyWfOne ctx) =
+  prettyCtx ctx ++ " ⊦ 𝟙 type"
+prettyTypingRule (TyWfNat ctx) =
+  prettyCtx ctx ++ " ⊦ ℕ type"
+prettyTypingRule (TyWfUniverse ctx) =
+  prettyCtx ctx ++ " ⊦ 𝕌 type"
+prettyTypingRule (TyWfPi ctx a b) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyTy (PiTy a b) ++ " type"
+prettyTypingRule (TyWfSigma ctx a b) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyTy (SigmaTy a b) ++ " type"
+prettyTypingRule (TyWfEq ctx l r ty) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyTy (EqTy l r ty) ++ " type"
+prettyTypingRule (TyWfEl ctx e) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyTy (El e) ++ " type"
+prettyTypingRule (ElemWfVar g ty) =
+  prettyCtx (g :< ty) ++ " ⊦ ☐"
+prettyTypingRule (ElemWfZeroElim ctx e ty) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyElem (ZeroElim e) ++ " : " ++ prettyTy ty
+prettyTypingRule (ElemWfOneIntro ctx) =
+  prettyCtx ctx ++ " ⊦ ()"
+prettyTypingRule (ElemWfZeroIntro ctx) =
+  prettyCtx ctx ++ " ⊦ Z"
+prettyTypingRule (ElemWfSucIntro ctx e) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyElem (NatIntro1 e)
+prettyTypingRule (ElemWfNatElim ctx z s t ty) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyElem (NatElim z s t) ++ " : " ++ prettyTy ty
+prettyTypingRule (ElemWfPiIntro ctx f a b) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyElem (PiIntro f) ++ " : " ++ prettyTy (PiTy a b)
+prettyTypingRule (ElemWfPiElim g a f b) =
+  prettyCtx (g :< a) ++ " ⊦ " ++ prettyElem (PiElim f) ++ " : " ++ prettyTy b
+prettyTypingRule (ElemWfSigmaIntro ctx u v a b) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyElem (SigmaIntro u v) ++ " : " ++ prettyTy (SigmaTy a b)
+prettyTypingRule (ElemWfSigmaElim1 ctx e a b) =
+  prettyCtx ctx ++ " ⊦ (" ++ prettyElem e ++ " : " ++ prettyTy (SigmaTy a b) ++ ") .π₁"
+prettyTypingRule (ElemWfSigmaElim2 ctx e a b) =
+  prettyCtx ctx ++ " ⊦ (" ++ prettyElem e ++ " : " ++ prettyTy (SigmaTy a b) ++ ") .π₂"
+prettyTypingRule (ElemWfZeroTy ctx) =
+  prettyCtx ctx ++ " ⊦ 𝟘"
+prettyTypingRule (ElemWfOneTy ctx) =
+  prettyCtx ctx ++ " ⊦ 𝟙"
+prettyTypingRule (ElemWfNatTy ctx) =
+  prettyCtx ctx ++ " ⊦ ℕ"
+prettyTypingRule (ElemWfPiTy ctx a b) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyElem (Elem.PiTy a b)
+prettyTypingRule (ElemWfSigmaTy ctx a b) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyElem (Elem.SigmaTy a b)
+prettyTypingRule (ElemWfEqTy ctx l r ty) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyElem (Elem.EqTy l r ty)
+prettyTypingRule (ElemWfRefl ctx e ty) =
+  prettyCtx ctx ++ " ⊦ Refl : " ++ prettyElemAtom e ++ " ∈ " ++ prettyTy ty
+prettyTypingRule (ElemWfSubElim t ty sigma gamma delta) =
+  prettyCtx delta ++ " ⊦ " ++ prettyElem (SubstElim t sigma) ++ " : " ++ prettyTy ty
+prettyTypingRule (CtxWfCompute ctx alpha) =
+  prettyCtx ctx ++ " | " ++ prettyComputeRule alpha ++ " ctx"
+prettyTypingRule (TyWfCompute ctx alpha ty beta) =
+  prettyCtx ctx ++ " | " ++ prettyComputeRule alpha ++
+  " ⊦ " ++ prettyTy ty ++ " | " ++ prettyComputeRule beta ++ " type"
+prettyTypingRule (ElemWfCompute ctx alpha e beta ty gamma) =
+  prettyCtx ctx ++ " | " ++ prettyComputeRule alpha ++
+  " ⊦ " ++ prettyElem e ++ " | " ++ prettyComputeRule beta ++
+  " : " ++ prettyTy ty ++ " | " ++ prettyComputeRule gamma ++ " type"

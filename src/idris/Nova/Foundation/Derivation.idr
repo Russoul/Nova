@@ -8,69 +8,83 @@ import Data.SortedSet
 %default covering
 
 ||| Γ ctx
-export
+public export
 CtxWf : Type
 CtxWf = Ctx
 
 ||| Γ₀ = Γ₁ ctx
-export
+public export
 CtxEq : Type
 CtxEq = (Ctx, Ctx)
 
 ||| Γ ⊦ A type
-export
+public export
 TyWf : Type
 TyWf = (Ctx, Ty)
 
 ||| Γ ⊦ A₀ = A₁ type
-export
+public export
 TyEq : Type
 TyEq = (Ctx, Ty, Ty)
 
 ||| σ : Γ ⇒ Δ
-export
+public export
 SubWf : Type
 SubWf = (Sub, Ctx, Ctx)
 
 ||| σ₀ = σ₁ : Γ ⇒ Δ
-export
+public export
 SubEq : Type
 SubEq = (Sub, Sub, Ctx, Ctx)
 
 ||| Γ ⊦ a : A
-export
+public export
 ElemWf : Type
 ElemWf = (Ctx, Elem, Ty)
 
 ||| Γ ⊦ a₀ = a₁ : A
-export
+public export
 ElemEq : Type
 ElemEq = (Ctx, Elem, Elem, Ty)
 
 ||| Γ ⊦ Δ tel
-export
+public export
 TelWf : Type
 TelWf = (Ctx, Tel)
 
 ||| Γ ⊦ Δ₀ = Δ₁ tel
-export
+public export
 TelEq : Type
 TelEq = (Ctx, Tel, Tel)
 
 ||| Γ ⊦ ē : Δ
-export
+public export
 SpineWf : Type
 SpineWf = (Ctx, Spine, Tel)
 
 ||| Γ ⊦ ē₀ = ē₁ : Δ
-export
+public export
 SpineEq : Type
 SpineEq = (Ctx, Spine, Spine, Tel)
+
+public export
+data JudgementForm = JfCtxWf CtxWf
+                   | JfCtxEq CtxEq
+                   | JfSubWf SubWf
+                   | JfSubEq SubEq
+                   | JfTyWf TyWf
+                   | JfTyEq TyEq
+                   | JfElemWf ElemWf
+                   | JfElemEq ElemEq
+                   | JfTelWf TelWf
+                   | JfTelEq TelEq
+                   | JfSpineWf SpineWf
+                   | JfSpineEq SpineEq
 
 ||| Private!
 export
 record Truth where
-  constructor MkWordspace
+  constructor MkTruth
   ctxWf : SortedSet CtxWf
   ctxEq : SortedSet CtxEq
   tyWf : SortedSet TyWf
@@ -83,6 +97,10 @@ record Truth where
   telEq : SortedSet TelEq
   spineWf : SortedSet SpineWf
   spineEq : SortedSet SpineEq
+
+export
+trivial : Truth
+trivial = MkTruth empty empty empty empty empty empty empty empty empty empty empty empty
 
 ||| α
 public export
@@ -178,6 +196,8 @@ data TypingRule : Type where
   ElemWfEqTy : Ctx -> Elem -> Elem -> Elem -> TypingRule
   ||| Γ ⊦ Refl : (a ≡ a : A)
   ElemWfRefl : Ctx -> Elem -> Ty -> TypingRule
+  ||| (a : A) (σ : Γ ⇒ Δ)
+  ElemWfSubElim : Elem -> Ty -> Sub -> Ctx -> Ctx -> TypingRule
   ||| Γ | α
   CtxWfCompute : Ctx -> ComputeRule -> TypingRule
   ||| Γ | α ⊦ A | α type
@@ -239,6 +259,7 @@ Show TypingRule where
   show (ElemWfSigmaTy ctx a b)       = "ElemWfSigmaTy (\{showCtxRep ctx}) (\{show a}) (\{show b})"
   show (ElemWfEqTy ctx l r ty)       = "ElemWfEqTy (\{showCtxRep ctx}) (\{show l}) (\{show r}) (\{show ty})"
   show (ElemWfRefl ctx e ty)         = "ElemWfRefl (\{showCtxRep ctx}) (\{show e}) (\{show ty})"
+  show (ElemWfSubElim t ty sigma gamma delta) = "ElemWfSubElim (\{show t}) (\{show ty}) (\{show sigma}) (\{showCtxRep gamma}) (\{showCtxRep delta})"
   show (CtxWfCompute ctx cr)         = "CtxWfCompute (\{showCtxRep ctx}) (\{show cr})"
   show (TyWfCompute ctx a ty b)      = "TyWfCompute (\{showCtxRep ctx}) (\{show a}) (\{show ty}) (\{show b})"
   show (ElemWfCompute ctx a e b ty c) = "ElemWfCompute (\{showCtxRep ctx}) (\{show a}) (\{show e}) (\{show b}) (\{show ty}) (\{show c})"
@@ -273,6 +294,10 @@ mutual
   computeCtx _ _ = Left ()
 
   computeTy : ComputeRule -> Ty -> Either Rejection Ty
+  computeTy Here (SubstElim ZeroTy _) = Right ZeroTy
+  computeTy Here (SubstElim OneTy _) = Right OneTy
+  computeTy Here (SubstElim NatTy _) = Right NatTy
+  computeTy Here (SubstElim UniverseTy _) = Right UniverseTy
   computeTy Here (El ZeroTy) = Right ZeroTy
   computeTy Here (El OneTy) = Right OneTy
   computeTy Here (El NatTy) = Right NatTy
@@ -345,14 +370,11 @@ step (CtxWfCompute gamma rule) sp = do
   gamma' <- computeCtx rule gamma
   Right $ {ctxWf $= insert gamma'} sp
 step (TyWfCompute gamma alpha ty beta) sp = do
-  ctxWfDerivable gamma sp
   tyWfDerivable gamma ty sp
   gamma' <- computeCtx alpha gamma
   ty' <- computeTy beta ty
   Right $ {ctxWf $= insert gamma', tyWf $= insert (gamma', ty')} sp
 step (ElemWfCompute gamma alpha t beta ty zeta) sp = do
-  ctxWfDerivable gamma sp
-  tyWfDerivable gamma ty sp
   elemWfDerivable gamma t ty sp
   gamma' <- computeCtx alpha gamma
   t' <- computeElem beta t
@@ -477,3 +499,42 @@ step (ElemWfRefl gamma e ty) sp = do
   -- tyWfDerivable gamma ty sp
   elemWfDerivable gamma e ty sp
   Right $ {elemWf $= insert (gamma, Refl, EqTy e e ty)} sp
+-- Γ ⊦ t : A
+-- σ : Δ ⇒ Γ
+-- ---------------
+-- Δ ⊦ t(σ) : A(σ)
+step (ElemWfSubElim t ty sigma gamma delta) sp = do
+  elemWfDerivable gamma t ty sp
+  Right $ {elemWf $= insert (delta, SubstElim t sigma, SubstElim ty sigma)} sp
+
+public export
+record ContextualRejection where
+  constructor MkContextualRejection
+  truth : Truth
+  rule : TypingRule
+
+export
+steps : List TypingRule -> Truth -> Either ContextualRejection Truth
+steps [] truth = Right truth
+steps (s :: ss) truth = do
+  truth <- mapFst (const $ MkContextualRejection truth s) $ step s truth
+  steps ss truth
+
+export
+generate : List TypingRule -> Either ContextualRejection Truth
+generate ss = steps ss trivial
+
+export
+check : JudgementForm -> Truth -> Bool
+check (JfCtxWf ctx)       t = contains ctx t.ctxWf
+check (JfCtxEq ctxeq)     t = contains ctxeq t.ctxEq
+check (JfTyWf tywf)       t = contains tywf t.tyWf
+check (JfTyEq tyeq)       t = contains tyeq t.tyEq
+check (JfSubWf subwf)     t = contains subwf t.subWf
+check (JfSubEq subeq)     t = contains subeq t.subEq
+check (JfElemWf ewf)      t = contains ewf t.elemWf
+check (JfElemEq eeq)      t = contains eeq t.elemEq
+check (JfTelWf telwf)     t = contains telwf t.telWf
+check (JfTelEq teleq)     t = contains teleq t.telEq
+check (JfSpineWf spinewf) t = contains spinewf t.spineWf
+check (JfSpineEq spineeq) t = contains spineeq t.spineEq

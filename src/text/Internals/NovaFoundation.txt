@@ -1,7 +1,9 @@
 ////////// Preface //////////
 
-This file contains a formalisation of Nova's type theory: Extensional Type Theory.
+This file contains a formalisation of Nova's type theory: Extensional Computational Type Theory.
 We present the theory extrinsically: https://ncatlab.org/nlab/show/intrinsic+and+extrinsic+views+of+typing
+
+Semantics to syntactic forms is assigned via evaluation and canonical forms.
 
 //////////// Type Theory /////////////
 
@@ -9,483 +11,646 @@ We have:
  * Empty type: 𝟘
  * Unit type: 𝟙
  * Natural numbers type: ℕ
- * Dependent product type: Π
- * Dependent sum type: Σ
+ * Dependent product type: (→)
+ * Dependent sum type: (⨯)
  * Equality type: (≡) with reflection
  * A universe: 𝕌
-
-
-/////////////// Notes /////////////////
-
-* We don't define definitional equality relation and then quotient types by it.
-   Instead we simply reuse extensional, proof-irrelevant equality of the meta-theory
-
-* Substituion is algorithmic: there is a program that reduces out all substitutions in a type/term/telescope/list/etc.
-
-* Equality is undecidable. Hence "type-checking" is likewise so.
 
 ///////////// Syntax ///////////////
 
 // typing context
-Γ ::= ε    // empty typing context
-    | Γ T  // extended typing context
+Γ ::= ε      // empty typing context
+    | Γ ᐅ T  // extended typing context
 
 // typing context substitution
 σ, τ ::=
-       ·             // unique substitution into the empty context
-     | σ, t          // substitution into an extended context
-     | σ ∘ σ         // composition of substitutions
+       ·             // empty substitution
+     | σ, t          // extension substitution
+     | σ ∘ σ         // composition substitution
      | id            // identity substitution
      | ↑             // weakening substitution
 
-// element
-t ::= t(σ)           // (Typing) context substitution
-    | λ t            // dependent product type introduction
-    | t t            // dependent product type elimination
-    | t .π₁          // dependent sum type elimination (1)
-    | t .π₂          // dependent sum type elimination (2)
-    | t , t          // dependent sum type introduction
-    | t → t          // element of the universe (encodes Π)
-    | t ⨯ t          // element of the universe (encodes Σ)
-    | ℕ              // element of the universe
-    | 𝟘              // element of the universe
-    | 𝟙              // element of the universe
-    | t ≡ t ∈ t      // element of the universe
-    | ()             // the only element of 𝟙
-    | Z
-    | S t
-    | ℕ-elim T t t t
-    | 𝟘-elim t
-    | ☐ᵢ             // i-th element in the typing context
-    | Refl           // reflexive equality proof
-
 // type
-T ::= 𝕌              // universe type
+T ::= T(σ)           // (Typing) context substitution
+    | 𝟘
+    | 𝟙
+    | ℕ
+    | 𝕌              // universe type
     | T → T          // dependent product type (Π)
     | T ⨯ T          // dependent sum type (Σ)
     | t ≡ t ∈ T      // extensional equality type
-    | ℕ
-    | 𝟘
-    | 𝟙
     | El t           // Every element of the universe is a type
-    | T(σ)           // (Typing) context substitution
+
+// element
+t ::= t(σ)           // (Typing) context substitution
+    | ☐              // i-th element in the typing context
+    | λ t            // dependent product type introduction
+    | t @            // dependent product type elimination
+    | t , t          // dependent sum type introduction
+    | t .π₁          // dependent sum type elimination (1)
+    | t .π₂          // dependent sum type elimination (2)
+    | 𝟘              // element of the universe
+    | 𝟙              // element of the universe
+    | ℕ              // element of the universe
+    | t → t          // element of the universe (encodes Π)
+    | t ⨯ t          // element of the universe (encodes Σ)
+    | t ≡ t ∈ t      // element of the universe
+    | 𝟘-elim t
+    | ()             // the only element of 𝟙
+    | Z
+    | S t
+    | ℕ-elim t t t
+    | Refl           // reflexive equality proof
+    | J t t
 
 // (type) telescope
-Δ ::= ε | T Δ
+Δ ::= ε | T ◁ Δ
 
 // (element) list
-ē ::= · | e ē
+ē ::= · | e, ē
 
 /////// Judgement forms /////////
 
-Γ ctx  // (typing) context
+Γ ctx     // context
+
+Γ₀ ctx
+Γ₁ ctx
+----------- // context equality
+Γ₀ = Γ₁ ctx
 
 Γ ctx
 Δ ctx
---------------- // (typing) context equality
-Γ = Δ ctx
-
-Γ ctx
-Δ ctx
-------------- // (typing context) substitution
+--------- // substitution
 σ : Γ ⇒ Δ
 
 Γ ctx
 Δ ctx
---------------------- // (typing context) substitution equality
-σ = τ : Γ ⇒ Δ
+σ₀ : Γ ⇒ Δ
+σ₁ : Γ ⇒ Δ
+--------------- // substitution equality
+σ₀ = σ₁ : Γ ⇒ Δ
 
 Γ ctx
------------- // type
+---------- // type
 Γ ⊦ A type
 
 Γ ctx
------------------- // type equality
-Γ ⊦ A = B type
+Γ ⊦ A₀ type
+Γ ⊦ A₁ type
+----------------- // type equality
+Γ ⊦ A₀ = A₁ type
 
 Γ ctx
------------ // telescope
-Γ ⊦ Δ tel
-
-Γ ctx
------------------- // telescope equality
-Γ ⊦ Δ = Δ' tel
-
 Γ ⊦ A type
------------- // element
+---------- // element
 Γ ⊦ a : A
 
+Γ ctx
 Γ ⊦ A type
--------------- // element equality
-Γ ⊦ a = b : A
+Γ ⊦ a₀ : A
+Γ ⊦ a₁ : A
+--------------- // element equality
+Γ ⊦ a₀ = a₁ : A
 
+Γ ctx
+--------- // telescope
 Γ ⊦ Δ tel
------------ // list
+
+Γ ctx
+Γ ⊦ Δ₀ tel
+Γ ⊦ Δ₁ tel
+--------------- // telescope equality
+Γ ⊦ Δ₀ = Δ₁ tel
+
+Γ ctx
+Γ ⊦ Δ tel
+---------- // list
 Γ ⊦ ē : Δ
 
+Γ ctx
 Γ ⊦ Δ tel
------------------ // list equality
-Γ ⊦ ē = ē' : Δ
+Γ ⊦ ē₀ : Δ
+Γ ⊦ ē₁ : Δ
+--------------- // list equality
+Γ ⊦ ē₀ = ē₁ : Δ
 
 ///////// Inference rules (ctx) //////////
 
-ε ctx
+ε ctx        // empty context
 
-Γ ⊦ A type
-----------
-Γ A ctx
-
-// Structural rules for context equality
+ε = ε ctx    // empty context congruence
 
 Γ ctx
---------------------
+Γ ⊦ A type
+==========   // extended context
+Γ ᐅ A ctx
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₀ ⊦ A₀ type
+Γ₁ ⊦ A₁ type
+Γ₀ = Γ₁ ctx
+Γ₁ ⊦ A₀ = A₁ type
+=====================   // extended context congruence
+Γ₀ ᐅ A₀ = Γ₁ ᐅ A₁ ctx
+
+Γ ctx
+---------  // context reflexivity
 Γ = Γ ctx
 
-Γ = Γ' ctx
---------------------
-Γ' = Γ ctx
+Γ₀ ctx
+Γ₁ ctx
+Γ₀ = Γ₁ ctx
+-----------  // context symmetry
+Γ₁ = Γ₀ ctx
 
-Γ = Γ' ctx
-Γ' = Γ'' ctx
---------------------
-Γ = Γ'' ctx
-
-// Congruence for context extension
-
-Γ = Γ' ctx
-Γ ⊦ A = A' type
---------------------------
-Γ A = Γ' A' ctx
-
-// Injectivity of context extension
-
-Γ A = Γ' A' ctx
---------------------------
-Γ = Γ' ctx
-
-Γ A = Γ' A' ctx
---------------------------
-Γ ⊦ A = A' type
+Γ₀ ctx
+Γ₁ ctx
+Γ₂ ctx
+Γ₀ = Γ₁ ctx
+Γ₁ = Γ₂ ctx
+----------- // context transitivity
+Γ₀ = Γ₂ ctx
 
 ///////// Inference rules (ctx substitution) //////////
 
 Γ ctx
--------------
+---------      // empty substitution
 · : Γ ⇒ ε
 
 Γ ctx
---------------
-id : Γ ⇒ Γ
-
-Γ A ctx
----------------
-↑ : Γ A ⇒ Γ
-
-// Notation: ↑ⁿ is a meta-level abbreviation for an n-fold chain of ↑ in the existing syntax.
-// The following rules are admissible:
+-------------  // empty substitution congruence
+· = · : Γ ⇒ ε
 
 Γ ctx
------------------  // (admissible)
-↑⁰ : Γ ⇒ Γ
-
-Γ ctx
------------------  // (admissible)
-↑⁰ = id : Γ ⇒ Γ
-
-Γ A ctx
-↑ⁿ : Γ ⇒ Γ'
------------------------  // (admissible)
-↑¹⁺ⁿ : Γ A ⇒ Γ'
-
-Γ A ctx
-↑ⁿ : Γ ⇒ Γ'
-----------------------------  // (admissible)
-↑¹⁺ⁿ = ↑ ∘ ↑ⁿ : Γ A ⇒ Γ'
-
-σ : Γ₁ ⇒ Γ₂
-τ : Γ₀ ⇒ Γ₁
--------------------
-σ ∘ τ : Γ₀ ⇒ Γ₂
-
-σ : Γ₀ ⇒ Γ₁
-Γ₁ ⊦ A type
-Γ₀ ⊦ t : A(σ)
---------------------
-σ, t : Γ₀ ⇒ Γ₁ A
-
-Γ ctx
+-------------
 σ : Γ ⇒ ε
------------------
+============= // empty substitution uniqueness
 σ = · : Γ ⇒ ε
 
+Γ₀ ctx
+Γ₁ ctx
+Γ₁ ⊦ A type
+------------
 σ : Γ₀ ⇒ Γ₁
------------------------
+Γ₀ ⊦ t : A(σ)
+==================== // extension substitution
+(σ, t) : Γ₀ ⇒ Γ₁ ᐅ A
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₂ ctx
+σ : Γ₀ ⇒ Γ₁
+τ : Γ₁ ⇒ Γ₂
+--------------- // composition substitution
+τ ∘ σ : Γ₀ ⇒ Γ₂
+
+Γ ctx
+----------     // identity substitution
+id : Γ ⇒ Γ
+
+Γ ctx
+---------------  // identity substitution congruence
+id = id : Γ ⇒ Γ
+
+id = · : ε ⇒ ε
+
+Γ ctx
+Γ ⊦ A type
+--------------------------- // admissible by meta-level induction
+(↑, ☐) = id : Γ ᐅ A ⇒ Γ ᐅ A
+
+Γ ctx
+Γ ⊦ A type
+-------------  // weakening substitution
+↑ : Γ ᐅ A ⇒ Γ
+
+Γ ctx
+Γ ⊦ A type
+----------------- // weakening substitution congruence
+↑ = ↑ : Γ ᐅ A ⇒ Γ
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₂ ctx
+σ₀ : Γ₀ ⇒ Γ₁
+σ₁ : Γ₀ ⇒ Γ₁
+τ₀ : Γ₁ ⇒ Γ₂
+τ₁ : Γ₁ ⇒ Γ₂
+σ₀ = σ₁ : Γ₀ ⇒ Γ₁
+τ₀ = τ₁ : Γ₁ ⇒ Γ₂
+--------------------------- // composition substitution congruence
+τ₀ ∘ σ₀ = τ₁ ∘ σ₁ : Γ₀ ⇒ Γ₂
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₁ ⊦ A type
+-------------------------
+σ : Γ₀ ⇒ Γ₁
+Γ₀ ⊦ t : A(σ)
+τ : Γ₀ ⇒ Γ₁ ᐅ A
+↑ ∘ τ = σ : Γ₀ ⇒ Γ₁
+Γ₀ ⊦ ☐(τ) = t : A(↑ ∘ τ)
+========================= // extension substitution uniqueness (admissible)
+(σ, t) = τ : Γ₀ ⇒ Γ₁ ᐅ A
+∎ (=>) τ = (id ∘ τ) = ((↑, ☐) ∘ τ) = (↑ ∘ τ, ☐(τ)) = (σ, t)
+  (<=)
+      σ = ↑ ∘ (σ, t) = ↑ ∘ τ
+      t = ☐(σ, t) = ☐(τ) ∎
+
+
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₁ ⊦ A type
+---------------------------------
+σ₀ : Γ₀ ⇒ Γ₁
+σ₁ : Γ₀ ⇒ Γ₁
+σ₀ = σ₁ : Γ₀ ⇒ Γ₁
+Γ₀ ⊦ t₀ : A(σ₀)
+Γ₀ ⊦ t₁ : A(σ₁)
+Γ₀ ⊦ t₀ = t₁ : A(σ₁)
+================================= // extension substitution congruence
+(σ₀, t₀) = (σ₁, t₁) : Γ₀ ⇒ Γ₁ ᐅ A
+
+
+Γ ctx
+σ : Γ₀ ⇒ Γ₁
+-------------------- // identity substitution precomposition
 σ ∘ id = σ : Γ₀ ⇒ Γ₁
+// viable bidirectional rewrite rule
 
+Γ ctx
 σ : Γ₀ ⇒ Γ₁
-------------------------
+-------------------- // identity substitution postcomposition
 id ∘ σ = σ : Γ₀ ⇒ Γ₁
+// viable bidirectional rewrite rule
 
+Γ₃ ctx
+Γ₂ ctx
+Γ₁ ctx
+Γ₀ ctx
 σ₁₀ : Γ₁ ⇒ Γ₀
 σ₂₁ : Γ₂ ⇒ Γ₁
 σ₃₂ : Γ₃ ⇒ Γ₂
----------------------------------------------------
+----------------------------------------------- // composition substitution associativity
 σ₁₀ ∘ (σ₂₁ ∘ σ₃₂) = (σ₁₀ ∘ σ₂₁) ∘ σ₃₂ : Γ₃ ⇒ Γ₀
+// viable bidirectional rewrite rule
 
+Γ₀ ctx
+Γ₁ ctx
 σ : Γ₀ ⇒ Γ₁
 Γ₁ ⊦ A type
 Γ₀ ⊦ t : A(σ)
-----------------------------
+------------------------ // weakening of extension substitution
 ↑ ∘ (σ, t) = σ : Γ₀ ⇒ Γ₁
+// viable unidirectional (⇝) rewrite rule
 
+Γ ctx
+σ : Γ₀ ⇒ ε
+---------- // admissible
+· ∘ σ = ·
+// viable unidirectional (⇝) rewrite rule
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₂ ctx
 τ : Γ₀ ⇒ Γ₁
 σ : Γ₁ ⇒ Γ₂
 Γ₂ ⊦ A type
 Γ₁ ⊦ t : A(σ)
-------------------------------------------
+--------------------------------------- // extension substitution postcomposition (admissible)
 (σ, t) ∘ τ = (σ ∘ τ, t(τ)) : Γ₀ ⇒ Γ₂ A
+// valid bidirectional rewrite
 
-// Notation: σ⁺ is a meta-level abbreviation for σ ∘ ↑, ☐₀ in the existing syntax.
-// The following rules are admissible:
+∎ ((σ, t) ∘ τ)(v̄) ~> (σ, t)(τ(v̄)) ~> (σ(τ(v̄)), t(τ(v̄))) <~ ((σ(τ(v̄)), t(τ(v̄))) <~ ((σ ∘ τ)(v̄), t(τ)(v̄)) <~ (σ ∘ τ, t(τ))(v̄) ∎
 
+Γ₀ ctx
+Γ₁ ctx
 σ : Γ₀ ⇒ Γ₁
 Γ₁ ⊦ A type
---------------------------  // (admissible)
-σ⁺ : Γ₀ A(σ) ⇒ Γ₁ A
+------------------------------ // natural substitution (admissible)
+σ⁺ ≜ σ ∘ ↑, ☐ : Γ₀ A(σ) ⇒ Γ₁ A
+// valid bidirectional rewrite
 
+Γ₀ ctx
+Γ₁ ctx
 σ : Γ₀ ⇒ Γ₁
-Γ₁ ⊦ A type
--------------------------------------  // (admissible)
-σ⁺ = σ ∘ ↑, ☐₀ : Γ₀ A(σ) ⇒ Γ₁ A
-
-// Structural rules for substitution equality
-
-σ : Γ₀ ⇒ Γ₁
------------------------
+--------------- // substitution reflexivity (admissible)
 σ = σ : Γ₀ ⇒ Γ₁
 
+Γ₀ ctx
+Γ₁ ctx
+σ : Γ₀ ⇒ Γ₁
+τ : Γ₀ ⇒ Γ₁
 σ = τ : Γ₀ ⇒ Γ₁
------------------------
+--------------- // substitution symmetry
 τ = σ : Γ₀ ⇒ Γ₁
 
+Γ₀ ctx
+Γ₁ ctx
+σ : Γ₀ ⇒ Γ₁
+τ : Γ₀ ⇒ Γ₁
+ρ : Γ₀ ⇒ Γ₁
 σ = τ : Γ₀ ⇒ Γ₁
 τ = ρ : Γ₀ ⇒ Γ₁
------------------------
+--------------- // substitution transitivity
 σ = ρ : Γ₀ ⇒ Γ₁
 
-// Congruence rules for substitution constructors
+Γ₀ ctx
+Γ₁ ctx
+Δ ctx
+Γ₀ = Γ₁ ctx
+σ : Γ₀ ⇒ Δ
+----------- // substitution domain preservation
+σ : Γ₁ ⇒ Δ
 
-σ = σ' : Γ₁ ⇒ Γ₂
-τ = τ' : Γ₀ ⇒ Γ₁
-----------------------------
-σ ∘ τ = σ' ∘ τ' : Γ₀ ⇒ Γ₂
+Γ ctx
+Δ₀ ctx
+Δ₁ ctx
+σ : Γ ⇒ Δ₀
+Δ₀ = Δ₁ ctx
+----------- // substitution codomain preservation
+σ : Γ ⇒ Δ₁
 
-σ = σ' : Γ₀ ⇒ Γ₁
-Γ₁ ⊦ A type
-Γ₀ ⊦ t = t' : A(σ)
------------------------------
-σ, t = σ', t' : Γ₀ ⇒ Γ₁ A
-
-// Conversion rules for substitution
-
-σ : Γ ⇒ Δ
+Γ ctx
+Γ' ctx
+Δ ctx
 Γ = Γ' ctx
------------
-σ : Γ' ⇒ Δ
-
 σ : Γ ⇒ Δ
-Δ = Δ' ctx
------------
-σ : Γ ⇒ Δ'
-
+τ : Γ ⇒ Δ
 σ = τ : Γ ⇒ Δ
-Γ = Γ' ctx
------------
+-------------- // substitution equality domain preservation
 σ = τ : Γ' ⇒ Δ
 
-σ = τ : Γ ⇒ Δ
+Γ ctx
+Δ ctx
+Δ' ctx
+σ : Γ ⇒ Δ
+τ : Γ ⇒ Δ
 Δ = Δ' ctx
------------
+σ = τ : Γ ⇒ Δ
+-------------- // substitution equality codomain preservation
 σ = τ : Γ ⇒ Δ'
 
 ///////// Inference rules (type) //////////
 
-Γ₁ ⊦ A type
-σ : Γ₀ ⇒ Γ₁
----------------
-Γ₀ ⊦ A(σ) type
-
-Γ ⊦ A type
---------------------
-Γ ⊦ A(id) = A type
-
-Γ₂ ⊦ A type
-σ : Γ₁ ⇒ Γ₂
-τ : Γ₀ ⇒ Γ₁
-------------------------------
-Γ₀ ⊦ A(σ)(τ) = A(σ ∘ τ) type
-
+Γ ctx
+----------
 Γ ⊦ 𝟘 type
 
-Γ ⊦ El 𝟘 = 𝟘 type  // NOTE: The two `𝟘`s have different meaning
-
-σ : Γ₀ ⇒ Γ₁
--------------------
-Γ₀ ⊦ 𝟘(σ) = 𝟘 type
-
+Γ ctx
+----------
 Γ ⊦ 𝟙 type
 
-Γ ⊦ El 𝟙 = 𝟙 type
-
-σ : Γ₀ ⇒ Γ₁
---------------------
-Γ₀ ⊦ 𝟙(σ) = 𝟙 type
-
+Γ ctx
+----------
 Γ ⊦ ℕ type
 
-Γ ⊦ El ℕ = ℕ type
-
-σ : Γ₀ ⇒ Γ₁
---------------------
-Γ₀ ⊦ ℕ(σ) = ℕ type
-
+Γ ctx
+----------
 Γ ⊦ 𝕌 type
 
-σ : Γ₀ ⇒ Γ₁
---------------------
-Γ₀ ⊦ 𝕌(σ) = 𝕌 type
+Γ ctx
+--------------
+Γ ⊦ A type
+Γ ᐅ A ⊦ B type
+============== // Π-type
+Γ ⊦ A → B type
 
+Γ ctx
+--------------
+Γ ⊦ A type
+Γ ᐅ A ⊦ B type
+============== // Σ-type
+Γ ⊦ A ⨯ B type
+
+Γ ctx
+--------------------
+Γ ⊦ T type
+Γ ⊦ a : T
+Γ ⊦ b : T
+==================== // Eq-type
+Γ ⊦ (a ≡ b ∈ T) type
+
+Γ ctx
+-------------
 Γ ⊦ A : 𝕌
----------------
+=============
 Γ ⊦ El A type
 
-Γ₁ ⊦ t : 𝕌
-σ : Γ₀ ⇒ Γ₁
--------------------------------
-Γ₀ ⊦ (El t)(σ) = El t(σ) type
+Γ ctx
+-----------------
+Γ ⊦ El 𝟘 = 𝟘 type
+// valid bidirectional rewrite
 
-Γ₁ ⊦ A type
-Γ₁ A ⊦ B type
-σ : Γ₀ ⇒ Γ₁
--------------------------------------
-Γ₀ ⊦ (A → B)(σ) = A(σ) → B(σ⁺) type
+Γ ctx
+-----------------
+Γ ⊦ El 𝟙 = 𝟙 type
+// valid bidirectional rewrite
+
+Γ ctx
+-----------------
+Γ ⊦ El ℕ = ℕ type
+// valid bidirectional rewrite
 
 Γ ⊦ A : 𝕌
-Γ (El A) ⊦ B : 𝕌
------------------------------------
+Γ ᐅ El A ⊦ B : 𝕌
+---------------------------------
 Γ ⊦ El (A → B) = El A → El B type
-
-Γ₁ ⊦ A type
-Γ₁ A ⊦ B type
-σ : Γ₀ ⇒ Γ₁
--------------------------------------
-Γ₀ ⊦ (A ⨯ B)(σ) = A(σ) ⨯ B(σ⁺) type
+// valid bidirectional rewrite
 
 Γ ⊦ A : 𝕌
-Γ (El A) ⊦ B : 𝕌
------------------------------------
+Γ ᐅ El A ⊦ B : 𝕌
+---------------------------------
 Γ ⊦ El (A ⨯ B) = El A ⨯ El B type
+// valid bidirectional rewrite
 
-Γ₁ ⊦ A type
-Γ₁ ⊦ a₀ : A
-Γ₁ ⊦ a₁ : A
-σ : Γ₀ ⇒ Γ₁
---------------------------------------------------
-Γ₀ ⊦ (a₀ ≡ a₁ ∈ A)(σ) = a₀(σ) ≡ a₁(σ) ∈ A(σ) type
-
+Γ ctx
 Γ ⊦ A : 𝕌
 Γ ⊦ a₀ : El A
 Γ ⊦ a₁ : El A
 --------------------------------------------
-Γ ⊦ El (a₀ ≡ a₁ ∈ A) = a₀ ≡ a₁ ∈ El A type
+Γ ⊦ El (a₀ ≡ a₁ ∈ A) = (a₀ ≡ a₁ ∈ El A) type
+// valid bidirectional rewrite
 
-// Structural rules for type equality
+Γ₀ ctx
+Γ₁ ctx
+Γ₁ ⊦ A type
+σ : Γ₀ ⇒ Γ₁
+--------------- // substitution type
+Γ₀ ⊦ A(σ) type
 
+Γ ctx
 Γ ⊦ A type
---------------------
+-------------------
+Γ ⊦ A(id) = A type
+// valid bidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₂ ctx
+Γ₂ ⊦ A type
+σ : Γ₁ ⇒ Γ₂
+τ : Γ₀ ⇒ Γ₁
+-----------------------------
+Γ₀ ⊦ A(σ ∘ τ) = A(σ)(τ) type
+// valid bidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+σ : Γ₀ ⇒ Γ₁
+-------------------
+Γ₀ ⊦ 𝟘(σ) = 𝟘 type
+// valid unidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+σ : Γ₀ ⇒ Γ₁
+------------------
+Γ₀ ⊦ 𝟙(σ) = 𝟙 type
+// valid unidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+σ : Γ₀ ⇒ Γ₁
+------------------
+Γ₀ ⊦ ℕ(σ) = ℕ type
+// valid unidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+σ : Γ₀ ⇒ Γ₁
+------------------
+Γ₀ ⊦ 𝕌(σ) = 𝕌 type
+// valid unidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₁ ⊦ t : 𝕌
+σ : Γ₀ ⇒ Γ₁
+------------------------------
+Γ₀ ⊦ (El t)(σ) = El t(σ) type
+// valid bidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₁ ⊦ A type
+Γ₁ ᐅ A ⊦ B type
+σ : Γ₀ ⇒ Γ₁
+-----------------------------------
+Γ₀ ⊦ (A → B)(σ) = A(σ) → B(σ⁺) type
+// valid unidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₁ ⊦ A type
+Γ₁ ᐅ A ⊦ B type
+σ : Γ₀ ⇒ Γ₁
+-----------------------------------
+Γ₀ ⊦ (A ⨯ B)(σ) = A(σ) ⨯ B(σ⁺) type
+// valid bidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₁ ⊦ A type
+Γ₁ ⊦ a₀ : A
+Γ₁ ⊦ a₁ : A
+σ : Γ₀ ⇒ Γ₁
+----------------------------------------------------
+Γ₀ ⊦ (a₀ ≡ a₁ ∈ A)(σ) = (a₀(σ) ≡ a₁(σ) ∈ A(σ)) type
+// valid bidirectional rewrite
+
+Γ ctx
+Γ ⊦ A type
+-------------- // type reflexivity
 Γ ⊦ A = A type
 
+Γ ctx
+Γ ⊦ A type
+Γ ⊦ B type
 Γ ⊦ A = B type
---------------------
+-------------------- // type symmetry
 Γ ⊦ B = A type
 
+Γ ctx
+Γ ⊦ A type
+Γ ⊦ B type
+Γ ⊦ C type
 Γ ⊦ A = B type
 Γ ⊦ B = C type
---------------------
+-------------- // type transitivity
 Γ ⊦ A = C type
 
-// Conversion rules for type
+Γ₀ ctx
+Γ₁ ctx
+Γ₀ ⊦ A type
+Γ₀ = Γ₁ ctx
+----------- // type context preservation
+Γ₁ ⊦ A type
 
-Γ ⊦ A type
-Γ = Γ' ctx
------------
-Γ' ⊦ A type
+Γ₀ ctx
+Γ₁ ctx
+Γ₀ ⊦ A type
+Γ₀ ⊦ B type
+Γ₀ ⊦ A = B type
+Γ₀ = Γ₁ ctx
+--------------- // type equality context preservation
+Γ₁ ⊦ A = B type
 
-Γ ⊦ A = B type
-Γ = Γ' ctx
------------
-Γ' ⊦ A = B type
+Γ ctx
+Δ ctx
+Δ ⊦ A₀ type
+Δ ⊦ A₁ type
+Δ ⊦ A₀ = A₁ type
+σ₀ : Γ ⇒ Δ
+σ₁ : Γ ⇒ Δ
+σ₀ = σ₁ : Γ ⇒ Δ
+------------------------ // substitution type congruence
+Γ ⊦ A₀(σ₀) = A₁(σ₁) type
 
-// Congruence rules for type constructors
-
-Γ₁ ⊦ A = A' type
-σ = σ' : Γ₀ ⇒ Γ₁
+Γ ctx
+Γ ⊦ A₀ type
+Γ ⊦ A₁ type
+Γ ᐅ A₀ ⊦ B₀ type
+Γ ᐅ A₁ ⊦ B₁ type
 --------------------------
-Γ₀ ⊦ A(σ) = A'(σ') type
+Γ ⊦ A₀ = A₁ type
+Γ ᐅ A₁ ⊦ B₀ = B₁ type
+========================== // Π-type congruence
+Γ ⊦ A₀ → B₀ = A₁ → B₁ type
 
-Γ ⊦ A = A' type
-Γ A ⊦ B = B' type
+Γ ctx
+Γ ⊦ A₀ type
+Γ ⊦ A₁ type
+Γ ᐅ A₀ ⊦ B₀ type
+Γ ᐅ A₁ ⊦ B₁ type
 --------------------------
-Γ ⊦ A → B = A' → B' type
+Γ ⊦ A₀ = A₁ type
+Γ ᐅ A₁ ⊦ B₀ = B₁ type
+========================== // Σ-type congruence
+Γ ⊦ A₀ ⨯ B₀ = A₁ ⨯ B₁ type
 
-Γ ⊦ A = A' type
-Γ A ⊦ B = B' type
---------------------------
-Γ ⊦ A ⨯ B = A' ⨯ B' type
+Γ ctx
+Γ ⊦ T₀ type
+Γ ⊦ T₁ type
+Γ ⊦ a₀ : T₀
+Γ ⊦ b₀ : T₀
+Γ ⊦ a₁ : T₁
+Γ ⊦ b₁ : T₁
+----------------------------------------
+Γ ⊦ T₀ = T₁ type
+Γ ⊦ a₀ = a₁ : T₁
+Γ ⊦ b₀ = b₁ : T₁
+======================================== // Eq-type congruence
+Γ ⊦ (a₀ ≡ b₀ ∈ T₀) = (a₁ ≡ b₁ ∈ T₁) type
 
-Γ ⊦ t₀ = t₀' : A
-Γ ⊦ t₁ = t₁' : A
-Γ ⊦ A = A' type
--------------------------------------------------
-Γ ⊦ t₀ ≡ t₁ ∈ A = t₀' ≡ t₁' ∈ A' type
-
-Γ ⊦ t = t' : 𝕌
---------------------------
-Γ ⊦ El t = El t' type
-
-// Injectivity of type constructors
-
-Γ ⊦ A → B = A' → B' type
---------------------------
-Γ ⊦ A = A' type
-
-Γ ⊦ A → B = A' → B' type
---------------------------
-Γ A ⊦ B = B' type
-
-Γ ⊦ A ⨯ B = A' ⨯ B' type
---------------------------
-Γ ⊦ A = A' type
-
-Γ ⊦ A ⨯ B = A' ⨯ B' type
---------------------------
-Γ A ⊦ B = B' type
-
-Γ ⊦ t₀ ≡ t₁ ∈ A = t₀' ≡ t₁' ∈ A' type
--------------------------------------------
-Γ ⊦ A = A' type
-
-Γ ⊦ t₀ ≡ t₁ ∈ A = t₀' ≡ t₁' ∈ A' type
--------------------------------------------
-Γ ⊦ t₀ = t₀' : A
-
-Γ ⊦ t₀ ≡ t₁ ∈ A = t₀' ≡ t₁' ∈ A' type
--------------------------------------------
-Γ ⊦ t₁ = t₁' : A
-
-Γ ⊦ El t = El t' type
-----------------------
-Γ ⊦ t = t' : 𝕌
+Γ ctx
+Γ ⊦ t₀ : 𝕌
+Γ ⊦ t₁ : 𝕌
+Γ ⊦ t₀ = t₁ : 𝕌
+----------------------  // El congruence
+Γ ⊦ El t₀ = El t₁ type
 
 ///////// Inference rules (tel) //////////
 
@@ -493,492 +658,707 @@ id ∘ σ = σ : Γ₀ ⇒ Γ₁
 -----------
 Γ ⊦ ε tel
 
-Γ A ⊦ Δ tel
+Γ ctx
 -------------
-Γ ⊦ A Δ tel
+Γ ⊦ A type
+Γ ᐅ A ⊦ Δ tel
+=============
+Γ ⊦ A ◁ Δ tel
 
+Γ₀ ctx
+Γ₁ ctx
 σ : Γ₀ ⇒ Γ₁
 Γ₁ ⊦ Δ tel
-------------------
+-------------
 Γ₀ ⊦ Δ(σ) tel
 
+Γ₀ ctx
+Γ₁ ctx
 σ : Γ₀ ⇒ Γ₁
------------------------
+-----------------
 Γ₀ ⊦ ε(σ) = ε tel
+// valid unidirectional rewrite
 
-Γ₁ ⊦ A Δ tel
+Γ₀ ctx
+Γ₁ ctx
+Γ₁ ⊦ A type
+Γ₁ ᐅ A ⊦ Δ tel
 σ : Γ₀ ⇒ Γ₁
--------------------------------
-Γ₀ ⊦ (A Δ)(σ) = A(σ) Δ(σ⁺) tel
+----------------------------------
+Γ₀ ⊦ (A ◁ Δ)(σ) = A(σ) ◁ Δ(σ⁺) tel
+// valid bidirectional rewrite
 
-// Structural rules for telescope equality
-
+Γ ctx
 Γ ⊦ Δ tel
---------------------
+-------------
+-------------
 Γ ⊦ Δ = Δ tel
 
-Γ ⊦ Δ = Δ' tel
---------------------
-Γ ⊦ Δ' = Δ tel
+Γ ctx
+Γ ⊦ Δ₀ tel
+Γ ⊦ Δ₁ tel
+Γ ⊦ Δ₀ = Δ₁ tel
+---------------
+Γ ⊦ Δ₁ = Δ₀ tel
 
-Γ ⊦ Δ = Δ' tel
-Γ ⊦ Δ' = Δ'' tel
---------------------
-Γ ⊦ Δ = Δ'' tel
+Γ ctx
+Γ ⊦ Δ₀ tel
+Γ ⊦ Δ₁ tel
+Γ ⊦ Δ₂ tel
+Γ ⊦ Δ₀ = Δ₁ tel
+Γ ⊦ Δ₁ = Δ₂ tel
+---------------
+Γ ⊦ Δ₀ = Δ₂ tel
 
-// Conversion rules for telescope
-
-Γ ⊦ Δ tel
-Γ = Γ' ctx
+Γ₀ ctx
+Γ₁ ctx
+Γ₀ ⊦ Δ tel
+Γ₀ = Γ₁ ctx
 -----------
-Γ' ⊦ Δ tel
+Γ₁ ⊦ Δ tel
 
-Γ ⊦ Δ = Δ' tel
-Γ = Γ' ctx
------------
-Γ' ⊦ Δ = Δ' tel
+Γ₀ ctx
+Γ₁ ctx
+Γ₀ ⊦ Δ₀ tel
+Γ₀ ⊦ Δ₁ tel
+Γ₀ ⊦ Δ₀ = Δ₁ tel
+Γ₀ = Γ₁ ctx
+----------------
+Γ₁ ⊦ Δ₀ = Δ₁ tel
 
-// Congruence rules for telescope constructors
+Γ ctx
+Γ ⊦ A₀ type
+Γ ⊦ A₁ type
+Γ ᐅ A₀ ⊦ Δ₀ tel
+Γ ᐅ A₁ ⊦ Δ₁ tel
+-------------------------
+Γ ⊦ A₀ = A₁ type
+Γ ᐅ A₁ ⊦ Δ₀ = Δ₁ tel
+=========================
+Γ ⊦ A₀ ◁ Δ₀ = A₁ ◁ Δ₁ tel
 
-Γ ⊦ A = A' type
-Γ A ⊦ Δ = Δ' tel
---------------------------
-Γ ⊦ A Δ = A' Δ' tel
-
-Γ₁ ⊦ Δ = Δ' tel
-σ = σ' : Γ₀ ⇒ Γ₁
---------------------------
-Γ₀ ⊦ Δ(σ) = Δ'(σ') tel
-
-// Injectivity of telescope constructor
-
-Γ ⊦ A Δ = A' Δ' tel
---------------------------
-Γ ⊦ A = A' type
-
-Γ ⊦ A Δ = A' Δ' tel
---------------------------
-Γ A ⊦ Δ = Δ' tel
+Γ ctx
+Ξ ctx
+Γ ⊦ Δ₀ tel
+Γ ⊦ Δ₁ tel
+σ₀ : Ξ ⇒ Γ
+σ₁ : Ξ ⇒ Γ
+Γ ⊦ Δ₀ = Δ₁ tel
+σ₀ = σ₁ : Ξ ⇒ Γ
+-----------------------
+Ξ ⊦ Δ₀(σ₀) = Δ₁(σ₁) tel
 
 ///////// Inference rules (elem) //////////
 
+Γ ctx
+Γ ⊦ A type
+----------------
+Γ ᐅ A ⊦ ☐ : A(↑)
+
+Γ ctx
+---------
 Γ ⊦ 𝟘 : 𝕌
 
-Γ ⊦ El 𝟘 = 𝟘 type
-
-σ : Γ₀ ⇒ Γ₁
--------------------
-Γ₀ ⊦ 𝟘(σ) = 𝟘 : 𝕌
-
+Γ ctx
+---------
 Γ ⊦ 𝟙 : 𝕌
 
-Γ ⊦ El 𝟙 = 𝟙 type
-
-σ : Γ₀ ⇒ Γ₁
--------------------
-Γ₀ ⊦ 𝟙(σ) = 𝟙 : 𝕌
-
+Γ ctx
+---------
 Γ ⊦ ℕ : 𝕌
 
-Γ ⊦ El ℕ = ℕ type
-
-σ : Γ₀ ⇒ Γ₁
--------------------
-Γ₀ ⊦ ℕ(σ) = ℕ : 𝕌
-
-Γ ⊦ () : 𝟙
-
-σ : Γ₀ ⇒ Γ₁
---------------------
-Γ₀ ⊦ ()(σ) = () : 𝟙
-
-Γ ⊦ Z : ℕ
-
-σ : Γ₀ ⇒ Γ₁
--------------------
-Γ₀ ⊦ Z(σ) = Z : ℕ
-
-Γ ⊦ t : ℕ
--------------
-Γ ⊦ S t : ℕ
-
-Γ₁ ⊦ t : ℕ
-σ : Γ₀ ⇒ Γ₁
-----------------------------
-Γ₀ ⊦ (S t)(σ) = S t(σ) : ℕ
-
+Γ ctx
+----------------
 Γ ⊦ A : 𝕌
-Γ (El A) ⊦ B : 𝕌
-------------------
+Γ ᐅ El A ⊦ B : 𝕌
+================
 Γ ⊦ A → B : 𝕌
 
-Γ₁ ⊦ A : 𝕌
-Γ₁ (El A) ⊦ B : 𝕌
-σ : Γ₀ ⇒ Γ₁
-------------------------------------
-Γ₀ ⊦ (A → B)(σ) = A(σ) → B(σ⁺) : 𝕌
-
+Γ ctx
+----------------
 Γ ⊦ A : 𝕌
-Γ (El A) ⊦ B : 𝕌
-------------------
+Γ ᐅ El A ⊦ B : 𝕌
+================
 Γ ⊦ A ⨯ B : 𝕌
 
-Γ₁ ⊦ A : 𝕌
-Γ₁ (El A) ⊦ B : 𝕌
-σ : Γ₀ ⇒ Γ₁
--------------------------------
-Γ₀ ⊦ (A ⨯ B)(σ) = A(σ) ⨯ B(σ⁺) : 𝕌
-
+Γ ctx
+----------------------
 Γ ⊦ A : 𝕌
 Γ ⊦ a₀ : El A
 Γ ⊦ a₁ : El A
------------------------
+=====================
 Γ ⊦ (a₀ ≡ a₁ ∈ A) : 𝕌
 
-Γ₁ ⊦ A : 𝕌
-Γ₁ ⊦ a₀ : El A
-Γ₁ ⊦ a₁ : El A
-σ : Γ₀ ⇒ Γ₁
-----------------------------------------------------
-Γ₀ ⊦ (a₀ ≡ a₁ ∈ A)(σ) = (a₀(σ) ≡ a₁(σ) ∈ A(σ)) : 𝕌
+Γ ctx
+Γ ⊦ A type
+----------------
+Γ ⊦ t : 𝟘
+================
+Γ ⊦ 𝟘-elim t : A
 
-Γ A ⊦ f : B
------------------
+Γ ctx
+Γ ⊦ t₀ : 𝟘
+Γ ⊦ t₁ : 𝟘
+---------------
+Γ ⊦ t₀ = t₁ : 𝟘
+
+Γ ctx
+----------
+Γ ⊦ () : 𝟙
+
+Γ ctx
+Γ ⊦ t : 𝟙
+---------------
+Γ ⊦ t = () : 𝟙
+
+Γ ctx
+---------
+Γ ⊦ Z : ℕ
+
+Γ ctx
+-------------
+Γ ⊦ t : ℕ
+===========
+Γ ⊦ S t : ℕ
+
+Γ ctx
+Γ ⊦ A type
+Γ ᐅ A ⊦ B type
+--------------
+Γ ᐅ A ⊦ f : B
+===============
 Γ ⊦ λ f : A → B
 
-Γ₁ A ⊦ f : B
-σ : Γ₀ ⇒ Γ₁
-----------------------------------------
-Γ₀ ⊦ (λ f)(σ) = λ f(σ⁺) : A(σ) → B(σ⁺)
-
+Γ ctx
+Γ ⊦ A type
+Γ ᐅ A ⊦ B type
+---------------
 Γ ⊦ f : A → B
-Γ ⊦ e : A
---------------------
-Γ ⊦ f e : B(id, e)
+===============
+Γ ᐅ A ⊦ f @ : B
 
-Γ₁ ⊦ f : A → B
-Γ₁ ⊦ e : A
-σ : Γ₀ ⇒ Γ₁
-----------------------------------------
-Γ₀ ⊦ (f e)(σ) = f(σ) e(σ) : B(σ, e(σ))
+Γ ctx
+Γ ⊦ A type
+Γ ᐅ A ⊦ B type
+Γ ᐅ A ⊦ f : B
+------------------------
+Γ ᐅ A ⊦ (λ f) @ = f : B
+// valid unidirectional rewrite
 
+Γ ctx
+Γ ⊦ A type
+Γ ᐅ A ⊦ B type
+Γ ⊦ f : A → B
+-----------------------
+Γ ⊦ λ (f @) = f : A → B
+// valid unidirectional rewrite
+
+Γ ctx
+Γ ⊦ A type
+Γ ᐅ A ⊦ B type
+-----------------
 Γ ⊦ a : A
 Γ ⊦ b : B(id, a)
-----------------------------
+=================
 Γ ⊦ a , b : A ⨯ B
 
-Γ₁ ⊦ a : A
-Γ₁ ⊦ b : B(id, a)
-σ : Γ₀ ⇒ Γ₁
-----------------------------------------------
-Γ₀ ⊦ (a , b)(σ) = a(σ) , b(σ) : A(σ) ⨯ B(σ⁺)
-
+Γ ctx
+Γ ⊦ A type
+Γ ᐅ A ⊦ B type
 Γ ⊦ t : A ⨯ B
----------------
+--------------
 Γ ⊦ t .π₁ : A
 
-Γ₁ ⊦ t : A ⨯ B
-σ : Γ₀ ⇒ Γ₁
------------------------------------
-Γ₀ ⊦ (t .π₁)(σ) = t(σ) .π₁ : A(σ)
+Γ ctx
+Γ ⊦ A type
+Γ ᐅ A ⊦ B type
+Γ ⊦ a : A
+Γ ⊦ b : B(id, a)
+-----------------------
+Γ ⊦ (a, b) .π₁ = a : A
+// valid unidirectional rewrite
 
+Γ ctx
+Γ ⊦ A type
+Γ ᐅ A ⊦ B type
 Γ ⊦ t : A ⨯ B
 ---------------------------
 Γ ⊦ t .π₂ : B(id, t .π₁)
 
-Γ₁ ⊦ t : A ⨯ B
-σ : Γ₀ ⇒ Γ₁
----------------------------------------------
-Γ₀ ⊦ (t .π₂)(σ) = t(σ) .π₂ : B(σ, t(σ) .π₁)
-
+Γ ctx
+Γ ⊦ A type
+Γ ᐅ A ⊦ B type
 Γ ⊦ a : A
-------------------------
+Γ ⊦ b : B(id, a)
+------------------------------
+Γ ⊦ (a, b) .π₂ = b : B(id, a)
+// valid unidirectional rewrite
+
+Γ ctx
+Γ ⊦ A type
+Γ ᐅ A ⊦ B type
+Γ ⊦ t : A ⨯ B
+------------------------------- // admissible via meta-level induction
+Γ ⊦ (t .π₁ , t .π₂) = t : A ⨯ B
+// valid unidirectional rewrite
+
+Γ ctx
+Γ ⊦ A type
+Γ ⊦ a : A
+----------------------
 Γ ⊦ Refl : (a ≡ a ∈ A)
 
-Γ₁ ⊦ a : A
-σ : Γ₀ ⇒ Γ₁
---------------------------------------------
-Γ₀ ⊦ Refl(σ) = Refl : (a(σ) ≡ a(σ) ∈ A(σ))
-
+Γ ctx
 Γ ⊦ A type
-Γ ⊦ t : 𝟘
--------------------
-Γ ⊦ 𝟘-elim t : A
+Γ ⊦ a₀ : A
+Γ ᐅ A ᐅ (a₀(↑) ≡ ☐ ∈ A(↑)) ⊦ B type
+Γ ⊦ r : B(id, a₀, Refl)
+Γ ⊦ a₁ : A
+Γ ⊦ p : (a₀ ≡ a₁ ∈ A)
+-----------------------
+Γ ⊦ J r p : B(id, a₁, p)
 
-Γ₁ ⊦ A type
-Γ₁ ⊦ t : 𝟘
-σ : Γ₀ ⇒ Γ₁
------------------------------------------
-Γ₀ ⊦ (𝟘-elim t)(σ) = 𝟘-elim t(σ) : A(σ)
+Γ ctx
+Γ ⊦ A type
+Γ ⊦ a₀ : A
+Γ ᐅ A ᐅ (a₀(↑) ≡ ☐ ∈ A(↑)) ⊦ B type
+Γ ⊦ r : B(id, a₀, Refl)
+------------------------------------
+Γ ⊦ J r Refl = r : B(id, a₀, Refl)
+// valid bidirectional rewrite
 
-Γ ℕ ⊦ A type
+Γ ctx
+Γ ⊦ A type
+Γ ⊦ a₀ : A
+Γ ᐅ A ᐅ (a₀(↑) ≡ ☐ ∈ A(↑)) ⊦ B type
+Γ ᐅ A ᐅ (a₀(↑) ≡ ☐ ∈ A(↑)) ⊦ f : B type
+Γ ⊦ a₁ : A
+Γ ⊦ p : (a₀ ≡ a₁ ∈ A)
+----------------------------------------------------- // admissible by meta-level induction
+Γ ⊦ f(id, a₁, p) = J f(id, a₀, Refl) p : B(id, a₁, p)
+
+Γ ctx
+Γ ᐅ ℕ ⊦ A type
 Γ ⊦ z : A(id, Z)
-Γ ℕ A ⊦ s : A(↑, S ☐₀)
+Γ ᐅ ℕ ᐅ A ⊦ s : A(↑ ∘ ↑, S ☐(↑))
 Γ ⊦ t : ℕ
--------------------------------
-Γ ⊦ ℕ-elim A z s t : A(id, t)
+--------------------------------
+Γ ⊦ ℕ-elim z s t : A(id, t)
 
-Γ₁ ℕ ⊦ A type
-Γ₁ ⊦ z : A(id, Z)
-Γ₁ ℕ A ⊦ s : A(↑, S ☐₀)
-Γ₁ ⊦ t : ℕ
-σ : Γ₀ ⇒ Γ₁
------------------------------------------------------------------------
-Γ₀ ⊦ (ℕ-elim A z s t)(σ) = ℕ-elim A(σ⁺) z(σ) s(σ⁺⁺) t(σ) : A(σ, t(σ))
+Γ ctx
+Γ ᐅ ℕ ⊦ A type
+Γ ⊦ z : A(id, Z)
+Γ ᐅ ℕ ᐅ A ⊦ s : A(↑ ∘ ↑, S ☐(↑))
+--------------------------------
+Γ ⊦ ℕ-elim z s Z = z : A(id, Z)
+// valid unidirectional rewrite
 
-|Γ₁| = n
-------------------------
-Γ₀ A Γ₁ ⊦ ☐ₙ : A(↑¹⁺ⁿ)
+Γ ctx
+Γ ᐅ ℕ ⊦ A type
+Γ ⊦ z : A(id, Z)
+Γ ᐅ ℕ ᐅ A ⊦ s : A(↑ ∘ ↑, S ☐(↑))
+Γ ⊦ t : ℕ
+-----------------------------------------------------------
+Γ ⊦ ℕ-elim z s (S t) ~> s(id, t, ℕ-elim z s t) : A(id, S t)
+// valid unidirectional rewrite
 
+Γ ctx
+Γ ᐅ ℕ ⊦ A type
+Γ ⊦ z : A(id, Z)
+Γ ᐅ ℕ ᐅ A ⊦ s : A(↑ ∘ ↑, S ☐(↑))
+Γ ᐅ ℕ ⊦ f : A
+Γ ⊦ f(id, Z) = z : A(id, Z)
+Γ ᐅ ℕ ⊦ f(↑, S ☐) = s(id, f) : A(↑, S ☐)
+Γ ⊦ t : ℕ
+--------------------------------------  // admissible by meta-level induction
+Γ ⊦ f(id, t) = ℕ-elim z s t : A(id, t)
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₁ ⊦ A type
 Γ₁ ⊦ t : A
 σ : Γ₀ ⇒ Γ₁
-------------------
+----------------
 Γ₀ ⊦ t(σ) : A(σ)
 
-Γ ⊦ t : 𝟙
-----------------
-Γ ⊦ t = () : 𝟙
-
-Γ A ⊦ f : B
-Γ ⊦ e : A
------------------------------------
-Γ ⊦ (λ f) e = f(id, e) : B(id, e)
-
-Γ ⊦ f : A → B
-----------------------------------
-Γ ⊦ λ (f(↑) ☐₀) = f : A → B
-
-Γ A ⊦ B type
-Γ ⊦ a : A
-Γ ⊦ b : B(id, a)
-------------------------
-Γ ⊦ (a, b) .π₁ = a : A
-
-Γ A ⊦ B type
-Γ ⊦ a : A
-Γ ⊦ b : B(id, a)
--------------------------------
-Γ ⊦ (a, b) .π₂ = b : B(id, a)
-
-Γ ⊦ t : A ⨯ B
----------------------------------
-Γ ⊦ (t .π₁ , t .π₂) = t : A ⨯ B
-
-Γ₁ ⊦ A type
-σ : Γ₀ ⇒ Γ₁
-Γ₀ ⊦ t : A(σ)
---------------------------
-Γ₀ ⊦ ☐₀(σ, t) = t : A(σ)
-
-|Γ₁| = i
-Γ₀ A Γ₁ ⊦ B type
------------------------------------------
-Γ₀ A Γ₁ B ⊦ ☐ᵢ(↑) = ☐ᵢ₊₁ : A(↑²⁺ⁱ)
-
-|Γ₁| = i
-σ : Γ ⇒ Γ₀ B Γ₁
-Γ₀ B Γ₁ ⊦ A type
-Γ ⊦ t : A(σ)
------------------------------------------  // (admissible)
-Γ ⊦ ☐ᵢ₊₁(σ, t) = ☐ᵢ(σ) : B(↑¹⁺ⁱ ∘ σ)
-
+Γ ctx
+Γ ⊦ A type
 Γ ⊦ t : A
 --------------------
 Γ ⊦ t(id) = t : A
+// valid bidirectional rewrite
 
+Γ₀ ctx
+Γ₁ ctx
+Γ₂ ctx
+Γ₂ ⊦ A type
 Γ₂ ⊦ t : A
 σ : Γ₁ ⇒ Γ₂
 τ : Γ₀ ⇒ Γ₁
-------------------------------------
+-----------------------------------
 Γ₀ ⊦ t(σ)(τ) = t(σ ∘ τ) : A(σ ∘ τ)
+// valid bidirectional rewrite
 
-Γ ℕ ⊦ A type
-Γ ⊦ z : A(id, Z)
-Γ ℕ A ⊦ s : A(↑, S ☐₀)
-----------------------------------------
-Γ ⊦ ℕ-elim A z s Z = z : A(id, Z)
+Γ₀ ctx
+Γ₁ ctx
+σ : Γ₀ ⇒ Γ₁
+-----------------
+Γ₀ ⊦ 𝟘(σ) = 𝟘 : 𝕌
+// valid unidirectional rewrite
 
-Γ ℕ ⊦ A type
+Γ₀ ctx
+Γ₁ ctx
+σ : Γ₀ ⇒ Γ₁
+------------------
+Γ₀ ⊦ 𝟙(σ) = 𝟙 : 𝕌
+// valid unidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+σ : Γ₀ ⇒ Γ₁
+-----------------
+Γ₀ ⊦ ℕ(σ) = ℕ : 𝕌
+// valid unidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+σ : Γ₀ ⇒ Γ₁
+-------------------
+Γ₀ ⊦ ()(σ) = () : 𝟙
+// valid unidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+σ : Γ₀ ⇒ Γ₁
+------------------
+Γ₀ ⊦ Z(σ) = Z : ℕ
+// valid unidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₁ ⊦ t : ℕ
+σ : Γ₀ ⇒ Γ₁
+------------------------------
+Γ₀ ⊦ (S t)(σ) = S t(σ) : ℕ
+// valid bidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₁ ⊦ A : 𝕌
+Γ₁ ᐅ El A ⊦ B : 𝕌
+σ : Γ₀ ⇒ Γ₁
+-----------------------------------
+Γ₀ ⊦ (A → B)(σ) = A(σ) → B(σ⁺) : 𝕌
+// valid bidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₁ ⊦ A : 𝕌
+Γ₁ ᐅ El A ⊦ B : 𝕌
+σ : Γ₀ ⇒ Γ₁
+----------------------------------
+Γ₀ ⊦ (A ⨯ B)(σ) = A(σ) ⨯ B(σ⁺) : 𝕌
+// valid bidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₁ ⊦ A : 𝕌
+Γ₁ ⊦ a₀ : El A
+Γ₁ ⊦ a₁ : El A
+σ : Γ₀ ⇒ Γ₁
+--------------------------------------------------
+Γ₀ ⊦ (a₀ ≡ a₁ ∈ A)(σ) = (a₀(σ) ≡ a₁(σ) ∈ A(σ)) : 𝕌
+// valid bidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₁ ᐅ A ⊦ f : B
+σ : Γ₀ ⇒ Γ₁
+---------------------------------------
+Γ₀ ⊦ (λ f)(σ) = λ f(σ⁺) : A(σ) → B(σ⁺)
+// valid bidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₁ ⊦ A type
+Γ₁ ᐅ A ⊦ B type
+Γ₁ ⊦ f : A → B
+σ : Γ₀ ⇒ Γ₁
+Γ₀ ⊦ t : A(σ)
+--------------------------------------------
+Γ₀ ⊦ (f @)(σ, t) = (f(σ) @)(↑, t) : B(σ, t)
+// valid bidirectional rewrite
+
+// corollary (admissible via direct rule application):
+Γ₀ ᐅ A(σ) ⊦ (f @)(σ⁺) = (f @)(σ ∘ ↑, ☐) = (f(σ ∘ ↑) @)(↑, ☐) = (f(σ ∘ ↑) @)(id) = f(σ ∘ ↑) @ : B(σ⁺)
+            // valid bidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₁ ⊦ A type
+Γ₁ ᐅ A ⊦ B type
+Γ₁ ⊦ a : A
+Γ₁ ⊦ b : B(id, a)
+σ : Γ₀ ⇒ Γ₁
+--------------------------------------------
+Γ₀ ⊦ (a , b)(σ) = a(σ) , b(σ) : A(σ) ⨯ B(σ⁺)
+// valid bidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₁ ⊦ A type
+Γ₁ ᐅ A ⊦ B type
+Γ₁ ⊦ t : A ⨯ B
+σ : Γ₀ ⇒ Γ₁
+---------------------------------
+Γ₀ ⊦ (t .π₁)(σ) = t(σ) .π₁ : A(σ)
+// valid bidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₁ ⊦ A type
+Γ₁ ᐅ A ⊦ B type
+Γ₁ ⊦ t : A ⨯ B
+σ : Γ₀ ⇒ Γ₁
+--------------------------------------------
+Γ₀ ⊦ (t .π₂)(σ) = t(σ) .π₂ : B(σ, t(σ) .π₁)
+// valid bidirectional rewrite
+
+Γ₀ ctx
+Γ₁ ctx
+Γ₁ ⊦ A type
+Γ₁ ⊦ a : A
+σ : Γ₀ ⇒ Γ₁
+-------------------------------------------
+Γ₀ ⊦ Refl(σ) = Refl : (a(σ) ≡ a(σ) ∈ A(σ))
+// valid unidirectional rewrite
+
+Γ ctx
+Γ ᐅ ℕ ⊦ A type
 Γ ⊦ z : A(id, Z)
-Γ ℕ A ⊦ s : A(↑, S ☐₀)
+Γ ᐅ ℕ ᐅ A ⊦ s : A(↑ ∘ ↑, S ☐(↑))
 Γ ⊦ t : ℕ
-------------------------------------------------------------------------
-Γ ⊦ ℕ-elim A z s (S t) = s(id, t, ℕ-elim A z s t) : A(id, S t)
+Δ ctx
+σ : Δ ⇒ Γ
+-------------------------------------------------------------
+Δ ⊦ (ℕ-elim z s t)(σ) = ℕ-elim z(σ) s(σ⁺⁺) t(σ) : A(σ, t(σ))
+// valid bidirectional rewrite
 
-Γ ⊦ a : a₀ ≡ a₁ ∈ A
---------------------         // Note: Those two rules are enough to derive J and its β and η rules
-Γ ⊦ a₀ = a₁ : A             // Pretty sure (J, J-β, J-η) is equivalent to this rule.
+Γ ctx
+Γ ⊦ A type
+Γ ⊦ t : 𝟘
+Δ ctx
+σ : Δ ⇒ Γ
+---------------------------------------
+Δ ⊦ (𝟘-elim t)(σ) = 𝟘-elim t(σ) : A(σ)
+// valid bidirectional rewrite
 
-// Structural rules for element equality
+Γ ctx
+Γ ⊦ A type
+Δ ctx
+σ : Δ ⇒ Γ
+Δ ⊦ t : A(σ)
+-----------------------
+Δ ⊦ ☐(σ, t) = t : A(σ)
+// valid unidirectional rewrite
 
+Γ ctx
+Γ ⊦ A type
 Γ ⊦ a : A
---------------------
+-------------------- // element reflexivity
 Γ ⊦ a = a : A
 
-Γ ⊦ a = b : A
---------------------
-Γ ⊦ b = a : A
+Γ ctx
+Γ ⊦ A type
+Γ ⊦ a₀ : A
+Γ ⊦ a₁ : A
+Γ ⊦ a₀ = a₁ : A
+--------------- // element symmetry
+Γ ⊦ a₁ = a₀ : A
 
-Γ ⊦ a = b : A
-Γ ⊦ b = c : A
---------------------
-Γ ⊦ a = c : A
+Γ ctx
+Γ ⊦ A type
+Γ ⊦ a₀ : A
+Γ ⊦ a₁ : A
+Γ ⊦ a₂ : A
+Γ ⊦ a₀ = a₁ : A
+Γ ⊦ a₁ = a₂ : A
+--------------- // element transitivity
+Γ ⊦ a₀ = a₂ : A
 
-Γ ⊦ a = b : A          // Type conversion for element equality
-Γ ⊦ A = B type
---------------------
-Γ ⊦ a = b : B
+Γ ctx
+Γ ⊦ A₀ type
+Γ ⊦ A₁ type
+Γ ⊦ a : A₀
+Γ ⊦ A₀ = A₁ type
+---------------- // element type preservation
+Γ ⊦ a : A₁
 
-// Conversion rules for element
+Γ ctx
+Γ ⊦ A₀ type
+Γ ⊦ A₁ type
+Γ ⊦ a₀ : A
+Γ ⊦ a₁ : A
+Γ ⊦ a₀ = a₁ : A₀
+Γ ⊦ A₀ = A₁ type
+---------------- // element equality type preservation
+Γ ⊦ a₀ = a₁ : A₁
 
-Γ ⊦ a : A
-Γ ⊦ A = B type
---------------------
-Γ ⊦ a : B
+Γ₀ ctx
+Γ₁ ctx
+Γ₀ ⊦ A type
+Γ₀ ⊦ a : A
+Γ₀ = Γ₁ ctx
+----------- // element context preservation
+Γ₁ ⊦ a : A
 
-Γ ⊦ a : A
-Γ = Γ' ctx
---------------------
-Γ' ⊦ a : A
-
-Γ ⊦ a = b : A
-Γ = Γ' ctx
---------------------
-Γ' ⊦ a = b : A
+Γ₀ ctx
+Γ₁ ctx
+Γ₀ ⊦ A type
+Γ₀ ⊦ a₀ : A
+Γ₀ ⊦ a₁ : A
+Γ₀ ⊦ a₀ = a₁ : A
+Γ₀ = Γ₁ ctx
+---------------- // element equality context preservation
+Γ₁ ⊦ a₀ = a₁ : A
 
 // Congruence rules for element constructors
 
-Γ₁ ⊦ t = t' : A
-σ = σ' : Γ₀ ⇒ Γ₁
---------------------------
-Γ₀ ⊦ t(σ) = t'(σ') : A(σ)
+Γ₀ ctx
+Γ₁ ctx
+Γ₁ ⊦ A type
+Γ₁ ⊦ t₀ = t₁ : A
+σ₀ = σ₁ : Γ₀ ⇒ Γ₁
+----------------------------
+Γ₀ ⊦ t₀(σ₀) = t₁(σ₁) : A(σ₁)
 
-Γ A ⊦ f = f' : B
---------------------------
-Γ ⊦ λ f = λ f' : A → B
-
-Γ ⊦ f = f' : A → B
-Γ ⊦ e = e' : A
---------------------------
-Γ ⊦ f e = f' e' : B(id, e)
-
-Γ ⊦ a = a' : A
-Γ ⊦ b = b' : B(id, a)
---------------------------
-Γ ⊦ a, b = a', b' : A ⨯ B
-
-Γ ⊦ t = t' : A ⨯ B
---------------------------
-Γ ⊦ t .π₁ = t' .π₁ : A
-
-Γ ⊦ t = t' : A ⨯ B
--------------------------------------------
-Γ ⊦ t .π₂ = t' .π₂ : B(id, t .π₁)
-
-Γ ⊦ t = t' : ℕ
---------------------------
-Γ ⊦ S t = S t' : ℕ
-
-Γ ℕ ⊦ A = A' type
-Γ ⊦ z = z' : A(id, Z)
-Γ ℕ A ⊦ s = s' : A(↑, S ☐₀)
-Γ ⊦ t = t' : ℕ
--------------------------------------------
-Γ ⊦ ℕ-elim A z s t = ℕ-elim A' z' s' t' : A(id, t)
-
+Γ ctx
 Γ ⊦ A type
-Γ ⊦ t = t' : 𝟘
---------------------------
-Γ ⊦ 𝟘-elim t = 𝟘-elim t' : A
+Γ ᐅ A ⊦ B type
+-----------------------
+Γ ᐅ A ⊦ f₀ = f₁ : B
+=======================
+Γ ⊦ λ f₀ = λ f₁ : A → B
+
+Γ ctx
+Γ ⊦ A type
+Γ ᐅ A ⊦ B type
+-----------------------
+Γ ⊦ f₀ = f₁ : A → B
+=======================
+Γ ᐅ A ⊦ f₀ @ = f₁ @ : B
+
+Γ ctx
+Γ ⊦ A type
+Γ ᐅ A ⊦ B type
+---------------------------
+Γ ⊦ a₀ = a₁ : A
+Γ ⊦ b₀ = b₁ : B(id, a₁)
+===========================
+Γ ⊦ a₀, b₀ = a₁, b₁ : A ⨯ B
+
+Γ ctx
+Γ ⊦ A type
+Γ ᐅ A ⊦ B type
+Γ ⊦ t₀ = t₁ : A ⨯ B
+----------------------
+Γ ⊦ t₀ .π₁ = t₁ .π₁ : A
+
+Γ ctx
+Γ ⊦ A type
+Γ ᐅ A ⊦ B type
+Γ ⊦ t₀ = t₁ : A ⨯ B
+----------------------------------
+Γ ⊦ t₀ .π₂ = t₁ .π₂ : B(id, t .π₁)
+
+Γ ctx
+-------------------
+Γ ⊦ t₀ = t₁ : ℕ
+===================
+Γ ⊦ S t₀ = S t₁ : ℕ
+
+Γ ctx
+Γ ᐅ ℕ ⊦ A type
+Γ ⊦ z₀ = z₁ : A(id, Z)
+Γ ᐅ ℕ ᐅ A ⊦ s₀ = s₁ : A(↑, S ☐₀)(↑)
+Γ ⊦ t₀ = t₁ : ℕ
+-------------------------------------------------
+Γ ⊦ ℕ-elim z₀ s₀ t₀ = ℕ-elim z₁ s₁ t₁ : A(id, t₁)
+
+Γ ctx
+Γ ⊦ A type
+Γ ⊦ t₀ : 𝟘
+Γ ⊦ t₁ : 𝟘
+-----------------------------
+Γ ⊦ 𝟘-elim t₀ = 𝟘-elim t₁ : A
 
 // Congruence rules for universe code constructors
 
-Γ ⊦ a = a' : 𝕌
-Γ (El a) ⊦ b = b' : 𝕌
---------------------------
-Γ ⊦ a → b = a' → b' : 𝕌
+Γ ctx
+-------------------------
+Γ ⊦ A₀ = A₁ : 𝕌
+Γ ᐅ El A ⊦ B₀ = B₁ : 𝕌
+=========================
+Γ ⊦ A₀ → B₀ = A₁ → B₁ : 𝕌
 
-Γ ⊦ a = a' : 𝕌
-Γ (El a) ⊦ b = b' : 𝕌
---------------------------
-Γ ⊦ a ⨯ b = a' ⨯ b' : 𝕌
+Γ ctx
+-------------------------
+Γ ⊦ A₀ = A₁ : 𝕌
+Γ ᐅ El A₁ ⊦ B₀ = B₁ : 𝕌
+=========================
+Γ ⊦ A₀ ⨯ B₀ = A₁ ⨯ B₁ : 𝕌
 
-Γ ⊦ a₀ = a₀' : El A
-Γ ⊦ a₁ = a₁' : El A
-Γ ⊦ A = A' : 𝕌
--------------------------------------------
-Γ ⊦ a₀ ≡ a₁ ∈ A = a₀' ≡ a₁' ∈ A' : 𝕌
-
-// Injectivity of successor
-
-Γ ⊦ S t = S t' : ℕ
---------------------------
-Γ ⊦ t = t' : ℕ
-
-// Injectivity of universe code constructors
-
-Γ ⊦ a → b = a' → b' : 𝕌
---------------------------
-Γ ⊦ a = a' : 𝕌
-
-Γ ⊦ a → b = a' → b' : 𝕌
---------------------------
-Γ (El a) ⊦ b = b' : 𝕌
-
-Γ ⊦ a ⨯ b = a' ⨯ b' : 𝕌
---------------------------
-Γ ⊦ a = a' : 𝕌
-
-Γ ⊦ a ⨯ b = a' ⨯ b' : 𝕌
---------------------------
-Γ (El a) ⊦ b = b' : 𝕌
-
-Γ ⊦ a₀ ≡ a₁ ∈ A = a₀' ≡ a₁' ∈ A' : 𝕌
------------------------------------------
-Γ ⊦ A = A' : 𝕌
-
-Γ ⊦ a₀ ≡ a₁ ∈ A = a₀' ≡ a₁' ∈ A' : 𝕌
------------------------------------------
-Γ ⊦ a₀ = a₀' : El A
-
-Γ ⊦ a₀ ≡ a₁ ∈ A = a₀' ≡ a₁' ∈ A' : 𝕌
------------------------------------------
-Γ ⊦ a₁ = a₁' : El A
-
+Γ ctx
+-------------------------
+Γ ⊦ A₀ = A₁ : 𝕌
+Γ ⊦ a₀ = a₁ : El A₁
+Γ ⊦ b₀ = b₁ : El A₁
+---------------------------------------
+Γ ⊦ (a₀ ≡ b₀ ∈ A₀) = (a₁ ≡ b₁ ∈ A₁) : 𝕌
 
 ///////// Inference rules (elem list) //////////
 
 Γ ⊦ · : ε
 
-Γ ⊦ Δ tel
+Γ ᐅ A type
+Γ ᐅ A ⊦ Δ tel
+----------------
 Γ ⊦ e : A
 Γ ⊦ ē : Δ(id, e)
-------------------
-Γ ⊦ e ē : A Δ
+================
+Γ ⊦ e, ē : A ◁ Δ
 
+Γ₀ ctx
+Γ₁ ctx
 Γ₁ ⊦ Δ tel
 Γ₁ ⊦ ē : Δ
 σ : Γ₀ ⇒ Γ₁
---------------------------
+----------------
 Γ₀ ⊦ ē(σ) : Δ(σ)
 
 σ : Γ₀ ⇒ Γ₁
 --------------------------
 Γ₀ ⊦ ·(σ) = · : ε
+// valid unidirectional rewrite
 
-Γ₁ ⊦ e ē : A Δ
+Γ₁ ⊦ A type
+Γ₁ ⊦ e : A
+Γ₁ ᐅ A ⊦ Δ tel
+Γ₁ ⊦ ē : Δ(id, e)
 σ : Γ₀ ⇒ Γ₁
-----------------------------------------------
-Γ₀ ⊦ (e ē)(σ) = e(σ) ē(σ) : A(σ) Δ(σ⁺)
+------------------------------------------
+Γ₀ ⊦ (e, ē)(σ) = e(σ), ē(σ) : A(σ) ◁ Δ(σ⁺)
+// valid bidirectional rewrite
 
 Γ ⊦ · = · : ε
 
+Γ ⊦ A type
+Γ ᐅ A ⊦ Δ tel
+---------------------------
 Γ ⊦ e₀ = e₁ : A
-Γ ⊦ ē₀ = ē₁ : Δ(id, e₀)
--------------------------
-Γ ⊦ e₀ ē₀ = e₁ ē₁ : A Δ
-
-// Structural rules for element list equality
+Γ ⊦ ē₀ = ē₁ : Δ(id, e₁)
+===========================
+Γ ⊦ e₀, ē₀ = e₁, ē₁ : A ◁ Δ
 
 Γ ⊦ ē : Δ
 --------------------
@@ -1015,24 +1395,7 @@ id ∘ σ = σ : Γ₀ ⇒ Γ₁
 --------------
 Γ ⊦ ē = ē' : Δ'
 
-// Congruence rules for element list constructors
-
-Γ ⊦ e = e' : A
-Γ ⊦ ē = ē' : Δ(id, e)
---------------------------
-Γ ⊦ e ē = e' ē' : A Δ
-
 Γ₁ ⊦ ē = ē' : Δ
 σ = σ' : Γ₀ ⇒ Γ₁
---------------------------
+-------------------------
 Γ₀ ⊦ ē(σ) = ē'(σ') : Δ(σ)
-
-// Injectivity of non-empty list equality
-
-Γ ⊦ e ē = e' ē' : A Δ
---------------------------
-Γ ⊦ e = e' : A
-
-Γ ⊦ e ē = e' ē' : A Δ
---------------------------
-Γ ⊦ ē = ē' : Δ(id, e)

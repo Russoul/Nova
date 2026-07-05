@@ -136,6 +136,10 @@ parseTurnstileContent ctx =
               case ctx of
                 gamma :< a => pure (ElemWfPiElim gamma a f b)
                 [<]        => fail "PiElim rule requires non-empty context"
+            (SubstElim t sigma, a) =>
+              case ctx of
+                gamma :< b => pure (ElemWfSubElim t a sigma gamma ctx)
+                [<]        => fail "ElemWfSubElim requires non-empty context"
             _ => fail "unexpected element/type combination in typing rule") <|>
       -- Without type annotation
       (case e of
@@ -188,3 +192,68 @@ parseTypingRule = do
 export
 parseListTypingRule : Rule (List TypingRule)
 parseListTypingRule = many (do sp; char_ '-'; space; parseTypingRule)
+
+-- ===== JudgementForm parser =====
+--
+-- Grammar (unambiguous by first-token or trailing keyword):
+--
+--   Sub = Sub : Ctx ⇒ Ctx        (SubEq)   — starts with ·/id/↑/(
+--   Sub : Ctx ⇒ Ctx               (SubWf)
+--   Ctx ctx                       (CtxWf)   — starts with ε
+--   Ctx = Ctx ctx                 (CtxEq)
+--   Ctx ⊦ Ty = Ty type            (TyEq)
+--   Ctx ⊦ Ty type                 (TyWf)
+--   Ctx ⊦ Elem = Elem : Ty        (ElemEq)
+--   Ctx ⊦ Elem : Ty               (ElemWf)
+--   Ctx ⊦ Tel = Tel tel           (TelEq)
+--   Ctx ⊦ Tel tel                 (TelWf)
+--   Ctx ⊦ · = · : Tel             (SpineEq, empty spines only)
+--   Ctx ⊦ · : Tel                 (SpineWf, empty spine only)
+--
+-- Disambiguation after ⊦ is done by trying in order:
+--   1. parseTy   then (= Ty type | type)
+--   2. parseElem then (= Elem : Ty | : Ty)
+--   3. parseTel  then (= Tel tel | tel)
+--   4. · (empty spine marker)
+
+afterTurnstile : Ctx -> Rule JudgementForm
+afterTurnstile ctx =
+  -- 1. Type judgements (Ty followed by "type" or "= Ty type")
+  (do ty <- parseTy; sp
+      (do str_ "="; sp; ty' <- parseTy; sp; str_ "type"
+          pure (JfTyEq (ctx, ty, ty')))
+        <|> (str_ "type" $> JfTyWf (ctx, ty))) <|>
+  -- 2. Elem judgements (Elem followed by ":" or "= Elem :")
+  (do e <- parseElem; sp
+      (do str_ "="; sp; e' <- parseElem; sp; char_ ':'; sp; ty <- parseTy
+          pure (JfElemEq (ctx, e, e', ty)))
+        <|> (do char_ ':'; sp; ty <- parseTy; pure (JfElemWf (ctx, e, ty)))) <|>
+  -- 3. Tel judgements (Tel starts with ε or A ◁ …, and ends with "tel")
+  (do tel <- parseTel; sp
+      (do str_ "="; sp; tel' <- parseTel; sp; str_ "tel"
+          pure (JfTelEq (ctx, tel, tel')))
+        <|> (str_ "tel" $> JfTelWf (ctx, tel))) <|>
+  -- 4. Empty-spine judgements (· is unambiguously a spine marker here)
+  (do str_ "·"; sp
+      (do str_ "="; sp; str_ "·"; sp; char_ ':'; sp; tel <- parseTel
+          pure (JfSpineEq (ctx, [], [], tel)))
+        <|> (do char_ ':'; sp; tel <- parseTel
+                pure (JfSpineWf (ctx, [], tel))))
+
+export
+parseJudgementForm : Rule JudgementForm
+parseJudgementForm =
+  -- Substitution judgements start with ·/id/↑/( which parseSub handles
+  -- Context judgements start with ε which parseCtx handles
+  -- Try Sub first since it starts with · (not ε), cleanly distinct
+  (do s <- parseSub; sp
+      (do str_ "="; sp; s' <- parseSub; sp; char_ ':'; sp
+          g <- parseCtx; sp; str_ "⇒"; sp; d <- parseCtx
+          pure (JfSubEq (s, s', g, d)))
+        <|> (do char_ ':'; sp; g <- parseCtx; sp; str_ "⇒"; sp; d <- parseCtx
+                pure (JfSubWf (s, g, d)))) <|>
+  (do ctx <- parseCtx; sp
+      (str_ "ctx" $> JfCtxWf ctx)
+        <|> (do str_ "="; sp; ctx' <- parseCtx; sp; str_ "ctx"
+                pure (JfCtxEq (ctx, ctx')))
+        <|> (do str_ "⊦"; sp; afterTurnstile ctx))
