@@ -423,6 +423,8 @@ mutual
   computeElem Id x = Right x
   computeElem Here (PiElim (PiIntro f)) = Right f
   computeElem Here (PiIntro (PiElim f)) = Right f
+  computeElem Here (NatElim z _ NatIntro0)     = Right z
+  computeElem Here (NatElim z s (NatIntro1 t)) = Right (SubstElim s (Ext (Ext Id t) (NatElim z s t)))
   computeElem Here (SigmaElim1 (SigmaIntro a _)) = Right a
   computeElem Here (SigmaElim2 (SigmaIntro _ b)) = Right b
   computeElem Here (SigmaIntro (SigmaElim1 u) (SigmaElim2 v)) = do
