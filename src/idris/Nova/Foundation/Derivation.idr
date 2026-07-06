@@ -239,6 +239,10 @@ data TypingRule : Type where
   ||| -------------------
   ||| Σ Γ ⊦ x = t : A
   ElemEqSigVar : SigIdentifier -> TypingRule
+  ||| Σ sig, Σ ⊦ Γ ctx, Σ Γ ⊦ A type, Σ Γ ⊦ a : A, x ∉ Σ
+  ||| -------------------------------------------------------
+  ||| Σ (Γ ⊦ x ≔ a : A) sig
+  SigExt : Ctx -> SigIdentifier -> Elem -> Ty -> TypingRule
   -- Telescope equality
   TelEqRefl  : Ctx -> Tel -> TypingRule
   TelEqSym   : Ctx -> Tel -> Tel -> TypingRule
@@ -307,6 +311,7 @@ Show TypingRule where
   show (ElemWfCtxCoe ctx0 ctx1 e ty) = "ElemWfCtxCoe (\{showCtxRep ctx0}) (\{showCtxRep ctx1}) (\{show e}) (\{show ty})"
   show (ElemWfSigVar x)               = "ElemWfSigVar \{show x}"
   show (ElemEqSigVar x)               = "ElemEqSigVar \{show x}"
+  show (SigExt gamma x a ty)          = "SigExt (\{showCtxRep gamma}) \{show x} (\{show a}) (\{show ty})"
   show (CtxWfCompute ctx cr)         = "CtxWfCompute (\{showCtxRep ctx}) (\{show cr})"
   show (TyWfCompute ctx a ty b)      = "TyWfCompute (\{showCtxRep ctx}) (\{show a}) (\{show ty}) (\{show b})"
   show (ElemWfCompute ctx a e b ty c) = "ElemWfCompute (\{showCtxRep ctx}) (\{show a}) (\{show e}) (\{show b}) (\{show ty}) (\{show c})"
@@ -635,6 +640,13 @@ step (ElemEqSigVar x) sp =
   case sigLookup x sp.sig of
     Nothing => Left ()
     Just (gamma, _, a, ty) => Right $ {elemEq $= insert (gamma, SigVar x, a, ty)} sp
+step (SigExt gamma x a ty) sp = do
+  ctxWfDerivable gamma sp
+  tyWfDerivable gamma ty sp
+  elemWfDerivable gamma a ty sp
+  case sigLookup x sp.sig of
+    Just _  => Left ()
+    Nothing => Right $ {sig $= (:< (gamma, x, a, ty))} sp
 step (CtxEqRefl ctx) sp = do
   ctxWfDerivable ctx sp
   Right $ {ctxEq $= insert (ctx, ctx)} sp

@@ -132,6 +132,11 @@ parseTurnstileContent ctx =
         _ => fail "expected sigma type in sigma elimination annotation") <|>
   -- 4. General elem dispatch
   (do e <- parseElem
+      -- "x ≔ a : A" — sig extension
+      (do sp; str_ "≔"; sp; a <- parseElem; sp; char_ ':'; sp; ty <- parseTy
+          case e of
+            SigVar x => pure (SigExt ctx x a ty)
+            _        => fail "expected identifier on lhs of ≔") <|>
       -- "e = e' : A [via mid]" — ElemEq rules
       (do sp; str_ "="; sp; e1 <- parseElem; sp; char_ ':'; sp; ty <- parseTy
           (do sp; str_ "via"; sp; eMid <- parseElem

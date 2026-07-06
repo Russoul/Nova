@@ -279,6 +279,8 @@ prettyTypingRule (ElemWfCtxCoe ctx0 ctx1 e ty) =
   prettyCtx ctx0 ++ " = " ++ prettyCtx ctx1 ++ " ⊦ " ++ prettyElem e ++ " : " ++ prettyTy ty
 prettyTypingRule (ElemWfSigVar x) = x
 prettyTypingRule (ElemEqSigVar x) = x ++ " ="
+prettyTypingRule (SigExt gamma x a ty) =
+  prettyCtx gamma ++ " ⊦ " ++ x ++ " ≔ " ++ prettyElem a ++ " : " ++ prettyTy ty
 prettyTypingRule (CtxWfCompute ctx alpha) =
   prettyCtx ctx ++ " | " ++ prettyComputeRule alpha ++ " ctx"
 prettyTypingRule (TyWfCompute ctx alpha ty beta) =
