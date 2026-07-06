@@ -110,6 +110,8 @@ data ComputeRule =
                  Here
                  -- id
                | Id
+                 -- α; α
+               | Composition ComputeRule ComputeRule
                  -- α (β)
                | InSubstElim ComputeRule ComputeRule
                  -- 𝟘-elim α
@@ -289,6 +291,7 @@ Show ComputeRule where
   show (InEqTy a b c)          = "InEqTy (\{show a}) (\{show b}) (\{show c})"
   show (InEl a)                = "InEl (\{show a})"
   show (InExt a b)             = "InExt (\{show a}) (\{show b})"
+  show (Composition a b)       = "Composition (\{show a}) (\{show b})"
 
 export covering
 Show TypingRule where
@@ -415,6 +418,7 @@ mutual
   computeCtx : Sig -> ComputeRule -> Ctx -> Either Rejection Ctx
   computeCtx sig Id x = Right x
   computeCtx sig (InExt alpha beta) (gamma :< ty) = [| computeCtx sig alpha gamma :< computeTy sig beta ty |]
+  computeCtx sig (Composition alpha beta) x = computeCtx sig alpha x >>= computeCtx sig beta
   computeCtx sig _ _ = Left ()
 
   computeTy : Sig -> ComputeRule -> Ty -> Either Rejection Ty
@@ -434,12 +438,14 @@ mutual
   computeTy sig (InSigmaTy alpha beta) (SigmaTy a b) = [| SigmaTy (computeTy sig alpha a) (computeTy sig beta b) |]
   computeTy sig (InEqTy alpha beta gamma) (EqTy l r ty) = [| EqTy (computeElem sig alpha l) (computeElem sig beta r) (computeTy sig gamma ty) |]
   computeTy sig (InEl alpha) (El ty) = [| El (computeElem sig alpha ty) |]
+  computeTy sig (Composition alpha beta) x = computeTy sig alpha x >>= computeTy sig beta
   computeTy sig _ _ = Left ()
 
   computeSub : Sig -> ComputeRule -> Sub -> Either Rejection Sub
   computeSub sig Id sigma = Right sigma
   -- ↑ ∘ (σ, e) = σ
   computeSub sig Here (Chain Wk (Ext sigma _)) = Right sigma
+  computeSub sig (Composition alpha beta) x = computeSub sig alpha x >>= computeSub sig beta
   computeSub sig _ _ = Left ()
 
   computeElem : Sig -> ComputeRule -> Elem -> Either Rejection Elem
@@ -492,6 +498,7 @@ mutual
   computeElem sig (InPiTy alpha beta) (PiTy a b) = [| PiTy (computeElem sig alpha a) (computeElem sig beta b) |]
   computeElem sig (InSigmaTy alpha beta) (SigmaTy a b) = [| SigmaTy (computeElem sig alpha a) (computeElem sig beta b) |]
   computeElem sig (InEqTy alpha beta gamma) (EqTy l r ty) = [| EqTy (computeElem sig alpha l) (computeElem sig beta r) (computeElem sig gamma ty) |]
+  computeElem sig (Composition alpha beta) x = computeElem sig alpha x >>= computeElem sig beta
   computeElem sig _ _ = Left ()
 
 export

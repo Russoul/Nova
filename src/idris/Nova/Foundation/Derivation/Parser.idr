@@ -45,6 +45,7 @@ mutual
   parseComputeRule = do
     alpha <- parseComputeNoComma
     (do sp; char_ ','; sp; beta <- parseComputeRule; pure (InSigmaIntro alpha beta))
+      <|> (do sp; char_ ';'; sp; beta <- parseComputeRule; pure (Composition alpha beta))
       <|> pure alpha
 
   parseComputeNoComma : Rule ComputeRule

@@ -48,16 +48,11 @@
 - ε ᐅ ℕ ⊦ ☐ : ℕ ↝ ℕ(id, Z)
 - ε ᐅ ℕ ⊦ Z
 - ε ᐅ ℕ ⊦ ℕ-elim ☐ (S ☐) Z : ℕ
-- ε ᐅ ℕ | id ⊦ ℕ-elim ☐ (S ☐) Z | id : ℕ(id, Z) | ↓ type
-- ε ᐅ ℕ | id ⊦ ℕ-elim ☐ (S ☐) Z | ↓ : ℕ | id type
+- ε ᐅ ℕ | id ⊦ ℕ-elim ☐ (S ☐) Z | ↓ : ℕ(id, Z) | ↓ type
 - ε ⊦ plus
 - ε ᐅ ℕ ⊦ plus @ : ℕ → ℕ
 - ε ᐅ ℕ ᐅ ℕ ⊦ (plus @) @ : ℕ
-- ε ᐅ ℕ ᐅ ℕ | id ⊦ (plus @) @ | ↓ @ @ : ℕ | id type
-- ε ᐅ ℕ ᐅ ℕ | id ⊦ (λ (λ (ℕ-elim (☐(↑)) (S ☐) ☐))) @ @ | ↓ @ : ℕ | id type
-- ε ᐅ ℕ ᐅ ℕ | id ⊦ (λ (ℕ-elim (☐(↑)) (S ☐) ☐)) @ | ↓ : ℕ | id type
-- ε ᐅ ℕ ᐅ ℕ ⊦ (λ (λ (ℕ-elim (☐(↑)) (S ☐) ☐))) @ @ = ℕ-elim (☐(↑)) (S ☐) ☐ : ℕ via (λ (ℕ-elim (☐(↑)) (S ☐) ☐)) @
-- ε ᐅ ℕ ᐅ ℕ ⊦ (plus @) @ = ℕ-elim (☐(↑)) (S ☐) ☐ : ℕ via (λ (λ (ℕ-elim (☐(↑)) (S ☐) ☐))) @ @
+- ε ᐅ ℕ ᐅ ℕ | id ⊦ (plus @) @ | ↓ @ @; ↓ @; ↓ : ℕ | id type
 - ε ᐅ ℕ ⊦ ☐(id, ☐, Z) : ℕ from ε ᐅ ℕ ᐅ ℕ
 - ε ᐅ ℕ | id ⊦ ☐(id, ☐, Z) | id : ℕ(id, ☐, Z) | ↓ type
 - ε ᐅ ℕ ⊦ (plus @) @(id, ☐, Z) : ℕ from ε ᐅ ℕ ᐅ ℕ
@@ -65,15 +60,5 @@
 - ε ᐅ ℕ ⊦ (plus @) @(id, ☐, Z) = (ℕ-elim (☐(↑)) (S ☐) ☐)(id, ☐, Z) : ℕ(id, ☐, Z) from ε ᐅ ℕ ᐅ ℕ
 - ε ᐅ ℕ ⊦ (plus @) @(id, ☐, Z) = (ℕ-elim (☐(↑)) (S ☐) ☐)(id, ☐, Z) : ℕ(id, ☐, Z) ↝ ℕ
 - ε ᐅ ℕ ⊦ (ℕ-elim (☐(↑)) (S ☐) ☐)(id, ☐, Z) : ℕ(id, ☐, Z) ↝ ℕ
-- ε ᐅ ℕ | id ⊦ (ℕ-elim (☐(↑)) (S ☐) ☐)(id, ☐, Z) | ↓ : ℕ | id type
-- ε ᐅ ℕ | id ⊦ ℕ-elim (☐(↑)(id, ☐, Z)) ((S ☐)(((id, ☐, Z) ∘ ↑, ☐) ∘ ↑, ☐)) (☐(id, ☐, Z)) | ℕ-elim id id ↓ : ℕ | id type
-- ε ᐅ ℕ | id ⊦ ℕ-elim (☐(↑)(id, ☐, Z)) ((S ☐)(((id, ☐, Z) ∘ ↑, ☐) ∘ ↑, ☐)) Z | ↓ : ℕ | id type
-- ε ᐅ ℕ | id ⊦ ☐(↑)(id, ☐, Z) | ↓ : ℕ | id type
-- ε ᐅ ℕ | id ⊦ ☐(↑ ∘ (id, ☐, Z)) | id (↓) : ℕ | id type
-- ε ᐅ ℕ | id ⊦ ☐(id, ☐) | ↓ : ℕ | id type
-- ε ᐅ ℕ ⊦ (ℕ-elim (☐(↑)) (S ☐) ☐)(id, ☐, Z) = ℕ-elim (☐(↑)(id, ☐, Z)) ((S ☐)(((id, ☐, Z) ∘ ↑, ☐) ∘ ↑, ☐)) Z : ℕ via ℕ-elim (☐(↑)(id, ☐, Z)) ((S ☐)(((id, ☐, Z) ∘ ↑, ☐) ∘ ↑, ☐)) (☐(id, ☐, Z))
-- ε ᐅ ℕ ⊦ (ℕ-elim (☐(↑)) (S ☐) ☐)(id, ☐, Z) = ☐(↑)(id, ☐, Z) : ℕ via ℕ-elim (☐(↑)(id, ☐, Z)) ((S ☐)(((id, ☐, Z) ∘ ↑, ☐) ∘ ↑, ☐)) Z
-- ε ᐅ ℕ ⊦ (ℕ-elim (☐(↑)) (S ☐) ☐)(id, ☐, Z) = ☐(↑ ∘ (id, ☐, Z)) : ℕ via ☐(↑)(id, ☐, Z)
-- ε ᐅ ℕ ⊦ (ℕ-elim (☐(↑)) (S ☐) ☐)(id, ☐, Z) = ☐(id, ☐) : ℕ via ☐(↑ ∘ (id, ☐, Z))
-- ε ᐅ ℕ ⊦ (ℕ-elim (☐(↑)) (S ☐) ☐)(id, ☐, Z) = ☐ : ℕ via ☐(id, ☐)
+- ε ᐅ ℕ | id ⊦ (ℕ-elim (☐(↑)) (S ☐) ☐)(id, ☐, Z) | ↓; ℕ-elim id id ↓; ↓; ↓; id (↓); ↓ : ℕ | id type
 - ε ᐅ ℕ ⊦ (plus @) @(id, ☐, Z) = ☐ : ℕ via (ℕ-elim (☐(↑)) (S ☐) ☐)(id, ☐, Z)

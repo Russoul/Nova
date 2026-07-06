@@ -123,6 +123,7 @@ prettySpine (e :: es) = prettyElemNoComma e ++ go es
 mutual
   export
   prettyComputeRule : ComputeRule -> String
+  prettyComputeRule (Composition a b) = prettyComputeRule a ++ "; " ++ prettyComputeRule b
   prettyComputeRule (InSigmaIntro a b) = prettyComputeNoComma a ++ ", " ++ prettyComputeRule b
   prettyComputeRule cr = prettyComputeNoComma cr
 
