@@ -641,8 +641,6 @@ step (ElemEqSigVar x) sp =
     Nothing => Left ()
     Just (gamma, _, a, ty) => Right $ {elemEq $= insert (gamma, SigVar x, a, ty)} sp
 step (SigExt gamma x a ty) sp = do
-  ctxWfDerivable gamma sp
-  tyWfDerivable gamma ty sp
   elemWfDerivable gamma a ty sp
   case sigLookup x sp.sig of
     Just _  => Left ()
