@@ -80,6 +80,8 @@ mutual
       EqTy : Elem -> Elem -> Elem -> Elem
       ||| Refl  (reflexivity)
       Refl : Elem
+      ||| x  (signature variable)
+      SigVar : String -> Elem
 
 ||| Tying context: Γ ::= ε | Γ ᐅ T
 public export
@@ -95,6 +97,18 @@ Tel = List Ty
 public export
 Spine : Type
 Spine = List Elem
+
+public export
+SigIdentifier : Type
+SigIdentifier = String
+
+public export
+SigEntry : Type
+SigEntry = (Ctx, SigIdentifier, Elem, Ty)
+
+public export
+Sig : Type
+Sig = SnocList SigEntry
 
 ||| σ⁺ ≜ σ∘↑, ☐
 public export
@@ -148,6 +162,7 @@ mutual
     Elem.SigmaTy a b == Elem.SigmaTy a' b' = a == a' && b == b'
     Elem.EqTy l r t  == Elem.EqTy l' r' t' = l == l' && r == r' && t == t'
     Refl             == Refl               = True
+    SigVar x         == SigVar x'          = x == x'
     _                == _                  = False
 
 mutual
@@ -255,6 +270,9 @@ mutual
     compare (Elem.EqTy _ _ _)  _                    = LT
     compare _                  (Elem.EqTy _ _ _)    = GT
     compare Refl               Refl                 = EQ
+    compare Refl               _                    = LT
+    compare _                  Refl                 = GT
+    compare (SigVar x)         (SigVar y)           = compare x y
 
 mutual
   public export
@@ -301,3 +319,4 @@ mutual
     show (Elem.SigmaTy e1 e2) = "SigmaTy (\{show e1}) (\{show e2})"
     show (Elem.EqTy e0 e1 e2) = "EqTy (\{show e0}) (\{show e1}) (\{show e2})"
     show Refl = "Refl"
+    show (SigVar x) = "SigVar \{show x}"

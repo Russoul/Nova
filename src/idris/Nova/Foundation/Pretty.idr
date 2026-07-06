@@ -61,6 +61,7 @@ mutual
   prettyElemAtom Elem.ZeroTy = "𝟘"
   prettyElemAtom Elem.OneTy = "𝟙"
   prettyElemAtom Elem.NatTy = "ℕ"
+  prettyElemAtom (SigVar x) = x
   prettyElemAtom e = "(" ++ prettyElem e ++ ")"
 
 -- ===== Ty =====
@@ -276,6 +277,8 @@ prettyTypingRule (ElemWfTyCoe ctx e ty0 ty1) =
   prettyCtx ctx ++ " ⊦ " ++ prettyElem e ++ " : " ++ prettyTy ty0 ++ " ↝ " ++ prettyTy ty1
 prettyTypingRule (ElemWfCtxCoe ctx0 ctx1 e ty) =
   prettyCtx ctx0 ++ " = " ++ prettyCtx ctx1 ++ " ⊦ " ++ prettyElem e ++ " : " ++ prettyTy ty
+prettyTypingRule (ElemWfSigVar x) = x
+prettyTypingRule (ElemEqSigVar x) = x ++ " ="
 prettyTypingRule (CtxWfCompute ctx alpha) =
   prettyCtx ctx ++ " | " ++ prettyComputeRule alpha ++ " ctx"
 prettyTypingRule (TyWfCompute ctx alpha ty beta) =

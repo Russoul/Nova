@@ -133,6 +133,27 @@ mutual
             parseElemPostfixCont (Elem.SubstElim e s))
     <|> pure e
 
+  -- Conservative ASCII identifier: letter or '_' followed by letters, digits, or '_'.
+  -- Used for signature variable names. Keywords like Z, Refl, S are tried first
+  -- in parseElemAtom so they are not consumed as identifiers.
+  export covering
+  parseSigIdentifier : Rule String
+  parseSigIdentifier = do
+    c  <- terminal "identifier start" $ \tok =>
+            case tok of
+              Symbol ch => if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_'
+                           then Just ch
+                           else Nothing
+              _ => Nothing
+    cs <- many (terminal "identifier char" $ \tok =>
+            case tok of
+              Symbol ch => if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+                              (ch >= '0' && ch <= '9') || ch == '_'
+                           then Just ch
+                           else Nothing
+              _ => Nothing)
+    pure (pack (c :: cs))
+
   -- Atomic elements: constants, or parenthesised expression.
   -- After '(' peek for ')' to distinguish () = OneIntro from (e).
   export covering
@@ -150,6 +171,7 @@ mutual
     <|> (str_ "𝟘"   $> Elem.ZeroTy)
     <|> (str_ "𝟙"   $> Elem.OneTy)
     <|> (str_ "ℕ"   $> Elem.NatTy)
+    <|> map SigVar parseSigIdentifier
 
 -- ===== Block 2: Ty parsers =====
 --

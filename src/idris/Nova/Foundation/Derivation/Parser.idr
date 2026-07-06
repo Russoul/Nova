@@ -136,9 +136,12 @@ parseTurnstileContent ctx =
       (do sp; str_ "="; sp; e1 <- parseElem; sp; char_ ':'; sp; ty <- parseTy
           (do sp; str_ "via"; sp; eMid <- parseElem
               pure (ElemEqTrans ctx e eMid e1 ty)) <|>
-          if e == e1
-            then pure (ElemEqRefl ctx e ty)
-            else pure (ElemEqSym ctx e1 e ty)) <|>
+          case e of
+            SigVar x => pure (ElemEqSigVar x)
+            _ =>
+              if e == e1
+                then pure (ElemEqRefl ctx e ty)
+                else pure (ElemEqSym ctx e1 e ty)) <|>
       -- With type annotation ": ty0"
       (do sp; char_ ':'; sp; ty0 <- parseTy
           -- ElemWfTyCoe: "e : ty0 ↝ ty1"
@@ -173,6 +176,7 @@ parseTurnstileContent ctx =
         Elem.PiTy a b    => pure (ElemWfPiTy ctx a b)
         Elem.SigmaTy a b => pure (ElemWfSigmaTy ctx a b)
         Elem.EqTy l r t  => pure (ElemWfEqTy ctx l r t)
+        SigVar x         => pure (ElemWfSigVar x)
         _                => fail "unexpected element form in typing rule"))
 
 -- Parse "Γ ctx", "Γ | α ...", or "Γ ⊦ ..." after the context has been parsed.

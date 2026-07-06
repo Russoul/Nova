@@ -85,6 +85,7 @@ data JudgementForm = JfCtxWf CtxWf
 export
 record Truth where
   constructor MkTruth
+  sig : Sig
   ctxWf : SortedSet CtxWf
   ctxEq : SortedSet CtxEq
   tyWf : SortedSet TyWf
@@ -100,7 +101,7 @@ record Truth where
 
 export
 trivial : Truth
-trivial = MkTruth empty empty empty empty empty empty empty empty empty empty empty empty
+trivial = MkTruth [<] empty empty empty empty empty empty empty empty empty empty empty empty
 
 ||| α
 public export
@@ -214,6 +215,10 @@ data TypingRule : Type where
   ||| ---------------- (Γ₀ = Γ₁ ⊦ a : A)
   ||| Γ₁ ⊦ a : A
   ElemWfCtxCoe : Ctx -> Ctx -> Elem -> Ty -> TypingRule
+  ||| (Γ ⊦ x ≔ t : A) ∈ Σ
+  ||| -------------------
+  ||| Σ Γ ⊦ x : A
+  ElemWfSigVar : SigIdentifier -> TypingRule
   -- Context equality
   CtxEqRefl  : Ctx -> TypingRule
   CtxEqSym   : Ctx -> Ctx -> TypingRule
@@ -230,6 +235,10 @@ data TypingRule : Type where
   ElemEqRefl  : Ctx -> Elem -> Ty -> TypingRule
   ElemEqSym   : Ctx -> Elem -> Elem -> Ty -> TypingRule
   ElemEqTrans : Ctx -> Elem -> Elem -> Elem -> Ty -> TypingRule
+  ||| (Γ ⊦ x ≔ t : A) ∈ Σ
+  ||| -------------------
+  ||| Σ Γ ⊦ x = t : A
+  ElemEqSigVar : SigIdentifier -> TypingRule
   -- Telescope equality
   TelEqRefl  : Ctx -> Tel -> TypingRule
   TelEqSym   : Ctx -> Tel -> Tel -> TypingRule
@@ -296,6 +305,8 @@ Show TypingRule where
   show (ElemWfSubElim t ty sigma gamma delta) = "ElemWfSubElim (\{show t}) (\{show ty}) (\{show sigma}) (\{showCtxRep gamma}) (\{showCtxRep delta})"
   show (ElemWfTyCoe ctx e ty0 ty1)   = "ElemWfTyCoe (\{showCtxRep ctx}) (\{show e}) (\{show ty0}) (\{show ty1})"
   show (ElemWfCtxCoe ctx0 ctx1 e ty) = "ElemWfCtxCoe (\{showCtxRep ctx0}) (\{showCtxRep ctx1}) (\{show e}) (\{show ty})"
+  show (ElemWfSigVar x)               = "ElemWfSigVar \{show x}"
+  show (ElemEqSigVar x)               = "ElemEqSigVar \{show x}"
   show (CtxWfCompute ctx cr)         = "CtxWfCompute (\{showCtxRep ctx}) (\{show cr})"
   show (TyWfCompute ctx a ty b)      = "TyWfCompute (\{showCtxRep ctx}) (\{show a}) (\{show ty}) (\{show b})"
   show (ElemWfCompute ctx a e b ty c) = "ElemWfCompute (\{showCtxRep ctx}) (\{show a}) (\{show e}) (\{show b}) (\{show ty}) (\{show c})"
@@ -443,6 +454,11 @@ mutual
   computeElem (InSigmaTy alpha beta) (SigmaTy a b) = [| SigmaTy (computeElem alpha a) (computeElem beta b) |]
   computeElem (InEqTy alpha beta gamma) (EqTy l r ty) = [| EqTy (computeElem alpha l) (computeElem beta r) (computeElem gamma ty) |]
   computeElem _ _ = Left ()
+
+sigLookup : SigIdentifier -> Sig -> Maybe SigEntry
+sigLookup _ [<] = Nothing
+sigLookup x (rest :< entry@(_, name, _, _)) =
+  if name == x then Just entry else sigLookup x rest
 
 export
 step : TypingRule -> Truth -> Either Rejection Truth
@@ -611,6 +627,14 @@ step (ElemWfCtxCoe ctx0 ctx1 e ty) sp = do
   elemWfDerivable ctx0 e ty sp
   ctxEqDerivable ctx0 ctx1 sp
   Right $ {elemWf $= insert (ctx1, e, ty)} sp
+step (ElemWfSigVar x) sp =
+  case sigLookup x sp.sig of
+    Nothing => Left ()
+    Just (gamma, _, _, ty) => Right $ {elemWf $= insert (gamma, SigVar x, ty)} sp
+step (ElemEqSigVar x) sp =
+  case sigLookup x sp.sig of
+    Nothing => Left ()
+    Just (gamma, _, a, ty) => Right $ {elemEq $= insert (gamma, SigVar x, a, ty)} sp
 step (CtxEqRefl ctx) sp = do
   ctxWfDerivable ctx sp
   Right $ {ctxEq $= insert (ctx, ctx)} sp

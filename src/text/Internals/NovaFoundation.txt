@@ -156,6 +156,18 @@ t ::= t(σ)           // (Typing) context substitution
 ----------------- // list equality
 Σ Γ ⊦ ē₀ = ē₁ : Δ
 
+///////// Inference rules (sig) //////////
+
+ε sig
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ A type
+Γ ⊦ a : A
+x ∉ Σ
+---------------------
+Σ (Γ ⊦ x ≔ a : A) sig
+
 ///////// Inference rules (ctx) //////////
 
 Σ sig
