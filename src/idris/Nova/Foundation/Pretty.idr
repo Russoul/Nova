@@ -147,7 +147,7 @@ mutual
   prettyComputePostfix (InSigmaElim1 a) = prettyComputePostfix a ++ " .π₁"
   prettyComputePostfix (InSigmaElim2 a) = prettyComputePostfix a ++ " .π₂"
   prettyComputePostfix (InPiElim a) = prettyComputePostfix a ++ " @"
-  prettyComputePostfix (InSubstElim a) = prettyComputePostfix a ++ " _"
+  prettyComputePostfix (InSubstElim a b) = prettyComputePostfix a ++ " (" ++ prettyComputeRule b ++ ")"
   prettyComputePostfix cr = prettyComputeAtom cr
 
   prettyComputeAtom : ComputeRule -> String
@@ -279,6 +279,10 @@ prettyTypingRule (ElemWfCtxCoe ctx0 ctx1 e ty) =
   prettyCtx ctx0 ++ " = " ++ prettyCtx ctx1 ++ " ⊦ " ++ prettyElem e ++ " : " ++ prettyTy ty
 prettyTypingRule (ElemWfSigVar x) = x
 prettyTypingRule (ElemEqSigVar x) = x ++ " ="
+prettyTypingRule (ElemEqSubstCong gamma delta sigma a b ty) =
+  prettyCtx delta ++ " ⊦ " ++ prettyElem (SubstElim a sigma) ++ " = " ++ prettyElem (SubstElim b sigma) ++ " : " ++ prettyTy (SubstElim ty sigma) ++ " from " ++ prettyCtx gamma
+prettyTypingRule (ElemEqTyCoe ctx a b ty0 ty1) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyElem a ++ " = " ++ prettyElem b ++ " : " ++ prettyTy ty0 ++ " ↝ " ++ prettyTy ty1
 prettyTypingRule (SigExt gamma x a ty) =
   prettyCtx gamma ++ " ⊦ " ++ x ++ " ≔ " ++ prettyElem a ++ " : " ++ prettyTy ty
 prettyTypingRule (CtxWfCompute ctx alpha) =

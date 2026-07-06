@@ -110,8 +110,8 @@ data ComputeRule =
                  Here
                  -- id
                | Id
-                 -- α _
-               | InSubstElim ComputeRule
+                 -- α (β)
+               | InSubstElim ComputeRule ComputeRule
                  -- 𝟘-elim α
                | InZeroElim ComputeRule
                  -- S α
@@ -243,6 +243,16 @@ data TypingRule : Type where
   ||| -------------------
   ||| Σ Γ ⊦ x = t : A
   ElemEqSigVar : SigIdentifier -> TypingRule
+  ||| Γ ⊦ a = b : A
+  ||| σ : Δ ⇒ Γ
+  ||| -------------------------
+  ||| Δ ⊦ a(σ) = b(σ) : A(σ)
+  ElemEqSubstCong : Ctx -> Ctx -> Sub -> Elem -> Elem -> Ty -> TypingRule
+  ||| Γ ⊦ a = b : A₀
+  ||| Γ ⊦ A₀ = A₁ type
+  ||| -----------------
+  ||| Γ ⊦ a = b : A₁
+  ElemEqTyCoe : Ctx -> Elem -> Elem -> Ty -> Ty -> TypingRule
   ||| Σ sig, Σ ⊦ Γ ctx, Σ Γ ⊦ A type, Σ Γ ⊦ a : A, x ∉ Σ
   ||| -------------------------------------------------------
   ||| Σ (Γ ⊦ x ≔ a : A) sig
@@ -265,7 +275,7 @@ export covering
 Show ComputeRule where
   show Here                    = "Here"
   show Id                      = "Id"
-  show (InSubstElim a)         = "InSubstElim (\{show a})"
+  show (InSubstElim a b)       = "InSubstElim (\{show a}) (\{show b})"
   show (InZeroElim a)          = "InZeroElim (\{show a})"
   show (InNatIntro1 a)         = "InNatIntro1 (\{show a})"
   show (InNatElim a b c)       = "InNatElim (\{show a}) (\{show b}) (\{show c})"
@@ -315,6 +325,8 @@ Show TypingRule where
   show (ElemWfCtxCoe ctx0 ctx1 e ty) = "ElemWfCtxCoe (\{showCtxRep ctx0}) (\{showCtxRep ctx1}) (\{show e}) (\{show ty})"
   show (ElemWfSigVar x)               = "ElemWfSigVar \{show x}"
   show (ElemEqSigVar x)               = "ElemEqSigVar \{show x}"
+  show (ElemEqSubstCong gamma delta sigma a b ty) = "ElemEqSubstCong (\{showCtxRep gamma}) (\{showCtxRep delta}) (\{show sigma}) (\{show a}) (\{show b}) (\{show ty})"
+  show (ElemEqTyCoe ctx a b ty0 ty1)  = "ElemEqTyCoe (\{showCtxRep ctx}) (\{show a}) (\{show b}) (\{show ty0}) (\{show ty1})"
   show (SigExt gamma x a ty)          = "SigExt (\{showCtxRep gamma}) \{show x} (\{show a}) (\{show ty})"
   show (CtxWfCompute ctx cr)         = "CtxWfCompute (\{showCtxRep ctx}) (\{show cr})"
   show (TyWfCompute ctx a ty b)      = "TyWfCompute (\{showCtxRep ctx}) (\{show a}) (\{show ty}) (\{show b})"
@@ -395,82 +407,92 @@ spineEqDerivable : Ctx -> Spine -> Spine -> Tel -> Truth -> Either Rejection ()
 spineEqDerivable ctx s0 s1 tel sp = rejectUnless $ contains (ctx, s0, s1, tel) sp.spineEq
 
 mutual
-  computeCtx : ComputeRule -> Ctx -> Either Rejection Ctx
-  computeCtx Id x = Right x
-  computeCtx (InExt alpha beta) (gamma :< ty) = [| computeCtx alpha gamma :< computeTy beta ty |]
-  computeCtx _ _ = Left ()
+  sigLookup : SigIdentifier -> Sig -> Maybe SigEntry
+  sigLookup _ [<] = Nothing
+  sigLookup x (rest :< entry@(_, name, _, _)) =
+    if name == x then Just entry else sigLookup x rest
 
-  computeTy : ComputeRule -> Ty -> Either Rejection Ty
-  computeTy Here (SubstElim ZeroTy _) = Right ZeroTy
-  computeTy Here (SubstElim OneTy _) = Right OneTy
-  computeTy Here (SubstElim NatTy _) = Right NatTy
-  computeTy Here (SubstElim UniverseTy _) = Right UniverseTy
-  computeTy Here (El ZeroTy) = Right ZeroTy
-  computeTy Here (El OneTy) = Right OneTy
-  computeTy Here (El NatTy) = Right NatTy
-  computeTy Here (El (PiTy a b)) = Right (PiTy (El a) (El b))
-  computeTy Here (El (SigmaTy a b)) = Right (SigmaTy (El a) (El b))
-  computeTy Here (El (EqTy a b t)) = Right (EqTy a b (El t))
-  computeTy Id x = Right x
-  computeTy (InSubstElim alpha) (SubstElim ty sigma) = [| SubstElim (computeTy alpha ty) (pure sigma) |]
-  computeTy (InPiTy alpha beta) (PiTy a b) = [| PiTy (computeTy alpha a) (computeTy beta b) |]
-  computeTy (InSigmaTy alpha beta) (SigmaTy a b) = [| SigmaTy (computeTy alpha a) (computeTy beta b) |]
-  computeTy (InEqTy alpha beta gamma) (EqTy l r ty) = [| EqTy (computeElem alpha l) (computeElem beta r) (computeTy gamma ty) |]
-  computeTy (InEl alpha) (El ty) = [| El (computeElem alpha ty) |]
-  computeTy _ _ = Left ()
+  computeCtx : Sig -> ComputeRule -> Ctx -> Either Rejection Ctx
+  computeCtx sig Id x = Right x
+  computeCtx sig (InExt alpha beta) (gamma :< ty) = [| computeCtx sig alpha gamma :< computeTy sig beta ty |]
+  computeCtx sig _ _ = Left ()
 
-  computeElem : ComputeRule -> Elem -> Either Rejection Elem
-  computeElem Id x = Right x
-  computeElem Here (PiElim (PiIntro f)) = Right f
-  computeElem Here (PiIntro (PiElim f)) = Right f
-  computeElem Here (NatElim z _ NatIntro0)     = Right z
-  computeElem Here (NatElim z s (NatIntro1 t)) = Right (SubstElim s (Ext (Ext Id t) (NatElim z s t)))
-  computeElem Here (SigmaElim1 (SigmaIntro a _)) = Right a
-  computeElem Here (SigmaElim2 (SigmaIntro _ b)) = Right b
-  computeElem Here (SigmaIntro (SigmaElim1 u) (SigmaElim2 v)) = do
+  computeTy : Sig -> ComputeRule -> Ty -> Either Rejection Ty
+  computeTy sig Here (SubstElim ZeroTy _) = Right ZeroTy
+  computeTy sig Here (SubstElim OneTy _) = Right OneTy
+  computeTy sig Here (SubstElim NatTy _) = Right NatTy
+  computeTy sig Here (SubstElim UniverseTy _) = Right UniverseTy
+  computeTy sig Here (El ZeroTy) = Right ZeroTy
+  computeTy sig Here (El OneTy) = Right OneTy
+  computeTy sig Here (El NatTy) = Right NatTy
+  computeTy sig Here (El (PiTy a b)) = Right (PiTy (El a) (El b))
+  computeTy sig Here (El (SigmaTy a b)) = Right (SigmaTy (El a) (El b))
+  computeTy sig Here (El (EqTy a b t)) = Right (EqTy a b (El t))
+  computeTy sig Id x = Right x
+  computeTy sig (InSubstElim alpha beta) (SubstElim ty sigma) = [| SubstElim (computeTy sig alpha ty) (computeSub sig beta sigma) |]
+  computeTy sig (InPiTy alpha beta) (PiTy a b) = [| PiTy (computeTy sig alpha a) (computeTy sig beta b) |]
+  computeTy sig (InSigmaTy alpha beta) (SigmaTy a b) = [| SigmaTy (computeTy sig alpha a) (computeTy sig beta b) |]
+  computeTy sig (InEqTy alpha beta gamma) (EqTy l r ty) = [| EqTy (computeElem sig alpha l) (computeElem sig beta r) (computeTy sig gamma ty) |]
+  computeTy sig (InEl alpha) (El ty) = [| El (computeElem sig alpha ty) |]
+  computeTy sig _ _ = Left ()
+
+  computeSub : Sig -> ComputeRule -> Sub -> Either Rejection Sub
+  computeSub sig Id sigma = Right sigma
+  -- ↑ ∘ (σ, e) = σ
+  computeSub sig Here (Chain Wk (Ext sigma _)) = Right sigma
+  computeSub sig _ _ = Left ()
+
+  computeElem : Sig -> ComputeRule -> Elem -> Either Rejection Elem
+  computeElem sig Id x = Right x
+  computeElem sig Here (PiElim (PiIntro f)) = Right f
+  computeElem sig Here (PiIntro (PiElim f)) = Right f
+  computeElem sig Here (NatElim z _ NatIntro0)     = Right z
+  computeElem sig Here (NatElim z s (NatIntro1 t)) = Right (SubstElim s (Ext (Ext Id t) (NatElim z s t)))
+  computeElem sig Here (SigmaElim1 (SigmaIntro a _)) = Right a
+  computeElem sig Here (SigmaElim2 (SigmaIntro _ b)) = Right b
+  computeElem sig Here (SigmaIntro (SigmaElim1 u) (SigmaElim2 v)) = do
     rejectUnless (u == v)
     Right u
-  computeElem Here (SubstElim CtxVar (Ext _ t)) = Right t
-  computeElem Here (SubstElim t Id) = Right t
-  computeElem Here (SubstElim (SubstElim t sigma) tau) = Right (SubstElim t (Chain sigma tau))
-  computeElem Here (SubstElim t (Chain sigma tau)) = Right (SubstElim (SubstElim t sigma) tau)
-  computeElem Here (SubstElim (ZeroElim t) sigma) = Right (ZeroElim (SubstElim t sigma))
-  computeElem Here (SubstElim OneIntro sigma) = Right OneIntro
-  computeElem Here (SubstElim NatIntro0 sigma) = Right NatIntro0
-  computeElem Here (SubstElim (NatIntro1 t) sigma) = Right (NatIntro1 (SubstElim t sigma))
-  computeElem Here (SubstElim (NatElim z s t) sigma) =
+  computeElem sig Here (SubstElim CtxVar (Ext _ t)) = Right t
+  computeElem sig Here (SubstElim t Id) = Right t
+  computeElem sig Here (SubstElim (SubstElim t sigma) tau) = Right (SubstElim t (Chain sigma tau))
+  computeElem sig Here (SubstElim t (Chain sigma tau)) = Right (SubstElim (SubstElim t sigma) tau)
+  computeElem sig Here (SubstElim (ZeroElim t) sigma) = Right (ZeroElim (SubstElim t sigma))
+  computeElem sig Here (SubstElim OneIntro sigma) = Right OneIntro
+  computeElem sig Here (SubstElim NatIntro0 sigma) = Right NatIntro0
+  computeElem sig Here (SubstElim (NatIntro1 t) sigma) = Right (NatIntro1 (SubstElim t sigma))
+  computeElem sig Here (SubstElim (NatElim z s t) sigma) =
     Right (NatElim (SubstElim z sigma) (SubstElim s (under (under sigma))) (SubstElim t sigma))
-  computeElem Here (SubstElim (PiIntro f) sigma) = Right (PiIntro (SubstElim f (under sigma)))
+  computeElem sig Here (SubstElim (PiIntro f) sigma) = Right (PiIntro (SubstElim f (under sigma)))
   -- (f @)(σ) ~> f(↑ ∘ σ)(↑, ☐(σ))
-  computeElem Here (SubstElim (PiElim f) sigma) = Right (SubstElim (SubstElim f (Chain Wk sigma)) (Ext Wk (SubstElim CtxVar sigma)))
-  computeElem Here (SubstElim (SigmaIntro a b) sigma) = Right (SigmaIntro (SubstElim a sigma) (SubstElim b sigma))
-  computeElem Here (SubstElim (SigmaElim1 t) sigma) = Right (SigmaElim1 (SubstElim t sigma))
-  computeElem Here (SubstElim (SigmaElim2 t) sigma) = Right (SigmaElim2 (SubstElim t sigma))
-  computeElem Here (SubstElim ZeroTy sigma) = Right ZeroTy
-  computeElem Here (SubstElim OneTy sigma) = Right OneTy
-  computeElem Here (SubstElim NatTy sigma) = Right NatTy
-  computeElem Here (SubstElim (PiTy a b) sigma) = Right (PiTy (SubstElim a sigma) (SubstElim b (under sigma)))
-  computeElem Here (SubstElim (SigmaTy a b) sigma) = Right (SigmaTy (SubstElim a sigma) (SubstElim b (under sigma)))
-  computeElem Here (SubstElim (EqTy l r ty) sigma) = Right (EqTy (SubstElim l sigma) (SubstElim r sigma) (SubstElim ty sigma))
-  computeElem Here (SubstElim Refl sigma) = Right Refl
-  computeElem (InSubstElim alpha) (SubstElim t sigma) = [| SubstElim (computeElem alpha t) (pure sigma) |]
-  computeElem (InZeroElim alpha) (ZeroElim t) = [| ZeroElim (computeElem alpha t) |]
-  computeElem (InNatIntro1 alpha) (NatIntro1 t) = [| NatIntro1 (computeElem alpha t) |]
-  computeElem (InNatElim alpha beta gamma) (NatElim z s t) = [| NatElim (computeElem alpha z) (computeElem beta s) (computeElem gamma t) |]
-  computeElem (InPiIntro alpha) (PiIntro f) = [| PiIntro (computeElem alpha f) |]
-  computeElem (InPiElim alpha) (PiElim f) = [| PiElim (computeElem alpha f) |]
-  computeElem (InSigmaIntro alpha beta) (SigmaIntro a b) = [| SigmaIntro (computeElem alpha a) (computeElem beta b) |]
-  computeElem (InSigmaElim1 alpha) (SigmaElim1 t) = [| SigmaElim1 (computeElem alpha t) |]
-  computeElem (InSigmaElim2 alpha) (SigmaElim2 t) = [| SigmaElim2 (computeElem alpha t) |]
-  computeElem (InPiTy alpha beta) (PiTy a b) = [| PiTy (computeElem alpha a) (computeElem beta b) |]
-  computeElem (InSigmaTy alpha beta) (SigmaTy a b) = [| SigmaTy (computeElem alpha a) (computeElem beta b) |]
-  computeElem (InEqTy alpha beta gamma) (EqTy l r ty) = [| EqTy (computeElem alpha l) (computeElem beta r) (computeElem gamma ty) |]
-  computeElem _ _ = Left ()
-
-sigLookup : SigIdentifier -> Sig -> Maybe SigEntry
-sigLookup _ [<] = Nothing
-sigLookup x (rest :< entry@(_, name, _, _)) =
-  if name == x then Just entry else sigLookup x rest
+  computeElem sig Here (SubstElim (PiElim f) sigma) = Right (SubstElim (SubstElim f (Chain Wk sigma)) (Ext Wk (SubstElim CtxVar sigma)))
+  computeElem sig Here (SubstElim (SigmaIntro a b) sigma) = Right (SigmaIntro (SubstElim a sigma) (SubstElim b sigma))
+  computeElem sig Here (SubstElim (SigmaElim1 t) sigma) = Right (SigmaElim1 (SubstElim t sigma))
+  computeElem sig Here (SubstElim (SigmaElim2 t) sigma) = Right (SigmaElim2 (SubstElim t sigma))
+  computeElem sig Here (SubstElim ZeroTy sigma) = Right ZeroTy
+  computeElem sig Here (SubstElim OneTy sigma) = Right OneTy
+  computeElem sig Here (SubstElim NatTy sigma) = Right NatTy
+  computeElem sig Here (SubstElim (PiTy a b) sigma) = Right (PiTy (SubstElim a sigma) (SubstElim b (under sigma)))
+  computeElem sig Here (SubstElim (SigmaTy a b) sigma) = Right (SigmaTy (SubstElim a sigma) (SubstElim b (under sigma)))
+  computeElem sig Here (SubstElim (EqTy l r ty) sigma) = Right (EqTy (SubstElim l sigma) (SubstElim r sigma) (SubstElim ty sigma))
+  computeElem sig Here (SubstElim Refl sigma) = Right Refl
+  computeElem sig Here (SigVar x) =
+    case sigLookup x sig of
+      Nothing => Left ()
+      Just (_, _, a, _) => Right a
+  computeElem sig (InSubstElim alpha beta) (SubstElim t sigma) = [| SubstElim (computeElem sig alpha t) (computeSub sig beta sigma) |]
+  computeElem sig (InZeroElim alpha) (ZeroElim t) = [| ZeroElim (computeElem sig alpha t) |]
+  computeElem sig (InNatIntro1 alpha) (NatIntro1 t) = [| NatIntro1 (computeElem sig alpha t) |]
+  computeElem sig (InNatElim alpha beta gamma) (NatElim z s t) = [| NatElim (computeElem sig alpha z) (computeElem sig beta s) (computeElem sig gamma t) |]
+  computeElem sig (InPiIntro alpha) (PiIntro f) = [| PiIntro (computeElem sig alpha f) |]
+  computeElem sig (InPiElim alpha) (PiElim f) = [| PiElim (computeElem sig alpha f) |]
+  computeElem sig (InSigmaIntro alpha beta) (SigmaIntro a b) = [| SigmaIntro (computeElem sig alpha a) (computeElem sig beta b) |]
+  computeElem sig (InSigmaElim1 alpha) (SigmaElim1 t) = [| SigmaElim1 (computeElem sig alpha t) |]
+  computeElem sig (InSigmaElim2 alpha) (SigmaElim2 t) = [| SigmaElim2 (computeElem sig alpha t) |]
+  computeElem sig (InPiTy alpha beta) (PiTy a b) = [| PiTy (computeElem sig alpha a) (computeElem sig beta b) |]
+  computeElem sig (InSigmaTy alpha beta) (SigmaTy a b) = [| SigmaTy (computeElem sig alpha a) (computeElem sig beta b) |]
+  computeElem sig (InEqTy alpha beta gamma) (EqTy l r ty) = [| EqTy (computeElem sig alpha l) (computeElem sig beta r) (computeElem sig gamma ty) |]
+  computeElem sig _ _ = Left ()
 
 export
 step : TypingRule -> Truth -> Either Rejection Truth
@@ -481,19 +503,19 @@ step (CtxWfExt gamma ty) sp = do
   Right $ {ctxWf $= insert (gamma :< ty)} sp
 step (CtxWfCompute gamma rule) sp = do
   ctxWfDerivable gamma sp
-  gamma' <- computeCtx rule gamma
+  gamma' <- computeCtx sp.sig rule gamma
   Right $ {ctxWf $= insert gamma', ctxEq $= insert (gamma, gamma')} sp
 step (TyWfCompute gamma alpha ty beta) sp = do
   tyWfDerivable gamma ty sp
-  gamma' <- computeCtx alpha gamma
-  ty' <- computeTy beta ty
+  gamma' <- computeCtx sp.sig alpha gamma
+  ty' <- computeTy sp.sig beta ty
   Right $ {ctxWf $= insert gamma', ctxEq $= insert (gamma, gamma'),
            tyWf $= insert (gamma', ty'), tyEq $= insert (gamma', ty, ty')} sp
 step (ElemWfCompute gamma alpha t beta ty zeta) sp = do
   elemWfDerivable gamma t ty sp
-  gamma' <- computeCtx alpha gamma
-  t' <- computeElem beta t
-  ty' <- computeTy zeta ty
+  gamma' <- computeCtx sp.sig alpha gamma
+  t' <- computeElem sp.sig beta t
+  ty' <- computeTy sp.sig zeta ty
   Right $ {ctxWf $= insert gamma', ctxEq $= insert (gamma, gamma'),
            tyWf $= insert (gamma', ty'), tyEq $= insert (gamma', ty, ty'),
            elemWf $= insert (gamma', t', ty'), elemEq $= insert (gamma', t, t', ty')} sp
@@ -647,6 +669,21 @@ step (ElemEqSigVar x) sp =
   case sigLookup x sp.sig of
     Nothing => Left ()
     Just (gamma, _, a, ty) => Right $ {elemEq $= insert (gamma, SigVar x, a, ty)} sp
+-- Γ ⊦ a = b : A
+-- σ : Δ ⇒ Γ
+-- -------------------------
+-- Δ ⊦ a(σ) = b(σ) : A(σ)
+step (ElemEqSubstCong gamma delta sigma a b ty) sp = do
+  elemEqDerivable gamma a b ty sp
+  Right $ {elemEq $= insert (delta, SubstElim a sigma, SubstElim b sigma, SubstElim ty sigma)} sp
+-- Γ ⊦ a = b : A₀
+-- Γ ⊦ A₀ = A₁ type
+-- -----------------
+-- Γ ⊦ a = b : A₁
+step (ElemEqTyCoe ctx a b ty0 ty1) sp = do
+  elemEqDerivable ctx a b ty0 sp
+  tyEqDerivable ctx ty0 ty1 sp
+  Right $ {elemEq $= insert (ctx, a, b, ty1)} sp
 step (SigExt gamma x a ty) sp = do
   elemWfDerivable gamma a ty sp
   case sigLookup x sp.sig of

@@ -82,7 +82,8 @@ mutual
         (do sp; str_ ".π₁"; parseComputePostfixCont (InSigmaElim1 alpha))
     <|> (do sp; str_ ".π₂"; parseComputePostfixCont (InSigmaElim2 alpha))
     <|> (do sp; str_ "@";   parseComputePostfixCont (InPiElim alpha))
-    <|> (do sp; str_ "_";   parseComputePostfixCont (InSubstElim alpha))
+    <|> (do sp; char_ '('; sp; beta <- parseComputeRule; sp; char_ ')'
+            parseComputePostfixCont (InSubstElim alpha beta))
     <|> pure alpha
 
   parseComputeAtom : Rule ComputeRule
@@ -137,10 +138,26 @@ parseTurnstileContent ctx =
           case e of
             SigVar x => pure (SigExt ctx x a ty)
             _        => fail "expected identifier on lhs of ≔") <|>
-      -- "e = e' : A [via mid]" — ElemEq rules
+      -- "e = e' : A [via mid | ↝ ty1 | from Γ]" — ElemEq rules
       (do sp; str_ "="; sp; e1 <- parseElem; sp; char_ ':'; sp; ty <- parseTy
+          -- ElemEqTrans: "... via e_mid"
           (do sp; str_ "via"; sp; eMid <- parseElem
               pure (ElemEqTrans ctx e eMid e1 ty)) <|>
+          -- ElemEqTyCoe: "... ↝ ty1"
+          (do sp; str_ "↝"; sp; ty1 <- parseTy
+              pure (ElemEqTyCoe ctx e e1 ty ty1)) <|>
+          -- ElemEqSubstCong: "a(σ) = b(σ) : A from Γ" where A is the source type (σ applied automatically)
+          (do sp; str_ "from"; sp; g <- parseCtx
+              case (e, e1) of
+                (SubstElim a sigma, SubstElim b sigma') =>
+                  if sigma == sigma'
+                    then
+                      let ty_src = case ty of
+                                     SubstElim s sigma'' => if sigma == sigma'' then s else ty
+                                     _ => ty
+                      in pure (ElemEqSubstCong g ctx sigma a b ty_src)
+                    else fail "ElemEqSubstCong requires same substitution on both sides"
+                _ => fail "ElemEqSubstCong requires both sides to be substitutions") <|>
           case e of
             SigVar x => pure (ElemEqSigVar x)
             _ =>
@@ -166,10 +183,14 @@ parseTurnstileContent ctx =
               case ctx of
                 gamma :< a => pure (ElemWfPiElim gamma a f b)
                 [<]        => fail "PiElim rule requires non-empty context"
-            (SubstElim t sigma, a) =>
-              case ctx of
-                gamma :< b => pure (ElemWfSubElim t a sigma gamma ctx)
-                [<]        => fail "ElemWfSubElim requires non-empty context"
+            (SubstElim t sigma, a) => do
+              optG <- (do sp; str_ "from"; sp; g <- parseCtx; pure (Just g)) <|> pure Nothing
+              case optG of
+                Just g  => pure (ElemWfSubElim t a sigma g ctx)
+                Nothing =>
+                  case ctx of
+                    g :< _ => pure (ElemWfSubElim t a sigma g ctx)
+                    [<]    => fail "ElemWfSubElim requires non-empty context or explicit 'from Γ'"
             _ => fail "unexpected element/type combination in typing rule") <|>
       -- Without type annotation
       (case e of

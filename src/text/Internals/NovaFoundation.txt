@@ -1134,6 +1134,15 @@ x ∉ Σ
 Σ ⊦ Γ ctx
 Σ Γ ⊦ A type
 Σ Γ ⊦ a₀ : A
+Σ Γ ⊦ a₁ : A
+Σ Γ ⊦ a : (a₀ ≡ a₁ ∈ A)
+----------------------- // equality reflection (derivable from J, J-β, J-η)
+Σ Γ ⊦ a₀ = a₁ ∈ A
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ A type
+Σ Γ ⊦ a₀ : A
 Σ Γ ᐅ A ᐅ (a₀(↑) ≡ ☐ ∈ A(↑)) ⊦ B type
 -----------------------------------
 Σ Γ ⊦ r : B(id, a₀, Refl)
