@@ -235,6 +235,10 @@ data TypingRule : Type where
   ElemEqRefl  : Ctx -> Elem -> Ty -> TypingRule
   ElemEqSym   : Ctx -> Elem -> Elem -> Ty -> TypingRule
   ElemEqTrans : Ctx -> Elem -> Elem -> Elem -> Ty -> TypingRule
+  ||| Γ ⊦ a : (a₀ ≡ a₁ ∈ A)
+  ||| -------------------------
+  ||| Γ ⊦ a₀ = a₁ : A
+  ElemEqReflection : Ctx -> Elem -> Elem -> Elem -> Ty -> TypingRule
   ||| (Γ ⊦ x ≔ t : A) ∈ Σ
   ||| -------------------
   ||| Σ Γ ⊦ x = t : A
@@ -327,6 +331,7 @@ Show TypingRule where
   show (ElemEqRefl ctx e ty)         = "ElemEqRefl (\{showCtxRep ctx}) (\{show e}) (\{show ty})"
   show (ElemEqSym ctx e0 e1 ty)      = "ElemEqSym (\{showCtxRep ctx}) (\{show e0}) (\{show e1}) (\{show ty})"
   show (ElemEqTrans ctx e0 e1 e2 ty) = "ElemEqTrans (\{showCtxRep ctx}) (\{show e0}) (\{show e1}) (\{show e2}) (\{show ty})"
+  show (ElemEqReflection ctx a a0 a1 ty) = "ElemEqReflection (\{showCtxRep ctx}) (\{show a}) (\{show a0}) (\{show a1}) (\{show ty})"
   show (TelEqRefl ctx tel)           = "TelEqRefl (\{showCtxRep ctx}) (\{show tel})"
   show (TelEqSym ctx tel0 tel1)      = "TelEqSym (\{showCtxRep ctx}) (\{show tel0}) (\{show tel1})"
   show (TelEqTrans ctx tel0 tel1 tel2) = "TelEqTrans (\{showCtxRep ctx}) (\{show tel0}) (\{show tel1}) (\{show tel2})"
@@ -684,6 +689,9 @@ step (ElemEqTrans ctx e0 e1 e2 ty) sp = do
   elemEqDerivable ctx e0 e1 ty sp
   elemEqDerivable ctx e1 e2 ty sp
   Right $ {elemEq $= insert (ctx, e0, e2, ty)} sp
+step (ElemEqReflection ctx a a0 a1 ty) sp = do
+  elemWfDerivable ctx a (EqTy a0 a1 ty) sp
+  Right $ {elemEq $= insert (ctx, a0, a1, ty)} sp
 step (TelEqRefl ctx tel) sp = do
   telWfDerivable ctx tel sp
   Right $ {telEq $= insert (ctx, tel, tel)} sp

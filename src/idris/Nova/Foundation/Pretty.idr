@@ -314,6 +314,8 @@ prettyTypingRule (ElemEqSym ctx e0 e1 ty) =
   prettyCtx ctx ++ " ⊦ " ++ prettyElem e1 ++ " = " ++ prettyElem e0 ++ " : " ++ prettyTy ty
 prettyTypingRule (ElemEqTrans ctx e0 e1 e2 ty) =
   prettyCtx ctx ++ " ⊦ " ++ prettyElem e0 ++ " = " ++ prettyElem e2 ++ " : " ++ prettyTy ty ++ " via " ++ prettyElem e1
+prettyTypingRule (ElemEqReflection ctx a a0 a1 ty) =
+  prettyCtx ctx ++ " ⊦ " ++ prettyElem a ++ " : (" ++ prettyTy (EqTy a0 a1 ty) ++ ") reflect"
 prettyTypingRule (TelEqRefl ctx tel) =
   prettyCtx ctx ++ " ⊦ " ++ prettyTel tel ++ " = " ++ prettyTel tel ++ " tel"
 prettyTypingRule (TelEqSym ctx tel0 tel1) =

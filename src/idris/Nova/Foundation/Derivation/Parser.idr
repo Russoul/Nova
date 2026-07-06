@@ -152,6 +152,11 @@ parseTurnstileContent ctx =
           -- ElemWfTyCoe: "e : ty0 ↝ ty1"
           (do sp; str_ "↝"; sp; ty1 <- parseTy
               pure (ElemWfTyCoe ctx e ty0 ty1)) <|>
+          -- ElemEqReflection: "a : (a₀ ≡ a₁ ∈ A) reflect"
+          (do sp; str_ "reflect"
+              case ty0 of
+                Ty.EqTy a0 a1 a => pure (ElemEqReflection ctx e a0 a1 a)
+                _               => fail "expected equality type for reflect") <|>
           case (e, ty0) of
             (ZeroElim t, a)               => pure (ElemWfZeroElim ctx t a)
             (NatElim z s t, a)            => pure (ElemWfNatElim ctx z s t a)
