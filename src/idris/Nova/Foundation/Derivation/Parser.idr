@@ -296,3 +296,8 @@ parseJudgementForm =
         <|> (do str_ "="; sp; ctx' <- parseCtx; sp; str_ "ctx"
                 pure (JfCtxEq (ctx, ctx')))
         <|> (do str_ "⊦"; sp; afterTurnstile ctx))
+
+-- Parse a list of judgement forms, each prefixed by "- ".
+export
+parseListJudgementForm : Rule (List JudgementForm)
+parseListJudgementForm = many (do sp; char_ '-'; space; parseJudgementForm)

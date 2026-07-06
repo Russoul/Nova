@@ -1,5 +1,7 @@
 module Nova.Foundation.Application
 
+import Data.List
+
 import Nova.Foundation.Syntax
 import Nova.Foundation.Derivation
 import Nova.Foundation.Derivation.Parser
@@ -13,30 +15,35 @@ record Input where
   constructor MkInput
   ||| Typing rules to generate the `Truth` table from.
   rules : List TypingRule
-  ||| The judgement form we want to check derivability of.
-  target : JudgementForm
+  ||| The judgement forms we want to check derivability of.
+  targets : List JudgementForm
 
 ||| Output of the program.
-||| `Ok` — success
+||| `Ok` — all targets derived
 ||| `Rejected` — one of the typing rules has been rejected
-||| `NoWitness` — all typing rules are correct but the target judgement form is not in the truth table.
-data Output = Ok | Rejected ContextualRejection | NoWitness
+||| `NoWitness` — rules are consistent but a target is not in the truth table
+data Output = Ok | Rejected ContextualRejection | NoWitness JudgementForm
 
 BadInput = String
 Filename = String
 
 run : Input -> Output
-run (MkInput rules target) =
+run (MkInput rules targets) =
   case generate rules of
     Left rejection => Rejected rejection
-    Right truth    => if check target truth then Ok else NoWitness
+    Right truth    =>
+      case find (\t => not (check t truth)) targets of
+        Just t  => NoWitness t
+        Nothing => Ok
 
 report : Output -> IO ()
 report Ok = putStrLn "Ok"
 report (Rejected cr) = do
   putStrLn "Rejected"
   putStrLn $ "  At rule: " ++ prettyTypingRule cr.rule
-report NoWitness = putStrLn "NoWitness"
+report (NoWitness t) = do
+  putStrLn "NoWitness"
+  putStrLn $ "  Target: " ++ prettyJudgementForm t
 
 parseInput : Filename -> Filename -> IO (Either BadInput Input)
 parseInput rulesFile targetFile = do
@@ -46,9 +53,9 @@ parseInput rulesFile targetFile = do
     | Left err => pure (Left $ "Cannot read target file '" ++ targetFile ++ "': " ++ show err)
   let Right rules = runParser parseListTypingRule rulesContent
     | Left err => pure (Left $ "Parse error in rules file: " ++ err)
-  let Right target = runParser parseJudgementForm targetContent
+  let Right targets = runParser parseListJudgementForm targetContent
     | Left err => pure (Left $ "Parse error in target file: " ++ err)
-  pure (Right (MkInput rules target))
+  pure (Right (MkInput rules targets))
 
 ||| Input:
 |||  - List TypingRule  (rules file, one rule per line prefixed with "- ")

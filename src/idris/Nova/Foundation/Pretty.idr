@@ -326,3 +326,18 @@ prettyTypingRule (SpineEqSym ctx s0 s1 tel) =
   prettyCtx ctx ++ " ⊦ " ++ prettySpine s1 ++ " = " ++ prettySpine s0 ++ " : " ++ prettyTel tel
 prettyTypingRule (SpineEqTrans ctx s0 s1 s2 tel) =
   prettyCtx ctx ++ " ⊦ " ++ prettySpine s0 ++ " = " ++ prettySpine s2 ++ " : " ++ prettyTel tel ++ " via " ++ prettySpine s1
+
+export
+prettyJudgementForm : JudgementForm -> String
+prettyJudgementForm (JfCtxWf ctx)       = prettyCtxWf ctx
+prettyJudgementForm (JfCtxEq p)         = prettyCtxEq p
+prettyJudgementForm (JfTyWf p)          = prettyTyWf p
+prettyJudgementForm (JfTyEq p)          = prettyTyEq p
+prettyJudgementForm (JfSubWf p)         = prettySubWf p
+prettyJudgementForm (JfSubEq p)         = prettySubEq p
+prettyJudgementForm (JfElemWf p)        = prettyElemWf p
+prettyJudgementForm (JfElemEq p)        = prettyElemEq p
+prettyJudgementForm (JfTelWf p)         = prettyTelWf p
+prettyJudgementForm (JfTelEq p)         = prettyTelEq p
+prettyJudgementForm (JfSpineWf p)       = prettySpineWf p
+prettyJudgementForm (JfSpineEq p)       = prettySpineEq p
