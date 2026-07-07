@@ -139,21 +139,24 @@ mutual
   prettyComputeNoComma cr = prettyComputePrefix cr
 
   prettyComputePrefix : ComputeRule -> String
-  prettyComputePrefix (InPiIntro a) = "λ " ++ prettyComputeAtom a
-  prettyComputePrefix (InZeroElim a) = "𝟘-elim " ++ prettyComputeAtom a
-  prettyComputePrefix (InNatIntro1 a) = "S " ++ prettyComputeAtom a
+  prettyComputePrefix (InPiIntro a) = "λ " ++ prettyComputeSubst a
+  prettyComputePrefix (InZeroElim a) = "𝟘-elim " ++ prettyComputeSubst a
+  prettyComputePrefix (InNatIntro1 a) = "S " ++ prettyComputeSubst a
   prettyComputePrefix (InNatElim a b c) =
-    "ℕ-elim " ++ prettyComputeAtom a ++ " " ++ prettyComputeAtom b ++ " " ++ prettyComputeAtom c
-  prettyComputePrefix (InEl a) = "El " ++ prettyComputeAtom a
+    "ℕ-elim " ++ prettyComputeSubst a ++ " " ++ prettyComputeSubst b ++ " " ++ prettyComputeSubst c
+  prettyComputePrefix (InEl a) = "El " ++ prettyComputeSubst a
   prettyComputePrefix cr = prettyComputePostfix cr
+
+  prettyComputeSubst : ComputeRule -> String
+  prettyComputeSubst (InSubstElim a b) = prettyComputeSubst a ++ "[" ++ prettyComputeRule b ++ "]"
+  prettyComputeSubst cr = prettyComputeAtom cr
 
   prettyComputePostfix : ComputeRule -> String
   prettyComputePostfix (InSigmaElim1 a) = prettyComputePostfix a ++ " .π₁"
   prettyComputePostfix (InSigmaElim2 a) = prettyComputePostfix a ++ " .π₂"
   prettyComputePostfix (InPiApp a Id) = prettyComputePostfix a ++ " @"
-  prettyComputePostfix (InPiApp a b) = prettyComputePostfix a ++ " " ++ prettyComputeAtom b
-  prettyComputePostfix (InSubstElim a b) = prettyComputePostfix a ++ " [" ++ prettyComputeRule b ++ "]"
-  prettyComputePostfix cr = prettyComputeAtom cr
+  prettyComputePostfix (InPiApp a b) = prettyComputePostfix a ++ " " ++ prettyComputeSubst b
+  prettyComputePostfix cr = prettyComputeSubst cr
 
   prettyComputeAtom : ComputeRule -> String
   prettyComputeAtom Here = "↓"

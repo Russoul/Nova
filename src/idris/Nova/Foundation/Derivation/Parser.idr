@@ -62,20 +62,33 @@ mutual
 
   parseComputePrefix : Rule ComputeRule
   parseComputePrefix =
-        (do str_ "λ";      space; a <- parseComputeAtom; pure (InPiIntro a))
-    <|> (do str_ "𝟘-elim"; space; a <- parseComputeAtom; pure (InZeroElim a))
+        (do str_ "λ";      space; a <- parseComputeSubst; pure (InPiIntro a))
+    <|> (do str_ "𝟘-elim"; space; a <- parseComputeSubst; pure (InZeroElim a))
     <|> (do str_ "ℕ-elim"; space
-            a <- parseComputeAtom; space
-            b <- parseComputeAtom; space
-            c <- parseComputeAtom
+            a <- parseComputeSubst; space
+            b <- parseComputeSubst; space
+            c <- parseComputeSubst
             pure (InNatElim a b c))
-    <|> (do str_ "S";  space; a <- parseComputeAtom; pure (InNatIntro1 a))
-    <|> (do str_ "El"; space; a <- parseComputeAtom; pure (InEl a))
+    <|> (do str_ "S";  space; a <- parseComputeSubst; pure (InNatIntro1 a))
+    <|> (do str_ "El"; space; a <- parseComputeSubst; pure (InEl a))
     <|> parseComputePostfix
 
+  -- Level 4: SubstElim postfix on atoms (α[β], left-assoc)
+  parseComputeSubst : Rule ComputeRule
+  parseComputeSubst = do
+    alpha <- parseComputeAtom
+    parseComputeSubstCont alpha
+
+  parseComputeSubstCont : ComputeRule -> Rule ComputeRule
+  parseComputeSubstCont alpha =
+    (do sp; char_ '['; sp; beta <- parseComputeRule; sp; char_ ']'
+        parseComputeSubstCont (InSubstElim alpha beta))
+    <|> pure alpha
+
+  -- Level 3: @, projections (α @, α .π₁, α .π₂, left-assoc)
   parseComputePostfix : Rule ComputeRule
   parseComputePostfix = do
-    alpha <- parseComputeAtom
+    alpha <- parseComputeSubst
     parseComputePostfixCont alpha
 
   parseComputePostfixCont : ComputeRule -> Rule ComputeRule
@@ -83,8 +96,6 @@ mutual
         (do sp; str_ ".π₁"; parseComputePostfixCont (InSigmaElim1 alpha))
     <|> (do sp; str_ ".π₂"; parseComputePostfixCont (InSigmaElim2 alpha))
     <|> (do sp; str_ "@";   parseComputePostfixCont (InPiApp alpha Id))
-    <|> (do sp; char_ '['; sp; beta <- parseComputeRule; sp; char_ ']'
-            parseComputePostfixCont (InSubstElim alpha beta))
     <|> pure alpha
 
   parseComputeAtom : Rule ComputeRule
