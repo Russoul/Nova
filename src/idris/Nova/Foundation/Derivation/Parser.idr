@@ -83,7 +83,7 @@ mutual
         (do sp; str_ ".π₁"; parseComputePostfixCont (InSigmaElim1 alpha))
     <|> (do sp; str_ ".π₂"; parseComputePostfixCont (InSigmaElim2 alpha))
     <|> (do sp; str_ "@";   parseComputePostfixCont (InPiElim alpha))
-    <|> (do sp; char_ '('; sp; beta <- parseComputeRule; sp; char_ ')'
+    <|> (do sp; char_ '['; sp; beta <- parseComputeRule; sp; char_ ']'
             parseComputePostfixCont (InSubstElim alpha beta))
     <|> pure alpha
 

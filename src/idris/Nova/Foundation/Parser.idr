@@ -129,7 +129,7 @@ mutual
         (do sp; str_ ".π₁"; parseElemPostfixCont (SigmaElim1 e))
     <|> (do sp; str_ ".π₂"; parseElemPostfixCont (SigmaElim2 e))
     <|> (do sp; str_ "@";   parseElemPostfixCont (PiElim e))
-    <|> (do sp; char_ '('; sp; s <- parseSub; sp; char_ ')'
+    <|> (do sp; char_ '['; sp; s <- parseSub; sp; char_ ']'
             parseElemPostfixCont (Elem.SubstElim e s))
     <|> pure e
 
@@ -223,7 +223,7 @@ mutual
   covering
   parseTyPostfixCont : Ty -> Rule Ty
   parseTyPostfixCont a =
-        (do sp; char_ '('; sp; s <- parseSub; sp; char_ ')'; parseTyPostfixCont (Ty.SubstElim a s))
+        (do sp; char_ '['; sp; s <- parseSub; sp; char_ ']'; parseTyPostfixCont (Ty.SubstElim a s))
     <|> pure a
 
   -- Constant types and parenthesised type

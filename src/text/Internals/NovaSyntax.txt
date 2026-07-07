@@ -4,13 +4,13 @@
 
 // T{0} ::= T{≥1} | t{≥4} ≡ t{≥4} ∈ T{≥1}
 // T{1} ::= T{≥2} | T{≥2} → T{≥1} | T{≥2} ⨯ T{≥1}                             (right-assoc)
-// T{2} ::= T{≥3} | El t{≥4} | T{≥2}(σ{≥0})                                    SubstElim (left-assoc postfix)
+// T{2} ::= T{≥3} | El t{≥4} | T{≥2}[σ{≥0}]                                    SubstElim (left-assoc postfix)
 // T{3} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | (T{≥0})
 
 // t{0} ::= t{≥1} | t{≥1} , t{≥0}                                               SigmaIntro (right-assoc)
 // t{1} ::= t{≥2} | t{≥2} → t{≥1} | t{≥2} ⨯ t{≥1} | t{≥2} ≡ t{≥2} ∈ t{≥2}
 // t{2} ::= t{≥3} | λ t{≥4} | 𝟘-elim t{≥4} | S t{≥4} | ℕ-elim t{≥4} t{≥4} t{≥4} | J t{≥4} t{≥4}
-// t{3} ::= t{≥4} | t{≥3} @ | t{≥3} .π₁ | t{≥3} .π₂ | t{≥3}(σ{≥0})           (left-assoc postfix)
+// t{3} ::= t{≥4} | t{≥3} @ | t{≥3} .π₁ | t{≥3} .π₂ | t{≥3}[σ{≥0}]           (left-assoc postfix)
 // t{4} ::= ☐ | () | Z | Refl | 𝟘 | 𝟙 | ℕ | x | (t{≥0})
 
 // Γ ::= ε | Γ ᐅ T{≥0}                                                          (left-assoc)

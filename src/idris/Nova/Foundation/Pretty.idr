@@ -49,7 +49,7 @@ mutual
   prettyElemPostfix (SigmaElim1 e) = prettyElemPostfix e ++ " .π₁"
   prettyElemPostfix (SigmaElim2 e) = prettyElemPostfix e ++ " .π₂"
   prettyElemPostfix (PiElim e) = prettyElemPostfix e ++ " @"
-  prettyElemPostfix (SubstElim e s) = prettyElemPostfix e ++ "(" ++ prettySub s ++ ")"
+  prettyElemPostfix (SubstElim e s) = prettyElemPostfix e ++ "[" ++ prettySub s ++ "]"
   prettyElemPostfix e = prettyElemAtom e
 
   export
@@ -83,7 +83,7 @@ mutual
   prettyTyEl ty = prettyTyPostfix ty
 
   prettyTyPostfix : Ty -> String
-  prettyTyPostfix (Ty.SubstElim ty s) = prettyTyPostfix ty ++ "(" ++ prettySub s ++ ")"
+  prettyTyPostfix (Ty.SubstElim ty s) = prettyTyPostfix ty ++ "[" ++ prettySub s ++ "]"
   prettyTyPostfix ty = prettyTyAtom ty
 
   prettyTyAtom : Ty -> String
@@ -148,7 +148,7 @@ mutual
   prettyComputePostfix (InSigmaElim1 a) = prettyComputePostfix a ++ " .π₁"
   prettyComputePostfix (InSigmaElim2 a) = prettyComputePostfix a ++ " .π₂"
   prettyComputePostfix (InPiElim a) = prettyComputePostfix a ++ " @"
-  prettyComputePostfix (InSubstElim a b) = prettyComputePostfix a ++ " (" ++ prettyComputeRule b ++ ")"
+  prettyComputePostfix (InSubstElim a b) = prettyComputePostfix a ++ " [" ++ prettyComputeRule b ++ "]"
   prettyComputePostfix cr = prettyComputeAtom cr
 
   prettyComputeAtom : ComputeRule -> String
