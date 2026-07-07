@@ -76,7 +76,7 @@
 - ε ⊦ plus
 - ε ᐅ ℕ ⊦ plus ☐ : ℕ → ℕ
 - ε ᐅ ℕ ᐅ ℕ ⊦ plus ☐ ☐ : ℕ
-- ε ᐅ ℕ ᐅ ℕ | id ⊦ plus ☐ ☐ | ↓ @ @; ↓ @; ↓ : ℕ | id type
+- ε ᐅ ℕ ᐅ ℕ | id ⊦ plus ☐ ☐ | ↓ id id; ↓ id; ↓ : ℕ | id type
 - ε ᐅ ℕ ⊦ · sub-wf
 - ε ᐅ ℕ ⊦ Z[·] : ℕ from ε
 - ε ᐅ ℕ | id ⊦ Z[·] | id : ℕ[·] | ↓ type

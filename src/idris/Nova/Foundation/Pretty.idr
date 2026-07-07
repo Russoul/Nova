@@ -154,7 +154,6 @@ mutual
   prettyComputePostfix : ComputeRule -> String
   prettyComputePostfix (InSigmaElim1 a) = prettyComputePostfix a ++ " .π₁"
   prettyComputePostfix (InSigmaElim2 a) = prettyComputePostfix a ++ " .π₂"
-  prettyComputePostfix (InPiApp a Id) = prettyComputePostfix a ++ " @"
   prettyComputePostfix (InPiApp a b) = prettyComputePostfix a ++ " " ++ prettyComputeSubst b
   prettyComputePostfix cr = prettyComputeSubst cr
 

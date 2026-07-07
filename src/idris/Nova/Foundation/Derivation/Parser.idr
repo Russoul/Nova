@@ -95,7 +95,7 @@ mutual
   parseComputePostfixCont alpha =
         (do sp; str_ ".π₁"; parseComputePostfixCont (InSigmaElim1 alpha))
     <|> (do sp; str_ ".π₂"; parseComputePostfixCont (InSigmaElim2 alpha))
-    <|> (do sp; str_ "@";   parseComputePostfixCont (InPiApp alpha Id))
+    <|> (do sp; beta <- parseComputeSubst; parseComputePostfixCont (InPiApp alpha beta))
     <|> pure alpha
 
   parseComputeAtom : Rule ComputeRule
