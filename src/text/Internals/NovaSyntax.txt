@@ -1,18 +1,65 @@
-σ{0} ::= σ{≥1} | σ{≥0} , t{≥1}                                              Ext (left-assoc)
-σ{1} ::= σ{≥2} | σ{≥2} ∘ σ{≥1}                                              Chain (right-assoc)
 σ{2} ::= · | id | ↑ | (σ{≥0})
+σ{1} ::= σ{≥2} ∘ σ{≥1}                                                      Chain (right-assoc)
+σ{0} ::= σ{≥0} , t{≥1}                                                      Ext (left-assoc)
 
-T{0} ::= T{≥1} | t{≥2} ≡ t{≥2} ∈ T{≥1}
-T{1} ::= T{≥2} | T{≥2} → T{≥1} | T{≥2} ⨯ T{≥1}                             (right-assoc)
-T{2} ::= T{≥3} | El t{≥4} | T{≥2}[σ{≥0}]                                    SubstElim (left-assoc postfix)
-T{3} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | (T{≥0})
+T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | (T{≥0})
+T{3} ::= T{≥3}[σ{≥0}]
+T{2} ::= El t{≥4}
+T{1} ::= T{≥2} → T{≥1} | T{≥2} ⨯ T{≥1}                                      (right-assoc)
+T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
 
-t{0} ::= t{≥1} | t{≥1} , t{≥0}                                               SigmaIntro (right-assoc)
-t{1} ::= t{≥2} | t{≥2} → t{≥1} | t{≥2} ⨯ t{≥1} | t{≥2} ≡ t{≥2} ∈ t{≥2}
-t{2} ::= t{≥3} | λ t{≥4} | 𝟘-elim t{≥4} | S t{≥4} | ℕ-elim t{≥4} t{≥4} t{≥4} | J t{≥4} t{≥4}
-t{3} ::= t{≥4} | t{≥3} @ | t{≥3} .π₁ | t{≥3} .π₂ | t{≥3}[σ{≥0}]           (left-assoc postfix)
-t{4} ::= ☐ | () | Z | Refl | 𝟘 | 𝟙 | ℕ | x | (t{≥0})
+t{5} ::= ☐ | () | Z | Refl | 𝟘 | 𝟙 | ℕ | x | (t{≥0})
+t{4} ::= t{≥4} [σ{≥0}]
+t{3} ::= t{≥3} t{≥4}  t{≥3} .π₁ | t{≥3} .π₂
+t{2} ::= λ t{≥3} | 𝟘-elim t{≥4} | S t{≥4} | ℕ-elim t{≥4} t{≥4} t{≥4}
+t{1} ::= t{≥2} → t{≥1} | t{≥2} ⨯ t{≥1} | t{≥2} ≡ t{≥2} ∈ t{≥2}
+t{0} ::= t{≥1} , t{≥0}                                                      SigmaIntro (right-assoc)
 
 Γ ::= ε | Γ ᐅ T{≥0}                                                          (left-assoc)
 Δ ::= ε | T{≥0} ◁ Δ                                                          (right-assoc)
 ē ::= · | t{≥1} (, t{≥1})*
+
+α{4} ::= ↓ | id | (α{≥0})
+α{3} ::= α{≥3} @ | α{≥3} .π₁ | α{≥3} .π₂ | α{≥3} [α{≥0}]                   (left-assoc)
+α{2} ::= λ α{≥4} | 𝟘-elim α{≥4} | S α{≥4} | El α{≥4} | ℕ-elim α{≥4} α{≥4} α{≥4}
+α{1} ::= α{≥2} → α{≥1} | α{≥2} ⨯ α{≥1} | α{≥2} ᐅ α{≥1}                     (right-assoc)
+       | α{≥2} ≡ α{≥3} ∈ α{≥3}
+α{0} ::= α{≥1} , α{≥0} | α{≥1} ; α{≥0}                                       (right-assoc)
+
+// TypingRule — syntax of derivation steps in .rules files
+R ::=
+    Γ ctx
+  | Γ = Γ' ctx [via Γ'']
+  | Γ = Γ' ⊦ t : T
+  | Γ | α ctx
+  | Γ | α ⊦ T | α type
+  | Γ | α ⊦ t | α : T | α type
+  | Γ ⊦ σ sub-wf [to Δ [via Θ]]
+  | Γ ⊦ T type
+  | Γ ⊦ T = T' type [via T'']
+  | Γ ⊦ Refl : t{≥5} ∈ T
+  | Γ ⊦ (t : T ⨯ T') .π₁
+  | Γ ⊦ (t : T ⨯ T') .π₂
+  | Γ ⊦ (t : T → T') t{≥5}
+  | Γ ⊦ x ≔ t : T
+  | Γ ⊦ t = t' : T [via t'' | ↝ T' | from Γ']
+  | Γ ⊦ t[σ] : T [from Γ']
+  | Γ ⊦ t : T ↝ T'
+  | Γ ⊦ t : T reflect
+  | Γ ⊦ t : T
+  | Γ ⊦ t
+
+// JudgementForm — syntax of target goals in .target files
+J ::=
+    σ = σ' : Γ ⇒ Δ
+  | σ : Γ ⇒ Δ
+  | Γ ctx
+  | Γ = Γ' ctx
+  | Γ ⊦ T = T' type
+  | Γ ⊦ T type
+  | Γ ⊦ t = t' : T
+  | Γ ⊦ t : T
+  | Γ ⊦ Δ = Δ' tel
+  | Γ ⊦ Δ tel
+  | Γ ⊦ · = · : Δ
+  | Γ ⊦ · : Δ

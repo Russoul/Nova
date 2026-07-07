@@ -112,7 +112,7 @@ data ComputeRule =
                | Id
                  -- α; α
                | Composition ComputeRule ComputeRule
-                 -- α (β)
+                 -- α [β]
                | InSubstElim ComputeRule ComputeRule
                  -- 𝟘-elim α
                | InZeroElim ComputeRule
@@ -122,8 +122,8 @@ data ComputeRule =
                | InNatElim ComputeRule ComputeRule ComputeRule
                  --  λ α
                | InPiIntro ComputeRule
-                 -- α @
-               | InPiElim ComputeRule
+                 -- α α
+               | InPiApp ComputeRule ComputeRule
                  -- α , α
                | InSigmaIntro ComputeRule ComputeRule
                  -- α .π₁
@@ -177,8 +177,8 @@ data TypingRule : Type where
   ElemWfNatElim : Ctx -> Elem -> Elem -> Elem -> Ty -> TypingRule
   ||| Γ ⊦ λ t : T → T
   ElemWfPiIntro : Ctx -> Elem -> Ty -> Ty -> TypingRule
-  ||| Γ ᐅ T ⊦ t : T
-  ElemWfPiElim : Ctx -> Ty -> Elem -> Ty -> TypingRule
+  ||| Γ ⊦ (f : A -> B) e
+  ElemWfPiApp : Ctx -> Elem -> Ty -> Ty -> Elem -> TypingRule
   ||| Γ ⊦ t , t : T ⨯ T
   ElemWfSigmaIntro : Ctx -> Elem -> Elem -> Ty -> Ty -> TypingRule
   ||| Γ ⊦ (t : T ⨯ T) .π₁
@@ -293,7 +293,7 @@ Show ComputeRule where
   show (InNatIntro1 a)         = "InNatIntro1 (\{show a})"
   show (InNatElim a b c)       = "InNatElim (\{show a}) (\{show b}) (\{show c})"
   show (InPiIntro a)           = "InPiIntro (\{show a})"
-  show (InPiElim a)            = "InPiElim (\{show a})"
+  show (InPiApp a b)           = "InPiApp (\{show a}) (\{show b})"
   show (InSigmaIntro a b)      = "InSigmaIntro (\{show a}) (\{show b})"
   show (InSigmaElim1 a)        = "InSigmaElim1 (\{show a})"
   show (InSigmaElim2 a)        = "InSigmaElim2 (\{show a})"
@@ -323,7 +323,7 @@ Show TypingRule where
   show (ElemWfSucIntro ctx e)        = "ElemWfSucIntro (\{showCtxRep ctx}) (\{show e})"
   show (ElemWfNatElim ctx z s t ty)  = "ElemWfNatElim (\{showCtxRep ctx}) (\{show z}) (\{show s}) (\{show t}) (\{show ty})"
   show (ElemWfPiIntro ctx f a b)     = "ElemWfPiIntro (\{showCtxRep ctx}) (\{show f}) (\{show a}) (\{show b})"
-  show (ElemWfPiElim g a f b)        = "ElemWfPiElim (\{showCtxRep g}) (\{show a}) (\{show f}) (\{show b})"
+  show (ElemWfPiApp g a f e b)       = "ElemWfPiApp (\{showCtxRep g}) (\{show a}) (\{show f}) (\{show e}) (\{show b})"
   show (ElemWfSigmaIntro ctx u v a b) = "ElemWfSigmaIntro (\{showCtxRep ctx}) (\{show u}) (\{show v}) (\{show a}) (\{show b})"
   show (ElemWfSigmaElim1 ctx e a b)  = "ElemWfSigmaElim1 (\{showCtxRep ctx}) (\{show e}) (\{show a}) (\{show b})"
   show (ElemWfSigmaElim2 ctx e a b)  = "ElemWfSigmaElim2 (\{showCtxRep ctx}) (\{show e}) (\{show a}) (\{show b})"
@@ -466,8 +466,8 @@ mutual
 
   computeElem : Sig -> ComputeRule -> Elem -> Either Rejection Elem
   computeElem sig Id x = Right x
-  computeElem sig Here (PiElim (PiIntro f)) = Right f
-  computeElem sig Here (PiIntro (PiElim f)) = Right f
+  computeElem sig Here (PiApp (PiIntro f) e)      = Right (SubstElim f (Ext Id e))
+  computeElem sig Here (PiIntro (PiApp (SubstElim f Wk) CtxVar)) = Right f
   computeElem sig Here (NatElim z _ NatIntro0)     = Right z
   computeElem sig Here (NatElim z s (NatIntro1 t)) = Right (SubstElim s (Ext (Ext Id t) (NatElim z s t)))
   computeElem sig Here (SigmaElim1 (SigmaIntro a _)) = Right a
@@ -486,7 +486,7 @@ mutual
   computeElem sig Here (SubstElim (NatElim z s t) sigma) =
     Right (NatElim (SubstElim z sigma) (SubstElim s (under (under sigma))) (SubstElim t sigma))
   computeElem sig Here (SubstElim (PiIntro f) sigma) = Right (PiIntro (SubstElim f (under sigma)))
-  computeElem sig Here (SubstElim (PiElim f) (Ext sigma t)) = Right (SubstElim (PiElim (SubstElim f sigma)) (Ext Id t))
+  computeElem sig Here (SubstElim (PiApp f e) sigma) = Right (PiApp (SubstElim f sigma) (SubstElim e sigma))
   computeElem sig Here (SubstElim (SigmaIntro a b) sigma) = Right (SigmaIntro (SubstElim a sigma) (SubstElim b sigma))
   computeElem sig Here (SubstElim (SigmaElim1 t) sigma) = Right (SigmaElim1 (SubstElim t sigma))
   computeElem sig Here (SubstElim (SigmaElim2 t) sigma) = Right (SigmaElim2 (SubstElim t sigma))
@@ -506,7 +506,7 @@ mutual
   computeElem sig (InNatIntro1 alpha) (NatIntro1 t) = [| NatIntro1 (computeElem sig alpha t) |]
   computeElem sig (InNatElim alpha beta gamma) (NatElim z s t) = [| NatElim (computeElem sig alpha z) (computeElem sig beta s) (computeElem sig gamma t) |]
   computeElem sig (InPiIntro alpha) (PiIntro f) = [| PiIntro (computeElem sig alpha f) |]
-  computeElem sig (InPiElim alpha) (PiElim f) = [| PiElim (computeElem sig alpha f) |]
+  computeElem sig (InPiApp alpha beta) (PiApp f e) = [| PiApp (computeElem sig alpha f) (computeElem sig beta e) |]
   computeElem sig (InSigmaIntro alpha beta) (SigmaIntro a b) = [| SigmaIntro (computeElem sig alpha a) (computeElem sig beta b) |]
   computeElem sig (InSigmaElim1 alpha) (SigmaElim1 t) = [| SigmaElim1 (computeElem sig alpha t) |]
   computeElem sig (InSigmaElim2 alpha) (SigmaElim2 t) = [| SigmaElim2 (computeElem sig alpha t) |]
@@ -612,9 +612,10 @@ step (ElemWfNatElim gamma z s t a) sp = do
 step (ElemWfPiIntro gamma f a b) sp = do
   elemWfDerivable (gamma :< a) f b sp
   Right $ {elemWf $= insert (gamma, PiIntro f, PiTy a b)} sp
-step (ElemWfPiElim gamma a f b) sp = do
+step (ElemWfPiApp gamma f a b e) sp = do
   elemWfDerivable gamma f (PiTy a b) sp
-  Right $ {elemWf $= insert (gamma :< a, PiElim f, b)} sp
+  elemWfDerivable gamma e a sp
+  Right $ {elemWf $= insert (gamma, PiApp f e, SubstElim b (Ext Id e))} sp
 step (ElemWfSigmaIntro gamma u v a b) sp = do
   elemWfDerivable gamma u a sp
   elemWfDerivable gamma v (SubstElim b (Ext Id u)) sp

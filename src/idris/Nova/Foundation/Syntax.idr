@@ -58,8 +58,8 @@ mutual
       NatElim : Elem -> Elem -> Elem -> Elem
       ||| λ t (pi introduction)
       PiIntro : Elem -> Elem
-      ||| t @
-      PiElim : Elem -> Elem
+      ||| f e
+      PiApp : Elem -> Elem -> Elem
       ||| t , t (sigma introduction / pair)
       SigmaIntro : Elem -> Elem -> Elem
       ||| t .π₁  (sigma elimination, first projection)
@@ -151,7 +151,7 @@ mutual
     NatIntro1 e      == NatIntro1 e'       = e == e'
     NatElim z s t    == NatElim z' s' t'   = z == z' && s == s' && t == t'
     PiIntro e        == PiIntro e'         = e == e'
-    PiElim e         == PiElim e'          = e == e'
+    PiApp f e        == PiApp f' e'         = f == f' && e == e'
     SigmaIntro e1 e2 == SigmaIntro e1' e2' = e1 == e1' && e2 == e2'
     SigmaElim1 e     == SigmaElim1 e'      = e == e'
     SigmaElim2 e     == SigmaElim2 e'      = e == e'
@@ -239,9 +239,9 @@ mutual
     compare (PiIntro e)        (PiIntro e')         = compare e e'
     compare (PiIntro _)        _                    = LT
     compare _                  (PiIntro _)          = GT
-    compare (PiElim e)         (PiElim e')          = compare e e'
-    compare (PiElim _)         _                    = LT
-    compare _                  (PiElim _)           = GT
+    compare (PiApp f e)        (PiApp f' e')         = compare f f' <+> compare e e'
+    compare (PiApp _ _)        _                    = LT
+    compare _                  (PiApp _ _)          = GT
     compare (SigmaIntro e1 e2) (SigmaIntro e1' e2') = compare e1 e1' <+> compare e2 e2'
     compare (SigmaIntro _ _)   _                    = LT
     compare _                  (SigmaIntro _ _)     = GT
@@ -308,7 +308,7 @@ mutual
     show (NatIntro1 e) = "NatIntro1 (\{show e})"
     show (NatElim z s t) = "NatElim (\{show z}) (\{show s}) (\{show t})"
     show (PiIntro e) = "PiIntro (\{show e})"
-    show (PiElim e) = "PiElim (\{show e})"
+    show (PiApp f e) = "PiApp (\{show f}) (\{show e})"
     show (SigmaIntro e1 e2) = "SigmaIntro (\{show e1}) (\{show e2})"
     show (SigmaElim1 e) = "SigmaElim1 (\{show e})"
     show (SigmaElim2 e) = "SigmaElim2 (\{show e})"

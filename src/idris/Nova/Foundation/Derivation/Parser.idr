@@ -82,7 +82,7 @@ mutual
   parseComputePostfixCont alpha =
         (do sp; str_ ".π₁"; parseComputePostfixCont (InSigmaElim1 alpha))
     <|> (do sp; str_ ".π₂"; parseComputePostfixCont (InSigmaElim2 alpha))
-    <|> (do sp; str_ "@";   parseComputePostfixCont (InPiElim alpha))
+    <|> (do sp; str_ "@";   parseComputePostfixCont (InPiApp alpha Id))
     <|> (do sp; char_ '['; sp; beta <- parseComputeRule; sp; char_ ']'
             parseComputePostfixCont (InSubstElim alpha beta))
     <|> pure alpha
@@ -140,13 +140,16 @@ parseTurnstileContent ctx =
       e <- parseElemAtom; sp; str_ "∈"; sp; ty <- parseTy
       pure (ElemWfRefl ctx e ty)) <|>
   -- 3. (e : A ⨯ B) .π₁  or  .π₂  (ElemWfSigmaElim1/2)
+  --    (f : A → B) e               (ElemWfPiApp)
   (do char_ '('; sp; e <- parseElem; sp; char_ ':'; sp; ty <- parseTy; sp; char_ ')'
+      sp *>
       case ty of
         SigmaTy a b =>
-          sp *>
-          ((str_ ".π₁" $> ElemWfSigmaElim1 ctx e a b) <|>
-           (str_ ".π₂" $> ElemWfSigmaElim2 ctx e a b))
-        _ => fail "expected sigma type in sigma elimination annotation") <|>
+          (str_ ".π₁" $> ElemWfSigmaElim1 ctx e a b) <|>
+          (str_ ".π₂" $> ElemWfSigmaElim2 ctx e a b)
+        PiTy a b =>
+          (do e' <- parseElemAtom; pure (ElemWfPiApp ctx e a b e'))
+        _ => fail "expected sigma or pi type in elimination annotation") <|>
   -- 4. General elem dispatch
   (do e <- parseElem
       -- "x ≔ a : A" — sig extension
@@ -195,10 +198,7 @@ parseTurnstileContent ctx =
             (NatElim z s t, a)            => pure (ElemWfNatElim ctx z s t a)
             (PiIntro f, PiTy a b)         => pure (ElemWfPiIntro ctx f a b)
             (SigmaIntro u v, SigmaTy a b) => pure (ElemWfSigmaIntro ctx u v a b)
-            (PiElim f, b) =>
-              case ctx of
-                gamma :< a => pure (ElemWfPiElim gamma a f b)
-                [<]        => fail "PiElim rule requires non-empty context"
+            (PiApp f e', PiTy a b) => pure (ElemWfPiApp ctx f a b e')
             (SubstElim t sigma, a) => do
               optG <- (do sp; str_ "from"; sp; g <- parseCtx; pure (Just g)) <|> pure Nothing
               case optG of

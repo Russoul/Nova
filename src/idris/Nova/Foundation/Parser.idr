@@ -116,11 +116,26 @@ mutual
     <|> (do str_ "S"; space; e <- parseElemAtom; pure (NatIntro1 e))
     <|> parseElemPostfix
 
-  -- Postfix operators chain on atoms: e @, e .π₁, e .π₂, e(σ)
+  -- Level 4: SubstElim postfix on atoms (t[σ], left-assoc)
+  covering
+  parseElemSubst : Rule Elem
+  parseElemSubst = do
+    e <- parseElemAtom
+    parseElemSubstCont e
+
+  covering
+  parseElemSubstCont : Elem -> Rule Elem
+  parseElemSubstCont e =
+    (do sp; char_ '['; sp; s <- parseSub; sp; char_ ']'
+        parseElemSubstCont (Elem.SubstElim e s))
+    <|> pure e
+
+  -- Level 3: PiApp and projections (t t, t .π₁, t .π₂, left-assoc)
+  -- Argument of application is at level 4 (may be a substituted term).
   covering
   parseElemPostfix : Rule Elem
   parseElemPostfix = do
-    e <- parseElemAtom
+    e <- parseElemSubst
     parseElemPostfixCont e
 
   covering
@@ -128,9 +143,7 @@ mutual
   parseElemPostfixCont e =
         (do sp; str_ ".π₁"; parseElemPostfixCont (SigmaElim1 e))
     <|> (do sp; str_ ".π₂"; parseElemPostfixCont (SigmaElim2 e))
-    <|> (do sp; str_ "@";   parseElemPostfixCont (PiElim e))
-    <|> (do sp; char_ '['; sp; s <- parseSub; sp; char_ ']'
-            parseElemPostfixCont (Elem.SubstElim e s))
+    <|> (do sp; e' <- parseElemSubst; parseElemPostfixCont (PiApp e e'))
     <|> pure e
 
   -- Conservative ASCII identifier: letter or '_' followed by letters, digits, or '_'.
@@ -206,11 +219,11 @@ mutual
       <|> (do sp; str_ "⨯"; sp; b <- parseTyArrow; pure (Ty.SigmaTy a b))
       <|> pure a
 
-  -- El e  (prefix El, then continue with possible postfix subst)
+  -- El e  (prefix El; no postfix subst — El is at level 2, subst is level 3)
   covering
   parseTyEl : Rule Ty
   parseTyEl =
-        (do str_ "El"; space; e <- parseElemAtom; parseTyPostfixCont (El e))
+        (do str_ "El"; space; e <- parseElemAtom; pure (El e))
     <|> parseTyPostfix
 
   -- Apply postfix subst A(σ)(τ)... to an already-parsed type

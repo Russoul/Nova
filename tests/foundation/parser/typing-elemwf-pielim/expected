@@ -1,1 +1,1 @@
-ElemWfPiElim ([<]) (NatTy) (CtxVar) (OneTy)
+ElemWfPiApp (([<] :< PiTy (NatTy) (NatTy))) (CtxVar) (NatTy) (NatTy) (NatIntro0)

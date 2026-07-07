@@ -45,12 +45,15 @@ mutual
     "ℕ-elim " ++ prettyElemAtom z ++ " " ++ prettyElemAtom s ++ " " ++ prettyElemAtom t
   prettyElemPrefix e = prettyElemPostfix e
 
+  prettyElemSubst : Elem -> String
+  prettyElemSubst (SubstElim e s) = prettyElemSubst e ++ "[" ++ prettySub s ++ "]"
+  prettyElemSubst e = prettyElemAtom e
+
   prettyElemPostfix : Elem -> String
   prettyElemPostfix (SigmaElim1 e) = prettyElemPostfix e ++ " .π₁"
   prettyElemPostfix (SigmaElim2 e) = prettyElemPostfix e ++ " .π₂"
-  prettyElemPostfix (PiElim e) = prettyElemPostfix e ++ " @"
-  prettyElemPostfix (SubstElim e s) = prettyElemPostfix e ++ "[" ++ prettySub s ++ "]"
-  prettyElemPostfix e = prettyElemAtom e
+  prettyElemPostfix (PiApp f e) = prettyElemPostfix f ++ " " ++ prettyElemSubst e
+  prettyElemPostfix e = prettyElemSubst e
 
   export
   prettyElemAtom : Elem -> String
@@ -147,7 +150,8 @@ mutual
   prettyComputePostfix : ComputeRule -> String
   prettyComputePostfix (InSigmaElim1 a) = prettyComputePostfix a ++ " .π₁"
   prettyComputePostfix (InSigmaElim2 a) = prettyComputePostfix a ++ " .π₂"
-  prettyComputePostfix (InPiElim a) = prettyComputePostfix a ++ " @"
+  prettyComputePostfix (InPiApp a Id) = prettyComputePostfix a ++ " @"
+  prettyComputePostfix (InPiApp a b) = prettyComputePostfix a ++ " " ++ prettyComputeAtom b
   prettyComputePostfix (InSubstElim a b) = prettyComputePostfix a ++ " [" ++ prettyComputeRule b ++ "]"
   prettyComputePostfix cr = prettyComputeAtom cr
 
@@ -250,8 +254,8 @@ prettyTypingRule (ElemWfNatElim ctx z s t ty) =
   prettyCtx ctx ++ " ⊦ " ++ prettyElem (NatElim z s t) ++ " : " ++ prettyTy ty
 prettyTypingRule (ElemWfPiIntro ctx f a b) =
   prettyCtx ctx ++ " ⊦ " ++ prettyElem (PiIntro f) ++ " : " ++ prettyTy (PiTy a b)
-prettyTypingRule (ElemWfPiElim g a f b) =
-  prettyCtx (g :< a) ++ " ⊦ " ++ prettyElem (PiElim f) ++ " : " ++ prettyTy b
+prettyTypingRule (ElemWfPiApp gamma f a b e) =
+  prettyCtx gamma ++ " ⊦ (" ++ prettyElem f ++ " : " ++ prettyTy (PiTy a b) ++ ") " ++ prettyElemAtom e
 prettyTypingRule (ElemWfSigmaIntro ctx u v a b) =
   prettyCtx ctx ++ " ⊦ " ++ prettyElem (SigmaIntro u v) ++ " : " ++ prettyTy (SigmaTy a b)
 prettyTypingRule (ElemWfSigmaElim1 ctx e a b) =
