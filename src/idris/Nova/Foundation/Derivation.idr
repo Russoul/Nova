@@ -225,6 +225,17 @@ data TypingRule : Type where
   CtxEqRefl  : Ctx -> TypingRule
   CtxEqSym   : Ctx -> Ctx -> TypingRule
   CtxEqTrans : Ctx -> Ctx -> Ctx -> TypingRule
+  -- Substitution well-formedness
+  ||| · : Γ ⇒ ε
+  SubWfTerminal : Ctx -> TypingRule
+  ||| id : Γ ⇒ Γ
+  SubWfId : Ctx -> TypingRule
+  ||| ↑ : (Γ ᐅ A) ⇒ Γ
+  SubWfWk : Ctx -> Ty -> TypingRule
+  ||| (σ, e) : Γ ⇒ (Δ ᐅ A)  given σ : Γ ⇒ Δ
+  SubWfExt : Sub -> Elem -> Ctx -> Ctx -> Ty -> TypingRule
+  ||| σ ∘ τ : Γ ⇒ Δ  given σ : Γ ⇒ Θ and τ : Θ ⇒ Δ
+  SubWfChain : Sub -> Sub -> Ctx -> Ctx -> Ctx -> TypingRule
   -- Substitution equality
   SubEqRefl  : Sub -> Ctx -> Ctx -> TypingRule
   SubEqSym   : Sub -> Sub -> Ctx -> Ctx -> TypingRule
@@ -337,6 +348,11 @@ Show TypingRule where
   show (CtxEqRefl ctx)               = "CtxEqRefl (\{showCtxRep ctx})"
   show (CtxEqSym ctx0 ctx1)          = "CtxEqSym (\{showCtxRep ctx0}) (\{showCtxRep ctx1})"
   show (CtxEqTrans ctx0 ctx1 ctx2)   = "CtxEqTrans (\{showCtxRep ctx0}) (\{showCtxRep ctx1}) (\{showCtxRep ctx2})"
+  show (SubWfTerminal ctx)             = "SubWfTerminal (\{showCtxRep ctx})"
+  show (SubWfId ctx)                   = "SubWfId (\{showCtxRep ctx})"
+  show (SubWfWk ctx ty)                = "SubWfWk (\{showCtxRep ctx}) (\{show ty})"
+  show (SubWfExt sigma e gamma delta ty) = "SubWfExt (\{show sigma}) (\{show e}) (\{showCtxRep gamma}) (\{showCtxRep delta}) (\{show ty})"
+  show (SubWfChain sigma tau gamma theta delta) = "SubWfChain (\{show sigma}) (\{show tau}) (\{showCtxRep gamma}) (\{showCtxRep theta}) (\{showCtxRep delta})"
   show (SubEqRefl s g d)             = "SubEqRefl (\{show s}) (\{showCtxRep g}) (\{showCtxRep d})"
   show (SubEqSym s0 s1 g d)          = "SubEqSym (\{show s0}) (\{show s1}) (\{showCtxRep g}) (\{showCtxRep d})"
   show (SubEqTrans s0 s1 s2 g d)     = "SubEqTrans (\{show s0}) (\{show s1}) (\{show s2}) (\{showCtxRep g}) (\{showCtxRep d})"
@@ -501,11 +517,32 @@ mutual
   computeElem sig (Composition alpha beta) x = computeElem sig alpha x >>= computeElem sig beta
   computeElem sig _ _ = Left ()
 
+||| Checks the closure of the typing rule, meaning
+||| if the typing rule depends on existence of a derivation of some judgement form it won't be presumed.
+||| E.g. To check all at once:
+|||
+||| Γ ctx
+||| Γ ⊦ A type
+||| Γ ᐅ A ⊦ B type
+||| Γ ⊦ λ f : A → B
+|||
+||| It's enough to check:
+||| Γ ctx
+||| Γ ⊦ A type
+||| Γ ᐅ A ⊦ B type
+||| Γ ᐅ B ⊦ f : B
+
+||| To check:
+|||
+||| Γ ctx
+||| Γ ⊦ ℕ type
+|||
+||| It's necessary and sufficient to check:
+||| Γ ctx
 export
 step : TypingRule -> Truth -> Either Rejection Truth
 step CtxWfEmpty sp = Right $ {ctxWf $= insert [<]} sp
 step (CtxWfExt gamma ty) sp = do
-  -- ctxWfDerivable gamma sp
   tyWfDerivable gamma ty sp
   Right $ {ctxWf $= insert (gamma :< ty)} sp
 step (CtxWfCompute gamma rule) sp = do
@@ -539,31 +576,22 @@ step (TyWfUniverse gamma) sp = do
   ctxWfDerivable gamma sp
   Right $ {tyWf $= insert (gamma, UniverseTy)} sp
 step (TyWfPi gamma a b) sp = do
-  -- ctxWfDerivable gamma sp
-  -- tyWfDerivable gamma a sp
   tyWfDerivable (gamma :< a) b sp
   Right $ {tyWf $= insert (gamma, PiTy a b)} sp
 step (TyWfSigma gamma a b) sp = do
-  -- ctxWfDerivable gamma sp
-  -- tyWfDerivable gamma a sp
   tyWfDerivable (gamma :< a) b sp
   Right $ {tyWf $= insert (gamma, SigmaTy a b)} sp
 step (TyWfEq gamma left right ty) sp = do
-  -- ctxWfDerivable gamma sp
-  -- tyWfDerivable gamma ty sp
   elemWfDerivable gamma left ty sp
   elemWfDerivable gamma right ty sp
   Right $ {tyWf $= insert (gamma, EqTy left right ty)} sp
 step (TyWfEl gamma t) sp = do
-  -- ctxWfDerivable gamma sp
   elemWfDerivable gamma t UniverseTy sp
   Right $ {tyWf $= insert (gamma, El t)} sp
 step (ElemWfVar gamma ty) sp = do
-  -- ctxWfDerivable gamma sp
   tyWfDerivable gamma ty sp
   Right $ {elemWf $= insert (gamma :< ty, CtxVar, SubstElim ty Wk)} sp
 step (ElemWfZeroElim gamma t ty) sp = do
-  -- ctxWfDerivable gamma sp
   tyWfDerivable gamma ty sp
   elemWfDerivable gamma t ZeroTy sp
   Right $ {elemWf $= insert (gamma, ZeroElim t, ty)} sp
@@ -574,45 +602,28 @@ step (ElemWfZeroIntro gamma) sp = do
   ctxWfDerivable gamma sp
   Right $ {elemWf $= insert (gamma, NatIntro0, NatTy)} sp
 step (ElemWfSucIntro gamma t) sp = do
-  -- ctxWfDerivable gamma sp
   elemWfDerivable gamma t NatTy sp
   Right $ {elemWf $= insert (gamma, NatIntro1 t, NatTy)} sp
 step (ElemWfNatElim gamma z s t a) sp = do
-  -- ctxWfDerivable gamma sp
-  tyWfDerivable (gamma :< NatTy) a sp
+  -- tyWfDerivable (gamma :< NatTy) a sp
   elemWfDerivable gamma z (SubstElim a (Ext Id NatIntro0)) sp
   elemWfDerivable (gamma :< NatTy :< a) s (SubstElim a (Chain (Ext Wk (NatIntro1 CtxVar)) Wk)) sp
   elemWfDerivable gamma t NatTy sp
   Right $ {elemWf $= insert (gamma, NatElim z s t, SubstElim a (Ext Id t))} sp
 step (ElemWfPiIntro gamma f a b) sp = do
-  -- ctxWfDerivable gamma sp
-  -- tyWfDerivable gamma a sp
-  -- tyWfDerivable (gamma :< a) b sp
   elemWfDerivable (gamma :< a) f b sp
   Right $ {elemWf $= insert (gamma, PiIntro f, PiTy a b)} sp
 step (ElemWfPiElim gamma a f b) sp = do
-  -- ctxWfDerivable gamma sp
-  -- tyWfDerivable gamma a sp
-  -- tyWfDerivable (gamma :< a) b sp
   elemWfDerivable gamma f (PiTy a b) sp
   Right $ {elemWf $= insert (gamma :< a, PiElim f, b)} sp
 step (ElemWfSigmaIntro gamma u v a b) sp = do
-  -- ctxWfDerivable gamma sp
-  -- tyWfDerivable gamma a sp
-  -- tyWfDerivable (gamma :< a) b sp
   elemWfDerivable gamma u a sp
   elemWfDerivable gamma v (SubstElim b (Ext Id u)) sp
   Right $ {elemWf $= insert (gamma, SigmaIntro u v, PiTy a b)} sp
 step (ElemWfSigmaElim1 gamma t a b) sp = do
-  -- ctxWfDerivable gamma sp
-  -- tyWfDerivable gamma a sp
-  -- tyWfDerivable (gamma :< a) b sp
   elemWfDerivable gamma t (SigmaTy a b) sp
   Right $ {elemWf $= insert (gamma, SigmaElim1 t, a)} sp
 step (ElemWfSigmaElim2 gamma t a b) sp = do
-  -- ctxWfDerivable gamma sp
-  -- tyWfDerivable gamma a sp
-  -- tyWfDerivable (gamma :< a) b sp
   elemWfDerivable gamma t (SigmaTy a b) sp
   Right $ {elemWf $= insert (gamma, SigmaElim2 t, SubstElim b (Ext Id (SigmaElim1 t)))} sp
 step (ElemWfZeroTy gamma) sp = do
@@ -625,33 +636,26 @@ step (ElemWfNatTy gamma) sp = do
   ctxWfDerivable gamma sp
   Right $ {elemWf $= insert (gamma, NatTy, UniverseTy)} sp
 step (ElemWfPiTy gamma a b) sp = do
-  -- ctxWfDerivable gamma sp
-  -- elemWfDerivable gamma a UniverseTy sp
   elemWfDerivable (gamma :< El a) b UniverseTy sp
   Right $ {elemWf $= insert (gamma, PiTy a b, UniverseTy)} sp
 step (ElemWfSigmaTy gamma a b) sp = do
-  -- ctxWfDerivable gamma sp
-  -- elemWfDerivable gamma a UniverseTy sp
   elemWfDerivable (gamma :< El a) b UniverseTy sp
   Right $ {elemWf $= insert (gamma, SigmaTy a b, UniverseTy)} sp
 step (ElemWfEqTy gamma l r ty) sp = do
-  -- ctxWfDerivable gamma sp
-  -- elemWfDerivable gamma ty UniverseTy sp
   elemWfDerivable gamma l (El ty) sp
   elemWfDerivable gamma r (El ty) sp
   Right $ {elemWf $= insert (gamma, EqTy l r ty, UniverseTy)} sp
 step (ElemWfRefl gamma e ty) sp = do
-  -- ctxWfDerivable gamma sp
-  -- tyWfDerivable gamma ty sp
   elemWfDerivable gamma e ty sp
   Right $ {elemWf $= insert (gamma, Refl, EqTy e e ty)} sp
--- Γ ⊦ t : A
--- σ : Δ ⇒ Γ
+-- Δ ⊦ t : A
+-- σ : Γ ⇒ Δ
 -- ---------------
--- Δ ⊦ t(σ) : A(σ)
+-- Γ ⊦ t(σ) : A(σ)
 step (ElemWfSubElim t ty sigma gamma delta) sp = do
-  elemWfDerivable gamma t ty sp
-  Right $ {elemWf $= insert (delta, SubstElim t sigma, SubstElim ty sigma)} sp
+  subWfDerivable sigma gamma delta sp
+  elemWfDerivable delta t ty sp
+  Right $ {elemWf $= insert (gamma, SubstElim t sigma, SubstElim ty sigma)} sp
 -- Γ ⊦ a : A₀
 -- Γ ⊦ A₀ = A₁ type
 -- ----------------
@@ -681,6 +685,7 @@ step (ElemEqSigVar x) sp =
 -- -------------------------
 -- Δ ⊦ a(σ) = b(σ) : A(σ)
 step (ElemEqSubstCong gamma delta sigma a b ty) sp = do
+  subWfDerivable sigma delta gamma sp
   elemEqDerivable gamma a b ty sp
   Right $ {elemEq $= insert (delta, SubstElim a sigma, SubstElim b sigma, SubstElim ty sigma)} sp
 -- Γ ⊦ a = b : A₀
@@ -706,7 +711,26 @@ step (CtxEqTrans ctx0 ctx1 ctx2) sp = do
   ctxEqDerivable ctx0 ctx1 sp
   ctxEqDerivable ctx1 ctx2 sp
   Right $ {ctxEq $= insert (ctx0, ctx2)} sp
-step (SubEqRefl s g d) sp =
+step (SubWfTerminal gamma) sp = do
+  ctxWfDerivable gamma sp
+  Right $ {subWf $= insert (Terminal, gamma, [<])} sp
+step (SubWfId gamma) sp = do
+  ctxWfDerivable gamma sp
+  Right $ {subWf $= insert (Id, gamma, gamma)} sp
+step (SubWfWk gamma ty) sp = do
+  tyWfDerivable gamma ty sp
+  Right $ {subWf $= insert (Wk, gamma :< ty, gamma)} sp
+step (SubWfExt sigma e gamma delta ty) sp = do
+  subWfDerivable sigma gamma delta sp
+  tyWfDerivable delta ty sp
+  elemWfDerivable gamma e (SubstElim ty sigma) sp
+  Right $ {subWf $= insert (Ext sigma e, gamma, delta :< ty)} sp
+step (SubWfChain sigma tau gamma theta delta) sp = do
+  subWfDerivable sigma gamma theta sp
+  subWfDerivable tau theta delta sp
+  Right $ {subWf $= insert (Chain sigma tau, gamma, delta)} sp
+step (SubEqRefl s g d) sp = do
+  subWfDerivable s g d sp
   Right $ {subEq $= insert (s, s, g, d)} sp
 step (SubEqSym s0 s1 g d) sp = do
   subEqDerivable s0 s1 g d sp

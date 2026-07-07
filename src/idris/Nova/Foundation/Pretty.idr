@@ -273,7 +273,7 @@ prettyTypingRule (ElemWfEqTy ctx l r ty) =
 prettyTypingRule (ElemWfRefl ctx e ty) =
   prettyCtx ctx ++ " ⊦ Refl : " ++ prettyElemAtom e ++ " ∈ " ++ prettyTy ty
 prettyTypingRule (ElemWfSubElim t ty sigma gamma delta) =
-  prettyCtx delta ++ " ⊦ " ++ prettyElem (SubstElim t sigma) ++ " : " ++ prettyTy ty
+  prettyCtx gamma ++ " ⊦ " ++ prettyElem (SubstElim t sigma) ++ " : " ++ prettyTy ty ++ " from " ++ prettyCtx delta
 prettyTypingRule (ElemWfTyCoe ctx e ty0 ty1) =
   prettyCtx ctx ++ " ⊦ " ++ prettyElem e ++ " : " ++ prettyTy ty0 ++ " ↝ " ++ prettyTy ty1
 prettyTypingRule (ElemWfCtxCoe ctx0 ctx1 e ty) =
@@ -301,6 +301,16 @@ prettyTypingRule (CtxEqSym ctx0 ctx1) =
   prettyCtx ctx1 ++ " = " ++ prettyCtx ctx0 ++ " ctx"
 prettyTypingRule (CtxEqTrans ctx0 ctx1 ctx2) =
   prettyCtx ctx0 ++ " = " ++ prettyCtx ctx2 ++ " ctx via " ++ prettyCtx ctx1
+prettyTypingRule (SubWfTerminal ctx) =
+  prettyCtx ctx ++ " ⊦ · sub-wf"
+prettyTypingRule (SubWfId ctx) =
+  prettyCtx ctx ++ " ⊦ id sub-wf"
+prettyTypingRule (SubWfWk gamma ty) =
+  prettyCtx (gamma :< ty) ++ " ⊦ ↑ sub-wf"
+prettyTypingRule (SubWfExt sigma e gamma delta ty) =
+  prettyCtx gamma ++ " ⊦ " ++ prettySub (Ext sigma e) ++ " sub-wf to " ++ prettyCtx (delta :< ty)
+prettyTypingRule (SubWfChain sigma tau gamma theta delta) =
+  prettyCtx gamma ++ " ⊦ " ++ prettySub (Chain sigma tau) ++ " sub-wf to " ++ prettyCtx delta ++ " via " ++ prettyCtx theta
 prettyTypingRule (SubEqRefl s g d) =
   prettyCtx g ++ " ⊦ " ++ prettySub s ++ " = " ++ prettySub s ++ " : " ++ prettyCtx d
 prettyTypingRule (SubEqSym s0 s1 g d) =

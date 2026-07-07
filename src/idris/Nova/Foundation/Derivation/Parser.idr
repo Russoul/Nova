@@ -110,6 +110,21 @@ mkTyWfRule _ _               = fail "substituted type cannot be a direct TyWf ru
 -- Parse the content after "Γ ⊦".
 parseTurnstileContent : Ctx -> Rule TypingRule
 parseTurnstileContent ctx =
+  -- 0. SubWf: "σ sub-wf [to Δ [via Θ]]"
+  (do sigma <- parseSub; sp; str_ "sub-wf"
+      optTarget <- (do sp; str_ "to"; sp; d <- parseCtx; pure (Just d)) <|> pure Nothing
+      optVia    <- (do sp; str_ "via"; sp; t <- parseCtx; pure (Just t)) <|> pure Nothing
+      case (sigma, optTarget, optVia) of
+        (Id, Nothing, _)   => pure (SubWfId ctx)
+        (Terminal, _, _)   => pure (SubWfTerminal ctx)
+        (Wk, Nothing, _)   =>
+          case ctx of
+            gamma :< ty => pure (SubWfWk gamma ty)
+            [<]         => fail "SubWfWk requires non-empty context"
+        (Ext sigma' e, Just (d :< ty), Nothing) => pure (SubWfExt sigma' e ctx d ty)
+        (Chain sigma' tau, Just delta, Just theta) =>
+          pure (SubWfChain sigma' tau ctx theta delta)
+        _ => fail "unexpected SubWf form") <|>
   -- 1. Type form: parseTy followed by "=" Ty type [via Ty] or "type"
   (do ty0 <- parseTy; sp
       (do str_ "="; sp; ty1 <- parseTy; sp; str_ "type"
@@ -187,10 +202,10 @@ parseTurnstileContent ctx =
             (SubstElim t sigma, a) => do
               optG <- (do sp; str_ "from"; sp; g <- parseCtx; pure (Just g)) <|> pure Nothing
               case optG of
-                Just g  => pure (ElemWfSubElim t a sigma g ctx)
+                Just g  => pure (ElemWfSubElim t a sigma ctx g)
                 Nothing =>
                   case ctx of
-                    g :< _ => pure (ElemWfSubElim t a sigma g ctx)
+                    g :< _ => pure (ElemWfSubElim t a sigma ctx g)
                     [<]    => fail "ElemWfSubElim requires non-empty context or explicit 'from Γ'"
             _ => fail "unexpected element/type combination in typing rule") <|>
       -- Without type annotation
