@@ -189,9 +189,9 @@ mutual
   export covering
   parseTy : Rule Ty
   parseTy =
-        (do e0 <- parseElemAtom; sp
+        (do e0 <- parseElemPrefix; sp
             str_ "≡"; sp
-            e1 <- parseElemAtom; sp
+            e1 <- parseElemPrefix; sp
             str_ "∈"; sp
             a  <- parseTyArrow
             pure (Ty.EqTy e0 e1 a))
