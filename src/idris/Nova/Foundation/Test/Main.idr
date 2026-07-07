@@ -1,11 +1,14 @@
 module Nova.Foundation.Test.Main
 
 import System
+import System.File
+import Data.List
 import Data.SnocList
 import Test.Golden
 
 import Nova.Foundation.Syntax
 import Nova.Foundation.Parser
+import Nova.Foundation.Pretty
 import Nova.Foundation.Derivation
 import Nova.Foundation.Derivation.Parser
 
@@ -61,18 +64,45 @@ runParse parser input =
     "typing-list"  => putStrLn $ either (const "ERROR") (joinWith "\n" . map show) (runParser parseListTypingRule input)
     _              => putStrLn "ERROR: unknown parser '\{parser}'"
 
+-- ===== Derivation mode =====
+-- Invoked as: nova-foundation-tests run derivation RULES-FILE TARGET-FILE
+
+runDerivation : String -> String -> IO ()
+runDerivation rulesFile targetFile = do
+  Right rulesContent  <- readFile rulesFile
+    | Left err => putStrLn "ERROR: cannot read rules file: \{show err}"
+  Right targetContent <- readFile targetFile
+    | Left err => putStrLn "ERROR: cannot read target file: \{show err}"
+  let Right rules = runParser parseListTypingRule rulesContent
+    | Left err => putStrLn "ERROR: parse error in rules file: \{err}"
+  let Right targets = runParser parseListJudgementForm targetContent
+    | Left err => putStrLn "ERROR: parse error in target file: \{err}"
+  case generate rules of
+    Left cr  => do
+      putStrLn "Rejected"
+      putStrLn "  At rule: \{prettyTypingRule cr.rule}"
+    Right truth =>
+      case find (\t => not (check t truth)) targets of
+        Just t  => do
+          putStrLn "NoWitness"
+          putStrLn "  Target: \{prettyJudgementForm t}"
+        Nothing => putStrLn "Ok"
+
 -- ===== Test suite mode =====
 -- Invoked as: nova-foundation-tests PATH_TO_SELF [golden-options...]
 
 pools : IO (List TestPool)
 pools = sequence
-  [ testsInDir "tests/foundation/parser" "Foundation Parser"
+  [ testsInDir "tests/foundation/parser"    "Foundation Parser"
+  , testsInDir "tests/foundation/derivation" "Foundation Derivation"
   ]
 
 main : IO ()
 main = do
   args <- getArgs
   case args of
+    (_ :: "run" :: "derivation" :: rulesFile :: targetFile :: []) =>
+      runDerivation rulesFile targetFile
     (_ :: "run" :: parser :: input :: []) => runParse parser input
     _ => do
       ps <- pools
