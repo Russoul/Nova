@@ -486,7 +486,7 @@ mutual
   computeElem sig Here (SubstElim (NatElim z s t) sigma) =
     Right (NatElim (SubstElim z sigma) (SubstElim s (under (under sigma))) (SubstElim t sigma))
   computeElem sig Here (SubstElim (PiIntro f) sigma) = Right (PiIntro (SubstElim f (under sigma)))
-  computeElem sig Here (SubstElim (PiElim f) (Ext sigma t)) = Right (SubstElim (PiElim (SubstElim f sigma)) (Ext Wk t))
+  computeElem sig Here (SubstElim (PiElim f) (Ext sigma t)) = Right (SubstElim (PiElim (SubstElim f sigma)) (Ext Id t))
   computeElem sig Here (SubstElim (SigmaIntro a b) sigma) = Right (SigmaIntro (SubstElim a sigma) (SubstElim b sigma))
   computeElem sig Here (SubstElim (SigmaElim1 t) sigma) = Right (SigmaElim1 (SubstElim t sigma))
   computeElem sig Here (SubstElim (SigmaElim2 t) sigma) = Right (SigmaElim2 (SubstElim t sigma))
