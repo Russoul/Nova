@@ -192,6 +192,12 @@ parseTypingRule =
       ctx <- parseCtx; sp; str_ "via"; sp; alpha <- parseComputeRule
       sp; str_ "⊦"; sp; ty <- parseTy; sp; str_ "via"; sp; beta <- parseComputeRule
       pure (TyWfCompute ctx alpha ty beta)) <|>
+  (do str_ "ty-sub"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
+      case ty of
+        Ty.SubstElim a sigma => do
+          sp; str_ "from"; sp; delta <- parseCtx
+          pure (TyWfSubElim a sigma ctx delta)
+        _ => fail "ty-sub: expected A[σ]") <|>
   -- Type eq
   (do str_ "ty-refl"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
       pure (TyEqRefl ctx ty)) <|>

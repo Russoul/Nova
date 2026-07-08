@@ -60,6 +60,7 @@ R ::=
   ty-sigma   Γ ⊦ A ⨯ B
   ty-eq-form Γ ⊦ l ≡ r ∈ A
   ty-el      Γ ⊦ El e
+  ty-sub     Γ ⊦ A[σ] from Δ                    (TyWfSubElim)
   ty-cmp     Γ via α ⊦ T via β                  (TyWfCompute)
 
   // Type eq

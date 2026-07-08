@@ -266,6 +266,8 @@ prettyTypingRule (TyWfEq ctx l r ty) =
   "ty-eq-form " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy (EqTy l r ty)
 prettyTypingRule (TyWfEl ctx e) =
   "ty-el " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy (El e)
+prettyTypingRule (TyWfSubElim ty sigma gamma delta) =
+  "ty-sub " ++ prettyCtx gamma ++ " ⊦ " ++ prettyTy (Ty.SubstElim ty sigma) ++ " from " ++ prettyCtx delta
 prettyTypingRule (TyWfCompute ctx alpha ty beta) =
   "ty-cmp " ++ prettyCtx ctx ++ " via " ++ prettyComputeRule alpha ++
   " ⊦ " ++ prettyTy ty ++ " via " ++ prettyComputeRule beta

@@ -163,6 +163,11 @@ data TypingRule : Type where
   TyWfEq : Ctx -> Elem -> Elem -> Ty -> TypingRule
   ||| Γ ⊦ El t type
   TyWfEl : Ctx -> Elem -> TypingRule
+  ||| Δ ⊦ A type
+  ||| σ : Γ ⇒ Δ
+  ||| ---------------
+  ||| Γ ⊦ A[σ] type
+  TyWfSubElim : Ty -> Sub -> Ctx -> Ctx -> TypingRule
   ||| Γ ᐅ A ⊦ ☐
   ElemWfVar : Ctx -> Ty -> TypingRule
   ||| Γ ⊦ 𝟘-elim t : A
@@ -316,6 +321,7 @@ Show TypingRule where
   show (TyWfSigma ctx a b)           = "TyWfSigma (\{showCtxRep ctx}) (\{show a}) (\{show b})"
   show (TyWfEq ctx l r ty)           = "TyWfEq (\{showCtxRep ctx}) (\{show l}) (\{show r}) (\{show ty})"
   show (TyWfEl ctx e)                = "TyWfEl (\{showCtxRep ctx}) (\{show e})"
+  show (TyWfSubElim ty sigma gamma delta) = "TyWfSubElim (\{show ty}) (\{show sigma}) (\{showCtxRep gamma}) (\{showCtxRep delta})"
   show (ElemWfVar g ty)              = "ElemWfVar (\{showCtxRep g}) (\{show ty})"
   show (ElemWfZeroElim ctx e ty)     = "ElemWfZeroElim (\{showCtxRep ctx}) (\{show e}) (\{show ty})"
   show (ElemWfOneIntro ctx)          = "ElemWfOneIntro (\{showCtxRep ctx})"
@@ -620,6 +626,14 @@ step (TyWfEq gamma left right ty) sp = do
 step (TyWfEl gamma t) sp = do
   elemWfDerivable gamma t UniverseTy sp
   Right $ {tyWf $= insert (gamma, El t)} sp
+-- Δ ⊦ A type
+-- σ : Γ ⇒ Δ
+-- ---------------
+-- Γ ⊦ A[σ] type
+step (TyWfSubElim ty sigma gamma delta) sp = do
+  subWfDerivable sigma gamma delta sp
+  tyWfDerivable delta ty sp
+  Right $ {tyWf $= insert (gamma, SubstElim ty sigma)} sp
 step (ElemWfVar gamma ty) sp = do
   tyWfDerivable gamma ty sp
   Right $ {elemWf $= insert (gamma :< ty, CtxVar, SubstElim ty Wk)} sp
@@ -652,7 +666,7 @@ step (ElemWfPiApp gamma f a b e) sp = do
 step (ElemWfSigmaIntro gamma u v a b) sp = do
   elemWfDerivable gamma u a sp
   elemWfDerivable gamma v (SubstElim b (Ext Id u)) sp
-  Right $ {elemWf $= insert (gamma, SigmaIntro u v, PiTy a b)} sp
+  Right $ {elemWf $= insert (gamma, SigmaIntro u v, SigmaTy a b)} sp
 step (ElemWfSigmaElim1 gamma t a b) sp = do
   elemWfDerivable gamma t (SigmaTy a b) sp
   Right $ {elemWf $= insert (gamma, SigmaElim1 t, a)} sp
