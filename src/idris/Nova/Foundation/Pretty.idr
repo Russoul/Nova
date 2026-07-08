@@ -6,6 +6,23 @@ import Nova.Foundation.Derivation
 
 %default covering
 
+subscriptDigitChar : Char -> Char
+subscriptDigitChar '0' = '₀'
+subscriptDigitChar '1' = '₁'
+subscriptDigitChar '2' = '₂'
+subscriptDigitChar '3' = '₃'
+subscriptDigitChar '4' = '₄'
+subscriptDigitChar '5' = '₅'
+subscriptDigitChar '6' = '₆'
+subscriptDigitChar '7' = '₇'
+subscriptDigitChar '8' = '₈'
+subscriptDigitChar '9' = '₉'
+subscriptDigitChar c   = c
+
+||| n rendered as Unicode subscript digits, e.g. 12 -> "₁₂"
+natToSubscript : Nat -> String
+natToSubscript n = pack (map subscriptDigitChar (unpack (show n)))
+
 -- ===== Sub and Elem (mutually recursive) =====
 
 mutual
@@ -57,7 +74,7 @@ mutual
 
   export
   prettyElemAtom : Elem -> String
-  prettyElemAtom CtxVar = "☐"
+  prettyElemAtom (CtxVar n) = "☐" ++ natToSubscript n
   prettyElemAtom OneIntro = "()"
   prettyElemAtom NatIntro0 = "Z"
   prettyElemAtom Refl = "Refl"
@@ -277,8 +294,8 @@ prettyTypingRule (TyEqSym ctx ty0 ty1) =
   "ty-sym " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy ty1 ++ " = " ++ prettyTy ty0
 prettyTypingRule (TyEqTrans ctx ty0 ty1 ty2) =
   "ty-trans " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy ty0 ++ " = " ++ prettyTy ty2 ++ " via " ++ prettyTy ty1
-prettyTypingRule (ElemWfVar g ty) =
-  "el-var " ++ prettyCtx (g :< ty) ++ " ⊦ ☐"
+prettyTypingRule (ElemWfVar g n) =
+  "el-var " ++ prettyCtx g ++ " ⊦ " ++ prettyElemAtom (CtxVar n)
 prettyTypingRule (ElemWfOneIntro ctx) =
   "el-one " ++ prettyCtx ctx ++ " ⊦ ()"
 prettyTypingRule (ElemWfZeroIntro ctx) =

@@ -1,0 +1,21 @@
+- ctx-emp
+- ty-nat ε ⊦ ℕ
+- ctx-ext ε ᐅ ℕ
+- ty-nat ε ᐅ ℕ ⊦ ℕ
+- ctx-ext ε ᐅ ℕ ᐅ ℕ
+- ty-nat ε ᐅ ℕ ᐅ ℕ ⊦ ℕ
+- ctx-ext ε ᐅ ℕ ᐅ ℕ ᐅ ℕ
+- el-var ε ᐅ ℕ ᐅ ℕ ⊦ ☐₀
+- el-var ε ᐅ ℕ ᐅ ℕ ⊦ ☐₁
+- sub-wk ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ ↑
+- el-sub ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ ☐₀[↑] : ℕ[↑] from ε ᐅ ℕ ᐅ ℕ
+- el-cmp ε ᐅ ℕ ᐅ ℕ ᐅ ℕ via id ⊦ ☐₀[↑] via ↓ : ℕ[↑][↑] via id
+- sub-id ε ᐅ ℕ ⊦ id
+- el-zero ε ᐅ ℕ ⊦ Z
+- ty-sub ε ᐅ ℕ ⊦ ℕ[id] from ε ᐅ ℕ
+- ty-cmp ε ᐅ ℕ via id ⊦ ℕ[id] via ↓
+- ty-sym ε ᐅ ℕ ⊦ ℕ = ℕ[id]
+- el-ty-coe ε ᐅ ℕ ⊦ Z : ℕ ↝ ℕ[id]
+- sub-ext ε ᐅ ℕ ⊦ id, Z to ε ᐅ ℕ ᐅ ℕ
+- el-sub ε ᐅ ℕ ⊦ ☐₁[id, Z] : ℕ[↑][↑] from ε ᐅ ℕ ᐅ ℕ
+- el-cmp ε ᐅ ℕ via id ⊦ ☐₁[id, Z] via ↓ : ℕ[↑][↑][id, Z] via id

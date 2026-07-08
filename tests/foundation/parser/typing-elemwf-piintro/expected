@@ -1,1 +1,1 @@
-ElemWfPiIntro (([<] :< PiTy (NatTy) (OneTy))) (CtxVar) (NatTy) (OneTy)
+ElemWfPiIntro (([<] :< PiTy (NatTy) (OneTy))) (CtxVar 0) (NatTy) (OneTy)

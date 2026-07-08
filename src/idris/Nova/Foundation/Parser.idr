@@ -76,7 +76,7 @@ mutual
   -- e .π₁             (SigmaElim1)
   -- e .π₂             (SigmaElim2)
   -- e(σ)              (SubstElim)
-  -- ☐                 (CtxVar)
+  -- ☐ₙ                (CtxVar)
   -- ()                (OneIntro)
   -- Z                 (NatIntro0)
   -- Refl              (Refl)
@@ -174,7 +174,7 @@ mutual
   export covering
   parseElemAtom : Rule Elem
   parseElemAtom =
-        (str_ "☐" $> CtxVar)
+        (do str_ "☐"; n <- subscriptNat; pure (CtxVar n))
     <|> (do char_ '('
             sp
             unit <- optional (char_ ')')

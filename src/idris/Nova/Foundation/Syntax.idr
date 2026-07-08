@@ -44,8 +44,8 @@ mutual
     data Elem : Type where
       ||| t(σ)  (context substitution)
       SubstElim : Elem -> Sub -> Elem
-      ||| ☐
-      CtxVar : Elem
+      ||| ☐ₙ (n-th element in the typing context)
+      CtxVar : Nat -> Elem
       ||| 𝟘-elim t (empty type elimination)
       ZeroElim : Elem -> Elem
       ||| ()  (unit introduction)
@@ -110,10 +110,10 @@ public export
 Sig : Type
 Sig = SnocList SigEntry
 
-||| σ⁺ ≜ σ∘↑, ☐
+||| σ⁺ ≜ σ∘↑, ☐₀
 public export
 under : Sub -> Sub
-under sigma = Ext (Chain sigma Wk) CtxVar
+under sigma = Ext (Chain sigma Wk) (CtxVar 0)
 
 mutual
   public export
@@ -144,7 +144,7 @@ mutual
   covering
   Eq Elem where
     SubstElim e s    == SubstElim e' s'    = e == e' && s == s'
-    CtxVar           == CtxVar             = True
+    CtxVar n         == CtxVar n'          = n == n'
     ZeroElim e       == ZeroElim e'        = e == e'
     OneIntro         == OneIntro           = True
     NatIntro0        == NatIntro0          = True
@@ -218,9 +218,9 @@ mutual
     compare (SubstElim e s)    (SubstElim e' s')    = compare e e' <+> compare s s'
     compare (SubstElim _ _)    _                    = LT
     compare _                  (SubstElim _ _)      = GT
-    compare CtxVar             CtxVar               = EQ
-    compare CtxVar             _                    = LT
-    compare _                  CtxVar               = GT
+    compare (CtxVar n)         (CtxVar n')          = compare n n'
+    compare (CtxVar _)         _                    = LT
+    compare _                  (CtxVar _)           = GT
     compare (ZeroElim e)       (ZeroElim e')        = compare e e'
     compare (ZeroElim _)       _                    = LT
     compare _                  (ZeroElim _)         = GT
@@ -301,7 +301,7 @@ mutual
   covering
   Show Elem where
     show (SubstElim e s) = "SubstElim (\{show e}) (\{show s})"
-    show CtxVar = "CtxVar"
+    show (CtxVar n) = "CtxVar \{show n}"
     show (ZeroElim e) = "ZeroElim (\{show e})"
     show OneIntro = "OneIntro"
     show NatIntro0 = "NatIntro0"

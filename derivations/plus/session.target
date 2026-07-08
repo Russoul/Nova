@@ -1,3 +1,3 @@
 - el-wf ε ⊦ plus : ℕ → ℕ → ℕ
-- el-eq ε ᐅ ℕ ⊦ plus ☐ Z = ☐ : ℕ
-- el-eq ε ᐅ ℕ ᐅ ℕ ⊦ plus ☐[↑] (S ☐) = S (plus ☐[↑] ☐) : ℕ
+- el-eq ε ᐅ ℕ ⊦ plus ☐₀ Z = ☐₀ : ℕ
+- el-eq ε ᐅ ℕ ᐅ ℕ ⊦ plus ☐₀[↑] (S ☐₀) = S (plus ☐₀[↑] ☐₀) : ℕ

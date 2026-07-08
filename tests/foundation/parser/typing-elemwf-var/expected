@@ -1,1 +1,1 @@
-ElemWfVar ([<]) (NatTy)
+ElemWfVar (([<] :< NatTy)) (0)

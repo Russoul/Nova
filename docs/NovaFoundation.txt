@@ -28,6 +28,11 @@ x ::= <signature-entry-identifier>
 Γ ::= ε      // empty typing context
     | Γ ᐅ T  // extended typing context
 
+// Γ‖ₙ: the (n+1)-th type in Γ counting from the right (0 = the innermost
+// extension), i.e. the type ☐ₙ names before weakening.
+(Γ ᐅ A)‖₀     ≜ A
+(Γ ᐅ A)‖ₙ₊₁   ≜ Γ‖ₙ
+
 // typing context substitution
 σ, τ ::=
        ·             // empty substitution
@@ -50,7 +55,7 @@ T ::= T [σ]          // (Typing) context substitution
 // element
 t ::= t [σ]          // (Typing) context substitution
     | x              // element in the signature context
-    | ☐              // i-th element in the typing context
+    | ☐ᵢ             // i-th element in the typing context
     | λ t            // dependent product type introduction
     | t t            // dependent product type elimination
     | t , t          // dependent sum type introduction
@@ -274,8 +279,8 @@ x ∉ Σ
 Σ sig
 Σ ⊦ Γ ctx
 Σ Γ ⊦ A type
------------------------------ // admissible by meta-level induction
-Σ ⊦ ↑, ☐ = id : Γ ᐅ A ⇒ Γ ᐅ A
+------------------------------ // admissible by meta-level induction
+Σ ⊦ ↑, ☐₀ = id : Γ ᐅ A ⇒ Γ ᐅ A
 
 Σ sig
 Σ ⊦ Γ ctx
@@ -314,13 +319,13 @@ x ∉ Σ
 Σ ⊦ τ : Γ₀ ⇒ Γ₁ ᐅ A
 --------------------------
 Σ ⊦ ↑ ∘ τ = σ : Γ₀ ⇒ Γ₁
-Σ Γ₀ ⊦ ☐[τ] = t : A[↑ ∘ τ]
+Σ Γ₀ ⊦ ☐₀[τ] = t : A[↑ ∘ τ]
 ============================ // extension substitution uniqueness (admissible)
 Σ ⊦ (σ, t) = τ : Γ₀ ⇒ Γ₁ ᐅ A
-∎ (=>) τ = id ∘ τ = (↑, ☐) ∘ τ = ↑ ∘ τ, ☐[τ] = σ, t
+∎ (=>) τ = id ∘ τ = (↑, ☐₀) ∘ τ = ↑ ∘ τ, ☐₀[τ] = σ, t
   (<=)
       σ = ↑ ∘ (σ, t) = ↑ ∘ τ
-      t = ☐[σ, t] = ☐[τ] ∎
+      t = ☐₀[σ, t] = ☐₀[τ] ∎
 
 
 
@@ -397,8 +402,8 @@ x ∉ Σ
 Σ ⊦ Γ₁ ctx
 Σ ⊦ σ : Γ₀ ⇒ Γ₁
 Σ Γ₁ ⊦ A type
----------------------------------- // natural substitution (admissible)
-Σ ⊦ σ⁺ ≜ σ ∘ ↑, ☐ : Γ₀ A[σ] ⇒ Γ₁ A
+----------------------------------- // natural substitution (admissible)
+Σ ⊦ σ⁺ ≜ σ ∘ ↑, ☐₀ : Γ₀ A[σ] ⇒ Γ₁ A
 // valid bidirectional rewrite
 
 Σ sig
@@ -906,9 +911,10 @@ x ∉ Σ
 
 Σ sig
 Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-------------------
-Σ Γ ᐅ A ⊦ ☐ : A[↑]
+Γ‖ₙ = A
+------------------ // Γ‖ₙ picks A directly out of Γ's own structure — no
+------------------ // derivation of ☐ₙ₋₁, ☐ₙ₋₂, ... is required first.
+Σ Γ ⊦ ☐ₙ : A[↑]ⁿ⁺¹
 
 Σ sig
 Σ ⊦ Γ ctx
@@ -1024,7 +1030,7 @@ x ∉ Σ
 Σ Γ ᐅ A ⊦ B type
 Σ Γ ⊦ f : A → B
 ----------------------------
-Σ Γ ⊦ λ (f[↑] ☐) = f : A → B
+Σ Γ ⊦ λ (f[↑] ☐₀) = f : A → B
 // valid unidirectional rewrite
 
 Σ sig
@@ -1108,7 +1114,7 @@ x ∉ Σ
 Σ Γ ᐅ ℕ ⊦ A type
 --------------------------------
 Σ Γ ⊦ z : A[id, Z]
-Σ Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐[↑]]
+Σ Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
 Σ Γ ⊦ t : ℕ
 --------------------------------
 Σ Γ ⊦ ℕ-elim z s t : A[id, t]
@@ -1117,7 +1123,7 @@ x ∉ Σ
 Σ ⊦ Γ ctx
 Σ Γ ᐅ ℕ ⊦ A type
 Σ Γ ⊦ z : A[id, Z]
-Σ Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐[↑]]
+Σ Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
 --------------------------------
 --------------------------------
 Σ Γ ⊦ ℕ-elim z s Z = z : A[id, Z]
@@ -1127,7 +1133,7 @@ x ∉ Σ
 Σ ⊦ Γ ctx
 Σ Γ ᐅ ℕ ⊦ A type
 Σ Γ ⊦ z : A[id, Z]
-Σ Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐[↑]]
+Σ Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
 Σ Γ ⊦ t : ℕ
 -----------------------------------------------------------
 -----------------------------------------------------------
@@ -1138,12 +1144,12 @@ x ∉ Σ
 Σ ⊦ Γ ctx
 Σ Γ ᐅ ℕ ⊦ A type
 Σ Γ ⊦ z : A[id, Z]
-Σ Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐[↑]]
+Σ Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
 Σ Γ ᐅ ℕ ⊦ f : A
 Σ Γ ⊦ t : ℕ
 ---------------------------------------
 Σ Γ ⊦ f[id, Z] = z : A[id, Z]
-Σ Γ ᐅ ℕ ⊦ f[↑, S ☐] = s[id, f] : A[↑, S ☐]
+Σ Γ ᐅ ℕ ⊦ f[↑, S ☐₀] = s[id, f] : A[↑, S ☐₀]
 ---------------------------------------  // admissible by meta-level induction
 Σ Γ ⊦ f[id, t] = ℕ-elim z s t : A[id, t]
 
@@ -1355,7 +1361,7 @@ x ∉ Σ
 Σ ⊦ Γ ctx
 Σ Γ ᐅ ℕ ⊦ A type
 Σ Γ ⊦ z : A[id, Z]
-Σ Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐[↑]]
+Σ Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
 Σ Γ ⊦ t : ℕ
 Σ ⊦ Δ ctx
 Σ ⊦ σ : Δ ⇒ Γ
@@ -1380,9 +1386,30 @@ x ∉ Σ
 Σ ⊦ Δ ctx
 Σ ⊦ σ : Δ ⇒ Γ
 Σ Δ ⊦ t : A[σ]
------------------------
-Σ Δ ⊦ ☐[σ, t] = t : A[σ]
+-------------------------
+Σ Δ ⊦ ☐₀[σ, t] = t : A[σ]
 // valid unidirectional rewrite
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ A type
+Σ Γ ⊦ B type
+Σ ⊦ Δ ctx
+Σ ⊦ σ : Δ ⇒ Γ
+Σ Δ ⊦ t : A[σ]
+Σ Γ ⊦ ☐ₙ : B
+-------------------------------
+Σ Δ ⊦ ☐ₙ₊₁[σ, t] = ☐ₙ[σ] : B[σ]
+// valid unidirectional rewrite
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ A type
+Σ Γ ⊦ B type
+Σ Γ ⊦ ☐ₙ : B
+-----------------------------
+Σ Γ ᐅ A ⊦ ☐ₙ[↑] = ☐ₙ₊₁ : B[↑]
+// valid bidirectional rewrite
 
 Σ sig
 Σ ⊦ Γ ctx

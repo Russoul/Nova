@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run elem "☐ .π₁"
+"$1" run elem "☐₀ .π₁"

@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run typing 'el-pi-e ε ᐅ ℕ → ℕ ⊦ (☐ : ℕ → ℕ) Z'
+"$1" run typing 'el-pi-e ε ᐅ ℕ → ℕ ⊦ (☐₀ : ℕ → ℕ) Z'

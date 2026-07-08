@@ -10,7 +10,7 @@ have to read Idris pattern matches to pick a rule.
 
 Metavariables: `Γ`/`Δ`/`Θ` are contexts, `A`/`B`/`T` are types, `t`/`e`/`u`/`v`
 are elements, `σ`/`τ` are substitutions, `α`/`β`/`γ` are compute rules,
-`x` is a signature identifier.
+`x` is a signature identifier, `n` is a de Bruijn index (natural number).
 
 ## The most important gotcha: nothing normalizes automatically
 
@@ -31,6 +31,12 @@ need, in order: (1) `ty-sub` (or another route) to get `A[σ]` itself into
 `tyWf`, (2) `ty-cmp Γ via id ⊦ A[σ] via ↓` to reduce it to some `A'` and
 record `A[σ] = A'`, (3) `ty-sym`/`ty-trans` to line the equality up in the
 direction you need, (4) `el-ty-coe` to transport `e` across it.
+
+`☐` is an indexed family `☐ₙ` (e.g. `☐₀`, `☐₁`, `☐₂` — Unicode subscript
+digits, no space). Two reduction rules make weakened/projected variable
+references collapse in one `el-cmp` step instead of needing the multi-step
+substitution-chasing described above: `☐ₙ[↑] = ☐ₙ₊₁` and
+`☐ₙ₊₁[σ, t] = ☐ₙ[σ]`.
 
 ## Context
 
@@ -88,7 +94,7 @@ direction you need, (4) `el-ty-coe` to transport `e` across it.
 
 | Keyword & syntax | Premises | Conclusion |
 |---|---|---|
-| `el-var Γ ᐅ A ⊦ ☐` | `Γ ⊦ A type` | `Γ ᐅ A ⊦ ☐ : A[↑]` |
+| `el-var Γ ⊦ ☐ₙ` | `Γ ctx`, `Γ`'s (n+1)-th type from the right is `A` (no prior `☐ₙ₋₁` derivation needed — this is a direct lookup into `Γ`'s structure) | `Γ ⊦ ☐ₙ : A[↑]ⁿ⁺¹` |
 | `el-one Γ ⊦ ()` | `Γ ctx` | `Γ ⊦ () : 𝟙` |
 | `el-zero Γ ⊦ Z` | `Γ ctx` | `Γ ⊦ Z : ℕ` |
 | `el-suc Γ ⊦ S t` | `Γ ⊦ t : ℕ` | `Γ ⊦ S t : ℕ` |
@@ -98,7 +104,7 @@ direction you need, (4) `el-ty-coe` to transport `e` across it.
 | `el-sigma-e1 Γ ⊦ (t : A ⨯ B) .π₁` | `Γ ⊦ t : A ⨯ B` | `Γ ⊦ t.π₁ : A` |
 | `el-sigma-e2 Γ ⊦ (t : A ⨯ B) .π₂` | `Γ ⊦ t : A ⨯ B` | `Γ ⊦ t.π₂ : B[t.π₁]` |
 | `el-zero-e Γ ⊦ 𝟘-elim t : A` | `Γ ⊦ A type`, `Γ ⊦ t : 𝟘` | `Γ ⊦ 𝟘-elim t : A` |
-| `el-nat-e Γ ⊦ ℕ-elim z s t : A` | `Γ ⊦ z : A[Z]`, `Γ ᐅ ℕ ᐅ A ⊦ s : A[S ☐[↑]]`, `Γ ⊦ t : ℕ` | `Γ ⊦ ℕ-elim z s t : A[t]` |
+| `el-nat-e Γ ⊦ ℕ-elim z s t : A` | `Γ ⊦ z : A[Z]`, `Γ ᐅ ℕ ᐅ A ⊦ s : A[S ☐₁]`, `Γ ⊦ t : ℕ` | `Γ ⊦ ℕ-elim z s t : A[t]` |
 | `el-reflect Γ ⊦ t : (l ≡ r ∈ A) reflect` | `Γ ⊦ t : (l ≡ r ∈ A)` | `Γ ⊦ l = r : A` |
 | `el-refl Γ ⊦ Refl : t ∈ A` | `Γ ⊦ t : A` | `Γ ⊦ Refl : t ≡ t ∈ A` |
 | `el-sub Γ ⊦ t[σ] : A from Δ` | `σ : Γ ⇒ Δ`, `Δ ⊦ t : A` | `Γ ⊦ t[σ] : A[σ]` |

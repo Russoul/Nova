@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run typing 'el-zero-e ε ⊦ 𝟘-elim ☐ : ℕ'
+"$1" run typing 'el-zero-e ε ⊦ 𝟘-elim ☐₀ : ℕ'

@@ -1,1 +1,1 @@
-NatElim (NatIntro0) (PiIntro (CtxVar)) (CtxVar)
+NatElim (NatIntro0) (PiIntro (CtxVar 0)) (CtxVar 0)

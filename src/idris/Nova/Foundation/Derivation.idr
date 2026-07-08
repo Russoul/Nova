@@ -168,8 +168,8 @@ data TypingRule : Type where
   ||| ---------------
   ||| Γ ⊦ A[σ] type
   TyWfSubElim : Ty -> Sub -> Ctx -> Ctx -> TypingRule
-  ||| Γ ᐅ A ⊦ ☐
-  ElemWfVar : Ctx -> Ty -> TypingRule
+  ||| Γ ⊦ ☐ₙ : Aₙ[↑]ⁿ⁺¹  where Aₙ is Γ's (n+1)-th type from the right
+  ElemWfVar : Ctx -> Nat -> TypingRule
   ||| Γ ⊦ 𝟘-elim t : A
   ElemWfZeroElim : Ctx -> Elem -> Ty -> TypingRule
   ||| Γ ⊦ ()
@@ -322,7 +322,7 @@ Show TypingRule where
   show (TyWfEq ctx l r ty)           = "TyWfEq (\{showCtxRep ctx}) (\{show l}) (\{show r}) (\{show ty})"
   show (TyWfEl ctx e)                = "TyWfEl (\{showCtxRep ctx}) (\{show e})"
   show (TyWfSubElim ty sigma gamma delta) = "TyWfSubElim (\{show ty}) (\{show sigma}) (\{showCtxRep gamma}) (\{showCtxRep delta})"
-  show (ElemWfVar g ty)              = "ElemWfVar (\{showCtxRep g}) (\{show ty})"
+  show (ElemWfVar g n)               = "ElemWfVar (\{showCtxRep g}) (\{show n})"
   show (ElemWfZeroElim ctx e ty)     = "ElemWfZeroElim (\{showCtxRep ctx}) (\{show e}) (\{show ty})"
   show (ElemWfOneIntro ctx)          = "ElemWfOneIntro (\{showCtxRep ctx})"
   show (ElemWfZeroIntro ctx)         = "ElemWfZeroIntro (\{showCtxRep ctx})"
@@ -396,6 +396,7 @@ data Rejection : Type where
   SpineEqNotDerivable : Ctx -> Spine -> Spine -> Tel -> Rejection
   SigIdentifierNotFound : SigIdentifier -> Rejection
   SigIdentifierAlreadyDefined : SigIdentifier -> Rejection
+  CtxVarOutOfBounds : Ctx -> Nat -> Rejection
 
 rejectUnless : Rejection -> Bool -> Either Rejection ()
 rejectUnless _ True = Right ()
@@ -458,6 +459,18 @@ spineEqDerivable : Ctx -> Spine -> Spine -> Tel -> Truth -> Either Rejection ()
 spineEqDerivable ctx s0 s1 tel sp =
   rejectUnless (SpineEqNotDerivable ctx s0 s1 tel) $ contains (ctx, s0, s1, tel) sp.spineEq
 
+||| The (n+1)-th type in Γ counting from the right (0 = the innermost/last
+||| extension), i.e. the type ☐ₙ refers to before weakening.
+ctxLookup : Ctx -> Nat -> Maybe Ty
+ctxLookup [<]         _     = Nothing
+ctxLookup (rest :< ty) Z     = Just ty
+ctxLookup (rest :< ty) (S n) = ctxLookup rest n
+
+||| Weaken a type k times: A -> A[↑] -> A[↑][↑] -> ...
+weakenBy : Nat -> Ty -> Ty
+weakenBy Z     ty = ty
+weakenBy (S k) ty = SubstElim (weakenBy k ty) Wk
+
 mutual
   sigLookup : SigIdentifier -> Sig -> Maybe SigEntry
   sigLookup _ [<] = Nothing
@@ -506,7 +519,7 @@ mutual
   computeElem : Sig -> ComputeRule -> Elem -> Either Rejection Elem
   computeElem sig Id x = Right x
   computeElem sig Here (PiApp (PiIntro f) e)      = Right (SubstElim f (Ext Id e))
-  computeElem sig Here (PiIntro (PiApp (SubstElim f Wk) CtxVar)) = Right f
+  computeElem sig Here (PiIntro (PiApp (SubstElim f Wk) (CtxVar 0))) = Right f
   computeElem sig Here (NatElim z _ NatIntro0)     = Right z
   computeElem sig Here (NatElim z s (NatIntro1 t)) = Right (SubstElim s (Ext (Ext Id t) (NatElim z s t)))
   computeElem sig Here (SigmaElim1 (SigmaIntro a _)) = Right a
@@ -514,7 +527,12 @@ mutual
   computeElem sig Here (SigmaIntro (SigmaElim1 u) (SigmaElim2 v)) = do
     rejectUnless (ElemCmpNoRuleApplies (SigmaIntro (SigmaElim1 u) (SigmaElim2 v)) Here) (u == v)
     Right u
-  computeElem sig Here (SubstElim CtxVar (Ext _ t)) = Right t
+  -- ☐₀[σ, t] = t
+  computeElem sig Here (SubstElim (CtxVar 0) (Ext _ t)) = Right t
+  -- ☐ₙ₊₁[σ, t] = ☐ₙ[σ]
+  computeElem sig Here (SubstElim (CtxVar (S n)) (Ext sigma _)) = Right (SubstElim (CtxVar n) sigma)
+  -- ☐ₙ[↑] = ☐ₙ₊₁
+  computeElem sig Here (SubstElim (CtxVar n) Wk) = Right (CtxVar (S n))
   computeElem sig Here (SubstElim t Id) = Right t
   computeElem sig Here (SubstElim (SubstElim t sigma) tau) = Right (SubstElim t (Chain sigma tau))
   computeElem sig Here (SubstElim t (Chain sigma tau)) = Right (SubstElim (SubstElim t sigma) tau)
@@ -634,9 +652,11 @@ step (TyWfSubElim ty sigma gamma delta) sp = do
   subWfDerivable sigma gamma delta sp
   tyWfDerivable delta ty sp
   Right $ {tyWf $= insert (gamma, SubstElim ty sigma)} sp
-step (ElemWfVar gamma ty) sp = do
-  tyWfDerivable gamma ty sp
-  Right $ {elemWf $= insert (gamma :< ty, CtxVar, SubstElim ty Wk)} sp
+step (ElemWfVar gamma n) sp = do
+  ctxWfDerivable gamma sp
+  case ctxLookup gamma n of
+    Nothing => Left (CtxVarOutOfBounds gamma n)
+    Just ty => Right $ {elemWf $= insert (gamma, CtxVar n, weakenBy (S n) ty)} sp
 step (ElemWfZeroElim gamma t ty) sp = do
   tyWfDerivable gamma ty sp
   elemWfDerivable gamma t ZeroTy sp
@@ -653,7 +673,7 @@ step (ElemWfSucIntro gamma t) sp = do
 step (ElemWfNatElim gamma z s t a) sp = do
   -- tyWfDerivable (gamma :< NatTy) a sp
   elemWfDerivable gamma z (SubstElim a (Ext Id NatIntro0)) sp
-  elemWfDerivable (gamma :< NatTy :< a) s (SubstElim a (Chain (Ext Wk (NatIntro1 CtxVar)) Wk)) sp
+  elemWfDerivable (gamma :< NatTy :< a) s (SubstElim a (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) sp
   elemWfDerivable gamma t NatTy sp
   Right $ {elemWf $= insert (gamma, NatElim z s t, SubstElim a (Ext Id t))} sp
 step (ElemWfPiIntro gamma f a b) sp = do

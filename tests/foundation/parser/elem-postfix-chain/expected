@@ -1,1 +1,1 @@
-PiApp (SigmaElim2 (SigmaElim1 (CtxVar))) (SubstElim (CtxVar) (Wk))
+PiApp (SigmaElim2 (SigmaElim1 (CtxVar 0))) (SubstElim (CtxVar 0) (Wk))

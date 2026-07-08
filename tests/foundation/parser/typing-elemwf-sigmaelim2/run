@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run typing 'el-sigma-e2 ε ⊦ (☐ : ℕ ⨯ 𝟙) .π₂'
+"$1" run typing 'el-sigma-e2 ε ⊦ (☐₀ : ℕ ⨯ 𝟙) .π₂'

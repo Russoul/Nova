@@ -221,10 +221,8 @@ parseTypingRule =
       pure (TyEqTrans ctx ty0 ty1 ty2)) <|>
   -- Element wf: intro / elim  (longer keywords before shorter sharing same prefix)
   (do str_ "el-var"; space
-      ctx <- parseCtx; sp; str_ "⊦"; sp; str_ "☐"
-      case ctx of
-        g :< ty => pure (ElemWfVar g ty)
-        [<]     => fail "el-var: requires non-empty context") <|>
+      ctx <- parseCtx; sp; str_ "⊦"; sp; str_ "☐"; n <- subscriptNat
+      pure (ElemWfVar ctx n)) <|>
   (do str_ "el-one"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; str_ "()"
       pure (ElemWfOneIntro ctx)) <|>
   (do str_ "el-zero"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; str_ "Z"
