@@ -389,68 +389,59 @@ parseListTypingRule = many (do sp; char_ '-'; space; parseTypingRule)
 
 -- ===== JudgementForm parser =====
 --
--- Grammar (unambiguous by first-token or trailing keyword):
+-- Keyword-first: each form starts with a unique keyword.
 --
---   Sub = Sub : Ctx ⇒ Ctx        (SubEq)   — starts with ·/id/↑/(
---   Sub : Ctx ⇒ Ctx               (SubWf)
---   Ctx ctx                       (CtxWf)   — starts with ε
---   Ctx = Ctx ctx                 (CtxEq)
---   Ctx ⊦ Ty = Ty type            (TyEq)
---   Ctx ⊦ Ty type                 (TyWf)
---   Ctx ⊦ Elem = Elem : Ty        (ElemEq)
---   Ctx ⊦ Elem : Ty               (ElemWf)
---   Ctx ⊦ Tel = Tel tel           (TelEq)
---   Ctx ⊦ Tel tel                 (TelWf)
---   Ctx ⊦ · = · : Tel             (SpineEq, empty spines only)
---   Ctx ⊦ · : Tel                 (SpineWf, empty spine only)
---
--- Disambiguation after ⊦ is done by trying in order:
---   1. parseTy   then (= Ty type | type)
---   2. parseElem then (= Elem : Ty | : Ty)
---   3. parseTel  then (= Tel tel | tel)
---   4. · (empty spine marker)
-
-afterTurnstile : Ctx -> Rule JudgementForm
-afterTurnstile ctx =
-  -- 1. Type judgements (Ty followed by "type" or "= Ty type")
-  (do ty <- parseTy; sp
-      (do str_ "="; sp; ty' <- parseTy; sp; str_ "type"
-          pure (JfTyEq (ctx, ty, ty')))
-        <|> (str_ "type" $> JfTyWf (ctx, ty))) <|>
-  -- 2. Elem judgements (Elem followed by ":" or "= Elem :")
-  (do e <- parseElem; sp
-      (do str_ "="; sp; e' <- parseElem; sp; char_ ':'; sp; ty <- parseTy
-          pure (JfElemEq (ctx, e, e', ty)))
-        <|> (do char_ ':'; sp; ty <- parseTy; pure (JfElemWf (ctx, e, ty)))) <|>
-  -- 3. Tel judgements (Tel starts with ε or A ◁ …, and ends with "tel")
-  (do tel <- parseTel; sp
-      (do str_ "="; sp; tel' <- parseTel; sp; str_ "tel"
-          pure (JfTelEq (ctx, tel, tel')))
-        <|> (str_ "tel" $> JfTelWf (ctx, tel))) <|>
-  -- 4. Empty-spine judgements (· is unambiguously a spine marker here)
-  (do str_ "·"; sp
-      (do str_ "="; sp; str_ "·"; sp; char_ ':'; sp; tel <- parseTel
-          pure (JfSpineEq (ctx, [], [], tel)))
-        <|> (do char_ ':'; sp; tel <- parseTel
-                pure (JfSpineWf (ctx, [], tel))))
+--   ctx-wf  Γ                   (JfCtxWf)
+--   ctx-eq  Γ = Γ'              (JfCtxEq)
+--   sub-wf  σ : Γ ⇒ Δ          (JfSubWf)
+--   sub-eq  σ = σ' : Γ ⇒ Δ    (JfSubEq)
+--   ty-wf   Γ ⊦ T               (JfTyWf)
+--   ty-eq   Γ ⊦ T = T'          (JfTyEq)
+--   el-wf   Γ ⊦ t : T           (JfElemWf)
+--   el-eq   Γ ⊦ t = t' : T      (JfElemEq)
+--   tel-wf  Γ ⊦ Δ               (JfTelWf)
+--   tel-eq  Γ ⊦ Δ = Δ'          (JfTelEq)
+--   sp-wf   Γ ⊦ ē : Δ           (JfSpineWf)
+--   sp-eq   Γ ⊦ ē = ē' : Δ     (JfSpineEq)
 
 export
 parseJudgementForm : Rule JudgementForm
 parseJudgementForm =
-  -- Substitution judgements start with ·/id/↑/( which parseSub handles
-  -- Context judgements start with ε which parseCtx handles
-  -- Try Sub first since it starts with · (not ε), cleanly distinct
-  (do s <- parseSub; sp
-      (do str_ "="; sp; s' <- parseSub; sp; char_ ':'; sp
-          g <- parseCtx; sp; str_ "⇒"; sp; d <- parseCtx
-          pure (JfSubEq (s, s', g, d)))
-        <|> (do char_ ':'; sp; g <- parseCtx; sp; str_ "⇒"; sp; d <- parseCtx
-                pure (JfSubWf (s, g, d)))) <|>
-  (do ctx <- parseCtx; sp
-      (str_ "ctx" $> JfCtxWf ctx)
-        <|> (do str_ "="; sp; ctx' <- parseCtx; sp; str_ "ctx"
-                pure (JfCtxEq (ctx, ctx')))
-        <|> (do str_ "⊦"; sp; afterTurnstile ctx))
+  (do str_ "ctx-wf"; space; ctx <- parseCtx
+      pure (JfCtxWf ctx)) <|>
+  (do str_ "ctx-eq"; space
+      ctx <- parseCtx; sp; str_ "="; sp; ctx' <- parseCtx
+      pure (JfCtxEq (ctx, ctx'))) <|>
+  (do str_ "sub-wf"; space
+      s <- parseSub; sp; char_ ':'; sp; g <- parseCtx; sp; str_ "⇒"; sp; d <- parseCtx
+      pure (JfSubWf (s, g, d))) <|>
+  (do str_ "sub-eq"; space
+      s <- parseSub; sp; str_ "="; sp; s' <- parseSub; sp
+      char_ ':'; sp; g <- parseCtx; sp; str_ "⇒"; sp; d <- parseCtx
+      pure (JfSubEq (s, s', g, d))) <|>
+  (do str_ "ty-wf"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
+      pure (JfTyWf (ctx, ty))) <|>
+  (do str_ "ty-eq"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      ty <- parseTy; sp; str_ "="; sp; ty' <- parseTy
+      pure (JfTyEq (ctx, ty, ty'))) <|>
+  (do str_ "el-wf"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      e <- parseElem; sp; char_ ':'; sp; ty <- parseTy
+      pure (JfElemWf (ctx, e, ty))) <|>
+  (do str_ "el-eq"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      e <- parseElem; sp; str_ "="; sp; e' <- parseElem; sp; char_ ':'; sp; ty <- parseTy
+      pure (JfElemEq (ctx, e, e', ty))) <|>
+  (do str_ "tel-wf"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; tel <- parseTel
+      pure (JfTelWf (ctx, tel))) <|>
+  (do str_ "tel-eq"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      tel <- parseTel; sp; str_ "="; sp; tel' <- parseTel
+      pure (JfTelEq (ctx, tel, tel'))) <|>
+  (do str_ "sp-wf"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      spine <- parseSpine; sp; char_ ':'; sp; tel <- parseTel
+      pure (JfSpineWf (ctx, spine, tel))) <|>
+  (do str_ "sp-eq"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      spine <- parseSpine; sp; str_ "="; sp; spine' <- parseSpine; sp
+      char_ ':'; sp; tel <- parseTel
+      pure (JfSpineEq (ctx, spine, spine', tel)))
 
 -- Parse a list of judgement forms, each prefixed by "- ".
 export

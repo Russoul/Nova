@@ -117,16 +117,17 @@ R ::=
   sp-trans   Γ ⊦ s₀ = s₂ : Δ via s₁
 
 // JudgementForm — syntax of target goals in .target files
+// Each form starts with a unique keyword; no trailing disambiguators needed.
 J ::=
-    σ = σ' : Γ ⇒ Δ
-  | σ : Γ ⇒ Δ
-  | Γ ctx
-  | Γ = Γ' ctx
-  | Γ ⊦ T = T' type
-  | Γ ⊦ T type
-  | Γ ⊦ t = t' : T
-  | Γ ⊦ t : T
-  | Γ ⊦ Δ = Δ' tel
-  | Γ ⊦ Δ tel
-  | Γ ⊦ · = · : Δ
-  | Γ ⊦ · : Δ
+  ctx-wf  Γ                     (JfCtxWf)
+  ctx-eq  Γ = Γ'                (JfCtxEq)
+  sub-wf  σ : Γ ⇒ Δ            (JfSubWf)
+  sub-eq  σ = σ' : Γ ⇒ Δ      (JfSubEq)
+  ty-wf   Γ ⊦ T                 (JfTyWf)
+  ty-eq   Γ ⊦ T = T'            (JfTyEq)
+  el-wf   Γ ⊦ t : T             (JfElemWf)
+  el-eq   Γ ⊦ t = t' : T        (JfElemEq)
+  tel-wf  Γ ⊦ Δ                 (JfTelWf)
+  tel-eq  Γ ⊦ Δ = Δ'            (JfTelEq)
+  sp-wf   Γ ⊦ ē : Δ             (JfSpineWf)
+  sp-eq   Γ ⊦ ē = ē' : Δ       (JfSpineEq)

@@ -167,56 +167,56 @@ mutual
 
 export
 prettyCtxWf : Ctx -> String
-prettyCtxWf ctx = prettyCtx ctx ++ " ctx"
+prettyCtxWf ctx = "ctx-wf " ++ prettyCtx ctx
 
 export
 prettyCtxEq : (Ctx, Ctx) -> String
-prettyCtxEq (g0, g1) = prettyCtx g0 ++ " = " ++ prettyCtx g1 ++ " ctx"
+prettyCtxEq (g0, g1) = "ctx-eq " ++ prettyCtx g0 ++ " = " ++ prettyCtx g1
 
 export
 prettyTyWf : (Ctx, Ty) -> String
-prettyTyWf (ctx, ty) = prettyCtx ctx ++ " ⊦ " ++ prettyTy ty ++ " type"
+prettyTyWf (ctx, ty) = "ty-wf " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy ty
 
 export
 prettyTyEq : (Ctx, Ty, Ty) -> String
-prettyTyEq (ctx, a, b) = prettyCtx ctx ++ " ⊦ " ++ prettyTy a ++ " = " ++ prettyTy b ++ " type"
+prettyTyEq (ctx, a, b) = "ty-eq " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy a ++ " = " ++ prettyTy b
 
 export
 prettySubWf : (Sub, Ctx, Ctx) -> String
-prettySubWf (s, g, d) = prettySub s ++ " : " ++ prettyCtx g ++ " ⇒ " ++ prettyCtx d
+prettySubWf (s, g, d) = "sub-wf " ++ prettySub s ++ " : " ++ prettyCtx g ++ " ⇒ " ++ prettyCtx d
 
 export
 prettySubEq : (Sub, Sub, Ctx, Ctx) -> String
 prettySubEq (s0, s1, g, d) =
-  prettySub s0 ++ " = " ++ prettySub s1 ++ " : " ++ prettyCtx g ++ " ⇒ " ++ prettyCtx d
+  "sub-eq " ++ prettySub s0 ++ " = " ++ prettySub s1 ++ " : " ++ prettyCtx g ++ " ⇒ " ++ prettyCtx d
 
 export
 prettyElemWf : (Ctx, Elem, Ty) -> String
-prettyElemWf (ctx, e, ty) = prettyCtx ctx ++ " ⊦ " ++ prettyElem e ++ " : " ++ prettyTy ty
+prettyElemWf (ctx, e, ty) = "el-wf " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem e ++ " : " ++ prettyTy ty
 
 export
 prettyElemEq : (Ctx, Elem, Elem, Ty) -> String
 prettyElemEq (ctx, e0, e1, ty) =
-  prettyCtx ctx ++ " ⊦ " ++ prettyElem e0 ++ " = " ++ prettyElem e1 ++ " : " ++ prettyTy ty
+  "el-eq " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem e0 ++ " = " ++ prettyElem e1 ++ " : " ++ prettyTy ty
 
 export
 prettyTelWf : (Ctx, Tel) -> String
-prettyTelWf (ctx, tel) = prettyCtx ctx ++ " ⊦ " ++ prettyTel tel ++ " tel"
+prettyTelWf (ctx, tel) = "tel-wf " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTel tel
 
 export
 prettyTelEq : (Ctx, Tel, Tel) -> String
 prettyTelEq (ctx, t0, t1) =
-  prettyCtx ctx ++ " ⊦ " ++ prettyTel t0 ++ " = " ++ prettyTel t1 ++ " tel"
+  "tel-eq " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTel t0 ++ " = " ++ prettyTel t1
 
 export
 prettySpineWf : (Ctx, Spine, Tel) -> String
 prettySpineWf (ctx, spine, tel) =
-  prettyCtx ctx ++ " ⊦ " ++ prettySpine spine ++ " : " ++ prettyTel tel
+  "sp-wf " ++ prettyCtx ctx ++ " ⊦ " ++ prettySpine spine ++ " : " ++ prettyTel tel
 
 export
 prettySpineEq : (Ctx, Spine, Spine, Tel) -> String
 prettySpineEq (ctx, s0, s1, tel) =
-  prettyCtx ctx ++ " ⊦ " ++ prettySpine s0 ++ " = " ++ prettySpine s1 ++ " : " ++ prettyTel tel
+  "sp-eq " ++ prettyCtx ctx ++ " ⊦ " ++ prettySpine s0 ++ " = " ++ prettySpine s1 ++ " : " ++ prettyTel tel
 
 -- ===== TypingRule =====
 
