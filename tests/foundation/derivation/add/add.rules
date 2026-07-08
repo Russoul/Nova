@@ -48,7 +48,7 @@
 - el-pi-i ε ᐅ ℕ ⊦ λ (ℕ-elim (☐[↑]) (S ☐) ☐) : ℕ → ℕ
 - el-pi-i ε ⊦ λ (λ (ℕ-elim (☐[↑]) (S ☐) ☐)) : ℕ → ℕ → ℕ
 - sig ε ⊦ plus ≔ λ (λ (ℕ-elim (☐[↑]) (S ☐) ☐)) : ℕ → ℕ → ℕ
-- sig-var-eq plus = λ (λ (ℕ-elim (☐[↑]) (S ☐) ☐)) : ℕ → ℕ → ℕ
+- sig-var-eq plus
 - el-suc ε ᐅ ℕ ᐅ ℕ ⊦ S ☐
 - sub-wk ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ ↑
 - ty-sym ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ ℕ = ℕ[↑]

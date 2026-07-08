@@ -95,7 +95,7 @@ R ::=
   el-cmp      Γ via α ⊦ t via β : T via γ       (ElemWfCompute)
 
   // Signature
-  sig-var-eq x = t : T                           (ElemEqSigVar)
+  sig-var-eq x                                   (ElemEqSigVar)
   sig-var    x                                   (ElemWfSigVar)
   sig        Γ ⊦ x ≔ t : T                      (SigExt)
 
