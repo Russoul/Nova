@@ -166,7 +166,7 @@ mutual
                            else Nothing
               _ => Nothing)
     let name = pack (c :: cs)
-    guard "Reserved keyword: via" (name /= "via")
+    guard "Reserved keyword" (name /= "via" && name /= "to")
     pure name
 
   -- Atomic elements: constants, or parenthesised expression.
