@@ -7,6 +7,7 @@ executable = nova-foundation-app
 main = Nova.Foundation.Application
 
 modules = Nova.Foundation.Syntax
+        , Nova.Foundation.Subst
         , Nova.Foundation.Derivation
         , Nova.Foundation.Parser
         , Nova.Foundation.Derivation.Parser
