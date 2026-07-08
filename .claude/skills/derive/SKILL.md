@@ -15,11 +15,11 @@ blind and finding out at the end which line broke.
 
 ## Read the spec, not the implementation
 
-- **Syntax and grammar**: `src/text/Internals/NovaSyntax.txt` — the concrete
-  grammar for contexts/types/elements/rules, keyword-first typing-rule and
+- **Syntax and grammar**: `docs/NovaSyntax.txt` — the concrete grammar for
+  contexts/types/elements/rules, keyword-first typing-rule and
   judgement-form syntax.
-- **Rule semantics**: `src/text/Internals/NovaFoundation.txt` — what each
-  judgement means and the natural-deduction rules behind each keyword.
+- **Rule semantics**: `docs/NovaFoundation.txt` — what each judgement means
+  and the natural-deduction rules behind each keyword.
 - **Rule cheat sheet**: `docs/derivation-rules-cheatsheet.md` — one line per
   typing rule keyword: premises → conclusion. Use this to pick which keyword
   proves a given judgement shape, instead of reading `Derivation.idr`.
