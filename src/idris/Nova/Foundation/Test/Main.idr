@@ -9,6 +9,7 @@ import Test.Golden
 import Nova.Foundation.Syntax
 import Nova.Foundation.Parser
 import Nova.Foundation.Pretty
+import Nova.Foundation.Rejection.Pretty
 import Nova.Foundation.Derivation
 import Nova.Foundation.Derivation.Parser
 
@@ -81,6 +82,7 @@ runDerivation rulesFile targetFile = do
     Left cr  => do
       putStrLn "Rejected"
       putStrLn "  At rule: \{prettyTypingRule cr.rule}"
+      putStrLn "  Reason: \{prettyRejection cr.reason}"
     Right truth =>
       case find (\t => not (check t truth)) targets of
         Just t  => do

@@ -7,7 +7,7 @@ import Nova.Foundation.Pretty
 %default covering
 
 export
-prettyRejection : NewRejection -> String
+prettyRejection : Rejection -> String
 prettyRejection (CtxCmpNoRuleApplies ctx alpha) =
   "no compute rule applies: " ++ prettyCtx ctx ++ " via " ++ prettyComputeRule alpha
 prettyRejection (TyCmpNoRuleApplies ty alpha) =
@@ -43,3 +43,7 @@ prettyRejection (SpineWfNotDerivable ctx spine tel) =
 prettyRejection (SpineEqNotDerivable ctx s0 s1 tel) =
   "not derivable: sp-eq " ++ prettyCtx ctx ++ " ⊦ " ++ prettySpine s0 ++ " = " ++ prettySpine s1 ++
     " : " ++ prettyTel tel
+prettyRejection (SigIdentifierNotFound x) =
+  "identifier not found in signature: " ++ x
+prettyRejection (SigIdentifierAlreadyDefined x) =
+  "identifier already defined in signature: " ++ x

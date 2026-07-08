@@ -370,79 +370,87 @@ Show TypingRule where
   show (SpineEqSym ctx s0 s1 tel)        = "SpineEqSym (\{showCtxRep ctx}) (\{show s0}) (\{show s1}) (\{show tel})"
   show (SpineEqTrans ctx s0 s1 s2 tel)   = "SpineEqTrans (\{showCtxRep ctx}) (\{show s0}) (\{show s1}) (\{show s2}) (\{show tel})"
 
-Rejection : Type
-Rejection = ()
-
 public export
-data NewRejection : Type where
-  CtxCmpNoRuleApplies : Ctx -> ComputeRule -> NewRejection
-  TyCmpNoRuleApplies : Ty -> ComputeRule -> NewRejection
-  SubCmpNoRuleApplies : Sub -> ComputeRule -> NewRejection
-  ElemCmpNoRuleApplies : Elem -> ComputeRule -> NewRejection
-  CtxWfNotDerivable : Ctx -> NewRejection
-  CtxEqNotDerivable : Ctx -> Ctx -> NewRejection
-  SubWfNotDerivable : Sub -> Ctx -> Ctx -> NewRejection
-  SubEqNotDerivable : Sub -> Sub -> Ctx -> Ctx -> NewRejection
-  TyWfNotDerivable : Ctx -> Ty -> NewRejection
-  TyEqNotDerivable : Ctx -> Ty -> Ty -> NewRejection
-  ElemWfNotDerivable : Ctx -> Elem -> Ty -> NewRejection
-  ElemEqNotDerivable : Ctx -> Elem -> Elem -> Ty -> NewRejection
-  TelWfNotDerivable : Ctx -> Tel -> NewRejection
-  TelEqNotDerivable : Ctx -> Tel -> Tel -> NewRejection
-  SpineWfNotDerivable : Ctx -> Spine -> Tel -> NewRejection
-  SpineEqNotDerivable : Ctx -> Spine -> Spine -> Tel -> NewRejection
+data Rejection : Type where
+  CtxCmpNoRuleApplies : Ctx -> ComputeRule -> Rejection
+  TyCmpNoRuleApplies : Ty -> ComputeRule -> Rejection
+  SubCmpNoRuleApplies : Sub -> ComputeRule -> Rejection
+  ElemCmpNoRuleApplies : Elem -> ComputeRule -> Rejection
+  CtxWfNotDerivable : Ctx -> Rejection
+  CtxEqNotDerivable : Ctx -> Ctx -> Rejection
+  SubWfNotDerivable : Sub -> Ctx -> Ctx -> Rejection
+  SubEqNotDerivable : Sub -> Sub -> Ctx -> Ctx -> Rejection
+  TyWfNotDerivable : Ctx -> Ty -> Rejection
+  TyEqNotDerivable : Ctx -> Ty -> Ty -> Rejection
+  ElemWfNotDerivable : Ctx -> Elem -> Ty -> Rejection
+  ElemEqNotDerivable : Ctx -> Elem -> Elem -> Ty -> Rejection
+  TelWfNotDerivable : Ctx -> Tel -> Rejection
+  TelEqNotDerivable : Ctx -> Tel -> Tel -> Rejection
+  SpineWfNotDerivable : Ctx -> Spine -> Tel -> Rejection
+  SpineEqNotDerivable : Ctx -> Spine -> Spine -> Tel -> Rejection
+  SigIdentifierNotFound : SigIdentifier -> Rejection
+  SigIdentifierAlreadyDefined : SigIdentifier -> Rejection
 
-rejectUnless : Bool -> Either Rejection ()
-rejectUnless True = Right ()
-rejectUnless False = Left ()
+rejectUnless : Rejection -> Bool -> Either Rejection ()
+rejectUnless _ True = Right ()
+rejectUnless r False = Left r
 
 export
 ctxWfDerivable : Ctx -> Truth -> Either Rejection ()
-ctxWfDerivable ctx sp = rejectUnless $ contains ctx sp.ctxWf
+ctxWfDerivable ctx sp = rejectUnless (CtxWfNotDerivable ctx) $ contains ctx sp.ctxWf
 
 export
 subWfDerivable : Sub -> Ctx -> Ctx -> Truth -> Either Rejection ()
-subWfDerivable sigma gamma delta sp = rejectUnless $ contains (sigma, gamma, delta) sp.subWf
+subWfDerivable sigma gamma delta sp =
+  rejectUnless (SubWfNotDerivable sigma gamma delta) $ contains (sigma, gamma, delta) sp.subWf
 
 export
 tyWfDerivable : Ctx -> Ty -> Truth -> Either Rejection ()
-tyWfDerivable ctx ty sp = rejectUnless $ contains (ctx, ty) sp.tyWf
+tyWfDerivable ctx ty sp = rejectUnless (TyWfNotDerivable ctx ty) $ contains (ctx, ty) sp.tyWf
 
 export
 elemWfDerivable : Ctx -> Elem -> Ty -> Truth -> Either Rejection ()
-elemWfDerivable ctx elem ty sp = rejectUnless $ contains (ctx, elem, ty) sp.elemWf
+elemWfDerivable ctx elem ty sp =
+  rejectUnless (ElemWfNotDerivable ctx elem ty) $ contains (ctx, elem, ty) sp.elemWf
 
 export
 tyEqDerivable : Ctx -> Ty -> Ty -> Truth -> Either Rejection ()
-tyEqDerivable ctx ty0 ty1 sp = rejectUnless $ contains (ctx, ty0, ty1) sp.tyEq
+tyEqDerivable ctx ty0 ty1 sp =
+  rejectUnless (TyEqNotDerivable ctx ty0 ty1) $ contains (ctx, ty0, ty1) sp.tyEq
 
 export
 ctxEqDerivable : Ctx -> Ctx -> Truth -> Either Rejection ()
-ctxEqDerivable ctx0 ctx1 sp = rejectUnless $ contains (ctx0, ctx1) sp.ctxEq
+ctxEqDerivable ctx0 ctx1 sp =
+  rejectUnless (CtxEqNotDerivable ctx0 ctx1) $ contains (ctx0, ctx1) sp.ctxEq
 
 export
 subEqDerivable : Sub -> Sub -> Ctx -> Ctx -> Truth -> Either Rejection ()
-subEqDerivable s0 s1 g d sp = rejectUnless $ contains (s0, s1, g, d) sp.subEq
+subEqDerivable s0 s1 g d sp =
+  rejectUnless (SubEqNotDerivable s0 s1 g d) $ contains (s0, s1, g, d) sp.subEq
 
 export
 elemEqDerivable : Ctx -> Elem -> Elem -> Ty -> Truth -> Either Rejection ()
-elemEqDerivable ctx e0 e1 ty sp = rejectUnless $ contains (ctx, e0, e1, ty) sp.elemEq
+elemEqDerivable ctx e0 e1 ty sp =
+  rejectUnless (ElemEqNotDerivable ctx e0 e1 ty) $ contains (ctx, e0, e1, ty) sp.elemEq
 
 export
 telWfDerivable : Ctx -> Tel -> Truth -> Either Rejection ()
-telWfDerivable ctx tel sp = rejectUnless $ contains (ctx, tel) sp.telWf
+telWfDerivable ctx tel sp = rejectUnless (TelWfNotDerivable ctx tel) $ contains (ctx, tel) sp.telWf
 
 export
 telEqDerivable : Ctx -> Tel -> Tel -> Truth -> Either Rejection ()
-telEqDerivable ctx t0 t1 sp = rejectUnless $ contains (ctx, t0, t1) sp.telEq
+telEqDerivable ctx t0 t1 sp =
+  rejectUnless (TelEqNotDerivable ctx t0 t1) $ contains (ctx, t0, t1) sp.telEq
 
 export
 spineWfDerivable : Ctx -> Spine -> Tel -> Truth -> Either Rejection ()
-spineWfDerivable ctx spine tel sp = rejectUnless $ contains (ctx, spine, tel) sp.spineWf
+spineWfDerivable ctx spine tel sp =
+  rejectUnless (SpineWfNotDerivable ctx spine tel) $ contains (ctx, spine, tel) sp.spineWf
 
 export
 spineEqDerivable : Ctx -> Spine -> Spine -> Tel -> Truth -> Either Rejection ()
-spineEqDerivable ctx s0 s1 tel sp = rejectUnless $ contains (ctx, s0, s1, tel) sp.spineEq
+spineEqDerivable ctx s0 s1 tel sp =
+  rejectUnless (SpineEqNotDerivable ctx s0 s1 tel) $ contains (ctx, s0, s1, tel) sp.spineEq
 
 mutual
   sigLookup : SigIdentifier -> Sig -> Maybe SigEntry
@@ -454,7 +462,7 @@ mutual
   computeCtx sig Id x = Right x
   computeCtx sig (InExt alpha beta) (gamma :< ty) = [| computeCtx sig alpha gamma :< computeTy sig beta ty |]
   computeCtx sig (Composition alpha beta) x = computeCtx sig alpha x >>= computeCtx sig beta
-  computeCtx sig _ _ = Left ()
+  computeCtx sig alpha gamma = Left (CtxCmpNoRuleApplies gamma alpha)
 
   computeTy : Sig -> ComputeRule -> Ty -> Either Rejection Ty
   computeTy sig Here (SubstElim ZeroTy _) = Right ZeroTy
@@ -480,14 +488,14 @@ mutual
   computeTy sig (InEqTy alpha beta gamma) (EqTy l r ty) = [| EqTy (computeElem sig alpha l) (computeElem sig beta r) (computeTy sig gamma ty) |]
   computeTy sig (InEl alpha) (El ty) = [| El (computeElem sig alpha ty) |]
   computeTy sig (Composition alpha beta) x = computeTy sig alpha x >>= computeTy sig beta
-  computeTy sig _ _ = Left ()
+  computeTy sig alpha ty = Left (TyCmpNoRuleApplies ty alpha)
 
   computeSub : Sig -> ComputeRule -> Sub -> Either Rejection Sub
   computeSub sig Id sigma = Right sigma
   -- ↑ ∘ (σ, e) = σ
   computeSub sig Here (Chain Wk (Ext sigma _)) = Right sigma
   computeSub sig (Composition alpha beta) x = computeSub sig alpha x >>= computeSub sig beta
-  computeSub sig _ _ = Left ()
+  computeSub sig alpha sigma = Left (SubCmpNoRuleApplies sigma alpha)
 
   computeElem : Sig -> ComputeRule -> Elem -> Either Rejection Elem
   computeElem sig Id x = Right x
@@ -498,7 +506,7 @@ mutual
   computeElem sig Here (SigmaElim1 (SigmaIntro a _)) = Right a
   computeElem sig Here (SigmaElim2 (SigmaIntro _ b)) = Right b
   computeElem sig Here (SigmaIntro (SigmaElim1 u) (SigmaElim2 v)) = do
-    rejectUnless (u == v)
+    rejectUnless (ElemCmpNoRuleApplies (SigmaIntro (SigmaElim1 u) (SigmaElim2 v)) Here) (u == v)
     Right u
   computeElem sig Here (SubstElim CtxVar (Ext _ t)) = Right t
   computeElem sig Here (SubstElim t Id) = Right t
@@ -524,7 +532,7 @@ mutual
   computeElem sig Here (SubstElim Refl sigma) = Right Refl
   computeElem sig Here (SigVar x) =
     case sigLookup x sig of
-      Nothing => Left ()
+      Nothing => Left (ElemCmpNoRuleApplies (SigVar x) Here)
       Just (_, _, a, _) => Right a
   computeElem sig (InSubstElim alpha beta) (SubstElim t sigma) = [| SubstElim (computeElem sig alpha t) (computeSub sig beta sigma) |]
   computeElem sig (InZeroElim alpha) (ZeroElim t) = [| ZeroElim (computeElem sig alpha t) |]
@@ -539,7 +547,7 @@ mutual
   computeElem sig (InSigmaTy alpha beta) (SigmaTy a b) = [| SigmaTy (computeElem sig alpha a) (computeElem sig beta b) |]
   computeElem sig (InEqTy alpha beta gamma) (EqTy l r ty) = [| EqTy (computeElem sig alpha l) (computeElem sig beta r) (computeElem sig gamma ty) |]
   computeElem sig (Composition alpha beta) x = computeElem sig alpha x >>= computeElem sig beta
-  computeElem sig _ _ = Left ()
+  computeElem sig alpha t = Left (ElemCmpNoRuleApplies t alpha)
 
 ||| Checks the closure of the typing rule, meaning
 ||| if the typing rule depends on existence of a derivation of some judgement form it won't be presumed.
@@ -699,12 +707,12 @@ step (ElemWfCtxCoe ctx0 ctx1 e ty) sp = do
   Right $ {elemWf $= insert (ctx1, e, ty)} sp
 step (ElemWfSigVar x) sp =
   case sigLookup x sp.sig of
-    Nothing => Left ()
+    Nothing => Left (SigIdentifierNotFound x)
     Just (_, _, _, ty) =>
       Right $ {elemWf $= \wf => foldr (\ctx, s => insert (ctx, SigVar x, ty) s) wf sp.ctxWf} sp
 step (ElemEqSigVar x) sp =
   case sigLookup x sp.sig of
-    Nothing => Left ()
+    Nothing => Left (SigIdentifierNotFound x)
     Just (_, _, a, ty) =>
       Right $ {elemEq $= \eq => foldr (\ctx, s => insert (ctx, SigVar x, a, ty) s) eq sp.ctxWf} sp
 -- Γ ⊦ a = b : A
@@ -726,7 +734,7 @@ step (ElemEqTyCoe ctx a b ty0 ty1) sp = do
 step (SigExt gamma x a ty) sp = do
   elemWfDerivable gamma a ty sp
   case sigLookup x sp.sig of
-    Just _  => Left ()
+    Just _  => Left (SigIdentifierAlreadyDefined x)
     Nothing => Right $ {sig $= (:< (gamma, x, a, ty))} sp
 step (CtxEqRefl ctx) sp = do
   ctxWfDerivable ctx sp
@@ -815,12 +823,13 @@ record ContextualRejection where
   constructor MkContextualRejection
   truth : Truth
   rule : TypingRule
+  reason : Rejection
 
 export
 steps : List TypingRule -> Truth -> Either ContextualRejection Truth
 steps [] truth = Right truth
 steps (s :: ss) truth = do
-  truth <- mapFst (const $ MkContextualRejection truth s) $ step s truth
+  truth <- mapFst (MkContextualRejection truth s) $ step s truth
   steps ss truth
 
 export

@@ -7,6 +7,7 @@ import Nova.Foundation.Derivation
 import Nova.Foundation.Derivation.Parser
 import Nova.Foundation.Parser
 import Nova.Foundation.Pretty
+import Nova.Foundation.Rejection.Pretty
 import System
 import System.File
 
@@ -41,6 +42,7 @@ report Ok = putStrLn "Ok"
 report (Rejected cr) = do
   putStrLn "Rejected"
   putStrLn $ "  At rule: " ++ prettyTypingRule cr.rule
+  putStrLn $ "  Reason: " ++ prettyRejection cr.reason
 report (NoWitness t) = do
   putStrLn "NoWitness"
   putStrLn $ "  Target: " ++ prettyJudgementForm t
