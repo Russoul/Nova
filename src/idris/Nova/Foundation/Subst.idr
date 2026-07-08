@@ -12,6 +12,9 @@ module Nova.Foundation.Subst
 -- It also eagerly resolves any SubstElim already embedded in the input
 -- term, so it never leaves a pending substitution behind in its result.
 --
+-- Argument order matches Syntax.idr's SubstElim (object first, then the
+-- substitution): substElem t sigma computes t[σ].
+--
 -- Composition convention: `Chain s t` prints as "s ∘ t" and behaves like
 -- ordinary function composition — s is applied first (to the original
 -- term), t second (to s's result) — i.e. `x[Chain s t] = x[s][t]`. This
@@ -30,57 +33,57 @@ mutual
   ||| Γ‖ₙ-style variable resolution against a concrete substitution:
   ||| what (☐ₙ)[σ] computes to.
   export
-  substVar : Sub -> Nat -> Elem
+  substVar : Nat -> Sub -> Elem
   -- Terminal's codomain is ε, which has no variables, so ☐ₙ can never be
   -- well-typed there — crash loudly instead of fabricating a result.
-  substVar Terminal      n     = assert_total $ idris_crash "substVar: ill-typed ☐\{show n} against · (empty codomain)"
-  substVar Id            n     = CtxVar n
-  substVar Wk             n     = CtxVar (S n)
-  substVar (Ext sigma t) Z     = t
-  substVar (Ext sigma t) (S n) = substVar sigma n
-  substVar (Chain s t)   n     = substElem t (substVar s n)
+  substVar n     Terminal    = assert_total $ idris_crash "substVar: ill-typed ☐\{show n} against · (empty codomain)"
+  substVar n     Id          = CtxVar n
+  substVar n     Wk          = CtxVar (S n)
+  substVar Z     (Ext sigma t) = t
+  substVar (S n) (Ext sigma t) = substVar n sigma
+  substVar n     (Chain s t) = substElem (substVar n s) t
 
   export
-  substElem : Sub -> Elem -> Elem
-  substElem sigma (SubstElim e tau)      = substElem sigma (substElem tau e)
-  substElem sigma (CtxVar n)             = substVar sigma n
-  substElem sigma (ZeroElim t)           = ZeroElim (substElem sigma t)
-  substElem sigma OneIntro               = OneIntro
-  substElem sigma NatIntro0              = NatIntro0
-  substElem sigma (NatIntro1 t)          = NatIntro1 (substElem sigma t)
-  substElem sigma (NatElim z s t)        = NatElim (substElem sigma z) (substElem (under (under sigma)) s) (substElem sigma t)
-  substElem sigma (PiIntro f)            = PiIntro (substElem (under sigma) f)
-  substElem sigma (PiApp f e)            = PiApp (substElem sigma f) (substElem sigma e)
-  substElem sigma (SigmaIntro a b)       = SigmaIntro (substElem sigma a) (substElem sigma b)
-  substElem sigma (SigmaElim1 t)         = SigmaElim1 (substElem sigma t)
-  substElem sigma (SigmaElim2 t)         = SigmaElim2 (substElem sigma t)
-  substElem sigma Elem.ZeroTy            = Elem.ZeroTy
-  substElem sigma Elem.OneTy             = Elem.OneTy
-  substElem sigma Elem.NatTy             = Elem.NatTy
-  substElem sigma (Elem.PiTy a b)        = Elem.PiTy (substElem sigma a) (substElem (under sigma) b)
-  substElem sigma (Elem.SigmaTy a b)     = Elem.SigmaTy (substElem sigma a) (substElem (under sigma) b)
-  substElem sigma (Elem.EqTy l r t)      = Elem.EqTy (substElem sigma l) (substElem sigma r) (substElem sigma t)
-  substElem sigma Refl                   = Refl
-  substElem sigma (SigVar x tau)         = SigVar x (Chain tau sigma)
+  substElem : Elem -> Sub -> Elem
+  substElem (SubstElim e tau)  sigma = substElem (substElem e tau) sigma
+  substElem (CtxVar n)         sigma = substVar n sigma
+  substElem (ZeroElim t)       sigma = ZeroElim (substElem t sigma)
+  substElem OneIntro            sigma = OneIntro
+  substElem NatIntro0           sigma = NatIntro0
+  substElem (NatIntro1 t)      sigma = NatIntro1 (substElem t sigma)
+  substElem (NatElim z s t)    sigma = NatElim (substElem z sigma) (substElem s (under (under sigma))) (substElem t sigma)
+  substElem (PiIntro f)        sigma = PiIntro (substElem f (under sigma))
+  substElem (PiApp f e)        sigma = PiApp (substElem f sigma) (substElem e sigma)
+  substElem (SigmaIntro a b)   sigma = SigmaIntro (substElem a sigma) (substElem b sigma)
+  substElem (SigmaElim1 t)     sigma = SigmaElim1 (substElem t sigma)
+  substElem (SigmaElim2 t)     sigma = SigmaElim2 (substElem t sigma)
+  substElem Elem.ZeroTy         sigma = Elem.ZeroTy
+  substElem Elem.OneTy          sigma = Elem.OneTy
+  substElem Elem.NatTy          sigma = Elem.NatTy
+  substElem (Elem.PiTy a b)    sigma = Elem.PiTy (substElem a sigma) (substElem b (under sigma))
+  substElem (Elem.SigmaTy a b) sigma = Elem.SigmaTy (substElem a sigma) (substElem b (under sigma))
+  substElem (Elem.EqTy l r t)  sigma = Elem.EqTy (substElem l sigma) (substElem r sigma) (substElem t sigma)
+  substElem Refl                sigma = Refl
+  substElem (SigVar x tau)     sigma = SigVar x (Chain tau sigma)
 
 export
-substTy : Sub -> Ty -> Ty
-substTy sigma (Ty.SubstElim ty tau) = substTy sigma (substTy tau ty)
-substTy sigma Ty.ZeroTy             = Ty.ZeroTy
-substTy sigma Ty.OneTy              = Ty.OneTy
-substTy sigma Ty.NatTy              = Ty.NatTy
-substTy sigma Ty.UniverseTy         = Ty.UniverseTy
-substTy sigma (Ty.PiTy a b)         = Ty.PiTy (substTy sigma a) (substTy (under sigma) b)
-substTy sigma (Ty.SigmaTy a b)      = Ty.SigmaTy (substTy sigma a) (substTy (under sigma) b)
-substTy sigma (EqTy l r ty)         = EqTy (substElem sigma l) (substElem sigma r) (substTy sigma ty)
-substTy sigma (El e)                = El (substElem sigma e)
+substTy : Ty -> Sub -> Ty
+substTy (Ty.SubstElim ty tau) sigma = substTy (substTy ty tau) sigma
+substTy Ty.ZeroTy             sigma = Ty.ZeroTy
+substTy Ty.OneTy              sigma = Ty.OneTy
+substTy Ty.NatTy              sigma = Ty.NatTy
+substTy Ty.UniverseTy         sigma = Ty.UniverseTy
+substTy (Ty.PiTy a b)         sigma = Ty.PiTy (substTy a sigma) (substTy b (under sigma))
+substTy (Ty.SigmaTy a b)      sigma = Ty.SigmaTy (substTy a sigma) (substTy b (under sigma))
+substTy (EqTy l r ty)         sigma = EqTy (substElem l sigma) (substElem r sigma) (substTy ty sigma)
+substTy (El e)                sigma = El (substElem e sigma)
 
 export
-substTel : Sub -> Tel -> Tel
-substTel sigma []          = []
-substTel sigma (ty :: rest) = substTy sigma ty :: substTel (under sigma) rest
+substTel : Tel -> Sub -> Tel
+substTel []           sigma = []
+substTel (ty :: rest) sigma = substTy ty sigma :: substTel rest (under sigma)
 
 export
-substSpine : Sub -> Spine -> Spine
-substSpine sigma []        = []
-substSpine sigma (e :: es) = substElem sigma e :: substSpine sigma es
+substSpine : Spine -> Sub -> Spine
+substSpine []        sigma = []
+substSpine (e :: es) sigma = substElem e sigma :: substSpine es sigma
