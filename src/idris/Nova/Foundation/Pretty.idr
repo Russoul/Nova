@@ -328,9 +328,9 @@ prettyTypingRule (ElemWfCompute ctx alpha e beta ty gamma) =
   " ⊦ " ++ prettyElem e ++ " via " ++ prettyComputeRule beta ++
   " : " ++ prettyTy ty ++ " via " ++ prettyComputeRule gamma
 prettyTypingRule (ElemEqSigVar x) =
-  "sig-var-eq ε ⊦ " ++ x
+  "sig-var-eq " ++ x
 prettyTypingRule (ElemWfSigVar x) =
-  "sig-var ε ⊦ " ++ x
+  "sig-var " ++ x
 prettyTypingRule (SigExt gamma x a ty) =
   "sig " ++ prettyCtx gamma ++ " ⊦ " ++ x ++ " ≔ " ++ prettyElem a ++ " : " ++ prettyTy ty
 prettyTypingRule (ElemEqSubstCong gamma delta sigma a b ty) =
