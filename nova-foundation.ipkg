@@ -12,6 +12,7 @@ modules = Nova.Foundation.Syntax
         , Nova.Foundation.Derivation.Parser
         , Nova.Foundation.Pretty
         , Nova.Foundation.Rejection.Pretty
+        , Nova.Foundation.Session
         , Nova.Foundation.Application
 
 sourcedir = "src/idris"

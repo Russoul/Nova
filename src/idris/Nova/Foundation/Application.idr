@@ -1,6 +1,7 @@
 module Nova.Foundation.Application
 
 import Data.List
+import Data.String
 
 import Nova.Foundation.Syntax
 import Nova.Foundation.Derivation
@@ -8,6 +9,7 @@ import Nova.Foundation.Derivation.Parser
 import Nova.Foundation.Parser
 import Nova.Foundation.Pretty
 import Nova.Foundation.Rejection.Pretty
+import Nova.Foundation.Session
 import System
 import System.File
 
@@ -59,19 +61,77 @@ parseInput rulesFile targetFile = do
     | Left err => pure (Left $ "Parse error in target file: " ++ err)
   pure (Right (MkInput rules targets))
 
-||| Input:
+||| Read a session file's content. A missing file reads as an empty session
+||| (freshly started, no rules applied yet) rather than an error.
+loadSession : Filename -> IO String
+loadSession file = do
+  Right content <- readFile file
+    | Left FileNotFound => pure ""
+    | Left err => die ("Cannot read session file '" ++ file ++ "': " ++ show err)
+  pure content
+
+writeSession : Filename -> String -> IO ()
+writeSession file content = do
+  Right () <- writeFile file content
+    | Left err => die ("Cannot write session file '" ++ file ++ "': " ++ show err)
+  pure ()
+
+usage : String
+usage = unlines
+  [ "Usage:"
+  , "  nova-foundation-app check <rules-file> <target-file>"
+  , "  nova-foundation-app init  <session-file>"
+  , "  nova-foundation-app apply <session-file> <rule-text>"
+  , "  nova-foundation-app query <session-file> <target-text>"
+  , "  nova-foundation-app dump  <session-file> [judgement-kind]"
+  , "  nova-foundation-app undo  <session-file>"
+  ]
+
+||| `check` is the original one-shot batch mode:
 |||  - List TypingRule  (rules file, one rule per line prefixed with "- ")
-|||  - Target judgement form (target file, written as a single typing rule)
+|||  - Target judgement forms (target file, one per line prefixed with "- ")
 ||| Output:
-|||  - Ok: the target judgement form is derivable
-|||  - Rejected: a rule was rejected (prints the offending rule)
-|||  - NoWitness: rules are consistent but the target is not derived
+|||  - Ok: all target judgement forms are derivable
+|||  - Rejected: a rule was rejected (prints the offending rule and reason)
+|||  - NoWitness: rules are consistent but a target is not derived
+|||
+||| The other subcommands (`init`/`apply`/`query`/`dump`/`undo`) drive a
+||| session incrementally: a session file is just a rules file that
+||| `apply` grows one checked rule at a time, giving immediate feedback
+||| (accepted + newly derived facts, or rejected + reason) without
+||| resubmitting or re-deriving the whole proof by hand.
 main : IO ()
 main = do
   args <- getArgs
   case args of
-    (_ :: rulesFile :: targetFile :: []) => do
+    (_ :: "check" :: rulesFile :: targetFile :: []) => do
       Right i <- parseInput rulesFile targetFile
         | Left err => die err
       report (run i)
-    _ => die "Usage: nova-foundation-app <rules-file> <target-file>"
+    (_ :: "init" :: sessionFile :: []) => do
+      writeSession sessionFile ""
+      putStrLn "Ok"
+    (_ :: "apply" :: sessionFile :: ruleText :: []) => do
+      content <- loadSession sessionFile
+      let outcome = Session.apply content ruleText
+      putStrLn outcome.message
+      case outcome.newContent of
+        Nothing  => pure ()
+        Just new => writeSession sessionFile new
+    (_ :: "query" :: sessionFile :: targetText :: []) => do
+      content <- loadSession sessionFile
+      putStrLn (Session.query content targetText)
+    (_ :: "dump" :: sessionFile :: []) => do
+      content <- loadSession sessionFile
+      putStrLn (Session.dump content Nothing)
+    (_ :: "dump" :: sessionFile :: kind :: []) => do
+      content <- loadSession sessionFile
+      putStrLn (Session.dump content (Just kind))
+    (_ :: "undo" :: sessionFile :: []) => do
+      content <- loadSession sessionFile
+      case Session.undo content of
+        Nothing  => putStrLn "(nothing to undo)"
+        Just new => do
+          writeSession sessionFile new
+          putStrLn "Ok"
+    _ => die usage

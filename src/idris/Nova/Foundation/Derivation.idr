@@ -850,3 +850,37 @@ check (JfTelWf telwf)     t = contains telwf t.telWf
 check (JfTelEq teleq)     t = contains teleq t.telEq
 check (JfSpineWf spinewf) t = contains spinewf t.spineWf
 check (JfSpineEq spineeq) t = contains spineeq t.spineEq
+
+||| Every judgement currently recorded in a `Truth`.
+export
+allJudgements : Truth -> List JudgementForm
+allJudgements t =
+     map JfCtxWf    (Prelude.toList t.ctxWf)
+  ++ map JfCtxEq    (Prelude.toList t.ctxEq)
+  ++ map JfSubWf    (Prelude.toList t.subWf)
+  ++ map JfSubEq    (Prelude.toList t.subEq)
+  ++ map JfTyWf     (Prelude.toList t.tyWf)
+  ++ map JfTyEq     (Prelude.toList t.tyEq)
+  ++ map JfElemWf   (Prelude.toList t.elemWf)
+  ++ map JfElemEq   (Prelude.toList t.elemEq)
+  ++ map JfTelWf    (Prelude.toList t.telWf)
+  ++ map JfTelEq    (Prelude.toList t.telEq)
+  ++ map JfSpineWf  (Prelude.toList t.spineWf)
+  ++ map JfSpineEq  (Prelude.toList t.spineEq)
+
+||| Judgements present in `after` but not in `before`, per judgement form.
+export
+newJudgements : (before, after : Truth) -> List JudgementForm
+newJudgements before after =
+     map JfCtxWf    (Prelude.toList $ difference after.ctxWf   before.ctxWf)
+  ++ map JfCtxEq    (Prelude.toList $ difference after.ctxEq   before.ctxEq)
+  ++ map JfSubWf    (Prelude.toList $ difference after.subWf   before.subWf)
+  ++ map JfSubEq    (Prelude.toList $ difference after.subEq   before.subEq)
+  ++ map JfTyWf     (Prelude.toList $ difference after.tyWf    before.tyWf)
+  ++ map JfTyEq     (Prelude.toList $ difference after.tyEq    before.tyEq)
+  ++ map JfElemWf   (Prelude.toList $ difference after.elemWf  before.elemWf)
+  ++ map JfElemEq   (Prelude.toList $ difference after.elemEq  before.elemEq)
+  ++ map JfTelWf    (Prelude.toList $ difference after.telWf   before.telWf)
+  ++ map JfTelEq    (Prelude.toList $ difference after.telEq   before.telEq)
+  ++ map JfSpineWf  (Prelude.toList $ difference after.spineWf before.spineWf)
+  ++ map JfSpineEq  (Prelude.toList $ difference after.spineEq before.spineEq)
