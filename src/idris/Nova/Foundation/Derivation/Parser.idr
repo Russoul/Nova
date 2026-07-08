@@ -168,10 +168,22 @@ parseTypingRule =
       sp; str_ "via"; sp; s1 <- parseSub
       pure (SubEqTrans s0 s1 s2 ctx d)) <|>
   -- Type wf
-  (do str_ "ty-zero"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseTy; pure (TyWfZero ctx)) <|>
-  (do str_ "ty-one";  space; ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseTy; pure (TyWfOne ctx)) <|>
-  (do str_ "ty-nat";  space; ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseTy; pure (TyWfNat ctx)) <|>
-  (do str_ "ty-univ"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseTy; pure (TyWfUniverse ctx)) <|>
+  (do str_ "ty-zero"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
+      case ty of
+        Ty.ZeroTy => pure (TyWfZero ctx)
+        _         => fail "ty-zero: expected 𝟘") <|>
+  (do str_ "ty-one";  space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
+      case ty of
+        Ty.OneTy => pure (TyWfOne ctx)
+        _        => fail "ty-one: expected 𝟙") <|>
+  (do str_ "ty-nat";  space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
+      case ty of
+        Ty.NatTy => pure (TyWfNat ctx)
+        _        => fail "ty-nat: expected ℕ") <|>
+  (do str_ "ty-univ"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
+      case ty of
+        Ty.UniverseTy => pure (TyWfUniverse ctx)
+        _             => fail "ty-univ: expected 𝕌") <|>
   (do str_ "ty-pi"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
       case ty of
         PiTy a b => pure (TyWfPi ctx a b)
@@ -295,15 +307,21 @@ parseTypingRule =
       sp; str_ "⊦"; sp; e <- parseElem; sp; char_ ':'; sp; ty <- parseTy
       pure (ElemWfCtxCoe ctx0 ctx1 e ty)) <|>
   -- Element wf: universe codes
-  (do str_ "el-zero-ty"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseElem
+  (do str_ "el-zero-ty"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
       sp; char_ ':'; sp; str_ "𝕌"
-      pure (ElemWfZeroTy ctx)) <|>
-  (do str_ "el-one-ty"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseElem
+      case e of
+        Elem.ZeroTy => pure (ElemWfZeroTy ctx)
+        _           => fail "el-zero-ty: expected 𝟘") <|>
+  (do str_ "el-one-ty"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
       sp; char_ ':'; sp; str_ "𝕌"
-      pure (ElemWfOneTy ctx)) <|>
-  (do str_ "el-nat-ty"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseElem
+      case e of
+        Elem.OneTy => pure (ElemWfOneTy ctx)
+        _          => fail "el-one-ty: expected 𝟙") <|>
+  (do str_ "el-nat-ty"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
       sp; char_ ':'; sp; str_ "𝕌"
-      pure (ElemWfNatTy ctx)) <|>
+      case e of
+        Elem.NatTy => pure (ElemWfNatTy ctx)
+        _          => fail "el-nat-ty: expected ℕ") <|>
   (do str_ "el-pi-ty"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
       sp; char_ ':'; sp; str_ "𝕌"
       case e of

@@ -32,16 +32,6 @@ need, in order: (1) `ty-sub` (or another route) to get `A[σ]` itself into
 record `A[σ] = A'`, (3) `ty-sym`/`ty-trans` to line the equality up in the
 direction you need, (4) `el-ty-coe` to transport `e` across it.
 
-## Known sharp edges
-
-- `el-zero-ty`/`el-one-ty`/`el-nat-ty` (`ElemWfZeroTy`/`OneTy`/`NatTy`)
-  parse an element before `: 𝕌` but **ignore it** — the rule always
-  concludes the fixed code (`𝟘`/`𝟙`/`ℕ`) regardless of what you write there.
-  Write the matching code for clarity, but know the checker isn't actually
-  checking it.
-- `ty-zero`/`ty-one`/`ty-nat`/`ty-univ` similarly parse (and ignore) the
-  type after `⊦`.
-
 ## Context
 
 | Keyword & syntax | Premises | Conclusion |
