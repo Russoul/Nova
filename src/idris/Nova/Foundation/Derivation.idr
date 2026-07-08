@@ -168,7 +168,7 @@ data TypingRule : Type where
   ||| ---------------
   ||| Γ ⊦ A[σ] type
   TyWfSubElim : Ty -> Sub -> Ctx -> Ctx -> TypingRule
-  ||| Γ ⊦ ☐ₙ : Aₙ[↑]ⁿ⁺¹  where Aₙ is Γ's (n+1)-th type from the right
+  ||| Γ ⊦ ☐ₙ : Γ‖ₙ
   ElemWfVar : Ctx -> Nat -> TypingRule
   ||| Γ ⊦ 𝟘-elim t : A
   ElemWfZeroElim : Ctx -> Elem -> Ty -> TypingRule
@@ -459,17 +459,13 @@ spineEqDerivable : Ctx -> Spine -> Spine -> Tel -> Truth -> Either Rejection ()
 spineEqDerivable ctx s0 s1 tel sp =
   rejectUnless (SpineEqNotDerivable ctx s0 s1 tel) $ contains (ctx, s0, s1, tel) sp.spineEq
 
-||| The (n+1)-th type in Γ counting from the right (0 = the innermost/last
-||| extension), i.e. the type ☐ₙ refers to before weakening.
+||| Γ‖ₙ : the type ☐ₙ has in Γ, weakening by one extra ↑ at every step of
+||| the lookup (so the result already accounts for every extension between
+||| it and the front of Γ).
 ctxLookup : Ctx -> Nat -> Maybe Ty
-ctxLookup [<]         _     = Nothing
-ctxLookup (rest :< ty) Z     = Just ty
-ctxLookup (rest :< ty) (S n) = ctxLookup rest n
-
-||| Weaken a type k times: A -> A[↑] -> A[↑][↑] -> ...
-weakenBy : Nat -> Ty -> Ty
-weakenBy Z     ty = ty
-weakenBy (S k) ty = SubstElim (weakenBy k ty) Wk
+ctxLookup [<]          _     = Nothing
+ctxLookup (rest :< ty) Z     = Just (SubstElim ty Wk)
+ctxLookup (rest :< ty) (S n) = map (\t => SubstElim t Wk) (ctxLookup rest n)
 
 mutual
   sigLookup : SigIdentifier -> Sig -> Maybe SigEntry
@@ -656,7 +652,7 @@ step (ElemWfVar gamma n) sp = do
   ctxWfDerivable gamma sp
   case ctxLookup gamma n of
     Nothing => Left (CtxVarOutOfBounds gamma n)
-    Just ty => Right $ {elemWf $= insert (gamma, CtxVar n, weakenBy (S n) ty)} sp
+    Just ty => Right $ {elemWf $= insert (gamma, CtxVar n, ty)} sp
 step (ElemWfZeroElim gamma t ty) sp = do
   tyWfDerivable gamma ty sp
   elemWfDerivable gamma t ZeroTy sp
@@ -703,12 +699,15 @@ step (ElemWfNatTy gamma) sp = do
   ctxWfDerivable gamma sp
   Right $ {elemWf $= insert (gamma, NatTy, UniverseTy)} sp
 step (ElemWfPiTy gamma a b) sp = do
+  elemWfDerivable gamma a UniverseTy sp
   elemWfDerivable (gamma :< El a) b UniverseTy sp
   Right $ {elemWf $= insert (gamma, PiTy a b, UniverseTy)} sp
 step (ElemWfSigmaTy gamma a b) sp = do
+  elemWfDerivable gamma a UniverseTy sp
   elemWfDerivable (gamma :< El a) b UniverseTy sp
   Right $ {elemWf $= insert (gamma, SigmaTy a b, UniverseTy)} sp
 step (ElemWfEqTy gamma l r ty) sp = do
+  elemWfDerivable gamma ty UniverseTy sp
   elemWfDerivable gamma l (El ty) sp
   elemWfDerivable gamma r (El ty) sp
   Right $ {elemWf $= insert (gamma, EqTy l r ty, UniverseTy)} sp
