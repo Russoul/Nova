@@ -115,5 +115,8 @@ parallel; ordinary git (branches, commits) is enough to coordinate.
 
 A finished, checked derivation can also be promoted into a reusable lemma:
 add its result to the signature with a `sig` rule (`sig Γ ⊦ x ≔ t : T`) and
-later sessions can reference it by name (`sig-var x` / `sig-var-eq x`)
-instead of re-deriving it.
+later sessions can reference it by name from a usage context `Δ` via
+`sig-var Δ ⊦ x[σ]` / `sig-var-eq Δ ⊦ x[σ]`, where `σ : Δ ⇒ Γ` — there is no
+bare `x`, a signature reference always carries the substitution back to its
+declaration context (e.g. `x[·]` if `x` was declared in `ε`, `x[id]` when
+used in exactly `Γ`).
