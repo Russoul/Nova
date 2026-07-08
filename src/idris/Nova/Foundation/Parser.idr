@@ -106,14 +106,14 @@ mutual
   covering
   parseElemPrefix : Rule Elem
   parseElemPrefix =
-        (do str_ "λ";      space; e <- parseElemAtom; pure (PiIntro e))
-    <|> (do str_ "𝟘-elim"; space; e <- parseElemAtom; pure (ZeroElim e))
+        (do str_ "λ";      space; e <- parseElemPostfix; pure (PiIntro e))
+    <|> (do str_ "𝟘-elim"; space; e <- parseElemSubst; pure (ZeroElim e))
     <|> (do str_ "ℕ-elim"; space
             z <- parseElemSubst; space
             s <- parseElemSubst; space
             t <- parseElemSubst
             pure (NatElim z s t))
-    <|> (do str_ "S"; space; e <- parseElemAtom; pure (NatIntro1 e))
+    <|> (do str_ "S"; space; e <- parseElemSubst; pure (NatIntro1 e))
     <|> parseElemPostfix
 
   -- Level 4: SubstElim postfix on atoms (t[σ], left-assoc)
@@ -225,7 +225,7 @@ mutual
   covering
   parseTyEl : Rule Ty
   parseTyEl =
-        (do str_ "El"; space; e <- parseElemAtom; pure (El e))
+        (do str_ "El"; space; e <- parseElemSubst; pure (El e))
     <|> parseTyPostfix
 
   -- Apply postfix subst A(σ)(τ)... to an already-parsed type
