@@ -38,6 +38,16 @@ references collapse in one `el-cmp` step instead of needing the multi-step
 substitution-chasing described above: `☐ₙ[↑] = ☐ₙ₊₁` and
 `☐ₙ₊₁[σ, t] = ☐ₙ[σ]`.
 
+A signature reference `x[σ]` always carries its substitution `σ` (from the
+usage context back to `x`'s declaration context `Γ`) directly in the atom —
+there is no bare `x`. Referencing `x` in a context other than its own
+declaration context, or after `x`'s declaration context, always requires an
+explicit `σ` (often `·`/`Terminal` when `x` was declared in `ε`, or `id`
+when used in exactly `Γ`). Two reduction rules parallel `☐ₙ`'s: `x[σ] =
+a[σ]` (unfolds the definition, where `a` is `x`'s definiens) and `x[ξ][σ] =
+x[ξ ∘ σ]` (composes a substitution applied to an already-substituted
+reference instead of leaving a nested `SubstElim`).
+
 ## Context
 
 | Keyword & syntax | Premises | Conclusion |
@@ -136,9 +146,9 @@ sessions reference it by name instead of re-deriving it.
 
 | Keyword & syntax | Premises | Conclusion |
 |---|---|---|
-| `sig Γ ⊦ x ≔ t : A` | `Γ ⊦ t : A`, `x` not already in the signature | adds `(Γ ⊦ x ≔ t : A)` to the signature |
-| `sig-var x` | `(Γ ⊦ x ≔ t : A)` in the signature | for every derived `Γ ctx`: `Γ ⊦ x : A` |
-| `sig-var-eq x` | `(Γ ⊦ x ≔ t : A)` in the signature | for every derived `Γ ctx`: `Γ ⊦ x = t : A` |
+| `sig Γ ⊦ x ≔ a : A` | `Γ ⊦ a : A`, `x` not already in the signature | adds `(Γ ⊦ x ≔ a : A)` to the signature |
+| `sig-var Δ ⊦ x[σ]` | `(Γ ⊦ x ≔ a : A)` in the signature, `Δ ctx`, `σ : Δ ⇒ Γ` | `Δ ⊦ x[σ] : A[σ]` |
+| `sig-var-eq Δ ⊦ x[σ]` | `(Γ ⊦ x ≔ a : A)` in the signature, `Δ ctx`, `σ : Δ ⇒ Γ` | `Δ ⊦ x[σ] = a[σ] : A[σ]` |
 
 ## Element equality
 

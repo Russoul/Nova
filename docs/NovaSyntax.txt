@@ -8,7 +8,7 @@ T{2} ::= El t{≥4}
 T{1} ::= T{≥2} → T{≥1} | T{≥2} ⨯ T{≥1}                                      (right-assoc)
 T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
 
-t{5} ::= ☐ₙ | () | Z | Refl | 𝟘 | 𝟙 | ℕ | x | (t{≥0})
+t{5} ::= ☐ₙ | () | Z | Refl | 𝟘 | 𝟙 | ℕ | x[σ{≥0}] | (t{≥0})
 t{4} ::= t{≥4} [σ{≥0}]
 t{3} ::= t{≥3} t{≥4}  t{≥3} .π₁ | t{≥3} .π₂
 t{2} ::= λ t{≥3} | 𝟘-elim t{≥4} | S t{≥4} | ℕ-elim t{≥4} t{≥4} t{≥4}
@@ -96,8 +96,8 @@ R ::=
   el-cmp      Γ via α ⊦ t via β : T via γ       (ElemWfCompute)
 
   // Signature
-  sig-var-eq x                                   (ElemEqSigVar)
-  sig-var    x                                   (ElemWfSigVar)
+  sig-var-eq Γ ⊦ x[σ]                           (ElemEqSigVar)
+  sig-var    Γ ⊦ x[σ]                           (ElemWfSigVar)
   sig        Γ ⊦ x ≔ t : T                      (SigExt)
 
   // Element equality

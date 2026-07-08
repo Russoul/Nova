@@ -186,7 +186,9 @@ mutual
     <|> (str_ "𝟘"   $> Elem.ZeroTy)
     <|> (str_ "𝟙"   $> Elem.OneTy)
     <|> (str_ "ℕ"   $> Elem.NatTy)
-    <|> map SigVar parseSigIdentifier
+    <|> (do x <- parseSigIdentifier
+            sp; char_ '['; sp; s <- parseSub; sp; char_ ']'
+            pure (SigVar x s))
 
 -- ===== Block 2: Ty parsers =====
 --

@@ -80,8 +80,9 @@ mutual
       EqTy : Elem -> Elem -> Elem -> Elem
       ||| Refl  (reflexivity)
       Refl : Elem
-      ||| x  (signature variable)
-      SigVar : String -> Elem
+      ||| x[σ]  (signature variable, applied to a substitution to its
+      ||| declaration context)
+      SigVar : String -> Sub -> Elem
 
 ||| Tying context: Γ ::= ε | Γ ᐅ T
 public export
@@ -162,7 +163,7 @@ mutual
     Elem.SigmaTy a b == Elem.SigmaTy a' b' = a == a' && b == b'
     Elem.EqTy l r t  == Elem.EqTy l' r' t' = l == l' && r == r' && t == t'
     Refl             == Refl               = True
-    SigVar x         == SigVar x'          = x == x'
+    SigVar x s       == SigVar x' s'        = x == x' && s == s'
     _                == _                  = False
 
 mutual
@@ -272,7 +273,7 @@ mutual
     compare Refl               Refl                 = EQ
     compare Refl               _                    = LT
     compare _                  Refl                 = GT
-    compare (SigVar x)         (SigVar y)           = compare x y
+    compare (SigVar x s)       (SigVar y t)         = compare x y <+> compare s t
 
 mutual
   public export
@@ -319,4 +320,4 @@ mutual
     show (Elem.SigmaTy e1 e2) = "SigmaTy (\{show e1}) (\{show e2})"
     show (Elem.EqTy e0 e1 e2) = "EqTy (\{show e0}) (\{show e1}) (\{show e2})"
     show Refl = "Refl"
-    show (SigVar x) = "SigVar \{show x}"
+    show (SigVar x s) = "SigVar \{show x} (\{show s})"

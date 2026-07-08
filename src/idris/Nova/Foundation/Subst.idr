@@ -61,7 +61,7 @@ mutual
   substElem sigma (Elem.SigmaTy a b)     = Elem.SigmaTy (substElem sigma a) (substElem (under sigma) b)
   substElem sigma (Elem.EqTy l r t)      = Elem.EqTy (substElem sigma l) (substElem sigma r) (substElem sigma t)
   substElem sigma Refl                   = Refl
-  substElem sigma (SigVar x)             = SigVar x
+  substElem sigma (SigVar x tau)         = SigVar x (Chain tau sigma)
 
 export
 substTy : Sub -> Ty -> Ty

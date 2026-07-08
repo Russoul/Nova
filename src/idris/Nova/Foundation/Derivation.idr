@@ -222,10 +222,11 @@ data TypingRule : Type where
   ||| ---------------- (Γ₀ = Γ₁ ⊦ a : A)
   ||| Γ₁ ⊦ a : A
   ElemWfCtxCoe : Ctx -> Ctx -> Elem -> Ty -> TypingRule
-  ||| (Γ ⊦ x ≔ t : A) ∈ Σ
+  ||| (Γ ⊦ x ≔ a : A) ∈ Σ
+  ||| σ : Δ ⇒ Γ
   ||| -------------------
-  ||| Σ Γ ⊦ x : A
-  ElemWfSigVar : SigIdentifier -> TypingRule
+  ||| Σ Δ ⊦ x[σ] : A[σ]
+  ElemWfSigVar : Ctx -> Sub -> SigIdentifier -> TypingRule
   -- Context equality
   CtxEqRefl  : Ctx -> TypingRule
   CtxEqSym   : Ctx -> Ctx -> TypingRule
@@ -257,10 +258,11 @@ data TypingRule : Type where
   ||| -------------------------
   ||| Γ ⊦ a₀ = a₁ : A
   ElemEqReflection : Ctx -> Elem -> Elem -> Elem -> Ty -> TypingRule
-  ||| (Γ ⊦ x ≔ t : A) ∈ Σ
-  ||| -------------------
-  ||| Σ Γ ⊦ x = t : A
-  ElemEqSigVar : SigIdentifier -> TypingRule
+  ||| (Γ ⊦ x ≔ a : A) ∈ Σ
+  ||| σ : Δ ⇒ Γ
+  ||| ------------------------
+  ||| Σ Δ ⊦ x[σ] = a[σ] : A[σ]
+  ElemEqSigVar : Ctx -> Sub -> SigIdentifier -> TypingRule
   ||| Γ ⊦ a = b : A
   ||| σ : Δ ⇒ Γ
   ||| -------------------------
@@ -343,8 +345,8 @@ Show TypingRule where
   show (ElemWfSubElim t ty sigma gamma delta) = "ElemWfSubElim (\{show t}) (\{show ty}) (\{show sigma}) (\{showCtxRep gamma}) (\{showCtxRep delta})"
   show (ElemWfTyCoe ctx e ty0 ty1)   = "ElemWfTyCoe (\{showCtxRep ctx}) (\{show e}) (\{show ty0}) (\{show ty1})"
   show (ElemWfCtxCoe ctx0 ctx1 e ty) = "ElemWfCtxCoe (\{showCtxRep ctx0}) (\{showCtxRep ctx1}) (\{show e}) (\{show ty})"
-  show (ElemWfSigVar x)               = "ElemWfSigVar \{show x}"
-  show (ElemEqSigVar x)               = "ElemEqSigVar \{show x}"
+  show (ElemWfSigVar ctx sigma x)     = "ElemWfSigVar (\{showCtxRep ctx}) (\{show sigma}) \{show x}"
+  show (ElemEqSigVar ctx sigma x)     = "ElemEqSigVar (\{showCtxRep ctx}) (\{show sigma}) \{show x}"
   show (ElemEqSubstCong gamma delta sigma a b ty) = "ElemEqSubstCong (\{showCtxRep gamma}) (\{showCtxRep delta}) (\{show sigma}) (\{show a}) (\{show b}) (\{show ty})"
   show (ElemEqTyCoe ctx a b ty0 ty1)  = "ElemEqTyCoe (\{showCtxRep ctx}) (\{show a}) (\{show b}) (\{show ty0}) (\{show ty1})"
   show (SigExt gamma x a ty)          = "SigExt (\{showCtxRep gamma}) \{show x} (\{show a}) (\{show ty})"
@@ -550,10 +552,13 @@ mutual
   computeElem sig Here (SubstElim (SigmaTy a b) sigma) = Right (SigmaTy (SubstElim a sigma) (SubstElim b (under sigma)))
   computeElem sig Here (SubstElim (EqTy l r ty) sigma) = Right (EqTy (SubstElim l sigma) (SubstElim r sigma) (SubstElim ty sigma))
   computeElem sig Here (SubstElim Refl sigma) = Right Refl
-  computeElem sig Here (SigVar x) =
+  -- x[σ] = a[σ]
+  computeElem sig Here (SigVar x sigma) =
     case sigLookup x sig of
-      Nothing => Left (ElemCmpNoRuleApplies (SigVar x) Here)
-      Just (_, _, a, _) => Right a
+      Nothing => Left (ElemCmpNoRuleApplies (SigVar x sigma) Here)
+      Just (_, _, a, _) => Right (SubstElim a sigma)
+  -- x[ξ][σ] = x[ξ ∘ σ]
+  computeElem sig Here (SubstElim (SigVar x xi) sigma) = Right (SigVar x (Chain xi sigma))
   computeElem sig (InSubstElim alpha beta) (SubstElim t sigma) = [| SubstElim (computeElem sig alpha t) (computeSub sig beta sigma) |]
   computeElem sig (InZeroElim alpha) (ZeroElim t) = [| ZeroElim (computeElem sig alpha t) |]
   computeElem sig (InNatIntro1 alpha) (NatIntro1 t) = [| NatIntro1 (computeElem sig alpha t) |]
@@ -738,16 +743,20 @@ step (ElemWfCtxCoe ctx0 ctx1 e ty) sp = do
   elemWfDerivable ctx0 e ty sp
   ctxEqDerivable ctx0 ctx1 sp
   Right $ {elemWf $= insert (ctx1, e, ty)} sp
-step (ElemWfSigVar x) sp =
+step (ElemWfSigVar delta sigma x) sp = do
+  ctxWfDerivable delta sp
   case sigLookup x sp.sig of
     Nothing => Left (SigIdentifierNotFound x)
-    Just (_, _, _, ty) =>
-      Right $ {elemWf $= \wf => foldr (\ctx, s => insert (ctx, SigVar x, ty) s) wf sp.ctxWf} sp
-step (ElemEqSigVar x) sp =
+    Just (gamma, _, _, ty) => do
+      subWfDerivable sigma delta gamma sp
+      Right $ {elemWf $= insert (delta, SigVar x sigma, SubstElim ty sigma)} sp
+step (ElemEqSigVar delta sigma x) sp = do
+  ctxWfDerivable delta sp
   case sigLookup x sp.sig of
     Nothing => Left (SigIdentifierNotFound x)
-    Just (_, _, a, ty) =>
-      Right $ {elemEq $= \eq => foldr (\ctx, s => insert (ctx, SigVar x, a, ty) s) eq sp.ctxWf} sp
+    Just (gamma, _, a, ty) => do
+      subWfDerivable sigma delta gamma sp
+      Right $ {elemEq $= insert (delta, SigVar x sigma, SubstElim a sigma, SubstElim ty sigma)} sp
 -- Γ ⊦ a = b : A
 -- σ : Δ ⇒ Γ
 -- -------------------------

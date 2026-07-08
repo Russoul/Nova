@@ -81,7 +81,7 @@ mutual
   prettyElemAtom Elem.ZeroTy = "𝟘"
   prettyElemAtom Elem.OneTy = "𝟙"
   prettyElemAtom Elem.NatTy = "ℕ"
-  prettyElemAtom (SigVar x) = x
+  prettyElemAtom (SigVar x s) = x ++ "[" ++ prettySub s ++ "]"
   prettyElemAtom e = "(" ++ prettyElem e ++ ")"
 
 -- ===== Ty =====
@@ -344,10 +344,10 @@ prettyTypingRule (ElemWfCompute ctx alpha e beta ty gamma) =
   "el-cmp " ++ prettyCtx ctx ++ " via " ++ prettyComputeRule alpha ++
   " ⊦ " ++ prettyElem e ++ " via " ++ prettyComputeRule beta ++
   " : " ++ prettyTy ty ++ " via " ++ prettyComputeRule gamma
-prettyTypingRule (ElemEqSigVar x) =
-  "sig-var-eq " ++ x
-prettyTypingRule (ElemWfSigVar x) =
-  "sig-var " ++ x
+prettyTypingRule (ElemEqSigVar ctx sigma x) =
+  "sig-var-eq " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElemAtom (SigVar x sigma)
+prettyTypingRule (ElemWfSigVar ctx sigma x) =
+  "sig-var " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElemAtom (SigVar x sigma)
 prettyTypingRule (SigExt gamma x a ty) =
   "sig " ++ prettyCtx gamma ++ " ⊦ " ++ x ++ " ≔ " ++ prettyElem a ++ " : " ++ prettyTy ty
 prettyTypingRule (ElemEqSubstCong gamma delta sigma a b ty) =

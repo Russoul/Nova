@@ -48,7 +48,8 @@
 - el-pi-i ε ᐅ ℕ ⊦ λ (ℕ-elim (☐₀[↑]) (S ☐₀) ☐₀) : ℕ → ℕ
 - el-pi-i ε ⊦ λ (λ (ℕ-elim (☐₀[↑]) (S ☐₀) ☐₀)) : ℕ → ℕ → ℕ
 - sig ε ⊦ plus ≔ λ (λ (ℕ-elim (☐₀[↑]) (S ☐₀) ☐₀)) : ℕ → ℕ → ℕ
-- sig-var-eq plus
+- ty-pi ε ᐅ ℕ ⊦ ℕ → ℕ
+- ty-pi ε ⊦ ℕ → ℕ → ℕ
 - el-suc ε ᐅ ℕ ᐅ ℕ ⊦ S ☐₀
 - sub-wk ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ ↑
 - ty-sym ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ ℕ = ℕ[↑]
@@ -73,11 +74,15 @@
 - el-ty-coe ε ᐅ ℕ ⊦ ☐₀ : ℕ ↝ ℕ[id, Z]
 - el-nat-e ε ᐅ ℕ ⊦ ℕ-elim ☐₀ (S ☐₀) Z : ℕ
 - el-cmp ε ᐅ ℕ via id ⊦ ℕ-elim ☐₀ (S ☐₀) Z via ↓ : ℕ[id, Z] via ↓
-- sig-var plus
-- el-pi-e ε ᐅ ℕ ᐅ ℕ ⊦ (plus : ℕ → ℕ → ℕ) (☐₀[↑])
-- el-cmp ε ᐅ ℕ ᐅ ℕ via id ⊦ plus ☐₀[↑] via id : (ℕ → ℕ)[id, ☐₀[↑]] via ↓; ↓ → ↓
-- el-pi-e ε ᐅ ℕ ᐅ ℕ ⊦ (plus ☐₀[↑] : ℕ → ℕ) ☐₀
-- el-cmp ε ᐅ ℕ ᐅ ℕ via id ⊦ plus ☐₀[↑] ☐₀ via ↓ id id; ↓ id; ↓ id; ↓; ↓[id]; ↓; ℕ-elim (↓[id]; id[↓][id]; ↓[id]; (↓[id])[id]; ↓; id[↓]; ↓) (↓[id]; ↓; S ↓[id]; S ↓) (↓[id]; ↓) : ℕ[id, ☐₀] via ↓
+- sub-term ε ᐅ ℕ ᐅ ℕ ⊦ ·
+- sig-var ε ᐅ ℕ ᐅ ℕ ⊦ plus[·]
+- ty-sub ε ᐅ ℕ ᐅ ℕ ⊦ (ℕ → ℕ → ℕ)[·] from ε
+- ty-cmp ε ᐅ ℕ ᐅ ℕ via id ⊦ (ℕ → ℕ → ℕ)[·] via ↓; ↓ → ↓; id → (↓ → ↓)
+- el-ty-coe ε ᐅ ℕ ᐅ ℕ ⊦ plus[·] : (ℕ → ℕ → ℕ)[·] ↝ ℕ → ℕ → ℕ
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ⊦ (plus[·] : ℕ → ℕ → ℕ) (☐₀[↑])
+- el-cmp ε ᐅ ℕ ᐅ ℕ via id ⊦ plus[·] ☐₀[↑] via id : (ℕ → ℕ)[id, ☐₀[↑]] via ↓; ↓ → ↓
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ⊦ (plus[·] ☐₀[↑] : ℕ → ℕ) ☐₀
+- el-cmp ε ᐅ ℕ ᐅ ℕ via id ⊦ plus[·] ☐₀[↑] ☐₀ via ↓ id id; ↓ id id; ↓ id; ↓[id] id; ↓ id; ↓; ↓; ↓[id]; ↓; ↓[id]; ↓; ℕ-elim (↓[id][id][id]) id id; ℕ-elim (↓[id][id]) id id; ℕ-elim (↓[id][id]) id id; ℕ-elim (↓[id][id][id]) id id; ℕ-elim (↓[id]; id[↓][id]; ↓[id]; (↓[id])[id]; ↓; id[↓]; ↓) id id; ℕ-elim id id (↓[id][id]); ℕ-elim id id (↓[id]; ↓); ℕ-elim id (↓[id][id]) id; ℕ-elim id ((S ↓)[id][id]) id; ℕ-elim id (↓[id]; ↓; S ↓[id]; S ↓) id : ℕ[id, ☐₀] via ↓
 - sub-term ε ᐅ ℕ ⊦ ·
 - el-sub ε ᐅ ℕ ⊦ Z[·] : ℕ from ε
 - el-cmp ε ᐅ ℕ via id ⊦ Z[·] via id : ℕ[·] via ↓
@@ -92,8 +97,17 @@
 - el-sub ε ᐅ ℕ ⊦ ☐₀[·, ☐₀, Z] : ℕ from ε ᐅ ℕ ᐅ ℕ
 - el-cmp ε ᐅ ℕ via id ⊦ ☐₀[·, ☐₀, Z] via id : ℕ[·, ☐₀, Z] via ↓
 - el-sub ε ᐅ ℕ ⊦ (ℕ-elim (☐₀[↑]) (S ☐₀) ☐₀)[·, ☐₀, Z] : ℕ from ε ᐅ ℕ ᐅ ℕ
-- el-sub-cong ε ᐅ ℕ ⊦ (plus ☐₀[↑] ☐₀)[·, ☐₀, Z] = (ℕ-elim (☐₀[↑]) (S ☐₀) ☐₀)[·, ☐₀, Z] : ℕ[·, ☐₀, Z] from ε ᐅ ℕ ᐅ ℕ
-- el-ty-coe-eq ε ᐅ ℕ ⊦ (plus ☐₀[↑] ☐₀)[·, ☐₀, Z] = (ℕ-elim (☐₀[↑]) (S ☐₀) ☐₀)[·, ☐₀, Z] : ℕ[·, ☐₀, Z] ↝ ℕ
+- el-sub-cong ε ᐅ ℕ ⊦ (plus[·] ☐₀[↑] ☐₀)[·, ☐₀, Z] = (ℕ-elim (☐₀[↑]) (S ☐₀) ☐₀)[·, ☐₀, Z] : ℕ[·, ☐₀, Z] from ε ᐅ ℕ ᐅ ℕ
+- el-ty-coe-eq ε ᐅ ℕ ⊦ (plus[·] ☐₀[↑] ☐₀)[·, ☐₀, Z] = (ℕ-elim (☐₀[↑]) (S ☐₀) ☐₀)[·, ☐₀, Z] : ℕ[·, ☐₀, Z] ↝ ℕ
 - el-ty-coe ε ᐅ ℕ ⊦ (ℕ-elim (☐₀[↑]) (S ☐₀) ☐₀)[·, ☐₀, Z] : ℕ[·, ☐₀, Z] ↝ ℕ
 - el-cmp ε ᐅ ℕ via id ⊦ (ℕ-elim (☐₀[↑]) (S ☐₀) ☐₀)[·, ☐₀, Z] via ↓; ℕ-elim id id ↓; ↓; ↓; id [↓]; ↓ : ℕ via id
-- el-eq-trans ε ᐅ ℕ ⊦ (plus ☐₀[↑] ☐₀)[·, ☐₀, Z] = ☐₀ : ℕ via (ℕ-elim (☐₀[↑]) (S ☐₀) ☐₀)[·, ☐₀, Z]
+- el-eq-trans ε ᐅ ℕ ⊦ (plus[·] ☐₀[↑] ☐₀)[·, ☐₀, Z] = ☐₀ : ℕ via (ℕ-elim (☐₀[↑]) (S ☐₀) ☐₀)[·, ☐₀, Z]
+- sub-id ε ⊦ id
+- sig-var-eq ε ⊦ plus[id]
+- sig-var ε ⊦ plus[id]
+- el-cmp ε via id ⊦ plus[id] via id : (ℕ → ℕ → ℕ)[id] via ↓
+- el-cmp ε via id ⊦ plus[id] via ↓; ↓ : (ℕ → ℕ → ℕ)[id] via ↓
+- el-cmp ε via id ⊦ plus[id] via id : (ℕ → ℕ → ℕ)[id] via ↓; ↓ → ↓; id → (↓ → ↓)
+- ty-sym ε ⊦ ℕ[id] → (ℕ → ℕ)[id ∘ ↑, ☐₀] = (ℕ → ℕ → ℕ)[id]
+- ty-trans ε ⊦ ℕ[id] → (ℕ → ℕ)[id ∘ ↑, ☐₀] = ℕ → ℕ → ℕ via (ℕ → ℕ → ℕ)[id]
+- el-ty-coe-eq ε ⊦ plus[id] = λ (λ (ℕ-elim (☐₀[↑]) (S ☐₀) ☐₀)) : ℕ[id] → (ℕ → ℕ)[id ∘ ↑, ☐₀] ↝ ℕ → ℕ → ℕ

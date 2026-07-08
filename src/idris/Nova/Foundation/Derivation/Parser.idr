@@ -341,15 +341,17 @@ parseTypingRule =
       sp; char_ ':'; sp; ty <- parseTy; sp; str_ "via"; sp; gamma <- parseComputeRule
       pure (ElemWfCompute ctx alpha e beta ty gamma)) <|>
   -- Signature (sig-var-eq before sig-var before sig — longer keywords first)
-  (do str_ "sig-var-eq"; space; x <- parseSigIdentifier
-      pure (ElemEqSigVar x)) <|>
-  (do str_ "sig-var"; space; x <- parseSigIdentifier
-      pure (ElemWfSigVar x)) <|>
-  (do str_ "sig"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      e <- parseElem; sp; str_ "≔"; sp; a <- parseElem; sp; char_ ':'; sp; ty <- parseTy
+  (do str_ "sig-var-eq"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
       case e of
-        SigVar x => pure (SigExt ctx x a ty)
-        _        => fail "sig: expected identifier on lhs of ≔") <|>
+        SigVar x sigma => pure (ElemEqSigVar ctx sigma x)
+        _              => fail "sig-var-eq: expected x[σ]") <|>
+  (do str_ "sig-var"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
+      case e of
+        SigVar x sigma => pure (ElemWfSigVar ctx sigma x)
+        _              => fail "sig-var: expected x[σ]") <|>
+  (do str_ "sig"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      x <- parseSigIdentifier; sp; str_ "≔"; sp; a <- parseElem; sp; char_ ':'; sp; ty <- parseTy
+      pure (SigExt ctx x a ty)) <|>
   -- Element equality (el-ty-coe-eq already above; el-eq-trans before el-eq-ty for safety)
   (do str_ "el-sub-cong"; space
       delta <- parseCtx; sp; str_ "⊦"; sp

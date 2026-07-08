@@ -54,7 +54,7 @@ T ::= T [σ]          // (Typing) context substitution
 
 // element
 t ::= t [σ]          // (Typing) context substitution
-    | x              // element in the signature context
+    | x [σ]          // element in the signature context
     | ☐ᵢ             // i-th element in the typing context
     | λ t            // dependent product type introduction
     | t t            // dependent product type elimination
@@ -1125,13 +1125,17 @@ x ∉ Σ
 
 Σ sig
 (Γ ⊦ x ≔ a : A) ∈ Σ
+Σ ⊦ Δ ctx
+σ : Δ ⇒ Γ
 -------------------
-Σ Γ ⊦ x : A
+Σ Δ ⊦ x[σ] : A[σ]
 
 Σ sig
 (Γ ⊦ x ≔ a : A) ∈ Σ
--------------------
-Σ Γ ⊦ x = a : A
+Σ ⊦ Δ ctx
+σ : Δ ⇒ Γ
+------------------------
+Σ Γ ⊦ x[σ] = a[σ] : A[σ]
 // unidirectional rewrite rule
 
 Σ sig
@@ -1143,6 +1147,15 @@ x ∉ Σ
 Σ Γ₁ ⊦ t : A
 ----------------
 Σ Γ₀ ⊦ t[σ] : A[σ]
+
+Σ sig
+(Γ ⊦ x : A) ∈ Σ
+Σ ⊦ Γ₀ ctx
+Σ ⊦ Γ₁ ctx
+ξ : Γ₁ ⇒ Γ
+σ : Γ₀ ⇒ Γ₁
+-------------------------------------
+Σ Γ₀ ⊦ x[ξ][σ] ⇝ x [ξ ∘ σ] : A[ξ][σ]
 
 Σ sig
 Σ ⊦ Γ ctx
