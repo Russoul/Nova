@@ -109,9 +109,9 @@ mutual
         (do str_ "λ";      space; e <- parseElemAtom; pure (PiIntro e))
     <|> (do str_ "𝟘-elim"; space; e <- parseElemAtom; pure (ZeroElim e))
     <|> (do str_ "ℕ-elim"; space
-            z <- parseElemAtom; space
-            s <- parseElemAtom; space
-            t <- parseElemAtom
+            z <- parseElemSubst; space
+            s <- parseElemSubst; space
+            t <- parseElemSubst
             pure (NatElim z s t))
     <|> (do str_ "S"; space; e <- parseElemAtom; pure (NatIntro1 e))
     <|> parseElemPostfix

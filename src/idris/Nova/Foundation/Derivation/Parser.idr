@@ -320,14 +320,12 @@ parseTypingRule =
       pure (ElemWfCompute ctx alpha e beta ty gamma)) <|>
   -- Signature (sig-var-eq before sig-var before sig — longer keywords first)
   (do str_ "sig-var-eq"; space
-      _ <- parseCtx; sp; str_ "⊦"; sp
       e <- parseElem
       _ <- (do sp; str_ "="; sp; _ <- parseElem; sp; char_ ':'; sp; _ <- parseTy; pure ()) <|> pure ()
       case e of
         SigVar x => pure (ElemEqSigVar x)
         _        => fail "sig-var-eq: expected identifier") <|>
-  (do str_ "sig-var"; space
-      _ <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
+  (do str_ "sig-var"; space; e <- parseElem
       case e of
         SigVar x => pure (ElemWfSigVar x)
         _        => fail "sig-var: expected identifier") <|>

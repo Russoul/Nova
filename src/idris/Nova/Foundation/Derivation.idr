@@ -442,6 +442,12 @@ mutual
   computeTy sig Here (SubstElim OneTy _) = Right OneTy
   computeTy sig Here (SubstElim NatTy _) = Right NatTy
   computeTy sig Here (SubstElim UniverseTy _) = Right UniverseTy
+  computeTy sig Here (SubstElim (PiTy a b) sigma) = Right (PiTy (SubstElim a sigma) (SubstElim b (under sigma)))
+  computeTy sig Here (SubstElim (SigmaTy a b) sigma) = Right (SigmaTy (SubstElim a sigma) (SubstElim b (under sigma)))
+  computeTy sig Here (SubstElim (EqTy l r ty) sigma) = Right (EqTy (SubstElim l sigma) (SubstElim r sigma) (SubstElim ty sigma))
+  computeTy sig Here (SubstElim ty Id) = Right ty
+  computeTy sig Here (SubstElim (SubstElim ty sigma) tau) = Right (SubstElim ty (Chain sigma tau))
+  computeTy sig Here (SubstElim ty (Chain sigma tau)) = Right (SubstElim (SubstElim ty sigma) tau)
   computeTy sig Here (El ZeroTy) = Right ZeroTy
   computeTy sig Here (El OneTy) = Right OneTy
   computeTy sig Here (El NatTy) = Right NatTy
@@ -675,11 +681,13 @@ step (ElemWfCtxCoe ctx0 ctx1 e ty) sp = do
 step (ElemWfSigVar x) sp =
   case sigLookup x sp.sig of
     Nothing => Left ()
-    Just (gamma, _, _, ty) => Right $ {elemWf $= insert (gamma, SigVar x, ty)} sp
+    Just (_, _, _, ty) =>
+      Right $ {elemWf $= \wf => foldr (\ctx, s => insert (ctx, SigVar x, ty) s) wf sp.ctxWf} sp
 step (ElemEqSigVar x) sp =
   case sigLookup x sp.sig of
     Nothing => Left ()
-    Just (gamma, _, a, ty) => Right $ {elemEq $= insert (gamma, SigVar x, a, ty)} sp
+    Just (_, _, a, ty) =>
+      Right $ {elemEq $= \eq => foldr (\ctx, s => insert (ctx, SigVar x, a, ty) s) eq sp.ctxWf} sp
 -- Γ ⊦ a = b : A
 -- σ : Δ ⇒ Γ
 -- -------------------------
