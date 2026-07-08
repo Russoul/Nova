@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run typing 'ε ⊦ 𝕌 type'
+"$1" run typing 'ty-univ ε ⊦ 𝕌'

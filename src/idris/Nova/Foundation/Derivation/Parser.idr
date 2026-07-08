@@ -105,180 +105,282 @@ mutual
     <|> inParen parseComputeRule
 
 -- ===== TypingRule parser =====
-
--- Map a parsed Ty to the corresponding TyWf typing rule for a given context.
-mkTyWfRule : Ctx -> Ty -> Rule TypingRule
-mkTyWfRule ctx ZeroTy        = pure (TyWfZero ctx)
-mkTyWfRule ctx OneTy         = pure (TyWfOne ctx)
-mkTyWfRule ctx NatTy         = pure (TyWfNat ctx)
-mkTyWfRule ctx UniverseTy    = pure (TyWfUniverse ctx)
-mkTyWfRule ctx (PiTy a b)    = pure (TyWfPi ctx a b)
-mkTyWfRule ctx (SigmaTy a b) = pure (TyWfSigma ctx a b)
-mkTyWfRule ctx (EqTy l r ty) = pure (TyWfEq ctx l r ty)
-mkTyWfRule ctx (El e)        = pure (TyWfEl ctx e)
-mkTyWfRule _ _               = fail "substituted type cannot be a direct TyWf rule"
-
--- Parse the content after "Γ ⊦".
-parseTurnstileContent : Ctx -> Rule TypingRule
-parseTurnstileContent ctx =
-  -- 0. SubWf: "σ sub-wf [to Δ [via Θ]]"
-  (do sigma <- parseSub; sp; str_ "sub-wf"
-      optTarget <- (do sp; str_ "to"; sp; d <- parseCtx; pure (Just d)) <|> pure Nothing
-      optVia    <- (do sp; str_ "via"; sp; t <- parseCtx; pure (Just t)) <|> pure Nothing
-      case (sigma, optTarget, optVia) of
-        (Id, Nothing, _)   => pure (SubWfId ctx)
-        (Terminal, _, _)   => pure (SubWfTerminal ctx)
-        (Wk, Nothing, _)   =>
-          case ctx of
-            gamma :< ty => pure (SubWfWk gamma ty)
-            [<]         => fail "SubWfWk requires non-empty context"
-        (Ext sigma' e, Just (d :< ty), Nothing) => pure (SubWfExt sigma' e ctx d ty)
-        (Chain sigma' tau, Just delta, Just theta) =>
-          pure (SubWfChain sigma' tau ctx theta delta)
-        _ => fail "unexpected SubWf form") <|>
-  -- 1. Type form: parseTy followed by "=" Ty type [via Ty] or "type"
-  (do ty0 <- parseTy; sp
-      (do str_ "="; sp; ty1 <- parseTy; sp; str_ "type"
-          -- optional "via mid"
-          (do sp; str_ "via"; sp; tyMid <- parseTy
-              pure (TyEqTrans ctx ty0 tyMid ty1)) <|>
-          if ty0 == ty1
-            then pure (TyEqRefl ctx ty0)
-            else pure (TyEqSym ctx ty1 ty0)) <|>
-      (str_ "type" *> mkTyWfRule ctx ty0)) <|>
-  -- 2. Refl : e ∈ A  (ElemWfRefl)
-  (do str_ "Refl"; sp; char_ ':'; sp
-      e <- parseElemAtom; sp; str_ "∈"; sp; ty <- parseTy
-      pure (ElemWfRefl ctx e ty)) <|>
-  -- 3. (e : A ⨯ B) .π₁  or  .π₂  (ElemWfSigmaElim1/2)
-  --    (f : A → B) e               (ElemWfPiApp)
-  (do char_ '('; sp; e <- parseElem; sp; char_ ':'; sp; ty <- parseTy; sp; char_ ')'
-      sp *>
-      case ty of
-        SigmaTy a b =>
-          (str_ ".π₁" $> ElemWfSigmaElim1 ctx e a b) <|>
-          (str_ ".π₂" $> ElemWfSigmaElim2 ctx e a b)
-        PiTy a b =>
-          (do e' <- parseElemAtom; pure (ElemWfPiApp ctx e a b e'))
-        _ => fail "expected sigma or pi type in elimination annotation") <|>
-  -- 4. General elem dispatch
-  (do e <- parseElem
-      -- "x ≔ a : A" — sig extension
-      (do sp; str_ "≔"; sp; a <- parseElem; sp; char_ ':'; sp; ty <- parseTy
-          case e of
-            SigVar x => pure (SigExt ctx x a ty)
-            _        => fail "expected identifier on lhs of ≔") <|>
-      -- "e = e' : A [via mid | ↝ ty1 | from Γ]" — ElemEq rules
-      (do sp; str_ "="; sp; e1 <- parseElem; sp; char_ ':'; sp; ty <- parseTy
-          -- ElemEqTrans: "... via e_mid"
-          (do sp; str_ "via"; sp; eMid <- parseElem
-              pure (ElemEqTrans ctx e eMid e1 ty)) <|>
-          -- ElemEqTyCoe: "... ↝ ty1"
-          (do sp; str_ "↝"; sp; ty1 <- parseTy
-              pure (ElemEqTyCoe ctx e e1 ty ty1)) <|>
-          -- ElemEqSubstCong: "a(σ) = b(σ) : A from Γ" where A is the source type (σ applied automatically)
-          (do sp; str_ "from"; sp; g <- parseCtx
-              case (e, e1) of
-                (SubstElim a sigma, SubstElim b sigma') =>
-                  if sigma == sigma'
-                    then
-                      let ty_src = case ty of
-                                     SubstElim s sigma'' => if sigma == sigma'' then s else ty
-                                     _ => ty
-                      in pure (ElemEqSubstCong g ctx sigma a b ty_src)
-                    else fail "ElemEqSubstCong requires same substitution on both sides"
-                _ => fail "ElemEqSubstCong requires both sides to be substitutions") <|>
-          case e of
-            SigVar x => pure (ElemEqSigVar x)
-            _ =>
-              if e == e1
-                then pure (ElemEqRefl ctx e ty)
-                else pure (ElemEqSym ctx e1 e ty)) <|>
-      -- With type annotation ": ty0"
-      (do sp; char_ ':'; sp; ty0 <- parseTy
-          -- ElemWfTyCoe: "e : ty0 ↝ ty1"
-          (do sp; str_ "↝"; sp; ty1 <- parseTy
-              pure (ElemWfTyCoe ctx e ty0 ty1)) <|>
-          -- ElemEqReflection: "a : (a₀ ≡ a₁ ∈ A) reflect"
-          (do sp; str_ "reflect"
-              case ty0 of
-                Ty.EqTy a0 a1 a => pure (ElemEqReflection ctx e a0 a1 a)
-                _               => fail "expected equality type for reflect") <|>
-          case (e, ty0) of
-            (ZeroElim t, a)               => pure (ElemWfZeroElim ctx t a)
-            (NatElim z s t, a)            => pure (ElemWfNatElim ctx z s t a)
-            (PiIntro f, PiTy a b)         => pure (ElemWfPiIntro ctx f a b)
-            (SigmaIntro u v, SigmaTy a b) => pure (ElemWfSigmaIntro ctx u v a b)
-            (PiApp f e', PiTy a b) => pure (ElemWfPiApp ctx f a b e')
-            (SubstElim t sigma, a) => do
-              optG <- (do sp; str_ "from"; sp; g <- parseCtx; pure (Just g)) <|> pure Nothing
-              case optG of
-                Just g  => pure (ElemWfSubElim t a sigma ctx g)
-                Nothing =>
-                  case ctx of
-                    g :< _ => pure (ElemWfSubElim t a sigma ctx g)
-                    [<]    => fail "ElemWfSubElim requires non-empty context or explicit 'from Γ'"
-            _ => fail "unexpected element/type combination in typing rule") <|>
-      -- Without type annotation
-      (case e of
-        CtxVar =>
-          case ctx of
-            gamma :< a => pure (ElemWfVar gamma a)
-            [<]        => fail "CtxVar rule requires non-empty context"
-        OneIntro         => pure (ElemWfOneIntro ctx)
-        NatIntro0        => pure (ElemWfZeroIntro ctx)
-        NatIntro1 e'     => pure (ElemWfSucIntro ctx e')
-        Elem.ZeroTy      => pure (ElemWfZeroTy ctx)
-        Elem.OneTy       => pure (ElemWfOneTy ctx)
-        Elem.NatTy       => pure (ElemWfNatTy ctx)
-        Elem.PiTy a b    => pure (ElemWfPiTy ctx a b)
-        Elem.SigmaTy a b => pure (ElemWfSigmaTy ctx a b)
-        Elem.EqTy l r t  => pure (ElemWfEqTy ctx l r t)
-        SigVar x         => pure (ElemWfSigVar x)
-        _                => fail "unexpected element form in typing rule"))
-
--- Parse "Γ ctx", "Γ | α ...", or "Γ ⊦ ..." after the context has been parsed.
-parseAfterCtx : Ctx -> Rule TypingRule
-parseAfterCtx ctx =
-  -- "ctx" keyword: empty context or extended context
-  (do str_ "ctx"
-      case ctx of
-        [<]         => pure CtxWfEmpty
-        gamma :< ty => pure (CtxWfExt gamma ty)) <|>
-  -- CtxEq rules: "= Γ₁ ctx [via Γmid]" or ElemWfCtxCoe: "= Γ₁ ⊦ e : A"
-  (do str_ "="; sp; ctx1 <- parseCtx; sp
-      -- ElemWfCtxCoe: "= ctx1 ⊦ e : A"
-      (do str_ "⊦"; sp
-          e <- parseElem; sp; char_ ':'; sp; ty <- parseTy
-          pure (ElemWfCtxCoe ctx ctx1 e ty)) <|>
-      -- CtxEq rules: "= ctx1 ctx [via ctxMid]"
-      (do str_ "ctx"
-          (do sp; str_ "via"; sp; ctxMid <- parseCtx
-              pure (CtxEqTrans ctx ctxMid ctx1)) <|>
-          if ctx == ctx1
-            then pure (CtxEqRefl ctx)
-            else pure (CtxEqSym ctx1 ctx))) <|>
-  -- "| α" then "ctx", "⊦ A | β type", or "⊦ a | β : A | γ type"
-  (do char_ '|'; sp; alpha <- parseComputeRule; sp
-      (str_ "ctx" $> CtxWfCompute ctx alpha) <|>
-      (do str_ "⊦"; sp
-          (do ty <- parseTy; sp; char_ '|'; sp; beta <- parseComputeRule
-              sp; str_ "type"
-              pure (TyWfCompute ctx alpha ty beta)) <|>
-          (do e <- parseElem; sp; char_ '|'; sp; beta <- parseComputeRule
-              sp; char_ ':'; sp
-              ty <- parseTy; sp; char_ '|'; sp; gamma <- parseComputeRule
-              sp; str_ "type"
-              pure (ElemWfCompute ctx alpha e beta ty gamma)))) <|>
-  -- "⊦ ..." regular judgement
-  (do str_ "⊦"; sp; parseTurnstileContent ctx)
+-- Keyword-first: each rule starts with a unique keyword.
 
 export
 parseTypingRule : Rule TypingRule
-parseTypingRule = do
-  ctx <- parseCtx
-  sp
-  parseAfterCtx ctx
+parseTypingRule =
+  -- Context
+  (str_ "ctx-emp" $> CtxWfEmpty) <|>
+  (do str_ "ctx-ext"; space
+      ctx <- parseCtx
+      case ctx of
+        g :< ty => pure (CtxWfExt g ty)
+        [<]     => fail "ctx-ext: requires non-empty context") <|>
+  (do str_ "ctx-refl"; space; ctx <- parseCtx; pure (CtxEqRefl ctx)) <|>
+  (do str_ "ctx-sym"; space
+      ctx1 <- parseCtx; sp; str_ "="; sp; ctx0 <- parseCtx
+      pure (CtxEqSym ctx0 ctx1)) <|>
+  (do str_ "ctx-trans"; space
+      ctx0 <- parseCtx; sp; str_ "="; sp; ctx2 <- parseCtx
+      sp; str_ "via"; sp; ctx1 <- parseCtx
+      pure (CtxEqTrans ctx0 ctx1 ctx2)) <|>
+  (do str_ "ctx-cmp"; space
+      ctx <- parseCtx; sp; str_ "via"; sp; alpha <- parseComputeRule
+      pure (CtxWfCompute ctx alpha)) <|>
+  -- Substitution wf
+  (do str_ "sub-term"; space
+      ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseSub
+      pure (SubWfTerminal ctx)) <|>
+  (do str_ "sub-id"; space
+      ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseSub
+      pure (SubWfId ctx)) <|>
+  (do str_ "sub-wk"; space
+      ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseSub
+      case ctx of
+        g :< ty => pure (SubWfWk g ty)
+        [<]     => fail "sub-wk: requires non-empty context") <|>
+  (do str_ "sub-ext"; space
+      ctx <- parseCtx; sp; str_ "⊦"; sp
+      sigma <- parseSub; sp; str_ "to"; sp; delta <- parseCtx
+      case (sigma, delta) of
+        (Ext s e, d :< ty) => pure (SubWfExt s e ctx d ty)
+        _ => fail "sub-ext: expected σ, e and non-empty target context") <|>
+  (do str_ "sub-chn"; space
+      ctx <- parseCtx; sp; str_ "⊦"; sp
+      sigma <- parseSub; sp; str_ "to"; sp; delta <- parseCtx
+      sp; str_ "via"; sp; theta <- parseCtx
+      case sigma of
+        Chain s t => pure (SubWfChain s t ctx theta delta)
+        _         => fail "sub-chn: expected σ ∘ τ") <|>
+  -- Substitution eq
+  (do str_ "sub-refl"; space
+      ctx <- parseCtx; sp; str_ "⊦"; sp
+      s <- parseSub; sp; char_ ':'; sp; d <- parseCtx
+      pure (SubEqRefl s ctx d)) <|>
+  (do str_ "sub-sym"; space
+      ctx <- parseCtx; sp; str_ "⊦"; sp
+      s1 <- parseSub; sp; str_ "="; sp; s0 <- parseSub; sp; char_ ':'; sp; d <- parseCtx
+      pure (SubEqSym s0 s1 ctx d)) <|>
+  (do str_ "sub-trans"; space
+      ctx <- parseCtx; sp; str_ "⊦"; sp
+      s0 <- parseSub; sp; str_ "="; sp; s2 <- parseSub; sp; char_ ':'; sp; d <- parseCtx
+      sp; str_ "via"; sp; s1 <- parseSub
+      pure (SubEqTrans s0 s1 s2 ctx d)) <|>
+  -- Type wf
+  (do str_ "ty-zero"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseTy; pure (TyWfZero ctx)) <|>
+  (do str_ "ty-one";  space; ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseTy; pure (TyWfOne ctx)) <|>
+  (do str_ "ty-nat";  space; ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseTy; pure (TyWfNat ctx)) <|>
+  (do str_ "ty-univ"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseTy; pure (TyWfUniverse ctx)) <|>
+  (do str_ "ty-pi"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
+      case ty of
+        PiTy a b => pure (TyWfPi ctx a b)
+        _        => fail "ty-pi: expected A → B") <|>
+  (do str_ "ty-sigma"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
+      case ty of
+        SigmaTy a b => pure (TyWfSigma ctx a b)
+        _           => fail "ty-sigma: expected A ⨯ B") <|>
+  (do str_ "ty-eq-form"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
+      case ty of
+        Ty.EqTy l r a => pure (TyWfEq ctx l r a)
+        _             => fail "ty-eq-form: expected l ≡ r ∈ A") <|>
+  (do str_ "ty-el"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
+      case ty of
+        El e => pure (TyWfEl ctx e)
+        _    => fail "ty-el: expected El e") <|>
+  (do str_ "ty-cmp"; space
+      ctx <- parseCtx; sp; str_ "via"; sp; alpha <- parseComputeRule
+      sp; str_ "⊦"; sp; ty <- parseTy; sp; str_ "via"; sp; beta <- parseComputeRule
+      pure (TyWfCompute ctx alpha ty beta)) <|>
+  -- Type eq
+  (do str_ "ty-refl"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
+      pure (TyEqRefl ctx ty)) <|>
+  (do str_ "ty-sym"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      ty1 <- parseTy; sp; str_ "="; sp; ty0 <- parseTy
+      pure (TyEqSym ctx ty0 ty1)) <|>
+  (do str_ "ty-trans"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      ty0 <- parseTy; sp; str_ "="; sp; ty2 <- parseTy; sp; str_ "via"; sp; ty1 <- parseTy
+      pure (TyEqTrans ctx ty0 ty1 ty2)) <|>
+  -- Element wf: intro / elim  (longer keywords before shorter sharing same prefix)
+  (do str_ "el-var"; space
+      ctx <- parseCtx; sp; str_ "⊦"; sp; str_ "☐"
+      case ctx of
+        g :< ty => pure (ElemWfVar g ty)
+        [<]     => fail "el-var: requires non-empty context") <|>
+  (do str_ "el-one"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; str_ "()"
+      pure (ElemWfOneIntro ctx)) <|>
+  (do str_ "el-zero"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; str_ "Z"
+      pure (ElemWfZeroIntro ctx)) <|>
+  (do str_ "el-suc"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      str_ "S"; space; e <- parseElemAtom
+      pure (ElemWfSucIntro ctx e)) <|>
+  (do str_ "el-pi-i"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
+      case e of
+        PiIntro f => do
+          sp; char_ ':'; sp; ty <- parseTy
+          case ty of
+            PiTy a b => pure (ElemWfPiIntro ctx f a b)
+            _        => fail "el-pi-i: expected A → B after :"
+        _ => fail "el-pi-i: expected λ f") <|>
+  (do str_ "el-pi-e"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      char_ '('; sp; f <- parseElem; sp; char_ ':'; sp; ty <- parseTy; sp; char_ ')'
+      sp; e <- parseElemAtom
+      case ty of
+        PiTy a b => pure (ElemWfPiApp ctx f a b e)
+        _        => fail "el-pi-e: expected A → B") <|>
+  (do str_ "el-sigma-i"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
+      case e of
+        SigmaIntro u v => do
+          sp; char_ ':'; sp; ty <- parseTy
+          case ty of
+            SigmaTy a b => pure (ElemWfSigmaIntro ctx u v a b)
+            _           => fail "el-sigma-i: expected A ⨯ B after :"
+        _ => fail "el-sigma-i: expected u, v") <|>
+  (do str_ "el-sigma-e1"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      char_ '('; sp; e <- parseElem; sp; char_ ':'; sp; ty <- parseTy; sp; char_ ')'
+      sp; str_ ".π₁"
+      case ty of
+        SigmaTy a b => pure (ElemWfSigmaElim1 ctx e a b)
+        _           => fail "el-sigma-e1: expected A ⨯ B") <|>
+  (do str_ "el-sigma-e2"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      char_ '('; sp; e <- parseElem; sp; char_ ':'; sp; ty <- parseTy; sp; char_ ')'
+      sp; str_ ".π₂"
+      case ty of
+        SigmaTy a b => pure (ElemWfSigmaElim2 ctx e a b)
+        _           => fail "el-sigma-e2: expected A ⨯ B") <|>
+  (do str_ "el-zero-e"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
+      case e of
+        ZeroElim t => do
+          sp; char_ ':'; sp; ty <- parseTy
+          pure (ElemWfZeroElim ctx t ty)
+        _ => fail "el-zero-e: expected 𝟘-elim e") <|>
+  (do str_ "el-nat-e"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
+      case e of
+        NatElim z s t => do
+          sp; char_ ':'; sp; ty <- parseTy
+          pure (ElemWfNatElim ctx z s t ty)
+        _ => fail "el-nat-e: expected ℕ-elim z s t") <|>
+  -- el-reflect before el-refl (shares "el-refl" prefix at token level)
+  (do str_ "el-reflect"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
+      sp; char_ ':'; sp; char_ '('; sp; ty <- parseTy; sp; char_ ')'
+      sp; str_ "reflect"
+      case ty of
+        Ty.EqTy a0 a1 a => pure (ElemEqReflection ctx e a0 a1 a)
+        _               => fail "el-reflect: expected equality type") <|>
+  (do str_ "el-refl"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      str_ "Refl"; sp; char_ ':'; sp; e <- parseElemAtom; sp; str_ "∈"; sp; ty <- parseTy
+      pure (ElemWfRefl ctx e ty)) <|>
+  (do str_ "el-sub"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
+      case e of
+        SubstElim t sigma => do
+          sp; char_ ':'; sp; ty <- parseTy; sp; str_ "from"; sp; delta <- parseCtx
+          pure (ElemWfSubElim t ty sigma ctx delta)
+        _ => fail "el-sub: expected t[σ]") <|>
+  -- el-ty-coe-eq before el-ty-coe (longer keyword first)
+  (do str_ "el-ty-coe-eq"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      e0 <- parseElem; sp; str_ "="; sp; e1 <- parseElem
+      sp; char_ ':'; sp; ty0 <- parseTy; sp; str_ "↝"; sp; ty1 <- parseTy
+      pure (ElemEqTyCoe ctx e0 e1 ty0 ty1)) <|>
+  (do str_ "el-ty-coe"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
+      sp; char_ ':'; sp; ty0 <- parseTy; sp; str_ "↝"; sp; ty1 <- parseTy
+      pure (ElemWfTyCoe ctx e ty0 ty1)) <|>
+  (do str_ "el-ctx-coe"; space
+      ctx0 <- parseCtx; sp; str_ "="; sp; ctx1 <- parseCtx
+      sp; str_ "⊦"; sp; e <- parseElem; sp; char_ ':'; sp; ty <- parseTy
+      pure (ElemWfCtxCoe ctx0 ctx1 e ty)) <|>
+  -- Element wf: universe codes
+  (do str_ "el-zero-ty"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseElem
+      sp; char_ ':'; sp; str_ "𝕌"
+      pure (ElemWfZeroTy ctx)) <|>
+  (do str_ "el-one-ty"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseElem
+      sp; char_ ':'; sp; str_ "𝕌"
+      pure (ElemWfOneTy ctx)) <|>
+  (do str_ "el-nat-ty"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseElem
+      sp; char_ ':'; sp; str_ "𝕌"
+      pure (ElemWfNatTy ctx)) <|>
+  (do str_ "el-pi-ty"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
+      sp; char_ ':'; sp; str_ "𝕌"
+      case e of
+        Elem.PiTy a b => pure (ElemWfPiTy ctx a b)
+        _             => fail "el-pi-ty: expected A → B") <|>
+  (do str_ "el-sigma-ty"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
+      sp; char_ ':'; sp; str_ "𝕌"
+      case e of
+        Elem.SigmaTy a b => pure (ElemWfSigmaTy ctx a b)
+        _                => fail "el-sigma-ty: expected A ⨯ B") <|>
+  (do str_ "el-eq-ty"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
+      sp; char_ ':'; sp; str_ "𝕌"
+      case e of
+        Elem.EqTy l r a => pure (ElemWfEqTy ctx l r a)
+        _               => fail "el-eq-ty: expected l ≡ r ∈ A") <|>
+  (do str_ "el-cmp"; space
+      ctx <- parseCtx; sp; str_ "via"; sp; alpha <- parseComputeRule
+      sp; str_ "⊦"; sp; e <- parseElem; sp; str_ "via"; sp; beta <- parseComputeRule
+      sp; char_ ':'; sp; ty <- parseTy; sp; str_ "via"; sp; gamma <- parseComputeRule
+      pure (ElemWfCompute ctx alpha e beta ty gamma)) <|>
+  -- Signature (sig-var-eq before sig-var before sig — longer keywords first)
+  (do str_ "sig-var-eq"; space
+      _ <- parseCtx; sp; str_ "⊦"; sp
+      e <- parseElem
+      _ <- (do sp; str_ "="; sp; _ <- parseElem; sp; char_ ':'; sp; _ <- parseTy; pure ()) <|> pure ()
+      case e of
+        SigVar x => pure (ElemEqSigVar x)
+        _        => fail "sig-var-eq: expected identifier") <|>
+  (do str_ "sig-var"; space
+      _ <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
+      case e of
+        SigVar x => pure (ElemWfSigVar x)
+        _        => fail "sig-var: expected identifier") <|>
+  (do str_ "sig"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      e <- parseElem; sp; str_ "≔"; sp; a <- parseElem; sp; char_ ':'; sp; ty <- parseTy
+      case e of
+        SigVar x => pure (SigExt ctx x a ty)
+        _        => fail "sig: expected identifier on lhs of ≔") <|>
+  -- Element equality (el-ty-coe-eq already above; el-eq-trans before el-eq-ty for safety)
+  (do str_ "el-sub-cong"; space
+      delta <- parseCtx; sp; str_ "⊦"; sp
+      ea <- parseElem; sp; str_ "="; sp; eb <- parseElem
+      sp; char_ ':'; sp; ty <- parseTy; sp; str_ "from"; sp; gamma <- parseCtx
+      case (ea, eb) of
+        (SubstElim a sigma, SubstElim b sigma') =>
+          if sigma == sigma'
+            then
+              let ty_src = case ty of
+                             Ty.SubstElim s sigma'' => if sigma == sigma'' then s else ty
+                             _ => ty
+              in pure (ElemEqSubstCong gamma delta sigma a b ty_src)
+            else fail "el-sub-cong: both sides must have same substitution"
+        _ => fail "el-sub-cong: both sides must be substitutions") <|>
+  (do str_ "el-eq-refl"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      e <- parseElem; sp; char_ ':'; sp; ty <- parseTy
+      pure (ElemEqRefl ctx e ty)) <|>
+  (do str_ "el-eq-sym"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      e1 <- parseElem; sp; str_ "="; sp; e0 <- parseElem; sp; char_ ':'; sp; ty <- parseTy
+      pure (ElemEqSym ctx e0 e1 ty)) <|>
+  (do str_ "el-eq-trans"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      e0 <- parseElem; sp; str_ "="; sp; e2 <- parseElem; sp; char_ ':'; sp; ty <- parseTy
+      sp; str_ "via"; sp; e1 <- parseElem
+      pure (ElemEqTrans ctx e0 e1 e2 ty)) <|>
+  -- Telescope equality
+  (do str_ "tel-refl"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; tel <- parseTel
+      pure (TelEqRefl ctx tel)) <|>
+  (do str_ "tel-sym"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      tel1 <- parseTel; sp; str_ "="; sp; tel0 <- parseTel
+      pure (TelEqSym ctx tel0 tel1)) <|>
+  (do str_ "tel-trans"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      tel0 <- parseTel; sp; str_ "="; sp; tel2 <- parseTel; sp; str_ "via"; sp; tel1 <- parseTel
+      pure (TelEqTrans ctx tel0 tel1 tel2)) <|>
+  -- Spine equality
+  (do str_ "sp-refl"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      spine <- parseSpine; sp; char_ ':'; sp; tel <- parseTel
+      pure (SpineEqRefl ctx spine tel)) <|>
+  (do str_ "sp-sym"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      s1 <- parseSpine; sp; str_ "="; sp; s0 <- parseSpine; sp; char_ ':'; sp; tel <- parseTel
+      pure (SpineEqSym ctx s0 s1 tel)) <|>
+  (do str_ "sp-trans"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      s0 <- parseSpine; sp; str_ "="; sp; s2 <- parseSpine; sp; char_ ':'; sp; tel <- parseTel
+      sp; str_ "via"; sp; s1 <- parseSpine
+      pure (SpineEqTrans ctx s0 s1 s2 tel))
 
 -- Parse a list of typing rules, each prefixed by "- ".
 export

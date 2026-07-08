@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run typing 'ε ⊦ ℕ-elim Z Z Z : ℕ'
+"$1" run typing 'el-nat-e ε ⊦ ℕ-elim Z Z Z : ℕ'

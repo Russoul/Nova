@@ -1,4 +1,4 @@
 #!/bin/sh
-"$1" run typing-list '- ε ctx
-- ε ᐅ ℕ ctx
-- ε ⊦ ℕ type'
+"$1" run typing-list '- ctx-emp
+- ctx-ext ε ᐅ ℕ
+- ty-nat ε ⊦ ℕ'

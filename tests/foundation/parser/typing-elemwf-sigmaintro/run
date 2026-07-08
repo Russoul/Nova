@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run typing 'ε ⊦ Z , () : ℕ ⨯ 𝟙'
+"$1" run typing 'el-sigma-i ε ⊦ Z , () : ℕ ⨯ 𝟙'

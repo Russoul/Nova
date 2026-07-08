@@ -28,27 +28,93 @@ t{0} ::= t{≥1} , t{≥0}                                                      
 α{0} ::= α{≥1} , α{≥0} | α{≥1} ; α{≥0}                                       (right-assoc)
 
 // TypingRule — syntax of derivation steps in .rules files
+// Each rule starts with a unique keyword; arguments follow in conclusion-like notation.
 R ::=
-    Γ ctx
-  | Γ = Γ' ctx [via Γ'']
-  | Γ = Γ' ⊦ t : T
-  | Γ | α ctx
-  | Γ | α ⊦ T | α type
-  | Γ | α ⊦ t | α : T | α type
-  | Γ ⊦ σ sub-wf [to Δ [via Θ]]
-  | Γ ⊦ T type
-  | Γ ⊦ T = T' type [via T'']
-  | Γ ⊦ Refl : t{≥5} ∈ T
-  | Γ ⊦ (t : T ⨯ T') .π₁
-  | Γ ⊦ (t : T ⨯ T') .π₂
-  | Γ ⊦ (t : T → T') t{≥5}
-  | Γ ⊦ x ≔ t : T
-  | Γ ⊦ t = t' : T [via t'' | ↝ T' | from Γ']
-  | Γ ⊦ t[σ] : T [from Γ']
-  | Γ ⊦ t : T ↝ T'
-  | Γ ⊦ t : T reflect
-  | Γ ⊦ t : T
-  | Γ ⊦ t
+
+  // Context
+  ctx-emp                                        (CtxWfEmpty)
+  ctx-ext    Γ ᐅ T                               (CtxWfExt)
+  ctx-refl   Γ                                   (CtxEqRefl)
+  ctx-sym    Γ₁ = Γ₀                             (CtxEqSym, conclusion: Γ₁ = Γ₀)
+  ctx-trans  Γ₀ = Γ₂ via Γ₁                     (CtxEqTrans, conclusion: Γ₀ = Γ₂)
+  ctx-cmp    Γ via α                              (CtxWfCompute)
+
+  // Substitution wf
+  sub-term   Γ ⊦ ·
+  sub-id     Γ ⊦ id
+  sub-wk     Γ ⊦ ↑
+  sub-ext    Γ ⊦ σ, e to Δ ᐅ T
+  sub-chn    Γ ⊦ σ ∘ τ to Δ via Θ
+
+  // Substitution eq
+  sub-refl   Γ ⊦ σ : Δ
+  sub-sym    Γ ⊦ σ₁ = σ₀ : Δ                   (conclusion: σ₁ = σ₀)
+  sub-trans  Γ ⊦ σ₀ = σ₂ : Δ via σ₁            (conclusion: σ₀ = σ₂)
+
+  // Type wf
+  ty-zero    Γ ⊦ 𝟘
+  ty-one     Γ ⊦ 𝟙
+  ty-nat     Γ ⊦ ℕ
+  ty-univ    Γ ⊦ 𝕌
+  ty-pi      Γ ⊦ A → B
+  ty-sigma   Γ ⊦ A ⨯ B
+  ty-eq-form Γ ⊦ l ≡ r ∈ A
+  ty-el      Γ ⊦ El e
+  ty-cmp     Γ via α ⊦ T via β                  (TyWfCompute)
+
+  // Type eq
+  ty-refl    Γ ⊦ T
+  ty-sym     Γ ⊦ T₁ = T₀                        (conclusion: T₁ = T₀)
+  ty-trans   Γ ⊦ T₀ = T₂ via T₁                 (conclusion: T₀ = T₂)
+
+  // Element wf: intro / elim
+  el-var      Γ ᐅ T ⊦ ☐
+  el-one      Γ ⊦ ()
+  el-zero     Γ ⊦ Z
+  el-suc      Γ ⊦ S t
+  el-pi-i     Γ ⊦ λ f : A → B
+  el-pi-e     Γ ⊦ (f : A → B) e
+  el-sigma-i  Γ ⊦ u, v : A ⨯ B
+  el-sigma-e1 Γ ⊦ (e : A ⨯ B) .π₁
+  el-sigma-e2 Γ ⊦ (e : A ⨯ B) .π₂
+  el-zero-e   Γ ⊦ 𝟘-elim e : T
+  el-nat-e    Γ ⊦ ℕ-elim z s t : T
+  el-reflect  Γ ⊦ t : (l ≡ r ∈ A) reflect       (ElemEqReflection)
+  el-refl     Γ ⊦ Refl : t ∈ A                  (ElemWfRefl)
+  el-sub      Γ ⊦ t[σ] : T from Δ
+  el-ty-coe   Γ ⊦ t : T₀ ↝ T₁
+  el-ctx-coe  Γ₀ = Γ₁ ⊦ t : T
+
+  // Element wf: universe codes
+  el-zero-ty  Γ ⊦ 𝟘 : 𝕌
+  el-one-ty   Γ ⊦ 𝟙 : 𝕌
+  el-nat-ty   Γ ⊦ ℕ : 𝕌
+  el-pi-ty    Γ ⊦ A → B : 𝕌
+  el-sigma-ty Γ ⊦ A ⨯ B : 𝕌
+  el-eq-ty    Γ ⊦ l ≡ r ∈ A : 𝕌
+  el-cmp      Γ via α ⊦ t via β : T via γ       (ElemWfCompute)
+
+  // Signature
+  sig-var-eq Γ ⊦ x = t : T                      (ElemEqSigVar)
+  sig-var    Γ ⊦ x                               (ElemWfSigVar)
+  sig        Γ ⊦ x ≔ t : T                      (SigExt)
+
+  // Element equality
+  el-ty-coe-eq Γ ⊦ t₀ = t₁ : T₀ ↝ T₁           (ElemEqTyCoe)
+  el-eq-refl   Γ ⊦ t : T                        (ElemEqRefl)
+  el-eq-sym    Γ ⊦ t₁ = t₀ : T                  (conclusion: t₁ = t₀)
+  el-eq-trans  Γ ⊦ t₀ = t₂ : T via t₁           (conclusion: t₀ = t₂)
+  el-sub-cong  Δ ⊦ a[σ] = b[σ] : T from Γ       (ElemEqSubstCong)
+
+  // Telescope equality
+  tel-refl   Γ ⊦ Δ
+  tel-sym    Γ ⊦ Δ₁ = Δ₀
+  tel-trans  Γ ⊦ Δ₀ = Δ₂ via Δ₁
+
+  // Spine equality
+  sp-refl    Γ ⊦ s : Δ
+  sp-sym     Γ ⊦ s₁ = s₀ : Δ
+  sp-trans   Γ ⊦ s₀ = s₂ : Δ via s₁
 
 // JudgementForm — syntax of target goals in .target files
 J ::=

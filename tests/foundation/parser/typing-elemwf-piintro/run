@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run typing 'ε ᐅ ℕ → 𝟙 ⊦ λ ☐ : ℕ → 𝟙'
+"$1" run typing 'el-pi-i ε ᐅ ℕ → 𝟙 ⊦ λ ☐ : ℕ → 𝟙'

@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run typing 'ε ᐅ ℕ | id ⊦ ℕ | ↓ type'
+"$1" run typing 'ty-cmp ε ᐅ ℕ via id ⊦ ℕ via ↓'

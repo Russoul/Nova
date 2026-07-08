@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run typing 'ε ⊦ ℕ type'
+"$1" run typing 'ty-nat ε ⊦ ℕ'

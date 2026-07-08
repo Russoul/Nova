@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run typing 'ε ⊦ 𝟙 type'
+"$1" run typing 'ty-one ε ⊦ 𝟙'

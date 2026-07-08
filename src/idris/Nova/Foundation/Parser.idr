@@ -165,7 +165,9 @@ mutual
                            then Just ch
                            else Nothing
               _ => Nothing)
-    pure (pack (c :: cs))
+    let name = pack (c :: cs)
+    guard "Reserved keyword: via" (name /= "via")
+    pure name
 
   -- Atomic elements: constants, or parenthesised expression.
   -- After '(' peek for ')' to distinguish () = OneIntro from (e).

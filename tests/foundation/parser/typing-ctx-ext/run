@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run typing 'ε ᐅ ℕ ctx'
+"$1" run typing 'ctx-ext ε ᐅ ℕ'

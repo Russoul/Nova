@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run typing 'ε | id ⊦ ☐ | ↓ : ℕ | id type'
+"$1" run typing 'el-cmp ε via id ⊦ ☐ via ↓ : ℕ via id'

@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run typing 'ε ⊦ S Z'
+"$1" run typing 'el-suc ε ⊦ S Z'
