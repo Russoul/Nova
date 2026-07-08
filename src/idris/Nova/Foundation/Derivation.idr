@@ -373,6 +373,25 @@ Show TypingRule where
 Rejection : Type
 Rejection = ()
 
+public export
+data NewRejection : Type where
+  CtxCmpNoRuleApplies : Ctx -> ComputeRule -> NewRejection
+  TyCmpNoRuleApplies : Ty -> ComputeRule -> NewRejection
+  SubCmpNoRuleApplies : Sub -> ComputeRule -> NewRejection
+  ElemCmpNoRuleApplies : Elem -> ComputeRule -> NewRejection
+  CtxWfNotDerivable : Ctx -> NewRejection
+  CtxEqNotDerivable : Ctx -> Ctx -> NewRejection
+  SubWfNotDerivable : Sub -> Ctx -> Ctx -> NewRejection
+  SubEqNotDerivable : Sub -> Sub -> Ctx -> Ctx -> NewRejection
+  TyWfNotDerivable : Ctx -> Ty -> NewRejection
+  TyEqNotDerivable : Ctx -> Ty -> Ty -> NewRejection
+  ElemWfNotDerivable : Ctx -> Elem -> Ty -> NewRejection
+  ElemEqNotDerivable : Ctx -> Elem -> Elem -> Ty -> NewRejection
+  TelWfNotDerivable : Ctx -> Tel -> NewRejection
+  TelEqNotDerivable : Ctx -> Tel -> Tel -> NewRejection
+  SpineWfNotDerivable : Ctx -> Spine -> Tel -> NewRejection
+  SpineEqNotDerivable : Ctx -> Spine -> Spine -> Tel -> NewRejection
+
 rejectUnless : Bool -> Either Rejection ()
 rejectUnless True = Right ()
 rejectUnless False = Left ()
