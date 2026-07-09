@@ -167,6 +167,7 @@ since it can't contain `id`/`↑`/`∘`.
 | `ty-sym Γ ⊦ A₁ = A₀` | `Γ ⊦ A₀ = A₁` | `Γ ⊦ A₁ = A₀` |
 | `ty-trans Γ ⊦ A₀ = A₂ via A₁` | `Γ ⊦ A₀ = A₁`, `Γ ⊦ A₁ = A₂` | `Γ ⊦ A₀ = A₂` |
 | `ty-eq-cong Γ ⊦ (a₀≡b₀∈T₀) = (a₁≡b₁∈T₁)` | `Γ ⊦ T₀ = T₁`, `Γ ⊦ a₀ = a₁ : T₁`, `Γ ⊦ b₀ = b₁ : T₁` | `Γ ⊦ (a₀≡b₀∈T₀) = (a₁≡b₁∈T₁)` — lets `EqTy`'s own arguments differ by a *judgemental* equality, not just computation; the usual way to build a `Refl`-typed element at a goal whose two sides aren't syntactically the reduct of one another (e.g. the successor case of an induction) |
+| `ty-el-cong Γ ⊦ El t₀ = El t₁` | `Γ ⊦ t₀ = t₁ : 𝕌` | `Γ ⊦ El t₀ = El t₁` — lifts a judgemental equality of universe *codes* to an equality of the *types* they decode to |
 
 ## Element well-formedness: introduction / elimination
 
@@ -223,6 +224,7 @@ sessions reference it by name instead of re-deriving it.
 | `el-eq-trans Γ ⊦ t₀ = t₂ : A via t₁` | `Γ ⊦ t₀ = t₁ : A`, `Γ ⊦ t₁ = t₂ : A` | `Γ ⊦ t₀ = t₂ : A` |
 | `el-ty-coe-eq Γ ⊦ t₀ = t₁ : A₀ ↝ A₁` | `Γ ⊦ t₀ = t₁ : A₀`, `Γ ⊦ A₀ = A₁` | `Γ ⊦ t₀ = t₁ : A₁` |
 | `el-suc-cong Γ ⊦ S t₀ = S t₁` | `Γ ⊦ t₀ = t₁ : ℕ` | `Γ ⊦ S t₀ = S t₁ : ℕ` |
+| `el-app-cong Γ ⊦ (f₀ = f₁ : A → B) t₀ = t₁` | `Γ ⊦ f₀ = f₁ : A → B`, `Γ ⊦ t₀ = t₁ : A` | `Γ ⊦ f₀ t₀ = f₁ t₁ : B[t₁]` |
 
 ## Telescope equality
 

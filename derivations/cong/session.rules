@@ -1,0 +1,56 @@
+- ctx-emp
+- ty-univ ε ⊦ 𝕌
+- ctx-ext ε ᐅ 𝕌
+- el-var ε ᐅ 𝕌 ⊦ ☐₀
+- ty-el ε ᐅ 𝕌 ⊦ El ☐₀
+- ctx-ext ε ᐅ 𝕌 ᐅ El ☐₀
+- ty-univ ε ᐅ 𝕌 ᐅ El ☐₀ ⊦ 𝕌
+- ty-pi ε ᐅ 𝕌 ⊦ El ☐₀ → 𝕌
+- ctx-ext ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌
+- el-var ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ⊦ ☐₀
+- el-var ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ⊦ ☐₁
+- ty-el ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ⊦ El ☐₁
+- ctx-ext ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁
+- el-var ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ ⊦ ☐₁
+- el-var ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ ⊦ ☐₀
+- el-pi-e ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ ⊦ (☐₁ : El ☐₂ → 𝕌) ☐₀
+- ty-el ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ ⊦ El (☐₁ ☐₀)
+- ty-pi ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ⊦ El ☐₁ → El (☐₁ ☐₀)
+- ctx-ext ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀)
+- el-var ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ⊦ ☐₂
+- ty-el ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ⊦ El ☐₂
+- ctx-ext ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂
+- el-var ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ⊦ ☐₃
+- ty-el ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ⊦ El ☐₃
+- ctx-ext ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃
+- el-var ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ⊦ ☐₁
+- el-var ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ⊦ ☐₀
+- el-var ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ⊦ ☐₄
+- ty-el ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ⊦ El ☐₄
+- ty-eq-form ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ⊦ ☐₁ ≡ ☐₀ ∈ El ☐₄
+- ctx-ext ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ᐅ ☐₁ ≡ ☐₀ ∈ El ☐₄
+- el-var ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ᐅ ☐₁ ≡ ☐₀ ∈ El ☐₄ ⊦ ☐₀
+- el-reflect ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ᐅ ☐₁ ≡ ☐₀ ∈ El ☐₄ ⊦ ☐₀ : (☐₂ ≡ ☐₁ ∈ El ☐₅) reflect
+- el-var ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ᐅ ☐₁ ≡ ☐₀ ∈ El ☐₄ ⊦ ☐₃
+- el-eq-refl ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ᐅ ☐₁ ≡ ☐₀ ∈ El ☐₄ ⊦ ☐₃ : El ☐₅ → El (☐₅ ☐₀)
+- el-app-cong ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ᐅ ☐₁ ≡ ☐₀ ∈ El ☐₄ ⊦ (☐₃ = ☐₃ : El ☐₅ → El (☐₅ ☐₀)) ☐₂ = ☐₁
+- el-var ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ᐅ ☐₁ ≡ ☐₀ ∈ El ☐₄ ⊦ ☐₄
+- el-eq-refl ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ᐅ ☐₁ ≡ ☐₀ ∈ El ☐₄ ⊦ ☐₄ : El ☐₅ → 𝕌
+- el-app-cong ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ᐅ ☐₁ ≡ ☐₀ ∈ El ☐₄ ⊦ (☐₄ = ☐₄ : El ☐₅ → 𝕌) ☐₂ = ☐₁
+- ty-el-cong ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ᐅ ☐₁ ≡ ☐₀ ∈ El ☐₄ ⊦ El (☐₄ ☐₂) = El (☐₄ ☐₁)
+- el-var ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ᐅ ☐₁ ≡ ☐₀ ∈ El ☐₄ ⊦ ☐₂
+- el-pi-e ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ᐅ ☐₁ ≡ ☐₀ ∈ El ☐₄ ⊦ (☐₃ : El ☐₅ → El (☐₅ ☐₀)) ☐₂
+- el-eq-refl ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ᐅ ☐₁ ≡ ☐₀ ∈ El ☐₄ ⊦ ☐₃ ☐₂ : El (☐₄ ☐₂)
+- el-ty-coe-eq ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ᐅ ☐₁ ≡ ☐₀ ∈ El ☐₄ ⊦ ☐₃ ☐₂ = ☐₃ ☐₂ : El (☐₄ ☐₂) ↝ El (☐₄ ☐₁)
+- ty-eq-cong ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ᐅ ☐₁ ≡ ☐₀ ∈ El ☐₄ ⊦ (☐₃ ☐₂) ≡ (☐₃ ☐₂) ∈ El (☐₄ ☐₂) = (☐₃ ☐₂) ≡ (☐₃ ☐₁) ∈ El (☐₄ ☐₁)
+- el-refl ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ᐅ ☐₁ ≡ ☐₀ ∈ El ☐₄ ⊦ Refl : (☐₃ ☐₂) ∈ El (☐₄ ☐₂)
+- el-ty-coe ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ᐅ ☐₁ ≡ ☐₀ ∈ El ☐₄ ⊦ Refl : (☐₃ ☐₂) ≡ (☐₃ ☐₂) ∈ El (☐₄ ☐₂) ↝ (☐₃ ☐₂) ≡ (☐₃ ☐₁) ∈ El (☐₄ ☐₁)
+- el-pi-i ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ᐅ El ☐₃ ⊦ λ Refl : (☐₁ ≡ ☐₀ ∈ El ☐₄) → ((☐₃ ☐₂) ≡ (☐₃ ☐₁) ∈ El (☐₄ ☐₁))
+- el-pi-i ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ᐅ El ☐₂ ⊦ λ (λ Refl) : El ☐₃ → (☐₁ ≡ ☐₀ ∈ El ☐₄) → ((☐₃ ☐₂) ≡ (☐₃ ☐₁) ∈ El (☐₄ ☐₁))
+- el-pi-i ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ᐅ El ☐₁ → El (☐₁ ☐₀) ⊦ λ (λ (λ Refl)) : El ☐₂ → El ☐₃ → (☐₁ ≡ ☐₀ ∈ El ☐₄) → ((☐₃ ☐₂) ≡ (☐₃ ☐₁) ∈ El (☐₄ ☐₁))
+- el-pi-i ε ᐅ 𝕌 ᐅ El ☐₀ → 𝕌 ⊦ λ (λ (λ (λ Refl))) : (El ☐₁ → El (☐₁ ☐₀)) → El ☐₂ → El ☐₃ → (☐₁ ≡ ☐₀ ∈ El ☐₄) → ((☐₃ ☐₂) ≡ (☐₃ ☐₁) ∈ El (☐₄ ☐₁))
+- el-pi-i ε ᐅ 𝕌 ⊦ λ (λ (λ (λ (λ Refl)))) : (El ☐₀ → 𝕌) → (El ☐₁ → El (☐₁ ☐₀)) → El ☐₂ → El ☐₃ → (☐₁ ≡ ☐₀ ∈ El ☐₄) → ((☐₃ ☐₂) ≡ (☐₃ ☐₁) ∈ El (☐₄ ☐₁))
+- el-pi-i ε ⊦ λ (λ (λ (λ (λ (λ Refl))))) : 𝕌 → (El ☐₀ → 𝕌) → (El ☐₁ → El (☐₁ ☐₀)) → El ☐₂ → El ☐₃ → (☐₁ ≡ ☐₀ ∈ El ☐₄) → ((☐₃ ☐₂) ≡ (☐₃ ☐₁) ∈ El (☐₄ ☐₁))
+- sig ε ⊦ cong ≔ λ (λ (λ (λ (λ (λ Refl))))) : 𝕌 → (El ☐₀ → 𝕌) → (El ☐₁ → El (☐₁ ☐₀)) → El ☐₂ → El ☐₃ → (☐₁ ≡ ☐₀ ∈ El ☐₄) → ((☐₃ ☐₂) ≡ (☐₃ ☐₁) ∈ El (☐₄ ☐₁))
+- sub-norm-term ε ⊦ ·
+- sig-var ε ⊦ cong[·]

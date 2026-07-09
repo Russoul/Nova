@@ -80,6 +80,7 @@ R ::=
   ty-sym     Γ ⊦ T₁ = T₀                        (conclusion: T₁ = T₀)
   ty-trans   Γ ⊦ T₀ = T₂ via T₁                 (conclusion: T₀ = T₂)
   ty-eq-cong Γ ⊦ (a₀ ≡ b₀ ∈ T₀) = (a₁ ≡ b₁ ∈ T₁) (TyEqCongEqTy)
+  ty-el-cong Γ ⊦ El t₀ = El t₁                   (TyEqCongEl)
 
   // Element wf: intro / elim
   el-var      Γ ⊦ ☐ₙ
@@ -118,6 +119,7 @@ R ::=
   el-eq-sym    Γ ⊦ t₁ = t₀ : T                  (conclusion: t₁ = t₀)
   el-eq-trans  Γ ⊦ t₀ = t₂ : T via t₁           (conclusion: t₀ = t₂)
   el-suc-cong  Γ ⊦ S t₀ = S t₁                   (ElemEqCongSuc)
+  el-app-cong  Γ ⊦ (f₀ = f₁ : A → B) t₀ = t₁     (ElemEqCongPiApp, conclusion: f₀ t₀ = f₁ t₁ : B[t₁])
 
   // Telescope equality
   tel-refl   Γ ⊦ Δ
