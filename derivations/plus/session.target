@@ -1,5 +1,6 @@
 - el-wf ε ⊦ plus[·] : ℕ → ℕ → ℕ
-- el-eq ε ᐅ ℕ ⊦ plus[·] ☐₀ Z = ☐₀ : ℕ
-- el-eq ε ᐅ ℕ ᐅ ℕ ⊦ plus[·] ☐₁ (S ☐₀) = S (plus[·] ☐₁ ☐₀) : ℕ
-- el-eq ε ᐅ ℕ ⊦ plus[·] Z ☐₀ = ☐₀ : ℕ
-- el-eq ε ᐅ ℕ ᐅ ℕ ⊦ plus[·] (S ☐₁) ☐₀ = S (plus[·] ☐₁ ☐₀) : ℕ
+- el-wf ε ᐅ ℕ ⊦ plusZeroId[·, ☐₀] : (plus[·] ☐₀ Z) ≡ ☐₀ ∈ ℕ
+- el-wf ε ᐅ ℕ ᐅ ℕ ⊦ plusSucId[·, ☐₁, ☐₀] : (plus[·] ☐₁ (S ☐₀)) ≡ (S (plus[·] ☐₁ ☐₀)) ∈ ℕ
+- el-wf ε ᐅ ℕ ⊦ zeroPlusId[·, ☐₀] : (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ
+- el-wf ε ᐅ ℕ ᐅ ℕ ⊦ sucPlus[·, ☐₁, ☐₀] : (plus[·] (S ☐₁) ☐₀) ≡ (S (plus[·] ☐₁ ☐₀)) ∈ ℕ
+- el-wf ε ᐅ ℕ ᐅ ℕ ⊦ plusComm[·, ☐₁, ☐₀] : (plus[·] ☐₀ ☐₁) ≡ (plus[·] ☐₁ ☐₀) ∈ ℕ
