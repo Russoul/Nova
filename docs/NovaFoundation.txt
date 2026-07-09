@@ -41,9 +41,11 @@ x ::= <signature-entry-identifier>
      | id            // identity substitution
      | ↑             // weakening substitution
 
+// typing context normal substitution
+e˲, t˲, p˲ ::= · | t˲, t
+
 // type
-T ::= T [σ]          // (Typing) context substitution
-    | 𝟘
+T ::= 𝟘
     | 𝟙
     | ℕ
     | 𝕌              // universe type
@@ -53,8 +55,7 @@ T ::= T [σ]          // (Typing) context substitution
     | El t           // Every element of the universe is a type
 
 // element
-t ::= t [σ]          // (Typing) context substitution
-    | x [σ]          // element in the signature context
+t ::= x [e˲]         // element in the signature context
     | ☐ᵢ             // i-th element in the typing context
     | λ t            // dependent product type introduction
     | t t            // dependent product type elimination
@@ -107,6 +108,20 @@ t ::= t [σ]          // (Typing) context substitution
 Σ ⊦ σ₁ : Γ ⇒ Δ
 ------------------- // substitution equality
 Σ ⊦ σ₀ = σ₁ : Γ ⇒ Δ
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ ⊦ Δ ctx
+------------------- // normal substitution
+Σ ⊦ e˲ : Γ ⇒ Δ norm
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ ⊦ Δ ctx
+Σ ⊦ e˲₀ : Γ ⇒ Δ norm
+Σ ⊦ σ˲₁ : Γ ⇒ Δ norm
+-------------------------- // normal substitution equality
+Σ ⊦ e˲₀ = e˲₁ : Γ ⇒ Δ norm
 
 Σ sig
 Σ ⊦ Γ ctx
@@ -238,7 +253,7 @@ x ∉ Σ
 Σ sig
 Σ ⊦ Γ ctx
 Σ ⊦ σ : Γ ⇒ ε
-------------- // empty substitution uniqueness
+----------------- // empty substitution uniqueness
 Σ ⊦ σ = · : Γ ⇒ ε
 
 Σ sig
@@ -248,7 +263,7 @@ x ∉ Σ
 ---------------
 Σ ⊦ σ : Γ₀ ⇒ Γ₁
 Σ Γ₀ ⊦ t : A[σ]
-==================== // extension substitution
+======================== // extension substitution
 Σ ⊦ (σ, t) : Γ₀ ⇒ Γ₁ ᐅ A
 
 Σ sig
@@ -470,6 +485,138 @@ x ∉ Σ
 -------------- // substitution equality codomain preservation
 Σ ⊦ σ = τ : Γ ⇒ Δ'
 
+///////// Inference rules (normal substitution) //////////
+
+Σ sig
+Σ ⊦ Γ ctx
+------------------      // empty normal substitution
+Σ ⊦ · : Γ ⇒ ε norm
+
+Σ sig
+Σ ⊦ Γ ctx
+----------------------  // empty normal substitution congruence
+Σ ⊦ · = · : Γ ⇒ ε norm
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ ⊦ e˲ : Γ ⇒ ε norm
+----------------------- // empty normal substitution uniqueness
+Σ ⊦ e˲ = · : Γ ⇒ ε norm
+
+Σ sig
+Σ ⊦ Γ₀ ctx
+Σ ⊦ Γ₁ ctx
+Σ Γ₁ ⊦ A type
+---------------------
+Σ ⊦ e˲ : Γ₀ ⇒ Γ₁ norm
+Σ Γ₀ ⊦ t : A[σ]
+============================== // extension normal substitution
+Σ ⊦ (e˲, t) : Γ₀ ⇒ Γ₁ ᐅ A norm
+
+Σ sig
+Σ ⊦ Γ₀ ctx
+Σ ⊦ Γ₁ ctx
+Σ Γ₁ ⊦ A type
+Σ ⊦ e˲₀ : Γ₀ ⇒ Γ₁ norm
+Σ ⊦ e˲₁ : Γ₀ ⇒ Γ₁ norm
+Σ Γ₀ ⊦ t₀ : A[σ₀]
+Σ Γ₀ ⊦ t₁ : A[σ₁]
+---------------------------------
+Σ ⊦ e˲₀ = e˲₁ : Γ₀ ⇒ Γ₁ norm
+Σ Γ₀ ⊦ t₀ = t₁ : A[e˲₁]
+======================================== // normal substitution congruence
+Σ ⊦ e˲₀, t₀ = e˲₁, t₁ : Γ₀ ⇒ Γ₁ ᐅ A norm
+
+Σ sig
+Σ ⊦ Γ₀ ctx
+Σ ⊦ Γ₁ ctx
+Σ ⊦ e˲ : Γ₀ ⇒ Γ₁ norm
+--------------------- // normal substitution is a substitution (embedding)
+Σ ⊦ e˲ : Γ₀ ⇒ Γ₁
+
+Σ sig
+Σ ⊦ Γ₀ ctx
+Σ ⊦ Γ₁ ctx
+Σ ⊦ e˲ : Γ₀ ⇒ Γ₁ norm
+Σ ⊦ σ : Δ ⇒ Γ₀
+------------------- // Composition defined by meta-level induction on normal substitution
+Σ ⊦ e˲ ∘ σ : Δ ⇒ Γ₁ norm
+    · ∘ σ ≜ ·
+    (e˲, t) ∘ σ ≜ (e˲ ∘ σ, t[σ])
+
+Σ sig
+Σ ⊦ Γ₀ ctx
+Σ ⊦ Γ₁ ctx
+Σ ⊦ e˲ : Γ₀ ⇒ Γ₁ norm
+-------------------------- // normal substitution reflexivity
+Σ ⊦ e˲ = e˲ : Γ₀ ⇒ Γ₁ norm
+
+Σ sig
+Σ ⊦ Γ₀ ctx
+Σ ⊦ Γ₁ ctx
+Σ ⊦ e˲ : Γ₀ ⇒ Γ₁ norm
+Σ ⊦ t˲ : Γ₀ ⇒ Γ₁ norm
+--------------------------
+Σ ⊦ e˲ = t˲ : Γ₀ ⇒ Γ₁ norm
+-------------------------- // normal substitution symmetry
+Σ ⊦ t˲ = e˲ : Γ₀ ⇒ Γ₁ norm
+
+Σ sig
+Σ ⊦ Γ₀ ctx
+Σ ⊦ Γ₁ ctx
+Σ ⊦ e˲ : Γ₀ ⇛ Γ₁ norm
+Σ ⊦ t˲ : Γ₀ ⇛ Γ₁ norm
+Σ ⊦ p˲ : Γ₀ ⇛ Γ₁ norm
+-------------------
+Σ ⊦ e˲ = t˲ : Γ₀ ⇛ Γ₁ norm
+Σ ⊦ t˲ = p˲ : Γ₀ ⇛ Γ₁ norm
+-------------------------- // normal substitution transitivity
+Σ ⊦ e˲ = p˲ : Γ₀ ⇛ Γ₁ norm
+
+Σ sig
+Σ ⊦ Γ₀ ctx
+Σ ⊦ Γ₁ ctx
+Σ ⊦ Δ ctx
+---------------
+Σ ⊦ Γ₀ = Γ₁ ctx
+Σ ⊦ e˲ : Γ₀ ⇒ Δ norm
+-------------------- // normal substitution domain preservation
+Σ ⊦ e˲ : Γ₁ ⇒ Δ norm
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ ⊦ Δ₀ ctx
+Σ ⊦ Δ₁ ctx
+---------------
+Σ ⊦ e˲ : Γ ⇒ Δ₀ norm
+Σ ⊦ Δ₀ = Δ₁ ctx
+--------------------- // normal substitution codomain preservation
+Σ ⊦ e˲ : Γ ⇒ Δ₁ norm
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ ⊦ Γ' ctx
+Σ ⊦ Δ ctx
+Σ ⊦ e˲ : Γ ⇒ Δ norm
+Σ ⊦ t˲ : Γ ⇒ Δ norm
+-----------------
+Σ ⊦ Γ = Γ' ctx
+Σ ⊦ e˲ = t˲ : Γ ⇒ Δ norm
+-------------------- // normal substitution equality domain preservation
+Σ ⊦ e˲ = t˲ : Γ' ⇒ Δ norm
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ ⊦ Δ ctx
+Σ ⊦ Δ' ctx
+Σ ⊦ e˲ : Γ ⇒ Δ norm
+Σ ⊦ t˲ : Γ ⇒ Δ norm
+-------------------
+Σ ⊦ Δ = Δ' ctx
+Σ ⊦ e˲ = t˲ : Γ ⇒ Δ norm
+------------------------ // normal substitution equality codomain preservation
+Σ ⊦ e˲ = t˲ : Γ ⇒ Δ' norm
+
 ///////// Inference rules (type) //////////
 
 Σ sig
@@ -576,14 +723,14 @@ x ∉ Σ
 ---------------
 Σ Γ₁ ⊦ A type
 Σ ⊦ σ : Γ₀ ⇒ Γ₁
----------------- // substitution type
+---------------- // defined by meta-level induction on A
 Σ Γ₀ ⊦ A[σ] type
 
 Σ sig
 Σ ⊦ Γ ctx
 Σ Γ ⊦ A type
-----------------------
-Σ Γ ⊦ A[id] ≜ A type
+--------------------- // True on the nose by induction on A
+Σ Γ ⊦ A[id] = A type
 
 Σ sig
 Σ ⊦ Γ₀ ctx
@@ -592,8 +739,8 @@ x ∉ Σ
 Σ Γ₂ ⊦ A type
 Σ ⊦ σ : Γ₁ ⇒ Γ₂
 Σ ⊦ τ : Γ₀ ⇒ Γ₁
---------------------------------
-Σ Γ₀ ⊦ A[σ ∘ τ] ≜ A[σ][τ] type
+------------------------------ // True on the nose by induction on A
+Σ Γ₀ ⊦ A[σ ∘ τ] = A[σ][τ] type
 
 Σ sig
 Σ ⊦ Γ₀ ctx
@@ -787,14 +934,13 @@ x ∉ Σ
 -------------
 Σ ⊦ σ : Γ₀ ⇒ Γ₁
 Σ Γ₁ ⊦ Δ tel
----------------
+--------------- // defined by meta-level induction on Δ
 Σ Γ₀ ⊦ Δ[σ] tel
 
 Σ sig
 Σ ⊦ Γ₀ ctx
 Σ ⊦ Γ₁ ctx
 Σ ⊦ σ : Γ₀ ⇒ Γ₁
--------------------
 -------------------
 Σ Γ₀ ⊦ ε[σ] ≜ ε tel
 
@@ -882,9 +1028,8 @@ x ∉ Σ
 
 Σ sig
 Σ ⊦ Γ ctx
--------------- // Γ‖ₙ picks A directly out of Γ's own structure — no
--------------- // derivation of ☐ₙ₋₁, ☐ₙ₋₂, ... is required first.
-Σ Γ ⊦ ☐ₙ : Γ‖ₙ
+-------------------- // Γ‖ₙ picks A directly out of Γ's own structure — no
+Σ Γ ⊦ ☐ₙ : Γ‖ₙ       // derivation of ☐ₙ₋₁, ☐ₙ₋₂, ... is required first.
 
 Σ sig
 Σ ⊦ Γ ctx
@@ -1126,16 +1271,16 @@ x ∉ Σ
 Σ sig
 (Γ ⊦ x ≔ a : A) ∈ Σ
 Σ ⊦ Δ ctx
-σ : Δ ⇒ Γ
+e˲ : Δ ⇒ Γ
 -------------------
-Σ Δ ⊦ x[σ] : A[σ]
+Σ Δ ⊦ x[e˲] : A[e˲]
 
 Σ sig
 (Γ ⊦ x ≔ a : A) ∈ Σ
 Σ ⊦ Δ ctx
-σ : Δ ⇒ Γ
-------------------------
-Σ Γ ⊦ x[σ] = a[σ] : A[σ]
+e˲ : Δ ⇒ Γ
+---------------------------
+Σ Γ ⊦ x[e˲] = a[e˲] : A[e˲]
 // unidirectional rewrite rule
 
 Σ sig
@@ -1143,26 +1288,25 @@ x ∉ Σ
 Σ ⊦ Γ₁ ctx
 Σ Γ₁ ⊦ A type
 Σ ⊦ σ : Γ₀ ⇒ Γ₁
-----------------
 Σ Γ₁ ⊦ t : A
-----------------
+------------------    // defined by metal-level induction on t
 Σ Γ₀ ⊦ t[σ] : A[σ]
 
 Σ sig
 (Γ ⊦ x : A) ∈ Σ
 Σ ⊦ Γ₀ ctx
 Σ ⊦ Γ₁ ctx
-ξ : Γ₁ ⇒ Γ
+e˲ : Γ₁ ⇒ Γ
 σ : Γ₀ ⇒ Γ₁
--------------------------------------
-Σ Γ₀ ⊦ x[ξ][σ] ⇝ x [ξ ∘ σ] : A[ξ][σ]
+----------------------------------------
+Σ Γ₀ ⊦ x[e˲][σ] ≜ x[e˲ ∘ σ] : A[e˲ ∘ σ]
 
 Σ sig
 Σ ⊦ Γ ctx
 Σ Γ ⊦ A type
 Σ Γ ⊦ t : A
--------------------
-Σ Γ ⊦ t[id] ≜ t : A
+------------------- // true on the nose by induction on t
+Σ Γ ⊦ t[id] = t : A
 
 Σ sig
 Σ ⊦ Γ₀ ctx
@@ -1172,8 +1316,8 @@ x ∉ Σ
 Σ Γ₂ ⊦ t : A
 Σ ⊦ σ : Γ₁ ⇒ Γ₂
 Σ ⊦ τ : Γ₀ ⇒ Γ₁
------------------------------------
-Σ Γ₀ ⊦ t[σ ∘ τ] ≜ t[σ][τ] : A[σ][τ]
+----------------------------------- // true on the nose by induction on t
+Σ Γ₀ ⊦ t[σ ∘ τ] = t[σ][τ] : A[σ][τ]
 
 Σ sig
 Σ ⊦ Γ₀ ctx
@@ -1352,6 +1496,22 @@ x ∉ Σ
 Σ Γ ⊦ ☐ₙ : B
 -----------------------------
 Σ Γ ᐅ A ⊦ ☐ₙ[↑] ≜ ☐ₙ₊₁ : B[↑]
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ B type
+Σ Γ ⊦ ☐ₙ : B
+---------------------
+Σ Γ ⊦ ☐ₙ[id] ≜ ☐ₙ : B
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ B type
+Σ Γ ⊦ ☐ₙ : B
+Σ ⊦ τ : Δ ⇒ Γ
+Σ ⊦ σ : Ξ ⇒ Δ
+------------------------------------
+Σ Ξ ⊦ ☐ₙ[τ ∘ σ] ≜ ☐ₙ[τ][σ] : B[τ][σ]
 
 Σ sig
 Σ ⊦ Γ ctx
@@ -1569,7 +1729,7 @@ x ∉ Σ
 ----------------
 Σ Γ ⊦ e : A
 Σ Γ ⊦ ē : Δ[id, e]
-================
+==================
 Σ Γ ⊦ e, ē : A ◁ Δ
 
 Σ sig
@@ -1578,7 +1738,7 @@ x ∉ Σ
 Σ Γ₁ ⊦ Δ tel
 Σ Γ₁ ⊦ ē : Δ
 Σ ⊦ σ : Γ₀ ⇒ Γ₁
-----------------
+------------------ // defined by meta-level induction on ē
 Σ Γ₀ ⊦ ē[σ] : Δ[σ]
 
 Σ sig

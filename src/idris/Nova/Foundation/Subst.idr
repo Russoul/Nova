@@ -30,6 +30,12 @@ import Nova.Foundation.Syntax
 %default covering
 
 mutual
+  ||| e˲[σ]
+  export
+  substSubNorm : SubNorm -> Sub -> SubNorm
+  substSubNorm [<] sigma = [<]
+  substSubNorm (es :< e) sigma = substSubNorm es sigma :< substElem e sigma
+
   ||| Γ‖ₙ-style variable resolution against a concrete substitution:
   ||| what (☐ₙ)[σ] computes to.
   export
@@ -43,13 +49,13 @@ mutual
   substVar (S n) (Ext sigma t) = substVar n sigma
   substVar n     (Chain s t) = substElem (substVar n s) t
 
+  ||| t[σ]
   export
   substElem : Elem -> Sub -> Elem
-  substElem (SubstElim e tau)  sigma = substElem (substElem e tau) sigma
   substElem (CtxVar n)         sigma = substVar n sigma
   substElem (ZeroElim t)       sigma = ZeroElim (substElem t sigma)
-  substElem OneIntro            sigma = OneIntro
-  substElem NatIntro0           sigma = NatIntro0
+  substElem OneIntro           sigma = OneIntro
+  substElem NatIntro0          sigma = NatIntro0
   substElem (NatIntro1 t)      sigma = NatIntro1 (substElem t sigma)
   substElem (NatElim z s t)    sigma = NatElim (substElem z sigma) (substElem s (under (under sigma))) (substElem t sigma)
   substElem (PiIntro f)        sigma = PiIntro (substElem f (under sigma))
@@ -57,18 +63,18 @@ mutual
   substElem (SigmaIntro a b)   sigma = SigmaIntro (substElem a sigma) (substElem b sigma)
   substElem (SigmaElim1 t)     sigma = SigmaElim1 (substElem t sigma)
   substElem (SigmaElim2 t)     sigma = SigmaElim2 (substElem t sigma)
-  substElem Elem.ZeroTy         sigma = Elem.ZeroTy
-  substElem Elem.OneTy          sigma = Elem.OneTy
-  substElem Elem.NatTy          sigma = Elem.NatTy
+  substElem Elem.ZeroTy        sigma = Elem.ZeroTy
+  substElem Elem.OneTy         sigma = Elem.OneTy
+  substElem Elem.NatTy         sigma = Elem.NatTy
   substElem (Elem.PiTy a b)    sigma = Elem.PiTy (substElem a sigma) (substElem b (under sigma))
   substElem (Elem.SigmaTy a b) sigma = Elem.SigmaTy (substElem a sigma) (substElem b (under sigma))
   substElem (Elem.EqTy l r t)  sigma = Elem.EqTy (substElem l sigma) (substElem r sigma) (substElem t sigma)
-  substElem Refl                sigma = Refl
-  substElem (SigVar x tau)     sigma = SigVar x (Chain tau sigma)
+  substElem Refl               sigma = Refl
+  substElem (SigVar x es)      sigma = SigVar x (substSubNorm es sigma)
 
+||| T[σ]
 export
 substTy : Ty -> Sub -> Ty
-substTy (Ty.SubstElim ty tau) sigma = substTy (substTy ty tau) sigma
 substTy Ty.ZeroTy             sigma = Ty.ZeroTy
 substTy Ty.OneTy              sigma = Ty.OneTy
 substTy Ty.NatTy              sigma = Ty.NatTy
@@ -78,12 +84,19 @@ substTy (Ty.SigmaTy a b)      sigma = Ty.SigmaTy (substTy a sigma) (substTy b (u
 substTy (EqTy l r ty)         sigma = EqTy (substElem l sigma) (substElem r sigma) (substTy ty sigma)
 substTy (El e)                sigma = El (substElem e sigma)
 
+||| Δ[σ]
 export
 substTel : Tel -> Sub -> Tel
 substTel []           sigma = []
 substTel (ty :: rest) sigma = substTy ty sigma :: substTel rest (under sigma)
 
+||| ē[σ]
 export
 substSpine : Spine -> Sub -> Spine
 substSpine []        sigma = []
 substSpine (e :: es) sigma = substElem e sigma :: substSpine es sigma
+
+export
+embed : SubNorm -> Sub
+embed [<] = Terminal
+embed (es :< e) = Ext (embed es) e

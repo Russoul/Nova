@@ -2,6 +2,7 @@ module Nova.Foundation.Derivation
 
 import Data.SnocList
 import Nova.Foundation.Syntax
+import Nova.Foundation.Subst
 
 import Data.SortedSet
 
@@ -36,6 +37,16 @@ SubWf = (Sub, Ctx, Ctx)
 public export
 SubEq : Type
 SubEq = (Sub, Sub, Ctx, Ctx)
+
+||| e˲ : Γ ⇒ Δ norm
+public export
+SubNormWf : Type
+SubNormWf = (SubNorm, Ctx, Ctx)
+
+||| e˲₀ = e˲₁ : Γ ⇒ Δ norm
+public export
+SubNormEq : Type
+SubNormEq = (SubNorm, SubNorm, Ctx, Ctx)
 
 ||| Γ ⊦ a : A
 public export
@@ -72,6 +83,8 @@ data JudgementForm = JfCtxWf CtxWf
                    | JfCtxEq CtxEq
                    | JfSubWf SubWf
                    | JfSubEq SubEq
+                   | JfSubNormWf SubNormWf
+                   | JfSubNormEq SubNormEq
                    | JfTyWf TyWf
                    | JfTyEq TyEq
                    | JfElemWf ElemWf
@@ -92,6 +105,8 @@ record Truth where
   tyEq : SortedSet TyEq
   subWf : SortedSet SubWf
   subEq : SortedSet SubEq
+  subNormWf : SortedSet SubNormWf
+  subNormEq : SortedSet SubNormEq
   elemWf : SortedSet ElemWf
   elemEq : SortedSet ElemEq
   telWf : SortedSet TelWf
@@ -101,7 +116,7 @@ record Truth where
 
 export
 trivial : Truth
-trivial = MkTruth [<] empty empty empty empty empty empty empty empty empty empty empty empty
+trivial = MkTruth [<] empty empty empty empty empty empty empty empty empty empty empty empty empty empty
 
 ||| α
 public export
@@ -112,8 +127,6 @@ data ComputeRule =
                | Id
                  -- α; α
                | Composition ComputeRule ComputeRule
-                 -- α [β]
-               | InSubstElim ComputeRule ComputeRule
                  -- 𝟘-elim α
                | InZeroElim ComputeRule
                  -- S α
@@ -223,10 +236,10 @@ data TypingRule : Type where
   ||| Γ₁ ⊦ a : A
   ElemWfCtxCoe : Ctx -> Ctx -> Elem -> Ty -> TypingRule
   ||| (Γ ⊦ x ≔ a : A) ∈ Σ
-  ||| σ : Δ ⇒ Γ
+  ||| σ : Δ ⇒ Γ norm
   ||| -------------------
   ||| Σ Δ ⊦ x[σ] : A[σ]
-  ElemWfSigVar : Ctx -> Sub -> SigIdentifier -> TypingRule
+  ElemWfSigVar : Ctx -> SubNorm -> SigIdentifier -> TypingRule
   -- Context equality
   CtxEqRefl  : Ctx -> TypingRule
   CtxEqSym   : Ctx -> Ctx -> TypingRule
@@ -259,10 +272,10 @@ data TypingRule : Type where
   ||| Γ ⊦ a₀ = a₁ : A
   ElemEqReflection : Ctx -> Elem -> Elem -> Elem -> Ty -> TypingRule
   ||| (Γ ⊦ x ≔ a : A) ∈ Σ
-  ||| σ : Δ ⇒ Γ
-  ||| ------------------------
-  ||| Σ Δ ⊦ x[σ] = a[σ] : A[σ]
-  ElemEqSigVar : Ctx -> Sub -> SigIdentifier -> TypingRule
+  ||| e˲ : Δ ⇒ Γ norm
+  ||| ---------------------------
+  ||| Σ Δ ⊦ x[e˲] = a[e˲] : A[e˲]
+  ElemEqSigVar : Ctx -> SubNorm -> SigIdentifier -> TypingRule
   ||| Γ ⊦ a = b : A
   ||| σ : Δ ⇒ Γ
   ||| -------------------------
@@ -295,7 +308,6 @@ export covering
 Show ComputeRule where
   show Here                    = "Here"
   show Id                      = "Id"
-  show (InSubstElim a b)       = "InSubstElim (\{show a}) (\{show b})"
   show (InZeroElim a)          = "InZeroElim (\{show a})"
   show (InNatIntro1 a)         = "InNatIntro1 (\{show a})"
   show (InNatElim a b c)       = "InNatElim (\{show a}) (\{show b}) (\{show c})"
@@ -388,6 +400,8 @@ data Rejection : Type where
   CtxEqNotDerivable : Ctx -> Ctx -> Rejection
   SubWfNotDerivable : Sub -> Ctx -> Ctx -> Rejection
   SubEqNotDerivable : Sub -> Sub -> Ctx -> Ctx -> Rejection
+  SubNormWfNotDerivable : SubNorm -> Ctx -> Ctx -> Rejection
+  SubNormEqNotDerivable : SubNorm -> SubNorm -> Ctx -> Ctx -> Rejection
   TyWfNotDerivable : Ctx -> Ty -> Rejection
   TyEqNotDerivable : Ctx -> Ty -> Ty -> Rejection
   ElemWfNotDerivable : Ctx -> Elem -> Ty -> Rejection
@@ -414,6 +428,11 @@ subWfDerivable sigma gamma delta sp =
   rejectUnless (SubWfNotDerivable sigma gamma delta) $ contains (sigma, gamma, delta) sp.subWf
 
 export
+subNormWfDerivable : SubNorm -> Ctx -> Ctx -> Truth -> Either Rejection ()
+subNormWfDerivable sigma gamma delta sp =
+  rejectUnless (SubNormWfNotDerivable sigma gamma delta) $ contains (sigma, gamma, delta) sp.subNormWf
+
+export
 tyWfDerivable : Ctx -> Ty -> Truth -> Either Rejection ()
 tyWfDerivable ctx ty sp = rejectUnless (TyWfNotDerivable ctx ty) $ contains (ctx, ty) sp.tyWf
 
@@ -436,6 +455,11 @@ export
 subEqDerivable : Sub -> Sub -> Ctx -> Ctx -> Truth -> Either Rejection ()
 subEqDerivable s0 s1 g d sp =
   rejectUnless (SubEqNotDerivable s0 s1 g d) $ contains (s0, s1, g, d) sp.subEq
+
+export
+subNormEqDerivable : SubNorm -> SubNorm -> Ctx -> Ctx -> Truth -> Either Rejection ()
+subNormEqDerivable s0 s1 g d sp =
+  rejectUnless (SubNormEqNotDerivable s0 s1 g d) $ contains (s0, s1, g, d) sp.subNormEq
 
 export
 elemEqDerivable : Ctx -> Elem -> Elem -> Ty -> Truth -> Either Rejection ()
@@ -466,8 +490,8 @@ spineEqDerivable ctx s0 s1 tel sp =
 ||| it and the front of Γ).
 ctxLookup : Ctx -> Nat -> Maybe Ty
 ctxLookup [<]          _     = Nothing
-ctxLookup (rest :< ty) Z     = Just (SubstElim ty Wk)
-ctxLookup (rest :< ty) (S n) = map (\t => SubstElim t Wk) (ctxLookup rest n)
+ctxLookup (rest :< ty) Z     = Just (substTy ty Wk)
+ctxLookup (rest :< ty) (S n) = map (\t => substTy t Wk) (ctxLookup rest n)
 
 mutual
   sigLookup : SigIdentifier -> Sig -> Maybe SigEntry
@@ -482,16 +506,6 @@ mutual
   computeCtx sig alpha gamma = Left (CtxCmpNoRuleApplies gamma alpha)
 
   computeTy : Sig -> ComputeRule -> Ty -> Either Rejection Ty
-  computeTy sig Here (SubstElim ZeroTy _) = Right ZeroTy
-  computeTy sig Here (SubstElim OneTy _) = Right OneTy
-  computeTy sig Here (SubstElim NatTy _) = Right NatTy
-  computeTy sig Here (SubstElim UniverseTy _) = Right UniverseTy
-  computeTy sig Here (SubstElim (PiTy a b) sigma) = Right (PiTy (SubstElim a sigma) (SubstElim b (under sigma)))
-  computeTy sig Here (SubstElim (SigmaTy a b) sigma) = Right (SigmaTy (SubstElim a sigma) (SubstElim b (under sigma)))
-  computeTy sig Here (SubstElim (EqTy l r ty) sigma) = Right (EqTy (SubstElim l sigma) (SubstElim r sigma) (SubstElim ty sigma))
-  computeTy sig Here (SubstElim ty Id) = Right ty
-  computeTy sig Here (SubstElim (SubstElim ty sigma) tau) = Right (SubstElim ty (Chain sigma tau))
-  computeTy sig Here (SubstElim ty (Chain sigma tau)) = Right (SubstElim (SubstElim ty sigma) tau)
   computeTy sig Here (El ZeroTy) = Right ZeroTy
   computeTy sig Here (El OneTy) = Right OneTy
   computeTy sig Here (El NatTy) = Right NatTy
@@ -499,7 +513,6 @@ mutual
   computeTy sig Here (El (SigmaTy a b)) = Right (SigmaTy (El a) (El b))
   computeTy sig Here (El (EqTy a b t)) = Right (EqTy a b (El t))
   computeTy sig Id x = Right x
-  computeTy sig (InSubstElim alpha beta) (SubstElim ty sigma) = [| SubstElim (computeTy sig alpha ty) (computeSub sig beta sigma) |]
   computeTy sig (InPiTy alpha beta) (PiTy a b) = [| PiTy (computeTy sig alpha a) (computeTy sig beta b) |]
   computeTy sig (InSigmaTy alpha beta) (SigmaTy a b) = [| SigmaTy (computeTy sig alpha a) (computeTy sig beta b) |]
   computeTy sig (InEqTy alpha beta gamma) (EqTy l r ty) = [| EqTy (computeElem sig alpha l) (computeElem sig beta r) (computeTy sig gamma ty) |]
@@ -507,59 +520,21 @@ mutual
   computeTy sig (Composition alpha beta) x = computeTy sig alpha x >>= computeTy sig beta
   computeTy sig alpha ty = Left (TyCmpNoRuleApplies ty alpha)
 
-  computeSub : Sig -> ComputeRule -> Sub -> Either Rejection Sub
-  computeSub sig Id sigma = Right sigma
-  -- ↑ ∘ (σ, e) = σ
-  computeSub sig Here (Chain Wk (Ext sigma _)) = Right sigma
-  computeSub sig (Composition alpha beta) x = computeSub sig alpha x >>= computeSub sig beta
-  computeSub sig alpha sigma = Left (SubCmpNoRuleApplies sigma alpha)
-
   computeElem : Sig -> ComputeRule -> Elem -> Either Rejection Elem
   computeElem sig Id x = Right x
-  computeElem sig Here (PiApp (PiIntro f) e)      = Right (SubstElim f (Ext Id e))
-  computeElem sig Here (PiIntro (PiApp (SubstElim f Wk) (CtxVar 0))) = Right f
+  computeElem sig Here (PiApp (PiIntro f) e)      = Right (substElem f (Ext Id e))
   computeElem sig Here (NatElim z _ NatIntro0)     = Right z
-  computeElem sig Here (NatElim z s (NatIntro1 t)) = Right (SubstElim s (Ext (Ext Id t) (NatElim z s t)))
+  computeElem sig Here (NatElim z s (NatIntro1 t)) = Right (substElem s (Ext (Ext Id t) (NatElim z s t)))
   computeElem sig Here (SigmaElim1 (SigmaIntro a _)) = Right a
   computeElem sig Here (SigmaElim2 (SigmaIntro _ b)) = Right b
   computeElem sig Here (SigmaIntro (SigmaElim1 u) (SigmaElim2 v)) = do
     rejectUnless (ElemCmpNoRuleApplies (SigmaIntro (SigmaElim1 u) (SigmaElim2 v)) Here) (u == v)
     Right u
-  -- ☐₀[σ, t] = t
-  computeElem sig Here (SubstElim (CtxVar 0) (Ext _ t)) = Right t
-  -- ☐ₙ₊₁[σ, t] = ☐ₙ[σ]
-  computeElem sig Here (SubstElim (CtxVar (S n)) (Ext sigma _)) = Right (SubstElim (CtxVar n) sigma)
-  -- ☐ₙ[↑] = ☐ₙ₊₁
-  computeElem sig Here (SubstElim (CtxVar n) Wk) = Right (CtxVar (S n))
-  computeElem sig Here (SubstElim t Id) = Right t
-  computeElem sig Here (SubstElim (SubstElim t sigma) tau) = Right (SubstElim t (Chain sigma tau))
-  computeElem sig Here (SubstElim t (Chain sigma tau)) = Right (SubstElim (SubstElim t sigma) tau)
-  computeElem sig Here (SubstElim (ZeroElim t) sigma) = Right (ZeroElim (SubstElim t sigma))
-  computeElem sig Here (SubstElim OneIntro sigma) = Right OneIntro
-  computeElem sig Here (SubstElim NatIntro0 sigma) = Right NatIntro0
-  computeElem sig Here (SubstElim (NatIntro1 t) sigma) = Right (NatIntro1 (SubstElim t sigma))
-  computeElem sig Here (SubstElim (NatElim z s t) sigma) =
-    Right (NatElim (SubstElim z sigma) (SubstElim s (under (under sigma))) (SubstElim t sigma))
-  computeElem sig Here (SubstElim (PiIntro f) sigma) = Right (PiIntro (SubstElim f (under sigma)))
-  computeElem sig Here (SubstElim (PiApp f e) sigma) = Right (PiApp (SubstElim f sigma) (SubstElim e sigma))
-  computeElem sig Here (SubstElim (SigmaIntro a b) sigma) = Right (SigmaIntro (SubstElim a sigma) (SubstElim b sigma))
-  computeElem sig Here (SubstElim (SigmaElim1 t) sigma) = Right (SigmaElim1 (SubstElim t sigma))
-  computeElem sig Here (SubstElim (SigmaElim2 t) sigma) = Right (SigmaElim2 (SubstElim t sigma))
-  computeElem sig Here (SubstElim ZeroTy sigma) = Right ZeroTy
-  computeElem sig Here (SubstElim OneTy sigma) = Right OneTy
-  computeElem sig Here (SubstElim NatTy sigma) = Right NatTy
-  computeElem sig Here (SubstElim (PiTy a b) sigma) = Right (PiTy (SubstElim a sigma) (SubstElim b (under sigma)))
-  computeElem sig Here (SubstElim (SigmaTy a b) sigma) = Right (SigmaTy (SubstElim a sigma) (SubstElim b (under sigma)))
-  computeElem sig Here (SubstElim (EqTy l r ty) sigma) = Right (EqTy (SubstElim l sigma) (SubstElim r sigma) (SubstElim ty sigma))
-  computeElem sig Here (SubstElim Refl sigma) = Right Refl
   -- x[σ] = a[σ]
   computeElem sig Here (SigVar x sigma) =
     case sigLookup x sig of
       Nothing => Left (ElemCmpNoRuleApplies (SigVar x sigma) Here)
-      Just (_, _, a, _) => Right (SubstElim a sigma)
-  -- x[ξ][σ] = x[ξ ∘ σ]
-  computeElem sig Here (SubstElim (SigVar x xi) sigma) = Right (SigVar x (Chain xi sigma))
-  computeElem sig (InSubstElim alpha beta) (SubstElim t sigma) = [| SubstElim (computeElem sig alpha t) (computeSub sig beta sigma) |]
+      Just (_, _, a, _) => Right (substElem a (embed sigma))
   computeElem sig (InZeroElim alpha) (ZeroElim t) = [| ZeroElim (computeElem sig alpha t) |]
   computeElem sig (InNatIntro1 alpha) (NatIntro1 t) = [| NatIntro1 (computeElem sig alpha t) |]
   computeElem sig (InNatElim alpha beta gamma) (NatElim z s t) = [| NatElim (computeElem sig alpha z) (computeElem sig beta s) (computeElem sig gamma t) |]
@@ -652,7 +627,7 @@ step (TyWfEl gamma t) sp = do
 step (TyWfSubElim ty sigma gamma delta) sp = do
   subWfDerivable sigma gamma delta sp
   tyWfDerivable delta ty sp
-  Right $ {tyWf $= insert (gamma, SubstElim ty sigma)} sp
+  Right $ {tyWf $= insert (gamma, substTy ty sigma)} sp
 step (ElemWfVar gamma n) sp = do
   ctxWfDerivable gamma sp
   case ctxLookup gamma n of
@@ -673,27 +648,28 @@ step (ElemWfSucIntro gamma t) sp = do
   Right $ {elemWf $= insert (gamma, NatIntro1 t, NatTy)} sp
 step (ElemWfNatElim gamma z s t a) sp = do
   -- tyWfDerivable (gamma :< NatTy) a sp
-  elemWfDerivable gamma z (SubstElim a (Ext Id NatIntro0)) sp
-  elemWfDerivable (gamma :< NatTy :< a) s (SubstElim a (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) sp
+  elemWfDerivable gamma z (substTy a (Ext Id NatIntro0)) sp
+  elemWfDerivable (gamma :< NatTy :< a) s (substTy a (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) sp
   elemWfDerivable gamma t NatTy sp
-  Right $ {elemWf $= insert (gamma, NatElim z s t, SubstElim a (Ext Id t))} sp
+  Right $ {elemWf $= insert (gamma, NatElim z s t, substTy a (Ext Id t))} sp
 step (ElemWfPiIntro gamma f a b) sp = do
   elemWfDerivable (gamma :< a) f b sp
   Right $ {elemWf $= insert (gamma, PiIntro f, PiTy a b)} sp
 step (ElemWfPiApp gamma f a b e) sp = do
   elemWfDerivable gamma f (PiTy a b) sp
   elemWfDerivable gamma e a sp
-  Right $ {elemWf $= insert (gamma, PiApp f e, SubstElim b (Ext Id e))} sp
+  Right $ {elemWf $= insert (gamma, PiApp f e, substTy b (Ext Id e))} sp
 step (ElemWfSigmaIntro gamma u v a b) sp = do
+  tyWfDerivable (gamma :< a) b sp
   elemWfDerivable gamma u a sp
-  elemWfDerivable gamma v (SubstElim b (Ext Id u)) sp
+  elemWfDerivable gamma v (substTy b (Ext Id u)) sp
   Right $ {elemWf $= insert (gamma, SigmaIntro u v, SigmaTy a b)} sp
 step (ElemWfSigmaElim1 gamma t a b) sp = do
   elemWfDerivable gamma t (SigmaTy a b) sp
   Right $ {elemWf $= insert (gamma, SigmaElim1 t, a)} sp
 step (ElemWfSigmaElim2 gamma t a b) sp = do
   elemWfDerivable gamma t (SigmaTy a b) sp
-  Right $ {elemWf $= insert (gamma, SigmaElim2 t, SubstElim b (Ext Id (SigmaElim1 t)))} sp
+  Right $ {elemWf $= insert (gamma, SigmaElim2 t, substTy b (Ext Id (SigmaElim1 t)))} sp
 step (ElemWfZeroTy gamma) sp = do
   ctxWfDerivable gamma sp
   Right $ {elemWf $= insert (gamma, ZeroTy, UniverseTy)} sp
@@ -722,11 +698,11 @@ step (ElemWfRefl gamma e ty) sp = do
 -- Δ ⊦ t : A
 -- σ : Γ ⇒ Δ
 -- ---------------
--- Γ ⊦ t(σ) : A(σ)
+-- Γ ⊦ t[σ] : A[σ]
 step (ElemWfSubElim t ty sigma gamma delta) sp = do
   subWfDerivable sigma gamma delta sp
   elemWfDerivable delta t ty sp
-  Right $ {elemWf $= insert (gamma, SubstElim t sigma, SubstElim ty sigma)} sp
+  Right $ {elemWf $= insert (gamma, substElem t sigma, substTy ty sigma)} sp
 -- Γ ⊦ a : A₀
 -- Γ ⊦ A₀ = A₁ type
 -- ----------------
@@ -748,23 +724,23 @@ step (ElemWfSigVar delta sigma x) sp = do
   case sigLookup x sp.sig of
     Nothing => Left (SigIdentifierNotFound x)
     Just (gamma, _, _, ty) => do
-      subWfDerivable sigma delta gamma sp
-      Right $ {elemWf $= insert (delta, SigVar x sigma, SubstElim ty sigma)} sp
+      subNormWfDerivable sigma delta gamma sp
+      Right $ {elemWf $= insert (delta, SigVar x sigma, substTy ty (embed sigma))} sp
 step (ElemEqSigVar delta sigma x) sp = do
   ctxWfDerivable delta sp
   case sigLookup x sp.sig of
     Nothing => Left (SigIdentifierNotFound x)
     Just (gamma, _, a, ty) => do
-      subWfDerivable sigma delta gamma sp
-      Right $ {elemEq $= insert (delta, SigVar x sigma, SubstElim a sigma, SubstElim ty sigma)} sp
+      subNormWfDerivable sigma delta gamma sp
+      Right $ {elemEq $= insert (delta, SigVar x sigma, substElem a (embed sigma), substTy ty (embed sigma))} sp
 -- Γ ⊦ a = b : A
 -- σ : Δ ⇒ Γ
--- -------------------------
--- Δ ⊦ a(σ) = b(σ) : A(σ)
+-- ----------------------
+-- Δ ⊦ a[σ] = b[σ] : A[σ]
 step (ElemEqSubstCong gamma delta sigma a b ty) sp = do
   subWfDerivable sigma delta gamma sp
   elemEqDerivable gamma a b ty sp
-  Right $ {elemEq $= insert (delta, SubstElim a sigma, SubstElim b sigma, SubstElim ty sigma)} sp
+  Right $ {elemEq $= insert (delta, substElem a sigma, substElem b sigma, substTy ty sigma)} sp
 -- Γ ⊦ a = b : A₀
 -- Γ ⊦ A₀ = A₁ type
 -- -----------------
@@ -800,7 +776,7 @@ step (SubWfWk gamma ty) sp = do
 step (SubWfExt sigma e gamma delta ty) sp = do
   subWfDerivable sigma gamma delta sp
   tyWfDerivable delta ty sp
-  elemWfDerivable gamma e (SubstElim ty sigma) sp
+  elemWfDerivable gamma e (substTy ty sigma) sp
   Right $ {subWf $= insert (Ext sigma e, gamma, delta :< ty)} sp
 step (SubWfChain sigma tau gamma theta delta) sp = do
   subWfDerivable sigma gamma theta sp
@@ -886,6 +862,8 @@ check (JfTyWf tywf)       t = contains tywf t.tyWf
 check (JfTyEq tyeq)       t = contains tyeq t.tyEq
 check (JfSubWf subwf)     t = contains subwf t.subWf
 check (JfSubEq subeq)     t = contains subeq t.subEq
+check (JfSubNormWf subwf) t = contains subwf t.subNormWf
+check (JfSubNormEq subeq) t = contains subeq t.subNormEq
 check (JfElemWf ewf)      t = contains ewf t.elemWf
 check (JfElemEq eeq)      t = contains eeq t.elemEq
 check (JfTelWf telwf)     t = contains telwf t.telWf
@@ -897,32 +875,36 @@ check (JfSpineEq spineeq) t = contains spineeq t.spineEq
 export
 allJudgements : Truth -> List JudgementForm
 allJudgements t =
-     map JfCtxWf    (Prelude.toList t.ctxWf)
-  ++ map JfCtxEq    (Prelude.toList t.ctxEq)
-  ++ map JfSubWf    (Prelude.toList t.subWf)
-  ++ map JfSubEq    (Prelude.toList t.subEq)
-  ++ map JfTyWf     (Prelude.toList t.tyWf)
-  ++ map JfTyEq     (Prelude.toList t.tyEq)
-  ++ map JfElemWf   (Prelude.toList t.elemWf)
-  ++ map JfElemEq   (Prelude.toList t.elemEq)
-  ++ map JfTelWf    (Prelude.toList t.telWf)
-  ++ map JfTelEq    (Prelude.toList t.telEq)
-  ++ map JfSpineWf  (Prelude.toList t.spineWf)
-  ++ map JfSpineEq  (Prelude.toList t.spineEq)
+     map JfCtxWf      (Prelude.toList t.ctxWf)
+  ++ map JfCtxEq      (Prelude.toList t.ctxEq)
+  ++ map JfSubWf      (Prelude.toList t.subWf)
+  ++ map JfSubEq      (Prelude.toList t.subEq)
+  ++ map JfSubNormWf  (Prelude.toList t.subNormWf)
+  ++ map JfSubNormEq  (Prelude.toList t.subNormEq)
+  ++ map JfTyWf       (Prelude.toList t.tyWf)
+  ++ map JfTyEq       (Prelude.toList t.tyEq)
+  ++ map JfElemWf     (Prelude.toList t.elemWf)
+  ++ map JfElemEq     (Prelude.toList t.elemEq)
+  ++ map JfTelWf      (Prelude.toList t.telWf)
+  ++ map JfTelEq      (Prelude.toList t.telEq)
+  ++ map JfSpineWf    (Prelude.toList t.spineWf)
+  ++ map JfSpineEq    (Prelude.toList t.spineEq)
 
 ||| Judgements present in `after` but not in `before`, per judgement form.
 export
 newJudgements : (before, after : Truth) -> List JudgementForm
 newJudgements before after =
-     map JfCtxWf    (Prelude.toList $ difference after.ctxWf   before.ctxWf)
-  ++ map JfCtxEq    (Prelude.toList $ difference after.ctxEq   before.ctxEq)
-  ++ map JfSubWf    (Prelude.toList $ difference after.subWf   before.subWf)
-  ++ map JfSubEq    (Prelude.toList $ difference after.subEq   before.subEq)
-  ++ map JfTyWf     (Prelude.toList $ difference after.tyWf    before.tyWf)
-  ++ map JfTyEq     (Prelude.toList $ difference after.tyEq    before.tyEq)
-  ++ map JfElemWf   (Prelude.toList $ difference after.elemWf  before.elemWf)
-  ++ map JfElemEq   (Prelude.toList $ difference after.elemEq  before.elemEq)
-  ++ map JfTelWf    (Prelude.toList $ difference after.telWf   before.telWf)
-  ++ map JfTelEq    (Prelude.toList $ difference after.telEq   before.telEq)
-  ++ map JfSpineWf  (Prelude.toList $ difference after.spineWf before.spineWf)
-  ++ map JfSpineEq  (Prelude.toList $ difference after.spineEq before.spineEq)
+     map JfCtxWf      (Prelude.toList $ difference after.ctxWf      before.ctxWf)
+  ++ map JfCtxEq      (Prelude.toList $ difference after.ctxEq      before.ctxEq)
+  ++ map JfSubWf      (Prelude.toList $ difference after.subWf      before.subWf)
+  ++ map JfSubEq      (Prelude.toList $ difference after.subEq      before.subEq)
+  ++ map JfSubNormWf  (Prelude.toList $ difference after.subNormWf  before.subNormWf)
+  ++ map JfSubNormEq  (Prelude.toList $ difference after.subNormEq  before.subNormEq)
+  ++ map JfTyWf       (Prelude.toList $ difference after.tyWf       before.tyWf)
+  ++ map JfTyEq       (Prelude.toList $ difference after.tyEq       before.tyEq)
+  ++ map JfElemWf     (Prelude.toList $ difference after.elemWf     before.elemWf)
+  ++ map JfElemEq     (Prelude.toList $ difference after.elemEq     before.elemEq)
+  ++ map JfTelWf      (Prelude.toList $ difference after.telWf      before.telWf)
+  ++ map JfTelEq      (Prelude.toList $ difference after.telEq      before.telEq)
+  ++ map JfSpineWf    (Prelude.toList $ difference after.spineWf    before.spineWf)
+  ++ map JfSpineEq    (Prelude.toList $ difference after.spineEq    before.spineEq)

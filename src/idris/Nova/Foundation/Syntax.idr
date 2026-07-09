@@ -20,8 +20,6 @@ mutual
   namespace Ty
     public export
     data Ty : Type where
-      ||| A(σ)  (context substitution applied to a type)
-      SubstElim : Ty -> Sub -> Ty
       ||| 𝟘
       ZeroTy : Ty
       ||| 𝟙
@@ -42,8 +40,6 @@ mutual
   namespace Elem
     public export
     data Elem : Type where
-      ||| t(σ)  (context substitution)
-      SubstElim : Elem -> Sub -> Elem
       ||| ☐ₙ (n-th element in the typing context)
       CtxVar : Nat -> Elem
       ||| 𝟘-elim t (empty type elimination)
@@ -80,9 +76,14 @@ mutual
       EqTy : Elem -> Elem -> Elem -> Elem
       ||| Refl  (reflexivity)
       Refl : Elem
-      ||| x[σ]  (signature variable, applied to a substitution to its
+      ||| x[σ]  (signature variable, applied to a (normal) substitution to its
       ||| declaration context)
-      SigVar : String -> Sub -> Elem
+      SigVar : String -> SubNorm -> Elem
+
+  ||| SubNorm: e˲ ::= · | e˲, e
+  public export
+  SubNorm : Type
+  SubNorm = SnocList Elem
 
 ||| Tying context: Γ ::= ε | Γ ᐅ T
 public export
@@ -116,28 +117,6 @@ public export
 under : Sub -> Sub
 under sigma = Ext (Chain sigma Wk) (CtxVar 0)
 
-||| ↑ᵏ : Γ Δ ⇒ Γ
-||| ↑ᵏ ≜ ·, ☐ₙ₋₁₊ₖ, .... ☐₀₊ₖ, where |Γ| = n, |Δ| = k
-public export
-weakening : Ctx -> Ctx -> Sub
-weakening [<]          delta = Terminal
-weakening (rest :< ty) delta = Ext (weakening rest (delta :< ty)) (CtxVar (length delta))
-
-||| id : Γ ⇒ Γ
-||| id ≜ ↑⁰
-public export
-identity : Ctx -> Sub
-identity gamma = weakening gamma [<]
-
-||| τ ∘ σ
-||| · ∘ σ ≜ ·
-||| (τ, t) ∘ σ ≜ (τ ∘ σ, t[σ])
-public export
-composition : Sub -> Sub -> Sub
-composition Terminal sigma = Terminal
-composition (Ext tau t) sigma = Ext (composition tau sigma) (SubstElim t sigma)
-composition tau sigma = assert_total $ idris_crash "composition"
-
 mutual
   public export
   covering
@@ -152,7 +131,6 @@ mutual
   public export
   covering
   Eq Ty where
-    SubstElim ty s == SubstElim ty' s' = ty == ty' && s == s'
     ZeroTy         == ZeroTy           = True
     OneTy          == OneTy            = True
     NatTy          == NatTy            = True
@@ -166,7 +144,6 @@ mutual
   public export
   covering
   Eq Elem where
-    SubstElim e s    == SubstElim e' s'    = e == e' && s == s'
     CtxVar n         == CtxVar n'          = n == n'
     ZeroElim e       == ZeroElim e'        = e == e'
     OneIntro         == OneIntro           = True
@@ -209,9 +186,6 @@ mutual
   public export
   covering
   Ord Ty where
-    compare (SubstElim ty s) (SubstElim ty' s') = compare ty ty' <+> compare s s'
-    compare (SubstElim _ _)  _                  = LT
-    compare _                (SubstElim _ _)    = GT
     compare ZeroTy           ZeroTy             = EQ
     compare ZeroTy           _                  = LT
     compare _                ZeroTy             = GT
@@ -238,9 +212,6 @@ mutual
   public export
   covering
   Ord Elem where
-    compare (SubstElim e s)    (SubstElim e' s')    = compare e e' <+> compare s s'
-    compare (SubstElim _ _)    _                    = LT
-    compare _                  (SubstElim _ _)      = GT
     compare (CtxVar n)         (CtxVar n')          = compare n n'
     compare (CtxVar _)         _                    = LT
     compare _                  (CtxVar _)           = GT
@@ -310,7 +281,6 @@ mutual
   public export
   covering
   Show Ty where
-    show (SubstElim ty s) = "SubstElim (\{show ty}) (\{show s})"
     show ZeroTy = "ZeroTy"
     show OneTy = "OneTy"
     show NatTy = "NatTy"
@@ -323,7 +293,6 @@ mutual
   public export
   covering
   Show Elem where
-    show (SubstElim e s) = "SubstElim (\{show e}) (\{show s})"
     show (CtxVar n) = "CtxVar \{show n}"
     show (ZeroElim e) = "ZeroElim (\{show e})"
     show OneIntro = "OneIntro"
