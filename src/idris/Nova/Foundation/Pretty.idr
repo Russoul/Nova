@@ -62,15 +62,11 @@ mutual
     "ℕ-elim " ++ prettyElemAtom z ++ " " ++ prettyElemAtom s ++ " " ++ prettyElemAtom t
   prettyElemPrefix e = prettyElemPostfix e
 
-  prettyElemSubst : Elem -> String
-  prettyElemSubst (SubstElim e s) = prettyElemSubst e ++ "[" ++ prettySub s ++ "]"
-  prettyElemSubst e = prettyElemAtom e
-
   prettyElemPostfix : Elem -> String
   prettyElemPostfix (SigmaElim1 e) = prettyElemPostfix e ++ " .π₁"
   prettyElemPostfix (SigmaElim2 e) = prettyElemPostfix e ++ " .π₂"
-  prettyElemPostfix (PiApp f e) = prettyElemPostfix f ++ " " ++ prettyElemSubst e
-  prettyElemPostfix e = prettyElemSubst e
+  prettyElemPostfix (PiApp f e) = prettyElemPostfix f ++ " " ++ prettyElemAtom e
+  prettyElemPostfix e = prettyElemAtom e
 
   export
   prettyElemAtom : Elem -> String
@@ -81,8 +77,14 @@ mutual
   prettyElemAtom Elem.ZeroTy = "𝟘"
   prettyElemAtom Elem.OneTy = "𝟙"
   prettyElemAtom Elem.NatTy = "ℕ"
-  prettyElemAtom (SigVar x s) = x ++ "[" ++ prettySub s ++ "]"
+  prettyElemAtom (SigVar x es) = x ++ "[" ++ prettySubNorm es ++ "]"
   prettyElemAtom e = "(" ++ prettyElem e ++ ")"
+
+  ||| t˲ ::= · | t˲ , t
+  export
+  prettySubNorm : SubNorm -> String
+  prettySubNorm [<] = "·"
+  prettySubNorm (es :< e) = prettySubNorm es ++ ", " ++ prettyElemNoComma e
 
 -- ===== Ty =====
 
@@ -100,11 +102,7 @@ mutual
 
   prettyTyEl : Ty -> String
   prettyTyEl (El e) = "El " ++ prettyElemAtom e
-  prettyTyEl ty = prettyTyPostfix ty
-
-  prettyTyPostfix : Ty -> String
-  prettyTyPostfix (Ty.SubstElim ty s) = prettyTyPostfix ty ++ "[" ++ prettySub s ++ "]"
-  prettyTyPostfix ty = prettyTyAtom ty
+  prettyTyEl ty = prettyTyAtom ty
 
   prettyTyAtom : Ty -> String
   prettyTyAtom Ty.ZeroTy = "𝟘"
@@ -156,23 +154,19 @@ mutual
   prettyComputeNoComma cr = prettyComputePrefix cr
 
   prettyComputePrefix : ComputeRule -> String
-  prettyComputePrefix (InPiIntro a) = "λ " ++ prettyComputeSubst a
-  prettyComputePrefix (InZeroElim a) = "𝟘-elim " ++ prettyComputeSubst a
-  prettyComputePrefix (InNatIntro1 a) = "S " ++ prettyComputeSubst a
+  prettyComputePrefix (InPiIntro a) = "λ " ++ prettyComputeAtom a
+  prettyComputePrefix (InZeroElim a) = "𝟘-elim " ++ prettyComputeAtom a
+  prettyComputePrefix (InNatIntro1 a) = "S " ++ prettyComputeAtom a
   prettyComputePrefix (InNatElim a b c) =
-    "ℕ-elim " ++ prettyComputeSubst a ++ " " ++ prettyComputeSubst b ++ " " ++ prettyComputeSubst c
-  prettyComputePrefix (InEl a) = "El " ++ prettyComputeSubst a
+    "ℕ-elim " ++ prettyComputeAtom a ++ " " ++ prettyComputeAtom b ++ " " ++ prettyComputeAtom c
+  prettyComputePrefix (InEl a) = "El " ++ prettyComputeAtom a
   prettyComputePrefix cr = prettyComputePostfix cr
-
-  prettyComputeSubst : ComputeRule -> String
-  prettyComputeSubst (InSubstElim a b) = prettyComputeSubst a ++ "[" ++ prettyComputeRule b ++ "]"
-  prettyComputeSubst cr = prettyComputeAtom cr
 
   prettyComputePostfix : ComputeRule -> String
   prettyComputePostfix (InSigmaElim1 a) = prettyComputePostfix a ++ " .π₁"
   prettyComputePostfix (InSigmaElim2 a) = prettyComputePostfix a ++ " .π₂"
-  prettyComputePostfix (InPiApp a b) = prettyComputePostfix a ++ " " ++ prettyComputeSubst b
-  prettyComputePostfix cr = prettyComputeSubst cr
+  prettyComputePostfix (InPiApp a b) = prettyComputePostfix a ++ " " ++ prettyComputeAtom b
+  prettyComputePostfix cr = prettyComputeAtom cr
 
   prettyComputeAtom : ComputeRule -> String
   prettyComputeAtom Here = "↓"
@@ -206,6 +200,15 @@ export
 prettySubEq : (Sub, Sub, Ctx, Ctx) -> String
 prettySubEq (s0, s1, g, d) =
   "sub-eq " ++ prettySub s0 ++ " = " ++ prettySub s1 ++ " : " ++ prettyCtx g ++ " ⇒ " ++ prettyCtx d
+
+export
+prettySubNormWf : (SubNorm, Ctx, Ctx) -> String
+prettySubNormWf (s, g, d) = "sub-norm-wf " ++ prettySubNorm s ++ " : " ++ prettyCtx g ++ " ⇒ " ++ prettyCtx d ++ " norm"
+
+export
+prettySubNormEq : (SubNorm, SubNorm, Ctx, Ctx) -> String
+prettySubNormEq (s0, s1, g, d) =
+  "sub-norm-eq " ++ prettySubNorm s0 ++ " = " ++ prettySubNorm s1 ++ " : " ++ prettyCtx g ++ " ⇒ " ++ prettyCtx d ++ " norm"
 
 export
 prettyElemWf : (Ctx, Elem, Ty) -> String
@@ -283,8 +286,6 @@ prettyTypingRule (TyWfEq ctx l r ty) =
   "ty-eq-form " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy (EqTy l r ty)
 prettyTypingRule (TyWfEl ctx e) =
   "ty-el " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy (El e)
-prettyTypingRule (TyWfSubElim ty sigma gamma delta) =
-  "ty-sub " ++ prettyCtx gamma ++ " ⊦ " ++ prettyTy (Ty.SubstElim ty sigma) ++ " from " ++ prettyCtx delta
 prettyTypingRule (TyWfCompute ctx alpha ty beta) =
   "ty-cmp " ++ prettyCtx ctx ++ " via " ++ prettyComputeRule alpha ++
   " ⊦ " ++ prettyTy ty ++ " via " ++ prettyComputeRule beta
@@ -320,8 +321,6 @@ prettyTypingRule (ElemEqReflection ctx a a0 a1 ty) =
   "el-reflect " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem a ++ " : (" ++ prettyTy (EqTy a0 a1 ty) ++ ") reflect"
 prettyTypingRule (ElemWfRefl ctx e ty) =
   "el-refl " ++ prettyCtx ctx ++ " ⊦ Refl : " ++ prettyElemAtom e ++ " ∈ " ++ prettyTy ty
-prettyTypingRule (ElemWfSubElim t ty sigma gamma delta) =
-  "el-sub " ++ prettyCtx gamma ++ " ⊦ " ++ prettyElem (SubstElim t sigma) ++ " : " ++ prettyTy ty ++ " from " ++ prettyCtx delta
 prettyTypingRule (ElemEqTyCoe ctx a b ty0 ty1) =
   "el-ty-coe-eq " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem a ++ " = " ++ prettyElem b ++ " : " ++ prettyTy ty0 ++ " ↝ " ++ prettyTy ty1
 prettyTypingRule (ElemWfTyCoe ctx e ty0 ty1) =
@@ -350,8 +349,6 @@ prettyTypingRule (ElemWfSigVar ctx sigma x) =
   "sig-var " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElemAtom (SigVar x sigma)
 prettyTypingRule (SigExt gamma x a ty) =
   "sig " ++ prettyCtx gamma ++ " ⊦ " ++ x ++ " ≔ " ++ prettyElem a ++ " : " ++ prettyTy ty
-prettyTypingRule (ElemEqSubstCong gamma delta sigma a b ty) =
-  "el-sub-cong " ++ prettyCtx delta ++ " ⊦ " ++ prettyElem (SubstElim a sigma) ++ " = " ++ prettyElem (SubstElim b sigma) ++ " : " ++ prettyTy (Ty.SubstElim ty sigma) ++ " from " ++ prettyCtx gamma
 prettyTypingRule (ElemEqRefl ctx e ty) =
   "el-eq-refl " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem e ++ " : " ++ prettyTy ty
 prettyTypingRule (ElemEqSym ctx e0 e1 ty) =
@@ -379,6 +376,8 @@ prettyJudgementForm (JfTyWf p)          = prettyTyWf p
 prettyJudgementForm (JfTyEq p)          = prettyTyEq p
 prettyJudgementForm (JfSubWf p)         = prettySubWf p
 prettyJudgementForm (JfSubEq p)         = prettySubEq p
+prettyJudgementForm (JfSubNormWf p)     = prettySubNormWf p
+prettyJudgementForm (JfSubNormEq p)     = prettySubNormEq p
 prettyJudgementForm (JfElemWf p)        = prettyElemWf p
 prettyJudgementForm (JfElemEq p)        = prettyElemEq p
 prettyJudgementForm (JfTelWf p)         = prettyTelWf p

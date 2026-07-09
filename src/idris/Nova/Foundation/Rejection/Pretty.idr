@@ -12,8 +12,6 @@ prettyRejection (CtxCmpNoRuleApplies ctx alpha) =
   "no compute rule applies: " ++ prettyCtx ctx ++ " via " ++ prettyComputeRule alpha
 prettyRejection (TyCmpNoRuleApplies ty alpha) =
   "no compute rule applies: " ++ prettyTy ty ++ " via " ++ prettyComputeRule alpha
-prettyRejection (SubCmpNoRuleApplies sigma alpha) =
-  "no compute rule applies: " ++ prettySub sigma ++ " via " ++ prettyComputeRule alpha
 prettyRejection (ElemCmpNoRuleApplies e alpha) =
   "no compute rule applies: " ++ prettyElem e ++ " via " ++ prettyComputeRule alpha
 prettyRejection (CtxWfNotDerivable ctx) =
@@ -25,6 +23,11 @@ prettyRejection (SubWfNotDerivable sigma gamma delta) =
 prettyRejection (SubEqNotDerivable s0 s1 gamma delta) =
   "not derivable: sub-eq " ++ prettySub s0 ++ " = " ++ prettySub s1 ++
     " : " ++ prettyCtx gamma ++ " ⇒ " ++ prettyCtx delta
+prettyRejection (SubNormWfNotDerivable sigma gamma delta) =
+  "not derivable: sub-norm-wf " ++ prettySubNorm sigma ++ " : " ++ prettyCtx gamma ++ " ⇒ " ++ prettyCtx delta ++ " norm"
+prettyRejection (SubNormEqNotDerivable s0 s1 gamma delta) =
+  "not derivable: sub-norm-eq " ++ prettySubNorm s0 ++ " = " ++ prettySubNorm s1 ++
+    " : " ++ prettyCtx gamma ++ " ⇒ " ++ prettyCtx delta ++ " norm"
 prettyRejection (TyWfNotDerivable ctx ty) =
   "not derivable: ty-wf " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy ty
 prettyRejection (TyEqNotDerivable ctx ty0 ty1) =

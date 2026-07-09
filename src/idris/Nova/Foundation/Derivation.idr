@@ -176,11 +176,6 @@ data TypingRule : Type where
   TyWfEq : Ctx -> Elem -> Elem -> Ty -> TypingRule
   ||| Γ ⊦ El t type
   TyWfEl : Ctx -> Elem -> TypingRule
-  ||| Δ ⊦ A type
-  ||| σ : Γ ⇒ Δ
-  ||| ---------------
-  ||| Γ ⊦ A[σ] type
-  TyWfSubElim : Ty -> Sub -> Ctx -> Ctx -> TypingRule
   ||| Γ ⊦ ☐ₙ : Γ‖ₙ
   ElemWfVar : Ctx -> Nat -> TypingRule
   ||| Γ ⊦ 𝟘-elim t : A
@@ -217,8 +212,6 @@ data TypingRule : Type where
   ElemWfEqTy : Ctx -> Elem -> Elem -> Elem -> TypingRule
   ||| Γ ⊦ Refl : (a ≡ a : A)
   ElemWfRefl : Ctx -> Elem -> Ty -> TypingRule
-  ||| (a : A) (σ : Γ ⇒ Δ)
-  ElemWfSubElim : Elem -> Ty -> Sub -> Ctx -> Ctx -> TypingRule
   ||| Γ | α
   CtxWfCompute : Ctx -> ComputeRule -> TypingRule
   ||| Γ | α ⊦ A | α type
@@ -276,11 +269,6 @@ data TypingRule : Type where
   ||| ---------------------------
   ||| Σ Δ ⊦ x[e˲] = a[e˲] : A[e˲]
   ElemEqSigVar : Ctx -> SubNorm -> SigIdentifier -> TypingRule
-  ||| Γ ⊦ a = b : A
-  ||| σ : Δ ⇒ Γ
-  ||| -------------------------
-  ||| Δ ⊦ a(σ) = b(σ) : A(σ)
-  ElemEqSubstCong : Ctx -> Ctx -> Sub -> Elem -> Elem -> Ty -> TypingRule
   ||| Γ ⊦ a = b : A₀
   ||| Γ ⊦ A₀ = A₁ type
   ||| -----------------
@@ -335,7 +323,6 @@ Show TypingRule where
   show (TyWfSigma ctx a b)           = "TyWfSigma (\{showCtxRep ctx}) (\{show a}) (\{show b})"
   show (TyWfEq ctx l r ty)           = "TyWfEq (\{showCtxRep ctx}) (\{show l}) (\{show r}) (\{show ty})"
   show (TyWfEl ctx e)                = "TyWfEl (\{showCtxRep ctx}) (\{show e})"
-  show (TyWfSubElim ty sigma gamma delta) = "TyWfSubElim (\{show ty}) (\{show sigma}) (\{showCtxRep gamma}) (\{showCtxRep delta})"
   show (ElemWfVar g n)               = "ElemWfVar (\{showCtxRep g}) (\{show n})"
   show (ElemWfZeroElim ctx e ty)     = "ElemWfZeroElim (\{showCtxRep ctx}) (\{show e}) (\{show ty})"
   show (ElemWfOneIntro ctx)          = "ElemWfOneIntro (\{showCtxRep ctx})"
@@ -354,12 +341,10 @@ Show TypingRule where
   show (ElemWfSigmaTy ctx a b)       = "ElemWfSigmaTy (\{showCtxRep ctx}) (\{show a}) (\{show b})"
   show (ElemWfEqTy ctx l r ty)       = "ElemWfEqTy (\{showCtxRep ctx}) (\{show l}) (\{show r}) (\{show ty})"
   show (ElemWfRefl ctx e ty)         = "ElemWfRefl (\{showCtxRep ctx}) (\{show e}) (\{show ty})"
-  show (ElemWfSubElim t ty sigma gamma delta) = "ElemWfSubElim (\{show t}) (\{show ty}) (\{show sigma}) (\{showCtxRep gamma}) (\{showCtxRep delta})"
   show (ElemWfTyCoe ctx e ty0 ty1)   = "ElemWfTyCoe (\{showCtxRep ctx}) (\{show e}) (\{show ty0}) (\{show ty1})"
   show (ElemWfCtxCoe ctx0 ctx1 e ty) = "ElemWfCtxCoe (\{showCtxRep ctx0}) (\{showCtxRep ctx1}) (\{show e}) (\{show ty})"
   show (ElemWfSigVar ctx sigma x)     = "ElemWfSigVar (\{showCtxRep ctx}) (\{show sigma}) \{show x}"
   show (ElemEqSigVar ctx sigma x)     = "ElemEqSigVar (\{showCtxRep ctx}) (\{show sigma}) \{show x}"
-  show (ElemEqSubstCong gamma delta sigma a b ty) = "ElemEqSubstCong (\{showCtxRep gamma}) (\{showCtxRep delta}) (\{show sigma}) (\{show a}) (\{show b}) (\{show ty})"
   show (ElemEqTyCoe ctx a b ty0 ty1)  = "ElemEqTyCoe (\{showCtxRep ctx}) (\{show a}) (\{show b}) (\{show ty0}) (\{show ty1})"
   show (SigExt gamma x a ty)          = "SigExt (\{showCtxRep gamma}) \{show x} (\{show a}) (\{show ty})"
   show (CtxWfCompute ctx cr)         = "CtxWfCompute (\{showCtxRep ctx}) (\{show cr})"
@@ -394,7 +379,6 @@ public export
 data Rejection : Type where
   CtxCmpNoRuleApplies : Ctx -> ComputeRule -> Rejection
   TyCmpNoRuleApplies : Ty -> ComputeRule -> Rejection
-  SubCmpNoRuleApplies : Sub -> ComputeRule -> Rejection
   ElemCmpNoRuleApplies : Elem -> ComputeRule -> Rejection
   CtxWfNotDerivable : Ctx -> Rejection
   CtxEqNotDerivable : Ctx -> Ctx -> Rejection
@@ -620,14 +604,6 @@ step (TyWfEq gamma left right ty) sp = do
 step (TyWfEl gamma t) sp = do
   elemWfDerivable gamma t UniverseTy sp
   Right $ {tyWf $= insert (gamma, El t)} sp
--- Δ ⊦ A type
--- σ : Γ ⇒ Δ
--- ---------------
--- Γ ⊦ A[σ] type
-step (TyWfSubElim ty sigma gamma delta) sp = do
-  subWfDerivable sigma gamma delta sp
-  tyWfDerivable delta ty sp
-  Right $ {tyWf $= insert (gamma, substTy ty sigma)} sp
 step (ElemWfVar gamma n) sp = do
   ctxWfDerivable gamma sp
   case ctxLookup gamma n of
@@ -695,14 +671,6 @@ step (ElemWfEqTy gamma l r ty) sp = do
 step (ElemWfRefl gamma e ty) sp = do
   elemWfDerivable gamma e ty sp
   Right $ {elemWf $= insert (gamma, Refl, EqTy e e ty)} sp
--- Δ ⊦ t : A
--- σ : Γ ⇒ Δ
--- ---------------
--- Γ ⊦ t[σ] : A[σ]
-step (ElemWfSubElim t ty sigma gamma delta) sp = do
-  subWfDerivable sigma gamma delta sp
-  elemWfDerivable delta t ty sp
-  Right $ {elemWf $= insert (gamma, substElem t sigma, substTy ty sigma)} sp
 -- Γ ⊦ a : A₀
 -- Γ ⊦ A₀ = A₁ type
 -- ----------------
@@ -733,14 +701,6 @@ step (ElemEqSigVar delta sigma x) sp = do
     Just (gamma, _, a, ty) => do
       subNormWfDerivable sigma delta gamma sp
       Right $ {elemEq $= insert (delta, SigVar x sigma, substElem a (embed sigma), substTy ty (embed sigma))} sp
--- Γ ⊦ a = b : A
--- σ : Δ ⇒ Γ
--- ----------------------
--- Δ ⊦ a[σ] = b[σ] : A[σ]
-step (ElemEqSubstCong gamma delta sigma a b ty) sp = do
-  subWfDerivable sigma delta gamma sp
-  elemEqDerivable gamma a b ty sp
-  Right $ {elemEq $= insert (delta, substElem a sigma, substElem b sigma, substTy ty sigma)} sp
 -- Γ ⊦ a = b : A₀
 -- Γ ⊦ A₀ = A₁ type
 -- -----------------

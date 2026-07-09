@@ -67,8 +67,9 @@ build/exec/nova-foundation-app apply derivations/<goal>/session.rules "ty-nat ε
 build/exec/nova-foundation-app query derivations/<goal>/session.rules "ty-wf ε ⊦ ℕ"
 
 # List everything derived so far. Filter by judgement kind (ctx-wf, ctx-eq,
-# sub-wf, sub-eq, ty-wf, ty-eq, el-wf, el-eq, tel-wf, tel-eq, sp-wf, sp-eq)
-# once the session has any size — an unfiltered dump costs context.
+# sub-wf, sub-eq, sub-norm-wf, sub-norm-eq, ty-wf, ty-eq, el-wf, el-eq,
+# tel-wf, tel-eq, sp-wf, sp-eq) once the session has any size — an
+# unfiltered dump costs context.
 build/exec/nova-foundation-app dump derivations/<goal>/session.rules
 build/exec/nova-foundation-app dump derivations/<goal>/session.rules el-wf
 
@@ -116,7 +117,11 @@ parallel; ordinary git (branches, commits) is enough to coordinate.
 A finished, checked derivation can also be promoted into a reusable lemma:
 add its result to the signature with a `sig` rule (`sig Γ ⊦ x ≔ t : T`) and
 later sessions can reference it by name from a usage context `Δ` via
-`sig-var Δ ⊦ x[σ]` / `sig-var-eq Δ ⊦ x[σ]`, where `σ : Δ ⇒ Γ` — there is no
-bare `x`, a signature reference always carries the substitution back to its
-declaration context (e.g. `x[·]` if `x` was declared in `ε`, `x[id]` when
-used in exactly `Γ`).
+`sig-var Δ ⊦ x[e˲]` / `sig-var-eq Δ ⊦ x[e˲]`, where `e˲` is a *normal*
+substitution (`t˲ ::= · | t˲, t` — a plain list of elements, no
+`id`/`↑`/`∘`) with `e˲ : Δ ⇒ Γ norm` — there is no bare `x`, a signature
+reference always carries the substitution back to its declaration context
+(e.g. `x[·]` if `x` was declared in `ε`, `x[·, ☐₀]` when used in exactly
+`Γ ᐅ A`). **Known gap**: there is currently no typing-rule keyword that
+derives a `sub-norm-wf` fact, so `sig-var`/`sig-var-eq` can't actually be
+applied yet — don't reach for them until that's implemented.

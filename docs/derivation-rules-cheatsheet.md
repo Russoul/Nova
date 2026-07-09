@@ -12,41 +12,50 @@ Metavariables: `Γ`/`Δ`/`Θ` are contexts, `A`/`B`/`T` are types, `t`/`e`/`u`/`
 are elements, `σ`/`τ` are substitutions, `α`/`β`/`γ` are compute rules,
 `x` is a signature identifier, `n` is a de Bruijn index (natural number).
 
-## The most important gotcha: nothing normalizes automatically
+## Substitution is algorithmic — it computes, it doesn't sit there as a node
 
-The checker only ever stores judgements it was explicitly told to derive —
-it never normalizes a substituted term for you. If a premise needs
-`t : A[σ]` and all you have is `t : A`, that is *not* good enough: you must
-explicitly reduce or coerce between them first, usually with `ty-cmp`/
-`el-cmp` (reduce a substitution redex using a compute rule, e.g. `↓`),
-`ty-sym` (flip the resulting equality if it comes out backwards), and
-`el-ty-coe` (transport an element across a type equality). Expect a real
-derivation to interleave "build the term" steps with "reduce/coerce this
-substituted type back into the shape I actually need" steps — this is by
-far the most common reason a plausible-looking `apply` gets rejected with
-`NotDerivable` rather than `NoRuleApplies`.
+`A[σ]`/`t[σ]` is *not* a syntax former you can write or leave lying around:
+there is no `SubstElim` node in `Ty`/`Elem` at all. Wherever a rule's
+conclusion or premise involves a substituted type or element (`el-pi-e`'s
+`B[e]`, `el-nat-e`'s `A[Z]`/`A[S ☐₁]`/`A[t]`, `el-sigma-i`'s `B[u]`, ...),
+that substitution is carried out immediately, structurally, by meta-level
+induction on the term (see `Subst.idr`'s `substTy`/`substElem`) — the result
+is already in normal form, with no leftover substitution to separately
+reduce away. So there is no `ty-sub`/`el-sub`/`el-sub-cong`: you never need
+to ask the checker to "produce `A[σ]`" as its own step, and no `el-sub-cong`
+congruence is needed either, since `a[σ]` and `b[σ]` are just computed
+independently from `a = b`.
 
-Concretely: to turn `Γ ⊦ e : A` into `Γ ⊦ e : A[σ]` (or back), you generally
-need, in order: (1) `ty-sub` (or another route) to get `A[σ]` itself into
-`tyWf`, (2) `ty-cmp Γ via id ⊦ A[σ] via ↓` to reduce it to some `A'` and
-record `A[σ] = A'`, (3) `ty-sym`/`ty-trans` to line the equality up in the
-direction you need, (4) `el-ty-coe` to transport `e` across it.
+This does **not** mean `ty-cmp`/`el-cmp` go away. They're still what you use
+for genuine *computation redexes* — `(λ f) e`, `ℕ-elim z s (S t)`,
+`t.π₁`/`t.π₂` on a pair, decoding a universe code via `El` — none of which
+substitution alone can simplify. You'll still interleave "build the term"
+steps with `el-cmp`/`ty-cmp` reduction steps, `ty-sym`/`ty-trans` to line an
+equality up, and `el-ty-coe` to transport across it — that machinery is
+unchanged, it's specifically the substitution-only case that got simpler.
 
 `☐` is an indexed family `☐ₙ` (e.g. `☐₀`, `☐₁`, `☐₂` — Unicode subscript
-digits, no space). Two reduction rules make weakened/projected variable
-references collapse in one `el-cmp` step instead of needing the multi-step
-substitution-chasing described above: `☐ₙ[↑] = ☐ₙ₊₁` and
-`☐ₙ₊₁[σ, t] = ☐ₙ[σ]`.
+digits, no space). `el-var Γ ⊦ ☐ₙ` looks up `Γ‖ₙ` (the (n+1)-th type from the
+right) directly out of `Γ`'s structure and weakens it algorithmically — no
+`el-cmp` needed to make a weakened/projected variable reference usable.
 
-A signature reference `x[σ]` always carries its substitution `σ` (from the
-usage context back to `x`'s declaration context `Γ`) directly in the atom —
-there is no bare `x`. Referencing `x` in a context other than its own
-declaration context, or after `x`'s declaration context, always requires an
-explicit `σ` (often `·`/`Terminal` when `x` was declared in `ε`, or `id`
-when used in exactly `Γ`). Two reduction rules parallel `☐ₙ`'s: `x[σ] =
-a[σ]` (unfolds the definition, where `a` is `x`'s definiens) and `x[ξ][σ] =
-x[ξ ∘ σ]` (composes a substitution applied to an already-substituted
-reference instead of leaving a nested `SubstElim`).
+A signature reference `x[e˲]` always carries its substitution directly in
+the atom — there is no bare `x`. `e˲` is a *normal* substitution (`t˲ ::= ·
+| t˲, t`, i.e. `SubNorm` — a plain snoc-list of elements with no
+`Chain`/`Id`/`Wk`/`Terminal` left in it), since it has to be threaded
+through `SigVar` and re-substituted by `substSubNorm` without reference to
+the signature. Unlike `A[σ]`/`t[σ]`, `x[e˲]` does *not* eagerly unfold — a
+signature lookup needs `Σ`, which pure substitution doesn't have access to
+— so you still use `el-cmp`'s `↓` to unfold `x[e˲]` to `a[e˲]` (`a` being
+`x`'s definiens). Composing a further substitution onto an already-applied
+reference (`x[ξ][σ]`) is not a separate `el-cmp` step though — like all
+other substitution, it's handled the moment you write `x[ξ]` inside a term
+that itself gets substituted by `σ`.
+
+**Known gap**: `sig-var`/`sig-var-eq` require a `sub-norm-wf` fact for their
+`e˲`, but there is currently no typing-rule keyword that derives one (see
+the `// TODO` in `NovaSyntax.txt`) — so these two keywords aren't usable in
+a real derivation yet.
 
 ## Context
 
@@ -89,7 +98,6 @@ reference instead of leaving a nested `SubstElim`).
 | `ty-sigma Γ ⊦ A ⨯ B` | `Γ ᐅ A ⊦ B type` | `Γ ⊦ A ⨯ B type` |
 | `ty-eq-form Γ ⊦ l ≡ r ∈ A` | `Γ ⊦ l : A`, `Γ ⊦ r : A` | `Γ ⊦ l ≡ r ∈ A type` |
 | `ty-el Γ ⊦ El t` | `Γ ⊦ t : 𝕌` | `Γ ⊦ El t type` |
-| `ty-sub Γ ⊦ A[σ] from Δ` | `Δ ⊦ A type`, `σ : Γ ⇒ Δ` | `Γ ⊦ A[σ] type` |
 | `ty-cmp Γ via α ⊦ A via β` | `Γ ⊦ A type`, `α` applies to `Γ` giving `Γ'`, `β` applies to `A` giving `A'` | `Γ' ⊦ A' type`, `Γ = Γ'`, `Γ' ⊦ A = A'` |
 
 ## Type equality
@@ -117,17 +125,13 @@ reference instead of leaving a nested `SubstElim`).
 | `el-nat-e Γ ⊦ ℕ-elim z s t : A` | `Γ ⊦ z : A[Z]`, `Γ ᐅ ℕ ᐅ A ⊦ s : A[S ☐₁]`, `Γ ⊦ t : ℕ` | `Γ ⊦ ℕ-elim z s t : A[t]` |
 | `el-reflect Γ ⊦ t : (l ≡ r ∈ A) reflect` | `Γ ⊦ t : (l ≡ r ∈ A)` | `Γ ⊦ l = r : A` |
 | `el-refl Γ ⊦ Refl : t ∈ A` | `Γ ⊦ t : A` | `Γ ⊦ Refl : t ≡ t ∈ A` |
-| `el-sub Γ ⊦ t[σ] : A from Δ` | `σ : Γ ⇒ Δ`, `Δ ⊦ t : A` | `Γ ⊦ t[σ] : A[σ]` |
 | `el-ty-coe Γ ⊦ t : A₀ ↝ A₁` | `Γ ⊦ t : A₀`, `Γ ⊦ A₀ = A₁` | `Γ ⊦ t : A₁` |
 | `el-ctx-coe Γ₀ = Γ₁ ⊦ t : A` | `Γ₀ ⊦ t : A`, `Γ₀ = Γ₁` | `Γ₁ ⊦ t : A` |
 
 ## Element well-formedness: universe codes
 
 `𝕌` is a Tarski-style universe: `A : 𝕌` is a *code*, and `El A` decodes it
-to the type it names. Substitution on types only ever moves through here —
-substitute the code (`el-sub`) then decode with `ty-el`, since there's no
-way to substitute a `Π`/`Σ`/`≡` type former's raw premises without doing so
-in `𝕌` first.
+to the type it names.
 
 | Keyword & syntax | Premises | Conclusion |
 |---|---|---|
@@ -147,8 +151,8 @@ sessions reference it by name instead of re-deriving it.
 | Keyword & syntax | Premises | Conclusion |
 |---|---|---|
 | `sig Γ ⊦ x ≔ a : A` | `Γ ⊦ a : A`, `x` not already in the signature | adds `(Γ ⊦ x ≔ a : A)` to the signature |
-| `sig-var Δ ⊦ x[σ]` | `(Γ ⊦ x ≔ a : A)` in the signature, `Δ ctx`, `σ : Δ ⇒ Γ` | `Δ ⊦ x[σ] : A[σ]` |
-| `sig-var-eq Δ ⊦ x[σ]` | `(Γ ⊦ x ≔ a : A)` in the signature, `Δ ctx`, `σ : Δ ⇒ Γ` | `Δ ⊦ x[σ] = a[σ] : A[σ]` |
+| `sig-var Δ ⊦ x[e˲]` | `(Γ ⊦ x ≔ a : A)` in the signature, `Δ ctx`, `e˲ : Δ ⇒ Γ norm` | `Δ ⊦ x[e˲] : A[e˲]` |
+| `sig-var-eq Δ ⊦ x[e˲]` | `(Γ ⊦ x ≔ a : A)` in the signature, `Δ ctx`, `e˲ : Δ ⇒ Γ norm` | `Δ ⊦ x[e˲] = a[e˲] : A[e˲]` |
 
 ## Element equality
 
@@ -158,7 +162,6 @@ sessions reference it by name instead of re-deriving it.
 | `el-eq-sym Γ ⊦ t₁ = t₀ : A` | `Γ ⊦ t₀ = t₁ : A` | `Γ ⊦ t₁ = t₀ : A` |
 | `el-eq-trans Γ ⊦ t₀ = t₂ : A via t₁` | `Γ ⊦ t₀ = t₁ : A`, `Γ ⊦ t₁ = t₂ : A` | `Γ ⊦ t₀ = t₂ : A` |
 | `el-ty-coe-eq Γ ⊦ t₀ = t₁ : A₀ ↝ A₁` | `Γ ⊦ t₀ = t₁ : A₀`, `Γ ⊦ A₀ = A₁` | `Γ ⊦ t₀ = t₁ : A₁` |
-| `el-sub-cong Δ ⊦ a[σ] = b[σ] : A from Γ` | `σ : Δ ⇒ Γ`, `Γ ⊦ a = b : A` | `Δ ⊦ a[σ] = b[σ] : A[σ]` |
 
 ## Telescope equality
 
@@ -188,6 +191,8 @@ via `check`'s target file or `query`. Same keywords double as `dump`'s
 | `ctx-eq Γ = Γ'` | `Γ` and `Γ'` are equal contexts |
 | `sub-wf σ : Γ ⇒ Δ` | `σ` is a well-formed substitution |
 | `sub-eq σ = σ' : Γ ⇒ Δ` | `σ` and `σ'` are equal substitutions |
+| `sub-norm-wf e˲ : Γ ⇒ Δ norm` | `e˲` is a well-formed normal substitution (no derivation rule yet — see the known gap above) |
+| `sub-norm-eq e˲ = e˲' : Γ ⇒ Δ norm` | `e˲` and `e˲'` are equal normal substitutions (same gap) |
 | `ty-wf Γ ⊦ A` | `A` is a well-formed type in `Γ` |
 | `ty-eq Γ ⊦ A = A'` | `A` and `A'` are equal types in `Γ` |
 | `el-wf Γ ⊦ t : A` | `t` has type `A` in `Γ` |

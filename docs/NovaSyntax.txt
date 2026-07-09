@@ -3,13 +3,15 @@
 σ{0} ::= σ{≥0} , t{≥1}                                                      Ext (left-assoc)
 
 T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | (T{≥0})
-T{3} ::= T{≥3}[σ{≥0}]
+T{3} ::= T{≥3}[σ{≥0}] // FIXME: doesn't exist anymore
 T{2} ::= El t{≥4}
 T{1} ::= T{≥2} → T{≥1} | T{≥2} ⨯ T{≥1}                                      (right-assoc)
 T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
 
-t{5} ::= ☐ₙ | () | Z | Refl | 𝟘 | 𝟙 | ℕ | x[σ{≥0}] | (t{≥0})
-t{4} ::= t{≥4} [σ{≥0}]
+t˲ ::= · | t˲ , t
+
+t{5} ::= ☐ₙ | () | Z | Refl | 𝟘 | 𝟙 | ℕ | x[t˲] | (t{≥0})
+t{4} ::= t{≥4} [σ{≥0}] // FIXME: doesn't exist anymore
 t{3} ::= t{≥3} t{≥4}  t{≥3} .π₁ | t{≥3} .π₂
 t{2} ::= λ t{≥3} | 𝟘-elim t{≥4} | S t{≥4} | ℕ-elim t{≥4} t{≥4} t{≥4}
 t{1} ::= t{≥2} → t{≥1} | t{≥2} ⨯ t{≥1} | t{≥2} ≡ t{≥2} ∈ t{≥2}
@@ -20,7 +22,7 @@ t{0} ::= t{≥1} , t{≥0}                                                      
 ē ::= · | t{≥1} (, t{≥1})*
 
 α{5} ::= ↓ | id | (α{≥0})
-α{4} ::= α{≥4} [α{≥0}]                                                        (left-assoc)
+α{4} ::= α{≥4} [α{≥0}] // FIXME: doesn't exist anymore
 α{3} ::= α{≥3} α{≥4} | α{≥3} .π₁ | α{≥3} .π₂                               (left-assoc)
 α{2} ::= λ α{≥4} | 𝟘-elim α{≥4} | S α{≥4} | El α{≥4} | ℕ-elim α{≥4} α{≥4} α{≥4}
 α{1} ::= α{≥2} → α{≥1} | α{≥2} ⨯ α{≥1} | α{≥2} ᐅ α{≥1}                     (right-assoc)
@@ -51,6 +53,8 @@ R ::=
   sub-sym    Γ ⊦ σ₁ = σ₀ : Δ                   (conclusion: σ₁ = σ₀)
   sub-trans  Γ ⊦ σ₀ = σ₂ : Δ via σ₁            (conclusion: σ₀ = σ₂)
 
+  // TODO: we need wf and eq rules for normal substitution
+
   // Type wf
   ty-zero    Γ ⊦ 𝟘
   ty-one     Γ ⊦ 𝟙
@@ -60,7 +64,7 @@ R ::=
   ty-sigma   Γ ⊦ A ⨯ B
   ty-eq-form Γ ⊦ l ≡ r ∈ A
   ty-el      Γ ⊦ El e
-  ty-sub     Γ ⊦ A[σ] from Δ                    (TyWfSubElim)
+  ty-sub     Γ ⊦ A[σ] from Δ                    (TyWfSubElim) // FIXME: don't need that anymore
   ty-cmp     Γ via α ⊦ T via β                  (TyWfCompute)
 
   // Type eq
@@ -82,7 +86,7 @@ R ::=
   el-nat-e    Γ ⊦ ℕ-elim z s t : T
   el-reflect  Γ ⊦ t : (l ≡ r ∈ A) reflect       (ElemEqReflection)
   el-refl     Γ ⊦ Refl : t ∈ A                  (ElemWfRefl)
-  el-sub      Γ ⊦ t[σ] : T from Δ
+  el-sub      Γ ⊦ t[σ] : T from Δ     // FIXME: don't need that anymore
   el-ty-coe   Γ ⊦ t : T₀ ↝ T₁
   el-ctx-coe  Γ₀ = Γ₁ ⊦ t : T
 
@@ -96,8 +100,8 @@ R ::=
   el-cmp      Γ via α ⊦ t via β : T via γ       (ElemWfCompute)
 
   // Signature
-  sig-var-eq Γ ⊦ x[σ]                           (ElemEqSigVar)
-  sig-var    Γ ⊦ x[σ]                           (ElemWfSigVar)
+  sig-var-eq Γ ⊦ x[e˲]                           (ElemEqSigVar)
+  sig-var    Γ ⊦ x[e˲]                           (ElemWfSigVar)
   sig        Γ ⊦ x ≔ t : T                      (SigExt)
 
   // Element equality
@@ -105,7 +109,7 @@ R ::=
   el-eq-refl   Γ ⊦ t : T                        (ElemEqRefl)
   el-eq-sym    Γ ⊦ t₁ = t₀ : T                  (conclusion: t₁ = t₀)
   el-eq-trans  Γ ⊦ t₀ = t₂ : T via t₁           (conclusion: t₀ = t₂)
-  el-sub-cong  Δ ⊦ a[σ] = b[σ] : T from Γ       (ElemEqSubstCong)
+  el-sub-cong  Δ ⊦ a[σ] = b[σ] : T from Γ       (ElemEqSubstCong) //FIXME: don't need that anymore as t[σ] computes
 
   // Telescope equality
   tel-refl   Γ ⊦ Δ
@@ -120,15 +124,17 @@ R ::=
 // JudgementForm — syntax of target goals in .target files
 // Each form starts with a unique keyword; no trailing disambiguators needed.
 J ::=
-  ctx-wf  Γ                     (JfCtxWf)
-  ctx-eq  Γ = Γ'                (JfCtxEq)
-  sub-wf  σ : Γ ⇒ Δ            (JfSubWf)
-  sub-eq  σ = σ' : Γ ⇒ Δ      (JfSubEq)
-  ty-wf   Γ ⊦ T                 (JfTyWf)
-  ty-eq   Γ ⊦ T = T'            (JfTyEq)
-  el-wf   Γ ⊦ t : T             (JfElemWf)
-  el-eq   Γ ⊦ t = t' : T        (JfElemEq)
-  tel-wf  Γ ⊦ Δ                 (JfTelWf)
-  tel-eq  Γ ⊦ Δ = Δ'            (JfTelEq)
-  sp-wf   Γ ⊦ ē : Δ             (JfSpineWf)
-  sp-eq   Γ ⊦ ē = ē' : Δ       (JfSpineEq)
+  ctx-wf  Γ                           (JfCtxWf)
+  ctx-eq  Γ = Γ'                      (JfCtxEq)
+  sub-wf  σ : Γ ⇒ Δ                   (JfSubWf)
+  sub-eq  σ = σ' : Γ ⇒ Δ              (JfSubEq)
+  sub-norm-wf  e˲ : Γ ⇒ Δ norm        (JfSubNormWf)
+  sub-norm-eq  e˲ = e˲' : Γ ⇒ Δ norm  (JfSubNormEq)
+  ty-wf   Γ ⊦ T                       (JfTyWf)
+  ty-eq   Γ ⊦ T = T'                  (JfTyEq)
+  el-wf   Γ ⊦ t : T                   (JfElemWf)
+  el-eq   Γ ⊦ t = t' : T              (JfElemEq)
+  tel-wf  Γ ⊦ Δ                       (JfTelWf)
+  tel-eq  Γ ⊦ Δ = Δ'                  (JfTelEq)
+  sp-wf   Γ ⊦ ē : Δ                   (JfSpineWf)
+  sp-eq   Γ ⊦ ē = ē' : Δ              (JfSpineEq)

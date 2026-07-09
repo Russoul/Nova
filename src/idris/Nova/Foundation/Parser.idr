@@ -32,9 +32,9 @@ inParen p = do
 
 -- ===== Block 1: Sub and Elem parsers (mutually recursive) =====
 --
--- Sub and Elem are mutually recursive because:
---   Sub.Ext : Sub -> Elem -> Sub
---   Elem.SubstElim : Elem -> Sub -> Elem
+-- Sub and Elem are mutually recursive because Sub.Ext : Sub -> Elem -> Sub
+-- embeds an Elem. (SigVar's substitution argument is a SubNorm, i.e. a plain
+-- SnocList Elem — it doesn't depend on Sub at all.)
 
 mutual
   -- σ, e₁, e₂   (left-assoc Ext)
@@ -75,12 +75,12 @@ mutual
   -- e @               (PiElim)
   -- e .π₁             (SigmaElim1)
   -- e .π₂             (SigmaElim2)
-  -- e(σ)              (SubstElim)
   -- ☐ₙ                (CtxVar)
   -- ()                (OneIntro)
   -- Z                 (NatIntro0)
   -- Refl              (Refl)
   -- 𝟘 𝟙 ℕ            (universe codes ZeroTy OneTy NatTy)
+  -- x[t˲]             (SigVar)
   export covering
   parseElem : Rule Elem
   parseElem = do
@@ -107,35 +107,21 @@ mutual
   parseElemPrefix : Rule Elem
   parseElemPrefix =
         (do str_ "λ";      space; e <- parseElemPostfix; pure (PiIntro e))
-    <|> (do str_ "𝟘-elim"; space; e <- parseElemSubst; pure (ZeroElim e))
+    <|> (do str_ "𝟘-elim"; space; e <- parseElemAtom; pure (ZeroElim e))
     <|> (do str_ "ℕ-elim"; space
-            z <- parseElemSubst; space
-            s <- parseElemSubst; space
-            t <- parseElemSubst
+            z <- parseElemAtom; space
+            s <- parseElemAtom; space
+            t <- parseElemAtom
             pure (NatElim z s t))
-    <|> (do str_ "S"; space; e <- parseElemSubst; pure (NatIntro1 e))
+    <|> (do str_ "S"; space; e <- parseElemAtom; pure (NatIntro1 e))
     <|> parseElemPostfix
 
-  -- Level 4: SubstElim postfix on atoms (t[σ], left-assoc)
-  covering
-  parseElemSubst : Rule Elem
-  parseElemSubst = do
-    e <- parseElemAtom
-    parseElemSubstCont e
-
-  covering
-  parseElemSubstCont : Elem -> Rule Elem
-  parseElemSubstCont e =
-    (do sp; char_ '['; sp; s <- parseSub; sp; char_ ']'
-        parseElemSubstCont (Elem.SubstElim e s))
-    <|> pure e
-
   -- Level 3: PiApp and projections (t t, t .π₁, t .π₂, left-assoc)
-  -- Argument of application is at level 4 (may be a substituted term).
+  -- Argument of application is an atom.
   covering
   parseElemPostfix : Rule Elem
   parseElemPostfix = do
-    e <- parseElemSubst
+    e <- parseElemAtom
     parseElemPostfixCont e
 
   covering
@@ -143,8 +129,17 @@ mutual
   parseElemPostfixCont e =
         (do sp; str_ ".π₁"; parseElemPostfixCont (SigmaElim1 e))
     <|> (do sp; str_ ".π₂"; parseElemPostfixCont (SigmaElim2 e))
-    <|> (do sp; e' <- parseElemSubst; parseElemPostfixCont (PiApp e e'))
+    <|> (do sp; e' <- parseElemAtom; parseElemPostfixCont (PiApp e e'))
     <|> pure e
+
+  -- t˲ ::= · | t˲ , t   (normal substitution: a plain snoc-list of elements,
+  -- with no Chain/Id/Wk/Terminal — only SigVar carries one of these).
+  export covering
+  parseSubNorm : Rule SubNorm
+  parseSubNorm = do
+    str_ "·"
+    rest <- many (do sp; char_ ','; sp; e <- parseElemNoComma; pure e)
+    pure (foldl (:<) [<] rest)
 
   -- Conservative ASCII identifier: letter or '_' followed by letters, digits, or '_'.
   -- Used for signature variable names. Keywords like Z, Refl, S are tried first
@@ -187,13 +182,12 @@ mutual
     <|> (str_ "𝟙"   $> Elem.OneTy)
     <|> (str_ "ℕ"   $> Elem.NatTy)
     <|> (do x <- parseSigIdentifier
-            sp; char_ '['; sp; s <- parseSub; sp; char_ ']'
-            pure (SigVar x s))
+            sp; char_ '['; sp; es <- parseSubNorm; sp; char_ ']'
+            pure (SigVar x es))
 
 -- ===== Block 2: Ty parsers =====
 --
--- Ty depends on Elem (for EqTy's Elem arguments and El's argument)
--- and on Sub (for SubstElim's substitution). Both are already defined above.
+-- Ty depends on Elem for EqTy's Elem arguments and El's argument.
 -- Within this block, parseTy ↔ parseTyAtom (via inParen) form a cycle.
 
 mutual
@@ -201,7 +195,6 @@ mutual
   -- A → B             (PiTy)
   -- A ⨯ B             (SigmaTy)
   -- El e              (El, e is an Elem atom)
-  -- A(σ)              (SubstElim, postfix)
   -- 𝟘 𝟙 ℕ 𝕌          (constant types)
   export covering
   parseTy : Rule Ty
@@ -223,25 +216,12 @@ mutual
       <|> (do sp; str_ "⨯"; sp; b <- parseTyArrow; pure (Ty.SigmaTy a b))
       <|> pure a
 
-  -- El e  (prefix El; no postfix subst — El is at level 2, subst is level 3)
+  -- El e  (prefix El, e is an Elem atom)
   covering
   parseTyEl : Rule Ty
   parseTyEl =
-        (do str_ "El"; space; e <- parseElemSubst; pure (El e))
-    <|> parseTyPostfix
-
-  -- Apply postfix subst A(σ)(τ)... to an already-parsed type
-  covering
-  parseTyPostfix : Rule Ty
-  parseTyPostfix = do
-    a <- parseTyAtom
-    parseTyPostfixCont a
-
-  covering
-  parseTyPostfixCont : Ty -> Rule Ty
-  parseTyPostfixCont a =
-        (do sp; char_ '['; sp; s <- parseSub; sp; char_ ']'; parseTyPostfixCont (Ty.SubstElim a s))
-    <|> pure a
+        (do str_ "El"; space; e <- parseElemAtom; pure (El e))
+    <|> parseTyAtom
 
   -- Constant types and parenthesised type
   covering
