@@ -53,7 +53,16 @@ R ::=
   sub-sym    Γ ⊦ σ₁ = σ₀ : Δ                   (conclusion: σ₁ = σ₀)
   sub-trans  Γ ⊦ σ₀ = σ₂ : Δ via σ₁            (conclusion: σ₀ = σ₂)
 
-  // TODO: we need wf and eq rules for normal substitution
+  // Normal substitution wf
+  sub-norm-term   Γ ⊦ ·                          (SubNormWfTerminal)
+  sub-norm-ext    Γ ⊦ e˲, t to Δ ᐅ T             (SubNormWfExt)
+  sub-norm-chn    Δ ⊦ e˲ ∘ σ to Γ₁ via Γ₀        (SubNormWfChain)
+
+  // Normal substitution eq
+  sub-norm-refl    Γ ⊦ e˲ : Δ
+  sub-norm-sym     Γ ⊦ e˲₁ = e˲₀ : Δ                 (conclusion: e˲₁ = e˲₀)
+  sub-norm-trans   Γ ⊦ e˲₀ = e˲₂ : Δ via e˲₁         (conclusion: e˲₀ = e˲₂)
+  sub-norm-ext-eq  Γ ⊦ e˲₀, t₀ = e˲₁, t₁ : Δ ᐅ T    (SubNormEqExt, ext-eq before ext — longer keyword first)
 
   // Type wf
   ty-zero    Γ ⊦ 𝟘

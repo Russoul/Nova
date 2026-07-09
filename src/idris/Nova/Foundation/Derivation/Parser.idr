@@ -154,6 +154,43 @@ parseTypingRule =
       s0 <- parseSub; sp; str_ "="; sp; s2 <- parseSub; sp; char_ ':'; sp; d <- parseCtx
       sp; str_ "via"; sp; s1 <- parseSub
       pure (SubEqTrans s0 s1 s2 ctx d)) <|>
+  -- Normal substitution wf (ext-eq before ext — longer keyword first)
+  (do str_ "sub-norm-term"; space
+      ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseSubNorm
+      pure (SubNormWfTerminal ctx)) <|>
+  (do str_ "sub-norm-ext-eq"; space
+      ctx <- parseCtx; sp; str_ "⊦"; sp
+      full0 <- parseSubNorm; sp; str_ "="; sp; full1 <- parseSubNorm
+      sp; char_ ':'; sp; delta <- parseCtx
+      case (full0, full1, delta) of
+        (es0 :< t0, es1 :< t1, d :< ty) => pure (SubNormEqExt es0 es1 t0 t1 ctx d ty)
+        _ => fail "sub-norm-ext-eq: expected e˲, t = e˲', t' and non-empty target context") <|>
+  (do str_ "sub-norm-ext"; space
+      ctx <- parseCtx; sp; str_ "⊦"; sp
+      sigma <- parseSubNorm; sp; str_ "to"; sp; delta <- parseCtx
+      case (sigma, delta) of
+        (es :< e, d :< ty) => pure (SubNormWfExt es e ctx d ty)
+        _ => fail "sub-norm-ext: expected e˲, e and non-empty target context") <|>
+  (do str_ "sub-norm-chn"; space
+      delta <- parseCtx; sp; str_ "⊦"; sp
+      sigma <- parseSubNorm; sp; str_ "∘"; sp; tau <- parseSub
+      sp; str_ "to"; sp; gamma1 <- parseCtx
+      sp; str_ "via"; sp; gamma0 <- parseCtx
+      pure (SubNormWfChain sigma tau gamma0 gamma1 delta)) <|>
+  -- Normal substitution eq
+  (do str_ "sub-norm-refl"; space
+      ctx <- parseCtx; sp; str_ "⊦"; sp
+      s <- parseSubNorm; sp; char_ ':'; sp; d <- parseCtx
+      pure (SubNormEqRefl s ctx d)) <|>
+  (do str_ "sub-norm-sym"; space
+      ctx <- parseCtx; sp; str_ "⊦"; sp
+      s1 <- parseSubNorm; sp; str_ "="; sp; s0 <- parseSubNorm; sp; char_ ':'; sp; d <- parseCtx
+      pure (SubNormEqSym s0 s1 ctx d)) <|>
+  (do str_ "sub-norm-trans"; space
+      ctx <- parseCtx; sp; str_ "⊦"; sp
+      s0 <- parseSubNorm; sp; str_ "="; sp; s2 <- parseSubNorm; sp; char_ ':'; sp; d <- parseCtx
+      sp; str_ "via"; sp; s1 <- parseSubNorm
+      pure (SubNormEqTrans s0 s1 s2 ctx d)) <|>
   -- Type wf
   (do str_ "ty-zero"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
       case ty of

@@ -122,6 +122,5 @@ substitution (`t˲ ::= · | t˲, t` — a plain list of elements, no
 `id`/`↑`/`∘`) with `e˲ : Δ ⇒ Γ norm` — there is no bare `x`, a signature
 reference always carries the substitution back to its declaration context
 (e.g. `x[·]` if `x` was declared in `ε`, `x[·, ☐₀]` when used in exactly
-`Γ ᐅ A`). **Known gap**: there is currently no typing-rule keyword that
-derives a `sub-norm-wf` fact, so `sig-var`/`sig-var-eq` can't actually be
-applied yet — don't reach for them until that's implemented.
+`Γ ᐅ A`). Build up `e˲` itself with `sub-norm-term`/`sub-norm-ext` (see the
+cheat sheet's "Normal substitution" sections).

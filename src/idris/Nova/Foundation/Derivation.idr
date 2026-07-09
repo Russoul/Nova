@@ -252,6 +252,19 @@ data TypingRule : Type where
   SubEqRefl  : Sub -> Ctx -> Ctx -> TypingRule
   SubEqSym   : Sub -> Sub -> Ctx -> Ctx -> TypingRule
   SubEqTrans : Sub -> Sub -> Sub -> Ctx -> Ctx -> TypingRule
+  -- Normal substitution well-formedness
+  ||| · : Γ ⇒ ε norm
+  SubNormWfTerminal : Ctx -> TypingRule
+  ||| (e˲, t) : Γ₀ ⇒ (Γ₁ ᐅ A) norm  given e˲ : Γ₀ ⇒ Γ₁ norm
+  SubNormWfExt : SubNorm -> Elem -> Ctx -> Ctx -> Ty -> TypingRule
+  ||| e˲ ∘ σ : Δ ⇒ Γ₁ norm  given e˲ : Γ₀ ⇒ Γ₁ norm and σ : Δ ⇒ Γ₀
+  SubNormWfChain : SubNorm -> Sub -> Ctx -> Ctx -> Ctx -> TypingRule
+  -- Normal substitution equality
+  SubNormEqRefl  : SubNorm -> Ctx -> Ctx -> TypingRule
+  SubNormEqSym   : SubNorm -> SubNorm -> Ctx -> Ctx -> TypingRule
+  SubNormEqTrans : SubNorm -> SubNorm -> SubNorm -> Ctx -> Ctx -> TypingRule
+  ||| e˲₀, t₀ = e˲₁, t₁ : Γ₀ ⇒ (Γ₁ ᐅ A) norm  given e˲₀ = e˲₁ : Γ₀ ⇒ Γ₁ norm
+  SubNormEqExt : SubNorm -> SubNorm -> Elem -> Elem -> Ctx -> Ctx -> Ty -> TypingRule
   -- Type equality
   TyEqRefl  : Ctx -> Ty -> TypingRule
   TyEqSym   : Ctx -> Ty -> Ty -> TypingRule
@@ -361,6 +374,13 @@ Show TypingRule where
   show (SubEqRefl s g d)             = "SubEqRefl (\{show s}) (\{showCtxRep g}) (\{showCtxRep d})"
   show (SubEqSym s0 s1 g d)          = "SubEqSym (\{show s0}) (\{show s1}) (\{showCtxRep g}) (\{showCtxRep d})"
   show (SubEqTrans s0 s1 s2 g d)     = "SubEqTrans (\{show s0}) (\{show s1}) (\{show s2}) (\{showCtxRep g}) (\{showCtxRep d})"
+  show (SubNormWfTerminal ctx)             = "SubNormWfTerminal (\{showCtxRep ctx})"
+  show (SubNormWfExt sigma e gamma delta ty) = "SubNormWfExt (\{show sigma}) (\{show e}) (\{showCtxRep gamma}) (\{showCtxRep delta}) (\{show ty})"
+  show (SubNormWfChain sigma tau gamma0 gamma1 delta) = "SubNormWfChain (\{show sigma}) (\{show tau}) (\{showCtxRep gamma0}) (\{showCtxRep gamma1}) (\{showCtxRep delta})"
+  show (SubNormEqRefl s g d)             = "SubNormEqRefl (\{show s}) (\{showCtxRep g}) (\{showCtxRep d})"
+  show (SubNormEqSym s0 s1 g d)          = "SubNormEqSym (\{show s0}) (\{show s1}) (\{showCtxRep g}) (\{showCtxRep d})"
+  show (SubNormEqTrans s0 s1 s2 g d)     = "SubNormEqTrans (\{show s0}) (\{show s1}) (\{show s2}) (\{showCtxRep g}) (\{showCtxRep d})"
+  show (SubNormEqExt s0 s1 t0 t1 gamma0 gamma1 ty) = "SubNormEqExt (\{show s0}) (\{show s1}) (\{show t0}) (\{show t1}) (\{showCtxRep gamma0}) (\{showCtxRep gamma1}) (\{show ty})"
   show (TyEqRefl ctx ty)             = "TyEqRefl (\{showCtxRep ctx}) (\{show ty})"
   show (TyEqSym ctx ty0 ty1)         = "TyEqSym (\{showCtxRep ctx}) (\{show ty0}) (\{show ty1})"
   show (TyEqTrans ctx ty0 ty1 ty2)   = "TyEqTrans (\{showCtxRep ctx}) (\{show ty0}) (\{show ty1}) (\{show ty2})"
@@ -752,6 +772,32 @@ step (SubEqTrans s0 s1 s2 g d) sp = do
   subEqDerivable s0 s1 g d sp
   subEqDerivable s1 s2 g d sp
   Right $ {subEq $= insert (s0, s2, g, d)} sp
+step (SubNormWfTerminal gamma) sp = do
+  ctxWfDerivable gamma sp
+  Right $ {subNormWf $= insert ([<], gamma, [<])} sp
+step (SubNormWfExt sigma e gamma delta ty) sp = do
+  subNormWfDerivable sigma gamma delta sp
+  tyWfDerivable delta ty sp
+  elemWfDerivable gamma e (substTy ty (embed sigma)) sp
+  Right $ {subNormWf $= insert (sigma :< e, gamma, delta :< ty)} sp
+step (SubNormWfChain sigma tau gamma0 gamma1 delta) sp = do
+  subNormWfDerivable sigma gamma0 gamma1 sp
+  subWfDerivable tau delta gamma0 sp
+  Right $ {subNormWf $= insert (substSubNorm sigma tau, delta, gamma1)} sp
+step (SubNormEqRefl s g d) sp = do
+  subNormWfDerivable s g d sp
+  Right $ {subNormEq $= insert (s, s, g, d)} sp
+step (SubNormEqSym s0 s1 g d) sp = do
+  subNormEqDerivable s0 s1 g d sp
+  Right $ {subNormEq $= insert (s1, s0, g, d)} sp
+step (SubNormEqTrans s0 s1 s2 g d) sp = do
+  subNormEqDerivable s0 s1 g d sp
+  subNormEqDerivable s1 s2 g d sp
+  Right $ {subNormEq $= insert (s0, s2, g, d)} sp
+step (SubNormEqExt s0 s1 t0 t1 gamma0 gamma1 ty) sp = do
+  subNormEqDerivable s0 s1 gamma0 gamma1 sp
+  elemEqDerivable gamma0 t0 t1 (substTy ty (embed s1)) sp
+  Right $ {subNormEq $= insert (s0 :< t0, s1 :< t1, gamma0, gamma1 :< ty)} sp
 step (TyEqRefl ctx ty) sp = do
   tyWfDerivable ctx ty sp
   Right $ {tyEq $= insert (ctx, ty, ty)} sp

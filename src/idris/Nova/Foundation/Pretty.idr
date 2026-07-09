@@ -270,6 +270,20 @@ prettyTypingRule (SubEqSym s0 s1 g d) =
   "sub-sym " ++ prettyCtx g ++ " ⊦ " ++ prettySub s1 ++ " = " ++ prettySub s0 ++ " : " ++ prettyCtx d
 prettyTypingRule (SubEqTrans s0 s1 s2 g d) =
   "sub-trans " ++ prettyCtx g ++ " ⊦ " ++ prettySub s0 ++ " = " ++ prettySub s2 ++ " : " ++ prettyCtx d ++ " via " ++ prettySub s1
+prettyTypingRule (SubNormWfTerminal ctx) =
+  "sub-norm-term " ++ prettyCtx ctx ++ " ⊦ ·"
+prettyTypingRule (SubNormWfExt sigma e gamma delta ty) =
+  "sub-norm-ext " ++ prettyCtx gamma ++ " ⊦ " ++ prettySubNorm (sigma :< e) ++ " to " ++ prettyCtx (delta :< ty)
+prettyTypingRule (SubNormWfChain sigma tau gamma0 gamma1 delta) =
+  "sub-norm-chn " ++ prettyCtx delta ++ " ⊦ " ++ prettySubNorm sigma ++ " ∘ " ++ prettySub tau ++ " to " ++ prettyCtx gamma1 ++ " via " ++ prettyCtx gamma0
+prettyTypingRule (SubNormEqRefl s g d) =
+  "sub-norm-refl " ++ prettyCtx g ++ " ⊦ " ++ prettySubNorm s ++ " : " ++ prettyCtx d
+prettyTypingRule (SubNormEqSym s0 s1 g d) =
+  "sub-norm-sym " ++ prettyCtx g ++ " ⊦ " ++ prettySubNorm s1 ++ " = " ++ prettySubNorm s0 ++ " : " ++ prettyCtx d
+prettyTypingRule (SubNormEqTrans s0 s1 s2 g d) =
+  "sub-norm-trans " ++ prettyCtx g ++ " ⊦ " ++ prettySubNorm s0 ++ " = " ++ prettySubNorm s2 ++ " : " ++ prettyCtx d ++ " via " ++ prettySubNorm s1
+prettyTypingRule (SubNormEqExt s0 s1 t0 t1 gamma0 gamma1 ty) =
+  "sub-norm-ext-eq " ++ prettyCtx gamma0 ++ " ⊦ " ++ prettySubNorm (s0 :< t0) ++ " = " ++ prettySubNorm (s1 :< t1) ++ " : " ++ prettyCtx (gamma1 :< ty)
 prettyTypingRule (TyWfZero ctx) =
   "ty-zero " ++ prettyCtx ctx ++ " ⊦ 𝟘"
 prettyTypingRule (TyWfOne ctx) =

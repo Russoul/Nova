@@ -52,11 +52,6 @@ reference (`x[ξ][σ]`) is not a separate `el-cmp` step though — like all
 other substitution, it's handled the moment you write `x[ξ]` inside a term
 that itself gets substituted by `σ`.
 
-**Known gap**: `sig-var`/`sig-var-eq` require a `sub-norm-wf` fact for their
-`e˲`, but there is currently no typing-rule keyword that derives one (see
-the `// TODO` in `NovaSyntax.txt`) — so these two keywords aren't usable in
-a real derivation yet.
-
 ## Context
 
 | Keyword & syntax | Premises | Conclusion |
@@ -85,6 +80,29 @@ a real derivation yet.
 | `sub-refl Γ ⊦ σ : Δ` | `σ : Γ ⇒ Δ` | `σ = σ : Γ ⇒ Δ` |
 | `sub-sym Γ ⊦ σ₁ = σ₀ : Δ` | `σ₀ = σ₁ : Γ ⇒ Δ` | `σ₁ = σ₀ : Γ ⇒ Δ` |
 | `sub-trans Γ ⊦ σ₀ = σ₂ : Δ via σ₁` | `σ₀ = σ₁ : Γ ⇒ Δ`, `σ₁ = σ₂ : Γ ⇒ Δ` | `σ₀ = σ₂ : Γ ⇒ Δ` |
+
+## Normal substitution well-formedness
+
+A normal substitution `e˲` (`t˲ ::= · | t˲, t`, i.e. `SubNorm`) is what a
+signature reference `x[e˲]` carries — see the note above. It embeds into a
+general substitution (`embed e˲`) wherever one is needed (e.g. to compute
+`A[e˲]` via `substTy`), but is built and reasoned about with its own rules
+since it can't contain `id`/`↑`/`∘`.
+
+| Keyword & syntax | Premises | Conclusion |
+|---|---|---|
+| `sub-norm-term Γ ⊦ ·` | `Γ ctx` | `· : Γ ⇒ ε norm` |
+| `sub-norm-ext Γ ⊦ e˲, t to Δ ᐅ A` | `e˲ : Γ ⇒ Δ norm`, `Δ ⊦ A type`, `Γ ⊦ t : A[e˲]` | `(e˲, t) : Γ ⇒ (Δ ᐅ A) norm` |
+| `sub-norm-chn Δ ⊦ e˲ ∘ σ to Γ₁ via Γ₀` | `e˲ : Γ₀ ⇒ Γ₁ norm`, `σ : Δ ⇒ Γ₀` | `e˲ ∘ σ : Δ ⇒ Γ₁ norm` (computed via `substSubNorm`, so the result is already in normal form) |
+
+## Normal substitution equality
+
+| Keyword & syntax | Premises | Conclusion |
+|---|---|---|
+| `sub-norm-refl Γ ⊦ e˲ : Δ` | `e˲ : Γ ⇒ Δ norm` | `e˲ = e˲ : Γ ⇒ Δ norm` |
+| `sub-norm-sym Γ ⊦ e˲₁ = e˲₀ : Δ` | `e˲₀ = e˲₁ : Γ ⇒ Δ norm` | `e˲₁ = e˲₀ : Γ ⇒ Δ norm` |
+| `sub-norm-trans Γ ⊦ e˲₀ = e˲₂ : Δ via e˲₁` | `e˲₀ = e˲₁ : Γ ⇒ Δ norm`, `e˲₁ = e˲₂ : Γ ⇒ Δ norm` | `e˲₀ = e˲₂ : Γ ⇒ Δ norm` |
+| `sub-norm-ext-eq Γ ⊦ e˲₀, t₀ = e˲₁, t₁ : Δ ᐅ A` | `e˲₀ = e˲₁ : Γ ⇒ Δ norm`, `Γ ⊦ t₀ = t₁ : A[e˲₁]` | `e˲₀, t₀ = e˲₁, t₁ : Γ ⇒ (Δ ᐅ A) norm` |
 
 ## Type well-formedness
 
@@ -191,8 +209,8 @@ via `check`'s target file or `query`. Same keywords double as `dump`'s
 | `ctx-eq Γ = Γ'` | `Γ` and `Γ'` are equal contexts |
 | `sub-wf σ : Γ ⇒ Δ` | `σ` is a well-formed substitution |
 | `sub-eq σ = σ' : Γ ⇒ Δ` | `σ` and `σ'` are equal substitutions |
-| `sub-norm-wf e˲ : Γ ⇒ Δ norm` | `e˲` is a well-formed normal substitution (no derivation rule yet — see the known gap above) |
-| `sub-norm-eq e˲ = e˲' : Γ ⇒ Δ norm` | `e˲` and `e˲'` are equal normal substitutions (same gap) |
+| `sub-norm-wf e˲ : Γ ⇒ Δ norm` | `e˲` is a well-formed normal substitution |
+| `sub-norm-eq e˲ = e˲' : Γ ⇒ Δ norm` | `e˲` and `e˲'` are equal normal substitutions |
 | `ty-wf Γ ⊦ A` | `A` is a well-formed type in `Γ` |
 | `ty-eq Γ ⊦ A = A'` | `A` and `A'` are equal types in `Γ` |
 | `el-wf Γ ⊦ t : A` | `t` has type `A` in `Γ` |
