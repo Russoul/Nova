@@ -1,6 +1,6 @@
-module Nova.Control.Monad.St
+module Control.Monad.St
 
-import Nova.Control.Monad.Id
+import Control.Monad.Id
 import Data.List1
 import Data.Vect
 

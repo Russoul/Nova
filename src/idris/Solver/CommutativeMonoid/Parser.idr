@@ -15,6 +15,10 @@ public export
 Rule : Type -> Type
 Rule a = Grammar () Token a
 
+toChar : Token -> Char
+toChar (Symbol c) = c
+toChar _ = ' '
+
 public export
 var : Rule String
 var = (pack . forget . map toChar <$> some (is "char" (isSymbol isAlpha)))

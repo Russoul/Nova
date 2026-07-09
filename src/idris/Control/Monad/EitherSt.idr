@@ -1,9 +1,9 @@
-module Nova.Control.Monad.EitherSt
+module Control.Monad.EitherSt
 
 import Data.Vect
 
-import Nova.Control.Monad.Id
-import Nova.Control.Monad.St
+import Control.Monad.Id
+import Control.Monad.St
 
 EitherSt e s a = s -> Either e (s, a)
 

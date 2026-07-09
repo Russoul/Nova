@@ -1,7 +1,7 @@
-module Nova.Control.Monad.MaybeSt
+module Control.Monad.MaybeSt
 
-import Nova.Control.Monad.Id
-import Nova.Control.Monad.St
+import Control.Monad.Id
+import Control.Monad.St
 import Data.List1
 import Data.Vect
 

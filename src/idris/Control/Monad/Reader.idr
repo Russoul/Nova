@@ -1,4 +1,4 @@
-module Nova.Control.Monad.Reader
+module Control.Monad.Reader
 
 Reader r a = r -> a
 

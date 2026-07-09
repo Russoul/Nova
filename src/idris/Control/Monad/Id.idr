@@ -1,4 +1,4 @@
-module Nova.Control.Monad.Id
+module Control.Monad.Id
 
 import Data.List1
 

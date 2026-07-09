@@ -16,4 +16,22 @@ modules = Nova.Foundation.Syntax
         , Nova.Foundation.Session
         , Nova.Foundation.Application
 
+        , Solver.CommutativeMonoid
+        , Solver.CommutativeMonoid.Evaluation
+        , Solver.CommutativeMonoid.Language
+        , Solver.CommutativeMonoid.Normalisation
+        , Solver.CommutativeMonoid.Parser
+        , Solver.CommutativeMonoid.Quotation
+        , Solver.CommutativeMonoid.Value
+
+        , Data.Util
+
+        , Control.Monad.EitherSt
+        , Control.Monad.IOEither
+        , Control.Monad.Id
+        , Control.Monad.MaybeSt
+        , Control.Monad.Reader
+        , Control.Monad.St
+        , Control.Monad.StEither
+
 sourcedir = "src/idris"
