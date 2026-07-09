@@ -295,3 +295,87 @@
 - sig-var ε ᐅ ℕ ⊦ zeroPlusId[·, ☐₀]
 - sig-var ε ᐅ ℕ ᐅ ℕ ⊦ sucPlus[·, ☐₁, ☐₀]
 - sig-var ε ᐅ ℕ ᐅ ℕ ⊦ plusComm[·, ☐₁, ☐₀]
+- el-var ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ ☐₁
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ (plus[·] ☐₂ : ℕ → ℕ) ☐₁
+- el-zero ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ Z
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ (plus[·] : ℕ → ℕ → ℕ) ☐₁
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ (plus[·] ☐₁ : ℕ → ℕ) Z
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ (plus[·] : ℕ → ℕ → ℕ) (plus[·] ☐₂ ☐₁)
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ (plus[·] (plus[·] ☐₂ ☐₁) : ℕ → ℕ) Z
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ (plus[·] ☐₂ : ℕ → ℕ) (plus[·] ☐₁ Z)
+- el-cmp ε ᐅ ℕ ᐅ ℕ ᐅ ℕ via id ⊦ plus[·] (plus[·] ☐₂ ☐₁) Z via ↓ id id; ↓ id; ↓; ↓ : ℕ via id
+- el-cmp ε ᐅ ℕ ᐅ ℕ ᐅ ℕ via id ⊦ plus[·] ☐₂ (plus[·] ☐₁ Z) via id (↓ id id; ↓ id; ↓; ↓) : ℕ via id
+- el-eq-sym ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ plus[·] ☐₂ ☐₁ = plus[·] ☐₂ (plus[·] ☐₁ Z) : ℕ
+- el-eq-trans ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ plus[·] (plus[·] ☐₂ ☐₁) Z = plus[·] ☐₂ (plus[·] ☐₁ Z) : ℕ via plus[·] ☐₂ ☐₁
+- el-eq-refl ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ plus[·] (plus[·] ☐₂ ☐₁) Z : ℕ
+- ty-eq-cong ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ (plus[·] (plus[·] ☐₂ ☐₁) Z) ≡ (plus[·] (plus[·] ☐₂ ☐₁) Z) ∈ ℕ = (plus[·] (plus[·] ☐₂ ☐₁) Z) ≡ (plus[·] ☐₂ (plus[·] ☐₁ Z)) ∈ ℕ
+- el-refl ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ Refl : (plus[·] (plus[·] ☐₂ ☐₁) Z) ∈ ℕ
+- el-ty-coe ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ Refl : (plus[·] (plus[·] ☐₂ ☐₁) Z) ≡ (plus[·] (plus[·] ☐₂ ☐₁) Z) ∈ ℕ ↝ (plus[·] (plus[·] ☐₂ ☐₁) Z) ≡ (plus[·] ☐₂ (plus[·] ☐₁ Z)) ∈ ℕ
+- sub-norm-term ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ ·
+- sig-var ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ plus[·]
+- el-var ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ ☐₃
+- el-var ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ ☐₂
+- el-var ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ ☐₀
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ (plus[·] : ℕ → ℕ → ℕ) ☐₃
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ (plus[·] ☐₃ : ℕ → ℕ) ☐₂
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ (plus[·] : ℕ → ℕ → ℕ) (plus[·] ☐₃ ☐₂)
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ (plus[·] (plus[·] ☐₃ ☐₂) : ℕ → ℕ) ☐₀
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ (plus[·] : ℕ → ℕ → ℕ) ☐₂
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ (plus[·] ☐₂ : ℕ → ℕ) ☐₀
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ (plus[·] ☐₃ : ℕ → ℕ) (plus[·] ☐₂ ☐₀)
+- ty-eq-form ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ
+- ctx-ext ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ
+- el-var ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ ☐₀
+- el-reflect ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ ☐₀ : ((plus[·] (plus[·] ☐₄ ☐₃) ☐₁) ≡ (plus[·] ☐₄ (plus[·] ☐₃ ☐₁)) ∈ ℕ) reflect
+- sub-norm-term ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ ·
+- sig-var ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ plus[·]
+- el-var ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ ☐₄
+- el-var ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ ☐₃
+- el-var ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ ☐₁
+- el-suc ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ S ☐₁
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ (plus[·] : ℕ → ℕ → ℕ) ☐₄
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ (plus[·] ☐₄ : ℕ → ℕ) ☐₃
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ (plus[·] : ℕ → ℕ → ℕ) (plus[·] ☐₄ ☐₃)
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ (plus[·] (plus[·] ☐₄ ☐₃) : ℕ → ℕ) (S ☐₁)
+- el-cmp ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ via id ⊦ plus[·] (plus[·] ☐₄ ☐₃) (S ☐₁) via ↓ id id; ↓ id; ↓ : ℕ via id
+- el-cmp ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ via id ⊦ ℕ-elim (plus[·] ☐₄ ☐₃) (S ☐₀) (S ☐₁) via ↓ : ℕ via id
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ (plus[·] (plus[·] ☐₄ ☐₃) : ℕ → ℕ) ☐₁
+- el-cmp ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ via id ⊦ plus[·] (plus[·] ☐₄ ☐₃) ☐₁ via ↓ id id; ↓ id; ↓ : ℕ via id
+- el-eq-sym ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ ℕ-elim (plus[·] ☐₄ ☐₃) (S ☐₀) ☐₁ = plus[·] (plus[·] ☐₄ ☐₃) ☐₁ : ℕ
+- el-eq-trans ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ plus[·] (plus[·] ☐₄ ☐₃) (S ☐₁) = S (ℕ-elim (plus[·] ☐₄ ☐₃) (S ☐₀) ☐₁) : ℕ via ℕ-elim (plus[·] ☐₄ ☐₃) (S ☐₀) (S ☐₁)
+- el-suc-cong ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ S (ℕ-elim (plus[·] ☐₄ ☐₃) (S ☐₀) ☐₁) = S (plus[·] (plus[·] ☐₄ ☐₃) ☐₁)
+- el-eq-trans ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ plus[·] (plus[·] ☐₄ ☐₃) (S ☐₁) = S (plus[·] (plus[·] ☐₄ ☐₃) ☐₁) : ℕ via S (ℕ-elim (plus[·] ☐₄ ☐₃) (S ☐₀) ☐₁)
+- el-suc-cong ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ S (plus[·] (plus[·] ☐₄ ☐₃) ☐₁) = S (plus[·] ☐₄ (plus[·] ☐₃ ☐₁))
+- el-eq-trans ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ plus[·] (plus[·] ☐₄ ☐₃) (S ☐₁) = S (plus[·] ☐₄ (plus[·] ☐₃ ☐₁)) : ℕ via S (plus[·] (plus[·] ☐₄ ☐₃) ☐₁)
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ (plus[·] : ℕ → ℕ → ℕ) ☐₃
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ (plus[·] ☐₃ : ℕ → ℕ) (S ☐₁)
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ (plus[·] ☐₄ : ℕ → ℕ) (plus[·] ☐₃ (S ☐₁))
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ (plus[·] ☐₃ : ℕ → ℕ) ☐₁
+- el-cmp ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ via id ⊦ plus[·] ☐₄ (plus[·] ☐₃ (S ☐₁)) via id (↓ id id; ↓ id; ↓) : ℕ via id
+- el-cmp ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ via id ⊦ plus[·] ☐₄ (ℕ-elim ☐₃ (S ☐₀) (S ☐₁)) via id ↓ : ℕ via id
+- el-cmp ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ via id ⊦ plus[·] ☐₃ ☐₁ via ↓ id id; ↓ id; ↓ : ℕ via id
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ (plus[·] ☐₄ : ℕ → ℕ) (plus[·] ☐₃ ☐₁)
+- el-cmp ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ via id ⊦ plus[·] ☐₄ (plus[·] ☐₃ ☐₁) via id (↓ id id; ↓ id; ↓) : ℕ via id
+- sub-norm-ext ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ ·, ☐₄ to ε ᐅ ℕ
+- sub-norm-ext ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ ·, ☐₄, ℕ-elim ☐₃ (S ☐₀) ☐₁ to ε ᐅ ℕ ᐅ ℕ
+- sig-var ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ plusSucId[·, ☐₄, ℕ-elim ☐₃ (S ☐₀) ☐₁]
+- el-reflect ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ plusSucId[·, ☐₄, ℕ-elim ☐₃ (S ☐₀) ☐₁] : ((plus[·] ☐₄ (S (ℕ-elim ☐₃ (S ☐₀) ☐₁))) ≡ (S (plus[·] ☐₄ (ℕ-elim ☐₃ (S ☐₀) ☐₁))) ∈ ℕ) reflect
+- el-eq-sym ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ plus[·] ☐₄ (ℕ-elim ☐₃ (S ☐₀) ☐₁) = plus[·] ☐₄ (plus[·] ☐₃ ☐₁) : ℕ
+- el-suc-cong ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ S (plus[·] ☐₄ (ℕ-elim ☐₃ (S ☐₀) ☐₁)) = S (plus[·] ☐₄ (plus[·] ☐₃ ☐₁))
+- el-eq-trans ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ plus[·] ☐₄ (S (ℕ-elim ☐₃ (S ☐₀) ☐₁)) = S (plus[·] ☐₄ (plus[·] ☐₃ ☐₁)) : ℕ via S (plus[·] ☐₄ (ℕ-elim ☐₃ (S ☐₀) ☐₁))
+- el-eq-trans ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ plus[·] ☐₄ (plus[·] ☐₃ (S ☐₁)) = plus[·] ☐₄ (S (ℕ-elim ☐₃ (S ☐₀) ☐₁)) : ℕ via plus[·] ☐₄ (ℕ-elim ☐₃ (S ☐₀) (S ☐₁))
+- el-eq-trans ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ plus[·] ☐₄ (plus[·] ☐₃ (S ☐₁)) = S (plus[·] ☐₄ (plus[·] ☐₃ ☐₁)) : ℕ via plus[·] ☐₄ (S (ℕ-elim ☐₃ (S ☐₀) ☐₁))
+- el-eq-sym ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ S (plus[·] ☐₄ (plus[·] ☐₃ ☐₁)) = plus[·] ☐₄ (plus[·] ☐₃ (S ☐₁)) : ℕ
+- el-eq-trans ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ plus[·] (plus[·] ☐₄ ☐₃) (S ☐₁) = plus[·] ☐₄ (plus[·] ☐₃ (S ☐₁)) : ℕ via S (plus[·] ☐₄ (plus[·] ☐₃ ☐₁))
+- el-eq-refl ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ plus[·] (plus[·] ☐₄ ☐₃) (S ☐₁) : ℕ
+- ty-eq-cong ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ (plus[·] (plus[·] ☐₄ ☐₃) (S ☐₁)) ≡ (plus[·] (plus[·] ☐₄ ☐₃) (S ☐₁)) ∈ ℕ = (plus[·] (plus[·] ☐₄ ☐₃) (S ☐₁)) ≡ (plus[·] ☐₄ (plus[·] ☐₃ (S ☐₁))) ∈ ℕ
+- el-refl ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ Refl : (plus[·] (plus[·] ☐₄ ☐₃) (S ☐₁)) ∈ ℕ
+- el-ty-coe ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ ⊦ Refl : (plus[·] (plus[·] ☐₄ ☐₃) (S ☐₁)) ≡ (plus[·] (plus[·] ☐₄ ☐₃) (S ☐₁)) ∈ ℕ ↝ (plus[·] (plus[·] ☐₄ ☐₃) (S ☐₁)) ≡ (plus[·] ☐₄ (plus[·] ☐₃ (S ☐₁))) ∈ ℕ
+- el-nat-e ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ ℕ-elim Refl Refl ☐₀ motive (plus[·] (plus[·] ☐₃ ☐₂) ☐₀) ≡ (plus[·] ☐₃ (plus[·] ☐₂ ☐₀)) ∈ ℕ
+- el-reflect ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ ℕ-elim Refl Refl ☐₀ : ((plus[·] (plus[·] ☐₂ ☐₁) ☐₀) ≡ (plus[·] ☐₂ (plus[·] ☐₁ ☐₀)) ∈ ℕ) reflect
+- sig ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ plusAssoc ≔ ℕ-elim Refl Refl ☐₀ : (plus[·] (plus[·] ☐₂ ☐₁) ☐₀) ≡ (plus[·] ☐₂ (plus[·] ☐₁ ☐₀)) ∈ ℕ
+- sub-norm-term ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ ·
+- sub-norm-ext ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ ·, ☐₂ to ε ᐅ ℕ
+- sub-norm-ext ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ ·, ☐₂, ☐₁ to ε ᐅ ℕ ᐅ ℕ
+- sub-norm-ext ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ ·, ☐₂, ☐₁, ☐₀ to ε ᐅ ℕ ᐅ ℕ ᐅ ℕ
+- sig-var ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ plusAssoc[·, ☐₂, ☐₁, ☐₀]
