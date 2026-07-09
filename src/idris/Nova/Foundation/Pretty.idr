@@ -332,7 +332,7 @@ prettyTypingRule (ElemWfSigmaElim2 ctx e a b) =
 prettyTypingRule (ElemWfZeroElim ctx e ty) =
   "el-zero-e " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (ZeroElim e) ++ " : " ++ prettyTy ty
 prettyTypingRule (ElemWfNatElim ctx z s t ty) =
-  "el-nat-e " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (NatElim z s t) ++ " : " ++ prettyTy ty
+  "el-nat-e " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (NatElim z s t) ++ " motive " ++ prettyTy ty
 prettyTypingRule (ElemEqReflection ctx a a0 a1 ty) =
   "el-reflect " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem a ++ " : (" ++ prettyTy (EqTy a0 a1 ty) ++ ") reflect"
 prettyTypingRule (ElemEqCongSuc ctx t0 t1) =

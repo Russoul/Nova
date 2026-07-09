@@ -2,3 +2,4 @@
 - el-eq ε ᐅ ℕ ⊦ plus[·] ☐₀ Z = ☐₀ : ℕ
 - el-eq ε ᐅ ℕ ᐅ ℕ ⊦ plus[·] ☐₁ (S ☐₀) = S (plus[·] ☐₁ ☐₀) : ℕ
 - el-eq ε ᐅ ℕ ⊦ plus[·] Z ☐₀ = ☐₀ : ℕ
+- el-eq ε ᐅ ℕ ᐅ ℕ ⊦ plus[·] (S ☐₁) ☐₀ = S (plus[·] ☐₁ ☐₀) : ℕ

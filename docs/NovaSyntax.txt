@@ -92,7 +92,7 @@ R ::=
   el-sigma-e1 Γ ⊦ (e : A ⨯ B) .π₁
   el-sigma-e2 Γ ⊦ (e : A ⨯ B) .π₂
   el-zero-e   Γ ⊦ 𝟘-elim e : T
-  el-nat-e    Γ ⊦ ℕ-elim z s t : T
+  el-nat-e    Γ ⊦ ℕ-elim z s t motive A          (A in Γ ᐅ ℕ, not A[t] — see cheat sheet)
   el-reflect  Γ ⊦ t : (l ≡ r ∈ A) reflect       (ElemEqReflection)
   el-refl     Γ ⊦ Refl : t ∈ A                  (ElemWfRefl)
   el-ty-coe   Γ ⊦ t : T₀ ↝ T₁

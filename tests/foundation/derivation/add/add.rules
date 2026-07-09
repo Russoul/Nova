@@ -11,7 +11,7 @@
 - el-var ε ᐅ ℕ ᐅ ℕ ⊦ ☐₀
 - el-var ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ ☐₀
 - el-suc ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ S ☐₀
-- el-nat-e ε ᐅ ℕ ᐅ ℕ ⊦ ℕ-elim ☐₁ (S ☐₀) ☐₀ : ℕ
+- el-nat-e ε ᐅ ℕ ᐅ ℕ ⊦ ℕ-elim ☐₁ (S ☐₀) ☐₀ motive ℕ
 - el-pi-i ε ᐅ ℕ ⊦ λ (ℕ-elim ☐₁ (S ☐₀) ☐₀) : ℕ → ℕ
 - el-pi-i ε ⊦ λ (λ (ℕ-elim ☐₁ (S ☐₀) ☐₀)) : ℕ → ℕ → ℕ
 - sig ε ⊦ plus ≔ λ (λ (ℕ-elim ☐₁ (S ☐₀) ☐₀)) : ℕ → ℕ → ℕ
@@ -23,7 +23,7 @@
 - el-zero ε ᐅ ℕ ⊦ Z
 - el-var ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ ☐₀
 - el-suc ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ S ☐₀
-- el-nat-e ε ᐅ ℕ ⊦ ℕ-elim ☐₀ (S ☐₀) Z : ℕ
+- el-nat-e ε ᐅ ℕ ⊦ ℕ-elim ☐₀ (S ☐₀) Z motive ℕ
 - el-cmp ε ᐅ ℕ via id ⊦ ℕ-elim ☐₀ (S ☐₀) Z via ↓ : ℕ via id
 - sub-norm-term ε ᐅ ℕ ⊦ ·
 - sig-var ε ᐅ ℕ ⊦ plus[·]

@@ -296,7 +296,7 @@ parseTypingRule =
   (do str_ "el-nat-e"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
       case e of
         NatElim z s t => do
-          sp; char_ ':'; sp; ty <- parseTy
+          space; str_ "motive"; space; ty <- parseTy
           pure (ElemWfNatElim ctx z s t ty)
         _ => fail "el-nat-e: expected ℕ-elim z s t") <|>
   -- el-reflect before el-refl (shares "el-refl" prefix at token level)

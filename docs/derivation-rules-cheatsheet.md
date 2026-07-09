@@ -54,6 +54,17 @@ that itself gets substituted by `σ`.
 
 ## Doing induction: el-nat-e can't conclude a judgemental equality directly
 
+`el-nat-e Γ ⊦ ℕ-elim z s t motive A` — note the keyword `motive`, not `:`.
+`A` is the motive **itself**, typed in `Γ ᐅ ℕ` using *its own* placeholder
+`☐₀` — it is not the instantiated conclusion type `A[t]` you'd write for an
+ordinary `Γ ⊦ e : T` judgement (that instantiated type is what `apply` hands
+back to you as the derived fact). Writing `A[t]` in `Γ`'s own indices instead
+of `A` in `Γ ᐅ ℕ`'s is a common mistake and *silently means something
+different* rather than failing to parse — when `t` is `Γ`'s own variable
+(the usual induction case), `A`'s placeholder and `Γ`'s now-shadowed copy of
+that same variable both collapse to the same index in `A[t]`, so there's no
+way to recover `A` from `A[t]` mechanically; you have to state `A` directly.
+
 `el-nat-e`'s motive `A` is a `Ty`, and *judgemental* equality (`el-eq`) isn't
 a `Ty` — there's no way to hand `ℕ-elim` a motive of "`f n = g n`" directly.
 Instead, eliminate into the *propositional* equality type `EqTy` (`a ≡ b ∈
@@ -75,9 +86,9 @@ T`), then convert to `el-eq` with `el-reflect`:
    `ty-eq-cong` (not `ty-cmp`, since the two sides aren't related by
    computation, only by this judgemental fact) to coerce it up to `A` at
    `S n`.
-4. `el-nat-e Γ ⊦ ℕ-elim z s ☐₀ : A` (eliminating on the context's own free
-   variable, not a concrete value — this *is* "for all n" in this system),
-   then `el-reflect` the whole thing to get the final `el-eq`.
+4. `el-nat-e Γ ⊦ ℕ-elim z s ☐₀ motive A` (eliminating on the context's own
+   free variable, not a concrete value — this *is* "for all n" in this
+   system), then `el-reflect` the whole thing to get the final `el-eq`.
 
 See `derivations/plus/session.rules` (the `0 + x = x` proof) for a worked
 example.
@@ -171,7 +182,7 @@ since it can't contain `id`/`↑`/`∘`.
 | `el-sigma-e1 Γ ⊦ (t : A ⨯ B) .π₁` | `Γ ⊦ t : A ⨯ B` | `Γ ⊦ t.π₁ : A` |
 | `el-sigma-e2 Γ ⊦ (t : A ⨯ B) .π₂` | `Γ ⊦ t : A ⨯ B` | `Γ ⊦ t.π₂ : B[t.π₁]` |
 | `el-zero-e Γ ⊦ 𝟘-elim t : A` | `Γ ⊦ A type`, `Γ ⊦ t : 𝟘` | `Γ ⊦ 𝟘-elim t : A` |
-| `el-nat-e Γ ⊦ ℕ-elim z s t : A` | `Γ ⊦ z : A[Z]`, `Γ ᐅ ℕ ᐅ A ⊦ s : A[S ☐₁]`, `Γ ⊦ t : ℕ` | `Γ ⊦ ℕ-elim z s t : A[t]` |
+| `el-nat-e Γ ⊦ ℕ-elim z s t motive A` (`A` in `Γ ᐅ ℕ`, not `A[t]` — see below) | `Γ ⊦ z : A[Z]`, `Γ ᐅ ℕ ᐅ A ⊦ s : A[S ☐₁]`, `Γ ⊦ t : ℕ` | `Γ ⊦ ℕ-elim z s t : A[t]` |
 | `el-reflect Γ ⊦ t : (l ≡ r ∈ A) reflect` | `Γ ⊦ t : (l ≡ r ∈ A)` | `Γ ⊦ l = r : A` |
 | `el-refl Γ ⊦ Refl : t ∈ A` | `Γ ⊦ t : A` | `Γ ⊦ Refl : t ≡ t ∈ A` |
 | `el-ty-coe Γ ⊦ t : A₀ ↝ A₁` | `Γ ⊦ t : A₀`, `Γ ⊦ A₀ = A₁` | `Γ ⊦ t : A₁` |
