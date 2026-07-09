@@ -116,6 +116,28 @@ public export
 under : Sub -> Sub
 under sigma = Ext (Chain sigma Wk) (CtxVar 0)
 
+||| ↑ᵏ : Γ Δ ⇒ Γ
+||| ↑ᵏ ≜ ·, ☐ₙ₋₁₊ₖ, .... ☐₀₊ₖ, where |Γ| = n, |Δ| = k
+public export
+weakening : Ctx -> Ctx -> Sub
+weakening [<]          delta = Terminal
+weakening (rest :< ty) delta = Ext (weakening rest (delta :< ty)) (CtxVar (length delta))
+
+||| id : Γ ⇒ Γ
+||| id ≜ ↑⁰
+public export
+identity : Ctx -> Sub
+identity gamma = weakening gamma [<]
+
+||| τ ∘ σ
+||| · ∘ σ ≜ ·
+||| (τ, t) ∘ σ ≜ (τ ∘ σ, t[σ])
+public export
+composition : Sub -> Sub -> Sub
+composition Terminal sigma = Terminal
+composition (Ext tau t) sigma = Ext (composition tau sigma) (SubstElim t sigma)
+composition tau sigma = assert_total $ idris_crash "composition"
+
 mutual
   public export
   covering
