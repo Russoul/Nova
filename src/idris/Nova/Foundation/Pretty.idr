@@ -309,6 +309,8 @@ prettyTypingRule (TyEqSym ctx ty0 ty1) =
   "ty-sym " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy ty1 ++ " = " ++ prettyTy ty0
 prettyTypingRule (TyEqTrans ctx ty0 ty1 ty2) =
   "ty-trans " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy ty0 ++ " = " ++ prettyTy ty2 ++ " via " ++ prettyTy ty1
+prettyTypingRule (TyEqCongEqTy ctx a0 b0 ty0 a1 b1 ty1) =
+  "ty-eq-cong " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy (EqTy a0 b0 ty0) ++ " = " ++ prettyTy (EqTy a1 b1 ty1)
 prettyTypingRule (ElemWfVar g n) =
   "el-var " ++ prettyCtx g ++ " ⊦ " ++ prettyElemAtom (CtxVar n)
 prettyTypingRule (ElemWfOneIntro ctx) =
@@ -333,6 +335,8 @@ prettyTypingRule (ElemWfNatElim ctx z s t ty) =
   "el-nat-e " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (NatElim z s t) ++ " : " ++ prettyTy ty
 prettyTypingRule (ElemEqReflection ctx a a0 a1 ty) =
   "el-reflect " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem a ++ " : (" ++ prettyTy (EqTy a0 a1 ty) ++ ") reflect"
+prettyTypingRule (ElemEqCongSuc ctx t0 t1) =
+  "el-suc-cong " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (NatIntro1 t0) ++ " = " ++ prettyElem (NatIntro1 t1)
 prettyTypingRule (ElemWfRefl ctx e ty) =
   "el-refl " ++ prettyCtx ctx ++ " ⊦ Refl : " ++ prettyElemAtom e ++ " ∈ " ++ prettyTy ty
 prettyTypingRule (ElemEqTyCoe ctx a b ty0 ty1) =

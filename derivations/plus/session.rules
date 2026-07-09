@@ -55,3 +55,53 @@
 - el-eq-trans ε ᐅ ℕ ᐅ ℕ ⊦ plus[·] ☐₁ (S ☐₀) = S (ℕ-elim ☐₁ (S ☐₀) ☐₀) : ℕ via ℕ-elim ☐₁ (S ☐₀) (S ☐₀)
 - el-eq-sym ε ᐅ ℕ ᐅ ℕ ⊦ S (ℕ-elim ☐₁ (S ☐₀) ☐₀) = S (plus[·] ☐₁ ☐₀) : ℕ
 - el-eq-trans ε ᐅ ℕ ᐅ ℕ ⊦ plus[·] ☐₁ (S ☐₀) = S (plus[·] ☐₁ ☐₀) : ℕ via S (ℕ-elim ☐₁ (S ☐₀) ☐₀)
+- el-zero ε ᐅ ℕ ᐅ ℕ ⊦ Z
+- sig-var ε ᐅ ℕ ᐅ ℕ ⊦ plus[·]
+- el-var ε ᐅ ℕ ᐅ ℕ ⊦ ☐₀
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ⊦ (plus[·] : ℕ → ℕ → ℕ) Z
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ⊦ (plus[·] Z : ℕ → ℕ) ☐₀
+- ty-eq-form ε ᐅ ℕ ᐅ ℕ ⊦ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ
+- sub-norm-term ε ᐅ ℕ ⊦ ·
+- sig-var ε ᐅ ℕ ⊦ plus[·]
+- el-pi-e ε ᐅ ℕ ⊦ (plus[·] : ℕ → ℕ → ℕ) Z
+- el-pi-e ε ᐅ ℕ ⊦ (plus[·] Z : ℕ → ℕ) Z
+- el-cmp ε ᐅ ℕ via id ⊦ plus[·] Z Z via ↓ id id; ↓ id; ↓; ↓ : ℕ via id
+- ty-eq-form ε ᐅ ℕ ⊦ (plus[·] Z Z) ≡ Z ∈ ℕ
+- ty-cmp ε ᐅ ℕ via id ⊦ (plus[·] Z Z) ≡ Z ∈ ℕ via (↓ id id; ↓ id; ↓; ↓) ≡ id ∈ id
+- el-refl ε ᐅ ℕ ⊦ Refl : Z ∈ ℕ
+- ty-sym ε ᐅ ℕ ⊦ Z ≡ Z ∈ ℕ = (plus[·] Z Z) ≡ Z ∈ ℕ
+- el-ty-coe ε ᐅ ℕ ⊦ Refl : Z ≡ Z ∈ ℕ ↝ (plus[·] Z Z) ≡ Z ∈ ℕ
+- el-zero ε ᐅ ℕ ᐅ ℕ ⊦ Z
+- sub-norm-term ε ᐅ ℕ ᐅ ℕ ⊦ ·
+- sig-var ε ᐅ ℕ ᐅ ℕ ⊦ plus[·]
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ⊦ (plus[·] : ℕ → ℕ → ℕ) Z
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ⊦ (plus[·] Z : ℕ → ℕ) ☐₀
+- ty-eq-form ε ᐅ ℕ ᐅ ℕ ⊦ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ
+- ctx-ext ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ
+- el-var ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ ☐₀
+- el-reflect ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ ☐₀ : ((plus[·] Z ☐₁) ≡ ☐₁ ∈ ℕ) reflect
+- el-suc-cong ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ S (plus[·] Z ☐₁) = S ☐₁
+- el-zero ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ Z
+- el-var ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ ☐₁
+- el-suc ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ S ☐₁
+- sub-norm-term ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ ·
+- sig-var ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ plus[·]
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ (plus[·] : ℕ → ℕ → ℕ) Z
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ (plus[·] Z : ℕ → ℕ) (S ☐₁)
+- el-cmp ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ via id ⊦ plus[·] Z (S ☐₁) via ↓ id id; ↓ id; ↓ : ℕ via id
+- el-cmp ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ via id ⊦ ℕ-elim Z (S ☐₀) (S ☐₁) via ↓ : ℕ via id
+- el-pi-e ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ (plus[·] Z : ℕ → ℕ) ☐₁
+- el-cmp ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ via id ⊦ plus[·] Z ☐₁ via ↓ id id; ↓ id; ↓ : ℕ via id
+- el-eq-sym ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ ℕ-elim Z (S ☐₀) ☐₁ = plus[·] Z ☐₁ : ℕ
+- el-suc-cong ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ S (ℕ-elim Z (S ☐₀) ☐₁) = S (plus[·] Z ☐₁)
+- el-eq-trans ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ plus[·] Z (S ☐₁) = S (ℕ-elim Z (S ☐₀) ☐₁) : ℕ via ℕ-elim Z (S ☐₀) (S ☐₁)
+- el-eq-trans ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ plus[·] Z (S ☐₁) = S (plus[·] Z ☐₁) : ℕ via S (ℕ-elim Z (S ☐₀) ☐₁)
+- el-eq-trans ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ plus[·] Z (S ☐₁) = S ☐₁ : ℕ via S (plus[·] Z ☐₁)
+- ty-refl ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ ℕ
+- el-eq-sym ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ S ☐₁ = plus[·] Z (S ☐₁) : ℕ
+- el-eq-refl ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ S ☐₁ : ℕ
+- ty-eq-cong ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ (S ☐₁) ≡ (S ☐₁) ∈ ℕ = (plus[·] Z (S ☐₁)) ≡ (S ☐₁) ∈ ℕ
+- el-refl ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ Refl : (S ☐₁) ∈ ℕ
+- el-ty-coe ε ᐅ ℕ ᐅ ℕ ᐅ (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ ⊦ Refl : (S ☐₁) ≡ (S ☐₁) ∈ ℕ ↝ (plus[·] Z (S ☐₁)) ≡ (S ☐₁) ∈ ℕ
+- el-nat-e ε ᐅ ℕ ⊦ ℕ-elim Refl Refl ☐₀ : (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ
+- el-reflect ε ᐅ ℕ ⊦ ℕ-elim Refl Refl ☐₀ : ((plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ) reflect

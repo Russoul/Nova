@@ -73,13 +73,13 @@ R ::=
   ty-sigma   Γ ⊦ A ⨯ B
   ty-eq-form Γ ⊦ l ≡ r ∈ A
   ty-el      Γ ⊦ El e
-  ty-sub     Γ ⊦ A[σ] from Δ                    (TyWfSubElim) // FIXME: don't need that anymore
   ty-cmp     Γ via α ⊦ T via β                  (TyWfCompute)
 
   // Type eq
   ty-refl    Γ ⊦ T
   ty-sym     Γ ⊦ T₁ = T₀                        (conclusion: T₁ = T₀)
   ty-trans   Γ ⊦ T₀ = T₂ via T₁                 (conclusion: T₀ = T₂)
+  ty-eq-cong Γ ⊦ (a₀ ≡ b₀ ∈ T₀) = (a₁ ≡ b₁ ∈ T₁) (TyEqCongEqTy)
 
   // Element wf: intro / elim
   el-var      Γ ⊦ ☐ₙ
@@ -95,7 +95,6 @@ R ::=
   el-nat-e    Γ ⊦ ℕ-elim z s t : T
   el-reflect  Γ ⊦ t : (l ≡ r ∈ A) reflect       (ElemEqReflection)
   el-refl     Γ ⊦ Refl : t ∈ A                  (ElemWfRefl)
-  el-sub      Γ ⊦ t[σ] : T from Δ     // FIXME: don't need that anymore
   el-ty-coe   Γ ⊦ t : T₀ ↝ T₁
   el-ctx-coe  Γ₀ = Γ₁ ⊦ t : T
 
@@ -118,7 +117,7 @@ R ::=
   el-eq-refl   Γ ⊦ t : T                        (ElemEqRefl)
   el-eq-sym    Γ ⊦ t₁ = t₀ : T                  (conclusion: t₁ = t₀)
   el-eq-trans  Γ ⊦ t₀ = t₂ : T via t₁           (conclusion: t₀ = t₂)
-  el-sub-cong  Δ ⊦ a[σ] = b[σ] : T from Γ       (ElemEqSubstCong) //FIXME: don't need that anymore as t[σ] computes
+  el-suc-cong  Γ ⊦ S t₀ = S t₁                   (ElemEqCongSuc)
 
   // Telescope equality
   tel-refl   Γ ⊦ Δ

@@ -22,7 +22,11 @@ blind and finding out at the end which line broke.
   and the natural-deduction rules behind each keyword.
 - **Rule cheat sheet**: `docs/derivation-rules-cheatsheet.md` — one line per
   typing rule keyword: premises → conclusion. Use this to pick which keyword
-  proves a given judgement shape, instead of reading `Derivation.idr`.
+  proves a given judgement shape, instead of reading `Derivation.idr`. If
+  the goal needs induction (proving an equality for a generic/free
+  variable, not a concrete value), see its "Doing induction" section —
+  `el-nat-e`'s motive has to be the *propositional* equality type (`≡`),
+  converted back to a judgemental `el-eq` via `el-reflect` at the end.
 - **`src/idris/Nova/Foundation/*.idr` is implementation, not spec.** Only
   read it when a `Rejected` reason looks like a checker bug (e.g. a rule
   that should apply doesn't) rather than a wrong proof step on your part.

@@ -269,6 +269,12 @@ data TypingRule : Type where
   TyEqRefl  : Ctx -> Ty -> TypingRule
   TyEqSym   : Ctx -> Ty -> Ty -> TypingRule
   TyEqTrans : Ctx -> Ty -> Ty -> Ty -> TypingRule
+  ||| Γ ⊦ T₀ = T₁ type
+  ||| Γ ⊦ a₀ = a₁ : T₁
+  ||| Γ ⊦ b₀ = b₁ : T₁
+  ||| ========================================
+  ||| Γ ⊦ (a₀ ≡ b₀ ∈ T₀) = (a₁ ≡ b₁ ∈ T₁) type
+  TyEqCongEqTy : Ctx -> Elem -> Elem -> Ty -> Elem -> Elem -> Ty -> TypingRule
   -- Element equality
   ElemEqRefl  : Ctx -> Elem -> Ty -> TypingRule
   ElemEqSym   : Ctx -> Elem -> Elem -> Ty -> TypingRule
@@ -277,6 +283,10 @@ data TypingRule : Type where
   ||| -------------------------
   ||| Γ ⊦ a₀ = a₁ : A
   ElemEqReflection : Ctx -> Elem -> Elem -> Elem -> Ty -> TypingRule
+  ||| Γ ⊦ t₀ = t₁ : ℕ
+  ||| ===================
+  ||| Γ ⊦ S t₀ = S t₁ : ℕ
+  ElemEqCongSuc : Ctx -> Elem -> Elem -> TypingRule
   ||| (Γ ⊦ x ≔ a : A) ∈ Σ
   ||| e˲ : Δ ⇒ Γ norm
   ||| ---------------------------
@@ -384,10 +394,12 @@ Show TypingRule where
   show (TyEqRefl ctx ty)             = "TyEqRefl (\{showCtxRep ctx}) (\{show ty})"
   show (TyEqSym ctx ty0 ty1)         = "TyEqSym (\{showCtxRep ctx}) (\{show ty0}) (\{show ty1})"
   show (TyEqTrans ctx ty0 ty1 ty2)   = "TyEqTrans (\{showCtxRep ctx}) (\{show ty0}) (\{show ty1}) (\{show ty2})"
+  show (TyEqCongEqTy ctx a0 b0 ty0 a1 b1 ty1) = "TyEqCongEqTy (\{showCtxRep ctx}) (\{show a0}) (\{show b0}) (\{show ty0}) (\{show a1}) (\{show b1}) (\{show ty1})"
   show (ElemEqRefl ctx e ty)         = "ElemEqRefl (\{showCtxRep ctx}) (\{show e}) (\{show ty})"
   show (ElemEqSym ctx e0 e1 ty)      = "ElemEqSym (\{showCtxRep ctx}) (\{show e0}) (\{show e1}) (\{show ty})"
   show (ElemEqTrans ctx e0 e1 e2 ty) = "ElemEqTrans (\{showCtxRep ctx}) (\{show e0}) (\{show e1}) (\{show e2}) (\{show ty})"
   show (ElemEqReflection ctx a a0 a1 ty) = "ElemEqReflection (\{showCtxRep ctx}) (\{show a}) (\{show a0}) (\{show a1}) (\{show ty})"
+  show (ElemEqCongSuc ctx t0 t1) = "ElemEqCongSuc (\{showCtxRep ctx}) (\{show t0}) (\{show t1})"
   show (TelEqRefl ctx tel)           = "TelEqRefl (\{showCtxRep ctx}) (\{show tel})"
   show (TelEqSym ctx tel0 tel1)      = "TelEqSym (\{showCtxRep ctx}) (\{show tel0}) (\{show tel1})"
   show (TelEqTrans ctx tel0 tel1 tel2) = "TelEqTrans (\{showCtxRep ctx}) (\{show tel0}) (\{show tel1}) (\{show tel2})"
@@ -808,6 +820,11 @@ step (TyEqTrans ctx ty0 ty1 ty2) sp = do
   tyEqDerivable ctx ty0 ty1 sp
   tyEqDerivable ctx ty1 ty2 sp
   Right $ {tyEq $= insert (ctx, ty0, ty2)} sp
+step (TyEqCongEqTy gamma a0 b0 ty0 a1 b1 ty1) sp = do
+  tyEqDerivable gamma ty0 ty1 sp
+  elemEqDerivable gamma a0 a1 ty1 sp
+  elemEqDerivable gamma b0 b1 ty1 sp
+  Right $ {tyEq $= insert (gamma, EqTy a0 b0 ty0, EqTy a1 b1 ty1)} sp
 step (ElemEqRefl ctx e ty) sp = do
   elemWfDerivable ctx e ty sp
   Right $ {elemEq $= insert (ctx, e, e, ty)} sp
@@ -821,6 +838,9 @@ step (ElemEqTrans ctx e0 e1 e2 ty) sp = do
 step (ElemEqReflection ctx a a0 a1 ty) sp = do
   elemWfDerivable ctx a (EqTy a0 a1 ty) sp
   Right $ {elemEq $= insert (ctx, a0, a1, ty)} sp
+step (ElemEqCongSuc ctx t0 t1) sp = do
+  elemEqDerivable ctx t0 t1 NatTy sp
+  Right $ {elemEq $= insert (ctx, NatIntro1 t0, NatIntro1 t1, NatTy)} sp
 step (TelEqRefl ctx tel) sp = do
   telWfDerivable ctx tel sp
   Right $ {telEq $= insert (ctx, tel, tel)} sp

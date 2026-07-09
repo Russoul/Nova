@@ -22,8 +22,8 @@ that substitution is carried out immediately, structurally, by meta-level
 induction on the term (see `Subst.idr`'s `substTy`/`substElem`) — the result
 is already in normal form, with no leftover substitution to separately
 reduce away. So there is no `ty-sub`/`el-sub`/`el-sub-cong`: you never need
-to ask the checker to "produce `A[σ]`" as its own step, and no `el-sub-cong`
-congruence is needed either, since `a[σ]` and `b[σ]` are just computed
+to ask the checker to "produce `A[σ]`" as its own step, and no substitution
+congruence rule is needed either, since `a[σ]` and `b[σ]` are just computed
 independently from `a = b`.
 
 This does **not** mean `ty-cmp`/`el-cmp` go away. They're still what you use
@@ -51,6 +51,36 @@ signature lookup needs `Σ`, which pure substitution doesn't have access to
 reference (`x[ξ][σ]`) is not a separate `el-cmp` step though — like all
 other substitution, it's handled the moment you write `x[ξ]` inside a term
 that itself gets substituted by `σ`.
+
+## Doing induction: el-nat-e can't conclude a judgemental equality directly
+
+`el-nat-e`'s motive `A` is a `Ty`, and *judgemental* equality (`el-eq`) isn't
+a `Ty` — there's no way to hand `ℕ-elim` a motive of "`f n = g n`" directly.
+Instead, eliminate into the *propositional* equality type `EqTy` (`a ≡ b ∈
+T`), then convert to `el-eq` with `el-reflect`:
+
+1. Motive `A ≜ (f ☐₀ ≡ g ☐₀ ∈ T)` (a `ty-eq-form`), in the elimination's own
+   extended context.
+2. Base case `z`: reduce `f Z`/`g Z` to a common term via `el-cmp` (or
+   directly, if they're already equal), build `Refl` at that term, then
+   `el-ty-coe` it up to `A` at `Z` — this only needs `ty-cmp`/`ty-sym`
+   (structural), since nothing yet depends on an induction hypothesis.
+3. Step case `s`: you get `ih : A` at the fresh recursion variable `n`
+   (i.e. `f n ≡ g n ∈ T`) in context. `el-reflect` it to a judgemental
+   `f n = g n : T`, lift it under whatever constructors separate `f (S n)`/
+   `g (S n)` from `f n`/`g n` (e.g. `el-suc-cong` for `S`), and
+   `el-eq-trans` that together with any purely-structural `el-cmp`
+   reductions of `f (S n)`/`g (S n)` themselves. The result is a judgemental
+   `f (S n) = g (S n) : T` — build `Refl` at (say) `g (S n)` and use
+   `ty-eq-cong` (not `ty-cmp`, since the two sides aren't related by
+   computation, only by this judgemental fact) to coerce it up to `A` at
+   `S n`.
+4. `el-nat-e Γ ⊦ ℕ-elim z s ☐₀ : A` (eliminating on the context's own free
+   variable, not a concrete value — this *is* "for all n" in this system),
+   then `el-reflect` the whole thing to get the final `el-eq`.
+
+See `derivations/plus/session.rules` (the `0 + x = x` proof) for a worked
+example.
 
 ## Context
 
@@ -125,6 +155,7 @@ since it can't contain `id`/`↑`/`∘`.
 | `ty-refl Γ ⊦ A` | `Γ ⊦ A type` | `Γ ⊦ A = A` |
 | `ty-sym Γ ⊦ A₁ = A₀` | `Γ ⊦ A₀ = A₁` | `Γ ⊦ A₁ = A₀` |
 | `ty-trans Γ ⊦ A₀ = A₂ via A₁` | `Γ ⊦ A₀ = A₁`, `Γ ⊦ A₁ = A₂` | `Γ ⊦ A₀ = A₂` |
+| `ty-eq-cong Γ ⊦ (a₀≡b₀∈T₀) = (a₁≡b₁∈T₁)` | `Γ ⊦ T₀ = T₁`, `Γ ⊦ a₀ = a₁ : T₁`, `Γ ⊦ b₀ = b₁ : T₁` | `Γ ⊦ (a₀≡b₀∈T₀) = (a₁≡b₁∈T₁)` — lets `EqTy`'s own arguments differ by a *judgemental* equality, not just computation; the usual way to build a `Refl`-typed element at a goal whose two sides aren't syntactically the reduct of one another (e.g. the successor case of an induction) |
 
 ## Element well-formedness: introduction / elimination
 
@@ -180,6 +211,7 @@ sessions reference it by name instead of re-deriving it.
 | `el-eq-sym Γ ⊦ t₁ = t₀ : A` | `Γ ⊦ t₀ = t₁ : A` | `Γ ⊦ t₁ = t₀ : A` |
 | `el-eq-trans Γ ⊦ t₀ = t₂ : A via t₁` | `Γ ⊦ t₀ = t₁ : A`, `Γ ⊦ t₁ = t₂ : A` | `Γ ⊦ t₀ = t₂ : A` |
 | `el-ty-coe-eq Γ ⊦ t₀ = t₁ : A₀ ↝ A₁` | `Γ ⊦ t₀ = t₁ : A₀`, `Γ ⊦ A₀ = A₁` | `Γ ⊦ t₀ = t₁ : A₁` |
+| `el-suc-cong Γ ⊦ S t₀ = S t₁` | `Γ ⊦ t₀ = t₁ : ℕ` | `Γ ⊦ S t₀ = S t₁ : ℕ` |
 
 ## Telescope equality
 

@@ -237,6 +237,11 @@ parseTypingRule =
   (do str_ "ty-trans"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
       ty0 <- parseTy; sp; str_ "="; sp; ty2 <- parseTy; sp; str_ "via"; sp; ty1 <- parseTy
       pure (TyEqTrans ctx ty0 ty1 ty2)) <|>
+  (do str_ "ty-eq-cong"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      ty0 <- parseTy; sp; str_ "="; sp; ty1 <- parseTy
+      case (ty0, ty1) of
+        (Ty.EqTy a0 b0 t0, Ty.EqTy a1 b1 t1) => pure (TyEqCongEqTy ctx a0 b0 t0 a1 b1 t1)
+        _ => fail "ty-eq-cong: expected (a₀ ≡ b₀ ∈ T₀) = (a₁ ≡ b₁ ∈ T₁)") <|>
   -- Element wf: intro / elim  (longer keywords before shorter sharing same prefix)
   (do str_ "el-var"; space
       ctx <- parseCtx; sp; str_ "⊦"; sp; str_ "☐"; n <- subscriptNat
@@ -375,6 +380,11 @@ parseTypingRule =
       e0 <- parseElem; sp; str_ "="; sp; e2 <- parseElem; sp; char_ ':'; sp; ty <- parseTy
       sp; str_ "via"; sp; e1 <- parseElem
       pure (ElemEqTrans ctx e0 e1 e2 ty)) <|>
+  (do str_ "el-suc-cong"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      e0 <- parseElem; sp; str_ "="; sp; e1 <- parseElem
+      case (e0, e1) of
+        (NatIntro1 t0, NatIntro1 t1) => pure (ElemEqCongSuc ctx t0 t1)
+        _ => fail "el-suc-cong: expected S t₀ = S t₁") <|>
   -- Telescope equality
   (do str_ "tel-refl"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; tel <- parseTel
       pure (TelEqRefl ctx tel)) <|>
