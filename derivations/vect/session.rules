@@ -1,0 +1,92 @@
+- ctx-emp
+- ty-nat ε ⊦ ℕ
+- ctx-ext ε ᐅ ℕ
+- ty-univ ε ᐅ ℕ ⊦ 𝕌
+- ctx-ext ε ᐅ ℕ ᐅ 𝕌
+- el-one-ty ε ᐅ ℕ ᐅ 𝕌 ⊦ 𝟙 : 𝕌
+- ty-nat ε ᐅ ℕ ᐅ 𝕌 ⊦ ℕ
+- ctx-ext ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ
+- ty-univ ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ⊦ 𝕌
+- ctx-ext ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ 𝕌
+- el-var ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ 𝕌 ⊦ ☐₂
+- ty-el ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ 𝕌 ⊦ El ☐₂
+- ctx-ext ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ 𝕌 ᐅ El ☐₂
+- el-var ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ 𝕌 ᐅ El ☐₂ ⊦ ☐₁
+- el-sigma-ty ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ 𝕌 ⊦ ☐₂ ⨯ ☐₁ : 𝕌
+- el-var ε ᐅ ℕ ᐅ 𝕌 ⊦ ☐₁
+- el-nat-e ε ᐅ ℕ ᐅ 𝕌 ⊦ ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) ☐₁ motive 𝕌
+- el-pi-i ε ᐅ ℕ ⊦ λ (ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) ☐₁) : 𝕌 → 𝕌
+- el-pi-i ε ⊦ λ (λ (ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) ☐₁)) : ℕ → 𝕌 → 𝕌
+- sig ε ⊦ vect ≔ λ (λ (ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) ☐₁)) : ℕ → 𝕌 → 𝕌
+- ty-univ ε ⊦ 𝕌
+- ctx-ext ε ᐅ 𝕌
+- sub-norm-term ε ᐅ 𝕌 ⊦ ·
+- sig-var ε ᐅ 𝕌 ⊦ vect[·]
+- el-zero ε ᐅ 𝕌 ⊦ Z
+- el-pi-e ε ᐅ 𝕌 ⊦ (vect[·] : ℕ → 𝕌 → 𝕌) Z
+- el-var ε ᐅ 𝕌 ⊦ ☐₀
+- el-pi-e ε ᐅ 𝕌 ⊦ (vect[·] Z : 𝕌 → 𝕌) ☐₀
+- el-cmp ε ᐅ 𝕌 via id ⊦ vect[·] Z ☐₀ via ↓ id id : 𝕌 via id
+- el-cmp ε ᐅ 𝕌 via id ⊦ (λ (λ (ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) ☐₁))) Z ☐₀ via ↓ id : 𝕌 via id
+- el-cmp ε ᐅ 𝕌 via id ⊦ (λ (ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) Z)) ☐₀ via ↓ : 𝕌 via id
+- el-cmp ε ᐅ 𝕌 via id ⊦ ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) Z via ↓ : 𝕌 via id
+- el-eq-trans ε ᐅ 𝕌 ⊦ vect[·] Z ☐₀ = (λ (ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) Z)) ☐₀ : 𝕌 via (λ (λ (ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) ☐₁))) Z ☐₀
+- el-eq-trans ε ᐅ 𝕌 ⊦ vect[·] Z ☐₀ = ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) Z : 𝕌 via (λ (ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) Z)) ☐₀
+- el-eq-trans ε ᐅ 𝕌 ⊦ vect[·] Z ☐₀ = 𝟙 : 𝕌 via ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) Z
+- el-refl ε ᐅ 𝕌 ⊦ Refl : 𝟙 ∈ 𝕌
+- el-eq-sym ε ᐅ 𝕌 ⊦ 𝟙 = vect[·] Z ☐₀ : 𝕌
+- ty-refl ε ᐅ 𝕌 ⊦ 𝕌
+- el-eq-refl ε ᐅ 𝕌 ⊦ 𝟙 : 𝕌
+- ty-eq-cong ε ᐅ 𝕌 ⊦ 𝟙 ≡ 𝟙 ∈ 𝕌 = (vect[·] Z ☐₀) ≡ 𝟙 ∈ 𝕌
+- el-ty-coe ε ᐅ 𝕌 ⊦ Refl : 𝟙 ≡ 𝟙 ∈ 𝕌 ↝ (vect[·] Z ☐₀) ≡ 𝟙 ∈ 𝕌
+- sig ε ᐅ 𝕌 ⊦ vectZ ≔ Refl : (vect[·] Z ☐₀) ≡ 𝟙 ∈ 𝕌
+- sub-norm-term ε ᐅ ℕ ᐅ 𝕌 ⊦ ·
+- sig-var ε ᐅ ℕ ᐅ 𝕌 ⊦ vect[·]
+- el-suc ε ᐅ ℕ ᐅ 𝕌 ⊦ S ☐₁
+- el-pi-e ε ᐅ ℕ ᐅ 𝕌 ⊦ (vect[·] : ℕ → 𝕌 → 𝕌) (S ☐₁)
+- el-var ε ᐅ ℕ ᐅ 𝕌 ⊦ ☐₀
+- el-pi-e ε ᐅ ℕ ᐅ 𝕌 ⊦ (vect[·] (S ☐₁) : 𝕌 → 𝕌) ☐₀
+- el-cmp ε ᐅ ℕ ᐅ 𝕌 via id ⊦ vect[·] (S ☐₁) ☐₀ via ↓ id id : 𝕌 via id
+- el-cmp ε ᐅ ℕ ᐅ 𝕌 via id ⊦ (λ (λ (ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) ☐₁))) (S ☐₁) ☐₀ via ↓ id : 𝕌 via id
+- el-cmp ε ᐅ ℕ ᐅ 𝕌 via id ⊦ (λ (ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) (S ☐₂))) ☐₀ via ↓ : 𝕌 via id
+- el-cmp ε ᐅ ℕ ᐅ 𝕌 via id ⊦ ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) (S ☐₁) via ↓ : 𝕌 via id
+- ty-el ε ᐅ ℕ ᐅ 𝕌 ⊦ El ☐₀
+- ctx-ext ε ᐅ ℕ ᐅ 𝕌 ᐅ El ☐₀
+- sub-norm-term ε ᐅ ℕ ᐅ 𝕌 ᐅ El ☐₀ ⊦ ·
+- sig-var ε ᐅ ℕ ᐅ 𝕌 ᐅ El ☐₀ ⊦ vect[·]
+- el-var ε ᐅ ℕ ᐅ 𝕌 ᐅ El ☐₀ ⊦ ☐₂
+- el-pi-e ε ᐅ ℕ ᐅ 𝕌 ᐅ El ☐₀ ⊦ (vect[·] : ℕ → 𝕌 → 𝕌) ☐₂
+- el-var ε ᐅ ℕ ᐅ 𝕌 ᐅ El ☐₀ ⊦ ☐₁
+- el-pi-e ε ᐅ ℕ ᐅ 𝕌 ᐅ El ☐₀ ⊦ (vect[·] ☐₂ : 𝕌 → 𝕌) ☐₁
+- el-sigma-ty ε ᐅ ℕ ᐅ 𝕌 ⊦ ☐₀ ⨯ vect[·] ☐₂ ☐₁ : 𝕌
+- el-cmp ε ᐅ ℕ ᐅ 𝕌 via id ⊦ ☐₀ ⨯ vect[·] ☐₂ ☐₁ via id ⨯ ↓ id id : 𝕌 via id
+- el-cmp ε ᐅ ℕ ᐅ 𝕌 via id ⊦ ☐₀ ⨯ (λ (λ (ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) ☐₁))) ☐₂ ☐₁ via id ⨯ ↓ id : 𝕌 via id
+- el-cmp ε ᐅ ℕ ᐅ 𝕌 via id ⊦ ☐₀ ⨯ (λ (ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) ☐₃)) ☐₁ via id ⨯ ↓ : 𝕌 via id
+- el-eq-trans ε ᐅ ℕ ᐅ 𝕌 ⊦ ☐₀ ⨯ vect[·] ☐₂ ☐₁ = ☐₀ ⨯ (λ (ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) ☐₃)) ☐₁ : 𝕌 via ☐₀ ⨯ (λ (λ (ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) ☐₁))) ☐₂ ☐₁
+- el-eq-trans ε ᐅ ℕ ᐅ 𝕌 ⊦ ☐₀ ⨯ vect[·] ☐₂ ☐₁ = ☐₀ ⨯ ℕ-elim 𝟙 (☐₃ ⨯ ☐₁) ☐₂ : 𝕌 via ☐₀ ⨯ (λ (ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) ☐₃)) ☐₁
+- el-eq-sym ε ᐅ ℕ ᐅ 𝕌 ⊦ ☐₀ ⨯ ℕ-elim 𝟙 (☐₃ ⨯ ☐₁) ☐₂ = ☐₀ ⨯ vect[·] ☐₂ ☐₁ : 𝕌
+- el-eq-trans ε ᐅ ℕ ᐅ 𝕌 ⊦ vect[·] (S ☐₁) ☐₀ = (λ (ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) (S ☐₂))) ☐₀ : 𝕌 via (λ (λ (ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) ☐₁))) (S ☐₁) ☐₀
+- el-eq-trans ε ᐅ ℕ ᐅ 𝕌 ⊦ vect[·] (S ☐₁) ☐₀ = ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) (S ☐₁) : 𝕌 via (λ (ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) (S ☐₂))) ☐₀
+- el-eq-trans ε ᐅ ℕ ᐅ 𝕌 ⊦ vect[·] (S ☐₁) ☐₀ = ☐₀ ⨯ ℕ-elim 𝟙 (☐₃ ⨯ ☐₁) ☐₂ : 𝕌 via ℕ-elim 𝟙 (☐₂ ⨯ ☐₁) (S ☐₁)
+- el-eq-trans ε ᐅ ℕ ᐅ 𝕌 ⊦ vect[·] (S ☐₁) ☐₀ = ☐₀ ⨯ vect[·] ☐₂ ☐₁ : 𝕌 via ☐₀ ⨯ ℕ-elim 𝟙 (☐₃ ⨯ ☐₁) ☐₂
+- el-refl ε ᐅ ℕ ᐅ 𝕌 ⊦ Refl : (vect[·] (S ☐₁) ☐₀) ∈ 𝕌
+- el-eq-sym ε ᐅ ℕ ᐅ 𝕌 ⊦ ☐₀ ⨯ vect[·] ☐₂ ☐₁ = vect[·] (S ☐₁) ☐₀ : 𝕌
+- ty-refl ε ᐅ ℕ ᐅ 𝕌 ⊦ 𝕌
+- el-eq-refl ε ᐅ ℕ ᐅ 𝕌 ⊦ ☐₀ ⨯ vect[·] ☐₂ ☐₁ : 𝕌
+- el-eq-refl ε ᐅ ℕ ᐅ 𝕌 ⊦ vect[·] (S ☐₁) ☐₀ : 𝕌
+- ty-eq-cong ε ᐅ ℕ ᐅ 𝕌 ⊦ (vect[·] (S ☐₁) ☐₀) ≡ (☐₀ ⨯ vect[·] ☐₂ ☐₁) ∈ 𝕌 = (vect[·] (S ☐₁) ☐₀) ≡ (vect[·] (S ☐₁) ☐₀) ∈ 𝕌
+- ty-sym ε ᐅ ℕ ᐅ 𝕌 ⊦ (vect[·] (S ☐₁) ☐₀) ≡ (vect[·] (S ☐₁) ☐₀) ∈ 𝕌 = (vect[·] (S ☐₁) ☐₀) ≡ (☐₀ ⨯ vect[·] ☐₂ ☐₁) ∈ 𝕌
+- el-ty-coe ε ᐅ ℕ ᐅ 𝕌 ⊦ Refl : (vect[·] (S ☐₁) ☐₀) ≡ (vect[·] (S ☐₁) ☐₀) ∈ 𝕌 ↝ (vect[·] (S ☐₁) ☐₀) ≡ (☐₀ ⨯ vect[·] ☐₂ ☐₁) ∈ 𝕌
+- sig ε ᐅ ℕ ᐅ 𝕌 ⊦ vectS ≔ Refl : (vect[·] (S ☐₁) ☐₀) ≡ (☐₀ ⨯ vect[·] ☐₂ ☐₁) ∈ 𝕌
+- sub-norm-term ε ⊦ ·
+- sig-var ε ⊦ vect[·]
+- sub-norm-term ε ᐅ 𝕌 ⊦ ·
+- el-var ε ᐅ 𝕌 ⊦ ☐₀
+- sub-norm-ext ε ᐅ 𝕌 ⊦ ·, ☐₀ to ε ᐅ 𝕌
+- sig-var ε ᐅ 𝕌 ⊦ vectZ[·, ☐₀]
+- sub-norm-term ε ᐅ ℕ ᐅ 𝕌 ⊦ ·
+- el-var ε ᐅ ℕ ᐅ 𝕌 ⊦ ☐₁
+- sub-norm-ext ε ᐅ ℕ ᐅ 𝕌 ⊦ ·, ☐₁ to ε ᐅ ℕ
+- el-var ε ᐅ ℕ ᐅ 𝕌 ⊦ ☐₀
+- sub-norm-ext ε ᐅ ℕ ᐅ 𝕌 ⊦ ·, ☐₁, ☐₀ to ε ᐅ ℕ ᐅ 𝕌
+- sig-var ε ᐅ ℕ ᐅ 𝕌 ⊦ vectS[·, ☐₁, ☐₀]
