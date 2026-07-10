@@ -31,6 +31,7 @@ sp = optSpace
 --   ℕ-elim α β γ   (InNatElim, prefix)
 --   S α            (InNatIntro1, prefix)
 --   El α           (InEl, prefix)
+--   quot-elim α β  (InQuotElim, prefix)
 --   α @            (InPiElim, postfix)
 --   α .π₁          (InSigmaElim1, postfix)
 --   α .π₂          (InSigmaElim2, postfix)
@@ -70,6 +71,10 @@ mutual
             pure (InNatElim a b c))
     <|> (do str_ "S";  space; a <- parseComputeAtom; pure (InNatIntro1 a))
     <|> (do str_ "El"; space; a <- parseComputeAtom; pure (InEl a))
+    <|> (do str_ "quot-elim"; space
+            a <- parseComputeAtom; space
+            b <- parseComputeAtom
+            pure (InQuotElim a b))
     <|> parseComputePostfix
 
   -- Level 3: @, projections (α @, α .π₁, α .π₂, left-assoc)
@@ -216,6 +221,10 @@ parseTypingRule =
       case ty of
         SigmaTy a b => pure (TyWfSigma ctx a b)
         _           => fail "ty-sigma: expected A ⨯ B") <|>
+  (do str_ "ty-quotient"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
+      case ty of
+        Quotient a r => pure (TyWfQuotient ctx a r)
+        _            => fail "ty-quotient: expected A / R") <|>
   (do str_ "ty-eq-form"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
       case ty of
         Ty.EqTy l r a => pure (TyWfEq ctx l r a)
@@ -304,6 +313,21 @@ parseTypingRule =
           space; str_ "motive"; space; ty <- parseTy
           pure (ElemWfNatElim ctx z s t ty)
         _ => fail "el-nat-e: expected ℕ-elim z s t") <|>
+  (do str_ "el-class"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
+      case e of
+        Class a => do
+          sp; char_ ':'; sp; ty <- parseTy
+          case ty of
+            Quotient tyA r => pure (ElemWfClass ctx a tyA r)
+            _              => fail "el-class: expected A / R after :"
+        _ => fail "el-class: expected class a") <|>
+  (do str_ "el-quot-elim"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      str_ "quot-elim"; space; f <- parseElemAtom; space
+      char_ '('; sp; q <- parseElem; sp; char_ ':'; sp; ty <- parseTy; sp; char_ ')'
+      space; str_ "motive"; space; motive <- parseTy
+      case ty of
+        Quotient tyA r => pure (ElemWfQuotElim ctx tyA r motive f q)
+        _              => fail "el-quot-elim: expected quot-elim f (q : A / R) motive B") <|>
   -- el-reflect before el-refl (shares "el-refl" prefix at token level)
   (do str_ "el-reflect"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
       sp; char_ ':'; sp; char_ '('; sp; ty <- parseTy; sp; char_ ')'
@@ -397,6 +421,21 @@ parseTypingRule =
       case ty of
         PiTy a b => pure (ElemEqCongPiApp ctx f0 f1 a b a0 a1)
         _        => fail "el-app-cong: expected A → B") <|>
+  -- el-class-cong before el-quot-eq (both share the "el-c"/"el-q" split, no
+  -- real ambiguity, kept together for readability)
+  (do str_ "el-class-cong"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      e0 <- parseElem; sp; str_ "="; sp; e1 <- parseElem
+      sp; char_ ':'; sp; ty <- parseTy
+      case (e0, e1, ty) of
+        (Class a0, Class a1, Quotient tyA r) => pure (ElemEqCongClass ctx tyA r a0 a1)
+        _ => fail "el-class-cong: expected class a₀ = class a₁ : A / R") <|>
+  (do str_ "el-quot-eq"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      e0 <- parseElem; sp; str_ "="; sp; e1 <- parseElem
+      sp; char_ ':'; sp; ty <- parseTy
+      sp; str_ "via"; sp; witness <- parseElem
+      case (e0, e1, ty) of
+        (Class a, Class b, Quotient tyA r) => pure (ElemEqQuotient ctx tyA r a b witness)
+        _ => fail "el-quot-eq: expected class a = class b : A / R via r") <|>
   -- Telescope equality
   (do str_ "tel-refl"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; tel <- parseTel
       pure (TelEqRefl ctx tel)) <|>

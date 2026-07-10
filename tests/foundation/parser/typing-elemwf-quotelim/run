@@ -1,0 +1,2 @@
+#!/bin/sh
+"$1" run typing "el-quot-elim ε ⊦ quot-elim (λ Z) (Z : ℕ / ℕ) motive ℕ"

@@ -5,7 +5,7 @@
 T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | (T{≥0})
 T{3} ::= T{≥3}[σ{≥0}] // FIXME: doesn't exist anymore
 T{2} ::= El t{≥4}
-T{1} ::= T{≥2} → T{≥1} | T{≥2} ⨯ T{≥1}                                      (right-assoc)
+T{1} ::= T{≥2} → T{≥1} | T{≥2} ⨯ T{≥1} | T{≥2} / T{≥1}                     (right-assoc)
 T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
 
 t˲ ::= · | t˲ , t
@@ -13,7 +13,7 @@ t˲ ::= · | t˲ , t
 t{5} ::= ☐ₙ | () | Z | Refl | 𝟘 | 𝟙 | ℕ | x[t˲] | (t{≥0})
 t{4} ::= t{≥4} [σ{≥0}] // FIXME: doesn't exist anymore
 t{3} ::= t{≥3} t{≥4}  t{≥3} .π₁ | t{≥3} .π₂
-t{2} ::= λ t{≥3} | 𝟘-elim t{≥4} | S t{≥4} | ℕ-elim t{≥4} t{≥4} t{≥4}
+t{2} ::= λ t{≥3} | 𝟘-elim t{≥4} | S t{≥4} | ℕ-elim t{≥4} t{≥4} t{≥4} | class t{≥4} | quot-elim t{≥4} t{≥4}
 t{1} ::= t{≥2} → t{≥1} | t{≥2} ⨯ t{≥1} | t{≥2} ≡ t{≥2} ∈ t{≥2}
 t{0} ::= t{≥1} , t{≥0}                                                      SigmaIntro (right-assoc)
 
@@ -24,7 +24,7 @@ t{0} ::= t{≥1} , t{≥0}                                                      
 α{5} ::= ↓ | id | (α{≥0})
 α{4} ::= α{≥4} [α{≥0}] // FIXME: doesn't exist anymore
 α{3} ::= α{≥3} α{≥4} | α{≥3} .π₁ | α{≥3} .π₂                               (left-assoc)
-α{2} ::= λ α{≥4} | 𝟘-elim α{≥4} | S α{≥4} | El α{≥4} | ℕ-elim α{≥4} α{≥4} α{≥4}
+α{2} ::= λ α{≥4} | 𝟘-elim α{≥4} | S α{≥4} | El α{≥4} | ℕ-elim α{≥4} α{≥4} α{≥4} | quot-elim α{≥4} α{≥4}
 α{1} ::= α{≥2} → α{≥1} | α{≥2} ⨯ α{≥1} | α{≥2} ᐅ α{≥1}                     (right-assoc)
        | α{≥2} ≡ α{≥3} ∈ α{≥3}
 α{0} ::= α{≥1} , α{≥0} | α{≥1} ; α{≥0}                                       (right-assoc)
@@ -73,6 +73,7 @@ R ::=
   ty-sigma   Γ ⊦ A ⨯ B
   ty-eq-form Γ ⊦ l ≡ r ∈ A
   ty-el      Γ ⊦ El e
+  ty-quotient Γ ⊦ A / R                         (TyWfQuotient, R in Γ ᐅ A ᐅ A[↑])
   ty-cmp     Γ via α ⊦ T via β                  (TyWfCompute)
 
   // Type eq
@@ -94,6 +95,8 @@ R ::=
   el-sigma-e2 Γ ⊦ (e : A ⨯ B) .π₂
   el-zero-e   Γ ⊦ 𝟘-elim e : T
   el-nat-e    Γ ⊦ ℕ-elim z s t motive A          (A in Γ ᐅ ℕ, not A[t] — see cheat sheet)
+  el-class    Γ ⊦ class a : A / R                (ElemWfClass)
+  el-quot-elim Γ ⊦ quot-elim f (q : A / R) motive B (ElemWfQuotElim, B in Γ ᐅ (A / R), not B[q])
   el-reflect  Γ ⊦ t : (l ≡ r ∈ A) reflect       (ElemEqReflection)
   el-refl     Γ ⊦ Refl : t ∈ A                  (ElemWfRefl)
   el-ty-coe   Γ ⊦ t : T₀ ↝ T₁
@@ -120,6 +123,8 @@ R ::=
   el-eq-trans  Γ ⊦ t₀ = t₂ : T via t₁           (conclusion: t₀ = t₂)
   el-suc-cong  Γ ⊦ S t₀ = S t₁                   (ElemEqCongSuc)
   el-app-cong  Γ ⊦ (f₀ = f₁ : A → B) t₀ = t₁     (ElemEqCongPiApp, conclusion: f₀ t₀ = f₁ t₁ : B[t₁])
+  el-class-cong Γ ⊦ class a₀ = class a₁ : A / R  (ElemEqCongClass)
+  el-quot-eq   Γ ⊦ class a = class b : A / R via r (ElemEqQuotient, r : R[a, b])
 
   // Telescope equality
   tel-refl   Γ ⊦ Δ

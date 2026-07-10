@@ -72,6 +72,8 @@ mutual
   -- S e               (NatIntro1)
   -- 𝟘-elim e          (ZeroElim)
   -- ℕ-elim z s t      (NatElim)
+  -- class e           (Class)
+  -- quot-elim f q     (QuotElim)
   -- e @               (PiElim)
   -- e .π₁             (SigmaElim1)
   -- e .π₂             (SigmaElim2)
@@ -114,6 +116,11 @@ mutual
             t <- parseElemAtom
             pure (NatElim z s t))
     <|> (do str_ "S"; space; e <- parseElemAtom; pure (NatIntro1 e))
+    <|> (do str_ "class"; space; e <- parseElemAtom; pure (Class e))
+    <|> (do str_ "quot-elim"; space
+            f <- parseElemAtom; space
+            q <- parseElemAtom
+            pure (QuotElim f q))
     <|> parseElemPostfix
 
   -- Level 3: PiApp and projections (t t, t .π₁, t .π₂, left-assoc)
@@ -194,6 +201,7 @@ mutual
   -- e₀ ≡ e₁ ∈ A      (EqTy:  two Elem args + Ty)
   -- A → B             (PiTy)
   -- A ⨯ B             (SigmaTy)
+  -- A / R             (Quotient)
   -- El e              (El, e is an Elem atom)
   -- 𝟘 𝟙 ℕ 𝕌          (constant types)
   export covering
@@ -207,13 +215,14 @@ mutual
             pure (Ty.EqTy e0 e1 a))
     <|> parseTyArrow
 
-  -- A → B  or  A ⨯ B  (right-associative infix)
+  -- A → B  or  A ⨯ B  or  A / R  (right-associative infix)
   covering
   parseTyArrow : Rule Ty
   parseTyArrow = do
     a <- parseTyEl
     (do sp; str_ "→"; sp; b <- parseTyArrow; pure (Ty.PiTy a b))
       <|> (do sp; str_ "⨯"; sp; b <- parseTyArrow; pure (Ty.SigmaTy a b))
+      <|> (do sp; str_ "/"; sp; b <- parseTyArrow; pure (Ty.Quotient a b))
       <|> pure a
 
   -- El e  (prefix El, e is an Elem atom)

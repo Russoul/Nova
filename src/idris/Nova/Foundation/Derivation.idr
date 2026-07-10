@@ -153,6 +153,8 @@ data ComputeRule =
                | InEl ComputeRule
                  -- α ᐅ α
                | InExt ComputeRule ComputeRule
+                 -- quot-elim α α
+               | InQuotElim ComputeRule ComputeRule
 
 public export
 data TypingRule : Type where
@@ -176,6 +178,11 @@ data TypingRule : Type where
   TyWfEq : Ctx -> Elem -> Elem -> Ty -> TypingRule
   ||| Γ ⊦ El t type
   TyWfEl : Ctx -> Elem -> TypingRule
+  ||| Γ ⊦ A type
+  ||| Γ ᐅ A ᐅ A[↑] ⊦ R type
+  ||| ================
+  ||| Γ ⊦ A / R type
+  TyWfQuotient : Ctx -> Ty -> Ty -> TypingRule
   ||| Γ ⊦ ☐ₙ : Γ‖ₙ
   ElemWfVar : Ctx -> Nat -> TypingRule
   ||| Γ ⊦ 𝟘-elim t : A
@@ -188,6 +195,23 @@ data TypingRule : Type where
   ElemWfSucIntro : Ctx -> Elem -> TypingRule
   ||| Γ ⊦ ℕ-elim t t t : T
   ElemWfNatElim : Ctx -> Elem -> Elem -> Elem -> Ty -> TypingRule
+  ||| Γ ⊦ A type
+  ||| Γ ᐅ A ᐅ A[↑] ⊦ R type
+  ||| -----------------------
+  ||| Γ ⊦ a : A
+  ||| =======================
+  ||| Γ ⊦ class a : A / R
+  ElemWfClass : Ctx -> Elem -> Ty -> Ty -> TypingRule
+  ||| Γ ⊦ A type
+  ||| Γ ᐅ A ᐅ A[↑] ⊦ R type
+  ||| Γ ᐅ (A / R) ⊦ B type
+  ||| ---------------------------------------------------------------------
+  ||| Γ ᐅ A ⊦ f : B[↑, class ☐₀]
+  ||| Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑∘↑∘↑, ☐₂] = f[↑∘↑∘↑, ☐₁] : B[↑∘↑∘↑, class ☐₂]
+  ||| Γ ⊦ q : A / R
+  ||| =======================================================================
+  ||| Γ ⊦ quot-elim f q : B[id, q]
+  ElemWfQuotElim : Ctx -> Ty -> Ty -> Ty -> Elem -> Elem -> TypingRule
   ||| Γ ⊦ λ t : T → T
   ElemWfPiIntro : Ctx -> Elem -> Ty -> Ty -> TypingRule
   ||| Γ ⊦ (f : A -> B) e
@@ -296,6 +320,22 @@ data TypingRule : Type where
   ||| ==========================
   ||| Γ ⊦ f₀ a₀ = f₁ a₁ : B[a₁]
   ElemEqCongPiApp : Ctx -> Elem -> Elem -> Ty -> Ty -> Elem -> Elem -> TypingRule
+  ||| Γ ⊦ A type
+  ||| Γ ᐅ A ᐅ A[↑] ⊦ R type
+  ||| -----------------------
+  ||| Γ ⊦ a : A
+  ||| Γ ⊦ b : A
+  ||| Γ ⊦ r : R[id, a, b]
+  ||| -----------------------------------
+  ||| Γ ⊦ class a = class b : A / R
+  ElemEqQuotient : Ctx -> Ty -> Ty -> Elem -> Elem -> Elem -> TypingRule
+  ||| Γ ⊦ A type
+  ||| Γ ᐅ A ᐅ A[↑] ⊦ R type
+  ||| --------------------
+  ||| Γ ⊦ a₀ = a₁ : A
+  ||| ====================
+  ||| Γ ⊦ class a₀ = class a₁ : A / R
+  ElemEqCongClass : Ctx -> Ty -> Ty -> Elem -> Elem -> TypingRule
   ||| (Γ ⊦ x ≔ a : A) ∈ Σ
   ||| e˲ : Δ ⇒ Γ norm
   ||| ---------------------------
@@ -341,6 +381,7 @@ Show ComputeRule where
   show (InEqTy a b c)          = "InEqTy (\{show a}) (\{show b}) (\{show c})"
   show (InEl a)                = "InEl (\{show a})"
   show (InExt a b)             = "InExt (\{show a}) (\{show b})"
+  show (InQuotElim a b)        = "InQuotElim (\{show a}) (\{show b})"
   show (Composition a b)       = "Composition (\{show a}) (\{show b})"
 
 export covering
@@ -355,12 +396,15 @@ Show TypingRule where
   show (TyWfSigma ctx a b)           = "TyWfSigma (\{showCtxRep ctx}) (\{show a}) (\{show b})"
   show (TyWfEq ctx l r ty)           = "TyWfEq (\{showCtxRep ctx}) (\{show l}) (\{show r}) (\{show ty})"
   show (TyWfEl ctx e)                = "TyWfEl (\{showCtxRep ctx}) (\{show e})"
+  show (TyWfQuotient ctx a r)        = "TyWfQuotient (\{showCtxRep ctx}) (\{show a}) (\{show r})"
   show (ElemWfVar g n)               = "ElemWfVar (\{showCtxRep g}) (\{show n})"
   show (ElemWfZeroElim ctx e ty)     = "ElemWfZeroElim (\{showCtxRep ctx}) (\{show e}) (\{show ty})"
   show (ElemWfOneIntro ctx)          = "ElemWfOneIntro (\{showCtxRep ctx})"
   show (ElemWfZeroIntro ctx)         = "ElemWfZeroIntro (\{showCtxRep ctx})"
   show (ElemWfSucIntro ctx e)        = "ElemWfSucIntro (\{showCtxRep ctx}) (\{show e})"
   show (ElemWfNatElim ctx z s t ty)  = "ElemWfNatElim (\{showCtxRep ctx}) (\{show z}) (\{show s}) (\{show t}) (\{show ty})"
+  show (ElemWfClass ctx a ty r)      = "ElemWfClass (\{showCtxRep ctx}) (\{show a}) (\{show ty}) (\{show r})"
+  show (ElemWfQuotElim ctx ty r motive f q) = "ElemWfQuotElim (\{showCtxRep ctx}) (\{show ty}) (\{show r}) (\{show motive}) (\{show f}) (\{show q})"
   show (ElemWfPiIntro ctx f a b)     = "ElemWfPiIntro (\{showCtxRep ctx}) (\{show f}) (\{show a}) (\{show b})"
   show (ElemWfPiApp g a f e b)       = "ElemWfPiApp (\{showCtxRep g}) (\{show a}) (\{show f}) (\{show e}) (\{show b})"
   show (ElemWfSigmaIntro ctx u v a b) = "ElemWfSigmaIntro (\{showCtxRep ctx}) (\{show u}) (\{show v}) (\{show a}) (\{show b})"
@@ -411,6 +455,8 @@ Show TypingRule where
   show (ElemEqReflection ctx a a0 a1 ty) = "ElemEqReflection (\{showCtxRep ctx}) (\{show a}) (\{show a0}) (\{show a1}) (\{show ty})"
   show (ElemEqCongSuc ctx t0 t1) = "ElemEqCongSuc (\{showCtxRep ctx}) (\{show t0}) (\{show t1})"
   show (ElemEqCongPiApp ctx f0 f1 a b a0 a1) = "ElemEqCongPiApp (\{showCtxRep ctx}) (\{show f0}) (\{show f1}) (\{show a}) (\{show b}) (\{show a0}) (\{show a1})"
+  show (ElemEqQuotient ctx ty r a b witness) = "ElemEqQuotient (\{showCtxRep ctx}) (\{show ty}) (\{show r}) (\{show a}) (\{show b}) (\{show witness})"
+  show (ElemEqCongClass ctx ty r a0 a1) = "ElemEqCongClass (\{showCtxRep ctx}) (\{show ty}) (\{show r}) (\{show a0}) (\{show a1})"
   show (TelEqRefl ctx tel)           = "TelEqRefl (\{showCtxRep ctx}) (\{show tel})"
   show (TelEqSym ctx tel0 tel1)      = "TelEqSym (\{showCtxRep ctx}) (\{show tel0}) (\{show tel1})"
   show (TelEqTrans ctx tel0 tel1 tel2) = "TelEqTrans (\{showCtxRep ctx}) (\{show tel0}) (\{show tel1}) (\{show tel2})"
@@ -557,6 +603,7 @@ mutual
   computeElem sig Here (SigmaIntro (SigmaElim1 u) (SigmaElim2 v)) = do
     rejectUnless (ElemCmpNoRuleApplies (SigmaIntro (SigmaElim1 u) (SigmaElim2 v)) Here) (u == v)
     Right u
+  computeElem sig Here (QuotElim f (Class a)) = Right (substElem f (Ext Id a))
   -- x[σ] = a[σ]
   computeElem sig Here (SigVar x sigma) =
     case sigLookup x sig of
@@ -573,6 +620,7 @@ mutual
   computeElem sig (InPiTy alpha beta) (PiTy a b) = [| PiTy (computeElem sig alpha a) (computeElem sig beta b) |]
   computeElem sig (InSigmaTy alpha beta) (SigmaTy a b) = [| SigmaTy (computeElem sig alpha a) (computeElem sig beta b) |]
   computeElem sig (InEqTy alpha beta gamma) (EqTy l r ty) = [| EqTy (computeElem sig alpha l) (computeElem sig beta r) (computeElem sig gamma ty) |]
+  computeElem sig (InQuotElim alpha beta) (QuotElim f q) = [| QuotElim (computeElem sig alpha f) (computeElem sig beta q) |]
   computeElem sig (Composition alpha beta) x = computeElem sig alpha x >>= computeElem sig beta
   computeElem sig alpha t = Left (ElemCmpNoRuleApplies t alpha)
 
@@ -647,6 +695,10 @@ step (TyWfEq gamma left right ty) sp = do
 step (TyWfEl gamma t) sp = do
   elemWfDerivable gamma t UniverseTy sp
   Right $ {tyWf $= insert (gamma, El t)} sp
+step (TyWfQuotient gamma a r) sp = do
+  tyWfDerivable gamma a sp
+  tyWfDerivable (gamma :< a :< substTy a Wk) r sp
+  Right $ {tyWf $= insert (gamma, Quotient a r)} sp
 step (ElemWfVar gamma n) sp = do
   ctxWfDerivable gamma sp
   case ctxLookup gamma n of
@@ -671,6 +723,20 @@ step (ElemWfNatElim gamma z s t a) sp = do
   elemWfDerivable (gamma :< NatTy :< a) s (substTy a (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) sp
   elemWfDerivable gamma t NatTy sp
   Right $ {elemWf $= insert (gamma, NatElim z s t, substTy a (Ext Id t))} sp
+step (ElemWfClass gamma a ty r) sp = do
+  elemWfDerivable gamma a ty sp
+  tyWfDerivable (gamma :< ty :< substTy ty Wk) r sp
+  Right $ {elemWf $= insert (gamma, Class a, Quotient ty r)} sp
+step (ElemWfQuotElim gamma ty r motive f q) sp = do
+  let wk3 = Chain Wk (Chain Wk Wk)
+  tyWfDerivable (gamma :< ty :< substTy ty Wk) r sp
+  tyWfDerivable (gamma :< Quotient ty r) motive sp
+  elemWfDerivable (gamma :< ty) f (substTy motive (Ext Wk (Class (CtxVar 0)))) sp
+  elemEqDerivable (gamma :< ty :< substTy ty Wk :< r)
+    (substElem f (Ext wk3 (CtxVar 2))) (substElem f (Ext wk3 (CtxVar 1)))
+    (substTy motive (Ext wk3 (Class (CtxVar 2)))) sp
+  elemWfDerivable gamma q (Quotient ty r) sp
+  Right $ {elemWf $= insert (gamma, QuotElim f q, substTy motive (Ext Id q))} sp
 step (ElemWfPiIntro gamma f a b) sp = do
   elemWfDerivable (gamma :< a) f b sp
   Right $ {elemWf $= insert (gamma, PiIntro f, PiTy a b)} sp
@@ -859,6 +925,16 @@ step (ElemEqCongPiApp gamma f0 f1 a b a0 a1) sp = do
   elemEqDerivable gamma f0 f1 (PiTy a b) sp
   elemEqDerivable gamma a0 a1 a sp
   Right $ {elemEq $= insert (gamma, PiApp f0 a0, PiApp f1 a1, substTy b (Ext Id a1))} sp
+step (ElemEqQuotient gamma ty r a b witness) sp = do
+  tyWfDerivable (gamma :< ty :< substTy ty Wk) r sp
+  elemWfDerivable gamma a ty sp
+  elemWfDerivable gamma b ty sp
+  elemWfDerivable gamma witness (substTy r (Ext (Ext Id a) b)) sp
+  Right $ {elemEq $= insert (gamma, Class a, Class b, Quotient ty r)} sp
+step (ElemEqCongClass gamma ty r a0 a1) sp = do
+  tyWfDerivable (gamma :< ty :< substTy ty Wk) r sp
+  elemEqDerivable gamma a0 a1 ty sp
+  Right $ {elemEq $= insert (gamma, Class a0, Class a1, Quotient ty r)} sp
 step (TelEqRefl ctx tel) sp = do
   telWfDerivable ctx tel sp
   Right $ {telEq $= insert (ctx, tel, tel)} sp

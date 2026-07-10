@@ -36,6 +36,9 @@ mutual
       EqTy : Elem -> Elem -> Ty -> Ty
       ||| El t  (every element of the universe is a type)
       El : Elem -> Ty
+      ||| T / T  (quotient type: the second Ty is the relation, living two
+      ||| levels deeper — Γ ᐅ A ᐅ A[↑] — one bound variable per side)
+      Quotient : Ty -> Ty -> Ty
 
   namespace Elem
     public export
@@ -79,6 +82,11 @@ mutual
       ||| x[σ]  (signature variable, applied to a (normal) substitution to its
       ||| declaration context)
       SigVar : String -> SubNorm -> Elem
+      ||| class t (quotient type introduction)
+      Class : Elem -> Elem
+      ||| quot-elim t t (quotient type elimination: the recursion function,
+      ||| then the eliminee)
+      QuotElim : Elem -> Elem -> Elem
 
   ||| SubNorm: e˲ ::= · | e˲, e
   public export
@@ -139,6 +147,7 @@ mutual
     SigmaTy a b    == SigmaTy a' b'    = a == a' && b == b'
     EqTy l r ty    == EqTy l' r' ty'   = l == l' && r == r' && ty == ty'
     El e           == El e'            = e == e'
+    Quotient a r   == Quotient a' r'   = a == a' && r == r'
     _              == _                = False
 
   public export
@@ -163,6 +172,8 @@ mutual
     Elem.EqTy l r t  == Elem.EqTy l' r' t' = l == l' && r == r' && t == t'
     Refl             == Refl               = True
     SigVar x s       == SigVar x' s'        = x == x' && s == s'
+    Class a          == Class a'           = a == a'
+    QuotElim f q     == QuotElim f' q'     = f == f' && q == q'
     _                == _                  = False
 
 mutual
@@ -208,6 +219,9 @@ mutual
     compare (EqTy _ _ _)     _                  = LT
     compare _                (EqTy _ _ _)       = GT
     compare (El e)           (El e')            = compare e e'
+    compare (El _)           _                  = LT
+    compare _                (El _)             = GT
+    compare (Quotient a r)   (Quotient a' r')   = compare a a' <+> compare r r'
 
   public export
   covering
@@ -267,6 +281,12 @@ mutual
     compare Refl               _                    = LT
     compare _                  Refl                 = GT
     compare (SigVar x s)       (SigVar y t)         = compare x y <+> compare s t
+    compare (SigVar _ _)       _                    = LT
+    compare _                  (SigVar _ _)         = GT
+    compare (Class a)          (Class a')           = compare a a'
+    compare (Class _)          _                    = LT
+    compare _                  (Class _)            = GT
+    compare (QuotElim f q)     (QuotElim f' q')     = compare f f' <+> compare q q'
 
 mutual
   public export
@@ -289,6 +309,7 @@ mutual
     show (SigmaTy a b) = "SigmaTy (\{show a}) (\{show b})"
     show (EqTy e0 e1 a) = "EqTy (\{show e0}) (\{show e1}) (\{show a})"
     show (El e) = "El (\{show e})"
+    show (Quotient a r) = "Quotient (\{show a}) (\{show r})"
 
   public export
   covering
@@ -312,3 +333,5 @@ mutual
     show (Elem.EqTy e0 e1 e2) = "EqTy (\{show e0}) (\{show e1}) (\{show e2})"
     show Refl = "Refl"
     show (SigVar x s) = "SigVar \{show x} (\{show s})"
+    show (Class a) = "Class (\{show a})"
+    show (QuotElim f q) = "QuotElim (\{show f}) (\{show q})"

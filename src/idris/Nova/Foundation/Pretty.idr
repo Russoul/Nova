@@ -60,6 +60,8 @@ mutual
   prettyElemPrefix (NatIntro1 e) = "S " ++ prettyElemAtom e
   prettyElemPrefix (NatElim z s t) =
     "ℕ-elim " ++ prettyElemAtom z ++ " " ++ prettyElemAtom s ++ " " ++ prettyElemAtom t
+  prettyElemPrefix (Class a) = "class " ++ prettyElemAtom a
+  prettyElemPrefix (QuotElim f q) = "quot-elim " ++ prettyElemAtom f ++ " " ++ prettyElemAtom q
   prettyElemPrefix e = prettyElemPostfix e
 
   prettyElemPostfix : Elem -> String
@@ -98,6 +100,7 @@ mutual
   prettyTyArrow : Ty -> String
   prettyTyArrow (Ty.PiTy a b) = prettyTyEl a ++ " → " ++ prettyTyArrow b
   prettyTyArrow (Ty.SigmaTy a b) = prettyTyEl a ++ " ⨯ " ++ prettyTyArrow b
+  prettyTyArrow (Ty.Quotient a r) = prettyTyEl a ++ " / " ++ prettyTyArrow r
   prettyTyArrow ty = prettyTyEl ty
 
   prettyTyEl : Ty -> String
@@ -160,6 +163,7 @@ mutual
   prettyComputePrefix (InNatElim a b c) =
     "ℕ-elim " ++ prettyComputeAtom a ++ " " ++ prettyComputeAtom b ++ " " ++ prettyComputeAtom c
   prettyComputePrefix (InEl a) = "El " ++ prettyComputeAtom a
+  prettyComputePrefix (InQuotElim a b) = "quot-elim " ++ prettyComputeAtom a ++ " " ++ prettyComputeAtom b
   prettyComputePrefix cr = prettyComputePostfix cr
 
   prettyComputePostfix : ComputeRule -> String
@@ -300,6 +304,8 @@ prettyTypingRule (TyWfEq ctx l r ty) =
   "ty-eq-form " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy (EqTy l r ty)
 prettyTypingRule (TyWfEl ctx e) =
   "ty-el " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy (El e)
+prettyTypingRule (TyWfQuotient ctx a r) =
+  "ty-quotient " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy (Quotient a r)
 prettyTypingRule (TyWfCompute ctx alpha ty beta) =
   "ty-cmp " ++ prettyCtx ctx ++ " via " ++ prettyComputeRule alpha ++
   " ⊦ " ++ prettyTy ty ++ " via " ++ prettyComputeRule beta
@@ -335,12 +341,20 @@ prettyTypingRule (ElemWfZeroElim ctx e ty) =
   "el-zero-e " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (ZeroElim e) ++ " : " ++ prettyTy ty
 prettyTypingRule (ElemWfNatElim ctx z s t ty) =
   "el-nat-e " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (NatElim z s t) ++ " motive " ++ prettyTy ty
+prettyTypingRule (ElemWfClass ctx a ty r) =
+  "el-class " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (Class a) ++ " : " ++ prettyTy (Quotient ty r)
+prettyTypingRule (ElemWfQuotElim ctx ty r motive f q) =
+  "el-quot-elim " ++ prettyCtx ctx ++ " ⊦ quot-elim " ++ prettyElemAtom f ++ " (" ++ prettyElem q ++ " : " ++ prettyTy (Quotient ty r) ++ ") motive " ++ prettyTy motive
 prettyTypingRule (ElemEqReflection ctx a a0 a1 ty) =
   "el-reflect " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem a ++ " : (" ++ prettyTy (EqTy a0 a1 ty) ++ ") reflect"
 prettyTypingRule (ElemEqCongSuc ctx t0 t1) =
   "el-suc-cong " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (NatIntro1 t0) ++ " = " ++ prettyElem (NatIntro1 t1)
 prettyTypingRule (ElemEqCongPiApp ctx f0 f1 a b a0 a1) =
   "el-app-cong " ++ prettyCtx ctx ++ " ⊦ (" ++ prettyElem f0 ++ " = " ++ prettyElem f1 ++ " : " ++ prettyTy (PiTy a b) ++ ") " ++ prettyElemAtom a0 ++ " = " ++ prettyElemAtom a1
+prettyTypingRule (ElemEqCongClass ctx ty r a0 a1) =
+  "el-class-cong " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (Class a0) ++ " = " ++ prettyElem (Class a1) ++ " : " ++ prettyTy (Quotient ty r)
+prettyTypingRule (ElemEqQuotient ctx ty r a b witness) =
+  "el-quot-eq " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (Class a) ++ " = " ++ prettyElem (Class b) ++ " : " ++ prettyTy (Quotient ty r) ++ " via " ++ prettyElem witness
 prettyTypingRule (ElemWfRefl ctx e ty) =
   "el-refl " ++ prettyCtx ctx ++ " ⊦ Refl : " ++ prettyElemAtom e ++ " ∈ " ++ prettyTy ty
 prettyTypingRule (ElemEqTyCoe ctx a b ty0 ty1) =

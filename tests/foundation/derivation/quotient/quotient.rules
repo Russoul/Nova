@@ -1,0 +1,23 @@
+- ctx-emp
+- ty-nat ε ⊦ ℕ
+- ctx-ext ε ᐅ ℕ
+- ty-nat ε ᐅ ℕ ⊦ ℕ
+- ctx-ext ε ᐅ ℕ ᐅ ℕ
+- ty-one ε ᐅ ℕ ᐅ ℕ ⊦ 𝟙
+- ty-quotient ε ⊦ ℕ / 𝟙
+- el-zero ε ⊦ Z
+- el-class ε ⊦ class Z : ℕ / 𝟙
+- el-suc ε ⊦ S Z
+- el-class ε ⊦ class (S Z) : ℕ / 𝟙
+- el-one ε ⊦ ()
+- el-quot-eq ε ⊦ class Z = class (S Z) : ℕ / 𝟙 via ()
+- ctx-ext ε ᐅ ℕ / 𝟙
+- ty-nat ε ᐅ ℕ / 𝟙 ⊦ ℕ
+- el-zero ε ᐅ ℕ ⊦ Z
+- ctx-ext ε ᐅ ℕ ᐅ ℕ ᐅ 𝟙
+- el-zero ε ᐅ ℕ ᐅ ℕ ᐅ 𝟙 ⊦ Z
+- el-eq-refl ε ᐅ ℕ ᐅ ℕ ᐅ 𝟙 ⊦ Z : ℕ
+- el-quot-elim ε ⊦ quot-elim Z (class Z : ℕ / 𝟙) motive ℕ
+- el-cmp ε via id ⊦ quot-elim Z (class Z) via ↓ : ℕ via id
+- el-eq-refl ε ⊦ Z : ℕ
+- el-class-cong ε ⊦ class Z = class Z : ℕ / 𝟙

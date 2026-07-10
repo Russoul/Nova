@@ -71,6 +71,8 @@ mutual
   substElem (Elem.EqTy l r t)  sigma = Elem.EqTy (substElem l sigma) (substElem r sigma) (substElem t sigma)
   substElem Refl               sigma = Refl
   substElem (SigVar x es)      sigma = SigVar x (substSubNorm es sigma)
+  substElem (Class a)          sigma = Class (substElem a sigma)
+  substElem (QuotElim f q)     sigma = QuotElim (substElem f (under sigma)) (substElem q sigma)
 
 ||| T[σ]
 export
@@ -83,6 +85,7 @@ substTy (Ty.PiTy a b)         sigma = Ty.PiTy (substTy a sigma) (substTy b (unde
 substTy (Ty.SigmaTy a b)      sigma = Ty.SigmaTy (substTy a sigma) (substTy b (under sigma))
 substTy (EqTy l r ty)         sigma = EqTy (substElem l sigma) (substElem r sigma) (substTy ty sigma)
 substTy (El e)                sigma = El (substElem e sigma)
+substTy (Quotient a r)        sigma = Quotient (substTy a sigma) (substTy r (under (under sigma)))
 
 ||| Δ[σ]
 export
