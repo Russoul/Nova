@@ -288,6 +288,8 @@ prettyTypingRule (SubNormEqTrans s0 s1 s2 g d) =
   "sub-norm-trans " ++ prettyCtx g ++ " ⊦ " ++ prettySubNorm s0 ++ " = " ++ prettySubNorm s2 ++ " : " ++ prettyCtx d ++ " via " ++ prettySubNorm s1
 prettyTypingRule (SubNormEqExt s0 s1 t0 t1 gamma0 gamma1 ty) =
   "sub-norm-ext-eq " ++ prettyCtx gamma0 ++ " ⊦ " ++ prettySubNorm (s0 :< t0) ++ " = " ++ prettySubNorm (s1 :< t1) ++ " : " ++ prettyCtx (gamma1 :< ty)
+prettyTypingRule (SubNormEqChain sigma0 sigma1 tau gamma0 gamma1 delta) =
+  "sub-norm-eq-chn " ++ prettyCtx delta ++ " ⊦ " ++ prettySubNorm sigma0 ++ " = " ++ prettySubNorm sigma1 ++ " ∘ " ++ prettySub tau ++ " to " ++ prettyCtx gamma1 ++ " via " ++ prettyCtx gamma0
 prettyTypingRule (TyWfZero ctx) =
   "ty-zero " ++ prettyCtx ctx ++ " ⊦ 𝟘"
 prettyTypingRule (TyWfOne ctx) =
@@ -319,6 +321,10 @@ prettyTypingRule (TyEqCongEqTy ctx a0 b0 ty0 a1 b1 ty1) =
   "ty-eq-cong " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy (EqTy a0 b0 ty0) ++ " = " ++ prettyTy (EqTy a1 b1 ty1)
 prettyTypingRule (TyEqCongEl ctx t0 t1) =
   "ty-el-cong " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy (El t0) ++ " = " ++ prettyTy (El t1)
+prettyTypingRule (TyWfSubst gamma0 gamma1 sigma a) =
+  "ty-wf-subst " ++ prettyCtx gamma0 ++ " ⊦ " ++ prettySub sigma ++ " to " ++ prettyCtx gamma1 ++ " ⊦ " ++ prettyTy a
+prettyTypingRule (TyEqSubst gamma0 gamma1 sigma0 sigma1 a0 a1) =
+  "ty-eq-subst " ++ prettyCtx gamma0 ++ " ⊦ " ++ prettySub sigma0 ++ " = " ++ prettySub sigma1 ++ " to " ++ prettyCtx gamma1 ++ " ⊦ " ++ prettyTy a0 ++ " = " ++ prettyTy a1
 prettyTypingRule (ElemWfVar g n) =
   "el-var " ++ prettyCtx g ++ " ⊦ " ++ prettyElemAtom (CtxVar n)
 prettyTypingRule (ElemWfOneIntro ctx) =
@@ -345,6 +351,8 @@ prettyTypingRule (ElemWfClass ctx a ty r) =
   "el-class " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (Class a) ++ " : " ++ prettyTy (Quotient ty r)
 prettyTypingRule (ElemWfQuotElim ctx ty r motive f q) =
   "el-quot-elim " ++ prettyCtx ctx ++ " ⊦ quot-elim " ++ prettyElemAtom f ++ " (" ++ prettyElem q ++ " : " ++ prettyTy (Quotient ty r) ++ ") motive " ++ prettyTy motive
+prettyTypingRule (ElemWfSubst gamma0 gamma1 sigma t a) =
+  "el-wf-subst " ++ prettyCtx gamma0 ++ " ⊦ " ++ prettySub sigma ++ " to " ++ prettyCtx gamma1 ++ " ⊦ " ++ prettyElem t ++ " : " ++ prettyTy a
 prettyTypingRule (ElemEqReflection ctx a a0 a1 ty) =
   "el-reflect " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem a ++ " : (" ++ prettyTy (EqTy a0 a1 ty) ++ ") reflect"
 prettyTypingRule (ElemEqCongSuc ctx t0 t1) =
@@ -355,6 +363,8 @@ prettyTypingRule (ElemEqCongClass ctx ty r a0 a1) =
   "el-class-cong " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (Class a0) ++ " = " ++ prettyElem (Class a1) ++ " : " ++ prettyTy (Quotient ty r)
 prettyTypingRule (ElemEqQuotient ctx ty r a b witness) =
   "el-quot-eq " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (Class a) ++ " = " ++ prettyElem (Class b) ++ " : " ++ prettyTy (Quotient ty r) ++ " via " ++ prettyElem witness
+prettyTypingRule (ElemEqSubst gamma0 gamma1 sigma0 sigma1 t0 t1 a) =
+  "el-eq-subst " ++ prettyCtx gamma0 ++ " ⊦ " ++ prettySub sigma0 ++ " = " ++ prettySub sigma1 ++ " to " ++ prettyCtx gamma1 ++ " ⊦ " ++ prettyElem t0 ++ " = " ++ prettyElem t1 ++ " : " ++ prettyTy a
 prettyTypingRule (ElemWfRefl ctx e ty) =
   "el-refl " ++ prettyCtx ctx ++ " ⊦ Refl : " ++ prettyElemAtom e ++ " ∈ " ++ prettyTy ty
 prettyTypingRule (ElemEqTyCoe ctx a b ty0 ty1) =

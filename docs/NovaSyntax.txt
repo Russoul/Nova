@@ -63,6 +63,7 @@ R ::=
   sub-norm-sym     Γ ⊦ e˲₁ = e˲₀ : Δ                 (conclusion: e˲₁ = e˲₀)
   sub-norm-trans   Γ ⊦ e˲₀ = e˲₂ : Δ via e˲₁         (conclusion: e˲₀ = e˲₂)
   sub-norm-ext-eq  Γ ⊦ e˲₀, t₀ = e˲₁, t₁ : Δ ᐅ T    (SubNormEqExt, ext-eq before ext — longer keyword first)
+  sub-norm-eq-chn  Δ ⊦ e˲₀ = e˲₁ ∘ σ to Γ₁ via Γ₀    (SubNormEqChain, conclusion: e˲₀∘σ = e˲₁∘σ : Δ ⇒ Γ₁ norm)
 
   // Type wf
   ty-zero    Γ ⊦ 𝟘
@@ -75,6 +76,7 @@ R ::=
   ty-el      Γ ⊦ El e
   ty-quotient Γ ⊦ A / R                         (TyWfQuotient, R in Γ ᐅ A ᐅ A[↑])
   ty-cmp     Γ via α ⊦ T via β                  (TyWfCompute)
+  ty-wf-subst Γ₀ ⊦ σ to Γ₁ ⊦ A                  (TyWfSubst, conclusion: Γ₀ ⊦ A[σ])
 
   // Type eq
   ty-refl    Γ ⊦ T
@@ -82,6 +84,7 @@ R ::=
   ty-trans   Γ ⊦ T₀ = T₂ via T₁                 (conclusion: T₀ = T₂)
   ty-eq-cong Γ ⊦ (a₀ ≡ b₀ ∈ T₀) = (a₁ ≡ b₁ ∈ T₁) (TyEqCongEqTy)
   ty-el-cong Γ ⊦ El t₀ = El t₁                   (TyEqCongEl)
+  ty-eq-subst Γ₀ ⊦ σ₀ = σ₁ to Γ₁ ⊦ A₀ = A₁        (TyEqSubst, conclusion: Γ₀ ⊦ A₀[σ₀] = A₁[σ₁])
 
   // Element wf: intro / elim
   el-var      Γ ⊦ ☐ₙ
@@ -97,6 +100,7 @@ R ::=
   el-nat-e    Γ ⊦ ℕ-elim z s t motive A          (A in Γ ᐅ ℕ, not A[t] — see cheat sheet)
   el-class    Γ ⊦ class a : A / R                (ElemWfClass)
   el-quot-elim Γ ⊦ quot-elim f (q : A / R) motive B (ElemWfQuotElim, B in Γ ᐅ (A / R), not B[q])
+  el-wf-subst Γ₀ ⊦ σ to Γ₁ ⊦ t : A              (ElemWfSubst, conclusion: Γ₀ ⊦ t[σ] : A[σ])
   el-reflect  Γ ⊦ t : (l ≡ r ∈ A) reflect       (ElemEqReflection)
   el-refl     Γ ⊦ Refl : t ∈ A                  (ElemWfRefl)
   el-ty-coe   Γ ⊦ t : T₀ ↝ T₁
@@ -125,6 +129,7 @@ R ::=
   el-app-cong  Γ ⊦ (f₀ = f₁ : A → B) t₀ = t₁     (ElemEqCongPiApp, conclusion: f₀ t₀ = f₁ t₁ : B[t₁])
   el-class-cong Γ ⊦ class a₀ = class a₁ : A / R  (ElemEqCongClass)
   el-quot-eq   Γ ⊦ class a = class b : A / R via r (ElemEqQuotient, r : R[a, b])
+  el-eq-subst  Γ₀ ⊦ σ₀ = σ₁ to Γ₁ ⊦ t₀ = t₁ : A   (ElemEqSubst, conclusion: Γ₀ ⊦ t₀[σ₀] = t₁[σ₁] : A[σ₁])
 
   // Telescope equality
   tel-refl   Γ ⊦ Δ

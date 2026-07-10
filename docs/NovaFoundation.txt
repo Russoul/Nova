@@ -551,6 +551,15 @@ x ∉ Σ
 Σ sig
 Σ ⊦ Γ₀ ctx
 Σ ⊦ Γ₁ ctx
+Σ ⊦ Δ ctx
+Σ ⊦ e˲₀ = e˲₁ : Γ₀ ⇒ Γ₁ norm
+Σ ⊦ σ : Δ ⇒ Γ₀
+------------------------------------- // composition normal substitution congruence
+Σ ⊦ e˲₀ ∘ σ = e˲₁ ∘ σ : Δ ⇒ Γ₁ norm
+
+Σ sig
+Σ ⊦ Γ₀ ctx
+Σ ⊦ Γ₁ ctx
 Σ ⊦ e˲ : Γ₀ ⇒ Γ₁ norm
 -------------------------- // normal substitution reflexivity
 Σ ⊦ e˲ = e˲ : Γ₀ ⇒ Γ₁ norm

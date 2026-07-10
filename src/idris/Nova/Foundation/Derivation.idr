@@ -183,6 +183,11 @@ data TypingRule : Type where
   ||| ================
   ||| Γ ⊦ A / R type
   TyWfQuotient : Ctx -> Ty -> Ty -> TypingRule
+  ||| Γ₁ ⊦ A type
+  ||| σ : Γ₀ ⇒ Γ₁
+  ||| ----------------
+  ||| Γ₀ ⊦ A[σ] type
+  TyWfSubst : Ctx -> Ctx -> Sub -> Ty -> TypingRule
   ||| Γ ⊦ ☐ₙ : Γ‖ₙ
   ElemWfVar : Ctx -> Nat -> TypingRule
   ||| Γ ⊦ 𝟘-elim t : A
@@ -212,6 +217,11 @@ data TypingRule : Type where
   ||| =======================================================================
   ||| Γ ⊦ quot-elim f q : B[id, q]
   ElemWfQuotElim : Ctx -> Ty -> Ty -> Ty -> Elem -> Elem -> TypingRule
+  ||| Γ₁ ⊦ t : A
+  ||| σ : Γ₀ ⇒ Γ₁
+  ||| ----------------
+  ||| Γ₀ ⊦ t[σ] : A[σ]
+  ElemWfSubst : Ctx -> Ctx -> Sub -> Elem -> Ty -> TypingRule
   ||| Γ ⊦ λ t : T → T
   ElemWfPiIntro : Ctx -> Elem -> Ty -> Ty -> TypingRule
   ||| Γ ⊦ (f : A -> B) e
@@ -289,6 +299,11 @@ data TypingRule : Type where
   SubNormEqTrans : SubNorm -> SubNorm -> SubNorm -> Ctx -> Ctx -> TypingRule
   ||| e˲₀, t₀ = e˲₁, t₁ : Γ₀ ⇒ (Γ₁ ᐅ A) norm  given e˲₀ = e˲₁ : Γ₀ ⇒ Γ₁ norm
   SubNormEqExt : SubNorm -> SubNorm -> Elem -> Elem -> Ctx -> Ctx -> Ty -> TypingRule
+  ||| e˲₀ = e˲₁ : Γ₀ ⇒ Γ₁ norm
+  ||| σ : Δ ⇒ Γ₀
+  ||| -------------------------------
+  ||| e˲₀ ∘ σ = e˲₁ ∘ σ : Δ ⇒ Γ₁ norm
+  SubNormEqChain : SubNorm -> SubNorm -> Sub -> Ctx -> Ctx -> Ctx -> TypingRule
   -- Type equality
   TyEqRefl  : Ctx -> Ty -> TypingRule
   TyEqSym   : Ctx -> Ty -> Ty -> TypingRule
@@ -303,6 +318,11 @@ data TypingRule : Type where
   ||| ===================
   ||| Γ ⊦ El t₀ = El t₁ type
   TyEqCongEl : Ctx -> Elem -> Elem -> TypingRule
+  ||| Γ₁ ⊦ A₀ = A₁ type
+  ||| σ₀ = σ₁ : Γ₀ ⇒ Γ₁
+  ||| -----------------------
+  ||| Γ₀ ⊦ A₀[σ₀] = A₁[σ₁] type
+  TyEqSubst : Ctx -> Ctx -> Sub -> Sub -> Ty -> Ty -> TypingRule
   -- Element equality
   ElemEqRefl  : Ctx -> Elem -> Ty -> TypingRule
   ElemEqSym   : Ctx -> Elem -> Elem -> Ty -> TypingRule
@@ -336,6 +356,12 @@ data TypingRule : Type where
   ||| ====================
   ||| Γ ⊦ class a₀ = class a₁ : A / R
   ElemEqCongClass : Ctx -> Ty -> Ty -> Elem -> Elem -> TypingRule
+  ||| Γ₁ ⊦ A type
+  ||| Γ₁ ⊦ t₀ = t₁ : A
+  ||| σ₀ = σ₁ : Γ₀ ⇒ Γ₁
+  ||| -------------------------
+  ||| Γ₀ ⊦ t₀[σ₀] = t₁[σ₁] : A[σ₁]
+  ElemEqSubst : Ctx -> Ctx -> Sub -> Sub -> Elem -> Elem -> Ty -> TypingRule
   ||| (Γ ⊦ x ≔ a : A) ∈ Σ
   ||| e˲ : Δ ⇒ Γ norm
   ||| ---------------------------
@@ -397,6 +423,7 @@ Show TypingRule where
   show (TyWfEq ctx l r ty)           = "TyWfEq (\{showCtxRep ctx}) (\{show l}) (\{show r}) (\{show ty})"
   show (TyWfEl ctx e)                = "TyWfEl (\{showCtxRep ctx}) (\{show e})"
   show (TyWfQuotient ctx a r)        = "TyWfQuotient (\{showCtxRep ctx}) (\{show a}) (\{show r})"
+  show (TyWfSubst gamma0 gamma1 sigma a) = "TyWfSubst (\{showCtxRep gamma0}) (\{showCtxRep gamma1}) (\{show sigma}) (\{show a})"
   show (ElemWfVar g n)               = "ElemWfVar (\{showCtxRep g}) (\{show n})"
   show (ElemWfZeroElim ctx e ty)     = "ElemWfZeroElim (\{showCtxRep ctx}) (\{show e}) (\{show ty})"
   show (ElemWfOneIntro ctx)          = "ElemWfOneIntro (\{showCtxRep ctx})"
@@ -405,6 +432,7 @@ Show TypingRule where
   show (ElemWfNatElim ctx z s t ty)  = "ElemWfNatElim (\{showCtxRep ctx}) (\{show z}) (\{show s}) (\{show t}) (\{show ty})"
   show (ElemWfClass ctx a ty r)      = "ElemWfClass (\{showCtxRep ctx}) (\{show a}) (\{show ty}) (\{show r})"
   show (ElemWfQuotElim ctx ty r motive f q) = "ElemWfQuotElim (\{showCtxRep ctx}) (\{show ty}) (\{show r}) (\{show motive}) (\{show f}) (\{show q})"
+  show (ElemWfSubst gamma0 gamma1 sigma t a) = "ElemWfSubst (\{showCtxRep gamma0}) (\{showCtxRep gamma1}) (\{show sigma}) (\{show t}) (\{show a})"
   show (ElemWfPiIntro ctx f a b)     = "ElemWfPiIntro (\{showCtxRep ctx}) (\{show f}) (\{show a}) (\{show b})"
   show (ElemWfPiApp g a f e b)       = "ElemWfPiApp (\{showCtxRep g}) (\{show a}) (\{show f}) (\{show e}) (\{show b})"
   show (ElemWfSigmaIntro ctx u v a b) = "ElemWfSigmaIntro (\{showCtxRep ctx}) (\{show u}) (\{show v}) (\{show a}) (\{show b})"
@@ -444,11 +472,13 @@ Show TypingRule where
   show (SubNormEqSym s0 s1 g d)          = "SubNormEqSym (\{show s0}) (\{show s1}) (\{showCtxRep g}) (\{showCtxRep d})"
   show (SubNormEqTrans s0 s1 s2 g d)     = "SubNormEqTrans (\{show s0}) (\{show s1}) (\{show s2}) (\{showCtxRep g}) (\{showCtxRep d})"
   show (SubNormEqExt s0 s1 t0 t1 gamma0 gamma1 ty) = "SubNormEqExt (\{show s0}) (\{show s1}) (\{show t0}) (\{show t1}) (\{showCtxRep gamma0}) (\{showCtxRep gamma1}) (\{show ty})"
+  show (SubNormEqChain sigma0 sigma1 tau gamma0 gamma1 delta) = "SubNormEqChain (\{show sigma0}) (\{show sigma1}) (\{show tau}) (\{showCtxRep gamma0}) (\{showCtxRep gamma1}) (\{showCtxRep delta})"
   show (TyEqRefl ctx ty)             = "TyEqRefl (\{showCtxRep ctx}) (\{show ty})"
   show (TyEqSym ctx ty0 ty1)         = "TyEqSym (\{showCtxRep ctx}) (\{show ty0}) (\{show ty1})"
   show (TyEqTrans ctx ty0 ty1 ty2)   = "TyEqTrans (\{showCtxRep ctx}) (\{show ty0}) (\{show ty1}) (\{show ty2})"
   show (TyEqCongEqTy ctx a0 b0 ty0 a1 b1 ty1) = "TyEqCongEqTy (\{showCtxRep ctx}) (\{show a0}) (\{show b0}) (\{show ty0}) (\{show a1}) (\{show b1}) (\{show ty1})"
   show (TyEqCongEl ctx t0 t1) = "TyEqCongEl (\{showCtxRep ctx}) (\{show t0}) (\{show t1})"
+  show (TyEqSubst gamma0 gamma1 sigma0 sigma1 a0 a1) = "TyEqSubst (\{showCtxRep gamma0}) (\{showCtxRep gamma1}) (\{show sigma0}) (\{show sigma1}) (\{show a0}) (\{show a1})"
   show (ElemEqRefl ctx e ty)         = "ElemEqRefl (\{showCtxRep ctx}) (\{show e}) (\{show ty})"
   show (ElemEqSym ctx e0 e1 ty)      = "ElemEqSym (\{showCtxRep ctx}) (\{show e0}) (\{show e1}) (\{show ty})"
   show (ElemEqTrans ctx e0 e1 e2 ty) = "ElemEqTrans (\{showCtxRep ctx}) (\{show e0}) (\{show e1}) (\{show e2}) (\{show ty})"
@@ -457,6 +487,7 @@ Show TypingRule where
   show (ElemEqCongPiApp ctx f0 f1 a b a0 a1) = "ElemEqCongPiApp (\{showCtxRep ctx}) (\{show f0}) (\{show f1}) (\{show a}) (\{show b}) (\{show a0}) (\{show a1})"
   show (ElemEqQuotient ctx ty r a b witness) = "ElemEqQuotient (\{showCtxRep ctx}) (\{show ty}) (\{show r}) (\{show a}) (\{show b}) (\{show witness})"
   show (ElemEqCongClass ctx ty r a0 a1) = "ElemEqCongClass (\{showCtxRep ctx}) (\{show ty}) (\{show r}) (\{show a0}) (\{show a1})"
+  show (ElemEqSubst gamma0 gamma1 sigma0 sigma1 t0 t1 a) = "ElemEqSubst (\{showCtxRep gamma0}) (\{showCtxRep gamma1}) (\{show sigma0}) (\{show sigma1}) (\{show t0}) (\{show t1}) (\{show a})"
   show (TelEqRefl ctx tel)           = "TelEqRefl (\{showCtxRep ctx}) (\{show tel})"
   show (TelEqSym ctx tel0 tel1)      = "TelEqSym (\{showCtxRep ctx}) (\{show tel0}) (\{show tel1})"
   show (TelEqTrans ctx tel0 tel1 tel2) = "TelEqTrans (\{showCtxRep ctx}) (\{show tel0}) (\{show tel1}) (\{show tel2})"
@@ -699,6 +730,10 @@ step (TyWfQuotient gamma a r) sp = do
   tyWfDerivable gamma a sp
   tyWfDerivable (gamma :< a :< substTy a Wk) r sp
   Right $ {tyWf $= insert (gamma, Quotient a r)} sp
+step (TyWfSubst gamma0 gamma1 sigma a) sp = do
+  subWfDerivable sigma gamma0 gamma1 sp
+  tyWfDerivable gamma1 a sp
+  Right $ {tyWf $= insert (gamma0, substTy a sigma)} sp
 step (ElemWfVar gamma n) sp = do
   ctxWfDerivable gamma sp
   case ctxLookup gamma n of
@@ -737,6 +772,10 @@ step (ElemWfQuotElim gamma ty r motive f q) sp = do
     (substTy motive (Ext wk3 (Class (CtxVar 2)))) sp
   elemWfDerivable gamma q (Quotient ty r) sp
   Right $ {elemWf $= insert (gamma, QuotElim f q, substTy motive (Ext Id q))} sp
+step (ElemWfSubst gamma0 gamma1 sigma t a) sp = do
+  subWfDerivable sigma gamma0 gamma1 sp
+  elemWfDerivable gamma1 t a sp
+  Right $ {elemWf $= insert (gamma0, substElem t sigma, substTy a sigma)} sp
 step (ElemWfPiIntro gamma f a b) sp = do
   elemWfDerivable (gamma :< a) f b sp
   Right $ {elemWf $= insert (gamma, PiIntro f, PiTy a b)} sp
@@ -887,6 +926,10 @@ step (SubNormEqExt s0 s1 t0 t1 gamma0 gamma1 ty) sp = do
   subNormEqDerivable s0 s1 gamma0 gamma1 sp
   elemEqDerivable gamma0 t0 t1 (substTy ty (embed s1)) sp
   Right $ {subNormEq $= insert (s0 :< t0, s1 :< t1, gamma0, gamma1 :< ty)} sp
+step (SubNormEqChain sigma0 sigma1 tau gamma0 gamma1 delta) sp = do
+  subNormEqDerivable sigma0 sigma1 gamma0 gamma1 sp
+  subWfDerivable tau delta gamma0 sp
+  Right $ {subNormEq $= insert (substSubNorm sigma0 tau, substSubNorm sigma1 tau, delta, gamma1)} sp
 step (TyEqRefl ctx ty) sp = do
   tyWfDerivable ctx ty sp
   Right $ {tyEq $= insert (ctx, ty, ty)} sp
@@ -905,6 +948,10 @@ step (TyEqCongEqTy gamma a0 b0 ty0 a1 b1 ty1) sp = do
 step (TyEqCongEl gamma t0 t1) sp = do
   elemEqDerivable gamma t0 t1 UniverseTy sp
   Right $ {tyEq $= insert (gamma, El t0, El t1)} sp
+step (TyEqSubst gamma0 gamma1 sigma0 sigma1 a0 a1) sp = do
+  subEqDerivable sigma0 sigma1 gamma0 gamma1 sp
+  tyEqDerivable gamma1 a0 a1 sp
+  Right $ {tyEq $= insert (gamma0, substTy a0 sigma0, substTy a1 sigma1)} sp
 step (ElemEqRefl ctx e ty) sp = do
   elemWfDerivable ctx e ty sp
   Right $ {elemEq $= insert (ctx, e, e, ty)} sp
@@ -935,6 +982,10 @@ step (ElemEqCongClass gamma ty r a0 a1) sp = do
   tyWfDerivable (gamma :< ty :< substTy ty Wk) r sp
   elemEqDerivable gamma a0 a1 ty sp
   Right $ {elemEq $= insert (gamma, Class a0, Class a1, Quotient ty r)} sp
+step (ElemEqSubst gamma0 gamma1 sigma0 sigma1 t0 t1 a) sp = do
+  subEqDerivable sigma0 sigma1 gamma0 gamma1 sp
+  elemEqDerivable gamma1 t0 t1 a sp
+  Right $ {elemEq $= insert (gamma0, substElem t0 sigma0, substElem t1 sigma1, substTy a sigma1)} sp
 step (TelEqRefl ctx tel) sp = do
   telWfDerivable ctx tel sp
   Right $ {telEq $= insert (ctx, tel, tel)} sp
