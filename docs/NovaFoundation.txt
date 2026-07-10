@@ -15,6 +15,7 @@ We have:
  * Dependent sum type: (⨯)
  * Equality type: (≡) with reflection
  * A universe: 𝕌
+ * Quotient type: (/)
 
 ///////////// Syntax ///////////////
 
@@ -53,6 +54,7 @@ T ::= 𝟘
     | T ⨯ T          // dependent sum type (Σ)
     | t ≡ t ∈ T      // extensional equality type
     | El t           // Every element of the universe is a type
+    | T / T          // quotient type
 
 // element
 t ::= x [e˲]         // element in the signature context
@@ -74,6 +76,8 @@ t ::= x [e˲]         // element in the signature context
     | S t
     | ℕ-elim t t t
     | Refl           // reflexive equality proof
+    | class t        // quotient type introduction
+    | quot-elim t t  // quotient type elimination
 
 // (type) telescope
 Δ ::= ε | T ◁ Δ
@@ -718,6 +722,14 @@ x ∉ Σ
 // rewrite rule
 
 Σ sig
+Σ ⊦ Γ ctx
+--------------
+Σ Γ ⊦ A type
+Σ Γ ᐅ A ᐅ A[↑] ⊦ R type
+================ // Quotient-type
+Σ Γ ⊦ A / R type
+
+Σ sig
 Σ ⊦ Γ₀ ctx
 Σ ⊦ Γ₁ ctx
 ---------------
@@ -807,6 +819,15 @@ x ∉ Σ
 Σ ⊦ Γ₀ ⊦ (a₀ ≡ a₁ ∈ A)[σ] ≜ (a₀[σ] ≡ a₁[σ] ∈ A[σ]) type
 
 Σ sig
+Σ ⊦ Γ₀ ctx
+Σ ⊦ Γ₁ ctx
+Σ Γ₁ ⊦ A type
+Σ Γ₁ ᐅ A ᐅ A[↑] ⊦ R type
+Σ ⊦ σ : Γ₀ ⇒ Γ₁
+-------------------------------------
+Σ Γ₀ ⊦ (A / R)[σ] ≜ A[σ] / R[σ⁺⁺] type
+
+Σ sig
 Σ ⊦ Γ ctx
 Σ Γ ⊦ A type
 ------------------ // type reflexivity
@@ -888,6 +909,18 @@ x ∉ Σ
 Σ ⊦ Γ ᐅ A₁ ⊦ B₀ = B₁ type
 ========================== // Σ-type congruence
 Σ ⊦ Γ ⊦ A₀ ⨯ B₀ = A₁ ⨯ B₁ type
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ A₀ type
+Σ Γ ⊦ A₁ type
+Σ Γ ᐅ A₀ ᐅ A₀[↑] ⊦ R₀ type
+Σ Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₁ type
+--------------------------
+Σ ⊦ Γ ⊦ A₀ = A₁ type
+Σ ⊦ Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₀ = R₁ type
+========================== // Quotient-type congruence
+Σ ⊦ Γ ⊦ A₀ / R₀ = A₁ / R₁ type
 
 Σ sig
 Σ ⊦ Γ ctx
@@ -1269,6 +1302,65 @@ x ∉ Σ
 Σ Γ ⊦ f[id, t] = ℕ-elim z s t : A[id, t]
 
 Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ A type
+Σ Γ ᐅ A ᐅ A[↑] ⊦ R type
+-----------------------
+Σ Γ ⊦ a : A
+======================= // Quotient-type introduction
+Σ Γ ⊦ class a : A / R
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ A type
+Σ Γ ᐅ A ᐅ A[↑] ⊦ R type
+-----------------------
+Σ Γ ⊦ a : A
+Σ Γ ⊦ b : A
+Σ Γ ⊦ r : R[id, a, b]
+----------------------------------- // quotient equation: R-related elements have equal classes
+Σ Γ ⊦ class a = class b : A / R
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ A type
+Σ Γ ᐅ A ᐅ A[↑] ⊦ R type
+Σ Γ ᐅ (A / R) ⊦ B type
+---------------------------------------------------------------------
+Σ Γ ᐅ A ⊦ f : B[↑, class ☐₀]
+Σ Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] = f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Σ Γ ⊦ q : A / R
+======================================================================= // Quotient-type elimination
+Σ Γ ⊦ quot-elim f q : B[id, q]
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ A type
+Σ Γ ᐅ A ᐅ A[↑] ⊦ R type
+Σ Γ ᐅ (A / R) ⊦ B type
+Σ Γ ᐅ A ⊦ f : B[↑, class ☐₀]
+Σ Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] = f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Σ Γ ⊦ a : A
+-------------------------------------------------------
+-------------------------------------------------------
+Σ Γ ⊦ quot-elim f (class a) = f[id, a] : B[id, class a]
+// valid unidirectional rewrite
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ A type
+Σ Γ ᐅ A ᐅ A[↑] ⊦ R type
+Σ Γ ᐅ (A / R) ⊦ B type
+Σ Γ ᐅ A ⊦ f : B[↑, class ☐₀]
+Σ Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] = f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Σ Γ ᐅ (A / R) ⊦ g : B
+Σ Γ ⊦ q : A / R
+-----------------------------------------------
+Σ Γ ᐅ A ⊦ g[↑, class ☐₀] = f : B[↑, class ☐₀]
+----------------------------------------------- // admissible by meta-level induction
+Σ Γ ⊦ g[id, q] = quot-elim f q : B[id, q]
+
+Σ sig
 (Γ ⊦ x ≔ a : A) ∈ Σ
 Σ ⊦ Δ ctx
 e˲ : Δ ⇒ Γ
@@ -1459,6 +1551,29 @@ e˲ : Γ₁ ⇒ Γ
 Σ ⊦ σ : Δ ⇒ Γ
 --------------------------------------------------------------
 Σ Δ ⊦ (ℕ-elim z s t)[σ] ≜ ℕ-elim z[σ] s[σ⁺⁺] t[σ] : A[σ, t[σ]]
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ A type
+Σ Γ ᐅ A ᐅ A[↑] ⊦ R type
+Σ Γ ⊦ a : A
+Σ ⊦ Δ ctx
+Σ ⊦ σ : Δ ⇒ Γ
+-------------------------------------------
+Σ Δ ⊦ (class a)[σ] ≜ class a[σ] : A[σ] / R[σ⁺⁺]
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ A type
+Σ Γ ᐅ A ᐅ A[↑] ⊦ R type
+Σ Γ ᐅ (A / R) ⊦ B type
+Σ Γ ᐅ A ⊦ f : B[↑, class ☐₀]
+Σ Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] = f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Σ Γ ⊦ q : A / R
+Σ ⊦ Δ ctx
+Σ ⊦ σ : Δ ⇒ Γ
+--------------------------------------------------------------
+Σ Δ ⊦ (quot-elim f q)[σ] ≜ quot-elim f[σ⁺] q[σ] : B[σ, q[σ]]
 
 Σ sig
 Σ ⊦ Γ ctx
@@ -1692,6 +1807,32 @@ e˲ : Γ₁ ⇒ Γ
 -----------------------------
 -----------------------------
 Σ Γ ⊦ 𝟘-elim t₀ = 𝟘-elim t₁ : A
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ A type
+Σ Γ ᐅ A ᐅ A[↑] ⊦ R type
+--------------------
+Σ Γ ⊦ a₀ = a₁ : A
+==================== // class-congruence
+Σ Γ ⊦ class a₀ = class a₁ : A / R
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ A type
+Σ Γ ᐅ A ᐅ A[↑] ⊦ R type
+Σ Γ ᐅ (A / R) ⊦ B type
+Σ Γ ᐅ A ⊦ f₀ : B[↑, class ☐₀]
+Σ Γ ᐅ A ⊦ f₁ : B[↑, class ☐₀]
+Σ Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f₀[↑ ∘ ↑ ∘ ↑, ☐₂] = f₀[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Σ Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f₁[↑ ∘ ↑ ∘ ↑, ☐₂] = f₁[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Σ Γ ⊦ q₀ : A / R
+Σ Γ ⊦ q₁ : A / R
+------------------------------------------------
+Σ Γ ᐅ A ⊦ f₀ = f₁ : B[↑, class ☐₀]
+Σ Γ ⊦ q₀ = q₁ : A / R
+------------------------------------------------ // quot-elim-congruence
+Σ Γ ⊦ quot-elim f₀ q₀ = quot-elim f₁ q₁ : B[id, q₁]
 
 // Congruence rules for universe code constructors
 

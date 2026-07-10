@@ -27,9 +27,17 @@ blind and finding out at the end which line broke.
   variable, not a concrete value), see its "Doing induction" section —
   `el-nat-e`'s motive has to be the *propositional* equality type (`≡`),
   converted back to a judgemental `el-eq` via `el-reflect` at the end.
-- **`src/idris/Nova/Foundation/*.idr` is implementation, not spec.** Only
-  read it when a `Rejected` reason looks like a checker bug (e.g. a rule
-  that should apply doesn't) rather than a wrong proof step on your part.
+- **Every `.idr` file under `src/idris/Nova/Foundation/` — at any depth,
+  including `Derivation/Parser.idr`, `Pretty.idr`, `Rejection/Pretty.idr`,
+  `Session.idr`, `Test/Main.idr`, all of it — is implementation, not spec.**
+  This means concrete syntax too: if you need the exact surface syntax for
+  a type/element/rule (e.g. how `𝟙` or `⨯` is written, or whether an
+  argument needs parens), that's `docs/NovaSyntax.txt`'s job, not
+  `Parser.idr`'s. Only open one of these files when a `Rejected` reason
+  looks like a checker bug (e.g. a rule that should apply doesn't) rather
+  than a wrong proof step or a syntax question on your part — and even
+  then, treat it as diagnosing a bug to report, not as a way to look up
+  syntax.
 
 ## Build once, then call the binary directly — never `pack run` in the loop
 
