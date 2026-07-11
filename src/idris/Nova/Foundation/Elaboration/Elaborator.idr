@@ -91,6 +91,25 @@ sigLookup x [<] = Nothing
 sigLookup x (rest :< entry@(_, name, _, _)) =
   if name == x then Just entry else sigLookup x rest
 
+||| Checks a pair of expected/actual Ty's, reporting precisely which of the
+||| two mismatched (rather than a combined `&&` hiding which one failed).
+checkTyPair : Low.Ty.Ty -> Low.Ty.Ty -> Low.Ty.Ty -> Low.Ty.Ty -> Either ElabError ()
+checkTyPair expected0 t0 expected1 t1 =
+  if expected0 /= t0 then Left (TyMismatch expected0 t0)
+  else if expected1 /= t1 then Left (TyMismatch expected1 t1)
+  else Right ()
+
+||| Checks the resulting Ty, then both resulting Elem's, in sequence —
+||| for axiom-shaped ElemEq rules (rewrite rules) that compute both the
+||| type and both elements from their premises. Reports precisely which
+||| of the three mismatched.
+checkTyThenElemPair : Low.Ty.Ty -> Low.Ty.Ty -> Low.Elem.Elem -> Low.Elem.Elem -> Low.Elem.Elem -> Low.Elem.Elem -> Either ElabError ()
+checkTyThenElemPair expectedTy ty expected0 e0 expected1 e1 =
+  if expectedTy /= ty then Left (TyMismatch expectedTy ty)
+  else if expected0 /= e0 then Left (ElemMismatch expected0 e0)
+  else if expected1 /= e1 then Left (ElemMismatch expected1 e1)
+  else Right ()
+
 mutual
   ||| Given a well-formed Sig, Γ ::= ε | Γ ᐅ T  (assumes nothing else)
   export
@@ -446,6 +465,105 @@ mutual
   elaborateElemEq sig ctx ty e0 e1 (ElemEq.Reflect t) = do
     _ <- elaborateElem sig ctx (Low.Ty.EqTy e0 e1 ty) t
     Right ()
+  elaborateElemEq sig ctx ty e0 e1 (ElemEq.PiBeta f e bigPi) = do
+    lowPi <- elaborateTy sig ctx bigPi
+    case lowPi of
+      Low.Ty.PiTy lowPiA lowPiB => do
+        lowF <- elaborateElem sig (ctx :< lowPiA) lowPiB f
+        lowE <- elaborateElem sig ctx lowPiA e
+        let expected = substTy lowPiB (Ext Id lowE)
+            expected0 = Low.Elem.PiApp (Low.Elem.PiIntro lowF) lowE
+            expected1 = substElem lowF (Ext Id lowE)
+        checkTyThenElemPair expected ty expected0 e0 expected1 e1
+      _ => Left (UnexpectedTyShape "_ → _" lowPi)
+  elaborateElemEq sig ctx ty e0 e1 (ElemEq.PiEta f bigPi) = do
+    lowPi <- elaborateTy sig ctx bigPi
+    case lowPi of
+      Low.Ty.PiTy lowPiA lowPiB => do
+        lowF <- elaborateElem sig ctx lowPi f
+        let expected0 = Low.Elem.PiIntro (Low.Elem.PiApp (substElem lowF Wk) (Low.Elem.CtxVar 0))
+        checkTyThenElemPair lowPi ty expected0 e0 lowF e1
+      _ => Left (UnexpectedTyShape "_ → _" lowPi)
+  elaborateElemEq sig ctx ty e0 e1 (ElemEq.SigmaBeta1 a b bigSigma) = do
+    lowSigma <- elaborateTy sig ctx bigSigma
+    case lowSigma of
+      Low.Ty.SigmaTy lowSigA lowSigB => do
+        lowAElem <- elaborateElem sig ctx lowSigA a
+        lowBElem <- elaborateElem sig ctx (substTy lowSigB (Ext Id lowAElem)) b
+        let expected0 = Low.Elem.SigmaElim1 (Low.Elem.SigmaIntro lowAElem lowBElem)
+        checkTyThenElemPair lowSigA ty expected0 e0 lowAElem e1
+      _ => Left (UnexpectedTyShape "_ ⨯ _" lowSigma)
+  elaborateElemEq sig ctx ty e0 e1 (ElemEq.SigmaBeta2 a b bigSigma) = do
+    lowSigma <- elaborateTy sig ctx bigSigma
+    case lowSigma of
+      Low.Ty.SigmaTy lowSigA lowSigB => do
+        lowAElem <- elaborateElem sig ctx lowSigA a
+        lowBElem <- elaborateElem sig ctx (substTy lowSigB (Ext Id lowAElem)) b
+        let expected = substTy lowSigB (Ext Id lowAElem)
+            expected0 = Low.Elem.SigmaElim2 (Low.Elem.SigmaIntro lowAElem lowBElem)
+        checkTyThenElemPair expected ty expected0 e0 lowBElem e1
+      _ => Left (UnexpectedTyShape "_ ⨯ _" lowSigma)
+  elaborateElemEq sig ctx ty e0 e1 (ElemEq.SigmaEta t bigSigma) = do
+    lowSigma <- elaborateTy sig ctx bigSigma
+    case lowSigma of
+      Low.Ty.SigmaTy lowSigA lowSigB => do
+        lowT <- elaborateElem sig ctx lowSigma t
+        let expected0 = Low.Elem.SigmaIntro (Low.Elem.SigmaElim1 lowT) (Low.Elem.SigmaElim2 lowT)
+        checkTyThenElemPair lowSigma ty expected0 e0 lowT e1
+      _ => Left (UnexpectedTyShape "_ ⨯ _" lowSigma)
+  elaborateElemEq sig ctx ty e0 e1 (ElemEq.NatElimBetaZ z s bigA) = do
+    lowA <- elaborateTy sig (ctx :< Low.Ty.NatTy) bigA
+    lowZ <- elaborateElem sig ctx (substTy lowA (Ext Id Low.Elem.NatIntro0)) z
+    let sTy = substTy lowA (Chain (Ext Wk (Low.Elem.NatIntro1 (Low.Elem.CtxVar 0))) Wk)
+    lowS <- elaborateElem sig (ctx :< Low.Ty.NatTy :< lowA) sTy s
+    let expected = substTy lowA (Ext Id Low.Elem.NatIntro0)
+        expected0 = Low.Elem.NatElim lowZ lowS Low.Elem.NatIntro0
+    checkTyThenElemPair expected ty expected0 e0 lowZ e1
+  elaborateElemEq sig ctx ty e0 e1 (ElemEq.NatElimBetaS z s t bigA) = do
+    lowA <- elaborateTy sig (ctx :< Low.Ty.NatTy) bigA
+    lowZ <- elaborateElem sig ctx (substTy lowA (Ext Id Low.Elem.NatIntro0)) z
+    let sTy = substTy lowA (Chain (Ext Wk (Low.Elem.NatIntro1 (Low.Elem.CtxVar 0))) Wk)
+    lowS <- elaborateElem sig (ctx :< Low.Ty.NatTy :< lowA) sTy s
+    lowT <- elaborateElem sig ctx Low.Ty.NatTy t
+    let expected = substTy lowA (Ext Id (Low.Elem.NatIntro1 lowT))
+        expected0 = Low.Elem.NatElim lowZ lowS (Low.Elem.NatIntro1 lowT)
+        expected1 = substElem lowS (Ext (Ext Id lowT) (Low.Elem.NatElim lowZ lowS lowT))
+    checkTyThenElemPair expected ty expected0 e0 expected1 e1
+  elaborateElemEq sig ctx ty e0 e1 (ElemEq.QuotElimBeta bigA r f fEq a bigB) = do
+    lowA <- elaborateTy sig ctx bigA
+    lowR <- elaborateTy sig (ctx :< lowA :< substTy lowA Wk) r
+    lowB <- elaborateTy sig (ctx :< Low.Ty.Quotient lowA lowR) bigB
+    let fTy = substTy lowB (Ext Wk (Low.Elem.Class (Low.Elem.CtxVar 0)))
+    lowF <- elaborateElem sig (ctx :< lowA) fTy f
+    let wk3 = Chain Wk (Chain Wk Wk)
+        respCtx = ctx :< lowA :< substTy lowA Wk :< lowR
+        respTy = substTy lowB (Ext wk3 (Low.Elem.Class (Low.Elem.CtxVar 2)))
+    _ <- elaborateElemEq sig respCtx respTy
+           (substElem lowF (Ext wk3 (Low.Elem.CtxVar 2))) (substElem lowF (Ext wk3 (Low.Elem.CtxVar 1))) fEq
+    lowAElem <- elaborateElem sig ctx lowA a
+    let expected = substTy lowB (Ext Id (Low.Elem.Class lowAElem))
+        expected0 = Low.Elem.QuotElim lowF (Low.Elem.Class lowAElem)
+        expected1 = substElem lowF (Ext Id lowAElem)
+    checkTyThenElemPair expected ty expected0 e0 expected1 e1
+  elaborateElemEq sig ctx ty e0 e1 (ElemEq.QuotElimEta bigA r g f fEq eEq q bigB) = do
+    lowA <- elaborateTy sig ctx bigA
+    lowR <- elaborateTy sig (ctx :< lowA :< substTy lowA Wk) r
+    lowB <- elaborateTy sig (ctx :< Low.Ty.Quotient lowA lowR) bigB
+    lowG <- elaborateElem sig (ctx :< Low.Ty.Quotient lowA lowR) lowB g
+    let fTy = substTy lowB (Ext Wk (Low.Elem.Class (Low.Elem.CtxVar 0)))
+    lowF <- elaborateElem sig (ctx :< lowA) fTy f
+    let wk3 = Chain Wk (Chain Wk Wk)
+        respCtx = ctx :< lowA :< substTy lowA Wk :< lowR
+        respTy = substTy lowB (Ext wk3 (Low.Elem.Class (Low.Elem.CtxVar 2)))
+    _ <- elaborateElemEq sig respCtx respTy
+           (substElem lowF (Ext wk3 (Low.Elem.CtxVar 2))) (substElem lowF (Ext wk3 (Low.Elem.CtxVar 1))) fEq
+    let wkQuot = Ext Wk (Low.Elem.Class (Low.Elem.CtxVar 0))
+    _ <- elaborateElemEq sig (ctx :< lowA) fTy (substElem lowG wkQuot) lowF eEq
+    lowQ <- elaborateElem sig ctx (Low.Ty.Quotient lowA lowR) q
+    let expected = substTy lowB (Ext Id lowQ)
+        expected0 = substElem lowG (Ext Id lowQ)
+        expected1 = Low.Elem.QuotElim lowF lowQ
+    checkTyThenElemPair expected ty expected0 e0 expected1 e1
   elaborateElemEq sig ctx ty e0 e1 (ElemEq.CoeCtx eeq g geq) = do
     lowG <- elaborateCtx sig g
     _ <- elaborateElemEq sig lowG ty e0 e1 eeq
@@ -658,6 +776,28 @@ mutual
   elaborateTyEq sig ctx t0 t1 (TyEq.ZeroElim t) = do
     _ <- elaborateElem sig ctx Low.Ty.ZeroTy t
     Right ()
+  elaborateTyEq sig ctx t0 t1 TyEq.ElZero =
+    checkTyPair (Low.Ty.El Low.Elem.ZeroTy) t0 Low.Ty.ZeroTy t1
+  elaborateTyEq sig ctx t0 t1 TyEq.ElOne =
+    checkTyPair (Low.Ty.El Low.Elem.OneTy) t0 Low.Ty.OneTy t1
+  elaborateTyEq sig ctx t0 t1 TyEq.ElNat =
+    checkTyPair (Low.Ty.El Low.Elem.NatTy) t0 Low.Ty.NatTy t1
+  elaborateTyEq sig ctx t0 t1 (TyEq.ElPi a b) = do
+    lowA <- elaborateElem sig ctx Low.Ty.UniverseTy a
+    lowB <- elaborateElem sig (ctx :< Low.Ty.El lowA) Low.Ty.UniverseTy b
+    checkTyPair (Low.Ty.El (Low.Elem.PiTy lowA lowB)) t0
+                (Low.Ty.PiTy (Low.Ty.El lowA) (Low.Ty.El lowB)) t1
+  elaborateTyEq sig ctx t0 t1 (TyEq.ElSigma a b) = do
+    lowA <- elaborateElem sig ctx Low.Ty.UniverseTy a
+    lowB <- elaborateElem sig (ctx :< Low.Ty.El lowA) Low.Ty.UniverseTy b
+    checkTyPair (Low.Ty.El (Low.Elem.SigmaTy lowA lowB)) t0
+                (Low.Ty.SigmaTy (Low.Ty.El lowA) (Low.Ty.El lowB)) t1
+  elaborateTyEq sig ctx t0 t1 (TyEq.ElEq a0 a1 bigA) = do
+    lowBigA <- elaborateElem sig ctx Low.Ty.UniverseTy bigA
+    lowA0 <- elaborateElem sig ctx (Low.Ty.El lowBigA) a0
+    lowA1 <- elaborateElem sig ctx (Low.Ty.El lowBigA) a1
+    checkTyPair (Low.Ty.El (Low.Elem.EqTy lowA0 lowA1 lowBigA)) t0
+                (Low.Ty.EqTy lowA0 lowA1 (Low.Ty.El lowBigA)) t1
   elaborateTyEq sig ctx t0 t1 (TyEq.PiTy aEq bEq) =
     case (t0, t1) of
       (Low.Ty.PiTy a0 b0, Low.Ty.PiTy a1 b1) => do

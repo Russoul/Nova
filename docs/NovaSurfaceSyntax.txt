@@ -14,6 +14,7 @@ T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
 T⁼{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | refl | (T⁼{≥0})
 T⁼{3} ::= T⁼{≥3} ⁻¹ | (Γ ⊦ T⁼{≥0} of T{≥0} = T{≥0})[σ{≥0}]
 T⁼{2} ::= El t⁼{≥3} | coe-ctx T⁼{≥0} via (Γ, Γ⁼{≥0}) | 𝟘-elim t{≥4}
+        | El-𝟘 | El-𝟙 | El-ℕ | El-→ t{≥4} t{≥4} | El-⨯ t{≥4} t{≥4} | El-≡ t{≥4} t{≥4} t{≥4}
 T⁼{1} ::= T⁼{≥2} → T⁼{≥1} | T⁼{≥2} ⨯ T⁼{≥1} | T⁼{≥2} / T⁼{≥1}              (right-assoc)
 T⁼{0} ::= t⁼{≥2} ≡ t⁼{≥2} ∈ T⁼{≥1} | T⁼{≥1} · T⁼{≥1} via T{≥0}
 
@@ -45,6 +46,11 @@ t⁼{2} ::= S t⁼{≥4} | λ t⁼{≥3} | class t⁼{≥4} | class⁼ t{≥4} |
         | ℕ-elim-η z{≥4} s{≥4} f⁼{≥4} f₀⁼{≥4} f₁⁼{≥4} t{≥4} motive t{≥0} = t{≥0} : T{≥0}
         | quote-elim (T{≥2} / T{≥1}) f⁼{≥4} resp₀{≥4} resp₁{≥4} q⁼{≥4} motive T{≥0}
         | reflect t{≥4} | coe-ctx t⁼{≥0} via (Γ, Γ⁼{≥0}) | coe-ty t⁼{≥0} via (T{≥0}, T⁼{≥0})
+        | Π-β t{≥4} t{≥4} motive T{≥0} | Π-η t{≥4} motive T{≥0}
+        | Σ-β₁ t{≥4} t{≥4} motive T{≥0} | Σ-β₂ t{≥4} t{≥4} motive T{≥0} | Σ-η t{≥4} motive T{≥0}
+        | ℕ-elim-β-Z t{≥4} t{≥4} motive T{≥0} | ℕ-elim-β-S t{≥4} t{≥4} t{≥4} motive T{≥0}
+        | quote-elim-β (T{≥2} / T{≥1}) t{≥4} t⁼{≥4} t{≥4} motive T{≥0}
+        | quote-elim-η (T{≥2} / T{≥1}) t{≥4} t{≥4} t⁼{≥4} t⁼{≥4} t{≥4} motive T{≥0}
 t⁼{1} ::= t⁼{≥2} → t⁼{≥1} | t⁼{≥2} ⨯ t⁼{≥1} | t⁼{≥2} ≡ t⁼{≥2} ∈ t⁼{≥2}
 t⁼{0} ::= t⁼{≥1} , t⁼{≥0} | t⁼{≥1} · t⁼{≥1} via t{≥0}                        (`,` right-assoc)
 

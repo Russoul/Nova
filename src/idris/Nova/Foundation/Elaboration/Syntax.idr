@@ -78,6 +78,7 @@ mutual
     ||| T⁼ ::= 𝟘 | 𝟙 | ℕ | 𝕌 | refl
     |||      | T⁼ ⁻¹ | (Γ ⊦ T⁼ of T = T)[σ]
     |||      | El t⁼ | coe-ctx T⁼ via (Γ, Γ⁼) | 𝟘-elim t
+    |||      | El-𝟘 | El-𝟙 | El-ℕ | El-→ t t | El-⨯ t t | El-≡ t t t
     |||      | T⁼ → T⁼ | T⁼ ⨯ T⁼ | T⁼ / T⁼
     |||      | t⁼ ≡ t⁼ ∈ T⁼ | T⁼ · T⁼ via T
     public export
@@ -98,6 +99,18 @@ mutual
       CoeCtx : TyEq -> Ctx -> CtxEq -> TyEq
       ||| 𝟘-elim t   (type equality from absurdity)
       ZeroElim : Elem -> TyEq
+      ||| El-𝟘  (El 𝟘 = 𝟘 type)
+      ElZero : TyEq
+      ||| El-𝟙  (El 𝟙 = 𝟙 type)
+      ElOne : TyEq
+      ||| El-ℕ  (El ℕ = ℕ type)
+      ElNat : TyEq
+      ||| El-→ A B  (El (A → B) = El A → El B type)
+      ElPi : Elem -> Elem -> TyEq
+      ||| El-⨯ A B  (El (A ⨯ B) = El A ⨯ El B type)
+      ElSigma : Elem -> Elem -> TyEq
+      ||| El-≡ a₀ a₁ A  (El (a₀ ≡ a₁ ∈ A) = (a₀ ≡ a₁ ∈ El A) type)
+      ElEq : Elem -> Elem -> Elem -> TyEq
       ||| T⁼ → T⁼
       PiTy : TyEq -> TyEq -> TyEq
       ||| T⁼ ⨯ T⁼
@@ -235,6 +248,11 @@ mutual
     |||      | ℕ-elim-η z s f⁼ f₀⁼ f₁⁼ t motive t = t : T
     |||      | quote-elim (T / T) f⁼ resp₀ resp₁ q⁼ motive T
     |||      | reflect t | coe-ctx t⁼ via (Γ, Γ⁼) | coe-ty t⁼ via (T, T⁼)
+    |||      | Π-β t t motive T | Π-η t motive T
+    |||      | Σ-β₁ t t motive T | Σ-β₂ t t motive T | Σ-η t motive T
+    |||      | ℕ-elim-β-Z t t motive T | ℕ-elim-β-S t t t motive T
+    |||      | quote-elim-β (T / T) t t⁼ t motive T
+    |||      | quote-elim-η (T / T) t t t⁼ t⁼ t motive T
     |||      | t⁼ → t⁼ | t⁼ ⨯ t⁼ | t⁼ ≡ t⁼ ∈ t⁼
     |||      | t⁼ , t⁼ | t⁼ · t⁼ via t
     public export
@@ -285,6 +303,26 @@ mutual
       QuotElim : Ty -> Ty -> ElemEq -> ElemEq -> ElemEq -> ElemEq -> Ty -> ElemEq
       ||| reflect t
       Reflect : Elem -> ElemEq
+      ||| Π-β f e motive A → B  ((λ f) e = f[id, e] : B[id, e])
+      PiBeta : Elem -> Elem -> Ty -> ElemEq
+      ||| Π-η f motive A → B  (λ (f[↑] ☐₀) = f : A → B)
+      PiEta : Elem -> Ty -> ElemEq
+      ||| Σ-β₁ a b motive A ⨯ B  ((a, b) .π₁ = a : A)
+      SigmaBeta1 : Elem -> Elem -> Ty -> ElemEq
+      ||| Σ-β₂ a b motive A ⨯ B  ((a, b) .π₂ = b : B[id, a])
+      SigmaBeta2 : Elem -> Elem -> Ty -> ElemEq
+      ||| Σ-η t motive A ⨯ B  (t .π₁ , t .π₂ = t : A ⨯ B)
+      SigmaEta : Elem -> Ty -> ElemEq
+      ||| ℕ-elim-β-Z z s motive A  (ℕ-elim z s Z = z : A[id, Z])
+      NatElimBetaZ : Elem -> Elem -> Ty -> ElemEq
+      ||| ℕ-elim-β-S z s t motive A  (ℕ-elim z s (S t) = s[id, t, ℕ-elim z s t] : A[id, S t])
+      NatElimBetaS : Elem -> Elem -> Elem -> Ty -> ElemEq
+      ||| quote-elim-β (A / R) f f⁼ a motive B
+      ||| (quot-elim f (class a) = f[id, a] : B[id, class a])
+      QuotElimBeta : Ty -> Ty -> Elem -> ElemEq -> Elem -> Ty -> ElemEq
+      ||| quote-elim-η (A / R) g f f⁼ e⁼ q motive B
+      ||| (g[id, q] = quot-elim f q : B[id, q], e⁼ : g[↑,class ☐₀] = f)
+      QuotElimEta : Ty -> Ty -> Elem -> Elem -> ElemEq -> ElemEq -> Elem -> Ty -> ElemEq
       ||| coe-ctx t⁼ via (Γ, Γ⁼)
       CoeCtx : ElemEq -> Ctx -> CtxEq -> ElemEq
       ||| coe-ty t⁼ via (T, T⁼)
@@ -354,6 +392,12 @@ mutual
     show (TyEq.El e) = "El (\{show e})"
     show (TyEq.CoeCtx a g geq) = "CoeCtx (\{show a}) (\{show g}) (\{show geq})"
     show (TyEq.ZeroElim e) = "ZeroElim (\{show e})"
+    show TyEq.ElZero = "ElZero"
+    show TyEq.ElOne = "ElOne"
+    show TyEq.ElNat = "ElNat"
+    show (TyEq.ElPi a b) = "ElPi (\{show a}) (\{show b})"
+    show (TyEq.ElSigma a b) = "ElSigma (\{show a}) (\{show b})"
+    show (TyEq.ElEq a0 a1 bigA) = "ElEq (\{show a0}) (\{show a1}) (\{show bigA})"
     show (TyEq.PiTy a b) = "PiTy (\{show a}) (\{show b})"
     show (TyEq.SigmaTy a b) = "SigmaTy (\{show a}) (\{show b})"
     show (TyEq.Quotient a r) = "Quotient (\{show a}) (\{show r})"
@@ -446,6 +490,17 @@ mutual
     show (ElemEq.QuotElim a r fEq resp0 resp1 qEq b) =
       "QuotElim (\{show a}) (\{show r}) (\{show fEq}) (\{show resp0}) (\{show resp1}) (\{show qEq}) (\{show b})"
     show (ElemEq.Reflect e) = "Reflect (\{show e})"
+    show (ElemEq.PiBeta f e a) = "PiBeta (\{show f}) (\{show e}) (\{show a})"
+    show (ElemEq.PiEta f a) = "PiEta (\{show f}) (\{show a})"
+    show (ElemEq.SigmaBeta1 a b t) = "SigmaBeta1 (\{show a}) (\{show b}) (\{show t})"
+    show (ElemEq.SigmaBeta2 a b t) = "SigmaBeta2 (\{show a}) (\{show b}) (\{show t})"
+    show (ElemEq.SigmaEta t a) = "SigmaEta (\{show t}) (\{show a})"
+    show (ElemEq.NatElimBetaZ z s a) = "NatElimBetaZ (\{show z}) (\{show s}) (\{show a})"
+    show (ElemEq.NatElimBetaS z s t a) = "NatElimBetaS (\{show z}) (\{show s}) (\{show t}) (\{show a})"
+    show (ElemEq.QuotElimBeta a r f fEq e b) =
+      "QuotElimBeta (\{show a}) (\{show r}) (\{show f}) (\{show fEq}) (\{show e}) (\{show b})"
+    show (ElemEq.QuotElimEta a r g f fEq eEq q b) =
+      "QuotElimEta (\{show a}) (\{show r}) (\{show g}) (\{show f}) (\{show fEq}) (\{show eEq}) (\{show q}) (\{show b})"
     show (ElemEq.CoeCtx e g geq) = "CoeCtx (\{show e}) (\{show g}) (\{show geq})"
     show (ElemEq.CoeTy e a aeq) = "CoeTy (\{show e}) (\{show a}) (\{show aeq})"
     show (ElemEq.PiTyCode a b) = "PiTyCode (\{show a}) (\{show b})"

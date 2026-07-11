@@ -172,6 +172,13 @@ mutual
   parseTyEq2 : Rule TyEq
   parseTyEq2 =
         (do str_ "𝟘-elim"; space; e <- parseElem4; pure (TyEq.ZeroElim e))
+    <|> (str_ "El-𝟘" $> TyEq.ElZero)
+    <|> (str_ "El-𝟙" $> TyEq.ElOne)
+    <|> (str_ "El-ℕ" $> TyEq.ElNat)
+    <|> (do str_ "El-→"; space; a <- parseElem4; space; b <- parseElem4; pure (TyEq.ElPi a b))
+    <|> (do str_ "El-⨯"; space; a <- parseElem4; space; b <- parseElem4; pure (TyEq.ElSigma a b))
+    <|> (do str_ "El-≡"; space; a0 <- parseElem4; space; a1 <- parseElem4; space; bigA <- parseElem4
+            pure (TyEq.ElEq a0 a1 bigA))
     <|> (do str_ "El"; space; e <- parseElemEq3; pure (TyEq.El e))
     <|> (do str_ "coe-ctx"; space; a <- parseTyEq0; space; str_ "via"; sp
             char_ '('; sp; g <- parseCtx; sp; char_ ','; sp; geq <- parseCtxEq0; sp; char_ ')'
@@ -432,6 +439,27 @@ mutual
     <|> (do str_ "class⁼"; space; e <- parseElem4; pure (ElemEq.ClassEq e))
     <|> (do str_ "class"; space; e <- parseElemEq4; pure (ElemEq.Class e))
     <|> (do str_ "𝟘-elim"; space; e <- parseElem4; pure (ElemEq.ZeroElim e))
+    <|> (do str_ "Π-β"; space; f <- parseElem4; space; e <- parseElem4
+            space; str_ "motive"; space; a <- parseTy0
+            pure (ElemEq.PiBeta f e a))
+    <|> (do str_ "Π-η"; space; f <- parseElem4
+            space; str_ "motive"; space; a <- parseTy0
+            pure (ElemEq.PiEta f a))
+    <|> (do str_ "Σ-β₁"; space; a <- parseElem4; space; b <- parseElem4
+            space; str_ "motive"; space; t <- parseTy0
+            pure (ElemEq.SigmaBeta1 a b t))
+    <|> (do str_ "Σ-β₂"; space; a <- parseElem4; space; b <- parseElem4
+            space; str_ "motive"; space; t <- parseTy0
+            pure (ElemEq.SigmaBeta2 a b t))
+    <|> (do str_ "Σ-η"; space; e <- parseElem4
+            space; str_ "motive"; space; t <- parseTy0
+            pure (ElemEq.SigmaEta e t))
+    <|> (do str_ "ℕ-elim-β-Z"; space; z <- parseElem4; space; s <- parseElem4
+            space; str_ "motive"; space; a <- parseTy0
+            pure (ElemEq.NatElimBetaZ z s a))
+    <|> (do str_ "ℕ-elim-β-S"; space; z <- parseElem4; space; s <- parseElem4; space; t <- parseElem4
+            space; str_ "motive"; space; a <- parseTy0
+            pure (ElemEq.NatElimBetaS z s t a))
     <|> (do str_ "ℕ-elim-η"; space
             z <- parseElem4; space; s <- parseElem4; space
             fEq <- parseElemEq4; space; f0Eq <- parseElemEq4; space; f1Eq <- parseElemEq4; space
@@ -443,6 +471,17 @@ mutual
             zEq <- parseElemEq4; space; sEq <- parseElemEq4; space; tEq <- parseElemEq4
             space; str_ "motive"; space; a <- parseTy0
             pure (ElemEq.NatElim zEq sEq tEq a))
+    <|> (do str_ "quote-elim-β"; space
+            char_ '('; sp; a <- parseTy2; sp; char_ '/'; sp; r <- parseTy1; sp; char_ ')'; space
+            f <- parseElem4; space; fEq <- parseElemEq4; space; e <- parseElem4
+            space; str_ "motive"; space; b <- parseTy0
+            pure (ElemEq.QuotElimBeta a r f fEq e b))
+    <|> (do str_ "quote-elim-η"; space
+            char_ '('; sp; a <- parseTy2; sp; char_ '/'; sp; r <- parseTy1; sp; char_ ')'; space
+            g <- parseElem4; space; f <- parseElem4; space; fEq <- parseElemEq4; space
+            eEq <- parseElemEq4; space; q <- parseElem4
+            space; str_ "motive"; space; b <- parseTy0
+            pure (ElemEq.QuotElimEta a r g f fEq eEq q b))
     <|> (do str_ "quote-elim"; space
             char_ '('; sp; a <- parseTy2; sp; char_ '/'; sp; r <- parseTy1; sp; char_ ')'; space
             fEq <- parseElemEq4; space; resp0 <- parseElemEq4; space; resp1 <- parseElemEq4

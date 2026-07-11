@@ -1,0 +1,2 @@
+#!/bin/sh
+"$1" run elab ty-eq "" "ε" "El 𝟙" "𝟙" "El-𝟙"
