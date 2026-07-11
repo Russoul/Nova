@@ -1,0 +1,63 @@
+Γ ::= ε | Γ ᐅ T
+Γ⁼ ::= ε | Γ⁼ ᐅ T⁼ | refl | Γ⁼ ⁻¹ | Γ⁼ · Γ⁼ via Γ
+T ::= 𝟘 | 𝟙 | ℕ | 𝕌 | T → T | T ⨯ T | t ≡ t ∈ T | El t | T / T | (Γ ⊦ T)[σ] | coe-ctx T via (Γ, Γ⁼)
+T⁼ ::= 𝟘 | 𝟙 | ℕ | 𝕌 | T⁼ → T⁼ | T⁼ ⨯ T⁼ | t⁼ ≡ t⁼ ∈ T⁼ | El t⁼ | T⁼ / T⁼ | (Γ ⊦ T⁼)[σ⁼] | refl | T⁼ ⁻¹ | T⁼ · T⁼ via T | 𝟘-elim t | coe-ctx T⁼ via (Γ, Γ⁼)
+σ ::= · | id | ↑ | σ, t | σ ∘ σ via Γ
+t˲ ::= ·  | t˲, t | t˲ ∘ σ via Γ | coe-dom t˲ via (Γ, Γ⁼) | coe-codom t˲ via (Γ, Γ⁼)
+t˲⁼ ::= · | refl | t˲⁼ ⁻¹ | t˲⁼ · t˲⁼ via t˲ | t˲⁼, t⁼ | t˲⁼ ∘ σ via Γ | coe-dom t˲⁼ via (Γ, Γ⁼) | coe-codom t˲⁼ via (Γ, Γ⁼)
+t ::= ☐ₙ
+    | ()
+    | Z
+    | S t
+    | λ t
+    | t , t
+    | (t : T → T) t
+    | (t : T ⨯ T) .π₁
+    | (t : T ⨯ T) .π₂
+    | 𝟘-elim t
+    | ℕ-elim t t t motive T
+    | class t
+    | quote-elim (T / T) t t⁼ t motive T
+    | (Γ ⊦ t)[σ]
+    | Refl
+    | coe-ctx t via (Γ, Γ⁼)
+    | coe-ty t via (T, T⁼)
+    | 𝟘
+    | 𝟙
+    | ℕ
+    | t → t
+    | t ⨯ t
+    | t ≡ t ∈ t
+    | x
+t⁼ ::= ☐ₙ
+     | ()
+     | Z
+     | x
+     | x-β
+     | S t⁼
+     | λ t⁼
+     | class t⁼
+     | t⁼ , t⁼
+     | (t⁼ : T → T) t⁼
+     | (t⁼ : T ⨯ T) .π₁
+     | (t⁼ : T ⨯ T) .π₂
+     | 𝟘-elim t
+     | ℕ-elim z⁼ s⁼ t⁼ motive T
+     | ℕ-elim-η z s f⁼ f₀⁼ f₁⁼ t motive t = t : T
+     | quote-elim (T / T) f⁼ resp₀ resp₁ q⁼ motive T
+     | (Γ ⊦ t⁼ of t = t : T)[σ⁼ of σ = σ]
+     | reflect t
+     | 𝟘
+     | 𝟙
+     | ℕ
+     | t⁼ → t⁼
+     | t⁼ ⨯ t⁼
+     | t⁼ ≡ t⁼ ∈ t⁼
+     | x[e˲⁼]
+     | unfold x[e˲⁼]
+     | coe-ctx t⁼ via (Γ, Γ⁼)
+     | coe-ty t⁼ via (T, T⁼)
+     | refl
+     | t⁼ ⁻¹
+     | t⁼ · t⁼ via t
+     | class⁼ t
