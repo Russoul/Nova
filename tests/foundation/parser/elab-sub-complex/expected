@@ -1,1 +1,1 @@
-Ext (Chain (Id) (Wk) (Ext (Empty) (NatTy))) (Var "x")
+Ext (Chain (Id) (Wk) (Ext (Empty) (NatTy))) (Var "x" (Terminal))

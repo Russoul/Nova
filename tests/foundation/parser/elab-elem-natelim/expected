@@ -1,1 +1,1 @@
-NatElim (NatIntro0) (Var "x") (Var "y") (NatTy)
+NatElim (NatIntro0) (Var "x" (Terminal)) (Var "y" (Terminal)) (NatTy)

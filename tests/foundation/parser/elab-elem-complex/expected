@@ -1,1 +1,1 @@
-CoeTy (App (Var "f") (NatTy) (NatTy) (Var "x")) (NatTy) (Refl)
+CoeTy (App (Var "f" (Terminal)) (NatTy) (NatTy) (Var "x" (Terminal))) (NatTy) (Refl)

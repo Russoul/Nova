@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run e-elem "class x"
+"$1" run e-elem "class x[·]"

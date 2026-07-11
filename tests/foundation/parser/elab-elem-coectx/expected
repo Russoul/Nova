@@ -1,1 +1,1 @@
-CoeCtx (Var "x") (Empty) (Refl)
+CoeCtx (Var "x" (Terminal)) (Empty) (Refl)

@@ -1,1 +1,1 @@
-App (Var "f") (NatTy) (NatTy) (Var "x")
+App (Var "f" (Terminal)) (NatTy) (NatTy) (Var "x" (Terminal))

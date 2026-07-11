@@ -1,1 +1,1 @@
-SigmaIntro (Var "x") (SigmaIntro (Var "y") (Var "z"))
+SigmaIntro (Var "x" (Terminal)) (SigmaIntro (Var "y" (Terminal)) (Var "z" (Terminal)))

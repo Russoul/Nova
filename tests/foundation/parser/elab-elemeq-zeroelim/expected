@@ -1,1 +1,1 @@
-ZeroElim (Var "x")
+ZeroElim (Var "x" (Terminal))

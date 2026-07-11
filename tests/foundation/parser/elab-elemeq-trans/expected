@@ -1,1 +1,1 @@
-Trans (Var "x") (Var "y") (Var "z")
+Trans (Var "x") (Var "y") (Var "z" (Terminal))

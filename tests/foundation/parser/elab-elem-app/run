@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run e-elem "(f : ℕ → ℕ) x"
+"$1" run e-elem "(f[·] : ℕ → ℕ) x[·]"

@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run e-ty "x ≡ y ∈ ℕ"
+"$1" run e-ty "x[·] ≡ y[·] ∈ ℕ"

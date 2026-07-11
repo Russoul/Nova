@@ -1,1 +1,1 @@
-EqTy (Var "x") (Var "y") (NatTy)
+EqTy (Var "x" (Terminal)) (Var "y" (Terminal)) (NatTy)

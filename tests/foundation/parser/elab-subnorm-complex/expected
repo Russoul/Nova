@@ -1,1 +1,1 @@
-CoeDom (Ext (Terminal) (Var "x")) (Empty) (Refl)
+CoeDom (Ext (Terminal) (Var "x" (Terminal))) (Empty) (Refl)

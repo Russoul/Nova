@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run e-elem-eq "(ε ⊦ x of y = z : ℕ)[id]"
+"$1" run e-elem-eq "(ε ⊦ x of y[·] = z[·] : ℕ)[id]"

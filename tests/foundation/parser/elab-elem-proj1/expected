@@ -1,1 +1,1 @@
-Proj1 (Var "p") (NatTy) (NatTy)
+Proj1 (Var "p" (Terminal)) (NatTy) (NatTy)

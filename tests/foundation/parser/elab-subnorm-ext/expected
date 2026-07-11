@@ -1,1 +1,1 @@
-Ext (Ext (Terminal) (Var "x")) (Var "y")
+Ext (Ext (Terminal) (Var "x" (Terminal))) (Var "y" (Terminal))

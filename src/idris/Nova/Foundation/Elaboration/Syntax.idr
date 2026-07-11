@@ -190,8 +190,8 @@ mutual
       OneTy : Elem
       ||| ℕ  (universe code)
       NatTy : Elem
-      ||| x
-      Var : SigIdentifier -> Elem
+      ||| x[e˲]
+      Var : SigIdentifier -> SubNorm -> Elem
       ||| (Γ ⊦ t)[σ]
       Subst : Ctx -> Elem -> Sub -> Elem
       ||| (t : T → T) t
@@ -400,7 +400,7 @@ mutual
     show Elem.ZeroTy = "ZeroTy"
     show Elem.OneTy = "OneTy"
     show Elem.NatTy = "NatTy"
-    show (Elem.Var x) = "Var \{show x}"
+    show (Elem.Var x s) = "Var \{show x} (\{show s})"
     show (Elem.Subst g e s) = "Subst (\{show g}) (\{show e}) (\{show s})"
     show (Elem.App f a b e) = "App (\{show f}) (\{show a}) (\{show b}) (\{show e})"
     show (Elem.Proj1 e a b) = "Proj1 (\{show e}) (\{show a}) (\{show b})"

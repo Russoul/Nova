@@ -1,1 +1,1 @@
-ClassEq (Var "x")
+ClassEq (Var "x" (Terminal))

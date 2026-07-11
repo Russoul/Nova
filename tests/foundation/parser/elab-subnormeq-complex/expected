@@ -1,1 +1,1 @@
-Trans (Ext (Sym (Refl)) (Var "x")) (Refl) (Ext (Terminal) (Var "y"))
+Trans (Ext (Sym (Refl)) (Var "x")) (Refl) (Ext (Terminal) (Var "y" (Terminal)))

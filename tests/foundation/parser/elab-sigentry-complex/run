@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run e-sig-entry "ε ⊦ pairFst ≔ (p : ℕ ⨯ ℕ) .π₁ : ℕ"
+"$1" run e-sig-entry "ε ⊦ pairFst ≔ (p[·] : ℕ ⨯ ℕ) .π₁ : ℕ"

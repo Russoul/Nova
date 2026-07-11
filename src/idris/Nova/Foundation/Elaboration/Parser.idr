@@ -386,7 +386,9 @@ mutual
     <|> (str_ "𝟘"   $> Elem.ZeroTy)
     <|> (str_ "𝟙"   $> Elem.OneTy)
     <|> (str_ "ℕ"   $> Elem.NatTy)
-    <|> (do x <- parseIdentifier; pure (Elem.Var x))
+    <|> (do x <- parseIdentifier
+            sp; char_ '['; sp; s <- parseSubNorm0; sp; char_ ']'
+            pure (Elem.Var x s))
 
   -- ===== ElemEq (t⁼) =====
   -- t⁼{5} ::= ☐ₙ | () | Z | 𝟘 | 𝟙 | ℕ | refl | x | (t⁼{≥0})

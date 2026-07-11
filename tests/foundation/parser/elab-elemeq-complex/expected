@@ -1,1 +1,1 @@
-Trans (Reflect (Var "x")) (ClassEq (Var "y")) (Var "z")
+Trans (Reflect (Var "x" (Terminal))) (ClassEq (Var "y" (Terminal))) (Var "z" (Terminal))

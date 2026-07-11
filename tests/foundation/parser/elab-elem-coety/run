@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run e-elem "coe-ty x via (ℕ, refl)"
+"$1" run e-elem "coe-ty x[·] via (ℕ, refl)"

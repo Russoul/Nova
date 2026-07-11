@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run e-sub-norm-eq "(refl ⁻¹, x) · refl via (·, y)"
+"$1" run e-sub-norm-eq "(refl ⁻¹, x) · refl via (·, y[·])"
