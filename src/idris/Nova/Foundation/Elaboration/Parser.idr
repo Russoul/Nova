@@ -263,7 +263,7 @@ mutual
   -- ===== SubNormEq (t˲⁼) =====
   -- t˲⁼{2} ::= · | refl | coe-dom t˲⁼{≥0} via (Γ, Γ⁼{≥0}) | coe-codom t˲⁼{≥0} via (Γ, Γ⁼{≥0}) | (t˲⁼{≥0})
   -- t˲⁼{1} ::= t˲⁼{≥1} ⁻¹
-  -- t˲⁼{0} ::= t˲⁼{≥1} , t⁼{≥1} | t˲⁼{≥1} ∘ σ{≥0} via Γ | t˲⁼{≥1} · t˲⁼{≥1} via t˲{≥0}   (`,` left-assoc)
+  -- t˲⁼{0} ::= t˲⁼{≥1} , t⁼{≥1} | t˲⁼{≥1} ∘ σ{≥0} via Γ of t˲{≥1} = t˲{≥1} | t˲⁼{≥1} · t˲⁼{≥1} via t˲{≥0}   (`,` left-assoc)
 
   export covering
   parseSubNormEq0 : Rule SubNormEq
@@ -271,10 +271,12 @@ mutual
     s <- parseSubNormEq1
     conts <- many (
           (do sp; char_ ','; sp; e <- parseElemEq1; pure (Left e))
-      <|> (do sp; str_ "∘"; sp; t <- parseSub0; sp; str_ "via"; sp; g <- parseCtx; pure (Right (t, g))))
-    let s' = foldl (\acc, c => case the (Either ElemEq (Sub, Ctx)) c of
-                                  Left e      => SubNormEq.Ext acc e
-                                  Right (t,g) => SubNormEq.Chain acc t g)
+      <|> (do sp; str_ "∘"; sp; t <- parseSub0; sp; str_ "via"; sp; g <- parseCtx
+              sp; str_ "of"; sp; e0 <- parseSubNorm1; sp; str_ "="; sp; e1 <- parseSubNorm1
+              pure (Right (t, g, e0, e1))))
+    let s' = foldl (\acc, c => case the (Either ElemEq (Sub, Ctx, SubNorm, SubNorm)) c of
+                                  Left e            => SubNormEq.Ext acc e
+                                  Right (t,g,e0,e1) => SubNormEq.Chain acc e0 e1 t g)
                    s conts
     (do sp; str_ "·"; sp; s1 <- parseSubNormEq1; sp; str_ "via"; sp; t <- parseSubNorm0
         pure (SubNormEq.Trans s' s1 t))

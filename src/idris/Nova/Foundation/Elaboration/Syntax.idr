@@ -143,7 +143,7 @@ mutual
   namespace SubNormEq
     ||| t˲⁼ ::= · | refl | t˲⁼ ⁻¹
     |||        | coe-dom t˲⁼ via (Γ, Γ⁼) | coe-codom t˲⁼ via (Γ, Γ⁼)
-    |||        | t˲⁼, t⁼ | t˲⁼ ∘ σ via Γ | t˲⁼ · t˲⁼ via t˲
+    |||        | t˲⁼, t⁼ | t˲⁼ ∘ σ via Γ of t˲ = t˲ | t˲⁼ · t˲⁼ via t˲
     public export
     data SubNormEq : Type where
       ||| ·
@@ -158,8 +158,8 @@ mutual
       CoeCodom : SubNormEq -> Ctx -> CtxEq -> SubNormEq
       ||| t˲⁼, t⁼
       Ext : SubNormEq -> ElemEq -> SubNormEq
-      ||| t˲⁼ ∘ σ via Γ
-      Chain : SubNormEq -> Sub -> Ctx -> SubNormEq
+      ||| t˲⁼ ∘ σ via Γ of t˲ = t˲
+      Chain : SubNormEq -> SubNorm -> SubNorm -> Sub -> Ctx -> SubNormEq
       ||| t˲⁼ · t˲⁼ via t˲
       Trans : SubNormEq -> SubNormEq -> SubNorm -> SubNormEq
 
@@ -387,7 +387,7 @@ mutual
     show (SubNormEq.CoeDom s g geq) = "CoeDom (\{show s}) (\{show g}) (\{show geq})"
     show (SubNormEq.CoeCodom s g geq) = "CoeCodom (\{show s}) (\{show g}) (\{show geq})"
     show (SubNormEq.Ext s e) = "Ext (\{show s}) (\{show e})"
-    show (SubNormEq.Chain s t g) = "Chain (\{show s}) (\{show t}) (\{show g})"
+    show (SubNormEq.Chain s e0 e1 t g) = "Chain (\{show s}) (\{show e0}) (\{show e1}) (\{show t}) (\{show g})"
     show (SubNormEq.Trans s0 s1 s) = "Trans (\{show s0}) (\{show s1}) (\{show s})"
 
   public export
