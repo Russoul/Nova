@@ -1,0 +1,1 @@
+Subst (Empty) (Var "x") (Var "y") (Var "z") (NatTy) (Id)

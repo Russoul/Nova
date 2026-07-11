@@ -1,0 +1,1 @@
+[< MkSigEntry (Empty) "zero" (NatIntro0) (NatTy), MkSigEntry (Empty) "one" (NatIntro1 (Var "zero")) (NatTy), MkSigEntry (Ext (Empty) (NatTy)) "id" (CtxVar 0) (NatTy)]

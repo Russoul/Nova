@@ -13,6 +13,8 @@ import Nova.Foundation.Rejection.Pretty
 import Nova.Foundation.Derivation
 import Nova.Foundation.Derivation.Parser
 
+import Nova.Foundation.Elaboration.Test
+
 -- ===== Display helpers for top-level aliases =====
 
 showCtx : Ctx -> String
@@ -63,7 +65,9 @@ runParse parser input =
     "compute"      => putStrLn $ either (const "ERROR") show (runParser parseComputeRule input)
     "typing"       => putStrLn $ either (const "ERROR") show (runParser parseTypingRule input)
     "typing-list"  => putStrLn $ either (const "ERROR") (joinWith "\n" . map show) (runParser parseListTypingRule input)
-    _              => putStrLn "ERROR: unknown parser '\{parser}'"
+    _              => case runElabParse parser input of
+                         Just s  => putStrLn s
+                         Nothing => putStrLn "ERROR: unknown parser '\{parser}'"
 
 -- ===== Derivation mode =====
 -- Invoked as: nova-foundation-tests run derivation RULES-FILE TARGET-FILE

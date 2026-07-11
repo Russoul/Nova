@@ -47,3 +47,6 @@ t⁼{2} ::= S t⁼{≥4} | λ t⁼{≥3} | class t⁼{≥4} | class⁼ t{≥4} |
         | reflect t{≥4} | coe-ctx t⁼{≥0} via (Γ, Γ⁼{≥0}) | coe-ty t⁼{≥0} via (T{≥0}, T⁼{≥0})
 t⁼{1} ::= t⁼{≥2} → t⁼{≥1} | t⁼{≥2} ⨯ t⁼{≥1} | t⁼{≥2} ≡ t⁼{≥2} ∈ t⁼{≥2}
 t⁼{0} ::= t⁼{≥1} , t⁼{≥0} | t⁼{≥1} · t⁼{≥1} via t{≥0}                        (`,` right-assoc)
+
+SigEntry ::= Γ ⊦ x ≔ t{≥0} : T{≥0}                                             (a top-level reusable definition)
+Σ ::= ε | Σ SigEntry                                                        (left-assoc; concretely "- <SigEntry>" per line)

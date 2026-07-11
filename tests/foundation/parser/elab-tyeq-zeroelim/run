@@ -1,0 +1,2 @@
+#!/bin/sh
+"$1" run e-ty-eq "𝟘-elim x"

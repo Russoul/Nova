@@ -16,6 +16,9 @@ modules = Nova.Foundation.Syntax
         , Nova.Foundation.Session
         , Nova.Foundation.Application
 
+        , Nova.Foundation.Elaboration.Syntax
+        , Nova.Foundation.Elaboration.Parser
+
         , Solver.CommutativeMonoid
         , Solver.CommutativeMonoid.Evaluation
         , Solver.CommutativeMonoid.Language

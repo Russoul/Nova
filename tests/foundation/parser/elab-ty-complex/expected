@@ -1,0 +1,1 @@
+CoeCtx (El (Var "x")) (Ext (Empty) (NatTy)) (Ext (Refl) (Refl))

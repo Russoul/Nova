@@ -1,0 +1,4 @@
+#!/bin/sh
+"$1" run e-sig "- ε ⊦ zero ≔ Z : ℕ
+- ε ⊦ one ≔ S zero : ℕ
+- ε ᐅ ℕ ⊦ id ≔ ☐₀ : ℕ"
