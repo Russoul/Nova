@@ -14,6 +14,7 @@ import Nova.Foundation.Derivation
 import Nova.Foundation.Derivation.Parser
 
 import Nova.Foundation.Elaboration.Test
+import Nova.Foundation.Elaboration.ElaboratorTest
 
 -- ===== Display helpers for top-level aliases =====
 
@@ -99,8 +100,9 @@ runDerivation rulesFile targetFile = do
 
 pools : IO (List TestPool)
 pools = sequence
-  [ testsInDir "tests/foundation/parser"    "Foundation Parser"
+  [ testsInDir "tests/foundation/parser"     "Foundation Parser"
   , testsInDir "tests/foundation/derivation" "Foundation Derivation"
+  , testsInDir "tests/foundation/elaborator" "Foundation Elaborator"
   ]
 
 main : IO ()
@@ -109,6 +111,10 @@ main = do
   case args of
     (_ :: "run" :: "derivation" :: rulesFile :: targetFile :: []) =>
       runDerivation rulesFile targetFile
+    (_ :: "run" :: "elab" :: tag :: rest) =>
+      case runElaborate tag rest of
+        Just s  => putStrLn s
+        Nothing => putStrLn "ERROR: unknown elaborator tag '\{tag}' or wrong arity"
     (_ :: "run" :: parser :: input :: []) => runParse parser input
     _ => do
       ps <- pools

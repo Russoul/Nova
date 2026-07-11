@@ -15,6 +15,7 @@ modules = Nova.Foundation.Syntax
         , Nova.Foundation.Elaboration.Parser
         , Nova.Foundation.Elaboration.Elaborator
         , Nova.Foundation.Elaboration.Test
+        , Nova.Foundation.Elaboration.ElaboratorTest
 
 sourcedir = "src/idris"
 

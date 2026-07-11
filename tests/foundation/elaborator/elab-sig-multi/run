@@ -1,0 +1,3 @@
+#!/bin/sh
+"$1" run elab sig "- ε ⊦ myid ≔ Z : ℕ
+- ε ⊦ other ≔ myid[·] : ℕ"

@@ -1,0 +1,2 @@
+#!/bin/sh
+"$1" run elab elem-eq "" "ε ᐅ El ℕ" "𝕌" "☐₀ ≡ ☐₀ ∈ ℕ" "☐₀ ≡ ☐₀ ∈ ℕ" "refl ≡ refl ∈ refl"

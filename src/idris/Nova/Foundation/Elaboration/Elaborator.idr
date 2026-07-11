@@ -63,6 +63,21 @@ data ElabError : Type where
   ||| A SigEntry's identifier x is already defined earlier in Σ.
   SigIdentifierAlreadyDefined : Low.SigIdentifier -> ElabError
 
+export
+covering
+Show ElabError where
+  show (NotYetSupported msg) = "NotYetSupported \{show msg}"
+  show (CtxMismatch g0 g1) = "CtxMismatch (\{show g0}) (\{show g1})"
+  show (NotACtxExtension g) = "NotACtxExtension (\{show g})"
+  show (TyMismatch t0 t1) = "TyMismatch (\{show t0}) (\{show t1})"
+  show (ElemMismatch e0 e1) = "ElemMismatch (\{show e0}) (\{show e1})"
+  show (UnexpectedTyShape desc t) = "UnexpectedTyShape \{show desc} (\{show t})"
+  show (CtxVarOutOfBounds g n) = "CtxVarOutOfBounds (\{show g}) \{show n}"
+  show (SigIdentifierNotFound x) = "SigIdentifierNotFound \{show x}"
+  show (UnexpectedElemShape desc e) = "UnexpectedElemShape \{show desc} (\{show e})"
+  show (SubNormMismatch s0 s1) = "SubNormMismatch (\{show s0}) (\{show s1})"
+  show (SigIdentifierAlreadyDefined x) = "SigIdentifierAlreadyDefined \{show x}"
+
 ||| Γ‖ₙ: the (n+1)-th type in Γ counting from the right, matching
 ||| NovaFoundation.txt's (Γ ᐅ A)‖₀ ≜ A[↑], (Γ ᐅ A)‖ₙ₊₁ ≜ Γ‖ₙ[↑].
 ctxLookup : Low.Ctx -> Nat -> Maybe Low.Ty.Ty
@@ -259,13 +274,13 @@ mutual
         lowB <- elaborateElem sig (ctx :< Low.Ty.El lowA) Low.Ty.UniverseTy b
         Right (Low.Elem.SigmaTy lowA lowB)
       else Left (TyMismatch Low.Ty.UniverseTy ty)
-  elaborateElem sig ctx ty (Elem.EqTyCode a a0 a1) =
+  elaborateElem sig ctx ty (Elem.EqTyCode a0 a1 bigA) =
     if ty == Low.Ty.UniverseTy
       then do
-        lowA <- elaborateElem sig ctx Low.Ty.UniverseTy a
-        lowA0 <- elaborateElem sig ctx (Low.Ty.El lowA) a0
-        lowA1 <- elaborateElem sig ctx (Low.Ty.El lowA) a1
-        Right (Low.Elem.EqTy lowA0 lowA1 lowA)
+        lowBigA <- elaborateElem sig ctx Low.Ty.UniverseTy bigA
+        lowA0 <- elaborateElem sig ctx (Low.Ty.El lowBigA) a0
+        lowA1 <- elaborateElem sig ctx (Low.Ty.El lowBigA) a1
+        Right (Low.Elem.EqTy lowA0 lowA1 lowBigA)
       else Left (TyMismatch Low.Ty.UniverseTy ty)
   elaborateElem sig ctx ty (Elem.SigmaIntro a b) =
     case ty of

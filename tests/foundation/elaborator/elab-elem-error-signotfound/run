@@ -1,0 +1,2 @@
+#!/bin/sh
+"$1" run elab elem "" "ε" "ℕ" "nope[·]"

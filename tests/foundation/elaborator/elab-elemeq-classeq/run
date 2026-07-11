@@ -1,0 +1,2 @@
+#!/bin/sh
+"$1" run elab elem-eq "" "ε" "ℕ / (☐₁ ≡ ☐₀ ∈ ℕ)" "class Z" "class Z" "class⁼ Refl"
