@@ -1,63 +1,48 @@
-Γ ::= ε | Γ ᐅ T
-Γ⁼ ::= ε | Γ⁼ ᐅ T⁼ | refl | Γ⁼ ⁻¹ | Γ⁼ · Γ⁼ via Γ
-T ::= 𝟘 | 𝟙 | ℕ | 𝕌 | T → T | T ⨯ T | t ≡ t ∈ T | El t | T / T | (Γ ⊦ T)[σ] | coe-ctx T via (Γ, Γ⁼)
-T⁼ ::= 𝟘 | 𝟙 | ℕ | 𝕌 | T⁼ → T⁼ | T⁼ ⨯ T⁼ | t⁼ ≡ t⁼ ∈ T⁼ | El t⁼ | T⁼ / T⁼ | (Γ ⊦ T⁼)[σ⁼] | refl | T⁼ ⁻¹ | T⁼ · T⁼ via T | 𝟘-elim t | coe-ctx T⁼ via (Γ, Γ⁼)
-σ ::= · | id | ↑ | σ, t | σ ∘ σ via Γ
-t˲ ::= ·  | t˲, t | t˲ ∘ σ via Γ | coe-dom t˲ via (Γ, Γ⁼) | coe-codom t˲ via (Γ, Γ⁼)
-t˲⁼ ::= · | refl | t˲⁼ ⁻¹ | t˲⁼ · t˲⁼ via t˲ | t˲⁼, t⁼ | t˲⁼ ∘ σ via Γ | coe-dom t˲⁼ via (Γ, Γ⁼) | coe-codom t˲⁼ via (Γ, Γ⁼)
-t ::= ☐ₙ
-    | ()
-    | Z
-    | S t
-    | λ t
-    | t , t
-    | (t : T → T) t
-    | (t : T ⨯ T) .π₁
-    | (t : T ⨯ T) .π₂
-    | 𝟘-elim t
-    | ℕ-elim t t t motive T
-    | class t
-    | quote-elim (T / T) t t⁼ t motive T
-    | (Γ ⊦ t)[σ]
-    | Refl
-    | coe-ctx t via (Γ, Γ⁼)
-    | coe-ty t via (T, T⁼)
-    | 𝟘
-    | 𝟙
-    | ℕ
-    | t → t
-    | t ⨯ t
-    | t ≡ t ∈ t
-    | x
-t⁼ ::= ☐ₙ
-     | ()
-     | Z
-     | x
-     | x-β
-     | S t⁼
-     | λ t⁼
-     | class t⁼
-     | t⁼ , t⁼
-     | (t⁼ : T → T) t⁼
-     | (t⁼ : T ⨯ T) .π₁
-     | (t⁼ : T ⨯ T) .π₂
-     | 𝟘-elim t
-     | ℕ-elim z⁼ s⁼ t⁼ motive T
-     | ℕ-elim-η z s f⁼ f₀⁼ f₁⁼ t motive t = t : T
-     | quote-elim (T / T) f⁼ resp₀ resp₁ q⁼ motive T
-     | (Γ ⊦ t⁼ of t = t : T)[σ⁼ of σ = σ]
-     | reflect t
-     | 𝟘
-     | 𝟙
-     | ℕ
-     | t⁼ → t⁼
-     | t⁼ ⨯ t⁼
-     | t⁼ ≡ t⁼ ∈ t⁼
-     | x[e˲⁼]
-     | unfold x[e˲⁼]
-     | coe-ctx t⁼ via (Γ, Γ⁼)
-     | coe-ty t⁼ via (T, T⁼)
-     | refl
-     | t⁼ ⁻¹
-     | t⁼ · t⁼ via t
-     | class⁼ t
+Γ ::= ε | Γ ᐅ T{≥0}                                                          (left-assoc)
+
+Γ⁼{2} ::= ε | refl | (Γ⁼{≥0})
+Γ⁼{1} ::= Γ⁼{≥1} ⁻¹ | Γ⁼{≥1} ᐅ T⁼{≥0}                                       (⁻¹ postfix; ᐅ left-assoc)
+Γ⁼{0} ::= Γ⁼{≥1} · Γ⁼{≥1} via Γ
+
+T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | (T{≥0})
+T{3} ::= (Γ ⊦ T{≥3})[σ{≥0}]
+T{2} ::= El t{≥4} | coe-ctx T{≥0} via (Γ, Γ⁼)
+T{1} ::= T{≥2} → T{≥1} | T{≥2} ⨯ T{≥1} | T{≥2} / T{≥1}                     (right-assoc)
+T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
+
+T⁼{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | refl | (T⁼{≥0})
+T⁼{3} ::= T⁼{≥3} ⁻¹ | (Γ ⊦ T⁼{≥3})[σ{≥0}]
+T⁼{2} ::= El t⁼{≥4} | coe-ctx T⁼{≥0} via (Γ, Γ⁼) | 𝟘-elim t{≥4}
+T⁼{1} ::= T⁼{≥2} → T⁼{≥1} | T⁼{≥2} ⨯ T⁼{≥1} | T⁼{≥2} / T⁼{≥1}              (right-assoc)
+T⁼{0} ::= t⁼{≥2} ≡ t⁼{≥2} ∈ T⁼{≥1} | T⁼{≥1} · T⁼{≥1} via T
+
+σ{2} ::= · | id | ↑ | (σ{≥0})
+σ{1} ::= σ{≥2} ∘ σ{≥1} via Γ                                                (right-assoc)
+σ{0} ::= σ{≥0} , t{≥1}                                                      (left-assoc)
+
+t˲{1} ::= · | coe-dom t˲{≥0} via (Γ, Γ⁼) | coe-codom t˲{≥0} via (Γ, Γ⁼) | (t˲{≥0})
+t˲{0} ::= t˲{≥1} , t{≥1} | t˲{≥1} ∘ σ{≥0} via Γ                             (`,` left-assoc)
+
+t˲⁼{2} ::= · | refl | coe-dom t˲⁼{≥0} via (Γ, Γ⁼) | coe-codom t˲⁼{≥0} via (Γ, Γ⁼) | (t˲⁼{≥0})
+t˲⁼{1} ::= t˲⁼{≥1} ⁻¹
+t˲⁼{0} ::= t˲⁼{≥1} , t⁼{≥1} | t˲⁼{≥1} ∘ σ{≥0} via Γ | t˲⁼{≥1} · t˲⁼{≥1} via t˲ (`,` left-assoc)
+
+t{5} ::= ☐ₙ | () | Z | Refl | 𝟘 | 𝟙 | ℕ | x | (t{≥0})
+t{4} ::= (Γ ⊦ t{≥4})[σ{≥0}]
+t{3} ::= (t{≥3} : T{≥0} → T{≥0}) t{≥4} | (t{≥3} : T{≥0} ⨯ T{≥0}) .π₁ | (t{≥3} : T{≥0} ⨯ T{≥0}) .π₂
+t{2} ::= λ t{≥3} | 𝟘-elim t{≥4} | S t{≥4} | ℕ-elim t{≥4} t{≥4} t{≥4} motive T{≥0}
+       | class t{≥4} | quote-elim (T{≥0} / T{≥0}) t{≥4} t⁼{≥0} t{≥4} motive T{≥0}
+       | coe-ctx t{≥0} via (Γ, Γ⁼) | coe-ty t{≥0} via (T{≥0}, T⁼{≥0})
+t{1} ::= t{≥2} → t{≥1} | t{≥2} ⨯ t{≥1} | t{≥2} ≡ t{≥2} ∈ t{≥2}
+t{0} ::= t{≥1} , t{≥0}                                                      (right-assoc)
+
+t⁼{5} ::= ☐ₙ | () | Z | 𝟘 | 𝟙 | ℕ | refl | x | (t⁼{≥0})
+t⁼{4} ::= t⁼{≥4} ⁻¹ | x-β | (Γ ⊦ t⁼{≥4} of t = t : T{≥0})[σ{≥0} of σ = σ]
+t⁼{3} ::= (t⁼{≥3} : T{≥0} → T{≥0}) t⁼{≥4} | (t⁼{≥3} : T{≥0} ⨯ T{≥0}) .π₁ | (t⁼{≥3} : T{≥0} ⨯ T{≥0}) .π₂
+t⁼{2} ::= S t⁼{≥4} | λ t⁼{≥3} | class t⁼{≥4} | class⁼ t{≥4} | 𝟘-elim t{≥4}
+        | ℕ-elim z⁼{≥4} s⁼{≥4} t⁼{≥4} motive T{≥0}
+        | ℕ-elim-η z{≥4} s{≥4} f⁼{≥4} f₀⁼{≥4} f₁⁼{≥4} t{≥4} motive t{≥0} = t{≥0} : T{≥0}
+        | quote-elim (T{≥0} / T{≥0}) f⁼{≥4} resp₀{≥4} resp₁{≥4} q⁼{≥4} motive T{≥0}
+        | reflect t{≥4} | coe-ctx t⁼{≥0} via (Γ, Γ⁼) | coe-ty t⁼{≥0} via (T{≥0}, T⁼{≥0})
+t⁼{1} ::= t⁼{≥2} → t⁼{≥1} | t⁼{≥2} ⨯ t⁼{≥1} | t⁼{≥2} ≡ t⁼{≥2} ∈ t⁼{≥2}
+t⁼{0} ::= t⁼{≥1} , t⁼{≥0} | t⁼{≥1} · t⁼{≥1} via t                            (`,` right-assoc)
