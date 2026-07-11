@@ -1,1 +1,1 @@
-Error: SigIdentifierAlreadyDefined "myid"
+Error: ("myid", SigIdentifierAlreadyDefined "myid")

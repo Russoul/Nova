@@ -69,7 +69,7 @@ buildSubNorm sig dom cod s =
         Left err => Left "PRECONDITION-ERROR(sub-norm): \{show err}"
         Right lowSubNorm => Right lowSubNorm
 
-showResult : Show a => Either ElabError a -> String
+showResult : Show e => Show a => Either e a -> String
 showResult = either (\e => "Error: \{show e}") (\v => "Ok: \{show v}")
 
 showUnitResult : Either ElabError () -> String

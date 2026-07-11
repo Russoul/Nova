@@ -841,10 +841,16 @@ elaborateSigEntry sig (MkSigEntry g x a t) = do
     Nothing => Right (lowG, x, lowA, lowT)
 
 ||| Σ ::= ε | Σ (Γ ⊦ x ≔ a : A)  (assumes nothing — this is the root judgement)
+||| On failure, reports which entry (by its declared name) failed —
+||| the name is always available from the surface syntax itself, even
+||| when the rest of that entry doesn't elaborate.
 export
-elaborateSig : Surface.Sig -> Either ElabError Low.Sig
+elaborateSig : Surface.Sig -> Either (Low.SigIdentifier, ElabError) Low.Sig
 elaborateSig [<] = Right [<]
-elaborateSig (rest :< entry) = do
-  lowRest <- elaborateSig rest
-  lowEntry <- elaborateSigEntry lowRest entry
-  Right (lowRest :< lowEntry)
+elaborateSig (rest :< entry@(MkSigEntry _ x _ _)) =
+  case elaborateSig rest of
+    Left err => Left err
+    Right lowRest =>
+      case elaborateSigEntry lowRest entry of
+        Left err       => Left (x, err)
+        Right lowEntry => Right (lowRest :< lowEntry)
