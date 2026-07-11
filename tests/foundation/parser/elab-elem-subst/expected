@@ -1,1 +1,1 @@
-Subst (Empty) (Var "x" (Terminal)) (Id)
+Subst (Empty) (NatTy) (Var "x" (Terminal)) (Id)

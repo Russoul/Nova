@@ -165,7 +165,7 @@ mutual
 
   namespace Elem
     ||| t ::= ☐ₙ | () | Z | Refl | 𝟘 | 𝟙 | ℕ | x
-    |||     | (Γ ⊦ t)[σ]
+    |||     | (Γ ⊦ t : T)[σ]
     |||     | (t : T → T) t | (t : T ⨯ T) .π₁ | (t : T ⨯ T) .π₂
     |||     | λ t | 𝟘-elim t | S t
     |||     | ℕ-elim t t t motive T
@@ -192,8 +192,8 @@ mutual
       NatTy : Elem
       ||| x[e˲]
       Var : SigIdentifier -> SubNorm -> Elem
-      ||| (Γ ⊦ t)[σ]
-      Subst : Ctx -> Elem -> Sub -> Elem
+      ||| (Γ ⊦ t : T)[σ]
+      Subst : Ctx -> Ty -> Elem -> Sub -> Elem
       ||| (t : T → T) t
       App : Elem -> Ty -> Ty -> Elem -> Elem
       ||| (t : T ⨯ T) .π₁
@@ -401,7 +401,7 @@ mutual
     show Elem.OneTy = "OneTy"
     show Elem.NatTy = "NatTy"
     show (Elem.Var x s) = "Var \{show x} (\{show s})"
-    show (Elem.Subst g e s) = "Subst (\{show g}) (\{show e}) (\{show s})"
+    show (Elem.Subst g a e s) = "Subst (\{show g}) (\{show a}) (\{show e}) (\{show s})"
     show (Elem.App f a b e) = "App (\{show f}) (\{show a}) (\{show b}) (\{show e})"
     show (Elem.Proj1 e a b) = "Proj1 (\{show e}) (\{show a}) (\{show b})"
     show (Elem.Proj2 e a b) = "Proj2 (\{show e}) (\{show a}) (\{show b})"

@@ -366,9 +366,10 @@ mutual
   covering
   parseElem4 : Rule Elem
   parseElem4 =
-        (do char_ '('; sp; g <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem0; sp; char_ ')'
+        (do char_ '('; sp; g <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem0
+            sp; char_ ':'; sp; a <- parseTy0; sp; char_ ')'
             sp; char_ '['; sp; s <- parseSub0; sp; char_ ']'
-            pure (Elem.Subst g e s))
+            pure (Elem.Subst g a e s))
     <|> parseElem5
 
   covering
