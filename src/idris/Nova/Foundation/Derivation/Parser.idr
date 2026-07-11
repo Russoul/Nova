@@ -54,8 +54,8 @@ mutual
     (do sp; str_ "→"; sp; beta <- parseComputeNoComma; pure (InPiTy alpha beta))
       <|> (do sp; str_ "⨯"; sp; beta <- parseComputeNoComma; pure (InSigmaTy alpha beta))
       <|> (do sp; str_ "≡"; sp
-              beta  <- parseComputePostfix; sp; str_ "∈"; sp
-              gamma <- parseComputePostfix
+              beta  <- parseComputePrefix; sp; str_ "∈"; sp
+              gamma <- parseComputePrefix
               pure (InEqTy alpha beta gamma))
       <|> (do sp; str_ "ᐅ"; sp; beta <- parseComputeNoComma; pure (InExt alpha beta))
       <|> pure alpha

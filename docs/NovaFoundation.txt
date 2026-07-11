@@ -906,6 +906,17 @@ x ∉ Σ
 
 Σ sig
 Σ ⊦ Γ ctx
+------------------------
+Σ ⊦ Δ ctx                    (Δ)
+Σ Δ ⊦ A₀ type                (A₀)
+Σ Δ ⊦ A₁ type                (A₁)
+Σ ⊦ σ : Γ ⇒ Δ                (σ)
+Σ Δ ⊦ A₀ = A₁ type           (A⁼)
+---------------------------- ((Δ ⊦ A⁼ of A₀ = A₁ type)[σ]) // substitution type congruence (fixed substitution, admissible: specialization via sub-refl)
+Σ ⊦ Γ ⊦ A₀[σ] = A₁[σ] type
+
+Σ sig
+Σ ⊦ Γ ctx
 Σ Γ ⊦ A₀ type
 Σ Γ ⊦ A₁ type
 Σ Γ ᐅ A₀ ⊦ B₀ type
@@ -1734,6 +1745,16 @@ e˲ : Γ₁ ⇒ Γ
 Σ ⊦ σ₀ = σ₁ : Γ₀ ⇒ Γ₁           (σ⁼)
 ------------------------------ ((Γ₁ ⊦ t⁼ of t₀ = t₁ : A)[σ⁼ of σ₀ = σ₁]) // element substitution congruence
 Σ Γ₀ ⊦ t₀[σ₀] = t₁[σ₁] : A[σ₁]
+
+Σ sig
+Σ ⊦ Γ₀ ctx
+------------------------------
+Σ ⊦ Γ₁ ctx                      (Γ₁)
+Σ Γ₁ ⊦ A type                   (A)
+Σ ⊦ σ : Γ₀ ⇒ Γ₁                 (σ)
+Σ Γ₁ ⊦ t₀ = t₁ : A              (t⁼)
+------------------------------ ((Γ₁ ⊦ t⁼ of t₀ = t₁ : A)[σ]) // element substitution congruence (fixed substitution, admissible: specialization via sub-refl)
+Σ Γ₀ ⊦ t₀[σ] = t₁[σ] : A[σ]
 
 Σ sig
 Σ ⊦ Γ ctx
