@@ -673,7 +673,7 @@ mutual
 
   ||| Given a well-formed Sig, the domain/codomain Ctx's, and both SubNorm's
   ||| it relates — t˲⁼ ::= · | refl | t˲⁼⁻¹ | coe-dom t˲⁼ via (Γ,Γ⁼) |
-  ||| coe-codom t˲⁼ via (Γ,Γ⁼) | t˲⁼,t⁼ | t˲⁼∘σ via Γ of t˲=t˲ | t˲⁼·t˲⁼ via t˲
+  ||| coe-codom t˲⁼ via (Γ,Γ⁼) | t˲⁼,t⁼ | t˲⁼∘σ via Γ of t˲≐t˲ | t˲⁼·t˲⁼ via t˲
   export
   elaborateSubNormEq : Low.Sig -> Low.Ctx -> Low.Ctx -> Low.SubNorm -> Low.SubNorm -> SubNormEq -> Either ElabError ()
   elaborateSubNormEq sig dom cod s0 s1 SubNormEq.Terminal =

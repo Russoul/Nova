@@ -13,4 +13,4 @@
 - el-pi-e ε ᐅ ℕ → ℕ ⊦ (λ ☐₀ : ℕ → ℕ) Z
 - el-cmp ε ᐅ ℕ → ℕ via id ⊦ (λ ☐₀) Z via ↓ : ℕ via id
 - el-eq-refl ε ᐅ ℕ → ℕ ⊦ ☐₀ : ℕ → ℕ
-- el-app-cong ε ᐅ ℕ → ℕ ⊦ (☐₀ = ☐₀ : ℕ → ℕ) ((λ ☐₀) Z) = Z
+- el-app-cong ε ᐅ ℕ → ℕ ⊦ (☐₀ ≐ ☐₀ : ℕ → ℕ) ((λ ☐₀) Z) ≐ Z

@@ -24,7 +24,7 @@ is already in normal form, with no leftover substitution to separately
 reduce away. So there is no `ty-sub`/`el-sub`/`el-sub-cong`: you never need
 to ask the checker to "produce `A[σ]`" as its own step, and no substitution
 congruence rule is needed either, since `a[σ]` and `b[σ]` are just computed
-independently from `a = b`.
+independently from `a ≐ b`.
 
 This does **not** mean `ty-cmp`/`el-cmp` go away. They're still what you use
 for genuine *computation redexes* — `(λ f) e`, `ℕ-elim z s (S t)`,
@@ -66,7 +66,7 @@ that same variable both collapse to the same index in `A[t]`, so there's no
 way to recover `A` from `A[t]` mechanically; you have to state `A` directly.
 
 `el-nat-e`'s motive `A` is a `Ty`, and *judgemental* equality (`el-eq`) isn't
-a `Ty` — there's no way to hand `ℕ-elim` a motive of "`f n = g n`" directly.
+a `Ty` — there's no way to hand `ℕ-elim` a motive of "`f n ≐ g n`" directly.
 Instead, eliminate into the *propositional* equality type `EqTy` (`a ≡ b ∈
 T`), then convert to `el-eq` with `el-reflect`:
 
@@ -78,11 +78,11 @@ T`), then convert to `el-eq` with `el-reflect`:
    (structural), since nothing yet depends on an induction hypothesis.
 3. Step case `s`: you get `ih : A` at the fresh recursion variable `n`
    (i.e. `f n ≡ g n ∈ T`) in context. `el-reflect` it to a judgemental
-   `f n = g n : T`, lift it under whatever constructors separate `f (S n)`/
+   `f n ≐ g n : T`, lift it under whatever constructors separate `f (S n)`/
    `g (S n)` from `f n`/`g n` (e.g. `el-suc-cong` for `S`), and
    `el-eq-trans` that together with any purely-structural `el-cmp`
    reductions of `f (S n)`/`g (S n)` themselves. The result is a judgemental
-   `f (S n) = g (S n) : T` — build `Refl` at (say) `g (S n)` and use
+   `f (S n) ≐ g (S n) : T` — build `Refl` at (say) `g (S n)` and use
    `ty-eq-cong` (not `ty-cmp`, since the two sides aren't related by
    computation, only by this judgemental fact) to coerce it up to `A` at
    `S n`.
@@ -90,7 +90,7 @@ T`), then convert to `el-eq` with `el-reflect`:
    free variable, not a concrete value — this *is* "for all n" in this
    system), then `el-reflect` the whole thing to get the final `el-eq`.
 
-See `derivations/plus/session.rules` (the `0 + x = x` proof) for a worked
+See `derivations/plus/session.rules` (the `0 + x ≐ x` proof) for a worked
 example.
 
 ## Context
@@ -99,10 +99,10 @@ example.
 |---|---|---|
 | `ctx-emp` | — | `ε ctx` |
 | `ctx-ext Γ ᐅ A` | `Γ ⊦ A type` | `Γ ᐅ A ctx` |
-| `ctx-refl Γ` | `Γ ctx` | `Γ = Γ` |
-| `ctx-sym Γ₁ = Γ₀` | `Γ₀ = Γ₁` | `Γ₁ = Γ₀` |
-| `ctx-trans Γ₀ = Γ₂ via Γ₁` | `Γ₀ = Γ₁`, `Γ₁ = Γ₂` | `Γ₀ = Γ₂` |
-| `ctx-cmp Γ via α` | `Γ ctx`, compute rule `α` applies to `Γ` giving `Γ'` | `Γ' ctx`, `Γ = Γ'` |
+| `ctx-refl Γ` | `Γ ctx` | `Γ ≐ Γ` |
+| `ctx-sym Γ₁ ≐ Γ₀` | `Γ₀ ≐ Γ₁` | `Γ₁ ≐ Γ₀` |
+| `ctx-trans Γ₀ ≐ Γ₂ via Γ₁` | `Γ₀ ≐ Γ₁`, `Γ₁ ≐ Γ₂` | `Γ₀ ≐ Γ₂` |
+| `ctx-cmp Γ via α` | `Γ ctx`, compute rule `α` applies to `Γ` giving `Γ'` | `Γ' ctx`, `Γ ≐ Γ'` |
 
 ## Substitution well-formedness
 
@@ -118,9 +118,9 @@ example.
 
 | Keyword & syntax | Premises | Conclusion |
 |---|---|---|
-| `sub-refl Γ ⊦ σ : Δ` | `σ : Γ ⇒ Δ` | `σ = σ : Γ ⇒ Δ` |
-| `sub-sym Γ ⊦ σ₁ = σ₀ : Δ` | `σ₀ = σ₁ : Γ ⇒ Δ` | `σ₁ = σ₀ : Γ ⇒ Δ` |
-| `sub-trans Γ ⊦ σ₀ = σ₂ : Δ via σ₁` | `σ₀ = σ₁ : Γ ⇒ Δ`, `σ₁ = σ₂ : Γ ⇒ Δ` | `σ₀ = σ₂ : Γ ⇒ Δ` |
+| `sub-refl Γ ⊦ σ : Δ` | `σ : Γ ⇒ Δ` | `σ ≐ σ : Γ ⇒ Δ` |
+| `sub-sym Γ ⊦ σ₁ ≐ σ₀ : Δ` | `σ₀ ≐ σ₁ : Γ ⇒ Δ` | `σ₁ ≐ σ₀ : Γ ⇒ Δ` |
+| `sub-trans Γ ⊦ σ₀ ≐ σ₂ : Δ via σ₁` | `σ₀ ≐ σ₁ : Γ ⇒ Δ`, `σ₁ ≐ σ₂ : Γ ⇒ Δ` | `σ₀ ≐ σ₂ : Γ ⇒ Δ` |
 
 ## Normal substitution well-formedness
 
@@ -140,10 +140,10 @@ since it can't contain `id`/`↑`/`∘`.
 
 | Keyword & syntax | Premises | Conclusion |
 |---|---|---|
-| `sub-norm-refl Γ ⊦ e˲ : Δ` | `e˲ : Γ ⇒ Δ norm` | `e˲ = e˲ : Γ ⇒ Δ norm` |
-| `sub-norm-sym Γ ⊦ e˲₁ = e˲₀ : Δ` | `e˲₀ = e˲₁ : Γ ⇒ Δ norm` | `e˲₁ = e˲₀ : Γ ⇒ Δ norm` |
-| `sub-norm-trans Γ ⊦ e˲₀ = e˲₂ : Δ via e˲₁` | `e˲₀ = e˲₁ : Γ ⇒ Δ norm`, `e˲₁ = e˲₂ : Γ ⇒ Δ norm` | `e˲₀ = e˲₂ : Γ ⇒ Δ norm` |
-| `sub-norm-ext-eq Γ ⊦ e˲₀, t₀ = e˲₁, t₁ : Δ ᐅ A` | `e˲₀ = e˲₁ : Γ ⇒ Δ norm`, `Γ ⊦ t₀ = t₁ : A[e˲₁]` | `e˲₀, t₀ = e˲₁, t₁ : Γ ⇒ (Δ ᐅ A) norm` |
+| `sub-norm-refl Γ ⊦ e˲ : Δ` | `e˲ : Γ ⇒ Δ norm` | `e˲ ≐ e˲ : Γ ⇒ Δ norm` |
+| `sub-norm-sym Γ ⊦ e˲₁ ≐ e˲₀ : Δ` | `e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm` | `e˲₁ ≐ e˲₀ : Γ ⇒ Δ norm` |
+| `sub-norm-trans Γ ⊦ e˲₀ ≐ e˲₂ : Δ via e˲₁` | `e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm`, `e˲₁ ≐ e˲₂ : Γ ⇒ Δ norm` | `e˲₀ ≐ e˲₂ : Γ ⇒ Δ norm` |
+| `sub-norm-ext-eq Γ ⊦ e˲₀, t₀ ≐ e˲₁, t₁ : Δ ᐅ A` | `e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm`, `Γ ⊦ t₀ ≐ t₁ : A[e˲₁]` | `e˲₀, t₀ ≐ e˲₁, t₁ : Γ ⇒ (Δ ᐅ A) norm` |
 
 ## Type well-formedness
 
@@ -157,17 +157,17 @@ since it can't contain `id`/`↑`/`∘`.
 | `ty-sigma Γ ⊦ A ⨯ B` | `Γ ᐅ A ⊦ B type` | `Γ ⊦ A ⨯ B type` |
 | `ty-eq-form Γ ⊦ l ≡ r ∈ A` | `Γ ⊦ l : A`, `Γ ⊦ r : A` | `Γ ⊦ l ≡ r ∈ A type` |
 | `ty-el Γ ⊦ El t` | `Γ ⊦ t : 𝕌` | `Γ ⊦ El t type` |
-| `ty-cmp Γ via α ⊦ A via β` | `Γ ⊦ A type`, `α` applies to `Γ` giving `Γ'`, `β` applies to `A` giving `A'` | `Γ' ⊦ A' type`, `Γ = Γ'`, `Γ' ⊦ A = A'` |
+| `ty-cmp Γ via α ⊦ A via β` | `Γ ⊦ A type`, `α` applies to `Γ` giving `Γ'`, `β` applies to `A` giving `A'` | `Γ' ⊦ A' type`, `Γ ≐ Γ'`, `Γ' ⊦ A ≐ A'` |
 
 ## Type equality
 
 | Keyword & syntax | Premises | Conclusion |
 |---|---|---|
-| `ty-refl Γ ⊦ A` | `Γ ⊦ A type` | `Γ ⊦ A = A` |
-| `ty-sym Γ ⊦ A₁ = A₀` | `Γ ⊦ A₀ = A₁` | `Γ ⊦ A₁ = A₀` |
-| `ty-trans Γ ⊦ A₀ = A₂ via A₁` | `Γ ⊦ A₀ = A₁`, `Γ ⊦ A₁ = A₂` | `Γ ⊦ A₀ = A₂` |
-| `ty-eq-cong Γ ⊦ (a₀≡b₀∈T₀) = (a₁≡b₁∈T₁)` | `Γ ⊦ T₀ = T₁`, `Γ ⊦ a₀ = a₁ : T₁`, `Γ ⊦ b₀ = b₁ : T₁` | `Γ ⊦ (a₀≡b₀∈T₀) = (a₁≡b₁∈T₁)` — lets `EqTy`'s own arguments differ by a *judgemental* equality, not just computation; the usual way to build a `Refl`-typed element at a goal whose two sides aren't syntactically the reduct of one another (e.g. the successor case of an induction) |
-| `ty-el-cong Γ ⊦ El t₀ = El t₁` | `Γ ⊦ t₀ = t₁ : 𝕌` | `Γ ⊦ El t₀ = El t₁` — lifts a judgemental equality of universe *codes* to an equality of the *types* they decode to |
+| `ty-refl Γ ⊦ A` | `Γ ⊦ A type` | `Γ ⊦ A ≐ A` |
+| `ty-sym Γ ⊦ A₁ ≐ A₀` | `Γ ⊦ A₀ ≐ A₁` | `Γ ⊦ A₁ ≐ A₀` |
+| `ty-trans Γ ⊦ A₀ ≐ A₂ via A₁` | `Γ ⊦ A₀ ≐ A₁`, `Γ ⊦ A₁ ≐ A₂` | `Γ ⊦ A₀ ≐ A₂` |
+| `ty-eq-cong Γ ⊦ (a₀≡b₀∈T₀) ≐ (a₁≡b₁∈T₁)` | `Γ ⊦ T₀ ≐ T₁`, `Γ ⊦ a₀ ≐ a₁ : T₁`, `Γ ⊦ b₀ ≐ b₁ : T₁` | `Γ ⊦ (a₀≡b₀∈T₀) ≐ (a₁≡b₁∈T₁)` — lets `EqTy`'s own arguments differ by a *judgemental* equality, not just computation; the usual way to build a `Refl`-typed element at a goal whose two sides aren't syntactically the reduct of one another (e.g. the successor case of an induction) |
+| `ty-el-cong Γ ⊦ El t₀ ≐ El t₁` | `Γ ⊦ t₀ ≐ t₁ : 𝕌` | `Γ ⊦ El t₀ ≐ El t₁` — lifts a judgemental equality of universe *codes* to an equality of the *types* they decode to |
 
 ## Element well-formedness: introduction / elimination
 
@@ -184,10 +184,10 @@ since it can't contain `id`/`↑`/`∘`.
 | `el-sigma-e2 Γ ⊦ (t : A ⨯ B) .π₂` | `Γ ⊦ t : A ⨯ B` | `Γ ⊦ t.π₂ : B[t.π₁]` |
 | `el-zero-e Γ ⊦ 𝟘-elim t : A` | `Γ ⊦ A type`, `Γ ⊦ t : 𝟘` | `Γ ⊦ 𝟘-elim t : A` |
 | `el-nat-e Γ ⊦ ℕ-elim z s t motive A` (`A` in `Γ ᐅ ℕ`, not `A[t]` — see below) | `Γ ⊦ z : A[Z]`, `Γ ᐅ ℕ ᐅ A ⊦ s : A[S ☐₁]`, `Γ ⊦ t : ℕ` | `Γ ⊦ ℕ-elim z s t : A[t]` |
-| `el-reflect Γ ⊦ t : (l ≡ r ∈ A) reflect` | `Γ ⊦ t : (l ≡ r ∈ A)` | `Γ ⊦ l = r : A` |
+| `el-reflect Γ ⊦ t : (l ≡ r ∈ A) reflect` | `Γ ⊦ t : (l ≡ r ∈ A)` | `Γ ⊦ l ≐ r : A` |
 | `el-refl Γ ⊦ Refl : t ∈ A` | `Γ ⊦ t : A` | `Γ ⊦ Refl : t ≡ t ∈ A` |
-| `el-ty-coe Γ ⊦ t : A₀ ↝ A₁` | `Γ ⊦ t : A₀`, `Γ ⊦ A₀ = A₁` | `Γ ⊦ t : A₁` |
-| `el-ctx-coe Γ₀ = Γ₁ ⊦ t : A` | `Γ₀ ⊦ t : A`, `Γ₀ = Γ₁` | `Γ₁ ⊦ t : A` |
+| `el-ty-coe Γ ⊦ t : A₀ ↝ A₁` | `Γ ⊦ t : A₀`, `Γ ⊦ A₀ ≐ A₁` | `Γ ⊦ t : A₁` |
+| `el-ctx-coe Γ₀ ≐ Γ₁ ⊦ t : A` | `Γ₀ ⊦ t : A`, `Γ₀ ≐ Γ₁` | `Γ₁ ⊦ t : A` |
 
 ## Element well-formedness: universe codes
 
@@ -202,7 +202,7 @@ to the type it names.
 | `el-pi-ty Γ ⊦ A → B : 𝕌` | `Γ ᐅ El A ⊦ B : 𝕌` | `Γ ⊦ A → B : 𝕌` |
 | `el-sigma-ty Γ ⊦ A ⨯ B : 𝕌` | `Γ ᐅ El A ⊦ B : 𝕌` | `Γ ⊦ A ⨯ B : 𝕌` |
 | `el-eq-ty Γ ⊦ l ≡ r ∈ A : 𝕌` | `Γ ⊦ l : El A`, `Γ ⊦ r : El A` | `Γ ⊦ l ≡ r ∈ A : 𝕌` |
-| `el-cmp Γ via α ⊦ t via β : A via γ` | `Γ ⊦ t : A`, `α` on `Γ`→`Γ'`, `β` on `t`→`t'`, `γ` on `A`→`A'` | `Γ' ⊦ t' : A'`, plus `Γ=Γ'`, `Γ'⊦A=A'`, `Γ'⊦t=t':A'` |
+| `el-cmp Γ via α ⊦ t via β : A via γ` | `Γ ⊦ t : A`, `α` on `Γ`→`Γ'`, `β` on `t`→`t'`, `γ` on `A`→`A'` | `Γ' ⊦ t' : A'`, plus `Γ≐Γ'`, `Γ'⊦A≐A'`, `Γ'⊦t≐t':A'` |
 
 ## Signature
 
@@ -213,34 +213,34 @@ sessions reference it by name instead of re-deriving it.
 |---|---|---|
 | `sig Γ ⊦ x ≔ a : A` | `Γ ⊦ a : A`, `x` not already in the signature | adds `(Γ ⊦ x ≔ a : A)` to the signature |
 | `sig-var Δ ⊦ x[e˲]` | `(Γ ⊦ x ≔ a : A)` in the signature, `Δ ctx`, `e˲ : Δ ⇒ Γ norm` | `Δ ⊦ x[e˲] : A[e˲]` |
-| `sig-var-eq Δ ⊦ x[e˲]` | `(Γ ⊦ x ≔ a : A)` in the signature, `Δ ctx`, `e˲ : Δ ⇒ Γ norm` | `Δ ⊦ x[e˲] = a[e˲] : A[e˲]` |
+| `sig-var-eq Δ ⊦ x[e˲]` | `(Γ ⊦ x ≔ a : A)` in the signature, `Δ ctx`, `e˲ : Δ ⇒ Γ norm` | `Δ ⊦ x[e˲] ≐ a[e˲] : A[e˲]` |
 
 ## Element equality
 
 | Keyword & syntax | Premises | Conclusion |
 |---|---|---|
-| `el-eq-refl Γ ⊦ t : A` | `Γ ⊦ t : A` | `Γ ⊦ t = t : A` |
-| `el-eq-sym Γ ⊦ t₁ = t₀ : A` | `Γ ⊦ t₀ = t₁ : A` | `Γ ⊦ t₁ = t₀ : A` |
-| `el-eq-trans Γ ⊦ t₀ = t₂ : A via t₁` | `Γ ⊦ t₀ = t₁ : A`, `Γ ⊦ t₁ = t₂ : A` | `Γ ⊦ t₀ = t₂ : A` |
-| `el-ty-coe-eq Γ ⊦ t₀ = t₁ : A₀ ↝ A₁` | `Γ ⊦ t₀ = t₁ : A₀`, `Γ ⊦ A₀ = A₁` | `Γ ⊦ t₀ = t₁ : A₁` |
-| `el-suc-cong Γ ⊦ S t₀ = S t₁` | `Γ ⊦ t₀ = t₁ : ℕ` | `Γ ⊦ S t₀ = S t₁ : ℕ` |
-| `el-app-cong Γ ⊦ (f₀ = f₁ : A → B) t₀ = t₁` | `Γ ⊦ f₀ = f₁ : A → B`, `Γ ⊦ t₀ = t₁ : A` | `Γ ⊦ f₀ t₀ = f₁ t₁ : B[t₁]` |
+| `el-eq-refl Γ ⊦ t : A` | `Γ ⊦ t : A` | `Γ ⊦ t ≐ t : A` |
+| `el-eq-sym Γ ⊦ t₁ ≐ t₀ : A` | `Γ ⊦ t₀ ≐ t₁ : A` | `Γ ⊦ t₁ ≐ t₀ : A` |
+| `el-eq-trans Γ ⊦ t₀ ≐ t₂ : A via t₁` | `Γ ⊦ t₀ ≐ t₁ : A`, `Γ ⊦ t₁ ≐ t₂ : A` | `Γ ⊦ t₀ ≐ t₂ : A` |
+| `el-ty-coe-eq Γ ⊦ t₀ ≐ t₁ : A₀ ↝ A₁` | `Γ ⊦ t₀ ≐ t₁ : A₀`, `Γ ⊦ A₀ ≐ A₁` | `Γ ⊦ t₀ ≐ t₁ : A₁` |
+| `el-suc-cong Γ ⊦ S t₀ ≐ S t₁` | `Γ ⊦ t₀ ≐ t₁ : ℕ` | `Γ ⊦ S t₀ ≐ S t₁ : ℕ` |
+| `el-app-cong Γ ⊦ (f₀ ≐ f₁ : A → B) t₀ ≐ t₁` | `Γ ⊦ f₀ ≐ f₁ : A → B`, `Γ ⊦ t₀ ≐ t₁ : A` | `Γ ⊦ f₀ t₀ ≐ f₁ t₁ : B[t₁]` |
 
 ## Telescope equality
 
 | Keyword & syntax | Premises | Conclusion |
 |---|---|---|
-| `tel-refl Γ ⊦ Δ` | `Γ ⊦ Δ tel` | `Γ ⊦ Δ = Δ` |
-| `tel-sym Γ ⊦ Δ₁ = Δ₀` | `Γ ⊦ Δ₀ = Δ₁` | `Γ ⊦ Δ₁ = Δ₀` |
-| `tel-trans Γ ⊦ Δ₀ = Δ₂ via Δ₁` | `Γ ⊦ Δ₀ = Δ₁`, `Γ ⊦ Δ₁ = Δ₂` | `Γ ⊦ Δ₀ = Δ₂` |
+| `tel-refl Γ ⊦ Δ` | `Γ ⊦ Δ tel` | `Γ ⊦ Δ ≐ Δ` |
+| `tel-sym Γ ⊦ Δ₁ ≐ Δ₀` | `Γ ⊦ Δ₀ ≐ Δ₁` | `Γ ⊦ Δ₁ ≐ Δ₀` |
+| `tel-trans Γ ⊦ Δ₀ ≐ Δ₂ via Δ₁` | `Γ ⊦ Δ₀ ≐ Δ₁`, `Γ ⊦ Δ₁ ≐ Δ₂` | `Γ ⊦ Δ₀ ≐ Δ₂` |
 
 ## Spine equality
 
 | Keyword & syntax | Premises | Conclusion |
 |---|---|---|
-| `sp-refl Γ ⊦ ē : Δ` | `Γ ⊦ ē : Δ` | `Γ ⊦ ē = ē : Δ` |
-| `sp-sym Γ ⊦ ē₁ = ē₀ : Δ` | `Γ ⊦ ē₀ = ē₁ : Δ` | `Γ ⊦ ē₁ = ē₀ : Δ` |
-| `sp-trans Γ ⊦ ē₀ = ē₂ : Δ via ē₁` | `Γ ⊦ ē₀ = ē₁ : Δ`, `Γ ⊦ ē₁ = ē₂ : Δ` | `Γ ⊦ ē₀ = ē₂ : Δ` |
+| `sp-refl Γ ⊦ ē : Δ` | `Γ ⊦ ē : Δ` | `Γ ⊦ ē ≐ ē : Δ` |
+| `sp-sym Γ ⊦ ē₁ ≐ ē₀ : Δ` | `Γ ⊦ ē₀ ≐ ē₁ : Δ` | `Γ ⊦ ē₁ ≐ ē₀ : Δ` |
+| `sp-trans Γ ⊦ ē₀ ≐ ē₂ : Δ via ē₁` | `Γ ⊦ ē₀ ≐ ē₁ : Δ`, `Γ ⊦ ē₁ ≐ ē₂ : Δ` | `Γ ⊦ ē₀ ≐ ē₂ : Δ` |
 
 ## Judgement forms (`.target` files, `query`, `dump` kinds)
 
@@ -251,16 +251,16 @@ via `check`'s target file or `query`. Same keywords double as `dump`'s
 | Keyword & syntax | Meaning |
 |---|---|
 | `ctx-wf Γ` | `Γ` is a well-formed context |
-| `ctx-eq Γ = Γ'` | `Γ` and `Γ'` are equal contexts |
+| `ctx-eq Γ ≐ Γ'` | `Γ` and `Γ'` are equal contexts |
 | `sub-wf σ : Γ ⇒ Δ` | `σ` is a well-formed substitution |
-| `sub-eq σ = σ' : Γ ⇒ Δ` | `σ` and `σ'` are equal substitutions |
+| `sub-eq σ ≐ σ' : Γ ⇒ Δ` | `σ` and `σ'` are equal substitutions |
 | `sub-norm-wf e˲ : Γ ⇒ Δ norm` | `e˲` is a well-formed normal substitution |
-| `sub-norm-eq e˲ = e˲' : Γ ⇒ Δ norm` | `e˲` and `e˲'` are equal normal substitutions |
+| `sub-norm-eq e˲ ≐ e˲' : Γ ⇒ Δ norm` | `e˲` and `e˲'` are equal normal substitutions |
 | `ty-wf Γ ⊦ A` | `A` is a well-formed type in `Γ` |
-| `ty-eq Γ ⊦ A = A'` | `A` and `A'` are equal types in `Γ` |
+| `ty-eq Γ ⊦ A ≐ A'` | `A` and `A'` are equal types in `Γ` |
 | `el-wf Γ ⊦ t : A` | `t` has type `A` in `Γ` |
-| `el-eq Γ ⊦ t = t' : A` | `t` and `t'` are equal elements of `A` in `Γ` |
+| `el-eq Γ ⊦ t ≐ t' : A` | `t` and `t'` are equal elements of `A` in `Γ` |
 | `tel-wf Γ ⊦ Δ` | `Δ` is a well-formed telescope in `Γ` |
-| `tel-eq Γ ⊦ Δ = Δ'` | `Δ` and `Δ'` are equal telescopes in `Γ` |
+| `tel-eq Γ ⊦ Δ ≐ Δ'` | `Δ` and `Δ'` are equal telescopes in `Γ` |
 | `sp-wf Γ ⊦ ē : Δ` | `ē` is a well-formed spine against `Δ` in `Γ` |
-| `sp-eq Γ ⊦ ē = ē' : Δ` | `ē` and `ē'` are equal spines against `Δ` in `Γ` |
+| `sp-eq Γ ⊦ ē ≐ ē' : Δ` | `ē` and `ē'` are equal spines against `Δ` in `Γ` |

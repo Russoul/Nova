@@ -37,8 +37,8 @@ R ::=
   ctx-emp                                        (CtxWfEmpty)
   ctx-ext    Γ ᐅ T                               (CtxWfExt)
   ctx-refl   Γ                                   (CtxEqRefl)
-  ctx-sym    Γ₁ = Γ₀                             (CtxEqSym, conclusion: Γ₁ = Γ₀)
-  ctx-trans  Γ₀ = Γ₂ via Γ₁                     (CtxEqTrans, conclusion: Γ₀ = Γ₂)
+  ctx-sym    Γ₁ ≐ Γ₀                             (CtxEqSym, conclusion: Γ₁ ≐ Γ₀)
+  ctx-trans  Γ₀ ≐ Γ₂ via Γ₁                     (CtxEqTrans, conclusion: Γ₀ ≐ Γ₂)
   ctx-cmp    Γ via α                              (CtxWfCompute)
 
   // Substitution wf
@@ -50,8 +50,8 @@ R ::=
 
   // Substitution eq
   sub-refl   Γ ⊦ σ : Δ
-  sub-sym    Γ ⊦ σ₁ = σ₀ : Δ                   (conclusion: σ₁ = σ₀)
-  sub-trans  Γ ⊦ σ₀ = σ₂ : Δ via σ₁            (conclusion: σ₀ = σ₂)
+  sub-sym    Γ ⊦ σ₁ ≐ σ₀ : Δ                   (conclusion: σ₁ ≐ σ₀)
+  sub-trans  Γ ⊦ σ₀ ≐ σ₂ : Δ via σ₁            (conclusion: σ₀ ≐ σ₂)
 
   // Normal substitution wf
   sub-norm-term   Γ ⊦ ·                          (SubNormWfTerminal)
@@ -60,10 +60,10 @@ R ::=
 
   // Normal substitution eq
   sub-norm-refl    Γ ⊦ e˲ : Δ
-  sub-norm-sym     Γ ⊦ e˲₁ = e˲₀ : Δ                 (conclusion: e˲₁ = e˲₀)
-  sub-norm-trans   Γ ⊦ e˲₀ = e˲₂ : Δ via e˲₁         (conclusion: e˲₀ = e˲₂)
-  sub-norm-ext-eq  Γ ⊦ e˲₀, t₀ = e˲₁, t₁ : Δ ᐅ T    (SubNormEqExt, ext-eq before ext — longer keyword first)
-  sub-norm-eq-chn  Δ ⊦ e˲₀ = e˲₁ ∘ σ to Γ₁ via Γ₀    (SubNormEqChain, conclusion: e˲₀∘σ = e˲₁∘σ : Δ ⇒ Γ₁ norm)
+  sub-norm-sym     Γ ⊦ e˲₁ ≐ e˲₀ : Δ                 (conclusion: e˲₁ ≐ e˲₀)
+  sub-norm-trans   Γ ⊦ e˲₀ ≐ e˲₂ : Δ via e˲₁         (conclusion: e˲₀ ≐ e˲₂)
+  sub-norm-ext-eq  Γ ⊦ e˲₀, t₀ ≐ e˲₁, t₁ : Δ ᐅ T    (SubNormEqExt, ext-eq before ext — longer keyword first)
+  sub-norm-eq-chn  Δ ⊦ e˲₀ ≐ e˲₁ ∘ σ to Γ₁ via Γ₀    (SubNormEqChain, conclusion: e˲₀∘σ ≐ e˲₁∘σ : Δ ⇒ Γ₁ norm)
 
   // Type wf
   ty-zero    Γ ⊦ 𝟘
@@ -80,11 +80,11 @@ R ::=
 
   // Type eq
   ty-refl    Γ ⊦ T
-  ty-sym     Γ ⊦ T₁ = T₀                        (conclusion: T₁ = T₀)
-  ty-trans   Γ ⊦ T₀ = T₂ via T₁                 (conclusion: T₀ = T₂)
-  ty-eq-cong Γ ⊦ (a₀ ≡ b₀ ∈ T₀) = (a₁ ≡ b₁ ∈ T₁) (TyEqCongEqTy)
-  ty-el-cong Γ ⊦ El t₀ = El t₁                   (TyEqCongEl)
-  ty-eq-subst Γ₀ ⊦ σ₀ = σ₁ to Γ₁ ⊦ A₀ = A₁        (TyEqSubst, conclusion: Γ₀ ⊦ A₀[σ₀] = A₁[σ₁])
+  ty-sym     Γ ⊦ T₁ ≐ T₀                        (conclusion: T₁ ≐ T₀)
+  ty-trans   Γ ⊦ T₀ ≐ T₂ via T₁                 (conclusion: T₀ ≐ T₂)
+  ty-eq-cong Γ ⊦ (a₀ ≡ b₀ ∈ T₀) ≐ (a₁ ≡ b₁ ∈ T₁) (TyEqCongEqTy)
+  ty-el-cong Γ ⊦ El t₀ ≐ El t₁                   (TyEqCongEl)
+  ty-eq-subst Γ₀ ⊦ σ₀ ≐ σ₁ to Γ₁ ⊦ A₀ ≐ A₁        (TyEqSubst, conclusion: Γ₀ ⊦ A₀[σ₀] ≐ A₁[σ₁])
 
   // Element wf: intro / elim
   el-var      Γ ⊦ ☐ₙ
@@ -104,7 +104,7 @@ R ::=
   el-reflect  Γ ⊦ t : (l ≡ r ∈ A) reflect       (ElemEqReflection)
   el-refl     Γ ⊦ Refl : t ∈ A                  (ElemWfRefl)
   el-ty-coe   Γ ⊦ t : T₀ ↝ T₁
-  el-ctx-coe  Γ₀ = Γ₁ ⊦ t : T
+  el-ctx-coe  Γ₀ ≐ Γ₁ ⊦ t : T
 
   // Element wf: universe codes
   el-zero-ty  Γ ⊦ 𝟘 : 𝕌
@@ -121,40 +121,40 @@ R ::=
   sig        Γ ⊦ x ≔ t : T                      (SigExt)
 
   // Element equality
-  el-ty-coe-eq Γ ⊦ t₀ = t₁ : T₀ ↝ T₁           (ElemEqTyCoe)
+  el-ty-coe-eq Γ ⊦ t₀ ≐ t₁ : T₀ ↝ T₁           (ElemEqTyCoe)
   el-eq-refl   Γ ⊦ t : T                        (ElemEqRefl)
-  el-eq-sym    Γ ⊦ t₁ = t₀ : T                  (conclusion: t₁ = t₀)
-  el-eq-trans  Γ ⊦ t₀ = t₂ : T via t₁           (conclusion: t₀ = t₂)
-  el-suc-cong  Γ ⊦ S t₀ = S t₁                   (ElemEqCongSuc)
-  el-app-cong  Γ ⊦ (f₀ = f₁ : A → B) t₀ = t₁     (ElemEqCongPiApp, conclusion: f₀ t₀ = f₁ t₁ : B[t₁])
-  el-class-cong Γ ⊦ class a₀ = class a₁ : A / R  (ElemEqCongClass)
-  el-quot-eq   Γ ⊦ class a = class b : A / R via r (ElemEqQuotient, r : R[a, b])
-  el-eq-subst  Γ₀ ⊦ σ₀ = σ₁ to Γ₁ ⊦ t₀ = t₁ : A   (ElemEqSubst, conclusion: Γ₀ ⊦ t₀[σ₀] = t₁[σ₁] : A[σ₁])
+  el-eq-sym    Γ ⊦ t₁ ≐ t₀ : T                  (conclusion: t₁ ≐ t₀)
+  el-eq-trans  Γ ⊦ t₀ ≐ t₂ : T via t₁           (conclusion: t₀ ≐ t₂)
+  el-suc-cong  Γ ⊦ S t₀ ≐ S t₁                   (ElemEqCongSuc)
+  el-app-cong  Γ ⊦ (f₀ ≐ f₁ : A → B) t₀ ≐ t₁     (ElemEqCongPiApp, conclusion: f₀ t₀ ≐ f₁ t₁ : B[t₁])
+  el-class-cong Γ ⊦ class a₀ ≐ class a₁ : A / R  (ElemEqCongClass)
+  el-quot-eq   Γ ⊦ class a ≐ class b : A / R via r (ElemEqQuotient, r : R[a, b])
+  el-eq-subst  Γ₀ ⊦ σ₀ ≐ σ₁ to Γ₁ ⊦ t₀ ≐ t₁ : A   (ElemEqSubst, conclusion: Γ₀ ⊦ t₀[σ₀] ≐ t₁[σ₁] : A[σ₁])
 
   // Telescope equality
   tel-refl   Γ ⊦ Δ
-  tel-sym    Γ ⊦ Δ₁ = Δ₀
-  tel-trans  Γ ⊦ Δ₀ = Δ₂ via Δ₁
+  tel-sym    Γ ⊦ Δ₁ ≐ Δ₀
+  tel-trans  Γ ⊦ Δ₀ ≐ Δ₂ via Δ₁
 
   // Spine equality
   sp-refl    Γ ⊦ s : Δ
-  sp-sym     Γ ⊦ s₁ = s₀ : Δ
-  sp-trans   Γ ⊦ s₀ = s₂ : Δ via s₁
+  sp-sym     Γ ⊦ s₁ ≐ s₀ : Δ
+  sp-trans   Γ ⊦ s₀ ≐ s₂ : Δ via s₁
 
 // JudgementForm — syntax of target goals in .target files
 // Each form starts with a unique keyword; no trailing disambiguators needed.
 J ::=
   ctx-wf  Γ                           (JfCtxWf)
-  ctx-eq  Γ = Γ'                      (JfCtxEq)
+  ctx-eq  Γ ≐ Γ'                      (JfCtxEq)
   sub-wf  σ : Γ ⇒ Δ                   (JfSubWf)
-  sub-eq  σ = σ' : Γ ⇒ Δ              (JfSubEq)
+  sub-eq  σ ≐ σ' : Γ ⇒ Δ              (JfSubEq)
   sub-norm-wf  e˲ : Γ ⇒ Δ norm        (JfSubNormWf)
-  sub-norm-eq  e˲ = e˲' : Γ ⇒ Δ norm  (JfSubNormEq)
+  sub-norm-eq  e˲ ≐ e˲' : Γ ⇒ Δ norm  (JfSubNormEq)
   ty-wf   Γ ⊦ T                       (JfTyWf)
-  ty-eq   Γ ⊦ T = T'                  (JfTyEq)
+  ty-eq   Γ ⊦ T ≐ T'                  (JfTyEq)
   el-wf   Γ ⊦ t : T                   (JfElemWf)
-  el-eq   Γ ⊦ t = t' : T              (JfElemEq)
+  el-eq   Γ ⊦ t ≐ t' : T              (JfElemEq)
   tel-wf  Γ ⊦ Δ                       (JfTelWf)
-  tel-eq  Γ ⊦ Δ = Δ'                  (JfTelEq)
+  tel-eq  Γ ⊦ Δ ≐ Δ'                  (JfTelEq)
   sp-wf   Γ ⊦ ē : Δ                   (JfSpineWf)
-  sp-eq   Γ ⊦ ē = ē' : Δ              (JfSpineEq)
+  sp-eq   Γ ⊦ ē ≐ ē' : Δ              (JfSpineEq)

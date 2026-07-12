@@ -111,10 +111,10 @@ parseTypingRule =
         [<]     => fail "ctx-ext: requires non-empty context") <|>
   (do str_ "ctx-refl"; space; ctx <- parseCtx; pure (CtxEqRefl ctx)) <|>
   (do str_ "ctx-sym"; space
-      ctx1 <- parseCtx; sp; str_ "="; sp; ctx0 <- parseCtx
+      ctx1 <- parseCtx; sp; str_ "≐"; sp; ctx0 <- parseCtx
       pure (CtxEqSym ctx0 ctx1)) <|>
   (do str_ "ctx-trans"; space
-      ctx0 <- parseCtx; sp; str_ "="; sp; ctx2 <- parseCtx
+      ctx0 <- parseCtx; sp; str_ "≐"; sp; ctx2 <- parseCtx
       sp; str_ "via"; sp; ctx1 <- parseCtx
       pure (CtxEqTrans ctx0 ctx1 ctx2)) <|>
   (do str_ "ctx-cmp"; space
@@ -152,11 +152,11 @@ parseTypingRule =
       pure (SubEqRefl s ctx d)) <|>
   (do str_ "sub-sym"; space
       ctx <- parseCtx; sp; str_ "⊦"; sp
-      s1 <- parseSub; sp; str_ "="; sp; s0 <- parseSub; sp; char_ ':'; sp; d <- parseCtx
+      s1 <- parseSub; sp; str_ "≐"; sp; s0 <- parseSub; sp; char_ ':'; sp; d <- parseCtx
       pure (SubEqSym s0 s1 ctx d)) <|>
   (do str_ "sub-trans"; space
       ctx <- parseCtx; sp; str_ "⊦"; sp
-      s0 <- parseSub; sp; str_ "="; sp; s2 <- parseSub; sp; char_ ':'; sp; d <- parseCtx
+      s0 <- parseSub; sp; str_ "≐"; sp; s2 <- parseSub; sp; char_ ':'; sp; d <- parseCtx
       sp; str_ "via"; sp; s1 <- parseSub
       pure (SubEqTrans s0 s1 s2 ctx d)) <|>
   -- Normal substitution wf (ext-eq before ext — longer keyword first)
@@ -165,7 +165,7 @@ parseTypingRule =
       pure (SubNormWfTerminal ctx)) <|>
   (do str_ "sub-norm-ext-eq"; space
       ctx <- parseCtx; sp; str_ "⊦"; sp
-      full0 <- parseSubNorm; sp; str_ "="; sp; full1 <- parseSubNorm
+      full0 <- parseSubNorm; sp; str_ "≐"; sp; full1 <- parseSubNorm
       sp; char_ ':'; sp; delta <- parseCtx
       case (full0, full1, delta) of
         (es0 :< t0, es1 :< t1, d :< ty) => pure (SubNormEqExt es0 es1 t0 t1 ctx d ty)
@@ -189,16 +189,16 @@ parseTypingRule =
       pure (SubNormEqRefl s ctx d)) <|>
   (do str_ "sub-norm-sym"; space
       ctx <- parseCtx; sp; str_ "⊦"; sp
-      s1 <- parseSubNorm; sp; str_ "="; sp; s0 <- parseSubNorm; sp; char_ ':'; sp; d <- parseCtx
+      s1 <- parseSubNorm; sp; str_ "≐"; sp; s0 <- parseSubNorm; sp; char_ ':'; sp; d <- parseCtx
       pure (SubNormEqSym s0 s1 ctx d)) <|>
   (do str_ "sub-norm-trans"; space
       ctx <- parseCtx; sp; str_ "⊦"; sp
-      s0 <- parseSubNorm; sp; str_ "="; sp; s2 <- parseSubNorm; sp; char_ ':'; sp; d <- parseCtx
+      s0 <- parseSubNorm; sp; str_ "≐"; sp; s2 <- parseSubNorm; sp; char_ ':'; sp; d <- parseCtx
       sp; str_ "via"; sp; s1 <- parseSubNorm
       pure (SubNormEqTrans s0 s1 s2 ctx d)) <|>
   (do str_ "sub-norm-eq-chn"; space
       delta <- parseCtx; sp; str_ "⊦"; sp
-      sigma0 <- parseSubNorm; sp; str_ "="; sp; sigma1 <- parseSubNorm; sp; str_ "∘"; sp; tau <- parseSub
+      sigma0 <- parseSubNorm; sp; str_ "≐"; sp; sigma1 <- parseSubNorm; sp; str_ "∘"; sp; tau <- parseSub
       sp; str_ "to"; sp; gamma1 <- parseCtx
       sp; str_ "via"; sp; gamma0 <- parseCtx
       pure (SubNormEqChain sigma0 sigma1 tau gamma0 gamma1 delta)) <|>
@@ -251,25 +251,25 @@ parseTypingRule =
   (do str_ "ty-refl"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
       pure (TyEqRefl ctx ty)) <|>
   (do str_ "ty-sym"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      ty1 <- parseTy; sp; str_ "="; sp; ty0 <- parseTy
+      ty1 <- parseTy; sp; str_ "≐"; sp; ty0 <- parseTy
       pure (TyEqSym ctx ty0 ty1)) <|>
   (do str_ "ty-trans"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      ty0 <- parseTy; sp; str_ "="; sp; ty2 <- parseTy; sp; str_ "via"; sp; ty1 <- parseTy
+      ty0 <- parseTy; sp; str_ "≐"; sp; ty2 <- parseTy; sp; str_ "via"; sp; ty1 <- parseTy
       pure (TyEqTrans ctx ty0 ty1 ty2)) <|>
   (do str_ "ty-eq-cong"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      ty0 <- parseTy; sp; str_ "="; sp; ty1 <- parseTy
+      ty0 <- parseTy; sp; str_ "≐"; sp; ty1 <- parseTy
       case (ty0, ty1) of
         (Ty.EqTy a0 b0 t0, Ty.EqTy a1 b1 t1) => pure (TyEqCongEqTy ctx a0 b0 t0 a1 b1 t1)
         _ => fail "ty-eq-cong: expected (a₀ ≡ b₀ ∈ T₀) = (a₁ ≡ b₁ ∈ T₁)") <|>
   (do str_ "ty-el-cong"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      ty0 <- parseTy; sp; str_ "="; sp; ty1 <- parseTy
+      ty0 <- parseTy; sp; str_ "≐"; sp; ty1 <- parseTy
       case (ty0, ty1) of
         (Ty.El t0, Ty.El t1) => pure (TyEqCongEl ctx t0 t1)
         _ => fail "ty-el-cong: expected El t₀ = El t₁") <|>
   (do str_ "ty-eq-subst"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      sigma0 <- parseSub; sp; str_ "="; sp; sigma1 <- parseSub
+      sigma0 <- parseSub; sp; str_ "≐"; sp; sigma1 <- parseSub
       sp; str_ "to"; sp; delta <- parseCtx; sp; str_ "⊦"; sp
-      a0 <- parseTy; sp; str_ "="; sp; a1 <- parseTy
+      a0 <- parseTy; sp; str_ "≐"; sp; a1 <- parseTy
       pure (TyEqSubst ctx delta sigma0 sigma1 a0 a1)) <|>
   -- Element wf: intro / elim  (longer keywords before shorter sharing same prefix)
   (do str_ "el-var"; space
@@ -359,14 +359,14 @@ parseTypingRule =
       pure (ElemWfRefl ctx e ty)) <|>
   -- el-ty-coe-eq before el-ty-coe (longer keyword first)
   (do str_ "el-ty-coe-eq"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      e0 <- parseElem; sp; str_ "="; sp; e1 <- parseElem
+      e0 <- parseElem; sp; str_ "≐"; sp; e1 <- parseElem
       sp; char_ ':'; sp; ty0 <- parseTy; sp; str_ "↝"; sp; ty1 <- parseTy
       pure (ElemEqTyCoe ctx e0 e1 ty0 ty1)) <|>
   (do str_ "el-ty-coe"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
       sp; char_ ':'; sp; ty0 <- parseTy; sp; str_ "↝"; sp; ty1 <- parseTy
       pure (ElemWfTyCoe ctx e ty0 ty1)) <|>
   (do str_ "el-ctx-coe"; space
-      ctx0 <- parseCtx; sp; str_ "="; sp; ctx1 <- parseCtx
+      ctx0 <- parseCtx; sp; str_ "≐"; sp; ctx1 <- parseCtx
       sp; str_ "⊦"; sp; e <- parseElem; sp; char_ ':'; sp; ty <- parseTy
       pure (ElemWfCtxCoe ctx0 ctx1 e ty)) <|>
   -- Element wf: universe codes
@@ -422,62 +422,62 @@ parseTypingRule =
       e <- parseElem; sp; char_ ':'; sp; ty <- parseTy
       pure (ElemEqRefl ctx e ty)) <|>
   (do str_ "el-eq-sym"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      e1 <- parseElem; sp; str_ "="; sp; e0 <- parseElem; sp; char_ ':'; sp; ty <- parseTy
+      e1 <- parseElem; sp; str_ "≐"; sp; e0 <- parseElem; sp; char_ ':'; sp; ty <- parseTy
       pure (ElemEqSym ctx e0 e1 ty)) <|>
   (do str_ "el-eq-trans"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      e0 <- parseElem; sp; str_ "="; sp; e2 <- parseElem; sp; char_ ':'; sp; ty <- parseTy
+      e0 <- parseElem; sp; str_ "≐"; sp; e2 <- parseElem; sp; char_ ':'; sp; ty <- parseTy
       sp; str_ "via"; sp; e1 <- parseElem
       pure (ElemEqTrans ctx e0 e1 e2 ty)) <|>
   (do str_ "el-suc-cong"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      e0 <- parseElem; sp; str_ "="; sp; e1 <- parseElem
+      e0 <- parseElem; sp; str_ "≐"; sp; e1 <- parseElem
       case (e0, e1) of
         (NatIntro1 t0, NatIntro1 t1) => pure (ElemEqCongSuc ctx t0 t1)
         _ => fail "el-suc-cong: expected S t₀ = S t₁") <|>
   (do str_ "el-app-cong"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      char_ '('; sp; f0 <- parseElem; sp; str_ "="; sp; f1 <- parseElem
+      char_ '('; sp; f0 <- parseElem; sp; str_ "≐"; sp; f1 <- parseElem
       sp; char_ ':'; sp; ty <- parseTy; sp; char_ ')'
-      sp; a0 <- parseElemAtom; sp; str_ "="; sp; a1 <- parseElemAtom
+      sp; a0 <- parseElemAtom; sp; str_ "≐"; sp; a1 <- parseElemAtom
       case ty of
         PiTy a b => pure (ElemEqCongPiApp ctx f0 f1 a b a0 a1)
         _        => fail "el-app-cong: expected A → B") <|>
   -- el-class-cong before el-quot-eq (both share the "el-c"/"el-q" split, no
   -- real ambiguity, kept together for readability)
   (do str_ "el-class-cong"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      e0 <- parseElem; sp; str_ "="; sp; e1 <- parseElem
+      e0 <- parseElem; sp; str_ "≐"; sp; e1 <- parseElem
       sp; char_ ':'; sp; ty <- parseTy
       case (e0, e1, ty) of
         (Class a0, Class a1, Quotient tyA r) => pure (ElemEqCongClass ctx tyA r a0 a1)
         _ => fail "el-class-cong: expected class a₀ = class a₁ : A / R") <|>
   (do str_ "el-quot-eq"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      e0 <- parseElem; sp; str_ "="; sp; e1 <- parseElem
+      e0 <- parseElem; sp; str_ "≐"; sp; e1 <- parseElem
       sp; char_ ':'; sp; ty <- parseTy
       sp; str_ "via"; sp; witness <- parseElem
       case (e0, e1, ty) of
         (Class a, Class b, Quotient tyA r) => pure (ElemEqQuotient ctx tyA r a b witness)
         _ => fail "el-quot-eq: expected class a = class b : A / R via r") <|>
   (do str_ "el-eq-subst"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      sigma0 <- parseSub; sp; str_ "="; sp; sigma1 <- parseSub
+      sigma0 <- parseSub; sp; str_ "≐"; sp; sigma1 <- parseSub
       sp; str_ "to"; sp; delta <- parseCtx; sp; str_ "⊦"; sp
-      t0 <- parseElem; sp; str_ "="; sp; t1 <- parseElem; sp; char_ ':'; sp; a <- parseTy
+      t0 <- parseElem; sp; str_ "≐"; sp; t1 <- parseElem; sp; char_ ':'; sp; a <- parseTy
       pure (ElemEqSubst ctx delta sigma0 sigma1 t0 t1 a)) <|>
   -- Telescope equality
   (do str_ "tel-refl"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; tel <- parseTel
       pure (TelEqRefl ctx tel)) <|>
   (do str_ "tel-sym"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      tel1 <- parseTel; sp; str_ "="; sp; tel0 <- parseTel
+      tel1 <- parseTel; sp; str_ "≐"; sp; tel0 <- parseTel
       pure (TelEqSym ctx tel0 tel1)) <|>
   (do str_ "tel-trans"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      tel0 <- parseTel; sp; str_ "="; sp; tel2 <- parseTel; sp; str_ "via"; sp; tel1 <- parseTel
+      tel0 <- parseTel; sp; str_ "≐"; sp; tel2 <- parseTel; sp; str_ "via"; sp; tel1 <- parseTel
       pure (TelEqTrans ctx tel0 tel1 tel2)) <|>
   -- Spine equality
   (do str_ "sp-refl"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
       spine <- parseSpine; sp; char_ ':'; sp; tel <- parseTel
       pure (SpineEqRefl ctx spine tel)) <|>
   (do str_ "sp-sym"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      s1 <- parseSpine; sp; str_ "="; sp; s0 <- parseSpine; sp; char_ ':'; sp; tel <- parseTel
+      s1 <- parseSpine; sp; str_ "≐"; sp; s0 <- parseSpine; sp; char_ ':'; sp; tel <- parseTel
       pure (SpineEqSym ctx s0 s1 tel)) <|>
   (do str_ "sp-trans"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      s0 <- parseSpine; sp; str_ "="; sp; s2 <- parseSpine; sp; char_ ':'; sp; tel <- parseTel
+      s0 <- parseSpine; sp; str_ "≐"; sp; s2 <- parseSpine; sp; char_ ':'; sp; tel <- parseTel
       sp; str_ "via"; sp; s1 <- parseSpine
       pure (SpineEqTrans ctx s0 s1 s2 tel))
 
@@ -511,13 +511,13 @@ parseJudgementForm =
   (do str_ "ctx-wf"; space; ctx <- parseCtx
       pure (JfCtxWf ctx)) <|>
   (do str_ "ctx-eq"; space
-      ctx <- parseCtx; sp; str_ "="; sp; ctx' <- parseCtx
+      ctx <- parseCtx; sp; str_ "≐"; sp; ctx' <- parseCtx
       pure (JfCtxEq (ctx, ctx'))) <|>
   (do str_ "sub-wf"; space
       s <- parseSub; sp; char_ ':'; sp; g <- parseCtx; sp; str_ "⇒"; sp; d <- parseCtx
       pure (JfSubWf (s, g, d))) <|>
   (do str_ "sub-eq"; space
-      s <- parseSub; sp; str_ "="; sp; s' <- parseSub; sp
+      s <- parseSub; sp; str_ "≐"; sp; s' <- parseSub; sp
       char_ ':'; sp; g <- parseCtx; sp; str_ "⇒"; sp; d <- parseCtx
       pure (JfSubEq (s, s', g, d))) <|>
   (do str_ "sub-norm-wf"; space
@@ -525,31 +525,31 @@ parseJudgementForm =
       sp; str_ "norm"
       pure (JfSubNormWf (s, g, d))) <|>
   (do str_ "sub-norm-eq"; space
-      s <- parseSubNorm; sp; str_ "="; sp; s' <- parseSubNorm; sp
+      s <- parseSubNorm; sp; str_ "≐"; sp; s' <- parseSubNorm; sp
       char_ ':'; sp; g <- parseCtx; sp; str_ "⇒"; sp; d <- parseCtx
       sp; str_ "norm"
       pure (JfSubNormEq (s, s', g, d))) <|>
   (do str_ "ty-wf"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
       pure (JfTyWf (ctx, ty))) <|>
   (do str_ "ty-eq"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      ty <- parseTy; sp; str_ "="; sp; ty' <- parseTy
+      ty <- parseTy; sp; str_ "≐"; sp; ty' <- parseTy
       pure (JfTyEq (ctx, ty, ty'))) <|>
   (do str_ "el-wf"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
       e <- parseElem; sp; char_ ':'; sp; ty <- parseTy
       pure (JfElemWf (ctx, e, ty))) <|>
   (do str_ "el-eq"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      e <- parseElem; sp; str_ "="; sp; e' <- parseElem; sp; char_ ':'; sp; ty <- parseTy
+      e <- parseElem; sp; str_ "≐"; sp; e' <- parseElem; sp; char_ ':'; sp; ty <- parseTy
       pure (JfElemEq (ctx, e, e', ty))) <|>
   (do str_ "tel-wf"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; tel <- parseTel
       pure (JfTelWf (ctx, tel))) <|>
   (do str_ "tel-eq"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      tel <- parseTel; sp; str_ "="; sp; tel' <- parseTel
+      tel <- parseTel; sp; str_ "≐"; sp; tel' <- parseTel
       pure (JfTelEq (ctx, tel, tel'))) <|>
   (do str_ "sp-wf"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
       spine <- parseSpine; sp; char_ ':'; sp; tel <- parseTel
       pure (JfSpineWf (ctx, spine, tel))) <|>
   (do str_ "sp-eq"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
-      spine <- parseSpine; sp; str_ "="; sp; spine' <- parseSpine; sp
+      spine <- parseSpine; sp; str_ "≐"; sp; spine' <- parseSpine; sp
       char_ ':'; sp; tel <- parseTel
       pure (JfSpineEq (ctx, spine, spine', tel)))
 

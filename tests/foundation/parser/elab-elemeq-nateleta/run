@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run e-elem-eq "ℕ-elim-η a[·] b[·] c d e f[·] motive g[·] = h[·] : ℕ"
+"$1" run e-elem-eq "ℕ-elim-η a[·] b[·] c d e f[·] motive g[·] ≐ h[·] : ℕ"

@@ -196,7 +196,7 @@ mutual
   parseTyEq3Atom : Rule TyEq
   parseTyEq3Atom =
         (do char_ '('; sp; g <- parseCtx; sp; str_ "⊦"; sp; a <- parseTyEq0
-            space; str_ "of"; space; t0 <- parseTy0; sp; str_ "="; sp; t1 <- parseTy0; sp; char_ ')'
+            space; str_ "of"; space; t0 <- parseTy0; sp; str_ "≐"; sp; t1 <- parseTy0; sp; char_ ')'
             sp; char_ '['; sp; s <- parseSub0; sp; char_ ']'
             pure (TyEq.Subst g a t0 t1 s))
     <|> parseTyEq4
@@ -279,7 +279,7 @@ mutual
     conts <- many (
           (do sp; char_ ','; sp; e <- parseElemEq1; pure (Left e))
       <|> (do sp; str_ "∘"; sp; t <- parseSub0; sp; str_ "via"; sp; g <- parseCtx
-              sp; str_ "of"; sp; e0 <- parseSubNorm1; sp; str_ "="; sp; e1 <- parseSubNorm1
+              sp; str_ "of"; sp; e0 <- parseSubNorm1; sp; str_ "≐"; sp; e1 <- parseSubNorm1
               pure (Right (t, g, e0, e1))))
     let s' = foldl (\acc, c => case the (Either ElemEq (Sub, Ctx, SubNorm, SubNorm)) c of
                                   Left e            => SubNormEq.Ext acc e
@@ -464,7 +464,7 @@ mutual
             z <- parseElem4; space; s <- parseElem4; space
             fEq <- parseElemEq4; space; f0Eq <- parseElemEq4; space; f1Eq <- parseElemEq4; space
             t <- parseElem4
-            space; str_ "motive"; space; f0 <- parseElem0; sp; str_ "="; sp; f1 <- parseElem0
+            space; str_ "motive"; space; f0 <- parseElem0; sp; str_ "≐"; sp; f1 <- parseElem0
             sp; char_ ':'; sp; a <- parseTy0
             pure (ElemEq.NatElimEta z s fEq f0Eq f1Eq t f0 f1 a))
     <|> (do str_ "ℕ-elim"; space
@@ -519,7 +519,7 @@ mutual
   parseElemEq4Atom : Rule ElemEq
   parseElemEq4Atom =
         (do char_ '('; sp; g <- parseCtx; sp; str_ "⊦"; sp; e <- parseElemEq0
-            space; str_ "of"; space; t0 <- parseElem0; sp; str_ "="; sp; t1 <- parseElem0
+            space; str_ "of"; space; t0 <- parseElem0; sp; str_ "≐"; sp; t1 <- parseElem0
             sp; char_ ':'; sp; a <- parseTy0; sp; char_ ')'
             sp; char_ '['; sp; s <- parseSub0; sp; char_ ']'
             pure (ElemEq.Subst g e t0 t1 a s))

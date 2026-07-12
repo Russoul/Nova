@@ -76,7 +76,7 @@ mutual
 
   namespace TyEq
     ||| T⁼ ::= 𝟘 | 𝟙 | ℕ | 𝕌 | refl
-    |||      | T⁼ ⁻¹ | (Γ ⊦ T⁼ of T = T)[σ]
+    |||      | T⁼ ⁻¹ | (Γ ⊦ T⁼ of T ≐ T)[σ]
     |||      | El t⁼ | coe-ctx T⁼ via (Γ, Γ⁼) | 𝟘-elim t
     |||      | El-𝟘 | El-𝟙 | El-ℕ | El-→ t t | El-⨯ t t | El-≡ t t t
     |||      | T⁼ → T⁼ | T⁼ ⨯ T⁼ | T⁼ / T⁼
@@ -91,7 +91,7 @@ mutual
       Refl : TyEq
       ||| T⁼ ⁻¹
       Sym : TyEq -> TyEq
-      ||| (Γ ⊦ T⁼ of T = T)[σ]
+      ||| (Γ ⊦ T⁼ of T ≐ T)[σ]
       Subst : Ctx -> TyEq -> Ty -> Ty -> Sub -> TyEq
       ||| El t⁼
       El : ElemEq -> TyEq
@@ -99,17 +99,17 @@ mutual
       CoeCtx : TyEq -> Ctx -> CtxEq -> TyEq
       ||| 𝟘-elim t   (type equality from absurdity)
       ZeroElim : Elem -> TyEq
-      ||| El-𝟘  (El 𝟘 = 𝟘 type)
+      ||| El-𝟘  (El 𝟘 ≐ 𝟘 type)
       ElZero : TyEq
-      ||| El-𝟙  (El 𝟙 = 𝟙 type)
+      ||| El-𝟙  (El 𝟙 ≐ 𝟙 type)
       ElOne : TyEq
-      ||| El-ℕ  (El ℕ = ℕ type)
+      ||| El-ℕ  (El ℕ ≐ ℕ type)
       ElNat : TyEq
-      ||| El-→ A B  (El (A → B) = El A → El B type)
+      ||| El-→ A B  (El (A → B) ≐ El A → El B type)
       ElPi : Elem -> Elem -> TyEq
-      ||| El-⨯ A B  (El (A ⨯ B) = El A ⨯ El B type)
+      ||| El-⨯ A B  (El (A ⨯ B) ≐ El A ⨯ El B type)
       ElSigma : Elem -> Elem -> TyEq
-      ||| El-≡ a₀ a₁ A  (El (a₀ ≡ a₁ ∈ A) = (a₀ ≡ a₁ ∈ El A) type)
+      ||| El-≡ a₀ a₁ A  (El (a₀ ≡ a₁ ∈ A) ≐ (a₀ ≡ a₁ ∈ El A) type)
       ElEq : Elem -> Elem -> Elem -> TyEq
       ||| T⁼ → T⁼
       PiTy : TyEq -> TyEq -> TyEq
@@ -156,7 +156,7 @@ mutual
   namespace SubNormEq
     ||| t˲⁼ ::= · | refl | t˲⁼ ⁻¹
     |||        | coe-dom t˲⁼ via (Γ, Γ⁼) | coe-codom t˲⁼ via (Γ, Γ⁼)
-    |||        | t˲⁼, t⁼ | t˲⁼ ∘ σ via Γ of t˲ = t˲ | t˲⁼ · t˲⁼ via t˲
+    |||        | t˲⁼, t⁼ | t˲⁼ ∘ σ via Γ of t˲ ≐ t˲ | t˲⁼ · t˲⁼ via t˲
     public export
     data SubNormEq : Type where
       ||| ·
@@ -171,7 +171,7 @@ mutual
       CoeCodom : SubNormEq -> Ctx -> CtxEq -> SubNormEq
       ||| t˲⁼, t⁼
       Ext : SubNormEq -> ElemEq -> SubNormEq
-      ||| t˲⁼ ∘ σ via Γ of t˲ = t˲
+      ||| t˲⁼ ∘ σ via Γ of t˲ ≐ t˲
       Chain : SubNormEq -> SubNorm -> SubNorm -> Sub -> Ctx -> SubNormEq
       ||| t˲⁼ · t˲⁼ via t˲
       Trans : SubNormEq -> SubNormEq -> SubNorm -> SubNormEq
@@ -241,11 +241,11 @@ mutual
 
   namespace ElemEq
     ||| t⁼ ::= ☐ₙ | () | Z | 𝟘 | 𝟙 | ℕ | refl | x | x-β
-    |||      | t⁼ ⁻¹ | (Γ ⊦ t⁼ of t = t : T)[σ]
+    |||      | t⁼ ⁻¹ | (Γ ⊦ t⁼ of t ≐ t : T)[σ]
     |||      | (t⁼ : T → T) t⁼ | (t⁼ : T ⨯ T) .π₁ | (t⁼ : T ⨯ T) .π₂
     |||      | S t⁼ | λ t⁼ | class t⁼ | class⁼ t | 𝟘-elim t
     |||      | ℕ-elim z⁼ s⁼ t⁼ motive T
-    |||      | ℕ-elim-η z s f⁼ f₀⁼ f₁⁼ t motive t = t : T
+    |||      | ℕ-elim-η z s f⁼ f₀⁼ f₁⁼ t motive t ≐ t : T
     |||      | quote-elim (T / T) f⁼ resp₀ resp₁ q⁼ motive T
     |||      | reflect t | coe-ctx t⁼ via (Γ, Γ⁼) | coe-ty t⁼ via (T, T⁼)
     |||      | Π-β t t motive T | Π-η t motive T
@@ -277,7 +277,7 @@ mutual
       Unfold : SigIdentifier -> ElemEq
       ||| t⁼ ⁻¹
       Sym : ElemEq -> ElemEq
-      ||| (Γ ⊦ t⁼ of t = t : T)[σ]
+      ||| (Γ ⊦ t⁼ of t ≐ t : T)[σ]
       Subst : Ctx -> ElemEq -> Elem -> Elem -> Ty -> Sub -> ElemEq
       ||| (t⁼ : T → T) t⁼
       App : ElemEq -> Ty -> Ty -> ElemEq -> ElemEq
@@ -297,31 +297,31 @@ mutual
       ZeroElim : Elem -> ElemEq
       ||| ℕ-elim z⁼ s⁼ t⁼ motive T
       NatElim : ElemEq -> ElemEq -> ElemEq -> Ty -> ElemEq
-      ||| ℕ-elim-η z s f⁼ f₀⁼ f₁⁼ t motive f₀ = f₁ : T
+      ||| ℕ-elim-η z s f⁼ f₀⁼ f₁⁼ t motive f₀ ≐ f₁ : T
       NatElimEta : Elem -> Elem -> ElemEq -> ElemEq -> ElemEq -> Elem -> Elem -> Elem -> Ty -> ElemEq
       ||| quote-elim (A / R) f⁼ resp₀ resp₁ q⁼ motive B
       QuotElim : Ty -> Ty -> ElemEq -> ElemEq -> ElemEq -> ElemEq -> Ty -> ElemEq
       ||| reflect t
       Reflect : Elem -> ElemEq
-      ||| Π-β f e motive A → B  ((λ f) e = f[id, e] : B[id, e])
+      ||| Π-β f e motive A → B  ((λ f) e ≐ f[id, e] : B[id, e])
       PiBeta : Elem -> Elem -> Ty -> ElemEq
-      ||| Π-η f motive A → B  (λ (f[↑] ☐₀) = f : A → B)
+      ||| Π-η f motive A → B  (λ (f[↑] ☐₀) ≐ f : A → B)
       PiEta : Elem -> Ty -> ElemEq
-      ||| Σ-β₁ a b motive A ⨯ B  ((a, b) .π₁ = a : A)
+      ||| Σ-β₁ a b motive A ⨯ B  ((a, b) .π₁ ≐ a : A)
       SigmaBeta1 : Elem -> Elem -> Ty -> ElemEq
-      ||| Σ-β₂ a b motive A ⨯ B  ((a, b) .π₂ = b : B[id, a])
+      ||| Σ-β₂ a b motive A ⨯ B  ((a, b) .π₂ ≐ b : B[id, a])
       SigmaBeta2 : Elem -> Elem -> Ty -> ElemEq
-      ||| Σ-η t motive A ⨯ B  (t .π₁ , t .π₂ = t : A ⨯ B)
+      ||| Σ-η t motive A ⨯ B  (t .π₁ , t .π₂ ≐ t : A ⨯ B)
       SigmaEta : Elem -> Ty -> ElemEq
-      ||| ℕ-elim-β-Z z s motive A  (ℕ-elim z s Z = z : A[id, Z])
+      ||| ℕ-elim-β-Z z s motive A  (ℕ-elim z s Z ≐ z : A[id, Z])
       NatElimBetaZ : Elem -> Elem -> Ty -> ElemEq
-      ||| ℕ-elim-β-S z s t motive A  (ℕ-elim z s (S t) = s[id, t, ℕ-elim z s t] : A[id, S t])
+      ||| ℕ-elim-β-S z s t motive A  (ℕ-elim z s (S t) ≐ s[id, t, ℕ-elim z s t] : A[id, S t])
       NatElimBetaS : Elem -> Elem -> Elem -> Ty -> ElemEq
       ||| quote-elim-β (A / R) f f⁼ a motive B
-      ||| (quot-elim f (class a) = f[id, a] : B[id, class a])
+      ||| (quot-elim f (class a) ≐ f[id, a] : B[id, class a])
       QuotElimBeta : Ty -> Ty -> Elem -> ElemEq -> Elem -> Ty -> ElemEq
       ||| quote-elim-η (A / R) g f f⁼ e⁼ q motive B
-      ||| (g[id, q] = quot-elim f q : B[id, q], e⁼ : g[↑,class ☐₀] = f)
+      ||| (g[id, q] ≐ quot-elim f q : B[id, q], e⁼ : g[↑,class ☐₀] ≐ f)
       QuotElimEta : Ty -> Ty -> Elem -> Elem -> ElemEq -> ElemEq -> Elem -> Ty -> ElemEq
       ||| coe-ctx t⁼ via (Γ, Γ⁼)
       CoeCtx : ElemEq -> Ctx -> CtxEq -> ElemEq

@@ -13,7 +13,7 @@ public export
 CtxWf : Type
 CtxWf = Ctx
 
-||| Γ₀ = Γ₁ ctx
+||| Γ₀ ≐ Γ₁ ctx
 public export
 CtxEq : Type
 CtxEq = (Ctx, Ctx)
@@ -23,7 +23,7 @@ public export
 TyWf : Type
 TyWf = (Ctx, Ty)
 
-||| Γ ⊦ A₀ = A₁ type
+||| Γ ⊦ A₀ ≐ A₁ type
 public export
 TyEq : Type
 TyEq = (Ctx, Ty, Ty)
@@ -33,7 +33,7 @@ public export
 SubWf : Type
 SubWf = (Sub, Ctx, Ctx)
 
-||| σ₀ = σ₁ : Γ ⇒ Δ
+||| σ₀ ≐ σ₁ : Γ ⇒ Δ
 public export
 SubEq : Type
 SubEq = (Sub, Sub, Ctx, Ctx)
@@ -43,7 +43,7 @@ public export
 SubNormWf : Type
 SubNormWf = (SubNorm, Ctx, Ctx)
 
-||| e˲₀ = e˲₁ : Γ ⇒ Δ norm
+||| e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm
 public export
 SubNormEq : Type
 SubNormEq = (SubNorm, SubNorm, Ctx, Ctx)
@@ -53,7 +53,7 @@ public export
 ElemWf : Type
 ElemWf = (Ctx, Elem, Ty)
 
-||| Γ ⊦ a₀ = a₁ : A
+||| Γ ⊦ a₀ ≐ a₁ : A
 public export
 ElemEq : Type
 ElemEq = (Ctx, Elem, Elem, Ty)
@@ -63,7 +63,7 @@ public export
 TelWf : Type
 TelWf = (Ctx, Tel)
 
-||| Γ ⊦ Δ₀ = Δ₁ tel
+||| Γ ⊦ Δ₀ ≐ Δ₁ tel
 public export
 TelEq : Type
 TelEq = (Ctx, Tel, Tel)
@@ -73,7 +73,7 @@ public export
 SpineWf : Type
 SpineWf = (Ctx, Spine, Tel)
 
-||| Γ ⊦ ē₀ = ē₁ : Δ
+||| Γ ⊦ ē₀ ≐ ē₁ : Δ
 public export
 SpineEq : Type
 SpineEq = (Ctx, Spine, Spine, Tel)
@@ -212,7 +212,7 @@ data TypingRule : Type where
   ||| Γ ᐅ (A / R) ⊦ B type
   ||| ---------------------------------------------------------------------
   ||| Γ ᐅ A ⊦ f : B[↑, class ☐₀]
-  ||| Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑∘↑∘↑, ☐₂] = f[↑∘↑∘↑, ☐₁] : B[↑∘↑∘↑, class ☐₂]
+  ||| Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑∘↑∘↑, ☐₂] ≐ f[↑∘↑∘↑, ☐₁] : B[↑∘↑∘↑, class ☐₂]
   ||| Γ ⊦ q : A / R
   ||| =======================================================================
   ||| Γ ⊦ quot-elim f q : B[id, q]
@@ -253,13 +253,13 @@ data TypingRule : Type where
   ||| Γ | α ⊦ a | α : A | α type
   ElemWfCompute : Ctx -> ComputeRule -> Elem -> ComputeRule -> Ty -> ComputeRule -> TypingRule
   ||| Γ ⊦ a : A₀
-  ||| Γ ⊦ A₀ = A₁ type
-  ||| ---------------- (Γ ⊦ a : A₀ = A₁)
+  ||| Γ ⊦ A₀ ≐ A₁ type
+  ||| ---------------- (Γ ⊦ a : A₀ ≐ A₁)
   ||| Γ ⊦ a : A₁
   ElemWfTyCoe : Ctx -> Elem -> Ty -> Ty -> TypingRule
   ||| Γ₀ ⊦ a : A₀
-  ||| Γ₀ = Γ₁ ctx
-  ||| ---------------- (Γ₀ = Γ₁ ⊦ a : A)
+  ||| Γ₀ ≐ Γ₁ ctx
+  ||| ---------------- (Γ₀ ≐ Γ₁ ⊦ a : A)
   ||| Γ₁ ⊦ a : A
   ElemWfCtxCoe : Ctx -> Ctx -> Elem -> Ty -> TypingRule
   ||| (Γ ⊦ x ≔ a : A) ∈ Σ
@@ -297,31 +297,31 @@ data TypingRule : Type where
   SubNormEqRefl  : SubNorm -> Ctx -> Ctx -> TypingRule
   SubNormEqSym   : SubNorm -> SubNorm -> Ctx -> Ctx -> TypingRule
   SubNormEqTrans : SubNorm -> SubNorm -> SubNorm -> Ctx -> Ctx -> TypingRule
-  ||| e˲₀, t₀ = e˲₁, t₁ : Γ₀ ⇒ (Γ₁ ᐅ A) norm  given e˲₀ = e˲₁ : Γ₀ ⇒ Γ₁ norm
+  ||| e˲₀, t₀ ≐ e˲₁, t₁ : Γ₀ ⇒ (Γ₁ ᐅ A) norm  given e˲₀ ≐ e˲₁ : Γ₀ ⇒ Γ₁ norm
   SubNormEqExt : SubNorm -> SubNorm -> Elem -> Elem -> Ctx -> Ctx -> Ty -> TypingRule
-  ||| e˲₀ = e˲₁ : Γ₀ ⇒ Γ₁ norm
+  ||| e˲₀ ≐ e˲₁ : Γ₀ ⇒ Γ₁ norm
   ||| σ : Δ ⇒ Γ₀
   ||| -------------------------------
-  ||| e˲₀ ∘ σ = e˲₁ ∘ σ : Δ ⇒ Γ₁ norm
+  ||| e˲₀ ∘ σ ≐ e˲₁ ∘ σ : Δ ⇒ Γ₁ norm
   SubNormEqChain : SubNorm -> SubNorm -> Sub -> Ctx -> Ctx -> Ctx -> TypingRule
   -- Type equality
   TyEqRefl  : Ctx -> Ty -> TypingRule
   TyEqSym   : Ctx -> Ty -> Ty -> TypingRule
   TyEqTrans : Ctx -> Ty -> Ty -> Ty -> TypingRule
-  ||| Γ ⊦ T₀ = T₁ type
-  ||| Γ ⊦ a₀ = a₁ : T₁
-  ||| Γ ⊦ b₀ = b₁ : T₁
+  ||| Γ ⊦ T₀ ≐ T₁ type
+  ||| Γ ⊦ a₀ ≐ a₁ : T₁
+  ||| Γ ⊦ b₀ ≐ b₁ : T₁
   ||| ========================================
-  ||| Γ ⊦ (a₀ ≡ b₀ ∈ T₀) = (a₁ ≡ b₁ ∈ T₁) type
+  ||| Γ ⊦ (a₀ ≡ b₀ ∈ T₀) ≐ (a₁ ≡ b₁ ∈ T₁) type
   TyEqCongEqTy : Ctx -> Elem -> Elem -> Ty -> Elem -> Elem -> Ty -> TypingRule
-  ||| Γ ⊦ t₀ = t₁ : 𝕌
+  ||| Γ ⊦ t₀ ≐ t₁ : 𝕌
   ||| ===================
-  ||| Γ ⊦ El t₀ = El t₁ type
+  ||| Γ ⊦ El t₀ ≐ El t₁ type
   TyEqCongEl : Ctx -> Elem -> Elem -> TypingRule
-  ||| Γ₁ ⊦ A₀ = A₁ type
-  ||| σ₀ = σ₁ : Γ₀ ⇒ Γ₁
+  ||| Γ₁ ⊦ A₀ ≐ A₁ type
+  ||| σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
   ||| -----------------------
-  ||| Γ₀ ⊦ A₀[σ₀] = A₁[σ₁] type
+  ||| Γ₀ ⊦ A₀[σ₀] ≐ A₁[σ₁] type
   TyEqSubst : Ctx -> Ctx -> Sub -> Sub -> Ty -> Ty -> TypingRule
   -- Element equality
   ElemEqRefl  : Ctx -> Elem -> Ty -> TypingRule
@@ -329,16 +329,16 @@ data TypingRule : Type where
   ElemEqTrans : Ctx -> Elem -> Elem -> Elem -> Ty -> TypingRule
   ||| Γ ⊦ a : (a₀ ≡ a₁ ∈ A)
   ||| -------------------------
-  ||| Γ ⊦ a₀ = a₁ : A
+  ||| Γ ⊦ a₀ ≐ a₁ : A
   ElemEqReflection : Ctx -> Elem -> Elem -> Elem -> Ty -> TypingRule
-  ||| Γ ⊦ t₀ = t₁ : ℕ
+  ||| Γ ⊦ t₀ ≐ t₁ : ℕ
   ||| ===================
-  ||| Γ ⊦ S t₀ = S t₁ : ℕ
+  ||| Γ ⊦ S t₀ ≐ S t₁ : ℕ
   ElemEqCongSuc : Ctx -> Elem -> Elem -> TypingRule
-  ||| Γ ⊦ f₀ = f₁ : A → B
-  ||| Γ ⊦ a₀ = a₁ : A
+  ||| Γ ⊦ f₀ ≐ f₁ : A → B
+  ||| Γ ⊦ a₀ ≐ a₁ : A
   ||| ==========================
-  ||| Γ ⊦ f₀ a₀ = f₁ a₁ : B[a₁]
+  ||| Γ ⊦ f₀ a₀ ≐ f₁ a₁ : B[a₁]
   ElemEqCongPiApp : Ctx -> Elem -> Elem -> Ty -> Ty -> Elem -> Elem -> TypingRule
   ||| Γ ⊦ A type
   ||| Γ ᐅ A ᐅ A[↑] ⊦ R type
@@ -347,30 +347,30 @@ data TypingRule : Type where
   ||| Γ ⊦ b : A
   ||| Γ ⊦ r : R[id, a, b]
   ||| -----------------------------------
-  ||| Γ ⊦ class a = class b : A / R
+  ||| Γ ⊦ class a ≐ class b : A / R
   ElemEqQuotient : Ctx -> Ty -> Ty -> Elem -> Elem -> Elem -> TypingRule
   ||| Γ ⊦ A type
   ||| Γ ᐅ A ᐅ A[↑] ⊦ R type
   ||| --------------------
-  ||| Γ ⊦ a₀ = a₁ : A
+  ||| Γ ⊦ a₀ ≐ a₁ : A
   ||| ====================
-  ||| Γ ⊦ class a₀ = class a₁ : A / R
+  ||| Γ ⊦ class a₀ ≐ class a₁ : A / R
   ElemEqCongClass : Ctx -> Ty -> Ty -> Elem -> Elem -> TypingRule
   ||| Γ₁ ⊦ A type
-  ||| Γ₁ ⊦ t₀ = t₁ : A
-  ||| σ₀ = σ₁ : Γ₀ ⇒ Γ₁
+  ||| Γ₁ ⊦ t₀ ≐ t₁ : A
+  ||| σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
   ||| -------------------------
-  ||| Γ₀ ⊦ t₀[σ₀] = t₁[σ₁] : A[σ₁]
+  ||| Γ₀ ⊦ t₀[σ₀] ≐ t₁[σ₁] : A[σ₁]
   ElemEqSubst : Ctx -> Ctx -> Sub -> Sub -> Elem -> Elem -> Ty -> TypingRule
   ||| (Γ ⊦ x ≔ a : A) ∈ Σ
   ||| e˲ : Δ ⇒ Γ norm
   ||| ---------------------------
-  ||| Σ Δ ⊦ x[e˲] = a[e˲] : A[e˲]
+  ||| Σ Δ ⊦ x[e˲] ≐ a[e˲] : A[e˲]
   ElemEqSigVar : Ctx -> SubNorm -> SigIdentifier -> TypingRule
-  ||| Γ ⊦ a = b : A₀
-  ||| Γ ⊦ A₀ = A₁ type
+  ||| Γ ⊦ a ≐ b : A₀
+  ||| Γ ⊦ A₀ ≐ A₁ type
   ||| -----------------
-  ||| Γ ⊦ a = b : A₁
+  ||| Γ ⊦ a ≐ b : A₁
   ElemEqTyCoe : Ctx -> Elem -> Elem -> Ty -> Ty -> TypingRule
   ||| Σ sig, Σ ⊦ Γ ctx, Σ Γ ⊦ A type, Σ Γ ⊦ a : A, x ∉ Σ
   ||| -------------------------------------------------------

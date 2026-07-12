@@ -32,6 +32,6 @@
 - el-cmp ε ᐅ ℕ via id ⊦ plus[·] ☐₀ Z via ↓ id id : ℕ via id
 - el-cmp ε ᐅ ℕ via id ⊦ (λ (λ (ℕ-elim ☐₁ (S ☐₀) ☐₀))) ☐₀ Z via ↓ id : ℕ via id
 - el-cmp ε ᐅ ℕ via id ⊦ (λ (ℕ-elim ☐₁ (S ☐₀) ☐₀)) Z via ↓ : ℕ via id
-- el-eq-trans ε ᐅ ℕ ⊦ plus[·] ☐₀ Z = (λ (ℕ-elim ☐₁ (S ☐₀) ☐₀)) Z : ℕ via (λ (λ (ℕ-elim ☐₁ (S ☐₀) ☐₀))) ☐₀ Z
-- el-eq-trans ε ᐅ ℕ ⊦ plus[·] ☐₀ Z = ℕ-elim ☐₀ (S ☐₀) Z : ℕ via (λ (ℕ-elim ☐₁ (S ☐₀) ☐₀)) Z
-- el-eq-trans ε ᐅ ℕ ⊦ plus[·] ☐₀ Z = ☐₀ : ℕ via ℕ-elim ☐₀ (S ☐₀) Z
+- el-eq-trans ε ᐅ ℕ ⊦ plus[·] ☐₀ Z ≐ (λ (ℕ-elim ☐₁ (S ☐₀) ☐₀)) Z : ℕ via (λ (λ (ℕ-elim ☐₁ (S ☐₀) ☐₀))) ☐₀ Z
+- el-eq-trans ε ᐅ ℕ ⊦ plus[·] ☐₀ Z ≐ ℕ-elim ☐₀ (S ☐₀) Z : ℕ via (λ (ℕ-elim ☐₁ (S ☐₀) ☐₀)) Z
+- el-eq-trans ε ᐅ ℕ ⊦ plus[·] ☐₀ Z ≐ ☐₀ : ℕ via ℕ-elim ☐₀ (S ☐₀) Z

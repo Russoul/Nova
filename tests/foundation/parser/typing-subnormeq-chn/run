@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run typing "sub-norm-eq-chn ε ᐅ ℕ ⊦ ·, Z = ·, Z ∘ ↑ to ε via ε ᐅ ℕ"
+"$1" run typing "sub-norm-eq-chn ε ᐅ ℕ ⊦ ·, Z ≐ ·, Z ∘ ↑ to ε via ε ᐅ ℕ"
