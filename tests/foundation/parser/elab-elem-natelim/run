@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run e-elem "ℕ-elim Z x[·] y[·] motive ℕ"

@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run elab elem-eq "- ε ⊦ myid ≔ λ ☐₀ : ℕ → ℕ" "ε" "ℕ → ℕ" "myid[·]" "λ ☐₀" "myid-β"

@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run elab ty-eq "" "ε" "El (ℕ → ℕ)" "El ℕ → El ℕ" "El-→ ℕ ℕ"

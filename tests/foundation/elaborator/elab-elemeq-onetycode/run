@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run elab elem-eq "" "ε" "𝕌" "𝟙" "𝟙" "𝟙"

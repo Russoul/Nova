@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run e-elem-eq "quote-elim (ℕ / 𝟙) a b c d motive ℕ"

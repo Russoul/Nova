@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run elab elem-eq "" "ε" "ℕ" "Z" "Z" "(ε ᐅ ℕ ⊦ refl of Z ≐ Z : ℕ)[id, Z]"

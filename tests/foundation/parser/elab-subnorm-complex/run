@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run e-sub-norm "coe-dom (·, x[·]) via (ε, refl)"

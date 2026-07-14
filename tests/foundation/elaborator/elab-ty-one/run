@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run elab ty "" "ε" "𝟙"

@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run elab elem-eq "" "ε" "ℕ → ℕ" "λ ☐₀" "λ ☐₀" "λ refl"

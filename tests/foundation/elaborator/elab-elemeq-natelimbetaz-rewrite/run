@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run elab elem-eq "" "ε" "ℕ" "ℕ-elim Z (S ☐₁) Z motive ℕ" "Z" "ℕ-elim-β-Z Z (S ☐₁) motive ℕ"

@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run elab sub-norm-eq "" "ε" "ε ᐅ ℕ" "· , Z" "· , S Z" "refl"

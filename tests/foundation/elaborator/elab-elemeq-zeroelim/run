@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run elab elem-eq "" "ε ᐅ 𝟘" "ℕ" "Z" "S Z" "𝟘-elim ☐₀"

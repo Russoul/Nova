@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run e-elem-eq "ℕ-elim-β-Z Z (S ☐₁) motive ℕ"

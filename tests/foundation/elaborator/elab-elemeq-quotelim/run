@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run elab elem-eq "" "ε" "ℕ" "quote-elim (ℕ / (☐₁ ≡ ☐₀ ∈ ℕ)) ☐₀ (reflect ☐₀) (class Z) motive ℕ" "quote-elim (ℕ / (☐₁ ≡ ☐₀ ∈ ℕ)) ☐₀ (reflect ☐₀) (class Z) motive ℕ" "quote-elim (ℕ / (☐₁ ≡ ☐₀ ∈ ℕ)) refl (reflect ☐₀) (reflect ☐₀) refl motive ℕ"

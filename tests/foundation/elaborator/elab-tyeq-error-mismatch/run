@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run elab ty-eq "" "ε" "ℕ" "𝟙" "refl"

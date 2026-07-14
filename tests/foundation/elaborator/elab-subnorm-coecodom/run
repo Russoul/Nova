@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run elab sub-norm "" "ε" "ε ᐅ ℕ" "coe-codom (· , Z) via (ε ᐅ ℕ, refl)"

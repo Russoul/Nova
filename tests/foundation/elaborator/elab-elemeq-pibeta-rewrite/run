@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run elab elem-eq "" "ε" "ℕ" "((λ ☐₀) : ℕ → ℕ) Z" "Z" "Π-β ☐₀ Z motive ℕ → ℕ"

@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run elab elem-eq "" "ε ᐅ ℕ" "ℕ" "☐₀" "☐₀" "coe-ctx refl via (ε ᐅ ℕ, refl)"

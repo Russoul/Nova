@@ -1,1 +1,0 @@
-Trans (Ext (Sym (Refl)) (Var "x")) (Refl) (Ext (Terminal) (Var "y" (Terminal)))

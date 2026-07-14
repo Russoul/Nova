@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run e-elem-eq "quote-elim-η (ℕ / (☐₁ ≡ ☐₀ ∈ ℕ)) Z Z refl refl Z motive ℕ"

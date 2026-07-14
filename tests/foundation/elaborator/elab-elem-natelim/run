@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run elab elem "" "ε" "ℕ" "ℕ-elim Z (S ☐₁) Z motive ℕ"
