@@ -108,7 +108,7 @@ example.
 
 | Keyword & syntax | Premises | Conclusion |
 |---|---|---|
-| `sub-term Γ ⊦ ·` | `Γ ctx` | `· : Γ ⇒ ε` |
+| `sub-term Γ ⊦` (nothing after `⊦` — not `·`) | `Γ ctx` | `· : Γ ⇒ ε` |
 | `sub-ext Γ ⊦ σ, e to Δ ᐅ A` | `σ : Γ ⇒ Δ`, `Δ ⊦ A type`, `Γ ⊦ e : A[σ]` | `(σ, e) : Γ ⇒ (Δ ᐅ A)` |
 
 No `sub-id`/`sub-wk`/`sub-chn`: nothing in this codebase's derivations ever
@@ -136,7 +136,7 @@ since it can't contain `id`/`↑`/`∘`.
 
 | Keyword & syntax | Premises | Conclusion |
 |---|---|---|
-| `sub-norm-term Γ ⊦ ·` | `Γ ctx` | `· : Γ ⇒ ε norm` |
+| `sub-norm-term Γ ⊦` (nothing after `⊦` — not `·`) | `Γ ctx` | `· : Γ ⇒ ε norm` |
 | `sub-norm-ext Γ ⊦ e˲, t to Δ ᐅ A` | `e˲ : Γ ⇒ Δ norm`, `Δ ⊦ A type`, `Γ ⊦ t : A[e˲]` | `(e˲, t) : Γ ⇒ (Δ ᐅ A) norm` |
 
 No `sub-norm-chn`/`sub-norm-eq-chn` either, for the same reason.
@@ -230,6 +230,54 @@ sessions reference it by name instead of re-deriving it.
 | `el-ty-coe-eq Γ ⊦ t₀ ≐ t₁ : A₀ ↝ A₁` | `Γ ⊦ t₀ ≐ t₁ : A₀`, `Γ ⊦ A₀ ≐ A₁` | `Γ ⊦ t₀ ≐ t₁ : A₁` |
 | `el-suc-cong Γ ⊦ S t₀ ≐ S t₁` | `Γ ⊦ t₀ ≐ t₁ : ℕ` | `Γ ⊦ S t₀ ≐ S t₁ : ℕ` |
 | `el-app-cong Γ ⊦ (f₀ ≐ f₁ : A → B) t₀ ≐ t₁` | `Γ ⊦ f₀ ≐ f₁ : A → B`, `Γ ⊦ t₀ ≐ t₁ : A` | `Γ ⊦ f₀ t₀ ≐ f₁ t₁ : B[t₁]` |
+
+## Quotient
+
+`A / R` (`Ty.Quotient`) forms a type from a base type `A` and a relation
+`R`, which lives in `Γ ᐅ A ᐅ A[↑]` — i.e. `R` is a type in a context with
+*two* fresh elements of `A` (the pair being related). In the surface
+`(p q. R)` binder those two names are chosen freely and don't need to match
+anything already in `Γ`.
+
+Two syntax gotchas here, both grammar-precedence issues rather than
+anything specific to `ty-quotient`:
+
+- `A` sits at `T{≥2}` on the left of `/`, so a `Sigma`/`Pi`-shaped `A` needs
+  its own parens: `(ℕ ⨯ ℕ) / (p q. R)`, not `ℕ ⨯ ℕ / (p q. R)`.
+- The relation binder `(p q. R)` parses `R` at the arrow level, which does
+  *not* include a bare `≡`, so an equality-typed `R` needs its own
+  wrapping parens too: `(p q. (l ≡ r ∈ T))`, not `(p q. l ≡ r ∈ T)`.
+
+There's no `ty-quotient-cong` (no rule relates two different `A / R`s) and
+no dedicated congruence rule for `quot-elim` beyond what `el-cmp`'s
+`InQuotElim` compute path already gives you.
+
+| Keyword & syntax | Premises | Conclusion |
+|---|---|---|
+| `ty-quotient Γ ⊦ A / (p q. R)` | `Γ ⊦ A type`, `Γ ᐅ A ᐅ A[↑] ⊦ R type` | `Γ ⊦ A / R type` |
+| `el-class Γ ⊦ class a : A / (p q. R)` | `Γ ⊦ a : A`, `Γ ᐅ A ᐅ A[↑] ⊦ R type` | `Γ ⊦ class a : A / R` |
+| `el-quot-eq Γ ⊦ class a ≐ class b : A / (p q. R) via w` | `Γ ᐅ A ᐅ A[↑] ⊦ R type`, `Γ ⊦ a : A`, `Γ ⊦ b : A`, `Γ ⊦ w : R[id, a, b]` | `Γ ⊦ class a ≐ class b : A / R` |
+| `el-class-cong Γ ⊦ class a₀ ≐ class a₁ : A / (p q. R)` | `Γ ᐅ A ᐅ A[↑] ⊦ R type`, `Γ ⊦ a₀ ≐ a₁ : A` | `Γ ⊦ class a₀ ≐ class a₁ : A / R` |
+| `el-quot-elim Γ ⊦ quot-elim f (q : A / (p q'. R)) motive (x. B)` | `Γ ᐅ A ᐅ A[↑] ⊦ R type`, `Γ ᐅ (A/R) ⊦ B type`, `Γ ᐅ A ⊦ f : B[↑, class ☐₀]`, well-definedness `Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑³,☐₂] ≐ f[↑³,☐₁] : B[↑³, class ☐₂]`, `Γ ⊦ q : A / R` | `Γ ⊦ quot-elim f q : B[id, q]` |
+
+The "well-definedness" premise on `el-quot-elim` (that `f` respects `R`)
+has to already exist as a *derived fact* in context `Γ,p:A,q:A,r:R` before
+you `apply` the rule — like every other premise, the checker looks it up,
+it doesn't discharge it as a side goal.
+
+`el-quot-eq`'s `R[id, a, b]` is a *literal* substitution — it does not
+beta-reduce any projections/redexes that end up inside it (same
+substitution-is-algorithmic-but-not-eager-about-redexes behavior as
+everywhere else in this checker). So if `a`/`b` are themselves built from
+eliminators (e.g. `(p, q).π₁`), the substituted `R` you need to inhabit
+will contain those un-reduced eliminators too, and a witness built at the
+*reduced* form (the one you'd naturally write `Refl` for) needs an explicit
+`ty-cmp` down to that reduced form, `ty-sym`, then `el-ty-coe` back up
+before it type-checks against the literal goal. See
+`derivations/quotient/session.rules` for the smallest working example
+(`R ≜ 𝟙`, so both premises above are free), and `derivations/integer/
+session.rules` lines ~58–66 for a worked example of the `ty-cmp`/`ty-sym`/
+`el-ty-coe` bridge.
 
 ## Telescope equality
 

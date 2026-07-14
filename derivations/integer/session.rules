@@ -1,0 +1,66 @@
+- ctx-emp
+- ty-nat ε ⊦ ℕ
+- ctx-ext ε ᐅ n:ℕ
+- ty-nat ε ᐅ n:ℕ ⊦ ℕ
+- ctx-ext ε ᐅ n:ℕ ᐅ m:ℕ
+- ty-nat ε ᐅ n:ℕ ᐅ m:ℕ ⊦ ℕ
+- ctx-ext ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ
+- ty-nat ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ⊦ ℕ
+- ctx-ext ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ i:ℕ
+- el-var ε ᐅ n:ℕ ᐅ m:ℕ ⊦ n
+- el-var ε ᐅ n:ℕ ᐅ m:ℕ ⊦ m
+- el-var ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ i:ℕ ⊦ i
+- el-suc ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ i:ℕ ⊦ S i
+- el-nat-e ε ᐅ n:ℕ ᐅ m:ℕ ⊦ ℕ-elim n (k ih. (S ih)) m motive (k ih. ℕ)
+- el-pi-i ε ᐅ n:ℕ ⊦ λx. (ℕ-elim n (m ih. (S ih)) x) : ℕ → ℕ
+- el-pi-i ε ⊦ λx. (λy. (ℕ-elim x (n ih. (S ih)) y)) : ℕ → ℕ → ℕ
+- sig ε ⊦ plus ≔ λx. (λy. (ℕ-elim x (n ih. (S ih)) y)) : ℕ → ℕ → ℕ
+- ty-sigma ε ⊦ ℕ ⨯ ℕ
+- ctx-ext ε ᐅ p:ℕ ⨯ ℕ
+- ty-nat ε ᐅ p:ℕ ⨯ ℕ ⊦ ℕ
+- ctx-ext ε ᐅ p:ℕ ⨯ ℕ ᐅ n:ℕ
+- ty-nat ε ᐅ p:ℕ ⨯ ℕ ᐅ n:ℕ ⊦ ℕ
+- ty-sigma ε ᐅ p:ℕ ⨯ ℕ ⊦ ℕ ⨯ ℕ
+- ctx-ext ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ
+- el-var ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ p
+- el-var ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ q
+- el-sigma-e1 ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ (p : ℕ ⨯ ℕ) .π₁
+- el-sigma-e2 ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ (p : ℕ ⨯ ℕ) .π₂
+- el-sigma-e1 ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ (q : ℕ ⨯ ℕ) .π₁
+- el-sigma-e2 ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ (q : ℕ ⨯ ℕ) .π₂
+- sub-norm-term ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦
+- sig-var ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ plus[]
+- el-pi-e ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ (plus[] : ℕ → ℕ → ℕ) (p.π₁)
+- el-pi-e ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ (plus[] (p.π₁) : ℕ → ℕ) (q.π₂)
+- el-pi-e ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ (plus[] : ℕ → ℕ → ℕ) (p.π₂)
+- el-pi-e ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ (plus[] (p.π₂) : ℕ → ℕ) (q.π₁)
+- ty-eq-form ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ
+- ty-quotient ε ⊦ (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
+- el-zero ε ⊦ Z
+- el-suc ε ⊦ S Z
+- el-sigma-i ε ⊦ Z , Z : ℕ ⨯ ℕ
+- el-sigma-i ε ⊦ S Z , S Z : ℕ ⨯ ℕ
+- el-class ε ⊦ class (Z , Z) : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
+- el-class ε ⊦ class (S Z , S Z) : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
+- sub-norm-term ε ⊦
+- sig-var ε ⊦ plus[]
+- el-pi-e ε ⊦ (plus[] : ℕ → ℕ → ℕ) Z
+- el-pi-e ε ⊦ (plus[] Z : ℕ → ℕ) (S Z)
+- el-refl ε ⊦ Refl : (plus[] Z (S Z)) ∈ ℕ
+- el-sigma-e1 ε ⊦ (Z, Z : ℕ ⨯ ℕ) .π₁
+- el-cmp ε via id ⊦ (Z, Z).π₁ via ↓ : ℕ via id
+- el-sigma-e2 ε ⊦ (Z, Z : ℕ ⨯ ℕ) .π₂
+- el-cmp ε via id ⊦ (Z, Z).π₂ via ↓ : ℕ via id
+- el-sigma-e1 ε ⊦ (S Z, S Z : ℕ ⨯ ℕ) .π₁
+- el-cmp ε via id ⊦ (S Z, S Z).π₁ via ↓ : ℕ via id
+- el-sigma-e2 ε ⊦ (S Z, S Z : ℕ ⨯ ℕ) .π₂
+- el-cmp ε via id ⊦ (S Z, S Z).π₂ via ↓ : ℕ via id
+- el-pi-e ε ⊦ (plus[] : ℕ → ℕ → ℕ) ((Z, Z).π₁)
+- el-pi-e ε ⊦ (plus[] ((Z, Z).π₁) : ℕ → ℕ) ((S Z, S Z).π₂)
+- el-pi-e ε ⊦ (plus[] : ℕ → ℕ → ℕ) ((Z, Z).π₂)
+- el-pi-e ε ⊦ (plus[] ((Z, Z).π₂) : ℕ → ℕ) ((S Z, S Z).π₁)
+- ty-eq-form ε ⊦ plus[] ((Z, Z).π₁) ((S Z, S Z).π₂) ≡ plus[] ((Z, Z).π₂) ((S Z, S Z).π₁) ∈ ℕ
+- ty-cmp ε via id ⊦ plus[] ((Z, Z).π₁) ((S Z, S Z).π₂) ≡ plus[] ((Z, Z).π₂) ((S Z, S Z).π₁) ∈ ℕ via (id ↓) ↓ ≡ (id ↓) ↓ ∈ id
+- ty-sym ε ⊦ (plus[] Z (S Z) ≡ plus[] Z (S Z) ∈ ℕ) ≐ (plus[] ((Z, Z).π₁) ((S Z, S Z).π₂) ≡ plus[] ((Z, Z).π₂) ((S Z, S Z).π₁) ∈ ℕ)
+- el-ty-coe ε ⊦ Refl : (plus[] Z (S Z) ≡ plus[] Z (S Z) ∈ ℕ) ↝ (plus[] ((Z, Z).π₁) ((S Z, S Z).π₂) ≡ plus[] ((Z, Z).π₂) ((S Z, S Z).π₁) ∈ ℕ)
+- el-quot-eq ε ⊦ class (Z , Z) ≐ class (S Z , S Z) : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ)) via Refl
