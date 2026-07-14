@@ -133,7 +133,10 @@ parseLocalIdentifier = do
 
 mutual
   -- σ, e₁, e₂   (left-assoc Ext)
-  -- ·            (Terminal)
+  -- (nothing)    (Terminal — the empty substitution is written as
+  --              literally no text at all; "·" is not valid syntax here)
+  -- e₁, e₂       (a non-empty substitution is a bare comma-separated
+  --              element list, with no leading marker)
   --
   -- No id/↑/∘: every substitution actually used in this codebase's
   -- derivations is written as an explicit, flat extension list, exactly
@@ -146,9 +149,12 @@ mutual
   export covering
   parseSub : NameEnv -> Rule Sub
   parseSub env = do
-    str_ "·"
-    rest <- many (do sp; char_ ','; sp; e <- parseElemNoComma env; pure e)
-    pure (foldl Ext Terminal rest)
+    first <- optional (parseElemNoComma env)
+    case first of
+      Nothing => pure Terminal
+      Just e  => do
+        rest <- many (do sp; char_ ','; sp; e' <- parseElemNoComma env; pure e')
+        pure (foldl Ext Terminal (e :: rest))
 
   -- e₁ , e₂          (right-assoc SigmaIntro)
   -- (x:e) → e'       (right-assoc PiTy element, NAMED — sugar: e → e' for (_:e) → e')
@@ -232,14 +238,20 @@ mutual
     <|> (do sp; e' <- parseElemAtom env; parseElemPostfixCont env (PiApp e e'))
     <|> pure e
 
-  -- t˲ ::= · | t˲ , t   (normal substitution: a plain snoc-list of elements,
-  -- resolved against `env`, the substitution's *usage* context).
+  -- t˲ ::= (nothing) | t˲ , t   (normal substitution, resolved against `env`,
+  -- the substitution's *usage* context): the empty substitution is written
+  -- as literally no text at all; "·" is not valid syntax here. A non-empty
+  -- substitution is a bare comma-separated element list — exactly like
+  -- parseSub, just building a SubNorm instead of a Sub.
   export covering
   parseSubNorm : NameEnv -> Rule SubNorm
   parseSubNorm env = do
-    str_ "·"
-    rest <- many (do sp; char_ ','; sp; e <- parseElemNoComma env; pure e)
-    pure (foldl (:<) [<] rest)
+    first <- optional (parseElemNoComma env)
+    case first of
+      Nothing => pure [<]
+      Just e  => do
+        rest <- many (do sp; char_ ','; sp; e' <- parseElemNoComma env; pure e')
+        pure (foldl (:<) [<] (e :: rest))
 
   -- Atomic elements: constants, a local variable (resolved by name), a
   -- signature reference, or a parenthesised expression.

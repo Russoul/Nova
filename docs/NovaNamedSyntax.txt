@@ -32,7 +32,7 @@
 //      wrapped context, and can auto-fill it into what it prints) — but a
 //      compound value is routinely displayed or stored on its own, with no
 //      accompanying `ctx-ext` trail at all: a `.target` line, a `sig`'s
-//      printed type, a `dump`/`apply` echo. `el-wf ε ⊦ vappend[·] : ℕ → 𝕌
+//      printed type, a `dump`/`apply` echo. `el-wf ε ⊦ vappend[] : ℕ → 𝕌
 //      → ℕ → El(vect n A) → ...` has to be self-describing — `ε` obviously
 //      isn't where `n`/`A`/`m` got their names. So these constructs carry
 //      their bound name(s) *inline*, in their own surface syntax, not only
@@ -64,26 +64,37 @@
 // core Sub type (used internally, e.g. for quotient-type formation's
 // `A[↑]`) — they're just not surface-syntax-constructible here (no
 // sub-id/sub-wk/sub-chn rule).
-σ ::= · | σ , t{≥1}                                                         Ext (left-assoc)
+//
+// The empty/terminal substitution is written as literally no text at all —
+// `·` is NOT valid syntax in this position. A non-empty substitution is a
+// bare comma-separated element list with no leading marker, e.g. `n, A, m`
+// (not `·, n, A, m`). Same for t˲ below.
+σ ::= (empty) | t{≥1} (, t{≥1})*                                            Ext (left-assoc)
 
 T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | (T{≥0})
 T{3} ::= T{≥3}[σ{≥0}]
 T{2} ::= El t{≥4}
-T{1} ::= (x:T{≥2}) → T{≥1} | (x:T{≥2}) ⨯ T{≥1} | T{≥2} / (x y. T{≥1})      (right-assoc)
+T{1} ::= (x:T{≥0}) → T{≥1} | (x:T{≥0}) ⨯ T{≥1} | T{≥2} / (x y. T{≥1})      (right-assoc)
 T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
 
 // Sugar: `A → B` for `(_:A) → B`, `A ⨯ B` for `(_:A) ⨯ B`, `A / R` for
 // `A / (_,_. R)` — i.e. the name(s) may be dropped whenever the codomain/
 // relation doesn't reference them, exactly as `A → B` already reads today
 // when nothing internally depends on the argument (e.g. `ℕ → ℕ → ℕ`).
+// The named form's domain is a full, unrestricted T{≥0} — it's already
+// delimited by the binder's own parens, so e.g. `(x:El A → 𝕌) → B` needs no
+// further wrapping around the domain. Only the sugared, name-dropped form
+// has no such delimiter, so *its* domain stays restricted to T{≥2} (hence
+// `El A → 𝕌 → ℕ` unambiguously right-associates instead of grouping the
+// first arrow into the domain of the second).
 
-t˲ ::= · | t˲ , t{≥1}
+t˲ ::= (empty) | t{≥1} (, t{≥1})*
 
 t{5} ::= x | () | Z | Refl | 𝟘 | 𝟙 | ℕ | x[t˲] | (t{≥0})
 t{4} ::= t{≥4} [σ{≥0}]
 t{3} ::= t{≥3} t{≥4} | t{≥3} .π₁ | t{≥3} .π₂                               (left-assoc)
 t{2} ::= λx. t{≥3} | 𝟘-elim t{≥4} | S t{≥4} | ℕ-elim t{≥4} (n ih. t{≥4}) t{≥4} | class t{≥4} | quot-elim t{≥4} t{≥4}
-t{1} ::= (x:t{≥2}) → t{≥1} | (x:t{≥2}) ⨯ t{≥1} | t{≥2} ≡ t{≥2} ∈ t{≥2}
+t{1} ::= (x:t{≥0}) → t{≥1} | (x:t{≥0}) ⨯ t{≥1} | t{≥2} ≡ t{≥2} ∈ t{≥2}
 t{0} ::= t{≥1} , t{≥0}                                                      SigmaIntro (right-assoc)
 
 // Same sugar as above applies to λ (`λ. f` for `λ_. f` is not useful since
@@ -130,7 +141,7 @@ R ::=
   ctx-cmp    Γ via α                              (CtxWfCompute)
 
   // Substitution wf
-  sub-term   Γ ⊦ ·
+  sub-term   Γ ⊦                                 (SubWfTerminal — nothing after ⊦, not `·`)
   sub-ext    Γ ⊦ σ, e to Δ ᐅ T
 
   // Substitution eq
@@ -139,7 +150,7 @@ R ::=
   sub-trans  Γ ⊦ σ₀ ≐ σ₂ : Δ via σ₁            (conclusion: σ₀ ≐ σ₂)
 
   // Normal substitution wf
-  sub-norm-term   Γ ⊦ ·                          (SubNormWfTerminal)
+  sub-norm-term   Γ ⊦                            (SubNormWfTerminal — nothing after ⊦, not `·`)
   sub-norm-ext    Γ ⊦ e˲, t to Δ ᐅ T             (SubNormWfExt)
 
   // Normal substitution eq

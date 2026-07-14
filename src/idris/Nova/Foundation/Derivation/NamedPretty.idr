@@ -141,20 +141,28 @@ mutual
 -- ===== Sub and Elem (mutually recursive) =====
 
 mutual
+  ||| The empty substitution prints as nothing at all (not "·" — see
+  ||| NovaNamedSyntax.txt); a non-empty one is a bare comma-separated
+  ||| element list, e.g. "n, A, m" for what used to be "·, n, A, m".
   export
   prettySubN : NameEnv -> Sub -> String
-  prettySubN env (Ext s e) = prettySubN env s ++ ", " ++ prettyElemNoCommaN env e
-  prettySubN env s = prettySubChainN env s
+  prettySubN env s = fromMaybe "" (prettySubElemsN env s)
 
-  prettySubChainN : NameEnv -> Sub -> String
-  prettySubChainN env (Chain s t) = prettySubAtomN env s ++ " ∘ " ++ prettySubChainN env t
-  prettySubChainN env s = prettySubAtomN env s
-
-  prettySubAtomN : NameEnv -> Sub -> String
-  prettySubAtomN env Terminal = "·"
-  prettySubAtomN env Id = "id"
-  prettySubAtomN env Wk = "↑"
-  prettySubAtomN env s = "(" ++ prettySubN env s ++ ")"
+  -- Nothing = no elements printed yet (the empty/Terminal case); Just str
+  -- = the rendered comma-separated element list so far. Id/Wk/Chain can
+  -- never be constructed by any rule in this grammar anymore (see
+  -- NamedParser.idr's header) — reaching one here means a real bug
+  -- upstream (e.g. something bypassed the named parser/checker), so this
+  -- crashes loudly rather than silently printing an unreparseable string.
+  prettySubElemsN : NameEnv -> Sub -> Maybe String
+  prettySubElemsN env (Ext s e) =
+    case prettySubElemsN env s of
+      Nothing   => Just (prettyElemNoCommaN env e)
+      Just rest => Just (rest ++ ", " ++ prettyElemNoCommaN env e)
+  prettySubElemsN env Terminal = Nothing
+  prettySubElemsN env Id = assert_total (idris_crash "prettySubN: unreachable Id (no rule constructs it)")
+  prettySubElemsN env Wk = assert_total (idris_crash "prettySubN: unreachable Wk (no rule constructs it)")
+  prettySubElemsN env (Chain _ _) = assert_total (idris_crash "prettySubN: unreachable Chain (no rule constructs it)")
 
   export
   prettyElemN : NameEnv -> Elem -> String
@@ -165,13 +173,17 @@ mutual
   prettyElemNoCommaN : NameEnv -> Elem -> String
   prettyElemNoCommaN env (Elem.PiTy e e') =
     if usesIndexElem 0 e'
+      -- Domain sits inside an explicit "(x: ... )" binder, already fully
+      -- delimited by the closing paren, so it can be printed unrestricted
+      -- (parseElem, not parseElemPrefix, is what actually parses it back)
+      -- instead of forcing another, redundant, pair of parens around it.
       then let x = freshGeneric env
-           in "(" ++ x ++ ":" ++ prettyElemPrefixN env e ++ ") → " ++ prettyElemNoCommaN (env :< x) e'
+           in "(" ++ x ++ ":" ++ prettyElemN env e ++ ") → " ++ prettyElemNoCommaN (env :< x) e'
       else prettyElemPrefixN env e ++ " → " ++ prettyElemNoCommaN (env :< wildcard) e'
   prettyElemNoCommaN env (Elem.SigmaTy e e') =
     if usesIndexElem 0 e'
       then let x = freshGeneric env
-           in "(" ++ x ++ ":" ++ prettyElemPrefixN env e ++ ") ⨯ " ++ prettyElemNoCommaN (env :< x) e'
+           in "(" ++ x ++ ":" ++ prettyElemN env e ++ ") ⨯ " ++ prettyElemNoCommaN (env :< x) e'
       else prettyElemPrefixN env e ++ " ⨯ " ++ prettyElemNoCommaN (env :< wildcard) e'
   prettyElemNoCommaN env (Elem.EqTy e0 e1 e2) =
     prettyElemPrefixN env e0 ++ " ≡ " ++ prettyElemPrefixN env e1 ++ " ∈ " ++ prettyElemPrefixN env e2
@@ -211,11 +223,18 @@ mutual
   prettyElemAtomN env (SigVar x es) = x ++ "[" ++ prettySubNormN env es ++ "]"
   prettyElemAtomN env e = "(" ++ prettyElemN env e ++ ")"
 
-  ||| t˲ ::= · | t˲ , t
+  ||| t˲ ::= ε | t˲ , t — the empty normal substitution prints as nothing
+  ||| at all, same as Sub above (e.g. `vect[]`, not `vect[·]`).
   export
   prettySubNormN : NameEnv -> SubNorm -> String
-  prettySubNormN env [<] = "·"
-  prettySubNormN env (es :< e) = prettySubNormN env es ++ ", " ++ prettyElemNoCommaN env e
+  prettySubNormN env s = fromMaybe "" (prettySubNormElemsN env s)
+
+  prettySubNormElemsN : NameEnv -> SubNorm -> Maybe String
+  prettySubNormElemsN env [<] = Nothing
+  prettySubNormElemsN env (es :< e) =
+    case prettySubNormElemsN env es of
+      Nothing   => Just (prettyElemNoCommaN env e)
+      Just rest => Just (rest ++ ", " ++ prettyElemNoCommaN env e)
 
 -- ===== Ty =====
 
@@ -223,19 +242,23 @@ mutual
   export
   prettyTyN : NameEnv -> Ty -> String
   prettyTyN env (Ty.EqTy e0 e1 a) =
-    prettyElemAtomN env e0 ++ " ≡ " ++ prettyElemAtomN env e1 ++ " ∈ " ++ prettyTyArrowN env a
+    prettyElemPrefixN env e0 ++ " ≡ " ++ prettyElemPrefixN env e1 ++ " ∈ " ++ prettyTyArrowN env a
   prettyTyN env ty = prettyTyArrowN env ty
 
   prettyTyArrowN : NameEnv -> Ty -> String
   prettyTyArrowN env (Ty.PiTy a b) =
     if usesIndexTy 0 b
+      -- Domain sits inside an explicit "(x: ... )" binder, already fully
+      -- delimited by the closing paren, so it can be printed unrestricted
+      -- (parseTy, not parseTyEl, is what actually parses it back) instead
+      -- of forcing another, redundant, pair of parens around it.
       then let x = freshForTy a env
-           in "(" ++ x ++ ":" ++ prettyTyElN env a ++ ") → " ++ prettyTyArrowN (env :< x) b
+           in "(" ++ x ++ ":" ++ prettyTyN env a ++ ") → " ++ prettyTyArrowN (env :< x) b
       else prettyTyElN env a ++ " → " ++ prettyTyArrowN (env :< wildcard) b
   prettyTyArrowN env (Ty.SigmaTy a b) =
     if usesIndexTy 0 b
       then let x = freshForTy a env
-           in "(" ++ x ++ ":" ++ prettyTyElN env a ++ ") ⨯ " ++ prettyTyArrowN (env :< x) b
+           in "(" ++ x ++ ":" ++ prettyTyN env a ++ ") ⨯ " ++ prettyTyArrowN (env :< x) b
       else prettyTyElN env a ++ " ⨯ " ++ prettyTyArrowN (env :< wildcard) b
   prettyTyArrowN env (Ty.Quotient a r) =
     let x = freshForTy a env
@@ -393,7 +416,7 @@ prettyTypingRuleN (CtxEqTrans ctx0 ctx1 ctx2) =
 prettyTypingRuleN (CtxWfCompute ctx alpha) =
   "ctx-cmp " ++ prettyCtxN ctx ++ " via " ++ prettyComputeRule alpha
 prettyTypingRuleN (SubWfTerminal ctx) =
-  "sub-term " ++ prettyCtxN ctx ++ " ⊦ ·"
+  "sub-term " ++ prettyCtxN ctx ++ " ⊦"
 prettyTypingRuleN (SubWfExt sigma e gamma delta ty) =
   let env = envForCtx gamma
   in "sub-ext " ++ prettyCtxN gamma ++ " ⊦ " ++ prettySubN env (Ext sigma e) ++ " to " ++ prettyCtxN (delta :< ty)
@@ -407,7 +430,7 @@ prettyTypingRuleN (SubEqTrans s0 s1 s2 g d) =
   in "sub-trans " ++ prettyCtxN g ++ " ⊦ " ++ prettySubN env s0 ++ " ≐ " ++ prettySubN env s2 ++
      " : " ++ prettyCtxN d ++ " via " ++ prettySubN env s1
 prettyTypingRuleN (SubNormWfTerminal ctx) =
-  "sub-norm-term " ++ prettyCtxN ctx ++ " ⊦ ·"
+  "sub-norm-term " ++ prettyCtxN ctx ++ " ⊦"
 prettyTypingRuleN (SubNormWfExt sigma e gamma delta ty) =
   let env = envForCtx gamma
   in "sub-norm-ext " ++ prettyCtxN gamma ++ " ⊦ " ++ prettySubNormN env (sigma :< e) ++ " to " ++ prettyCtxN (delta :< ty)
