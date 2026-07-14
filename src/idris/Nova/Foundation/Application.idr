@@ -10,10 +10,6 @@ import Nova.Foundation.Parser
 import Nova.Foundation.Pretty
 import Nova.Foundation.Rejection.Pretty
 import Nova.Foundation.Session
-import Nova.Foundation.Elaboration.Syntax
-import Nova.Foundation.Elaboration.Parser
-import Nova.Foundation.Elaboration.Elaborator
-import Nova.Foundation.Elaboration.Pretty
 import System
 import System.File
 
@@ -65,15 +61,6 @@ parseInput rulesFile targetFile = do
     | Left err => pure (Left $ "Parse error in target file: " ++ err)
   pure (Right (MkInput rules targets))
 
-||| `elaborate` reports on a surface Σ program (proof-term syntax), fail-fast:
-||| the first entry that doesn't elaborate stops the whole run.
-reportElaborate : Either (String, ElabError) a -> IO ()
-reportElaborate (Right _) = putStrLn "Ok"
-reportElaborate (Left (name, err)) = do
-  putStrLn "Rejected"
-  putStrLn $ "  At entry: " ++ name
-  putStrLn $ "  Reason: " ++ prettyElabError err
-
 ||| Read a session file's content. A missing file reads as an empty session
 ||| (freshly started, no rules applied yet) rather than an error.
 loadSession : Filename -> IO String
@@ -98,7 +85,6 @@ usage = unlines
   , "  nova-foundation-app query     <session-file> <target-text>"
   , "  nova-foundation-app dump      <session-file> [judgement-kind]"
   , "  nova-foundation-app undo      <session-file>"
-  , "  nova-foundation-app elaborate <sig-file>"
   ]
 
 ||| `check` is the original one-shot batch mode:
@@ -114,12 +100,6 @@ usage = unlines
 ||| `apply` grows one checked rule at a time, giving immediate feedback
 ||| (accepted + newly derived facts, or rejected + reason) without
 ||| resubmitting or re-deriving the whole proof by hand.
-|||
-||| `elaborate` takes a separate, independent path: instead of checking
-||| TypingRule derivations against a Truth table, it elaborates the
-||| proof-term surface syntax (Nova.Foundation.Elaboration) directly into
-||| a well-formed low-level Sig, fail-fast (the first entry that doesn't
-||| elaborate stops the run and reports that entry's name and reason).
 main : IO ()
 main = do
   args <- getArgs
@@ -154,10 +134,4 @@ main = do
         Just new => do
           writeSession sessionFile new
           putStrLn "Ok"
-    (_ :: "elaborate" :: sigFile :: []) => do
-      Right content <- readFile sigFile
-        | Left err => die ("Cannot read signature file '" ++ sigFile ++ "': " ++ show err)
-      case runParser Nova.Foundation.Elaboration.Parser.parseSig content of
-        Left err        => die ("Parse error in signature file: " ++ err)
-        Right surfaceSig => reportElaborate (elaborateSig surfaceSig)
     _ => die usage

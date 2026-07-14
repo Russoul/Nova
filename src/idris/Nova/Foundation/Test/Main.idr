@@ -13,9 +13,6 @@ import Nova.Foundation.Rejection.Pretty
 import Nova.Foundation.Derivation
 import Nova.Foundation.Derivation.Parser
 
-import Nova.Foundation.Elaboration.Test
-import Nova.Foundation.Elaboration.ElaboratorTest
-
 -- ===== Display helpers for top-level aliases =====
 
 showCtx : Ctx -> String
@@ -66,9 +63,7 @@ runParse parser input =
     "compute"      => putStrLn $ either (const "ERROR") show (runParser parseComputeRule input)
     "typing"       => putStrLn $ either (const "ERROR") show (runParser parseTypingRule input)
     "typing-list"  => putStrLn $ either (const "ERROR") (joinWith "\n" . map show) (runParser parseListTypingRule input)
-    _              => case runElabParse parser input of
-                         Just s  => putStrLn s
-                         Nothing => putStrLn "ERROR: unknown parser '\{parser}'"
+    _              => putStrLn "ERROR: unknown parser '\{parser}'"
 
 -- ===== Derivation mode =====
 -- Invoked as: nova-foundation-tests run derivation RULES-FILE TARGET-FILE
@@ -102,7 +97,6 @@ pools : IO (List TestPool)
 pools = sequence
   [ testsInDir "tests/foundation/parser"     "Foundation Parser"
   , testsInDir "tests/foundation/derivation" "Foundation Derivation"
-  , testsInDir "tests/foundation/elaborator" "Foundation Elaborator"
   ]
 
 main : IO ()
@@ -111,10 +105,6 @@ main = do
   case args of
     (_ :: "run" :: "derivation" :: rulesFile :: targetFile :: []) =>
       runDerivation rulesFile targetFile
-    (_ :: "run" :: "elab" :: tag :: rest) =>
-      case runElaborate tag rest of
-        Just s  => putStrLn s
-        Nothing => putStrLn "ERROR: unknown elaborator tag '\{tag}' or wrong arity"
     (_ :: "run" :: parser :: input :: []) => runParse parser input
     _ => do
       ps <- pools
