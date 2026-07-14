@@ -140,11 +140,9 @@ parseTypingRule =
         _ => fail "sub-ext: expected σ, e and non-empty target context") <|>
   (do str_ "sub-chn"; space
       ctx <- parseCtx; sp; str_ "⊦"; sp
-      sigma <- parseSub; sp; str_ "to"; sp; delta <- parseCtx
-      sp; str_ "via"; sp; theta <- parseCtx
-      case sigma of
-        Chain s t => pure (SubWfChain s t ctx theta delta)
-        _         => fail "sub-chn: expected σ ∘ τ") <|>
+      sigma <- parseSub; sp; str_ "to"; sp; theta <- parseCtx
+      sp; str_ "∘"; sp; tau <- parseSub; sp; str_ "to"; sp; delta <- parseCtx
+      pure (SubWfChain sigma tau ctx theta delta)) <|>
   -- Substitution eq
   (do str_ "sub-refl"; space
       ctx <- parseCtx; sp; str_ "⊦"; sp
@@ -178,9 +176,8 @@ parseTypingRule =
         _ => fail "sub-norm-ext: expected e˲, e and non-empty target context") <|>
   (do str_ "sub-norm-chn"; space
       delta <- parseCtx; sp; str_ "⊦"; sp
-      sigma <- parseSubNorm; sp; str_ "∘"; sp; tau <- parseSub
-      sp; str_ "to"; sp; gamma1 <- parseCtx
-      sp; str_ "via"; sp; gamma0 <- parseCtx
+      tau <- parseSub; sp; str_ "to"; sp; gamma0 <- parseCtx
+      sp; str_ "∘"; sp; sigma <- parseSubNorm; sp; str_ "to"; sp; gamma1 <- parseCtx
       pure (SubNormWfChain sigma tau gamma0 gamma1 delta)) <|>
   -- Normal substitution eq
   (do str_ "sub-norm-refl"; space
@@ -198,9 +195,9 @@ parseTypingRule =
       pure (SubNormEqTrans s0 s1 s2 ctx d)) <|>
   (do str_ "sub-norm-eq-chn"; space
       delta <- parseCtx; sp; str_ "⊦"; sp
-      sigma0 <- parseSubNorm; sp; str_ "≐"; sp; sigma1 <- parseSubNorm; sp; str_ "∘"; sp; tau <- parseSub
-      sp; str_ "to"; sp; gamma1 <- parseCtx
-      sp; str_ "via"; sp; gamma0 <- parseCtx
+      tau <- parseSub; sp; str_ "to"; sp; gamma0 <- parseCtx
+      sp; str_ "∘"; sp
+      sigma0 <- parseSubNorm; sp; str_ "≐"; sp; sigma1 <- parseSubNorm; sp; str_ "to"; sp; gamma1 <- parseCtx
       pure (SubNormEqChain sigma0 sigma1 tau gamma0 gamma1 delta)) <|>
   -- Type wf
   (do str_ "ty-zero"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy

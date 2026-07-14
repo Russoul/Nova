@@ -112,7 +112,7 @@ example.
 | `sub-id Γ ⊦ id` | `Γ ctx` | `id : Γ ⇒ Γ` |
 | `sub-wk Γ ᐅ A ⊦ ↑` | `Γ ᐅ A ctx` (non-empty) | `↑ : (Γ ᐅ A) ⇒ Γ` |
 | `sub-ext Γ ⊦ σ, e to Δ ᐅ A` | `σ : Γ ⇒ Δ`, `Δ ⊦ A type`, `Γ ⊦ e : A[σ]` | `(σ, e) : Γ ⇒ (Δ ᐅ A)` |
-| `sub-chn Γ ⊦ σ ∘ τ to Δ via Θ` | `σ : Γ ⇒ Θ`, `τ : Θ ⇒ Δ` | `σ ∘ τ : Γ ⇒ Δ` |
+| `sub-chn Γ ⊦ σ to Θ ∘ τ to Δ` | `σ : Γ ⇒ Θ`, `τ : Θ ⇒ Δ` | `σ ∘ τ : Γ ⇒ Δ` |
 
 ## Substitution equality
 
@@ -134,7 +134,7 @@ since it can't contain `id`/`↑`/`∘`.
 |---|---|---|
 | `sub-norm-term Γ ⊦ ·` | `Γ ctx` | `· : Γ ⇒ ε norm` |
 | `sub-norm-ext Γ ⊦ e˲, t to Δ ᐅ A` | `e˲ : Γ ⇒ Δ norm`, `Δ ⊦ A type`, `Γ ⊦ t : A[e˲]` | `(e˲, t) : Γ ⇒ (Δ ᐅ A) norm` |
-| `sub-norm-chn Δ ⊦ e˲ ∘ σ to Γ₁ via Γ₀` | `e˲ : Γ₀ ⇒ Γ₁ norm`, `σ : Δ ⇒ Γ₀` | `e˲ ∘ σ : Δ ⇒ Γ₁ norm` (computed via `substSubNorm`, so the result is already in normal form) |
+| `sub-norm-chn Δ ⊦ σ to Γ₀ ∘ e˲ to Γ₁` | `σ : Δ ⇒ Γ₀`, `e˲ : Γ₀ ⇒ Γ₁ norm` | `e˲ ∘ σ : Δ ⇒ Γ₁ norm` (computed via `substSubNorm`, so the result is already in normal form) |
 
 ## Normal substitution equality
 
