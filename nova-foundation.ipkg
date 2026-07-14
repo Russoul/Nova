@@ -12,6 +12,8 @@ modules = Nova.Foundation.Syntax
         , Nova.Foundation.Parser
         , Nova.Foundation.Derivation.Parser
         , Nova.Foundation.Derivation.NamedParser
+        , Nova.Foundation.Derivation.NamedPretty
+        , Nova.Foundation.Derivation.NamedRejectionPretty
         , Nova.Foundation.Pretty
         , Nova.Foundation.Rejection.Pretty
         , Nova.Foundation.Session

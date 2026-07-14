@@ -1,7 +1,7 @@
 - el-wf ε ⊦ plus[·] : ℕ → ℕ → ℕ
-- el-wf ε ᐅ ℕ ⊦ plusZeroId[·, ☐₀] : (plus[·] ☐₀ Z) ≡ ☐₀ ∈ ℕ
-- el-wf ε ᐅ ℕ ᐅ ℕ ⊦ plusSucId[·, ☐₁, ☐₀] : (plus[·] ☐₁ (S ☐₀)) ≡ (S (plus[·] ☐₁ ☐₀)) ∈ ℕ
-- el-wf ε ᐅ ℕ ⊦ zeroPlusId[·, ☐₀] : (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ
-- el-wf ε ᐅ ℕ ᐅ ℕ ⊦ sucPlus[·, ☐₁, ☐₀] : (plus[·] (S ☐₁) ☐₀) ≡ (S (plus[·] ☐₁ ☐₀)) ∈ ℕ
-- el-wf ε ᐅ ℕ ᐅ ℕ ⊦ plusComm[·, ☐₁, ☐₀] : (plus[·] ☐₀ ☐₁) ≡ (plus[·] ☐₁ ☐₀) ∈ ℕ
-- el-wf ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ plusAssoc[·, ☐₂, ☐₁, ☐₀] : (plus[·] (plus[·] ☐₂ ☐₁) ☐₀) ≡ (plus[·] ☐₂ (plus[·] ☐₁ ☐₀)) ∈ ℕ
+- el-wf ε ᐅ n:ℕ ⊦ plusZeroId[·, n] : (plus[·] n Z) ≡ n ∈ ℕ
+- el-wf ε ᐅ n:ℕ ᐅ m:ℕ ⊦ plusSucId[·, n, m] : (plus[·] n (S m)) ≡ (S (plus[·] n m)) ∈ ℕ
+- el-wf ε ᐅ n:ℕ ⊦ zeroPlusId[·, n] : (plus[·] Z n) ≡ n ∈ ℕ
+- el-wf ε ᐅ n:ℕ ᐅ m:ℕ ⊦ sucPlus[·, n, m] : (plus[·] (S n) m) ≡ (S (plus[·] n m)) ∈ ℕ
+- el-wf ε ᐅ n:ℕ ᐅ m:ℕ ⊦ plusComm[·, n, m] : (plus[·] m n) ≡ (plus[·] n m) ∈ ℕ
+- el-wf ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ⊦ plusAssoc[·, n, m, k] : (plus[·] (plus[·] n m) k) ≡ (plus[·] n (plus[·] m k)) ∈ ℕ

@@ -38,31 +38,21 @@ inParen p = do
 
 mutual
   -- σ, e₁, e₂   (left-assoc Ext)
-  -- σ ∘ τ        (right-assoc Chain)
   -- ·            (Terminal)
-  -- id           (Id)
-  -- ↑            (Wk)
+  --
+  -- No id/↑/∘: nothing in this codebase's derivations ever needs the
+  -- general Sub constructed via identity, weakening, or composition —
+  -- every substitution actually used is written as an explicit, flat
+  -- extension list, exactly like SubNorm's own grammar. Id/Wk/Chain still
+  -- exist on the core Sub type (used internally, e.g. for quotient-type
+  -- formation's `A[↑]`) — they're just not surface-syntax-constructible
+  -- via a dedicated sub-id/sub-wk/sub-chn rule anymore.
   export covering
   parseSub : Rule Sub
   parseSub = do
-    s    <- parseSubChain
+    str_ "·"
     rest <- many (do sp; char_ ','; sp; e <- parseElemNoComma; pure e)
-    pure (foldl Ext s rest)
-
-  covering
-  parseSubChain : Rule Sub
-  parseSubChain = do
-    s <- parseSubAtom
-    (do sp; str_ "∘"; sp; t <- parseSubChain; pure (Chain s t))
-      <|> pure s
-
-  covering
-  parseSubAtom : Rule Sub
-  parseSubAtom =
-        (str_ "·"  $> Terminal)
-    <|> (str_ "id" $> Id)
-    <|> (str_ "↑"  $> Wk)
-    <|> inParen parseSub
+    pure (foldl Ext Terminal rest)
 
   -- e₁ , e₂          (right-assoc SigmaIntro)
   -- e₁ → e₂          (right-assoc PiTy element)

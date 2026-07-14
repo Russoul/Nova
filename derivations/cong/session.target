@@ -1,1 +1,1 @@
-- el-wf ε ⊦ cong[·] : 𝕌 → (El ☐₀ → 𝕌) → (El ☐₁ → El (☐₁ ☐₀)) → El ☐₂ → El ☐₃ → (☐₁ ≡ ☐₀ ∈ El ☐₄) → ((☐₃ ☐₂) ≡ (☐₃ ☐₁) ∈ El (☐₄ ☐₁))
+- el-wf ε ⊦ cong[·] : (A:𝕌) → (x:(El A → 𝕌)) → (y:((v:El A) → El (x v))) → (v:El A) → (w:El A) → (v ≡ w ∈ El A) → ((y v) ≡ (y w) ∈ El (x w))

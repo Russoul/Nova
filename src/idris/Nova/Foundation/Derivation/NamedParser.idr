@@ -25,12 +25,14 @@ module Nova.Foundation.Derivation.NamedParser
 --      values (`.target` files, `sig`/`dump` echoes) that have no
 --      accompanying `ctx-ext` trail to fall back on.
 --
--- `sub-chn`/`sub-norm-chn`/`sub-norm-eq-chn` state the substitution whose
--- domain is the header context first, annotated inline with its own
--- codomain (`σ to Θ`), before the second substitution that needs those
--- names — see NovaSyntax.txt/NovaNamedSyntax.txt's `sub-chn`/etc. entries.
--- This keeps every rule resolvable in a single left-to-right pass with no
--- lookahead (this parser never needs one, by construction).
+-- `sub-id`/`sub-wk`/`sub-chn`/`sub-norm-chn`/`sub-norm-eq-chn` (identity,
+-- weakening, and composition construction for substitutions) don't exist
+-- in this grammar at all — every Sub actually needed by this codebase's
+-- derivations is an explicit, flat extension list (`· | σ, t`), exactly
+-- like SubNorm's own grammar (see `parseSub`, and NovaNamedSyntax.txt).
+-- This also means this parser never needs lookahead: every context a
+-- rule references is written out in full before anything that needs its
+-- names.
 
 import Data.SnocList
 
@@ -131,32 +133,22 @@ parseLocalIdentifier = do
 
 mutual
   -- σ, e₁, e₂   (left-assoc Ext)
-  -- σ ∘ τ        (right-assoc Chain)
   -- ·            (Terminal)
-  -- id           (Id)
-  -- ↑            (Wk)
-  -- e is resolved against `env`, the substitution's *domain* context.
+  --
+  -- No id/↑/∘: every substitution actually used in this codebase's
+  -- derivations is written as an explicit, flat extension list, exactly
+  -- like SubNorm's own grammar — see NovaNamedSyntax.txt. Id/Wk/Chain
+  -- still exist on the core Sub type (used internally, e.g. for
+  -- quotient-type formation's `A[↑]`) — they're just not
+  -- surface-syntax-constructible via a dedicated sub-id/sub-wk/sub-chn
+  -- rule anymore. e is resolved against `env`, the substitution's
+  -- *domain* context.
   export covering
   parseSub : NameEnv -> Rule Sub
   parseSub env = do
-    s    <- parseSubChain env
+    str_ "·"
     rest <- many (do sp; char_ ','; sp; e <- parseElemNoComma env; pure e)
-    pure (foldl Ext s rest)
-
-  covering
-  parseSubChain : NameEnv -> Rule Sub
-  parseSubChain env = do
-    s <- parseSubAtom env
-    (do sp; str_ "∘"; sp; t <- parseSubChain env; pure (Chain s t))
-      <|> pure s
-
-  covering
-  parseSubAtom : NameEnv -> Rule Sub
-  parseSubAtom env =
-        (str_ "·"  $> Terminal)
-    <|> (str_ "id" $> Id)
-    <|> (str_ "↑"  $> Wk)
-    <|> inParen (parseSub env)
+    pure (foldl Ext Terminal rest)
 
   -- e₁ , e₂          (right-assoc SigmaIntro)
   -- (x:e) → e'       (right-assoc PiTy element, NAMED — sugar: e → e' for (_:e) → e')
@@ -432,25 +424,12 @@ parseNamedTypingRule =
   (do str_ "sub-term"; space
       (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; _ <- parseSub env
       pure (SubWfTerminal ctx)) <|>
-  (do str_ "sub-id"; space
-      (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; _ <- parseSub env
-      pure (SubWfId ctx)) <|>
-  (do str_ "sub-wk"; space
-      (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; _ <- parseSub env
-      case ctx of
-        g :< ty => pure (SubWfWk g ty)
-        [<]     => fail "sub-wk: requires non-empty context") <|>
   (do str_ "sub-ext"; space
       (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
       sigma <- parseSub env; sp; str_ "to"; sp; (delta, _) <- parseNamedCtx
       case (sigma, delta) of
         (Ext s e, d :< ty) => pure (SubWfExt s e ctx d ty)
         _ => fail "sub-ext: expected σ, e and non-empty target context") <|>
-  (do str_ "sub-chn"; space
-      (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
-      sigma <- parseSub env; sp; str_ "to"; sp; (theta, thetaEnv) <- parseNamedCtx
-      sp; str_ "∘"; sp; tau <- parseSub thetaEnv; sp; str_ "to"; sp; (delta, _) <- parseNamedCtx
-      pure (SubWfChain sigma tau ctx theta delta)) <|>
   -- Substitution eq
   (do str_ "sub-refl"; space
       (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
@@ -482,11 +461,6 @@ parseNamedTypingRule =
       case (sigma, delta) of
         (es :< e, d :< ty) => pure (SubNormWfExt es e ctx d ty)
         _ => fail "sub-norm-ext: expected e˲, e and non-empty target context") <|>
-  (do str_ "sub-norm-chn"; space
-      (delta, env) <- parseNamedCtx; sp; str_ "⊦"; sp
-      tau <- parseSub env; sp; str_ "to"; sp; (gamma0, gamma0Env) <- parseNamedCtx
-      sp; str_ "∘"; sp; sigma <- parseSubNorm gamma0Env; sp; str_ "to"; sp; (gamma1, _) <- parseNamedCtx
-      pure (SubNormWfChain sigma tau gamma0 gamma1 delta)) <|>
   -- Normal substitution eq
   (do str_ "sub-norm-refl"; space
       (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
@@ -501,13 +475,6 @@ parseNamedTypingRule =
       s0 <- parseSubNorm env; sp; str_ "≐"; sp; s2 <- parseSubNorm env; sp; char_ ':'; sp; (d, _) <- parseNamedCtx
       sp; str_ "via"; sp; s1 <- parseSubNorm env
       pure (SubNormEqTrans s0 s1 s2 ctx d)) <|>
-  (do str_ "sub-norm-eq-chn"; space
-      (delta, env) <- parseNamedCtx; sp; str_ "⊦"; sp
-      tau <- parseSub env; sp; str_ "to"; sp; (gamma0, gamma0Env) <- parseNamedCtx
-      sp; str_ "∘"; sp
-      sigma0 <- parseSubNorm gamma0Env; sp; str_ "≐"; sp; sigma1 <- parseSubNorm gamma0Env
-      sp; str_ "to"; sp; (gamma1, _) <- parseNamedCtx
-      pure (SubNormEqChain sigma0 sigma1 tau gamma0 gamma1 delta)) <|>
   -- Type wf
   (do str_ "ty-zero"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; ty <- parseTy env
       case ty of

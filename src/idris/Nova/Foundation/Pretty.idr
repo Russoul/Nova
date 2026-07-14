@@ -260,14 +260,8 @@ prettyTypingRule (CtxWfCompute ctx alpha) =
   "ctx-cmp " ++ prettyCtx ctx ++ " via " ++ prettyComputeRule alpha
 prettyTypingRule (SubWfTerminal ctx) =
   "sub-term " ++ prettyCtx ctx ++ " ⊦ ·"
-prettyTypingRule (SubWfId ctx) =
-  "sub-id " ++ prettyCtx ctx ++ " ⊦ id"
-prettyTypingRule (SubWfWk gamma ty) =
-  "sub-wk " ++ prettyCtx (gamma :< ty) ++ " ⊦ ↑"
 prettyTypingRule (SubWfExt sigma e gamma delta ty) =
   "sub-ext " ++ prettyCtx gamma ++ " ⊦ " ++ prettySub (Ext sigma e) ++ " to " ++ prettyCtx (delta :< ty)
-prettyTypingRule (SubWfChain sigma tau gamma theta delta) =
-  "sub-chn " ++ prettyCtx gamma ++ " ⊦ " ++ prettySub sigma ++ " to " ++ prettyCtx theta ++ " ∘ " ++ prettySub tau ++ " to " ++ prettyCtx delta
 prettyTypingRule (SubEqRefl s g d) =
   "sub-refl " ++ prettyCtx g ++ " ⊦ " ++ prettySub s ++ " : " ++ prettyCtx d
 prettyTypingRule (SubEqSym s0 s1 g d) =
@@ -278,8 +272,6 @@ prettyTypingRule (SubNormWfTerminal ctx) =
   "sub-norm-term " ++ prettyCtx ctx ++ " ⊦ ·"
 prettyTypingRule (SubNormWfExt sigma e gamma delta ty) =
   "sub-norm-ext " ++ prettyCtx gamma ++ " ⊦ " ++ prettySubNorm (sigma :< e) ++ " to " ++ prettyCtx (delta :< ty)
-prettyTypingRule (SubNormWfChain sigma tau gamma0 gamma1 delta) =
-  "sub-norm-chn " ++ prettyCtx delta ++ " ⊦ " ++ prettySub tau ++ " to " ++ prettyCtx gamma0 ++ " ∘ " ++ prettySubNorm sigma ++ " to " ++ prettyCtx gamma1
 prettyTypingRule (SubNormEqRefl s g d) =
   "sub-norm-refl " ++ prettyCtx g ++ " ⊦ " ++ prettySubNorm s ++ " : " ++ prettyCtx d
 prettyTypingRule (SubNormEqSym s0 s1 g d) =
@@ -288,8 +280,6 @@ prettyTypingRule (SubNormEqTrans s0 s1 s2 g d) =
   "sub-norm-trans " ++ prettyCtx g ++ " ⊦ " ++ prettySubNorm s0 ++ " ≐ " ++ prettySubNorm s2 ++ " : " ++ prettyCtx d ++ " via " ++ prettySubNorm s1
 prettyTypingRule (SubNormEqExt s0 s1 t0 t1 gamma0 gamma1 ty) =
   "sub-norm-ext-eq " ++ prettyCtx gamma0 ++ " ⊦ " ++ prettySubNorm (s0 :< t0) ++ " ≐ " ++ prettySubNorm (s1 :< t1) ++ " : " ++ prettyCtx (gamma1 :< ty)
-prettyTypingRule (SubNormEqChain sigma0 sigma1 tau gamma0 gamma1 delta) =
-  "sub-norm-eq-chn " ++ prettyCtx delta ++ " ⊦ " ++ prettySub tau ++ " to " ++ prettyCtx gamma0 ++ " ∘ " ++ prettySubNorm sigma0 ++ " ≐ " ++ prettySubNorm sigma1 ++ " to " ++ prettyCtx gamma1
 prettyTypingRule (TyWfZero ctx) =
   "ty-zero " ++ prettyCtx ctx ++ " ⊦ 𝟘"
 prettyTypingRule (TyWfOne ctx) =

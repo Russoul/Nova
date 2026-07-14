@@ -1,13 +1,13 @@
 - el-wf ε ⊦ plus[·] : ℕ → ℕ → ℕ
-- el-wf ε ᐅ ℕ ⊦ plusZeroId[·, ☐₀] : (plus[·] ☐₀ Z) ≡ ☐₀ ∈ ℕ
-- el-wf ε ᐅ ℕ ᐅ ℕ ⊦ plusSucId[·, ☐₁, ☐₀] : (plus[·] ☐₁ (S ☐₀)) ≡ (S (plus[·] ☐₁ ☐₀)) ∈ ℕ
-- el-wf ε ᐅ ℕ ⊦ zeroPlusId[·, ☐₀] : (plus[·] Z ☐₀) ≡ ☐₀ ∈ ℕ
-- el-wf ε ᐅ ℕ ᐅ ℕ ⊦ sucPlus[·, ☐₁, ☐₀] : (plus[·] (S ☐₁) ☐₀) ≡ (S (plus[·] ☐₁ ☐₀)) ∈ ℕ
-- el-wf ε ᐅ ℕ ᐅ ℕ ⊦ plusComm[·, ☐₁, ☐₀] : (plus[·] ☐₀ ☐₁) ≡ (plus[·] ☐₁ ☐₀) ∈ ℕ
-- el-wf ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ plusAssoc[·, ☐₂, ☐₁, ☐₀] : (plus[·] (plus[·] ☐₂ ☐₁) ☐₀) ≡ (plus[·] ☐₂ (plus[·] ☐₁ ☐₀)) ∈ ℕ
+- el-wf ε ᐅ n:ℕ ⊦ plusZeroId[·, n] : (plus[·] n Z) ≡ n ∈ ℕ
+- el-wf ε ᐅ n:ℕ ᐅ m:ℕ ⊦ plusSucId[·, n, m] : (plus[·] n (S m)) ≡ (S (plus[·] n m)) ∈ ℕ
+- el-wf ε ᐅ n:ℕ ⊦ zeroPlusId[·, n] : (plus[·] Z n) ≡ n ∈ ℕ
+- el-wf ε ᐅ n:ℕ ᐅ m:ℕ ⊦ sucPlus[·, n, m] : (plus[·] (S n) m) ≡ (S (plus[·] n m)) ∈ ℕ
+- el-wf ε ᐅ n:ℕ ᐅ m:ℕ ⊦ plusComm[·, n, m] : (plus[·] m n) ≡ (plus[·] n m) ∈ ℕ
+- el-wf ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ⊦ plusAssoc[·, n, m, k] : (plus[·] (plus[·] n m) k) ≡ (plus[·] n (plus[·] m k)) ∈ ℕ
 - el-wf ε ⊦ vect[·] : ℕ → 𝕌 → 𝕌
-- el-wf ε ᐅ 𝕌 ⊦ vectZ[·, ☐₀] : (vect[·] Z ☐₀) ≡ 𝟙 ∈ 𝕌
-- el-wf ε ᐅ ℕ ᐅ 𝕌 ⊦ vectS[·, ☐₁, ☐₀] : (vect[·] (S ☐₁) ☐₀) ≡ (☐₀ ⨯ vect[·] ☐₂ ☐₁) ∈ 𝕌
-- el-wf ε ⊦ vappend[·] : ℕ → 𝕌 → ℕ → El (vect[·] ☐₂ ☐₁) → El (vect[·] ☐₁ ☐₂) → El (vect[·] (plus[·] ☐₄ ☐₂) ☐₃)
-- el-wf ε ᐅ 𝕌 ᐅ ℕ ᐅ El (vect[·] Z ☐₁) ᐅ El (vect[·] ☐₁ ☐₂) ⊦ vappendZ[·, ☐₃, ☐₂, ☐₁, ☐₀] : (vappend[·] Z ☐₃ ☐₂ ☐₁ ☐₀) ≡ ☐₀ ∈ El (vect[·] ☐₂ ☐₃)
-- el-wf ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ El (vect[·] (S ☐₂) ☐₁) ᐅ El (vect[·] ☐₁ ☐₂) ⊦ vappendS[·, ☐₄, ☐₃, ☐₂, ☐₁, ☐₀] : (vappend[·] (S ☐₄) ☐₃ ☐₂ ☐₁ ☐₀) ≡ (☐₁ .π₁, vappend[·] ☐₄ ☐₃ ☐₂ (☐₁ .π₂) ☐₀) ∈ El (vect[·] (plus[·] (S ☐₄) ☐₂) ☐₃)
+- el-wf ε ᐅ A:𝕌 ⊦ vectZ[·, A] : (vect[·] Z A) ≡ 𝟙 ∈ 𝕌
+- el-wf ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ vectS[·, n, A] : (vect[·] (S n) A) ≡ (A ⨯ vect[·] n A) ∈ 𝕌
+- el-wf ε ⊦ vappend[·] : (n:ℕ) → (A:𝕌) → (m:ℕ) → El (vect[·] n A) → El (vect[·] m A) → El (vect[·] (plus[·] n m) A)
+- el-wf ε ᐅ A:𝕌 ᐅ n:ℕ ᐅ v:El (vect[·] Z A) ᐅ w:El (vect[·] n A) ⊦ vappendZ[·, A, n, v, w] : (vappend[·] Z A n v w) ≡ w ∈ El (vect[·] n A)
+- el-wf ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ v:El (vect[·] (S n) A) ᐅ w:El (vect[·] m A) ⊦ vappendS[·, n, A, m, v, w] : (vappend[·] (S n) A m v w) ≡ (v .π₁, vappend[·] n A m (v .π₂) w) ∈ El (vect[·] (plus[·] (S n) m) A)

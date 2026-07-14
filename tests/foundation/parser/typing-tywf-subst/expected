@@ -1,1 +1,1 @@
-TyWfSubst (([<] :< NatTy)) ([<]) (Wk) (NatTy)
+TyWfSubst (([<] :< NatTy)) ([<]) (Terminal) (NatTy)

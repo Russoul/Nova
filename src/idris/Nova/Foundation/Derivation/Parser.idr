@@ -124,25 +124,12 @@ parseTypingRule =
   (do str_ "sub-term"; space
       ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseSub
       pure (SubWfTerminal ctx)) <|>
-  (do str_ "sub-id"; space
-      ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseSub
-      pure (SubWfId ctx)) <|>
-  (do str_ "sub-wk"; space
-      ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseSub
-      case ctx of
-        g :< ty => pure (SubWfWk g ty)
-        [<]     => fail "sub-wk: requires non-empty context") <|>
   (do str_ "sub-ext"; space
       ctx <- parseCtx; sp; str_ "⊦"; sp
       sigma <- parseSub; sp; str_ "to"; sp; delta <- parseCtx
       case (sigma, delta) of
         (Ext s e, d :< ty) => pure (SubWfExt s e ctx d ty)
         _ => fail "sub-ext: expected σ, e and non-empty target context") <|>
-  (do str_ "sub-chn"; space
-      ctx <- parseCtx; sp; str_ "⊦"; sp
-      sigma <- parseSub; sp; str_ "to"; sp; theta <- parseCtx
-      sp; str_ "∘"; sp; tau <- parseSub; sp; str_ "to"; sp; delta <- parseCtx
-      pure (SubWfChain sigma tau ctx theta delta)) <|>
   -- Substitution eq
   (do str_ "sub-refl"; space
       ctx <- parseCtx; sp; str_ "⊦"; sp
@@ -174,11 +161,6 @@ parseTypingRule =
       case (sigma, delta) of
         (es :< e, d :< ty) => pure (SubNormWfExt es e ctx d ty)
         _ => fail "sub-norm-ext: expected e˲, e and non-empty target context") <|>
-  (do str_ "sub-norm-chn"; space
-      delta <- parseCtx; sp; str_ "⊦"; sp
-      tau <- parseSub; sp; str_ "to"; sp; gamma0 <- parseCtx
-      sp; str_ "∘"; sp; sigma <- parseSubNorm; sp; str_ "to"; sp; gamma1 <- parseCtx
-      pure (SubNormWfChain sigma tau gamma0 gamma1 delta)) <|>
   -- Normal substitution eq
   (do str_ "sub-norm-refl"; space
       ctx <- parseCtx; sp; str_ "⊦"; sp
@@ -193,12 +175,6 @@ parseTypingRule =
       s0 <- parseSubNorm; sp; str_ "≐"; sp; s2 <- parseSubNorm; sp; char_ ':'; sp; d <- parseCtx
       sp; str_ "via"; sp; s1 <- parseSubNorm
       pure (SubNormEqTrans s0 s1 s2 ctx d)) <|>
-  (do str_ "sub-norm-eq-chn"; space
-      delta <- parseCtx; sp; str_ "⊦"; sp
-      tau <- parseSub; sp; str_ "to"; sp; gamma0 <- parseCtx
-      sp; str_ "∘"; sp
-      sigma0 <- parseSubNorm; sp; str_ "≐"; sp; sigma1 <- parseSubNorm; sp; str_ "to"; sp; gamma1 <- parseCtx
-      pure (SubNormEqChain sigma0 sigma1 tau gamma0 gamma1 delta)) <|>
   -- Type wf
   (do str_ "ty-zero"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
       case ty of

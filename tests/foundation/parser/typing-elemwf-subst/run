@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run typing "el-wf-subst ε ᐅ ℕ ⊦ ↑ to ε ⊦ Z : ℕ"
+"$1" run typing "el-wf-subst ε ᐅ ℕ ⊦ · to ε ⊦ Z : ℕ"

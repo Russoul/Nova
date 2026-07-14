@@ -1416,8 +1416,20 @@
 - el-pi-e ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ⊦ (vect[·] ☐₅ : 𝕌 → 𝕌) ☐₄
 - ty-el ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ⊦ El (vect[·] ☐₅ ☐₄)
 - ctx-ext ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ᐅ El (vect[·] ☐₅ ☐₄)
-- sub-wk ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ᐅ El (vect[·] ☐₅ ☐₄) ⊦ ↑
-- el-wf-subst ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ᐅ El (vect[·] ☐₅ ☐₄) ⊦ ↑ to ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ⊦ ℕ-elim (λ Refl) (λ Refl) ☐₅ : El (vect[·] ☐₅ ☐₄) → ((vappend[·] (plus[·] ☐₆ ☐₄) ☐₅ ☐₃ (vappend[·] ☐₆ ☐₅ ☐₄ ☐₀ ☐₂) ☐₁) ≡ (vappend[·] ☐₆ ☐₅ (plus[·] ☐₄ ☐₃) ☐₀ (vappend[·] ☐₄ ☐₅ ☐₃ ☐₂ ☐₁)) ∈ El (vect[·] (plus[·] ☐₆ (plus[·] ☐₄ ☐₃)) ☐₅))
+- sub-term ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ᐅ El (vect[·] ☐₅ ☐₄) ⊦ ·
+- el-var ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ᐅ El (vect[·] ☐₅ ☐₄) ⊦ ☐₆
+- sub-ext ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ᐅ El (vect[·] ☐₅ ☐₄) ⊦ ·, ☐₆ to ε ᐅ ℕ
+- el-var ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ᐅ El (vect[·] ☐₅ ☐₄) ⊦ ☐₅
+- sub-ext ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ᐅ El (vect[·] ☐₅ ☐₄) ⊦ ·, ☐₆, ☐₅ to ε ᐅ ℕ ᐅ 𝕌
+- el-var ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ᐅ El (vect[·] ☐₅ ☐₄) ⊦ ☐₄
+- sub-ext ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ᐅ El (vect[·] ☐₅ ☐₄) ⊦ ·, ☐₆, ☐₅, ☐₄ to ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ
+- el-var ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ᐅ El (vect[·] ☐₅ ☐₄) ⊦ ☐₃
+- sub-ext ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ᐅ El (vect[·] ☐₅ ☐₄) ⊦ ·, ☐₆, ☐₅, ☐₄, ☐₃ to ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ
+- el-var ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ᐅ El (vect[·] ☐₅ ☐₄) ⊦ ☐₂
+- sub-ext ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ᐅ El (vect[·] ☐₅ ☐₄) ⊦ ·, ☐₆, ☐₅, ☐₄, ☐₃, ☐₂ to ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂)
+- el-var ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ᐅ El (vect[·] ☐₅ ☐₄) ⊦ ☐₁
+- sub-ext ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ᐅ El (vect[·] ☐₅ ☐₄) ⊦ ·, ☐₆, ☐₅, ☐₄, ☐₃, ☐₂, ☐₁ to ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃)
+- el-wf-subst ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ᐅ El (vect[·] ☐₅ ☐₄) ⊦ ·, ☐₆, ☐₅, ☐₄, ☐₃, ☐₂, ☐₁ to ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ⊦ ℕ-elim (λ Refl) (λ Refl) ☐₅ : El (vect[·] ☐₅ ☐₄) → ((vappend[·] (plus[·] ☐₆ ☐₄) ☐₅ ☐₃ (vappend[·] ☐₆ ☐₅ ☐₄ ☐₀ ☐₂) ☐₁) ≡ (vappend[·] ☐₆ ☐₅ (plus[·] ☐₄ ☐₃) ☐₀ (vappend[·] ☐₄ ☐₅ ☐₃ ☐₂ ☐₁)) ∈ El (vect[·] (plus[·] ☐₆ (plus[·] ☐₄ ☐₃)) ☐₅))
 - el-var ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ᐅ El (vect[·] ☐₅ ☐₄) ⊦ ☐₀
 - el-pi-e ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ᐅ El (vect[·] ☐₅ ☐₄) ⊦ (ℕ-elim (λ Refl) (λ Refl) ☐₆ : El (vect[·] ☐₆ ☐₅) → ((vappend[·] (plus[·] ☐₇ ☐₅) ☐₆ ☐₄ (vappend[·] ☐₇ ☐₆ ☐₅ ☐₀ ☐₃) ☐₂) ≡ (vappend[·] ☐₇ ☐₆ (plus[·] ☐₅ ☐₄) ☐₀ (vappend[·] ☐₅ ☐₆ ☐₄ ☐₃ ☐₂)) ∈ El (vect[·] (plus[·] ☐₇ (plus[·] ☐₅ ☐₄)) ☐₆))) ☐₀
 - sig ε ᐅ ℕ ᐅ 𝕌 ᐅ ℕ ᐅ ℕ ᐅ El (vect[·] ☐₁ ☐₂) ᐅ El (vect[·] ☐₁ ☐₃) ᐅ El (vect[·] ☐₅ ☐₄) ⊦ vappendAssoc ≔ (ℕ-elim (λ Refl) (λ Refl) ☐₆) ☐₀ : (vappend[·] (plus[·] ☐₆ ☐₄) ☐₅ ☐₃ (vappend[·] ☐₆ ☐₅ ☐₄ ☐₀ ☐₂) ☐₁) ≡ (vappend[·] ☐₆ ☐₅ (plus[·] ☐₄ ☐₃) ☐₀ (vappend[·] ☐₄ ☐₅ ☐₃ ☐₂ ☐₁)) ∈ El (vect[·] (plus[·] ☐₆ (plus[·] ☐₄ ☐₃)) ☐₅)

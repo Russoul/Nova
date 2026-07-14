@@ -58,9 +58,13 @@
 // identifier is unambiguously a local named variable, never a signature
 // lookup; the two namespaces cannot collide syntactically.
 
-σ{2} ::= · | id | ↑ | (σ{≥0})
-σ{1} ::= σ{≥2} ∘ σ{≥1}                                                      Chain (right-assoc)
-σ{0} ::= σ{≥0} , t{≥1}                                                      Ext (left-assoc)
+// No id/↑/∘: every substitution actually needed is an explicit, flat
+// extension list, exactly like t˲ below (this is also true of the
+// indexed grammar — see NovaSyntax.txt). Id/Wk/Chain still exist on the
+// core Sub type (used internally, e.g. for quotient-type formation's
+// `A[↑]`) — they're just not surface-syntax-constructible here (no
+// sub-id/sub-wk/sub-chn rule).
+σ ::= · | σ , t{≥1}                                                         Ext (left-assoc)
 
 T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | (T{≥0})
 T{3} ::= T{≥3}[σ{≥0}]
@@ -127,10 +131,7 @@ R ::=
 
   // Substitution wf
   sub-term   Γ ⊦ ·
-  sub-id     Γ ⊦ id
-  sub-wk     Γ ⊦ ↑
   sub-ext    Γ ⊦ σ, e to Δ ᐅ T
-  sub-chn    Γ ⊦ σ to Θ ∘ τ to Δ
 
   // Substitution eq
   sub-refl   Γ ⊦ σ : Δ
@@ -140,14 +141,12 @@ R ::=
   // Normal substitution wf
   sub-norm-term   Γ ⊦ ·                          (SubNormWfTerminal)
   sub-norm-ext    Γ ⊦ e˲, t to Δ ᐅ T             (SubNormWfExt)
-  sub-norm-chn    Δ ⊦ σ to Γ₀ ∘ e˲ to Γ₁        (SubNormWfChain)
 
   // Normal substitution eq
   sub-norm-refl    Γ ⊦ e˲ : Δ
   sub-norm-sym     Γ ⊦ e˲₁ ≐ e˲₀ : Δ                 (conclusion: e˲₁ ≐ e˲₀)
   sub-norm-trans   Γ ⊦ e˲₀ ≐ e˲₂ : Δ via e˲₁         (conclusion: e˲₀ ≐ e˲₂)
   sub-norm-ext-eq  Γ ⊦ e˲₀, t₀ ≐ e˲₁, t₁ : Δ ᐅ T    (SubNormEqExt, ext-eq before ext — longer keyword first)
-  sub-norm-eq-chn  Δ ⊦ σ to Γ₀ ∘ e˲₀ ≐ e˲₁ to Γ₁    (SubNormEqChain, conclusion: e˲₀∘σ ≐ e˲₁∘σ : Δ ⇒ Γ₁ norm)
 
   // Type wf
   ty-zero    Γ ⊦ 𝟘

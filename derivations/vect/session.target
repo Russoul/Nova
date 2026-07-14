@@ -1,3 +1,3 @@
 - el-wf ε ⊦ vect[·] : ℕ → 𝕌 → 𝕌
-- el-wf ε ᐅ 𝕌 ⊦ vectZ[·, ☐₀] : (vect[·] Z ☐₀) ≡ 𝟙 ∈ 𝕌
-- el-wf ε ᐅ ℕ ᐅ 𝕌 ⊦ vectS[·, ☐₁, ☐₀] : (vect[·] (S ☐₁) ☐₀) ≡ (☐₀ ⨯ vect[·] ☐₂ ☐₁) ∈ 𝕌
+- el-wf ε ᐅ A:𝕌 ⊦ vectZ[·, A] : (vect[·] Z A) ≡ 𝟙 ∈ 𝕌
+- el-wf ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ vectS[·, n, A] : (vect[·] (S n) A) ≡ (A ⨯ vect[·] n A) ∈ 𝕌

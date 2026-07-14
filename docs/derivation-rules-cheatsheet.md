@@ -109,10 +109,14 @@ example.
 | Keyword & syntax | Premises | Conclusion |
 |---|---|---|
 | `sub-term Γ ⊦ ·` | `Γ ctx` | `· : Γ ⇒ ε` |
-| `sub-id Γ ⊦ id` | `Γ ctx` | `id : Γ ⇒ Γ` |
-| `sub-wk Γ ᐅ A ⊦ ↑` | `Γ ᐅ A ctx` (non-empty) | `↑ : (Γ ᐅ A) ⇒ Γ` |
 | `sub-ext Γ ⊦ σ, e to Δ ᐅ A` | `σ : Γ ⇒ Δ`, `Δ ⊦ A type`, `Γ ⊦ e : A[σ]` | `(σ, e) : Γ ⇒ (Δ ᐅ A)` |
-| `sub-chn Γ ⊦ σ to Θ ∘ τ to Δ` | `σ : Γ ⇒ Θ`, `τ : Θ ⇒ Δ` | `σ ∘ τ : Γ ⇒ Δ` |
+
+No `sub-id`/`sub-wk`/`sub-chn`: nothing in this codebase's derivations ever
+needs a `Sub` built via identity, weakening, or composition — every
+substitution actually used is an explicit, flat extension list (`·, t, ...`),
+exactly like `SubNorm` below. `Id`/`Wk`/`Chain` still exist on the core
+`Sub` type (used internally, e.g. for quotient-type formation's `A[↑]`) —
+they're just not constructible via a dedicated rule anymore.
 
 ## Substitution equality
 
@@ -134,7 +138,8 @@ since it can't contain `id`/`↑`/`∘`.
 |---|---|---|
 | `sub-norm-term Γ ⊦ ·` | `Γ ctx` | `· : Γ ⇒ ε norm` |
 | `sub-norm-ext Γ ⊦ e˲, t to Δ ᐅ A` | `e˲ : Γ ⇒ Δ norm`, `Δ ⊦ A type`, `Γ ⊦ t : A[e˲]` | `(e˲, t) : Γ ⇒ (Δ ᐅ A) norm` |
-| `sub-norm-chn Δ ⊦ σ to Γ₀ ∘ e˲ to Γ₁` | `σ : Δ ⇒ Γ₀`, `e˲ : Γ₀ ⇒ Γ₁ norm` | `e˲ ∘ σ : Δ ⇒ Γ₁ norm` (computed via `substSubNorm`, so the result is already in normal form) |
+
+No `sub-norm-chn`/`sub-norm-eq-chn` either, for the same reason.
 
 ## Normal substitution equality
 

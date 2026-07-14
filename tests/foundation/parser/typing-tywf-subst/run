@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run typing "ty-wf-subst ε ᐅ ℕ ⊦ ↑ to ε ⊦ ℕ"
+"$1" run typing "ty-wf-subst ε ᐅ ℕ ⊦ · to ε ⊦ ℕ"

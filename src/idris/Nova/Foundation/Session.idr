@@ -16,23 +16,24 @@ import Data.String
 
 import Nova.Foundation.Syntax
 import Nova.Foundation.Derivation
-import Nova.Foundation.Derivation.Parser
+import Nova.Foundation.Derivation.NamedParser
+import Nova.Foundation.Derivation.NamedPretty
+import Nova.Foundation.Derivation.NamedRejectionPretty
 import Nova.Foundation.Parser
-import Nova.Foundation.Pretty
-import Nova.Foundation.Rejection.Pretty
 
 %default covering
 
-||| Parse a session's stored rules.
+||| Parse a session's stored rules (named surface syntax — see
+||| docs/NovaNamedSyntax.txt).
 export
 loadRules : String -> Either String (List TypingRule)
-loadRules = runParser parseListTypingRule
+loadRules = runParser parseNamedListTypingRule
 
 describeBrokenSession : ContextualRejection -> String
 describeBrokenSession cr =
   "Session file is corrupt (a previously-accepted rule no longer checks out)\n" ++
-  "  At rule: " ++ prettyTypingRule cr.rule ++ "\n" ++
-  "  Reason: " ++ prettyRejection cr.reason
+  "  At rule: " ++ prettyTypingRuleN cr.rule ++ "\n" ++
+  "  Reason: " ++ prettyRejectionN cr.reason
 
 ||| Keyword used by JudgementForm's keyword-first grammar, reused here to
 ||| filter `dump` output by judgement kind.
@@ -63,11 +64,14 @@ record ApplyOutcome where
 
 ||| Parse and check a single candidate rule against the session so far.
 ||| On success, returns the new facts it derived and the updated session
-||| text (existing content plus the canonically pretty-printed new line).
+||| text (existing content plus the rule text as written, verbatim —
+||| unlike the indexed parser's canonical re-print, this preserves
+||| whatever names the caller actually chose, since those aren't
+||| recoverable from the parsed (indexed) AST alone).
 export
 apply : (sessionContent : String) -> (ruleText : String) -> ApplyOutcome
 apply sessionContent ruleText =
-  case runParser parseTypingRule ruleText of
+  case runParser parseNamedTypingRule ruleText of
     Left err => MkApplyOutcome ("Parse error: " ++ err) Nothing
     Right rule =>
       case loadRules sessionContent of
@@ -79,15 +83,15 @@ apply sessionContent ruleText =
               case step rule before of
                 Left reason =>
                   MkApplyOutcome
-                    ("Rejected\n  At rule: " ++ prettyTypingRule rule ++
-                     "\n  Reason: " ++ prettyRejection reason)
+                    ("Rejected\n  At rule: " ++ prettyTypingRuleN rule ++
+                     "\n  Reason: " ++ prettyRejectionN reason)
                     Nothing
                 Right after =>
                   let facts = newJudgements before after
-                      line  = "- " ++ prettyTypingRule rule ++ "\n"
+                      line  = "- " ++ trim ruleText ++ "\n"
                       factLines = case facts of
                                     [] => "  (no new facts)"
-                                    _  => unlines (map (("  + " ++) . prettyJudgementForm) facts)
+                                    _  => unlines (map (("  + " ++) . prettyJudgementFormN) facts)
                   in MkApplyOutcome ("Ok\n" ++ factLines) (Just (sessionContent ++ line))
 
 ||| Check whether a target judgement is derivable from the session so far,
@@ -95,7 +99,7 @@ apply sessionContent ruleText =
 export
 query : (sessionContent : String) -> (targetText : String) -> String
 query sessionContent targetText =
-  case runParser parseJudgementForm targetText of
+  case runParser parseNamedJudgementForm targetText of
     Left err => "Parse error: " ++ err
     Right jf =>
       case loadRules sessionContent of
@@ -125,7 +129,7 @@ dump sessionContent kind =
                            Just k       => filter (\j => kindOf j == k) js
           in case selected of
                [] => "(no facts)"
-               _  => unlines (map prettyJudgementForm selected)
+               _  => unlines (map prettyJudgementFormN selected)
 
 ||| Drop the last rule from the session, if any.
 export

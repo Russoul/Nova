@@ -5,10 +5,10 @@ import Data.String
 
 import Nova.Foundation.Syntax
 import Nova.Foundation.Derivation
-import Nova.Foundation.Derivation.Parser
+import Nova.Foundation.Derivation.NamedParser
+import Nova.Foundation.Derivation.NamedPretty
+import Nova.Foundation.Derivation.NamedRejectionPretty
 import Nova.Foundation.Parser
-import Nova.Foundation.Pretty
-import Nova.Foundation.Rejection.Pretty
 import Nova.Foundation.Session
 import System
 import System.File
@@ -43,11 +43,11 @@ report : Output -> IO ()
 report Ok = putStrLn "Ok"
 report (Rejected cr) = do
   putStrLn "Rejected"
-  putStrLn $ "  At rule: " ++ prettyTypingRule cr.rule
-  putStrLn $ "  Reason: " ++ prettyRejection cr.reason
+  putStrLn $ "  At rule: " ++ prettyTypingRuleN cr.rule
+  putStrLn $ "  Reason: " ++ prettyRejectionN cr.reason
 report (NoWitness t) = do
   putStrLn "NoWitness"
-  putStrLn $ "  Target: " ++ prettyJudgementForm t
+  putStrLn $ "  Target: " ++ prettyJudgementFormN t
 
 parseInput : Filename -> Filename -> IO (Either BadInput Input)
 parseInput rulesFile targetFile = do
@@ -55,9 +55,9 @@ parseInput rulesFile targetFile = do
     | Left err => pure (Left $ "Cannot read rules file '" ++ rulesFile ++ "': " ++ show err)
   Right targetContent <- readFile targetFile
     | Left err => pure (Left $ "Cannot read target file '" ++ targetFile ++ "': " ++ show err)
-  let Right rules = runParser parseListTypingRule rulesContent
+  let Right rules = runParser parseNamedListTypingRule rulesContent
     | Left err => pure (Left $ "Parse error in rules file: " ++ err)
-  let Right targets = runParser parseListJudgementForm targetContent
+  let Right targets = runParser parseNamedListJudgementForm targetContent
     | Left err => pure (Left $ "Parse error in target file: " ++ err)
   pure (Right (MkInput rules targets))
 

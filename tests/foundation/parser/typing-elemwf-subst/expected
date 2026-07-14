@@ -1,1 +1,1 @@
-ElemWfSubst (([<] :< NatTy)) ([<]) (Wk) (NatIntro0) (NatTy)
+ElemWfSubst (([<] :< NatTy)) ([<]) (Terminal) (NatIntro0) (NatTy)
