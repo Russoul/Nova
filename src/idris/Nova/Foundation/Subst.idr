@@ -84,6 +84,7 @@ substTy (Ty.SigmaTy a b)      sigma = Ty.SigmaTy (substTy a sigma) (substTy b (u
 substTy (EqTy l r ty)         sigma = EqTy (substElem l sigma) (substElem r sigma) (substTy ty sigma)
 substTy (El e)                sigma = El (substElem e sigma)
 substTy (Quotient a r)        sigma = Quotient (substTy a sigma) (substTy r (under (under sigma)))
+substTy (Ty.SigVar x es)      sigma = Ty.SigVar x (substSubNorm es sigma)
 
 ||| Δ[σ]
 export

@@ -127,9 +127,11 @@ agents can own different `derivations/<goal-name>/` directories in
 parallel; ordinary git (branches, commits) is enough to coordinate.
 
 A finished, checked derivation can also be promoted into a reusable lemma:
-add its result to the signature with a `sig` rule (`sig Γ ⊦ x ≔ t : T`) and
-later sessions can reference it by name from a usage context `Δ` via
-`sig-var Δ ⊦ x[e˲]` / `sig-var-eq Δ ⊦ x[e˲]`, where `e˲` is a *normal*
+add its result to the signature with a `sig` rule (`sig Γ ⊦ x ≔ t : T`; a
+*type* is promoted likewise with `sig-ty Γ ⊦ x ≔ T`) and later sessions can
+reference it by name from a usage context `Δ` via
+`sig-var Δ ⊦ x[e˲]` (for a type definition: `ty-sig-var Δ ⊦ x[e˲]`) —
+unfolding the definition is automatic — where `e˲` is a *normal*
 substitution (`t˲ ::= (empty) | t{≥1} (, t{≥1})*` — a plain, comma-separated
 list of elements, no `id`/`↑`/`∘`; the empty substitution is written as
 literally nothing, not `·`) with `e˲ : Δ ⇒ Γ norm` — there is no bare `x`,

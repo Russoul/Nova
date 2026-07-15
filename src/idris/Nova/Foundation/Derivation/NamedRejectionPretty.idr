@@ -56,5 +56,9 @@ prettyRejectionN (SigIdentifierNotFound x) =
   "identifier not found in signature: " ++ x
 prettyRejectionN (SigIdentifierAlreadyDefined x) =
   "identifier already defined in signature: " ++ x
+prettyRejectionN (SigIdentifierNotATermDef x) =
+  "signature identifier is not a term definition: " ++ x
+prettyRejectionN (SigIdentifierNotATypeDef x) =
+  "signature identifier is not a type definition: " ++ x
 prettyRejectionN (CtxVarOutOfBounds ctx n) =
   "index out of bounds: " ++ nameAt (envForCtx ctx) n ++ " in " ++ prettyCtxN ctx

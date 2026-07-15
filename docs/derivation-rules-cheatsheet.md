@@ -168,6 +168,7 @@ No `sub-norm-chn`/`sub-norm-eq-chn` either, for the same reason.
 | `ty-sigma Γ ⊦ A ⨯ B` | `Γ ᐅ A ⊦ B type` | `Γ ⊦ A ⨯ B type` |
 | `ty-eq-form Γ ⊦ l ≡ r ∈ A` | `Γ ⊦ l : A`, `Γ ⊦ r : A` | `Γ ⊦ l ≡ r ∈ A type` |
 | `ty-el Γ ⊦ El t` | `Γ ⊦ t : 𝕌` | `Γ ⊦ El t type` |
+| `ty-sig-var Δ ⊦ x[e˲]` | `(Γ ⊦ x ≔ A type)` in the signature, `Δ ctx`, `e˲ : Δ ⇒ Γ norm` | `Δ ⊦ x[e˲] type` |
 
 ## Type equality
 
@@ -221,8 +222,16 @@ sessions reference it by name instead of re-deriving it.
 | Keyword & syntax | Premises | Conclusion |
 |---|---|---|
 | `sig Γ ⊦ x ≔ a : A` | `Γ ⊦ a : A`, `x` not already in the signature | adds `(Γ ⊦ x ≔ a : A)` to the signature |
+| `sig-ty Γ ⊦ x ≔ A` | `Γ ⊦ A type`, `x` not already in the signature | adds `(Γ ⊦ x ≔ A type)` to the signature |
 | `sig-var Δ ⊦ x[e˲]` | `(Γ ⊦ x ≔ a : A)` in the signature, `Δ ctx`, `e˲ : Δ ⇒ Γ norm` | `Δ ⊦ x[e˲] : A[e˲]` |
-| `sig-var-eq Δ ⊦ x[e˲]` | `(Γ ⊦ x ≔ a : A)` in the signature, `Δ ctx`, `e˲ : Δ ⇒ Γ norm` | `Δ ⊦ x[e˲] ≐ a[e˲] : A[e˲]` |
+| `ty-sig-var Δ ⊦ x[e˲]` | `(Γ ⊦ x ≔ A type)` in the signature, `Δ ctx`, `e˲ : Δ ⇒ Γ norm` | `Δ ⊦ x[e˲] type` |
+
+There is no `sig-var-eq`/`ty-sig-var-eq`: unfolding a definition (`x[e˲] ≐
+a[e˲]` / `x[e˲] ≐ A[e˲]`) is automatic — the truth table stores every fact
+beta-normalized, and beta-normalization unfolds signature references, so
+both sides of the unfolding equation already denote the same stored fact
+(state the equation via `el-eq-refl`/`ty-refl` at either side if you need
+it explicitly).
 
 ## Element equality
 

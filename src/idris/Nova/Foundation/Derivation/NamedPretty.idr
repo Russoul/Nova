@@ -110,6 +110,7 @@ mutual
   usesIndexTy k (Ty.EqTy e0 e1 a) = usesIndexElem k e0 || usesIndexElem k e1 || usesIndexTy k a
   usesIndexTy k (El e) = usesIndexElem k e
   usesIndexTy k (Quotient a r) = usesIndexTy k a || usesIndexTy (S (S k)) r
+  usesIndexTy k (Ty.SigVar x es) = usesIndexSubNorm k es
 
   usesIndexElem : Nat -> Elem -> Bool
   usesIndexElem k (CtxVar n) = n == k
@@ -275,6 +276,7 @@ mutual
   prettyTyAtomN env Ty.OneTy = "𝟙"
   prettyTyAtomN env Ty.NatTy = "ℕ"
   prettyTyAtomN env Ty.UniverseTy = "𝕌"
+  prettyTyAtomN env (Ty.SigVar x es) = x ++ "[" ++ prettySubNormN env es ++ "]"
   prettyTyAtomN env ty = "(" ++ prettyTyN env ty ++ ")"
 
 -- ===== Ctx, Tel, Spine =====
@@ -463,6 +465,8 @@ prettyTypingRuleN (TyWfEl ctx e) =
   "ty-el " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyTyN (envForCtx ctx) (El e)
 prettyTypingRuleN (TyWfQuotient ctx a r) =
   "ty-quotient " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyTyN (envForCtx ctx) (Quotient a r)
+prettyTypingRuleN (TyWfSigVar ctx sigma x) =
+  "ty-sig-var " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyTyN (envForCtx ctx) (Ty.SigVar x sigma)
 prettyTypingRuleN (TyEqRefl ctx ty) =
   "ty-refl " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyTyN (envForCtx ctx) ty
 prettyTypingRuleN (TyEqSym ctx ty0 ty1) =
@@ -577,13 +581,13 @@ prettyTypingRuleN (ElemWfSigmaTy ctx a b) =
   "el-sigma-ty " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyElemN (envForCtx ctx) (Elem.SigmaTy a b) ++ " : 𝕌"
 prettyTypingRuleN (ElemWfEqTy ctx l r ty) =
   "el-eq-ty " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyElemN (envForCtx ctx) (Elem.EqTy l r ty) ++ " : 𝕌"
-prettyTypingRuleN (ElemEqSigVar ctx sigma x) =
-  "sig-var-eq " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyElemAtomN (envForCtx ctx) (SigVar x sigma)
 prettyTypingRuleN (ElemWfSigVar ctx sigma x) =
   "sig-var " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyElemAtomN (envForCtx ctx) (SigVar x sigma)
 prettyTypingRuleN (SigExt gamma x a ty) =
   let env = envForCtx gamma
   in "sig " ++ prettyCtxN gamma ++ " ⊦ " ++ x ++ " ≔ " ++ prettyElemN env a ++ " : " ++ prettyTyN env ty
+prettyTypingRuleN (SigExtTy gamma x a) =
+  "sig-ty " ++ prettyCtxN gamma ++ " ⊦ " ++ x ++ " ≔ " ++ prettyTyN (envForCtx gamma) a
 prettyTypingRuleN (ElemEqRefl ctx e ty) =
   let env = envForCtx ctx
   in "el-eq-refl " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyElemN env e ++ " : " ++ prettyTyN env ty

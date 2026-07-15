@@ -39,6 +39,9 @@ mutual
       ||| T / T  (quotient type: the second Ty is the relation, living two
       ||| levels deeper — Γ ᐅ A ᐅ A[↑] — one bound variable per side)
       Quotient : Ty -> Ty -> Ty
+      ||| x[e˲]  (signature type variable, applied to a (normal)
+      ||| substitution to its declaration context)
+      SigVar : String -> SubNorm -> Ty
 
   namespace Elem
     public export
@@ -113,8 +116,17 @@ SigIdentifier : Type
 SigIdentifier = String
 
 public export
-SigEntry : Type
-SigEntry = (Ctx, SigIdentifier, Elem, Ty)
+data SigEntry : Type where
+  ||| Γ ⊦ x ≔ a : A  (term definition)
+  SigDef : Ctx -> SigIdentifier -> Elem -> Ty -> SigEntry
+  ||| Γ ⊦ x ≔ A type  (type definition)
+  SigTyDef : Ctx -> SigIdentifier -> Ty -> SigEntry
+
+||| The name a signature entry binds.
+public export
+sigEntryName : SigEntry -> SigIdentifier
+sigEntryName (SigDef _ x _ _) = x
+sigEntryName (SigTyDef _ x _) = x
 
 public export
 Sig : Type
@@ -124,8 +136,8 @@ Sig = SnocList SigEntry
 export covering
 sigLookup : SigIdentifier -> Sig -> Maybe SigEntry
 sigLookup _ [<] = Nothing
-sigLookup x (rest :< entry@(_, name, _, _)) =
-  if name == x then Just entry else sigLookup x rest
+sigLookup x (rest :< entry) =
+  if sigEntryName entry == x then Just entry else sigLookup x rest
 
 ||| σ⁺ ≜ σ∘↑, ☐₀
 public export
@@ -155,6 +167,7 @@ mutual
     EqTy l r ty    == EqTy l' r' ty'   = l == l' && r == r' && ty == ty'
     El e           == El e'            = e == e'
     Quotient a r   == Quotient a' r'   = a == a' && r == r'
+    Ty.SigVar x s  == Ty.SigVar x' s'  = x == x' && s == s'
     _              == _                = False
 
   public export
@@ -229,6 +242,9 @@ mutual
     compare (El _)           _                  = LT
     compare _                (El _)             = GT
     compare (Quotient a r)   (Quotient a' r')   = compare a a' <+> compare r r'
+    compare (Quotient _ _)   _                  = LT
+    compare _                (Quotient _ _)     = GT
+    compare (Ty.SigVar x s)  (Ty.SigVar y t)    = compare x y <+> compare s t
 
   public export
   covering
@@ -317,6 +333,7 @@ mutual
     show (EqTy e0 e1 a) = "EqTy (\{show e0}) (\{show e1}) (\{show a})"
     show (El e) = "El (\{show e})"
     show (Quotient a r) = "Quotient (\{show a}) (\{show r})"
+    show (Ty.SigVar x s) = "SigVar \{show x} (\{show s})"
 
   public export
   covering

@@ -222,7 +222,7 @@ mutual
         (do str_ "El"; space; e <- parseElemAtom; pure (El e))
     <|> parseTyAtom
 
-  -- Constant types and parenthesised type
+  -- Constant types, signature type variable, and parenthesised type
   covering
   parseTyAtom : Rule Ty
   parseTyAtom =
@@ -230,6 +230,9 @@ mutual
     <|> (str_ "𝟙" $> Ty.OneTy)
     <|> (str_ "ℕ" $> Ty.NatTy)
     <|> (str_ "𝕌" $> Ty.UniverseTy)
+    <|> (do x <- parseSigIdentifier
+            sp; char_ '['; sp; es <- parseSubNorm; sp; char_ ']'
+            pure (Ty.SigVar x es))
     <|> inParen parseTy
 
 -- ===== Ctx, Tel, Spine =====

@@ -112,6 +112,7 @@ mutual
   prettyTyAtom Ty.OneTy = "𝟙"
   prettyTyAtom Ty.NatTy = "ℕ"
   prettyTyAtom Ty.UniverseTy = "𝕌"
+  prettyTyAtom (Ty.SigVar x es) = x ++ "[" ++ prettySubNorm es ++ "]"
   prettyTyAtom ty = "(" ++ prettyTy ty ++ ")"
 
 -- ===== Ctx, Tel, Spine =====
@@ -258,6 +259,8 @@ prettyTypingRule (TyWfEl ctx e) =
   "ty-el " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy (El e)
 prettyTypingRule (TyWfQuotient ctx a r) =
   "ty-quotient " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy (Quotient a r)
+prettyTypingRule (TyWfSigVar ctx sigma x) =
+  "ty-sig-var " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy (Ty.SigVar x sigma)
 prettyTypingRule (TyEqRefl ctx ty) =
   "ty-refl " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy ty
 prettyTypingRule (TyEqSym ctx ty0 ty1) =
@@ -332,12 +335,12 @@ prettyTypingRule (ElemWfSigmaTy ctx a b) =
   "el-sigma-ty " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (Elem.SigmaTy a b) ++ " : 𝕌"
 prettyTypingRule (ElemWfEqTy ctx l r ty) =
   "el-eq-ty " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (Elem.EqTy l r ty) ++ " : 𝕌"
-prettyTypingRule (ElemEqSigVar ctx sigma x) =
-  "sig-var-eq " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElemAtom (SigVar x sigma)
 prettyTypingRule (ElemWfSigVar ctx sigma x) =
   "sig-var " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElemAtom (SigVar x sigma)
 prettyTypingRule (SigExt gamma x a ty) =
   "sig " ++ prettyCtx gamma ++ " ⊦ " ++ x ++ " ≔ " ++ prettyElem a ++ " : " ++ prettyTy ty
+prettyTypingRule (SigExtTy gamma x a) =
+  "sig-ty " ++ prettyCtx gamma ++ " ⊦ " ++ x ++ " ≔ " ++ prettyTy a
 prettyTypingRule (ElemEqRefl ctx e ty) =
   "el-eq-refl " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem e ++ " : " ++ prettyTy ty
 prettyTypingRule (ElemEqSym ctx e0 e1 ty) =

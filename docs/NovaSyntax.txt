@@ -5,7 +5,7 @@
 // sub-id/sub-wk/sub-chn rule).
 σ ::= · | σ , t{≥1}                                                         Ext (left-assoc)
 
-T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | (T{≥0})
+T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | x[t˲] | (T{≥0})
 T{3} ::= T{≥3}[σ{≥0}]
 T{2} ::= El t{≥4}
 T{1} ::= T{≥2} → T{≥1} | T{≥2} ⨯ T{≥1} | T{≥2} / T{≥1}                     (right-assoc)
@@ -64,6 +64,7 @@ R ::=
   ty-eq-form Γ ⊦ l ≡ r ∈ A
   ty-el      Γ ⊦ El e
   ty-quotient Γ ⊦ A / R                         (TyWfQuotient, R in Γ ᐅ A ᐅ A[↑])
+  ty-sig-var Γ ⊦ x[e˲]                           (TyWfSigVar — x names a signature *type* definition)
   ty-wf-subst Γ₀ ⊦ σ to Γ₁ ⊦ A                  (TyWfSubst, conclusion: Γ₀ ⊦ A[σ])
 
   // Type eq
@@ -103,9 +104,9 @@ R ::=
   el-eq-ty    Γ ⊦ l ≡ r ∈ A : 𝕌
 
   // Signature
-  sig-var-eq Γ ⊦ x[e˲]                           (ElemEqSigVar)
   sig-var    Γ ⊦ x[e˲]                           (ElemWfSigVar)
-  sig        Γ ⊦ x ≔ t : T                      (SigExt)
+  sig        Γ ⊦ x ≔ t : T                      (SigExt — term definition)
+  sig-ty     Γ ⊦ x ≔ T                          (SigExtTy — type definition)
 
   // Element equality
   el-ty-coe-eq Γ ⊦ t₀ ≐ t₁ : T₀ ↝ T₁           (ElemEqTyCoe)

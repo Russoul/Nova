@@ -334,7 +334,7 @@ mutual
         (do str_ "El"; space; e <- parseElemAtom env; pure (El e))
     <|> parseTyAtom env
 
-  -- Constant types and parenthesised type
+  -- Constant types, signature type variable, and parenthesised type
   covering
   parseTyAtom : NameEnv -> Rule Ty
   parseTyAtom env =
@@ -342,6 +342,9 @@ mutual
     <|> (str_ "𝟙" $> Ty.OneTy)
     <|> (str_ "ℕ" $> Ty.NatTy)
     <|> (str_ "𝕌" $> Ty.UniverseTy)
+    <|> (do x <- Nova.Foundation.Parser.parseSigIdentifier
+            sp; char_ '['; sp; es <- parseSubNorm env; sp; char_ ']'
+            pure (Ty.SigVar x es))
     <|> inParen (parseTy env)
 
 -- ===== Ctx, Tel, Spine =====
@@ -525,6 +528,10 @@ parseNamedTypingRule =
       case ty of
         El e => pure (TyWfEl ctx e)
         _    => fail "ty-el: expected El e") <|>
+  (do str_ "ty-sig-var"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; ty <- parseTy env
+      case ty of
+        Ty.SigVar x sigma => pure (TyWfSigVar ctx sigma x)
+        _                 => fail "ty-sig-var: expected x[σ]") <|>
   -- Type eq
   (do str_ "ty-refl"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; ty <- parseTy env
       pure (TyEqRefl ctx ty)) <|>
@@ -690,15 +697,15 @@ parseNamedTypingRule =
       case e of
         Elem.EqTy l r a => pure (ElemWfEqTy ctx l r a)
         _               => fail "el-eq-ty: expected l ≡ r ∈ A") <|>
-  -- Signature (sig-var-eq before sig-var before sig — longer keywords first)
-  (do str_ "sig-var-eq"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
-      case e of
-        SigVar x sigma => pure (ElemEqSigVar ctx sigma x)
-        _              => fail "sig-var-eq: expected x[σ]") <|>
+  -- Signature (sig-var before sig-ty before sig — longer keywords first)
   (do str_ "sig-var"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
       case e of
         SigVar x sigma => pure (ElemWfSigVar ctx sigma x)
         _              => fail "sig-var: expected x[σ]") <|>
+  (do str_ "sig-ty"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+      x <- Nova.Foundation.Parser.parseSigIdentifier; sp; str_ "≔"; sp
+      a <- parseTy env
+      pure (SigExtTy ctx x a)) <|>
   (do str_ "sig"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
       x <- Nova.Foundation.Parser.parseSigIdentifier; sp; str_ "≔"; sp
       a <- parseElem env; sp; char_ ':'; sp; ty <- parseTy env

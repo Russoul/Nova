@@ -135,6 +135,10 @@ parseTypingRule =
       case ty of
         El e => pure (TyWfEl ctx e)
         _    => fail "ty-el: expected El e") <|>
+  (do str_ "ty-sig-var"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
+      case ty of
+        Ty.SigVar x sigma => pure (TyWfSigVar ctx sigma x)
+        _                 => fail "ty-sig-var: expected x[σ]") <|>
   -- Type eq
   (do str_ "ty-refl"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
       pure (TyEqRefl ctx ty)) <|>
@@ -288,15 +292,14 @@ parseTypingRule =
       case e of
         Elem.EqTy l r a => pure (ElemWfEqTy ctx l r a)
         _               => fail "el-eq-ty: expected l ≡ r ∈ A") <|>
-  -- Signature (sig-var-eq before sig-var before sig — longer keywords first)
-  (do str_ "sig-var-eq"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
-      case e of
-        SigVar x sigma => pure (ElemEqSigVar ctx sigma x)
-        _              => fail "sig-var-eq: expected x[σ]") <|>
+  -- Signature (sig-var before sig-ty before sig — longer keywords first)
   (do str_ "sig-var"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
       case e of
         SigVar x sigma => pure (ElemWfSigVar ctx sigma x)
         _              => fail "sig-var: expected x[σ]") <|>
+  (do str_ "sig-ty"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      x <- parseSigIdentifier; sp; str_ "≔"; sp; a <- parseTy
+      pure (SigExtTy ctx x a)) <|>
   (do str_ "sig"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
       x <- parseSigIdentifier; sp; str_ "≔"; sp; a <- parseElem; sp; char_ ':'; sp; ty <- parseTy
       pure (SigExt ctx x a ty)) <|>

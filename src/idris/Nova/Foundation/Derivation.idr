@@ -152,6 +152,11 @@ data TypingRule : Type where
   ||| ----------------
   ||| Γ₀ ⊦ A[σ] type
   TyWfSubst : Ctx -> Ctx -> Sub -> Ty -> TypingRule
+  ||| (Γ ⊦ x ≔ A type) ∈ Σ
+  ||| e˲ : Δ ⇒ Γ norm
+  ||| -------------------
+  ||| Σ Δ ⊦ x[e˲] type
+  TyWfSigVar : Ctx -> SubNorm -> SigIdentifier -> TypingRule
   ||| Γ ⊦ ☐ₙ : Γ‖ₙ
   ElemWfVar : Ctx -> Nat -> TypingRule
   ||| Γ ⊦ 𝟘-elim t : A
@@ -307,11 +312,6 @@ data TypingRule : Type where
   ||| -------------------------
   ||| Γ₀ ⊦ t₀[σ₀] ≐ t₁[σ₁] : A[σ₁]
   ElemEqSubst : Ctx -> Ctx -> Sub -> Sub -> Elem -> Elem -> Ty -> TypingRule
-  ||| (Γ ⊦ x ≔ a : A) ∈ Σ
-  ||| e˲ : Δ ⇒ Γ norm
-  ||| ---------------------------
-  ||| Σ Δ ⊦ x[e˲] ≐ a[e˲] : A[e˲]
-  ElemEqSigVar : Ctx -> SubNorm -> SigIdentifier -> TypingRule
   ||| Γ ⊦ a ≐ b : A₀
   ||| Γ ⊦ A₀ ≐ A₁ type
   ||| -----------------
@@ -321,6 +321,10 @@ data TypingRule : Type where
   ||| -------------------------------------------------------
   ||| Σ (Γ ⊦ x ≔ a : A) sig
   SigExt : Ctx -> SigIdentifier -> Elem -> Ty -> TypingRule
+  ||| Σ sig, Σ ⊦ Γ ctx, Σ Γ ⊦ A type, x ∉ Σ
+  ||| --------------------------------------
+  ||| Σ (Γ ⊦ x ≔ A type) sig
+  SigExtTy : Ctx -> SigIdentifier -> Ty -> TypingRule
   -- Telescope equality
   TelEqRefl  : Ctx -> Tel -> TypingRule
   TelEqSym   : Ctx -> Tel -> Tel -> TypingRule
@@ -349,6 +353,7 @@ Show TypingRule where
   show (TyWfEl ctx e)                = "TyWfEl (\{showCtxRep ctx}) (\{show e})"
   show (TyWfQuotient ctx a r)        = "TyWfQuotient (\{showCtxRep ctx}) (\{show a}) (\{show r})"
   show (TyWfSubst gamma0 gamma1 sigma a) = "TyWfSubst (\{showCtxRep gamma0}) (\{showCtxRep gamma1}) (\{show sigma}) (\{show a})"
+  show (TyWfSigVar ctx sigma x)      = "TyWfSigVar (\{showCtxRep ctx}) (\{show sigma}) \{show x}"
   show (ElemWfVar g n)               = "ElemWfVar (\{showCtxRep g}) (\{show n})"
   show (ElemWfZeroElim ctx e ty)     = "ElemWfZeroElim (\{showCtxRep ctx}) (\{show e}) (\{show ty})"
   show (ElemWfOneIntro ctx)          = "ElemWfOneIntro (\{showCtxRep ctx})"
@@ -373,9 +378,9 @@ Show TypingRule where
   show (ElemWfTyCoe ctx e ty0 ty1)   = "ElemWfTyCoe (\{showCtxRep ctx}) (\{show e}) (\{show ty0}) (\{show ty1})"
   show (ElemWfCtxCoe ctx0 ctx1 e ty) = "ElemWfCtxCoe (\{showCtxRep ctx0}) (\{showCtxRep ctx1}) (\{show e}) (\{show ty})"
   show (ElemWfSigVar ctx sigma x)     = "ElemWfSigVar (\{showCtxRep ctx}) (\{show sigma}) \{show x}"
-  show (ElemEqSigVar ctx sigma x)     = "ElemEqSigVar (\{showCtxRep ctx}) (\{show sigma}) \{show x}"
   show (ElemEqTyCoe ctx a b ty0 ty1)  = "ElemEqTyCoe (\{showCtxRep ctx}) (\{show a}) (\{show b}) (\{show ty0}) (\{show ty1})"
   show (SigExt gamma x a ty)          = "SigExt (\{showCtxRep gamma}) \{show x} (\{show a}) (\{show ty})"
+  show (SigExtTy gamma x ty)          = "SigExtTy (\{showCtxRep gamma}) \{show x} (\{show ty})"
   show (CtxEqRefl ctx)               = "CtxEqRefl (\{showCtxRep ctx})"
   show (CtxEqSym ctx0 ctx1)          = "CtxEqSym (\{showCtxRep ctx0}) (\{showCtxRep ctx1})"
   show (CtxEqTrans ctx0 ctx1 ctx2)   = "CtxEqTrans (\{showCtxRep ctx0}) (\{showCtxRep ctx1}) (\{showCtxRep ctx2})"
@@ -430,6 +435,8 @@ data Rejection : Type where
   SpineEqNotDerivable : Ctx -> Spine -> Spine -> Tel -> Rejection
   SigIdentifierNotFound : SigIdentifier -> Rejection
   SigIdentifierAlreadyDefined : SigIdentifier -> Rejection
+  SigIdentifierNotATermDef : SigIdentifier -> Rejection
+  SigIdentifierNotATypeDef : SigIdentifier -> Rejection
   CtxVarOutOfBounds : Ctx -> Nat -> Rejection
 
 rejectUnless : Rejection -> Bool -> Either Rejection ()
@@ -664,6 +671,14 @@ step (TyWfSubst gamma0 gamma1 sigma a) sp = do
   subWfDerivable sigma gamma0 gamma1 sp
   tyWfDerivable gamma1 a sp
   Right $ {tyWf $= insertTyWf sp.sig (gamma0, substTy a sigma)} sp
+step (TyWfSigVar delta sigma x) sp = do
+  ctxWfDerivable delta sp
+  case sigLookup x sp.sig of
+    Just (SigTyDef gamma _ _) => do
+      subNormWfDerivable sigma delta gamma sp
+      Right $ {tyWf $= insertTyWf sp.sig (delta, Ty.SigVar x sigma)} sp
+    Just (SigDef _ _ _ _) => Left (SigIdentifierNotATypeDef x)
+    Nothing => Left (SigIdentifierNotFound x)
 step (ElemWfVar gamma n) sp = do
   ctxWfDerivable gamma sp
   case ctxLookup gamma n of
@@ -768,17 +783,11 @@ step (ElemWfCtxCoe ctx0 ctx1 e ty) sp = do
 step (ElemWfSigVar delta sigma x) sp = do
   ctxWfDerivable delta sp
   case sigLookup x sp.sig of
-    Nothing => Left (SigIdentifierNotFound x)
-    Just (gamma, _, _, ty) => do
+    Just (SigDef gamma _ _ ty) => do
       subNormWfDerivable sigma delta gamma sp
       Right $ {elemWf $= insertElemWf sp.sig (delta, SigVar x sigma, substTy ty (embed sigma))} sp
-step (ElemEqSigVar delta sigma x) sp = do
-  ctxWfDerivable delta sp
-  case sigLookup x sp.sig of
+    Just (SigTyDef _ _ _) => Left (SigIdentifierNotATermDef x)
     Nothing => Left (SigIdentifierNotFound x)
-    Just (gamma, _, a, ty) => do
-      subNormWfDerivable sigma delta gamma sp
-      Right $ {elemEq $= insertElemEq sp.sig (delta, SigVar x sigma, substElem a (embed sigma), substTy ty (embed sigma))} sp
 -- Γ ⊦ a = b : A₀
 -- Γ ⊦ A₀ = A₁ type
 -- -----------------
@@ -791,7 +800,12 @@ step (SigExt gamma x a ty) sp = do
   elemWfDerivable gamma a ty sp
   case sigLookup x sp.sig of
     Just _  => Left (SigIdentifierAlreadyDefined x)
-    Nothing => Right $ {sig $= (:< (gamma, x, a, ty))} sp
+    Nothing => Right $ {sig $= (:< SigDef gamma x a ty)} sp
+step (SigExtTy gamma x ty) sp = do
+  tyWfDerivable gamma ty sp
+  case sigLookup x sp.sig of
+    Just _  => Left (SigIdentifierAlreadyDefined x)
+    Nothing => Right $ {sig $= (:< SigTyDef gamma x ty)} sp
 step (CtxEqRefl ctx) sp = do
   ctxWfDerivable ctx sp
   Right $ {ctxEq $= insertCtxEq sp.sig (ctx, ctx)} sp

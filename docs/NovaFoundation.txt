@@ -23,7 +23,8 @@ x ::= <signature-entry-identifier>
 
 // signature context
 Σ ::= ε
-    | Σ (Γ ⊦ x ≔ a : A)
+    | Σ (Γ ⊦ x ≔ a : A)     // term definition
+    | Σ (Γ ⊦ x ≔ T type)    // type definition
 
 // typing context
 Γ ::= ε      // empty typing context
@@ -46,7 +47,8 @@ x ::= <signature-entry-identifier>
 e˲, t˲, p˲ ::= · | t˲, t
 
 // type
-T ::= 𝟘
+T ::= x [e˲]         // type in the signature context
+    | 𝟘
     | 𝟙
     | ℕ
     | 𝕌              // universe type
@@ -191,6 +193,13 @@ t ::= x [e˲]         // element in the signature context
 x ∉ Σ
 ---------------------
 Σ (Γ ⊦ x ≔ a : A) sig
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ A type
+x ∉ Σ
+----------------------
+Σ (Γ ⊦ x ≔ A type) sig
 
 ///////// Inference rules (ctx) //////////
 
@@ -740,6 +749,27 @@ x ∉ Σ
 Σ Γ ⊦ A / R type
 
 Σ sig
+(Γ ⊦ x ≔ A type) ∈ Σ
+Σ ⊦ Δ ctx
+e˲ : Δ ⇒ Γ
+----------------  (x)
+Σ Δ ⊦ x[e˲] type
+
+Σ sig
+(Γ ⊦ x ≔ A type) ∈ Σ
+Σ ⊦ Δ ctx
+e˲ : Δ ⇒ Γ
+-----------------------  (x)
+Σ Δ ⊦ x[e˲] ≐ x[e˲] type
+
+Σ sig
+(Γ ⊦ x ≔ A type) ∈ Σ
+Σ ⊦ Δ ctx
+e˲ : Δ ⇒ Γ
+------------------------  (x-β)
+Σ Δ ⊦ x[e˲] ≜ A[e˲] type
+
+Σ sig
 Σ ⊦ Γ₀ ctx
 ---------------
 Σ ⊦ Γ₁ ctx       (Γ₁)
@@ -836,6 +866,15 @@ x ∉ Σ
 Σ ⊦ σ : Γ₀ ⇒ Γ₁
 -------------------------------------
 Σ Γ₀ ⊦ (A / R)[σ] ≜ A[σ] / R[σ⁺⁺] type
+
+Σ sig
+(Γ ⊦ x type) ∈ Σ
+Σ ⊦ Γ₀ ctx
+Σ ⊦ Γ₁ ctx
+e˲ : Γ₁ ⇒ Γ
+σ : Γ₀ ⇒ Γ₁
+-----------------------------------
+Σ Γ₀ ⊦ x[e˲][σ] ≜ x[e˲ ∘ σ] type
 
 
 Σ sig

@@ -1,0 +1,5 @@
+- ty-wf ε ⊦ pair[·]
+- ty-eq ε ⊦ pair[·] ≐ ℕ ⨯ ℕ
+- el-wf ε ⊦ Z , Z : pair[·]
+- ty-wf ε ⊦ isZero[·, Z]
+- el-wf ε ⊦ Refl : isZero[·, Z]

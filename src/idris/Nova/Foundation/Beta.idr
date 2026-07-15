@@ -73,8 +73,9 @@ mutual
   betaElem sig (SigVar x es) =
     let es' = betaSubNorm sig es
     in case sigLookup x sig of
-         Nothing          => SigVar x es'
-         Just (_, _, a, _) => betaElem sig (substElem a (embed es'))
+         Just (SigDef _ _ a _) => betaElem sig (substElem a (embed es'))
+         Just (SigTyDef _ _ _) => assert_total $ idris_crash "betaElem: signature identifier '\{x}' is a type definition, used as a term"
+         Nothing               => assert_total $ idris_crash "betaElem: signature identifier '\{x}' not found"
   betaElem sig (Class a)          = Class (betaElem sig a)
   betaElem sig (QuotElim f q) =
     case betaElem sig q of
@@ -82,7 +83,8 @@ mutual
       q'      => QuotElim (betaElem sig f) q'
 
 ||| T, with every beta-redex rewritten: Π/Σ/ℕ-elim/quot-elim/x-β redexes
-||| inside an El t's argument (via betaElem), plus El-of-universe-code
+||| inside an El t's argument (via betaElem), type-level x-β (unfolding a
+||| signature type definition x[e˲] ≜ A[e˲]), plus El-of-universe-code
 ||| decoding — El 𝟘 ≜ 𝟘, El 𝟙 ≜ 𝟙, El ℕ ≜ ℕ, El (A → B) ≜ El A → El B,
 ||| El (A ⨯ B) ≜ El A ⨯ El B, El (a ≡ b ∈ A) ≜ (a ≡ b ∈ El A) — see the
 ||| El-* rules in docs/NovaFoundation.txt. The decoded result is itself
@@ -107,6 +109,12 @@ betaTy sig (El e) =
     Elem.EqTy l r t  => betaTy sig (EqTy l r (El t))
     e'               => El e'
 betaTy sig (Quotient a r)   = Quotient (betaTy sig a) (betaTy sig r)
+betaTy sig (Ty.SigVar x es) =
+  let es' = betaSubNorm sig es
+  in case sigLookup x sig of
+       Just (SigTyDef _ _ a) => betaTy sig (substTy a (embed es'))
+       Just (SigDef _ _ _ _) => assert_total $ idris_crash "betaTy: signature identifier '\{x}' is a term definition, used as a type"
+       Nothing               => assert_total $ idris_crash "betaTy: signature identifier '\{x}' not found"
 
 ||| σ, with every element's own beta-redexes rewritten.
 export

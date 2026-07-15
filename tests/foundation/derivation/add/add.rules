@@ -16,8 +16,8 @@
 - el-pi-i ε ⊦ λ (λ (ℕ-elim ☐₁ (S ☐₀) ☐₀)) : ℕ → ℕ → ℕ
 - sig ε ⊦ plus ≔ λ (λ (ℕ-elim ☐₁ (S ☐₀) ☐₀)) : ℕ → ℕ → ℕ
 - sub-norm-term ε ⊦ ·
-- sig-var-eq ε ⊦ plus[·]
 - sig-var ε ⊦ plus[·]
+- el-eq-refl ε ⊦ plus[·] : ℕ → ℕ → ℕ
 - el-var ε ᐅ ℕ ⊦ ☐₀
 - el-suc ε ᐅ ℕ ⊦ S ☐₀
 - el-zero ε ᐅ ℕ ⊦ Z

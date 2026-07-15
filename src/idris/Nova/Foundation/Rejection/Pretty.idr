@@ -44,5 +44,9 @@ prettyRejection (SigIdentifierNotFound x) =
   "identifier not found in signature: " ++ x
 prettyRejection (SigIdentifierAlreadyDefined x) =
   "identifier already defined in signature: " ++ x
+prettyRejection (SigIdentifierNotATermDef x) =
+  "signature identifier is not a term definition: " ++ x
+prettyRejection (SigIdentifierNotATypeDef x) =
+  "signature identifier is not a type definition: " ++ x
 prettyRejection (CtxVarOutOfBounds ctx n) =
   "index out of bounds: " ++ prettyElemAtom (CtxVar n) ++ " in " ++ prettyCtx ctx
