@@ -945,7 +945,7 @@ step (ElemWfSucIntro gamma t) sp = do
   elemWfDerivable gamma t NatTy sp
   Right $ insertElemWf (gamma, NatIntro1 t, NatTy) sp
 step (ElemWfNatElim gamma z s t a) sp = do
-  -- tyWfDerivable (gamma :< NatTy) a sp
+  tyWfDerivable (gamma :< NatTy) a sp
   elemWfDerivable gamma z (substTy a (Ext Id NatIntro0)) sp
   elemWfDerivable (gamma :< NatTy :< a) s (substTy a (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) sp
   elemWfDerivable gamma t NatTy sp
