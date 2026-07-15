@@ -202,7 +202,9 @@ mutual
        " (" ++ n ++ " " ++ ih ++ ". " ++ prettyElemAtomN (env :< n :< ih) s ++ ") " ++
        prettyElemAtomN env t
   prettyElemPrefixN env (Class a) = "class " ++ prettyElemAtomN env a
-  prettyElemPrefixN env (QuotElim f q) = "quot-elim " ++ prettyElemAtomN env f ++ " " ++ prettyElemAtomN env q
+  prettyElemPrefixN env (QuotElim f q) =
+    let a = if usesIndexElem 0 f then freshGeneric env else wildcard
+    in "quot-elim (" ++ a ++ ". " ++ prettyElemN (env :< a) f ++ ") " ++ prettyElemAtomN env q
   prettyElemPrefixN env e = prettyElemPostfixN env e
 
   prettyElemPostfixN : NameEnv -> Elem -> String
@@ -525,9 +527,19 @@ prettyTypingRuleN (ElemWfClass ctx a ty r) =
   in "el-class " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyElemN env (Class a) ++ " : " ++ prettyTyN env (Quotient ty r)
 prettyTypingRuleN (ElemWfQuotElim ctx ty r motive f q) =
   let env = envForCtx ctx
+      a   = if usesIndexElem 0 f then freshGeneric env else wildcard
       qn  = freshGeneric env
-  in "el-quot-elim " ++ prettyCtxN ctx ++ " ⊦ quot-elim " ++ prettyElemAtomN env f ++
+  in "el-quot-elim " ++ prettyCtxN ctx ++ " ⊦ quot-elim (" ++ a ++ ". " ++ prettyElemN (env :< a) f ++ ")" ++
      " (" ++ prettyElemN env q ++ " : " ++ prettyTyN env (Quotient ty r) ++ ") motive (" ++ qn ++ ". " ++ prettyTyN (env :< qn) motive ++ ")"
+prettyTypingRuleN (ElemEqCongQuotElim ctx ty r motive f0 f1 q0 q1) =
+  let env = envForCtx ctx
+      a0  = if usesIndexElem 0 f0 then freshGeneric env else wildcard
+      a1  = if usesIndexElem 0 f1 then freshGeneric env else wildcard
+      qn  = freshGeneric env
+  in "el-quot-elim-cong " ++ prettyCtxN ctx ++ " ⊦ quot-elim (" ++ a0 ++ ". " ++ prettyElemN (env :< a0) f0 ++
+     ") ≐ (" ++ a1 ++ ". " ++ prettyElemN (env :< a1) f1 ++
+     ") (" ++ prettyElemN env q0 ++ " ≐ " ++ prettyElemN env q1 ++ " : " ++ prettyTyN env (Quotient ty r) ++
+     ") motive (" ++ qn ++ ". " ++ prettyTyN (env :< qn) motive ++ ")"
 prettyTypingRuleN (ElemWfSubst gamma0 gamma1 sigma t a) =
   let env1 = envForCtx gamma1
   in "el-wf-subst " ++ prettyCtxN gamma0 ++ " ⊦ " ++ prettySubN (envForCtx gamma0) sigma ++

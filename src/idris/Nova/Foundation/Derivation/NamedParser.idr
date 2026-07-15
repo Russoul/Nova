@@ -217,7 +217,8 @@ mutual
     <|> (do str_ "S"; space; e <- parseElemAtom env; pure (NatIntro1 e))
     <|> (do str_ "class"; space; e <- parseElemAtom env; pure (Class e))
     <|> (do str_ "quot-elim"; space
-            f <- parseElemAtom env; space
+            char_ '('; sp; a <- parseLocalIdentifier; sp; char_ '.'; sp
+            f <- parseElem (env :< a); sp; char_ ')'; space
             q <- parseElemAtom env
             pure (QuotElim f q))
     <|> parseElemPostfix env
@@ -624,15 +625,30 @@ parseNamedTypingRule =
             Quotient tyA r => pure (ElemWfClass ctx a tyA r)
             _              => fail "el-class: expected A / (x y. R) after :"
         _ => fail "el-class: expected class a") <|>
+  -- el-quot-elim-cong before el-quot-elim (longer keyword first)
+  (do str_ "el-quot-elim-cong"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+      str_ "quot-elim"; space
+      char_ '('; sp; a0 <- parseLocalIdentifier; sp; char_ '.'; sp; f0 <- parseElem (env :< a0); sp; char_ ')'
+      sp; str_ "≐"; sp
+      char_ '('; sp; a1 <- parseLocalIdentifier; sp; char_ '.'; sp; f1 <- parseElem (env :< a1); sp; char_ ')'; space
+      char_ '('; sp; q0 <- parseElem env; sp; str_ "≐"; sp; q1 <- parseElem env
+      sp; char_ ':'; sp; ty <- parseTy env; sp; char_ ')'
+      space; str_ "motive"; space
+      char_ '('; sp; qn <- parseLocalIdentifier; sp; char_ '.'; sp
+      motive <- parseTy (env :< qn); sp; char_ ')'
+      case ty of
+        Quotient tyA r => pure (ElemEqCongQuotElim ctx tyA r motive f0 f1 q0 q1)
+        _              => fail "el-quot-elim-cong: expected quot-elim (a. f₀) ≐ (a. f₁) (q₀ ≐ q₁ : A / R) motive (q'. B)") <|>
   (do str_ "el-quot-elim"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
-      str_ "quot-elim"; space; f <- parseElemAtom env; space
+      str_ "quot-elim"; space
+      char_ '('; sp; a <- parseLocalIdentifier; sp; char_ '.'; sp; f <- parseElem (env :< a); sp; char_ ')'; space
       char_ '('; sp; q <- parseElem env; sp; char_ ':'; sp; ty <- parseTy env; sp; char_ ')'
       space; str_ "motive"; space
       char_ '('; sp; qn <- parseLocalIdentifier; sp; char_ '.'; sp
       motive <- parseTy (env :< qn); sp; char_ ')'
       case ty of
         Quotient tyA r => pure (ElemWfQuotElim ctx tyA r motive f q)
-        _              => fail "el-quot-elim: expected quot-elim f (q : A / R) motive (q'. B)") <|>
+        _              => fail "el-quot-elim: expected quot-elim (a. f) (q : A / R) motive (q'. B)") <|>
   (do str_ "el-wf-subst"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
       sigma <- parseSub env; sp; str_ "to"; sp; (delta, denv) <- parseNamedCtx; sp; str_ "⊦"; sp
       t <- parseElem denv; sp; char_ ':'; sp; a <- parseTy denv

@@ -301,6 +301,21 @@ data TypingRule : Type where
   ||| ====================
   ||| Γ ⊦ class a₀ ≐ class a₁ : A / R
   ElemEqCongClass : Ctx -> Ty -> Ty -> Elem -> Elem -> TypingRule
+  ||| Γ ⊦ A type
+  ||| Γ ᐅ A ᐅ A[↑] ⊦ R type
+  ||| Γ ᐅ (A / R) ⊦ B type
+  ||| ---------------------------------------------------------------------
+  ||| Γ ᐅ A ⊦ f₀ : B[↑, class ☐₀]
+  ||| Γ ᐅ A ⊦ f₁ : B[↑, class ☐₀]
+  ||| Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f₀[↑∘↑∘↑, ☐₂] ≐ f₀[↑∘↑∘↑, ☐₁] : B[↑∘↑∘↑, class ☐₂]
+  ||| Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f₁[↑∘↑∘↑, ☐₂] ≐ f₁[↑∘↑∘↑, ☐₁] : B[↑∘↑∘↑, class ☐₂]
+  ||| Γ ⊦ q₀ : A / R
+  ||| Γ ⊦ q₁ : A / R
+  ||| Γ ᐅ A ⊦ f₀ ≐ f₁ : B[↑, class ☐₀]
+  ||| Γ ⊦ q₀ ≐ q₁ : A / R
+  ||| =======================================================================
+  ||| Γ ⊦ quot-elim f₀ q₀ ≐ quot-elim f₁ q₁ : B[id, q₁]
+  ElemEqCongQuotElim : Ctx -> Ty -> Ty -> Ty -> Elem -> Elem -> Elem -> Elem -> TypingRule
   ||| Γ₁ ⊦ A type
   ||| Γ₁ ⊦ t₀ ≐ t₁ : A
   ||| σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
@@ -404,6 +419,7 @@ Show TypingRule where
   show (ElemEqCongPiApp ctx f0 f1 a b a0 a1) = "ElemEqCongPiApp (\{showCtxRep ctx}) (\{show f0}) (\{show f1}) (\{show a}) (\{show b}) (\{show a0}) (\{show a1})"
   show (ElemEqQuotient ctx ty r a b witness) = "ElemEqQuotient (\{showCtxRep ctx}) (\{show ty}) (\{show r}) (\{show a}) (\{show b}) (\{show witness})"
   show (ElemEqCongClass ctx ty r a0 a1) = "ElemEqCongClass (\{showCtxRep ctx}) (\{show ty}) (\{show r}) (\{show a0}) (\{show a1})"
+  show (ElemEqCongQuotElim ctx ty r motive f0 f1 q0 q1) = "ElemEqCongQuotElim (\{showCtxRep ctx}) (\{show ty}) (\{show r}) (\{show motive}) (\{show f0}) (\{show f1}) (\{show q0}) (\{show q1})"
   show (ElemEqSubst gamma0 gamma1 sigma0 sigma1 t0 t1 a) = "ElemEqSubst (\{showCtxRep gamma0}) (\{showCtxRep gamma1}) (\{show sigma0}) (\{show sigma1}) (\{show t0}) (\{show t1}) (\{show a})"
   show (TelEqRefl ctx tel)           = "TelEqRefl (\{showCtxRep ctx}) (\{show tel})"
   show (TelEqSym ctx tel0 tel1)      = "TelEqSym (\{showCtxRep ctx}) (\{show tel0}) (\{show tel1})"
@@ -894,6 +910,23 @@ step (ElemEqCongClass gamma ty r a0 a1) sp = do
   tyWfDerivable (gamma :< ty :< substTy ty Wk) r sp
   elemEqDerivable gamma a0 a1 ty sp
   Right $ {elemEq $= insertElemEq sp.sig (gamma, Class a0, Class a1, Quotient ty r)} sp
+step (ElemEqCongQuotElim gamma ty r motive f0 f1 q0 q1) sp = do
+  let wk3 = Chain Wk (Chain Wk Wk)
+  tyWfDerivable (gamma :< ty :< substTy ty Wk) r sp
+  tyWfDerivable (gamma :< Quotient ty r) motive sp
+  elemWfDerivable (gamma :< ty) f0 (substTy motive (Ext Wk (Class (CtxVar 0)))) sp
+  elemWfDerivable (gamma :< ty) f1 (substTy motive (Ext Wk (Class (CtxVar 0)))) sp
+  elemEqDerivable (gamma :< ty :< substTy ty Wk :< r)
+    (substElem f0 (Ext wk3 (CtxVar 2))) (substElem f0 (Ext wk3 (CtxVar 1)))
+    (substTy motive (Ext wk3 (Class (CtxVar 2)))) sp
+  elemEqDerivable (gamma :< ty :< substTy ty Wk :< r)
+    (substElem f1 (Ext wk3 (CtxVar 2))) (substElem f1 (Ext wk3 (CtxVar 1)))
+    (substTy motive (Ext wk3 (Class (CtxVar 2)))) sp
+  elemWfDerivable gamma q0 (Quotient ty r) sp
+  elemWfDerivable gamma q1 (Quotient ty r) sp
+  elemEqDerivable (gamma :< ty) f0 f1 (substTy motive (Ext Wk (Class (CtxVar 0)))) sp
+  elemEqDerivable gamma q0 q1 (Quotient ty r) sp
+  Right $ {elemEq $= insertElemEq sp.sig (gamma, QuotElim f0 q0, QuotElim f1 q1, substTy motive (Ext Id q1))} sp
 step (ElemEqSubst gamma0 gamma1 sigma0 sigma1 t0 t1 a) sp = do
   subEqDerivable sigma0 sigma1 gamma0 gamma1 sp
   elemEqDerivable gamma1 t0 t1 a sp

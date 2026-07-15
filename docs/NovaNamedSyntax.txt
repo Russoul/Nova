@@ -93,18 +93,21 @@ t˲ ::= (empty) | t{≥1} (, t{≥1})*
 t{5} ::= x | () | Z | Refl | 𝟘 | 𝟙 | ℕ | x[t˲] | (t{≥0})
 t{4} ::= t{≥4} [σ{≥0}]
 t{3} ::= t{≥3} t{≥4} | t{≥3} .π₁ | t{≥3} .π₂                               (left-assoc)
-t{2} ::= λx. t{≥3} | 𝟘-elim t{≥4} | S t{≥4} | ℕ-elim t{≥4} (n ih. t{≥4}) t{≥4} | class t{≥4} | quot-elim t{≥4} t{≥4}
+t{2} ::= λx. t{≥3} | 𝟘-elim t{≥4} | S t{≥4} | ℕ-elim t{≥4} (n ih. t{≥4}) t{≥4} | class t{≥4} | quot-elim (a. t{≥0}) t{≥4}
 t{1} ::= (x:t{≥0}) → t{≥1} | (x:t{≥0}) ⨯ t{≥1} | t{≥2} ≡ t{≥2} ∈ t{≥2}
 t{0} ::= t{≥1} , t{≥0}                                                      SigmaIntro (right-assoc)
 
 // Same sugar as above applies to λ (`λ. f` for `λ_. f` is not useful since
 // λ always binds something f might use, but `_` is still legal to write
-// when f happens not to reference it) and to `ℕ-elim`'s step branch
-// (`n ih.` may each independently be `_` when `s` doesn't use them).
-// `quot-elim f q` itself carries no name — unlike `ℕ-elim`, it has no
-// slot in its own runtime term for a bound motive; naming happens only at
-// `el-quot-elim`'s `motive` annotation below, the one place that binder is
-// ever spelled out.
+// when f happens not to reference it), to `ℕ-elim`'s step branch
+// (`n ih.` may each independently be `_` when `s` doesn't use them), and to
+// `quot-elim`'s own `a` (`_` when `f` doesn't reference the representative
+// — the common case, e.g. a constant-motive elimination). `a` is `f`'s own
+// binder for the representative being eliminated (mirroring `ℕ-elim`'s
+// `n`/`ih`) — it is a *separate* name from whatever `el-quot-elim`'s
+// `motive` annotation below binds for the dependent-motive variable; the
+// two binders serve different roles (`a` ranges over `A`, the motive's
+// variable ranges over `A/R`) and are typically given different names.
 
 Γ ::= ε | Γ ᐅ x:T{≥0}                                                       (left-assoc)
 Δ ::= ε | x:T{≥0} ◁ Δ                                                       (right-assoc)

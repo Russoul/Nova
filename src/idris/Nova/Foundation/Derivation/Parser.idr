@@ -224,6 +224,16 @@ parseTypingRule =
             Quotient tyA r => pure (ElemWfClass ctx a tyA r)
             _              => fail "el-class: expected A / R after :"
         _ => fail "el-class: expected class a") <|>
+  -- el-quot-elim-cong before el-quot-elim (longer keyword first)
+  (do str_ "el-quot-elim-cong"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
+      str_ "quot-elim"; space
+      char_ '('; sp; f0 <- parseElem; sp; str_ "≐"; sp; f1 <- parseElem; sp; char_ ')'; space
+      char_ '('; sp; q0 <- parseElem; sp; str_ "≐"; sp; q1 <- parseElem
+      sp; char_ ':'; sp; ty <- parseTy; sp; char_ ')'
+      space; str_ "motive"; space; motive <- parseTy
+      case ty of
+        Quotient tyA r => pure (ElemEqCongQuotElim ctx tyA r motive f0 f1 q0 q1)
+        _              => fail "el-quot-elim-cong: expected quot-elim (f₀ ≐ f₁) (q₀ ≐ q₁ : A / R) motive B") <|>
   (do str_ "el-quot-elim"; space; ctx <- parseCtx; sp; str_ "⊦"; sp
       str_ "quot-elim"; space; f <- parseElemAtom; space
       char_ '('; sp; q <- parseElem; sp; char_ ':'; sp; ty <- parseTy; sp; char_ ')'
