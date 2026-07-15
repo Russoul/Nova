@@ -9,10 +9,10 @@ authoritative grammar and rule statements; this table exists so you don't
 have to read Idris pattern matches to pick a rule.
 
 Metavariables: `Γ`/`Δ`/`Θ` are contexts, `A`/`B`/`T` are types, `t`/`e`/`u`/`v`
-are elements, `σ`/`τ` are substitutions, `α`/`β`/`γ` are compute rules,
-`x` is a signature identifier, `n` is a de Bruijn index (natural number).
+are elements, `σ`/`τ` are substitutions, `x` is a signature identifier, `n`
+is a de Bruijn index (natural number).
 
-## Substitution is algorithmic — it computes, it doesn't sit there as a node
+## Substitution and beta-reduction are both algorithmic — nothing "sits there" unreduced
 
 `A[σ]`/`t[σ]` is *not* a syntax former you can write or leave lying around:
 there is no `SubstElim` node in `Ty`/`Elem` at all. Wherever a rule's
@@ -26,31 +26,36 @@ to ask the checker to "produce `A[σ]`" as its own step, and no substitution
 congruence rule is needed either, since `a[σ]` and `b[σ]` are just computed
 independently from `a ≐ b`.
 
-This does **not** mean `ty-cmp`/`el-cmp` go away. They're still what you use
-for genuine *computation redexes* — `(λ f) e`, `ℕ-elim z s (S t)`,
-`t.π₁`/`t.π₂` on a pair, decoding a universe code via `El` — none of which
-substitution alone can simplify. You'll still interleave "build the term"
-steps with `el-cmp`/`ty-cmp` reduction steps, `ty-sym`/`ty-trans` to line an
-equality up, and `el-ty-coe` to transport across it — that machinery is
-unchanged, it's specifically the substitution-only case that got simpler.
+The same is true of every beta-redex — `(λ f) e`, `ℕ-elim z s (S t)`,
+`t.π₁`/`t.π₂` on a pair, decoding a universe code via `El`, and unfolding a
+signature reference `x[e˲]` to its definiens — none of these are separate
+rules you invoke either: `apply`/`check` beta-normalize (`Beta.idr`'s
+`betaTy`/`betaElem`/etc.) every judgement's `Ctx`/`Ty`/`Elem`/`Sub`/
+`SubNorm`/`Tel`/`Spine` payload both when it's inserted into the derived-
+facts table and when it's looked up as a premise — so the table only ever
+holds beta-normal terms, and every premise check is really "beta-normalize
+the input, then see if the (already beta-normal) table contains it". There
+is consequently no `ty-cmp`/`el-cmp`/`ctx-cmp` and no `ComputeRule` at all
+in this checker: nothing is ever "stuck mid-reduction" waiting for you to
+drive it forward with an explicit rewrite step. A large practical
+consequence: if two terms are beta-equal, you can build `Refl` at *either*
+one directly (`el-refl`) and it'll satisfy a goal stated in terms of the
+other — no manual reduce-then-`el-ty-coe` dance needed first (see "Doing
+induction" below).
 
 `☐` is an indexed family `☐ₙ` (e.g. `☐₀`, `☐₁`, `☐₂` — Unicode subscript
 digits, no space). `el-var Γ ⊦ ☐ₙ` looks up `Γ‖ₙ` (the (n+1)-th type from the
-right) directly out of `Γ`'s structure and weakens it algorithmically — no
-`el-cmp` needed to make a weakened/projected variable reference usable.
+right) directly out of `Γ`'s structure and weakens it algorithmically.
 
 A signature reference `x[e˲]` always carries its substitution directly in
 the atom — there is no bare `x`. `e˲` is a *normal* substitution (`t˲ ::= ·
 | t˲, t`, i.e. `SubNorm` — a plain snoc-list of elements with no
 `Chain`/`Id`/`Wk`/`Terminal` left in it), since it has to be threaded
 through `SigVar` and re-substituted by `substSubNorm` without reference to
-the signature. Unlike `A[σ]`/`t[σ]`, `x[e˲]` does *not* eagerly unfold — a
-signature lookup needs `Σ`, which pure substitution doesn't have access to
-— so you still use `el-cmp`'s `↓` to unfold `x[e˲]` to `a[e˲]` (`a` being
-`x`'s definiens). Composing a further substitution onto an already-applied
-reference (`x[ξ][σ]`) is not a separate `el-cmp` step though — like all
-other substitution, it's handled the moment you write `x[ξ]` inside a term
-that itself gets substituted by `σ`.
+the signature. Composing a further substitution onto an already-applied
+reference (`x[ξ][σ]`) is not a separate step — like all other substitution,
+it's handled the moment you write `x[ξ]` inside a term that itself gets
+substituted by `σ`.
 
 ## Doing induction: el-nat-e can't conclude a judgemental equality directly
 
@@ -72,20 +77,22 @@ T`), then convert to `el-eq` with `el-reflect`:
 
 1. Motive `A ≜ (f ☐₀ ≡ g ☐₀ ∈ T)` (a `ty-eq-form`), in the elimination's own
    extended context.
-2. Base case `z`: reduce `f Z`/`g Z` to a common term via `el-cmp` (or
-   directly, if they're already equal), build `Refl` at that term, then
-   `el-ty-coe` it up to `A` at `Z` — this only needs `ty-cmp`/`ty-sym`
-   (structural), since nothing yet depends on an induction hypothesis.
+2. Base case `z`: if `f Z` and `g Z` are beta-equal, just build `Refl` at
+   *either* one directly (`el-refl`) — no reduction or coercion needed
+   first, since `A[Z]` (`f Z ≡ g Z ∈ T`) and `Refl`'s own type (`f Z ≡ f Z
+   ∈ T`, or `g Z ≡ g Z ∈ T`) beta-normalize to the same stored fact either
+   way.
 3. Step case `s`: you get `ih : A` at the fresh recursion variable `n`
-   (i.e. `f n ≡ g n ∈ T`) in context. `el-reflect` it to a judgemental
-   `f n ≐ g n : T`, lift it under whatever constructors separate `f (S n)`/
-   `g (S n)` from `f n`/`g n` (e.g. `el-suc-cong` for `S`), and
-   `el-eq-trans` that together with any purely-structural `el-cmp`
-   reductions of `f (S n)`/`g (S n)` themselves. The result is a judgemental
-   `f (S n) ≐ g (S n) : T` — build `Refl` at (say) `g (S n)` and use
-   `ty-eq-cong` (not `ty-cmp`, since the two sides aren't related by
-   computation, only by this judgemental fact) to coerce it up to `A` at
-   `S n`.
+   (i.e. `f n ≡ g n ∈ T`) in context. If `f (S n)` and `g (S n)` are
+   themselves beta-equal *given* `ih` (not by computation alone — that's
+   the whole reason this needs an induction hypothesis), `el-reflect ih` to
+   a judgemental `f n ≐ g n : T`, lift it under whatever constructors
+   separate `f (S n)`/`g (S n)` from `f n`/`g n` (e.g. `el-suc-cong` for
+   `S`), and `el-eq-trans` to get a judgemental `f (S n) ≐ g (S n) : T`.
+   Build `Refl` at (say) `g (S n)` and use `ty-eq-cong` (a genuine
+   congruence step — the two sides are only related via `ih`, not by
+   computation, so this doesn't collapse away like the base case did) to
+   coerce it up to `A` at `S n`.
 4. `el-nat-e Γ ⊦ ℕ-elim z s ☐₀ motive A` (eliminating on the context's own
    free variable, not a concrete value — this *is* "for all n" in this
    system), then `el-reflect` the whole thing to get the final `el-eq`.
@@ -102,7 +109,6 @@ example.
 | `ctx-refl Γ` | `Γ ctx` | `Γ ≐ Γ` |
 | `ctx-sym Γ₁ ≐ Γ₀` | `Γ₀ ≐ Γ₁` | `Γ₁ ≐ Γ₀` |
 | `ctx-trans Γ₀ ≐ Γ₂ via Γ₁` | `Γ₀ ≐ Γ₁`, `Γ₁ ≐ Γ₂` | `Γ₀ ≐ Γ₂` |
-| `ctx-cmp Γ via α` | `Γ ctx`, compute rule `α` applies to `Γ` giving `Γ'` | `Γ' ctx`, `Γ ≐ Γ'` |
 
 ## Substitution well-formedness
 
@@ -162,7 +168,6 @@ No `sub-norm-chn`/`sub-norm-eq-chn` either, for the same reason.
 | `ty-sigma Γ ⊦ A ⨯ B` | `Γ ᐅ A ⊦ B type` | `Γ ⊦ A ⨯ B type` |
 | `ty-eq-form Γ ⊦ l ≡ r ∈ A` | `Γ ⊦ l : A`, `Γ ⊦ r : A` | `Γ ⊦ l ≡ r ∈ A type` |
 | `ty-el Γ ⊦ El t` | `Γ ⊦ t : 𝕌` | `Γ ⊦ El t type` |
-| `ty-cmp Γ via α ⊦ A via β` | `Γ ⊦ A type`, `α` applies to `Γ` giving `Γ'`, `β` applies to `A` giving `A'` | `Γ' ⊦ A' type`, `Γ ≐ Γ'`, `Γ' ⊦ A ≐ A'` |
 
 ## Type equality
 
@@ -207,7 +212,6 @@ to the type it names.
 | `el-pi-ty Γ ⊦ A → B : 𝕌` | `Γ ᐅ El A ⊦ B : 𝕌` | `Γ ⊦ A → B : 𝕌` |
 | `el-sigma-ty Γ ⊦ A ⨯ B : 𝕌` | `Γ ᐅ El A ⊦ B : 𝕌` | `Γ ⊦ A ⨯ B : 𝕌` |
 | `el-eq-ty Γ ⊦ l ≡ r ∈ A : 𝕌` | `Γ ⊦ l : El A`, `Γ ⊦ r : El A` | `Γ ⊦ l ≡ r ∈ A : 𝕌` |
-| `el-cmp Γ via α ⊦ t via β : A via γ` | `Γ ⊦ t : A`, `α` on `Γ`→`Γ'`, `β` on `t`→`t'`, `γ` on `A`→`A'` | `Γ' ⊦ t' : A'`, plus `Γ≐Γ'`, `Γ'⊦A≐A'`, `Γ'⊦t≐t':A'` |
 
 ## Signature
 
@@ -249,8 +253,7 @@ anything specific to `ty-quotient`:
   wrapping parens too: `(p q. (l ≡ r ∈ T))`, not `(p q. l ≡ r ∈ T)`.
 
 There's no `ty-quotient-cong` (no rule relates two different `A / R`s) and
-no dedicated congruence rule for `quot-elim` beyond what `el-cmp`'s
-`InQuotElim` compute path already gives you.
+no dedicated congruence rule for `quot-elim` at all.
 
 | Keyword & syntax | Premises | Conclusion |
 |---|---|---|
@@ -265,19 +268,14 @@ has to already exist as a *derived fact* in context `Γ,p:A,q:A,r:R` before
 you `apply` the rule — like every other premise, the checker looks it up,
 it doesn't discharge it as a side goal.
 
-`el-quot-eq`'s `R[id, a, b]` is a *literal* substitution — it does not
-beta-reduce any projections/redexes that end up inside it (same
-substitution-is-algorithmic-but-not-eager-about-redexes behavior as
-everywhere else in this checker). So if `a`/`b` are themselves built from
-eliminators (e.g. `(p, q).π₁`), the substituted `R` you need to inhabit
-will contain those un-reduced eliminators too, and a witness built at the
-*reduced* form (the one you'd naturally write `Refl` for) needs an explicit
-`ty-cmp` down to that reduced form, `ty-sym`, then `el-ty-coe` back up
-before it type-checks against the literal goal. See
+`el-quot-eq`'s witness `w` is checked against `R[id, a, b]` via the usual
+normalize-then-look-up premise check, so if `a`/`b` are themselves built
+from eliminators (e.g. `(p, q).π₁`), a witness built directly at the
+*reduced* form (the one you'd naturally write `Refl` for) already
+type-checks against the literal goal — beta-normalization bridges the two
+automatically, no manual reduction/coercion needed first. See
 `derivations/quotient/session.rules` for the smallest working example
-(`R ≜ 𝟙`, so both premises above are free), and `derivations/integer/
-session.rules` lines ~58–66 for a worked example of the `ty-cmp`/`ty-sym`/
-`el-ty-coe` bridge.
+(`R ≜ 𝟙`, so both premises above are free).
 
 ## Telescope equality
 

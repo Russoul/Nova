@@ -70,6 +70,7 @@ t ::= x [e˲]         // element in the signature context
     | t → t          // element of the universe (encodes Π)
     | t ⨯ t          // element of the universe (encodes Σ)
     | t ≡ t ∈ t      // element of the universe
+    | t / t          // element of the universe (encodes quotient)
     | 𝟘-elim t
     | ()             // the only element of 𝟙
     | Z
@@ -689,38 +690,31 @@ x ∉ Σ
 Σ sig
 Σ ⊦ Γ ctx
 --------------------- (El-𝟘)
-Σ ⊦ Γ ⊦ El 𝟘 ≐ 𝟘 type
-// IDEA: Those kind of equality shall be more than "just" extensional as LHS is not even a "defined" construction.
-// IDEA: This is essentially a definition
-// rewrite rule
+Σ ⊦ Γ ⊦ El 𝟘 ≜ 𝟘 type
 
 Σ sig
 Σ ⊦ Γ ctx
 --------------------- (El-𝟙)
-Σ ⊦ Γ ⊦ El 𝟙 ≐ 𝟙 type
-// rewrite rule
+Σ ⊦ Γ ⊦ El 𝟙 ≜ 𝟙 type
 
 Σ sig
 Σ ⊦ Γ ctx
 ------------------- (El-ℕ)
-Σ Γ ⊦ El ℕ ≐ ℕ type
-// rewrite rule
+Σ Γ ⊦ El ℕ ≜ ℕ type
 
 Σ sig
 Σ ⊦ Γ ctx
 Σ Γ ⊦ A : 𝕌
 Σ Γ ᐅ El A ⊦ B : 𝕌
 ----------------------------------- (El-(→))
-Σ Γ ⊦ El (A → B) ≐ El A → El B type
-// rewrite rule
+Σ Γ ⊦ El (A → B) ≜ El A → El B type
 
 Σ sig
 Σ ⊦ Γ ctx
 Σ Γ ⊦ A : 𝕌
 Σ Γ ᐅ El A ⊦ B : 𝕌
 ------------------------------------- (El-(⨯))
-Σ Γ ⊦ El (A ⨯ B) ≐ El A ⨯ El B type
-// rewrite rule
+Σ Γ ⊦ El (A ⨯ B) ≜ El A ⨯ El B type
 
 Σ sig
 Σ ⊦ Γ ctx
@@ -728,8 +722,14 @@ x ∉ Σ
 Σ Γ ⊦ a₀ : El A
 Σ Γ ⊦ a₁ : El A
 ---------------------------------------------- (El-(≡))
-Σ Γ ⊦ El (a₀ ≡ a₁ ∈ A) ≐ (a₀ ≡ a₁ ∈ El A) type
-// rewrite rule
+Σ Γ ⊦ El (a₀ ≡ a₁ ∈ A) ≜ (a₀ ≡ a₁ ∈ El A) type
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ A : 𝕌
+Σ Γ ᐅ El A ᐅ (El A)[↑] ⊦ R : 𝕌
+----------------------------------- (El-(/))
+Σ Γ ⊦ El (A / R) ≜ El A / El R type
 
 Σ sig
 Σ ⊦ Γ ctx
@@ -1137,6 +1137,14 @@ x ∉ Σ
 
 Σ sig
 Σ ⊦ Γ ctx
+------------------
+Σ Γ ⊦ A : 𝕌                      (A)
+Σ Γ ᐅ El A ᐅ (El A)[↑] ⊦ R : 𝕌   (R)
+==================    (A / R)
+Σ Γ ⊦ A / R : 𝕌
+
+Σ sig
+Σ ⊦ Γ ctx
 Σ Γ ⊦ A type
 ----------------
 Σ Γ ⊦ t : 𝟘         (t)
@@ -1200,8 +1208,7 @@ x ∉ Σ
 Σ Γ ᐅ A ⊦ f : B
 Σ Γ ⊦ e : A
 ----------------------------------- (Π-β)
-Σ Γ ⊦ (λ f) e ≐ f[id, e] : B[id, e]
-// valid unidirectional rewrite
+Σ Γ ⊦ (λ f) e ≜ f[id, e] : B[id, e]
 
 Σ sig
 Σ ⊦ Γ ctx
@@ -1210,9 +1217,6 @@ x ∉ Σ
 Σ Γ ⊦ f : A → B
 ----------------------------- (Π-η)
 Σ Γ ⊦ λ (f[↑] ☐₀) ≐ f : A → B
-// IDEA: the η rule looks more "extensional" than the β rule.
-// IDEA: η rule says that LHS and RHS (which are fully defined in their own right) behave indistinguishably.
-// IDEA: Yet the β rule above operates on LHS which is under-defined until this very rule (β) takes hold.
 
 Σ sig
 Σ ⊦ Γ ctx
@@ -1240,8 +1244,7 @@ x ∉ Σ
 Σ Γ ⊦ a : A
 Σ Γ ⊦ b : B[id, a]
 ------------------------ (Σ-β₁)
-Σ Γ ⊦ (a, b) .π₁ ≐ a : A
-// valid unidirectional rewrite
+Σ Γ ⊦ (a, b) .π₁ ≜ a : A
 
 Σ sig
 Σ ⊦ Γ ctx
@@ -1259,8 +1262,7 @@ x ∉ Σ
 Σ Γ ⊦ a : A
 Σ Γ ⊦ b : B[id, a]
 ------------------------------- (Σ-β₂)
-Σ Γ ⊦ (a, b) .π₂ ≐ b : B[id, a]
-// valid unidirectional rewrite
+Σ Γ ⊦ (a, b) .π₂ ≜ b : B[id, a]
 
 Σ sig
 Σ ⊦ Γ ctx
@@ -1303,8 +1305,7 @@ x ∉ Σ
 Σ Γ ⊦ z : A[id, Z]
 Σ Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
 --------------------------------- (ℕ-elim-β-Z)
-Σ Γ ⊦ ℕ-elim z s Z ≐ z : A[id, Z]
-// valid unidirectional rewrite
+Σ Γ ⊦ ℕ-elim z s Z ≜ z : A[id, Z]
 
 Σ sig
 Σ ⊦ Γ ctx
@@ -1313,8 +1314,7 @@ x ∉ Σ
 Σ Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
 Σ Γ ⊦ t : ℕ
 ------------------------------------------------------------ (ℕ-elim-β-S)
-Σ Γ ⊦ ℕ-elim z s (S t) ≐ s[id, t, ℕ-elim z s t] : A[id, S t]
-// valid unidirectional rewrite
+Σ Γ ⊦ ℕ-elim z s (S t) ≜ s[id, t, ℕ-elim z s t] : A[id, S t]
 
 Σ sig
 Σ ⊦ Γ ctx
@@ -1375,8 +1375,7 @@ x ∉ Σ
 Σ Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
 Σ Γ ⊦ a : A
 ------------------------------------------------------- (quote-elim-β)
-Σ Γ ⊦ quot-elim f (class a) ≐ f[id, a] : B[id, class a]
-// valid unidirectional rewrite
+Σ Γ ⊦ quot-elim f (class a) ≜ f[id, a] : B[id, class a]
 
 Σ sig
 Σ ⊦ Γ ctx
@@ -1411,8 +1410,7 @@ e˲ : Δ ⇒ Γ
 Σ ⊦ Δ ctx
 e˲ : Δ ⇒ Γ
 ---------------------------   (x-β)
-Σ Δ ⊦ x[e˲] ≐ a[e˲] : A[e˲]
-// unidirectional rewrite rule
+Σ Δ ⊦ x[e˲] ≜ a[e˲] : A[e˲]
 
 Σ sig
 Σ ⊦ Γ₀ ctx
@@ -1521,6 +1519,15 @@ e˲ : Γ₁ ⇒ Γ
 Σ ⊦ σ : Γ₀ ⇒ Γ₁
 ----------------------------------------------------
 Σ Γ₀ ⊦ (a₀ ≡ a₁ ∈ A)[σ] ≜ (a₀[σ] ≡ a₁[σ] ∈ A[σ]) : 𝕌
+
+Σ sig
+Σ ⊦ Γ₀ ctx
+Σ ⊦ Γ₁ ctx
+Σ Γ₁ ⊦ A : 𝕌
+Σ Γ₁ ᐅ El A ᐅ (El A)[↑] ⊦ R : 𝕌
+Σ ⊦ σ : Γ₀ ⇒ Γ₁
+------------------------------------
+Σ Γ₀ ⊦ (A / R)[σ] ≜ A[σ] / R[σ⁺⁺] : 𝕌
 
 Σ sig
 Σ ⊦ Γ₀ ctx
@@ -1903,6 +1910,18 @@ e˲ : Γ₁ ⇒ Γ
 Σ Γ ⊦ b₀ ≐ b₁ : El A₁      (b⁼)
 ----------------------------------------- (a⁼ ≡ b⁼ ∈ A⁼) // Eq-code congruence
 Σ Γ ⊦ (a₀ ≡ b₀ ∈ A₀) ≐ (a₁ ≡ b₁ ∈ A₁) : 𝕌
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ A₀ : 𝕌
+Σ Γ ⊦ A₁ : 𝕌
+Σ Γ ᐅ El A₀ ᐅ (El A₀)[↑] ⊦ R₀ : 𝕌
+Σ Γ ᐅ El A₁ ᐅ (El A₁)[↑] ⊦ R₁ : 𝕌
+--------------------------
+Σ Γ ⊦ A₀ ≐ A₁ : 𝕌                       (A⁼)
+Σ Γ ᐅ El A₁ ᐅ (El A₁)[↑] ⊦ R₀ ≐ R₁ : 𝕌  (R⁼)
+========================= (A⁼ / R⁼) // Quotient-code congruence
+Σ Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ : 𝕌
 
 ///////// Inference rules (elem list) //////////
 

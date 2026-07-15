@@ -8,6 +8,7 @@ main = Nova.Foundation.Application
 
 modules = Nova.Foundation.Syntax
         , Nova.Foundation.Subst
+        , Nova.Foundation.Beta
         , Nova.Foundation.Derivation
         , Nova.Foundation.Parser
         , Nova.Foundation.Derivation.Parser

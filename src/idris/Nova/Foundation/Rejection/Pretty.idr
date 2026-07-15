@@ -8,12 +8,6 @@ import Nova.Foundation.Pretty
 
 export
 prettyRejection : Rejection -> String
-prettyRejection (CtxCmpNoRuleApplies ctx alpha) =
-  "no compute rule applies: " ++ prettyCtx ctx ++ " via " ++ prettyComputeRule alpha
-prettyRejection (TyCmpNoRuleApplies ty alpha) =
-  "no compute rule applies: " ++ prettyTy ty ++ " via " ++ prettyComputeRule alpha
-prettyRejection (ElemCmpNoRuleApplies e alpha) =
-  "no compute rule applies: " ++ prettyElem e ++ " via " ++ prettyComputeRule alpha
 prettyRejection (CtxWfNotDerivable ctx) =
   "not derivable: ctx-wf " ++ prettyCtx ctx
 prettyRejection (CtxEqNotDerivable ctx0 ctx1) =

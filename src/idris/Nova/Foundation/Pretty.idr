@@ -139,44 +139,6 @@ prettySpine (e :: es) = prettyElemNoComma e ++ go es
     go [] = ""
     go (e' :: es') = ", " ++ prettyElemNoComma e' ++ go es'
 
--- ===== ComputeRule =====
-
-mutual
-  export
-  prettyComputeRule : ComputeRule -> String
-  prettyComputeRule (Composition a b) = prettyComputeRule a ++ "; " ++ prettyComputeRule b
-  prettyComputeRule (InSigmaIntro a b) = prettyComputeNoComma a ++ ", " ++ prettyComputeRule b
-  prettyComputeRule cr = prettyComputeNoComma cr
-
-  prettyComputeNoComma : ComputeRule -> String
-  prettyComputeNoComma (InPiTy a b) = prettyComputePrefix a ++ " → " ++ prettyComputeNoComma b
-  prettyComputeNoComma (InSigmaTy a b) = prettyComputePrefix a ++ " ⨯ " ++ prettyComputeNoComma b
-  prettyComputeNoComma (InEqTy a b c) =
-    prettyComputePrefix a ++ " ≡ " ++ prettyComputePostfix b ++ " ∈ " ++ prettyComputePostfix c
-  prettyComputeNoComma (InExt a b) = prettyComputePrefix a ++ " ᐅ " ++ prettyComputeNoComma b
-  prettyComputeNoComma cr = prettyComputePrefix cr
-
-  prettyComputePrefix : ComputeRule -> String
-  prettyComputePrefix (InPiIntro a) = "λ " ++ prettyComputeAtom a
-  prettyComputePrefix (InZeroElim a) = "𝟘-elim " ++ prettyComputeAtom a
-  prettyComputePrefix (InNatIntro1 a) = "S " ++ prettyComputeAtom a
-  prettyComputePrefix (InNatElim a b c) =
-    "ℕ-elim " ++ prettyComputeAtom a ++ " " ++ prettyComputeAtom b ++ " " ++ prettyComputeAtom c
-  prettyComputePrefix (InEl a) = "El " ++ prettyComputeAtom a
-  prettyComputePrefix (InQuotElim a b) = "quot-elim " ++ prettyComputeAtom a ++ " " ++ prettyComputeAtom b
-  prettyComputePrefix cr = prettyComputePostfix cr
-
-  prettyComputePostfix : ComputeRule -> String
-  prettyComputePostfix (InSigmaElim1 a) = prettyComputePostfix a ++ " .π₁"
-  prettyComputePostfix (InSigmaElim2 a) = prettyComputePostfix a ++ " .π₂"
-  prettyComputePostfix (InPiApp a b) = prettyComputePostfix a ++ " " ++ prettyComputeAtom b
-  prettyComputePostfix cr = prettyComputeAtom cr
-
-  prettyComputeAtom : ComputeRule -> String
-  prettyComputeAtom Here = "↓"
-  prettyComputeAtom Id = "id"
-  prettyComputeAtom cr = "(" ++ prettyComputeRule cr ++ ")"
-
 -- ===== Judgement forms =====
 -- (Use concrete underlying types since Idris2 does not reduce type aliases for unification.)
 
@@ -256,8 +218,6 @@ prettyTypingRule (CtxEqSym ctx0 ctx1) =
   "ctx-sym " ++ prettyCtx ctx1 ++ " ≐ " ++ prettyCtx ctx0
 prettyTypingRule (CtxEqTrans ctx0 ctx1 ctx2) =
   "ctx-trans " ++ prettyCtx ctx0 ++ " ≐ " ++ prettyCtx ctx2 ++ " via " ++ prettyCtx ctx1
-prettyTypingRule (CtxWfCompute ctx alpha) =
-  "ctx-cmp " ++ prettyCtx ctx ++ " via " ++ prettyComputeRule alpha
 prettyTypingRule (SubWfTerminal ctx) =
   "sub-term " ++ prettyCtx ctx ++ " ⊦ ·"
 prettyTypingRule (SubWfExt sigma e gamma delta ty) =
@@ -298,9 +258,6 @@ prettyTypingRule (TyWfEl ctx e) =
   "ty-el " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy (El e)
 prettyTypingRule (TyWfQuotient ctx a r) =
   "ty-quotient " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy (Quotient a r)
-prettyTypingRule (TyWfCompute ctx alpha ty beta) =
-  "ty-cmp " ++ prettyCtx ctx ++ " via " ++ prettyComputeRule alpha ++
-  " ⊦ " ++ prettyTy ty ++ " via " ++ prettyComputeRule beta
 prettyTypingRule (TyEqRefl ctx ty) =
   "ty-refl " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy ty
 prettyTypingRule (TyEqSym ctx ty0 ty1) =
@@ -375,10 +332,6 @@ prettyTypingRule (ElemWfSigmaTy ctx a b) =
   "el-sigma-ty " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (Elem.SigmaTy a b) ++ " : 𝕌"
 prettyTypingRule (ElemWfEqTy ctx l r ty) =
   "el-eq-ty " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (Elem.EqTy l r ty) ++ " : 𝕌"
-prettyTypingRule (ElemWfCompute ctx alpha e beta ty gamma) =
-  "el-cmp " ++ prettyCtx ctx ++ " via " ++ prettyComputeRule alpha ++
-  " ⊦ " ++ prettyElem e ++ " via " ++ prettyComputeRule beta ++
-  " : " ++ prettyTy ty ++ " via " ++ prettyComputeRule gamma
 prettyTypingRule (ElemEqSigVar ctx sigma x) =
   "sig-var-eq " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElemAtom (SigVar x sigma)
 prettyTypingRule (ElemWfSigVar ctx sigma x) =

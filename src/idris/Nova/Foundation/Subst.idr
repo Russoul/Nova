@@ -2,15 +2,13 @@ module Nova.Foundation.Subst
 
 -- A direct, structurally-recursive substitution algorithm for Ty/Elem/Tel/
 -- Spine, matching the "by definition" (≜) substitution equations in
--- docs/NovaFoundation.txt, rather than the ComputeRule-based one-step-at-a-
--- time reduction relation in Derivation.idr's computeTy/computeElem.
+-- docs/NovaFoundation.txt.
 --
--- Unlike ComputeRule (which only ever makes one step of progress and can
--- get stuck with "no rule applies"), this always fully computes A[σ]/t[σ]
--- in one call — for any Ty/Elem/Tel/Spine and any concrete σ, since Sub's
--- constructors (Terminal/Ext/Chain/Id/Wk) are always finitely resolvable.
--- It also eagerly resolves any SubstElim already embedded in the input
--- term, so it never leaves a pending substitution behind in its result.
+-- This always fully computes A[σ]/t[σ] in one call — for any Ty/Elem/Tel/
+-- Spine and any concrete σ, since Sub's constructors (Terminal/Ext/Chain/
+-- Id/Wk) are always finitely resolvable. It also eagerly resolves any
+-- SubstElim already embedded in the input term, so it never leaves a
+-- pending substitution behind in its result.
 --
 -- Argument order matches Syntax.idr's SubstElim (object first, then the
 -- substitution): substElem t sigma computes t[σ].

@@ -413,8 +413,6 @@ prettyTypingRuleN (CtxEqSym ctx0 ctx1) =
   "ctx-sym " ++ prettyCtxN ctx1 ++ " ≐ " ++ prettyCtxN ctx0
 prettyTypingRuleN (CtxEqTrans ctx0 ctx1 ctx2) =
   "ctx-trans " ++ prettyCtxN ctx0 ++ " ≐ " ++ prettyCtxN ctx2 ++ " via " ++ prettyCtxN ctx1
-prettyTypingRuleN (CtxWfCompute ctx alpha) =
-  "ctx-cmp " ++ prettyCtxN ctx ++ " via " ++ prettyComputeRule alpha
 prettyTypingRuleN (SubWfTerminal ctx) =
   "sub-term " ++ prettyCtxN ctx ++ " ⊦"
 prettyTypingRuleN (SubWfExt sigma e gamma delta ty) =
@@ -465,9 +463,6 @@ prettyTypingRuleN (TyWfEl ctx e) =
   "ty-el " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyTyN (envForCtx ctx) (El e)
 prettyTypingRuleN (TyWfQuotient ctx a r) =
   "ty-quotient " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyTyN (envForCtx ctx) (Quotient a r)
-prettyTypingRuleN (TyWfCompute ctx alpha ty beta) =
-  "ty-cmp " ++ prettyCtxN ctx ++ " via " ++ prettyComputeRule alpha ++
-  " ⊦ " ++ prettyTyN (envForCtx ctx) ty ++ " via " ++ prettyComputeRule beta
 prettyTypingRuleN (TyEqRefl ctx ty) =
   "ty-refl " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyTyN (envForCtx ctx) ty
 prettyTypingRuleN (TyEqSym ctx ty0 ty1) =
@@ -518,9 +513,13 @@ prettyTypingRuleN (ElemWfZeroElim ctx e ty) =
 prettyTypingRuleN (ElemWfNatElim ctx z s t ty) =
   let env = envForCtx ctx
       n  = freshFromList candidatesNat env
+      -- `ih` is printed for surface symmetry with the step case's own
+      -- binder pair but is NOT a real binder for the motive (see the
+      -- matching comment in NamedParser.idr) — ty's own body is printed
+      -- against `env :< n` only, not `env :< n :< ih`.
       ih = freshIH (env :< n)
   in "el-nat-e " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyElemN env (NatElim z s t) ++
-     " motive (" ++ n ++ " " ++ ih ++ ". " ++ prettyTyN (env :< n :< ih) ty ++ ")"
+     " motive (" ++ n ++ " " ++ ih ++ ". " ++ prettyTyN (env :< n) ty ++ ")"
 prettyTypingRuleN (ElemWfClass ctx a ty r) =
   let env = envForCtx ctx
   in "el-class " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyElemN env (Class a) ++ " : " ++ prettyTyN env (Quotient ty r)
@@ -578,11 +577,6 @@ prettyTypingRuleN (ElemWfSigmaTy ctx a b) =
   "el-sigma-ty " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyElemN (envForCtx ctx) (Elem.SigmaTy a b) ++ " : 𝕌"
 prettyTypingRuleN (ElemWfEqTy ctx l r ty) =
   "el-eq-ty " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyElemN (envForCtx ctx) (Elem.EqTy l r ty) ++ " : 𝕌"
-prettyTypingRuleN (ElemWfCompute ctx alpha e beta ty gamma) =
-  let env = envForCtx ctx
-  in "el-cmp " ++ prettyCtxN ctx ++ " via " ++ prettyComputeRule alpha ++
-     " ⊦ " ++ prettyElemN env e ++ " via " ++ prettyComputeRule beta ++
-     " : " ++ prettyTyN env ty ++ " via " ++ prettyComputeRule gamma
 prettyTypingRuleN (ElemEqSigVar ctx sigma x) =
   "sig-var-eq " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyElemAtomN (envForCtx ctx) (SigVar x sigma)
 prettyTypingRuleN (ElemWfSigVar ctx sigma x) =

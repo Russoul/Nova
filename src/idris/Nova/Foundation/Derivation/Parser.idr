@@ -18,84 +18,6 @@ import Nova.Foundation.Derivation
 sp : Rule ()
 sp = optSpace
 
--- ===== ComputeRule parser =====
--- Mirrors the Elem parser structure, using ComputeRule constructors.
--- Operators by precedence (lowest to highest):
---   α , β          (InSigmaIntro, right-assoc)
---   α → β          (InPiTy, right-assoc)
---   α ⨯ β          (InSigmaTy, right-assoc)
---   α ≡ β ∈ γ      (InEqTy)
---   α ᐅ β          (InExt, right-assoc)
---   λ α            (InPiIntro, prefix)
---   𝟘-elim α       (InZeroElim, prefix)
---   ℕ-elim α β γ   (InNatElim, prefix)
---   S α            (InNatIntro1, prefix)
---   El α           (InEl, prefix)
---   quot-elim α β  (InQuotElim, prefix)
---   α @            (InPiElim, postfix)
---   α .π₁          (InSigmaElim1, postfix)
---   α .π₂          (InSigmaElim2, postfix)
---   ↓              (Here, atom)
---   id             (ComputeRule.Id, atom)
---   (α)            (parenthesised, atom)
-
-mutual
-  export
-  parseComputeRule : Rule ComputeRule
-  parseComputeRule = do
-    alpha <- parseComputeNoComma
-    (do sp; char_ ','; sp; beta <- parseComputeRule; pure (InSigmaIntro alpha beta))
-      <|> (do sp; char_ ';'; sp; beta <- parseComputeRule; pure (Composition alpha beta))
-      <|> pure alpha
-
-  parseComputeNoComma : Rule ComputeRule
-  parseComputeNoComma = do
-    alpha <- parseComputePrefix
-    (do sp; str_ "→"; sp; beta <- parseComputeNoComma; pure (InPiTy alpha beta))
-      <|> (do sp; str_ "⨯"; sp; beta <- parseComputeNoComma; pure (InSigmaTy alpha beta))
-      <|> (do sp; str_ "≡"; sp
-              beta  <- parseComputePrefix; sp; str_ "∈"; sp
-              gamma <- parseComputePrefix
-              pure (InEqTy alpha beta gamma))
-      <|> (do sp; str_ "ᐅ"; sp; beta <- parseComputeNoComma; pure (InExt alpha beta))
-      <|> pure alpha
-
-  parseComputePrefix : Rule ComputeRule
-  parseComputePrefix =
-        (do str_ "λ";      space; a <- parseComputeAtom; pure (InPiIntro a))
-    <|> (do str_ "𝟘-elim"; space; a <- parseComputeAtom; pure (InZeroElim a))
-    <|> (do str_ "ℕ-elim"; space
-            a <- parseComputeAtom; space
-            b <- parseComputeAtom; space
-            c <- parseComputeAtom
-            pure (InNatElim a b c))
-    <|> (do str_ "S";  space; a <- parseComputeAtom; pure (InNatIntro1 a))
-    <|> (do str_ "El"; space; a <- parseComputeAtom; pure (InEl a))
-    <|> (do str_ "quot-elim"; space
-            a <- parseComputeAtom; space
-            b <- parseComputeAtom
-            pure (InQuotElim a b))
-    <|> parseComputePostfix
-
-  -- Level 3: @, projections (α @, α .π₁, α .π₂, left-assoc)
-  parseComputePostfix : Rule ComputeRule
-  parseComputePostfix = do
-    alpha <- parseComputeAtom
-    parseComputePostfixCont alpha
-
-  parseComputePostfixCont : ComputeRule -> Rule ComputeRule
-  parseComputePostfixCont alpha =
-        (do sp; str_ ".π₁"; parseComputePostfixCont (InSigmaElim1 alpha))
-    <|> (do sp; str_ ".π₂"; parseComputePostfixCont (InSigmaElim2 alpha))
-    <|> (do sp; beta <- parseComputeAtom; parseComputePostfixCont (InPiApp alpha beta))
-    <|> pure alpha
-
-  parseComputeAtom : Rule ComputeRule
-  parseComputeAtom =
-        (str_ "↓"  $> Here)
-    <|> (str_ "id" $> Id)
-    <|> inParen parseComputeRule
-
 -- ===== TypingRule parser =====
 -- Keyword-first: each rule starts with a unique keyword.
 
@@ -117,9 +39,6 @@ parseTypingRule =
       ctx0 <- parseCtx; sp; str_ "≐"; sp; ctx2 <- parseCtx
       sp; str_ "via"; sp; ctx1 <- parseCtx
       pure (CtxEqTrans ctx0 ctx1 ctx2)) <|>
-  (do str_ "ctx-cmp"; space
-      ctx <- parseCtx; sp; str_ "via"; sp; alpha <- parseComputeRule
-      pure (CtxWfCompute ctx alpha)) <|>
   -- Substitution wf
   (do str_ "sub-term"; space
       ctx <- parseCtx; sp; str_ "⊦"; sp; _ <- parseSub
@@ -216,10 +135,6 @@ parseTypingRule =
       case ty of
         El e => pure (TyWfEl ctx e)
         _    => fail "ty-el: expected El e") <|>
-  (do str_ "ty-cmp"; space
-      ctx <- parseCtx; sp; str_ "via"; sp; alpha <- parseComputeRule
-      sp; str_ "⊦"; sp; ty <- parseTy; sp; str_ "via"; sp; beta <- parseComputeRule
-      pure (TyWfCompute ctx alpha ty beta)) <|>
   -- Type eq
   (do str_ "ty-refl"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; ty <- parseTy
       pure (TyEqRefl ctx ty)) <|>
@@ -373,11 +288,6 @@ parseTypingRule =
       case e of
         Elem.EqTy l r a => pure (ElemWfEqTy ctx l r a)
         _               => fail "el-eq-ty: expected l ≡ r ∈ A") <|>
-  (do str_ "el-cmp"; space
-      ctx <- parseCtx; sp; str_ "via"; sp; alpha <- parseComputeRule
-      sp; str_ "⊦"; sp; e <- parseElem; sp; str_ "via"; sp; beta <- parseComputeRule
-      sp; char_ ':'; sp; ty <- parseTy; sp; str_ "via"; sp; gamma <- parseComputeRule
-      pure (ElemWfCompute ctx alpha e beta ty gamma)) <|>
   -- Signature (sig-var-eq before sig-var before sig — longer keywords first)
   (do str_ "sig-var-eq"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
       case e of

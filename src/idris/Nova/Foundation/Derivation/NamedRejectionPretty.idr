@@ -12,12 +12,6 @@ import Nova.Foundation.Derivation.NamedPretty
 
 export
 prettyRejectionN : Rejection -> String
-prettyRejectionN (CtxCmpNoRuleApplies ctx alpha) =
-  "no compute rule applies: " ++ prettyCtxN ctx ++ " via " ++ prettyComputeRule alpha
-prettyRejectionN (TyCmpNoRuleApplies ty alpha) =
-  "no compute rule applies: " ++ prettyTyN [<] ty ++ " via " ++ prettyComputeRule alpha
-prettyRejectionN (ElemCmpNoRuleApplies e alpha) =
-  "no compute rule applies: " ++ prettyElemN [<] e ++ " via " ++ prettyComputeRule alpha
 prettyRejectionN (CtxWfNotDerivable ctx) =
   "not derivable: ctx-wf " ++ prettyCtxN ctx
 prettyRejectionN (CtxEqNotDerivable ctx0 ctx1) =

@@ -110,18 +110,6 @@ t{0} ::= t{≥1} , t{≥0}                                                      
 Δ ::= ε | x:T{≥0} ◁ Δ                                                       (right-assoc)
 ē ::= · | t{≥1} (, t{≥1})*
 
-α{5} ::= ↓ | id | (α{≥0})
-α{4} ::= α{≥4} [α{≥0}]
-α{3} ::= α{≥3} α{≥4} | α{≥3} .π₁ | α{≥3} .π₂                               (left-assoc)
-α{2} ::= λ α{≥4} | 𝟘-elim α{≥4} | S α{≥4} | El α{≥4} | ℕ-elim α{≥4} α{≥4} α{≥4} | quot-elim α{≥4} α{≥4}
-α{1} ::= α{≥2} → α{≥1} | α{≥2} ⨯ α{≥1} | α{≥2} ᐅ α{≥1}                     (right-assoc)
-       | α{≥2} ≡ α{≥2} ∈ α{≥2}
-α{0} ::= α{≥1} , α{≥0} | α{≥1} ; α{≥0}                                       (right-assoc)
-
-// α (compute rules) is unchanged and needs no names of its own: a compute
-// path only ever navigates *inside* an already-named term/type that was
-// built (and named) earlier — it never introduces a new binder.
-
 // TypingRule — syntax of derivation steps in .rules files
 // Same keyword, same arity, same premises as NovaSyntax.txt throughout.
 // What changes is: (a) `ctx-ext`/`el-var` per the incremental case above,
@@ -138,7 +126,6 @@ R ::=
   ctx-refl   Γ                                   (CtxEqRefl)
   ctx-sym    Γ₁ ≐ Γ₀                             (CtxEqSym, conclusion: Γ₁ ≐ Γ₀)
   ctx-trans  Γ₀ ≐ Γ₂ via Γ₁                     (CtxEqTrans, conclusion: Γ₀ ≐ Γ₂)
-  ctx-cmp    Γ via α                              (CtxWfCompute)
 
   // Substitution wf
   sub-term   Γ ⊦                                 (SubWfTerminal — nothing after ⊦, not `·`)
@@ -169,7 +156,6 @@ R ::=
   ty-eq-form Γ ⊦ l ≡ r ∈ A
   ty-el      Γ ⊦ El e
   ty-quotient Γ ⊦ A / (x y. R)                  (TyWfQuotient — NAMED: was `A / R`, x y name R's two arguments)
-  ty-cmp     Γ via α ⊦ T via β                  (TyWfCompute)
   ty-wf-subst Γ₀ ⊦ σ to Γ₁ ⊦ A                  (TyWfSubst, conclusion: Γ₀ ⊦ A[σ])
 
   // Type eq
@@ -207,7 +193,6 @@ R ::=
   el-pi-ty    Γ ⊦ (x:A) → B : 𝕌                 (NAMED: was `A → B : 𝕌`)
   el-sigma-ty Γ ⊦ (x:A) ⨯ B : 𝕌                 (NAMED: was `A ⨯ B : 𝕌`)
   el-eq-ty    Γ ⊦ l ≡ r ∈ A : 𝕌
-  el-cmp      Γ via α ⊦ t via β : T via γ       (ElemWfCompute)
 
   // Signature
   sig-var-eq Γ ⊦ x[e˲]                           (ElemEqSigVar — x here is a *signature* identifier, always bracketed, never a local name)

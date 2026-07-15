@@ -429,9 +429,6 @@ parseNamedTypingRule =
       (ctx0, _) <- parseNamedCtx; sp; str_ "≐"; sp; (ctx2, _) <- parseNamedCtx
       sp; str_ "via"; sp; (ctx1, _) <- parseNamedCtx
       pure (CtxEqTrans ctx0 ctx1 ctx2)) <|>
-  (do str_ "ctx-cmp"; space
-      (ctx, _) <- parseNamedCtx; sp; str_ "via"; sp; alpha <- parseComputeRule
-      pure (CtxWfCompute ctx alpha)) <|>
   -- Substitution wf
   (do str_ "sub-term"; space
       (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; _ <- parseSub env
@@ -528,10 +525,6 @@ parseNamedTypingRule =
       case ty of
         El e => pure (TyWfEl ctx e)
         _    => fail "ty-el: expected El e") <|>
-  (do str_ "ty-cmp"; space
-      (ctx, env) <- parseNamedCtx; sp; str_ "via"; sp; alpha <- parseComputeRule
-      sp; str_ "⊦"; sp; ty <- parseTy env; sp; str_ "via"; sp; beta <- parseComputeRule
-      pure (TyWfCompute ctx alpha ty beta)) <|>
   -- Type eq
   (do str_ "ty-refl"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; ty <- parseTy env
       pure (TyEqRefl ctx ty)) <|>
@@ -612,8 +605,15 @@ parseNamedTypingRule =
       case e of
         NatElim z s t => do
           space; str_ "motive"; space
+          -- The motive is a Ty in Γ ᐅ ℕ — ONE extra binder (see
+          -- ElemWfNatElim's step: `substTy a (Ext Id NatIntro0)` only ever
+          -- substitutes a single slot). `ih` is consumed here purely for
+          -- surface symmetry with the step case's own `(n ih. s)` binder
+          -- pair — it is NOT a real binder for the motive and must not be
+          -- added to the environment `ty` is parsed against, or every
+          -- index inside `ty` ends up off by one.
           char_ '('; sp; n <- parseLocalIdentifier; space; ih <- parseLocalIdentifier
-          sp; char_ '.'; sp; ty <- parseTy (env :< n :< ih); sp; char_ ')'
+          sp; char_ '.'; sp; ty <- parseTy (env :< n); sp; char_ ')'
           pure (ElemWfNatElim ctx z s t ty)
         _ => fail "el-nat-e: expected ℕ-elim z (n ih. s) t") <|>
   (do str_ "el-class"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
@@ -690,11 +690,6 @@ parseNamedTypingRule =
       case e of
         Elem.EqTy l r a => pure (ElemWfEqTy ctx l r a)
         _               => fail "el-eq-ty: expected l ≡ r ∈ A") <|>
-  (do str_ "el-cmp"; space
-      (ctx, env) <- parseNamedCtx; sp; str_ "via"; sp; alpha <- parseComputeRule
-      sp; str_ "⊦"; sp; e <- parseElem env; sp; str_ "via"; sp; beta <- parseComputeRule
-      sp; char_ ':'; sp; ty <- parseTy env; sp; str_ "via"; sp; gamma <- parseComputeRule
-      pure (ElemWfCompute ctx alpha e beta ty gamma)) <|>
   -- Signature (sig-var-eq before sig-var before sig — longer keywords first)
   (do str_ "sig-var-eq"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
       case e of

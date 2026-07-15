@@ -120,6 +120,13 @@ public export
 Sig : Type
 Sig = SnocList SigEntry
 
+||| Find a signature entry by name (innermost/most-recent declaration wins).
+export covering
+sigLookup : SigIdentifier -> Sig -> Maybe SigEntry
+sigLookup _ [<] = Nothing
+sigLookup x (rest :< entry@(_, name, _, _)) =
+  if name == x then Just entry else sigLookup x rest
+
 ||| σ⁺ ≜ σ∘↑, ☐₀
 public export
 under : Sub -> Sub

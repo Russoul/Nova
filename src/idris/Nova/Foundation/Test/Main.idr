@@ -60,7 +60,6 @@ runParse parser input =
     "ctx"          => putStrLn $ either (const "ERROR") showCtx (runParser parseCtx input)
     "tel"          => putStrLn $ either (const "ERROR") showTel (runParser parseTel input)
     "spine"        => putStrLn $ either (const "ERROR") showSpine (runParser parseSpine input)
-    "compute"      => putStrLn $ either (const "ERROR") show (runParser parseComputeRule input)
     "typing"       => putStrLn $ either (const "ERROR") show (runParser parseTypingRule input)
     "typing-list"  => putStrLn $ either (const "ERROR") (joinWith "\n" . map show) (runParser parseListTypingRule input)
     _              => putStrLn "ERROR: unknown parser '\{parser}'"

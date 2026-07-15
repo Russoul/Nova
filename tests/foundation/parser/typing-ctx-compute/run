@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run typing 'ctx-cmp ε ᐅ ℕ via ↓ ᐅ id'

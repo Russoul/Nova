@@ -24,14 +24,6 @@ t{0} ::= t{≥1} , t{≥0}                                                      
 Δ ::= ε | T{≥0} ◁ Δ                                                          (right-assoc)
 ē ::= · | t{≥1} (, t{≥1})*
 
-α{5} ::= ↓ | id | (α{≥0})
-α{4} ::= α{≥4} [α{≥0}]
-α{3} ::= α{≥3} α{≥4} | α{≥3} .π₁ | α{≥3} .π₂                               (left-assoc)
-α{2} ::= λ α{≥4} | 𝟘-elim α{≥4} | S α{≥4} | El α{≥4} | ℕ-elim α{≥4} α{≥4} α{≥4} | quot-elim α{≥4} α{≥4}
-α{1} ::= α{≥2} → α{≥1} | α{≥2} ⨯ α{≥1} | α{≥2} ᐅ α{≥1}                     (right-assoc)
-       | α{≥2} ≡ α{≥2} ∈ α{≥2}
-α{0} ::= α{≥1} , α{≥0} | α{≥1} ; α{≥0}                                       (right-assoc)
-
 // TypingRule — syntax of derivation steps in .rules files
 // Each rule starts with a unique keyword; arguments follow in conclusion-like notation.
 R ::=
@@ -42,7 +34,6 @@ R ::=
   ctx-refl   Γ                                   (CtxEqRefl)
   ctx-sym    Γ₁ ≐ Γ₀                             (CtxEqSym, conclusion: Γ₁ ≐ Γ₀)
   ctx-trans  Γ₀ ≐ Γ₂ via Γ₁                     (CtxEqTrans, conclusion: Γ₀ ≐ Γ₂)
-  ctx-cmp    Γ via α                              (CtxWfCompute)
 
   // Substitution wf
   sub-term   Γ ⊦ ·
@@ -73,7 +64,6 @@ R ::=
   ty-eq-form Γ ⊦ l ≡ r ∈ A
   ty-el      Γ ⊦ El e
   ty-quotient Γ ⊦ A / R                         (TyWfQuotient, R in Γ ᐅ A ᐅ A[↑])
-  ty-cmp     Γ via α ⊦ T via β                  (TyWfCompute)
   ty-wf-subst Γ₀ ⊦ σ to Γ₁ ⊦ A                  (TyWfSubst, conclusion: Γ₀ ⊦ A[σ])
 
   // Type eq
@@ -111,7 +101,6 @@ R ::=
   el-pi-ty    Γ ⊦ A → B : 𝕌
   el-sigma-ty Γ ⊦ A ⨯ B : 𝕌
   el-eq-ty    Γ ⊦ l ≡ r ∈ A : 𝕌
-  el-cmp      Γ via α ⊦ t via β : T via γ       (ElemWfCompute)
 
   // Signature
   sig-var-eq Γ ⊦ x[e˲]                           (ElemEqSigVar)
