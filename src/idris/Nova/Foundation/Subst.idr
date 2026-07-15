@@ -102,3 +102,95 @@ export
 embed : SubNorm -> Sub
 embed [<] = Terminal
 embed (es :< e) = Ext (embed es) e
+
+-- ===== Strengthening (partial inverse of weakening by ↑) =====
+--
+-- strengthenXxx d x undoes one weakening step: it succeeds exactly when x
+-- never references the variable at de Bruijn depth d (i.e. x is in the
+-- image of ↑ under d local binders), returning x with every free index
+-- above d decremented. Binder bookkeeping mirrors substXxx exactly. Used
+-- by the weakening-aware fact lookup in Derivation.idr; call with d = 0.
+--
+-- NOTE: strengthening is a raw syntactic operation — index arithmetic
+-- only. Its output is NOT necessarily well-formed (nothing here consults
+-- a context or the signature), and success does NOT mean the input was
+-- derivable one binder up: it only means the input is syntactically in
+-- the image of ↑. Callers must never treat a strengthened result as a
+-- judgement — it is a lookup *key*, and any meaning comes solely from the
+-- subsequent membership test against a table of derivable facts.
+
+mutual
+  export
+  strengthenElem : (depth : Nat) -> Elem -> Maybe Elem
+  strengthenElem d (CtxVar n) =
+    if n < d then Just (CtxVar n)
+    else if n == d then Nothing
+    else Just (CtxVar (minus n 1))
+  strengthenElem d (ZeroElim t)       = ZeroElim <$> strengthenElem d t
+  strengthenElem d OneIntro           = Just OneIntro
+  strengthenElem d NatIntro0          = Just NatIntro0
+  strengthenElem d (NatIntro1 t)      = NatIntro1 <$> strengthenElem d t
+  strengthenElem d (NatElim z s t)    = NatElim <$> strengthenElem d z <*> strengthenElem (2 + d) s <*> strengthenElem d t
+  strengthenElem d (PiIntro f)        = PiIntro <$> strengthenElem (1 + d) f
+  strengthenElem d (PiApp f e)        = PiApp <$> strengthenElem d f <*> strengthenElem d e
+  strengthenElem d (SigmaIntro a b)   = SigmaIntro <$> strengthenElem d a <*> strengthenElem d b
+  strengthenElem d (SigmaElim1 t)     = SigmaElim1 <$> strengthenElem d t
+  strengthenElem d (SigmaElim2 t)     = SigmaElim2 <$> strengthenElem d t
+  strengthenElem d Elem.ZeroTy        = Just Elem.ZeroTy
+  strengthenElem d Elem.OneTy         = Just Elem.OneTy
+  strengthenElem d Elem.NatTy         = Just Elem.NatTy
+  strengthenElem d (Elem.PiTy a b)    = Elem.PiTy <$> strengthenElem d a <*> strengthenElem (1 + d) b
+  strengthenElem d (Elem.SigmaTy a b) = Elem.SigmaTy <$> strengthenElem d a <*> strengthenElem (1 + d) b
+  strengthenElem d (Elem.EqTy l r t)  = Elem.EqTy <$> strengthenElem d l <*> strengthenElem d r <*> strengthenElem d t
+  strengthenElem d Refl               = Just Refl
+  strengthenElem d (SigVar x es)      = SigVar x <$> strengthenSubNorm d es
+  strengthenElem d (Class a)          = Class <$> strengthenElem d a
+  strengthenElem d (QuotElim f q)     = QuotElim <$> strengthenElem (1 + d) f <*> strengthenElem d q
+
+  export
+  strengthenSubNorm : (depth : Nat) -> SubNorm -> Maybe SubNorm
+  strengthenSubNorm d [<] = Just [<]
+  strengthenSubNorm d (es :< e) = (:<) <$> strengthenSubNorm d es <*> strengthenElem d e
+
+export
+strengthenTy : (depth : Nat) -> Ty -> Maybe Ty
+strengthenTy d Ty.ZeroTy         = Just Ty.ZeroTy
+strengthenTy d Ty.OneTy          = Just Ty.OneTy
+strengthenTy d Ty.NatTy          = Just Ty.NatTy
+strengthenTy d Ty.UniverseTy     = Just Ty.UniverseTy
+strengthenTy d (Ty.PiTy a b)     = Ty.PiTy <$> strengthenTy d a <*> strengthenTy (1 + d) b
+strengthenTy d (Ty.SigmaTy a b)  = Ty.SigmaTy <$> strengthenTy d a <*> strengthenTy (1 + d) b
+strengthenTy d (EqTy l r ty)     = EqTy <$> strengthenElem d l <*> strengthenElem d r <*> strengthenTy d ty
+strengthenTy d (El e)            = El <$> strengthenElem d e
+strengthenTy d (Quotient a r)    = Quotient <$> strengthenTy d a <*> strengthenTy (2 + d) r
+strengthenTy d (Ty.SigVar x es)  = Ty.SigVar x <$> strengthenSubNorm d es
+
+||| Only surface-shaped substitutions (flat Ext/Terminal element lists)
+||| strengthen; Id/Wk/Chain are index-sensitive and never appear in
+||| queries, so they conservatively fail.
+export
+strengthenSub : (depth : Nat) -> Sub -> Maybe Sub
+strengthenSub d Terminal  = Just Terminal
+strengthenSub d (Ext s e) = Ext <$> strengthenSub d s <*> strengthenElem d e
+strengthenSub d _         = Nothing
+
+export
+strengthenTel : (depth : Nat) -> Tel -> Maybe Tel
+strengthenTel d []           = Just []
+strengthenTel d (ty :: rest) = (::) <$> strengthenTy d ty <*> strengthenTel (1 + d) rest
+
+export
+strengthenSpine : (depth : Nat) -> Spine -> Maybe Spine
+strengthenSpine d []        = Just []
+strengthenSpine d (e :: es) = (::) <$> strengthenElem d e <*> strengthenSpine d es
+
+||| σ elementwise-weakened by ↑ — how the same (surface, Ext/Terminal)
+||| substitution is spelled one binder up in its domain (σ ∘ ↑, by the
+||| extension-postcomposition rule). Id/Wk/Chain are unreachable here
+||| (strengthenSub never produces them) — crash loudly rather than
+||| fabricate a result.
+export
+weakenSub : Sub -> Sub
+weakenSub Terminal  = Terminal
+weakenSub (Ext s e) = Ext (weakenSub s) (substElem e Wk)
+weakenSub s         = assert_total $ idris_crash "weakenSub: non-surface substitution"

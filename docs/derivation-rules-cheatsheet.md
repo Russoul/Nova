@@ -38,7 +38,11 @@ and beta-normalized — and:
 - a **well-formedness** premise/target (`ty-wf`, `el-wf`, `sub-*-wf`, ...)
   matches the *raw* store only: the expression must have been derived in
   exactly the form you wrote. Writing a beta-variant of a fact does not
-  count as that fact.
+  count as that fact. **Weakening is automatic**, though: a fact derived
+  in a prefix context is found in any extension of it (provided the
+  extended context is itself derivable, i.e. built by `ctx-ext`) — you
+  never re-derive `sig-var`/`el-var`/`el-pi-e` chains after extending the
+  context, as long as the payload doesn't mention the new variables.
 - an **equality** premise/target (`ty-eq`, `el-eq`, ...) matches raw, or —
   once both sides are raw-derivable well-formed at the queried type (the
   guard licensing normalization, mirroring the wf premises of the

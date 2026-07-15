@@ -480,12 +480,13 @@ rejectUnless r False = Left r
 --      premises the ≜-computation rules carry. Only then is the query
 --      normalized and matched against the normalized store.
 --
--- Well-formedness queries are matched raw only: subject *expansion* does
--- not hold (reduction can discard an ill-formed subterm — e.g.
--- `(λ Z) (S ())` normalizes to `Z`), so "normalize the candidate, then
--- look it up" would accept underivable judgements; operationally it could
--- also crash or diverge on ill-formed input. These normXxx functions all
--- need Σ, since unfolding a signature reference (x-β) does.
+-- Well-formedness queries are matched raw only (up to automatic
+-- weakening — see the weakening-aware membership section below): subject
+-- *expansion* does not hold (reduction can discard an ill-formed subterm
+-- — e.g. `(λ Z) (S ())` normalizes to `Z`), so "normalize the candidate,
+-- then look it up" would accept underivable judgements; operationally it
+-- could also crash or diverge on ill-formed input. These normXxx
+-- functions all need Σ, since unfolding a signature reference (x-β) does.
 normCtxWf : Sig -> CtxWf -> CtxWf
 normCtxWf = betaCtx
 
@@ -573,12 +574,124 @@ insertSpineWf x sp = {spineWfRaw $= insert x, spineWfNorm $= insert (normSpineWf
 insertSpineEq : SpineEq -> Truth -> Truth
 insertSpineEq x sp = {spineEqRaw $= insert x, spineEqNorm $= insert (normSpineEq sp.sig x)} sp
 
--- Derivability checks. Well-formedness queries match the raw store only —
--- the expression must have been derived in exactly the form written.
--- Equality queries match raw, or — once the guard passes (both sides
--- raw-derivable well-formed at the queried type, licensing normalization)
--- — the normalized store. (&&)/(||) are lazy in their right argument, so
--- the normXxx call never runs unless its guard already succeeded.
+-- ===== Weakening-aware membership =====
+--
+-- Weakening is admissible: a fact derived in Γ holds, weakened, in any
+-- extension Γ ᐅ A ᐅ ... whose context is itself derivable — inversion of
+-- the extension's ctx-wf makes each ↑ a well-formed substitution, and the
+-- substitution rules transport the judgement. So a lookup that misses
+-- tries to *strengthen* the query (undo one ↑ — possible exactly when the
+-- payload never mentions the innermost variable) and retries in the
+-- prefix context, provided the query's own context is raw-derivable
+-- well-formed (`ctxOk`). Without that guard a rule could smuggle in an
+-- extension whose entry type was never checked (e.g. ty-pi's premise
+-- context). Every strengthening step is verified by weakening back — a
+-- strengthening bug then crashes loudly instead of silently
+-- manufacturing facts.
+
+roundtripCrash : String -> a
+roundtripCrash what =
+  assert_total $ idris_crash "weakening-aware lookup: strengthen/weaken round-trip failed on a \{what}"
+
+strTy : Ty -> Maybe Ty
+strTy ty = do
+  ty' <- strengthenTy 0 ty
+  if substTy ty' Wk == ty then Just ty' else roundtripCrash "type"
+
+strElem : Elem -> Maybe Elem
+strElem e = do
+  e' <- strengthenElem 0 e
+  if substElem e' Wk == e then Just e' else roundtripCrash "element"
+
+strSub : Sub -> Maybe Sub
+strSub s = do
+  s' <- strengthenSub 0 s
+  if weakenSub s' == s then Just s' else roundtripCrash "substitution"
+
+strSubNorm : SubNorm -> Maybe SubNorm
+strSubNorm s = do
+  s' <- strengthenSubNorm 0 s
+  if substSubNorm s' Wk == s then Just s' else roundtripCrash "normal substitution"
+
+strTel : Tel -> Maybe Tel
+strTel t = do
+  t' <- strengthenTel 0 t
+  if substTel t' Wk == t then Just t' else roundtripCrash "telescope"
+
+strSpine : Spine -> Maybe Spine
+strSpine s = do
+  s' <- strengthenSpine 0 s
+  if substSpine s' Wk == s then Just s' else roundtripCrash "spine"
+
+||| Membership up to weakening: the query is in the set as written, or —
+||| if `ctxOk` — some strengthening of it into a prefix context is.
+wkMember : Ord a => SortedSet a -> (strengthen1 : a -> Maybe a) -> (ctxOk : Bool) -> a -> Bool
+wkMember raw str1 ctxOk q = contains q raw || (ctxOk && go (str1 q))
+  where
+    go : Maybe a -> Bool
+    go Nothing   = False
+    go (Just q') = contains q' raw || go (str1 q')
+
+-- One strengthening step per judgement class: drop the innermost entry of
+-- the (domain) context and strengthen every payload component with it.
+
+str1TyWf : TyWf -> Maybe TyWf
+str1TyWf (rest :< _, ty) = (\ty' => (rest, ty')) <$> strTy ty
+str1TyWf ([<], _) = Nothing
+
+str1TyEq : TyEq -> Maybe TyEq
+str1TyEq (rest :< _, t0, t1) = (\a, b => (rest, a, b)) <$> strTy t0 <*> strTy t1
+str1TyEq ([<], _, _) = Nothing
+
+str1ElemWf : ElemWf -> Maybe ElemWf
+str1ElemWf (rest :< _, e, ty) = (\e', ty' => (rest, e', ty')) <$> strElem e <*> strTy ty
+str1ElemWf ([<], _, _) = Nothing
+
+str1ElemEq : ElemEq -> Maybe ElemEq
+str1ElemEq (rest :< _, e0, e1, ty) =
+  (\a, b, c => (rest, a, b, c)) <$> strElem e0 <*> strElem e1 <*> strTy ty
+str1ElemEq ([<], _, _, _) = Nothing
+
+str1SubWf : SubWf -> Maybe SubWf
+str1SubWf (s, rest :< _, cod) = (\s' => (s', rest, cod)) <$> strSub s
+str1SubWf (_, [<], _) = Nothing
+
+str1SubEq : SubEq -> Maybe SubEq
+str1SubEq (s0, s1, rest :< _, cod) = (\a, b => (a, b, rest, cod)) <$> strSub s0 <*> strSub s1
+str1SubEq (_, _, [<], _) = Nothing
+
+str1SubNormWf : SubNormWf -> Maybe SubNormWf
+str1SubNormWf (s, rest :< _, cod) = (\s' => (s', rest, cod)) <$> strSubNorm s
+str1SubNormWf (_, [<], _) = Nothing
+
+str1SubNormEq : SubNormEq -> Maybe SubNormEq
+str1SubNormEq (s0, s1, rest :< _, cod) = (\a, b => (a, b, rest, cod)) <$> strSubNorm s0 <*> strSubNorm s1
+str1SubNormEq (_, _, [<], _) = Nothing
+
+str1TelWf : TelWf -> Maybe TelWf
+str1TelWf (rest :< _, tel) = (\tel' => (rest, tel')) <$> strTel tel
+str1TelWf ([<], _) = Nothing
+
+str1TelEq : TelEq -> Maybe TelEq
+str1TelEq (rest :< _, t0, t1) = (\a, b => (rest, a, b)) <$> strTel t0 <*> strTel t1
+str1TelEq ([<], _, _) = Nothing
+
+str1SpineWf : SpineWf -> Maybe SpineWf
+str1SpineWf (rest :< _, spn, tel) = (\a, b => (rest, a, b)) <$> strSpine spn <*> strTel tel
+str1SpineWf ([<], _, _) = Nothing
+
+str1SpineEq : SpineEq -> Maybe SpineEq
+str1SpineEq (rest :< _, s0, s1, tel) =
+  (\a, b, c => (rest, a, b, c)) <$> strSpine s0 <*> strSpine s1 <*> strTel tel
+str1SpineEq ([<], _, _, _) = Nothing
+
+-- Derivability checks. Well-formedness queries match the raw store, up to
+-- weakening — the expression must have been derived in exactly the form
+-- written, but possibly in a prefix context. Equality queries match raw,
+-- or — once the guard passes (both sides raw-derivable well-formed at the
+-- queried type, licensing normalization) — the normalized store, again up
+-- to weakening. (&&)/(||) are lazy in their right argument, so the
+-- normXxx call never runs unless its guard already succeeded.
 
 export
 ctxWfDerivable : Ctx -> Truth -> Either Rejection ()
@@ -587,30 +700,38 @@ ctxWfDerivable ctx sp = rejectUnless (CtxWfNotDerivable ctx) $ contains ctx sp.c
 export
 subWfDerivable : Sub -> Ctx -> Ctx -> Truth -> Either Rejection ()
 subWfDerivable sigma gamma delta sp =
-  rejectUnless (SubWfNotDerivable sigma gamma delta) $ contains (sigma, gamma, delta) sp.subWfRaw
+  rejectUnless (SubWfNotDerivable sigma gamma delta) $
+    wkMember sp.subWfRaw str1SubWf (contains gamma sp.ctxWfRaw) (sigma, gamma, delta)
 
 export
 subNormWfDerivable : SubNorm -> Ctx -> Ctx -> Truth -> Either Rejection ()
 subNormWfDerivable sigma gamma delta sp =
-  rejectUnless (SubNormWfNotDerivable sigma gamma delta) $ contains (sigma, gamma, delta) sp.subNormWfRaw
+  rejectUnless (SubNormWfNotDerivable sigma gamma delta) $
+    wkMember sp.subNormWfRaw str1SubNormWf (contains gamma sp.ctxWfRaw) (sigma, gamma, delta)
 
 export
 tyWfDerivable : Ctx -> Ty -> Truth -> Either Rejection ()
-tyWfDerivable ctx ty sp = rejectUnless (TyWfNotDerivable ctx ty) $ contains (ctx, ty) sp.tyWfRaw
+tyWfDerivable ctx ty sp =
+  rejectUnless (TyWfNotDerivable ctx ty) $
+    wkMember sp.tyWfRaw str1TyWf (contains ctx sp.ctxWfRaw) (ctx, ty)
 
 export
 elemWfDerivable : Ctx -> Elem -> Ty -> Truth -> Either Rejection ()
 elemWfDerivable ctx elem ty sp =
-  rejectUnless (ElemWfNotDerivable ctx elem ty) $ contains (ctx, elem, ty) sp.elemWfRaw
+  rejectUnless (ElemWfNotDerivable ctx elem ty) $
+    wkMember sp.elemWfRaw str1ElemWf (contains ctx sp.ctxWfRaw) (ctx, elem, ty)
 
 export
 telWfDerivable : Ctx -> Tel -> Truth -> Either Rejection ()
-telWfDerivable ctx tel sp = rejectUnless (TelWfNotDerivable ctx tel) $ contains (ctx, tel) sp.telWfRaw
+telWfDerivable ctx tel sp =
+  rejectUnless (TelWfNotDerivable ctx tel) $
+    wkMember sp.telWfRaw str1TelWf (contains ctx sp.ctxWfRaw) (ctx, tel)
 
 export
 spineWfDerivable : Ctx -> Spine -> Tel -> Truth -> Either Rejection ()
 spineWfDerivable ctx spine tel sp =
-  rejectUnless (SpineWfNotDerivable ctx spine tel) $ contains (ctx, spine, tel) sp.spineWfRaw
+  rejectUnless (SpineWfNotDerivable ctx spine tel) $
+    wkMember sp.spineWfRaw str1SpineWf (contains ctx sp.ctxWfRaw) (ctx, spine, tel)
 
 export
 ctxEqDerivable : Ctx -> Ctx -> Truth -> Either Rejection ()
@@ -624,49 +745,61 @@ export
 tyEqDerivable : Ctx -> Ty -> Ty -> Truth -> Either Rejection ()
 tyEqDerivable ctx ty0 ty1 sp =
   rejectUnless (TyEqNotDerivable ctx ty0 ty1) $
-    contains (ctx, ty0, ty1) sp.tyEqRaw
-    || (contains (ctx, ty0) sp.tyWfRaw && contains (ctx, ty1) sp.tyWfRaw
-        && contains (normTyEq sp.sig (ctx, ty0, ty1)) sp.tyEqNorm)
+    let ctxOk = contains ctx sp.ctxWfRaw in
+    wkMember sp.tyEqRaw str1TyEq ctxOk (ctx, ty0, ty1)
+    || (wkMember sp.tyWfRaw str1TyWf ctxOk (ctx, ty0)
+        && wkMember sp.tyWfRaw str1TyWf ctxOk (ctx, ty1)
+        && wkMember sp.tyEqNorm str1TyEq ctxOk (normTyEq sp.sig (ctx, ty0, ty1)))
 
 export
 subEqDerivable : Sub -> Sub -> Ctx -> Ctx -> Truth -> Either Rejection ()
 subEqDerivable s0 s1 g d sp =
   rejectUnless (SubEqNotDerivable s0 s1 g d) $
-    contains (s0, s1, g, d) sp.subEqRaw
-    || (contains (s0, g, d) sp.subWfRaw && contains (s1, g, d) sp.subWfRaw
-        && contains (normSubEq sp.sig (s0, s1, g, d)) sp.subEqNorm)
+    let ctxOk = contains g sp.ctxWfRaw in
+    wkMember sp.subEqRaw str1SubEq ctxOk (s0, s1, g, d)
+    || (wkMember sp.subWfRaw str1SubWf ctxOk (s0, g, d)
+        && wkMember sp.subWfRaw str1SubWf ctxOk (s1, g, d)
+        && wkMember sp.subEqNorm str1SubEq ctxOk (normSubEq sp.sig (s0, s1, g, d)))
 
 export
 subNormEqDerivable : SubNorm -> SubNorm -> Ctx -> Ctx -> Truth -> Either Rejection ()
 subNormEqDerivable s0 s1 g d sp =
   rejectUnless (SubNormEqNotDerivable s0 s1 g d) $
-    contains (s0, s1, g, d) sp.subNormEqRaw
-    || (contains (s0, g, d) sp.subNormWfRaw && contains (s1, g, d) sp.subNormWfRaw
-        && contains (normSubNormEq sp.sig (s0, s1, g, d)) sp.subNormEqNorm)
+    let ctxOk = contains g sp.ctxWfRaw in
+    wkMember sp.subNormEqRaw str1SubNormEq ctxOk (s0, s1, g, d)
+    || (wkMember sp.subNormWfRaw str1SubNormWf ctxOk (s0, g, d)
+        && wkMember sp.subNormWfRaw str1SubNormWf ctxOk (s1, g, d)
+        && wkMember sp.subNormEqNorm str1SubNormEq ctxOk (normSubNormEq sp.sig (s0, s1, g, d)))
 
 export
 elemEqDerivable : Ctx -> Elem -> Elem -> Ty -> Truth -> Either Rejection ()
 elemEqDerivable ctx e0 e1 ty sp =
   rejectUnless (ElemEqNotDerivable ctx e0 e1 ty) $
-    contains (ctx, e0, e1, ty) sp.elemEqRaw
-    || (contains (ctx, e0, ty) sp.elemWfRaw && contains (ctx, e1, ty) sp.elemWfRaw
-        && contains (normElemEq sp.sig (ctx, e0, e1, ty)) sp.elemEqNorm)
+    let ctxOk = contains ctx sp.ctxWfRaw in
+    wkMember sp.elemEqRaw str1ElemEq ctxOk (ctx, e0, e1, ty)
+    || (wkMember sp.elemWfRaw str1ElemWf ctxOk (ctx, e0, ty)
+        && wkMember sp.elemWfRaw str1ElemWf ctxOk (ctx, e1, ty)
+        && wkMember sp.elemEqNorm str1ElemEq ctxOk (normElemEq sp.sig (ctx, e0, e1, ty)))
 
 export
 telEqDerivable : Ctx -> Tel -> Tel -> Truth -> Either Rejection ()
 telEqDerivable ctx t0 t1 sp =
   rejectUnless (TelEqNotDerivable ctx t0 t1) $
-    contains (ctx, t0, t1) sp.telEqRaw
-    || (contains (ctx, t0) sp.telWfRaw && contains (ctx, t1) sp.telWfRaw
-        && contains (normTelEq sp.sig (ctx, t0, t1)) sp.telEqNorm)
+    let ctxOk = contains ctx sp.ctxWfRaw in
+    wkMember sp.telEqRaw str1TelEq ctxOk (ctx, t0, t1)
+    || (wkMember sp.telWfRaw str1TelWf ctxOk (ctx, t0)
+        && wkMember sp.telWfRaw str1TelWf ctxOk (ctx, t1)
+        && wkMember sp.telEqNorm str1TelEq ctxOk (normTelEq sp.sig (ctx, t0, t1)))
 
 export
 spineEqDerivable : Ctx -> Spine -> Spine -> Tel -> Truth -> Either Rejection ()
 spineEqDerivable ctx s0 s1 tel sp =
   rejectUnless (SpineEqNotDerivable ctx s0 s1 tel) $
-    contains (ctx, s0, s1, tel) sp.spineEqRaw
-    || (contains (ctx, s0, tel) sp.spineWfRaw && contains (ctx, s1, tel) sp.spineWfRaw
-        && contains (normSpineEq sp.sig (ctx, s0, s1, tel)) sp.spineEqNorm)
+    let ctxOk = contains ctx sp.ctxWfRaw in
+    wkMember sp.spineEqRaw str1SpineEq ctxOk (ctx, s0, s1, tel)
+    || (wkMember sp.spineWfRaw str1SpineWf ctxOk (ctx, s0, tel)
+        && wkMember sp.spineWfRaw str1SpineWf ctxOk (ctx, s1, tel)
+        && wkMember sp.spineEqNorm str1SpineEq ctxOk (normSpineEq sp.sig (ctx, s0, s1, tel)))
 
 ||| Γ‖ₙ : the type ☐ₙ has in Γ, weakening by one extra ↑ at every step of
 ||| the lookup (so the result already accounts for every extension between

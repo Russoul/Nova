@@ -1,10 +1,6 @@
 depends: plus
 - ty-sigma ε ⊦ ℕ ⨯ ℕ
 - ctx-ext ε ᐅ p:ℕ ⨯ ℕ
-- ty-nat ε ᐅ p:ℕ ⨯ ℕ ⊦ ℕ
-- ctx-ext ε ᐅ p:ℕ ⨯ ℕ ᐅ n:ℕ
-- ty-nat ε ᐅ p:ℕ ⨯ ℕ ᐅ n:ℕ ⊦ ℕ
-- ty-sigma ε ᐅ p:ℕ ⨯ ℕ ⊦ ℕ ⨯ ℕ
 - ctx-ext ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ
 - el-var ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ p
 - el-var ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ q
@@ -12,8 +8,6 @@ depends: plus
 - el-sigma-e2 ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ (p : ℕ ⨯ ℕ) .π₂
 - el-sigma-e1 ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ (q : ℕ ⨯ ℕ) .π₁
 - el-sigma-e2 ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ (q : ℕ ⨯ ℕ) .π₂
-- sub-norm-term ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦
-- sig-var ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ plus[]
 - el-pi-e ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ (plus[] : ℕ → ℕ → ℕ) (p.π₁)
 - el-pi-e ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ (plus[] (p.π₁) : ℕ → ℕ) (q.π₂)
 - el-pi-e ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ (plus[] : ℕ → ℕ → ℕ) (p.π₂)
