@@ -130,9 +130,40 @@ A finished, checked derivation can also be promoted into a reusable lemma:
 add its result to the signature with a `sig` rule (`sig Γ ⊦ x ≔ t : T`) and
 later sessions can reference it by name from a usage context `Δ` via
 `sig-var Δ ⊦ x[e˲]` / `sig-var-eq Δ ⊦ x[e˲]`, where `e˲` is a *normal*
-substitution (`t˲ ::= · | t˲, t` — a plain list of elements, no
-`id`/`↑`/`∘`) with `e˲ : Δ ⇒ Γ norm` — there is no bare `x`, a signature
-reference always carries the substitution back to its declaration context
-(e.g. `x[·]` if `x` was declared in `ε`, `x[·, ☐₀]` when used in exactly
-`Γ ᐅ A`). Build up `e˲` itself with `sub-norm-term`/`sub-norm-ext` (see the
-cheat sheet's "Normal substitution" sections).
+substitution (`t˲ ::= (empty) | t{≥1} (, t{≥1})*` — a plain, comma-separated
+list of elements, no `id`/`↑`/`∘`; the empty substitution is written as
+literally nothing, not `·`) with `e˲ : Δ ⇒ Γ norm` — there is no bare `x`,
+a signature reference always carries the substitution back to its
+declaration context (e.g. `x[]` if `x` was declared in `ε`, `x[☐₀]` when
+used in exactly `Γ ᐅ A`). Build up `e˲` itself with
+`sub-norm-term`/`sub-norm-ext` (see the cheat sheet's "Normal substitution"
+sections).
+
+### Building on another goal's session (`depends:`)
+
+A session doesn't have to re-derive a prerequisite goal's lemmas inline to
+use them: put a header line before any `- <rule>` bullet —
+
+```
+depends: plus, vect
+- ctx-emp
+- ...
+```
+
+— naming other `derivations/<goal-name>/` folders (siblings of this one).
+`init` can write this for you: `nova-foundation-app init
+derivations/vect-append/session.rules plus,vect`. Every command
+(`apply`/`query`/`dump`/`check`/`undo`) transparently replays each named
+goal's own rules first (transitively — a dependency's own `depends:` is
+resolved too, deduplicated, so diamond dependencies aren't replayed twice)
+before touching this session's own content, and `session.rules` on disk
+only ever holds this goal's *own* lines — never a copy of the dependency's.
+Once a dependency's signature entries (from its `sig` rules) are in scope
+this way, you can reference them directly (e.g. `plus[]`) without
+re-stating `sig-var` first — Σ carries over from the replayed prelude, and
+automatic beta-normalization resolves the reference the moment it's used.
+
+A `depends:` cycle (A depends on B depends on A) is rejected with a clear
+error rather than hanging; a missing/unreadable dependency file is
+likewise reported by name rather than silently treated as "no such
+lemmas".
