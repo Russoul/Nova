@@ -1,0 +1,9 @@
+- ctx-emp
+- ty-nat ε ⊦ ℕ
+- el-nat-ty ε ⊦ ℕ : 𝕌
+- ctx-ext ε ᐅ ℕ
+- ty-nat ε ᐅ ℕ ⊦ ℕ
+- ctx-ext ε ᐅ ℕ ᐅ ℕ
+- el-nat-ty ε ᐅ ℕ ᐅ ℕ ⊦ ℕ : 𝕌
+- el-quot-ty ε ⊦ ℕ / ℕ : 𝕌
+- ty-el ε ⊦ El (ℕ / ℕ)

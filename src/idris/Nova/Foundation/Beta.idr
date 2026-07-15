@@ -4,7 +4,7 @@ module Nova.Foundation.Beta
 -- Elem/Tel/Spine/SubNorm, matching every "by definition" (≜) computation
 -- rule in docs/NovaFoundation.txt — Π-β, Σ-β₁, Σ-β₂, ℕ-elim-β-Z,
 -- ℕ-elim-β-S, quote-elim-β, x-β (signature-variable unfolding), and the
--- El-𝟘/El-𝟙/El-ℕ/El-(→)/El-(⨯)/El-(≡) decoding rules.
+-- El-𝟘/El-𝟙/El-ℕ/El-(→)/El-(⨯)/El-(≡)/El-(/) decoding rules.
 --
 -- Every function takes the signature Σ as its first argument, since
 -- unfolding a SigVar (x-β) needs it — unlike every other rule here, that
@@ -14,12 +14,9 @@ module Nova.Foundation.Beta
 -- contraction (e.g. unfolding x[e˲] to a lambda that's then immediately
 -- applied) still gets caught in the same call.
 --
--- El-(/) (El (A / R) ≜ El A / El R) from docs/NovaFoundation.txt has no
--- counterpart here: Elem/𝕌 has no code constructor for Quotient (see
--- Syntax.idr — Quotient only exists as a Ty), so "El" can never actually be
--- applied to a quotient code in this implementation.
---
--- Not wired into the checker yet — this module is standalone.
+-- El-(/) (El (A / R) ≜ El A / El R) from docs/NovaFoundation.txt is handled
+-- the same way as El-(→)/El-(⨯): Elem.QuotTy is the universe code, decoded
+-- by betaTy's El case below.
 
 import Nova.Foundation.Syntax
 import Nova.Foundation.Subst
@@ -69,6 +66,7 @@ mutual
   betaElem sig (Elem.PiTy a b)    = Elem.PiTy (betaElem sig a) (betaElem sig b)
   betaElem sig (Elem.SigmaTy a b) = Elem.SigmaTy (betaElem sig a) (betaElem sig b)
   betaElem sig (Elem.EqTy l r t)  = Elem.EqTy (betaElem sig l) (betaElem sig r) (betaElem sig t)
+  betaElem sig (QuotTy a r)       = QuotTy (betaElem sig a) (betaElem sig r)
   betaElem sig Refl               = Refl
   betaElem sig (SigVar x es) =
     let es' = betaSubNorm sig es
@@ -84,7 +82,8 @@ mutual
 ||| T, with every beta-redex rewritten: Π/Σ/ℕ-elim/quot-elim/x-β redexes
 ||| inside an El t's argument (via betaElem), plus El-of-universe-code
 ||| decoding — El 𝟘 ≜ 𝟘, El 𝟙 ≜ 𝟙, El ℕ ≜ ℕ, El (A → B) ≜ El A → El B,
-||| El (A ⨯ B) ≜ El A ⨯ El B, El (a ≡ b ∈ A) ≜ (a ≡ b ∈ El A) — see the
+||| El (A ⨯ B) ≜ El A ⨯ El B, El (a ≡ b ∈ A) ≜ (a ≡ b ∈ El A),
+||| El (A / R) ≜ El A / El R — see the
 ||| El-* rules in docs/NovaFoundation.txt. The decoded result is itself
 ||| recursed into (via betaTy again), since decoding can expose a further
 ||| decodable code (e.g. El of a signature reference that unfolds to 𝟘).
@@ -105,6 +104,7 @@ betaTy sig (El e) =
     Elem.PiTy a b    => betaTy sig (Ty.PiTy (El a) (El b))
     Elem.SigmaTy a b => betaTy sig (Ty.SigmaTy (El a) (El b))
     Elem.EqTy l r t  => betaTy sig (EqTy l r (El t))
+    QuotTy a r       => betaTy sig (Quotient (El a) (El r))
     e'               => El e'
 betaTy sig (Quotient a r)   = Quotient (betaTy sig a) (betaTy sig r)
 

@@ -298,6 +298,11 @@ parseTypingRule =
       case e of
         Elem.EqTy l r a => pure (ElemWfEqTy ctx l r a)
         _               => fail "el-eq-ty: expected l ≡ r ∈ A") <|>
+  (do str_ "el-quot-ty"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
+      sp; char_ ':'; sp; str_ "𝕌"
+      case e of
+        Elem.QuotTy a r => pure (ElemWfQuotTy ctx a r)
+        _               => fail "el-quot-ty: expected A / R") <|>
   -- Signature (sig-var-eq before sig-var before sig — longer keywords first)
   (do str_ "sig-var-eq"; space; ctx <- parseCtx; sp; str_ "⊦"; sp; e <- parseElem
       case e of

@@ -57,6 +57,7 @@ mutual
   -- e₁ , e₂          (right-assoc SigmaIntro)
   -- e₁ → e₂          (right-assoc PiTy element)
   -- e₁ ⨯ e₂          (right-assoc SigmaTy element)
+  -- e₁ / e₂          (right-assoc QuotTy element)
   -- e₀ ≡ e₁ ∈ e₂     (EqTy element)
   -- λ e               (PiIntro)
   -- S e               (NatIntro1)
@@ -88,6 +89,7 @@ mutual
     e <- parseElemPrefix
     (do sp; str_ "→"; sp; e' <- parseElemNoComma; pure (Elem.PiTy e e'))
       <|> (do sp; str_ "⨯"; sp; e' <- parseElemNoComma; pure (Elem.SigmaTy e e'))
+      <|> (do sp; str_ "/"; sp; e' <- parseElemNoComma; pure (Elem.QuotTy e e'))
       <|> (do sp; str_ "≡"; sp
               e1 <- parseElemPrefix; sp; str_ "∈"; sp
               e2 <- parseElemPrefix

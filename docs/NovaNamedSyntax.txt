@@ -94,7 +94,7 @@ t{5} ::= x | () | Z | Refl | 𝟘 | 𝟙 | ℕ | x[t˲] | (t{≥0})
 t{4} ::= t{≥4} [σ{≥0}]
 t{3} ::= t{≥3} t{≥4} | t{≥3} .π₁ | t{≥3} .π₂                               (left-assoc)
 t{2} ::= λx. t{≥3} | 𝟘-elim t{≥4} | S t{≥4} | ℕ-elim t{≥4} (n ih. t{≥4}) t{≥4} | class t{≥4} | quot-elim (a. t{≥0}) t{≥4}
-t{1} ::= (x:t{≥0}) → t{≥1} | (x:t{≥0}) ⨯ t{≥1} | t{≥2} ≡ t{≥2} ∈ t{≥2}
+t{1} ::= (x:t{≥0}) → t{≥1} | (x:t{≥0}) ⨯ t{≥1} | t{≥2} / (x y. t{≥1}) | t{≥2} ≡ t{≥2} ∈ t{≥2}
 t{0} ::= t{≥1} , t{≥0}                                                      SigmaIntro (right-assoc)
 
 // Same sugar as above applies to λ (`λ. f` for `λ_. f` is not useful since
@@ -196,6 +196,7 @@ R ::=
   el-pi-ty    Γ ⊦ (x:A) → B : 𝕌                 (NAMED: was `A → B : 𝕌`)
   el-sigma-ty Γ ⊦ (x:A) ⨯ B : 𝕌                 (NAMED: was `A ⨯ B : 𝕌`)
   el-eq-ty    Γ ⊦ l ≡ r ∈ A : 𝕌
+  el-quot-ty  Γ ⊦ A / (x y. R) : 𝕌               (ElemWfQuotTy — NAMED: was `A / R : 𝕌`)
 
   // Signature
   sig-var-eq Γ ⊦ x[e˲]                           (ElemEqSigVar — x here is a *signature* identifier, always bracketed, never a local name)
