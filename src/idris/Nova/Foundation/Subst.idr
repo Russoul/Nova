@@ -67,6 +67,7 @@ mutual
   substElem (Elem.PiTy a b)    sigma = Elem.PiTy (substElem a sigma) (substElem b (under sigma))
   substElem (Elem.SigmaTy a b) sigma = Elem.SigmaTy (substElem a sigma) (substElem b (under sigma))
   substElem (Elem.EqTy l r t)  sigma = Elem.EqTy (substElem l sigma) (substElem r sigma) (substElem t sigma)
+  substElem (QuotTy a r)       sigma = QuotTy (substElem a sigma) (substElem r (under (under sigma)))
   substElem Refl               sigma = Refl
   substElem (SigVar x es)      sigma = SigVar x (substSubNorm es sigma)
   substElem (Class a)          sigma = Class (substElem a sigma)

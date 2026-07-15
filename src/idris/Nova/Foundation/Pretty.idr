@@ -50,6 +50,7 @@ mutual
   prettyElemNoComma : Elem -> String
   prettyElemNoComma (Elem.PiTy e e') = prettyElemPrefix e ++ " → " ++ prettyElemNoComma e'
   prettyElemNoComma (Elem.SigmaTy e e') = prettyElemPrefix e ++ " ⨯ " ++ prettyElemNoComma e'
+  prettyElemNoComma (Elem.QuotTy e e') = prettyElemPrefix e ++ " / " ++ prettyElemNoComma e'
   prettyElemNoComma (Elem.EqTy e0 e1 e2) =
     prettyElemPrefix e0 ++ " ≡ " ++ prettyElemPrefix e1 ++ " ∈ " ++ prettyElemPrefix e2
   prettyElemNoComma e = prettyElemPrefix e
@@ -332,6 +333,8 @@ prettyTypingRule (ElemWfSigmaTy ctx a b) =
   "el-sigma-ty " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (Elem.SigmaTy a b) ++ " : 𝕌"
 prettyTypingRule (ElemWfEqTy ctx l r ty) =
   "el-eq-ty " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (Elem.EqTy l r ty) ++ " : 𝕌"
+prettyTypingRule (ElemWfQuotTy ctx a r) =
+  "el-quot-ty " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (Elem.QuotTy a r) ++ " : 𝕌"
 prettyTypingRule (ElemEqSigVar ctx sigma x) =
   "sig-var-eq " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElemAtom (SigVar x sigma)
 prettyTypingRule (ElemWfSigVar ctx sigma x) =

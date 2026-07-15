@@ -208,6 +208,8 @@ data TypingRule : Type where
   ElemWfSigmaTy : Ctx -> Elem -> Elem -> TypingRule
   ||| Γ ⊦ t ≡ t ∈ t
   ElemWfEqTy : Ctx -> Elem -> Elem -> Elem -> TypingRule
+  ||| Γ ⊦ t / t
+  ElemWfQuotTy : Ctx -> Elem -> Elem -> TypingRule
   ||| Γ ⊦ Refl : (a ≡ a : A)
   ElemWfRefl : Ctx -> Elem -> Ty -> TypingRule
   ||| Γ ⊦ a : A₀
@@ -369,6 +371,7 @@ Show TypingRule where
   show (ElemWfPiTy ctx a b)          = "ElemWfPiTy (\{showCtxRep ctx}) (\{show a}) (\{show b})"
   show (ElemWfSigmaTy ctx a b)       = "ElemWfSigmaTy (\{showCtxRep ctx}) (\{show a}) (\{show b})"
   show (ElemWfEqTy ctx l r ty)       = "ElemWfEqTy (\{showCtxRep ctx}) (\{show l}) (\{show r}) (\{show ty})"
+  show (ElemWfQuotTy ctx a r)        = "ElemWfQuotTy (\{showCtxRep ctx}) (\{show a}) (\{show r})"
   show (ElemWfRefl ctx e ty)         = "ElemWfRefl (\{showCtxRep ctx}) (\{show e}) (\{show ty})"
   show (ElemWfTyCoe ctx e ty0 ty1)   = "ElemWfTyCoe (\{showCtxRep ctx}) (\{show e}) (\{show ty0}) (\{show ty1})"
   show (ElemWfCtxCoe ctx0 ctx1 e ty) = "ElemWfCtxCoe (\{showCtxRep ctx0}) (\{showCtxRep ctx1}) (\{show e}) (\{show ty})"
@@ -746,6 +749,10 @@ step (ElemWfEqTy gamma l r ty) sp = do
   elemWfDerivable gamma l (El ty) sp
   elemWfDerivable gamma r (El ty) sp
   Right $ {elemWf $= insertElemWf sp.sig (gamma, EqTy l r ty, UniverseTy)} sp
+step (ElemWfQuotTy gamma a r) sp = do
+  elemWfDerivable gamma a UniverseTy sp
+  elemWfDerivable (gamma :< El a :< substTy (El a) Wk) r UniverseTy sp
+  Right $ {elemWf $= insertElemWf sp.sig (gamma, QuotTy a r, UniverseTy)} sp
 step (ElemWfRefl gamma e ty) sp = do
   elemWfDerivable gamma e ty sp
   Right $ {elemWf $= insertElemWf sp.sig (gamma, Refl, EqTy e e ty)} sp

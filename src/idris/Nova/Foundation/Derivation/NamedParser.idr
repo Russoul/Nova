@@ -195,11 +195,21 @@ mutual
     <|> (do e <- parseElemPrefix env
             (do sp; str_ "→"; sp; e' <- parseElemNoComma (env :< wildcard); pure (Elem.PiTy e e'))
               <|> (do sp; str_ "⨯"; sp; e' <- parseElemNoComma (env :< wildcard); pure (Elem.SigmaTy e e'))
+              <|> (do sp; str_ "/"; sp; r <- parseQuotientRelationElem env; pure (Elem.QuotTy e r))
               <|> (do sp; str_ "≡"; sp
                       e1 <- parseElemPrefix env; sp; str_ "∈"; sp
                       e2 <- parseElemPrefix env
                       pure (Elem.EqTy e e1 e2))
               <|> pure e)
+   where
+    -- (x y. r)  or, as sugar, bare r ≡ (_ _. r)
+    covering
+    parseQuotientRelationElem : NameEnv -> Rule Elem
+    parseQuotientRelationElem env =
+          (do char_ '('; sp; x <- parseLocalIdentifier; space; y <- parseLocalIdentifier
+              sp; char_ '.'; sp; r <- parseElemNoComma (env :< x :< y); sp; char_ ')'
+              pure r)
+      <|> parseElemNoComma (env :< wildcard :< wildcard)
 
   -- Prefix operators: take an atomic argument
   covering
@@ -690,6 +700,11 @@ parseNamedTypingRule =
       case e of
         Elem.EqTy l r a => pure (ElemWfEqTy ctx l r a)
         _               => fail "el-eq-ty: expected l ≡ r ∈ A") <|>
+  (do str_ "el-quot-ty"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
+      sp; char_ ':'; sp; str_ "𝕌"
+      case e of
+        Elem.QuotTy a r => pure (ElemWfQuotTy ctx a r)
+        _               => fail "el-quot-ty: expected A / (x y. R)") <|>
   -- Signature (sig-var-eq before sig-var before sig — longer keywords first)
   (do str_ "sig-var-eq"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
       case e of

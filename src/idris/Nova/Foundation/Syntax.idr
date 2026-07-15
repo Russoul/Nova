@@ -77,6 +77,10 @@ mutual
       SigmaTy : Elem -> Elem -> Elem
       ||| t ≡ t ∈ t  (universe element encoding equality)
       EqTy : Elem -> Elem -> Elem -> Elem
+      ||| t / t  (universe element encoding quotient: the second Elem is the
+      ||| relation code, living two levels deeper — Γ ᐅ El a ᐅ (El a)[↑] —
+      ||| one bound variable per side)
+      QuotTy : Elem -> Elem -> Elem
       ||| Refl  (reflexivity)
       Refl : Elem
       ||| x[σ]  (signature variable, applied to a (normal) substitution to its
@@ -177,6 +181,7 @@ mutual
     Elem.PiTy a b    == Elem.PiTy a' b'    = a == a' && b == b'
     Elem.SigmaTy a b == Elem.SigmaTy a' b' = a == a' && b == b'
     Elem.EqTy l r t  == Elem.EqTy l' r' t' = l == l' && r == r' && t == t'
+    QuotTy a r       == QuotTy a' r'       = a == a' && r == r'
     Refl             == Refl               = True
     SigVar x s       == SigVar x' s'        = x == x' && s == s'
     Class a          == Class a'           = a == a'
@@ -284,6 +289,9 @@ mutual
     compare (Elem.EqTy l r t)  (Elem.EqTy l' r' t') = compare l l' <+> compare r r' <+> compare t t'
     compare (Elem.EqTy _ _ _)  _                    = LT
     compare _                  (Elem.EqTy _ _ _)    = GT
+    compare (QuotTy a r)       (QuotTy a' r')       = compare a a' <+> compare r r'
+    compare (QuotTy _ _)       _                    = LT
+    compare _                  (QuotTy _ _)         = GT
     compare Refl               Refl                 = EQ
     compare Refl               _                    = LT
     compare _                  Refl                 = GT
@@ -338,6 +346,7 @@ mutual
     show (Elem.PiTy e1 e2) = "PiTy (\{show e1}) (\{show e2})"
     show (Elem.SigmaTy e1 e2) = "SigmaTy (\{show e1}) (\{show e2})"
     show (Elem.EqTy e0 e1 e2) = "EqTy (\{show e0}) (\{show e1}) (\{show e2})"
+    show (QuotTy a r) = "QuotTy (\{show a}) (\{show r})"
     show Refl = "Refl"
     show (SigVar x s) = "SigVar \{show x} (\{show s})"
     show (Class a) = "Class (\{show a})"
