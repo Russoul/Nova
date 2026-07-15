@@ -18,6 +18,5 @@
 - el-zero ε ᐅ n:ℕ ᐅ m:ℕ ᐅ x:𝟙 ⊦ Z
 - el-eq-refl ε ᐅ n:ℕ ᐅ m:ℕ ᐅ x:𝟙 ⊦ Z : ℕ
 - el-quot-elim ε ⊦ quot-elim Z (class Z : ℕ / (n x. 𝟙)) motive (x. ℕ)
-- el-cmp ε via id ⊦ quot-elim Z (class Z) via ↓ : ℕ via id
 - el-eq-refl ε ⊦ Z : ℕ
 - el-class-cong ε ⊦ class Z ≐ class Z : ℕ / (n x. 𝟙)

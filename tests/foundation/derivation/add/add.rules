@@ -24,14 +24,9 @@
 - el-var ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ ☐₀
 - el-suc ε ᐅ ℕ ᐅ ℕ ᐅ ℕ ⊦ S ☐₀
 - el-nat-e ε ᐅ ℕ ⊦ ℕ-elim ☐₀ (S ☐₀) Z motive ℕ
-- el-cmp ε ᐅ ℕ via id ⊦ ℕ-elim ☐₀ (S ☐₀) Z via ↓ : ℕ via id
+- el-eq-refl ε ᐅ ℕ ⊦ ℕ-elim ☐₀ (S ☐₀) Z : ℕ
 - sub-norm-term ε ᐅ ℕ ⊦ ·
 - sig-var ε ᐅ ℕ ⊦ plus[·]
 - el-pi-e ε ᐅ ℕ ⊦ (plus[·] : ℕ → ℕ → ℕ) ☐₀
 - el-pi-e ε ᐅ ℕ ⊦ (plus[·] ☐₀ : ℕ → ℕ) Z
-- el-cmp ε ᐅ ℕ via id ⊦ plus[·] ☐₀ Z via ↓ id id : ℕ via id
-- el-cmp ε ᐅ ℕ via id ⊦ (λ (λ (ℕ-elim ☐₁ (S ☐₀) ☐₀))) ☐₀ Z via ↓ id : ℕ via id
-- el-cmp ε ᐅ ℕ via id ⊦ (λ (ℕ-elim ☐₁ (S ☐₀) ☐₀)) Z via ↓ : ℕ via id
-- el-eq-trans ε ᐅ ℕ ⊦ plus[·] ☐₀ Z ≐ (λ (ℕ-elim ☐₁ (S ☐₀) ☐₀)) Z : ℕ via (λ (λ (ℕ-elim ☐₁ (S ☐₀) ☐₀))) ☐₀ Z
-- el-eq-trans ε ᐅ ℕ ⊦ plus[·] ☐₀ Z ≐ ℕ-elim ☐₀ (S ☐₀) Z : ℕ via (λ (ℕ-elim ☐₁ (S ☐₀) ☐₀)) Z
-- el-eq-trans ε ᐅ ℕ ⊦ plus[·] ☐₀ Z ≐ ☐₀ : ℕ via ℕ-elim ☐₀ (S ☐₀) Z
+- el-eq-refl ε ᐅ ℕ ⊦ plus[·] ☐₀ Z : ℕ
