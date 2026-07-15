@@ -1,6 +1,7 @@
 module Nova.Foundation.Derivation
 
 import Data.Either
+import Data.List
 import Data.SnocList
 import Nova.Foundation.Syntax
 import Nova.Foundation.Subst
@@ -218,6 +219,13 @@ data TypingRule : Type where
   ElemWfPiIntro : Ctx -> Elem -> Ty -> Ty -> TypingRule
   ||| Γ ⊦ (f : A -> B) e
   ElemWfPiApp : Ctx -> Elem -> Ty -> Ty -> Elem -> TypingRule
+  ||| Γ ⊦ f e — like ElemWfPiApp, but f's Π-type is looked up in the
+  ||| derived-facts table instead of restated: for every stored
+  ||| (weakening-visible) fact Γ ⊦ f : A → B whose domain accepts e, the
+  ||| conclusion Γ ⊦ f e : B[id, e] is derived. If no Π-typed fact for f
+  ||| exists yet and f is itself an application, f is inferred first
+  ||| recursively — one rule can check a whole application spine.
+  ElemWfPiAppInfer : Ctx -> Elem -> Elem -> TypingRule
   ||| Γ ⊦ t , t : T ⨯ T
   ElemWfSigmaIntro : Ctx -> Elem -> Elem -> Ty -> Ty -> TypingRule
   ||| Γ ⊦ (t : T ⨯ T) .π₁
@@ -388,6 +396,7 @@ Show TypingRule where
   show (ElemWfSubst gamma0 gamma1 sigma t a) = "ElemWfSubst (\{showCtxRep gamma0}) (\{showCtxRep gamma1}) (\{show sigma}) (\{show t}) (\{show a})"
   show (ElemWfPiIntro ctx f a b)     = "ElemWfPiIntro (\{showCtxRep ctx}) (\{show f}) (\{show a}) (\{show b})"
   show (ElemWfPiApp g a f e b)       = "ElemWfPiApp (\{showCtxRep g}) (\{show a}) (\{show f}) (\{show e}) (\{show b})"
+  show (ElemWfPiAppInfer g f e)      = "ElemWfPiAppInfer (\{showCtxRep g}) (\{show f}) (\{show e})"
   show (ElemWfSigmaIntro ctx u v a b) = "ElemWfSigmaIntro (\{showCtxRep ctx}) (\{show u}) (\{show v}) (\{show a}) (\{show b})"
   show (ElemWfSigmaElim1 ctx e a b)  = "ElemWfSigmaElim1 (\{showCtxRep ctx}) (\{show e}) (\{show a}) (\{show b})"
   show (ElemWfSigmaElim2 ctx e a b)  = "ElemWfSigmaElim2 (\{showCtxRep ctx}) (\{show e}) (\{show a}) (\{show b})"
@@ -460,6 +469,9 @@ data Rejection : Type where
   SigIdentifierAlreadyDefined : SigIdentifier -> Rejection
   SigIdentifierNotATermDef : SigIdentifier -> Rejection
   SigIdentifierNotATypeDef : SigIdentifier -> Rejection
+  ||| el-pi-e's inferring form found no Π-typed fact for the function (or
+  ||| none whose domain accepts the argument).
+  PiAppInferenceFailed : Ctx -> Elem -> Elem -> Rejection
   CtxVarOutOfBounds : Ctx -> Nat -> Rejection
 
 rejectUnless : Rejection -> Bool -> Either Rejection ()
@@ -684,6 +696,42 @@ str1SpineEq : SpineEq -> Maybe SpineEq
 str1SpineEq (rest :< _, s0, s1, tel) =
   (\a, b, c => (rest, a, b, c)) <$> strSpine s0 <*> strSpine s1 <*> strTel tel
 str1SpineEq ([<], _, _, _) = Nothing
+
+||| Every Π-type the derived-facts table assigns to `f` in `gamma`,
+||| including facts from prefix contexts weakened into `gamma` (same
+||| discipline and ctx-wf guard as wkMember; strengthening is only used to
+||| build lookup keys). Purely a query — each returned (A, B) is a
+||| component of a stored derivable fact, weakened back to `gamma`.
+piCandidates : Truth -> Ctx -> Elem -> List (Ty, Ty)
+piCandidates sp gamma f = go 0 gamma f
+  where
+    weakenBy : Nat -> Ty -> Ty
+    weakenBy Z     ty = ty
+    weakenBy (S k) ty = weakenBy k (substTy ty Wk)
+
+    exact : Ctx -> Elem -> List Ty
+    exact ctx g = mapMaybe
+      (\(c, h, ty) =>
+        case ty of
+          PiTy _ _ => if c == ctx && h == g then Just ty else Nothing
+          _        => Nothing)
+      (Prelude.toList sp.elemWfRaw)
+
+    go : Nat -> Ctx -> Elem -> List (Ty, Ty)
+    go k ctx g =
+      let here = mapMaybe (\ty => case weakenBy k ty of
+                                    PiTy a b => Just (a, b)
+                                    _        => Nothing)
+                          (exact ctx g)
+          deeper = case ctx of
+                     [<] => []
+                     rest :< _ =>
+                       if k == 0 && not (contains gamma sp.ctxWfRaw)
+                         then []
+                         else case strElem g of
+                                Nothing => []
+                                Just g' => go (S k) rest g'
+      in here ++ deeper
 
 -- Derivability checks. Well-formedness queries match the raw store, up to
 -- weakening — the expression must have been derived in exactly the form
@@ -927,6 +975,18 @@ step (ElemWfPiApp gamma f a b e) sp = do
   elemWfDerivable gamma f (PiTy a b) sp
   elemWfDerivable gamma e a sp
   Right $ insertElemWf (gamma, PiApp f e, substTy b (Ext Id e)) sp
+step (ElemWfPiAppInfer gamma f e) sp =
+  -- First opportunistically infer any application nested in the function
+  -- or the argument (failures are swallowed — the fact may already exist
+  -- via another route, e.g. a coercion; the final check below decides).
+  let sp = tryInfer f (tryInfer e sp) in
+  case filter (\(a, _) => isRight (elemWfDerivable gamma e a sp)) (piCandidates sp gamma f) of
+    []    => Left (PiAppInferenceFailed gamma f e)
+    cands => Right $ foldl (\acc, (a, b) => insertElemWf (gamma, PiApp f e, substTy b (Ext Id e)) acc) sp cands
+  where
+    tryInfer : Elem -> Truth -> Truth
+    tryInfer (PiApp g x) truth = either (const truth) id (step (ElemWfPiAppInfer gamma g x) truth)
+    tryInfer _ truth = truth
 step (ElemWfSigmaIntro gamma u v a b) sp = do
   tyWfDerivable (gamma :< a) b sp
   elemWfDerivable gamma u a sp

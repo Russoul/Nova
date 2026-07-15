@@ -8,10 +8,8 @@ depends: plus
 - el-sigma-e2 ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ (p : ℕ ⨯ ℕ) .π₂
 - el-sigma-e1 ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ (q : ℕ ⨯ ℕ) .π₁
 - el-sigma-e2 ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ (q : ℕ ⨯ ℕ) .π₂
-- el-pi-e ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ (plus[] : ℕ → ℕ → ℕ) (p.π₁)
-- el-pi-e ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ (plus[] (p.π₁) : ℕ → ℕ) (q.π₂)
-- el-pi-e ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ (plus[] : ℕ → ℕ → ℕ) (p.π₂)
-- el-pi-e ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ (plus[] (p.π₂) : ℕ → ℕ) (q.π₁)
+- el-pi-e ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ plus[] (p.π₁) (q.π₂)
+- el-pi-e ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ plus[] (p.π₂) (q.π₁)
 - ty-eq-form ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ
 - ty-quotient ε ⊦ (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
 - el-zero ε ⊦ Z
@@ -20,17 +18,14 @@ depends: plus
 - el-sigma-i ε ⊦ S Z , S Z : ℕ ⨯ ℕ
 - el-class ε ⊦ class (Z , Z) : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
 - el-class ε ⊦ class (S Z , S Z) : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
-- el-pi-e ε ⊦ (plus[] : ℕ → ℕ → ℕ) Z
-- el-pi-e ε ⊦ (plus[] Z : ℕ → ℕ) (S Z)
+- el-pi-e ε ⊦ plus[] Z (S Z)
 - el-refl ε ⊦ Refl : (plus[] Z (S Z)) ∈ ℕ
 - el-sigma-e1 ε ⊦ ((Z , Z) : ℕ ⨯ ℕ) .π₁
 - el-sigma-e2 ε ⊦ ((Z , Z) : ℕ ⨯ ℕ) .π₂
 - el-sigma-e1 ε ⊦ ((S Z , S Z) : ℕ ⨯ ℕ) .π₁
 - el-sigma-e2 ε ⊦ ((S Z , S Z) : ℕ ⨯ ℕ) .π₂
-- el-pi-e ε ⊦ (plus[] : ℕ → ℕ → ℕ) ((Z , Z) .π₁)
-- el-pi-e ε ⊦ (plus[] ((Z , Z) .π₁) : ℕ → ℕ) ((S Z , S Z) .π₂)
-- el-pi-e ε ⊦ (plus[] : ℕ → ℕ → ℕ) ((Z , Z) .π₂)
-- el-pi-e ε ⊦ (plus[] ((Z , Z) .π₂) : ℕ → ℕ) ((S Z , S Z) .π₁)
+- el-pi-e ε ⊦ plus[] ((Z , Z) .π₁) ((S Z , S Z) .π₂)
+- el-pi-e ε ⊦ plus[] ((Z , Z) .π₂) ((S Z , S Z) .π₁)
 - ty-eq-form ε ⊦ plus[] Z (S Z) ≡ plus[] Z (S Z) ∈ ℕ
 - ty-eq-form ε ⊦ plus[] ((Z , Z) .π₁) ((S Z , S Z) .π₂) ≡ plus[] ((Z , Z) .π₂) ((S Z , S Z) .π₁) ∈ ℕ
 - ty-refl ε ⊦ plus[] Z (S Z) ≡ plus[] Z (S Z) ∈ ℕ

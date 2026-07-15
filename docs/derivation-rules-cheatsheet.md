@@ -204,6 +204,7 @@ No `sub-norm-chn`/`sub-norm-eq-chn` either, for the same reason.
 | `el-suc Γ ⊦ S t` | `Γ ⊦ t : ℕ` | `Γ ⊦ S t : ℕ` |
 | `el-pi-i Γ ⊦ λ f : A → B` | `Γ ᐅ A ⊦ f : B` | `Γ ⊦ λf : A → B` |
 | `el-pi-e Γ ⊦ (f : A → B) e` | `Γ ⊦ f : A → B`, `Γ ⊦ e : A` | `Γ ⊦ f e : B[e]` |
+| `el-pi-e Γ ⊦ f e` | some derived `Γ ⊦ f : A → B` (looked up, incl. weakened) with `Γ ⊦ e : A` | `Γ ⊦ f e : B[e]` for every such Π-type; applications nested in `f`/`e` are inferred first, so one line checks a whole application tree — prefer this form, the annotated one is only for disambiguation |
 | `el-sigma-i Γ ⊦ u, v : A ⨯ B` | `Γ ⊦ u : A`, `Γ ⊦ v : B[u]` | `Γ ⊦ (u, v) : A ⨯ B` |
 | `el-sigma-e1 Γ ⊦ (t : A ⨯ B) .π₁` | `Γ ⊦ t : A ⨯ B` | `Γ ⊦ t.π₁ : A` |
 | `el-sigma-e2 Γ ⊦ (t : A ⨯ B) .π₂` | `Γ ⊦ t : A ⨯ B` | `Γ ⊦ t.π₂ : B[t.π₁]` |

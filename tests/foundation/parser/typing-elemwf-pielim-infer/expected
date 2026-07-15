@@ -1,0 +1,1 @@
+ElemWfPiAppInfer (([<] :< NatTy)) (PiApp (SigVar "plus" ([< ])) (CtxVar 0)) (NatIntro0)

@@ -21,9 +21,8 @@
 - sub-norm-term ε ᐅ A:𝕌 ⊦
 - sig-var ε ᐅ A:𝕌 ⊦ vect[]
 - el-zero ε ᐅ A:𝕌 ⊦ Z
-- el-pi-e ε ᐅ A:𝕌 ⊦ (vect[] : ℕ → 𝕌 → 𝕌) Z
 - el-var ε ᐅ A:𝕌 ⊦ A
-- el-pi-e ε ᐅ A:𝕌 ⊦ (vect[] Z : 𝕌 → 𝕌) A
+- el-pi-e ε ᐅ A:𝕌 ⊦ vect[] Z A
 - el-refl ε ᐅ A:𝕌 ⊦ Refl : (vect[] Z A) ∈ 𝕌
 - el-one-ty ε ᐅ A:𝕌 ⊦ 𝟙 : 𝕌
 - ty-eq-form ε ᐅ A:𝕌 ⊦ vect[] Z A ≡ vect[] Z A ∈ 𝕌
@@ -34,13 +33,11 @@
 - sub-norm-term ε ᐅ n:ℕ ᐅ A:𝕌 ⊦
 - sig-var ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ vect[]
 - el-suc ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ S n
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ (vect[] : ℕ → 𝕌 → 𝕌) (S n)
 - el-var ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ A
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ (vect[] (S n) : 𝕌 → 𝕌) A
+- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ vect[] (S n) A
 - ty-el ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ El A
 - ctx-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ v:El A
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ v:El A ⊦ (vect[] : ℕ → 𝕌 → 𝕌) n
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ v:El A ⊦ (vect[] n : 𝕌 → 𝕌) A
+- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ v:El A ⊦ vect[] n A
 - el-sigma-ty ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ A ⨯ vect[] n A : 𝕌
 - el-refl ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ Refl : (vect[] (S n) A) ∈ 𝕌
 - ty-eq-form ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ vect[] (S n) A ≡ vect[] (S n) A ∈ 𝕌

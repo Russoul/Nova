@@ -60,5 +60,8 @@ prettyRejectionN (SigIdentifierNotATermDef x) =
   "signature identifier is not a term definition: " ++ x
 prettyRejectionN (SigIdentifierNotATypeDef x) =
   "signature identifier is not a type definition: " ++ x
+prettyRejectionN (PiAppInferenceFailed ctx f e) =
+  "no Π-typed fact for the function (or none accepting the argument) in: " ++
+    prettyCtxN ctx ++ " ⊦ " ++ prettyElemN (envForCtx ctx) (PiApp f e)
 prettyRejectionN (CtxVarOutOfBounds ctx n) =
   "index out of bounds: " ++ nameAt (envForCtx ctx) n ++ " in " ++ prettyCtxN ctx

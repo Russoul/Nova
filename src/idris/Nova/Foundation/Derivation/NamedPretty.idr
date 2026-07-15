@@ -502,6 +502,8 @@ prettyTypingRuleN (ElemWfPiIntro ctx f a b) =
 prettyTypingRuleN (ElemWfPiApp gamma f a b e) =
   let env = envForCtx gamma
   in "el-pi-e " ++ prettyCtxN gamma ++ " ⊦ (" ++ prettyElemN env f ++ " : " ++ prettyTyN env (PiTy a b) ++ ") " ++ prettyElemAtomN env e
+prettyTypingRuleN (ElemWfPiAppInfer gamma f e) =
+  "el-pi-e " ++ prettyCtxN gamma ++ " ⊦ " ++ prettyElemN (envForCtx gamma) (PiApp f e)
 prettyTypingRuleN (ElemWfSigmaIntro ctx u v a b) =
   let env = envForCtx ctx
   in "el-sigma-i " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyElemN env (SigmaIntro u v) ++ " : " ++ prettyTyN env (SigmaTy a b)

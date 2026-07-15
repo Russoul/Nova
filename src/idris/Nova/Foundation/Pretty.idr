@@ -287,6 +287,8 @@ prettyTypingRule (ElemWfPiIntro ctx f a b) =
   "el-pi-i " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (PiIntro f) ++ " : " ++ prettyTy (PiTy a b)
 prettyTypingRule (ElemWfPiApp gamma f a b e) =
   "el-pi-e " ++ prettyCtx gamma ++ " ⊦ (" ++ prettyElem f ++ " : " ++ prettyTy (PiTy a b) ++ ") " ++ prettyElemAtom e
+prettyTypingRule (ElemWfPiAppInfer gamma f e) =
+  "el-pi-e " ++ prettyCtx gamma ++ " ⊦ " ++ prettyElem (PiApp f e)
 prettyTypingRule (ElemWfSigmaIntro ctx u v a b) =
   "el-sigma-i " ++ prettyCtx ctx ++ " ⊦ " ++ prettyElem (SigmaIntro u v) ++ " : " ++ prettyTy (SigmaTy a b)
 prettyTypingRule (ElemWfSigmaElim1 ctx e a b) =

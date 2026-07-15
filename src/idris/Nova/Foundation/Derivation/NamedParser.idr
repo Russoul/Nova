@@ -582,6 +582,10 @@ parseNamedTypingRule =
       case ty of
         PiTy a b => pure (ElemWfPiApp ctx f a b e)
         _        => fail "el-pi-e: expected (x:A) → B") <|>
+  (do str_ "el-pi-e"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
+      case e of
+        PiApp f arg => pure (ElemWfPiAppInfer ctx f arg)
+        _           => fail "el-pi-e: expected (f : (x:A) → B) e or f e") <|>
   (do str_ "el-sigma-i"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
       case e of
         SigmaIntro u v => do

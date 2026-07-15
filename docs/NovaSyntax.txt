@@ -82,6 +82,8 @@ R ::=
   el-suc      Γ ⊦ S t
   el-pi-i     Γ ⊦ λ f : A → B
   el-pi-e     Γ ⊦ (f : A → B) e
+  el-pi-e     Γ ⊦ f e                           (ElemWfPiAppInfer — annotation-free: f's Π-type is looked up among the derived facts;
+                                                 nested applications on either side are inferred first, so one line checks a whole tree)
   el-sigma-i  Γ ⊦ u, v : A ⨯ B
   el-sigma-e1 Γ ⊦ (e : A ⨯ B) .π₁
   el-sigma-e2 Γ ⊦ (e : A ⨯ B) .π₂
