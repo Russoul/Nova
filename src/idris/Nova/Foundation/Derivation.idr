@@ -1,5 +1,6 @@
 module Nova.Foundation.Derivation
 
+import Data.Either
 import Data.SnocList
 import Nova.Foundation.Syntax
 import Nova.Foundation.Subst
@@ -96,28 +97,50 @@ data JudgementForm = JfCtxWf CtxWf
                    | JfSpineEq SpineEq
 
 ||| Private!
+|||
+||| Every fact is stored twice: raw (exactly as the rule concluded it) and
+||| beta-normalized (Beta.idr). Both stores are legitimate: a conclusion is
+||| derivable by construction, and normalizing a *derivable* judgement is
+||| licensed by subject reduction. Normalization is never applied to
+||| unvalidated input — see the derivability checks below.
 export
 record Truth where
   constructor MkTruth
   sig : Sig
-  ctxWf : SortedSet CtxWf
-  ctxEq : SortedSet CtxEq
-  tyWf : SortedSet TyWf
-  tyEq : SortedSet TyEq
-  subWf : SortedSet SubWf
-  subEq : SortedSet SubEq
-  subNormWf : SortedSet SubNormWf
-  subNormEq : SortedSet SubNormEq
-  elemWf : SortedSet ElemWf
-  elemEq : SortedSet ElemEq
-  telWf : SortedSet TelWf
-  telEq : SortedSet TelEq
-  spineWf : SortedSet SpineWf
-  spineEq : SortedSet SpineEq
+  ctxWfRaw : SortedSet CtxWf
+  ctxWfNorm : SortedSet CtxWf
+  ctxEqRaw : SortedSet CtxEq
+  ctxEqNorm : SortedSet CtxEq
+  tyWfRaw : SortedSet TyWf
+  tyWfNorm : SortedSet TyWf
+  tyEqRaw : SortedSet TyEq
+  tyEqNorm : SortedSet TyEq
+  subWfRaw : SortedSet SubWf
+  subWfNorm : SortedSet SubWf
+  subEqRaw : SortedSet SubEq
+  subEqNorm : SortedSet SubEq
+  subNormWfRaw : SortedSet SubNormWf
+  subNormWfNorm : SortedSet SubNormWf
+  subNormEqRaw : SortedSet SubNormEq
+  subNormEqNorm : SortedSet SubNormEq
+  elemWfRaw : SortedSet ElemWf
+  elemWfNorm : SortedSet ElemWf
+  elemEqRaw : SortedSet ElemEq
+  elemEqNorm : SortedSet ElemEq
+  telWfRaw : SortedSet TelWf
+  telWfNorm : SortedSet TelWf
+  telEqRaw : SortedSet TelEq
+  telEqNorm : SortedSet TelEq
+  spineWfRaw : SortedSet SpineWf
+  spineWfNorm : SortedSet SpineWf
+  spineEqRaw : SortedSet SpineEq
+  spineEqNorm : SortedSet SpineEq
 
 export
 trivial : Truth
-trivial = MkTruth [<] empty empty empty empty empty empty empty empty empty empty empty empty empty empty
+trivial = MkTruth [<]
+  empty empty empty empty empty empty empty empty empty empty empty empty empty empty
+  empty empty empty empty empty empty empty empty empty empty empty empty empty empty
 
 
 public export
@@ -443,14 +466,26 @@ rejectUnless : Rejection -> Bool -> Either Rejection ()
 rejectUnless _ True = Right ()
 rejectUnless r False = Left r
 
--- The Truth table only ever stores beta-normal terms (Beta.idr's betaTy/
--- betaElem/etc. — every Π/Σ/ℕ-elim/quot-elim/x-β redex and El-of-universe-
--- code decoding). These normXxx functions are the single place that
--- normalizes a judgement's payload before it's either inserted (insertXxx,
--- used throughout `step`) or looked up (the derivable-checks below, and
--- `check`) — so every derivability check is, in effect, "beta-normalize the
--- input, then see if the (already beta-normal) Truth table contains it".
--- All of them need Σ, since unfolding a signature reference (x-β) does.
+-- Normalization discipline: beta-normalizing (Beta.idr — every Π/Σ/ℕ-elim/
+-- quot-elim/x-β redex and El-of-universe-code decoding) is only ever
+-- applied to judgements already known derivable, never to unvalidated
+-- candidates. Two uses are licensed:
+--
+--   1. A conclusion at insertion (insertXxx): its premises were just found
+--      in the table, so it's derivable by the rule, and subject reduction
+--      makes its normal form derivable too. Hence the dual store — every
+--      fact lands in both the raw and the normalized set.
+--   2. An equality query whose *guard* passed: both sides raw-derivable
+--      well-formed at the queried type — exactly the well-formedness
+--      premises the ≜-computation rules carry. Only then is the query
+--      normalized and matched against the normalized store.
+--
+-- Well-formedness queries are matched raw only: subject *expansion* does
+-- not hold (reduction can discard an ill-formed subterm — e.g.
+-- `(λ Z) (S ())` normalizes to `Z`), so "normalize the candidate, then
+-- look it up" would accept underivable judgements; operationally it could
+-- also crash or diverge on ill-formed input. These normXxx functions all
+-- need Σ, since unfolding a signature reference (x-β) does.
 normCtxWf : Sig -> CtxWf -> CtxWf
 normCtxWf = betaCtx
 
@@ -493,114 +528,145 @@ normSpineWf sig (ctx, spine, tel) = (betaCtx sig ctx, betaSpine sig spine, betaT
 normSpineEq : Sig -> SpineEq -> SpineEq
 normSpineEq sig (ctx, s0, s1, tel) = (betaCtx sig ctx, betaSpine sig s0, betaSpine sig s1, betaTel sig tel)
 
-insertCtxWf : Sig -> CtxWf -> SortedSet CtxWf -> SortedSet CtxWf
-insertCtxWf sig x = insert (normCtxWf sig x)
+-- Each insertXxx records a just-derived conclusion in both stores: raw as
+-- concluded, and beta-normalized (licensed — the fact is derivable).
 
-insertCtxEq : Sig -> CtxEq -> SortedSet CtxEq -> SortedSet CtxEq
-insertCtxEq sig x = insert (normCtxEq sig x)
+insertCtxWf : CtxWf -> Truth -> Truth
+insertCtxWf x sp = {ctxWfRaw $= insert x, ctxWfNorm $= insert (normCtxWf sp.sig x)} sp
 
-insertSubWf : Sig -> SubWf -> SortedSet SubWf -> SortedSet SubWf
-insertSubWf sig x = insert (normSubWf sig x)
+insertCtxEq : CtxEq -> Truth -> Truth
+insertCtxEq x sp = {ctxEqRaw $= insert x, ctxEqNorm $= insert (normCtxEq sp.sig x)} sp
 
-insertSubEq : Sig -> SubEq -> SortedSet SubEq -> SortedSet SubEq
-insertSubEq sig x = insert (normSubEq sig x)
+insertSubWf : SubWf -> Truth -> Truth
+insertSubWf x sp = {subWfRaw $= insert x, subWfNorm $= insert (normSubWf sp.sig x)} sp
 
-insertSubNormWf : Sig -> SubNormWf -> SortedSet SubNormWf -> SortedSet SubNormWf
-insertSubNormWf sig x = insert (normSubNormWf sig x)
+insertSubEq : SubEq -> Truth -> Truth
+insertSubEq x sp = {subEqRaw $= insert x, subEqNorm $= insert (normSubEq sp.sig x)} sp
 
-insertSubNormEq : Sig -> SubNormEq -> SortedSet SubNormEq -> SortedSet SubNormEq
-insertSubNormEq sig x = insert (normSubNormEq sig x)
+insertSubNormWf : SubNormWf -> Truth -> Truth
+insertSubNormWf x sp = {subNormWfRaw $= insert x, subNormWfNorm $= insert (normSubNormWf sp.sig x)} sp
 
-insertTyWf : Sig -> TyWf -> SortedSet TyWf -> SortedSet TyWf
-insertTyWf sig x = insert (normTyWf sig x)
+insertSubNormEq : SubNormEq -> Truth -> Truth
+insertSubNormEq x sp = {subNormEqRaw $= insert x, subNormEqNorm $= insert (normSubNormEq sp.sig x)} sp
 
-insertTyEq : Sig -> TyEq -> SortedSet TyEq -> SortedSet TyEq
-insertTyEq sig x = insert (normTyEq sig x)
+insertTyWf : TyWf -> Truth -> Truth
+insertTyWf x sp = {tyWfRaw $= insert x, tyWfNorm $= insert (normTyWf sp.sig x)} sp
 
-insertElemWf : Sig -> ElemWf -> SortedSet ElemWf -> SortedSet ElemWf
-insertElemWf sig x = insert (normElemWf sig x)
+insertTyEq : TyEq -> Truth -> Truth
+insertTyEq x sp = {tyEqRaw $= insert x, tyEqNorm $= insert (normTyEq sp.sig x)} sp
 
-insertElemEq : Sig -> ElemEq -> SortedSet ElemEq -> SortedSet ElemEq
-insertElemEq sig x = insert (normElemEq sig x)
+insertElemWf : ElemWf -> Truth -> Truth
+insertElemWf x sp = {elemWfRaw $= insert x, elemWfNorm $= insert (normElemWf sp.sig x)} sp
 
-insertTelWf : Sig -> TelWf -> SortedSet TelWf -> SortedSet TelWf
-insertTelWf sig x = insert (normTelWf sig x)
+insertElemEq : ElemEq -> Truth -> Truth
+insertElemEq x sp = {elemEqRaw $= insert x, elemEqNorm $= insert (normElemEq sp.sig x)} sp
 
-insertTelEq : Sig -> TelEq -> SortedSet TelEq -> SortedSet TelEq
-insertTelEq sig x = insert (normTelEq sig x)
+insertTelWf : TelWf -> Truth -> Truth
+insertTelWf x sp = {telWfRaw $= insert x, telWfNorm $= insert (normTelWf sp.sig x)} sp
 
-insertSpineWf : Sig -> SpineWf -> SortedSet SpineWf -> SortedSet SpineWf
-insertSpineWf sig x = insert (normSpineWf sig x)
+insertTelEq : TelEq -> Truth -> Truth
+insertTelEq x sp = {telEqRaw $= insert x, telEqNorm $= insert (normTelEq sp.sig x)} sp
 
-insertSpineEq : Sig -> SpineEq -> SortedSet SpineEq -> SortedSet SpineEq
-insertSpineEq sig x = insert (normSpineEq sig x)
+insertSpineWf : SpineWf -> Truth -> Truth
+insertSpineWf x sp = {spineWfRaw $= insert x, spineWfNorm $= insert (normSpineWf sp.sig x)} sp
+
+insertSpineEq : SpineEq -> Truth -> Truth
+insertSpineEq x sp = {spineEqRaw $= insert x, spineEqNorm $= insert (normSpineEq sp.sig x)} sp
+
+-- Derivability checks. Well-formedness queries match the raw store only —
+-- the expression must have been derived in exactly the form written.
+-- Equality queries match raw, or — once the guard passes (both sides
+-- raw-derivable well-formed at the queried type, licensing normalization)
+-- — the normalized store. (&&)/(||) are lazy in their right argument, so
+-- the normXxx call never runs unless its guard already succeeded.
 
 export
 ctxWfDerivable : Ctx -> Truth -> Either Rejection ()
-ctxWfDerivable ctx sp = rejectUnless (CtxWfNotDerivable ctx) $ contains (normCtxWf sp.sig ctx) sp.ctxWf
+ctxWfDerivable ctx sp = rejectUnless (CtxWfNotDerivable ctx) $ contains ctx sp.ctxWfRaw
 
 export
 subWfDerivable : Sub -> Ctx -> Ctx -> Truth -> Either Rejection ()
 subWfDerivable sigma gamma delta sp =
-  rejectUnless (SubWfNotDerivable sigma gamma delta) $ contains (normSubWf sp.sig (sigma, gamma, delta)) sp.subWf
+  rejectUnless (SubWfNotDerivable sigma gamma delta) $ contains (sigma, gamma, delta) sp.subWfRaw
 
 export
 subNormWfDerivable : SubNorm -> Ctx -> Ctx -> Truth -> Either Rejection ()
 subNormWfDerivable sigma gamma delta sp =
-  rejectUnless (SubNormWfNotDerivable sigma gamma delta) $ contains (normSubNormWf sp.sig (sigma, gamma, delta)) sp.subNormWf
+  rejectUnless (SubNormWfNotDerivable sigma gamma delta) $ contains (sigma, gamma, delta) sp.subNormWfRaw
 
 export
 tyWfDerivable : Ctx -> Ty -> Truth -> Either Rejection ()
-tyWfDerivable ctx ty sp = rejectUnless (TyWfNotDerivable ctx ty) $ contains (normTyWf sp.sig (ctx, ty)) sp.tyWf
+tyWfDerivable ctx ty sp = rejectUnless (TyWfNotDerivable ctx ty) $ contains (ctx, ty) sp.tyWfRaw
 
 export
 elemWfDerivable : Ctx -> Elem -> Ty -> Truth -> Either Rejection ()
 elemWfDerivable ctx elem ty sp =
-  rejectUnless (ElemWfNotDerivable ctx elem ty) $ contains (normElemWf sp.sig (ctx, elem, ty)) sp.elemWf
-
-export
-tyEqDerivable : Ctx -> Ty -> Ty -> Truth -> Either Rejection ()
-tyEqDerivable ctx ty0 ty1 sp =
-  rejectUnless (TyEqNotDerivable ctx ty0 ty1) $ contains (normTyEq sp.sig (ctx, ty0, ty1)) sp.tyEq
-
-export
-ctxEqDerivable : Ctx -> Ctx -> Truth -> Either Rejection ()
-ctxEqDerivable ctx0 ctx1 sp =
-  rejectUnless (CtxEqNotDerivable ctx0 ctx1) $ contains (normCtxEq sp.sig (ctx0, ctx1)) sp.ctxEq
-
-export
-subEqDerivable : Sub -> Sub -> Ctx -> Ctx -> Truth -> Either Rejection ()
-subEqDerivable s0 s1 g d sp =
-  rejectUnless (SubEqNotDerivable s0 s1 g d) $ contains (normSubEq sp.sig (s0, s1, g, d)) sp.subEq
-
-export
-subNormEqDerivable : SubNorm -> SubNorm -> Ctx -> Ctx -> Truth -> Either Rejection ()
-subNormEqDerivable s0 s1 g d sp =
-  rejectUnless (SubNormEqNotDerivable s0 s1 g d) $ contains (normSubNormEq sp.sig (s0, s1, g, d)) sp.subNormEq
-
-export
-elemEqDerivable : Ctx -> Elem -> Elem -> Ty -> Truth -> Either Rejection ()
-elemEqDerivable ctx e0 e1 ty sp =
-  rejectUnless (ElemEqNotDerivable ctx e0 e1 ty) $ contains (normElemEq sp.sig (ctx, e0, e1, ty)) sp.elemEq
+  rejectUnless (ElemWfNotDerivable ctx elem ty) $ contains (ctx, elem, ty) sp.elemWfRaw
 
 export
 telWfDerivable : Ctx -> Tel -> Truth -> Either Rejection ()
-telWfDerivable ctx tel sp = rejectUnless (TelWfNotDerivable ctx tel) $ contains (normTelWf sp.sig (ctx, tel)) sp.telWf
-
-export
-telEqDerivable : Ctx -> Tel -> Tel -> Truth -> Either Rejection ()
-telEqDerivable ctx t0 t1 sp =
-  rejectUnless (TelEqNotDerivable ctx t0 t1) $ contains (normTelEq sp.sig (ctx, t0, t1)) sp.telEq
+telWfDerivable ctx tel sp = rejectUnless (TelWfNotDerivable ctx tel) $ contains (ctx, tel) sp.telWfRaw
 
 export
 spineWfDerivable : Ctx -> Spine -> Tel -> Truth -> Either Rejection ()
 spineWfDerivable ctx spine tel sp =
-  rejectUnless (SpineWfNotDerivable ctx spine tel) $ contains (normSpineWf sp.sig (ctx, spine, tel)) sp.spineWf
+  rejectUnless (SpineWfNotDerivable ctx spine tel) $ contains (ctx, spine, tel) sp.spineWfRaw
+
+export
+ctxEqDerivable : Ctx -> Ctx -> Truth -> Either Rejection ()
+ctxEqDerivable ctx0 ctx1 sp =
+  rejectUnless (CtxEqNotDerivable ctx0 ctx1) $
+    contains (ctx0, ctx1) sp.ctxEqRaw
+    || (contains ctx0 sp.ctxWfRaw && contains ctx1 sp.ctxWfRaw
+        && contains (normCtxEq sp.sig (ctx0, ctx1)) sp.ctxEqNorm)
+
+export
+tyEqDerivable : Ctx -> Ty -> Ty -> Truth -> Either Rejection ()
+tyEqDerivable ctx ty0 ty1 sp =
+  rejectUnless (TyEqNotDerivable ctx ty0 ty1) $
+    contains (ctx, ty0, ty1) sp.tyEqRaw
+    || (contains (ctx, ty0) sp.tyWfRaw && contains (ctx, ty1) sp.tyWfRaw
+        && contains (normTyEq sp.sig (ctx, ty0, ty1)) sp.tyEqNorm)
+
+export
+subEqDerivable : Sub -> Sub -> Ctx -> Ctx -> Truth -> Either Rejection ()
+subEqDerivable s0 s1 g d sp =
+  rejectUnless (SubEqNotDerivable s0 s1 g d) $
+    contains (s0, s1, g, d) sp.subEqRaw
+    || (contains (s0, g, d) sp.subWfRaw && contains (s1, g, d) sp.subWfRaw
+        && contains (normSubEq sp.sig (s0, s1, g, d)) sp.subEqNorm)
+
+export
+subNormEqDerivable : SubNorm -> SubNorm -> Ctx -> Ctx -> Truth -> Either Rejection ()
+subNormEqDerivable s0 s1 g d sp =
+  rejectUnless (SubNormEqNotDerivable s0 s1 g d) $
+    contains (s0, s1, g, d) sp.subNormEqRaw
+    || (contains (s0, g, d) sp.subNormWfRaw && contains (s1, g, d) sp.subNormWfRaw
+        && contains (normSubNormEq sp.sig (s0, s1, g, d)) sp.subNormEqNorm)
+
+export
+elemEqDerivable : Ctx -> Elem -> Elem -> Ty -> Truth -> Either Rejection ()
+elemEqDerivable ctx e0 e1 ty sp =
+  rejectUnless (ElemEqNotDerivable ctx e0 e1 ty) $
+    contains (ctx, e0, e1, ty) sp.elemEqRaw
+    || (contains (ctx, e0, ty) sp.elemWfRaw && contains (ctx, e1, ty) sp.elemWfRaw
+        && contains (normElemEq sp.sig (ctx, e0, e1, ty)) sp.elemEqNorm)
+
+export
+telEqDerivable : Ctx -> Tel -> Tel -> Truth -> Either Rejection ()
+telEqDerivable ctx t0 t1 sp =
+  rejectUnless (TelEqNotDerivable ctx t0 t1) $
+    contains (ctx, t0, t1) sp.telEqRaw
+    || (contains (ctx, t0) sp.telWfRaw && contains (ctx, t1) sp.telWfRaw
+        && contains (normTelEq sp.sig (ctx, t0, t1)) sp.telEqNorm)
 
 export
 spineEqDerivable : Ctx -> Spine -> Spine -> Tel -> Truth -> Either Rejection ()
 spineEqDerivable ctx s0 s1 tel sp =
-  rejectUnless (SpineEqNotDerivable ctx s0 s1 tel) $ contains (normSpineEq sp.sig (ctx, s0, s1, tel)) sp.spineEq
+  rejectUnless (SpineEqNotDerivable ctx s0 s1 tel) $
+    contains (ctx, s0, s1, tel) sp.spineEqRaw
+    || (contains (ctx, s0, tel) sp.spineWfRaw && contains (ctx, s1, tel) sp.spineWfRaw
+        && contains (normSpineEq sp.sig (ctx, s0, s1, tel)) sp.spineEqNorm)
 
 ||| Γ‖ₙ : the type ☐ₙ has in Γ, weakening by one extra ↑ at every step of
 ||| the lookup (so the result already accounts for every extension between
@@ -634,79 +700,79 @@ ctxLookup (rest :< ty) (S n) = map (\t => substTy t Wk) (ctxLookup rest n)
 ||| Γ ctx
 export
 step : TypingRule -> Truth -> Either Rejection Truth
-step CtxWfEmpty sp = Right $ {ctxWf $= insertCtxWf sp.sig [<]} sp
+step CtxWfEmpty sp = Right $ insertCtxWf [<] sp
 step (CtxWfExt gamma ty) sp = do
   tyWfDerivable gamma ty sp
-  Right $ {ctxWf $= insertCtxWf sp.sig (gamma :< ty)} sp
+  Right $ insertCtxWf (gamma :< ty) sp
 step (TyWfZero gamma) sp = do
   ctxWfDerivable gamma sp
-  Right $ {tyWf $= insertTyWf sp.sig (gamma, ZeroTy)} sp
+  Right $ insertTyWf (gamma, ZeroTy) sp
 step (TyWfOne gamma) sp = do
   ctxWfDerivable gamma sp
-  Right $ {tyWf $= insertTyWf sp.sig (gamma, OneTy)} sp
+  Right $ insertTyWf (gamma, OneTy) sp
 step (TyWfNat gamma) sp = do
   ctxWfDerivable gamma sp
-  Right $ {tyWf $= insertTyWf sp.sig (gamma, NatTy)} sp
+  Right $ insertTyWf (gamma, NatTy) sp
 step (TyWfUniverse gamma) sp = do
   ctxWfDerivable gamma sp
-  Right $ {tyWf $= insertTyWf sp.sig (gamma, UniverseTy)} sp
+  Right $ insertTyWf (gamma, UniverseTy) sp
 step (TyWfPi gamma a b) sp = do
   tyWfDerivable (gamma :< a) b sp
-  Right $ {tyWf $= insertTyWf sp.sig (gamma, PiTy a b)} sp
+  Right $ insertTyWf (gamma, PiTy a b) sp
 step (TyWfSigma gamma a b) sp = do
   tyWfDerivable (gamma :< a) b sp
-  Right $ {tyWf $= insertTyWf sp.sig (gamma, SigmaTy a b)} sp
+  Right $ insertTyWf (gamma, SigmaTy a b) sp
 step (TyWfEq gamma left right ty) sp = do
   elemWfDerivable gamma left ty sp
   elemWfDerivable gamma right ty sp
-  Right $ {tyWf $= insertTyWf sp.sig (gamma, EqTy left right ty)} sp
+  Right $ insertTyWf (gamma, EqTy left right ty) sp
 step (TyWfEl gamma t) sp = do
   elemWfDerivable gamma t UniverseTy sp
-  Right $ {tyWf $= insertTyWf sp.sig (gamma, El t)} sp
+  Right $ insertTyWf (gamma, El t) sp
 step (TyWfQuotient gamma a r) sp = do
   tyWfDerivable gamma a sp
   tyWfDerivable (gamma :< a :< substTy a Wk) r sp
-  Right $ {tyWf $= insertTyWf sp.sig (gamma, Quotient a r)} sp
+  Right $ insertTyWf (gamma, Quotient a r) sp
 step (TyWfSubst gamma0 gamma1 sigma a) sp = do
   subWfDerivable sigma gamma0 gamma1 sp
   tyWfDerivable gamma1 a sp
-  Right $ {tyWf $= insertTyWf sp.sig (gamma0, substTy a sigma)} sp
+  Right $ insertTyWf (gamma0, substTy a sigma) sp
 step (TyWfSigVar delta sigma x) sp = do
   ctxWfDerivable delta sp
   case sigLookup x sp.sig of
     Just (SigTyDef gamma _ _) => do
       subNormWfDerivable sigma delta gamma sp
-      Right $ {tyWf $= insertTyWf sp.sig (delta, Ty.SigVar x sigma)} sp
+      Right $ insertTyWf (delta, Ty.SigVar x sigma) sp
     Just (SigDef _ _ _ _) => Left (SigIdentifierNotATypeDef x)
     Nothing => Left (SigIdentifierNotFound x)
 step (ElemWfVar gamma n) sp = do
   ctxWfDerivable gamma sp
   case ctxLookup gamma n of
     Nothing => Left (CtxVarOutOfBounds gamma n)
-    Just ty => Right $ {elemWf $= insertElemWf sp.sig (gamma, CtxVar n, ty)} sp
+    Just ty => Right $ insertElemWf (gamma, CtxVar n, ty) sp
 step (ElemWfZeroElim gamma t ty) sp = do
   tyWfDerivable gamma ty sp
   elemWfDerivable gamma t ZeroTy sp
-  Right $ {elemWf $= insertElemWf sp.sig (gamma, ZeroElim t, ty)} sp
+  Right $ insertElemWf (gamma, ZeroElim t, ty) sp
 step (ElemWfOneIntro gamma) sp = do
   ctxWfDerivable gamma sp
-  Right $ {elemWf $= insertElemWf sp.sig (gamma, OneIntro, OneTy)} sp
+  Right $ insertElemWf (gamma, OneIntro, OneTy) sp
 step (ElemWfZeroIntro gamma) sp = do
   ctxWfDerivable gamma sp
-  Right $ {elemWf $= insertElemWf sp.sig (gamma, NatIntro0, NatTy)} sp
+  Right $ insertElemWf (gamma, NatIntro0, NatTy) sp
 step (ElemWfSucIntro gamma t) sp = do
   elemWfDerivable gamma t NatTy sp
-  Right $ {elemWf $= insertElemWf sp.sig (gamma, NatIntro1 t, NatTy)} sp
+  Right $ insertElemWf (gamma, NatIntro1 t, NatTy) sp
 step (ElemWfNatElim gamma z s t a) sp = do
   -- tyWfDerivable (gamma :< NatTy) a sp
   elemWfDerivable gamma z (substTy a (Ext Id NatIntro0)) sp
   elemWfDerivable (gamma :< NatTy :< a) s (substTy a (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) sp
   elemWfDerivable gamma t NatTy sp
-  Right $ {elemWf $= insertElemWf sp.sig (gamma, NatElim z s t, substTy a (Ext Id t))} sp
+  Right $ insertElemWf (gamma, NatElim z s t, substTy a (Ext Id t)) sp
 step (ElemWfClass gamma a ty r) sp = do
   elemWfDerivable gamma a ty sp
   tyWfDerivable (gamma :< ty :< substTy ty Wk) r sp
-  Right $ {elemWf $= insertElemWf sp.sig (gamma, Class a, Quotient ty r)} sp
+  Right $ insertElemWf (gamma, Class a, Quotient ty r) sp
 step (ElemWfQuotElim gamma ty r motive f q) sp = do
   let wk3 = Chain Wk (Chain Wk Wk)
   tyWfDerivable (gamma :< ty :< substTy ty Wk) r sp
@@ -716,54 +782,54 @@ step (ElemWfQuotElim gamma ty r motive f q) sp = do
     (substElem f (Ext wk3 (CtxVar 2))) (substElem f (Ext wk3 (CtxVar 1)))
     (substTy motive (Ext wk3 (Class (CtxVar 2)))) sp
   elemWfDerivable gamma q (Quotient ty r) sp
-  Right $ {elemWf $= insertElemWf sp.sig (gamma, QuotElim f q, substTy motive (Ext Id q))} sp
+  Right $ insertElemWf (gamma, QuotElim f q, substTy motive (Ext Id q)) sp
 step (ElemWfSubst gamma0 gamma1 sigma t a) sp = do
   subWfDerivable sigma gamma0 gamma1 sp
   elemWfDerivable gamma1 t a sp
-  Right $ {elemWf $= insertElemWf sp.sig (gamma0, substElem t sigma, substTy a sigma)} sp
+  Right $ insertElemWf (gamma0, substElem t sigma, substTy a sigma) sp
 step (ElemWfPiIntro gamma f a b) sp = do
   elemWfDerivable (gamma :< a) f b sp
-  Right $ {elemWf $= insertElemWf sp.sig (gamma, PiIntro f, PiTy a b)} sp
+  Right $ insertElemWf (gamma, PiIntro f, PiTy a b) sp
 step (ElemWfPiApp gamma f a b e) sp = do
   elemWfDerivable gamma f (PiTy a b) sp
   elemWfDerivable gamma e a sp
-  Right $ {elemWf $= insertElemWf sp.sig (gamma, PiApp f e, substTy b (Ext Id e))} sp
+  Right $ insertElemWf (gamma, PiApp f e, substTy b (Ext Id e)) sp
 step (ElemWfSigmaIntro gamma u v a b) sp = do
   tyWfDerivable (gamma :< a) b sp
   elemWfDerivable gamma u a sp
   elemWfDerivable gamma v (substTy b (Ext Id u)) sp
-  Right $ {elemWf $= insertElemWf sp.sig (gamma, SigmaIntro u v, SigmaTy a b)} sp
+  Right $ insertElemWf (gamma, SigmaIntro u v, SigmaTy a b) sp
 step (ElemWfSigmaElim1 gamma t a b) sp = do
   elemWfDerivable gamma t (SigmaTy a b) sp
-  Right $ {elemWf $= insertElemWf sp.sig (gamma, SigmaElim1 t, a)} sp
+  Right $ insertElemWf (gamma, SigmaElim1 t, a) sp
 step (ElemWfSigmaElim2 gamma t a b) sp = do
   elemWfDerivable gamma t (SigmaTy a b) sp
-  Right $ {elemWf $= insertElemWf sp.sig (gamma, SigmaElim2 t, substTy b (Ext Id (SigmaElim1 t)))} sp
+  Right $ insertElemWf (gamma, SigmaElim2 t, substTy b (Ext Id (SigmaElim1 t))) sp
 step (ElemWfZeroTy gamma) sp = do
   ctxWfDerivable gamma sp
-  Right $ {elemWf $= insertElemWf sp.sig (gamma, ZeroTy, UniverseTy)} sp
+  Right $ insertElemWf (gamma, ZeroTy, UniverseTy) sp
 step (ElemWfOneTy gamma) sp = do
   ctxWfDerivable gamma sp
-  Right $ {elemWf $= insertElemWf sp.sig (gamma, OneTy, UniverseTy)} sp
+  Right $ insertElemWf (gamma, OneTy, UniverseTy) sp
 step (ElemWfNatTy gamma) sp = do
   ctxWfDerivable gamma sp
-  Right $ {elemWf $= insertElemWf sp.sig (gamma, NatTy, UniverseTy)} sp
+  Right $ insertElemWf (gamma, NatTy, UniverseTy) sp
 step (ElemWfPiTy gamma a b) sp = do
   elemWfDerivable gamma a UniverseTy sp
   elemWfDerivable (gamma :< El a) b UniverseTy sp
-  Right $ {elemWf $= insertElemWf sp.sig (gamma, PiTy a b, UniverseTy)} sp
+  Right $ insertElemWf (gamma, PiTy a b, UniverseTy) sp
 step (ElemWfSigmaTy gamma a b) sp = do
   elemWfDerivable gamma a UniverseTy sp
   elemWfDerivable (gamma :< El a) b UniverseTy sp
-  Right $ {elemWf $= insertElemWf sp.sig (gamma, SigmaTy a b, UniverseTy)} sp
+  Right $ insertElemWf (gamma, SigmaTy a b, UniverseTy) sp
 step (ElemWfEqTy gamma l r ty) sp = do
   elemWfDerivable gamma ty UniverseTy sp
   elemWfDerivable gamma l (El ty) sp
   elemWfDerivable gamma r (El ty) sp
-  Right $ {elemWf $= insertElemWf sp.sig (gamma, EqTy l r ty, UniverseTy)} sp
+  Right $ insertElemWf (gamma, EqTy l r ty, UniverseTy) sp
 step (ElemWfRefl gamma e ty) sp = do
   elemWfDerivable gamma e ty sp
-  Right $ {elemWf $= insertElemWf sp.sig (gamma, Refl, EqTy e e ty)} sp
+  Right $ insertElemWf (gamma, Refl, EqTy e e ty) sp
 -- Γ ⊦ a : A₀
 -- Γ ⊦ A₀ = A₁ type
 -- ----------------
@@ -771,7 +837,7 @@ step (ElemWfRefl gamma e ty) sp = do
 step (ElemWfTyCoe ctx e ty0 ty1) sp = do
   elemWfDerivable ctx e ty0 sp
   tyEqDerivable ctx ty0 ty1 sp
-  Right $ {elemWf $= insertElemWf sp.sig (ctx, e, ty1)} sp
+  Right $ insertElemWf (ctx, e, ty1) sp
 -- Γ₀ ⊦ a : A
 -- Γ₀ = Γ₁ ctx
 -- ------------
@@ -779,13 +845,13 @@ step (ElemWfTyCoe ctx e ty0 ty1) sp = do
 step (ElemWfCtxCoe ctx0 ctx1 e ty) sp = do
   elemWfDerivable ctx0 e ty sp
   ctxEqDerivable ctx0 ctx1 sp
-  Right $ {elemWf $= insertElemWf sp.sig (ctx1, e, ty)} sp
+  Right $ insertElemWf (ctx1, e, ty) sp
 step (ElemWfSigVar delta sigma x) sp = do
   ctxWfDerivable delta sp
   case sigLookup x sp.sig of
     Just (SigDef gamma _ _ ty) => do
       subNormWfDerivable sigma delta gamma sp
-      Right $ {elemWf $= insertElemWf sp.sig (delta, SigVar x sigma, substTy ty (embed sigma))} sp
+      Right $ insertElemWf (delta, SigVar x sigma, substTy ty (embed sigma)) sp
     Just (SigTyDef _ _ _) => Left (SigIdentifierNotATermDef x)
     Nothing => Left (SigIdentifierNotFound x)
 -- Γ ⊦ a = b : A₀
@@ -795,7 +861,7 @@ step (ElemWfSigVar delta sigma x) sp = do
 step (ElemEqTyCoe ctx a b ty0 ty1) sp = do
   elemEqDerivable ctx a b ty0 sp
   tyEqDerivable ctx ty0 ty1 sp
-  Right $ {elemEq $= insertElemEq sp.sig (ctx, a, b, ty1)} sp
+  Right $ insertElemEq (ctx, a, b, ty1) sp
 step (SigExt gamma x a ty) sp = do
   elemWfDerivable gamma a ty sp
   case sigLookup x sp.sig of
@@ -808,130 +874,130 @@ step (SigExtTy gamma x ty) sp = do
     Nothing => Right $ {sig $= (:< SigTyDef gamma x ty)} sp
 step (CtxEqRefl ctx) sp = do
   ctxWfDerivable ctx sp
-  Right $ {ctxEq $= insertCtxEq sp.sig (ctx, ctx)} sp
+  Right $ insertCtxEq (ctx, ctx) sp
 step (CtxEqSym ctx0 ctx1) sp = do
   ctxEqDerivable ctx0 ctx1 sp
-  Right $ {ctxEq $= insertCtxEq sp.sig (ctx1, ctx0)} sp
+  Right $ insertCtxEq (ctx1, ctx0) sp
 step (CtxEqTrans ctx0 ctx1 ctx2) sp = do
   ctxEqDerivable ctx0 ctx1 sp
   ctxEqDerivable ctx1 ctx2 sp
-  Right $ {ctxEq $= insertCtxEq sp.sig (ctx0, ctx2)} sp
+  Right $ insertCtxEq (ctx0, ctx2) sp
 step (SubWfTerminal gamma) sp = do
   ctxWfDerivable gamma sp
-  Right $ {subWf $= insertSubWf sp.sig (Terminal, gamma, [<])} sp
+  Right $ insertSubWf (Terminal, gamma, [<]) sp
 step (SubWfExt sigma e gamma delta ty) sp = do
   subWfDerivable sigma gamma delta sp
   tyWfDerivable delta ty sp
   elemWfDerivable gamma e (substTy ty sigma) sp
-  Right $ {subWf $= insertSubWf sp.sig (Ext sigma e, gamma, delta :< ty)} sp
+  Right $ insertSubWf (Ext sigma e, gamma, delta :< ty) sp
 step (SubEqRefl s g d) sp = do
   subWfDerivable s g d sp
-  Right $ {subEq $= insertSubEq sp.sig (s, s, g, d)} sp
+  Right $ insertSubEq (s, s, g, d) sp
 step (SubEqSym s0 s1 g d) sp = do
   subEqDerivable s0 s1 g d sp
-  Right $ {subEq $= insertSubEq sp.sig (s1, s0, g, d)} sp
+  Right $ insertSubEq (s1, s0, g, d) sp
 step (SubEqTrans s0 s1 s2 g d) sp = do
   subEqDerivable s0 s1 g d sp
   subEqDerivable s1 s2 g d sp
-  Right $ {subEq $= insertSubEq sp.sig (s0, s2, g, d)} sp
+  Right $ insertSubEq (s0, s2, g, d) sp
 step (SubNormWfTerminal gamma) sp = do
   ctxWfDerivable gamma sp
-  Right $ {subNormWf $= insertSubNormWf sp.sig ([<], gamma, [<])} sp
+  Right $ insertSubNormWf ([<], gamma, [<]) sp
 step (SubNormWfExt sigma e gamma delta ty) sp = do
   subNormWfDerivable sigma gamma delta sp
   tyWfDerivable delta ty sp
   elemWfDerivable gamma e (substTy ty (embed sigma)) sp
-  Right $ {subNormWf $= insertSubNormWf sp.sig (sigma :< e, gamma, delta :< ty)} sp
+  Right $ insertSubNormWf (sigma :< e, gamma, delta :< ty) sp
 step (SubNormEqRefl s g d) sp = do
   subNormWfDerivable s g d sp
-  Right $ {subNormEq $= insertSubNormEq sp.sig (s, s, g, d)} sp
+  Right $ insertSubNormEq (s, s, g, d) sp
 step (SubNormEqSym s0 s1 g d) sp = do
   subNormEqDerivable s0 s1 g d sp
-  Right $ {subNormEq $= insertSubNormEq sp.sig (s1, s0, g, d)} sp
+  Right $ insertSubNormEq (s1, s0, g, d) sp
 step (SubNormEqTrans s0 s1 s2 g d) sp = do
   subNormEqDerivable s0 s1 g d sp
   subNormEqDerivable s1 s2 g d sp
-  Right $ {subNormEq $= insertSubNormEq sp.sig (s0, s2, g, d)} sp
+  Right $ insertSubNormEq (s0, s2, g, d) sp
 step (SubNormEqExt s0 s1 t0 t1 gamma0 gamma1 ty) sp = do
   subNormEqDerivable s0 s1 gamma0 gamma1 sp
   elemEqDerivable gamma0 t0 t1 (substTy ty (embed s1)) sp
-  Right $ {subNormEq $= insertSubNormEq sp.sig (s0 :< t0, s1 :< t1, gamma0, gamma1 :< ty)} sp
+  Right $ insertSubNormEq (s0 :< t0, s1 :< t1, gamma0, gamma1 :< ty) sp
 step (TyEqRefl ctx ty) sp = do
   tyWfDerivable ctx ty sp
-  Right $ {tyEq $= insertTyEq sp.sig (ctx, ty, ty)} sp
+  Right $ insertTyEq (ctx, ty, ty) sp
 step (TyEqSym ctx ty0 ty1) sp = do
   tyEqDerivable ctx ty0 ty1 sp
-  Right $ {tyEq $= insertTyEq sp.sig (ctx, ty1, ty0)} sp
+  Right $ insertTyEq (ctx, ty1, ty0) sp
 step (TyEqTrans ctx ty0 ty1 ty2) sp = do
   tyEqDerivable ctx ty0 ty1 sp
   tyEqDerivable ctx ty1 ty2 sp
-  Right $ {tyEq $= insertTyEq sp.sig (ctx, ty0, ty2)} sp
+  Right $ insertTyEq (ctx, ty0, ty2) sp
 step (TyEqCongEqTy gamma a0 b0 ty0 a1 b1 ty1) sp = do
   tyEqDerivable gamma ty0 ty1 sp
   elemEqDerivable gamma a0 a1 ty1 sp
   elemEqDerivable gamma b0 b1 ty1 sp
-  Right $ {tyEq $= insertTyEq sp.sig (gamma, EqTy a0 b0 ty0, EqTy a1 b1 ty1)} sp
+  Right $ insertTyEq (gamma, EqTy a0 b0 ty0, EqTy a1 b1 ty1) sp
 step (TyEqCongEl gamma t0 t1) sp = do
   elemEqDerivable gamma t0 t1 UniverseTy sp
-  Right $ {tyEq $= insertTyEq sp.sig (gamma, El t0, El t1)} sp
+  Right $ insertTyEq (gamma, El t0, El t1) sp
 step (TyEqSubst gamma0 gamma1 sigma0 sigma1 a0 a1) sp = do
   subEqDerivable sigma0 sigma1 gamma0 gamma1 sp
   tyEqDerivable gamma1 a0 a1 sp
-  Right $ {tyEq $= insertTyEq sp.sig (gamma0, substTy a0 sigma0, substTy a1 sigma1)} sp
+  Right $ insertTyEq (gamma0, substTy a0 sigma0, substTy a1 sigma1) sp
 step (ElemEqRefl ctx e ty) sp = do
   elemWfDerivable ctx e ty sp
-  Right $ {elemEq $= insertElemEq sp.sig (ctx, e, e, ty)} sp
+  Right $ insertElemEq (ctx, e, e, ty) sp
 step (ElemEqSym ctx e0 e1 ty) sp = do
   elemEqDerivable ctx e0 e1 ty sp
-  Right $ {elemEq $= insertElemEq sp.sig (ctx, e1, e0, ty)} sp
+  Right $ insertElemEq (ctx, e1, e0, ty) sp
 step (ElemEqTrans ctx e0 e1 e2 ty) sp = do
   elemEqDerivable ctx e0 e1 ty sp
   elemEqDerivable ctx e1 e2 ty sp
-  Right $ {elemEq $= insertElemEq sp.sig (ctx, e0, e2, ty)} sp
+  Right $ insertElemEq (ctx, e0, e2, ty) sp
 step (ElemEqReflection ctx a a0 a1 ty) sp = do
   elemWfDerivable ctx a (EqTy a0 a1 ty) sp
-  Right $ {elemEq $= insertElemEq sp.sig (ctx, a0, a1, ty)} sp
+  Right $ insertElemEq (ctx, a0, a1, ty) sp
 step (ElemEqCongSuc ctx t0 t1) sp = do
   elemEqDerivable ctx t0 t1 NatTy sp
-  Right $ {elemEq $= insertElemEq sp.sig (ctx, NatIntro1 t0, NatIntro1 t1, NatTy)} sp
+  Right $ insertElemEq (ctx, NatIntro1 t0, NatIntro1 t1, NatTy) sp
 step (ElemEqCongPiApp gamma f0 f1 a b a0 a1) sp = do
   elemEqDerivable gamma f0 f1 (PiTy a b) sp
   elemEqDerivable gamma a0 a1 a sp
-  Right $ {elemEq $= insertElemEq sp.sig (gamma, PiApp f0 a0, PiApp f1 a1, substTy b (Ext Id a1))} sp
+  Right $ insertElemEq (gamma, PiApp f0 a0, PiApp f1 a1, substTy b (Ext Id a1)) sp
 step (ElemEqQuotient gamma ty r a b witness) sp = do
   tyWfDerivable (gamma :< ty :< substTy ty Wk) r sp
   elemWfDerivable gamma a ty sp
   elemWfDerivable gamma b ty sp
   elemWfDerivable gamma witness (substTy r (Ext (Ext Id a) b)) sp
-  Right $ {elemEq $= insertElemEq sp.sig (gamma, Class a, Class b, Quotient ty r)} sp
+  Right $ insertElemEq (gamma, Class a, Class b, Quotient ty r) sp
 step (ElemEqCongClass gamma ty r a0 a1) sp = do
   tyWfDerivable (gamma :< ty :< substTy ty Wk) r sp
   elemEqDerivable gamma a0 a1 ty sp
-  Right $ {elemEq $= insertElemEq sp.sig (gamma, Class a0, Class a1, Quotient ty r)} sp
+  Right $ insertElemEq (gamma, Class a0, Class a1, Quotient ty r) sp
 step (ElemEqSubst gamma0 gamma1 sigma0 sigma1 t0 t1 a) sp = do
   subEqDerivable sigma0 sigma1 gamma0 gamma1 sp
   elemEqDerivable gamma1 t0 t1 a sp
-  Right $ {elemEq $= insertElemEq sp.sig (gamma0, substElem t0 sigma0, substElem t1 sigma1, substTy a sigma1)} sp
+  Right $ insertElemEq (gamma0, substElem t0 sigma0, substElem t1 sigma1, substTy a sigma1) sp
 step (TelEqRefl ctx tel) sp = do
   telWfDerivable ctx tel sp
-  Right $ {telEq $= insertTelEq sp.sig (ctx, tel, tel)} sp
+  Right $ insertTelEq (ctx, tel, tel) sp
 step (TelEqSym ctx tel0 tel1) sp = do
   telEqDerivable ctx tel0 tel1 sp
-  Right $ {telEq $= insertTelEq sp.sig (ctx, tel1, tel0)} sp
+  Right $ insertTelEq (ctx, tel1, tel0) sp
 step (TelEqTrans ctx tel0 tel1 tel2) sp = do
   telEqDerivable ctx tel0 tel1 sp
   telEqDerivable ctx tel1 tel2 sp
-  Right $ {telEq $= insertTelEq sp.sig (ctx, tel0, tel2)} sp
+  Right $ insertTelEq (ctx, tel0, tel2) sp
 step (SpineEqRefl ctx spine tel) sp = do
   spineWfDerivable ctx spine tel sp
-  Right $ {spineEq $= insertSpineEq sp.sig (ctx, spine, spine, tel)} sp
+  Right $ insertSpineEq (ctx, spine, spine, tel) sp
 step (SpineEqSym ctx s0 s1 tel) sp = do
   spineEqDerivable ctx s0 s1 tel sp
-  Right $ {spineEq $= insertSpineEq sp.sig (ctx, s1, s0, tel)} sp
+  Right $ insertSpineEq (ctx, s1, s0, tel) sp
 step (SpineEqTrans ctx s0 s1 s2 tel) sp = do
   spineEqDerivable ctx s0 s1 tel sp
   spineEqDerivable ctx s1 s2 tel sp
-  Right $ {spineEq $= insertSpineEq sp.sig (ctx, s0, s2, tel)} sp
+  Right $ insertSpineEq (ctx, s0, s2, tel) sp
 
 public export
 record ContextualRejection where
@@ -951,57 +1017,63 @@ export
 generate : List TypingRule -> Either ContextualRejection Truth
 generate ss = steps ss trivial
 
+||| Target-judgement checking follows the exact same discipline as the
+||| premise checks in `step` (raw for well-formedness, guarded
+||| normalization for equalities) — a `.target` line is just as much an
+||| unvalidated candidate as a rule premise is.
 export
 check : JudgementForm -> Truth -> Bool
-check (JfCtxWf ctx)       t = contains (normCtxWf t.sig ctx) t.ctxWf
-check (JfCtxEq ctxeq)     t = contains (normCtxEq t.sig ctxeq) t.ctxEq
-check (JfTyWf tywf)       t = contains (normTyWf t.sig tywf) t.tyWf
-check (JfTyEq tyeq)       t = contains (normTyEq t.sig tyeq) t.tyEq
-check (JfSubWf subwf)     t = contains (normSubWf t.sig subwf) t.subWf
-check (JfSubEq subeq)     t = contains (normSubEq t.sig subeq) t.subEq
-check (JfSubNormWf subwf) t = contains (normSubNormWf t.sig subwf) t.subNormWf
-check (JfSubNormEq subeq) t = contains (normSubNormEq t.sig subeq) t.subNormEq
-check (JfElemWf ewf)      t = contains (normElemWf t.sig ewf) t.elemWf
-check (JfElemEq eeq)      t = contains (normElemEq t.sig eeq) t.elemEq
-check (JfTelWf telwf)     t = contains (normTelWf t.sig telwf) t.telWf
-check (JfTelEq teleq)     t = contains (normTelEq t.sig teleq) t.telEq
-check (JfSpineWf spinewf) t = contains (normSpineWf t.sig spinewf) t.spineWf
-check (JfSpineEq spineeq) t = contains (normSpineEq t.sig spineeq) t.spineEq
+check (JfCtxWf ctx)                  t = isRight $ ctxWfDerivable ctx t
+check (JfCtxEq (c0, c1))             t = isRight $ ctxEqDerivable c0 c1 t
+check (JfTyWf (ctx, ty))             t = isRight $ tyWfDerivable ctx ty t
+check (JfTyEq (ctx, ty0, ty1))       t = isRight $ tyEqDerivable ctx ty0 ty1 t
+check (JfSubWf (s, g, d))            t = isRight $ subWfDerivable s g d t
+check (JfSubEq (s0, s1, g, d))       t = isRight $ subEqDerivable s0 s1 g d t
+check (JfSubNormWf (s, g, d))        t = isRight $ subNormWfDerivable s g d t
+check (JfSubNormEq (s0, s1, g, d))   t = isRight $ subNormEqDerivable s0 s1 g d t
+check (JfElemWf (ctx, e, ty))        t = isRight $ elemWfDerivable ctx e ty t
+check (JfElemEq (ctx, e0, e1, ty))   t = isRight $ elemEqDerivable ctx e0 e1 ty t
+check (JfTelWf (ctx, tel))           t = isRight $ telWfDerivable ctx tel t
+check (JfTelEq (ctx, t0, t1))        t = isRight $ telEqDerivable ctx t0 t1 t
+check (JfSpineWf (ctx, spn, tel))    t = isRight $ spineWfDerivable ctx spn tel t
+check (JfSpineEq (ctx, s0, s1, tel)) t = isRight $ spineEqDerivable ctx s0 s1 tel t
 
-||| Every judgement currently recorded in a `Truth`.
+||| Every judgement currently recorded in a `Truth`, in its raw form — the
+||| form later rules can reference verbatim (wf premises match raw).
 export
 allJudgements : Truth -> List JudgementForm
 allJudgements t =
-     map JfCtxWf      (Prelude.toList t.ctxWf)
-  ++ map JfCtxEq      (Prelude.toList t.ctxEq)
-  ++ map JfSubWf      (Prelude.toList t.subWf)
-  ++ map JfSubEq      (Prelude.toList t.subEq)
-  ++ map JfSubNormWf  (Prelude.toList t.subNormWf)
-  ++ map JfSubNormEq  (Prelude.toList t.subNormEq)
-  ++ map JfTyWf       (Prelude.toList t.tyWf)
-  ++ map JfTyEq       (Prelude.toList t.tyEq)
-  ++ map JfElemWf     (Prelude.toList t.elemWf)
-  ++ map JfElemEq     (Prelude.toList t.elemEq)
-  ++ map JfTelWf      (Prelude.toList t.telWf)
-  ++ map JfTelEq      (Prelude.toList t.telEq)
-  ++ map JfSpineWf    (Prelude.toList t.spineWf)
-  ++ map JfSpineEq    (Prelude.toList t.spineEq)
+     map JfCtxWf      (Prelude.toList t.ctxWfRaw)
+  ++ map JfCtxEq      (Prelude.toList t.ctxEqRaw)
+  ++ map JfSubWf      (Prelude.toList t.subWfRaw)
+  ++ map JfSubEq      (Prelude.toList t.subEqRaw)
+  ++ map JfSubNormWf  (Prelude.toList t.subNormWfRaw)
+  ++ map JfSubNormEq  (Prelude.toList t.subNormEqRaw)
+  ++ map JfTyWf       (Prelude.toList t.tyWfRaw)
+  ++ map JfTyEq       (Prelude.toList t.tyEqRaw)
+  ++ map JfElemWf     (Prelude.toList t.elemWfRaw)
+  ++ map JfElemEq     (Prelude.toList t.elemEqRaw)
+  ++ map JfTelWf      (Prelude.toList t.telWfRaw)
+  ++ map JfTelEq      (Prelude.toList t.telEqRaw)
+  ++ map JfSpineWf    (Prelude.toList t.spineWfRaw)
+  ++ map JfSpineEq    (Prelude.toList t.spineEqRaw)
 
-||| Judgements present in `after` but not in `before`, per judgement form.
+||| Judgements present in `after` but not in `before` (raw forms), per
+||| judgement form.
 export
 newJudgements : (before, after : Truth) -> List JudgementForm
 newJudgements before after =
-     map JfCtxWf      (Prelude.toList $ difference after.ctxWf      before.ctxWf)
-  ++ map JfCtxEq      (Prelude.toList $ difference after.ctxEq      before.ctxEq)
-  ++ map JfSubWf      (Prelude.toList $ difference after.subWf      before.subWf)
-  ++ map JfSubEq      (Prelude.toList $ difference after.subEq      before.subEq)
-  ++ map JfSubNormWf  (Prelude.toList $ difference after.subNormWf  before.subNormWf)
-  ++ map JfSubNormEq  (Prelude.toList $ difference after.subNormEq  before.subNormEq)
-  ++ map JfTyWf       (Prelude.toList $ difference after.tyWf       before.tyWf)
-  ++ map JfTyEq       (Prelude.toList $ difference after.tyEq       before.tyEq)
-  ++ map JfElemWf     (Prelude.toList $ difference after.elemWf     before.elemWf)
-  ++ map JfElemEq     (Prelude.toList $ difference after.elemEq     before.elemEq)
-  ++ map JfTelWf      (Prelude.toList $ difference after.telWf      before.telWf)
-  ++ map JfTelEq      (Prelude.toList $ difference after.telEq      before.telEq)
-  ++ map JfSpineWf    (Prelude.toList $ difference after.spineWf    before.spineWf)
-  ++ map JfSpineEq    (Prelude.toList $ difference after.spineEq    before.spineEq)
+     map JfCtxWf      (Prelude.toList $ difference after.ctxWfRaw      before.ctxWfRaw)
+  ++ map JfCtxEq      (Prelude.toList $ difference after.ctxEqRaw      before.ctxEqRaw)
+  ++ map JfSubWf      (Prelude.toList $ difference after.subWfRaw      before.subWfRaw)
+  ++ map JfSubEq      (Prelude.toList $ difference after.subEqRaw      before.subEqRaw)
+  ++ map JfSubNormWf  (Prelude.toList $ difference after.subNormWfRaw  before.subNormWfRaw)
+  ++ map JfSubNormEq  (Prelude.toList $ difference after.subNormEqRaw  before.subNormEqRaw)
+  ++ map JfTyWf       (Prelude.toList $ difference after.tyWfRaw       before.tyWfRaw)
+  ++ map JfTyEq       (Prelude.toList $ difference after.tyEqRaw       before.tyEqRaw)
+  ++ map JfElemWf     (Prelude.toList $ difference after.elemWfRaw     before.elemWfRaw)
+  ++ map JfElemEq     (Prelude.toList $ difference after.elemEqRaw     before.elemEqRaw)
+  ++ map JfTelWf      (Prelude.toList $ difference after.telWfRaw      before.telWfRaw)
+  ++ map JfTelEq      (Prelude.toList $ difference after.telEqRaw      before.telEqRaw)
+  ++ map JfSpineWf    (Prelude.toList $ difference after.spineWfRaw    before.spineWfRaw)
+  ++ map JfSpineEq    (Prelude.toList $ difference after.spineEqRaw    before.spineEqRaw)

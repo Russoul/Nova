@@ -26,22 +26,31 @@ to ask the checker to "produce `A[σ]`" as its own step, and no substitution
 congruence rule is needed either, since `a[σ]` and `b[σ]` are just computed
 independently from `a ≐ b`.
 
-The same is true of every beta-redex — `(λ f) e`, `ℕ-elim z s (S t)`,
-`t.π₁`/`t.π₂` on a pair, decoding a universe code via `El`, and unfolding a
-signature reference `x[e˲]` to its definiens — none of these are separate
-rules you invoke either: `apply`/`check` beta-normalize (`Beta.idr`'s
-`betaTy`/`betaElem`/etc.) every judgement's `Ctx`/`Ty`/`Elem`/`Sub`/
-`SubNorm`/`Tel`/`Spine` payload both when it's inserted into the derived-
-facts table and when it's looked up as a premise — so the table only ever
-holds beta-normal terms, and every premise check is really "beta-normalize
-the input, then see if the (already beta-normal) table contains it". There
-is consequently no `ty-cmp`/`el-cmp`/`ctx-cmp` and no `ComputeRule` at all
-in this checker: nothing is ever "stuck mid-reduction" waiting for you to
-drive it forward with an explicit rewrite step. A large practical
-consequence: if two terms are beta-equal, you can build `Refl` at *either*
-one directly (`el-refl`) and it'll satisfy a goal stated in terms of the
-other — no manual reduce-then-`el-ty-coe` dance needed first (see "Doing
-induction" below).
+Beta-redexes — `(λ f) e`, `ℕ-elim z s (S t)`, `t.π₁`/`t.π₂` on a pair,
+decoding a universe code via `El`, and unfolding a signature reference
+`x[e˲]` to its definiens — need no separate rewrite rules either, but
+normalization is only ever applied to judgements already known derivable
+(`Beta.idr` on ill-formed input is meaningless, and subject *expansion*
+fails: reduction can discard an ill-formed subterm). Concretely, the
+derived-facts table stores every fact twice — raw (exactly as concluded)
+and beta-normalized — and:
+
+- a **well-formedness** premise/target (`ty-wf`, `el-wf`, `sub-*-wf`, ...)
+  matches the *raw* store only: the expression must have been derived in
+  exactly the form you wrote. Writing a beta-variant of a fact does not
+  count as that fact.
+- an **equality** premise/target (`ty-eq`, `el-eq`, ...) matches raw, or —
+  once both sides are raw-derivable well-formed at the queried type (the
+  guard licensing normalization, mirroring the wf premises of the
+  ≜-computation rules) — up to beta-normalization against the normalized
+  store.
+
+So equalities still auto-discharge "up to computation" (there is no
+`ty-cmp`/`el-cmp` rewrite step), but each side must first be *formed* raw
+(`el-pi-e`/`el-sigma-i`/`ty-el`/... chains), and moving a fact to a
+beta-equal type is an explicit `el-ty-coe` whose `ty-eq` premise is
+discharged the same guarded way (typically: `ty-eq-form` both types, a
+`ty-refl` at either one, then the coe).
 
 `☐` is an indexed family `☐ₙ` (e.g. `☐₀`, `☐₁`, `☐₂` — Unicode subscript
 digits, no space). `el-var Γ ⊦ ☐ₙ` looks up `Γ‖ₙ` (the (n+1)-th type from the
@@ -77,11 +86,12 @@ T`), then convert to `el-eq` with `el-reflect`:
 
 1. Motive `A ≜ (f ☐₀ ≡ g ☐₀ ∈ T)` (a `ty-eq-form`), in the elimination's own
    extended context.
-2. Base case `z`: if `f Z` and `g Z` are beta-equal, just build `Refl` at
-   *either* one directly (`el-refl`) — no reduction or coercion needed
-   first, since `A[Z]` (`f Z ≡ g Z ∈ T`) and `Refl`'s own type (`f Z ≡ f Z
-   ∈ T`, or `g Z ≡ g Z ∈ T`) beta-normalize to the same stored fact either
-   way.
+2. Base case `z`: if `f Z` and `g Z` are beta-equal, build `Refl` at either
+   one (`el-refl`), then move it to `A[Z]` (`f Z ≡ g Z ∈ T`) with an
+   explicit `el-ty-coe`: `ty-eq-form` both Eq-types (their components must
+   be raw-derived first — `el-pi-e` chains etc.), `ty-refl` at the one you
+   built `Refl` at, then coe. The coe's `ty-eq` premise discharges up to
+   computation once both types are formed raw.
 3. Step case `s`: you get `ih : A` at the fresh recursion variable `n`
    (i.e. `f n ≡ g n ∈ T`) in context. If `f (S n)` and `g (S n)` are
    themselves beta-equal *given* `ih` (not by computation alone — that's
@@ -227,11 +237,10 @@ sessions reference it by name instead of re-deriving it.
 | `ty-sig-var Δ ⊦ x[e˲]` | `(Γ ⊦ x ≔ A type)` in the signature, `Δ ctx`, `e˲ : Δ ⇒ Γ norm` | `Δ ⊦ x[e˲] type` |
 
 There is no `sig-var-eq`/`ty-sig-var-eq`: unfolding a definition (`x[e˲] ≐
-a[e˲]` / `x[e˲] ≐ A[e˲]`) is automatic — the truth table stores every fact
-beta-normalized, and beta-normalization unfolds signature references, so
-both sides of the unfolding equation already denote the same stored fact
-(state the equation via `el-eq-refl`/`ty-refl` at either side if you need
-it explicitly).
+a[e˲]` / `x[e˲] ≐ A[e˲]`) is an *equality up to computation*, and those
+discharge via the guarded normalized store — once both sides are
+raw-derivable well-formed at the queried type, an `el-eq-refl`/`ty-refl`
+at either side supplies the normalized fact the query matches against.
 
 ## Element equality
 
@@ -277,12 +286,12 @@ has to already exist as a *derived fact* in context `Γ,p:A,q:A,r:R` before
 you `apply` the rule — like every other premise, the checker looks it up,
 it doesn't discharge it as a side goal.
 
-`el-quot-eq`'s witness `w` is checked against `R[id, a, b]` via the usual
-normalize-then-look-up premise check, so if `a`/`b` are themselves built
-from eliminators (e.g. `(p, q).π₁`), a witness built directly at the
-*reduced* form (the one you'd naturally write `Refl` for) already
-type-checks against the literal goal — beta-normalization bridges the two
-automatically, no manual reduction/coercion needed first. See
+`el-quot-eq`'s witness `w` is checked against `R[id, a, b]` as a raw
+well-formedness premise, so if `a`/`b` are themselves built from
+eliminators (e.g. `(p, q).π₁`), a witness built at the *reduced* form must
+be moved to the literal `R[id, a, b]` with an explicit `el-ty-coe`
+(`ty-eq-form` both types, `ty-refl` at the reduced one, coe — see
+`derivations/integer/session.rules` for a worked instance). See
 `derivations/quotient/session.rules` for the smallest working example
 (`R ≜ 𝟙`, so both premises above are free).
 

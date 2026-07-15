@@ -17,6 +17,15 @@
 - sig ε ⊦ plus ≔ λx. (λy. (ℕ-elim x (n ih. (S ih)) y)) : ℕ → ℕ → ℕ
 - el-var ε ᐅ n:ℕ ⊦ n
 - el-refl ε ᐅ n:ℕ ⊦ Refl : n ∈ ℕ
+- sub-norm-term ε ᐅ n:ℕ ⊦
+- sig-var ε ᐅ n:ℕ ⊦ plus[]
+- el-pi-e ε ᐅ n:ℕ ⊦ (plus[] : ℕ → ℕ → ℕ) n
+- el-zero ε ᐅ n:ℕ ⊦ Z
+- el-pi-e ε ᐅ n:ℕ ⊦ (plus[] n : ℕ → ℕ) Z
+- ty-eq-form ε ᐅ n:ℕ ⊦ n ≡ n ∈ ℕ
+- ty-eq-form ε ᐅ n:ℕ ⊦ plus[] n Z ≡ n ∈ ℕ
+- ty-refl ε ᐅ n:ℕ ⊦ n ≡ n ∈ ℕ
+- el-ty-coe ε ᐅ n:ℕ ⊦ Refl : n ≡ n ∈ ℕ ↝ plus[] n Z ≡ n ∈ ℕ
 - sig ε ᐅ n:ℕ ⊦ plusZeroId ≔ Refl : plus[] n Z ≡ n ∈ ℕ
 - sub-norm-term ε ᐅ n:ℕ ᐅ m:ℕ ⊦
 - sig-var ε ᐅ n:ℕ ᐅ m:ℕ ⊦ plus[]
@@ -24,6 +33,12 @@
 - el-pi-e ε ᐅ n:ℕ ᐅ m:ℕ ⊦ (plus[] n : ℕ → ℕ) m
 - el-suc ε ᐅ n:ℕ ᐅ m:ℕ ⊦ S (plus[] n m)
 - el-refl ε ᐅ n:ℕ ᐅ m:ℕ ⊦ Refl : (S (plus[] n m)) ∈ ℕ
+- el-suc ε ᐅ n:ℕ ᐅ m:ℕ ⊦ S m
+- el-pi-e ε ᐅ n:ℕ ᐅ m:ℕ ⊦ (plus[] n : ℕ → ℕ) (S m)
+- ty-eq-form ε ᐅ n:ℕ ᐅ m:ℕ ⊦ S (plus[] n m) ≡ S (plus[] n m) ∈ ℕ
+- ty-eq-form ε ᐅ n:ℕ ᐅ m:ℕ ⊦ plus[] n (S m) ≡ S (plus[] n m) ∈ ℕ
+- ty-refl ε ᐅ n:ℕ ᐅ m:ℕ ⊦ S (plus[] n m) ≡ S (plus[] n m) ∈ ℕ
+- el-ty-coe ε ᐅ n:ℕ ᐅ m:ℕ ⊦ Refl : S (plus[] n m) ≡ S (plus[] n m) ∈ ℕ ↝ plus[] n (S m) ≡ S (plus[] n m) ∈ ℕ
 - sig ε ᐅ n:ℕ ᐅ m:ℕ ⊦ plusSucId ≔ Refl : plus[] n (S m) ≡ S (plus[] n m) ∈ ℕ
 - el-zero ε ᐅ n:ℕ ᐅ m:ℕ ⊦ Z
 - sub-norm-term ε ᐅ n:ℕ ⊦
@@ -42,6 +57,13 @@
 - el-var ε ᐅ n:ℕ ᐅ m:ℕ ᐅ ih:plus[] Z m ≡ m ∈ ℕ ⊦ ih
 - el-reflect ε ᐅ n:ℕ ᐅ m:ℕ ᐅ ih:plus[] Z m ≡ m ∈ ℕ ⊦ ih : (plus[] Z m ≡ m ∈ ℕ) reflect
 - el-suc-cong ε ᐅ n:ℕ ᐅ m:ℕ ᐅ ih:plus[] Z m ≡ m ∈ ℕ ⊦ S (plus[] Z m) ≐ S m
+- el-var ε ᐅ n:ℕ ᐅ m:ℕ ᐅ ih:plus[] Z m ≡ m ∈ ℕ ⊦ m
+- el-suc ε ᐅ n:ℕ ᐅ m:ℕ ᐅ ih:plus[] Z m ≡ m ∈ ℕ ⊦ S m
+- sub-norm-term ε ᐅ n:ℕ ᐅ m:ℕ ᐅ ih:plus[] Z m ≡ m ∈ ℕ ⊦
+- sig-var ε ᐅ n:ℕ ᐅ m:ℕ ᐅ ih:plus[] Z m ≡ m ∈ ℕ ⊦ plus[]
+- el-zero ε ᐅ n:ℕ ᐅ m:ℕ ᐅ ih:plus[] Z m ≡ m ∈ ℕ ⊦ Z
+- el-pi-e ε ᐅ n:ℕ ᐅ m:ℕ ᐅ ih:plus[] Z m ≡ m ∈ ℕ ⊦ (plus[] : ℕ → ℕ → ℕ) Z
+- el-pi-e ε ᐅ n:ℕ ᐅ m:ℕ ᐅ ih:plus[] Z m ≡ m ∈ ℕ ⊦ (plus[] Z : ℕ → ℕ) (S m)
 - el-eq-sym ε ᐅ n:ℕ ᐅ m:ℕ ᐅ ih:plus[] Z m ≡ m ∈ ℕ ⊦ S m ≐ plus[] Z (S m) : ℕ
 - el-var ε ᐅ n:ℕ ᐅ m:ℕ ᐅ ih:plus[] Z m ≡ m ∈ ℕ ⊦ m
 - el-suc ε ᐅ n:ℕ ᐅ m:ℕ ᐅ ih:plus[] Z m ≡ m ∈ ℕ ⊦ S m
@@ -51,6 +73,12 @@
 - ty-refl ε ᐅ n:ℕ ᐅ m:ℕ ᐅ ih:plus[] Z m ≡ m ∈ ℕ ⊦ ℕ
 - ty-eq-cong ε ᐅ n:ℕ ᐅ m:ℕ ᐅ ih:plus[] Z m ≡ m ∈ ℕ ⊦ S m ≡ S m ∈ ℕ ≐ plus[] Z (S m) ≡ S m ∈ ℕ
 - el-ty-coe ε ᐅ n:ℕ ᐅ m:ℕ ᐅ ih:plus[] Z m ≡ m ∈ ℕ ⊦ Refl : S m ≡ S m ∈ ℕ ↝ plus[] Z (S m) ≡ S m ∈ ℕ
+- el-pi-e ε ᐅ n:ℕ ⊦ (plus[] : ℕ → ℕ → ℕ) Z
+- el-pi-e ε ᐅ n:ℕ ⊦ (plus[] Z : ℕ → ℕ) Z
+- ty-eq-form ε ᐅ n:ℕ ⊦ Z ≡ Z ∈ ℕ
+- ty-eq-form ε ᐅ n:ℕ ⊦ plus[] Z Z ≡ Z ∈ ℕ
+- ty-refl ε ᐅ n:ℕ ⊦ Z ≡ Z ∈ ℕ
+- el-ty-coe ε ᐅ n:ℕ ⊦ Refl : Z ≡ Z ∈ ℕ ↝ plus[] Z Z ≡ Z ∈ ℕ
 - el-nat-e ε ᐅ n:ℕ ⊦ ℕ-elim Refl (m ih. Refl) n motive (m ih. plus[] Z m ≡ m ∈ ℕ)
 - el-reflect ε ᐅ n:ℕ ⊦ ℕ-elim Refl (m ih. Refl) n : (plus[] Z n ≡ n ∈ ℕ) reflect
 - sig ε ᐅ n:ℕ ⊦ zeroPlusId ≔ ℕ-elim Refl (m ih. Refl) n : plus[] Z n ≡ n ∈ ℕ
@@ -92,10 +120,26 @@
 - el-suc ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ ih:plus[] (S n) k ≡ S (plus[] n k) ∈ ℕ ⊦ S (plus[] n k)
 - el-suc ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ ih:plus[] (S n) k ≡ S (plus[] n k) ∈ ℕ ⊦ S (S (plus[] n k))
 - el-refl ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ ih:plus[] (S n) k ≡ S (plus[] n k) ∈ ℕ ⊦ Refl : (S (S (plus[] n k))) ∈ ℕ
+- el-suc ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ ih:plus[] (S n) k ≡ S (plus[] n k) ∈ ℕ ⊦ S n
+- el-suc ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ ih:plus[] (S n) k ≡ S (plus[] n k) ∈ ℕ ⊦ S k
+- el-pi-e ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ ih:plus[] (S n) k ≡ S (plus[] n k) ∈ ℕ ⊦ (plus[] : ℕ → ℕ → ℕ) (S n)
+- el-pi-e ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ ih:plus[] (S n) k ≡ S (plus[] n k) ∈ ℕ ⊦ (plus[] (S n) : ℕ → ℕ) (S k)
 - el-eq-sym ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ ih:plus[] (S n) k ≡ S (plus[] n k) ∈ ℕ ⊦ S (S (plus[] n k)) ≐ plus[] (S n) (S k) : ℕ
 - el-eq-refl ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ ih:plus[] (S n) k ≡ S (plus[] n k) ∈ ℕ ⊦ S (S (plus[] n k)) : ℕ
 - ty-eq-cong ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ ih:plus[] (S n) k ≡ S (plus[] n k) ∈ ℕ ⊦ S (S (plus[] n k)) ≡ S (S (plus[] n k)) ∈ ℕ ≐ plus[] (S n) (S k) ≡ S (S (plus[] n k)) ∈ ℕ
+- el-pi-e ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ ih:plus[] (S n) k ≡ S (plus[] n k) ∈ ℕ ⊦ (plus[] n : ℕ → ℕ) (S k)
+- el-suc ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ ih:plus[] (S n) k ≡ S (plus[] n k) ∈ ℕ ⊦ S (plus[] n (S k))
+- ty-eq-form ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ ih:plus[] (S n) k ≡ S (plus[] n k) ∈ ℕ ⊦ S (S (plus[] n k)) ≡ S (S (plus[] n k)) ∈ ℕ
+- ty-eq-form ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ ih:plus[] (S n) k ≡ S (plus[] n k) ∈ ℕ ⊦ plus[] (S n) (S k) ≡ S (plus[] n (S k)) ∈ ℕ
 - el-ty-coe ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ ih:plus[] (S n) k ≡ S (plus[] n k) ∈ ℕ ⊦ Refl : S (S (plus[] n k)) ≡ S (S (plus[] n k)) ∈ ℕ ↝ plus[] (S n) (S k) ≡ S (plus[] n (S k)) ∈ ℕ
+- el-zero ε ᐅ n:ℕ ᐅ m:ℕ ⊦ Z
+- el-pi-e ε ᐅ n:ℕ ᐅ m:ℕ ⊦ (plus[] (S n) : ℕ → ℕ) Z
+- el-pi-e ε ᐅ n:ℕ ᐅ m:ℕ ⊦ (plus[] n : ℕ → ℕ) Z
+- el-suc ε ᐅ n:ℕ ᐅ m:ℕ ⊦ S (plus[] n Z)
+- ty-eq-form ε ᐅ n:ℕ ᐅ m:ℕ ⊦ S n ≡ S n ∈ ℕ
+- ty-eq-form ε ᐅ n:ℕ ᐅ m:ℕ ⊦ plus[] (S n) Z ≡ S (plus[] n Z) ∈ ℕ
+- ty-refl ε ᐅ n:ℕ ᐅ m:ℕ ⊦ S n ≡ S n ∈ ℕ
+- el-ty-coe ε ᐅ n:ℕ ᐅ m:ℕ ⊦ Refl : S n ≡ S n ∈ ℕ ↝ plus[] (S n) Z ≡ S (plus[] n Z) ∈ ℕ
 - el-nat-e ε ᐅ n:ℕ ᐅ m:ℕ ⊦ ℕ-elim Refl (k ih. Refl) m motive (k ih. plus[] (S n) k ≡ S (plus[] n k) ∈ ℕ)
 - el-reflect ε ᐅ n:ℕ ᐅ m:ℕ ⊦ ℕ-elim Refl (k ih. Refl) m : (plus[] (S n) m ≡ S (plus[] n m) ∈ ℕ) reflect
 - sig ε ᐅ n:ℕ ᐅ m:ℕ ⊦ sucPlus ≔ ℕ-elim Refl (k ih. Refl) m : plus[] (S n) m ≡ S (plus[] n m) ∈ ℕ
@@ -196,9 +240,14 @@
 - el-eq-refl ε ᐅ n:ℕ ᐅ m:ℕ ⊦ plus[] n : ℕ → ℕ
 - el-app-cong ε ᐅ n:ℕ ᐅ m:ℕ ⊦ (plus[] n ≐ plus[] n : ℕ → ℕ) m ≐ (plus[] m Z)
 - el-eq-trans ε ᐅ n:ℕ ᐅ m:ℕ ⊦ plus[] (plus[] n m) Z ≐ plus[] n (plus[] m Z) : ℕ via plus[] n m
+- el-pi-e ε ᐅ n:ℕ ᐅ m:ℕ ⊦ (plus[] : ℕ → ℕ → ℕ) m
+- el-pi-e ε ᐅ n:ℕ ᐅ m:ℕ ⊦ (plus[] m : ℕ → ℕ) Z
+- el-pi-e ε ᐅ n:ℕ ᐅ m:ℕ ⊦ (plus[] n : ℕ → ℕ) (plus[] m Z)
 - el-eq-refl ε ᐅ n:ℕ ᐅ m:ℕ ⊦ plus[] n (plus[] m Z) : ℕ
 - ty-nat ε ᐅ n:ℕ ᐅ m:ℕ ⊦ ℕ
 - ty-refl ε ᐅ n:ℕ ᐅ m:ℕ ⊦ ℕ
+- el-pi-e ε ᐅ n:ℕ ᐅ m:ℕ ⊦ (plus[] : ℕ → ℕ → ℕ) (plus[] n m)
+- el-pi-e ε ᐅ n:ℕ ᐅ m:ℕ ⊦ (plus[] (plus[] n m) : ℕ → ℕ) Z
 - ty-eq-cong ε ᐅ n:ℕ ᐅ m:ℕ ⊦ plus[] n (plus[] m Z) ≡ plus[] n (plus[] m Z) ∈ ℕ ≐ plus[] (plus[] n m) Z ≡ plus[] n (plus[] m Z) ∈ ℕ
 - el-refl ε ᐅ n:ℕ ᐅ m:ℕ ⊦ Refl : (plus[] n (plus[] m Z)) ∈ ℕ
 - el-ty-coe ε ᐅ n:ℕ ᐅ m:ℕ ⊦ Refl : plus[] n (plus[] m Z) ≡ plus[] n (plus[] m Z) ∈ ℕ ↝ plus[] (plus[] n m) Z ≡ plus[] n (plus[] m Z) ∈ ℕ
@@ -246,9 +295,18 @@
 - el-suc ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ j:ℕ ᐅ ih:plus[] (plus[] n m) j ≡ plus[] n (plus[] m j) ∈ ℕ ⊦ S (plus[] n (plus[] m j))
 - el-eq-refl ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ j:ℕ ᐅ ih:plus[] (plus[] n m) j ≡ plus[] n (plus[] m j) ∈ ℕ ⊦ S (plus[] n (plus[] m j)) : ℕ
 - el-refl ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ j:ℕ ᐅ ih:plus[] (plus[] n m) j ≡ plus[] n (plus[] m j) ∈ ℕ ⊦ Refl : (S (plus[] n (plus[] m j))) ∈ ℕ
+- el-suc ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ j:ℕ ᐅ ih:plus[] (plus[] n m) j ≡ plus[] n (plus[] m j) ∈ ℕ ⊦ S j
+- el-pi-e ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ j:ℕ ᐅ ih:plus[] (plus[] n m) j ≡ plus[] n (plus[] m j) ∈ ℕ ⊦ (plus[] : ℕ → ℕ → ℕ) (plus[] n m)
+- el-pi-e ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ j:ℕ ᐅ ih:plus[] (plus[] n m) j ≡ plus[] n (plus[] m j) ∈ ℕ ⊦ (plus[] (plus[] n m) : ℕ → ℕ) (S j)
 - el-eq-sym ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ j:ℕ ᐅ ih:plus[] (plus[] n m) j ≡ plus[] n (plus[] m j) ∈ ℕ ⊦ S (plus[] n (plus[] m j)) ≐ plus[] (plus[] n m) (S j) : ℕ
+- el-pi-e ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ j:ℕ ᐅ ih:plus[] (plus[] n m) j ≡ plus[] n (plus[] m j) ∈ ℕ ⊦ (plus[] m : ℕ → ℕ) (S j)
+- el-pi-e ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ j:ℕ ᐅ ih:plus[] (plus[] n m) j ≡ plus[] n (plus[] m j) ∈ ℕ ⊦ (plus[] n : ℕ → ℕ) (plus[] m (S j))
 - ty-eq-cong ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ j:ℕ ᐅ ih:plus[] (plus[] n m) j ≡ plus[] n (plus[] m j) ∈ ℕ ⊦ S (plus[] n (plus[] m j)) ≡ S (plus[] n (plus[] m j)) ∈ ℕ ≐ plus[] (plus[] n m) (S j) ≡ plus[] n (plus[] m (S j)) ∈ ℕ
 - el-ty-coe ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ᐅ j:ℕ ᐅ ih:plus[] (plus[] n m) j ≡ plus[] n (plus[] m j) ∈ ℕ ⊦ Refl : S (plus[] n (plus[] m j)) ≡ S (plus[] n (plus[] m j)) ∈ ℕ ↝ plus[] (plus[] n m) (S j) ≡ plus[] n (plus[] m (S j)) ∈ ℕ
+- el-zero ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ⊦ Z
+- el-pi-e ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ⊦ (plus[] m : ℕ → ℕ) Z
+- el-pi-e ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ⊦ (plus[] n : ℕ → ℕ) (plus[] m Z)
+- el-pi-e ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ⊦ (plus[] (plus[] n m) : ℕ → ℕ) Z
 - el-eq-refl ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ⊦ plus[] n (plus[] m Z) : ℕ
 - ty-refl ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ⊦ ℕ
 - ty-eq-cong ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ⊦ plus[] n (plus[] m Z) ≡ plus[] n (plus[] m Z) ∈ ℕ ≐ plus[] (plus[] n m) Z ≡ plus[] n (plus[] m Z) ∈ ℕ
@@ -257,3 +315,17 @@
 - el-nat-e ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ⊦ ℕ-elim Refl (j ih. Refl) k motive (j ih. plus[] (plus[] n m) j ≡ plus[] n (plus[] m j) ∈ ℕ)
 - el-reflect ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ⊦ ℕ-elim Refl (j ih. Refl) k : (plus[] (plus[] n m) k ≡ plus[] n (plus[] m k) ∈ ℕ) reflect
 - sig ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ⊦ plusAssoc ≔ ℕ-elim Refl (j ih. Refl) k : plus[] (plus[] n m) k ≡ plus[] n (plus[] m k) ∈ ℕ
+- sub-norm-term ε ⊦
+- sig-var ε ⊦ plus[]
+- sub-norm-ext ε ᐅ n:ℕ ⊦ n to ε ᐅ n:ℕ
+- sig-var ε ᐅ n:ℕ ⊦ plusZeroId[n]
+- sig-var ε ᐅ n:ℕ ⊦ zeroPlusId[n]
+- sub-norm-ext ε ᐅ n:ℕ ᐅ m:ℕ ⊦ n, m to ε ᐅ n:ℕ ᐅ m:ℕ
+- sig-var ε ᐅ n:ℕ ᐅ m:ℕ ⊦ plusSucId[n, m]
+- sig-var ε ᐅ n:ℕ ᐅ m:ℕ ⊦ sucPlus[n, m]
+- sig-var ε ᐅ n:ℕ ᐅ m:ℕ ⊦ plusComm[n, m]
+- sub-norm-term ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ⊦
+- sub-norm-ext ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ⊦ n to ε ᐅ n:ℕ
+- sub-norm-ext ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ⊦ n, m to ε ᐅ n:ℕ ᐅ m:ℕ
+- sub-norm-ext ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ⊦ n, m, k to ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ
+- sig-var ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ⊦ plusAssoc[n, m, k]

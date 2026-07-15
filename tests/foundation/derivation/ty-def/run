@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run derivation ty-def.rules ty-def.target

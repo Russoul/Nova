@@ -161,9 +161,11 @@ resolved too, deduplicated, so diamond dependencies aren't replayed twice)
 before touching this session's own content, and `session.rules` on disk
 only ever holds this goal's *own* lines — never a copy of the dependency's.
 Once a dependency's signature entries (from its `sig` rules) are in scope
-this way, you can reference them directly (e.g. `plus[]`) without
-re-stating `sig-var` first — Σ carries over from the replayed prelude, and
-automatic beta-normalization resolves the reference the moment it's used.
+this way, Σ carries over from the replayed prelude — but a *fact* about a
+reference (e.g. `el-wf Δ ⊦ plus[] : ℕ → ℕ → ℕ`) still has to be stated in
+your own usage context with `sig-var Δ ⊦ plus[]` before a premise can
+match it: well-formedness premises match derived facts raw, in the exact
+context and form written.
 
 A `depends:` cycle (A depends on B depends on A) is rejected with a clear
 error rather than hanging; a missing/unreadable dependency file is
