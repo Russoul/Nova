@@ -271,6 +271,12 @@ prettyTypingRule (TyEqCongEqTy ctx a0 b0 ty0 a1 b1 ty1) =
   "ty-eq-cong " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy (EqTy a0 b0 ty0) ++ " ≐ " ++ prettyTy (EqTy a1 b1 ty1)
 prettyTypingRule (TyEqCongEl ctx t0 t1) =
   "ty-el-cong " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy (El t0) ++ " ≐ " ++ prettyTy (El t1)
+prettyTypingRule (TyEqCongPi ctx a0 b0 a1 b1) =
+  "ty-pi-cong " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy (PiTy a0 b0) ++ " ≐ " ++ prettyTy (PiTy a1 b1)
+prettyTypingRule (TyEqCongSigma ctx a0 b0 a1 b1) =
+  "ty-sigma-cong " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy (SigmaTy a0 b0) ++ " ≐ " ++ prettyTy (SigmaTy a1 b1)
+prettyTypingRule (TyEqCongQuotient ctx a0 r0 a1 r1) =
+  "ty-quotient-cong " ++ prettyCtx ctx ++ " ⊦ " ++ prettyTy (Quotient a0 r0) ++ " ≐ " ++ prettyTy (Quotient a1 r1)
 prettyTypingRule (TyWfSubst gamma0 gamma1 sigma a) =
   "ty-wf-subst " ++ prettyCtx gamma0 ++ " ⊦ " ++ prettySub sigma ++ " to " ++ prettyCtx gamma1 ++ " ⊦ " ++ prettyTy a
 prettyTypingRule (TyEqSubst gamma0 gamma1 sigma0 sigma1 a0 a1) =

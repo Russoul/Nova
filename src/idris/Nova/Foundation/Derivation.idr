@@ -299,6 +299,21 @@ data TypingRule : Type where
   ||| ===================
   ||| Γ ⊦ El t₀ ≐ El t₁ type
   TyEqCongEl : Ctx -> Elem -> Elem -> TypingRule
+  ||| Γ ⊦ A₀ ≐ A₁ type
+  ||| Γ ᐅ A₁ ⊦ B₀ ≐ B₁ type
+  ||| ============================
+  ||| Γ ⊦ A₀ → B₀ ≐ A₁ → B₁ type
+  TyEqCongPi : Ctx -> Ty -> Ty -> Ty -> Ty -> TypingRule
+  ||| Γ ⊦ A₀ ≐ A₁ type
+  ||| Γ ᐅ A₁ ⊦ B₀ ≐ B₁ type
+  ||| ============================
+  ||| Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ type
+  TyEqCongSigma : Ctx -> Ty -> Ty -> Ty -> Ty -> TypingRule
+  ||| Γ ⊦ A₀ ≐ A₁ type
+  ||| Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₀ ≐ R₁ type
+  ||| ==============================
+  ||| Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ type
+  TyEqCongQuotient : Ctx -> Ty -> Ty -> Ty -> Ty -> TypingRule
   ||| Γ₁ ⊦ A₀ ≐ A₁ type
   ||| σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
   ||| -----------------------
@@ -432,6 +447,9 @@ Show TypingRule where
   show (TyEqTrans ctx ty0 ty1 ty2)   = "TyEqTrans (\{showCtxRep ctx}) (\{show ty0}) (\{show ty1}) (\{show ty2})"
   show (TyEqCongEqTy ctx a0 b0 ty0 a1 b1 ty1) = "TyEqCongEqTy (\{showCtxRep ctx}) (\{show a0}) (\{show b0}) (\{show ty0}) (\{show a1}) (\{show b1}) (\{show ty1})"
   show (TyEqCongEl ctx t0 t1) = "TyEqCongEl (\{showCtxRep ctx}) (\{show t0}) (\{show t1})"
+  show (TyEqCongPi ctx a0 b0 a1 b1) = "TyEqCongPi (\{showCtxRep ctx}) (\{show a0}) (\{show b0}) (\{show a1}) (\{show b1})"
+  show (TyEqCongSigma ctx a0 b0 a1 b1) = "TyEqCongSigma (\{showCtxRep ctx}) (\{show a0}) (\{show b0}) (\{show a1}) (\{show b1})"
+  show (TyEqCongQuotient ctx a0 r0 a1 r1) = "TyEqCongQuotient (\{showCtxRep ctx}) (\{show a0}) (\{show r0}) (\{show a1}) (\{show r1})"
   show (TyEqSubst gamma0 gamma1 sigma0 sigma1 a0 a1) = "TyEqSubst (\{showCtxRep gamma0}) (\{showCtxRep gamma1}) (\{show sigma0}) (\{show sigma1}) (\{show a0}) (\{show a1})"
   show (ElemEqRefl ctx e ty)         = "ElemEqRefl (\{showCtxRep ctx}) (\{show e}) (\{show ty})"
   show (ElemEqSym ctx e0 e1 ty)      = "ElemEqSym (\{showCtxRep ctx}) (\{show e0}) (\{show e1}) (\{show ty})"
@@ -578,49 +596,67 @@ normSpineEq : Sig -> SpineEq -> SpineEq
 normSpineEq sig (ctx, s0, s1, tel) = (betaCtx sig ctx, betaSpine sig s0, betaSpine sig s1, betaTel sig tel)
 
 -- Each insertXxx records a just-derived conclusion in both stores: raw as
--- concluded, and beta-normalized (licensed — the fact is derivable).
+-- concluded, and beta-normalized (licensed — the fact is derivable). The
+-- normalized *equality* stores are additionally closed under symmetry —
+-- free and sound (equality is symmetric), and it means a query never
+-- misses purely on orientation. The raw stores stay exactly as concluded
+-- (they are what dump/apply echo and what later premises reference).
 
 insertCtxWf : CtxWf -> Truth -> Truth
 insertCtxWf x sp = {ctxWfRaw $= insert x, ctxWfNorm $= insert (normCtxWf sp.sig x)} sp
 
 insertCtxEq : CtxEq -> Truth -> Truth
-insertCtxEq x sp = {ctxEqRaw $= insert x, ctxEqNorm $= insert (normCtxEq sp.sig x)} sp
+insertCtxEq x sp =
+  let n@(n0, n1) = normCtxEq sp.sig x
+  in {ctxEqRaw $= insert x, ctxEqNorm $= insert (n1, n0) . insert n} sp
 
 insertSubWf : SubWf -> Truth -> Truth
 insertSubWf x sp = {subWfRaw $= insert x, subWfNorm $= insert (normSubWf sp.sig x)} sp
 
 insertSubEq : SubEq -> Truth -> Truth
-insertSubEq x sp = {subEqRaw $= insert x, subEqNorm $= insert (normSubEq sp.sig x)} sp
+insertSubEq x sp =
+  let n@(n0, n1, g, d) = normSubEq sp.sig x
+  in {subEqRaw $= insert x, subEqNorm $= insert (n1, n0, g, d) . insert n} sp
 
 insertSubNormWf : SubNormWf -> Truth -> Truth
 insertSubNormWf x sp = {subNormWfRaw $= insert x, subNormWfNorm $= insert (normSubNormWf sp.sig x)} sp
 
 insertSubNormEq : SubNormEq -> Truth -> Truth
-insertSubNormEq x sp = {subNormEqRaw $= insert x, subNormEqNorm $= insert (normSubNormEq sp.sig x)} sp
+insertSubNormEq x sp =
+  let n@(n0, n1, g, d) = normSubNormEq sp.sig x
+  in {subNormEqRaw $= insert x, subNormEqNorm $= insert (n1, n0, g, d) . insert n} sp
 
 insertTyWf : TyWf -> Truth -> Truth
 insertTyWf x sp = {tyWfRaw $= insert x, tyWfNorm $= insert (normTyWf sp.sig x)} sp
 
 insertTyEq : TyEq -> Truth -> Truth
-insertTyEq x sp = {tyEqRaw $= insert x, tyEqNorm $= insert (normTyEq sp.sig x)} sp
+insertTyEq x sp =
+  let n@(c, n0, n1) = normTyEq sp.sig x
+  in {tyEqRaw $= insert x, tyEqNorm $= insert (c, n1, n0) . insert n} sp
 
 insertElemWf : ElemWf -> Truth -> Truth
 insertElemWf x sp = {elemWfRaw $= insert x, elemWfNorm $= insert (normElemWf sp.sig x)} sp
 
 insertElemEq : ElemEq -> Truth -> Truth
-insertElemEq x sp = {elemEqRaw $= insert x, elemEqNorm $= insert (normElemEq sp.sig x)} sp
+insertElemEq x sp =
+  let n@(c, n0, n1, ty) = normElemEq sp.sig x
+  in {elemEqRaw $= insert x, elemEqNorm $= insert (c, n1, n0, ty) . insert n} sp
 
 insertTelWf : TelWf -> Truth -> Truth
 insertTelWf x sp = {telWfRaw $= insert x, telWfNorm $= insert (normTelWf sp.sig x)} sp
 
 insertTelEq : TelEq -> Truth -> Truth
-insertTelEq x sp = {telEqRaw $= insert x, telEqNorm $= insert (normTelEq sp.sig x)} sp
+insertTelEq x sp =
+  let n@(c, n0, n1) = normTelEq sp.sig x
+  in {telEqRaw $= insert x, telEqNorm $= insert (c, n1, n0) . insert n} sp
 
 insertSpineWf : SpineWf -> Truth -> Truth
 insertSpineWf x sp = {spineWfRaw $= insert x, spineWfNorm $= insert (normSpineWf sp.sig x)} sp
 
 insertSpineEq : SpineEq -> Truth -> Truth
-insertSpineEq x sp = {spineEqRaw $= insert x, spineEqNorm $= insert (normSpineEq sp.sig x)} sp
+insertSpineEq x sp =
+  let n@(c, n0, n1, tel) = normSpineEq sp.sig x
+  in {spineEqRaw $= insert x, spineEqNorm $= insert (c, n1, n0, tel) . insert n} sp
 
 -- ===== Weakening-aware membership =====
 --
@@ -799,7 +835,25 @@ export
 subNormWfDerivable : SubNorm -> Ctx -> Ctx -> Truth -> Either Rejection ()
 subNormWfDerivable sigma gamma delta sp =
   rejectUnless (SubNormWfNotDerivable sigma gamma delta) $
-    wkMember sp.subNormWfRaw str1SubNormWf (contains gamma sp.ctxWfRaw) (sigma, gamma, delta)
+    let ctxOk = contains gamma sp.ctxWfRaw in
+    wkMember sp.subNormWfRaw str1SubNormWf ctxOk (sigma, gamma, delta)
+    || (contains delta sp.ctxWfRaw && componentwise ctxOk sigma delta)
+  where
+    -- e˲ : Γ ⇒ Δ norm verified componentwise: Δ raw-derivable well-formed
+    -- (so each entry type is, in its prefix) plus each element checked
+    -- against its instantiated entry type via the element store — exactly
+    -- the premises of the sub-norm-term/sub-norm-ext chain, so the
+    -- judgement is derivable without the chain being stated as separate
+    -- facts. substTy is the structural substitution operator (no beta),
+    -- so placing yet-unvalidated elements into the entry type is purely
+    -- syntactic; the elements themselves are then validated by the
+    -- (raw, weakening-aware) element lookups.
+    componentwise : Bool -> SubNorm -> Ctx -> Bool
+    componentwise ctxOk [<] [<] = True
+    componentwise ctxOk (es :< e) (cod :< ty) =
+      componentwise ctxOk es cod
+      && wkMember sp.elemWfRaw str1ElemWf ctxOk (gamma, e, substTy ty (embed es))
+    componentwise _ _ _ = False
 
 export
 tyWfDerivable : Ctx -> Ty -> Truth -> Either Rejection ()
@@ -1185,6 +1239,18 @@ step (TyEqCongEqTy gamma a0 b0 ty0 a1 b1 ty1) sp = do
 step (TyEqCongEl gamma t0 t1) sp = do
   elemEqDerivable gamma t0 t1 UniverseTy sp
   Right $ insertTyEq (gamma, El t0, El t1) sp
+step (TyEqCongPi gamma a0 b0 a1 b1) sp = do
+  tyEqDerivable gamma a0 a1 sp
+  tyEqDerivable (gamma :< a1) b0 b1 sp
+  Right $ insertTyEq (gamma, PiTy a0 b0, PiTy a1 b1) sp
+step (TyEqCongSigma gamma a0 b0 a1 b1) sp = do
+  tyEqDerivable gamma a0 a1 sp
+  tyEqDerivable (gamma :< a1) b0 b1 sp
+  Right $ insertTyEq (gamma, SigmaTy a0 b0, SigmaTy a1 b1) sp
+step (TyEqCongQuotient gamma a0 r0 a1 r1) sp = do
+  tyEqDerivable gamma a0 a1 sp
+  tyEqDerivable (gamma :< a1 :< substTy a1 Wk) r0 r1 sp
+  Right $ insertTyEq (gamma, Quotient a0 r0, Quotient a1 r1) sp
 step (TyEqSubst gamma0 gamma1 sigma0 sigma1 a0 a1) sp = do
   subEqDerivable sigma0 sigma1 gamma0 gamma1 sp
   tyEqDerivable gamma1 a0 a1 sp

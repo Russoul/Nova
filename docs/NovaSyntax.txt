@@ -73,6 +73,9 @@ R ::=
   ty-trans   Γ ⊦ T₀ ≐ T₂ via T₁                 (conclusion: T₀ ≐ T₂)
   ty-eq-cong Γ ⊦ (a₀ ≡ b₀ ∈ T₀) ≐ (a₁ ≡ b₁ ∈ T₁) (TyEqCongEqTy)
   ty-el-cong Γ ⊦ El t₀ ≐ El t₁                   (TyEqCongEl)
+  ty-pi-cong Γ ⊦ (A₀ → B₀) ≐ (A₁ → B₁)          (TyEqCongPi — B's live in Γ ᐅ A₁)
+  ty-sigma-cong Γ ⊦ (A₀ ⨯ B₀) ≐ (A₁ ⨯ B₁)        (TyEqCongSigma)
+  ty-quotient-cong Γ ⊦ (A₀ / R₀) ≐ (A₁ / R₁)     (TyEqCongQuotient — R's live in Γ ᐅ A₁ ᐅ A₁[↑])
   ty-eq-subst Γ₀ ⊦ σ₀ ≐ σ₁ to Γ₁ ⊦ A₀ ≐ A₁        (TyEqSubst, conclusion: Γ₀ ⊦ A₀[σ₀] ≐ A₁[σ₁])
 
   // Element wf: intro / elim

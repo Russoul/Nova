@@ -159,9 +159,9 @@ list of elements, no `id`/`↑`/`∘`; the empty substitution is written as
 literally nothing, not `·`) with `e˲ : Δ ⇒ Γ norm` — there is no bare `x`,
 a signature reference always carries the substitution back to its
 declaration context (e.g. `x[]` if `x` was declared in `ε`, `x[☐₀]` when
-used in exactly `Γ ᐅ A`). Build up `e˲` itself with
-`sub-norm-term`/`sub-norm-ext` (see the cheat sheet's "Normal substitution"
-sections).
+used in exactly `Γ ᐅ A`). The `e˲ : Δ ⇒ Γ norm` premise is verified
+componentwise from already-derived element facts — no
+`sub-norm-term`/`sub-norm-ext` chain needed.
 
 ### Building on another goal's session (`depends:`)
 

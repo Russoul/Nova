@@ -48,7 +48,9 @@ and beta-normalized — and:
   guard licensing normalization, mirroring the wf premises of the
   ≜-computation rules) — **by computation** (the two sides' normal forms
   coincide — no stored equality fact needed at all) or up to
-  beta-normalization against the normalized store.
+  beta-normalization against the normalized store, which is closed under
+  symmetry (orientation never matters there; only *raw* matches are
+  orientation-sensitive).
 
 So equalities auto-discharge "up to computation" (there is no
 `ty-cmp`/`el-cmp` rewrite step), but each side must first be *formed* raw
@@ -202,6 +204,9 @@ No `sub-norm-chn`/`sub-norm-eq-chn` either, for the same reason.
 | `ty-trans Γ ⊦ A₀ ≐ A₂ via A₁` | `Γ ⊦ A₀ ≐ A₁`, `Γ ⊦ A₁ ≐ A₂` | `Γ ⊦ A₀ ≐ A₂` |
 | `ty-eq-cong Γ ⊦ (a₀≡b₀∈T₀) ≐ (a₁≡b₁∈T₁)` | `Γ ⊦ T₀ ≐ T₁`, `Γ ⊦ a₀ ≐ a₁ : T₁`, `Γ ⊦ b₀ ≐ b₁ : T₁` | `Γ ⊦ (a₀≡b₀∈T₀) ≐ (a₁≡b₁∈T₁)` — lets `EqTy`'s own arguments differ by a *judgemental* equality, not just computation; the usual way to build a `Refl`-typed element at a goal whose two sides aren't syntactically the reduct of one another (e.g. the successor case of an induction) |
 | `ty-el-cong Γ ⊦ El t₀ ≐ El t₁` | `Γ ⊦ t₀ ≐ t₁ : 𝕌` | `Γ ⊦ El t₀ ≐ El t₁` — lifts a judgemental equality of universe *codes* to an equality of the *types* they decode to |
+| `ty-pi-cong Γ ⊦ (A₀ → B₀) ≐ (A₁ → B₁)` | `Γ ⊦ A₀ ≐ A₁`, `Γ ᐅ A₁ ⊦ B₀ ≐ B₁` | `Γ ⊦ A₀ → B₀ ≐ A₁ → B₁` |
+| `ty-sigma-cong Γ ⊦ (A₀ ⨯ B₀) ≐ (A₁ ⨯ B₁)` | `Γ ⊦ A₀ ≐ A₁`, `Γ ᐅ A₁ ⊦ B₀ ≐ B₁` | `Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁` |
+| `ty-quotient-cong Γ ⊦ (A₀ / R₀) ≐ (A₁ / R₁)` | `Γ ⊦ A₀ ≐ A₁`, `Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₀ ≐ R₁` | `Γ ⊦ A₀ / R₀ ≐ A₁ / R₁` |
 
 ## Element well-formedness: introduction / elimination
 
@@ -250,6 +255,11 @@ sessions reference it by name instead of re-deriving it.
 | `sig-var Δ ⊦ x[e˲]` | `(Γ ⊦ x ≔ a : A)` in the signature, `Δ ctx`, `e˲ : Δ ⇒ Γ norm` | `Δ ⊦ x[e˲] : A[e˲]` |
 | `ty-sig-var Δ ⊦ x[e˲]` | `(Γ ⊦ x ≔ A type)` in the signature, `Δ ctx`, `e˲ : Δ ⇒ Γ norm` | `Δ ⊦ x[e˲] type` |
 
+The `e˲ : Δ ⇒ Γ norm` premise is verified componentwise from the element
+store (each `eᵢ` checked against its instantiated entry type), so no
+`sub-norm-term`/`sub-norm-ext` chain needs to be stated — those rules
+remain only for judgements *about* normal substitutions.
+
 There is no `sig-var-eq`/`ty-sig-var-eq`: unfolding a definition (`x[e˲] ≐
 a[e˲]` / `x[e˲] ≐ A[e˲]`) is an *equality up to computation*, and those
 discharge by computation — once both sides are raw-derivable well-formed
@@ -283,7 +293,8 @@ anything specific to `ty-quotient`:
   *not* include a bare `≡`, so an equality-typed `R` needs its own
   wrapping parens too: `(p q. (l ≡ r ∈ T))`, not `(p q. l ≡ r ∈ T)`.
 
-There's no `ty-quotient-cong` (no rule relates two different `A / R`s) and
+`ty-quotient-cong` relates two quotients componentwise (see the type
+equality table), and
 no dedicated congruence rule for `quot-elim` at all.
 
 | Keyword & syntax | Premises | Conclusion |

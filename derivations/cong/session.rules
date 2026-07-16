@@ -40,5 +40,4 @@
 - el-pi-i ε ᐅ A:𝕌 ⊦ λx. (λy. (λz. (λw. (λv. Refl)))) : (x:El A → 𝕌) → (y:(v:El A) → El (x v)) → (v:El A) → (w:El A) → (v ≡ w ∈ El A) → (y v ≡ y w ∈ El (x w))
 - el-pi-i ε ⊦ λx. (λy. (λz. (λw. (λv. (λx1. Refl))))) : (A:𝕌) → (x:El A → 𝕌) → (y:(v:El A) → El (x v)) → (v:El A) → (w:El A) → (v ≡ w ∈ El A) → (y v ≡ y w ∈ El (x w))
 - sig ε ⊦ cong ≔ λx. (λy. (λz. (λw. (λv. (λx1. Refl))))) : (A:𝕌) → (x:El A → 𝕌) → (y:(v:El A) → El (x v)) → (v:El A) → (w:El A) → (v ≡ w ∈ El A) → (y v ≡ y w ∈ El (x w))
-- sub-norm-term ε ⊦
 - sig-var ε ⊦ cong[]

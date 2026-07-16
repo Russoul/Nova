@@ -587,6 +587,21 @@ parseNamedTypingRule abbrevs =
       case (ty0, ty1) of
         (Ty.El t0, Ty.El t1) => pure (TyEqCongEl ctx t0 t1)
         _ => fail "ty-el-cong: expected El t₀ = El t₁") <|>
+  (do str_ "ty-pi-cong"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
+      ty0 <- parseTy env; sp; str_ "≐"; sp; ty1 <- parseTy env
+      case (ty0, ty1) of
+        (PiTy a0 b0, PiTy a1 b1) => pure (TyEqCongPi ctx a0 b0 a1 b1)
+        _ => fail "ty-pi-cong: expected ((x:A₀) → B₀) ≐ ((x:A₁) → B₁)") <|>
+  (do str_ "ty-sigma-cong"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
+      ty0 <- parseTy env; sp; str_ "≐"; sp; ty1 <- parseTy env
+      case (ty0, ty1) of
+        (SigmaTy a0 b0, SigmaTy a1 b1) => pure (TyEqCongSigma ctx a0 b0 a1 b1)
+        _ => fail "ty-sigma-cong: expected ((x:A₀) ⨯ B₀) ≐ ((x:A₁) ⨯ B₁)") <|>
+  (do str_ "ty-quotient-cong"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
+      ty0 <- parseTy env; sp; str_ "≐"; sp; ty1 <- parseTy env
+      case (ty0, ty1) of
+        (Quotient a0 r0, Quotient a1 r1) => pure (TyEqCongQuotient ctx a0 r0 a1 r1)
+        _ => fail "ty-quotient-cong: expected (A₀ / R₀) ≐ (A₁ / R₁)") <|>
   (do str_ "ty-eq-subst"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       sigma0 <- parseSub env; sp; str_ "≐"; sp; sigma1 <- parseSub env
       sp; str_ "to"; sp; (delta, denv) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp

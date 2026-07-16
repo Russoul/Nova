@@ -481,6 +481,15 @@ prettyTypingRuleN (TyEqCongEqTy ctx a0 b0 ty0 a1 b1 ty1) =
 prettyTypingRuleN (TyEqCongEl ctx t0 t1) =
   let env = envForCtx ctx
   in "ty-el-cong " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyTyN env (El t0) ++ " ≐ " ++ prettyTyN env (El t1)
+prettyTypingRuleN (TyEqCongPi ctx a0 b0 a1 b1) =
+  let env = envForCtx ctx
+  in "ty-pi-cong " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyTyN env (PiTy a0 b0) ++ " ≐ " ++ prettyTyN env (PiTy a1 b1)
+prettyTypingRuleN (TyEqCongSigma ctx a0 b0 a1 b1) =
+  let env = envForCtx ctx
+  in "ty-sigma-cong " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyTyN env (SigmaTy a0 b0) ++ " ≐ " ++ prettyTyN env (SigmaTy a1 b1)
+prettyTypingRuleN (TyEqCongQuotient ctx a0 r0 a1 r1) =
+  let env = envForCtx ctx
+  in "ty-quotient-cong " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyTyN env (Quotient a0 r0) ++ " ≐ " ++ prettyTyN env (Quotient a1 r1)
 prettyTypingRuleN (TyWfSubst gamma0 gamma1 sigma a) =
   "ty-wf-subst " ++ prettyCtxN gamma0 ++ " ⊦ " ++ prettySubN (envForCtx gamma0) sigma ++
   " to " ++ prettyCtxN gamma1 ++ " ⊦ " ++ prettyTyN (envForCtx gamma1) a
