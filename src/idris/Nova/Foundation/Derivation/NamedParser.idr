@@ -81,6 +81,26 @@ resolveName (env :< y) x =
     then Just 0
     else map S (resolveName env x)
 
+-- ===== Context abbreviations =====
+--
+-- `- ctx C ≔ Γ` names a context — together with its binder names — for
+-- the rest of the file: a later context position may start with `C`
+-- instead of `ε` and extend it (`C ᐅ x:T ᐅ ...`), and a definition may
+-- reference earlier definitions. Purely notation: expanded at parse
+-- time, so the checker only ever sees the expanded Ctx (the fact stores
+-- key on canonical contexts). Scope is lexical, from the definition line
+-- to the end of the file; redefinition shadows.
+
+public export
+CtxAbbrevs : Type
+CtxAbbrevs = SnocList (String, Ctx, NameEnv)
+
+export
+lookupCtxAbbrev : String -> CtxAbbrevs -> Maybe (Ctx, NameEnv)
+lookupCtxAbbrev _ [<] = Nothing
+lookupCtxAbbrev x (rest :< (y, ctx, env)) =
+  if x == y then Just (ctx, env) else lookupCtxAbbrev x rest
+
 -- ===== Local identifiers =====
 --
 -- Distinct from Nova.Foundation.Parser.parseSigIdentifier (which lexes
@@ -349,19 +369,23 @@ mutual
 
 -- ===== Ctx, Tel, Spine =====
 
--- Γ ::= ε | Γ ᐅ x:A   (snoc list, left-associative, NAMED)
+-- Γ ::= ε | C | Γ ᐅ x:A   (snoc list, left-associative, NAMED)
 -- Every entry names the variable it introduces (sugar: a bare `A`, with
 -- no `x:`, defaults to `_` — useful when re-stating an already-built
 -- context whose entries aren't referenced by name in the current rule).
--- Self-contained: parses a full Γ from `ε`, producing both the core `Ctx`
--- and its parallel `NameEnv` — nothing needs to be threaded in from
--- outside, since every Γ is always written out in full at every use site
--- (exactly as in the unnamed parser).
+-- A context may also start with a `ctx`-defined abbreviation `C` instead
+-- of `ε` (restoring both the Ctx and its binder names) and extend it.
+-- Self-contained otherwise: parses a full Γ, producing both the core
+-- `Ctx` and its parallel `NameEnv`.
 export covering
-parseNamedCtx : Rule (Ctx, NameEnv)
-parseNamedCtx = do
-  str_ "ε"
-  parseNamedCtxFrom [<] [<]
+parseNamedCtx : CtxAbbrevs -> Rule (Ctx, NameEnv)
+parseNamedCtx abbrevs =
+      (do str_ "ε"
+          parseNamedCtxFrom [<] [<])
+  <|> (do name <- parseLocalIdentifier
+          case lookupCtxAbbrev name abbrevs of
+            Just (ctx, env) => parseNamedCtxFrom ctx env
+            Nothing => fail "unknown context abbreviation '\{name}'")
  where
   covering
   parseNamedCtxFrom : Ctx -> NameEnv -> Rule (Ctx, NameEnv)
@@ -373,6 +397,18 @@ parseNamedCtx = do
               <|> (do ty <- parseTy env
                       parseNamedCtxFrom (ctx :< ty) (env :< wildcard)))
     <|> pure (ctx, env)
+
+||| `ctx C ≔ Γ` — define a context abbreviation (the leading `- ` is the
+||| session parser's). Not a judgement: it derives nothing and requires
+||| nothing; the checker still demands ctx-wf facts wherever rules do.
+export covering
+parseNamedCtxDef : CtxAbbrevs -> Rule (String, Ctx, NameEnv)
+parseNamedCtxDef abbrevs = do
+  str_ "ctx"; space
+  name <- Nova.Foundation.Parser.parseSigIdentifier
+  sp; str_ "≔"; sp
+  (ctx, env) <- parseNamedCtx abbrevs
+  pure (name, ctx, env)
 
 -- Δ ::= ε | A ◁ Δ   (list, right-associative)
 --
@@ -414,179 +450,179 @@ parseSpine env =
 -- inline) before the substitution that needs those names — so this
 -- parser never needs lookahead.
 
-export
-parseNamedTypingRule : Rule TypingRule
-parseNamedTypingRule =
+export covering
+parseNamedTypingRule : CtxAbbrevs -> Rule TypingRule
+parseNamedTypingRule abbrevs =
   -- Context
   (str_ "ctx-emp" $> CtxWfEmpty) <|>
   (do str_ "ctx-ext"; space
-      (ctx, _) <- parseNamedCtx
+      (ctx, _) <- parseNamedCtx abbrevs
       case ctx of
         g :< ty => pure (CtxWfExt g ty)
         [<]     => fail "ctx-ext: requires non-empty context") <|>
-  (do str_ "ctx-refl"; space; (ctx, _) <- parseNamedCtx; pure (CtxEqRefl ctx)) <|>
+  (do str_ "ctx-refl"; space; (ctx, _) <- parseNamedCtx abbrevs; pure (CtxEqRefl ctx)) <|>
   (do str_ "ctx-sym"; space
-      (ctx1, _) <- parseNamedCtx; sp; str_ "≐"; sp; (ctx0, _) <- parseNamedCtx
+      (ctx1, _) <- parseNamedCtx abbrevs; sp; str_ "≐"; sp; (ctx0, _) <- parseNamedCtx abbrevs
       pure (CtxEqSym ctx0 ctx1)) <|>
   (do str_ "ctx-trans"; space
-      (ctx0, _) <- parseNamedCtx; sp; str_ "≐"; sp; (ctx2, _) <- parseNamedCtx
-      sp; str_ "via"; sp; (ctx1, _) <- parseNamedCtx
+      (ctx0, _) <- parseNamedCtx abbrevs; sp; str_ "≐"; sp; (ctx2, _) <- parseNamedCtx abbrevs
+      sp; str_ "via"; sp; (ctx1, _) <- parseNamedCtx abbrevs
       pure (CtxEqTrans ctx0 ctx1 ctx2)) <|>
   -- Substitution wf
   (do str_ "sub-term"; space
-      (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; _ <- parseSub env
+      (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; _ <- parseSub env
       pure (SubWfTerminal ctx)) <|>
   (do str_ "sub-ext"; space
-      (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
-      sigma <- parseSub env; sp; str_ "to"; sp; (delta, _) <- parseNamedCtx
+      (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
+      sigma <- parseSub env; sp; str_ "to"; sp; (delta, _) <- parseNamedCtx abbrevs
       case (sigma, delta) of
         (Ext s e, d :< ty) => pure (SubWfExt s e ctx d ty)
         _ => fail "sub-ext: expected σ, e and non-empty target context") <|>
   -- Substitution eq
   (do str_ "sub-refl"; space
-      (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
-      s <- parseSub env; sp; char_ ':'; sp; (d, _) <- parseNamedCtx
+      (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
+      s <- parseSub env; sp; char_ ':'; sp; (d, _) <- parseNamedCtx abbrevs
       pure (SubEqRefl s ctx d)) <|>
   (do str_ "sub-sym"; space
-      (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
-      s1 <- parseSub env; sp; str_ "≐"; sp; s0 <- parseSub env; sp; char_ ':'; sp; (d, _) <- parseNamedCtx
+      (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
+      s1 <- parseSub env; sp; str_ "≐"; sp; s0 <- parseSub env; sp; char_ ':'; sp; (d, _) <- parseNamedCtx abbrevs
       pure (SubEqSym s0 s1 ctx d)) <|>
   (do str_ "sub-trans"; space
-      (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
-      s0 <- parseSub env; sp; str_ "≐"; sp; s2 <- parseSub env; sp; char_ ':'; sp; (d, _) <- parseNamedCtx
+      (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
+      s0 <- parseSub env; sp; str_ "≐"; sp; s2 <- parseSub env; sp; char_ ':'; sp; (d, _) <- parseNamedCtx abbrevs
       sp; str_ "via"; sp; s1 <- parseSub env
       pure (SubEqTrans s0 s1 s2 ctx d)) <|>
   -- Normal substitution wf (ext-eq before ext — longer keyword first)
   (do str_ "sub-norm-term"; space
-      (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; _ <- parseSubNorm env
+      (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; _ <- parseSubNorm env
       pure (SubNormWfTerminal ctx)) <|>
   (do str_ "sub-norm-ext-eq"; space
-      (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+      (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       full0 <- parseSubNorm env; sp; str_ "≐"; sp; full1 <- parseSubNorm env
-      sp; char_ ':'; sp; (delta, _) <- parseNamedCtx
+      sp; char_ ':'; sp; (delta, _) <- parseNamedCtx abbrevs
       case (full0, full1, delta) of
         (es0 :< t0, es1 :< t1, d :< ty) => pure (SubNormEqExt es0 es1 t0 t1 ctx d ty)
         _ => fail "sub-norm-ext-eq: expected e˲, t = e˲', t' and non-empty target context") <|>
   (do str_ "sub-norm-ext"; space
-      (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
-      sigma <- parseSubNorm env; sp; str_ "to"; sp; (delta, _) <- parseNamedCtx
+      (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
+      sigma <- parseSubNorm env; sp; str_ "to"; sp; (delta, _) <- parseNamedCtx abbrevs
       case (sigma, delta) of
         (es :< e, d :< ty) => pure (SubNormWfExt es e ctx d ty)
         _ => fail "sub-norm-ext: expected e˲, e and non-empty target context") <|>
   -- Normal substitution eq
   (do str_ "sub-norm-refl"; space
-      (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
-      s <- parseSubNorm env; sp; char_ ':'; sp; (d, _) <- parseNamedCtx
+      (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
+      s <- parseSubNorm env; sp; char_ ':'; sp; (d, _) <- parseNamedCtx abbrevs
       pure (SubNormEqRefl s ctx d)) <|>
   (do str_ "sub-norm-sym"; space
-      (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
-      s1 <- parseSubNorm env; sp; str_ "≐"; sp; s0 <- parseSubNorm env; sp; char_ ':'; sp; (d, _) <- parseNamedCtx
+      (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
+      s1 <- parseSubNorm env; sp; str_ "≐"; sp; s0 <- parseSubNorm env; sp; char_ ':'; sp; (d, _) <- parseNamedCtx abbrevs
       pure (SubNormEqSym s0 s1 ctx d)) <|>
   (do str_ "sub-norm-trans"; space
-      (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
-      s0 <- parseSubNorm env; sp; str_ "≐"; sp; s2 <- parseSubNorm env; sp; char_ ':'; sp; (d, _) <- parseNamedCtx
+      (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
+      s0 <- parseSubNorm env; sp; str_ "≐"; sp; s2 <- parseSubNorm env; sp; char_ ':'; sp; (d, _) <- parseNamedCtx abbrevs
       sp; str_ "via"; sp; s1 <- parseSubNorm env
       pure (SubNormEqTrans s0 s1 s2 ctx d)) <|>
   -- Type wf
-  (do str_ "ty-zero"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; ty <- parseTy env
+  (do str_ "ty-zero"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; ty <- parseTy env
       case ty of
         Ty.ZeroTy => pure (TyWfZero ctx)
         _         => fail "ty-zero: expected 𝟘") <|>
-  (do str_ "ty-one";  space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; ty <- parseTy env
+  (do str_ "ty-one";  space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; ty <- parseTy env
       case ty of
         Ty.OneTy => pure (TyWfOne ctx)
         _        => fail "ty-one: expected 𝟙") <|>
-  (do str_ "ty-nat";  space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; ty <- parseTy env
+  (do str_ "ty-nat";  space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; ty <- parseTy env
       case ty of
         Ty.NatTy => pure (TyWfNat ctx)
         _        => fail "ty-nat: expected ℕ") <|>
-  (do str_ "ty-univ"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; ty <- parseTy env
+  (do str_ "ty-univ"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; ty <- parseTy env
       case ty of
         Ty.UniverseTy => pure (TyWfUniverse ctx)
         _             => fail "ty-univ: expected 𝕌") <|>
-  (do str_ "ty-pi"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; ty <- parseTy env
+  (do str_ "ty-pi"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; ty <- parseTy env
       case ty of
         PiTy a b => pure (TyWfPi ctx a b)
         _        => fail "ty-pi: expected (x:A) → B") <|>
-  (do str_ "ty-sigma"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; ty <- parseTy env
+  (do str_ "ty-sigma"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; ty <- parseTy env
       case ty of
         SigmaTy a b => pure (TyWfSigma ctx a b)
         _           => fail "ty-sigma: expected (x:A) ⨯ B") <|>
-  (do str_ "ty-quotient"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; ty <- parseTy env
+  (do str_ "ty-quotient"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; ty <- parseTy env
       case ty of
         Quotient a r => pure (TyWfQuotient ctx a r)
         _            => fail "ty-quotient: expected A / (x y. R)") <|>
-  (do str_ "ty-wf-subst"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
-      sigma <- parseSub env; sp; str_ "to"; sp; (delta, denv) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "ty-wf-subst"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
+      sigma <- parseSub env; sp; str_ "to"; sp; (delta, denv) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       a <- parseTy denv
       pure (TyWfSubst ctx delta sigma a)) <|>
-  (do str_ "ty-eq-form"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; ty <- parseTy env
+  (do str_ "ty-eq-form"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; ty <- parseTy env
       case ty of
         Ty.EqTy l r a => pure (TyWfEq ctx l r a)
         _             => fail "ty-eq-form: expected l ≡ r ∈ A") <|>
-  (do str_ "ty-el"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; ty <- parseTy env
+  (do str_ "ty-el"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; ty <- parseTy env
       case ty of
         El e => pure (TyWfEl ctx e)
         _    => fail "ty-el: expected El e") <|>
-  (do str_ "ty-sig-var"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; ty <- parseTy env
+  (do str_ "ty-sig-var"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; ty <- parseTy env
       case ty of
         Ty.SigVar x sigma => pure (TyWfSigVar ctx sigma x)
         _                 => fail "ty-sig-var: expected x[σ]") <|>
   -- Type eq
-  (do str_ "ty-refl"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; ty <- parseTy env
+  (do str_ "ty-refl"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; ty <- parseTy env
       pure (TyEqRefl ctx ty)) <|>
-  (do str_ "ty-sym"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "ty-sym"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       ty1 <- parseTy env; sp; str_ "≐"; sp; ty0 <- parseTy env
       pure (TyEqSym ctx ty0 ty1)) <|>
-  (do str_ "ty-trans"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "ty-trans"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       ty0 <- parseTy env; sp; str_ "≐"; sp; ty2 <- parseTy env; sp; str_ "via"; sp; ty1 <- parseTy env
       pure (TyEqTrans ctx ty0 ty1 ty2)) <|>
-  (do str_ "ty-eq-cong"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "ty-eq-cong"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       ty0 <- parseTy env; sp; str_ "≐"; sp; ty1 <- parseTy env
       case (ty0, ty1) of
         (Ty.EqTy a0 b0 t0, Ty.EqTy a1 b1 t1) => pure (TyEqCongEqTy ctx a0 b0 t0 a1 b1 t1)
         _ => fail "ty-eq-cong: expected (a₀ ≡ b₀ ∈ T₀) = (a₁ ≡ b₁ ∈ T₁)") <|>
-  (do str_ "ty-el-cong"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "ty-el-cong"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       ty0 <- parseTy env; sp; str_ "≐"; sp; ty1 <- parseTy env
       case (ty0, ty1) of
         (Ty.El t0, Ty.El t1) => pure (TyEqCongEl ctx t0 t1)
         _ => fail "ty-el-cong: expected El t₀ = El t₁") <|>
-  (do str_ "ty-eq-subst"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "ty-eq-subst"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       sigma0 <- parseSub env; sp; str_ "≐"; sp; sigma1 <- parseSub env
-      sp; str_ "to"; sp; (delta, denv) <- parseNamedCtx; sp; str_ "⊦"; sp
+      sp; str_ "to"; sp; (delta, denv) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       a0 <- parseTy denv; sp; str_ "≐"; sp; a1 <- parseTy denv
       pure (TyEqSubst ctx delta sigma0 sigma1 a0 a1)) <|>
   -- Element wf: intro / elim  (longer keywords before shorter sharing same prefix)
   (do str_ "el-var"; space
-      (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; x <- parseLocalIdentifier
+      (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; x <- parseLocalIdentifier
       case resolveName env x of
         Just n  => pure (ElemWfVar ctx n)
         Nothing => fail "el-var: unbound identifier '\{x}'") <|>
-  (do str_ "el-one"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; str_ "()"
+  (do str_ "el-one"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; str_ "()"
       pure (ElemWfOneIntro ctx)) <|>
-  (do str_ "el-zero"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; str_ "Z"
+  (do str_ "el-zero"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; str_ "Z"
       pure (ElemWfZeroIntro ctx)) <|>
-  (do str_ "el-suc"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "el-suc"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       str_ "S"; space; e <- parseElemAtom env
       pure (ElemWfSucIntro ctx e)) <|>
-  (do str_ "el-pi-i"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "el-pi-i"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       str_ "λ"; sp; x <- parseLocalIdentifier; sp; char_ '.'; sp
       f <- parseElemPostfix (env :< x)
       sp; char_ ':'; sp; ty <- parseTy env
       case ty of
         PiTy a b => pure (ElemWfPiIntro ctx f a b)
         _        => fail "el-pi-i: expected (x:A) → B after :") <|>
-  (do str_ "el-pi-e"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "el-pi-e"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       char_ '('; sp; f <- parseElem env; sp; char_ ':'; sp; ty <- parseTy env; sp; char_ ')'
       sp; e <- parseElemAtom env
       case ty of
         PiTy a b => pure (ElemWfPiApp ctx f a b e)
         _        => fail "el-pi-e: expected (x:A) → B") <|>
-  (do str_ "el-pi-e"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
+  (do str_ "el-pi-e"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; e <- parseElem env
       case e of
         PiApp f arg => pure (ElemWfPiAppInfer ctx f arg)
         _           => fail "el-pi-e: expected (f : (x:A) → B) e or f e") <|>
-  (do str_ "el-sigma-i"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
+  (do str_ "el-sigma-i"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; e <- parseElem env
       case e of
         SigmaIntro u v => do
           sp; char_ ':'; sp; ty <- parseTy env
@@ -594,25 +630,25 @@ parseNamedTypingRule =
             SigmaTy a b => pure (ElemWfSigmaIntro ctx u v a b)
             _           => fail "el-sigma-i: expected (x:A) ⨯ B after :"
         _ => fail "el-sigma-i: expected u, v") <|>
-  (do str_ "el-sigma-e1"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "el-sigma-e1"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       char_ '('; sp; e <- parseElem env; sp; char_ ':'; sp; ty <- parseTy env; sp; char_ ')'
       sp; str_ ".π₁"
       case ty of
         SigmaTy a b => pure (ElemWfSigmaElim1 ctx e a b)
         _           => fail "el-sigma-e1: expected (x:A) ⨯ B") <|>
-  (do str_ "el-sigma-e2"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "el-sigma-e2"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       char_ '('; sp; e <- parseElem env; sp; char_ ':'; sp; ty <- parseTy env; sp; char_ ')'
       sp; str_ ".π₂"
       case ty of
         SigmaTy a b => pure (ElemWfSigmaElim2 ctx e a b)
         _           => fail "el-sigma-e2: expected (x:A) ⨯ B") <|>
-  (do str_ "el-zero-e"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
+  (do str_ "el-zero-e"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; e <- parseElem env
       case e of
         ZeroElim t => do
           sp; char_ ':'; sp; ty <- parseTy env
           pure (ElemWfZeroElim ctx t ty)
         _ => fail "el-zero-e: expected 𝟘-elim e") <|>
-  (do str_ "el-nat-e"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
+  (do str_ "el-nat-e"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; e <- parseElem env
       case e of
         NatElim z s t => do
           space; str_ "motive"; space
@@ -627,7 +663,7 @@ parseNamedTypingRule =
           sp; char_ '.'; sp; ty <- parseTy (env :< n); sp; char_ ')'
           pure (ElemWfNatElim ctx z s t ty)
         _ => fail "el-nat-e: expected ℕ-elim z (n ih. s) t") <|>
-  (do str_ "el-class"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
+  (do str_ "el-class"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; e <- parseElem env
       case e of
         Class a => do
           sp; char_ ':'; sp; ty <- parseTy env
@@ -635,7 +671,7 @@ parseNamedTypingRule =
             Quotient tyA r => pure (ElemWfClass ctx a tyA r)
             _              => fail "el-class: expected A / (x y. R) after :"
         _ => fail "el-class: expected class a") <|>
-  (do str_ "el-quot-elim"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "el-quot-elim"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       str_ "quot-elim"; space; f <- parseElemAtom env; space
       char_ '('; sp; q <- parseElem env; sp; char_ ':'; sp; ty <- parseTy env; sp; char_ ')'
       space; str_ "motive"; space
@@ -644,93 +680,93 @@ parseNamedTypingRule =
       case ty of
         Quotient tyA r => pure (ElemWfQuotElim ctx tyA r motive f q)
         _              => fail "el-quot-elim: expected quot-elim f (q : A / R) motive (q'. B)") <|>
-  (do str_ "el-wf-subst"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
-      sigma <- parseSub env; sp; str_ "to"; sp; (delta, denv) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "el-wf-subst"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
+      sigma <- parseSub env; sp; str_ "to"; sp; (delta, denv) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       t <- parseElem denv; sp; char_ ':'; sp; a <- parseTy denv
       pure (ElemWfSubst ctx delta sigma t a)) <|>
   -- el-reflect before el-refl (shares "el-refl" prefix at token level)
-  (do str_ "el-reflect"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
+  (do str_ "el-reflect"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; e <- parseElem env
       sp; char_ ':'; sp; char_ '('; sp; ty <- parseTy env; sp; char_ ')'
       sp; str_ "reflect"
       case ty of
         Ty.EqTy a0 a1 a => pure (ElemEqReflection ctx e a0 a1 a)
         _               => fail "el-reflect: expected equality type") <|>
-  (do str_ "el-refl"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "el-refl"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       str_ "Refl"; sp; char_ ':'; sp; e <- parseElemAtom env; sp; str_ "∈"; sp; ty <- parseTy env
       pure (ElemWfRefl ctx e ty)) <|>
   -- el-ty-coe-eq before el-ty-coe (longer keyword first)
-  (do str_ "el-ty-coe-eq"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "el-ty-coe-eq"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       e0 <- parseElem env; sp; str_ "≐"; sp; e1 <- parseElem env
       sp; char_ ':'; sp; ty0 <- parseTy env; sp; str_ "↝"; sp; ty1 <- parseTy env
       pure (ElemEqTyCoe ctx e0 e1 ty0 ty1)) <|>
-  (do str_ "el-ty-coe"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
+  (do str_ "el-ty-coe"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; e <- parseElem env
       sp; char_ ':'; sp; ty0 <- parseTy env; sp; str_ "↝"; sp; ty1 <- parseTy env
       pure (ElemWfTyCoe ctx e ty0 ty1)) <|>
   (do str_ "el-ctx-coe"; space
-      (ctx0, env0) <- parseNamedCtx; sp; str_ "≐"; sp; (ctx1, env1) <- parseNamedCtx
+      (ctx0, env0) <- parseNamedCtx abbrevs; sp; str_ "≐"; sp; (ctx1, env1) <- parseNamedCtx abbrevs
       sp; str_ "⊦"; sp; e <- parseElem env1; sp; char_ ':'; sp; ty <- parseTy env1
       pure (ElemWfCtxCoe ctx0 ctx1 e ty)) <|>
   -- Element wf: universe codes
-  (do str_ "el-zero-ty"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
+  (do str_ "el-zero-ty"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; e <- parseElem env
       sp; char_ ':'; sp; str_ "𝕌"
       case e of
         Elem.ZeroTy => pure (ElemWfZeroTy ctx)
         _           => fail "el-zero-ty: expected 𝟘") <|>
-  (do str_ "el-one-ty"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
+  (do str_ "el-one-ty"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; e <- parseElem env
       sp; char_ ':'; sp; str_ "𝕌"
       case e of
         Elem.OneTy => pure (ElemWfOneTy ctx)
         _          => fail "el-one-ty: expected 𝟙") <|>
-  (do str_ "el-nat-ty"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
+  (do str_ "el-nat-ty"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; e <- parseElem env
       sp; char_ ':'; sp; str_ "𝕌"
       case e of
         Elem.NatTy => pure (ElemWfNatTy ctx)
         _          => fail "el-nat-ty: expected ℕ") <|>
-  (do str_ "el-pi-ty"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
+  (do str_ "el-pi-ty"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; e <- parseElem env
       sp; char_ ':'; sp; str_ "𝕌"
       case e of
         Elem.PiTy a b => pure (ElemWfPiTy ctx a b)
         _             => fail "el-pi-ty: expected (x:A) → B") <|>
-  (do str_ "el-sigma-ty"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
+  (do str_ "el-sigma-ty"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; e <- parseElem env
       sp; char_ ':'; sp; str_ "𝕌"
       case e of
         Elem.SigmaTy a b => pure (ElemWfSigmaTy ctx a b)
         _                => fail "el-sigma-ty: expected (x:A) ⨯ B") <|>
-  (do str_ "el-eq-ty"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
+  (do str_ "el-eq-ty"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; e <- parseElem env
       sp; char_ ':'; sp; str_ "𝕌"
       case e of
         Elem.EqTy l r a => pure (ElemWfEqTy ctx l r a)
         _               => fail "el-eq-ty: expected l ≡ r ∈ A") <|>
   -- Signature (sig-var before sig-ty before sig — longer keywords first)
-  (do str_ "sig-var"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; e <- parseElem env
+  (do str_ "sig-var"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; e <- parseElem env
       case e of
         SigVar x sigma => pure (ElemWfSigVar ctx sigma x)
         _              => fail "sig-var: expected x[σ]") <|>
-  (do str_ "sig-ty"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "sig-ty"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       x <- Nova.Foundation.Parser.parseSigIdentifier; sp; str_ "≔"; sp
       a <- parseTy env
       pure (SigExtTy ctx x a)) <|>
-  (do str_ "sig"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "sig"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       x <- Nova.Foundation.Parser.parseSigIdentifier; sp; str_ "≔"; sp
       a <- parseElem env; sp; char_ ':'; sp; ty <- parseTy env
       pure (SigExt ctx x a ty)) <|>
   -- Element equality (el-ty-coe-eq already above; el-eq-trans before el-eq-ty for safety)
-  (do str_ "el-eq-refl"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "el-eq-refl"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       e <- parseElem env; sp; char_ ':'; sp; ty <- parseTy env
       pure (ElemEqRefl ctx e ty)) <|>
-  (do str_ "el-eq-sym"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "el-eq-sym"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       e1 <- parseElem env; sp; str_ "≐"; sp; e0 <- parseElem env; sp; char_ ':'; sp; ty <- parseTy env
       pure (ElemEqSym ctx e0 e1 ty)) <|>
-  (do str_ "el-eq-trans"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "el-eq-trans"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       e0 <- parseElem env; sp; str_ "≐"; sp; e2 <- parseElem env; sp; char_ ':'; sp; ty <- parseTy env
       sp; str_ "via"; sp; e1 <- parseElem env
       pure (ElemEqTrans ctx e0 e1 e2 ty)) <|>
-  (do str_ "el-suc-cong"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "el-suc-cong"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       e0 <- parseElem env; sp; str_ "≐"; sp; e1 <- parseElem env
       case (e0, e1) of
         (NatIntro1 t0, NatIntro1 t1) => pure (ElemEqCongSuc ctx t0 t1)
         _ => fail "el-suc-cong: expected S t₀ = S t₁") <|>
-  (do str_ "el-app-cong"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "el-app-cong"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       char_ '('; sp; f0 <- parseElem env; sp; str_ "≐"; sp; f1 <- parseElem env
       sp; char_ ':'; sp; ty <- parseTy env; sp; char_ ')'
       sp; a0 <- parseElemAtom env; sp; str_ "≐"; sp; a1 <- parseElemAtom env
@@ -739,49 +775,59 @@ parseNamedTypingRule =
         _        => fail "el-app-cong: expected (x:A) → B") <|>
   -- el-class-cong before el-quot-eq (both share the "el-c"/"el-q" split, no
   -- real ambiguity, kept together for readability)
-  (do str_ "el-class-cong"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "el-class-cong"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       e0 <- parseElem env; sp; str_ "≐"; sp; e1 <- parseElem env
       sp; char_ ':'; sp; ty <- parseTy env
       case (e0, e1, ty) of
         (Class a0, Class a1, Quotient tyA r) => pure (ElemEqCongClass ctx tyA r a0 a1)
         _ => fail "el-class-cong: expected class a₀ = class a₁ : A / R") <|>
-  (do str_ "el-quot-eq"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "el-quot-eq"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       e0 <- parseElem env; sp; str_ "≐"; sp; e1 <- parseElem env
       sp; char_ ':'; sp; ty <- parseTy env
       sp; str_ "via"; sp; witness <- parseElem env
       case (e0, e1, ty) of
         (Class a, Class b, Quotient tyA r) => pure (ElemEqQuotient ctx tyA r a b witness)
         _ => fail "el-quot-eq: expected class a = class b : A / R via r") <|>
-  (do str_ "el-eq-subst"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "el-eq-subst"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       sigma0 <- parseSub env; sp; str_ "≐"; sp; sigma1 <- parseSub env
-      sp; str_ "to"; sp; (delta, denv) <- parseNamedCtx; sp; str_ "⊦"; sp
+      sp; str_ "to"; sp; (delta, denv) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       t0 <- parseElem denv; sp; str_ "≐"; sp; t1 <- parseElem denv; sp; char_ ':'; sp; a <- parseTy denv
       pure (ElemEqSubst ctx delta sigma0 sigma1 t0 t1 a)) <|>
   -- Telescope equality
-  (do str_ "tel-refl"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; tel <- parseTel env
+  (do str_ "tel-refl"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; tel <- parseTel env
       pure (TelEqRefl ctx tel)) <|>
-  (do str_ "tel-sym"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "tel-sym"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       tel1 <- parseTel env; sp; str_ "≐"; sp; tel0 <- parseTel env
       pure (TelEqSym ctx tel0 tel1)) <|>
-  (do str_ "tel-trans"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "tel-trans"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       tel0 <- parseTel env; sp; str_ "≐"; sp; tel2 <- parseTel env; sp; str_ "via"; sp; tel1 <- parseTel env
       pure (TelEqTrans ctx tel0 tel1 tel2)) <|>
   -- Spine equality
-  (do str_ "sp-refl"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "sp-refl"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       spine <- parseSpine env; sp; char_ ':'; sp; tel <- parseTel env
       pure (SpineEqRefl ctx spine tel)) <|>
-  (do str_ "sp-sym"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "sp-sym"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       s1 <- parseSpine env; sp; str_ "≐"; sp; s0 <- parseSpine env; sp; char_ ':'; sp; tel <- parseTel env
       pure (SpineEqSym ctx s0 s1 tel)) <|>
-  (do str_ "sp-trans"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "sp-trans"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       s0 <- parseSpine env; sp; str_ "≐"; sp; s2 <- parseSpine env; sp; char_ ':'; sp; tel <- parseTel env
       sp; str_ "via"; sp; s1 <- parseSpine env
       pure (SpineEqTrans ctx s0 s1 s2 tel))
 
--- Parse a list of typing rules, each prefixed by "- ".
-export
-parseNamedListTypingRule : Rule (List TypingRule)
-parseNamedListTypingRule = many (do sp; char_ '-'; space; parseNamedTypingRule)
+||| Parse a whole session: `- ctx C ≔ Γ` abbreviation definitions
+||| interleaved with `- <rule>` lines, threading the abbreviation table
+||| left to right. Returns the final table too, so a caller can parse a
+||| further candidate line (or a target file) under the same names.
+export covering
+parseNamedSession : CtxAbbrevs -> Rule (CtxAbbrevs, List TypingRule)
+parseNamedSession abbrevs =
+      (do sp; char_ '-'; space
+          ((do (name, ctx, env) <- parseNamedCtxDef abbrevs
+               parseNamedSession (abbrevs :< (name, ctx, env)))
+           <|> (do r <- parseNamedTypingRule abbrevs
+                   (abbrevs', rs) <- parseNamedSession abbrevs
+                   pure (abbrevs', r :: rs))))
+  <|> pure (abbrevs, [])
 
 -- ===== JudgementForm parser =====
 --
@@ -806,55 +852,71 @@ parseNamedListTypingRule = many (do sp; char_ '-'; space; parseNamedTypingRule)
 --   sp-wf   Γ ⊦ ē : Δ           (JfSpineWf)
 --   sp-eq   Γ ⊦ ē = ē' : Δ     (JfSpineEq)
 
-export
-parseNamedJudgementForm : Rule JudgementForm
-parseNamedJudgementForm =
-  (do str_ "ctx-wf"; space; (ctx, env) <- parseNamedCtx
+export covering
+parseNamedJudgementForm : CtxAbbrevs -> Rule JudgementForm
+parseNamedJudgementForm abbrevs =
+  (do str_ "ctx-wf"; space; (ctx, env) <- parseNamedCtx abbrevs
       pure (JfCtxWf ctx)) <|>
   (do str_ "ctx-eq"; space
-      (ctx, env) <- parseNamedCtx; sp; str_ "≐"; sp; (ctx', env') <- parseNamedCtx
+      (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "≐"; sp; (ctx', env') <- parseNamedCtx abbrevs
       pure (JfCtxEq (ctx, ctx'))) <|>
   (do str_ "sub-wf"; space
-      s <- parseSub [<]; sp; char_ ':'; sp; (g, genv) <- parseNamedCtx; sp; str_ "⇒"; sp; (d, _) <- parseNamedCtx
+      s <- parseSub [<]; sp; char_ ':'; sp; (g, genv) <- parseNamedCtx abbrevs; sp; str_ "⇒"; sp; (d, _) <- parseNamedCtx abbrevs
       pure (JfSubWf (s, g, d))) <|>
   (do str_ "sub-eq"; space
       s <- parseSub [<]; sp; str_ "≐"; sp; s' <- parseSub [<]; sp
-      char_ ':'; sp; (g, genv) <- parseNamedCtx; sp; str_ "⇒"; sp; (d, _) <- parseNamedCtx
+      char_ ':'; sp; (g, genv) <- parseNamedCtx abbrevs; sp; str_ "⇒"; sp; (d, _) <- parseNamedCtx abbrevs
       pure (JfSubEq (s, s', g, d))) <|>
   (do str_ "sub-norm-wf"; space
-      s <- parseSubNorm [<]; sp; char_ ':'; sp; (g, genv) <- parseNamedCtx; sp; str_ "⇒"; sp; (d, _) <- parseNamedCtx
+      s <- parseSubNorm [<]; sp; char_ ':'; sp; (g, genv) <- parseNamedCtx abbrevs; sp; str_ "⇒"; sp; (d, _) <- parseNamedCtx abbrevs
       sp; str_ "norm"
       pure (JfSubNormWf (s, g, d))) <|>
   (do str_ "sub-norm-eq"; space
       s <- parseSubNorm [<]; sp; str_ "≐"; sp; s' <- parseSubNorm [<]; sp
-      char_ ':'; sp; (g, genv) <- parseNamedCtx; sp; str_ "⇒"; sp; (d, _) <- parseNamedCtx
+      char_ ':'; sp; (g, genv) <- parseNamedCtx abbrevs; sp; str_ "⇒"; sp; (d, _) <- parseNamedCtx abbrevs
       sp; str_ "norm"
       pure (JfSubNormEq (s, s', g, d))) <|>
-  (do str_ "ty-wf"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; ty <- parseTy env
+  (do str_ "ty-wf"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; ty <- parseTy env
       pure (JfTyWf (ctx, ty))) <|>
-  (do str_ "ty-eq"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "ty-eq"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       ty <- parseTy env; sp; str_ "≐"; sp; ty' <- parseTy env
       pure (JfTyEq (ctx, ty, ty'))) <|>
-  (do str_ "el-wf"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "el-wf"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       e <- parseElem env; sp; char_ ':'; sp; ty <- parseTy env
       pure (JfElemWf (ctx, e, ty))) <|>
-  (do str_ "el-eq"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "el-eq"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       e <- parseElem env; sp; str_ "≐"; sp; e' <- parseElem env; sp; char_ ':'; sp; ty <- parseTy env
       pure (JfElemEq (ctx, e, e', ty))) <|>
-  (do str_ "tel-wf"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp; tel <- parseTel env
+  (do str_ "tel-wf"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp; tel <- parseTel env
       pure (JfTelWf (ctx, tel))) <|>
-  (do str_ "tel-eq"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "tel-eq"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       tel <- parseTel env; sp; str_ "≐"; sp; tel' <- parseTel env
       pure (JfTelEq (ctx, tel, tel'))) <|>
-  (do str_ "sp-wf"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "sp-wf"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       spine <- parseSpine env; sp; char_ ':'; sp; tel <- parseTel env
       pure (JfSpineWf (ctx, spine, tel))) <|>
-  (do str_ "sp-eq"; space; (ctx, env) <- parseNamedCtx; sp; str_ "⊦"; sp
+  (do str_ "sp-eq"; space; (ctx, env) <- parseNamedCtx abbrevs; sp; str_ "⊦"; sp
       spine <- parseSpine env; sp; str_ "≐"; sp; spine' <- parseSpine env; sp
       char_ ':'; sp; tel <- parseTel env
       pure (JfSpineEq (ctx, spine, spine', tel)))
 
--- Parse a list of judgement forms, each prefixed by "- ".
-export
-parseNamedListJudgementForm : Rule (List JudgementForm)
-parseNamedListJudgementForm = many (do sp; char_ '-'; space; parseNamedJudgementForm)
+||| A single `apply` candidate: either a context abbreviation definition
+||| or a typing rule (no leading `- `).
+export covering
+parseNamedCandidate : CtxAbbrevs -> Rule (Either (String, Ctx, NameEnv) TypingRule)
+parseNamedCandidate abbrevs =
+  (Left <$> parseNamedCtxDef abbrevs) <|> (Right <$> parseNamedTypingRule abbrevs)
+
+||| Parse a target file: judgement forms, possibly interleaved with
+||| further `- ctx C ≔ Γ` definitions; starts from the session's table so
+||| targets can use the session's abbreviations.
+export covering
+parseNamedTargets : CtxAbbrevs -> Rule (List JudgementForm)
+parseNamedTargets abbrevs =
+      (do sp; char_ '-'; space
+          ((do (name, ctx, env) <- parseNamedCtxDef abbrevs
+               parseNamedTargets (abbrevs :< (name, ctx, env)))
+           <|> (do j <- parseNamedJudgementForm abbrevs
+                   js <- parseNamedTargets abbrevs
+                   pure (j :: js))))
+  <|> pure []

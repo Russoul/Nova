@@ -117,6 +117,14 @@ example.
 
 ## Context
 
+`- ctx C ≔ Γ` (not a judgement) names a context — with its binder names —
+for the rest of the file: later context positions may start with `C`
+instead of `ε` and extend it (`C ᐅ x:T`), and definitions may reference
+earlier ones (`ctx C2 ≔ C1 ᐅ p:ℕ`). Pure parse-time notation: the checker
+sees only the expanded context, so `C ⊦ ...` and the spelled-out form are
+the same fact. Per-file scope; redefinition shadows; target files share
+the rules file's abbreviations.
+
 | Keyword & syntax | Premises | Conclusion |
 |---|---|---|
 | `ctx-emp` | — | `ε ctx` |

@@ -9,6 +9,6 @@
 - el-wf ε ᐅ A:𝕌 ⊦ vectZ[A] : vect[] Z A ≡ 𝟙 ∈ 𝕌
 - el-wf ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ vectS[n, A] : vect[] (S n) A ≡ (A ⨯ vect[] n A) ∈ 𝕌
 - el-wf ε ⊦ vappend[] : (n:ℕ) → (A:𝕌) → (m:ℕ) → El (vect[] n A) → El (vect[] m A) → El (vect[] (plus[] n m) A)
-- el-wf ε ᐅ A:𝕌 ᐅ n:ℕ ᐅ v:El (vect[] Z A) ᐅ w:El (vect[] n A) ⊦ vappendZ[A, n, v, w] : vappend[] Z A n v w ≡ w ∈ El (vect[] n A)
-- el-wf ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ v:El (vect[] (S n) A) ᐅ w:El (vect[] m A) ⊦ vappendS[n, A, m, v, w] : vappend[] (S n) A m v w ≡ (v .π₁, vappend[] n A m (v .π₂) w) ∈ El (vect[] (plus[] (S n) m) A)
-- el-wf ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] n A) ⊦ vappendAssoc[n, A, m, k, v, w, u] : vappend[] (plus[] n m) A k (vappend[] n A m u v) w ≡ vappend[] n A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] n (plus[] m k)) A)
+- el-wf C1 ⊦ vappendZ[A, n, v, w] : vappend[] Z A n v w ≡ w ∈ El (vect[] n A)
+- el-wf C2 ⊦ vappendS[n, A, m, v, w] : vappend[] (S n) A m v w ≡ (v .π₁, vappend[] n A m (v .π₂) w) ∈ El (vect[] (plus[] (S n) m) A)
+- el-wf C6 ⊦ vappendAssoc[n, A, m, k, v, w, u] : vappend[] (plus[] n m) A k (vappend[] n A m u v) w ≡ vappend[] n A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] n (plus[] m k)) A)

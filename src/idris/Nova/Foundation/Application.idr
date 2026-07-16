@@ -111,9 +111,11 @@ mutual
           let (depNames, _, rest) = splitHeader content
           Right (resolved', acc') <- resolveMany (path :: visiting) resolved acc path depNames
             | Left err => pure (Left err)
-          case runParser parseNamedListTypingRule rest of
+          -- a dependency's `ctx` abbreviations are its private notation:
+          -- expanded here at parse time, not shared with dependents
+          case runParser (parseNamedSession [<]) rest of
             Left err => pure (Left ("parse error in dependency file '" ++ path ++ "': " ++ err))
-            Right ownRules => pure (Right (path :: resolved', acc' ++ ownRules))
+            Right (_, ownRules) => pure (Right (path :: resolved', acc' ++ ownRules))
 
   ||| Resolve each name in `depNames` (declared by the file at `basePath`)
   ||| to its sibling session file and fold it in, in declaration order.
@@ -154,9 +156,10 @@ parseInput rulesFile targetFile = do
     | Left err => pure (Left err)
   Right targetContent <- readFile targetFile
     | Left err => pure (Left $ "Cannot read target file '" ++ targetFile ++ "': " ++ show err)
-  let Right ownRules = runParser parseNamedListTypingRule rest
+  let Right (abbrevs, ownRules) = runParser (parseNamedSession [<]) rest
     | Left err => pure (Left $ "Parse error in rules file: " ++ err)
-  let Right targets = runParser parseNamedListJudgementForm targetContent
+  -- targets parse under the rules file's abbreviations
+  let Right targets = runParser (parseNamedTargets abbrevs) targetContent
     | Left err => pure (Left $ "Parse error in target file: " ++ err)
   pure (Right (MkInput (prelude ++ ownRules) targets))
 

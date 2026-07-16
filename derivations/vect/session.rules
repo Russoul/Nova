@@ -1,3 +1,4 @@
+- ctx C1 ≔ ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ B:𝕌
 - ctx-emp
 - ty-nat ε ⊦ ℕ
 - ctx-ext ε ᐅ n:ℕ
@@ -5,12 +6,12 @@
 - ctx-ext ε ᐅ n:ℕ ᐅ A:𝕌
 - el-one-ty ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ 𝟙 : 𝕌
 - ctx-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ
-- ctx-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ B:𝕌
-- el-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ B:𝕌 ⊦ A
-- ty-el ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ B:𝕌 ⊦ El A
-- ctx-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ B:𝕌 ᐅ v:El A
-- el-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ B:𝕌 ᐅ v:El A ⊦ B
-- el-sigma-ty ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ B:𝕌 ⊦ A ⨯ B : 𝕌
+- ctx-ext C1
+- el-var C1 ⊦ A
+- ty-el C1 ⊦ El A
+- ctx-ext C1 ᐅ v:El A
+- el-var C1 ᐅ v:El A ⊦ B
+- el-sigma-ty C1 ⊦ A ⨯ B : 𝕌
 - el-var ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ n
 - el-nat-e ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ ℕ-elim 𝟙 (m ih. (A ⨯ ih)) n motive (m ih. 𝕌)
 - el-pi-i ε ᐅ n:ℕ ⊦ λx. (ℕ-elim 𝟙 (m ih. (x ⨯ ih)) n) : 𝕌 → 𝕌

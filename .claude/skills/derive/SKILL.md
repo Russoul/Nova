@@ -99,6 +99,23 @@ build/exec/nova-foundation-app undo derivations/<goal>/session.rules
 build/exec/nova-foundation-app check derivations/<goal>/session.rules derivations/<goal>/session.target
 ```
 
+## Context abbreviations
+
+Name long contexts once and reference them everywhere — this is the main
+defense against session bloat:
+
+```sh
+build/exec/nova-foundation-app apply S "ctx G ≔ ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ"
+build/exec/nova-foundation-app apply S "ctx GI ≔ G ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (...)"
+build/exec/nova-foundation-app apply S "el-var GI ⊦ p"
+```
+
+`ctx C ≔ Γ` is notation, not a judgement (no facts, nothing checked);
+later context positions may start with `C` and extend it (`C ᐅ x:T`).
+Define abbreviations early and use them in every rule, query, and target.
+Abbreviations are per-file (a dependency's are private to it); target
+files parse under the session's table.
+
 ## Recommended loop
 
 1. `init` a session file for the goal.

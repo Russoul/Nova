@@ -106,7 +106,18 @@ t{0} ::= t{≥1} , t{≥0}                                                      
 // `el-quot-elim`'s `motive` annotation below, the one place that binder is
 // ever spelled out.
 
-Γ ::= ε | Γ ᐅ x:T{≥0}                                                       (left-assoc)
+Γ ::= ε | C | Γ ᐅ x:T{≥0}                                                   (left-assoc)
+
+// C ranges over context abbreviations: `- ctx C ≔ Γ` (a session line, not
+// a judgement — it derives nothing and requires nothing) names a context
+// together with its binder names for the rest of the file. A later
+// context position may start with C instead of ε and extend it
+// (`C ᐅ x:T ᐅ ...`); a definition may reference earlier definitions.
+// Purely notation, expanded at parse time — the checker only ever sees
+// the expanded context. Scope is lexical (definition line to end of
+// file); redefinition shadows. Abbreviations are per-file: a dependency's
+// definitions (via depends:) are its private notation. Target files parse
+// under the rules file's abbreviations and may add their own.
 Δ ::= ε | x:T{≥0} ◁ Δ                                                       (right-assoc)
 ē ::= · | t{≥1} (, t{≥1})*
 
@@ -121,6 +132,7 @@ t{0} ::= t{≥1} , t{≥0}                                                      
 R ::=
 
   // Context
+  ctx C ≔ Γ                                      (context abbreviation — notation only, no judgement)
   ctx-emp                                        (CtxWfEmpty)
   ctx-ext    Γ ᐅ x:T                             (CtxWfExt — NAMED: was `Γ ᐅ T`)
   ctx-refl   Γ                                   (CtxEqRefl)

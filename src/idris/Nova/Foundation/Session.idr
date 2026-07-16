@@ -33,11 +33,13 @@ import Nova.Foundation.Parser
 %default covering
 
 ||| Parse a session's stored rules (named surface syntax — see
-||| docs/NovaNamedSyntax.txt). Expects any `depends:` header to already
-||| have been stripped off by `splitHeader`.
+||| docs/NovaNamedSyntax.txt), threading `- ctx C ≔ Γ` abbreviation
+||| definitions; the final abbreviation table is returned so a candidate
+||| rule or a target can be parsed under the same names. Expects any
+||| `depends:` header to already have been stripped off by `splitHeader`.
 export
-loadRules : String -> Either String (List TypingRule)
-loadRules = runParser parseNamedListTypingRule
+loadRules : String -> Either String (CtxAbbrevs, List TypingRule)
+loadRules = runParser (parseNamedSession [<])
 
 ||| A leading block of blank lines and `depends: name1, name2` lines,
 ||| ending at the first line that's neither (i.e. the first `- <rule>`
@@ -119,12 +121,16 @@ record ApplyOutcome where
 export
 apply : (prelude : List TypingRule) -> (sessionContent : String) -> (ruleText : String) -> ApplyOutcome
 apply prelude sessionContent ruleText =
-  case runParser parseNamedTypingRule ruleText of
-    Left err => MkApplyOutcome ("Parse error: " ++ err) Nothing
-    Right rule =>
-      case loadRules sessionContent of
-        Left err => MkApplyOutcome ("Session file is corrupt: " ++ err) Nothing
-        Right existing =>
+  case loadRules sessionContent of
+    Left err => MkApplyOutcome ("Session file is corrupt: " ++ err) Nothing
+    Right (abbrevs, existing) =>
+      case runParser (parseNamedCandidate abbrevs) ruleText of
+        Left err => MkApplyOutcome ("Parse error: " ++ err) Nothing
+        Right (Left _) =>
+          -- a `ctx C ≔ Γ` abbreviation: pure notation, nothing to check
+          MkApplyOutcome "Ok\n  (context abbreviation)"
+            (Just (sessionContent ++ "- " ++ trim ruleText ++ "\n"))
+        Right (Right rule) =>
           case generate (prelude ++ existing) of
             Left cr => MkApplyOutcome (describeBrokenSession cr) Nothing
             Right before =>
@@ -148,12 +154,12 @@ apply prelude sessionContent ruleText =
 export
 query : (prelude : List TypingRule) -> (sessionContent : String) -> (targetText : String) -> String
 query prelude sessionContent targetText =
-  case runParser parseNamedJudgementForm targetText of
-    Left err => "Parse error: " ++ err
-    Right jf =>
-      case loadRules sessionContent of
-        Left err => "Session file is corrupt: " ++ err
-        Right rules =>
+  case loadRules sessionContent of
+    Left err => "Session file is corrupt: " ++ err
+    Right (abbrevs, rules) =>
+      case runParser (parseNamedJudgementForm abbrevs) targetText of
+        Left err => "Parse error: " ++ err
+        Right jf =>
           case generate (prelude ++ rules) of
             Left cr => describeBrokenSession cr
             Right truth =>
@@ -169,7 +175,7 @@ dump : (prelude : List TypingRule) -> (sessionContent : String) -> (kind : Maybe
 dump prelude sessionContent kind =
   case loadRules sessionContent of
     Left err => "Session file is corrupt: " ++ err
-    Right rules =>
+    Right (_, rules) =>
       case generate (prelude ++ rules) of
         Left cr => describeBrokenSession cr
         Right truth =>

@@ -1,192 +1,203 @@
 depends: plus, vect, vect-append
+- ctx C1 ≔ ε ᐅ A:𝕌 ᐅ n:ℕ ᐅ v:El (vect[] Z A) ᐅ w:El (vect[] n A)
+- ctx C2 ≔ ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ v:El (vect[] (S n) A) ᐅ w:El (vect[] m A)
+- ctx C3 ≔ ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A)
+- ctx C4 ≔ C3 ᐅ p:ℕ
+- ctx C5 ≔ C3 ᐅ u:El (vect[] Z A)
+- ctx C6 ≔ C3 ᐅ u:El (vect[] n A)
+- ctx C7 ≔ C4 ᐅ u:El (vect[] p A)
+- ctx C8 ≔ C4 ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A))
+- ctx C9 ≔ C8 ᐅ q:El (vect[] (S p) A)
+- ctx C10 ≔ C9 ᐅ y:El A
+- ctx C11 ≔ C9 ᐅ t:El (vect[] (plus[] p (plus[] m k)) A)
 - ctx-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A)
-- ctx-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A)
-- ctx-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A)
-- el-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ v
-- el-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ w
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ m to ε ᐅ n:ℕ
-- sig-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ zeroPlusId[m]
-- el-reflect ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ zeroPlusId[m] : (plus[] Z m ≡ m ∈ ℕ) reflect
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ (vappend[] ≐ vappend[] : (x:ℕ) → (A:𝕌) → (z:ℕ) → El (vect[] x A) → El (vect[] z A) → El (vect[] (plus[] x z) A)) (plus[] Z m) ≐ m
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ (vappend[] (plus[] Z m) ≐ vappend[] m : (A:𝕌) → (z:ℕ) → El (vect[] m A) → El (vect[] z A) → El (vect[] (plus[] m z) A)) A ≐ A
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ (vappend[] (plus[] Z m) A ≐ vappend[] m A : (z:ℕ) → El (vect[] m A) → El (vect[] z A) → El (vect[] (plus[] m z) A)) k ≐ k
-- el-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ u
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ A to ε ᐅ A:𝕌
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ A, m to ε ᐅ A:𝕌 ᐅ n:ℕ
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ A, m, u to ε ᐅ A:𝕌 ᐅ n:ℕ ᐅ v:El (vect[] Z A)
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ A, m, u, v to ε ᐅ A:𝕌 ᐅ n:ℕ ᐅ v:El (vect[] Z A) ᐅ w:El (vect[] n A)
-- sig-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ vappendZ[A, m, u, v]
-- el-reflect ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ vappendZ[A, m, u, v] : (vappend[] Z A m u v ≡ v ∈ El (vect[] m A)) reflect
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ (vappend[] (plus[] Z m) A k ≐ vappend[] m A k : El (vect[] m A) → El (vect[] k A) → El (vect[] (plus[] m k) A)) (vappend[] Z A m u v) ≐ v
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ (vappend[] (plus[] Z m) A k (vappend[] Z A m u v) ≐ vappend[] m A k v : El (vect[] k A) → El (vect[] (plus[] m k) A)) w ≐ w
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ plus[] m k
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ (plus[] m k) to ε ᐅ n:ℕ
-- sig-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ zeroPlusId[plus[] m k]
-- el-reflect ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ zeroPlusId[plus[] m k] : (plus[] Z (plus[] m k) ≡ plus[] m k ∈ ℕ) reflect
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ (vect[] ≐ vect[] : ℕ → 𝕌 → 𝕌) (plus[] Z (plus[] m k)) ≐ (plus[] m k)
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ (vect[] (plus[] Z (plus[] m k)) ≐ vect[] (plus[] m k) : 𝕌 → 𝕌) A ≐ A
-- ty-el-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ El (vect[] (plus[] Z (plus[] m k)) A) ≐ El (vect[] (plus[] m k) A)
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ vappend[] m A k v w
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ A, (plus[] m k) to ε ᐅ A:𝕌 ᐅ n:ℕ
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ A, (plus[] m k), u to ε ᐅ A:𝕌 ᐅ n:ℕ ᐅ v:El (vect[] Z A)
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ A, (plus[] m k), u, (vappend[] m A k v w) to ε ᐅ A:𝕌 ᐅ n:ℕ ᐅ v:El (vect[] Z A) ᐅ w:El (vect[] n A)
-- sig-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ vappendZ[A, plus[] m k, u, vappend[] m A k v w]
-- el-reflect ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ vappendZ[A, plus[] m k, u, vappend[] m A k v w] : (vappend[] Z A (plus[] m k) u (vappend[] m A k v w) ≡ vappend[] m A k v w ∈ El (vect[] (plus[] m k) A)) reflect
-- ty-eq-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ (vappend[] (plus[] Z m) A k (vappend[] Z A m u v) w ≡ vappend[] Z A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] Z (plus[] m k)) A)) ≐ (vappend[] m A k v w ≡ vappend[] m A k v w ∈ El (vect[] (plus[] m k) A))
-- ty-sym ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ (vappend[] m A k v w ≡ vappend[] m A k v w ∈ El (vect[] (plus[] m k) A)) ≐ (vappend[] (plus[] Z m) A k (vappend[] Z A m u v) w ≡ vappend[] Z A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] Z (plus[] m k)) A))
-- el-refl ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ Refl : (vappend[] m A k v w) ∈ El (vect[] (plus[] m k) A)
-- el-ty-coe ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] Z A) ⊦ Refl : (vappend[] m A k v w ≡ vappend[] m A k v w ∈ El (vect[] (plus[] m k) A)) ↝ (vappend[] (plus[] Z m) A k (vappend[] Z A m u v) w ≡ vappend[] Z A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] Z (plus[] m k)) A))
-- el-pi-i ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ⊦ λu. Refl : (u:El (vect[] Z A)) → (vappend[] (plus[] Z m) A k (vappend[] Z A m u v) w ≡ vappend[] Z A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] Z (plus[] m k)) A))
-- ctx-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ
-- el-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ⊦ p
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ⊦ vect[] p A
-- ty-el ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ⊦ El (vect[] p A)
-- ctx-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ u:El (vect[] p A)
-- el-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ u:El (vect[] p A) ⊦ u
-- el-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ u:El (vect[] p A) ⊦ v
-- el-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ u:El (vect[] p A) ⊦ w
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ u:El (vect[] p A) ⊦ vappend[] (plus[] p m) A k (vappend[] p A m u v) w
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ u:El (vect[] p A) ⊦ p to ε ᐅ n:ℕ
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ u:El (vect[] p A) ⊦ p, m to ε ᐅ n:ℕ ᐅ m:ℕ
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ u:El (vect[] p A) ⊦ p, m, k to ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ
-- sig-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ u:El (vect[] p A) ⊦ plusAssoc[p, m, k]
-- el-reflect ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ u:El (vect[] p A) ⊦ plusAssoc[p, m, k] : (plus[] (plus[] p m) k ≡ plus[] p (plus[] m k) ∈ ℕ) reflect
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ u:El (vect[] p A) ⊦ (vect[] ≐ vect[] : ℕ → 𝕌 → 𝕌) (plus[] (plus[] p m) k) ≐ (plus[] p (plus[] m k))
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ u:El (vect[] p A) ⊦ (vect[] (plus[] (plus[] p m) k) ≐ vect[] (plus[] p (plus[] m k)) : 𝕌 → 𝕌) A ≐ A
-- ty-el-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ u:El (vect[] p A) ⊦ El (vect[] (plus[] (plus[] p m) k) A) ≐ El (vect[] (plus[] p (plus[] m k)) A)
-- el-ty-coe ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ u:El (vect[] p A) ⊦ vappend[] (plus[] p m) A k (vappend[] p A m u v) w : El (vect[] (plus[] (plus[] p m) k) A) ↝ El (vect[] (plus[] p (plus[] m k)) A)
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ u:El (vect[] p A) ⊦ vappend[] p A (plus[] m k) u (vappend[] m A k v w)
-- ty-eq-form ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ u:El (vect[] p A) ⊦ vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)
-- ty-pi ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ⊦ (u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A))
-- ctx-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A))
-- el-suc ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ⊦ S p
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ⊦ vect[] (S p) A
-- ty-el ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ⊦ El (vect[] (S p) A)
-- ctx-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A)
-- el-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ q
-- ctx-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ᐅ y:El A
-- ty-sigma ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ El A ⨯ El (vect[] p A)
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ p to ε ᐅ n:ℕ
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ p, A to ε ᐅ n:ℕ ᐅ A:𝕌
-- el-ty-coe ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ q : El (vect[] (S p) A) ↝ El A ⨯ El (vect[] p A)
-- el-sigma-e1 ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (q : El A ⨯ El (vect[] p A)) .π₁
-- el-sigma-e2 ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (q : El A ⨯ El (vect[] p A)) .π₂
-- el-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ ih
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ ih (q .π₂)
-- el-reflect ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ ih (q .π₂) : (vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w ≡ vappend[] p A (plus[] m k) (q .π₂) (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) reflect
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ p, A, m to ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ p, A, m, q to ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ v:El (vect[] (S n) A)
-- el-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ v
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ p, A, m, q, v to ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ v:El (vect[] (S n) A) ᐅ w:El (vect[] m A)
-- sig-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ vappendS[p, A, m, q, v]
-- el-reflect ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ vappendS[p, A, m, q, v] : (vappend[] (S p) A m q v ≡ (q .π₁, vappend[] p A m (q .π₂) v) ∈ El (vect[] (plus[] (S p) m) A)) reflect
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ p, m to ε ᐅ n:ℕ ᐅ m:ℕ
-- sig-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ sucPlus[p, m]
-- el-reflect ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ sucPlus[p, m] : (plus[] (S p) m ≡ S (plus[] p m) ∈ ℕ) reflect
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (vappend[] ≐ vappend[] : (x:ℕ) → (A:𝕌) → (z:ℕ) → El (vect[] x A) → El (vect[] z A) → El (vect[] (plus[] x z) A)) (plus[] (S p) m) ≐ (S (plus[] p m))
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (vappend[] (plus[] (S p) m) ≐ vappend[] (S (plus[] p m)) : (A:𝕌) → (z:ℕ) → El (vect[] (S (plus[] p m)) A) → El (vect[] z A) → El (vect[] (plus[] (S (plus[] p m)) z) A)) A ≐ A
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (vappend[] (plus[] (S p) m) A ≐ vappend[] (S (plus[] p m)) A : (z:ℕ) → El (vect[] (S (plus[] p m)) A) → El (vect[] z A) → El (vect[] (plus[] (S (plus[] p m)) z) A)) k ≐ k
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (vect[] ≐ vect[] : ℕ → 𝕌 → 𝕌) (plus[] (S p) m) ≐ (S (plus[] p m))
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (vect[] (plus[] (S p) m) ≐ vect[] (S (plus[] p m)) : 𝕌 → 𝕌) A ≐ A
-- ty-el-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ El (vect[] (plus[] (S p) m) A) ≐ El (vect[] (S (plus[] p m)) A)
-- el-ty-coe-eq ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ vappend[] (S p) A m q v ≐ (q .π₁, vappend[] p A m (q .π₂) v) : El (vect[] (plus[] (S p) m) A) ↝ El (vect[] (S (plus[] p m)) A)
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (vappend[] (plus[] (S p) m) A k ≐ vappend[] (S (plus[] p m)) A k : El (vect[] (S (plus[] p m)) A) → El (vect[] k A) → El (vect[] (plus[] (S (plus[] p m)) k) A)) (vappend[] (S p) A m q v) ≐ (q .π₁, vappend[] p A m (q .π₂) v)
-- el-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ w
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) ≐ vappend[] (S (plus[] p m)) A k (q .π₁, vappend[] p A m (q .π₂) v) : El (vect[] k A) → El (vect[] (plus[] (S (plus[] p m)) k) A)) w ≐ w
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w)
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ vect[] (plus[] p (plus[] m k)) A
-- ty-el ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ El (vect[] (plus[] p (plus[] m k)) A)
-- ctx-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ᐅ t:El (vect[] (plus[] p (plus[] m k)) A)
-- ctx-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ᐅ t:El (vect[] (plus[] p (plus[] m k)) A) ᐅ y:El A
-- el-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ᐅ t:El (vect[] (plus[] p (plus[] m k)) A) ⊦ t
-- el-sigma-i ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ᐅ t:El (vect[] (plus[] p (plus[] m k)) A) ⊦ (q .π₁, t) : El A ⨯ El (vect[] (plus[] p (plus[] m k)) A)
-- el-pi-i ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ λt. (q .π₁, t) : El (vect[] (plus[] p (plus[] m k)) A) → El A ⨯ El (vect[] (plus[] p (plus[] m k)) A)
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (λt. (q .π₁, t) ≐ λt. (q .π₁, t) : El (vect[] (plus[] p (plus[] m k)) A) → El A ⨯ El (vect[] (plus[] p (plus[] m k)) A)) (vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w) ≐ (vappend[] p A (plus[] m k) (q .π₂) (vappend[] m A k v w))
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ p, (plus[] m k) to ε ᐅ n:ℕ ᐅ m:ℕ
-- sig-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ sucPlus[p, plus[] m k]
-- el-reflect ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ sucPlus[p, plus[] m k] : (plus[] (S p) (plus[] m k) ≡ S (plus[] p (plus[] m k)) ∈ ℕ) reflect
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (vect[] ≐ vect[] : ℕ → 𝕌 → 𝕌) (plus[] (S p) (plus[] m k)) ≐ (S (plus[] p (plus[] m k)))
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (vect[] (plus[] (S p) (plus[] m k)) ≐ vect[] (S (plus[] p (plus[] m k))) : 𝕌 → 𝕌) A ≐ A
-- ty-el-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ El (vect[] (plus[] (S p) (plus[] m k)) A) ≐ El (vect[] (S (plus[] p (plus[] m k))) A)
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ p, A, (plus[] m k) to ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ p, A, (plus[] m k), q to ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ v:El (vect[] (S n) A)
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ p, A, (plus[] m k), q, (vappend[] m A k v w) to ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ v:El (vect[] (S n) A) ᐅ w:El (vect[] m A)
-- sig-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ vappendS[p, A, plus[] m k, q, vappend[] m A k v w]
-- el-reflect ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ vappendS[p, A, plus[] m k, q, vappend[] m A k v w] : (vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) ≡ (q .π₁, vappend[] p A (plus[] m k) (q .π₂) (vappend[] m A k v w)) ∈ El (vect[] (plus[] (S p) (plus[] m k)) A)) reflect
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ vect[] (plus[] (S p) (plus[] m k)) A
-- ty-el ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ El (vect[] (plus[] (S p) (plus[] m k)) A)
-- ty-sigma ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ El A ⨯ El (vect[] (plus[] p (plus[] m k)) A)
-- el-eq-sym ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ S (plus[] p m) ≐ plus[] (S p) m : ℕ
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (plus[] ≐ plus[] : ℕ → ℕ → ℕ) (S (plus[] p m)) ≐ (plus[] (S p) m)
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (plus[] (S (plus[] p m)) ≐ plus[] (plus[] (S p) m) : ℕ → ℕ) k ≐ k
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (S p) to ε ᐅ n:ℕ
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (S p), m to ε ᐅ n:ℕ ᐅ m:ℕ
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (S p), m, k to ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ
-- sig-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ plusAssoc[S p, m, k]
-- el-reflect ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ plusAssoc[S p, m, k] : (plus[] (plus[] (S p) m) k ≡ plus[] (S p) (plus[] m k) ∈ ℕ) reflect
-- el-eq-trans ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ plus[] (S (plus[] p m)) k ≐ plus[] (S p) (plus[] m k) : ℕ via plus[] (plus[] (S p) m) k
-- el-eq-trans ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ plus[] (S (plus[] p m)) k ≐ S (plus[] p (plus[] m k)) : ℕ via plus[] (S p) (plus[] m k)
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (vect[] ≐ vect[] : ℕ → 𝕌 → 𝕌) (plus[] (S (plus[] p m)) k) ≐ (S (plus[] p (plus[] m k)))
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (vect[] (plus[] (S (plus[] p m)) k) ≐ vect[] (S (plus[] p (plus[] m k))) : 𝕌 → 𝕌) A ≐ A
-- ty-el-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ El (vect[] (plus[] (S (plus[] p m)) k) A) ≐ El (vect[] (S (plus[] p (plus[] m k))) A)
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ plus[] p m
-- el-suc ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ S (plus[] p m)
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ vect[] (plus[] (S (plus[] p m)) k) A
-- ty-el ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ El (vect[] (plus[] (S (plus[] p m)) k) A)
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) w
-- el-eq-sym ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ plus[] (plus[] (S p) m) k ≐ plus[] (S (plus[] p m)) k : ℕ
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (vect[] ≐ vect[] : ℕ → 𝕌 → 𝕌) (plus[] (plus[] (S p) m) k) ≐ (plus[] (S (plus[] p m)) k)
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (vect[] (plus[] (plus[] (S p) m) k) ≐ vect[] (plus[] (S (plus[] p m)) k) : 𝕌 → 𝕌) A ≐ A
-- ty-el-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ El (vect[] (plus[] (plus[] (S p) m) k) A) ≐ El (vect[] (plus[] (S (plus[] p m)) k) A)
-- el-ty-coe ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) w : El (vect[] (plus[] (plus[] (S p) m) k) A) ↝ El (vect[] (plus[] (S (plus[] p m)) k) A)
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ᐅ y:El A ⊦ vect[] (plus[] (plus[] p m) k) A
-- ty-el ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ᐅ y:El A ⊦ El (vect[] (plus[] (plus[] p m) k) A)
-- ty-sigma ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ El A ⨯ El (vect[] (plus[] (plus[] p m) k) A)
-- el-sigma-i ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ q .π₁, vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w : El A ⨯ El (vect[] (plus[] (plus[] p m) k) A)
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (plus[] p m) to ε ᐅ n:ℕ
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (plus[] p m), k to ε ᐅ n:ℕ ᐅ m:ℕ
-- sig-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ sucPlus[plus[] p m, k]
-- el-reflect ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ sucPlus[plus[] p m, k] : (plus[] (S (plus[] p m)) k ≡ S (plus[] (plus[] p m) k) ∈ ℕ) reflect
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (vect[] ≐ vect[] : ℕ → 𝕌 → 𝕌) (plus[] (S (plus[] p m)) k) ≐ (S (plus[] (plus[] p m) k))
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (vect[] (plus[] (S (plus[] p m)) k) ≐ vect[] (S (plus[] (plus[] p m) k)) : 𝕌 → 𝕌) A ≐ A
-- ty-el-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ El (vect[] (plus[] (S (plus[] p m)) k) A) ≐ El (vect[] (S (plus[] (plus[] p m) k)) A)
-- ty-sym ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ El A ⨯ El (vect[] (plus[] (plus[] p m) k) A) ≐ El (vect[] (plus[] (S (plus[] p m)) k) A)
-- el-ty-coe ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ q .π₁, vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w : El A ⨯ El (vect[] (plus[] (plus[] p m) k) A) ↝ El (vect[] (plus[] (S (plus[] p m)) k) A)
-- el-ty-coe-eq ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) w ≐ (q .π₁, vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w) : El (vect[] (plus[] (S (plus[] p m)) k) A) ↝ El A ⨯ El (vect[] (plus[] p (plus[] m k)) A)
-- ty-sym ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ El A ⨯ El (vect[] (plus[] p (plus[] m k)) A) ≐ El (vect[] (plus[] (S p) (plus[] m k)) A)
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ vappend[] p A (plus[] m k) (q .π₂) (vappend[] m A k v w)
-- el-sigma-i ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ q .π₁, vappend[] p A (plus[] m k) (q .π₂) (vappend[] m A k v w) : El A ⨯ El (vect[] (plus[] p (plus[] m k)) A)
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ p, m, k to ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ
-- sig-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ plusAssoc[p, m, k]
-- el-reflect ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ plusAssoc[p, m, k] : (plus[] (plus[] p m) k ≡ plus[] p (plus[] m k) ∈ ℕ) reflect
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (vect[] ≐ vect[] : ℕ → 𝕌 → 𝕌) (plus[] (plus[] p m) k) ≐ (plus[] p (plus[] m k))
-- el-app-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (vect[] (plus[] (plus[] p m) k) ≐ vect[] (plus[] p (plus[] m k)) : 𝕌 → 𝕌) A ≐ A
-- ty-el-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ El (vect[] (plus[] (plus[] p m) k) A) ≐ El (vect[] (plus[] p (plus[] m k)) A)
-- el-ty-coe ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w : El (vect[] (plus[] (plus[] p m) k) A) ↝ El (vect[] (plus[] p (plus[] m k)) A)
-- el-sigma-i ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ q .π₁, vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w : El A ⨯ El (vect[] (plus[] p (plus[] m k)) A)
-- el-ty-coe-eq ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (q .π₁, vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w) ≐ (q .π₁, vappend[] p A (plus[] m k) (q .π₂) (vappend[] m A k v w)) : El A ⨯ El (vect[] (plus[] p (plus[] m k)) A) ↝ El (vect[] (plus[] (S p) (plus[] m k)) A)
-- el-ty-coe-eq ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) w ≐ (q .π₁, vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w) : El A ⨯ El (vect[] (plus[] p (plus[] m k)) A) ↝ El (vect[] (plus[] (S p) (plus[] m k)) A)
-- el-eq-trans ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) w ≐ (q .π₁, vappend[] p A (plus[] m k) (q .π₂) (vappend[] m A k v w)) : El (vect[] (plus[] (S p) (plus[] m k)) A) via (q .π₁, vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w)
-- el-eq-sym ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (q .π₁, vappend[] p A (plus[] m k) (q .π₂) (vappend[] m A k v w)) ≐ vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) : El (vect[] (plus[] (S p) (plus[] m k)) A)
-- el-eq-trans ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) w ≐ vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) : El (vect[] (plus[] (S p) (plus[] m k)) A) via (q .π₁, vappend[] p A (plus[] m k) (q .π₂) (vappend[] m A k v w))
-- el-eq-sym ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) ≐ vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) w : El (vect[] (plus[] (S p) (plus[] m k)) A)
-- ty-eq-cong ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ (vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) ≡ vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) ∈ El (vect[] (plus[] (S p) (plus[] m k)) A)) ≐ (vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) w ≡ vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) ∈ El (vect[] (plus[] (S p) (plus[] m k)) A))
-- el-refl ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ Refl : (vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w)) ∈ El (vect[] (plus[] (S p) (plus[] m k)) A)
-- el-ty-coe ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ᐅ q:El (vect[] (S p) A) ⊦ Refl : (vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) ≡ vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) ∈ El (vect[] (plus[] (S p) (plus[] m k)) A)) ↝ (vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) w ≡ vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) ∈ El (vect[] (plus[] (S p) (plus[] m k)) A))
-- el-pi-i ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ p:ℕ ᐅ ih:(u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) ⊦ λq. Refl : (q:El (vect[] (S p) A)) → (vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) w ≡ vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) ∈ El (vect[] (plus[] (S p) (plus[] m k)) A))
-- el-nat-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ⊦ ℕ-elim (λu. Refl) (p ih. (λq. Refl)) n motive (p ih. (u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)))
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ⊦ vect[] n A
-- ty-el ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ⊦ El (vect[] n A)
-- ctx-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] n A)
-- el-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] n A) ⊦ u
-- el-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] n A) ⊦ v
-- el-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] n A) ⊦ w
-- el-pi-e ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] n A) ⊦ (ℕ-elim (λu. Refl) (p ih. (λq. Refl)) n) u
-- sig ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] n A) ⊦ vappendAssoc ≔ (ℕ-elim (λu. Refl) (p ih. (λq. Refl)) n) u : vappend[] (plus[] n m) A k (vappend[] n A m u v) w ≡ vappend[] n A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] n (plus[] m k)) A)
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] n A) ⊦ n, A, m to ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] n A) ⊦ n, A, m, k to ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] n A) ⊦ n, A, m, k, v to ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A)
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] n A) ⊦ n, A, m, k, v, w to ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A)
-- sub-norm-ext ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] n A) ⊦ n, A, m, k, v, w, u to ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] n A)
-- sig-var ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A) ᐅ w:El (vect[] k A) ᐅ u:El (vect[] n A) ⊦ vappendAssoc[n, A, m, k, v, w, u]
+- ctx-ext C3
+- ctx-ext C5
+- el-var C5 ⊦ v
+- el-var C5 ⊦ w
+- sub-norm-ext C5 ⊦ m to ε ᐅ n:ℕ
+- sig-var C5 ⊦ zeroPlusId[m]
+- el-reflect C5 ⊦ zeroPlusId[m] : (plus[] Z m ≡ m ∈ ℕ) reflect
+- el-app-cong C5 ⊦ (vappend[] ≐ vappend[] : (x:ℕ) → (A:𝕌) → (z:ℕ) → El (vect[] x A) → El (vect[] z A) → El (vect[] (plus[] x z) A)) (plus[] Z m) ≐ m
+- el-app-cong C5 ⊦ (vappend[] (plus[] Z m) ≐ vappend[] m : (A:𝕌) → (z:ℕ) → El (vect[] m A) → El (vect[] z A) → El (vect[] (plus[] m z) A)) A ≐ A
+- el-app-cong C5 ⊦ (vappend[] (plus[] Z m) A ≐ vappend[] m A : (z:ℕ) → El (vect[] m A) → El (vect[] z A) → El (vect[] (plus[] m z) A)) k ≐ k
+- el-var C5 ⊦ u
+- sub-norm-ext C5 ⊦ A to ε ᐅ A:𝕌
+- sub-norm-ext C5 ⊦ A, m to ε ᐅ A:𝕌 ᐅ n:ℕ
+- sub-norm-ext C5 ⊦ A, m, u to ε ᐅ A:𝕌 ᐅ n:ℕ ᐅ v:El (vect[] Z A)
+- sub-norm-ext C5 ⊦ A, m, u, v to C1
+- sig-var C5 ⊦ vappendZ[A, m, u, v]
+- el-reflect C5 ⊦ vappendZ[A, m, u, v] : (vappend[] Z A m u v ≡ v ∈ El (vect[] m A)) reflect
+- el-app-cong C5 ⊦ (vappend[] (plus[] Z m) A k ≐ vappend[] m A k : El (vect[] m A) → El (vect[] k A) → El (vect[] (plus[] m k) A)) (vappend[] Z A m u v) ≐ v
+- el-app-cong C5 ⊦ (vappend[] (plus[] Z m) A k (vappend[] Z A m u v) ≐ vappend[] m A k v : El (vect[] k A) → El (vect[] (plus[] m k) A)) w ≐ w
+- el-pi-e C5 ⊦ plus[] m k
+- sub-norm-ext C5 ⊦ (plus[] m k) to ε ᐅ n:ℕ
+- sig-var C5 ⊦ zeroPlusId[plus[] m k]
+- el-reflect C5 ⊦ zeroPlusId[plus[] m k] : (plus[] Z (plus[] m k) ≡ plus[] m k ∈ ℕ) reflect
+- el-app-cong C5 ⊦ (vect[] ≐ vect[] : ℕ → 𝕌 → 𝕌) (plus[] Z (plus[] m k)) ≐ (plus[] m k)
+- el-app-cong C5 ⊦ (vect[] (plus[] Z (plus[] m k)) ≐ vect[] (plus[] m k) : 𝕌 → 𝕌) A ≐ A
+- ty-el-cong C5 ⊦ El (vect[] (plus[] Z (plus[] m k)) A) ≐ El (vect[] (plus[] m k) A)
+- el-pi-e C5 ⊦ vappend[] m A k v w
+- sub-norm-ext C5 ⊦ A, (plus[] m k) to ε ᐅ A:𝕌 ᐅ n:ℕ
+- sub-norm-ext C5 ⊦ A, (plus[] m k), u to ε ᐅ A:𝕌 ᐅ n:ℕ ᐅ v:El (vect[] Z A)
+- sub-norm-ext C5 ⊦ A, (plus[] m k), u, (vappend[] m A k v w) to C1
+- sig-var C5 ⊦ vappendZ[A, plus[] m k, u, vappend[] m A k v w]
+- el-reflect C5 ⊦ vappendZ[A, plus[] m k, u, vappend[] m A k v w] : (vappend[] Z A (plus[] m k) u (vappend[] m A k v w) ≡ vappend[] m A k v w ∈ El (vect[] (plus[] m k) A)) reflect
+- ty-eq-cong C5 ⊦ (vappend[] (plus[] Z m) A k (vappend[] Z A m u v) w ≡ vappend[] Z A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] Z (plus[] m k)) A)) ≐ (vappend[] m A k v w ≡ vappend[] m A k v w ∈ El (vect[] (plus[] m k) A))
+- ty-sym C5 ⊦ (vappend[] m A k v w ≡ vappend[] m A k v w ∈ El (vect[] (plus[] m k) A)) ≐ (vappend[] (plus[] Z m) A k (vappend[] Z A m u v) w ≡ vappend[] Z A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] Z (plus[] m k)) A))
+- el-refl C5 ⊦ Refl : (vappend[] m A k v w) ∈ El (vect[] (plus[] m k) A)
+- el-ty-coe C5 ⊦ Refl : (vappend[] m A k v w ≡ vappend[] m A k v w ∈ El (vect[] (plus[] m k) A)) ↝ (vappend[] (plus[] Z m) A k (vappend[] Z A m u v) w ≡ vappend[] Z A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] Z (plus[] m k)) A))
+- el-pi-i C3 ⊦ λu. Refl : (u:El (vect[] Z A)) → (vappend[] (plus[] Z m) A k (vappend[] Z A m u v) w ≡ vappend[] Z A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] Z (plus[] m k)) A))
+- ctx-ext C4
+- el-var C4 ⊦ p
+- el-pi-e C4 ⊦ vect[] p A
+- ty-el C4 ⊦ El (vect[] p A)
+- ctx-ext C7
+- el-var C7 ⊦ u
+- el-var C7 ⊦ v
+- el-var C7 ⊦ w
+- el-pi-e C7 ⊦ vappend[] (plus[] p m) A k (vappend[] p A m u v) w
+- sub-norm-ext C7 ⊦ p to ε ᐅ n:ℕ
+- sub-norm-ext C7 ⊦ p, m to ε ᐅ n:ℕ ᐅ m:ℕ
+- sub-norm-ext C7 ⊦ p, m, k to ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ
+- sig-var C7 ⊦ plusAssoc[p, m, k]
+- el-reflect C7 ⊦ plusAssoc[p, m, k] : (plus[] (plus[] p m) k ≡ plus[] p (plus[] m k) ∈ ℕ) reflect
+- el-app-cong C7 ⊦ (vect[] ≐ vect[] : ℕ → 𝕌 → 𝕌) (plus[] (plus[] p m) k) ≐ (plus[] p (plus[] m k))
+- el-app-cong C7 ⊦ (vect[] (plus[] (plus[] p m) k) ≐ vect[] (plus[] p (plus[] m k)) : 𝕌 → 𝕌) A ≐ A
+- ty-el-cong C7 ⊦ El (vect[] (plus[] (plus[] p m) k) A) ≐ El (vect[] (plus[] p (plus[] m k)) A)
+- el-ty-coe C7 ⊦ vappend[] (plus[] p m) A k (vappend[] p A m u v) w : El (vect[] (plus[] (plus[] p m) k) A) ↝ El (vect[] (plus[] p (plus[] m k)) A)
+- el-pi-e C7 ⊦ vappend[] p A (plus[] m k) u (vappend[] m A k v w)
+- ty-eq-form C7 ⊦ vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)
+- ty-pi C4 ⊦ (u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A))
+- ctx-ext C8
+- el-suc C8 ⊦ S p
+- el-pi-e C8 ⊦ vect[] (S p) A
+- ty-el C8 ⊦ El (vect[] (S p) A)
+- ctx-ext C9
+- el-var C9 ⊦ q
+- ctx-ext C10
+- ty-sigma C9 ⊦ El A ⨯ El (vect[] p A)
+- sub-norm-ext C9 ⊦ p to ε ᐅ n:ℕ
+- sub-norm-ext C9 ⊦ p, A to ε ᐅ n:ℕ ᐅ A:𝕌
+- el-ty-coe C9 ⊦ q : El (vect[] (S p) A) ↝ El A ⨯ El (vect[] p A)
+- el-sigma-e1 C9 ⊦ (q : El A ⨯ El (vect[] p A)) .π₁
+- el-sigma-e2 C9 ⊦ (q : El A ⨯ El (vect[] p A)) .π₂
+- el-var C9 ⊦ ih
+- el-pi-e C9 ⊦ ih (q .π₂)
+- el-reflect C9 ⊦ ih (q .π₂) : (vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w ≡ vappend[] p A (plus[] m k) (q .π₂) (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)) reflect
+- sub-norm-ext C9 ⊦ p, A, m to ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ
+- sub-norm-ext C9 ⊦ p, A, m, q to ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ v:El (vect[] (S n) A)
+- el-var C9 ⊦ v
+- sub-norm-ext C9 ⊦ p, A, m, q, v to C2
+- sig-var C9 ⊦ vappendS[p, A, m, q, v]
+- el-reflect C9 ⊦ vappendS[p, A, m, q, v] : (vappend[] (S p) A m q v ≡ (q .π₁, vappend[] p A m (q .π₂) v) ∈ El (vect[] (plus[] (S p) m) A)) reflect
+- sub-norm-ext C9 ⊦ p, m to ε ᐅ n:ℕ ᐅ m:ℕ
+- sig-var C9 ⊦ sucPlus[p, m]
+- el-reflect C9 ⊦ sucPlus[p, m] : (plus[] (S p) m ≡ S (plus[] p m) ∈ ℕ) reflect
+- el-app-cong C9 ⊦ (vappend[] ≐ vappend[] : (x:ℕ) → (A:𝕌) → (z:ℕ) → El (vect[] x A) → El (vect[] z A) → El (vect[] (plus[] x z) A)) (plus[] (S p) m) ≐ (S (plus[] p m))
+- el-app-cong C9 ⊦ (vappend[] (plus[] (S p) m) ≐ vappend[] (S (plus[] p m)) : (A:𝕌) → (z:ℕ) → El (vect[] (S (plus[] p m)) A) → El (vect[] z A) → El (vect[] (plus[] (S (plus[] p m)) z) A)) A ≐ A
+- el-app-cong C9 ⊦ (vappend[] (plus[] (S p) m) A ≐ vappend[] (S (plus[] p m)) A : (z:ℕ) → El (vect[] (S (plus[] p m)) A) → El (vect[] z A) → El (vect[] (plus[] (S (plus[] p m)) z) A)) k ≐ k
+- el-app-cong C9 ⊦ (vect[] ≐ vect[] : ℕ → 𝕌 → 𝕌) (plus[] (S p) m) ≐ (S (plus[] p m))
+- el-app-cong C9 ⊦ (vect[] (plus[] (S p) m) ≐ vect[] (S (plus[] p m)) : 𝕌 → 𝕌) A ≐ A
+- ty-el-cong C9 ⊦ El (vect[] (plus[] (S p) m) A) ≐ El (vect[] (S (plus[] p m)) A)
+- el-ty-coe-eq C9 ⊦ vappend[] (S p) A m q v ≐ (q .π₁, vappend[] p A m (q .π₂) v) : El (vect[] (plus[] (S p) m) A) ↝ El (vect[] (S (plus[] p m)) A)
+- el-app-cong C9 ⊦ (vappend[] (plus[] (S p) m) A k ≐ vappend[] (S (plus[] p m)) A k : El (vect[] (S (plus[] p m)) A) → El (vect[] k A) → El (vect[] (plus[] (S (plus[] p m)) k) A)) (vappend[] (S p) A m q v) ≐ (q .π₁, vappend[] p A m (q .π₂) v)
+- el-var C9 ⊦ w
+- el-app-cong C9 ⊦ (vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) ≐ vappend[] (S (plus[] p m)) A k (q .π₁, vappend[] p A m (q .π₂) v) : El (vect[] k A) → El (vect[] (plus[] (S (plus[] p m)) k) A)) w ≐ w
+- el-pi-e C9 ⊦ vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w)
+- el-pi-e C9 ⊦ vect[] (plus[] p (plus[] m k)) A
+- ty-el C9 ⊦ El (vect[] (plus[] p (plus[] m k)) A)
+- ctx-ext C11
+- ctx-ext C11 ᐅ y:El A
+- el-var C11 ⊦ t
+- el-sigma-i C11 ⊦ (q .π₁, t) : El A ⨯ El (vect[] (plus[] p (plus[] m k)) A)
+- el-pi-i C9 ⊦ λt. (q .π₁, t) : El (vect[] (plus[] p (plus[] m k)) A) → El A ⨯ El (vect[] (plus[] p (plus[] m k)) A)
+- el-app-cong C9 ⊦ (λt. (q .π₁, t) ≐ λt. (q .π₁, t) : El (vect[] (plus[] p (plus[] m k)) A) → El A ⨯ El (vect[] (plus[] p (plus[] m k)) A)) (vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w) ≐ (vappend[] p A (plus[] m k) (q .π₂) (vappend[] m A k v w))
+- sub-norm-ext C9 ⊦ p, (plus[] m k) to ε ᐅ n:ℕ ᐅ m:ℕ
+- sig-var C9 ⊦ sucPlus[p, plus[] m k]
+- el-reflect C9 ⊦ sucPlus[p, plus[] m k] : (plus[] (S p) (plus[] m k) ≡ S (plus[] p (plus[] m k)) ∈ ℕ) reflect
+- el-app-cong C9 ⊦ (vect[] ≐ vect[] : ℕ → 𝕌 → 𝕌) (plus[] (S p) (plus[] m k)) ≐ (S (plus[] p (plus[] m k)))
+- el-app-cong C9 ⊦ (vect[] (plus[] (S p) (plus[] m k)) ≐ vect[] (S (plus[] p (plus[] m k))) : 𝕌 → 𝕌) A ≐ A
+- ty-el-cong C9 ⊦ El (vect[] (plus[] (S p) (plus[] m k)) A) ≐ El (vect[] (S (plus[] p (plus[] m k))) A)
+- sub-norm-ext C9 ⊦ p, A, (plus[] m k) to ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ
+- sub-norm-ext C9 ⊦ p, A, (plus[] m k), q to ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ v:El (vect[] (S n) A)
+- sub-norm-ext C9 ⊦ p, A, (plus[] m k), q, (vappend[] m A k v w) to C2
+- sig-var C9 ⊦ vappendS[p, A, plus[] m k, q, vappend[] m A k v w]
+- el-reflect C9 ⊦ vappendS[p, A, plus[] m k, q, vappend[] m A k v w] : (vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) ≡ (q .π₁, vappend[] p A (plus[] m k) (q .π₂) (vappend[] m A k v w)) ∈ El (vect[] (plus[] (S p) (plus[] m k)) A)) reflect
+- el-pi-e C9 ⊦ vect[] (plus[] (S p) (plus[] m k)) A
+- ty-el C9 ⊦ El (vect[] (plus[] (S p) (plus[] m k)) A)
+- ty-sigma C9 ⊦ El A ⨯ El (vect[] (plus[] p (plus[] m k)) A)
+- el-eq-sym C9 ⊦ S (plus[] p m) ≐ plus[] (S p) m : ℕ
+- el-app-cong C9 ⊦ (plus[] ≐ plus[] : ℕ → ℕ → ℕ) (S (plus[] p m)) ≐ (plus[] (S p) m)
+- el-app-cong C9 ⊦ (plus[] (S (plus[] p m)) ≐ plus[] (plus[] (S p) m) : ℕ → ℕ) k ≐ k
+- sub-norm-ext C9 ⊦ (S p) to ε ᐅ n:ℕ
+- sub-norm-ext C9 ⊦ (S p), m to ε ᐅ n:ℕ ᐅ m:ℕ
+- sub-norm-ext C9 ⊦ (S p), m, k to ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ
+- sig-var C9 ⊦ plusAssoc[S p, m, k]
+- el-reflect C9 ⊦ plusAssoc[S p, m, k] : (plus[] (plus[] (S p) m) k ≡ plus[] (S p) (plus[] m k) ∈ ℕ) reflect
+- el-eq-trans C9 ⊦ plus[] (S (plus[] p m)) k ≐ plus[] (S p) (plus[] m k) : ℕ via plus[] (plus[] (S p) m) k
+- el-eq-trans C9 ⊦ plus[] (S (plus[] p m)) k ≐ S (plus[] p (plus[] m k)) : ℕ via plus[] (S p) (plus[] m k)
+- el-app-cong C9 ⊦ (vect[] ≐ vect[] : ℕ → 𝕌 → 𝕌) (plus[] (S (plus[] p m)) k) ≐ (S (plus[] p (plus[] m k)))
+- el-app-cong C9 ⊦ (vect[] (plus[] (S (plus[] p m)) k) ≐ vect[] (S (plus[] p (plus[] m k))) : 𝕌 → 𝕌) A ≐ A
+- ty-el-cong C9 ⊦ El (vect[] (plus[] (S (plus[] p m)) k) A) ≐ El (vect[] (S (plus[] p (plus[] m k))) A)
+- el-pi-e C9 ⊦ plus[] p m
+- el-suc C9 ⊦ S (plus[] p m)
+- el-pi-e C9 ⊦ vect[] (plus[] (S (plus[] p m)) k) A
+- ty-el C9 ⊦ El (vect[] (plus[] (S (plus[] p m)) k) A)
+- el-pi-e C9 ⊦ vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) w
+- el-eq-sym C9 ⊦ plus[] (plus[] (S p) m) k ≐ plus[] (S (plus[] p m)) k : ℕ
+- el-app-cong C9 ⊦ (vect[] ≐ vect[] : ℕ → 𝕌 → 𝕌) (plus[] (plus[] (S p) m) k) ≐ (plus[] (S (plus[] p m)) k)
+- el-app-cong C9 ⊦ (vect[] (plus[] (plus[] (S p) m) k) ≐ vect[] (plus[] (S (plus[] p m)) k) : 𝕌 → 𝕌) A ≐ A
+- ty-el-cong C9 ⊦ El (vect[] (plus[] (plus[] (S p) m) k) A) ≐ El (vect[] (plus[] (S (plus[] p m)) k) A)
+- el-ty-coe C9 ⊦ vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) w : El (vect[] (plus[] (plus[] (S p) m) k) A) ↝ El (vect[] (plus[] (S (plus[] p m)) k) A)
+- el-pi-e C9 ⊦ vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w
+- el-pi-e C10 ⊦ vect[] (plus[] (plus[] p m) k) A
+- ty-el C10 ⊦ El (vect[] (plus[] (plus[] p m) k) A)
+- ty-sigma C9 ⊦ El A ⨯ El (vect[] (plus[] (plus[] p m) k) A)
+- el-sigma-i C9 ⊦ q .π₁, vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w : El A ⨯ El (vect[] (plus[] (plus[] p m) k) A)
+- sub-norm-ext C9 ⊦ (plus[] p m) to ε ᐅ n:ℕ
+- sub-norm-ext C9 ⊦ (plus[] p m), k to ε ᐅ n:ℕ ᐅ m:ℕ
+- sig-var C9 ⊦ sucPlus[plus[] p m, k]
+- el-reflect C9 ⊦ sucPlus[plus[] p m, k] : (plus[] (S (plus[] p m)) k ≡ S (plus[] (plus[] p m) k) ∈ ℕ) reflect
+- el-app-cong C9 ⊦ (vect[] ≐ vect[] : ℕ → 𝕌 → 𝕌) (plus[] (S (plus[] p m)) k) ≐ (S (plus[] (plus[] p m) k))
+- el-app-cong C9 ⊦ (vect[] (plus[] (S (plus[] p m)) k) ≐ vect[] (S (plus[] (plus[] p m) k)) : 𝕌 → 𝕌) A ≐ A
+- ty-el-cong C9 ⊦ El (vect[] (plus[] (S (plus[] p m)) k) A) ≐ El (vect[] (S (plus[] (plus[] p m) k)) A)
+- ty-sym C9 ⊦ El A ⨯ El (vect[] (plus[] (plus[] p m) k) A) ≐ El (vect[] (plus[] (S (plus[] p m)) k) A)
+- el-ty-coe C9 ⊦ q .π₁, vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w : El A ⨯ El (vect[] (plus[] (plus[] p m) k) A) ↝ El (vect[] (plus[] (S (plus[] p m)) k) A)
+- el-ty-coe-eq C9 ⊦ vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) w ≐ (q .π₁, vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w) : El (vect[] (plus[] (S (plus[] p m)) k) A) ↝ El A ⨯ El (vect[] (plus[] p (plus[] m k)) A)
+- ty-sym C9 ⊦ El A ⨯ El (vect[] (plus[] p (plus[] m k)) A) ≐ El (vect[] (plus[] (S p) (plus[] m k)) A)
+- el-pi-e C9 ⊦ vappend[] p A (plus[] m k) (q .π₂) (vappend[] m A k v w)
+- el-sigma-i C9 ⊦ q .π₁, vappend[] p A (plus[] m k) (q .π₂) (vappend[] m A k v w) : El A ⨯ El (vect[] (plus[] p (plus[] m k)) A)
+- sub-norm-ext C9 ⊦ p, m, k to ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ
+- sig-var C9 ⊦ plusAssoc[p, m, k]
+- el-reflect C9 ⊦ plusAssoc[p, m, k] : (plus[] (plus[] p m) k ≡ plus[] p (plus[] m k) ∈ ℕ) reflect
+- el-app-cong C9 ⊦ (vect[] ≐ vect[] : ℕ → 𝕌 → 𝕌) (plus[] (plus[] p m) k) ≐ (plus[] p (plus[] m k))
+- el-app-cong C9 ⊦ (vect[] (plus[] (plus[] p m) k) ≐ vect[] (plus[] p (plus[] m k)) : 𝕌 → 𝕌) A ≐ A
+- ty-el-cong C9 ⊦ El (vect[] (plus[] (plus[] p m) k) A) ≐ El (vect[] (plus[] p (plus[] m k)) A)
+- el-ty-coe C9 ⊦ vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w : El (vect[] (plus[] (plus[] p m) k) A) ↝ El (vect[] (plus[] p (plus[] m k)) A)
+- el-sigma-i C9 ⊦ q .π₁, vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w : El A ⨯ El (vect[] (plus[] p (plus[] m k)) A)
+- el-ty-coe-eq C9 ⊦ (q .π₁, vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w) ≐ (q .π₁, vappend[] p A (plus[] m k) (q .π₂) (vappend[] m A k v w)) : El A ⨯ El (vect[] (plus[] p (plus[] m k)) A) ↝ El (vect[] (plus[] (S p) (plus[] m k)) A)
+- el-ty-coe-eq C9 ⊦ vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) w ≐ (q .π₁, vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w) : El A ⨯ El (vect[] (plus[] p (plus[] m k)) A) ↝ El (vect[] (plus[] (S p) (plus[] m k)) A)
+- el-eq-trans C9 ⊦ vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) w ≐ (q .π₁, vappend[] p A (plus[] m k) (q .π₂) (vappend[] m A k v w)) : El (vect[] (plus[] (S p) (plus[] m k)) A) via (q .π₁, vappend[] (plus[] p m) A k (vappend[] p A m (q .π₂) v) w)
+- el-eq-sym C9 ⊦ (q .π₁, vappend[] p A (plus[] m k) (q .π₂) (vappend[] m A k v w)) ≐ vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) : El (vect[] (plus[] (S p) (plus[] m k)) A)
+- el-eq-trans C9 ⊦ vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) w ≐ vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) : El (vect[] (plus[] (S p) (plus[] m k)) A) via (q .π₁, vappend[] p A (plus[] m k) (q .π₂) (vappend[] m A k v w))
+- el-eq-sym C9 ⊦ vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) ≐ vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) w : El (vect[] (plus[] (S p) (plus[] m k)) A)
+- ty-eq-cong C9 ⊦ (vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) ≡ vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) ∈ El (vect[] (plus[] (S p) (plus[] m k)) A)) ≐ (vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) w ≡ vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) ∈ El (vect[] (plus[] (S p) (plus[] m k)) A))
+- el-refl C9 ⊦ Refl : (vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w)) ∈ El (vect[] (plus[] (S p) (plus[] m k)) A)
+- el-ty-coe C9 ⊦ Refl : (vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) ≡ vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) ∈ El (vect[] (plus[] (S p) (plus[] m k)) A)) ↝ (vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) w ≡ vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) ∈ El (vect[] (plus[] (S p) (plus[] m k)) A))
+- el-pi-i C8 ⊦ λq. Refl : (q:El (vect[] (S p) A)) → (vappend[] (plus[] (S p) m) A k (vappend[] (S p) A m q v) w ≡ vappend[] (S p) A (plus[] m k) q (vappend[] m A k v w) ∈ El (vect[] (plus[] (S p) (plus[] m k)) A))
+- el-nat-e C3 ⊦ ℕ-elim (λu. Refl) (p ih. (λq. Refl)) n motive (p ih. (u:El (vect[] p A)) → (vappend[] (plus[] p m) A k (vappend[] p A m u v) w ≡ vappend[] p A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] p (plus[] m k)) A)))
+- el-pi-e C3 ⊦ vect[] n A
+- ty-el C3 ⊦ El (vect[] n A)
+- ctx-ext C6
+- el-var C6 ⊦ u
+- el-var C6 ⊦ v
+- el-var C6 ⊦ w
+- el-pi-e C6 ⊦ (ℕ-elim (λu. Refl) (p ih. (λq. Refl)) n) u
+- sig C6 ⊦ vappendAssoc ≔ (ℕ-elim (λu. Refl) (p ih. (λq. Refl)) n) u : vappend[] (plus[] n m) A k (vappend[] n A m u v) w ≡ vappend[] n A (plus[] m k) u (vappend[] m A k v w) ∈ El (vect[] (plus[] n (plus[] m k)) A)
+- sub-norm-ext C6 ⊦ n, A, m to ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ
+- sub-norm-ext C6 ⊦ n, A, m, k to ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ
+- sub-norm-ext C6 ⊦ n, A, m, k, v to ε ᐅ n:ℕ ᐅ A:𝕌 ᐅ m:ℕ ᐅ k:ℕ ᐅ v:El (vect[] m A)
+- sub-norm-ext C6 ⊦ n, A, m, k, v, w to C3
+- sub-norm-ext C6 ⊦ n, A, m, k, v, w, u to C6
+- sig-var C6 ⊦ vappendAssoc[n, A, m, k, v, w, u]
