@@ -1,5 +1,5 @@
 - ty-wf ε ⊦ ℕ / (n x. 𝟙)
 - el-eq ε ⊦ class Z ≐ class (S Z) : ℕ / (n x. 𝟙)
-- el-wf ε ⊦ quot-elim Z (class Z) : ℕ
-- el-eq ε ⊦ quot-elim Z (class Z) ≐ Z : ℕ
+- el-wf ε ⊦ quot-elim (_. Z) (class Z) : ℕ
+- el-eq ε ⊦ quot-elim (_. Z) (class Z) ≐ Z : ℕ
 - el-eq ε ⊦ class Z ≐ class Z : ℕ / (n x. 𝟙)

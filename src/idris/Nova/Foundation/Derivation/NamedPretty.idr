@@ -130,6 +130,7 @@ mutual
   usesIndexElem k (Elem.PiTy e e') = usesIndexElem k e || usesIndexElem (S k) e'
   usesIndexElem k (Elem.SigmaTy e e') = usesIndexElem k e || usesIndexElem (S k) e'
   usesIndexElem k (Elem.EqTy e0 e1 e2) = usesIndexElem k e0 || usesIndexElem k e1 || usesIndexElem k e2
+  usesIndexElem k (QuotTy a r) = usesIndexElem k a || usesIndexElem (S (S k)) r
   usesIndexElem k Refl = False
   usesIndexElem k (SigVar x es) = usesIndexSubNorm k es
   usesIndexElem k (Class a) = usesIndexElem k a
@@ -188,6 +189,10 @@ mutual
       else prettyElemPrefixN env e ++ " ⨯ " ++ prettyElemNoCommaN (env :< wildcard) e'
   prettyElemNoCommaN env (Elem.EqTy e0 e1 e2) =
     prettyElemPrefixN env e0 ++ " ≡ " ++ prettyElemPrefixN env e1 ++ " ∈ " ++ prettyElemPrefixN env e2
+  prettyElemNoCommaN env (QuotTy e r) =
+    let x = freshForTy (El e) env
+        y = freshGeneric (env :< x)
+    in prettyElemPrefixN env e ++ " / (" ++ x ++ " " ++ y ++ ". " ++ prettyElemNoCommaN (env :< x :< y) r ++ ")"
   prettyElemNoCommaN env e = prettyElemPrefixN env e
 
   prettyElemPrefixN : NameEnv -> Elem -> String
@@ -203,7 +208,9 @@ mutual
        " (" ++ n ++ " " ++ ih ++ ". " ++ prettyElemAtomN (env :< n :< ih) s ++ ") " ++
        prettyElemAtomN env t
   prettyElemPrefixN env (Class a) = "class " ++ prettyElemAtomN env a
-  prettyElemPrefixN env (QuotElim f q) = "quot-elim " ++ prettyElemAtomN env f ++ " " ++ prettyElemAtomN env q
+  prettyElemPrefixN env (QuotElim f q) =
+    let a = if usesIndexElem 0 f then freshGeneric env else wildcard
+    in "quot-elim (" ++ a ++ ". " ++ prettyElemN (env :< a) f ++ ") " ++ prettyElemAtomN env q
   prettyElemPrefixN env e = prettyElemPostfixN env e
 
   prettyElemPostfixN : NameEnv -> Elem -> String
@@ -540,9 +547,19 @@ prettyTypingRuleN (ElemWfClass ctx a ty r) =
   in "el-class " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyElemN env (Class a) ++ " : " ++ prettyTyN env (Quotient ty r)
 prettyTypingRuleN (ElemWfQuotElim ctx ty r motive f q) =
   let env = envForCtx ctx
+      a   = if usesIndexElem 0 f then freshGeneric env else wildcard
       qn  = freshGeneric env
-  in "el-quot-elim " ++ prettyCtxN ctx ++ " ⊦ quot-elim " ++ prettyElemAtomN env f ++
+  in "el-quot-elim " ++ prettyCtxN ctx ++ " ⊦ quot-elim (" ++ a ++ ". " ++ prettyElemN (env :< a) f ++ ")" ++
      " (" ++ prettyElemN env q ++ " : " ++ prettyTyN env (Quotient ty r) ++ ") motive (" ++ qn ++ ". " ++ prettyTyN (env :< qn) motive ++ ")"
+prettyTypingRuleN (ElemEqCongQuotElim ctx ty r motive f0 f1 q0 q1) =
+  let env = envForCtx ctx
+      a0  = if usesIndexElem 0 f0 then freshGeneric env else wildcard
+      a1  = if usesIndexElem 0 f1 then freshGeneric env else wildcard
+      qn  = freshGeneric env
+  in "el-quot-elim-cong " ++ prettyCtxN ctx ++ " ⊦ quot-elim (" ++ a0 ++ ". " ++ prettyElemN (env :< a0) f0 ++
+     ") ≐ (" ++ a1 ++ ". " ++ prettyElemN (env :< a1) f1 ++
+     ") (" ++ prettyElemN env q0 ++ " ≐ " ++ prettyElemN env q1 ++ " : " ++ prettyTyN env (Quotient ty r) ++
+     ") motive (" ++ qn ++ ". " ++ prettyTyN (env :< qn) motive ++ ")"
 prettyTypingRuleN (ElemWfSubst gamma0 gamma1 sigma t a) =
   let env1 = envForCtx gamma1
   in "el-wf-subst " ++ prettyCtxN gamma0 ++ " ⊦ " ++ prettySubN (envForCtx gamma0) sigma ++
@@ -592,6 +609,8 @@ prettyTypingRuleN (ElemWfSigmaTy ctx a b) =
   "el-sigma-ty " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyElemN (envForCtx ctx) (Elem.SigmaTy a b) ++ " : 𝕌"
 prettyTypingRuleN (ElemWfEqTy ctx l r ty) =
   "el-eq-ty " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyElemN (envForCtx ctx) (Elem.EqTy l r ty) ++ " : 𝕌"
+prettyTypingRuleN (ElemWfQuotTy ctx a r) =
+  "el-quot-ty " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyElemN (envForCtx ctx) (Elem.QuotTy a r) ++ " : 𝕌"
 prettyTypingRuleN (ElemWfSigVar ctx sigma x) =
   "sig-var " ++ prettyCtxN ctx ++ " ⊦ " ++ prettyElemAtomN (envForCtx ctx) (SigVar x sigma)
 prettyTypingRuleN (SigExt gamma x a ty) =

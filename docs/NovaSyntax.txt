@@ -17,7 +17,7 @@ t{5} ::= ☐ₙ | () | Z | Refl | 𝟘 | 𝟙 | ℕ | x[t˲] | (t{≥0})
 t{4} ::= t{≥4} [σ{≥0}]
 t{3} ::= t{≥3} t{≥4} | t{≥3} .π₁ | t{≥3} .π₂                               (left-assoc)
 t{2} ::= λ t{≥3} | 𝟘-elim t{≥4} | S t{≥4} | ℕ-elim t{≥4} t{≥4} t{≥4} | class t{≥4} | quot-elim t{≥4} t{≥4}
-t{1} ::= t{≥2} → t{≥1} | t{≥2} ⨯ t{≥1} | t{≥2} ≡ t{≥2} ∈ t{≥2}
+t{1} ::= t{≥2} → t{≥1} | t{≥2} ⨯ t{≥1} | t{≥2} / t{≥1} | t{≥2} ≡ t{≥2} ∈ t{≥2}
 t{0} ::= t{≥1} , t{≥0}                                                      SigmaIntro (right-assoc)
 
 Γ ::= ε | Γ ᐅ T{≥0}                                                          (left-assoc)
@@ -107,6 +107,7 @@ R ::=
   el-pi-ty    Γ ⊦ A → B : 𝕌
   el-sigma-ty Γ ⊦ A ⨯ B : 𝕌
   el-eq-ty    Γ ⊦ l ≡ r ∈ A : 𝕌
+  el-quot-ty  Γ ⊦ A / R : 𝕌                      (ElemWfQuotTy, R in Γ ᐅ El A ᐅ (El A)[↑])
 
   // Signature
   sig-var    Γ ⊦ x[e˲]                           (ElemWfSigVar)
@@ -121,6 +122,7 @@ R ::=
   el-suc-cong  Γ ⊦ S t₀ ≐ S t₁                   (ElemEqCongSuc)
   el-app-cong  Γ ⊦ (f₀ ≐ f₁ : A → B) t₀ ≐ t₁     (ElemEqCongPiApp, conclusion: f₀ t₀ ≐ f₁ t₁ : B[t₁])
   el-class-cong Γ ⊦ class a₀ ≐ class a₁ : A / R  (ElemEqCongClass)
+  el-quot-elim-cong Γ ⊦ quot-elim (f₀ ≐ f₁) (q₀ ≐ q₁ : A / R) motive B (ElemEqCongQuotElim, conclusion: quot-elim f₀ q₀ ≐ quot-elim f₁ q₁ : B[id, q₁])
   el-quot-eq   Γ ⊦ class a ≐ class b : A / R via r (ElemEqQuotient, r : R[a, b])
   el-eq-subst  Γ₀ ⊦ σ₀ ≐ σ₁ to Γ₁ ⊦ t₀ ≐ t₁ : A   (ElemEqSubst, conclusion: Γ₀ ⊦ t₀[σ₀] ≐ t₁[σ₁] : A[σ₁])
 

@@ -242,6 +242,7 @@ to the type it names.
 | `el-pi-ty Γ ⊦ A → B : 𝕌` | `Γ ᐅ El A ⊦ B : 𝕌` | `Γ ⊦ A → B : 𝕌` |
 | `el-sigma-ty Γ ⊦ A ⨯ B : 𝕌` | `Γ ᐅ El A ⊦ B : 𝕌` | `Γ ⊦ A ⨯ B : 𝕌` |
 | `el-eq-ty Γ ⊦ l ≡ r ∈ A : 𝕌` | `Γ ⊦ l : El A`, `Γ ⊦ r : El A` | `Γ ⊦ l ≡ r ∈ A : 𝕌` |
+| `el-quot-ty Γ ⊦ A / (x y. R) : 𝕌` | `Γ ⊦ A : 𝕌`, `Γ ᐅ El A ᐅ (El A)[↑] ⊦ R : 𝕌` | `Γ ⊦ A / R : 𝕌` (decodes: `El (A / R) ≐ El A / El R`) |
 
 ## Signature
 
@@ -294,8 +295,9 @@ anything specific to `ty-quotient`:
   wrapping parens too: `(p q. (l ≡ r ∈ T))`, not `(p q. l ≡ r ∈ T)`.
 
 `ty-quotient-cong` relates two quotients componentwise (see the type
-equality table), and
-no dedicated congruence rule for `quot-elim` at all.
+equality table), and `el-quot-elim-cong` (below) relates two `quot-elim`s
+directly at the element level — the only way to compare them, since there
+is no congruence rule for lambdas to compare the case functions with.
 
 | Keyword & syntax | Premises | Conclusion |
 |---|---|---|
@@ -303,7 +305,8 @@ no dedicated congruence rule for `quot-elim` at all.
 | `el-class Γ ⊦ class a : A / (p q. R)` | `Γ ⊦ a : A`, `Γ ᐅ A ᐅ A[↑] ⊦ R type` | `Γ ⊦ class a : A / R` |
 | `el-quot-eq Γ ⊦ class a ≐ class b : A / (p q. R) via w` | `Γ ᐅ A ᐅ A[↑] ⊦ R type`, `Γ ⊦ a : A`, `Γ ⊦ b : A`, `Γ ⊦ w : R[id, a, b]` | `Γ ⊦ class a ≐ class b : A / R` |
 | `el-class-cong Γ ⊦ class a₀ ≐ class a₁ : A / (p q. R)` | `Γ ᐅ A ᐅ A[↑] ⊦ R type`, `Γ ⊦ a₀ ≐ a₁ : A` | `Γ ⊦ class a₀ ≐ class a₁ : A / R` |
-| `el-quot-elim Γ ⊦ quot-elim f (q : A / (p q'. R)) motive (x. B)` | `Γ ᐅ A ᐅ A[↑] ⊦ R type`, `Γ ᐅ (A/R) ⊦ B type`, `Γ ᐅ A ⊦ f : B[↑, class ☐₀]`, well-definedness `Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑³,☐₂] ≐ f[↑³,☐₁] : B[↑³, class ☐₂]`, `Γ ⊦ q : A / R` | `Γ ⊦ quot-elim f q : B[id, q]` |
+| `el-quot-elim Γ ⊦ quot-elim (a. f) (q : A / (p q'. R)) motive (x. B)` | `Γ ᐅ A ᐅ A[↑] ⊦ R type`, `Γ ᐅ (A/R) ⊦ B type`, `Γ ᐅ A ⊦ f : B[↑, class ☐₀]`, well-definedness `Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑³,☐₂] ≐ f[↑³,☐₁] : B[↑³, class ☐₂]`, `Γ ⊦ q : A / R` | `Γ ⊦ quot-elim f q : B[id, q]` |
+| `el-quot-elim-cong Γ ⊦ quot-elim (a. f₀) ≐ (a. f₁) (q₀ ≐ q₁ : A / (p q'. R)) motive (x. B)` | everything `el-quot-elim` needs for both `f₀` and `f₁` (wf + well-definedness), plus `Γ ᐅ A ⊦ f₀ ≐ f₁ : B[↑, class ☐₀]` and `Γ ⊦ q₀ ≐ q₁ : A / R` | `Γ ⊦ quot-elim f₀ q₀ ≐ quot-elim f₁ q₁ : B[id, q₁]` |
 
 The "well-definedness" premise on `el-quot-elim` (that `f` respects `R`)
 has to already exist as a *derived fact* in context `Γ,p:A,q:A,r:R` before

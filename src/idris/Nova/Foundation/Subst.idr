@@ -67,6 +67,7 @@ mutual
   substElem (Elem.PiTy a b)    sigma = Elem.PiTy (substElem a sigma) (substElem b (under sigma))
   substElem (Elem.SigmaTy a b) sigma = Elem.SigmaTy (substElem a sigma) (substElem b (under sigma))
   substElem (Elem.EqTy l r t)  sigma = Elem.EqTy (substElem l sigma) (substElem r sigma) (substElem t sigma)
+  substElem (QuotTy a r)       sigma = QuotTy (substElem a sigma) (substElem r (under (under sigma)))
   substElem Refl               sigma = Refl
   substElem (SigVar x es)      sigma = SigVar x (substSubNorm es sigma)
   substElem (Class a)          sigma = Class (substElem a sigma)
@@ -142,6 +143,7 @@ mutual
   strengthenElem d (Elem.PiTy a b)    = Elem.PiTy <$> strengthenElem d a <*> strengthenElem (1 + d) b
   strengthenElem d (Elem.SigmaTy a b) = Elem.SigmaTy <$> strengthenElem d a <*> strengthenElem (1 + d) b
   strengthenElem d (Elem.EqTy l r t)  = Elem.EqTy <$> strengthenElem d l <*> strengthenElem d r <*> strengthenElem d t
+  strengthenElem d (QuotTy a r)       = QuotTy <$> strengthenElem d a <*> strengthenElem (2 + d) r
   strengthenElem d Refl               = Just Refl
   strengthenElem d (SigVar x es)      = SigVar x <$> strengthenSubNorm d es
   strengthenElem d (Class a)          = Class <$> strengthenElem d a
