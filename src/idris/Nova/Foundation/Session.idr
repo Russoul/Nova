@@ -74,7 +74,7 @@ describeBrokenSession : ContextualRejection -> String
 describeBrokenSession cr =
   "Session file is corrupt (a previously-accepted rule no longer checks out)\n" ++
   "  At rule: " ++ prettyTypingRuleN cr.rule ++ "\n" ++
-  "  Reason: " ++ prettyRejectionN cr.reason
+  "  Reason: " ++ prettyRejectionN cr.reason ++ prettyNearMissesN cr.truth cr.reason
 
 ||| Keyword used by JudgementForm's keyword-first grammar, reused here to
 ||| filter `dump` output by judgement kind.
@@ -132,7 +132,8 @@ apply prelude sessionContent ruleText =
                 Left reason =>
                   MkApplyOutcome
                     ("Rejected\n  At rule: " ++ prettyTypingRuleN rule ++
-                     "\n  Reason: " ++ prettyRejectionN reason)
+                     "\n  Reason: " ++ prettyRejectionN reason ++
+                     prettyNearMissesN before reason)
                     Nothing
                 Right after =>
                   let facts = newJudgements before after
@@ -155,7 +156,10 @@ query prelude sessionContent targetText =
         Right rules =>
           case generate (prelude ++ rules) of
             Left cr => describeBrokenSession cr
-            Right truth => if check jf truth then "Derivable" else "NotDerivable"
+            Right truth =>
+              if check jf truth
+                then "Derivable"
+                else "NotDerivable" ++ prettyNearMissesN truth (jfRejection jf)
 
 ||| List the facts currently in the session (`prelude` ++ its own rules),
 ||| optionally filtered to one judgement kind (e.g. "el-wf"); `Nothing` (or

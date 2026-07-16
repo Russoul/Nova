@@ -474,6 +474,42 @@ data Rejection : Type where
   PiAppInferenceFailed : Ctx -> Elem -> Elem -> Rejection
   CtxVarOutOfBounds : Ctx -> Nat -> Rejection
 
+||| A near-miss explanation attached to a rejection or a NotDerivable
+||| answer: what the derived-facts table *does* contain that is close to
+||| the failed query. Purely advisory — computed only when a rejection is
+||| rendered, never inserted anywhere, and never normalizes the
+||| (unvalidated) query.
+public export
+data Hint : Type where
+  ||| The query's own context has no ctx-wf fact, so weakening from
+  ||| prefix contexts was disabled.
+  HintQueryCtxNotWf : Hint
+  ||| ctx-wf miss: this (longest) prefix is derived; the next entry's
+  ||| type is what needs ty-wf and ctx-ext.
+  HintCtxPrefixDerived : Ctx -> Ty -> Hint
+  ||| wf miss: the same expression is derived here (possibly via
+  ||| weakening) at these other types — likely an el-ty-coe away.
+  HintAtOtherTypes : Ctx -> List Ty -> Hint
+  ||| wf miss: the exact judgement holds, but only in these other
+  ||| contexts (which weakening cannot reach).
+  HintInOtherCtxs : List Ctx -> Hint
+  ||| eq miss: the named side has no wf fact at the queried type — the
+  ||| guard failed there; the sub-hints explain that side's wf miss.
+  HintEqGuardMissing : String -> List Hint -> Hint
+  ||| eq miss: both sides are well-formed at the queried type, but their
+  ||| normal forms differ and no stored equality bridges them — the
+  ||| equality needs real content (lemma/congruence/transitivity chain).
+  HintEqNeedsContent : Hint
+  ||| eq miss: the reversed equality is a stored fact — one sym away.
+  HintReversedEq : Hint
+  ||| eq miss: stored equalities at the queried type sharing an endpoint
+  ||| with the query — transitivity-chain material.
+  HintElemEqEndpoints : Ctx -> List (Elem, Elem) -> Hint
+  HintTyEqEndpoints : Ctx -> List (Ty, Ty) -> Hint
+  ||| el-pi-e inference miss: the function does have Π-types (their
+  ||| domains listed), but the argument's derived types don't match.
+  HintPiArg : Ctx -> (domains : List Ty) -> (argTypes : List Ty) -> Hint
+
 rejectUnless : Rejection -> Bool -> Either Rejection ()
 rejectUnless _ True = Right ()
 rejectUnless r False = Left r
@@ -697,13 +733,13 @@ str1SpineEq (rest :< _, s0, s1, tel) =
   (\a, b, c => (rest, a, b, c)) <$> strSpine s0 <*> strSpine s1 <*> strTel tel
 str1SpineEq ([<], _, _, _) = Nothing
 
-||| Every Π-type the derived-facts table assigns to `f` in `gamma`,
+||| Every type the derived-facts table assigns to `e` in `gamma`,
 ||| including facts from prefix contexts weakened into `gamma` (same
 ||| discipline and ctx-wf guard as wkMember; strengthening is only used to
-||| build lookup keys). Purely a query — each returned (A, B) is a
-||| component of a stored derivable fact, weakened back to `gamma`.
-piCandidates : Truth -> Ctx -> Elem -> List (Ty, Ty)
-piCandidates sp gamma f = go 0 gamma f
+||| build lookup keys). Purely a query — each returned type is a component
+||| of a stored derivable fact, weakened back to `gamma`.
+elemTypesFor : Truth -> Ctx -> Elem -> List Ty
+elemTypesFor sp gamma e = go 0 gamma e
   where
     weakenBy : Nat -> Ty -> Ty
     weakenBy Z     ty = ty
@@ -711,18 +747,12 @@ piCandidates sp gamma f = go 0 gamma f
 
     exact : Ctx -> Elem -> List Ty
     exact ctx g = mapMaybe
-      (\(c, h, ty) =>
-        case ty of
-          PiTy _ _ => if c == ctx && h == g then Just ty else Nothing
-          _        => Nothing)
+      (\(c, h, ty) => if c == ctx && h == g then Just ty else Nothing)
       (Prelude.toList sp.elemWfRaw)
 
-    go : Nat -> Ctx -> Elem -> List (Ty, Ty)
+    go : Nat -> Ctx -> Elem -> List Ty
     go k ctx g =
-      let here = mapMaybe (\ty => case weakenBy k ty of
-                                    PiTy a b => Just (a, b)
-                                    _        => Nothing)
-                          (exact ctx g)
+      let here = map (weakenBy k) (exact ctx g)
           deeper = case ctx of
                      [<] => []
                      rest :< _ =>
@@ -732,6 +762,14 @@ piCandidates sp gamma f = go 0 gamma f
                                 Nothing => []
                                 Just g' => go (S k) rest g'
       in here ++ deeper
+
+||| The Π-types among elemTypesFor, split into domain and codomain.
+piCandidates : Truth -> Ctx -> Elem -> List (Ty, Ty)
+piCandidates sp gamma f =
+  mapMaybe (\ty => case ty of
+                     PiTy a b => Just (a, b)
+                     _        => Nothing)
+           (elemTypesFor sp gamma f)
 
 -- Derivability checks. Well-formedness queries match the raw store, up to
 -- weakening — the expression must have been derived in exactly the form
@@ -1244,6 +1282,123 @@ check (JfTelWf (ctx, tel))           t = isRight $ telWfDerivable ctx tel t
 check (JfTelEq (ctx, t0, t1))        t = isRight $ telEqDerivable ctx t0 t1 t
 check (JfSpineWf (ctx, spn, tel))    t = isRight $ spineWfDerivable ctx spn tel t
 check (JfSpineEq (ctx, s0, s1, tel)) t = isRight $ spineEqDerivable ctx s0 s1 tel t
+
+||| The Rejection a judgement form fails with — lets `diagnose` explain a
+||| NotDerivable query/check target the same way as a rejected premise.
+export
+jfRejection : JudgementForm -> Rejection
+jfRejection (JfCtxWf ctx)                  = CtxWfNotDerivable ctx
+jfRejection (JfCtxEq (c0, c1))             = CtxEqNotDerivable c0 c1
+jfRejection (JfTyWf (ctx, ty))             = TyWfNotDerivable ctx ty
+jfRejection (JfTyEq (ctx, t0, t1))         = TyEqNotDerivable ctx t0 t1
+jfRejection (JfSubWf (s, g, d))            = SubWfNotDerivable s g d
+jfRejection (JfSubEq (s0, s1, g, d))       = SubEqNotDerivable s0 s1 g d
+jfRejection (JfSubNormWf (s, g, d))        = SubNormWfNotDerivable s g d
+jfRejection (JfSubNormEq (s0, s1, g, d))   = SubNormEqNotDerivable s0 s1 g d
+jfRejection (JfElemWf (ctx, e, ty))        = ElemWfNotDerivable ctx e ty
+jfRejection (JfElemEq (ctx, e0, e1, ty))   = ElemEqNotDerivable ctx e0 e1 ty
+jfRejection (JfTelWf (ctx, tel))           = TelWfNotDerivable ctx tel
+jfRejection (JfTelEq (ctx, t0, t1))        = TelEqNotDerivable ctx t0 t1
+jfRejection (JfSpineWf (ctx, spn, tel))    = SpineWfNotDerivable ctx spn tel
+jfRejection (JfSpineEq (ctx, s0, s1, tel)) = SpineEqNotDerivable ctx s0 s1 tel
+
+-- ===== Near-miss diagnostics =====
+--
+-- diagnose explains a rejection by reporting what the raw stores DO
+-- contain that is close to the failed query: the same term at other
+-- types, the same fact in unreachable contexts, a failing eq-guard side
+-- (with the reason recursed one level), a reversed equality, the longest
+-- derived prefix of an underived context, ... Purely advisory: it never
+-- inserts anything and never beta-normalizes the unvalidated query — the
+-- only terms it renders or compares are raw query syntax and components
+-- of stored (derivable) facts.
+
+hintCap : Nat
+hintCap = 3
+
+diagElemWfCore : Truth -> Ctx -> Elem -> Ty -> List Hint
+diagElemWfCore sp ctx e ty =
+  let others = filter (/= ty) (nub (elemTypesFor sp ctx e)) in
+  if not (null others)
+    then [HintAtOtherTypes ctx (take hintCap others)]
+    else
+      let elsewhere = nub (mapMaybe
+            (\(c, h, t) => if h == e && t == ty && c /= ctx then Just c else Nothing)
+            (Prelude.toList sp.elemWfRaw))
+      in if null elsewhere then [] else [HintInOtherCtxs (take hintCap elsewhere)]
+
+diagTyWfCore : Truth -> Ctx -> Ty -> List Hint
+diagTyWfCore sp ctx ty =
+  let elsewhere = nub (mapMaybe
+        (\(c, t) => if t == ty && c /= ctx then Just c else Nothing)
+        (Prelude.toList sp.tyWfRaw))
+  in if null elsewhere then [] else [HintInOtherCtxs (take hintCap elsewhere)]
+
+ctxHint : Truth -> Ctx -> List Hint
+ctxHint sp ctx = if contains ctx sp.ctxWfRaw then [] else [HintQueryCtxNotWf]
+
+export
+diagnose : Truth -> Rejection -> List Hint
+diagnose sp (CtxWfNotDerivable ctx) = go ctx
+  where
+    go : Ctx -> List Hint
+    go [<] = []
+    go (rest :< t) =
+      if contains rest sp.ctxWfRaw then [HintCtxPrefixDerived rest t] else go rest
+diagnose sp (TyWfNotDerivable ctx ty) =
+  ctxHint sp ctx ++ diagTyWfCore sp ctx ty
+diagnose sp (ElemWfNotDerivable ctx e ty) =
+  ctxHint sp ctx ++ diagElemWfCore sp ctx e ty
+diagnose sp (TyEqNotDerivable ctx t0 t1) =
+  let ctxOk = contains ctx sp.ctxWfRaw
+      lhsOk = wkMember sp.tyWfRaw str1TyWf ctxOk (ctx, t0)
+      rhsOk = wkMember sp.tyWfRaw str1TyWf ctxOk (ctx, t1)
+      guardHints =
+           (if lhsOk then [] else [HintEqGuardMissing "left" (diagTyWfCore sp ctx t0)])
+        ++ (if rhsOk then [] else [HintEqGuardMissing "right" (diagTyWfCore sp ctx t1)])
+      contentHints =
+        if lhsOk && rhsOk
+          then if wkMember sp.tyEqRaw str1TyEq ctxOk (ctx, t1, t0)
+                 then [HintReversedEq]
+                 else HintEqNeedsContent ::
+                      (let eps = take hintCap (mapMaybe
+                             (\(c, a, b) =>
+                               if c == ctx && not (a == t0 && b == t1)
+                                  && (a == t0 || b == t0 || a == t1 || b == t1)
+                                 then Just (a, b) else Nothing)
+                             (Prelude.toList sp.tyEqRaw))
+                       in if null eps then [] else [HintTyEqEndpoints ctx eps])
+          else []
+  in ctxHint sp ctx ++ guardHints ++ contentHints
+diagnose sp (ElemEqNotDerivable ctx e0 e1 ty) =
+  let ctxOk = contains ctx sp.ctxWfRaw
+      lhsOk = wkMember sp.elemWfRaw str1ElemWf ctxOk (ctx, e0, ty)
+      rhsOk = wkMember sp.elemWfRaw str1ElemWf ctxOk (ctx, e1, ty)
+      guardHints =
+           (if lhsOk then [] else [HintEqGuardMissing "left" (diagElemWfCore sp ctx e0 ty)])
+        ++ (if rhsOk then [] else [HintEqGuardMissing "right" (diagElemWfCore sp ctx e1 ty)])
+      contentHints =
+        if lhsOk && rhsOk
+          then if wkMember sp.elemEqRaw str1ElemEq ctxOk (ctx, e1, e0, ty)
+                 then [HintReversedEq]
+                 else HintEqNeedsContent ::
+                      (let eps = take hintCap (mapMaybe
+                             (\(c, a, b, t) =>
+                               if c == ctx && t == ty && not (a == e0 && b == e1)
+                                  && (a == e0 || b == e0 || a == e1 || b == e1)
+                                 then Just (a, b) else Nothing)
+                             (Prelude.toList sp.elemEqRaw))
+                       in if null eps then [] else [HintElemEqEndpoints ctx eps])
+          else []
+  in ctxHint sp ctx ++ guardHints ++ contentHints
+diagnose sp (PiAppInferenceFailed ctx f e) =
+  ctxHint sp ctx ++
+  (case piCandidates sp ctx f of
+     []   => let fTys = nub (elemTypesFor sp ctx f)
+             in if null fTys then [] else [HintAtOtherTypes ctx (take hintCap fTys)]
+     doms => [HintPiArg ctx (take hintCap (nub (map fst doms)))
+                            (take hintCap (nub (elemTypesFor sp ctx e)))])
+diagnose sp _ = []
 
 ||| Every judgement currently recorded in a `Truth`, in its raw form — the
 ||| form later rules can reference verbatim (wf premises match raw).

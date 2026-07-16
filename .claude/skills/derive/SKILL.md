@@ -70,6 +70,11 @@ build/exec/nova-foundation-app init derivations/<goal>/session.rules
 # Try one candidate rule. On success: appends it and prints the newly
 # derived facts. On failure: prints the rejected rule + precise reason,
 # and leaves the session file untouched (safe to retry other candidates).
+# Rejections (and NotDerivable query/check answers) come with a
+# "Near misses:" block — what the fact table DOES contain close to the
+# failed premise (same term at another type → coe; a failing eq-guard
+# side; the reversed equality; the longest derived context prefix; ...).
+# Read it before guessing: it usually names the missing step directly.
 build/exec/nova-foundation-app apply derivations/<goal>/session.rules "ctx-emp"
 build/exec/nova-foundation-app apply derivations/<goal>/session.rules "ty-nat ε ⊦ ℕ"
 

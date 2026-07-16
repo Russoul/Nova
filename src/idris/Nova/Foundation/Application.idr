@@ -28,7 +28,7 @@ record Input where
 ||| `Ok` — all targets derived
 ||| `Rejected` — one of the typing rules has been rejected
 ||| `NoWitness` — rules are consistent but a target is not in the truth table
-data Output = Ok | Rejected ContextualRejection | NoWitness JudgementForm
+data Output = Ok | Rejected ContextualRejection | NoWitness Truth JudgementForm
 
 BadInput = String
 Filename = String
@@ -39,7 +39,7 @@ run (MkInput rules targets) =
     Left rejection => Rejected rejection
     Right truth    =>
       case find (\t => not (check t truth)) targets of
-        Just t  => NoWitness t
+        Just t  => NoWitness truth t
         Nothing => Ok
 
 report : Output -> IO ()
@@ -47,10 +47,10 @@ report Ok = putStrLn "Ok"
 report (Rejected cr) = do
   putStrLn "Rejected"
   putStrLn $ "  At rule: " ++ prettyTypingRuleN cr.rule
-  putStrLn $ "  Reason: " ++ prettyRejectionN cr.reason
-report (NoWitness t) = do
+  putStrLn $ "  Reason: " ++ prettyRejectionN cr.reason ++ prettyNearMissesN cr.truth cr.reason
+report (NoWitness truth t) = do
   putStrLn "NoWitness"
-  putStrLn $ "  Target: " ++ prettyJudgementFormN t
+  putStrLn $ "  Target: " ++ prettyJudgementFormN t ++ prettyNearMissesN truth (jfRejection t)
 
 ||| Read a session file's content. A missing file reads as an empty session
 ||| (freshly started, no rules applied yet) rather than an error.
