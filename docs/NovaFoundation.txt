@@ -5,6 +5,17 @@ We present the theory extrinsically: https://ncatlab.org/nlab/show/intrinsic+and
 
 Semantics to syntactic forms is assigned via evaluation and canonical forms.
 
+NOTE: well-formed terms need not normalize in an inconsistent context.
+Equality reflection makes typability hypothesis-sensitive: e.g. under
+Γ ∋ h : (A ≡ (A → A) ∈ 𝕌), reflection gives El A ≐ El A → El A, so
+self-application types and Ω ≜ (λx. x x) (λx. x x) is well-formed at El A
+— yet Ω has no normal form. Normalization is therefore a property of terms
+in consistent contexts only; any procedure that beta-normalizes a
+well-formed term (as the checker does when storing and comparing facts)
+may diverge under inconsistent hypotheses. This is a liveness caveat, not
+a soundness one: a non-terminating normalization never certifies a
+judgement.
+
 //////////// Type Theory /////////////
 
 We have:
