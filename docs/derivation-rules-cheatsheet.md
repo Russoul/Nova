@@ -46,15 +46,16 @@ and beta-normalized — and:
 - an **equality** premise/target (`ty-eq`, `el-eq`, ...) matches raw, or —
   once both sides are raw-derivable well-formed at the queried type (the
   guard licensing normalization, mirroring the wf premises of the
-  ≜-computation rules) — up to beta-normalization against the normalized
-  store.
+  ≜-computation rules) — **by computation** (the two sides' normal forms
+  coincide — no stored equality fact needed at all) or up to
+  beta-normalization against the normalized store.
 
-So equalities still auto-discharge "up to computation" (there is no
+So equalities auto-discharge "up to computation" (there is no
 `ty-cmp`/`el-cmp` rewrite step), but each side must first be *formed* raw
 (`el-pi-e`/`el-sigma-i`/`ty-el`/... chains), and moving a fact to a
 beta-equal type is an explicit `el-ty-coe` whose `ty-eq` premise is
-discharged the same guarded way (typically: `ty-eq-form` both types, a
-`ty-refl` at either one, then the coe).
+discharged the same guarded way: form both types, then coe — the equality
+itself is by computation, no `ty-refl` seeding needed.
 
 `☐` is an indexed family `☐ₙ` (e.g. `☐₀`, `☐₁`, `☐₂` — Unicode subscript
 digits, no space). `el-var Γ ⊦ ☐ₙ` looks up `Γ‖ₙ` (the (n+1)-th type from the
@@ -93,9 +94,9 @@ T`), then convert to `el-eq` with `el-reflect`:
 2. Base case `z`: if `f Z` and `g Z` are beta-equal, build `Refl` at either
    one (`el-refl`), then move it to `A[Z]` (`f Z ≡ g Z ∈ T`) with an
    explicit `el-ty-coe`: `ty-eq-form` both Eq-types (their components must
-   be raw-derived first — `el-pi-e` chains etc.), `ty-refl` at the one you
-   built `Refl` at, then coe. The coe's `ty-eq` premise discharges up to
-   computation once both types are formed raw.
+   be raw-derived first — `el-pi-e` chains etc.), then coe — the coe's
+   `ty-eq` premise discharges by computation once both types are formed
+   raw.
 3. Step case `s`: you get `ih : A` at the fresh recursion variable `n`
    (i.e. `f n ≡ g n ∈ T`) in context. If `f (S n)` and `g (S n)` are
    themselves beta-equal *given* `ih` (not by computation alone — that's
@@ -243,9 +244,8 @@ sessions reference it by name instead of re-deriving it.
 
 There is no `sig-var-eq`/`ty-sig-var-eq`: unfolding a definition (`x[e˲] ≐
 a[e˲]` / `x[e˲] ≐ A[e˲]`) is an *equality up to computation*, and those
-discharge via the guarded normalized store — once both sides are
-raw-derivable well-formed at the queried type, an `el-eq-refl`/`ty-refl`
-at either side supplies the normalized fact the query matches against.
+discharge by computation — once both sides are raw-derivable well-formed
+at the queried type, the query is accepted directly (equal normal forms).
 
 ## Element equality
 
@@ -295,8 +295,8 @@ it doesn't discharge it as a side goal.
 well-formedness premise, so if `a`/`b` are themselves built from
 eliminators (e.g. `(p, q).π₁`), a witness built at the *reduced* form must
 be moved to the literal `R[id, a, b]` with an explicit `el-ty-coe`
-(`ty-eq-form` both types, `ty-refl` at the reduced one, coe — see
-`derivations/integer/session.rules` for a worked instance). See
+(form both types, then coe — see `derivations/integer/session.rules`
+for a worked instance). See
 `derivations/quotient/session.rules` for the smallest working example
 (`R ≜ 𝟙`, so both premises above are free).
 

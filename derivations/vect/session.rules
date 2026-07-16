@@ -27,7 +27,6 @@
 - el-one-ty ε ᐅ A:𝕌 ⊦ 𝟙 : 𝕌
 - ty-eq-form ε ᐅ A:𝕌 ⊦ vect[] Z A ≡ vect[] Z A ∈ 𝕌
 - ty-eq-form ε ᐅ A:𝕌 ⊦ vect[] Z A ≡ 𝟙 ∈ 𝕌
-- ty-refl ε ᐅ A:𝕌 ⊦ vect[] Z A ≡ vect[] Z A ∈ 𝕌
 - el-ty-coe ε ᐅ A:𝕌 ⊦ Refl : vect[] Z A ≡ vect[] Z A ∈ 𝕌 ↝ vect[] Z A ≡ 𝟙 ∈ 𝕌
 - sig ε ᐅ A:𝕌 ⊦ vectZ ≔ Refl : vect[] Z A ≡ 𝟙 ∈ 𝕌
 - sub-norm-term ε ᐅ n:ℕ ᐅ A:𝕌 ⊦
@@ -42,7 +41,6 @@
 - el-refl ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ Refl : (vect[] (S n) A) ∈ 𝕌
 - ty-eq-form ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ vect[] (S n) A ≡ vect[] (S n) A ∈ 𝕌
 - ty-eq-form ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ vect[] (S n) A ≡ (A ⨯ vect[] n A) ∈ 𝕌
-- ty-refl ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ vect[] (S n) A ≡ vect[] (S n) A ∈ 𝕌
 - el-ty-coe ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ Refl : vect[] (S n) A ≡ vect[] (S n) A ∈ 𝕌 ↝ vect[] (S n) A ≡ (A ⨯ vect[] n A) ∈ 𝕌
 - sig ε ᐅ n:ℕ ᐅ A:𝕌 ⊦ vectS ≔ Refl : vect[] (S n) A ≡ (A ⨯ vect[] n A) ∈ 𝕌
 - sub-norm-term ε ⊦

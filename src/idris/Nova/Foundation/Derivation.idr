@@ -737,9 +737,15 @@ piCandidates sp gamma f = go 0 gamma f
 -- weakening — the expression must have been derived in exactly the form
 -- written, but possibly in a prefix context. Equality queries match raw,
 -- or — once the guard passes (both sides raw-derivable well-formed at the
--- queried type, licensing normalization) — the normalized store, again up
--- to weakening. (&&)/(||) are lazy in their right argument, so the
--- normXxx call never runs unless its guard already succeeded.
+-- queried type, licensing normalization) — by computation or against the
+-- normalized store (again up to weakening). The by-computation disjunct
+-- (the two sides' normal forms coincide) needs no stored equality fact at
+-- all: with both endpoints well-formed, every ≜-step out of them is a
+-- derivable equality (subject reduction supplies the intermediate wf
+-- premises), and equal normal forms make the two chains meet — the
+-- conclusion follows by symmetry/transitivity. (&&)/(||) are lazy in
+-- their right argument, so nothing is normalized unless its guard already
+-- succeeded.
 
 export
 ctxWfDerivable : Ctx -> Truth -> Either Rejection ()
@@ -787,7 +793,8 @@ ctxEqDerivable ctx0 ctx1 sp =
   rejectUnless (CtxEqNotDerivable ctx0 ctx1) $
     contains (ctx0, ctx1) sp.ctxEqRaw
     || (contains ctx0 sp.ctxWfRaw && contains ctx1 sp.ctxWfRaw
-        && contains (normCtxEq sp.sig (ctx0, ctx1)) sp.ctxEqNorm)
+        && (betaCtx sp.sig ctx0 == betaCtx sp.sig ctx1
+            || contains (normCtxEq sp.sig (ctx0, ctx1)) sp.ctxEqNorm))
 
 export
 tyEqDerivable : Ctx -> Ty -> Ty -> Truth -> Either Rejection ()
@@ -797,7 +804,8 @@ tyEqDerivable ctx ty0 ty1 sp =
     wkMember sp.tyEqRaw str1TyEq ctxOk (ctx, ty0, ty1)
     || (wkMember sp.tyWfRaw str1TyWf ctxOk (ctx, ty0)
         && wkMember sp.tyWfRaw str1TyWf ctxOk (ctx, ty1)
-        && wkMember sp.tyEqNorm str1TyEq ctxOk (normTyEq sp.sig (ctx, ty0, ty1)))
+        && (betaTy sp.sig ty0 == betaTy sp.sig ty1
+            || wkMember sp.tyEqNorm str1TyEq ctxOk (normTyEq sp.sig (ctx, ty0, ty1))))
 
 export
 subEqDerivable : Sub -> Sub -> Ctx -> Ctx -> Truth -> Either Rejection ()
@@ -807,7 +815,8 @@ subEqDerivable s0 s1 g d sp =
     wkMember sp.subEqRaw str1SubEq ctxOk (s0, s1, g, d)
     || (wkMember sp.subWfRaw str1SubWf ctxOk (s0, g, d)
         && wkMember sp.subWfRaw str1SubWf ctxOk (s1, g, d)
-        && wkMember sp.subEqNorm str1SubEq ctxOk (normSubEq sp.sig (s0, s1, g, d)))
+        && (betaSub sp.sig s0 == betaSub sp.sig s1
+            || wkMember sp.subEqNorm str1SubEq ctxOk (normSubEq sp.sig (s0, s1, g, d))))
 
 export
 subNormEqDerivable : SubNorm -> SubNorm -> Ctx -> Ctx -> Truth -> Either Rejection ()
@@ -817,7 +826,8 @@ subNormEqDerivable s0 s1 g d sp =
     wkMember sp.subNormEqRaw str1SubNormEq ctxOk (s0, s1, g, d)
     || (wkMember sp.subNormWfRaw str1SubNormWf ctxOk (s0, g, d)
         && wkMember sp.subNormWfRaw str1SubNormWf ctxOk (s1, g, d)
-        && wkMember sp.subNormEqNorm str1SubNormEq ctxOk (normSubNormEq sp.sig (s0, s1, g, d)))
+        && (betaSubNorm sp.sig s0 == betaSubNorm sp.sig s1
+            || wkMember sp.subNormEqNorm str1SubNormEq ctxOk (normSubNormEq sp.sig (s0, s1, g, d))))
 
 export
 elemEqDerivable : Ctx -> Elem -> Elem -> Ty -> Truth -> Either Rejection ()
@@ -827,7 +837,8 @@ elemEqDerivable ctx e0 e1 ty sp =
     wkMember sp.elemEqRaw str1ElemEq ctxOk (ctx, e0, e1, ty)
     || (wkMember sp.elemWfRaw str1ElemWf ctxOk (ctx, e0, ty)
         && wkMember sp.elemWfRaw str1ElemWf ctxOk (ctx, e1, ty)
-        && wkMember sp.elemEqNorm str1ElemEq ctxOk (normElemEq sp.sig (ctx, e0, e1, ty)))
+        && (betaElem sp.sig e0 == betaElem sp.sig e1
+            || wkMember sp.elemEqNorm str1ElemEq ctxOk (normElemEq sp.sig (ctx, e0, e1, ty))))
 
 export
 telEqDerivable : Ctx -> Tel -> Tel -> Truth -> Either Rejection ()
@@ -837,7 +848,8 @@ telEqDerivable ctx t0 t1 sp =
     wkMember sp.telEqRaw str1TelEq ctxOk (ctx, t0, t1)
     || (wkMember sp.telWfRaw str1TelWf ctxOk (ctx, t0)
         && wkMember sp.telWfRaw str1TelWf ctxOk (ctx, t1)
-        && wkMember sp.telEqNorm str1TelEq ctxOk (normTelEq sp.sig (ctx, t0, t1)))
+        && (betaTel sp.sig t0 == betaTel sp.sig t1
+            || wkMember sp.telEqNorm str1TelEq ctxOk (normTelEq sp.sig (ctx, t0, t1))))
 
 export
 spineEqDerivable : Ctx -> Spine -> Spine -> Tel -> Truth -> Either Rejection ()
@@ -847,7 +859,8 @@ spineEqDerivable ctx s0 s1 tel sp =
     wkMember sp.spineEqRaw str1SpineEq ctxOk (ctx, s0, s1, tel)
     || (wkMember sp.spineWfRaw str1SpineWf ctxOk (ctx, s0, tel)
         && wkMember sp.spineWfRaw str1SpineWf ctxOk (ctx, s1, tel)
-        && wkMember sp.spineEqNorm str1SpineEq ctxOk (normSpineEq sp.sig (ctx, s0, s1, tel)))
+        && (betaSpine sp.sig s0 == betaSpine sp.sig s1
+            || wkMember sp.spineEqNorm str1SpineEq ctxOk (normSpineEq sp.sig (ctx, s0, s1, tel))))
 
 ||| Γ‖ₙ : the type ☐ₙ has in Γ, weakening by one extra ↑ at every step of
 ||| the lookup (so the result already accounts for every extension between
@@ -1113,6 +1126,7 @@ step (SubNormEqTrans s0 s1 s2 g d) sp = do
   Right $ insertSubNormEq (s0, s2, g, d) sp
 step (SubNormEqExt s0 s1 t0 t1 gamma0 gamma1 ty) sp = do
   subNormEqDerivable s0 s1 gamma0 gamma1 sp
+  tyWfDerivable gamma1 ty sp
   elemEqDerivable gamma0 t0 t1 (substTy ty (embed s1)) sp
   Right $ insertSubNormEq (s0 :< t0, s1 :< t1, gamma0, gamma1 :< ty) sp
 step (TyEqRefl ctx ty) sp = do

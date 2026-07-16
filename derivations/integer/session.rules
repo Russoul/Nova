@@ -28,6 +28,5 @@ depends: plus
 - el-pi-e ε ⊦ plus[] ((Z , Z) .π₂) ((S Z , S Z) .π₁)
 - ty-eq-form ε ⊦ plus[] Z (S Z) ≡ plus[] Z (S Z) ∈ ℕ
 - ty-eq-form ε ⊦ plus[] ((Z , Z) .π₁) ((S Z , S Z) .π₂) ≡ plus[] ((Z , Z) .π₂) ((S Z , S Z) .π₁) ∈ ℕ
-- ty-refl ε ⊦ plus[] Z (S Z) ≡ plus[] Z (S Z) ∈ ℕ
 - el-ty-coe ε ⊦ Refl : plus[] Z (S Z) ≡ plus[] Z (S Z) ∈ ℕ ↝ plus[] ((Z , Z) .π₁) ((S Z , S Z) .π₂) ≡ plus[] ((Z , Z) .π₂) ((S Z , S Z) .π₁) ∈ ℕ
 - el-quot-eq ε ⊦ class (Z , Z) ≐ class (S Z , S Z) : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ)) via Refl
