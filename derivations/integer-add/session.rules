@@ -1,6 +1,6 @@
 depends: plus, integer
-- ctx C1 ≔ ε ᐅ zx:(ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
-- ctx C2 ≔ C1 ᐅ zy:(ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
+- ctx C1 ≔ ε ᐅ zx:Int[]
+- ctx C2 ≔ C1 ᐅ zy:Int[]
 - ctx C3 ≔ C2 ᐅ a:ℕ ⨯ ℕ ᐅ b:ℕ ⨯ ℕ ᐅ rp:ℕ ⨯ ℕ
 - ctx C4 ≔ C2 ᐅ a:ℕ ⨯ ℕ ᐅ b:ℕ ⨯ ℕ ᐅ bp:ℕ ⨯ ℕ
 - ctx C5 ≔ C2 ᐅ a:ℕ ⨯ ℕ ᐅ ap:ℕ ⨯ ℕ ᐅ ra:(plus[] (a.π₁) (ap.π₂) ≡ plus[] (a.π₂) (ap.π₁) ∈ ℕ)
@@ -110,9 +110,6 @@ depends: plus, integer
 - el-pi-e CA1 ⊦ plus[] ((plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂)) .π₁) ((plus[] (a.π₁) (bp.π₁), plus[] (a.π₂) (bp.π₂)) .π₂)
 - el-pi-e CA1 ⊦ plus[] ((plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂)) .π₂) ((plus[] (a.π₁) (bp.π₁), plus[] (a.π₂) (bp.π₂)) .π₁)
 - ty-eq-form CA1 ⊦ plus[] ((plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂)) .π₁) ((plus[] (a.π₁) (bp.π₁), plus[] (a.π₂) (bp.π₂)) .π₂) ≡ plus[] ((plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂)) .π₂) ((plus[] (a.π₁) (bp.π₁), plus[] (a.π₂) (bp.π₂)) .π₁) ∈ ℕ
-- el-pi-e CA1 ⊦ plus[] (plus[] (a.π₁) (b.π₁)) (plus[] (a.π₂) (bp.π₂))
-- ty-eq-form CA1 ⊦ plus[] (plus[] (a.π₁) (b.π₁)) (plus[] (a.π₂) (bp.π₂)) ≡ plus[] (plus[] (a.π₂) (b.π₂)) (plus[] (a.π₁) (bp.π₁)) ∈ ℕ
-- el-ty-coe CA1 ⊦ Refl : plus[] (plus[] (a.π₁) (b.π₁)) (plus[] (a.π₂) (bp.π₂)) ≡ plus[] (plus[] (a.π₂) (b.π₂)) (plus[] (a.π₁) (bp.π₁)) ∈ ℕ ↝ plus[] ((plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂)) .π₁) ((plus[] (a.π₁) (bp.π₁), plus[] (a.π₂) (bp.π₂)) .π₂) ≡ plus[] ((plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂)) .π₂) ((plus[] (a.π₁) (bp.π₁), plus[] (a.π₂) (bp.π₂)) .π₁) ∈ ℕ
 - el-quot-eq C6 ⊦ class (plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂)) ≐ class (plus[] (a.π₁) (bp.π₁), plus[] (a.π₂) (bp.π₂)) : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ)) via Refl
 - el-pi-e C2 ᐅ a:ℕ ⨯ ℕ ᐅ b:ℕ ⨯ ℕ ⊦ plus[] (a.π₁) (b.π₂)
 - el-pi-e C2 ᐅ a:ℕ ⨯ ℕ ᐅ b:ℕ ⨯ ℕ ⊦ plus[] (a.π₂) (b.π₁)
@@ -196,9 +193,6 @@ depends: plus, integer
 - el-pi-e CA2 ⊦ plus[] ((plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂)) .π₁) ((plus[] (a.π₁) (bp.π₁), plus[] (a.π₂) (bp.π₂)) .π₂)
 - el-pi-e CA2 ⊦ plus[] ((plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂)) .π₂) ((plus[] (a.π₁) (bp.π₁), plus[] (a.π₂) (bp.π₂)) .π₁)
 - ty-eq-form CA2 ⊦ plus[] ((plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂)) .π₁) ((plus[] (a.π₁) (bp.π₁), plus[] (a.π₂) (bp.π₂)) .π₂) ≡ plus[] ((plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂)) .π₂) ((plus[] (a.π₁) (bp.π₁), plus[] (a.π₂) (bp.π₂)) .π₁) ∈ ℕ
-- el-pi-e CA2 ⊦ plus[] (plus[] (a.π₁) (b.π₁)) (plus[] (a.π₂) (bp.π₂))
-- ty-eq-form CA2 ⊦ plus[] (plus[] (a.π₁) (b.π₁)) (plus[] (a.π₂) (bp.π₂)) ≡ plus[] (plus[] (a.π₂) (b.π₂)) (plus[] (a.π₁) (bp.π₁)) ∈ ℕ
-- el-ty-coe CA2 ⊦ Refl : plus[] (plus[] (a.π₁) (b.π₁)) (plus[] (a.π₂) (bp.π₂)) ≡ plus[] (plus[] (a.π₂) (b.π₂)) (plus[] (a.π₁) (bp.π₁)) ∈ ℕ ↝ plus[] ((plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂)) .π₁) ((plus[] (a.π₁) (bp.π₁), plus[] (a.π₂) (bp.π₂)) .π₂) ≡ plus[] ((plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂)) .π₂) ((plus[] (a.π₁) (bp.π₁), plus[] (a.π₂) (bp.π₂)) .π₁) ∈ ℕ
 - el-quot-eq C8 ⊦ class (plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂)) ≐ class (plus[] (a.π₁) (bp.π₁), plus[] (a.π₂) (bp.π₂)) : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ)) via Refl
 - sig-var C8 ⊦ mfe[ap.π₁, b.π₁, ap.π₂, bp.π₂]
 - el-reflect C8 ⊦ mfe[ap.π₁, b.π₁, ap.π₂, bp.π₂] : (plus[] (plus[] (ap.π₁) (b.π₁)) (plus[] (ap.π₂) (bp.π₂)) ≡ plus[] (plus[] (ap.π₁) (ap.π₂)) (plus[] (b.π₁) (bp.π₂)) ∈ ℕ) reflect
@@ -229,9 +223,6 @@ depends: plus, integer
 - el-pi-e CA3 ⊦ plus[] ((plus[] (ap.π₁) (b.π₁), plus[] (ap.π₂) (b.π₂)) .π₁) ((plus[] (ap.π₁) (bp.π₁), plus[] (ap.π₂) (bp.π₂)) .π₂)
 - el-pi-e CA3 ⊦ plus[] ((plus[] (ap.π₁) (b.π₁), plus[] (ap.π₂) (b.π₂)) .π₂) ((plus[] (ap.π₁) (bp.π₁), plus[] (ap.π₂) (bp.π₂)) .π₁)
 - ty-eq-form CA3 ⊦ plus[] ((plus[] (ap.π₁) (b.π₁), plus[] (ap.π₂) (b.π₂)) .π₁) ((plus[] (ap.π₁) (bp.π₁), plus[] (ap.π₂) (bp.π₂)) .π₂) ≡ plus[] ((plus[] (ap.π₁) (b.π₁), plus[] (ap.π₂) (b.π₂)) .π₂) ((plus[] (ap.π₁) (bp.π₁), plus[] (ap.π₂) (bp.π₂)) .π₁) ∈ ℕ
-- el-pi-e CA3 ⊦ plus[] (plus[] (ap.π₁) (b.π₁)) (plus[] (ap.π₂) (bp.π₂))
-- ty-eq-form CA3 ⊦ plus[] (plus[] (ap.π₁) (b.π₁)) (plus[] (ap.π₂) (bp.π₂)) ≡ plus[] (plus[] (ap.π₂) (b.π₂)) (plus[] (ap.π₁) (bp.π₁)) ∈ ℕ
-- el-ty-coe CA3 ⊦ Refl : plus[] (plus[] (ap.π₁) (b.π₁)) (plus[] (ap.π₂) (bp.π₂)) ≡ plus[] (plus[] (ap.π₂) (b.π₂)) (plus[] (ap.π₁) (bp.π₁)) ∈ ℕ ↝ plus[] ((plus[] (ap.π₁) (b.π₁), plus[] (ap.π₂) (b.π₂)) .π₁) ((plus[] (ap.π₁) (bp.π₁), plus[] (ap.π₂) (bp.π₂)) .π₂) ≡ plus[] ((plus[] (ap.π₁) (b.π₁), plus[] (ap.π₂) (b.π₂)) .π₂) ((plus[] (ap.π₁) (bp.π₁), plus[] (ap.π₂) (bp.π₂)) .π₁) ∈ ℕ
 - el-quot-eq C8 ⊦ class (plus[] (ap.π₁) (b.π₁), plus[] (ap.π₂) (b.π₂)) ≐ class (plus[] (ap.π₁) (bp.π₁), plus[] (ap.π₂) (bp.π₂)) : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ)) via Refl
 - sig-var C5 ᐅ b:ℕ ⨯ ℕ ⊦ mfe[a.π₁, b.π₁, ap.π₂, b.π₂]
 - el-reflect C5 ᐅ b:ℕ ⨯ ℕ ⊦ mfe[a.π₁, b.π₁, ap.π₂, b.π₂] : (plus[] (plus[] (a.π₁) (b.π₁)) (plus[] (ap.π₂) (b.π₂)) ≡ plus[] (plus[] (a.π₁) (ap.π₂)) (plus[] (b.π₁) (b.π₂)) ∈ ℕ) reflect
@@ -262,17 +253,14 @@ depends: plus, integer
 - el-pi-e CA4 ⊦ plus[] ((plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂)) .π₁) ((plus[] (ap.π₁) (b.π₁), plus[] (ap.π₂) (b.π₂)) .π₂)
 - el-pi-e CA4 ⊦ plus[] ((plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂)) .π₂) ((plus[] (ap.π₁) (b.π₁), plus[] (ap.π₂) (b.π₂)) .π₁)
 - ty-eq-form CA4 ⊦ plus[] ((plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂)) .π₁) ((plus[] (ap.π₁) (b.π₁), plus[] (ap.π₂) (b.π₂)) .π₂) ≡ plus[] ((plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂)) .π₂) ((plus[] (ap.π₁) (b.π₁), plus[] (ap.π₂) (b.π₂)) .π₁) ∈ ℕ
-- el-pi-e CA4 ⊦ plus[] (plus[] (a.π₁) (b.π₁)) (plus[] (ap.π₂) (b.π₂))
-- ty-eq-form CA4 ⊦ plus[] (plus[] (a.π₁) (b.π₁)) (plus[] (ap.π₂) (b.π₂)) ≡ plus[] (plus[] (a.π₂) (b.π₂)) (plus[] (ap.π₁) (b.π₁)) ∈ ℕ
-- el-ty-coe CA4 ⊦ Refl : plus[] (plus[] (a.π₁) (b.π₁)) (plus[] (ap.π₂) (b.π₂)) ≡ plus[] (plus[] (a.π₂) (b.π₂)) (plus[] (ap.π₁) (b.π₁)) ∈ ℕ ↝ plus[] ((plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂)) .π₁) ((plus[] (ap.π₁) (b.π₁), plus[] (ap.π₂) (b.π₂)) .π₂) ≡ plus[] ((plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂)) .π₂) ((plus[] (ap.π₁) (b.π₁), plus[] (ap.π₂) (b.π₂)) .π₁) ∈ ℕ
 - el-quot-eq C5 ᐅ b:ℕ ⨯ ℕ ⊦ class (plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂)) ≐ class (plus[] (ap.π₁) (b.π₁), plus[] (ap.π₂) (b.π₂)) : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ)) via Refl
 - ctx-ext C5 ᐅ dummy:(ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
 - el-quot-elim-cong C5 ⊦ quot-elim (b. class (plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂))) ≐ (b. class (plus[] (ap.π₁) (b.π₁), plus[] (ap.π₂) (b.π₂))) (zy ≐ zy : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))) motive (q1. (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ)))
 - ctx-ext C2 ᐅ dummy:(ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
 - el-var C2 ⊦ zx
 - el-quot-elim C2 ⊦ quot-elim (a. quot-elim (b. class (plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂))) zy) (zx : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))) motive (q1. (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ)))
-- el-pi-i C1 ⊦ λzy. (quot-elim (a. quot-elim (b. class (plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂))) zy) zx) : ((ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))) → (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
-- el-pi-i ε ⊦ λzx. (λzy. (quot-elim (a. quot-elim (b. class (plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂))) zy) zx)) : ((ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))) → ((ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))) → (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
-- sig ε ⊦ intAdd ≔ λzx. (λzy. (quot-elim (a. quot-elim (b. class (plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂))) zy) zx)) : ((ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))) → ((ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))) → (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
+- el-pi-i C1 ⊦ λzy. (quot-elim (a. quot-elim (b. class (plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂))) zy) zx) : (Int[]) → Int[]
+- el-pi-i ε ⊦ λzx. (λzy. (quot-elim (a. quot-elim (b. class (plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂))) zy) zx)) : (Int[]) → (Int[]) → Int[]
+- sig ε ⊦ intAdd ≔ λzx. (λzy. (quot-elim (a. quot-elim (b. class (plus[] (a.π₁) (b.π₁), plus[] (a.π₂) (b.π₂))) zy) zx)) : (Int[]) → (Int[]) → Int[]
 - sig-var ε ⊦ intAdd[]
 - el-pi-e ε ⊦ intAdd[] (class (Z , Z)) (class (S Z , S Z))

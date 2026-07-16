@@ -1,6 +1,6 @@
 depends: plus, integer
 - ctx D1 ≔ ε ᐅ a:ℕ ᐅ n2:ℕ ᐅ ih2:(ℕ → ℕ ⨯ ℕ) ᐅ bb:ℕ ᐅ bb2:ℕ
-- ctx D2 ≔ ε ᐅ z:(ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
+- ctx D2 ≔ ε ᐅ z:Int[]
 - ctx D3 ≔ D2 ᐅ rep:ℕ ⨯ ℕ ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ
 - ctx D4 ≔ ε ᐅ a:ℕ ᐅ ap:ℕ ᐅ ihOuter:((bp:ℕ) → (plus[] ((normPair[] ap bp).π₁) bp ≡ plus[] ((normPair[] ap bp).π₂) ap ∈ ℕ))
 - ctx D5 ≔ D2 ᐅ a:ℕ ⨯ ℕ ᐅ ap:ℕ ⨯ ℕ ᐅ ra:(plus[] (a.π₁) (ap.π₂) ≡ plus[] (a.π₂) (ap.π₁) ∈ ℕ)
@@ -78,17 +78,12 @@ depends: plus, integer
 - el-pi-e D4 ᐅ bq:ℕ ⊦ plus[] ((normPair[] (S ap) Z) .π₁) Z
 - el-pi-e D4 ᐅ bq:ℕ ⊦ plus[] ((normPair[] (S ap) Z) .π₂) (S ap)
 - ty-eq-form D4 ᐅ bq:ℕ ⊦ plus[] ((normPair[] (S ap) Z) .π₁) Z ≡ plus[] ((normPair[] (S ap) Z) .π₂) (S ap) ∈ ℕ
-- el-pi-e D4 ᐅ bq:ℕ ⊦ plus[] Z (S ap)
-- ty-eq-form D4 ᐅ bq:ℕ ⊦ plus[] (S ap) Z ≡ plus[] Z (S ap) ∈ ℕ
-- el-ty-coe D4 ᐅ bq:ℕ ⊦ Refl : plus[] (S ap) Z ≡ plus[] Z (S ap) ∈ ℕ ↝ plus[] ((normPair[] (S ap) Z) .π₁) Z ≡ plus[] ((normPair[] (S ap) Z) .π₂) (S ap) ∈ ℕ
 - el-pi-e D6 ⊦ normPair[] (S ap) (S bb)
 - el-sigma-e1 D6 ⊦ (normPair[] (S ap) (S bb) : ℕ ⨯ ℕ) .π₁
 - el-sigma-e2 D6 ⊦ (normPair[] (S ap) (S bb) : ℕ ⨯ ℕ) .π₂
 - el-pi-e D6 ⊦ plus[] ((normPair[] (S ap) (S bb)) .π₁) (S bb)
 - el-pi-e D6 ⊦ plus[] ((normPair[] (S ap) (S bb)) .π₂) (S ap)
 - ty-eq-form D6 ⊦ plus[] ((normPair[] (S ap) (S bb)) .π₁) (S bb) ≡ plus[] ((normPair[] (S ap) (S bb)) .π₂) (S ap) ∈ ℕ
-- ty-eq-form D6 ⊦ plus[] ((normPair[] ap bb) .π₁) (S bb) ≡ plus[] ((normPair[] ap bb) .π₂) (S ap) ∈ ℕ
-- el-ty-coe D6 ⊦ Refl : plus[] ((normPair[] ap bb) .π₁) (S bb) ≡ plus[] ((normPair[] ap bb) .π₂) (S ap) ∈ ℕ ↝ plus[] ((normPair[] (S ap) (S bb)) .π₁) (S bb) ≡ plus[] ((normPair[] (S ap) (S bb)) .π₂) (S ap) ∈ ℕ
 - el-nat-e D4 ᐅ bq:ℕ ⊦ ℕ-elim (Refl) (bb ihd. Refl) bq motive (bq2 ihd2. (plus[] ((normPair[] (S ap) bq2).π₁) bq2 ≡ plus[] ((normPair[] (S ap) bq2).π₂) (S ap) ∈ ℕ))
 - el-pi-i D4 ⊦ λbq. (ℕ-elim (Refl) (bb ihd. Refl) bq) : (bp:ℕ) → (plus[] ((normPair[] (S ap) bp).π₁) bp ≡ plus[] ((normPair[] (S ap) bp).π₂) (S ap) ∈ ℕ)
 - el-pi-e ε ᐅ a:ℕ ᐅ bp:ℕ ⊦ normPair[] Z bp
@@ -98,9 +93,6 @@ depends: plus, integer
 - el-pi-e ε ᐅ a:ℕ ᐅ bp:ℕ ⊦ plus[] ((normPair[] Z bp) .π₂) Z
 - ty-eq-form ε ᐅ a:ℕ ᐅ bp:ℕ ⊦ plus[] ((normPair[] Z bp) .π₁) bp ≡ plus[] ((normPair[] Z bp) .π₂) Z ∈ ℕ
 - ty-pi ε ᐅ a:ℕ ⊦ (bp:ℕ) → (plus[] ((normPair[] Z bp) .π₁) bp ≡ plus[] ((normPair[] Z bp) .π₂) Z ∈ ℕ)
-- ty-eq-form ε ᐅ a:ℕ ᐅ bp:ℕ ⊦ plus[] Z bp ≡ plus[] bp Z ∈ ℕ
-- ty-pi ε ᐅ a:ℕ ⊦ (bp:ℕ) → (plus[] Z bp ≡ plus[] bp Z ∈ ℕ)
-- el-ty-coe ε ᐅ a:ℕ ⊦ λbp. Refl : (bp:ℕ) → (plus[] Z bp ≡ plus[] bp Z ∈ ℕ) ↝ (bp:ℕ) → (plus[] ((normPair[] Z bp) .π₁) bp ≡ plus[] ((normPair[] Z bp) .π₂) Z ∈ ℕ)
 - el-nat-e ε ᐅ a:ℕ ⊦ ℕ-elim (λbp. Refl) (ap ihOuter. (λbq. (ℕ-elim (Refl) (bb ihd. Refl) bq))) a motive (a2 ihO. ((bp:ℕ) → (plus[] ((normPair[] a2 bp).π₁) bp ≡ plus[] ((normPair[] a2 bp).π₂) a2 ∈ ℕ)))
 - el-pi-i ε ⊦ λa. (ℕ-elim (λbp. Refl) (ap ihOuter. (λbq. (ℕ-elim (Refl) (bb ihd. Refl) bq))) a) : (a2:ℕ) → ((bp:ℕ) → (plus[] ((normPair[] a2 bp).π₁) bp ≡ plus[] ((normPair[] a2 bp).π₂) a2 ∈ ℕ))
 - sig ε ⊦ normPreservesClassFn ≔ λa. (ℕ-elim (λbp. Refl) (ap ihOuter. (λbq. (ℕ-elim (Refl) (bb ihd. Refl) bq))) a) : (a2:ℕ) → ((bp:ℕ) → (plus[] ((normPair[] a2 bp).π₁) bp ≡ plus[] ((normPair[] a2 bp).π₂) a2 ∈ ℕ))
@@ -154,9 +146,10 @@ depends: plus, integer
 - el-eq-sym D5 ⊦ class ap ≐ class (normPair[] (ap.π₁) (ap.π₂)) : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
 - el-eq-trans D5 ⊦ class (normPair[] (a.π₁) (a.π₂)) ≐ class ap : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ)) via class a
 - el-eq-trans D5 ⊦ class (normPair[] (a.π₁) (a.π₂)) ≐ class (normPair[] (ap.π₁) (ap.π₂)) : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ)) via class ap
-- el-quot-elim D2 ⊦ quot-elim (rep. class (normPair[] (rep.π₁) (rep.π₂))) (z : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))) motive (q1. (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ)))
-- el-pi-i ε ⊦ λz. (quot-elim (rep. class (normPair[] (rep.π₁) (rep.π₂))) z) : ((ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))) → (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
-- sig ε ⊦ intNormalize ≔ λz. (quot-elim (rep. class (normPair[] (rep.π₁) (rep.π₂))) z) : ((ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))) → (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
+- el-ty-coe-eq ε ᐅ x:Int[] ᐅ y:ℕ ⨯ ℕ ᐅ z:ℕ ⨯ ℕ ᐅ w:plus[] (y .π₁) (z .π₂) ≡ plus[] (y .π₂) (z .π₁) ∈ ℕ ⊦ class (normPair[] (y .π₁) (y .π₂)) ≐ class (normPair[] (z .π₁) (z .π₂)) : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ)) ↝ Int[]
+- el-quot-elim D2 ⊦ quot-elim (rep. class (normPair[] (rep.π₁) (rep.π₂))) (z : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))) motive (q1. Int[])
+- el-pi-i ε ⊦ λz. (quot-elim (rep. class (normPair[] (rep.π₁) (rep.π₂))) z) : (Int[]) → Int[]
+- sig ε ⊦ intNormalize ≔ λz. (quot-elim (rep. class (normPair[] (rep.π₁) (rep.π₂))) z) : (Int[]) → Int[]
 - sig-var ε ⊦ intNormalize[]
 - el-sigma-i ε ⊦ S Z , Z : ℕ ⨯ ℕ
 - el-class ε ⊦ class (S Z , Z) : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
@@ -165,5 +158,3 @@ depends: plus, integer
 - el-sigma-i ε ⊦ S Z , S (S Z) : ℕ ⨯ ℕ
 - el-class ε ⊦ class (S Z , S (S Z)) : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
 - el-pi-e ε ⊦ intNormalize[] (class (S Z , S (S Z)))
-- el-sigma-i ε ⊦ Z , S Z : ℕ ⨯ ℕ
-- el-class ε ⊦ class (Z , S Z) : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))

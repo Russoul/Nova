@@ -188,7 +188,11 @@ dependency derived (e.g. `el-wf ε ⊦ plus[] : ℕ → ℕ → ℕ` from its ow
 `sig-var ε ⊦ plus[]`) is usable directly: well-formedness premises match
 derived facts raw in the context written *or any extension of it* —
 weakening is automatic, so a closed fact stated once at `ε` works in
-every context you build.
+every context you build. Conversion is automatic too: once the queried
+context and type are themselves derivably well-formed, a fact derived at
+any beta-equal spelling of them counts (so a `sig-ty` definition like
+`Int` and its unfolding interchange freely; only the candidate expression
+itself must match raw).
 
 A `depends:` cycle (A depends on B depends on A) is rejected with a clear
 error rather than hanging; a missing/unreadable dependency file is

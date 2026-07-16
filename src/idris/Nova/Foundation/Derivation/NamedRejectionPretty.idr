@@ -83,7 +83,7 @@ prettyHintN (HintCtxPrefixDerived pfx ty) =
 prettyHintN (HintAtOtherTypes ctx tys) =
   let env = envForCtx ctx
   in "derived here at other type(s): " ++ joinWith " | " (map (prettyTyN env) tys) ++
-     " — if ≐ the queried type (try a ty-eq query), an el-ty-coe bridges it"
+     " — conversion is automatic once the queried type is derivably well-formed here and beta-equal to one of these; since this query failed, derive the queried type's ty-wf first, or bridge a non-computational equality with el-ty-coe"
 prettyHintN (HintInOtherCtxs ctxs) =
   "the exact judgement holds only in other context(s): " ++ joinWith " | " (map prettyCtxN ctxs)
 prettyHintN (HintEqGuardMissing side subs) =

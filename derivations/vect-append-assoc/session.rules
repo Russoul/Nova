@@ -65,7 +65,6 @@ depends: plus, vect, vect-append
 - el-var C9 ⊦ q
 - ctx-ext C10
 - ty-sigma C9 ⊦ El A ⨯ El (vect[] p A)
-- el-ty-coe C9 ⊦ q : El (vect[] (S p) A) ↝ El A ⨯ El (vect[] p A)
 - el-sigma-e1 C9 ⊦ (q : El A ⨯ El (vect[] p A)) .π₁
 - el-sigma-e2 C9 ⊦ (q : El A ⨯ El (vect[] p A)) .π₂
 - el-var C9 ⊦ ih

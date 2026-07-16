@@ -1,2 +1,2 @@
-- el-wf ε ⊦ intAdd[] : ((ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))) → ((ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))) → (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
-- el-eq ε ⊦ intAdd[] (class (Z , Z)) (class (S Z , S Z)) ≐ class (S Z , S Z) : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
+- el-wf ε ⊦ intAdd[] : Int[] → Int[] → Int[]
+- el-eq ε ⊦ intAdd[] (class (Z , Z)) (class (S Z , S Z)) ≐ class (S Z , S Z) : Int[]

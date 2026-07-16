@@ -565,13 +565,19 @@ rejectUnless r False = Left r
 --      premises the ≜-computation rules carry. Only then is the query
 --      normalized and matched against the normalized store.
 --
--- Well-formedness queries are matched raw only (up to automatic
--- weakening — see the weakening-aware membership section below): subject
+-- Well-formedness queries match raw (up to automatic weakening — see the
+-- weakening-aware membership section below), or by *guarded conversion*:
+-- the parts of the query already established well-formed (the context,
+-- and for element queries the type) may be normalized and matched
+-- against the normalized store; the candidate itself (the element of an
+-- el-wf query, the type of a ty-wf query) is NEVER normalized. Subject
 -- *expansion* does not hold (reduction can discard an ill-formed subterm
 -- — e.g. `(λ Z) (S ())` normalizes to `Z`), so "normalize the candidate,
 -- then look it up" would accept underivable judgements; operationally it
--- could also crash or diverge on ill-formed input. These normXxx
--- functions all need Σ, since unfolding a signature reference (x-β) does.
+-- could also crash or diverge on ill-formed input. The guarded parts are
+-- fine: they are derivably well-formed before being normalized, exactly
+-- like the equality guards. These normXxx functions all need Σ, since
+-- unfolding a signature reference (x-β) does.
 normCtxWf : Sig -> CtxWf -> CtxWf
 normCtxWf = betaCtx
 
@@ -616,6 +622,9 @@ normSpineEq sig (ctx, s0, s1, tel) = (betaCtx sig ctx, betaSpine sig s0, betaSpi
 
 -- Each insertXxx records a just-derived conclusion in both stores: raw as
 -- concluded, and beta-normalized (licensed — the fact is derivable). The
+-- ty-wf and el-wf normalized stores additionally keep a *mixed* key —
+-- context (and, for el-wf, type) normalized but the candidate itself
+-- raw — which is what the guarded-conversion lookups probe. The
 -- normalized *equality* stores are additionally closed under symmetry —
 -- free and sound (equality is symmetric), and it means a query never
 -- misses purely on orientation. The raw stores stay exactly as concluded
@@ -646,7 +655,9 @@ insertSubNormEq x sp =
   in {subNormEqRaw $= insert x, subNormEqNorm $= insert (n1, n0, g, d) . insert n} sp
 
 insertTyWf : TyWf -> Truth -> Truth
-insertTyWf x sp = {tyWfRaw $= insert x, tyWfNorm $= insert (normTyWf sp.sig x)} sp
+insertTyWf x@(c, a) sp =
+  {tyWfRaw $= insert x,
+   tyWfNorm $= insert (betaCtx sp.sig c, a) . insert (normTyWf sp.sig x)} sp
 
 insertTyEq : TyEq -> Truth -> Truth
 insertTyEq x sp =
@@ -654,7 +665,9 @@ insertTyEq x sp =
   in {tyEqRaw $= insert x, tyEqNorm $= insert (c, n1, n0) . insert n} sp
 
 insertElemWf : ElemWf -> Truth -> Truth
-insertElemWf x sp = {elemWfRaw $= insert x, elemWfNorm $= insert (normElemWf sp.sig x)} sp
+insertElemWf x@(c, t, a) sp =
+  {elemWfRaw $= insert x,
+   elemWfNorm $= insert (betaCtx sp.sig c, t, betaTy sp.sig a) . insert (normElemWf sp.sig x)} sp
 
 insertElemEq : ElemEq -> Truth -> Truth
 insertElemEq x sp =
@@ -827,10 +840,22 @@ piCandidates sp gamma f =
            (elemTypesFor sp gamma f)
 
 -- Derivability checks. Well-formedness queries match the raw store, up to
--- weakening — the expression must have been derived in exactly the form
--- written, but possibly in a prefix context. Equality queries match raw,
--- or — once the guard passes (both sides raw-derivable well-formed at the
--- queried type, licensing normalization) — by computation or against the
+-- weakening — or, failing that, by *guarded conversion*: normalize only
+-- the parts of the query already established well-formed and retry
+-- against the normalized store. For `Γ ⊦ t : A` that means: Γ ctx and
+-- Γ ⊦ A type must hold from prior facts first; only then are Γ and A
+-- normalized (never t — its well-formedness is the very question, and
+-- subject expansion fails: reduction can discard an ill-formed subterm)
+-- and the key (nf(Γ), t, nf(A)) looked up. A hit is sound: the stored
+-- fact's context/type are wf by presupposition, the query's by the
+-- guard, both ≐ their normal forms by subject reduction, and ctx-coe +
+-- el-ty-coe transport the fact — the lookup just makes the conversion
+-- rule admissible instead of demanding an explicit el-ty-coe line.
+-- Likewise `Γ ⊦ A type` guards on Γ and normalizes only Γ (A stays raw;
+-- the store also carries each derived type's normal form, so A may be a
+-- reduct of a derived type). Equality queries match raw, or — once the
+-- guard passes (both sides derivable well-formed at the queried type,
+-- now itself up to conversion) — by computation or against the
 -- normalized store (again up to weakening). The by-computation disjunct
 -- (the two sides' normal forms coincide) needs no stored equality fact at
 -- all: with both endpoints well-formed, every ≜-step out of them is a
@@ -840,9 +865,37 @@ piCandidates sp gamma f =
 -- their right argument, so nothing is normalized unless its guard already
 -- succeeded.
 
+||| Γ ctx, from the raw store or as the beta-image of a derived context
+||| (subject reduction entrywise: a well-formed context's normal form is
+||| itself derivable).
+ctxWfB : Truth -> Ctx -> Bool
+ctxWfB sp ctx = contains ctx sp.ctxWfRaw || contains ctx sp.ctxWfNorm
+
+||| Γ ⊦ A type — raw/weakened, or by guarded conversion: with Γ wf, the
+||| query context may be normalized and A (kept raw) matched against the
+||| normalized store, whose keys hold each derived type both raw and
+||| normalized over its normalized context.
+tyWfB : Truth -> Ctx -> Ty -> Bool
+tyWfB sp ctx ty =
+  let ctxOkRaw = contains ctx sp.ctxWfRaw
+      ctxOk = ctxOkRaw || contains ctx sp.ctxWfNorm in
+  wkMember sp.tyWfRaw str1TyWf ctxOkRaw (ctx, ty)
+  || (ctxOk && wkMember sp.tyWfNorm str1TyWf ctxOk (betaCtx sp.sig ctx, ty))
+
+||| Γ ⊦ t : A — raw/weakened, or by guarded conversion: with Γ wf and
+||| Γ ⊦ A type both established, Γ and A are normalized (t never is) and
+||| the key (nf(Γ), t, nf(A)) matched against the normalized store.
+elemWfB : Truth -> Ctx -> Elem -> Ty -> Bool
+elemWfB sp ctx elem ty =
+  let ctxOkRaw = contains ctx sp.ctxWfRaw
+      ctxOk = ctxOkRaw || contains ctx sp.ctxWfNorm in
+  wkMember sp.elemWfRaw str1ElemWf ctxOkRaw (ctx, elem, ty)
+  || (ctxOk && tyWfB sp ctx ty
+      && wkMember sp.elemWfNorm str1ElemWf ctxOk (betaCtx sp.sig ctx, elem, betaTy sp.sig ty))
+
 export
 ctxWfDerivable : Ctx -> Truth -> Either Rejection ()
-ctxWfDerivable ctx sp = rejectUnless (CtxWfNotDerivable ctx) $ contains ctx sp.ctxWfRaw
+ctxWfDerivable ctx sp = rejectUnless (CtxWfNotDerivable ctx) $ ctxWfB sp ctx
 
 export
 subWfDerivable : Sub -> Ctx -> Ctx -> Truth -> Either Rejection ()
@@ -856,7 +909,7 @@ subNormWfDerivable sigma gamma delta sp =
   rejectUnless (SubNormWfNotDerivable sigma gamma delta) $
     let ctxOk = contains gamma sp.ctxWfRaw in
     wkMember sp.subNormWfRaw str1SubNormWf ctxOk (sigma, gamma, delta)
-    || (contains delta sp.ctxWfRaw && componentwise ctxOk sigma delta)
+    || (ctxWfB sp delta && componentwise ctxOk sigma delta)
   where
     -- e˲ : Γ ⇒ Δ norm verified componentwise: Δ raw-derivable well-formed
     -- (so each entry type is, in its prefix) plus each element checked
@@ -871,20 +924,17 @@ subNormWfDerivable sigma gamma delta sp =
     componentwise ctxOk [<] [<] = True
     componentwise ctxOk (es :< e) (cod :< ty) =
       componentwise ctxOk es cod
-      && wkMember sp.elemWfRaw str1ElemWf ctxOk (gamma, e, substTy ty (embed es))
+      && elemWfB sp gamma e (substTy ty (embed es))
     componentwise _ _ _ = False
 
 export
 tyWfDerivable : Ctx -> Ty -> Truth -> Either Rejection ()
-tyWfDerivable ctx ty sp =
-  rejectUnless (TyWfNotDerivable ctx ty) $
-    wkMember sp.tyWfRaw str1TyWf (contains ctx sp.ctxWfRaw) (ctx, ty)
+tyWfDerivable ctx ty sp = rejectUnless (TyWfNotDerivable ctx ty) $ tyWfB sp ctx ty
 
 export
 elemWfDerivable : Ctx -> Elem -> Ty -> Truth -> Either Rejection ()
 elemWfDerivable ctx elem ty sp =
-  rejectUnless (ElemWfNotDerivable ctx elem ty) $
-    wkMember sp.elemWfRaw str1ElemWf (contains ctx sp.ctxWfRaw) (ctx, elem, ty)
+  rejectUnless (ElemWfNotDerivable ctx elem ty) $ elemWfB sp ctx elem ty
 
 export
 telWfDerivable : Ctx -> Tel -> Truth -> Either Rejection ()
@@ -903,7 +953,7 @@ ctxEqDerivable : Ctx -> Ctx -> Truth -> Either Rejection ()
 ctxEqDerivable ctx0 ctx1 sp =
   rejectUnless (CtxEqNotDerivable ctx0 ctx1) $
     contains (ctx0, ctx1) sp.ctxEqRaw
-    || (contains ctx0 sp.ctxWfRaw && contains ctx1 sp.ctxWfRaw
+    || (ctxWfB sp ctx0 && ctxWfB sp ctx1
         && (betaCtx sp.sig ctx0 == betaCtx sp.sig ctx1
             || contains (normCtxEq sp.sig (ctx0, ctx1)) sp.ctxEqNorm))
 
@@ -913,10 +963,10 @@ tyEqDerivable ctx ty0 ty1 sp =
   rejectUnless (TyEqNotDerivable ctx ty0 ty1) $
     let ctxOk = contains ctx sp.ctxWfRaw in
     wkMember sp.tyEqRaw str1TyEq ctxOk (ctx, ty0, ty1)
-    || (wkMember sp.tyWfRaw str1TyWf ctxOk (ctx, ty0)
-        && wkMember sp.tyWfRaw str1TyWf ctxOk (ctx, ty1)
+    || (tyWfB sp ctx ty0
+        && tyWfB sp ctx ty1
         && (betaTy sp.sig ty0 == betaTy sp.sig ty1
-            || wkMember sp.tyEqNorm str1TyEq ctxOk (normTyEq sp.sig (ctx, ty0, ty1))))
+            || wkMember sp.tyEqNorm str1TyEq (ctxWfB sp ctx) (normTyEq sp.sig (ctx, ty0, ty1))))
 
 export
 subEqDerivable : Sub -> Sub -> Ctx -> Ctx -> Truth -> Either Rejection ()
@@ -946,10 +996,10 @@ elemEqDerivable ctx e0 e1 ty sp =
   rejectUnless (ElemEqNotDerivable ctx e0 e1 ty) $
     let ctxOk = contains ctx sp.ctxWfRaw in
     wkMember sp.elemEqRaw str1ElemEq ctxOk (ctx, e0, e1, ty)
-    || (wkMember sp.elemWfRaw str1ElemWf ctxOk (ctx, e0, ty)
-        && wkMember sp.elemWfRaw str1ElemWf ctxOk (ctx, e1, ty)
+    || (elemWfB sp ctx e0 ty
+        && elemWfB sp ctx e1 ty
         && (betaElem sp.sig e0 == betaElem sp.sig e1
-            || wkMember sp.elemEqNorm str1ElemEq ctxOk (normElemEq sp.sig (ctx, e0, e1, ty))))
+            || wkMember sp.elemEqNorm str1ElemEq (ctxWfB sp ctx) (normElemEq sp.sig (ctx, e0, e1, ty))))
 
 export
 telEqDerivable : Ctx -> Tel -> Tel -> Truth -> Either Rejection ()
@@ -1441,7 +1491,7 @@ diagTyWfCore sp ctx ty =
   in if null elsewhere then [] else [HintInOtherCtxs (take hintCap elsewhere)]
 
 ctxHint : Truth -> Ctx -> List Hint
-ctxHint sp ctx = if contains ctx sp.ctxWfRaw then [] else [HintQueryCtxNotWf]
+ctxHint sp ctx = if ctxWfB sp ctx then [] else [HintQueryCtxNotWf]
 
 export
 diagnose : Truth -> Rejection -> List Hint
@@ -1457,8 +1507,8 @@ diagnose sp (ElemWfNotDerivable ctx e ty) =
   ctxHint sp ctx ++ diagElemWfCore sp ctx e ty
 diagnose sp (TyEqNotDerivable ctx t0 t1) =
   let ctxOk = contains ctx sp.ctxWfRaw
-      lhsOk = wkMember sp.tyWfRaw str1TyWf ctxOk (ctx, t0)
-      rhsOk = wkMember sp.tyWfRaw str1TyWf ctxOk (ctx, t1)
+      lhsOk = tyWfB sp ctx t0
+      rhsOk = tyWfB sp ctx t1
       guardHints =
            (if lhsOk then [] else [HintEqGuardMissing "left" (diagTyWfCore sp ctx t0)])
         ++ (if rhsOk then [] else [HintEqGuardMissing "right" (diagTyWfCore sp ctx t1)])
@@ -1478,8 +1528,8 @@ diagnose sp (TyEqNotDerivable ctx t0 t1) =
   in ctxHint sp ctx ++ guardHints ++ contentHints
 diagnose sp (ElemEqNotDerivable ctx e0 e1 ty) =
   let ctxOk = contains ctx sp.ctxWfRaw
-      lhsOk = wkMember sp.elemWfRaw str1ElemWf ctxOk (ctx, e0, ty)
-      rhsOk = wkMember sp.elemWfRaw str1ElemWf ctxOk (ctx, e1, ty)
+      lhsOk = elemWfB sp ctx e0 ty
+      rhsOk = elemWfB sp ctx e1 ty
       guardHints =
            (if lhsOk then [] else [HintEqGuardMissing "left" (diagElemWfCore sp ctx e0 ty)])
         ++ (if rhsOk then [] else [HintEqGuardMissing "right" (diagElemWfCore sp ctx e1 ty)])

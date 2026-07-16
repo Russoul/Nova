@@ -12,6 +12,8 @@ depends: plus
 - el-pi-e ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ plus[] (p.π₂) (q.π₁)
 - ty-eq-form ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ
 - ty-quotient ε ⊦ (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
+- sig-ty ε ⊦ Int ≔ (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
+- ty-sig-var ε ⊦ Int[]
 - el-zero ε ⊦ Z
 - el-suc ε ⊦ S Z
 - el-sigma-i ε ⊦ Z , Z : ℕ ⨯ ℕ
@@ -26,7 +28,5 @@ depends: plus
 - el-sigma-e2 ε ⊦ ((S Z , S Z) : ℕ ⨯ ℕ) .π₂
 - el-pi-e ε ⊦ plus[] ((Z , Z) .π₁) ((S Z , S Z) .π₂)
 - el-pi-e ε ⊦ plus[] ((Z , Z) .π₂) ((S Z , S Z) .π₁)
-- ty-eq-form ε ⊦ plus[] Z (S Z) ≡ plus[] Z (S Z) ∈ ℕ
 - ty-eq-form ε ⊦ plus[] ((Z , Z) .π₁) ((S Z , S Z) .π₂) ≡ plus[] ((Z , Z) .π₂) ((S Z , S Z) .π₁) ∈ ℕ
-- el-ty-coe ε ⊦ Refl : plus[] Z (S Z) ≡ plus[] Z (S Z) ∈ ℕ ↝ plus[] ((Z , Z) .π₁) ((S Z , S Z) .π₂) ≡ plus[] ((Z , Z) .π₂) ((S Z , S Z) .π₁) ∈ ℕ
 - el-quot-eq ε ⊦ class (Z , Z) ≐ class (S Z , S Z) : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ)) via Refl

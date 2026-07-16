@@ -5,7 +5,3 @@
 - ctx-ext ε ᐅ x:El ℕ ᐅ y:El ℕ
 - el-quot-ty ε ⊦ ℕ / (x y. ℕ) : 𝕌
 - ty-el ε ⊦ El (ℕ / (x y. ℕ))
-- ty-nat ε ⊦ ℕ
-- ctx-ext ε ᐅ n:ℕ
-- ctx-ext ε ᐅ n:ℕ ᐅ m:ℕ
-- ty-quotient ε ⊦ ℕ / (n m. ℕ)

@@ -36,28 +36,39 @@ derived-facts table stores every fact twice — raw (exactly as concluded)
 and beta-normalized — and:
 
 - a **well-formedness** premise/target (`ty-wf`, `el-wf`, `sub-*-wf`, ...)
-  matches the *raw* store only: the expression must have been derived in
-  exactly the form you wrote. Writing a beta-variant of a fact does not
-  count as that fact. **Weakening is automatic**, though: a fact derived
+  matches the raw store — the candidate expression itself (the element of
+  an `el-wf` query, the type of a `ty-wf` query) must have been derived in
+  exactly the form you wrote; a beta-variant of the candidate does not
+  count. But **conversion is automatic** for the guarded parts of the
+  query: for `Γ ⊦ t : A`, once `Γ` and `A` are themselves derivably
+  well-formed, the lookup also matches any fact `Γ' ⊦ t : A'` whose
+  context and type are beta-equal to the query's (`el-var Γ ⊦ x` at
+  `x:Int[]` satisfies a premise wanting `x` at `Int`'s unfolding, and vice
+  versa — no `el-ty-coe` line needed). Explicit `el-ty-coe` remains for
+  *non-computational* equalities (those needing `el-reflect`d content).
+  **Weakening is automatic** too: a fact derived
   in a prefix context is found in any extension of it (provided the
   extended context is itself derivable, i.e. built by `ctx-ext`) — you
   never re-derive `sig-var`/`el-var`/`el-pi-e` chains after extending the
   context, as long as the payload doesn't mention the new variables.
 - an **equality** premise/target (`ty-eq`, `el-eq`, ...) matches raw, or —
-  once both sides are raw-derivable well-formed at the queried type (the
+  once both sides are derivable well-formed at the queried type (the
   guard licensing normalization, mirroring the wf premises of the
-  ≜-computation rules) — **by computation** (the two sides' normal forms
+  ≜-computation rules; the sides' wf is itself checked with automatic
+  conversion as above) — **by computation** (the two sides' normal forms
   coincide — no stored equality fact needed at all) or up to
   beta-normalization against the normalized store, which is closed under
   symmetry (orientation never matters there; only *raw* matches are
   orientation-sensitive).
 
 So equalities auto-discharge "up to computation" (there is no
-`ty-cmp`/`el-cmp` rewrite step), but each side must first be *formed* raw
-(`el-pi-e`/`el-sigma-i`/`ty-el`/... chains), and moving a fact to a
-beta-equal type is an explicit `el-ty-coe` whose `ty-eq` premise is
-discharged the same guarded way: form both types, then coe — the equality
-itself is by computation, no `ty-refl` seeding needed.
+`ty-cmp`/`el-cmp` rewrite step), and facts move across beta-equal types
+and contexts automatically — but each *candidate* must still be formed
+raw (`el-pi-e`/`el-sigma-i`/`ty-el`/... chains): to use `t : A` where only
+`t : A'` is derived, `A` itself must be derivably well-formed in the raw
+form the premise computes, which for rule-computed types (e.g.
+`el-quot-eq`'s `R[id, a, b]`) can still take a `ty-eq-form` and its
+component formations.
 
 `☐` is an indexed family `☐ₙ` (e.g. `☐₀`, `☐₁`, `☐₂` — Unicode subscript
 digits, no space). `el-var Γ ⊦ ☐ₙ` looks up `Γ‖ₙ` (the (n+1)-th type from the
@@ -94,11 +105,10 @@ T`), then convert to `el-eq` with `el-reflect`:
 1. Motive `A ≜ (f ☐₀ ≡ g ☐₀ ∈ T)` (a `ty-eq-form`), in the elimination's own
    extended context.
 2. Base case `z`: if `f Z` and `g Z` are beta-equal, build `Refl` at either
-   one (`el-refl`), then move it to `A[Z]` (`f Z ≡ g Z ∈ T`) with an
-   explicit `el-ty-coe`: `ty-eq-form` both Eq-types (their components must
-   be raw-derived first — `el-pi-e` chains etc.), then coe — the coe's
-   `ty-eq` premise discharges by computation once both types are formed
-   raw.
+   one (`el-refl`), then make `A[Z]` (`f Z ≡ g Z ∈ T`) derivably
+   well-formed: `ty-eq-form` it (its components raw-derived first —
+   `el-pi-e` chains etc.). With `A[Z]` formed, the premise `Refl : A[Z]`
+   discharges by automatic conversion — no explicit `el-ty-coe` needed.
 3. Step case `s`: you get `ih : A` at the fresh recursion variable `n`
    (i.e. `f n ≡ g n ∈ T`) in context. If `f (S n)` and `g (S n)` are
    themselves beta-equal *given* `ih` (not by computation alone — that's
@@ -263,8 +273,13 @@ remain only for judgements *about* normal substitutions.
 
 There is no `sig-var-eq`/`ty-sig-var-eq`: unfolding a definition (`x[e˲] ≐
 a[e˲]` / `x[e˲] ≐ A[e˲]`) is an *equality up to computation*, and those
-discharge by computation — once both sides are raw-derivable well-formed
+discharge by computation — once both sides are derivable well-formed
 at the queried type, the query is accepted directly (equal normal forms).
+The same goes for a *type* definition (`sig-ty Γ ⊦ X ≔ A`): facts about
+`t : X[e˲]` and `t : A[e˲]` interchange by automatic conversion (once the
+queried spelling is derivably well-formed), so definitions like
+`Int ≔ (ℕ ⨯ ℕ) / …` can be used opaquely everywhere except the
+quotient-shaped rule positions, which need the literal `A / R` syntax.
 
 ## Element equality
 
@@ -313,12 +328,12 @@ has to already exist as a *derived fact* in context `Γ,p:A,q:A,r:R` before
 you `apply` the rule — like every other premise, the checker looks it up,
 it doesn't discharge it as a side goal.
 
-`el-quot-eq`'s witness `w` is checked against `R[id, a, b]` as a raw
-well-formedness premise, so if `a`/`b` are themselves built from
-eliminators (e.g. `(p, q).π₁`), a witness built at the *reduced* form must
-be moved to the literal `R[id, a, b]` with an explicit `el-ty-coe`
-(form both types, then coe — see `derivations/integer/session.rules`
-for a worked instance). See
+`el-quot-eq`'s witness `w` is checked against the literal `R[id, a, b]`,
+so if `a`/`b` are themselves built from eliminators (e.g. `(p, q).π₁`), a
+witness built at the *reduced* form counts only once `R[id, a, b]` itself
+is derivably well-formed — `ty-eq-form` it (raw-deriving its components
+via `el-pi-e`/`el-sigma-e` chains first); the witness then converts
+automatically, no `el-ty-coe` line. See
 `derivations/quotient/session.rules` for the smallest working example
 (`R ≜ 𝟙`, so both premises above are free).
 
