@@ -801,13 +801,22 @@ str1SpineEq (rest :< _, s0, s1, tel) =
   (\a, b, c => (rest, a, b, c)) <$> strSpine s0 <*> strSpine s1 <*> strTel tel
 str1SpineEq ([<], _, _, _) = Nothing
 
+||| Γ‖ₙ : the type ☐ₙ has in Γ, weakening by one extra ↑ at every step of
+||| the lookup (so the result already accounts for every extension between
+||| it and the front of Γ).
+ctxLookup : Ctx -> Nat -> Maybe Ty
+ctxLookup [<]          _     = Nothing
+ctxLookup (rest :< ty) Z     = Just (substTy ty Wk)
+ctxLookup (rest :< ty) (S n) = map (\t => substTy t Wk) (ctxLookup rest n)
+
 ||| Every type the derived-facts table assigns to `e` in `gamma`,
 ||| including facts from prefix contexts weakened into `gamma` (same
-||| discipline and ctx-wf guard as wkMember; strengthening is only used to
+||| discipline as wkMember — `ctxOk` says the query context is derivably
+||| wf, licensing the weakening walk; strengthening is only used to
 ||| build lookup keys). Purely a query — each returned type is a component
 ||| of a stored derivable fact, weakened back to `gamma`.
-elemTypesFor : Truth -> Ctx -> Elem -> List Ty
-elemTypesFor sp gamma e = go 0 gamma e
+elemTypesFor : Truth -> (ctxOk : Bool) -> Ctx -> Elem -> List Ty
+elemTypesFor sp ctxOk gamma e = go 0 gamma e
   where
     weakenBy : Nat -> Ty -> Ty
     weakenBy Z     ty = ty
@@ -824,7 +833,7 @@ elemTypesFor sp gamma e = go 0 gamma e
           deeper = case ctx of
                      [<] => []
                      rest :< _ =>
-                       if k == 0 && not (contains gamma sp.ctxWfRaw)
+                       if k == 0 && not ctxOk
                          then []
                          else case strElem g of
                                 Nothing => []
@@ -832,12 +841,12 @@ elemTypesFor sp gamma e = go 0 gamma e
       in here ++ deeper
 
 ||| The Π-types among elemTypesFor, split into domain and codomain.
-piCandidates : Truth -> Ctx -> Elem -> List (Ty, Ty)
-piCandidates sp gamma f =
+piCandidates : Truth -> (ctxOk : Bool) -> Ctx -> Elem -> List (Ty, Ty)
+piCandidates sp ctxOk gamma f =
   mapMaybe (\ty => case ty of
                      PiTy a b => Just (a, b)
                      _        => Nothing)
-           (elemTypesFor sp gamma f)
+           (elemTypesFor sp ctxOk gamma f)
 
 -- Derivability checks. Well-formedness queries match the raw store, up to
 -- weakening — or, failing that, by *guarded conversion*: normalize only
@@ -865,33 +874,192 @@ piCandidates sp gamma f =
 -- their right argument, so nothing is normalized unless its guard already
 -- succeeded.
 
-||| Γ ctx, from the raw store or as the beta-image of a derived context
-||| (subject reduction entrywise: a well-formed context's normal form is
-||| itself derivable).
-ctxWfB : Truth -> Ctx -> Bool
-ctxWfB sp ctx = contains ctx sp.ctxWfRaw || contains ctx sp.ctxWfNorm
+-- The B-functions below additionally *synthesize* a missed judgement
+-- structurally: a formation query that no stored fact answers is
+-- decomposed by the very formation rules (ty-pi, ty-eq-form, el-pi-e,
+-- el-sigma-i, ...), with every premise again a guarded lookup (or a
+-- deeper synthesis step). Nothing is inserted — synthesis is a
+-- lookup-time completeness upgrade over the same rule set, so formation
+-- ceremony (el-var/el-pi-e/ty-eq-form chains) never needs to be stated
+-- when every leaf is already derivable. Soundness: each synthesis case
+-- mirrors its step-clause's premises exactly, so a successful synthesis
+-- IS a derivation, merely not recorded. The candidate of a query is
+-- still never normalized before its own well-formedness is established —
+-- but once the queried type A is wf (guard), its normal form's
+-- components are wf by subject reduction, and checking the candidate's
+-- subterms against them is the conversion rule applied under the
+-- formation rule. Rules with un-inferable content (ℕ-elim / quot-elim
+-- motives, coercions with non-computational equalities) are exactly the
+-- ones synthesis does not attempt — those remain explicit lines.
 
-||| Γ ⊦ A type — raw/weakened, or by guarded conversion: with Γ wf, the
-||| query context may be normalized and A (kept raw) matched against the
-||| normalized store, whose keys hold each derived type both raw and
-||| normalized over its normalized context.
+mutual
+  ||| Γ ctx — raw store, beta-image of a derived context (subject
+  ||| reduction entrywise), or synthesized: ε is the ctx-emp axiom, and an
+  ||| extension is wf when its prefix is and its entry type is (ctx-ext).
+  ctxWfB : Truth -> Ctx -> Bool
+  ctxWfB sp ctx =
+    contains ctx sp.ctxWfRaw || contains ctx sp.ctxWfNorm || synth ctx
+    where
+      synth : Ctx -> Bool
+      synth [<] = True
+      synth (rest :< ty) = ctxWfB sp rest && tyWfB' sp True rest ty
+
+  ||| Γ ⊦ A type, with Γ's wf status supplied by the caller (ctxOk = Γ is
+  ||| derivably wf). Raw/weakened; by guarded conversion (Γ normalized, A
+  ||| kept raw, against the normalized store's mixed and full keys); or
+  ||| synthesized by the ty-* formation rules.
+  tyWfB' : Truth -> (ctxOk : Bool) -> Ctx -> Ty -> Bool
+  tyWfB' sp ctxOk ctx ty =
+    wkMember sp.tyWfRaw str1TyWf ctxOk (ctx, ty)
+    || (ctxOk
+        && (wkMember sp.tyWfNorm str1TyWf True (betaCtx sp.sig ctx, ty)
+            || synth ty))
+    where
+      -- One case per ty-* formation rule, premises mirrored exactly.
+      synth : Ty -> Bool
+      synth Ty.ZeroTy        = True
+      synth Ty.OneTy         = True
+      synth Ty.NatTy         = True
+      synth Ty.UniverseTy    = True
+      synth (Ty.PiTy a b)    = tyWfB' sp True ctx a && tyWfB' sp True (ctx :< a) b
+      synth (Ty.SigmaTy a b) = tyWfB' sp True ctx a && tyWfB' sp True (ctx :< a) b
+      synth (EqTy l r a)     = elemWfB' sp True ctx l a && elemWfB' sp True ctx r a
+      synth (El e)           = elemWfB' sp True ctx e UniverseTy
+      synth (Quotient a r)   =
+        tyWfB' sp True ctx a && tyWfB' sp True (ctx :< a :< substTy a Wk) r
+      synth (Ty.SigVar x es) =
+        case sigLookup x sp.sig of
+          Just (SigTyDef gamma _ _) => subNormWfB sp ctx es gamma
+          _                         => False
+
+  ||| Γ ⊦ t : A, with Γ's wf status supplied. Raw/weakened; by guarded
+  ||| conversion (with Γ and A wf, match (nf(Γ), t, nf(A)) — t never
+  ||| normalized); or synthesized: t's structurally inferred types
+  ||| compared to nf(A), or t's introduction form checked against nf(A)'s
+  ||| head per the el-* rules (transport back to A is the admissible
+  ||| conversion rule).
+  elemWfB' : Truth -> (ctxOk : Bool) -> Ctx -> Elem -> Ty -> Bool
+  elemWfB' sp ctxOk ctx t a =
+    wkMember sp.elemWfRaw str1ElemWf ctxOk (ctx, t, a)
+    || (ctxOk
+        && tyWfB' sp True ctx a
+        && (wkMember sp.elemWfNorm str1ElemWf True (betaCtx sp.sig ctx, t, betaTy sp.sig a)
+            || chk t (betaTy sp.sig a)))
+    where
+      -- Introduction forms, directed by nf(A)'s head; premises mirror the
+      -- corresponding step clauses (plus re-establishing the binder
+      -- type's wf where a rule leaves it to presupposition, so extended
+      -- contexts are legitimately flagged wf).
+      intro : Elem -> Ty -> Bool
+      intro (PiIntro f) (Ty.PiTy dom cod) =
+        tyWfB' sp True ctx dom && elemWfB' sp True (ctx :< dom) f cod
+      intro (SigmaIntro u v) (Ty.SigmaTy dom cod) =
+        tyWfB' sp True ctx dom
+        && tyWfB' sp True (ctx :< dom) cod
+        && elemWfB' sp True ctx u dom
+        && elemWfB' sp True ctx v (substTy cod (Ext Id u))
+      intro Refl (EqTy l r eqty) =
+        l == r && elemWfB' sp True ctx l eqty
+      intro (Class c) (Quotient dom r) =
+        elemWfB' sp True ctx c dom
+        && tyWfB' sp True (ctx :< dom :< substTy dom Wk) r
+      intro (ZeroElim e) _ =
+        -- target type's wf is the caller's guard; e : 𝟘 is the content
+        elemWfB' sp True ctx e Ty.ZeroTy
+      intro _ _ = False
+
+      chk : Elem -> Ty -> Bool
+      chk e nfA =
+        any (\s => betaTy sp.sig s == nfA) (elemSynB sp ctx e)
+        || intro e nfA
+
+  ||| Types structurally inferable for t in ctx (context established wf by
+  ||| the caller): stored facts (weakened into ctx), plus elimination and
+  ||| code forms whose type the syntax determines, every rule premise
+  ||| re-checked. Each returned type is derivably assignable to t.
+  elemSynB : Truth -> Ctx -> Elem -> List Ty
+  elemSynB sp ctx e = elemTypesFor sp True ctx e ++ structural e
+    where
+      -- Σ/Π-headed candidates among t's inferred types, up to computation
+      -- (a stored fact at Int[] unfolds to its quotient/Π/Σ shape here —
+      -- sound: the fact and its normal form interchange by conversion).
+      headed : (Ty -> Maybe (Ty, Ty)) -> Elem -> List (Ty, Ty)
+      headed f u = mapMaybe (f . betaTy sp.sig) (elemSynB sp ctx u)
+
+      piHead : Ty -> Maybe (Ty, Ty)
+      piHead (Ty.PiTy a b) = Just (a, b)
+      piHead _             = Nothing
+
+      sigmaHead : Ty -> Maybe (Ty, Ty)
+      sigmaHead (Ty.SigmaTy a b) = Just (a, b)
+      sigmaHead _                = Nothing
+
+      structural : Elem -> List Ty
+      structural (CtxVar n)      = case ctxLookup ctx n of
+                                     Just ty => [ty]
+                                     Nothing => []
+      structural OneIntro        = [Ty.OneTy]
+      structural NatIntro0       = [Ty.NatTy]
+      structural (NatIntro1 u)   =
+        if elemWfB' sp True ctx u Ty.NatTy then [Ty.NatTy] else []
+      structural Elem.ZeroTy     = [Ty.UniverseTy]
+      structural Elem.OneTy      = [Ty.UniverseTy]
+      structural Elem.NatTy      = [Ty.UniverseTy]
+      structural (Elem.PiTy a b) =
+        if elemWfB' sp True ctx a Ty.UniverseTy
+           && elemWfB' sp True (ctx :< El a) b Ty.UniverseTy
+        then [Ty.UniverseTy] else []
+      structural (Elem.SigmaTy a b) =
+        if elemWfB' sp True ctx a Ty.UniverseTy
+           && elemWfB' sp True (ctx :< El a) b Ty.UniverseTy
+        then [Ty.UniverseTy] else []
+      structural (Elem.EqTy l r c) =
+        if elemWfB' sp True ctx c Ty.UniverseTy
+           && elemWfB' sp True ctx l (El c)
+           && elemWfB' sp True ctx r (El c)
+        then [Ty.UniverseTy] else []
+      structural (Elem.QuotTy a r) =
+        if elemWfB' sp True ctx a Ty.UniverseTy
+           && elemWfB' sp True (ctx :< El a :< substTy (El a) Wk) r Ty.UniverseTy
+        then [Ty.UniverseTy] else []
+      structural (PiApp f x) =
+        mapMaybe (\(dom, cod) =>
+                    if elemWfB' sp True ctx x dom
+                      then Just (substTy cod (Ext Id x))
+                      else Nothing)
+                 (headed piHead f)
+      structural (SigmaElim1 u) = map fst (headed sigmaHead u)
+      structural (SigmaElim2 u) =
+        map (\(_, cod) => substTy cod (Ext Id (SigmaElim1 u))) (headed sigmaHead u)
+      structural (SigVar x es)  =
+        case sigLookup x sp.sig of
+          Just (SigDef gamma _ _ ty) =>
+            if subNormWfB sp ctx es gamma then [substTy ty (embed es)] else []
+          _ => []
+      structural _ = []
+
+  ||| e˲ : Γ ⇒ Δ norm from the stores, with Γ (the domain — the query's
+  ||| own context) established wf by the caller: a raw/weakened fact, or
+  ||| Δ wf plus componentwise element checks against instantiated entry
+  ||| types (the sub-norm-term/sub-norm-ext chain, verified not stated).
+  subNormWfB : Truth -> (dom : Ctx) -> SubNorm -> (cod : Ctx) -> Bool
+  subNormWfB sp dom es cod =
+    wkMember sp.subNormWfRaw str1SubNormWf True (es, dom, cod)
+    || (ctxWfB sp cod && go es cod)
+    where
+      go : SubNorm -> Ctx -> Bool
+      go [<] [<] = True
+      go (es' :< e) (c :< ty) =
+        go es' c && elemWfB' sp True dom e (substTy ty (embed es'))
+      go _ _ = False
+
+||| Γ ⊦ A type — see tyWfB'; Γ's wf status computed here.
 tyWfB : Truth -> Ctx -> Ty -> Bool
-tyWfB sp ctx ty =
-  let ctxOkRaw = contains ctx sp.ctxWfRaw
-      ctxOk = ctxOkRaw || contains ctx sp.ctxWfNorm in
-  wkMember sp.tyWfRaw str1TyWf ctxOkRaw (ctx, ty)
-  || (ctxOk && wkMember sp.tyWfNorm str1TyWf ctxOk (betaCtx sp.sig ctx, ty))
+tyWfB sp ctx ty = tyWfB' sp (ctxWfB sp ctx) ctx ty
 
-||| Γ ⊦ t : A — raw/weakened, or by guarded conversion: with Γ wf and
-||| Γ ⊦ A type both established, Γ and A are normalized (t never is) and
-||| the key (nf(Γ), t, nf(A)) matched against the normalized store.
+||| Γ ⊦ t : A — see elemWfB'; Γ's wf status computed here.
 elemWfB : Truth -> Ctx -> Elem -> Ty -> Bool
-elemWfB sp ctx elem ty =
-  let ctxOkRaw = contains ctx sp.ctxWfRaw
-      ctxOk = ctxOkRaw || contains ctx sp.ctxWfNorm in
-  wkMember sp.elemWfRaw str1ElemWf ctxOkRaw (ctx, elem, ty)
-  || (ctxOk && tyWfB sp ctx ty
-      && wkMember sp.elemWfNorm str1ElemWf ctxOk (betaCtx sp.sig ctx, elem, betaTy sp.sig ty))
+elemWfB sp ctx elem ty = elemWfB' sp (ctxWfB sp ctx) ctx elem ty
 
 export
 ctxWfDerivable : Ctx -> Truth -> Either Rejection ()
@@ -907,25 +1075,9 @@ export
 subNormWfDerivable : SubNorm -> Ctx -> Ctx -> Truth -> Either Rejection ()
 subNormWfDerivable sigma gamma delta sp =
   rejectUnless (SubNormWfNotDerivable sigma gamma delta) $
-    let ctxOk = contains gamma sp.ctxWfRaw in
+    let ctxOk = ctxWfB sp gamma in
     wkMember sp.subNormWfRaw str1SubNormWf ctxOk (sigma, gamma, delta)
-    || (ctxWfB sp delta && componentwise ctxOk sigma delta)
-  where
-    -- e˲ : Γ ⇒ Δ norm verified componentwise: Δ raw-derivable well-formed
-    -- (so each entry type is, in its prefix) plus each element checked
-    -- against its instantiated entry type via the element store — exactly
-    -- the premises of the sub-norm-term/sub-norm-ext chain, so the
-    -- judgement is derivable without the chain being stated as separate
-    -- facts. substTy is the structural substitution operator (no beta),
-    -- so placing yet-unvalidated elements into the entry type is purely
-    -- syntactic; the elements themselves are then validated by the
-    -- (raw, weakening-aware) element lookups.
-    componentwise : Bool -> SubNorm -> Ctx -> Bool
-    componentwise ctxOk [<] [<] = True
-    componentwise ctxOk (es :< e) (cod :< ty) =
-      componentwise ctxOk es cod
-      && elemWfB sp gamma e (substTy ty (embed es))
-    componentwise _ _ _ = False
+    || (ctxOk && subNormWfB sp gamma sigma delta)
 
 export
 tyWfDerivable : Ctx -> Ty -> Truth -> Either Rejection ()
@@ -1022,14 +1174,6 @@ spineEqDerivable ctx s0 s1 tel sp =
         && wkMember sp.spineWfRaw str1SpineWf ctxOk (ctx, s1, tel)
         && (betaSpine sp.sig s0 == betaSpine sp.sig s1
             || wkMember sp.spineEqNorm str1SpineEq ctxOk (normSpineEq sp.sig (ctx, s0, s1, tel))))
-
-||| Γ‖ₙ : the type ☐ₙ has in Γ, weakening by one extra ↑ at every step of
-||| the lookup (so the result already accounts for every extension between
-||| it and the front of Γ).
-ctxLookup : Ctx -> Nat -> Maybe Ty
-ctxLookup [<]          _     = Nothing
-ctxLookup (rest :< ty) Z     = Just (substTy ty Wk)
-ctxLookup (rest :< ty) (S n) = map (\t => substTy t Wk) (ctxLookup rest n)
 
 ||| Checks the closure of the typing rule, meaning
 ||| if the typing rule depends on existence of a derivation of some judgement form it won't be presumed.
@@ -1154,7 +1298,7 @@ step (ElemWfPiAppInfer gamma f e) sp =
   -- or the argument (failures are swallowed — the fact may already exist
   -- via another route, e.g. a coercion; the final check below decides).
   let sp = tryInfer f (tryInfer e sp) in
-  case filter (\(a, _) => isRight (elemWfDerivable gamma e a sp)) (piCandidates sp gamma f) of
+  case filter (\(a, _) => isRight (elemWfDerivable gamma e a sp)) (piCandidates sp (ctxWfB sp gamma) gamma f) of
     []    => Left (PiAppInferenceFailed gamma f e)
     cands => Right $ foldl (\acc, (a, b) => insertElemWf (gamma, PiApp f e, substTy b (Ext Id e)) acc) sp cands
   where
@@ -1474,7 +1618,7 @@ hintCap = 3
 
 diagElemWfCore : Truth -> Ctx -> Elem -> Ty -> List Hint
 diagElemWfCore sp ctx e ty =
-  let others = filter (/= ty) (nub (elemTypesFor sp ctx e)) in
+  let others = filter (/= ty) (nub (elemTypesFor sp (ctxWfB sp ctx) ctx e)) in
   if not (null others)
     then [HintAtOtherTypes ctx (take hintCap others)]
     else
@@ -1549,11 +1693,12 @@ diagnose sp (ElemEqNotDerivable ctx e0 e1 ty) =
   in ctxHint sp ctx ++ guardHints ++ contentHints
 diagnose sp (PiAppInferenceFailed ctx f e) =
   ctxHint sp ctx ++
-  (case piCandidates sp ctx f of
-     []   => let fTys = nub (elemTypesFor sp ctx f)
+  (let ctxOk = ctxWfB sp ctx in
+   case piCandidates sp ctxOk ctx f of
+     []   => let fTys = nub (elemTypesFor sp ctxOk ctx f)
              in if null fTys then [] else [HintAtOtherTypes ctx (take hintCap fTys)]
      doms => [HintPiArg ctx (take hintCap (nub (map fst doms)))
-                            (take hintCap (nub (elemTypesFor sp ctx e)))])
+                            (take hintCap (nub (elemTypesFor sp ctxOk ctx e)))])
 diagnose sp _ = []
 
 ||| Every judgement currently recorded in a `Truth`, in its raw form — the

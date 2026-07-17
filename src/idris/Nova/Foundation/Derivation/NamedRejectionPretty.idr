@@ -76,7 +76,7 @@ joinWith sep (x :: xs) = x ++ sep ++ joinWith sep xs
 export
 prettyHintN : Hint -> String
 prettyHintN HintQueryCtxNotWf =
-  "the query's context has no ctx-wf fact — weakening from prefix contexts is disabled until it is built with ctx-ext"
+  "the query's context is not derivably well-formed (some entry's type has no derivation and does not synthesize) — weakening and conversion are disabled until it is"
 prettyHintN (HintCtxPrefixDerived pfx ty) =
   "longest derived prefix: " ++ prettyCtxN pfx ++ " — the next entry " ++
     prettyTyN (envForCtx pfx) ty ++ " needs ty-wf and ctx-ext"

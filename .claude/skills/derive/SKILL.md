@@ -192,7 +192,12 @@ every context you build. Conversion is automatic too: once the queried
 context and type are themselves derivably well-formed, a fact derived at
 any beta-equal spelling of them counts (so a `sig-ty` definition like
 `Int` and its unfolding interchange freely; only the candidate expression
-itself must match raw).
+itself must match raw). And formation is synthesized: `ty-wf`/`el-wf`
+queries over already-derivable ingredients discharge structurally with no
+formation lines at all — don't state `el-var`/`el-pi-e`/`el-sigma-e`/
+`ty-eq-form`/`ctx-ext` chains, just `query` the judgement you actually
+want; state only content (definitions, inductions, quotient reasoning,
+reflection, transitivity, non-computational coercions).
 
 A `depends:` cycle (A depends on B depends on A) is rejected with a clear
 error rather than hanging; a missing/unreadable dependency file is

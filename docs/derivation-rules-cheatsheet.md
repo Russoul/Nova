@@ -36,21 +36,34 @@ derived-facts table stores every fact twice — raw (exactly as concluded)
 and beta-normalized — and:
 
 - a **well-formedness** premise/target (`ty-wf`, `el-wf`, `sub-*-wf`, ...)
-  matches the raw store — the candidate expression itself (the element of
-  an `el-wf` query, the type of a `ty-wf` query) must have been derived in
-  exactly the form you wrote; a beta-variant of the candidate does not
-  count. But **conversion is automatic** for the guarded parts of the
-  query: for `Γ ⊦ t : A`, once `Γ` and `A` are themselves derivably
-  well-formed, the lookup also matches any fact `Γ' ⊦ t : A'` whose
-  context and type are beta-equal to the query's (`el-var Γ ⊦ x` at
-  `x:Int[]` satisfies a premise wanting `x` at `Int`'s unfolding, and vice
-  versa — no `el-ty-coe` line needed). Explicit `el-ty-coe` remains for
-  *non-computational* equalities (those needing `el-reflect`d content).
-  **Weakening is automatic** too: a fact derived
-  in a prefix context is found in any extension of it (provided the
-  extended context is itself derivable, i.e. built by `ctx-ext`) — you
-  never re-derive `sig-var`/`el-var`/`el-pi-e` chains after extending the
-  context, as long as the payload doesn't mention the new variables.
+  matches the raw store, and on a miss the checker discharges it itself
+  three further ways, so formation almost never needs stating:
+  - **Weakening is automatic**: a fact derived in a prefix context is
+    found in any extension of it (provided the extended context is itself
+    derivable) — never re-derive chains after extending the context, as
+    long as the payload doesn't mention the new variables.
+  - **Conversion is automatic**: for `Γ ⊦ t : A`, once `Γ` and `A` are
+    themselves derivably well-formed, the lookup also matches any fact
+    `Γ' ⊦ t : A'` whose context and type are beta-equal to the query's
+    (`el-var Γ ⊦ x` at `x:Int[]` satisfies a premise wanting `x` at
+    `Int`'s unfolding, and vice versa — no `el-ty-coe` line). Explicit
+    `el-ty-coe` remains only for *non-computational* equalities (those
+    needing `el-reflect`d content).
+  - **Formation is synthesized**: a query no stored fact answers is
+    decomposed by the formation rules themselves — variables, pairs and
+    projections, applications (Π-types inferred from the table),
+    universe codes, `El`, `≡`-types, quotients, `sig`-references,
+    lambdas/pairs *checked* against the queried type's normal form —
+    recursively, until every leaf is a stored fact. So `ty-wf`/`el-wf`
+    targets and premises over already-derivable ingredients hold with no
+    formation lines at all (`el-var`/`el-pi-e`/`el-sigma-e`/`ty-eq-form`/
+    `ctx-ext` chains are all optional). What synthesis never invents is
+    *content*: ℕ-elim and quot-elim (their motives aren't in the term),
+    coercions along proven equalities, and equality lemmas themselves —
+    those are exactly the lines a session still states.
+  In every mode the *candidate* expression is never normalized before its
+  own well-formedness is established (subject expansion fails) — writing
+  an ill-formed beta-variant of a derivable fact still rejects.
 - an **equality** premise/target (`ty-eq`, `el-eq`, ...) matches raw, or —
   once both sides are derivable well-formed at the queried type (the
   guard licensing normalization, mirroring the wf premises of the
@@ -62,13 +75,13 @@ and beta-normalized — and:
   orientation-sensitive).
 
 So equalities auto-discharge "up to computation" (there is no
-`ty-cmp`/`el-cmp` rewrite step), and facts move across beta-equal types
-and contexts automatically — but each *candidate* must still be formed
-raw (`el-pi-e`/`el-sigma-i`/`ty-el`/... chains): to use `t : A` where only
-`t : A'` is derived, `A` itself must be derivably well-formed in the raw
-form the premise computes, which for rule-computed types (e.g.
-`el-quot-eq`'s `R[id, a, b]`) can still take a `ty-eq-form` and its
-component formations.
+`ty-cmp`/`el-cmp` rewrite step), facts move across beta-equal types and
+contexts automatically, and the well-formedness guards those moves need
+are synthesized from the formation rules on demand. A session's own
+lines reduce to its actual content: `sig`/`sig-ty` definitions,
+inductions (`el-nat-e`), quotient reasoning (`el-quot-eq`/`el-quot-elim`),
+`el-reflect`, transitivity chains, and coercions along non-computational
+equalities.
 
 `☐` is an indexed family `☐ₙ` (e.g. `☐₀`, `☐₁`, `☐₂` — Unicode subscript
 digits, no space). `el-var Γ ⊦ ☐ₙ` looks up `Γ‖ₙ` (the (n+1)-th type from the
