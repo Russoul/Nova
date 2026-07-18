@@ -1,0 +1,532 @@
+////////// NovaElaboration.txt — surface syntax and elaboration //////////
+
+////////// Preface //////////
+
+This file specifies a syntax-driven ELABORATOR for Nova: a bidirectional
+algorithm that translates a surface-syntax file — a sequence of signature
+entries — into the core syntax of docs/NovaFoundation.txt, collecting
+along the way the set of equational side conditions ("obligations") that
+must hold for the translation to be justified.
+
+Relationship to the rest of the codebase:
+
+  * docs/NovaFoundation.txt is the sole source of truth and correctness.
+    Every elaboration rule below is annotated with (or directly mirrors)
+    the Foundation rule(s) that justify it, and the soundness contract
+    (see Metatheory) is stated against Foundation derivability. Where
+    this file and Foundation disagree, Foundation wins.
+  * The elaborator is INDEPENDENT of the derivation machinery
+    (.rules/.target sessions, the fact table, `apply`/`query`). It shares
+    only the core syntax (Ty/Elem/Sub/Ctx/Sig) and the ≜-computation
+    relation (beta/El-decoding/signature unfolding). The intent is for
+    elaboration to REPLACE the derivation machinery as the way judgements
+    are established.
+  * This version is HOLE-FREE: no metavariables, no unification. Every
+    binder is named, every motive is written, every ascription that the
+    bidirectional discipline needs is supplied by the user. Holes are a
+    planned extension (see Future work) and nothing here is allowed to
+    obstruct them.
+
+The elaboration model in one paragraph:
+
+  The elaborator processes one signature entry at a time, in file order.
+  Where checking meets an equation it cannot discharge algorithmically
+  (by computation, by congruence, or from the accepted lemma store), it
+  does not fail: it ASSUMES the equation, records it as an obligation,
+  and carries on. At the end of the run all remaining obligations are
+  reported. The user (human or AI) discharges an obligation by
+  PREPENDING a lemma — an ordinary definition whose type is the
+  corresponding equality type — before the entry that surfaced it, and
+  re-running. A file is ACCEPTED exactly when a run ends with zero
+  obligations; nothing survives between runs, and no assumption ever
+  participates in an accepting run. Equality proofs in this theory are
+  computationally irrelevant, so an assumed equation never changes what
+  any term elaborates to — only whether the file is accepted.
+
+//////////// Surface syntax /////////////
+
+Token conventions (identifiers, `_`, precedence-level notation T{n}/t{n})
+are those of docs/NovaNamedSyntax.txt. The term/type grammar below is
+self-contained; it deliberately reuses the named forms.
+
+// A file is a sequence of items. `def` introduces a term definition,
+// `type` a type definition — the two signature-entry forms of
+// Foundation's Σ. The parenthesized telescope names the entry's
+// declaration context Γ; it may be empty.
+file  ::= item*
+item  ::= def  x ((x:T{≥0}))* : T{≥0} ≔ t{≥0}
+        | type x ((x:T{≥0}))* ≔ T{≥0}
+
+// Types. Same shape as NovaNamedSyntax, plus nothing new: elaboration
+// needs no rule keywords and no context prefixes — the context is always
+// implicit in where a subterm sits.
+T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | x[t˲] | (T{≥0})
+T{2} ::= El t{≥4}
+T{1} ::= (x:T{≥0}) → T{≥1} | (x:T{≥0}) ⨯ T{≥1} | T{≥2} / (x y. T{≥1})
+T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
+
+// Elements. Two departures from the derivation surface syntax:
+//   1. Ascription `(t : T)` is first-class. It is the user's lever for
+//      putting a term into inference mode (see e-ann below) — needed
+//      exactly where the bidirectional discipline says so (a λ or pair
+//      applied/projected directly, an eliminated term whose type the
+//      elaborator cannot see).
+//   2. ℕ-elim and quot-elim take their motives inline, motive-first.
+//      Motives are not inferable without higher-order unification, so
+//      they are mandatory syntax here.
+t˲   ::= (empty) | t{≥1} (, t{≥1})*
+t{5} ::= x | () | Z | Refl | 𝟘 | 𝟙 | ℕ | x[t˲] | (t{≥0}) | (t{≥0} : T{≥0})
+t{3} ::= t{≥3} t{≥4} | t{≥3} .π₁ | t{≥3} .π₂                 (left-assoc)
+t{2} ::= λx. t{≥3}
+       | 𝟘-elim t{≥4}
+       | S t{≥4}
+       | ℕ-elim (n. T{≥0}) t{≥4} (n ih. t{≥4}) t{≥4}          // motive, z, s, scrutinee
+       | class t{≥4}
+       | quot-elim (z. T{≥0}) (a. t{≥0}) t{≥4}                // motive, case fn, scrutinee
+t{1} ::= (x:t{≥0}) → t{≥1} | (x:t{≥0}) ⨯ t{≥1} | t{≥2} / (x y. t{≥1})
+       | t{≥2} ≡ t{≥2} ∈ t{≥2}                                // universe codes
+t{0} ::= t{≥1} , t{≥0}                                        (right-assoc)
+
+// The name-dropping sugar of NovaNamedSyntax applies unchanged:
+// `A → B` for `(_:A) → B`, `A / R` for `A / (_ _. R)`, `_` in any binder.
+
+//////// Name resolution (front end, before elaboration) ////////
+
+// Names are a parsing concern only, exactly as in NovaNamedSyntax.txt.
+// Parsing + scope resolution translate the named text into an INDEXED
+// SURFACE AST: the same grammar with every variable occurrence replaced
+// by its de Bruijn index ☐ᵢ (innermost binder wins; unbound name =
+// error here, not in elaboration) and binder names carried along only
+// as display metadata. Elaboration operates exclusively on this indexed
+// surface syntax; its rules below never consult a name, Γ is a plain
+// core context, and all binder bookkeeping is ordinary index
+// arithmetic. Names reappear in exactly one place: the report printer,
+// which uses the retained metadata to render obligations readably.
+//
+// The indexed surface AST is still surface, not core: it contains
+// ascription nodes `(t : T)` and inline eliminator motives, which core
+// syntax lacks. Elaboration is what erases those — checking ascriptions
+// away and moving motives out of the term — so the distance between
+// surface and core is annotations, never names.
+
+//////////// Elaboration state /////////////
+
+A run threads three monotonically growing stores. Rules below read and
+extend them implicitly rather than threading them through every premise.
+
+Σ   — the signature: core entries produced by already-elaborated items,
+      exactly Foundation's Σ. (Entries elaborated under assumptions are
+      in Σ for the remainder of the run; acceptance semantics below.)
+
+E   — the equation store, feeding algorithmic discharge. Two sources:
+      * ACCEPTED LEMMAS: for every entry (Δ ⊦ x ≔ p : A) ∈ Σ whose type
+        A, after peeling leading Π's into the context, is an equality
+        type l ≡ r ∈ T, the store contains the reflected equation
+            Δ ᐅ A₁ ᐅ ... ᐅ Aₖ ⊢ l ≐ r : T
+        (the peeled binders become context entries). Justified by
+        Foundation (reflect a) applied to x[δ] ☐ₖ₋₁ ... ☐₀. This is the
+        ONLY way user-proved equalities enter discharge: prove at the
+        element level once, use judgementally everywhere.
+      * ASSUMED OBLIGATIONS: every obligation, the moment it is assumed
+        (see ↓ below), so that the run continues coherently and the same
+        mismatch never surfaces twice.
+
+O   — the obligation list, in surfacing order. Each entry records a
+      statement (Γ ⊢? a ≐ b : A, or Γ ⊢? A ≐ B type), the item and
+      source position that surfaced it, and — when its two sides were
+      themselves elaborated under earlier assumptions — a note naming
+      those earlier obligations.
+
+The distinction that keeps this sound: entries of E may be USED freely
+by conversion during the run, but an obligation is only ever CLOSED —
+removed from the report — by matching an accepted lemma present in Σ on
+a LATER RUN. Within a run, an equation that matches an already-assumed
+obligation is deduplicated against it, not discharged by it. Assumptions
+therefore can never launder themselves into proofs; the wall between
+"assumed" and "proven" is crossed only by the prepend-and-rerun cycle.
+
+//////////// Judgement forms /////////////
+
+Γ below is a plain core context; T and t range over INDEXED surface
+syntax (see Name resolution above). Named binders appearing in the rules
+(`Γ ᐅ x:A ⊢ ...`) are readability only — x is not consulted.
+
+Σ; E; Γ ⊢ T ⇝ A type         // surface type T elaborates to core A
+Σ; E; Γ ⊢ t ⇐ A ⇝ a          // checking: core type A given
+Σ; E; Γ ⊢ t ⇒ A ⇝ a          // inference: core type A produced
+Σ; E; Γ ⊢ e˲ ⇐ Δ ⇝ ê˲        // substitution into declaration context Δ
+Σ; E; Γ ⊢ A ≐ B type ↓       // type conversion: discharge or assume
+Σ; E; Γ ⊢ a ≐ b : A ↓        // element conversion: discharge or assume
+
+The ↓ judgements ALWAYS SUCCEED — that is the "assume and carry on"
+principle. They either discharge the equation algorithmically or append
+it to O (and E). Elaboration proper (⇝ / ⇐ / ⇒) can fail, but only on
+STRUCTURAL grounds — an unbound name, a λ in inference position, an
+application whose function type never takes the shape of a Π — never on
+equational grounds. The dividing line: an equation with both sides in
+hand becomes an obligation; a missing STRUCTURE (which Π? which motive?)
+cannot be phrased as an equation with a known right-hand side and is
+instead an error asking the user for an ascription or annotation.
+
+//////// whnf ////////
+
+whnf(–) is weak-head normalization by Foundation's ≜ rules: Π-β, Σ-β₁,
+Σ-β₂, ℕ-elim-β-Z, ℕ-elim-β-S, quote-elim-β, x-β (signature unfolding —
+total in this hole-free setting, since every Σ entry has a definiens),
+and the El-decoding family (El-𝟘, El-𝟙, El-ℕ, El-(→), El-(⨯), El-(≡),
+El-(/)). Per Foundation's preface, normalization of well-formed terms
+may diverge under inconsistent hypotheses; whnf is therefore
+fuel-bounded, and fuel exhaustion is treated as "neutral" — a
+conservative outcome that can only produce a superfluous obligation,
+never an unsound acceptance.
+
+//////////// Type elaboration /////////////
+
+Γ ⊢ 𝟘 ⇝ 𝟘 type    Γ ⊢ 𝟙 ⇝ 𝟙 type    Γ ⊢ ℕ ⇝ ℕ type    Γ ⊢ 𝕌 ⇝ 𝕌 type
+                                                    // (𝟘),(𝟙),(ℕ),(𝕌)
+
+(Δ ⊦ x ≔ T type) ∈ Σ
+Γ ⊢ e˲ ⇐ Δ ⇝ ê˲
+---------------------- (e-ty-sig)                             // (x[e˲] type)
+Γ ⊢ x[e˲] ⇝ x[ê˲] type
+
+Γ ⊢ T ⇝ A type
+Γ ᐅ x:A ⊢ U ⇝ B type
+-------------------------- (e-ty-pi)                          // (A → B)
+Γ ⊢ (x:T) → U ⇝ A → B type
+
+Γ ⊢ T ⇝ A type
+Γ ᐅ x:A ⊢ U ⇝ B type
+-------------------------- (e-ty-sigma)                       // (A ⨯ B)
+Γ ⊢ (x:T) ⨯ U ⇝ A ⨯ B type
+
+Γ ⊢ T ⇝ A type
+Γ ᐅ x:A ᐅ y:A[↑] ⊢ R ⇝ R̂ type
+------------------------------ (e-ty-quot)                    // (A / R)
+Γ ⊢ T / (x y. R) ⇝ A / R̂ type
+
+Γ ⊢ T ⇝ A type
+Γ ⊢ t₀ ⇐ A ⇝ a₀
+Γ ⊢ t₁ ⇐ A ⇝ a₁
+------------------------------------- (e-ty-eq)               // (a ≡ b ∈ T)
+Γ ⊢ t₀ ≡ t₁ ∈ T ⇝ (a₀ ≡ a₁ ∈ A) type
+
+Γ ⊢ t ⇐ 𝕌 ⇝ a
+------------------- (e-ty-el)                                 // (El A)
+Γ ⊢ El t ⇝ El a type
+
+//////////// Substitutions into a declaration context /////////////
+
+---------------- (e-sub-emp)
+Γ ⊢ · ⇐ ε ⇝ ·
+
+Γ ⊢ e˲ ⇐ Δ ⇝ ê˲
+Γ ⊢ t ⇐ T[ê˲] ⇝ t̂
+--------------------------- (e-sub-ext)
+Γ ⊢ e˲, t ⇐ (Δ ᐅ T) ⇝ ê˲, t̂
+
+//////////// Element elaboration: inference /////////////
+
+☐ᵢ in bounds for Γ
+--------------------- (e-var)                                 // Γ‖ᵢ
+Γ ⊢ ☐ᵢ ⇒ Γ‖ᵢ ⇝ ☐ᵢ
+
+(Δ ⊦ x ≔ a : A) ∈ Σ
+Γ ⊢ e˲ ⇐ Δ ⇝ ê˲
+------------------------- (e-sig)                             // (x[e˲])
+Γ ⊢ x[e˲] ⇒ A[ê˲] ⇝ x[ê˲]
+
+------------------ (e-unit)      ---------------- (e-zeroN)
+Γ ⊢ () ⇒ 𝟙 ⇝ ()                  Γ ⊢ Z ⇒ ℕ ⇝ Z
+
+Γ ⊢ t ⇐ ℕ ⇝ t̂
+------------------- (e-suc)
+Γ ⊢ S t ⇒ ℕ ⇝ S t̂
+
+Γ ⊢ f ⇒ C ⇝ f̂        whnf(C) = A → B
+Γ ⊢ e ⇐ A ⇝ ê
+------------------------------------ (e-app)                  // ((f : A → B) e)
+Γ ⊢ f e ⇒ B[id, ê] ⇝ f̂ ê
+// whnf(C) of any other shape is a structural error: "cannot apply a
+// term of non-Π type — ascribe the function". No obligation is emitted;
+// there is no equation to state.
+
+Γ ⊢ t ⇒ C ⇝ t̂        whnf(C) = A ⨯ B
+------------------------------------- (e-proj1)               // ((t : A ⨯ B) .π₁)
+Γ ⊢ t .π₁ ⇒ A ⇝ t̂ .π₁
+
+Γ ⊢ t ⇒ C ⇝ t̂        whnf(C) = A ⨯ B
+------------------------------------- (e-proj2)               // ((t : A ⨯ B) .π₂)
+Γ ⊢ t .π₂ ⇒ B[id, t̂ .π₁] ⇝ t̂ .π₂
+
+Γ ⊢ T ⇝ A type
+Γ ⊢ t ⇐ A ⇝ t̂
+---------------------- (e-ann)
+Γ ⊢ (t : T) ⇒ A ⇝ t̂
+
+Γ ᐅ n:ℕ ⊢ T ⇝ A type
+Γ ⊢ z ⇐ A[id, Z] ⇝ ẑ
+Γ ᐅ n:ℕ ᐅ ih:A ⊢ s ⇐ A[↑ ∘ ↑, S ☐₁] ⇝ ŝ
+Γ ⊢ t ⇐ ℕ ⇝ t̂
+--------------------------------------------------------- (e-natelim)
+Γ ⊢ ℕ-elim (n. T) z (n ih. s) t ⇒ A[id, t̂] ⇝ ℕ-elim ẑ ŝ t̂
+                                        // (ℕ-elim z s t motive A)
+
+Γ ⊢ q ⇒ C ⇝ q̂        whnf(C) = A / R
+Γ ᐅ z:(A / R) ⊢ T ⇝ B type
+Γ ᐅ a:A ⊢ f ⇐ B[↑, class ☐₀] ⇝ f̂
+Γ ᐅ a:A ᐅ b:A[↑] ᐅ r:R ⊢ f̂[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f̂[↑ ∘ ↑ ∘ ↑, ☐₁]
+                        : B[↑ ∘ ↑ ∘ ↑, class ☐₂] ↓
+------------------------------------------------------------ (e-quotelim)
+Γ ⊢ quot-elim (z. T) (a. f) q ⇒ B[id, q̂] ⇝ quot-elim f̂ q̂
+                              // (quote-elim (A / R) f f⁼ q motive B)
+// The well-definedness premise f⁼ is a ↓-judgement: if the case function
+// respects R by computation or by an accepted lemma, elaboration is
+// silent; otherwise "f respects R" is surfaced as an ordinary equational
+// obligation. This is the intended shape for all content-bearing side
+// conditions: they become obligations, not errors and not annotations.
+
+// Universe codes infer at 𝕌, mirroring their formation rules:
+Γ ⊢ 𝟘 ⇒ 𝕌 ⇝ 𝟘      (likewise 𝟙, ℕ)                            // (𝟘 : 𝕌) etc.
+
+Γ ⊢ t ⇐ 𝕌 ⇝ a        Γ ᐅ x:El a ⊢ u ⇐ 𝕌 ⇝ b
+---------------------------------------------- (e-code-pi)    // (A → B : 𝕌)
+Γ ⊢ (x:t) → u ⇒ 𝕌 ⇝ a → b
+   (e-code-sigma analogous for ⨯)                             // (A ⨯ B : 𝕌)
+
+Γ ⊢ t ⇐ 𝕌 ⇝ a        Γ ᐅ x:El a ᐅ y:(El a)[↑] ⊢ r ⇐ 𝕌 ⇝ r̂
+------------------------------------------------------------ (e-code-quot)
+Γ ⊢ t / (x y. r) ⇒ 𝕌 ⇝ a / r̂                                  // (A / R : 𝕌)
+
+Γ ⊢ t ⇐ 𝕌 ⇝ a        Γ ⊢ t₀ ⇐ El a ⇝ a₀        Γ ⊢ t₁ ⇐ El a ⇝ a₁
+------------------------------------------------------------------- (e-code-eq)
+Γ ⊢ t₀ ≡ t₁ ∈ t ⇒ 𝕌 ⇝ (a₀ ≡ a₁ ∈ a)                    // (a₀ ≡ a₁ ∈ A : 𝕌)
+
+//////////// Element elaboration: checking /////////////
+
+// Introduction forms check against the whnf of the expected type.
+// A rigid shape mismatch here (λ against a non-Π, class against a
+// non-quotient, ...) is a structural error, not an obligation: if the
+// expected type is secretly Π only up to an unproven equation, the user
+// states that intent with an ascription, which moves the equation to
+// e-switch where it belongs.
+
+whnf(C) = A → B        Γ ᐅ x:A ⊢ t ⇐ B ⇝ t̂
+-------------------------------------------- (e-lam)          // (λ f)
+Γ ⊢ λx. t ⇐ C ⇝ λ t̂
+
+whnf(C) = A ⨯ B        Γ ⊢ u ⇐ A ⇝ û        Γ ⊢ v ⇐ B[id, û] ⇝ v̂
+------------------------------------------------------------------ (e-pair)
+Γ ⊢ u , v ⇐ C ⇝ û , v̂                                          // (a, b)
+
+whnf(C) = (a₀ ≡ a₁ ∈ A)        Γ ⊢ a₀ ≐ a₁ : A ↓
+-------------------------------------------------- (e-refl)
+Γ ⊢ Refl ⇐ C ⇝ Refl
+// Justified by (refl) + Eq-type congruence + coercion: Foundation's
+// (refl) inhabits only the diagonal a₀ ≡ a₀ ∈ A; given a₀ ≐ a₁, the
+// congruence rule for ≡-types yields (a₀ ≡ a₀ ∈ A) ≐ (a₀ ≡ a₁ ∈ A) and
+// coercion moves Refl across. So the ↓ premise is exactly what makes
+// the rule sound — not an optimization.
+// THE payment rule. `Refl` is the surface syntax for "this equation
+// holds": checking it emits the equation itself into ↓. Discharged by
+// computation → silent; by an accepted lemma → silent; otherwise it IS
+// the obligation, stated exactly where the user claimed it. There is no
+// other proof syntax for equalities, by design: equality proofs carry
+// no information (reflection erases them), so all structure lives in
+// the judgemental layer and in prepended lemmas.
+
+whnf(C) = A / R        Γ ⊢ a ⇐ A ⇝ â
+-------------------------------------- (e-class)              // (class a)
+Γ ⊢ class a ⇐ C ⇝ class â
+
+Γ ⊢ t ⇐ 𝟘 ⇝ t̂
+--------------------------- (e-zeroelim)                      // (𝟘-elim t)
+Γ ⊢ 𝟘-elim t ⇐ C ⇝ 𝟘-elim t̂
+// Any expected C; 𝟘-elim is the one form that checks against
+// everything. In inference position it is a structural error (ascribe).
+
+Γ ⊢ t ⇒ B ⇝ t̂        Γ ⊢ B ≐ C type ↓
+--------------------------------------- (e-switch)
+Γ ⊢ t ⇐ C ⇝ t̂
+// t any inference form. The mode switch is where inferred meets
+// expected, and the ONLY place type conversion is consulted during
+// term elaboration. Note the direction of failure: never an error —
+// the residual equation is assumed and reported.
+
+// Mode inventory. Checking-only forms: λ, pairs, Refl, class, 𝟘-elim
+// (their types are not determined by their syntax); encountering one in
+// inference position is a structural error whose fix is an ascription.
+// Everything else infers and reaches checking mode through e-switch.
+
+//////////// Conversion and discharge (the ↓ judgements) /////////////
+
+// Both ↓ judgements follow the same loop:
+//
+//   1. whnf both sides (this alone discharges everything the old
+//      derivation machinery called "by computation": β, El-decoding,
+//      signature unfolding).
+//   2. α-equal → discharged.
+//   3. Same rigid head → DECOMPOSE into component equations, each fed
+//      back into ↓, in the SUFFICIENT direction — the direction in
+//      which Foundation's congruence rules run. Sufficiency, not
+//      necessity: the theory does not provide constructor injectivity
+//      (an equation between two Π-types does not entail equations
+//      between their parts), so decomposition commits the report to
+//      component obligations that are enough to justify the composite,
+//      and occasionally stronger than strictly needed. Each emitted
+//      obligation carries the composite it descended from, so a user
+//      facing an unprovable component can restructure. Decomposition:
+//        A₀ → B₀   ≐ A₁ → B₁    ⇐  A₀ ≐ A₁ type;  Γ ᐅ A₁ ⊢ B₀ ≐ B₁ type
+//        A₀ ⨯ B₀   ≐ A₁ ⨯ B₁    ⇐  likewise
+//        A₀ / R₀   ≐ A₁ / R₁    ⇐  A₀ ≐ A₁ type;  Γ ᐅ A₁ ᐅ A₁[↑] ⊢ R₀ ≐ R₁ type
+//        (a₀≡b₀∈T₀) ≐ (a₁≡b₁∈T₁) ⇐ T₀ ≐ T₁ type;  a₀ ≐ a₁ : T₁;  b₀ ≐ b₁ : T₁
+//        El a      ≐ El b       ⇐  a ≐ b : 𝕌
+//        S a       ≐ S b        ⇐  a ≐ b : ℕ
+//        class a   ≐ class b    ⇐  a ≐ b : A     (at A / R; sufficient —
+//                                  R-relatedness without a ≐ b needs an
+//                                  explicit lemma at the quotient type)
+//        a₀ , b₀   ≐ a₁ , b₁    ⇐  componentwise at the Σ-type
+//        neutral spines with the same head variable/eliminator:
+//                                  componentwise (app-cong, proj-cong,
+//                                  ℕ-elim-cong, quot-elim-cong)
+//   4. Mixed El: whnf leaves `El a` (a neutral) against a rigid type B.
+//      When B is in the image of El-decoding with codable components
+//      (𝟘, 𝟙, ℕ, arrows/pairs/quotients/eq of codable parts), reduce to
+//      a ≐ code(B) : 𝕌 — sufficient via El-congruence + El-decoding.
+//      Otherwise fall through to 7.
+//   5. Prop-discharge: an element equation at type 𝟙 or at type 𝟘 is
+//      discharged outright — Foundation's (𝟙-Prop), (𝟘-Prop).
+//   6. η: a λ against a neutral at Π compares via Π-η (apply both to
+//      ☐₀ under the binder); a pair against a neutral at Σ via Σ-η.
+//   7. STORE LOOKUP: the equation (or its symmetric flip) matches an
+//      entry of E — an accepted-lemma equation Δ ⊢ l ≐ r : T under a
+//      first-order instantiation σ (matching modulo whnf; the equation
+//      discharges as l[σ] ≐ r[σ] weakened into Γ), or an already-
+//      assumed obligation verbatim (deduplication: same statement, same
+//      obligation — nothing new is reported, and nothing is considered
+//      proven). v1 uses single-lemma steps; closing E under
+//      transitivity/congruence (e-graph style) is a planned upgrade and
+//      changes only COMPLETENESS of discharge, never soundness.
+//   8. ASSUME: append the equation to O (with source position, and with
+//      the composite it was decomposed from, if any) and to E; succeed.
+//
+// Invariant (statement well-formedness): every equation reaching ↓ has
+// both sides produced by elaboration at the stated type, in the stated
+// context, under the assumptions active at that moment. Consequently
+// obligation statements are well-formed in Foundation extended by the
+// obligations that PRECEDE them in surfacing order — the report order
+// is always a valid discharge order. An obligation whose statement
+// depends on earlier assumptions is annotated with them; prove those
+// first (or in one joint lemma) and the later statement becomes
+// statable in the base theory. Cyclic dependence cannot arise in this
+// hole-free setting: assumption strictly precedes use, in file order.
+
+//////////// Items /////////////
+
+Γ₀ = ε;   Γᵢ = Γᵢ₋₁ ᐅ xᵢ:Aᵢ  where  Γᵢ₋₁ ⊢ Tᵢ ⇝ Aᵢ type   (i = 1..n)
+Γₙ ⊢ T ⇝ A type
+Γₙ ⊢ t ⇐ A ⇝ t̂
+------------------------------------------------------------- (e-def)
+def x (x₁:T₁) ... (xₙ:Tₙ) : T ≔ t   extends Σ with (Γₙ ⊦ x ≔ t̂ : A)
+
+Γₙ as above
+Γₙ ⊢ T ⇝ A type
+------------------------------------------------------------- (e-typedef)
+type x (x₁:T₁) ... (xₙ:Tₙ) ≔ T     extends Σ with (Γₙ ⊦ x ≔ A type)
+
+// Duplicate entry names are a structural error. An entry elaborated
+// under assumptions still enters Σ and the rest of the run builds on
+// it — by design (see report semantics): one run surfaces ALL
+// obligations, at the price that obligations surfaced downstream of an
+// assumption are provisional until it is proven.
+
+//////////// The report /////////////
+
+At end of run, obligations are reported in surfacing order:
+
+  open obligations (2):
+    [1] (n : ℕ) ⊢ plus[n, Z] ≐ n : ℕ
+        at: vappend_nil, line 14 (checking Refl)
+    [2] (n m : ℕ) (a : 𝕌) (xs : El (vect[n, a])) ⊢ ...
+        at: vappend_assoc, line 22 (switch: inferred vs expected type)
+        from composite: El (vect[plus[n, Z], a]) ≐ El (vect[n, a]) type
+        statement uses: [1]
+
+Report conventions:
+  * Statements are printed in named surface syntax, in their full
+    context (binder names recovered from the name environment).
+  * `from composite:` shows the pre-decomposition equation, for the
+    case where the sufficient direction overshot.
+  * `statement uses:` lists the earlier obligations under which this
+    statement is well-formed; discharge those first. (Coarse
+    approximation — "all earlier ones" — is a legal fallback.)
+  * Deduplication is by statement, so each equation appears once no
+    matter how many sites hit it.
+  * Exit status: accepted iff the list is empty.
+
+Discharging an obligation: prepend, before the item that surfaced it,
+
+  def plus_zero (n : ℕ) : plus[n, Z] ≡ n ∈ ℕ ≔ <proof>
+
+— an ordinary def whose type is the obligation's statement as an
+equality type (generalized over its context as a telescope). On rerun,
+its reflected equation is in E before the surfacing site elaborates,
+and step 7 discharges silently. The proof itself is whatever the theory
+requires — `Refl` when the equation is by computation, an ℕ-elim with
+an equality motive for inductive content — and elaborating IT may
+surface further (strictly smaller) obligations; the loop converges
+because each accepted lemma is content the file genuinely needed.
+
+//////////// Metatheory: the soundness contract /////////////
+
+Let T₀ be the theory of docs/NovaFoundation.txt over the accepted
+signature, and let O₁, ..., Oₙ be the obligations of a completed run in
+surfacing order. The contract every rule above must respect:
+
+  (Stratification) For each i, the statement of Oᵢ is well-formed in
+  T₀ + O₁ + ... + Oᵢ₋₁ (obligations adjoined as equality axioms — a
+  conservative kind of extension to state, since equality proofs are
+  irrelevant and axioms add no computational behavior).
+
+  (Soundness) Every signature entry produced by the run is derivable in
+  T₀ + O₁ + ... + Oₙ. In particular, a run with n = 0 yields Foundation
+  derivations outright: Σ sig.
+
+  (Discharge) If each Oᵢ is proven by a prepended lemma — elaborated
+  earlier in the file, hence in a theory not containing Oᵢ...Oₙ — then
+  by cut (replacing axiom leaves with the lemmas' reflections) the
+  accepting run's entries are derivable in T₀ alone. File order
+  witnesses non-circularity; no provenance tracking is needed beyond
+  it. The accepting run is the sole authority: nothing computed by a
+  dirty run — including Σ entries elaborated under assumptions — has
+  any standing beyond guiding the user to the next edit.
+
+Two corollaries worth keeping in view while implementing:
+
+  * The elaborator can be paranoid-free: a bug in discharge (step 7
+    matching too eagerly, a congruence decomposed wrongly) can produce
+    a wrong REPORT, but a wrong acceptance requires the bug to survive
+    the clean run's re-elaboration of a file whose every equation then
+    discharges from accepted lemmas only. Keeping step 7's matching
+    simple (first-order, single step) is a soundness feature.
+  * Terms never contain transports: obligations are assumed, not
+    materialized as coercion nodes, so an accepted file's core terms
+    are exactly what the user wrote, and judgemental equality does all
+    the moving. This is the extensionality dividend, and it is why the
+    obligation mechanism composes: proving Oᵢ never changes any term,
+    only the acceptability of the file.
+
+//////////// Future work (explicitly out of scope here) /////////////
+
+* Holes / metavariables: pattern unification over the same constraint
+  store, with two report goal kinds (fill / prove). Ground-only
+  obligations; no erasure step (reflection, transitivity-through-a-
+  midpoint, witness erasure) may fire on a premise whose statement
+  mentions an unsolved hole — such steps postpone until the hole is
+  filled. This restriction is what keeps occurs-checking a complete
+  dependency criterion and the instantiation lemma stateable.
+* Congruence/transitivity closure of E (e-graph) for discharge
+  completeness; `using <lemma>` hints for deterministic discharge.
+* Incremental re-elaboration (caching per item) — requires recording
+  per-item assumption sets; whole-file re-runs make this unnecessary
+  at current scale.
