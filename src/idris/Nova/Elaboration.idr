@@ -1,4 +1,4 @@
-module Nova.Foundation.Elaboration
+module Nova.Elaboration
 
 -- The bidirectional elaborator of docs/NovaElaboration.txt (hole-free).
 --
@@ -40,9 +40,9 @@ import Nova.Foundation.Subst
 import Nova.Foundation.Beta
 import Nova.Foundation.Parser
 import Nova.Foundation.Kernel
-import Nova.Foundation.Named
-import Nova.Foundation.Elaboration.Surface
-import Nova.Foundation.Elaboration.Parser
+import Nova.Elaboration.Named
+import Nova.Elaboration.Surface
+import Nova.Elaboration.Parser
 
 %default covering
 

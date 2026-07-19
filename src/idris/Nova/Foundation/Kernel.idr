@@ -16,7 +16,7 @@ module Nova.Foundation.Kernel
 --     (el-quot-eq), Π/Σ-η.
 --
 -- The discharge engine (untrusted) EMITS certificates; a discharge
--- counts only if it replays here. See Nova.Foundation.Elaboration.
+-- counts only if it replays here. See Nova.Elaboration.
 
 import Data.List
 import Data.Maybe

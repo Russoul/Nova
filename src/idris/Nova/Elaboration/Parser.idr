@@ -1,7 +1,7 @@
-module Nova.Foundation.Elaboration.Parser
+module Nova.Elaboration.Parser
 
 -- Parser for elaboration surface files (docs/NovaElaboration.txt):
--- named text ⇝ indexed surface AST (Nova.Foundation.Elaboration.Surface).
+-- named text ⇝ indexed surface AST (Nova.Elaboration.Surface).
 --
 -- Name resolution happens HERE, during parsing — an unbound identifier
 -- is a parse-time error, and the elaborator never sees a name except as
@@ -24,8 +24,8 @@ import Me.Russoul.Text.Position
 import Me.Russoul.Text.Range
 
 import Nova.Foundation.Parser
-import Nova.Foundation.Named
-import Nova.Foundation.Elaboration.Surface
+import Nova.Elaboration.Named
+import Nova.Elaboration.Surface
 
 %default covering
 

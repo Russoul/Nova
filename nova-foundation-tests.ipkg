@@ -7,13 +7,13 @@ modules = Nova.Foundation.Syntax
         , Nova.Foundation.Subst
         , Nova.Foundation.Beta
         , Nova.Foundation.Kernel
-        , Nova.Foundation.Named
+        , Nova.Elaboration.Named
         , Nova.Foundation.Parser
-        , Nova.Foundation.Elaboration
-        , Nova.Foundation.Elaboration.Surface
-        , Nova.Foundation.Elaboration.Parser
+        , Nova.Elaboration
+        , Nova.Elaboration.Surface
+        , Nova.Elaboration.Parser
 
 sourcedir = "src/idris"
 
-main = Nova.Foundation.Test.Main
+main = Nova.Test.Main
 executable = nova-foundation-tests

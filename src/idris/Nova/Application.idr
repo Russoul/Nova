@@ -1,9 +1,9 @@
-module Nova.Foundation.Application
+module Nova.Application
 
 import Data.List
 import Data.String
 
-import Nova.Foundation.Elaboration
+import Nova.Elaboration
 import System
 import System.File
 

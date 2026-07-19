@@ -1,4 +1,4 @@
-module Nova.Foundation.Elaboration.Surface
+module Nova.Elaboration.Surface
 
 -- The INDEXED SURFACE AST of docs/NovaElaboration.txt.
 --

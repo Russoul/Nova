@@ -4,18 +4,18 @@ version = 0.1.0
 depends = contrib, just-a-parser
 
 executable = nova-foundation-app
-main = Nova.Foundation.Application
+main = Nova.Application
 
 modules = Nova.Foundation.Syntax
         , Nova.Foundation.Subst
         , Nova.Foundation.Beta
         , Nova.Foundation.Kernel
-        , Nova.Foundation.Named
-        , Nova.Foundation.Elaboration
-        , Nova.Foundation.Elaboration.Surface
-        , Nova.Foundation.Elaboration.Parser
+        , Nova.Elaboration.Named
+        , Nova.Elaboration
+        , Nova.Elaboration.Surface
+        , Nova.Elaboration.Parser
         , Nova.Foundation.Parser
-        , Nova.Foundation.Application
+        , Nova.Application
 
         , Solver.CommutativeMonoid
         , Solver.CommutativeMonoid.Evaluation

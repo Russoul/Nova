@@ -1,4 +1,4 @@
-module Nova.Foundation.Named
+module Nova.Elaboration.Named
 
 -- Named term syntax: the NameEnv discipline, local identifiers, and the
 -- named pretty-printer for core terms (see docs/NovaElaboration.txt for

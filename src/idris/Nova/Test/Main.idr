@@ -1,4 +1,4 @@
-module Nova.Foundation.Test.Main
+module Nova.Test.Main
 
 import System
 import System.File
@@ -8,10 +8,10 @@ import Test.Golden
 
 import Nova.Foundation.Syntax
 import Nova.Foundation.Parser
-import Nova.Foundation.Named
-import Nova.Foundation.Elaboration
-import Nova.Foundation.Elaboration.Surface
-import Nova.Foundation.Elaboration.Parser
+import Nova.Elaboration.Named
+import Nova.Elaboration
+import Nova.Elaboration.Surface
+import Nova.Elaboration.Parser
 
 -- ===== Parser mode =====
 -- Invoked as: nova-foundation-tests run PARSER INPUT
