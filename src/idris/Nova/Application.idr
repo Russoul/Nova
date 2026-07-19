@@ -12,7 +12,7 @@ import System.File
 usage : String
 usage = unlines
   [ "Usage:"
-  , "  nova-foundation-app elab <surface-file>"
+  , "  nova elab <surface-file>"
   , ""
   , "Elaborates a .nova surface file (see docs/NovaElaboration.txt):"
   , "items are checked in order against the kernel's signature; the"

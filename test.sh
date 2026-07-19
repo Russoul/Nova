@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -e
-pack run nova-foundation-tests.ipkg "$(pwd)/build/exec/nova-foundation-tests" "$@"
+pack run nova-tests.ipkg "$(pwd)/build/exec/nova-tests" "$@"
 ./check-elaborations.sh

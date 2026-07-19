@@ -4,9 +4,9 @@
 set -u
 cd "$(dirname "$0")"
 
-pack build nova-foundation.ipkg >/dev/null || exit 1
+pack build nova.ipkg >/dev/null || exit 1
 
-APP="build/exec/nova-foundation-app"
+APP="build/exec/nova"
 
 pass=0
 fail=0

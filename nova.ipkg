@@ -1,9 +1,9 @@
-package nova-foundation
+package nova
 version = 0.1.0
 
 depends = contrib, just-a-parser
 
-executable = nova-foundation-app
+executable = nova
 main = Nova.Application
 
 modules = Nova.Kernel.Syntax
