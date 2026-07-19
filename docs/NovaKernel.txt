@@ -198,16 +198,22 @@ do not match is rejected.
   dom      : (a₀ → b₀) ≐ (a₁ → b₁) : 𝕌 ⇒  a₀ ≐ a₁ : 𝕌
              // →-inj (also ⨯-inj for pair codes)
   cod u    : (a₀ → b₀) ≐ (a₁ → b₁) : 𝕌 ⇒  b₀[id,u] ≐ b₁[id,u] : 𝕌
+             requires  Σ; Γ ⊦ u ⇐ᵖ El a₁
              // →-inj second component, instantiated at u (el-eq-subst)
   qdom     : (a₀ / r₀) ≐ (a₁ / r₁) : 𝕌 ⇒  a₀ ≐ a₁ : 𝕌      // /-inj
   qrel u v : (a₀ / r₀) ≐ (a₁ / r₁) : 𝕌 ⇒  r₀[id,u,v] ≐ r₁[id,u,v] : 𝕌
+             requires  Σ; Γ ⊦ u ⇐ᵖ El a₁   Σ; Γ ⊦ v ⇐ᵖ El a₁
   eqT      : (l₀≡r₀∈t₀) ≐ (l₁≡r₁∈t₁) : 𝕌 ⇒ t₀ ≐ t₁ : 𝕌     // ≡-inj
   eqL      :                           ⇒ l₀ ≐ l₁ : El t₁
   eqR      :                           ⇒ r₀ ≐ r₁ : El t₁
 
 The injectivity rules are Foundation's (NovaFoundation.txt, "Type
 constructor injectivity"); the binder-crossing selectors take an
-instantiation element so the resulting equation stays in Γ.
+instantiation element so the resulting equation stays in Γ. Those
+instantiation elements come from the (untrusted) certificate, so
+el-eq-subst's premise is CHECKED (§3), not presumed — a binder
+equation only speaks about members of its domain, and an unchecked
+u would smuggle in an equation the premise never licensed.
 
 ////////// 6. Typed path descent //////////
 

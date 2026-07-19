@@ -443,20 +443,26 @@ mutual
 
 -- ===== Selector application =====
 
-applySel : Sig -> (Elem, Elem, Ty) -> Sel -> KM (Elem, Elem, Ty)
-applySel sig (l, r, _) sel = do
+applySel : Sig -> Ctx -> (Elem, Elem, Ty) -> Sel -> KM (Elem, Elem, Ty)
+applySel sig ctx (l, r, _) sel = do
   l' <- kElem sig l
   r' <- kElem sig r
   case (sel, l', r') of
     (SelSuc, NatIntro1 x, NatIntro1 y) => pure (x, y, Ty.NatTy)
     (SelDom, Elem.PiTy a0 _, Elem.PiTy a1 _) => pure (a0, a1, Ty.UniverseTy)
     (SelDom, Elem.SigmaTy a0 _, Elem.SigmaTy a1 _) => pure (a0, a1, Ty.UniverseTy)
-    (SelCod u, Elem.PiTy _ b0, Elem.PiTy _ b1) =>
+    -- binder-crossing selectors: the instantiation elements come from
+    -- the (untrusted) certificate, so el-eq-subst's premise is CHECKED
+    (SelCod u, Elem.PiTy _ b0, Elem.PiTy a1 b1) => do
+      checkP sig ctx u (El a1)
       pure (substElem b0 (Ext Id u), substElem b1 (Ext Id u), Ty.UniverseTy)
-    (SelCod u, Elem.SigmaTy _ b0, Elem.SigmaTy _ b1) =>
+    (SelCod u, Elem.SigmaTy _ b0, Elem.SigmaTy a1 b1) => do
+      checkP sig ctx u (El a1)
       pure (substElem b0 (Ext Id u), substElem b1 (Ext Id u), Ty.UniverseTy)
     (SelQDom, QuotTy a0 _, QuotTy a1 _) => pure (a0, a1, Ty.UniverseTy)
-    (SelQRel u v, QuotTy _ r0, QuotTy _ r1) =>
+    (SelQRel u v, QuotTy _ r0, QuotTy a1 r1) => do
+      checkP sig ctx u (El a1)
+      checkP sig ctx v (El a1)
       pure (substElem r0 (Ext (Ext Id u) v), substElem r1 (Ext (Ext Id u) v), Ty.UniverseTy)
     (SelEqT, Elem.EqTy _ _ t0, Elem.EqTy _ _ t1) => pure (t0, t1, Ty.UniverseTy)
     (SelEqL, Elem.EqTy l0 _ _, Elem.EqTy l1 _ t1) => pure (l0, l1, El t1)
@@ -470,7 +476,7 @@ licensed sig ctx step = do
   pty <- inferP sig ctx step.prf >>= kTy sig
   case pty of
     EqTy l r t => do
-      (l', r', t') <- foldlM (applySel sig) (l, r, t) step.sels
+      (l', r', t') <- foldlM (applySel sig ctx) (l, r, t) step.sels
       lN <- kElem sig l'
       rN <- kElem sig r'
       pure (if step.flip then (rN, lN, t') else (lN, rN, t'))
