@@ -32,8 +32,8 @@ runParse parser input =
 
 pools : IO (List TestPool)
 pools = sequence
-  [ testsInDir "tests/foundation/parser" "Foundation Parser"
-  , testsInDir "tests/foundation/elaboration" "Foundation Elaboration"
+  [ testsInDir "tests/nova/parser" "Nova Parser"
+  , testsInDir "tests/nova/elaboration" "Nova Elaboration"
   ]
 
 main : IO ()
