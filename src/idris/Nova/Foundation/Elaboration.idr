@@ -40,10 +40,9 @@ import Nova.Foundation.Subst
 import Nova.Foundation.Beta
 import Nova.Foundation.Parser
 import Nova.Foundation.Kernel
+import Nova.Foundation.Named
 import Nova.Foundation.Elaboration.Surface
 import Nova.Foundation.Elaboration.Parser
-import Nova.Foundation.Derivation.NamedParser
-import Nova.Foundation.Derivation.NamedPretty
 
 %default covering
 

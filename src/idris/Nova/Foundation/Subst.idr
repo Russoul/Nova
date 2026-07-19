@@ -1,11 +1,11 @@
 module Nova.Foundation.Subst
 
--- A direct, structurally-recursive substitution algorithm for Ty/Elem/Tel/
--- Spine, matching the "by definition" (≜) substitution equations in
+-- A direct, structurally-recursive substitution algorithm for Ty/Elem,
+-- matching the "by definition" (≜) substitution equations in
 -- docs/NovaFoundation.txt.
 --
--- This always fully computes A[σ]/t[σ] in one call — for any Ty/Elem/Tel/
--- Spine and any concrete σ, since Sub's constructors (Terminal/Ext/Chain/
+-- This always fully computes A[σ]/t[σ] in one call — for any Ty/Elem
+-- and any concrete σ, since Sub's constructors (Terminal/Ext/Chain/
 -- Id/Wk) are always finitely resolvable. It also eagerly resolves any
 -- SubstElim already embedded in the input term, so it never leaves a
 -- pending substitution behind in its result.
@@ -87,17 +87,7 @@ substTy (El e)                sigma = El (substElem e sigma)
 substTy (Quotient a r)        sigma = Quotient (substTy a sigma) (substTy r (under (under sigma)))
 substTy (Ty.SigVar x es)      sigma = Ty.SigVar x (substSubNorm es sigma)
 
-||| Δ[σ]
-export
-substTel : Tel -> Sub -> Tel
-substTel []           sigma = []
-substTel (ty :: rest) sigma = substTy ty sigma :: substTel rest (under sigma)
 
-||| ē[σ]
-export
-substSpine : Spine -> Sub -> Spine
-substSpine []        sigma = []
-substSpine (e :: es) sigma = substElem e sigma :: substSpine es sigma
 
 export
 embed : SubNorm -> Sub
@@ -110,15 +100,15 @@ embed (es :< e) = Ext (embed es) e
 -- never references the variable at de Bruijn depth d (i.e. x is in the
 -- image of ↑ under d local binders), returning x with every free index
 -- above d decremented. Binder bookkeeping mirrors substXxx exactly. Used
--- by the weakening-aware fact lookup in Derivation.idr; call with d = 0.
+-- by the elaborator's candidate canonicalization; call with d = 0.
 --
 -- NOTE: strengthening is a raw syntactic operation — index arithmetic
 -- only. Its output is NOT necessarily well-formed (nothing here consults
 -- a context or the signature), and success does NOT mean the input was
 -- derivable one binder up: it only means the input is syntactically in
 -- the image of ↑. Callers must never treat a strengthened result as a
--- judgement — it is a lookup *key*, and any meaning comes solely from the
--- subsequent membership test against a table of derivable facts.
+-- judgement — the elaborator uses it only to canonicalize candidate
+-- patterns, and anything it produces is re-established by the kernel.
 
 mutual
   export
@@ -176,15 +166,7 @@ strengthenSub d Terminal  = Just Terminal
 strengthenSub d (Ext s e) = Ext <$> strengthenSub d s <*> strengthenElem d e
 strengthenSub d _         = Nothing
 
-export
-strengthenTel : (depth : Nat) -> Tel -> Maybe Tel
-strengthenTel d []           = Just []
-strengthenTel d (ty :: rest) = (::) <$> strengthenTy d ty <*> strengthenTel (1 + d) rest
 
-export
-strengthenSpine : (depth : Nat) -> Spine -> Maybe Spine
-strengthenSpine d []        = Just []
-strengthenSpine d (e :: es) = (::) <$> strengthenElem d e <*> strengthenSpine d es
 
 ||| σ elementwise-weakened by ↑ — how the same (surface, Ext/Terminal)
 ||| substitution is spelled one binder up in its domain (σ ∘ ↑, by the

@@ -237,37 +237,6 @@ mutual
             pure (Ty.SigVar x es))
     <|> inParen parseTy
 
--- ===== Ctx, Tel, Spine =====
-
--- Γ ::= ε | Γ ᐅ A   (snoc list, left-associative)
-export covering
-parseCtx : Rule Ctx
-parseCtx = do
-  str_ "ε"
-  exts <- many (do sp; str_ "ᐅ"; sp; parseTy)
-  pure (foldl (:<) Lin exts)
-
--- Δ ::= ε | A ◁ Δ   (list, right-associative)
-export covering
-parseTel : Rule Tel
-parseTel =
-      (str_ "ε" $> [])
-  <|> (do a <- parseTy
-          sp; str_ "◁"; sp
-          rest <- parseTel
-          pure (a :: rest))
-
--- ē ::= · | e₁, ..., eₙ   (comma-separated, no trailing ·)
--- Elements in the spine are parsed without top-level comma to avoid
--- ambiguity with SigmaIntro; use parentheses for pairs in spines.
-export covering
-parseSpine : Rule Spine
-parseSpine =
-      (str_ "·" $> [])
-  <|> (do e    <- parseElemNoComma
-          rest <- many (do sp; char_ ','; sp; parseElemNoComma)
-          pure (e :: rest))
-
 -- ===== Convenience runner =====
 
 export

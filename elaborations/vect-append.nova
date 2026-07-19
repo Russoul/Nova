@@ -1,5 +1,5 @@
 -- Vector append, its computation laws, and the length arithmetic they
--- ride on. Restates derivations/vect-append.
+-- ride on.
 def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
 def plusZeroId (n : ℕ) : plus[] n Z ≡ n ∈ ℕ ≔ Refl
 def zeroPlusId (n : ℕ) : plus[] Z n ≡ n ∈ ℕ ≔

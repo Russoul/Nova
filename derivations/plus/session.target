@@ -1,7 +1,0 @@
-- el-wf ε ⊦ plus[] : ℕ → ℕ → ℕ
-- el-wf ε ᐅ n:ℕ ⊦ plusZeroId[n] : plus[] n Z ≡ n ∈ ℕ
-- el-wf ε ᐅ n:ℕ ᐅ m:ℕ ⊦ plusSucId[n, m] : plus[] n (S m) ≡ S (plus[] n m) ∈ ℕ
-- el-wf ε ᐅ n:ℕ ⊦ zeroPlusId[n] : plus[] Z n ≡ n ∈ ℕ
-- el-wf ε ᐅ n:ℕ ᐅ m:ℕ ⊦ sucPlus[n, m] : plus[] (S n) m ≡ S (plus[] n m) ∈ ℕ
-- el-wf ε ᐅ n:ℕ ᐅ m:ℕ ⊦ plusComm[n, m] : plus[] m n ≡ plus[] n m ∈ ℕ
-- el-wf ε ᐅ n:ℕ ᐅ m:ℕ ᐅ k:ℕ ⊦ plusAssoc[n, m, k] : plus[] (plus[] n m) k ≡ plus[] n (plus[] m k) ∈ ℕ

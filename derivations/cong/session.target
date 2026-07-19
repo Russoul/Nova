@@ -1,1 +1,0 @@
-- el-wf ε ⊦ cong[] : (A:𝕌) → (B:El A → 𝕌) → (f:(v:El A) → El (B v)) → (v:El A) → (w:El A) → (v ≡ w ∈ El A) → (f v ≡ f w ∈ El (B w))

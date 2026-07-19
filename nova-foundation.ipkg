@@ -9,19 +9,12 @@ main = Nova.Foundation.Application
 modules = Nova.Foundation.Syntax
         , Nova.Foundation.Subst
         , Nova.Foundation.Beta
-        , Nova.Foundation.Derivation
         , Nova.Foundation.Kernel
+        , Nova.Foundation.Named
         , Nova.Foundation.Elaboration
         , Nova.Foundation.Elaboration.Surface
         , Nova.Foundation.Elaboration.Parser
         , Nova.Foundation.Parser
-        , Nova.Foundation.Derivation.Parser
-        , Nova.Foundation.Derivation.NamedParser
-        , Nova.Foundation.Derivation.NamedPretty
-        , Nova.Foundation.Derivation.NamedRejectionPretty
-        , Nova.Foundation.Pretty
-        , Nova.Foundation.Rejection.Pretty
-        , Nova.Foundation.Session
         , Nova.Foundation.Application
 
         , Solver.CommutativeMonoid

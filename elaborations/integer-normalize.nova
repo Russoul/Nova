@@ -1,5 +1,5 @@
 -- Normalization of difference-pair integers: cancel the common part.
--- Restates derivations/integer-normalize.
+-- Canonical representatives for difference-pair integers.
 def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
 def plusZeroId (n : ℕ) : plus[] n Z ≡ n ∈ ℕ ≔ Refl
 def plusSucId (n : ℕ) (m : ℕ) : plus[] n (S m) ≡ S (plus[] n m) ∈ ℕ ≔ Refl

@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run typing 'el-nat-ty ε ⊦ ℕ : 𝕌'

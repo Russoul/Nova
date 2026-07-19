@@ -1,4 +1,0 @@
-- ty-wf ε ⊦ Int[]
-- el-wf ε ⊦ intNormalize[] : Int[] → Int[]
-- el-eq ε ⊦ intNormalize[] (class (S Z , Z)) ≐ class (S Z , Z) : Int[]
-- el-eq ε ⊦ intNormalize[] (class (S Z , S (S Z))) ≐ class (Z , S Z) : Int[]

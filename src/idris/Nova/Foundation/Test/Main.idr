@@ -8,50 +8,13 @@ import Test.Golden
 
 import Nova.Foundation.Syntax
 import Nova.Foundation.Parser
-import Nova.Foundation.Derivation
-import Nova.Foundation.Derivation.Parser
-import Nova.Foundation.Derivation.NamedParser
+import Nova.Foundation.Named
 import Nova.Foundation.Elaboration
 import Nova.Foundation.Elaboration.Surface
 import Nova.Foundation.Elaboration.Parser
 
--- ===== Display helpers for top-level aliases =====
-
-showCtx : Ctx -> String
-showCtx [<] = "[<]"
-showCtx sx = "[< " ++ go sx ++ "]"
-  where
-    go : SnocList Ty -> String
-    go [<] = ""
-    go (rest :< ty) = case rest of
-      [<] => show ty
-      _   => go rest ++ ", " ++ show ty
-
-showTel : Tel -> String
-showTel [] = "[]"
-showTel tys = "[" ++ joinWith ", " (map show tys) ++ "]"
-  where
-    joinWith : String -> List String -> String
-    joinWith _ [] = ""
-    joinWith _ [x] = x
-    joinWith sep (x :: xs) = x ++ sep ++ joinWith sep xs
-
-showSpine : Spine -> String
-showSpine [] = "[]"
-showSpine es = "[" ++ joinWith ", " (map show es) ++ "]"
-  where
-    joinWith : String -> List String -> String
-    joinWith _ [] = ""
-    joinWith _ [x] = x
-    joinWith sep (x :: xs) = x ++ sep ++ joinWith sep xs
-
 -- ===== Parser mode =====
 -- Invoked as: nova-foundation-tests run PARSER INPUT
-
-joinWith : String -> List String -> String
-joinWith _ []       = ""
-joinWith _ [x]      = x
-joinWith sep (x :: xs) = x ++ sep ++ joinWith sep xs
 
 runParse : String -> String -> IO ()
 runParse parser input =
@@ -59,11 +22,6 @@ runParse parser input =
     "sub"          => putStrLn $ either (const "ERROR") show (runParser parseSub input)
     "ty"           => putStrLn $ either (const "ERROR") show (runParser parseTy input)
     "elem"         => putStrLn $ either (const "ERROR") show (runParser parseElem input)
-    "ctx"          => putStrLn $ either (const "ERROR") showCtx (runParser parseCtx input)
-    "tel"          => putStrLn $ either (const "ERROR") showTel (runParser parseTel input)
-    "spine"        => putStrLn $ either (const "ERROR") showSpine (runParser parseSpine input)
-    "typing"       => putStrLn $ either (const "ERROR") show (runParser parseTypingRule input)
-    "typing-list"  => putStrLn $ either (const "ERROR") (joinWith "\n" . map show) (runParser parseListTypingRule input)
     "surface-ty"   => putStrLn $ either (const "ERROR") show (runSurfaceParser (parseSTy [<]) input)
     "surface-elem" => putStrLn $ either (const "ERROR") show (runSurfaceParser (parseSElem [<]) input)
     "surface-item" => putStrLn $ either (const "ERROR") show (runSurfaceParser parseSItem input)

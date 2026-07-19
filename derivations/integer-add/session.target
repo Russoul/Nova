@@ -1,2 +1,0 @@
-- el-wf ε ⊦ intAdd[] : Int[] → Int[] → Int[]
-- el-eq ε ⊦ intAdd[] (class (Z , Z)) (class (S Z , S Z)) ≐ class (S Z , S Z) : Int[]

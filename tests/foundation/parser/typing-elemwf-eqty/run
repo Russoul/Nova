@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run typing 'el-eq-ty ε ⊦ Z ≡ Z ∈ ℕ : 𝕌'

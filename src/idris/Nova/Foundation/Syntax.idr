@@ -105,16 +105,6 @@ public export
 Ctx : Type
 Ctx = SnocList Ty
 
-||| Tye telescope: Δ ::= ε | T ◁ Δ
-public export
-Tel : Type
-Tel = List Ty
-
-||| Spine: ē ::= · | e, ē
-public export
-Spine : Type
-Spine = List Elem
-
 public export
 SigIdentifier : Type
 SigIdentifier = String

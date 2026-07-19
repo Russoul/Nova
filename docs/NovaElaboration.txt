@@ -15,12 +15,11 @@ Relationship to the rest of the codebase:
     the Foundation rule(s) that justify it, and the soundness contract
     (see Metatheory) is stated against Foundation derivability. Where
     this file and Foundation disagree, Foundation wins.
-  * The elaborator is INDEPENDENT of the derivation machinery
-    (.rules/.target sessions, the fact table, `apply`/`query`). It shares
-    only the core syntax (Ty/Elem/Sub/Ctx/Sig) and the ≜-computation
-    relation (beta/El-decoding/signature unfolding). The intent is for
-    elaboration to REPLACE the derivation machinery as the way judgements
-    are established.
+  * Elaboration is the sole way judgements are established. (It
+    replaced the earlier derivation machinery — .rules/.target
+    sessions, the fact table, `apply`/`query` — which has been
+    removed; what remains shared with that era is only the core
+    syntax (Ty/Elem/Sub/Ctx/Sig) and the ≜-computation relation.)
   * This version is HOLE-FREE: no metavariables, no unification. Every
     binder is named, every motive is written, every ascription that the
     bidirectional discipline needs is supplied by the user. Holes are a
@@ -45,9 +44,11 @@ The elaboration model in one paragraph:
 
 //////////// Surface syntax /////////////
 
-Token conventions (identifiers, `_`, precedence-level notation T{n}/t{n})
-are those of docs/NovaNamedSyntax.txt. The term/type grammar below is
-self-contained; it deliberately reuses the named forms.
+Token conventions: local identifiers are alphanumeric (a leading
+letter or `_`, then letters/digits/`_`/`'`); `_` is the wildcard
+binder, never resolvable; T{n}/t{n} names the type/term grammar at
+precedence level n, and T{>=n} any level at or above it. The
+term/type grammar below is self-contained.
 
 // A file is a sequence of items. `def` introduces a term definition,
 // `type` a type definition — the two signature-entry forms of
@@ -57,9 +58,8 @@ file  ::= item*
 item  ::= def  x ((x:T{≥0}))* : T{≥0} ≔ t{≥0}
         | type x ((x:T{≥0}))* ≔ T{≥0}
 
-// Types. Same shape as NovaNamedSyntax, plus nothing new: elaboration
-// needs no rule keywords and no context prefixes — the context is always
-// implicit in where a subterm sits.
+// Types. Elaboration needs no rule keywords and no context prefixes —
+// the context is always implicit in where a subterm sits.
 T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | x[t˲] | (T{≥0})
 T{2} ::= El t{≥4}
 T{1} ::= (x:T{≥0}) → T{≥1} | (x:T{≥0}) ⨯ T{≥1} | T{≥2} / (x y. T{≥1})
@@ -87,12 +87,12 @@ t{1} ::= (x:t{≥0}) → t{≥1} | (x:t{≥0}) ⨯ t{≥1} | t{≥2} / (x y. t{�
        | t{≥2} ≡ t{≥2} ∈ t{≥2}                                // universe codes
 t{0} ::= t{≥1} , t{≥0}                                        (right-assoc)
 
-// The name-dropping sugar of NovaNamedSyntax applies unchanged:
-// `A → B` for `(_:A) → B`, `A / R` for `A / (_ _. R)`, `_` in any binder.
+// Name-dropping sugar: `A → B` for `(_:A) → B`, `A / R` for
+// `A / (_ _. R)`, `_` in any binder.
 
 //////// Name resolution (front end, before elaboration) ////////
 
-// Names are a parsing concern only, exactly as in NovaNamedSyntax.txt.
+// Names are a parsing concern only.
 // Parsing + scope resolution translate the named text into an INDEXED
 // SURFACE AST: the same grammar with every variable occurrence replaced
 // by its de Bruijn index ☐ᵢ (innermost binder wins; unbound name =

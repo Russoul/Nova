@@ -1,5 +1,5 @@
 -- Natural-number addition (recursion on the second argument) and its
--- basic equational theory. Restates derivations/plus.
+-- basic equational theory.
 def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
 
 def plusZeroId (n : ℕ) : plus[] n Z ≡ n ∈ ℕ ≔ Refl

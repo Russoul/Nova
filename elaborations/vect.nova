@@ -1,5 +1,5 @@
 -- Length-indexed vectors as a universe-code-valued recursion.
--- Restates derivations/vect (plus is repeated here: elaboration files
+-- Length-indexed vectors (plus is repeated here: elaboration files
 -- are self-contained).
 def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
 

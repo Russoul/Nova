@@ -1,7 +1,0 @@
-depends: plus
-- el-pi-e ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ plus[] (p.π₁) (q.π₂)
-- el-pi-e ε ᐅ p:ℕ ⨯ ℕ ᐅ q:ℕ ⨯ ℕ ⊦ plus[] (p.π₂) (q.π₁)
-- sig-ty ε ⊦ Int ≔ (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ))
-- el-sigma-i ε ⊦ Z , Z : ℕ ⨯ ℕ
-- el-sigma-i ε ⊦ S Z , S Z : ℕ ⨯ ℕ
-- el-quot-eq ε ⊦ class (Z , Z) ≐ class (S Z , S Z) : (ℕ ⨯ ℕ) / (p q. (plus[] (p.π₁) (q.π₂) ≡ plus[] (p.π₂) (q.π₁) ∈ ℕ)) via Refl

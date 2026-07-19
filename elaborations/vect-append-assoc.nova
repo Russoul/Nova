@@ -1,7 +1,6 @@
 -- Associativity of vector append. The statement itself only type-checks
 -- up to plus-associativity (the two sides' lengths differ intensionally)
--- — the extensional mismatch this file's lemmas discharge. Restates
--- derivations/vect-append-assoc.
+-- — the extensional mismatch this file's lemmas discharge.
 def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
 def plusZeroId (n : ℕ) : plus[] n Z ≡ n ∈ ℕ ≔ Refl
 def plusSucId (n : ℕ) (m : ℕ) : plus[] n (S m) ≡ S (plus[] n m) ∈ ℕ ≔ Refl

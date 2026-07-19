@@ -17,10 +17,9 @@ layers are specified elsewhere:
   * docs/NovaElaboration.txt  — the elaborator: surface syntax,
                                 bidirectional rules, the obligation
                                 lifecycle.
-  * docs/NovaSyntax.txt,
-    docs/NovaNamedSyntax.txt  — the derivation-era machinery (.rules
-                                sessions), which the pipeline below is
-                                intended to replace.
+
+(The derivation-era machinery — .rules sessions, its checker, parsers
+and docs — has been removed; the pipeline below replaced it.)
 
 ////////// The pipeline //////////
 

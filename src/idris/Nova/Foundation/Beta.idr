@@ -1,7 +1,7 @@
 module Nova.Foundation.Beta
 
 -- A direct, structurally-recursive beta-reduction algorithm for Ctx/Sub/Ty/
--- Elem/Tel/Spine/SubNorm, matching every "by definition" (≜) computation
+-- Elem/SubNorm, matching every "by definition" (≜) computation
 -- rule in docs/NovaFoundation.txt — Π-β, Σ-β₁, Σ-β₂, ℕ-elim-β-Z,
 -- ℕ-elim-β-S, quote-elim-β, x-β (signature-variable unfolding), and the
 -- El-𝟘/El-𝟙/El-ℕ/El-(→)/El-(⨯)/El-(≡)/El-(/) decoding rules.
@@ -125,17 +125,7 @@ betaSub sig (Chain s t)   = Chain (betaSub sig s) (betaSub sig t)
 betaSub sig Sub.Id        = Sub.Id
 betaSub sig Wk            = Wk
 
-||| Δ, with every type's own beta-redexes rewritten.
-export
-betaTel : Sig -> Tel -> Tel
-betaTel sig []           = []
-betaTel sig (ty :: rest) = betaTy sig ty :: betaTel sig rest
 
-||| ē, with every element's own beta-redexes rewritten.
-export
-betaSpine : Sig -> Spine -> Spine
-betaSpine sig []        = []
-betaSpine sig (e :: es) = betaElem sig e :: betaSpine sig es
 
 ||| Γ, with every type's own beta-redexes rewritten.
 export

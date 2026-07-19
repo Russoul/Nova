@@ -4,17 +4,11 @@ version = 0.1.0
 depends = contrib, just-a-parser, test
 
 modules = Nova.Foundation.Syntax
-        , Nova.Foundation.Derivation
-        , Nova.Foundation.Parser
-        , Nova.Foundation.Pretty
-        , Nova.Foundation.Rejection.Pretty
-        , Nova.Foundation.Session
-        , Nova.Foundation.Derivation.Parser
         , Nova.Foundation.Subst
         , Nova.Foundation.Beta
-        , Nova.Foundation.Derivation.NamedParser
-        , Nova.Foundation.Derivation.NamedPretty
         , Nova.Foundation.Kernel
+        , Nova.Foundation.Named
+        , Nova.Foundation.Parser
         , Nova.Foundation.Elaboration
         , Nova.Foundation.Elaboration.Surface
         , Nova.Foundation.Elaboration.Parser

@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run typing 'el-nat-e ε ⊦ ℕ-elim Z Z Z motive ℕ'

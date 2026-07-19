@@ -1,2 +1,0 @@
-- el-quot-eq ε ⊦ class Z ≐ class (S Z) : ℕ / (n x. 𝟙) via ()
-- el-quot-elim ε ⊦ quot-elim (_. Z) (class Z : ℕ / (n x. 𝟙)) motive (x. ℕ)

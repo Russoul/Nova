@@ -24,7 +24,7 @@ import Me.Russoul.Text.Position
 import Me.Russoul.Text.Range
 
 import Nova.Foundation.Parser
-import Nova.Foundation.Derivation.NamedParser
+import Nova.Foundation.Named
 import Nova.Foundation.Elaboration.Surface
 
 %default covering

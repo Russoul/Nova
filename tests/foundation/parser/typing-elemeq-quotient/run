@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run typing "el-quot-eq ε ⊦ class Z ≐ class Z : ℕ / ℕ via ()"
