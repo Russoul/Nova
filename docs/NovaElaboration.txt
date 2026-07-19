@@ -140,6 +140,15 @@ E   — the equation store, feeding algorithmic discharge. Three sources:
         sides do not determine is a SIDE CONDITION, discharged by a
         nested (budgeted) equality check — hypothesis-conditional
         lemmas, e.g. well-definedness facts assuming relatedness.
+        Both sources are closed under COMPONENT DECOMPOSITION: an
+        equation between same-headed universe codes also contributes
+        its component equations as candidates (domain; codomain under
+        the domain, as an extra parametric binder), licensed by
+        Foundation's code-injectivity rules — so a hypothesis
+        h : (a → 𝟙) ≡ (b → 𝟙) ∈ 𝕌 silently yields a ≐ b : 𝕌. The
+        S-component closure is included too (derivable via a
+        predecessor, no rule needed). class is NOT decomposed:
+        quotients are not injective.
       * ASSUMED OBLIGATIONS: every obligation, the moment it is assumed
         (see ↓ below), so that the run continues coherently and the same
         mismatch never surfaces twice.
@@ -380,15 +389,22 @@ whnf(C) = A / R        Γ ⊢ a ⇐ A ⇝ â
 //      signature unfolding).
 //   2. α-equal → discharged.
 //   3. Same rigid head → DECOMPOSE into component equations, each fed
-//      back into ↓, in the SUFFICIENT direction — the direction in
-//      which Foundation's congruence rules run. Sufficiency, not
-//      necessity: the theory does not provide constructor injectivity
-//      (an equation between two Π-types does not entail equations
-//      between their parts), so decomposition commits the report to
-//      component obligations that are enough to justify the composite,
-//      and occasionally stronger than strictly needed. Each emitted
-//      obligation carries the composite it descended from, so a user
-//      facing an unprovable component can restructure. Decomposition:
+//      back into ↓. For the type formers and universe codes this is
+//      FAITHFUL — an equivalence, not merely sufficiency: downward it
+//      is Foundation's congruence rules, upward Foundation's
+//      injectivity rules (→-inj, ⨯-inj, /-inj, ≡-inj, El-inj and their
+//      𝕌-code counterparts — see "Type constructor injectivity" there,
+//      including the semantic commitment they encode). Two cases remain
+//      merely sufficient: class-equations decomposed to their
+//      representatives (quotients are deliberately non-injective — the
+//      witness path below is the faithful route), and neutral-spine
+//      congruence (f a ≐ f b from a ≐ b). Each emitted obligation still
+//      carries the composite it descended from — as provenance, and
+//      because in those two cases the component can genuinely be
+//      stronger. A rigid HEAD MISMATCH stays an obligation, not an
+//      error: no-confusion is a meta-property of consistent contexts,
+//      not a rule, and the user may be working under inconsistent
+//      hypotheses. Decomposition:
 //        A₀ → B₀   ≐ A₁ → B₁    ⇐  A₀ ≐ A₁ type;  Γ ᐅ A₁ ⊢ B₀ ≐ B₁ type
 //        A₀ ⨯ B₀   ≐ A₁ ⨯ B₁    ⇐  likewise
 //        A₀ / R₀   ≐ A₁ / R₁    ⇐  A₀ ≐ A₁ type;  Γ ᐅ A₁ ᐅ A₁[↑] ⊢ R₀ ≐ R₁ type

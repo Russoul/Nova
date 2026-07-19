@@ -439,14 +439,49 @@ rwNfTyWith sig cands ty =
         if elem t'' seen then t else go fuel (t'' :: seen) t''
       Nothing => t
 
+||| Close a candidate under component decomposition: an equation between
+||| same-headed universe codes also contributes its component equations
+||| (licensed by Foundation's code-injectivity rules — →-inj-𝕌 etc.; a
+||| binder component becomes an extra parametric entry). The S component
+||| is included too (derivable via a ℕ-elim predecessor, no rule
+||| needed). class is NOT decomposed: quotients are not injective.
+closeCand : Cand -> List Cand
+closeCand c = c :: go c.lhs c.rhs
+ where
+  comp : Elem -> Elem -> List Cand
+  comp l r = closeCand ({ lhs := l, rhs := r } c)
+
+  -- a component under n extra binders: those binders become the new
+  -- innermost parameters (their indices in the component are already
+  -- 0..n-1, with the old parameters shifted up — exactly the Cand
+  -- convention); tys lists their types innermost-last
+  compUnder : List Ty -> Elem -> Elem -> List Cand
+  compUnder tys l r =
+    closeCand ({ params := c.params + length tys
+               , paramTys := c.paramTys ++ tys
+               , lhs := l, rhs := r } c)
+
+  go : Elem -> Elem -> List Cand
+  go (NatIntro1 x) (NatIntro1 y) = comp x y
+  go (Elem.PiTy a0 b0) (Elem.PiTy a1 b1) =
+    comp a0 a1 ++ compUnder [El a1] b0 b1
+  go (Elem.SigmaTy a0 b0) (Elem.SigmaTy a1 b1) =
+    comp a0 a1 ++ compUnder [El a1] b0 b1
+  go (QuotTy a0 r0) (QuotTy a1 r1) =
+    comp a0 a1 ++ compUnder [El a1, substTy (El a1) Wk] r0 r1
+  go (Elem.EqTy l0 r0 t0) (Elem.EqTy l1 r1 t1) =
+    comp t0 t1 ++ comp l0 l1 ++ comp r0 r1
+  go _ _ = []
+
 ||| Eq-typed hypotheses of Γ (leading Πs peeled), as rewrite candidates
 ||| with base Γ. Justified by Foundation (reflect ☐ᵢ e₁ ... eₖ). Their
 ||| sides are normalized against the LEMMA store, so that a hypothesis
 ||| stated in one spelling (e.g. an induction hypothesis in the
 ||| original association) still matches goals the lemma rewrites have
-||| already canonicalized.
+||| already canonicalized. Each candidate is closed under component
+||| decomposition (closeCand).
 hypCands : ElabSt -> Ctx -> List Cand
-hypCands st ctx = mapMaybe candAt [0 .. minus (length ctx) 1]
+hypCands st ctx = concatMap closeCand (mapMaybe candAt [0 .. minus (length ctx) 1])
  where
   lemmaRw : List Cand
   lemmaRw = ordered st.lemmas
@@ -794,7 +829,11 @@ mutual
         let a' = rwNfElem st ctx a
         let b' = rwNfElem st ctx b
         case (a', b', rwNfTy st ctx ty) of
-          -- congruence decomposition, sufficient direction
+          -- congruence decomposition — faithful (an equivalence) for
+          -- the type formers and universe codes, per Foundation's
+          -- injectivity rules; merely sufficient for class (quotients
+          -- are not injective — the witness path is the faithful
+          -- route) and for neutral-spine congruence
           (NatIntro1 x, NatIntro1 y, _) =>
             convElem ctx env site comp' x y Ty.NatTy
           (PiIntro f, PiIntro g, Ty.PiTy dom cod) =>
@@ -1100,11 +1139,12 @@ addLemma name delta ty = do
   case peeled of
     EqTy l r t =>
       -- Sides normalized against the store as of this point, so later
-      -- queries (already canonicalized by earlier lemmas) still match.
+      -- queries (already canonicalized by earlier lemmas) still match;
+      -- closed under component decomposition (closeCand).
       let lemmaRw = ordered st.lemmas in
-      modifySt $ { lemmas $= (MkCand name (length delta') (toList delta')
-                                     (rwNfElemWith st.sig lemmaRw l)
-                                     (rwNfElemWith st.sig lemmaRw r) ::) }
+      modifySt $ { lemmas $= (closeCand (MkCand name (length delta') (toList delta')
+                                                (rwNfElemWith st.sig lemmaRw l)
+                                                (rwNfElemWith st.sig lemmaRw r)) ++) }
     _ => pure ()
 
 elabTelescope : Ctx -> NameEnv -> String -> List (String, STy) -> ElabM (Ctx, NameEnv)

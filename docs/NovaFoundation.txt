@@ -1027,6 +1027,164 @@ e˲ : Γ₁ ⇒ Γ
 -------------------------- (El t⁼) // El congruence
 Σ ⊦ Γ ⊦ El t₀ ≐ El t₁ type
 
+///////// Type constructor injectivity //////////
+//
+// The congruence rules above run downward: equal components give equal
+// composites. The rules below run upward: equal composites give equal
+// components. They are NOT derivable from the rest of the theory — in
+// the plain set-theoretic model (types as sets, function types as sets
+// of graphs) the hypothesis h : ((𝟙 → 𝟘) ≡ (ℕ → 𝟘) ∈ 𝕌) is satisfiable
+// (both function spaces are the empty set), yet 𝟙 ≐ ℕ is refuted, so
+// before these rules the composite equality was derivable in a context
+// where the component equality was not. Adding them is a semantic
+// commitment, and it is the one this file's preface already makes:
+// semantics is assigned via evaluation and canonical forms, i.e. the
+// type system is an inductively defined PER on canonical forms, where
+// two Π-types are equal BY DEFINITION exactly when their domains are
+// equal and their codomains are equal on related arguments — and
+// likewise for the other formers. Under that semantics these rules are
+// sound; models that collapse structurally distinct types (the
+// set-theoretic one above) are hereby excluded. A concrete consequence:
+// a context hypothesizing (𝟙 → 𝟘) ≡ (ℕ → 𝟘) ∈ 𝕌 is now INCONSISTENT
+// (𝟙 ≐ ℕ gives Z ≐ S Z : ℕ via 𝟙-Prop and coercion, and a ℕ-elim
+// discriminator into 𝕌 turns that into an inhabitant of 𝟘).
+//
+// Notes:
+//  * A rule written with several conclusions below the line abbreviates
+//    one rule per conclusion (same premises).
+//  * The codomain/relation components are concluded UNDER the domain —
+//    this is what keeps the rules compatible with empty-domain
+//    collapses (𝟘 → 𝟙 ≐ 𝟘 → ℕ is harmless: under a 𝟘-hypothesis the
+//    component 𝟙 ≐ ℕ is derivable by absurdity anyway).
+//  * Quotient equality is chosen STRUCTURAL: the relation components
+//    must be judgementally equal, not merely logically equivalent.
+//    (This is stricter than NuPRL's iff-based quotient equality — a
+//    deliberate choice matching the congruence rule (A⁼ / R⁼) above.)
+//  * class stays NON-injective: class a ≐ class b : A / R does not
+//    entail a ≐ b — that is the entire point of quotients.
+//  * No-confusion (a Π-type is never equal to ℕ, a Σ-type, ...) is NOT
+//    expressible as a rule of this positive inference system, and in
+//    inconsistent contexts it is false. It remains a meta-property of
+//    consistent contexts under the canonical-forms semantics.
+//  * S-injectivity and pair-injectivity need no rules: they are already
+//    derivable (congruence with a ℕ-elim predecessor, respectively the
+//    projections).
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ A₀ type
+Σ Γ ⊦ A₁ type
+Σ Γ ᐅ A₀ ⊦ B₀ type
+Σ Γ ᐅ A₁ ⊦ B₁ type
+------------------------------
+Σ Γ ⊦ A₀ → B₀ ≐ A₁ → B₁ type   (→⁼)
+------------------------------ (→-inj →⁼) // Π-type injectivity
+Σ Γ ⊦ A₀ ≐ A₁ type
+Σ Γ ᐅ A₁ ⊦ B₀ ≐ B₁ type
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ A₀ type
+Σ Γ ⊦ A₁ type
+Σ Γ ᐅ A₀ ⊦ B₀ type
+Σ Γ ᐅ A₁ ⊦ B₁ type
+------------------------------
+Σ Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ type   (⨯⁼)
+------------------------------ (⨯-inj ⨯⁼) // Σ-type injectivity
+Σ Γ ⊦ A₀ ≐ A₁ type
+Σ Γ ᐅ A₁ ⊦ B₀ ≐ B₁ type
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ A₀ type
+Σ Γ ⊦ A₁ type
+Σ Γ ᐅ A₀ ᐅ A₀[↑] ⊦ R₀ type
+Σ Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₁ type
+------------------------------
+Σ Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ type   (/⁼)
+------------------------------ (/-inj /⁼) // Quotient-type injectivity
+Σ Γ ⊦ A₀ ≐ A₁ type
+Σ Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₀ ≐ R₁ type
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ T₀ type
+Σ Γ ⊦ T₁ type
+Σ Γ ⊦ a₀ : T₀
+Σ Γ ⊦ b₀ : T₀
+Σ Γ ⊦ a₁ : T₁
+Σ Γ ⊦ b₁ : T₁
+------------------------------------------
+Σ Γ ⊦ (a₀ ≡ b₀ ∈ T₀) ≐ (a₁ ≡ b₁ ∈ T₁) type   (≡⁼)
+------------------------------------------ (≡-inj ≡⁼) // Eq-type injectivity
+Σ Γ ⊦ T₀ ≐ T₁ type
+Σ Γ ⊦ a₀ ≐ a₁ : T₁
+Σ Γ ⊦ b₀ ≐ b₁ : T₁
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ t₀ : 𝕌
+Σ Γ ⊦ t₁ : 𝕌
+--------------------------
+Σ ⊦ Γ ⊦ El t₀ ≐ El t₁ type   (El⁼)
+-------------------------- (El-inj El⁼) // El injectivity
+Σ Γ ⊦ t₀ ≐ t₁ : 𝕌
+
+// The same principles one level down, for the universe codes: the
+// canonical-forms semantics gives 𝕌 a structural PER on codes, so the
+// code constructors are injective as elements of 𝕌.
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ a₀ : 𝕌
+Σ Γ ⊦ a₁ : 𝕌
+Σ Γ ᐅ El a₀ ⊦ b₀ : 𝕌
+Σ Γ ᐅ El a₁ ⊦ b₁ : 𝕌
+------------------------------
+Σ Γ ⊦ a₀ → b₀ ≐ a₁ → b₁ : 𝕌    (→⁼)
+------------------------------ (→-inj-𝕌 →⁼) // Π-code injectivity
+Σ Γ ⊦ a₀ ≐ a₁ : 𝕌
+Σ Γ ᐅ El a₁ ⊦ b₀ ≐ b₁ : 𝕌
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ a₀ : 𝕌
+Σ Γ ⊦ a₁ : 𝕌
+Σ Γ ᐅ El a₀ ⊦ b₀ : 𝕌
+Σ Γ ᐅ El a₁ ⊦ b₁ : 𝕌
+------------------------------
+Σ Γ ⊦ a₀ ⨯ b₀ ≐ a₁ ⨯ b₁ : 𝕌    (⨯⁼)
+------------------------------ (⨯-inj-𝕌 ⨯⁼) // Σ-code injectivity
+Σ Γ ⊦ a₀ ≐ a₁ : 𝕌
+Σ Γ ᐅ El a₁ ⊦ b₀ ≐ b₁ : 𝕌
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ a₀ : 𝕌
+Σ Γ ⊦ a₁ : 𝕌
+Σ Γ ᐅ El a₀ ᐅ (El a₀)[↑] ⊦ r₀ : 𝕌
+Σ Γ ᐅ El a₁ ᐅ (El a₁)[↑] ⊦ r₁ : 𝕌
+------------------------------
+Σ Γ ⊦ a₀ / r₀ ≐ a₁ / r₁ : 𝕌    (/⁼)
+------------------------------ (/-inj-𝕌 /⁼) // Quotient-code injectivity
+Σ Γ ⊦ a₀ ≐ a₁ : 𝕌
+Σ Γ ᐅ El a₁ ᐅ (El a₁)[↑] ⊦ r₀ ≐ r₁ : 𝕌
+
+Σ sig
+Σ ⊦ Γ ctx
+Σ Γ ⊦ t₀ : 𝕌
+Σ Γ ⊦ t₁ : 𝕌
+Σ Γ ⊦ a₀ : El t₀
+Σ Γ ⊦ b₀ : El t₀
+Σ Γ ⊦ a₁ : El t₁
+Σ Γ ⊦ b₁ : El t₁
+------------------------------------------
+Σ Γ ⊦ (a₀ ≡ b₀ ∈ t₀) ≐ (a₁ ≡ b₁ ∈ t₁) : 𝕌   (≡⁼)
+------------------------------------------ (≡-inj-𝕌 ≡⁼) // Eq-code injectivity
+Σ Γ ⊦ t₀ ≐ t₁ : 𝕌
+Σ Γ ⊦ a₀ ≐ a₁ : El t₁
+Σ Γ ⊦ b₀ ≐ b₁ : El t₁
+
 ///////// Inference rules (tel) //////////
 
 Σ sig

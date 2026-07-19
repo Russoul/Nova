@@ -1,0 +1,5 @@
+-- code injectivity: a component equation extracted from a composite
+-- hypothesis (Foundation's →-inj-𝕌)
+def useInj (a : 𝕌) (b : 𝕌) (h : (a → 𝟙) ≡ (b → 𝟙) ∈ 𝕌) (x : El a) : El b ≔ x
+-- and through El (El-inj is the type-level route the elaborator takes)
+def useInjPair (a : 𝕌) (b : 𝕌) (c : 𝕌) (h : (a ⨯ c) ≡ (b ⨯ c) ∈ 𝕌) (x : El a) : El b ≔ x
