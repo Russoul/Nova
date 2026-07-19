@@ -1,0 +1,5 @@
+defined triv
+defined boom
+open obligations (1):
+  [1] ⊢ Z ≐ S Z : ℕ
+      at: def boom: checking Refl [replay failed: kernel: proof argument type mismatch]

@@ -39,6 +39,7 @@ import Nova.Foundation.Syntax
 import Nova.Foundation.Subst
 import Nova.Foundation.Beta
 import Nova.Foundation.Parser
+import Nova.Foundation.Kernel
 import Nova.Foundation.Elaboration.Surface
 import Nova.Foundation.Elaboration.Parser
 import Nova.Foundation.Derivation.NamedParser
@@ -56,6 +57,19 @@ import Nova.Foundation.Derivation.NamedPretty
 ||| index (k-1) first), each in its own prefix of the pattern context —
 ||| needed for conditional matching (an unbound ≡-typed parameter is a
 ||| side condition to discharge, not a term to find).
+||| A step over the candidate's parametric context: instantiated with
+||| the match bindings at emission time (proofs live over the pattern
+||| context; substElem with the instantiating Sub moves them to the
+||| site). Records the lemma-normalization of a candidate's sides so
+||| the kernel — which derives licensed equations from RAW types by
+||| beta only — can bridge to the normalized pattern.
+record PStep where
+  constructor MkPStep
+  ppath : List Nat
+  pprf : Elem          -- over the candidate's parametric context
+  psels : List Sel
+  pflip : Bool
+
 record Cand where
   constructor MkCand
   candName : String
@@ -63,6 +77,13 @@ record Cand where
   paramTys : List Ty
   lhs : Elem
   rhs : Elem
+  ||| build (proof element, selectors) from complete match bindings;
+  ||| the proof lives in the query context Γ
+  emit : List (Nat, Elem) -> Maybe (Elem, List Sel)
+  ||| lemma-normalization steps for the lhs (to be INVERTED at replay:
+  ||| they turned the raw side into the stored pattern) and the rhs
+  preL : List PStep
+  postR : List PStep
 
 data Stmt : Type where
   StElem : Ctx -> NameEnv -> Elem -> Elem -> Ty -> Stmt
@@ -217,115 +238,29 @@ matchElemP _ _ _ _ _ = const Nothing
 instSub : (k : Nat) -> (d : Nat) -> Bindings -> Maybe Sub
 instSub k d bs = go k (wkN d)
  where
-  -- Ext binds index 0 last: fold from p_{k-1} down to p₀.
   go : Nat -> Sub -> Maybe Sub
   go Z acc = Just acc
   go (S p) acc = do
     e <- lookup p bs
     go p (Ext acc (weakenElemN d e))
 
-||| One rewrite step with `cand` anywhere in `t` (t at depth d below Γ).
-rewriteElem : Cand -> (d : Nat) -> Elem -> Maybe Elem
-rewriteElem cand d t =
-  case matchElemP cand.params d 0 cand.lhs t [] of
-    Just bs => do sigma <- instSub cand.params d bs
-                  Just (substElem cand.rhs sigma)
-    Nothing => descend t
- where
-  first : List (Maybe a) -> Maybe a
-  first [] = Nothing
-  first (Just x :: _) = Just x
-  first (Nothing :: rest) = first rest
+-- ===== Candidates =====
 
-  descend : Elem -> Maybe Elem
-  descend (ZeroElim u)       = ZeroElim <$> rewriteElem cand d u
-  descend (NatIntro1 u)      = NatIntro1 <$> rewriteElem cand d u
-  descend (NatElim z s u)    =
-    first [ (\z' => NatElim z' s u) <$> rewriteElem cand d z
-          , (\s' => NatElim z s' u) <$> rewriteElem cand (2 + d) s
-          , (\u' => NatElim z s u') <$> rewriteElem cand d u ]
-  descend (PiIntro f)        = PiIntro <$> rewriteElem cand (1 + d) f
-  descend (PiApp f e)        =
-    first [ (\f' => PiApp f' e) <$> rewriteElem cand d f
-          , (\e' => PiApp f e') <$> rewriteElem cand d e ]
-  descend (SigmaIntro u v)   =
-    first [ (\u' => SigmaIntro u' v) <$> rewriteElem cand d u
-          , (\v' => SigmaIntro u v') <$> rewriteElem cand d v ]
-  descend (SigmaElim1 u)     = SigmaElim1 <$> rewriteElem cand d u
-  descend (SigmaElim2 u)     = SigmaElim2 <$> rewriteElem cand d u
-  descend (Elem.PiTy a c)    =
-    first [ (\a' => Elem.PiTy a' c) <$> rewriteElem cand d a
-          , (\c' => Elem.PiTy a c') <$> rewriteElem cand (1 + d) c ]
-  descend (Elem.SigmaTy a c) =
-    first [ (\a' => Elem.SigmaTy a' c) <$> rewriteElem cand d a
-          , (\c' => Elem.SigmaTy a c') <$> rewriteElem cand (1 + d) c ]
-  descend (Elem.EqTy l r u)  =
-    first [ (\l' => Elem.EqTy l' r u) <$> rewriteElem cand d l
-          , (\r' => Elem.EqTy l r' u) <$> rewriteElem cand d r
-          , (\u' => Elem.EqTy l r u') <$> rewriteElem cand d u ]
-  descend (QuotTy a r)       =
-    first [ (\a' => QuotTy a' r) <$> rewriteElem cand d a
-          , (\r' => QuotTy a r') <$> rewriteElem cand (2 + d) r ]
-  descend (SigVar x es)      = SigVar x <$> goSubNorm es
-   where
-    goSubNorm : SubNorm -> Maybe SubNorm
-    goSubNorm [<] = Nothing
-    goSubNorm (es :< e) =
-      first [ (:< e) <$> goSubNorm es
-            , (es :<) <$> rewriteElem cand d e ]
-  descend (Class a)          = Class <$> rewriteElem cand d a
-  descend (QuotElim f q)     =
-    first [ (\f' => QuotElim f' q) <$> rewriteElem cand (1 + d) f
-          , (\q' => QuotElim f q') <$> rewriteElem cand d q ]
-  descend _ = Nothing
-
-rewriteTy : Cand -> (d : Nat) -> Ty -> Maybe Ty
-rewriteTy cand d Ty.ZeroTy = Nothing
-rewriteTy cand d Ty.OneTy = Nothing
-rewriteTy cand d Ty.NatTy = Nothing
-rewriteTy cand d Ty.UniverseTy = Nothing
-rewriteTy cand d (Ty.PiTy a b) =
-  ((\a' => Ty.PiTy a' b) <$> rewriteTy cand d a)
-    <|> ((\b' => Ty.PiTy a b') <$> rewriteTy cand (1 + d) b)
-rewriteTy cand d (Ty.SigmaTy a b) =
-  ((\a' => Ty.SigmaTy a' b) <$> rewriteTy cand d a)
-    <|> ((\b' => Ty.SigmaTy a b') <$> rewriteTy cand (1 + d) b)
-rewriteTy cand d (EqTy l r t) =
-  ((\l' => EqTy l' r t) <$> rewriteElem cand d l)
-    <|> ((\r' => EqTy l r' t) <$> rewriteElem cand d r)
-    <|> ((\t' => EqTy l r t') <$> rewriteTy cand d t)
-rewriteTy cand d (El e) = El <$> rewriteElem cand d e
-rewriteTy cand d (Quotient a r) =
-  ((\a' => Quotient a' r) <$> rewriteTy cand d a)
-    <|> ((\r' => Quotient a r') <$> rewriteTy cand (2 + d) r)
-rewriteTy cand d (Ty.SigVar x es) = Ty.SigVar x <$> goSubNorm es
- where
-  goSubNorm : SubNorm -> Maybe SubNorm
-  goSubNorm [<] = Nothing
-  goSubNorm (es :< e) =
-    ((:< e) <$> goSubNorm es) <|> ((es :<) <$> rewriteElem cand d e)
-
--- ===== Candidates in scope =====
-
-||| Peel leading Πs off a (normalized) type, extending the context.
 peelPis : Ctx -> Ty -> (Ctx, Ty)
 peelPis ctx ty =
   case ty of
     Ty.PiTy a b => peelPis (ctx :< a) b
     _ => (ctx, ty)
 
-||| The last n entries of a context, outermost first.
 lastEntries : Nat -> Ctx -> List Ty
 lastEntries n ctx = drop (minus (length ctx) n) (toList ctx)
 
--- ===== Normalize-and-rewrite =====
-
-rwFuel : Nat
-rwFuel = 40
-
-tryCands : List Cand -> (Cand -> Maybe a) -> Maybe a
-tryCands [] f = Nothing
-tryCands (c :: cs) f = f c <|> tryCands cs f
+||| Instantiating substitution for a parameter's own type: param p's
+||| type lives in base ᐅ p_{k-1} ᐅ ... ᐅ p_{p+1}.
+condSub : (k : Nat) -> (p : Nat) -> Bindings -> Maybe Sub
+condSub k p bs =
+  let idxs = if S p <= minus k 1 then reverse [S p .. minus k 1] else [] in
+  foldl (\acc, j => [| Ext acc (lookup j bs) |]) (Just Id) idxs
 
 elemSize : Elem -> Nat
 elemSize (CtxVar _) = 1
@@ -351,10 +286,8 @@ elemSize (SigVar _ es) = S (foldl (\acc, e => acc + elemSize e) 0 es)
 elemSize (Class a) = S (elemSize a)
 elemSize (QuotElim f q) = S (elemSize f + elemSize q)
 
-||| Whether lhs and rhs are equal up to a bijective renaming of the
-||| parametric variables (e.g. commutativity: plus m n vs plus n m).
-||| Such "permutative" equations loop as rewrite rules — they are kept
-||| for whole-equation matching only.
+||| Equal up to a bijective renaming of the parametric variables
+||| (commutativity-shaped) — such equations loop as rewrite rules.
 permutative : Cand -> Bool
 permutative c = isJust (go 0 c.lhs c.rhs [])
  where
@@ -401,11 +334,8 @@ permutative c = isJust (go 0 c.lhs c.rhs [])
   go b (QuotElim f q) (QuotElim f' q') m = go (1+b) f f' m >>= go b q q'
   go _ _ _ _ = Nothing
 
-||| Candidates usable as REWRITE rules: strictly-shrinking rules first
-||| (e.g. `plus n Z → n`), then size-preserving non-permutative ones
-||| (e.g. `plus n (S m) → S (plus n m)`, an induction hypothesis).
-||| Permutative and growing equations never rewrite — they remain
-||| available to whole-equation matching (candMatch).
+||| Candidates usable as REWRITE rules (strictly-shrinking first;
+||| permutative and growing equations never rewrite).
 ordered : List Cand -> List Cand
 ordered cs =
   let usable = filter (\c => elemSize c.rhs <= elemSize c.lhs && not (permutative c)) cs
@@ -413,78 +343,238 @@ ordered cs =
       rest = filter (\c => not (elemSize c.rhs < elemSize c.lhs)) usable
   in shrinking ++ rest
 
-rwNfElemWith : Sig -> List Cand -> Elem -> Elem
-rwNfElemWith sig cands e =
-  let start = betaElem sig e in go rwFuel [start] start
+-- ===== Step materialization =====
+--
+-- A logical rewrite (site path π, candidate, bindings) becomes kernel
+-- steps: the candidate's lhs-normalization INVERTED at π (bridging the
+-- raw licensed equation to the stored pattern), the main step, then the
+-- rhs-normalization at π. PStep proofs live over the candidate's
+-- parametric context and are instantiated here.
+
+kernelFuel : Nat
+kernelFuel = 1000000
+
+materialize : Cand -> Bindings -> (onLhs : Bool) -> (sitePath : List Nat) -> Maybe (List Step)
+materialize c bs side pi = do
+  (prfMain, selsMain) <- c.emit bs
+  sigma <- instSub c.params 0 bs
+  let instStep = \ps : PStep => MkStep side (pi ++ ps.ppath) (substElem ps.pprf sigma) ps.psels ps.pflip
+  let pre = map (\ps => { flip $= not } (instStep ps)) (reverse c.preL)
+  let post = map instStep c.postR
+  pure (pre ++ [MkStep side pi prfMain selsMain False] ++ post)
+
+materializeFlip : Cand -> Bindings -> (onLhs : Bool) -> Maybe (List Step)
+materializeFlip c bs side = do
+  (prfMain, selsMain) <- c.emit bs
+  sigma <- instSub c.params 0 bs
+  let instStep = \ps : PStep => MkStep side ps.ppath (substElem ps.pprf sigma) ps.psels ps.pflip
+  -- flipped whole-equation use at the root: post-normalization is
+  -- inverted (it now bridges INTO the stored rhs pattern), pre applies
+  let pre = map (\ps => { flip $= not } (instStep ps)) (reverse c.postR)
+  let post = map instStep c.preL
+  pure (pre ++ [MkStep side [] prfMain selsMain True] ++ post)
+
+-- ===== Rewriting with step recording =====
+
+||| One rewrite anywhere in the term: returns the rewritten term and
+||| the kernel steps that justify it. Only fires if materializable.
+rewriteElemS : (side : Bool) -> Cand -> (path : List Nat) -> (d : Nat) -> Elem -> Maybe (Elem, List Step)
+rewriteElemS side c pi d t =
+  (do bs <- matchElemP c.params d 0 c.lhs t []
+      guard (isJust (instSub c.params d bs))
+      steps <- materialize c bs side (reverse pi)
+      sigma <- instSub c.params d bs
+      Just (substElem c.rhs sigma, steps))
+  <|> descend t
  where
-  go : Nat -> List Elem -> Elem -> Elem
-  go Z seen t = t
-  go (S fuel) seen t =
-    case tryCands cands (\c => rewriteElem c 0 t) of
-      Just t' =>
+  first : List (Maybe a) -> Maybe a
+  first [] = Nothing
+  first (Just x :: _) = Just x
+  first (Nothing :: rest) = first rest
+
+  at : Nat -> Nat -> Elem -> (Elem -> Elem) -> Maybe (Elem, List Step)
+  at i db u re = (\(u', st) => (re u', st)) <$> rewriteElemS side c (i :: pi) (db + d) u
+
+  descend : Elem -> Maybe (Elem, List Step)
+  descend (ZeroElim u)       = at 0 0 u ZeroElim
+  descend (NatIntro1 u)      = at 0 0 u NatIntro1
+  descend (NatElim z s u)    =
+    first [ at 0 0 z (\z' => NatElim z' s u)
+          , at 1 2 s (\s' => NatElim z s' u)
+          , at 2 0 u (\u' => NatElim z s u') ]
+  descend (PiIntro f)        = at 0 1 f PiIntro
+  descend (PiApp f e)        =
+    first [ at 0 0 f (\f' => PiApp f' e)
+          , at 1 0 e (\e' => PiApp f e') ]
+  descend (SigmaIntro u v)   =
+    first [ at 0 0 u (\u' => SigmaIntro u' v)
+          , at 1 0 v (\v' => SigmaIntro u v') ]
+  descend (SigmaElim1 u)     = at 0 0 u SigmaElim1
+  descend (SigmaElim2 u)     = at 0 0 u SigmaElim2
+  descend (Elem.PiTy a c')   =
+    first [ at 0 0 a (\a' => Elem.PiTy a' c')
+          , at 1 1 c' (\c'' => Elem.PiTy a c'') ]
+  descend (Elem.SigmaTy a c') =
+    first [ at 0 0 a (\a' => Elem.SigmaTy a' c')
+          , at 1 1 c' (\c'' => Elem.SigmaTy a c'') ]
+  descend (Elem.EqTy l r u)  =
+    first [ at 0 0 l (\l' => Elem.EqTy l' r u)
+          , at 1 0 r (\r' => Elem.EqTy l r' u)
+          , at 2 0 u (\u' => Elem.EqTy l r u') ]
+  descend (QuotTy a r)       =
+    first [ at 0 0 a (\a' => QuotTy a' r)
+          , at 1 2 r (\r' => QuotTy a r') ]
+  descend (SigVar x es)      = goSN 0 es
+   where
+    goSN : Nat -> SubNorm -> Maybe (Elem, List Step)
+    goSN _ [<] = Nothing
+    goSN _ _ =
+      let xs = toList es in
+      first (map (\i =>
+        case getAt i xs of
+          Just e => (\(e', st) =>
+                       case splitAt i xs of
+                         (pre, _ :: post) => (SigVar x (cast (pre ++ e' :: post)), st)
+                         _ => (SigVar x es, st))
+                    <$> rewriteElemS side c (i :: pi) d e
+          Nothing => Nothing) [0 .. minus (length xs) 1])
+  descend (Class a)          = at 0 0 a Class
+  descend (QuotElim f q)     =
+    first [ at 0 1 f (\f' => QuotElim f' q)
+          , at 1 0 q (\q' => QuotElim f q') ]
+  descend _ = Nothing
+
+rewriteTyS : (side : Bool) -> Cand -> (path : List Nat) -> (d : Nat) -> Ty -> Maybe (Ty, List Step)
+rewriteTyS side c pi d Ty.ZeroTy = Nothing
+rewriteTyS side c pi d Ty.OneTy = Nothing
+rewriteTyS side c pi d Ty.NatTy = Nothing
+rewriteTyS side c pi d Ty.UniverseTy = Nothing
+rewriteTyS side c pi d (Ty.PiTy a b) =
+  ((\(a', st) => (Ty.PiTy a' b, st)) <$> rewriteTyS side c (0 :: pi) d a)
+    <|> ((\(b', st) => (Ty.PiTy a b', st)) <$> rewriteTyS side c (1 :: pi) (1 + d) b)
+rewriteTyS side c pi d (Ty.SigmaTy a b) =
+  ((\(a', st) => (Ty.SigmaTy a' b, st)) <$> rewriteTyS side c (0 :: pi) d a)
+    <|> ((\(b', st) => (Ty.SigmaTy a b', st)) <$> rewriteTyS side c (1 :: pi) (1 + d) b)
+rewriteTyS side c pi d (EqTy l r t) =
+  ((\(l', st) => (EqTy l' r t, st)) <$> rewriteElemS side c (0 :: pi) d l)
+    <|> ((\(r', st) => (EqTy l r' t, st)) <$> rewriteElemS side c (1 :: pi) d r)
+    <|> ((\(t', st) => (EqTy l r t', st)) <$> rewriteTyS side c (2 :: pi) d t)
+rewriteTyS side c pi d (El e) =
+  (\(e', st) => (El e', st)) <$> rewriteElemS side c (0 :: pi) d e
+rewriteTyS side c pi d (Quotient a r) =
+  ((\(a', st) => (Quotient a' r, st)) <$> rewriteTyS side c (0 :: pi) d a)
+    <|> ((\(r', st) => (Quotient a r', st)) <$> rewriteTyS side c (1 :: pi) (2 + d) r)
+rewriteTyS side c pi d (Ty.SigVar x es) =
+  let xs = toList es in
+  firstJ (map (\i =>
+    case getAt i xs of
+      Just e => (\(e', st) =>
+                   case splitAt i xs of
+                     (pre, _ :: post) => (Ty.SigVar x (cast (pre ++ e' :: post)), st)
+                     _ => (Ty.SigVar x es, st))
+                <$> rewriteElemS side c (i :: pi) d e
+      Nothing => Nothing) [0 .. minus (length xs) 1])
+ where
+  firstJ : List (Maybe a) -> Maybe a
+  firstJ [] = Nothing
+  firstJ (Just x' :: _) = Just x'
+  firstJ (Nothing :: rest) = firstJ rest
+
+-- ===== Normalize-and-rewrite (step-recording) =====
+
+rwFuel : Nat
+rwFuel = 40
+
+tryCands : List Cand -> (Cand -> Maybe a) -> Maybe a
+tryCands [] f = Nothing
+tryCands (c :: cs) f = f c <|> tryCands cs f
+
+rwNfElemS : Sig -> List Cand -> (side : Bool) -> Elem -> (Elem, List Step)
+rwNfElemS sig cands side e =
+  let start = betaElem sig e in go rwFuel [start] start []
+ where
+  go : Nat -> List Elem -> Elem -> List Step -> (Elem, List Step)
+  go Z seen t acc = (t, acc)
+  go (S fuel) seen t acc =
+    case tryCands cands (\c => rewriteElemS side c [] 0 t) of
+      Just (t', st) =>
         let t'' = betaElem sig t' in
-        if elem t'' seen then t else go fuel (t'' :: seen) t''
-      Nothing => t
+        if elem t'' seen then (t, acc) else go fuel (t'' :: seen) t'' (acc ++ st)
+      Nothing => (t, acc)
 
-rwNfTyWith : Sig -> List Cand -> Ty -> Ty
-rwNfTyWith sig cands ty =
-  let start = betaTy sig ty in go rwFuel [start] start
+rwNfTyS : Sig -> List Cand -> (side : Bool) -> Ty -> (Ty, List Step)
+rwNfTyS sig cands side ty =
+  let start = betaTy sig ty in go rwFuel [start] start []
  where
-  go : Nat -> List Ty -> Ty -> Ty
-  go Z seen t = t
-  go (S fuel) seen t =
-    case tryCands cands (\c => rewriteTy c 0 t) of
-      Just t' =>
+  go : Nat -> List Ty -> Ty -> List Step -> (Ty, List Step)
+  go Z seen t acc = (t, acc)
+  go (S fuel) seen t acc =
+    case tryCands cands (\c => rewriteTyS side c [] 0 t) of
+      Just (t', st) =>
         let t'' = betaTy sig t' in
-        if elem t'' seen then t else go fuel (t'' :: seen) t''
-      Nothing => t
+        if elem t'' seen then (t, acc) else go fuel (t'' :: seen) t'' (acc ++ st)
+      Nothing => (t, acc)
 
-||| Close a candidate under component decomposition: an equation between
-||| same-headed universe codes also contributes its component equations
-||| (licensed by Foundation's code-injectivity rules — →-inj-𝕌 etc.; a
-||| binder component becomes an extra parametric entry). The S component
-||| is included too (derivable via a ℕ-elim predecessor, no rule
-||| needed). class is NOT decomposed: quotients are not injective.
+-- ===== Candidates in scope =====
+
+selArity : Sel -> Nat
+selArity (SelCod _) = 1
+selArity (SelQRel _ _) = 2
+selArity _ = 0
+
+||| Close a candidate under component decomposition (code injectivity;
+||| S via a derivable predecessor). Only un-normalized candidates are
+||| closed: a component of a lemma-rewritten side would not match the
+||| raw licensed equation's components.
 closeCand : Cand -> List Cand
-closeCand c = c :: go c.lhs c.rhs
+closeCand c =
+  if not (null c.preL) || not (null c.postR)
+    then [c]
+    else c :: go c.lhs c.rhs
  where
-  comp : Elem -> Elem -> List Cand
-  comp l r = closeCand ({ lhs := l, rhs := r } c)
+  child : (mk : Bindings -> Maybe Sel) -> (n : Nat) -> List Ty -> Elem -> Elem -> Cand
+  child mk n tys l r =
+    { params $= (+ n)
+    , paramTys $= (++ tys)
+    , lhs := l, rhs := r
+    , emit := \bs => do
+        let parentBs = mapMaybe (\(i, e) => if i >= n then Just (minus i n, e) else Nothing) bs
+        (p, sels) <- c.emit parentBs
+        sel <- mk bs
+        pure (p, sels ++ [sel])
+    } c
 
-  -- a component under n extra binders: those binders become the new
-  -- innermost parameters (their indices in the component are already
-  -- 0..n-1, with the old parameters shifted up — exactly the Cand
-  -- convention); tys lists their types innermost-last
-  compUnder : List Ty -> Elem -> Elem -> List Cand
-  compUnder tys l r =
-    closeCand ({ params := c.params + length tys
-               , paramTys := c.paramTys ++ tys
-               , lhs := l, rhs := r } c)
+  comp : Sel -> Elem -> Elem -> List Cand
+  comp s l r = closeCand (child (\_ => Just s) 0 [] l r)
 
   go : Elem -> Elem -> List Cand
-  go (NatIntro1 x) (NatIntro1 y) = comp x y
+  go (NatIntro1 x) (NatIntro1 y) = comp SelSuc x y
   go (Elem.PiTy a0 b0) (Elem.PiTy a1 b1) =
-    comp a0 a1 ++ compUnder [El a1] b0 b1
+    comp SelDom a0 a1
+    ++ closeCand (child (\bs => SelCod <$> lookup 0 bs) 1 [El a1] b0 b1)
   go (Elem.SigmaTy a0 b0) (Elem.SigmaTy a1 b1) =
-    comp a0 a1 ++ compUnder [El a1] b0 b1
+    comp SelDom a0 a1
+    ++ closeCand (child (\bs => SelCod <$> lookup 0 bs) 1 [El a1] b0 b1)
   go (QuotTy a0 r0) (QuotTy a1 r1) =
-    comp a0 a1 ++ compUnder [El a1, substTy (El a1) Wk] r0 r1
+    comp SelQDom a0 a1
+    ++ closeCand (child (\bs => [| SelQRel (lookup 1 bs) (lookup 0 bs) |]) 2
+                        [El a1, substTy (El a1) Wk] r0 r1)
   go (Elem.EqTy l0 r0 t0) (Elem.EqTy l1 r1 t1) =
-    comp t0 t1 ++ comp l0 l1 ++ comp r0 r1
+    comp SelEqT t0 t1 ++ comp SelEqL l0 l1 ++ comp SelEqR r0 r1
   go _ _ = []
 
-||| Eq-typed hypotheses of Γ (leading Πs peeled), as rewrite candidates
-||| with base Γ. Justified by Foundation (reflect ☐ᵢ e₁ ... eₖ). Their
-||| sides are normalized against the LEMMA store, so that a hypothesis
-||| stated in one spelling (e.g. an induction hypothesis in the
-||| original association) still matches goals the lemma rewrites have
-||| already canonicalized. Each candidate is closed under component
-||| decomposition (closeCand).
+||| Eq-typed hypotheses of Γ (leading Πs peeled) as candidates with base
+||| Γ. Ground hypotheses (no peeled binders) are additionally normalized
+||| against the lemma store, RECORDING the normalization so the kernel
+||| can bridge from the raw reflected equation.
 hypCands : ElabSt -> Ctx -> List Cand
 hypCands st ctx = concatMap closeCand (mapMaybe candAt [0 .. minus (length ctx) 1])
  where
   lemmaRw : List Cand
   lemmaRw = ordered st.lemmas
+
+  toPSteps : List Step -> List PStep
+  toPSteps = map (\s => MkPStep s.path s.prf s.sels s.flip)
 
   candAt : Nat -> Maybe Cand
   candAt i = do
@@ -493,21 +583,24 @@ hypCands st ctx = concatMap closeCand (mapMaybe candAt [0 .. minus (length ctx) 
     let k = minus (length ctx') (length ctx)
     case peeled of
       EqTy l r t =>
-        Just (MkCand "hypothesis" k (lastEntries k ctx')
-                     (rwNfElemWith st.sig lemmaRw l)
-                     (rwNfElemWith st.sig lemmaRw r))
+        let mk : Bindings -> Maybe (Elem, List Sel)
+            mk = \bs => do
+              args <- traverse (\p => lookup p bs)
+                        (the (List Nat) (if k == 0 then [] else reverse [0 .. minus k 1]))
+              pure (foldl PiApp (CtxVar i) args, the (List Sel) [])
+        in if k == 0
+             then let (l1, lSteps) = rwNfElemS st.sig lemmaRw True (betaElem st.sig l)
+                      (r1, rSteps) = rwNfElemS st.sig lemmaRw True (betaElem st.sig r)
+                  in Just (MkCand "hypothesis" 0 [] l1 r1 mk (toPSteps lSteps) (toPSteps rSteps))
+             else Just (MkCand "hypothesis" k (lastEntries k ctx')
+                          (betaElem st.sig l) (betaElem st.sig r) mk [] [])
       _ => Nothing
 
-||| The candidate store, computed ONCE per conversion entry and
-||| threaded through the speculative machinery (recomputing it per
-||| normalization call is quadratic in practice: every hypothesis is
-||| itself lemma-normalized on construction).
 record CandSet where
   constructor MkCandSet
-  all : List Cand   -- everything (for whole-equation matching)
-  rw : List Cand    -- usable as rewrite rules, ordered
-  hops : List Cand  -- ONLY those rewriting cannot apply (permutative /
-                    -- growing) — the non-redundant transitivity hops
+  all : List Cand
+  rw : List Cand
+  hops : List Cand
 
 mkCandSet : ElabSt -> Ctx -> CandSet
 mkCandSet st ctx =
@@ -516,38 +609,13 @@ mkCandSet st ctx =
       hopsOnly = filter (\c => permutative c || elemSize c.rhs > elemSize c.lhs) cs
   in MkCandSet cs rws hopsOnly
 
-||| Weaken a candidate set into an extended context: candidates' terms
-||| live in base ᐅ params, so the base grows under the params. (A new
-||| binder of ≡-type is NOT added as a candidate here — a documented
-||| completeness limitation of speculative descent under binders.)
-extendCS : CandSet -> CandSet
-extendCS cs = MkCandSet (map wk cs.all) (map wk cs.rw) (map wk cs.hops)
- where
-  liftK : Nat -> Sub
-  liftK Z = Wk
-  liftK (S n) = under (liftK n)
-
-  wk : Cand -> Cand
-  wk c = { lhs $= (\e => substElem e (liftK c.params))
-         , rhs $= (\e => substElem e (liftK c.params)) } c
-
 rwNfElem : ElabSt -> Ctx -> Elem -> Elem
-rwNfElem st ctx e = rwNfElemWith st.sig (mkCandSet st ctx).rw e
+rwNfElem st ctx e = fst (rwNfElemS st.sig (mkCandSet st ctx).rw True e)
 
 rwNfTy : ElabSt -> Ctx -> Ty -> Ty
-rwNfTy st ctx ty = rwNfTyWith st.sig (mkCandSet st ctx).rw ty
+rwNfTy st ctx ty = fst (rwNfTyS st.sig (mkCandSet st ctx).rw True ty)
 
-||| Instantiating substitution for a parameter's own type: param p's
-||| type lives in base ᐅ p_{k-1} ᐅ ... ᐅ p_{p+1}; every outer parameter
-||| must already be bound. Base part is the identity (queries live in
-||| the candidate's base context).
-condSub : (k : Nat) -> (p : Nat) -> Bindings -> Maybe Sub
-condSub k p bs =
-  -- NB: Idris ranges descend when from > to; guard explicitly.
-  let idxs = if S p <= minus k 1 then reverse [S p .. minus k 1] else [] in
-  foldl (\acc, j => [| Ext acc (lookup j bs) |]) (Just Id) idxs
-
--- ===== Neutral type inference (for spine decomposition) =====
+-- ===== Neutral type inference =====
 
 inferNe : ElabSt -> Ctx -> Elem -> Maybe Ty
 inferNe st ctx (CtxVar i) = ctxLookup ctx i
@@ -569,9 +637,13 @@ inferNe st ctx (SigVar x es) =
     _ => Nothing
 inferNe _ _ _ = Nothing
 
--- ===== Speculative (non-committing) equality =====
+-- ===== Certificate-emitting speculative equality =====
+--
+-- Every discharge now RETURNS its evidence: a Kernel.ECert. The
+-- committing conversion validates the certificate by kernel replay
+-- before believing it (docs/NovaPipeline.txt) — a discharge whose
+-- certificate does not replay is no discharge at all.
 
-||| Universe code of a (normalized) type, when it has one.
 codeOf : Ty -> Maybe Elem
 codeOf Ty.ZeroTy = Just Elem.ZeroTy
 codeOf Ty.OneTy = Just Elem.OneTy
@@ -583,206 +655,293 @@ codeOf (Quotient a r) = QuotTy <$> codeOf a <*> codeOf r
 codeOf (El e) = Just e
 codeOf _ = Nothing
 
-||| Recursion budget for conditional matching (a lemma's unbound
-||| ≡-typed parameter is discharged by a nested speculative equality).
+extendCS : CandSet -> CandSet
+extendCS cs = MkCandSet (map wk cs.all) (map wk cs.rw) (map wk cs.hops)
+ where
+  liftK : Nat -> Sub
+  liftK Z = Wk
+  liftK (S n) = under (liftK n)
+
+  wk : Cand -> Cand
+  wk c = { lhs $= (\e => substElem e (liftK c.params))
+         , rhs $= (\e => substElem e (liftK c.params)) } c
+
 spDepth : Nat
 spDepth = 3
 
-mutual
-  ||| Γ ⊢ a ≐ b : A, speculatively: normalize+rewrite both sides, then
-  ||| compare type-directed (η at Π/Σ, Prop at 𝟘/𝟙, witnesses at
-  ||| quotients), by syntactic congruence descent, or against a whole
-  ||| candidate equation (with bounded transitivity hops). No state
-  ||| mutation; used before committing. `dep` bounds the search.
-  spEqElem : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Ty -> Bool
-  spEqElem dep st cs ctx a b ty =
-    let a' = rwNfElemWith st.sig cs.rw a
-        b' = rwNfElemWith st.sig cs.rw b
-        ty' = rwNfTyWith st.sig cs.rw ty in
-    a' == b'
-    || candMatch dep st cs ctx a' b' ty'
-    || spEqStruct dep st cs ctx a' b' ty'
-    || spCong dep st cs ctx a' b'
-    || assumedMatchE st ctx a' b' (betaTy st.sig ty)
+prefixSteps : Nat -> List Step -> List Step
+prefixSteps i = map ({ path $= (i ::) })
 
-  spEqStruct : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Ty -> Bool
-  spEqStruct dep st cs ctx a b Ty.OneTy = True
-  spEqStruct dep st cs ctx a b Ty.ZeroTy = True
-  spEqStruct dep st cs ctx a b (Ty.PiTy dom cod) =
-    -- Π-η: compare applied to the fresh variable — but ONLY when a side
-    -- is a literal λ. Two neutrals gain nothing from η, and η-expanding
-    -- them regenerates the very application spCong descends from — an
-    -- infinite η/congruence loop.
-    (isPiIntro a || isPiIntro b)
-    && spEqElem dep st (extendCS cs) (ctx :< dom)
-         (betaElem st.sig (PiApp (substElem a Wk) (CtxVar 0)))
-         (betaElem st.sig (PiApp (substElem b Wk) (CtxVar 0)))
-         cod
+||| Steps of a certificate that is pure steps + beta (flattenable into
+||| a parent at a path); Nothing when the final is type-directed.
+flatSteps : ECert -> Maybe (List Step)
+flatSteps (MkECert steps FBeta) = Just steps
+flatSteps _ = Nothing
+
+||| ... and with no proofs needed at all (safe under binders, where a
+||| Γ-level proof reference would go out of scope).
+stepFree : ECert -> Bool
+stepFree (MkECert [] FBeta) = True
+stepFree _ = False
+
+mutual
+  ||| Γ ⊢ a ≐ b : A, speculatively; Just cert = dischargeable with this
+  ||| evidence.
+  spEqElemC : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Ty -> Maybe ECert
+  spEqElemC dep st cs ctx a b ty =
+    let (a', aSteps) = rwNfElemS st.sig cs.rw True a
+        (b', bSteps) = rwNfElemS st.sig cs.rw False b
+        base = aSteps ++ bSteps
+        tyN = betaTy st.sig ty in
+    if a' == b'
+      then Just (MkECert base FBeta)
+      else
+        (do rest <- candMatchC dep st cs ctx a' b' tyN
+            pure (MkECert (base ++ rest.steps) rest.final))
+        <|> (do rest <- spEqStructC dep st cs ctx a' b' tyN
+                pure (MkECert (base ++ rest.steps) rest.final))
+        <|> (do congSteps <- spCongC dep st cs ctx a' b'
+                pure (MkECert (base ++ congSteps) FBeta))
+
+  spEqStructC : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Ty -> Maybe ECert
+  spEqStructC dep st cs ctx a b Ty.OneTy = Just (MkECert [] FProp)
+  spEqStructC dep st cs ctx a b Ty.ZeroTy = Just (MkECert [] FProp)
+  spEqStructC dep st cs ctx a b (Ty.PiTy dom cod) =
+    if isPiIntro a || isPiIntro b
+      then do sub <- spEqElemC dep st (extendCS cs) (ctx :< dom)
+                        (betaElem st.sig (PiApp (substElem a Wk) (CtxVar 0)))
+                        (betaElem st.sig (PiApp (substElem b Wk) (CtxVar 0)))
+                        cod
+              pure (MkECert [] (FEtaPi sub))
+      else Nothing
    where
     isPiIntro : Elem -> Bool
     isPiIntro (PiIntro _) = True
     isPiIntro _ = False
-  spEqStruct dep st cs ctx a b (Ty.SigmaTy dom cod) =
-    -- Σ-η, same guard: only when a side is a literal pair.
-    (isPair a || isPair b)
-    && spEqElem dep st cs ctx (betaElem st.sig (SigmaElim1 a)) (betaElem st.sig (SigmaElim1 b)) dom
-    && spEqElem dep st cs ctx (betaElem st.sig (SigmaElim2 a)) (betaElem st.sig (SigmaElim2 b))
-         (substTy cod (Ext Id (SigmaElim1 a)))
+  spEqStructC dep st cs ctx a b (Ty.SigmaTy dom cod) =
+    if isPair a || isPair b
+      then do c1 <- spEqElemC dep st cs ctx (betaElem st.sig (SigmaElim1 a)) (betaElem st.sig (SigmaElim1 b)) dom
+              c2 <- spEqElemC dep st cs ctx (betaElem st.sig (SigmaElim2 a)) (betaElem st.sig (SigmaElim2 b))
+                      (substTy cod (Ext Id (SigmaElim1 a)))
+              pure (MkECert [] (FEtaSigma c1 c2))
+      else Nothing
    where
     isPair : Elem -> Bool
     isPair (SigmaIntro _ _) = True
     isPair _ = False
-  spEqStruct dep st cs ctx (Class x) (Class y) (Quotient dom rel) =
-    spEqElem dep st cs ctx x y dom
-    || (case rwNfTyWith st.sig cs.rw (substTy rel (Ext (Ext Id x) y)) of
-          Ty.OneTy => True
-          EqTy l r t => spEqElem dep st cs ctx l r t
-          _ => False)
-  spEqStruct _ _ _ _ _ _ _ = False
+  spEqStructC dep st cs ctx (Class x) (Class y) (Quotient dom rel) =
+    case betaTy st.sig (substTy rel (Ext (Ext Id x) y)) of
+      Ty.OneTy => Just (MkECert [] (FWitness Nothing))
+      EqTy l r t => do sub <- spEqElemC dep st cs ctx l r t
+                       pure (MkECert [] (FWitness (Just sub)))
+      _ => Nothing
+  spEqStructC _ _ _ _ _ _ _ = Nothing
 
-  assumedMatchE : ElabSt -> Ctx -> Elem -> Elem -> Ty -> Bool
-  assumedMatchE st ctx a b ty =
-    any (\(c, x, y, t) => c == ctx && t == ty && ((x == a && y == b) || (x == b && y == a)))
-        st.assumedE
-
-  ||| Syntactic congruence descent on same-headed (already normalized)
-  ||| sides — the speculative mirror of the committing decomposition,
-  ||| letting an inner mismatch reach the candidate store (e.g. a
-  ||| commuted tail under an outer sum).
-  spCong : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Bool
-  spCong dep st cs ctx (NatIntro1 x) (NatIntro1 y) = spEqElem dep st cs ctx x y Ty.NatTy
-  spCong dep st cs ctx (NatElim z s t) (NatElim z' s' t') =
-    z == z' && s == s' && spEqElem dep st cs ctx t t' Ty.NatTy
-  spCong dep st cs ctx (PiApp f x) (PiApp g y) =
-    f == g && (case betaTy st.sig <$> inferNe st ctx f of
-                 Just (Ty.PiTy dom _) => spEqElem dep st cs ctx x y dom
-                 _ => False)
-  spCong dep st cs ctx (SigmaElim1 u) (SigmaElim1 v) =
+  ||| Syntactic congruence descent: same-headed sides compared
+  ||| componentwise; children flattened as path-prefixed steps.
+  ||| Binder-crossing components only when no steps are needed there
+  ||| (a Γ-level proof would go out of scope).
+  spCongC : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Maybe (List Step)
+  spCongC dep st cs ctx (NatIntro1 x) (NatIntro1 y) =
+    prefixSteps 0 <$> (spEqElemC dep st cs ctx x y Ty.NatTy >>= flatSteps)
+  spCongC dep st cs ctx (NatElim z s t) (NatElim z' s' t') =
+    if z == z' && s == s'
+      then prefixSteps 2 <$> (spEqElemC dep st cs ctx t t' Ty.NatTy >>= flatSteps)
+      else Nothing
+  spCongC dep st cs ctx (PiApp f x) (PiApp g y) =
+    if f == g
+      then case betaTy st.sig <$> inferNe st ctx f of
+             Just (Ty.PiTy dom _) =>
+               prefixSteps 1 <$> (spEqElemC dep st cs ctx x y dom >>= flatSteps)
+             _ => Nothing
+      else Nothing
+  spCongC dep st cs ctx (SigmaElim1 u) (SigmaElim1 v) =
     case inferNe st ctx u of
-      Just tyU => spEqElem dep st cs ctx u v tyU
-      Nothing => False
-  spCong dep st cs ctx (SigmaElim2 u) (SigmaElim2 v) =
+      Just tyU => prefixSteps 0 <$> (spEqElemC dep st cs ctx u v tyU >>= flatSteps)
+      Nothing => Nothing
+  spCongC dep st cs ctx (SigmaElim2 u) (SigmaElim2 v) =
     case inferNe st ctx u of
-      Just tyU => spEqElem dep st cs ctx u v tyU
-      Nothing => False
-  spCong dep st cs ctx (QuotElim f q) (QuotElim g q') =
-    f == g && (case inferNe st ctx q of
-                 Just tyQ => spEqElem dep st cs ctx q q' tyQ
-                 _ => False)
-  spCong dep st cs ctx (Elem.PiTy a b) (Elem.PiTy a' b') =
-    spEqElem dep st cs ctx a a' Ty.UniverseTy
-    && spEqElem dep st (extendCS cs) (ctx :< El a') b b' Ty.UniverseTy
-  spCong dep st cs ctx (Elem.SigmaTy a b) (Elem.SigmaTy a' b') =
-    spEqElem dep st cs ctx a a' Ty.UniverseTy
-    && spEqElem dep st (extendCS cs) (ctx :< El a') b b' Ty.UniverseTy
-  spCong dep st cs ctx (QuotTy a r) (QuotTy a' r') =
-    spEqElem dep st cs ctx a a' Ty.UniverseTy
-    && spEqElem dep st (extendCS (extendCS cs)) (ctx :< El a' :< substTy (El a') Wk) r r' Ty.UniverseTy
-  spCong dep st cs ctx (Elem.EqTy l r t) (Elem.EqTy l' r' t') =
-    spEqElem dep st cs ctx t t' Ty.UniverseTy
-    && spEqElem dep st cs ctx l l' (El t')
-    && spEqElem dep st cs ctx r r' (El t')
-  spCong _ _ _ _ _ _ = False
-
-  ||| Whole-equation matching against candidates: a ≐ b discharges when
-  ||| some candidate's lhs/rhs match a/b under one consistent
-  ||| instantiation (either orientation), with every parameter either
-  ||| bound by the match or — CONDITIONAL matching — carrying an ≡-type
-  ||| (or 𝟙) whose instance discharges speculatively. Additionally, a
-  ||| candidate that rewriting cannot apply (permutative / growing) may
-  ||| be used as a depth-bounded transitivity HOP: rewrite one side
-  ||| wholesale and recurse — e.g. middle-four exchange, a hypothesis,
-  ||| middle-four exchange again.
-  candMatch : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Ty -> Bool
-  candMatch Z _ _ _ _ _ _ = False
-  candMatch (S dep) st cs ctx a b ty =
-    any direct cs.all || any hop cs.hops
+      Just tyU => prefixSteps 0 <$> (spEqElemC dep st cs ctx u v tyU >>= flatSteps)
+      Nothing => Nothing
+  spCongC dep st cs ctx (QuotElim f q) (QuotElim g q') =
+    if f == g
+      then case inferNe st ctx q of
+             Just tyQ => prefixSteps 1 <$> (spEqElemC dep st cs ctx q q' tyQ >>= flatSteps)
+             _ => Nothing
+      else Nothing
+  spCongC dep st cs ctx (Class x) (Class y) =
+    -- class-congruence: components equal (the witness route lives in
+    -- spEqStructC, which is tried first)
+    prefixSteps 0 <$> (spEqElemC dep st cs ctx x y Ty.NatTy >>= natFree)
    where
-    -- paramTys is outermost-first: param p's type is at index (k-1-p).
+    -- the component type is unknown here; only proof-free evidence
+    -- (pure computation) is safe to accept
+    natFree : ECert -> Maybe (List Step)
+    natFree c = if stepFree c then Just [] else Nothing
+  spCongC dep st cs ctx (Elem.PiTy a b) (Elem.PiTy a' b') = do
+    stA <- spEqElemC dep st cs ctx a a' Ty.UniverseTy >>= flatSteps
+    cB <- spEqElemC dep st (extendCS cs) (ctx :< El a') b b' Ty.UniverseTy
+    if stepFree cB then Just (prefixSteps 0 stA) else Nothing
+  spCongC dep st cs ctx (Elem.SigmaTy a b) (Elem.SigmaTy a' b') = do
+    stA <- spEqElemC dep st cs ctx a a' Ty.UniverseTy >>= flatSteps
+    cB <- spEqElemC dep st (extendCS cs) (ctx :< El a') b b' Ty.UniverseTy
+    if stepFree cB then Just (prefixSteps 0 stA) else Nothing
+  spCongC dep st cs ctx (QuotTy a r) (QuotTy a' r') = do
+    stA <- spEqElemC dep st cs ctx a a' Ty.UniverseTy >>= flatSteps
+    cR <- spEqElemC dep st (extendCS (extendCS cs)) (ctx :< El a' :< substTy (El a') Wk) r r' Ty.UniverseTy
+    if stepFree cR then Just (prefixSteps 0 stA) else Nothing
+  spCongC dep st cs ctx (Elem.EqTy l r t) (Elem.EqTy l' r' t') = do
+    st1 <- spEqElemC dep st cs ctx t t' Ty.UniverseTy >>= flatSteps
+    st2 <- spEqElemC dep st cs ctx l l' (El t') >>= flatSteps
+    st3 <- spEqElemC dep st cs ctx r r' (El t') >>= flatSteps
+    pure (prefixSteps 2 st1 ++ prefixSteps 0 st2 ++ prefixSteps 1 st3)
+  spCongC _ _ _ _ _ _ = Nothing
+
+  ||| Whole-equation matching, conditions included, hops included —
+  ||| every acceptance materializes its steps.
+  candMatchC : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Ty -> Maybe ECert
+  candMatchC Z _ _ _ _ _ _ = Nothing
+  candMatchC (S dep) st cs ctx a b ty =
+    firstJ (map direct cs.all) <|> firstJ (map hop cs.hops)
+   where
+    firstJ : List (Maybe x) -> Maybe x
+    firstJ [] = Nothing
+    firstJ (Just v :: _) = Just v
+    firstJ (Nothing :: rest) = firstJ rest
+
     paramTy : Cand -> Nat -> Maybe Ty
     paramTy c p = getAt (minus (minus c.params 1) p) c.paramTys
 
-    condOk : Cand -> Bindings -> Nat -> Bool
-    condOk c bs p =
+    hypWitness : Elem -> Elem -> Maybe Elem
+    hypWitness lN rN =
+      firstJ (map (\i =>
+        case betaTy st.sig <$> ctxLookup ctx i of
+          Just (EqTy hl hr _) =>
+            if (betaElem st.sig hl == lN && betaElem st.sig hr == rN)
+              then Just (CtxVar i)
+              else Nothing
+          _ => Nothing) [0 .. minus (length ctx) 1])
+
+    ||| An element witnessing an unbound ≡- or 𝟙-typed parameter.
+    condElem : Cand -> Bindings -> Nat -> Maybe Elem
+    condElem c bs p =
       case lookup p bs of
-        Just _ => True
-        Nothing =>
-          case (paramTy c p, condSub c.params p bs) of
-            (Just tp, Just sigma) =>
-              case rwNfTyWith st.sig cs.rw (substTy tp sigma) of
-                Ty.OneTy => True
-                -- side conditions get a FLAT budget (no nested hops or
-                -- conditions): in practice they discharge directly
-                -- against a hypothesis; a deeper budget multiplies the
-                -- whole search tree
-                EqTy l r t => spEqElem (min dep 1) st cs ctx l r t
-                _ => False
-            _ => False
+        Just e => Just e
+        Nothing => do
+          tp <- paramTy c p
+          sigma <- condSub c.params p bs
+          case betaTy st.sig (substTy tp sigma) of
+            Ty.OneTy => Just OneIntro
+            EqTy l r t =>
+              let lN = betaElem st.sig l
+                  rN = betaElem st.sig r in
+              hypWitness lN rN
+              <|> (if lN == rN then Just Refl else Nothing)
+              <|> (do cert <- candMatchC dep st cs ctx lN rN (betaTy st.sig t)
+                      -- only a bare, proof-carrying single acceptance can
+                      -- be turned into an element; steps cannot
+                      Nothing)
+            _ => Nothing
 
-    allCondsOk : Cand -> Bindings -> Bool
-    allCondsOk c bs =
-      c.params == 0 || all (condOk c bs) (reverse [0 .. minus c.params 1])
+    complete : Cand -> Bindings -> Maybe Bindings
+    complete c bs =
+      if c.params == 0 then Just bs
+      else foldl step (Just bs) (reverse [0 .. minus c.params 1])
+     where
+      step : Maybe Bindings -> Nat -> Maybe Bindings
+      step acc p = do
+        bs' <- acc
+        e <- condElem c bs' p
+        pure ((p, e) :: filter (\(i, _) => i /= p) bs')
 
-    oriented : Cand -> Elem -> Elem -> Bool
-    oriented c x y =
-      case matchElemP c.params 0 0 c.lhs x [] of
-        Nothing => False
-        Just bs => case matchElemP c.params 0 0 c.rhs y bs of
-                     Nothing => False
-                     Just bs' => allCondsOk c bs'
+    direct : Cand -> Maybe ECert
+    direct c =
+      (do bs <- matchElemP c.params 0 0 c.lhs a []
+          bs' <- matchElemP c.params 0 0 c.rhs b bs
+          full <- complete c bs'
+          steps <- materialize c full True []
+          pure (MkECert steps FBeta))
+      <|> (do bs <- matchElemP c.params 0 0 c.lhs b []
+              bs' <- matchElemP c.params 0 0 c.rhs a bs
+              full <- complete c bs'
+              steps <- materializeFlip c full True
+              pure (MkECert steps FBeta))
 
-    direct : Cand -> Bool
-    direct c = oriented c a b || oriented c b a
-
-    -- Rewrite one whole side by a candidate and recurse with the
-    -- budget decremented (a bounded transitivity step).
-    hopWith : Cand -> Elem -> (Elem -> Bool) -> Bool
-    hopWith c side k =
-      case matchElemP c.params 0 0 c.lhs side [] of
-        Nothing => False
-        Just bs =>
-          case instSub c.params 0 bs of
-            Nothing => False
-            Just sigma =>
-              allCondsOk c bs
-              && k (rwNfElemWith st.sig cs.rw (substElem c.rhs sigma))
-
-    hop : Cand -> Bool
+    hop : Cand -> Maybe ECert
     hop c =
-      hopWith c a (\a' => spEqElem dep st cs ctx a' b ty)
-      || hopWith c b (\b' => spEqElem dep st cs ctx a b' ty)
+      (do bs <- matchElemP c.params 0 0 c.lhs a []
+          full <- complete c bs
+          steps <- materialize c full True []
+          sigma <- instSub c.params 0 full
+          let a' = betaElem st.sig (substElem c.rhs sigma)
+          rest <- spEqElemC dep st cs ctx a' b ty
+          pure (MkECert (steps ++ rest.steps) rest.final))
+      <|> (do bs <- matchElemP c.params 0 0 c.lhs b []
+              full <- complete c bs
+              steps <- materialize c full False []
+              sigma <- instSub c.params 0 full
+              let b' = betaElem st.sig (substElem c.rhs sigma)
+              rest <- spEqElemC dep st cs ctx a b' ty
+              pure (MkECert (steps ++ rest.steps) rest.final))
 
-  spEqTy : Nat -> ElabSt -> CandSet -> Ctx -> Ty -> Ty -> Bool
-  spEqTy dep st cs ctx tyA tyB =
-    let a = rwNfTyWith st.sig cs.rw tyA
-        b = rwNfTyWith st.sig cs.rw tyB in
-    go a b || assumedMatchT a b
+  ||| Γ ⊢ A ≐ B, speculatively, with evidence.
+  spEqTyC : Nat -> ElabSt -> CandSet -> Ctx -> Ty -> Ty -> Maybe ECert
+  spEqTyC dep st cs ctx tyA tyB =
+    let (a, aSteps) = rwNfTyS st.sig cs.rw True tyA
+        (b, bSteps) = rwNfTyS st.sig cs.rw False tyB
+        base = aSteps ++ bSteps in
+    (\rest => MkECert (base ++ rest) FBeta) <$> go a b
    where
-    go : Ty -> Ty -> Bool
-    go a b =
-      a == b
-      || case (a, b) of
-           (Ty.PiTy a0 b0, Ty.PiTy a1 b1) =>
-             go a0 a1 && spEqTy dep st (extendCS cs) (ctx :< a1) b0 b1
-           (Ty.SigmaTy a0 b0, Ty.SigmaTy a1 b1) =>
-             go a0 a1 && spEqTy dep st (extendCS cs) (ctx :< a1) b0 b1
-           (Ty.Quotient a0 r0, Ty.Quotient a1 r1) =>
-             go a0 a1 && spEqTy dep st (extendCS (extendCS cs)) (ctx :< a1 :< substTy a1 Wk) r0 r1
-           (EqTy l0 r0 t0, EqTy l1 r1 t1) =>
-             spEqTy dep st cs ctx t0 t1 && spEqElem dep st cs ctx l0 l1 t1 && spEqElem dep st cs ctx r0 r1 t1
-           (El x, El y) => spEqElem dep st cs ctx x y Ty.UniverseTy
-           (El x, rigid) => case codeOf rigid of
-                              Just c => spEqElem dep st cs ctx x c Ty.UniverseTy
-                              Nothing => False
-           (rigid, El y) => case codeOf rigid of
-                              Just c => spEqElem dep st cs ctx c y Ty.UniverseTy
-                              Nothing => False
-           _ => False
+    flatE : Bool -> Nat -> Ctx -> Elem -> Elem -> Ty -> Maybe (List Step)
+    flatE lhsOnly i ctx' x y t = do
+      c <- spEqElemC dep st cs ctx' x y t
+      steps <- flatSteps c
+      if lhsOnly && any (\s => not s.onLhs) steps
+        then Nothing
+        else Just (prefixSteps i steps)
 
-    assumedMatchT : Ty -> Ty -> Bool
-    assumedMatchT a b =
-      any (\(c, x, y) => c == ctx && ((x == a && y == b) || (x == b && y == a)))
-          st.assumedT
+    go : Ty -> Ty -> Maybe (List Step)
+    go a b =
+      if a == b then Just [] else
+      case (a, b) of
+        (Ty.PiTy a0 b0, Ty.PiTy a1 b1) => do
+          stA <- go a0 a1
+          sub <- spEqTyC dep st (extendCS cs) (ctx :< a1) b0 b1
+          if stepFree sub then Just (prefixSteps 0 stA) else Nothing
+        (Ty.SigmaTy a0 b0, Ty.SigmaTy a1 b1) => do
+          stA <- go a0 a1
+          sub <- spEqTyC dep st (extendCS cs) (ctx :< a1) b0 b1
+          if stepFree sub then Just (prefixSteps 0 stA) else Nothing
+        (Ty.Quotient a0 r0, Ty.Quotient a1 r1) => do
+          stA <- go a0 a1
+          sub <- spEqTyC dep st (extendCS (extendCS cs)) (ctx :< a1 :< substTy a1 Wk) r0 r1
+          if stepFree sub then Just (prefixSteps 0 stA) else Nothing
+        (EqTy l0 r0 t0, EqTy l1 r1 t1) => do
+          stT <- prefixSteps 2 <$> go t0 t1
+          stL <- flatE False 0 ctx l0 l1 t1
+          stR <- flatE False 1 ctx r0 r1 t1
+          pure (stT ++ stL ++ stR)
+        (El x, El y) => flatE False 0 ctx x y Ty.UniverseTy
+        (El x, rigid) => do c <- codeOf rigid
+                            flatE True 0 ctx x c Ty.UniverseTy
+        (rigid, El y) => do c <- codeOf rigid
+                            -- rewrite the El side (the rhs here)
+                            cE <- spEqElemC dep st cs ctx c y Ty.UniverseTy
+                            steps <- flatSteps cE
+                            if any (\s => s.onLhs) steps
+                              then Nothing
+                              else Just (prefixSteps 0 steps)
+        _ => Nothing
+
+||| Dedup-only matching against already-assumed obligations (dirty runs;
+||| never counts as discharge).
+assumedMatchE : ElabSt -> Ctx -> Elem -> Elem -> Ty -> Bool
+assumedMatchE st ctx a b ty =
+  let a' = rwNfElem st ctx a
+      b' = rwNfElem st ctx b
+      tyN = betaTy st.sig ty in
+  any (\(c, x, y, t) => c == ctx && t == tyN && ((x == a' && y == b') || (x == b' && y == a')))
+      st.assumedE
 
 -- ===== Committing conversion (the ↓ judgements) =====
 
@@ -791,11 +950,10 @@ assume stmt site comp = do
   st <- getSt
   case stmt of
     StElem ctx env a b ty => do
-      let key = (ctx, rwNfElem st ctx a, rwNfElem st ctx b, betaTy st.sig ty)
-      if assumedMatchE st (fst4 key) (snd4 key) (thd4 key) (fth4 key)
+      if assumedMatchE st ctx a b ty
         then pure ()
         else modifySt $ \s =>
-          { assumedE $= (key ::)
+          { assumedE $= ((ctx, rwNfElem st ctx a, rwNfElem st ctx b, betaTy st.sig ty) ::)
           , obls $= (:< MkObl stmt site comp) } s
     StTy ctx env x y => do
       let x' = rwNfTy st ctx x
@@ -821,7 +979,14 @@ mutual
   convElem ctx env site comp a b ty = do
     st <- getSt
     let cs = mkCandSet st ctx
-    if spEqElem spDepth st cs ctx a b ty
+    -- a discharge counts only if its certificate replays in the kernel;
+    -- a replay failure is reported on the obligation (engine bug signal)
+    let attempt = map (\cert => kCheckEqElem st.sig ctx kernelFuel cert a b ty)
+                      (spEqElemC spDepth st cs ctx a b ty)
+    let site = case attempt of
+                 Just (Left kerrMsg) => site ++ " [replay failed: " ++ kerrMsg ++ "]"
+                 _ => site
+    if attempt == Just (Right ())
       then pure ()
       else do
         let cur = StElem ctx env a b ty
@@ -880,7 +1045,12 @@ mutual
   convTy ctx env site comp tyA tyB = do
     st <- getSt
     let cs = mkCandSet st ctx
-    if spEqTy spDepth st cs ctx tyA tyB
+    let attempt = map (\cert => kCheckEqTy st.sig ctx kernelFuel cert tyA tyB)
+                      (spEqTyC spDepth st cs ctx tyA tyB)
+    let site = case attempt of
+                 Just (Left kerrMsg) => site ++ " [replay failed: " ++ kerrMsg ++ "]"
+                 _ => site
+    if attempt == Just (Right ())
       then pure ()
       else do
         let cur = StTy ctx env tyA tyB
@@ -1138,13 +1308,26 @@ addLemma name delta ty = do
   let (delta', peeled) = peelPis delta (betaTy st.sig ty)
   case peeled of
     EqTy l r t =>
-      -- Sides normalized against the store as of this point, so later
-      -- queries (already canonicalized by earlier lemmas) still match;
-      -- closed under component decomposition (closeCand).
-      let lemmaRw = ordered st.lemmas in
-      modifySt $ { lemmas $= (closeCand (MkCand name (length delta') (toList delta')
-                                                (rwNfElemWith st.sig lemmaRw l)
-                                                (rwNfElemWith st.sig lemmaRw r)) ++) }
+      -- Sides normalized against the store as of this point (recording
+      -- the normalization so the kernel can bridge from the raw
+      -- reflected equation); closed under component decomposition.
+      let lemmaRw = ordered st.lemmas
+          k = length delta'
+          teleLen = length delta
+          peeledN = minus k teleLen
+          mk : Bindings -> Maybe (Elem, List Sel)
+          mk = \bs => do
+            teleArgs <- traverse (\p => lookup p bs)
+                          (the (List Nat) (if teleLen == 0 then [] else reverse [peeledN .. minus k 1]))
+            peeledArgs <- traverse (\p => lookup p bs)
+                            (the (List Nat) (if peeledN == 0 then [] else reverse [0 .. minus peeledN 1]))
+            pure (foldl PiApp (SigVar name (cast teleArgs)) peeledArgs, the (List Sel) [])
+          lRes = rwNfElemS st.sig lemmaRw True (betaElem st.sig l)
+          rRes = rwNfElemS st.sig lemmaRw True (betaElem st.sig r)
+          toP : List Step -> List PStep
+          toP = map (\s => MkPStep s.path s.prf s.sels s.flip)
+      in modifySt $ { lemmas $= (closeCand (MkCand name k (toList delta') (fst lRes) (fst rRes)
+                                                   mk (toP (snd lRes)) (toP (snd rRes))) ++) }
     _ => pure ()
 
 elabTelescope : Ctx -> NameEnv -> String -> List (String, STy) -> ElabM (Ctx, NameEnv)

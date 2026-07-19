@@ -14,6 +14,7 @@ modules = Nova.Foundation.Syntax
         , Nova.Foundation.Beta
         , Nova.Foundation.Derivation.NamedParser
         , Nova.Foundation.Derivation.NamedPretty
+        , Nova.Foundation.Kernel
         , Nova.Foundation.Elaboration
         , Nova.Foundation.Elaboration.Surface
         , Nova.Foundation.Elaboration.Parser

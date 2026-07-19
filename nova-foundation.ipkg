@@ -10,6 +10,7 @@ modules = Nova.Foundation.Syntax
         , Nova.Foundation.Subst
         , Nova.Foundation.Beta
         , Nova.Foundation.Derivation
+        , Nova.Foundation.Kernel
         , Nova.Foundation.Elaboration
         , Nova.Foundation.Elaboration.Surface
         , Nova.Foundation.Elaboration.Parser

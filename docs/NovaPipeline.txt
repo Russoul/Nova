@@ -214,18 +214,39 @@ surface stays exactly as clean as the theory promises.
 
 ////////// Status //////////
 
-Implemented today: the front end, the elaborator, the discharge engine
-(as a TRUSTED component — the known hole above, flagged in
-NovaElaboration.txt), the obligation lifecycle, the elaborations/
-corpus, golden tests.
+Implemented: the front end; the elaborator; the obligation lifecycle;
+the elaborations/ corpus; and the EQUATION KERNEL with the demotion of
+engine verdicts to proposals — Nova.Foundation.Kernel provides
+fuel-bounded normalization (mirroring the ≜ rules clause for clause,
+exhaustion = reject), proof-element inference/checking for elimination
+spines and intro forms, injectivity selectors, TYPED PATH DESCENT
+(every rewrite's licensed equation is verified against its position's
+locally determined expected type — intermediate hops need no type,
+congruence only demands the child equation at the rewrite point), and
+replay of the certificate finals (beta, 𝟘/𝟙-Prop, quotient witnesses,
+Π/Σ-η). The discharge engine emits certificates for every discharge
+(rewrite traces with parametric-context normalization bridging,
+whole-equation matches with condition witnesses, hop chains,
+injectivity-selector components), and convElem/convTy count a
+discharge ONLY if its certificate replays — a replay failure is
+reported on the resulting obligation. Both historical exploits are
+golden tests that now END IN OBLIGATIONS (elab-reject-prop-solvent,
+elab-reject-cross-quotient): the parametric 𝟙-lemma dies at proof
+argument checking, the cross-quotient transport dies at the positional
+type check.
 
-To build, in order:
-  1. the kernel (synthesis over annotated trees + fuel-bounded beta +
-     replay) and the annotated-tree artifact with its erasure;
-  2. trace emission from the discharge engine (rewrite steps already
-     have exactly the trace shape; whole-equation matches are one-step
-     traces; hops are chains; witnesses are their own step kind);
-  3. demote the engine's verdicts to proposals: a discharge counts only
-     if its trace replays in the kernel — at which point the exploits
-     above stop being soundness bugs and become rejected traces, and
-     the FIXME in NovaElaboration.txt is closed by construction.
+Two acknowledged approximations of the equation kernel, both closed by
+the remaining work item:
+  * ℕ-elim z/s rewrite positions use the CONSTANT-MOTIVE reading (a
+    valid congruence instance whose premises are demanded at the
+    constant type) — motive annotations remove the approximation;
+  * proof-argument checking accepts ℕ-elim arguments by the same
+    constant-motive rule.
+
+To build: the ITEM-LEVEL kernel — bidirectional re-checking of whole
+core items over annotation skeletons (eliminator motives, expected
+types at checked intros, switch certificates), with the kernel's Σ as
+the authoritative one in elabFile. Until then the elaborator's typing
+pass is trusted for ITEM typing (not for equality, which is fully
+kernel-checked); the elaborated core and the annotations it would need
+are already produced during elaboration.
