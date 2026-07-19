@@ -15,5 +15,5 @@ modules = Nova.Kernel.Syntax
 
 sourcedir = "src/idris"
 
-main = Nova.Test.Main
+main = Nova.Test
 executable = nova-tests

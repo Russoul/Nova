@@ -1,4 +1,4 @@
-module Nova.Test.Main
+module Nova.Test
 
 import System
 import System.File
