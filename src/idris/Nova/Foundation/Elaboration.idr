@@ -98,13 +98,16 @@ record Obligation where
 record ElabSt where
   constructor MkElabSt
   sig : Sig
+  ||| the KERNEL's signature: extended only by kernel-accepted items —
+  ||| the authoritative Σ (docs/NovaPipeline.txt)
+  kernelSig : Sig
   lemmas : List Cand
   assumedE : List (Ctx, Elem, Elem, Ty)   -- normalized keys of assumed elem equations
   assumedT : List (Ctx, Ty, Ty)           -- normalized keys of assumed type equations
   obls : SnocList Obligation
 
 initSt : ElabSt
-initSt = MkElabSt [<] [] [] [] [<]
+initSt = MkElabSt [<] [<] [] [] [] [<]
 
 -- ===== Elaboration monad =====
 
@@ -604,7 +607,10 @@ record CandSet where
 
 mkCandSet : ElabSt -> Ctx -> CandSet
 mkCandSet st ctx =
-  let cs = st.lemmas ++ hypCands st ctx
+  -- degenerate candidates (sides identical after normalization) carry
+  -- no content beyond beta and — with a bare-parameter lhs — would
+  -- match ANYTHING as a hop, emitting ill-typed junk steps
+  let cs = filter (\c => c.lhs /= c.rhs) (st.lemmas ++ hypCands st ctx)
       rws = ordered cs
       hopsOnly = filter (\c => permutative c || elemSize c.rhs > elemSize c.lhs) cs
   in MkCandSet cs rws hopsOnly
@@ -675,13 +681,13 @@ prefixSteps i = map ({ path $= (i ::) })
 ||| Steps of a certificate that is pure steps + beta (flattenable into
 ||| a parent at a path); Nothing when the final is type-directed.
 flatSteps : ECert -> Maybe (List Step)
-flatSteps (MkECert steps FBeta) = Just steps
+flatSteps (MkECertF Nothing steps FBeta) = Just steps
 flatSteps _ = Nothing
 
 ||| ... and with no proofs needed at all (safe under binders, where a
 ||| Γ-level proof reference would go out of scope).
 stepFree : ECert -> Bool
-stepFree (MkECert [] FBeta) = True
+stepFree (MkECertF Nothing [] FBeta) = True
 stepFree _ = False
 
 mutual
@@ -689,19 +695,31 @@ mutual
   ||| evidence.
   spEqElemC : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Ty -> Maybe ECert
   spEqElemC dep st cs ctx a b ty =
-    let (a', aSteps) = rwNfElemS st.sig cs.rw True a
+    -- expose the equation's type by lemma normalization; when that
+    -- takes steps, the certificate carries them as a TYPE BRIDGE and
+    -- the whole replay happens at the exposed type (where positions
+    -- the steps land on are structurally determined)
+    let (tyX, tySteps) = rwNfTyS st.sig cs.rw True ty
+        bridge = case tySteps of
+                   [] => Nothing
+                   _ => Just (tyX, MkECert tySteps FBeta)
+        (a', aSteps) = rwNfElemS st.sig cs.rw True a
         (b', bSteps) = rwNfElemS st.sig cs.rw False b
         base = aSteps ++ bSteps
-        tyN = betaTy st.sig ty in
+        tyN = betaTy st.sig tyX in
     if a' == b'
-      then Just (MkECert base FBeta)
+      then Just (MkECertF bridge base FBeta)
       else
-        (do rest <- candMatchC dep st cs ctx a' b' tyN
-            pure (MkECert (base ++ rest.steps) rest.final))
-        <|> (do rest <- spEqStructC dep st cs ctx a' b' tyN
-                pure (MkECert (base ++ rest.steps) rest.final))
+        (do rest <- candMatchC dep st cs ctx a' b' tyN >>= unbridged
+            pure (MkECertF bridge (base ++ rest.steps) rest.final))
+        <|> (do rest <- spEqStructC dep st cs ctx a' b' tyN >>= unbridged
+                pure (MkECertF bridge (base ++ rest.steps) rest.final))
         <|> (do congSteps <- spCongC dep st cs ctx a' b'
-                pure (MkECert (base ++ congSteps) FBeta))
+                pure (MkECertF bridge (base ++ congSteps) FBeta))
+   where
+    unbridged : ECert -> Maybe ECert
+    unbridged c@(MkECertF Nothing _ _) = Just c
+    unbridged _ = Nothing
 
   spEqStructC : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Ty -> Maybe ECert
   spEqStructC dep st cs ctx a b Ty.OneTy = Just (MkECert [] FProp)
@@ -809,6 +827,10 @@ mutual
     firstJ (Just v :: _) = Just v
     firstJ (Nothing :: rest) = firstJ rest
 
+    noBridge : ECert -> Maybe ECert
+    noBridge c@(MkECertF Nothing _ _) = Just c
+    noBridge _ = Nothing
+
     paramTy : Cand -> Nat -> Maybe Ty
     paramTy c p = getAt (minus (minus c.params 1) p) c.paramTys
 
@@ -874,14 +896,14 @@ mutual
           steps <- materialize c full True []
           sigma <- instSub c.params 0 full
           let a' = betaElem st.sig (substElem c.rhs sigma)
-          rest <- spEqElemC dep st cs ctx a' b ty
+          rest <- spEqElemC dep st cs ctx a' b ty >>= noBridge
           pure (MkECert (steps ++ rest.steps) rest.final))
       <|> (do bs <- matchElemP c.params 0 0 c.lhs b []
               full <- complete c bs
               steps <- materialize c full False []
               sigma <- instSub c.params 0 full
               let b' = betaElem st.sig (substElem c.rhs sigma)
-              rest <- spEqElemC dep st cs ctx a b' ty
+              rest <- spEqElemC dep st cs ctx a b' ty >>= noBridge
               pure (MkECert (steps ++ rest.steps) rest.final))
 
   ||| Γ ⊢ A ≐ B, speculatively, with evidence.
@@ -945,6 +967,11 @@ assumedMatchE st ctx a b ty =
 
 -- ===== Committing conversion (the ↓ judgements) =====
 
+oblCount : ElabM Nat
+oblCount = do
+  st <- getSt
+  pure (length (toList st.obls))
+
 assume : Stmt -> String -> Maybe Stmt -> ElabM ()
 assume stmt site comp = do
   st <- getSt
@@ -975,106 +1002,127 @@ assume stmt site comp = do
 
 mutual
   ||| Γ ⊢ a ≐ b : A ↓ — always succeeds; assumes what it cannot discharge.
-  convElem : Ctx -> NameEnv -> String -> Maybe Stmt -> Elem -> Elem -> Ty -> ElabM ()
+  convElem : Ctx -> NameEnv -> String -> Maybe Stmt -> Elem -> Elem -> Ty -> ElabM (Maybe ECert)
   convElem ctx env site comp a b ty = do
     st <- getSt
     let cs = mkCandSet st ctx
     -- a discharge counts only if its certificate replays in the kernel;
     -- a replay failure is reported on the obligation (engine bug signal)
-    let attempt = map (\cert => kCheckEqElem st.sig ctx kernelFuel cert a b ty)
-                      (spEqElemC spDepth st cs ctx a b ty)
+    let mcert = spEqElemC spDepth st cs ctx a b ty
+    let attempt = map (\cert => kCheckEqElem st.sig ctx kernelFuel cert a b ty) mcert
     let site = case attempt of
                  Just (Left kerrMsg) => site ++ " [replay failed: " ++ kerrMsg ++ "]"
                  _ => site
     if attempt == Just (Right ())
-      then pure ()
-      else do
+      then pure mcert
+      else map (const Nothing) $ do
         let cur = StElem ctx env a b ty
         let comp' = comp <|> Just cur
         let a' = rwNfElem st ctx a
         let b' = rwNfElem st ctx b
-        case (a', b', rwNfTy st ctx ty) of
+        n0 <- oblCount
+        decompose site cur comp' a' b' (rwNfTy st ctx ty)
+        -- a decomposition that surfaced no obligation discharged all
+        -- children — but the COMPOSITE site still has no certificate,
+        -- so the item could never be kernel-accepted. Keep the
+        -- acceptance semantics honest: the composite is assumed (the
+        -- remedy is a lemma that makes it directly matchable).
+        n1 <- oblCount
+        when (n1 == n0) $ assume cur site comp
+   where
+    decompose : String -> Stmt -> Maybe Stmt -> Elem -> Elem -> Ty -> ElabM ()
+    decompose site cur comp' a' b' tyW = do
+        st <- getSt
+        case (a', b', tyW) of
           -- congruence decomposition — faithful (an equivalence) for
           -- the type formers and universe codes, per Foundation's
           -- injectivity rules; merely sufficient for class (quotients
           -- are not injective — the witness path is the faithful
           -- route) and for neutral-spine congruence
           (NatIntro1 x, NatIntro1 y, _) =>
-            convElem ctx env site comp' x y Ty.NatTy
+            ignore $ convElem ctx env site comp' x y Ty.NatTy
           (PiIntro f, PiIntro g, Ty.PiTy dom cod) =>
-            convElem (ctx :< dom) (env :< "x") site comp' f g cod
+            ignore $ convElem (ctx :< dom) (env :< "x") site comp' f g cod
           (SigmaIntro u v, SigmaIntro u' v', Ty.SigmaTy dom cod) => do
-            convElem ctx env site comp' u u' dom
-            convElem ctx env site comp' v v' (substTy cod (Ext Id u'))
+            ignore $ convElem ctx env site comp' u u' dom
+            ignore $ convElem ctx env site comp' v v' (substTy cod (Ext Id u'))
           (Class x, Class y, Ty.Quotient dom rel) =>
             -- witness path: an Eq-shaped relation reduces the class
             -- equation to its underlying equation (class⁼ Refl after
             -- reflection); other shapes keep the composite.
             (do st' <- getSt
                 case rwNfTy st' ctx (substTy rel (Ext (Ext Id x) y)) of
-                  EqTy l r t => convElem ctx env site comp' l r t
+                  EqTy l r t => ignore $ convElem ctx env site comp' l r t
                   _ => assume cur site comp)
           (Elem.PiTy x c, Elem.PiTy x' c', Ty.UniverseTy) => do
-            convElem ctx env site comp' x x' Ty.UniverseTy
-            convElem (ctx :< El x') (env :< "x") site comp' c c' Ty.UniverseTy
+            ignore $ convElem ctx env site comp' x x' Ty.UniverseTy
+            ignore $ convElem (ctx :< El x') (env :< "x") site comp' c c' Ty.UniverseTy
           (Elem.SigmaTy x c, Elem.SigmaTy x' c', Ty.UniverseTy) => do
-            convElem ctx env site comp' x x' Ty.UniverseTy
-            convElem (ctx :< El x') (env :< "x") site comp' c c' Ty.UniverseTy
+            ignore $ convElem ctx env site comp' x x' Ty.UniverseTy
+            ignore $ convElem (ctx :< El x') (env :< "x") site comp' c c' Ty.UniverseTy
           (QuotTy x r, QuotTy x' r', Ty.UniverseTy) => do
-            convElem ctx env site comp' x x' Ty.UniverseTy
-            convElem (ctx :< El x' :< substTy (El x') Wk) (env :< "x" :< "y") site comp' r r' Ty.UniverseTy
+            ignore $ convElem ctx env site comp' x x' Ty.UniverseTy
+            ignore $ convElem (ctx :< El x' :< substTy (El x') Wk) (env :< "x" :< "y") site comp' r r' Ty.UniverseTy
           (Elem.EqTy l r t, Elem.EqTy l' r' t', Ty.UniverseTy) => do
-            convElem ctx env site comp' t t' Ty.UniverseTy
-            convElem ctx env site comp' l l' (El t')
-            convElem ctx env site comp' r r' (El t')
+            ignore $ convElem ctx env site comp' t t' Ty.UniverseTy
+            ignore $ convElem ctx env site comp' l l' (El t')
+            ignore $ convElem ctx env site comp' r r' (El t')
           (NatElim z s t0, NatElim z' s' t1, _) =>
             if z == z' && s == s'
-              then convElem ctx env site comp' t0 t1 Ty.NatTy
+              then ignore $ convElem ctx env site comp' t0 t1 Ty.NatTy
               else assume cur site comp
           (PiApp f x, PiApp g y, _) =>
             if f == g
               then do st' <- getSt
                       case betaTy st'.sig <$> inferNe st' ctx f of
-                        Just (Ty.PiTy dom _) => convElem ctx env site comp' x y dom
+                        Just (Ty.PiTy dom _) => ignore $ convElem ctx env site comp' x y dom
                         _ => assume cur site comp
               else assume cur site comp
           _ => assume cur site comp
 
   ||| Γ ⊢ A ≐ B type ↓
-  convTy : Ctx -> NameEnv -> String -> Maybe Stmt -> Ty -> Ty -> ElabM ()
+  convTy : Ctx -> NameEnv -> String -> Maybe Stmt -> Ty -> Ty -> ElabM (Maybe ECert)
   convTy ctx env site comp tyA tyB = do
     st <- getSt
     let cs = mkCandSet st ctx
-    let attempt = map (\cert => kCheckEqTy st.sig ctx kernelFuel cert tyA tyB)
-                      (spEqTyC spDepth st cs ctx tyA tyB)
+    let mcert = spEqTyC spDepth st cs ctx tyA tyB
+    let attempt = map (\cert => kCheckEqTy st.sig ctx kernelFuel cert tyA tyB) mcert
     let site = case attempt of
                  Just (Left kerrMsg) => site ++ " [replay failed: " ++ kerrMsg ++ "]"
                  _ => site
     if attempt == Just (Right ())
-      then pure ()
-      else do
+      then pure mcert
+      else map (const Nothing) $ do
         let cur = StTy ctx env tyA tyB
         let comp' = comp <|> Just cur
-        case (rwNfTy st ctx tyA, rwNfTy st ctx tyB) of
+        n0 <- oblCount
+        decomposeT site cur comp' (rwNfTy st ctx tyA) (rwNfTy st ctx tyB)
+        n1 <- oblCount
+        when (n1 == n0) $ assume cur site comp
+   where
+    decomposeT : String -> Stmt -> Maybe Stmt -> Ty -> Ty -> ElabM ()
+    decomposeT site cur comp' tyA' tyB' = do
+        st <- getSt
+        case (tyA', tyB') of
           (Ty.PiTy a0 b0, Ty.PiTy a1 b1) => do
-            convTy ctx env site comp' a0 a1
-            convTy (ctx :< a1) (env :< "x") site comp' b0 b1
+            ignore $ convTy ctx env site comp' a0 a1
+            ignore $ convTy (ctx :< a1) (env :< "x") site comp' b0 b1
           (Ty.SigmaTy a0 b0, Ty.SigmaTy a1 b1) => do
-            convTy ctx env site comp' a0 a1
-            convTy (ctx :< a1) (env :< "x") site comp' b0 b1
+            ignore $ convTy ctx env site comp' a0 a1
+            ignore $ convTy (ctx :< a1) (env :< "x") site comp' b0 b1
           (Ty.Quotient a0 r0, Ty.Quotient a1 r1) => do
-            convTy ctx env site comp' a0 a1
-            convTy (ctx :< a1 :< substTy a1 Wk) (env :< "x" :< "y") site comp' r0 r1
+            ignore $ convTy ctx env site comp' a0 a1
+            ignore $ convTy (ctx :< a1 :< substTy a1 Wk) (env :< "x" :< "y") site comp' r0 r1
           (EqTy l0 r0 t0, EqTy l1 r1 t1) => do
-            convTy ctx env site comp' t0 t1
-            convElem ctx env site comp' l0 l1 t1
-            convElem ctx env site comp' r0 r1 t1
-          (El x, El y) => convElem ctx env site comp' x y Ty.UniverseTy
+            ignore $ convTy ctx env site comp' t0 t1
+            ignore $ convElem ctx env site comp' l0 l1 t1
+            ignore $ convElem ctx env site comp' r0 r1 t1
+          (El x, El y) => ignore $ convElem ctx env site comp' x y Ty.UniverseTy
           (El x, rigid) => case codeOf rigid of
-                             Just c => convElem ctx env site comp' x c Ty.UniverseTy
+                             Just c => ignore $ convElem ctx env site comp' x c Ty.UniverseTy
                              Nothing => assume cur site comp
           (rigid, El y) => case codeOf rigid of
-                             Just c => convElem ctx env site comp' c y Ty.UniverseTy
+                             Just c => ignore $ convElem ctx env site comp' c y Ty.UniverseTy
                              Nothing => assume cur site comp
           _ => assume cur site comp
 
@@ -1083,161 +1131,185 @@ mutual
 structuralHint : String
 structuralHint = " (ascribe the term: `(t : T)`)"
 
-||| Expose a type's Π/Σ/quotient head: as written if already rigid,
-||| else by normalization.
-preferPi : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty)
-preferPi st ctx (Ty.PiTy a b) = Just (a, b)
+||| Attach a payload to a skeleton node.
+addPayload : Payload -> Skel -> Skel
+addPayload p (Nd ps cs) = Nd (p :: ps) cs
+
+||| The certificate of a validated discharge; an assumed (dirty-run)
+||| site carries an empty stub — the item is not kernel-checked then.
+certOr : Maybe ECert -> ECert
+certOr (Just c) = c
+certOr Nothing = MkECert [] FBeta
+
+||| Expose a type's Π/Σ/quotient head: as written if already rigid
+||| (no annotation needed), else by normalization — in which case the
+||| exposure ships to the kernel as a PExpose payload (exposed type +
+||| conversion certificate).
+exposeCert : ElabSt -> Ctx -> Ty -> Ty -> Maybe (Ty, ECert)
+exposeCert st ctx ty tyX =
+  let cs = mkCandSet st ctx in
+  map (\c => (tyX, c)) (spEqTyC spDepth st cs ctx ty tyX)
+
+preferPi : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, ECert))
+preferPi st ctx (Ty.PiTy a b) = Just (a, b, Nothing)
 preferPi st ctx ty = case rwNfTy st ctx ty of
-                       Ty.PiTy a b => Just (a, b)
+                       tyX@(Ty.PiTy a b) => (\e => (a, b, Just e)) <$> exposeCert st ctx ty tyX
                        _ => Nothing
 
-preferSigma : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty)
-preferSigma st ctx (Ty.SigmaTy a b) = Just (a, b)
+preferSigma : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, ECert))
+preferSigma st ctx (Ty.SigmaTy a b) = Just (a, b, Nothing)
 preferSigma st ctx ty = case rwNfTy st ctx ty of
-                          Ty.SigmaTy a b => Just (a, b)
+                          tyX@(Ty.SigmaTy a b) => (\e => (a, b, Just e)) <$> exposeCert st ctx ty tyX
                           _ => Nothing
 
-preferQuot : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty)
-preferQuot st ctx (Ty.Quotient a r) = Just (a, r)
+preferQuot : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, ECert))
+preferQuot st ctx (Ty.Quotient a r) = Just (a, r, Nothing)
 preferQuot st ctx ty = case rwNfTy st ctx ty of
-                         Ty.Quotient a r => Just (a, r)
+                         tyX@(Ty.Quotient a r) => (\e => (a, r, Just e)) <$> exposeCert st ctx ty tyX
                          _ => Nothing
+
+||| Attach a PExpose payload when exposure happened by normalization.
+withExpose : Maybe (Ty, ECert) -> Skel -> Skel
+withExpose Nothing sk = sk
+withExpose (Just (tyX, c)) sk = addPayload (PExpose tyX c) sk
 
 mutual
   export
-  elabTy : Ctx -> NameEnv -> String -> STy -> ElabM Ty
-  elabTy ctx env site STyZero = pure Ty.ZeroTy
-  elabTy ctx env site STyOne = pure Ty.OneTy
-  elabTy ctx env site STyNat = pure Ty.NatTy
-  elabTy ctx env site STyUniv = pure Ty.UniverseTy
+  elabTy : Ctx -> NameEnv -> String -> STy -> ElabM (Ty, Skel)
+  elabTy ctx env site STyZero = pure (Ty.ZeroTy, Nd [] [])
+  elabTy ctx env site STyOne = pure (Ty.OneTy, Nd [] [])
+  elabTy ctx env site STyNat = pure (Ty.NatTy, Nd [] [])
+  elabTy ctx env site STyUniv = pure (Ty.UniverseTy, Nd [] [])
   elabTy ctx env site (STySig x es) = do
     st <- getSt
     case sigLookup x st.sig of
       Just (SigTyDef delta _ _) => do
-        es' <- checkSubst ctx env site es delta
-        pure (Ty.SigVar x es')
+        (es', sks) <- checkSubst ctx env site es delta
+        pure (Ty.SigVar x es', Nd [] sks)
       Just (SigDef _ _ _ _) => throw "\{site}: '\{x}' is a term definition, used as a type"
       Nothing => throw "\{site}: unknown signature name '\{x}'"
   elabTy ctx env site (STyPi x a b) = do
-    a' <- elabTy ctx env site a
-    b' <- elabTy (ctx :< a') (env :< x) site b
-    pure (Ty.PiTy a' b')
+    (a', aSk) <- elabTy ctx env site a
+    (b', bSk) <- elabTy (ctx :< a') (env :< x) site b
+    pure (Ty.PiTy a' b', Nd [] [aSk, bSk])
   elabTy ctx env site (STySigma x a b) = do
-    a' <- elabTy ctx env site a
-    b' <- elabTy (ctx :< a') (env :< x) site b
-    pure (Ty.SigmaTy a' b')
+    (a', aSk) <- elabTy ctx env site a
+    (b', bSk) <- elabTy (ctx :< a') (env :< x) site b
+    pure (Ty.SigmaTy a' b', Nd [] [aSk, bSk])
   elabTy ctx env site (STyQuot a nx ny r) = do
-    a' <- elabTy ctx env site a
-    r' <- elabTy (ctx :< a' :< substTy a' Wk) (env :< nx :< ny) site r
-    pure (Ty.Quotient a' r')
+    (a', aSk) <- elabTy ctx env site a
+    (r', rSk) <- elabTy (ctx :< a' :< substTy a' Wk) (env :< nx :< ny) site r
+    pure (Ty.Quotient a' r', Nd [] [aSk, rSk])
   elabTy ctx env site (STyEq l r t) = do
-    t' <- elabTy ctx env site t
-    l' <- checkElem ctx env site l t'
-    r' <- checkElem ctx env site r t'
-    pure (EqTy l' r' t')
+    (t', tSk) <- elabTy ctx env site t
+    (l', lSk) <- checkElem ctx env site l t'
+    (r', rSk) <- checkElem ctx env site r t'
+    pure (EqTy l' r' t', Nd [] [lSk, rSk, tSk])
   elabTy ctx env site (STyEl e) = do
-    e' <- checkElem ctx env site e Ty.UniverseTy
-    pure (El e')
+    (e', eSk) <- checkElem ctx env site e Ty.UniverseTy
+    pure (El e', Nd [] [eSk])
 
-  checkSubst : Ctx -> NameEnv -> String -> List SElem -> Ctx -> ElabM SubNorm
+  checkSubst : Ctx -> NameEnv -> String -> List SElem -> Ctx -> ElabM (SubNorm, List Skel)
   checkSubst ctx env site es delta = go (reverse es) delta
    where
     -- es is given left-to-right (outermost first); delta is a snoc-list.
-    go : List SElem -> Ctx -> ElabM SubNorm
-    go [] [<] = pure [<]
+    go : List SElem -> Ctx -> ElabM (SubNorm, List Skel)
+    go [] [<] = pure ([<], [])
     go (e :: rest) (d :< ty) = do
-      es' <- go rest d
-      e' <- checkElem ctx env site e (substTy ty (embed es'))
-      pure (es' :< e')
+      (es', sks) <- go rest d
+      (e', eSk) <- checkElem ctx env site e (substTy ty (embed es'))
+      pure (es' :< e', sks ++ [eSk])
     go _ _ = throw "\{site}: substitution length does not match the definition's telescope"
 
   export
-  inferElem : Ctx -> NameEnv -> String -> SElem -> ElabM (Elem, Ty)
+  inferElem : Ctx -> NameEnv -> String -> SElem -> ElabM (Elem, Ty, Skel)
   inferElem ctx env site (SVar n i) =
     case ctxLookup ctx i of
-      Just ty => pure (CtxVar i, ty)
+      Just ty => pure (CtxVar i, ty, Nd [] [])
       Nothing => throw "\{site}: variable index out of bounds"
   inferElem ctx env site (SSig x es) = do
     st <- getSt
     case sigLookup x st.sig of
       Just (SigDef delta _ _ ty) => do
-        es' <- checkSubst ctx env site es delta
-        pure (SigVar x es', substTy ty (embed es'))
+        (es', sks) <- checkSubst ctx env site es delta
+        pure (SigVar x es', substTy ty (embed es'), Nd [] sks)
       Just (SigTyDef _ _ _) => throw "\{site}: '\{x}' is a type definition, used as a term"
       Nothing => throw "\{site}: unknown signature name '\{x}'"
-  inferElem ctx env site SUnitI = pure (OneIntro, Ty.OneTy)
-  inferElem ctx env site SZeroN = pure (NatIntro0, Ty.NatTy)
+  inferElem ctx env site SUnitI = pure (OneIntro, Ty.OneTy, Nd [] [])
+  inferElem ctx env site SZeroN = pure (NatIntro0, Ty.NatTy, Nd [] [])
   inferElem ctx env site (SSuc t) = do
-    t' <- checkElem ctx env site t Ty.NatTy
-    pure (NatIntro1 t', Ty.NatTy)
+    (t', tSk) <- checkElem ctx env site t Ty.NatTy
+    pure (NatIntro1 t', Ty.NatTy, Nd [] [tSk])
   inferElem ctx env site (SApp f e) = do
-    (f', fTy) <- inferElem ctx env site f
+    (f', fTy, fSk) <- inferElem ctx env site f
     st <- getSt
-    case rwNfTy st ctx fTy of
-      Ty.PiTy a b => do
-        e' <- checkElem ctx env site e a
-        pure (PiApp f' e', substTy b (Ext Id e'))
-      _ => throw "\{site}: cannot apply a term of non-Π type\{structuralHint}"
+    case preferPi st ctx fTy of
+      Just (a, b, _) => do
+        (e', eSk) <- checkElem ctx env site e a
+        pure (PiApp f' e', substTy b (Ext Id e'), Nd [] [fSk, eSk])
+      Nothing => throw "\{site}: cannot apply a term of non-Π type\{structuralHint}"
   inferElem ctx env site (SProj1 t) = do
-    (t', tTy) <- inferElem ctx env site t
+    (t', tTy, tSk) <- inferElem ctx env site t
     st <- getSt
-    case rwNfTy st ctx tTy of
-      Ty.SigmaTy a b => pure (SigmaElim1 t', a)
-      _ => throw "\{site}: cannot project from a term of non-⨯ type\{structuralHint}"
+    case preferSigma st ctx tTy of
+      Just (a, b, _) => pure (SigmaElim1 t', a, Nd [] [tSk])
+      Nothing => throw "\{site}: cannot project from a term of non-⨯ type\{structuralHint}"
   inferElem ctx env site (SProj2 t) = do
-    (t', tTy) <- inferElem ctx env site t
+    (t', tTy, tSk) <- inferElem ctx env site t
     st <- getSt
-    case rwNfTy st ctx tTy of
-      Ty.SigmaTy a b => pure (SigmaElim2 t', substTy b (Ext Id (SigmaElim1 t')))
-      _ => throw "\{site}: cannot project from a term of non-⨯ type\{structuralHint}"
+    case preferSigma st ctx tTy of
+      Just (a, b, _) => pure (SigmaElim2 t', substTy b (Ext Id (SigmaElim1 t')), Nd [] [tSk])
+      Nothing => throw "\{site}: cannot project from a term of non-⨯ type\{structuralHint}"
   inferElem ctx env site (SAnn t ty) = do
-    ty' <- elabTy ctx env site ty
-    t' <- checkElem ctx env site t ty'
-    pure (t', ty')
+    (ty', tySk) <- elabTy ctx env site ty
+    (t', tSk) <- checkElem ctx env site t ty'
+    pure (t', ty', addPayload (PIntroTy ty' tySk) tSk)
   inferElem ctx env site (SNatElim n mot z n2 ih s t) = do
-    motTy <- elabTy (ctx :< Ty.NatTy) (env :< n) site mot
-    z' <- checkElem ctx env site z (substTy motTy (Ext Id NatIntro0))
-    s' <- checkElem (ctx :< Ty.NatTy :< motTy) (env :< n2 :< ih) site s
-            (substTy motTy (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk))
-    t' <- checkElem ctx env site t Ty.NatTy
-    pure (NatElim z' s' t', substTy motTy (Ext Id t'))
+    (motTy, motSk) <- elabTy (ctx :< Ty.NatTy) (env :< n) site mot
+    (z', zSk) <- checkElem ctx env site z (substTy motTy (Ext Id NatIntro0))
+    (s', sSk) <- checkElem (ctx :< Ty.NatTy :< motTy) (env :< n2 :< ih) site s
+                   (substTy motTy (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk))
+    (t', tSk) <- checkElem ctx env site t Ty.NatTy
+    pure (NatElim z' s' t', substTy motTy (Ext Id t'),
+          Nd [PMotive motTy motSk] [zSk, sSk, tSk])
   inferElem ctx env site (SQuotElim zn mot an f q) = do
-    (q', qTy) <- inferElem ctx env site q
+    (q', qTy, qSk) <- inferElem ctx env site q
     st <- getSt
     case preferQuot st ctx qTy of
-      Just (a, r) => do
-        motTy <- elabTy (ctx :< Ty.Quotient a r) (env :< zn) site mot
-        f' <- checkElem (ctx :< a) (env :< an) site f
-                (substTy motTy (Ext Wk (Class (CtxVar 0))))
+      Just (a, r, _) => do
+        (motTy, motSk) <- elabTy (ctx :< Ty.Quotient a r) (env :< zn) site mot
+        (f', fSk) <- checkElem (ctx :< a) (env :< an) site f
+                       (substTy motTy (Ext Wk (Class (CtxVar 0))))
         -- well-definedness: f respects R (Foundation's f⁼ premise)
         let wk3 = Chain Wk (Chain Wk Wk)
-        convElem (ctx :< a :< substTy a Wk :< r) (env :< an :< (an ++ "'") :< "r")
+        wd <- convElem (ctx :< a :< substTy a Wk :< r) (env :< an :< (an ++ "'") :< "r")
           "\{site}: well-definedness of quot-elim case" Nothing
           (substElem f' (Ext wk3 (CtxVar 2)))
           (substElem f' (Ext wk3 (CtxVar 1)))
           (substTy motTy (Ext wk3 (Class (CtxVar 2))))
-        pure (QuotElim f' q', substTy motTy (Ext Id q'))
+        pure (QuotElim f' q', substTy motTy (Ext Id q'),
+              Nd [PMotive motTy motSk, PWD (certOr wd)] [fSk, qSk])
       Nothing => throw "\{site}: quot-elim scrutinee has non-quotient type\{structuralHint}"
-  inferElem ctx env site SZeroC = pure (Elem.ZeroTy, Ty.UniverseTy)
-  inferElem ctx env site SOneC = pure (Elem.OneTy, Ty.UniverseTy)
-  inferElem ctx env site SNatC = pure (Elem.NatTy, Ty.UniverseTy)
+  inferElem ctx env site SZeroC = pure (Elem.ZeroTy, Ty.UniverseTy, Nd [] [])
+  inferElem ctx env site SOneC = pure (Elem.OneTy, Ty.UniverseTy, Nd [] [])
+  inferElem ctx env site SNatC = pure (Elem.NatTy, Ty.UniverseTy, Nd [] [])
   inferElem ctx env site (SPiC x a b) = do
-    a' <- checkElem ctx env site a Ty.UniverseTy
-    b' <- checkElem (ctx :< El a') (env :< x) site b Ty.UniverseTy
-    pure (Elem.PiTy a' b', Ty.UniverseTy)
+    (a', aSk) <- checkElem ctx env site a Ty.UniverseTy
+    (b', bSk) <- checkElem (ctx :< El a') (env :< x) site b Ty.UniverseTy
+    pure (Elem.PiTy a' b', Ty.UniverseTy, Nd [] [aSk, bSk])
   inferElem ctx env site (SSigmaC x a b) = do
-    a' <- checkElem ctx env site a Ty.UniverseTy
-    b' <- checkElem (ctx :< El a') (env :< x) site b Ty.UniverseTy
-    pure (Elem.SigmaTy a' b', Ty.UniverseTy)
+    (a', aSk) <- checkElem ctx env site a Ty.UniverseTy
+    (b', bSk) <- checkElem (ctx :< El a') (env :< x) site b Ty.UniverseTy
+    pure (Elem.SigmaTy a' b', Ty.UniverseTy, Nd [] [aSk, bSk])
   inferElem ctx env site (SQuotC a nx ny r) = do
-    a' <- checkElem ctx env site a Ty.UniverseTy
-    r' <- checkElem (ctx :< El a' :< substTy (El a') Wk) (env :< nx :< ny) site r Ty.UniverseTy
-    pure (QuotTy a' r', Ty.UniverseTy)
+    (a', aSk) <- checkElem ctx env site a Ty.UniverseTy
+    (r', rSk) <- checkElem (ctx :< El a' :< substTy (El a') Wk) (env :< nx :< ny) site r Ty.UniverseTy
+    pure (QuotTy a' r', Ty.UniverseTy, Nd [] [aSk, rSk])
   inferElem ctx env site (SEqC l r t) = do
-    t' <- checkElem ctx env site t Ty.UniverseTy
-    l' <- checkElem ctx env site l (El t')
-    r' <- checkElem ctx env site r (El t')
-    pure (Elem.EqTy l' r' t', Ty.UniverseTy)
+    (t', tSk) <- checkElem ctx env site t Ty.UniverseTy
+    (l', lSk) <- checkElem ctx env site l (El t')
+    (r', rSk) <- checkElem ctx env site r (El t')
+    pure (Elem.EqTy l' r' t', Ty.UniverseTy, Nd [] [lSk, rSk, tSk])
   inferElem ctx env site (SLam _ _) =
     throw "\{site}: cannot infer the type of a λ\{structuralHint}"
   inferElem ctx env site (SPair _ _) =
@@ -1250,24 +1322,21 @@ mutual
     throw "\{site}: cannot infer the type of 𝟘-elim\{structuralHint}"
 
   export
-  checkElem : Ctx -> NameEnv -> String -> SElem -> Ty -> ElabM Elem
-  -- Intro forms prefer the expected type's syntactic head (keeps
-  -- signature references folded in contexts and reports); normalization
-  -- is the fallback that exposes a head hidden under definitions.
+  checkElem : Ctx -> NameEnv -> String -> SElem -> Ty -> ElabM (Elem, Skel)
   checkElem ctx env site (SLam x t) ty = do
     st <- getSt
     case preferPi st ctx ty of
-      Just (a, b) => do
-        t' <- checkElem (ctx :< a) (env :< x) site t b
-        pure (PiIntro t')
+      Just (a, b, exp) => do
+        (t', tSk) <- checkElem (ctx :< a) (env :< x) site t b
+        pure (PiIntro t', withExpose exp (Nd [] [tSk]))
       Nothing => throw "\{site}: λ checked against a non-Π type\{structuralHint}"
   checkElem ctx env site (SPair u v) ty = do
     st <- getSt
     case preferSigma st ctx ty of
-      Just (a, b) => do
-        u' <- checkElem ctx env site u a
-        v' <- checkElem ctx env site v (substTy b (Ext Id u'))
-        pure (SigmaIntro u' v')
+      Just (a, b, exp) => do
+        (u', uSk) <- checkElem ctx env site u a
+        (v', vSk) <- checkElem ctx env site v (substTy b (Ext Id u'))
+        pure (SigmaIntro u' v', withExpose exp (Nd [] [uSk, vSk]))
       Nothing => throw "\{site}: pair checked against a non-⨯ type\{structuralHint}"
   checkElem ctx env site SRefl ty = do
     st <- getSt
@@ -1275,27 +1344,28 @@ mutual
     -- back to its normal form when the ≡ only appears after unfolding.
     case ty of
       EqTy l r t => do
-        convElem ctx env "\{site}: checking Refl" Nothing l r t
-        pure Refl
+        c <- convElem ctx env "\{site}: checking Refl" Nothing l r t
+        pure (Refl, Nd [PReflEq (certOr c)] [])
       _ => case rwNfTy st ctx ty of
-             EqTy l r t => do
-               convElem ctx env "\{site}: checking Refl" Nothing l r t
-               pure Refl
+             tyX@(EqTy l r t) => do
+               c <- convElem ctx env "\{site}: checking Refl" Nothing l r t
+               let sk = Nd [PReflEq (certOr c)] []
+               pure (Refl, maybe sk (\e => withExpose (Just e) sk) (exposeCert st ctx ty tyX))
              _ => throw "\{site}: Refl checked against a non-≡ type\{structuralHint}"
   checkElem ctx env site (SClass a) ty = do
     st <- getSt
     case preferQuot st ctx ty of
-      Just (dom, rel) => do
-        a' <- checkElem ctx env site a dom
-        pure (Class a')
+      Just (dom, rel, exp) => do
+        (a', aSk) <- checkElem ctx env site a dom
+        pure (Class a', withExpose exp (Nd [] [aSk]))
       Nothing => throw "\{site}: class checked against a non-quotient type\{structuralHint}"
   checkElem ctx env site (SZeroElim t) ty = do
-    t' <- checkElem ctx env site t Ty.ZeroTy
-    pure (ZeroElim t')
+    (t', tSk) <- checkElem ctx env site t Ty.ZeroTy
+    pure (ZeroElim t', Nd [] [tSk])
   checkElem ctx env site t ty = do
-    (t', inferred) <- inferElem ctx env site t
-    convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
-    pure t'
+    (t', inferred, tSk) <- inferElem ctx env site t
+    c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
+    pure (t', addPayload (PSwitch (certOr c)) tSk)
 
 -- ===== Items =====
 
@@ -1330,11 +1400,24 @@ addLemma name delta ty = do
                                                    mk (toP (snd lRes)) (toP (snd rRes))) ++) }
     _ => pure ()
 
-elabTelescope : Ctx -> NameEnv -> String -> List (String, STy) -> ElabM (Ctx, NameEnv)
-elabTelescope ctx env site [] = pure (ctx, env)
+elabTelescope : Ctx -> NameEnv -> String -> List (String, STy) -> ElabM (Ctx, NameEnv, List (Ty, Skel))
+elabTelescope ctx env site [] = pure (ctx, env, [])
 elabTelescope ctx env site ((x, ty) :: rest) = do
-  ty' <- elabTy ctx env site ty
-  elabTelescope (ctx :< ty') (env :< x) site rest
+  (ty', tySk) <- elabTy ctx env site ty
+  (ctx', env', teleRest) <- elabTelescope (ctx :< ty') (env :< x) site rest
+  pure (ctx', env', (ty', tySk) :: teleRest)
+
+||| Kernel-check a clean item against the kernel's own Σ; extend it on
+||| acceptance. Items elaborated under assumptions (dirty) are skipped —
+||| they cannot be accepted anyway.
+kernelAccept : String -> (Sig -> Either KErr SigEntry) -> Bool -> ElabM ()
+kernelAccept name check clean = do
+  st <- getSt
+  if not clean
+    then pure ()
+    else case check st.kernelSig of
+      Right entry => modifySt $ { kernelSig $= (:< entry) }
+      Left err => throw "\{name}: KERNEL REJECTED the elaborated item: \{err}"
 
 export
 elabItem : SItem -> ElabM String
@@ -1343,9 +1426,16 @@ elabItem (SDef x tel ty body) = do
   case sigLookup x st.sig of
     Just _ => throw "def \{x}: duplicate signature name"
     Nothing => pure ()
-  (ctx, env) <- elabTelescope [<] [<] "def \{x}" tel
-  ty' <- elabTy ctx env "def \{x}" ty
-  body' <- checkElem ctx env "def \{x}" body ty'
+  (ctx, env, teleSks) <- elabTelescope [<] [<] "def \{x}" tel
+  (ty', tySk) <- elabTy ctx env "def \{x}" ty
+  (body', bodySk) <- checkElem ctx env "def \{x}" body ty'
+  -- clean means the RUN is clean: an earlier item's assumption poisons
+  -- everything after it (the kernel Σ cannot contain the earlier item,
+  -- so references to it are unresolvable anyway)
+  after <- oblCount
+  kernelAccept "def \{x}"
+    (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt x teleSks ty' tySk body' bodySk))
+    (after == 0)
   modifySt $ { sig $= (:< SigDef ctx x body' ty') }
   addLemma x ctx ty'
   pure "defined \{x}"
@@ -1354,8 +1444,12 @@ elabItem (STypeDef x tel ty) = do
   case sigLookup x st.sig of
     Just _ => throw "type \{x}: duplicate signature name"
     Nothing => pure ()
-  (ctx, env) <- elabTelescope [<] [<] "type \{x}" tel
-  ty' <- elabTy ctx env "type \{x}" ty
+  (ctx, env, teleSks) <- elabTelescope [<] [<] "type \{x}" tel
+  (ty', tySk) <- elabTy ctx env "type \{x}" ty
+  after <- oblCount
+  kernelAccept "type \{x}"
+    (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt x teleSks ty' tySk))
+    (after == 0)
   modifySt $ { sig $= (:< SigTyDef ctx x ty') }
   pure "defined type \{x}"
 

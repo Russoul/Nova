@@ -561,20 +561,20 @@ surfacing order. The contract every rule above must respect:
 
 Two corollaries worth keeping in view while implementing:
 
-  * A KNOWN SOUNDNESS HOLE, confirmed by exploit: rewriting and
-    matching are first-order and TYPE-BLIND — the equation store drops
-    each equation's type, and parameter bindings are never
-    type-checked. Two confirmed consequences: a parametric 𝟙-lemma
-    (x y : 𝟙 ⊢ x ≡ y ∈ 𝟙, itself true) matches EVERY equation at EVERY
-    type and certifies e.g. Z ≡ S Z ∈ ℕ; and a class-equation proven at
-    one quotient discharges the syntactically identical claim at
-    another. Since this elaborator is currently the acceptance
-    authority, these are consistency-grade. The resolution is
-    architectural, not a smarter matcher: the discharge engine moves
-    outside the trusted boundary and emits certificates replayed by a
-    dumb kernel, so a bad discharge becomes a rejected trace instead of
-    an unsound acceptance — see docs/NovaPipeline.txt ("Why this
-    shape" and "Status") for the design and migration plan.
+  * A SOUNDNESS HOLE, confirmed by exploit and since CLOSED
+    architecturally: rewriting and matching are first-order and
+    TYPE-BLIND — the equation store drops each equation's type, and
+    parameter bindings are never type-checked. Two confirmed
+    consequences: a parametric 𝟙-lemma (x y : 𝟙 ⊢ x ≡ y ∈ 𝟙, itself
+    true) matches EVERY equation at EVERY type and would certify e.g.
+    Z ≡ S Z ∈ ℕ; and a class-equation proven at one quotient would
+    discharge the syntactically identical claim at another. The
+    resolution was architectural, not a smarter matcher: the discharge
+    engine sits outside the trusted boundary and emits certificates
+    replayed by a dumb kernel — a bad discharge is a rejected trace,
+    not an unsound acceptance, and both exploits are regression tests
+    that end in obligations. See docs/NovaPipeline.txt ("Why this
+    shape" and "Status") for the design.
   * Terms never contain transports: obligations are assumed, not
     materialized as coercion nodes, so an accepted file's core terms
     are exactly what the user wrote, and judgemental equality does all

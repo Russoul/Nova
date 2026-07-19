@@ -19,6 +19,7 @@ module Nova.Foundation.Kernel
 -- counts only if it replays here. See Nova.Foundation.Elaboration.
 
 import Data.List
+import Data.Maybe
 import Data.SnocList
 
 import Nova.Foundation.Syntax
@@ -74,9 +75,19 @@ mutual
 
   public export
   record ECert where
-    constructor MkECert
+    constructor MkECertF
+    ||| Type bridge: replay the equation at tyX instead of the site's
+    ||| type, justified by a TYPE certificate for  site-ty ≐ tyX  (equal
+    ||| types have equal PERs). This is the equation-level counterpart
+    ||| of the item level's PExpose: it lets steps land at positions
+    ||| whose structure only a lemma-normalized type exposes.
+    tyEx : Maybe (Ty, ECert)
     steps : List Step
     final : Final
+
+public export
+MkECert : List Step -> Final -> ECert
+MkECert = MkECertF Nothing
 
 -- ===== Fuel monad =====
 
@@ -694,20 +705,25 @@ mutual
   export
   kEqElem : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty -> KM ()
   kEqElem sig ctx cert l r ty = do
+    -- resolve the type bridge first: the rest of the replay happens at
+    -- the (certified-equal) exposed type
+    tyU <- case cert.tyEx of
+             Nothing => pure ty
+             Just (tyX, c) => do kEqTy sig ctx c ty tyX; pure tyX
     l0 <- kElem sig l
     r0 <- kElem sig r
-    (l1, r1) <- goSteps cert.steps l0 r0
+    (l1, r1) <- goSteps tyU cert.steps l0 r0
     case cert.final of
       FBeta =>
         if l1 == r1 then pure () else kerr "kernel: sides differ after replay"
       FProp => do
-        ty' <- kTy sig ty
+        ty' <- kTy sig tyU
         case ty' of
           Ty.OneTy => pure ()
           Ty.ZeroTy => pure ()
           _ => kerr "kernel: Prop final at a non-Prop type"
       FWitness mc => do
-        ty' <- kTy sig ty
+        ty' <- kTy sig tyU
         case (l1, r1, ty') of
           (Class a, Class b, Ty.Quotient dom rel) => do
             relInst <- kTy sig (substTy rel (Ext (Ext Id a) b))
@@ -717,7 +733,7 @@ mutual
               _ => kerr "kernel: witness final does not apply"
           _ => kerr "kernel: witness final at a non-class equation"
       FEtaPi c => do
-        ty' <- kTy sig ty
+        ty' <- kTy sig tyU
         case ty' of
           Ty.PiTy dom cod =>
             kEqElem sig (ctx :< dom) c
@@ -726,7 +742,7 @@ mutual
               cod
           _ => kerr "kernel: Π-η final at a non-Π type"
       FEtaSigma c1 c2 => do
-        ty' <- kTy sig ty
+        ty' <- kTy sig tyU
         case ty' of
           Ty.SigmaTy dom cod => do
             kEqElem sig ctx c1 (SigmaElim1 l1) (SigmaElim1 r1) dom
@@ -734,19 +750,22 @@ mutual
               (substTy cod (Ext Id (SigmaElim1 l1)))
           _ => kerr "kernel: Σ-η final at a non-Σ type"
    where
-    goSteps : List Step -> Elem -> Elem -> KM (Elem, Elem)
-    goSteps [] l' r' = pure (l', r')
-    goSteps (s :: rest) l' r' =
+    goSteps : Ty -> List Step -> Elem -> Elem -> KM (Elem, Elem)
+    goSteps tyU [] l' r' = pure (l', r')
+    goSteps tyU (s :: rest) l' r' =
       if s.onLhs
-        then do l'' <- stepElem sig ctx s ty l' >>= kElem sig
-                goSteps rest l'' r'
-        else do r'' <- stepElem sig ctx s ty r' >>= kElem sig
-                goSteps rest l' r''
+        then do l'' <- stepElem sig ctx s tyU l' >>= kElem sig
+                goSteps tyU rest l'' r'
+        else do r'' <- stepElem sig ctx s tyU r' >>= kElem sig
+                goSteps tyU rest l' r''
 
   ||| Replay a certificate for the type equation Γ ⊢ A ≐ B.
   export
   kEqTy : Sig -> Ctx -> ECert -> Ty -> Ty -> KM ()
   kEqTy sig ctx cert a b = do
+    case cert.tyEx of
+      Nothing => pure ()
+      Just _ => kerr "kernel: a type equation cannot carry a type bridge"
     a0 <- kTy sig a
     b0 <- kTy sig b
     (a1, b1) <- goSteps cert.steps a0 b0
@@ -762,6 +781,319 @@ mutual
                 goSteps rest a'' b'
         else do b'' <- stepTy sig ctx s b' >>= kTy sig
                 goSteps rest a' b''
+
+-- ===== Item-level checking over annotation skeletons =====
+--
+-- The kernel's item input is the core term plus a SKELETON: a tree
+-- aligned with the term's path-children, whose nodes carry exactly
+-- what bidirectional checking cannot invent — eliminator motives (with
+-- their own skeletons), expected types at introduction forms appearing
+-- in inference position (from ascriptions), conversion certificates at
+-- switch sites, Refl equations, and quot-elim well-definedness. The
+-- kernel re-establishes the item from ITS OWN Σ; the elaborator's
+-- opinion of the same item is not consulted.
+
+mutual
+  public export
+  data Payload : Type where
+    ||| eliminator motive (ℕ-elim: over Γ ᐅ ℕ; quot-elim: over Γ ᐅ A/R)
+    PMotive : Ty -> Skel -> Payload
+    ||| expected type of an introduction form in inference position
+    PIntroTy : Ty -> Skel -> Payload
+    ||| conversion certificate at a switch site (inferred ≐ expected)
+    PSwitch : ECert -> Payload
+    ||| the equation behind a checked Refl
+    PReflEq : ECert -> Payload
+    ||| quot-elim well-definedness (f respects R)
+    PWD : ECert -> Payload
+    ||| head exposure at a checked introduction form: the expected type
+    ||| rewritten to expose its Π/Σ/quotient/≡ head, with the
+    ||| certificate for the conversion. The exposed type's own
+    ||| well-formedness follows from the original's by subject
+    ||| reduction; the intro checks against the exposed form and
+    ||| coercion transports the result.
+    PExpose : Ty -> ECert -> Payload
+
+  public export
+  data Skel : Type where
+    Nd : List Payload -> List Skel -> Skel
+
+skelChild : Nat -> Skel -> Skel
+skelChild i (Nd _ cs) = fromMaybe (Nd [] []) (getAt i cs)
+
+takeP : (Payload -> Maybe a) -> Skel -> Maybe (a, Skel)
+takeP f (Nd ps cs) = go [] ps
+ where
+  go : List Payload -> List Payload -> Maybe (a, Skel)
+  go _ [] = Nothing
+  go acc (p :: rest) =
+    case f p of
+      Just x => Just (x, Nd (reverse acc ++ rest) cs)
+      Nothing => go (p :: acc) rest
+
+pMotive : Payload -> Maybe (Ty, Skel)
+pMotive (PMotive t sk) = Just (t, sk)
+pMotive _ = Nothing
+
+pIntroTy : Payload -> Maybe (Ty, Skel)
+pIntroTy (PIntroTy t sk) = Just (t, sk)
+pIntroTy _ = Nothing
+
+pSwitch : Payload -> Maybe ECert
+pSwitch (PSwitch c) = Just c
+pSwitch _ = Nothing
+
+pReflEq : Payload -> Maybe ECert
+pReflEq (PReflEq c) = Just c
+pReflEq _ = Nothing
+
+pWD : Payload -> Maybe ECert
+pWD (PWD c) = Just c
+pWD _ = Nothing
+
+pExpose : Payload -> Maybe (Ty, ECert)
+pExpose (PExpose t c) = Just (t, c)
+pExpose _ = Nothing
+
+isIntro : Elem -> Bool
+isIntro (PiIntro _) = True
+isIntro (SigmaIntro _ _) = True
+isIntro Refl = True
+isIntro (Class _) = True
+isIntro (ZeroElim _) = True
+isIntro _ = False
+
+mutual
+  ||| Γ ⊢ e ⇐ A, kernel-side.
+  export
+  kCheckE : Sig -> Ctx -> Elem -> Ty -> Skel -> KM ()
+  kCheckE sig ctx e ty sk =
+    case takeP pSwitch sk of
+      Just (cert, sk') => do
+        inferred <- kInferE sig ctx e sk'
+        kEqTy sig ctx cert inferred ty
+      Nothing => do
+        -- head exposure: verified conversion to a rigid-headed type
+        tyEff <- case takeP pExpose sk of
+                   Just ((tyX, cert), _) => do kEqTy sig ctx cert ty tyX; pure tyX
+                   Nothing => pure ty
+        let ty = tyEff
+        case e of
+          PiIntro f => do
+            ty' <- kTy sig ty
+            case ty' of
+              Ty.PiTy a b => kCheckE sig (ctx :< a) f b (skelChild 0 sk)
+              _ => kerr "kernel: λ checked at a non-Π type"
+          SigmaIntro u v => do
+            ty' <- kTy sig ty
+            case ty' of
+              Ty.SigmaTy a b => do
+                kCheckE sig ctx u a (skelChild 0 sk)
+                kCheckE sig ctx v (substTy b (Ext Id u)) (skelChild 1 sk)
+              _ => kerr "kernel: pair checked at a non-⨯ type"
+          Refl =>
+            case takeP pReflEq sk of
+              Just (cert, _) => do
+                ty' <- kTy sig ty
+                case ty' of
+                  EqTy l r t => kEqElem sig ctx cert l r t
+                  _ => kerr "kernel: Refl checked at a non-≡ type"
+              Nothing => kerr "kernel: Refl without its equation certificate"
+          Class a => do
+            ty' <- kTy sig ty
+            case ty' of
+              Ty.Quotient dom _ => kCheckE sig ctx a dom (skelChild 0 sk)
+              _ => kerr "kernel: class checked at a non-quotient type"
+          ZeroElim t => kCheckE sig ctx t Ty.ZeroTy (skelChild 0 sk)
+          _ => do
+            inferred <- kInferE sig ctx e sk
+            i' <- kTy sig inferred
+            t' <- kTy sig ty
+            if i' == t' then pure () else kerr "kernel: type mismatch without a switch certificate"
+
+  ||| Γ ⊢ e ⇒ A, kernel-side.
+  export
+  kInferE : Sig -> Ctx -> Elem -> Skel -> KM Ty
+  kInferE sig ctx e sk =
+    case takeP pIntroTy sk of
+      Just ((ty, tySk), sk') => do
+        kCheckTyK sig ctx ty tySk
+        kCheckE sig ctx e ty sk'
+        pure ty
+      Nothing =>
+        case e of
+          CtxVar i =>
+            case ctxLookup ctx i of
+              Just ty => pure ty
+              Nothing => kerr "kernel: variable out of bounds"
+          SigVar x es =>
+            case sigLookup x sig of
+              Just (SigDef delta _ _ ty) => do
+                kCheckSubstK sig ctx (toList es) (toList delta) (childSkels sk)
+                pure (substTy ty (embed es))
+              Just (SigTyDef _ _ _) => kerr "kernel: type definition used as a term"
+              Nothing => kerr "kernel: unknown signature name"
+          OneIntro => pure Ty.OneTy
+          NatIntro0 => pure Ty.NatTy
+          NatIntro1 t => do kCheckE sig ctx t Ty.NatTy (skelChild 0 sk); pure Ty.NatTy
+          PiApp f a => do
+            fTy <- kInferE sig ctx f (skelChild 0 sk) >>= kTy sig
+            case fTy of
+              Ty.PiTy dom cod => do
+                kCheckE sig ctx a dom (skelChild 1 sk)
+                pure (substTy cod (Ext Id a))
+              _ => kerr "kernel: applying a non-function"
+          SigmaElim1 t => do
+            tTy <- kInferE sig ctx t (skelChild 0 sk) >>= kTy sig
+            case tTy of
+              Ty.SigmaTy a _ => pure a
+              _ => kerr "kernel: projecting a non-pair"
+          SigmaElim2 t => do
+            tTy <- kInferE sig ctx t (skelChild 0 sk) >>= kTy sig
+            case tTy of
+              Ty.SigmaTy _ b => pure (substTy b (Ext Id (SigmaElim1 t)))
+              _ => kerr "kernel: projecting a non-pair"
+          NatElim z st t =>
+            case takeP pMotive sk of
+              Just ((mot, motSk), _) => do
+                kCheckTyK sig (ctx :< Ty.NatTy) mot motSk
+                kCheckE sig ctx z (substTy mot (Ext Id NatIntro0)) (skelChild 0 sk)
+                kCheckE sig (ctx :< Ty.NatTy :< mot) st
+                  (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) (skelChild 1 sk)
+                kCheckE sig ctx t Ty.NatTy (skelChild 2 sk)
+                pure (substTy mot (Ext Id t))
+              Nothing => kerr "kernel: ℕ-elim without a motive annotation"
+          QuotElim f q =>
+            case (takeP pMotive sk, takeP pWD sk) of
+              (Just ((mot, motSk), _), Just (wd, _)) => do
+                qTy <- kInferE sig ctx q (skelChild 1 sk) >>= kTy sig
+                case qTy of
+                  Ty.Quotient a r => do
+                    kCheckTyK sig (ctx :< Ty.Quotient a r) mot motSk
+                    kCheckE sig (ctx :< a) f
+                      (substTy mot (Ext Wk (Class (CtxVar 0)))) (skelChild 0 sk)
+                    let wk3 = Chain Wk (Chain Wk Wk)
+                    kEqElem sig (ctx :< a :< substTy a Wk :< r) wd
+                      (substElem f (Ext wk3 (CtxVar 2)))
+                      (substElem f (Ext wk3 (CtxVar 1)))
+                      (substTy mot (Ext wk3 (Class (CtxVar 2))))
+                    pure (substTy mot (Ext Id q))
+                  _ => kerr "kernel: quot-elim of a non-quotient"
+              _ => kerr "kernel: quot-elim without motive/well-definedness annotations"
+          Elem.ZeroTy => pure Ty.UniverseTy
+          Elem.OneTy => pure Ty.UniverseTy
+          Elem.NatTy => pure Ty.UniverseTy
+          Elem.PiTy a b => do
+            kCheckE sig ctx a Ty.UniverseTy (skelChild 0 sk)
+            kCheckE sig (ctx :< El a) b Ty.UniverseTy (skelChild 1 sk)
+            pure Ty.UniverseTy
+          Elem.SigmaTy a b => do
+            kCheckE sig ctx a Ty.UniverseTy (skelChild 0 sk)
+            kCheckE sig (ctx :< El a) b Ty.UniverseTy (skelChild 1 sk)
+            pure Ty.UniverseTy
+          QuotTy a r => do
+            kCheckE sig ctx a Ty.UniverseTy (skelChild 0 sk)
+            kCheckE sig (ctx :< El a :< substTy (El a) Wk) r Ty.UniverseTy (skelChild 1 sk)
+            pure Ty.UniverseTy
+          Elem.EqTy l r t => do
+            kCheckE sig ctx t Ty.UniverseTy (skelChild 2 sk)
+            kCheckE sig ctx l (El t) (skelChild 0 sk)
+            kCheckE sig ctx r (El t) (skelChild 1 sk)
+            pure Ty.UniverseTy
+          _ => kerr "kernel: term not inferable (missing ascription annotation)"
+   where
+    childSkels : Skel -> List Skel
+    childSkels (Nd _ cs) = cs
+
+  ||| Γ ⊢ A type, kernel-side.
+  export
+  kCheckTyK : Sig -> Ctx -> Ty -> Skel -> KM ()
+  kCheckTyK sig ctx Ty.ZeroTy _ = pure ()
+  kCheckTyK sig ctx Ty.OneTy _ = pure ()
+  kCheckTyK sig ctx Ty.NatTy _ = pure ()
+  kCheckTyK sig ctx Ty.UniverseTy _ = pure ()
+  kCheckTyK sig ctx (Ty.PiTy a b) sk = do
+    kCheckTyK sig ctx a (skelChild 0 sk)
+    kCheckTyK sig (ctx :< a) b (skelChild 1 sk)
+  kCheckTyK sig ctx (Ty.SigmaTy a b) sk = do
+    kCheckTyK sig ctx a (skelChild 0 sk)
+    kCheckTyK sig (ctx :< a) b (skelChild 1 sk)
+  kCheckTyK sig ctx (EqTy l r t) sk = do
+    kCheckTyK sig ctx t (skelChild 2 sk)
+    kCheckE sig ctx l t (skelChild 0 sk)
+    kCheckE sig ctx r t (skelChild 1 sk)
+  kCheckTyK sig ctx (El e) sk = kCheckE sig ctx e Ty.UniverseTy (skelChild 0 sk)
+  kCheckTyK sig ctx (Quotient a r) sk = do
+    kCheckTyK sig ctx a (skelChild 0 sk)
+    kCheckTyK sig (ctx :< a :< substTy a Wk) r (skelChild 1 sk)
+  kCheckTyK sig ctx (Ty.SigVar x es) sk =
+    case sigLookup x sig of
+      Just (SigTyDef delta _ _) =>
+        kCheckSubstK sig ctx (toList es) (toList delta) (childSkels' sk)
+      _ => kerr "kernel: bad signature type reference"
+   where
+    childSkels' : Skel -> List Skel
+    childSkels' (Nd _ cs) = cs
+
+  kCheckSubstK : Sig -> Ctx -> List Elem -> List Ty -> List Skel -> KM ()
+  kCheckSubstK sig ctx es delta sks =
+    if length es /= length delta
+      then kerr "kernel: substitution length mismatch"
+      else go 0 es delta
+   where
+    go : Nat -> List Elem -> List Ty -> KM ()
+    go i [] [] = pure ()
+    go i (e :: erest) (ty :: tyrest) = do
+      let pre = take i es
+      kCheckE sig ctx e (substTy ty (embed (cast pre)))
+        (fromMaybe (Nd [] []) (getAt i sks))
+      go (S i) erest tyrest
+    go _ _ _ = kerr "kernel: substitution length mismatch"
+
+-- ===== Item entry points =====
+
+public export
+record KDefArt where
+  constructor MkKDefArt
+  dname : String
+  tele : List (Ty, Skel)
+  dty : Ty
+  dtySkel : Skel
+  body : Elem
+  bodySkel : Skel
+
+public export
+record KTyDefArt where
+  constructor MkKTyDefArt
+  tname : String
+  ttele : List (Ty, Skel)
+  tty : Ty
+  ttySkel : Skel
+
+kTele : Sig -> Ctx -> List (Ty, Skel) -> KM Ctx
+kTele sig ctx [] = pure ctx
+kTele sig ctx ((ty, sk) :: rest) = do
+  kCheckTyK sig ctx ty sk
+  kTele sig (ctx :< ty) rest
+
+||| Check a definition item from the kernel's own Σ; return the entry
+||| to extend it with.
+export
+kCheckDefItem : Sig -> Nat -> KDefArt -> Either KErr SigEntry
+kCheckDefItem sig fuel art =
+  map fst $ runKM (do
+    ctx <- kTele sig [<] art.tele
+    kCheckTyK sig ctx art.dty art.dtySkel
+    kCheckE sig ctx art.body art.dty art.bodySkel
+    pure (SigDef ctx art.dname art.body art.dty)) fuel
+
+export
+kCheckTyDefItem : Sig -> Nat -> KTyDefArt -> Either KErr SigEntry
+kCheckTyDefItem sig fuel art =
+  map fst $ runKM (do
+    ctx <- kTele sig [<] art.ttele
+    kCheckTyK sig ctx art.tty art.ttySkel
+    pure (SigTyDef ctx art.tname art.tty)) fuel
 
 -- ===== Entry points =====
 
