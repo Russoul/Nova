@@ -1,0 +1,5 @@
+defined plus
+defined type Int
+defined viaDef
+defined viaUnfolding
+Accepted.

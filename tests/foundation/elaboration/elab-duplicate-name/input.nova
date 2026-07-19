@@ -1,0 +1,2 @@
+def x : ℕ ≔ Z
+def x : ℕ ≔ S Z

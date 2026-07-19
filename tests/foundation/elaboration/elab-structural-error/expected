@@ -1,0 +1,1 @@
+Error: def bad: λ checked against a non-Π type (ascribe the term: `(t : T)`)

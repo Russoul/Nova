@@ -1,0 +1,1 @@
+type Int [] := Quot (Sigma _ (ℕ) (ℕ)) p q (Eq (App (App (plus[]) (P1 (p@1))) (P2 (q@0))) (App (App (plus[]) (P2 (p@1))) (P1 (q@0))) (ℕ))

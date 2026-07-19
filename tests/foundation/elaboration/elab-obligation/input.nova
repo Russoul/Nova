@@ -1,0 +1,3 @@
+def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
+-- surfaces as an obligation: not provable by computation alone
+def needsLemma (n : ℕ) : plus[] Z n ≡ n ∈ ℕ ≔ Refl

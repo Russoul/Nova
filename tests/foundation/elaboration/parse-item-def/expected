@@ -1,0 +1,1 @@
+def plus_zero [n : ℕ] : Eq (plus[n@0, Z]) (n@0) (ℕ) := Refl

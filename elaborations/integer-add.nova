@@ -1,0 +1,59 @@
+def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
+def plusZeroId (n : ℕ) : plus[] n Z ≡ n ∈ ℕ ≔ Refl
+def plusSucId (n : ℕ) (m : ℕ) : plus[] n (S m) ≡ S (plus[] n m) ∈ ℕ ≔ Refl
+def zeroPlusId (n : ℕ) : plus[] Z n ≡ n ∈ ℕ ≔
+  ℕ-elim (k. plus[] Z k ≡ k ∈ ℕ) Refl (k ih. Refl) n
+def sucPlus (n : ℕ) (m : ℕ) : plus[] (S n) m ≡ S (plus[] n m) ∈ ℕ ≔
+  ℕ-elim (k. plus[] (S n) k ≡ S (plus[] n k) ∈ ℕ) Refl (k ih. Refl) m
+def plusComm (n : ℕ) (m : ℕ) : plus[] m n ≡ plus[] n m ∈ ℕ ≔
+  ℕ-elim (k. plus[] k n ≡ plus[] n k ∈ ℕ) Refl (k ih. Refl) m
+def plusAssoc (n : ℕ) (m : ℕ) (k : ℕ) : plus[] (plus[] n m) k ≡ plus[] n (plus[] m k) ∈ ℕ ≔
+  ℕ-elim (j. plus[] (plus[] n m) j ≡ plus[] n (plus[] m j) ∈ ℕ) Refl (j ih. Refl) k
+
+-- ===== helpers for the well-definedness obligations =====
+
+-- a + (b + c) ≡ b + (a + c) — permutative, used by whole-equation match
+def swapLeft (a : ℕ) (b : ℕ) (c : ℕ) : plus[] a (plus[] b c) ≡ plus[] b (plus[] a c) ∈ ℕ ≔
+  ℕ-elim (k. plus[] a (plus[] b k) ≡ plus[] b (plus[] a k) ∈ ℕ) Refl (k ih. Refl) c
+
+-- addition of pairs is well-defined in its second argument: the
+-- cross-sum equation, conditional on the relation hypothesis
+def intAddWD (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ)
+             (h : plus[] b1 c2 ≡ plus[] b2 c1 ∈ ℕ) :
+  plus[] (plus[] a1 b1) (plus[] a2 c2) ≡ plus[] (plus[] a2 b2) (plus[] a1 c1) ∈ ℕ ≔
+  ℕ-elim (k. plus[] (plus[] a1 b1) (plus[] k c2) ≡ plus[] (plus[] k b2) (plus[] a1 c1) ∈ ℕ)
+    Refl (k ih. Refl) a2
+
+-- cross-sum well-definedness in the OUTER argument, conditional on h
+def intAddCross (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ)
+                (h : plus[] a1 b2 ≡ plus[] a2 b1 ∈ ℕ) :
+  plus[] (plus[] a1 c1) (plus[] b2 c2) ≡ plus[] (plus[] a2 c2) (plus[] b1 c1) ∈ ℕ ≔
+  ℕ-elim (k. plus[] (plus[] a1 c1) (plus[] b2 k) ≡ plus[] (plus[] a2 k) (plus[] b1 c1) ∈ ℕ)
+    Refl (k ih. Refl) c2
+
+type Int ≔ (ℕ ⨯ ℕ) / (p q. plus[] (p .π₁) (q .π₂) ≡ plus[] (p .π₂) (q .π₁) ∈ ℕ)
+
+-- the same, one level up: the inner elimination is well-defined in the
+-- OUTER argument — proven by quotient elimination with an ≡-motive
+def intAddWDOuter (a : ℕ ⨯ ℕ) (b : ℕ ⨯ ℕ)
+                  (h : plus[] (a .π₁) (b .π₂) ≡ plus[] (a .π₂) (b .π₁) ∈ ℕ)
+                  (zy : Int[]) :
+  quot-elim (z. Int[]) (x. class (plus[] (a .π₁) (x .π₁) , plus[] (a .π₂) (x .π₂))) zy
+    ≡ quot-elim (z. Int[]) (x. class (plus[] (b .π₁) (x .π₁) , plus[] (b .π₂) (x .π₂))) zy
+    ∈ Int[] ≔
+  quot-elim
+    (q. quot-elim (z. Int[]) (x. class (plus[] (a .π₁) (x .π₁) , plus[] (a .π₂) (x .π₂))) q
+          ≡ quot-elim (z. Int[]) (x. class (plus[] (b .π₁) (x .π₁) , plus[] (b .π₂) (x .π₂))) q
+          ∈ Int[])
+    (c. Refl)
+    zy
+
+def intAdd : Int[] → Int[] → Int[] ≔
+  λzx. λzy.
+    quot-elim (z. Int[])
+      (a. quot-elim (z. Int[])
+            (b. class (plus[] (a .π₁) (b .π₁) , plus[] (a .π₂) (b .π₂)))
+            zy)
+      zx
+
+def intAddTest : intAdd[] (class (Z , Z)) (class (S Z , S Z)) ≡ class (S Z , S Z) ∈ Int[] ≔ Refl

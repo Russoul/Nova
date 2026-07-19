@@ -1,0 +1,2 @@
+-- El (ℕ / ℕ) decodes to the quotient of the decoded parts
+def qdecode (v : El (ℕ / (x y. ℕ))) : ℕ / (x y. ℕ) ≔ v

@@ -9,6 +9,7 @@ import Nova.Foundation.Derivation
 import Nova.Foundation.Derivation.NamedParser
 import Nova.Foundation.Derivation.NamedPretty
 import Nova.Foundation.Derivation.NamedRejectionPretty
+import Nova.Foundation.Elaboration
 import Nova.Foundation.Parser
 import Nova.Foundation.Session
 import System
@@ -166,6 +167,7 @@ parseInput rulesFile targetFile = do
 usage : String
 usage = unlines
   [ "Usage:"
+  , "  nova-foundation-app elab      <surface-file>"
   , "  nova-foundation-app check     <rules-file> <target-file>"
   , "  nova-foundation-app init      <session-file> [depends-on,comma,separated]"
   , "  nova-foundation-app apply     <session-file> <rule-text>"
@@ -199,6 +201,12 @@ main : IO ()
 main = do
   args <- getArgs
   case args of
+    (_ :: "elab" :: surfaceFile :: []) => do
+      Right content <- readFile surfaceFile
+        | Left err => die ("Cannot read surface file '" ++ surfaceFile ++ "': " ++ show err)
+      let output = elabFile content
+      putStrLn output
+      unless (isSuffixOf "Accepted." output) exitFailure
     (_ :: "check" :: rulesFile :: targetFile :: []) => do
       Right i <- parseInput rulesFile targetFile
         | Left err => die err

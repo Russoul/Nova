@@ -1,0 +1,14 @@
+-- Natural-number addition (recursion on the second argument) and its
+-- basic equational theory. Restates derivations/plus.
+def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
+
+def plusZeroId (n : ℕ) : plus[] n Z ≡ n ∈ ℕ ≔ Refl
+def plusSucId (n : ℕ) (m : ℕ) : plus[] n (S m) ≡ S (plus[] n m) ∈ ℕ ≔ Refl
+def zeroPlusId (n : ℕ) : plus[] Z n ≡ n ∈ ℕ ≔
+  ℕ-elim (k. plus[] Z k ≡ k ∈ ℕ) Refl (k ih. Refl) n
+def sucPlus (n : ℕ) (m : ℕ) : plus[] (S n) m ≡ S (plus[] n m) ∈ ℕ ≔
+  ℕ-elim (k. plus[] (S n) k ≡ S (plus[] n k) ∈ ℕ) Refl (k ih. Refl) m
+def plusComm (n : ℕ) (m : ℕ) : plus[] m n ≡ plus[] n m ∈ ℕ ≔
+  ℕ-elim (k. plus[] k n ≡ plus[] n k ∈ ℕ) Refl (k ih. Refl) m
+def plusAssoc (n : ℕ) (m : ℕ) (k : ℕ) : plus[] (plus[] n m) k ≡ plus[] n (plus[] m k) ∈ ℕ ≔
+  ℕ-elim (j. plus[] (plus[] n m) j ≡ plus[] n (plus[] m j) ∈ ℕ) Refl (j ih. Refl) k

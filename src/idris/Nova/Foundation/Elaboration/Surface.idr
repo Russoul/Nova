@@ -1,0 +1,136 @@
+module Nova.Foundation.Elaboration.Surface
+
+-- The INDEXED SURFACE AST of docs/NovaElaboration.txt.
+--
+-- This is what the elaboration parser produces and what the elaborator
+-- consumes: variables are already de Bruijn indices (name resolution is
+-- a front-end concern, done during parsing), but the tree is still
+-- surface, not core — it carries ascriptions `(t : T)` and inline
+-- eliminator motives, which core syntax (Nova.Foundation.Syntax) lacks.
+-- Elaboration erases those. Binder names are retained purely as display
+-- metadata for the obligation report; no rule ever consults them.
+
+import Data.SnocList
+import Data.String
+
+%default total
+
+mutual
+  public export
+  data STy : Type where
+    STyZero : STy
+    STyOne : STy
+    STyNat : STy
+    STyUniv : STy
+    ||| x[t˲] — reference to a signature type definition
+    STySig : String -> List SElem -> STy
+    ||| (x:T) → U
+    STyPi : (name : String) -> STy -> STy -> STy
+    ||| (x:T) ⨯ U
+    STySigma : (name : String) -> STy -> STy -> STy
+    ||| T / (x y. R)
+    STyQuot : STy -> (nx, ny : String) -> STy -> STy
+    ||| t ≡ t ∈ T
+    STyEq : SElem -> SElem -> STy -> STy
+    ||| El t
+    STyEl : SElem -> STy
+
+  public export
+  data SElem : Type where
+    ||| ☐ᵢ — a resolved local variable (the parser resolved the name)
+    SVar : (name : String) -> Nat -> SElem
+    ||| x[t˲] — reference to a signature term definition
+    SSig : String -> List SElem -> SElem
+    SUnitI : SElem
+    SZeroN : SElem
+    SSuc : SElem -> SElem
+    SRefl : SElem
+    ||| λx. t
+    SLam : (name : String) -> SElem -> SElem
+    SApp : SElem -> SElem -> SElem
+    SPair : SElem -> SElem -> SElem
+    SProj1 : SElem -> SElem
+    SProj2 : SElem -> SElem
+    ||| universe codes 𝟘 𝟙 ℕ
+    SZeroC : SElem
+    SOneC : SElem
+    SNatC : SElem
+    ||| (x:t) → u  (code)
+    SPiC : (name : String) -> SElem -> SElem -> SElem
+    ||| (x:t) ⨯ u  (code)
+    SSigmaC : (name : String) -> SElem -> SElem -> SElem
+    ||| t / (x y. r)  (code)
+    SQuotC : SElem -> (nx, ny : String) -> SElem -> SElem
+    ||| t ≡ t ∈ t  (code)
+    SEqC : SElem -> SElem -> SElem -> SElem
+    SZeroElim : SElem -> SElem
+    ||| ℕ-elim (n. T) z (n ih. s) t — motive-first
+    SNatElim : (n : String) -> STy -> SElem -> (n2, ih : String) -> SElem -> SElem -> SElem
+    SClass : SElem -> SElem
+    ||| quot-elim (z. T) (a. f) q — motive-first
+    SQuotElim : (z : String) -> STy -> (a : String) -> SElem -> SElem -> SElem
+    ||| (t : T) — ascription; the lever into inference mode
+    SAnn : SElem -> STy -> SElem
+
+public export
+data SItem : Type where
+  ||| def x (x₁:T₁) ... (xₙ:Tₙ) : T ≔ t
+  SDef : String -> List (String, STy) -> STy -> SElem -> SItem
+  ||| type x (x₁:T₁) ... (xₙ:Tₙ) ≔ T
+  STypeDef : String -> List (String, STy) -> STy -> SItem
+
+export
+itemName : SItem -> String
+itemName (SDef n _ _ _) = n
+itemName (STypeDef n _ _) = n
+
+-- ===== Show instances (parser golden tests) =====
+
+mutual
+  export covering
+  Show STy where
+    show STyZero = "𝟘"
+    show STyOne = "𝟙"
+    show STyNat = "ℕ"
+    show STyUniv = "𝕌"
+    show (STySig x es) = "\{x}[\{joinBy ", " (map show es)}]"
+    show (STyPi x a b) = "Pi \{x} (\{show a}) (\{show b})"
+    show (STySigma x a b) = "Sigma \{x} (\{show a}) (\{show b})"
+    show (STyQuot a x y r) = "Quot (\{show a}) \{x} \{y} (\{show r})"
+    show (STyEq l r t) = "Eq (\{show l}) (\{show r}) (\{show t})"
+    show (STyEl e) = "El (\{show e})"
+
+  export covering
+  Show SElem where
+    show (SVar n i) = "\{n}@\{show i}"
+    show (SSig x es) = "\{x}[\{joinBy ", " (map show es)}]"
+    show SUnitI = "()"
+    show SZeroN = "Z"
+    show (SSuc t) = "S (\{show t})"
+    show SRefl = "Refl"
+    show (SLam x t) = "Lam \{x} (\{show t})"
+    show (SApp f e) = "App (\{show f}) (\{show e})"
+    show (SPair a b) = "Pair (\{show a}) (\{show b})"
+    show (SProj1 t) = "P1 (\{show t})"
+    show (SProj2 t) = "P2 (\{show t})"
+    show SZeroC = "𝟘c"
+    show SOneC = "𝟙c"
+    show SNatC = "ℕc"
+    show (SPiC x a b) = "PiC \{x} (\{show a}) (\{show b})"
+    show (SSigmaC x a b) = "SigmaC \{x} (\{show a}) (\{show b})"
+    show (SQuotC a x y r) = "QuotC (\{show a}) \{x} \{y} (\{show r})"
+    show (SEqC l r t) = "EqC (\{show l}) (\{show r}) (\{show t})"
+    show (SZeroElim t) = "ZeroElim (\{show t})"
+    show (SNatElim n mot z n2 ih s t) =
+      "NatElim \{n} (\{show mot}) (\{show z}) \{n2} \{ih} (\{show s}) (\{show t})"
+    show (SClass t) = "Class (\{show t})"
+    show (SQuotElim z mot a f q) =
+      "QuotElim \{z} (\{show mot}) \{a} (\{show f}) (\{show q})"
+    show (SAnn t ty) = "Ann (\{show t}) (\{show ty})"
+
+export covering
+Show SItem where
+  show (SDef x tel ty body) =
+    "def \{x} [\{joinBy ", " (map (\(n, t) => "\{n} : \{show t}") tel)}] : \{show ty} := \{show body}"
+  show (STypeDef x tel ty) =
+    "type \{x} [\{joinBy ", " (map (\(n, t) => "\{n} : \{show t}") tel)}] := \{show ty}"

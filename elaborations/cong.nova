@@ -1,0 +1,7 @@
+-- Dependent congruence: in an extensional theory it is one Refl, since
+-- reflecting the hypothesis makes the sides and their types equal.
+-- Restates derivations/cong.
+def cong : (A : 𝕌) → (B : El A → 𝕌) → (f : (v : El A) → El (B v)) →
+           (v : El A) → (w : El A) → (v ≡ w ∈ El A) →
+           (f v ≡ f w ∈ El (B w)) ≔
+  λA. λB. λf. λv. λw. λh. Refl

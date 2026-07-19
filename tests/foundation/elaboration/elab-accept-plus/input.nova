@@ -1,0 +1,4 @@
+def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
+def plusZeroId (n : ℕ) : plus[] n Z ≡ n ∈ ℕ ≔ Refl
+def zeroPlusId (n : ℕ) : plus[] Z n ≡ n ∈ ℕ ≔
+  ℕ-elim (k. plus[] Z k ≡ k ∈ ℕ) Refl (k ih. Refl) n

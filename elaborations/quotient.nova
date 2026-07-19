@@ -1,0 +1,5 @@
+-- The smallest quotient: ℕ collapsed by the total relation 𝟙.
+-- Restates derivations/quotient.
+def collapse : class Z ≡ class (S Z) ∈ ℕ / (n m. 𝟙) ≔ Refl
+def collapseElim (q : ℕ / (n m. 𝟙)) :
+  quot-elim (x. ℕ) (a. Z) ((class Z : ℕ / (n m. 𝟙))) ≡ Z ∈ ℕ ≔ Refl

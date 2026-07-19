@@ -118,15 +118,28 @@ extend them implicitly rather than threading them through every premise.
       exactly Foundation's Σ. (Entries elaborated under assumptions are
       in Σ for the remainder of the run; acceptance semantics below.)
 
-E   — the equation store, feeding algorithmic discharge. Two sources:
+E   — the equation store, feeding algorithmic discharge. Three sources:
       * ACCEPTED LEMMAS: for every entry (Δ ⊦ x ≔ p : A) ∈ Σ whose type
         A, after peeling leading Π's into the context, is an equality
         type l ≡ r ∈ T, the store contains the reflected equation
             Δ ᐅ A₁ ᐅ ... ᐅ Aₖ ⊢ l ≐ r : T
-        (the peeled binders become context entries). Justified by
-        Foundation (reflect a) applied to x[δ] ☐ₖ₋₁ ... ☐₀. This is the
-        ONLY way user-proved equalities enter discharge: prove at the
-        element level once, use judgementally everywhere.
+        (the peeled binders become context entries — all of them
+        PARAMETRIC, so the lemma applies in any context by first-order
+        instantiation). Justified by Foundation (reflect a) applied to
+        x[δ] ☐ₖ₋₁ ... ☐₀. This is how user-proved equalities enter
+        discharge: prove at the element level once, use judgementally
+        everywhere.
+      * HYPOTHESES: for every entry of the AMBIENT context whose type,
+        after peeling leading Π's, is an equality type, the reflected
+        equation likewise — with the ambient context rigid and only the
+        peeled binders parametric. Justified the same way, with ☐ᵢ as
+        the reflected element. This is what makes an induction
+        hypothesis (an ≡-typed ℕ-elim binder) usable silently, and it
+        is why induction proofs elaborate with `Refl` in every case.
+        An ≡-typed lemma or hypothesis PARAMETER that the equation's
+        sides do not determine is a SIDE CONDITION, discharged by a
+        nested (budgeted) equality check — hypothesis-conditional
+        lemmas, e.g. well-definedness facts assuming relatedness.
       * ASSUMED OBLIGATIONS: every obligation, the moment it is assumed
         (see ↓ below), so that the run continues coherently and the same
         mismatch never surfaces twice.
@@ -382,9 +395,14 @@ whnf(C) = A / R        Γ ⊢ a ⇐ A ⇝ â
 //        (a₀≡b₀∈T₀) ≐ (a₁≡b₁∈T₁) ⇐ T₀ ≐ T₁ type;  a₀ ≐ a₁ : T₁;  b₀ ≐ b₁ : T₁
 //        El a      ≐ El b       ⇐  a ≐ b : 𝕌
 //        S a       ≐ S b        ⇐  a ≐ b : ℕ
-//        class a   ≐ class b    ⇐  a ≐ b : A     (at A / R; sufficient —
-//                                  R-relatedness without a ≐ b needs an
-//                                  explicit lemma at the quotient type)
+//        class a   ≐ class b    ⇐  a ≐ b : A, OR — the WITNESS path,
+//                                  (class⁼ r) — by the shape of the
+//                                  instantiated relation R[id, a, b]:
+//                                  a 𝟙-shaped relation is inhabited
+//                                  outright (r = ()), an ≡-shaped one
+//                                  reduces the witness to its equation
+//                                  (r = Refl after reflection); other
+//                                  shapes keep the composite
 //        a₀ , b₀   ≐ a₁ , b₁    ⇐  componentwise at the Σ-type
 //        neutral spines with the same head variable/eliminator:
 //                                  componentwise (app-cong, proj-cong,
@@ -395,18 +413,42 @@ whnf(C) = A / R        Γ ⊢ a ⇐ A ⇝ â
 //      a ≐ code(B) : 𝕌 — sufficient via El-congruence + El-decoding.
 //      Otherwise fall through to 7.
 //   5. Prop-discharge: an element equation at type 𝟙 or at type 𝟘 is
-//      discharged outright — Foundation's (𝟙-Prop), (𝟘-Prop).
+//      discharged outright — Foundation's (𝟙-Prop), (𝟘-Prop). // COMMENT: equality type is also a Prop
 //   6. η: a λ against a neutral at Π compares via Π-η (apply both to
 //      ☐₀ under the binder); a pair against a neutral at Σ via Σ-η.
-//   7. STORE LOOKUP: the equation (or its symmetric flip) matches an
-//      entry of E — an accepted-lemma equation Δ ⊢ l ≐ r : T under a
-//      first-order instantiation σ (matching modulo whnf; the equation
-//      discharges as l[σ] ≐ r[σ] weakened into Γ), or an already-
-//      assumed obligation verbatim (deduplication: same statement, same
-//      obligation — nothing new is reported, and nothing is considered
-//      proven). v1 uses single-lemma steps; closing E under
-//      transitivity/congruence (e-graph style) is a planned upgrade and
-//      changes only COMPLETENESS of discharge, never soundness.
+//      η fires ONLY when one side is a literal introduction form: two
+//      neutrals gain nothing from η, and η-expanding them regenerates
+//      the very eliminations congruence descent (step 3) came from —
+//      an η/congruence loop.
+//   7. STORE USE — three complementary mechanisms over E:
+//      * REWRITING: equations usable as terminating rules — strictly
+//        size-decreasing instances first (plus n Z → n), then
+//        size-preserving NON-PERMUTATIVE ones (plus n (S m) →
+//        S (plus n m), induction hypotheses) — applied left-to-right
+//        as stated, at any subterm, to a fuel-and-seen-set-bounded
+//        fixpoint before every comparison. An equation whose sides are
+//        equal up to a bijective renaming of its parameters
+//        ("permutative": commutativity, exchange laws) NEVER rewrites —
+//        it would oscillate.
+//      * WHOLE-EQUATION MATCH: the equation (or its flip) matches a
+//        candidate's l/r under one consistent first-order
+//        instantiation; parameters the sides do not bind must carry an
+//        ≡ (or 𝟙) type whose instance discharges as a side condition.
+//        This is how permutative and hypothesis-conditional lemmas
+//        discharge.
+//      * TRANSITIVITY HOPS: a candidate that rewriting cannot apply
+//        may rewrite one side WHOLESALE, recursing with a small
+//        depth budget — chaining e.g. an exchange law, a hypothesis,
+//        and an exchange law again.
+//      Matched candidates' sides are stored normalized against the
+//      lemma store as of their acceptance, so equations stated in one
+//      spelling still match goals earlier rules have canonicalized.
+//      An already-assumed obligation matches verbatim (deduplication:
+//      nothing new is reported, and nothing is considered proven).
+//      Closing E under full congruence (e-graph style) remains a
+//      completeness upgrade; none of these mechanisms affects
+//      soundness — each discharge is a Foundation derivation via
+//      (el-eq-subst) + congruence + transitivity + reflection.
 //   8. ASSUME: append the equation to O (with source position, and with
 //      the composite it was decomposed from, if any) and to E; succeed.
 //
@@ -503,12 +545,15 @@ surfacing order. The contract every rule above must respect:
 
 Two corollaries worth keeping in view while implementing:
 
-  * The elaborator can be paranoid-free: a bug in discharge (step 7
-    matching too eagerly, a congruence decomposed wrongly) can produce
-    a wrong REPORT, but a wrong acceptance requires the bug to survive
-    the clean run's re-elaboration of a file whose every equation then
-    discharges from accepted lemmas only. Keeping step 7's matching
-    simple (first-order, single step) is a soundness feature.
+  * A known gap to keep in view: rewriting and matching are first-order
+    and TYPE-BLIND. An instantiation's well-typedness follows by
+    inversion when the matched instance's typing is forced by its
+    occurrence (the common case for fully-applied function patterns),
+    but not universally — e.g. a `class` term does not determine its
+    quotient, so a class-level lemma could in principle match a
+    syntactically identical term at a different quotient type.
+    Threading expected types through matching (typed rewriting) is the
+    corresponding hardening upgrade.
   * Terms never contain transports: obligations are assumed, not
     materialized as coercion nodes, so an accepted file's core terms
     are exactly what the user wrote, and judgemental equality does all

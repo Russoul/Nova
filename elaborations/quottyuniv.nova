@@ -1,0 +1,6 @@
+-- The universe code for quotient types and its El-decoding.
+-- Restates derivations/quottyuniv: El (ℕ / ℕ) ≐ El ℕ / El ℕ is
+-- definitional, so a variable of the code's El moves to the decoded
+-- quotient with no coercion.
+def qdecode (v : El (ℕ / (x y. ℕ))) : ℕ / (x y. ℕ) ≔ v
+def qcode : 𝕌 ≔ ℕ / (x y. ℕ)

@@ -10,6 +10,10 @@ import Nova.Foundation.Syntax
 import Nova.Foundation.Parser
 import Nova.Foundation.Derivation
 import Nova.Foundation.Derivation.Parser
+import Nova.Foundation.Derivation.NamedParser
+import Nova.Foundation.Elaboration
+import Nova.Foundation.Elaboration.Surface
+import Nova.Foundation.Elaboration.Parser
 
 -- ===== Display helpers for top-level aliases =====
 
@@ -60,6 +64,9 @@ runParse parser input =
     "spine"        => putStrLn $ either (const "ERROR") showSpine (runParser parseSpine input)
     "typing"       => putStrLn $ either (const "ERROR") show (runParser parseTypingRule input)
     "typing-list"  => putStrLn $ either (const "ERROR") (joinWith "\n" . map show) (runParser parseListTypingRule input)
+    "surface-ty"   => putStrLn $ either (const "ERROR") show (runSurfaceParser (parseSTy [<]) input)
+    "surface-elem" => putStrLn $ either (const "ERROR") show (runSurfaceParser (parseSElem [<]) input)
+    "surface-item" => putStrLn $ either (const "ERROR") show (runSurfaceParser parseSItem input)
     _              => putStrLn "ERROR: unknown parser '\{parser}'"
 
 -- ===== Test suite mode =====
@@ -68,6 +75,7 @@ runParse parser input =
 pools : IO (List TestPool)
 pools = sequence
   [ testsInDir "tests/foundation/parser" "Foundation Parser"
+  , testsInDir "tests/foundation/elaboration" "Foundation Elaboration"
   ]
 
 main : IO ()
@@ -75,6 +83,10 @@ main = do
   args <- getArgs
   case args of
     (_ :: "run" :: parser :: input :: []) => runParse parser input
+    (_ :: "elab" :: file :: []) => do
+      Right content <- readFile file
+        | Left err => putStrLn ("ERROR: cannot read '" ++ file ++ "': " ++ show err)
+      putStrLn (elabFile content)
     _ => do
       ps <- pools
       runner ps
