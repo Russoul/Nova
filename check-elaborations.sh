@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Elaborates every elaborations/*.nova surface file; each must be
+# Elaborates every src/nova/*.nova surface file; each must be
 # accepted (elaborate with zero obligations).
 set -u
 cd "$(dirname "$0")"
@@ -11,7 +11,7 @@ APP="build/exec/nova"
 pass=0
 fail=0
 
-for file in elaborations/*.nova; do
+for file in src/nova/*.nova; do
   name="$(basename "$file" .nova)"
   if output="$("$APP" elab "$file" 2>&1)"; then
     pass=$((pass + 1))

@@ -217,7 +217,7 @@ surface stays exactly as clean as the theory promises.
 ////////// Status //////////
 
 Implemented: the front end; the elaborator; the obligation lifecycle;
-the elaborations/ corpus; the EQUATION KERNEL with the demotion of
+the src/nova/ corpus; the EQUATION KERNEL with the demotion of
 engine verdicts to proposals — Nova.Kernel provides
 fuel-bounded normalization (mirroring the ≜ rules clause for clause,
 exhaustion = reject), proof-element inference/checking for elimination
