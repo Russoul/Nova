@@ -11,6 +11,9 @@ layers are specified elsewhere:
 
   * docs/NovaFoundation.txt   — the THEORY. Sole source of truth; every
                                 other layer answers to it.
+  * docs/NovaKernel.txt       — the KERNEL, rule by rule: fuel-bounded
+                                normalization, certificate replay,
+                                item-level checking over skeletons.
   * docs/NovaElaboration.txt  — the elaborator: surface syntax,
                                 bidirectional rules, the obligation
                                 lifecycle.

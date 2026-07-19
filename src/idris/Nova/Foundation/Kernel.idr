@@ -414,7 +414,7 @@ mutual
   checkP sig ctx (NatElim z st t) ty = do
     checkP sig ctx t Ty.NatTy
     checkP sig ctx z ty
-    checkP sig (ctx :< Ty.NatTy :< ty) st (substTy (substTy ty Wk) Wk)
+    checkP sig (ctx :< Ty.NatTy :< substTy ty Wk) st (substTy (substTy ty Wk) Wk)
   checkP sig ctx e ty = do
     inferred <- inferP sig ctx e
     i' <- kTy sig inferred

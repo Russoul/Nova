@@ -1,0 +1,445 @@
+////////// NovaKernel.txt — the trusted kernel, rule by rule //////////
+
+////////// Preface //////////
+
+This file writes out every rule the kernel (Nova.Foundation.Kernel)
+implements: the fuel-bounded normalizer, proof-spine typing,
+certificate replay for equality, and item-level re-checking over
+annotation skeletons. It exists so the kernel can be audited against
+docs/NovaFoundation.txt clause by clause — every rule below is an
+instance or a derivable composite of Foundation's rules, and each one
+names its justification.
+
+Position in the pipeline (docs/NovaPipeline.txt): everything upstream
+— elaborator, discharge engine, AI — is untrusted and merely PROPOSES;
+the kernel re-establishes each judgement from its own signature Σ and
+is the only component whose verdict counts. Nothing here searches and
+nothing here chooses: every rule is syntax-directed, every premise is
+checked mechanically, and the sole inputs beyond the core term are the
+certificate and the skeleton the elaborator hands over.
+
+Notation is Foundation's (contexts Γ, signature Σ, elements t, types
+T, judgemental equality ≐, definitional contraction ≜), with three
+kernel-only judgement forms added:
+
+  nf(t) ⇓ t′ , nf(T) ⇓ T′        fuel-bounded normalization
+  Σ; Γ ⊦ p ⇒ᵖ T                  proof-spine inference
+  Σ; Γ ⊦ p ⇐ᵖ T                  proof-argument checking
+  Σ; Γ ⊦ 𝒞 ⊳ t₀ ≐ t₁ : T         certificate replay (element equation)
+  Σ; Γ ⊦ 𝒞 ⊳ T₀ ≐ T₁             certificate replay (type equation)
+  Σ; Γ ⊦ t ⇐ T ⟨sk⟩              item-level checking (skeleton sk)
+  Σ; Γ ⊦ t ⇒ T ⟨sk⟩              item-level inference
+  Σ; Γ ⊦ T type ⟨sk⟩             item-level formation
+
+Every kernel judgement is decided inside a FUEL MONAD: a computation
+either returns, fails with a reason, or exhausts its fuel — and fuel
+exhaustion is REJECTION, so the kernel is total and every artifact
+gets a verdict. Fuel is supplied per entry point by the certificate's
+margin (the elaborator knows its own step counts); one unit is spent
+per ≜-contraction, nothing else costs fuel.
+
+////////// 1. Normalization: nf, one fuel per contraction //////////
+
+nf mirrors Foundation's ≜ rules clause for clause and normalizes
+everywhere (under binders, in all components). The congruence clauses
+are not listed; the contraction clauses, each of which burns one unit
+of fuel, are exactly:
+
+  (λ f) e            ≜  f[id, e]                    // β
+  (a , b) .π₁        ≜  a                           // ⨯-β₁
+  (a , b) .π₂        ≜  b                           // ⨯-β₂
+  ℕ-elim z s Z       ≜  z                           // ℕ-β₀
+  ℕ-elim z s (S n)   ≜  s[id, n, ℕ-elim z s n]      // ℕ-β₁
+  quot-elim f (class a) ≜ f[id, a]                  // /-β
+  x[e˲]              ≜  a[e˲]      (Σ ∋ Γ ⊦ x ≔ a : A)   // x-β (term)
+  x[e˲]              ≜  T[e˲]      (Σ ∋ Γ ⊦ x ≔ T type)  // x-β (type)
+
+  El 𝟘               ≜  𝟘                           // El-decoding
+  El 𝟙               ≜  𝟙
+  El ℕ               ≜  ℕ
+  El (a → b)         ≜  El a → El b
+  El (a ⨯ b)         ≜  El a ⨯ El b
+  El (l ≡ r ∈ t)     ≜  l ≡ r ∈ El t
+  El (a / r)         ≜  El a / El r
+
+Scrutinees are normalized before the contraction test (call-by-value
+on elimination positions), so a stuck scrutinee leaves a stuck
+eliminator — nf never invents progress. A signature reference to a
+name missing from Σ, or used at the wrong syntactic class (a term
+definition in type position or vice versa), is rejected outright.
+
+Fuel is a LIVENESS bound, not a semantic one: under inconsistent
+hypotheses a well-formed term may have no normal form (see
+NovaFoundation.txt, preface), and the fuel bound is what keeps the
+kernel total in that world. Exhaustion never certifies anything.
+
+////////// 2. Certificates //////////
+
+The certificate grammar (constructors in parentheses are the
+implementation's names):
+
+  sel ::=                                          (Sel)
+      suc                                          (SelSuc)
+    | dom                                          (SelDom)
+    | cod u                                        (SelCod)
+    | qdom                                         (SelQDom)
+    | qrel u v                                     (SelQRel)
+    | eqT | eqL | eqR                              (SelEqT/L/R)
+
+  step ::= (onLhs, path, p, sels, flip)            (Step)
+    onLhs : which side of the equation is rewritten
+    path  : child indices from the root to the rewrite point
+    p     : a proof element licensing an equation (§3, §4)
+    sels  : component selectors applied to that equation (§5)
+    flip  : whether the licensed equation is used right-to-left
+
+  final ::=                                        (Final)
+      beta                                         (FBeta)
+    | prop                                         (FProp)
+    | witness 𝒞?                                   (FWitness)
+    | ηΠ 𝒞                                         (FEtaPi)
+    | ηΣ 𝒞 𝒞                                       (FEtaSigma)
+
+  𝒞 ::= (tyEx?, steps, final)                      (ECert)
+    tyEx  : optional TYPE BRIDGE (T′, 𝒞ᵀ) — replay the equation at T′
+            instead of the site's type, justified by 𝒞ᵀ ⊳ T ≐ T′ (§7)
+    steps : rewrite steps, applied in order
+    final : how the sides are closed after the steps
+
+Child indexing, shared by paths, the typed descent (§6) and skeletons
+(§8) — binders crossed in parentheses:
+
+  elements:  𝟘-elim t → 0            S t → 0
+             ℕ-elim z s t → 0, 1(2), 2
+             λ f → 0(1)              f e → 0, 1
+             (a , b) → 0, 1          t.π₁ / t.π₂ → 0
+             a →ᶜ b → 0, 1(1)        a ⨯ᶜ b → 0, 1(1)
+             (l ≡ r ∈ t)ᶜ → 0, 1, 2  a /ᶜ r → 0, 1(2)
+             x[e˲] → 0.. (left to right)
+             class a → 0             quot-elim f q → 0(1), 1
+  types:     A → B → 0, 1(1)         A ⨯ B → 0, 1(1)
+             l ≡ r ∈ T → 0ᵉ, 1ᵉ, 2   El e → 0ᵉ
+             A / R → 0, 1(2)         x[e˲] → 0..ᵉ
+  (ᶜ marks universe codes; ᵉ marks descent into an element child.)
+
+////////// 3. Proof spines: Σ; Γ ⊦ p ⇒ᵖ T //////////
+
+A step's proof is an ELIMINATION SPINE over context variables and
+signature references. Inference implements Foundation's var, sig-var,
+el-pi-e, el-sigma-e₁/₂ and the ℕ/𝟙 introductions:
+
+  Γ‖ᵢ = T
+  ------------------          Σ ∋ (Δ ⊦ x ≔ a : A)   Σ; Γ ⊦ e˲ ⇐ᵖ Δ
+  Σ; Γ ⊦ ☐ᵢ ⇒ᵖ T              -----------------------------------
+                              Σ; Γ ⊦ x[e˲] ⇒ᵖ A[e˲]
+
+  Σ; Γ ⊦ f ⇒ᵖ T   nf(T) ⇓ A → B   Σ; Γ ⊦ e ⇐ᵖ A
+  ----------------------------------------------
+  Σ; Γ ⊦ f e ⇒ᵖ B[id, e]
+
+  Σ; Γ ⊦ t ⇒ᵖ T   nf(T) ⇓ A ⨯ B        (analogously .π₂ at B[id, t.π₁])
+  -----------------------------
+  Σ; Γ ⊦ t.π₁ ⇒ᵖ A
+
+  Σ; Γ ⊦ () ⇒ᵖ 𝟙      Σ; Γ ⊦ Z ⇒ᵖ ℕ      Σ; Γ ⊦ t ⇐ᵖ ℕ ⇒ S t ⇒ᵖ ℕ
+
+Nothing else is inferable. Argument CHECKING (⇐ᵖ) accepts the
+introduction forms structurally and falls back to infer-and-compare:
+
+  nf(T) ⇓ (l ≡ r ∈ A)   nf(l) = nf(r)
+  -----------------------------------   // el-eq-i after the sides
+  Σ; Γ ⊦ Refl ⇐ᵖ T                      // are seen ≜-equal
+
+  nf(T) ⇓ A / R   Σ; Γ ⊦ a ⇐ᵖ A         nf(T) ⇓ A ⨯ B
+  -----------------------------         Σ; Γ ⊦ u ⇐ᵖ A   Σ; Γ ⊦ v ⇐ᵖ B[id, u]
+  Σ; Γ ⊦ class a ⇐ᵖ T                   ---------------------------------
+                                        Σ; Γ ⊦ (u , v) ⇐ᵖ T
+
+  nf(T) ⇓ A → B   Σ; Γ ᐅ A ⊦ f ⇐ᵖ B     Σ; Γ ⊦ t ⇐ᵖ 𝟘
+  ---------------------------------     ------------------------
+  Σ; Γ ⊦ λ f ⇐ᵖ T                       Σ; Γ ⊦ 𝟘-elim t ⇐ᵖ T
+
+  Σ; Γ ⊦ t ⇐ᵖ ℕ   Σ; Γ ⊦ z ⇐ᵖ T   Σ; Γ ᐅ ℕ ᐅ T[↑] ⊦ s ⇐ᵖ T[↑][↑]
+  --------------------------------------------------------------
+  Σ; Γ ⊦ ℕ-elim z s t ⇐ᵖ T          // CONSTANT-MOTIVE (approximation
+                                    // A1, see §9): the instance of
+                                    // el-nat-e with motive T[↑]
+
+  Σ; Γ ⊦ p ⇒ᵖ T′   nf(T′) = nf(T)
+  -------------------------------        // fallback: infer, compare
+  Σ; Γ ⊦ p ⇐ᵖ T
+
+Signature substitutions e˲ ⇐ᵖ Δ are checked entrywise, entry i's
+telescope type instantiated by the preceding entries (sub-norm-ext).
+
+////////// 4. What a step licenses //////////
+
+A step (onLhs, path, p, sels, flip) licenses one equation, derived —
+never assumed — from its proof:
+
+  Σ; Γ ⊦ p ⇒ᵖ T    nf(T) ⇓ (l ≡ r ∈ A)
+  (l′, r′, A′) = sels applied to (l, r, A)         (§5)
+  ------------------------------------------------------------
+  step licenses  nf(l′) ≐ nf(r′) : A′    (swapped when flip)
+
+This is equality reflection (el-reflect) read certificate-side: the
+proof element is checked, its ≡-type exposed, and the judgemental
+equation extracted. A proof whose type is not an ≡-type is rejected.
+
+////////// 5. Selectors //////////
+
+Selectors pass from an equation between same-headed terms to a
+component equation. Each is licensed by a Foundation rule; both sides
+are normalized before the head test, and a selector whose head shapes
+do not match is rejected.
+
+  suc      : S x ≐ S y : ℕ            ⇒  x ≐ y : ℕ
+             // derivable congruence (pred via ℕ-elim)
+  dom      : (a₀ → b₀) ≐ (a₁ → b₁) : 𝕌 ⇒  a₀ ≐ a₁ : 𝕌
+             // →-inj (also ⨯-inj for pair codes)
+  cod u    : (a₀ → b₀) ≐ (a₁ → b₁) : 𝕌 ⇒  b₀[id,u] ≐ b₁[id,u] : 𝕌
+             // →-inj second component, instantiated at u (el-eq-subst)
+  qdom     : (a₀ / r₀) ≐ (a₁ / r₁) : 𝕌 ⇒  a₀ ≐ a₁ : 𝕌      // /-inj
+  qrel u v : (a₀ / r₀) ≐ (a₁ / r₁) : 𝕌 ⇒  r₀[id,u,v] ≐ r₁[id,u,v] : 𝕌
+  eqT      : (l₀≡r₀∈t₀) ≐ (l₁≡r₁∈t₁) : 𝕌 ⇒ t₀ ≐ t₁ : 𝕌     // ≡-inj
+  eqL      :                           ⇒ l₀ ≐ l₁ : El t₁
+  eqR      :                           ⇒ r₀ ≐ r₁ : El t₁
+
+The injectivity rules are Foundation's (NovaFoundation.txt, "Type
+constructor injectivity"); the binder-crossing selectors take an
+instantiation element so the resulting equation stays in Γ.
+
+////////// 6. Typed path descent //////////
+
+Rewriting a subterm by an equation is CONGRUENCE, and Foundation's
+congruences demand the component equation AT THE COMPONENT'S TYPE.
+The descent therefore walks the path from the root, computing each
+child's expected type from its parent's, and verifies the licensed
+equation's type in situ at the rewrite point:
+
+  at path end, b binders crossed, expected type E known:
+    nf(E) = nf(A)[↑ᵇ]     // the licensed type matches the position
+    u = l[↑ᵇ]             // the subterm is the licensed lhs, weakened
+    ------------------------------------------------
+    u rewrites to r[↑ᵇ]
+
+  at path end with expected type UNDETERMINED: reject.
+
+An expected type is undetermined at positions whose type only a
+motive or a non-normal spelling would determine; that is harmless at
+positions merely passed THROUGH (an intermediate hop of the path
+needs no type — congruence demands nothing there) and fatal only at
+the rewrite point itself. The child-type table (parent's expected
+type E; — means undetermined):
+
+  𝟘-elim t        child 0 : 𝟘
+  S t             child 0 : ℕ
+  ℕ-elim z s t    child 0 : E            // CONSTANT-MOTIVE (A1, §9)
+                  child 1 : E[↑][↑]      // ditto
+                  child 2 : ℕ
+  λ f             child 0 : B            when nf(E) ⇓ A → B
+  f e             child 0 : —
+                  child 1 : A            when f is an inferable spine
+                                         // ⇒ᴺ, below
+  (u , v)         child 0 : A            when nf(E) ⇓ A ⨯ B
+                  child 1 : B[id, u]
+  t.π₁ / t.π₂     child 0 : ⇒ᴺ(t)
+  a →ᶜ b, a ⨯ᶜ b  children : 𝕌
+  (l ≡ r ∈ t)ᶜ    children 0,1 : El t, child 2 : 𝕌
+  a /ᶜ r          children : 𝕌
+  x[e˲]           child i : Δᵢ[e˲ prefix] // the telescope entry's type
+  class a         child 0 : A            when nf(E) ⇓ A / R
+  quot-elim f q   child 0 : —, child 1 : ⇒ᴺ(q)
+
+⇒ᴺ is neutral-spine inference: context variables, applications,
+first projections and signature references only — exactly the heads
+whose types are recoverable without annotations.
+
+Steps inside TYPES (used by type certificates) walk the type formers
+(no rewrite may end at a type position — types are rewritten through
+their element children): the element entry points are the sides of
+l ≡ r ∈ T (expected type T), the code under El (expected type 𝕌),
+and signature-entry arguments (the telescope type).
+
+Soundness note: the positional check is load-bearing. Equality is
+type-relative in this theory (a class equation at one quotient says
+nothing at another), and the two historical exploits
+(docs/NovaPipeline.txt, "Why this shape") both die on exactly this
+check or on proof-argument checking (§3).
+
+////////// 7. Certificate replay //////////
+
+Element equations — Σ; Γ ⊦ 𝒞 ⊳ t₀ ≐ t₁ : T, with 𝒞 = (tyEx?, steps,
+final):
+
+  1. TYPE BRIDGE. If tyEx = (T′, 𝒞ᵀ): replay Σ; Γ ⊦ 𝒞ᵀ ⊳ T ≐ T′ and
+     continue at T′ in place of T. Justification: judgementally equal
+     types have equal PERs (ty-eq-el / el-ty-coe collapse the
+     membership), so the equation judgement is invariant under it.
+     The bridge is the equation-level counterpart of the item level's
+     head-exposure payload (§8): it lets steps land at positions whose
+     structure only a lemma-normalized spelling of T exposes.
+  2. Normalize both sides.
+  3. Apply each step in order to its side (§4, §6), renormalizing the
+     side after each step.
+  4. Close by the final:
+
+  beta         nf-equal sides:  l = r  syntactically after ≜.
+               // el-eq via ≜-chains
+  prop         nf(T) ⇓ 𝟙 or 𝟘.        // Foundation 𝟙-Prop / 𝟘-Prop
+  witness 𝒞?   sides are class a ≐ class b and nf(T) ⇓ A / R;
+               then by the shape of nf(R[id, a, b]):
+                 ⇓ 𝟙                — accepted (witness ())
+                 ⇓ (wl ≡ wr ∈ W)   — replay 𝒞 ⊳ wl ≐ wr : W
+               // el-quot-eq with witness () resp. Refl
+  ηΠ 𝒞         nf(T) ⇓ A → B; replay
+               Σ; Γ ᐅ A ⊦ 𝒞 ⊳ l[↑] ☐₀ ≐ r[↑] ☐₀ : B     // el-pi-eta
+  ηΣ 𝒞₁ 𝒞₂     nf(T) ⇓ A ⨯ B; replay
+               𝒞₁ ⊳ l.π₁ ≐ r.π₁ : A
+               𝒞₂ ⊳ l.π₂ ≐ r.π₂ : B[id, l.π₁]           // el-sigma-eta
+
+Type equations — Σ; Γ ⊦ 𝒞 ⊳ T₀ ≐ T₁: no bridge is admissible (a
+bridge on a type equation would be circular), steps apply through the
+type formers as in §6, and the only final is beta (nf-equal types).
+El-decoding inside nf gives ty-eq-el for free; a universe-code
+equation is transported through El by normalization, not by a rule.
+
+////////// 8. The item level: skeletons //////////
+
+The kernel re-checks whole items bidirectionally. Its input is the
+core term plus a SKELETON — a tree positionally aligned with the term
+(same child indexing as §2), each node carrying zero or more
+payloads:
+
+  payload ::=
+      motive T ⟨sk⟩       (PMotive)   eliminator motive + its skeleton
+    | intro-ty T ⟨sk⟩     (PIntroTy)  ascribed type of an intro form
+                                      in inference position
+    | switch 𝒞            (PSwitch)   inferred ≐ expected, at a
+                                      checked non-intro term
+    | refl-eq 𝒞           (PReflEq)   the equation behind a Refl
+    | wd 𝒞                (PWD)       quot-elim well-definedness
+    | expose T 𝒞          (PExpose)   head exposure at a checked intro
+
+A payload is consumed when used (a node may carry several; order is
+immaterial). Missing children default to empty nodes.
+
+Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
+
+  1. If sk carries switch 𝒞: infer Σ; Γ ⊦ t ⇒ T′ ⟨sk∖switch⟩ and
+     replay 𝒞 ⊳ T′ ≐ T. (The conversion is CERTIFIED, never decided
+     by the kernel.)
+  2. Otherwise, if sk carries expose T′ 𝒞: replay 𝒞 ⊳ T ≐ T′ and
+     continue checking at T′. (T′'s well-formedness follows from T's
+     by the certified equality; the intro checks against the exposed
+     head and coercion — judgementally the identity — transports the
+     result. This is PExpose; its equation-level twin is the bridge.)
+  3. Then by the head of t:
+
+     nf(T) ⇓ A → B    Σ; Γ ᐅ A ⊦ f ⇐ B ⟨sk.0⟩
+     -----------------------------------------          // el-pi-i
+     Σ; Γ ⊦ λ f ⇐ T ⟨sk⟩
+
+     nf(T) ⇓ A ⨯ B    Σ; Γ ⊦ u ⇐ A ⟨sk.0⟩   Σ; Γ ⊦ v ⇐ B[id,u] ⟨sk.1⟩
+     ---------------------------------------------------------------
+     Σ; Γ ⊦ (u , v) ⇐ T ⟨sk⟩                            // el-sigma-i
+
+     nf(T) ⇓ (l ≡ r ∈ A)    sk carries refl-eq 𝒞    𝒞 ⊳ l ≐ r : A
+     -------------------------------------------------------------
+     Σ; Γ ⊦ Refl ⇐ T ⟨sk⟩                    // el-eq-i over replay
+
+     nf(T) ⇓ A / R    Σ; Γ ⊦ a ⇐ A ⟨sk.0⟩
+     -------------------------------------               // el-quot-i
+     Σ; Γ ⊦ class a ⇐ T ⟨sk⟩
+
+     Σ; Γ ⊦ t ⇐ 𝟘 ⟨sk.0⟩
+     ----------------------------                        // el-zero-e
+     Σ; Γ ⊦ 𝟘-elim t ⇐ T ⟨sk⟩
+
+     otherwise: infer Σ; Γ ⊦ t ⇒ T′ ⟨sk⟩ and demand nf(T′) = nf(T)
+     — a mismatch without a switch certificate is rejection.
+
+Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
+
+  If sk carries intro-ty T ⟨skT⟩: check Σ; Γ ⊦ T type ⟨skT⟩, then
+  Σ; Γ ⊦ t ⇐ T ⟨sk∖intro-ty⟩, and return T. (This is the ascription
+  route: how introduction forms sit in inference position.)
+
+  Otherwise by the head — variables and signature references (var,
+  sig-var; the reference's substitution checked entrywise against its
+  telescope, each entry against sk's children), (), Z, S t, spines:
+
+     Σ; Γ ⊦ f ⇒ Tf ⟨sk.0⟩   nf(Tf) ⇓ A → B   Σ; Γ ⊦ a ⇐ A ⟨sk.1⟩
+     ------------------------------------------------------------
+     Σ; Γ ⊦ f a ⇒ B[id, a]                              // el-pi-e
+
+     (projections analogously: el-sigma-e₁/₂)
+
+  ℕ-elim demands its motive — the REAL rule, no approximation here:
+
+     sk carries motive M ⟨skM⟩       Σ; Γ ᐅ ℕ ⊦ M type ⟨skM⟩
+     Σ; Γ ⊦ z ⇐ M[id, Z] ⟨sk.0⟩
+     Σ; Γ ᐅ ℕ ᐅ M ⊦ s ⇐ M[(↑, S ☐₀) ∘ ↑] ⟨sk.1⟩
+     Σ; Γ ⊦ t ⇐ ℕ ⟨sk.2⟩
+     ------------------------------------------------------------
+     Σ; Γ ⊦ ℕ-elim z s t ⇒ M[id, t]                     // el-nat-e
+
+  quot-elim demands motive AND well-definedness:
+
+     sk carries motive M ⟨skM⟩ and wd 𝒞
+     Σ; Γ ⊦ q ⇒ Tq ⟨sk.1⟩    nf(Tq) ⇓ A / R
+     Σ; Γ ᐅ A/R ⊦ M type ⟨skM⟩
+     Σ; Γ ᐅ A ⊦ f ⇐ M[↑, class ☐₀] ⟨sk.0⟩
+     Σ; Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ 𝒞 ⊳ f[↑³, ☐₂] ≐ f[↑³, ☐₁] : M[↑³, class ☐₂]
+     ------------------------------------------------------------
+     Σ; Γ ⊦ quot-elim f q ⇒ M[id, q]                    // el-quot-e
+
+  Universe codes infer at 𝕌 with components checked at 𝕌 (their
+  binder children under El of the domain code): el-*-in-universe.
+
+  Anything else in inference position (a bare intro form with no
+  ascription payload) is rejected.
+
+Formation  Σ; Γ ⊦ T type ⟨sk⟩ : structural over the type formers
+(ty-pi/sigma/eq/el/quot/sig-var-ty), the sides of an ≡-type checked
+as elements, El's code checked at 𝕌, signature-type arguments checked
+against their telescope — all with skeleton children along.
+
+Items. A definition (Δ ⊦ x ≔ t : T) is checked by: telescope entries
+as types left to right, T as a type under Δ, then Δ ⊦ t ⇐ T; a type
+definition likewise without the body. Acceptance EXTENDS the kernel's
+Σ with the entry; the kernel's Σ is the authoritative one, and an
+item is checked from it alone — the elaborator's opinion of any
+earlier item is never consulted.
+
+////////// 9. Acknowledged approximations and their scope //////////
+
+The kernel is deliberately dumber than the theory; where it accepts
+by an approximation, the approximation is an INSTANCE of a Foundation
+rule (so soundness is unaffected) that may reject spellings the
+theory would accept (incompleteness only). There are exactly two,
+both confined to EQUATION REPLAY:
+
+  A1  CONSTANT MOTIVE. In proof-argument checking (§3) an ℕ-elim
+      argument is checked by the el-nat-e instance whose motive is
+      T[↑]; in the typed descent (§6) the z/s positions of an ℕ-elim
+      are typed by the same reading. Dependent-motive recursors
+      cannot be rewritten at those positions and their proofs cannot
+      appear as step arguments; the ITEM level (§8) carries real
+      motives and has no such limit.
+
+  A2  NEUTRAL SPINES ONLY (⇒ᴺ). Argument and scrutinee positions in
+      the descent are typed only when the applied head is a variable,
+      application chain, first projection or signature reference. A
+      rewrite point under, e.g., a bare ℕ-elim head is undetermined —
+      the emitter's remedy is the type bridge (§7), which re-types
+      the whole equation at a spelling where the position IS
+      determined.
+
+Two structural caveats restated from docs/NovaPipeline.txt: an
+annotation (motive, ascription, exposure target) is a REPRESENTATIVE,
+never a canonical type — no consumer compares annotations
+syntactically, only up to certified conversion; and the kernel
+invariant is one-directional — kernel accepts the annotated tree ⟹
+the erasure is Foundation-derivable at the stated type. Rejection
+claims nothing.
