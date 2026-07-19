@@ -561,15 +561,20 @@ surfacing order. The contract every rule above must respect:
 
 Two corollaries worth keeping in view while implementing:
 
-  * A known gap to keep in view: rewriting and matching are first-order
-    and TYPE-BLIND. An instantiation's well-typedness follows by
-    inversion when the matched instance's typing is forced by its
-    occurrence (the common case for fully-applied function patterns),
-    but not universally — e.g. a `class` term does not determine its
-    quotient, so a class-level lemma could in principle match a
-    syntactically identical term at a different quotient type.
-    Threading expected types through matching (typed rewriting) is the
-    corresponding hardening upgrade.
+  * A KNOWN SOUNDNESS HOLE, confirmed by exploit: rewriting and
+    matching are first-order and TYPE-BLIND — the equation store drops
+    each equation's type, and parameter bindings are never
+    type-checked. Two confirmed consequences: a parametric 𝟙-lemma
+    (x y : 𝟙 ⊢ x ≡ y ∈ 𝟙, itself true) matches EVERY equation at EVERY
+    type and certifies e.g. Z ≡ S Z ∈ ℕ; and a class-equation proven at
+    one quotient discharges the syntactically identical claim at
+    another. Since this elaborator is currently the acceptance
+    authority, these are consistency-grade. The resolution is
+    architectural, not a smarter matcher: the discharge engine moves
+    outside the trusted boundary and emits certificates replayed by a
+    dumb kernel, so a bad discharge becomes a rejected trace instead of
+    an unsound acceptance — see docs/NovaPipeline.txt ("Why this
+    shape" and "Status") for the design and migration plan.
   * Terms never contain transports: obligations are assumed, not
     materialized as coercion nodes, so an accepted file's core terms
     are exactly what the user wrote, and judgemental equality does all

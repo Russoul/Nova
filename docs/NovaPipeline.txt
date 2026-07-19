@@ -1,0 +1,231 @@
+////////// NovaPipeline.txt — the processing pipeline and its trust story //////////
+
+////////// Purpose //////////
+
+This file is the map: what the layers are, what artifact each one
+produces, where the trust boundary sits, and which document specifies
+each part. It records the architecture converged on after the
+elaborator's first implementation exposed a consistency-grade hole in
+trusted equality search (see "Why this shape" below); the individual
+layers are specified elsewhere:
+
+  * docs/NovaFoundation.txt   — the THEORY. Sole source of truth; every
+                                other layer answers to it.
+  * docs/NovaElaboration.txt  — the elaborator: surface syntax,
+                                bidirectional rules, the obligation
+                                lifecycle.
+  * docs/NovaSyntax.txt,
+    docs/NovaNamedSyntax.txt  — the derivation-era machinery (.rules
+                                sessions), which the pipeline below is
+                                intended to replace.
+
+////////// The pipeline //////////
+
+  .nova source (surface syntax)          — authored: by a human or AI
+      │
+      │  parse + scope resolution        (pure front end)
+      ▼
+  indexed surface AST                    — nameless; still carries
+      │                                    ascriptions and motives
+      │  ELABORATOR                      (untrusted)
+      │    bidirectional pass; at each conversion site consults the
+      │    DISCHARGE ENGINE (untrusted tactic); records everything it
+      │    invents or is handed
+      ▼
+  per item: ANNOTATED TREE               — the certificate-carrying
+      │                                    artifact (see below)
+      │  KERNEL                          (trusted, total)
+      │    synthesis over the annotated tree + fuel-bounded beta +
+      │    certificate replay; no search, no choices, always a verdict
+      ▼
+  accept / reject                        — the only verdict that counts;
+                                           accepted erasures extend the
+                                           kernel's Σ (Foundation's Σ,
+                                           exactly)
+
+////////// The trust boundary //////////
+
+Everything above the kernel is UNTRUSTED. The elaborator may be
+arbitrarily clever; the discharge engine may search, rewrite, and
+heuristically match; none of it is believed. The kernel re-establishes
+every judgement from its own Σ using only:
+
+  * type synthesis over the annotated tree (annotations supply what
+    synthesis cannot invent — see artifact format);
+  * FUEL-BOUNDED beta conversion (Foundation's ≜ rules: β, El-decoding,
+    x-β) — step budgets come from the certificate, exhaustion means
+    REJECT, so the kernel is total: every artifact gets a verdict;
+  * CERTIFICATE REPLAY: at a conversion site, apply the recorded trace
+    steps mechanically — check each step's proof element, rewrite at
+    the given path in the given orientation, compare normal forms
+    (fuel-bounded normalization between the recorded extensional
+    steps).
+
+Consequences of the split:
+
+  * A discharge-engine bug is INCOMPLETENESS (a failed trace → the
+    obligation stands), never unsoundness. A bad emitted trace is
+    rejected at replay. The engine's soundness is a quality property,
+    not a safety property.
+  * The same holds for elaborator bugs generally: a wrong core term, a
+    mis-substituted type, a bogus motive all die in the kernel.
+  * The kernel is small enough to audit against NovaFoundation.txt
+    rule by rule, and is the only component with that obligation.
+
+////////// The artifact: annotated trees, not annotated terms //////////
+
+Foundation's core syntax stays bare and EXTRINSIC: a term inhabits many
+types at once (a spelling and its El-decoding; an index and its
+lemma-equal form), so "the type of a subterm" does not exist in the
+theory — only a chosen spelling. Nothing judgmentally inert belongs in
+the theory's syntax: no coercion or transport term formers, no type
+annotations, no J. (Coercion is a RULE — el-ty-coe — and stays one.
+Equality proofs are consumed by reflection and produced as Refl; the
+composition that J/sym/trans/cong would provide inside terms is
+provided by trace structure instead: chaining is a list, placement is
+a path, symmetry is a flag.)
+
+The kernel's INPUT, however, is richer than a bare term: an ANNOTATED
+TREE — the elaborator's output where each node optionally carries
+exactly what the bidirectional pass invented or consumed there:
+
+  * eliminator motives (ℕ-elim, quot-elim) — bare core is not even
+    re-checkable without them;
+  * the expected type at checked introduction forms;
+  * conversion traces at switch sites: chains of
+    (path, proof element, orientation) steps, plus the quotient-witness
+    step kind carrying its witness element;
+  * fuel budgets for the kernel's normalization (per item or per site;
+    the elaborator knows its own step counts and writes in a margin).
+
+An ERASURE function maps annotated trees to Foundation core terms, and
+the kernel invariant is: kernel accepts the annotated tree ⟹ the
+erasure is Foundation-derivable at the stated type. Equality,
+normalization, the lemma store, and printing all operate on erasures —
+the annotation layer is invisible to the theory. The slogan: type
+information travels WITH terms in the implementation, and is never OF
+terms in the theory.
+
+Caveat recorded once, binding everywhere: an annotation is a
+REPRESENTATIVE, not a canonical type — canonicity is unavailable in
+principle (spellings are unique only up to a hypothesis-sensitive,
+undecidable equality). No consumer may compare annotations
+syntactically; only up to conversion.
+
+////////// Computation in the kernel: bounded, not certified //////////
+
+A design alternative was considered and recorded here deliberately:
+move beta itself into the certificate (every ≜-step a recorded
+(rule, path) entry; the kernel a pure single-step replayer comparing
+terms syntactically). Its attractions are real — the kernel becomes
+structurally total, the certificate becomes a literally linearized
+Foundation equality derivation (finest possible audit granularity),
+and no strategy coupling between elaborator and kernel can exist.
+
+It loses on measured grounds: computation-heavy discharges (numeral
+tests, unfolding recursive definitions) make traces proportional to
+reduction length with β-duplication blowups; the kernel sheds only the
+fixpoint driver anyway (single-step application is the same clauses,
+and substitution — the genuinely subtle part — stays trusted because
+TYPING needs it); and head-exposure traces would spread annotation
+plumbing to every elimination position.
+
+The deciding observation: in this theory β was never the dangerous
+part of conversion. It is confluent, canonical, owned by the theory's
+own ≜ rules, and not user-extensible; the undecidable,
+hypothesis-sensitive part of conversion is the EXTENSIONAL part, which
+is already certificate-side. β's only sin is potential divergence
+under inconsistent hypotheses — a liveness problem, cured by fuel.
+
+Decision: the kernel keeps the ≜-engine, FUEL-BOUNDED, budgets
+supplied by the certificate, exhaustion = reject. Totality is
+preserved (the verdict gap is closed), certificates stay small (a
+number per site, not a computation log), and the audit story is
+unchanged (the kernel's normalizer mirrors Foundation's ≜ rules
+clause for clause). Full trace-beta remains the documented FALLBACK,
+to be revisited only if per-step auditability is ever needed (e.g.
+exporting kernel derivations to an external checker) or fuel coupling
+bites. The floor in every variant: α-comparison and substitution stay
+trusted — no kernel design knows less than that.
+
+////////// Who produces what: the two tactic layers //////////
+
+The criterion is addressability and persistence.
+
+  * The DISCHARGE ENGINE (built into the elaborator; rewriting,
+    whole-equation matching, transitivity hops, quotient witnesses)
+    emits CERTIFICATES. Its inputs are core-level equations at sites
+    internal to elaboration — there is no surface position its output
+    could occupy, by design: the surface has no coercion syntax.
+    Certificates are machine-to-kernel format: ephemeral, regenerated
+    each run, never authored, never read by the user.
+  * AI-LEVEL TACTICS (the AI itself; any future synthesis script) emit
+    SURFACE SYNTAX: lemma defs prepended to discharge obligations,
+    proof bodies, hints. Obligations — the agent-facing interface —
+    are statements, and statements are surface currency.
+
+The boundary is hard: external agents may NOT inject certificate steps.
+If the engine finds no trace, the site surfaces as an obligation and
+the remedy is a surface lemma that makes the trace findable (typically
+turning a search into a one-step direct match). This preserves the
+reproducibility invariant:
+
+  THE .nova FILE ALONE DETERMINES ACCEPTANCE.
+
+The elaborator is deterministic, so certificates need no persistence
+for correctness — persisting them is a cache/audit policy. Nothing an
+agent did that is not in the source file can affect the verdict.
+
+////////// The obligation lifecycle (unchanged) //////////
+
+Discharge failure is never an error: the equation is assumed, recorded,
+deduplicated, and reported at end of run with its site and the
+composite it descended from. The user or AI discharges an obligation by
+prepending an ordinary def whose type is the obligation's statement as
+an equality type, and re-running. A file is accepted exactly when a run
+ends with zero obligations AND the kernel replays every certificate.
+Nothing survives between runs. (Full lifecycle, stratification and
+metatheory: docs/NovaElaboration.txt.)
+
+////////// Why this shape //////////
+
+The first elaborator implementation placed the discharge engine inside
+the trusted boundary: its rewriting and matching were type-blind
+(first-order, equation types discarded), and two confirmed exploits
+followed — a parametric 𝟙-lemma (x y : 𝟙 ⊢ x ≡ y) whose pattern
+matches EVERY equation at EVERY type, certifying Z ≡ S Z ∈ ℕ; and
+cross-quotient transport of syntactically identical class equations.
+Both are consistency-grade: acceptance authority with no kernel behind
+it means an unsound discharge is an unsound acceptance.
+
+The lesson is the LCF lesson: search may not live inside the trusted
+boundary. But the opposite pole — no engine, AI-authored proof terms
+(J/transp combinators) everywhere, kernel-only checking — was examined
+and rejected on measured grounds: transport placement is dense (the
+derivation era's coercion ceremony, friction the whole design exists
+to eliminate), motives are the most error-prone objects agents write,
+statements would inherit the transports, and failures would degrade
+from "here is the missing equation" to "your combinator tower is
+mistyped." Equality reflection is what makes the middle available:
+because every coercion is judgmentally the identity, WHERE the
+transport lives is bureaucracy, not semantics — so it can live in a
+machine-written, machine-checked, erasure-invisible layer, and the
+surface stays exactly as clean as the theory promises.
+
+////////// Status //////////
+
+Implemented today: the front end, the elaborator, the discharge engine
+(as a TRUSTED component — the known hole above, flagged in
+NovaElaboration.txt), the obligation lifecycle, the elaborations/
+corpus, golden tests.
+
+To build, in order:
+  1. the kernel (synthesis over annotated trees + fuel-bounded beta +
+     replay) and the annotated-tree artifact with its erasure;
+  2. trace emission from the discharge engine (rewrite steps already
+     have exactly the trace shape; whole-equation matches are one-step
+     traces; hops are chains; witnesses are their own step kind);
+  3. demote the engine's verdicts to proposals: a discharge counts only
+     if its trace replays in the kernel — at which point the exploits
+     above stop being soundness bugs and become rejected traces, and
+     the FIXME in NovaElaboration.txt is closed by construction.
