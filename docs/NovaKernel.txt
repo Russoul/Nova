@@ -2,7 +2,7 @@
 
 ////////// Preface //////////
 
-This file writes out every rule the kernel (Nova.Foundation.Kernel)
+This file writes out every rule the kernel (Nova.Kernel)
 implements: the fuel-bounded normalizer, proof-spine typing,
 certificate replay for equality, and item-level re-checking over
 annotation skeletons. It exists so the kernel can be audited against

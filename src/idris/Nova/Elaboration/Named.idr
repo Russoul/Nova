@@ -20,12 +20,12 @@ import Me.Russoul.Text.Parser.OverToken
 import Me.Russoul.Text.Position
 import Me.Russoul.Text.Range
 
-import Nova.Foundation.Syntax
-import Nova.Foundation.Parser
+import Nova.Kernel.Syntax
+import Nova.Kernel.Parser
 
 %default covering
 
--- Optional whitespace between tokens (Nova.Foundation.Parser.sp is private
+-- Optional whitespace between tokens (Nova.Kernel.Parser.sp is private
 -- to that module, so this is its own local copy).
 sp : Rule ()
 sp = optSpace
@@ -56,7 +56,7 @@ resolveName (env :< y) x =
 
 -- ===== Local identifiers =====
 --
--- Distinct from Nova.Foundation.Parser.parseSigIdentifier (which lexes
+-- Distinct from Nova.Kernel.Parser.parseSigIdentifier (which lexes
 -- *signature* identifiers, always followed by `[...]` and therefore never
 -- ambiguous with a local name). Local identifiers additionally allow `'`
 -- in the continuation (but not as the first character), matching common

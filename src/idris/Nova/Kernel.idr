@@ -1,10 +1,10 @@
-module Nova.Foundation.Kernel
+module Nova.Kernel
 
 -- The TRUSTED side of the pipeline (docs/NovaPipeline.txt): certificate
 -- replay for equality, over fuel-bounded beta.
 --
 -- Nothing here searches and nothing here chooses. The only ingredients:
---   * substitution (Nova.Foundation.Subst — the floor of every kernel);
+--   * substitution (Nova.Kernel.Subst — the floor of every kernel);
 --   * a fuel-bounded normalizer mirroring Foundation's ≜ rules clause
 --     for clause (fuel exhaustion = REJECT, so every call terminates);
 --   * mechanical replay of certificate steps: check a step's proof
@@ -22,8 +22,8 @@ import Data.List
 import Data.Maybe
 import Data.SnocList
 
-import Nova.Foundation.Syntax
-import Nova.Foundation.Subst
+import Nova.Kernel.Syntax
+import Nova.Kernel.Subst
 
 %default covering
 

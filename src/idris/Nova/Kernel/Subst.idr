@@ -1,4 +1,4 @@
-module Nova.Foundation.Subst
+module Nova.Kernel.Subst
 
 -- A direct, structurally-recursive substitution algorithm for Ty/Elem,
 -- matching the "by definition" (≜) substitution equations in
@@ -23,7 +23,7 @@ module Nova.Foundation.Subst
 --
 -- Not wired into the checker yet — this module is standalone.
 
-import Nova.Foundation.Syntax
+import Nova.Kernel.Syntax
 
 %default covering
 

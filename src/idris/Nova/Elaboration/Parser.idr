@@ -23,7 +23,7 @@ import Me.Russoul.Text.Parser.OverToken
 import Me.Russoul.Text.Position
 import Me.Russoul.Text.Range
 
-import Nova.Foundation.Parser
+import Nova.Kernel.Parser
 import Nova.Elaboration.Named
 import Nova.Elaboration.Surface
 

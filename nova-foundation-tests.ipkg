@@ -3,12 +3,12 @@ version = 0.1.0
 
 depends = contrib, just-a-parser, test
 
-modules = Nova.Foundation.Syntax
-        , Nova.Foundation.Subst
-        , Nova.Foundation.Beta
-        , Nova.Foundation.Kernel
+modules = Nova.Kernel.Syntax
+        , Nova.Kernel.Subst
+        , Nova.Kernel.Beta
+        , Nova.Kernel
         , Nova.Elaboration.Named
-        , Nova.Foundation.Parser
+        , Nova.Kernel.Parser
         , Nova.Elaboration
         , Nova.Elaboration.Surface
         , Nova.Elaboration.Parser

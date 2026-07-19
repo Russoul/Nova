@@ -1,4 +1,4 @@
-module Nova.Foundation.Parser
+module Nova.Kernel.Parser
 
 import Data.SnocList
 
@@ -9,7 +9,7 @@ import Me.Russoul.Text.Parser.OverToken
 import Me.Russoul.Text.Position
 import Me.Russoul.Text.Range
 
-import Nova.Foundation.Syntax
+import Nova.Kernel.Syntax
 
 public export
 Rule : Type -> Type

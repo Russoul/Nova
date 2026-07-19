@@ -6,8 +6,8 @@ import Data.List
 import Data.SnocList
 import Test.Golden
 
-import Nova.Foundation.Syntax
-import Nova.Foundation.Parser
+import Nova.Kernel.Syntax
+import Nova.Kernel.Parser
 import Nova.Elaboration.Named
 import Nova.Elaboration
 import Nova.Elaboration.Surface

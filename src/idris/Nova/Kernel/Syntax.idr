@@ -1,4 +1,4 @@
-module Nova.Foundation.Syntax
+module Nova.Kernel.Syntax
 
 import Data.SnocList
 

@@ -1,4 +1,4 @@
-module Nova.Foundation.Beta
+module Nova.Kernel.Beta
 
 -- A direct, structurally-recursive beta-reduction algorithm for Ctx/Sub/Ty/
 -- Elem/SubNorm, matching every "by definition" (≜) computation
@@ -18,8 +18,8 @@ module Nova.Foundation.Beta
 -- the same way as El-(→)/El-(⨯): Elem.QuotTy is the universe code, decoded
 -- by betaTy's El case below.
 
-import Nova.Foundation.Syntax
-import Nova.Foundation.Subst
+import Nova.Kernel.Syntax
+import Nova.Kernel.Subst
 
 %default covering
 

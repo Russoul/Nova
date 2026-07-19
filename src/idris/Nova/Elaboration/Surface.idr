@@ -6,7 +6,7 @@ module Nova.Elaboration.Surface
 -- consumes: variables are already de Bruijn indices (name resolution is
 -- a front-end concern, done during parsing), but the tree is still
 -- surface, not core — it carries ascriptions `(t : T)` and inline
--- eliminator motives, which core syntax (Nova.Foundation.Syntax) lacks.
+-- eliminator motives, which core syntax (Nova.Kernel.Syntax) lacks.
 -- Elaboration erases those. Binder names are retained purely as display
 -- metadata for the obligation report; no rule ever consults them.
 

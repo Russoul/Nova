@@ -35,11 +35,11 @@ import Data.Maybe
 import Data.SnocList
 import Data.String
 
-import Nova.Foundation.Syntax
-import Nova.Foundation.Subst
-import Nova.Foundation.Beta
-import Nova.Foundation.Parser
-import Nova.Foundation.Kernel
+import Nova.Kernel.Syntax
+import Nova.Kernel.Subst
+import Nova.Kernel.Beta
+import Nova.Kernel.Parser
+import Nova.Kernel
 import Nova.Elaboration.Named
 import Nova.Elaboration.Surface
 import Nova.Elaboration.Parser

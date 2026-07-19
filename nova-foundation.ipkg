@@ -6,15 +6,15 @@ depends = contrib, just-a-parser
 executable = nova-foundation-app
 main = Nova.Application
 
-modules = Nova.Foundation.Syntax
-        , Nova.Foundation.Subst
-        , Nova.Foundation.Beta
-        , Nova.Foundation.Kernel
+modules = Nova.Kernel.Syntax
+        , Nova.Kernel.Subst
+        , Nova.Kernel.Beta
+        , Nova.Kernel
         , Nova.Elaboration.Named
         , Nova.Elaboration
         , Nova.Elaboration.Surface
         , Nova.Elaboration.Parser
-        , Nova.Foundation.Parser
+        , Nova.Kernel.Parser
         , Nova.Application
 
         , Solver.CommutativeMonoid
