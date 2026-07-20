@@ -1574,7 +1574,7 @@ elabProgram units = go initSt units []
 export
 elabFile : String -> String
 elabFile content =
-  case runSurfaceParser parseSFile content of
+  case runSurfaceParser (parseSFile []) content of
     Left err => "Parse error: \{err}"
-    Right ([], items) => elabProgram [MkModUnit "" [] items]
-    Right (_, _) => "Error: this entry point resolves no imports (use the module-aware loader)"
+    Right ([], _, items) => elabProgram [MkModUnit "" [] items]
+    Right (_, _, _) => "Error: this entry point resolves no imports (use the module-aware loader)"

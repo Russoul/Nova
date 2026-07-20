@@ -33,41 +33,65 @@ modPath : (rootDir : String) -> (mname : String) -> String
 modPath rootDir mname =
   rootDir ++ "/" ++ joinBy "/" (forget (split (== '.') mname)) ++ ".nova"
 
-parseModule : (label : String) -> String -> Either String (List SImport, List SItem)
-parseModule label content =
-  case runSurfaceParser parseSFile content of
+||| module name → the fixities it declares (for its own operator
+||| defs); an importer's initial parse table is assembled from these,
+||| restricted to the operators it OPENS.
+FixMap : Type
+FixMap = List (String, FixTable)
+
+importTable : FixMap -> List SImport -> FixTable
+importTable fm = concatMap
+  (\i => case lookup i.mname fm of
+           Nothing => []
+           Just tbl => filter (\(op, _) => op `elem` i.opens) tbl)
+
+parseHeader : (label : String) -> String -> Either String (List SImport)
+parseHeader label content =
+  case runSurfaceParser parseSHeader content of
+    Left err => Left "parse error in \{label}: \{err}"
+    Right r => Right r
+
+parseModule : (label : String) -> FixTable -> String -> Either String (List SImport, FixTable, List SItem)
+parseModule label tbl content =
+  case runSurfaceParser (parseSFile tbl) content of
     Left err => Left "parse error in \{label}: \{err}"
     Right r => Right r
 
 mutual
   ||| Resolve module `mname` and (transitively, first) its imports into
-  ||| `acc`, dependency-first. `visiting` detects cycles; `done` short-circuits diamonds.
+  ||| `acc`, dependency-first. `visiting` detects cycles; `done`
+  ||| short-circuits diamonds; `fixs` accumulates each module's
+  ||| declared fixities for its importers.
   loadOne : (rootDir : String) -> (visiting : List String) -> (done : List String)
-          -> (acc : List ModUnit) -> (mname : String)
-          -> IO (Either String (List String, List ModUnit))
-  loadOne rootDir visiting done acc mname =
+          -> (fixs : FixMap) -> (acc : List ModUnit) -> (mname : String)
+          -> IO (Either String (List String, FixMap, List ModUnit))
+  loadOne rootDir visiting done fixs acc mname =
     if mname `elem` done
-      then pure (Right (done, acc))
+      then pure (Right (done, fixs, acc))
       else if mname `elem` visiting
         then pure (Left "import cycle through module '\{mname}'")
         else do
           let path = modPath rootDir mname
           Right content <- readFile path
             | Left err => pure (Left "cannot read module '\{mname}' (\{path}): \{show err}")
-          let Right (imps, items) = parseModule "module \{mname} (\{path})" content
+          -- two-stage parse: the header names the dependencies whose
+          -- fixity tables the body parse needs
+          let Right hdr = parseHeader "module \{mname} (\{path})" content
             | Left err => pure (Left err)
-          Right (done', acc') <- loadMany rootDir (mname :: visiting) done acc (map (\i => i.mname) imps)
+          Right (done', fixs', acc') <- loadMany rootDir (mname :: visiting) done fixs acc (map (\i => i.mname) hdr)
             | Left err => pure (Left err)
-          pure (Right (mname :: done', acc' ++ [MkModUnit mname imps items]))
+          let Right (imps, decls, items) = parseModule "module \{mname} (\{path})" (importTable fixs' hdr) content
+            | Left err => pure (Left err)
+          pure (Right (mname :: done', (mname, decls) :: fixs', acc' ++ [MkModUnit mname imps items]))
 
   loadMany : (rootDir : String) -> (visiting : List String) -> (done : List String)
-           -> (acc : List ModUnit) -> List String
-           -> IO (Either String (List String, List ModUnit))
-  loadMany rootDir visiting done acc [] = pure (Right (done, acc))
-  loadMany rootDir visiting done acc (m :: ms) = do
-    Right (done', acc') <- loadOne rootDir visiting done acc m
+           -> (fixs : FixMap) -> (acc : List ModUnit) -> List String
+           -> IO (Either String (List String, FixMap, List ModUnit))
+  loadMany rootDir visiting done fixs acc [] = pure (Right (done, fixs, acc))
+  loadMany rootDir visiting done fixs acc (m :: ms) = do
+    Right (done', fixs', acc') <- loadOne rootDir visiting done fixs acc m
       | Left err => pure (Left err)
-    loadMany rootDir visiting done' acc' ms
+    loadMany rootDir visiting done' fixs' acc' ms
 
 ||| Load a root file and its import graph; the result is dependency-
 ||| ordered with the root (module name "") last.
@@ -76,9 +100,11 @@ loadProgram : (rootPath : String) -> IO (Either String (List ModUnit))
 loadProgram rootPath = do
   Right content <- readFile rootPath
     | Left err => pure (Left "cannot read '\{rootPath}': \{show err}")
-  let Right (imps, items) = parseModule rootPath content
+  let Right hdr = parseHeader rootPath content
     | Left err => pure (Left err)
-  Right (_, deps) <- loadMany (dirOf rootPath) [] [] [] (map (\i => i.mname) imps)
+  Right (_, fixs, deps) <- loadMany (dirOf rootPath) [] [] [] [] (map (\i => i.mname) hdr)
+    | Left err => pure (Left err)
+  let Right (imps, _, items) = parseModule rootPath (importTable fixs hdr) content
     | Left err => pure (Left err)
   pure (Right (deps ++ [MkModUnit "" imps items]))
 

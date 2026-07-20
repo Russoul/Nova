@@ -73,6 +73,47 @@ mutual
     ||| (t : T) — ascription; the lever into inference mode
     SAnn : SElem -> STy -> SElem
 
+-- ===== Operators are names =====
+--
+-- An operator token (+, *, ⊕, ...) IS a Σ-name: `def + : ... ≔ ...`
+-- defines it, `infixl 6 +` gives it fixity, and infix use desugars to
+-- application of that name. There is no notation-to-name mapping and
+-- therefore no resugaring problem — the printer prints the name, and
+-- the name is the operator.
+
+public export
+data Assoc = AssocL | AssocR
+
+public export
+Eq Assoc where
+  AssocL == AssocL = True
+  AssocR == AssocR = True
+  _ == _ = False
+
+||| operator token ↦ (associativity, binding level 0..9); higher binds
+||| tighter
+public export
+FixTable : Type
+FixTable = List (String, Assoc, Nat)
+
+||| The operator alphabet. Excludes the reserved theory tokens
+||| (→ ⨯ ≡ ∈ ≔ / . , : parens) and comment dashes are eaten by the
+||| lexer, so no operator may contain "--".
+public export
+opChar : Char -> Bool
+opChar c = c `elem` unpack "+-*<>=&|!?%^~@#⊕⊗⊙⊞⊟∙∘·≤≥∸⧺"
+
+||| Is the (possibly qualified) name operator-shaped? Decided by its
+||| final segment.
+public export
+isOpName : String -> Bool
+isOpName x = any opChar (lastSegment (unpack x))
+ where
+  lastSegment : List Char -> List Char
+  lastSegment [] = []
+  lastSegment ('.' :: rest) = lastSegment rest
+  lastSegment (c :: rest) = if elem '.' rest then lastSegment rest else c :: rest
+
 ||| import M            — M's names accessible qualified (M.x) only
 ||| import M (a, b)     — additionally, a and b accessible bare
 public export

@@ -23,6 +23,8 @@ import Me.Russoul.Text.Range
 import Nova.Kernel.Syntax
 import Nova.Kernel.Parser
 
+import Nova.Elaboration.Surface
+
 %default covering
 
 -- Optional whitespace between tokens (Nova.Kernel.Parser.sp is private
@@ -285,6 +287,12 @@ mutual
   prettyElemPostfixN : NameEnv -> Elem -> String
   prettyElemPostfixN env (SigmaElim1 e) = prettyElemPostfixN env e ++ " .π₁"
   prettyElemPostfixN env (SigmaElim2 e) = prettyElemPostfixN env e ++ " .π₂"
+  -- infix layout for operator-shaped heads (operators ARE names, so
+  -- this is identity-preserving; full parens make it precedence-safe)
+  prettyElemPostfixN env (PiApp (PiApp (SigVar op [<]) a) b) =
+    if isOpName op
+      then "(" ++ prettyElemPostfixN env a ++ " " ++ op ++ " " ++ prettyElemPostfixN env b ++ ")"
+      else prettyElemPostfixN env (PiApp (SigVar op [<]) a) ++ " " ++ prettyElemAtomN env b
   prettyElemPostfixN env (PiApp f e) = prettyElemPostfixN env f ++ " " ++ prettyElemAtomN env e
   prettyElemPostfixN env e = prettyElemAtomN env e
 
@@ -297,7 +305,7 @@ mutual
   prettyElemAtomN env Elem.ZeroTy = "𝟘"
   prettyElemAtomN env Elem.OneTy = "𝟙"
   prettyElemAtomN env Elem.NatTy = "ℕ"
-  prettyElemAtomN env (SigVar x [<]) = x
+  prettyElemAtomN env (SigVar x [<]) = if isOpName x then "(" ++ x ++ ")" else x
   prettyElemAtomN env (SigVar x es) = x ++ "[" ++ prettySubNormN env es ++ "]"
   prettyElemAtomN env e = "(" ++ prettyElemN env e ++ ")"
 
@@ -353,7 +361,7 @@ mutual
   prettyTyAtomN env Ty.OneTy = "𝟙"
   prettyTyAtomN env Ty.NatTy = "ℕ"
   prettyTyAtomN env Ty.UniverseTy = "𝕌"
-  prettyTyAtomN env (Ty.SigVar x [<]) = x
+  prettyTyAtomN env (Ty.SigVar x [<]) = if isOpName x then "(" ++ x ++ ")" else x
   prettyTyAtomN env (Ty.SigVar x es) = x ++ "[" ++ prettySubNormN env es ++ "]"
   prettyTyAtomN env ty = "(" ++ prettyTyN env ty ++ ")"
 

@@ -1,0 +1,13 @@
+def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
+def mult : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) Z (n ih. plus x ih) y
+
+infixl 6 +
+def + : ℕ → ℕ → ℕ ≔ plus
+infixl 7 *
+def * : ℕ → ℕ → ℕ ≔ mult
+
+-- precedence (* over +), mention form, and an obligation to lock the
+-- infix printer's output
+def opTest : (n : ℕ) (m : ℕ) → n + m * Z ≡ n ∈ ℕ ≔ λn. λm. Refl
+def mention : ℕ → ℕ → ℕ ≔ (+)
+def needsLemma : (n : ℕ) → Z + n ≡ n ∈ ℕ ≔ λn. Refl

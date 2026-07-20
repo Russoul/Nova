@@ -23,9 +23,9 @@ runParse parser input =
     "sub"          => putStrLn $ either (const "ERROR") show (runParser parseSub input)
     "ty"           => putStrLn $ either (const "ERROR") show (runParser parseTy input)
     "elem"         => putStrLn $ either (const "ERROR") show (runParser parseElem input)
-    "surface-ty"   => putStrLn $ either (const "ERROR") show (runSurfaceParser (parseSTy [<]) input)
-    "surface-elem" => putStrLn $ either (const "ERROR") show (runSurfaceParser (parseSElem [<]) input)
-    "surface-item" => putStrLn $ either (const "ERROR") show (runSurfaceParser parseSItem input)
+    "surface-ty"   => putStrLn $ either (const "ERROR") show (runSurfaceParser (parseSTy [] [<]) input)
+    "surface-elem" => putStrLn $ either (const "ERROR") show (runSurfaceParser (parseSElem [] [<]) input)
+    "surface-item" => putStrLn $ either (const "ERROR") show (runSurfaceParser (parseSItem []) input)
     _              => putStrLn "ERROR: unknown parser '\{parser}'"
 
 -- ===== Test suite mode =====

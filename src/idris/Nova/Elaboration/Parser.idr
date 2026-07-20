@@ -62,7 +62,8 @@ parseName = do
                          else Nothing
             _ => Nothing)
   let name = pack (c :: cs)
-  guard "Reserved keyword" (name /= "def" && name /= "type" && name /= "El" && name /= "import")
+  guard "Reserved keyword" (name /= "def" && name /= "type" && name /= "El" && name /= "import" &&
+                            name /= "infixl" && name /= "infixr")
   pure name
 
 ||| A possibly-qualified name: x or M.x or A.B.x. The dot only counts
@@ -73,6 +74,27 @@ parseDottedName = do
   rest <- many (do char_ '.'; parseName)
   pure (joinBy "." (n :: rest))
 
+||| An operator token: a maximal run of operator-alphabet characters
+||| (operators ARE names — see Nova.Elaboration.Surface).
+export
+parseOpName : Rule String
+parseOpName = do
+  c <- terminal "operator char" opTok
+  cs <- many (terminal "operator char" opTok)
+  pure (pack (c :: cs))
+ where
+  opTok : Token -> Maybe Char
+  opTok (Symbol ch) = if opChar ch then Just ch else Nothing
+  opTok _ = Nothing
+
+||| A possibly-qualified operator (+ or M.+): the mention form's and
+||| the definition header's name grammar.
+parseOpRef : Rule String
+parseOpRef = do
+  pre <- many (do n <- parseName; char_ '.'; pure n)
+  op <- parseOpName
+  pure (joinBy "." (pre ++ [op]))
+
 foldGroups : (String -> a -> b -> b) -> List (String, a) -> b -> b
 foldGroups f [] b = b
 foldGroups f ((x, t) :: rest) b = f x t (foldGroups f rest b)
@@ -82,159 +104,186 @@ foldGroups f ((x, t) :: rest) b = f x t (foldGroups f rest b)
 mutual
   -- T{0}: eq-type on top, then the arrow level
   export
-  parseSTy : NameEnv -> Rule STy
-  parseSTy env =
-        (do e0 <- parseSElemPrefix env; sp
+  parseSTy : FixTable -> NameEnv -> Rule STy
+  parseSTy tbl env =
+        (do e0 <- parseSElemOp tbl env; sp
             str_ "≡"; sp
-            e1 <- parseSElemPrefix env; sp
+            e1 <- parseSElemOp tbl env; sp
             str_ "∈"; sp
-            a  <- parseSTyArrow env
+            a  <- parseSTyArrow tbl env
             pure (STyEq e0 e1 a))
-    <|> parseSTyArrow env
+    <|> parseSTyArrow tbl env
 
   -- T{1}: named binder forms and the sugared right-assoc infixes.
   -- Binder groups iterate: (x:T) (y:U) → B ≡ (x:T) → (y:U) → B
   -- (and likewise for ⨯).
-  parseSTyArrow : NameEnv -> Rule STy
-  parseSTyArrow env =
+  parseSTyArrow : FixTable -> NameEnv -> Rule STy
+  parseSTyArrow tbl env =
         -- the codomain is full T{≥0}: a trailing ≡-type needs no parens,
         -- so lemma statements read as written
-        (do (env', groups) <- parseBinderGroups env
+        (do (env', groups) <- parseBinderGroups tbl env
             sp
-            (do str_ "→"; sp; b <- parseSTy env'; pure (foldGroups STyPi groups b))
-              <|> (do str_ "⨯"; sp; b <- parseSTy env'; pure (foldGroups STySigma groups b)))
-    <|> (do a <- parseSTyEl env
-            (do sp; str_ "→"; sp; b <- parseSTy (env :< wildcard); pure (STyPi wildcard a b))
-              <|> (do sp; str_ "⨯"; sp; b <- parseSTy (env :< wildcard); pure (STySigma wildcard a b))
-              <|> (do sp; str_ "/"; sp; (x, y, r) <- parseQuotRel env; pure (STyQuot a x y r))
+            (do str_ "→"; sp; b <- parseSTy tbl env'; pure (foldGroups STyPi groups b))
+              <|> (do str_ "⨯"; sp; b <- parseSTy tbl env'; pure (foldGroups STySigma groups b)))
+    <|> (do a <- parseSTyEl tbl env
+            (do sp; str_ "→"; sp; b <- parseSTy tbl (env :< wildcard); pure (STyPi wildcard a b))
+              <|> (do sp; str_ "⨯"; sp; b <- parseSTy tbl (env :< wildcard); pure (STySigma wildcard a b))
+              <|> (do sp; str_ "/"; sp; (x, y, r) <- parseQuotRel tbl env; pure (STyQuot a x y r))
               <|> pure a)
 
   -- one or more (x:T) groups, each scoping over the ones after it
-  parseBinderGroups : NameEnv -> Rule (NameEnv, List (String, STy))
-  parseBinderGroups env = do
+  parseBinderGroups : FixTable -> NameEnv -> Rule (NameEnv, List (String, STy))
+  parseBinderGroups tbl env = do
     char_ '('; sp; x <- parseName; sp; char_ ':'; sp
-    a <- parseSTy env; sp; char_ ')'
-    rest <- optional (do sp; parseBinderGroups (env :< x))
+    a <- parseSTy tbl env; sp; char_ ')'
+    rest <- optional (do sp; parseBinderGroups tbl (env :< x))
     case rest of
       Nothing => pure (env :< x, [(x, a)])
       Just (env', groups) => pure (env', (x, a) :: groups)
 
   -- (x y. R)  or bare R as sugar for (_ _. R)
-  parseQuotRel : NameEnv -> Rule (String, String, STy)
-  parseQuotRel env =
+  parseQuotRel : FixTable -> NameEnv -> Rule (String, String, STy)
+  parseQuotRel tbl env =
         (do char_ '('; sp; x <- parseName; space; y <- parseName
-            sp; char_ '.'; sp; r <- parseSTy (env :< x :< y); sp; char_ ')'
+            sp; char_ '.'; sp; r <- parseSTy tbl (env :< x :< y); sp; char_ ')'
             pure (x, y, r))
-    <|> (do r <- parseSTyEl (env :< wildcard :< wildcard); pure (wildcard, wildcard, r))
+    <|> (do r <- parseSTyEl tbl (env :< wildcard :< wildcard); pure (wildcard, wildcard, r))
 
   -- T{2}: El
-  parseSTyEl : NameEnv -> Rule STy
-  parseSTyEl env =
-        (do str_ "El"; space; e <- parseSElemAtom env; pure (STyEl e))
-    <|> parseSTyAtom env
+  parseSTyEl : FixTable -> NameEnv -> Rule STy
+  parseSTyEl tbl env =
+        (do str_ "El"; space; e <- parseSElemAtom tbl env; pure (STyEl e))
+    <|> parseSTyAtom tbl env
 
   -- T{4}: atoms
-  parseSTyAtom : NameEnv -> Rule STy
-  parseSTyAtom env =
+  parseSTyAtom : FixTable -> NameEnv -> Rule STy
+  parseSTyAtom tbl env =
         (str_ "𝟘" $> STyZero)
     <|> (str_ "𝟙" $> STyOne)
     <|> (str_ "ℕ" $> STyNat)
     <|> (str_ "𝕌" $> STyUniv)
     <|> (do x <- parseDottedName; pure (STySig x))
-    <|> (do char_ '('; sp; t <- parseSTy env; sp; char_ ')'; pure t)
+    <|> (do char_ '('; sp; t <- parseSTy tbl env; sp; char_ ')'; pure t)
 
   -- t{0}: top-level comma = pair (right-assoc)
   export
-  parseSElem : NameEnv -> Rule SElem
-  parseSElem env = do
-    e <- parseSElemNoComma env
-    (do sp; char_ ','; sp; e' <- parseSElem env; pure (SPair e e'))
+  parseSElem : FixTable -> NameEnv -> Rule SElem
+  parseSElem tbl env = do
+    e <- parseSElemNoComma tbl env
+    (do sp; char_ ','; sp; e' <- parseSElem tbl env; pure (SPair e e'))
       <|> pure e
 
   -- t{1}: universe-code binder/infix forms and eq-code; binder groups
   -- iterate exactly as at the type level
-  parseSElemNoComma : NameEnv -> Rule SElem
-  parseSElemNoComma env =
-        (do (env', groups) <- parseBinderGroupsC env
+  parseSElemNoComma : FixTable -> NameEnv -> Rule SElem
+  parseSElemNoComma tbl env =
+        (do (env', groups) <- parseBinderGroupsC tbl env
             sp
-            (do str_ "→"; sp; b <- parseSElemNoComma env'; pure (foldGroups SPiC groups b))
-              <|> (do str_ "⨯"; sp; b <- parseSElemNoComma env'; pure (foldGroups SSigmaC groups b)))
-    <|> (do e <- parseSElemPrefix env
-            (do sp; str_ "→"; sp; e' <- parseSElemNoComma (env :< wildcard); pure (SPiC wildcard e e'))
-              <|> (do sp; str_ "⨯"; sp; e' <- parseSElemNoComma (env :< wildcard); pure (SSigmaC wildcard e e'))
-              <|> (do sp; str_ "/"; sp; (x, y, r) <- parseQuotRelC env; pure (SQuotC e x y r))
+            (do str_ "→"; sp; b <- parseSElemNoComma tbl env'; pure (foldGroups SPiC groups b))
+              <|> (do str_ "⨯"; sp; b <- parseSElemNoComma tbl env'; pure (foldGroups SSigmaC groups b)))
+    <|> (do e <- parseSElemOp tbl env
+            (do sp; str_ "→"; sp; e' <- parseSElemNoComma tbl (env :< wildcard); pure (SPiC wildcard e e'))
+              <|> (do sp; str_ "⨯"; sp; e' <- parseSElemNoComma tbl (env :< wildcard); pure (SSigmaC wildcard e e'))
+              <|> (do sp; str_ "/"; sp; (x, y, r) <- parseQuotRelC tbl env; pure (SQuotC e x y r))
               <|> (do sp; str_ "≡"; sp
-                      e1 <- parseSElemPrefix env; sp; str_ "∈"; sp
-                      e2 <- parseSElemPrefix env
+                      e1 <- parseSElemOp tbl env; sp; str_ "∈"; sp
+                      e2 <- parseSElemOp tbl env
                       pure (SEqC e e1 e2))
               <|> pure e)
 
-  parseBinderGroupsC : NameEnv -> Rule (NameEnv, List (String, SElem))
-  parseBinderGroupsC env = do
+  -- t{1½}: declared infix operators — precedence climbing over the
+  -- fixity table. An operator token is a NAME; infix use is
+  -- application of it.
+  parseSElemOp : FixTable -> NameEnv -> Rule SElem
+  parseSElemOp tbl env = climb 0
+   where
+    mutual
+      climb : Nat -> Rule SElem
+      climb minP = do
+        l <- parseSElemPrefix tbl env
+        cont l minP
+
+      cont : SElem -> Nat -> Rule SElem
+      cont l minP =
+            (do sp
+                op <- parseOpName
+                case lookup op tbl of
+                  Nothing => fail "operator '\{op}' has no fixity in scope"
+                  Just (assoc, p) => do
+                    guard "operator precedence" (p >= minP)
+                    sp
+                    r <- climb (case assoc of AssocL => S p; AssocR => p)
+                    cont (SApp (SApp (SSig op) l) r) minP)
+        <|> pure l
+
+  parseBinderGroupsC : FixTable -> NameEnv -> Rule (NameEnv, List (String, SElem))
+  parseBinderGroupsC tbl env = do
     char_ '('; sp; x <- parseName; sp; char_ ':'; sp
-    a <- parseSElem env; sp; char_ ')'
-    rest <- optional (do sp; parseBinderGroupsC (env :< x))
+    a <- parseSElem tbl env; sp; char_ ')'
+    rest <- optional (do sp; parseBinderGroupsC tbl (env :< x))
     case rest of
       Nothing => pure (env :< x, [(x, a)])
       Just (env', groups) => pure (env', (x, a) :: groups)
 
-  parseQuotRelC : NameEnv -> Rule (String, String, SElem)
-  parseQuotRelC env =
+  parseQuotRelC : FixTable -> NameEnv -> Rule (String, String, SElem)
+  parseQuotRelC tbl env =
         (do char_ '('; sp; x <- parseName; space; y <- parseName
-            sp; char_ '.'; sp; r <- parseSElemNoComma (env :< x :< y); sp; char_ ')'
+            sp; char_ '.'; sp; r <- parseSElemNoComma tbl (env :< x :< y); sp; char_ ')'
             pure (x, y, r))
-    <|> (do r <- parseSElemPrefix (env :< wildcard :< wildcard); pure (wildcard, wildcard, r))
+    <|> (do r <- parseSElemPrefix tbl (env :< wildcard :< wildcard); pure (wildcard, wildcard, r))
 
   -- t{2}: prefix forms, motive-first eliminators
-  parseSElemPrefix : NameEnv -> Rule SElem
-  parseSElemPrefix env =
+  parseSElemPrefix : FixTable -> NameEnv -> Rule SElem
+  parseSElemPrefix tbl env =
         (do str_ "λ"; sp; x <- parseName; sp; char_ '.'; sp
-            e <- parseSElemPrefix (env :< x); pure (SLam x e))
-    <|> (do str_ "𝟘-elim"; space; e <- parseSElemAtom env; pure (SZeroElim e))
+            e <- parseSElemPrefix tbl (env :< x); pure (SLam x e))
+    <|> (do str_ "𝟘-elim"; space; e <- parseSElemAtom tbl env; pure (SZeroElim e))
     <|> (do str_ "ℕ-elim"; space
             char_ '('; sp; n <- parseName; sp; char_ '.'; sp
-            mot <- parseSTy (env :< n); sp; char_ ')'; sp
-            z <- parseSElemAtom env; sp
+            mot <- parseSTy tbl (env :< n); sp; char_ ')'; sp
+            z <- parseSElemAtom tbl env; sp
             char_ '('; sp; n2 <- parseName; space; ih <- parseName
-            sp; char_ '.'; sp; s <- parseSElem (env :< n2 :< ih); sp; char_ ')'; sp
-            t <- parseSElemAtom env
+            sp; char_ '.'; sp; s <- parseSElem tbl (env :< n2 :< ih); sp; char_ ')'; sp
+            t <- parseSElemAtom tbl env
             pure (SNatElim n mot z n2 ih s t))
-    <|> (do str_ "S"; space; e <- parseSElemAtom env; pure (SSuc e))
-    <|> (do str_ "class"; space; e <- parseSElemAtom env; pure (SClass e))
+    <|> (do str_ "S"; space; e <- parseSElemAtom tbl env; pure (SSuc e))
+    <|> (do str_ "class"; space; e <- parseSElemAtom tbl env; pure (SClass e))
     <|> (do str_ "quot-elim"; space
             char_ '('; sp; z <- parseName; sp; char_ '.'; sp
-            mot <- parseSTy (env :< z); sp; char_ ')'; sp
+            mot <- parseSTy tbl (env :< z); sp; char_ ')'; sp
             char_ '('; sp; a <- parseName; sp; char_ '.'; sp
-            f <- parseSElem (env :< a); sp; char_ ')'; sp
-            q <- parseSElemAtom env
+            f <- parseSElem tbl (env :< a); sp; char_ ')'; sp
+            q <- parseSElemAtom tbl env
             pure (SQuotElim z mot a f q))
-    <|> parseSElemApp env
+    <|> parseSElemApp tbl env
 
   -- t{3}: application / projection chains
-  parseSElemApp : NameEnv -> Rule SElem
-  parseSElemApp env = do
-    e <- parseSElemAtom env
+  parseSElemApp : FixTable -> NameEnv -> Rule SElem
+  parseSElemApp tbl env = do
+    e <- parseSElemAtom tbl env
     cont e
    where
     cont : SElem -> Rule SElem
     cont e =
           (do sp; str_ ".π₁"; cont (SProj1 e))
       <|> (do sp; str_ ".π₂"; cont (SProj2 e))
-      <|> (do sp; e' <- parseSElemAtom env; cont (SApp e e'))
+      <|> (do sp; e' <- parseSElemAtom tbl env; cont (SApp e e'))
       <|> pure e
 
   -- t{5}: atoms, including ascription
-  parseSElemAtom : NameEnv -> Rule SElem
-  parseSElemAtom env =
-        (do char_ '('
+  parseSElemAtom : FixTable -> NameEnv -> Rule SElem
+  parseSElemAtom tbl env =
+        -- mention form: (+) — the operator as an ordinary reference
+        (do char_ '('; sp; op <- parseOpRef; sp; char_ ')'; pure (SSig op))
+    <|> (do char_ '('
             sp
             unit <- optional (char_ ')')
             case unit of
               Just _  => pure SUnitI
               Nothing => do
-                e <- parseSElem env
+                e <- parseSElem tbl env
                 sp
-                (do char_ ':'; sp; ty <- parseSTy env; sp; char_ ')'
+                (do char_ ':'; sp; ty <- parseSTy tbl env; sp; char_ ')'
                     pure (SAnn e ty))
                   <|> (do char_ ')'; pure e))
     <|> (str_ "Refl" $> SRefl)
@@ -257,19 +306,19 @@ mutual
 -- keeps that pleasant), and references to an item are bare names.
 
 export
-parseSItem : Rule SItem
-parseSItem =
+parseSItem : FixTable -> Rule SItem
+parseSItem tbl =
       (do str_ "def"; space
-          x <- parseName; sp
+          x <- parseName <|> parseOpName; sp
           char_ ':'; sp
-          ty <- parseSTy [<]; sp
+          ty <- parseSTy tbl [<]; sp
           str_ "≔"; sp
-          body <- parseSElem [<]
+          body <- parseSElem tbl [<]
           pure (SDef x ty body))
   <|> (do str_ "type"; space
           x <- parseName; sp
           str_ "≔"; sp
-          ty <- parseSTy [<]
+          ty <- parseSTy tbl [<]
           pure (STypeDef x ty))
 
 export
@@ -278,19 +327,63 @@ parseSImport = do
   str_ "import"; space
   m <- parseDottedName
   opens <- optional (do sp; char_ '('; sp
-                        n <- parseName
-                        rest <- many (do sp; char_ ','; sp; parseName)
+                        n <- parseName <|> parseOpName
+                        rest <- many (do sp; char_ ','; sp; (parseName <|> parseOpName))
                         sp; char_ ')'
                         pure (n :: rest))
   pure (MkSImport m (fromMaybe [] opens))
 
+||| infixl 6 +  /  infixr 3 ⊕ — fixity for an operator NAME; takes
+||| effect for the rest of the file and is exported with the name.
+parseFixity : Rule (String, Assoc, Nat)
+parseFixity = do
+  assoc <- (str_ "infixl" $> AssocL) <|> (str_ "infixr" $> AssocR)
+  space
+  d <- terminal "precedence digit (0-9)" digitTok
+  space
+  op <- parseOpName
+  pure (op, assoc, d)
+ where
+  digitTok : Token -> Maybe Nat
+  digitTok (Symbol ch) =
+    if ch >= '0' && ch <= '9' then Just (cast (ord ch - ord '0')) else Nothing
+  digitTok _ = Nothing
+
+||| A file: imports, then fixity declarations and items interleaved.
+||| The initial table holds the fixities of OPENED imported operators;
+||| declared fixities extend it as parsing proceeds and are returned
+||| for export.
 export
-parseSFile : Rule (List SImport, List SItem)
-parseSFile = do
+parseSFile : FixTable -> Rule (List SImport, FixTable, List SItem)
+parseSFile tbl0 = do
   sp
   imports <- many (do i <- parseSImport; sp; pure i)
-  items <- many (do i <- parseSItem; sp; pure i)
-  pure (imports, items)
+  (decls, items) <- go tbl0
+  pure (imports, decls, items)
+ where
+  go : FixTable -> Rule (FixTable, List SItem)
+  go tbl =
+        (do f <- parseFixity; sp
+            (decls, items) <- go (f :: tbl)
+            pure (f :: decls, items))
+    <|> (do i <- parseSItem tbl; sp
+            (decls, items) <- go tbl
+            pure (decls, i :: items))
+    <|> pure ([], [])
+
+||| Pass 1 of the loader's two-stage parse: just the import header
+||| (the dependencies' fixity tables are needed before the body can be
+||| parsed).
+export
+parseSHeader : Rule (List SImport)
+parseSHeader = do
+  sp
+  imports <- many (do i <- parseSImport; sp; pure i)
+  ignore (many (terminal "any token" anyTok))
+  pure imports
+ where
+  anyTok : Token -> Maybe ()
+  anyTok _ = Just ()
 
 -- ===== Runner =====
 

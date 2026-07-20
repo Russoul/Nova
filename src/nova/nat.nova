@@ -26,3 +26,15 @@ def multDistrib : (n : ℕ) (m : ℕ) (k : ℕ) → mult n (plus m k) ≡ plus (
   λn. λm. λk. ℕ-elim (j. mult n (plus m j) ≡ plus (mult n m) (mult n j) ∈ ℕ) Refl (j ih. Refl) k
 def multAssoc : (n : ℕ) (m : ℕ) (k : ℕ) → mult (mult n m) k ≡ mult n (mult m k) ∈ ℕ ≔
   λn. λm. λk. ℕ-elim (j. mult (mult n m) j ≡ mult n (mult m j) ∈ ℕ) Refl (j ih. Refl) k
+
+-- ===== operators (operators ARE names: + and * are Σ-names; the
+-- wrappers unfold judgementally, so they are interchangeable with
+-- plus/mult everywhere, lemma discharge included) =====
+infixl 6 +
+def + : ℕ → ℕ → ℕ ≔ plus
+infixl 7 *
+def * : ℕ → ℕ → ℕ ≔ mult
+
+def opInterop : (n : ℕ) (m : ℕ) (k : ℕ) → n + m * k ≡ plus n (mult m k) ∈ ℕ ≔
+  λn. λm. λk. Refl
+def opComm : (n : ℕ) (m : ℕ) → n + m ≡ m + n ∈ ℕ ≔ λn. λm. Refl

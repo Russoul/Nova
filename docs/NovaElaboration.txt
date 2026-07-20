@@ -58,12 +58,30 @@ term/type grammar below is self-contained.
 // item is a bare name. Foundation's Σ entries keep their general
 // declaration contexts; the elaborator simply only produces closed
 // ones — so the normal-substitution syntax x[t˲] has no surface form.
-file  ::= import* item*
-imp   ::= import M | import M (x (, x)*)
-item  ::= def  x : T{≥0} ≔ t{≥0}
+file  ::= import* (item | fixity)*
+imp   ::= import M | import M (n (, n)*)
+item  ::= def  n : T{≥0} ≔ t{≥0}
         | type x ≔ T{≥0}
+fixity ::= infixl d op | infixr d op          // d a digit 0-9
 
 // M is a dotted module name (Data.Nat); see Modules below.
+// n is an identifier x or an operator token op — OPERATORS ARE NAMES:
+// `def + : ℕ → ℕ → ℕ ≔ plus` defines the Σ-name "+", a fixity line
+// gives it precedence/associativity for infix use, and `a + b` is
+// nothing but application of that name. There is no notation-to-name
+// mapping and hence no resugaring gap: the obligation printer prints
+// the name, and the name is the operator (binary applications of
+// operator-shaped names lay out infix, fully parenthesized).
+// Operator tokens are maximal runs of the operator alphabet
+//   + - * < > = & | ! ? % ^ ~ @ # ⊕ ⊗ ⊙ ⊞ ⊟ ∙ ∘ · ≤ ≥ ∸ ⧺
+// (the reserved theory tokens → ⨯ ≡ ∈ ≔ / . , : are excluded, and the
+// lexer eats "--" as a comment, so no operator contains it). The
+// mention form (op) — e.g. (+) — is the operator as an ordinary
+// reference, usable anywhere an atom is; local binders are never
+// operator-shaped. A fixity declaration takes effect for the rest of
+// the file and is exported with the name: opening an operator
+// (`import nat (+)`) imports its fixity alongside. Infix use of an
+// operator with no fixity in scope is a parse error.
 
 // Types. Elaboration needs no rule keywords and no context prefixes —
 // the context is always implicit in where a subterm sits.
@@ -96,6 +114,7 @@ t{2} ::= λx. t{≥3}
        | quot-elim (z. T{≥0}) (a. t{≥0}) t{≥4}                // motive, case fn, scrutinee
 t{1} ::= ((x:t{≥0}))+ → t{≥1} | ((x:t{≥0}))+ ⨯ t{≥1} | t{≥2} / (x y. t{≥1})
        | t{≥2} ≡ t{≥2} ∈ t{≥2}                                // universe codes
+t{1½} ::= t{≥2} (op t{≥2})*     // declared infix operators, by fixity
 t{0} ::= t{≥1} , t{≥0}                                        (right-assoc)
 
 // Name-dropping sugar: `A → B` for `(_:A) → B`, `A / R` for

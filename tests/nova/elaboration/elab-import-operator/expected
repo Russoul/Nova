@@ -1,0 +1,6 @@
+module ops:
+defined plus
+defined +
+defined three
+defined check
+Accepted.
