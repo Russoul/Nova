@@ -1,10 +1,7 @@
-import nat (plus, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusComm, plusAssoc)
+import nat (plus, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusComm, plusAssoc, swapLeft)
 import integer (Int)
 
 -- ===== helpers for the well-definedness obligations =====
-
--- a + (b + c) ≡ b + (a + c) — permutative, used by whole-equation match
-def swapLeft : (a : ℕ) (b : ℕ) (c : ℕ) → plus a (plus b c) ≡ plus b (plus a c) ∈ ℕ ≔ λa. λb. λc. ℕ-elim (k. plus a (plus b k) ≡ plus b (plus a k) ∈ ℕ) Refl (k ih. Refl) c
 
 -- addition of pairs is well-defined in its second argument: the
 -- cross-sum equation, conditional on the relation hypothesis

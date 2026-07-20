@@ -1,5 +1,5 @@
--- Natural-number addition (recursion on the second argument) and its
--- basic equational theory.
+-- Natural-number addition and multiplication (both recursing on the
+-- second argument) and their basic equational theory.
 def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
 
 def plusZeroId : (n : ℕ) → plus n Z ≡ n ∈ ℕ ≔ λn. Refl
@@ -8,3 +8,21 @@ def zeroPlusId : (n : ℕ) → plus Z n ≡ n ∈ ℕ ≔ λn. ℕ-elim (k. plus
 def sucPlus : (n : ℕ) (m : ℕ) → plus (S n) m ≡ S (plus n m) ∈ ℕ ≔ λn. λm. ℕ-elim (k. plus (S n) k ≡ S (plus n k) ∈ ℕ) Refl (k ih. Refl) m
 def plusComm : (n : ℕ) (m : ℕ) → plus m n ≡ plus n m ∈ ℕ ≔ λn. λm. ℕ-elim (k. plus k n ≡ plus n k ∈ ℕ) Refl (k ih. Refl) m
 def plusAssoc : (n : ℕ) (m : ℕ) (k : ℕ) → plus (plus n m) k ≡ plus n (plus m k) ∈ ℕ ≔ λn. λm. λk. ℕ-elim (j. plus (plus n m) j ≡ plus n (plus m j) ∈ ℕ) Refl (j ih. Refl) k
+
+-- a + (b + c) ≡ b + (a + c) — permutative, used by whole-equation match
+def swapLeft : (a : ℕ) (b : ℕ) (c : ℕ) → plus a (plus b c) ≡ plus b (plus a c) ∈ ℕ ≔
+  λa. λb. λc. ℕ-elim (k. plus a (plus b k) ≡ plus b (plus a k) ∈ ℕ) Refl (k ih. Refl) c
+
+def mult : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) Z (n ih. plus x ih) y
+
+def multZeroId : (n : ℕ) → mult n Z ≡ Z ∈ ℕ ≔ λn. Refl
+def multSucId : (n : ℕ) (m : ℕ) → mult n (S m) ≡ plus n (mult n m) ∈ ℕ ≔ λn. λm. Refl
+def zeroMult : (n : ℕ) → mult Z n ≡ Z ∈ ℕ ≔ λn. ℕ-elim (k. mult Z k ≡ Z ∈ ℕ) Refl (k ih. Refl) n
+def sucMult : (n : ℕ) (m : ℕ) → mult (S n) m ≡ plus m (mult n m) ∈ ℕ ≔
+  λn. λm. ℕ-elim (k. mult (S n) k ≡ plus k (mult n k) ∈ ℕ) Refl (k ih. Refl) m
+def multComm : (n : ℕ) (m : ℕ) → mult m n ≡ mult n m ∈ ℕ ≔
+  λn. λm. ℕ-elim (k. mult k n ≡ mult n k ∈ ℕ) Refl (k ih. Refl) m
+def multDistrib : (n : ℕ) (m : ℕ) (k : ℕ) → mult n (plus m k) ≡ plus (mult n m) (mult n k) ∈ ℕ ≔
+  λn. λm. λk. ℕ-elim (j. mult n (plus m j) ≡ plus (mult n m) (mult n j) ∈ ℕ) Refl (j ih. Refl) k
+def multAssoc : (n : ℕ) (m : ℕ) (k : ℕ) → mult (mult n m) k ≡ mult n (mult m k) ∈ ℕ ≔
+  λn. λm. λk. ℕ-elim (j. mult (mult n m) j ≡ mult n (mult m j) ∈ ℕ) Refl (j ih. Refl) k
