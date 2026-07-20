@@ -162,10 +162,15 @@ interface lives on in git history only.)
   step, oriented left to right. Its presuppositions are those of the
   underlying ≐ form.
 
-* NAMES. Every rule carries a canonical name on its inference line;
-  these names are the ones docs/NovaKernel.txt and
-  docs/NovaElaboration.txt cite. The index at the end of the file
-  lists synonyms used elsewhere (β for Π-β, ℕ-β₀ for ℕ-elim-β-Z, ...).
+* NAMES. Every rule carries a canonical name on its inference line,
+  following one homogeneous scheme — <class>-<former>-<kind> — where
+  the class is the judgement class (ctx, sub, sub-norm, ty, el, code,
+  tel, sp), the former names the connective or constructor, and the
+  kind distinguishes introduction (i), elimination (e), computation
+  (beta), uniqueness (eta), congruence (cong), injectivity (inj),
+  substitution action (sub), and coercion (coe). These names are the
+  ones docs/NovaKernel.txt and docs/NovaElaboration.txt cite; there
+  are no synonyms.
 
 ///////// Judgement forms and their presuppositions /////////
 
@@ -424,33 +429,33 @@ e˲ : Δ ⇒ Γ norm
 
 (Γ ⊦ x ≔ A type) ∈ Σ
 e˲ : Δ ⇒ Γ norm
--------------------------- (x-β, type)
+-------------------------- (ty-sig-beta)
 Σ Δ ⊦ x[e˲] ≜ A[e˲] type
 
 // El-decoding: El of a code computes to the type it encodes.
 
 Γ ctx
------------------------------------------------- (El-𝟘, El-𝟙, El-ℕ)
+------------------------------------------------ (ty-el-zero, ty-el-one, ty-el-nat)
 Γ ⊦ El 𝟘 ≜ 𝟘 type,   El 𝟙 ≜ 𝟙 type,   El ℕ ≜ ℕ type
 
 Γ ⊦ A : 𝕌
 Γ ᐅ El A ⊦ B : 𝕌
----------------------------------- (El-(→))
+---------------------------------- (ty-el-pi)
 Γ ⊦ El (A → B) ≜ El A → El B type
 
 Γ ⊦ A : 𝕌
 Γ ᐅ El A ⊦ B : 𝕌
----------------------------------- (El-(⨯))
+---------------------------------- (ty-el-sigma)
 Γ ⊦ El (A ⨯ B) ≜ El A ⨯ El B type
 
 Γ ⊦ a₀ : El A
 Γ ⊦ a₁ : El A
---------------------------------------------- (El-(≡))
+--------------------------------------------- (ty-el-eq)
 Γ ⊦ El (a₀ ≡ a₁ ∈ A) ≜ (a₀ ≡ a₁ ∈ El A) type
 
 Γ ⊦ A : 𝕌
 Γ ᐅ El A ᐅ (El A)[↑] ⊦ R : 𝕌
----------------------------------- (El-(/))
+---------------------------------- (ty-el-quot)
 Γ ⊦ El (A / R) ≜ El A / El R type
 
 // Substitution action on types: A[σ] is defined by meta-level
@@ -558,7 +563,7 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ (a₀ ≡ b₀ ∈ T₀) ≐ (a₁ ≡ b₁ ∈ T₁) type
 
 Γ ⊦ t₀ ≐ t₁ : 𝕌
----------------------------- (ty-eq-el) // El congruence: equal codes decode to equal types
+---------------------------- (ty-el-cong) // El congruence: equal codes decode to equal types
 Γ ⊦ El t₀ ≐ El t₁ type
 
 ///////// Type constructor injectivity /////////
@@ -580,7 +585,7 @@ e˲ : Γ₁ ⇒ Γ norm
 // sound; models that collapse structurally distinct types (the
 // set-theoretic one above) are hereby excluded. A concrete consequence:
 // a context hypothesizing (𝟙 → 𝟘) ≡ (ℕ → 𝟘) ∈ 𝕌 is now INCONSISTENT
-// (𝟙 ≐ ℕ gives Z ≐ S Z : ℕ via 𝟙-Prop and coercion, and a ℕ-elim
+// (𝟙 ≐ ℕ gives Z ≐ S Z : ℕ via el-one-prop and coercion, and a ℕ-elim
 // discriminator into 𝕌 turns that into an inhabitant of 𝟘).
 //
 // Notes:
@@ -605,32 +610,32 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ᐅ A₀ ⊦ B₀ type
 Γ ᐅ A₁ ⊦ B₁ type
 Γ ⊦ A₀ → B₀ ≐ A₁ → B₁ type
------------------------------- (→-inj)
+------------------------------ (ty-pi-inj)
 Γ ⊦ A₀ ≐ A₁ type
 Γ ᐅ A₁ ⊦ B₀ ≐ B₁ type
 
 Γ ᐅ A₀ ⊦ B₀ type
 Γ ᐅ A₁ ⊦ B₁ type
 Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ type
------------------------------- (⨯-inj)
+------------------------------ (ty-sigma-inj)
 Γ ⊦ A₀ ≐ A₁ type
 Γ ᐅ A₁ ⊦ B₀ ≐ B₁ type
 
 Γ ᐅ A₀ ᐅ A₀[↑] ⊦ R₀ type
 Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₁ type
 Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ type
---------------------------------- (/-inj)
+--------------------------------- (ty-quot-inj)
 Γ ⊦ A₀ ≐ A₁ type
 Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₀ ≐ R₁ type
 
 Γ ⊦ (a₀ ≡ b₀ ∈ T₀) ≐ (a₁ ≡ b₁ ∈ T₁) type
------------------------------------------- (≡-inj)
+------------------------------------------ (ty-eq-inj)
 Γ ⊦ T₀ ≐ T₁ type
 Γ ⊦ a₀ ≐ a₁ : T₁
 Γ ⊦ b₀ ≐ b₁ : T₁
 
 Γ ⊦ El t₀ ≐ El t₁ type
--------------------------- (El-inj)
+-------------------------- (ty-el-inj)
 Γ ⊦ t₀ ≐ t₁ : 𝕌
 
 // The same principles one level down, for the universe codes: the
@@ -640,26 +645,26 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ᐅ El a₀ ⊦ b₀ : 𝕌
 Γ ᐅ El a₁ ⊦ b₁ : 𝕌
 Γ ⊦ a₀ → b₀ ≐ a₁ → b₁ : 𝕌
------------------------------- (→-inj-𝕌)
+------------------------------ (code-pi-inj)
 Γ ⊦ a₀ ≐ a₁ : 𝕌
 Γ ᐅ El a₁ ⊦ b₀ ≐ b₁ : 𝕌
 
 Γ ᐅ El a₀ ⊦ b₀ : 𝕌
 Γ ᐅ El a₁ ⊦ b₁ : 𝕌
 Γ ⊦ a₀ ⨯ b₀ ≐ a₁ ⨯ b₁ : 𝕌
------------------------------- (⨯-inj-𝕌)
+------------------------------ (code-sigma-inj)
 Γ ⊦ a₀ ≐ a₁ : 𝕌
 Γ ᐅ El a₁ ⊦ b₀ ≐ b₁ : 𝕌
 
 Γ ᐅ El a₀ ᐅ (El a₀)[↑] ⊦ r₀ : 𝕌
 Γ ᐅ El a₁ ᐅ (El a₁)[↑] ⊦ r₁ : 𝕌
 Γ ⊦ a₀ / r₀ ≐ a₁ / r₁ : 𝕌
----------------------------------------- (/-inj-𝕌)
+---------------------------------------- (code-quot-inj)
 Γ ⊦ a₀ ≐ a₁ : 𝕌
 Γ ᐅ El a₁ ᐅ (El a₁)[↑] ⊦ r₀ ≐ r₁ : 𝕌
 
 Γ ⊦ (a₀ ≡ b₀ ∈ t₀) ≐ (a₁ ≡ b₁ ∈ t₁) : 𝕌
------------------------------------------- (≡-inj-𝕌)
+------------------------------------------ (code-eq-inj)
 Γ ⊦ t₀ ≐ t₁ : 𝕌
 Γ ⊦ a₀ ≐ a₁ : El t₁
 Γ ⊦ b₀ ≐ b₁ : El t₁
@@ -713,7 +718,7 @@ e˲ : Γ₁ ⇒ Γ norm
 ///////// Rules (elem) /////////
 
 Γ ctx
------------------- (var) // Γ‖ₙ picks the type directly out of Γ's own structure — no
+------------------ (el-var) // Γ‖ₙ picks the type directly out of Γ's own structure — no
 Γ ⊦ ☐ₙ : Γ‖ₙ            // derivation of ☐ₙ₋₁, ☐ₙ₋₂, ... is required first.
 
 // Universe codes.
@@ -751,7 +756,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ ⊦ t₀ : 𝟘
 Γ ⊦ t₁ : 𝟘
-------------------- (𝟘-Prop)
+------------------- (el-zero-prop)
 Γ ⊦ t₀ ≐ t₁ : 𝟘
 
 Γ ctx
@@ -760,7 +765,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ ⊦ t₀ : 𝟙
 Γ ⊦ t₁ : 𝟙
-------------------- (𝟙-Prop)
+------------------- (el-one-prop)
 Γ ⊦ t₀ ≐ t₁ : 𝟙
 
 // ℕ.
@@ -783,14 +788,14 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ᐅ ℕ ⊦ A type
 Γ ⊦ z : A[id, Z]
 Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
------------------------------------- (ℕ-elim-β-Z)
+------------------------------------ (el-nat-beta-z)
 Γ ⊦ ℕ-elim z s Z ≜ z : A[id, Z]
 
 Γ ᐅ ℕ ⊦ A type
 Γ ⊦ z : A[id, Z]
 Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
 Γ ⊦ t : ℕ
---------------------------------------------------------------- (ℕ-elim-β-S)
+--------------------------------------------------------------- (el-nat-beta-s)
 Γ ⊦ ℕ-elim z s (S t) ≜ s[id, t, ℕ-elim z s t] : A[id, S t]
 
 Γ ᐅ ℕ ⊦ A type
@@ -802,7 +807,7 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ᐅ ℕ ⊦ f₀[↑, S ☐₀] ≐ s[id, f₀] : A[↑, S ☐₀]
 Γ ᐅ ℕ ⊦ f₁[↑, S ☐₀] ≐ s[id, f₁] : A[↑, S ☐₀]
 Γ ⊦ t : ℕ
-------------------------------------------------- (ℕ-elim-η, motive A)
+------------------------------------------------- (el-nat-eta, motive A)
 Γ ⊦ f₀[id, t] ≐ f₁[id, t] : A[id, t]              // NOTE: essentially elimination into equality in A
 
 // Corollary: f₀[id, t] ≐ ℕ-elim z s t ≐ f₁[id, t] : A[id, t]
@@ -821,11 +826,11 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ ᐅ A ⊦ f : B
 Γ ⊦ e : A
---------------------------------------- (Π-β)
+--------------------------------------- (el-pi-beta)
 Γ ⊦ (λ f) e ≜ f[id, e] : B[id, e]
 
 Γ ⊦ f : A → B
---------------------------------- (Π-η)
+--------------------------------- (el-pi-eta)
 Γ ⊦ λ (f[↑] ☐₀) ≐ f : A → B
 
 // Σ.
@@ -847,17 +852,17 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ᐅ A ⊦ B type
 Γ ⊦ a : A
 Γ ⊦ b : B[id, a]
------------------------------ (Σ-β₁)
+----------------------------- (el-sigma-beta₁)
 Γ ⊦ (a, b) .π₁ ≜ a : A
 
 Γ ᐅ A ⊦ B type
 Γ ⊦ a : A
 Γ ⊦ b : B[id, a]
------------------------------------- (Σ-β₂)
+------------------------------------ (el-sigma-beta₂)
 Γ ⊦ (a, b) .π₂ ≜ b : B[id, a]
 
 Γ ⊦ t : A ⨯ B
------------------------------------- (Σ-η) // valid unidirectional rewrite
+------------------------------------ (el-sigma-eta) // valid unidirectional rewrite
 Γ ⊦ (t .π₁ , t .π₂) ≐ t : A ⨯ B
 
 // ≡: introduction and reflection.
@@ -895,7 +900,7 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ᐅ A ⊦ f : B[↑, class ☐₀]
 Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
 Γ ⊦ a : A
------------------------------------------------------------- (quot-elim-β)
+------------------------------------------------------------ (el-quot-beta)
 Γ ⊦ quot-elim f (class a) ≜ f[id, a] : B[id, class a]
 
 Γ ᐅ (A / R) ⊦ B type
@@ -904,19 +909,19 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
 Γ ᐅ A ⊦ g[↑, class ☐₀] ≐ f : B[↑, class ☐₀]
 Γ ⊦ q : A / R
----------------------------------------------- (quot-elim-η, motive B)
+---------------------------------------------- (el-quot-eta, motive B)
 Γ ⊦ g[id, q] ≐ quot-elim f q : B[id, q]
 
 // Signature references.
 
 (Γ ⊦ x ≔ a : A) ∈ Σ
 e˲ : Δ ⇒ Γ norm
------------------------- (sig-var)
+------------------------ (el-sig-var)
 Σ Δ ⊦ x[e˲] : A[e˲]
 
 (Γ ⊦ x ≔ a : A) ∈ Σ
 e˲ : Δ ⇒ Γ norm
------------------------------- (x-β, term)
+------------------------------ (el-sig-beta)
 Σ Δ ⊦ x[e˲] ≜ a[e˲] : A[e˲]
 
 // Substitution action on elements: t[σ] is defined by meta-level
@@ -1095,7 +1100,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ₁ ⊦ t₀ ≐ t₁ : A
 σ : Γ₀ ⇒ Γ₁
---------------------------------- (el-eq-subst) // admissible: specialize via sub-refl
+--------------------------------- (el-sub-cong-fix) // admissible: specialize via sub-refl
 Γ₀ ⊦ t₀[σ] ≐ t₁[σ] : A[σ]
 
 Γ ᐅ A ⊦ f₀ ≐ f₁ : B
@@ -1236,20 +1241,9 @@ e˲ : Γ₁ ⇒ Γ norm
 ----------------------------------- (sp-sub-cong)
 Γ₀ ⊦ ē₀[σ₀] ≐ ē₁[σ₁] : Δ[σ₁]
 
-///////// Rule name index /////////
+///////// Rule name scheme /////////
 
-Synonyms used elsewhere in the docs (docs/NovaKernel.txt,
-docs/NovaElaboration.txt) for rules named above:
-
-  β        = Π-β                        ℕ-β₀   = ℕ-elim-β-Z
-  ⨯-β₁    = Σ-β₁                        ℕ-β₁   = ℕ-elim-β-S
-  ⨯-β₂    = Σ-β₂                        /-β    = quot-elim-β
-  el-pi-eta    = Π-η                    x-β    = x-β (term and type forms)
-  el-sigma-eta = Σ-η                    El-decoding = El-𝟘 ... El-(/)
-  sig-var-ty   = ty-sig-var             el-nat-eta  = ℕ-elim-η
-  El-cong      = ty-eq-el               class⁼      = el-quot-eq
-  reflect      = el-reflect
-
+Names follow <class>-<former>-<kind> uniformly (see Conventions).
 The PER schema instances are ctx-refl/-sym/-trans, sub-…, sub-norm-…,
-ty-…, el-…, tel-…, sp-… (see Conventions). All remaining names appear
-verbatim on their rules.
+ty-…, el-…, tel-…, sp-…. All other names appear verbatim on their
+rules; there are no synonyms.

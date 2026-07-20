@@ -45,14 +45,14 @@ everywhere (under binders, in all components). The congruence clauses
 are not listed; the contraction clauses, each of which burns one unit
 of fuel, are exactly:
 
-  (λ f) e            ≜  f[id, e]                    // β
-  (a , b) .π₁        ≜  a                           // ⨯-β₁
-  (a , b) .π₂        ≜  b                           // ⨯-β₂
-  ℕ-elim z s Z       ≜  z                           // ℕ-β₀
-  ℕ-elim z s (S n)   ≜  s[id, n, ℕ-elim z s n]      // ℕ-β₁
-  quot-elim f (class a) ≜ f[id, a]                  // /-β
-  x[e˲]              ≜  a[e˲]      (Σ ∋ Γ ⊦ x ≔ a : A)   // x-β (term)
-  x[e˲]              ≜  T[e˲]      (Σ ∋ Γ ⊦ x ≔ T type)  // x-β (type)
+  (λ f) e            ≜  f[id, e]                    // el-pi-beta
+  (a , b) .π₁        ≜  a                           // el-sigma-beta₁
+  (a , b) .π₂        ≜  b                           // el-sigma-beta₂
+  ℕ-elim z s Z       ≜  z                           // el-nat-beta-z
+  ℕ-elim z s (S n)   ≜  s[id, n, ℕ-elim z s n]      // el-nat-beta-s
+  quot-elim f (class a) ≜ f[id, a]                  // el-quot-beta
+  x[e˲]              ≜  a[e˲]      (Σ ∋ Γ ⊦ x ≔ a : A)   // el-sig-beta
+  x[e˲]              ≜  T[e˲]      (Σ ∋ Γ ⊦ x ≔ T type)  // ty-sig-beta
 
   El 𝟘               ≜  𝟘                           // El-decoding
   El 𝟙               ≜  𝟙
@@ -125,7 +125,7 @@ Child indexing, shared by paths, the typed descent (§6) and skeletons
 ////////// 3. Proof spines: Σ; Γ ⊦ p ⇒ᵖ T //////////
 
 A step's proof is an ELIMINATION SPINE over context variables and
-signature references. Inference implements Foundation's var, sig-var,
+signature references. Inference implements Foundation's el-var, el-sig-var,
 el-pi-e, el-sigma-e₁/₂ and the ℕ/𝟙 introductions:
 
   Γ‖ᵢ = T
@@ -196,14 +196,14 @@ do not match is rejected.
   suc      : S x ≐ S y : ℕ            ⇒  x ≐ y : ℕ
              // derivable congruence (pred via ℕ-elim)
   dom      : (a₀ → b₀) ≐ (a₁ → b₁) : 𝕌 ⇒  a₀ ≐ a₁ : 𝕌
-             // →-inj (also ⨯-inj for pair codes)
+             // code-pi-inj (also code-sigma-inj for pair codes)
   cod u    : (a₀ → b₀) ≐ (a₁ → b₁) : 𝕌 ⇒  b₀[id,u] ≐ b₁[id,u] : 𝕌
              requires  Σ; Γ ⊦ u ⇐ᵖ El a₁
-             // →-inj second component, instantiated at u (el-eq-subst)
-  qdom     : (a₀ / r₀) ≐ (a₁ / r₁) : 𝕌 ⇒  a₀ ≐ a₁ : 𝕌      // /-inj
+             // code-pi-inj second component, instantiated at u (el-sub-cong-fix)
+  qdom     : (a₀ / r₀) ≐ (a₁ / r₁) : 𝕌 ⇒  a₀ ≐ a₁ : 𝕌      // code-quot-inj
   qrel u v : (a₀ / r₀) ≐ (a₁ / r₁) : 𝕌 ⇒  r₀[id,u,v] ≐ r₁[id,u,v] : 𝕌
              requires  Σ; Γ ⊦ u ⇐ᵖ El a₁   Σ; Γ ⊦ v ⇐ᵖ El a₁
-  eqT      : (l₀≡r₀∈t₀) ≐ (l₁≡r₁∈t₁) : 𝕌 ⇒ t₀ ≐ t₁ : 𝕌     // ≡-inj
+  eqT      : (l₀≡r₀∈t₀) ≐ (l₁≡r₁∈t₁) : 𝕌 ⇒ t₀ ≐ t₁ : 𝕌     // code-eq-inj
   eqL      :                           ⇒ l₀ ≐ l₁ : El t₁
   eqR      :                           ⇒ r₀ ≐ r₁ : El t₁
 
@@ -211,7 +211,7 @@ The injectivity rules are Foundation's (NovaFoundation.txt, "Type
 constructor injectivity"); the binder-crossing selectors take an
 instantiation element so the resulting equation stays in Γ. Those
 instantiation elements come from the (untrusted) certificate, so
-el-eq-subst's premise is CHECKED (§3), not presumed — a binder
+el-sub-cong-fix's premise is CHECKED (§3), not presumed — a binder
 equation only speaks about members of its domain, and an unchecked
 u would smuggle in an equation the premise never licensed.
 
@@ -280,7 +280,7 @@ final):
 
   1. TYPE BRIDGE. If tyEx = (T′, 𝒞ᵀ): replay Σ; Γ ⊦ 𝒞ᵀ ⊳ T ≐ T′ and
      continue at T′ in place of T. Justification: judgementally equal
-     types have equal PERs (ty-eq-el / el-ty-coe collapse the
+     types have equal PERs (ty-el-cong / el-ty-coe collapse the
      membership), so the equation judgement is invariant under it.
      The bridge is the equation-level counterpart of the item level's
      head-exposure payload (§8): it lets steps land at positions whose
@@ -292,7 +292,7 @@ final):
 
   beta         nf-equal sides:  l = r  syntactically after ≜.
                // el-eq via ≜-chains
-  prop         nf(T) ⇓ 𝟙 or 𝟘.        // Foundation 𝟙-Prop / 𝟘-Prop
+  prop         nf(T) ⇓ 𝟙 or 𝟘.        // Foundation el-one-prop / el-zero-prop
   witness 𝒞?   sides are class a ≐ class b and nf(T) ⇓ A / R;
                then by the shape of nf(R[id, a, b]):
                  ⇓ 𝟙                — accepted (witness ())
@@ -307,7 +307,7 @@ final):
 Type equations — Σ; Γ ⊦ 𝒞 ⊳ T₀ ≐ T₁: no bridge is admissible (a
 bridge on a type equation would be circular), steps apply through the
 type formers as in §6, and the only final is beta (nf-equal types).
-El-decoding inside nf gives ty-eq-el for free; a universe-code
+El-decoding inside nf gives ty-el-cong for free; a universe-code
 equation is transported through El by normalization, not by a rule.
 
 ////////// 8. The item level: skeletons //////////
@@ -371,8 +371,8 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
   Σ; Γ ⊦ t ⇐ T ⟨sk∖intro-ty⟩, and return T. (This is the ascription
   route: how introduction forms sit in inference position.)
 
-  Otherwise by the head — variables and signature references (var,
-  sig-var; the reference's substitution checked entrywise against its
+  Otherwise by the head — variables and signature references (el-var,
+  el-sig-var; the reference's substitution checked entrywise against its
   telescope, each entry against sk's children), (), Z, S t, spines:
 
      Σ; Γ ⊦ f ⇒ Tf ⟨sk.0⟩   nf(Tf) ⇓ A → B   Σ; Γ ⊦ a ⇐ A ⟨sk.1⟩
@@ -407,7 +407,7 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
   ascription payload) is rejected.
 
 Formation  Σ; Γ ⊦ T type ⟨sk⟩ : structural over the type formers
-(ty-pi/sigma/eq/el/quot/sig-var-ty), the sides of an ≡-type checked
+(ty-pi/sigma/eq/el/quot/ty-sig-var), the sides of an ≡-type checked
 as elements, El's code checked at 𝕌, signature-type arguments checked
 against their telescope — all with skeleton children along.
 

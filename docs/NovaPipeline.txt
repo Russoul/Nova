@@ -54,8 +54,9 @@ every judgement from its own Σ using only:
 
   * type synthesis over the annotated tree (annotations supply what
     synthesis cannot invent — see artifact format);
-  * FUEL-BOUNDED beta conversion (Foundation's ≜ rules: β, El-decoding,
-    x-β) — step budgets come from the certificate, exhaustion means
+  * FUEL-BOUNDED beta conversion (Foundation's ≜ rules: the beta
+    family, El-decoding, signature unfolding) — step budgets come
+    from the certificate, exhaustion means
     REJECT, so the kernel is total: every artifact gets a verdict;
   * CERTIFICATE REPLAY: at a conversion site, apply the recorded trace
     steps mechanically — check each step's proof element, rewrite at
@@ -228,8 +229,8 @@ spines and intro forms, injectivity selectors, TYPED PATH DESCENT
 (every rewrite's licensed equation is verified against its position's
 locally determined expected type — intermediate hops need no type,
 congruence only demands the child equation at the rewrite point), and
-replay of the certificate finals (beta, 𝟘/𝟙-Prop, quotient witnesses,
-Π/Σ-η). The discharge engine emits certificates for every discharge
+replay of the certificate finals (beta, el-zero-prop/el-one-prop,
+quotient witnesses, el-pi-eta/el-sigma-eta). The discharge engine emits certificates for every discharge
 (rewrite traces with parametric-context normalization bridging,
 whole-equation matches with condition witnesses, hop chains,
 injectivity-selector components), and convElem/convTy count a

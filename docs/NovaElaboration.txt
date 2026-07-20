@@ -156,7 +156,7 @@ E   — the equation store, feeding algorithmic discharge. Three sources:
             A₁ ᐅ ... ᐅ Aₖ ⊢ l ≐ r : T
         (the peeled binders become context entries — all of them
         PARAMETRIC, so the lemma applies in any context by first-order
-        instantiation). Justified by Foundation (reflect a) applied to
+        instantiation). Justified by Foundation (el-reflect) applied to
         x[·] ☐ₖ₋₁ ... ☐₀. This is how user-proved equalities enter
         discharge: prove at the element level once, use judgementally
         everywhere.
@@ -222,11 +222,13 @@ instead an error asking the user for an ascription or annotation.
 
 //////// whnf ////////
 
-whnf(–) is weak-head normalization by Foundation's ≜ rules: Π-β, Σ-β₁,
-Σ-β₂, ℕ-elim-β-Z, ℕ-elim-β-S, quote-elim-β, x-β (signature unfolding —
-total in this hole-free setting, since every Σ entry has a definiens),
-and the El-decoding family (El-𝟘, El-𝟙, El-ℕ, El-(→), El-(⨯), El-(≡),
-El-(/)). Per Foundation's preface, normalization of well-formed terms
+whnf(–) is weak-head normalization by Foundation's ≜ rules:
+el-pi-beta, el-sigma-beta₁, el-sigma-beta₂, el-nat-beta-z,
+el-nat-beta-s, el-quot-beta, el-sig-beta/ty-sig-beta (signature
+unfolding — total in this hole-free setting, since every Σ entry has a
+definiens), and the El-decoding family (ty-el-zero, ty-el-one,
+ty-el-nat, ty-el-pi, ty-el-sigma, ty-el-eq, ty-el-quot). Per
+Foundation's preface, normalization of well-formed terms
 may diverge under inconsistent hypotheses; whnf is therefore
 fuel-bounded, and fuel exhaustion is treated as "neutral" — a
 conservative outcome that can only produce a superfluous obligation,
@@ -415,7 +417,8 @@ whnf(C) = A / R        Γ ⊢ a ⇐ A ⇝ â
 //      back into ↓. For the type formers and universe codes this is
 //      FAITHFUL — an equivalence, not merely sufficiency: downward it
 //      is Foundation's congruence rules, upward Foundation's
-//      injectivity rules (→-inj, ⨯-inj, /-inj, ≡-inj, El-inj and their
+//      injectivity rules (ty-pi-inj, ty-sigma-inj, ty-quot-inj,
+//      ty-eq-inj, ty-el-inj and their
 //      𝕌-code counterparts — see "Type constructor injectivity" there,
 //      including the semantic commitment they encode). Two cases remain
 //      merely sufficient: class-equations decomposed to their
@@ -452,9 +455,10 @@ whnf(C) = A / R        Γ ⊢ a ⇐ A ⇝ â
 //      a ≐ code(B) : 𝕌 — sufficient via El-congruence + El-decoding.
 //      Otherwise fall through to 7.
 //   5. Prop-discharge: an element equation at type 𝟙 or at type 𝟘 is
-//      discharged outright — Foundation's (𝟙-Prop), (𝟘-Prop). // COMMENT: equality type is also a Prop
-//   6. η: a λ against a neutral at Π compares via Π-η (apply both to
-//      ☐₀ under the binder); a pair against a neutral at Σ via Σ-η.
+//      discharged outright — Foundation's el-one-prop, el-zero-prop. // COMMENT: equality type is also a Prop
+//   6. η: a λ against a neutral at Π compares via el-pi-eta (apply
+//      both to ☐₀ under the binder); a pair against a neutral at Σ
+//      via el-sigma-eta.
 //      η fires ONLY when one side is a literal introduction form: two
 //      neutrals gain nothing from η, and η-expanding them regenerates
 //      the very eliminations congruence descent (step 3) came from —
@@ -487,7 +491,7 @@ whnf(C) = A / R        Γ ⊢ a ⇐ A ⇝ â
 //      Closing E under full congruence (e-graph style) remains a
 //      completeness upgrade; none of these mechanisms affects
 //      soundness — each discharge is a Foundation derivation via
-//      (el-eq-subst) + congruence + transitivity + reflection.
+//      (el-sub-cong-fix) + congruence + transitivity + reflection.
 //   8. ASSUME: append the equation to O (with source position, and with
 //      the composite it was decomposed from, if any) and to E; succeed.
 //

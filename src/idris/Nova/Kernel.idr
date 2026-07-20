@@ -12,8 +12,8 @@ module Nova.Kernel
 --     optionally take same-headed components (Foundation's injectivity
 --     rules / derivable congruences), rewrite at the given path, and
 --     compare normal forms;
---   * the type-directed finals: 𝟘/𝟙-Prop, quotient witnesses
---     (el-quot-eq), Π/Σ-η.
+--   * the type-directed finals: el-zero-prop/el-one-prop, quotient
+--     witnesses (el-quot-eq), el-pi-eta/el-sigma-eta.
 --
 -- The discharge engine (untrusted) EMITS certificates; a discharge
 -- counts only if it replays here. See Nova.Elaboration.
@@ -32,7 +32,7 @@ import Nova.Kernel.Subst
 ||| Component selectors: from a licensed equation between same-headed
 ||| terms, pass to a component equation. Justified by Foundation's
 ||| injectivity rules (codes) or derivable congruences (S via pred).
-||| Binder components carry their instantiation (el-eq-subst).
+||| Binder components carry their instantiation (el-sub-cong-fix).
 public export
 data Sel : Type where
   SelSuc : Sel                       -- S x ≐ S y ⇒ x ≐ y : ℕ
@@ -62,15 +62,15 @@ mutual
   data Final : Type where
     ||| compare beta-normal forms
     FBeta : Final
-    ||| the equation's type normalizes to 𝟙 or 𝟘 (Foundation 𝟙/𝟘-Prop)
+    ||| the equation's type normalizes to 𝟙 or 𝟘 (el-one-prop/el-zero-prop)
     FProp : Final
     ||| class a ≐ class b at A / R via the relation's shape:
     ||| R[id,a,b] ⇝ 𝟙 (witness ()) or ⇝ an ≡-type whose equation the
     ||| nested certificate establishes (witness Refl; el-quot-eq)
     FWitness : Maybe ECert -> Final
-    ||| Π-η: compare applied to the fresh variable, under the domain
+    ||| el-pi-eta: compare applied to the fresh variable, under the domain
     FEtaPi : ECert -> Final
-    ||| Σ-η: compare the projections
+    ||| el-sigma-eta: compare the projections
     FEtaSigma : ECert -> ECert -> Final
 
   public export
@@ -188,7 +188,7 @@ mutual
       Class a => do burn; kElem sig (substElem f' (Ext Id a))
       _ => pure (QuotElim f' q')
 
-  ||| Beta-normal form of a type (incl. El-decoding and type-level x-β).
+  ||| Beta-normal form of a type (incl. El-decoding and ty-sig-beta).
   export
   kTy : Sig -> Ty -> KM Ty
   kTy sig Ty.ZeroTy = pure Ty.ZeroTy
@@ -452,7 +452,7 @@ applySel sig ctx (l, r, _) sel = do
     (SelDom, Elem.PiTy a0 _, Elem.PiTy a1 _) => pure (a0, a1, Ty.UniverseTy)
     (SelDom, Elem.SigmaTy a0 _, Elem.SigmaTy a1 _) => pure (a0, a1, Ty.UniverseTy)
     -- binder-crossing selectors: the instantiation elements come from
-    -- the (untrusted) certificate, so el-eq-subst's premise is CHECKED
+    -- the (untrusted) certificate, so el-sub-cong-fix's premise is CHECKED
     (SelCod u, Elem.PiTy _ b0, Elem.PiTy a1 b1) => do
       checkP sig ctx u (El a1)
       pure (substElem b0 (Ext Id u), substElem b1 (Ext Id u), Ty.UniverseTy)

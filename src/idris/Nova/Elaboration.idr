@@ -10,14 +10,15 @@ module Nova.Elaboration
 -- accepted exactly when a run ends with zero obligations.
 --
 -- Discharge machinery ("E" of the spec), in the order tried:
---   * beta-normalization (β, El-decoding, x-β signature unfolding);
+--   * beta-normalization (beta, El-decoding, signature unfolding);
 --   * fuel-bounded REWRITING with the equation store: accepted Eq-typed
 --     lemmas from Σ (their leading Πs peeled into pattern parameters)
 --     and Eq-typed hypotheses of the local context (likewise peeled),
 --     each oriented left-to-right as stated, applied at any subterm —
 --     this gives single-lemma discharge, transitivity chains, and
 --     congruence positioning in one mechanism;
---   * type-directed comparison: Π/Σ-η, 𝟘/𝟙-Prop, and quotient
+--   * type-directed comparison: el-pi-eta/el-sigma-eta,
+--     el-zero-prop/el-one-prop, and quotient
 --     class-equations (a 𝟙-shaped relation is inhabited outright, an
 --     Eq-shaped relation reduces the witness to its equation);
 --   * congruence decomposition in the sufficient direction, with the
@@ -25,7 +26,7 @@ module Nova.Elaboration
 --   * assumption (dedup by normalized statement, symmetric).
 --
 -- Soundness of rewriting: a candidate's instance l[σ] ≐ r[σ] is
--- Foundation-derivable by (el-eq-subst) from the reflected lemma or
+-- Foundation-derivable by (el-sub-cong-fix) from the reflected lemma or
 -- hypothesis; σ's well-typedness follows by inversion from the matched
 -- instance occurring inside an elaborated (well-typed) term. Replacing
 -- a subterm by a judgementally equal one is congruence.
