@@ -38,3 +38,32 @@ def intAdd : Int → Int → Int ≔
       zx
 
 def intAddTest : intAdd (class (Z , Z)) (class (S Z , S Z)) ≡ class (S Z , S Z) ∈ Int ≔ Refl
+
+-- ===== the algebra =====
+
+-- commutativity: two quotient eliminations at ≡-motives reduce to the
+-- representative-level cross-sum permutation
+def intAddComm : (x : Int) (y : Int) → intAdd x y ≡ intAdd y x ∈ Int ≔
+  λx. λy. quot-elim
+    (q. intAdd q y ≡ intAdd y q ∈ Int)
+    (a. quot-elim
+          (q. intAdd (class a) q ≡ intAdd q (class a) ∈ Int)
+          (b. Refl)
+          y)
+    x
+
+-- associativity: three eliminations; the representatives reassociate
+-- by plusAssoc and close by commutativity of the cross sum
+def intAddAssoc : (x : Int) (y : Int) (z : Int) →
+  intAdd (intAdd x y) z ≡ intAdd x (intAdd y z) ∈ Int ≔
+  λx. λy. λz. quot-elim
+    (q. intAdd (intAdd q y) z ≡ intAdd q (intAdd y z) ∈ Int)
+    (a. quot-elim
+          (q. intAdd (intAdd (class a) q) z ≡ intAdd (class a) (intAdd q z) ∈ Int)
+          (b. quot-elim
+                (q. intAdd (intAdd (class a) (class b)) q
+                      ≡ intAdd (class a) (intAdd (class b) q) ∈ Int)
+                (c. Refl)
+                z)
+          y)
+    x
