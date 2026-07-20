@@ -99,935 +99,469 @@ t ::= x [e˲]         // element in the signature context
 // (element) spine
 ē ::= · | e, ē
 
-/////// Judgement forms /////////
+///////// Conventions: how to read the rules /////////
 
-Σ sig
+The rules below are presented COMPACTLY. Each convention comes with its
+mechanical expansion, so the fully explicit form of every rule is
+recoverable without judgement calls. (The previous fully-explicit
+presentation additionally carried, with every rule, an argument-labelling
+scheme consumed by the since-removed .rules derivation checker; that
+interface lives on in git history only.)
 
-Σ sig
----------
-Σ ⊦ Γ ctx     // context
+* AMBIENT SIGNATURE. Every judgement is relative to a signature Σ,
+  presupposed well-formed. The Σ prefix and the premise `Σ sig` are
+  omitted everywhere; rules that inspect or extend Σ (the sig rules,
+  the x[e˲] rules) name it explicitly. Expansion: prefix every
+  judgement with `Σ ⊦`/`Σ Γ ⊦` as appropriate and add `Σ sig` as the
+  first premise of every rule.
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
---------------- // context equality
-Σ ⊦ Γ₀ ≐ Γ₁ ctx
+* PRESUPPOSITIONS. Each judgement form PRESUPPOSES the well-formedness
+  of its parts, as listed in the judgement-form table below. A rule
+  omits every premise that lies in the presupposition CLOSURE of its
+  retained premises and its conclusion (the closure: start from the
+  retained premises and the conclusion, add their presuppositions, and
+  close transitively). Expansion: add the closure back as explicit
+  premises — this recovers the previous exhaustive style, where e.g.
+  `Γ ᐅ A ⊦ f : B` was always accompanied by `Γ ctx`, `Γ ⊦ A type` and
+  `Γ ᐅ A ⊦ B type`. Premises NOT in the closure are never omitted: in
+  particular eliminator motives, the middle subject of a transitivity,
+  and the data of the coercion rules are genuine inputs and always
+  appear.
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ ⊦ Δ ctx
-------------- // substitution
-Σ ⊦ σ : Γ ⇒ Δ
+* GROUPED CONCLUSIONS. A rule with several conclusions below the line
+  abbreviates one rule per conclusion (same premises). A conclusion
+  listing several subjects separated by commas (e.g.
+  `Γ ⊦ 𝟘, 𝟙, ℕ, 𝕌 type`) abbreviates one rule per subject.
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ ⊦ Δ ctx
-Σ ⊦ σ₀ : Γ ⇒ Δ
-Σ ⊦ σ₁ : Γ ⇒ Δ
-------------------- // substitution equality
-Σ ⊦ σ₀ ≐ σ₁ : Γ ⇒ Δ
+* EQUIVALENCE (PER) RULES. Each of the seven equality judgements —
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ ⊦ Δ ctx
-------------------- // normal substitution
-Σ ⊦ e˲ : Γ ⇒ Δ norm
+    Γ₀ ≐ Γ₁ ctx                 (contexts)
+    σ₀ ≐ σ₁ : Γ ⇒ Δ             (substitutions)
+    e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm      (normal substitutions)
+    Γ ⊦ A₀ ≐ A₁ type            (types)
+    Γ ⊦ a₀ ≐ a₁ : A             (elements)
+    Γ ⊦ Δ₀ ≐ Δ₁ tel             (telescopes)
+    Γ ⊦ ē₀ ≐ ē₁ : Δ             (element lists)
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ ⊦ Δ ctx
-Σ ⊦ e˲₀ : Γ ⇒ Δ norm
-Σ ⊦ σ˲₁ : Γ ⇒ Δ norm
--------------------------- // normal substitution equality
-Σ ⊦ e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm
+  — is governed by three rules adopted once here and not repeated per
+  class. Writing J for the well-formedness form and J⁼ for the
+  equality form of a class:
 
-Σ sig
-Σ ⊦ Γ ctx
------------- // type
-Σ Γ ⊦ A type
+    J(a)              J⁼(a₀ ≐ a₁)          J⁼(a₀ ≐ a₁)   J⁼(a₁ ≐ a₂)
+    ----------(refl)  -----------(sym)     ------------------------(trans, via a₁)
+    J⁼(a ≐ a)         J⁼(a₁ ≐ a₀)          J⁼(a₀ ≐ a₂)
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A₀ type
-Σ Γ ⊦ A₁ type
--------------------- // type equality
-Σ ⊦ Γ ⊦ A₀ ≐ A₁ type
+  (transitivity's middle subject a₁, with J(a₁), is an input of the
+  rule). Instances are named ctx-refl, ctx-sym, ctx-trans, sub-refl,
+  ..., sp-trans. Consequently the pointwise equality rules for
+  constants and atoms (ε ≐ ε ctx, id ≐ id, ↑ ≐ ↑, · ≐ ·,
+  x[e˲] ≐ x[e˲], ...) are refl instances and are not stated.
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
------------- // element
-Σ Γ ⊦ a : A
+* DEFINITIONAL EQUALITY. A rule concluding J ≜ K asserts the
+  corresponding ≐-judgement and additionally marks it as a computation
+  step, oriented left to right. Its presuppositions are those of the
+  underlying ≐ form.
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ⊦ a₀ : A
-Σ Γ ⊦ a₁ : A
------------------ // element equality
-Σ Γ ⊦ a₀ ≐ a₁ : A
+* NAMES. Every rule carries a canonical name on its inference line;
+  these names are the ones docs/NovaKernel.txt and
+  docs/NovaElaboration.txt cite. The index at the end of the file
+  lists synonyms used elsewhere (β for Π-β, ℕ-β₀ for ℕ-elim-β-Z, ...).
 
-Σ sig
-Σ ⊦ Γ ctx
------------ // telescope
-Σ Γ ⊦ Δ tel
+///////// Judgement forms and their presuppositions /////////
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ Δ₀ tel
-Σ Γ ⊦ Δ₁ tel
------------------ // telescope equality
-Σ Γ ⊦ Δ₀ ≐ Δ₁ tel
+  Form                         Presupposes
+  --------------------------   ------------------------------------
+  Σ sig                        —
+  Γ ctx                        —
+  Γ₀ ≐ Γ₁ ctx                  Γ₀ ctx;  Γ₁ ctx
+  σ : Γ ⇒ Δ                    Γ ctx;  Δ ctx
+  σ₀ ≐ σ₁ : Γ ⇒ Δ              σ₀ : Γ ⇒ Δ;  σ₁ : Γ ⇒ Δ
+  e˲ : Γ ⇒ Δ norm              Γ ctx;  Δ ctx
+  e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm       e˲₀ : Γ ⇒ Δ norm;  e˲₁ : Γ ⇒ Δ norm
+  Γ ⊦ A type                   Γ ctx
+  Γ ⊦ A₀ ≐ A₁ type             Γ ⊦ A₀ type;  Γ ⊦ A₁ type
+  Γ ⊦ a : A                    Γ ⊦ A type
+  Γ ⊦ a₀ ≐ a₁ : A              Γ ⊦ a₀ : A;  Γ ⊦ a₁ : A
+  Γ ⊦ Δ tel                    Γ ctx
+  Γ ⊦ Δ₀ ≐ Δ₁ tel              Γ ⊦ Δ₀ tel;  Γ ⊦ Δ₁ tel
+  Γ ⊦ ē : Δ                    Γ ⊦ Δ tel
+  Γ ⊦ ē₀ ≐ ē₁ : Δ              Γ ⊦ ē₀ : Δ;  Γ ⊦ ē₁ : Δ
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ Δ tel
------------ // list
-Σ Γ ⊦ ē : Δ
+A context extension Γ ᐅ A presupposes Γ ctx and Γ ⊦ A type, so a
+premise stated under Γ ᐅ A carries A's well-formedness with it (and
+likewise for iterated extensions).
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ Δ tel
-Σ Γ ⊦ ē₀ : Δ
-Σ Γ ⊦ ē₁ : Δ
------------------ // list equality
-Σ Γ ⊦ ē₀ ≐ ē₁ : Δ
+///////// Rules (sig) /////////
 
-///////// Inference rules (sig) //////////
-
+--------- (sig-empty)
 ε sig
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Γ ⊦ a : A
+Σ Γ ⊦ a : A
 x ∉ Σ
----------------------
+--------------------- (sig-def)
 Σ (Γ ⊦ x ≔ a : A) sig
 
-Σ sig
-Σ ⊦ Γ ctx
 Σ Γ ⊦ A type
 x ∉ Σ
-----------------------
+---------------------- (sig-ty-def)
 Σ (Γ ⊦ x ≔ A type) sig
 
-///////// Inference rules (ctx) //////////
+///////// Rules (ctx) /////////
 
-Σ sig
----------  (ε)  // empty context
-Σ ⊦ ε ctx
+--------- (ctx-empty)
+ε ctx
 
-Σ sig
-------------- (ε)   // empty context congruence
-Σ ⊦ ε ≐ ε ctx
+Γ ⊦ A type
+----------- (ctx-ext)
+Γ ᐅ A ctx
 
-Σ sig
-------------
-Σ ⊦ Γ ctx         (Γ)
-Σ Γ ⊦ A type      (A)
-=============     (Γ ᐅ A)  // extended context
-Σ ⊦ Γ ᐅ A ctx
+Γ₀ ≐ Γ₁ ctx
+Γ₁ ⊦ A₀ ≐ A₁ type
+--------------------- (ctx-ext-cong)
+Γ₀ ᐅ A₀ ≐ Γ₁ ᐅ A₁ ctx
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₀ ⊦ A₀ type
-Σ Γ₁ ⊦ A₁ type
----------------------
-Σ ⊦ Γ₀ ≐ Γ₁ ctx           (Γ⁼)
-Σ ⊦ Γ₁ ⊦ A₀ ≐ A₁ type     (A⁼)
-========================= (Γ⁼ ᐅ A⁼)   // extended context congruence
-Σ ⊦ Γ₀ ᐅ A₀ ≐ Γ₁ ᐅ A₁ ctx
+///////// Rules (ctx substitution) /////////
 
-Σ sig
-Σ ⊦ Γ ctx
-------------- (refl)  // context reflexivity
-Σ ⊦ Γ ≐ Γ ctx
+Γ ctx
+------------- (sub-empty)
+· : Γ ⇒ ε
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
----------------
-Σ ⊦ Γ₀ ≐ Γ₁ ctx (Γ⁼)
---------------- (Γ⁼ ⁻¹) // context symmetry
-Σ ⊦ Γ₁ ≐ Γ₀ ctx
+σ : Γ ⇒ ε
+------------- (sub-empty-unique)
+σ ≐ · : Γ ⇒ ε
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₂ ctx
----------------
-Σ ⊦ Γ₁ ctx        (Γ₁)
-Σ ⊦ Γ₀ ≐ Γ₁ ctx   (Γ₀₁⁼)
-Σ ⊦ Γ₁ ≐ Γ₂ ctx   (Γ₁₂⁼)
----------------   (Γ₀₁⁼ · Γ₁₂⁼ via Γ₁) // context transitivity
-Σ ⊦ Γ₀ ≐ Γ₂ ctx
+σ : Γ₀ ⇒ Γ₁
+Γ₀ ⊦ t : A[σ]
+---------------------- (sub-ext)     // A the type over Γ₁ being extended by
+(σ, t) : Γ₀ ⇒ Γ₁ ᐅ A
 
-///////// Inference rules (ctx substitution) //////////
+σ : Γ₀ ⇒ Γ₁
+τ : Γ₁ ⇒ Γ₂
+------------------- (sub-comp, via Γ₁)
+τ ∘ σ : Γ₀ ⇒ Γ₂
 
-Σ sig
-Σ ⊦ Γ ctx
--------------  (·)    // empty substitution
-Σ ⊦ · : Γ ⇒ ε
+Γ ctx
+------------- (sub-id)
+id : Γ ⇒ Γ
 
-Σ sig
-Σ ⊦ Γ ctx
------------------ (·)  // empty substitution congruence
-Σ ⊦ · ≐ · : Γ ⇒ ε
+Γ ⊦ A type
+---------------- (sub-wk)
+↑ : Γ ᐅ A ⇒ Γ
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ ⊦ σ : Γ ⇒ ε
------------------ // empty substitution uniqueness
-Σ ⊦ σ ≐ · : Γ ⇒ ε
+------------------ (sub-id-empty)
+id ≐ · : ε ⇒ ε
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ A type
----------------
-Σ ⊦ σ : Γ₀ ⇒ Γ₁            (σ)
-Σ Γ₀ ⊦ t : A[σ]            (t)
-========================   (σ, t) // extension substitution
-Σ ⊦ (σ, t) : Γ₀ ⇒ Γ₁ ᐅ A
+Γ ⊦ A type
+------------------------------ (sub-eta) // admissible by meta-level induction
+↑, ☐₀ ≐ id : Γ ᐅ A ⇒ Γ ᐅ A
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₂ ctx
----------------
-Σ ⊦ Γ₁ ctx          (Γ₁)
-Σ ⊦ σ : Γ₀ ⇒ Γ₁     (σ)
-Σ ⊦ τ : Γ₁ ⇒ Γ₂     (τ)
-------------------- (τ ∘ σ via Γ₁) // composition substitution
-Σ ⊦ τ ∘ σ : Γ₀ ⇒ Γ₂
+σ : Γ₀ ⇒ Γ₁
+------------------------ (sub-id-pre)
+σ ∘ id ≐ σ : Γ₀ ⇒ Γ₁
 
-Σ sig
-Σ ⊦ Γ ctx
--------------- (id)    // identity substitution
-Σ ⊦ id : Γ ⇒ Γ
+σ : Γ₀ ⇒ Γ₁
+------------------------ (sub-id-post)
+id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 
-Σ sig
-Σ ⊦ Γ ctx
---------------- (id)  // identity substitution congruence
-Σ ⊦ id ≐ id : Γ ⇒ Γ
+σ₁₀ : Γ₁ ⇒ Γ₀
+σ₂₁ : Γ₂ ⇒ Γ₁
+σ₃₂ : Γ₃ ⇒ Γ₂
+--------------------------------------------------- (sub-assoc)
+σ₁₀ ∘ (σ₂₁ ∘ σ₃₂) ≐ (σ₁₀ ∘ σ₂₁) ∘ σ₃₂ : Γ₃ ⇒ Γ₀
 
-Σ sig
-------------------
-Σ ⊦ id ≐ · : ε ⇒ ε
+σ : Γ₀ ⇒ Γ₁
+Γ₀ ⊦ t : A[σ]
+---------------------------- (sub-wk-ext) // weakening cancels a just-added extension
+↑ ∘ (σ, t) ≐ σ : Γ₀ ⇒ Γ₁
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
------------------------------- // admissible by meta-level induction
-Σ ⊦ ↑, ☐₀ ≐ id : Γ ᐅ A ⇒ Γ ᐅ A
+σ : Γ₀ ⇒ ε
+---------------------- (sub-empty-comp) // admissible
+· ∘ σ ≐ · : Γ₀ ⇒ ε
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
------------------ (↑)  // weakening substitution
-Σ ⊦ ↑ : Γ ᐅ A ⇒ Γ
+τ : Γ₀ ⇒ Γ₁
+σ : Γ₁ ⇒ Γ₂
+Γ₁ ⊦ t : A[σ]
+------------------------------------------ (sub-ext-post) // admissible
+(σ, t) ∘ τ ≐ (σ ∘ τ, t[τ]) : Γ₀ ⇒ Γ₂ ᐅ A
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
---------------------- (↑) // weakening substitution congruence
-Σ ⊦ ↑ ≐ ↑ : Γ ᐅ A ⇒ Γ
+σ : Γ₀ ⇒ Γ₁
+Γ₁ ⊦ A type
+------------------------------------- (sub-lift) // natural substitution (admissible)
+σ⁺ ≜ (σ ∘ ↑, ☐₀) : Γ₀ ᐅ A[σ] ⇒ Γ₁ ᐅ A
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₂ ctx
-Σ ⊦ σ₀ : Γ₀ ⇒ Γ₁
-Σ ⊦ σ₁ : Γ₀ ⇒ Γ₁
-Σ ⊦ τ₀ : Γ₁ ⇒ Γ₂
-Σ ⊦ τ₁ : Γ₁ ⇒ Γ₂
--------------------------------
-Σ ⊦ Γ₁ ctx                       (Γ₁)
-Σ ⊦ σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁            (σ⁼)
-Σ ⊦ τ₀ ≐ τ₁ : Γ₁ ⇒ Γ₂            (τ⁼)
--------------------------------  (τ⁼ ∘ σ⁼ via Γ₁)  // composition substitution congruence
-Σ ⊦ τ₀ ∘ σ₀ ≐ τ₁ ∘ σ₁ : Γ₀ ⇒ Γ₂
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ A type
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
-Σ Γ₀ ⊦ t : A[σ]
-Σ ⊦ τ : Γ₀ ⇒ Γ₁ ᐅ A
---------------------------
-Σ ⊦ ↑ ∘ τ ≐ σ : Γ₀ ⇒ Γ₁
-Σ Γ₀ ⊦ ☐₀[τ] ≐ t : A[↑ ∘ τ]
-============================ // extension substitution uniqueness (admissible)
-Σ ⊦ (σ, t) ≐ τ : Γ₀ ⇒ Γ₁ ᐅ A
+σ : Γ₀ ⇒ Γ₁
+Γ₀ ⊦ t : A[σ]
+τ : Γ₀ ⇒ Γ₁ ᐅ A
+↑ ∘ τ ≐ σ : Γ₀ ⇒ Γ₁
+Γ₀ ⊦ ☐₀[τ] ≐ t : A[↑ ∘ τ]
+---------------------------- (sub-ext-unique) // admissible
+(σ, t) ≐ τ : Γ₀ ⇒ Γ₁ ᐅ A
 ∎ (=>) τ ≐ id ∘ τ ≐ (↑, ☐₀) ∘ τ ≐ ↑ ∘ τ, ☐₀[τ] ≐ σ, t
   (<=)
       σ ≐ ↑ ∘ (σ, t) ≐ ↑ ∘ τ
       t ≐ ☐₀[σ, t] ≐ ☐₀[τ] ∎
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ A type
-Σ ⊦ σ₀ : Γ₀ ⇒ Γ₁
-Σ ⊦ σ₁ : Γ₀ ⇒ Γ₁
-Σ Γ₀ ⊦ t₀ : A[σ₀]
-Σ Γ₀ ⊦ t₁ : A[σ₁]
----------------------------------
-Σ ⊦ σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁              (σ⁼)
-Σ Γ₀ ⊦ t₀ ≐ t₁ : A[σ₁]             (t⁼)
-=================================  (σ⁼, t⁼) // extension substitution congruence
-Σ ⊦ σ₀, t₀ ≐ σ₁, t₁ : Γ₀ ⇒ Γ₁ ᐅ A
+σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
+τ₀ ≐ τ₁ : Γ₁ ⇒ Γ₂
+------------------------------- (sub-comp-cong, via Γ₁)
+τ₀ ∘ σ₀ ≐ τ₁ ∘ σ₁ : Γ₀ ⇒ Γ₂
 
+σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
+Γ₀ ⊦ t₀ ≐ t₁ : A[σ₁]
+--------------------------------- (sub-ext-cong)
+(σ₀, t₀) ≐ (σ₁, t₁) : Γ₀ ⇒ Γ₁ ᐅ A
 
-Σ sig
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
------------------------- // identity substitution precomposition
-Σ ⊦ σ ∘ id ≐ σ : Γ₀ ⇒ Γ₁
+Γ₀ ≐ Γ₁ ctx
+σ : Γ₀ ⇒ Δ
+--------------- (sub-coe-dom)
+σ : Γ₁ ⇒ Δ
 
-Σ sig
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
------------------------- // identity substitution postcomposition
-Σ ⊦ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
+Δ₀ ≐ Δ₁ ctx
+σ : Γ ⇒ Δ₀
+--------------- (sub-coe-cod)
+σ : Γ ⇒ Δ₁
 
-Σ sig
-Σ ⊦ Γ₃ ctx
-Σ ⊦ Γ₂ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ Γ₀ ctx
-Σ ⊦ σ₁₀ : Γ₁ ⇒ Γ₀
-Σ ⊦ σ₂₁ : Γ₂ ⇒ Γ₁
-Σ ⊦ σ₃₂ : Γ₃ ⇒ Γ₂
---------------------------------------------------- // composition substitution associativity
-Σ ⊦ σ₁₀ ∘ (σ₂₁ ∘ σ₃₂) ≐ (σ₁₀ ∘ σ₂₁) ∘ σ₃₂ : Γ₃ ⇒ Γ₀
+Γ ≐ Γ' ctx
+σ ≐ τ : Γ ⇒ Δ
+------------------ (sub-eq-coe-dom)
+σ ≐ τ : Γ' ⇒ Δ
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
-Σ Γ₁ ⊦ A type
-Σ Γ₀ ⊦ t : A[σ]
----------------------------
---------------------------- // weakening of extension substitution
-Σ ⊦ ↑ ∘ (σ, t) ≐ σ : Γ₀ ⇒ Γ₁
+Δ ≐ Δ' ctx
+σ ≐ τ : Γ ⇒ Δ
+------------------ (sub-eq-coe-cod)
+σ ≐ τ : Γ ⇒ Δ'
 
-Σ sig
-Σ ⊦ σ : Γ₀ ⇒ ε
----------------------- // admissible
-Σ ⊦ · ∘ σ ≐ · : Γ₀ ⇒ ε
+///////// Rules (normal substitution) /////////
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ Γ₂ ctx
-Σ ⊦ τ : Γ₀ ⇒ Γ₁
-Σ ⊦ σ : Γ₁ ⇒ Γ₂
-Σ Γ₂ ⊦ A type
-Σ Γ₁ ⊦ t : A[σ]
----------------------------------------- // extension substitution postcomposition (admissible)
-Σ ⊦ (σ, t) ∘ τ ≐ σ ∘ τ, t[τ] : Γ₀ ⇒ Γ₂ A
+Γ ctx
+------------------ (sub-norm-empty)
+· : Γ ⇒ ε norm
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
-Σ Γ₁ ⊦ A type
------------------------------------ // natural substitution (admissible)
-Σ ⊦ σ⁺ ≜ σ ∘ ↑, ☐₀ : Γ₀ A[σ] ⇒ Γ₁ A
+e˲ : Γ ⇒ ε norm
+----------------------- (sub-norm-empty-unique)
+e˲ ≐ · : Γ ⇒ ε norm
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
-------------------- (refl) // substitution reflexivity (admissible)
-Σ ⊦ σ ≐ σ : Γ₀ ⇒ Γ₁
+e˲ : Γ₀ ⇒ Γ₁ norm
+Γ₀ ⊦ t : A[e˲]
+------------------------------ (sub-norm-ext)   // A the type over Γ₁ being extended by
+(e˲, t) : Γ₀ ⇒ Γ₁ ᐅ A norm
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ σ₀ : Γ₀ ⇒ Γ₁
-Σ ⊦ σ₁ : Γ₀ ⇒ Γ₁
--------------------
-Σ ⊦ σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁ (σ⁼)
---------------------- (σ⁼ ⁻¹) // substitution symmetry
-Σ ⊦ σ₁ ≐ σ₀ : Γ₀ ⇒ Γ₁
+e˲₀ ≐ e˲₁ : Γ₀ ⇒ Γ₁ norm
+Γ₀ ⊦ t₀ ≐ t₁ : A[e˲₁]
+---------------------------------------- (sub-norm-ext-cong)
+(e˲₀, t₀) ≐ (e˲₁, t₁) : Γ₀ ⇒ Γ₁ ᐅ A norm
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ σ₀ : Γ₀ ⇒ Γ₁
-Σ ⊦ σ₂ : Γ₀ ⇒ Γ₁
--------------------
-Σ ⊦ σ₁ : Γ₀ ⇒ Γ₁
-Σ ⊦ σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁  (σ₀₁⁼)
-Σ ⊦ σ₁ ≐ σ₂ : Γ₀ ⇒ Γ₁  (σ₁₂⁼)
----------------------  (σ₀₁ · σ₁₂ via σ₁)  // substitution transitivity
-Σ ⊦ σ₀ ≐ σ₂ : Γ₀ ⇒ Γ₁
+e˲ : Γ₀ ⇒ Γ₁ norm
+------------------- (sub-norm-embed) // a normal substitution is a substitution
+e˲ : Γ₀ ⇒ Γ₁
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ Δ ctx
----------------
-Σ ⊦ Γ₀ ≐ Γ₁ ctx
-Σ ⊦ σ : Γ₀ ⇒ Δ
---------------- // substitution domain preservation
-Σ ⊦ σ : Γ₁ ⇒ Δ
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ ⊦ Δ₀ ctx
-Σ ⊦ Δ₁ ctx
----------------
-Σ ⊦ σ : Γ ⇒ Δ₀
-Σ ⊦ Δ₀ ≐ Δ₁ ctx
---------------- // substitution codomain preservation
-Σ ⊦ σ : Γ ⇒ Δ₁
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ ⊦ Γ' ctx
-Σ ⊦ Δ ctx
-Σ ⊦ σ : Γ ⇒ Δ
-Σ ⊦ τ : Γ ⇒ Δ
------------------
-Σ ⊦ Γ ≐ Γ' ctx
-Σ ⊦ σ ≐ τ : Γ ⇒ Δ
------------------- // substitution equality domain preservation
-Σ ⊦ σ ≐ τ : Γ' ⇒ Δ
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ ⊦ Δ ctx
-Σ ⊦ Δ' ctx
-Σ ⊦ σ : Γ ⇒ Δ
-Σ ⊦ τ : Γ ⇒ Δ
--------------
-Σ ⊦ Δ ≐ Δ' ctx
-Σ ⊦ σ ≐ τ : Γ ⇒ Δ
--------------- // substitution equality codomain preservation
-Σ ⊦ σ ≐ τ : Γ ⇒ Δ'
-
-///////// Inference rules (normal substitution) //////////
-
-Σ sig
-Σ ⊦ Γ ctx
------------------- (·)      // empty normal substitution
-Σ ⊦ · : Γ ⇒ ε norm
-
-Σ sig
-Σ ⊦ Γ ctx
----------------------- (·)  // empty normal substitution congruence
-Σ ⊦ · ≐ · : Γ ⇒ ε norm
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ ⊦ e˲ : Γ ⇒ ε norm
------------------------ // empty normal substitution uniqueness
-Σ ⊦ e˲ ≐ · : Γ ⇒ ε norm
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ A type
----------------------
-Σ ⊦ e˲ : Γ₀ ⇒ Γ₁ norm          (e˲)
-Σ Γ₀ ⊦ t : A[σ]                (t)
-============================== (e˲, t) // extension normal substitution
-Σ ⊦ (e˲, t) : Γ₀ ⇒ Γ₁ ᐅ A norm
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ A type
-Σ ⊦ e˲₀ : Γ₀ ⇒ Γ₁ norm
-Σ ⊦ e˲₁ : Γ₀ ⇒ Γ₁ norm
-Σ Γ₀ ⊦ t₀ : A[σ₀]
-Σ Γ₀ ⊦ t₁ : A[σ₁]
----------------------------------
-Σ ⊦ e˲₀ ≐ e˲₁ : Γ₀ ⇒ Γ₁ norm             (e˲⁼)
-Σ Γ₀ ⊦ t₀ ≐ t₁ : A[e˲₁]                  (t⁼)
-======================================== (e˲⁼, t⁼)  // normal substitution congruence
-Σ ⊦ e˲₀, t₀ ≐ e˲₁, t₁ : Γ₀ ⇒ Γ₁ ᐅ A norm
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ e˲ : Γ₀ ⇒ Γ₁ norm  (e˲)
---------------------- (embed e˲) // normal substitution is a substitution (embedding)
-Σ ⊦ e˲ : Γ₀ ⇒ Γ₁
-
-Σ sig
-Σ ⊦ Γ₁ ctx
-Σ ⊦ Δ ctx
------------------------------
-Σ ⊦ Γ₀ ctx               (Γ₀)
-Σ ⊦ e˲ : Γ₀ ⇒ Γ₁ norm    (e˲)
-Σ ⊦ σ : Δ ⇒ Γ₀           (σ)
------------------------- (e˲ ∘ σ via Γ₀) // Composition defined by meta-level induction on normal substitution
-Σ ⊦ e˲ ∘ σ : Δ ⇒ Γ₁ norm
+e˲ : Γ₀ ⇒ Γ₁ norm
+σ : Δ ⇒ Γ₀
+------------------------ (sub-norm-comp, via Γ₀) // defined by meta-level induction:
+e˲ ∘ σ : Δ ⇒ Γ₁ norm
     · ∘ σ ≜ ·
     (e˲, t) ∘ σ ≜ (e˲ ∘ σ, t[σ])
 
-Σ sig
-Σ ⊦ Δ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ e˲₀ : Γ₀ ⇒ Γ₁ norm
-Σ ⊦ e˲₁ : Γ₀ ⇒ Γ₁ norm
-Σ ⊦ σ : Δ ⇒ Γ₀
-----------------------------
-Σ ⊦ Γ₀ ctx                    (Γ₀)
-Σ ⊦ e˲₀ ≐ e˲₁ : Γ₀ ⇒ Γ₁ norm  (e˲⁼)
-Σ ⊦ σ : Δ ⇒ Γ₀                (σ)
------------------------------- (e˲⁼ ∘ σ via Γ₀) // composition normal substitution congruence
-Σ ⊦ e˲₀ ∘ σ ≐ e˲₁ ∘ σ : Δ ⇒ Γ₁ norm
+e˲₀ ≐ e˲₁ : Γ₀ ⇒ Γ₁ norm
+σ : Δ ⇒ Γ₀
+----------------------------------- (sub-norm-comp-cong, via Γ₀)
+e˲₀ ∘ σ ≐ e˲₁ ∘ σ : Δ ⇒ Γ₁ norm
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ e˲ : Γ₀ ⇒ Γ₁ norm
--------------------------- (refl) // normal substitution reflexivity
-Σ ⊦ e˲ ≐ e˲ : Γ₀ ⇒ Γ₁ norm
+Γ₀ ≐ Γ₁ ctx
+e˲ : Γ₀ ⇒ Δ norm
+-------------------- (sub-norm-coe-dom)
+e˲ : Γ₁ ⇒ Δ norm
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ e˲₀ : Γ₀ ⇒ Γ₁ norm
-Σ ⊦ e˲₁ : Γ₀ ⇒ Γ₁ norm
---------------------------
-Σ ⊦ e˲₀ ≐ e˲₁ : Γ₀ ⇒ Γ₁ norm   (e˲⁼)
-----------------------------   (e˲⁼ ⁻¹) // normal substitution symmetry
-Σ ⊦ e˲₁ ≐ e˲₀ : Γ₀ ⇒ Γ₁ norm
+Δ₀ ≐ Δ₁ ctx
+e˲ : Γ ⇒ Δ₀ norm
+----------------------- (sub-norm-coe-cod)
+e˲ : Γ ⇒ Δ₁ norm
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ e˲₀ : Γ₀ ⇛ Γ₁ norm
-Σ ⊦ e˲₂ : Γ₀ ⇛ Γ₁ norm
---------------------------
-Σ ⊦ e˲₁ : Γ₀ ⇛ Γ₁ norm         (e˲₁)
-Σ ⊦ e˲₀ ≐ e˲₁ : Γ₀ ⇛ Γ₁ norm   (e˲⁼₀₁)
-Σ ⊦ e˲₁ ≐ e˲₂ : Γ₀ ⇛ Γ₁ norm   (e˲⁼₁₂)
-----------------------------   (e˲⁼₀₁ · e˲⁼₁₂ via e˲₁) // normal substitution transitivity
-Σ ⊦ e˲₀ ≐ e˲₂ : Γ₀ ⇛ Γ₁ norm
+Γ ≐ Γ' ctx
+e˲ ≐ t˲ : Γ ⇒ Δ norm
+------------------------- (sub-norm-eq-coe-dom)
+e˲ ≐ t˲ : Γ' ⇒ Δ norm
 
-Σ sig
-Σ ⊦ Γ₁ ctx
-Σ ⊦ Δ ctx
----------------
-Σ ⊦ Γ₀ ctx           (Γ₀)
-Σ ⊦ Γ₀ ≐ Γ₁ ctx      (Γ⁼)
-Σ ⊦ e˲ : Γ₀ ⇒ Δ norm (e˲)
--------------------- (coe-dom e˲ via (Γ₀, Γ⁼)) // normal substitution domain preservation
-Σ ⊦ e˲ : Γ₁ ⇒ Δ norm
+Δ ≐ Δ' ctx
+e˲ ≐ t˲ : Γ ⇒ Δ norm
+------------------------- (sub-norm-eq-coe-cod)
+e˲ ≐ t˲ : Γ ⇒ Δ' norm
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ ⊦ Δ₁ ctx
----------------
-Σ ⊦ Δ₀ ctx              (Δ₀)
-Σ ⊦ Δ₀ ≐ Δ₁ ctx         (Δ⁼)
-Σ ⊦ e˲ : Γ ⇒ Δ₀ norm    (e˲)
------------------------ (coe-codom e˲ via (Δ₀, Δ⁼)) // normal substitution codomain preservation
-Σ ⊦ e˲ : Γ ⇒ Δ₁ norm
+///////// Rules (type) /////////
 
-Σ sig
-Σ ⊦ Γ' ctx
-Σ ⊦ Δ ctx
-Σ ⊦ e˲ : Γ ⇒ Δ norm
-Σ ⊦ t˲ : Γ ⇒ Δ norm
------------------
-Σ ⊦ Γ ctx                  (Γ)
-Σ ⊦ Γ ≐ Γ' ctx             (Γ⁼)
-Σ ⊦ e˲ ≐ t˲ : Γ ⇒ Δ norm   (e˲⁼)
--------------------------  (coe-dom e˲⁼ via (Γ, Γ⁼)) // normal substitution equality domain preservation
-Σ ⊦ e˲ ≐ t˲ : Γ' ⇒ Δ norm
+Γ ctx
+------------------------ (ty-zero, ty-one, ty-nat, ty-univ)
+Γ ⊦ 𝟘, 𝟙, ℕ, 𝕌 type
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ ⊦ Δ' ctx
-Σ ⊦ e˲ : Γ ⇒ Δ norm
-Σ ⊦ t˲ : Γ ⇒ Δ norm
--------------------
-Σ ⊦ Δ ctx                 (Δ)
-Σ ⊦ Δ ≐ Δ' ctx            (Δ⁼)
-Σ ⊦ e˲ ≐ t˲ : Γ ⇒ Δ norm  (e˲⁼)
-------------------------- (coe-codom e˲⁼ via (Δ, Δ⁼)) // normal substitution equality codomain preservation
-Σ ⊦ e˲ ≐ t˲ : Γ ⇒ Δ' norm
+Γ ⊦ A type
+Γ ᐅ A ⊦ B type
+------------------ (ty-pi)
+Γ ⊦ A → B type
 
-///////// Inference rules (type) //////////
+Γ ⊦ A type
+Γ ᐅ A ⊦ B type
+------------------ (ty-sigma)
+Γ ⊦ A ⨯ B type
 
-Σ sig
-Σ ⊦ Γ ctx
------------- (𝟘)
-Σ Γ ⊦ 𝟘 type
+Γ ⊦ a : T
+Γ ⊦ b : T
+------------------------ (ty-eq)
+Γ ⊦ (a ≡ b ∈ T) type
 
-Σ sig
-Σ ⊦ Γ ctx
------------- (𝟙)
-Σ Γ ⊦ 𝟙 type
+Γ ⊦ A : 𝕌
+----------------- (ty-el)
+Γ ⊦ El A type
 
-Σ sig
-Σ ⊦ Γ ctx
------------- (ℕ)
-Σ Γ ⊦ ℕ type
+Γ ⊦ A type
+Γ ᐅ A ᐅ A[↑] ⊦ R type
+----------------------- (ty-quot)
+Γ ⊦ A / R type
 
-Σ sig
-Σ ⊦ Γ ctx
------------- (𝕌)
-Σ Γ ⊦ 𝕌 type
-
-Σ sig
-Σ ⊦ Γ ctx
---------------
-Σ Γ ⊦ A type      (A)
-Σ Γ ᐅ A ⊦ B type  (B)
-================  (A → B) // Π-type
-Σ Γ ⊦ A → B type
-
-Σ sig
-Σ ⊦ Γ ctx
---------------
-Σ Γ ⊦ A type     (A)
-Σ Γ ᐅ A ⊦ B type (B)
-================ (A ⨯ B) // Σ-type
-Σ Γ ⊦ A ⨯ B type
-
-Σ sig
-Σ ⊦ Γ ctx
---------------------
-Σ Γ ⊦ T type           (T)
-Σ Γ ⊦ a : T            (a)
-Σ Γ ⊦ b : T            (b)
-====================== (a ≡ b ∈ T) // Eq-type
-Σ Γ ⊦ (a ≡ b ∈ T) type
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A : 𝕌     (A)
---------------- (El A)
-Σ Γ ⊦ El A type
-
-Σ sig
-Σ ⊦ Γ ctx
---------------------- (El-𝟘)
-Σ ⊦ Γ ⊦ El 𝟘 ≜ 𝟘 type
-
-Σ sig
-Σ ⊦ Γ ctx
---------------------- (El-𝟙)
-Σ ⊦ Γ ⊦ El 𝟙 ≜ 𝟙 type
-
-Σ sig
-Σ ⊦ Γ ctx
-------------------- (El-ℕ)
-Σ Γ ⊦ El ℕ ≜ ℕ type
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A : 𝕌
-Σ Γ ᐅ El A ⊦ B : 𝕌
------------------------------------ (El-(→))
-Σ Γ ⊦ El (A → B) ≜ El A → El B type
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A : 𝕌
-Σ Γ ᐅ El A ⊦ B : 𝕌
-------------------------------------- (El-(⨯))
-Σ Γ ⊦ El (A ⨯ B) ≜ El A ⨯ El B type
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A : 𝕌
-Σ Γ ⊦ a₀ : El A
-Σ Γ ⊦ a₁ : El A
----------------------------------------------- (El-(≡))
-Σ Γ ⊦ El (a₀ ≡ a₁ ∈ A) ≜ (a₀ ≡ a₁ ∈ El A) type
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A : 𝕌
-Σ Γ ᐅ El A ᐅ (El A)[↑] ⊦ R : 𝕌
------------------------------------ (El-(/))
-Σ Γ ⊦ El (A / R) ≜ El A / El R type
-
-Σ sig
-Σ ⊦ Γ ctx
---------------
-Σ Γ ⊦ A type              (A)
-Σ Γ ᐅ A ᐅ A[↑] ⊦ R type   (R)
-=======================   (A / R)  // Quotient-type
-Σ Γ ⊦ A / R type
-
-Σ sig
 (Γ ⊦ x ≔ A type) ∈ Σ
-Σ ⊦ Δ ctx
-e˲ : Δ ⇒ Γ
-----------------  (x)
+e˲ : Δ ⇒ Γ norm
+---------------------- (ty-sig-var)
 Σ Δ ⊦ x[e˲] type
 
-Σ sig
 (Γ ⊦ x ≔ A type) ∈ Σ
-Σ ⊦ Δ ctx
-e˲ : Δ ⇒ Γ
------------------------  (x)
-Σ Δ ⊦ x[e˲] ≐ x[e˲] type
-
-Σ sig
-(Γ ⊦ x ≔ A type) ∈ Σ
-Σ ⊦ Δ ctx
-e˲ : Δ ⇒ Γ
-------------------------  (x-β)
+e˲ : Δ ⇒ Γ norm
+-------------------------- (x-β, type)
 Σ Δ ⊦ x[e˲] ≜ A[e˲] type
 
-Σ sig
-Σ ⊦ Γ₀ ctx
----------------
-Σ ⊦ Γ₁ ctx       (Γ₁)
-Σ Γ₁ ⊦ A type    (A)
-Σ ⊦ σ : Γ₀ ⇒ Γ₁  (σ)
----------------- ((Γ₁ ⊦ A)[σ]) // defined by meta-level induction on A
-Σ Γ₀ ⊦ A[σ] type
+// El-decoding: El of a code computes to the type it encodes.
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
---------------------- // True on the nose by induction on A
-Σ Γ ⊦ A[id] ≐ A type
+Γ ctx
+------------------------------------------------ (El-𝟘, El-𝟙, El-ℕ)
+Γ ⊦ El 𝟘 ≜ 𝟘 type,   El 𝟙 ≜ 𝟙 type,   El ℕ ≜ ℕ type
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ Γ₂ ctx
-Σ Γ₂ ⊦ A type
-Σ ⊦ σ : Γ₁ ⇒ Γ₂
-Σ ⊦ τ : Γ₀ ⇒ Γ₁
------------------------------- // True on the nose by induction on A
-Σ Γ₀ ⊦ A[σ ∘ τ] ≐ A[σ][τ] type
+Γ ⊦ A : 𝕌
+Γ ᐅ El A ⊦ B : 𝕌
+---------------------------------- (El-(→))
+Γ ⊦ El (A → B) ≜ El A → El B type
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
---------------------
-Σ Γ₀ ⊦ 𝟘[σ] ≜ 𝟘 type
+Γ ⊦ A : 𝕌
+Γ ᐅ El A ⊦ B : 𝕌
+---------------------------------- (El-(⨯))
+Γ ⊦ El (A ⨯ B) ≜ El A ⨯ El B type
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
---------------------
-Σ Γ₀ ⊦ 𝟙[σ] ≜ 𝟙 type
+Γ ⊦ a₀ : El A
+Γ ⊦ a₁ : El A
+--------------------------------------------- (El-(≡))
+Γ ⊦ El (a₀ ≡ a₁ ∈ A) ≜ (a₀ ≡ a₁ ∈ El A) type
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
-----------------------
-Σ ⊦ Γ₀ ⊦ ℕ[σ] ≜ ℕ type
+Γ ⊦ A : 𝕌
+Γ ᐅ El A ᐅ (El A)[↑] ⊦ R : 𝕌
+---------------------------------- (El-(/))
+Γ ⊦ El (A / R) ≜ El A / El R type
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
-----------------------
-Σ ⊦ Γ₀ ⊦ 𝕌[σ] ≜ 𝕌 type
+// Substitution action on types: A[σ] is defined by meta-level
+// induction on A via the ≜-equations below.
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ t : 𝕌
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
----------------------------------
-Σ ⊦ Γ₀ ⊦ (El t)[σ] ≜ El t[σ] type
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ A type
-Σ Γ₁ ᐅ A ⊦ B type
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
----------------------------------------
-Σ ⊦ Γ₀ ⊦ (A → B)[σ] ≜ A[σ] → B[σ⁺] type
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ A type
-Σ Γ₁ ᐅ A ⊦ B type
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
----------------------------------------
-Σ ⊦ Γ₀ ⊦ (A ⨯ B)[σ] ≜ A[σ] ⨯ B[σ⁺] type
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ A type
-Σ Γ₁ ⊦ a₀ : A
-Σ Γ₁ ⊦ a₁ : A
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
--------------------------------------------------------
-Σ ⊦ Γ₀ ⊦ (a₀ ≡ a₁ ∈ A)[σ] ≜ (a₀[σ] ≡ a₁[σ] ∈ A[σ]) type
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ A type
-Σ Γ₁ ᐅ A ᐅ A[↑] ⊦ R type
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
--------------------------------------
-Σ Γ₀ ⊦ (A / R)[σ] ≜ A[σ] / R[σ⁺⁺] type
-
-Σ sig
-(Γ ⊦ x type) ∈ Σ
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-e˲ : Γ₁ ⇒ Γ
+Γ₁ ⊦ A type
 σ : Γ₀ ⇒ Γ₁
------------------------------------
+------------------ (ty-sub)
+Γ₀ ⊦ A[σ] type
+
+Γ ⊦ A type
+--------------------- (ty-sub-id) // true on the nose by induction on A
+Γ ⊦ A[id] ≐ A type
+
+Γ₂ ⊦ A type
+σ : Γ₁ ⇒ Γ₂
+τ : Γ₀ ⇒ Γ₁
+------------------------------ (ty-sub-comp) // true on the nose by induction on A
+Γ₀ ⊦ A[σ ∘ τ] ≐ A[σ][τ] type
+
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------------------------------- (ty-sub-atoms)
+Γ₀ ⊦ 𝟘[σ] ≜ 𝟘 type,   𝟙[σ] ≜ 𝟙 type,   ℕ[σ] ≜ ℕ type,   𝕌[σ] ≜ 𝕌 type
+
+Γ₁ ⊦ t : 𝕌
+σ : Γ₀ ⇒ Γ₁
+------------------------------- (ty-sub-el)
+Γ₀ ⊦ (El t)[σ] ≜ El t[σ] type
+
+Γ₁ ⊦ A type
+Γ₁ ᐅ A ⊦ B type
+σ : Γ₀ ⇒ Γ₁
+--------------------------------------- (ty-sub-pi)
+Γ₀ ⊦ (A → B)[σ] ≜ A[σ] → B[σ⁺] type
+
+Γ₁ ⊦ A type
+Γ₁ ᐅ A ⊦ B type
+σ : Γ₀ ⇒ Γ₁
+--------------------------------------- (ty-sub-sigma)
+Γ₀ ⊦ (A ⨯ B)[σ] ≜ A[σ] ⨯ B[σ⁺] type
+
+Γ₁ ⊦ a₀ : A
+Γ₁ ⊦ a₁ : A
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------------- (ty-sub-eq)
+Γ₀ ⊦ (a₀ ≡ a₁ ∈ A)[σ] ≜ (a₀[σ] ≡ a₁[σ] ∈ A[σ]) type
+
+Γ₁ ⊦ A type
+Γ₁ ᐅ A ᐅ A[↑] ⊦ R type
+σ : Γ₀ ⇒ Γ₁
+---------------------------------------- (ty-sub-quot)
+Γ₀ ⊦ (A / R)[σ] ≜ A[σ] / R[σ⁺⁺] type
+
+(Γ ⊦ x ≔ A type) ∈ Σ
+e˲ : Γ₁ ⇒ Γ norm
+σ : Γ₀ ⇒ Γ₁
+----------------------------------- (ty-sub-sig-var)
 Σ Γ₀ ⊦ x[e˲][σ] ≜ x[e˲ ∘ σ] type
 
+Γ ⊦ A type
+Γ ⊦ B type
+Γ ⊦ t : 𝟘
+------------------ (ty-zero-elim) // type equality from absurdity
+Γ ⊦ A ≐ B type
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ⊦ B type
-------------------
-Σ Γ ⊦ t : 𝟘        (t)
------------------- (𝟘-elim t) // type equality from absurdity
-Σ Γ ⊦ A ≐ B type
+Γ₀ ≐ Γ₁ ctx
+Γ₀ ⊦ A type
+--------------- (ty-coe-ctx)
+Γ₁ ⊦ A type
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
----------------- (refl) // type reflexivity
-Σ Γ ⊦ A ≐ A type
+Γ₀ ≐ Γ₁ ctx
+Γ₀ ⊦ A ≐ B type
+------------------- (ty-eq-coe-ctx)
+Γ₁ ⊦ A ≐ B type
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ⊦ B type
-------------------
-Σ Γ ⊦ A ≐ B type (A⁼)
------------------- (A⁼ ⁻¹) // type symmetry
-Σ Γ ⊦ B ≐ A type
+Δ ⊦ A₀ ≐ A₁ type
+σ₀ ≐ σ₁ : Γ ⇒ Δ
+------------------------------ (ty-sub-cong)
+Γ ⊦ A₀[σ₀] ≐ A₁[σ₁] type
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ⊦ C type
-------------------
-Σ Γ ⊦ B type      (B)
-Σ Γ ⊦ A ≐ B type  (A⁼)
-Σ Γ ⊦ B ≐ C type  (C⁼)
-------------------  (A⁼ · C⁼ via B) // type transitivity
-Σ Γ ⊦ A ≐ C type
+Δ ⊦ A₀ ≐ A₁ type
+σ : Γ ⇒ Δ
+------------------------------ (ty-sub-cong-fix) // admissible: specialize via sub-refl
+Γ ⊦ A₀[σ] ≐ A₁[σ] type
 
-Σ sig
-Σ ⊦ Γ₁ ctx
------------
-Σ ⊦ Γ₀ ctx       (Γ₀)
-Σ ⊦ Γ₀ ≐ Γ₁ ctx  (Γ⁼)
-Σ Γ₀ ⊦ A type    (A)
----------------  (coe-ctx A via (Γ₀, Γ⁼)) // type context preservation
-Σ Γ₁ ⊦ A type
+Γ ⊦ A₀ ≐ A₁ type
+Γ ᐅ A₁ ⊦ B₀ ≐ B₁ type
+------------------------------- (ty-pi-cong)
+Γ ⊦ A₀ → B₀ ≐ A₁ → B₁ type
 
-Σ sig
-Σ ⊦ Γ₁ ctx
-Σ Γ₀ ⊦ A type
-Σ Γ₀ ⊦ B type
----------------
-Σ ⊦ Γ₀ ctx          (Γ₀)
-Σ ⊦ Γ₀ ≐ Γ₁ ctx     (Γ⁼)
-Σ ⊦ Γ₀ ⊦ A ≐ B type (T⁼)
-------------------- (coe-ctx T⁼ via (Γ₀, Γ⁼)) // type equality context preservation
-Σ ⊦ Γ₁ ⊦ A ≐ B type
+Γ ⊦ A₀ ≐ A₁ type
+Γ ᐅ A₁ ⊦ B₀ ≐ B₁ type
+------------------------------- (ty-sigma-cong)
+Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ type
 
-Σ sig
-Σ ⊦ Γ ctx
-------------------------
-Σ ⊦ Δ ctx                    (Δ)
-Σ Δ ⊦ A₀ type                (A₀)
-Σ Δ ⊦ A₁ type                (A₁)
-Σ ⊦ σ₀ : Γ ⇒ Δ               (σ₀)
-Σ ⊦ σ₁ : Γ ⇒ Δ               (σ₁)
-Σ Δ ⊦ A₀ ≐ A₁ type           (A⁼)
-Σ ⊦ σ₀ ≐ σ₁ : Γ ⇒ Δ          (σ⁼)
----------------------------- ((Δ ⊦ A⁼ of A₀ ≐ A₁ type)[σ⁼ of σ₀ ≐ σ₁]) // substitution type congruence
-Σ ⊦ Γ ⊦ A₀[σ₀] ≐ A₁[σ₁] type
+Γ ⊦ A₀ ≐ A₁ type
+Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₀ ≐ R₁ type
+-------------------------------- (ty-quot-cong)
+Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ type
 
-Σ sig
-Σ ⊦ Γ ctx
-------------------------
-Σ ⊦ Δ ctx                    (Δ)
-Σ Δ ⊦ A₀ type                (A₀)
-Σ Δ ⊦ A₁ type                (A₁)
-Σ ⊦ σ : Γ ⇒ Δ                (σ)
-Σ Δ ⊦ A₀ ≐ A₁ type           (A⁼)
----------------------------- ((Δ ⊦ A⁼ of A₀ ≐ A₁ type)[σ]) // substitution type congruence (fixed substitution, admissible: specialization via sub-refl)
-Σ ⊦ Γ ⊦ A₀[σ] ≐ A₁[σ] type
+Γ ⊦ T₀ ≐ T₁ type
+Γ ⊦ a₀ ≐ a₁ : T₁
+Γ ⊦ b₀ ≐ b₁ : T₁
+-------------------------------------------- (ty-eq-cong)
+Γ ⊦ (a₀ ≡ b₀ ∈ T₀) ≐ (a₁ ≡ b₁ ∈ T₁) type
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A₀ type
-Σ Γ ⊦ A₁ type
-Σ Γ ᐅ A₀ ⊦ B₀ type
-Σ Γ ᐅ A₁ ⊦ B₁ type
---------------------------
-Σ Γ ⊦ A₀ ≐ A₁ type         (A⁼)
-Σ Γ ᐅ A₁ ⊦ B₀ ≐ B₁ type    (B⁼)
-========================== (A⁼ → B⁼) // Π-type congruence
-Σ Γ ⊦ A₀ → B₀ ≐ A₁ → B₁ type
+Γ ⊦ t₀ ≐ t₁ : 𝕌
+---------------------------- (ty-eq-el) // El congruence: equal codes decode to equal types
+Γ ⊦ El t₀ ≐ El t₁ type
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A₀ type
-Σ Γ ⊦ A₁ type
-Σ Γ ᐅ A₀ ⊦ B₀ type
-Σ Γ ᐅ A₁ ⊦ B₁ type
---------------------------
-Σ Γ ⊦ A₀ ≐ A₁ type          (A⁼)
-Σ Γ ᐅ A₁ ⊦ B₀ ≐ B₁ type     (B⁼)
-=========================== (A⁼ ⨯ B⁼) // Σ-type congruence
-Σ Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ type
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A₀ type
-Σ Γ ⊦ A₁ type
-Σ Γ ᐅ A₀ ᐅ A₀[↑] ⊦ R₀ type
-Σ Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₁ type
---------------------------
-Σ Γ ⊦ A₀ ≐ A₁ type               (A⁼)
-Σ Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₀ ≐ R₁ type  (R⁼)
-=================================  (A⁼ / R⁼) // Quotient-type congruence
-Σ Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ type
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ T₀ type
-Σ Γ ⊦ T₁ type
-Σ Γ ⊦ a₀ : T₀
-Σ Γ ⊦ b₀ : T₀
-Σ Γ ⊦ a₁ : T₁
-Σ Γ ⊦ b₁ : T₁
-----------------------------------------
-Σ Γ ⊦ T₀ ≐ T₁ type                         (T⁼)
-Σ Γ ⊦ a₀ ≐ a₁ : T₁                         (a⁼)
-Σ Γ ⊦ b₀ ≐ b₁ : T₁                         (b⁼)
-========================================== (a⁼ ≡ b⁼ ∈ T⁼) // Eq-type congruence
-Σ Γ ⊦ (a₀ ≡ b₀ ∈ T₀) ≐ (a₁ ≡ b₁ ∈ T₁) type
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ t₀ : 𝕌
-Σ Γ ⊦ t₁ : 𝕌
---------------------------
-Σ Γ ⊦ t₀ ≐ t₁ : 𝕌          (t⁼)
--------------------------- (El t⁼) // El congruence
-Σ ⊦ Γ ⊦ El t₀ ≐ El t₁ type
-
-///////// Type constructor injectivity //////////
+///////// Type constructor injectivity /////////
 //
 // The congruence rules above run downward: equal components give equal
 // composites. The rules below run upward: equal composites give equal
@@ -1050,8 +584,6 @@ e˲ : Γ₁ ⇒ Γ
 // discriminator into 𝕌 turns that into an inhabitant of 𝟘).
 //
 // Notes:
-//  * A rule written with several conclusions below the line abbreviates
-//    one rule per conclusion (same premises).
 //  * The codomain/relation components are concluded UNDER the domain —
 //    this is what keeps the rules compatible with empty-domain
 //    collapses (𝟘 → 𝟙 ≐ 𝟘 → ℕ is harmless: under a 𝟘-hypothesis the
@@ -1059,7 +591,7 @@ e˲ : Γ₁ ⇒ Γ
 //  * Quotient equality is chosen STRUCTURAL: the relation components
 //    must be judgementally equal, not merely logically equivalent.
 //    (This is stricter than NuPRL's iff-based quotient equality — a
-//    deliberate choice matching the congruence rule (A⁼ / R⁼) above.)
+//    deliberate choice matching ty-quot-cong above.)
 //  * class stays NON-injective: class a ≐ class b : A / R does not
 //    entail a ≐ b — that is the entire point of quotients.
 //  * No-confusion (a Π-type is never equal to ℕ, a Σ-type, ...) is NOT
@@ -1070,1199 +602,654 @@ e˲ : Γ₁ ⇒ Γ
 //    derivable (congruence with a ℕ-elim predecessor, respectively the
 //    projections).
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A₀ type
-Σ Γ ⊦ A₁ type
-Σ Γ ᐅ A₀ ⊦ B₀ type
-Σ Γ ᐅ A₁ ⊦ B₁ type
-------------------------------
-Σ Γ ⊦ A₀ → B₀ ≐ A₁ → B₁ type   (→⁼)
------------------------------- (→-inj →⁼) // Π-type injectivity
-Σ Γ ⊦ A₀ ≐ A₁ type
-Σ Γ ᐅ A₁ ⊦ B₀ ≐ B₁ type
+Γ ᐅ A₀ ⊦ B₀ type
+Γ ᐅ A₁ ⊦ B₁ type
+Γ ⊦ A₀ → B₀ ≐ A₁ → B₁ type
+------------------------------ (→-inj)
+Γ ⊦ A₀ ≐ A₁ type
+Γ ᐅ A₁ ⊦ B₀ ≐ B₁ type
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A₀ type
-Σ Γ ⊦ A₁ type
-Σ Γ ᐅ A₀ ⊦ B₀ type
-Σ Γ ᐅ A₁ ⊦ B₁ type
-------------------------------
-Σ Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ type   (⨯⁼)
------------------------------- (⨯-inj ⨯⁼) // Σ-type injectivity
-Σ Γ ⊦ A₀ ≐ A₁ type
-Σ Γ ᐅ A₁ ⊦ B₀ ≐ B₁ type
+Γ ᐅ A₀ ⊦ B₀ type
+Γ ᐅ A₁ ⊦ B₁ type
+Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ type
+------------------------------ (⨯-inj)
+Γ ⊦ A₀ ≐ A₁ type
+Γ ᐅ A₁ ⊦ B₀ ≐ B₁ type
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A₀ type
-Σ Γ ⊦ A₁ type
-Σ Γ ᐅ A₀ ᐅ A₀[↑] ⊦ R₀ type
-Σ Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₁ type
-------------------------------
-Σ Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ type   (/⁼)
------------------------------- (/-inj /⁼) // Quotient-type injectivity
-Σ Γ ⊦ A₀ ≐ A₁ type
-Σ Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₀ ≐ R₁ type
+Γ ᐅ A₀ ᐅ A₀[↑] ⊦ R₀ type
+Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₁ type
+Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ type
+--------------------------------- (/-inj)
+Γ ⊦ A₀ ≐ A₁ type
+Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₀ ≐ R₁ type
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ T₀ type
-Σ Γ ⊦ T₁ type
-Σ Γ ⊦ a₀ : T₀
-Σ Γ ⊦ b₀ : T₀
-Σ Γ ⊦ a₁ : T₁
-Σ Γ ⊦ b₁ : T₁
-------------------------------------------
-Σ Γ ⊦ (a₀ ≡ b₀ ∈ T₀) ≐ (a₁ ≡ b₁ ∈ T₁) type   (≡⁼)
------------------------------------------- (≡-inj ≡⁼) // Eq-type injectivity
-Σ Γ ⊦ T₀ ≐ T₁ type
-Σ Γ ⊦ a₀ ≐ a₁ : T₁
-Σ Γ ⊦ b₀ ≐ b₁ : T₁
+Γ ⊦ (a₀ ≡ b₀ ∈ T₀) ≐ (a₁ ≡ b₁ ∈ T₁) type
+------------------------------------------ (≡-inj)
+Γ ⊦ T₀ ≐ T₁ type
+Γ ⊦ a₀ ≐ a₁ : T₁
+Γ ⊦ b₀ ≐ b₁ : T₁
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ t₀ : 𝕌
-Σ Γ ⊦ t₁ : 𝕌
---------------------------
-Σ ⊦ Γ ⊦ El t₀ ≐ El t₁ type   (El⁼)
--------------------------- (El-inj El⁼) // El injectivity
-Σ Γ ⊦ t₀ ≐ t₁ : 𝕌
+Γ ⊦ El t₀ ≐ El t₁ type
+-------------------------- (El-inj)
+Γ ⊦ t₀ ≐ t₁ : 𝕌
 
 // The same principles one level down, for the universe codes: the
 // canonical-forms semantics gives 𝕌 a structural PER on codes, so the
 // code constructors are injective as elements of 𝕌.
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ a₀ : 𝕌
-Σ Γ ⊦ a₁ : 𝕌
-Σ Γ ᐅ El a₀ ⊦ b₀ : 𝕌
-Σ Γ ᐅ El a₁ ⊦ b₁ : 𝕌
-------------------------------
-Σ Γ ⊦ a₀ → b₀ ≐ a₁ → b₁ : 𝕌    (→⁼)
------------------------------- (→-inj-𝕌 →⁼) // Π-code injectivity
-Σ Γ ⊦ a₀ ≐ a₁ : 𝕌
-Σ Γ ᐅ El a₁ ⊦ b₀ ≐ b₁ : 𝕌
+Γ ᐅ El a₀ ⊦ b₀ : 𝕌
+Γ ᐅ El a₁ ⊦ b₁ : 𝕌
+Γ ⊦ a₀ → b₀ ≐ a₁ → b₁ : 𝕌
+------------------------------ (→-inj-𝕌)
+Γ ⊦ a₀ ≐ a₁ : 𝕌
+Γ ᐅ El a₁ ⊦ b₀ ≐ b₁ : 𝕌
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ a₀ : 𝕌
-Σ Γ ⊦ a₁ : 𝕌
-Σ Γ ᐅ El a₀ ⊦ b₀ : 𝕌
-Σ Γ ᐅ El a₁ ⊦ b₁ : 𝕌
-------------------------------
-Σ Γ ⊦ a₀ ⨯ b₀ ≐ a₁ ⨯ b₁ : 𝕌    (⨯⁼)
------------------------------- (⨯-inj-𝕌 ⨯⁼) // Σ-code injectivity
-Σ Γ ⊦ a₀ ≐ a₁ : 𝕌
-Σ Γ ᐅ El a₁ ⊦ b₀ ≐ b₁ : 𝕌
+Γ ᐅ El a₀ ⊦ b₀ : 𝕌
+Γ ᐅ El a₁ ⊦ b₁ : 𝕌
+Γ ⊦ a₀ ⨯ b₀ ≐ a₁ ⨯ b₁ : 𝕌
+------------------------------ (⨯-inj-𝕌)
+Γ ⊦ a₀ ≐ a₁ : 𝕌
+Γ ᐅ El a₁ ⊦ b₀ ≐ b₁ : 𝕌
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ a₀ : 𝕌
-Σ Γ ⊦ a₁ : 𝕌
-Σ Γ ᐅ El a₀ ᐅ (El a₀)[↑] ⊦ r₀ : 𝕌
-Σ Γ ᐅ El a₁ ᐅ (El a₁)[↑] ⊦ r₁ : 𝕌
-------------------------------
-Σ Γ ⊦ a₀ / r₀ ≐ a₁ / r₁ : 𝕌    (/⁼)
------------------------------- (/-inj-𝕌 /⁼) // Quotient-code injectivity
-Σ Γ ⊦ a₀ ≐ a₁ : 𝕌
-Σ Γ ᐅ El a₁ ᐅ (El a₁)[↑] ⊦ r₀ ≐ r₁ : 𝕌
+Γ ᐅ El a₀ ᐅ (El a₀)[↑] ⊦ r₀ : 𝕌
+Γ ᐅ El a₁ ᐅ (El a₁)[↑] ⊦ r₁ : 𝕌
+Γ ⊦ a₀ / r₀ ≐ a₁ / r₁ : 𝕌
+---------------------------------------- (/-inj-𝕌)
+Γ ⊦ a₀ ≐ a₁ : 𝕌
+Γ ᐅ El a₁ ᐅ (El a₁)[↑] ⊦ r₀ ≐ r₁ : 𝕌
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ t₀ : 𝕌
-Σ Γ ⊦ t₁ : 𝕌
-Σ Γ ⊦ a₀ : El t₀
-Σ Γ ⊦ b₀ : El t₀
-Σ Γ ⊦ a₁ : El t₁
-Σ Γ ⊦ b₁ : El t₁
-------------------------------------------
-Σ Γ ⊦ (a₀ ≡ b₀ ∈ t₀) ≐ (a₁ ≡ b₁ ∈ t₁) : 𝕌   (≡⁼)
------------------------------------------- (≡-inj-𝕌 ≡⁼) // Eq-code injectivity
-Σ Γ ⊦ t₀ ≐ t₁ : 𝕌
-Σ Γ ⊦ a₀ ≐ a₁ : El t₁
-Σ Γ ⊦ b₀ ≐ b₁ : El t₁
+Γ ⊦ (a₀ ≡ b₀ ∈ t₀) ≐ (a₁ ≡ b₁ ∈ t₁) : 𝕌
+------------------------------------------ (≡-inj-𝕌)
+Γ ⊦ t₀ ≐ t₁ : 𝕌
+Γ ⊦ a₀ ≐ a₁ : El t₁
+Γ ⊦ b₀ ≐ b₁ : El t₁
 
-///////// Inference rules (tel) //////////
+///////// Rules (tel) /////////
 
-Σ sig
-Σ ⊦ Γ ctx
------------
-Σ Γ ⊦ ε tel
+Γ ctx
+------------- (tel-empty)
+Γ ⊦ ε tel
 
-Σ sig
-Σ ⊦ Γ ctx
--------------
-Σ Γ ⊦ A type
-Σ Γ ᐅ A ⊦ Δ tel
-===============
-Σ Γ ⊦ A ◁ Δ tel
+Γ ⊦ A type
+Γ ᐅ A ⊦ Δ tel
+----------------- (tel-ext)
+Γ ⊦ A ◁ Δ tel
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
--------------
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
-Σ Γ₁ ⊦ Δ tel
---------------- // defined by meta-level induction on Δ
-Σ Γ₀ ⊦ Δ[σ] tel
+Γ ⊦ A₀ ≐ A₁ type
+Γ ᐅ A₁ ⊦ Δ₀ ≐ Δ₁ tel
+----------------------------- (tel-ext-cong)
+Γ ⊦ A₀ ◁ Δ₀ ≐ A₁ ◁ Δ₁ tel
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
--------------------
-Σ Γ₀ ⊦ ε[σ] ≜ ε tel
+Γ₁ ⊦ Δ tel
+σ : Γ₀ ⇒ Γ₁
+----------------- (tel-sub) // defined by meta-level induction on Δ
+Γ₀ ⊦ Δ[σ] tel
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ A type
-Σ Γ₁ ᐅ A ⊦ Δ tel
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
-------------------------------------
-Σ Γ₀ ⊦ (A ◁ Δ)[σ] ≜ A[σ] ◁ Δ[σ⁺] tel
+σ : Γ₀ ⇒ Γ₁
+--------------------- (tel-sub-empty)
+Γ₀ ⊦ ε[σ] ≜ ε tel
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ Δ tel
--------------
-Σ Γ ⊦ Δ ≐ Δ tel
+Γ₁ ⊦ A type
+Γ₁ ᐅ A ⊦ Δ tel
+σ : Γ₀ ⇒ Γ₁
+---------------------------------------- (tel-sub-ext)
+Γ₀ ⊦ (A ◁ Δ)[σ] ≜ A[σ] ◁ Δ[σ⁺] tel
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ Δ₀ tel
-Σ Γ ⊦ Δ₁ tel
------------------
-Σ Γ ⊦ Δ₀ ≐ Δ₁ tel
------------------
-Σ Γ ⊦ Δ₁ ≐ Δ₀ tel
+Γ₀ ≐ Γ₁ ctx
+Γ₀ ⊦ Δ tel
+--------------- (tel-coe-ctx)
+Γ₁ ⊦ Δ tel
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ Δ₀ tel
-Σ Γ ⊦ Δ₁ tel
-Σ Γ ⊦ Δ₂ tel
------------------
-Σ Γ ⊦ Δ₀ ≐ Δ₁ tel
-Σ Γ ⊦ Δ₁ ≐ Δ₂ tel
------------------
-Σ Γ ⊦ Δ₀ ≐ Δ₂ tel
+Γ₀ ≐ Γ₁ ctx
+Γ₀ ⊦ Δ₀ ≐ Δ₁ tel
+-------------------- (tel-eq-coe-ctx)
+Γ₁ ⊦ Δ₀ ≐ Δ₁ tel
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
------------
-Σ Γ₀ ⊦ Δ tel
-Σ ⊦ Γ₀ ≐ Γ₁ ctx
----------------
-Σ Γ₁ ⊦ Δ tel
+Γ ⊦ Δ₀ ≐ Δ₁ tel
+σ₀ ≐ σ₁ : Ξ ⇒ Γ
+---------------------------- (tel-sub-cong)
+Ξ ⊦ Δ₀[σ₀] ≐ Δ₁[σ₁] tel
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₀ ⊦ Δ₀ tel
-Σ Γ₀ ⊦ Δ₁ tel
-----------------
-Σ Γ₀ ⊦ Δ₀ ≐ Δ₁ tel
-Σ ⊦ Γ₀ ≐ Γ₁ ctx
-----------------
-Σ Γ₁ ⊦ Δ₀ ≐ Δ₁ tel
+///////// Rules (elem) /////////
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A₀ type
-Σ Γ ⊦ A₁ type
-Σ Γ ᐅ A₀ ⊦ Δ₀ tel
-Σ Γ ᐅ A₁ ⊦ Δ₁ tel
--------------------------
-Σ ⊦ Γ ⊦ A₀ ≐ A₁ type
-Σ Γ ᐅ A₁ ⊦ Δ₀ ≐ Δ₁ tel
-=========================
-Σ Γ ⊦ A₀ ◁ Δ₀ ≐ A₁ ◁ Δ₁ tel
+Γ ctx
+------------------ (var) // Γ‖ₙ picks the type directly out of Γ's own structure — no
+Γ ⊦ ☐ₙ : Γ‖ₙ            // derivation of ☐ₙ₋₁, ☐ₙ₋₂, ... is required first.
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ ⊦ Ξ ctx
-Σ Γ ⊦ Δ₀ tel
-Σ Γ ⊦ Δ₁ tel
-Σ ⊦ σ₀ : Ξ ⇒ Γ
-Σ ⊦ σ₁ : Ξ ⇒ Γ
------------------------
-Σ Γ ⊦ Δ₀ ≐ Δ₁ tel
-Σ ⊦ σ₀ ≐ σ₁ : Ξ ⇒ Γ
------------------------
-Σ Ξ ⊦ Δ₀[σ₀] ≐ Δ₁[σ₁] tel
+// Universe codes.
 
-///////// Inference rules (elem) //////////
+Γ ctx
+---------------------- (code-zero, code-one, code-nat)
+Γ ⊦ 𝟘, 𝟙, ℕ : 𝕌
 
-Σ sig
-Σ ⊦ Γ ctx
--------------------- (☐ₙ) // Γ‖ₙ picks A directly out of Γ's own structure — no
-Σ Γ ⊦ ☐ₙ : Γ‖ₙ            // derivation of ☐ₙ₋₁, ☐ₙ₋₂, ... is required first.
+Γ ⊦ A : 𝕌
+Γ ᐅ El A ⊦ B : 𝕌
+-------------------- (code-pi)
+Γ ⊦ A → B : 𝕌
 
-Σ sig
-Σ ⊦ Γ ctx
------------ (𝟘)
-Σ Γ ⊦ 𝟘 : 𝕌
+Γ ⊦ A : 𝕌
+Γ ᐅ El A ⊦ B : 𝕌
+-------------------- (code-sigma)
+Γ ⊦ A ⨯ B : 𝕌
 
-Σ sig
-Σ ⊦ Γ ctx
------------ (𝟙)
-Σ Γ ⊦ 𝟙 : 𝕌
+Γ ⊦ a₀ : El A
+Γ ⊦ a₁ : El A
+--------------------------- (code-eq)
+Γ ⊦ (a₀ ≡ a₁ ∈ A) : 𝕌
 
-Σ sig
-Σ ⊦ Γ ctx
------------ (ℕ)
-Σ Γ ⊦ ℕ : 𝕌
+Γ ⊦ A : 𝕌
+Γ ᐅ El A ᐅ (El A)[↑] ⊦ R : 𝕌
+------------------------------ (code-quot)
+Γ ⊦ A / R : 𝕌
 
-Σ sig
-Σ ⊦ Γ ctx
-------------------
-Σ Γ ⊦ A : 𝕌           (A)
-Σ Γ ᐅ El A ⊦ B : 𝕌    (B)
-==================    (A → B)
-Σ Γ ⊦ A → B : 𝕌
+// 𝟘 and 𝟙.
 
-Σ sig
-Σ ⊦ Γ ctx
-----------------
-Σ Γ ⊦ A : 𝕌           (A)
-Σ Γ ᐅ El A ⊦ B : 𝕌    (B)
-==================    (A ⨯ B)
-Σ Γ ⊦ A ⨯ B : 𝕌
+Γ ⊦ A type
+Γ ⊦ t : 𝟘
+-------------------- (el-zero-e)
+Γ ⊦ 𝟘-elim t : A
 
-Σ sig
-Σ ⊦ Γ ctx
----------------------
-Σ Γ ⊦ A : 𝕌             (A)
-Σ Γ ⊦ a₀ : El A         (a₀)
-Σ Γ ⊦ a₁ : El A         (a₁)
-======================= (a₀ ≡ a₁ ∈ A)
-Σ Γ ⊦ (a₀ ≡ a₁ ∈ A) : 𝕌
+Γ ⊦ t₀ : 𝟘
+Γ ⊦ t₁ : 𝟘
+------------------- (𝟘-Prop)
+Γ ⊦ t₀ ≐ t₁ : 𝟘
 
-Σ sig
-Σ ⊦ Γ ctx
-------------------
-Σ Γ ⊦ A : 𝕌                      (A)
-Σ Γ ᐅ El A ᐅ (El A)[↑] ⊦ R : 𝕌   (R)
-==================    (A / R)
-Σ Γ ⊦ A / R : 𝕌
+Γ ctx
+-------------- (el-one-i)
+Γ ⊦ () : 𝟙
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-----------------
-Σ Γ ⊦ t : 𝟘         (t)
-==================  (𝟘-elim t)
-Σ Γ ⊦ 𝟘-elim t : A
+Γ ⊦ t₀ : 𝟙
+Γ ⊦ t₁ : 𝟙
+------------------- (𝟙-Prop)
+Γ ⊦ t₀ ≐ t₁ : 𝟙
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ t₀ : 𝟘
-Σ Γ ⊦ t₁ : 𝟘
------------------ (𝟘-Prop)
-Σ Γ ⊦ t₀ ≐ t₁ : 𝟘
+// ℕ.
 
-Σ sig
-Σ ⊦ Γ ctx
------------- ()
-Σ Γ ⊦ () : 𝟙
+Γ ctx
+------------- (el-nat-z)
+Γ ⊦ Z : ℕ
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ t₀ : 𝟙
-Σ Γ ⊦ t₁ : 𝟙
------------------ (𝟙-Prop)
-Σ Γ ⊦ t₀ ≐ t₁ : 𝟙
+Γ ⊦ t : ℕ
+--------------- (el-nat-s)
+Γ ⊦ S t : ℕ
 
-Σ sig
-Σ ⊦ Γ ctx
------------ (Z)
-Σ Γ ⊦ Z : ℕ
+Γ ᐅ ℕ ⊦ A type
+Γ ⊦ z : A[id, Z]
+Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
+Γ ⊦ t : ℕ
+-------------------------------- (el-nat-e, motive A)
+Γ ⊦ ℕ-elim z s t : A[id, t]
 
-Σ sig
-Σ ⊦ Γ ctx
------------
-Σ Γ ⊦ t : ℕ   (t)
-============= (S t)
-Σ Γ ⊦ S t : ℕ
+Γ ᐅ ℕ ⊦ A type
+Γ ⊦ z : A[id, Z]
+Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
+------------------------------------ (ℕ-elim-β-Z)
+Γ ⊦ ℕ-elim z s Z ≜ z : A[id, Z]
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ᐅ A ⊦ B type
------------------
-Σ Γ ᐅ A ⊦ f : B    (f)
-=================  (λ f)
-Σ Γ ⊦ λ f : A → B
+Γ ᐅ ℕ ⊦ A type
+Γ ⊦ z : A[id, Z]
+Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
+Γ ⊦ t : ℕ
+--------------------------------------------------------------- (ℕ-elim-β-S)
+Γ ⊦ ℕ-elim z s (S t) ≜ s[id, t, ℕ-elim z s t] : A[id, S t]
 
-Σ sig
-Σ ⊦ Γ ctx
-----------------
-Σ Γ ⊦ A type          (A)
-Σ Γ ᐅ A ⊦ B type      (B)
-Σ Γ ⊦ f : A → B       (f)
-Σ Γ ⊦ e : A           (e)
-===================== ((f : A → B) e)
-Σ Γ ⊦ f e : B[id, e]
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ᐅ A ⊦ B type
-Σ Γ ᐅ A ⊦ f : B
-Σ Γ ⊦ e : A
------------------------------------ (Π-β)
-Σ Γ ⊦ (λ f) e ≜ f[id, e] : B[id, e]
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ᐅ A ⊦ B type
-Σ Γ ⊦ f : A → B
------------------------------ (Π-η)
-Σ Γ ⊦ λ (f[↑] ☐₀) ≐ f : A → B
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ᐅ A ⊦ B type
------------------
-Σ Γ ⊦ a : A         (a)
-Σ Γ ⊦ b : B[id, a]  (b)
-=================== (a, b)
-Σ Γ ⊦ a , b : A ⨯ B
-
-Σ sig
-Σ ⊦ Γ ctx
-----------------
-Σ Γ ⊦ A type
-Σ Γ ᐅ A ⊦ B type
-Σ Γ ⊦ t : A ⨯ B
----------------- ((t : A ⨯ B) .π₁)
-Σ Γ ⊦ t .π₁ : A
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ᐅ A ⊦ B type
-Σ Γ ⊦ a : A
-Σ Γ ⊦ b : B[id, a]
------------------------- (Σ-β₁)
-Σ Γ ⊦ (a, b) .π₁ ≜ a : A
-
-Σ sig
-Σ ⊦ Γ ctx
-------------------------
-Σ Γ ⊦ A type               (A)
-Σ Γ ᐅ A ⊦ B type           (B)
-Σ Γ ⊦ t : A ⨯ B            (t)
--------------------------- ((t : A ⨯ B) .π₂)
-Σ Γ ⊦ t .π₂ : B[id, t .π₁]
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ᐅ A ⊦ B type
-Σ Γ ⊦ a : A
-Σ Γ ⊦ b : B[id, a]
-------------------------------- (Σ-β₂)
-Σ Γ ⊦ (a, b) .π₂ ≜ b : B[id, a]
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ᐅ A ⊦ B type
-Σ Γ ⊦ t : A ⨯ B
-------------------------------- (Σ-η)
-Σ Γ ⊦ t .π₁ , t .π₂ ≐ t : A ⨯ B
-// valid unidirectional rewrite
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ⊦ a : A
------------------------- (refl)
-Σ Γ ⊦ Refl : (a ≡ a ∈ A)
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ⊦ a₀ : A
-Σ Γ ⊦ a₁ : A
-Σ Γ ⊦ a : (a₀ ≡ a₁ ∈ A)    (a)
------------------------    (reflect a) // equality reflection (derivable from J, J-β, J-η)
-Σ Γ ⊦ a₀ ≐ a₁ : A
-
-Σ sig
-Σ ⊦ Γ ctx
---------------------------------
-Σ Γ ᐅ ℕ ⊦ A type                  (A)
-Σ Γ ⊦ z : A[id, Z]                (z)
-Σ Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]  (s)
-Σ Γ ⊦ t : ℕ                       (t)
---------------------------------  (ℕ-elim z s t motive A)
-Σ Γ ⊦ ℕ-elim z s t : A[id, t]
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ᐅ ℕ ⊦ A type
-Σ Γ ⊦ z : A[id, Z]
-Σ Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
---------------------------------- (ℕ-elim-β-Z)
-Σ Γ ⊦ ℕ-elim z s Z ≜ z : A[id, Z]
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ᐅ ℕ ⊦ A type
-Σ Γ ⊦ z : A[id, Z]
-Σ Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
-Σ Γ ⊦ t : ℕ
------------------------------------------------------------- (ℕ-elim-β-S)
-Σ Γ ⊦ ℕ-elim z s (S t) ≜ s[id, t, ℕ-elim z s t] : A[id, S t]
-
-Σ sig
-Σ ⊦ Γ ctx
----------------------------------------------
-Σ Γ ᐅ ℕ ⊦ A type                                (A)
-Σ Γ ᐅ ℕ ⊦ f₀ : A                                (f₀)
-Σ Γ ᐅ ℕ ⊦ f₁ : A                                (f₁)
-Σ Γ ⊦ z : A[id, Z]                              (z)
-Σ Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]                (s)
-Σ Γ ⊦ f₀[id, Z] ≐ f₁[id, Z] : A[id, Z]          (f⁼)
-Σ Γ ᐅ ℕ ⊦ f₀[↑, S ☐₀] ≐ s[id, f₀] : A[↑, S ☐₀]  (f₀⁼)
-Σ Γ ᐅ ℕ ⊦ f₁[↑, S ☐₀] ≐ s[id, f₁] : A[↑, S ☐₀]  (f₁⁼)
-Σ Γ ⊦ t : ℕ                                     (t)
----------------------------------------------   (ℕ-elim-η z s f⁼ f₀⁼ f₁⁼ t motive f₀ ≐ f₁ : A) // NOTE: This is essentially elimination into equality in A!
-Σ Γ ⊦ f₀[id, t] ≐ f₁[id, t] : A[id, t]
+Γ ᐅ ℕ ⊦ A type
+Γ ᐅ ℕ ⊦ f₀ : A
+Γ ᐅ ℕ ⊦ f₁ : A
+Γ ⊦ z : A[id, Z]
+Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
+Γ ⊦ f₀[id, Z] ≐ f₁[id, Z] : A[id, Z]
+Γ ᐅ ℕ ⊦ f₀[↑, S ☐₀] ≐ s[id, f₀] : A[↑, S ☐₀]
+Γ ᐅ ℕ ⊦ f₁[↑, S ☐₀] ≐ s[id, f₁] : A[↑, S ☐₀]
+Γ ⊦ t : ℕ
+------------------------------------------------- (ℕ-elim-η, motive A)
+Γ ⊦ f₀[id, t] ≐ f₁[id, t] : A[id, t]              // NOTE: essentially elimination into equality in A
 
 // Corollary: f₀[id, t] ≐ ℕ-elim z s t ≐ f₁[id, t] : A[id, t]
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ᐅ A ᐅ A[↑] ⊦ R type
------------------------
-Σ Γ ⊦ a : A               (a)
-=======================   (class a) // Quotient-type introduction
-Σ Γ ⊦ class a : A / R
+// Π.
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ᐅ A ᐅ A[↑] ⊦ R type
-Σ Γ ⊦ a : A
-Σ Γ ⊦ b : A
------------------------
-Σ Γ ⊦ r : R[id, a, b]
------------------------------------ (class⁼ r) // quotient equation: R-related elements have equal classes
-Σ Γ ⊦ class a ≐ class b : A / R
+Γ ᐅ A ⊦ f : B
+---------------------- (el-pi-i)
+Γ ⊦ λ f : A → B
 
-Σ sig
-Σ ⊦ Γ ctx
----------------------------------------------------------------------
-Σ Γ ⊦ A type                                                                          (A)
-Σ Γ ᐅ A ᐅ A[↑] ⊦ R type                                                               (R)
-Σ Γ ᐅ (A / R) ⊦ B type                                                                (B)
-Σ Γ ᐅ A ⊦ f : B[↑, class ☐₀]                                                          (f)
-Σ Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]     (f⁼)
-Σ Γ ⊦ q : A / R                                                                       (q)
-======================================================================= (quote-elim (A / R) f f⁼ q motive B)
-                                                                        // Quotient-type elimination
-Σ Γ ⊦ quot-elim f q : B[id, q]
+Γ ᐅ A ⊦ B type
+Γ ⊦ f : A → B
+Γ ⊦ e : A
+------------------------ (el-pi-e)
+Γ ⊦ f e : B[id, e]
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ᐅ A ᐅ A[↑] ⊦ R type
-Σ Γ ᐅ (A / R) ⊦ B type
-Σ Γ ᐅ A ⊦ f : B[↑, class ☐₀]
-Σ Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
-Σ Γ ⊦ a : A
-------------------------------------------------------- (quote-elim-β)
-Σ Γ ⊦ quot-elim f (class a) ≜ f[id, a] : B[id, class a]
+Γ ᐅ A ⊦ f : B
+Γ ⊦ e : A
+--------------------------------------- (Π-β)
+Γ ⊦ (λ f) e ≜ f[id, e] : B[id, e]
 
-Σ sig
-Σ ⊦ Γ ctx
-------------------------
-Σ Γ ⊦ A type
-Σ Γ ᐅ A ᐅ A[↑] ⊦ R type
-Σ Γ ᐅ (A / R) ⊦ B type
-Σ Γ ᐅ (A / R) ⊦ g : B
-Σ Γ ᐅ A ⊦ f : B[↑, class ☐₀]
-Σ Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
-Σ Γ ᐅ A ⊦ g[↑, class ☐₀] ≐ f : B[↑, class ☐₀] (e⁼)
-Σ Γ ⊦ q : A / R
------------------------------------------------ (quote-elim-η (A / R) e⁼ motive g : B)
-Σ Γ ⊦ g[id, q] ≐ quot-elim f q : B[id, q]
+Γ ⊦ f : A → B
+--------------------------------- (Π-η)
+Γ ⊦ λ (f[↑] ☐₀) ≐ f : A → B
 
-Σ sig
+// Σ.
+
+Γ ᐅ A ⊦ B type
+Γ ⊦ a : A
+Γ ⊦ b : B[id, a]
+---------------------- (el-sigma-i)
+Γ ⊦ (a , b) : A ⨯ B
+
+Γ ⊦ t : A ⨯ B
+------------------- (el-sigma-e₁)
+Γ ⊦ t .π₁ : A
+
+Γ ⊦ t : A ⨯ B
+------------------------------ (el-sigma-e₂)
+Γ ⊦ t .π₂ : B[id, t .π₁]
+
+Γ ᐅ A ⊦ B type
+Γ ⊦ a : A
+Γ ⊦ b : B[id, a]
+----------------------------- (Σ-β₁)
+Γ ⊦ (a, b) .π₁ ≜ a : A
+
+Γ ᐅ A ⊦ B type
+Γ ⊦ a : A
+Γ ⊦ b : B[id, a]
+------------------------------------ (Σ-β₂)
+Γ ⊦ (a, b) .π₂ ≜ b : B[id, a]
+
+Γ ⊦ t : A ⨯ B
+------------------------------------ (Σ-η) // valid unidirectional rewrite
+Γ ⊦ (t .π₁ , t .π₂) ≐ t : A ⨯ B
+
+// ≡: introduction and reflection.
+
+Γ ⊦ a : A
+----------------------------- (el-eq-i)
+Γ ⊦ Refl : (a ≡ a ∈ A)
+
+Γ ⊦ p : (a₀ ≡ a₁ ∈ A)
+------------------------- (el-reflect) // equality reflection (derivable from J, J-β, J-η)
+Γ ⊦ a₀ ≐ a₁ : A
+
+// Quotients.
+
+Γ ᐅ A ᐅ A[↑] ⊦ R type
+Γ ⊦ a : A
+------------------------- (el-quot-i)
+Γ ⊦ class a : A / R
+
+Γ ᐅ A ᐅ A[↑] ⊦ R type
+Γ ⊦ a : A
+Γ ⊦ b : A
+Γ ⊦ r : R[id, a, b]
+------------------------------------ (el-quot-eq) // R-related elements have equal classes
+Γ ⊦ class a ≐ class b : A / R
+
+Γ ᐅ (A / R) ⊦ B type
+Γ ᐅ A ⊦ f : B[↑, class ☐₀]
+Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Γ ⊦ q : A / R
+------------------------------------ (el-quot-e, motive B)
+Γ ⊦ quot-elim f q : B[id, q]
+
+Γ ᐅ (A / R) ⊦ B type
+Γ ᐅ A ⊦ f : B[↑, class ☐₀]
+Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Γ ⊦ a : A
+------------------------------------------------------------ (quot-elim-β)
+Γ ⊦ quot-elim f (class a) ≜ f[id, a] : B[id, class a]
+
+Γ ᐅ (A / R) ⊦ B type
+Γ ᐅ (A / R) ⊦ g : B
+Γ ᐅ A ⊦ f : B[↑, class ☐₀]
+Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Γ ᐅ A ⊦ g[↑, class ☐₀] ≐ f : B[↑, class ☐₀]
+Γ ⊦ q : A / R
+---------------------------------------------- (quot-elim-η, motive B)
+Γ ⊦ g[id, q] ≐ quot-elim f q : B[id, q]
+
+// Signature references.
+
 (Γ ⊦ x ≔ a : A) ∈ Σ
-Σ ⊦ Δ ctx
-e˲ : Δ ⇒ Γ
--------------------  (x)
+e˲ : Δ ⇒ Γ norm
+------------------------ (sig-var)
 Σ Δ ⊦ x[e˲] : A[e˲]
 
-Σ sig
 (Γ ⊦ x ≔ a : A) ∈ Σ
-Σ ⊦ Δ ctx
-e˲ : Δ ⇒ Γ
----------------------------   (x)
-Σ Γ ⊦ x[e˲] ≐ x[e˲] : A[e˲]
-
-Σ sig
-(Γ ⊦ x ≔ a : A) ∈ Σ
-Σ ⊦ Δ ctx
-e˲ : Δ ⇒ Γ
----------------------------   (x-β)
+e˲ : Δ ⇒ Γ norm
+------------------------------ (x-β, term)
 Σ Δ ⊦ x[e˲] ≜ a[e˲] : A[e˲]
 
-Σ sig
-Σ ⊦ Γ₀ ctx
-------------------
-Σ ⊦ Γ₁ ctx         (Γ₁)
-Σ Γ₁ ⊦ A type      (A)
-Σ ⊦ σ : Γ₀ ⇒ Γ₁    (σ)
-Σ Γ₁ ⊦ t : A       (t)
------------------- ((Γ₁ ⊦ t : A)[σ])    // defined by metal-level induction on t
-Σ Γ₀ ⊦ t[σ] : A[σ]
+// Substitution action on elements: t[σ] is defined by meta-level
+// induction on t via the ≜-equations below.
 
-Σ sig
-(Γ ⊦ x : A) ∈ Σ
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-e˲ : Γ₁ ⇒ Γ
+Γ₁ ⊦ t : A
 σ : Γ₀ ⇒ Γ₁
-----------------------------------------
+---------------------- (el-sub)
+Γ₀ ⊦ t[σ] : A[σ]
+
+Γ ⊦ t : A
+----------------------- (el-sub-id) // true on the nose by induction on t
+Γ ⊦ t[id] ≐ t : A
+
+Γ₂ ⊦ t : A
+σ : Γ₁ ⇒ Γ₂
+τ : Γ₀ ⇒ Γ₁
+--------------------------------------- (el-sub-comp) // true on the nose by induction on t
+Γ₀ ⊦ t[σ ∘ τ] ≐ t[σ][τ] : A[σ][τ]
+
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------------------------------------------ (el-sub-atoms)
+Γ₀ ⊦ 𝟘[σ] ≜ 𝟘 : 𝕌,   𝟙[σ] ≜ 𝟙 : 𝕌,   ℕ[σ] ≜ ℕ : 𝕌,   ()[σ] ≜ () : 𝟙,   Z[σ] ≜ Z : ℕ
+
+Γ₁ ⊦ t : ℕ
+σ : Γ₀ ⇒ Γ₁
+--------------------------------- (el-sub-s)
+Γ₀ ⊦ (S t)[σ] ≜ S t[σ] : ℕ
+
+Γ₁ ⊦ A : 𝕌
+Γ₁ ᐅ El A ⊦ B : 𝕌
+σ : Γ₀ ⇒ Γ₁
+---------------------------------------- (el-sub-code-pi)
+Γ₀ ⊦ (A → B)[σ] ≜ A[σ] → B[σ⁺] : 𝕌
+
+Γ₁ ⊦ A : 𝕌
+Γ₁ ᐅ El A ⊦ B : 𝕌
+σ : Γ₀ ⇒ Γ₁
+---------------------------------------- (el-sub-code-sigma)
+Γ₀ ⊦ (A ⨯ B)[σ] ≜ A[σ] ⨯ B[σ⁺] : 𝕌
+
+Γ₁ ⊦ a₀ : El A
+Γ₁ ⊦ a₁ : El A
+σ : Γ₀ ⇒ Γ₁
+--------------------------------------------------------- (el-sub-code-eq)
+Γ₀ ⊦ (a₀ ≡ a₁ ∈ A)[σ] ≜ (a₀[σ] ≡ a₁[σ] ∈ A[σ]) : 𝕌
+
+Γ₁ ⊦ A : 𝕌
+Γ₁ ᐅ El A ᐅ (El A)[↑] ⊦ R : 𝕌
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------ (el-sub-code-quot)
+Γ₀ ⊦ (A / R)[σ] ≜ A[σ] / R[σ⁺⁺] : 𝕌
+
+Γ₁ ᐅ A ⊦ f : B
+σ : Γ₀ ⇒ Γ₁
+---------------------------------------------- (el-sub-lam)
+Γ₀ ⊦ (λ f)[σ] ≜ λ f[σ⁺] : A[σ] → B[σ⁺]
+
+Γ₁ ᐅ A ⊦ B type
+Γ₁ ⊦ f : A → B
+Γ₁ ⊦ e : A
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------ (el-sub-app)
+Γ₀ ⊦ (f e)[σ] ≜ f[σ] e[σ] : B[σ, e[σ]]
+
+Γ₁ ᐅ A ⊦ B type
+Γ₁ ⊦ a : A
+Γ₁ ⊦ b : B[id, a]
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------------ (el-sub-pair)
+Γ₀ ⊦ (a , b)[σ] ≜ a[σ] , b[σ] : A[σ] ⨯ B[σ⁺]
+
+Γ₁ ⊦ t : A ⨯ B
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------ (el-sub-proj₁)
+Γ₀ ⊦ (t .π₁)[σ] ≜ t[σ] .π₁ : A[σ]
+
+Γ₁ ⊦ t : A ⨯ B
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------------- (el-sub-proj₂)
+Γ₀ ⊦ (t .π₂)[σ] ≜ t[σ] .π₂ : B[σ, t[σ] .π₁]
+
+Γ₁ ⊦ a : A
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------------ (el-sub-refl)
+Γ₀ ⊦ Refl[σ] ≜ Refl : (a[σ] ≡ a[σ] ∈ A[σ])
+
+Γ ᐅ ℕ ⊦ A type
+Γ ⊦ z : A[id, Z]
+Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
+Γ ⊦ t : ℕ
+σ : Δ ⇒ Γ
+------------------------------------------------------------------- (el-sub-nat-e)
+Δ ⊦ (ℕ-elim z s t)[σ] ≜ ℕ-elim z[σ] s[σ⁺⁺] t[σ] : A[σ, t[σ]]
+
+Γ ᐅ A ᐅ A[↑] ⊦ R type
+Γ ⊦ a : A
+σ : Δ ⇒ Γ
+---------------------------------------------------- (el-sub-class)
+Δ ⊦ (class a)[σ] ≜ class a[σ] : A[σ] / R[σ⁺⁺]
+
+Γ ᐅ (A / R) ⊦ B type
+Γ ᐅ A ⊦ f : B[↑, class ☐₀]
+Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Γ ⊦ q : A / R
+σ : Δ ⇒ Γ
+------------------------------------------------------------------ (el-sub-quot-e)
+Δ ⊦ (quot-elim f q)[σ] ≜ quot-elim f[σ⁺] q[σ] : B[σ, q[σ]]
+
+Γ ⊦ A type
+Γ ⊦ t : 𝟘
+σ : Δ ⇒ Γ
+--------------------------------------------- (el-sub-zero-e)
+Δ ⊦ (𝟘-elim t)[σ] ≜ 𝟘-elim t[σ] : A[σ]
+
+σ : Δ ⇒ Γ
+Δ ⊦ t : A[σ]
+------------------------------- (var-sub-hit)   // A the type ☐₀ names in Γ ᐅ A
+Δ ⊦ ☐₀[σ, t] ≜ t : A[σ]
+
+Γ ⊦ ☐ₙ : B
+σ : Δ ⇒ Γ
+Δ ⊦ t : A[σ]
+--------------------------------------- (var-sub-miss)   // A the extension type
+Δ ⊦ ☐ₙ₊₁[σ, t] ≜ ☐ₙ[σ] : B[σ]
+
+Γ ⊦ ☐ₙ : B
+Γ ⊦ A type
+----------------------------------- (var-sub-wk)
+Γ ᐅ A ⊦ ☐ₙ[↑] ≜ ☐ₙ₊₁ : B[↑]
+
+Γ ⊦ ☐ₙ : B
+--------------------------- (var-sub-id)
+Γ ⊦ ☐ₙ[id] ≜ ☐ₙ : B
+
+Γ ⊦ ☐ₙ : B
+τ : Δ ⇒ Γ
+σ : Ξ ⇒ Δ
+------------------------------------------ (var-sub-comp)
+Ξ ⊦ ☐ₙ[τ ∘ σ] ≜ ☐ₙ[τ][σ] : B[τ][σ]
+
+(Γ ⊦ x ≔ a : A) ∈ Σ
+e˲ : Γ₁ ⇒ Γ norm
+σ : Γ₀ ⇒ Γ₁
+---------------------------------------------- (el-sub-sig-var)
 Σ Γ₀ ⊦ x[e˲][σ] ≜ x[e˲ ∘ σ] : A[e˲ ∘ σ]
 
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ⊦ t : A
-------------------- // true on the nose by induction on t
-Σ Γ ⊦ t[id] ≐ t : A
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ Γ₂ ctx
-Σ Γ₂ ⊦ A type
-Σ Γ₂ ⊦ t : A
-Σ ⊦ σ : Γ₁ ⇒ Γ₂
-Σ ⊦ τ : Γ₀ ⇒ Γ₁
------------------------------------ // true on the nose by induction on t
-Σ Γ₀ ⊦ t[σ ∘ τ] ≐ t[σ][τ] : A[σ][τ]
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
--------------------
-Σ Γ₀ ⊦ 𝟘[σ] ≜ 𝟘 : 𝕌
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
-------------------
-Σ Γ₀ ⊦ 𝟙[σ] ≜ 𝟙 : 𝕌
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
--------------------
-Σ Γ₀ ⊦ ℕ[σ] ≜ ℕ : 𝕌
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
----------------------
-Σ Γ₀ ⊦ ()[σ] ≜ () : 𝟙
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
--------------------
-Σ Γ₀ ⊦ Z[σ] ≜ Z : ℕ
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ t : ℕ
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
-----------------------------
-Σ Γ₀ ⊦ (S t)[σ] ≜ S t[σ] : ℕ
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ A : 𝕌
-Σ Γ₁ ᐅ El A ⊦ B : 𝕌
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
-------------------------------------
-Σ Γ₀ ⊦ (A → B)[σ] ≜ A[σ] → B[σ⁺] : 𝕌
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ A : 𝕌
-Σ Γ₁ ᐅ El A ⊦ B : 𝕌
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
-------------------------------------
-Σ Γ₀ ⊦ (A ⨯ B)[σ] ≜ A[σ] ⨯ B[σ⁺] : 𝕌
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ A : 𝕌
-Σ Γ₁ ⊦ a₀ : El A
-Σ Γ₁ ⊦ a₁ : El A
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
-----------------------------------------------------
-Σ Γ₀ ⊦ (a₀ ≡ a₁ ∈ A)[σ] ≜ (a₀[σ] ≡ a₁[σ] ∈ A[σ]) : 𝕌
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ A : 𝕌
-Σ Γ₁ ᐅ El A ᐅ (El A)[↑] ⊦ R : 𝕌
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
-------------------------------------
-Σ Γ₀ ⊦ (A / R)[σ] ≜ A[σ] / R[σ⁺⁺] : 𝕌
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ᐅ A ⊦ f : B
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
-----------------------------------------
-Σ Γ₀ ⊦ (λ f)[σ] ≜ λ f[σ⁺] : A[σ] → B[σ⁺]
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ A type
-Σ Γ₁ ᐅ A ⊦ B type
-Σ Γ₁ ⊦ f : A → B
-Σ Γ₁ ⊦ e : A
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
-----------------------------------
-Σ Γ₀ ⊦ (f e)[σ] ≜ f[σ] e[σ] : B[σ]
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ A type
-Σ Γ₁ ᐅ A ⊦ B type
-Σ Γ₁ ⊦ a : A
-Σ Γ₁ ⊦ b : B[id, a]
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
-----------------------------------------------
-Σ Γ₀ ⊦ (a , b)[σ] ≜ a[σ] , b[σ] : A[σ] ⨯ B[σ⁺]
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ A type
-Σ Γ₁ ᐅ A ⊦ B type
-Σ Γ₁ ⊦ t : A ⨯ B
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
------------------------------------
-Σ Γ₀ ⊦ (t .π₁)[σ] ≜ t[σ] .π₁ : A[σ]
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ A type
-Σ Γ₁ ᐅ A ⊦ B type
-Σ Γ₁ ⊦ t : A ⨯ B
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
----------------------------------------------
-Σ Γ₀ ⊦ (t .π₂)[σ] ≜ t[σ] .π₂ : B[σ, t[σ] .π₁]
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ A type
-Σ Γ₁ ⊦ a : A
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
--------------------------------------------
-Σ Γ₀ ⊦ Refl[σ] ≜ Refl : (a[σ] ≡ a[σ] ∈ A[σ])
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ᐅ ℕ ⊦ A type
-Σ Γ ⊦ z : A[id, Z]
-Σ Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
-Σ Γ ⊦ t : ℕ
-Σ ⊦ Δ ctx
-Σ ⊦ σ : Δ ⇒ Γ
---------------------------------------------------------------
-Σ Δ ⊦ (ℕ-elim z s t)[σ] ≜ ℕ-elim z[σ] s[σ⁺⁺] t[σ] : A[σ, t[σ]]
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ᐅ A ᐅ A[↑] ⊦ R type
-Σ Γ ⊦ a : A
-Σ ⊦ Δ ctx
-Σ ⊦ σ : Δ ⇒ Γ
--------------------------------------------
-Σ Δ ⊦ (class a)[σ] ≜ class a[σ] : A[σ] / R[σ⁺⁺]
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ᐅ A ᐅ A[↑] ⊦ R type
-Σ Γ ᐅ (A / R) ⊦ B type
-Σ Γ ᐅ A ⊦ f : B[↑, class ☐₀]
-Σ Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
-Σ Γ ⊦ q : A / R
-Σ ⊦ Δ ctx
-Σ ⊦ σ : Δ ⇒ Γ
---------------------------------------------------------------
-Σ Δ ⊦ (quot-elim f q)[σ] ≜ quot-elim f[σ⁺] q[σ] : B[σ, q[σ]]
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ⊦ t : 𝟘
-Σ ⊦ Δ ctx
-Σ ⊦ σ : Δ ⇒ Γ
-----------------------------------------
-Σ Δ ⊦ (𝟘-elim t)[σ] ≜ 𝟘-elim t[σ] : A[σ]
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ ⊦ Δ ctx
-Σ ⊦ σ : Δ ⇒ Γ
-Σ Δ ⊦ t : A[σ]
--------------------------
-Σ Δ ⊦ ☐₀[σ, t] ≜ t : A[σ]
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ⊦ B type
-Σ ⊦ Δ ctx
-Σ ⊦ σ : Δ ⇒ Γ
-Σ Δ ⊦ t : A[σ]
-Σ Γ ⊦ ☐ₙ : B
--------------------------------
-Σ Δ ⊦ ☐ₙ₊₁[σ, t] ≜ ☐ₙ[σ] : B[σ]
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ⊦ B type
-Σ Γ ⊦ ☐ₙ : B
------------------------------
-Σ Γ ᐅ A ⊦ ☐ₙ[↑] ≜ ☐ₙ₊₁ : B[↑]
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ B type
-Σ Γ ⊦ ☐ₙ : B
----------------------
-Σ Γ ⊦ ☐ₙ[id] ≜ ☐ₙ : B
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ B type
-Σ Γ ⊦ ☐ₙ : B
-Σ ⊦ τ : Δ ⇒ Γ
-Σ ⊦ σ : Ξ ⇒ Δ
-------------------------------------
-Σ Ξ ⊦ ☐ₙ[τ ∘ σ] ≜ ☐ₙ[τ][σ] : B[τ][σ]
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ⊦ a : A
--------------------- (refl) // element reflexivity
-Σ Γ ⊦ a ≐ a : A
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ⊦ a₀ : A
-Σ Γ ⊦ a₁ : A
----------------
-Σ Γ ⊦ a₀ ≐ a₁ : A (a⁼)
---------------- (a⁼ ⁻¹) // element symmetry
-Σ Γ ⊦ a₁ ≐ a₀ : A
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ⊦ a₀ : A
-Σ Γ ⊦ a₂ : A
----------------
-Σ Γ ⊦ a₁ : A            (a₁)
-Σ Γ ⊦ a₀ ≐ a₁ : A       (a₀₁⁼)
-Σ Γ ⊦ a₁ ≐ a₂ : A       (a₁₂⁼)
---------------- (a₀₁⁼ · a₁₂⁼ via a₁) // element transitivity
-Σ Γ ⊦ a₀ ≐ a₂ : A
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A₁ type
-----------------
-Σ Γ ⊦ A₀ type          (A₀)
-Σ Γ ⊦ A₀ ≐ A₁ type     (A⁼)
-Σ Γ ⊦ a : A₀           (a)
----------------- (coe-ty a via (A₀, A⁼)) // element type preservation
-Σ Γ ⊦ a : A₁
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A₁ type
-----------------
-Σ Γ ⊦ A₀ type          (A₀)
-Σ Γ ⊦ A₀ ≐ A₁ type     (A⁼)
-Σ Γ ⊦ a₀ ≐ a₁ : A₀     (a⁼)
----------------- (coe-ty a⁼ via (A₀, A⁼)) // element equality type preservation
-Σ Γ ⊦ a₀ ≐ a₁ : A₁
-
-Σ sig
-Σ ⊦ Γ₁ ctx
-Σ Γ₀ ⊦ A type
------------
-Σ ⊦ Γ₀ ctx          (Γ₀)
-Σ ⊦ Γ₀ ≐ Γ₁ ctx     (Γ⁼)
-Σ Γ₀ ⊦ a : A        (a)
------------ (coe-ctx a via (Γ₀, Γ⁼)) // element context preservation
-Σ Γ₁ ⊦ a : A
-
-Σ sig
-Σ ⊦ Γ₁ ctx
-Σ Γ₀ ⊦ A type
-----------------
-Σ ⊦ Γ₀ ctx             (Γ₀)
-Σ ⊦ Γ₀ ≐ Γ₁ ctx        (Γ⁼)
-Σ Γ₀ ⊦ a₀ ≐ a₁ : A     (a⁼)
----------------- (coe-ctx a⁼ via (Γ₀, Γ⁼)) // element equality context preservation
-Σ Γ₁ ⊦ a₀ ≐ a₁ : A
-
-// Congruence rules for element constructors
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-------------------------------
-Σ ⊦ Γ₁ ctx                      (Γ₁)
-Σ Γ₁ ⊦ A type                   (A)
-Σ ⊦ σ₀ : Γ₀ ⇒ Γ₁                (σ₀)
-Σ ⊦ σ₁ : Γ₀ ⇒ Γ₁                (σ₁)
-Σ Γ₁ ⊦ t₀ ≐ t₁ : A              (t⁼)
-Σ ⊦ σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁           (σ⁼)
------------------------------- ((Γ₁ ⊦ t⁼ of t₀ ≐ t₁ : A)[σ⁼ of σ₀ ≐ σ₁]) // element substitution congruence
-Σ Γ₀ ⊦ t₀[σ₀] ≐ t₁[σ₁] : A[σ₁]
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-------------------------------
-Σ ⊦ Γ₁ ctx                      (Γ₁)
-Σ Γ₁ ⊦ A type                   (A)
-Σ ⊦ σ : Γ₀ ⇒ Γ₁                 (σ)
-Σ Γ₁ ⊦ t₀ ≐ t₁ : A              (t⁼)
------------------------------- ((Γ₁ ⊦ t⁼ of t₀ ≐ t₁ : A)[σ]) // element substitution congruence (fixed substitution, admissible: specialization via sub-refl)
-Σ Γ₀ ⊦ t₀[σ] ≐ t₁[σ] : A[σ]
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ᐅ A ⊦ B type
------------------------
-Σ Γ ᐅ A ⊦ f₀ ≐ f₁ : B    (f⁼)
-=======================  (λ f⁼)
-Σ Γ ⊦ λ f₀ ≐ λ f₁ : A → B
-
-Σ sig
-Σ ⊦ Γ ctx
-------------------
-Σ Γ ⊦ A type              (A)
-Σ Γ ᐅ A ⊦ B type          (B)
-Σ Γ ⊦ f₀ ≐ f₁ : A → B     (f⁼)
-Σ Γ ⊦ a₀ ≐ a₁ : A         (a⁼)
-------------------------- ((f⁼ : A → B) a⁼) // Π-application congruence
-Σ Γ ⊦ f₀ a₀ ≐ f₁ a₁ : B[id, a₁]
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ᐅ A ⊦ B type
----------------------------
-Σ Γ ⊦ a₀ ≐ a₁ : A            (a⁼)
-Σ Γ ⊦ b₀ ≐ b₁ : B[id, a₁]    (b⁼)
-============================ (a⁼, b⁼)
-Σ Γ ⊦ a₀, b₀ ≐ a₁, b₁ : A ⨯ B
-
-Σ sig
-Σ ⊦ Γ ctx
-------------------
-Σ Γ ⊦ A type              (A)
-Σ Γ ᐅ A ⊦ B type          (B)
-Σ Γ ⊦ t₀ ≐ t₁ : A ⨯ B     (t⁼)
-------------------------- ((t⁼ : A ⨯ B) .π₁) // Σ-elim₁ congruence
-Σ Γ ⊦ t₀ .π₁ ≐ t₁ .π₁ : A
-
-Σ sig
-Σ ⊦ Γ ctx
-------------------
-Σ Γ ⊦ A type              (A)
-Σ Γ ᐅ A ⊦ B type          (B)
-Σ Γ ⊦ t₀ ≐ t₁ : A ⨯ B     (t⁼)
---------------------------- ((t⁼ : A ⨯ B) .π₂) // Σ-elim₂ congruence
-Σ Γ ⊦ t₀ .π₂ ≐ t₁ .π₂ : B[id, t₁ .π₁]
-
-Σ sig
-Σ ⊦ Γ ctx
--------------------
-Σ Γ ⊦ t₀ ≐ t₁ : ℕ    (t⁼)
-==================== (S t⁼)
-Σ Γ ⊦ S t₀ ≐ S t₁ : ℕ
-
-Σ sig
-Σ ⊦ Γ ctx
-------------------------------------------------
-Σ Γ ᐅ ℕ ⊦ A type                                  (A)
-Σ Γ ⊦ z₀ : A[id, Z]                               (z₀)
-Σ Γ ⊦ z₁ : A[id, Z]                               (z₁)
-Σ Γ ᐅ ℕ ᐅ A ⊦ s₀ : A[↑, S ☐₀][↑]                  (s₀)
-Σ Γ ᐅ ℕ ᐅ A ⊦ s₁ : A[↑, S ☐₀][↑]                  (s₁)
-Σ Γ ⊦ z₀ ≐ z₁ : A[id, Z]                           (z⁼)
-Σ Γ ᐅ ℕ ᐅ A ⊦ s₀ ≐ s₁ : A[↑, S ☐₀][↑]              (s⁼)
-Σ Γ ⊦ t₀ ≐ t₁ : ℕ                                  (t⁼)
-------------------------------------------------- (ℕ-elim z⁼ s⁼ t⁼ motive A) // ℕ-elim congruence
-Σ Γ ⊦ ℕ-elim z₀ s₀ t₀ ≐ ℕ-elim z₁ s₁ t₁ : A[id, t₁]
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ⊦ t₀ : 𝟘
-Σ Γ ⊦ t₁ : 𝟘
-------------------------------- (𝟘-elim)
-Σ Γ ⊦ 𝟘-elim t₀ ≐ 𝟘-elim t₁ : A
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A type
-Σ Γ ᐅ A ᐅ A[↑] ⊦ R type
---------------------
-Σ Γ ⊦ a₀ ≐ a₁ : A                 (a⁼)
-================================= (class a⁼) // class-congruence
-Σ Γ ⊦ class a₀ ≐ class a₁ : A / R
-
-Σ sig
-Σ ⊦ Γ ctx
----------------------------------------------------------------------
-Σ Γ ⊦ A type                                                                          (A)
-Σ Γ ᐅ A ᐅ A[↑] ⊦ R type                                                               (R)
-Σ Γ ᐅ (A / R) ⊦ B type                                                                (B)
-Σ Γ ᐅ A ⊦ f₀ : B[↑, class ☐₀]                                                         (f₀)
-Σ Γ ᐅ A ⊦ f₁ : B[↑, class ☐₀]                                                         (f₁)
-Σ Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f₀[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f₀[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]    (resp₀)
-Σ Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f₁[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f₁[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]    (resp₁)
-Σ Γ ⊦ q₀ : A / R                                                                       (q₀)
-Σ Γ ⊦ q₁ : A / R                                                                       (q₁)
-Σ Γ ᐅ A ⊦ f₀ ≐ f₁ : B[↑, class ☐₀]                                                     (f⁼)
-Σ Γ ⊦ q₀ ≐ q₁ : A / R                                                                  (q⁼)
------------------------------------------------- (quote-elim (A / R) f⁼ resp₀ resp₁ q⁼ motive B) // quot-elim congruence
-Σ Γ ⊦ quot-elim f₀ q₀ ≐ quot-elim f₁ q₁ : B[id, q₁]
-
-// Congruence rules for universe code constructors
-
-Σ sig
-Σ ⊦ Γ ctx
-------------------------
-Σ Γ ⊦ A₀ : 𝕌                (A₀)
-Σ Γ ⊦ A₁ : 𝕌                (A₁)
-Σ Γ ᐅ El A₀ ⊦ B₀ : 𝕌        (B₀)
-Σ Γ ᐅ El A₁ ⊦ B₁ : 𝕌        (B₁)
-Σ Γ ⊦ A₀ ≐ A₁ : 𝕌            (A⁼)
-Σ Γ ᐅ El A₁ ⊦ B₀ ≐ B₁ : 𝕌    (B⁼)
-========================= (A⁼ → B⁼) // Π-code congruence
-Σ Γ ⊦ A₀ → B₀ ≐ A₁ → B₁ : 𝕌
-
-Σ sig
-Σ ⊦ Γ ctx
-------------------------
-Σ Γ ⊦ A₀ : 𝕌                (A₀)
-Σ Γ ⊦ A₁ : 𝕌                (A₁)
-Σ Γ ᐅ El A₀ ⊦ B₀ : 𝕌        (B₀)
-Σ Γ ᐅ El A₁ ⊦ B₁ : 𝕌        (B₁)
-Σ Γ ⊦ A₀ ≐ A₁ : 𝕌            (A⁼)
-Σ Γ ᐅ El A₁ ⊦ B₀ ≐ B₁ : 𝕌    (B⁼)
-========================= (A⁼ ⨯ B⁼) // Σ-code congruence
-Σ Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ : 𝕌
-
-Σ sig
-Σ ⊦ Γ ctx
--------------------------
-Σ Γ ⊦ A₀ : 𝕌               (A₀)
-Σ Γ ⊦ A₁ : 𝕌               (A₁)
-Σ Γ ⊦ a₀ : El A₁           (a₀)
-Σ Γ ⊦ a₁ : El A₁           (a₁)
-Σ Γ ⊦ b₀ : El A₁           (b₀)
-Σ Γ ⊦ b₁ : El A₁           (b₁)
-Σ Γ ⊦ A₀ ≐ A₁ : 𝕌          (A⁼)
-Σ Γ ⊦ a₀ ≐ a₁ : El A₁      (a⁼)
-Σ Γ ⊦ b₀ ≐ b₁ : El A₁      (b⁼)
------------------------------------------ (a⁼ ≡ b⁼ ∈ A⁼) // Eq-code congruence
-Σ Γ ⊦ (a₀ ≡ b₀ ∈ A₀) ≐ (a₁ ≡ b₁ ∈ A₁) : 𝕌
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ A₀ : 𝕌
-Σ Γ ⊦ A₁ : 𝕌
-Σ Γ ᐅ El A₀ ᐅ (El A₀)[↑] ⊦ R₀ : 𝕌
-Σ Γ ᐅ El A₁ ᐅ (El A₁)[↑] ⊦ R₁ : 𝕌
---------------------------
-Σ Γ ⊦ A₀ ≐ A₁ : 𝕌                       (A⁼)
-Σ Γ ᐅ El A₁ ᐅ (El A₁)[↑] ⊦ R₀ ≐ R₁ : 𝕌  (R⁼)
-========================= (A⁼ / R⁼) // Quotient-code congruence
-Σ Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ : 𝕌
-
-///////// Inference rules (elem list) //////////
-
-Σ sig
-Σ ⊦ Γ ctx
------------
------------
-Σ Γ ⊦ · : ε
-
-Σ sig
-Σ Γ ⊦ A type
-Σ Γ ᐅ A ⊦ Δ tel
-----------------
-Σ Γ ⊦ e : A
-Σ Γ ⊦ ē : Δ[id, e]
-==================
-Σ Γ ⊦ e, ē : A ◁ Δ
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ Δ tel
-Σ Γ₁ ⊦ ē : Δ
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
------------------- // defined by meta-level induction on ē
-Σ Γ₀ ⊦ ē[σ] : Δ[σ]
-
-Σ sig
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
--------------------
-Σ Γ₀ ⊦ ·[σ] ≜ · : ε
-
-Σ sig
-Σ Γ₁ ⊦ A type
-Σ Γ₁ ⊦ e : A
-Σ Γ₁ ᐅ A ⊦ Δ tel
-Σ Γ₁ ⊦ ē : Δ[id, e]
-Σ ⊦ σ : Γ₀ ⇒ Γ₁
---------------------------------------------
-Σ Γ₀ ⊦ (e, ē)[σ] ≜ e[σ], ē[σ] : A[σ] ◁ Δ[σ⁺]
-
-Σ sig
-Σ ⊦ Γ ctx
----------------
-Σ Γ ⊦ · ≐ · : ε
-
-Σ sig
-Σ Γ ⊦ A type
-Σ Γ ᐅ A ⊦ Δ tel
----------------------------
-Σ Γ ⊦ e₀ ≐ e₁ : A
-Σ Γ ⊦ ē₀ ≐ ē₁ : Δ[id, e₁]
-===========================
-Σ Γ ⊦ e₀, ē₀ ≐ e₁, ē₁ : A ◁ Δ
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ Δ tel
-Σ Γ ⊦ ē : Δ
----------------
-Σ Γ ⊦ ē ≐ ē : Δ
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ Δ tel
-Σ Γ ⊦ ē : Δ
-Σ Γ ⊦ ē' : Δ
-Σ Γ ⊦ ē ≐ ē' : Δ
-----------------
-Σ Γ ⊦ ē' ≐ ē : Δ
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ Δ tel
-Σ Γ ⊦ ē : Δ
-Σ Γ ⊦ ē' : Δ
-Σ Γ ⊦ ē'' : Δ
-Σ Γ ⊦ ē ≐ ē' : Δ
-Σ Γ ⊦ ē' ≐ ē'' : Δ
---------------------
-Σ Γ ⊦ ē ≐ ē'' : Δ
-
-// Conversion rules for element list
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ ⊦ Γ' ctx
-Σ Γ ⊦ Δ tel
-Σ Γ ⊦ ē : Δ
-Σ ⊦ Γ ≐ Γ' ctx
---------------
-Σ Γ' ⊦ ē : Δ
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ Δ tel
-Σ Γ ⊦ Δ' tel
-Σ Γ ⊦ ē : Δ
-Σ Γ ⊦ Δ ≐ Δ' tel
-----------------
-Σ Γ ⊦ ē : Δ'
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ ⊦ Γ' ctx
-Σ Γ ⊦ Δ tel
-Σ Γ ⊦ ē : Δ
-Σ Γ ⊦ ē' : Δ
-Σ Γ ⊦ ē ≐ ē' : Δ
-Σ ⊦ Γ ≐ Γ' ctx
------------------
-Σ Γ' ⊦ ē ≐ ē' : Δ
-
-Σ sig
-Σ ⊦ Γ ctx
-Σ Γ ⊦ Δ₀ tel
-Σ Γ ⊦ Δ₁ tel
-Σ Γ ⊦ ē₀ : Δ₀
-Σ Γ ⊦ ē₁ : Δ₁
-Σ Γ ⊦ Δ₀ ≐ Δ₁ tel
-Σ Γ ⊦ ē₀ ≐ ē₁ : Δ₀
-------------------
-Σ Γ ⊦ ē₀ ≐ ē₁ : Δ₁
-
-Σ sig
-Σ ⊦ Γ₀ ctx
-Σ ⊦ Γ₁ ctx
-Σ Γ₁ ⊦ Δ tel
-Σ ⊦ σ₀ : Γ₀ ⇒ Γ₁
-Σ ⊦ σ₁ : Γ₀ ⇒ Γ₁
-Σ Γ₁ ⊦ ē₀ : Δ
-Σ Γ₁ ⊦ ē₁ : Δ
-Σ Γ₁ ⊦ ē₀ ≐ ē₁ : Δ
-Σ ⊦ σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
-------------------------------
-Σ Γ₀ ⊦ ē₀[σ₀] ≐ ē₁[σ₁] : Δ[σ₁]
+// Coercion.
+
+Γ ⊦ A₀ ≐ A₁ type
+Γ ⊦ a : A₀
+-------------------- (el-ty-coe)
+Γ ⊦ a : A₁
+
+Γ ⊦ A₀ ≐ A₁ type
+Γ ⊦ a₀ ≐ a₁ : A₀
+-------------------- (el-eq-ty-coe)
+Γ ⊦ a₀ ≐ a₁ : A₁
+
+Γ₀ ≐ Γ₁ ctx
+Γ₀ ⊦ a : A
+--------------- (el-coe-ctx)
+Γ₁ ⊦ a : A
+
+Γ₀ ≐ Γ₁ ctx
+Γ₀ ⊦ a₀ ≐ a₁ : A
+-------------------- (el-eq-coe-ctx)
+Γ₁ ⊦ a₀ ≐ a₁ : A
+
+// Congruence rules for element constructors.
+
+Γ₁ ⊦ t₀ ≐ t₁ : A
+σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
+--------------------------------- (el-sub-cong)
+Γ₀ ⊦ t₀[σ₀] ≐ t₁[σ₁] : A[σ₁]
+
+Γ₁ ⊦ t₀ ≐ t₁ : A
+σ : Γ₀ ⇒ Γ₁
+--------------------------------- (el-eq-subst) // admissible: specialize via sub-refl
+Γ₀ ⊦ t₀[σ] ≐ t₁[σ] : A[σ]
+
+Γ ᐅ A ⊦ f₀ ≐ f₁ : B
+--------------------------- (el-lam-cong)
+Γ ⊦ λ f₀ ≐ λ f₁ : A → B
+
+Γ ᐅ A ⊦ B type
+Γ ⊦ f₀ ≐ f₁ : A → B
+Γ ⊦ a₀ ≐ a₁ : A
+------------------------------------ (el-app-cong)
+Γ ⊦ f₀ a₀ ≐ f₁ a₁ : B[id, a₁]
+
+Γ ᐅ A ⊦ B type
+Γ ⊦ a₀ ≐ a₁ : A
+Γ ⊦ b₀ ≐ b₁ : B[id, a₁]
+------------------------------------- (el-pair-cong)
+Γ ⊦ (a₀, b₀) ≐ (a₁, b₁) : A ⨯ B
+
+Γ ⊦ t₀ ≐ t₁ : A ⨯ B
+------------------------------- (el-proj₁-cong)
+Γ ⊦ t₀ .π₁ ≐ t₁ .π₁ : A
+
+Γ ⊦ t₀ ≐ t₁ : A ⨯ B
+------------------------------------------- (el-proj₂-cong)
+Γ ⊦ t₀ .π₂ ≐ t₁ .π₂ : B[id, t₁ .π₁]
+
+Γ ⊦ t₀ ≐ t₁ : ℕ
+------------------------- (el-suc-cong)
+Γ ⊦ S t₀ ≐ S t₁ : ℕ
+
+Γ ᐅ ℕ ⊦ A type
+Γ ⊦ z₀ ≐ z₁ : A[id, Z]
+Γ ᐅ ℕ ᐅ A ⊦ s₀ ≐ s₁ : A[↑ ∘ ↑, S ☐₁]
+Γ ⊦ t₀ ≐ t₁ : ℕ
+------------------------------------------------------ (el-nat-e-cong, motive A)
+Γ ⊦ ℕ-elim z₀ s₀ t₀ ≐ ℕ-elim z₁ s₁ t₁ : A[id, t₁]
+
+Γ ⊦ A type
+Γ ⊦ t₀ : 𝟘
+Γ ⊦ t₁ : 𝟘
+------------------------------------ (el-zero-e-cong) // stronger than a congruence: no t⁼ premise
+Γ ⊦ 𝟘-elim t₀ ≐ 𝟘-elim t₁ : A
+
+Γ ᐅ A ᐅ A[↑] ⊦ R type
+Γ ⊦ a₀ ≐ a₁ : A
+--------------------------------------- (el-class-cong)
+Γ ⊦ class a₀ ≐ class a₁ : A / R
+
+Γ ᐅ (A / R) ⊦ B type
+Γ ᐅ A ⊦ f₀ : B[↑, class ☐₀]
+Γ ᐅ A ⊦ f₁ : B[↑, class ☐₀]
+Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f₀[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f₀[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f₁[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f₁[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Γ ᐅ A ⊦ f₀ ≐ f₁ : B[↑, class ☐₀]
+Γ ⊦ q₀ ≐ q₁ : A / R
+------------------------------------------------------ (el-quot-e-cong, motive B)
+Γ ⊦ quot-elim f₀ q₀ ≐ quot-elim f₁ q₁ : B[id, q₁]
+
+// Congruence rules for universe code constructors.
+
+Γ ⊦ A₀ ≐ A₁ : 𝕌
+Γ ᐅ El A₁ ⊦ B₀ ≐ B₁ : 𝕌
+------------------------------- (code-pi-cong)
+Γ ⊦ A₀ → B₀ ≐ A₁ → B₁ : 𝕌
+
+Γ ⊦ A₀ ≐ A₁ : 𝕌
+Γ ᐅ El A₁ ⊦ B₀ ≐ B₁ : 𝕌
+------------------------------- (code-sigma-cong)
+Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ : 𝕌
+
+Γ ⊦ A₀ ≐ A₁ : 𝕌
+Γ ⊦ a₀ ≐ a₁ : El A₁
+Γ ⊦ b₀ ≐ b₁ : El A₁
+--------------------------------------------- (code-eq-cong)
+Γ ⊦ (a₀ ≡ b₀ ∈ A₀) ≐ (a₁ ≡ b₁ ∈ A₁) : 𝕌
+
+Γ ⊦ A₀ ≐ A₁ : 𝕌
+Γ ᐅ El A₁ ᐅ (El A₁)[↑] ⊦ R₀ ≐ R₁ : 𝕌
+--------------------------------------- (code-quot-cong)
+Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ : 𝕌
+
+///////// Rules (elem list) /////////
+
+Γ ctx
+------------- (sp-empty)
+Γ ⊦ · : ε
+
+Γ ᐅ A ⊦ Δ tel
+Γ ⊦ e : A
+Γ ⊦ ē : Δ[id, e]
+---------------------- (sp-ext)
+Γ ⊦ e, ē : A ◁ Δ
+
+Γ ᐅ A ⊦ Δ tel
+Γ ⊦ e₀ ≐ e₁ : A
+Γ ⊦ ē₀ ≐ ē₁ : Δ[id, e₁]
+--------------------------------- (sp-ext-cong)
+Γ ⊦ (e₀, ē₀) ≐ (e₁, ē₁) : A ◁ Δ
+
+Γ₁ ⊦ ē : Δ
+σ : Γ₀ ⇒ Γ₁
+---------------------- (sp-sub) // defined by meta-level induction on ē
+Γ₀ ⊦ ē[σ] : Δ[σ]
+
+σ : Γ₀ ⇒ Γ₁
+----------------------- (sp-sub-empty)
+Γ₀ ⊦ ·[σ] ≜ · : ε
+
+Γ₁ ⊦ e : A
+Γ₁ ᐅ A ⊦ Δ tel
+Γ₁ ⊦ ē : Δ[id, e]
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------ (sp-sub-ext)
+Γ₀ ⊦ (e, ē)[σ] ≜ e[σ], ē[σ] : A[σ] ◁ Δ[σ⁺]
+
+Γ ≐ Γ' ctx
+Γ ⊦ ē : Δ
+--------------- (sp-coe-ctx)
+Γ' ⊦ ē : Δ
+
+Γ ⊦ Δ ≐ Δ' tel
+Γ ⊦ ē : Δ
+------------------ (sp-coe-tel)
+Γ ⊦ ē : Δ'
+
+Γ ≐ Γ' ctx
+Γ ⊦ ē ≐ ē' : Δ
+-------------------- (sp-eq-coe-ctx)
+Γ' ⊦ ē ≐ ē' : Δ
+
+Γ ⊦ Δ₀ ≐ Δ₁ tel
+Γ ⊦ ē₀ ≐ ē₁ : Δ₀
+-------------------- (sp-eq-coe-tel)
+Γ ⊦ ē₀ ≐ ē₁ : Δ₁
+
+Γ₁ ⊦ ē₀ ≐ ē₁ : Δ
+σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
+----------------------------------- (sp-sub-cong)
+Γ₀ ⊦ ē₀[σ₀] ≐ ē₁[σ₁] : Δ[σ₁]
+
+///////// Rule name index /////////
+
+Synonyms used elsewhere in the docs (docs/NovaKernel.txt,
+docs/NovaElaboration.txt) for rules named above:
+
+  β        = Π-β                        ℕ-β₀   = ℕ-elim-β-Z
+  ⨯-β₁    = Σ-β₁                        ℕ-β₁   = ℕ-elim-β-S
+  ⨯-β₂    = Σ-β₂                        /-β    = quot-elim-β
+  el-pi-eta    = Π-η                    x-β    = x-β (term and type forms)
+  el-sigma-eta = Σ-η                    El-decoding = El-𝟘 ... El-(/)
+  sig-var-ty   = ty-sig-var             el-nat-eta  = ℕ-elim-η
+  El-cong      = ty-eq-el               class⁼      = el-quot-eq
+  reflect      = el-reflect
+
+The PER schema instances are ctx-refl/-sym/-trans, sub-…, sub-norm-…,
+ty-…, el-…, tel-…, sp-… (see Conventions). All remaining names appear
+verbatim on their rules.
