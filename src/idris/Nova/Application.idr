@@ -3,7 +3,7 @@ module Nova.Application
 import Data.List
 import Data.String
 
-import Nova.Elaboration
+import Nova.Elaboration.Loader
 import System
 import System.File
 
@@ -25,9 +25,7 @@ main = do
   args <- getArgs
   case args of
     (_ :: "elab" :: surfaceFile :: []) => do
-      Right content <- readFile surfaceFile
-        | Left err => die ("Cannot read surface file '" ++ surfaceFile ++ "': " ++ show err)
-      let output = elabFile content
+      output <- elabPath surfaceFile
       putStrLn output
       unless (isSuffixOf "Accepted." output) exitFailure
     _ => die usage

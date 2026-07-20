@@ -1,0 +1,7 @@
+module dirty:
+defined plus
+defined bad
+open obligations (1):
+  [1] (n : ℕ) ⊢ dirty.plus Z n ≐ n : ℕ
+      at: def bad: checking Refl
+Error: module dirty has open obligations and cannot be imported

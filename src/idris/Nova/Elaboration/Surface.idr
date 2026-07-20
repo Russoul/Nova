@@ -73,6 +73,14 @@ mutual
     ||| (t : T) — ascription; the lever into inference mode
     SAnn : SElem -> STy -> SElem
 
+||| import M            — M's names accessible qualified (M.x) only
+||| import M (a, b)     — additionally, a and b accessible bare
+public export
+record SImport where
+  constructor MkSImport
+  mname : String
+  opens : List String
+
 public export
 data SItem : Type where
   ||| def x : T ≔ t — always in the empty context
@@ -128,6 +136,11 @@ mutual
     show (SQuotElim z mot a f q) =
       "QuotElim \{z} (\{show mot}) \{a} (\{show f}) (\{show q})"
     show (SAnn t ty) = "Ann (\{show t}) (\{show ty})"
+
+export
+Show SImport where
+  show (MkSImport m []) = "import \{m}"
+  show (MkSImport m os) = "import \{m} (\{joinBy ", " os})"
 
 export covering
 Show SItem where

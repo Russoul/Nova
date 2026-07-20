@@ -104,9 +104,26 @@ record ElabSt where
   assumedE : List (Ctx, Elem, Elem, Ty)   -- normalized keys of assumed elem equations
   assumedT : List (Ctx, Ty, Ty)           -- normalized keys of assumed type equations
   obls : SnocList Obligation
+  ||| dotted name of the module being elaborated; "" = the root file,
+  ||| whose entries stay unqualified
+  modPrefix : String
+  ||| surface-name → Σ-name aliases: the module's own entries plus the
+  ||| opened names of its imports (last entry wins; locals were already
+  ||| resolved by the parser and never reach this table)
+  vis : SnocList (String, String)
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [<]
+initSt = MkElabSt [<] [<] [] [] [] [<] "" [<]
+
+||| Resolve a surface signature reference: aliases first (own module,
+||| opened imports), else the name itself (qualified references reach
+||| Σ directly).
+resolveSigName : ElabSt -> String -> String
+resolveSigName st x = go st.vis
+ where
+  go : SnocList (String, String) -> String
+  go [<] = x
+  go (rest :< (a, full)) = if a == x then full else go rest
 
 -- ===== Elaboration monad =====
 
@@ -1179,8 +1196,9 @@ mutual
   elabTy ctx env site STyOne = pure (Ty.OneTy, Nd [] [])
   elabTy ctx env site STyNat = pure (Ty.NatTy, Nd [] [])
   elabTy ctx env site STyUniv = pure (Ty.UniverseTy, Nd [] [])
-  elabTy ctx env site (STySig x) = do
+  elabTy ctx env site (STySig x0) = do
     st <- getSt
+    let x = resolveSigName st x0
     case sigLookup x st.sig of
       -- items are always declared in ε, so the reference carries the
       -- empty substitution
@@ -1215,8 +1233,9 @@ mutual
     case ctxLookup ctx i of
       Just ty => pure (CtxVar i, ty, Nd [] [])
       Nothing => throw "\{site}: variable index out of bounds"
-  inferElem ctx env site (SSig x) = do
+  inferElem ctx env site (SSig x0) = do
     st <- getSt
+    let x = resolveSigName st x0
     case sigLookup x st.sig of
       Just (SigDef [<] _ _ ty) => pure (SigVar x [<], ty, Nd [] [])
       Just (SigDef _ _ _ _) => throw "\{site}: '\{x}' has a non-empty declaration context"
@@ -1403,7 +1422,10 @@ export
 elabItem : SItem -> ElabM String
 elabItem (SDef x ty body) = do
   st <- getSt
-  case sigLookup x st.sig of
+  -- the Σ-name is qualified by the module; the root file's entries
+  -- stay bare
+  let q = if st.modPrefix == "" then x else "\{st.modPrefix}.\{x}"
+  case sigLookup q st.sig of
     Just _ => throw "def \{x}: duplicate signature name"
     Nothing => pure ()
   -- items live in the EMPTY context: parameters are Π-binders in the
@@ -1415,22 +1437,23 @@ elabItem (SDef x ty body) = do
   -- so references to it are unresolvable anyway)
   after <- oblCount
   kernelAccept "def \{x}"
-    (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt x [] ty' tySk body' bodySk))
+    (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] ty' tySk body' bodySk))
     (after == 0)
-  modifySt $ { sig $= (:< SigDef [<] x body' ty') }
-  addLemma x [<] ty'
+  modifySt $ { sig $= (:< SigDef [<] q body' ty'), vis $= (:< (x, q)) }
+  addLemma q [<] ty'
   pure "defined \{x}"
 elabItem (STypeDef x ty) = do
   st <- getSt
-  case sigLookup x st.sig of
+  let q = if st.modPrefix == "" then x else "\{st.modPrefix}.\{x}"
+  case sigLookup q st.sig of
     Just _ => throw "type \{x}: duplicate signature name"
     Nothing => pure ()
   (ty', tySk) <- elabTy [<] [<] "type \{x}" ty
   after <- oblCount
   kernelAccept "type \{x}"
-    (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt x [] ty' tySk))
+    (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty' tySk))
     (after == 0)
-  modifySt $ { sig $= (:< SigTyDef [<] x ty') }
+  modifySt $ { sig $= (:< SigTyDef [<] q ty'), vis $= (:< (x, q)) }
   pure "defined type \{x}"
 
 -- ===== Report =====
@@ -1467,14 +1490,44 @@ prettyObligation i obl =
      Nothing => ""
      Just c => "\n      from composite: \{prettyStmt c}")
 
-||| Elaborate a whole surface file; the returned string is the complete
-||| report (per-item echoes, then acceptance or the obligation list).
+||| One module of a program: its dotted name ("" for the root file,
+||| whose entries stay unqualified), its import lines, its items.
+public export
+record ModUnit where
+  constructor MkModUnit
+  mname : String
+  mimports : List SImport
+  mitems : List SItem
+
+oblReport : List Obligation -> String
+oblReport os =
+  "open obligations (\{show (length os)}):\n" ++
+  joinBy "\n" (zipWith prettyObligation [0 .. minus (length os) 1] os)
+
+||| Install a module's import aliases: each opened name must exist in
+||| the imported module's Σ segment.
+installImports : List SImport -> ElabM ()
+installImports [] = pure ()
+installImports (MkSImport m opens :: rest) = do
+  go opens
+  installImports rest
+ where
+  go : List String -> ElabM ()
+  go [] = pure ()
+  go (o :: os) = do
+    st <- getSt
+    let q = "\{m}.\{o}"
+    case sigLookup q st.sig of
+      Just _ => do modifySt $ { vis $= (:< (o, q)) }; go os
+      Nothing => throw "import \{m}: it defines no '\{o}'"
+
+||| Elaborate a dependency-ordered list of modules (the loader's
+||| output; the last unit is the root). Every non-root module must be
+||| ACCEPTED — clean and fully kernel-checked — before anything may
+||| import it; the root reports its obligations as usual.
 export
-elabFile : String -> String
-elabFile content =
-  case runSurfaceParser parseSFile content of
-    Left err => "Parse error: \{err}"
-    Right items => go initSt items []
+elabProgram : List ModUnit -> String
+elabProgram units = go initSt units []
  where
   finish : ElabSt -> List String -> String
   finish st echoes =
@@ -1482,12 +1535,46 @@ elabFile content =
     joinBy "\n" echoes ++ "\n" ++
     (case oblList of
        [] => "Accepted."
-       os => "open obligations (\{show (length os)}):\n" ++
-             joinBy "\n" (zipWith prettyObligation [0 .. minus (length os) 1] os))
+       os => oblReport os)
 
-  go : ElabSt -> List SItem -> List String -> String
-  go st [] echoes = finish st echoes
-  go st (item :: rest) echoes =
+  goItems : ElabSt -> List SItem -> Either (List String, String) (ElabSt, List String)
+  goItems st [] = Right (st, [])
+  goItems st (item :: rest) =
     case runElabM (elabItem item) st of
+      Left err => Left ([], err)
+      Right (st', echo) =>
+        case goItems st' rest of
+          Left (echoes, err) => Left (echo :: echoes, err)
+          Right (st'', echoes) => Right (st'', echo :: echoes)
+
+  go : ElabSt -> List ModUnit -> List String -> String
+  go st [] echoes = joinBy "\n" (echoes ++ ["Error: empty program"])
+  go st (MkModUnit name imps items :: rest) echoes = do
+    -- a fresh visibility table per module: its own imports only
+    let st = { modPrefix := name, vis := [<] } st
+    case runElabM (installImports imps) st of
       Left err => joinBy "\n" (echoes ++ ["Error: \{err}"])
-      Right (st', echo) => go st' rest (echoes ++ [echo])
+      Right (st, ()) =>
+        let hdr = if name == "" then [] else ["module \{name}:"] in
+        case goItems st items of
+          Left (itemEchoes, err) => joinBy "\n" (echoes ++ hdr ++ itemEchoes ++ ["Error: \{err}"])
+          Right (st', itemEchoes) =>
+            case rest of
+              [] => finish st' (echoes ++ hdr ++ itemEchoes)
+              _ =>
+                -- only ACCEPTED modules are importable
+                case toList st'.obls of
+                  [] => go st' rest (echoes ++ hdr ++ itemEchoes)
+                  os => joinBy "\n" (echoes ++ hdr ++ itemEchoes) ++ "\n" ++
+                        oblReport os ++ "\n" ++
+                        "Error: module \{name} has open obligations and cannot be imported"
+
+||| Elaborate a single surface file (no imports — resolving them needs
+||| the module loader); the returned string is the complete report.
+export
+elabFile : String -> String
+elabFile content =
+  case runSurfaceParser parseSFile content of
+    Left err => "Parse error: \{err}"
+    Right ([], items) => elabProgram [MkModUnit "" [] items]
+    Right (_, _) => "Error: this entry point resolves no imports (use the module-aware loader)"

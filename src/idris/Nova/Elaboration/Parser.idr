@@ -14,6 +14,8 @@ module Nova.Elaboration.Parser
 -- .nova files may be freely commented.
 
 import Data.List
+import Data.Maybe
+import Data.String
 import Data.SnocList
 
 import Me.Russoul.Text.Lexer.Token
@@ -60,8 +62,16 @@ parseName = do
                          else Nothing
             _ => Nothing)
   let name = pack (c :: cs)
-  guard "Reserved keyword" (name /= "def" && name /= "type" && name /= "El")
+  guard "Reserved keyword" (name /= "def" && name /= "type" && name /= "El" && name /= "import")
   pure name
+
+||| A possibly-qualified name: x or M.x or A.B.x. The dot only counts
+||| when an identifier follows (so `p.π₁` backtracks to a projection).
+parseDottedName : Rule String
+parseDottedName = do
+  n <- parseName
+  rest <- many (do char_ '.'; parseName)
+  pure (joinBy "." (n :: rest))
 
 foldGroups : (String -> a -> b -> b) -> List (String, a) -> b -> b
 foldGroups f [] b = b
@@ -130,7 +140,7 @@ mutual
     <|> (str_ "𝟙" $> STyOne)
     <|> (str_ "ℕ" $> STyNat)
     <|> (str_ "𝕌" $> STyUniv)
-    <|> (do x <- parseName; pure (STySig x))
+    <|> (do x <- parseDottedName; pure (STySig x))
     <|> (do char_ '('; sp; t <- parseSTy env; sp; char_ ')'; pure t)
 
   -- t{0}: top-level comma = pair (right-assoc)
@@ -232,11 +242,12 @@ mutual
     <|> (str_ "𝟘"   $> SZeroC)
     <|> (str_ "𝟙"   $> SOneC)
     <|> (str_ "ℕ"   $> SNatC)
-    <|> (do x <- parseName
+    <|> (do x <- parseDottedName
             case resolveVar env x of
               Just i  => pure (SVar x i)
               -- locals shadow the signature; whether the name exists
               -- in Σ is the elaborator's question, not the parser's
+              -- (a dotted name never resolves locally)
               Nothing => pure (SSig x))
 
 -- ===== Items =====
@@ -262,11 +273,24 @@ parseSItem =
           pure (STypeDef x ty))
 
 export
-parseSFile : Rule (List SItem)
+parseSImport : Rule SImport
+parseSImport = do
+  str_ "import"; space
+  m <- parseDottedName
+  opens <- optional (do sp; char_ '('; sp
+                        n <- parseName
+                        rest <- many (do sp; char_ ','; sp; parseName)
+                        sp; char_ ')'
+                        pure (n :: rest))
+  pure (MkSImport m (fromMaybe [] opens))
+
+export
+parseSFile : Rule (List SImport, List SItem)
 parseSFile = do
   sp
+  imports <- many (do i <- parseSImport; sp; pure i)
   items <- many (do i <- parseSItem; sp; pure i)
-  pure items
+  pure (imports, items)
 
 -- ===== Runner =====
 

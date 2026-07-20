@@ -10,6 +10,7 @@ import Nova.Kernel.Syntax
 import Nova.Kernel.Parser
 import Nova.Elaboration.Named
 import Nova.Elaboration
+import Nova.Elaboration.Loader
 import Nova.Elaboration.Surface
 import Nova.Elaboration.Parser
 
@@ -42,9 +43,8 @@ main = do
   case args of
     (_ :: "run" :: parser :: input :: []) => runParse parser input
     (_ :: "elab" :: file :: []) => do
-      Right content <- readFile file
-        | Left err => putStrLn ("ERROR: cannot read '" ++ file ++ "': " ++ show err)
-      putStrLn (elabFile content)
+      output <- elabPath file
+      putStrLn output
     _ => do
       ps <- pools
       runner ps

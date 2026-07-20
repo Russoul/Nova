@@ -1,10 +1,5 @@
-def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
-def plusZeroId : (n : ℕ) → plus n Z ≡ n ∈ ℕ ≔ λn. Refl
-def plusSucId : (n : ℕ) (m : ℕ) → plus n (S m) ≡ S (plus n m) ∈ ℕ ≔ λn. λm. Refl
-def zeroPlusId : (n : ℕ) → plus Z n ≡ n ∈ ℕ ≔ λn. ℕ-elim (k. plus Z k ≡ k ∈ ℕ) Refl (k ih. Refl) n
-def sucPlus : (n : ℕ) (m : ℕ) → plus (S n) m ≡ S (plus n m) ∈ ℕ ≔ λn. λm. ℕ-elim (k. plus (S n) k ≡ S (plus n k) ∈ ℕ) Refl (k ih. Refl) m
-def plusComm : (n : ℕ) (m : ℕ) → plus m n ≡ plus n m ∈ ℕ ≔ λn. λm. ℕ-elim (k. plus k n ≡ plus n k ∈ ℕ) Refl (k ih. Refl) m
-def plusAssoc : (n : ℕ) (m : ℕ) (k : ℕ) → plus (plus n m) k ≡ plus n (plus m k) ∈ ℕ ≔ λn. λm. λk. ℕ-elim (j. plus (plus n m) j ≡ plus n (plus m j) ∈ ℕ) Refl (j ih. Refl) k
+import plus (plus, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusComm, plusAssoc)
+import integer (Int)
 
 -- ===== helpers for the well-definedness obligations =====
 
@@ -23,8 +18,6 @@ def intAddCross : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : �
   plus (plus a1 c1) (plus b2 c2) ≡ plus (plus a2 c2) (plus b1 c1) ∈ ℕ ≔
   λa1. λa2. λb1. λb2. λc1. λc2. λh. ℕ-elim (k. plus (plus a1 c1) (plus b2 k) ≡ plus (plus a2 k) (plus b1 c1) ∈ ℕ)
     Refl (k ih. Refl) c2
-
-type Int ≔ (ℕ ⨯ ℕ) / (p q. plus (p .π₁) (q .π₂) ≡ plus (p .π₂) (q .π₁) ∈ ℕ)
 
 -- the same, one level up: the inner elimination is well-defined in the
 -- OUTER argument — proven by quotient elimination with an ≡-motive

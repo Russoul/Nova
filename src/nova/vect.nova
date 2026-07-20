@@ -1,7 +1,4 @@
--- Length-indexed vectors as a universe-code-valued recursion.
--- Length-indexed vectors (plus is repeated here: elaboration files
--- are self-contained).
-def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
+import plus (plus)
 
 def vect : ℕ → 𝕌 → 𝕌 ≔ λx. λy. ℕ-elim (n. 𝕌) 𝟙 (n ih. y ⨯ ih) x
 def vectZ : (A : 𝕌) → vect Z A ≡ 𝟙 ∈ 𝕌 ≔ λA. Refl

@@ -58,9 +58,12 @@ term/type grammar below is self-contained.
 // item is a bare name. Foundation's Σ entries keep their general
 // declaration contexts; the elaborator simply only produces closed
 // ones — so the normal-substitution syntax x[t˲] has no surface form.
-file  ::= item*
+file  ::= import* item*
+imp   ::= import M | import M (x (, x)*)
 item  ::= def  x : T{≥0} ≔ t{≥0}
         | type x ≔ T{≥0}
+
+// M is a dotted module name (Data.Nat); see Modules below.
 
 // Types. Elaboration needs no rule keywords and no context prefixes —
 // the context is always implicit in where a subterm sits.
@@ -505,6 +508,48 @@ type x ≔ T             extends Σ with (ε ⊦ x ≔ A type)
 // it — by design (see report semantics): one run surfaces ALL
 // obligations, at the price that obligations surfaced downstream of an
 // assumption are provisional until it is proven.
+
+//////////// Modules /////////////
+
+A MODULE is a file; a dotted module name resolves against the root
+file's directory (import Data.Nat ⇝ <rootDir>/Data/Nat.nova). Import
+lines precede items. The import graph must be a DAG — cycles are
+reported by name — and diamonds are deduplicated by module name, so a
+shared dependency elaborates once per run.
+
+Execution model: TRANSITIVE RE-ELABORATION. A run loads the graph,
+orders it dependency-first, and elaborates every module through the
+full pipeline — same elaborator, same kernel gate, one flat Σ. The
+reproducibility invariant lifts verbatim: THE ROOT FILE PLUS THE
+TRANSITIVE SOURCES OF ITS IMPORTS DETERMINE ACCEPTANCE. (A certificate
+cache — persist each accepted module's annotated items and replay
+them through the kernel alone, skipping elaboration — is the designed
+next step; it changes cost, not meaning, and never trust.)
+
+Names: a module M's entries enter Σ under qualified names (M.x); the
+ROOT file's entries stay bare. An unqualified reference resolves
+locals → opened names → the module's own entries; `import M` alone
+makes M's names accessible QUALIFIED ONLY (M.x); `import M (a, b)`
+additionally opens a and b bare. Opening a name M does not define is
+an error. Qualification is purely a front-end affair — Σ names are
+flat strings, and the kernel is unchanged.
+
+Acceptance is compositional: ONLY ACCEPTED MODULES ARE IMPORTABLE. A
+module elaborated with open obligations aborts the run with its own
+report — the file-internal rule that an assumption poisons every
+later item's kernel acceptance, promoted to a boundary. Corollaries:
+an obligation is always discharged within the module that surfaced it
+(imports precede items, so imported lemmas are in E before anything
+local elaborates), and the report is always local to one module.
+
+Two consequences worth stating plainly:
+  * Σ-inclusion is transitive (an imported entry's body references
+    ITS imports, which the kernel must resolve), and so is qualified
+    access; only bare-name visibility is per-module.
+  * The lemma store is built from Σ, so importing a module imports
+    its equalities as discharge candidates — that is the point — and
+    import order, like item order, is semantic: candidate sides are
+    normalized against the store at storage time.
 
 //////////// The report /////////////
 

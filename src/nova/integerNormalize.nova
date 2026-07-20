@@ -1,9 +1,5 @@
--- Normalization of difference-pair integers: cancel the common part.
--- Canonical representatives for difference-pair integers.
-def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
-def plusZeroId : (n : ℕ) → plus n Z ≡ n ∈ ℕ ≔ λn. Refl
-def plusSucId : (n : ℕ) (m : ℕ) → plus n (S m) ≡ S (plus n m) ∈ ℕ ≔ λn. λm. Refl
-def zeroPlusId : (n : ℕ) → plus Z n ≡ n ∈ ℕ ≔ λn. ℕ-elim (k. plus Z k ≡ k ∈ ℕ) Refl (k ih. Refl) n
+import plus (plus, plusZeroId, plusSucId, zeroPlusId)
+import integer (Int)
 
 -- the canonical representative: strip successors pairwise
 def normPair : ℕ → ℕ → ℕ ⨯ ℕ ≔
@@ -24,8 +20,6 @@ def normSound : (a : ℕ) → (b : ℕ) →
           (m ihb. Refl)
           b)
       a
-
-type Int ≔ (ℕ ⨯ ℕ) / (p q. plus (p .π₁) (q .π₂) ≡ plus (p .π₂) (q .π₁) ∈ ℕ)
 
 -- at the quotient, normalization is invisible
 def normClass : (a : ℕ) (b : ℕ) → class (normPair a b) ≡ class (a , b) ∈ Int ≔ λa. λb. Refl

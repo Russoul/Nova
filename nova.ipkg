@@ -14,6 +14,7 @@ modules = Nova.Kernel.Syntax
         , Nova.Elaboration
         , Nova.Elaboration.Surface
         , Nova.Elaboration.Parser
+        , Nova.Elaboration.Loader
         , Nova.Kernel.Parser
         , Nova.Application
 

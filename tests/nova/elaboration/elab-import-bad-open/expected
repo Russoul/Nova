@@ -1,0 +1,3 @@
+module nat:
+defined plus
+Error: import nat: it defines no 'nonexistent'
