@@ -104,8 +104,8 @@ mutual
             (do str_ "→"; sp; b <- parseSTy env'; pure (foldGroups STyPi groups b))
               <|> (do str_ "⨯"; sp; b <- parseSTy env'; pure (foldGroups STySigma groups b)))
     <|> (do a <- parseSTyEl env
-            (do sp; str_ "→"; sp; b <- parseSTyArrow (env :< wildcard); pure (STyPi wildcard a b))
-              <|> (do sp; str_ "⨯"; sp; b <- parseSTyArrow (env :< wildcard); pure (STySigma wildcard a b))
+            (do sp; str_ "→"; sp; b <- parseSTy (env :< wildcard); pure (STyPi wildcard a b))
+              <|> (do sp; str_ "⨯"; sp; b <- parseSTy (env :< wildcard); pure (STySigma wildcard a b))
               <|> (do sp; str_ "/"; sp; (x, y, r) <- parseQuotRel env; pure (STyQuot a x y r))
               <|> pure a)
 

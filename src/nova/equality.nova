@@ -1,0 +1,45 @@
+-- The equality combinators. In an extensional theory each is one
+-- Refl (or the coerced term itself): reflecting the hypotheses makes
+-- the sides — and, for coercion and transport, the types — equal, so
+-- what other theories build from J is judgemental here.
+
+def refl : (A : 𝕌) (a : El A) → a ≡ a ∈ El A ≔
+  λA. λa. Refl
+
+def sym : (A : 𝕌) (a : El A) (b : El A) → (a ≡ b ∈ El A) →
+          b ≡ a ∈ El A ≔
+  λA. λa. λb. λh. Refl
+
+def trans : (A : 𝕌) (a : El A) (b : El A) (c : El A) →
+            (a ≡ b ∈ El A) → (b ≡ c ∈ El A) →
+            a ≡ c ∈ El A ≔
+  λA. λa. λb. λc. λab. λbc. Refl
+
+-- coercion along a universe equation: the element itself, at the
+-- other type (El A ≐ El B by reflection)
+def coe : (A : 𝕌) (B : 𝕌) → (A ≡ B ∈ 𝕌) → El A → El B ≔
+  λA. λB. λh. λa. a
+
+-- transport along an equation in the base: again the element itself
+-- (P a ≐ P b by congruence over the reflected hypothesis)
+def transport : (A : 𝕌) (P : El A → 𝕌) (a : El A) (b : El A) →
+                (a ≡ b ∈ El A) → El (P a) → El (P b) ≔
+  λA. λP. λa. λb. λh. λp. p
+
+-- transport of an equality proof: an a-indexed equation, moved to b.
+-- Not a bare Refl — the discharge engine rewrites hypotheses one way
+-- only, and this needs composition (f b ← f a ≐ g a → g b). That
+-- composition is exactly transport at an ≡-motive.
+def transportEq : (A : 𝕌) (B : 𝕌) (f : El A → El B) (g : El A → El B) →
+                  (a : El A) (b : El A) → (a ≡ b ∈ El A) →
+                  (f a ≡ g a ∈ El B) →
+                  f b ≡ g b ∈ El B ≔
+  λA. λB. λf. λg. λa. λb. λh. λe.
+    transport A (λx. (f x ≡ g x ∈ B)) a b h e
+
+-- dependent congruence: in an extensional theory it is one Refl, since
+-- reflecting the hypothesis makes the sides and their types equal
+def cong : (A : 𝕌) (B : El A → 𝕌) (f : (v : El A) → El (B v)) →
+           (v : El A) (w : El A) → (v ≡ w ∈ El A) →
+           f v ≡ f w ∈ El (B w) ≔
+  λA. λB. λf. λv. λw. λh. Refl
