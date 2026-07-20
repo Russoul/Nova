@@ -235,8 +235,9 @@ mutual
   -- t{2}: prefix forms, motive-first eliminators
   parseSElemPrefix : FixTable -> NameEnv -> Rule SElem
   parseSElemPrefix tbl env =
+        -- λ's body extends over operators: λx. x + y ≡ λx. (x + y)
         (do str_ "λ"; sp; x <- parseName; sp; char_ '.'; sp
-            e <- parseSElemPrefix tbl (env :< x); pure (SLam x e))
+            e <- parseSElemOp tbl (env :< x); pure (SLam x e))
     <|> (do str_ "𝟘-elim"; space; e <- parseSElemAtom tbl env; pure (SZeroElim e))
     <|> (do str_ "ℕ-elim"; space
             char_ '('; sp; n <- parseName; sp; char_ '.'; sp

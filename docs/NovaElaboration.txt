@@ -106,7 +106,7 @@ T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
 //      they are mandatory syntax here.
 t{5} ::= x | () | Z | Refl | 𝟘 | 𝟙 | ℕ | (t{≥0}) | (t{≥0} : T{≥0})
 t{3} ::= t{≥3} t{≥4} | t{≥3} .π₁ | t{≥3} .π₂                 (left-assoc)
-t{2} ::= λx. t{≥3}
+t{2} ::= λx. t{≥1½}
        | 𝟘-elim t{≥4}
        | S t{≥4}
        | ℕ-elim (n. T{≥0}) t{≥4} (n ih. t{≥4}) t{≥4}          // motive, z, s, scrutinee

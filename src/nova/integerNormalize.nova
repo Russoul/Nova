@@ -1,4 +1,4 @@
-import nat (plus, plusZeroId, plusSucId, zeroPlusId)
+import nat (+, plusZeroId, plusSucId, zeroPlusId)
 import integer (Int)
 
 -- the canonical representative: strip successors pairwise
@@ -10,12 +10,12 @@ def normPair : ℕ → ℕ → ℕ ⨯ ℕ ≔
 
 -- normPair a b is R-related to (a, b)
 def normSound : (a : ℕ) → (b : ℕ) →
-  (plus ((normPair a b) .π₁) b ≡ plus ((normPair a b) .π₂) a ∈ ℕ) ≔
+  (normPair a b) .π₁ + b ≡ (normPair a b) .π₂ + a ∈ ℕ ≔
   λa.
-    ℕ-elim (k. (b : ℕ) → (plus ((normPair k b) .π₁) b ≡ plus ((normPair k b) .π₂) k ∈ ℕ))
+    ℕ-elim (k. (b : ℕ) → (normPair k b) .π₁ + b ≡ (normPair k b) .π₂ + k ∈ ℕ)
       (λb. Refl)
       (n ih. λb.
-        ℕ-elim (m. plus ((normPair (S n) m) .π₁) m ≡ plus ((normPair (S n) m) .π₂) (S n) ∈ ℕ)
+        ℕ-elim (m. (normPair (S n) m) .π₁ + m ≡ (normPair (S n) m) .π₂ + S n ∈ ℕ)
           Refl
           (m ihb. Refl)
           b)

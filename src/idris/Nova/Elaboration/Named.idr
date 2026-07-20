@@ -10,6 +10,7 @@ module Nova.Elaboration.Named
 -- printing invents deterministic, type-biased names for binders (the
 -- core carries none).
 
+import Data.List
 import Data.SnocList
 import Data.Maybe
 
@@ -218,8 +219,8 @@ mutual
   ||| NovaNamedSyntax.txt); a non-empty one is a bare comma-separated
   ||| element list, e.g. "n, A, m" for what used to be "·, n, A, m".
   export
-  prettySubN : NameEnv -> Sub -> String
-  prettySubN env s = fromMaybe "" (prettySubElemsN env s)
+  prettySubN : FixTable -> NameEnv -> Sub -> String
+  prettySubN tbl env s = fromMaybe "" (prettySubElemsN tbl env s)
 
   -- Nothing = no elements printed yet (the empty/Terminal case); Just str
   -- = the rendered comma-separated element list so far. Id/Wk/Chain can
@@ -227,143 +228,152 @@ mutual
   -- NamedParser.idr's header) — reaching one here means a real bug
   -- upstream (e.g. something bypassed the named parser/checker), so this
   -- crashes loudly rather than silently printing an unreparseable string.
-  prettySubElemsN : NameEnv -> Sub -> Maybe String
-  prettySubElemsN env (Ext s e) =
-    case prettySubElemsN env s of
-      Nothing   => Just (prettyElemNoCommaN env e)
-      Just rest => Just (rest ++ ", " ++ prettyElemNoCommaN env e)
-  prettySubElemsN env Terminal = Nothing
-  prettySubElemsN env Id = assert_total (idris_crash "prettySubN: unreachable Id (no rule constructs it)")
-  prettySubElemsN env Wk = assert_total (idris_crash "prettySubN: unreachable Wk (no rule constructs it)")
-  prettySubElemsN env (Chain _ _) = assert_total (idris_crash "prettySubN: unreachable Chain (no rule constructs it)")
+  prettySubElemsN : FixTable -> NameEnv -> Sub -> Maybe String
+  prettySubElemsN tbl env (Ext s e) =
+    case prettySubElemsN tbl env s of
+      Nothing   => Just (prettyElemNoCommaN tbl env e)
+      Just rest => Just (rest ++ ", " ++ prettyElemNoCommaN tbl env e)
+  prettySubElemsN tbl env Terminal = Nothing
+  prettySubElemsN tbl env Id = assert_total (idris_crash "prettySubN: unreachable Id (no rule constructs it)")
+  prettySubElemsN tbl env Wk = assert_total (idris_crash "prettySubN: unreachable Wk (no rule constructs it)")
+  prettySubElemsN tbl env (Chain _ _) = assert_total (idris_crash "prettySubN: unreachable Chain (no rule constructs it)")
 
   export
-  prettyElemN : NameEnv -> Elem -> String
-  prettyElemN env (SigmaIntro e e') = prettyElemNoCommaN env e ++ ", " ++ prettyElemN env e'
-  prettyElemN env e = prettyElemNoCommaN env e
+  prettyElemN : FixTable -> NameEnv -> Elem -> String
+  prettyElemN tbl env (SigmaIntro e e') = prettyElemNoCommaN tbl env e ++ ", " ++ prettyElemN tbl env e'
+  prettyElemN tbl env e = prettyElemNoCommaN tbl env e
 
   export
-  prettyElemNoCommaN : NameEnv -> Elem -> String
-  prettyElemNoCommaN env (Elem.PiTy e e') =
+  prettyElemNoCommaN : FixTable -> NameEnv -> Elem -> String
+  prettyElemNoCommaN tbl env (Elem.PiTy e e') =
     if usesIndexElem 0 e'
       -- Domain sits inside an explicit "(x: ... )" binder, already fully
       -- delimited by the closing paren, so it can be printed unrestricted
       -- (parseElem, not parseElemPrefix, is what actually parses it back)
       -- instead of forcing another, redundant, pair of parens around it.
       then let x = freshGeneric env
-           in "(" ++ x ++ ":" ++ prettyElemN env e ++ ") → " ++ prettyElemNoCommaN (env :< x) e'
-      else prettyElemPrefixN env e ++ " → " ++ prettyElemNoCommaN (env :< wildcard) e'
-  prettyElemNoCommaN env (Elem.SigmaTy e e') =
+           in "(" ++ x ++ ":" ++ prettyElemN tbl env e ++ ") → " ++ prettyElemNoCommaN tbl (env :< x) e'
+      else prettyElemOpN tbl env 0 e ++ " → " ++ prettyElemNoCommaN tbl (env :< wildcard) e'
+  prettyElemNoCommaN tbl env (Elem.SigmaTy e e') =
     if usesIndexElem 0 e'
       then let x = freshGeneric env
-           in "(" ++ x ++ ":" ++ prettyElemN env e ++ ") ⨯ " ++ prettyElemNoCommaN (env :< x) e'
-      else prettyElemPrefixN env e ++ " ⨯ " ++ prettyElemNoCommaN (env :< wildcard) e'
-  prettyElemNoCommaN env (Elem.EqTy e0 e1 e2) =
-    prettyElemPrefixN env e0 ++ " ≡ " ++ prettyElemPrefixN env e1 ++ " ∈ " ++ prettyElemPrefixN env e2
-  prettyElemNoCommaN env (QuotTy e r) =
+           in "(" ++ x ++ ":" ++ prettyElemN tbl env e ++ ") ⨯ " ++ prettyElemNoCommaN tbl (env :< x) e'
+      else prettyElemOpN tbl env 0 e ++ " ⨯ " ++ prettyElemNoCommaN tbl (env :< wildcard) e'
+  prettyElemNoCommaN tbl env (Elem.EqTy e0 e1 e2) =
+    prettyElemOpN tbl env 0 e0 ++ " ≡ " ++ prettyElemOpN tbl env 0 e1 ++ " ∈ " ++ prettyElemOpN tbl env 0 e2
+  prettyElemNoCommaN tbl env (QuotTy e r) =
     let x = freshForTy (El e) env
         y = freshGeneric (env :< x)
-    in prettyElemPrefixN env e ++ " / (" ++ x ++ " " ++ y ++ ". " ++ prettyElemNoCommaN (env :< x :< y) r ++ ")"
-  prettyElemNoCommaN env e = prettyElemPrefixN env e
+    in prettyElemOpN tbl env 0 e ++ " / (" ++ x ++ " " ++ y ++ ". " ++ prettyElemNoCommaN tbl (env :< x :< y) r ++ ")"
+  prettyElemNoCommaN tbl env e = prettyElemOpN tbl env 0 e
 
-  prettyElemPrefixN : NameEnv -> Elem -> String
-  prettyElemPrefixN env (PiIntro e) =
+  -- t{1½}: operator applications, precedence-aware — parenthesized
+  -- exactly when the operator binds looser than the context demands.
+  -- An operator with no fixity in scope falls through to the prefix
+  -- spelling ((+) a b), which is always valid.
+  prettyElemOpN : FixTable -> NameEnv -> (minPrec : Nat) -> Elem -> String
+  prettyElemOpN tbl env minP e@(PiApp (PiApp (SigVar op [<]) a) b) =
+    case (isOpName op, lookup op tbl) of
+      (True, Just (assoc, p)) =>
+        let lP = case assoc of AssocL => p; AssocR => S p
+            rP = case assoc of AssocL => S p; AssocR => p
+            body = prettyElemOpN tbl env lP a ++ " " ++ op ++ " " ++ prettyElemOpN tbl env rP b
+        in if p < minP then "(" ++ body ++ ")" else body
+      _ => prettyElemPrefixN tbl env e
+  prettyElemOpN tbl env minP e = prettyElemPrefixN tbl env e
+
+  prettyElemPrefixN : FixTable -> NameEnv -> Elem -> String
+  prettyElemPrefixN tbl env (PiIntro e) =
     let x = freshGeneric env
-    in "λ" ++ x ++ ". " ++ prettyElemPostfixN (env :< x) e
-  prettyElemPrefixN env (ZeroElim e) = "𝟘-elim " ++ prettyElemAtomN env e
-  prettyElemPrefixN env (NatIntro1 e) = "S " ++ prettyElemAtomN env e
-  prettyElemPrefixN env (NatElim z s t) =
+    in "λ" ++ x ++ ". " ++ prettyElemOpN tbl (env :< x) 0 e
+  prettyElemPrefixN tbl env (ZeroElim e) = "𝟘-elim " ++ prettyElemAtomN tbl env e
+  prettyElemPrefixN tbl env (NatIntro1 e) = "S " ++ prettyElemAtomN tbl env e
+  prettyElemPrefixN tbl env (NatElim z s t) =
     let n  = freshFromList candidatesNat env
         ih = freshIH (env :< n)
-    in "ℕ-elim " ++ prettyElemAtomN env z ++
-       " (" ++ n ++ " " ++ ih ++ ". " ++ prettyElemAtomN (env :< n :< ih) s ++ ") " ++
-       prettyElemAtomN env t
-  prettyElemPrefixN env (Class a) = "class " ++ prettyElemAtomN env a
-  prettyElemPrefixN env (QuotElim f q) =
+    in "ℕ-elim " ++ prettyElemAtomN tbl env z ++
+       " (" ++ n ++ " " ++ ih ++ ". " ++ prettyElemAtomN tbl (env :< n :< ih) s ++ ") " ++
+       prettyElemAtomN tbl env t
+  prettyElemPrefixN tbl env (Class a) = "class " ++ prettyElemAtomN tbl env a
+  prettyElemPrefixN tbl env (QuotElim f q) =
     let a = if usesIndexElem 0 f then freshGeneric env else wildcard
-    in "quot-elim (" ++ a ++ ". " ++ prettyElemN (env :< a) f ++ ") " ++ prettyElemAtomN env q
-  prettyElemPrefixN env e = prettyElemPostfixN env e
+    in "quot-elim (" ++ a ++ ". " ++ prettyElemN tbl (env :< a) f ++ ") " ++ prettyElemAtomN tbl env q
+  prettyElemPrefixN tbl env e = prettyElemPostfixN tbl env e
 
-  prettyElemPostfixN : NameEnv -> Elem -> String
-  prettyElemPostfixN env (SigmaElim1 e) = prettyElemPostfixN env e ++ " .π₁"
-  prettyElemPostfixN env (SigmaElim2 e) = prettyElemPostfixN env e ++ " .π₂"
-  -- infix layout for operator-shaped heads (operators ARE names, so
-  -- this is identity-preserving; full parens make it precedence-safe)
-  prettyElemPostfixN env (PiApp (PiApp (SigVar op [<]) a) b) =
-    if isOpName op
-      then "(" ++ prettyElemPostfixN env a ++ " " ++ op ++ " " ++ prettyElemPostfixN env b ++ ")"
-      else prettyElemPostfixN env (PiApp (SigVar op [<]) a) ++ " " ++ prettyElemAtomN env b
-  prettyElemPostfixN env (PiApp f e) = prettyElemPostfixN env f ++ " " ++ prettyElemAtomN env e
-  prettyElemPostfixN env e = prettyElemAtomN env e
+  prettyElemPostfixN : FixTable -> NameEnv -> Elem -> String
+  prettyElemPostfixN tbl env (SigmaElim1 e) = prettyElemPostfixN tbl env e ++ " .π₁"
+  prettyElemPostfixN tbl env (SigmaElim2 e) = prettyElemPostfixN tbl env e ++ " .π₂"
+  prettyElemPostfixN tbl env (PiApp f e) = prettyElemPostfixN tbl env f ++ " " ++ prettyElemAtomN tbl env e
+  prettyElemPostfixN tbl env e = prettyElemAtomN tbl env e
 
   export
-  prettyElemAtomN : NameEnv -> Elem -> String
-  prettyElemAtomN env (CtxVar n) = nameAt env n
-  prettyElemAtomN env OneIntro = "()"
-  prettyElemAtomN env NatIntro0 = "Z"
-  prettyElemAtomN env Refl = "Refl"
-  prettyElemAtomN env Elem.ZeroTy = "𝟘"
-  prettyElemAtomN env Elem.OneTy = "𝟙"
-  prettyElemAtomN env Elem.NatTy = "ℕ"
-  prettyElemAtomN env (SigVar x [<]) = if isOpName x then "(" ++ x ++ ")" else x
-  prettyElemAtomN env (SigVar x es) = x ++ "[" ++ prettySubNormN env es ++ "]"
-  prettyElemAtomN env e = "(" ++ prettyElemN env e ++ ")"
+  prettyElemAtomN : FixTable -> NameEnv -> Elem -> String
+  prettyElemAtomN tbl env (CtxVar n) = nameAt env n
+  prettyElemAtomN tbl env OneIntro = "()"
+  prettyElemAtomN tbl env NatIntro0 = "Z"
+  prettyElemAtomN tbl env Refl = "Refl"
+  prettyElemAtomN tbl env Elem.ZeroTy = "𝟘"
+  prettyElemAtomN tbl env Elem.OneTy = "𝟙"
+  prettyElemAtomN tbl env Elem.NatTy = "ℕ"
+  prettyElemAtomN tbl env (SigVar x [<]) = if isOpName x then "(" ++ x ++ ")" else x
+  prettyElemAtomN tbl env (SigVar x es) = x ++ "[" ++ prettySubNormN tbl env es ++ "]"
+  prettyElemAtomN tbl env e = "(" ++ prettyElemN tbl env e ++ ")"
 
   ||| t˲ ::= ε | t˲ , t — the empty normal substitution prints as nothing
   ||| at all, same as Sub above (e.g. `vect[]`, not `vect[·]`).
   export
-  prettySubNormN : NameEnv -> SubNorm -> String
-  prettySubNormN env s = fromMaybe "" (prettySubNormElemsN env s)
+  prettySubNormN : FixTable -> NameEnv -> SubNorm -> String
+  prettySubNormN tbl env s = fromMaybe "" (prettySubNormElemsN tbl env s)
 
-  prettySubNormElemsN : NameEnv -> SubNorm -> Maybe String
-  prettySubNormElemsN env [<] = Nothing
-  prettySubNormElemsN env (es :< e) =
-    case prettySubNormElemsN env es of
-      Nothing   => Just (prettyElemNoCommaN env e)
-      Just rest => Just (rest ++ ", " ++ prettyElemNoCommaN env e)
+  prettySubNormElemsN : FixTable -> NameEnv -> SubNorm -> Maybe String
+  prettySubNormElemsN tbl env [<] = Nothing
+  prettySubNormElemsN tbl env (es :< e) =
+    case prettySubNormElemsN tbl env es of
+      Nothing   => Just (prettyElemNoCommaN tbl env e)
+      Just rest => Just (rest ++ ", " ++ prettyElemNoCommaN tbl env e)
 
 -- ===== Ty =====
 
 mutual
   export
-  prettyTyN : NameEnv -> Ty -> String
-  prettyTyN env (Ty.EqTy e0 e1 a) =
-    prettyElemPrefixN env e0 ++ " ≡ " ++ prettyElemPrefixN env e1 ++ " ∈ " ++ prettyTyArrowN env a
-  prettyTyN env ty = prettyTyArrowN env ty
+  prettyTyN : FixTable -> NameEnv -> Ty -> String
+  prettyTyN tbl env (Ty.EqTy e0 e1 a) =
+    prettyElemOpN tbl env 0 e0 ++ " ≡ " ++ prettyElemOpN tbl env 0 e1 ++ " ∈ " ++ prettyTyArrowN tbl env a
+  prettyTyN tbl env ty = prettyTyArrowN tbl env ty
 
-  prettyTyArrowN : NameEnv -> Ty -> String
-  prettyTyArrowN env (Ty.PiTy a b) =
+  prettyTyArrowN : FixTable -> NameEnv -> Ty -> String
+  prettyTyArrowN tbl env (Ty.PiTy a b) =
     if usesIndexTy 0 b
       -- Domain sits inside an explicit "(x: ... )" binder, already fully
       -- delimited by the closing paren, so it can be printed unrestricted
       -- (parseTy, not parseTyEl, is what actually parses it back) instead
       -- of forcing another, redundant, pair of parens around it.
       then let x = freshForTy a env
-           in "(" ++ x ++ ":" ++ prettyTyN env a ++ ") → " ++ prettyTyArrowN (env :< x) b
-      else prettyTyElN env a ++ " → " ++ prettyTyArrowN (env :< wildcard) b
-  prettyTyArrowN env (Ty.SigmaTy a b) =
+           in "(" ++ x ++ ":" ++ prettyTyN tbl env a ++ ") → " ++ prettyTyArrowN tbl (env :< x) b
+      else prettyTyElN tbl env a ++ " → " ++ prettyTyArrowN tbl (env :< wildcard) b
+  prettyTyArrowN tbl env (Ty.SigmaTy a b) =
     if usesIndexTy 0 b
       then let x = freshForTy a env
-           in "(" ++ x ++ ":" ++ prettyTyN env a ++ ") ⨯ " ++ prettyTyArrowN (env :< x) b
-      else prettyTyElN env a ++ " ⨯ " ++ prettyTyArrowN (env :< wildcard) b
-  prettyTyArrowN env (Ty.Quotient a r) =
+           in "(" ++ x ++ ":" ++ prettyTyN tbl env a ++ ") ⨯ " ++ prettyTyArrowN tbl (env :< x) b
+      else prettyTyElN tbl env a ++ " ⨯ " ++ prettyTyArrowN tbl (env :< wildcard) b
+  prettyTyArrowN tbl env (Ty.Quotient a r) =
     let x = freshForTy a env
         y = freshGeneric (env :< x)
-    in prettyTyElN env a ++ " / (" ++ x ++ " " ++ y ++ ". " ++ prettyTyArrowN (env :< x :< y) r ++ ")"
-  prettyTyArrowN env ty = prettyTyElN env ty
+    in prettyTyElN tbl env a ++ " / (" ++ x ++ " " ++ y ++ ". " ++ prettyTyArrowN tbl (env :< x :< y) r ++ ")"
+  prettyTyArrowN tbl env ty = prettyTyElN tbl env ty
 
-  prettyTyElN : NameEnv -> Ty -> String
-  prettyTyElN env (El e) = "El " ++ prettyElemAtomN env e
-  prettyTyElN env ty = prettyTyAtomN env ty
+  prettyTyElN : FixTable -> NameEnv -> Ty -> String
+  prettyTyElN tbl env (El e) = "El " ++ prettyElemAtomN tbl env e
+  prettyTyElN tbl env ty = prettyTyAtomN tbl env ty
 
-  prettyTyAtomN : NameEnv -> Ty -> String
-  prettyTyAtomN env Ty.ZeroTy = "𝟘"
-  prettyTyAtomN env Ty.OneTy = "𝟙"
-  prettyTyAtomN env Ty.NatTy = "ℕ"
-  prettyTyAtomN env Ty.UniverseTy = "𝕌"
-  prettyTyAtomN env (Ty.SigVar x [<]) = if isOpName x then "(" ++ x ++ ")" else x
-  prettyTyAtomN env (Ty.SigVar x es) = x ++ "[" ++ prettySubNormN env es ++ "]"
-  prettyTyAtomN env ty = "(" ++ prettyTyN env ty ++ ")"
+  prettyTyAtomN : FixTable -> NameEnv -> Ty -> String
+  prettyTyAtomN tbl env Ty.ZeroTy = "𝟘"
+  prettyTyAtomN tbl env Ty.OneTy = "𝟙"
+  prettyTyAtomN tbl env Ty.NatTy = "ℕ"
+  prettyTyAtomN tbl env Ty.UniverseTy = "𝕌"
+  prettyTyAtomN tbl env (Ty.SigVar x [<]) = if isOpName x then "(" ++ x ++ ")" else x
+  prettyTyAtomN tbl env (Ty.SigVar x es) = x ++ "[" ++ prettySubNormN tbl env es ++ "]"
+  prettyTyAtomN tbl env ty = "(" ++ prettyTyN tbl env ty ++ ")"
 
 -- ===== Ctx =====
 
@@ -371,20 +381,20 @@ mutual
 ||| return the resulting name environment (needed by callers to print
 ||| whatever this context is the ambient scope for).
 export
-prettyCtxWithEnv : Ctx -> (String, NameEnv)
-prettyCtxWithEnv [<] = ("ε", [<])
-prettyCtxWithEnv (rest :< ty) =
-  let (restStr, env) = prettyCtxWithEnv rest
+prettyCtxWithEnv : FixTable -> Ctx -> (String, NameEnv)
+prettyCtxWithEnv tbl [<] = ("ε", [<])
+prettyCtxWithEnv tbl (rest :< ty) =
+  let (restStr, env) = prettyCtxWithEnv tbl rest
       x = freshForTy ty env
-  in (restStr ++ " ᐅ " ++ x ++ ":" ++ prettyTyN env ty, env :< x)
+  in (restStr ++ " ᐅ " ++ x ++ ":" ++ prettyTyN tbl env ty, env :< x)
 
 export
-prettyCtxN : Ctx -> String
-prettyCtxN ctx = fst (prettyCtxWithEnv ctx)
+prettyCtxN : FixTable -> Ctx -> String
+prettyCtxN tbl ctx = fst (prettyCtxWithEnv tbl ctx)
 
 ||| The name environment a context's own entries were invented with —
 ||| i.e. what to use to print anything stated *in* this context.
 export
 envForCtx : Ctx -> NameEnv
-envForCtx ctx = snd (prettyCtxWithEnv ctx)
+envForCtx ctx = snd (prettyCtxWithEnv [] ctx)
 

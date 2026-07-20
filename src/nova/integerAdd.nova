@@ -1,30 +1,30 @@
-import nat (plus, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusComm, plusAssoc, swapLeft)
+import nat (+, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusComm, plusAssoc, swapLeft)
 import integer (Int)
 
 -- ===== helpers for the well-definedness obligations =====
 
 -- addition of pairs is well-defined in its second argument: the
 -- cross-sum equation, conditional on the relation hypothesis
-def intAddWD : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ) (h : plus b1 c2 ≡ plus b2 c1 ∈ ℕ) →
-  plus (plus a1 b1) (plus a2 c2) ≡ plus (plus a2 b2) (plus a1 c1) ∈ ℕ ≔
-  λa1. λa2. λb1. λb2. λc1. λc2. λh. ℕ-elim (k. plus (plus a1 b1) (plus k c2) ≡ plus (plus k b2) (plus a1 c1) ∈ ℕ)
+def intAddWD : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ) (h : b1 + c2 ≡ b2 + c1 ∈ ℕ) →
+  (a1 + b1) + (a2 + c2) ≡ (a2 + b2) + (a1 + c1) ∈ ℕ ≔
+  λa1. λa2. λb1. λb2. λc1. λc2. λh. ℕ-elim (k. (a1 + b1) + (k + c2) ≡ (k + b2) + (a1 + c1) ∈ ℕ)
     Refl (k ih. Refl) a2
 
 -- cross-sum well-definedness in the OUTER argument, conditional on h
-def intAddCross : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ) (h : plus a1 b2 ≡ plus a2 b1 ∈ ℕ) →
-  plus (plus a1 c1) (plus b2 c2) ≡ plus (plus a2 c2) (plus b1 c1) ∈ ℕ ≔
-  λa1. λa2. λb1. λb2. λc1. λc2. λh. ℕ-elim (k. plus (plus a1 c1) (plus b2 k) ≡ plus (plus a2 k) (plus b1 c1) ∈ ℕ)
+def intAddCross : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ) (h : a1 + b2 ≡ a2 + b1 ∈ ℕ) →
+  (a1 + c1) + (b2 + c2) ≡ (a2 + c2) + (b1 + c1) ∈ ℕ ≔
+  λa1. λa2. λb1. λb2. λc1. λc2. λh. ℕ-elim (k. (a1 + c1) + (b2 + k) ≡ (a2 + k) + (b1 + c1) ∈ ℕ)
     Refl (k ih. Refl) c2
 
 -- the same, one level up: the inner elimination is well-defined in the
 -- OUTER argument — proven by quotient elimination with an ≡-motive
-def intAddWDOuter : (a : ℕ ⨯ ℕ) (b : ℕ ⨯ ℕ) (h : plus (a .π₁) (b .π₂) ≡ plus (a .π₂) (b .π₁) ∈ ℕ) (zy : Int) →
-  quot-elim (z. Int) (x. class (plus (a .π₁) (x .π₁) , plus (a .π₂) (x .π₂))) zy
-    ≡ quot-elim (z. Int) (x. class (plus (b .π₁) (x .π₁) , plus (b .π₂) (x .π₂))) zy
+def intAddWDOuter : (a : ℕ ⨯ ℕ) (b : ℕ ⨯ ℕ) (h : a .π₁ + b .π₂ ≡ a .π₂ + b .π₁ ∈ ℕ) (zy : Int) →
+  quot-elim (z. Int) (x. class (a .π₁ + x .π₁ , a .π₂ + x .π₂)) zy
+    ≡ quot-elim (z. Int) (x. class (b .π₁ + x .π₁ , b .π₂ + x .π₂)) zy
     ∈ Int ≔
   λa. λb. λh. λzy. quot-elim
-    (q. quot-elim (z. Int) (x. class (plus (a .π₁) (x .π₁) , plus (a .π₂) (x .π₂))) q
-          ≡ quot-elim (z. Int) (x. class (plus (b .π₁) (x .π₁) , plus (b .π₂) (x .π₂))) q
+    (q. quot-elim (z. Int) (x. class (a .π₁ + x .π₁ , a .π₂ + x .π₂)) q
+          ≡ quot-elim (z. Int) (x. class (b .π₁ + x .π₁ , b .π₂ + x .π₂)) q
           ∈ Int)
     (c. Refl)
     zy
@@ -33,7 +33,7 @@ def intAdd : Int → Int → Int ≔
   λzx. λzy.
     quot-elim (z. Int)
       (a. quot-elim (z. Int)
-            (b. class (plus (a .π₁) (b .π₁) , plus (a .π₂) (b .π₂)))
+            (b. class (a .π₁ + b .π₁ , a .π₂ + b .π₂))
             zy)
       zx
 

@@ -1458,37 +1458,37 @@ elabItem (STypeDef x ty) = do
 
 -- ===== Report =====
 
-prettyTelescope : Ctx -> NameEnv -> String
-prettyTelescope ctx env = go (toList ctx) (toList env)
+prettyTelescope : FixTable -> Ctx -> NameEnv -> String
+prettyTelescope tbl ctx env = go (toList ctx) (toList env)
  where
   -- print left-to-right; each entry's type prints under the env prefix
   go' : SnocList String -> List Ty -> List String -> List String
   go' pfx [] _ = []
   go' pfx (ty :: tys) (n :: ns) =
-    "(\{n} : \{prettyTyN pfx ty})" :: go' (pfx :< n) tys ns
+    "(\{n} : \{prettyTyN tbl pfx ty})" :: go' (pfx :< n) tys ns
   go' pfx (ty :: tys) [] =
-    "(_ : \{prettyTyN pfx ty})" :: go' (pfx :< "_") tys []
+    "(_ : \{prettyTyN tbl pfx ty})" :: go' (pfx :< "_") tys []
 
   go : List Ty -> List String -> String
   go tys ns = joinBy " " (go' [<] tys ns)
 
-prettyStmt : Stmt -> String
-prettyStmt (StElem ctx env a b ty) =
-  let tele = prettyTelescope ctx env in
+prettyStmt : FixTable -> Stmt -> String
+prettyStmt tbl (StElem ctx env a b ty) =
+  let tele = prettyTelescope tbl ctx env in
   (if tele == "" then "" else tele ++ " ") ++
-  "⊢ \{prettyElemN env a} ≐ \{prettyElemN env b} : \{prettyTyN env ty}"
-prettyStmt (StTy ctx env a b) =
-  let tele = prettyTelescope ctx env in
+  "⊢ \{prettyElemN tbl env a} ≐ \{prettyElemN tbl env b} : \{prettyTyN tbl env ty}"
+prettyStmt tbl (StTy ctx env a b) =
+  let tele = prettyTelescope tbl ctx env in
   (if tele == "" then "" else tele ++ " ") ++
-  "⊢ \{prettyTyN env a} ≐ \{prettyTyN env b} type"
+  "⊢ \{prettyTyN tbl env a} ≐ \{prettyTyN tbl env b} type"
 
-prettyObligation : Nat -> Obligation -> String
-prettyObligation i obl =
-  "  [\{show (S i)}] \{prettyStmt obl.stmt}\n" ++
+prettyObligation : FixTable -> Nat -> Obligation -> String
+prettyObligation tbl i obl =
+  "  [\{show (S i)}] \{prettyStmt tbl obl.stmt}\n" ++
   "      at: \{obl.site}" ++
   (case obl.composite of
      Nothing => ""
-     Just c => "\n      from composite: \{prettyStmt c}")
+     Just c => "\n      from composite: \{prettyStmt tbl c}")
 
 ||| One module of a program: its dotted name ("" for the root file,
 ||| whose entries stay unqualified), its import lines, its items.
@@ -1497,12 +1497,15 @@ record ModUnit where
   constructor MkModUnit
   mname : String
   mimports : List SImport
+  ||| the module's EFFECTIVE fixity table (opened imports' + own
+  ||| declarations) — the printer's, for faithful infix layout
+  mfix : FixTable
   mitems : List SItem
 
-oblReport : List Obligation -> String
-oblReport os =
+oblReport : FixTable -> List Obligation -> String
+oblReport tbl os =
   "open obligations (\{show (length os)}):\n" ++
-  joinBy "\n" (zipWith prettyObligation [0 .. minus (length os) 1] os)
+  joinBy "\n" (zipWith (prettyObligation tbl) [0 .. minus (length os) 1] os)
 
 ||| Install a module's import aliases: each opened name must exist in
 ||| the imported module's Σ segment.
@@ -1529,13 +1532,13 @@ export
 elabProgram : List ModUnit -> String
 elabProgram units = go initSt units []
  where
-  finish : ElabSt -> List String -> String
-  finish st echoes =
+  finish : FixTable -> ElabSt -> List String -> String
+  finish tbl st echoes =
     let oblList = toList st.obls in
     joinBy "\n" echoes ++ "\n" ++
     (case oblList of
        [] => "Accepted."
-       os => oblReport os)
+       os => oblReport tbl os)
 
   goItems : ElabSt -> List SItem -> Either (List String, String) (ElabSt, List String)
   goItems st [] = Right (st, [])
@@ -1549,7 +1552,7 @@ elabProgram units = go initSt units []
 
   go : ElabSt -> List ModUnit -> List String -> String
   go st [] echoes = joinBy "\n" (echoes ++ ["Error: empty program"])
-  go st (MkModUnit name imps items :: rest) echoes = do
+  go st (MkModUnit name imps tbl items :: rest) echoes = do
     -- a fresh visibility table per module: its own imports only
     let st = { modPrefix := name, vis := [<] } st
     case runElabM (installImports imps) st of
@@ -1560,13 +1563,13 @@ elabProgram units = go initSt units []
           Left (itemEchoes, err) => joinBy "\n" (echoes ++ hdr ++ itemEchoes ++ ["Error: \{err}"])
           Right (st', itemEchoes) =>
             case rest of
-              [] => finish st' (echoes ++ hdr ++ itemEchoes)
+              [] => finish tbl st' (echoes ++ hdr ++ itemEchoes)
               _ =>
                 -- only ACCEPTED modules are importable
                 case toList st'.obls of
                   [] => go st' rest (echoes ++ hdr ++ itemEchoes)
                   os => joinBy "\n" (echoes ++ hdr ++ itemEchoes) ++ "\n" ++
-                        oblReport os ++ "\n" ++
+                        oblReport tbl os ++ "\n" ++
                         "Error: module \{name} has open obligations and cannot be imported"
 
 ||| Elaborate a single surface file (no imports — resolving them needs
@@ -1576,5 +1579,5 @@ elabFile : String -> String
 elabFile content =
   case runSurfaceParser (parseSFile []) content of
     Left err => "Parse error: \{err}"
-    Right ([], _, items) => elabProgram [MkModUnit "" [] items]
+    Right ([], decls, items) => elabProgram [MkModUnit "" [] decls items]
     Right (_, _, _) => "Error: this entry point resolves no imports (use the module-aware loader)"

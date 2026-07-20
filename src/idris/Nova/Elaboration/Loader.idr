@@ -80,9 +80,11 @@ mutual
             | Left err => pure (Left err)
           Right (done', fixs', acc') <- loadMany rootDir (mname :: visiting) done fixs acc (map (\i => i.mname) hdr)
             | Left err => pure (Left err)
-          let Right (imps, decls, items) = parseModule "module \{mname} (\{path})" (importTable fixs' hdr) content
+          let tbl0 = importTable fixs' hdr
+          let Right (imps, decls, items) = parseModule "module \{mname} (\{path})" tbl0 content
             | Left err => pure (Left err)
-          pure (Right (mname :: done', (mname, decls) :: fixs', acc' ++ [MkModUnit mname imps items]))
+          pure (Right (mname :: done', (mname, decls) :: fixs',
+                       acc' ++ [MkModUnit mname imps (decls ++ tbl0) items]))
 
   loadMany : (rootDir : String) -> (visiting : List String) -> (done : List String)
            -> (fixs : FixMap) -> (acc : List ModUnit) -> List String
@@ -104,9 +106,10 @@ loadProgram rootPath = do
     | Left err => pure (Left err)
   Right (_, fixs, deps) <- loadMany (dirOf rootPath) [] [] [] [] (map (\i => i.mname) hdr)
     | Left err => pure (Left err)
-  let Right (imps, _, items) = parseModule rootPath (importTable fixs hdr) content
+  let tbl0 = importTable fixs hdr
+  let Right (imps, decls, items) = parseModule rootPath tbl0 content
     | Left err => pure (Left err)
-  pure (Right (deps ++ [MkModUnit "" imps items]))
+  pure (Right (deps ++ [MkModUnit "" imps (decls ++ tbl0) items]))
 
 ||| Load and elaborate: the `elab` command's body.
 export

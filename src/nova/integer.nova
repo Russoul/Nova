@@ -1,5 +1,5 @@
-import nat (plus)
+import nat (+)
 
-type Int ≔ (ℕ ⨯ ℕ) / (p q. plus (p .π₁) (q .π₂) ≡ plus (p .π₂) (q .π₁) ∈ ℕ)
+type Int ≔ (ℕ ⨯ ℕ) / (p q. p .π₁ + q .π₂ ≡ p .π₂ + q .π₁ ∈ ℕ)
 -- 0 = 0: (Z,Z) and (S Z, S Z) are the same integer
 def zeroEq : class (Z , Z) ≡ class (S Z , S Z) ∈ Int ≔ Refl
