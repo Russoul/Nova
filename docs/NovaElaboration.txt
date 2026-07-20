@@ -52,18 +52,27 @@ term/type grammar below is self-contained.
 
 // A file is a sequence of items. `def` introduces a term definition,
 // `type` a type definition — the two signature-entry forms of
-// Foundation's Σ. The parenthesized telescope names the entry's
-// declaration context Γ; it may be empty.
+// Foundation's Σ. Every item is declared in the EMPTY context:
+// parameters are ordinary Π-binders in the item's type (the iterated
+// binder syntax below keeps that pleasant), and a reference to an
+// item is a bare name. Foundation's Σ entries keep their general
+// declaration contexts; the elaborator simply only produces closed
+// ones — so the normal-substitution syntax x[t˲] has no surface form.
 file  ::= item*
-item  ::= def  x ((x:T{≥0}))* : T{≥0} ≔ t{≥0}
-        | type x ((x:T{≥0}))* ≔ T{≥0}
+item  ::= def  x : T{≥0} ≔ t{≥0}
+        | type x ≔ T{≥0}
 
 // Types. Elaboration needs no rule keywords and no context prefixes —
 // the context is always implicit in where a subterm sits.
-T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | x[t˲] | (T{≥0})
+T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | x | (T{≥0})
 T{2} ::= El t{≥4}
-T{1} ::= (x:T{≥0}) → T{≥1} | (x:T{≥0}) ⨯ T{≥1} | T{≥2} / (x y. T{≥1})
+T{1} ::= ((x:T{≥0}))+ → T{≥0} | ((x:T{≥0}))+ ⨯ T{≥0} | T{≥2} / (x y. T{≥1})
 T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
+
+// Binder groups ITERATE: (x:T) (y:U) → B parses as (x:T) → (y:U) → B
+// (each group scopes over the ones after it; likewise for ⨯), and the
+// codomain is full T{≥0}, so a lemma statement needs no parentheses:
+//     (n : ℕ) (m : ℕ) → plus n m ≡ plus m n ∈ ℕ
 
 // Elements. Two departures from the derivation surface syntax:
 //   1. Ascription `(t : T)` is first-class. It is the user's lever for
@@ -74,8 +83,7 @@ T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
 //   2. ℕ-elim and quot-elim take their motives inline, motive-first.
 //      Motives are not inferable without higher-order unification, so
 //      they are mandatory syntax here.
-t˲   ::= (empty) | t{≥1} (, t{≥1})*
-t{5} ::= x | () | Z | Refl | 𝟘 | 𝟙 | ℕ | x[t˲] | (t{≥0}) | (t{≥0} : T{≥0})
+t{5} ::= x | () | Z | Refl | 𝟘 | 𝟙 | ℕ | (t{≥0}) | (t{≥0} : T{≥0})
 t{3} ::= t{≥3} t{≥4} | t{≥3} .π₁ | t{≥3} .π₂                 (left-assoc)
 t{2} ::= λx. t{≥3}
        | 𝟘-elim t{≥4}
@@ -83,7 +91,7 @@ t{2} ::= λx. t{≥3}
        | ℕ-elim (n. T{≥0}) t{≥4} (n ih. t{≥4}) t{≥4}          // motive, z, s, scrutinee
        | class t{≥4}
        | quot-elim (z. T{≥0}) (a. t{≥0}) t{≥4}                // motive, case fn, scrutinee
-t{1} ::= (x:t{≥0}) → t{≥1} | (x:t{≥0}) ⨯ t{≥1} | t{≥2} / (x y. t{≥1})
+t{1} ::= ((x:t{≥0}))+ → t{≥1} | ((x:t{≥0}))+ ⨯ t{≥1} | t{≥2} / (x y. t{≥1})
        | t{≥2} ≡ t{≥2} ∈ t{≥2}                                // universe codes
 t{0} ::= t{≥1} , t{≥0}                                        (right-assoc)
 
@@ -95,9 +103,10 @@ t{0} ::= t{≥1} , t{≥0}                                        (right-assoc)
 // Names are a parsing concern only.
 // Parsing + scope resolution translate the named text into an INDEXED
 // SURFACE AST: the same grammar with every variable occurrence replaced
-// by its de Bruijn index ☐ᵢ (innermost binder wins; unbound name =
-// error here, not in elaboration) and binder names carried along only
-// as display metadata. Elaboration operates exclusively on this indexed
+// by its de Bruijn index ☐ᵢ (innermost binder wins; locals shadow the
+// signature; a name bound by no binder is a signature reference, and
+// whether it exists in Σ is the elaborator's question) and binder
+// names carried along only as display metadata. Elaboration operates exclusively on this indexed
 // surface syntax; its rules below never consult a name, Γ is a plain
 // core context, and all binder bookkeeping is ordinary index
 // arithmetic. Names reappear in exactly one place: the report printer,
@@ -119,14 +128,14 @@ extend them implicitly rather than threading them through every premise.
       in Σ for the remainder of the run; acceptance semantics below.)
 
 E   — the equation store, feeding algorithmic discharge. Three sources:
-      * ACCEPTED LEMMAS: for every entry (Δ ⊦ x ≔ p : A) ∈ Σ whose type
+      * ACCEPTED LEMMAS: for every entry (ε ⊦ x ≔ p : A) ∈ Σ whose type
         A, after peeling leading Π's into the context, is an equality
         type l ≡ r ∈ T, the store contains the reflected equation
-            Δ ᐅ A₁ ᐅ ... ᐅ Aₖ ⊢ l ≐ r : T
+            A₁ ᐅ ... ᐅ Aₖ ⊢ l ≐ r : T
         (the peeled binders become context entries — all of them
         PARAMETRIC, so the lemma applies in any context by first-order
         instantiation). Justified by Foundation (reflect a) applied to
-        x[δ] ☐ₖ₋₁ ... ☐₀. This is how user-proved equalities enter
+        x[·] ☐ₖ₋₁ ... ☐₀. This is how user-proved equalities enter
         discharge: prove at the element level once, use judgementally
         everywhere.
       * HYPOTHESES: for every entry of the AMBIENT context whose type,
@@ -176,7 +185,6 @@ syntax (see Name resolution above). Named binders appearing in the rules
 Σ; E; Γ ⊢ T ⇝ A type         // surface type T elaborates to core A
 Σ; E; Γ ⊢ t ⇐ A ⇝ a          // checking: core type A given
 Σ; E; Γ ⊢ t ⇒ A ⇝ a          // inference: core type A produced
-Σ; E; Γ ⊢ e˲ ⇐ Δ ⇝ ê˲        // substitution into declaration context Δ
 Σ; E; Γ ⊢ A ≐ B type ↓       // type conversion: discharge or assume
 Σ; E; Γ ⊢ a ≐ b : A ↓        // element conversion: discharge or assume
 
@@ -207,10 +215,14 @@ never an unsound acceptance.
 Γ ⊢ 𝟘 ⇝ 𝟘 type    Γ ⊢ 𝟙 ⇝ 𝟙 type    Γ ⊢ ℕ ⇝ ℕ type    Γ ⊢ 𝕌 ⇝ 𝕌 type
                                                     // (𝟘),(𝟙),(ℕ),(𝕌)
 
-(Δ ⊦ x ≔ T type) ∈ Σ
-Γ ⊢ e˲ ⇐ Δ ⇝ ê˲
+(ε ⊦ x ≔ T type) ∈ Σ
 ---------------------- (e-ty-sig)                             // (x[e˲] type)
-Γ ⊢ x[e˲] ⇝ x[ê˲] type
+Γ ⊢ x ⇝ x[·] type
+
+// Every entry the elaborator produces is closed, so the core
+// reference always carries the empty substitution. (Foundation's
+// general x[e˲] stays available to the kernel; it just never appears
+// in elaborator output.)
 
 Γ ⊢ T ⇝ A type
 Γ ᐅ x:A ⊢ U ⇝ B type
@@ -237,26 +249,15 @@ never an unsound acceptance.
 ------------------- (e-ty-el)                                 // (El A)
 Γ ⊢ El t ⇝ El a type
 
-//////////// Substitutions into a declaration context /////////////
-
----------------- (e-sub-emp)
-Γ ⊢ · ⇐ ε ⇝ ·
-
-Γ ⊢ e˲ ⇐ Δ ⇝ ê˲
-Γ ⊢ t ⇐ T[ê˲] ⇝ t̂
---------------------------- (e-sub-ext)
-Γ ⊢ e˲, t ⇐ (Δ ᐅ T) ⇝ ê˲, t̂
-
 //////////// Element elaboration: inference /////////////
 
 ☐ᵢ in bounds for Γ
 --------------------- (e-var)                                 // Γ‖ᵢ
 Γ ⊢ ☐ᵢ ⇒ Γ‖ᵢ ⇝ ☐ᵢ
 
-(Δ ⊦ x ≔ a : A) ∈ Σ
-Γ ⊢ e˲ ⇐ Δ ⇝ ê˲
+(ε ⊦ x ≔ a : A) ∈ Σ
 ------------------------- (e-sig)                             // (x[e˲])
-Γ ⊢ x[e˲] ⇒ A[ê˲] ⇝ x[ê˲]
+Γ ⊢ x ⇒ A ⇝ x[·]
 
 ------------------ (e-unit)      ---------------- (e-zeroN)
 Γ ⊢ () ⇒ 𝟙 ⇝ ()                  Γ ⊢ Z ⇒ ℕ ⇝ Z
@@ -481,16 +482,23 @@ whnf(C) = A / R        Γ ⊢ a ⇐ A ⇝ â
 
 //////////// Items /////////////
 
-Γ₀ = ε;   Γᵢ = Γᵢ₋₁ ᐅ xᵢ:Aᵢ  where  Γᵢ₋₁ ⊢ Tᵢ ⇝ Aᵢ type   (i = 1..n)
-Γₙ ⊢ T ⇝ A type
-Γₙ ⊢ t ⇐ A ⇝ t̂
+ε ⊢ T ⇝ A type
+ε ⊢ t ⇐ A ⇝ t̂
 ------------------------------------------------------------- (e-def)
-def x (x₁:T₁) ... (xₙ:Tₙ) : T ≔ t   extends Σ with (Γₙ ⊦ x ≔ t̂ : A)
+def x : T ≔ t          extends Σ with (ε ⊦ x ≔ t̂ : A)
 
-Γₙ as above
-Γₙ ⊢ T ⇝ A type
+ε ⊢ T ⇝ A type
 ------------------------------------------------------------- (e-typedef)
-type x (x₁:T₁) ... (xₙ:Tₙ) ≔ T     extends Σ with (Γₙ ⊦ x ≔ A type)
+type x ≔ T             extends Σ with (ε ⊦ x ≔ A type)
+
+// Parameters are Π-binders in T; partial application of an item is
+// therefore first-class, which the telescoped form never was (x[e˲]
+// demanded the full substitution back to Γ). The price is confined to
+// TYPE items: a parameterized family must live in 𝕌 (a def returning
+// 𝕌-codes, like vect) — a family whose result is genuinely large has
+// no code and, in the empty-context discipline, no spelling. None is
+// needed today; if one ever is, telescoped type items (and the
+// substitution syntax, for them alone) are the designed escape hatch.
 
 // Duplicate entry names are a structural error. An entry elaborated
 // under assumptions still enters Σ and the rest of the run builds on
@@ -503,11 +511,11 @@ type x (x₁:T₁) ... (xₙ:Tₙ) ≔ T     extends Σ with (Γₙ ⊦ x ≔ A 
 At end of run, obligations are reported in surfacing order:
 
   open obligations (2):
-    [1] (n : ℕ) ⊢ plus[n, Z] ≐ n : ℕ
+    [1] (n : ℕ) ⊢ plus n Z ≐ n : ℕ
         at: vappend_nil, line 14 (checking Refl)
-    [2] (n m : ℕ) (a : 𝕌) (xs : El (vect[n, a])) ⊢ ...
+    [2] (n m : ℕ) (a : 𝕌) (xs : El (vect n a)) ⊢ ...
         at: vappend_assoc, line 22 (switch: inferred vs expected type)
-        from composite: El (vect[plus[n, Z], a]) ≐ El (vect[n, a]) type
+        from composite: El (vect (plus n Z) a) ≐ El (vect n a) type
         statement uses: [1]
 
 Report conventions:
@@ -524,10 +532,10 @@ Report conventions:
 
 Discharging an obligation: prepend, before the item that surfaced it,
 
-  def plus_zero (n : ℕ) : plus[n, Z] ≡ n ∈ ℕ ≔ <proof>
+  def plus_zero : (n : ℕ) → plus n Z ≡ n ∈ ℕ ≔ λn. <proof>
 
 — an ordinary def whose type is the obligation's statement as an
-equality type (generalized over its context as a telescope). On rerun,
+equality type (generalized over its context by Π-binders). On rerun,
 its reflected equation is in E before the surfacing site elaborates,
 and step 7 discharges silently. The proof itself is whatever the theory
 requires — `Refl` when the equation is by computation, an ℕ-elim with

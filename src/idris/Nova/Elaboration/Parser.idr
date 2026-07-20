@@ -63,6 +63,10 @@ parseName = do
   guard "Reserved keyword" (name /= "def" && name /= "type" && name /= "El")
   pure name
 
+foldGroups : (String -> a -> b -> b) -> List (String, a) -> b -> b
+foldGroups f [] b = b
+foldGroups f ((x, t) :: rest) b = f x t (foldGroups f rest b)
+
 -- ===== Types and elements (mutually recursive) =====
 
 mutual
@@ -78,18 +82,32 @@ mutual
             pure (STyEq e0 e1 a))
     <|> parseSTyArrow env
 
-  -- T{1}: named binder forms and the sugared right-assoc infixes
+  -- T{1}: named binder forms and the sugared right-assoc infixes.
+  -- Binder groups iterate: (x:T) (y:U) → B ≡ (x:T) → (y:U) → B
+  -- (and likewise for ⨯).
   parseSTyArrow : NameEnv -> Rule STy
   parseSTyArrow env =
-        (do char_ '('; sp; x <- parseName; sp; char_ ':'; sp
-            a <- parseSTy env; sp; char_ ')'; sp
-            (do str_ "→"; sp; b <- parseSTyArrow (env :< x); pure (STyPi x a b))
-              <|> (do str_ "⨯"; sp; b <- parseSTyArrow (env :< x); pure (STySigma x a b)))
+        -- the codomain is full T{≥0}: a trailing ≡-type needs no parens,
+        -- so lemma statements read as written
+        (do (env', groups) <- parseBinderGroups env
+            sp
+            (do str_ "→"; sp; b <- parseSTy env'; pure (foldGroups STyPi groups b))
+              <|> (do str_ "⨯"; sp; b <- parseSTy env'; pure (foldGroups STySigma groups b)))
     <|> (do a <- parseSTyEl env
             (do sp; str_ "→"; sp; b <- parseSTyArrow (env :< wildcard); pure (STyPi wildcard a b))
               <|> (do sp; str_ "⨯"; sp; b <- parseSTyArrow (env :< wildcard); pure (STySigma wildcard a b))
               <|> (do sp; str_ "/"; sp; (x, y, r) <- parseQuotRel env; pure (STyQuot a x y r))
               <|> pure a)
+
+  -- one or more (x:T) groups, each scoping over the ones after it
+  parseBinderGroups : NameEnv -> Rule (NameEnv, List (String, STy))
+  parseBinderGroups env = do
+    char_ '('; sp; x <- parseName; sp; char_ ':'; sp
+    a <- parseSTy env; sp; char_ ')'
+    rest <- optional (do sp; parseBinderGroups (env :< x))
+    case rest of
+      Nothing => pure (env :< x, [(x, a)])
+      Just (env', groups) => pure (env', (x, a) :: groups)
 
   -- (x y. R)  or bare R as sugar for (_ _. R)
   parseQuotRel : NameEnv -> Rule (String, String, STy)
@@ -112,20 +130,8 @@ mutual
     <|> (str_ "𝟙" $> STyOne)
     <|> (str_ "ℕ" $> STyNat)
     <|> (str_ "𝕌" $> STyUniv)
-    <|> (do x <- parseSigIdentifier
-            sp; char_ '['; sp; es <- parseSSubst env; sp; char_ ']'
-            pure (STySig x es))
+    <|> (do x <- parseName; pure (STySig x))
     <|> (do char_ '('; sp; t <- parseSTy env; sp; char_ ')'; pure t)
-
-  -- t˲: empty, or a bare comma-separated list
-  parseSSubst : NameEnv -> Rule (List SElem)
-  parseSSubst env = do
-    first <- optional (parseSElemNoComma env)
-    case first of
-      Nothing => pure []
-      Just e  => do
-        rest <- many (do sp; char_ ','; sp; parseSElemNoComma env)
-        pure (e :: rest)
 
   -- t{0}: top-level comma = pair (right-assoc)
   export
@@ -135,13 +141,14 @@ mutual
     (do sp; char_ ','; sp; e' <- parseSElem env; pure (SPair e e'))
       <|> pure e
 
-  -- t{1}: universe-code binder/infix forms and eq-code
+  -- t{1}: universe-code binder/infix forms and eq-code; binder groups
+  -- iterate exactly as at the type level
   parseSElemNoComma : NameEnv -> Rule SElem
   parseSElemNoComma env =
-        (do char_ '('; sp; x <- parseName; sp; char_ ':'; sp
-            a <- parseSElem env; sp; char_ ')'; sp
-            (do str_ "→"; sp; b <- parseSElemNoComma (env :< x); pure (SPiC x a b))
-              <|> (do str_ "⨯"; sp; b <- parseSElemNoComma (env :< x); pure (SSigmaC x a b)))
+        (do (env', groups) <- parseBinderGroupsC env
+            sp
+            (do str_ "→"; sp; b <- parseSElemNoComma env'; pure (foldGroups SPiC groups b))
+              <|> (do str_ "⨯"; sp; b <- parseSElemNoComma env'; pure (foldGroups SSigmaC groups b)))
     <|> (do e <- parseSElemPrefix env
             (do sp; str_ "→"; sp; e' <- parseSElemNoComma (env :< wildcard); pure (SPiC wildcard e e'))
               <|> (do sp; str_ "⨯"; sp; e' <- parseSElemNoComma (env :< wildcard); pure (SSigmaC wildcard e e'))
@@ -151,6 +158,15 @@ mutual
                       e2 <- parseSElemPrefix env
                       pure (SEqC e e1 e2))
               <|> pure e)
+
+  parseBinderGroupsC : NameEnv -> Rule (NameEnv, List (String, SElem))
+  parseBinderGroupsC env = do
+    char_ '('; sp; x <- parseName; sp; char_ ':'; sp
+    a <- parseSElem env; sp; char_ ')'
+    rest <- optional (do sp; parseBinderGroupsC (env :< x))
+    case rest of
+      Nothing => pure (env :< x, [(x, a)])
+      Just (env', groups) => pure (env', (x, a) :: groups)
 
   parseQuotRelC : NameEnv -> Rule (String, String, SElem)
   parseQuotRelC env =
@@ -216,43 +232,34 @@ mutual
     <|> (str_ "𝟘"   $> SZeroC)
     <|> (str_ "𝟙"   $> SOneC)
     <|> (str_ "ℕ"   $> SNatC)
-    <|> (do x <- parseSigIdentifier
-            sp; char_ '['; sp; es <- parseSSubst env; sp; char_ ']'
-            pure (SSig x es))
     <|> (do x <- parseName
             case resolveVar env x of
               Just i  => pure (SVar x i)
-              Nothing => fail "unbound variable '\{x}'")
+              -- locals shadow the signature; whether the name exists
+              -- in Σ is the elaborator's question, not the parser's
+              Nothing => pure (SSig x))
 
 -- ===== Items =====
-
-parseTelescope : NameEnv -> Rule (NameEnv, List (String, STy))
-parseTelescope env = go env []
- where
-  go : NameEnv -> List (String, STy) -> Rule (NameEnv, List (String, STy))
-  go env acc =
-        (do char_ '('; sp; x <- parseName; sp; char_ ':'; sp
-            ty <- parseSTy env; sp; char_ ')'; sp
-            go (env :< x) (acc ++ [(x, ty)]))
-    <|> pure (env, acc)
+--
+-- Items are always declared in the EMPTY context: parameters are
+-- ordinary Π-binders in the item's type (the iterated binder syntax
+-- keeps that pleasant), and references to an item are bare names.
 
 export
 parseSItem : Rule SItem
 parseSItem =
       (do str_ "def"; space
           x <- parseName; sp
-          (env, tel) <- parseTelescope [<]
           char_ ':'; sp
-          ty <- parseSTy env; sp
+          ty <- parseSTy [<]; sp
           str_ "≔"; sp
-          body <- parseSElem env
-          pure (SDef x tel ty body))
+          body <- parseSElem [<]
+          pure (SDef x ty body))
   <|> (do str_ "type"; space
           x <- parseName; sp
-          (env, tel) <- parseTelescope [<]
           str_ "≔"; sp
-          ty <- parseSTy env
-          pure (STypeDef x tel ty))
+          ty <- parseSTy [<]
+          pure (STypeDef x ty))
 
 export
 parseSFile : Rule (List SItem)

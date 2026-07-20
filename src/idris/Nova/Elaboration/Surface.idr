@@ -22,8 +22,8 @@ mutual
     STyOne : STy
     STyNat : STy
     STyUniv : STy
-    ||| x[t˲] — reference to a signature type definition
-    STySig : String -> List SElem -> STy
+    ||| x — reference to a signature type definition
+    STySig : String -> STy
     ||| (x:T) → U
     STyPi : (name : String) -> STy -> STy -> STy
     ||| (x:T) ⨯ U
@@ -39,8 +39,9 @@ mutual
   data SElem : Type where
     ||| ☐ᵢ — a resolved local variable (the parser resolved the name)
     SVar : (name : String) -> Nat -> SElem
-    ||| x[t˲] — reference to a signature term definition
-    SSig : String -> List SElem -> SElem
+    ||| x — an identifier that resolved to no local binder: a
+    ||| signature reference (locals shadow the signature)
+    SSig : String -> SElem
     SUnitI : SElem
     SZeroN : SElem
     SSuc : SElem -> SElem
@@ -74,15 +75,15 @@ mutual
 
 public export
 data SItem : Type where
-  ||| def x (x₁:T₁) ... (xₙ:Tₙ) : T ≔ t
-  SDef : String -> List (String, STy) -> STy -> SElem -> SItem
-  ||| type x (x₁:T₁) ... (xₙ:Tₙ) ≔ T
-  STypeDef : String -> List (String, STy) -> STy -> SItem
+  ||| def x : T ≔ t — always in the empty context
+  SDef : String -> STy -> SElem -> SItem
+  ||| type x ≔ T — always in the empty context
+  STypeDef : String -> STy -> SItem
 
 export
 itemName : SItem -> String
-itemName (SDef n _ _ _) = n
-itemName (STypeDef n _ _) = n
+itemName (SDef n _ _) = n
+itemName (STypeDef n _) = n
 
 -- ===== Show instances (parser golden tests) =====
 
@@ -93,7 +94,7 @@ mutual
     show STyOne = "𝟙"
     show STyNat = "ℕ"
     show STyUniv = "𝕌"
-    show (STySig x es) = "\{x}[\{joinBy ", " (map show es)}]"
+    show (STySig x) = "\{x}"
     show (STyPi x a b) = "Pi \{x} (\{show a}) (\{show b})"
     show (STySigma x a b) = "Sigma \{x} (\{show a}) (\{show b})"
     show (STyQuot a x y r) = "Quot (\{show a}) \{x} \{y} (\{show r})"
@@ -103,7 +104,7 @@ mutual
   export covering
   Show SElem where
     show (SVar n i) = "\{n}@\{show i}"
-    show (SSig x es) = "\{x}[\{joinBy ", " (map show es)}]"
+    show (SSig x) = "\{x}@sig"
     show SUnitI = "()"
     show SZeroN = "Z"
     show (SSuc t) = "S (\{show t})"
@@ -130,7 +131,5 @@ mutual
 
 export covering
 Show SItem where
-  show (SDef x tel ty body) =
-    "def \{x} [\{joinBy ", " (map (\(n, t) => "\{n} : \{show t}") tel)}] : \{show ty} := \{show body}"
-  show (STypeDef x tel ty) =
-    "type \{x} [\{joinBy ", " (map (\(n, t) => "\{n} : \{show t}") tel)}] := \{show ty}"
+  show (SDef x ty body) = "def \{x} : \{show ty} := \{show body}"
+  show (STypeDef x ty) = "type \{x} := \{show ty}"

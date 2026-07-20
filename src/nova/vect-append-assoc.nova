@@ -2,34 +2,30 @@
 -- up to plus-associativity (the two sides' lengths differ intensionally)
 -- — the extensional mismatch this file's lemmas discharge.
 def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
-def plusZeroId (n : ℕ) : plus[] n Z ≡ n ∈ ℕ ≔ Refl
-def plusSucId (n : ℕ) (m : ℕ) : plus[] n (S m) ≡ S (plus[] n m) ∈ ℕ ≔ Refl
-def zeroPlusId (n : ℕ) : plus[] Z n ≡ n ∈ ℕ ≔
-  ℕ-elim (k. plus[] Z k ≡ k ∈ ℕ) Refl (k ih. Refl) n
-def sucPlus (n : ℕ) (m : ℕ) : plus[] (S n) m ≡ S (plus[] n m) ∈ ℕ ≔
-  ℕ-elim (k. plus[] (S n) k ≡ S (plus[] n k) ∈ ℕ) Refl (k ih. Refl) m
-def plusAssoc (n : ℕ) (m : ℕ) (k : ℕ) : plus[] (plus[] n m) k ≡ plus[] n (plus[] m k) ∈ ℕ ≔
-  ℕ-elim (j. plus[] (plus[] n m) j ≡ plus[] n (plus[] m j) ∈ ℕ) Refl (j ih. Refl) k
+def plusZeroId : (n : ℕ) → plus n Z ≡ n ∈ ℕ ≔ λn. Refl
+def plusSucId : (n : ℕ) (m : ℕ) → plus n (S m) ≡ S (plus n m) ∈ ℕ ≔ λn. λm. Refl
+def zeroPlusId : (n : ℕ) → plus Z n ≡ n ∈ ℕ ≔ λn. ℕ-elim (k. plus Z k ≡ k ∈ ℕ) Refl (k ih. Refl) n
+def sucPlus : (n : ℕ) (m : ℕ) → plus (S n) m ≡ S (plus n m) ∈ ℕ ≔ λn. λm. ℕ-elim (k. plus (S n) k ≡ S (plus n k) ∈ ℕ) Refl (k ih. Refl) m
+def plusAssoc : (n : ℕ) (m : ℕ) (k : ℕ) → plus (plus n m) k ≡ plus n (plus m k) ∈ ℕ ≔ λn. λm. λk. ℕ-elim (j. plus (plus n m) j ≡ plus n (plus m j) ∈ ℕ) Refl (j ih. Refl) k
 
 def vect : ℕ → 𝕌 → 𝕌 ≔ λx. λy. ℕ-elim (n. 𝕌) 𝟙 (n ih. y ⨯ ih) x
 
-def vappend : (n : ℕ) → (A : 𝕌) → (m : ℕ) → El (vect[] n A) → El (vect[] m A) → El (vect[] (plus[] n m) A) ≔
+def vappend : (n : ℕ) → (A : 𝕌) → (m : ℕ) → El (vect n A) → El (vect m A) → El (vect (plus n m) A) ≔
   λn. λA. λm.
-    ℕ-elim (k. El (vect[] k A) → El (vect[] m A) → El (vect[] (plus[] k m) A))
+    ℕ-elim (k. El (vect k A) → El (vect m A) → El (vect (plus k m) A))
       (λv. λw. w)
       (k ih. λv. λw. (v .π₁ , ih (v .π₂) w))
       n
 
-def vappendAssoc (n : ℕ) (A : 𝕌) (m : ℕ) (k : ℕ)
-                 (v : El (vect[] m A)) (w : El (vect[] k A)) (u : El (vect[] n A)) :
-  vappend[] (plus[] n m) A k (vappend[] n A m u v) w
-    ≡ vappend[] n A (plus[] m k) u (vappend[] m A k v w)
-    ∈ El (vect[] (plus[] n (plus[] m k)) A) ≔
-  (ℕ-elim
-    (p. (q : El (vect[] p A)) →
-        (vappend[] (plus[] p m) A k (vappend[] p A m q v) w
-           ≡ vappend[] p A (plus[] m k) q (vappend[] m A k v w)
-           ∈ El (vect[] (plus[] p (plus[] m k)) A)))
+def vappendAssoc : (n : ℕ) (A : 𝕌) (m : ℕ) (k : ℕ) (v : El (vect m A)) (w : El (vect k A)) (u : El (vect n A)) →
+  vappend (plus n m) A k (vappend n A m u v) w
+    ≡ vappend n A (plus m k) u (vappend m A k v w)
+    ∈ El (vect (plus n (plus m k)) A) ≔
+  λn. λA. λm. λk. λv. λw. λu. (ℕ-elim
+    (p. (q : El (vect p A)) →
+        (vappend (plus p m) A k (vappend p A m q v) w
+           ≡ vappend p A (plus m k) q (vappend m A k v w)
+           ∈ El (vect (plus p (plus m k)) A)))
     (λq. Refl)
     (p ih. λq. Refl)
     n) u

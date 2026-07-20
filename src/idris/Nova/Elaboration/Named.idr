@@ -297,6 +297,7 @@ mutual
   prettyElemAtomN env Elem.ZeroTy = "𝟘"
   prettyElemAtomN env Elem.OneTy = "𝟙"
   prettyElemAtomN env Elem.NatTy = "ℕ"
+  prettyElemAtomN env (SigVar x [<]) = x
   prettyElemAtomN env (SigVar x es) = x ++ "[" ++ prettySubNormN env es ++ "]"
   prettyElemAtomN env e = "(" ++ prettyElemN env e ++ ")"
 
@@ -352,6 +353,7 @@ mutual
   prettyTyAtomN env Ty.OneTy = "𝟙"
   prettyTyAtomN env Ty.NatTy = "ℕ"
   prettyTyAtomN env Ty.UniverseTy = "𝕌"
+  prettyTyAtomN env (Ty.SigVar x [<]) = x
   prettyTyAtomN env (Ty.SigVar x es) = x ++ "[" ++ prettySubNormN env es ++ "]"
   prettyTyAtomN env ty = "(" ++ prettyTyN env ty ++ ")"
 

@@ -1179,12 +1179,13 @@ mutual
   elabTy ctx env site STyOne = pure (Ty.OneTy, Nd [] [])
   elabTy ctx env site STyNat = pure (Ty.NatTy, Nd [] [])
   elabTy ctx env site STyUniv = pure (Ty.UniverseTy, Nd [] [])
-  elabTy ctx env site (STySig x es) = do
+  elabTy ctx env site (STySig x) = do
     st <- getSt
     case sigLookup x st.sig of
-      Just (SigTyDef delta _ _) => do
-        (es', sks) <- checkSubst ctx env site es delta
-        pure (Ty.SigVar x es', Nd [] sks)
+      -- items are always declared in ε, so the reference carries the
+      -- empty substitution
+      Just (SigTyDef [<] _ _) => pure (Ty.SigVar x [<], Nd [] [])
+      Just (SigTyDef _ _ _) => throw "\{site}: '\{x}' has a non-empty declaration context"
       Just (SigDef _ _ _ _) => throw "\{site}: '\{x}' is a term definition, used as a type"
       Nothing => throw "\{site}: unknown signature name '\{x}'"
   elabTy ctx env site (STyPi x a b) = do
@@ -1208,32 +1209,19 @@ mutual
     (e', eSk) <- checkElem ctx env site e Ty.UniverseTy
     pure (El e', Nd [] [eSk])
 
-  checkSubst : Ctx -> NameEnv -> String -> List SElem -> Ctx -> ElabM (SubNorm, List Skel)
-  checkSubst ctx env site es delta = go (reverse es) delta
-   where
-    -- es is given left-to-right (outermost first); delta is a snoc-list.
-    go : List SElem -> Ctx -> ElabM (SubNorm, List Skel)
-    go [] [<] = pure ([<], [])
-    go (e :: rest) (d :< ty) = do
-      (es', sks) <- go rest d
-      (e', eSk) <- checkElem ctx env site e (substTy ty (embed es'))
-      pure (es' :< e', sks ++ [eSk])
-    go _ _ = throw "\{site}: substitution length does not match the definition's telescope"
-
   export
   inferElem : Ctx -> NameEnv -> String -> SElem -> ElabM (Elem, Ty, Skel)
   inferElem ctx env site (SVar n i) =
     case ctxLookup ctx i of
       Just ty => pure (CtxVar i, ty, Nd [] [])
       Nothing => throw "\{site}: variable index out of bounds"
-  inferElem ctx env site (SSig x es) = do
+  inferElem ctx env site (SSig x) = do
     st <- getSt
     case sigLookup x st.sig of
-      Just (SigDef delta _ _ ty) => do
-        (es', sks) <- checkSubst ctx env site es delta
-        pure (SigVar x es', substTy ty (embed es'), Nd [] sks)
+      Just (SigDef [<] _ _ ty) => pure (SigVar x [<], ty, Nd [] [])
+      Just (SigDef _ _ _ _) => throw "\{site}: '\{x}' has a non-empty declaration context"
       Just (SigTyDef _ _ _) => throw "\{site}: '\{x}' is a type definition, used as a term"
-      Nothing => throw "\{site}: unknown signature name '\{x}'"
+      Nothing => throw "\{site}: unknown name '\{x}'"
   inferElem ctx env site SUnitI = pure (OneIntro, Ty.OneTy, Nd [] [])
   inferElem ctx env site SZeroN = pure (NatIntro0, Ty.NatTy, Nd [] [])
   inferElem ctx env site (SSuc t) = do
@@ -1399,13 +1387,6 @@ addLemma name delta ty = do
                                                    mk (toP (snd lRes)) (toP (snd rRes))) ++) }
     _ => pure ()
 
-elabTelescope : Ctx -> NameEnv -> String -> List (String, STy) -> ElabM (Ctx, NameEnv, List (Ty, Skel))
-elabTelescope ctx env site [] = pure (ctx, env, [])
-elabTelescope ctx env site ((x, ty) :: rest) = do
-  (ty', tySk) <- elabTy ctx env site ty
-  (ctx', env', teleRest) <- elabTelescope (ctx :< ty') (env :< x) site rest
-  pure (ctx', env', (ty', tySk) :: teleRest)
-
 ||| Kernel-check a clean item against the kernel's own Σ; extend it on
 ||| acceptance. Items elaborated under assumptions (dirty) are skipped —
 ||| they cannot be accepted anyway.
@@ -1420,36 +1401,36 @@ kernelAccept name check clean = do
 
 export
 elabItem : SItem -> ElabM String
-elabItem (SDef x tel ty body) = do
+elabItem (SDef x ty body) = do
   st <- getSt
   case sigLookup x st.sig of
     Just _ => throw "def \{x}: duplicate signature name"
     Nothing => pure ()
-  (ctx, env, teleSks) <- elabTelescope [<] [<] "def \{x}" tel
-  (ty', tySk) <- elabTy ctx env "def \{x}" ty
-  (body', bodySk) <- checkElem ctx env "def \{x}" body ty'
+  -- items live in the EMPTY context: parameters are Π-binders in the
+  -- item's type, references are bare names
+  (ty', tySk) <- elabTy [<] [<] "def \{x}" ty
+  (body', bodySk) <- checkElem [<] [<] "def \{x}" body ty'
   -- clean means the RUN is clean: an earlier item's assumption poisons
   -- everything after it (the kernel Σ cannot contain the earlier item,
   -- so references to it are unresolvable anyway)
   after <- oblCount
   kernelAccept "def \{x}"
-    (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt x teleSks ty' tySk body' bodySk))
+    (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt x [] ty' tySk body' bodySk))
     (after == 0)
-  modifySt $ { sig $= (:< SigDef ctx x body' ty') }
-  addLemma x ctx ty'
+  modifySt $ { sig $= (:< SigDef [<] x body' ty') }
+  addLemma x [<] ty'
   pure "defined \{x}"
-elabItem (STypeDef x tel ty) = do
+elabItem (STypeDef x ty) = do
   st <- getSt
   case sigLookup x st.sig of
     Just _ => throw "type \{x}: duplicate signature name"
     Nothing => pure ()
-  (ctx, env, teleSks) <- elabTelescope [<] [<] "type \{x}" tel
-  (ty', tySk) <- elabTy ctx env "type \{x}" ty
+  (ty', tySk) <- elabTy [<] [<] "type \{x}" ty
   after <- oblCount
   kernelAccept "type \{x}"
-    (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt x teleSks ty' tySk))
+    (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt x [] ty' tySk))
     (after == 0)
-  modifySt $ { sig $= (:< SigTyDef ctx x ty') }
+  modifySt $ { sig $= (:< SigTyDef [<] x ty') }
   pure "defined type \{x}"
 
 -- ===== Report =====

@@ -1,6 +1,6 @@
 -- Integers as a quotient of ℕ ⨯ ℕ (difference representation).
 -- Integers as a quotient of ℕ ⨯ ℕ.
 def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
-type Int ≔ (ℕ ⨯ ℕ) / (p q. plus[] (p .π₁) (q .π₂) ≡ plus[] (p .π₂) (q .π₁) ∈ ℕ)
+type Int ≔ (ℕ ⨯ ℕ) / (p q. plus (p .π₁) (q .π₂) ≡ plus (p .π₂) (q .π₁) ∈ ℕ)
 -- 0 = 0: (Z,Z) and (S Z, S Z) are the same integer
-def zeroEq : class (Z , Z) ≡ class (S Z , S Z) ∈ Int[] ≔ Refl
+def zeroEq : class (Z , Z) ≡ class (S Z , S Z) ∈ Int ≔ Refl

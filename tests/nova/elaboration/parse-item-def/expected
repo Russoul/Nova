@@ -1,1 +1,1 @@
-def plus_zero [n : ℕ] : Eq (plus[n@0, Z]) (n@0) (ℕ) := Refl
+def plus_zero : Pi n (ℕ) (Eq (App (App (plus@sig) (n@0)) (Z)) (n@0) (ℕ)) := Lam n (Refl)

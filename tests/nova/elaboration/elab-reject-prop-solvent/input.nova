@@ -1,4 +1,4 @@
 -- a TRUE lemma (𝟙-Prop): any two units are equal
-def triv (x : 𝟙) (y : 𝟙) : x ≡ y ∈ 𝟙 ≔ Refl
+def triv : (x : 𝟙) (y : 𝟙) → x ≡ y ∈ 𝟙 ≔ λx. λy. Refl
 -- a FALSE claim at ℕ — does the 𝟙-lemma "discharge" it?
 def boom : Z ≡ S Z ∈ ℕ ≔ Refl

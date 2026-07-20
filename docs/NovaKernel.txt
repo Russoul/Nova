@@ -416,7 +416,11 @@ as types left to right, T as a type under Δ, then Δ ⊦ t ⇐ T; a type
 definition likewise without the body. Acceptance EXTENDS the kernel's
 Σ with the entry; the kernel's Σ is the authoritative one, and an
 item is checked from it alone — the elaborator's opinion of any
-earlier item is never consulted.
+earlier item is never consulted. (The kernel accepts Foundation's
+general form — nonempty Δ, x[e˲] references with checked
+substitutions — but the elaborator only ever produces CLOSED items:
+surface parameters are Π-binders, so Δ = ε and every reference
+carries the empty substitution.)
 
 ////////// 9. Acknowledged approximations and their scope //////////
 
