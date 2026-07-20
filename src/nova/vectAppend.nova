@@ -1,4 +1,4 @@
-import plus (plus, plusZeroId, zeroPlusId, sucPlus)
+import nat (plus, plusZeroId, zeroPlusId, sucPlus)
 import vect (vect)
 
 def vappend : (n : ℕ) → (A : 𝕌) → (m : ℕ) → El (vect n A) → El (vect m A) → El (vect (plus n m) A) ≔

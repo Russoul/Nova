@@ -1,4 +1,4 @@
-import plus (plus)
+import nat (plus)
 
 def vect : ℕ → 𝕌 → 𝕌 ≔ λx. λy. ℕ-elim (n. 𝕌) 𝟙 (n ih. y ⨯ ih) x
 def vectZ : (A : 𝕌) → vect Z A ≡ 𝟙 ∈ 𝕌 ≔ λA. Refl

@@ -1,4 +1,4 @@
-import plus (plus, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusComm, plusAssoc)
+import nat (plus, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusComm, plusAssoc)
 import integer (Int)
 
 -- ===== helpers for the well-definedness obligations =====

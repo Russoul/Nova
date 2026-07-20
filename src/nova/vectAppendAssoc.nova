@@ -1,4 +1,4 @@
-import plus (plus, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusAssoc)
+import nat (plus, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusAssoc)
 import vect (vect)
 import vectAppend (vappend)
 

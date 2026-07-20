@@ -1,4 +1,4 @@
-import plus (plus)
+import nat (plus)
 
 type Int ≔ (ℕ ⨯ ℕ) / (p q. plus (p .π₁) (q .π₂) ≡ plus (p .π₂) (q .π₁) ∈ ℕ)
 -- 0 = 0: (Z,Z) and (S Z, S Z) are the same integer

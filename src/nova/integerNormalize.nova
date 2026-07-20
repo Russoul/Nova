@@ -1,4 +1,4 @@
-import plus (plus, plusZeroId, plusSucId, zeroPlusId)
+import nat (plus, plusZeroId, plusSucId, zeroPlusId)
 import integer (Int)
 
 -- the canonical representative: strip successors pairwise
