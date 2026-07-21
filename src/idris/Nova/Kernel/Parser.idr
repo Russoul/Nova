@@ -177,6 +177,8 @@ mutual
               Nothing => do e <- parseElem; sp; char_ ')'; pure e)
     <|> (str_ "Refl" $> Refl)
     <|> (str_ "Z"    $> NatIntro0)
+    <|> (str_ "⋆"    $> Star)
+    <|> (do str_ "∥"; sp; t <- parseTy; sp; str_ "∥"; pure (Squash t))
     <|> (str_ "𝟘"   $> Elem.ZeroTy)
     <|> (str_ "𝟙"   $> Elem.OneTy)
     <|> (str_ "ℕ"   $> Elem.NatTy)
@@ -184,18 +186,19 @@ mutual
             sp; char_ '['; sp; es <- parseSubNorm; sp; char_ ']'
             pure (SigVar x es))
 
--- ===== Block 2: Ty parsers =====
---
--- Ty depends on Elem for EqTy's Elem arguments and El's argument.
--- Within this block, parseTy ↔ parseTyAtom (via inParen) form a cycle.
+  -- ===== Ty parsers =====
+  --
+  -- Ty depends on Elem for EqTy's Elem arguments and El's argument;
+  -- Elem depends back on Ty for ∥T∥'s squashee, so the two live in one
+  -- mutual block.
 
-mutual
   -- e₀ ≡ e₁ ∈ A      (EqTy:  two Elem args + Ty)
   -- A → B             (PiTy)
   -- A ⨯ B             (SigmaTy)
-  -- A / R             (Quotient)
+  -- A / r             (Quotient; r is an Ω-valued Elem)
   -- El e              (El, e is an Elem atom)
-  -- 𝟘 𝟙 ℕ 𝕌          (constant types)
+  -- Prf e             (Prf, e is an Elem atom)
+  -- 𝟘 𝟙 ℕ 𝕌 Ω        (constant types)
   export covering
   parseTy : Rule Ty
   parseTy =
@@ -207,21 +210,22 @@ mutual
             pure (Ty.EqTy e0 e1 a))
     <|> parseTyArrow
 
-  -- A → B  or  A ⨯ B  or  A / R  (right-associative infix)
+  -- A → B  or  A ⨯ B  or  A / r  (right-associative infix)
   covering
   parseTyArrow : Rule Ty
   parseTyArrow = do
     a <- parseTyEl
     (do sp; str_ "→"; sp; b <- parseTyArrow; pure (Ty.PiTy a b))
       <|> (do sp; str_ "⨯"; sp; b <- parseTyArrow; pure (Ty.SigmaTy a b))
-      <|> (do sp; str_ "/"; sp; b <- parseTyArrow; pure (Ty.Quotient a b))
+      <|> (do sp; str_ "/"; sp; r <- parseElemNoComma; pure (Ty.Quotient a r))
       <|> pure a
 
-  -- El e  (prefix El, e is an Elem atom)
+  -- El e / Prf e  (prefix, argument is an Elem atom)
   covering
   parseTyEl : Rule Ty
   parseTyEl =
         (do str_ "El"; space; e <- parseElemAtom; pure (El e))
+    <|> (do str_ "Prf"; space; e <- parseElemAtom; pure (Prf e))
     <|> parseTyAtom
 
   -- Constant types, signature type variable, and parenthesised type
@@ -232,6 +236,7 @@ mutual
     <|> (str_ "𝟙" $> Ty.OneTy)
     <|> (str_ "ℕ" $> Ty.NatTy)
     <|> (str_ "𝕌" $> Ty.UniverseTy)
+    <|> (str_ "Ω" $> Ty.PropTy)
     <|> (do x <- parseSigIdentifier
             sp; char_ '['; sp; es <- parseSubNorm; sp; char_ ']'
             pure (Ty.SigVar x es))

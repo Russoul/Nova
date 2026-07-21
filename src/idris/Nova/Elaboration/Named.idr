@@ -125,6 +125,12 @@ candidatesEl = ["v", "w", "u", "t"]
 candidatesIH : List String
 candidatesIH = ["ih", "rec", "p", "q"]
 
+candidatesProp : List String
+candidatesProp = ["p", "q", "r"]
+
+candidatesPrf : List String
+candidatesPrf = ["h", "hp", "hq"]
+
 candidatesGeneric : List String
 candidatesGeneric = ["x", "y", "z", "w", "v"]
 
@@ -152,6 +158,8 @@ freshForTy : Ty -> NameEnv -> String
 freshForTy NatTy = freshFromList candidatesNat
 freshForTy UniverseTy = freshFromList candidatesUniv
 freshForTy (El _) = freshFromList candidatesEl
+freshForTy PropTy = freshFromList candidatesProp
+freshForTy (Prf _) = freshFromList candidatesPrf
 freshForTy _ = freshFromList candidatesGeneric
 
 export
@@ -181,7 +189,9 @@ mutual
   usesIndexTy k (Ty.SigmaTy a b) = usesIndexTy k a || usesIndexTy (S k) b
   usesIndexTy k (Ty.EqTy e0 e1 a) = usesIndexElem k e0 || usesIndexElem k e1 || usesIndexTy k a
   usesIndexTy k (El e) = usesIndexElem k e
-  usesIndexTy k (Quotient a r) = usesIndexTy k a || usesIndexTy (S (S k)) r
+  usesIndexTy k PropTy = False
+  usesIndexTy k (Prf e) = usesIndexElem k e
+  usesIndexTy k (Quotient a r) = usesIndexTy k a || usesIndexElem (S (S k)) r
   usesIndexTy k (Ty.SigVar x es) = usesIndexSubNorm k es
 
   usesIndexElem : Nat -> Elem -> Bool
@@ -207,6 +217,8 @@ mutual
   usesIndexElem k (SigVar x es) = usesIndexSubNorm k es
   usesIndexElem k (Class a) = usesIndexElem k a
   usesIndexElem k (QuotElim f q) = usesIndexElem k f || usesIndexElem k q
+  usesIndexElem k (Squash t) = usesIndexTy k t
+  usesIndexElem k Star = False
 
   usesIndexSubNorm : Nat -> SubNorm -> Bool
   usesIndexSubNorm k [<] = False
@@ -312,9 +324,11 @@ mutual
   prettyElemAtomN tbl env OneIntro = "()"
   prettyElemAtomN tbl env NatIntro0 = "Z"
   prettyElemAtomN tbl env Refl = "Refl"
+  prettyElemAtomN tbl env Star = "⋆"
   prettyElemAtomN tbl env Elem.ZeroTy = "𝟘"
   prettyElemAtomN tbl env Elem.OneTy = "𝟙"
   prettyElemAtomN tbl env Elem.NatTy = "ℕ"
+  prettyElemAtomN tbl env (Squash t) = "∥" ++ prettyTyN tbl env t ++ "∥"
   prettyElemAtomN tbl env (SigVar x [<]) = if isOpName x then "(" ++ x ++ ")" else x
   prettyElemAtomN tbl env (SigVar x es) = x ++ "[" ++ prettySubNormN tbl env es ++ "]"
   prettyElemAtomN tbl env e = "(" ++ prettyElemN tbl env e ++ ")"
@@ -332,9 +346,8 @@ mutual
       Nothing   => Just (prettyElemNoCommaN tbl env e)
       Just rest => Just (rest ++ ", " ++ prettyElemNoCommaN tbl env e)
 
--- ===== Ty =====
+  -- ===== Ty (same mutual block: ∥T∥ embeds a Ty in an Elem) =====
 
-mutual
   export
   prettyTyN : FixTable -> NameEnv -> Ty -> String
   prettyTyN tbl env (Ty.EqTy e0 e1 a) =
@@ -359,11 +372,12 @@ mutual
   prettyTyArrowN tbl env (Ty.Quotient a r) =
     let x = freshForTy a env
         y = freshGeneric (env :< x)
-    in prettyTyElN tbl env a ++ " / (" ++ x ++ " " ++ y ++ ". " ++ prettyTyArrowN tbl (env :< x :< y) r ++ ")"
+    in prettyTyElN tbl env a ++ " / (" ++ x ++ " " ++ y ++ ". " ++ prettyElemNoCommaN tbl (env :< x :< y) r ++ ")"
   prettyTyArrowN tbl env ty = prettyTyElN tbl env ty
 
   prettyTyElN : FixTable -> NameEnv -> Ty -> String
   prettyTyElN tbl env (El e) = "El " ++ prettyElemAtomN tbl env e
+  prettyTyElN tbl env (Prf e) = "Prf " ++ prettyElemAtomN tbl env e
   prettyTyElN tbl env ty = prettyTyAtomN tbl env ty
 
   prettyTyAtomN : FixTable -> NameEnv -> Ty -> String
@@ -371,6 +385,7 @@ mutual
   prettyTyAtomN tbl env Ty.OneTy = "𝟙"
   prettyTyAtomN tbl env Ty.NatTy = "ℕ"
   prettyTyAtomN tbl env Ty.UniverseTy = "𝕌"
+  prettyTyAtomN tbl env Ty.PropTy = "Ω"
   prettyTyAtomN tbl env (Ty.SigVar x [<]) = if isOpName x then "(" ++ x ++ ")" else x
   prettyTyAtomN tbl env (Ty.SigVar x es) = x ++ "[" ++ prettySubNormN tbl env es ++ "]"
   prettyTyAtomN tbl env ty = "(" ++ prettyTyN tbl env ty ++ ")"

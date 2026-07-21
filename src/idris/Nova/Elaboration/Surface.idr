@@ -28,12 +28,16 @@ mutual
     STyPi : (name : String) -> STy -> STy -> STy
     ||| (x:T) ⨯ U
     STySigma : (name : String) -> STy -> STy -> STy
-    ||| T / (x y. R)
-    STyQuot : STy -> (nx, ny : String) -> STy -> STy
+    ||| T / (x y. r) — r is an Ω-valued element
+    STyQuot : STy -> (nx, ny : String) -> SElem -> STy
     ||| t ≡ t ∈ T
     STyEq : SElem -> SElem -> STy -> STy
     ||| El t
     STyEl : SElem -> STy
+    ||| Ω
+    STyProp : STy
+    ||| Prf t
+    STyPrf : SElem -> STy
 
   public export
   data SElem : Type where
@@ -70,6 +74,10 @@ mutual
     SClass : SElem -> SElem
     ||| quot-elim (z. T) (a. f) q — motive-first
     SQuotElim : (z : String) -> STy -> (a : String) -> SElem -> SElem -> SElem
+    ||| ∥T∥ — squash: proposition from an arbitrary type
+    SSquash : STy -> SElem
+    ||| ⋆ — the canonical proof of a true proposition
+    SStar : SElem
     ||| (t : T) — ascription; the lever into inference mode
     SAnn : SElem -> STy -> SElem
 
@@ -149,6 +157,8 @@ mutual
     show (STyQuot a x y r) = "Quot (\{show a}) \{x} \{y} (\{show r})"
     show (STyEq l r t) = "Eq (\{show l}) (\{show r}) (\{show t})"
     show (STyEl e) = "El (\{show e})"
+    show STyProp = "Ω"
+    show (STyPrf e) = "Prf (\{show e})"
 
   export covering
   Show SElem where
@@ -176,6 +186,8 @@ mutual
     show (SClass t) = "Class (\{show t})"
     show (SQuotElim z mot a f q) =
       "QuotElim \{z} (\{show mot}) \{a} (\{show f}) (\{show q})"
+    show (SSquash t) = "Squash (\{show t})"
+    show SStar = "⋆"
     show (SAnn t ty) = "Ann (\{show t}) (\{show ty})"
 
 export

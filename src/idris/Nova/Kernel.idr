@@ -59,19 +59,61 @@ record Step where
 
 mutual
   public export
+  data Payload : Type where
+    ||| eliminator motive (ℕ-elim: over Γ ᐅ ℕ; quot-elim: over Γ ᐅ A/R)
+    PMotive : Ty -> Skel -> Payload
+    ||| expected type of an introduction form in inference position
+    PIntroTy : Ty -> Skel -> Payload
+    ||| conversion certificate at a switch site (inferred ≐ expected)
+    PSwitch : ECert -> Payload
+    ||| the equation behind a checked Refl
+    PReflEq : ECert -> Payload
+    ||| quot-elim well-definedness (f respects R)
+    PWD : ECert -> Payload
+    ||| head exposure at a checked introduction form: the expected type
+    ||| rewritten to expose its Π/Σ/quotient/≡/Prf head, with the
+    ||| certificate for the conversion. The exposed type's own
+    ||| well-formedness follows from the original's by subject
+    ||| reduction; the intro checks against the exposed form and
+    ||| coercion transports the result.
+    PExpose : Ty -> ECert -> Payload
+    ||| the witness behind a checked ⋆ : Prf ∥A∥ (el-squash-i: an
+    ||| inhabitant of the squashee)
+    PSquashWit : Elem -> Skel -> Payload
+
+  public export
+  data Skel : Type where
+    Nd : List Payload -> List Skel -> Skel
+
+  public export
   data Final : Type where
     ||| compare beta-normal forms
     FBeta : Final
-    ||| the equation's type normalizes to 𝟙 or 𝟘 (el-one-prop/el-zero-prop)
+    ||| the equation's type normalizes to 𝟙 or 𝟘 (el-one-prop/
+    ||| el-zero-prop) or to Prf p (el-prf-prop: proof irrelevance)
     FProp : Final
     ||| class a ≐ class b at A / R via the relation's shape:
-    ||| R[id,a,b] ⇝ 𝟙 (witness ()) or ⇝ an ≡-type whose equation the
-    ||| nested certificate establishes (witness Refl; el-quot-eq)
+    ||| R[id,a,b] ⇝ ∥T∥ with T ⇝ 𝟙 (witness ()) or T ⇝ an ≡-type whose
+    ||| equation the nested certificate establishes (witness Refl;
+    ||| el-quot-eq)
     FWitness : Maybe ECert -> Final
     ||| el-pi-eta: compare applied to the fresh variable, under the domain
     FEtaPi : ECert -> Final
     ||| el-sigma-eta: compare the projections
     FEtaSigma : ECert -> ECert -> Final
+    ||| code-prop-eq (propositional extensionality) at Ω: mutually
+    ||| implied prop codes are equal. Carries the two hypothetical
+    ||| proofs — s : (Prf q)[↑] under Γ ᐅ Prf p, and t : (Prf p)[↑]
+    ||| under Γ ᐅ Prf q — with their checking skeletons.
+    FPropExt : Elem -> Skel -> Elem -> Skel -> Final
+    ||| ty-prf-cong for a TYPE certificate: both sides are Prf-headed
+    ||| and the nested certificate proves the codes equal at Ω
+    FPrfCong : ECert -> Final
+    ||| ty-quot-cong (reflexive domain) for a TYPE certificate: both
+    ||| sides are quotients of the SAME domain and the nested
+    ||| certificate proves the relations equal at Ω (under the domain
+    ||| twice)
+    FQuotCong : ECert -> Final
 
   public export
   record ECert where
@@ -187,6 +229,8 @@ mutual
     case q' of
       Class a => do burn; kElem sig (substElem f' (Ext Id a))
       _ => pure (QuotElim f' q')
+  kElem sig (Squash t) = Squash <$> kTy sig t
+  kElem sig Star = pure Star
 
   ||| Beta-normal form of a type (incl. El-decoding and ty-sig-beta).
   export
@@ -207,9 +251,11 @@ mutual
       Elem.PiTy a b => do burn; kTy sig (Ty.PiTy (El a) (El b))
       Elem.SigmaTy a b => do burn; kTy sig (Ty.SigmaTy (El a) (El b))
       Elem.EqTy l r t => do burn; kTy sig (EqTy l r (El t))
-      QuotTy a r => do burn; kTy sig (Quotient (El a) (El r))
+      QuotTy a r => do burn; kTy sig (Quotient (El a) r)
       _ => pure (El e')
-  kTy sig (Quotient a r) = [| Quotient (kTy sig a) (kTy sig r) |]
+  kTy sig PropTy = pure PropTy
+  kTy sig (Prf p) = Prf <$> kElem sig p
+  kTy sig (Quotient a r) = [| Quotient (kTy sig a) (kElem sig r) |]
   kTy sig (Ty.SigVar x es) = do
     es' <- kSubNorm sig es
     case sigLookup x sig of
@@ -224,10 +270,11 @@ mutual
 --       | PiIntro f→0(1) | PiApp f e→0,1 | SigmaIntro a b→0,1
 --       | SigmaElim1/2 t→0 | PiTyᶜ a b→0,1(1) | SigmaTyᶜ a b→0,1(1)
 --       | EqTyᶜ l r t→0,1,2 | QuotTyᶜ a r→0,1(2) | SigVar es→0.. (left
---         to right) | Class a→0 | QuotElim f q→0(1),1
+--         to right) | Class a→0 | QuotElim f q→0(1),1 | ∥T∥→0(t)
 --   Ty:   PiTy a b→0,1(1) | SigmaTy a b→0,1(1) | EqTy l r t→0(e),1(e),2
---       | El e→0(e) | Quotient a r→0,1(2) | SigVar es→0.. (e)
---   (e) marks descent into an Elem child.
+--       | El e→0(e) | Prf p→0(e) | Quotient a r→0,1(e)(2)
+--       | SigVar es→0.. (e)
+--   (e) marks descent into an Elem child, (t) into a Ty child.
 
 subNormAt : Nat -> SubNorm -> Maybe Elem
 subNormAt i es = getAt i (toList es)
@@ -299,6 +346,7 @@ mutual
       0 => (\g' => QuotElim g' q) <$> pathE p (1 + b) f g
       1 => (\q' => QuotElim g q') <$> pathE p b f q
       _ => Left "kernel: bad path"
+  pathE (i :: p) b f (Squash t) = if i == 0 then Squash <$> pathT p b f t else Left "kernel: bad path"
   pathE _ _ _ _ = Left "kernel: bad path"
 
   pathT : List Nat -> Nat -> (Nat -> Elem -> Either KErr Elem) -> Ty -> Either KErr Ty
@@ -320,10 +368,11 @@ mutual
       2 => (\t' => EqTy l r t') <$> pathT p b f t
       _ => Left "kernel: bad path"
   pathT (i :: p) b f (El e) = if i == 0 then El <$> pathE p b f e else Left "kernel: bad path"
+  pathT (i :: p) b f (Prf e) = if i == 0 then Prf <$> pathE p b f e else Left "kernel: bad path"
   pathT (i :: p) b f (Quotient a r) =
     case i of
       0 => (\a' => Quotient a' r) <$> pathT p b f a
-      1 => (\r' => Quotient a r') <$> pathT p (2 + b) f r
+      1 => (\r' => Quotient a r') <$> pathE p (2 + b) f r
       _ => Left "kernel: bad path"
   pathT (i :: p) b f (Ty.SigVar x es) =
     case subNormAt i es of
@@ -397,6 +446,26 @@ mutual
     case ty' of
       Ty.Quotient dom _ => checkP sig ctx a dom
       _ => kerr "kernel: class proof at non-quotient type"
+  -- ⋆ as a proof argument: accepted at Prf ∥A∥ when A is manifestly
+  -- inhabited — 𝟙, or an ≡-type with beta-equal sides (el-squash-i
+  -- with the evident witness)
+  checkP sig ctx Star ty = do
+    ty' <- kTy sig ty
+    case ty' of
+      Prf p => do
+        p' <- kElem sig p
+        case p' of
+          Squash sq => do
+            sq' <- kTy sig sq
+            case sq' of
+              Ty.OneTy => pure ()
+              EqTy l r _ => do
+                l' <- kElem sig l
+                r' <- kElem sig r
+                if l' == r' then pure () else kerr "kernel: ⋆ proof at a non-evident squashed equation"
+              _ => kerr "kernel: ⋆ proof at a non-evident squash"
+          _ => kerr "kernel: ⋆ proof at a non-∥∥ proposition"
+      _ => kerr "kernel: ⋆ proof at a non-Prf type"
   checkP sig ctx (SigmaIntro u v) ty = do
     ty' <- kTy sig ty
     case ty' of
@@ -460,28 +529,44 @@ applySel sig ctx (l, r, _) sel = do
       checkP sig ctx u (El a1)
       pure (substElem b0 (Ext Id u), substElem b1 (Ext Id u), Ty.UniverseTy)
     (SelQDom, QuotTy a0 _, QuotTy a1 _) => pure (a0, a1, Ty.UniverseTy)
+    -- code-quot-inj: the relation components live at Ω
     (SelQRel u v, QuotTy _ r0, QuotTy a1 r1) => do
       checkP sig ctx u (El a1)
       checkP sig ctx v (El a1)
-      pure (substElem r0 (Ext (Ext Id u) v), substElem r1 (Ext (Ext Id u) v), Ty.UniverseTy)
+      pure (substElem r0 (Ext (Ext Id u) v), substElem r1 (Ext (Ext Id u) v), Ty.PropTy)
     (SelEqT, Elem.EqTy _ _ t0, Elem.EqTy _ _ t1) => pure (t0, t1, Ty.UniverseTy)
     (SelEqL, Elem.EqTy l0 _ _, Elem.EqTy l1 _ t1) => pure (l0, l1, El t1)
     (SelEqR, Elem.EqTy _ r0 _, Elem.EqTy _ r1 t1) => pure (r0, r1, El t1)
     _ => kerr "kernel: selector does not apply"
 
 ||| The equation a step licenses (with its type): infer the proof,
-||| expose the ≡-type, take components, orient.
+||| expose the ≡-type, take components, orient. A proof whose type is
+||| Prf ∥l ≡ r ∈ t∥ licenses the same equation — squashed reflection
+||| (el-squash-e-eq + el-reflect: squashing loses no equational
+||| content).
 licensed : Sig -> Ctx -> Step -> KM (Elem, Elem, Ty)
 licensed sig ctx step = do
   pty <- inferP sig ctx step.prf >>= kTy sig
-  case pty of
-    EqTy l r t => do
+  eq <- exposeEq pty
+  case eq of
+    (l, r, t) => do
       (l', r', t') <- foldlM (applySel sig ctx) (l, r, t) step.sels
       lN <- kElem sig l'
       rN <- kElem sig r'
       pure (if step.flip then (rN, lN, t') else (lN, rN, t'))
-    _ => kerr "kernel: step proof is not an equality"
  where
+  exposeEq : Ty -> KM (Elem, Elem, Ty)
+  exposeEq (EqTy l r t) = pure (l, r, t)
+  exposeEq (Prf p) = do
+    p' <- kElem sig p
+    case p' of
+      Squash sq => do
+        sq' <- kTy sig sq
+        case sq' of
+          EqTy l r t => pure (l, r, t)
+          _ => kerr "kernel: step proof is not an equality"
+      _ => kerr "kernel: step proof is not an equality"
+  exposeEq _ = kerr "kernel: step proof is not an equality"
   foldlM : (acc -> x -> KM acc) -> acc -> List x -> KM acc
   foldlM f a [] = pure a
   foldlM f a (y :: ys) = f a y >>= \a' => foldlM f a' ys
@@ -552,7 +637,7 @@ mutual
   childTyE sig ctx pexp (Elem.EqTy _ _ t) 1 = pure (Just (El t))
   childTyE sig ctx pexp (Elem.EqTy _ _ _) 2 = pure (Just Ty.UniverseTy)
   childTyE sig ctx pexp (QuotTy _ _) 0 = pure (Just Ty.UniverseTy)
-  childTyE sig ctx pexp (QuotTy _ _) 1 = pure (Just Ty.UniverseTy)
+  childTyE sig ctx pexp (QuotTy _ _) 1 = pure (Just Ty.PropTy)
   childTyE sig ctx pexp (SigVar x es) i =
     case sigLookup x sig of
       Just (SigDef delta _ _ _) =>
@@ -595,6 +680,11 @@ mutual
       Just (SigDef _ _ _ ty) => pure (Just (substTy ty (embed es)))
       _ => pure Nothing
   inferNeK sig ctx _ = pure Nothing
+
+||| Typed descent through TYPE positions (declared ahead: goE needs it
+||| to cross a ∥-∥ into its squashee): every element child's type is
+||| structurally determined. Defined after goE below.
+goTy : Sig -> Ctx -> (Elem, Elem, Ty) -> List Nat -> Nat -> Ty -> KM Ty
 
 ||| Typed descent: rewrite at the path, checking the licensed type
 ||| against each position's expected type.
@@ -646,6 +736,7 @@ goE sig ctx lic (i :: p) b mexp u = do
         (Class a, 0) => Class <$> goE sig ctx lic p b childTy a
         (QuotElim f q, 0) => (\f' => QuotElim f' q) <$> goE sig ctx lic p (1 + b) childTy f
         (QuotElim f q, 1) => QuotElim f <$> goE sig ctx lic p b childTy q
+        (Squash t, 0) => Squash <$> goTy sig ctx lic p b t
         _ => kerr "kernel: bad or type-undetermined path"
 
 ||| Apply one step to an element known (by the replay invariant) to be
@@ -657,138 +748,60 @@ stepElem sig ctx step tyRoot t = do
   ltyN <- kTy sig lty
   goE sig ctx (le, re, ltyN) step.path 0 (Just tyRoot) t
 
+goTy sig ctx lic [] b u = kerr "kernel: type-path must end at an element"
+goTy sig ctx lic (i :: p) b (Ty.PiTy a c) =
+  case i of
+    0 => (\a' => Ty.PiTy a' c) <$> goTy sig ctx lic p b a
+    1 => Ty.PiTy a <$> goTy sig ctx lic p (1 + b) c
+    _ => kerr "kernel: bad path"
+goTy sig ctx lic (i :: p) b (Ty.SigmaTy a c) =
+  case i of
+    0 => (\a' => Ty.SigmaTy a' c) <$> goTy sig ctx lic p b a
+    1 => Ty.SigmaTy a <$> goTy sig ctx lic p (1 + b) c
+    _ => kerr "kernel: bad path"
+goTy sig ctx lic (i :: p) b (EqTy l r t') =
+  case i of
+    0 => (\l' => EqTy l' r t') <$> goE sig ctx lic p b (Just t') l
+    1 => (\r' => EqTy l r' t') <$> goE sig ctx lic p b (Just t') r
+    2 => EqTy l r <$> goTy sig ctx lic p b t'
+    _ => kerr "kernel: bad path"
+goTy sig ctx lic (i :: p) b (El e) =
+  if i == 0 then El <$> goE sig ctx lic p b (Just Ty.UniverseTy) e
+  else kerr "kernel: bad path"
+goTy sig ctx lic (i :: p) b (Prf e) =
+  if i == 0 then Prf <$> goE sig ctx lic p b (Just Ty.PropTy) e
+  else kerr "kernel: bad path"
+goTy sig ctx lic (i :: p) b (Quotient a r) =
+  case i of
+    0 => (\a' => Quotient a' r) <$> goTy sig ctx lic p b a
+    1 => Quotient a <$> goE sig ctx lic p (2 + b) (Just Ty.PropTy) r
+    _ => kerr "kernel: bad path"
+goTy sig ctx lic (i :: p) b (Ty.SigVar x es) =
+  case sigLookup x sig of
+    Just (SigTyDef delta _ _) =>
+      case (subNormAt i es, getAt i (toList delta)) of
+        (Just e, Just entryTy) => do
+          e' <- goE sig ctx lic p b (Just (substTy entryTy (embed (cast (take i (toList es)))))) e
+          case subNormSet i e' es of
+            Just es' => pure (Ty.SigVar x es')
+            Nothing => kerr "kernel: bad path"
+        _ => kerr "kernel: bad path"
+    _ => kerr "kernel: bad path"
+goTy sig ctx lic _ _ _ = kerr "kernel: bad path"
+
 ||| Steps inside types: type positions have no element type; every
 ||| element child's type is structurally determined.
 stepTy : Sig -> Ctx -> Step -> Ty -> KM Ty
 stepTy sig ctx step t = do
   (le, re, lty) <- licensed sig ctx step
   ltyN <- kTy sig lty
-  goT (le, re, ltyN) step.path 0 t
- where
-  goT : (Elem, Elem, Ty) -> List Nat -> Nat -> Ty -> KM Ty
-  goT lic [] b u = kerr "kernel: type-path must end at an element"
-  goT lic (i :: p) b (Ty.PiTy a c) =
-    case i of
-      0 => (\a' => Ty.PiTy a' c) <$> goT lic p b a
-      1 => Ty.PiTy a <$> goT lic p (1 + b) c
-      _ => kerr "kernel: bad path"
-  goT lic (i :: p) b (Ty.SigmaTy a c) =
-    case i of
-      0 => (\a' => Ty.SigmaTy a' c) <$> goT lic p b a
-      1 => Ty.SigmaTy a <$> goT lic p (1 + b) c
-      _ => kerr "kernel: bad path"
-  goT lic (i :: p) b (EqTy l r t') =
-    case i of
-      0 => (\l' => EqTy l' r t') <$> goE sig ctx lic p b (Just t') l
-      1 => (\r' => EqTy l r' t') <$> goE sig ctx lic p b (Just t') r
-      2 => EqTy l r <$> goT lic p b t'
-      _ => kerr "kernel: bad path"
-  goT lic (i :: p) b (El e) =
-    if i == 0 then El <$> goE sig ctx lic p b (Just Ty.UniverseTy) e
-    else kerr "kernel: bad path"
-  goT lic (i :: p) b (Quotient a r) =
-    case i of
-      0 => (\a' => Quotient a' r) <$> goT lic p b a
-      1 => Quotient a <$> goT lic p (2 + b) r
-      _ => kerr "kernel: bad path"
-  goT lic (i :: p) b (Ty.SigVar x es) =
-    case sigLookup x sig of
-      Just (SigTyDef delta _ _) =>
-        case (subNormAt i es, getAt i (toList delta)) of
-          (Just e, Just entryTy) => do
-            e' <- goE sig ctx lic p b (Just (substTy entryTy (embed (cast (take i (toList es)))))) e
-            case subNormSet i e' es of
-              Just es' => pure (Ty.SigVar x es')
-              Nothing => kerr "kernel: bad path"
-          _ => kerr "kernel: bad path"
-      _ => kerr "kernel: bad path"
-  goT lic _ _ _ = kerr "kernel: bad path"
-
--- ===== Replay =====
-
-mutual
-  ||| Replay a certificate for the element equation Γ ⊢ l ≐ r : ty.
-  export
-  kEqElem : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty -> KM ()
-  kEqElem sig ctx cert l r ty = do
-    -- resolve the type bridge first: the rest of the replay happens at
-    -- the (certified-equal) exposed type
-    tyU <- case cert.tyEx of
-             Nothing => pure ty
-             Just (tyX, c) => do kEqTy sig ctx c ty tyX; pure tyX
-    l0 <- kElem sig l
-    r0 <- kElem sig r
-    (l1, r1) <- goSteps tyU cert.steps l0 r0
-    case cert.final of
-      FBeta =>
-        if l1 == r1 then pure () else kerr "kernel: sides differ after replay"
-      FProp => do
-        ty' <- kTy sig tyU
-        case ty' of
-          Ty.OneTy => pure ()
-          Ty.ZeroTy => pure ()
-          _ => kerr "kernel: Prop final at a non-Prop type"
-      FWitness mc => do
-        ty' <- kTy sig tyU
-        case (l1, r1, ty') of
-          (Class a, Class b, Ty.Quotient dom rel) => do
-            relInst <- kTy sig (substTy rel (Ext (Ext Id a) b))
-            case (relInst, mc) of
-              (Ty.OneTy, _) => pure ()
-              (EqTy wl wr wt, Just c) => kEqElem sig ctx c wl wr wt
-              _ => kerr "kernel: witness final does not apply"
-          _ => kerr "kernel: witness final at a non-class equation"
-      FEtaPi c => do
-        ty' <- kTy sig tyU
-        case ty' of
-          Ty.PiTy dom cod =>
-            kEqElem sig (ctx :< dom) c
-              (PiApp (substElem l1 Wk) (CtxVar 0))
-              (PiApp (substElem r1 Wk) (CtxVar 0))
-              cod
-          _ => kerr "kernel: Π-η final at a non-Π type"
-      FEtaSigma c1 c2 => do
-        ty' <- kTy sig tyU
-        case ty' of
-          Ty.SigmaTy dom cod => do
-            kEqElem sig ctx c1 (SigmaElim1 l1) (SigmaElim1 r1) dom
-            kEqElem sig ctx c2 (SigmaElim2 l1) (SigmaElim2 r1)
-              (substTy cod (Ext Id (SigmaElim1 l1)))
-          _ => kerr "kernel: Σ-η final at a non-Σ type"
-   where
-    goSteps : Ty -> List Step -> Elem -> Elem -> KM (Elem, Elem)
-    goSteps tyU [] l' r' = pure (l', r')
-    goSteps tyU (s :: rest) l' r' =
-      if s.onLhs
-        then do l'' <- stepElem sig ctx s tyU l' >>= kElem sig
-                goSteps tyU rest l'' r'
-        else do r'' <- stepElem sig ctx s tyU r' >>= kElem sig
-                goSteps tyU rest l' r''
-
-  ||| Replay a certificate for the type equation Γ ⊢ A ≐ B.
-  export
-  kEqTy : Sig -> Ctx -> ECert -> Ty -> Ty -> KM ()
-  kEqTy sig ctx cert a b = do
-    case cert.tyEx of
-      Nothing => pure ()
-      Just _ => kerr "kernel: a type equation cannot carry a type bridge"
-    a0 <- kTy sig a
-    b0 <- kTy sig b
-    (a1, b1) <- goSteps cert.steps a0 b0
-    case cert.final of
-      FBeta => if a1 == b1 then pure () else kerr "kernel: types differ after replay"
-      _ => kerr "kernel: unsupported final for a type equation"
-   where
-    goSteps : List Step -> Ty -> Ty -> KM (Ty, Ty)
-    goSteps [] a' b' = pure (a', b')
-    goSteps (s :: rest) a' b' =
-      if s.onLhs
-        then do a'' <- stepTy sig ctx s a' >>= kTy sig
-                goSteps rest a'' b'
-        else do b'' <- stepTy sig ctx s b' >>= kTy sig
-                goSteps rest a' b''
+  goTy sig ctx (le, re, ltyN) step.path 0 t
 
 -- ===== Item-level checking over annotation skeletons =====
+--
+-- (The equation-replay functions kEqElem/kEqTy live in the same mutual
+-- block as the item-level checkers below: the FPropExt final's
+-- hypothetical premises are TYPING judgements checked by kCheckE.)
 --
 -- The kernel's item input is the core term plus a SKELETON: a tree
 -- aligned with the term's path-children, whose nodes carry exactly
@@ -798,31 +811,6 @@ mutual
 -- switch sites, Refl equations, and quot-elim well-definedness. The
 -- kernel re-establishes the item from ITS OWN Σ; the elaborator's
 -- opinion of the same item is not consulted.
-
-mutual
-  public export
-  data Payload : Type where
-    ||| eliminator motive (ℕ-elim: over Γ ᐅ ℕ; quot-elim: over Γ ᐅ A/R)
-    PMotive : Ty -> Skel -> Payload
-    ||| expected type of an introduction form in inference position
-    PIntroTy : Ty -> Skel -> Payload
-    ||| conversion certificate at a switch site (inferred ≐ expected)
-    PSwitch : ECert -> Payload
-    ||| the equation behind a checked Refl
-    PReflEq : ECert -> Payload
-    ||| quot-elim well-definedness (f respects R)
-    PWD : ECert -> Payload
-    ||| head exposure at a checked introduction form: the expected type
-    ||| rewritten to expose its Π/Σ/quotient/≡ head, with the
-    ||| certificate for the conversion. The exposed type's own
-    ||| well-formedness follows from the original's by subject
-    ||| reduction; the intro checks against the exposed form and
-    ||| coercion transports the result.
-    PExpose : Ty -> ECert -> Payload
-
-  public export
-  data Skel : Type where
-    Nd : List Payload -> List Skel -> Skel
 
 skelChild : Nat -> Skel -> Skel
 skelChild i (Nd _ cs) = fromMaybe (Nd [] []) (getAt i cs)
@@ -861,15 +849,130 @@ pExpose : Payload -> Maybe (Ty, ECert)
 pExpose (PExpose t c) = Just (t, c)
 pExpose _ = Nothing
 
+pSquashWit : Payload -> Maybe (Elem, Skel)
+pSquashWit (PSquashWit e sk) = Just (e, sk)
+pSquashWit _ = Nothing
+
 isIntro : Elem -> Bool
 isIntro (PiIntro _) = True
 isIntro (SigmaIntro _ _) = True
 isIntro Refl = True
 isIntro (Class _) = True
 isIntro (ZeroElim _) = True
+isIntro Star = True
 isIntro _ = False
 
 mutual
+  ||| Replay a certificate for the element equation Γ ⊢ l ≐ r : ty.
+  export
+  kEqElem : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty -> KM ()
+  kEqElem sig ctx cert l r ty = do
+    -- resolve the type bridge first: the rest of the replay happens at
+    -- the (certified-equal) exposed type
+    tyU <- case cert.tyEx of
+             Nothing => pure ty
+             Just (tyX, c) => do kEqTy sig ctx c ty tyX; pure tyX
+    l0 <- kElem sig l
+    r0 <- kElem sig r
+    (l1, r1) <- goSteps tyU cert.steps l0 r0
+    case cert.final of
+      FBeta =>
+        if l1 == r1 then pure () else kerr "kernel: sides differ after replay"
+      FProp => do
+        ty' <- kTy sig tyU
+        case ty' of
+          Ty.OneTy => pure ()
+          Ty.ZeroTy => pure ()
+          Prf _ => pure ()      -- el-prf-prop: proof irrelevance
+          _ => kerr "kernel: Prop final at a non-propositional type"
+      FWitness mc => do
+        ty' <- kTy sig tyU
+        case (l1, r1, ty') of
+          (Class a, Class b, Ty.Quotient dom rel) => do
+            relInst <- kElem sig (substElem rel (Ext (Ext Id a) b))
+            case relInst of
+              Squash sq => do
+                sq' <- kTy sig sq
+                case (sq', mc) of
+                  (Ty.OneTy, _) => pure ()
+                  (EqTy wl wr wt, Just c) => kEqElem sig ctx c wl wr wt
+                  _ => kerr "kernel: witness final does not apply"
+              _ => kerr "kernel: witness final at a non-∥∥ relation"
+          _ => kerr "kernel: witness final at a non-class equation"
+      FEtaPi c => do
+        ty' <- kTy sig tyU
+        case ty' of
+          Ty.PiTy dom cod =>
+            kEqElem sig (ctx :< dom) c
+              (PiApp (substElem l1 Wk) (CtxVar 0))
+              (PiApp (substElem r1 Wk) (CtxVar 0))
+              cod
+          _ => kerr "kernel: Π-η final at a non-Π type"
+      FEtaSigma c1 c2 => do
+        ty' <- kTy sig tyU
+        case ty' of
+          Ty.SigmaTy dom cod => do
+            kEqElem sig ctx c1 (SigmaElim1 l1) (SigmaElim1 r1) dom
+            kEqElem sig ctx c2 (SigmaElim2 l1) (SigmaElim2 r1)
+              (substTy cod (Ext Id (SigmaElim1 l1)))
+          _ => kerr "kernel: Σ-η final at a non-Σ type"
+      FPropExt s skS t skT => do
+        -- code-prop-eq: the sides are prop codes; each direction is a
+        -- hypothetical proof of the other's decoding
+        ty' <- kTy sig tyU
+        case ty' of
+          Ty.PropTy => do
+            kCheckE sig (ctx :< Prf l1) s (substTy (Prf r1) Wk) skS
+            kCheckE sig (ctx :< Prf r1) t (substTy (Prf l1) Wk) skT
+          _ => kerr "kernel: propext final at a non-Ω type"
+      FPrfCong _ => kerr "kernel: Prf-congruence final on an element equation"
+      FQuotCong _ => kerr "kernel: quotient-congruence final on an element equation"
+   where
+    goSteps : Ty -> List Step -> Elem -> Elem -> KM (Elem, Elem)
+    goSteps tyU [] l' r' = pure (l', r')
+    goSteps tyU (s :: rest) l' r' =
+      if s.onLhs
+        then do l'' <- stepElem sig ctx s tyU l' >>= kElem sig
+                goSteps tyU rest l'' r'
+        else do r'' <- stepElem sig ctx s tyU r' >>= kElem sig
+                goSteps tyU rest l' r''
+
+  ||| Replay a certificate for the type equation Γ ⊢ A ≐ B.
+  export
+  kEqTy : Sig -> Ctx -> ECert -> Ty -> Ty -> KM ()
+  kEqTy sig ctx cert a b = do
+    case cert.tyEx of
+      Nothing => pure ()
+      Just _ => kerr "kernel: a type equation cannot carry a type bridge"
+    a0 <- kTy sig a
+    b0 <- kTy sig b
+    (a1, b1) <- goSteps cert.steps a0 b0
+    case cert.final of
+      FBeta => if a1 == b1 then pure () else kerr "kernel: types differ after replay"
+      -- ty-prf-cong: equal prop codes decode to equal types
+      FPrfCong c =>
+        case (a1, b1) of
+          (Prf p, Prf q) => kEqElem sig ctx c p q Ty.PropTy
+          _ => kerr "kernel: Prf-congruence final at non-Prf types"
+      -- ty-quot-cong at a reflexive domain: relations equal at Ω
+      FQuotCong c =>
+        case (a1, b1) of
+          (Ty.Quotient d0 r0, Ty.Quotient d1 r1) =>
+            if d0 == d1
+              then kEqElem sig (ctx :< d0 :< substTy d0 Wk) c r0 r1 Ty.PropTy
+              else kerr "kernel: quotient-congruence final at unequal domains"
+          _ => kerr "kernel: quotient-congruence final at non-quotient types"
+      _ => kerr "kernel: unsupported final for a type equation"
+   where
+    goSteps : List Step -> Ty -> Ty -> KM (Ty, Ty)
+    goSteps [] a' b' = pure (a', b')
+    goSteps (s :: rest) a' b' =
+      if s.onLhs
+        then do a'' <- stepTy sig ctx s a' >>= kTy sig
+                goSteps rest a'' b'
+        else do b'' <- stepTy sig ctx s b' >>= kTy sig
+                goSteps rest a' b''
+
   ||| Γ ⊢ e ⇐ A, kernel-side.
   export
   kCheckE : Sig -> Ctx -> Elem -> Ty -> Skel -> KM ()
@@ -910,6 +1013,20 @@ mutual
             case ty' of
               Ty.Quotient dom _ => kCheckE sig ctx a dom (skelChild 0 sk)
               _ => kerr "kernel: class checked at a non-quotient type"
+          Star =>
+            -- el-squash-i: ⋆ : Prf ∥A∥ carries its witness (an
+            -- inhabitant of the squashee) as a payload
+            case takeP pSquashWit sk of
+              Just ((wit, witSk), _) => do
+                ty' <- kTy sig ty
+                case ty' of
+                  Prf p => do
+                    p' <- kElem sig p
+                    case p' of
+                      Squash sq => kCheckE sig ctx wit sq witSk
+                      _ => kerr "kernel: ⋆ checked at Prf of a non-∥∥ code"
+                  _ => kerr "kernel: ⋆ checked at a non-Prf type"
+              Nothing => kerr "kernel: ⋆ without its witness annotation"
           ZeroElim t => kCheckE sig ctx t Ty.ZeroTy (skelChild 0 sk)
           _ => do
             inferred <- kInferE sig ctx e sk
@@ -979,7 +1096,7 @@ mutual
                     kCheckE sig (ctx :< a) f
                       (substTy mot (Ext Wk (Class (CtxVar 0)))) (skelChild 0 sk)
                     let wk3 = Chain Wk (Chain Wk Wk)
-                    kEqElem sig (ctx :< a :< substTy a Wk :< r) wd
+                    kEqElem sig (ctx :< a :< substTy a Wk :< Prf r) wd
                       (substElem f (Ext wk3 (CtxVar 2)))
                       (substElem f (Ext wk3 (CtxVar 1)))
                       (substTy mot (Ext wk3 (Class (CtxVar 2))))
@@ -999,8 +1116,11 @@ mutual
             pure Ty.UniverseTy
           QuotTy a r => do
             kCheckE sig ctx a Ty.UniverseTy (skelChild 0 sk)
-            kCheckE sig (ctx :< El a :< substTy (El a) Wk) r Ty.UniverseTy (skelChild 1 sk)
+            kCheckE sig (ctx :< El a :< substTy (El a) Wk) r Ty.PropTy (skelChild 1 sk)
             pure Ty.UniverseTy
+          Squash t => do
+            kCheckTyK sig ctx t (skelChild 0 sk)
+            pure Ty.PropTy
           Elem.EqTy l r t => do
             kCheckE sig ctx t Ty.UniverseTy (skelChild 2 sk)
             kCheckE sig ctx l (El t) (skelChild 0 sk)
@@ -1029,9 +1149,11 @@ mutual
     kCheckE sig ctx l t (skelChild 0 sk)
     kCheckE sig ctx r t (skelChild 1 sk)
   kCheckTyK sig ctx (El e) sk = kCheckE sig ctx e Ty.UniverseTy (skelChild 0 sk)
+  kCheckTyK sig ctx Ty.PropTy _ = pure ()
+  kCheckTyK sig ctx (Prf p) sk = kCheckE sig ctx p Ty.PropTy (skelChild 0 sk)
   kCheckTyK sig ctx (Quotient a r) sk = do
     kCheckTyK sig ctx a (skelChild 0 sk)
-    kCheckTyK sig (ctx :< a :< substTy a Wk) r (skelChild 1 sk)
+    kCheckE sig (ctx :< a :< substTy a Wk) r Ty.PropTy (skelChild 1 sk)
   kCheckTyK sig ctx (Ty.SigVar x es) sk =
     case sigLookup x sig of
       Just (SigTyDef delta _ _) =>

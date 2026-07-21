@@ -62,8 +62,8 @@ parseName = do
                          else Nothing
             _ => Nothing)
   let name = pack (c :: cs)
-  guard "Reserved keyword" (name /= "def" && name /= "type" && name /= "El" && name /= "import" &&
-                            name /= "infixl" && name /= "infixr")
+  guard "Reserved keyword" (name /= "def" && name /= "type" && name /= "El" && name /= "Prf" &&
+                            name /= "import" && name /= "infixl" && name /= "infixr")
   pure name
 
 ||| A possibly-qualified name: x or M.x or A.B.x. The dot only counts
@@ -141,18 +141,19 @@ mutual
       Nothing => pure (env :< x, [(x, a)])
       Just (env', groups) => pure (env', (x, a) :: groups)
 
-  -- (x y. R)  or bare R as sugar for (_ _. R)
-  parseQuotRel : FixTable -> NameEnv -> Rule (String, String, STy)
+  -- (x y. r)  or bare r as sugar for (_ _. r) — r is an Ω-valued ELEMENT
+  parseQuotRel : FixTable -> NameEnv -> Rule (String, String, SElem)
   parseQuotRel tbl env =
         (do char_ '('; sp; x <- parseName; space; y <- parseName
-            sp; char_ '.'; sp; r <- parseSTy tbl (env :< x :< y); sp; char_ ')'
+            sp; char_ '.'; sp; r <- parseSElemNoComma tbl (env :< x :< y); sp; char_ ')'
             pure (x, y, r))
-    <|> (do r <- parseSTyEl tbl (env :< wildcard :< wildcard); pure (wildcard, wildcard, r))
+    <|> (do r <- parseSElemPrefix tbl (env :< wildcard :< wildcard); pure (wildcard, wildcard, r))
 
-  -- T{2}: El
+  -- T{2}: El / Prf
   parseSTyEl : FixTable -> NameEnv -> Rule STy
   parseSTyEl tbl env =
         (do str_ "El"; space; e <- parseSElemAtom tbl env; pure (STyEl e))
+    <|> (do str_ "Prf"; space; e <- parseSElemAtom tbl env; pure (STyPrf e))
     <|> parseSTyAtom tbl env
 
   -- T{4}: atoms
@@ -162,6 +163,7 @@ mutual
     <|> (str_ "𝟙" $> STyOne)
     <|> (str_ "ℕ" $> STyNat)
     <|> (str_ "𝕌" $> STyUniv)
+    <|> (str_ "Ω" $> STyProp)
     <|> (do x <- parseDottedName; pure (STySig x))
     <|> (do char_ '('; sp; t <- parseSTy tbl env; sp; char_ ')'; pure t)
 
@@ -289,6 +291,8 @@ mutual
                   <|> (do char_ ')'; pure e))
     <|> (str_ "Refl" $> SRefl)
     <|> (str_ "Z"    $> SZeroN)
+    <|> (str_ "⋆"    $> SStar)
+    <|> (do str_ "∥"; sp; t <- parseSTy tbl env; sp; str_ "∥"; pure (SSquash t))
     <|> (str_ "𝟘"   $> SZeroC)
     <|> (str_ "𝟙"   $> SOneC)
     <|> (str_ "ℕ"   $> SNatC)

@@ -1,1 +1,1 @@
-QuotElim z (ℕ) a (Z) (Ann (Class (Z)) (Quot (ℕ) n m (𝟙)))
+QuotElim z (ℕ) a (Z) (Ann (Class (Z)) (Quot (ℕ) n m (Squash (𝟙))))

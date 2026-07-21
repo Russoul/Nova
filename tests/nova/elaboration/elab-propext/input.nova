@@ -1,0 +1,4 @@
+-- code-prop-eq: mutually implied props are equal codes at Ω. Both
+-- squashees are inhabited (() : 𝟙, Refl : Z ≡ Z), so propext equates
+-- the two prop codes.
+def pe : ∥𝟙∥ ≡ ∥Z ≡ Z ∈ ℕ∥ ∈ Ω ≔ Refl

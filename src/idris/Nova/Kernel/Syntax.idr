@@ -36,9 +36,17 @@ mutual
       EqTy : Elem -> Elem -> Ty -> Ty
       ||| El t  (every element of the universe is a type)
       El : Elem -> Ty
-      ||| T / T  (quotient type: the second Ty is the relation, living two
-      ||| levels deeper — Γ ᐅ A ᐅ A[↑] — one bound variable per side)
-      Quotient : Ty -> Ty -> Ty
+      ||| Ω  (the universe of mere propositions — anti-structural: its
+      ||| codes are compared by inhabitation, see code-prop-eq)
+      PropTy : Ty
+      ||| Prf t  (decoding of a proposition; deliberately not El — it
+      ||| shares none of El's rules: not structural, not injective, no
+      ||| decoding computation)
+      Prf : Elem -> Ty
+      ||| T / t  (quotient type: the Elem is the Ω-valued relation,
+      ||| living two levels deeper — Γ ᐅ A ᐅ A[↑] — one bound variable
+      ||| per side)
+      Quotient : Ty -> Elem -> Ty
       ||| x[e˲]  (signature type variable, applied to a (normal)
       ||| substitution to its declaration context)
       SigVar : String -> SubNorm -> Ty
@@ -94,6 +102,11 @@ mutual
       ||| quot-elim t t (quotient type elimination: the recursion function,
       ||| then the eliminee)
       QuotElim : Elem -> Elem -> Elem
+      ||| ∥T∥  (squash: the proposition of an arbitrary type — an element
+      ||| form embedding a type, the converse direction of El)
+      Squash : Ty -> Elem
+      ||| ⋆  (the canonical proof of a true proposition)
+      Star : Elem
 
   ||| SubNorm: e˲ ::= · | e˲, e
   public export
@@ -160,6 +173,8 @@ mutual
     SigmaTy a b    == SigmaTy a' b'    = a == a' && b == b'
     EqTy l r ty    == EqTy l' r' ty'   = l == l' && r == r' && ty == ty'
     El e           == El e'            = e == e'
+    PropTy         == PropTy           = True
+    Prf e          == Prf e'           = e == e'
     Quotient a r   == Quotient a' r'   = a == a' && r == r'
     Ty.SigVar x s  == Ty.SigVar x' s'  = x == x' && s == s'
     _              == _                = False
@@ -189,6 +204,8 @@ mutual
     SigVar x s       == SigVar x' s'        = x == x' && s == s'
     Class a          == Class a'           = a == a'
     QuotElim f q     == QuotElim f' q'     = f == f' && q == q'
+    Squash t         == Squash t'          = t == t'
+    Star             == Star               = True
     _                == _                  = False
 
 mutual
@@ -236,6 +253,12 @@ mutual
     compare (El e)           (El e')            = compare e e'
     compare (El _)           _                  = LT
     compare _                (El _)             = GT
+    compare PropTy           PropTy             = EQ
+    compare PropTy           _                  = LT
+    compare _                PropTy             = GT
+    compare (Prf e)          (Prf e')           = compare e e'
+    compare (Prf _)          _                  = LT
+    compare _                (Prf _)            = GT
     compare (Quotient a r)   (Quotient a' r')   = compare a a' <+> compare r r'
     compare (Quotient _ _)   _                  = LT
     compare _                (Quotient _ _)     = GT
@@ -308,6 +331,12 @@ mutual
     compare (Class _)          _                    = LT
     compare _                  (Class _)            = GT
     compare (QuotElim f q)     (QuotElim f' q')     = compare f f' <+> compare q q'
+    compare (QuotElim _ _)     _                    = LT
+    compare _                  (QuotElim _ _)       = GT
+    compare (Squash t)         (Squash t')          = compare t t'
+    compare (Squash _)         _                    = LT
+    compare _                  (Squash _)           = GT
+    compare Star               Star                 = EQ
 
 mutual
   public export
@@ -330,6 +359,8 @@ mutual
     show (SigmaTy a b) = "SigmaTy (\{show a}) (\{show b})"
     show (EqTy e0 e1 a) = "EqTy (\{show e0}) (\{show e1}) (\{show a})"
     show (El e) = "El (\{show e})"
+    show PropTy = "PropTy"
+    show (Prf e) = "Prf (\{show e})"
     show (Quotient a r) = "Quotient (\{show a}) (\{show r})"
     show (Ty.SigVar x s) = "SigVar \{show x} (\{show s})"
 
@@ -358,3 +389,5 @@ mutual
     show (SigVar x s) = "SigVar \{show x} (\{show s})"
     show (Class a) = "Class (\{show a})"
     show (QuotElim f q) = "QuotElim (\{show f}) (\{show q})"
+    show (Squash t) = "Squash (\{show t})"
+    show Star = "Star"

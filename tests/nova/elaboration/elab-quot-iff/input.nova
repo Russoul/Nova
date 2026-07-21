@@ -1,0 +1,4 @@
+-- ty-quot-cong: quotients by iff-equal Ω relations are the SAME type,
+-- so a variable of one moves to the other with no coercion. The two
+-- relations ∥𝟙∥ and ∥Z ≡ Z ∈ ℕ∥ are equal at Ω by propext.
+def qiff : (v : ℕ / (n m. ∥𝟙∥)) → ℕ / (n m. ∥Z ≡ Z ∈ ℕ∥) ≔ λv. v

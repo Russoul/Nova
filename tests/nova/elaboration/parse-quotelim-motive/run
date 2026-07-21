@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run surface-elem "quot-elim (z. ℕ) (a. Z) (class Z : ℕ / (n m. 𝟙))"
+"$1" run surface-elem "quot-elim (z. ℕ) (a. Z) (class Z : ℕ / (n m. ∥𝟙∥))"

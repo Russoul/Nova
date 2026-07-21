@@ -72,20 +72,24 @@ mutual
   substElem (SigVar x es)      sigma = SigVar x (substSubNorm es sigma)
   substElem (Class a)          sigma = Class (substElem a sigma)
   substElem (QuotElim f q)     sigma = QuotElim (substElem f (under sigma)) (substElem q sigma)
+  substElem (Squash t)         sigma = Squash (substTy t sigma)
+  substElem Star               sigma = Star
 
-||| T[σ]
-export
-substTy : Ty -> Sub -> Ty
-substTy Ty.ZeroTy             sigma = Ty.ZeroTy
-substTy Ty.OneTy              sigma = Ty.OneTy
-substTy Ty.NatTy              sigma = Ty.NatTy
-substTy Ty.UniverseTy         sigma = Ty.UniverseTy
-substTy (Ty.PiTy a b)         sigma = Ty.PiTy (substTy a sigma) (substTy b (under sigma))
-substTy (Ty.SigmaTy a b)      sigma = Ty.SigmaTy (substTy a sigma) (substTy b (under sigma))
-substTy (EqTy l r ty)         sigma = EqTy (substElem l sigma) (substElem r sigma) (substTy ty sigma)
-substTy (El e)                sigma = El (substElem e sigma)
-substTy (Quotient a r)        sigma = Quotient (substTy a sigma) (substTy r (under (under sigma)))
-substTy (Ty.SigVar x es)      sigma = Ty.SigVar x (substSubNorm es sigma)
+  ||| T[σ]
+  export
+  substTy : Ty -> Sub -> Ty
+  substTy Ty.ZeroTy             sigma = Ty.ZeroTy
+  substTy Ty.OneTy              sigma = Ty.OneTy
+  substTy Ty.NatTy              sigma = Ty.NatTy
+  substTy Ty.UniverseTy         sigma = Ty.UniverseTy
+  substTy (Ty.PiTy a b)         sigma = Ty.PiTy (substTy a sigma) (substTy b (under sigma))
+  substTy (Ty.SigmaTy a b)      sigma = Ty.SigmaTy (substTy a sigma) (substTy b (under sigma))
+  substTy (EqTy l r ty)         sigma = EqTy (substElem l sigma) (substElem r sigma) (substTy ty sigma)
+  substTy (El e)                sigma = El (substElem e sigma)
+  substTy PropTy                sigma = PropTy
+  substTy (Prf e)               sigma = Prf (substElem e sigma)
+  substTy (Quotient a r)        sigma = Quotient (substTy a sigma) (substElem r (under (under sigma)))
+  substTy (Ty.SigVar x es)      sigma = Ty.SigVar x (substSubNorm es sigma)
 
 
 
@@ -138,24 +142,28 @@ mutual
   strengthenElem d (SigVar x es)      = SigVar x <$> strengthenSubNorm d es
   strengthenElem d (Class a)          = Class <$> strengthenElem d a
   strengthenElem d (QuotElim f q)     = QuotElim <$> strengthenElem (1 + d) f <*> strengthenElem d q
+  strengthenElem d (Squash t)         = Squash <$> strengthenTy d t
+  strengthenElem d Star               = Just Star
 
   export
   strengthenSubNorm : (depth : Nat) -> SubNorm -> Maybe SubNorm
   strengthenSubNorm d [<] = Just [<]
   strengthenSubNorm d (es :< e) = (:<) <$> strengthenSubNorm d es <*> strengthenElem d e
 
-export
-strengthenTy : (depth : Nat) -> Ty -> Maybe Ty
-strengthenTy d Ty.ZeroTy         = Just Ty.ZeroTy
-strengthenTy d Ty.OneTy          = Just Ty.OneTy
-strengthenTy d Ty.NatTy          = Just Ty.NatTy
-strengthenTy d Ty.UniverseTy     = Just Ty.UniverseTy
-strengthenTy d (Ty.PiTy a b)     = Ty.PiTy <$> strengthenTy d a <*> strengthenTy (1 + d) b
-strengthenTy d (Ty.SigmaTy a b)  = Ty.SigmaTy <$> strengthenTy d a <*> strengthenTy (1 + d) b
-strengthenTy d (EqTy l r ty)     = EqTy <$> strengthenElem d l <*> strengthenElem d r <*> strengthenTy d ty
-strengthenTy d (El e)            = El <$> strengthenElem d e
-strengthenTy d (Quotient a r)    = Quotient <$> strengthenTy d a <*> strengthenTy (2 + d) r
-strengthenTy d (Ty.SigVar x es)  = Ty.SigVar x <$> strengthenSubNorm d es
+  export
+  strengthenTy : (depth : Nat) -> Ty -> Maybe Ty
+  strengthenTy d Ty.ZeroTy         = Just Ty.ZeroTy
+  strengthenTy d Ty.OneTy          = Just Ty.OneTy
+  strengthenTy d Ty.NatTy          = Just Ty.NatTy
+  strengthenTy d Ty.UniverseTy     = Just Ty.UniverseTy
+  strengthenTy d (Ty.PiTy a b)     = Ty.PiTy <$> strengthenTy d a <*> strengthenTy (1 + d) b
+  strengthenTy d (Ty.SigmaTy a b)  = Ty.SigmaTy <$> strengthenTy d a <*> strengthenTy (1 + d) b
+  strengthenTy d (EqTy l r ty)     = EqTy <$> strengthenElem d l <*> strengthenElem d r <*> strengthenTy d ty
+  strengthenTy d (El e)            = El <$> strengthenElem d e
+  strengthenTy d PropTy            = Just PropTy
+  strengthenTy d (Prf e)           = Prf <$> strengthenElem d e
+  strengthenTy d (Quotient a r)    = Quotient <$> strengthenTy d a <*> strengthenElem (2 + d) r
+  strengthenTy d (Ty.SigVar x es)  = Ty.SigVar x <$> strengthenSubNorm d es
 
 ||| Only surface-shaped substitutions (flat Ext/Terminal element lists)
 ||| strengthen; Id/Wk/Chain are index-sensitive and never appear in

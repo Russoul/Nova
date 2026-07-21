@@ -60,7 +60,11 @@ of fuel, are exactly:
   El (a → b)         ≜  El a → El b
   El (a ⨯ b)         ≜  El a ⨯ El b
   El (l ≡ r ∈ t)     ≜  l ≡ r ∈ El t
-  El (a / r)         ≜  El a / El r
+  El (a / r)         ≜  El a / r      // the Ω-valued relation is NOT decoded
+
+Ω, Prf and ∥-∥ add no contraction clauses: Prf ∥A∥ does NOT reduce to A
+(realizer irrelevance is the point of the squash), and ⋆ has no
+eliminator. nf treats Prf/Ω/∥-∥/⋆ purely congruently.
 
 Scrutinees are normalized before the contraction test (call-by-value
 on elimination positions), so a stuck scrutinee leaves a stuck
@@ -99,6 +103,18 @@ implementation's names):
     | witness 𝒞?                                   (FWitness)
     | ηΠ 𝒞                                         (FEtaPi)
     | ηΣ 𝒞 𝒞                                       (FEtaSigma)
+    | propext s ⟨sk⟩ t ⟨sk⟩                        (FPropExt)
+    | prfCong 𝒞                                    (FPrfCong)
+    | quotCong 𝒞                                   (FQuotCong)
+
+  The three Ω finals: propext is code-prop-eq — the sides are prop codes
+  and s, t are the two hypothetical implications, CHECKED as typings
+  (Γ ᐅ Prf p ⊦ s ⇐ Prf q[↑] and symmetrically); prfCong is ty-prf-cong
+  on a TYPE equation (both sides Prf-headed, 𝒞 proves the codes equal at
+  Ω); quotCong is ty-quot-cong at a reflexive domain (both sides A / _,
+  𝒞 proves the relations equal at Ω under the domain twice). FProp also
+  closes an equation at a Prf type (el-prf-prop: proof irrelevance),
+  alongside its 𝟙/𝟘 cases.
 
   𝒞 ::= (tyEx?, steps, final)                      (ECert)
     tyEx  : optional TYPE BRIDGE (T′, 𝒞ᵀ) — replay the equation at T′
@@ -117,10 +133,12 @@ Child indexing, shared by paths, the typed descent (§6) and skeletons
              (l ≡ r ∈ t)ᶜ → 0, 1, 2  a /ᶜ r → 0, 1(2)
              x[e˲] → 0.. (left to right)
              class a → 0             quot-elim f q → 0(1), 1
+             ∥T∥ → 0ᵗ
   types:     A → B → 0, 1(1)         A ⨯ B → 0, 1(1)
-             l ≡ r ∈ T → 0ᵉ, 1ᵉ, 2   El e → 0ᵉ
-             A / R → 0, 1(2)         x[e˲] → 0..ᵉ
-  (ᶜ marks universe codes; ᵉ marks descent into an element child.)
+             l ≡ r ∈ T → 0ᵉ, 1ᵉ, 2   El e → 0ᵉ    Prf e → 0ᵉ
+             A / r → 0, 1ᵉ(2)        x[e˲] → 0..ᵉ
+  (ᶜ marks universe codes; ᵉ marks descent into an element child, ᵗ into
+   a type child. The quotient relation is an Ω-valued element child.)
 
 ////////// 3. Proof spines: Σ; Γ ⊦ p ⇒ᵖ T //////////
 
@@ -150,10 +168,17 @@ introduction forms structurally and falls back to infer-and-compare:
   -----------------------------------   // el-eq-i after the sides
   Σ; Γ ⊦ Refl ⇐ᵖ T                      // are seen ≜-equal
 
-  nf(T) ⇓ A / R   Σ; Γ ⊦ a ⇐ᵖ A         nf(T) ⇓ A ⨯ B
+  nf(T) ⇓ A / r   Σ; Γ ⊦ a ⇐ᵖ A         nf(T) ⇓ A ⨯ B
   -----------------------------         Σ; Γ ⊦ u ⇐ᵖ A   Σ; Γ ⊦ v ⇐ᵖ B[id, u]
   Σ; Γ ⊦ class a ⇐ᵖ T                   ---------------------------------
                                         Σ; Γ ⊦ (u , v) ⇐ᵖ T
+
+  nf(T) ⇓ Prf ∥𝟙∥                       nf(T) ⇓ Prf ∥l ≡ r ∈ A∥   nf(l) = nf(r)
+  ----------------                      -------------------------------------
+  Σ; Γ ⊦ ⋆ ⇐ᵖ T                         Σ; Γ ⊦ ⋆ ⇐ᵖ T
+  // el-squash-i with an evident witness. A step proof may also be typed
+  // Prf ∥l ≡ r ∈ t∥ — squashed reflection: `licensed` reads the same
+  // equation out of a squashed-equality proof as out of a bare ≡ one.
 
   nf(T) ⇓ A → B   Σ; Γ ᐅ A ⊦ f ⇐ᵖ B     Σ; Γ ⊦ t ⇐ᵖ 𝟘
   ---------------------------------     ------------------------
@@ -177,14 +202,17 @@ telescope type instantiated by the preceding entries (sub-norm-ext).
 A step (onLhs, path, p, sels, flip) licenses one equation, derived —
 never assumed — from its proof:
 
-  Σ; Γ ⊦ p ⇒ᵖ T    nf(T) ⇓ (l ≡ r ∈ A)
+  Σ; Γ ⊦ p ⇒ᵖ T    nf(T) ⇓ (l ≡ r ∈ A)  [or  Prf ∥l ≡ r ∈ A∥]
   (l′, r′, A′) = sels applied to (l, r, A)         (§5)
   ------------------------------------------------------------
   step licenses  nf(l′) ≐ nf(r′) : A′    (swapped when flip)
 
 This is equality reflection (el-reflect) read certificate-side: the
 proof element is checked, its ≡-type exposed, and the judgemental
-equation extracted. A proof whose type is not an ≡-type is rejected.
+equation extracted. A proof whose type normalizes to a squashed
+equality Prf ∥l ≡ r ∈ A∥ licenses the same equation (squashed
+reflection: el-squash-e-eq + el-reflect). Any other proof type is
+rejected.
 
 ////////// 5. Selectors //////////
 
@@ -201,8 +229,9 @@ do not match is rejected.
              requires  Σ; Γ ⊦ u ⇐ᵖ El a₁
              // code-pi-inj second component, instantiated at u (el-sub-cong-fix)
   qdom     : (a₀ / r₀) ≐ (a₁ / r₁) : 𝕌 ⇒  a₀ ≐ a₁ : 𝕌      // code-quot-inj
-  qrel u v : (a₀ / r₀) ≐ (a₁ / r₁) : 𝕌 ⇒  r₀[id,u,v] ≐ r₁[id,u,v] : 𝕌
+  qrel u v : (a₀ / r₀) ≐ (a₁ / r₁) : 𝕌 ⇒  r₀[id,u,v] ≐ r₁[id,u,v] : Ω
              requires  Σ; Γ ⊦ u ⇐ᵖ El a₁   Σ; Γ ⊦ v ⇐ᵖ El a₁
+             // the relation components live at Ω, not 𝕌
   eqT      : (l₀≡r₀∈t₀) ≐ (l₁≡r₁∈t₁) : 𝕌 ⇒ t₀ ≐ t₁ : 𝕌     // code-eq-inj
   eqL      :                           ⇒ l₀ ≐ l₁ : El t₁
   eqR      :                           ⇒ r₀ ≐ r₁ : El t₁
@@ -254,7 +283,7 @@ type E; — means undetermined):
   (l ≡ r ∈ t)ᶜ    children 0,1 : El t, child 2 : 𝕌
   a /ᶜ r          children : 𝕌
   x[e˲]           child i : Δᵢ[e˲ prefix] // the telescope entry's type
-  class a         child 0 : A            when nf(E) ⇓ A / R
+  class a         child 0 : A            when nf(E) ⇓ A / r
   quot-elim f q   child 0 : —, child 1 : ⇒ᴺ(q)
 
 ⇒ᴺ is neutral-spine inference: context variables, applications,
@@ -265,6 +294,7 @@ Steps inside TYPES (used by type certificates) walk the type formers
 (no rewrite may end at a type position — types are rewritten through
 their element children): the element entry points are the sides of
 l ≡ r ∈ T (expected type T), the code under El (expected type 𝕌),
+the code under Prf and the relation of A / r (both expected type Ω),
 and signature-entry arguments (the telescope type).
 
 Soundness note: the positional check is load-bearing. Equality is
@@ -292,21 +322,30 @@ final):
 
   beta         nf-equal sides:  l = r  syntactically after ≜.
                // el-eq via ≜-chains
-  prop         nf(T) ⇓ 𝟙 or 𝟘.        // Foundation el-one-prop / el-zero-prop
-  witness 𝒞?   sides are class a ≐ class b and nf(T) ⇓ A / R;
-               then by the shape of nf(R[id, a, b]):
-                 ⇓ 𝟙                — accepted (witness ())
-                 ⇓ (wl ≡ wr ∈ W)   — replay 𝒞 ⊳ wl ≐ wr : W
-               // el-quot-eq with witness () resp. Refl
+  prop         nf(T) ⇓ 𝟙 or 𝟘 or Prf p.  // el-one-prop / el-zero-prop /
+               // el-prf-prop (proof irrelevance)
+  witness 𝒞?   sides are class a ≐ class b and nf(T) ⇓ A / r;
+               then by the shape of nf(r[id, a, b]) (an Ω code):
+                 ⇓ ∥𝟙∥              — accepted (witness ())
+                 ⇓ ∥wl ≡ wr ∈ W∥   — replay 𝒞 ⊳ wl ≐ wr : W
+               // el-quot-eq: the relation is Ω-valued, so its witness
+               // shapes are squashes
   ηΠ 𝒞         nf(T) ⇓ A → B; replay
                Σ; Γ ᐅ A ⊦ 𝒞 ⊳ l[↑] ☐₀ ≐ r[↑] ☐₀ : B     // el-pi-eta
   ηΣ 𝒞₁ 𝒞₂     nf(T) ⇓ A ⨯ B; replay
                𝒞₁ ⊳ l.π₁ ≐ r.π₁ : A
                𝒞₂ ⊳ l.π₂ ≐ r.π₂ : B[id, l.π₁]           // el-sigma-eta
+  propext ...  nf(T) ⇓ Ω, sides prop codes p, q; check the two
+               hypothetical implications as typings
+               (Γ ᐅ Prf p ⊦ s ⇐ Prf q[↑] and symmetrically).  // code-prop-eq
 
 Type equations — Σ; Γ ⊦ 𝒞 ⊳ T₀ ≐ T₁: no bridge is admissible (a
 bridge on a type equation would be circular), steps apply through the
-type formers as in §6, and the only final is beta (nf-equal types).
+type formers as in §6. The final is beta (nf-equal types), or one of
+the extensional-component congruences whose components cannot be
+flattened into steps: prfCong 𝒞 (both sides Prf-headed, 𝒞 proves the
+codes equal at Ω — ty-prf-cong) and quotCong 𝒞 (both sides A / _ at a
+common domain, 𝒞 proves the relations equal at Ω — ty-quot-cong).
 El-decoding inside nf gives ty-el-cong for free; a universe-code
 equation is transported through El by normalization, not by a rule.
 
@@ -326,6 +365,8 @@ payloads:
     | refl-eq 𝒞           (PReflEq)   the equation behind a Refl
     | wd 𝒞                (PWD)       quot-elim well-definedness
     | expose T 𝒞          (PExpose)   head exposure at a checked intro
+    | squash-wit e ⟨sk⟩   (PSquashWit) the witness behind a checked
+                                      ⋆ : Prf ∥A∥ (el-squash-i)
 
 A payload is consumed when used (a node may carry several; order is
 immaterial). Missing children default to empty nodes.
@@ -354,9 +395,13 @@ Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
      -------------------------------------------------------------
      Σ; Γ ⊦ Refl ⇐ T ⟨sk⟩                    // el-eq-i over replay
 
-     nf(T) ⇓ A / R    Σ; Γ ⊦ a ⇐ A ⟨sk.0⟩
+     nf(T) ⇓ A / r    Σ; Γ ⊦ a ⇐ A ⟨sk.0⟩
      -------------------------------------               // el-quot-i
      Σ; Γ ⊦ class a ⇐ T ⟨sk⟩
+
+     nf(T) ⇓ Prf ∥A∥    sk carries squash-wit e ⟨ske⟩   Σ; Γ ⊦ e ⇐ A ⟨ske⟩
+     -------------------------------------------------------------------
+     Σ; Γ ⊦ ⋆ ⇐ T ⟨sk⟩                                  // el-squash-i
 
      Σ; Γ ⊦ t ⇐ 𝟘 ⟨sk.0⟩
      ----------------------------                        // el-zero-e
@@ -393,22 +438,26 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
   quot-elim demands motive AND well-definedness:
 
      sk carries motive M ⟨skM⟩ and wd 𝒞
-     Σ; Γ ⊦ q ⇒ Tq ⟨sk.1⟩    nf(Tq) ⇓ A / R
-     Σ; Γ ᐅ A/R ⊦ M type ⟨skM⟩
+     Σ; Γ ⊦ q ⇒ Tq ⟨sk.1⟩    nf(Tq) ⇓ A / r
+     Σ; Γ ᐅ A/r ⊦ M type ⟨skM⟩
      Σ; Γ ᐅ A ⊦ f ⇐ M[↑, class ☐₀] ⟨sk.0⟩
-     Σ; Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ 𝒞 ⊳ f[↑³, ☐₂] ≐ f[↑³, ☐₁] : M[↑³, class ☐₂]
+     Σ; Γ ᐅ A ᐅ A[↑] ᐅ Prf r ⊦ 𝒞 ⊳ f[↑³, ☐₂] ≐ f[↑³, ☐₁] : M[↑³, class ☐₂]
      ------------------------------------------------------------
      Σ; Γ ⊦ quot-elim f q ⇒ M[id, q]                    // el-quot-e
+  (the well-definedness hypothesis is Prf r — the DECODED relation)
 
   Universe codes infer at 𝕌 with components checked at 𝕌 (their
-  binder children under El of the domain code): el-*-in-universe.
+  binder children under El of the domain code), EXCEPT the quotient
+  code's relation, checked at Ω: el-*-in-universe. Squash ∥A∥ infers at
+  Ω with A checked as a type.
 
   Anything else in inference position (a bare intro form with no
   ascription payload) is rejected.
 
 Formation  Σ; Γ ⊦ T type ⟨sk⟩ : structural over the type formers
-(ty-pi/sigma/eq/el/quot/ty-sig-var), the sides of an ≡-type checked
-as elements, El's code checked at 𝕌, signature-type arguments checked
+(ty-pi/sigma/eq/el/prf/quot/ty-prop/ty-sig-var), the sides of an
+≡-type checked as elements, El's code checked at 𝕌, Prf's code and the
+quotient's relation checked at Ω, signature-type arguments checked
 against their telescope — all with skeleton children along.
 
 Items. A definition (Δ ⊦ x ≔ t : T) is checked by: telescope entries

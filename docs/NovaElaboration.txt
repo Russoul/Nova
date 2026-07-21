@@ -85,10 +85,11 @@ fixity ::= infixl d op | infixr d op          // d a digit 0-9
 
 // Types. Elaboration needs no rule keywords and no context prefixes —
 // the context is always implicit in where a subterm sits.
-T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | x | (T{≥0})
-T{2} ::= El t{≥4}
-T{1} ::= ((x:T{≥0}))+ → T{≥0} | ((x:T{≥0}))+ ⨯ T{≥0} | T{≥2} / (x y. T{≥1})
+T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | Ω | x | (T{≥0})
+T{2} ::= El t{≥4} | Prf t{≥4}
+T{1} ::= ((x:T{≥0}))+ → T{≥0} | ((x:T{≥0}))+ ⨯ T{≥0} | T{≥2} / (x y. t{≥1})
 T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
+// the quotient relation is an Ω-valued ELEMENT (t), not a type
 
 // Binder groups ITERATE: (x:T) (y:U) → B parses as (x:T) → (y:U) → B
 // (each group scopes over the ones after it; likewise for ⨯), and the
@@ -104,7 +105,7 @@ T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
 //   2. ℕ-elim and quot-elim take their motives inline, motive-first.
 //      Motives are not inferable without higher-order unification, so
 //      they are mandatory syntax here.
-t{5} ::= x | () | Z | Refl | 𝟘 | 𝟙 | ℕ | (t{≥0}) | (t{≥0} : T{≥0})
+t{5} ::= x | () | Z | Refl | ⋆ | ∥T{≥0}∥ | 𝟘 | 𝟙 | ℕ | (t{≥0}) | (t{≥0} : T{≥0})
 t{3} ::= t{≥3} t{≥4} | t{≥3} .π₁ | t{≥3} .π₂                 (left-assoc)
 t{2} ::= λx. t{≥1½}
        | 𝟘-elim t{≥4}
@@ -114,6 +115,8 @@ t{2} ::= λx. t{≥1½}
        | quot-elim (z. T{≥0}) (a. t{≥0}) t{≥4}                // motive, case fn, scrutinee
 t{1} ::= ((x:t{≥0}))+ → t{≥1} | ((x:t{≥0}))+ ⨯ t{≥1} | t{≥2} / (x y. t{≥1})
        | t{≥2} ≡ t{≥2} ∈ t{≥2}                                // universe codes
+// ∥T∥ (squash) and ⋆ (the canonical proof) are the Ω introductions;
+// a squashed type is an Ω-valued element
 t{1½} ::= t{≥2} (op t{≥2})*     // declared infix operators, by fixity
 t{0} ::= t{≥1} , t{≥0}                                        (right-assoc)
 
@@ -227,7 +230,9 @@ el-pi-beta, el-sigma-beta₁, el-sigma-beta₂, el-nat-beta-z,
 el-nat-beta-s, el-quot-beta, el-sig-beta/ty-sig-beta (signature
 unfolding — total in this hole-free setting, since every Σ entry has a
 definiens), and the El-decoding family (ty-el-zero, ty-el-one,
-ty-el-nat, ty-el-pi, ty-el-sigma, ty-el-eq, ty-el-quot). Per
+ty-el-nat, ty-el-pi, ty-el-sigma, ty-el-eq, ty-el-quot — the last
+decoding El (A / r) ≜ El A / r, the Ω-valued relation passing through
+undecoded; Prf ∥A∥ has no decoding rule). Per
 Foundation's preface, normalization of well-formed terms
 may diverge under inconsistent hypotheses; whnf is therefore
 fuel-bounded, and fuel exhaustion is treated as "neutral" — a
@@ -237,7 +242,7 @@ never an unsound acceptance.
 //////////// Type elaboration /////////////
 
 Γ ⊢ 𝟘 ⇝ 𝟘 type    Γ ⊢ 𝟙 ⇝ 𝟙 type    Γ ⊢ ℕ ⇝ ℕ type    Γ ⊢ 𝕌 ⇝ 𝕌 type
-                                                    // (𝟘),(𝟙),(ℕ),(𝕌)
+Γ ⊢ Ω ⇝ Ω type                       // (𝟘),(𝟙),(ℕ),(𝕌),(Ω)
 
 (ε ⊦ x ≔ T type) ∈ Σ
 ---------------------- (e-ty-sig)                             // (x[e˲] type)
@@ -259,9 +264,13 @@ never an unsound acceptance.
 Γ ⊢ (x:T) ⨯ U ⇝ A ⨯ B type
 
 Γ ⊢ T ⇝ A type
-Γ ᐅ x:A ᐅ y:A[↑] ⊢ R ⇝ R̂ type
------------------------------- (e-ty-quot)                    // (A / R)
-Γ ⊢ T / (x y. R) ⇝ A / R̂ type
+Γ ᐅ x:A ᐅ y:A[↑] ⊢ r ⇐ Ω ⇝ r̂            // the relation is Ω-valued
+------------------------------ (e-ty-quot)                    // (A / r)
+Γ ⊢ T / (x y. r) ⇝ A / r̂ type
+
+Γ ⊢ p ⇐ Ω ⇝ p̂
+------------------- (e-ty-prf)                                // (Prf p)
+Γ ⊢ Prf p ⇝ Prf p̂ type
 
 Γ ⊢ T ⇝ A type
 Γ ⊢ t₀ ⇐ A ⇝ a₀
@@ -319,14 +328,16 @@ never an unsound acceptance.
 Γ ⊢ ℕ-elim (n. T) z (n ih. s) t ⇒ A[id, t̂] ⇝ ℕ-elim ẑ ŝ t̂
                                         // (ℕ-elim z s t motive A)
 
-Γ ⊢ q ⇒ C ⇝ q̂        whnf(C) = A / R
-Γ ᐅ z:(A / R) ⊢ T ⇝ B type
+Γ ⊢ q ⇒ C ⇝ q̂        whnf(C) = A / r
+Γ ᐅ z:(A / r) ⊢ T ⇝ B type
 Γ ᐅ a:A ⊢ f ⇐ B[↑, class ☐₀] ⇝ f̂
-Γ ᐅ a:A ᐅ b:A[↑] ᐅ r:R ⊢ f̂[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f̂[↑ ∘ ↑ ∘ ↑, ☐₁]
+Γ ᐅ a:A ᐅ b:A[↑] ᐅ h:Prf r ⊢ f̂[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f̂[↑ ∘ ↑ ∘ ↑, ☐₁]
                         : B[↑ ∘ ↑ ∘ ↑, class ☐₂] ↓
 ------------------------------------------------------------ (e-quotelim)
 Γ ⊢ quot-elim (z. T) (a. f) q ⇒ B[id, q̂] ⇝ quot-elim f̂ q̂
-                              // (quote-elim (A / R) f f⁼ q motive B)
+                              // (quote-elim (A / r) f f⁼ q motive B)
+// the well-definedness hypothesis is Prf r (the DECODED relation), so a
+// squashed-equality hypothesis is available to discharge f⁼
 // The well-definedness premise f⁼ is a ↓-judgement: if the case function
 // respects R by computation or by an accepted lemma, elaboration is
 // silent; otherwise "f respects R" is surfaced as an ordinary equational
@@ -341,13 +352,20 @@ never an unsound acceptance.
 Γ ⊢ (x:t) → u ⇒ 𝕌 ⇝ a → b
    (e-code-sigma analogous for ⨯)                             // (A ⨯ B : 𝕌)
 
-Γ ⊢ t ⇐ 𝕌 ⇝ a        Γ ᐅ x:El a ᐅ y:(El a)[↑] ⊢ r ⇐ 𝕌 ⇝ r̂
+Γ ⊢ t ⇐ 𝕌 ⇝ a        Γ ᐅ x:El a ᐅ y:(El a)[↑] ⊢ r ⇐ Ω ⇝ r̂
 ------------------------------------------------------------ (e-code-quot)
-Γ ⊢ t / (x y. r) ⇒ 𝕌 ⇝ a / r̂                                  // (A / R : 𝕌)
+Γ ⊢ t / (x y. r) ⇒ 𝕌 ⇝ a / r̂                                  // (A / r : 𝕌)
+   // the relation is checked at Ω, not 𝕌
 
 Γ ⊢ t ⇐ 𝕌 ⇝ a        Γ ⊢ t₀ ⇐ El a ⇝ a₀        Γ ⊢ t₁ ⇐ El a ⇝ a₁
 ------------------------------------------------------------------- (e-code-eq)
 Γ ⊢ t₀ ≡ t₁ ∈ t ⇒ 𝕌 ⇝ (a₀ ≡ a₁ ∈ a)                    // (a₀ ≡ a₁ ∈ A : 𝕌)
+
+Γ ⊢ T ⇝ A type
+-------------------- (e-squash)                              // (∥A∥ : Ω)
+Γ ⊢ ∥T∥ ⇒ Ω ⇝ ∥A∥
+// ∥-∥ is the only Ω introduction that infers; ⋆ is checking-only
+// (e-star below), since its proposition is not inferable from ⋆ alone.
 
 //////////// Element elaboration: checking /////////////
 
@@ -382,9 +400,20 @@ whnf(C) = (a₀ ≡ a₁ ∈ A)        Γ ⊢ a₀ ≐ a₁ : A ↓
 // no information (reflection erases them), so all structure lives in
 // the judgemental layer and in prepended lemmas.
 
-whnf(C) = A / R        Γ ⊢ a ⇐ A ⇝ â
+whnf(C) = A / r        Γ ⊢ a ⇐ A ⇝ â
 -------------------------------------- (e-class)              // (class a)
 Γ ⊢ class a ⇐ C ⇝ class â
+
+whnf(C) = Prf ∥A∥        (witness of A synthesized: () for 𝟙, Refl for
+                          an ≡ whose sides are ≐)
+------------------------------------------------------------ (e-star)  // (⋆)
+Γ ⊢ ⋆ ⇐ C ⇝ ⋆
+// el-squash-i. The elaborator synthesizes the witness of A for the
+// evident inhabited shapes (𝟙, reflexive ≡); a squashee whose
+// inhabitant is not evident is a structural error (define the
+// inhabitant and squash it). Proof irrelevance (el-prf-prop) is not a
+// checking rule but a DISCHARGE final: any two proofs of a Prf type
+// are ≐, handled in the ↓ loop.
 
 Γ ⊢ t ⇐ 𝟘 ⇝ t̂
 --------------------------- (e-zeroelim)                      // (𝟘-elim t)
@@ -400,10 +429,11 @@ whnf(C) = A / R        Γ ⊢ a ⇐ A ⇝ â
 // term elaboration. Note the direction of failure: never an error —
 // the residual equation is assumed and reported.
 
-// Mode inventory. Checking-only forms: λ, pairs, Refl, class, 𝟘-elim
-// (their types are not determined by their syntax); encountering one in
-// inference position is a structural error whose fix is an ascription.
-// Everything else infers and reaches checking mode through e-switch.
+// Mode inventory. Checking-only forms: λ, pairs, Refl, class, ⋆,
+// 𝟘-elim (their types are not determined by their syntax); encountering
+// one in inference position is a structural error whose fix is an
+// ascription. Everything else — including ∥-∥ — infers and reaches
+// checking mode through e-switch.
 
 //////////// Conversion and discharge (the ↓ judgements) /////////////
 
@@ -433,18 +463,27 @@ whnf(C) = A / R        Γ ⊢ a ⇐ A ⇝ â
 //      hypotheses. Decomposition:
 //        A₀ → B₀   ≐ A₁ → B₁    ⇐  A₀ ≐ A₁ type;  Γ ᐅ A₁ ⊢ B₀ ≐ B₁ type
 //        A₀ ⨯ B₀   ≐ A₁ ⨯ B₁    ⇐  likewise
-//        A₀ / R₀   ≐ A₁ / R₁    ⇐  A₀ ≐ A₁ type;  Γ ᐅ A₁ ᐅ A₁[↑] ⊢ R₀ ≐ R₁ type
+//        A₀ / r₀   ≐ A₁ / r₁    ⇐  A₀ ≐ A₁ type;  Γ ᐅ A₁ ᐅ A₁[↑] ⊢ r₀ ≐ r₁ : Ω
+//                                  (the relation is compared AT Ω, where
+//                                  ≐ is iff — ty-quot-cong)
+//        Prf p     ≐ Prf q       ⇐  p ≐ q : Ω     (ty-prf-cong)
 //        (a₀≡b₀∈T₀) ≐ (a₁≡b₁∈T₁) ⇐ T₀ ≐ T₁ type;  a₀ ≐ a₁ : T₁;  b₀ ≐ b₁ : T₁
 //        El a      ≐ El b       ⇐  a ≐ b : 𝕌
+//        ∥A∥       ≐ ∥B∥        ⇐  A ≐ B type (sufficient), OR — the
+//                                  faithful route at Ω — code-prop-eq
+//                                  (propext): the two implications
+//                                  Prf ∥A∥ → Prf ∥B∥ and back, each with
+//                                  its witness synthesized under the
+//                                  hypothesis
 //        S a       ≐ S b        ⇐  a ≐ b : ℕ
 //        class a   ≐ class b    ⇐  a ≐ b : A, OR — the WITNESS path,
 //                                  (class⁼ r) — by the shape of the
-//                                  instantiated relation R[id, a, b]:
-//                                  a 𝟙-shaped relation is inhabited
-//                                  outright (r = ()), an ≡-shaped one
-//                                  reduces the witness to its equation
-//                                  (r = Refl after reflection); other
-//                                  shapes keep the composite
+//                                  instantiated relation r[id, a, b] (an
+//                                  Ω code): a ∥𝟙∥-shaped relation is
+//                                  inhabited outright (witness ()), a
+//                                  ∥≡∥-shaped one reduces the witness to
+//                                  its equation (Refl after reflection);
+//                                  other shapes keep the composite
 //        a₀ , b₀   ≐ a₁ , b₁    ⇐  componentwise at the Σ-type
 //        neutral spines with the same head variable/eliminator:
 //                                  componentwise (app-cong, proj-cong,
@@ -454,8 +493,10 @@ whnf(C) = A / R        Γ ⊢ a ⇐ A ⇝ â
 //      (𝟘, 𝟙, ℕ, arrows/pairs/quotients/eq of codable parts), reduce to
 //      a ≐ code(B) : 𝕌 — sufficient via El-congruence + El-decoding.
 //      Otherwise fall through to 7.
-//   5. Prop-discharge: an element equation at type 𝟙 or at type 𝟘 is
-//      discharged outright — Foundation's el-one-prop, el-zero-prop. // COMMENT: equality type is also a Prop
+//   5. Prop-discharge: an element equation at type 𝟙, 𝟘, or Prf p is
+//      discharged outright — Foundation's el-one-prop, el-zero-prop,
+//      el-prf-prop (proof irrelevance: any two proofs of a proposition
+//      are equal). // COMMENT: equality type is also a Prop
 //   6. η: a λ against a neutral at Π compares via el-pi-eta (apply
 //      both to ☐₀ under the binder); a pair against a neutral at Σ
 //      via el-sigma-eta.

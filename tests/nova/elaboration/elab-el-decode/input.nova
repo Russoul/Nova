@@ -1,2 +1,3 @@
--- El (ℕ / ℕ) decodes to the quotient of the decoded parts
-def qdecode : (v : El (ℕ / (x y. ℕ))) → ℕ / (x y. ℕ) ≔ λv. v
+-- El (ℕ / r) decodes to the quotient of the decoded domain; the
+-- Ω-valued relation passes through undecoded
+def qdecode : (v : El (ℕ / (x y. ∥ℕ∥))) → ℕ / (x y. ∥ℕ∥) ≔ λv. v

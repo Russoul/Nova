@@ -5,20 +5,22 @@ import integer (Int)
 
 -- addition of pairs is well-defined in its second argument: the
 -- cross-sum equation, conditional on the relation hypothesis
-def intAddWD : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ) (h : b1 + c2 ≡ b2 + c1 ∈ ℕ) →
+-- the relation is Ω-valued now, so the conditional hypothesis is the
+-- squash Prf ∥…∥; reflection unsquashes it where the proof is used
+def intAddWD : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ) (h : Prf ∥b1 + c2 ≡ b2 + c1 ∈ ℕ∥) →
   (a1 + b1) + (a2 + c2) ≡ (a2 + b2) + (a1 + c1) ∈ ℕ ≔
   λa1. λa2. λb1. λb2. λc1. λc2. λh. ℕ-elim (k. (a1 + b1) + (k + c2) ≡ (k + b2) + (a1 + c1) ∈ ℕ)
     Refl (k ih. Refl) a2
 
 -- cross-sum well-definedness in the OUTER argument, conditional on h
-def intAddCross : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ) (h : a1 + b2 ≡ a2 + b1 ∈ ℕ) →
+def intAddCross : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ) (h : Prf ∥a1 + b2 ≡ a2 + b1 ∈ ℕ∥) →
   (a1 + c1) + (b2 + c2) ≡ (a2 + c2) + (b1 + c1) ∈ ℕ ≔
   λa1. λa2. λb1. λb2. λc1. λc2. λh. ℕ-elim (k. (a1 + c1) + (b2 + k) ≡ (a2 + k) + (b1 + c1) ∈ ℕ)
     Refl (k ih. Refl) c2
 
 -- the same, one level up: the inner elimination is well-defined in the
 -- OUTER argument — proven by quotient elimination with an ≡-motive
-def intAddWDOuter : (a : ℕ ⨯ ℕ) (b : ℕ ⨯ ℕ) (h : a .π₁ + b .π₂ ≡ a .π₂ + b .π₁ ∈ ℕ) (zy : Int) →
+def intAddWDOuter : (a : ℕ ⨯ ℕ) (b : ℕ ⨯ ℕ) (h : Prf ∥a .π₁ + b .π₂ ≡ a .π₂ + b .π₁ ∈ ℕ∥) (zy : Int) →
   quot-elim (z. Int) (x. class (a .π₁ + x .π₁ , a .π₂ + x .π₂)) zy
     ≡ quot-elim (z. Int) (x. class (b .π₁ + x .π₁ , b .π₂ + x .π₂)) zy
     ∈ Int ≔

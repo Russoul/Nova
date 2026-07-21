@@ -14,9 +14,10 @@ module Nova.Kernel.Beta
 -- contraction (e.g. unfolding x[e˲] to a lambda that's then immediately
 -- applied) still gets caught in the same call.
 --
--- El-(/) (El (A / R) ≜ El A / El R) from docs/NovaFoundation.txt is handled
--- the same way as El-(→)/El-(⨯): Elem.QuotTy is the universe code, decoded
--- by betaTy's El case below.
+-- El-(/) (El (A / R) ≜ El A / R — the relation is an Ω-element and is NOT
+-- decoded) is handled the same way as El-(→)/El-(⨯): Elem.QuotTy is the
+-- universe code, decoded by betaTy's El case below. Prf has NO decoding
+-- rule (Prf ∥A∥ does not reduce to A — that is the point of the squash).
 
 import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
@@ -79,42 +80,46 @@ mutual
     case betaElem sig q of
       Class a => betaElem sig (substElem (betaElem sig f) (Ext Id a))
       q'      => QuotElim (betaElem sig f) q'
+  betaElem sig (Squash t)         = Squash (betaTy sig t)
+  betaElem sig Star               = Star
 
-||| T, with every beta-redex rewritten: Π/Σ/ℕ-elim/quot-elim/x-β redexes
-||| inside an El t's argument (via betaElem), type-level x-β (unfolding a
-||| signature type definition x[e˲] ≜ A[e˲]), plus El-of-universe-code
-||| decoding — El 𝟘 ≜ 𝟘, El 𝟙 ≜ 𝟙, El ℕ ≜ ℕ, El (A → B) ≜ El A → El B,
-||| El (A ⨯ B) ≜ El A ⨯ El B, El (a ≡ b ∈ A) ≜ (a ≡ b ∈ El A),
-||| El (A / R) ≜ El A / El R — see the
-||| El-* rules in docs/NovaFoundation.txt. The decoded result is itself
-||| recursed into (via betaTy again), since decoding can expose a further
-||| decodable code (e.g. El of a signature reference that unfolds to 𝟘).
-export
-betaTy : Sig -> Ty -> Ty
-betaTy sig Ty.ZeroTy        = Ty.ZeroTy
-betaTy sig Ty.OneTy         = Ty.OneTy
-betaTy sig Ty.NatTy         = Ty.NatTy
-betaTy sig Ty.UniverseTy    = Ty.UniverseTy
-betaTy sig (Ty.PiTy a b)    = Ty.PiTy (betaTy sig a) (betaTy sig b)
-betaTy sig (Ty.SigmaTy a b) = Ty.SigmaTy (betaTy sig a) (betaTy sig b)
-betaTy sig (EqTy l r ty)    = EqTy (betaElem sig l) (betaElem sig r) (betaTy sig ty)
-betaTy sig (El e) =
-  case betaElem sig e of
-    Elem.ZeroTy      => Ty.ZeroTy
-    Elem.OneTy       => Ty.OneTy
-    Elem.NatTy       => Ty.NatTy
-    Elem.PiTy a b    => betaTy sig (Ty.PiTy (El a) (El b))
-    Elem.SigmaTy a b => betaTy sig (Ty.SigmaTy (El a) (El b))
-    Elem.EqTy l r t  => betaTy sig (EqTy l r (El t))
-    QuotTy a r       => betaTy sig (Quotient (El a) (El r))
-    e'               => El e'
-betaTy sig (Quotient a r)   = Quotient (betaTy sig a) (betaTy sig r)
-betaTy sig (Ty.SigVar x es) =
-  let es' = betaSubNorm sig es
-  in case sigLookup x sig of
-       Just (SigTyDef _ _ a) => betaTy sig (substTy a (embed es'))
-       Just (SigDef _ _ _ _) => assert_total $ idris_crash "betaTy: signature identifier '\{x}' is a term definition, used as a type"
-       Nothing               => assert_total $ idris_crash "betaTy: signature identifier '\{x}' not found"
+  ||| T, with every beta-redex rewritten: Π/Σ/ℕ-elim/quot-elim/x-β redexes
+  ||| inside an El t's argument (via betaElem), type-level x-β (unfolding a
+  ||| signature type definition x[e˲] ≜ A[e˲]), plus El-of-universe-code
+  ||| decoding — El 𝟘 ≜ 𝟘, El 𝟙 ≜ 𝟙, El ℕ ≜ ℕ, El (A → B) ≜ El A → El B,
+  ||| El (A ⨯ B) ≜ El A ⨯ El B, El (a ≡ b ∈ A) ≜ (a ≡ b ∈ El A),
+  ||| El (A / R) ≜ El A / R — see the
+  ||| El-* rules in docs/NovaFoundation.txt. The decoded result is itself
+  ||| recursed into (via betaTy again), since decoding can expose a further
+  ||| decodable code (e.g. El of a signature reference that unfolds to 𝟘).
+  export
+  betaTy : Sig -> Ty -> Ty
+  betaTy sig Ty.ZeroTy        = Ty.ZeroTy
+  betaTy sig Ty.OneTy         = Ty.OneTy
+  betaTy sig Ty.NatTy         = Ty.NatTy
+  betaTy sig Ty.UniverseTy    = Ty.UniverseTy
+  betaTy sig (Ty.PiTy a b)    = Ty.PiTy (betaTy sig a) (betaTy sig b)
+  betaTy sig (Ty.SigmaTy a b) = Ty.SigmaTy (betaTy sig a) (betaTy sig b)
+  betaTy sig (EqTy l r ty)    = EqTy (betaElem sig l) (betaElem sig r) (betaTy sig ty)
+  betaTy sig (El e) =
+    case betaElem sig e of
+      Elem.ZeroTy      => Ty.ZeroTy
+      Elem.OneTy       => Ty.OneTy
+      Elem.NatTy       => Ty.NatTy
+      Elem.PiTy a b    => betaTy sig (Ty.PiTy (El a) (El b))
+      Elem.SigmaTy a b => betaTy sig (Ty.SigmaTy (El a) (El b))
+      Elem.EqTy l r t  => betaTy sig (EqTy l r (El t))
+      QuotTy a r       => betaTy sig (Quotient (El a) r)
+      e'               => El e'
+  betaTy sig PropTy           = PropTy
+  betaTy sig (Prf e)          = Prf (betaElem sig e)
+  betaTy sig (Quotient a r)   = Quotient (betaTy sig a) (betaElem sig r)
+  betaTy sig (Ty.SigVar x es) =
+    let es' = betaSubNorm sig es
+    in case sigLookup x sig of
+         Just (SigTyDef _ _ a) => betaTy sig (substTy a (embed es'))
+         Just (SigDef _ _ _ _) => assert_total $ idris_crash "betaTy: signature identifier '\{x}' is a term definition, used as a type"
+         Nothing               => assert_total $ idris_crash "betaTy: signature identifier '\{x}' not found"
 
 ||| σ, with every element's own beta-redexes rewritten.
 export
