@@ -8,8 +8,8 @@ Semantics to syntactic forms is assigned via evaluation and canonical forms.
 NOTE: well-formed terms need not normalize in an inconsistent context.
 Equality reflection makes typability hypothesis-sensitive: e.g. under
 Γ ∋ h : (A ≡ (A → A) ∈ 𝕌), reflection gives El A ≐ El A → El A, so
-self-application types and Ω ≜ (λx. x x) (λx. x x) is well-formed at El A
-— yet Ω has no normal form. Normalization is therefore a property of terms
+self-application types and ω ω is well-formed at El A, where ω ≜ λx. x x
+— yet ω ω has no normal form. Normalization is therefore a property of terms
 in consistent contexts only; any procedure that beta-normalizes a
 well-formed term (as the checker does when storing and comparing facts)
 may diverge under inconsistent hypotheses. This is a liveness caveat, not
@@ -26,7 +26,8 @@ We have:
  * Dependent sum type: (⨯)
  * Equality type: (≡) with reflection
  * A universe: 𝕌
- * Quotient type: (/)
+ * Quotient type: (/), by an Ω-valued relation
+ * A universe of mere propositions: Ω (squash ∥-∥, propositional extensionality)
 
 ///////////// Syntax ///////////////
 
@@ -67,7 +68,11 @@ T ::= x [e˲]         // type in the signature context
     | T ⨯ T          // dependent sum type (Σ)
     | t ≡ t ∈ T      // extensional equality type
     | El t           // Every element of the universe is a type
-    | T / T          // quotient type
+    | T / t          // quotient type (t an Ω-valued relation)
+    | Ω              // universe of mere propositions
+    | Prf t          // decoding of a proposition (Ω's El; deliberately not
+                     //   written El: it shares none of El's rules — not
+                     //   structural, not injective, no decoding computation)
 
 // element
 t ::= x [e˲]         // element in the signature context
@@ -92,6 +97,9 @@ t ::= x [e˲]         // element in the signature context
     | Refl           // reflexive equality proof
     | class t        // quotient type introduction
     | quot-elim t t  // quotient type elimination
+    | ∥T∥            // squash: proposition from an arbitrary type (an element
+                     //   form embedding a type — the converse direction of El)
+    | ⋆              // the canonical proof of a true proposition
 
 // (type) telescope
 Δ ::= ε | T ◁ Δ
@@ -395,8 +403,8 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 ///////// Rules (type) /////////
 
 Γ ctx
------------------------- (ty-zero, ty-one, ty-nat, ty-univ)
-Γ ⊦ 𝟘, 𝟙, ℕ, 𝕌 type
+----------------------------------- (ty-zero, ty-one, ty-nat, ty-univ, ty-prop)
+Γ ⊦ 𝟘, 𝟙, ℕ, 𝕌, Ω type
 
 Γ ⊦ A type
 Γ ᐅ A ⊦ B type
@@ -417,8 +425,12 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 ----------------- (ty-el)
 Γ ⊦ El A type
 
+Γ ⊦ p : Ω
+------------------ (ty-prf)
+Γ ⊦ Prf p type
+
 Γ ⊦ A type
-Γ ᐅ A ᐅ A[↑] ⊦ R type
+Γ ᐅ A ᐅ A[↑] ⊦ R : Ω
 ----------------------- (ty-quot)
 Γ ⊦ A / R type
 
@@ -454,9 +466,9 @@ e˲ : Δ ⇒ Γ norm
 Γ ⊦ El (a₀ ≡ a₁ ∈ A) ≜ (a₀ ≡ a₁ ∈ El A) type
 
 Γ ⊦ A : 𝕌
-Γ ᐅ El A ᐅ (El A)[↑] ⊦ R : 𝕌
+Γ ᐅ El A ᐅ (El A)[↑] ⊦ R : Ω
 ---------------------------------- (ty-el-quot)
-Γ ⊦ El (A / R) ≜ El A / El R type
+Γ ⊦ El (A / R) ≜ El A / R type
 
 // Substitution action on types: A[σ] is defined by meta-level
 // induction on A via the ≜-equations below.
@@ -478,12 +490,17 @@ e˲ : Δ ⇒ Γ norm
 
 σ : Γ₀ ⇒ Γ₁
 ------------------------------------------------------------------------- (ty-sub-atoms)
-Γ₀ ⊦ 𝟘[σ] ≜ 𝟘 type,   𝟙[σ] ≜ 𝟙 type,   ℕ[σ] ≜ ℕ type,   𝕌[σ] ≜ 𝕌 type
+Γ₀ ⊦ 𝟘[σ] ≜ 𝟘 type,   𝟙[σ] ≜ 𝟙 type,   ℕ[σ] ≜ ℕ type,   𝕌[σ] ≜ 𝕌 type,   Ω[σ] ≜ Ω type
 
 Γ₁ ⊦ t : 𝕌
 σ : Γ₀ ⇒ Γ₁
 ------------------------------- (ty-sub-el)
 Γ₀ ⊦ (El t)[σ] ≜ El t[σ] type
+
+Γ₁ ⊦ p : Ω
+σ : Γ₀ ⇒ Γ₁
+---------------------------------- (ty-prf-sub)
+Γ₀ ⊦ (Prf p)[σ] ≜ Prf p[σ] type
 
 Γ₁ ⊦ A type
 Γ₁ ᐅ A ⊦ B type
@@ -504,7 +521,7 @@ e˲ : Δ ⇒ Γ norm
 Γ₀ ⊦ (a₀ ≡ a₁ ∈ A)[σ] ≜ (a₀[σ] ≡ a₁[σ] ∈ A[σ]) type
 
 Γ₁ ⊦ A type
-Γ₁ ᐅ A ᐅ A[↑] ⊦ R type
+Γ₁ ᐅ A ᐅ A[↑] ⊦ R : Ω
 σ : Γ₀ ⇒ Γ₁
 ---------------------------------------- (ty-sub-quot)
 Γ₀ ⊦ (A / R)[σ] ≜ A[σ] / R[σ⁺⁺] type
@@ -552,7 +569,7 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ type
 
 Γ ⊦ A₀ ≐ A₁ type
-Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₀ ≐ R₁ type
+Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
 -------------------------------- (ty-quot-cong)
 Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ type
 
@@ -565,6 +582,10 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ t₀ ≐ t₁ : 𝕌
 ---------------------------- (ty-el-cong) // El congruence: equal codes decode to equal types
 Γ ⊦ El t₀ ≐ El t₁ type
+
+Γ ⊦ p₀ ≐ p₁ : Ω
+---------------------------- (ty-prf-cong) // with code-prop-eq this is where iff becomes ≐
+Γ ⊦ Prf p₀ ≐ Prf p₁ type
 
 ///////// Type constructor injectivity /////////
 //
@@ -593,12 +614,20 @@ e˲ : Γ₁ ⇒ Γ norm
 //    this is what keeps the rules compatible with empty-domain
 //    collapses (𝟘 → 𝟙 ≐ 𝟘 → ℕ is harmless: under a 𝟘-hypothesis the
 //    component 𝟙 ≐ ℕ is derivable by absurdity anyway).
-//  * Quotient equality is chosen STRUCTURAL: the relation components
-//    must be judgementally equal, not merely logically equivalent.
-//    (This is stricter than NuPRL's iff-based quotient equality — a
-//    deliberate choice matching ty-quot-cong above.)
+//  * Quotient relations are Ω-valued, so the relation components are
+//    compared at Ω, where judgemental equality IS logical equivalence
+//    (code-prop-eq). Quotient type equality therefore coincides with
+//    NuPRL's iff-based one — obtained through structural rules rather
+//    than a bespoke clause. This does not compromise 𝕌's structural
+//    discipline: 𝕌 is structural in its FORMERS and was always
+//    extensional in its element slots (code-eq compares its endpoint
+//    slots by ≐, which reflection already makes extensional); an
+//    Ω-slot in code-quot is the same pattern.
 //  * class stays NON-injective: class a ≐ class b : A / R does not
 //    entail a ≐ b — that is the entire point of quotients.
+//  * Prf and ∥-∥ likewise have NO injectivity rules: Ω is the
+//    anti-structural universe, compared by inhabitation alone (see
+//    the Ω block in the element rules).
 //  * No-confusion (a Π-type is never equal to ℕ, a Σ-type, ...) is NOT
 //    expressible as a rule of this positive inference system, and in
 //    inconsistent contexts it is false. It remains a meta-property of
@@ -621,12 +650,12 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ A₀ ≐ A₁ type
 Γ ᐅ A₁ ⊦ B₀ ≐ B₁ type
 
-Γ ᐅ A₀ ᐅ A₀[↑] ⊦ R₀ type
-Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₁ type
+Γ ᐅ A₀ ᐅ A₀[↑] ⊦ R₀ : Ω
+Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₁ : Ω
 Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ type
 --------------------------------- (ty-quot-inj)
 Γ ⊦ A₀ ≐ A₁ type
-Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₀ ≐ R₁ type
+Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
 
 Γ ⊦ (a₀ ≡ b₀ ∈ T₀) ≐ (a₁ ≡ b₁ ∈ T₁) type
 ------------------------------------------ (ty-eq-inj)
@@ -656,12 +685,12 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ a₀ ≐ a₁ : 𝕌
 Γ ᐅ El a₁ ⊦ b₀ ≐ b₁ : 𝕌
 
-Γ ᐅ El a₀ ᐅ (El a₀)[↑] ⊦ r₀ : 𝕌
-Γ ᐅ El a₁ ᐅ (El a₁)[↑] ⊦ r₁ : 𝕌
+Γ ᐅ El a₀ ᐅ (El a₀)[↑] ⊦ r₀ : Ω
+Γ ᐅ El a₁ ᐅ (El a₁)[↑] ⊦ r₁ : Ω
 Γ ⊦ a₀ / r₀ ≐ a₁ / r₁ : 𝕌
 ---------------------------------------- (code-quot-inj)
 Γ ⊦ a₀ ≐ a₁ : 𝕌
-Γ ᐅ El a₁ ᐅ (El a₁)[↑] ⊦ r₀ ≐ r₁ : 𝕌
+Γ ᐅ El a₁ ᐅ (El a₁)[↑] ⊦ r₀ ≐ r₁ : Ω
 
 Γ ⊦ (a₀ ≡ b₀ ∈ t₀) ≐ (a₁ ≡ b₁ ∈ t₁) : 𝕌
 ------------------------------------------ (code-eq-inj)
@@ -743,7 +772,7 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ (a₀ ≡ a₁ ∈ A) : 𝕌
 
 Γ ⊦ A : 𝕌
-Γ ᐅ El A ᐅ (El A)[↑] ⊦ R : 𝕌
+Γ ᐅ El A ᐅ (El A)[↑] ⊦ R : Ω
 ------------------------------ (code-quot)
 Γ ⊦ A / R : 𝕌
 
@@ -877,28 +906,28 @@ e˲ : Γ₁ ⇒ Γ norm
 
 // Quotients.
 
-Γ ᐅ A ᐅ A[↑] ⊦ R type
+Γ ᐅ A ᐅ A[↑] ⊦ R : Ω
 Γ ⊦ a : A
 ------------------------- (el-quot-i)
 Γ ⊦ class a : A / R
 
-Γ ᐅ A ᐅ A[↑] ⊦ R type
+Γ ᐅ A ᐅ A[↑] ⊦ R : Ω
 Γ ⊦ a : A
 Γ ⊦ b : A
-Γ ⊦ r : R[id, a, b]
+Γ ⊦ r : Prf R[id, a, b]
 ------------------------------------ (el-quot-eq) // R-related elements have equal classes
 Γ ⊦ class a ≐ class b : A / R
 
 Γ ᐅ (A / R) ⊦ B type
 Γ ᐅ A ⊦ f : B[↑, class ☐₀]
-Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Γ ᐅ A ᐅ A[↑] ᐅ Prf R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
 Γ ⊦ q : A / R
 ------------------------------------ (el-quot-e, motive B)
 Γ ⊦ quot-elim f q : B[id, q]
 
 Γ ᐅ (A / R) ⊦ B type
 Γ ᐅ A ⊦ f : B[↑, class ☐₀]
-Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Γ ᐅ A ᐅ A[↑] ᐅ Prf R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
 Γ ⊦ a : A
 ------------------------------------------------------------ (el-quot-beta)
 Γ ⊦ quot-elim f (class a) ≜ f[id, a] : B[id, class a]
@@ -906,11 +935,151 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ᐅ (A / R) ⊦ B type
 Γ ᐅ (A / R) ⊦ g : B
 Γ ᐅ A ⊦ f : B[↑, class ☐₀]
-Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Γ ᐅ A ᐅ A[↑] ᐅ Prf R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
 Γ ᐅ A ⊦ g[↑, class ☐₀] ≐ f : B[↑, class ☐₀]
 Γ ⊦ q : A / R
 ---------------------------------------------- (el-quot-eta, motive B)
 Γ ⊦ g[id, q] ≐ quot-elim f q : B[id, q]
+
+// Ω: squash, proof irrelevance, propositional extensionality.
+//
+// Ω is a second universe, of mere propositions; its equality
+// discipline is the mirror image of 𝕌's. 𝕌's codes are compared
+// STRUCTURALLY (the injectivity block); Ω's codes are compared by
+// INHABITATION alone (code-prop-eq). Each discipline is sound only on
+// its own side of the fence, so the universes must not mix: there is
+// no code for Ω or for Prf p in 𝕌, and no Ω analogue of any
+// inj rule.
+//
+// Notes:
+//  * Realizer irrelevance is FORCED, not chosen: code-prop-eq +
+//    ty-prf-cong + el-ty-coe move an element between the decodings of
+//    iff-equal props UNCHANGED, which is sound only if those decodings
+//    have literally the same canonical forms. So Prf p never exposes
+//    the squashed proofs: its one canonical form is ⋆ (cf. NuPRL's
+//    Ax), and el-prf-prop equates all members. Consequently there is
+//    no Prf-beta — Prf ∥A∥ does NOT reduce to A — and no
+//    code-squash-inj / ty-prf-inj: ∥𝟙∥ ≐ ∥Z ≡ Z ∈ ℕ∥ : Ω holds by
+//    code-prop-eq while the squashees are structurally distinct. Ω
+//    adds no computation rules beyond substitution actions; the
+//    preface's normalization story is unchanged.
+//  * Squash is the only way in: ∥-∥ takes an arbitrary TYPE, not a
+//    𝕌-code, so the connectives are signature definitions, not rules —
+//      ⊤ ≔ ∥𝟙∥,  ⊥ ≔ ∥𝟘∥,  p ∧ q ≔ ∥Prf p ⨯ (Prf q)[↑]∥,
+//      p ⊃ q ≔ ∥Prf p → (Prf q)[↑]∥,  ∀ over A ≔ ∥A → Prf p∥,
+//      ∃ over A ≔ ∥A ⨯ Prf p∥,  squashed equality ≔ ∥a ≡ b ∈ A∥
+//    — and every definable prop is ∥-∥-headed, so the eliminators
+//    below lose no generality; derived intro/elim principles come
+//    from el-squash-i / el-squash-e-* over the underlying former.
+//  * Elimination goes only into equations and props: a squashed
+//    hypothesis may be unsquashed exactly when the goal cannot
+//    observe WHICH proof was used — equational goals (judgements do
+//    not consult realizers) and propositional goals (the realizer is
+//    ⋆ either way). el-squash-e-eq is not subsumed by
+//    el-squash-e-prf: it reaches equations at LARGE types (e.g.
+//    a₀ ≐ a₁ : 𝕌), which have no prop code to route through. There is
+//    deliberately NO eliminator into arbitrary types — el-prf-prop
+//    would force it constant, and it would refute realizer
+//    irrelevance in the model. The eliminators need no congruence
+//    rules: their conclusions are equations, respectively ⋆-typings
+//    covered by el-prf-prop.
+//  * IMPREDICATIVITY. ∥-∥ squashes arbitrary types, including
+//    quantifications over Ω itself and over 𝕌. This is sound
+//    because the candidate denotations of props form a FIXED
+//    two-point lattice — ∅ and {(⋆,⋆)} — that does not grow with the
+//    quantification domain: a universally quantified prop is an
+//    infimum in that lattice, realized uniformly by λ ⋆ (precedent:
+//    the PER models of the Calculus of Constructions). The
+//    restrictions above are the license for this; each blocks a known
+//    paradox:
+//      - proof irrelevance blocks Girard/Hurkens: nothing can be
+//        stored in a prop and retrieved for diagonalization (in
+//        particular, Church encodings through Ω are sterile — no
+//        data can be smuggled past the size restrictions);
+//      - no elimination into arbitrary types blocks unique choice /
+//        description, and with it the quotient+choice collapses
+//        (Chicli–Pottier–Simpson);
+//      - no Ω-code in 𝕌 blocks Reynolds/Cantor: A → Ω stays
+//        large, so no type contains its own powerset. Note that
+//        prf-codes themselves are DERIVABLE from the Ω-valued
+//        quotient slot: prf r ≜ (class Z ≡ class (S Z) ∈ ℕ / r̂), a
+//        𝕌-code whose decoding is inhabited iff r — el-quot-eq plus
+//        coercion one way, effectivity along ∥x ≡ y ∈ ℕ∥ ∨ r the
+//        other. So 𝕌's element slots already contain Ω up to iff,
+//        and the load-bearing prohibition is exactly the first
+//        clause: no code for Ω ITSELF. Propositions and powersets
+//        embed only into the CODES of 𝕌 — a large collection — never
+//        into the elements of a small type: equality at 𝕌 has no
+//        code (code-eq needs an El-ambient), El A → 𝕌 is large, and
+//        quotient elements cannot store a proposition (coherence
+//        forces eliminators out of 𝟙/r̂-style types constant).
+//    Payoff: least relations by intersection — e.g. an equivalence
+//    closure r⁺ of an arbitrary relation r, defined by quantifying
+//    over all Ω-valued relations containing r — with no inductive
+//    machinery. And since code-quot takes its relation at Ω rather
+//    than at 𝕌, A / r⁺ is still a 𝕌-code: quotients by generated
+//    congruences stay small.
+//  * Consequences for quotients (whose relation slot is Ω-valued —
+//    see ty-quot):
+//      1. Mutually implied relations give EQUAL quotient types:
+//         code-prop-eq under Γ ᐅ A ᐅ A[↑] gives R₀ ≐ R₁ : Ω, then
+//         ty-quot-cong; dually ty-quot-inj returns only iff-content.
+//         A proof-relevant presentation is recovered as A / ∥R∥.
+//      2. Effectivity: for R : Ω over Γ ᐅ A ᐅ A[↑], an equivalence
+//         at squash level, class a ≐ class b : A / R implies
+//         Prf R[id, a, b] inhabited — via quot-elim at the constant
+//         motive Ω with f ≔ R[id, a, ☐₀], coherence discharged by
+//         code-prop-eq from symmetry/transitivity, then el-quot-beta,
+//         ty-prf-cong and el-ty-coe on ⋆. Combined with r⁺ above this
+//         characterizes quotient equality for ARBITRARY relations.
+//      3. Squashed equalities reflect: from s : Prf ∥a₀ ≡ a₁ ∈ B∥,
+//         el-squash-e-eq + el-reflect give a₀ ≐ a₁ : B — squashing
+//         loses no equational content.
+//  * SEMANTICS. ⟦Prf p⟧ = {(t,t') | t ⇓ ⋆ and t' ⇓ ⋆} if p's squashee
+//    is inhabited, ∅ otherwise; ∥A∥ ~ ∥B∥ : Ω iff A and B are
+//    equi-inhabited. code-prop-eq holds on the nose (iff-equal props
+//    have IDENTICAL decodings); el-squash-e-* are validated by
+//    instantiating their premise at any closed witness — the
+//    conclusion never consults which one. Model note: the prop layer
+//    cannot be built by the same stagewise induction as the rest of
+//    the type system (the Π-over-Ω clause consults Ω's full
+//    domain, non-monotonically); it is instead given IN ADVANCE — the
+//    fixed lattice above, with prop-truth defined against the full
+//    type system. A two-layer construction, as in the PER models of
+//    CC. The Ω-valued quotient slot adds no further impredicative
+//    dependency: the quotient clause consumes Ω-truth POINTWISE
+//    (⟦El (A / R)⟧ is ⟦El A⟧ coarsened by the truth of R at each
+//    pair), so quotient codes stay small however impredicative their
+//    relation — propositional resizing, in HoTT terms, which the PER
+//    model validates.
+
+Γ ⊦ A type
+------------------ (code-squash)
+Γ ⊦ ∥A∥ : Ω
+
+Γ ᐅ Prf p ⊦ s : (Prf q)[↑]
+Γ ᐅ Prf q ⊦ t : (Prf p)[↑]
+----------------------------- (code-prop-eq) // propositional extensionality:
+Γ ⊦ p ≐ q : Ω                             //   mutually implied props are equal codes
+
+Γ ⊦ t : A
+--------------------- (el-squash-i)
+Γ ⊦ ⋆ : Prf ∥A∥
+
+Γ ⊦ t₀ : Prf p
+Γ ⊦ t₁ : Prf p
+----------------------- (el-prf-prop)
+Γ ⊦ t₀ ≐ t₁ : Prf p
+
+Γ ⊦ s : Prf ∥A∥
+Γ ᐅ A ⊦ b₀[↑] ≐ b₁[↑] : B[↑]
+------------------------------ (el-squash-e-eq)
+Γ ⊦ b₀ ≐ b₁ : B
+
+Γ ⊦ s : Prf ∥A∥
+Γ ᐅ A ⊦ t : (Prf q)[↑]
+------------------------ (el-squash-e-prf)
+Γ ⊦ ⋆ : Prf q
 
 // Signature references.
 
@@ -970,10 +1139,15 @@ e˲ : Δ ⇒ Γ norm
 Γ₀ ⊦ (a₀ ≡ a₁ ∈ A)[σ] ≜ (a₀[σ] ≡ a₁[σ] ∈ A[σ]) : 𝕌
 
 Γ₁ ⊦ A : 𝕌
-Γ₁ ᐅ El A ᐅ (El A)[↑] ⊦ R : 𝕌
+Γ₁ ᐅ El A ᐅ (El A)[↑] ⊦ R : Ω
 σ : Γ₀ ⇒ Γ₁
 ------------------------------------------ (el-sub-code-quot)
 Γ₀ ⊦ (A / R)[σ] ≜ A[σ] / R[σ⁺⁺] : 𝕌
+
+Γ₁ ⊦ A type
+σ : Γ₀ ⇒ Γ₁
+------------------------------------ (el-sub-squash)
+Γ₀ ⊦ ∥A∥[σ] ≜ ∥A[σ]∥ : Ω
 
 Γ₁ ᐅ A ⊦ f : B
 σ : Γ₀ ⇒ Γ₁
@@ -1009,6 +1183,11 @@ e˲ : Δ ⇒ Γ norm
 ------------------------------------------------------ (el-sub-refl)
 Γ₀ ⊦ Refl[σ] ≜ Refl : (a[σ] ≡ a[σ] ∈ A[σ])
 
+Γ₁ ⊦ ⋆ : Prf p
+σ : Γ₀ ⇒ Γ₁
+--------------------------------- (el-sub-star)
+Γ₀ ⊦ ⋆[σ] ≜ ⋆ : (Prf p)[σ]
+
 Γ ᐅ ℕ ⊦ A type
 Γ ⊦ z : A[id, Z]
 Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
@@ -1017,7 +1196,7 @@ e˲ : Δ ⇒ Γ norm
 ------------------------------------------------------------------- (el-sub-nat-e)
 Δ ⊦ (ℕ-elim z s t)[σ] ≜ ℕ-elim z[σ] s[σ⁺⁺] t[σ] : A[σ, t[σ]]
 
-Γ ᐅ A ᐅ A[↑] ⊦ R type
+Γ ᐅ A ᐅ A[↑] ⊦ R : Ω
 Γ ⊦ a : A
 σ : Δ ⇒ Γ
 ---------------------------------------------------- (el-sub-class)
@@ -1025,7 +1204,7 @@ e˲ : Δ ⇒ Γ norm
 
 Γ ᐅ (A / R) ⊦ B type
 Γ ᐅ A ⊦ f : B[↑, class ☐₀]
-Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Γ ᐅ A ᐅ A[↑] ᐅ Prf R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
 Γ ⊦ q : A / R
 σ : Δ ⇒ Γ
 ------------------------------------------------------------------ (el-sub-quot-e)
@@ -1144,7 +1323,7 @@ e˲ : Γ₁ ⇒ Γ norm
 ------------------------------------ (el-zero-e-cong) // stronger than a congruence: no t⁼ premise
 Γ ⊦ 𝟘-elim t₀ ≐ 𝟘-elim t₁ : A
 
-Γ ᐅ A ᐅ A[↑] ⊦ R type
+Γ ᐅ A ᐅ A[↑] ⊦ R : Ω
 Γ ⊦ a₀ ≐ a₁ : A
 --------------------------------------- (el-class-cong)
 Γ ⊦ class a₀ ≐ class a₁ : A / R
@@ -1152,8 +1331,8 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ᐅ (A / R) ⊦ B type
 Γ ᐅ A ⊦ f₀ : B[↑, class ☐₀]
 Γ ᐅ A ⊦ f₁ : B[↑, class ☐₀]
-Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f₀[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f₀[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
-Γ ᐅ A ᐅ A[↑] ᐅ R ⊦ f₁[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f₁[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Γ ᐅ A ᐅ A[↑] ᐅ Prf R ⊦ f₀[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f₀[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Γ ᐅ A ᐅ A[↑] ᐅ Prf R ⊦ f₁[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f₁[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
 Γ ᐅ A ⊦ f₀ ≐ f₁ : B[↑, class ☐₀]
 Γ ⊦ q₀ ≐ q₁ : A / R
 ------------------------------------------------------ (el-quot-e-cong, motive B)
@@ -1178,9 +1357,13 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ (a₀ ≡ b₀ ∈ A₀) ≐ (a₁ ≡ b₁ ∈ A₁) : 𝕌
 
 Γ ⊦ A₀ ≐ A₁ : 𝕌
-Γ ᐅ El A₁ ᐅ (El A₁)[↑] ⊦ R₀ ≐ R₁ : 𝕌
+Γ ᐅ El A₁ ᐅ (El A₁)[↑] ⊦ R₀ ≐ R₁ : Ω
 --------------------------------------- (code-quot-cong)
 Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ : 𝕌
+
+Γ ⊦ A₀ ≐ A₁ type
+--------------------------- (code-squash-cong) // admissible via code-prop-eq + el-ty-coe
+Γ ⊦ ∥A₀∥ ≐ ∥A₁∥ : Ω
 
 ///////// Rules (elem list) /////////
 
