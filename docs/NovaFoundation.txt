@@ -28,6 +28,15 @@ We have:
  * A universe: 𝕌
  * Quotient type: (/), by an Ω-valued relation
  * A universe of mere propositions: Ω (squash ∥-∥, propositional extensionality)
+ * Quotient inductive-inductive types (QIITs): a SCHEME (not a single
+   former) — signatures `qiit 𝒮` declaring mutually-defined, possibly
+   index-dependent sorts with point AND equation (path) constructors,
+   and the dependent eliminator each signature licenses. This subsumes
+   ℕ and (/) (each a one-line signature), including indexed inductive
+   types and quotient inductive types as special cases; its equation
+   constructors are INDUCTIVE (they may relate constructor terms across
+   indices and participate in the induction). ℕ and (/) are retained
+   for now.
 
 ///////////// Syntax ///////////////
 
@@ -37,6 +46,10 @@ x ::= <signature-entry-identifier>
 Σ ::= ε
     | Σ (Γ ⊦ x ≔ a : A)     // term definition
     | Σ (Γ ⊦ x ≔ T type)    // type definition
+    | Σ (Γ ⊦ qiit 𝒮)        // quotient inductive-inductive declaration:
+                            //   adds all of 𝒮's sorts and constructors to
+                            //   Σ at once (see "Quotient inductive-inductive
+                            //   types" below for 𝒮 and the rules it licenses)
 
 // typing context
 Γ ::= ε      // empty typing context
@@ -218,6 +231,15 @@ x ∉ Σ
 x ∉ Σ
 ---------------------- (sig-ty-def)
 Σ (Γ ⊦ x ≔ A type) sig
+
+Σ Γ ⊦ 𝒮 qsig               // 𝒮 a well-formed QIIT signature over Γ
+names(𝒮) ∩ Σ = ∅          // every sort/constructor name of 𝒮 is fresh
+--------------------- (sig-qiit)
+Σ (Γ ⊦ qiit 𝒮) sig
+// The entry adds each declared name of 𝒮 to Σ, referenced as x[e˲]
+// exactly like any other signature symbol. The judgement `𝒮 qsig` and
+// what the entry licenses are given in "Quotient inductive-inductive
+// types" below.
 
 ///////// Rules (ctx) /////////
 
@@ -1080,6 +1102,211 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ᐅ A ⊦ t : (Prf q)[↑]
 ------------------------ (el-squash-e-prf)
 Γ ⊦ ⋆ : Prf q
+
+///////// Quotient inductive-inductive types (signatures) /////////
+//
+// The formers ℕ and quotient each add ONE type. QIITs add a SCHEME: a
+// family of mutually-defined, possibly index-dependent sorts, generated
+// freely by point constructors and quotiented by equation constructors
+// — the inductive-inductive quotient types of Altenkirch–Kaposi, whose
+// "theory of signatures" Nova's Σ already resembles. The scheme
+// SUBSUMES ℕ and (/) (each is a one-line signature), and covers indexed
+// inductive types (well-founded trees included) and quotient inductive
+// types generally; ℕ and (/) are retained for now.
+//
+// THE EXTENSIONAL PAYOFF. Under equality reflection (with Ω for
+// proof-irrelevance) every type is a set: no higher paths, no coherence
+// tower, no transport. A path constructor is therefore an equation
+// IMPOSED judgementally (via el-reflect), and the eliminator's path
+// premises collapse to WELL-DEFINEDNESS conditions — precisely
+// quot-elim's f⁼ premise, one per equation, with no apd/transport.
+// This degeneration is what lets the scheme be POSTULATED precisely
+// rather than through a tower of coherences (contrast the intensional
+// HIIT signatures, which need the full apparatus).
+
+// SIGNATURES. A QIIT signature 𝒮 (over the entry's parameter context Γ)
+// is an ORDERED context of declarations, each free to reference those
+// before it — that ordering is what makes the scheme
+// inductive-INDUCTIVE (a later sort may be indexed by an earlier one):
+//
+//   𝒮 ::= ⬦                          // empty
+//       | 𝒮, (𝕤 : Δ ⇛ U)            // SORT: a type family indexed by Δ
+//       | 𝒮, (𝕔 : Θ ⇛ 𝕤 ē)          // POINT constructor into 𝕤 at ē
+//       | 𝒮, (𝕔 : Θ ⇛ l ≡ r ∈ 𝕤 ē)  // EQUATION (path) constructor
+//
+//   ⇛ separates a telescope of arguments from a result (a
+//   signature-level notation, not Nova's →). Δ (a sort's index
+//   telescope) and Θ (a constructor's argument telescope) have entries
+//   each of which is either
+//     * EXTERNAL — a type mentioning NO sort of 𝒮 (a parameter or an
+//       index drawn from an already-existing type, e.g. an external ℕ);
+//       or
+//     * RECURSIVE (in Θ only) — Ξ ⇛ 𝕤ⱼ w̄, a function from an external
+//       telescope Ξ (no sorts) into a sort 𝕤ⱼ at indices w̄: the SOLE
+//       strictly-positive recursive shape. A sort never occurs left of
+//       a →, nor under any former other than this.
+//   ē, w̄ are index spines; l, r are terms of sort 𝕤 ē built from Θ's
+//   variables and the preceding POINT constructors (free-algebra terms).
+//
+//   Strict positivity is thus STRUCTURAL — the grammar cannot write a
+//   non-positive argument, exactly as in the theory of signatures (U is
+//   not closed under the recursive arrow). See the relaxation note.
+
+// WELL-FORMEDNESS. Γ ⊦ 𝒮 qsig is defined by meta-level recursion over
+// the context 𝒮: ⬦ is well-formed; a sort extends 𝒮 with a fresh
+// type-family symbol (Δ checked as a telescope over Γ and the sorts so
+// far); a point constructor checks Θ against the positivity grammar and
+// its result indices ē; an equation constructor additionally checks
+// that l, r are terms of the stated sort. names(𝒮) collects the
+// declared sort/constructor names (all required fresh by sig-qiit).
+
+// IDENTITY (structural, with a same-name shortcut). A QIIT sort's
+// equality is STRUCTURAL — homogeneous with every other former in this
+// file. Two sorts are equal when their SIGNATURES are equal, compared
+// INTENSIONALLY: as finite syntax modulo α-renaming of the signature's
+// own sort/constructor binders (and of ordinary bound variables),
+// exactly as universe codes are compared. The self-reference of an
+// inductive-inductive signature is a BOUND reference inside the finite
+// signature, so the comparison is finite and iso-recursive — it never
+// unfolds the fixpoint into its carrier (F[μF]) and needs no
+// equirecursive/coinductive machinery. (α-signature-equality is finer
+// than initial-algebra isomorphism — it distinguishes constructor
+// reorderings — but it is SOUND, and choosing a syntactic granularity
+// over the semantic one is the same commitment the code-injectivity
+// block already makes for the base formers: models that collapse
+// structurally-distinct types are excluded.)
+//
+// SAME-NAME SHORTCUT (a conversion-procedure discipline, not a rule).
+// Names are fresh (sig-qiit), so a name identifies its declaration
+// uniquely. When both sides reference the SAME name,
+//       x[e˲] ≐ x[e˲']   is concluded from   e˲ ≐ e˲'
+// with NO unfolding — same name ⟹ same signature ⟹ structural
+// congruence. The procedure MUST take this positive step BEFORE the
+// sides are normalized: eager β/δ (which unfolds x[e˲] to its signature
+// with e˲ pushed inside — ty-sig-beta) loses the shared name and forces
+// the full, far costlier, signature walk. This is the standard
+// rigid-rigid-before-δ discipline, which QIITs make mandatory rather
+// than merely economical; in the certificate kernel the same-name
+// congruence must be verifiable before normalization unfolds the
+// reference. Different names, or a failed e˲ match, fall through to
+// δ-unfolding and structural signature comparison — that fallback is
+// what keeps the equality COMPLETE (two differently-named but α-equal
+// signatures are still equal). Omitting the fallback is only ever
+// incomplete, NEVER unsound: a missed equality is a spurious obligation,
+// not a bad acceptance.
+//
+// Consequently the theory is UNIFORMLY structural, QIITs included, so
+// (/) is a genuine INLINE instance — A / R is
+//     qiit (𝕢 : U; cls : (A) ⇛ 𝕢;
+//           eq : (a b : A)(_ : Prf R) ⇛ cls a ≡ cls b ∈ 𝕢)
+// — and the primitive (/) is kept for convenience, not necessity. (The
+// nominal/generative alternative, in which QIITs would be the one
+// non-structural former and (/) could not be reduced to one, was
+// rejected for that disharmony.)
+
+// WHAT THE ENTRY LICENSES. Every symbol of 𝒮 is referenced as x[e˲],
+// with e˲ substituting the parameters Γ together with the sort's
+// indices resp. the constructor's arguments (the declaration context is
+// Γ extended by Δ resp. Θ). The three rules below are parameterized by
+// membership in 𝒮, exactly as ty-sig-var/el-sig-var are parameterized
+// by membership in Σ; the eliminator that follows is genuinely
+// schematic and stated by meta-recursion.
+
+// Formation — for each sort: a postulated type family. A sort has no
+// ι/β-reduction of its own (its only computation is the eliminator's β);
+// its equality is structural per IDENTITY above, short-circuited by the
+// same-name rule.
+
+(Γ ⊦ qiit 𝒮) ∈ Σ      (𝕤 : Δ ⇛ U) ∈ 𝒮      e˲ : Ξ ⇒ Γ·Δ norm
+-------------------------------------------------------------- (ty-qiit-sort)
+Σ Ξ ⊦ 𝕤[e˲] type
+
+// Introduction — for each point constructor: a postulated term symbol,
+// computing only under the eliminator (no unfolding).
+
+(Γ ⊦ qiit 𝒮) ∈ Σ      (𝕔 : Θ ⇛ 𝕤 ē) ∈ 𝒮      e˲ : Ξ ⇒ Γ·Θ norm
+--------------------------------------------------------------- (el-qiit-intro)
+Σ Ξ ⊦ 𝕔[e˲] : 𝕤 ē[e˲]
+
+// Path — for each equation constructor: a postulated proof, hence — by
+// el-reflect — an IMPOSED ≐-equation.
+
+(Γ ⊦ qiit 𝒮) ∈ Σ      (𝕔 : Θ ⇛ l ≡ r ∈ 𝕤 ē) ∈ 𝒮      e˲ : Ξ ⇒ Γ·Θ norm
+--------------------------------------------------------------------- (el-qiit-path)
+Σ Ξ ⊦ 𝕔[e˲] : (l[e˲] ≡ r[e˲] ∈ 𝕤 ē[e˲])
+// whence  Σ Ξ ⊦ l[e˲] ≐ r[e˲] : 𝕤 ē[e˲]  by el-reflect
+
+// ELIMINATION (induction) + COMPUTATION. The dependent eliminator is
+// determined by 𝒮, by meta-recursion — the standard displayed-algebra
+// (-ᴰ) and section (-ˢ) translations, which extensionality makes
+// concrete:
+//   * MOTIVES: for each sort (𝕤 : Δ ⇛ U), a family
+//         C_𝕤  over  Γ·Δ ᐅ 𝕤[…]        (over the indices and an
+//                                       inhabitant of the sort).
+//   * METHODS: for each point constructor (𝕔 : Θ ⇛ 𝕤 ē), a term
+//         building  C_𝕤(ē, 𝕔 args)  from Θ's arguments together with,
+//         for each RECURSIVE argument (Ξ ⇛ 𝕤ⱼ w̄), its induction
+//         hypothesis  (Ξ → C_𝕤ⱼ(w̄, that argument applied)).   (-ᴰ of Θ)
+//   * COHERENCE (well-definedness): for each equation constructor
+//         (𝕔 : Θ ⇛ l ≡ r ∈ 𝕤 ē), the premise that the method-images of
+//         the two sides agree,
+//             ⟦l⟧ ≐ ⟦r⟧ : C_𝕤(ē, l)          (extensional; no transport)
+//         where ⟦·⟧ sends a free-algebra term to its value under the
+//         methods. This is quot-elim's f⁼, one per equation.
+//   Given all motives, methods and coherence premises, for each sort:
+//         elim_𝕤 : (v̄ : Δ)(x : 𝕤 v̄) → C_𝕤(v̄, x)              (section)
+//   and, for each point constructor, the β-rule:
+//         elim_𝕤 (𝕔 args) ≜ method_𝕔(args, elim_ on the recursive args)
+//   Equation constructors have NO β-rule: a proof of an equality
+//   carries no computational content — el-reflect already consumed it.
+
+// NOTES.
+//   * SUBSUMPTION. ℕ ≡ qiit (𝕟 : U; Z : ⬦ ⇛ 𝕟; S : (𝕟) ⇛ 𝕟). The
+//     quotient A / R ≡ qiit (𝕢 : U; cls : (A) ⇛ 𝕢;
+//       eq : (a b : A)(_ : Prf R) ⇛ cls a ≡ cls b ∈ 𝕢). An indexed
+//     inductive type (well-founded trees included) is a sorts-only
+//     signature: sorts indexed by I, one point constructor per node
+//     shape whose recursive arguments are the subtrees. Because QIIT
+//     equality is structural (IDENTITY above), these are genuine
+//     equalities, not just encodings: ℕ and (/) are kept for
+//     convenience but are now DERIVABLE, each a one-line signature.
+//   * RELAXATION. Strict positivity here is structural (the argument
+//     grammar). It is the DECIDABLE proxy for a semantic condition: that
+//     the signature's operator be monotone on the PER lattice. A future
+//     revision may drop the grammar restriction in favour of a
+//     monotonicity obligation stated as an ordinary premise, admitting
+//     monotone-but-not-positive operators; postulated here in the
+//     positive fragment only.
+//   * SEMANTICS. The postulate asserts that 𝒮's INITIAL ALGEBRA exists
+//     in the canonical-forms model: carriers are the constructor terms
+//     quotiented by the congruence GENERATED by the equation
+//     constructors, elim_𝕤 is the unique section into any displayed
+//     algebra, and β holds on the nose. This is the initiality
+//     commitment of Altenkirch–Kaposi–Kovács (finitary QIITs),
+//     transported to the extensional PER setting where the coherence
+//     tower degenerates. As with the injectivity rules, models that fail
+//     initiality are hereby excluded.
+
+// EXAMPLE (inductive-inductive: contexts and types).
+//     qiit ( Con : ⬦ ⇛ U
+//          ; Ty  : (Con) ⇛ U
+//          ; ⋄   : ⬦ ⇛ Con
+//          ; ext : (Γ : Con)(A : Ty Γ) ⇛ Con                 // Γ ▷ A
+//          ; u   : (Γ : Con) ⇛ Ty Γ
+//          ; pi  : (Γ : Con)(A : Ty Γ)(B : Ty (ext Γ A)) ⇛ Ty Γ )
+//   Con and Ty are mutually indexed (Ty is indexed by Con); induction
+//   is induction-induction — a motive for Con and a motive for Ty over
+//   it, methods respecting the dependency.
+//
+// EXAMPLE (quotient: finite multisets over an external type A).
+//     qiit ( Bag : ⬦ ⇛ U
+//          ; nil : ⬦ ⇛ Bag
+//          ; ins : (a : A)(m : Bag) ⇛ Bag                     // a ∷ m
+//          ; swp : (a b : A)(m : Bag) ⇛ ins a (ins b m)
+//                                        ≡ ins b (ins a m) ∈ Bag )
+//   swp is an equation constructor; Bag's eliminator carries the
+//   coherence premise that the method for ins is invariant under
+//   swapping the two heads — the multiset laws, no transport.
 
 // Signature references.
 
