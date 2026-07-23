@@ -1,0 +1,1 @@
+Error: def bad: cannot infer the type of squash-elim (ascribe the term: `(t : T)`)

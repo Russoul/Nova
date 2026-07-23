@@ -76,8 +76,16 @@ mutual
     SQuotElim : (z : String) -> STy -> (a : String) -> SElem -> SElem -> SElem
     ||| ∥T∥ — squash: proposition from an arbitrary type
     SSquash : STy -> SElem
-    ||| ⋆ — the canonical proof of a true proposition
+    ||| ⋆ — the canonical proof of a true proposition (evident 𝟙-/
+    ||| ≡-shaped squashees only; the witness is auto-synthesized)
     SStar : SElem
+    ||| ⋆ e — el-squash-i with an explicit witness: e proves the
+    ||| squashee directly, for squashees of any shape
+    SStarWit : SElem -> SElem
+    ||| squash-elim e (x. body) — el-squash-e-prf: eliminate a proof of
+    ||| a squashed proposition into a further proposition, via a
+    ||| hypothetical inhabitant x of the raw squashee
+    SSquashElim : SElem -> (name : String) -> SElem -> SElem
     ||| (t : T) — ascription; the lever into inference mode
     SAnn : SElem -> STy -> SElem
 
@@ -188,6 +196,8 @@ mutual
       "QuotElim \{z} (\{show mot}) \{a} (\{show f}) (\{show q})"
     show (SSquash t) = "Squash (\{show t})"
     show SStar = "⋆"
+    show (SStarWit e) = "⋆ (\{show e})"
+    show (SSquashElim e x body) = "SquashElim (\{show e}) \{x} (\{show body})"
     show (SAnn t ty) = "Ann (\{show t}) (\{show ty})"
 
 export

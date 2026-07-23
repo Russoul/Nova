@@ -367,6 +367,10 @@ payloads:
     | expose T 𝒞          (PExpose)   head exposure at a checked intro
     | squash-wit e ⟨sk⟩   (PSquashWit) the witness behind a checked
                                       ⋆ : Prf ∥A∥ (el-squash-i)
+    | squash-elim e ⟨ske⟩  (PSquashElim) el-squash-e-prf: scrutinee e
+        b ⟨skb⟩                       (inhabiting Prf ∥A∥) and a body b
+                                      proving (Prf q)[↑] under the raw
+                                      squashee A
 
 A payload is consumed when used (a node may carry several; order is
 immaterial). Missing children default to empty nodes.
@@ -402,6 +406,13 @@ Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
      nf(T) ⇓ Prf ∥A∥    sk carries squash-wit e ⟨ske⟩   Σ; Γ ⊦ e ⇐ A ⟨ske⟩
      -------------------------------------------------------------------
      Σ; Γ ⊦ ⋆ ⇐ T ⟨sk⟩                                  // el-squash-i
+
+     nf(T) ⇓ Prf q    sk carries squash-elim e ⟨ske⟩ b ⟨skb⟩
+     Σ; Γ ⊦ e ⇒ Prf ∥A∥ ⟨ske⟩    Σ; Γ ᐅ A ⊦ b ⇐ (Prf q)[↑] ⟨skb⟩
+     ----------------------------------------------------------
+     Σ; Γ ⊦ ⋆ ⇐ T ⟨sk⟩                            // el-squash-e-prf
+     // disambiguated from el-squash-i above purely by which payload sk
+     // carries; both erase to the same ⋆ (realizer irrelevance)
 
      Σ; Γ ⊦ t ⇐ 𝟘 ⟨sk.0⟩
      ----------------------------                        // el-zero-e

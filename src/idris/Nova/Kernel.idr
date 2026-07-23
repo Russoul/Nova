@@ -80,6 +80,10 @@ mutual
     ||| the witness behind a checked ⋆ : Prf ∥A∥ (el-squash-i: an
     ||| inhabitant of the squashee)
     PSquashWit : Elem -> Skel -> Payload
+    ||| the hypothetical proof behind a checked squash-elim
+    ||| (el-squash-e-prf): scrutinee inhabiting Prf ∥A∥, plus a body
+    ||| proving (Prf q)[↑] under the raw squashee A
+    PSquashElim : Elem -> Skel -> Elem -> Skel -> Payload
 
   public export
   data Skel : Type where
@@ -853,6 +857,10 @@ pSquashWit : Payload -> Maybe (Elem, Skel)
 pSquashWit (PSquashWit e sk) = Just (e, sk)
 pSquashWit _ = Nothing
 
+pSquashElim : Payload -> Maybe (Elem, Skel, Elem, Skel)
+pSquashElim (PSquashElim e esk b bsk) = Just (e, esk, b, bsk)
+pSquashElim _ = Nothing
+
 isIntro : Elem -> Bool
 isIntro (PiIntro _) = True
 isIntro (SigmaIntro _ _) = True
@@ -1026,7 +1034,25 @@ mutual
                       Squash sq => kCheckE sig ctx wit sq witSk
                       _ => kerr "kernel: ⋆ checked at Prf of a non-∥∥ code"
                   _ => kerr "kernel: ⋆ checked at a non-Prf type"
-              Nothing => kerr "kernel: ⋆ without its witness annotation"
+              -- el-squash-e-prf: squash-elim carries its scrutinee
+              -- (inhabiting Prf ∥A∥) and a body proving (Prf q)[↑]
+              -- under the raw squashee A
+              Nothing => case takeP pSquashElim sk of
+                Just ((scrut, scrutSk, body, bodySk), _) => do
+                  scrutTy <- kInferE sig ctx scrut scrutSk
+                  scrutTy' <- kTy sig scrutTy
+                  case scrutTy' of
+                    Prf p => do
+                      p' <- kElem sig p
+                      case p' of
+                        Squash a => do
+                          ty' <- kTy sig ty
+                          case ty' of
+                            Prf _ => kCheckE sig (ctx :< a) body (substTy ty Wk) bodySk
+                            _ => kerr "kernel: squash-elim checked at a non-Prf goal"
+                        _ => kerr "kernel: squash-elim scrutinee at Prf of a non-∥∥ code"
+                    _ => kerr "kernel: squash-elim scrutinee has non-Prf type"
+                Nothing => kerr "kernel: ⋆ without its witness or squash-elim annotation"
           ZeroElim t => kCheckE sig ctx t Ty.ZeroTy (skelChild 0 sk)
           _ => do
             inferred <- kInferE sig ctx e sk

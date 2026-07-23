@@ -1347,6 +1347,12 @@ preferQuot st ctx ty = case rwNfTy st ctx ty of
                          tyX@(Ty.Quotient a r) => (\e => (a, r, Just e)) <$> exposeCert st ctx ty tyX
                          _ => Nothing
 
+preferPrf : ElabSt -> Ctx -> Ty -> Maybe (Elem, Maybe (Ty, ECert))
+preferPrf st ctx (Prf p) = Just (p, Nothing)
+preferPrf st ctx ty = case rwNfTy st ctx ty of
+                        tyX@(Prf p) => (\e => (p, Just e)) <$> exposeCert st ctx ty tyX
+                        _ => Nothing
+
 ||| Attach a PExpose payload when exposure happened by normalization.
 withExpose : Maybe (Ty, ECert) -> Skel -> Skel
 withExpose Nothing sk = sk
@@ -1484,6 +1490,10 @@ mutual
     pure (Squash t', Ty.PropTy, Nd [] [tSk])
   inferElem ctx env site SStar =
     throw "\{site}: cannot infer the type of ⋆\{structuralHint}"
+  inferElem ctx env site (SStarWit _) =
+    throw "\{site}: cannot infer the type of ⋆ ⟨witness⟩\{structuralHint}"
+  inferElem ctx env site (SSquashElim _ _ _) =
+    throw "\{site}: cannot infer the type of squash-elim\{structuralHint}"
   inferElem ctx env site (SEqC l r t) = do
     (t', tSk) <- checkElem ctx env site t Ty.UniverseTy
     (l', lSk) <- checkElem ctx env site l (El t')
@@ -1543,13 +1553,7 @@ mutual
     pure (ZeroElim t', Nd [] [tSk])
   checkElem ctx env site SStar ty = do
     st <- getSt
-    let mPrf : Maybe (Elem, Maybe (Ty, ECert)) =
-          case ty of
-            Prf p => Just (p, Nothing)
-            _ => case rwNfTy st ctx ty of
-                   tyX@(Prf p) => (\e => (p, Just e)) <$> exposeCert st ctx ty tyX
-                   _ => Nothing
-    case mPrf of
+    case preferPrf st ctx ty of
       Nothing => throw "\{site}: ⋆ checked against a non-Prf type\{structuralHint}"
       Just (p, exp) =>
         -- el-squash-i: synthesize the witness of the squashee —
@@ -1561,8 +1565,37 @@ mutual
               EqTy l r t => do
                 c <- convElem ctx env "\{site}: ⋆ witness equation" Nothing l r t
                 pure (Star, withExpose exp (Nd [PSquashWit Refl (Nd [PReflEq (certOr c)] [])] []))
-              _ => throw "\{site}: ⋆ can witness only 𝟙- and ≡-shaped squashes automatically (define the inhabitant and squash it)"
+              _ => throw "\{site}: ⋆ can witness only 𝟙- and ≡-shaped squashes automatically (write `⋆ ⟨witness⟩` to supply one directly)"
           _ => throw "\{site}: ⋆ checked against Prf of a non-∥∥ code\{structuralHint}"
+  checkElem ctx env site (SStarWit w) ty = do
+    st <- getSt
+    case preferPrf st ctx ty of
+      Nothing => throw "\{site}: ⋆ checked against a non-Prf type\{structuralHint}"
+      Just (p, exp) =>
+        -- el-squash-i, general form: w proves the squashee directly,
+        -- whatever its shape
+        case betaElem st.sig p of
+          Squash sq => do
+            (w', wSk) <- checkElem ctx env site w sq
+            pure (Star, withExpose exp (Nd [PSquashWit w' wSk] []))
+          _ => throw "\{site}: ⋆ checked against Prf of a non-∥∥ code\{structuralHint}"
+  checkElem ctx env site (SSquashElim e xn body) ty = do
+    st <- getSt
+    (e', eTy, eSk) <- inferElem ctx env site e
+    case preferPrf st ctx eTy of
+      Nothing => throw "\{site}: squash-elim scrutinee has non-Prf type\{structuralHint}"
+      Just (p, _) =>
+        case betaElem st.sig p of
+          Squash a =>
+            -- el-squash-e-prf: body proves (Prf q)[↑] under a
+            -- hypothetical inhabitant of the raw squashee a; the goal
+            -- must itself be Prf q — no elimination into arbitrary types
+            case preferPrf st ctx ty of
+              Nothing => throw "\{site}: squash-elim checked against a non-Prf goal (el-squash-e-prf reaches only further propositions)\{structuralHint}"
+              Just (q, exp) => do
+                (body', bodySk) <- checkElem (ctx :< a) (env :< xn) site body (substTy (Prf q) Wk)
+                pure (Star, withExpose exp (Nd [PSquashElim e' eSk body' bodySk] []))
+          _ => throw "\{site}: squash-elim scrutinee checked against Prf of a non-∥∥ code\{structuralHint}"
   checkElem ctx env site t ty = do
     (t', inferred, tSk) <- inferElem ctx env site t
     c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty

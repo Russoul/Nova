@@ -113,10 +113,19 @@ t{2} ::= λx. t{≥1½}
        | ℕ-elim (n. T{≥0}) t{≥4} (n ih. t{≥4}) t{≥4}          // motive, z, s, scrutinee
        | class t{≥4}
        | quot-elim (z. T{≥0}) (a. t{≥0}) t{≥4}                // motive, case fn, scrutinee
+       | squash-elim t{≥4} (x. t{≥0})               // el-squash-e-prf: eliminate a
+                                                     //   proof of a squash into a
+                                                     //   further proposition
+       | ⋆ t{≥4}                          // el-squash-i, explicit witness (any A)
 t{1} ::= ((x:t{≥0}))+ → t{≥1} | ((x:t{≥0}))+ ⨯ t{≥1} | t{≥2} / (x y. t{≥1})
        | t{≥2} ≡ t{≥2} ∈ t{≥2}                                // universe codes
 // ∥T∥ (squash) and ⋆ (the canonical proof) are the Ω introductions;
-// a squashed type is an Ω-valued element
+// a squashed type is an Ω-valued element. Bare ⋆ (t{5}) auto-synthesizes
+// its witness only for evident 𝟙-/≡-shaped squashees; `⋆ e` (t{2})
+// checks e against the squashee directly, for any shape — el-squash-i
+// was always general (NovaFoundation.txt), only the auto-synthesis was
+// restricted. squash-elim is el-squash-e-prf's surface form: it has no
+// automatic counterpart since there is nothing to search for.
 t{1½} ::= t{≥2} (op t{≥2})*     // declared infix operators, by fixity
 t{0} ::= t{≥1} , t{≥0}                                        (right-assoc)
 
@@ -410,10 +419,30 @@ whnf(C) = Prf ∥A∥        (witness of A synthesized: () for 𝟙, Refl for
 Γ ⊢ ⋆ ⇐ C ⇝ ⋆
 // el-squash-i. The elaborator synthesizes the witness of A for the
 // evident inhabited shapes (𝟙, reflexive ≡); a squashee whose
-// inhabitant is not evident is a structural error (define the
-// inhabitant and squash it). Proof irrelevance (el-prf-prop) is not a
+// inhabitant is not evident is a structural error (write `⋆ e` and
+// supply one directly). Proof irrelevance (el-prf-prop) is not a
 // checking rule but a DISCHARGE final: any two proofs of a Prf type
 // are ≐, handled in the ↓ loop.
+
+whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
+--------------------------------------- (e-star-wit)          // (⋆ e)
+Γ ⊢ ⋆ e ⇐ C ⇝ ⋆
+// el-squash-i, general form: e proves the squashee directly, whatever
+// its shape (Π, Σ, anything). Erases to the same bare ⋆ as e-star —
+// realizer irrelevance means the checked witness never survives into
+// the core term, only into the skeleton (squash-wit, NovaKernel.txt)
+// for the kernel to re-verify.
+
+Γ ⊢ e ⇒ P        whnf(P) = Prf ∥A∥        whnf(C) = Prf q
+Γ ᐅ A ⊢ b ⇐ (Prf q)[↑] ⇝ b̂
+------------------------------------------------------------ (e-squash-elim)
+Γ ⊢ squash-elim e (x. b) ⇐ C ⇝ ⋆                    // (squash-elim e (x. b))
+// el-squash-e-prf: the only surface eliminator into a further
+// proposition. The goal must itself whnf to Prf q — this is the
+// structural enforcement of "no elimination into arbitrary types"
+// (the restriction that blocks unique choice / description); a
+// squash-elim checked against a non-Prf goal is a structural error.
+// Erases to ⋆, same as every Prf-typed term (realizer irrelevance).
 
 Γ ⊢ t ⇐ 𝟘 ⇝ t̂
 --------------------------- (e-zeroelim)                      // (𝟘-elim t)
@@ -429,11 +458,11 @@ whnf(C) = Prf ∥A∥        (witness of A synthesized: () for 𝟙, Refl for
 // term elaboration. Note the direction of failure: never an error —
 // the residual equation is assumed and reported.
 
-// Mode inventory. Checking-only forms: λ, pairs, Refl, class, ⋆,
-// 𝟘-elim (their types are not determined by their syntax); encountering
-// one in inference position is a structural error whose fix is an
-// ascription. Everything else — including ∥-∥ — infers and reaches
-// checking mode through e-switch.
+// Mode inventory. Checking-only forms: λ, pairs, Refl, class, ⋆, ⋆ e,
+// squash-elim, 𝟘-elim (their types are not determined by their syntax);
+// encountering one in inference position is a structural error whose
+// fix is an ascription. Everything else — including ∥-∥ — infers and
+// reaches checking mode through e-switch.
 
 //////////// Conversion and discharge (the ↓ judgements) /////////////
 

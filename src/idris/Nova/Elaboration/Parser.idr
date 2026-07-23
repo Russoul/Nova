@@ -62,8 +62,16 @@ parseName = do
                          else Nothing
             _ => Nothing)
   let name = pack (c :: cs)
+  -- S/Z/Refl/class are also reserved: unlike def/type/El/Prf/import/
+  -- infixl/infixr they're syntactically valid identifiers, so without
+  -- this a shadowing binder would parse fine and only misbehave at a
+  -- REFERENCE site — loudly for S/class (they consume a following atom,
+  -- so the parse fails deep and confusingly) or silently for Z/Refl
+  -- (bare tokens — a reference just parses as the literal zero/Refl,
+  -- no error at all).
   guard "Reserved keyword" (name /= "def" && name /= "type" && name /= "El" && name /= "Prf" &&
-                            name /= "import" && name /= "infixl" && name /= "infixr")
+                            name /= "import" && name /= "infixl" && name /= "infixr" &&
+                            name /= "S" && name /= "Z" && name /= "Refl" && name /= "class")
   pure name
 
 ||| A possibly-qualified name: x or M.x or A.B.x. The dot only counts
@@ -258,6 +266,16 @@ mutual
             f <- parseSElem tbl (env :< a); sp; char_ ')'; sp
             q <- parseSElemAtom tbl env
             pure (SQuotElim z mot a f q))
+    <|> (do str_ "squash-elim"; space
+            e <- parseSElemAtom tbl env; sp
+            char_ '('; sp; x <- parseName; sp; char_ '.'; sp
+            body <- parseSElem tbl (env :< x); sp; char_ ')'
+            pure (SSquashElim e x body))
+    <|> (do str_ "⋆"
+            w <- optional (do space; parseSElemAtom tbl env)
+            pure (case w of
+                    Nothing => SStar
+                    Just e  => SStarWit e))
     <|> parseSElemApp tbl env
 
   -- t{3}: application / projection chains
