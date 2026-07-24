@@ -217,6 +217,12 @@ matchTyP : (k : Nat) -> (d : Nat) -> (b : Nat) -> (pat : Ty) -> (tgt : Ty) -> Bi
 
 matchSpineP : (k : Nat) -> (d : Nat) -> (b : Nat) -> SubNorm -> SubNorm -> Bindings -> Maybe Bindings
 
+matchQSigP : (k : Nat) -> (d : Nat) -> (b : Nat) -> QSig -> QSig -> Bindings -> Maybe Bindings
+
+matchQTyP : (k : Nat) -> (d : Nat) -> (b : Nat) -> QTy -> QTy -> Bindings -> Maybe Bindings
+
+matchQTmP : (k : Nat) -> (d : Nat) -> (b : Nat) -> QTm -> QTm -> Bindings -> Maybe Bindings
+
 matchElemP : (k : Nat) -> (d : Nat) -> (b : Nat) -> (pat : Elem) -> (tgt : Elem) -> Bindings -> Maybe Bindings
 matchElemP k d b (CtxVar j) tgt =
   if j < b
@@ -266,17 +272,21 @@ matchElemP k d b (QuotElim f q) (QuotElim f' q') =
   \bs => matchElemP k d (1 + b) f f' bs >>= matchElemP k d b q q'
 matchElemP k d b (Squash t) (Squash t') = matchTyP k d b t t'
 matchElemP k d b Star Star = Just
--- QIIT formers: the carried signatures are CLOSED (no pattern
--- parameters can occur inside them) and compared syntactically; the
--- spines match componentwise. Eliminators likewise, motives/methods
--- included (motives cross arity+1 binders).
+-- QIIT formers: the carried signature is MATCHED through its embedded
+-- Nova pieces (a parameterized data item's signature mentions the
+-- lemma's parameters); ToS structure and positions compare rigidly,
+-- spines componentwise. Eliminators likewise, motives/methods included
+-- (motives cross arity+1 binders).
 matchElemP k d b (QSortC sg j es) (QSortC sg' j' es') =
-  if sg == sg' && j == j' then matchSpineP k d b es es' else const Nothing
+  if j == j' then \bs => matchQSigP k d b sg sg' bs >>= matchSpineP k d b es es'
+  else const Nothing
 matchElemP k d b (QCtor sg j es) (QCtor sg' j' es') =
-  if sg == sg' && j == j' then matchSpineP k d b es es' else const Nothing
+  if j == j' then \bs => matchQSigP k d b sg sg' bs >>= matchSpineP k d b es es'
+  else const Nothing
 matchElemP k d b (QElim sg j ms fs es w) (QElim sg' j' ms' fs' es' w') =
-  if sg == sg' && j == j'
-    then \bs => matchMots (qPositions QKSort sg) ms ms' bs
+  if j == j'
+    then \bs => matchQSigP k d b sg sg' bs
+             >>= matchMots (qPositions QKSort sg) ms ms'
              >>= matchList fs fs' >>= matchSpineP k d b es es' >>= matchElemP k d b w w'
     else const Nothing
  where
@@ -294,6 +304,28 @@ matchElemP _ _ _ _ _ = const Nothing
 matchSpineP k d b [<] [<] = Just
 matchSpineP k d b (es :< e) (es' :< e') = \bs => matchSpineP k d b es es' bs >>= matchElemP k d b e e'
 matchSpineP _ _ _ _ _ = const Nothing
+
+matchQSigP k d b [] [] = Just
+matchQSigP k d b (e :: rest) (e' :: rest') =
+  \bs => matchQTyP k d b e e' bs >>= matchQSigP k d b rest rest'
+matchQSigP _ _ _ _ _ = const Nothing
+
+matchQTyP k d b QU QU = Just
+matchQTyP k d b (QEl t) (QEl t') = matchQTmP k d b t t'
+matchQTyP k d b (QPiExt a c) (QPiExt a' c') =
+  \bs => matchTyP k d b a a' bs >>= matchQTyP k d (1 + b) c c'
+matchQTyP k d b (QPiInd u c) (QPiInd u' c') =
+  \bs => matchQTmP k d b u u' bs >>= matchQTyP k d b c c'
+matchQTyP _ _ _ _ _ = const Nothing
+
+matchQTmP k d b (QVar i) (QVar i') = if i == i' then Just else const Nothing
+matchQTmP k d b (QAppE f e) (QAppE f' e') =
+  \bs => matchQTmP k d b f f' bs >>= matchElemP k d b e e'
+matchQTmP k d b (QAppI f a) (QAppI f' a') =
+  \bs => matchQTmP k d b f f' bs >>= matchQTmP k d b a a'
+matchQTmP k d b (QEqC l r u) (QEqC l' r' u') =
+  \bs => matchQTmP k d b l l' bs >>= matchQTmP k d b r r' >>= matchQTmP k d b u u'
+matchQTmP _ _ _ _ _ = const Nothing
 
 matchTyP k d b Ty.ZeroTy Ty.ZeroTy = Just
 matchTyP k d b Ty.OneTy Ty.OneTy = Just
@@ -318,7 +350,8 @@ matchTyP k d b (Ty.SigVar x es) (Ty.SigVar x' es') =
   goSubNorm (es :< e) (es' :< e') = \bs => goSubNorm es es' bs >>= matchElemP k d b e e'
   goSubNorm _ _ = const Nothing
 matchTyP k d b (QSort sg j es) (QSort sg' j' es') =
-  if sg == sg' && j == j' then matchSpineP k d b es es' else const Nothing
+  if j == j' then \bs => matchQSigP k d b sg sg' bs >>= matchSpineP k d b es es'
+  else const Nothing
 matchTyP _ _ _ _ _ = const Nothing
 
 ||| Build the instantiating substitution: pattern context base ᐅ p_{k-1}

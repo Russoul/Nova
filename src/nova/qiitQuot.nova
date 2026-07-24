@@ -7,18 +7,27 @@ data [a : 𝕌] [r : El a → El a → Ω]
      ; cls : (x : El a) → El Q
      ; qeq : (x : El a) (y : El a) (h : Prf (r x y)) → cls x ≡ cls y ∈ El Q )
 
--- instantiate: ℕ quotiented by squashed equality
+-- the GENERIC QUOTIENT LIFT: a function out of the quotient, from a
+-- function on the carrier plus a respect proof — quot-elim's f/f⁼ at
+-- full generality. Coherences are hypotheses, so the coherence
+-- argument IS the caller's respect proof, passed straight through.
+def qlift : (a : 𝕌) (r : El a → El a → Ω) (b : 𝕌)
+            (f : El a → El b)
+            (resp : (x : El a) (y : El a) → Prf (r x y) → f x ≡ f y ∈ El b)
+            → El (Q a r) → El b ≔
+  λa. λr. λb. λf. λresp. λq.
+    QElim a r (λw. b) (λx. f x) (λx. λy. λh. resp x y h) q
+
+def qliftBeta : (a : 𝕌) (r : El a → El a → Ω) (b : 𝕌)
+                (f : El a → El b)
+                (resp : (x : El a) (y : El a) → Prf (r x y) → f x ≡ f y ∈ El b)
+                (x : El a) → qlift a r b f resp (cls a r x) ≡ f x ∈ El b ≔
+  λa. λr. λb. λf. λresp. λx. Refl
+
+-- instance: ℕ quotiented by squashed equality; toNat is one qlift
 def eqN : El ℕ → El ℕ → Ω ≔ λx. λy. ∥x ≡ y ∈ ℕ∥
 
--- eliminating into ℕ: the coherence hypothesis is quot-elim's f⁼, and
--- Refl discharges it silently from h (Prf (eqN x y) unfolds to the
--- squashed equation, reflected through the store)
 def toNat : El (Q ℕ eqN) → ℕ ≔
-  λq. QElim ℕ eqN (λw. ℕ) (λx. x) (λx. λy. λh. Refl) q
+  λq. qlift ℕ eqN ℕ (λx. x) (λx. λy. λh. Refl) q
 
 def toNatCls : toNat (cls ℕ eqN (S Z)) ≡ S Z ∈ ℕ ≔ Refl
-
--- the imposed equation at the instance, via the generated lemma
-def clsIrr : (x : El ℕ) (y : El ℕ) (h : Prf ∥x ≡ y ∈ ℕ∥) →
-             cls ℕ eqN x ≡ cls ℕ eqN y ∈ El (Q ℕ eqN) ≔
-  λx. λy. λh. qeq ℕ eqN x y h

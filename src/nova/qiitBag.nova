@@ -1,26 +1,26 @@
 -- Finite multisets over ANY carrier code (docs/NovaFoundation.txt,
 -- worked example, over its ambient Γ = [a : 𝕌]): points quotiented by
--- the swap equation. Every generated def abstracts over the carrier.
+-- the swap equation. Every generated def abstracts over the carrier,
+-- and so does everything defined below — instances are applications.
 data [a : 𝕌] ( Bag : U
              ; nil : El Bag
              ; ins : (x : El a) (m : El Bag) → El Bag
              ; swp : (x : El a) (y : El a) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )
 
--- the imposed equation at the ℕ instance: as the generated lemma, and
--- via the store
-def swapN : ins ℕ Z (ins ℕ (S Z) (nil ℕ)) ≡ ins ℕ (S Z) (ins ℕ Z (nil ℕ)) ∈ El (Bag ℕ) ≔
-  swp ℕ Z (S Z) (nil ℕ)
+-- the imposed equation, GENERICALLY, via the store (the generated swp
+-- lemma discharges the Refl at every carrier at once)
+def swapG : (a : 𝕌) (x : El a) (y : El a) (m : El (Bag a)) →
+            ins a x (ins a y m) ≡ ins a y (ins a x m) ∈ El (Bag a) ≔
+  λa. λx. λy. λm. Refl
 
-def swapN' : ins ℕ Z (ins ℕ (S Z) (nil ℕ)) ≡ ins ℕ (S Z) (ins ℕ Z (nil ℕ)) ∈ El (Bag ℕ) ≔ Refl
-
--- size, defined ONCE for every carrier — the method is
+-- size, defined once for every carrier — the method is
 -- order-insensitive, so the coherence argument is Refl
 def size : (a : 𝕌) → El (Bag a) → ℕ ≔
   λa. λm. BagElim a (λb. ℕ) Z (λx. λr. λih. S ih) (λx. λy. λr. λih. Refl) m
 
-def sizeTwoN : size ℕ (ins ℕ Z (ins ℕ (S Z) (nil ℕ))) ≡ S (S Z) ∈ ℕ ≔ Refl
+-- instances: applications of the generic definitions
+def swapN : ins ℕ Z (ins ℕ (S Z) (nil ℕ)) ≡ ins ℕ (S Z) (ins ℕ Z (nil ℕ)) ∈ El (Bag ℕ) ≔
+  swapG ℕ Z (S Z) (nil ℕ)
 
--- a second instance: bags of units — one signature, one family, two
--- structurally-identified members
-def oneU : El (Bag 𝟙) ≔ ins 𝟙 () (nil 𝟙)
-def sizeOneU : size 𝟙 oneU ≡ S Z ∈ ℕ ≔ Refl
+def sizeTwoN : size ℕ (ins ℕ Z (ins ℕ (S Z) (nil ℕ))) ≡ S (S Z) ∈ ℕ ≔ Refl
+def sizeOneU : size 𝟙 (ins 𝟙 () (nil 𝟙)) ≡ S Z ∈ ℕ ≔ Refl

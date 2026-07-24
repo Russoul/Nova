@@ -1,21 +1,28 @@
 -- An INDEXED sort over a PARAMETER: length-indexed vectors of any
 -- carrier (external index arity over the ambient [a : 𝕌]), with
--- dependent elimination at an indexed motive.
-def plusV : ℕ → ℕ → ℕ ≔ λa. λb. ℕ-elim (n. ℕ) b (n ih. S ih) a
-
+-- dependent elimination at an indexed motive — and the functions at
+-- the same generality.
 data [a : 𝕌] ( V : (n : El ℕ) → U
              ; vnil : El (V Z)
              ; vcons : (n : El ℕ) (x : El a) (xs : El (V n)) → El (V (S n)) )
 
--- generic length: one definition for every carrier
-def vlen : (a : 𝕌) (n : El ℕ) → El (V a n) → ℕ ≔
-  λa. λn. λv. VElim a (λm. λw. ℕ) Z (λm. λx. λxs. λih. S ih) n v
+-- the GENERIC FOLD: one dependent elimination for every carrier and
+-- every result code
+def vfold : (a : 𝕌) (b : 𝕌) (z : El b) (c : El a → El b → El b)
+            (n : El ℕ) → El (V a n) → El b ≔
+  λa. λb. λz. λc. λn. λv.
+    VElim a (λm. λw. b) z (λm. λx. λxs. λih. c x ih) n v
 
--- an ℕ instance, summed
-def single : El (V ℕ (S Z)) ≔ vcons ℕ Z (S (S (S Z))) (vnil ℕ)
+-- generic length and an instance-level sum, both folds
+def vlen : (a : 𝕌) (n : El ℕ) → El (V a n) → ℕ ≔
+  λa. λn. λv. vfold a ℕ Z (λx. λih. S ih) n v
+
+def plusV : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) y (n ih. S ih) x
 
 def vsum : (n : El ℕ) → El (V ℕ n) → ℕ ≔
-  λn. λv. VElim ℕ (λm. λw. ℕ) Z (λm. λx. λxs. λih. plusV x ih) n v
+  λn. λv. vfold ℕ ℕ Z (λx. λih. plusV x ih) n v
+
+def single : El (V ℕ (S Z)) ≔ vcons ℕ Z (S (S (S Z))) (vnil ℕ)
 
 def vsumSingle : vsum (S Z) single ≡ S (S (S Z)) ∈ ℕ ≔ Refl
 def vlenSingle : vlen ℕ (S Z) single ≡ S Z ∈ ℕ ≔ Refl
