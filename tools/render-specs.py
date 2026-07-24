@@ -328,10 +328,14 @@ class FileRenderer:
                 in_bullet = True
                 bullets.append(bm.group(1))
                 continue
-            if in_bullet and indent >= 3 and not STRONG_MATH.search(s):
+            if in_bullet and indent >= 2 and not STRONG_MATH.search(s):
                 bullets[-1] += " " + s.strip()
                 continue
-            if indent >= disp_threshold or STRONG_MATH.search(s):
+            # in comment prose, strong-math tokens only mark a display
+            # when the line is indented — prose sentences may contain
+            # inline math (ω ≜ λx. x x) at indent 0
+            if indent >= disp_threshold or (
+                    STRONG_MATH.search(s) and (indent >= 2 or not comment)):
                 flush_para(); flush_bullets()
                 disp.append(s)
                 continue

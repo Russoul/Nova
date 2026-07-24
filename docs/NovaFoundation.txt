@@ -10,46 +10,46 @@
 // `latin` marks bare Latin letters as Nova metavariables inside
 // judgements. They carry no theory content.)
 
-This file contains a formalisation of Nova's type theory: Extensional Computational Type Theory.
-We present the theory extrinsically: https://ncatlab.org/nlab/show/intrinsic+and+extrinsic+views+of+typing
+// This file contains a formalisation of Nova's type theory: Extensional Computational Type Theory.
+// We present the theory extrinsically: https://ncatlab.org/nlab/show/intrinsic+and+extrinsic+views+of+typing
 
-Semantics to syntactic forms is assigned via evaluation and canonical forms.
+// Semantics to syntactic forms is assigned via evaluation and canonical forms.
 
-NOTE: well-formed terms need not normalize in an inconsistent context.
-Equality reflection makes typability hypothesis-sensitive: e.g. under
-Γ ∋ h : (A ≡ (A → A) ∈ 𝕌), reflection gives El A ≐ El A → El A, so
-self-application types and ω ω is well-formed at El A, where ω ≜ λx. x x
-— yet ω ω has no normal form. Normalization is therefore a property of terms
-in consistent contexts only; any procedure that beta-normalizes a
-well-formed term (as the checker does when storing and comparing facts)
-may diverge under inconsistent hypotheses. This is a liveness caveat, not
-a soundness one: a non-terminating normalization never certifies a
-judgement.
+// NOTE: well-formed terms need not normalize in an inconsistent context.
+// Equality reflection makes typability hypothesis-sensitive: e.g. under
+// Γ ∋ h : (A ≡ (A → A) ∈ 𝕌), reflection gives El A ≐ El A → El A, so
+// self-application types and ω ω is well-formed at El A, where ω ≜ λx. x x
+// — yet ω ω has no normal form. Normalization is therefore a property of terms
+// in consistent contexts only; any procedure that beta-normalizes a
+// well-formed term (as the checker does when storing and comparing facts)
+// may diverge under inconsistent hypotheses. This is a liveness caveat, not
+// a soundness one: a non-terminating normalization never certifies a
+// judgement.
 
 //////////// Type Theory /////////////
 
-We have:
- * Empty type: 𝟘
- * Unit type: 𝟙
- * Natural numbers type: ℕ
- * Dependent product type: (→)
- * Dependent sum type: (⨯)
- * Equality type: (≡) with reflection
- * A universe: 𝕌
- * Quotient type: (/), by an Ω-valued relation
- * A universe of mere propositions: Ω (squash ∥-∥, propositional extensionality)
- * Quotient inductive-inductive types (QIITs): a SCHEME (not a single
-   former) — for each well-formed signature 𝒮 (mutually-defined,
-   possibly index-dependent sorts with point AND equation (path)
-   constructors), the sorts 𝒮.𝕤 ē as types, their constructors 𝒮.𝕔 θ,
-   the imposed path equations, and a dependent eliminator 𝒮.𝕤-elim with
-   its computation and uniqueness laws. Every rule is stated against a
-   signature (no Σ-entry; 𝒮 is carried by the formers). This subsumes ℕ
-   and (/) (each a one-line signature), including indexed inductive types
-   and quotient inductive types as special cases; its equation
-   constructors are INDUCTIVE (they may relate constructor terms across
-   indices and participate in the induction). ℕ and (/) are retained for
-   now.
+// We have:
+//  * Empty type: 𝟘
+//  * Unit type: 𝟙
+//  * Natural numbers type: ℕ
+//  * Dependent product type: (→)
+//  * Dependent sum type: (⨯)
+//  * Equality type: (≡) with reflection
+//  * A universe: 𝕌
+//  * Quotient type: (/), by an Ω-valued relation
+//  * A universe of mere propositions: Ω (squash ∥-∥, propositional extensionality)
+//  * Quotient inductive-inductive types (QIITs): a SCHEME (not a single
+//    former) — for each well-formed signature 𝒮 (mutually-defined,
+//    possibly index-dependent sorts with point AND equation (path)
+//    constructors), the sorts 𝒮.𝕤 ē as types, their constructors 𝒮.𝕔 θ,
+//    the imposed path equations, and a dependent eliminator 𝒮.𝕤-elim with
+//    its computation and uniqueness laws. Every rule is stated against a
+//    signature (no Σ-entry; 𝒮 is carried by the formers). This subsumes ℕ
+//    and (/) (each a one-line signature), including indexed inductive types
+//    and quotient inductive types as special cases; its equation
+//    constructors are INDUCTIVE (they may relate constructor terms across
+//    indices and participate in the induction). ℕ and (/) are retained for
+//    now.
 
 ///////////// Syntax ///////////////
 
@@ -141,39 +141,39 @@ t ::= x [e˲]         // element in the signature context
 
 ///////// Conventions: how to read the rules /////////
 
-The rules below are presented COMPACTLY. Each convention comes with its
-mechanical expansion, so the fully explicit form of every rule is
-recoverable without judgement calls. (The previous fully-explicit
-presentation additionally carried, with every rule, an argument-labelling
-scheme consumed by the since-removed .rules derivation checker; that
-interface lives on in git history only.)
+// The rules below are presented COMPACTLY. Each convention comes with its
+// mechanical expansion, so the fully explicit form of every rule is
+// recoverable without judgement calls. (The previous fully-explicit
+// presentation additionally carried, with every rule, an argument-labelling
+// scheme consumed by the since-removed .rules derivation checker; that
+// interface lives on in git history only.)
 
-* AMBIENT SIGNATURE. Every judgement is relative to a signature Σ,
-  presupposed well-formed. The Σ prefix and the premise `Σ sig` are
-  omitted everywhere; rules that inspect or extend Σ (the sig rules,
-  the x[e˲] rules) name it explicitly. Expansion: prefix every
-  judgement with `Σ ⊦`/`Σ Γ ⊦` as appropriate and add `Σ sig` as the
-  first premise of every rule.
+// * AMBIENT SIGNATURE. Every judgement is relative to a signature Σ,
+//   presupposed well-formed. The Σ prefix and the premise `Σ sig` are
+//   omitted everywhere; rules that inspect or extend Σ (the sig rules,
+//   the x[e˲] rules) name it explicitly. Expansion: prefix every
+//   judgement with `Σ ⊦`/`Σ Γ ⊦` as appropriate and add `Σ sig` as the
+//   first premise of every rule.
 
-* PRESUPPOSITIONS. Each judgement form PRESUPPOSES the well-formedness
-  of its parts, as listed in the judgement-form table below. A rule
-  omits every premise that lies in the presupposition CLOSURE of its
-  retained premises and its conclusion (the closure: start from the
-  retained premises and the conclusion, add their presuppositions, and
-  close transitively). Expansion: add the closure back as explicit
-  premises — this recovers the previous exhaustive style, where e.g.
-  `Γ ᐅ A ⊦ f : B` was always accompanied by `Γ ctx`, `Γ ⊦ A type` and
-  `Γ ᐅ A ⊦ B type`. Premises NOT in the closure are never omitted: in
-  particular eliminator motives, the middle subject of a transitivity,
-  and the data of the coercion rules are genuine inputs and always
-  appear.
+// * PRESUPPOSITIONS. Each judgement form PRESUPPOSES the well-formedness
+//   of its parts, as listed in the judgement-form table below. A rule
+//   omits every premise that lies in the presupposition CLOSURE of its
+//   retained premises and its conclusion (the closure: start from the
+//   retained premises and the conclusion, add their presuppositions, and
+//   close transitively). Expansion: add the closure back as explicit
+//   premises — this recovers the previous exhaustive style, where e.g.
+//   `Γ ᐅ A ⊦ f : B` was always accompanied by `Γ ctx`, `Γ ⊦ A type` and
+//   `Γ ᐅ A ⊦ B type`. Premises NOT in the closure are never omitted: in
+//   particular eliminator motives, the middle subject of a transitivity,
+//   and the data of the coercion rules are genuine inputs and always
+//   appear.
 
-* GROUPED CONCLUSIONS. A rule with several conclusions below the line
-  abbreviates one rule per conclusion (same premises). A conclusion
-  listing several subjects separated by commas (e.g.
-  `Γ ⊦ 𝟘, 𝟙, ℕ, 𝕌 type`) abbreviates one rule per subject.
+// * GROUPED CONCLUSIONS. A rule with several conclusions below the line
+//   abbreviates one rule per conclusion (same premises). A conclusion
+//   listing several subjects separated by commas (e.g.
+//   `Γ ⊦ 𝟘, 𝟙, ℕ, 𝕌 type`) abbreviates one rule per subject.
 
-* EQUIVALENCE (PER) RULES. Each of the seven equality judgements —
+// * EQUIVALENCE (PER) RULES. Each of the seven equality judgements —
 
     Γ₀ ≐ Γ₁ ctx                 (contexts)
     σ₀ ≐ σ₁ : Γ ⇒ Δ             (substitutions)
@@ -183,34 +183,34 @@ interface lives on in git history only.)
     Γ ⊦ Δ₀ ≐ Δ₁ tel             (telescopes)
     Γ ⊦ ē₀ ≐ ē₁ : Δ             (element lists)
 
-  — is governed by three rules adopted once here and not repeated per
-  class. Writing J for the well-formedness form and J⁼ for the
-  equality form of a class:
+//   — is governed by three rules adopted once here and not repeated per
+//   class. Writing J for the well-formedness form and J⁼ for the
+//   equality form of a class:
 
     J(a)              J⁼(a₀ ≐ a₁)          J⁼(a₀ ≐ a₁)   J⁼(a₁ ≐ a₂)
     ----------(refl)  -----------(sym)     ------------------------(trans, via a₁)
     J⁼(a ≐ a)         J⁼(a₁ ≐ a₀)          J⁼(a₀ ≐ a₂)
 
-  (transitivity's middle subject a₁, with J(a₁), is an input of the
-  rule). Instances are named ctx-refl, ctx-sym, ctx-trans, sub-refl,
-  ..., sp-trans. Consequently the pointwise equality rules for
-  constants and atoms (ε ≐ ε ctx, id ≐ id, ↑ ≐ ↑, · ≐ ·,
-  x[e˲] ≐ x[e˲], ...) are refl instances and are not stated.
+//   (transitivity's middle subject a₁, with J(a₁), is an input of the
+//   rule). Instances are named ctx-refl, ctx-sym, ctx-trans, sub-refl,
+//   ..., sp-trans. Consequently the pointwise equality rules for
+//   constants and atoms (ε ≐ ε ctx, id ≐ id, ↑ ≐ ↑, · ≐ ·,
+//   x[e˲] ≐ x[e˲], ...) are refl instances and are not stated.
 
-* DEFINITIONAL EQUALITY. A rule concluding J ≜ K asserts the
-  corresponding ≐-judgement and additionally marks it as a computation
-  step, oriented left to right. Its presuppositions are those of the
-  underlying ≐ form.
+// * DEFINITIONAL EQUALITY. A rule concluding J ≜ K asserts the
+//   corresponding ≐-judgement and additionally marks it as a computation
+//   step, oriented left to right. Its presuppositions are those of the
+//   underlying ≐ form.
 
-* NAMES. Every rule carries a canonical name on its inference line,
-  following one homogeneous scheme — <class>-<former>-<kind> — where
-  the class is the judgement class (ctx, sub, sub-norm, ty, el, code,
-  tel, sp), the former names the connective or constructor, and the
-  kind distinguishes introduction (i), elimination (e), computation
-  (beta), uniqueness (eta), congruence (cong), injectivity (inj),
-  substitution action (sub), and coercion (coe). These names are the
-  ones docs/NovaKernel.txt and docs/NovaElaboration.txt cite; there
-  are no synonyms.
+// * NAMES. Every rule carries a canonical name on its inference line,
+//   following one homogeneous scheme — <class>-<former>-<kind> — where
+//   the class is the judgement class (ctx, sub, sub-norm, ty, el, code,
+//   tel, sp), the former names the connective or constructor, and the
+//   kind distinguishes introduction (i), elimination (e), computation
+//   (beta), uniqueness (eta), congruence (cong), injectivity (inj),
+//   substitution action (sub), and coercion (coe). These names are the
+//   ones docs/NovaKernel.txt and docs/NovaElaboration.txt cite; there
+//   are no synonyms.
 
 ///////// Judgement forms and their presuppositions /////////
 
@@ -244,9 +244,9 @@ interface lives on in git history only.)
   // then ToS zone) are defined in the QIIT section; a signature is
   // nothing but a well-formed qiit-context.
 
-A context extension Γ ᐅ A presupposes Γ ctx and Γ ⊦ A type, so a
-premise stated under Γ ᐅ A carries A's well-formedness with it (and
-likewise for iterated extensions).
+// A context extension Γ ᐅ A presupposes Γ ctx and Γ ⊦ A type, so a
+// premise stated under Γ ᐅ A carries A's well-formedness with it (and
+// likewise for iterated extensions).
 
 ///////// Rules (sig) /////////
 
@@ -2105,7 +2105,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 ///////// Rule name scheme /////////
 
-Names follow <class>-<former>-<kind> uniformly (see Conventions).
-The PER schema instances are ctx-refl/-sym/-trans, sub-…, sub-norm-…,
-ty-…, el-…, tel-…, sp-…. All other names appear verbatim on their
-rules; there are no synonyms.
+// Names follow <class>-<former>-<kind> uniformly (see Conventions).
+// The PER schema instances are ctx-refl/-sym/-trans, sub-…, sub-norm-…,
+// ty-…, el-…, tel-…, sp-…. All other names appear verbatim on their
+// rules; there are no synonyms.
