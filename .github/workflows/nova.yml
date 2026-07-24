@@ -32,10 +32,6 @@ jobs:
 
   build-and-test:
     runs-on: ubuntu-24.04
-    env:
-      # absolute on purpose: actions/cache failed to expand ~/.pack at
-      # save time ("Path Validation Error"), so no cache was ever saved
-      PACK_DIR: /home/runner/.pack
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,15 +41,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y chezscheme libgmp-dev
 
-      # PACK_DIR holds pack itself plus the toolchain it resolves from
-      # pack.toml (the pinned idris2 commit, the package collection and
-      # the custom dependencies), so a hit skips the whole Idris2
-      # bootstrap. Keyed on pack.toml: changing any pin rebuilds.
+      # pack is XDG-based: ~/.local/state/pack holds the toolchain it
+      # resolves from pack.toml (the pinned idris2 commit, the package
+      # collection, the custom dependencies), ~/.config/pack the global
+      # config, ~/.local/bin/pack the launcher (already on the runner's
+      # PATH). A hit skips the whole Idris2 bootstrap. Keyed on
+      # pack.toml: changing any pin rebuilds.
       - name: Cache pack and toolchain
         id: pack-cache
         uses: actions/cache@v4
         with:
-          path: ${{ env.PACK_DIR }}
+          path: |
+            /home/runner/.local/state/pack
+            /home/runner/.config/pack
+            /home/runner/.local/bin/pack
           key: pack-${{ runner.os }}-${{ hashFiles('pack.toml') }}
 
       - name: Install pack
@@ -62,9 +63,6 @@ jobs:
           git clone --depth=1 https://github.com/stefan-hoeck/idris2-pack
           cd idris2-pack
           make micropack SCHEME=chezscheme
-
-      - name: Add pack to PATH
-        run: echo "$PACK_DIR/bin" >> "$GITHUB_PATH"
 
       - name: Build Nova
         run: pack build nova.ipkg
