@@ -1,13 +1,24 @@
--- The quotient, SUBSUMED (docs/NovaFoundation.txt, IDENTITY note):
--- cls x ≡ cls y imposed under a Prf hypothesis — the signature for
--- A / R at A = ℕ, R = squashed equality.
-data ( Q : U
-     ; cls : (x : El ℕ) → El Q
-     ; qeq : (x : El ℕ) (y : El ℕ) (h : Prf ∥x ≡ y ∈ ℕ∥) → cls x ≡ cls y ∈ El Q )
+-- The quotient, SUBSUMED GENERICALLY (docs/NovaFoundation.txt,
+-- IDENTITY note): the signature for A / R over its full ambient
+-- Γ = [a : 𝕌][r : El a → El a → Ω] — an arbitrary carrier and an
+-- arbitrary Ω-valued relation, cls x ≡ cls y imposed under Prf (r x y).
+data [a : 𝕌] [r : El a → El a → Ω]
+     ( Q : U
+     ; cls : (x : El a) → El Q
+     ; qeq : (x : El a) (y : El a) (h : Prf (r x y)) → cls x ≡ cls y ∈ El Q )
+
+-- instantiate: ℕ quotiented by squashed equality
+def eqN : El ℕ → El ℕ → Ω ≔ λx. λy. ∥x ≡ y ∈ ℕ∥
 
 -- eliminating into ℕ: the coherence hypothesis is quot-elim's f⁼, and
--- Refl discharges it silently from h (squashed reflection through E)
-def toNat : El Q → ℕ ≔
-  λq. QElim (λw. ℕ) (λx. x) (λx. λy. λh. Refl) q
+-- Refl discharges it silently from h (Prf (eqN x y) unfolds to the
+-- squashed equation, reflected through the store)
+def toNat : El (Q ℕ eqN) → ℕ ≔
+  λq. QElim ℕ eqN (λw. ℕ) (λx. x) (λx. λy. λh. Refl) q
 
-def toNatCls : toNat (cls (S Z)) ≡ S Z ∈ ℕ ≔ Refl
+def toNatCls : toNat (cls ℕ eqN (S Z)) ≡ S Z ∈ ℕ ≔ Refl
+
+-- the imposed equation at the instance, via the generated lemma
+def clsIrr : (x : El ℕ) (y : El ℕ) (h : Prf ∥x ≡ y ∈ ℕ∥) →
+             cls ℕ eqN x ≡ cls ℕ eqN y ∈ El (Q ℕ eqN) ≔
+  λx. λy. λh. qeq ℕ eqN x y h

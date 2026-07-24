@@ -1,14 +1,21 @@
--- An INDEXED sort: length-indexed vectors of naturals (external
--- index arity), with dependent elimination at an indexed motive.
+-- An INDEXED sort over a PARAMETER: length-indexed vectors of any
+-- carrier (external index arity over the ambient [a : 𝕌]), with
+-- dependent elimination at an indexed motive.
 def plusV : ℕ → ℕ → ℕ ≔ λa. λb. ℕ-elim (n. ℕ) b (n ih. S ih) a
 
-data ( V : (n : El ℕ) → U
-     ; vnil : El (V Z)
-     ; vcons : (n : El ℕ) (x : El ℕ) (xs : El (V n)) → El (V (S n)) )
+data [a : 𝕌] ( V : (n : El ℕ) → U
+             ; vnil : El (V Z)
+             ; vcons : (n : El ℕ) (x : El a) (xs : El (V n)) → El (V (S n)) )
 
-def single : El (V (S Z)) ≔ vcons Z (S (S (S Z))) vnil
+-- generic length: one definition for every carrier
+def vlen : (a : 𝕌) (n : El ℕ) → El (V a n) → ℕ ≔
+  λa. λn. λv. VElim a (λm. λw. ℕ) Z (λm. λx. λxs. λih. S ih) n v
 
-def vsum : (n : El ℕ) → El (V n) → ℕ ≔
-  λn. λv. VElim (λm. λw. ℕ) Z (λm. λx. λxs. λih. plusV x ih) n v
+-- an ℕ instance, summed
+def single : El (V ℕ (S Z)) ≔ vcons ℕ Z (S (S (S Z))) (vnil ℕ)
+
+def vsum : (n : El ℕ) → El (V ℕ n) → ℕ ≔
+  λn. λv. VElim ℕ (λm. λw. ℕ) Z (λm. λx. λxs. λih. plusV x ih) n v
 
 def vsumSingle : vsum (S Z) single ≡ S (S (S Z)) ∈ ℕ ≔ Refl
+def vlenSingle : vlen ℕ (S Z) single ≡ S Z ∈ ℕ ≔ Refl
