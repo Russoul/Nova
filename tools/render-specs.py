@@ -42,27 +42,113 @@ FILES = [
 ]
 
 # ----- symbol colouring --------------------------------------------------
+#
+# The vocabulary comes from `//! highlight <class>: tokens` declarations
+# in the spec files themselves (option C — the spec declares its own
+# alphabets); the defaults below apply only for a class no file
+# declares. Classes: keywords (gold), tos / nova / meta (metavariable
+# kinds). The special token `latin` in the nova class marks bare Latin
+# letters (with decorations: t₀, A′, ē, e˲, C̄) as Nova metavariables —
+# applied in JUDGEMENT contexts only (rules, display panels), never in
+# running prose, where single letters would false-positive.
 
-TOS_CHARS = "𝔄𝔅𝕥𝕦𝕧𝕤𝕔𝕜𝕘𝕒𝕓𝕞Φ𝒮⬡⬦⊳⇛ς𝕚𝕕⇑𝔎"
-NOVA_CHARS = "ΓΔΞᐅ☐"
-META_CHARS = "𝑤ρυπ⋈⋉▷⌊⌋⟦⟧𝒞ℰ"
+DIRECTIVE_RE = re.compile(r"^//!\s*highlight\s+(keywords|tos|nova|meta):\s*(.*)$")
 
-SYM_RE = re.compile(
-    "(?P<tos>[" + TOS_CHARS + "]|\\bEl\\b|\\bU\\b)"
-    "|(?P<nova>[" + NOVA_CHARS + "])"
-    "|(?P<meta>[" + META_CHARS + "]|ᴰ)"
-)
+DEFAULT_VOCAB = {
+    "keywords": "qctx qty qsig ctx type tel mot dalg eprob sect norm small sig nf qpath".split(),
+    "tos": "𝔄 𝔅 𝕥 𝕦 𝕧 𝕤 𝕔 𝕜 𝕘 𝕒 𝕓 𝕞 Φ 𝒮 ⬡ ⬦ ⊳ ⇛ ς ⇑ 𝕚𝕕 𝔎 El U".split(),
+    "nova": "Γ Δ Ξ ᐅ ☐ σ τ δ θ Σ latin".split(),
+    "meta": "𝑤 ρ π υ ⋈ ⋉ ▷ ⌊ ⌋ ⟦ ⟧ ᴰ 𝒞 ℰ".split(),
+}
 
-def colorize(escaped: str) -> str:
-    def rep(m):
-        for cls in ("tos", "nova", "meta"):
-            if m.group(cls):
-                return f'<span class="{cls}">{m.group(cls)}</span>'
-        return m.group(0)
-    return SYM_RE.sub(rep, escaped)
+def collect_vocab(files):
+    vocab = {}
+    for _, rel, _ in files:
+        for l in (ROOT / rel).read_text().splitlines():
+            m = DIRECTIVE_RE.match(l.strip())
+            if m:
+                vocab.setdefault(m.group(1), []).extend(m.group(2).split())
+    for k, v in DEFAULT_VOCAB.items():
+        vocab.setdefault(k, v)
+    return vocab
 
-def math(text: str) -> str:
-    return colorize(html.escape(text, quote=False))
+# decorations that travel with a token: combining marks, primes,
+# sub/superscripts (t₀, A′, ē is precomposed Latin, Γ̂, e˲, ⌊·⌋ᵗ)
+DECOR = "\u0300-\u036f′″‴˲ᵢⱼₖₗₘₙₚᵣₛₜ₀-₉⁺⁻ᵈᵗ"
+
+class Highlighter:
+    def __init__(self, vocab):
+        self.latin_nova = "latin" in vocab.get("nova", [])
+        words, mtoks, chars = [], [], []   # (token, cls)
+        for cls, k in (("kw", "keywords"), ("tos", "tos"),
+                       ("nova", "nova"), ("meta", "meta")):
+            for tok in vocab.get(k, []):
+                if tok == "latin":
+                    continue
+                if tok.isascii() and tok.isalnum():
+                    words.append((tok, cls))
+                elif len(tok) > 1:
+                    mtoks.append((tok, cls))
+                else:
+                    chars.append((tok, cls))
+        self.cls_of = {t: c for t, c in words + mtoks + chars}
+        wpat = "|".join(re.escape(t) for t, _ in
+                        sorted(words, key=lambda x: -len(x[0])))
+        mpat = "|".join(re.escape(t) for t, _ in
+                        sorted(mtoks, key=lambda x: -len(x[0])))
+        cpat = "[" + "".join(re.escape(t) for t, _ in chars) + "]"
+        dec = "[" + DECOR + "]*"
+        # order matters: declared words | multi-char symbols | plain
+        # English (2+ letters, left ink) | declared chars | Latin
+        # metavariables
+        self.math_re = re.compile(
+            f"(?P<word>(?<![\\w-])(?:{wpat})(?![\\w-]))"
+            f"|(?P<mtok>{mpat})"
+            "|(?P<eng>[A-Za-z]{2,})"
+            f"|(?P<sym>{cpat}{dec})"
+            f"|(?P<lat>[A-Za-z]{dec})")
+        # prose: symbols and the El/U formers only — no keywords (gold
+        # 'type' in running text would be noise), no Latin letters
+        self.prose_re = re.compile(
+            "(?P<word>(?<![\\w-])(?:El|U)(?![\\w-]))"
+            f"|(?P<mtok>{mpat})"
+            f"|(?P<sym>{cpat}{dec})")
+
+    def _wrap(self, cls, text):
+        return f'<span class="{cls}">{text}</span>'
+
+    def paint(self, escaped, prose=False):
+        rx = self.prose_re if prose else self.math_re
+        def rep(m):
+            g = m.lastgroup
+            t = m.group(0)
+            if g == "eng":
+                return t
+            if g == "lat":
+                if not self.latin_nova:
+                    return t
+                # plural/possessive suffix, not a metavariable: Πs, ⌊𝔄⌋ᵗ's
+                prev = m.string[m.start() - 1] if m.start() > 0 else ""
+                if prev == "'" or prev.isalpha():
+                    return t
+                # the article 'a': followed by an English word (2+ letters)
+                if t == "a":
+                    rest = m.string[m.end():]
+                    if re.match(r"\s+[A-Za-z]{2,}(?![\w-]*[₀-₉′])", rest):
+                        return t
+                return self._wrap("nova", t)
+            base = m.group(g) if g != "sym" else t[0]
+            cls = self.cls_of.get(base if g != "word" else m.group("word"),
+                                  None)
+            if g == "sym":
+                cls = self.cls_of.get(t[0])
+            return self._wrap(cls, t) if cls else t
+        return rx.sub(rep, escaped)
+
+HL = None   # installed in main() once the vocabulary is collected
+
+def math(text: str, prose: bool = False) -> str:
+    return HL.paint(html.escape(text, quote=False), prose=prose)
 
 # ----- shared regexes ----------------------------------------------------
 
@@ -192,7 +278,8 @@ class FileRenderer:
         out.append(f'<pre class="conclusion">{math(conc)}</pre>')
         out.append("</div>")
         if notes:
-            out.append(f'<div class="note">{self.autolink(math(" ".join(notes)))}</div>')
+            note_html = self.autolink(math(" ".join(notes), prose=True))
+            out.append(f'<div class="note">{note_html}</div>')
         out.append("</div>")
         self.body.append("\n".join(out))
         if name:
@@ -210,7 +297,7 @@ class FileRenderer:
         def flush_para():
             nonlocal para
             if para:
-                out.append("<p>" + self.autolink(math(" ".join(para))) + "</p>")
+                out.append("<p>" + self.autolink(math(" ".join(para), prose=True)) + "</p>")
                 para = []
 
         def flush_disp():
@@ -223,7 +310,7 @@ class FileRenderer:
             nonlocal bullets, in_bullet
             if bullets:
                 items = "".join(
-                    "<li>" + self.autolink(math(t)) + "</li>" for t in bullets)
+                    "<li>" + self.autolink(math(t, prose=True)) + "</li>" for t in bullets)
                 out.append("<ul>" + items + "</ul>")
                 bullets = []
             in_bullet = False
@@ -274,6 +361,7 @@ class FileRenderer:
         self.toc.append(("H2", text, a))
 
     def render(self, lines):
+        lines = [l for l in lines if not DIRECTIVE_RE.match(l.strip())]
         for b in blocks(lines):
             hm = HEADER_RE.match(b[0].strip())
             if hm and len(b) == 1:
@@ -294,22 +382,22 @@ CSS = """
 :root {
   --paper:#f7f8fa; --ink:#20242d; --faint:#5c6472; --hair:#d8dce2;
   --panel:#eef0f4; --tos:#0e7c86; --nova:#ac5210; --meta:#7862a8;
-  --rname:#7862a8; --link:#0e7c86;
+  --rname:#7862a8; --link:#0e7c86; --gold:#92700c;
 }
 @media (prefers-color-scheme: dark) { :root {
   --paper:#191b20; --ink:#dcdee4; --faint:#9aa1ae; --hair:#33373f;
   --panel:#20232a; --tos:#53cad4; --nova:#e29a62; --meta:#a995d6;
-  --rname:#a995d6; --link:#53cad4;
+  --rname:#a995d6; --link:#53cad4; --gold:#d8b45e;
 }}
 :root[data-theme="dark"] {
   --paper:#191b20; --ink:#dcdee4; --faint:#9aa1ae; --hair:#33373f;
   --panel:#20232a; --tos:#53cad4; --nova:#e29a62; --meta:#a995d6;
-  --rname:#a995d6; --link:#53cad4;
+  --rname:#a995d6; --link:#53cad4; --gold:#d8b45e;
 }
 :root[data-theme="light"] {
   --paper:#f7f8fa; --ink:#20242d; --faint:#5c6472; --hair:#d8dce2;
   --panel:#eef0f4; --tos:#0e7c86; --nova:#ac5210; --meta:#7862a8;
-  --rname:#7862a8; --link:#0e7c86;
+  --rname:#7862a8; --link:#0e7c86; --gold:#92700c;
 }
 * { box-sizing:border-box; }
 body {
@@ -361,6 +449,7 @@ pre.display { background:var(--panel); border-left:2px solid var(--hair);
 .note { color:var(--faint); font-style:italic; font-size:14px; max-width:60ch;
   margin-top:.25rem; }
 .tos { color:var(--tos); } .nova { color:var(--nova); } .meta { color:var(--meta); }
+.kw { color:var(--gold); font-weight:600; }
 a.rref { color:var(--rname); text-decoration:none; border-bottom:1px dotted var(--rname); }
 :target { scroll-margin-top:1rem; }
 :target > .rule-box > .bar { border-top-color:var(--rname); }
@@ -376,8 +465,9 @@ a:focus-visible { outline:2px solid var(--link); outline-offset:2px; }
 
 LEGEND = (
     '<div id="legend">'
+    '<span><span class="sw kw">type qctx mot</span>&ensp;judgement keywords</span>'
     '<span><span class="sw tos">𝔄 𝕥 ⬡ ⊳ ⇛</span>&ensp;theory of signatures</span>'
-    '<span><span class="sw nova">Γ Δ ᐅ ☐</span>&ensp;Nova</span>'
+    '<span><span class="sw nova">Γ Δ t A σ</span>&ensp;Nova</span>'
     '<span><span class="sw meta">𝑤 π ▷ ⌊·⌋ ᴰ 𝒞</span>&ensp;reflection / descent / certificates</span>'
     '<span><span class="sw" style="color:var(--rname)">rule-name</span>&ensp;links to its rule</span>'
     "</div>"
@@ -462,6 +552,8 @@ def main():
     ap.add_argument("--check", action="store_true")
     args = ap.parse_args()
 
+    global HL
+    HL = Highlighter(collect_vocab(FILES))
     rulemap, order, dups = collect(FILES)
 
     if args.check:

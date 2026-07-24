@@ -1,5 +1,15 @@
 ////////// Preface //////////
 
+//! highlight keywords: qctx qty qsig ctx type tel mot dalg eprob sect norm small sig nf qpath
+//! highlight tos: 𝔄 𝔅 𝕥 𝕦 𝕧 𝕤 𝕔 𝕜 𝕘 𝕒 𝕓 𝕞 Φ 𝒮 ⬡ ⬦ ⊳ ⇛ ς ⇑ 𝕚𝕕 𝔎 El U
+//! highlight nova: Γ Δ Ξ ᐅ ☐ σ τ δ θ Σ latin
+//! highlight meta: 𝑤 ρ π υ ⋈ ⋉ ▷ ⌊ ⌋ ⟦ ⟧ ᴰ 𝒞 ℰ
+// (`//!` lines are HIGHLIGHTING DECLARATIONS read by
+// tools/render-specs.py — the spec declares its own alphabets:
+// judgement keywords render gold, metavariable alphabets by zone;
+// `latin` marks bare Latin letters as Nova metavariables inside
+// judgements. They carry no theory content.)
+
 This file contains a formalisation of Nova's type theory: Extensional Computational Type Theory.
 We present the theory extrinsically: https://ncatlab.org/nlab/show/intrinsic+and+extrinsic+views+of+typing
 
