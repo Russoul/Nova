@@ -1,3 +1,4 @@
 * Use `pack` to type check / build / run idris2 programs
 * Use `./test.sh` to run the test suite (passes the required `PATH_TO_SELF` argument automatically); extra golden framework flags (e.g. `--only ty-pi`) can be appended
-* To synthesize or check a Nova Foundation derivation (`.rules`/`.target` files, `ctx-wf`/`el-wf`/... judgements), use the `derive` skill instead of reading the Idris sources cold
+* To check a Nova surface file, run `build/exec/nova elab <file>.nova` (after `pack build nova.ipkg`): a file is accepted iff the run ends with zero obligations; discharge an obligation by prepending a lemma — an ordinary `def` whose type is the obligation's statement as an equality type — and re-running
+* The theory and its implementation are specified in `docs/`: `NovaFoundation.txt` (the type theory — sole source of truth), `NovaKernel.txt` (the trusted kernel, rule by rule), `NovaElaboration.txt` (surface syntax + elaborator), `NovaPipeline.txt` (the trust architecture). Read the relevant spec before the Idris sources — every function mirrors a documented rule
