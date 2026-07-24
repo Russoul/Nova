@@ -1,0 +1,13 @@
+-- The quotient, SUBSUMED (docs/NovaFoundation.txt, IDENTITY note):
+-- cls x ≡ cls y imposed under a Prf hypothesis — the signature for
+-- A / R at A = ℕ, R = squashed equality.
+data ( Q : U
+     ; cls : (x : El ℕ) → El Q
+     ; qeq : (x : El ℕ) (y : El ℕ) (h : Prf ∥x ≡ y ∈ ℕ∥) → cls x ≡ cls y ∈ El Q )
+
+-- eliminating into ℕ: the coherence hypothesis is quot-elim's f⁼, and
+-- Refl discharges it silently from h (squashed reflection through E)
+def toNat : El Q → ℕ ≔
+  λq. QElim (λw. ℕ) (λx. x) (λx. λy. λh. Refl) q
+
+def toNatCls : toNat (cls (S Z)) ≡ S Z ∈ ℕ ≔ Refl

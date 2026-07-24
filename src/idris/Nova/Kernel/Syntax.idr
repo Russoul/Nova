@@ -1,5 +1,6 @@
 module Nova.Kernel.Syntax
 
+import Data.List
 import Data.SnocList
 
 mutual
@@ -50,6 +51,9 @@ mutual
       ||| x[e˲]  (signature type variable, applied to a (normal)
       ||| substitution to its declaration context)
       SigVar : String -> SubNorm -> Ty
+      ||| 𝒮.k ē  (the sort at entry position k of the carried QIIT
+      ||| signature, at index spine ē — ty-qiit)
+      QSort : QSig -> Nat -> SubNorm -> Ty
 
   namespace Elem
     public export
@@ -107,6 +111,58 @@ mutual
       Squash : Ty -> Elem
       ||| ⋆  (the canonical proof of a true proposition)
       Star : Elem
+      ||| 𝒮.k ē  (universe code for the sort at entry position k of the
+      ||| carried signature — SMALL signatures only, code-qiit)
+      QSortC : QSig -> Nat -> SubNorm -> Elem
+      ||| 𝒮.k θ  (POINT constructor at entry position k, SATURATED: θ is
+      ||| the full argument spine — a bare curried constructor would be a
+      ||| non-λ inhabitant of a Π-type, breaking Π-canonicity)
+      QCtor : QSig -> Nat -> SubNorm -> Elem
+      ||| 𝒮.k-elim ℰ ē w  (the eliminator at sort position k; carries
+      ||| ℰ = (C̄ ; m̄): motives — one per SORT entry in entry order, each
+      ||| a type over Γ·⌊𝔎⌋ᵗ ᐅ 𝒮.k δ — and methods — one per POINT entry
+      ||| in entry order, terms over Γ; then the index spine and the
+      ||| eliminee. Coherences are CHECKED (kernel PQCoh), not stored.)
+      QElim : QSig -> Nat -> List Ty -> List Elem -> SubNorm -> Elem -> Elem
+
+  namespace QTm
+    ||| Theory-of-signatures terms (docs/NovaFoundation.txt, QIIT
+    ||| section) — NAMELESS, the FIRST-ORDER fragment: no external λ
+    ||| (infinitary recursive arguments have no surface spelling today;
+    ||| the kernel rejects signatures needing one).
+    public export
+    data QTm : Type where
+      ||| ⬡ᵢ — ToS variable: inductive Π-binders innermost-first, then
+      ||| the signature's entries LAST-to-FIRST
+      QVar : Nat -> QTm
+      ||| 𝕥 t — application to a Nova term (an EXTERNAL argument)
+      QAppE : QTm -> Elem -> QTm
+      ||| 𝕥 𝕥′ — application to a ToS term (an INDUCTIVE argument)
+      QAppI : QTm -> QTm -> QTm
+      ||| 𝕥₀ ≡ 𝕥₁ — equation CODE in U. The third component is the
+      ||| sides' common sort code (Foundation leaves it implicit; the
+      ||| kernel stores it)
+      QEqC : QTm -> QTm -> QTm -> QTm
+
+  namespace QTy
+    ||| Theory-of-signatures types: U, El, and the two Π's — the
+    ||| external Π binds a NOVA variable, the inductive Π a ToS one.
+    public export
+    data QTy : Type where
+      ||| U — the ToS universe of codes (a SORT's kind ends here)
+      QU : QTy
+      ||| El 𝕥 — decoding of a code (a constructor's type ends here)
+      QEl : QTm -> QTy
+      ||| A ⇛ 𝔄 — EXTERNAL Π (A a Nova type; binds a Nova variable)
+      QPiExt : Ty -> QTy -> QTy
+      ||| El 𝕥 ⇛ 𝔄 — INDUCTIVE Π (𝕥 a sort code; binds a ToS variable)
+      QPiInd : QTm -> QTy -> QTy
+
+  ||| A QIIT signature IS a closed qiit-context: entries in declaration
+  ||| order (position 0 first), ANONYMOUS — a signature mints no names.
+  public export
+  QSig : Type
+  QSig = List QTy
 
   ||| SubNorm: e˲ ::= · | e˲, e
   public export
@@ -151,6 +207,108 @@ public export
 under : Sub -> Sub
 under sigma = Ext (Chain sigma Wk) (CtxVar 0)
 
+-- ===== QIIT signature structure (pure syntax helpers) =====
+
+||| Number of Π-binders of a ToS type.
+public export
+qtyBinders : QTy -> Nat
+qtyBinders (QPiExt _ b) = S (qtyBinders b)
+qtyBinders (QPiInd _ b) = S (qtyBinders b)
+qtyBinders _ = Z
+
+||| The head (result) of a ToS type, past its binders.
+public export
+qtyHead : QTy -> QTy
+qtyHead (QPiExt _ b) = qtyHead b
+qtyHead (QPiInd _ b) = qtyHead b
+qtyHead h = h
+
+||| Head variable and arguments of a ToS application chain (first-order:
+||| the head is a variable; an eq-code has no chain reading).
+public export
+qChain : QTm -> Maybe (Nat, List (Either Elem QTm))
+qChain t0 = go t0 []
+ where
+  go : QTm -> List (Either Elem QTm) -> Maybe (Nat, List (Either Elem QTm))
+  go (QVar i) acc = Just (i, acc)
+  go (QAppE f e) acc = go f (Left e :: acc)
+  go (QAppI f a) acc = go f (Right a :: acc)
+  go (QEqC _ _ _) _ = Nothing
+
+||| Entry classification, by the head of the entry's type alone
+||| (exhaustive: every ToS type ends in U or El).
+public export
+data QEntryKind = QKSort | QKPoint | QKEq
+
+public export
+Eq QEntryKind where
+  QKSort == QKSort = True
+  QKPoint == QKPoint = True
+  QKEq == QKEq = True
+  _ == _ = False
+
+public export
+qEntryKind : QTy -> QEntryKind
+qEntryKind t = case qtyHead t of
+  QEl (QEqC _ _ _) => QKEq
+  QEl _ => QKPoint
+  _ => QKSort
+
+||| Entry positions of a given kind, in declaration order.
+public export
+qPositions : QEntryKind -> QSig -> List Nat
+qPositions k sg = go 0 sg
+ where
+  go : Nat -> QSig -> List Nat
+  go _ [] = []
+  go i (e :: rest) =
+    if qEntryKind e == k then i :: go (S i) rest else go (S i) rest
+
+||| Position of entry k within the list of entries of its kind (e.g. a
+||| sort's index into the motive vector). Nothing if k is out of range.
+public export
+qOrdinal : QEntryKind -> QSig -> Nat -> Maybe Nat
+qOrdinal kind sg k = findIndex (== k) (qPositions kind sg)
+ where
+  findIndex : (Nat -> Bool) -> List Nat -> Maybe Nat
+  findIndex p [] = Nothing
+  findIndex p (x :: xs) = if p x then Just Z else map S (findIndex p xs)
+
+||| Look up an entry by position.
+public export
+qEntry : QSig -> Nat -> Maybe QTy
+qEntry sg k = getAt k sg
+
+||| SMALLNESS scan (code-qiit's side condition): every external Π domain
+||| anywhere in the signature is El- or Prf-headed — codable, so the
+||| universe's PER construction never consults its own totality.
+public export
+qSigSmall : QSig -> Bool
+qSigSmall = all smallEntry
+ where
+  smallDom : Ty -> Bool
+  smallDom (El _) = True
+  smallDom (Prf _) = True
+  smallDom _ = False
+  smallEntry : QTy -> Bool
+  smallEntry (QPiExt a b) = smallDom a && smallEntry b
+  smallEntry (QPiInd _ b) = smallEntry b
+  smallEntry _ = True
+
+||| Number of binders of the sort at position k (its index arity).
+public export
+qArityLen : QSig -> Nat -> Nat
+qArityLen sg k = maybe 0 qtyBinders (qEntry sg k)
+
+||| Bump every ToS variable by n (the first-order fragment has no ToS
+||| binders inside terms, so every QVar is free).
+public export
+qtmShift : Nat -> QTm -> QTm
+qtmShift n (QVar i) = QVar (n + i)
+qtmShift n (QAppE f e) = QAppE (qtmShift n f) e
+qtmShift n (QAppI f a) = QAppI (qtmShift n f) (qtmShift n a)
+qtmShift n (QEqC l r u) = QEqC (qtmShift n l) (qtmShift n r) (qtmShift n u)
+
 mutual
   public export
   covering
@@ -177,6 +335,7 @@ mutual
     Prf e          == Prf e'           = e == e'
     Quotient a r   == Quotient a' r'   = a == a' && r == r'
     Ty.SigVar x s  == Ty.SigVar x' s'  = x == x' && s == s'
+    QSort s k es   == QSort s' k' es'  = s == s' && k == k' && es == es'
     _              == _                = False
 
   public export
@@ -206,7 +365,29 @@ mutual
     QuotElim f q     == QuotElim f' q'     = f == f' && q == q'
     Squash t         == Squash t'          = t == t'
     Star             == Star               = True
+    QSortC s k es    == QSortC s' k' es'   = s == s' && k == k' && es == es'
+    QCtor s k es     == QCtor s' k' es'    = s == s' && k == k' && es == es'
+    QElim s k ms fs es w == QElim s' k' ms' fs' es' w' =
+      s == s' && k == k' && ms == ms' && fs == fs' && es == es' && w == w'
     _                == _                  = False
+
+  public export
+  covering
+  Eq QTm where
+    QVar i      == QVar i'        = i == i'
+    QAppE f e   == QAppE f' e'    = f == f' && e == e'
+    QAppI f a   == QAppI f' a'    = f == f' && a == a'
+    QEqC l r u  == QEqC l' r' u'  = l == l' && r == r' && u == u'
+    _           == _              = False
+
+  public export
+  covering
+  Eq QTy where
+    QU          == QU             = True
+    QEl t       == QEl t'         = t == t'
+    QPiExt a b  == QPiExt a' b'   = a == a' && b == b'
+    QPiInd u b  == QPiInd u' b'   = u == u' && b == b'
+    _           == _              = False
 
 mutual
   public export
@@ -263,6 +444,9 @@ mutual
     compare (Quotient _ _)   _                  = LT
     compare _                (Quotient _ _)     = GT
     compare (Ty.SigVar x s)  (Ty.SigVar y t)    = compare x y <+> compare s t
+    compare (Ty.SigVar _ _)  _                  = LT
+    compare _                (Ty.SigVar _ _)    = GT
+    compare (QSort s k es)   (QSort s' k' es')  = compare s s' <+> compare k k' <+> compare es es'
 
   public export
   covering
@@ -337,6 +521,44 @@ mutual
     compare (Squash _)         _                    = LT
     compare _                  (Squash _)           = GT
     compare Star               Star                 = EQ
+    compare Star               _                    = LT
+    compare _                  Star                 = GT
+    compare (QSortC s k es)    (QSortC s' k' es')   = compare s s' <+> compare k k' <+> compare es es'
+    compare (QSortC _ _ _)     _                    = LT
+    compare _                  (QSortC _ _ _)       = GT
+    compare (QCtor s k es)     (QCtor s' k' es')    = compare s s' <+> compare k k' <+> compare es es'
+    compare (QCtor _ _ _)      _                    = LT
+    compare _                  (QCtor _ _ _)        = GT
+    compare (QElim s k ms fs es w) (QElim s' k' ms' fs' es' w') =
+      compare s s' <+> compare k k' <+> compare ms ms' <+> compare fs fs' <+> compare es es' <+> compare w w'
+
+  public export
+  covering
+  Ord QTm where
+    compare (QVar i)     (QVar i')      = compare i i'
+    compare (QVar _)     _              = LT
+    compare _            (QVar _)       = GT
+    compare (QAppE f e)  (QAppE f' e')  = compare f f' <+> compare e e'
+    compare (QAppE _ _)  _              = LT
+    compare _            (QAppE _ _)    = GT
+    compare (QAppI f a)  (QAppI f' a')  = compare f f' <+> compare a a'
+    compare (QAppI _ _)  _              = LT
+    compare _            (QAppI _ _)    = GT
+    compare (QEqC l r u) (QEqC l' r' u') = compare l l' <+> compare r r' <+> compare u u'
+
+  public export
+  covering
+  Ord QTy where
+    compare QU            QU              = EQ
+    compare QU            _               = LT
+    compare _             QU              = GT
+    compare (QEl t)       (QEl t')        = compare t t'
+    compare (QEl _)       _               = LT
+    compare _             (QEl _)         = GT
+    compare (QPiExt a b)  (QPiExt a' b')  = compare a a' <+> compare b b'
+    compare (QPiExt _ _)  _               = LT
+    compare _             (QPiExt _ _)    = GT
+    compare (QPiInd u b)  (QPiInd u' b')  = compare u u' <+> compare b b'
 
 mutual
   public export
@@ -363,6 +585,7 @@ mutual
     show (Prf e) = "Prf (\{show e})"
     show (Quotient a r) = "Quotient (\{show a}) (\{show r})"
     show (Ty.SigVar x s) = "SigVar \{show x} (\{show s})"
+    show (QSort s k es) = "QSort (\{show s}) \{show k} (\{show es})"
 
   public export
   covering
@@ -391,3 +614,23 @@ mutual
     show (QuotElim f q) = "QuotElim (\{show f}) (\{show q})"
     show (Squash t) = "Squash (\{show t})"
     show Star = "Star"
+    show (QSortC s k es) = "QSortC (\{show s}) \{show k} (\{show es})"
+    show (QCtor s k es) = "QCtor (\{show s}) \{show k} (\{show es})"
+    show (QElim s k ms fs es w) =
+      "QElim (\{show s}) \{show k} (\{show ms}) (\{show fs}) (\{show es}) (\{show w})"
+
+  public export
+  covering
+  Show QTm where
+    show (QVar i) = "QVar \{show i}"
+    show (QAppE f e) = "QAppE (\{show f}) (\{show e})"
+    show (QAppI f a) = "QAppI (\{show f}) (\{show a})"
+    show (QEqC l r u) = "QEqC (\{show l}) (\{show r}) (\{show u})"
+
+  public export
+  covering
+  Show QTy where
+    show QU = "QU"
+    show (QEl t) = "QEl (\{show t})"
+    show (QPiExt a b) = "QPiExt (\{show a}) (\{show b})"
+    show (QPiInd u b) = "QPiInd (\{show u}) (\{show b})"

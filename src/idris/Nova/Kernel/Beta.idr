@@ -21,6 +21,7 @@ module Nova.Kernel.Beta
 
 import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
+import Nova.Kernel.QIIT
 
 %default covering
 
@@ -82,6 +83,42 @@ mutual
       q'      => QuotElim (betaElem sig f) q'
   betaElem sig (Squash t)         = Squash (betaTy sig t)
   betaElem sig Star               = Star
+  betaElem sig (QSortC sg k es)   = QSortC (betaQSig sig sg) k (betaSubNorm sig es)
+  betaElem sig (QCtor sg k es)    = QCtor (betaQSig sig sg) k (betaSubNorm sig es)
+  betaElem sig (QElim sg k ms fs es w) =
+    let sg' = betaQSig sig sg
+        ms' = map (betaTy sig) ms
+        fs' = map (betaElem sig) fs
+        es' = betaSubNorm sig es
+    in case betaElem sig w of
+         -- el-qiit-beta: fires only when the two carried signatures are
+         -- IDENTICAL after normalization (structural identity, nameless)
+         QCtor sgW c theta =>
+           if sgW == sg'
+             then case qElimBetaRhs sg' ms' fs' c theta of
+                    Right rhs => betaElem sig rhs
+                    Left err => assert_total $ idris_crash "betaElem: el-qiit-beta on an ill-formed eliminator: \{err}"
+             else QElim sg' k ms' fs' es' (QCtor sgW c theta)
+         w' => QElim sg' k ms' fs' es' w'
+
+  ||| The carried signature, with every embedded Nova piece normalized.
+  export
+  betaQTm : Sig -> QTm -> QTm
+  betaQTm sig (QVar i)     = QVar i
+  betaQTm sig (QAppE f e)  = QAppE (betaQTm sig f) (betaElem sig e)
+  betaQTm sig (QAppI f a)  = QAppI (betaQTm sig f) (betaQTm sig a)
+  betaQTm sig (QEqC l r u) = QEqC (betaQTm sig l) (betaQTm sig r) (betaQTm sig u)
+
+  export
+  betaQTy : Sig -> QTy -> QTy
+  betaQTy sig QU           = QU
+  betaQTy sig (QEl t)      = QEl (betaQTm sig t)
+  betaQTy sig (QPiExt a b) = QPiExt (betaTy sig a) (betaQTy sig b)
+  betaQTy sig (QPiInd u b) = QPiInd (betaQTm sig u) (betaQTy sig b)
+
+  export
+  betaQSig : Sig -> QSig -> QSig
+  betaQSig sig = map (betaQTy sig)
 
   ||| T, with every beta-redex rewritten: Π/Σ/ℕ-elim/quot-elim/x-β redexes
   ||| inside an El t's argument (via betaElem), type-level x-β (unfolding a
@@ -110,6 +147,7 @@ mutual
       Elem.SigmaTy a b => betaTy sig (Ty.SigmaTy (El a) (El b))
       Elem.EqTy l r t  => betaTy sig (EqTy l r (El t))
       QuotTy a r       => betaTy sig (Quotient (El a) r)
+      QSortC sg k es   => QSort sg k es      -- ty-el-qiit
       e'               => El e'
   betaTy sig PropTy           = PropTy
   betaTy sig (Prf e)          = Prf (betaElem sig e)
@@ -120,6 +158,7 @@ mutual
          Just (SigTyDef _ _ a) => betaTy sig (substTy a (embed es'))
          Just (SigDef _ _ _ _) => assert_total $ idris_crash "betaTy: signature identifier '\{x}' is a term definition, used as a type"
          Nothing               => assert_total $ idris_crash "betaTy: signature identifier '\{x}' not found"
+  betaTy sig (QSort sg k es)  = QSort (betaQSig sig sg) k (betaSubNorm sig es)
 
 ||| σ, with every element's own beta-redexes rewritten.
 export

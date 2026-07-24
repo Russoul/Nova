@@ -694,8 +694,9 @@ The EXPANSION, for each entry of the accepted 𝒮 (⌊·⌋, ⌊·⌋ᵗ, ·ᴰ
     machinery — no new mechanism, and rewriting/matching treat them
     like any user lemma.
 
-  * ELIMINATOR, one def per sort 𝕤 (same arguments, different result):
-        def n-elim :
+  * ELIMINATOR, one def per sort 𝕤 (same arguments, different
+    result; named nElim — surface names cannot contain '-'):
+        def nElim :
              (C₁ : Π(⌊𝔎₁⌋ᵗ). El (𝒮.𝕤₁ δ) → 𝕌) → …          // motives,
                                                             // one per sort
           →  (m𝕔 : ⌊𝔄ᴰ⟨𝒮.𝕔 δ⟩ with El∘C for C⌋) → …         // methods, one
@@ -741,7 +742,7 @@ expands to (𝒮 the elaborated signature, positions 0..3):
   def swp  : (x : El a) (y : El a) (m : El Bag)
                → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag
            ≔ λx. λy. λm. Refl                    // qpath-licensed
-  def Bag-elim :
+  def BagElim :
         (C : El Bag → 𝕌)
       → (mnil : El (C nil))
       → (mins : (x : El a) (m : El Bag) → El (C m) → El (C (ins x m)))
@@ -755,7 +756,7 @@ expands to (𝒮 the elaborated signature, positions 0..3):
                           // the coherence discharges from hswp (E's
                           // hypothesis source) and replays as qcoh
 
-A caller writing Bag-elim C z f h supplies h as Refl when f respects
+A caller writing BagElim C z f h supplies h as Refl when f respects
 the swap by computation — e-refl turns it into an ordinary obligation
 otherwise — or as a reference to a proven lemma. Nothing about
 obligations, discharge or the report is QIIT-aware.

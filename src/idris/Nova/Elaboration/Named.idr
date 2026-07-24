@@ -193,6 +193,22 @@ mutual
   usesIndexTy k (Prf e) = usesIndexElem k e
   usesIndexTy k (Quotient a r) = usesIndexTy k a || usesIndexElem (S (S k)) r
   usesIndexTy k (Ty.SigVar x es) = usesIndexSubNorm k es
+  usesIndexTy k (QSort sg j es) = usesIndexQSig k sg || usesIndexSubNorm k es
+
+  usesIndexQSig : Nat -> QSig -> Bool
+  usesIndexQSig k = any (usesIndexQTy k)
+
+  usesIndexQTy : Nat -> QTy -> Bool
+  usesIndexQTy k QU = False
+  usesIndexQTy k (QEl t) = usesIndexQTm k t
+  usesIndexQTy k (QPiExt a b) = usesIndexTy k a || usesIndexQTy (S k) b
+  usesIndexQTy k (QPiInd u b) = usesIndexQTm k u || usesIndexQTy k b
+
+  usesIndexQTm : Nat -> QTm -> Bool
+  usesIndexQTm k (QVar _) = False
+  usesIndexQTm k (QAppE f e) = usesIndexQTm k f || usesIndexElem k e
+  usesIndexQTm k (QAppI f a) = usesIndexQTm k f || usesIndexQTm k a
+  usesIndexQTm k (QEqC l r u) = usesIndexQTm k l || usesIndexQTm k r || usesIndexQTm k u
 
   usesIndexElem : Nat -> Elem -> Bool
   usesIndexElem k (CtxVar n) = n == k
@@ -219,6 +235,14 @@ mutual
   usesIndexElem k (QuotElim f q) = usesIndexElem k f || usesIndexElem k q
   usesIndexElem k (Squash t) = usesIndexTy k t
   usesIndexElem k Star = False
+  usesIndexElem k (QSortC sg j es) = usesIndexQSig k sg || usesIndexSubNorm k es
+  usesIndexElem k (QCtor sg j es) = usesIndexQSig k sg || usesIndexSubNorm k es
+  usesIndexElem k (QElim sg j ms fs es w) =
+    usesIndexQSig k sg || any (usesIndexMotive) (zip (qPositions QKSort sg) ms)
+      || any (usesIndexElem k) fs || usesIndexSubNorm k es || usesIndexElem k w
+   where
+    usesIndexMotive : (Nat, Ty) -> Bool
+    usesIndexMotive (sj, m) = usesIndexTy (k + S (qArityLen sg sj)) m
 
   usesIndexSubNorm : Nat -> SubNorm -> Bool
   usesIndexSubNorm k [<] = False
@@ -331,6 +355,10 @@ mutual
   prettyElemAtomN tbl env (Squash t) = "∥" ++ prettyTyN tbl env t ++ "∥"
   prettyElemAtomN tbl env (SigVar x [<]) = if isOpName x then "(" ++ x ++ ")" else x
   prettyElemAtomN tbl env (SigVar x es) = x ++ "[" ++ prettySubNormN tbl env es ++ "]"
+  prettyElemAtomN tbl env (QSortC sg k es) = "𝒮." ++ show k ++ "[" ++ prettySubNormN tbl env es ++ "]"
+  prettyElemAtomN tbl env (QCtor sg k es) = "𝒮." ++ show k ++ "[" ++ prettySubNormN tbl env es ++ "]"
+  prettyElemAtomN tbl env (QElim sg k ms fs es w) =
+    "𝒮." ++ show k ++ "-elim[" ++ prettySubNormN tbl env es ++ "](" ++ prettyElemN tbl env w ++ ")"
   prettyElemAtomN tbl env e = "(" ++ prettyElemN tbl env e ++ ")"
 
   ||| t˲ ::= ε | t˲ , t — the empty normal substitution prints as nothing
@@ -388,6 +416,7 @@ mutual
   prettyTyAtomN tbl env Ty.PropTy = "Ω"
   prettyTyAtomN tbl env (Ty.SigVar x [<]) = if isOpName x then "(" ++ x ++ ")" else x
   prettyTyAtomN tbl env (Ty.SigVar x es) = x ++ "[" ++ prettySubNormN tbl env es ++ "]"
+  prettyTyAtomN tbl env (QSort sg k es) = "𝒮." ++ show k ++ "[" ++ prettySubNormN tbl env es ++ "]"
   prettyTyAtomN tbl env ty = "(" ++ prettyTyN tbl env ty ++ ")"
 
 -- ===== Ctx =====

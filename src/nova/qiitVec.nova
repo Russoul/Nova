@@ -1,0 +1,14 @@
+-- An INDEXED sort: length-indexed vectors of naturals (external
+-- index arity), with dependent elimination at an indexed motive.
+def plusV : ℕ → ℕ → ℕ ≔ λa. λb. ℕ-elim (n. ℕ) b (n ih. S ih) a
+
+data ( V : (n : El ℕ) → U
+     ; vnil : El (V Z)
+     ; vcons : (n : El ℕ) (x : El ℕ) (xs : El (V n)) → El (V (S n)) )
+
+def single : El (V (S Z)) ≔ vcons Z (S (S (S Z))) vnil
+
+def vsum : (n : El ℕ) → El (V n) → ℕ ≔
+  λn. λv. VElim (λm. λw. ℕ) Z (λm. λx. λxs. λih. plusV x ih) n v
+
+def vsumSingle : vsum (S Z) single ≡ S (S (S Z)) ∈ ℕ ≔ Refl

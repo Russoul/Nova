@@ -39,6 +39,7 @@ import Data.String
 import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
 import Nova.Kernel.Beta
+import Nova.Kernel.QIIT
 import Nova.Kernel.Parser
 import Nova.Kernel
 import Nova.Elaboration.Named
@@ -163,6 +164,12 @@ throw e = MkElabM $ \_ => Left e
 
 -- ===== Small core utilities =====
 
+||| Rewriting-recorded steps are always proof-licensed (path licenses
+||| are only ever EMITTED, for the data item's eq-lemmas).
+licProof : StepLic -> Elem
+licProof (LProof p) = p
+licProof (LPath _ _ _) = assert_total $ idris_crash "licProof: path license in a rewrite trace"
+
 ||| Γ‖ᵢ (same as the derivation checker's private helper).
 ctxLookup : Ctx -> Nat -> Maybe Ty
 ctxLookup [<]          _     = Nothing
@@ -207,6 +214,8 @@ bindParam p e bs =
 ||| ∥-∥ into its squashee; defined below). No type-level pattern
 ||| variables — parameters are elements.
 matchTyP : (k : Nat) -> (d : Nat) -> (b : Nat) -> (pat : Ty) -> (tgt : Ty) -> Bindings -> Maybe Bindings
+
+matchSpineP : (k : Nat) -> (d : Nat) -> (b : Nat) -> SubNorm -> SubNorm -> Bindings -> Maybe Bindings
 
 matchElemP : (k : Nat) -> (d : Nat) -> (b : Nat) -> (pat : Elem) -> (tgt : Elem) -> Bindings -> Maybe Bindings
 matchElemP k d b (CtxVar j) tgt =
@@ -257,7 +266,34 @@ matchElemP k d b (QuotElim f q) (QuotElim f' q') =
   \bs => matchElemP k d (1 + b) f f' bs >>= matchElemP k d b q q'
 matchElemP k d b (Squash t) (Squash t') = matchTyP k d b t t'
 matchElemP k d b Star Star = Just
+-- QIIT formers: the carried signatures are CLOSED (no pattern
+-- parameters can occur inside them) and compared syntactically; the
+-- spines match componentwise. Eliminators likewise, motives/methods
+-- included (motives cross arity+1 binders).
+matchElemP k d b (QSortC sg j es) (QSortC sg' j' es') =
+  if sg == sg' && j == j' then matchSpineP k d b es es' else const Nothing
+matchElemP k d b (QCtor sg j es) (QCtor sg' j' es') =
+  if sg == sg' && j == j' then matchSpineP k d b es es' else const Nothing
+matchElemP k d b (QElim sg j ms fs es w) (QElim sg' j' ms' fs' es' w') =
+  if sg == sg' && j == j'
+    then \bs => matchMots (qPositions QKSort sg) ms ms' bs
+             >>= matchList fs fs' >>= matchSpineP k d b es es' >>= matchElemP k d b w w'
+    else const Nothing
+ where
+  matchMots : List Nat -> List Ty -> List Ty -> Bindings -> Maybe Bindings
+  matchMots _ [] [] = Just
+  matchMots (sj :: sjs) (m :: rest) (m' :: rest') =
+    \bs => matchTyP k d (b + S (qArityLen sg sj)) m m' bs >>= matchMots sjs rest rest'
+  matchMots _ _ _ = const Nothing
+  matchList : List Elem -> List Elem -> Bindings -> Maybe Bindings
+  matchList [] [] = Just
+  matchList (x :: xs) (y :: ys) = \bs => matchElemP k d b x y bs >>= matchList xs ys
+  matchList _ _ = const Nothing
 matchElemP _ _ _ _ _ = const Nothing
+
+matchSpineP k d b [<] [<] = Just
+matchSpineP k d b (es :< e) (es' :< e') = \bs => matchSpineP k d b es es' bs >>= matchElemP k d b e e'
+matchSpineP _ _ _ _ _ = const Nothing
 
 matchTyP k d b Ty.ZeroTy Ty.ZeroTy = Just
 matchTyP k d b Ty.OneTy Ty.OneTy = Just
@@ -281,6 +317,8 @@ matchTyP k d b (Ty.SigVar x es) (Ty.SigVar x' es') =
   goSubNorm [<] [<] = Just
   goSubNorm (es :< e) (es' :< e') = \bs => goSubNorm es es' bs >>= matchElemP k d b e e'
   goSubNorm _ _ = const Nothing
+matchTyP k d b (QSort sg j es) (QSort sg' j' es') =
+  if sg == sg' && j == j' then matchSpineP k d b es es' else const Nothing
 matchTyP _ _ _ _ _ = const Nothing
 
 ||| Build the instantiating substitution: pattern context base ᐅ p_{k-1}
@@ -342,6 +380,14 @@ elemSize (Class a) = S (elemSize a)
 elemSize (QuotElim f q) = S (elemSize f + elemSize q)
 elemSize (Squash t) = S (tySize t)
 elemSize Star = 1
+-- QIIT formers: the signature counts as head material (a constant),
+-- the spines as arguments
+elemSize (QSortC _ _ es) = S (foldl (\acc, e => acc + elemSize e) 0 es)
+elemSize (QCtor _ _ es) = S (foldl (\acc, e => acc + elemSize e) 0 es)
+elemSize (QElim _ _ ms fs es w) =
+  S (foldl (\acc, m => acc + tySize m) 0 ms +
+     foldl (\acc, f => acc + elemSize f) 0 fs +
+     foldl (\acc, e => acc + elemSize e) 0 es + elemSize w)
 
 tySize Ty.ZeroTy = 1
 tySize Ty.OneTy = 1
@@ -355,6 +401,7 @@ tySize (El e) = S (elemSize e)
 tySize (Prf e) = S (elemSize e)
 tySize (Quotient a r) = S (tySize a + elemSize r)
 tySize (Ty.SigVar _ es) = S (foldl (\acc, e => acc + elemSize e) 0 es)
+tySize (QSort _ _ es) = S (foldl (\acc, e => acc + elemSize e) 0 es)
 
 ||| Equal up to a bijective renaming of the parametric variables
 ||| (commutativity-shaped) — such equations loop as rewrite rules.
@@ -369,6 +416,8 @@ permutative c = isJust (go 0 c.lhs c.rhs [])
       (Nothing, Just _) => Nothing
 
   goT : Nat -> Ty -> Ty -> List (Nat, Nat) -> Maybe (List (Nat, Nat))
+
+  goSp : Nat -> SubNorm -> SubNorm -> List (Nat, Nat) -> Maybe (List (Nat, Nat))
 
   go : Nat -> Elem -> Elem -> List (Nat, Nat) -> Maybe (List (Nat, Nat))
   go b (CtxVar i) (CtxVar j) m =
@@ -406,7 +455,15 @@ permutative c = isJust (go 0 c.lhs c.rhs [])
   go b (QuotElim f q) (QuotElim f' q') m = go (1+b) f f' m >>= go b q q'
   go b (Squash t) (Squash t') m = goT b t t' m
   go b Star Star m = Just m
+  go b (QSortC sg j es) (QSortC sg' j' es') m =
+    if sg == sg' && j == j' then goSp b es es' m else Nothing
+  go b (QCtor sg j es) (QCtor sg' j' es') m =
+    if sg == sg' && j == j' then goSp b es es' m else Nothing
   go _ _ _ _ = Nothing
+
+  goSp b [<] [<] m = Just m
+  goSp b (es :< e) (es' :< e') m = goSp b es es' m >>= go b e e'
+  goSp _ _ _ _ = Nothing
 
   goT b Ty.ZeroTy Ty.ZeroTy m = Just m
   goT b Ty.OneTy Ty.OneTy m = Just m
@@ -426,6 +483,8 @@ permutative c = isJust (go 0 c.lhs c.rhs [])
     goSNT [<] [<] m = Just m
     goSNT (es :< e) (es' :< e') m = goSNT es es' m >>= go b e e'
     goSNT _ _ _ = Nothing
+  goT b (QSort sg j es) (QSort sg' j' es') m =
+    if sg == sg' && j == j' then goSp b es es' m else Nothing
   goT _ _ _ _ = Nothing
 
 ||| Candidates usable as REWRITE rules (strictly-shrinking first;
@@ -452,21 +511,21 @@ materialize : Cand -> Bindings -> (onLhs : Bool) -> (sitePath : List Nat) -> May
 materialize c bs side pi = do
   (prfMain, selsMain) <- c.emit bs
   sigma <- instSub c.params 0 bs
-  let instStep = \ps : PStep => MkStep side (pi ++ ps.ppath) (substElem ps.pprf sigma) ps.psels ps.pflip
+  let instStep = \ps : PStep => MkStep side (pi ++ ps.ppath) (LProof (substElem ps.pprf sigma)) ps.psels ps.pflip
   let pre = map (\ps => { flip $= not } (instStep ps)) (reverse c.preL)
   let post = map instStep c.postR
-  pure (pre ++ [MkStep side pi prfMain selsMain False] ++ post)
+  pure (pre ++ [MkStep side pi (LProof prfMain) selsMain False] ++ post)
 
 materializeFlip : Cand -> Bindings -> (onLhs : Bool) -> Maybe (List Step)
 materializeFlip c bs side = do
   (prfMain, selsMain) <- c.emit bs
   sigma <- instSub c.params 0 bs
-  let instStep = \ps : PStep => MkStep side ps.ppath (substElem ps.pprf sigma) ps.psels ps.pflip
+  let instStep = \ps : PStep => MkStep side ps.ppath (LProof (substElem ps.pprf sigma)) ps.psels ps.pflip
   -- flipped whole-equation use at the root: post-normalization is
   -- inverted (it now bridges INTO the stored rhs pattern), pre applies
   let pre = map (\ps => { flip $= not } (instStep ps)) (reverse c.postR)
   let post = map instStep c.preL
-  pure (pre ++ [MkStep side [] prfMain selsMain True] ++ post)
+  pure (pre ++ [MkStep side [] (LProof prfMain) selsMain True] ++ post)
 
 -- ===== Rewriting with step recording =====
 
@@ -492,6 +551,18 @@ rewriteElemS side c pi d t =
 
   at : Nat -> Nat -> Elem -> (Elem -> Elem) -> Maybe (Elem, List Step)
   at i db u re = (\(u', st) => (re u', st)) <$> rewriteElemS side c (i :: pi) (db + d) u
+
+  spineAt : SubNorm -> (SubNorm -> Elem) -> Maybe (Elem, List Step)
+  spineAt es re =
+    let xs = toList es in
+    first (map (\i =>
+      case getAt i xs of
+        Just e => (\(e', st) =>
+                     case splitAt i xs of
+                       (pre, _ :: post) => (re (cast (pre ++ e' :: post)), st)
+                       _ => (re es, st))
+                  <$> rewriteElemS side c (i :: pi) d e
+        Nothing => Nothing) [0 .. minus (length xs) 1])
 
   descend : Elem -> Maybe (Elem, List Step)
   descend (ZeroElim u)       = at 0 0 u ZeroElim
@@ -542,6 +613,13 @@ rewriteElemS side c pi d t =
           , at 1 0 q (\q' => QuotElim f q') ]
   descend (Squash t)         =
     (\(t', st) => (Squash t', st)) <$> rewriteTyS side c (0 :: pi) d t
+  -- QIIT formers: spines and the eliminee are addressable; the carried
+  -- signature and eliminator problem are OPAQUE (NovaKernel.txt, A3)
+  descend (QSortC sg k es)  = spineAt es (\es' => QSortC sg k es')
+  descend (QCtor sg k es)   = spineAt es (\es' => QCtor sg k es')
+  descend (QElim sg k ms fs es w) =
+    spineAt es (\es' => QElim sg k ms fs es' w)
+      <|> at (length (toList es)) 0 w (\w' => QElim sg k ms fs es w')
   descend _ = Nothing
 
 rewriteTyS side c pi d Ty.ZeroTy = Nothing
@@ -566,6 +644,23 @@ rewriteTyS side c pi d (El e) =
 rewriteTyS side c pi d (Quotient a r) =
   ((\(a', st) => (Quotient a' r, st)) <$> rewriteTyS side c (0 :: pi) d a)
     <|> ((\(r', st) => (Quotient a r', st)) <$> rewriteElemS side c (1 :: pi) (2 + d) r)
+-- QIIT sort application: rewriting reaches the INDEX SPINE; the carried
+-- signature is OPAQUE to paths (NovaKernel.txt, A3)
+rewriteTyS side c pi d (QSort sg k es) =
+  let xs = toList es in
+  firstJQ (map (\i =>
+    case getAt i xs of
+      Just e => (\(e', st) =>
+                   case splitAt i xs of
+                     (pre, _ :: post) => (QSort sg k (cast (pre ++ e' :: post)), st)
+                     _ => (QSort sg k es, st))
+                <$> rewriteElemS side c (i :: pi) d e
+      Nothing => Nothing) [0 .. minus (length xs) 1])
+ where
+  firstJQ : List (Maybe a) -> Maybe a
+  firstJQ [] = Nothing
+  firstJQ (Just x' :: _) = Just x'
+  firstJQ (Nothing :: rest) = firstJQ rest
 rewriteTyS side c pi d (Ty.SigVar x es) =
   let xs = toList es in
   firstJ (map (\i =>
@@ -676,7 +771,7 @@ hypCands st ctx = concatMap closeCand (mapMaybe candAt [0 .. minus (length ctx) 
   lemmaRw = ordered st.lemmas
 
   toPSteps : List Step -> List PStep
-  toPSteps = map (\s => MkPStep s.path s.prf s.sels s.flip)
+  toPSteps = map (\s => MkPStep s.path (licProof s.lic) s.sels s.flip)
 
   -- a hypothesis licenses an equation when its (peeled) type is an
   -- ≡-type OR a squashed one, Prf ∥l ≡ r ∈ t∥ — squashed reflection
@@ -1638,7 +1733,7 @@ addLemma name delta ty = do
           lRes = rwNfElemS st.sig lemmaRw True (betaElem st.sig l)
           rRes = rwNfElemS st.sig lemmaRw True (betaElem st.sig r)
           toP : List Step -> List PStep
-          toP = map (\s => MkPStep s.path s.prf s.sels s.flip)
+          toP = map (\s => MkPStep s.path (licProof s.lic) s.sels s.flip)
       in modifySt $ { lemmas $= (closeCand (MkCand name k (toList delta') (fst lRes) (fst rRes)
                                                    mk (toP (snd lRes)) (toP (snd rRes))) ++) }
     _ => pure ()
@@ -1654,6 +1749,63 @@ kernelAccept name check clean = do
     else case check st.kernelSig of
       Right entry => modifySt $ { kernelSig $= (:< entry) }
       Left err => throw "\{name}: KERNEL REJECTED the elaborated item: \{err}"
+
+liftQE : String -> Either QErr a -> ElabM a
+liftQE site (Left e) = throw "\{site}: \{e}"
+liftQE site (Right x) = pure x
+
+||| Emit one core definition item: kernel-check, extend Σ, register a
+||| lemma if it is ≡-typed. Mirrors elabItem's tail for surface defs.
+emitCoreDef : String -> String -> Ty -> Skel -> Elem -> Skel -> ElabM ()
+emitCoreDef site x ty tySk body bodySk = do
+  st <- getSt
+  let q = if st.modPrefix == "" then x else "\{st.modPrefix}.\{x}"
+  case sigLookup q st.sig of
+    Just _ => throw "\{site}: duplicate signature name '\{x}'"
+    Nothing => pure ()
+  after <- oblCount
+  kernelAccept "\{site} \{x}"
+    (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] ty tySk body bodySk))
+    (after == 0)
+  modifySt $ { sig $= (:< SigDef [<] q body ty), vis $= (:< (x, q)) }
+  addLemma q [<] ty
+
+emitCoreTyDef : String -> String -> Ty -> Skel -> ElabM ()
+emitCoreTyDef site x ty tySk = do
+  st <- getSt
+  let q = if st.modPrefix == "" then x else "\{st.modPrefix}.\{x}"
+  case sigLookup q st.sig of
+    Just _ => throw "\{site}: duplicate signature name '\{x}'"
+    Nothing => pure ()
+  after <- oblCount
+  kernelAccept "\{site} \{x}"
+    (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty tySk))
+    (after == 0)
+  modifySt $ { sig $= (:< SigTyDef [<] q ty), vis $= (:< (x, q)) }
+
+wrapLams : Nat -> Elem -> Elem
+wrapLams Z e = e
+wrapLams (S n) e = PiIntro (wrapLams n e)
+
+||| A skeleton nested under n λ-binders (child 0 each time).
+nestSkel : Nat -> Skel -> Skel
+nestSkel Z sk = sk
+nestSkel (S n) sk = Nd [] [nestSkel n sk]
+
+||| A skeleton nested under n Π-binders on the CODOMAIN side (child 1
+||| each time, empty domains).
+nestPiSkel : Nat -> Skel -> Skel
+nestPiSkel Z sk = sk
+nestPiSkel (S n) sk = Nd [] [Nd [] [], nestPiSkel n sk]
+
+||| The skeleton of a right-nested Π-chain, given each DOMAIN's skeleton
+||| (the result type gets an empty node).
+piChainSkel : List Skel -> Skel
+piChainSkel [] = Nd [] []
+piChainSkel (d :: ds) = Nd [] [d, piChainSkel ds]
+
+applyChain : Elem -> List Elem -> Elem
+applyChain = foldl PiApp
 
 export
 elabItem : SItem -> ElabM String
@@ -1692,6 +1844,215 @@ elabItem (STypeDef x ty) = do
     (after == 0)
   modifySt $ { sig $= (:< SigTyDef [<] q ty'), vis $= (:< (x, q)) }
   pure "defined type \{x}"
+elabItem (SData decls) = do
+  let site = "data " ++ (case decls of
+                           (d :: _) => d.dqname
+                           [] => "")
+  case decls of
+    [] => throw "\{site}: empty data literal"
+    _ => pure ()
+  -- 1. elaborate the literal to a core signature, entry by entry; the
+  --    parser already resolved names to ⬡-indices and classified the
+  --    domains, so the only content is the embedded Nova pieces
+  sg <- traverse (elabDecl site) decls
+  -- 2. EXPANSION: the batch of ordinary defs (docs/NovaElaboration.txt,
+  --    QIIT section) — code-valued sorts, saturated constructors,
+  --    Refl path-lemmas, one eliminator per sort with coherences as
+  --    ≡-typed hypotheses
+  let named = zipWithIndex 0 decls
+  ignore $ traverse (\(k, d) =>
+    case qEntryKind (fromMaybe QU (qEntry sg k)) of
+      QKSort => do emitSort site sg k d.dqname
+                   emitElim site sg k d.dqname
+      QKPoint => emitCtor site sg k d.dqname
+      QKEq => emitEq site sg k d.dqname) named
+  pure ("defined data (" ++ joinBy ", " (map (.dqname) decls) ++ ")")
+ where
+  zipWithIndex : Nat -> List a -> List (Nat, a)
+  zipWithIndex _ [] = []
+  zipWithIndex i (x :: xs) = (i, x) :: zipWithIndex (S i) xs
+
+  elabSQTm : String -> Ctx -> NameEnv -> SQTm -> ElabM QTm
+  elabSQTm site ectx env (SQVar _ i) = pure (QVar i)
+  elabSQTm site ectx env (SQAppE f e) = do
+    f' <- elabSQTm site ectx env f
+    -- external arguments elaborate by INFERENCE (they are neutral in
+    -- the emitted fragment); the kernel re-checks them at the arity
+    (e', _, _) <- inferElem ectx env site e
+    pure (QAppE f' e')
+  elabSQTm site ectx env (SQAppI f a) =
+    [| QAppI (elabSQTm site ectx env f) (elabSQTm site ectx env a) |]
+
+  elabDecl : String -> SQDecl -> ElabM QTy
+  elabDecl site d = go [<] [<] d.dqbinders
+   where
+    go : Ctx -> NameEnv -> List (String, Either STy SQTm) -> ElabM QTy
+    go ectx env ((x, Left t) :: rest) = do
+      (t', _) <- elabTy ectx env site t
+      QPiExt t' <$> go (ectx :< t') (env :< x) rest
+    go ectx env ((x, Right q) :: rest) = do
+      q' <- elabSQTm site ectx env q
+      QPiInd q' <$> go ectx env rest
+    go ectx env [] = case d.dqres of
+      SQResU => pure QU
+      SQResEl q => QEl <$> elabSQTm site ectx env q
+      SQResEq l r u => do
+        l' <- elabSQTm site ectx env l
+        r' <- elabSQTm site ectx env r
+        u' <- elabSQTm site ectx env u
+        pure (QEl (QEqC l' r' u'))
+
+  entryAt : String -> QSig -> Nat -> ElabM QTy
+  entryAt site sg k = case qEntry sg k of
+    Just e => pure e
+    Nothing => throw "\{site}: internal — entry out of range"
+
+  ||| A sort: a code-valued def when the signature is SMALL; for a
+  ||| LARGE signature, a type item (nullary sorts only — an indexed
+  ||| large family has no closed-item spelling).
+  emitSort : String -> QSig -> Nat -> String -> ElabM ()
+  emitSort site sg k nm = do
+    entry <- entryAt site sg k
+    (tel, _, _) <- liftQE site (reflTel sg (qwAt k) entry)
+    let n = length tel
+    if qSigSmall sg
+      then do
+        let ty = foldr Ty.PiTy Ty.UniverseTy tel
+        let body = wrapLams n (QSortC sg k (varSpine n))
+        emitCoreDef site nm ty (Nd [] []) body (Nd [] [])
+      else if n == 0
+        then emitCoreTyDef site nm (QSort sg k [<]) (Nd [] [])
+        else throw "\{site}: an indexed sort of a LARGE signature has no closed-item spelling (make the signature small)"
+
+  ||| A point constructor: the saturated former, η-expanded once.
+  emitCtor : String -> QSig -> Nat -> String -> ElabM ()
+  emitCtor site sg k nm = do
+    entry <- entryAt site sg k
+    ty <- liftQE site (reflQTy sg (qwAt k) entry)
+    let n = qtyBinders entry
+    let body = wrapLams n (QCtor sg k (varSpine n))
+    emitCoreDef site nm ty (Nd [] []) body (Nd [] [])
+
+  ||| An equation constructor: a Refl-lemma, licensed by el-qiit-path
+  ||| (a qpath step behind the Refl's equation certificate). On later
+  ||| items this def is an accepted lemma, so the QIIT's imposed
+  ||| equations feed discharge through the standard store.
+  emitEq : String -> QSig -> Nat -> String -> ElabM ()
+  emitEq site sg k nm = do
+    entry <- entryAt site sg k
+    (tel, wEnd, hd) <- liftQE site (reflTel sg (qwAt k) entry)
+    (lq, rq, uq) <- liftQE site (eqHead hd)
+    lE <- liftQE site (reflTm sg wEnd lq)
+    rE <- liftQE site (reflTm sg wEnd rq)
+    uT <- liftQE site (reflCodeTy sg wEnd uq)
+    let n = length tel
+    let ty = foldr Ty.PiTy (EqTy lE rE uT) tel
+    let body = wrapLams n Refl
+    let cert = MkECert [MkStep True [] (LPath sg k (varSpine n)) [] False] FBeta
+    emitCoreDef site nm ty (Nd [] []) body (nestSkel n (Nd [PReflEq cert] []))
+
+  ||| The eliminator def for sort s: motives (code-valued), methods,
+  ||| COHERENCES AS HYPOTHESES (≡-typed arguments — extensionality's
+  ||| dividend), then the indices and the eliminee. The body is the
+  ||| core eliminator; its qcoh certificates replay from the coherence
+  ||| binders by el-reflect.
+  emitElim : String -> QSig -> Nat -> String -> ElabM ()
+  emitElim site sg s nm = do
+    let sortPs = qPositions QKSort sg
+    let pointPs = qPositions QKPoint sg
+    let eqPs = qPositions QKEq sg
+    let nS = length sortPs
+    let nM = length pointPs
+    let nH = length eqPs
+    sEntry <- entryAt site sg s
+    (sTel, _, _) <- liftQE site (reflTel sg (qwAt s) sEntry)
+    let nI = length sTel
+    -- motive TYPES as seen `extra` binders after the LAST motive
+    -- binder: C_j's index there is (nS-1-j) + extra, plus (arity_j + 1)
+    -- inside the motive's own context (arity binders then the eliminee)
+    let motTysAt : Nat -> ElabM (List Ty)
+        motTysAt extra = traverse (\p =>
+            case p of
+              (j, sj) => do
+                sjE <- entryAt site sg sj
+                (telJ, _, _) <- liftQE site (reflTel sg (qwAt sj) sjE)
+                let aj = length telJ
+                let cIdx = minus nS (S j) + extra + aj + 1
+                let idxVars = toList (substSubNorm (varSpine aj) Wk)
+                pure (El (PiApp (applyChain (CtxVar cIdx) idxVars) (CtxVar 0))))
+          (zipWithIndex 0 sortPs)
+    -- method binder i, seen `extra` binders after the last motive:
+    let mVarsAt : Nat -> List Elem
+        mVarsAt extra = map (\i => CtxVar (minus extra (S i))) (upto nM)
+    -- 1. motive binder types (closed but for the signature)
+    cTys <- traverse (\p => case p of
+              (j, sj) => do
+                sjE <- entryAt site sg sj
+                (telJ, wEndJ, _) <- liftQE site (reflTel sg (qwAt sj) sjE)
+                let aj = length telJ
+                pure (foldr Ty.PiTy
+                        (Ty.PiTy (QSort sg sj (varSpine aj)) Ty.UniverseTy)
+                        telJ))
+            (zipWithIndex 0 sortPs)
+    -- 2. method binder types (at extra = j)
+    mTys <- traverse (\p => case p of
+              (j, cj) => do
+                mots <- motTysAt j
+                liftQE site (methodTy sg mots cj))
+            (zipWithIndex 0 pointPs)
+    -- 3. coherence binder types (at extra = nM + j). The two sides of
+    -- the coherence ≡ have types equal only JUDGEMENTALLY (C[⌊l⌋] ≐
+    -- C[⌊r⌋] by el-qiit-path), so the rhs position carries a SWITCH
+    -- certificate whose single step is a path license rewriting ⌊r⌋
+    -- back to ⌊l⌋ inside the inferred type.
+    hTysSk <- traverse (\p => case p of
+              (j, ej) => do
+                mots <- motTysAt (nM + j)
+                (dtel, spineArgs, lhs, rhs, cty) <- liftQE site (coherenceAt sg mots (mVarsAt (nM + j)) ej)
+                let dlen = length dtel
+                let swc = MkECert [MkStep True [0, 1] (LPath sg ej spineArgs) [] True] FBeta
+                let eqSk = Nd [] [Nd [] [], Nd [PSwitch swc] [], Nd [] []]
+                pure (foldr Ty.PiTy (EqTy lhs rhs cty) dtel, nestPiSkel dlen eqSk))
+            (zipWithIndex 0 eqPs)
+    let hTys = map fst hTysSk
+    let hSks = map snd hTysSk
+    -- 4. indices (the target sort's arity — closed types) and eliminee
+    let wTy = QSort sg s (varSpine nI)
+    -- result: El (C_s idx w) — C_s under everything
+    ordS <- case qOrdinal QKSort sg s of
+              Just o => pure o
+              Nothing => throw "\{site}: internal — sort ordinal"
+    let cS = minus nS (S ordS) + nM + nH + nI + 1
+    let idxAtEnd = toList (substSubNorm (varSpine nI) Wk)
+    let resTy = El (PiApp (applyChain (CtxVar cS) idxAtEnd) (CtxVar 0))
+    let defTy = foldr Ty.PiTy resTy (cTys ++ mTys ++ hTys ++ sTel ++ [wTy])
+    let emptySk = the Skel (Nd [] [])
+    let defTySk = piChainSkel
+                    (map (const emptySk) cTys ++ map (const emptySk) mTys ++
+                     hSks ++ map (const emptySk) sTel ++ [emptySk])
+    -- body: λ^N (𝒮.s-elim ℰ ē w)
+    let endExtra = nM + nH + nI + 1
+    motsEnd <- motTysAt endExtra
+    let mthsEnd = mVarsAt endExtra
+    let bigN = nS + nM + nH + nI + 1
+    let body = wrapLams bigN
+                 (QElim sg s motsEnd mthsEnd (cast idxAtEnd) (CtxVar 0))
+    -- coherence certificates: each replays from its hypothesis binder,
+    -- applied to the ᴰ-context's variables (one step, then FBeta)
+    cohCerts <- traverse (\p => case p of
+                  (j, ej) => do
+                    (dtel, _, _, _, _) <- liftQE site (coherenceAt sg motsEnd mthsEnd ej)
+                    let dlen = length dtel
+                    let hIdx = minus nH (S j) + nI + 1 + dlen
+                    let dVars = map CtxVar (reverse (upto dlen))
+                    pure (MkECert [MkStep True [] (LProof (applyChain (CtxVar hIdx) dVars)) [] False] FBeta))
+                (zipWithIndex 0 eqPs)
+    let bodySk = nestSkel bigN (Nd [PQCoh cohCerts] [])
+    emitCoreDef site (nm ++ "Elim") defTy defTySk body bodySk
+   where
+    upto : Nat -> List Nat
+    upto Z = []
+    upto (S n) = upto n ++ [n]
 
 -- ===== Report =====
 

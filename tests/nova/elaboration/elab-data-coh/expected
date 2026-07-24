@@ -1,0 +1,5 @@
+defined data (Bag, nil, ins, swp)
+defined headOr0
+open obligations (1):
+  [1] (m : El Bag) (x : El ℕ) (y : El ℕ) (r : 𝒮.0[]) (ih : El ((λz. ℕ) r)) ⊢ (λz. λw. λv. z) x 𝒮.2[y, r] ((λz. λw. λv. z) y r ih) ≐ (λz. λw. λv. z) y 𝒮.2[x, r] ((λz. λw. λv. z) x r ih) : El ((λz. ℕ) 𝒮.2[x, 𝒮.2[y, r]])
+      at: def headOr0: checking Refl

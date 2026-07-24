@@ -71,7 +71,8 @@ parseName = do
   -- no error at all).
   guard "Reserved keyword" (name /= "def" && name /= "type" && name /= "El" && name /= "Prf" &&
                             name /= "import" && name /= "infixl" && name /= "infixr" &&
-                            name /= "S" && name /= "Z" && name /= "Refl" && name /= "class")
+                            name /= "S" && name /= "Z" && name /= "Refl" && name /= "class" &&
+                            name /= "data")
   pure name
 
 ||| A possibly-qualified name: x or M.x or A.B.x. The dot only counts
@@ -328,6 +329,109 @@ mutual
 -- ordinary Π-binders in the item's type (the iterated binder syntax
 -- keeps that pleasant), and references to an item are bare names.
 
+-- ===== QIIT signature literals (the data item) =====
+--
+-- Inside a literal, name resolution is three-layered: the literal's
+-- own entries and inductive binders (the ToS zone) resolve FIRST, then
+-- external binders (the Nova zone), then Σ. A Π domain is INDUCTIVE
+-- exactly when it is `El` of a chain headed by a ToS name — anything
+-- else is an external surface type. Both classifications happen here,
+-- at parse time; the elaborator never sees a name.
+
+||| An identifier resolving in the ToS environment.
+tosName : NameEnv -> Rule (String, Nat)
+tosName tos = do
+  x <- parseName
+  case resolveVar tos x of
+    Just i => pure (x, i)
+    Nothing => do guard "a ToS-scope name" False
+                  pure ("", 0)
+
+mutual
+  ||| A ToS application chain: a ToS head applied to arguments, each
+  ||| argument itself ToS (a name or parenthesized chain) or external
+  ||| (an ordinary surface atom over the external zone).
+  sqChain : FixTable -> NameEnv -> NameEnv -> Rule SQTm
+  sqChain tbl tos ext = do
+    (x, i) <- tosName tos
+    args <- many (do sp; sqArg tbl tos ext)
+    pure (foldl app (SQVar x i) args)
+   where
+    app : SQTm -> Either SElem SQTm -> SQTm
+    app f (Left e) = SQAppE f e
+    app f (Right t) = SQAppI f t
+
+  sqArg : FixTable -> NameEnv -> NameEnv -> Rule (Either SElem SQTm)
+  sqArg tbl tos ext =
+        (do (x, i) <- tosName tos; pure (Right (SQVar x i)))
+    <|> (do char_ '('; sp; t <- sqChain tbl tos ext; sp; char_ ')'; pure (Right t))
+    <|> (Left <$> parseSElemAtom tbl ext)
+
+  sqCode : FixTable -> NameEnv -> NameEnv -> Rule SQTm
+  sqCode tbl tos ext =
+        (do char_ '('; sp; t <- sqChain tbl tos ext; sp; char_ ')'; pure t)
+    <|> sqChain tbl tos ext
+
+sqDomain : FixTable -> NameEnv -> NameEnv -> Rule (Either STy SQTm)
+sqDomain tbl tos ext =
+      (do str_ "El"; space; q <- sqCode tbl tos ext; pure (Right q))
+  <|> (Left <$> parseSTy tbl ext)
+
+sqRes : FixTable -> NameEnv -> NameEnv -> Rule SQRes
+sqRes tbl tos ext =
+      (do str_ "U"; pure SQResU)
+  <|> (do l <- sqChain tbl tos ext; sp; str_ "≡"; sp
+          r <- sqChain tbl tos ext; sp; str_ "∈"; sp
+          str_ "El"; space; u <- sqCode tbl tos ext
+          pure (SQResEq l r u))
+  <|> (do str_ "El"; space; q <- sqCode tbl tos ext; pure (SQResEl q))
+
+sqBinders : FixTable -> NameEnv -> NameEnv -> Rule (NameEnv, NameEnv, List (String, Either STy SQTm))
+sqBinders tbl tos ext = do
+  char_ '('; sp; x <- parseName; sp; char_ ':'; sp
+  d <- sqDomain tbl tos ext; sp; char_ ')'
+  let tos' : NameEnv
+      tos' = case d of
+               Left _ => tos
+               Right _ => tos :< x
+  let ext' : NameEnv
+      ext' = case d of
+               Left _ => ext :< x
+               Right _ => ext
+  rest <- optional (do sp; sqBinders tbl tos' ext')
+  case rest of
+    Nothing => pure (tos', ext', [(x, d)])
+    Just (tos'', ext'', bs) => pure (tos'', ext'', (x, d) :: bs)
+
+sqDecl : FixTable -> NameEnv -> Rule SQDecl
+sqDecl tbl entries = do
+  n <- parseName; sp; char_ ':'; sp
+  withBinders n <|> bare n
+ where
+  withBinders : String -> Rule SQDecl
+  withBinders n = do
+    (tos, ext, bs) <- sqBinders tbl entries [<]
+    sp; str_ "→"; sp
+    res <- sqRes tbl tos ext
+    pure (MkSQDecl n bs res)
+  bare : String -> Rule SQDecl
+  bare n = do
+    res <- sqRes tbl entries [<]
+    pure (MkSQDecl n [] res)
+
+parseSData : FixTable -> Rule SItem
+parseSData tbl = do
+  str_ "data"; sp; char_ '('; sp
+  ds <- go [<]
+  sp; char_ ')'
+  pure (SData ds)
+ where
+  go : NameEnv -> Rule (List SQDecl)
+  go entries = do
+    d <- sqDecl tbl entries
+    rest <- optional (do sp; char_ ';'; sp; go (entries :< d.dqname))
+    pure (d :: fromMaybe [] rest)
+
 export
 parseSItem : FixTable -> Rule SItem
 parseSItem tbl =
@@ -343,6 +447,7 @@ parseSItem tbl =
           str_ "≔"; sp
           ty <- parseSTy tbl [<]
           pure (STypeDef x ty))
+  <|> parseSData tbl
 
 export
 parseSImport : Rule SImport

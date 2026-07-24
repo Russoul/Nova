@@ -661,6 +661,14 @@ EQUATION REPLAY (A1, A2), and three added by the QIIT extension
       arguments live in the elaborator as lemmas, not in kernel
       certificates. The Π/Σ η finals are unaffected.
 
+  A6  FIRST-ORDER SIGNATURE FRAGMENT. The signature checker (§8)
+      covers the fragment the elaborator emits: sort entries with
+      EXTERNAL-only index arities (no inductive-inductive sort
+      indices — Con/Ty-style signatures are rejected, not
+      mischecked), no equation-code binders, no external λ
+      (infinitary recursive arguments). Foundation covers all of
+      these; the restriction is checking incompleteness only.
+
 Two structural caveats restated from docs/NovaPipeline.txt: an
 annotation (motive, ascription, exposure target) is a REPRESENTATIVE,
 never a canonical type — no consumer compares annotations

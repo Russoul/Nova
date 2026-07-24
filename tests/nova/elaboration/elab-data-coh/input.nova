@@ -1,0 +1,12 @@
+-- The eliminator's coherence argument states quot-elim's f⁼; a method
+-- that is NOT order-insensitive leaves it as an obligation (assumed,
+-- reported — never silently accepted).
+data ( Bag : U
+     ; nil : El Bag
+     ; ins : (x : El ℕ) (m : El Bag) → El Bag
+     ; swp : (x : El ℕ) (y : El ℕ) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )
+
+-- "first element or zero": ins x _ ↦ x ignores the tail's image, so
+-- swapping changes the result — the coherence Refl cannot discharge
+def headOr0 : El Bag → ℕ ≔
+  λm. BagElim (λb. ℕ) Z (λx. λr. λih. x) (λx. λy. λr. λih. Refl) m

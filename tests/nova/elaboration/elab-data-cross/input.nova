@@ -1,0 +1,5 @@
+-- Two structurally DIFFERENT signatures: an element of one is not an
+-- element of the other (structural identity distinguishes them).
+data ( A : U ; mkA : El A )
+data ( B : U ; mkB : El B ; extB : (b : El B) → El B )
+def bad : El B ≔ (mkA : El A)

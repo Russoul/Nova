@@ -74,6 +74,47 @@ mutual
   substElem (QuotElim f q)     sigma = QuotElim (substElem f (under sigma)) (substElem q sigma)
   substElem (Squash t)         sigma = Squash (substTy t sigma)
   substElem Star               sigma = Star
+  substElem (QSortC sg k es)   sigma = QSortC (substQSig sg sigma) k (substSubNorm es sigma)
+  substElem (QCtor sg k es)    sigma = QCtor (substQSig sg sigma) k (substSubNorm es sigma)
+  substElem (QElim sg k ms fs es w) sigma =
+    QElim (substQSig sg sigma) k
+      (substMotives sg ms sigma) (map (\f => substElem f sigma) fs)
+      (substSubNorm es sigma) (substElem w sigma)
+
+  ||| Motive i lives over Γ·⌊𝔎ᵢ⌋ᵗ ᐅ 𝒮.kᵢ δ — lift σ once per index
+  ||| binder plus once for the eliminee.
+  substMotives : QSig -> List Ty -> Sub -> List Ty
+  substMotives sg ms sigma = go (qPositions QKSort sg) ms
+   where
+    underN : Nat -> Sub -> Sub
+    underN Z s = s
+    underN (S n) s = under (underN n s)
+    go : List Nat -> List Ty -> List Ty
+    go _ [] = []
+    go [] (m :: rest) = m :: rest   -- ill-formed ℰ; substitution stays total
+    go (k :: ks) (m :: rest) = substTy m (underN (S (qArityLen sg k)) sigma) :: go ks rest
+
+  ||| Nova substitution THROUGH ToS syntax: σ acts on every embedded
+  ||| Nova piece, lifted (under) at EXTERNAL binders only — ToS
+  ||| variables are inert (⬡ᵢ[σ] ≜ ⬡ᵢ; the two calculi act on disjoint
+  ||| namespaces).
+  export
+  substQTm : QTm -> Sub -> QTm
+  substQTm (QVar i)     sigma = QVar i
+  substQTm (QAppE f e)  sigma = QAppE (substQTm f sigma) (substElem e sigma)
+  substQTm (QAppI f a)  sigma = QAppI (substQTm f sigma) (substQTm a sigma)
+  substQTm (QEqC l r u) sigma = QEqC (substQTm l sigma) (substQTm r sigma) (substQTm u sigma)
+
+  export
+  substQTy : QTy -> Sub -> QTy
+  substQTy QU            sigma = QU
+  substQTy (QEl t)       sigma = QEl (substQTm t sigma)
+  substQTy (QPiExt a b)  sigma = QPiExt (substTy a sigma) (substQTy b (under sigma))
+  substQTy (QPiInd u b)  sigma = QPiInd (substQTm u sigma) (substQTy b sigma)
+
+  export
+  substQSig : QSig -> Sub -> QSig
+  substQSig sg sigma = map (\t => substQTy t sigma) sg
 
   ||| T[σ]
   export
@@ -90,6 +131,7 @@ mutual
   substTy (Prf e)               sigma = Prf (substElem e sigma)
   substTy (Quotient a r)        sigma = Quotient (substTy a sigma) (substElem r (under (under sigma)))
   substTy (Ty.SigVar x es)      sigma = Ty.SigVar x (substSubNorm es sigma)
+  substTy (QSort sg k es)       sigma = QSort (substQSig sg sigma) k (substSubNorm es sigma)
 
 
 
@@ -144,6 +186,37 @@ mutual
   strengthenElem d (QuotElim f q)     = QuotElim <$> strengthenElem (1 + d) f <*> strengthenElem d q
   strengthenElem d (Squash t)         = Squash <$> strengthenTy d t
   strengthenElem d Star               = Just Star
+  strengthenElem d (QSortC sg k es)   = QSortC <$> strengthenQSig d sg <*> Just k <*> strengthenSubNorm d es
+  strengthenElem d (QCtor sg k es)    = QCtor <$> strengthenQSig d sg <*> Just k <*> strengthenSubNorm d es
+  strengthenElem d (QElim sg k ms fs es w) =
+    QElim <$> strengthenQSig d sg <*> Just k
+          <*> goMs (qPositions QKSort sg) ms
+          <*> traverse (strengthenElem d) fs
+          <*> strengthenSubNorm d es <*> strengthenElem d w
+   where
+    goMs : List Nat -> List Ty -> Maybe (List Ty)
+    goMs _ [] = Just []
+    goMs [] (m :: rest) = Nothing
+    goMs (kk :: ks) (m :: rest) =
+      [| strengthenTy (d + S (qArityLen sg kk)) m :: goMs ks rest |]
+
+  export
+  strengthenQTm : (depth : Nat) -> QTm -> Maybe QTm
+  strengthenQTm d (QVar i)     = Just (QVar i)
+  strengthenQTm d (QAppE f e)  = QAppE <$> strengthenQTm d f <*> strengthenElem d e
+  strengthenQTm d (QAppI f a)  = QAppI <$> strengthenQTm d f <*> strengthenQTm d a
+  strengthenQTm d (QEqC l r u) = QEqC <$> strengthenQTm d l <*> strengthenQTm d r <*> strengthenQTm d u
+
+  export
+  strengthenQTy : (depth : Nat) -> QTy -> Maybe QTy
+  strengthenQTy d QU           = Just QU
+  strengthenQTy d (QEl t)      = QEl <$> strengthenQTm d t
+  strengthenQTy d (QPiExt a b) = QPiExt <$> strengthenTy d a <*> strengthenQTy (1 + d) b
+  strengthenQTy d (QPiInd u b) = QPiInd <$> strengthenQTm d u <*> strengthenQTy d b
+
+  export
+  strengthenQSig : (depth : Nat) -> QSig -> Maybe QSig
+  strengthenQSig d = traverse (strengthenQTy d)
 
   export
   strengthenSubNorm : (depth : Nat) -> SubNorm -> Maybe SubNorm
@@ -164,6 +237,7 @@ mutual
   strengthenTy d (Prf e)           = Prf <$> strengthenElem d e
   strengthenTy d (Quotient a r)    = Quotient <$> strengthenTy d a <*> strengthenElem (2 + d) r
   strengthenTy d (Ty.SigVar x es)  = Ty.SigVar x <$> strengthenSubNorm d es
+  strengthenTy d (QSort sg k es)   = QSort <$> strengthenQSig d sg <*> Just k <*> strengthenSubNorm d es
 
 ||| Only surface-shaped substitutions (flat Ext/Terminal element lists)
 ||| strengthen; Id/Wk/Chain are index-sensitive and never appear in

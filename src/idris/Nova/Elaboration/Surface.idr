@@ -138,17 +138,56 @@ record SImport where
   mname : String
   opens : List String
 
+-- ===== QIIT signature literals (the data item) =====
+
+public export
+data SQTm : Type where
+  ||| a ToS reference, resolved by the parser to a ⬡-index (relative to
+  ||| the surrounding entry's inductive binders + the literal's earlier
+  ||| entries); the name is display metadata
+  SQVar : String -> Nat -> SQTm
+  ||| application to an EXTERNAL argument (an ordinary surface element
+  ||| over the external binders in scope)
+  SQAppE : SQTm -> SElem -> SQTm
+  ||| application to an INDUCTIVE argument
+  SQAppI : SQTm -> SQTm -> SQTm
+
+public export
+data SQRes : Type where
+  ||| … → U — a SORT
+  SQResU : SQRes
+  ||| … → El q — a POINT constructor
+  SQResEl : SQTm -> SQRes
+  ||| … → l ≡ r ∈ El q — an EQUATION constructor
+  SQResEq : SQTm -> SQTm -> SQTm -> SQRes
+
+public export
+record SQDecl where
+  constructor MkSQDecl
+  dqname : String
+  ||| binders in order: Left = EXTERNAL domain (a surface type over the
+  ||| external zone), Right = INDUCTIVE domain (a sort code)
+  dqbinders : List (String, Either STy SQTm)
+  dqres : SQRes
+
 public export
 data SItem : Type where
   ||| def x : T ≔ t — always in the empty context
   SDef : String -> STy -> SElem -> SItem
   ||| type x ≔ T — always in the empty context
   STypeDef : String -> STy -> SItem
+  ||| data ( n : Q ; … ) — a QIIT signature literal; an ITEM MACRO that
+  ||| expands into a batch of ordinary defs (docs/NovaElaboration.txt,
+  ||| QIIT section)
+  SData : List SQDecl -> SItem
 
 export
 itemName : SItem -> String
 itemName (SDef n _ _) = n
 itemName (STypeDef n _) = n
+itemName (SData ds) = case ds of
+  (d :: _) => d.dqname
+  [] => "data"
 
 -- ===== Show instances (parser golden tests) =====
 
@@ -206,6 +245,28 @@ Show SImport where
   show (MkSImport m os) = "import \{m} (\{joinBy ", " os})"
 
 export covering
+Show SQTm where
+  show (SQVar n i) = "\{n}@⬡\{show i}"
+  show (SQAppE f e) = "AppE (\{show f}) (\{show e})"
+  show (SQAppI f a) = "AppI (\{show f}) (\{show a})"
+
+export covering
+Show SQRes where
+  show SQResU = "U"
+  show (SQResEl q) = "El (\{show q})"
+  show (SQResEq l r u) = "Eq (\{show l}) (\{show r}) (\{show u})"
+
+export covering
+Show SQDecl where
+  show (MkSQDecl n bs res) =
+    "\{n} : " ++ concatMap showB bs ++ show res
+   where
+    showB : (String, Either STy SQTm) -> String
+    showB (x, Left t) = "(\{x} : ext \{show t}) → "
+    showB (x, Right q) = "(\{x} : El \{show q}) → "
+
+export covering
 Show SItem where
   show (SDef x ty body) = "def \{x} : \{show ty} := \{show body}"
   show (STypeDef x ty) = "type \{x} := \{show ty}"
+  show (SData ds) = "data (" ++ joinBy " ; " (map show ds) ++ ")"

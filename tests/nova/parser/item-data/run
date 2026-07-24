@@ -1,0 +1,2 @@
+#!/bin/sh
+"$1" run surface-item "data ( B : U ; nil : El B ; ins : (x : El ℕ) (m : El B) → El B ; swp : (x : El ℕ) (y : El ℕ) (m : El B) → ins x (ins y m) ≡ ins y (ins x m) ∈ El B )"
