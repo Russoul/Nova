@@ -487,26 +487,42 @@ a.rref { color:var(--rname); text-decoration:none; border-bottom:1px dotted var(
 :target { scroll-margin-top:1rem; }
 :target > .rule-box > .bar { border-top-color:var(--rname); }
 a:focus-visible { outline:2px solid var(--link); outline-offset:2px; }
-#legend { display:flex; gap:1.4rem; flex-wrap:wrap; align-items:center;
+#legend { display:grid; grid-template-columns:max-content 1fr;
+  gap:.35rem 1.1rem; align-items:baseline;
   font-family:ui-sans-serif,system-ui,sans-serif; font-size:12.5px; color:var(--faint);
-  border:1px solid var(--hair); border-radius:6px; padding:.5rem .9rem; margin:1rem 0 1.2rem; }
-#legend .sw { font-family:ui-monospace,Menlo,monospace; font-size:14px; }
+  border:1px solid var(--hair); border-radius:6px; padding:.6rem .9rem; margin:1rem 0 1.2rem; }
+#legend .sw { font-family:ui-monospace,Menlo,monospace; font-size:13.5px; }
+#legend .lglabel { white-space:nowrap; }
+#legend .lgtoks { min-width:0; overflow-wrap:anywhere; }
+#legend .lgnote { font-style:italic; }
 .provenance { font-family:ui-sans-serif,system-ui,sans-serif; font-size:12.5px;
   color:var(--faint); margin:.1rem 0 0; }
 @media (max-width: 900px) { #toc { display:none; } }
 """
 
-LEGEND = (
-    '<div id="legend">'
-    '<span><span class="sw kw">⊦ : type ⬡ El λ</span>&ensp;fixed syntax</span>'
-    '<span><span class="sw tos">𝔄 𝕥 Φ 𝒮</span>&ensp;ToS metavariables</span>'
-    '<span><span class="sw nova">Γ Δ t A σ</span>&ensp;Nova metavariables</span>'
-    '<span><span class="sw meta">𝑤 π 𝒞 ℰ</span>&ensp;walk / certificate metavariables</span>'
-    '<span><span class="sw" style="color:var(--rname)">rule-name</span>&ensp;links to its rule</span>'
-    "</div>"
-)
+def legend(vocab):
+    """The complete declared tables — the legend IS the notation
+    reference, so nothing is sampled or elided."""
+    def toks(k, cls):
+        ts = [t for t in vocab.get(k, []) if t != "latin"]
+        return f'<span class="sw {cls}">' + html.escape(" ".join(ts)) + "</span>"
+    latin = ('&ensp;<span class="lgnote">+ any bare Latin letter '
+             "(t₀, A′, ē)</span>") if "latin" in vocab.get("nova", []) else ""
+    rows = [
+        ("fixed syntax", toks("keywords", "kw")),
+        ("ToS metavariables", toks("tos", "tos")),
+        ("Nova metavariables", toks("nova", "nova") + latin),
+        ("walk / certificate metavariables", toks("meta", "meta")),
+        ("links to its rule",
+         '<span class="sw" style="color:var(--rname)">rule-name</span>'),
+        ("comment, unhighlighted", '<span class="sw cmt">// prose</span>'),
+    ]
+    body = "".join(f'<div class="lglabel">{lbl}</div><div class="lgtoks">{tk}</div>'
+                   for lbl, tk in rows)
+    return f'<div id="legend">{body}</div>'
 
-def assemble(renderers, out_path):
+
+def assemble(renderers, vocab, out_path):
     nav = ['<nav id="toc">']
     for r, (_, rel, title) in zip(renderers, FILES):
         nav.append(f'<details {"open" if r.key == "foundation" else ""}>'
@@ -524,7 +540,7 @@ def assemble(renderers, out_path):
         main.append(f'<p class="provenance">Rendered from <code>{rel}</code> — '
                     "the plain text remains the source of truth.</p>")
         if r.key == "foundation":
-            main.append(LEGEND)
+            main.append(legend(vocab))
         main.append("\n".join(r.body))
         main.append("</section>")
 
@@ -598,7 +614,7 @@ def main():
         r.render((ROOT / rel).read_text().splitlines())
         renderers.append(r)
     out = ROOT / args.out
-    assemble(renderers, out)
+    assemble(renderers, collect_vocab(FILES), out)
     total_rules = len(rulemap)
     print(f"{out}: {total_rules} rules across {len(FILES)} files"
           + (f", {len(dups)} DUPLICATE names" if dups else ""))
