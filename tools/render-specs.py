@@ -43,22 +43,29 @@ FILES = [
 
 # ----- symbol colouring --------------------------------------------------
 #
-# The vocabulary comes from `//! highlight <class>: tokens` declarations
-# in the spec files themselves (option C — the spec declares its own
-# alphabets); the defaults below apply only for a class no file
-# declares. Classes: keywords (gold), tos / nova / meta (metavariable
-# kinds). The special token `latin` in the nova class marks bare Latin
-# letters (with decorations: t₀, A′, ē, e˲, C̄) as Nova metavariables —
-# applied in JUDGEMENT contexts only (rules, display panels), never in
-# running prose, where single letters would false-positive.
+# Classification is SEMANTIC, table-driven: `//! highlight <class>:`
+# declarations in the spec files are the syntax tables (the defaults
+# below apply only for a class no file declares). `keywords` is the
+# FIXED syntax — judgement-level (⊦ : ≐ type) and object-level
+# (⬡ ⊳ El ☐ λ →) alike; the other classes are the METAVARIABLE
+# alphabets by kind. Every token in a judgement context is classified
+# by table lookup; a token in no table renders ink. The special token
+# `latin` in the nova class marks bare Latin letters (with
+# decorations: t₀, A′, ē, e˲, C̄) as Nova metavariables — judgement
+# contexts only; running prose is never highlighted.
 
 DIRECTIVE_RE = re.compile(r"^//!\s*highlight\s+(keywords|tos|nova|meta):\s*(.*)$")
 
 DEFAULT_VOCAB = {
-    "keywords": "qctx qty qsig ctx type tel mot dalg eprob sect norm small sig nf qpath".split(),
-    "tos": "𝔄 𝔅 𝕥 𝕦 𝕧 𝕤 𝕔 𝕜 𝕘 𝕒 𝕓 𝕞 Φ 𝒮 ⬡ ⬦ ⊳ ⇛ ς ⇑ 𝕚𝕕 𝔎 El U".split(),
-    "nova": "Γ Δ Ξ ᐅ ☐ σ τ δ θ Σ latin".split(),
-    "meta": "𝑤 ρ π υ ⋈ ⋉ ▷ ⌊ ⌋ ⟦ ⟧ ᴰ 𝒞 ℰ".split(),
+    # FIXED syntax — judgement-level and object-level alike
+    "keywords": ("⊦ : ; ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ ⇓ = ⬡ ⬦ ⊳ ⇛ ⇑ 𝕚𝕕 El U ☐ ᐅ ε ◁ ↑ ∘ id "
+                 "λ → ⨯ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S Refl ⋆ Prf class ⌊ ⌋ ⟦ ⟧ ▷ ⋈ ⋉ ᴰ "
+                 "qctx qty qsig ctx type tel mot dalg eprob sect norm small "
+                 "sig nf qpath").split(),
+    # metavariable alphabets, by kind
+    "tos": "𝔄 𝔅 𝕥 𝕦 𝕧 𝕤 𝕔 𝕜 𝕘 𝕒 𝕓 𝕞 Φ 𝒮 ς 𝔎".split(),
+    "nova": "Γ Δ Ξ Σ σ τ δ θ latin".split(),
+    "meta": "𝑤 ρ υ π 𝒞 ℰ".split(),
 }
 
 def collect_vocab(files):
@@ -74,7 +81,7 @@ def collect_vocab(files):
 
 # decorations that travel with a token: combining marks, primes,
 # sub/superscripts (t₀, A′, ē is precomposed Latin, Γ̂, e˲, ⌊·⌋ᵗ)
-DECOR = "\u0300-\u036f′″‴˲ᵢⱼₖₗₘₙₚᵣₛₜ₀-₉⁺⁻ᵈᵗ"
+DECOR = "\u0300-\u036f′″‴˲ᵢⱼₖₗₘₙₚᵣₛₜ₀-₉⁺⁻⁼ᵈᵗᵖᵉᴺ"
 
 class Highlighter:
     def __init__(self, vocab):
@@ -384,22 +391,22 @@ class FileRenderer:
 CSS = """
 :root {
   --paper:#f7f8fa; --ink:#20242d; --faint:#5c6472; --hair:#d8dce2;
-  --panel:#eef0f4; --tos:#0e7c86; --nova:#ac5210; --meta:#7862a8;
+  --panel:#eef0f4; --tos:#0e7c86; --nova:#2f5fc0; --meta:#7862a8;
   --rname:#7862a8; --link:#0e7c86; --gold:#92700c;
 }
 @media (prefers-color-scheme: dark) { :root {
   --paper:#191b20; --ink:#dcdee4; --faint:#9aa1ae; --hair:#33373f;
-  --panel:#20232a; --tos:#53cad4; --nova:#e29a62; --meta:#a995d6;
+  --panel:#20232a; --tos:#53cad4; --nova:#82a5ea; --meta:#a995d6;
   --rname:#a995d6; --link:#53cad4; --gold:#d8b45e;
 }}
 :root[data-theme="dark"] {
   --paper:#191b20; --ink:#dcdee4; --faint:#9aa1ae; --hair:#33373f;
-  --panel:#20232a; --tos:#53cad4; --nova:#e29a62; --meta:#a995d6;
+  --panel:#20232a; --tos:#53cad4; --nova:#82a5ea; --meta:#a995d6;
   --rname:#a995d6; --link:#53cad4; --gold:#d8b45e;
 }
 :root[data-theme="light"] {
   --paper:#f7f8fa; --ink:#20242d; --faint:#5c6472; --hair:#d8dce2;
-  --panel:#eef0f4; --tos:#0e7c86; --nova:#ac5210; --meta:#7862a8;
+  --panel:#eef0f4; --tos:#0e7c86; --nova:#2f5fc0; --meta:#7862a8;
   --rname:#7862a8; --link:#0e7c86; --gold:#92700c;
 }
 * { box-sizing:border-box; }
@@ -468,10 +475,10 @@ a:focus-visible { outline:2px solid var(--link); outline-offset:2px; }
 
 LEGEND = (
     '<div id="legend">'
-    '<span><span class="sw kw">type qctx mot</span>&ensp;judgement keywords</span>'
-    '<span><span class="sw tos">𝔄 𝕥 ⬡ ⊳ ⇛</span>&ensp;theory of signatures</span>'
-    '<span><span class="sw nova">Γ Δ t A σ</span>&ensp;Nova</span>'
-    '<span><span class="sw meta">𝑤 π ▷ ⌊·⌋ ᴰ 𝒞</span>&ensp;reflection / descent / certificates</span>'
+    '<span><span class="sw kw">⊦ : type ⬡ El λ</span>&ensp;fixed syntax</span>'
+    '<span><span class="sw tos">𝔄 𝕥 Φ 𝒮</span>&ensp;ToS metavariables</span>'
+    '<span><span class="sw nova">Γ Δ t A σ</span>&ensp;Nova metavariables</span>'
+    '<span><span class="sw meta">𝑤 π 𝒞 ℰ</span>&ensp;walk / certificate metavariables</span>'
     '<span><span class="sw" style="color:var(--rname)">rule-name</span>&ensp;links to its rule</span>'
     "</div>"
 )
