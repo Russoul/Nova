@@ -108,8 +108,12 @@ class Highlighter:
         # order matters: declared words | multi-char symbols | plain
         # English (2+ letters, left ink) | declared chars | Latin
         # metavariables
+        # escaping happens BEFORE painting, so the text contains HTML
+        # entities — skip them whole lest a keyword char (the ; of
+        # &lt;) break them apart
         self.math_re = re.compile(
-            f"(?P<word>(?<![\\w-])(?:{wpat})(?![\\w-]))"
+            "(?P<ent>&(?:amp|lt|gt);)"
+            f"|(?P<word>(?<![\\w-])(?:{wpat})(?![\\w-]))"
             f"|(?P<mtok>{mpat})"
             "|(?P<eng>[A-Za-z]{2,})"
             f"|(?P<sym>{cpat}{dec})"
@@ -128,7 +132,7 @@ class Highlighter:
         def rep(m):
             g = m.lastgroup
             t = m.group(0)
-            if g == "eng":
+            if g in ("eng", "ent"):
                 return t
             if g == "lat":
                 if not self.latin_nova:
