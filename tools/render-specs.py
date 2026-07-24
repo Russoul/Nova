@@ -58,7 +58,7 @@ DIRECTIVE_RE = re.compile(r"^//!\s*highlight\s+(keywords|tos|nova|meta):\s*(.*)$
 
 DEFAULT_VOCAB = {
     # FIXED syntax — judgement-level and object-level alike
-    "keywords": ("⊦ : ; ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ ⇓ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ id "
+    "keywords": ("⊦ : ; ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ ⇓ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id "
                  "λ → ⨯ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S Refl ⋆ Prf class ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ "
                  "qctx qty qsig ctx type tel mot dalg eprob sect norm small "
                  "sig nf qpath").split(),
@@ -81,7 +81,7 @@ def collect_vocab(files):
 
 # decorations that travel with a token: combining marks, primes,
 # sub/superscripts (t₀, A′, ē is precomposed Latin, Γ̂, e˲, ⌊·⌋ᵗ)
-DECOR = "\u0300-\u036f′″‴˲ᵢⱼₖₗₘₙₚᵣₛₜ₀-₉⁺⁻⁼ᵈᵗᵖᵉᴺ"
+DECOR = "\u0300-\u036f′″‴˲ᵢⱼₖₗₘₙₚᵣₛₜ₀-₉⁻⁼ᵈᵗᵖᵉᴺ"
 
 class Highlighter:
     def __init__(self, vocab):
