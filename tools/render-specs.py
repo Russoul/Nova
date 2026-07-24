@@ -107,18 +107,17 @@ class Highlighter:
             "|(?P<eng>[A-Za-z]{2,})"
             f"|(?P<sym>{cpat}{dec})"
             f"|(?P<lat>[A-Za-z]{dec})")
-        # prose: symbols and the El/U formers only — no keywords (gold
-        # 'type' in running text would be noise), no Latin letters
-        self.prose_re = re.compile(
-            "(?P<word>(?<![\\w-])(?:El|U)(?![\\w-]))"
-            f"|(?P<mtok>{mpat})"
-            f"|(?P<sym>{cpat}{dec})")
 
     def _wrap(self, cls, text):
         return f'<span class="{cls}">{text}</span>'
 
     def paint(self, escaped, prose=False):
-        rx = self.prose_re if prose else self.math_re
+        # running prose is left unhighlighted: token classification is
+        # only reliable inside judgement contexts (rules, display
+        # panels), where the notation discipline holds
+        if prose:
+            return escaped
+        rx = self.math_re
         def rep(m):
             g = m.lastgroup
             t = m.group(0)
