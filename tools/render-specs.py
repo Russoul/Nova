@@ -47,7 +47,7 @@ FILES = [
 # declarations in the spec files are the syntax tables (the defaults
 # below apply only for a class no file declares). `keywords` is the
 # FIXED syntax — judgement-level (⊦ : ≐ type) and object-level
-# (⬡ ⊳ El ☐ λ →) alike; the other classes are the METAVARIABLE
+# (⬡ ▷ El ☐ λ →) alike; the other classes are the METAVARIABLE
 # alphabets by kind. Every token in a judgement context is classified
 # by table lookup; a token in no table renders ink. The special token
 # `latin` in the nova class marks bare Latin letters (with
@@ -58,8 +58,8 @@ DIRECTIVE_RE = re.compile(r"^//!\s*highlight\s+(keywords|tos|nova|meta):\s*(.*)$
 
 DEFAULT_VOCAB = {
     # FIXED syntax — judgement-level and object-level alike
-    "keywords": ("⊦ : ; ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ ⇓ = ⬡ ⬦ ⊳ ⇛ ⇑ 𝕚𝕕 El U ☐ ᐅ ε ◁ ↑ ∘ id "
-                 "λ → ⨯ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S Refl ⋆ Prf class ⌊ ⌋ ⟦ ⟧ ▷ ⋈ ⋉ ᴰ "
+    "keywords": ("⊦ : ; ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ ⇓ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ id "
+                 "λ → ⨯ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S Refl ⋆ Prf class ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ "
                  "qctx qty qsig ctx type tel mot dalg eprob sect norm small "
                  "sig nf qpath").split(),
     # metavariable alphabets, by kind

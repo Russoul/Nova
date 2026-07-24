@@ -185,7 +185,7 @@ E   — the equation store, feeding algorithmic discharge. Three sources:
       * ACCEPTED LEMMAS: for every entry (ε ⊦ x ≔ p : A) ∈ Σ whose type
         A, after peeling leading Π's into the context, is an equality
         type l ≡ r ∈ T, the store contains the reflected equation
-            A₁ ᐅ ... ᐅ Aₖ ⊢ l ≐ r : T
+            A₁ ▷ ... ▷ Aₖ ⊢ l ≐ r : T
         (the peeled binders become context entries — all of them
         PARAMETRIC, so the lemma applies in any context by first-order
         instantiation). Justified by Foundation (el-reflect) applied to
@@ -234,7 +234,7 @@ therefore can never launder themselves into proofs; the wall between
 
 Γ below is a plain core context; T and t range over INDEXED surface
 syntax (see Name resolution above). Named binders appearing in the rules
-(`Γ ᐅ x:A ⊢ ...`) are readability only — x is not consulted.
+(`Γ ▷ x:A ⊢ ...`) are readability only — x is not consulted.
 
 Σ; E; Γ ⊢ T ⇝ A type         // surface type T elaborates to core A
 Σ; E; Γ ⊢ t ⇐ A ⇝ a          // checking: core type A given
@@ -286,17 +286,17 @@ never an unsound acceptance.
 // in elaborator output.)
 
 Γ ⊢ T ⇝ A type
-Γ ᐅ x:A ⊢ U ⇝ B type
+Γ ▷ x:A ⊢ U ⇝ B type
 -------------------------- (e-ty-pi)                          // (A → B)
 Γ ⊢ (x:T) → U ⇝ A → B type
 
 Γ ⊢ T ⇝ A type
-Γ ᐅ x:A ⊢ U ⇝ B type
+Γ ▷ x:A ⊢ U ⇝ B type
 -------------------------- (e-ty-sigma)                       // (A ⨯ B)
 Γ ⊢ (x:T) ⨯ U ⇝ A ⨯ B type
 
 Γ ⊢ T ⇝ A type
-Γ ᐅ x:A ᐅ y:A[↑] ⊢ r ⇐ Ω ⇝ r̂            // the relation is Ω-valued
+Γ ▷ x:A ▷ y:A[↑] ⊢ r ⇐ Ω ⇝ r̂            // the relation is Ω-valued
 ------------------------------ (e-ty-quot)                    // (A / r)
 Γ ⊢ T / (x y. r) ⇝ A / r̂ type
 
@@ -352,18 +352,18 @@ never an unsound acceptance.
 ---------------------- (e-ann)
 Γ ⊢ (t : T) ⇒ A ⇝ t̂
 
-Γ ᐅ n:ℕ ⊢ T ⇝ A type
+Γ ▷ n:ℕ ⊢ T ⇝ A type
 Γ ⊢ z ⇐ A[id, Z] ⇝ ẑ
-Γ ᐅ n:ℕ ᐅ ih:A ⊢ s ⇐ A[↑ ∘ ↑, S ☐₁] ⇝ ŝ
+Γ ▷ n:ℕ ▷ ih:A ⊢ s ⇐ A[↑ ∘ ↑, S ☐₁] ⇝ ŝ
 Γ ⊢ t ⇐ ℕ ⇝ t̂
 --------------------------------------------------------- (e-natelim)
 Γ ⊢ ℕ-elim (n. T) z (n ih. s) t ⇒ A[id, t̂] ⇝ ℕ-elim ẑ ŝ t̂
                                         // (ℕ-elim z s t motive A)
 
 Γ ⊢ q ⇒ C ⇝ q̂        whnf(C) = A / r
-Γ ᐅ z:(A / r) ⊢ T ⇝ B type
-Γ ᐅ a:A ⊢ f ⇐ B[↑, class ☐₀] ⇝ f̂
-Γ ᐅ a:A ᐅ b:A[↑] ᐅ h:Prf r ⊢ f̂[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f̂[↑ ∘ ↑ ∘ ↑, ☐₁]
+Γ ▷ z:(A / r) ⊢ T ⇝ B type
+Γ ▷ a:A ⊢ f ⇐ B[↑, class ☐₀] ⇝ f̂
+Γ ▷ a:A ▷ b:A[↑] ▷ h:Prf r ⊢ f̂[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f̂[↑ ∘ ↑ ∘ ↑, ☐₁]
                         : B[↑ ∘ ↑ ∘ ↑, class ☐₂] ↓
 ------------------------------------------------------------ (e-quotelim)
 Γ ⊢ quot-elim (z. T) (a. f) q ⇒ B[id, q̂] ⇝ quot-elim f̂ q̂
@@ -379,12 +379,12 @@ never an unsound acceptance.
 // Universe codes infer at 𝕌, mirroring their formation rules:
 Γ ⊢ 𝟘 ⇒ 𝕌 ⇝ 𝟘      (likewise 𝟙, ℕ)                            // (𝟘 : 𝕌) etc.
 
-Γ ⊢ t ⇐ 𝕌 ⇝ a        Γ ᐅ x:El a ⊢ u ⇐ 𝕌 ⇝ b
+Γ ⊢ t ⇐ 𝕌 ⇝ a        Γ ▷ x:El a ⊢ u ⇐ 𝕌 ⇝ b
 ---------------------------------------------- (e-code-pi)    // (A → B : 𝕌)
 Γ ⊢ (x:t) → u ⇒ 𝕌 ⇝ a → b
    (e-code-sigma analogous for ⨯)                             // (A ⨯ B : 𝕌)
 
-Γ ⊢ t ⇐ 𝕌 ⇝ a        Γ ᐅ x:El a ᐅ y:(El a)[↑] ⊢ r ⇐ Ω ⇝ r̂
+Γ ⊢ t ⇐ 𝕌 ⇝ a        Γ ▷ x:El a ▷ y:(El a)[↑] ⊢ r ⇐ Ω ⇝ r̂
 ------------------------------------------------------------ (e-code-quot)
 Γ ⊢ t / (x y. r) ⇒ 𝕌 ⇝ a / r̂                                  // (A / r : 𝕌)
    // the relation is checked at Ω, not 𝕌
@@ -408,7 +408,7 @@ never an unsound acceptance.
 // states that intent with an ascription, which moves the equation to
 // e-switch where it belongs.
 
-whnf(C) = A → B        Γ ᐅ x:A ⊢ t ⇐ B ⇝ t̂
+whnf(C) = A → B        Γ ▷ x:A ⊢ t ⇐ B ⇝ t̂
 -------------------------------------------- (e-lam)          // (λ f)
 Γ ⊢ λx. t ⇐ C ⇝ λ t̂
 
@@ -457,7 +457,7 @@ whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 // for the kernel to re-verify.
 
 Γ ⊢ e ⇒ P        whnf(P) = Prf ∥A∥        whnf(C) = Prf q
-Γ ᐅ A ⊢ b ⇐ (Prf q)[↑] ⇝ b̂
+Γ ▷ A ⊢ b ⇐ (Prf q)[↑] ⇝ b̂
 ------------------------------------------------------------ (e-squash-elim)
 Γ ⊢ squash-elim e (x. b) ⇐ C ⇝ ⋆                    // (squash-elim e (x. b))
 // el-squash-e-prf: the only surface eliminator into a further
@@ -513,9 +513,9 @@ whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 //      error: no-confusion is a meta-property of consistent contexts,
 //      not a rule, and the user may be working under inconsistent
 //      hypotheses. Decomposition:
-//        A₀ → B₀   ≐ A₁ → B₁    ⇐  A₀ ≐ A₁ type;  Γ ᐅ A₁ ⊢ B₀ ≐ B₁ type
+//        A₀ → B₀   ≐ A₁ → B₁    ⇐  A₀ ≐ A₁ type;  Γ ▷ A₁ ⊢ B₀ ≐ B₁ type
 //        A₀ ⨯ B₀   ≐ A₁ ⨯ B₁    ⇐  likewise
-//        A₀ / r₀   ≐ A₁ / r₁    ⇐  A₀ ≐ A₁ type;  Γ ᐅ A₁ ᐅ A₁[↑] ⊢ r₀ ≐ r₁ : Ω
+//        A₀ / r₀   ≐ A₁ / r₁    ⇐  A₀ ≐ A₁ type;  Γ ▷ A₁ ▷ A₁[↑] ⊢ r₀ ≐ r₁ : Ω
 //                                  (the relation is compared AT Ω, where
 //                                  ≐ is iff — ty-quot-cong)
 //        Prf p     ≐ Prf q       ⇐  p ≐ q : Ω     (ty-prf-cong)

@@ -1,13 +1,13 @@
 ////////// Preface //////////
 
-//! highlight keywords: ⊦ : ; ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ ⇓ = ⬡ ⬦ ⊳ ⇛ ⇑ 𝕚𝕕 El U ☐ ᐅ ε ◁ ↑ ∘ id λ → ⨯ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S Refl ⋆ Prf class ⌊ ⌋ ⟦ ⟧ ▷ ⋈ ⋉ ᴰ qctx qty qsig ctx type tel mot dalg eprob sect norm small sig nf qpath
+//! highlight keywords: ⊦ : ; ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ ⇓ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ id λ → ⨯ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S Refl ⋆ Prf class ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ qctx qty qsig ctx type tel mot dalg eprob sect norm small sig nf qpath
 //! highlight tos: 𝔄 𝔅 𝕥 𝕦 𝕧 𝕤 𝕔 𝕜 𝕘 𝕒 𝕓 𝕞 Φ 𝒮 ς 𝔎
 //! highlight nova: Γ Δ Ξ Σ σ τ δ θ latin
 //! highlight meta: 𝑤 ρ υ π 𝒞 ℰ
 // (`//!` lines are HIGHLIGHTING DECLARATIONS read by
 // tools/render-specs.py — the spec declares its own syntax tables:
 // `keywords` is the FIXED syntax, judgement-level (⊦ : ≐ type …) and
-// object-level (⬡ ⊳ El ☐ λ → …) alike, rendered gold; the remaining
+// object-level (⬡ ▷ El ☐ λ → …) alike, rendered gold; the remaining
 // classes are the METAVARIABLE alphabets by kind — ToS, Nova
 // (`latin` marks bare Latin letters as Nova metavariables inside
 // judgements), and the reflection/walk apparatus. Tokens in no table
@@ -65,12 +65,12 @@ x ::= <signature-entry-identifier>
 
 // typing context
 Γ ::= ε      // empty typing context
-    | Γ ᐅ T  // extended typing context
+    | Γ ▷ T  // extended typing context
 
 // Γ‖ₙ: the (n+1)-th type in Γ counting from the right (0 = the innermost
 // extension), i.e. the type ☐ₙ names before weakening.
-(Γ ᐅ A)‖₀     ≜ A[↑]
-(Γ ᐅ A)‖ₙ₊₁   ≜ Γ‖ₙ[↑]
+(Γ ▷ A)‖₀     ≜ A[↑]
+(Γ ▷ A)‖ₙ₊₁   ≜ Γ‖ₙ[↑]
 
 // typing context substitution
 σ, τ ::=
@@ -165,8 +165,8 @@ t ::= x [e˲]         // element in the signature context
 //   retained premises and the conclusion, add their presuppositions, and
 //   close transitively). Expansion: add the closure back as explicit
 //   premises — this recovers the previous exhaustive style, where e.g.
-//   `Γ ᐅ A ⊦ f : B` was always accompanied by `Γ ctx`, `Γ ⊦ A type` and
-//   `Γ ᐅ A ⊦ B type`. Premises NOT in the closure are never omitted: in
+//   `Γ ▷ A ⊦ f : B` was always accompanied by `Γ ctx`, `Γ ⊦ A type` and
+//   `Γ ▷ A ⊦ B type`. Premises NOT in the closure are never omitted: in
 //   particular eliminator motives, the middle subject of a transitivity,
 //   and the data of the coercion rules are genuine inputs and always
 //   appear.
@@ -247,8 +247,8 @@ t ::= x [e˲]         // element in the signature context
   // then ToS zone) are defined in the QIIT section; a signature is
   // nothing but a well-formed qiit-context.
 
-// A context extension Γ ᐅ A presupposes Γ ctx and Γ ⊦ A type, so a
-// premise stated under Γ ᐅ A carries A's well-formedness with it (and
+// A context extension Γ ▷ A presupposes Γ ctx and Γ ⊦ A type, so a
+// premise stated under Γ ▷ A carries A's well-formedness with it (and
 // likewise for iterated extensions).
 
 ///////// Rules (sig) /////////
@@ -273,12 +273,12 @@ x ∉ Σ
 
 Γ ⊦ A type
 ----------- (ctx-ext)
-Γ ᐅ A ctx
+Γ ▷ A ctx
 
 Γ₀ ≐ Γ₁ ctx
 Γ₁ ⊦ A₀ ≐ A₁ type
 --------------------- (ctx-ext-cong)
-Γ₀ ᐅ A₀ ≐ Γ₁ ᐅ A₁ ctx
+Γ₀ ▷ A₀ ≐ Γ₁ ▷ A₁ ctx
 
 ///////// Rules (ctx substitution) /////////
 
@@ -293,7 +293,7 @@ x ∉ Σ
 σ : Γ₀ ⇒ Γ₁
 Γ₀ ⊦ t : A[σ]
 ---------------------- (sub-ext)     // A the type over Γ₁ being extended by
-(σ, t) : Γ₀ ⇒ Γ₁ ᐅ A
+(σ, t) : Γ₀ ⇒ Γ₁ ▷ A
 
 σ : Γ₀ ⇒ Γ₁
 τ : Γ₁ ⇒ Γ₂
@@ -306,14 +306,14 @@ id : Γ ⇒ Γ
 
 Γ ⊦ A type
 ---------------- (sub-wk)
-↑ : Γ ᐅ A ⇒ Γ
+↑ : Γ ▷ A ⇒ Γ
 
 ------------------ (sub-id-empty)
 id ≐ · : ε ⇒ ε
 
 Γ ⊦ A type
 ------------------------------ (sub-eta) // admissible by meta-level induction
-↑, ☐₀ ≐ id : Γ ᐅ A ⇒ Γ ᐅ A
+↑, ☐₀ ≐ id : Γ ▷ A ⇒ Γ ▷ A
 
 σ : Γ₀ ⇒ Γ₁
 ------------------------ (sub-id-pre)
@@ -342,20 +342,20 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 σ : Γ₁ ⇒ Γ₂
 Γ₁ ⊦ t : A[σ]
 ------------------------------------------ (sub-ext-post) // admissible
-(σ, t) ∘ τ ≐ (σ ∘ τ, t[τ]) : Γ₀ ⇒ Γ₂ ᐅ A
+(σ, t) ∘ τ ≐ (σ ∘ τ, t[τ]) : Γ₀ ⇒ Γ₂ ▷ A
 
 σ : Γ₀ ⇒ Γ₁
 Γ₁ ⊦ A type
 ------------------------------------- (sub-lift) // natural substitution (admissible)
-σ⁺ ≜ (σ ∘ ↑, ☐₀) : Γ₀ ᐅ A[σ] ⇒ Γ₁ ᐅ A
+σ⁺ ≜ (σ ∘ ↑, ☐₀) : Γ₀ ▷ A[σ] ⇒ Γ₁ ▷ A
 
 σ : Γ₀ ⇒ Γ₁
 Γ₀ ⊦ t : A[σ]
-τ : Γ₀ ⇒ Γ₁ ᐅ A
+τ : Γ₀ ⇒ Γ₁ ▷ A
 ↑ ∘ τ ≐ σ : Γ₀ ⇒ Γ₁
 Γ₀ ⊦ ☐₀[τ] ≐ t : A[↑ ∘ τ]
 ---------------------------- (sub-ext-unique) // admissible
-(σ, t) ≐ τ : Γ₀ ⇒ Γ₁ ᐅ A
+(σ, t) ≐ τ : Γ₀ ⇒ Γ₁ ▷ A
 ∎ (=>) τ ≐ id ∘ τ ≐ (↑, ☐₀) ∘ τ ≐ ↑ ∘ τ, ☐₀[τ] ≐ σ, t
   (<=)
       σ ≐ ↑ ∘ (σ, t) ≐ ↑ ∘ τ
@@ -369,7 +369,7 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
 Γ₀ ⊦ t₀ ≐ t₁ : A[σ₁]
 --------------------------------- (sub-ext-cong)
-(σ₀, t₀) ≐ (σ₁, t₁) : Γ₀ ⇒ Γ₁ ᐅ A
+(σ₀, t₀) ≐ (σ₁, t₁) : Γ₀ ⇒ Γ₁ ▷ A
 
 Γ₀ ≐ Γ₁ ctx
 σ : Γ₀ ⇒ Δ
@@ -404,12 +404,12 @@ e˲ ≐ · : Γ ⇒ ε norm
 e˲ : Γ₀ ⇒ Γ₁ norm
 Γ₀ ⊦ t : A[e˲]
 ------------------------------ (sub-norm-ext)   // A the type over Γ₁ being extended by
-(e˲, t) : Γ₀ ⇒ Γ₁ ᐅ A norm
+(e˲, t) : Γ₀ ⇒ Γ₁ ▷ A norm
 
 e˲₀ ≐ e˲₁ : Γ₀ ⇒ Γ₁ norm
 Γ₀ ⊦ t₀ ≐ t₁ : A[e˲₁]
 ---------------------------------------- (sub-norm-ext-cong)
-(e˲₀, t₀) ≐ (e˲₁, t₁) : Γ₀ ⇒ Γ₁ ᐅ A norm
+(e˲₀, t₀) ≐ (e˲₁, t₁) : Γ₀ ⇒ Γ₁ ▷ A norm
 
 e˲ : Γ₀ ⇒ Γ₁ norm
 ------------------- (sub-norm-embed) // a normal substitution is a substitution
@@ -454,12 +454,12 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ ⊦ 𝟘, 𝟙, ℕ, 𝕌, Ω type
 
 Γ ⊦ A type
-Γ ᐅ A ⊦ B type
+Γ ▷ A ⊦ B type
 ------------------ (ty-pi)
 Γ ⊦ A → B type
 
 Γ ⊦ A type
-Γ ᐅ A ⊦ B type
+Γ ▷ A ⊦ B type
 ------------------ (ty-sigma)
 Γ ⊦ A ⨯ B type
 
@@ -477,7 +477,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ ⊦ Prf p type
 
 Γ ⊦ A type
-Γ ᐅ A ᐅ A[↑] ⊦ R : Ω
+Γ ▷ A ▷ A[↑] ⊦ R : Ω
 ----------------------- (ty-quot)
 Γ ⊦ A / R type
 
@@ -498,12 +498,12 @@ e˲ : Δ ⇒ Γ norm
 Γ ⊦ El 𝟘 ≜ 𝟘 type,   El 𝟙 ≜ 𝟙 type,   El ℕ ≜ ℕ type
 
 Γ ⊦ A : 𝕌
-Γ ᐅ El A ⊦ B : 𝕌
+Γ ▷ El A ⊦ B : 𝕌
 ---------------------------------- (ty-el-pi)
 Γ ⊦ El (A → B) ≜ El A → El B type
 
 Γ ⊦ A : 𝕌
-Γ ᐅ El A ⊦ B : 𝕌
+Γ ▷ El A ⊦ B : 𝕌
 ---------------------------------- (ty-el-sigma)
 Γ ⊦ El (A ⨯ B) ≜ El A ⨯ El B type
 
@@ -513,7 +513,7 @@ e˲ : Δ ⇒ Γ norm
 Γ ⊦ El (a₀ ≡ a₁ ∈ A) ≜ (a₀ ≡ a₁ ∈ El A) type
 
 Γ ⊦ A : 𝕌
-Γ ᐅ El A ᐅ (El A)[↑] ⊦ R : Ω
+Γ ▷ El A ▷ (El A)[↑] ⊦ R : Ω
 ---------------------------------- (ty-el-quot)
 Γ ⊦ El (A / R) ≜ El A / R type
 
@@ -550,13 +550,13 @@ e˲ : Δ ⇒ Γ norm
 Γ₀ ⊦ (Prf p)[σ] ≜ Prf p[σ] type
 
 Γ₁ ⊦ A type
-Γ₁ ᐅ A ⊦ B type
+Γ₁ ▷ A ⊦ B type
 σ : Γ₀ ⇒ Γ₁
 --------------------------------------- (ty-sub-pi)
 Γ₀ ⊦ (A → B)[σ] ≜ A[σ] → B[σ⁺] type
 
 Γ₁ ⊦ A type
-Γ₁ ᐅ A ⊦ B type
+Γ₁ ▷ A ⊦ B type
 σ : Γ₀ ⇒ Γ₁
 --------------------------------------- (ty-sub-sigma)
 Γ₀ ⊦ (A ⨯ B)[σ] ≜ A[σ] ⨯ B[σ⁺] type
@@ -568,7 +568,7 @@ e˲ : Δ ⇒ Γ norm
 Γ₀ ⊦ (a₀ ≡ a₁ ∈ A)[σ] ≜ (a₀[σ] ≡ a₁[σ] ∈ A[σ]) type
 
 Γ₁ ⊦ A type
-Γ₁ ᐅ A ᐅ A[↑] ⊦ R : Ω
+Γ₁ ▷ A ▷ A[↑] ⊦ R : Ω
 σ : Γ₀ ⇒ Γ₁
 ---------------------------------------- (ty-sub-quot)
 Γ₀ ⊦ (A / R)[σ] ≜ A[σ] / R[σ⁺⁺] type
@@ -606,17 +606,17 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ A₀[σ] ≐ A₁[σ] type
 
 Γ ⊦ A₀ ≐ A₁ type
-Γ ᐅ A₁ ⊦ B₀ ≐ B₁ type
+Γ ▷ A₁ ⊦ B₀ ≐ B₁ type
 ------------------------------- (ty-pi-cong)
 Γ ⊦ A₀ → B₀ ≐ A₁ → B₁ type
 
 Γ ⊦ A₀ ≐ A₁ type
-Γ ᐅ A₁ ⊦ B₀ ≐ B₁ type
+Γ ▷ A₁ ⊦ B₀ ≐ B₁ type
 ------------------------------- (ty-sigma-cong)
 Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ type
 
 Γ ⊦ A₀ ≐ A₁ type
-Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
+Γ ▷ A₁ ▷ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
 -------------------------------- (ty-quot-cong)
 Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ type
 
@@ -683,26 +683,26 @@ e˲ : Γ₁ ⇒ Γ norm
 //    derivable (congruence with a ℕ-elim predecessor, respectively the
 //    projections).
 
-Γ ᐅ A₀ ⊦ B₀ type
-Γ ᐅ A₁ ⊦ B₁ type
+Γ ▷ A₀ ⊦ B₀ type
+Γ ▷ A₁ ⊦ B₁ type
 Γ ⊦ A₀ → B₀ ≐ A₁ → B₁ type
 ------------------------------ (ty-pi-inj)
 Γ ⊦ A₀ ≐ A₁ type
-Γ ᐅ A₁ ⊦ B₀ ≐ B₁ type
+Γ ▷ A₁ ⊦ B₀ ≐ B₁ type
 
-Γ ᐅ A₀ ⊦ B₀ type
-Γ ᐅ A₁ ⊦ B₁ type
+Γ ▷ A₀ ⊦ B₀ type
+Γ ▷ A₁ ⊦ B₁ type
 Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ type
 ------------------------------ (ty-sigma-inj)
 Γ ⊦ A₀ ≐ A₁ type
-Γ ᐅ A₁ ⊦ B₀ ≐ B₁ type
+Γ ▷ A₁ ⊦ B₀ ≐ B₁ type
 
-Γ ᐅ A₀ ᐅ A₀[↑] ⊦ R₀ : Ω
-Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₁ : Ω
+Γ ▷ A₀ ▷ A₀[↑] ⊦ R₀ : Ω
+Γ ▷ A₁ ▷ A₁[↑] ⊦ R₁ : Ω
 Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ type
 --------------------------------- (ty-quot-inj)
 Γ ⊦ A₀ ≐ A₁ type
-Γ ᐅ A₁ ᐅ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
+Γ ▷ A₁ ▷ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
 
 Γ ⊦ (a₀ ≡ b₀ ∈ T₀) ≐ (a₁ ≡ b₁ ∈ T₁) type
 ------------------------------------------ (ty-eq-inj)
@@ -718,26 +718,26 @@ e˲ : Γ₁ ⇒ Γ norm
 // canonical-forms semantics gives 𝕌 a structural PER on codes, so the
 // code constructors are injective as elements of 𝕌.
 
-Γ ᐅ El a₀ ⊦ b₀ : 𝕌
-Γ ᐅ El a₁ ⊦ b₁ : 𝕌
+Γ ▷ El a₀ ⊦ b₀ : 𝕌
+Γ ▷ El a₁ ⊦ b₁ : 𝕌
 Γ ⊦ a₀ → b₀ ≐ a₁ → b₁ : 𝕌
 ------------------------------ (code-pi-inj)
 Γ ⊦ a₀ ≐ a₁ : 𝕌
-Γ ᐅ El a₁ ⊦ b₀ ≐ b₁ : 𝕌
+Γ ▷ El a₁ ⊦ b₀ ≐ b₁ : 𝕌
 
-Γ ᐅ El a₀ ⊦ b₀ : 𝕌
-Γ ᐅ El a₁ ⊦ b₁ : 𝕌
+Γ ▷ El a₀ ⊦ b₀ : 𝕌
+Γ ▷ El a₁ ⊦ b₁ : 𝕌
 Γ ⊦ a₀ ⨯ b₀ ≐ a₁ ⨯ b₁ : 𝕌
 ------------------------------ (code-sigma-inj)
 Γ ⊦ a₀ ≐ a₁ : 𝕌
-Γ ᐅ El a₁ ⊦ b₀ ≐ b₁ : 𝕌
+Γ ▷ El a₁ ⊦ b₀ ≐ b₁ : 𝕌
 
-Γ ᐅ El a₀ ᐅ (El a₀)[↑] ⊦ r₀ : Ω
-Γ ᐅ El a₁ ᐅ (El a₁)[↑] ⊦ r₁ : Ω
+Γ ▷ El a₀ ▷ (El a₀)[↑] ⊦ r₀ : Ω
+Γ ▷ El a₁ ▷ (El a₁)[↑] ⊦ r₁ : Ω
 Γ ⊦ a₀ / r₀ ≐ a₁ / r₁ : 𝕌
 ---------------------------------------- (code-quot-inj)
 Γ ⊦ a₀ ≐ a₁ : 𝕌
-Γ ᐅ El a₁ ᐅ (El a₁)[↑] ⊦ r₀ ≐ r₁ : Ω
+Γ ▷ El a₁ ▷ (El a₁)[↑] ⊦ r₀ ≐ r₁ : Ω
 
 Γ ⊦ (a₀ ≡ b₀ ∈ t₀) ≐ (a₁ ≡ b₁ ∈ t₁) : 𝕌
 ------------------------------------------ (code-eq-inj)
@@ -752,12 +752,12 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ ε tel
 
 Γ ⊦ A type
-Γ ᐅ A ⊦ Δ tel
+Γ ▷ A ⊦ Δ tel
 ----------------- (tel-ext)
 Γ ⊦ A ◁ Δ tel
 
 Γ ⊦ A₀ ≐ A₁ type
-Γ ᐅ A₁ ⊦ Δ₀ ≐ Δ₁ tel
+Γ ▷ A₁ ⊦ Δ₀ ≐ Δ₁ tel
 ----------------------------- (tel-ext-cong)
 Γ ⊦ A₀ ◁ Δ₀ ≐ A₁ ◁ Δ₁ tel
 
@@ -771,7 +771,7 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ₀ ⊦ ε[σ] ≜ ε tel
 
 Γ₁ ⊦ A type
-Γ₁ ᐅ A ⊦ Δ tel
+Γ₁ ▷ A ⊦ Δ tel
 σ : Γ₀ ⇒ Γ₁
 ---------------------------------------- (tel-sub-ext)
 Γ₀ ⊦ (A ◁ Δ)[σ] ≜ A[σ] ◁ Δ[σ⁺] tel
@@ -804,12 +804,12 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ 𝟘, 𝟙, ℕ : 𝕌
 
 Γ ⊦ A : 𝕌
-Γ ᐅ El A ⊦ B : 𝕌
+Γ ▷ El A ⊦ B : 𝕌
 -------------------- (code-pi)
 Γ ⊦ A → B : 𝕌
 
 Γ ⊦ A : 𝕌
-Γ ᐅ El A ⊦ B : 𝕌
+Γ ▷ El A ⊦ B : 𝕌
 -------------------- (code-sigma)
 Γ ⊦ A ⨯ B : 𝕌
 
@@ -819,7 +819,7 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ (a₀ ≡ a₁ ∈ A) : 𝕌
 
 Γ ⊦ A : 𝕌
-Γ ᐅ El A ᐅ (El A)[↑] ⊦ R : Ω
+Γ ▷ El A ▷ (El A)[↑] ⊦ R : Ω
 ------------------------------ (code-quot)
 Γ ⊦ A / R : 𝕌
 
@@ -854,34 +854,34 @@ e˲ : Γ₁ ⇒ Γ norm
 --------------- (el-nat-s)
 Γ ⊦ S t : ℕ
 
-Γ ᐅ ℕ ⊦ A type
+Γ ▷ ℕ ⊦ A type
 Γ ⊦ z : A[id, Z]
-Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
+Γ ▷ ℕ ▷ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
 Γ ⊦ t : ℕ
 -------------------------------- (el-nat-e, motive A)
 Γ ⊦ ℕ-elim z s t : A[id, t]
 
-Γ ᐅ ℕ ⊦ A type
+Γ ▷ ℕ ⊦ A type
 Γ ⊦ z : A[id, Z]
-Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
+Γ ▷ ℕ ▷ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
 ------------------------------------ (el-nat-beta-z)
 Γ ⊦ ℕ-elim z s Z ≜ z : A[id, Z]
 
-Γ ᐅ ℕ ⊦ A type
+Γ ▷ ℕ ⊦ A type
 Γ ⊦ z : A[id, Z]
-Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
+Γ ▷ ℕ ▷ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
 Γ ⊦ t : ℕ
 --------------------------------------------------------------- (el-nat-beta-s)
 Γ ⊦ ℕ-elim z s (S t) ≜ s[id, t, ℕ-elim z s t] : A[id, S t]
 
-Γ ᐅ ℕ ⊦ A type
-Γ ᐅ ℕ ⊦ f₀ : A
-Γ ᐅ ℕ ⊦ f₁ : A
+Γ ▷ ℕ ⊦ A type
+Γ ▷ ℕ ⊦ f₀ : A
+Γ ▷ ℕ ⊦ f₁ : A
 Γ ⊦ z : A[id, Z]
-Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
+Γ ▷ ℕ ▷ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
 Γ ⊦ f₀[id, Z] ≐ f₁[id, Z] : A[id, Z]
-Γ ᐅ ℕ ⊦ f₀[↑, S ☐₀] ≐ s[id, f₀] : A[↑, S ☐₀]
-Γ ᐅ ℕ ⊦ f₁[↑, S ☐₀] ≐ s[id, f₁] : A[↑, S ☐₀]
+Γ ▷ ℕ ⊦ f₀[↑, S ☐₀] ≐ s[id, f₀] : A[↑, S ☐₀]
+Γ ▷ ℕ ⊦ f₁[↑, S ☐₀] ≐ s[id, f₁] : A[↑, S ☐₀]
 Γ ⊦ t : ℕ
 ------------------------------------------------- (el-nat-eta, motive A)
 Γ ⊦ f₀[id, t] ≐ f₁[id, t] : A[id, t]              // NOTE: essentially elimination into equality in A
@@ -890,17 +890,17 @@ e˲ : Γ₁ ⇒ Γ norm
 
 // Π.
 
-Γ ᐅ A ⊦ f : B
+Γ ▷ A ⊦ f : B
 ---------------------- (el-pi-i)
 Γ ⊦ λ f : A → B
 
-Γ ᐅ A ⊦ B type
+Γ ▷ A ⊦ B type
 Γ ⊦ f : A → B
 Γ ⊦ e : A
 ------------------------ (el-pi-e)
 Γ ⊦ f e : B[id, e]
 
-Γ ᐅ A ⊦ f : B
+Γ ▷ A ⊦ f : B
 Γ ⊦ e : A
 --------------------------------------- (el-pi-beta)
 Γ ⊦ (λ f) e ≜ f[id, e] : B[id, e]
@@ -911,7 +911,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 // Σ.
 
-Γ ᐅ A ⊦ B type
+Γ ▷ A ⊦ B type
 Γ ⊦ a : A
 Γ ⊦ b : B[id, a]
 ---------------------- (el-sigma-i)
@@ -925,13 +925,13 @@ e˲ : Γ₁ ⇒ Γ norm
 ------------------------------ (el-sigma-e₂)
 Γ ⊦ t .π₂ : B[id, t .π₁]
 
-Γ ᐅ A ⊦ B type
+Γ ▷ A ⊦ B type
 Γ ⊦ a : A
 Γ ⊦ b : B[id, a]
 ----------------------------- (el-sigma-beta₁)
 Γ ⊦ (a, b) .π₁ ≜ a : A
 
-Γ ᐅ A ⊦ B type
+Γ ▷ A ⊦ B type
 Γ ⊦ a : A
 Γ ⊦ b : B[id, a]
 ------------------------------------ (el-sigma-beta₂)
@@ -953,37 +953,37 @@ e˲ : Γ₁ ⇒ Γ norm
 
 // Quotients.
 
-Γ ᐅ A ᐅ A[↑] ⊦ R : Ω
+Γ ▷ A ▷ A[↑] ⊦ R : Ω
 Γ ⊦ a : A
 ------------------------- (el-quot-i)
 Γ ⊦ class a : A / R
 
-Γ ᐅ A ᐅ A[↑] ⊦ R : Ω
+Γ ▷ A ▷ A[↑] ⊦ R : Ω
 Γ ⊦ a : A
 Γ ⊦ b : A
 Γ ⊦ r : Prf R[id, a, b]
 ------------------------------------ (el-quot-eq) // R-related elements have equal classes
 Γ ⊦ class a ≐ class b : A / R
 
-Γ ᐅ (A / R) ⊦ B type
-Γ ᐅ A ⊦ f : B[↑, class ☐₀]
-Γ ᐅ A ᐅ A[↑] ᐅ Prf R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Γ ▷ (A / R) ⊦ B type
+Γ ▷ A ⊦ f : B[↑, class ☐₀]
+Γ ▷ A ▷ A[↑] ▷ Prf R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
 Γ ⊦ q : A / R
 ------------------------------------ (el-quot-e, motive B)
 Γ ⊦ quot-elim f q : B[id, q]
 
-Γ ᐅ (A / R) ⊦ B type
-Γ ᐅ A ⊦ f : B[↑, class ☐₀]
-Γ ᐅ A ᐅ A[↑] ᐅ Prf R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Γ ▷ (A / R) ⊦ B type
+Γ ▷ A ⊦ f : B[↑, class ☐₀]
+Γ ▷ A ▷ A[↑] ▷ Prf R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
 Γ ⊦ a : A
 ------------------------------------------------------------ (el-quot-beta)
 Γ ⊦ quot-elim f (class a) ≜ f[id, a] : B[id, class a]
 
-Γ ᐅ (A / R) ⊦ B type
-Γ ᐅ (A / R) ⊦ g : B
-Γ ᐅ A ⊦ f : B[↑, class ☐₀]
-Γ ᐅ A ᐅ A[↑] ᐅ Prf R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
-Γ ᐅ A ⊦ g[↑, class ☐₀] ≐ f : B[↑, class ☐₀]
+Γ ▷ (A / R) ⊦ B type
+Γ ▷ (A / R) ⊦ g : B
+Γ ▷ A ⊦ f : B[↑, class ☐₀]
+Γ ▷ A ▷ A[↑] ▷ Prf R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Γ ▷ A ⊦ g[↑, class ☐₀] ≐ f : B[↑, class ☐₀]
 Γ ⊦ q : A / R
 ---------------------------------------------- (el-quot-eta, motive B)
 Γ ⊦ g[id, q] ≐ quot-elim f q : B[id, q]
@@ -1069,10 +1069,10 @@ e˲ : Γ₁ ⇒ Γ norm
 //  * Consequences for quotients (whose relation slot is Ω-valued —
 //    see ty-quot):
 //      1. Mutually implied relations give EQUAL quotient types:
-//         code-prop-eq under Γ ᐅ A ᐅ A[↑] gives R₀ ≐ R₁ : Ω, then
+//         code-prop-eq under Γ ▷ A ▷ A[↑] gives R₀ ≐ R₁ : Ω, then
 //         ty-quot-cong; dually ty-quot-inj returns only iff-content.
 //         A proof-relevant presentation is recovered as A / ∥R∥.
-//      2. Effectivity: for R : Ω over Γ ᐅ A ᐅ A[↑], an equivalence
+//      2. Effectivity: for R : Ω over Γ ▷ A ▷ A[↑], an equivalence
 //         at squash level, class a ≐ class b : A / R implies
 //         Prf R[id, a, b] inhabited — via quot-elim at the constant
 //         motive Ω with f ≔ R[id, a, ☐₀], coherence discharged by
@@ -1104,8 +1104,8 @@ e˲ : Γ₁ ⇒ Γ norm
 ------------------ (code-squash)
 Γ ⊦ ∥A∥ : Ω
 
-Γ ᐅ Prf p ⊦ s : (Prf q)[↑]
-Γ ᐅ Prf q ⊦ t : (Prf p)[↑]
+Γ ▷ Prf p ⊦ s : (Prf q)[↑]
+Γ ▷ Prf q ⊦ t : (Prf p)[↑]
 ----------------------------- (code-prop-eq) // propositional extensionality:
 Γ ⊦ p ≐ q : Ω                             //   mutually implied props are equal codes
 
@@ -1119,12 +1119,12 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ t₀ ≐ t₁ : Prf p
 
 Γ ⊦ s : Prf ∥A∥
-Γ ᐅ A ⊦ b₀[↑] ≐ b₁[↑] : B[↑]
+Γ ▷ A ⊦ b₀[↑] ≐ b₁[↑] : B[↑]
 ------------------------------ (el-squash-e-eq)
 Γ ⊦ b₀ ≐ b₁ : B
 
 Γ ⊦ s : Prf ∥A∥
-Γ ᐅ A ⊦ t : (Prf q)[↑]
+Γ ▷ A ⊦ t : (Prf q)[↑]
 ------------------------ (el-squash-e-prf)
 Γ ⊦ ⋆ : Prf q
 
@@ -1162,7 +1162,7 @@ e˲ : Γ₁ ⇒ Γ norm
 // constructors and equation constructors are ordinary entries,
 // distinguished by the HEAD of their type alone.
 //
-//   qiit-context  Φ, 𝒮 ::= ⬦ | Φ ⊳ 𝔄          // entries are ANONYMOUS
+//   qiit-context  Φ, 𝒮 ::= ⬦ | Φ ▷ 𝔄          // entries are ANONYMOUS
 //   qiit-type     𝔄 ::= U                     // the universe of codes
 //                     | El 𝕥                  // decoding of a code 𝕥 : U
 //                     | A ⇛ 𝔄                 // EXTERNAL Π — domain a Nova
@@ -1226,21 +1226,21 @@ e˲ : Γ₁ ⇒ Γ norm
 // Nova plumbing — context extension by a telescope, telescope
 // concatenation, telescope weakening:
 //     Γ·ε ≜ Γ                     ε ⧺ Ξ' ≜ Ξ'
-//     Γ·(A ◁ Ξ) ≜ (Γ ᐅ A)·Ξ       (A ◁ Ξ) ⧺ Ξ' ≜ A ◁ (Ξ ⧺ Ξ')
-//     ↑ε ≜ id                     ↑(A ◁ Ξ) ≜ ↑ ∘ ↑Ξ    // the ↑Ξ at Γ ᐅ A
+//     Γ·(A ◁ Ξ) ≜ (Γ ▷ A)·Ξ       (A ◁ Ξ) ⧺ Ξ' ≜ A ◁ (Ξ ⧺ Ξ')
+//     ↑ε ≜ id                     ↑(A ◁ Ξ) ≜ ↑ ∘ ↑Ξ    // the ↑Ξ at Γ ▷ A
 //     (↑Ξ : Γ·Ξ ⇒ Γ, so [↑Ξ] weakens over Ξ)
 //
 // LOOKUP Φ‖ᵢ — the type of ⬡ᵢ in Φ, weakened to all of Φ (mirrors
 // Nova's Γ‖ᵢ, with the ToS shift):
-//     (Φ ⊳ 𝔄)‖₀   ≜ 𝔄[⇑]
-//     (Φ ⊳ 𝔄)‖ᵢ₊₁ ≜ (Φ‖ᵢ)[⇑]
+//     (Φ ▷ 𝔄)‖₀   ≜ 𝔄[⇑]
+//     (Φ ▷ 𝔄)‖ᵢ₊₁ ≜ (Φ‖ᵢ)[⇑]
 //
 // OPENING (Γ ; Φ) ⋉ 𝔄 — the dual zone reached by walking an El-ended
 // type's binders, each into ITS zone (written Γ_𝔄 ; Φ_𝔄 when the base
 // zone is clear):
 //     (Γ ; Φ) ⋉ El 𝕦        ≜ Γ ; Φ
-//     (Γ ; Φ) ⋉ (A ⇛ 𝔄)     ≜ (Γ ᐅ A ; Φ[↑]) ⋉ 𝔄
-//     (Γ ; Φ) ⋉ (El 𝕥 ⇛ 𝔄)  ≜ (Γ ; Φ ⊳ El 𝕥) ⋉ 𝔄
+//     (Γ ; Φ) ⋉ (A ⇛ 𝔄)     ≜ (Γ ▷ A ; Φ[↑]) ⋉ 𝔄
+//     (Γ ; Φ) ⋉ (El 𝕥 ⇛ 𝔄)  ≜ (Γ ; Φ ▷ El 𝕥) ⋉ 𝔄
 //
 // INSTANTIATION is not a bespoke operation — both binder
 // instantiations are calculus instances, abbreviated 𝔄[t] / 𝔄[𝕥]:
@@ -1277,7 +1277,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ ⊦ Φ qctx      Γ ; Φ ⊦ 𝔄 qty
 ------------------------------ (qctx-ext)
-Γ ⊦ Φ ⊳ 𝔄 qctx
+Γ ⊦ Φ ▷ 𝔄 qctx
 
 Γ ⊦ Φ qctx
 --------------- (qty-univ)
@@ -1287,11 +1287,11 @@ e˲ : Γ₁ ⇒ Γ norm
 ------------------ (qty-el)
 Γ ; Φ ⊦ El 𝕥 qty
 
-Γ ⊦ A type      Γ ᐅ A ; Φ[↑] ⊦ 𝔄 qty
+Γ ⊦ A type      Γ ▷ A ; Φ[↑] ⊦ 𝔄 qty
 ------------------------------------- (qty-pi-ext)   // binds a NOVA variable:
 Γ ; Φ ⊦ A ⇛ 𝔄 qty                                    //   the Nova zone grows
 
-Γ ; Φ ⊦ 𝕥 : U      Γ ; Φ ⊳ El 𝕥 ⊦ 𝔄 qty
+Γ ; Φ ⊦ 𝕥 : U      Γ ; Φ ▷ El 𝕥 ⊦ 𝔄 qty
 ---------------------------------------- (qty-pi-ind)   // binds a ToS variable:
 Γ ; Φ ⊦ El 𝕥 ⇛ 𝔄 qty                                    //   the ToS zone grows
 
@@ -1307,7 +1307,7 @@ e˲ : Γ₁ ⇒ Γ norm
 ---------------------------------------------- (qtm-app-ind)
 Γ ; Φ ⊦ 𝕥 𝕥' : 𝔄[𝕥']
 
-Γ ᐅ A ; Φ[↑] ⊦ 𝕥 : 𝔄
+Γ ▷ A ; Φ[↑] ⊦ 𝕥 : 𝔄
 ------------------------ (qtm-lam-ext)
 Γ ; Φ ⊦ λ 𝕥 : A ⇛ 𝔄
 
@@ -1316,7 +1316,7 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ; Φ ⊦ (𝕥₀ ≡ 𝕥₁) : U
 
 // The ToS substitution calculus, mirroring Nova's (𝕚𝕕/⇑/∘/ext; the
-// lift ς⁺ ≜ (ς ∘ ⇑, ⬡₀) : Φ₀ ⊳ 𝔄[ς] ⇒ Φ₁ ⊳ 𝔄 is derived):
+// lift ς⁺ ≜ (ς ∘ ⇑, ⬡₀) : Φ₀ ▷ 𝔄[ς] ⇒ Φ₁ ▷ 𝔄 is derived):
 
 Γ ⊦ Φ qctx
 ------------------- (qsub-id)
@@ -1324,7 +1324,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ ; Φ ⊦ 𝔄 qty
 ---------------------- (qsub-wk)
-Γ ⊦ ⇑ : Φ ⊳ 𝔄 ⇒ Φ
+Γ ⊦ ⇑ : Φ ▷ 𝔄 ⇒ Φ
 
 Γ ⊦ ς : Φ₀ ⇒ Φ₁      Γ ⊦ τ : Φ₁ ⇒ Φ₂
 -------------------------------------- (qsub-comp)
@@ -1332,7 +1332,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ ⊦ ς : Φ₀ ⇒ Φ₁      Γ ; Φ₀ ⊦ 𝕥 : 𝔄[ς]
 ---------------------------------------- (qsub-ext)
-Γ ⊦ (ς, 𝕥) : Φ₀ ⇒ Φ₁ ⊳ 𝔄
+Γ ⊦ (ς, 𝕥) : Φ₀ ⇒ Φ₁ ▷ 𝔄
 
 Γ ; Φ₁ ⊦ 𝕥 : 𝔄      Γ ⊦ ς : Φ₀ ⇒ Φ₁
 ------------------------------------- (qtm-sub)   // and likewise qty-sub;
@@ -1365,8 +1365,8 @@ e˲ : Γ₁ ⇒ Γ norm
 // Crossing a binder STEPS the state (▷; the external step is present
 // in both zones, so ρ lifts; the inductive step is merged-only, so ρ
 // weakens):
-//     𝑤 ▷ A       ≜ (Γ̂ ᐅ A[ρ], ρ⁺, υ ∘ ↑)
-//     𝑤 ▷ El 𝕥    ≜ (Γ̂ ᐅ ⌊El 𝕥⌋_𝑤, ρ ∘ ↑, υ ∘ ↑)
+//     𝑤 ▷ A       ≜ (Γ̂ ▷ A[ρ], ρ⁺, υ ∘ ↑)
+//     𝑤 ▷ El 𝕥    ≜ (Γ̂ ▷ ⌊El 𝕥⌋_𝑤, ρ ∘ ↑, υ ∘ ↑)
 // The INITIAL state is 𝑤₀ ≜ (Γ, id, id); the FINAL state of an
 // El-ended 𝔄's walk is written 𝑤_𝔄, with components Γ ⋈ 𝔄 (the MERGE)
 // and ρ_𝔄:
@@ -1539,7 +1539,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ ⊦ 𝒮 qsig
 for each sort position 𝕤 of 𝒮 (𝒮(𝕤) = 𝔎):
-    Γ·⌊𝔎⌋ᵗ ᐅ 𝒮.𝕤 δ ⊦ C_𝕤 type
+    Γ·⌊𝔎⌋ᵗ ▷ 𝒮.𝕤 δ ⊦ C_𝕤 type
 --------------------------------------------- (mot)
 Γ ⊦ C̄ : 𝒮 mot
 
@@ -1644,7 +1644,7 @@ for each equation position 𝕔 of 𝒮
 
 Γ ⊦ C̄ : 𝒮 mot
 for each sort position 𝕤 of 𝒮 (𝒮(𝕤) = 𝔎):
-    Γ·⌊𝔎⌋ᵗ ᐅ 𝒮.𝕤 δ ⊦ φ_𝕤 : C_𝕤
+    Γ·⌊𝔎⌋ᵗ ▷ 𝒮.𝕤 δ ⊦ φ_𝕤 : C_𝕤
 --------------------------------------------- (sect)
 Γ ⊦ φ : C̄ sect
 
@@ -1803,13 +1803,13 @@ e˲ : Δ ⇒ Γ norm
 Γ₀ ⊦ (S t)[σ] ≜ S t[σ] : ℕ
 
 Γ₁ ⊦ A : 𝕌
-Γ₁ ᐅ El A ⊦ B : 𝕌
+Γ₁ ▷ El A ⊦ B : 𝕌
 σ : Γ₀ ⇒ Γ₁
 ---------------------------------------- (el-sub-code-pi)
 Γ₀ ⊦ (A → B)[σ] ≜ A[σ] → B[σ⁺] : 𝕌
 
 Γ₁ ⊦ A : 𝕌
-Γ₁ ᐅ El A ⊦ B : 𝕌
+Γ₁ ▷ El A ⊦ B : 𝕌
 σ : Γ₀ ⇒ Γ₁
 ---------------------------------------- (el-sub-code-sigma)
 Γ₀ ⊦ (A ⨯ B)[σ] ≜ A[σ] ⨯ B[σ⁺] : 𝕌
@@ -1821,7 +1821,7 @@ e˲ : Δ ⇒ Γ norm
 Γ₀ ⊦ (a₀ ≡ a₁ ∈ A)[σ] ≜ (a₀[σ] ≡ a₁[σ] ∈ A[σ]) : 𝕌
 
 Γ₁ ⊦ A : 𝕌
-Γ₁ ᐅ El A ᐅ (El A)[↑] ⊦ R : Ω
+Γ₁ ▷ El A ▷ (El A)[↑] ⊦ R : Ω
 σ : Γ₀ ⇒ Γ₁
 ------------------------------------------ (el-sub-code-quot)
 Γ₀ ⊦ (A / R)[σ] ≜ A[σ] / R[σ⁺⁺] : 𝕌
@@ -1831,19 +1831,19 @@ e˲ : Δ ⇒ Γ norm
 ------------------------------------ (el-sub-squash)
 Γ₀ ⊦ ∥A∥[σ] ≜ ∥A[σ]∥ : Ω
 
-Γ₁ ᐅ A ⊦ f : B
+Γ₁ ▷ A ⊦ f : B
 σ : Γ₀ ⇒ Γ₁
 ---------------------------------------------- (el-sub-lam)
 Γ₀ ⊦ (λ f)[σ] ≜ λ f[σ⁺] : A[σ] → B[σ⁺]
 
-Γ₁ ᐅ A ⊦ B type
+Γ₁ ▷ A ⊦ B type
 Γ₁ ⊦ f : A → B
 Γ₁ ⊦ e : A
 σ : Γ₀ ⇒ Γ₁
 ------------------------------------------ (el-sub-app)
 Γ₀ ⊦ (f e)[σ] ≜ f[σ] e[σ] : B[σ, e[σ]]
 
-Γ₁ ᐅ A ⊦ B type
+Γ₁ ▷ A ⊦ B type
 Γ₁ ⊦ a : A
 Γ₁ ⊦ b : B[id, a]
 σ : Γ₀ ⇒ Γ₁
@@ -1870,23 +1870,23 @@ e˲ : Δ ⇒ Γ norm
 --------------------------------- (el-sub-star)
 Γ₀ ⊦ ⋆[σ] ≜ ⋆ : (Prf p)[σ]
 
-Γ ᐅ ℕ ⊦ A type
+Γ ▷ ℕ ⊦ A type
 Γ ⊦ z : A[id, Z]
-Γ ᐅ ℕ ᐅ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
+Γ ▷ ℕ ▷ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
 Γ ⊦ t : ℕ
 σ : Δ ⇒ Γ
 ------------------------------------------------------------------- (el-sub-nat-e)
 Δ ⊦ (ℕ-elim z s t)[σ] ≜ ℕ-elim z[σ] s[σ⁺⁺] t[σ] : A[σ, t[σ]]
 
-Γ ᐅ A ᐅ A[↑] ⊦ R : Ω
+Γ ▷ A ▷ A[↑] ⊦ R : Ω
 Γ ⊦ a : A
 σ : Δ ⇒ Γ
 ---------------------------------------------------- (el-sub-class)
 Δ ⊦ (class a)[σ] ≜ class a[σ] : A[σ] / R[σ⁺⁺]
 
-Γ ᐅ (A / R) ⊦ B type
-Γ ᐅ A ⊦ f : B[↑, class ☐₀]
-Γ ᐅ A ᐅ A[↑] ᐅ Prf R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Γ ▷ (A / R) ⊦ B type
+Γ ▷ A ⊦ f : B[↑, class ☐₀]
+Γ ▷ A ▷ A[↑] ▷ Prf R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
 Γ ⊦ q : A / R
 σ : Δ ⇒ Γ
 ------------------------------------------------------------------ (el-sub-quot-e)
@@ -1900,7 +1900,7 @@ e˲ : Δ ⇒ Γ norm
 
 σ : Δ ⇒ Γ
 Δ ⊦ t : A[σ]
-------------------------------- (var-sub-hit)   // A the type ☐₀ names in Γ ᐅ A
+------------------------------- (var-sub-hit)   // A the type ☐₀ names in Γ ▷ A
 Δ ⊦ ☐₀[σ, t] ≜ t : A[σ]
 
 Γ ⊦ ☐ₙ : B
@@ -1912,7 +1912,7 @@ e˲ : Δ ⇒ Γ norm
 Γ ⊦ ☐ₙ : B
 Γ ⊦ A type
 ----------------------------------- (var-sub-wk)
-Γ ᐅ A ⊦ ☐ₙ[↑] ≜ ☐ₙ₊₁ : B[↑]
+Γ ▷ A ⊦ ☐ₙ[↑] ≜ ☐ₙ₊₁ : B[↑]
 
 Γ ⊦ ☐ₙ : B
 --------------------------- (var-sub-id)
@@ -1964,17 +1964,17 @@ e˲ : Γ₁ ⇒ Γ norm
 --------------------------------- (el-sub-cong-fix) // admissible: specialize via sub-refl
 Γ₀ ⊦ t₀[σ] ≐ t₁[σ] : A[σ]
 
-Γ ᐅ A ⊦ f₀ ≐ f₁ : B
+Γ ▷ A ⊦ f₀ ≐ f₁ : B
 --------------------------- (el-lam-cong)
 Γ ⊦ λ f₀ ≐ λ f₁ : A → B
 
-Γ ᐅ A ⊦ B type
+Γ ▷ A ⊦ B type
 Γ ⊦ f₀ ≐ f₁ : A → B
 Γ ⊦ a₀ ≐ a₁ : A
 ------------------------------------ (el-app-cong)
 Γ ⊦ f₀ a₀ ≐ f₁ a₁ : B[id, a₁]
 
-Γ ᐅ A ⊦ B type
+Γ ▷ A ⊦ B type
 Γ ⊦ a₀ ≐ a₁ : A
 Γ ⊦ b₀ ≐ b₁ : B[id, a₁]
 ------------------------------------- (el-pair-cong)
@@ -1992,9 +1992,9 @@ e˲ : Γ₁ ⇒ Γ norm
 ------------------------- (el-suc-cong)
 Γ ⊦ S t₀ ≐ S t₁ : ℕ
 
-Γ ᐅ ℕ ⊦ A type
+Γ ▷ ℕ ⊦ A type
 Γ ⊦ z₀ ≐ z₁ : A[id, Z]
-Γ ᐅ ℕ ᐅ A ⊦ s₀ ≐ s₁ : A[↑ ∘ ↑, S ☐₁]
+Γ ▷ ℕ ▷ A ⊦ s₀ ≐ s₁ : A[↑ ∘ ↑, S ☐₁]
 Γ ⊦ t₀ ≐ t₁ : ℕ
 ------------------------------------------------------ (el-nat-e-cong, motive A)
 Γ ⊦ ℕ-elim z₀ s₀ t₀ ≐ ℕ-elim z₁ s₁ t₁ : A[id, t₁]
@@ -2005,17 +2005,17 @@ e˲ : Γ₁ ⇒ Γ norm
 ------------------------------------ (el-zero-e-cong) // stronger than a congruence: no t⁼ premise
 Γ ⊦ 𝟘-elim t₀ ≐ 𝟘-elim t₁ : A
 
-Γ ᐅ A ᐅ A[↑] ⊦ R : Ω
+Γ ▷ A ▷ A[↑] ⊦ R : Ω
 Γ ⊦ a₀ ≐ a₁ : A
 --------------------------------------- (el-class-cong)
 Γ ⊦ class a₀ ≐ class a₁ : A / R
 
-Γ ᐅ (A / R) ⊦ B type
-Γ ᐅ A ⊦ f₀ : B[↑, class ☐₀]
-Γ ᐅ A ⊦ f₁ : B[↑, class ☐₀]
-Γ ᐅ A ᐅ A[↑] ᐅ Prf R ⊦ f₀[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f₀[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
-Γ ᐅ A ᐅ A[↑] ᐅ Prf R ⊦ f₁[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f₁[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
-Γ ᐅ A ⊦ f₀ ≐ f₁ : B[↑, class ☐₀]
+Γ ▷ (A / R) ⊦ B type
+Γ ▷ A ⊦ f₀ : B[↑, class ☐₀]
+Γ ▷ A ⊦ f₁ : B[↑, class ☐₀]
+Γ ▷ A ▷ A[↑] ▷ Prf R ⊦ f₀[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f₀[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Γ ▷ A ▷ A[↑] ▷ Prf R ⊦ f₁[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f₁[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Γ ▷ A ⊦ f₀ ≐ f₁ : B[↑, class ☐₀]
 Γ ⊦ q₀ ≐ q₁ : A / R
 ------------------------------------------------------ (el-quot-e-cong, motive B)
 Γ ⊦ quot-elim f₀ q₀ ≐ quot-elim f₁ q₁ : B[id, q₁]
@@ -2023,12 +2023,12 @@ e˲ : Γ₁ ⇒ Γ norm
 // Congruence rules for universe code constructors.
 
 Γ ⊦ A₀ ≐ A₁ : 𝕌
-Γ ᐅ El A₁ ⊦ B₀ ≐ B₁ : 𝕌
+Γ ▷ El A₁ ⊦ B₀ ≐ B₁ : 𝕌
 ------------------------------- (code-pi-cong)
 Γ ⊦ A₀ → B₀ ≐ A₁ → B₁ : 𝕌
 
 Γ ⊦ A₀ ≐ A₁ : 𝕌
-Γ ᐅ El A₁ ⊦ B₀ ≐ B₁ : 𝕌
+Γ ▷ El A₁ ⊦ B₀ ≐ B₁ : 𝕌
 ------------------------------- (code-sigma-cong)
 Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ : 𝕌
 
@@ -2039,7 +2039,7 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ (a₀ ≡ b₀ ∈ A₀) ≐ (a₁ ≡ b₁ ∈ A₁) : 𝕌
 
 Γ ⊦ A₀ ≐ A₁ : 𝕌
-Γ ᐅ El A₁ ᐅ (El A₁)[↑] ⊦ R₀ ≐ R₁ : Ω
+Γ ▷ El A₁ ▷ (El A₁)[↑] ⊦ R₀ ≐ R₁ : Ω
 --------------------------------------- (code-quot-cong)
 Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ : 𝕌
 
@@ -2053,13 +2053,13 @@ e˲ : Γ₁ ⇒ Γ norm
 ------------- (sp-empty)
 Γ ⊦ · : ε
 
-Γ ᐅ A ⊦ Δ tel
+Γ ▷ A ⊦ Δ tel
 Γ ⊦ e : A
 Γ ⊦ ē : Δ[id, e]
 ---------------------- (sp-ext)
 Γ ⊦ e, ē : A ◁ Δ
 
-Γ ᐅ A ⊦ Δ tel
+Γ ▷ A ⊦ Δ tel
 Γ ⊦ e₀ ≐ e₁ : A
 Γ ⊦ ē₀ ≐ ē₁ : Δ[id, e₁]
 --------------------------------- (sp-ext-cong)
@@ -2075,7 +2075,7 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ₀ ⊦ ·[σ] ≜ · : ε
 
 Γ₁ ⊦ e : A
-Γ₁ ᐅ A ⊦ Δ tel
+Γ₁ ▷ A ⊦ Δ tel
 Γ₁ ⊦ ē : Δ[id, e]
 σ : Γ₀ ⇒ Γ₁
 ------------------------------------------------ (sp-sub-ext)

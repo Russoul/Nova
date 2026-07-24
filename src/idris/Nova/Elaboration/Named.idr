@@ -430,7 +430,7 @@ prettyCtxWithEnv tbl [<] = ("ε", [<])
 prettyCtxWithEnv tbl (rest :< ty) =
   let (restStr, env) = prettyCtxWithEnv tbl rest
       x = freshForTy ty env
-  in (restStr ++ " ᐅ " ++ x ++ ":" ++ prettyTyN tbl env ty, env :< x)
+  in (restStr ++ " ▷ " ++ x ++ ":" ++ prettyTyN tbl env ty, env :< x)
 
 export
 prettyCtxN : FixTable -> Ctx -> String

@@ -81,7 +81,7 @@ mutual
       (substMotives sg ms sigma) (map (\f => substElem f sigma) fs)
       (substSubNorm es sigma) (substElem w sigma)
 
-  ||| Motive i lives over Γ·⌊𝔎ᵢ⌋ᵗ ᐅ 𝒮.kᵢ δ — lift σ once per index
+  ||| Motive i lives over Γ·⌊𝔎ᵢ⌋ᵗ ▷ 𝒮.kᵢ δ — lift σ once per index
   ||| binder plus once for the eliminee.
   substMotives : QSig -> List Ty -> Sub -> List Ty
   substMotives sg ms sigma = go (qPositions QKSort sg) ms

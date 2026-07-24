@@ -53,7 +53,7 @@ import Nova.Elaboration.Parser
 ||| A rewrite candidate: an equation whose context splits into a fixed
 ||| base (rigid — the ambient Γ for hypothesis candidates, ε for Σ-level
 ||| lemmas) and `params` innermost parametric entries (matchable).
-||| lhs/rhs are stored beta-normalized, in base ᐅ p_{k-1} ᐅ ... ᐅ p₀.
+||| lhs/rhs are stored beta-normalized, in base ▷ p_{k-1} ▷ ... ▷ p₀.
 ||| paramTys lists the parametric entries' types OUTERMOST FIRST (i.e.
 ||| index (k-1) first), each in its own prefix of the pattern context —
 ||| needed for conditional matching (an unbound ≡-typed parameter is a
@@ -191,7 +191,7 @@ strengthenElemN (S n) e = strengthenElem 0 e >>= strengthenElemN n
 
 -- ===== First-order matching (rewriting) =====
 --
--- Pattern lives in base ᐅ p_{k-1} ᐅ ... ᐅ p₀; the match site sits at
+-- Pattern lives in base ▷ p_{k-1} ▷ ... ▷ p₀; the match site sits at
 -- depth `d` below the ambient context Γ (= the candidate's base for
 -- hypotheses; lemmas have base ε so any Γ works). Inside the pattern we
 -- track the local binder depth `b`. Pattern variable j:
@@ -373,8 +373,8 @@ matchTyP k d b (QSort sg j es) (QSort sg' j' es') =
   else const Nothing
 matchTyP _ _ _ _ _ = const Nothing
 
-||| Build the instantiating substitution: pattern context base ᐅ p_{k-1}
-||| ᐅ ... ᐅ p₀ into the match site (Γ + d). Base part is ↑ᵈ; each bound
+||| Build the instantiating substitution: pattern context base ▷ p_{k-1}
+||| ▷ ... ▷ p₀ into the match site (Γ + d). Base part is ↑ᵈ; each bound
 ||| term (canonical in Γ) is weakened by d.
 instSub : (k : Nat) -> (d : Nat) -> Bindings -> Maybe Sub
 instSub k d bs = go k (wkN d)
@@ -397,7 +397,7 @@ lastEntries : Nat -> Ctx -> List Ty
 lastEntries n ctx = drop (minus (length ctx) n) (toList ctx)
 
 ||| Instantiating substitution for a parameter's own type: param p's
-||| type lives in base ᐅ p_{k-1} ᐅ ... ᐅ p_{p+1}.
+||| type lives in base ▷ p_{k-1} ▷ ... ▷ p_{p+1}.
 condSub : (k : Nat) -> (p : Nat) -> Bindings -> Maybe Sub
 condSub k p bs =
   let idxs = if S p <= minus k 1 then reverse [S p .. minus k 1] else [] in
@@ -1012,7 +1012,7 @@ mutual
         pure (MkECert [] (FPropExt fe fsk be bsk))
       _ => Nothing
    where
-    -- under ctx ᐅ Prf ∥src∥, a proof of (Prf ∥tgt∥)[↑]: 𝟙-shaped
+    -- under ctx ▷ Prf ∥src∥, a proof of (Prf ∥tgt∥)[↑]: 𝟙-shaped
     -- squashees outright, ≡-shaped ones by a nested discharge (which
     -- may use the unsquashed hypothesis as a rewrite candidate)
     mkImpl : Ty -> Ty -> Maybe (Elem, Skel)

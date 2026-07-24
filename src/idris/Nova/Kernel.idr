@@ -74,7 +74,7 @@ record Step where
 mutual
   public export
   data Payload : Type where
-    ||| eliminator motive (ℕ-elim: over Γ ᐅ ℕ; quot-elim: over Γ ᐅ A/R)
+    ||| eliminator motive (ℕ-elim: over Γ ▷ ℕ; quot-elim: over Γ ▷ A/R)
     PMotive : Ty -> Skel -> Payload
     ||| expected type of an introduction form in inference position
     PIntroTy : Ty -> Skel -> Payload
@@ -125,8 +125,8 @@ mutual
     FEtaSigma : ECert -> ECert -> Final
     ||| code-prop-eq (propositional extensionality) at Ω: mutually
     ||| implied prop codes are equal. Carries the two hypothetical
-    ||| proofs — s : (Prf q)[↑] under Γ ᐅ Prf p, and t : (Prf p)[↑]
-    ||| under Γ ᐅ Prf q — with their checking skeletons.
+    ||| proofs — s : (Prf q)[↑] under Γ ▷ Prf p, and t : (Prf p)[↑]
+    ||| under Γ ▷ Prf q — with their checking skeletons.
     FPropExt : Elem -> Skel -> Elem -> Skel -> Final
     ||| ty-prf-cong for a TYPE certificate: both sides are Prf-headed
     ||| and the nested certificate proves the codes equal at Ω

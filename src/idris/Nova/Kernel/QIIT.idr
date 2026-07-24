@@ -241,7 +241,7 @@ telInst tel i args = do
 
 -- ===== Motive application =====
 
-||| C_s[ē, w] — the motive for sort s (a type over Γ·⌊𝔎⌋ᵗ ᐅ 𝒮.s δ)
+||| C_s[ē, w] — the motive for sort s (a type over Γ·⌊𝔎⌋ᵗ ▷ 𝒮.s δ)
 ||| instantiated at an index spine and eliminee, with `base` the
 ||| substitution from the current context back to Γ (υ of the walk).
 export

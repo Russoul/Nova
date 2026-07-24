@@ -45,7 +45,7 @@ mutual
       ||| decoding computation)
       Prf : Elem -> Ty
       ||| T / t  (quotient type: the Elem is the Ω-valued relation,
-      ||| living two levels deeper — Γ ᐅ A ᐅ A[↑] — one bound variable
+      ||| living two levels deeper — Γ ▷ A ▷ A[↑] — one bound variable
       ||| per side)
       Quotient : Ty -> Elem -> Ty
       ||| x[e˲]  (signature type variable, applied to a (normal)
@@ -93,7 +93,7 @@ mutual
       ||| t ≡ t ∈ t  (universe element encoding equality)
       EqTy : Elem -> Elem -> Elem -> Elem
       ||| t / t  (universe element encoding quotient: the second Elem is the
-      ||| relation code, living two levels deeper — Γ ᐅ El a ᐅ (El a)[↑] —
+      ||| relation code, living two levels deeper — Γ ▷ El a ▷ (El a)[↑] —
       ||| one bound variable per side)
       QuotTy : Elem -> Elem -> Elem
       ||| Refl  (reflexivity)
@@ -120,7 +120,7 @@ mutual
       QCtor : QSig -> Nat -> SubNorm -> Elem
       ||| 𝒮.k-elim ℰ ē w  (the eliminator at sort position k; carries
       ||| ℰ = (C̄ ; m̄): motives — one per SORT entry in entry order, each
-      ||| a type over Γ·⌊𝔎⌋ᵗ ᐅ 𝒮.k δ — and methods — one per POINT entry
+      ||| a type over Γ·⌊𝔎⌋ᵗ ▷ 𝒮.k δ — and methods — one per POINT entry
       ||| in entry order, terms over Γ; then the index spine and the
       ||| eliminee. Coherences are CHECKED (kernel PQCoh), not stored.)
       QElim : QSig -> Nat -> List Ty -> List Elem -> SubNorm -> Elem -> Elem
@@ -169,7 +169,7 @@ mutual
   SubNorm : Type
   SubNorm = SnocList Elem
 
-||| Tying context: Γ ::= ε | Γ ᐅ T
+||| Tying context: Γ ::= ε | Γ ▷ T
 public export
 Ctx : Type
 Ctx = SnocList Ty
