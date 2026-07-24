@@ -52,7 +52,8 @@ term/type grammar below is self-contained.
 
 // A file is a sequence of items. `def` introduces a term definition,
 // `type` a type definition — the two signature-entry forms of
-// Foundation's Σ. Every item is declared in the EMPTY context:
+// Foundation's Σ; `data` is an ITEM MACRO that expands into a batch
+// of them (QIIT section below). Every item is declared in the EMPTY context:
 // parameters are ordinary Π-binders in the item's type (the iterated
 // binder syntax below keeps that pleasant), and a reference to an
 // item is a bare name. Foundation's Σ entries keep their general
@@ -62,7 +63,23 @@ file  ::= import* (item | fixity)*
 imp   ::= import M | import M (n (, n)*)
 item  ::= def  n : T{≥0} ≔ t{≥0}
         | type x ≔ T{≥0}
+        | data ( n : Q (; n : Q)* )           // a QIIT signature literal —
+                                              //   an ITEM MACRO, see the
+                                              //   QIIT section below
 fixity ::= infixl d op | infixr d op          // d a digit 0-9
+
+// Q is the ToS type grammar of a data entry — Foundation's qiit-types
+// in surface clothes (→ inside a data literal is Foundation's ⇛;
+// binder groups iterate as everywhere):
+//   Q ::= U | El q | ((x : D))+ → Q
+// with q a ToS code (a sort name applied to arguments, or l ≡ r
+// between sort elements) and D a domain CLASSIFIED BY NAME RESOLUTION:
+// `El q` whose head resolves to a sort of the SAME literal (or an ≡
+// between such elements) is an INDUCTIVE domain; any other surface
+// type is EXTERNAL, elaborated as an ordinary type over the external
+// binders in scope. No new expression syntax exists outside the
+// literal: everything a data item provides reaches the file as
+// ordinary defs (see the QIIT section).
 
 // M is a dotted module name (Data.Nat); see Modules below.
 // n is an identifier x or an operator token op — OPERATORS ARE NAMES:
@@ -236,12 +253,15 @@ instead an error asking the user for an ascription or annotation.
 
 whnf(–) is weak-head normalization by Foundation's ≜ rules:
 el-pi-beta, el-sigma-beta₁, el-sigma-beta₂, el-nat-beta-z,
-el-nat-beta-s, el-quot-beta, el-sig-beta/ty-sig-beta (signature
+el-nat-beta-s, el-quot-beta, el-qiit-beta (the eliminator at a
+saturated constructor of the nf-identical signature),
+el-sig-beta/ty-sig-beta (signature
 unfolding — total in this hole-free setting, since every Σ entry has a
 definiens), and the El-decoding family (ty-el-zero, ty-el-one,
 ty-el-nat, ty-el-pi, ty-el-sigma, ty-el-eq, ty-el-quot — the last
 decoding El (A / r) ≜ El A / r, the Ω-valued relation passing through
-undecoded; Prf ∥A∥ has no decoding rule). Per
+undecoded — and ty-el-qiit, El (𝒮.𝕤 ē) ≜ 𝒮.𝕤 ē; Prf ∥A∥ has no
+decoding rule). Per
 Foundation's preface, normalization of well-formed terms
 may diverge under inconsistent hypotheses; whnf is therefore
 fuel-bounded, and fuel exhaustion is treated as "neutral" — a
@@ -504,6 +524,20 @@ whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 //                                  Prf ∥A∥ → Prf ∥B∥ and back, each with
 //                                  its witness synthesized under the
 //                                  hypothesis
+//        𝒮₀.𝕤 ē₀  ≐ 𝒮₁.𝕤 ē₁    ⇐  the signatures identical nameless ToS
+//                                  syntax up to embedded Nova pieces and
+//                                  the sort positions equal (else the
+//                                  composite stays an obligation), the
+//                                  aligned Nova pieces pairwise in ↓,
+//                                  the index spines componentwise —
+//                                  FAITHFUL (QIIT congruence +
+//                                  injectivity; type and 𝕌-code alike)
+//        𝒮.𝕔 θ₀   ≐ 𝒮.𝕔 θ₁     ⇐  θ componentwise — merely SUFFICIENT,
+//                                  like class: point constructors are
+//                                  not injective (equation constructors
+//                                  may merge them); the faithful route
+//                                  is a path lemma from E (the data
+//                                  item's eq-lemmas land there)
 //        S a       ≐ S b        ⇐  a ≐ b : ℕ
 //        class a   ≐ class b    ⇐  a ≐ b : A, OR — the WITNESS path,
 //                                  (class⁼ r) — by the shape of the
@@ -601,6 +635,130 @@ type x ≔ T             extends Σ with (ε ⊦ x ≔ A type)
 // it — by design (see report semantics): one run surfaces ALL
 // obligations, at the price that obligations surfaced downstream of an
 // assumption are provisional until it is proven.
+
+//////////// QIIT signatures: the data item /////////////
+
+A data item is an ITEM MACRO. It elaborates its literal to a core
+signature 𝒮 (Foundation's qctx — a signature IS a closed qiit-context)
+and then EXPANDS into a batch of ordinary defs; the macro itself adds
+nothing to Σ. This is Foundation's design surfacing: 𝒮 mints no names,
+"a NAME for a QIIT is an ordinary definition", so sorts, constructors,
+path lemmas and eliminators all reach the file as plain Σ entries whose
+bodies carry 𝒮 — and modules, imports, the lemma store and the report
+treat them like any other def. Two textually identical data items
+therefore yield JUDGEMENTALLY EQUAL types (the defs unfold to the same
+𝒮 — structural identity, no generativity), and the elaborator compares
+same-name references before unfolding (rigid-rigid-before-δ) so the
+common case never looks inside 𝒮.
+
+Elaborating the literal mirrors Foundation's qctx/qty/qtm rules,
+declaration by declaration. The ToS layer is syntax-directed and needs
+no annotations; the parser has already resolved each name to a ⬡-index
+or entry position (locals shadow, names(𝒮)-freshness is a parse
+error), and classified each Π domain (inductive iff its head is a
+sort of the same literal). All content is in the embedded NOVA pieces:
+
+  Γx ⊢ T ⇝ A type          // an EXTERNAL domain: an ordinary type over
+                           // Γx, the external binders in scope — the
+                           // Nova zone of Foundation's dual zone
+  Γx ⊢ t ⇐ A[…] ⇝ t̂        // an external APPLICATION argument likewise
+
+— so obligations may surface inside a signature exactly as they do
+inside any type, and land in O with the data item as their site.
+Inductive codes and terms elaborate structurally (qtm-var/app against
+the resolved positions); the result heads classify each entry (sort /
+point / equation) per Foundation.
+
+The EXPANSION, for each entry of the accepted 𝒮 (⌊·⌋, ⌊·⌋ᵗ, ·ᴰ⟨·⟩,
+·ᴰᵗ, ⟦·⟧ are Foundation's meta-operations; δ the telescope variables):
+
+  * SORT 𝕤 : 𝔎, 𝒮 small —
+        def n : Π(⌊𝔎⌋ᵗ). 𝕌 ≔ λ…. 𝒮.𝕤 δ            // code-qiit
+    (a code-valued family; users write El (n ī). If 𝒮 is LARGE: a
+    nullary sort becomes  type n ≔ 𝒮.𝕤 ·  and an INDEXED large sort is
+    a structural error — a large family has no spelling in the
+    closed-item discipline; see the e-typedef note. The escape hatch is
+    the same one designed there.)
+
+  * POINT constructor 𝕔 : 𝔄 —
+        def n : ⌊𝔄⌋ ≔ λ…. 𝒮.𝕔 δ                    // el-qiit-intro,
+    the saturated former η-expanded once; partial application is
+    thereby first-class at zero cost.
+
+  * EQUATION constructor 𝕔 : 𝔄 ending in El (l ≡ r) —
+        def n : Π(⌊𝔄⌋ᵗ). (⌊l⌋ ≡ ⌊r⌋ ∈ ⌊El 𝕦⌋) ≔ λ…. Refl
+    — the Refl is licensed by el-qiit-path (kernel: a refl-eq
+    certificate whose single step is a path license, qpath). On every
+    LATER item and run this def is an ACCEPTED LEMMA, so the imposed
+    equations of a QIIT feed discharge through the standard E
+    machinery — no new mechanism, and rewriting/matching treat them
+    like any user lemma.
+
+  * ELIMINATOR, one def per sort 𝕤 (same arguments, different result):
+        def n-elim :
+             (C₁ : Π(⌊𝔎₁⌋ᵗ). El (𝒮.𝕤₁ δ) → 𝕌) → …          // motives,
+                                                            // one per sort
+          →  (m𝕔 : ⌊𝔄ᴰ⟨𝒮.𝕔 δ⟩ with El∘C for C⌋) → …         // methods, one
+                                                            // per point ctor
+          →  (h𝕔 : Π(𝔄ᴰᵗ). ⟦l⟧ ≡ ⟦r⟧ ∈ El (C… )) → …        // COHERENCES,
+                                                            // one per eq ctor
+          →  Π(⌊𝔎⌋ᵗ) → (w : El (𝒮.𝕤 δ)) → El (C_𝕤 δ w)
+          ≔ λ…. 𝒮.𝕤-elim ℰ δ w        // ℰ = the bound motive/method
+                                       // variables, as Foundation's C̄ ; m̄
+
+    COHERENCES ARE HYPOTHESES: extensionality lets the eprob premises
+    be taken as ordinary ≡-typed arguments. Inside the generated body,
+    each coherence premise reaching ↓ is discharged by the HYPOTHESIS
+    source of E (the ≡-typed binder h𝕔, peeled — exactly the mechanism
+    that makes induction hypotheses silent), and the kernel's qcoh
+    certificates replay from those same binders by el-reflect. At USE
+    sites there is no new judgement at all: supplying a coherence is
+    supplying an argument, `Refl` when the methods respect the equation
+    by computation (e-refl surfaces it as an ordinary obligation
+    otherwise), a lemma reference when proven separately. This is
+    quot-elim's f⁼ story, generalized and MOVED INTO THE TYPE — which
+    is why the eliminator needs no inline-motive surface form.
+
+Motives in the generated eliminators are 𝕌-valued (El ∘ C throughout)
+— the closed-item discipline again; the CORE former supports large
+motives and the kernel checks them, but no surface spelling reaches
+them today (future work, with telescoped items).
+
+Worked example — finite multisets over a code a : 𝕌 (Foundation's Bag,
+here with a small external domain so the sort is codable):
+
+  data ( Bag : U
+       ; nil : El Bag
+       ; ins : (x : El a) (m : El Bag) → El Bag
+       ; swp : (x : El a) (y : El a) (m : El Bag)
+                 → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )
+
+expands to (𝒮 the elaborated signature, positions 0..3):
+
+  def Bag  : 𝕌 ≔ 𝒮.0 ·
+  def nil  : El Bag ≔ 𝒮.1 ·
+  def ins  : El a → El Bag → El Bag ≔ λx. λm. 𝒮.2 (x, m)
+  def swp  : (x : El a) (y : El a) (m : El Bag)
+               → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag
+           ≔ λx. λy. λm. Refl                    // qpath-licensed
+  def Bag-elim :
+        (C : El Bag → 𝕌)
+      → (mnil : El (C nil))
+      → (mins : (x : El a) (m : El Bag) → El (C m) → El (C (ins x m)))
+      → (hswp : (x : El a) (y : El a) (m : El Bag) (mᴰ : El (C m))
+                  → mins x (ins y m) (mins y m mᴰ)
+                    ≡ mins y (ins x m) (mins x m mᴰ)
+                    ∈ El (C (ins x (ins y m))))
+      → (w : El Bag) → El (C w)
+      ≔ λC. λmnil. λmins. λhswp. λw. 𝒮.0-elim ℰ · w
+                          // ℰ = (C ; mnil, mins) from the binders;
+                          // the coherence discharges from hswp (E's
+                          // hypothesis source) and replays as qcoh
+
+A caller writing Bag-elim C z f h supplies h as Refl when f respects
+the swap by computation — e-refl turns it into an ordinary obligation
+otherwise — or as a reference to a proven lemma. Nothing about
+obligations, discharge or the report is QIIT-aware.
 
 //////////// Modules /////////////
 
@@ -742,3 +900,8 @@ Two corollaries worth keeping in view while implementing:
 * Incremental re-elaboration (caching per item) — requires recording
   per-item assumption sets; whole-file re-runs make this unnecessary
   at current scale.
+* QIITs: large-motive elimination at the surface (an expression-level
+  eliminator form, or telescoped items); inline signature literals in
+  type/element positions (today a QIIT is reachable only through a
+  data item's generated names); indexed sorts of LARGE signatures
+  (unnameable in the closed-item discipline).
