@@ -445,6 +445,10 @@ liftEither : Either KErr a -> KM a
 liftEither (Left e) = kerr e
 liftEither (Right x) = pure x
 
+liftQ : Either QErr a -> KM a
+liftQ (Left e) = kerr "kernel: \{e}"
+liftQ (Right x) = pure x
+
 -- ===== Proof-element inference =====
 --
 -- Certificate proofs are elimination spines: context variables,
@@ -488,6 +492,98 @@ mutual
   inferP sig ctx OneIntro = pure Ty.OneTy
   inferP sig ctx NatIntro0 = pure Ty.NatTy
   inferP sig ctx (NatIntro1 t) = do checkP sig ctx t Ty.NatTy; pure Ty.NatTy
+  -- universe codes as proof-spine arguments (a generic lemma's 𝕌
+  -- parameter materialized at a concrete code, e.g. ℕc, when it
+  -- discharges an instantiated goal)
+  inferP sig ctx Elem.ZeroTy = pure Ty.UniverseTy
+  inferP sig ctx Elem.OneTy = pure Ty.UniverseTy
+  inferP sig ctx Elem.NatTy = pure Ty.UniverseTy
+  inferP sig ctx (Elem.PiTy a b) = do
+    checkP sig ctx a Ty.UniverseTy
+    checkP sig (ctx :< El a) b Ty.UniverseTy
+    pure Ty.UniverseTy
+  inferP sig ctx (Elem.SigmaTy a b) = do
+    checkP sig ctx a Ty.UniverseTy
+    checkP sig (ctx :< El a) b Ty.UniverseTy
+    pure Ty.UniverseTy
+  inferP sig ctx (QuotTy a r) = do
+    checkP sig ctx a Ty.UniverseTy
+    checkP sig (ctx :< El a :< substTy (El a) Wk) r Ty.PropTy
+    pure Ty.UniverseTy
+  inferP sig ctx (Elem.EqTy l r t) = do
+    checkP sig ctx t Ty.UniverseTy
+    checkP sig ctx l (El t)
+    checkP sig ctx r (El t)
+    pure Ty.UniverseTy
+  -- code-qiit as a proof-spine argument (a 𝕌 parameter materialized
+  -- at a QIIT sort code)
+  inferP sig ctx (QSortC sg k es) = do
+    sg' <- kQSig sig sg
+    if qSigSmall sg' then pure ()
+      else kerr "kernel: universe code for a LARGE signature (code-qiit requires smallness)"
+    checkQSpineP sig ctx sg' k es
+    pure Ty.UniverseTy
+  -- el-qiit-elim as a proof-spine element (an unfolded recursive
+  -- definition applied inside a lemma instantiation). Motives, methods,
+  -- index spine and scrutinee are checked by this tiny checker; a
+  -- proof-fragment eliminator carries no coherence certificates, so
+  -- each imposed method-image equation is verified by PURE β — both
+  -- sides must normalize to identical forms.
+  inferP sig ctx (QElim sg k mots mths es w) = do
+    sg' <- kQSig sig sg
+    entry <- case qEntry sg' k of
+               Just x => pure x
+               Nothing => kerr "kernel: eliminator sort out of range"
+    case qEntryKind entry of
+      QKSort => pure ()
+      _ => kerr "kernel: eliminator at a non-sort position"
+    let sortPs = qPositions QKSort sg'
+    let pointPs = qPositions QKPoint sg'
+    let eqPs = qPositions QKEq sg'
+    if length mots /= length sortPs
+      then kerr "kernel: eliminator motive count mismatch" else pure ()
+    if length mths /= length pointPs
+      then kerr "kernel: eliminator method count mismatch" else pure ()
+    let goMotives : List Nat -> List Ty -> KM ()
+        goMotives [] [] = pure ()
+        goMotives (sj :: sjs) (mot :: rest) = do
+          sjE <- case qEntry sg' sj of
+                   Just x => pure x
+                   Nothing => kerr "kernel: sort out of range"
+          (tel, wEnd, _) <- liftQ (reflTel sg' (qwAt sj) sjE)
+          let mctx = foldl (:<) ctx tel
+          let selfTy = QSort (substQSig sg' wEnd.ups) sj (varSpine (length tel))
+          checkTyP sig (mctx :< selfTy) mot
+          goMotives sjs rest
+        goMotives _ _ = kerr "kernel: eliminator motive count mismatch"
+    let goMethods : List Nat -> List Elem -> KM ()
+        goMethods [] [] = pure ()
+        goMethods (cj :: cjs) (m :: rest) = do
+          mty <- liftQ (methodTy sg' mots cj)
+          checkP sig ctx m mty
+          goMethods cjs rest
+        goMethods _ _ = kerr "kernel: eliminator method count mismatch"
+    let goCoherences : List Nat -> KM ()
+        goCoherences [] = pure ()
+        goCoherences (ej :: ejs) = do
+          (_, _, lhs, rhs, _) <- liftQ (coherenceAt sg' mots mths ej)
+          lhs' <- kElem sig lhs
+          rhs' <- kElem sig rhs
+          if lhs' == rhs' then pure ()
+            else kerr "kernel: eliminator coherence does not hold by β"
+          goCoherences ejs
+    goMotives sortPs mots
+    goMethods pointPs mths
+    goCoherences eqPs
+    checkQSpineP sig ctx sg' k es
+    checkP sig ctx w (QSort sg' k es)
+    o <- case qOrdinal QKSort sg' k of
+           Just x => pure x
+           Nothing => kerr "kernel: eliminator sort ordinal"
+    motK <- case getAt o mots of
+              Just m => pure m
+              Nothing => kerr "kernel: eliminator motive missing"
+    pure (substTy motK (Ext (foldl Ext Id (toList es)) w))
   inferP sig ctx e = kerr "kernel: proof element not inferable: \{show e}"
 
   checkP : Sig -> Ctx -> Elem -> Ty -> KM ()
@@ -529,6 +625,42 @@ mutual
     case ty' of
       Ty.SigmaTy a b => do checkP sig ctx u a; checkP sig ctx v (substTy b (Ext Id u))
       _ => kerr "kernel: pair proof at non-⨯ type"
+  -- el-qiit-intro as a proof argument (spec §3): the saturated
+  -- constructor at its sort, the term's signature nf-identical to the
+  -- type's, spine checked entrywise, indices compared
+  checkP sig ctx (QCtor sgC c theta) ty = do
+    ty' <- kTy sig ty
+    case ty' of
+      QSort sgT srt es => do
+        sgC' <- kQSig sig sgC
+        if sgC' /= sgT then kerr "kernel: constructor proof at a different signature" else pure ()
+        entry <- case qEntry sgC' c of
+                   Just x => pure x
+                   Nothing => kerr "kernel: constructor proof position out of range"
+        case qEntryKind entry of
+          QKPoint => pure ()
+          _ => kerr "kernel: constructor proof at a non-point position"
+        (tel, _, _) <- liftQ (reflTel sgC' (qwAt c) entry)
+        let args = toList theta
+        if length args /= length tel
+          then kerr "kernel: constructor proof spine not saturated" else pure ()
+        goSp 0 args tel
+        (wEnd, hd) <- liftQ (walkVals sgC' (qwAt c) entry args)
+        (srt', idx) <- liftQ (pointHead sgC' wEnd hd)
+        if srt' /= srt then kerr "kernel: constructor proof of a different sort" else pure ()
+        idxN <- kSubNorm sig idx
+        esN <- kSubNorm sig es
+        if idxN == esN then pure ()
+          else kerr "kernel: constructor proof indices do not match"
+      _ => kerr "kernel: constructor proof at a non-QIIT type"
+   where
+    goSp : Nat -> List Elem -> List Ty -> KM ()
+    goSp i [] _ = pure ()
+    goSp i (a :: rest) tel = do
+      case telInst tel i (toList theta) of
+        Just aty => checkP sig ctx a aty
+        Nothing => kerr "kernel: constructor proof spine out of range"
+      goSp (S i) rest tel
   checkP sig ctx (PiIntro f) ty = do
     ty' <- kTy sig ty
     case ty' of
@@ -568,9 +700,60 @@ mutual
         tick rest tysRest
       tick _ _ = kerr "kernel: proof substitution length mismatch"
 
-liftQ : Either QErr a -> KM a
-liftQ (Left e) = kerr "kernel: \{e}"
-liftQ (Right x) = pure x
+  ||| Positional index-spine check against a sort entry's reflected
+  ||| binder telescope — the tiny-checker analogue of kQSortSpine.
+  checkQSpineP : Sig -> Ctx -> QSig -> Nat -> SubNorm -> KM ()
+  checkQSpineP sig ctx sg k es = do
+    entry <- case qEntry sg k of
+               Just x => pure x
+               Nothing => kerr "kernel: sort out of range"
+    case qEntryKind entry of
+      QKSort => pure ()
+      _ => kerr "kernel: index spine at a non-sort position"
+    (tel, _, _) <- liftQ (reflTel sg (qwAt k) entry)
+    let args = toList es
+    if length args /= length tel
+      then kerr "kernel: sort index spine arity mismatch" else pure ()
+    goIdx 0 args tel
+   where
+    goIdx : Nat -> List Elem -> List Ty -> KM ()
+    goIdx i [] _ = pure ()
+    goIdx i (a :: rest) tel = do
+      case telInst tel i (toList es) of
+        Just aty => checkP sig ctx a aty
+        Nothing => kerr "kernel: sort index spine out of range"
+      goIdx (S i) rest tel
+
+  ||| Γ ⊢ A type, tiny-checker side (needed for eliminator motives that
+  ||| arrive inside proof spines).
+  checkTyP : Sig -> Ctx -> Ty -> KM ()
+  checkTyP sig ctx Ty.ZeroTy = pure ()
+  checkTyP sig ctx Ty.OneTy = pure ()
+  checkTyP sig ctx Ty.NatTy = pure ()
+  checkTyP sig ctx Ty.UniverseTy = pure ()
+  checkTyP sig ctx Ty.PropTy = pure ()
+  checkTyP sig ctx (Ty.PiTy a b) = do
+    checkTyP sig ctx a
+    checkTyP sig (ctx :< a) b
+  checkTyP sig ctx (Ty.SigmaTy a b) = do
+    checkTyP sig ctx a
+    checkTyP sig (ctx :< a) b
+  checkTyP sig ctx (EqTy l r t) = do
+    checkTyP sig ctx t
+    checkP sig ctx l t
+    checkP sig ctx r t
+  checkTyP sig ctx (El e) = checkP sig ctx e Ty.UniverseTy
+  checkTyP sig ctx (Prf p) = checkP sig ctx p Ty.PropTy
+  checkTyP sig ctx (Quotient a r) = do
+    checkTyP sig ctx a
+    checkP sig (ctx :< a :< substTy a Wk) r Ty.PropTy
+  checkTyP sig ctx (QSort sg k es) = do
+    sg' <- kQSig sig sg
+    checkQSpineP sig ctx sg' k es
+  checkTyP sig ctx (Ty.SigVar x es) =
+    case sigLookup x sig of
+      Just (SigTyDef delta _ _) => checkSubstP sig ctx (toList es) (toList delta)
+      _ => kerr "kernel: bad signature reference in proof type"
 
 -- ===== Selector application =====
 
@@ -1497,36 +1680,46 @@ mutual
          if j < k then pure (minus (minus k 1) j)
          else kerr "kernel: qiit entry reference out of scope"
 
-  ||| Transport a sort-headed code written inside entry `src` under
-  ||| `srcB` inductive binders (external binders instantiated or
-  ||| weakened by `sub`) to the walk's current coordinates (scope k,
-  ||| depth b).
-  kQRebase : QSig -> (k, b : Nat) -> (src, srcB : Nat) -> Sub -> QTm -> KM QTm
-  kQRebase sg k b src srcB sub (QEqC _ _ _) =
+  ||| Transport a ToS piece written inside entry `src` under `srcB`
+  ||| inductive binders to the walk's current coordinates (scope k,
+  ||| depth b): external pieces through `sub`, the src's inductive
+  ||| binders through `ivals` (their instantiations, innermost first,
+  ||| already at the current coordinates).
+  kQRebase : QSig -> (k, b : Nat) -> (src, srcB : Nat) -> Sub -> List QTm -> QTm -> KM QTm
+  kQRebase sg k b src srcB sub ivals (QEqC _ _ _) =
     kerr "kernel: equation code in a domain/argument position (first-order fragment)"
-  kQRebase sg k b src srcB sub c =
+  kQRebase sg k b src srcB sub ivals c =
     case qChain c of
       Nothing => kerr "kernel: qiit code is not an application chain"
       Just (h, args) => do
-        if h < srcB then kerr "kernel: binder-headed qiit code" else pure ()
-        let j = minus h srcB
-        posAbs <- if j < src then pure (minus (minus src 1) j)
-                  else kerr "kernel: qiit entry reference out of scope"
+        hd <- if h < srcB
+                then case (args, getAt h ivals) of
+                       ([], Just t) => pure t
+                       ([], Nothing) => kerr "kernel: internal — rebase environment out of sync"
+                       _ => kerr "kernel: applied qiit binder (first-order fragment)"
+                else do
+                  let j = minus h srcB
+                  posAbs <- if j < src then pure (minus (minus src 1) j)
+                            else kerr "kernel: qiit entry reference out of scope"
+                  pure (QVar (b + minus (minus k 1) posAbs))
         args' <- traverse (\a => case a of
                    Left e => pure (Left (substElem e sub))
-                   Right _ => kerr "kernel: inductive sort index (unsupported fragment)") args
-        let h' = b + minus (minus k 1) posAbs
+                   Right t2 => Right <$> kQRebase sg k b src srcB sub ivals t2) args
         let app : QTm -> Either Elem QTm -> QTm
             app f (Left e) = QAppE f e
             app f (Right t2) = QAppI f t2
-        pure (foldl app (QVar h') args')
+        pure (foldl app hd args')
 
   ||| Check a sort-headed CODE at (scope k, external zone ectx with
-  ||| extD external binders, b inductive binders in scope).
-  kQCode : Sig -> Ctx -> QSig -> (k : Nat) -> Ctx -> (extD, b : Nat) -> QTm -> KM ()
-  kQCode sig ctx sg k ectx extD b (QEqC _ _ _) =
+  ||| extD external binders, b inductive binders with domain codes
+  ||| benv): the sort's binder telescope is walked against the
+  ||| arguments — external ones checked as Nova elements, INDUCTIVE
+  ||| ones (inductive-inductive sort indices) checked at their rebased
+  ||| domain codes.
+  kQCode : Sig -> Ctx -> QSig -> (k : Nat) -> Ctx -> (extD, b : Nat) -> List QTm -> QTm -> KM ()
+  kQCode sig ctx sg k ectx extD b benv (QEqC _ _ _) =
     kerr "kernel: equation code in a binder position (first-order fragment)"
-  kQCode sig ctx sg k ectx extD b code =
+  kQCode sig ctx sg k ectx extD b benv code =
     case qChain code of
       Nothing => kerr "kernel: qiit code is not an application chain"
       Just (h, args) => do
@@ -1537,23 +1730,33 @@ mutual
         case qEntryKind sortE of
           QKSort => pure ()
           _ => kerr "kernel: qiit code head is not a sort"
-        (tel, _, _) <- liftQ (reflTel sg (qwAt pos) sortE)
-        novaArgs <- traverse (\a => case a of
-                      Left e => pure e
-                      Right _ => kerr "kernel: inductive sort index (unsupported fragment)") args
-        if length novaArgs /= length tel
-          then kerr "kernel: sort index spine length mismatch"
-          else pure ()
-        let goIdx : Nat -> List Elem -> KM ()
-            goIdx i [] = pure ()
-            goIdx i (e :: rest) = do
-              case getAt i tel of
-                Nothing => kerr "kernel: sort index out of range"
-                Just entryTy => do
-                  let ty = substTy entryTy (foldl Ext (wkSubN extD) (take i novaArgs))
-                  kCheckE sig ectx e ty (Nd [] [])
-              goIdx (S i) rest
-        goIdx 0 novaArgs
+        hd <- kQArgsWalk sig ctx sg k ectx extD b benv pos sortE args
+        case hd of
+          QU => pure ()
+          _ => kerr "kernel: internal — sort entry with a non-U head"
+
+  ||| Walk entry `src`'s binder telescope against an argument chain —
+  ||| external arguments checked as Nova elements at their instantiated
+  ||| domains, inductive arguments at their rebased domain codes —
+  ||| returning the entry's HEAD rebased to the current coordinates
+  ||| (QU for sorts, the result code for point constructors).
+  kQArgsWalk : Sig -> Ctx -> QSig -> (k : Nat) -> Ctx -> (extD, b : Nat) -> (benv : List QTm)
+            -> (src : Nat) -> QTy -> List (Either Elem QTm) -> KM QTy
+  kQArgsWalk sig ctx sg k ectx extD b benv src entry args0 =
+    goArgs 0 (wkSubN extD) [] entry args0
+   where
+    goArgs : (srcB : Nat) -> Sub -> List QTm -> QTy -> List (Either Elem QTm) -> KM QTy
+    goArgs srcB sub ivals (QPiExt a rest) (Left e :: as) = do
+      kCheckE sig ectx e (substTy a sub) (Nd [] [])
+      goArgs srcB (Ext sub e) ivals rest as
+    goArgs srcB sub ivals (QPiInd u rest) (Right t' :: as) = do
+      expected <- kQRebase sg k b src srcB sub ivals u
+      kQTmAt sig ctx sg k ectx extD b benv expected t'
+      goArgs (S srcB) sub (t' :: ivals) rest as
+    goArgs srcB sub ivals (QEl code) [] =
+      QEl <$> kQRebase sg k b src srcB sub ivals code
+    goArgs srcB sub ivals QU [] = pure QU
+    goArgs _ _ _ _ _ = kerr "kernel: qiit spine mismatch (kind or saturation)"
 
   ||| Infer the CODE of a qiit term (a binder, or a saturated point-
   ||| constructor chain), checking its arguments along the way.
@@ -1575,18 +1778,10 @@ mutual
             case qEntryKind ctorE of
               QKPoint => pure ()
               _ => kerr "kernel: qiit term headed by a non-constructor"
-            goArgs pos 0 (wkSubN extD) ctorE args
-   where
-    goArgs : (src : Nat) -> (srcB : Nat) -> Sub -> QTy -> List (Either Elem QTm) -> KM QTm
-    goArgs src srcB sub (QPiExt a rest) (Left e :: as) = do
-      kCheckE sig ectx e (substTy a sub) (Nd [] [])
-      goArgs src srcB (Ext sub e) rest as
-    goArgs src srcB sub (QPiInd u rest) (Right t' :: as) = do
-      expected <- kQRebase sg k b src srcB sub u
-      kQTmAt sig ctx sg k ectx extD b benv expected t'
-      goArgs src (S srcB) sub rest as
-    goArgs src srcB sub (QEl code) [] = kQRebase sg k b src srcB sub code
-    goArgs _ _ _ _ _ = kerr "kernel: qiit constructor spine mismatch (kind or saturation)"
+            hd <- kQArgsWalk sig ctx sg k ectx extD b benv pos ctorE args
+            case hd of
+              QEl code => pure code
+              _ => kerr "kernel: internal — point entry with a non-El head"
 
   ||| Check a qiit term against an expected code (both at the current
   ||| coordinates); comparison is syntactic after normalizing the
@@ -1603,26 +1798,19 @@ mutual
   kQEntry : Sig -> Ctx -> QSig -> (k : Nat) -> QTy -> KM ()
   kQEntry sig ctx sg k entry = walk ctx 0 0 [] entry
    where
-    isSortE : Bool
-    isSortE = case qEntryKind entry of
-                QKSort => True
-                _ => False
     walk : Ctx -> (extD : Nat) -> (b : Nat) -> List QTm -> QTy -> KM ()
     walk ectx extD b benv (QPiExt a rest) = do
       kCheckTyK sig ectx a (Nd [] [])
       walk (ectx :< a) (S extD) b (map (\c => substQTm c Wk) benv) rest
     walk ectx extD b benv (QPiInd u rest) = do
-      if isSortE
-        then kerr "kernel: inductive sort index (unsupported fragment)"
-        else pure ()
-      kQCode sig ctx sg k ectx extD b u
+      kQCode sig ctx sg k ectx extD b benv u
       walk ectx extD (S b) (qtmShift 1 u :: map (qtmShift 1) benv) rest
     walk ectx extD b benv QU = pure ()
     walk ectx extD b benv (QEl (QEqC l r u)) = do
-      kQCode sig ctx sg k ectx extD b u
+      kQCode sig ctx sg k ectx extD b benv u
       kQTmAt sig ctx sg k ectx extD b benv u l
       kQTmAt sig ctx sg k ectx extD b benv u r
-    walk ectx extD b benv (QEl code) = kQCode sig ctx sg k ectx extD b code
+    walk ectx extD b benv (QEl code) = kQCode sig ctx sg k ectx extD b benv code
 
   ||| Check a sort application's index spine against the sort's arity.
   kQSortSpine : Sig -> Ctx -> QSig -> Nat -> SubNorm -> Skel -> KM ()

@@ -193,6 +193,25 @@ el-sigma-e₁/₂ and the ℕ/𝟙 introductions:
 
   Σ; Γ ⊦ () ⇒ᵖ 𝟙      Σ; Γ ⊦ Z ⇒ᵖ ℕ      Σ; Γ ⊦ t ⇐ᵖ ℕ ⇒ S t ⇒ᵖ ℕ
 
+Universe CODES infer at 𝕌 (components checked at their code types) —
+a generic lemma's 𝕌-parameter materialized at a concrete code is a
+legitimate spine argument — and so does a small signature's sort code,
+its index spine checked positionally against the reflected arity:
+
+  Σ; Γ ⊦ ℕc ⇒ᵖ 𝕌     (likewise 𝟘c, 𝟙c; Π/Σ/quot/≡ codes componentwise)
+
+  𝒮 small   𝒮(𝕜) = 𝔄 ending in U   Σ; Γ ⊦ ē ⇐ᵖ ⌊𝔄⌋ᵗ (entrywise)
+  --------------------------------------------------------------
+  Σ; Γ ⊦ 𝒮.𝕤c ē ⇒ᵖ 𝕌
+
+An ELIMINATOR chain (an unfolded recursive definition inside a lemma
+instantiation) is inferable too — el-qiit-elim with motives checked
+as types, methods at their method types, index spine and scrutinee at
+the sort — but a proof-fragment eliminator carries NO coherence
+certificates: each imposed method-image equation must hold by PURE β
+(nf-identical sides). An eliminator whose coherences need real replay
+lives at the item level, referenced through Σ (A4, §9).
+
 Nothing else is inferable. Argument CHECKING (⇐ᵖ) accepts the
 introduction forms structurally and falls back to infer-and-compare:
 
@@ -650,11 +669,13 @@ EQUATION REPLAY (A1, A2), and three added by the QIIT extension
       replays all aligned pieces at once; failing that, a lemma
       respelling the whole former, via bridge or expose.
 
-  A4  NO QIIT ELIMINATORS IN SPINES. Proof-spine checking (§3)
-      accepts 𝒮.𝕔 θ as an introduction argument but never 𝒮.𝕤-elim
-      in any spine position; a lemma whose statement needs one is
-      referenced through Σ, where the item level carries the full
-      apparatus.
+  A4  β-ONLY COHERENCES IN SPINES. Proof-spine checking (§3) accepts
+      𝒮.𝕔 θ introductions, universe and sort codes, and eliminator
+      chains — but no certificates travel inside a proof license, so
+      a spine eliminator's coherences are verified by pure β alone.
+      An eliminator whose coherences need real replay is referenced
+      through Σ, where the item level carries the full apparatus
+      (coherences as PQCoh certificates, §8).
 
   A5  NO η CERTIFICATE FOR QIITs. el-qiit-eta (like el-nat-eta and
       el-quot-eta before it) has no replay final; uniqueness
@@ -662,12 +683,13 @@ EQUATION REPLAY (A1, A2), and three added by the QIIT extension
       certificates. The Π/Σ η finals are unaffected.
 
   A6  FIRST-ORDER SIGNATURE FRAGMENT. The signature checker (§8)
-      covers the fragment the elaborator emits: sort entries with
-      EXTERNAL-only index arities (no inductive-inductive sort
-      indices — Con/Ty-style signatures are rejected, not
-      mischecked), no equation-code binders, no external λ
-      (infinitary recursive arguments). Foundation covers all of
-      these; the restriction is checking incompleteness only.
+      covers the fragment the elaborator emits: no equation-code
+      binders, no external λ (infinitary recursive arguments). Sort
+      entries MAY carry inductive index binders (induction-induction
+      — Con/Ty-style signatures check; the entry walk rebases each
+      index code from its declaration site into the walk state of
+      its use site). Foundation covers the rest; the restriction is
+      checking incompleteness only.
 
 Two structural caveats restated from docs/NovaPipeline.txt: an
 annotation (motive, ascription, exposure target) is a REPRESENTATIVE,

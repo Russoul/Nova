@@ -1,0 +1,17 @@
+-- Integers as a QIIT with RECURSIVE EQUALITY CONSTRAINTS: suc/pred
+-- are mutually inverse, imposed as equations with INDUCTIVE binders.
+data ( I : U
+     ; zero : El I
+     ; suc : (i : El I) → El I
+     ; pred : (i : El I) → El I
+     ; sucpred : (i : El I) → suc (pred i) ≡ i ∈ El I
+     ; predsuc : (i : El I) → pred (suc i) ≡ i ∈ El I )
+
+-- negation by elimination: the coherences are the OTHER equation each
+-- time (⟦suc (pred i)⟧ β-reduces to pred (suc ih), closed by predsuc)
+def neg : El I → El I ≔
+  λi. IElim (λw. I) zero (λx. λih. pred ih) (λx. λih. suc ih)
+        (λx. λih. Refl) (λx. λih. Refl) i
+
+def negSucPred : neg (suc (pred zero)) ≡ zero ∈ El I ≔ Refl
+def negPred : neg (pred zero) ≡ suc zero ∈ El I ≔ Refl

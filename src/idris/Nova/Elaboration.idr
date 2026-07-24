@@ -201,6 +201,21 @@ strengthenElemN (S n) e = strengthenElem 0 e >>= strengthenElemN n
 --                        d + b local variables (fail = would capture);
 --   * j ≥ b + k        — base-rigid: target must be ☐_{j - k + d}.
 
+codeOf : Ty -> Maybe Elem
+codeOf Ty.ZeroTy = Just Elem.ZeroTy
+codeOf Ty.OneTy = Just Elem.OneTy
+codeOf Ty.NatTy = Just Elem.NatTy
+codeOf (Ty.PiTy a b) = Elem.PiTy <$> codeOf a <*> codeOf b
+codeOf (Ty.SigmaTy a b) = Elem.SigmaTy <$> codeOf a <*> codeOf b
+codeOf (EqTy l r t) = (Elem.EqTy l r) <$> codeOf t
+-- the relation is an Ω-element in BOTH the type former and the code:
+-- El (A / R) ≜ El A / R, so it passes through unchanged
+codeOf (Quotient a r) = QuotTy <$> codeOf a <*> Just r
+codeOf (El e) = Just e
+-- Ω and Prf p deliberately have NO codes in 𝕌 (the load-bearing
+-- prohibition of the Ω design — see docs/NovaFoundation.txt)
+codeOf _ = Nothing
+
 Bindings : Type
 Bindings = List (Nat, Elem)
 
@@ -339,6 +354,10 @@ matchTyP k d b (Ty.SigmaTy a c) (Ty.SigmaTy a' c') =
 matchTyP k d b (EqTy l r t) (EqTy l' r' t') =
   \bs => matchElemP k d b l l' bs >>= matchElemP k d b r r' >>= matchTyP k d b t t'
 matchTyP k d b (El e) (El e') = matchElemP k d b e e'
+-- normalization El-decodes codes inside carried signatures (El ℕc ≜ ℕ),
+-- so a pattern `El e` whose e is parameter-headed can face the DECODED
+-- rigid type: match e against the target's code instead
+matchTyP k d b (El e) tgt = \bs => codeOf tgt >>= \c => matchElemP k d b e c bs
 matchTyP k d b (Prf e) (Prf e') = matchElemP k d b e e'
 matchTyP k d b (Quotient a r) (Quotient a' r') =
   \bs => matchTyP k d b a a' bs >>= matchElemP k d (2 + b) r r'
@@ -888,20 +907,6 @@ inferNe _ _ _ = Nothing
 -- before believing it (docs/NovaPipeline.txt) — a discharge whose
 -- certificate does not replay is no discharge at all.
 
-codeOf : Ty -> Maybe Elem
-codeOf Ty.ZeroTy = Just Elem.ZeroTy
-codeOf Ty.OneTy = Just Elem.OneTy
-codeOf Ty.NatTy = Just Elem.NatTy
-codeOf (Ty.PiTy a b) = Elem.PiTy <$> codeOf a <*> codeOf b
-codeOf (Ty.SigmaTy a b) = Elem.SigmaTy <$> codeOf a <*> codeOf b
-codeOf (EqTy l r t) = (Elem.EqTy l r) <$> codeOf t
--- the relation is an Ω-element in BOTH the type former and the code:
--- El (A / R) ≜ El A / R, so it passes through unchanged
-codeOf (Quotient a r) = QuotTy <$> codeOf a <*> Just r
-codeOf (El e) = Just e
--- Ω and Prf p deliberately have NO codes in 𝕌 (the load-bearing
--- prohibition of the Ω design — see docs/NovaFoundation.txt)
-codeOf _ = Nothing
 
 extendCS : CandSet -> CandSet
 extendCS cs = MkCandSet (map wk cs.all) (map wk cs.rw) (map wk cs.hops)

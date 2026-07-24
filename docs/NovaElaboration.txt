@@ -585,7 +585,12 @@ whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 //        instantiation; parameters the sides do not bind must carry an
 //        ≡ (or 𝟙) type whose instance discharges as a side condition.
 //        This is how permutative and hypothesis-conditional lemmas
-//        discharge.
+//        discharge. Matching is up to El-DECODING: normalization
+//        decodes El c at concrete codes (El ℕc ≜ ℕ) — inside carried
+//        QIIT signatures too — so a pattern position El p (p a
+//        parameter) facing a decoded rigid type binds p to that
+//        type's code. A generic bag-swap lemma thus discharges its
+//        ℕ-instantiated goals.
 //      * TRANSITIVITY HOPS: a candidate that rewriting cannot apply
 //        may rewrite one side WHOLESALE, recursing with a small
 //        depth budget — chaining e.g. an exchange law, a hypothesis,
