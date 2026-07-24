@@ -403,33 +403,44 @@ sqBinders tbl tos ext = do
     Nothing => pure (tos', ext', [(x, d)])
     Just (tos'', ext'', bs) => pure (tos'', ext'', (x, d) :: bs)
 
-sqDecl : FixTable -> NameEnv -> Rule SQDecl
-sqDecl tbl entries = do
+sqDecl : FixTable -> NameEnv -> NameEnv -> Rule SQDecl
+sqDecl tbl penv entries = do
   n <- parseName; sp; char_ ':'; sp
   withBinders n <|> bare n
  where
   withBinders : String -> Rule SQDecl
   withBinders n = do
-    (tos, ext, bs) <- sqBinders tbl entries [<]
+    (tos, ext, bs) <- sqBinders tbl entries penv
     sp; str_ "→"; sp
     res <- sqRes tbl tos ext
     pure (MkSQDecl n bs res)
   bare : String -> Rule SQDecl
   bare n = do
-    res <- sqRes tbl entries [<]
+    res <- sqRes tbl entries penv
     pure (MkSQDecl n [] res)
 
 parseSData : FixTable -> Rule SItem
 parseSData tbl = do
-  str_ "data"; sp; char_ '('; sp
-  ds <- go [<]
+  str_ "data"; sp
+  (penv, params) <- parseParams [<]
+  char_ '('; sp
+  ds <- go penv [<]
   sp; char_ ')'
-  pure (SData ds)
+  pure (SData params ds)
  where
-  go : NameEnv -> Rule (List SQDecl)
-  go entries = do
-    d <- sqDecl tbl entries
-    rest <- optional (do sp; char_ ';'; sp; go (entries :< d.dqname))
+  ||| Zero or more [x : T] PARAMETER groups — the literal's ambient
+  ||| telescope, each scoping over the ones after it.
+  parseParams : NameEnv -> Rule (NameEnv, List (String, STy))
+  parseParams env =
+        (do char_ '['; sp; x <- parseName; sp; char_ ':'; sp
+            t <- parseSTy tbl env; sp; char_ ']'; sp
+            (env', rest) <- parseParams (env :< x)
+            pure (env', (x, t) :: rest))
+    <|> pure (env, [])
+  go : NameEnv -> NameEnv -> Rule (List SQDecl)
+  go penv entries = do
+    d <- sqDecl tbl penv entries
+    rest <- optional (do sp; char_ ';'; sp; go penv (entries :< d.dqname))
     pure (d :: fromMaybe [] rest)
 
 export

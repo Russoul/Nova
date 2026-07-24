@@ -176,16 +176,18 @@ data SItem : Type where
   SDef : String -> STy -> SElem -> SItem
   ||| type x ≔ T — always in the empty context
   STypeDef : String -> STy -> SItem
-  ||| data ( n : Q ; … ) — a QIIT signature literal; an ITEM MACRO that
-  ||| expands into a batch of ordinary defs (docs/NovaElaboration.txt,
+  ||| data [x : T]* ( n : Q ; … ) — a QIIT signature literal over an
+  ||| ambient PARAMETER telescope (Foundation's Γ ⊦ 𝒮 qsig); an ITEM
+  ||| MACRO that expands into a batch of ordinary defs, each
+  ||| Π-abstracted over the parameters (docs/NovaElaboration.txt,
   ||| QIIT section)
-  SData : List SQDecl -> SItem
+  SData : List (String, STy) -> List SQDecl -> SItem
 
 export
 itemName : SItem -> String
 itemName (SDef n _ _) = n
 itemName (STypeDef n _) = n
-itemName (SData ds) = case ds of
+itemName (SData _ ds) = case ds of
   (d :: _) => d.dqname
   [] => "data"
 
@@ -269,4 +271,6 @@ export covering
 Show SItem where
   show (SDef x ty body) = "def \{x} : \{show ty} := \{show body}"
   show (STypeDef x ty) = "type \{x} := \{show ty}"
-  show (SData ds) = "data (" ++ joinBy " ; " (map show ds) ++ ")"
+  show (SData ps ds) =
+    "data " ++ concatMap (\p => case p of (x, t) => "[\{x} : \{show t}] ") ps
+      ++ "(" ++ joinBy " ; " (map show ds) ++ ")"

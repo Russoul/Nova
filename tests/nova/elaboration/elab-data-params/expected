@@ -1,0 +1,8 @@
+defined data (Bag, nil, ins, swp)
+defined swapN
+defined swapN'
+defined sizeP
+defined sizeTwoN
+defined oneU
+defined sizeU
+Accepted.

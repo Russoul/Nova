@@ -1844,33 +1844,53 @@ elabItem (STypeDef x ty) = do
     (after == 0)
   modifySt $ { sig $= (:< SigTyDef [<] q ty'), vis $= (:< (x, q)) }
   pure "defined type \{x}"
-elabItem (SData decls) = do
+elabItem (SData params decls) = do
   let site = "data " ++ (case decls of
                            (d :: _) => d.dqname
                            [] => "")
   case decls of
     [] => throw "\{site}: empty data literal"
     _ => pure ()
+  -- 0. the ambient PARAMETER telescope (Foundation's Γ ⊦ 𝒮 qsig): the
+  --    signature is elaborated OVER it, and every emitted def is
+  --    Π-abstracted over it
+  (pctx, penv, ptys) <- elabParams site [<] [<] params
   -- 1. elaborate the literal to a core signature, entry by entry; the
   --    parser already resolved names to ⬡-indices and classified the
   --    domains, so the only content is the embedded Nova pieces
-  sg <- traverse (elabDecl site) decls
+  sg <- traverse (elabDecl site pctx penv) decls
   -- 2. EXPANSION: the batch of ordinary defs (docs/NovaElaboration.txt,
   --    QIIT section) — code-valued sorts, saturated constructors,
   --    Refl path-lemmas, one eliminator per sort with coherences as
-  --    ≡-typed hypotheses
+  --    ≡-typed hypotheses. `sgAt d` is the signature under d binders
+  --    ABOVE the parameters (its free parameter references weakened).
+  let pre = (length params, ptys)
   let named = zipWithIndex 0 decls
   ignore $ traverse (\(k, d) =>
     case qEntryKind (fromMaybe QU (qEntry sg k)) of
-      QKSort => do emitSort site sg k d.dqname
-                   emitElim site sg k d.dqname
-      QKPoint => emitCtor site sg k d.dqname
-      QKEq => emitEq site sg k d.dqname) named
+      QKSort => do emitSort site pre sg k d.dqname
+                   emitElim site pre sg k d.dqname
+      QKPoint => emitCtor site pre sg k d.dqname
+      QKEq => emitEq site pre sg k d.dqname) named
   pure ("defined data (" ++ joinBy ", " (map (.dqname) decls) ++ ")")
  where
   zipWithIndex : Nat -> List a -> List (Nat, a)
   zipWithIndex _ [] = []
   zipWithIndex i (x :: xs) = (i, x) :: zipWithIndex (S i) xs
+
+  elabParams : String -> Ctx -> NameEnv -> List (String, STy)
+            -> ElabM (Ctx, NameEnv, List Ty)
+  elabParams site ctx env [] = pure (ctx, env, [])
+  elabParams site ctx env ((x, t) :: rest) = do
+    (t', _) <- elabTy ctx env site t
+    (ctx', env', tys) <- elabParams site (ctx :< t') (env :< x) rest
+    pure (ctx', env', t' :: tys)
+
+  sgAt : QSig -> Nat -> QSig
+  sgAt sg d = substQSig sg (wkN d)
+
+  wrapParams : List Ty -> Ty -> Ty
+  wrapParams ptys ty = foldr Ty.PiTy ty ptys
 
   elabSQTm : String -> Ctx -> NameEnv -> SQTm -> ElabM QTm
   elabSQTm site ectx env (SQVar _ i) = pure (QVar i)
@@ -1883,8 +1903,8 @@ elabItem (SData decls) = do
   elabSQTm site ectx env (SQAppI f a) =
     [| QAppI (elabSQTm site ectx env f) (elabSQTm site ectx env a) |]
 
-  elabDecl : String -> SQDecl -> ElabM QTy
-  elabDecl site d = go [<] [<] d.dqbinders
+  elabDecl : String -> Ctx -> NameEnv -> SQDecl -> ElabM QTy
+  elabDecl site pctx penv d = go pctx penv d.dqbinders
    where
     go : Ctx -> NameEnv -> List (String, Either STy SQTm) -> ElabM QTy
     go ectx env ((x, Left t) :: rest) = do
@@ -1910,35 +1930,35 @@ elabItem (SData decls) = do
   ||| A sort: a code-valued def when the signature is SMALL; for a
   ||| LARGE signature, a type item (nullary sorts only — an indexed
   ||| large family has no closed-item spelling).
-  emitSort : String -> QSig -> Nat -> String -> ElabM ()
-  emitSort site sg k nm = do
+  emitSort : String -> (Nat, List Ty) -> QSig -> Nat -> String -> ElabM ()
+  emitSort site (np, ptys) sg k nm = do
     entry <- entryAt site sg k
     (tel, _, _) <- liftQE site (reflTel sg (qwAt k) entry)
     let n = length tel
     if qSigSmall sg
       then do
-        let ty = foldr Ty.PiTy Ty.UniverseTy tel
-        let body = wrapLams n (QSortC sg k (varSpine n))
+        let ty = wrapParams ptys (foldr Ty.PiTy Ty.UniverseTy tel)
+        let body = wrapLams (np + n) (QSortC (sgAt sg n) k (varSpine n))
         emitCoreDef site nm ty (Nd [] []) body (Nd [] [])
-      else if n == 0
+      else if n == 0 && np == 0
         then emitCoreTyDef site nm (QSort sg k [<]) (Nd [] [])
-        else throw "\{site}: an indexed sort of a LARGE signature has no closed-item spelling (make the signature small)"
+        else throw "\{site}: an indexed or parameterized sort of a LARGE signature has no closed-item spelling (make the signature small)"
 
   ||| A point constructor: the saturated former, η-expanded once.
-  emitCtor : String -> QSig -> Nat -> String -> ElabM ()
-  emitCtor site sg k nm = do
+  emitCtor : String -> (Nat, List Ty) -> QSig -> Nat -> String -> ElabM ()
+  emitCtor site (np, ptys) sg k nm = do
     entry <- entryAt site sg k
-    ty <- liftQE site (reflQTy sg (qwAt k) entry)
+    ty0 <- liftQE site (reflQTy sg (qwAt k) entry)
     let n = qtyBinders entry
-    let body = wrapLams n (QCtor sg k (varSpine n))
-    emitCoreDef site nm ty (Nd [] []) body (Nd [] [])
+    let body = wrapLams (np + n) (QCtor (sgAt sg n) k (varSpine n))
+    emitCoreDef site nm (wrapParams ptys ty0) (Nd [] []) body (Nd [] [])
 
   ||| An equation constructor: a Refl-lemma, licensed by el-qiit-path
   ||| (a qpath step behind the Refl's equation certificate). On later
   ||| items this def is an accepted lemma, so the QIIT's imposed
   ||| equations feed discharge through the standard store.
-  emitEq : String -> QSig -> Nat -> String -> ElabM ()
-  emitEq site sg k nm = do
+  emitEq : String -> (Nat, List Ty) -> QSig -> Nat -> String -> ElabM ()
+  emitEq site (np, ptys) sg k nm = do
     entry <- entryAt site sg k
     (tel, wEnd, hd) <- liftQE site (reflTel sg (qwAt k) entry)
     (lq, rq, uq) <- liftQE site (eqHead hd)
@@ -1946,18 +1966,18 @@ elabItem (SData decls) = do
     rE <- liftQE site (reflTm sg wEnd rq)
     uT <- liftQE site (reflCodeTy sg wEnd uq)
     let n = length tel
-    let ty = foldr Ty.PiTy (EqTy lE rE uT) tel
-    let body = wrapLams n Refl
-    let cert = MkECert [MkStep True [] (LPath sg k (varSpine n)) [] False] FBeta
-    emitCoreDef site nm ty (Nd [] []) body (nestSkel n (Nd [PReflEq cert] []))
+    let ty = wrapParams ptys (foldr Ty.PiTy (EqTy lE rE uT) tel)
+    let body = wrapLams (np + n) Refl
+    let cert = MkECert [MkStep True [] (LPath (sgAt sg n) k (varSpine n)) [] False] FBeta
+    emitCoreDef site nm ty (Nd [] []) body (nestSkel (np + n) (Nd [PReflEq cert] []))
 
   ||| The eliminator def for sort s: motives (code-valued), methods,
   ||| COHERENCES AS HYPOTHESES (≡-typed arguments — extensionality's
   ||| dividend), then the indices and the eliminee. The body is the
   ||| core eliminator; its qcoh certificates replay from the coherence
   ||| binders by el-reflect.
-  emitElim : String -> QSig -> Nat -> String -> ElabM ()
-  emitElim site sg s nm = do
+  emitElim : String -> (Nat, List Ty) -> QSig -> Nat -> String -> ElabM ()
+  emitElim site (np, ptys) sg s nm = do
     let sortPs = qPositions QKSort sg
     let pointPs = qPositions QKPoint sg
     let eqPs = qPositions QKEq sg
@@ -1965,8 +1985,8 @@ elabItem (SData decls) = do
     let nM = length pointPs
     let nH = length eqPs
     sEntry <- entryAt site sg s
-    (sTel, _, _) <- liftQE site (reflTel sg (qwAt s) sEntry)
-    let nI = length sTel
+    (sTel0, _, _) <- liftQE site (reflTel sg (qwAt s) sEntry)
+    let nI = length sTel0
     -- motive TYPES as seen `extra` binders after the LAST motive
     -- binder: C_j's index there is (nS-1-j) + extra, plus (arity_j + 1)
     -- inside the motive's own context (arity binders then the eliminee)
@@ -1988,17 +2008,20 @@ elabItem (SData decls) = do
     cTys <- traverse (\p => case p of
               (j, sj) => do
                 sjE <- entryAt site sg sj
-                (telJ, wEndJ, _) <- liftQE site (reflTel sg (qwAt sj) sjE)
+                -- the j-th motive binder sits j binders above the
+                -- parameters: the carried signature weakens along
+                let sgJ = sgAt sg j
+                (telJ, wEndJ, _) <- liftQE site (reflTel sgJ (qwAt sj) sjE)
                 let aj = length telJ
                 pure (foldr Ty.PiTy
-                        (Ty.PiTy (QSort sg sj (varSpine aj)) Ty.UniverseTy)
+                        (Ty.PiTy (QSort (substQSig sgJ wEndJ.ups) sj (varSpine aj)) Ty.UniverseTy)
                         telJ))
             (zipWithIndex 0 sortPs)
     -- 2. method binder types (at extra = j)
     mTys <- traverse (\p => case p of
               (j, cj) => do
                 mots <- motTysAt j
-                liftQE site (methodTy sg mots cj))
+                liftQE site (methodTy (sgAt sg (nS + j)) mots cj))
             (zipWithIndex 0 pointPs)
     -- 3. coherence binder types (at extra = nM + j). The two sides of
     -- the coherence ≡ have types equal only JUDGEMENTALLY (C[⌊l⌋] ≐
@@ -2008,16 +2031,19 @@ elabItem (SData decls) = do
     hTysSk <- traverse (\p => case p of
               (j, ej) => do
                 mots <- motTysAt (nM + j)
-                (dtel, spineArgs, lhs, rhs, cty) <- liftQE site (coherenceAt sg mots (mVarsAt (nM + j)) ej)
+                let sgJ = sgAt sg (nS + nM + j)
+                (dtel, spineArgs, lhs, rhs, cty) <- liftQE site (coherenceAt sgJ mots (mVarsAt (nM + j)) ej)
                 let dlen = length dtel
-                let swc = MkECert [MkStep True [0, 1] (LPath sg ej spineArgs) [] True] FBeta
+                let swc = MkECert [MkStep True [0, 1] (LPath (sgAt sgJ dlen) ej spineArgs) [] True] FBeta
                 let eqSk = Nd [] [Nd [] [], Nd [PSwitch swc] [], Nd [] []]
                 pure (foldr Ty.PiTy (EqTy lhs rhs cty) dtel, nestPiSkel dlen eqSk))
             (zipWithIndex 0 eqPs)
     let hTys = map fst hTysSk
     let hSks = map snd hTysSk
-    -- 4. indices (the target sort's arity — closed types) and eliminee
-    let wTy = QSort sg s (varSpine nI)
+    -- 4. indices (the target sort's arity, at their depth above the
+    --    parameters) and the eliminee
+    (sTel, _, _) <- liftQE site (reflTel (sgAt sg (nS + nM + nH)) (qwAt s) sEntry)
+    let wTy = QSort (sgAt sg (nS + nM + nH + nI)) s (varSpine nI)
     -- result: El (C_s idx w) — C_s under everything
     ordS <- case qOrdinal QKSort sg s of
               Just o => pure o
@@ -2025,29 +2051,30 @@ elabItem (SData decls) = do
     let cS = minus nS (S ordS) + nM + nH + nI + 1
     let idxAtEnd = toList (substSubNorm (varSpine nI) Wk)
     let resTy = El (PiApp (applyChain (CtxVar cS) idxAtEnd) (CtxVar 0))
-    let defTy = foldr Ty.PiTy resTy (cTys ++ mTys ++ hTys ++ sTel ++ [wTy])
+    let defTy = wrapParams ptys
+                  (foldr Ty.PiTy resTy (cTys ++ mTys ++ hTys ++ sTel ++ [wTy]))
     let emptySk = the Skel (Nd [] [])
-    let defTySk = piChainSkel
+    let defTySk = nestPiSkel np (piChainSkel
                     (map (const emptySk) cTys ++ map (const emptySk) mTys ++
-                     hSks ++ map (const emptySk) sTel ++ [emptySk])
+                     hSks ++ map (const emptySk) sTel ++ [emptySk]))
     -- body: λ^N (𝒮.s-elim ℰ ē w)
     let endExtra = nM + nH + nI + 1
     motsEnd <- motTysAt endExtra
     let mthsEnd = mVarsAt endExtra
     let bigN = nS + nM + nH + nI + 1
-    let body = wrapLams bigN
-                 (QElim sg s motsEnd mthsEnd (cast idxAtEnd) (CtxVar 0))
+    let body = wrapLams (np + bigN)
+                 (QElim (sgAt sg bigN) s motsEnd mthsEnd (cast idxAtEnd) (CtxVar 0))
     -- coherence certificates: each replays from its hypothesis binder,
     -- applied to the ᴰ-context's variables (one step, then FBeta)
     cohCerts <- traverse (\p => case p of
                   (j, ej) => do
-                    (dtel, _, _, _, _) <- liftQE site (coherenceAt sg motsEnd mthsEnd ej)
+                    (dtel, _, _, _, _) <- liftQE site (coherenceAt (sgAt sg bigN) motsEnd mthsEnd ej)
                     let dlen = length dtel
                     let hIdx = minus nH (S j) + nI + 1 + dlen
                     let dVars = map CtxVar (reverse (upto dlen))
                     pure (MkECert [MkStep True [] (LProof (applyChain (CtxVar hIdx) dVars)) [] False] FBeta))
                 (zipWithIndex 0 eqPs)
-    let bodySk = nestSkel bigN (Nd [PQCoh cohCerts] [])
+    let bodySk = nestSkel (np + bigN) (Nd [PQCoh cohCerts] [])
     emitCoreDef site (nm ++ "Elim") defTy defTySk body bodySk
    where
     upto : Nat -> List Nat

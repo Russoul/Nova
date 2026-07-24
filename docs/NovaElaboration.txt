@@ -63,9 +63,12 @@ file  ::= import* (item | fixity)*
 imp   ::= import M | import M (n (, n)*)
 item  ::= def  n : T{≥0} ≔ t{≥0}
         | type x ≔ T{≥0}
-        | data ( n : Q (; n : Q)* )           // a QIIT signature literal —
-                                              //   an ITEM MACRO, see the
-                                              //   QIIT section below
+        | data ([x : T{≥0}])* ( n : Q (; n : Q)* )
+                                              // a QIIT signature literal —
+                                              //   an ITEM MACRO over an
+                                              //   ambient PARAMETER
+                                              //   telescope, see the QIIT
+                                              //   section below
 fixity ::= infixl d op | infixr d op          // d a digit 0-9
 
 // Q is the ToS type grammar of a data entry — Foundation's qiit-types
@@ -640,8 +643,14 @@ type x ≔ T             extends Σ with (ε ⊦ x ≔ A type)
 
 A data item is an ITEM MACRO. It elaborates its literal to a core
 signature 𝒮 (Foundation's qctx — a signature IS a closed qiit-context)
-and then EXPANDS into a batch of ordinary defs; the macro itself adds
-nothing to Σ. This is Foundation's design surfacing: 𝒮 mints no names,
+over the item's PARAMETER telescope — the [x : T] groups realize
+Foundation's ambient Γ in Γ ⊦ 𝒮 qsig, with parameters in scope as
+external names throughout the literal — and then EXPANDS into a batch
+of ordinary defs, each Π-abstracted over the parameters (the carried 𝒮
+weakened along each emitted binder); the macro itself adds nothing to
+Σ. Instantiated signatures still compare STRUCTURALLY (𝒮[a≔ℕ] is one
+piece of syntax wherever it arises), so a parameterized data item is a
+FAMILY of structurally-identified QIITs. This is Foundation's design surfacing: 𝒮 mints no names,
 "a NAME for a QIIT is an ordinary definition", so sorts, constructors,
 path lemmas and eliminators all reach the file as plain Σ entries whose
 bodies carry 𝒮 — and modules, imports, the lemma store and the report
