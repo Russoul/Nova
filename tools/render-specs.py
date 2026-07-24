@@ -58,8 +58,9 @@ DIRECTIVE_RE = re.compile(r"^//!\s*highlight\s+(keywords|tos|nova|meta):\s*(.*)$
 
 DEFAULT_VOCAB = {
     # FIXED syntax — judgement-level and object-level alike
-    "keywords": ("⊦ : ; , · [ ] ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ ⇓ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id "
+    "keywords": ("⊦ : ; , · [ ] .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ ⇓ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id "
                  "λ → ⨯ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S Refl ⋆ Prf class ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ "
+                 "𝟘-elim ℕ-elim quot-elim squash-elim -elim "
                  "qctx qty qsig ctx type tel mot dalg eprob sect norm small "
                  "sig nf qpath").split(),
     # metavariable alphabets, by kind
@@ -81,7 +82,7 @@ def collect_vocab(files):
 
 # decorations that travel with a token: combining marks, primes,
 # sub/superscripts (t₀, A′, ē is precomposed Latin, Γ̂, e˲, ⌊·⌋ᵗ)
-DECOR = "\u0300-\u036f′″‴˲ᵢⱼₖₗₘₙₚᵣₛₜ₀-₉⁻⁼ᵈᵗᵖᵉᴺ"
+DECOR = "\u0300-\u036f'′″‴˲ᵢⱼₖₗₘₙₚᵣₛₜ₀-₉⁻⁼ᵈᵗᵖᵉᴺ"
 
 class Highlighter:
     def __init__(self, vocab):
@@ -134,6 +135,11 @@ class Highlighter:
             t = m.group(0)
             if g in ("eng", "ent"):
                 return t
+            # an absorbed apostrophe followed by s is a POSSESSIVE
+            # (𝔄's), not a prime decoration (Γ') — leave it outside
+            tail = ""
+            if t.endswith("'") and re.match(r"s\b", m.string[m.end():]):
+                t, tail = t[:-1], "'"
             if g == "lat":
                 if not self.latin_nova:
                     return t
@@ -146,13 +152,13 @@ class Highlighter:
                     rest = m.string[m.end():]
                     if re.match(r"\s+[A-Za-z]{2,}(?![\w-]*[₀-₉′])", rest):
                         return t
-                return self._wrap("nova", t)
+                return self._wrap("nova", t) + tail
             base = m.group(g) if g != "sym" else t[0]
             cls = self.cls_of.get(base if g != "word" else m.group("word"),
                                   None)
             if g == "sym":
                 cls = self.cls_of.get(t[0])
-            return self._wrap(cls, t) if cls else t
+            return (self._wrap(cls, t) if cls else t) + tail
         return rx.sub(rep, escaped)
 
 HL = None   # installed in main() once the vocabulary is collected

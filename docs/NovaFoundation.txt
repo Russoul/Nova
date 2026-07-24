@@ -1,6 +1,6 @@
 ////////// Preface //////////
 
-//! highlight keywords: ⊦ : ; , · [ ] ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ ⇓ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id λ → ⨯ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S Refl ⋆ Prf class ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ qctx qty qsig ctx type tel mot dalg eprob sect norm small sig nf qpath
+//! highlight keywords: ⊦ : ; , · [ ] .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ ⇓ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id λ → ⨯ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S Refl ⋆ Prf class ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ 𝟘-elim ℕ-elim quot-elim squash-elim -elim qctx qty qsig ctx type tel mot dalg eprob sect norm small sig nf qpath
 //! highlight tos: 𝔄 𝔅 𝕥 𝕦 𝕧 𝕤 𝕔 𝕜 𝕘 𝕒 𝕓 𝕞 Φ 𝒮 ς 𝔎
 //! highlight nova: Γ Δ Ξ Σ σ τ δ θ latin
 //! highlight meta: 𝑤 ρ υ π 𝒞 ℰ
