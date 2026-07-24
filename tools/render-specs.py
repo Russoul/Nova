@@ -314,7 +314,6 @@ class FileRenderer:
         out = []
         para, disp, bullets = [], [], []
         in_bullet = False
-        disp_threshold = 4 if comment else 2
 
         def flush_para():
             nonlocal para
@@ -343,6 +342,13 @@ class FileRenderer:
                 flush_para(); flush_disp(); flush_bullets()
                 first_prose = True
                 continue
+            # a // line inside a mixed (formal) block is PROSE by
+            # definition — strip the marker and classify it as comment
+            # content, whatever it contains
+            is_cmt = comment
+            if not comment and s.lstrip().startswith("//"):
+                s = re.sub(r"^\s*// ?", "", s)
+                is_cmt = True
             indent = len(s) - len(s.lstrip())
             bm = re.match(r"^\s{0,3}\*\s+(.*)$", s)
             if bm:
@@ -356,8 +362,8 @@ class FileRenderer:
             # in comment prose, strong-math tokens only mark a display
             # when the line is indented — prose sentences may contain
             # inline math (ω ≜ λx. x x) at indent 0
-            if indent >= disp_threshold or (
-                    STRONG_MATH.search(s) and (indent >= 2 or not comment)):
+            if indent >= (4 if is_cmt else 2) or (
+                    STRONG_MATH.search(s) and (indent >= 2 or not is_cmt)):
                 flush_para(); flush_bullets()
                 disp.append(s)
                 continue
