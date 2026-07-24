@@ -1,16 +1,13 @@
-.PHONY: build install run test clean
-
-clean:
-		rm -rf build
+.PHONY: build install test clean
 
 build:
-		pack build nova-foundation.ipkg
+	pack build nova.ipkg
 
 install:
-		idris2 --install-with-src nova-foundation.ipkg
-
-run:
-		rlwrap ./build/exec/nova-foundation-app
+	pack install-app nova.ipkg
 
 test:
-		./test.sh
+	./test.sh
+
+clean:
+	rm -rf build
