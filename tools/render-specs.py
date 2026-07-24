@@ -153,8 +153,24 @@ class Highlighter:
 
 HL = None   # installed in main() once the vocabulary is collected
 
+# a comment starts at a whitespace-preceded (or line-initial) `//` —
+# `https://` never matches
+CMT_RE = re.compile(r"(?:^|(?<=\s))//")
+
 def math(text: str, prose: bool = False) -> str:
-    return HL.paint(html.escape(text, quote=False), prose=prose)
+    if prose:
+        return HL.paint(html.escape(text, quote=False), prose=True)
+    out = []
+    for line in text.split("\n"):
+        m = CMT_RE.search(line)
+        if m:
+            code, cmt = line[:m.start()], line[m.start():]
+            out.append(HL.paint(html.escape(code, quote=False))
+                       + '<span class="cmt">' + html.escape(cmt, quote=False)
+                       + "</span>")
+        else:
+            out.append(HL.paint(html.escape(line, quote=False)))
+    return "\n".join(out)
 
 # ----- shared regexes ----------------------------------------------------
 
@@ -460,6 +476,7 @@ pre.display { background:var(--panel); border-left:2px solid var(--hair);
   margin-top:.25rem; }
 .tos { color:var(--tos); } .nova { color:var(--nova); } .meta { color:var(--meta); }
 .kw { color:var(--gold); font-weight:600; }
+.cmt { color:var(--faint); font-style:italic; }
 a.rref { color:var(--rname); text-decoration:none; border-bottom:1px dotted var(--rname); }
 :target { scroll-margin-top:1rem; }
 :target > .rule-box > .bar { border-top-color:var(--rname); }
