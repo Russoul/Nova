@@ -8,64 +8,42 @@ on:
     branches:
       - '*'
 
-env:
-  ACTIONS_ALLOW_UNSECURE_COMMANDS: true
-  SCHEME: scheme
-  # The idris2 commit we build upon
-  IDRIS2_REMOTE: "idris-lang"
-  RUSSOUL_REMOTE: "russoul"
-  IDRIS2_HASH: "4cb45daba4b6b1c32f2f0dd7195daebe531cb335"
-
 jobs:
 
-  #
-  # Boostrapping and Previous Version Builds
-  #
-
-  build-idris2-master-test-our-branch:
-    runs-on: ubuntu-22.04
-    env:
-      IDRIS2_CG: chez
-      IDRIS2_TESTS_CG: chez
+  build-and-test:
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
-      - name: Install build dependencies
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
         run: |
-          echo "::add-path::$HOME/.idris2/bin"
-          # In case we want the latest commit:
-          # echo "IDRIS2_HASH=$(git ls-remote git://github.com/idris-lang/Idris2 | \
-          #         grep refs/heads/master | cut -f1)" >> $GITHUB_ENV
-          # echo "deb http://security.ubuntu.com/ubuntu hirsute universe" | sudo tee -a /etc/apt/sources.list
           sudo apt-get update
-          sudo apt-get install -y chezscheme
-      - name: Cache Idris2
-        id: idris2-cache
-        uses: actions/cache@v2
+          sudo apt-get install -y chezscheme libgmp-dev
+
+      # ~/.pack holds pack itself plus the toolchain it resolves from
+      # pack.toml (the pinned idris2 commit, the package collection and
+      # the custom dependencies), so a hit skips the whole Idris2
+      # bootstrap. Keyed on pack.toml: changing any pin rebuilds.
+      - name: Cache pack and toolchain
+        id: pack-cache
+        uses: actions/cache@v4
         with:
-          path: Idris2
-          key: ${{ env.IDRIS2_HASH }}
-      - name: Build Idris2
-        if: steps.idris2-cache.outputs.cache-hit != 'true'
+          path: ~/.pack
+          key: pack-${{ runner.os }}-${{ hashFiles('pack.toml') }}
+
+      - name: Install pack
+        if: steps.pack-cache.outputs.cache-hit != 'true'
         run: |
-          git clone https://github.com/${{ env.IDRIS2_REMOTE }}/Idris2
-          cd Idris2
-          git reset --hard ${{ env.IDRIS2_HASH }}
-          make bootstrap && make install
-          make clean && make all
-          cd ..
-      - name: Install Idris2
-        run: |
-          cd Idris2
-          make install
-          cd ..
-      - name: Install Just-A-Monad
-        run: |
-          git clone https://github.com/${{ env.RUSSOUL_REMOTE }}/Just-a-Monad
-          cd Just-a-Monad
-          idris2 --install
-          cd ..
-      - name: Build and test Nova
-        run: |
-          make build-bin
-          make test
+          git clone --depth=1 https://github.com/stefan-hoeck/idris2-pack
+          cd idris2-pack
+          make micropack SCHEME=chezscheme
+
+      - name: Add pack to PATH
+        run: echo "$HOME/.pack/bin" >> "$GITHUB_PATH"
+
+      - name: Build Nova
+        run: pack build nova.ipkg
+
+      - name: Run tests
+        run: ./test.sh
