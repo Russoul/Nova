@@ -12,12 +12,12 @@
 # (`latin` marks bare Latin letters as Nova metavariables inside
 # judgements), and the reflection/walk apparatus. Tokens in no table
 # render ink. They carry no theory content.)
-
+#
 # This file contains a formalisation of Nova's type theory: Extensional Computational Type Theory.
 # We present the theory extrinsically: https://ncatlab.org/nlab/show/intrinsic+and+extrinsic+views+of+typing
-
+#
 # Semantics to syntactic forms is assigned via evaluation and canonical forms.
-
+#
 # NOTE: well-formed terms need not normalize in an inconsistent context.
 # Equality reflection makes typability hypothesis-sensitive: e.g. under
 # Γ ∋ h : (A ≡ (A → A) ∈ 𝕌), reflection gives El A ≐ El A → El A, so
@@ -38,8 +38,8 @@
 #  * Dependent product type: (→)
 #  * Dependent sum type: (⨯)
 #  * Equality type: (≡) with reflection
-#  * A universe: 𝕌
 #  * Quotient type: (/), by an Ω-valued relation
+#  * A predicative universe: 𝕌
 #  * A universe of mere propositions: Ω (squash ∥-∥, propositional extensionality)
 #  * Quotient inductive-inductive types (QIITs): a SCHEME (not a single
 #    former) — for each well-formed signature 𝒮 (mutually-defined,
@@ -56,6 +56,7 @@
 
 ///////////// Syntax ///////////////
 
+# signature identifier
 x ::= <signature-entry-identifier>
 
 # signature context
@@ -67,6 +68,7 @@ x ::= <signature-entry-identifier>
 Γ ::= ε      # empty typing context
     | Γ ▷ T  # extended typing context
 
+# A defined (meta-level) notion
 # Γ‖ₙ: the (n+1)-th type in Γ counting from the right (0 = the innermost
 # extension), i.e. the type ☐ₙ names before weakening.
 (Γ ▷ A)‖₀     ≜ A[↑]
@@ -88,13 +90,13 @@ T ::= x [e˲]         # type in the signature context
     | 𝟘
     | 𝟙
     | ℕ
-    | 𝕌              # universe type
+    | 𝕌              # predicative universe
+    | Ω              # universe of mere propositions
     | T → T          # dependent product type (Π)
     | T ⨯ T          # dependent sum type (Σ)
     | t ≡ t ∈ T      # extensional equality type
     | El t           # Every element of the universe is a type
     | T / t          # quotient type (t an Ω-valued relation)
-    | Ω              # universe of mere propositions
     | Prf t          # decoding of a proposition (Ω's El; deliberately not
                      #   written El: it shares none of El's rules — not
                      #   structural, not injective, no decoding computation)
@@ -150,14 +152,14 @@ t ::= x [e˲]         # element in the signature context
 # presentation additionally carried, with every rule, an argument-labelling
 # scheme consumed by the since-removed .rules derivation checker; that
 # interface lives on in git history only.)
-
+#
 # * AMBIENT SIGNATURE. Every judgement is relative to a signature Σ,
 #   presupposed well-formed. The Σ prefix and the premise `Σ sig` are
 #   omitted everywhere; rules that inspect or extend Σ (the sig rules,
 #   the x[e˲] rules) name it explicitly. Expansion: prefix every
 #   judgement with `Σ ⊦`/`Σ Γ ⊦` as appropriate and add `Σ sig` as the
 #   first premise of every rule.
-
+#
 # * PRESUPPOSITIONS. Each judgement form PRESUPPOSES the well-formedness
 #   of its parts, as listed in the judgement-form table below. A rule
 #   omits every premise that lies in the presupposition CLOSURE of its
@@ -170,13 +172,11 @@ t ::= x [e˲]         # element in the signature context
 #   particular eliminator motives, the middle subject of a transitivity,
 #   and the data of the coercion rules are genuine inputs and always
 #   appear.
-
+#
 # * GROUPED CONCLUSIONS. A rule with several conclusions below the line
-#   abbreviates one rule per conclusion (same premises). A conclusion
-#   listing several subjects separated by commas (e.g.
-#   `Γ ⊦ 𝟘, 𝟙, ℕ, 𝕌 type`) abbreviates one rule per subject.
-
-# * EQUIVALENCE (PER) RULES. Each of the seven equality judgements —
+#   abbreviates one rule per conclusion (same premises).
+#
+# * EQUIVALENCE RULES. Each of the seven equality judgements —
 
     Γ₀ ≐ Γ₁ ctx                 (contexts)
     σ₀ ≐ σ₁ : Γ ⇒ Δ             (substitutions)
@@ -185,7 +185,7 @@ t ::= x [e˲]         # element in the signature context
     Γ ⊦ a₀ ≐ a₁ : A             (elements)
     Γ ⊦ Δ₀ ≐ Δ₁ tel             (telescopes)
     Γ ⊦ ē₀ ≐ ē₁ : Δ             (element lists)
-
+#
 #   — is governed by three rules adopted once here and not repeated per
 #   class. Writing J for the well-formedness form and J⁼ for the
 #   equality form of a class:
@@ -450,8 +450,12 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 ///////// Rules (type) /////////
 
 Γ ctx
------------------------------------ (ty-zero, ty-one, ty-nat, ty-univ, ty-prop)
-Γ ⊦ 𝟘, 𝟙, ℕ, 𝕌, Ω type
+-----------------------
+Γ ⊦ 𝟘 type   (ty-zero)
+Γ ⊦ 𝟙 type   (ty-one)
+Γ ⊦ ℕ type   (ty-nat)
+Γ ⊦ 𝕌 type   (ty-univ)
+Γ ⊦ Ω type   (ty-prop)
 
 Γ ⊦ A type
 Γ ▷ A ⊦ B type
@@ -494,8 +498,10 @@ e˲ : Δ ⇒ Γ norm
 # El-decoding: El of a code computes to the type it encodes.
 
 Γ ctx
------------------------------------------------- (ty-el-zero, ty-el-one, ty-el-nat)
-Γ ⊦ El 𝟘 ≜ 𝟘 type,   El 𝟙 ≜ 𝟙 type,   El ℕ ≜ ℕ type
+------------------------------------------------
+Γ ⊦ El 𝟘 ≜ 𝟘 type   (ty-el-zero)
+Γ ⊦ El 𝟙 ≜ 𝟙 type   (ty-el-one)
+Γ ⊦ El ℕ ≜ ℕ type   (ty-el-nat)
 
 Γ ⊦ A : 𝕌
 Γ ▷ El A ⊦ B : 𝕌
@@ -537,7 +543,11 @@ e˲ : Δ ⇒ Γ norm
 
 σ : Γ₀ ⇒ Γ₁
 ------------------------------------------------------------------------- (ty-sub-atoms)
-Γ₀ ⊦ 𝟘[σ] ≜ 𝟘 type,   𝟙[σ] ≜ 𝟙 type,   ℕ[σ] ≜ ℕ type,   𝕌[σ] ≜ 𝕌 type,   Ω[σ] ≜ Ω type
+Γ₀ ⊦ 𝟘[σ] ≜ 𝟘 type
+Γ₀ ⊦ 𝟙[σ] ≜ 𝟙 type
+Γ₀ ⊦ ℕ[σ] ≜ ℕ type
+Γ₀ ⊦ 𝕌[σ] ≜ 𝕌 type
+Γ₀ ⊦ Ω[σ] ≜ Ω type
 
 Γ₁ ⊦ t : 𝕌
 σ : Γ₀ ⇒ Γ₁
@@ -795,13 +805,15 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ ctx
 ------------------ (el-var) # Γ‖ₙ picks the type directly out of Γ's own structure — no
-Γ ⊦ ☐ₙ : Γ‖ₙ            # derivation of ☐ₙ₋₁, ☐ₙ₋₂, ... is required first.
+Γ ⊦ ☐ₙ : Γ‖ₙ                # derivation of ☐ₙ₋₁, ☐ₙ₋₂, ... is required first.
 
 # Universe codes.
 
 Γ ctx
----------------------- (code-zero, code-one, code-nat)
-Γ ⊦ 𝟘, 𝟙, ℕ : 𝕌
+----------------------
+Γ ⊦ 𝟘 : 𝕌   (code-zero)
+Γ ⊦ 𝟙 : 𝕌   (code-one)
+Γ ⊦ ℕ : 𝕌   (code-nat)
 
 Γ ⊦ A : 𝕌
 Γ ▷ El A ⊦ B : 𝕌

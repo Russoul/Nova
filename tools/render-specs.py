@@ -118,7 +118,7 @@ class Highlighter:
             f"|(?P<mtok>{mpat})"
             "|(?P<eng>[A-Za-z]{2,})"
             f"|(?P<sym>{cpat}{dec})"
-            f"|(?P<lat>[A-Za-z]{dec})")
+            f"|(?P<lat>[A-Za-z\u0100-\u017f]{dec})")
 
     def _wrap(self, cls, text):
         return f'<span class="{cls}">{text}</span>'
@@ -197,6 +197,10 @@ def split_aliases(name):
     note = ", ".join(parts[1:]) if len(parts) > 1 else None
     return [parts[0]], note
 BARE_BAR_RE = re.compile(r"^\s*-{4,}\s*(?:#\s*(.*))?$")
+# a conclusion line may carry its own rule name: at least two spaces,
+# then a parenthesized hyphenated lowercase rule id at end of line
+CONCL_NAME_RE = re.compile(
+    r"^(.*?)\s{2,}\(([a-z][a-z0-9⁼ᴰ]*(?:-[a-z0-9⁼ᴰ]+)+)\)\s*$")
 TRAIL_RE = re.compile(r"^(.*?)\s*#\s*(.*)$")
 CAPS_RE = re.compile(r"^([A-Z][A-Z0-9\- ⌊⌋·⟦⟧ᴰ]{4,}?)\s*(?=[.(:—])")
 STRONG_MATH = re.compile(r"≜|::=|▷|‖|│|▼|⇘|-{4,}")
@@ -226,19 +230,33 @@ def anchor_of(key, name):
 def collect(files):
     """rulemap: name -> (filekey, anchor); rules_by_file; sections."""
     rulemap, order, dups = {}, [], []
+    def reg(key, names, a):
+        for al in names:
+            if al in rulemap:
+                dups.append(al)
+            else:
+                rulemap[al] = (key, a)
+                order.append(al)
     for key, rel, _ in files:
         for b in blocks((ROOT / rel).read_text().splitlines()):
+            if not any(is_bar(l) for l in b):
+                continue
+            seen_bar = False
             for l in b:
                 m = NAMED_BAR_RE.match(l)
-                if m:
+                if m and not seen_bar:
+                    seen_bar = True
                     aliases, _ = split_aliases(m.group(1).strip())
-                    a = anchor_of(key, aliases[0])
-                    for al in aliases:
-                        if al in rulemap:
-                            dups.append(al)
-                        else:
-                            rulemap[al] = (key, a)
-                            order.append(al)
+                    reg(key, aliases, anchor_of(key, aliases[0]))
+                    continue
+                if BARE_BAR_RE.match(l) and not seen_bar:
+                    seen_bar = True
+                    continue
+                if seen_bar:
+                    cm = CONCL_NAME_RE.match(l)
+                    if cm:
+                        n = cm.group(2)
+                        reg(key, [n], anchor_of(key, n))
     return rulemap, order, dups
 
 # ----- renderer ----------------------------------------------------------
@@ -296,18 +314,41 @@ class FileRenderer:
                 body, note = tm.group(1), tm.group(2)
                 if note.strip():
                     notes.append(note.strip())
-            (concl if seen_bar else pre).append(body.rstrip())
-        a = anchor_of(self.key, name.split(",")[0].strip()) if name else ""
+            if seen_bar:
+                cm = CONCL_NAME_RE.match(body.rstrip())
+                if cm:
+                    concl.append((cm.group(1).rstrip(), cm.group(2)))
+                else:
+                    concl.append((body.rstrip(), None))
+            else:
+                pre.append(body.rstrip())
+        cnamed = [n for _, n in concl if n]
+        a = (anchor_of(self.key, name.split(",")[0].strip()) if name
+             else anchor_of(self.key, cnamed[0]) if cnamed else "")
         aid = f' id="{a}"' if name else ""
         out = [f'<div class="rule"{aid}>', '<div class="rule-box">']
         prem = "\n".join(pre).strip("\n")
-        conc = "\n".join(concl).strip("\n")
         if prem:
             out.append(f'<pre class="premises">{math(prem)}</pre>')
         tag = (f'<span class="rname"><a href="#{a}">{html.escape(name)}</a></span>'
                if name else "")
         out.append(f'<div class="bar">{tag}</div>')
-        out.append(f'<pre class="conclusion">{math(conc)}</pre>')
+        if cnamed:
+            # each conclusion line carries its own rule name
+            for text, n in concl:
+                if not text and not n:
+                    continue
+                if n:
+                    ca = anchor_of(self.key, n)
+                    out.append(
+                        f'<div class="crow" id="{ca}">'
+                        f'<pre class="conclusion">{math(text)}</pre>'
+                        f'<span class="cname"><a href="#{ca}">{html.escape(n)}</a></span></div>')
+                else:
+                    out.append(f'<pre class="conclusion">{math(text)}</pre>')
+        else:
+            conc = "\n".join(t for t, _ in concl).strip("\n")
+            out.append(f'<pre class="conclusion">{math(conc)}</pre>')
         out.append("</div>")
         if notes:
             note_html = self.autolink(math(" ".join(notes), prose=True))
@@ -316,6 +357,8 @@ class FileRenderer:
         self.body.append("\n".join(out))
         if name:
             self.toc.append(("R", name, a))
+        for n in cnamed:
+            self.toc.append(("R", n, anchor_of(self.key, n)))
 
     # -- prose regions ------------------------------------------------------
 
@@ -493,6 +536,12 @@ pre.display { background:var(--panel); border-left:2px solid var(--hair);
 .rname a:hover { text-decoration:underline; }
 .note { color:var(--faint); font-style:italic; font-size:14px; max-width:60ch;
   margin-top:.25rem; }
+.crow { display:flex; align-items:baseline; gap:.9rem; }
+.cname { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11.5px;
+  white-space:nowrap; }
+.cname a { color:var(--rname); text-decoration:none; }
+.cname a:hover { text-decoration:underline; }
+.crow:target { background:var(--panel); border-radius:3px; }
 .tos { color:var(--tos); } .nova { color:var(--nova); } .meta { color:var(--meta); }
 .kw { color:var(--gold); font-weight:600; }
 .cmt { color:var(--faint); font-style:italic; }
