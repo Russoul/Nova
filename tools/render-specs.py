@@ -105,6 +105,10 @@ class Highlighter:
                 else:
                     chars.append((tok, cls))
         self.cls_of = {t: c for t, c in words + mtoks + chars}
+        # core math symbols for prose-vs-display disambiguation in
+        # comment regions: declared class chars minus prose-common
+        # punctuation
+        self.core = {t for t, _ in chars} - set(",;:·[]()/=")
         wpat = "|".join(re.escape(t) for t, _ in
                         sorted(words, key=lambda x: -len(x[0])))
         mpat = "|".join(re.escape(t) for t, _ in
@@ -378,6 +382,7 @@ class FileRenderer:
         out = []
         para, disp, bullets = [], [], []
         in_bullet = False
+        in_disp_run = False   # the previous line joined a display
 
         def flush_para():
             nonlocal para
@@ -415,6 +420,7 @@ class FileRenderer:
             if s.strip() == "":
                 flush_para(); flush_disp(); flush_bullets()
                 first_prose = True
+                in_disp_run = False
                 continue
             indent = len(s) - len(s.lstrip())
             bm = re.match(r"^\s{0,3}\*\s+(.*)$", s)
@@ -428,12 +434,20 @@ class FileRenderer:
                 continue
             # in comment prose, strong-math tokens only mark a display
             # when the line is indented — prose sentences may contain
-            # inline math (ω ≜ λx. x x) at indent 0
-            if indent >= (4 if is_cmt else 2) or (
-                    STRONG_MATH.search(s) and (indent >= 2 or not is_cmt)):
+            # inline math (ω ≜ λx. x x) at indent 0. And in comment
+            # regions, indentation alone is not enough: a display line
+            # must also carry a core math symbol, so indented prose
+            # continuations ("through ToS syntax (below);") stay prose
+            mathy = (any(ch in HL.core for ch in s)
+                     or s.lstrip().startswith(("* ", "| ", "; "))
+                     or in_disp_run)
+            if (STRONG_MATH.search(s) and (indent >= 2 or not is_cmt)) or (
+                    indent >= (4 if is_cmt else 2) and (mathy or not is_cmt)):
                 flush_para(); flush_bullets()
                 disp.append(s)
+                in_disp_run = True
                 continue
+            in_disp_run = False
             flush_disp(); flush_bullets()
             if first_prose:
                 cm = CAPS_RE.match(s.strip())
