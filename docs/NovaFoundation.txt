@@ -810,10 +810,10 @@ e˲ : Γ₁ ⇒ Γ norm
 # Universe codes.
 
 Γ ctx
-----------------------
-Γ ⊦ 𝟘 : 𝕌   (code-zero)
-Γ ⊦ 𝟙 : 𝕌   (code-one)
-Γ ⊦ ℕ : 𝕌   (code-nat)
+---------
+Γ ⊦ 𝟘 : 𝕌    (code-zero)
+Γ ⊦ 𝟙 : 𝕌    (code-one)
+Γ ⊦ ℕ : 𝕌    (code-nat)
 
 Γ ⊦ A : 𝕌
 Γ ▷ El A ⊦ B : 𝕌
@@ -1119,7 +1119,7 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ▷ Prf p ⊦ s : (Prf q)[↑]
 Γ ▷ Prf q ⊦ t : (Prf p)[↑]
 ----------------------------- (code-prop-eq) # propositional extensionality:
-Γ ⊦ p ≐ q : Ω                             #   mutually implied props are equal codes
+Γ ⊦ p ≐ q : Ω                                #   mutually implied props are equal codes
 
 Γ ⊦ t : A
 --------------------- (el-squash-i)
@@ -1173,25 +1173,32 @@ e˲ : Γ₁ ⇒ Γ norm
 # SIGNATURE is nothing but a closed qiit-context: sorts, point
 # constructors and equation constructors are ordinary entries,
 # distinguished by the HEAD of their type alone.
-#
-#   qiit-context  Φ, 𝒮 ::= ⬦ | Φ ▷ 𝔄          # entries are ANONYMOUS
-#   qiit-type     𝔄 ::= U                     # the universe of codes
-#                     | El 𝕥                  # decoding of a code 𝕥 : U
-#                     | A ⇛ 𝔄                 # EXTERNAL Π — domain a Nova
-#                                             #   type; binds a NOVA variable
-#                     | El 𝕥 ⇛ 𝔄              # INDUCTIVE Π — binds a ToS
-#                                             #   variable
-#   qiit-term     𝕥 ::= ⬡ᵢ                    # ToS VARIABLE, de Bruijn
-#                     | 𝕥 t                   # application to a Nova term
-#                     | 𝕥 𝕥'                  # application to a ToS term
-#                     | λ 𝕥                   # external abstraction (binds
-#                                             #   a NOVA variable)
-#                     | 𝕥₀ ≡ 𝕥₁               # equation CODE (in U, at the
-#                                             #   sides' common El)
-#   qiit-sub      ς ::= 𝕚𝕕 | ⇑ | ς ∘ ς | ς, 𝕥 # the ToS's OWN substitution
-#                                             #   calculus, mirroring Nova's
-#                                             #   (ς⁺ ≜ (ς ∘ ⇑, ⬡₀) derived)
-#
+
+#   qiit-context
+    Φ, 𝒮 ::= ⬦ | Φ ▷ 𝔄          # entries are ANONYMOUS
+
+#   qiit-type
+    𝔄 ::= U                     # the universe of codes
+        | El 𝕥                  # decoding of a code 𝕥 : U
+        | A ⇛ 𝔄                 # EXTERNAL Π — domain a Nova
+                                #   type; binds a NOVA variable
+        | El 𝕥 ⇛ 𝔄              # INDUCTIVE Π — binds a ToS
+                                #   variable
+
+#   qiit-term
+    𝕥 ::= ⬡ᵢ                    # ToS VARIABLE, de Bruijn
+        | 𝕥 t                   # application to a Nova term
+        | 𝕥 𝕥'                  # application to a ToS term
+        | λ 𝕥                   # external abstraction (binds
+                                #   a NOVA variable)
+        | 𝕥₀ ≡ 𝕥₁               # equation CODE (in U, at the
+                                #   sides' common El)
+
+#   qiit-sub
+    ς ::= 𝕚𝕕 | ⇑                # the ToS's OWN substitution
+             | ς ∘ ς            #   calculus, mirroring Nova's
+             | ς, 𝕥             #   (ς⁺ ≜ (ς ∘ ⇑, ⬡₀) derived)
+
 #   (A ranges over Nova types, t over Nova terms; ⇛ is the ToS's Π,
 #   NOT Nova's →. The variable discipline is NAMELESS, like Nova's own:
 #   ⬡ᵢ counts inductive binders and context entries ONLY — ToS
@@ -1236,10 +1243,9 @@ e˲ : Γ₁ ⇒ Γ norm
 # telescopes, Φ over qiit-contexts).
 #
 # Nova plumbing — context extension by a telescope, telescope
-# concatenation, telescope weakening:
-#     Γ·ε ≜ Γ                     ε ⧺ Ξ' ≜ Ξ'
-#     Γ·(A ◁ Ξ) ≜ (Γ ▷ A)·Ξ       (A ◁ Ξ) ⧺ Ξ' ≜ A ◁ (Ξ ⧺ Ξ')
-#     ↑ε ≜ id                     ↑(A ◁ Ξ) ≜ ↑ ∘ ↑Ξ    # the ↑Ξ at Γ ▷ A
+# weakening:
+#     Γ·ε ≜ Γ                     ↑ε ≜ id
+#     Γ·(A ◁ Ξ) ≜ (Γ ▷ A)·Ξ       ↑(A ◁ Ξ) ≜ ↑ ∘ ↑Ξ    # the ↑Ξ at Γ ▷ A
 #     (↑Ξ : Γ·Ξ ⇒ Γ, so [↑Ξ] weakens over Ξ)
 #
 # LOOKUP Φ‖ᵢ — the type of ⬡ᵢ in Φ, weakened to all of Φ (mirrors
