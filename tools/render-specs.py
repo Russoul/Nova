@@ -43,7 +43,7 @@ FILES = [
 
 # ----- symbol colouring --------------------------------------------------
 #
-# Classification is SEMANTIC, table-driven: `//! highlight <class>:`
+# Classification is SEMANTIC, table-driven: `#! highlight <class>:`
 # declarations in the spec files are the syntax tables (the defaults
 # below apply only for a class no file declares). `keywords` is the
 # FIXED syntax — judgement-level (⊦ : ≐ type) and object-level
@@ -54,7 +54,7 @@ FILES = [
 # decorations: t₀, A′, ē, e˲, C̄) as Nova metavariables — judgement
 # contexts only; running prose is never highlighted.
 
-DIRECTIVE_RE = re.compile(r"^//!\s*highlight\s+(keywords|tos|nova|meta):\s*(.*)$")
+DIRECTIVE_RE = re.compile(r"^#!\s*highlight\s+(keywords|tos|nova|meta):\s*(.*)$")
 
 DEFAULT_VOCAB = {
     # FIXED syntax — judgement-level and object-level alike
@@ -165,7 +165,7 @@ HL = None   # installed in main() once the vocabulary is collected
 
 # a comment starts at a whitespace-preceded (or line-initial) `//` —
 # `https://` never matches
-CMT_RE = re.compile(r"(?:^|(?<=\s))//")
+CMT_RE = re.compile(r"(?:^|(?<=\s))#")
 
 def math(text: str, prose: bool = False) -> str:
     if prose:
@@ -185,7 +185,7 @@ def math(text: str, prose: bool = False) -> str:
 # ----- shared regexes ----------------------------------------------------
 
 HEADER_RE = re.compile(r"^/{5,}\s*(.*?)\s*/{5,}$")
-NAMED_BAR_RE = re.compile(r"^\s*-{4,}\s*\(([^()]+)\)\s*(?://\s*(.*))?$")
+NAMED_BAR_RE = re.compile(r"^\s*-{4,}\s*\(([^()]+)\)\s*(?:#\s*(.*))?$")
 RULE_TOKEN_RE = re.compile(r"^[a-zA-Z0-9⁼ᴰ-]+$")
 
 def split_aliases(name):
@@ -196,8 +196,8 @@ def split_aliases(name):
         return parts, None
     note = ", ".join(parts[1:]) if len(parts) > 1 else None
     return [parts[0]], note
-BARE_BAR_RE = re.compile(r"^\s*-{4,}\s*(?://\s*(.*))?$")
-TRAIL_RE = re.compile(r"^(.*?)\s*//\s*(.*)$")
+BARE_BAR_RE = re.compile(r"^\s*-{4,}\s*(?:#\s*(.*))?$")
+TRAIL_RE = re.compile(r"^(.*?)\s*#\s*(.*)$")
 CAPS_RE = re.compile(r"^([A-Z][A-Z0-9\- ⌊⌋·⟦⟧ᴰ]{4,}?)\s*(?=[.(:—])")
 STRONG_MATH = re.compile(r"≜|::=|▷|‖|│|▼|⇘|-{4,}")
 SEC_NUM_RE = re.compile(r"^(\d+)\.\s")
@@ -292,7 +292,7 @@ class FileRenderer:
                 continue
             body = l
             tm = TRAIL_RE.match(l)
-            if tm and "//" in l:
+            if tm and "#" in l:
                 body, note = tm.group(1), tm.group(2)
                 if note.strip():
                     notes.append(note.strip())
@@ -348,17 +348,18 @@ class FileRenderer:
 
         first_prose = True
         for s in inner:
+            # a # line inside a mixed (formal) block is PROSE by
+            # definition — strip the marker (BEFORE the blank check, so
+            # an empty "#" line separates paragraphs) and classify it
+            # as comment content, whatever it contains
+            is_cmt = comment
+            if not comment and s.lstrip().startswith("#"):
+                s = re.sub(r"^\s*# ?", "", s)
+                is_cmt = True
             if s.strip() == "":
                 flush_para(); flush_disp(); flush_bullets()
                 first_prose = True
                 continue
-            # a // line inside a mixed (formal) block is PROSE by
-            # definition — strip the marker and classify it as comment
-            # content, whatever it contains
-            is_cmt = comment
-            if not comment and s.lstrip().startswith("//"):
-                s = re.sub(r"^\s*// ?", "", s)
-                is_cmt = True
             indent = len(s) - len(s.lstrip())
             bm = re.match(r"^\s{0,3}\*\s+(.*)$", s)
             if bm:
@@ -406,14 +407,16 @@ class FileRenderer:
         lines = [l for l in lines if not DIRECTIVE_RE.match(l.strip())]
         for b in blocks(lines):
             hm = HEADER_RE.match(b[0].strip())
-            if hm and len(b) == 1:
+            if hm:
                 self.header(hm.group(1))
-                continue
+                b = b[1:]
+                if not b:
+                    continue
             if any(is_bar(l) for l in b):
                 self.rule(b)
                 continue
-            if all(l.lstrip().startswith("//") for l in b):
-                inner = [re.sub(r"^\s*//? ?", "", l) for l in b]
+            if all(l.lstrip().startswith("#") for l in b):
+                inner = [re.sub(r"^\s*#? ?", "", l) for l in b]
                 self.region(inner, comment=True)
             else:
                 self.region(list(b), comment=False)
@@ -525,7 +528,7 @@ def legend(vocab):
         ("walk / certificate metavariables", toks("meta", "meta")),
         ("links to its rule",
          '<span class="sw" style="color:var(--rname)">rule-name</span>'),
-        ("comment, unhighlighted", '<span class="sw cmt">// prose</span>'),
+        ("comment, unhighlighted", '<span class="sw cmt"># prose</span>'),
     ]
     body = "".join(f'<div class="lglabel">{lbl}</div><div class="lgtoks">{tk}</div>'
                    for lbl, tk in rows)

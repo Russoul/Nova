@@ -1,182 +1,182 @@
 ////////// Preface //////////
 
-//! highlight keywords: ⊦ : ; , · [ ] .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ ⇓ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id λ → ⨯ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S Refl ⋆ Prf class ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ 𝟘-elim ℕ-elim quot-elim squash-elim -elim qctx qty qsig ctx type tel mot dalg eprob sect norm small sig nf qpath
-//! highlight tos: 𝔄 𝔅 𝕥 𝕦 𝕧 𝕤 𝕔 𝕜 𝕘 𝕒 𝕓 𝕞 Φ 𝒮 ς 𝔎
-//! highlight nova: Γ Δ Ξ Σ σ τ δ θ latin
-//! highlight meta: 𝑤 ρ υ π 𝒞 ℰ
-// (`//!` lines are HIGHLIGHTING DECLARATIONS read by
-// tools/render-specs.py — the spec declares its own syntax tables:
-// `keywords` is the FIXED syntax, judgement-level (⊦ : ≐ type …) and
-// object-level (⬡ ▷ El ☐ λ → …) alike, rendered gold; the remaining
-// classes are the METAVARIABLE alphabets by kind — ToS, Nova
-// (`latin` marks bare Latin letters as Nova metavariables inside
-// judgements), and the reflection/walk apparatus. Tokens in no table
-// render ink. They carry no theory content.)
+#! highlight keywords: ⊦ : ; , · [ ] .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ ⇓ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id λ → ⨯ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S Refl ⋆ Prf class ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ 𝟘-elim ℕ-elim quot-elim squash-elim -elim qctx qty qsig ctx type tel mot dalg eprob sect norm small sig nf qpath
+#! highlight tos: 𝔄 𝔅 𝕥 𝕦 𝕧 𝕤 𝕔 𝕜 𝕘 𝕒 𝕓 𝕞 Φ 𝒮 ς 𝔎
+#! highlight nova: Γ Δ Ξ Σ σ τ δ θ latin
+#! highlight meta: 𝑤 ρ υ π 𝒞 ℰ
+# (`#!` lines are HIGHLIGHTING DECLARATIONS read by
+# tools/render-specs.py — the spec declares its own syntax tables:
+# `keywords` is the FIXED syntax, judgement-level (⊦ : ≐ type …) and
+# object-level (⬡ ▷ El ☐ λ → …) alike, rendered gold; the remaining
+# classes are the METAVARIABLE alphabets by kind — ToS, Nova
+# (`latin` marks bare Latin letters as Nova metavariables inside
+# judgements), and the reflection/walk apparatus. Tokens in no table
+# render ink. They carry no theory content.)
 
-// This file contains a formalisation of Nova's type theory: Extensional Computational Type Theory.
-// We present the theory extrinsically: https://ncatlab.org/nlab/show/intrinsic+and+extrinsic+views+of+typing
+# This file contains a formalisation of Nova's type theory: Extensional Computational Type Theory.
+# We present the theory extrinsically: https://ncatlab.org/nlab/show/intrinsic+and+extrinsic+views+of+typing
 
-// Semantics to syntactic forms is assigned via evaluation and canonical forms.
+# Semantics to syntactic forms is assigned via evaluation and canonical forms.
 
-// NOTE: well-formed terms need not normalize in an inconsistent context.
-// Equality reflection makes typability hypothesis-sensitive: e.g. under
-// Γ ∋ h : (A ≡ (A → A) ∈ 𝕌), reflection gives El A ≐ El A → El A, so
-// self-application types and ω ω is well-formed at El A, where ω ≜ λx. x x
-// — yet ω ω has no normal form. Normalization is therefore a property of terms
-// in consistent contexts only; any procedure that beta-normalizes a
-// well-formed term (as the checker does when storing and comparing facts)
-// may diverge under inconsistent hypotheses. This is a liveness caveat, not
-// a soundness one: a non-terminating normalization never certifies a
-// judgement.
+# NOTE: well-formed terms need not normalize in an inconsistent context.
+# Equality reflection makes typability hypothesis-sensitive: e.g. under
+# Γ ∋ h : (A ≡ (A → A) ∈ 𝕌), reflection gives El A ≐ El A → El A, so
+# self-application types and ω ω is well-formed at El A, where ω ≜ λx. x x
+# — yet ω ω has no normal form. Normalization is therefore a property of terms
+# in consistent contexts only; any procedure that beta-normalizes a
+# well-formed term (as the checker does when storing and comparing facts)
+# may diverge under inconsistent hypotheses. This is a liveness caveat, not
+# a soundness one: a non-terminating normalization never certifies a
+# judgement.
 
 //////////// Type Theory /////////////
 
-// We have:
-//  * Empty type: 𝟘
-//  * Unit type: 𝟙
-//  * Natural numbers type: ℕ
-//  * Dependent product type: (→)
-//  * Dependent sum type: (⨯)
-//  * Equality type: (≡) with reflection
-//  * A universe: 𝕌
-//  * Quotient type: (/), by an Ω-valued relation
-//  * A universe of mere propositions: Ω (squash ∥-∥, propositional extensionality)
-//  * Quotient inductive-inductive types (QIITs): a SCHEME (not a single
-//    former) — for each well-formed signature 𝒮 (mutually-defined,
-//    possibly index-dependent sorts with point AND equation (path)
-//    constructors), the sorts 𝒮.𝕤 ē as types, their constructors 𝒮.𝕔 θ,
-//    the imposed path equations, and a dependent eliminator 𝒮.𝕤-elim with
-//    its computation and uniqueness laws. Every rule is stated against a
-//    signature (no Σ-entry; 𝒮 is carried by the formers). This subsumes ℕ
-//    and (/) (each a one-line signature), including indexed inductive types
-//    and quotient inductive types as special cases; its equation
-//    constructors are INDUCTIVE (they may relate constructor terms across
-//    indices and participate in the induction). ℕ and (/) are retained for
-//    now.
+# We have:
+#  * Empty type: 𝟘
+#  * Unit type: 𝟙
+#  * Natural numbers type: ℕ
+#  * Dependent product type: (→)
+#  * Dependent sum type: (⨯)
+#  * Equality type: (≡) with reflection
+#  * A universe: 𝕌
+#  * Quotient type: (/), by an Ω-valued relation
+#  * A universe of mere propositions: Ω (squash ∥-∥, propositional extensionality)
+#  * Quotient inductive-inductive types (QIITs): a SCHEME (not a single
+#    former) — for each well-formed signature 𝒮 (mutually-defined,
+#    possibly index-dependent sorts with point AND equation (path)
+#    constructors), the sorts 𝒮.𝕤 ē as types, their constructors 𝒮.𝕔 θ,
+#    the imposed path equations, and a dependent eliminator 𝒮.𝕤-elim with
+#    its computation and uniqueness laws. Every rule is stated against a
+#    signature (no Σ-entry; 𝒮 is carried by the formers). This subsumes ℕ
+#    and (/) (each a one-line signature), including indexed inductive types
+#    and quotient inductive types as special cases; its equation
+#    constructors are INDUCTIVE (they may relate constructor terms across
+#    indices and participate in the induction). ℕ and (/) are retained for
+#    now.
 
 ///////////// Syntax ///////////////
 
 x ::= <signature-entry-identifier>
 
-// signature context
+# signature context
 Σ ::= ε
-    | Σ (Γ ⊦ x ≔ a : A)     // term definition
-    | Σ (Γ ⊦ x ≔ T type)    // type definition
+    | Σ (Γ ⊦ x ≔ a : A)     # term definition
+    | Σ (Γ ⊦ x ≔ T type)    # type definition
 
-// typing context
-Γ ::= ε      // empty typing context
-    | Γ ▷ T  // extended typing context
+# typing context
+Γ ::= ε      # empty typing context
+    | Γ ▷ T  # extended typing context
 
-// Γ‖ₙ: the (n+1)-th type in Γ counting from the right (0 = the innermost
-// extension), i.e. the type ☐ₙ names before weakening.
+# Γ‖ₙ: the (n+1)-th type in Γ counting from the right (0 = the innermost
+# extension), i.e. the type ☐ₙ names before weakening.
 (Γ ▷ A)‖₀     ≜ A[↑]
 (Γ ▷ A)‖ₙ₊₁   ≜ Γ‖ₙ[↑]
 
-// typing context substitution
+# typing context substitution
 σ, τ ::=
-       ·             // empty substitution
-     | σ, t          // extension substitution
-     | σ ∘ σ         // composition substitution
-     | id            // identity substitution
-     | ↑             // weakening substitution
+       ·             # empty substitution
+     | σ, t          # extension substitution
+     | σ ∘ σ         # composition substitution
+     | id            # identity substitution
+     | ↑             # weakening substitution
 
-// typing context normal substitution
+# typing context normal substitution
 e˲, t˲, p˲ ::= · | t˲, t
 
-// type
-T ::= x [e˲]         // type in the signature context
+# type
+T ::= x [e˲]         # type in the signature context
     | 𝟘
     | 𝟙
     | ℕ
-    | 𝕌              // universe type
-    | T → T          // dependent product type (Π)
-    | T ⨯ T          // dependent sum type (Σ)
-    | t ≡ t ∈ T      // extensional equality type
-    | El t           // Every element of the universe is a type
-    | T / t          // quotient type (t an Ω-valued relation)
-    | Ω              // universe of mere propositions
-    | Prf t          // decoding of a proposition (Ω's El; deliberately not
-                     //   written El: it shares none of El's rules — not
-                     //   structural, not injective, no decoding computation)
-    | 𝒮.𝕤 ē          // sort 𝕤 of a QIIT signature 𝒮 at index spine ē
-                     //   (see "Quotient inductive-inductive types"); 𝒮 is
-                     //   carried in the type, so QIIT equality is structural
+    | 𝕌              # universe type
+    | T → T          # dependent product type (Π)
+    | T ⨯ T          # dependent sum type (Σ)
+    | t ≡ t ∈ T      # extensional equality type
+    | El t           # Every element of the universe is a type
+    | T / t          # quotient type (t an Ω-valued relation)
+    | Ω              # universe of mere propositions
+    | Prf t          # decoding of a proposition (Ω's El; deliberately not
+                     #   written El: it shares none of El's rules — not
+                     #   structural, not injective, no decoding computation)
+    | 𝒮.𝕤 ē          # sort 𝕤 of a QIIT signature 𝒮 at index spine ē
+                     #   (see "Quotient inductive-inductive types"); 𝒮 is
+                     #   carried in the type, so QIIT equality is structural
 
-// element
-t ::= x [e˲]         // element in the signature context
-    | ☐ᵢ             // i-th element in the typing context
-    | λ t            // dependent product type introduction
-    | t t            // dependent product type elimination
-    | t , t          // dependent sum type introduction
-    | t .π₁          // dependent sum type elimination (1)
-    | t .π₂          // dependent sum type elimination (2)
-    | 𝟘              // element of the universe
-    | 𝟙              // element of the universe
-    | ℕ              // element of the universe
-    | t → t          // element of the universe (encodes Π)
-    | t ⨯ t          // element of the universe (encodes Σ)
-    | t ≡ t ∈ t      // element of the universe
-    | t / t          // element of the universe (encodes quotient)
+# element
+t ::= x [e˲]         # element in the signature context
+    | ☐ᵢ             # i-th element in the typing context
+    | λ t            # dependent product type introduction
+    | t t            # dependent product type elimination
+    | t , t          # dependent sum type introduction
+    | t .π₁          # dependent sum type elimination (1)
+    | t .π₂          # dependent sum type elimination (2)
+    | 𝟘              # element of the universe
+    | 𝟙              # element of the universe
+    | ℕ              # element of the universe
+    | t → t          # element of the universe (encodes Π)
+    | t ⨯ t          # element of the universe (encodes Σ)
+    | t ≡ t ∈ t      # element of the universe
+    | t / t          # element of the universe (encodes quotient)
     | 𝟘-elim t
-    | ()             // the only element of 𝟙
+    | ()             # the only element of 𝟙
     | Z
     | S t
     | ℕ-elim t t t
-    | Refl           // reflexive equality proof
-    | class t        // quotient type introduction
-    | quot-elim t t  // quotient type elimination
-    | ∥T∥            // squash: proposition from an arbitrary type (an element
-                     //   form embedding a type — the converse direction of El)
-    | ⋆              // the canonical proof of a true proposition
-    | 𝒮.𝕤 ē          // universe code for the sort 𝕤 of a SMALL 𝒮 at ē
-    | 𝒮.𝕔 θ          // POINT constructor 𝕔 of 𝒮, SATURATED: θ a full
-                     //   argument spine, like every other former
-                     //   (equation constructors mint no term: their
-                     //   content is a judgement — see el-qiit-path)
-    | 𝒮.𝕤-elim ℰ ē t // QIIT eliminator (elimination problem ℰ, indices ē,
-                     //   eliminee t) — see the QIIT section
+    | Refl           # reflexive equality proof
+    | class t        # quotient type introduction
+    | quot-elim t t  # quotient type elimination
+    | ∥T∥            # squash: proposition from an arbitrary type (an element
+                     #   form embedding a type — the converse direction of El)
+    | ⋆              # the canonical proof of a true proposition
+    | 𝒮.𝕤 ē          # universe code for the sort 𝕤 of a SMALL 𝒮 at ē
+    | 𝒮.𝕔 θ          # POINT constructor 𝕔 of 𝒮, SATURATED: θ a full
+                     #   argument spine, like every other former
+                     #   (equation constructors mint no term: their
+                     #   content is a judgement — see el-qiit-path)
+    | 𝒮.𝕤-elim ℰ ē t # QIIT eliminator (elimination problem ℰ, indices ē,
+                     #   eliminee t) — see the QIIT section
 
-// (type) telescope
+# (type) telescope
 Δ ::= ε | T ◁ Δ
 
-// (element) spine
+# (element) spine
 ē ::= · | e, ē
 
 ///////// Conventions: how to read the rules /////////
 
-// The rules below are presented COMPACTLY. Each convention comes with its
-// mechanical expansion, so the fully explicit form of every rule is
-// recoverable without judgement calls. (The previous fully-explicit
-// presentation additionally carried, with every rule, an argument-labelling
-// scheme consumed by the since-removed .rules derivation checker; that
-// interface lives on in git history only.)
+# The rules below are presented COMPACTLY. Each convention comes with its
+# mechanical expansion, so the fully explicit form of every rule is
+# recoverable without judgement calls. (The previous fully-explicit
+# presentation additionally carried, with every rule, an argument-labelling
+# scheme consumed by the since-removed .rules derivation checker; that
+# interface lives on in git history only.)
 
-// * AMBIENT SIGNATURE. Every judgement is relative to a signature Σ,
-//   presupposed well-formed. The Σ prefix and the premise `Σ sig` are
-//   omitted everywhere; rules that inspect or extend Σ (the sig rules,
-//   the x[e˲] rules) name it explicitly. Expansion: prefix every
-//   judgement with `Σ ⊦`/`Σ Γ ⊦` as appropriate and add `Σ sig` as the
-//   first premise of every rule.
+# * AMBIENT SIGNATURE. Every judgement is relative to a signature Σ,
+#   presupposed well-formed. The Σ prefix and the premise `Σ sig` are
+#   omitted everywhere; rules that inspect or extend Σ (the sig rules,
+#   the x[e˲] rules) name it explicitly. Expansion: prefix every
+#   judgement with `Σ ⊦`/`Σ Γ ⊦` as appropriate and add `Σ sig` as the
+#   first premise of every rule.
 
-// * PRESUPPOSITIONS. Each judgement form PRESUPPOSES the well-formedness
-//   of its parts, as listed in the judgement-form table below. A rule
-//   omits every premise that lies in the presupposition CLOSURE of its
-//   retained premises and its conclusion (the closure: start from the
-//   retained premises and the conclusion, add their presuppositions, and
-//   close transitively). Expansion: add the closure back as explicit
-//   premises — this recovers the previous exhaustive style, where e.g.
-//   `Γ ▷ A ⊦ f : B` was always accompanied by `Γ ctx`, `Γ ⊦ A type` and
-//   `Γ ▷ A ⊦ B type`. Premises NOT in the closure are never omitted: in
-//   particular eliminator motives, the middle subject of a transitivity,
-//   and the data of the coercion rules are genuine inputs and always
-//   appear.
+# * PRESUPPOSITIONS. Each judgement form PRESUPPOSES the well-formedness
+#   of its parts, as listed in the judgement-form table below. A rule
+#   omits every premise that lies in the presupposition CLOSURE of its
+#   retained premises and its conclusion (the closure: start from the
+#   retained premises and the conclusion, add their presuppositions, and
+#   close transitively). Expansion: add the closure back as explicit
+#   premises — this recovers the previous exhaustive style, where e.g.
+#   `Γ ▷ A ⊦ f : B` was always accompanied by `Γ ctx`, `Γ ⊦ A type` and
+#   `Γ ▷ A ⊦ B type`. Premises NOT in the closure are never omitted: in
+#   particular eliminator motives, the middle subject of a transitivity,
+#   and the data of the coercion rules are genuine inputs and always
+#   appear.
 
-// * GROUPED CONCLUSIONS. A rule with several conclusions below the line
-//   abbreviates one rule per conclusion (same premises). A conclusion
-//   listing several subjects separated by commas (e.g.
-//   `Γ ⊦ 𝟘, 𝟙, ℕ, 𝕌 type`) abbreviates one rule per subject.
+# * GROUPED CONCLUSIONS. A rule with several conclusions below the line
+#   abbreviates one rule per conclusion (same premises). A conclusion
+#   listing several subjects separated by commas (e.g.
+#   `Γ ⊦ 𝟘, 𝟙, ℕ, 𝕌 type`) abbreviates one rule per subject.
 
-// * EQUIVALENCE (PER) RULES. Each of the seven equality judgements —
+# * EQUIVALENCE (PER) RULES. Each of the seven equality judgements —
 
     Γ₀ ≐ Γ₁ ctx                 (contexts)
     σ₀ ≐ σ₁ : Γ ⇒ Δ             (substitutions)
@@ -186,34 +186,34 @@ t ::= x [e˲]         // element in the signature context
     Γ ⊦ Δ₀ ≐ Δ₁ tel             (telescopes)
     Γ ⊦ ē₀ ≐ ē₁ : Δ             (element lists)
 
-//   — is governed by three rules adopted once here and not repeated per
-//   class. Writing J for the well-formedness form and J⁼ for the
-//   equality form of a class:
+#   — is governed by three rules adopted once here and not repeated per
+#   class. Writing J for the well-formedness form and J⁼ for the
+#   equality form of a class:
 
     J(a)              J⁼(a₀ ≐ a₁)          J⁼(a₀ ≐ a₁)   J⁼(a₁ ≐ a₂)
     ----------(refl)  -----------(sym)     ------------------------(trans, via a₁)
     J⁼(a ≐ a)         J⁼(a₁ ≐ a₀)          J⁼(a₀ ≐ a₂)
 
-//   (transitivity's middle subject a₁, with J(a₁), is an input of the
-//   rule). Instances are named ctx-refl, ctx-sym, ctx-trans, sub-refl,
-//   ..., sp-trans. Consequently the pointwise equality rules for
-//   constants and atoms (ε ≐ ε ctx, id ≐ id, ↑ ≐ ↑, · ≐ ·,
-//   x[e˲] ≐ x[e˲], ...) are refl instances and are not stated.
+#   (transitivity's middle subject a₁, with J(a₁), is an input of the
+#   rule). Instances are named ctx-refl, ctx-sym, ctx-trans, sub-refl,
+#   ..., sp-trans. Consequently the pointwise equality rules for
+#   constants and atoms (ε ≐ ε ctx, id ≐ id, ↑ ≐ ↑, · ≐ ·,
+#   x[e˲] ≐ x[e˲], ...) are refl instances and are not stated.
 
-// * DEFINITIONAL EQUALITY. A rule concluding J ≜ K asserts the
-//   corresponding ≐-judgement and additionally marks it as a computation
-//   step, oriented left to right. Its presuppositions are those of the
-//   underlying ≐ form.
+# * DEFINITIONAL EQUALITY. A rule concluding J ≜ K asserts the
+#   corresponding ≐-judgement and additionally marks it as a computation
+#   step, oriented left to right. Its presuppositions are those of the
+#   underlying ≐ form.
 
-// * NAMES. Every rule carries a canonical name on its inference line,
-//   following one homogeneous scheme — <class>-<former>-<kind> — where
-//   the class is the judgement class (ctx, sub, sub-norm, ty, el, code,
-//   tel, sp), the former names the connective or constructor, and the
-//   kind distinguishes introduction (i), elimination (e), computation
-//   (beta), uniqueness (eta), congruence (cong), injectivity (inj),
-//   substitution action (sub), and coercion (coe). These names are the
-//   ones docs/NovaKernel.txt and docs/NovaElaboration.txt cite; there
-//   are no synonyms.
+# * NAMES. Every rule carries a canonical name on its inference line,
+#   following one homogeneous scheme — <class>-<former>-<kind> — where
+#   the class is the judgement class (ctx, sub, sub-norm, ty, el, code,
+#   tel, sp), the former names the connective or constructor, and the
+#   kind distinguishes introduction (i), elimination (e), computation
+#   (beta), uniqueness (eta), congruence (cong), injectivity (inj),
+#   substitution action (sub), and coercion (coe). These names are the
+#   ones docs/NovaKernel.txt and docs/NovaElaboration.txt cite; there
+#   are no synonyms.
 
 ///////// Judgement forms and their presuppositions /////////
 
@@ -243,13 +243,13 @@ t ::= x [e˲]         // element in the signature context
   Γ ⊦ ℰ : 𝒮 dalg               Γ ⊦ 𝒮 qsig   (displayed algebra, ℰ = C̄ ; m̄)
   Γ ⊦ ℰ : 𝒮 eprob              Γ ⊦ ℰ : 𝒮 dalg   (elimination problem)
   Γ ⊦ φ : C̄ sect               Γ ⊦ C̄ : 𝒮 mot    (section candidate)
-  // the theory-of-signatures judgements (dual zone Γ ; Φ — Nova zone,
-  // then ToS zone) are defined in the QIIT section; a signature is
-  // nothing but a well-formed qiit-context.
+  # the theory-of-signatures judgements (dual zone Γ ; Φ — Nova zone,
+  # then ToS zone) are defined in the QIIT section; a signature is
+  # nothing but a well-formed qiit-context.
 
-// A context extension Γ ▷ A presupposes Γ ctx and Γ ⊦ A type, so a
-// premise stated under Γ ▷ A carries A's well-formedness with it (and
-// likewise for iterated extensions).
+# A context extension Γ ▷ A presupposes Γ ctx and Γ ⊦ A type, so a
+# premise stated under Γ ▷ A carries A's well-formedness with it (and
+# likewise for iterated extensions).
 
 ///////// Rules (sig) /////////
 
@@ -292,7 +292,7 @@ x ∉ Σ
 
 σ : Γ₀ ⇒ Γ₁
 Γ₀ ⊦ t : A[σ]
----------------------- (sub-ext)     // A the type over Γ₁ being extended by
+---------------------- (sub-ext)     # A the type over Γ₁ being extended by
 (σ, t) : Γ₀ ⇒ Γ₁ ▷ A
 
 σ : Γ₀ ⇒ Γ₁
@@ -312,7 +312,7 @@ id : Γ ⇒ Γ
 id ≐ · : ε ⇒ ε
 
 Γ ⊦ A type
------------------------------- (sub-eta) // admissible by meta-level induction
+------------------------------ (sub-eta) # admissible by meta-level induction
 ↑, ☐₀ ≐ id : Γ ▷ A ⇒ Γ ▷ A
 
 σ : Γ₀ ⇒ Γ₁
@@ -331,22 +331,22 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 
 σ : Γ₀ ⇒ Γ₁
 Γ₀ ⊦ t : A[σ]
----------------------------- (sub-wk-ext) // weakening cancels a just-added extension
+---------------------------- (sub-wk-ext) # weakening cancels a just-added extension
 ↑ ∘ (σ, t) ≐ σ : Γ₀ ⇒ Γ₁
 
 σ : Γ₀ ⇒ ε
----------------------- (sub-empty-comp) // admissible
+---------------------- (sub-empty-comp) # admissible
 · ∘ σ ≐ · : Γ₀ ⇒ ε
 
 τ : Γ₀ ⇒ Γ₁
 σ : Γ₁ ⇒ Γ₂
 Γ₁ ⊦ t : A[σ]
------------------------------------------- (sub-ext-post) // admissible
+------------------------------------------ (sub-ext-post) # admissible
 (σ, t) ∘ τ ≐ (σ ∘ τ, t[τ]) : Γ₀ ⇒ Γ₂ ▷ A
 
 σ : Γ₀ ⇒ Γ₁
 Γ₁ ⊦ A type
-------------------------------------- (sub-lift) // natural substitution (admissible)
+------------------------------------- (sub-lift) # natural substitution (admissible)
 σ⁺ ≜ (σ ∘ ↑, ☐₀) : Γ₀ ▷ A[σ] ⇒ Γ₁ ▷ A
 
 σ : Γ₀ ⇒ Γ₁
@@ -354,7 +354,7 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 τ : Γ₀ ⇒ Γ₁ ▷ A
 ↑ ∘ τ ≐ σ : Γ₀ ⇒ Γ₁
 Γ₀ ⊦ ☐₀[τ] ≐ t : A[↑ ∘ τ]
----------------------------- (sub-ext-unique) // admissible
+---------------------------- (sub-ext-unique) # admissible
 (σ, t) ≐ τ : Γ₀ ⇒ Γ₁ ▷ A
 ∎ (=>) τ ≐ id ∘ τ ≐ (↑, ☐₀) ∘ τ ≐ ↑ ∘ τ, ☐₀[τ] ≐ σ, t
   (<=)
@@ -403,7 +403,7 @@ e˲ ≐ · : Γ ⇒ ε norm
 
 e˲ : Γ₀ ⇒ Γ₁ norm
 Γ₀ ⊦ t : A[e˲]
------------------------------- (sub-norm-ext)   // A the type over Γ₁ being extended by
+------------------------------ (sub-norm-ext)   # A the type over Γ₁ being extended by
 (e˲, t) : Γ₀ ⇒ Γ₁ ▷ A norm
 
 e˲₀ ≐ e˲₁ : Γ₀ ⇒ Γ₁ norm
@@ -412,12 +412,12 @@ e˲₀ ≐ e˲₁ : Γ₀ ⇒ Γ₁ norm
 (e˲₀, t₀) ≐ (e˲₁, t₁) : Γ₀ ⇒ Γ₁ ▷ A norm
 
 e˲ : Γ₀ ⇒ Γ₁ norm
-------------------- (sub-norm-embed) // a normal substitution is a substitution
+------------------- (sub-norm-embed) # a normal substitution is a substitution
 e˲ : Γ₀ ⇒ Γ₁
 
 e˲ : Γ₀ ⇒ Γ₁ norm
 σ : Δ ⇒ Γ₀
------------------------- (sub-norm-comp, via Γ₀) // defined by meta-level induction:
+------------------------ (sub-norm-comp, via Γ₀) # defined by meta-level induction:
 e˲ ∘ σ : Δ ⇒ Γ₁ norm
     · ∘ σ ≜ ·
     (e˲, t) ∘ σ ≜ (e˲ ∘ σ, t[σ])
@@ -491,7 +491,7 @@ e˲ : Δ ⇒ Γ norm
 -------------------------- (ty-sig-beta)
 Σ Δ ⊦ x[e˲] ≜ A[e˲] type
 
-// El-decoding: El of a code computes to the type it encodes.
+# El-decoding: El of a code computes to the type it encodes.
 
 Γ ctx
 ------------------------------------------------ (ty-el-zero, ty-el-one, ty-el-nat)
@@ -517,8 +517,8 @@ e˲ : Δ ⇒ Γ norm
 ---------------------------------- (ty-el-quot)
 Γ ⊦ El (A / R) ≜ El A / R type
 
-// Substitution action on types: A[σ] is defined by meta-level
-// induction on A via the ≜-equations below.
+# Substitution action on types: A[σ] is defined by meta-level
+# induction on A via the ≜-equations below.
 
 Γ₁ ⊦ A type
 σ : Γ₀ ⇒ Γ₁
@@ -526,13 +526,13 @@ e˲ : Δ ⇒ Γ norm
 Γ₀ ⊦ A[σ] type
 
 Γ ⊦ A type
---------------------- (ty-sub-id) // true on the nose by induction on A
+--------------------- (ty-sub-id) # true on the nose by induction on A
 Γ ⊦ A[id] ≐ A type
 
 Γ₂ ⊦ A type
 σ : Γ₁ ⇒ Γ₂
 τ : Γ₀ ⇒ Γ₁
------------------------------- (ty-sub-comp) // true on the nose by induction on A
+------------------------------ (ty-sub-comp) # true on the nose by induction on A
 Γ₀ ⊦ A[σ ∘ τ] ≐ A[σ][τ] type
 
 σ : Γ₀ ⇒ Γ₁
@@ -582,7 +582,7 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ A type
 Γ ⊦ B type
 Γ ⊦ t : 𝟘
------------------- (ty-zero-elim) // type equality from absurdity
+------------------ (ty-zero-elim) # type equality from absurdity
 Γ ⊦ A ≐ B type
 
 Γ₀ ≐ Γ₁ ctx
@@ -602,7 +602,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Δ ⊦ A₀ ≐ A₁ type
 σ : Γ ⇒ Δ
------------------------------- (ty-sub-cong-fix) // admissible: specialize via sub-refl
+------------------------------ (ty-sub-cong-fix) # admissible: specialize via sub-refl
 Γ ⊦ A₀[σ] ≐ A₁[σ] type
 
 Γ ⊦ A₀ ≐ A₁ type
@@ -627,61 +627,61 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ (a₀ ≡ b₀ ∈ T₀) ≐ (a₁ ≡ b₁ ∈ T₁) type
 
 Γ ⊦ t₀ ≐ t₁ : 𝕌
----------------------------- (ty-el-cong) // El congruence: equal codes decode to equal types
+---------------------------- (ty-el-cong) # El congruence: equal codes decode to equal types
 Γ ⊦ El t₀ ≐ El t₁ type
 
 Γ ⊦ p₀ ≐ p₁ : Ω
----------------------------- (ty-prf-cong) // with code-prop-eq this is where iff becomes ≐
+---------------------------- (ty-prf-cong) # with code-prop-eq this is where iff becomes ≐
 Γ ⊦ Prf p₀ ≐ Prf p₁ type
 
 ///////// Type constructor injectivity /////////
-//
-// The congruence rules above run downward: equal components give equal
-// composites. The rules below run upward: equal composites give equal
-// components. They are NOT derivable from the rest of the theory — in
-// the plain set-theoretic model (types as sets, function types as sets
-// of graphs) the hypothesis h : ((𝟙 → 𝟘) ≡ (ℕ → 𝟘) ∈ 𝕌) is satisfiable
-// (both function spaces are the empty set), yet 𝟙 ≐ ℕ is refuted, so
-// before these rules the composite equality was derivable in a context
-// where the component equality was not. Adding them is a semantic
-// commitment, and it is the one this file's preface already makes:
-// semantics is assigned via evaluation and canonical forms, i.e. the
-// type system is an inductively defined PER on canonical forms, where
-// two Π-types are equal BY DEFINITION exactly when their domains are
-// equal and their codomains are equal on related arguments — and
-// likewise for the other formers. Under that semantics these rules are
-// sound; models that collapse structurally distinct types (the
-// set-theoretic one above) are hereby excluded. A concrete consequence:
-// a context hypothesizing (𝟙 → 𝟘) ≡ (ℕ → 𝟘) ∈ 𝕌 is now INCONSISTENT
-// (𝟙 ≐ ℕ gives Z ≐ S Z : ℕ via el-one-prop and coercion, and a ℕ-elim
-// discriminator into 𝕌 turns that into an inhabitant of 𝟘).
-//
-// Notes:
-//  * The codomain/relation components are concluded UNDER the domain —
-//    this is what keeps the rules compatible with empty-domain
-//    collapses (𝟘 → 𝟙 ≐ 𝟘 → ℕ is harmless: under a 𝟘-hypothesis the
-//    component 𝟙 ≐ ℕ is derivable by absurdity anyway).
-//  * Quotient relations are Ω-valued, so the relation components are
-//    compared at Ω, where judgemental equality IS logical equivalence
-//    (code-prop-eq). Quotient type equality therefore coincides with
-//    NuPRL's iff-based one — obtained through structural rules rather
-//    than a bespoke clause. This does not compromise 𝕌's structural
-//    discipline: 𝕌 is structural in its FORMERS and was always
-//    extensional in its element slots (code-eq compares its endpoint
-//    slots by ≐, which reflection already makes extensional); an
-//    Ω-slot in code-quot is the same pattern.
-//  * class stays NON-injective: class a ≐ class b : A / R does not
-//    entail a ≐ b — that is the entire point of quotients.
-//  * Prf and ∥-∥ likewise have NO injectivity rules: Ω is the
-//    anti-structural universe, compared by inhabitation alone (see
-//    the Ω block in the element rules).
-//  * No-confusion (a Π-type is never equal to ℕ, a Σ-type, ...) is NOT
-//    expressible as a rule of this positive inference system, and in
-//    inconsistent contexts it is false. It remains a meta-property of
-//    consistent contexts under the canonical-forms semantics.
-//  * S-injectivity and pair-injectivity need no rules: they are already
-//    derivable (congruence with a ℕ-elim predecessor, respectively the
-//    projections).
+#
+# The congruence rules above run downward: equal components give equal
+# composites. The rules below run upward: equal composites give equal
+# components. They are NOT derivable from the rest of the theory — in
+# the plain set-theoretic model (types as sets, function types as sets
+# of graphs) the hypothesis h : ((𝟙 → 𝟘) ≡ (ℕ → 𝟘) ∈ 𝕌) is satisfiable
+# (both function spaces are the empty set), yet 𝟙 ≐ ℕ is refuted, so
+# before these rules the composite equality was derivable in a context
+# where the component equality was not. Adding them is a semantic
+# commitment, and it is the one this file's preface already makes:
+# semantics is assigned via evaluation and canonical forms, i.e. the
+# type system is an inductively defined PER on canonical forms, where
+# two Π-types are equal BY DEFINITION exactly when their domains are
+# equal and their codomains are equal on related arguments — and
+# likewise for the other formers. Under that semantics these rules are
+# sound; models that collapse structurally distinct types (the
+# set-theoretic one above) are hereby excluded. A concrete consequence:
+# a context hypothesizing (𝟙 → 𝟘) ≡ (ℕ → 𝟘) ∈ 𝕌 is now INCONSISTENT
+# (𝟙 ≐ ℕ gives Z ≐ S Z : ℕ via el-one-prop and coercion, and a ℕ-elim
+# discriminator into 𝕌 turns that into an inhabitant of 𝟘).
+#
+# Notes:
+#  * The codomain/relation components are concluded UNDER the domain —
+#    this is what keeps the rules compatible with empty-domain
+#    collapses (𝟘 → 𝟙 ≐ 𝟘 → ℕ is harmless: under a 𝟘-hypothesis the
+#    component 𝟙 ≐ ℕ is derivable by absurdity anyway).
+#  * Quotient relations are Ω-valued, so the relation components are
+#    compared at Ω, where judgemental equality IS logical equivalence
+#    (code-prop-eq). Quotient type equality therefore coincides with
+#    NuPRL's iff-based one — obtained through structural rules rather
+#    than a bespoke clause. This does not compromise 𝕌's structural
+#    discipline: 𝕌 is structural in its FORMERS and was always
+#    extensional in its element slots (code-eq compares its endpoint
+#    slots by ≐, which reflection already makes extensional); an
+#    Ω-slot in code-quot is the same pattern.
+#  * class stays NON-injective: class a ≐ class b : A / R does not
+#    entail a ≐ b — that is the entire point of quotients.
+#  * Prf and ∥-∥ likewise have NO injectivity rules: Ω is the
+#    anti-structural universe, compared by inhabitation alone (see
+#    the Ω block in the element rules).
+#  * No-confusion (a Π-type is never equal to ℕ, a Σ-type, ...) is NOT
+#    expressible as a rule of this positive inference system, and in
+#    inconsistent contexts it is false. It remains a meta-property of
+#    consistent contexts under the canonical-forms semantics.
+#  * S-injectivity and pair-injectivity need no rules: they are already
+#    derivable (congruence with a ℕ-elim predecessor, respectively the
+#    projections).
 
 Γ ▷ A₀ ⊦ B₀ type
 Γ ▷ A₁ ⊦ B₁ type
@@ -714,9 +714,9 @@ e˲ : Γ₁ ⇒ Γ norm
 -------------------------- (ty-el-inj)
 Γ ⊦ t₀ ≐ t₁ : 𝕌
 
-// The same principles one level down, for the universe codes: the
-// canonical-forms semantics gives 𝕌 a structural PER on codes, so the
-// code constructors are injective as elements of 𝕌.
+# The same principles one level down, for the universe codes: the
+# canonical-forms semantics gives 𝕌 a structural PER on codes, so the
+# code constructors are injective as elements of 𝕌.
 
 Γ ▷ El a₀ ⊦ b₀ : 𝕌
 Γ ▷ El a₁ ⊦ b₁ : 𝕌
@@ -763,7 +763,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ₁ ⊦ Δ tel
 σ : Γ₀ ⇒ Γ₁
------------------ (tel-sub) // defined by meta-level induction on Δ
+----------------- (tel-sub) # defined by meta-level induction on Δ
 Γ₀ ⊦ Δ[σ] tel
 
 σ : Γ₀ ⇒ Γ₁
@@ -794,10 +794,10 @@ e˲ : Γ₁ ⇒ Γ norm
 ///////// Rules (elem) /////////
 
 Γ ctx
------------------- (el-var) // Γ‖ₙ picks the type directly out of Γ's own structure — no
-Γ ⊦ ☐ₙ : Γ‖ₙ            // derivation of ☐ₙ₋₁, ☐ₙ₋₂, ... is required first.
+------------------ (el-var) # Γ‖ₙ picks the type directly out of Γ's own structure — no
+Γ ⊦ ☐ₙ : Γ‖ₙ            # derivation of ☐ₙ₋₁, ☐ₙ₋₂, ... is required first.
 
-// Universe codes.
+# Universe codes.
 
 Γ ctx
 ---------------------- (code-zero, code-one, code-nat)
@@ -823,7 +823,7 @@ e˲ : Γ₁ ⇒ Γ norm
 ------------------------------ (code-quot)
 Γ ⊦ A / R : 𝕌
 
-// 𝟘 and 𝟙.
+# 𝟘 and 𝟙.
 
 Γ ⊦ A type
 Γ ⊦ t : 𝟘
@@ -844,7 +844,7 @@ e˲ : Γ₁ ⇒ Γ norm
 ------------------- (el-one-prop)
 Γ ⊦ t₀ ≐ t₁ : 𝟙
 
-// ℕ.
+# ℕ.
 
 Γ ctx
 ------------- (el-nat-z)
@@ -884,11 +884,11 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ▷ ℕ ⊦ f₁[↑, S ☐₀] ≐ s[id, f₁] : A[↑, S ☐₀]
 Γ ⊦ t : ℕ
 ------------------------------------------------- (el-nat-eta, motive A)
-Γ ⊦ f₀[id, t] ≐ f₁[id, t] : A[id, t]              // NOTE: essentially elimination into equality in A
+Γ ⊦ f₀[id, t] ≐ f₁[id, t] : A[id, t]              # NOTE: essentially elimination into equality in A
 
-// Corollary: f₀[id, t] ≐ ℕ-elim z s t ≐ f₁[id, t] : A[id, t]
+# Corollary: f₀[id, t] ≐ ℕ-elim z s t ≐ f₁[id, t] : A[id, t]
 
-// Π.
+# Π.
 
 Γ ▷ A ⊦ f : B
 ---------------------- (el-pi-i)
@@ -909,7 +909,7 @@ e˲ : Γ₁ ⇒ Γ norm
 --------------------------------- (el-pi-eta)
 Γ ⊦ λ (f[↑] ☐₀) ≐ f : A → B
 
-// Σ.
+# Σ.
 
 Γ ▷ A ⊦ B type
 Γ ⊦ a : A
@@ -938,20 +938,20 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ (a, b) .π₂ ≜ b : B[id, a]
 
 Γ ⊦ t : A ⨯ B
------------------------------------- (el-sigma-eta) // valid unidirectional rewrite
+------------------------------------ (el-sigma-eta) # valid unidirectional rewrite
 Γ ⊦ (t .π₁ , t .π₂) ≐ t : A ⨯ B
 
-// ≡: introduction and reflection.
+# ≡: introduction and reflection.
 
 Γ ⊦ a : A
 ----------------------------- (el-eq-i)
 Γ ⊦ Refl : (a ≡ a ∈ A)
 
 Γ ⊦ p : (a₀ ≡ a₁ ∈ A)
-------------------------- (el-reflect) // equality reflection (derivable from J, J-β, J-η)
+------------------------- (el-reflect) # equality reflection (derivable from J, J-β, J-η)
 Γ ⊦ a₀ ≐ a₁ : A
 
-// Quotients.
+# Quotients.
 
 Γ ▷ A ▷ A[↑] ⊦ R : Ω
 Γ ⊦ a : A
@@ -962,7 +962,7 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ a : A
 Γ ⊦ b : A
 Γ ⊦ r : Prf R[id, a, b]
------------------------------------- (el-quot-eq) // R-related elements have equal classes
+------------------------------------ (el-quot-eq) # R-related elements have equal classes
 Γ ⊦ class a ≐ class b : A / R
 
 Γ ▷ (A / R) ⊦ B type
@@ -988,117 +988,117 @@ e˲ : Γ₁ ⇒ Γ norm
 ---------------------------------------------- (el-quot-eta, motive B)
 Γ ⊦ g[id, q] ≐ quot-elim f q : B[id, q]
 
-// Ω: squash, proof irrelevance, propositional extensionality.
-//
-// Ω is a second universe, of mere propositions; its equality
-// discipline is the mirror image of 𝕌's. 𝕌's codes are compared
-// STRUCTURALLY (the injectivity block); Ω's codes are compared by
-// INHABITATION alone (code-prop-eq). Each discipline is sound only on
-// its own side of the fence, so the universes must not mix: there is
-// no code for Ω or for Prf p in 𝕌, and no Ω analogue of any
-// inj rule.
-//
-// Notes:
-//  * Realizer irrelevance is FORCED, not chosen: code-prop-eq +
-//    ty-prf-cong + el-ty-coe move an element between the decodings of
-//    iff-equal props UNCHANGED, which is sound only if those decodings
-//    have literally the same canonical forms. So Prf p never exposes
-//    the squashed proofs: its one canonical form is ⋆ (cf. NuPRL's
-//    Ax), and el-prf-prop equates all members. Consequently there is
-//    no Prf-beta — Prf ∥A∥ does NOT reduce to A — and no
-//    code-squash-inj / ty-prf-inj: ∥𝟙∥ ≐ ∥Z ≡ Z ∈ ℕ∥ : Ω holds by
-//    code-prop-eq while the squashees are structurally distinct. Ω
-//    adds no computation rules beyond substitution actions; the
-//    preface's normalization story is unchanged.
-//  * Squash is the only way in: ∥-∥ takes an arbitrary TYPE, not a
-//    𝕌-code, so the connectives are signature definitions, not rules —
-//      ⊤ ≔ ∥𝟙∥,  ⊥ ≔ ∥𝟘∥,  p ∧ q ≔ ∥Prf p ⨯ (Prf q)[↑]∥,
-//      p ⊃ q ≔ ∥Prf p → (Prf q)[↑]∥,  ∀ over A ≔ ∥A → Prf p∥,
-//      ∃ over A ≔ ∥A ⨯ Prf p∥,  squashed equality ≔ ∥a ≡ b ∈ A∥
-//    — and every definable prop is ∥-∥-headed, so the eliminators
-//    below lose no generality; derived intro/elim principles come
-//    from el-squash-i / el-squash-e-* over the underlying former.
-//  * Elimination goes only into equations and props: a squashed
-//    hypothesis may be unsquashed exactly when the goal cannot
-//    observe WHICH proof was used — equational goals (judgements do
-//    not consult realizers) and propositional goals (the realizer is
-//    ⋆ either way). el-squash-e-eq is not subsumed by
-//    el-squash-e-prf: it reaches equations at LARGE types (e.g.
-//    a₀ ≐ a₁ : 𝕌), which have no prop code to route through. There is
-//    deliberately NO eliminator into arbitrary types — el-prf-prop
-//    would force it constant, and it would refute realizer
-//    irrelevance in the model. The eliminators need no congruence
-//    rules: their conclusions are equations, respectively ⋆-typings
-//    covered by el-prf-prop.
-//  * IMPREDICATIVITY. ∥-∥ squashes arbitrary types, including
-//    quantifications over Ω itself and over 𝕌. This is sound
-//    because the candidate denotations of props form a FIXED
-//    two-point lattice — ∅ and {(⋆,⋆)} — that does not grow with the
-//    quantification domain: a universally quantified prop is an
-//    infimum in that lattice, realized uniformly by λ ⋆ (precedent:
-//    the PER models of the Calculus of Constructions). The
-//    restrictions above are the license for this; each blocks a known
-//    paradox:
-//      - proof irrelevance blocks Girard/Hurkens: nothing can be
-//        stored in a prop and retrieved for diagonalization (in
-//        particular, Church encodings through Ω are sterile — no
-//        data can be smuggled past the size restrictions);
-//      - no elimination into arbitrary types blocks unique choice /
-//        description, and with it the quotient+choice collapses
-//        (Chicli–Pottier–Simpson);
-//      - no Ω-code in 𝕌 blocks Reynolds/Cantor: A → Ω stays
-//        large, so no type contains its own powerset. Note that
-//        prf-codes themselves are DERIVABLE from the Ω-valued
-//        quotient slot: prf r ≜ (class Z ≡ class (S Z) ∈ ℕ / r̂), a
-//        𝕌-code whose decoding is inhabited iff r — el-quot-eq plus
-//        coercion one way, effectivity along ∥x ≡ y ∈ ℕ∥ ∨ r the
-//        other. So 𝕌's element slots already contain Ω up to iff,
-//        and the load-bearing prohibition is exactly the first
-//        clause: no code for Ω ITSELF. Propositions and powersets
-//        embed only into the CODES of 𝕌 — a large collection — never
-//        into the elements of a small type: equality at 𝕌 has no
-//        code (code-eq needs an El-ambient), El A → 𝕌 is large, and
-//        quotient elements cannot store a proposition (coherence
-//        forces eliminators out of 𝟙/r̂-style types constant).
-//    Payoff: least relations by intersection — e.g. an equivalence
-//    closure r⁺ of an arbitrary relation r, defined by quantifying
-//    over all Ω-valued relations containing r — with no inductive
-//    machinery. And since code-quot takes its relation at Ω rather
-//    than at 𝕌, A / r⁺ is still a 𝕌-code: quotients by generated
-//    congruences stay small.
-//  * Consequences for quotients (whose relation slot is Ω-valued —
-//    see ty-quot):
-//      1. Mutually implied relations give EQUAL quotient types:
-//         code-prop-eq under Γ ▷ A ▷ A[↑] gives R₀ ≐ R₁ : Ω, then
-//         ty-quot-cong; dually ty-quot-inj returns only iff-content.
-//         A proof-relevant presentation is recovered as A / ∥R∥.
-//      2. Effectivity: for R : Ω over Γ ▷ A ▷ A[↑], an equivalence
-//         at squash level, class a ≐ class b : A / R implies
-//         Prf R[id, a, b] inhabited — via quot-elim at the constant
-//         motive Ω with f ≔ R[id, a, ☐₀], coherence discharged by
-//         code-prop-eq from symmetry/transitivity, then el-quot-beta,
-//         ty-prf-cong and el-ty-coe on ⋆. Combined with r⁺ above this
-//         characterizes quotient equality for ARBITRARY relations.
-//      3. Squashed equalities reflect: from s : Prf ∥a₀ ≡ a₁ ∈ B∥,
-//         el-squash-e-eq + el-reflect give a₀ ≐ a₁ : B — squashing
-//         loses no equational content.
-//  * SEMANTICS. ⟦Prf p⟧ = {(t,t') | t ⇓ ⋆ and t' ⇓ ⋆} if p's squashee
-//    is inhabited, ∅ otherwise; ∥A∥ ~ ∥B∥ : Ω iff A and B are
-//    equi-inhabited. code-prop-eq holds on the nose (iff-equal props
-//    have IDENTICAL decodings); el-squash-e-* are validated by
-//    instantiating their premise at any closed witness — the
-//    conclusion never consults which one. Model note: the prop layer
-//    cannot be built by the same stagewise induction as the rest of
-//    the type system (the Π-over-Ω clause consults Ω's full
-//    domain, non-monotonically); it is instead given IN ADVANCE — the
-//    fixed lattice above, with prop-truth defined against the full
-//    type system. A two-layer construction, as in the PER models of
-//    CC. The Ω-valued quotient slot adds no further impredicative
-//    dependency: the quotient clause consumes Ω-truth POINTWISE
-//    (⟦El (A / R)⟧ is ⟦El A⟧ coarsened by the truth of R at each
-//    pair), so quotient codes stay small however impredicative their
-//    relation — propositional resizing, in HoTT terms, which the PER
-//    model validates.
+# Ω: squash, proof irrelevance, propositional extensionality.
+#
+# Ω is a second universe, of mere propositions; its equality
+# discipline is the mirror image of 𝕌's. 𝕌's codes are compared
+# STRUCTURALLY (the injectivity block); Ω's codes are compared by
+# INHABITATION alone (code-prop-eq). Each discipline is sound only on
+# its own side of the fence, so the universes must not mix: there is
+# no code for Ω or for Prf p in 𝕌, and no Ω analogue of any
+# inj rule.
+#
+# Notes:
+#  * Realizer irrelevance is FORCED, not chosen: code-prop-eq +
+#    ty-prf-cong + el-ty-coe move an element between the decodings of
+#    iff-equal props UNCHANGED, which is sound only if those decodings
+#    have literally the same canonical forms. So Prf p never exposes
+#    the squashed proofs: its one canonical form is ⋆ (cf. NuPRL's
+#    Ax), and el-prf-prop equates all members. Consequently there is
+#    no Prf-beta — Prf ∥A∥ does NOT reduce to A — and no
+#    code-squash-inj / ty-prf-inj: ∥𝟙∥ ≐ ∥Z ≡ Z ∈ ℕ∥ : Ω holds by
+#    code-prop-eq while the squashees are structurally distinct. Ω
+#    adds no computation rules beyond substitution actions; the
+#    preface's normalization story is unchanged.
+#  * Squash is the only way in: ∥-∥ takes an arbitrary TYPE, not a
+#    𝕌-code, so the connectives are signature definitions, not rules —
+#      ⊤ ≔ ∥𝟙∥,  ⊥ ≔ ∥𝟘∥,  p ∧ q ≔ ∥Prf p ⨯ (Prf q)[↑]∥,
+#      p ⊃ q ≔ ∥Prf p → (Prf q)[↑]∥,  ∀ over A ≔ ∥A → Prf p∥,
+#      ∃ over A ≔ ∥A ⨯ Prf p∥,  squashed equality ≔ ∥a ≡ b ∈ A∥
+#    — and every definable prop is ∥-∥-headed, so the eliminators
+#    below lose no generality; derived intro/elim principles come
+#    from el-squash-i / el-squash-e-* over the underlying former.
+#  * Elimination goes only into equations and props: a squashed
+#    hypothesis may be unsquashed exactly when the goal cannot
+#    observe WHICH proof was used — equational goals (judgements do
+#    not consult realizers) and propositional goals (the realizer is
+#    ⋆ either way). el-squash-e-eq is not subsumed by
+#    el-squash-e-prf: it reaches equations at LARGE types (e.g.
+#    a₀ ≐ a₁ : 𝕌), which have no prop code to route through. There is
+#    deliberately NO eliminator into arbitrary types — el-prf-prop
+#    would force it constant, and it would refute realizer
+#    irrelevance in the model. The eliminators need no congruence
+#    rules: their conclusions are equations, respectively ⋆-typings
+#    covered by el-prf-prop.
+#  * IMPREDICATIVITY. ∥-∥ squashes arbitrary types, including
+#    quantifications over Ω itself and over 𝕌. This is sound
+#    because the candidate denotations of props form a FIXED
+#    two-point lattice — ∅ and {(⋆,⋆)} — that does not grow with the
+#    quantification domain: a universally quantified prop is an
+#    infimum in that lattice, realized uniformly by λ ⋆ (precedent:
+#    the PER models of the Calculus of Constructions). The
+#    restrictions above are the license for this; each blocks a known
+#    paradox:
+#      - proof irrelevance blocks Girard/Hurkens: nothing can be
+#        stored in a prop and retrieved for diagonalization (in
+#        particular, Church encodings through Ω are sterile — no
+#        data can be smuggled past the size restrictions);
+#      - no elimination into arbitrary types blocks unique choice /
+#        description, and with it the quotient+choice collapses
+#        (Chicli–Pottier–Simpson);
+#      - no Ω-code in 𝕌 blocks Reynolds/Cantor: A → Ω stays
+#        large, so no type contains its own powerset. Note that
+#        prf-codes themselves are DERIVABLE from the Ω-valued
+#        quotient slot: prf r ≜ (class Z ≡ class (S Z) ∈ ℕ / r̂), a
+#        𝕌-code whose decoding is inhabited iff r — el-quot-eq plus
+#        coercion one way, effectivity along ∥x ≡ y ∈ ℕ∥ ∨ r the
+#        other. So 𝕌's element slots already contain Ω up to iff,
+#        and the load-bearing prohibition is exactly the first
+#        clause: no code for Ω ITSELF. Propositions and powersets
+#        embed only into the CODES of 𝕌 — a large collection — never
+#        into the elements of a small type: equality at 𝕌 has no
+#        code (code-eq needs an El-ambient), El A → 𝕌 is large, and
+#        quotient elements cannot store a proposition (coherence
+#        forces eliminators out of 𝟙/r̂-style types constant).
+#    Payoff: least relations by intersection — e.g. an equivalence
+#    closure r⁺ of an arbitrary relation r, defined by quantifying
+#    over all Ω-valued relations containing r — with no inductive
+#    machinery. And since code-quot takes its relation at Ω rather
+#    than at 𝕌, A / r⁺ is still a 𝕌-code: quotients by generated
+#    congruences stay small.
+#  * Consequences for quotients (whose relation slot is Ω-valued —
+#    see ty-quot):
+#      1. Mutually implied relations give EQUAL quotient types:
+#         code-prop-eq under Γ ▷ A ▷ A[↑] gives R₀ ≐ R₁ : Ω, then
+#         ty-quot-cong; dually ty-quot-inj returns only iff-content.
+#         A proof-relevant presentation is recovered as A / ∥R∥.
+#      2. Effectivity: for R : Ω over Γ ▷ A ▷ A[↑], an equivalence
+#         at squash level, class a ≐ class b : A / R implies
+#         Prf R[id, a, b] inhabited — via quot-elim at the constant
+#         motive Ω with f ≔ R[id, a, ☐₀], coherence discharged by
+#         code-prop-eq from symmetry/transitivity, then el-quot-beta,
+#         ty-prf-cong and el-ty-coe on ⋆. Combined with r⁺ above this
+#         characterizes quotient equality for ARBITRARY relations.
+#      3. Squashed equalities reflect: from s : Prf ∥a₀ ≡ a₁ ∈ B∥,
+#         el-squash-e-eq + el-reflect give a₀ ≐ a₁ : B — squashing
+#         loses no equational content.
+#  * SEMANTICS. ⟦Prf p⟧ = {(t,t') | t ⇓ ⋆ and t' ⇓ ⋆} if p's squashee
+#    is inhabited, ∅ otherwise; ∥A∥ ~ ∥B∥ : Ω iff A and B are
+#    equi-inhabited. code-prop-eq holds on the nose (iff-equal props
+#    have IDENTICAL decodings); el-squash-e-* are validated by
+#    instantiating their premise at any closed witness — the
+#    conclusion never consults which one. Model note: the prop layer
+#    cannot be built by the same stagewise induction as the rest of
+#    the type system (the Π-over-Ω clause consults Ω's full
+#    domain, non-monotonically); it is instead given IN ADVANCE — the
+#    fixed lattice above, with prop-truth defined against the full
+#    type system. A two-layer construction, as in the PER models of
+#    CC. The Ω-valued quotient slot adds no further impredicative
+#    dependency: the quotient clause consumes Ω-truth POINTWISE
+#    (⟦El (A / R)⟧ is ⟦El A⟧ coarsened by the truth of R at each
+#    pair), so quotient codes stay small however impredicative their
+#    relation — propositional resizing, in HoTT terms, which the PER
+#    model validates.
 
 Γ ⊦ A type
 ------------------ (code-squash)
@@ -1106,8 +1106,8 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ ▷ Prf p ⊦ s : (Prf q)[↑]
 Γ ▷ Prf q ⊦ t : (Prf p)[↑]
------------------------------ (code-prop-eq) // propositional extensionality:
-Γ ⊦ p ≐ q : Ω                             //   mutually implied props are equal codes
+----------------------------- (code-prop-eq) # propositional extensionality:
+Γ ⊦ p ≐ q : Ω                             #   mutually implied props are equal codes
 
 Γ ⊦ t : A
 --------------------- (el-squash-i)
@@ -1129,147 +1129,147 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ ⋆ : Prf q
 
 ///////// Quotient inductive-inductive types (signatures) /////////
-//
-// The formers ℕ and quotient each add ONE type. QIITs add a SCHEME: for
-// each well-formed SIGNATURE 𝒮 — a family of mutually-defined, possibly
-// index-dependent sorts, generated freely by point constructors and
-// quotiented by equation constructors — the rules below license the
-// sorts of 𝒮 as types (𝒮.𝕤 ē), their constructors (𝒮.𝕔 θ), the imposed
-// path equations, and a dependent eliminator (𝒮.𝕤-elim) with its
-// computation and uniqueness laws. Every rule is stated AGAINST a
-// signature (⊦ 𝒮 qsig as a premise); a signature is NOT a Σ-entry and
-// mints no names — 𝒮 is carried by the formers themselves (as A / R
-// carries A and R). These are the inductive-inductive quotient types of
-// Altenkirch–Kaposi. The scheme SUBSUMES ℕ and (/), and covers indexed
-// inductive types (well-founded trees included) and quotient inductive
-// types generally; ℕ and (/) are retained for now.
-//
-// THE EXTENSIONAL PAYOFF. Under equality reflection (with Ω for
-// proof-irrelevance) every type is a set: no higher paths, no coherence
-// tower, no transport. A path constructor is therefore an equation
-// IMPOSED judgementally (via el-reflect), and the eliminator's path
-// premises collapse to WELL-DEFINEDNESS conditions — precisely
-// quot-elim's f⁼ premise, one per equation, with no apd/transport.
-// This degeneration is what lets the scheme be POSTULATED precisely
-// rather than through a tower of coherences (contrast the intensional
-// HIIT signatures, which need the full apparatus).
+#
+# The formers ℕ and quotient each add ONE type. QIITs add a SCHEME: for
+# each well-formed SIGNATURE 𝒮 — a family of mutually-defined, possibly
+# index-dependent sorts, generated freely by point constructors and
+# quotiented by equation constructors — the rules below license the
+# sorts of 𝒮 as types (𝒮.𝕤 ē), their constructors (𝒮.𝕔 θ), the imposed
+# path equations, and a dependent eliminator (𝒮.𝕤-elim) with its
+# computation and uniqueness laws. Every rule is stated AGAINST a
+# signature (⊦ 𝒮 qsig as a premise); a signature is NOT a Σ-entry and
+# mints no names — 𝒮 is carried by the formers themselves (as A / R
+# carries A and R). These are the inductive-inductive quotient types of
+# Altenkirch–Kaposi. The scheme SUBSUMES ℕ and (/), and covers indexed
+# inductive types (well-founded trees included) and quotient inductive
+# types generally; ℕ and (/) are retained for now.
+#
+# THE EXTENSIONAL PAYOFF. Under equality reflection (with Ω for
+# proof-irrelevance) every type is a set: no higher paths, no coherence
+# tower, no transport. A path constructor is therefore an equation
+# IMPOSED judgementally (via el-reflect), and the eliminator's path
+# premises collapse to WELL-DEFINEDNESS conditions — precisely
+# quot-elim's f⁼ premise, one per equation, with no apd/transport.
+# This degeneration is what lets the scheme be POSTULATED precisely
+# rather than through a tower of coherences (contrast the intensional
+# HIIT signatures, which need the full apparatus).
 
-// THEORY OF SIGNATURES — grammar. The ToS is a SMALL DEPENDENT TYPE
-// THEORY of its own: qiit-contexts are built out of qiit-types,
-// qiit-terms are typed at qiit-types, and all argument passing is by
-// the ToS's own Π/λ/application — there is no spine syntax. A
-// SIGNATURE is nothing but a closed qiit-context: sorts, point
-// constructors and equation constructors are ordinary entries,
-// distinguished by the HEAD of their type alone.
-//
-//   qiit-context  Φ, 𝒮 ::= ⬦ | Φ ▷ 𝔄          // entries are ANONYMOUS
-//   qiit-type     𝔄 ::= U                     // the universe of codes
-//                     | El 𝕥                  // decoding of a code 𝕥 : U
-//                     | A ⇛ 𝔄                 // EXTERNAL Π — domain a Nova
-//                                             //   type; binds a NOVA variable
-//                     | El 𝕥 ⇛ 𝔄              // INDUCTIVE Π — binds a ToS
-//                                             //   variable
-//   qiit-term     𝕥 ::= ⬡ᵢ                    // ToS VARIABLE, de Bruijn
-//                     | 𝕥 t                   // application to a Nova term
-//                     | 𝕥 𝕥'                  // application to a ToS term
-//                     | λ 𝕥                   // external abstraction (binds
-//                                             //   a NOVA variable)
-//                     | 𝕥₀ ≡ 𝕥₁               // equation CODE (in U, at the
-//                                             //   sides' common El)
-//   qiit-sub      ς ::= 𝕚𝕕 | ⇑ | ς ∘ ς | ς, 𝕥 // the ToS's OWN substitution
-//                                             //   calculus, mirroring Nova's
-//                                             //   (ς⁺ ≜ (ς ∘ ⇑, ⬡₀) derived)
-//
-//   (A ranges over Nova types, t over Nova terms; ⇛ is the ToS's Π,
-//   NOT Nova's →. The variable discipline is NAMELESS, like Nova's own:
-//   ⬡ᵢ counts inductive binders and context entries ONLY — ToS
-//   variables are ORTHOGONAL to Nova's ☐ᵢ, which external binders bind
-//   in the Nova zone, and the two calculi never touch each other's
-//   variables. In examples, named binders (x : A) ⇛ …, (𝕧 : El 𝕥) ⇛ …
-//   and named entries are DISPLAY SUGAR for the indexed core. Entry
-//   references from outside are POSITIONAL: 𝒮(k) = 𝔄 says entry k of 𝒮
-//   (in declaration order) is 𝔄, the formers are 𝒮.k, and 𝕤, 𝕔 are used
-//   as metavariables for sort / constructor POSITIONS. There is no
-//   inductive λ: terms of inductive-Π type arise only as partial
-//   applications, which is all signatures need. The ToS has NO
-//   computation of its own — substitution application is a
-//   META-operation, and signatures are inert syntax, compared per
-//   IDENTITY below.)
-//
-// Strict positivity and externality are GRAMMATICAL, by two features
-// working together. First, Π domains are only Nova types or El-codes —
-// U and Π-types never occur left of a ⇛. Second, the two Π's bind into
-// DIFFERENT ZONES of the dual-zone judgements below: an external
-// binder grows the NOVA zone Γ, an inductive binder the ToS zone Φ;
-// Nova types are typed over Γ alone, so they cannot mention an
-// inductive variable — sort-free automatically, with no projection and
-// no side condition.
-//
-// Entry classification, by the head of the entry's type (every
-// qiit-type ends in U or El, so the classification is exhaustive —
-// there are no other entry forms to exclude):
-//     … ⇛ U               a SORT (its Πs are the index arity)
-//     … ⇛ El (𝕤 ī)        a POINT constructor into sort 𝕤
-//     … ⇛ El (l ≡ r)      an EQUATION constructor (imposes l ≐ r)
-//
-// REFLECTION ⌊·⌋ interprets checked ToS syntax as Nova syntax (the two
-// zones linearized in binder order). It is given as TYPED RULES after
-// the well-formedness judgements below, whose derivations it computes
-// on. Reflection is used ONLY by the OUTER formers (ty-qiit,
-// el-qiit-*), to give a QIIT sort/constructor its Nova type; the ToS
-// system itself never reflects.
-//
-// META-OPERATIONS (each ≜-defined by meta-level induction, like the
-// substitution actions; A ranges over Nova types, Ξ over Nova
-// telescopes, Φ over qiit-contexts).
-//
-// Nova plumbing — context extension by a telescope, telescope
-// concatenation, telescope weakening:
-//     Γ·ε ≜ Γ                     ε ⧺ Ξ' ≜ Ξ'
-//     Γ·(A ◁ Ξ) ≜ (Γ ▷ A)·Ξ       (A ◁ Ξ) ⧺ Ξ' ≜ A ◁ (Ξ ⧺ Ξ')
-//     ↑ε ≜ id                     ↑(A ◁ Ξ) ≜ ↑ ∘ ↑Ξ    // the ↑Ξ at Γ ▷ A
-//     (↑Ξ : Γ·Ξ ⇒ Γ, so [↑Ξ] weakens over Ξ)
-//
-// LOOKUP Φ‖ᵢ — the type of ⬡ᵢ in Φ, weakened to all of Φ (mirrors
-// Nova's Γ‖ᵢ, with the ToS shift):
-//     (Φ ▷ 𝔄)‖₀   ≜ 𝔄[⇑]
-//     (Φ ▷ 𝔄)‖ᵢ₊₁ ≜ (Φ‖ᵢ)[⇑]
-//
-// OPENING (Γ ; Φ) ⋉ 𝔄 — the dual zone reached by walking an El-ended
-// type's binders, each into ITS zone (written Γ_𝔄 ; Φ_𝔄 when the base
-// zone is clear):
-//     (Γ ; Φ) ⋉ El 𝕦        ≜ Γ ; Φ
-//     (Γ ; Φ) ⋉ (A ⇛ 𝔄)     ≜ (Γ ▷ A ; Φ[↑]) ⋉ 𝔄
-//     (Γ ; Φ) ⋉ (El 𝕥 ⇛ 𝔄)  ≜ (Γ ; Φ ▷ El 𝕥) ⋉ 𝔄
-//
-// INSTANTIATION is not a bespoke operation — both binder
-// instantiations are calculus instances, abbreviated 𝔄[t] / 𝔄[𝕥]:
-//   EXTERNAL, by a Nova term t: the NOVA substitution [id, t] acting
-//     through ToS syntax (below);
-//   INDUCTIVE, by a ToS term 𝕥: the ToS substitution [𝕚𝕕, 𝕥] (action
-//     with the qsub rules below).
-//
-// NOVA SUBSTITUTION σ through ToS syntax (𝒮[σ], Φ[σ], 𝔄[σ], 𝕥[σ],
-// ς[σ], ℰ[σ]): componentwise; σ acts on every embedded Nova piece,
-// lifted (σ⁺, once per binder) over the EXTERNAL binders in scope at
-// that piece; ToS variables are INERT (⬡ᵢ[σ] ≜ ⬡ᵢ — they are not Nova
-// variables). The two calculi act on disjoint namespaces, so their
-// actions commute.
+# THEORY OF SIGNATURES — grammar. The ToS is a SMALL DEPENDENT TYPE
+# THEORY of its own: qiit-contexts are built out of qiit-types,
+# qiit-terms are typed at qiit-types, and all argument passing is by
+# the ToS's own Π/λ/application — there is no spine syntax. A
+# SIGNATURE is nothing but a closed qiit-context: sorts, point
+# constructors and equation constructors are ordinary entries,
+# distinguished by the HEAD of their type alone.
+#
+#   qiit-context  Φ, 𝒮 ::= ⬦ | Φ ▷ 𝔄          # entries are ANONYMOUS
+#   qiit-type     𝔄 ::= U                     # the universe of codes
+#                     | El 𝕥                  # decoding of a code 𝕥 : U
+#                     | A ⇛ 𝔄                 # EXTERNAL Π — domain a Nova
+#                                             #   type; binds a NOVA variable
+#                     | El 𝕥 ⇛ 𝔄              # INDUCTIVE Π — binds a ToS
+#                                             #   variable
+#   qiit-term     𝕥 ::= ⬡ᵢ                    # ToS VARIABLE, de Bruijn
+#                     | 𝕥 t                   # application to a Nova term
+#                     | 𝕥 𝕥'                  # application to a ToS term
+#                     | λ 𝕥                   # external abstraction (binds
+#                                             #   a NOVA variable)
+#                     | 𝕥₀ ≡ 𝕥₁               # equation CODE (in U, at the
+#                                             #   sides' common El)
+#   qiit-sub      ς ::= 𝕚𝕕 | ⇑ | ς ∘ ς | ς, 𝕥 # the ToS's OWN substitution
+#                                             #   calculus, mirroring Nova's
+#                                             #   (ς⁺ ≜ (ς ∘ ⇑, ⬡₀) derived)
+#
+#   (A ranges over Nova types, t over Nova terms; ⇛ is the ToS's Π,
+#   NOT Nova's →. The variable discipline is NAMELESS, like Nova's own:
+#   ⬡ᵢ counts inductive binders and context entries ONLY — ToS
+#   variables are ORTHOGONAL to Nova's ☐ᵢ, which external binders bind
+#   in the Nova zone, and the two calculi never touch each other's
+#   variables. In examples, named binders (x : A) ⇛ …, (𝕧 : El 𝕥) ⇛ …
+#   and named entries are DISPLAY SUGAR for the indexed core. Entry
+#   references from outside are POSITIONAL: 𝒮(k) = 𝔄 says entry k of 𝒮
+#   (in declaration order) is 𝔄, the formers are 𝒮.k, and 𝕤, 𝕔 are used
+#   as metavariables for sort / constructor POSITIONS. There is no
+#   inductive λ: terms of inductive-Π type arise only as partial
+#   applications, which is all signatures need. The ToS has NO
+#   computation of its own — substitution application is a
+#   META-operation, and signatures are inert syntax, compared per
+#   IDENTITY below.)
+#
+# Strict positivity and externality are GRAMMATICAL, by two features
+# working together. First, Π domains are only Nova types or El-codes —
+# U and Π-types never occur left of a ⇛. Second, the two Π's bind into
+# DIFFERENT ZONES of the dual-zone judgements below: an external
+# binder grows the NOVA zone Γ, an inductive binder the ToS zone Φ;
+# Nova types are typed over Γ alone, so they cannot mention an
+# inductive variable — sort-free automatically, with no projection and
+# no side condition.
+#
+# Entry classification, by the head of the entry's type (every
+# qiit-type ends in U or El, so the classification is exhaustive —
+# there are no other entry forms to exclude):
+#     … ⇛ U               a SORT (its Πs are the index arity)
+#     … ⇛ El (𝕤 ī)        a POINT constructor into sort 𝕤
+#     … ⇛ El (l ≡ r)      an EQUATION constructor (imposes l ≐ r)
+#
+# REFLECTION ⌊·⌋ interprets checked ToS syntax as Nova syntax (the two
+# zones linearized in binder order). It is given as TYPED RULES after
+# the well-formedness judgements below, whose derivations it computes
+# on. Reflection is used ONLY by the OUTER formers (ty-qiit,
+# el-qiit-*), to give a QIIT sort/constructor its Nova type; the ToS
+# system itself never reflects.
+#
+# META-OPERATIONS (each ≜-defined by meta-level induction, like the
+# substitution actions; A ranges over Nova types, Ξ over Nova
+# telescopes, Φ over qiit-contexts).
+#
+# Nova plumbing — context extension by a telescope, telescope
+# concatenation, telescope weakening:
+#     Γ·ε ≜ Γ                     ε ⧺ Ξ' ≜ Ξ'
+#     Γ·(A ◁ Ξ) ≜ (Γ ▷ A)·Ξ       (A ◁ Ξ) ⧺ Ξ' ≜ A ◁ (Ξ ⧺ Ξ')
+#     ↑ε ≜ id                     ↑(A ◁ Ξ) ≜ ↑ ∘ ↑Ξ    # the ↑Ξ at Γ ▷ A
+#     (↑Ξ : Γ·Ξ ⇒ Γ, so [↑Ξ] weakens over Ξ)
+#
+# LOOKUP Φ‖ᵢ — the type of ⬡ᵢ in Φ, weakened to all of Φ (mirrors
+# Nova's Γ‖ᵢ, with the ToS shift):
+#     (Φ ▷ 𝔄)‖₀   ≜ 𝔄[⇑]
+#     (Φ ▷ 𝔄)‖ᵢ₊₁ ≜ (Φ‖ᵢ)[⇑]
+#
+# OPENING (Γ ; Φ) ⋉ 𝔄 — the dual zone reached by walking an El-ended
+# type's binders, each into ITS zone (written Γ_𝔄 ; Φ_𝔄 when the base
+# zone is clear):
+#     (Γ ; Φ) ⋉ El 𝕦        ≜ Γ ; Φ
+#     (Γ ; Φ) ⋉ (A ⇛ 𝔄)     ≜ (Γ ▷ A ; Φ[↑]) ⋉ 𝔄
+#     (Γ ; Φ) ⋉ (El 𝕥 ⇛ 𝔄)  ≜ (Γ ; Φ ▷ El 𝕥) ⋉ 𝔄
+#
+# INSTANTIATION is not a bespoke operation — both binder
+# instantiations are calculus instances, abbreviated 𝔄[t] / 𝔄[𝕥]:
+#   EXTERNAL, by a Nova term t: the NOVA substitution [id, t] acting
+#     through ToS syntax (below);
+#   INDUCTIVE, by a ToS term 𝕥: the ToS substitution [𝕚𝕕, 𝕥] (action
+#     with the qsub rules below).
+#
+# NOVA SUBSTITUTION σ through ToS syntax (𝒮[σ], Φ[σ], 𝔄[σ], 𝕥[σ],
+# ς[σ], ℰ[σ]): componentwise; σ acts on every embedded Nova piece,
+# lifted (σ⁺, once per binder) over the EXTERNAL binders in scope at
+# that piece; ToS variables are INERT (⬡ᵢ[σ] ≜ ⬡ᵢ — they are not Nova
+# variables). The two calculi act on disjoint namespaces, so their
+# actions commute.
 
-// THEORY-OF-SIGNATURES WELL-FORMEDNESS. The four ToS judgement forms
-// and their PRESUPPOSITIONS are registered in the judgement-forms
-// table at the top of the file:
-//     Γ ⊦ Φ qctx         Φ a well-formed qiit-context
-//     Γ ; Φ ⊦ 𝔄 qty      𝔄 a well-formed qiit-type
-//     Γ ; Φ ⊦ 𝕥 : 𝔄      𝕥 a qiit-term of type 𝔄
-//     Γ ⊦ ς : Φ₀ ⇒ Φ₁    ς a qiit-substitution
-// The dual zone Γ ; Φ: Γ is the NOVA zone (the ambient context plus
-// all external binders in scope), Φ the ToS zone (declared entries
-// plus inductive binders). There is no separate signature judgement:
-//     Γ ⊦ 𝒮 qsig   ≜   Γ ⊦ 𝒮 qctx
-// — during checking, the growing context Φ IS the signature-so-far, so
-// a later declaration reaches earlier sorts and constructors by
-// qtm-var, with no prefix or ambient-𝒮 device.
+# THEORY-OF-SIGNATURES WELL-FORMEDNESS. The four ToS judgement forms
+# and their PRESUPPOSITIONS are registered in the judgement-forms
+# table at the top of the file:
+#     Γ ⊦ Φ qctx         Φ a well-formed qiit-context
+#     Γ ; Φ ⊦ 𝔄 qty      𝔄 a well-formed qiit-type
+#     Γ ; Φ ⊦ 𝕥 : 𝔄      𝕥 a qiit-term of type 𝔄
+#     Γ ⊦ ς : Φ₀ ⇒ Φ₁    ς a qiit-substitution
+# The dual zone Γ ; Φ: Γ is the NOVA zone (the ambient context plus
+# all external binders in scope), Φ the ToS zone (declared entries
+# plus inductive binders). There is no separate signature judgement:
+#     Γ ⊦ 𝒮 qsig   ≜   Γ ⊦ 𝒮 qctx
+# — during checking, the growing context Φ IS the signature-so-far, so
+# a later declaration reaches earlier sorts and constructors by
+# qtm-var, with no prefix or ambient-𝒮 device.
 
 Γ ctx
 ------------- (qctx-empty)
@@ -1288,12 +1288,12 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ; Φ ⊦ El 𝕥 qty
 
 Γ ⊦ A type      Γ ▷ A ; Φ[↑] ⊦ 𝔄 qty
-------------------------------------- (qty-pi-ext)   // binds a NOVA variable:
-Γ ; Φ ⊦ A ⇛ 𝔄 qty                                    //   the Nova zone grows
+------------------------------------- (qty-pi-ext)   # binds a NOVA variable:
+Γ ; Φ ⊦ A ⇛ 𝔄 qty                                    #   the Nova zone grows
 
 Γ ; Φ ⊦ 𝕥 : U      Γ ; Φ ▷ El 𝕥 ⊦ 𝔄 qty
----------------------------------------- (qty-pi-ind)   // binds a ToS variable:
-Γ ; Φ ⊦ El 𝕥 ⇛ 𝔄 qty                                    //   the ToS zone grows
+---------------------------------------- (qty-pi-ind)   # binds a ToS variable:
+Γ ; Φ ⊦ El 𝕥 ⇛ 𝔄 qty                                    #   the ToS zone grows
 
 Φ‖ᵢ = 𝔄
 ------------------ (qtm-var)
@@ -1312,11 +1312,11 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ; Φ ⊦ λ 𝕥 : A ⇛ 𝔄
 
 Γ ; Φ ⊦ 𝕥₀ : El 𝕦      Γ ; Φ ⊦ 𝕥₁ : El 𝕦
------------------------------------------- (qtm-eq)     // equation code in U
+------------------------------------------ (qtm-eq)     # equation code in U
 Γ ; Φ ⊦ (𝕥₀ ≡ 𝕥₁) : U
 
-// The ToS substitution calculus, mirroring Nova's (𝕚𝕕/⇑/∘/ext; the
-// lift ς⁺ ≜ (ς ∘ ⇑, ⬡₀) : Φ₀ ▷ 𝔄[ς] ⇒ Φ₁ ▷ 𝔄 is derived):
+# The ToS substitution calculus, mirroring Nova's (𝕚𝕕/⇑/∘/ext; the
+# lift ς⁺ ≜ (ς ∘ ⇑, ⬡₀) : Φ₀ ▷ 𝔄[ς] ⇒ Φ₁ ▷ 𝔄 is derived):
 
 Γ ⊦ Φ qctx
 ------------------- (qsub-id)
@@ -1335,54 +1335,54 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ (ς, 𝕥) : Φ₀ ⇒ Φ₁ ▷ 𝔄
 
 Γ ; Φ₁ ⊦ 𝕥 : 𝔄      Γ ⊦ ς : Φ₀ ⇒ Φ₁
-------------------------------------- (qtm-sub)   // and likewise qty-sub;
-Γ ; Φ₀ ⊦ 𝕥[ς] : 𝔄[ς]                              //   the action ≜-below
+------------------------------------- (qtm-sub)   # and likewise qty-sub;
+Γ ; Φ₀ ⊦ 𝕥[ς] : 𝔄[ς]                              #   the action ≜-below
 
-// Action of ς (meta-level, one clause per former). Note the two binder
-// cases: an INDUCTIVE binder lifts ς; an EXTERNAL binder instead
-// Nova-weakens ς's embedded Nova pieces (ς[↑], the orthogonal action)
-// — ToS indices do not shift at a Nova binder:
-//     U[ς]          ≜ U                (El 𝕥)[ς]      ≜ El (𝕥[ς])
-//     (A ⇛ 𝔄)[ς]    ≜ A ⇛ 𝔄[ς[↑]]     (El 𝕥 ⇛ 𝔄)[ς]  ≜ El (𝕥[ς]) ⇛ 𝔄[ς⁺]
-//     ⬡ᵢ[𝕚𝕕]        ≜ ⬡ᵢ              ⬡ᵢ[⇑]           ≜ ⬡ᵢ₊₁
-//     ⬡₀[ς, 𝕥]      ≜ 𝕥               ⬡ᵢ₊₁[ς, 𝕥]      ≜ ⬡ᵢ[ς]
-//     ⬡ᵢ[τ ∘ ς]     ≜ (⬡ᵢ[τ])[ς]
-//     (𝕥 t)[ς]      ≜ 𝕥[ς] t          (𝕥 𝕥')[ς]       ≜ 𝕥[ς] 𝕥'[ς]
-//     (λ 𝕥)[ς]      ≜ λ (𝕥[ς[↑]])     (𝕥₀ ≡ 𝕥₁)[ς]    ≜ 𝕥₀[ς] ≡ 𝕥₁[ς]
+# Action of ς (meta-level, one clause per former). Note the two binder
+# cases: an INDUCTIVE binder lifts ς; an EXTERNAL binder instead
+# Nova-weakens ς's embedded Nova pieces (ς[↑], the orthogonal action)
+# — ToS indices do not shift at a Nova binder:
+#     U[ς]          ≜ U                (El 𝕥)[ς]      ≜ El (𝕥[ς])
+#     (A ⇛ 𝔄)[ς]    ≜ A ⇛ 𝔄[ς[↑]]     (El 𝕥 ⇛ 𝔄)[ς]  ≜ El (𝕥[ς]) ⇛ 𝔄[ς⁺]
+#     ⬡ᵢ[𝕚𝕕]        ≜ ⬡ᵢ              ⬡ᵢ[⇑]           ≜ ⬡ᵢ₊₁
+#     ⬡₀[ς, 𝕥]      ≜ 𝕥               ⬡ᵢ₊₁[ς, 𝕥]      ≜ ⬡ᵢ[ς]
+#     ⬡ᵢ[τ ∘ ς]     ≜ (⬡ᵢ[τ])[ς]
+#     (𝕥 t)[ς]      ≜ 𝕥[ς] t          (𝕥 𝕥')[ς]       ≜ 𝕥[ς] 𝕥'[ς]
+#     (λ 𝕥)[ς]      ≜ λ (𝕥[ς[↑]])     (𝕥₀ ≡ 𝕥₁)[ς]    ≜ 𝕥₀[ς] ≡ 𝕥₁[ς]
 
-// REFLECTION — the typed interpretation ⌊·⌋ of ToS syntax into Nova:
-// one ADMISSIBLE rule per ToS judgement, computed by the ≜-clauses
-// under it, by induction on the corresponding derivation (meta-level,
-// like the substitution actions). The rules are stated for the entries
-// of a COMPLETE signature 𝒮. Every clause is subscripted by its WALK
-// STATE 𝑤 = (Γ̂, ρ, υ) — the ρ and υ a clause uses are the components
-// of ITS 𝑤, bound by the subscript, never ambient:
-//     Γ̂   the MERGED context so far — both zones linearized in binder
-//         order, one Nova entry per binder;
-//     ρ   the REINDEXER  Γ̂ ⇒ (the Nova zone so far);
-//     υ   the total WEAKENING  Γ̂ ⇒ Γ, under which the carried
-//         signature moves (𝒮[υ]).
-// Crossing a binder STEPS the state (▷; the external step is present
-// in both zones, so ρ lifts; the inductive step is merged-only, so ρ
-// weakens):
-//     𝑤 ▷ A       ≜ (Γ̂ ▷ A[ρ], ρ⁺, υ ∘ ↑)
-//     𝑤 ▷ El 𝕥    ≜ (Γ̂ ▷ ⌊El 𝕥⌋_𝑤, ρ ∘ ↑, υ ∘ ↑)
-// The INITIAL state is 𝑤₀ ≜ (Γ, id, id); the FINAL state of an
-// El-ended 𝔄's walk is written 𝑤_𝔄, with components Γ ⋈ 𝔄 (the MERGE)
-// and ρ_𝔄:
-//     𝑤 ⋈ El 𝕦        ≜ Γ̂
-//     𝑤 ⋈ (A ⇛ 𝔄)     ≜ (𝑤 ▷ A) ⋈ 𝔄
-//     𝑤 ⋈ (El 𝕥 ⇛ 𝔄)  ≜ (𝑤 ▷ El 𝕥) ⋈ 𝔄
-// CONVENTION in the rules: reflections of WHOLE entry types (⌊𝔄⌋,
-// ⌊𝔎⌋ᵗ) are at 𝑤₀; reflections of pieces under an entry's binders
-// (⌊ī⌋, ⌊l⌋, ⌊r⌋, ⌊𝕥⌋) are at 𝑤_𝔄 — a use-site spine θ : ⌊𝔄⌋ᵗ then
-// instantiates them, ⌊l⌋[θ], landing over Γ (Γ ⋈ 𝔄 = Γ·⌊𝔄⌋ᵗ, the
-// binder telescope of an El-ended 𝔄 by the same recursion as the
-// arity).
+# REFLECTION — the typed interpretation ⌊·⌋ of ToS syntax into Nova:
+# one ADMISSIBLE rule per ToS judgement, computed by the ≜-clauses
+# under it, by induction on the corresponding derivation (meta-level,
+# like the substitution actions). The rules are stated for the entries
+# of a COMPLETE signature 𝒮. Every clause is subscripted by its WALK
+# STATE 𝑤 = (Γ̂, ρ, υ) — the ρ and υ a clause uses are the components
+# of ITS 𝑤, bound by the subscript, never ambient:
+#     Γ̂   the MERGED context so far — both zones linearized in binder
+#         order, one Nova entry per binder;
+#     ρ   the REINDEXER  Γ̂ ⇒ (the Nova zone so far);
+#     υ   the total WEAKENING  Γ̂ ⇒ Γ, under which the carried
+#         signature moves (𝒮[υ]).
+# Crossing a binder STEPS the state (▷; the external step is present
+# in both zones, so ρ lifts; the inductive step is merged-only, so ρ
+# weakens):
+#     𝑤 ▷ A       ≜ (Γ̂ ▷ A[ρ], ρ⁺, υ ∘ ↑)
+#     𝑤 ▷ El 𝕥    ≜ (Γ̂ ▷ ⌊El 𝕥⌋_𝑤, ρ ∘ ↑, υ ∘ ↑)
+# The INITIAL state is 𝑤₀ ≜ (Γ, id, id); the FINAL state of an
+# El-ended 𝔄's walk is written 𝑤_𝔄, with components Γ ⋈ 𝔄 (the MERGE)
+# and ρ_𝔄:
+#     𝑤 ⋈ El 𝕦        ≜ Γ̂
+#     𝑤 ⋈ (A ⇛ 𝔄)     ≜ (𝑤 ▷ A) ⋈ 𝔄
+#     𝑤 ⋈ (El 𝕥 ⇛ 𝔄)  ≜ (𝑤 ▷ El 𝕥) ⋈ 𝔄
+# CONVENTION in the rules: reflections of WHOLE entry types (⌊𝔄⌋,
+# ⌊𝔎⌋ᵗ) are at 𝑤₀; reflections of pieces under an entry's binders
+# (⌊ī⌋, ⌊l⌋, ⌊r⌋, ⌊𝕥⌋) are at 𝑤_𝔄 — a use-site spine θ : ⌊𝔄⌋ᵗ then
+# instantiates them, ⌊l⌋[θ], landing over Γ (Γ ⋈ 𝔄 = Γ·⌊𝔄⌋ᵗ, the
+# binder telescope of an El-ended 𝔄 by the same recursion as the
+# arity).
 
-// Qiit-types: an El-ended entry type reflects to a Nova TYPE (over Γ —
-// the binders are re-bound inside it), a U-ended kind to a Nova
-// TELESCOPE, its arity — same recursion, two read-outs:
+# Qiit-types: an El-ended entry type reflects to a Nova TYPE (over Γ —
+# the binders are re-bound inside it), a U-ended kind to a Nova
+# TELESCOPE, its arity — same recursion, two read-outs:
 
 Γ ⊦ 𝒮 qsig      𝒮(𝕜) = 𝔄  (𝔄 El-ended)
 ----------------------------------------- (refl-qty)
@@ -1392,103 +1392,103 @@ e˲ : Γ₁ ⇒ Γ norm
 ----------------------------------------- (refl-arity)
 Γ ⊦ ⌊𝔎⌋ᵗ tel
 
-⌊El (𝕤 ī)⌋_𝑤     ≜ 𝒮[υ].𝕤 ⌊ī⌋_𝑤      // ī = 𝕤's application chain,
-                                      //   read off as a Nova spine
-⌊El (l ≡ r)⌋_𝑤   ≜ ⌊l⌋_𝑤 ≡ ⌊r⌋_𝑤 ∈ ⌊El 𝕦⌋_𝑤   // 𝕦 the sides' common code
+⌊El (𝕤 ī)⌋_𝑤     ≜ 𝒮[υ].𝕤 ⌊ī⌋_𝑤      # ī = 𝕤's application chain,
+                                      #   read off as a Nova spine
+⌊El (l ≡ r)⌋_𝑤   ≜ ⌊l⌋_𝑤 ≡ ⌊r⌋_𝑤 ∈ ⌊El 𝕦⌋_𝑤   # 𝕦 the sides' common code
 ⌊A ⇛ 𝔄⌋_𝑤        ≜ A[ρ] → ⌊𝔄⌋_{𝑤 ▷ A}
 ⌊El 𝕥 ⇛ 𝔄⌋_𝑤     ≜ ⌊El 𝕥⌋_𝑤 → ⌊𝔄⌋_{𝑤 ▷ El 𝕥}
 ⌊U⌋ᵗ_𝑤           ≜ ε
 ⌊A ⇛ 𝔎⌋ᵗ_𝑤       ≜ A[ρ] ◁ ⌊𝔎⌋ᵗ_{𝑤 ▷ A}
 ⌊El 𝕥 ⇛ 𝔎⌋ᵗ_𝑤    ≜ ⌊El 𝕥⌋_𝑤 ◁ ⌊𝔎⌋ᵗ_{𝑤 ▷ El 𝕥}
 
-// Qiit-terms. A ToS variable ⬡ᵢ either names an inductive Π-binder of
-// the walk — reflected to the Nova variable at its MERGED slot m(i)
-// (which counts ALL binders passed, not just inductive ones; a
-// meta-level index computation) — or reaches through the binders into
-// the signature, at entry position k. The rule is stated at the full
-// OPENING (⋉, meta-operations above), whose merge is Γ ⋈ 𝔄:
+# Qiit-terms. A ToS variable ⬡ᵢ either names an inductive Π-binder of
+# the walk — reflected to the Nova variable at its MERGED slot m(i)
+# (which counts ALL binders passed, not just inductive ones; a
+# meta-level index computation) — or reaches through the binders into
+# the signature, at entry position k. The rule is stated at the full
+# OPENING (⋉, meta-operations above), whose merge is Γ ⋈ 𝔄:
 
 Γ ⊦ 𝒮 qsig      𝒮(𝕜) = 𝔄  (𝔄 El-ended)
 (Γ ; 𝒮) ⋉ 𝔄 ⊦ 𝕥 : El (𝕤 ī)
 --------------------------------------------- (refl-qtm)
 Γ ⋈ 𝔄 ⊦ ⌊𝕥⌋_{𝑤_𝔄} : ⌊El (𝕤 ī)⌋_{𝑤_𝔄}
 
-// The term clauses match on MAXIMAL application chains, because the
-// Nova constructor former is SATURATED — a chain reflects at once,
-// never through a partial application (a well-formed signature's
-// qiit-terms are El-typed, so constructor chains are always full):
+# The term clauses match on MAXIMAL application chains, because the
+# Nova constructor former is SATURATED — a chain reflects at once,
+# never through a partial application (a well-formed signature's
+# qiit-terms are El-typed, so constructor chains are always full):
 
 ⌊⬡ᵢ⌋_𝑤          ≜ ☐_{m(i)}    (⬡ᵢ a binder of the walk; m(i) its merged
-                               //  slot — a variable is an ordinary
-                               //  term, it applies freely)
+                               #  slot — a variable is an ordinary
+                               #  term, it applies freely)
 ⌊𝕥 t⌋_𝑤         ≜ ⌊𝕥⌋_𝑤 t[ρ]        (𝕥 BINDER-headed)
 ⌊𝕥 𝕥'⌋_𝑤        ≜ ⌊𝕥⌋_𝑤 ⌊𝕥'⌋_𝑤      (𝕥 BINDER-headed)
 ⌊⬡ᵢ 𝕒₁ … 𝕒ₙ⌋_𝑤  ≜ 𝒮[υ].k (⌊𝕒₁⌋_𝑤, …, ⌊𝕒ₙ⌋_𝑤)
                     (⬡ᵢ reaching POINT entry k of 𝒮: the whole chain at
-                    //  once, onto the saturated former — external
-                    //  components as t[ρ], inductive as reflections)
+                    #  once, onto the saturated former — external
+                    #  components as t[ρ], inductive as reflections)
 ⌊⬡ᵢ 𝕒₁ … 𝕒ₙ⌋_𝑤  ≜ Refl
                     (⬡ᵢ reaching an EQUATION entry of 𝒮: no term is
-                    //  minted for it — the reflected ≡-type holds by
-                    //  el-qiit-path, and Refl inhabits it)
-⌊λ 𝕥⌋_𝑤         ≜ λ ⌊𝕥⌋_{𝑤 ▷ A}     // A the Π-domain of λ 𝕥's type
-// (a sort position 𝕤 occurs only applied inside El/≡ codes, handled by
-// the El clause — 𝒮.𝕤 is a type former, not a term.)
+                    #  minted for it — the reflected ≡-type holds by
+                    #  el-qiit-path, and Refl inhabits it)
+⌊λ 𝕥⌋_𝑤         ≜ λ ⌊𝕥⌋_{𝑤 ▷ A}     # A the Π-domain of λ 𝕥's type
+# (a sort position 𝕤 occurs only applied inside El/≡ codes, handled by
+# the El clause — 𝒮.𝕤 is a type former, not a term.)
 
-// Every conclusion above is a NOVA judgement: reflection of
-// well-formed ToS syntax is well-formed Nova syntax, by simultaneous
-// induction on the ToS derivation — the dual-zone discipline (Nova
-// pieces typed over the Nova zone alone) is exactly what makes the
-// ρ-reindexing well-defined. The outer formers below use the closed
-// instances, further instantiated by use-site spines.
+# Every conclusion above is a NOVA judgement: reflection of
+# well-formed ToS syntax is well-formed Nova syntax, by simultaneous
+# induction on the ToS derivation — the dual-zone discipline (Nova
+# pieces typed over the Nova zone alone) is exactly what makes the
+# ρ-reindexing well-defined. The outer formers below use the closed
+# instances, further instantiated by use-site spines.
 
-// IDENTITY (structural). 𝒮.𝕤 ē carries the signature 𝒮; two QIIT types
-// are equal exactly when their signatures, sorts (positions), and
-// indices are — homogeneous with every other former. The signature is
-// compared INTENSIONALLY, and the NAMELESS discipline makes that
-// comparison PLAIN STRUCTURAL EQUALITY of indexed syntax — there are
-// no names, so there is no α to quotient by; like universe codes. The
-// inductive-inductive self-reference is a BOUND reference (a ⬡-index)
-// inside the finite signature, so the comparison is finite and
-// iso-recursive — it never unfolds the fixpoint into its carrier, and
-// needs no equirecursive/coinductive machinery. (Signature equality is
-// finer than initial-algebra isomorphism — it distinguishes entry
-// reorderings — but SOUND; choosing a syntactic granularity over the
-// semantic one is the commitment the code-injectivity block already
-// makes: models collapsing structurally-distinct types are excluded.)
-//
-// A NAME for a QIIT is an ordinary definition x ≔ 𝒮.𝕤 type (which
-// unfolds, ty-sig-beta). Comparing two uses of the same name is then the
-// ordinary rigid-rigid-before-δ discipline — try the name, compare
-// substitutions, unfold only on mismatch — nothing QIIT-specific, and it
-// keeps the common case cheap without any bespoke rule. Consequently the
-// theory is UNIFORMLY structural, QIITs included, so (/) is a genuine
-// instance — A / R is 𝒮.𝕢 · for
-//     𝒮 = ( 𝕢 : U ; cls : (x : A) ⇛ El 𝕢 ;
-//           eq : (x y : A) ⇛ (h : Prf R[x,y]) ⇛ El (cls x ≡ cls y) )
-// — and the primitive (/) is kept for convenience, not necessity.
+# IDENTITY (structural). 𝒮.𝕤 ē carries the signature 𝒮; two QIIT types
+# are equal exactly when their signatures, sorts (positions), and
+# indices are — homogeneous with every other former. The signature is
+# compared INTENSIONALLY, and the NAMELESS discipline makes that
+# comparison PLAIN STRUCTURAL EQUALITY of indexed syntax — there are
+# no names, so there is no α to quotient by; like universe codes. The
+# inductive-inductive self-reference is a BOUND reference (a ⬡-index)
+# inside the finite signature, so the comparison is finite and
+# iso-recursive — it never unfolds the fixpoint into its carrier, and
+# needs no equirecursive/coinductive machinery. (Signature equality is
+# finer than initial-algebra isomorphism — it distinguishes entry
+# reorderings — but SOUND; choosing a syntactic granularity over the
+# semantic one is the commitment the code-injectivity block already
+# makes: models collapsing structurally-distinct types are excluded.)
+#
+# A NAME for a QIIT is an ordinary definition x ≔ 𝒮.𝕤 type (which
+# unfolds, ty-sig-beta). Comparing two uses of the same name is then the
+# ordinary rigid-rigid-before-δ discipline — try the name, compare
+# substitutions, unfold only on mismatch — nothing QIIT-specific, and it
+# keeps the common case cheap without any bespoke rule. Consequently the
+# theory is UNIFORMLY structural, QIITs included, so (/) is a genuine
+# instance — A / R is 𝒮.𝕢 · for
+#     𝒮 = ( 𝕢 : U ; cls : (x : A) ⇛ El 𝕢 ;
+#           eq : (x y : A) ⇛ (h : Prf R[x,y]) ⇛ El (cls x ≡ cls y) )
+# — and the primitive (/) is kept for convenience, not necessity.
 
-// FORMATION. The sort-𝕤 type of 𝒮 at an index spine ē (against the
-// reflected arity of 𝕤's kind), and its universe code, with El
-// bridging. A sort has no ι/β of its own — its only computation is the
-// eliminator's β. (Every QIIT former is SATURATED — spine-applied,
-// like S t, class a and every other Nova former. The ToS is curried
-// internally; currying stops at the Nova boundary.)
+# FORMATION. The sort-𝕤 type of 𝒮 at an index spine ē (against the
+# reflected arity of 𝕤's kind), and its universe code, with El
+# bridging. A sort has no ι/β of its own — its only computation is the
+# eliminator's β. (Every QIIT former is SATURATED — spine-applied,
+# like S t, class a and every other Nova former. The ToS is curried
+# internally; currying stops at the Nova boundary.)
 
 Γ ⊦ 𝒮 qsig      𝒮(𝕤) = 𝔎  (𝔎 U-ended)      Γ ⊦ ē : ⌊𝔎⌋ᵗ
 ------------------------------------------------------------- (ty-qiit)
 Γ ⊦ 𝒮.𝕤 ē type
 
-// A signature is SMALL when every Nova type it embeds (the external Π
-// domains) is itself codable — of the form El a, or Prf p (props are
-// size-free: trivial PERs, per the Ω block). Only SMALL signatures get
-// a universe code. This is the ty-pi/code-pi divide, and here it is
-// load-bearing: with a LARGE external domain — say (a : 𝕌) — the
-// code's decoding would contain 𝕌 as a RETRACT (eliminate at constant
-// motive 𝕌 with method a ↦ a), the classic type-in-type collapse; and
-// the model agrees — the universe's PER cannot be constructed while
-// consulting its own totality. Large signatures still form perfectly
-// good TYPES (ty-qiit above); they just have no code.
+# A signature is SMALL when every Nova type it embeds (the external Π
+# domains) is itself codable — of the form El a, or Prf p (props are
+# size-free: trivial PERs, per the Ω block). Only SMALL signatures get
+# a universe code. This is the ty-pi/code-pi divide, and here it is
+# load-bearing: with a LARGE external domain — say (a : 𝕌) — the
+# code's decoding would contain 𝕌 as a RETRACT (eliminate at constant
+# motive 𝕌 with method a ↦ a), the classic type-in-type collapse; and
+# the model agrees — the universe's PER cannot be constructed while
+# consulting its own totality. Large signatures still form perfectly
+# good TYPES (ty-qiit above); they just have no code.
 
 Γ ⊦ 𝒮 qsig      𝒮 small      𝒮(𝕤) = 𝔎  (𝔎 U-ended)      Γ ⊦ ē : ⌊𝔎⌋ᵗ
 --------------------------------------------------------------------------- (code-qiit)
@@ -1498,44 +1498,44 @@ e˲ : Γ₁ ⇒ Γ norm
 ------------------------------------------------------------- (ty-el-qiit)
 Γ ⊦ El (𝒮.𝕤 ē) ≜ 𝒮.𝕤 ē type
 
-// INTRODUCTION — point constructor, FULLY SATURATED: θ supplies every
-// argument at once, and 𝒮.𝕔 θ is the canonical form of its sort. A
-// bare curried 𝒮.𝕔 : ⌊𝔄⌋ is deliberately NOT a term: in the empty
-// context it would be a non-λ inhabitant of a Π-type, breaking the
-// canonical-forms semantics of Π (λ-only) — the same violation the
-// judgemental el-qiit-path avoids at ≡-types. Nothing is lost: a
-// partial application is a λ away, λ (𝒮.𝕔 (…, ☐₀)).
+# INTRODUCTION — point constructor, FULLY SATURATED: θ supplies every
+# argument at once, and 𝒮.𝕔 θ is the canonical form of its sort. A
+# bare curried 𝒮.𝕔 : ⌊𝔄⌋ is deliberately NOT a term: in the empty
+# context it would be a non-λ inhabitant of a Π-type, breaking the
+# canonical-forms semantics of Π (λ-only) — the same violation the
+# judgemental el-qiit-path avoids at ≡-types. Nothing is lost: a
+# partial application is a λ away, λ (𝒮.𝕔 (…, ☐₀)).
 
 Γ ⊦ 𝒮 qsig      𝒮(𝕔) = 𝔄  (𝔄 ending in El (𝕤 ī))      Γ ⊦ θ : ⌊𝔄⌋ᵗ
 --------------------------------------------------------------------- (el-qiit-intro)
 Γ ⊦ 𝒮.𝕔 θ : ⌊El (𝕤 ī)⌋[θ]
 
-// PATH — equation constructor: the equation HOLDS, as a JUDGEMENT —
-// el-quot-eq's shape, generalized. Deliberately no proof term is
-// minted: a constructor form at an ≡-type would be a second canonical
-// inhabitant besides Refl, breaking the canonical-forms semantics of
-// equality types. Nothing is lost — the ≡-type is inhabited by Refl
-// via el-eq-i, ty-eq-cong and coercion — and any witness data the
-// equation is conditional on (e.g. the quotient's Prf R) is simply a
-// binder of 𝔄, instantiated inside θ. (⌊𝔄⌋ᵗ for an El-ended 𝔄 is
-// the binder telescope, by the same recursion as the arity.)
+# PATH — equation constructor: the equation HOLDS, as a JUDGEMENT —
+# el-quot-eq's shape, generalized. Deliberately no proof term is
+# minted: a constructor form at an ≡-type would be a second canonical
+# inhabitant besides Refl, breaking the canonical-forms semantics of
+# equality types. Nothing is lost — the ≡-type is inhabited by Refl
+# via el-eq-i, ty-eq-cong and coercion — and any witness data the
+# equation is conditional on (e.g. the quotient's Prf R) is simply a
+# binder of 𝔄, instantiated inside θ. (⌊𝔄⌋ᵗ for an El-ended 𝔄 is
+# the binder telescope, by the same recursion as the arity.)
 
 Γ ⊦ 𝒮 qsig      𝒮(𝕔) = 𝔄  (𝔄 ending in El (l ≡ r))      Γ ⊦ θ : ⌊𝔄⌋ᵗ
 --------------------------------------------------------------------------- (el-qiit-path)
-Γ ⊦ ⌊l⌋[θ] ≐ ⌊r⌋[θ] : ⌊El 𝕦⌋[θ]      // 𝕦 the sides' common code
+Γ ⊦ ⌊l⌋[θ] ≐ ⌊r⌋[θ] : ⌊El 𝕦⌋[θ]      # 𝕦 the sides' common code
 
-// ELIMINATION. The eliminator is specified by a LAYERED stack of
-// judgement forms — MOTIVE FAMILY, DISPLAYED ALGEBRA, ELIMINATION
-// PROBLEM, SECTION CANDIDATE (all registered in the judgement-forms
-// table) — and by TYPE-DIRECTED admissible translations (·ᴰ, ·ᴰᵗ,
-// θ⟨φ⟩, ⟦·⟧), each computed by ≜-clauses like reflection. The layering
-// is the dependency order: motives → ᴰ-translations → methods → method
-// images → coherences; each layer's rules use only earlier layers.
-// Grammar: an ℰ is a pair of families,  ℰ ::= C̄ ; m̄  (one motive per
-// sort position, one method per point position of 𝒮).
-//
-// MOTIVE FAMILY — one Nova type family per sort, over its reflected
-// index telescope and the sort itself (δ = ⌊𝔎⌋ᵗ's variables):
+# ELIMINATION. The eliminator is specified by a LAYERED stack of
+# judgement forms — MOTIVE FAMILY, DISPLAYED ALGEBRA, ELIMINATION
+# PROBLEM, SECTION CANDIDATE (all registered in the judgement-forms
+# table) — and by TYPE-DIRECTED admissible translations (·ᴰ, ·ᴰᵗ,
+# θ⟨φ⟩, ⟦·⟧), each computed by ≜-clauses like reflection. The layering
+# is the dependency order: motives → ᴰ-translations → methods → method
+# images → coherences; each layer's rules use only earlier layers.
+# Grammar: an ℰ is a pair of families,  ℰ ::= C̄ ; m̄  (one motive per
+# sort position, one method per point position of 𝒮).
+#
+# MOTIVE FAMILY — one Nova type family per sort, over its reflected
+# index telescope and the sort itself (δ = ⌊𝔎⌋ᵗ's variables):
 
 Γ ⊦ 𝒮 qsig
 for each sort position 𝕤 of 𝒮 (𝒮(𝕤) = 𝔎):
@@ -1543,16 +1543,16 @@ for each sort position 𝕤 of 𝒮 (𝒮(𝕤) = 𝔎):
 --------------------------------------------- (mot)
 Γ ⊦ C̄ : 𝒮 mot
 
-// DISPLAYED TYPE 𝔄ᴰ⟨e⟩ and DISPLAYED TELESCOPE 𝔄ᴰᵗ — the two
-// ᴰ-read-outs of an entry type, relative to motives C̄: for a term e of
-// the head's type OVER THE MERGE, 𝔄ᴰ⟨e⟩ is the Nova type of "e is
-// covered by the motives", a Π-type over the displayed telescope. The
-// parameter is consumed ONCE, at the base, through the final
-// projection — saturation means there is no function to thread through
-// the binders. An INDUCTIVE binder at a sort code contributes its
-// argument AND its induction hypothesis; an external binder, and an
-// inductive binder at an EQUATION code (a content-free proof — the
-// extensional degeneration), contribute only their argument.
+# DISPLAYED TYPE 𝔄ᴰ⟨e⟩ and DISPLAYED TELESCOPE 𝔄ᴰᵗ — the two
+# ᴰ-read-outs of an entry type, relative to motives C̄: for a term e of
+# the head's type OVER THE MERGE, 𝔄ᴰ⟨e⟩ is the Nova type of "e is
+# covered by the motives", a Π-type over the displayed telescope. The
+# parameter is consumed ONCE, at the base, through the final
+# projection — saturation means there is no function to thread through
+# the binders. An INDUCTIVE binder at a sort code contributes its
+# argument AND its induction hypothesis; an external binder, and an
+# inductive binder at an EQUATION code (a content-free proof — the
+# extensional degeneration), contribute only their argument.
 
 Γ ⊦ C̄ : 𝒮 mot      𝒮(𝕜) = 𝔄  (𝔄 ending in El (𝕤 ī))
 Γ ⋈ 𝔄 ⊦ e : ⌊El (𝕤 ī)⌋_{𝑤_𝔄}
@@ -1563,72 +1563,72 @@ for each sort position 𝕤 of 𝒮 (𝒮(𝕤) = 𝔎):
 -------------------------------------------- (disp-tel)
 Γ ⊦ 𝔄ᴰᵗ tel
 
-// The ᴰ-clauses walk like reflection, in the ᴰ-STATE (𝑤 ; π) — the
-// reflection walk state paired with the PROJECTION π from the
-// ᴰ-context so far onto the plain merge so far (Γ̂ of 𝑤), forgetting
-// the IH slots. As with 𝑤, the π a clause uses is bound by its
-// subscript. The steps (argument slots are shared, so π lifts; IH
-// slots are ᴰ-only, so π weakens):
-//     (𝑤 ; π) ▷ᴰ A          ≜ (𝑤 ▷ A ; π⁺)
-//     (𝑤 ; π) ▷ᴰ El (𝕤 ī)   ≜ (𝑤 ▷ El (𝕤 ī) ; π⁺ ∘ ↑)
-//     (𝑤 ; π) ▷ᴰ El (l ≡ r) ≜ (𝑤 ▷ El (l≡r) ; π⁺)
-// Initial state (𝑤₀ ; id); the FINAL π of an entry's walk is the πᴰ
-// appearing in the rules (mimg, eprob):
+# The ᴰ-clauses walk like reflection, in the ᴰ-STATE (𝑤 ; π) — the
+# reflection walk state paired with the PROJECTION π from the
+# ᴰ-context so far onto the plain merge so far (Γ̂ of 𝑤), forgetting
+# the IH slots. As with 𝑤, the π a clause uses is bound by its
+# subscript. The steps (argument slots are shared, so π lifts; IH
+# slots are ᴰ-only, so π weakens):
+#     (𝑤 ; π) ▷ᴰ A          ≜ (𝑤 ▷ A ; π⁺)
+#     (𝑤 ; π) ▷ᴰ El (𝕤 ī)   ≜ (𝑤 ▷ El (𝕤 ī) ; π⁺ ∘ ↑)
+#     (𝑤 ; π) ▷ᴰ El (l ≡ r) ≜ (𝑤 ▷ El (l≡r) ; π⁺)
+# Initial state (𝑤₀ ; id); the FINAL π of an entry's walk is the πᴰ
+# appearing in the rules (mimg, eprob):
 
-(El (𝕤 ī))ᴰ_{𝑤;π}⟨e⟩        ≜ C_𝕤[⌊ī⌋_𝑤[π], e[π]]     // the base: π is final
+(El (𝕤 ī))ᴰ_{𝑤;π}⟨e⟩        ≜ C_𝕤[⌊ī⌋_𝑤[π], e[π]]     # the base: π is final
 (A ⇛ 𝔄)ᴰ_{𝑤;π}⟨e⟩           ≜ A[ρ][π] → 𝔄ᴰ_{(𝑤;π) ▷ᴰ A}⟨e⟩
 (El (𝕤 ī) ⇛ 𝔄)ᴰ_{𝑤;π}⟨e⟩    ≜ ⌊El (𝕤 ī)⌋_𝑤[π] → C_𝕤[⌊ī⌋_𝑤[π][↑], ☐₀]
                                  → 𝔄ᴰ_{(𝑤;π) ▷ᴰ El (𝕤 ī)}⟨e⟩
 (El (l ≡ r) ⇛ 𝔄)ᴰ_{𝑤;π}⟨e⟩  ≜ ⌊El (l≡r)⌋_𝑤[π]
-                                 → 𝔄ᴰ_{(𝑤;π) ▷ᴰ El (l≡r)}⟨e⟩          // no IH
+                                 → 𝔄ᴰ_{(𝑤;π) ▷ᴰ El (l≡r)}⟨e⟩          # no IH
 
 (El 𝕦)ᴰᵗ_{𝑤;π}            ≜ ε
 (A ⇛ 𝔄)ᴰᵗ_{𝑤;π}           ≜ A[ρ][π] ◁ 𝔄ᴰᵗ_{(𝑤;π) ▷ᴰ A}
 (El (𝕤 ī) ⇛ 𝔄)ᴰᵗ_{𝑤;π}    ≜ ⌊El (𝕤 ī)⌋_𝑤[π] ◁ C_𝕤[⌊ī⌋_𝑤[π][↑], ☐₀]
                                ◁ 𝔄ᴰᵗ_{(𝑤;π) ▷ᴰ El (𝕤 ī)}
 (El (l ≡ r) ⇛ 𝔄)ᴰᵗ_{𝑤;π}  ≜ ⌊El (l≡r)⌋_𝑤[π] ◁ 𝔄ᴰᵗ_{(𝑤;π) ▷ᴰ El (l≡r)}
-                                                            // no IH slot
+                                                            # no IH slot
 
-// (One recursion, two read-outs: 𝔄ᴰ⟨e⟩ is the Π over 𝔄ᴰᵗ ending in
-// C_𝕤 at ⌊ī⌋[πᴰ] and e[πᴰ] — at a sort-inductive binder the value is
-// ☐₁ and its induction hypothesis ☐₀. In the rules, unsubscripted
-// 𝔄ᴰ⟨e⟩ / 𝔄ᴰᵗ of a whole entry type are at (𝑤₀ ; id).)
+# (One recursion, two read-outs: 𝔄ᴰ⟨e⟩ is the Π over 𝔄ᴰᵗ ending in
+# C_𝕤 at ⌊ī⌋[πᴰ] and e[πᴰ] — at a sort-inductive binder the value is
+# ☐₁ and its induction hypothesis ☐₀. In the rules, unsubscripted
+# 𝔄ᴰ⟨e⟩ / 𝔄ᴰᵗ of a whole entry type are at (𝑤₀ ; id).)
 
-// DISPLAYED ALGEBRA — motives plus a method per point constructor:
+# DISPLAYED ALGEBRA — motives plus a method per point constructor:
 
 Γ ⊦ C̄ : 𝒮 mot
 for each point position 𝕔 of 𝒮 (𝒮(𝕔) = 𝔄; δ = ⌊𝔄⌋ᵗ's variables):
     Γ ⊦ m_𝕔 : 𝔄ᴰ⟨𝒮.𝕔 δ⟩
 --------------------------------------------------------------- (dalg)
 Γ ⊦ (C̄ ; m̄) : 𝒮 dalg
-// (𝒮.𝕔 δ — the SATURATED constructor at the merge's own variables —
-// is the e whose coverage the method provides.)
+# (𝒮.𝕔 δ — the SATURATED constructor at the merge's own variables —
+# is the e whose coverage the method provides.)
 
-// METHOD IMAGE ⟦·⟧ — relative to a displayed algebra: the image of a
-// qiit-term under the methods, with induction hypotheses read off the
-// displayed telescope. Stated at the full OPENING of the entry type,
-// concluded in its ᴰ-context. ⟦·⟧ walks APPLICATION CHAINS only, never
-// binders, so all its clauses are at one fixed state — the final
-// ᴰ-state (𝑤_𝔄 ; πᴰ) — and the ρ, υ, πᴰ below are its components:
+# METHOD IMAGE ⟦·⟧ — relative to a displayed algebra: the image of a
+# qiit-term under the methods, with induction hypotheses read off the
+# displayed telescope. Stated at the full OPENING of the entry type,
+# concluded in its ᴰ-context. ⟦·⟧ walks APPLICATION CHAINS only, never
+# binders, so all its clauses are at one fixed state — the final
+# ᴰ-state (𝑤_𝔄 ; πᴰ) — and the ρ, υ, πᴰ below are its components:
 
 Γ ⊦ (C̄ ; m̄) : 𝒮 dalg      𝒮(𝕜) = 𝔄  (𝔄 El-ended)
 (Γ ; 𝒮) ⋉ 𝔄 ⊦ 𝕥 : El (𝕤 ī)
 ---------------------------------------------------- (mimg)
 Γ·𝔄ᴰᵗ ⊦ ⟦𝕥⟧ : C_𝕤[⌊ī⌋[πᴰ], ⌊𝕥⌋[πᴰ]]
 
-⟦⬡ᵢ⟧    ≜ ☐_{d(i)}          // d(i) = ⬡ᵢ's IH slot in 𝔄ᴰᵗ (a meta-level
-                             //   index computation, like m(i))
-⟦𝕔⟧     ≜ m_𝕔[↑𝔄ᴰᵗ]        // a point-constructor head, weakened in
+⟦⬡ᵢ⟧    ≜ ☐_{d(i)}          # d(i) = ⬡ᵢ's IH slot in 𝔄ᴰᵗ (a meta-level
+                             #   index computation, like m(i))
+⟦𝕔⟧     ≜ m_𝕔[↑𝔄ᴰᵗ]        # a point-constructor head, weakened in
 ⟦𝕥 t⟧   ≜ ⟦𝕥⟧ (t[ρ][πᴰ])
-⟦𝕥 𝕥'⟧  ≜ ⟦𝕥⟧ (⌊𝕥'⌋[πᴰ]) ⟦𝕥'⟧          // 𝕥' at a sort code: value, image
-⟦𝕥 𝕡⟧   ≜ ⟦𝕥⟧ (⌊𝕡⌋[πᴰ])                // 𝕡 at an equation code: value only
+⟦𝕥 𝕥'⟧  ≜ ⟦𝕥⟧ (⌊𝕥'⌋[πᴰ]) ⟦𝕥'⟧          # 𝕥' at a sort code: value, image
+⟦𝕥 𝕡⟧   ≜ ⟦𝕥⟧ (⌊𝕡⌋[πᴰ])                # 𝕡 at an equation code: value only
 
-// ELIMINATION PROBLEM — a displayed algebra whose COHERENCES hold: per
-// equation constructor, the method images of the two sides agree.
-// This is quot-elim's f⁼, one per equation, with no transport
-// (extensional: C[…,⌊l⌋[πᴰ]] ≐ C[…,⌊r⌋[πᴰ]] since ⌊l⌋ ≐ ⌊r⌋ by
-// el-qiit-path). Coherences are CHECKED, not stored — the eliminator
-// term carries ℰ = (C̄ ; m̄) only:
+# ELIMINATION PROBLEM — a displayed algebra whose COHERENCES hold: per
+# equation constructor, the method images of the two sides agree.
+# This is quot-elim's f⁼, one per equation, with no transport
+# (extensional: C[…,⌊l⌋[πᴰ]] ≐ C[…,⌊r⌋[πᴰ]] since ⌊l⌋ ≐ ⌊r⌋ by
+# el-qiit-path). Coherences are CHECKED, not stored — the eliminator
+# term carries ℰ = (C̄ ; m̄) only:
 
 Γ ⊦ ℰ : 𝒮 dalg
 for each equation position 𝕔 of 𝒮
@@ -1637,10 +1637,10 @@ for each equation position 𝕔 of 𝒮
 ------------------------------------------------------------ (eprob)
 Γ ⊦ ℰ : 𝒮 eprob
 
-// SECTION CANDIDATE — one term per sort, in the motive's context; and
-// the SECTION SPINE θ⟨φ⟩, a Nova spine for the displayed telescope
-// that interleaves θ with the φ-images of its inductive components
-// (θ's component at each binder written b):
+# SECTION CANDIDATE — one term per sort, in the motive's context; and
+# the SECTION SPINE θ⟨φ⟩, a Nova spine for the displayed telescope
+# that interleaves θ with the φ-images of its inductive components
+# (θ's component at each binder written b):
 
 Γ ⊦ C̄ : 𝒮 mot
 for each sort position 𝕤 of 𝒮 (𝒮(𝕤) = 𝔎):
@@ -1655,31 +1655,31 @@ for each sort position 𝕤 of 𝒮 (𝒮(𝕤) = 𝔎):
 (El 𝕦)⟨φ⟩           ≜ ·
 (A ⇛ 𝔄)⟨φ⟩          ≜ b, 𝔄⟨φ⟩
 (El (𝕤 ī) ⇛ 𝔄)⟨φ⟩   ≜ b, φ_𝕤 ⌊ī⌋ b, 𝔄⟨φ⟩
-(El (l ≡ r) ⇛ 𝔄)⟨φ⟩ ≜ b, 𝔄⟨φ⟩                    // no IH slot
-// (b is θ's component at the binder — the clauses consume θ in order,
-// and each ⌊ī⌋ is at the current walk state INSTANTIATED by the spine
-// consumed so far, [id, θ↾] — so every component lives over Γ. Then
-// m θ⟨φ⟩ : C_𝕤[⌊ī⌋[θ], e[θ]] for m : 𝔄ᴰ⟨e⟩, by the read-out note.)
+(El (l ≡ r) ⇛ 𝔄)⟨φ⟩ ≜ b, 𝔄⟨φ⟩                    # no IH slot
+# (b is θ's component at the binder — the clauses consume θ in order,
+# and each ⌊ī⌋ is at the current walk state INSTANTIATED by the spine
+# consumed so far, [id, θ↾] — so every component lives over Γ. Then
+# m θ⟨φ⟩ : C_𝕤[⌊ī⌋[θ], e[θ]] for m : 𝔄ᴰ⟨e⟩, by the read-out note.)
 
 Γ ⊦ 𝒮 qsig      𝒮(𝕤) = 𝔎      Γ ⊦ ℰ : 𝒮 eprob
 Γ ⊦ ē : ⌊𝔎⌋ᵗ      Γ ⊦ w : 𝒮.𝕤 ē
 ------------------------------------------------------ (el-qiit-elim)
 Γ ⊦ 𝒮.𝕤-elim ℰ ē w : C_𝕤[ē, w]
 
-// COMPUTATION (β) — at the saturated constructor (its sort and indices
-// read off 𝕔's type). φᵉˡ is the family φᵉˡ_𝕤 ≜ 𝒮.𝕤-elim ℰ δ ☐₀ —
-// a section candidate, by el-qiit-elim.
+# COMPUTATION (β) — at the saturated constructor (its sort and indices
+# read off 𝕔's type). φᵉˡ is the family φᵉˡ_𝕤 ≜ 𝒮.𝕤-elim ℰ δ ☐₀ —
+# a section candidate, by el-qiit-elim.
 
 Γ ⊦ 𝒮 qsig      𝒮(𝕔) = 𝔄  (𝔄 ending in El (𝕤 ī))
 Γ ⊦ ℰ : 𝒮 eprob      Γ ⊦ θ : ⌊𝔄⌋ᵗ
 ------------------------------------------------------ (el-qiit-beta)
 Γ ⊦ 𝒮.𝕤-elim ℰ ⌊ī⌋[θ] (𝒮.𝕔 θ) ≜ m_𝕔 θ⟨φᵉˡ⟩ : C_𝕤[⌊ī⌋[θ], 𝒮.𝕔 θ]
-//   the RHS is 𝕔's method image with the hypotheses supplied by elim
-//   itself. EQUATION constructors have NO β-rule (their content is a
-//   judgement).
+#   the RHS is 𝕔's method image with the hypotheses supplied by elim
+#   itself. EQUATION constructors have NO β-rule (their content is a
+#   judgement).
 
-// UNIQUENESS (η) — the section is unique (initiality): any candidate
-// that commutes with every point constructor IS the eliminator.
+# UNIQUENESS (η) — the section is unique (initiality): any candidate
+# that commutes with every point constructor IS the eliminator.
 
 Γ ⊦ ℰ : 𝒮 eprob      Γ ⊦ h : C̄ sect
 for each point position 𝕔 of 𝒮 (𝒮(𝕔) = 𝔄, ending in El (𝕤 ī);
@@ -1688,82 +1688,82 @@ for each point position 𝕔 of 𝒮 (𝒮(𝕔) = 𝔄, ending in El (𝕤 ī);
 𝒮(𝕤) = 𝔎      Γ ⊦ ē : ⌊𝔎⌋ᵗ      Γ ⊦ w : 𝒮.𝕤 ē
 ------------------------------------------------------------- (el-qiit-eta)
 Γ ⊦ h_𝕤[ē, w] ≐ 𝒮.𝕤-elim ℰ ē w : C_𝕤[ē, w]
-//   any h satisfying the β-equations equals elim: two maps out of a
-//   QIIT that agree on all constructors are equal (el-nat-eta /
-//   el-quot-eta, generalized).
+#   any h satisfying the β-equations equals elim: two maps out of a
+#   QIIT that agree on all constructors are equal (el-nat-eta /
+#   el-quot-eta, generalized).
 
-// SUBSTITUTION ACTION. Substitution acts through the carried signature:
-//     (𝒮.𝕤 ē)[σ]          ≜ 𝒮[σ].𝕤 ē[σ]     (type and code)
-//     (𝒮.𝕔 θ)[σ]          ≜ 𝒮[σ].𝕔 θ[σ]
-//     (𝒮.𝕤-elim ℰ ē w)[σ] ≜ 𝒮[σ].𝕤-elim ℰ[σ] ē[σ] w[σ]
-// where 𝒮[σ] and ℰ[σ] are the ToS substitution meta-operation (defined
-// with the grammar above): σ on every embedded Nova piece, lifted over
-// the external binders in scope; inductive variables untouched.
+# SUBSTITUTION ACTION. Substitution acts through the carried signature:
+#     (𝒮.𝕤 ē)[σ]          ≜ 𝒮[σ].𝕤 ē[σ]     (type and code)
+#     (𝒮.𝕔 θ)[σ]          ≜ 𝒮[σ].𝕔 θ[σ]
+#     (𝒮.𝕤-elim ℰ ē w)[σ] ≜ 𝒮[σ].𝕤-elim ℰ[σ] ē[σ] w[σ]
+# where 𝒮[σ] and ℰ[σ] are the ToS substitution meta-operation (defined
+# with the grammar above): σ on every embedded Nova piece, lifted over
+# the external binders in scope; inductive variables untouched.
 
-// CONGRUENCE and INJECTIVITY are STRUCTURAL: equal QIIT types/codes have
-// equal signatures, sort positions, and index spines, and conversely —
-// the signature compared componentwise (entry by entry; qiit-types and
-// qiit-terms as plain indexed syntax — nameless, no α — their embedded
-// Nova pieces by the existing congruence/injectivity rules). Stated by
-// that meta-recursion rather than spelled per entry, and sound by the
-// same canonical-forms commitment as the other formers' inj rules.
+# CONGRUENCE and INJECTIVITY are STRUCTURAL: equal QIIT types/codes have
+# equal signatures, sort positions, and index spines, and conversely —
+# the signature compared componentwise (entry by entry; qiit-types and
+# qiit-terms as plain indexed syntax — nameless, no α — their embedded
+# Nova pieces by the existing congruence/injectivity rules). Stated by
+# that meta-recursion rather than spelled per entry, and sound by the
+# same canonical-forms commitment as the other formers' inj rules.
 
-// NOTES.
-//   * SUBSUMPTION. ℕ is 𝒮.𝕟 · for 𝒮 = (𝕟 : U; Z : El 𝕟;
-//     S : (𝕧 : El 𝕟) ⇛ El 𝕟). The quotient A / R is 𝒮.𝕢 · for the
-//     signature under IDENTITY above. An indexed inductive type
-//     (well-founded trees included) is a sorts-and-points signature:
-//     sorts with index arities over I, one point constructor per node
-//     shape whose inductive binders are the subtrees. Because QIIT
-//     equality is structural (IDENTITY above), these are genuine
-//     equalities, not just encodings: ℕ and (/) are kept for
-//     convenience but are now DERIVABLE, each a one-line signature.
-//     (At the CODE level the signatures are small — ℕ's embeds no Nova
-//     types at all, and code-quot's arity, A : 𝕌 with R : Ω, is
-//     exactly El a and Prf R domains — so code-nat/code-quot are
-//     subsumed too.)
-//   * RELAXATION. Strict positivity is GRAMMATICAL — Π domains are
-//     only Nova types (sort-free: the Nova zone has no inductive
-//     variables) or El-codes; U and Π-types never occur left of a ⇛.
-//     This grammar is the DECIDABLE proxy for a semantic condition:
-//     that the signature's operator be monotone on the PER lattice. A
-//     future revision could widen the domain grammar and instead
-//     discharge a monotonicity obligation as an ordinary premise,
-//     admitting monotone-but-not-positive operators; postulated here
-//     in the positive fragment only.
-//   * SEMANTICS. The postulate asserts that 𝒮's INITIAL ALGEBRA exists
-//     in the canonical-forms model: carriers are the constructor terms
-//     quotiented by the congruence GENERATED by the equation
-//     constructors, 𝒮.𝕤-elim is the unique section into any displayed
-//     algebra (el-qiit-eta), and β holds on the nose. This is the
-//     initiality commitment of Altenkirch–Kaposi–Kovács (finitary QIITs),
-//     transported to the extensional PER setting where the coherence
-//     tower degenerates. As with the injectivity rules, models that fail
-//     initiality are hereby excluded.
+# NOTES.
+#   * SUBSUMPTION. ℕ is 𝒮.𝕟 · for 𝒮 = (𝕟 : U; Z : El 𝕟;
+#     S : (𝕧 : El 𝕟) ⇛ El 𝕟). The quotient A / R is 𝒮.𝕢 · for the
+#     signature under IDENTITY above. An indexed inductive type
+#     (well-founded trees included) is a sorts-and-points signature:
+#     sorts with index arities over I, one point constructor per node
+#     shape whose inductive binders are the subtrees. Because QIIT
+#     equality is structural (IDENTITY above), these are genuine
+#     equalities, not just encodings: ℕ and (/) are kept for
+#     convenience but are now DERIVABLE, each a one-line signature.
+#     (At the CODE level the signatures are small — ℕ's embeds no Nova
+#     types at all, and code-quot's arity, A : 𝕌 with R : Ω, is
+#     exactly El a and Prf R domains — so code-nat/code-quot are
+#     subsumed too.)
+#   * RELAXATION. Strict positivity is GRAMMATICAL — Π domains are
+#     only Nova types (sort-free: the Nova zone has no inductive
+#     variables) or El-codes; U and Π-types never occur left of a ⇛.
+#     This grammar is the DECIDABLE proxy for a semantic condition:
+#     that the signature's operator be monotone on the PER lattice. A
+#     future revision could widen the domain grammar and instead
+#     discharge a monotonicity obligation as an ordinary premise,
+#     admitting monotone-but-not-positive operators; postulated here
+#     in the positive fragment only.
+#   * SEMANTICS. The postulate asserts that 𝒮's INITIAL ALGEBRA exists
+#     in the canonical-forms model: carriers are the constructor terms
+#     quotiented by the congruence GENERATED by the equation
+#     constructors, 𝒮.𝕤-elim is the unique section into any displayed
+#     algebra (el-qiit-eta), and β holds on the nose. This is the
+#     initiality commitment of Altenkirch–Kaposi–Kovács (finitary QIITs),
+#     transported to the extensional PER setting where the coherence
+#     tower degenerates. As with the injectivity rules, models that fail
+#     initiality are hereby excluded.
 
-// EXAMPLE (inductive-inductive: contexts and types). The signature
-//     𝒮 = ( Con : U
-//         ; Ty  : (𝕘 : El Con) ⇛ U
-//         ; ⋄   : El Con
-//         ; ext : (𝕘 : El Con) ⇛ (𝕒 : El (Ty 𝕘)) ⇛ El Con      // Γ ▷ A
-//         ; u   : (𝕘 : El Con) ⇛ El (Ty 𝕘)
-//         ; pi  : (𝕘 : El Con) ⇛ (𝕒 : El (Ty 𝕘))
-//                   ⇛ (𝕓 : El (Ty (ext 𝕘 𝕒))) ⇛ El (Ty 𝕘) )
-//   gives types 𝒮.Con · and 𝒮.Ty c (Ty indexed by Con); induction is
-//   induction-induction — a motive for Con and one for Ty over it, the
-//   methods respecting the dependency.
-//
-// EXAMPLE (quotient: finite multisets over an external type A).
-//     𝒮 = ( Bag : U
-//         ; nil : El Bag
-//         ; ins : (x : A) ⇛ (𝕞 : El Bag) ⇛ El Bag              // x ∷ m
-//         ; swp : (x y : A) ⇛ (𝕞 : El Bag)
-//                   ⇛ El (ins x (ins y 𝕞) ≡ ins y (ins x 𝕞)) )
-//   swp is an equation constructor; 𝒮.Bag ·'s eliminator carries the
-//   coherence premise that the method for ins is invariant under
-//   swapping the two heads — the multiset laws, no transport.
+# EXAMPLE (inductive-inductive: contexts and types). The signature
+#     𝒮 = ( Con : U
+#         ; Ty  : (𝕘 : El Con) ⇛ U
+#         ; ⋄   : El Con
+#         ; ext : (𝕘 : El Con) ⇛ (𝕒 : El (Ty 𝕘)) ⇛ El Con      # Γ ▷ A
+#         ; u   : (𝕘 : El Con) ⇛ El (Ty 𝕘)
+#         ; pi  : (𝕘 : El Con) ⇛ (𝕒 : El (Ty 𝕘))
+#                   ⇛ (𝕓 : El (Ty (ext 𝕘 𝕒))) ⇛ El (Ty 𝕘) )
+#   gives types 𝒮.Con · and 𝒮.Ty c (Ty indexed by Con); induction is
+#   induction-induction — a motive for Con and one for Ty over it, the
+#   methods respecting the dependency.
+#
+# EXAMPLE (quotient: finite multisets over an external type A).
+#     𝒮 = ( Bag : U
+#         ; nil : El Bag
+#         ; ins : (x : A) ⇛ (𝕞 : El Bag) ⇛ El Bag              # x ∷ m
+#         ; swp : (x y : A) ⇛ (𝕞 : El Bag)
+#                   ⇛ El (ins x (ins y 𝕞) ≡ ins y (ins x 𝕞)) )
+#   swp is an equation constructor; 𝒮.Bag ·'s eliminator carries the
+#   coherence premise that the method for ins is invariant under
+#   swapping the two heads — the multiset laws, no transport.
 
-// Signature references.
+# Signature references.
 
 (Γ ⊦ x ≔ a : A) ∈ Σ
 e˲ : Δ ⇒ Γ norm
@@ -1775,8 +1775,8 @@ e˲ : Δ ⇒ Γ norm
 ------------------------------ (el-sig-beta)
 Σ Δ ⊦ x[e˲] ≜ a[e˲] : A[e˲]
 
-// Substitution action on elements: t[σ] is defined by meta-level
-// induction on t via the ≜-equations below.
+# Substitution action on elements: t[σ] is defined by meta-level
+# induction on t via the ≜-equations below.
 
 Γ₁ ⊦ t : A
 σ : Γ₀ ⇒ Γ₁
@@ -1784,13 +1784,13 @@ e˲ : Δ ⇒ Γ norm
 Γ₀ ⊦ t[σ] : A[σ]
 
 Γ ⊦ t : A
------------------------ (el-sub-id) // true on the nose by induction on t
+----------------------- (el-sub-id) # true on the nose by induction on t
 Γ ⊦ t[id] ≐ t : A
 
 Γ₂ ⊦ t : A
 σ : Γ₁ ⇒ Γ₂
 τ : Γ₀ ⇒ Γ₁
---------------------------------------- (el-sub-comp) // true on the nose by induction on t
+--------------------------------------- (el-sub-comp) # true on the nose by induction on t
 Γ₀ ⊦ t[σ ∘ τ] ≐ t[σ][τ] : A[σ][τ]
 
 σ : Γ₀ ⇒ Γ₁
@@ -1900,13 +1900,13 @@ e˲ : Δ ⇒ Γ norm
 
 σ : Δ ⇒ Γ
 Δ ⊦ t : A[σ]
-------------------------------- (var-sub-hit)   // A the type ☐₀ names in Γ ▷ A
+------------------------------- (var-sub-hit)   # A the type ☐₀ names in Γ ▷ A
 Δ ⊦ ☐₀[σ, t] ≜ t : A[σ]
 
 Γ ⊦ ☐ₙ : B
 σ : Δ ⇒ Γ
 Δ ⊦ t : A[σ]
---------------------------------------- (var-sub-miss)   // A the extension type
+--------------------------------------- (var-sub-miss)   # A the extension type
 Δ ⊦ ☐ₙ₊₁[σ, t] ≜ ☐ₙ[σ] : B[σ]
 
 Γ ⊦ ☐ₙ : B
@@ -1930,7 +1930,7 @@ e˲ : Γ₁ ⇒ Γ norm
 ---------------------------------------------- (el-sub-sig-var)
 Σ Γ₀ ⊦ x[e˲][σ] ≜ x[e˲ ∘ σ] : A[e˲ ∘ σ]
 
-// Coercion.
+# Coercion.
 
 Γ ⊦ A₀ ≐ A₁ type
 Γ ⊦ a : A₀
@@ -1952,7 +1952,7 @@ e˲ : Γ₁ ⇒ Γ norm
 -------------------- (el-eq-coe-ctx)
 Γ₁ ⊦ a₀ ≐ a₁ : A
 
-// Congruence rules for element constructors.
+# Congruence rules for element constructors.
 
 Γ₁ ⊦ t₀ ≐ t₁ : A
 σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
@@ -1961,7 +1961,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ₁ ⊦ t₀ ≐ t₁ : A
 σ : Γ₀ ⇒ Γ₁
---------------------------------- (el-sub-cong-fix) // admissible: specialize via sub-refl
+--------------------------------- (el-sub-cong-fix) # admissible: specialize via sub-refl
 Γ₀ ⊦ t₀[σ] ≐ t₁[σ] : A[σ]
 
 Γ ▷ A ⊦ f₀ ≐ f₁ : B
@@ -2002,7 +2002,7 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ A type
 Γ ⊦ t₀ : 𝟘
 Γ ⊦ t₁ : 𝟘
------------------------------------- (el-zero-e-cong) // stronger than a congruence: no t⁼ premise
+------------------------------------ (el-zero-e-cong) # stronger than a congruence: no t⁼ premise
 Γ ⊦ 𝟘-elim t₀ ≐ 𝟘-elim t₁ : A
 
 Γ ▷ A ▷ A[↑] ⊦ R : Ω
@@ -2020,7 +2020,7 @@ e˲ : Γ₁ ⇒ Γ norm
 ------------------------------------------------------ (el-quot-e-cong, motive B)
 Γ ⊦ quot-elim f₀ q₀ ≐ quot-elim f₁ q₁ : B[id, q₁]
 
-// Congruence rules for universe code constructors.
+# Congruence rules for universe code constructors.
 
 Γ ⊦ A₀ ≐ A₁ : 𝕌
 Γ ▷ El A₁ ⊦ B₀ ≐ B₁ : 𝕌
@@ -2044,7 +2044,7 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ : 𝕌
 
 Γ ⊦ A₀ ≐ A₁ type
---------------------------- (code-squash-cong) // admissible via code-prop-eq + el-ty-coe
+--------------------------- (code-squash-cong) # admissible via code-prop-eq + el-ty-coe
 Γ ⊦ ∥A₀∥ ≐ ∥A₁∥ : Ω
 
 ///////// Rules (elem list) /////////
@@ -2067,7 +2067,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ₁ ⊦ ē : Δ
 σ : Γ₀ ⇒ Γ₁
----------------------- (sp-sub) // defined by meta-level induction on ē
+---------------------- (sp-sub) # defined by meta-level induction on ē
 Γ₀ ⊦ ē[σ] : Δ[σ]
 
 σ : Γ₀ ⇒ Γ₁
@@ -2108,7 +2108,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 ///////// Rule name scheme /////////
 
-// Names follow <class>-<former>-<kind> uniformly (see Conventions).
-// The PER schema instances are ctx-refl/-sym/-trans, sub-…, sub-norm-…,
-// ty-…, el-…, tel-…, sp-…. All other names appear verbatim on their
-// rules; there are no synonyms.
+# Names follow <class>-<former>-<kind> uniformly (see Conventions).
+# The PER schema instances are ctx-refl/-sym/-trans, sub-…, sub-norm-…,
+# ty-…, el-…, tel-…, sp-…. All other names appear verbatim on their
+# rules; there are no synonyms.

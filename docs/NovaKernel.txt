@@ -46,26 +46,26 @@ everywhere (under binders, in all components). The congruence clauses
 are not listed; the contraction clauses, each of which burns one unit
 of fuel, are exactly:
 
-  (λ f) e            ≜  f[id, e]                    // el-pi-beta
-  (a , b) .π₁        ≜  a                           // el-sigma-beta₁
-  (a , b) .π₂        ≜  b                           // el-sigma-beta₂
-  ℕ-elim z s Z       ≜  z                           // el-nat-beta-z
-  ℕ-elim z s (S n)   ≜  s[id, n, ℕ-elim z s n]      // el-nat-beta-s
-  quot-elim f (class a) ≜ f[id, a]                  // el-quot-beta
-  𝒮.𝕤-elim ℰ ē (𝒮′.𝕔 θ) ≜ m_𝕔 θ⟨φᵉˡ⟩               // el-qiit-beta; fires
-                                                    // only when 𝒮 and 𝒮′ are
-                                                    // IDENTICAL after nf
-  x[e˲]              ≜  a[e˲]      (Σ ∋ Γ ⊦ x ≔ a : A)   // el-sig-beta
-  x[e˲]              ≜  T[e˲]      (Σ ∋ Γ ⊦ x ≔ T type)  // ty-sig-beta
+  (λ f) e            ≜  f[id, e]                    # el-pi-beta
+  (a , b) .π₁        ≜  a                           # el-sigma-beta₁
+  (a , b) .π₂        ≜  b                           # el-sigma-beta₂
+  ℕ-elim z s Z       ≜  z                           # el-nat-beta-z
+  ℕ-elim z s (S n)   ≜  s[id, n, ℕ-elim z s n]      # el-nat-beta-s
+  quot-elim f (class a) ≜ f[id, a]                  # el-quot-beta
+  𝒮.𝕤-elim ℰ ē (𝒮′.𝕔 θ) ≜ m_𝕔 θ⟨φᵉˡ⟩               # el-qiit-beta; fires
+                                                    # only when 𝒮 and 𝒮′ are
+                                                    # IDENTICAL after nf
+  x[e˲]              ≜  a[e˲]      (Σ ∋ Γ ⊦ x ≔ a : A)   # el-sig-beta
+  x[e˲]              ≜  T[e˲]      (Σ ∋ Γ ⊦ x ≔ T type)  # ty-sig-beta
 
-  El 𝟘               ≜  𝟘                           // El-decoding
+  El 𝟘               ≜  𝟘                           # El-decoding
   El 𝟙               ≜  𝟙
   El ℕ               ≜  ℕ
   El (a → b)         ≜  El a → El b
   El (a ⨯ b)         ≜  El a ⨯ El b
   El (l ≡ r ∈ t)     ≜  l ≡ r ∈ El t
-  El (a / r)         ≜  El a / r      // the Ω-valued relation is NOT decoded
-  El (𝒮.𝕤 ē)         ≜  𝒮.𝕤 ē        // ty-el-qiit
+  El (a / r)         ≜  El a / r      # the Ω-valued relation is NOT decoded
+  El (𝒮.𝕤 ē)         ≜  𝒮.𝕤 ē        # ty-el-qiit
 
 Ω, Prf and ∥-∥ add no contraction clauses: Prf ∥A∥ does NOT reduce to A
 (realizer irrelevance is the point of the squash), and ⋆ has no
@@ -216,8 +216,8 @@ Nothing else is inferable. Argument CHECKING (⇐ᵖ) accepts the
 introduction forms structurally and falls back to infer-and-compare:
 
   nf(T) ⇓ (l ≡ r ∈ A)   nf(l) = nf(r)
-  -----------------------------------   // el-eq-i after the sides
-  Σ; Γ ⊦ Refl ⇐ᵖ T                      // are seen ≜-equal
+  -----------------------------------   # el-eq-i after the sides
+  Σ; Γ ⊦ Refl ⇐ᵖ T                      # are seen ≜-equal
 
   nf(T) ⇓ A / r   Σ; Γ ⊦ a ⇐ᵖ A         nf(T) ⇓ A ⨯ B
   -----------------------------         Σ; Γ ⊦ u ⇐ᵖ A   Σ; Γ ⊦ v ⇐ᵖ B[id, u]
@@ -226,16 +226,16 @@ introduction forms structurally and falls back to infer-and-compare:
 
   nf(T) ⇓ 𝒮.𝕤 ē   𝒮(𝕔) = 𝔄 ending in El (𝕤 ī)
   Σ; Γ ⊦ θ ⇐ᵖ ⌊𝔄⌋ᵗ (entrywise)   nf(⌊ī⌋[θ]) = nf(ē)
-  --------------------------------------------------   // el-qiit-intro:
-  Σ; Γ ⊦ 𝒮.𝕔 θ ⇐ᵖ T                                    // the term's 𝒮 and
-                                                       // nf(T)'s nf-identical
+  --------------------------------------------------   # el-qiit-intro:
+  Σ; Γ ⊦ 𝒮.𝕔 θ ⇐ᵖ T                                    # the term's 𝒮 and
+                                                       # nf(T)'s nf-identical
 
   nf(T) ⇓ Prf ∥𝟙∥                       nf(T) ⇓ Prf ∥l ≡ r ∈ A∥   nf(l) = nf(r)
   ----------------                      -------------------------------------
   Σ; Γ ⊦ ⋆ ⇐ᵖ T                         Σ; Γ ⊦ ⋆ ⇐ᵖ T
-  // el-squash-i with an evident witness. A step proof may also be typed
-  // Prf ∥l ≡ r ∈ t∥ — squashed reflection: `licensed` reads the same
-  // equation out of a squashed-equality proof as out of a bare ≡ one.
+  # el-squash-i with an evident witness. A step proof may also be typed
+  # Prf ∥l ≡ r ∈ t∥ — squashed reflection: `licensed` reads the same
+  # equation out of a squashed-equality proof as out of a bare ≡ one.
 
   nf(T) ⇓ A → B   Σ; Γ ▷ A ⊦ f ⇐ᵖ B     Σ; Γ ⊦ t ⇐ᵖ 𝟘
   ---------------------------------     ------------------------
@@ -243,12 +243,12 @@ introduction forms structurally and falls back to infer-and-compare:
 
   Σ; Γ ⊦ t ⇐ᵖ ℕ   Σ; Γ ⊦ z ⇐ᵖ T   Σ; Γ ▷ ℕ ▷ T[↑] ⊦ s ⇐ᵖ T[↑][↑]
   --------------------------------------------------------------
-  Σ; Γ ⊦ ℕ-elim z s t ⇐ᵖ T          // CONSTANT-MOTIVE (approximation
-                                    // A1, see §9): the instance of
-                                    // el-nat-e with motive T[↑]
+  Σ; Γ ⊦ ℕ-elim z s t ⇐ᵖ T          # CONSTANT-MOTIVE (approximation
+                                    # A1, see §9): the instance of
+                                    # el-nat-e with motive T[↑]
 
   Σ; Γ ⊦ p ⇒ᵖ T′   nf(T′) = nf(T)
-  -------------------------------        // fallback: infer, compare
+  -------------------------------        # fallback: infer, compare
   Σ; Γ ⊦ p ⇐ᵖ T
 
 Signature substitutions e˲ ⇐ᵖ Δ are checked entrywise, entry i's
@@ -293,24 +293,24 @@ are normalized before the head test, and a selector whose head shapes
 do not match is rejected.
 
   suc      : S x ≐ S y : ℕ            ⇒  x ≐ y : ℕ
-             // derivable congruence (pred via ℕ-elim)
+             # derivable congruence (pred via ℕ-elim)
   dom      : (a₀ → b₀) ≐ (a₁ → b₁) : 𝕌 ⇒  a₀ ≐ a₁ : 𝕌
-             // code-pi-inj (also code-sigma-inj for pair codes)
+             # code-pi-inj (also code-sigma-inj for pair codes)
   cod u    : (a₀ → b₀) ≐ (a₁ → b₁) : 𝕌 ⇒  b₀[id,u] ≐ b₁[id,u] : 𝕌
              requires  Σ; Γ ⊦ u ⇐ᵖ El a₁
-             // code-pi-inj second component, instantiated at u (el-sub-cong-fix)
-  qdom     : (a₀ / r₀) ≐ (a₁ / r₁) : 𝕌 ⇒  a₀ ≐ a₁ : 𝕌      // code-quot-inj
+             # code-pi-inj second component, instantiated at u (el-sub-cong-fix)
+  qdom     : (a₀ / r₀) ≐ (a₁ / r₁) : 𝕌 ⇒  a₀ ≐ a₁ : 𝕌      # code-quot-inj
   qrel u v : (a₀ / r₀) ≐ (a₁ / r₁) : 𝕌 ⇒  r₀[id,u,v] ≐ r₁[id,u,v] : Ω
              requires  Σ; Γ ⊦ u ⇐ᵖ El a₁   Σ; Γ ⊦ v ⇐ᵖ El a₁
-             // the relation components live at Ω, not 𝕌
-  eqT      : (l₀≡r₀∈t₀) ≐ (l₁≡r₁∈t₁) : 𝕌 ⇒ t₀ ≐ t₁ : 𝕌     // code-eq-inj
+             # the relation components live at Ω, not 𝕌
+  eqT      : (l₀≡r₀∈t₀) ≐ (l₁≡r₁∈t₁) : 𝕌 ⇒ t₀ ≐ t₁ : 𝕌     # code-eq-inj
   eqL      :                           ⇒ l₀ ≐ l₁ : El t₁
   eqR      :                           ⇒ r₀ ≐ r₁ : El t₁
   qidx i   : 𝒮.𝕤 ē₀ ≐ 𝒮.𝕤 ē₁ : 𝕌  ⇒  ē₀ᵢ ≐ ē₁ᵢ : Eᵢ
              requires the spines nf-EQUAL before i, so the entry type
              Eᵢ (entry i of ⌊𝔎⌋ᵗ, instantiated by the shared prefix)
              is determined; the signatures and the sort position must
-             be nf-identical      // QIIT code injectivity, indexwise
+             be nf-identical      # QIIT code injectivity, indexwise
 
 The injectivity rules are Foundation's (NovaFoundation.txt, "Type
 constructor injectivity"); the binder-crossing selectors take an
@@ -335,8 +335,8 @@ child's expected type from its parent's, and verifies the licensed
 equation's type in situ at the rewrite point:
 
   at path end, b binders crossed, expected type E known:
-    nf(E) = nf(A)[↑ᵇ]     // the licensed type matches the position
-    u = l[↑ᵇ]             // the subterm is the licensed lhs, weakened
+    nf(E) = nf(A)[↑ᵇ]     # the licensed type matches the position
+    u = l[↑ᵇ]             # the subterm is the licensed lhs, weakened
     ------------------------------------------------
     u rewrites to r[↑ᵇ]
 
@@ -351,20 +351,20 @@ type E; — means undetermined):
 
   𝟘-elim t        child 0 : 𝟘
   S t             child 0 : ℕ
-  ℕ-elim z s t    child 0 : E            // CONSTANT-MOTIVE (A1, §9)
-                  child 1 : E[↑][↑]      // ditto
+  ℕ-elim z s t    child 0 : E            # CONSTANT-MOTIVE (A1, §9)
+                  child 1 : E[↑][↑]      # ditto
                   child 2 : ℕ
   λ f             child 0 : B            when nf(E) ⇓ A → B
   f e             child 0 : —
                   child 1 : A            when f is an inferable spine
-                                         // ⇒ᴺ, below
+                                         # ⇒ᴺ, below
   (u , v)         child 0 : A            when nf(E) ⇓ A ⨯ B
                   child 1 : B[id, u]
   t.π₁ / t.π₂     child 0 : ⇒ᴺ(t)
   a →ᶜ b, a ⨯ᶜ b  children : 𝕌
   (l ≡ r ∈ t)ᶜ    children 0,1 : El t, child 2 : 𝕌
   a /ᶜ r          children : 𝕌
-  x[e˲]           child i : Δᵢ[e˲ prefix] // the telescope entry's type
+  x[e˲]           child i : Δᵢ[e˲ prefix] # the telescope entry's type
   class a         child 0 : A            when nf(E) ⇓ A / r
   quot-elim f q   child 0 : —, child 1 : ⇒ᴺ(q)
   𝒮.𝕤 ē (code)    child i : entry i of ⌊𝔎⌋ᵗ, instantiated by the
@@ -409,23 +409,23 @@ final):
   4. Close by the final:
 
   beta         nf-equal sides:  l = r  syntactically after ≜.
-               // el-eq via ≜-chains
-  prop         nf(T) ⇓ 𝟙 or 𝟘 or Prf p.  // el-one-prop / el-zero-prop /
-               // el-prf-prop (proof irrelevance)
+               # el-eq via ≜-chains
+  prop         nf(T) ⇓ 𝟙 or 𝟘 or Prf p.  # el-one-prop / el-zero-prop /
+               # el-prf-prop (proof irrelevance)
   witness 𝒞?   sides are class a ≐ class b and nf(T) ⇓ A / r;
                then by the shape of nf(r[id, a, b]) (an Ω code):
                  ⇓ ∥𝟙∥              — accepted (witness ())
                  ⇓ ∥wl ≡ wr ∈ W∥   — replay 𝒞 ▷ wl ≐ wr : W
-               // el-quot-eq: the relation is Ω-valued, so its witness
-               // shapes are squashes
+               # el-quot-eq: the relation is Ω-valued, so its witness
+               # shapes are squashes
   ηΠ 𝒞         nf(T) ⇓ A → B; replay
-               Σ; Γ ▷ A ⊦ 𝒞 ▷ l[↑] ☐₀ ≐ r[↑] ☐₀ : B     // el-pi-eta
+               Σ; Γ ▷ A ⊦ 𝒞 ▷ l[↑] ☐₀ ≐ r[↑] ☐₀ : B     # el-pi-eta
   ηΣ 𝒞₁ 𝒞₂     nf(T) ⇓ A ⨯ B; replay
                𝒞₁ ▷ l.π₁ ≐ r.π₁ : A
-               𝒞₂ ▷ l.π₂ ≐ r.π₂ : B[id, l.π₁]           // el-sigma-eta
+               𝒞₂ ▷ l.π₂ ≐ r.π₂ : B[id, l.π₁]           # el-sigma-eta
   propext ...  nf(T) ⇓ Ω, sides prop codes p, q; check the two
                hypothetical implications as typings
-               (Γ ▷ Prf p ⊦ s ⇐ Prf q[↑] and symmetrically).  // code-prop-eq
+               (Γ ▷ Prf p ⊦ s ⇐ Prf q[↑] and symmetrically).  # code-prop-eq
 
 Type equations — Σ; Γ ⊦ 𝒞 ▷ T₀ ≐ T₁: no bridge is admissible (a
 bridge on a type equation would be circular), steps apply through the
@@ -492,44 +492,44 @@ Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
   3. Then by the head of t:
 
      nf(T) ⇓ A → B    Σ; Γ ▷ A ⊦ f ⇐ B ⟨sk.0⟩
-     -----------------------------------------          // el-pi-i
+     -----------------------------------------          # el-pi-i
      Σ; Γ ⊦ λ f ⇐ T ⟨sk⟩
 
      nf(T) ⇓ A ⨯ B    Σ; Γ ⊦ u ⇐ A ⟨sk.0⟩   Σ; Γ ⊦ v ⇐ B[id,u] ⟨sk.1⟩
      ---------------------------------------------------------------
-     Σ; Γ ⊦ (u , v) ⇐ T ⟨sk⟩                            // el-sigma-i
+     Σ; Γ ⊦ (u , v) ⇐ T ⟨sk⟩                            # el-sigma-i
 
      nf(T) ⇓ (l ≡ r ∈ A)    sk carries refl-eq 𝒞    𝒞 ▷ l ≐ r : A
      -------------------------------------------------------------
-     Σ; Γ ⊦ Refl ⇐ T ⟨sk⟩                    // el-eq-i over replay
+     Σ; Γ ⊦ Refl ⇐ T ⟨sk⟩                    # el-eq-i over replay
 
      nf(T) ⇓ A / r    Σ; Γ ⊦ a ⇐ A ⟨sk.0⟩
-     -------------------------------------               // el-quot-i
+     -------------------------------------               # el-quot-i
      Σ; Γ ⊦ class a ⇐ T ⟨sk⟩
 
      nf(T) ⇓ 𝒮.𝕤 ē    𝒮(𝕔) = 𝔄 ending in El (𝕤 ī)
      Σ; Γ ⊦ θᵢ ⇐ (entry i of ⌊𝔄⌋ᵗ)[θ prefix] ⟨sk.i⟩ (entrywise)
      nf(⌊ī⌋[θ]) = nf(ē)
      ------------------------------------------------------------
-     Σ; Γ ⊦ 𝒮.𝕔 θ ⇐ T ⟨sk⟩                          // el-qiit-intro
-     // the term's carried 𝒮 and nf(T)'s must be nf-IDENTICAL;
-     // equal-but-different spellings go through expose/switch, as
-     // everywhere. The term's 𝒮 is NOT re-checked here — it is nf(T)'s
-     // signature, already validated where T was.
+     Σ; Γ ⊦ 𝒮.𝕔 θ ⇐ T ⟨sk⟩                          # el-qiit-intro
+     # the term's carried 𝒮 and nf(T)'s must be nf-IDENTICAL;
+     # equal-but-different spellings go through expose/switch, as
+     # everywhere. The term's 𝒮 is NOT re-checked here — it is nf(T)'s
+     # signature, already validated where T was.
 
      nf(T) ⇓ Prf ∥A∥    sk carries squash-wit e ⟨ske⟩   Σ; Γ ⊦ e ⇐ A ⟨ske⟩
      -------------------------------------------------------------------
-     Σ; Γ ⊦ ⋆ ⇐ T ⟨sk⟩                                  // el-squash-i
+     Σ; Γ ⊦ ⋆ ⇐ T ⟨sk⟩                                  # el-squash-i
 
      nf(T) ⇓ Prf q    sk carries squash-elim e ⟨ske⟩ b ⟨skb⟩
      Σ; Γ ⊦ e ⇒ Prf ∥A∥ ⟨ske⟩    Σ; Γ ▷ A ⊦ b ⇐ (Prf q)[↑] ⟨skb⟩
      ----------------------------------------------------------
-     Σ; Γ ⊦ ⋆ ⇐ T ⟨sk⟩                            // el-squash-e-prf
-     // disambiguated from el-squash-i above purely by which payload sk
-     // carries; both erase to the same ⋆ (realizer irrelevance)
+     Σ; Γ ⊦ ⋆ ⇐ T ⟨sk⟩                            # el-squash-e-prf
+     # disambiguated from el-squash-i above purely by which payload sk
+     # carries; both erase to the same ⋆ (realizer irrelevance)
 
      Σ; Γ ⊦ t ⇐ 𝟘 ⟨sk.0⟩
-     ----------------------------                        // el-zero-e
+     ----------------------------                        # el-zero-e
      Σ; Γ ⊦ 𝟘-elim t ⇐ T ⟨sk⟩
 
      otherwise: infer Σ; Γ ⊦ t ⇒ T′ ⟨sk⟩ and demand nf(T′) = nf(T)
@@ -547,7 +547,7 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
 
      Σ; Γ ⊦ f ⇒ Tf ⟨sk.0⟩   nf(Tf) ⇓ A → B   Σ; Γ ⊦ a ⇐ A ⟨sk.1⟩
      ------------------------------------------------------------
-     Σ; Γ ⊦ f a ⇒ B[id, a]                              // el-pi-e
+     Σ; Γ ⊦ f a ⇒ B[id, a]                              # el-pi-e
 
      (projections analogously: el-sigma-e₁/₂)
 
@@ -558,7 +558,7 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
      Σ; Γ ▷ ℕ ▷ M ⊦ s ⇐ M[(↑, S ☐₀) ∘ ↑] ⟨sk.1⟩
      Σ; Γ ⊦ t ⇐ ℕ ⟨sk.2⟩
      ------------------------------------------------------------
-     Σ; Γ ⊦ ℕ-elim z s t ⇒ M[id, t]                     // el-nat-e
+     Σ; Γ ⊦ ℕ-elim z s t ⇒ M[id, t]                     # el-nat-e
 
   quot-elim demands motive AND well-definedness:
 
@@ -568,7 +568,7 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
      Σ; Γ ▷ A ⊦ f ⇐ M[↑, class ☐₀] ⟨sk.0⟩
      Σ; Γ ▷ A ▷ A[↑] ▷ Prf r ⊦ 𝒞 ▷ f[↑³, ☐₂] ≐ f[↑³, ☐₁] : M[↑³, class ☐₂]
      ------------------------------------------------------------
-     Σ; Γ ⊦ quot-elim f q ⇒ M[id, q]                    // el-quot-e
+     Σ; Γ ⊦ quot-elim f q ⇒ M[id, q]                    # el-quot-e
   (the well-definedness hypothesis is Prf r — the DECODED relation)
 
   The QIIT eliminator carries its own motives and methods (ℰ = C̄ ; m̄
@@ -577,16 +577,16 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
 
      Σ; Γ ⊦ 𝒮 qsig ⟨sk𝒮⟩    𝒮(𝕤) = 𝔎    sk carries qcoh 𝒞₁ … 𝒞ₖ
      for each sort position 𝕤ⱼ of 𝒮 (𝒮(𝕤ⱼ) = 𝔎ⱼ):
-         Σ; Γ·⌊𝔎ⱼ⌋ᵗ ▷ 𝒮.𝕤ⱼ δ ⊦ C_𝕤ⱼ type ⟨skC.j⟩             // mot
+         Σ; Γ·⌊𝔎ⱼ⌋ᵗ ▷ 𝒮.𝕤ⱼ δ ⊦ C_𝕤ⱼ type ⟨skC.j⟩             # mot
      for each point position 𝕔 of 𝒮 (𝒮(𝕔) = 𝔄; δ = ⌊𝔄⌋ᵗ's variables):
-         Σ; Γ ⊦ m_𝕔 ⇐ 𝔄ᴰ⟨𝒮.𝕔 δ⟩ ⟨skm.𝕔⟩                     // dalg
+         Σ; Γ ⊦ m_𝕔 ⇐ 𝔄ᴰ⟨𝒮.𝕔 δ⟩ ⟨skm.𝕔⟩                     # dalg
      for each equation position 𝕔ⱼ of 𝒮
          (𝒮(𝕔ⱼ) = 𝔄ⱼ ending in El (l ≡ r), sides at code 𝕤′ ī):
-         Σ; Γ·𝔄ⱼᴰᵗ ⊦ 𝒞ⱼ ▷ ⟦l⟧ ≐ ⟦r⟧ : C_𝕤′[⌊ī⌋[πᴰ], ⌊l⌋[πᴰ]]  // eprob
+         Σ; Γ·𝔄ⱼᴰᵗ ⊦ 𝒞ⱼ ▷ ⟦l⟧ ≐ ⟦r⟧ : C_𝕤′[⌊ī⌋[πᴰ], ⌊l⌋[πᴰ]]  # eprob
      Σ; Γ ⊦ ēᵢ ⇐ (entry i of ⌊𝔎⌋ᵗ)[ē prefix] ⟨sk.i⟩ (entrywise)
      Σ; Γ ⊦ w ⇐ 𝒮.𝕤 ē ⟨sk.n⟩
      ------------------------------------------------------------
-     Σ; Γ ⊦ 𝒮.𝕤-elim ℰ ē w ⇒ C_𝕤[ē, w]               // el-qiit-elim
+     Σ; Γ ⊦ 𝒮.𝕤-elim ℰ ē w ⇒ C_𝕤[ē, w]               # el-qiit-elim
 
   ⌊·⌋, ⌊·⌋ᵗ, ·ᴰ⟨·⟩, ·ᴰᵗ, ⟦·⟧, θ⟨φ⟩ and πᴰ are Foundation's QIIT
   meta-operations, implemented as (trusted) kernel functions; the

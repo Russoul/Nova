@@ -50,127 +50,127 @@ binder, never resolvable; T{n}/t{n} names the type/term grammar at
 precedence level n, and T{>=n} any level at or above it. The
 term/type grammar below is self-contained.
 
-// A file is a sequence of items. `def` introduces a term definition,
-// `type` a type definition — the two signature-entry forms of
-// Foundation's Σ; `data` is an ITEM MACRO that expands into a batch
-// of them (QIIT section below). Every item is declared in the EMPTY context:
-// parameters are ordinary Π-binders in the item's type (the iterated
-// binder syntax below keeps that pleasant), and a reference to an
-// item is a bare name. Foundation's Σ entries keep their general
-// declaration contexts; the elaborator simply only produces closed
-// ones — so the normal-substitution syntax x[t˲] has no surface form.
+# A file is a sequence of items. `def` introduces a term definition,
+# `type` a type definition — the two signature-entry forms of
+# Foundation's Σ; `data` is an ITEM MACRO that expands into a batch
+# of them (QIIT section below). Every item is declared in the EMPTY context:
+# parameters are ordinary Π-binders in the item's type (the iterated
+# binder syntax below keeps that pleasant), and a reference to an
+# item is a bare name. Foundation's Σ entries keep their general
+# declaration contexts; the elaborator simply only produces closed
+# ones — so the normal-substitution syntax x[t˲] has no surface form.
 file  ::= import* (item | fixity)*
 imp   ::= import M | import M (n (, n)*)
 item  ::= def  n : T{≥0} ≔ t{≥0}
         | type x ≔ T{≥0}
         | data ([x : T{≥0}])* ( n : Q (; n : Q)* )
-                                              // a QIIT signature literal —
-                                              //   an ITEM MACRO over an
-                                              //   ambient PARAMETER
-                                              //   telescope, see the QIIT
-                                              //   section below
-fixity ::= infixl d op | infixr d op          // d a digit 0-9
+                                              # a QIIT signature literal —
+                                              #   an ITEM MACRO over an
+                                              #   ambient PARAMETER
+                                              #   telescope, see the QIIT
+                                              #   section below
+fixity ::= infixl d op | infixr d op          # d a digit 0-9
 
-// Q is the ToS type grammar of a data entry — Foundation's qiit-types
-// in surface clothes (→ inside a data literal is Foundation's ⇛;
-// binder groups iterate as everywhere):
-//   Q ::= U | El q | ((x : D))+ → Q
-// with q a ToS code (a sort name applied to arguments, or l ≡ r
-// between sort elements) and D a domain CLASSIFIED BY NAME RESOLUTION:
-// `El q` whose head resolves to a sort of the SAME literal (or an ≡
-// between such elements) is an INDUCTIVE domain; any other surface
-// type is EXTERNAL, elaborated as an ordinary type over the external
-// binders in scope. No new expression syntax exists outside the
-// literal: everything a data item provides reaches the file as
-// ordinary defs (see the QIIT section).
+# Q is the ToS type grammar of a data entry — Foundation's qiit-types
+# in surface clothes (→ inside a data literal is Foundation's ⇛;
+# binder groups iterate as everywhere):
+#   Q ::= U | El q | ((x : D))+ → Q
+# with q a ToS code (a sort name applied to arguments, or l ≡ r
+# between sort elements) and D a domain CLASSIFIED BY NAME RESOLUTION:
+# `El q` whose head resolves to a sort of the SAME literal (or an ≡
+# between such elements) is an INDUCTIVE domain; any other surface
+# type is EXTERNAL, elaborated as an ordinary type over the external
+# binders in scope. No new expression syntax exists outside the
+# literal: everything a data item provides reaches the file as
+# ordinary defs (see the QIIT section).
 
-// M is a dotted module name (Data.Nat); see Modules below.
-// n is an identifier x or an operator token op — OPERATORS ARE NAMES:
-// `def + : ℕ → ℕ → ℕ ≔ plus` defines the Σ-name "+", a fixity line
-// gives it precedence/associativity for infix use, and `a + b` is
-// nothing but application of that name. There is no notation-to-name
-// mapping and hence no resugaring gap: the obligation printer prints
-// the name, and the name is the operator (binary applications of
-// operator-shaped names lay out infix, fully parenthesized).
-// Operator tokens are maximal runs of the operator alphabet
-//   + - * < > = & | ! ? % ^ ~ @ # ⊕ ⊗ ⊙ ⊞ ⊟ ∙ ∘ · ≤ ≥ ∸ ⧺
-// (the reserved theory tokens → ⨯ ≡ ∈ ≔ / . , : are excluded, and the
-// lexer eats "--" as a comment, so no operator contains it). The
-// mention form (op) — e.g. (+) — is the operator as an ordinary
-// reference, usable anywhere an atom is; local binders are never
-// operator-shaped. A fixity declaration takes effect for the rest of
-// the file and is exported with the name: opening an operator
-// (`import nat (+)`) imports its fixity alongside. Infix use of an
-// operator with no fixity in scope is a parse error.
+# M is a dotted module name (Data.Nat); see Modules below.
+# n is an identifier x or an operator token op — OPERATORS ARE NAMES:
+# `def + : ℕ → ℕ → ℕ ≔ plus` defines the Σ-name "+", a fixity line
+# gives it precedence/associativity for infix use, and `a + b` is
+# nothing but application of that name. There is no notation-to-name
+# mapping and hence no resugaring gap: the obligation printer prints
+# the name, and the name is the operator (binary applications of
+# operator-shaped names lay out infix, fully parenthesized).
+# Operator tokens are maximal runs of the operator alphabet
+#   + - * < > = & | ! ? % ^ ~ @ # ⊕ ⊗ ⊙ ⊞ ⊟ ∙ ∘ · ≤ ≥ ∸ ⧺
+# (the reserved theory tokens → ⨯ ≡ ∈ ≔ / . , : are excluded, and the
+# lexer eats "--" as a comment, so no operator contains it). The
+# mention form (op) — e.g. (+) — is the operator as an ordinary
+# reference, usable anywhere an atom is; local binders are never
+# operator-shaped. A fixity declaration takes effect for the rest of
+# the file and is exported with the name: opening an operator
+# (`import nat (+)`) imports its fixity alongside. Infix use of an
+# operator with no fixity in scope is a parse error.
 
-// Types. Elaboration needs no rule keywords and no context prefixes —
-// the context is always implicit in where a subterm sits.
+# Types. Elaboration needs no rule keywords and no context prefixes —
+# the context is always implicit in where a subterm sits.
 T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | Ω | x | (T{≥0})
 T{2} ::= El t{≥4} | Prf t{≥4}
 T{1} ::= ((x:T{≥0}))+ → T{≥0} | ((x:T{≥0}))+ ⨯ T{≥0} | T{≥2} / (x y. t{≥1})
 T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
-// the quotient relation is an Ω-valued ELEMENT (t), not a type
+# the quotient relation is an Ω-valued ELEMENT (t), not a type
 
-// Binder groups ITERATE: (x:T) (y:U) → B parses as (x:T) → (y:U) → B
-// (each group scopes over the ones after it; likewise for ⨯), and the
-// codomain is full T{≥0}, so a lemma statement needs no parentheses:
-//     (n : ℕ) (m : ℕ) → plus n m ≡ plus m n ∈ ℕ
+# Binder groups ITERATE: (x:T) (y:U) → B parses as (x:T) → (y:U) → B
+# (each group scopes over the ones after it; likewise for ⨯), and the
+# codomain is full T{≥0}, so a lemma statement needs no parentheses:
+#     (n : ℕ) (m : ℕ) → plus n m ≡ plus m n ∈ ℕ
 
-// Elements. Two departures from the derivation surface syntax:
-//   1. Ascription `(t : T)` is first-class. It is the user's lever for
-//      putting a term into inference mode (see e-ann below) — needed
-//      exactly where the bidirectional discipline says so (a λ or pair
-//      applied/projected directly, an eliminated term whose type the
-//      elaborator cannot see).
-//   2. ℕ-elim and quot-elim take their motives inline, motive-first.
-//      Motives are not inferable without higher-order unification, so
-//      they are mandatory syntax here.
+# Elements. Two departures from the derivation surface syntax:
+#   1. Ascription `(t : T)` is first-class. It is the user's lever for
+#      putting a term into inference mode (see e-ann below) — needed
+#      exactly where the bidirectional discipline says so (a λ or pair
+#      applied/projected directly, an eliminated term whose type the
+#      elaborator cannot see).
+#   2. ℕ-elim and quot-elim take their motives inline, motive-first.
+#      Motives are not inferable without higher-order unification, so
+#      they are mandatory syntax here.
 t{5} ::= x | () | Z | Refl | ⋆ | ∥T{≥0}∥ | 𝟘 | 𝟙 | ℕ | (t{≥0}) | (t{≥0} : T{≥0})
 t{3} ::= t{≥3} t{≥4} | t{≥3} .π₁ | t{≥3} .π₂                 (left-assoc)
 t{2} ::= λx. t{≥1½}
        | 𝟘-elim t{≥4}
        | S t{≥4}
-       | ℕ-elim (n. T{≥0}) t{≥4} (n ih. t{≥4}) t{≥4}          // motive, z, s, scrutinee
+       | ℕ-elim (n. T{≥0}) t{≥4} (n ih. t{≥4}) t{≥4}          # motive, z, s, scrutinee
        | class t{≥4}
-       | quot-elim (z. T{≥0}) (a. t{≥0}) t{≥4}                // motive, case fn, scrutinee
-       | squash-elim t{≥4} (x. t{≥0})               // el-squash-e-prf: eliminate a
-                                                     //   proof of a squash into a
-                                                     //   further proposition
-       | ⋆ t{≥4}                          // el-squash-i, explicit witness (any A)
+       | quot-elim (z. T{≥0}) (a. t{≥0}) t{≥4}                # motive, case fn, scrutinee
+       | squash-elim t{≥4} (x. t{≥0})               # el-squash-e-prf: eliminate a
+                                                     #   proof of a squash into a
+                                                     #   further proposition
+       | ⋆ t{≥4}                          # el-squash-i, explicit witness (any A)
 t{1} ::= ((x:t{≥0}))+ → t{≥1} | ((x:t{≥0}))+ ⨯ t{≥1} | t{≥2} / (x y. t{≥1})
-       | t{≥2} ≡ t{≥2} ∈ t{≥2}                                // universe codes
-// ∥T∥ (squash) and ⋆ (the canonical proof) are the Ω introductions;
-// a squashed type is an Ω-valued element. Bare ⋆ (t{5}) auto-synthesizes
-// its witness only for evident 𝟙-/≡-shaped squashees; `⋆ e` (t{2})
-// checks e against the squashee directly, for any shape — el-squash-i
-// was always general (NovaFoundation.txt), only the auto-synthesis was
-// restricted. squash-elim is el-squash-e-prf's surface form: it has no
-// automatic counterpart since there is nothing to search for.
-t{1½} ::= t{≥2} (op t{≥2})*     // declared infix operators, by fixity
+       | t{≥2} ≡ t{≥2} ∈ t{≥2}                                # universe codes
+# ∥T∥ (squash) and ⋆ (the canonical proof) are the Ω introductions;
+# a squashed type is an Ω-valued element. Bare ⋆ (t{5}) auto-synthesizes
+# its witness only for evident 𝟙-/≡-shaped squashees; `⋆ e` (t{2})
+# checks e against the squashee directly, for any shape — el-squash-i
+# was always general (NovaFoundation.txt), only the auto-synthesis was
+# restricted. squash-elim is el-squash-e-prf's surface form: it has no
+# automatic counterpart since there is nothing to search for.
+t{1½} ::= t{≥2} (op t{≥2})*     # declared infix operators, by fixity
 t{0} ::= t{≥1} , t{≥0}                                        (right-assoc)
 
-// Name-dropping sugar: `A → B` for `(_:A) → B`, `A / R` for
-// `A / (_ _. R)`, `_` in any binder.
+# Name-dropping sugar: `A → B` for `(_:A) → B`, `A / R` for
+# `A / (_ _. R)`, `_` in any binder.
 
 //////// Name resolution (front end, before elaboration) ////////
 
-// Names are a parsing concern only.
-// Parsing + scope resolution translate the named text into an INDEXED
-// SURFACE AST: the same grammar with every variable occurrence replaced
-// by its de Bruijn index ☐ᵢ (innermost binder wins; locals shadow the
-// signature; a name bound by no binder is a signature reference, and
-// whether it exists in Σ is the elaborator's question) and binder
-// names carried along only as display metadata. Elaboration operates exclusively on this indexed
-// surface syntax; its rules below never consult a name, Γ is a plain
-// core context, and all binder bookkeeping is ordinary index
-// arithmetic. Names reappear in exactly one place: the report printer,
-// which uses the retained metadata to render obligations readably.
-//
-// The indexed surface AST is still surface, not core: it contains
-// ascription nodes `(t : T)` and inline eliminator motives, which core
-// syntax lacks. Elaboration is what erases those — checking ascriptions
-// away and moving motives out of the term — so the distance between
-// surface and core is annotations, never names.
+# Names are a parsing concern only.
+# Parsing + scope resolution translate the named text into an INDEXED
+# SURFACE AST: the same grammar with every variable occurrence replaced
+# by its de Bruijn index ☐ᵢ (innermost binder wins; locals shadow the
+# signature; a name bound by no binder is a signature reference, and
+# whether it exists in Σ is the elaborator's question) and binder
+# names carried along only as display metadata. Elaboration operates exclusively on this indexed
+# surface syntax; its rules below never consult a name, Γ is a plain
+# core context, and all binder bookkeeping is ordinary index
+# arithmetic. Names reappear in exactly one place: the report printer,
+# which uses the retained metadata to render obligations readably.
+#
+# The indexed surface AST is still surface, not core: it contains
+# ascription nodes `(t : T)` and inline eliminator motives, which core
+# syntax lacks. Elaboration is what erases those — checking ascriptions
+# away and moving motives out of the term — so the distance between
+# surface and core is annotations, never names.
 
 //////////// Elaboration state /////////////
 
@@ -236,11 +236,11 @@ therefore can never launder themselves into proofs; the wall between
 syntax (see Name resolution above). Named binders appearing in the rules
 (`Γ ▷ x:A ⊢ ...`) are readability only — x is not consulted.
 
-Σ; E; Γ ⊢ T ⇝ A type         // surface type T elaborates to core A
-Σ; E; Γ ⊢ t ⇐ A ⇝ a          // checking: core type A given
-Σ; E; Γ ⊢ t ⇒ A ⇝ a          // inference: core type A produced
-Σ; E; Γ ⊢ A ≐ B type ↓       // type conversion: discharge or assume
-Σ; E; Γ ⊢ a ≐ b : A ↓        // element conversion: discharge or assume
+Σ; E; Γ ⊢ T ⇝ A type         # surface type T elaborates to core A
+Σ; E; Γ ⊢ t ⇐ A ⇝ a          # checking: core type A given
+Σ; E; Γ ⊢ t ⇒ A ⇝ a          # inference: core type A produced
+Σ; E; Γ ⊢ A ≐ B type ↓       # type conversion: discharge or assume
+Σ; E; Γ ⊢ a ≐ b : A ↓        # element conversion: discharge or assume
 
 The ↓ judgements ALWAYS SUCCEED — that is the "assume and carry on"
 principle. They either discharge the equation algorithmically or append
@@ -274,54 +274,54 @@ never an unsound acceptance.
 //////////// Type elaboration /////////////
 
 Γ ⊢ 𝟘 ⇝ 𝟘 type    Γ ⊢ 𝟙 ⇝ 𝟙 type    Γ ⊢ ℕ ⇝ ℕ type    Γ ⊢ 𝕌 ⇝ 𝕌 type
-Γ ⊢ Ω ⇝ Ω type                       // (𝟘),(𝟙),(ℕ),(𝕌),(Ω)
+Γ ⊢ Ω ⇝ Ω type                       # (𝟘),(𝟙),(ℕ),(𝕌),(Ω)
 
 (ε ⊦ x ≔ T type) ∈ Σ
----------------------- (e-ty-sig)                             // (x[e˲] type)
+---------------------- (e-ty-sig)                             # (x[e˲] type)
 Γ ⊢ x ⇝ x[·] type
 
-// Every entry the elaborator produces is closed, so the core
-// reference always carries the empty substitution. (Foundation's
-// general x[e˲] stays available to the kernel; it just never appears
-// in elaborator output.)
+# Every entry the elaborator produces is closed, so the core
+# reference always carries the empty substitution. (Foundation's
+# general x[e˲] stays available to the kernel; it just never appears
+# in elaborator output.)
 
 Γ ⊢ T ⇝ A type
 Γ ▷ x:A ⊢ U ⇝ B type
--------------------------- (e-ty-pi)                          // (A → B)
+-------------------------- (e-ty-pi)                          # (A → B)
 Γ ⊢ (x:T) → U ⇝ A → B type
 
 Γ ⊢ T ⇝ A type
 Γ ▷ x:A ⊢ U ⇝ B type
--------------------------- (e-ty-sigma)                       // (A ⨯ B)
+-------------------------- (e-ty-sigma)                       # (A ⨯ B)
 Γ ⊢ (x:T) ⨯ U ⇝ A ⨯ B type
 
 Γ ⊢ T ⇝ A type
-Γ ▷ x:A ▷ y:A[↑] ⊢ r ⇐ Ω ⇝ r̂            // the relation is Ω-valued
------------------------------- (e-ty-quot)                    // (A / r)
+Γ ▷ x:A ▷ y:A[↑] ⊢ r ⇐ Ω ⇝ r̂            # the relation is Ω-valued
+------------------------------ (e-ty-quot)                    # (A / r)
 Γ ⊢ T / (x y. r) ⇝ A / r̂ type
 
 Γ ⊢ p ⇐ Ω ⇝ p̂
-------------------- (e-ty-prf)                                // (Prf p)
+------------------- (e-ty-prf)                                # (Prf p)
 Γ ⊢ Prf p ⇝ Prf p̂ type
 
 Γ ⊢ T ⇝ A type
 Γ ⊢ t₀ ⇐ A ⇝ a₀
 Γ ⊢ t₁ ⇐ A ⇝ a₁
-------------------------------------- (e-ty-eq)               // (a ≡ b ∈ T)
+------------------------------------- (e-ty-eq)               # (a ≡ b ∈ T)
 Γ ⊢ t₀ ≡ t₁ ∈ T ⇝ (a₀ ≡ a₁ ∈ A) type
 
 Γ ⊢ t ⇐ 𝕌 ⇝ a
-------------------- (e-ty-el)                                 // (El A)
+------------------- (e-ty-el)                                 # (El A)
 Γ ⊢ El t ⇝ El a type
 
 //////////// Element elaboration: inference /////////////
 
 ☐ᵢ in bounds for Γ
---------------------- (e-var)                                 // Γ‖ᵢ
+--------------------- (e-var)                                 # Γ‖ᵢ
 Γ ⊢ ☐ᵢ ⇒ Γ‖ᵢ ⇝ ☐ᵢ
 
 (ε ⊦ x ≔ a : A) ∈ Σ
-------------------------- (e-sig)                             // (x[e˲])
+------------------------- (e-sig)                             # (x[e˲])
 Γ ⊢ x ⇒ A ⇝ x[·]
 
 ------------------ (e-unit)      ---------------- (e-zeroN)
@@ -333,18 +333,18 @@ never an unsound acceptance.
 
 Γ ⊢ f ⇒ C ⇝ f̂        whnf(C) = A → B
 Γ ⊢ e ⇐ A ⇝ ê
------------------------------------- (e-app)                  // ((f : A → B) e)
+------------------------------------ (e-app)                  # ((f : A → B) e)
 Γ ⊢ f e ⇒ B[id, ê] ⇝ f̂ ê
-// whnf(C) of any other shape is a structural error: "cannot apply a
-// term of non-Π type — ascribe the function". No obligation is emitted;
-// there is no equation to state.
+# whnf(C) of any other shape is a structural error: "cannot apply a
+# term of non-Π type — ascribe the function". No obligation is emitted;
+# there is no equation to state.
 
 Γ ⊢ t ⇒ C ⇝ t̂        whnf(C) = A ⨯ B
-------------------------------------- (e-proj1)               // ((t : A ⨯ B) .π₁)
+------------------------------------- (e-proj1)               # ((t : A ⨯ B) .π₁)
 Γ ⊢ t .π₁ ⇒ A ⇝ t̂ .π₁
 
 Γ ⊢ t ⇒ C ⇝ t̂        whnf(C) = A ⨯ B
-------------------------------------- (e-proj2)               // ((t : A ⨯ B) .π₂)
+------------------------------------- (e-proj2)               # ((t : A ⨯ B) .π₂)
 Γ ⊢ t .π₂ ⇒ B[id, t̂ .π₁] ⇝ t̂ .π₂
 
 Γ ⊢ T ⇝ A type
@@ -358,7 +358,7 @@ never an unsound acceptance.
 Γ ⊢ t ⇐ ℕ ⇝ t̂
 --------------------------------------------------------- (e-natelim)
 Γ ⊢ ℕ-elim (n. T) z (n ih. s) t ⇒ A[id, t̂] ⇝ ℕ-elim ẑ ŝ t̂
-                                        // (ℕ-elim z s t motive A)
+                                        # (ℕ-elim z s t motive A)
 
 Γ ⊢ q ⇒ C ⇝ q̂        whnf(C) = A / r
 Γ ▷ z:(A / r) ⊢ T ⇝ B type
@@ -367,256 +367,256 @@ never an unsound acceptance.
                         : B[↑ ∘ ↑ ∘ ↑, class ☐₂] ↓
 ------------------------------------------------------------ (e-quotelim)
 Γ ⊢ quot-elim (z. T) (a. f) q ⇒ B[id, q̂] ⇝ quot-elim f̂ q̂
-                              // (quote-elim (A / r) f f⁼ q motive B)
-// the well-definedness hypothesis is Prf r (the DECODED relation), so a
-// squashed-equality hypothesis is available to discharge f⁼
-// The well-definedness premise f⁼ is a ↓-judgement: if the case function
-// respects R by computation or by an accepted lemma, elaboration is
-// silent; otherwise "f respects R" is surfaced as an ordinary equational
-// obligation. This is the intended shape for all content-bearing side
-// conditions: they become obligations, not errors and not annotations.
+                              # (quote-elim (A / r) f f⁼ q motive B)
+# the well-definedness hypothesis is Prf r (the DECODED relation), so a
+# squashed-equality hypothesis is available to discharge f⁼
+# The well-definedness premise f⁼ is a ↓-judgement: if the case function
+# respects R by computation or by an accepted lemma, elaboration is
+# silent; otherwise "f respects R" is surfaced as an ordinary equational
+# obligation. This is the intended shape for all content-bearing side
+# conditions: they become obligations, not errors and not annotations.
 
-// Universe codes infer at 𝕌, mirroring their formation rules:
-Γ ⊢ 𝟘 ⇒ 𝕌 ⇝ 𝟘      (likewise 𝟙, ℕ)                            // (𝟘 : 𝕌) etc.
+# Universe codes infer at 𝕌, mirroring their formation rules:
+Γ ⊢ 𝟘 ⇒ 𝕌 ⇝ 𝟘      (likewise 𝟙, ℕ)                            # (𝟘 : 𝕌) etc.
 
 Γ ⊢ t ⇐ 𝕌 ⇝ a        Γ ▷ x:El a ⊢ u ⇐ 𝕌 ⇝ b
----------------------------------------------- (e-code-pi)    // (A → B : 𝕌)
+---------------------------------------------- (e-code-pi)    # (A → B : 𝕌)
 Γ ⊢ (x:t) → u ⇒ 𝕌 ⇝ a → b
-   (e-code-sigma analogous for ⨯)                             // (A ⨯ B : 𝕌)
+   (e-code-sigma analogous for ⨯)                             # (A ⨯ B : 𝕌)
 
 Γ ⊢ t ⇐ 𝕌 ⇝ a        Γ ▷ x:El a ▷ y:(El a)[↑] ⊢ r ⇐ Ω ⇝ r̂
 ------------------------------------------------------------ (e-code-quot)
-Γ ⊢ t / (x y. r) ⇒ 𝕌 ⇝ a / r̂                                  // (A / r : 𝕌)
-   // the relation is checked at Ω, not 𝕌
+Γ ⊢ t / (x y. r) ⇒ 𝕌 ⇝ a / r̂                                  # (A / r : 𝕌)
+   # the relation is checked at Ω, not 𝕌
 
 Γ ⊢ t ⇐ 𝕌 ⇝ a        Γ ⊢ t₀ ⇐ El a ⇝ a₀        Γ ⊢ t₁ ⇐ El a ⇝ a₁
 ------------------------------------------------------------------- (e-code-eq)
-Γ ⊢ t₀ ≡ t₁ ∈ t ⇒ 𝕌 ⇝ (a₀ ≡ a₁ ∈ a)                    // (a₀ ≡ a₁ ∈ A : 𝕌)
+Γ ⊢ t₀ ≡ t₁ ∈ t ⇒ 𝕌 ⇝ (a₀ ≡ a₁ ∈ a)                    # (a₀ ≡ a₁ ∈ A : 𝕌)
 
 Γ ⊢ T ⇝ A type
--------------------- (e-squash)                              // (∥A∥ : Ω)
+-------------------- (e-squash)                              # (∥A∥ : Ω)
 Γ ⊢ ∥T∥ ⇒ Ω ⇝ ∥A∥
-// ∥-∥ is the only Ω introduction that infers; ⋆ is checking-only
-// (e-star below), since its proposition is not inferable from ⋆ alone.
+# ∥-∥ is the only Ω introduction that infers; ⋆ is checking-only
+# (e-star below), since its proposition is not inferable from ⋆ alone.
 
 //////////// Element elaboration: checking /////////////
 
-// Introduction forms check against the whnf of the expected type.
-// A rigid shape mismatch here (λ against a non-Π, class against a
-// non-quotient, ...) is a structural error, not an obligation: if the
-// expected type is secretly Π only up to an unproven equation, the user
-// states that intent with an ascription, which moves the equation to
-// e-switch where it belongs.
+# Introduction forms check against the whnf of the expected type.
+# A rigid shape mismatch here (λ against a non-Π, class against a
+# non-quotient, ...) is a structural error, not an obligation: if the
+# expected type is secretly Π only up to an unproven equation, the user
+# states that intent with an ascription, which moves the equation to
+# e-switch where it belongs.
 
 whnf(C) = A → B        Γ ▷ x:A ⊢ t ⇐ B ⇝ t̂
--------------------------------------------- (e-lam)          // (λ f)
+-------------------------------------------- (e-lam)          # (λ f)
 Γ ⊢ λx. t ⇐ C ⇝ λ t̂
 
 whnf(C) = A ⨯ B        Γ ⊢ u ⇐ A ⇝ û        Γ ⊢ v ⇐ B[id, û] ⇝ v̂
 ------------------------------------------------------------------ (e-pair)
-Γ ⊢ u , v ⇐ C ⇝ û , v̂                                          // (a, b)
+Γ ⊢ u , v ⇐ C ⇝ û , v̂                                          # (a, b)
 
 whnf(C) = (a₀ ≡ a₁ ∈ A)        Γ ⊢ a₀ ≐ a₁ : A ↓
 -------------------------------------------------- (e-refl)
 Γ ⊢ Refl ⇐ C ⇝ Refl
-// Justified by (refl) + Eq-type congruence + coercion: Foundation's
-// (refl) inhabits only the diagonal a₀ ≡ a₀ ∈ A; given a₀ ≐ a₁, the
-// congruence rule for ≡-types yields (a₀ ≡ a₀ ∈ A) ≐ (a₀ ≡ a₁ ∈ A) and
-// coercion moves Refl across. So the ↓ premise is exactly what makes
-// the rule sound — not an optimization.
-// THE payment rule. `Refl` is the surface syntax for "this equation
-// holds": checking it emits the equation itself into ↓. Discharged by
-// computation → silent; by an accepted lemma → silent; otherwise it IS
-// the obligation, stated exactly where the user claimed it. There is no
-// other proof syntax for equalities, by design: equality proofs carry
-// no information (reflection erases them), so all structure lives in
-// the judgemental layer and in prepended lemmas.
+# Justified by (refl) + Eq-type congruence + coercion: Foundation's
+# (refl) inhabits only the diagonal a₀ ≡ a₀ ∈ A; given a₀ ≐ a₁, the
+# congruence rule for ≡-types yields (a₀ ≡ a₀ ∈ A) ≐ (a₀ ≡ a₁ ∈ A) and
+# coercion moves Refl across. So the ↓ premise is exactly what makes
+# the rule sound — not an optimization.
+# THE payment rule. `Refl` is the surface syntax for "this equation
+# holds": checking it emits the equation itself into ↓. Discharged by
+# computation → silent; by an accepted lemma → silent; otherwise it IS
+# the obligation, stated exactly where the user claimed it. There is no
+# other proof syntax for equalities, by design: equality proofs carry
+# no information (reflection erases them), so all structure lives in
+# the judgemental layer and in prepended lemmas.
 
 whnf(C) = A / r        Γ ⊢ a ⇐ A ⇝ â
--------------------------------------- (e-class)              // (class a)
+-------------------------------------- (e-class)              # (class a)
 Γ ⊢ class a ⇐ C ⇝ class â
 
 whnf(C) = Prf ∥A∥        (witness of A synthesized: () for 𝟙, Refl for
                           an ≡ whose sides are ≐)
------------------------------------------------------------- (e-star)  // (⋆)
+------------------------------------------------------------ (e-star)  # (⋆)
 Γ ⊢ ⋆ ⇐ C ⇝ ⋆
-// el-squash-i. The elaborator synthesizes the witness of A for the
-// evident inhabited shapes (𝟙, reflexive ≡); a squashee whose
-// inhabitant is not evident is a structural error (write `⋆ e` and
-// supply one directly). Proof irrelevance (el-prf-prop) is not a
-// checking rule but a DISCHARGE final: any two proofs of a Prf type
-// are ≐, handled in the ↓ loop.
+# el-squash-i. The elaborator synthesizes the witness of A for the
+# evident inhabited shapes (𝟙, reflexive ≡); a squashee whose
+# inhabitant is not evident is a structural error (write `⋆ e` and
+# supply one directly). Proof irrelevance (el-prf-prop) is not a
+# checking rule but a DISCHARGE final: any two proofs of a Prf type
+# are ≐, handled in the ↓ loop.
 
 whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
---------------------------------------- (e-star-wit)          // (⋆ e)
+--------------------------------------- (e-star-wit)          # (⋆ e)
 Γ ⊢ ⋆ e ⇐ C ⇝ ⋆
-// el-squash-i, general form: e proves the squashee directly, whatever
-// its shape (Π, Σ, anything). Erases to the same bare ⋆ as e-star —
-// realizer irrelevance means the checked witness never survives into
-// the core term, only into the skeleton (squash-wit, NovaKernel.txt)
-// for the kernel to re-verify.
+# el-squash-i, general form: e proves the squashee directly, whatever
+# its shape (Π, Σ, anything). Erases to the same bare ⋆ as e-star —
+# realizer irrelevance means the checked witness never survives into
+# the core term, only into the skeleton (squash-wit, NovaKernel.txt)
+# for the kernel to re-verify.
 
 Γ ⊢ e ⇒ P        whnf(P) = Prf ∥A∥        whnf(C) = Prf q
 Γ ▷ A ⊢ b ⇐ (Prf q)[↑] ⇝ b̂
 ------------------------------------------------------------ (e-squash-elim)
-Γ ⊢ squash-elim e (x. b) ⇐ C ⇝ ⋆                    // (squash-elim e (x. b))
-// el-squash-e-prf: the only surface eliminator into a further
-// proposition. The goal must itself whnf to Prf q — this is the
-// structural enforcement of "no elimination into arbitrary types"
-// (the restriction that blocks unique choice / description); a
-// squash-elim checked against a non-Prf goal is a structural error.
-// Erases to ⋆, same as every Prf-typed term (realizer irrelevance).
+Γ ⊢ squash-elim e (x. b) ⇐ C ⇝ ⋆                    # (squash-elim e (x. b))
+# el-squash-e-prf: the only surface eliminator into a further
+# proposition. The goal must itself whnf to Prf q — this is the
+# structural enforcement of "no elimination into arbitrary types"
+# (the restriction that blocks unique choice / description); a
+# squash-elim checked against a non-Prf goal is a structural error.
+# Erases to ⋆, same as every Prf-typed term (realizer irrelevance).
 
 Γ ⊢ t ⇐ 𝟘 ⇝ t̂
---------------------------- (e-zeroelim)                      // (𝟘-elim t)
+--------------------------- (e-zeroelim)                      # (𝟘-elim t)
 Γ ⊢ 𝟘-elim t ⇐ C ⇝ 𝟘-elim t̂
-// Any expected C; 𝟘-elim is the one form that checks against
-// everything. In inference position it is a structural error (ascribe).
+# Any expected C; 𝟘-elim is the one form that checks against
+# everything. In inference position it is a structural error (ascribe).
 
 Γ ⊢ t ⇒ B ⇝ t̂        Γ ⊢ B ≐ C type ↓
 --------------------------------------- (e-switch)
 Γ ⊢ t ⇐ C ⇝ t̂
-// t any inference form. The mode switch is where inferred meets
-// expected, and the ONLY place type conversion is consulted during
-// term elaboration. Note the direction of failure: never an error —
-// the residual equation is assumed and reported.
+# t any inference form. The mode switch is where inferred meets
+# expected, and the ONLY place type conversion is consulted during
+# term elaboration. Note the direction of failure: never an error —
+# the residual equation is assumed and reported.
 
-// Mode inventory. Checking-only forms: λ, pairs, Refl, class, ⋆, ⋆ e,
-// squash-elim, 𝟘-elim (their types are not determined by their syntax);
-// encountering one in inference position is a structural error whose
-// fix is an ascription. Everything else — including ∥-∥ — infers and
-// reaches checking mode through e-switch.
+# Mode inventory. Checking-only forms: λ, pairs, Refl, class, ⋆, ⋆ e,
+# squash-elim, 𝟘-elim (their types are not determined by their syntax);
+# encountering one in inference position is a structural error whose
+# fix is an ascription. Everything else — including ∥-∥ — infers and
+# reaches checking mode through e-switch.
 
 //////////// Conversion and discharge (the ↓ judgements) /////////////
 
-// Both ↓ judgements follow the same loop:
-//
-//   1. whnf both sides (this alone discharges everything the old
-//      derivation machinery called "by computation": β, El-decoding,
-//      signature unfolding).
-//   2. α-equal → discharged.
-//   3. Same rigid head → DECOMPOSE into component equations, each fed
-//      back into ↓. For the type formers and universe codes this is
-//      FAITHFUL — an equivalence, not merely sufficiency: downward it
-//      is Foundation's congruence rules, upward Foundation's
-//      injectivity rules (ty-pi-inj, ty-sigma-inj, ty-quot-inj,
-//      ty-eq-inj, ty-el-inj and their
-//      𝕌-code counterparts — see "Type constructor injectivity" there,
-//      including the semantic commitment they encode). Two cases remain
-//      merely sufficient: class-equations decomposed to their
-//      representatives (quotients are deliberately non-injective — the
-//      witness path below is the faithful route), and neutral-spine
-//      congruence (f a ≐ f b from a ≐ b). Each emitted obligation still
-//      carries the composite it descended from — as provenance, and
-//      because in those two cases the component can genuinely be
-//      stronger. A rigid HEAD MISMATCH stays an obligation, not an
-//      error: no-confusion is a meta-property of consistent contexts,
-//      not a rule, and the user may be working under inconsistent
-//      hypotheses. Decomposition:
-//        A₀ → B₀   ≐ A₁ → B₁    ⇐  A₀ ≐ A₁ type;  Γ ▷ A₁ ⊢ B₀ ≐ B₁ type
-//        A₀ ⨯ B₀   ≐ A₁ ⨯ B₁    ⇐  likewise
-//        A₀ / r₀   ≐ A₁ / r₁    ⇐  A₀ ≐ A₁ type;  Γ ▷ A₁ ▷ A₁[↑] ⊢ r₀ ≐ r₁ : Ω
-//                                  (the relation is compared AT Ω, where
-//                                  ≐ is iff — ty-quot-cong)
-//        Prf p     ≐ Prf q       ⇐  p ≐ q : Ω     (ty-prf-cong)
-//        (a₀≡b₀∈T₀) ≐ (a₁≡b₁∈T₁) ⇐ T₀ ≐ T₁ type;  a₀ ≐ a₁ : T₁;  b₀ ≐ b₁ : T₁
-//        El a      ≐ El b       ⇐  a ≐ b : 𝕌
-//        ∥A∥       ≐ ∥B∥        ⇐  A ≐ B type (sufficient), OR — the
-//                                  faithful route at Ω — code-prop-eq
-//                                  (propext): the two implications
-//                                  Prf ∥A∥ → Prf ∥B∥ and back, each with
-//                                  its witness synthesized under the
-//                                  hypothesis
-//        𝒮₀.𝕤 ē₀  ≐ 𝒮₁.𝕤 ē₁    ⇐  the signatures identical nameless ToS
-//                                  syntax up to embedded Nova pieces and
-//                                  the sort positions equal (else the
-//                                  composite stays an obligation), the
-//                                  aligned Nova pieces pairwise in ↓,
-//                                  the index spines componentwise —
-//                                  FAITHFUL (QIIT congruence +
-//                                  injectivity; type and 𝕌-code alike)
-//        𝒮.𝕔 θ₀   ≐ 𝒮.𝕔 θ₁     ⇐  θ componentwise — merely SUFFICIENT,
-//                                  like class: point constructors are
-//                                  not injective (equation constructors
-//                                  may merge them); the faithful route
-//                                  is a path lemma from E (the data
-//                                  item's eq-lemmas land there)
-//        S a       ≐ S b        ⇐  a ≐ b : ℕ
-//        class a   ≐ class b    ⇐  a ≐ b : A, OR — the WITNESS path,
-//                                  (class⁼ r) — by the shape of the
-//                                  instantiated relation r[id, a, b] (an
-//                                  Ω code): a ∥𝟙∥-shaped relation is
-//                                  inhabited outright (witness ()), a
-//                                  ∥≡∥-shaped one reduces the witness to
-//                                  its equation (Refl after reflection);
-//                                  other shapes keep the composite
-//        a₀ , b₀   ≐ a₁ , b₁    ⇐  componentwise at the Σ-type
-//        neutral spines with the same head variable/eliminator:
-//                                  componentwise (app-cong, proj-cong,
-//                                  ℕ-elim-cong, quot-elim-cong)
-//   4. Mixed El: whnf leaves `El a` (a neutral) against a rigid type B.
-//      When B is in the image of El-decoding with codable components
-//      (𝟘, 𝟙, ℕ, arrows/pairs/quotients/eq of codable parts), reduce to
-//      a ≐ code(B) : 𝕌 — sufficient via El-congruence + El-decoding.
-//      Otherwise fall through to 7.
-//   5. Prop-discharge: an element equation at type 𝟙, 𝟘, or Prf p is
-//      discharged outright — Foundation's el-one-prop, el-zero-prop,
-//      el-prf-prop (proof irrelevance: any two proofs of a proposition
-//      are equal). // COMMENT: equality type is also a Prop
-//   6. η: a λ against a neutral at Π compares via el-pi-eta (apply
-//      both to ☐₀ under the binder); a pair against a neutral at Σ
-//      via el-sigma-eta.
-//      η fires ONLY when one side is a literal introduction form: two
-//      neutrals gain nothing from η, and η-expanding them regenerates
-//      the very eliminations congruence descent (step 3) came from —
-//      an η/congruence loop.
-//   7. STORE USE — three complementary mechanisms over E:
-//      * REWRITING: equations usable as terminating rules — strictly
-//        size-decreasing instances first (plus n Z → n), then
-//        size-preserving NON-PERMUTATIVE ones (plus n (S m) →
-//        S (plus n m), induction hypotheses) — applied left-to-right
-//        as stated, at any subterm, to a fuel-and-seen-set-bounded
-//        fixpoint before every comparison. An equation whose sides are
-//        equal up to a bijective renaming of its parameters
-//        ("permutative": commutativity, exchange laws) NEVER rewrites —
-//        it would oscillate.
-//      * WHOLE-EQUATION MATCH: the equation (or its flip) matches a
-//        candidate's l/r under one consistent first-order
-//        instantiation; parameters the sides do not bind must carry an
-//        ≡ (or 𝟙) type whose instance discharges as a side condition.
-//        This is how permutative and hypothesis-conditional lemmas
-//        discharge. Matching is up to El-DECODING: normalization
-//        decodes El c at concrete codes (El ℕc ≜ ℕ) — inside carried
-//        QIIT signatures too — so a pattern position El p (p a
-//        parameter) facing a decoded rigid type binds p to that
-//        type's code. A generic bag-swap lemma thus discharges its
-//        ℕ-instantiated goals.
-//      * TRANSITIVITY HOPS: a candidate that rewriting cannot apply
-//        may rewrite one side WHOLESALE, recursing with a small
-//        depth budget — chaining e.g. an exchange law, a hypothesis,
-//        and an exchange law again.
-//      Matched candidates' sides are stored normalized against the
-//      lemma store as of their acceptance, so equations stated in one
-//      spelling still match goals earlier rules have canonicalized.
-//      An already-assumed obligation matches verbatim (deduplication:
-//      nothing new is reported, and nothing is considered proven).
-//      Closing E under full congruence (e-graph style) remains a
-//      completeness upgrade; none of these mechanisms affects
-//      soundness — each discharge is a Foundation derivation via
-//      (el-sub-cong-fix) + congruence + transitivity + reflection.
-//   8. ASSUME: append the equation to O (with source position, and with
-//      the composite it was decomposed from, if any) and to E; succeed.
-//
-// Invariant (statement well-formedness): every equation reaching ↓ has
-// both sides produced by elaboration at the stated type, in the stated
-// context, under the assumptions active at that moment. Consequently
-// obligation statements are well-formed in Foundation extended by the
-// obligations that PRECEDE them in surfacing order — the report order
-// is always a valid discharge order. An obligation whose statement
-// depends on earlier assumptions is annotated with them; prove those
-// first (or in one joint lemma) and the later statement becomes
-// statable in the base theory. Cyclic dependence cannot arise in this
-// hole-free setting: assumption strictly precedes use, in file order.
+# Both ↓ judgements follow the same loop:
+#
+#   1. whnf both sides (this alone discharges everything the old
+#      derivation machinery called "by computation": β, El-decoding,
+#      signature unfolding).
+#   2. α-equal → discharged.
+#   3. Same rigid head → DECOMPOSE into component equations, each fed
+#      back into ↓. For the type formers and universe codes this is
+#      FAITHFUL — an equivalence, not merely sufficiency: downward it
+#      is Foundation's congruence rules, upward Foundation's
+#      injectivity rules (ty-pi-inj, ty-sigma-inj, ty-quot-inj,
+#      ty-eq-inj, ty-el-inj and their
+#      𝕌-code counterparts — see "Type constructor injectivity" there,
+#      including the semantic commitment they encode). Two cases remain
+#      merely sufficient: class-equations decomposed to their
+#      representatives (quotients are deliberately non-injective — the
+#      witness path below is the faithful route), and neutral-spine
+#      congruence (f a ≐ f b from a ≐ b). Each emitted obligation still
+#      carries the composite it descended from — as provenance, and
+#      because in those two cases the component can genuinely be
+#      stronger. A rigid HEAD MISMATCH stays an obligation, not an
+#      error: no-confusion is a meta-property of consistent contexts,
+#      not a rule, and the user may be working under inconsistent
+#      hypotheses. Decomposition:
+#        A₀ → B₀   ≐ A₁ → B₁    ⇐  A₀ ≐ A₁ type;  Γ ▷ A₁ ⊢ B₀ ≐ B₁ type
+#        A₀ ⨯ B₀   ≐ A₁ ⨯ B₁    ⇐  likewise
+#        A₀ / r₀   ≐ A₁ / r₁    ⇐  A₀ ≐ A₁ type;  Γ ▷ A₁ ▷ A₁[↑] ⊢ r₀ ≐ r₁ : Ω
+#                                  (the relation is compared AT Ω, where
+#                                  ≐ is iff — ty-quot-cong)
+#        Prf p     ≐ Prf q       ⇐  p ≐ q : Ω     (ty-prf-cong)
+#        (a₀≡b₀∈T₀) ≐ (a₁≡b₁∈T₁) ⇐ T₀ ≐ T₁ type;  a₀ ≐ a₁ : T₁;  b₀ ≐ b₁ : T₁
+#        El a      ≐ El b       ⇐  a ≐ b : 𝕌
+#        ∥A∥       ≐ ∥B∥        ⇐  A ≐ B type (sufficient), OR — the
+#                                  faithful route at Ω — code-prop-eq
+#                                  (propext): the two implications
+#                                  Prf ∥A∥ → Prf ∥B∥ and back, each with
+#                                  its witness synthesized under the
+#                                  hypothesis
+#        𝒮₀.𝕤 ē₀  ≐ 𝒮₁.𝕤 ē₁    ⇐  the signatures identical nameless ToS
+#                                  syntax up to embedded Nova pieces and
+#                                  the sort positions equal (else the
+#                                  composite stays an obligation), the
+#                                  aligned Nova pieces pairwise in ↓,
+#                                  the index spines componentwise —
+#                                  FAITHFUL (QIIT congruence +
+#                                  injectivity; type and 𝕌-code alike)
+#        𝒮.𝕔 θ₀   ≐ 𝒮.𝕔 θ₁     ⇐  θ componentwise — merely SUFFICIENT,
+#                                  like class: point constructors are
+#                                  not injective (equation constructors
+#                                  may merge them); the faithful route
+#                                  is a path lemma from E (the data
+#                                  item's eq-lemmas land there)
+#        S a       ≐ S b        ⇐  a ≐ b : ℕ
+#        class a   ≐ class b    ⇐  a ≐ b : A, OR — the WITNESS path,
+#                                  (class⁼ r) — by the shape of the
+#                                  instantiated relation r[id, a, b] (an
+#                                  Ω code): a ∥𝟙∥-shaped relation is
+#                                  inhabited outright (witness ()), a
+#                                  ∥≡∥-shaped one reduces the witness to
+#                                  its equation (Refl after reflection);
+#                                  other shapes keep the composite
+#        a₀ , b₀   ≐ a₁ , b₁    ⇐  componentwise at the Σ-type
+#        neutral spines with the same head variable/eliminator:
+#                                  componentwise (app-cong, proj-cong,
+#                                  ℕ-elim-cong, quot-elim-cong)
+#   4. Mixed El: whnf leaves `El a` (a neutral) against a rigid type B.
+#      When B is in the image of El-decoding with codable components
+#      (𝟘, 𝟙, ℕ, arrows/pairs/quotients/eq of codable parts), reduce to
+#      a ≐ code(B) : 𝕌 — sufficient via El-congruence + El-decoding.
+#      Otherwise fall through to 7.
+#   5. Prop-discharge: an element equation at type 𝟙, 𝟘, or Prf p is
+#      discharged outright — Foundation's el-one-prop, el-zero-prop,
+#      el-prf-prop (proof irrelevance: any two proofs of a proposition
+#      are equal). # COMMENT: equality type is also a Prop
+#   6. η: a λ against a neutral at Π compares via el-pi-eta (apply
+#      both to ☐₀ under the binder); a pair against a neutral at Σ
+#      via el-sigma-eta.
+#      η fires ONLY when one side is a literal introduction form: two
+#      neutrals gain nothing from η, and η-expanding them regenerates
+#      the very eliminations congruence descent (step 3) came from —
+#      an η/congruence loop.
+#   7. STORE USE — three complementary mechanisms over E:
+#      * REWRITING: equations usable as terminating rules — strictly
+#        size-decreasing instances first (plus n Z → n), then
+#        size-preserving NON-PERMUTATIVE ones (plus n (S m) →
+#        S (plus n m), induction hypotheses) — applied left-to-right
+#        as stated, at any subterm, to a fuel-and-seen-set-bounded
+#        fixpoint before every comparison. An equation whose sides are
+#        equal up to a bijective renaming of its parameters
+#        ("permutative": commutativity, exchange laws) NEVER rewrites —
+#        it would oscillate.
+#      * WHOLE-EQUATION MATCH: the equation (or its flip) matches a
+#        candidate's l/r under one consistent first-order
+#        instantiation; parameters the sides do not bind must carry an
+#        ≡ (or 𝟙) type whose instance discharges as a side condition.
+#        This is how permutative and hypothesis-conditional lemmas
+#        discharge. Matching is up to El-DECODING: normalization
+#        decodes El c at concrete codes (El ℕc ≜ ℕ) — inside carried
+#        QIIT signatures too — so a pattern position El p (p a
+#        parameter) facing a decoded rigid type binds p to that
+#        type's code. A generic bag-swap lemma thus discharges its
+#        ℕ-instantiated goals.
+#      * TRANSITIVITY HOPS: a candidate that rewriting cannot apply
+#        may rewrite one side WHOLESALE, recursing with a small
+#        depth budget — chaining e.g. an exchange law, a hypothesis,
+#        and an exchange law again.
+#      Matched candidates' sides are stored normalized against the
+#      lemma store as of their acceptance, so equations stated in one
+#      spelling still match goals earlier rules have canonicalized.
+#      An already-assumed obligation matches verbatim (deduplication:
+#      nothing new is reported, and nothing is considered proven).
+#      Closing E under full congruence (e-graph style) remains a
+#      completeness upgrade; none of these mechanisms affects
+#      soundness — each discharge is a Foundation derivation via
+#      (el-sub-cong-fix) + congruence + transitivity + reflection.
+#   8. ASSUME: append the equation to O (with source position, and with
+#      the composite it was decomposed from, if any) and to E; succeed.
+#
+# Invariant (statement well-formedness): every equation reaching ↓ has
+# both sides produced by elaboration at the stated type, in the stated
+# context, under the assumptions active at that moment. Consequently
+# obligation statements are well-formed in Foundation extended by the
+# obligations that PRECEDE them in surfacing order — the report order
+# is always a valid discharge order. An obligation whose statement
+# depends on earlier assumptions is annotated with them; prove those
+# first (or in one joint lemma) and the later statement becomes
+# statable in the base theory. Cyclic dependence cannot arise in this
+# hole-free setting: assumption strictly precedes use, in file order.
 
 //////////// Items /////////////
 
@@ -629,20 +629,20 @@ def x : T ≔ t          extends Σ with (ε ⊦ x ≔ t̂ : A)
 ------------------------------------------------------------- (e-typedef)
 type x ≔ T             extends Σ with (ε ⊦ x ≔ A type)
 
-// Parameters are Π-binders in T; partial application of an item is
-// therefore first-class, which the telescoped form never was (x[e˲]
-// demanded the full substitution back to Γ). The price is confined to
-// TYPE items: a parameterized family must live in 𝕌 (a def returning
-// 𝕌-codes, like vect) — a family whose result is genuinely large has
-// no code and, in the empty-context discipline, no spelling. None is
-// needed today; if one ever is, telescoped type items (and the
-// substitution syntax, for them alone) are the designed escape hatch.
+# Parameters are Π-binders in T; partial application of an item is
+# therefore first-class, which the telescoped form never was (x[e˲]
+# demanded the full substitution back to Γ). The price is confined to
+# TYPE items: a parameterized family must live in 𝕌 (a def returning
+# 𝕌-codes, like vect) — a family whose result is genuinely large has
+# no code and, in the empty-context discipline, no spelling. None is
+# needed today; if one ever is, telescoped type items (and the
+# substitution syntax, for them alone) are the designed escape hatch.
 
-// Duplicate entry names are a structural error. An entry elaborated
-// under assumptions still enters Σ and the rest of the run builds on
-// it — by design (see report semantics): one run surfaces ALL
-// obligations, at the price that obligations surfaced downstream of an
-// assumption are provisional until it is proven.
+# Duplicate entry names are a structural error. An entry elaborated
+# under assumptions still enters Σ and the rest of the run builds on
+# it — by design (see report semantics): one run surfaces ALL
+# obligations, at the price that obligations surfaced downstream of an
+# assumption are provisional until it is proven.
 
 //////////// QIIT signatures: the data item /////////////
 
@@ -672,10 +672,10 @@ or entry position (locals shadow, names(𝒮)-freshness is a parse
 error), and classified each Π domain (inductive iff its head is a
 sort of the same literal). All content is in the embedded NOVA pieces:
 
-  Γx ⊢ T ⇝ A type          // an EXTERNAL domain: an ordinary type over
-                           // Γx, the external binders in scope — the
-                           // Nova zone of Foundation's dual zone
-  Γx ⊢ t ⇐ A[…] ⇝ t̂        // an external APPLICATION argument likewise
+  Γx ⊢ T ⇝ A type          # an EXTERNAL domain: an ordinary type over
+                           # Γx, the external binders in scope — the
+                           # Nova zone of Foundation's dual zone
+  Γx ⊢ t ⇐ A[…] ⇝ t̂        # an external APPLICATION argument likewise
 
 — so obligations may surface inside a signature exactly as they do
 inside any type, and land in O with the data item as their site.
@@ -687,7 +687,7 @@ The EXPANSION, for each entry of the accepted 𝒮 (⌊·⌋, ⌊·⌋ᵗ, ·ᴰ
 ·ᴰᵗ, ⟦·⟧ are Foundation's meta-operations; δ the telescope variables):
 
   * SORT 𝕤 : 𝔎, 𝒮 small —
-        def n : Π(⌊𝔎⌋ᵗ). 𝕌 ≔ λ…. 𝒮.𝕤 δ            // code-qiit
+        def n : Π(⌊𝔎⌋ᵗ). 𝕌 ≔ λ…. 𝒮.𝕤 δ            # code-qiit
     (a code-valued family; users write El (n ī). If 𝒮 is LARGE: a
     nullary sort becomes  type n ≔ 𝒮.𝕤 ·  and an INDEXED large sort is
     a structural error — a large family has no spelling in the
@@ -695,7 +695,7 @@ The EXPANSION, for each entry of the accepted 𝒮 (⌊·⌋, ⌊·⌋ᵗ, ·ᴰ
     the same one designed there.)
 
   * POINT constructor 𝕔 : 𝔄 —
-        def n : ⌊𝔄⌋ ≔ λ…. 𝒮.𝕔 δ                    // el-qiit-intro,
+        def n : ⌊𝔄⌋ ≔ λ…. 𝒮.𝕔 δ                    # el-qiit-intro,
     the saturated former η-expanded once; partial application is
     thereby first-class at zero cost.
 
@@ -711,15 +711,15 @@ The EXPANSION, for each entry of the accepted 𝒮 (⌊·⌋, ⌊·⌋ᵗ, ·ᴰ
   * ELIMINATOR, one def per sort 𝕤 (same arguments, different
     result; named nElim — surface names cannot contain '-'):
         def nElim :
-             (C₁ : Π(⌊𝔎₁⌋ᵗ). El (𝒮.𝕤₁ δ) → 𝕌) → …          // motives,
-                                                            // one per sort
-          →  (m𝕔 : ⌊𝔄ᴰ⟨𝒮.𝕔 δ⟩ with El∘C for C⌋) → …         // methods, one
-                                                            // per point ctor
-          →  (h𝕔 : Π(𝔄ᴰᵗ). ⟦l⟧ ≡ ⟦r⟧ ∈ El (C… )) → …        // COHERENCES,
-                                                            // one per eq ctor
+             (C₁ : Π(⌊𝔎₁⌋ᵗ). El (𝒮.𝕤₁ δ) → 𝕌) → …          # motives,
+                                                            # one per sort
+          →  (m𝕔 : ⌊𝔄ᴰ⟨𝒮.𝕔 δ⟩ with El∘C for C⌋) → …         # methods, one
+                                                            # per point ctor
+          →  (h𝕔 : Π(𝔄ᴰᵗ). ⟦l⟧ ≡ ⟦r⟧ ∈ El (C… )) → …        # COHERENCES,
+                                                            # one per eq ctor
           →  Π(⌊𝔎⌋ᵗ) → (w : El (𝒮.𝕤 δ)) → El (C_𝕤 δ w)
-          ≔ λ…. 𝒮.𝕤-elim ℰ δ w        // ℰ = the bound motive/method
-                                       // variables, as Foundation's C̄ ; m̄
+          ≔ λ…. 𝒮.𝕤-elim ℰ δ w        # ℰ = the bound motive/method
+                                       # variables, as Foundation's C̄ ; m̄
 
     COHERENCES ARE HYPOTHESES: extensionality lets the eprob premises
     be taken as ordinary ≡-typed arguments. Inside the generated body,
@@ -755,7 +755,7 @@ expands to (𝒮 the elaborated signature, positions 0..3):
   def ins  : El a → El Bag → El Bag ≔ λx. λm. 𝒮.2 (x, m)
   def swp  : (x : El a) (y : El a) (m : El Bag)
                → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag
-           ≔ λx. λy. λm. Refl                    // qpath-licensed
+           ≔ λx. λy. λm. Refl                    # qpath-licensed
   def BagElim :
         (C : El Bag → 𝕌)
       → (mnil : El (C nil))
@@ -766,9 +766,9 @@ expands to (𝒮 the elaborated signature, positions 0..3):
                     ∈ El (C (ins x (ins y m))))
       → (w : El Bag) → El (C w)
       ≔ λC. λmnil. λmins. λhswp. λw. 𝒮.0-elim ℰ · w
-                          // ℰ = (C ; mnil, mins) from the binders;
-                          // the coherence discharges from hswp (E's
-                          // hypothesis source) and replays as qcoh
+                          # ℰ = (C ; mnil, mins) from the binders;
+                          # the coherence discharges from hswp (E's
+                          # hypothesis source) and replays as qcoh
 
 A caller writing BagElim C z f h supplies h as Refl when f respects
 the swap by computation — e-refl turns it into an ordinary obligation
