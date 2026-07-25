@@ -289,7 +289,11 @@ class FileRenderer:
     # -- rules ------------------------------------------------------------
 
     def rule(self, b):
-        pre, concl, notes = [], [], []
+        """Trailing comments render WHERE THEY ARE in the source: a
+        bar-line comment sits beside the bar (after the rule name);
+        premise/conclusion comments stay on their own lines, styled by
+        the painter."""
+        pre, concl, bnotes = [], [], []
         name = None
         seen_bar = False
         for l in b:
@@ -302,18 +306,13 @@ class FileRenderer:
                     aliases, extra = split_aliases(name)
                     if extra:
                         name = aliases[0]
-                        notes.append(extra)
+                        bnotes.append(extra)
                     if nm.group(2):
-                        notes.append(nm.group(2).strip())
+                        bnotes.append(nm.group(2).strip())
                 elif bm.group(1):
-                    notes.append(bm.group(1).strip())
+                    bnotes.append(bm.group(1).strip())
                 continue
             body = l
-            tm = TRAIL_RE.match(l)
-            if tm and "#" in l:
-                body, note = tm.group(1), tm.group(2)
-                if note.strip():
-                    notes.append(note.strip())
             if seen_bar:
                 cm = CONCL_NAME_RE.match(body.rstrip())
                 if cm:
@@ -330,8 +329,13 @@ class FileRenderer:
         prem = "\n".join(pre).strip("\n")
         if prem:
             out.append(f'<pre class="premises">{math(prem)}</pre>')
-        tag = (f'<span class="rname"><a href="#{a}">{html.escape(name)}</a></span>'
-               if name else "")
+        parts = []
+        if name:
+            parts.append(f'<a href="#{a}">{html.escape(name)}</a>')
+        if bnotes:
+            note_html = self.autolink(math(" ".join(bnotes), prose=True))
+            parts.append(f'<span class="bnote"># {note_html}</span>')
+        tag = f'<span class="rname">{"".join(parts)}</span>' if parts else ""
         out.append(f'<div class="bar">{tag}</div>')
         if cnamed:
             # each conclusion line carries its own rule name
@@ -350,9 +354,6 @@ class FileRenderer:
             conc = "\n".join(t for t, _ in concl).strip("\n")
             out.append(f'<pre class="conclusion">{math(conc)}</pre>')
         out.append("</div>")
-        if notes:
-            note_html = self.autolink(math(" ".join(notes), prose=True))
-            out.append(f'<div class="note">{note_html}</div>')
         out.append("</div>")
         self.body.append("\n".join(out))
         if name:
@@ -538,6 +539,11 @@ pre.display { background:var(--panel); border-left:2px solid var(--hair);
 .rname a:hover { text-decoration:underline; }
 .note { color:var(--faint); font-style:italic; font-size:14px; max-width:60ch;
   margin-top:.25rem; }
+.bnote { color:var(--faint); font-style:italic; display:inline-block;
+  max-width:44ch; white-space:normal; padding-left:.9em;
+  vertical-align:middle; font-size:11.5px;
+  font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  font-size:13px; }
 .crow { display:flex; align-items:baseline; gap:.9rem; }
 .cname { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11.5px;
   white-space:nowrap; }
