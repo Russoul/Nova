@@ -54,7 +54,7 @@ FILES = [
 # decorations: t₀, A′, ē, e˲, C̄) as Nova metavariables — judgement
 # contexts only; running prose is never highlighted.
 
-DIRECTIVE_RE = re.compile(r"^#!\s*highlight\s+(keywords|tos|nova|meta):\s*(.*)$")
+DIRECTIVE_RE = re.compile(r"^#!\s*highlight\s+(keywords|tos|nova|meta|indexed):\s*(.*)$")
 
 DEFAULT_VOCAB = {
     # FIXED syntax — judgement-level and object-level alike
@@ -67,6 +67,10 @@ DEFAULT_VOCAB = {
     "tos": "𝔄 𝔅 𝕥 𝕦 𝕧 𝕤 𝕔 𝕜 𝕘 𝕒 𝕓 𝕞 Φ 𝒮 ς 𝔎".split(),
     "nova": "Γ Δ Ξ Σ σ τ δ θ latin".split(),
     "meta": "𝑤 ρ υ π 𝒞 ℰ".split(),
+    # index-taking operators: their subscripts are META-LEVEL NATURALS
+    # (☐ₙ, ⬡ᵢ, Γ‖ₙ₊₁), coloured separately from name-tick subscripts
+    # on metavariables (Γ₀, t₁)
+    "indexed": "☐ ⬡ ‖".split(),
 }
 
 def collect_vocab(files):
@@ -82,11 +86,12 @@ def collect_vocab(files):
 
 # decorations that travel with a token: combining marks, primes,
 # sub/superscripts (t₀, A′, ē is precomposed Latin, Γ̂, e˲, ⌊·⌋ᵗ)
-DECOR = "\u0300-\u036f'′″‴˲ᵢⱼₖₗₘₙₚᵣₛₜ₀-₉⁻⁼ᵈᵗᵖᵉᴺ"
+DECOR = "\u0300-\u036f'′″‴˲ᵢⱼₖₗₘₙₚᵣₛₜ₀-₉₊₋⁻⁼ᵈᵗᵖᵉᴺ"
 
 class Highlighter:
     def __init__(self, vocab):
         self.latin_nova = "latin" in vocab.get("nova", [])
+        self.indexed = set(vocab.get("indexed", []))
         words, mtoks, chars = [], [], []   # (token, cls)
         for cls, k in (("kw", "keywords"), ("tos", "tos"),
                        ("nova", "nova"), ("meta", "meta")):
@@ -158,6 +163,11 @@ class Highlighter:
                                   None)
             if g == "sym":
                 cls = self.cls_of.get(t[0])
+                # after an index-taking operator the subscript run is a
+                # meta-level natural — its own class
+                if t[0] in self.indexed and len(t) > 1 and cls:
+                    return (self._wrap(cls, t[0])
+                            + self._wrap("nat", t[1:]) + tail)
             return (self._wrap(cls, t) if cls else t) + tail
         return rx.sub(rep, escaped)
 
@@ -473,22 +483,22 @@ CSS = """
 :root {
   --paper:#f7f8fa; --ink:#20242d; --faint:#5c6472; --hair:#d8dce2;
   --panel:#eef0f4; --tos:#0e7c86; --nova:#2f5fc0; --meta:#7862a8;
-  --rname:#7862a8; --link:#0e7c86; --gold:#92700c;
+  --rname:#7862a8; --link:#0e7c86; --gold:#92700c; --natc:#b03a70;
 }
 @media (prefers-color-scheme: dark) { :root {
   --paper:#191b20; --ink:#dcdee4; --faint:#9aa1ae; --hair:#33373f;
   --panel:#20232a; --tos:#53cad4; --nova:#82a5ea; --meta:#a995d6;
-  --rname:#a995d6; --link:#53cad4; --gold:#d8b45e;
+  --rname:#a995d6; --link:#53cad4; --gold:#d8b45e; --natc:#e592bb;
 }}
 :root[data-theme="dark"] {
   --paper:#191b20; --ink:#dcdee4; --faint:#9aa1ae; --hair:#33373f;
   --panel:#20232a; --tos:#53cad4; --nova:#82a5ea; --meta:#a995d6;
-  --rname:#a995d6; --link:#53cad4; --gold:#d8b45e;
+  --rname:#a995d6; --link:#53cad4; --gold:#d8b45e; --natc:#e592bb;
 }
 :root[data-theme="light"] {
   --paper:#f7f8fa; --ink:#20242d; --faint:#5c6472; --hair:#d8dce2;
   --panel:#eef0f4; --tos:#0e7c86; --nova:#2f5fc0; --meta:#7862a8;
-  --rname:#7862a8; --link:#0e7c86; --gold:#92700c;
+  --rname:#7862a8; --link:#0e7c86; --gold:#92700c; --natc:#b03a70;
 }
 * { box-sizing:border-box; }
 body {
@@ -552,6 +562,7 @@ pre.display { background:var(--panel); border-left:2px solid var(--hair);
 .crow:target { background:var(--panel); border-radius:3px; }
 .tos { color:var(--tos); } .nova { color:var(--nova); } .meta { color:var(--meta); }
 .kw { color:var(--gold); font-weight:600; }
+.nat { color:var(--natc); }
 .cmt { color:var(--faint); font-style:italic; }
 a.rref { color:var(--rname); text-decoration:none; border-bottom:1px dotted var(--rname); }
 :target { scroll-margin-top:1rem; }
@@ -583,6 +594,10 @@ def legend(vocab):
         ("ToS metavariables", toks("tos", "tos")),
         ("Nova metavariables", toks("nova", "nova") + latin),
         ("walk / certificate metavariables", toks("meta", "meta")),
+        ("meta-level naturals (indices)",
+         '<span class="sw"><span class="kw">☐</span><span class="nat">ₙ</span> '
+         '<span class="kw">⬡</span><span class="nat">ᵢ</span> '
+         '<span class="kw">‖</span><span class="nat">ₙ₊₁</span></span>'),
         ("links to its rule",
          '<span class="sw" style="color:var(--rname)">rule-name</span>'),
         ("comment, unhighlighted", '<span class="sw cmt"># prose</span>'),

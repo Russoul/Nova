@@ -4,6 +4,7 @@
 #! highlight tos: 𝔄 𝔅 𝕥 𝕦 𝕧 𝕤 𝕔 𝕜 𝕘 𝕒 𝕓 𝕞 Φ 𝒮 ς 𝔎
 #! highlight nova: Γ Δ Ξ Σ σ τ δ θ latin
 #! highlight meta: 𝑤 ρ υ π 𝒞 ℰ
+#! highlight indexed: ☐ ⬡ ‖
 # (`#!` lines are HIGHLIGHTING DECLARATIONS read by
 # tools/render-specs.py — the spec declares its own syntax tables:
 # `keywords` is the FIXED syntax, judgement-level (⊦ : ≐ type …) and
@@ -950,7 +951,7 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ (a, b) .π₂ ≜ b : B[id, a]
 
 Γ ⊦ t : A ⨯ B
------------------------------------- (el-sigma-eta) # valid unidirectional rewrite
+------------------------------------ (el-sigma-eta)
 Γ ⊦ (t .π₁ , t .π₂) ≐ t : A ⨯ B
 
 # ≡: introduction and reflection.
