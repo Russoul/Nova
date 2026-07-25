@@ -391,13 +391,15 @@ class FileRenderer:
 
         first_prose = True
         for s in inner:
-            # a # line inside a mixed (formal) block is PROSE by
-            # definition — strip the marker (BEFORE the blank check, so
-            # an empty "#" line separates paragraphs) and classify it
-            # as comment content, whatever it contains
+            # a column-0 # line inside a mixed (formal) block is PROSE —
+            # strip the marker (BEFORE the blank check, so an empty "#"
+            # line separates paragraphs) and classify it as comment
+            # content. An INDENTED # line is part of the snippet (a
+            # wrapped trailing comment aligned with the code); it stays
+            # verbatim and the painter styles it.
             is_cmt = comment
-            if not comment and s.lstrip().startswith("#"):
-                s = re.sub(r"^\s*# ?", "", s)
+            if not comment and s.startswith("#"):
+                s = re.sub(r"^# ?", "", s)
                 is_cmt = True
             if s.strip() == "":
                 flush_para(); flush_disp(); flush_bullets()
