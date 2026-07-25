@@ -528,8 +528,8 @@ pre {
 }
 pre.display { background:var(--panel); border-left:2px solid var(--hair);
   padding:.7rem .9rem; border-radius:0 4px 4px 0; margin:.8rem 0; }
-.rule { margin:1.4rem 0; }
-.rule-box { display:inline-block; min-width:16rem; max-width:100%; overflow-x:auto; }
+.rule { margin:1.4rem 0; overflow-x:auto; }
+.rule-box { display:inline-block; min-width:16rem; }
 .premises, .conclusion { padding:.15rem .25rem; }
 .bar { border-top:1.5px solid var(--ink); position:relative; margin:.2rem 0; }
 .rname { position:absolute; right:-.25rem; top:50%; transform:translate(100%,-50%);
