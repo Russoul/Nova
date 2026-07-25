@@ -430,7 +430,7 @@ class FileRenderer:
                     h = cm.group(1).strip()
                     self.hseq += 1
                     a = f"{self.key}-h-{self.hseq}"
-                    out.append(f'<h3 id="{a}">{math(h)}</h3>')
+                    out.append(f'<h3 id="{a}">{html.escape(h)}</h3>')
                     self.toc.append(("H3", h.title(), a))
                     s = s.strip()[cm.end():].lstrip(".—: ")
                     if not s:
@@ -445,7 +445,7 @@ class FileRenderer:
         m = SEC_NUM_RE.match(text)
         a = f"{self.key}-sec-{m.group(1)}" if m else f"{self.key}-sec-x{self.hseq}"
         self.hseq += 1
-        self.body.append(f'<h2 id="{a}">{math(text)}</h2>')
+        self.body.append(f'<h2 id="{a}">{html.escape(text)}</h2>')
         self.toc.append(("H2", text, a))
 
     def render(self, lines):
