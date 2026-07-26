@@ -1,0 +1,15 @@
+LEGEND: ["keyword", "variable", "operator", "number", "comment"]
+DIAGNOSTICS (0):
+TOKENS (11):
+  L1:1+3 keyword
+  L1:5+2 variable
+  L1:8+1 keyword
+  L1:10+1 keyword
+  L1:12+1 keyword
+  L1:14+1 keyword
+  L1:16+1 keyword
+  L1:18+1 keyword
+  L1:19+1 variable
+  L1:20+1 keyword
+  L1:22+1 variable
+SERVER EXIT CODE: 0

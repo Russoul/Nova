@@ -11,7 +11,10 @@ module Nova.Elaboration.Loader
 
 import Data.List
 import Data.List1
+import Data.SnocList
 import Data.String
+
+import Me.Russoul.Text.Range
 
 import Nova.Kernel.Parser
 
@@ -49,13 +52,14 @@ parseHeader : (label : String) -> String -> Either String (List SImport)
 parseHeader label content =
   case runSurfaceParser parseSHeader content of
     Left err => Left "parse error in \{label}: \{err}"
-    Right r => Right r
+    Right (_, r) => Right r
 
-parseModule : (label : String) -> FixTable -> String -> Either String (List SImport, FixTable, List SItem)
+parseModule : (label : String) -> FixTable -> String
+            -> Either String (SnocList (Range, TokenKind), List SImport, FixTable, List (Maybe Range, SItem))
 parseModule label tbl content =
   case runSurfaceParser (parseSFile tbl) content of
     Left err => Left "parse error in \{label}: \{err}"
-    Right r => Right r
+    Right (toks, (imps, tbl', items)) => Right (toks, imps, tbl', items)
 
 mutual
   ||| Resolve module `mname` and (transitively, first) its imports into
@@ -81,10 +85,10 @@ mutual
           Right (done', fixs', acc') <- loadMany rootDir (mname :: visiting) done fixs acc (map (\i => i.mname) hdr)
             | Left err => pure (Left err)
           let tbl0 = importTable fixs' hdr
-          let Right (imps, decls, items) = parseModule "module \{mname} (\{path})" tbl0 content
+          let Right (toks, imps, decls, items) = parseModule "module \{mname} (\{path})" tbl0 content
             | Left err => pure (Left err)
           pure (Right (mname :: done', (mname, decls) :: fixs',
-                       acc' ++ [MkModUnit mname imps (decls ++ tbl0) items]))
+                       acc' ++ [MkModUnit mname imps (decls ++ tbl0) items toks]))
 
   loadMany : (rootDir : String) -> (visiting : List String) -> (done : List String)
            -> (fixs : FixMap) -> (acc : List ModUnit) -> List String
@@ -107,9 +111,9 @@ loadProgram rootPath = do
   Right (_, fixs, deps) <- loadMany (dirOf rootPath) [] [] [] [] (map (\i => i.mname) hdr)
     | Left err => pure (Left err)
   let tbl0 = importTable fixs hdr
-  let Right (imps, decls, items) = parseModule rootPath tbl0 content
+  let Right (toks, imps, decls, items) = parseModule rootPath tbl0 content
     | Left err => pure (Left err)
-  pure (Right (deps ++ [MkModUnit "" imps (decls ++ tbl0) items]))
+  pure (Right (deps ++ [MkModUnit "" imps (decls ++ tbl0) items toks]))
 
 ||| Load and elaborate: the `elab` command's body.
 export

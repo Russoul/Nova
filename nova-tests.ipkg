@@ -1,7 +1,7 @@
 package nova-tests
 version = 0.1.0
 
-depends = contrib, just-a-parser, test
+depends = contrib, just-a-parser, test, lsp-lib
 
 modules = Nova.Kernel.Syntax
         , Nova.Kernel.Subst
@@ -13,6 +13,8 @@ modules = Nova.Kernel.Syntax
         , Nova.Elaboration.Surface
         , Nova.Elaboration.Parser
         , Nova.Elaboration.Loader
+
+        , Nova.LSP.TestClient
 
 sourcedir = "src/idris"
 

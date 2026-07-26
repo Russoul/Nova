@@ -1,0 +1,19 @@
+package nova-lsp
+version = 0.1.0
+
+depends = contrib, just-a-parser, lsp-lib
+
+modules = Nova.LSP.Ref
+        , Nova.LSP.Log
+        , Nova.LSP.Configuration
+        , Nova.LSP.Capabilities
+        , Nova.LSP.Diagnostics
+        , Nova.LSP.SemanticTokens
+        , Nova.LSP.Response
+        , Nova.LSP.ProcessMessage
+        , Nova.LSP.App
+
+sourcedir = "src/idris"
+
+main = Nova.LSP.App
+executable = nova-lsp

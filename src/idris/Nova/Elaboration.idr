@@ -42,6 +42,8 @@ import Nova.Kernel.Beta
 import Nova.Kernel.QIIT
 import Nova.Kernel.Parser
 import Nova.Kernel
+
+import Me.Russoul.Text.Range
 import Nova.Elaboration.Named
 import Nova.Elaboration.Surface
 import Nova.Elaboration.Parser
@@ -2145,6 +2147,10 @@ prettyStmt tbl (StTy ctx env a b) =
   (if tele == "" then "" else tele ++ " ") ++
   "⊢ \{prettyTyN tbl env a} ≐ \{prettyTyN tbl env b} type"
 
+||| Exported (unlike the rest of this obligation-printing family) so
+||| an LSP consumer can render one `Obligation` from `ElabReport`
+||| without needing `Obligation`/`Stmt` themselves to be public.
+export
 prettyObligation : FixTable -> Nat -> Obligation -> String
 prettyObligation tbl i obl =
   "  [\{show (S i)}] \{prettyStmt tbl obl.stmt}\n" ++
@@ -2163,7 +2169,12 @@ record ModUnit where
   ||| the module's EFFECTIVE fixity table (opened imports' + own
   ||| declarations) — the printer's, for faithful infix layout
   mfix : FixTable
-  mitems : List SItem
+  ||| each item paired with its source range (item-level granularity —
+  ||| see `Nova.Elaboration.Parser.parseSFile`), for LSP diagnostics
+  mitems : List (Maybe Range, SItem)
+  ||| every classified token span in the module's source, for LSP
+  ||| semantic tokens (see `Nova.Elaboration.Parser.runSurfaceParser`)
+  mtokens : SnocList (Range, TokenKind)
 
 oblReport : FixTable -> List Obligation -> String
 oblReport tbl os =
@@ -2203,9 +2214,9 @@ elabProgram units = go initSt units []
        [] => "Accepted."
        os => oblReport tbl os)
 
-  goItems : ElabSt -> List SItem -> Either (List String, String) (ElabSt, List String)
+  goItems : ElabSt -> List (Maybe Range, SItem) -> Either (List String, String) (ElabSt, List String)
   goItems st [] = Right (st, [])
-  goItems st (item :: rest) =
+  goItems st ((_, item) :: rest) =
     case runElabM (elabItem item) st of
       Left err => Left ([], err)
       Right (st', echo) =>
@@ -2215,7 +2226,7 @@ elabProgram units = go initSt units []
 
   go : ElabSt -> List ModUnit -> List String -> String
   go st [] echoes = joinBy "\n" (echoes ++ ["Error: empty program"])
-  go st (MkModUnit name imps tbl items :: rest) echoes = do
+  go st (MkModUnit name imps tbl items _ :: rest) echoes = do
     -- a fresh visibility table per module: its own imports only
     let st = { modPrefix := name, vis := [<] } st
     case runElabM (installImports imps) st of
@@ -2242,5 +2253,65 @@ elabFile : String -> String
 elabFile content =
   case runSurfaceParser (parseSFile []) content of
     Left err => "Parse error: \{err}"
-    Right ([], decls, items) => elabProgram [MkModUnit "" [] decls items]
-    Right (_, _, _) => "Error: this entry point resolves no imports (use the module-aware loader)"
+    Right (toks, ([], decls, items)) => elabProgram [MkModUnit "" [] decls items toks]
+    Right (_, (_, _, _)) => "Error: this entry point resolves no imports (use the module-aware loader)"
+
+||| Structured, range-aware counterpart to `elabProgram` for LSP
+||| consumers. `elabProgram`/`elabPath`/`Nova.Application`'s CLI output
+||| is untouched by this — same fold, but instead of collapsing to one
+||| string, each hard error and each newly-produced `Obligation` is
+||| attributed to the enclosing item's range AND its module (item-level
+||| granularity, same caveat as `ModUnit.mitems`: no sub-expression
+||| precision) — the module name lets an LSP tell "this range belongs
+||| to the open document" (mname == "", the root — see
+||| `Nova.Elaboration.Loader.loadProgram`) from "this came from an
+||| imported file, don't paint this range in MY document".
+public export
+record ElabReport where
+  constructor MkElabReport
+  obligations : List (String, Maybe Range, Obligation)
+  ||| at most one per run — elaboration of a dependency-ordered program
+  ||| stops at the first hard failure, same as `elabProgram`
+  errors : List (String, Maybe Range, String)
+
+export
+elabProgramReport : List ModUnit -> ElabReport
+elabProgramReport units = go initSt units [] []
+ where
+  -- newly-appended obligations since `before`: obls only ever grows by
+  -- `:<` (see `assume`), so `before` is always a prefix of `after`.
+  newObls : (before, after : ElabSt) -> List Obligation
+  newObls before after =
+    drop (length (toList before.obls)) (toList after.obls)
+
+  goItems : String -> ElabSt -> List (Maybe Range, SItem)
+          -> Either (List (String, Maybe Range, Obligation), Maybe Range, String)
+                    (ElabSt, List (String, Maybe Range, Obligation))
+  goItems mname st [] = Right (st, [])
+  goItems mname st ((rng, item) :: rest) =
+    case runElabM (elabItem item) st of
+      Left err => Left ([], rng, err)
+      Right (st', _) =>
+        let tagged = map (\o => (mname, rng, o)) (newObls st st') in
+        case goItems mname st' rest of
+          Left (obls, r, err) => Left (tagged ++ obls, r, err)
+          Right (st'', obls) => Right (st'', tagged ++ obls)
+
+  go : ElabSt -> List ModUnit -> List (String, Maybe Range, Obligation) -> List (String, Maybe Range, String) -> ElabReport
+  go st [] obls errs = MkElabReport obls errs
+  go st (MkModUnit name imps tbl items _ :: rest) obls errs =
+    let st = { modPrefix := name, vis := [<] } st in
+    case runElabM (installImports imps) st of
+      Left err => MkElabReport obls (errs ++ [(name, Nothing, err)])
+      Right (st, ()) =>
+        case goItems name st items of
+          Left (itemObls, rng, err) => MkElabReport (obls ++ itemObls) (errs ++ [(name, rng, err)])
+          Right (st', itemObls) =>
+            case rest of
+              [] => MkElabReport (obls ++ itemObls) errs
+              _ =>
+                -- only ACCEPTED modules are importable
+                case toList st'.obls of
+                  [] => go st' rest (obls ++ itemObls) errs
+                  _ => MkElabReport (obls ++ itemObls)
+                         (errs ++ [(name, Nothing, "module \{name} has open obligations and cannot be imported")])

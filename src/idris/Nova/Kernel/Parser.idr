@@ -11,9 +11,26 @@ import Me.Russoul.Text.Range
 
 import Nova.Kernel.Syntax
 
+||| Semantic classification of a token span. Accumulated in the
+||| grammar's state as parsing proceeds (see `emit`), so a classifier
+||| never has to re-derive what the parser already knows structurally.
+||| Mirrors the docs renderer's highlighting classes
+||| (tools/render-specs.py's DEFAULT_VOCAB: kw/tos/nova/meta collapse
+||| to Keyword/Identifier here since surface files have no ToS/meta
+||| alphabets to distinguish), for LSP semantic tokens.
+public export
+data TokenKind = Keyword | Identifier | Operator | Number | Comment
+
 public export
 Rule : Type -> Type
-Rule = Grammar () Token
+Rule = Grammar (SnocList (Range, TokenKind)) Token
+
+||| Record a classified span in the accumulator. A no-op location-wise
+||| when the wrapped grammar consumed nothing (bounds returns Nothing).
+export
+emit : Maybe Range -> TokenKind -> Rule ()
+emit Nothing _ = pure ()
+emit (Just r) k = update (:< (r, k))
 
 -- Optional whitespace between tokens
 sp : Rule ()
@@ -244,10 +261,22 @@ mutual
 
 -- ===== Convenience runner =====
 
+-- `ParsingError`'s own `Show` requires `Show st`, and `st` is now the
+-- token-classification accumulator (see `TokenKind`) — showing that as
+-- part of a parse error would be internal noise, not useful to a
+-- reader, so this reports the same fields except the trailing state
+-- dump.
+export
+showParseErr : Show tok => ParsingError tok st -> String
+showParseErr (Error msg _ commitBounds errorBounds leftover) =
+  "PARSING ERROR: " ++ msg ++ " " ++ show @{RangeOrPosition} errorBounds
+  ++ "\n" ++ show @{Commit} commitBounds
+  ++ "\n" ++ show @{Leftover} leftover
+
 export
 runParser : Rule a -> String -> Either String a
 runParser rule input =
   let (_, toks) = tokenise (unpack input) in
-  case parseWith () (rule <* eof) toks of
-    Left err  => Left (show err)
+  case parseWith [<] (rule <* eof) toks of
+    Left err  => Left (showParseErr err)
     Right (_, _, x, _) => Right x
