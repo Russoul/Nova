@@ -61,6 +61,17 @@ def orInr : (p : Ω) (q : Ω) → Prf q → Prf (Or p q) ≔
 def orElim : (p : Ω) (q : Ω) (c : Ω) → Prf (Or p q) → (Prf p → Prf c) → (Prf q → Prf c) → Prf c ≔
   λp. λq. λc. λh. λf. λg. squash-elim h (u. u c f g)
 
+-- Logical equivalence, as a pair of implications (And + Imp already
+-- give this for free — Iff names it so callers stop re-deriving it)
+def Iff : Ω → Ω → Ω ≔ λp. λq. And (Imp p q) (Imp q p)
+
+def iffIntro : (p : Ω) (q : Ω) → (Prf p → Prf q) → (Prf q → Prf p) → Prf (Iff p q) ≔
+  λp. λq. λf. λg. andIntro (Imp p q) (Imp q p) (impIntro p q f) (impIntro q p g)
+def iffLeft : (p : Ω) (q : Ω) → Prf (Iff p q) → Prf p → Prf q ≔
+  λp. λq. λh. impApply p q (andFst (Imp p q) (Imp q p) h)
+def iffRight : (p : Ω) (q : Ω) → Prf (Iff p q) → Prf q → Prf p ≔
+  λp. λq. λh. impApply q p (andSnd (Imp p q) (Imp q p) h)
+
 -- Curry/uncurry as a logical equivalence (each direction its own
 -- lemma, rather than a literal code-prop-eq equality — code-prop-eq's
 -- automatic search is still 𝟙-/≡-shaped only; only el-squash-i/

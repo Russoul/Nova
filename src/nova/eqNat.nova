@@ -1,0 +1,69 @@
+import prop (Top, Bot, Iff, iffIntro, reflectSquash)
+import equality (cong, sym, transport)
+
+-- Observational equality of natural numbers, defined in Ω, and its
+-- logical equivalence with the built-in (parametric) equality type
+-- ≡ ∈ ℕ. EqN is the classical double recursion: Z ~ Z and S n ~ S m
+-- reduce further, any Z/S mismatch lands at Bot.
+def EqN : ℕ → ℕ → Ω ≔
+  λn. ℕ-elim (k. ℕ → Ω)
+        (λm. ℕ-elim (k. Ω) Top (k ih. Bot) m)
+        (n ih. λm. ℕ-elim (k. Ω) Bot (k ih2. ih k) m)
+        n
+
+def eqNRefl : (n : ℕ) → Prf (EqN n n) ≔
+  λn. ℕ-elim (k. Prf (EqN k k)) ⋆ (k ih. ih) n
+
+-- soundness: EqN implies the built-in equality — the Z/S-mismatch
+-- cases are absurd (h squashes to 𝟘, which proves anything, including
+-- an equation), the matching cases fall out of the inductive
+-- hypothesis by congruence on S
+def eqNSound : (n : ℕ) → (m : ℕ) → Prf (EqN n m) → n ≡ m ∈ ℕ ≔
+  λn. ℕ-elim (k. (m : ℕ) → Prf (EqN k m) → k ≡ m ∈ ℕ)
+    (λm. ℕ-elim (j. Prf (EqN Z j) → Z ≡ j ∈ ℕ)
+      (λh. Refl)
+      (j ih2. λh. reflectSquash Z (S j) (squash-elim h (x. 𝟘-elim x)))
+      m)
+    (n ih. λm. ℕ-elim (j. Prf (EqN (S n) j) → S n ≡ j ∈ ℕ)
+      (λh. reflectSquash (S n) Z (squash-elim h (x. 𝟘-elim x)))
+      (j ih2. λh. ((λheq. Refl) : (n ≡ j ∈ ℕ) → (S n ≡ S j ∈ ℕ)) (ih j h))
+      m)
+    n
+
+-- ℕ has no confusion between Z and S _: transporting the "is-Z" code
+-- along a bad Z ≡ S j equation lands a 𝟙-witness in 𝟘
+def isZeroCode : ℕ → 𝕌 ≔ λn. ℕ-elim (_. 𝕌) 𝟙 (n ih. 𝟘) n
+def zNotS : (j : ℕ) → (Z ≡ S j ∈ ℕ) → 𝟘 ≔
+  λj. λh. transport ℕ isZeroCode Z (S j) h ()
+
+-- S is injective: predecessor congruence recovers n ≡ j from S n ≡ S j
+def pred : ℕ → ℕ ≔ λn. ℕ-elim (_. ℕ) Z (n ih. n) n
+def predEq : (n : ℕ) → (j : ℕ) → (S n ≡ S j ∈ ℕ) → n ≡ j ∈ ℕ ≔
+  λn. λj. λh. cong ℕ (λ_. ℕ) pred (S n) (S j) h
+
+-- completeness: the built-in equality implies EqN, by double
+-- induction mirroring EqN's own recursion — the Z/S-mismatch cases
+-- are impossible (absurd via zNotS), the matching cases recurse
+def eqNComplete : (n : ℕ) → (m : ℕ) → (n ≡ m ∈ ℕ) → Prf (EqN n m) ≔
+  λn. ℕ-elim (k. (m : ℕ) → (k ≡ m ∈ ℕ) → Prf (EqN k m))
+    (λm. ℕ-elim (j. (Z ≡ j ∈ ℕ) → Prf (EqN Z j))
+      (λh. ⋆)
+      (j ih2. λh. 𝟘-elim (zNotS j h))
+      m)
+    (n ih. λm. ℕ-elim (j. (S n ≡ j ∈ ℕ) → Prf (EqN (S n) j))
+      (λh. 𝟘-elim (zNotS n (sym ℕ (S n) Z h)))
+      (j ih2. λh. ih j (predEq n j h))
+      m)
+    n
+
+-- the logical equivalence, packaged with prop.nova's Iff against the
+-- squashed built-in equality (Ω is impredicative, ≡ ∈ ℕ is not, so
+-- ∥-∥ is the bridge)
+def eqNSoundP : (n : ℕ) → (m : ℕ) → Prf (EqN n m) → Prf ∥ n ≡ m ∈ ℕ ∥ ≔
+  λn. λm. λh. ⋆ (eqNSound n m h)
+
+def eqNCompleteP : (n : ℕ) → (m : ℕ) → Prf ∥ n ≡ m ∈ ℕ ∥ → Prf (EqN n m) ≔
+  λn. λm. λh. squash-elim h (e. eqNComplete n m e)
+
+def eqNIff : (n : ℕ) → (m : ℕ) → Prf (Iff (EqN n m) ∥ n ≡ m ∈ ℕ ∥) ≔
+  λn. λm. iffIntro (EqN n m) ∥ n ≡ m ∈ ℕ ∥ (eqNSoundP n m) (eqNCompleteP n m)
