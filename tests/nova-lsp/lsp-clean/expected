@@ -12,4 +12,7 @@ TOKENS (11):
   L1:19+1 variable
   L1:20+1 keyword
   L1:22+1 variable
+SYMBOLS (1):
+  id (kind 12) [L1:1-L1:23]
+DEFINITION(id): SAME FILE [L1:1-L1:23]
 SERVER EXIT CODE: 0

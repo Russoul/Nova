@@ -8,4 +8,7 @@ TOKENS (6):
   L1:11+1 keyword
   L1:13+1 keyword
   L1:15+14 variable
+SYMBOLS (1):
+  bad (kind 12) [L1:1-L1:29]
+DEFINITION(undefinedThing): null
 SERVER EXIT CODE: 0

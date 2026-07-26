@@ -7,9 +7,7 @@ import Language.LSP.Message.URI
 
 import Me.Russoul.Text.Range
 
-import Nova.Kernel.Parser
 import Nova.Elaboration
-import Nova.Elaboration.Surface
 
 %default total
 
@@ -18,19 +16,21 @@ public export
 data LSPConf : Type where
 
 ||| Everything produced by loading+elaborating one open document: the
-||| raw source (semantic tokens are encoded relative to its lines —
-||| see `Nova.LSP.SemanticTokens`), the root module's effective fixity
-||| table (obligation pretty-printing needs it for infix layout), the
-||| classified token spans, and the range-aware elaboration report.
-||| One `DocState` per currently-open document (see `LSPConfiguration.docs`)
-||| — this server has no notion of a project-wide "workspace" beyond
-||| what each open file's own import graph resolves.
+||| raw source, the ROOT module itself (its fixity table, items and
+||| tokens are all read straight off it — see `Nova.LSP.SemanticTokens`
+||| /`Nova.LSP.Definitions`), the range-aware elaboration report, and a
+||| definition index spanning every module the root transitively
+||| imports (`Nova.LSP.Definitions.buildIndex`), since go-to-definition
+||| can jump into a file that isn't itself open. One `DocState` per
+||| currently-open document (see `LSPConfiguration.docs`) — this server
+||| has no notion of a project-wide "workspace" beyond what each open
+||| file's own import graph resolves.
 public export
 record DocState where
   constructor MkDocState
   source   : String
-  fixTable : FixTable
-  tokens   : List (Range, TokenKind)
+  rootUnit : ModUnit
+  defIndex : List (String, String, Range)
   report   : ElabReport
 
 ||| Type for the LSP server configuration.

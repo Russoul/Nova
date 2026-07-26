@@ -135,11 +135,76 @@ renderDiagnostic d =
       msg = fromMaybe "?" (getField "message" d >>= asString)
   in "  [\{range}] \{msg}"
 
+renderRange : JSON -> String
+renderRange r =
+  fromMaybe "?" (do
+    sl <- getPath ["start", "line"] r >>= asInt
+    sc <- getPath ["start", "character"] r >>= asInt
+    el <- getPath ["end", "line"] r >>= asInt
+    ec <- getPath ["end", "character"] r >>= asInt
+    pure "L\{show (sl + 1)}:\{show (sc + 1)}-L\{show (el + 1)}:\{show (ec + 1)}")
+
+renderSymbol : JSON -> String
+renderSymbol s =
+  let name = fromMaybe "?" (getField "name" s >>= asString)
+      kind = fromMaybe (-1) (getField "kind" s >>= asInt)
+      rng  = fromMaybe "?" (map renderRange (getField "range" s))
+  in "  \{name} (kind \{show kind}) [\{rng}]"
+
+-- ===== finding a search word's position, for the definition test =====
+
+isPrefixOfChars : List Char -> List Char -> Bool
+isPrefixOfChars [] _ = True
+isPrefixOfChars (_ :: _) [] = False
+isPrefixOfChars (x :: xs) (y :: ys) = x == y && isPrefixOfChars xs ys
+
+findInLine : List Char -> List Char -> Maybe Int
+findInLine word = go 0
+ where
+  go : Int -> List Char -> Maybe Int
+  go _ [] = Nothing
+  go i cs@(_ :: rest) = if isPrefixOfChars word cs then Just i else go (i + 1) rest
+
+||| The (line, column) — both 0-based codepoint indices, matching what
+||| the server itself works in before UTF-16 conversion — of the first
+||| occurrence of `word` in `content`.
+findWordPosition : String -> String -> Maybe (Int, Int)
+findWordPosition word content = go 0 (lines content)
+ where
+  wordChars : List Char
+  wordChars = unpack word
+  go : Int -> List String -> Maybe (Int, Int)
+  go _ [] = Nothing
+  go lineNo (l :: ls) =
+    case findInLine wordChars (unpack l) of
+      Just col => Just (lineNo, col)
+      Nothing  => go (lineNo + 1) ls
+
+basename : String -> String
+basename path = List1.last (split (== '/') path)
+
+||| Normalized go-to-definition result: whether the target is the SAME
+||| file as the one we opened (a real absolute path would break golden
+||| tests across checkouts, so it's never printed) or another file
+||| (named by basename only), plus the target range.
+renderDefinition : String -> JSON -> String
+renderDefinition fixtureUri JNull = "null"
+renderDefinition fixtureUri result =
+  fromMaybe "?" (do
+    uri <- getField "uri" result >>= asString
+    rng <- getField "range" result
+    let label = if uri == fixtureUri then "SAME FILE" else "OTHER FILE: \{basename uri}"
+    pure "\{label} [\{renderRange rng}]")
+
 -- ===== the scripted conversation =====
 
+||| `word`'s first occurrence in the fixture is used as the cursor
+||| position for a `textDocument/definition` request — the caller
+||| picks a word whose resolution (or deliberate non-resolution, e.g.
+||| an unbound name) is worth pinning down in a golden test.
 export
-runLspTest : (lspBinPath : String) -> (fixtureAbsPath : String) -> IO ()
-runLspTest lspBinPath fixtureAbsPath = do
+runLspTest : (lspBinPath : String) -> (fixtureAbsPath : String) -> (word : String) -> IO ()
+runLspTest lspBinPath fixtureAbsPath word = do
   Right content <- readFile fixtureAbsPath
     | Left err => dieMsg "cannot read fixture \{fixtureAbsPath}: \{show err}"
   Right proc <- popen2 lspBinPath
@@ -181,7 +246,25 @@ runLspTest lspBinPath fixtureAbsPath = do
   putStrLn "TOKENS (\{show (length toks)}):"
   traverse_ (putStrLn . renderToken) toks
 
-  writeMessage proc.input (req 3 "shutdown" JNull)
+  writeMessage proc.input (req 3 "textDocument/documentSymbol" (JObject [("textDocument", JObject [("uri", JString uri)])]))
+  Just symResp <- readMessage proc.output
+    | Nothing => dieMsg "no response to documentSymbol"
+  let syms = fromMaybe [] (getPath ["result"] symResp >>= asArray)
+  putStrLn "SYMBOLS (\{show (length syms)}):"
+  traverse_ (putStrLn . renderSymbol) syms
+
+  let Just (wline, wcol) = findWordPosition word content
+    | Nothing => dieMsg "word '\{word}' not found in fixture"
+  writeMessage proc.input (req 4 "textDocument/definition" (JObject
+    [ ("textDocument", JObject [("uri", JString uri)])
+    , ("position", JObject [("line", JNumber (cast wline)), ("character", JNumber (cast wcol))])
+    ]))
+  Just defResp <- readMessage proc.output
+    | Nothing => dieMsg "no response to definition"
+  let defResult = fromMaybe JNull (getField "result" defResp)
+  putStrLn "DEFINITION(\{word}): \{renderDefinition uri defResult}"
+
+  writeMessage proc.input (req 5 "shutdown" JNull)
   Just _ <- readMessage proc.output
     | Nothing => dieMsg "no response to shutdown"
   writeMessage proc.input (notif "exit" JNull)

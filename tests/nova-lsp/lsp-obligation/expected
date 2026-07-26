@@ -55,4 +55,8 @@ TOKENS (52):
   L3:48+1 variable
   L3:49+1 keyword
   L3:51+4 keyword
+SYMBOLS (2):
+  plus (kind 12) [L1:1-L1:62]
+  needsLemma (kind 12) [L3:1-L3:55]
+DEFINITION(plus): SAME FILE [L1:1-L1:62]
 SERVER EXIT CODE: 0

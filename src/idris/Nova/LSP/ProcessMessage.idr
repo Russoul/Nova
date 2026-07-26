@@ -2,12 +2,14 @@ module Nova.LSP.ProcessMessage
 
 import Data.List
 import Data.SnocList
+import Data.String
 
 import Language.JSON
 import Language.LSP.Message
 import Language.LSP.Utils
 
 import Me.Russoul.Text.Range
+import Me.Russoul.Text.Position
 
 import System
 import System.File
@@ -21,6 +23,8 @@ import Nova.LSP.Configuration
 import Nova.LSP.Capabilities
 import Nova.LSP.Diagnostics
 import Nova.LSP.SemanticTokens
+import Nova.LSP.Definitions
+import Nova.LSP.Encoding
 import Nova.LSP.Response
 import Nova.LSP.Log
 
@@ -59,8 +63,9 @@ loadURI uri version = do
   Right source <- readFile fpath
     | Left err => logE Server "Cannot re-read \{fpath}: \{show err}"
   let report = elabProgramReport units
-  setDoc uri (MkDocState source root.mfix (toList root.mtokens) report)
-  sendDiagnostics uri version (toDiagnostics root.mfix report)
+  let index = buildIndex fpath units
+  setDoc uri (MkDocState source root index report)
+  sendDiagnostics uri version (toDiagnostics source root.mfix report)
 
 -- ===== guards =====
 
@@ -126,8 +131,32 @@ handleRequest TextDocumentSemanticTokensFull params = whenActiveRequest $ \_ => 
   logI Channel "Received semanticTokens/full request for \{show params.textDocument.uri}"
   Just doc <- getDoc params.textDocument.uri
     | Nothing => pure (pure (make MkNull))
-  let toks = getSemanticTokens doc.source doc.tokens
+  let toks = getSemanticTokens doc.source (toList doc.rootUnit.mtokens)
   pure (pure (make (MkSemanticTokens Nothing toks)))
+
+handleRequest TextDocumentDocumentSymbol params = whenActiveRequest $ \_ => do
+  logI Channel "Received documentSymbol request for \{show params.textDocument.uri}"
+  Just doc <- getDoc params.textDocument.uri
+    | Nothing => pure (pure (make (the (List DocumentSymbol) [])))
+  let syms = documentSymbols (lines doc.source) doc.rootUnit.mitems
+  pure (pure (make syms))
+
+handleRequest TextDocumentDefinition params = whenActiveRequest $ \_ => do
+  logI Channel "Received definition request for \{show params.textDocument.uri}"
+  Just doc <- getDoc params.textDocument.uri
+    | Nothing => pure (pure (make MkNull))
+  let lns = lines doc.source
+  let pos = fromLspPosition lns params.position
+  let Just name = findIdentifierAt lns (toList doc.rootUnit.mtokens) pos
+    | Nothing => pure (pure (make MkNull))
+  let Just (file, rng) = resolveReference doc.rootUnit doc.defIndex name
+    | Nothing => pure (pure (make MkNull))
+  Right targetSource <- readFile file
+    | Left err => do
+        logE Server "Cannot read definition target \{file}: \{show err}"
+        pure (pure (make MkNull))
+  let loc = MkLocation (pathToURI file) (toLspRange (lines targetSource) rng)
+  pure (pure (make loc))
 
 handleRequest method params = whenActiveRequest $ \_ => do
   logW Channel "Received unsupported \{show (toJSON method)} request"

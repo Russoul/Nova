@@ -7,8 +7,10 @@ modules = Nova.LSP.Ref
         , Nova.LSP.Log
         , Nova.LSP.Configuration
         , Nova.LSP.Capabilities
+        , Nova.LSP.Encoding
         , Nova.LSP.Diagnostics
         , Nova.LSP.SemanticTokens
+        , Nova.LSP.Definitions
         , Nova.LSP.Response
         , Nova.LSP.ProcessMessage
         , Nova.LSP.App

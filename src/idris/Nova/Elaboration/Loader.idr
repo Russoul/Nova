@@ -26,12 +26,17 @@ import System.File
 
 %default covering
 
+||| Exported for LSP consumers that need to map a loaded module's name
+||| back to the file it came from (e.g. go-to-definition across an
+||| import) without re-deriving this convention themselves.
+export
 dirOf : String -> String
 dirOf path =
   case reverse (forget (split (== '/') path)) of
     (_ :: parentRev@(_ :: _)) => joinBy "/" (reverse parentRev)
     _ => "."
 
+export
 modPath : (rootDir : String) -> (mname : String) -> String
 modPath rootDir mname =
   rootDir ++ "/" ++ joinBy "/" (forget (split (== '.') mname)) ++ ".nova"

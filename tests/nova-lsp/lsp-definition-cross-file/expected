@@ -1,0 +1,19 @@
+LEGEND: ["keyword", "variable", "operator", "number", "comment"]
+DIAGNOSTICS (0):
+TOKENS (12):
+  L1:1+6 keyword
+  L1:8+3 variable
+  L1:12+1 keyword
+  L1:13+3 variable
+  L1:16+1 keyword
+  L2:1+3 keyword
+  L2:5+3 variable
+  L2:9+1 keyword
+  L2:11+1 keyword
+  L2:13+1 keyword
+  L2:15+1 keyword
+  L2:17+3 variable
+SYMBOLS (1):
+  two (kind 12) [L2:1-L2:20]
+DEFINITION(one): OTHER FILE: lib.nova [L1:1-L1:18]
+SERVER EXIT CODE: 0

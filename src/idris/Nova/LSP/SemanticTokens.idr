@@ -8,6 +8,7 @@ import Me.Russoul.Text.Position
 
 import Nova.Kernel.Parser
 import Nova.LSP.Capabilities
+import Nova.LSP.Encoding
 
 compareStart : (Range, TokenKind) -> (Range, TokenKind) -> Ordering
 compareStart (r1, _) (r2, _) =
@@ -34,14 +35,6 @@ encode (relLine, relStartChar) ((MkRange (MkPosition sl sc) (MkPosition _ ec), k
      , 0
      ] ++ encode (sl, sc) xs
 
-||| Codepoint offset -> UTF-16 offset within one line.
-convert : String -> Int -> Int -> Int -> Int
-convert line i wantedI acc =
-  if i == wantedI
-    then acc
-    else convert line (1 + i) wantedI
-           (acc + (if ord (assert_total (strIndex line (cast i))) <= 0xFFFF then 1 else 2))
-
 ||| Assumes no token spans more than one line — true for every kind
 ||| this server emits (see `Nova.Elaboration.Parser`'s `kw`/`kwc`/
 ||| `parseName`/`parseOpName`/digit-literal instrumentation: none of
@@ -51,7 +44,7 @@ convertTokens _ _ [] = []
 convertTokens lastLineNum ls ((MkRange (MkPosition sl sc) (MkPosition el ec), kind) :: rest) =
   case drop (cast (sl - lastLineNum)) ls of
     (line :: ls') =>
-      (MkRange (MkPosition sl (convert line 0 sc 0)) (MkPosition el (convert line 0 ec 0)), kind)
+      (MkRange (MkPosition sl (codepointToUtf16 line sc)) (MkPosition el (codepointToUtf16 line ec)), kind)
         :: convertTokens sl (line :: ls') rest
     [] => [] -- must not happen: sl always indexes a real line of `source`
 

@@ -50,7 +50,7 @@ main = do
     (_ :: "elab" :: file :: []) => do
       output <- elabPath file
       putStrLn output
-    (_ :: "lsp" :: lspBin :: fixture :: []) => runLspTest lspBin fixture
+    (_ :: "lsp" :: lspBin :: fixture :: word :: []) => runLspTest lspBin fixture word
     _ => do
       ps <- pools
       runner ps

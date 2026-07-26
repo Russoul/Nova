@@ -1,5 +1,7 @@
 module Nova.LSP.Diagnostics
 
+import Data.String
+
 import Language.JSON
 import Language.LSP.Message.Diagnostics
 import Language.LSP.Message.Location
@@ -9,18 +11,7 @@ import Me.Russoul.Text.Position
 
 import Nova.Elaboration
 import Nova.Elaboration.Surface
-
-%default total
-
-||| Just-a-Parser's Range/Position are already 0-indexed on both axes
-||| (see `Me.Russoul.Text.Lexer.tokenise`'s own comment: "we count
-||| starting at 0 for both axes, solely because LSP expects this
-||| format") — same convention LSP uses, so this is a plain field copy.
-toLspPosition : Me.Russoul.Text.Position.Position -> Location.Position
-toLspPosition (Me.Russoul.Text.Position.MkPosition line col) = Location.MkPosition line col
-
-toLspRange : Me.Russoul.Text.Range.Range -> Location.Range
-toLspRange (Me.Russoul.Text.Range.MkRange start end) = Location.MkRange (toLspPosition start) (toLspPosition end)
+import Nova.LSP.Encoding
 
 wholeDocument : Location.Range
 wholeDocument = Location.MkRange (Location.MkPosition 0 0) (Location.MkPosition 0 0)
@@ -44,9 +35,9 @@ mkDiagnostic range message =
 -- position in a DIFFERENT file, not this document, so it's reported
 -- at a whole-document range with the module named in the message
 -- instead of silently mislocating it.
-rangeFor : String -> Maybe Me.Russoul.Text.Range.Range -> Location.Range
-rangeFor "" (Just r) = toLspRange r
-rangeFor _  _        = wholeDocument
+rangeFor : List String -> String -> Maybe Me.Russoul.Text.Range.Range -> Location.Range
+rangeFor lns "" (Just r) = toLspRange lns r
+rangeFor _   _  _        = wholeDocument
 
 annotate : String -> String -> String
 annotate "" msg = msg
@@ -60,12 +51,15 @@ loadErrorDiagnostic : String -> Diagnostic
 loadErrorDiagnostic msg = mkDiagnostic wholeDocument msg
 
 ||| Diagnostics for one open document's `ElabReport` — see
-||| `Nova.Elaboration.elabProgramReport`.
+||| `Nova.Elaboration.elabProgramReport`. `source` is the open
+||| document's own text — ranges need it to convert codepoint columns
+||| to LSP's UTF-16 ones (see `Nova.LSP.Encoding`).
 export
-toDiagnostics : FixTable -> ElabReport -> List Diagnostic
-toDiagnostics tbl report =
-  map (\(mname, rng, o) => mkDiagnostic (rangeFor mname rng) (annotate mname (prettyObligation tbl 0 o)))
+toDiagnostics : (source : String) -> FixTable -> ElabReport -> List Diagnostic
+toDiagnostics source tbl report =
+  let lns = lines source in
+  map (\(mname, rng, o) => mkDiagnostic (rangeFor lns mname rng) (annotate mname (prettyObligation tbl 0 o)))
       report.obligations
   ++
-  map (\(mname, rng, msg) => mkDiagnostic (rangeFor mname rng) (annotate mname msg))
+  map (\(mname, rng, msg) => mkDiagnostic (rangeFor lns mname rng) (annotate mname msg))
       report.errors
