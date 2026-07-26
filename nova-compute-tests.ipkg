@@ -1,0 +1,19 @@
+package nova-compute-tests
+version = 0.1.0
+
+-- A standalone test suite for Nova.Compute (whnf/nf): no dependency on
+-- the elaborator, the kernel's checker, or the golden-test framework —
+-- just the term representation, substitution, and QIIT beta-rhs helper
+-- Nova.Compute itself reuses.
+depends = contrib
+
+modules = Nova.Kernel.Syntax
+        , Nova.Kernel.Subst
+        , Nova.Kernel.QIIT
+        , Nova.Compute
+        , Nova.ComputeTest
+
+sourcedir = "src/idris"
+
+main = Nova.ComputeTest
+executable = nova-compute-tests
