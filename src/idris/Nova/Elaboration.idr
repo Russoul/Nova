@@ -2246,6 +2246,40 @@ elabProgram units = go initSt units []
                         oblReport tbl os ++ "\n" ++
                         "Error: module \{name} has open obligations and cannot be imported"
 
+||| Elaborate a dependency-ordered program to its final kernel Σ,
+||| requiring the ENTIRE program — root included — to be accepted with
+||| zero obligations: a consumer of the resulting Σ (Nova.Compute, via
+||| Nova.Elaboration.Loader.runPath) assumes closed, well-typed input,
+||| never a provisional signature built on assumed equations. Same fold
+||| as elabProgram/elabProgramReport, shaped for that different
+||| consumer instead of a display report.
+export
+elabProgramSig : List ModUnit -> Either String Sig
+elabProgramSig units = go initSt units
+ where
+  goItems : ElabSt -> List (Maybe Range, SItem) -> Either String ElabSt
+  goItems st [] = Right st
+  goItems st ((_, item) :: rest) =
+    case runElabM (elabItem item) st of
+      Left err => Left err
+      Right (st', _) => goItems st' rest
+
+  go : ElabSt -> List ModUnit -> Either String Sig
+  go st [] = Left "empty program"
+  go st (MkModUnit name imps tbl items _ :: rest) =
+    let st = { modPrefix := name, vis := [<] } st in
+    case runElabM (installImports imps) st of
+      Left err => Left err
+      Right (st, ()) =>
+        case goItems st items of
+          Left err => Left err
+          Right st' =>
+            case toList st'.obls of
+              os@(_ :: _) => Left (oblReport tbl os ++ "\nmodule \{name} has open obligations")
+              []          => case rest of
+                               [] => Right st'.kernelSig
+                               _  => go st' rest
+
 ||| Elaborate a single surface file (no imports — resolving them needs
 ||| the module loader); the returned string is the complete report.
 export

@@ -1,0 +1,3 @@
+-- a λ is co-data: nf leaves its body exactly as whnf produced it, even
+-- when that body still has a redex inside
+def weird : ℕ → ℕ ≔ λx. (λy. y : ℕ → ℕ) x

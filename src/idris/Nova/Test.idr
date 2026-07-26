@@ -39,6 +39,7 @@ pools : IO (List TestPool)
 pools = sequence
   [ testsInDir "tests/nova/parser" "Nova Parser"
   , testsInDir "tests/nova/elaboration" "Nova Elaboration"
+  , testsInDir "tests/nova/evaluation" "Nova Evaluation"
   , testsInDir "tests/nova-lsp" "Nova LSP"
   ]
 
@@ -50,6 +51,13 @@ main = do
     (_ :: "elab" :: file :: []) => do
       output <- elabPath file
       putStrLn output
+    -- Nova.Application's `run` command, under a different keyword here
+    -- since "run" already names the parser-debugging mode above.
+    (_ :: "eval" :: file :: name :: []) => do
+      result <- runPath file name
+      case result of
+        Left err  => putStrLn "Error: \{err}"
+        Right val => putStrLn val
     (_ :: "lsp" :: lspBin :: fixture :: word :: []) => runLspTest lspBin fixture word
     _ => do
       ps <- pools

@@ -1,0 +1,3 @@
+-- quot-elim on a class fully reduces to the recursion function applied
+-- to the representative (el-quot-beta)
+def q : ℕ ≔ quot-elim (x. ℕ) (a. S (S Z)) ((class Z : ℕ / (n m. ∥𝟙∥)))

@@ -17,6 +17,8 @@ import Data.String
 import Me.Russoul.Text.Range
 
 import Nova.Kernel.Parser
+import Nova.Kernel.Syntax
+import Nova.Compute
 
 import Nova.Elaboration
 import Nova.Elaboration.Surface
@@ -127,3 +129,24 @@ elabPath rootPath = do
   Right units <- loadProgram rootPath
     | Left err => pure "Error: \{err}"
   pure (elabProgram units)
+
+||| Load, elaborate (requiring full acceptance — Nova.Compute assumes
+||| closed, well-typed input), and compute the normal form of a named
+||| top-level definition: the `run` command's body. A term definition
+||| normalizes its definiens (nfElem); a type definition, its type
+||| (nfTy) — both always have an empty declaration context (every
+||| top-level item elaborates at Γ = ε; see Nova.Elaboration's e-def/
+||| e-typedef).
+export
+runPath : (rootPath : String) -> (name : String) -> IO (Either String String)
+runPath rootPath name = do
+  Right units <- loadProgram rootPath
+    | Left err => pure (Left err)
+  pure $ do
+    sig <- elabProgramSig units
+    case sigLookup name sig of
+      Nothing                    => Left "'\{name}' not found"
+      Just (SigDef [<] _ body _) => Right (show (nfElem sig body))
+      Just (SigDef _ _ _ _)      => Left "'\{name}' has a non-empty declaration context"
+      Just (SigTyDef [<] _ ty)   => Right (show (nfTy sig ty))
+      Just (SigTyDef _ _ _)      => Left "'\{name}' has a non-empty declaration context"
