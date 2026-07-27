@@ -1,12 +1,13 @@
 import nat (+)
 import integer (Int)
 import integerNormalize (normPair, normSound, intNormalize)
+import equality (sym, trans)
 import prop (Iff, iffIntro)
 
 -- Observational equality of Int, and its logical equivalence with the
--- built-in ≡ ∈ Int. Int is a quotient (ℕ ⨯ ℕ) / IntR, so its OWN
+-- built-in ≡ ∈ El Int. Int is a quotient (ℕ ⨯ ℕ) / IntR, so its OWN
 -- defining relation is already the natural "observational" candidate —
--- but lifting IntR to Int × Int directly (via a double quot-elim
+-- but lifting IntR to El Int × El Int directly (via a double quot-elim
 -- landing in Ω) needs its well-definedness proved as an Ω-code
 -- equality, i.e. propositional extensionality between two DIFFERENT
 -- IntR-applications, and this elaborator's propext check only
@@ -24,61 +25,54 @@ import prop (Iff, iffIntro)
 -- Prf (IntR p q) in context — no extra machinery needed).
 def IntR : (ℕ ⨯ ℕ) → (ℕ ⨯ ℕ) → Ω ≔ λp. λq. ∥ p .π₁ + q .π₂ ≡ p .π₂ + q .π₁ ∈ ℕ ∥
 
-def classEqOfRel : (p : ℕ ⨯ ℕ) (q : ℕ ⨯ ℕ) → Prf (IntR p q) → class p ≡ class q ∈ Int ≔
+def classEqOfRel : (p : ℕ ⨯ ℕ) (q : ℕ ⨯ ℕ) → Prf (IntR p q) → class p ≡ class q ∈ El Int ≔
   λp. λq. λh. Refl
 
 -- normPair's own representative is IntR-related to its input (that's
 -- normSound), so its class is the same Int
-def classNormPairEq : (p : ℕ ⨯ ℕ) → class (normPair (p .π₁) (p .π₂)) ≡ class p ∈ Int ≔
+def classNormPairEq : (p : ℕ ⨯ ℕ) → class (normPair (p .π₁) (p .π₂)) ≡ class p ∈ El Int ≔
   λp. classEqOfRel (normPair (p .π₁) (p .π₂)) p (⋆ (normSound (p .π₁) (p .π₂)))
 
 -- normalization doesn't change the value: intNormalize z is z. The
 -- quot-elim's well-definedness goal here is an EQUATION (not an Ω
 -- code), so it's discharged for free by proof irrelevance regardless
 -- of how the representative varies.
-def intNormalizeId : (z : Int) → intNormalize z ≡ z ∈ Int ≔
-  λz. quot-elim (w. intNormalize w ≡ w ∈ Int) (p. classNormPairEq p) z
+def intNormalizeId : (z : El Int) → intNormalize z ≡ z ∈ El Int ≔
+  λz. quot-elim (w. intNormalize w ≡ w ∈ El Int) (p. classNormPairEq p) z
 
--- a squashed equality at Int reflects into a judgemental one, exactly
--- like prop.nova's reflectSquash but monomorphic to Int — Int is a
--- `type` alias, not a 𝕌-code term, so it can't be passed to a generic
--- (A : 𝕌)-parameterized combinator (equality.nova's own sym/trans)
-def reflectSquashInt : (a : Int) (b : Int) (h : Prf ∥ a ≡ b ∈ Int ∥) → a ≡ b ∈ Int ≔
-  λa. λb. λh. Refl
+-- a squashed equality at any 𝕌-code reflects into a judgemental one —
+-- prop.nova's reflectSquash generalized (that one is hardcoded to ℕ);
+-- Int being a genuine 𝕌-code term (not a `type` item) is what makes
+-- this reusable, generic combinator applicable to it at all
+def reflectSquashAt : (A : 𝕌) (a : El A) (b : El A) (h : Prf ∥ a ≡ b ∈ El A ∥) → a ≡ b ∈ El A ≔
+  λA. λa. λb. λh. Refl
 
-def EqI : Int → Int → Ω ≔ λz1. λz2. ∥ intNormalize z1 ≡ intNormalize z2 ∈ Int ∥
+def EqI : El Int → El Int → Ω ≔ λz1. λz2. ∥ intNormalize z1 ≡ intNormalize z2 ∈ El Int ∥
 
-def eqIRefl : (z : Int) → Prf (EqI z z) ≔ λz. ⋆
-
--- sym/trans monomorphized to Int, for the same reason as
--- reflectSquashInt above
-def symInt : (a : Int) (b : Int) → (a ≡ b ∈ Int) → b ≡ a ∈ Int ≔
-  λa. λb. λh. Refl
-def transInt : (a : Int) (b : Int) (c : Int) → (a ≡ b ∈ Int) → (b ≡ c ∈ Int) → a ≡ c ∈ Int ≔
-  λa. λb. λc. λh1. λh2. Refl
+def eqIRefl : (z : El Int) → Prf (EqI z z) ≔ λz. ⋆
 
 -- soundness: z1 and z2 both equal their own normalizations, which
 -- coincide whenever EqI holds
-def eqISound : (z1 : Int) (z2 : Int) → Prf (EqI z1 z2) → z1 ≡ z2 ∈ Int ≔
+def eqISound : (z1 : El Int) (z2 : El Int) → Prf (EqI z1 z2) → z1 ≡ z2 ∈ El Int ≔
   λz1. λz2. λh.
-    transInt z1 (intNormalize z1) z2
-      (symInt (intNormalize z1) z1 (intNormalizeId z1))
-      (transInt (intNormalize z1) (intNormalize z2) z2
-        (reflectSquashInt (intNormalize z1) (intNormalize z2) h)
+    trans Int z1 (intNormalize z1) z2
+      (sym Int (intNormalize z1) z1 (intNormalizeId z1))
+      (trans Int (intNormalize z1) (intNormalize z2) z2
+        (reflectSquashAt Int (intNormalize z1) (intNormalize z2) h)
         (intNormalizeId z2))
 
 -- completeness: z1 ≡ z2 reflects, so intNormalize z1 and intNormalize
 -- z2 are the same term — the evident-≡-shape squashee bare ⋆ handles
-def eqIComplete : (z1 : Int) (z2 : Int) → (z1 ≡ z2 ∈ Int) → Prf (EqI z1 z2) ≔
+def eqIComplete : (z1 : El Int) (z2 : El Int) → (z1 ≡ z2 ∈ El Int) → Prf (EqI z1 z2) ≔
   λz1. λz2. λh. ⋆
 
 -- the logical equivalence, packaged with prop.nova's Iff against the
 -- squashed built-in equality
-def eqISoundP : (z1 : Int) (z2 : Int) → Prf (EqI z1 z2) → Prf ∥ z1 ≡ z2 ∈ Int ∥ ≔
+def eqISoundP : (z1 : El Int) (z2 : El Int) → Prf (EqI z1 z2) → Prf ∥ z1 ≡ z2 ∈ El Int ∥ ≔
   λz1. λz2. λh. ⋆ (eqISound z1 z2 h)
 
-def eqICompleteP : (z1 : Int) (z2 : Int) → Prf ∥ z1 ≡ z2 ∈ Int ∥ → Prf (EqI z1 z2) ≔
+def eqICompleteP : (z1 : El Int) (z2 : El Int) → Prf ∥ z1 ≡ z2 ∈ El Int ∥ → Prf (EqI z1 z2) ≔
   λz1. λz2. λh. squash-elim h (e. eqIComplete z1 z2 e)
 
-def eqIIff : (z1 : Int) (z2 : Int) → Prf (Iff (EqI z1 z2) ∥ z1 ≡ z2 ∈ Int ∥) ≔
-  λz1. λz2. iffIntro (EqI z1 z2) ∥ z1 ≡ z2 ∈ Int ∥ (eqISoundP z1 z2) (eqICompleteP z1 z2)
+def eqIIff : (z1 : El Int) (z2 : El Int) → Prf (Iff (EqI z1 z2) ∥ z1 ≡ z2 ∈ El Int ∥) ≔
+  λz1. λz2. iffIntro (EqI z1 z2) ∥ z1 ≡ z2 ∈ El Int ∥ (eqISoundP z1 z2) (eqICompleteP z1 z2)

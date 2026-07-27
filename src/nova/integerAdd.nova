@@ -20,51 +20,51 @@ def intAddCross : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : �
 
 -- the same, one level up: the inner elimination is well-defined in the
 -- OUTER argument — proven by quotient elimination with an ≡-motive
-def intAddWDOuter : (a : ℕ ⨯ ℕ) (b : ℕ ⨯ ℕ) (h : Prf ∥a .π₁ + b .π₂ ≡ a .π₂ + b .π₁ ∈ ℕ∥) (zy : Int) →
-  quot-elim (z. Int) (x. class (a .π₁ + x .π₁ , a .π₂ + x .π₂)) zy
-    ≡ quot-elim (z. Int) (x. class (b .π₁ + x .π₁ , b .π₂ + x .π₂)) zy
-    ∈ Int ≔
+def intAddWDOuter : (a : ℕ ⨯ ℕ) (b : ℕ ⨯ ℕ) (h : Prf ∥a .π₁ + b .π₂ ≡ a .π₂ + b .π₁ ∈ ℕ∥) (zy : El Int) →
+  quot-elim (z. El Int) (x. class (a .π₁ + x .π₁ , a .π₂ + x .π₂)) zy
+    ≡ quot-elim (z. El Int) (x. class (b .π₁ + x .π₁ , b .π₂ + x .π₂)) zy
+    ∈ El Int ≔
   λa. λb. λh. λzy. quot-elim
-    (q. quot-elim (z. Int) (x. class (a .π₁ + x .π₁ , a .π₂ + x .π₂)) q
-          ≡ quot-elim (z. Int) (x. class (b .π₁ + x .π₁ , b .π₂ + x .π₂)) q
-          ∈ Int)
+    (q. quot-elim (z. El Int) (x. class (a .π₁ + x .π₁ , a .π₂ + x .π₂)) q
+          ≡ quot-elim (z. El Int) (x. class (b .π₁ + x .π₁ , b .π₂ + x .π₂)) q
+          ∈ El Int)
     (c. Refl)
     zy
 
-def intAdd : Int → Int → Int ≔
+def intAdd : El Int → El Int → El Int ≔
   λzx. λzy.
-    quot-elim (z. Int)
-      (a. quot-elim (z. Int)
+    quot-elim (z. El Int)
+      (a. quot-elim (z. El Int)
             (b. class (a .π₁ + b .π₁ , a .π₂ + b .π₂))
             zy)
       zx
 
-def intAddTest : intAdd (class (Z , Z)) (class (S Z , S Z)) ≡ class (S Z , S Z) ∈ Int ≔ Refl
+def intAddTest : intAdd (class (Z , Z)) (class (S Z , S Z)) ≡ class (S Z , S Z) ∈ El Int ≔ Refl
 
 -- ===== the algebra =====
 
 -- commutativity: two quotient eliminations at ≡-motives reduce to the
 -- representative-level cross-sum permutation
-def intAddComm : (x : Int) (y : Int) → intAdd x y ≡ intAdd y x ∈ Int ≔
+def intAddComm : (x : El Int) (y : El Int) → intAdd x y ≡ intAdd y x ∈ El Int ≔
   λx. λy. quot-elim
-    (q. intAdd q y ≡ intAdd y q ∈ Int)
+    (q. intAdd q y ≡ intAdd y q ∈ El Int)
     (a. quot-elim
-          (q. intAdd (class a) q ≡ intAdd q (class a) ∈ Int)
+          (q. intAdd (class a) q ≡ intAdd q (class a) ∈ El Int)
           (b. Refl)
           y)
     x
 
 -- associativity: three eliminations; the representatives reassociate
 -- by plusAssoc and close by commutativity of the cross sum
-def intAddAssoc : (x : Int) (y : Int) (z : Int) →
-  intAdd (intAdd x y) z ≡ intAdd x (intAdd y z) ∈ Int ≔
+def intAddAssoc : (x : El Int) (y : El Int) (z : El Int) →
+  intAdd (intAdd x y) z ≡ intAdd x (intAdd y z) ∈ El Int ≔
   λx. λy. λz. quot-elim
-    (q. intAdd (intAdd q y) z ≡ intAdd q (intAdd y z) ∈ Int)
+    (q. intAdd (intAdd q y) z ≡ intAdd q (intAdd y z) ∈ El Int)
     (a. quot-elim
-          (q. intAdd (intAdd (class a) q) z ≡ intAdd (class a) (intAdd q z) ∈ Int)
+          (q. intAdd (intAdd (class a) q) z ≡ intAdd (class a) (intAdd q z) ∈ El Int)
           (b. quot-elim
                 (q. intAdd (intAdd (class a) (class b)) q
-                      ≡ intAdd (class a) (intAdd (class b) q) ∈ Int)
+                      ≡ intAdd (class a) (intAdd (class b) q) ∈ El Int)
                 (c. Refl)
                 z)
           y)

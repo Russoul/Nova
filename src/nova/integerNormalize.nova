@@ -22,10 +22,10 @@ def normSound : (a : ℕ) → (b : ℕ) →
       a
 
 -- at the quotient, normalization is invisible
-def normClass : (a : ℕ) (b : ℕ) → class (normPair a b) ≡ class (a , b) ∈ Int ≔ λa. λb. Refl
+def normClass : (a : ℕ) (b : ℕ) → class (normPair a b) ≡ class (a , b) ∈ El Int ≔ λa. λb. Refl
 
-def intNormalize : Int → Int ≔
-  λz. quot-elim (w. Int) (rep. class (normPair (rep .π₁) (rep .π₂))) z
+def intNormalize : El Int → El Int ≔
+  λz. quot-elim (w. El Int) (rep. class (normPair (rep .π₁) (rep .π₂))) z
 
-def intNormalizeTest1 : intNormalize (class (S Z , Z)) ≡ class (S Z , Z) ∈ Int ≔ Refl
-def intNormalizeTest2 : intNormalize (class (S Z , S (S Z))) ≡ class (Z , S Z) ∈ Int ≔ Refl
+def intNormalizeTest1 : intNormalize (class (S Z , Z)) ≡ class (S Z , Z) ∈ El Int ≔ Refl
+def intNormalizeTest2 : intNormalize (class (S Z , S (S Z))) ≡ class (Z , S Z) ∈ El Int ≔ Refl
