@@ -191,7 +191,15 @@ mutual
             case unit of
               Just _  => pure OneIntro
               Nothing => do e <- parseElem; sp; char_ ')'; pure e)
-    <|> (str_ "Z"    $> NatIntro0)
+    <|> (do str_ "Z"
+            -- boundary: `Zfoo` is a signature name, not Z then foo
+            next <- optional (nextIs "next" (\t => case t of
+                      Symbol ch => (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+                                   (ch >= '0' && ch <= '9') || ch == '_' || ch == '\''
+                      _ => False))
+            case next of
+              Just _ => fail "keyword is a prefix of an identifier"
+              Nothing => pure NatIntro0)
     <|> (str_ "⋆"    $> Star)
     <|> (do str_ "∥"; sp; t <- parseTy; sp; str_ "∥"; pure (Squash t))
     <|> (str_ "𝟘"   $> Elem.ZeroTy)

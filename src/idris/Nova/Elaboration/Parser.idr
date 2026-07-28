@@ -40,9 +40,25 @@ sp = optSpace
 -- punctuation like `: ; , [ ]`) — every str_/char_ call site below
 -- was mechanically renamed to kw/kwc, so this is the one place that
 -- decides the classification.
+||| Is this a character that may continue an identifier? Keywords whose
+||| spelling ends in one must stop at a name boundary: `ZOnly` is an
+||| identifier, not the keyword `Z` followed by `Only`.
+isNameTail : Char -> Bool
+isNameTail ch = (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+                (ch >= '0' && ch <= '9') || ch == '_' || ch == '\''
+
 kw : String -> Rule ()
 kw s = do
   (r, ()) <- bounds (str_ s)
+  case last' (unpack s) of
+    Just c => when (isNameTail c) $ do
+      next <- optional (nextIs "next" (\tok => case tok of
+                Symbol ch => isNameTail ch
+                _ => False))
+      case next of
+        Just _ => fail "keyword is a prefix of an identifier"
+        Nothing => pure ()
+    Nothing => pure ()
   emit r Keyword
 
 kwc : Char -> Rule ()
