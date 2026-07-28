@@ -183,7 +183,9 @@ data [a : 𝕌] [r : El a → El a → Ω]
 - `src/nova/` — the corpus, one topic per file: `nat` (arithmetic),
   `equality`/`prop` (≡ and Ω), `quotient`/`quottyuniv` (quotients),
   `vect`/`vectAppend` (𝕌-indexed families), `qiitNat`/`qiitBag`/
-  `qiitQuot`/`qiitVec` (QIIT basics), `qiitInt` (recursive equations),
+  `qiitQuot`/`qiitVec` (QIIT basics), `id` (the identity family —
+  structural equality as a small QIIT, with ≡-bridges), `qiitInt`
+  (recursive equations),
   `qiitConTy` (induction-induction), `qiitCross` (definitions built on
   earlier QIITs), `integer*` (a worked development).
 - `python3 tools/render-specs.py` renders the specs to navigable HTML

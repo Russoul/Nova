@@ -25,7 +25,7 @@ def qliftBeta : (a : 𝕌) (r : El a → El a → Ω) (b : 𝕌)
   λa. λr. λb. λf. λresp. λx. ⋆
 
 -- instance: ℕ quotiented by squashed equality; toNat is one qlift
-def eqN : El ℕ → El ℕ → Ω ≔ λx. λy. ∥x ≡ y ∈ ℕ∥
+def eqN : El ℕ → El ℕ → Ω ≔ λx. λy. (x ≡ y ∈ ℕ)
 
 def toNat : El (Q ℕ eqN) → ℕ ≔
   λq. qlift ℕ eqN ℕ (λx. x) (λx. λy. λh. ⋆) q

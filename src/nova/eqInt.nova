@@ -23,7 +23,7 @@ import prop (↔, iffIntro)
 -- IntR is Int's own quotient relation, named for reuse; a proof of it
 -- gives equal classes directly (el-quot-eq, automatic given a term of
 -- Prf (IntR p q) in context — no extra machinery needed).
-def IntR : (ℕ ⨯ ℕ) → (ℕ ⨯ ℕ) → Ω ≔ λp. λq. ∥ p .π₁ + q .π₂ ≡ p .π₂ + q .π₁ ∈ ℕ ∥
+def IntR : (ℕ ⨯ ℕ) → (ℕ ⨯ ℕ) → Ω ≔ λp. λq. (p .π₁ + q .π₂ ≡ p .π₂ + q .π₁ ∈ ℕ)
 
 def classEqOfRel : (p : ℕ ⨯ ℕ) (q : ℕ ⨯ ℕ) → Prf (IntR p q) → class p ≡ class q ∈ El Int ≔
   λp. λq. λh. ⋆
@@ -44,10 +44,10 @@ def intNormalizeId : (z : El Int) → intNormalize z ≡ z ∈ El Int ≔
 -- prop.nova's reflectSquash generalized (that one is hardcoded to ℕ);
 -- Int being a genuine 𝕌-code term (not a `type` item) is what makes
 -- this reusable, generic combinator applicable to it at all
-def reflectSquashAt : (A : 𝕌) (a : El A) (b : El A) (h : Prf ∥ a ≡ b ∈ El A ∥) → a ≡ b ∈ El A ≔
+def reflectSquashAt : (A : 𝕌) (a : El A) (b : El A) (h : Prf (a ≡ b ∈ El A)) → a ≡ b ∈ El A ≔
   λA. λa. λb. λh. ⋆
 
-def EqI : El Int → El Int → Ω ≔ λz1. λz2. ∥ intNormalize z1 ≡ intNormalize z2 ∈ El Int ∥
+def EqI : El Int → El Int → Ω ≔ λz1. λz2. (intNormalize z1 ≡ intNormalize z2 ∈ El Int)
 
 def eqIRefl : (z : El Int) → Prf (EqI z z) ≔ λz. ⋆
 
@@ -68,12 +68,12 @@ def eqIComplete : (z1 : El Int) (z2 : El Int) → (z1 ≡ z2 ∈ El Int) → Prf
 
 -- the logical equivalence, packaged with prop.nova's ↔ against the
 -- squashed built-in equality
-def eqISoundP : (z1 : El Int) (z2 : El Int) → Prf (EqI z1 z2) → Prf ∥ z1 ≡ z2 ∈ El Int ∥ ≔
+def eqISoundP : (z1 : El Int) (z2 : El Int) → Prf (EqI z1 z2) → Prf (z1 ≡ z2 ∈ El Int) ≔
   λz1. λz2. λh. ⋆ (eqISound z1 z2 h)
 
-def eqICompleteP : (z1 : El Int) (z2 : El Int) → Prf ∥ z1 ≡ z2 ∈ El Int ∥ → Prf (EqI z1 z2) ≔
+def eqICompleteP : (z1 : El Int) (z2 : El Int) → Prf (z1 ≡ z2 ∈ El Int) → Prf (EqI z1 z2) ≔
   -- ∥Prf p∥ ≜ p (code-squash-prf): h already proves the equation
   λz1. λz2. λh. eqIComplete z1 z2 h
 
-def eqIIff : (z1 : El Int) (z2 : El Int) → Prf (EqI z1 z2 ↔ ∥ z1 ≡ z2 ∈ El Int ∥) ≔
-  λz1. λz2. iffIntro (EqI z1 z2) ∥ z1 ≡ z2 ∈ El Int ∥ (eqISoundP z1 z2) (eqICompleteP z1 z2)
+def eqIIff : (z1 : El Int) (z2 : El Int) → Prf (EqI z1 z2 ↔ (z1 ≡ z2 ∈ El Int)) ≔
+  λz1. λz2. iffIntro (EqI z1 z2) (z1 ≡ z2 ∈ El Int) (eqISoundP z1 z2) (eqICompleteP z1 z2)

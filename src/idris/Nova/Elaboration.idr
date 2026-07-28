@@ -2034,10 +2034,13 @@ elabItem (SData params decls) = do
     -- 1. motive binder types (closed but for the signature)
     cTys <- traverse (\p => case p of
               (j, sj) => do
-                sjE <- entryAt site sg sj
                 -- the j-th motive binder sits j binders above the
-                -- parameters: the carried signature weakens along
+                -- parameters: the carried signature weakens along —
+                -- and the ENTRY must be read from the weakened
+                -- signature, or its embedded Nova pieces (an index
+                -- domain mentioning a parameter) keep raw indices
                 let sgJ = sgAt sg j
+                sjE <- entryAt site sgJ sj
                 (telJ, wEndJ, _) <- liftQE site (reflTel sgJ (qwAt sj) sjE)
                 let aj = length telJ
                 pure (foldr Ty.PiTy
@@ -2073,7 +2076,8 @@ elabItem (SData params decls) = do
     let hSks = map (\x => snd {a=Ty} {b=Skel} x) hTysSk
     -- 4. indices (the target sort's arity, at their depth above the
     --    parameters) and the eliminee
-    (sTel, _, _) <- liftQE site (reflTel (sgAt sg (nS + nM + nH)) (qwAt s) sEntry)
+    sEntryW <- entryAt site (sgAt sg (nS + nM + nH)) s
+    (sTel, _, _) <- liftQE site (reflTel (sgAt sg (nS + nM + nH)) (qwAt s) sEntryW)
     let wTy = QSort (sgAt sg (nS + nM + nH + nI)) s (varSpine nI)
     -- result: C_s idx w through the flavor's decoding — C_s under
     -- everything

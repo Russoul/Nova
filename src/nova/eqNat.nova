@@ -59,12 +59,12 @@ def eqNComplete : (n : ℕ) → (m : ℕ) → (n ≡ m ∈ ℕ) → Prf (EqN n m
 -- the logical equivalence, packaged with prop.nova's ↔ against the
 -- squashed built-in equality (Ω is impredicative, ≡ ∈ ℕ is not, so
 -- ∥-∥ is the bridge)
-def eqNSoundP : (n : ℕ) → (m : ℕ) → Prf (EqN n m) → Prf ∥ n ≡ m ∈ ℕ ∥ ≔
+def eqNSoundP : (n : ℕ) → (m : ℕ) → Prf (EqN n m) → Prf (n ≡ m ∈ ℕ) ≔
   λn. λm. λh. ⋆ (eqNSound n m h)
 
-def eqNCompleteP : (n : ℕ) → (m : ℕ) → Prf ∥ n ≡ m ∈ ℕ ∥ → Prf (EqN n m) ≔
+def eqNCompleteP : (n : ℕ) → (m : ℕ) → Prf (n ≡ m ∈ ℕ) → Prf (EqN n m) ≔
   -- ∥Prf p∥ ≜ p (code-squash-prf): h already proves the equation
   λn. λm. λh. eqNComplete n m h
 
-def eqNIff : (n : ℕ) → (m : ℕ) → Prf (EqN n m ↔ ∥ n ≡ m ∈ ℕ ∥) ≔
-  λn. λm. iffIntro (EqN n m) ∥ n ≡ m ∈ ℕ ∥ (eqNSoundP n m) (eqNCompleteP n m)
+def eqNIff : (n : ℕ) → (m : ℕ) → Prf (EqN n m ↔ (n ≡ m ∈ ℕ)) ≔
+  λn. λm. iffIntro (EqN n m) (n ≡ m ∈ ℕ) (eqNSoundP n m) (eqNCompleteP n m)
