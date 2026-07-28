@@ -93,13 +93,17 @@ fixity ::= infixl d op | infixr d op          # d a digit 0-9
 # the name, and the name is the operator (binary applications of
 # operator-shaped names lay out infix, fully parenthesized).
 # Operator tokens are maximal runs of the operator alphabet
-#   + - * < > = & | ! ? % ^ ~ @ # ⊕ ⊗ ⊙ ⊞ ⊟ ∙ ∘ · ≤ ≥ ∸ ⧺
+#   + - * < > = & | ! ? % ^ ~ @ # ⊕ ⊗ ⊙ ⊞ ⊟ ∙ ∘ · ≤ ≥ ∸ ⧺ ⊥ ⊤ ∧ ∨ ⊃ ¬ ↔
 # (the reserved theory tokens → ⨯ ≡ ∈ ≔ / . , : are excluded, and the
 # lexer eats "--" as a comment, so no operator contains it). The
 # mention form (op) — e.g. (+) — is the operator as an ordinary
 # reference, usable anywhere an atom is; local binders are never
-# operator-shaped. A fixity declaration takes effect for the rest of
-# the file and is exported with the name: opening an operator
+# operator-shaped. A FIXITY-FREE operator token is itself an ordinary
+# name atom — that is how nullary and prefix operator names work
+# (⊥, ⊤, ¬ p in prop.nova); an operator WITH a fixity in scope is
+# infix-only outside the mention form, so application juxtaposition
+# never captures it. A fixity declaration takes effect for the rest
+# of the file and is exported with the name: opening an operator
 # (`import nat (+)`) imports its fixity alongside. Infix use of an
 # operator with no fixity in scope is a parse error.
 

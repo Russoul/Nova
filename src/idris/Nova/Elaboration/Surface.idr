@@ -117,7 +117,7 @@ FixTable = List (String, Assoc, Nat)
 ||| lexer, so no operator may contain "--".
 public export
 opChar : Char -> Bool
-opChar c = c `elem` unpack "+-*<>=&|!?%^~@#⊕⊗⊙⊞⊟∙∘·≤≥∸⧺"
+opChar c = c `elem` unpack "+-*<>=&|!?%^~@#⊕⊗⊙⊞⊟∙∘·≤≥∸⧺⊥⊤∧∨⊃¬↔"
 
 ||| Is the (possibly qualified) name operator-shaped? Decided by its
 ||| final segment.

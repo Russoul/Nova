@@ -2,7 +2,7 @@ import nat (+)
 import integer (Int)
 import integerNormalize (normPair, normSound, intNormalize)
 import equality (sym, trans)
-import prop (Iff, iffIntro)
+import prop (↔, iffIntro)
 
 -- Observational equality of Int, and its logical equivalence with the
 -- built-in ≡ ∈ El Int. Int is a quotient (ℕ ⨯ ℕ) / IntR, so its OWN
@@ -66,7 +66,7 @@ def eqISound : (z1 : El Int) (z2 : El Int) → Prf (EqI z1 z2) → z1 ≡ z2 ∈
 def eqIComplete : (z1 : El Int) (z2 : El Int) → (z1 ≡ z2 ∈ El Int) → Prf (EqI z1 z2) ≔
   λz1. λz2. λh. ⋆
 
--- the logical equivalence, packaged with prop.nova's Iff against the
+-- the logical equivalence, packaged with prop.nova's ↔ against the
 -- squashed built-in equality
 def eqISoundP : (z1 : El Int) (z2 : El Int) → Prf (EqI z1 z2) → Prf ∥ z1 ≡ z2 ∈ El Int ∥ ≔
   λz1. λz2. λh. ⋆ (eqISound z1 z2 h)
@@ -75,5 +75,5 @@ def eqICompleteP : (z1 : El Int) (z2 : El Int) → Prf ∥ z1 ≡ z2 ∈ El Int 
   -- ∥Prf p∥ ≜ p (code-squash-prf): h already proves the equation
   λz1. λz2. λh. eqIComplete z1 z2 h
 
-def eqIIff : (z1 : El Int) (z2 : El Int) → Prf (Iff (EqI z1 z2) ∥ z1 ≡ z2 ∈ El Int ∥) ≔
+def eqIIff : (z1 : El Int) (z2 : El Int) → Prf (EqI z1 z2 ↔ ∥ z1 ≡ z2 ∈ El Int ∥) ≔
   λz1. λz2. iffIntro (EqI z1 z2) ∥ z1 ≡ z2 ∈ El Int ∥ (eqISoundP z1 z2) (eqICompleteP z1 z2)

@@ -1,14 +1,14 @@
-import prop (Top, Bot, Iff, iffIntro, reflectSquash)
+import prop (⊤, ⊥, ↔, iffIntro, reflectSquash)
 import equality (cong, sym, transport)
 
 -- Observational equality of natural numbers, defined in Ω, and its
 -- logical equivalence with the built-in (parametric) equality type
 -- ≡ ∈ ℕ. EqN is the classical double recursion: Z ~ Z and S n ~ S m
--- reduce further, any Z/S mismatch lands at Bot.
+-- reduce further, any Z/S mismatch lands at ⊥.
 def EqN : ℕ → ℕ → Ω ≔
   λn. ℕ-elim (k. ℕ → Ω)
-        (λm. ℕ-elim (k. Ω) Top (k ih. Bot) m)
-        (n ih. λm. ℕ-elim (k. Ω) Bot (k ih2. ih k) m)
+        (λm. ℕ-elim (k. Ω) ⊤ (k ih. ⊥) m)
+        (n ih. λm. ℕ-elim (k. Ω) ⊥ (k ih2. ih k) m)
         n
 
 def eqNRefl : (n : ℕ) → Prf (EqN n n) ≔
@@ -56,7 +56,7 @@ def eqNComplete : (n : ℕ) → (m : ℕ) → (n ≡ m ∈ ℕ) → Prf (EqN n m
       m)
     n
 
--- the logical equivalence, packaged with prop.nova's Iff against the
+-- the logical equivalence, packaged with prop.nova's ↔ against the
 -- squashed built-in equality (Ω is impredicative, ≡ ∈ ℕ is not, so
 -- ∥-∥ is the bridge)
 def eqNSoundP : (n : ℕ) → (m : ℕ) → Prf (EqN n m) → Prf ∥ n ≡ m ∈ ℕ ∥ ≔
@@ -66,5 +66,5 @@ def eqNCompleteP : (n : ℕ) → (m : ℕ) → Prf ∥ n ≡ m ∈ ℕ ∥ → P
   -- ∥Prf p∥ ≜ p (code-squash-prf): h already proves the equation
   λn. λm. λh. eqNComplete n m h
 
-def eqNIff : (n : ℕ) → (m : ℕ) → Prf (Iff (EqN n m) ∥ n ≡ m ∈ ℕ ∥) ≔
+def eqNIff : (n : ℕ) → (m : ℕ) → Prf (EqN n m ↔ ∥ n ≡ m ∈ ℕ ∥) ≔
   λn. λm. iffIntro (EqN n m) ∥ n ≡ m ∈ ℕ ∥ (eqNSoundP n m) (eqNCompleteP n m)

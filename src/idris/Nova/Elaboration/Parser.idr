@@ -324,6 +324,13 @@ mutual
   parseSElemAtom tbl env =
         -- mention form: (+) — the operator as an ordinary reference
         (do kwc '('; sp; op <- parseOpRef; sp; kwc ')'; pure (SSig op))
+        -- a FIXITY-FREE operator token is an ordinary name atom (⊥, ⊤,
+        -- prefix-applied ¬); declared-infix operators are excluded, so
+        -- application juxtaposition never captures them
+    <|> (do op <- parseOpName
+            case lookup op tbl of
+              Nothing => pure (SSig op)
+              Just _ => fail "infix operator in atom position")
     <|> (do kwc '('
             sp
             unit <- optional (kwc ')')
