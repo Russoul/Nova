@@ -63,13 +63,19 @@ of fuel, are exactly:
   El ℕ               ≜  ℕ
   El (a → b)         ≜  El a → El b
   El (a ⨯ b)         ≜  El a ⨯ El b
-  El (l ≡ r ∈ t)     ≜  l ≡ r ∈ El t
   El (a / r)         ≜  El a / r      # the Ω-valued relation is NOT decoded
   El (𝒮.𝕤 ē)         ≜  𝒮.𝕤 ē        # ty-el-qiit
 
-Ω, Prf and ∥-∥ add no contraction clauses: Prf ∥A∥ does NOT reduce to A
-(realizer irrelevance is the point of the squash), and ⋆ has no
-eliminator. nf treats Prf/Ω/∥-∥/⋆ purely congruently.
+Ω adds exactly ONE contraction clause:
+
+  ∥Prf p∥            ≜  p             # code-squash-prf (squash is
+                                      # idempotent on props)
+
+Otherwise Prf and ∥-∥ are inert: Prf ∥A∥ does NOT reduce to A
+(realizer irrelevance is the point of the squash), equality props
+(l ≡ r ∈ A) — Ω-valued, per Foundation — have no contraction, and ⋆
+has no eliminator. nf treats Prf/Ω/∥-∥/≡/⋆ congruently beyond the
+clause above.
 
 QIIT formers (NovaFoundation.txt, QIIT section) normalize congruently
 everywhere they embed Nova syntax — inside a carried signature's
@@ -106,7 +112,6 @@ implementation's names):
     | cod u                                        (SelCod)
     | qdom                                         (SelQDom)
     | qrel u v                                     (SelQRel)
-    | eqT | eqL | eqR                              (SelEqT/L/R)
     | qidx i                                       (SelQIdx)
 
   step ::= (onLhs, path, lic, sels, flip)          (Step)
@@ -154,7 +159,7 @@ Child indexing, shared by paths, the typed descent (§6) and skeletons
              λ f → 0(1)              f e → 0, 1
              (a , b) → 0, 1          t.π₁ / t.π₂ → 0
              a →ᶜ b → 0, 1(1)        a ⨯ᶜ b → 0, 1(1)
-             (l ≡ r ∈ t)ᶜ → 0, 1, 2  a /ᶜ r → 0, 1(2)
+             (l ≡ r ∈ T) → 0, 1, 2ᵗ  a /ᶜ r → 0, 1(2)
              x[e˲] → 0.. (left to right)
              class a → 0             quot-elim f q → 0(1), 1
              ∥T∥ → 0ᵗ
@@ -162,7 +167,7 @@ Child indexing, shared by paths, the typed descent (§6) and skeletons
              𝒮.𝕔 θ → 0.. (the argument spine)
              𝒮.𝕤-elim ℰ ē w → 0..n-1 (the index spine), n (the eliminee)
   types:     A → B → 0, 1(1)         A ⨯ B → 0, 1(1)
-             l ≡ r ∈ T → 0ᵉ, 1ᵉ, 2   El e → 0ᵉ    Prf e → 0ᵉ
+             El e → 0ᵉ               Prf e → 0ᵉ
              A / r → 0, 1ᵉ(2)        x[e˲] → 0..ᵉ
              𝒮.𝕤 ē → 0..ᵉ
   (ᶜ marks universe codes; ᵉ marks descent into an element child, ᵗ into
@@ -215,9 +220,6 @@ lives at the item level, referenced through Σ (A4, §9).
 Nothing else is inferable. Argument CHECKING (⇐ᵖ) accepts the
 introduction forms structurally and falls back to infer-and-compare:
 
-  nf(T) ⇓ (l ≡ r ∈ A)   nf(l) = nf(r)
-  -----------------------------------   # el-eq-i after the sides
-  Σ; Γ ⊦ Refl ⇐ᵖ T                      # are seen ≜-equal
 
   nf(T) ⇓ A / r   Σ; Γ ⊦ a ⇐ᵖ A         nf(T) ⇓ A ⨯ B
   -----------------------------         Σ; Γ ⊦ u ⇐ᵖ A   Σ; Γ ⊦ v ⇐ᵖ B[id, u]
@@ -230,12 +232,13 @@ introduction forms structurally and falls back to infer-and-compare:
   Σ; Γ ⊦ 𝒮.𝕔 θ ⇐ᵖ T                                    # the term's 𝒮 and
                                                        # nf(T)'s nf-identical
 
-  nf(T) ⇓ Prf ∥𝟙∥                       nf(T) ⇓ Prf ∥l ≡ r ∈ A∥   nf(l) = nf(r)
+  nf(T) ⇓ Prf ∥𝟙∥                       nf(T) ⇓ Prf (l ≡ r ∈ A)   nf(l) = nf(r)
   ----------------                      -------------------------------------
   Σ; Γ ⊦ ⋆ ⇐ᵖ T                         Σ; Γ ⊦ ⋆ ⇐ᵖ T
-  # el-squash-i with an evident witness. A step proof may also be typed
-  # Prf ∥l ≡ r ∈ t∥ — squashed reflection: `licensed` reads the same
-  # equation out of a squashed-equality proof as out of a bare ≡ one.
+  # el-squash-i with an evident witness, respectively el-eq-i after
+  # the sides are seen ≜-equal. Equality is Ω-valued, so BOTH proofs
+  # are ⋆ — Refl does not exist in the core. Squashed spellings
+  # (∥Prf (l ≡ r ∈ A)∥) converge by code-squash-prf during nf.
 
   nf(T) ⇓ A → B   Σ; Γ ▷ A ⊦ f ⇐ᵖ B     Σ; Γ ⊦ t ⇐ᵖ 𝟘
   ---------------------------------     ------------------------
@@ -259,17 +262,17 @@ telescope type instantiated by the preceding entries (sub-norm-ext).
 A step (onLhs, path, lic, sels, flip) licenses one equation, derived —
 never assumed — from its license. For a proof license p:
 
-  Σ; Γ ⊦ p ⇒ᵖ T    nf(T) ⇓ (l ≡ r ∈ A)  [or  Prf ∥l ≡ r ∈ A∥]
+  Σ; Γ ⊦ p ⇒ᵖ T    nf(T) ⇓ Prf q    nf(q) ⇓ (l ≡ r ∈ A)
   (l′, r′, A′) = sels applied to (l, r, A)         (§5)
   ------------------------------------------------------------
   step licenses  nf(l′) ≐ nf(r′) : A′    (swapped when flip)
 
 This is equality reflection (el-reflect) read certificate-side: the
-proof element is checked, its ≡-type exposed, and the judgemental
-equation extracted. A proof whose type normalizes to a squashed
-equality Prf ∥l ≡ r ∈ A∥ licenses the same equation (squashed
-reflection: el-squash-e-eq + el-reflect). Any other proof type is
-rejected.
+proof element is checked, its Prf-type's equality prop exposed, and
+the judgemental equation extracted. Equality is Ω-valued, so this is
+the ONE pathway — the old bare-≡ and squashed-reflection routes
+coincide (a squashed spelling normalizes to the prop by
+code-squash-prf). Any other proof type is rejected.
 
 A step's license may instead be a PATH LICENSE, qpath 𝕔 θ, citing an
 imposed equation of the signature carried by the REWRITE POSITION'S
@@ -303,9 +306,6 @@ do not match is rejected.
   qrel u v : (a₀ / r₀) ≐ (a₁ / r₁) : 𝕌 ⇒  r₀[id,u,v] ≐ r₁[id,u,v] : Ω
              requires  Σ; Γ ⊦ u ⇐ᵖ El a₁   Σ; Γ ⊦ v ⇐ᵖ El a₁
              # the relation components live at Ω, not 𝕌
-  eqT      : (l₀≡r₀∈t₀) ≐ (l₁≡r₁∈t₁) : 𝕌 ⇒ t₀ ≐ t₁ : 𝕌     # code-eq-inj
-  eqL      :                           ⇒ l₀ ≐ l₁ : El t₁
-  eqR      :                           ⇒ r₀ ≐ r₁ : El t₁
   qidx i   : 𝒮.𝕤 ē₀ ≐ 𝒮.𝕤 ē₁ : 𝕌  ⇒  ē₀ᵢ ≐ ē₁ᵢ : Eᵢ
              requires the spines nf-EQUAL before i, so the entry type
              Eᵢ (entry i of ⌊𝔎⌋ᵗ, instantiated by the shared prefix)
@@ -323,8 +323,12 @@ u would smuggle in an equation the premise never licensed.
 NO selector passes from a constructor equation (𝒮.𝕔 θ₀ ≐ 𝒮.𝕔 θ₁ at a
 sort) to its components: point constructors are NOT injective —
 equation constructors may merge them (a quotient's cls is the
-canonical counterexample). Injectivity is a TYPE/CODE phenomenon only,
-exactly as in Foundation.
+canonical counterexample). And NO selector passes from an equation
+between equality props: equality is Ω-valued and inherits Ω's
+anti-structural discipline (code-prop-eq equates all true equations),
+so eq-injectivity is unsound — the old eqT/eqL/eqR selectors died
+with the ≡-type. Injectivity is a TYPE/CODE phenomenon only, exactly
+as in Foundation.
 
 ////////// 6. Typed path descent //////////
 
@@ -362,7 +366,9 @@ type E; — means undetermined):
                   child 1 : B[id, u]
   t.π₁ / t.π₂     child 0 : ⇒ᴺ(t)
   a →ᶜ b, a ⨯ᶜ b  children : 𝕌
-  (l ≡ r ∈ t)ᶜ    children 0,1 : El t, child 2 : 𝕌
+  (l ≡ r ∈ T)     children 0,1 : T, child 2 : a type child
+                  # the Ω-valued equality prop; congruence is
+                  # code-eq-cong (admissible)
   a /ᶜ r          children : 𝕌
   x[e˲]           child i : Δᵢ[e˲ prefix] # the telescope entry's type
   class a         child 0 : A            when nf(E) ⇓ A / r
@@ -379,11 +385,13 @@ whose types are recoverable without annotations.
 
 Steps inside TYPES (used by type certificates) walk the type formers
 (no rewrite may end at a type position — types are rewritten through
-their element children): the element entry points are the sides of
-l ≡ r ∈ T (expected type T), the code under El (expected type 𝕌),
-the code under Prf and the relation of A / r (both expected type Ω),
-signature-entry arguments (the telescope type), and the index spine
-of a sort application 𝒮.𝕤 ē (the arity entry types, as above).
+their element children): the element entry points are the code under
+El (expected type 𝕌), the code under Prf and the relation of A / r
+(both expected type Ω), signature-entry arguments (the telescope
+type), and the index spine of a sort application 𝒮.𝕤 ē (the arity
+entry types, as above). The sides of an equation are reached THROUGH
+Prf's Ω-element child: Prf (l ≡ r ∈ T) descends 0ᵉ to the prop, then
+0/1 to a side (expected type T).
 
 Soundness note: the positional check is load-bearing. Equality is
 type-relative in this theory (a class equation at one quotient says
@@ -415,9 +423,10 @@ final):
   witness 𝒞?   sides are class a ≐ class b and nf(T) ⇓ A / r;
                then by the shape of nf(r[id, a, b]) (an Ω code):
                  ⇓ ∥𝟙∥              — accepted (witness ())
-                 ⇓ ∥wl ≡ wr ∈ W∥   — replay 𝒞 ▷ wl ≐ wr : W
+                 ⇓ (wl ≡ wr ∈ W)    — replay 𝒞 ▷ wl ≐ wr : W
                # el-quot-eq: the relation is Ω-valued, so its witness
-               # shapes are squashes
+               # shapes are prop codes — a squashed 𝟙 or an equality
+               # prop (el-eq-i)
   ηΠ 𝒞         nf(T) ⇓ A → B; replay
                Σ; Γ ▷ A ⊦ 𝒞 ▷ l[↑] ☐₀ ≐ r[↑] ☐₀ : B     # el-pi-eta
   ηΣ 𝒞₁ 𝒞₂     nf(T) ⇓ A ⨯ B; replay
@@ -463,7 +472,8 @@ payloads:
                                       in inference position
     | switch 𝒞            (PSwitch)   inferred ≐ expected, at a
                                       checked non-intro term
-    | refl-eq 𝒞           (PReflEq)   the equation behind a Refl
+    | refl-eq 𝒞           (PReflEq)   the equation behind a ⋆ at an
+                                      equality prop (el-eq-i)
     | wd 𝒞                (PWD)       quot-elim well-definedness
     | expose T 𝒞          (PExpose)   head exposure at a checked intro
     | squash-wit e ⟨sk⟩   (PSquashWit) the witness behind a checked
@@ -499,9 +509,10 @@ Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
      ---------------------------------------------------------------
      Σ; Γ ⊦ (u , v) ⇐ T ⟨sk⟩                            # el-sigma-i
 
-     nf(T) ⇓ (l ≡ r ∈ A)    sk carries refl-eq 𝒞    𝒞 ▷ l ≐ r : A
-     -------------------------------------------------------------
-     Σ; Γ ⊦ Refl ⇐ T ⟨sk⟩                    # el-eq-i over replay
+     nf(T) ⇓ Prf (l ≡ r ∈ A)   sk carries refl-eq 𝒞   𝒞 ▷ l ≐ r : A
+     ---------------------------------------------------------------
+     Σ; Γ ⊦ ⋆ ⇐ T ⟨sk⟩                       # el-eq-i over replay
+     # disambiguated from the squash rules below by nf(T)'s prop head
 
      nf(T) ⇓ A / r    Σ; Γ ⊦ a ⇐ A ⟨sk.0⟩
      -------------------------------------               # el-quot-i
@@ -595,8 +606,9 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
 
   Universe codes infer at 𝕌 with components checked at 𝕌 (their
   binder children under El of the domain code), EXCEPT the quotient
-  code's relation, checked at Ω: el-*-in-universe. Squash ∥A∥ infers at
-  Ω with A checked as a type. A sort application 𝒮.𝕤 ē infers at 𝕌
+  code's relation, checked at Ω: el-*-in-universe. Squash ∥A∥ infers
+  at Ω with A checked as a type; an equality prop (l ≡ r ∈ A) infers
+  at Ω with A checked as a type and the sides checked at A (code-eq). A sort application 𝒮.𝕤 ē infers at 𝕌
   when 𝒮 additionally passes the SMALLNESS scan — every external Π
   domain of every entry of the form El a or Prf p, a purely syntactic
   check (code-qiit) — with the spine checked as under formation below.
@@ -605,10 +617,10 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
   ascription payload) is rejected.
 
 Formation  Σ; Γ ⊦ T type ⟨sk⟩ : structural over the type formers
-(ty-pi/sigma/eq/el/prf/quot/ty-prop/ty-sig-var), the sides of an
-≡-type checked as elements, El's code checked at 𝕌, Prf's code and the
-quotient's relation checked at Ω, signature-type arguments checked
-against their telescope — all with skeleton children along. A sort
+(ty-pi/sigma/el/prf/quot/ty-prop/ty-sig-var), El's code checked at 𝕌,
+Prf's code and the quotient's relation checked at Ω, signature-type
+arguments checked against their telescope — all with skeleton
+children along. A sort
 application adds ty-qiit: Σ; Γ ⊦ 𝒮 qsig ⟨sk𝒮⟩, 𝒮(𝕤) = 𝔎 U-ended, and
 ē checked entrywise against ⌊𝔎⌋ᵗ (each entry's type instantiated by
 the preceding entries).

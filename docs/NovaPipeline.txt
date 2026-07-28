@@ -83,7 +83,7 @@ lemma-equal form), so "the type of a subterm" does not exist in the
 theory — only a chosen spelling. Nothing judgmentally inert belongs in
 the theory's syntax: no coercion or transport term formers, no type
 annotations, no J. (Coercion is a RULE — el-ty-coe — and stays one.
-Equality proofs are consumed by reflection and produced as Refl; the
+Equality proofs are consumed by reflection and produced as ⋆; the
 composition that J/sym/trans/cong would provide inside terms is
 provided by trace structure instead: chaining is a list, placement is
 a path, symmetry is a flag.)
@@ -244,7 +244,7 @@ type check.
 The ITEM-LEVEL kernel is implemented: bidirectional re-checking of
 whole core items over ANNOTATION SKELETONS — trees positionally
 aligned with the core term carrying eliminator motives, expected types
-at checked intro forms, switch/Refl/well-definedness certificates, and
+at checked intro forms, switch/refl-eq/well-definedness certificates, and
 head-exposure payloads (an expected type whose Π/Σ/quotient structure
 only lemma normalization exposes ships as the exposed type plus a type
 certificate). The kernel's Σ is the authoritative one: an item is

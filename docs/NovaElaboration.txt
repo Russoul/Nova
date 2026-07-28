@@ -109,7 +109,11 @@ T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | Ω | x | (T{≥0})
 T{2} ::= El t{≥4} | Prf t{≥4}
 T{1} ::= ((x:T{≥0}))+ → T{≥0} | ((x:T{≥0}))+ ⨯ T{≥0} | T{≥2} / (x y. t{≥1})
 T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
-# the quotient relation is an Ω-valued ELEMENT (t), not a type
+# the quotient relation is an Ω-valued ELEMENT (t), not a type.
+# EQUALITY IS Ω-VALUED (NovaFoundation.txt, Ω block): the surface
+# ≡-TYPE above is SUGAR — it elaborates to Prf (l ≡ r ∈ T) (e-ty-eq).
+# The proof of an equality is ⋆, like every proposition's; there is
+# no Refl, in the core or on the surface.
 
 # Binder groups ITERATE: (x:T) (y:U) → B parses as (x:T) → (y:U) → B
 # (each group scopes over the ones after it; likewise for ⨯), and the
@@ -125,7 +129,7 @@ T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
 #   2. ℕ-elim and quot-elim take their motives inline, motive-first.
 #      Motives are not inferable without higher-order unification, so
 #      they are mandatory syntax here.
-t{5} ::= x | () | Z | Refl | ⋆ | ∥T{≥0}∥ | 𝟘 | 𝟙 | ℕ | (t{≥0}) | (t{≥0} : T{≥0})
+t{5} ::= x | () | Z | ⋆ | ∥T{≥0}∥ | 𝟘 | 𝟙 | ℕ | (t{≥0}) | (t{≥0} : T{≥0})
 t{3} ::= t{≥3} t{≥4} | t{≥3} .π₁ | t{≥3} .π₂                 (left-assoc)
 t{2} ::= λx. t{≥1½}
        | 𝟘-elim t{≥4}
@@ -138,10 +142,13 @@ t{2} ::= λx. t{≥1½}
                                                      #   further proposition
        | ⋆ t{≥4}                          # el-squash-i, explicit witness (any A)
 t{1} ::= ((x:t{≥0}))+ → t{≥1} | ((x:t{≥0}))+ ⨯ t{≥1} | t{≥2} / (x y. t{≥1})
-       | t{≥2} ≡ t{≥2} ∈ t{≥2}                                # universe codes
-# ∥T∥ (squash) and ⋆ (the canonical proof) are the Ω introductions;
-# a squashed type is an Ω-valued element. Bare ⋆ (t{5}) auto-synthesizes
-# its witness only for evident 𝟙-/≡-shaped squashees; `⋆ e` (t{2})
+                                                              # universe codes
+       | t{≥2} ≡ t{≥2} ∈ T{≥2}       # the equality PROP (an Ω-element);
+                                     #   ∈ embeds a TYPE, like ∥-∥
+# ∥T∥ (squash), ≡ (equality props) and ⋆ (the canonical proof) are
+# the Ω introductions; a squashed type is an Ω-valued element. Bare ⋆
+# (t{5}) auto-synthesizes only for evident propositions — a squashed
+# 𝟙, or an equality prop whose sides are ≐; `⋆ e` (t{2})
 # checks e against the squashee directly, for any shape — el-squash-i
 # was always general (NovaFoundation.txt), only the auto-synthesis was
 # restricted. squash-elim is el-squash-e-prf's surface form: it has no
@@ -183,8 +190,8 @@ extend them implicitly rather than threading them through every premise.
 
 E   — the equation store, feeding algorithmic discharge. Three sources:
       * ACCEPTED LEMMAS: for every entry (ε ⊦ x ≔ p : A) ∈ Σ whose type
-        A, after peeling leading Π's into the context, is an equality
-        type l ≡ r ∈ T, the store contains the reflected equation
+        A, after peeling leading Π's into the context, is
+        Prf (l ≡ r ∈ T), the store contains the reflected equation
             A₁ ▷ ... ▷ Aₖ ⊢ l ≐ r : T
         (the peeled binders become context entries — all of them
         PARAMETRIC, so the lemma applies in any context by first-order
@@ -193,13 +200,14 @@ E   — the equation store, feeding algorithmic discharge. Three sources:
         discharge: prove at the element level once, use judgementally
         everywhere.
       * HYPOTHESES: for every entry of the AMBIENT context whose type,
-        after peeling leading Π's, is an equality type, the reflected
-        equation likewise — with the ambient context rigid and only the
-        peeled binders parametric. Justified the same way, with ☐ᵢ as
-        the reflected element. This is what makes an induction
-        hypothesis (an ≡-typed ℕ-elim binder) usable silently, and it
-        is why induction proofs elaborate with `Refl` in every case.
-        An ≡-typed lemma or hypothesis PARAMETER that the equation's
+        after peeling leading Π's, is a Prf of an equality prop, the
+        reflected equation likewise — with the ambient context rigid
+        and only the peeled binders parametric. Justified the same way,
+        with ☐ᵢ as the reflected element. This is what makes an
+        induction hypothesis (an equality-hypothesis ℕ-elim binder)
+        usable silently, and it is why induction proofs elaborate with
+        `⋆` in every case.
+        An equality-typed lemma or hypothesis PARAMETER that the equation's
         sides do not determine is a SIDE CONDITION, discharged by a
         nested (budgeted) equality check — hypothesis-conditional
         lemmas, e.g. well-definedness facts assuming relatedness.
@@ -208,7 +216,7 @@ E   — the equation store, feeding algorithmic discharge. Three sources:
         its component equations as candidates (domain; codomain under
         the domain, as an extra parametric binder), licensed by
         Foundation's code-injectivity rules — so a hypothesis
-        h : (a → 𝟙) ≡ (b → 𝟙) ∈ 𝕌 silently yields a ≐ b : 𝕌. The
+        h : Prf ((a → 𝟙) ≡ (b → 𝟙) ∈ 𝕌) silently yields a ≐ b : 𝕌. The
         S-component closure is included too (derivable via a
         predecessor, no rule needed). class is NOT decomposed:
         quotients are not injective.
@@ -307,8 +315,10 @@ never an unsound acceptance.
 Γ ⊢ T ⇝ A type
 Γ ⊢ t₀ ⇐ A ⇝ a₀
 Γ ⊢ t₁ ⇐ A ⇝ a₁
-------------------------------------- (e-ty-eq)               # (a ≡ b ∈ T)
-Γ ⊢ t₀ ≡ t₁ ∈ T ⇝ (a₀ ≡ a₁ ∈ A) type
+----------------------------------------- (e-ty-eq)     # Prf (a ≡ b ∈ A)
+Γ ⊢ t₀ ≡ t₁ ∈ T ⇝ Prf (a₀ ≡ a₁ ∈ A) type
+# the surface ≡-TYPE is sugar: equality is Ω-valued, so the type it
+# denotes is the Prf of the equality prop (ty-prf over code-eq)
 
 Γ ⊢ t ⇐ 𝕌 ⇝ a
 ------------------- (e-ty-el)                                 # (El A)
@@ -389,9 +399,11 @@ never an unsound acceptance.
 Γ ⊢ t / (x y. r) ⇒ 𝕌 ⇝ a / r̂                                  # (A / r : 𝕌)
    # the relation is checked at Ω, not 𝕌
 
-Γ ⊢ t ⇐ 𝕌 ⇝ a        Γ ⊢ t₀ ⇐ El a ⇝ a₀        Γ ⊢ t₁ ⇐ El a ⇝ a₁
-------------------------------------------------------------------- (e-code-eq)
-Γ ⊢ t₀ ≡ t₁ ∈ t ⇒ 𝕌 ⇝ (a₀ ≡ a₁ ∈ a)                    # (a₀ ≡ a₁ ∈ A : 𝕌)
+Γ ⊢ T ⇝ A type        Γ ⊢ t₀ ⇐ A ⇝ a₀        Γ ⊢ t₁ ⇐ A ⇝ a₁
+--------------------------------------------------------------- (e-eq)
+Γ ⊢ t₀ ≡ t₁ ∈ T ⇒ Ω ⇝ (a₀ ≡ a₁ ∈ A)                # (a₀ ≡ a₁ ∈ A : Ω)
+# code-eq: the equality prop, A an arbitrary type (large included) —
+# there is no 𝕌-code for equality
 
 Γ ⊢ T ⇝ A type
 -------------------- (e-squash)                              # (∥A∥ : Ω)
@@ -416,36 +428,28 @@ whnf(C) = A ⨯ B        Γ ⊢ u ⇐ A ⇝ û        Γ ⊢ v ⇐ B[id, û] ⇝
 ------------------------------------------------------------------ (e-pair)
 Γ ⊢ u , v ⇐ C ⇝ û , v̂                                          # (a, b)
 
-whnf(C) = (a₀ ≡ a₁ ∈ A)        Γ ⊢ a₀ ≐ a₁ : A ↓
--------------------------------------------------- (e-refl)
-Γ ⊢ Refl ⇐ C ⇝ Refl
-# Justified by (refl) + Eq-type congruence + coercion: Foundation's
-# (refl) inhabits only the diagonal a₀ ≡ a₀ ∈ A; given a₀ ≐ a₁, the
-# congruence rule for ≡-types yields (a₀ ≡ a₀ ∈ A) ≐ (a₀ ≡ a₁ ∈ A) and
-# coercion moves Refl across. So the ↓ premise is exactly what makes
-# the rule sound — not an optimization.
-# THE payment rule. `Refl` is the surface syntax for "this equation
-# holds": checking it emits the equation itself into ↓. Discharged by
-# computation → silent; by an accepted lemma → silent; otherwise it IS
-# the obligation, stated exactly where the user claimed it. There is no
-# other proof syntax for equalities, by design: equality proofs carry
-# no information (reflection erases them), so all structure lives in
-# the judgemental layer and in prepended lemmas.
-
 whnf(C) = A / r        Γ ⊢ a ⇐ A ⇝ â
 -------------------------------------- (e-class)              # (class a)
 Γ ⊢ class a ⇐ C ⇝ class â
 
-whnf(C) = Prf ∥A∥        (witness of A synthesized: () for 𝟙, Refl for
-                          an ≡ whose sides are ≐)
+whnf(C) = Prf p        p evident: whnf(p) = ∥A∥ with whnf(A) = 𝟙
+                        (witness ()), or whnf(p) = (l ≡ r ∈ A) with
+                        Γ ⊢ l ≐ r : A ↓ (el-eq-i)
 ------------------------------------------------------------ (e-star)  # (⋆)
 Γ ⊢ ⋆ ⇐ C ⇝ ⋆
-# el-squash-i. The elaborator synthesizes the witness of A for the
-# evident inhabited shapes (𝟙, reflexive ≡); a squashee whose
-# inhabitant is not evident is a structural error (write `⋆ e` and
-# supply one directly). Proof irrelevance (el-prf-prop) is not a
+# el-squash-i / el-eq-i. A proposition that is not evident in one of
+# these two shapes is a structural error (write `⋆ e` and supply a
+# witness directly). Proof irrelevance (el-prf-prop) is not a
 # checking rule but a DISCHARGE final: any two proofs of a Prf type
 # are ≐, handled in the ↓ loop.
+# THE payment rule, at equality props: ⋆ is the surface syntax for
+# "this equation holds" — checking it emits the equation itself into
+# ↓. Discharged by computation → silent; by an accepted lemma →
+# silent; otherwise it IS the obligation, stated exactly where the
+# user claimed it. There is no other proof syntax for equalities, by
+# design: equality proofs carry no information (reflection erases
+# them), so all structure lives in the judgemental layer and in
+# prepended lemmas.
 
 whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 --------------------------------------- (e-star-wit)          # (⋆ e)
@@ -481,7 +485,7 @@ whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 # term elaboration. Note the direction of failure: never an error —
 # the residual equation is assumed and reported.
 
-# Mode inventory. Checking-only forms: λ, pairs, Refl, class, ⋆, ⋆ e,
+# Mode inventory. Checking-only forms: λ, pairs, class, ⋆, ⋆ e,
 # squash-elim, 𝟘-elim (their types are not determined by their syntax);
 # encountering one in inference position is a structural error whose
 # fix is an ascription. Everything else — including ∥-∥ — infers and
@@ -519,7 +523,11 @@ whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 #                                  (the relation is compared AT Ω, where
 #                                  ≐ is iff — ty-quot-cong)
 #        Prf p     ≐ Prf q       ⇐  p ≐ q : Ω     (ty-prf-cong)
-#        (a₀≡b₀∈T₀) ≐ (a₁≡b₁∈T₁) ⇐ T₀ ≐ T₁ type;  a₀ ≐ a₁ : T₁;  b₀ ≐ b₁ : T₁
+#        (a₀≡b₀∈T₀) ≐ (a₁≡b₁∈T₁) : Ω
+#                                 ⇐  T₀ ≐ T₁ type;  a₀ ≐ a₁ : T₁;  b₀ ≐ b₁ : T₁
+#                                  (code-eq-cong — merely SUFFICIENT at
+#                                  Ω, where ≐ is iff; the faithful
+#                                  route is propext)
 #        El a      ≐ El b       ⇐  a ≐ b : 𝕌
 #        ∥A∥       ≐ ∥B∥        ⇐  A ≐ B type (sufficient), OR — the
 #                                  faithful route at Ω — code-prop-eq
@@ -546,10 +554,11 @@ whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 #                                  (class⁼ r) — by the shape of the
 #                                  instantiated relation r[id, a, b] (an
 #                                  Ω code): a ∥𝟙∥-shaped relation is
-#                                  inhabited outright (witness ()), a
-#                                  ∥≡∥-shaped one reduces the witness to
-#                                  its equation (Refl after reflection);
-#                                  other shapes keep the composite
+#                                  inhabited outright (witness ()), an
+#                                  equality-prop-shaped one reduces the
+#                                  witness to its equation (⋆ by
+#                                  el-eq-i); other shapes keep the
+#                                  composite
 #        a₀ , b₀   ≐ a₁ , b₁    ⇐  componentwise at the Σ-type
 #        neutral spines with the same head variable/eliminator:
 #                                  componentwise (app-cong, proj-cong,
@@ -562,7 +571,8 @@ whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 #   5. Prop-discharge: an element equation at type 𝟙, 𝟘, or Prf p is
 #      discharged outright — Foundation's el-one-prop, el-zero-prop,
 #      el-prf-prop (proof irrelevance: any two proofs of a proposition
-#      are equal). # COMMENT: equality type is also a Prop
+#      are equal; equality proofs included, since ≡ is Ω-valued and
+#      its proofs live at Prf).
 #   6. η: a λ against a neutral at Π compares via el-pi-eta (apply
 #      both to ☐₀ under the binder); a pair against a neutral at Σ
 #      via el-sigma-eta.
@@ -582,8 +592,9 @@ whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 #        it would oscillate.
 #      * WHOLE-EQUATION MATCH: the equation (or its flip) matches a
 #        candidate's l/r under one consistent first-order
-#        instantiation; parameters the sides do not bind must carry an
-#        ≡ (or 𝟙) type whose instance discharges as a side condition.
+#        instantiation; parameters the sides do not bind must carry a
+#        Prf (equality props included) or 𝟙 type whose instance
+#        discharges as a side condition.
 #        This is how permutative and hypothesis-conditional lemmas
 #        discharge. Matching is up to El-DECODING: normalization
 #        decodes El c at concrete codes (El ℕc ≜ ℕ) — inside carried
@@ -700,8 +711,8 @@ The EXPANSION, for each entry of the accepted 𝒮 (⌊·⌋, ⌊·⌋ᵗ, ·ᴰ
     thereby first-class at zero cost.
 
   * EQUATION constructor 𝕔 : 𝔄 ending in El (l ≡ r) —
-        def n : Π(⌊𝔄⌋ᵗ). (⌊l⌋ ≡ ⌊r⌋ ∈ ⌊El 𝕦⌋) ≔ λ…. Refl
-    — the Refl is licensed by el-qiit-path (kernel: a refl-eq
+        def n : Π(⌊𝔄⌋ᵗ). Prf (⌊l⌋ ≡ ⌊r⌋ ∈ ⌊El 𝕦⌋) ≔ λ…. ⋆
+    — the ⋆ is licensed by el-qiit-path (kernel: a refl-eq
     certificate whose single step is a path license, qpath). On every
     LATER item and run this def is an ACCEPTED LEMMA, so the imposed
     equations of a QIIT feed discharge through the standard E
@@ -715,21 +726,22 @@ The EXPANSION, for each entry of the accepted 𝒮 (⌊·⌋, ⌊·⌋ᵗ, ·ᴰ
                                                             # one per sort
           →  (m𝕔 : ⌊𝔄ᴰ⟨𝒮.𝕔 δ⟩ with El∘C for C⌋) → …         # methods, one
                                                             # per point ctor
-          →  (h𝕔 : Π(𝔄ᴰᵗ). ⟦l⟧ ≡ ⟦r⟧ ∈ El (C… )) → …        # COHERENCES,
+          →  (h𝕔 : Π(𝔄ᴰᵗ). Prf (⟦l⟧ ≡ ⟦r⟧ ∈ El (C… ))) → …  # COHERENCES,
                                                             # one per eq ctor
           →  Π(⌊𝔎⌋ᵗ) → (w : El (𝒮.𝕤 δ)) → El (C_𝕤 δ w)
           ≔ λ…. 𝒮.𝕤-elim ℰ δ w        # ℰ = the bound motive/method
                                        # variables, as Foundation's C̄ ; m̄
 
     COHERENCES ARE HYPOTHESES: extensionality lets the eprob premises
-    be taken as ordinary ≡-typed arguments. Inside the generated body,
-    each coherence premise reaching ↓ is discharged by the HYPOTHESIS
-    source of E (the ≡-typed binder h𝕔, peeled — exactly the mechanism
+    be taken as ordinary Prf-typed arguments. Inside the generated
+    body, each coherence premise reaching ↓ is discharged by the
+    HYPOTHESIS source of E (the equality-hypothesis binder h𝕔, peeled
+    — exactly the mechanism
     that makes induction hypotheses silent), and the kernel's qcoh
     certificates replay from those same binders by el-reflect. At USE
     sites there is no new judgement at all: supplying a coherence is
-    supplying an argument, `Refl` when the methods respect the equation
-    by computation (e-refl surfaces it as an ordinary obligation
+    supplying an argument, `⋆` when the methods respect the equation
+    by computation (e-star surfaces it as an ordinary obligation
     otherwise), a lemma reference when proven separately. This is
     quot-elim's f⁼ story, generalized and MOVED INTO THE TYPE — which
     is why the eliminator needs no inline-motive surface form.
@@ -755,7 +767,7 @@ expands to (𝒮 the elaborated signature, positions 0..3):
   def ins  : El a → El Bag → El Bag ≔ λx. λm. 𝒮.2 (x, m)
   def swp  : (x : El a) (y : El a) (m : El Bag)
                → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag
-           ≔ λx. λy. λm. Refl                    # qpath-licensed
+           ≔ λx. λy. λm. ⋆                       # qpath-licensed
   def BagElim :
         (C : El Bag → 𝕌)
       → (mnil : El (C nil))
@@ -770,8 +782,8 @@ expands to (𝒮 the elaborated signature, positions 0..3):
                           # the coherence discharges from hswp (E's
                           # hypothesis source) and replays as qcoh
 
-A caller writing BagElim C z f h supplies h as Refl when f respects
-the swap by computation — e-refl turns it into an ordinary obligation
+A caller writing BagElim C z f h supplies h as ⋆ when f respects
+the swap by computation — e-star turns it into an ordinary obligation
 otherwise — or as a reference to a proven lemma. Nothing about
 obligations, discharge or the report is QIIT-aware.
 
@@ -823,7 +835,7 @@ At end of run, obligations are reported in surfacing order:
 
   open obligations (2):
     [1] (n : ℕ) ⊢ plus n Z ≐ n : ℕ
-        at: vappend_nil, line 14 (checking Refl)
+        at: vappend_nil, line 14 (checking ⋆)
     [2] (n m : ℕ) (a : 𝕌) (xs : El (vect n a)) ⊢ ...
         at: vappend_assoc, line 22 (switch: inferred vs expected type)
         from composite: El (vect (plus n Z) a) ≐ El (vect n a) type
@@ -849,7 +861,7 @@ Discharging an obligation: prepend, before the item that surfaced it,
 equality type (generalized over its context by Π-binders). On rerun,
 its reflected equation is in E before the surfacing site elaborates,
 and step 7 discharges silently. The proof itself is whatever the theory
-requires — `Refl` when the equation is by computation, an ℕ-elim with
+requires — `⋆` when the equation is by computation, an ℕ-elim with
 an equality motive for inductive content — and elaborating IT may
 surface further (strictly smaller) obligations; the loop converges
 because each accepted lemma is content the file genuinely needed.
