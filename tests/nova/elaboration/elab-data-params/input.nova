@@ -9,14 +9,14 @@ data [a : 𝕌] ( Bag : U
 def swapN : ins ℕ Z (ins ℕ (S Z) (nil ℕ)) ≡ ins ℕ (S Z) (ins ℕ Z (nil ℕ)) ∈ El (Bag ℕ) ≔
   swp ℕ Z (S Z) (nil ℕ)
 
-def swapN' : ins ℕ Z (ins ℕ (S Z) (nil ℕ)) ≡ ins ℕ (S Z) (ins ℕ Z (nil ℕ)) ∈ El (Bag ℕ) ≔ Refl
+def swapN' : ins ℕ Z (ins ℕ (S Z) (nil ℕ)) ≡ ins ℕ (S Z) (ins ℕ Z (nil ℕ)) ∈ El (Bag ℕ) ≔ ⋆
 
 -- polymorphic size, defined once for every a
 def sizeP : (a : 𝕌) → El (Bag a) → ℕ ≔
-  λa. λm. BagElim a (λb. ℕ) Z (λx. λr. λih. S ih) (λx. λy. λr. λih. Refl) m
+  λa. λm. BagElim a (λb. ℕ) Z (λx. λr. λih. S ih) (λx. λy. λr. λih. ⋆) m
 
-def sizeTwoN : sizeP ℕ (ins ℕ Z (ins ℕ (S Z) (nil ℕ))) ≡ S (S Z) ∈ ℕ ≔ Refl
+def sizeTwoN : sizeP ℕ (ins ℕ Z (ins ℕ (S Z) (nil ℕ))) ≡ S (S Z) ∈ ℕ ≔ ⋆
 
 -- a second instantiation: bags of units
 def oneU : El (Bag 𝟙) ≔ ins 𝟙 () (nil 𝟙)
-def sizeU : sizeP 𝟙 oneU ≡ S Z ∈ ℕ ≔ Refl
+def sizeU : sizeP 𝟙 oneU ≡ S Z ∈ ℕ ≔ ⋆

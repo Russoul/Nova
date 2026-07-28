@@ -1,5 +1,5 @@
 -- The smallest quotient: ℕ collapsed by the total relation ∥𝟙∥.
 -- Basic quotient-type facts. Relations are Ω-valued (docs/NovaFoundation.txt),
 -- so the total relation is the squash ∥𝟙∥.
-def collapse : class Z ≡ class (S Z) ∈ ℕ / (n m. ∥𝟙∥) ≔ Refl
-def collapseElim : (q : ℕ / (n m. ∥𝟙∥)) → quot-elim (x. ℕ) (a. Z) ((class Z : ℕ / (n m. ∥𝟙∥))) ≡ Z ∈ ℕ ≔ λq. Refl
+def collapse : class Z ≡ class (S Z) ∈ ℕ / (n m. ∥𝟙∥) ≔ ⋆
+def collapseElim : (q : ℕ / (n m. ∥𝟙∥)) → quot-elim (x. ℕ) (a. Z) ((class Z : ℕ / (n m. ∥𝟙∥))) ≡ Z ∈ ℕ ≔ λq. ⋆

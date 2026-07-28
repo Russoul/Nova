@@ -11,7 +11,7 @@ data ( I : U
 -- time (⟦suc (pred i)⟧ β-reduces to pred (suc ih), closed by predsuc)
 def neg : El I → El I ≔
   λi. IElim (λw. I) zero (λx. λih. pred ih) (λx. λih. suc ih)
-        (λx. λih. Refl) (λx. λih. Refl) i
+        (λx. λih. ⋆) (λx. λih. ⋆) i
 
-def negSucPred : neg (suc (pred zero)) ≡ zero ∈ El I ≔ Refl
-def negPred : neg (pred zero) ≡ suc zero ∈ El I ≔ Refl
+def negSucPred : neg (suc (pred zero)) ≡ zero ∈ El I ≔ ⋆
+def negPred : neg (pred zero) ≡ suc zero ∈ El I ≔ ⋆

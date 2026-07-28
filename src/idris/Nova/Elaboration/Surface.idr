@@ -49,7 +49,6 @@ mutual
     SUnitI : SElem
     SZeroN : SElem
     SSuc : SElem -> SElem
-    SRefl : SElem
     ||| λx. t
     SLam : (name : String) -> SElem -> SElem
     SApp : SElem -> SElem -> SElem
@@ -66,8 +65,9 @@ mutual
     SSigmaC : (name : String) -> SElem -> SElem -> SElem
     ||| t / (x y. r)  (code)
     SQuotC : SElem -> (nx, ny : String) -> SElem -> SElem
-    ||| t ≡ t ∈ t  (code)
-    SEqC : SElem -> SElem -> SElem -> SElem
+    ||| t ≡ t ∈ T — the equality PROP (an Ω-element; the ∈-slot
+    ||| embeds a TYPE, like ∥-∥)
+    SEqC : SElem -> SElem -> STy -> SElem
     SZeroElim : SElem -> SElem
     ||| ℕ-elim (n. T) z (n ih. s) t — motive-first
     SNatElim : (n : String) -> STy -> SElem -> (n2, ih : String) -> SElem -> SElem -> SElem
@@ -216,7 +216,6 @@ mutual
     show SUnitI = "()"
     show SZeroN = "Z"
     show (SSuc t) = "S (\{show t})"
-    show SRefl = "Refl"
     show (SLam x t) = "Lam \{x} (\{show t})"
     show (SApp f e) = "App (\{show f}) (\{show e})"
     show (SPair a b) = "Pair (\{show a}) (\{show b})"

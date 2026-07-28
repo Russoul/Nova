@@ -10,13 +10,13 @@ import integer (Int)
 def intAddWD : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ) (h : Prf ∥b1 + c2 ≡ b2 + c1 ∈ ℕ∥) →
   (a1 + b1) + (a2 + c2) ≡ (a2 + b2) + (a1 + c1) ∈ ℕ ≔
   λa1. λa2. λb1. λb2. λc1. λc2. λh. ℕ-elim (k. (a1 + b1) + (k + c2) ≡ (k + b2) + (a1 + c1) ∈ ℕ)
-    Refl (k ih. Refl) a2
+    ⋆ (k ih. ⋆) a2
 
 -- cross-sum well-definedness in the OUTER argument, conditional on h
 def intAddCross : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ) (h : Prf ∥a1 + b2 ≡ a2 + b1 ∈ ℕ∥) →
   (a1 + c1) + (b2 + c2) ≡ (a2 + c2) + (b1 + c1) ∈ ℕ ≔
   λa1. λa2. λb1. λb2. λc1. λc2. λh. ℕ-elim (k. (a1 + c1) + (b2 + k) ≡ (a2 + k) + (b1 + c1) ∈ ℕ)
-    Refl (k ih. Refl) c2
+    ⋆ (k ih. ⋆) c2
 
 -- the same, one level up: the inner elimination is well-defined in the
 -- OUTER argument — proven by quotient elimination with an ≡-motive
@@ -28,7 +28,7 @@ def intAddWDOuter : (a : ℕ ⨯ ℕ) (b : ℕ ⨯ ℕ) (h : Prf ∥a .π₁ + b
     (q. quot-elim (z. El Int) (x. class (a .π₁ + x .π₁ , a .π₂ + x .π₂)) q
           ≡ quot-elim (z. El Int) (x. class (b .π₁ + x .π₁ , b .π₂ + x .π₂)) q
           ∈ El Int)
-    (c. Refl)
+    (c. ⋆)
     zy
 
 def intAdd : El Int → El Int → El Int ≔
@@ -39,7 +39,7 @@ def intAdd : El Int → El Int → El Int ≔
             zy)
       zx
 
-def intAddTest : intAdd (class (Z , Z)) (class (S Z , S Z)) ≡ class (S Z , S Z) ∈ El Int ≔ Refl
+def intAddTest : intAdd (class (Z , Z)) (class (S Z , S Z)) ≡ class (S Z , S Z) ∈ El Int ≔ ⋆
 
 -- ===== the algebra =====
 
@@ -50,7 +50,7 @@ def intAddComm : (x : El Int) (y : El Int) → intAdd x y ≡ intAdd y x ∈ El 
     (q. intAdd q y ≡ intAdd y q ∈ El Int)
     (a. quot-elim
           (q. intAdd (class a) q ≡ intAdd q (class a) ∈ El Int)
-          (b. Refl)
+          (b. ⋆)
           y)
     x
 
@@ -65,7 +65,7 @@ def intAddAssoc : (x : El Int) (y : El Int) (z : El Int) →
           (b. quot-elim
                 (q. intAdd (intAdd (class a) (class b)) q
                       ≡ intAdd (class a) (intAdd (class b) q) ∈ El Int)
-                (c. Refl)
+                (c. ⋆)
                 z)
           y)
     x

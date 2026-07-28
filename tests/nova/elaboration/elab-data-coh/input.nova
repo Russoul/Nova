@@ -7,6 +7,6 @@ data ( Bag : U
      ; swp : (x : El ℕ) (y : El ℕ) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )
 
 -- "first element or zero": ins x _ ↦ x ignores the tail's image, so
--- swapping changes the result — the coherence Refl cannot discharge
+-- swapping changes the result — the coherence ⋆ cannot discharge
 def headOr0 : El Bag → ℕ ≔
-  λm. BagElim (λb. ℕ) Z (λx. λr. λih. x) (λx. λy. λr. λih. Refl) m
+  λm. BagElim (λb. ℕ) Z (λx. λr. λih. x) (λx. λy. λr. λih. ⋆) m

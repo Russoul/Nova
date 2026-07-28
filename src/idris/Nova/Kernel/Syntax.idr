@@ -33,8 +33,6 @@ mutual
       PiTy : Ty -> Ty -> Ty
       ||| T ⨯ T  (dependent sum type, Σ)
       SigmaTy : Ty -> Ty -> Ty
-      ||| t ≡ t ∈ T  (extensional equality type)
-      EqTy : Elem -> Elem -> Ty -> Ty
       ||| El t  (every element of the universe is a type)
       El : Elem -> Ty
       ||| Ω  (the universe of mere propositions — anti-structural: its
@@ -90,14 +88,16 @@ mutual
       PiTy : Elem -> Elem -> Elem
       ||| t ⨯ t  (universe element encoding Σ)
       SigmaTy : Elem -> Elem -> Elem
-      ||| t ≡ t ∈ t  (universe element encoding equality)
-      EqTy : Elem -> Elem -> Elem -> Elem
+      ||| t ≡ t ∈ T  (the equality PROPOSITION — an Ω-element; the
+      ||| third component is an arbitrary TYPE, so equality props
+      ||| exist at large types. code-eq; no 𝕌-code for equality
+      ||| exists, and equality inherits Ω's anti-structural
+      ||| discipline: no injectivity)
+      EqTy : Elem -> Elem -> Ty -> Elem
       ||| t / t  (universe element encoding quotient: the second Elem is the
       ||| relation code, living two levels deeper — Γ ▷ El a ▷ (El a)[↑] —
       ||| one bound variable per side)
       QuotTy : Elem -> Elem -> Elem
-      ||| Refl  (reflexivity)
-      Refl : Elem
       ||| x[σ]  (signature variable, applied to a (normal) substitution to its
       ||| declaration context)
       SigVar : String -> SubNorm -> Elem
@@ -329,7 +329,6 @@ mutual
     UniverseTy     == UniverseTy       = True
     PiTy a b       == PiTy a' b'       = a == a' && b == b'
     SigmaTy a b    == SigmaTy a' b'    = a == a' && b == b'
-    EqTy l r ty    == EqTy l' r' ty'   = l == l' && r == r' && ty == ty'
     El e           == El e'            = e == e'
     PropTy         == PropTy           = True
     Prf e          == Prf e'           = e == e'
@@ -359,7 +358,6 @@ mutual
     Elem.SigmaTy a b == Elem.SigmaTy a' b' = a == a' && b == b'
     Elem.EqTy l r t  == Elem.EqTy l' r' t' = l == l' && r == r' && t == t'
     QuotTy a r       == QuotTy a' r'       = a == a' && r == r'
-    Refl             == Refl               = True
     SigVar x s       == SigVar x' s'        = x == x' && s == s'
     Class a          == Class a'           = a == a'
     QuotElim f q     == QuotElim f' q'     = f == f' && q == q'
@@ -428,9 +426,6 @@ mutual
     compare (SigmaTy a b)    (SigmaTy a' b')    = compare a a' <+> compare b b'
     compare (SigmaTy _ _)    _                  = LT
     compare _                (SigmaTy _ _)      = GT
-    compare (EqTy l r ty)    (EqTy l' r' ty')   = compare l l' <+> compare r r' <+> compare ty ty'
-    compare (EqTy _ _ _)     _                  = LT
-    compare _                (EqTy _ _ _)       = GT
     compare (El e)           (El e')            = compare e e'
     compare (El _)           _                  = LT
     compare _                (El _)             = GT
@@ -505,9 +500,6 @@ mutual
     compare (QuotTy a r)       (QuotTy a' r')       = compare a a' <+> compare r r'
     compare (QuotTy _ _)       _                    = LT
     compare _                  (QuotTy _ _)         = GT
-    compare Refl               Refl                 = EQ
-    compare Refl               _                    = LT
-    compare _                  Refl                 = GT
     compare (SigVar x s)       (SigVar y t)         = compare x y <+> compare s t
     compare (SigVar _ _)       _                    = LT
     compare _                  (SigVar _ _)         = GT
@@ -579,7 +571,6 @@ mutual
     show UniverseTy = "UniverseTy"
     show (PiTy a b) = "PiTy (\{show a}) (\{show b})"
     show (SigmaTy a b) = "SigmaTy (\{show a}) (\{show b})"
-    show (EqTy e0 e1 a) = "EqTy (\{show e0}) (\{show e1}) (\{show a})"
     show (El e) = "El (\{show e})"
     show PropTy = "PropTy"
     show (Prf e) = "Prf (\{show e})"
@@ -606,9 +597,8 @@ mutual
     show Elem.NatTy = "NatTy"
     show (Elem.PiTy e1 e2) = "PiTy (\{show e1}) (\{show e2})"
     show (Elem.SigmaTy e1 e2) = "SigmaTy (\{show e1}) (\{show e2})"
-    show (Elem.EqTy e0 e1 e2) = "EqTy (\{show e0}) (\{show e1}) (\{show e2})"
+    show (Elem.EqTy e0 e1 t) = "EqTy (\{show e0}) (\{show e1}) (\{show t})"
     show (QuotTy a r) = "QuotTy (\{show a}) (\{show r})"
-    show Refl = "Refl"
     show (SigVar x s) = "SigVar \{show x} (\{show s})"
     show (Class a) = "Class (\{show a})"
     show (QuotElim f q) = "QuotElim (\{show f}) (\{show q})"

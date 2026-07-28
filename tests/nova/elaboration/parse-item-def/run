@@ -1,2 +1,2 @@
 #!/bin/sh
-"$1" run surface-item "def plus_zero : (n : ℕ) → plus n Z ≡ n ∈ ℕ ≔ λn. Refl"
+"$1" run surface-item "def plus_zero : (n : ℕ) → plus n Z ≡ n ∈ ℕ ≔ λn. ⋆"

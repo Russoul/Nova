@@ -209,7 +209,6 @@ codeOf Ty.OneTy = Just Elem.OneTy
 codeOf Ty.NatTy = Just Elem.NatTy
 codeOf (Ty.PiTy a b) = Elem.PiTy <$> codeOf a <*> codeOf b
 codeOf (Ty.SigmaTy a b) = Elem.SigmaTy <$> codeOf a <*> codeOf b
-codeOf (EqTy l r t) = (Elem.EqTy l r) <$> codeOf t
 -- the relation is an Ω-element in BOTH the type former and the code:
 -- El (A / R) ≜ El A / R, so it passes through unchanged
 codeOf (Quotient a r) = QuotTy <$> codeOf a <*> Just r
@@ -273,10 +272,9 @@ matchElemP k d b (Elem.PiTy a c) (Elem.PiTy a' c') =
 matchElemP k d b (Elem.SigmaTy a c) (Elem.SigmaTy a' c') =
   \bs => matchElemP k d b a a' bs >>= matchElemP k d (1 + b) c c'
 matchElemP k d b (Elem.EqTy l r t) (Elem.EqTy l' r' t') =
-  \bs => matchElemP k d b l l' bs >>= matchElemP k d b r r' >>= matchElemP k d b t t'
+  \bs => matchElemP k d b l l' bs >>= matchElemP k d b r r' >>= matchTyP k d b t t'
 matchElemP k d b (QuotTy a r) (QuotTy a' r') =
   \bs => matchElemP k d b a a' bs >>= matchElemP k d (2 + b) r r'
-matchElemP k d b Refl Refl = Just
 matchElemP k d b (SigVar x es) (SigVar x' es') =
   if x == x' then goSubNorm es es' else const Nothing
  where
@@ -353,8 +351,6 @@ matchTyP k d b (Ty.PiTy a c) (Ty.PiTy a' c') =
   \bs => matchTyP k d b a a' bs >>= matchTyP k d (1 + b) c c'
 matchTyP k d b (Ty.SigmaTy a c) (Ty.SigmaTy a' c') =
   \bs => matchTyP k d b a a' bs >>= matchTyP k d (1 + b) c c'
-matchTyP k d b (EqTy l r t) (EqTy l' r' t') =
-  \bs => matchElemP k d b l l' bs >>= matchElemP k d b r r' >>= matchTyP k d b t t'
 matchTyP k d b (El e) (El e') = matchElemP k d b e e'
 -- normalization El-decodes codes inside carried signatures (El ℕc ≜ ℕ),
 -- so a pattern `El e` whose e is parameter-headed can face the DECODED
@@ -426,9 +422,8 @@ elemSize Elem.OneTy = 1
 elemSize Elem.NatTy = 1
 elemSize (Elem.PiTy a b) = S (elemSize a + elemSize b)
 elemSize (Elem.SigmaTy a b) = S (elemSize a + elemSize b)
-elemSize (Elem.EqTy l r t) = S (elemSize l + elemSize r + elemSize t)
+elemSize (Elem.EqTy l r t) = S (elemSize l + elemSize r + tySize t)
 elemSize (QuotTy a r) = S (elemSize a + elemSize r)
-elemSize Refl = 1
 elemSize (SigVar _ es) = S (foldl (\acc, e => acc + elemSize e) 0 es)
 elemSize (Class a) = S (elemSize a)
 elemSize (QuotElim f q) = S (elemSize f + elemSize q)
@@ -450,7 +445,6 @@ tySize Ty.UniverseTy = 1
 tySize Ty.PropTy = 1
 tySize (Ty.PiTy a b) = S (tySize a + tySize b)
 tySize (Ty.SigmaTy a b) = S (tySize a + tySize b)
-tySize (EqTy l r t) = S (elemSize l + elemSize r + tySize t)
 tySize (El e) = S (elemSize e)
 tySize (Prf e) = S (elemSize e)
 tySize (Quotient a r) = S (tySize a + elemSize r)
@@ -495,9 +489,8 @@ permutative c = isJust (go 0 c.lhs c.rhs [])
   go b Elem.NatTy Elem.NatTy m = Just m
   go b (Elem.PiTy a d) (Elem.PiTy a' d') m = go b a a' m >>= go (1+b) d d'
   go b (Elem.SigmaTy a d) (Elem.SigmaTy a' d') m = go b a a' m >>= go (1+b) d d'
-  go b (Elem.EqTy l r t) (Elem.EqTy l' r' t') m = go b l l' m >>= go b r r' >>= go b t t'
+  go b (Elem.EqTy l r t) (Elem.EqTy l' r' t') m = go b l l' m >>= go b r r' >>= goT b t t'
   go b (QuotTy a r) (QuotTy a' r') m = go b a a' m >>= go (2+b) r r'
-  go b Refl Refl m = Just m
   go b (SigVar x es) (SigVar x' es') m =
     if x == x' then goSN es es' m else Nothing
    where
@@ -526,7 +519,6 @@ permutative c = isJust (go 0 c.lhs c.rhs [])
   goT b Ty.PropTy Ty.PropTy m = Just m
   goT b (Ty.PiTy a d) (Ty.PiTy a' d') m = goT b a a' m >>= goT (1+b) d d'
   goT b (Ty.SigmaTy a d) (Ty.SigmaTy a' d') m = goT b a a' m >>= goT (1+b) d d'
-  goT b (EqTy l r t) (EqTy l' r' t') m = go b l l' m >>= go b r r' >>= goT b t t'
   goT b (El e) (El e') m = go b e e' m
   goT b (Prf e) (Prf e') m = go b e e' m
   goT b (Quotient a r) (Quotient a' r') m = goT b a a' m >>= go (2+b) r r'
@@ -642,8 +634,8 @@ rewriteElemS side c pi d t =
           , at 1 1 c' (\c'' => Elem.SigmaTy a c'') ]
   descend (Elem.EqTy l r u)  =
     first [ at 0 0 l (\l' => Elem.EqTy l' r u)
-          , at 1 0 r (\r' => Elem.EqTy l r' u)
-          , at 2 0 u (\u' => Elem.EqTy l r u') ]
+          , at 1 0 r (\r' => Elem.EqTy l r' u) ]
+    <|> ((\(u', st) => (Elem.EqTy l r u', st)) <$> rewriteTyS side c (2 :: pi) d u)
   descend (QuotTy a r)       =
     first [ at 0 0 a (\a' => QuotTy a' r)
           , at 1 2 r (\r' => QuotTy a r') ]
@@ -689,10 +681,6 @@ rewriteTyS side c pi d (Ty.PiTy a b) =
 rewriteTyS side c pi d (Ty.SigmaTy a b) =
   ((\(a', st) => (Ty.SigmaTy a' b, st)) <$> rewriteTyS side c (0 :: pi) d a)
     <|> ((\(b', st) => (Ty.SigmaTy a b', st)) <$> rewriteTyS side c (1 :: pi) (1 + d) b)
-rewriteTyS side c pi d (EqTy l r t) =
-  ((\(l', st) => (EqTy l' r t, st)) <$> rewriteElemS side c (0 :: pi) d l)
-    <|> ((\(r', st) => (EqTy l r' t, st)) <$> rewriteElemS side c (1 :: pi) d r)
-    <|> ((\(t', st) => (EqTy l r t', st)) <$> rewriteTyS side c (2 :: pi) d t)
 rewriteTyS side c pi d (El e) =
   (\(e', st) => (El e', st)) <$> rewriteElemS side c (0 :: pi) d e
 rewriteTyS side c pi d (Quotient a r) =
@@ -810,8 +798,6 @@ closeCand c =
     comp SelQDom a0 a1
     ++ closeCand (child (\bs => [| SelQRel (lookup 1 bs) (lookup 0 bs) |]) 2
                         [El a1, substTy (El a1) Wk] r0 r1)
-  go (Elem.EqTy l0 r0 t0) (Elem.EqTy l1 r1 t1) =
-    comp SelEqT t0 t1 ++ comp SelEqL l0 l1 ++ comp SelEqR r0 r1
   go _ _ = []
 
 ||| Eq-typed hypotheses of Γ (leading Πs peeled) as candidates with base
@@ -827,14 +813,13 @@ hypCands st ctx = concatMap closeCand (mapMaybe candAt [0 .. minus (length ctx) 
   toPSteps : List Step -> List PStep
   toPSteps = map (\s => MkPStep s.path (licProof s.lic) s.sels s.flip)
 
-  -- a hypothesis licenses an equation when its (peeled) type is an
-  -- ≡-type OR a squashed one, Prf ∥l ≡ r ∈ t∥ — squashed reflection
-  -- (the kernel's `licensed` accepts both proof shapes)
+  -- a hypothesis licenses an equation when its (peeled) type is a Prf
+  -- whose prop normalizes to an equality (the one pathway — squashed
+  -- spellings converge by code-squash-prf during normalization)
   eqShape : Ty -> Maybe (Elem, Elem, Ty)
-  eqShape (EqTy l r t) = Just (l, r, t)
   eqShape (Prf p) =
     case betaElem st.sig p of
-      Squash (EqTy l r t) => Just (l, r, t)
+      Elem.EqTy l r t => Just (l, r, t)
       _ => Nothing
   eqShape _ = Nothing
 
@@ -999,32 +984,31 @@ mutual
   spEqStructC dep st cs ctx (Class x) (Class y) (Quotient dom rel) =
     case betaElem st.sig (substElem rel (Ext (Ext Id x) y)) of
       Squash Ty.OneTy => Just (MkECert [] (FWitness Nothing))
-      Squash (EqTy l r t) => do sub <- spEqElemC dep st cs ctx l r t
-                                pure (MkECert [] (FWitness (Just sub)))
+      Elem.EqTy l r t => do sub <- spEqElemC dep st cs ctx l r t
+                            pure (MkECert [] (FWitness (Just sub)))
       _ => Nothing
   -- el-prf-prop: proof irrelevance — any two elements of Prf p are equal
   spEqStructC dep st cs ctx a b (Prf _) = Just (MkECert [] FProp)
   -- code-prop-eq: mutually implied prop codes are equal; each direction
   -- is ⋆ with a synthesized witness under the other side's hypothesis
-  spEqStructC dep st cs ctx a b Ty.PropTy =
-    case (a, b) of
-      (Squash tA, Squash tB) => do
-        (fe, fsk) <- mkImpl tA tB
-        (be, bsk) <- mkImpl tB tA
-        pure (MkECert [] (FPropExt fe fsk be bsk))
-      _ => Nothing
+  spEqStructC dep st cs ctx a b Ty.PropTy = do
+    (fe, fsk) <- mkImpl a b
+    (be, bsk) <- mkImpl b a
+    pure (MkECert [] (FPropExt fe fsk be bsk))
    where
-    -- under ctx ▷ Prf ∥src∥, a proof of (Prf ∥tgt∥)[↑]: 𝟙-shaped
-    -- squashees outright, ≡-shaped ones by a nested discharge (which
-    -- may use the unsquashed hypothesis as a rewrite candidate)
-    mkImpl : Ty -> Ty -> Maybe (Elem, Skel)
+    -- under ctx ▷ Prf src, a proof of (Prf tgt)[↑]: 𝟙-shaped squashes
+    -- outright, equality props by a nested discharge (which may use
+    -- the hypothesis as a rewrite candidate)
+    mkImpl : Elem -> Elem -> Maybe (Elem, Skel)
     mkImpl src tgt =
-      let ctx' = ctx :< Prf (Squash src) in
-      case betaTy st.sig (substTy tgt Wk) of
-        Ty.OneTy => Just (Star, Nd [PSquashWit OneIntro (Nd [] [])] [])
-        EqTy l r t => do
+      let ctx' = ctx :< Prf src in
+      case betaElem st.sig (substElem tgt Wk) of
+        Squash sq => case betaTy st.sig sq of
+          Ty.OneTy => Just (Star, Nd [PSquashWit OneIntro (Nd [] [])] [])
+          _ => Nothing
+        Elem.EqTy l r t => do
           c <- spEqElemC dep st (mkCandSet st ctx') ctx' l r t
-          Just (Star, Nd [PSquashWit Refl (Nd [PReflEq c] [])] [])
+          Just (Star, Nd [PReflEq c] [])
         _ => Nothing
   spEqStructC _ _ _ _ _ _ _ = Nothing
 
@@ -1083,11 +1067,15 @@ mutual
     if stepFree cR then Just (prefixSteps 0 stA) else Nothing
   spCongC dep st cs ctx (Squash x) (Squash y) =
     prefixSteps 0 <$> (spEqTyC dep st cs ctx x y >>= flatSteps)
-  spCongC dep st cs ctx (Elem.EqTy l r t) (Elem.EqTy l' r' t') = do
-    st1 <- spEqElemC dep st cs ctx t t' Ty.UniverseTy >>= flatSteps
-    st2 <- spEqElemC dep st cs ctx l l' (El t') >>= flatSteps
-    st3 <- spEqElemC dep st cs ctx r r' (El t') >>= flatSteps
-    pure (prefixSteps 2 st1 ++ prefixSteps 0 st2 ++ prefixSteps 1 st3)
+  spCongC dep st cs ctx (Elem.EqTy l r t) (Elem.EqTy l' r' t') =
+    -- code-eq-cong (sides only; a type-component mismatch routes
+    -- through propext instead — steps cannot enter a type child here)
+    if betaTy st.sig t == betaTy st.sig t'
+      then do
+        st2 <- spEqElemC dep st cs ctx l l' t' >>= flatSteps
+        st3 <- spEqElemC dep st cs ctx r r' t' >>= flatSteps
+        pure (prefixSteps 0 st2 ++ prefixSteps 1 st3)
+      else Nothing
   spCongC _ _ _ _ _ _ = Nothing
 
   ||| Whole-equation matching, conditions included, hops included —
@@ -1113,10 +1101,12 @@ mutual
     hypWitness lN rN =
       firstJ (map (\i =>
         case betaTy st.sig <$> ctxLookup ctx i of
-          Just (EqTy hl hr _) =>
-            if (betaElem st.sig hl == lN && betaElem st.sig hr == rN)
-              then Just (CtxVar i)
-              else Nothing
+          Just (Prf p) => case betaElem st.sig p of
+            Elem.EqTy hl hr _ =>
+              if (betaElem st.sig hl == lN && betaElem st.sig hr == rN)
+                then Just (CtxVar i)
+                else Nothing
+            _ => Nothing
           _ => Nothing) [0 .. minus (length ctx) 1])
 
     ||| A hypothesis whose (normalized) type is exactly this Prf type.
@@ -1137,23 +1127,15 @@ mutual
           sigma <- condSub c.params p bs
           case betaTy st.sig (substTy tp sigma) of
             Ty.OneTy => Just OneIntro
-            EqTy l r t =>
-              let lN = betaElem st.sig l
-                  rN = betaElem st.sig r in
-              hypWitness lN rN
-              <|> (if lN == rN then Just Refl else Nothing)
-              <|> (do cert <- candMatchC dep st cs ctx lN rN (betaTy st.sig t)
-                      -- only a bare, proof-carrying single acceptance can
-                      -- be turned into an element; steps cannot
-                      Nothing)
             Prf pr =>
               hypPrfWitness (Prf (betaElem st.sig pr))
               <|> (case betaElem st.sig pr of
                      Squash Ty.OneTy => Just Star
-                     Squash (EqTy l r _) =>
-                       if betaElem st.sig l == betaElem st.sig r
-                         then Just Star
-                         else Nothing
+                     Elem.EqTy l r _ =>
+                       let lN = betaElem st.sig l
+                           rN = betaElem st.sig r in
+                       hypWitness lN rN
+                       <|> (if lN == rN then Just Star else Nothing)
                      _ => Nothing)
             _ => Nothing
 
@@ -1247,11 +1229,6 @@ mutual
           sub <- spEqElemC dep st (extendCS (extendCS cs)) (ctx :< a1 :< substTy a1 Wk) r0 r1 Ty.PropTy
           if stepFree sub then Just (prefixSteps 0 stA) else Nothing
         (Prf x, Prf y) => flatE False 0 ctx x y Ty.PropTy
-        (EqTy l0 r0 t0, EqTy l1 r1 t1) => do
-          stT <- prefixSteps 2 <$> go t0 t1
-          stL <- flatE False 0 ctx l0 l1 t1
-          stR <- flatE False 1 ctx r0 r1 t1
-          pure (stT ++ stL ++ stR)
         (El x, El y) => flatE False 0 ctx x y Ty.UniverseTy
         (El x, rigid) => do c <- codeOf rigid
                             flatE True 0 ctx x c Ty.UniverseTy
@@ -1361,7 +1338,7 @@ mutual
             -- reflection); other shapes keep the composite.
             (do st' <- getSt
                 case rwNfElem st' ctx (substElem rel (Ext (Ext Id x) y)) of
-                  Squash (EqTy l r t) => ignore $ convElem ctx env site comp' l r t
+                  Elem.EqTy l r t => ignore $ convElem ctx env site comp' l r t
                   _ => assume cur site comp)
           (Elem.PiTy x c, Elem.PiTy x' c', Ty.UniverseTy) => do
             ignore $ convElem ctx env site comp' x x' Ty.UniverseTy
@@ -1376,10 +1353,12 @@ mutual
           -- (the faithful iff route lives in spEqStructC's propext)
           (Squash tA, Squash tB, Ty.PropTy) =>
             ignore $ convTy ctx env site comp' tA tB
-          (Elem.EqTy l r t, Elem.EqTy l' r' t', Ty.UniverseTy) => do
-            ignore $ convElem ctx env site comp' t t' Ty.UniverseTy
-            ignore $ convElem ctx env site comp' l l' (El t')
-            ignore $ convElem ctx env site comp' r r' (El t')
+          -- code-eq-cong at Ω — merely sufficient (≐ at Ω is iff; the
+          -- faithful route is propext)
+          (Elem.EqTy l r t, Elem.EqTy l' r' t', Ty.PropTy) => do
+            ignore $ convTy ctx env site comp' t t'
+            ignore $ convElem ctx env site comp' l l' t'
+            ignore $ convElem ctx env site comp' r r' t'
           (NatElim z s t0, NatElim z' s' t1, _) =>
             if z == z' && s == s'
               then ignore $ convElem ctx env site comp' t0 t1 Ty.NatTy
@@ -1426,10 +1405,6 @@ mutual
           (Ty.Quotient a0 r0, Ty.Quotient a1 r1) => do
             ignore $ convTy ctx env site comp' a0 a1
             ignore $ convElem (ctx :< a1 :< substTy a1 Wk) (env :< "x" :< "y") site comp' r0 r1 Ty.PropTy
-          (EqTy l0 r0 t0, EqTy l1 r1 t1) => do
-            ignore $ convTy ctx env site comp' t0 t1
-            ignore $ convElem ctx env site comp' l0 l1 t1
-            ignore $ convElem ctx env site comp' r0 r1 t1
           (El x, El y) => ignore $ convElem ctx env site comp' x y Ty.UniverseTy
           (Prf x, Prf y) => ignore $ convElem ctx env site comp' x y Ty.PropTy
           (El x, rigid) => case codeOf rigid of
@@ -1523,10 +1498,12 @@ mutual
     (r', rSk) <- checkElem (ctx :< a' :< substTy a' Wk) (env :< nx :< ny) site r Ty.PropTy
     pure (Ty.Quotient a' r', Nd [] [aSk, rSk])
   elabTy ctx env site (STyEq l r t) = do
+    -- e-ty-eq: the surface ≡-TYPE elaborates to Prf of the equality
+    -- prop (equality is Ω-valued)
     (t', tSk) <- elabTy ctx env site t
     (l', lSk) <- checkElem ctx env site l t'
     (r', rSk) <- checkElem ctx env site r t'
-    pure (EqTy l' r' t', Nd [] [lSk, rSk, tSk])
+    pure (Prf (Elem.EqTy l' r' t'), Nd [] [Nd [] [lSk, rSk, tSk]])
   elabTy ctx env site (STyEl e) = do
     (e', eSk) <- checkElem ctx env site e Ty.UniverseTy
     pure (El e', Nd [] [eSk])
@@ -1630,16 +1607,16 @@ mutual
   inferElem ctx env site (SSquashElim _ _ _) =
     throw "\{site}: cannot infer the type of squash-elim\{structuralHint}"
   inferElem ctx env site (SEqC l r t) = do
-    (t', tSk) <- checkElem ctx env site t Ty.UniverseTy
-    (l', lSk) <- checkElem ctx env site l (El t')
-    (r', rSk) <- checkElem ctx env site r (El t')
-    pure (Elem.EqTy l' r' t', Ty.UniverseTy, Nd [] [lSk, rSk, tSk])
+    -- e-eq: the equality PROP — the ambient is a TYPE (large types
+    -- included); there is no 𝕌-code for equality
+    (t', tSk) <- elabTy ctx env site t
+    (l', lSk) <- checkElem ctx env site l t'
+    (r', rSk) <- checkElem ctx env site r t'
+    pure (Elem.EqTy l' r' t', Ty.PropTy, Nd [] [lSk, rSk, tSk])
   inferElem ctx env site (SLam _ _) =
     throw "\{site}: cannot infer the type of a λ\{structuralHint}"
   inferElem ctx env site (SPair _ _) =
     throw "\{site}: cannot infer the type of a pair\{structuralHint}"
-  inferElem ctx env site SRefl =
-    throw "\{site}: cannot infer the type of Refl\{structuralHint}"
   inferElem ctx env site (SClass _) =
     throw "\{site}: cannot infer the type of class\{structuralHint}"
   inferElem ctx env site (SZeroElim _) =
@@ -1662,20 +1639,6 @@ mutual
         (v', vSk) <- checkElem ctx env site v (substTy b (Ext Id u'))
         pure (SigmaIntro u' v', withExpose exp (Nd [] [uSk, vSk]))
       Nothing => throw "\{site}: pair checked against a non-⨯ type\{structuralHint}"
-  checkElem ctx env site SRefl ty = do
-    st <- getSt
-    -- Prefer the type as written (readable obligation statements); fall
-    -- back to its normal form when the ≡ only appears after unfolding.
-    case ty of
-      EqTy l r t => do
-        c <- convElem ctx env "\{site}: checking Refl" Nothing l r t
-        pure (Refl, Nd [PReflEq (certOr c)] [])
-      _ => case rwNfTy st ctx ty of
-             tyX@(EqTy l r t) => do
-               c <- convElem ctx env "\{site}: checking Refl" Nothing l r t
-               let sk = Nd [PReflEq (certOr c)] []
-               pure (Refl, maybe sk (\e => withExpose (Just e) sk) (exposeCert st ctx ty tyX))
-             _ => throw "\{site}: Refl checked against a non-≡ type\{structuralHint}"
   checkElem ctx env site (SClass a) ty = do
     st <- getSt
     case preferQuot st ctx ty of
@@ -1690,29 +1653,40 @@ mutual
     st <- getSt
     case preferPrf st ctx ty of
       Nothing => throw "\{site}: ⋆ checked against a non-Prf type\{structuralHint}"
-      Just (p, exp) =>
-        -- el-squash-i: synthesize the witness of the squashee —
-        -- 𝟙-shaped outright, ≡-shaped via the conversion judgement
-        case betaElem st.sig p of
+      Just (p, exp) => do
+        -- el-eq-i / el-squash-i: an equality prop is THE payment rule
+        -- (checking ⋆ emits its equation into ↓); a squashed 𝟙 is
+        -- witnessed outright. Prefer the prop as written for readable
+        -- obligation statements; fall back to its normal form.
+        let pN = betaElem st.sig p
+        let pUse = case p of
+                     Elem.EqTy _ _ _ => p
+                     _ => pN
+        case pUse of
+          Elem.EqTy l r t => do
+            c <- convElem ctx env "\{site}: checking ⋆" Nothing l r t
+            pure (Star, withExpose exp (Nd [PReflEq (certOr c)] []))
           Squash sq =>
             case betaTy st.sig sq of
               Ty.OneTy => pure (Star, withExpose exp (Nd [PSquashWit OneIntro (Nd [] [])] []))
-              EqTy l r t => do
-                c <- convElem ctx env "\{site}: ⋆ witness equation" Nothing l r t
-                pure (Star, withExpose exp (Nd [PSquashWit Refl (Nd [PReflEq (certOr c)] [])] []))
-              _ => throw "\{site}: ⋆ can witness only 𝟙- and ≡-shaped squashes automatically (write `⋆ ⟨witness⟩` to supply one directly)"
-          _ => throw "\{site}: ⋆ checked against Prf of a non-∥∥ code\{structuralHint}"
+              _ => throw "\{site}: ⋆ can prove only equality props and 𝟙-shaped squashes automatically (write `⋆ ⟨witness⟩` to supply one directly)"
+          _ => throw "\{site}: ⋆ checked against a non-evident proposition\{structuralHint}"
   checkElem ctx env site (SStarWit w) ty = do
     st <- getSt
     case preferPrf st ctx ty of
       Nothing => throw "\{site}: ⋆ checked against a non-Prf type\{structuralHint}"
       Just (p, exp) =>
         -- el-squash-i, general form: w proves the squashee directly,
-        -- whatever its shape
+        -- whatever its shape. At an equality prop, any proof will do
+        -- (el-prf-prop): w becomes a proof license for the equation.
         case betaElem st.sig p of
           Squash sq => do
             (w', wSk) <- checkElem ctx env site w sq
             pure (Star, withExpose exp (Nd [PSquashWit w' wSk] []))
+          pN@(Elem.EqTy _ _ _) => do
+            (w', _) <- checkElem ctx env site w (Prf pN)
+            let cert = MkECert [MkStep True [] (LProof w') [] False] FBeta
+            pure (Star, withExpose exp (Nd [PReflEq cert] []))
           _ => throw "\{site}: ⋆ checked against Prf of a non-∥∥ code\{structuralHint}"
   checkElem ctx env site (SSquashElim e xn body) ty = do
     st <- getSt
@@ -1739,19 +1713,20 @@ mutual
 -- ===== Items =====
 
 ||| Register a just-accepted definition's equation (if its type peels to
-||| an ≡-type) as a rewrite candidate: the WHOLE context (telescope +
-||| peeled Πs) is parametric, so the lemma applies in any context.
+||| a Prf of an equality prop) as a rewrite candidate: the WHOLE
+||| context (telescope + peeled Πs) is parametric, so the lemma
+||| applies in any context.
 addLemma : String -> Ctx -> Ty -> ElabM ()
 addLemma name delta ty = do
   st <- getSt
   let (delta', peeled) = peelPis delta (betaTy st.sig ty)
-  -- squashed equations register too (Prf ∥l ≡ r ∈ t∥ — the kernel's
-  -- `licensed` accepts the squashed proof shape)
+  -- equality is Ω-valued: a lemma registers when its peeled type is a
+  -- Prf whose prop normalizes to an equality (squashed spellings
+  -- converge here by code-squash-prf)
   let meq : Maybe (Elem, Elem, Ty) =
         case peeled of
-          EqTy l r t => Just (l, r, t)
           Prf p => case betaElem st.sig p of
-                     Squash (EqTy l r t) => Just (l, r, t)
+                     Elem.EqTy l r t => Just (l, r, t)
                      _ => Nothing
           _ => Nothing
   case meq of
@@ -1901,7 +1876,7 @@ elabItem (SData params decls) = do
   sg <- traverse (elabDecl site pctx penv) decls
   -- 2. EXPANSION: the batch of ordinary defs (docs/NovaElaboration.txt,
   --    QIIT section) — code-valued sorts, saturated constructors,
-  --    Refl path-lemmas, one eliminator per sort with coherences as
+  --    ⋆ path-lemmas, one eliminator per sort with coherences as
   --    ≡-typed hypotheses. `sgAt d` is the signature under d binders
   --    ABOVE the parameters (its free parameter references weakened).
   let pre = (length params, ptys)
@@ -1909,7 +1884,8 @@ elabItem (SData params decls) = do
   ignore $ traverse (\(k, d) =>
     case qEntryKind (fromMaybe QU (qEntry sg k)) of
       QKSort => do emitSort site pre sg k d.dqname
-                   emitElim site pre sg k d.dqname
+                   emitElim site pre sg k False d.dqname
+                   emitElim site pre sg k True d.dqname
       QKPoint => emitCtor site pre sg k d.dqname
       QKEq => emitEq site pre sg k d.dqname) named
   pure ("defined data (" ++ joinBy ", " (map (.dqname) decls) ++ ")")
@@ -1993,8 +1969,9 @@ elabItem (SData params decls) = do
     let body = wrapLams (np + n) (QCtor (sgAt sg n) k (varSpine n))
     emitCoreDef site nm (wrapParams ptys ty0) (Nd [] []) body (Nd [] [])
 
-  ||| An equation constructor: a Refl-lemma, licensed by el-qiit-path
-  ||| (a qpath step behind the Refl's equation certificate). On later
+  ||| An equation constructor: a ⋆-lemma (Prf-typed), licensed by
+  ||| el-qiit-path (a qpath step behind the ⋆'s equation certificate).
+  ||| On later
   ||| items this def is an accepted lemma, so the QIIT's imposed
   ||| equations feed discharge through the standard store.
   emitEq : String -> (Nat, List Ty) -> QSig -> Nat -> String -> ElabM ()
@@ -2006,8 +1983,8 @@ elabItem (SData params decls) = do
     rE <- liftQE site (reflTm sg wEnd rq)
     uT <- liftQE site (reflCodeTy sg wEnd uq)
     let n = length tel
-    let ty = wrapParams ptys (foldr Ty.PiTy (EqTy lE rE uT) tel)
-    let body = wrapLams (np + n) Refl
+    let ty = wrapParams ptys (foldr Ty.PiTy (Prf (Elem.EqTy lE rE uT)) tel)
+    let body = wrapLams (np + n) Star
     let cert = MkECert [MkStep True [] (LPath (sgAt sg n) k (varSpine n)) [] False] FBeta
     emitCoreDef site nm ty (Nd [] []) body (nestSkel (np + n) (Nd [PReflEq cert] []))
 
@@ -2016,17 +1993,27 @@ elabItem (SData params decls) = do
   ||| dividend), then the indices and the eliminee. The body is the
   ||| core eliminator; its qcoh certificates replay from the coherence
   ||| binders by el-reflect.
-  emitElim : String -> (Nat, List Ty) -> QSig -> Nat -> String -> ElabM ()
-  emitElim site (np, ptys) sg s nm = do
+  ||| The eliminator def for sort s. Two flavors: prop=False is the
+  ||| code-valued one (motives … → 𝕌, coherences as Prf-typed
+  ||| hypothesis binders); prop=True is the Ω-valued one (motives
+  ||| … → Ω, results through Prf) — by proof irrelevance its
+  ||| coherences hold outright (el-prf-prop), so it takes NO
+  ||| coherence arguments and its qcoh certificates are bare FProp.
+  emitElim : String -> (Nat, List Ty) -> QSig -> Nat -> (prop : Bool) -> String -> ElabM ()
+  emitElim site (np, ptys) sg s prop nm = do
     let sortPs = qPositions QKSort sg
     let pointPs = qPositions QKPoint sg
     let eqPs = qPositions QKEq sg
     let nS = length sortPs
     let nM = length pointPs
-    let nH = length eqPs
+    let nH = if prop then 0 else length eqPs
     sEntry <- entryAt site sg s
     (sTel0, _, _) <- liftQE site (reflTel sg (qwAt s) sEntry)
     let nI = length sTel0
+    let wrapMot : Elem -> Ty
+        wrapMot = if prop then Prf else El
+    let motEnd : Ty
+        motEnd = if prop then Ty.PropTy else Ty.UniverseTy
     -- motive TYPES as seen `extra` binders after the LAST motive
     -- binder: C_j's index there is (nS-1-j) + extra, plus (arity_j + 1)
     -- inside the motive's own context (arity binders then the eliminee)
@@ -2039,7 +2026,7 @@ elabItem (SData params decls) = do
                 let aj = length telJ
                 let cIdx = minus nS (S j) + extra + aj + 1
                 let idxVars = toList (substSubNorm (varSpine aj) Wk)
-                pure (El (PiApp (applyChain (CtxVar cIdx) idxVars) (CtxVar 0))))
+                pure (wrapMot (PiApp (applyChain (CtxVar cIdx) idxVars) (CtxVar 0))))
           (zipWithIndex 0 sortPs)
     -- method binder i, seen `extra` binders after the last motive:
     let mVarsAt : Nat -> List Elem
@@ -2054,7 +2041,7 @@ elabItem (SData params decls) = do
                 (telJ, wEndJ, _) <- liftQE site (reflTel sgJ (qwAt sj) sjE)
                 let aj = length telJ
                 pure (foldr Ty.PiTy
-                        (Ty.PiTy (QSort (substQSig sgJ wEndJ.ups) sj (varSpine aj)) Ty.UniverseTy)
+                        (Ty.PiTy (QSort (substQSig sgJ wEndJ.ups) sj (varSpine aj)) motEnd)
                         telJ))
             (zipWithIndex 0 sortPs)
     -- 2. method binder types (at extra = j)
@@ -2063,34 +2050,39 @@ elabItem (SData params decls) = do
                 mots <- motTysAt j
                 liftQE site (methodTy (sgAt sg (nS + j)) mots cj))
             (zipWithIndex 0 pointPs)
-    -- 3. coherence binder types (at extra = nM + j). The two sides of
-    -- the coherence ≡ have types equal only JUDGEMENTALLY (C[⌊l⌋] ≐
-    -- C[⌊r⌋] by el-qiit-path), so the rhs position carries a SWITCH
-    -- certificate whose single step is a path license rewriting ⌊r⌋
-    -- back to ⌊l⌋ inside the inferred type.
-    hTysSk <- traverse (\p => case p of
+    -- 3. coherence binder types (code flavor only; at extra = nM + j).
+    -- The two sides of the coherence ≡ have types equal only
+    -- JUDGEMENTALLY (C[⌊l⌋] ≐ C[⌊r⌋] by el-qiit-path), so the rhs
+    -- position carries a SWITCH certificate whose single step is a
+    -- path license rewriting ⌊r⌋ back to ⌊l⌋ inside the inferred type.
+    hTysSk <- if prop then pure (the (List (Ty, Skel)) []) else
+              traverse (\p => case p of
               (j, ej) => do
                 mots <- motTysAt (nM + j)
                 let sgJ = sgAt sg (nS + nM + j)
                 (dtel, spineArgs, lhs, rhs, cty) <- liftQE site (coherenceAt sgJ mots (mVarsAt (nM + j)) ej)
                 let dlen = length dtel
                 let swc = MkECert [MkStep True [0, 1] (LPath (sgAt sgJ dlen) ej spineArgs) [] True] FBeta
-                let eqSk = Nd [] [Nd [] [], Nd [PSwitch swc] [], Nd [] []]
-                pure (foldr Ty.PiTy (EqTy lhs rhs cty) dtel, nestPiSkel dlen eqSk))
+                -- the ≡-TYPE became Prf (eq-prop): one more skeleton
+                -- level (Prf's child 0 is the prop; its children are
+                -- l, r and the carried type)
+                let eqSk = Nd [] [Nd [] [Nd [] [], Nd [PSwitch swc] [], Nd [] []]]
+                pure (foldr Ty.PiTy (Prf (Elem.EqTy lhs rhs cty)) dtel, nestPiSkel dlen eqSk))
             (zipWithIndex 0 eqPs)
-    let hTys = map fst hTysSk
-    let hSks = map snd hTysSk
+    let hTys = map (\x => fst {a=Ty} {b=Skel} x) hTysSk
+    let hSks = map (\x => snd {a=Ty} {b=Skel} x) hTysSk
     -- 4. indices (the target sort's arity, at their depth above the
     --    parameters) and the eliminee
     (sTel, _, _) <- liftQE site (reflTel (sgAt sg (nS + nM + nH)) (qwAt s) sEntry)
     let wTy = QSort (sgAt sg (nS + nM + nH + nI)) s (varSpine nI)
-    -- result: El (C_s idx w) — C_s under everything
+    -- result: C_s idx w through the flavor's decoding — C_s under
+    -- everything
     ordS <- case qOrdinal QKSort sg s of
               Just o => pure o
               Nothing => throw "\{site}: internal — sort ordinal"
     let cS = minus nS (S ordS) + nM + nH + nI + 1
     let idxAtEnd = toList (substSubNorm (varSpine nI) Wk)
-    let resTy = El (PiApp (applyChain (CtxVar cS) idxAtEnd) (CtxVar 0))
+    let resTy = wrapMot (PiApp (applyChain (CtxVar cS) idxAtEnd) (CtxVar 0))
     let defTy = wrapParams ptys
                   (foldr Ty.PiTy resTy (cTys ++ mTys ++ hTys ++ sTel ++ [wTy]))
     let emptySk = the Skel (Nd [] [])
@@ -2104,9 +2096,13 @@ elabItem (SData params decls) = do
     let bigN = nS + nM + nH + nI + 1
     let body = wrapLams (np + bigN)
                  (QElim (sgAt sg bigN) s motsEnd mthsEnd (cast idxAtEnd) (CtxVar 0))
-    -- coherence certificates: each replays from its hypothesis binder,
-    -- applied to the ᴰ-context's variables (one step, then FBeta)
-    cohCerts <- traverse (\p => case p of
+    -- coherence certificates. Code flavor: each replays from its
+    -- hypothesis binder, applied to the ᴰ-context's variables (one
+    -- step, then FBeta). Prop flavor: the coherence sides live at a
+    -- Prf motive, so proof irrelevance closes them outright (FProp).
+    cohCerts <- if prop
+      then pure (map (const (MkECert [] FProp)) eqPs)
+      else traverse (\p => case p of
                   (j, ej) => do
                     (dtel, _, _, _, _) <- liftQE site (coherenceAt (sgAt sg bigN) motsEnd mthsEnd ej)
                     let dlen = length dtel
@@ -2115,7 +2111,7 @@ elabItem (SData params decls) = do
                     pure (MkECert [MkStep True [] (LProof (applyChain (CtxVar hIdx) dVars)) [] False] FBeta))
                 (zipWithIndex 0 eqPs)
     let bodySk = nestSkel (np + bigN) (Nd [PQCoh cohCerts] [])
-    emitCoreDef site (nm ++ "Elim") defTy defTySk body bodySk
+    emitCoreDef site (nm ++ (if prop then "ElimP" else "Elim")) defTy defTySk body bodySk
    where
     upto : Nat -> List Nat
     upto Z = []

@@ -93,7 +93,7 @@ parseName = do
     -- no error at all).
     guard "Reserved keyword" (name /= "def" && name /= "type" && name /= "El" && name /= "Prf" &&
                               name /= "import" && name /= "infixl" && name /= "infixr" &&
-                              name /= "S" && name /= "Z" && name /= "Refl" && name /= "class" &&
+                              name /= "S" && name /= "Z" && name /= "class" &&
                               name /= "data")
     pure name
 
@@ -225,8 +225,8 @@ mutual
               <|> (do sp; kw "/"; sp; (x, y, r) <- parseQuotRelC tbl env; pure (SQuotC e x y r))
               <|> (do sp; kw "≡"; sp
                       e1 <- parseSElemOp tbl env; sp; kw "∈"; sp
-                      e2 <- parseSElemOp tbl env
-                      pure (SEqC e e1 e2))
+                      t2 <- parseSTyEl tbl env
+                      pure (SEqC e e1 t2))
               <|> pure e)
 
   -- t{1½}: declared infix operators — precedence climbing over the
@@ -335,7 +335,6 @@ mutual
                 (do kwc ':'; sp; ty <- parseSTy tbl env; sp; kwc ')'
                     pure (SAnn e ty))
                   <|> (do kwc ')'; pure e))
-    <|> (kw "Refl" $> SRefl)
     <|> (kw "Z"    $> SZeroN)
     <|> (kw "⋆"    $> SStar)
     <|> (do kw "∥"; sp; t <- parseSTy tbl env; sp; kw "∥"; pure (SSquash t))

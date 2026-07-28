@@ -13,19 +13,19 @@ def normSound : (a : ℕ) → (b : ℕ) →
   (normPair a b) .π₁ + b ≡ (normPair a b) .π₂ + a ∈ ℕ ≔
   λa.
     ℕ-elim (k. (b : ℕ) → (normPair k b) .π₁ + b ≡ (normPair k b) .π₂ + k ∈ ℕ)
-      (λb. Refl)
+      (λb. ⋆)
       (n ih. λb.
         ℕ-elim (m. (normPair (S n) m) .π₁ + m ≡ (normPair (S n) m) .π₂ + S n ∈ ℕ)
-          Refl
-          (m ihb. Refl)
+          ⋆
+          (m ihb. ⋆)
           b)
       a
 
 -- at the quotient, normalization is invisible
-def normClass : (a : ℕ) (b : ℕ) → class (normPair a b) ≡ class (a , b) ∈ El Int ≔ λa. λb. Refl
+def normClass : (a : ℕ) (b : ℕ) → class (normPair a b) ≡ class (a , b) ∈ El Int ≔ λa. λb. ⋆
 
 def intNormalize : El Int → El Int ≔
   λz. quot-elim (w. El Int) (rep. class (normPair (rep .π₁) (rep .π₂))) z
 
-def intNormalizeTest1 : intNormalize (class (S Z , Z)) ≡ class (S Z , Z) ∈ El Int ≔ Refl
-def intNormalizeTest2 : intNormalize (class (S Z , S (S Z))) ≡ class (Z , S Z) ∈ El Int ≔ Refl
+def intNormalizeTest1 : intNormalize (class (S Z , Z)) ≡ class (S Z , Z) ∈ El Int ≔ ⋆
+def intNormalizeTest2 : intNormalize (class (S Z , S (S Z))) ≡ class (Z , S Z) ∈ El Int ≔ ⋆

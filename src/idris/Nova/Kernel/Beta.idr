@@ -67,9 +67,8 @@ mutual
   betaElem sig Elem.NatTy         = Elem.NatTy
   betaElem sig (Elem.PiTy a b)    = Elem.PiTy (betaElem sig a) (betaElem sig b)
   betaElem sig (Elem.SigmaTy a b) = Elem.SigmaTy (betaElem sig a) (betaElem sig b)
-  betaElem sig (Elem.EqTy l r t)  = Elem.EqTy (betaElem sig l) (betaElem sig r) (betaElem sig t)
+  betaElem sig (Elem.EqTy l r t)  = Elem.EqTy (betaElem sig l) (betaElem sig r) (betaTy sig t)
   betaElem sig (QuotTy a r)       = QuotTy (betaElem sig a) (betaElem sig r)
-  betaElem sig Refl               = Refl
   betaElem sig (SigVar x es) =
     let es' = betaSubNorm sig es
     in case sigLookup x sig of
@@ -81,7 +80,11 @@ mutual
     case betaElem sig q of
       Class a => betaElem sig (substElem (betaElem sig f) (Ext Id a))
       q'      => QuotElim (betaElem sig f) q'
-  betaElem sig (Squash t)         = Squash (betaTy sig t)
+  -- code-squash-prf: squash is idempotent on props — ∥Prf p∥ ≜ p
+  betaElem sig (Squash t)         =
+    case betaTy sig t of
+      Prf p => p
+      t'    => Squash t'
   betaElem sig Star               = Star
   betaElem sig (QSortC sg k es)   = QSortC (betaQSig sig sg) k (betaSubNorm sig es)
   betaElem sig (QCtor sg k es)    = QCtor (betaQSig sig sg) k (betaSubNorm sig es)
@@ -137,7 +140,6 @@ mutual
   betaTy sig Ty.UniverseTy    = Ty.UniverseTy
   betaTy sig (Ty.PiTy a b)    = Ty.PiTy (betaTy sig a) (betaTy sig b)
   betaTy sig (Ty.SigmaTy a b) = Ty.SigmaTy (betaTy sig a) (betaTy sig b)
-  betaTy sig (EqTy l r ty)    = EqTy (betaElem sig l) (betaElem sig r) (betaTy sig ty)
   betaTy sig (El e) =
     case betaElem sig e of
       Elem.ZeroTy      => Ty.ZeroTy
@@ -145,7 +147,6 @@ mutual
       Elem.NatTy       => Ty.NatTy
       Elem.PiTy a b    => betaTy sig (Ty.PiTy (El a) (El b))
       Elem.SigmaTy a b => betaTy sig (Ty.SigmaTy (El a) (El b))
-      Elem.EqTy l r t  => betaTy sig (EqTy l r (El t))
       QuotTy a r       => betaTy sig (Quotient (El a) r)
       QSortC sg k es   => QSort sg k es      -- ty-el-qiit
       e'               => El e'

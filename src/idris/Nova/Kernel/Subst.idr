@@ -66,9 +66,8 @@ mutual
   substElem Elem.NatTy         sigma = Elem.NatTy
   substElem (Elem.PiTy a b)    sigma = Elem.PiTy (substElem a sigma) (substElem b (under sigma))
   substElem (Elem.SigmaTy a b) sigma = Elem.SigmaTy (substElem a sigma) (substElem b (under sigma))
-  substElem (Elem.EqTy l r t)  sigma = Elem.EqTy (substElem l sigma) (substElem r sigma) (substElem t sigma)
+  substElem (Elem.EqTy l r t)  sigma = Elem.EqTy (substElem l sigma) (substElem r sigma) (substTy t sigma)
   substElem (QuotTy a r)       sigma = QuotTy (substElem a sigma) (substElem r (under (under sigma)))
-  substElem Refl               sigma = Refl
   substElem (SigVar x es)      sigma = SigVar x (substSubNorm es sigma)
   substElem (Class a)          sigma = Class (substElem a sigma)
   substElem (QuotElim f q)     sigma = QuotElim (substElem f (under sigma)) (substElem q sigma)
@@ -125,7 +124,6 @@ mutual
   substTy Ty.UniverseTy         sigma = Ty.UniverseTy
   substTy (Ty.PiTy a b)         sigma = Ty.PiTy (substTy a sigma) (substTy b (under sigma))
   substTy (Ty.SigmaTy a b)      sigma = Ty.SigmaTy (substTy a sigma) (substTy b (under sigma))
-  substTy (EqTy l r ty)         sigma = EqTy (substElem l sigma) (substElem r sigma) (substTy ty sigma)
   substTy (El e)                sigma = El (substElem e sigma)
   substTy PropTy                sigma = PropTy
   substTy (Prf e)               sigma = Prf (substElem e sigma)
@@ -178,9 +176,8 @@ mutual
   strengthenElem d Elem.NatTy         = Just Elem.NatTy
   strengthenElem d (Elem.PiTy a b)    = Elem.PiTy <$> strengthenElem d a <*> strengthenElem (1 + d) b
   strengthenElem d (Elem.SigmaTy a b) = Elem.SigmaTy <$> strengthenElem d a <*> strengthenElem (1 + d) b
-  strengthenElem d (Elem.EqTy l r t)  = Elem.EqTy <$> strengthenElem d l <*> strengthenElem d r <*> strengthenElem d t
+  strengthenElem d (Elem.EqTy l r t)  = Elem.EqTy <$> strengthenElem d l <*> strengthenElem d r <*> strengthenTy d t
   strengthenElem d (QuotTy a r)       = QuotTy <$> strengthenElem d a <*> strengthenElem (2 + d) r
-  strengthenElem d Refl               = Just Refl
   strengthenElem d (SigVar x es)      = SigVar x <$> strengthenSubNorm d es
   strengthenElem d (Class a)          = Class <$> strengthenElem d a
   strengthenElem d (QuotElim f q)     = QuotElim <$> strengthenElem (1 + d) f <*> strengthenElem d q
@@ -231,7 +228,6 @@ mutual
   strengthenTy d Ty.UniverseTy     = Just Ty.UniverseTy
   strengthenTy d (Ty.PiTy a b)     = Ty.PiTy <$> strengthenTy d a <*> strengthenTy (1 + d) b
   strengthenTy d (Ty.SigmaTy a b)  = Ty.SigmaTy <$> strengthenTy d a <*> strengthenTy (1 + d) b
-  strengthenTy d (EqTy l r ty)     = EqTy <$> strengthenElem d l <*> strengthenElem d r <*> strengthenTy d ty
   strengthenTy d (El e)            = El <$> strengthenElem d e
   strengthenTy d PropTy            = Just PropTy
   strengthenTy d (Prf e)           = Prf <$> strengthenElem d e

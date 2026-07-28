@@ -6,25 +6,25 @@ def + : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
 infixl 7 *
 def * : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) Z (n ih. x + ih) y
 
-def plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ ≔ λn. Refl
-def plusSucId : (n : ℕ) (m : ℕ) → n + S m ≡ S (n + m) ∈ ℕ ≔ λn. λm. Refl
-def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ ≔ λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) Refl (k ih. Refl) n
-def sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ ≔ λn. λm. ℕ-elim (k. S n + k ≡ S (n + k) ∈ ℕ) Refl (k ih. Refl) m
-def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ ≔ λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ ℕ) Refl (k ih. Refl) m
-def plusAssoc : (n : ℕ) (m : ℕ) (k : ℕ) → n + m + k ≡ n + (m + k) ∈ ℕ ≔ λn. λm. λk. ℕ-elim (j. n + m + j ≡ n + (m + j) ∈ ℕ) Refl (j ih. Refl) k
+def plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ ≔ λn. ⋆
+def plusSucId : (n : ℕ) (m : ℕ) → n + S m ≡ S (n + m) ∈ ℕ ≔ λn. λm. ⋆
+def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ ≔ λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
+def sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ ≔ λn. λm. ℕ-elim (k. S n + k ≡ S (n + k) ∈ ℕ) ⋆ (k ih. ⋆) m
+def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ ≔ λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ ℕ) ⋆ (k ih. ⋆) m
+def plusAssoc : (n : ℕ) (m : ℕ) (k : ℕ) → n + m + k ≡ n + (m + k) ∈ ℕ ≔ λn. λm. λk. ℕ-elim (j. n + m + j ≡ n + (m + j) ∈ ℕ) ⋆ (j ih. ⋆) k
 
 -- a + (b + c) ≡ b + (a + c) — permutative, used by whole-equation match
 def swapLeft : (a : ℕ) (b : ℕ) (c : ℕ) → a + (b + c) ≡ b + (a + c) ∈ ℕ ≔
-  λa. λb. λc. ℕ-elim (k. a + (b + k) ≡ b + (a + k) ∈ ℕ) Refl (k ih. Refl) c
+  λa. λb. λc. ℕ-elim (k. a + (b + k) ≡ b + (a + k) ∈ ℕ) ⋆ (k ih. ⋆) c
 
-def multZeroId : (n : ℕ) → n * Z ≡ Z ∈ ℕ ≔ λn. Refl
-def multSucId : (n : ℕ) (m : ℕ) → n * S m ≡ n + n * m ∈ ℕ ≔ λn. λm. Refl
-def zeroMult : (n : ℕ) → Z * n ≡ Z ∈ ℕ ≔ λn. ℕ-elim (k. Z * k ≡ Z ∈ ℕ) Refl (k ih. Refl) n
+def multZeroId : (n : ℕ) → n * Z ≡ Z ∈ ℕ ≔ λn. ⋆
+def multSucId : (n : ℕ) (m : ℕ) → n * S m ≡ n + n * m ∈ ℕ ≔ λn. λm. ⋆
+def zeroMult : (n : ℕ) → Z * n ≡ Z ∈ ℕ ≔ λn. ℕ-elim (k. Z * k ≡ Z ∈ ℕ) ⋆ (k ih. ⋆) n
 def sucMult : (n : ℕ) (m : ℕ) → S n * m ≡ m + n * m ∈ ℕ ≔
-  λn. λm. ℕ-elim (k. S n * k ≡ k + n * k ∈ ℕ) Refl (k ih. Refl) m
+  λn. λm. ℕ-elim (k. S n * k ≡ k + n * k ∈ ℕ) ⋆ (k ih. ⋆) m
 def multComm : (n : ℕ) (m : ℕ) → m * n ≡ n * m ∈ ℕ ≔
-  λn. λm. ℕ-elim (k. k * n ≡ n * k ∈ ℕ) Refl (k ih. Refl) m
+  λn. λm. ℕ-elim (k. k * n ≡ n * k ∈ ℕ) ⋆ (k ih. ⋆) m
 def multDistrib : (n : ℕ) (m : ℕ) (k : ℕ) → n * (m + k) ≡ n * m + n * k ∈ ℕ ≔
-  λn. λm. λk. ℕ-elim (j. n * (m + j) ≡ n * m + n * j ∈ ℕ) Refl (j ih. Refl) k
+  λn. λm. λk. ℕ-elim (j. n * (m + j) ≡ n * m + n * j ∈ ℕ) ⋆ (j ih. ⋆) k
 def multAssoc : (n : ℕ) (m : ℕ) (k : ℕ) → n * m * k ≡ n * (m * k) ∈ ℕ ≔
-  λn. λm. λk. ℕ-elim (j. n * m * j ≡ n * (m * j) ∈ ℕ) Refl (j ih. Refl) k
+  λn. λm. λk. ℕ-elim (j. n * m * j ≡ n * (m * j) ∈ ℕ) ⋆ (j ih. ⋆) k

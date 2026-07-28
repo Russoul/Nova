@@ -8,10 +8,10 @@ def vappend : (n : ℕ) → (A : 𝕌) → (m : ℕ) → El (vect n A) → El (v
       (k ih. λv. λw. (v .π₁ , ih (v .π₂) w))
       n
 
-def vappendZ : (A : 𝕌) (n : ℕ) (v : El (vect Z A)) (w : El (vect n A)) → vappend Z A n v w ≡ w ∈ El (vect n A) ≔ λA. λn. λv. λw. Refl
+def vappendZ : (A : 𝕌) (n : ℕ) (v : El (vect Z A)) (w : El (vect n A)) → vappend Z A n v w ≡ w ∈ El (vect n A) ≔ λA. λn. λv. λw. ⋆
 def vappendS : (n : ℕ) (A : 𝕌) (m : ℕ) (v : El (vect (S n) A)) (w : El (vect m A)) →
   vappend (S n) A m v w ≡ (v .π₁ , vappend n A m (v .π₂) w) ∈ El (vect (S n + m) A) ≔
-  λn. λA. λm. λv. λw. Refl
+  λn. λA. λm. λv. λw. ⋆
 
 -- Associativity: the statement itself only type-checks up to
 -- plus-associativity (the two sides' lengths differ intensionally)
@@ -25,6 +25,6 @@ def vappendAssoc : (n : ℕ) (A : 𝕌) (m : ℕ) (k : ℕ) (v : El (vect m A)) 
         (vappend (p + m) A k (vappend p A m q v) w
            ≡ vappend p A (m + k) q (vappend m A k v w)
            ∈ El (vect (p + (m + k)) A)))
-    (λq. Refl)
-    (p ih. λq. Refl)
+    (λq. ⋆)
+    (p ih. λq. ⋆)
     n) u

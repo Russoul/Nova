@@ -22,12 +22,12 @@ def qliftBeta : (a : 𝕌) (r : El a → El a → Ω) (b : 𝕌)
                 (f : El a → El b)
                 (resp : (x : El a) (y : El a) → Prf (r x y) → f x ≡ f y ∈ El b)
                 (x : El a) → qlift a r b f resp (cls a r x) ≡ f x ∈ El b ≔
-  λa. λr. λb. λf. λresp. λx. Refl
+  λa. λr. λb. λf. λresp. λx. ⋆
 
 -- instance: ℕ quotiented by squashed equality; toNat is one qlift
 def eqN : El ℕ → El ℕ → Ω ≔ λx. λy. ∥x ≡ y ∈ ℕ∥
 
 def toNat : El (Q ℕ eqN) → ℕ ≔
-  λq. qlift ℕ eqN ℕ (λx. x) (λx. λy. λh. Refl) q
+  λq. qlift ℕ eqN ℕ (λx. x) (λx. λy. λh. ⋆) q
 
-def toNatCls : toNat (cls ℕ eqN (S Z)) ≡ S Z ∈ ℕ ≔ Refl
+def toNatCls : toNat (cls ℕ eqN (S Z)) ≡ S Z ∈ ℕ ≔ ⋆

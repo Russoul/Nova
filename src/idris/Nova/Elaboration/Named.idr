@@ -68,11 +68,11 @@ resolveName (env :< y) x =
 -- Known limitation (inherited from the rest of this parser, not
 -- introduced here): a local variable literally spelled the same as a
 -- reserved keyword token that can match with nothing required afterward
--- (`Z`, `Refl`, and prefix-of-keyword names like `Sn`, `classify`,
+-- (`Z`, `⋆`, and prefix-of-keyword names like `Sn`, `classify`,
 -- `Elem` immediately followed by more identifier characters with no
 -- separating whitespace) can be misparsed, exactly as an equally-named
 -- signature identifier already could be in the unnamed parser. Avoid
--- naming a local variable exactly `Z`/`Refl`/`S`/`El`/`class` or a prefix
+-- naming a local variable exactly `Z`/`S`/`El`/`class` or a prefix
 -- of `𝟘-elim`/`ℕ-elim`/`quot-elim` immediately followed by more
 -- identifier characters.
 export covering
@@ -187,7 +187,6 @@ mutual
   usesIndexTy k Ty.UniverseTy = False
   usesIndexTy k (Ty.PiTy a b) = usesIndexTy k a || usesIndexTy (S k) b
   usesIndexTy k (Ty.SigmaTy a b) = usesIndexTy k a || usesIndexTy (S k) b
-  usesIndexTy k (Ty.EqTy e0 e1 a) = usesIndexElem k e0 || usesIndexElem k e1 || usesIndexTy k a
   usesIndexTy k (El e) = usesIndexElem k e
   usesIndexTy k PropTy = False
   usesIndexTy k (Prf e) = usesIndexElem k e
@@ -227,9 +226,8 @@ mutual
   usesIndexElem k Elem.NatTy = False
   usesIndexElem k (Elem.PiTy e e') = usesIndexElem k e || usesIndexElem (S k) e'
   usesIndexElem k (Elem.SigmaTy e e') = usesIndexElem k e || usesIndexElem (S k) e'
-  usesIndexElem k (Elem.EqTy e0 e1 e2) = usesIndexElem k e0 || usesIndexElem k e1 || usesIndexElem k e2
+  usesIndexElem k (Elem.EqTy e0 e1 t2) = usesIndexElem k e0 || usesIndexElem k e1 || usesIndexTy k t2
   usesIndexElem k (QuotTy a r) = usesIndexElem k a || usesIndexElem (S (S k)) r
-  usesIndexElem k Refl = False
   usesIndexElem k (SigVar x es) = usesIndexSubNorm k es
   usesIndexElem k (Class a) = usesIndexElem k a
   usesIndexElem k (QuotElim f q) = usesIndexElem k f || usesIndexElem k q
@@ -295,8 +293,8 @@ mutual
       then let x = freshGeneric env
            in "(" ++ x ++ ":" ++ prettyElemN tbl env e ++ ") ⨯ " ++ prettyElemNoCommaN tbl (env :< x) e'
       else prettyElemOpN tbl env 0 e ++ " ⨯ " ++ prettyElemNoCommaN tbl (env :< wildcard) e'
-  prettyElemNoCommaN tbl env (Elem.EqTy e0 e1 e2) =
-    prettyElemOpN tbl env 0 e0 ++ " ≡ " ++ prettyElemOpN tbl env 0 e1 ++ " ∈ " ++ prettyElemOpN tbl env 0 e2
+  prettyElemNoCommaN tbl env (Elem.EqTy e0 e1 t2) =
+    prettyElemOpN tbl env 0 e0 ++ " ≡ " ++ prettyElemOpN tbl env 0 e1 ++ " ∈ " ++ prettyTyArrowN tbl env t2
   prettyElemNoCommaN tbl env (QuotTy e r) =
     let x = freshForTy (El e) env
         y = freshGeneric (env :< x)
@@ -347,7 +345,6 @@ mutual
   prettyElemAtomN tbl env (CtxVar n) = nameAt env n
   prettyElemAtomN tbl env OneIntro = "()"
   prettyElemAtomN tbl env NatIntro0 = "Z"
-  prettyElemAtomN tbl env Refl = "Refl"
   prettyElemAtomN tbl env Star = "⋆"
   prettyElemAtomN tbl env Elem.ZeroTy = "𝟘"
   prettyElemAtomN tbl env Elem.OneTy = "𝟙"
@@ -378,7 +375,8 @@ mutual
 
   export
   prettyTyN : FixTable -> NameEnv -> Ty -> String
-  prettyTyN tbl env (Ty.EqTy e0 e1 a) =
+  prettyTyN tbl env (Prf (Elem.EqTy e0 e1 a)) =
+    -- the surface sugar: Prf of an equality prop prints as the ≡-type
     prettyElemOpN tbl env 0 e0 ++ " ≡ " ++ prettyElemOpN tbl env 0 e1 ++ " ∈ " ++ prettyTyArrowN tbl env a
   prettyTyN tbl env ty = prettyTyArrowN tbl env ty
 

@@ -16,7 +16,7 @@ module Nova.Compute
 -- one stops the instant its own head is exposed, instead of also
 -- descending into every subterm. A term with no head redex — every
 -- canonical/constructor form (𝟘-/𝟙-/ℕ-introductions, λ, pairs, universe
--- codes, Refl, class, ∥T∥, ⋆, a QIIT sort/constructor) — is therefore
+-- codes, class, ∥T∥, ⋆, a QIIT sort/constructor) — is therefore
 -- ALREADY in head normal form: it is returned with its own components
 -- entirely unexamined. "Beta reduction in the empty context": Γ never
 -- enters into it (reduction is untyped rewriting on closed syntax),
@@ -145,7 +145,6 @@ mutual
   whnfElem sig (Elem.SigmaTy a b) = Elem.SigmaTy a b
   whnfElem sig (Elem.EqTy l r t)  = Elem.EqTy l r t
   whnfElem sig (QuotTy a r)       = QuotTy a r
-  whnfElem sig Refl               = Refl
   whnfElem sig (SigVar x es) =
     case sigLookup x sig of
       Just (SigDef _ _ a _) => whnfElem sig (substElem a (embed es))
@@ -156,7 +155,10 @@ mutual
     case whnfElem sig q of
       Class a => whnfElem sig (substElem f (Ext Id a))
       _ => assert_total $ idris_crash "whnfElem: quot-elim scrutinee is not a class (impossible for a closed, well-typed term)"
-  whnfElem sig (Squash t)         = Squash t
+  whnfElem sig (Squash t)         =
+    case whnfTy sig t of
+      Prf p => whnfElem sig p     -- code-squash-prf: ∥Prf p∥ ≜ p
+      t'    => Squash t'
   whnfElem sig Star               = Star
   whnfElem sig (QSortC sg k es)   = QSortC sg k es
   whnfElem sig (QCtor sg k es)    = QCtor sg k es
@@ -177,7 +179,6 @@ mutual
   whnfTy sig Ty.UniverseTy     = Ty.UniverseTy
   whnfTy sig (Ty.PiTy a b)     = Ty.PiTy a b   -- co-data
   whnfTy sig (Ty.SigmaTy a b)  = Ty.SigmaTy a b
-  whnfTy sig (EqTy l r ty)     = EqTy l r ty
   whnfTy sig (El e) =
     case whnfElem sig e of
       Elem.ZeroTy      => Ty.ZeroTy
@@ -185,7 +186,6 @@ mutual
       Elem.NatTy       => Ty.NatTy
       Elem.PiTy a b    => Ty.PiTy (El a) (El b)
       Elem.SigmaTy a b => Ty.SigmaTy (El a) (El b)
-      Elem.EqTy l r t  => EqTy l r (El t)
       QuotTy a r       => Quotient (El a) r
       QSortC sg k es   => QSort sg k es   -- ty-el-qiit
       _ => assert_total $ idris_crash "whnfTy: El argument is not a universe code (impossible for a closed, well-typed term)"
@@ -228,13 +228,15 @@ mutual
     go Elem.NatTy         = Elem.NatTy
     go (Elem.PiTy a b)    = Elem.PiTy a b   -- co-data: leave domain/codomain
     go (Elem.SigmaTy a b) = Elem.SigmaTy (nfElem sig a) b   -- b: under a binder, left alone
-    go (Elem.EqTy l r t)  = Elem.EqTy (nfElem sig l) (nfElem sig r) (nfElem sig t)
+    go (Elem.EqTy l r t)  = Elem.EqTy (nfElem sig l) (nfElem sig r) (nfTy sig t)
     go (QuotTy a r)       = QuotTy (nfElem sig a) r   -- r: under a binder, left alone
-    go Refl               = Refl
     go (SigVar x es)      = SigVar x es   -- unreachable: whnf always unfolds x[e˲]
     go (Class a)          = Class (nfElem sig a)
     go (QuotElim f q)     = QuotElim f (nfElem sig q)   -- f: under a binder, left alone
-    go (Squash t)         = Squash (nfTy sig t)
+    go (Squash t)         =
+      case nfTy sig t of
+        Prf p => p                -- code-squash-prf: ∥Prf p∥ ≜ p
+        t'    => Squash t'
     go Star               = Star
     go (QSortC sg k es)   = QSortC sg k (nfSubNorm sig es)   -- sg: a bundle of binder telescopes, left alone
     go (QCtor sg k es)    = QCtor sg k (nfSubNorm sig es)
@@ -253,7 +255,6 @@ mutual
     go Ty.UniverseTy     = Ty.UniverseTy
     go (Ty.PiTy a b)     = Ty.PiTy a b   -- co-data: leave domain/codomain
     go (Ty.SigmaTy a b)  = Ty.SigmaTy (nfTy sig a) b   -- b: under a binder, left alone
-    go (EqTy l r ty)     = EqTy (nfElem sig l) (nfElem sig r) (nfTy sig ty)
     go (El e)            = El (nfElem sig e)
     go PropTy            = PropTy
     go (Prf e)           = Prf (nfElem sig e)

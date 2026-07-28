@@ -1,3 +1,3 @@
 import ops (+)
 def three : ℕ ≔ S Z + S (S Z)
-def check : three ≡ S (S (S Z)) ∈ ℕ ≔ Refl
+def check : three ≡ S (S (S Z)) ∈ ℕ ≔ ⋆

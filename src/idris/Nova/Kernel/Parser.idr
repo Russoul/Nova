@@ -75,7 +75,7 @@ mutual
   -- e₁ → e₂          (right-assoc PiTy element)
   -- e₁ ⨯ e₂          (right-assoc SigmaTy element)
   -- e₁ / e₂          (right-assoc QuotTy element)
-  -- e₀ ≡ e₁ ∈ e₂     (EqTy element)
+  -- e₀ ≡ e₁ ∈ A      (EqTy element: the Ω-valued equality prop; A a TYPE)
   -- λ e               (PiIntro)
   -- S e               (NatIntro1)
   -- 𝟘-elim e          (ZeroElim)
@@ -88,7 +88,6 @@ mutual
   -- ☐ₙ                (CtxVar)
   -- ()                (OneIntro)
   -- Z                 (NatIntro0)
-  -- Refl              (Refl)
   -- 𝟘 𝟙 ℕ            (universe codes ZeroTy OneTy NatTy)
   -- x[t˲]             (SigVar)
   export covering
@@ -109,8 +108,8 @@ mutual
       <|> (do sp; str_ "/"; sp; e' <- parseElemNoComma; pure (Elem.QuotTy e e'))
       <|> (do sp; str_ "≡"; sp
               e1 <- parseElemPrefix; sp; str_ "∈"; sp
-              e2 <- parseElemPrefix
-              pure (Elem.EqTy e e1 e2))
+              t2 <- parseTyEl
+              pure (Elem.EqTy e e1 t2))
       <|> pure e
 
   -- Prefix operators: take an atomic argument
@@ -158,7 +157,7 @@ mutual
     pure (foldl (:<) [<] rest)
 
   -- Conservative ASCII identifier: letter or '_' followed by letters, digits, or '_'.
-  -- Used for signature variable names. Keywords like Z, Refl, S are tried first
+  -- Used for signature variable names. Keywords like Z, S are tried first
   -- in parseElemAtom so they are not consumed as identifiers.
   export covering
   parseSigIdentifier : Rule String
@@ -192,7 +191,6 @@ mutual
             case unit of
               Just _  => pure OneIntro
               Nothing => do e <- parseElem; sp; char_ ')'; pure e)
-    <|> (str_ "Refl" $> Refl)
     <|> (str_ "Z"    $> NatIntro0)
     <|> (str_ "⋆"    $> Star)
     <|> (do str_ "∥"; sp; t <- parseTy; sp; str_ "∥"; pure (Squash t))
@@ -209,7 +207,7 @@ mutual
   -- Elem depends back on Ty for ∥T∥'s squashee, so the two live in one
   -- mutual block.
 
-  -- e₀ ≡ e₁ ∈ A      (EqTy:  two Elem args + Ty)
+  -- e₀ ≡ e₁ ∈ A      (sugar: the ≡-TYPE is Prf of the equality prop)
   -- A → B             (PiTy)
   -- A ⨯ B             (SigmaTy)
   -- A / r             (Quotient; r is an Ω-valued Elem)
@@ -224,7 +222,7 @@ mutual
             e1 <- parseElemPrefix; sp
             str_ "∈"; sp
             a  <- parseTyArrow
-            pure (Ty.EqTy e0 e1 a))
+            pure (Ty.Prf (Elem.EqTy e0 e1 a)))
     <|> parseTyArrow
 
   -- A → B  or  A ⨯ B  or  A / r  (right-associative infix)

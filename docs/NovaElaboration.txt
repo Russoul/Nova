@@ -719,8 +719,8 @@ The EXPANSION, for each entry of the accepted 𝒮 (⌊·⌋, ⌊·⌋ᵗ, ·ᴰ
     machinery — no new mechanism, and rewriting/matching treat them
     like any user lemma.
 
-  * ELIMINATOR, one def per sort 𝕤 (same arguments, different
-    result; named nElim — surface names cannot contain '-'):
+  * ELIMINATORS, two defs per sort 𝕤 (surface names cannot contain
+    '-'). The CODE-VALUED one, named nElim:
         def nElim :
              (C₁ : Π(⌊𝔎₁⌋ᵗ). El (𝒮.𝕤₁ δ) → 𝕌) → …          # motives,
                                                             # one per sort
@@ -746,10 +746,25 @@ The EXPANSION, for each entry of the accepted 𝒮 (⌊·⌋, ⌊·⌋ᵗ, ·ᴰ
     quot-elim's f⁼ story, generalized and MOVED INTO THE TYPE — which
     is why the eliminator needs no inline-motive surface form.
 
-Motives in the generated eliminators are 𝕌-valued (El ∘ C throughout)
-— the closed-item discipline again; the CORE former supports large
-motives and the kernel checks them, but no surface spelling reaches
-them today (future work, with telescoped items).
+  * The PROP-VALUED eliminator, named nElimP: same shape with Ω for
+    𝕌 and Prf ∘ C for El ∘ C — and NO coherence arguments at all:
+    its coherence sides live at a Prf motive, where el-prf-prop
+    closes them outright, so the emitted qcoh certificates are bare
+    FProp finals. This is the induction principle for PROPOSITIONS —
+    in particular for equality props, which is how open equational
+    facts about a QIIT are proven now that equality has no 𝕌-code
+    (e.g. plusQzr in qiitNat.nova: NElimP at the motive
+    (λn. (plusQ n z ≡ n ∈ El N))):
+        def nElimP :
+             (C₁ : Π(⌊𝔎₁⌋ᵗ). El (𝒮.𝕤₁ δ) → Ω) → …          # motives
+          →  (m𝕔 : ⌊𝔄ᴰ⟨𝒮.𝕔 δ⟩ with Prf∘C for C⌋) → …        # methods
+          →  Π(⌊𝔎⌋ᵗ) → (w : El (𝒮.𝕤 δ)) → Prf (C_𝕤 δ w)
+          ≔ λ…. 𝒮.𝕤-elim ℰ δ w
+
+Motives in the generated eliminators are 𝕌- respectively Ω-valued —
+the closed-item discipline again; the CORE former supports arbitrary
+large motives and the kernel checks them, but beyond Prf no surface
+spelling reaches them today (future work, with telescoped items).
 
 Worked example — finite multisets over a code a : 𝕌 (Foundation's Bag,
 here with a small external domain so the sort is codable):

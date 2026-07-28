@@ -7,11 +7,13 @@ data ( N : U
 def plusQ : El N → El N → El N ≔
   λa. λb. NElim (λn. N) b (λn. λih. s ih) a
 
-def plusQzl : (b : El N) → plusQ z b ≡ b ∈ El N ≔ λb. Refl
+def plusQzl : (b : El N) → plusQ z b ≡ b ∈ El N ≔ λb. ⋆
 
 def plusQsl : (a : El N) (b : El N) → plusQ (s a) b ≡ s (plusQ a b) ∈ El N ≔
-  λa. λb. Refl
+  λa. λb. ⋆
 
--- induction: plusQ a z ≡ a, by NElim at an equality motive
+-- induction: plusQ a z ≡ a, by NElimP at the equality PROP motive
+-- (equality is Ω-valued: the prop-flavored eliminator carries Ω-valued
+-- motives and, by proof irrelevance, needs no coherence arguments)
 def plusQzr : (a : El N) → plusQ a z ≡ a ∈ El N ≔
-  λa. NElim (λn. (plusQ n z ≡ n ∈ N)) Refl (λn. λih. Refl) a
+  λa. NElimP (λn. (plusQ n z ≡ n ∈ El N)) ⋆ (λn. λih. ⋆) a

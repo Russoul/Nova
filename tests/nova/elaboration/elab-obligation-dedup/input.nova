@@ -1,4 +1,4 @@
 def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
-def one : (n : ℕ) → plus Z n ≡ n ∈ ℕ ≔ λn. Refl
+def one : (n : ℕ) → plus Z n ≡ n ∈ ℕ ≔ λn. ⋆
 -- the same equation again: deduplicated, reported once
-def two : (n : ℕ) → plus Z n ≡ n ∈ ℕ ≔ λn. Refl
+def two : (n : ℕ) → plus Z n ≡ n ∈ ℕ ≔ λn. ⋆

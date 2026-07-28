@@ -7,4 +7,4 @@ defined mention
 defined needsLemma
 open obligations (1):
   [1] (n : ℕ) ⊢ Z + n ≐ n : ℕ
-      at: def needsLemma: checking Refl
+      at: def needsLemma: checking ⋆

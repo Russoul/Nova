@@ -24,5 +24,5 @@ def vsum : (n : El ℕ) → El (V ℕ n) → ℕ ≔
 
 def single : El (V ℕ (S Z)) ≔ vcons ℕ Z (S (S (S Z))) (vnil ℕ)
 
-def vsumSingle : vsum (S Z) single ≡ S (S (S Z)) ∈ ℕ ≔ Refl
-def vlenSingle : vlen ℕ (S Z) single ≡ S Z ∈ ℕ ≔ Refl
+def vsumSingle : vsum (S Z) single ≡ S (S (S Z)) ∈ ℕ ≔ ⋆
+def vlenSingle : vlen ℕ (S Z) single ≡ S Z ∈ ℕ ≔ ⋆

@@ -2,4 +2,4 @@ defined plus
 defined needsLemma
 open obligations (1):
   [1] (n : ℕ) ⊢ plus Z n ≐ n : ℕ
-      at: def needsLemma: checking Refl
+      at: def needsLemma: checking ⋆

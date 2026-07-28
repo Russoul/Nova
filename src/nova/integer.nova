@@ -6,4 +6,4 @@ import nat (+)
 -- equality.nova's generic combinators) — El Int in type position.
 def Int : 𝕌 ≔ (ℕ ⨯ ℕ) / (p q. ∥p .π₁ + q .π₂ ≡ p .π₂ + q .π₁ ∈ ℕ∥)
 -- 0 = 0: (Z,Z) and (S Z, S Z) are the same integer
-def zeroEq : class (Z , Z) ≡ class (S Z , S Z) ∈ El Int ≔ Refl
+def zeroEq : class (Z , Z) ≡ class (S Z , S Z) ∈ El Int ≔ ⋆

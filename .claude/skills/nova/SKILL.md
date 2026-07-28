@@ -25,7 +25,7 @@ Otherwise you get a report:
 ```
 open obligations (1):
   [1] (x : El ℕ) (m : El (Bag ℕ)) ⊢ lhs ≐ rhs : T
-      at: def foo: checking Refl
+      at: def foo: checking ⋆
 ```
 
 Each obligation is an equation, under binders, that the engine had to
@@ -63,17 +63,26 @@ Consequences:
 
 1. Read obligation [1]. State it verbatim as a def: binders become
    Π-arguments, the equation becomes the ≡-type.
-2. Try `≔ λx. … Refl` first — β + already-stored lemmas may close it.
+2. Try `≔ λx. … ⋆` first — β + already-stored lemmas may close it
+   (⋆ is the proof of EVERY proposition, equations included; there is
+   no Refl).
 3. Otherwise prove by induction with an eliminator and an ≡-typed
    motive (PARENTHESIZE the motive: `(k. Z + k ≡ k ∈ ℕ)` — equality
    types don't parse bare in binder-body positions):
 
    ```
    def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ ≔
-     λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) Refl (k ih. Refl) n
+     λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
    ```
 
-   In the step case, `ih` is in scope and in E — `Refl` usually closes.
+   In the step case, `ih` is in scope and in E — `⋆` usually closes.
+   Over a QIIT, use the PROP eliminator `<Sort>ElimP` for equational
+   goals (Ω-valued motives, NO coherence arguments):
+
+   ```
+   def plusQzr : (a : El N) → plusQ a z ≡ a ∈ El N ≔
+     λa. NElimP (λn. (plusQ n z ≡ n ∈ El N)) ⋆ (λn. λih. ⋆) a
+   ```
 4. Re-run. Repeat for the next obligation. Prefer general lemmas over
    instance-specific ones (they discharge whole families of goals).
 
@@ -89,12 +98,14 @@ data [a : 𝕌] ( … )                -- QIIT signature (see below)
 ```
 
 Types: `𝟘 𝟙 ℕ 𝕌 Ω`, `(x : T) → U` and `T → U`, `(x : T) ⨯ U`,
-`l ≡ r ∈ T`, `El t`, `T / (x y. r)` (r is Ω-valued), `Prf p`.
-`∥T∥` squashes any type to a proposition (an Ω-element).
+`l ≡ r ∈ T` (SUGAR for `Prf (l ≡ r ∈ T)` — equality is an Ω-valued
+PROPOSITION), `El t`, `T / (x y. r)` (r is Ω-valued), `Prf p`.
+`∥T∥` squashes any type to a proposition; `∥Prf p∥ ≜ p`.
 
 Elements: `λx. t`; application by juxtaposition; `(t : T)` ascription
 (the lever into inference mode); `(a , b)` pairs with `.π₁`/`.π₂`
-projections; `Z`, `S t`; `Refl`;
+projections; `Z`, `S t`; `l ≡ r ∈ T` (the equality prop, at Ω —
+the ∈-slot takes a TYPE, so write `∈ El a` for a code `a`);
 `ℕ-elim (n. T) z (n ih. s) t` (motive first);
 `class t` (quotient intro); `quot-elim (x. T) (a. f) q`;
 `⋆` (canonical proof; `⋆ e` with explicit witness);
@@ -117,31 +128,34 @@ data [a : 𝕌] [r : El a → El a → Ω]
   them (`cls a r x`, `Q a r`).
 - Entries: `Name : binders → U` (sort), `… → El q` (point constructor),
   `… → l ≡ r ∈ El q` (equation constructor — imposes a JUDGEMENTAL
-  equality; no path terms exist, `Refl` inhabits the reflected ≡).
+  equality; no path terms exist, `⋆` inhabits the reflected Prf).
 - Binder domains: `(x : El q)` with q a sort/code is INDUCTIVE;
   anything else is EXTERNAL. Write external naturals as `El ℕ`, not
   `ℕ` — a non-code external domain makes the signature LARGE and a
   large sort cannot be code-valued or parameterized.
-- Generated names: the sorts, the constructors, one eliminator per
-  sort named `<Sort>Elim`.
+- Generated names: the sorts, the constructors, and TWO eliminators
+  per sort: `<Sort>Elim` (code-valued motives `… → 𝕌`, coherence
+  hypotheses) and `<Sort>ElimP` (prop-valued motives `… → Ω`, results
+  through Prf, NO coherence arguments — proof irrelevance closes
+  them). Use ElimP for equational goals.
 - Eliminator argument order: motives (one per sort, `λw. T` with w the
   self argument), then methods (one per point constructor: value and IH
   binders interleaved, e.g. `λx. λr. λih. …`), then one COHERENCE
   HYPOTHESIS per equation constructor (an ≡-typed argument; pass
-  `λ…. Refl` when the method is order-insensitive), then index spine,
+  `λ…. ⋆` when the method is order-insensitive), then index spine,
   then the scrutinee. Example:
 
   ```
   def size : (a : 𝕌) → El (Bag a) → ℕ ≔
-    λa. λm. BagElim a (λb. ℕ) Z (λx. λr. λih. S ih) (λx. λy. λr. λih. Refl) m
+    λa. λm. BagElim a (λb. ℕ) Z (λx. λr. λih. S ih) (λx. λy. λr. λih. ⋆) m
   ```
 
-- β holds on the nose; closed computations discharge by `Refl`.
+- β holds on the nose; closed computations discharge by `⋆`.
 - No generativity: signatures compare structurally — two textually
   identical `data` literals define THE SAME type.
 - Induction-induction (sorts indexed by other sorts) and recursive
   equation constructors are supported; for IH-bearing coherences, prove
-  the twin equation as a standalone lemma first and pass `Refl`.
+  the twin equation as a standalone lemma first and pass `⋆`.
 
 ## Pitfalls
 

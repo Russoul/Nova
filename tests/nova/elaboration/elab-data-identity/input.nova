@@ -4,4 +4,4 @@
 data ( P : U ; mkP : El P )
 data ( P2 : U ; mkP2 : El P2 )
 def coerce : El P → El P2 ≔ λx. x
-def same : mkP ≡ mkP2 ∈ El P2 ≔ Refl
+def same : mkP ≡ mkP2 ∈ El P2 ≔ ⋆

@@ -14,7 +14,7 @@ data [a : 𝕌] ( Bag : U
 -- 2. elimination INTO a QIIT: bag append — the motive is the Bag code
 --    itself, and the coherence is exactly the swap lemma
 def bapp : (a : 𝕌) → El (Bag a) → El (Bag a) → El (Bag a) ≔
-  λa. λm. λn. BagElim a (λw. Bag a) n (λx. λr. λih. bins a x ih) (λx. λy. λr. λih. Refl) m
+  λa. λm. λn. BagElim a (λw. Bag a) n (λx. λr. λih. bins a x ih) (λx. λy. λr. λih. ⋆) m
 
 -- 3. a map BETWEEN QIITs: the order-forgetting quotient map L → Bag ℕ
 def toBag : El L → El (Bag ℕ) ≔
@@ -24,7 +24,7 @@ def toBag : El L → El (Bag ℕ) ≔
 -- defining triangle, at the generators): by β + the swap lemma
 def toBagSwap : (x : El ℕ) (y : El ℕ) (t : El L) →
                 toBag (lcons x (lcons y t)) ≡ toBag (lcons y (lcons x t)) ∈ El (Bag ℕ) ≔
-  λx. λy. λt. Refl
+  λx. λy. λt. ⋆
 
 -- 4. a QIIT whose signature EMBEDS a previous QIIT's reflection: trees
 --    with bag-of-naturals labels (El (Bag ℕ) is an external domain
@@ -41,4 +41,4 @@ def flatten : El P → El (Bag ℕ) ≔
 -- computation across all three QIITs at once
 def two : El (Bag ℕ) ≔ bins ℕ Z (bins ℕ (S Z) (bnil ℕ))
 def flatTest : flatten (node (leaf (toBag (lcons Z lnil))) (leaf (bins ℕ (S Z) (bnil ℕ))))
-               ≡ two ∈ El (Bag ℕ) ≔ Refl
+               ≡ two ∈ El (Bag ℕ) ≔ ⋆

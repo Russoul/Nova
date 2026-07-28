@@ -1,7 +1,7 @@
 import nat (plus, zeroPlusId)
 
 -- opened names bare, unopened ones qualified; the imported lemma
--- store discharges the local Refl
+-- store discharges the local ⋆
 def two : ℕ ≔ plus (S Z) (S Z)
 def useQualified : (n : ℕ) → nat.plus n Z ≡ n ∈ ℕ ≔ λn. nat.plusZeroId n
-def needsLemma : (n : ℕ) → plus Z n ≡ n ∈ ℕ ≔ λn. Refl
+def needsLemma : (n : ℕ) → plus Z n ≡ n ∈ ℕ ≔ λn. ⋆
