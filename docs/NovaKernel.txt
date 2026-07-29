@@ -110,13 +110,18 @@ HOLE INSTANTIATION (kCheckSolution / kCheckTySolution): the
 elaborator may flip a declaration to a definition in place
 (Foundation, INSTANTIATION — the refinement that never removes
 judgements). The kernel's part is the legality check, run against
-the PREFIX Σ preceding the declaration: the declaration's context is
-well-formed, its type is well-formed over it, and the proposed body
-checks at that type — all by the skeleton-free tiny checker of §3
-(proof-spine typing). A name minted after the hole is absent from
-the prefix and fails the lookup, which enforces scope and occurs in
-one stroke; a body outside the tiny checker's fragment is rejected
-and no flip happens — conservative, never unsound.
+the PREFIX Σ preceding the declaration: the proposed body checks at
+the declared type over the declaration's context, by the
+skeleton-free tiny checker of §3 (proof-spine typing). A name minted
+after the hole is absent from the prefix and fails the lookup, which
+enforces scope and occurs in one stroke; a body outside the tiny
+checker's fragment is rejected and no flip happens — conservative,
+never unsound. The declaration's context and type are NOT re-checked
+here: they are elaborator-made state whose well-formedness is an
+elaboration invariant, exactly like a constraint entry's statement —
+and the fragment must not gate which CONTEXTS holes may live in (a
+Prf ∥-∥ hypothesis would otherwise block every flip under it). The
+solution alone is the kernel's business.
 
 Fuel is a LIVENESS bound, not a semantic one: under inconsistent
 hypotheses a well-formed term may have no normal form (see

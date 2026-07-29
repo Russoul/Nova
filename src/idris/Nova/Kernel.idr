@@ -760,30 +760,23 @@ mutual
 ||| from the prefix and fails the lookup. Skeleton-free (the tiny
 ||| checker), so solutions outside its fragment are rejected: no flip,
 ||| the site stays an obligation — conservative, never unsound.
+||| The declaration's context and type are NOT re-checked here: the
+||| entry is elaborator-made state with elaborator-invariant
+||| well-formedness, exactly like a constraint entry's statement —
+||| and the tiny checker's fragment must not gate which CONTEXTS
+||| holes may live in (a Prf ∥-∥ hypothesis would otherwise block
+||| every flip under it). Only the solution is the kernel's business.
 export
 kCheckSolution : Sig -> Nat -> Ctx -> Elem -> Ty -> Either KErr ()
 kCheckSolution sig fuel ctx t ty =
-  map fst $ runKM (do
-    goCtx [<] (toList ctx)
-    checkTyP sig ctx ty
-    checkP sig ctx t ty) fuel
- where
-  goCtx : Ctx -> List Ty -> KM ()
-  goCtx acc [] = pure ()
-  goCtx acc (a :: rest) = do checkTyP sig acc a; goCtx (acc :< a) rest
+  map fst $ runKM (checkP sig ctx t ty) fuel
 
 ||| Ditto for a TYPE hole: the proposed type is well-formed over the
 ||| declaration's context against the prefix.
 export
 kCheckTySolution : Sig -> Nat -> Ctx -> Ty -> Either KErr ()
 kCheckTySolution sig fuel ctx t =
-  map fst $ runKM (do
-    goCtx [<] (toList ctx)
-    checkTyP sig ctx t) fuel
- where
-  goCtx : Ctx -> List Ty -> KM ()
-  goCtx acc [] = pure ()
-  goCtx acc (a :: rest) = do checkTyP sig acc a; goCtx (acc :< a) rest
+  map fst $ runKM (checkTyP sig ctx t) fuel
 
 -- ===== Selector application =====
 
