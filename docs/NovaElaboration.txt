@@ -480,6 +480,45 @@ x ∉ Σ (as ?x)
 # — (e-ty-hole). A hole-headed type offers no Π/Σ/quotient structure,
 # so an intro form checked against one fails with the usual
 # structural error, naming the hole.
+#
+# SOLVABLE HOLES: `_x` (or anonymous `_`, freshly named) mints the
+# SAME declaration entry with one policy difference, recorded in the
+# elaborator's display metadata: the elaborator MAY instantiate it.
+# `_`-leading identifiers are reserved for this. Instantiation is a
+# PATTERN SOLVE inside ↓: when an equation's beta-normal side is a
+# reference to an unsolved solvable hole at its own context (the
+# identity spine), the other side becomes the hole's body — the
+# declaration FLIPS to a definition IN PLACE (Foundation:
+# INSTANTIATION, in-place variant), kernel-checked against the PREFIX
+# preceding the declaration by the skeleton-free tiny checker (§3 of
+# NovaKernel.txt; a solution outside its fragment, or referencing a
+# name minted after the hole, fails the check and no flip happens —
+# conservative). After a flip the reference unfolds by el-sig-beta,
+# so the forcing equation discharges by plain beta on retry, with an
+# ordinary certificate — and so may the enclosing composite, retried
+# once after decomposition before being assumed.
+#
+# A REPEAT occurrence of a hole name is a REFERENCE to the same entry
+# (solved or not), legal at the entry's own context or any binder
+# extension of it (the weakened identity spine), with the usual
+# type-switch; a reuse in an unrelated context is a structural error.
+# A solvable hole nothing pins simply REMAINS a declaration and is
+# reported like a rigid one; `_`-holes may therefore appear in
+# ACCEPTED files — a rerun re-solves them deterministically — while
+# `?`-holes never can.
+#
+# ITEM-END CONSTRAINT DELETION (Foundation: DISCHARGE): a flip can
+# make an equation assumed EARLIER IN THE SAME ITEM derivable by
+# beta. At item end, each constraint the current item minted is
+# re-attempted against its own Σ-prefix with the exact bare
+# compare-beta-normal-forms certificate its site already embeds, and
+# deleted on success — deletion never claims more than the kernel
+# replay of the item will deliver, so a fully-resolved item is
+# kernel-admitted as if nothing had ever been assumed. Constraints of
+# EARLIER items are never deleted: their items' admission was already
+# decided, and deleting their record would let a run end
+# "definitional" around a skipped item. The remedy for a cross-item
+# late solve is the usual one — reorder, or rerun.
 
 whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 --------------------------------------- (e-star-wit)          # (⋆ e)

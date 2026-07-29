@@ -97,14 +97,26 @@ name missing from Σ, or used at the wrong syntactic class (a term
 definition in type position or vice versa), is rejected outright.
 
 Σ may be OPEN (Foundation, DEFINITIONAL AND OPEN SIGNATURES): during
-an elaboration run it carries the run's assumed equation constraints,
-and eventually hole declarations. A reference to a DECLARATION is
-STUCK — typed by el-sig-decl/ty-sig-decl, no contraction — and nf
-leaves it as a neutral head. Constraint entries are nameless and
-never referenced by terms, so nf never sees them; they exist for the
-equational theory (el-sig-eq/ty-sig-eq). Only nf and equality replay
-tolerate open signatures: Nova.Compute (the uncertified evaluator)
-assumes a definitional Σ and rejects open entries outright.
+an elaboration run it carries the run's assumed equation constraints
+and hole declarations. A reference to a DECLARATION is STUCK — typed
+by el-sig-decl/ty-sig-decl, no contraction — and nf leaves it as a
+neutral head. Constraint entries are nameless and never referenced by
+terms, so nf never sees them; they exist for the equational theory
+(el-sig-eq/ty-sig-eq). Only nf and equality replay tolerate open
+signatures: Nova.Compute (the uncertified evaluator) assumes a
+definitional Σ and rejects open entries outright.
+
+HOLE INSTANTIATION (kCheckSolution / kCheckTySolution): the
+elaborator may flip a declaration to a definition in place
+(Foundation, INSTANTIATION — the refinement that never removes
+judgements). The kernel's part is the legality check, run against
+the PREFIX Σ preceding the declaration: the declaration's context is
+well-formed, its type is well-formed over it, and the proposed body
+checks at that type — all by the skeleton-free tiny checker of §3
+(proof-spine typing). A name minted after the hole is absent from
+the prefix and fails the lookup, which enforces scope and occurs in
+one stroke; a body outside the tiny checker's fragment is rejected
+and no flip happens — conservative, never unsound.
 
 Fuel is a LIVENESS bound, not a semantic one: under inconsistent
 hypotheses a well-formed term may have no normal form (see

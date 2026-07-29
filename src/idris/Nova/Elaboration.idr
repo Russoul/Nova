@@ -120,6 +120,9 @@ record HoleMeta where
   hname : String
   henv : NameEnv
   hsite : String
+  ||| may the elaborator instantiate this hole? (surface `_x`; a rigid
+  ||| `?x` is never solved) — policy, not theory: both are sig-decls
+  hsolvable : Bool
 
 record ElabSt where
   constructor MkElabSt
@@ -206,6 +209,21 @@ licProof (LPath _ _ _) = assert_total $ idris_crash "licProof: path license in a
 idSpine : Nat -> SubNorm
 idSpine Z = [<]
 idSpine (S n) = cast (map CtxVar (reverse [0 .. n]))
+
+||| The identity spine of a length-n entry context, weakened under k
+||| further binders: ☐ₖ₊ₙ₋₁, ..., ☐ₖ — how a hole minted at Γ is
+||| referenced at Γ ▷ Δ (|Δ| = k).
+wkSpine : (n : Nat) -> (k : Nat) -> SubNorm
+wkSpine Z k = [<]
+wkSpine (S n) k = cast (map CtxVar (reverse [k .. k + n]))
+
+||| Position of the entry binding a name (leftmost/oldest first).
+sigIndexOf : String -> List SigEntry -> Maybe Nat
+sigIndexOf q = go 0
+ where
+  go : Nat -> List SigEntry -> Maybe Nat
+  go i [] = Nothing
+  go i (e :: rest) = if sigEntryName e == Just q then Just i else go (S i) rest
 
 ||| Γ‖ᵢ (same as the derivation checker's private helper).
 ctxLookup : Ctx -> Nat -> Maybe Ty
@@ -1289,12 +1307,14 @@ assumedMatchE st ctx a b ty =
 
 -- ===== Committing conversion (the ↓ judgements) =====
 
-||| The number of OPEN entries so far — constraints AND holes: either
-||| makes Σ non-definitional, so either dirties the run.
+||| The number of OPEN entries so far — constraints AND declarations:
+||| either makes Σ non-definitional, so either dirties the run.
+||| Derived from Σ itself: hole flips (decl→def) and item-end
+||| constraint deletions must be reflected immediately.
 oblCount : ElabM Nat
 oblCount = do
   st <- getSt
-  pure (length (toList st.oblMeta) + length (toList st.holeMeta))
+  pure (length (filter (not . sigEntryIsDef) (toList st.sig)))
 
 ||| The report view: Σ's constraint entries — the run's obligations,
 ||| in surfacing order — zipped with their display metadata.
@@ -1322,15 +1342,17 @@ record HoleView where
 ||| The hole report view: Σ's declaration entries zipped with their
 ||| display metadata, in minting order.
 holeView : ElabSt -> List HoleView
-holeView st = go (toList st.sig) (toList st.holeMeta)
+holeView st = mapMaybe view (toList st.sig)
  where
-  go : List SigEntry -> List HoleMeta -> List HoleView
-  go (SigDecl ctx x ty :: rest) (m :: ms) =
-    MkHoleView x ctx m.henv (Just ty) m.hsite :: go rest ms
-  go (SigTyDecl ctx x :: rest) (m :: ms) =
-    MkHoleView x ctx m.henv Nothing m.hsite :: go rest ms
-  go (_ :: rest) ms = go rest ms
-  go [] _ = []
+  -- matched BY NAME, not positionally: a solved hole's declaration
+  -- becomes a definition (its meta goes stale harmlessly), so zip
+  -- order is not stable under flips
+  metaFor : String -> Maybe HoleMeta
+  metaFor x = find (\m => m.hname == x) (toList st.holeMeta)
+  view : SigEntry -> Maybe HoleView
+  view (SigDecl ctx x ty) = map (\m => MkHoleView x ctx m.henv (Just ty) m.hsite) (metaFor x)
+  view (SigTyDecl ctx x) = map (\m => MkHoleView x ctx m.henv Nothing m.hsite) (metaFor x)
+  view _ = Nothing
 
 ||| ASSUME (docs/NovaElaboration.txt, ↓ step 8): append the equation to
 ||| Σ as a constraint entry — sig-eq/sig-ty-eq; the signature is OPEN
@@ -1367,34 +1389,157 @@ assume stmt site comp = do
   fth4 (_, _, _, x) = x
 
 mutual
+  ||| One discharge attempt: engine + eager kernel replay. Right =
+  ||| replayed certificate; Left = the site string, annotated when the
+  ||| engine produced a certificate that failed replay (engine bug
+  ||| signal, reported on the obligation).
+  attemptE : Ctx -> String -> Elem -> Elem -> Ty -> ElabM (Either String ECert)
+  attemptE ctx site a b ty = do
+    st <- getSt
+    let cs = mkCandSet st ctx
+    let mcert = spEqElemC spDepth st cs ctx a b ty
+    case map (\cert => (cert, kCheckEqElem st.sig ctx kernelFuel cert a b ty)) mcert of
+      Just (cert, Right ()) => pure (Right cert)
+      Just (_, Left kerrMsg) => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
+      Nothing => pure (Left site)
+
+  attemptT : Ctx -> String -> Ty -> Ty -> ElabM (Either String ECert)
+  attemptT ctx site tyA tyB = do
+    st <- getSt
+    let cs = mkCandSet st ctx
+    let mcert = spEqTyC spDepth st cs ctx tyA tyB
+    case map (\cert => (cert, kCheckEqTy st.sig ctx kernelFuel cert tyA tyB)) mcert of
+      Just (cert, Right ()) => pure (Right cert)
+      Just (_, Left kerrMsg) => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
+      Nothing => pure (Left site)
+
+  ||| One side is an UNSOLVED SOLVABLE hole at its own context: flip
+  ||| its declaration to a definition whose body is the other side —
+  ||| the INSTANTIATION refinement, kernel-checked against the PREFIX
+  ||| preceding the declaration (a name minted later is absent from
+  ||| the prefix, so scope and occurs violations fail the lookup).
+  ||| After a flip the reference unfolds by el-sig-beta, so the
+  ||| equation that forced it discharges by plain beta on retry.
+  ||| Returns True iff a flip happened.
+  patternSolveE : Ctx -> Elem -> Elem -> Ty -> ElabM Bool
+  patternSolveE ctx a b ty = do
+    st <- getSt
+    let aN = betaElem st.sig a
+    let bN = betaElem st.sig b
+    r <- go st aN bN
+    if r then pure True else go st bN aN
+   where
+    flipDecl : String -> Elem -> ElabM Bool
+    flipDecl q t = do
+      st <- getSt
+      let ls = toList st.sig
+      case sigIndexOf q ls of
+        Nothing => pure False
+        Just i =>
+          case getAt i ls of
+            Just (SigDecl delta _ dty) =>
+              case kCheckSolution (cast (take i ls)) kernelFuel delta t dty of
+                Left _ => pure False
+                Right () => do
+                  let def = SigDef delta q t dty
+                  -- mirror into the kernel's Σ only when the solution
+                  -- also checks there (it lacks dirty-run entries; if
+                  -- this fails the run is dirty and the copy unused)
+                  let ks = if kCheckSolution st.kernelSig kernelFuel delta t dty == Right ()
+                             then st.kernelSig :< def
+                             else st.kernelSig
+                  modifySt $ { sig := cast (take i ls ++ [def] ++ drop (S i) ls)
+                             , kernelSig := ks }
+                  pure True
+            _ => pure False
+
+    go : ElabSt -> Elem -> Elem -> ElabM Bool
+    go st (SigVar q es) t =
+      case sigLookup q st.sig of
+        Just (SigDecl delta _ dty) =>
+          if delta == ctx && es == idSpine (length ctx)
+             && any (\m => m.hname == q && m.hsolvable) (toList st.holeMeta)
+            then flipDecl q t
+            else pure False
+        _ => pure False
+    go st _ _ = pure False
+
+  ||| Type-hole counterpart: a stuck type declaration reference
+  ||| equated with a type — flip sig-ty-decl to sig-ty-def.
+  patternSolveT : Ctx -> Ty -> Ty -> ElabM Bool
+  patternSolveT ctx tyA tyB = do
+    st <- getSt
+    let aN = betaTy st.sig tyA
+    let bN = betaTy st.sig tyB
+    r <- go st aN bN
+    if r then pure True else go st bN aN
+   where
+    flipTyDecl : String -> Ty -> ElabM Bool
+    flipTyDecl q t = do
+      st <- getSt
+      let ls = toList st.sig
+      case sigIndexOf q ls of
+        Nothing => pure False
+        Just i =>
+          case getAt i ls of
+            Just (SigTyDecl delta _) =>
+              case kCheckTySolution (cast (take i ls)) kernelFuel delta t of
+                Left _ => pure False
+                Right () => do
+                  let def = SigTyDef delta q t
+                  let ks = if kCheckTySolution st.kernelSig kernelFuel delta t == Right ()
+                             then st.kernelSig :< def
+                             else st.kernelSig
+                  modifySt $ { sig := cast (take i ls ++ [def] ++ drop (S i) ls)
+                             , kernelSig := ks }
+                  pure True
+            _ => pure False
+
+    go : ElabSt -> Ty -> Ty -> ElabM Bool
+    go st (Ty.SigVar q es) t =
+      case sigLookup q st.sig of
+        Just (SigTyDecl delta _) =>
+          if delta == ctx && es == idSpine (length ctx)
+             && any (\m => m.hname == q && m.hsolvable) (toList st.holeMeta)
+            then flipTyDecl q t
+            else pure False
+        _ => pure False
+    go st _ _ = pure False
+
   ||| Γ ⊢ a ≐ b : A ↓ — always succeeds; assumes what it cannot discharge.
   convElem : Ctx -> NameEnv -> String -> Maybe Stmt -> Elem -> Elem -> Ty -> ElabM (Maybe ECert)
   convElem ctx env site comp a b ty = do
-    st <- getSt
-    let cs = mkCandSet st ctx
-    -- a discharge counts only if its certificate replays in the kernel;
-    -- a replay failure is reported on the obligation (engine bug signal)
-    let mcert = spEqElemC spDepth st cs ctx a b ty
-    let attempt = map (\cert => kCheckEqElem st.sig ctx kernelFuel cert a b ty) mcert
-    let site = case attempt of
-                 Just (Left kerrMsg) => site ++ " [replay failed: " ++ kerrMsg ++ "]"
-                 _ => site
-    if attempt == Just (Right ())
-      then pure mcert
-      else map (const Nothing) $ do
-        let cur = StElem ctx env a b ty
-        let comp' = comp <|> Just cur
-        let a' = rwNfElem st ctx a
-        let b' = rwNfElem st ctx b
-        n0 <- oblCount
-        decompose site cur comp' a' b' (rwNfTy st ctx ty)
-        -- a decomposition that surfaced no obligation discharged all
-        -- children — but the COMPOSITE site still has no certificate,
-        -- so the item could never be kernel-accepted. Keep the
-        -- acceptance semantics honest: the composite is assumed (the
-        -- remedy is a lemma that makes it directly matchable).
-        n1 <- oblCount
-        when (n1 == n0) $ assume cur site comp
+    r <- attemptE ctx site a b ty
+    case r of
+      Right cert => pure (Just cert)
+      Left site1 => do
+        solved <- patternSolveE ctx a b ty
+        r2 <- the (ElabM (Either String ECert)) $
+                if solved then attemptE ctx site1 a b ty else pure (Left site1)
+        case r2 of
+          Right cert => pure (Just cert)
+          Left site2 => do
+            st <- getSt
+            let cur = StElem ctx env a b ty
+            let comp' = comp <|> Just cur
+            let a' = rwNfElem st ctx a
+            let b' = rwNfElem st ctx b
+            n0 <- oblCount
+            decompose site2 cur comp' a' b' (rwNfTy st ctx ty)
+            n1 <- oblCount
+            if n1 == n0
+              then do
+                -- children all discharged — or SOLVED a hole, in which
+                -- case the composite may now hold by beta: retry once
+                -- before assuming it. An assumed composite keeps the
+                -- acceptance semantics honest (the site still has no
+                -- certificate; the remedy is a lemma that makes it
+                -- directly matchable).
+                r3 <- attemptE ctx site2 a b ty
+                case r3 of
+                  Right cert => pure (Just cert)
+                  Left site3 => do assume cur site3 comp; pure Nothing
+              else pure Nothing
    where
     decompose : String -> Stmt -> Maybe Stmt -> Elem -> Elem -> Ty -> ElabM ()
     decompose site cur comp' a' b' tyW = do
@@ -1455,22 +1600,29 @@ mutual
   ||| Γ ⊢ A ≐ B type ↓
   convTy : Ctx -> NameEnv -> String -> Maybe Stmt -> Ty -> Ty -> ElabM (Maybe ECert)
   convTy ctx env site comp tyA tyB = do
-    st <- getSt
-    let cs = mkCandSet st ctx
-    let mcert = spEqTyC spDepth st cs ctx tyA tyB
-    let attempt = map (\cert => kCheckEqTy st.sig ctx kernelFuel cert tyA tyB) mcert
-    let site = case attempt of
-                 Just (Left kerrMsg) => site ++ " [replay failed: " ++ kerrMsg ++ "]"
-                 _ => site
-    if attempt == Just (Right ())
-      then pure mcert
-      else map (const Nothing) $ do
-        let cur = StTy ctx env tyA tyB
-        let comp' = comp <|> Just cur
-        n0 <- oblCount
-        decomposeT site cur comp' (rwNfTy st ctx tyA) (rwNfTy st ctx tyB)
-        n1 <- oblCount
-        when (n1 == n0) $ assume cur site comp
+    r <- attemptT ctx site tyA tyB
+    case r of
+      Right cert => pure (Just cert)
+      Left site1 => do
+        solved <- patternSolveT ctx tyA tyB
+        r2 <- the (ElabM (Either String ECert)) $
+                if solved then attemptT ctx site1 tyA tyB else pure (Left site1)
+        case r2 of
+          Right cert => pure (Just cert)
+          Left site2 => do
+            st <- getSt
+            let cur = StTy ctx env tyA tyB
+            let comp' = comp <|> Just cur
+            n0 <- oblCount
+            decomposeT site2 cur comp' (rwNfTy st ctx tyA) (rwNfTy st ctx tyB)
+            n1 <- oblCount
+            if n1 == n0
+              then do
+                r3 <- attemptT ctx site2 tyA tyB
+                case r3 of
+                  Right cert => pure (Just cert)
+                  Left site3 => do assume cur site3 comp; pure Nothing
+              else pure Nothing
    where
     decomposeT : String -> Stmt -> Maybe Stmt -> Ty -> Ty -> ElabM ()
     decomposeT site cur comp' tyA' tyB' = do
@@ -1592,18 +1744,34 @@ mutual
   elabTy ctx env site (STyPrf e) = do
     (e', eSk) <- checkElem ctx env site e Ty.PropTy
     pure (Prf e', Nd [] [eSk])
-  elabTy ctx env site (STyHole x) = do
-    -- a rigid TYPE hole: a type declaration entry at the ambient
-    -- context (sig-ty-decl); references are stuck (ty-sig-decl)
+  elabTy ctx env site (STyHole solvable x) = do
+    -- a TYPE hole: a type declaration entry at the ambient context
+    -- (sig-ty-decl); references are stuck (ty-sig-decl). Solvable
+    -- type holes are instantiated by type pattern equations
+    -- (patternSolveT).
     st <- getSt
-    let q = if st.modPrefix == "" then "?\{x}" else "\{st.modPrefix}.?\{x}"
+    let q0 = if solvable
+               then (if x == "" then "_\{show (length (toList st.holeMeta))}" else "_\{x}")
+               else "?\{x}"
+    let q = if st.modPrefix == "" then q0 else "\{st.modPrefix}.\{q0}"
+    let baseSk = Nd [] (replicate (length ctx) (Nd [] []))
+    let reuseT : Ctx -> ElabM (Ty, Skel)
+        reuseT = \delta =>
+          let n = length delta
+              k = minus (length ctx) n in
+          if take n (toList ctx) == toList delta && n + k == length ctx
+            then pure (Ty.SigVar q (wkSpine n k), Nd [] (replicate n (Nd [] [])))
+            else throw "\{site}: hole \{q0} reused in a context that does not extend its own — use a fresh hole name"
     case sigLookup q st.sig of
-      Just _ => throw "\{site}: duplicate hole name '?\{x}'"
-      Nothing => pure ()
-    modifySt $ { sig $= (:< SigTyDecl ctx q)
-               , holeMeta $= (:< MkHoleMeta q env site) }
-    pure (Ty.SigVar q (idSpine (length ctx)),
-          Nd [] (replicate (length ctx) (Nd [] [])))
+      -- repeat occurrence: a reference to the same (possibly solved)
+      -- type declaration, at its own context or an extension
+      Just (SigTyDecl delta _) => reuseT delta
+      Just (SigTyDef delta _ _) => reuseT delta
+      Just _ => throw "\{site}: '\{q0}' names a non-type signature entry"
+      Nothing => do
+        modifySt $ { sig $= (:< SigTyDecl ctx q)
+                   , holeMeta $= (:< MkHoleMeta q env site solvable) }
+        pure (Ty.SigVar q (idSpine (length ctx)), baseSk)
 
   export
   inferElem : Ctx -> NameEnv -> String -> SElem -> ElabM (Elem, Ty, Skel)
@@ -1611,8 +1779,9 @@ mutual
     case ctxLookup ctx i of
       Just ty => pure (CtxVar i, ty, Nd [] [])
       Nothing => throw "\{site}: variable index out of bounds"
-  inferElem ctx env site (SHole x) =
-    throw "\{site}: hole ?\{x} in inference position — its type is undetermined here\{structuralHint}"
+  inferElem ctx env site (SHole solvable x) =
+    let pre = the String (if solvable then "_" else "?") in
+    throw "\{site}: hole \{pre}\{x} in inference position — its type is undetermined here\{structuralHint}"
   inferElem ctx env site (SSig x0) = do
     st <- getSt
     let x = resolveSigName st x0
@@ -1801,19 +1970,44 @@ mutual
                 (body', bodySk) <- checkElem (ctx :< a) (env :< xn) site body (substTy (Prf q) Wk)
                 pure (Star, withExpose exp (Nd [PSquashElim e' eSk body' bodySk] []))
           _ => throw "\{site}: squash-elim scrutinee checked against Prf of a non-∥∥ code\{structuralHint}"
-  checkElem ctx env site (SHole x) ty = do
-    -- a rigid hole: a declaration entry at the AMBIENT context
-    -- (sig-decl); the reference carries the identity spine and is
-    -- stuck (el-sig-decl). Reported, never solved; blocks acceptance.
+  checkElem ctx env site (SHole solvable x) ty = do
+    -- a hole: a declaration entry at the AMBIENT context (sig-decl);
+    -- the reference carries the identity spine and is stuck
+    -- (el-sig-decl). A rigid `?x` is reported and never solved; a
+    -- solvable `_x`/`_` may be instantiated by pattern equations
+    -- (the decl→def flip in patternSolveE). Either blocks acceptance
+    -- while it remains a declaration.
     st <- getSt
-    let q = if st.modPrefix == "" then "?\{x}" else "\{st.modPrefix}.?\{x}"
+    let q0 = if solvable
+               then (if x == "" then "_\{show (length (toList st.holeMeta))}" else "_\{x}")
+               else "?\{x}"
+    let q = if st.modPrefix == "" then q0 else "\{st.modPrefix}.\{q0}"
+    let baseSk = Nd [] (replicate (length ctx) (Nd [] []))
+    -- a REPEAT occurrence is a reference to the same entry — the
+    -- still-open declaration, or the definition a solve flipped it
+    -- to. Valid at the entry's own context or any binder EXTENSION of
+    -- it (the weakened identity spine); the occurrence's expected
+    -- type converts against the (weakened) declared one — a switch,
+    -- like any reference.
+    let reuse : Ctx -> Ty -> ElabM (Elem, Skel)
+        reuse = \delta, dty =>
+          let n = length delta
+              k = minus (length ctx) n in
+          if take n (toList ctx) == toList delta && n + k == length ctx
+            then do
+              let es = wkSpine n k
+              let dtyW = substTy dty (embed es)
+              c <- convTy ctx env "\{site}: hole \{q0} reused at a different type" Nothing dtyW ty
+              pure (SigVar q es, addPayload (PSwitch (certOr c)) (Nd [] (replicate n (Nd [] []))))
+            else throw "\{site}: hole \{q0} reused in a context that does not extend its own — use a fresh hole name"
     case sigLookup q st.sig of
-      Just _ => throw "\{site}: duplicate hole name '?\{x}'"
-      Nothing => pure ()
-    modifySt $ { sig $= (:< SigDecl ctx q ty)
-               , holeMeta $= (:< MkHoleMeta q env site) }
-    pure (SigVar q (idSpine (length ctx)),
-          Nd [] (replicate (length ctx) (Nd [] [])))
+      Just (SigDecl delta _ dty) => reuse delta dty
+      Just (SigDef delta _ _ dty) => reuse delta dty
+      Just _ => throw "\{site}: '\{q0}' names a non-element signature entry"
+      Nothing => do
+        modifySt $ { sig $= (:< SigDecl ctx q ty)
+                   , holeMeta $= (:< MkHoleMeta q env site solvable) }
+        pure (SigVar q (idSpine (length ctx)), baseSk)
   checkElem ctx env site t ty = do
     (t', inferred, tSk) <- inferElem ctx env site t
     c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
@@ -1862,6 +2056,44 @@ addLemma name delta ty = do
                                                    mk (toP (snd lRes)) (toP (snd rRes))) ++) }
     _ => pure ()
 
+||| Item-end constraint deletion (docs/NovaFoundation.txt, DISCHARGE):
+||| a hole instantiated mid-item unfolds from then on, which can make
+||| an earlier-assumed constraint OF THE SAME ITEM derivable by plain
+||| beta. Each such constraint is re-attempted against ITS OWN PREFIX
+||| with the exact certificate its site already embeds (the bare
+||| compare-beta-normal-forms dummy) — so deletion never claims more
+||| than the kernel replay of the item will deliver — and deleted on
+||| success, with its display metadata (kept positionally aligned).
+||| `keep` is the constraint count at ITEM START: constraints of
+||| EARLIER items are never deleted — their items' kernel admission
+||| was already decided, and deleting their record would let a run
+||| end "definitional" with a skipped item inside it.
+resolveConstraints : Nat -> ElabM ()
+resolveConstraints keep = do
+  st <- getSt
+  let (sig', meta') = go 0 [<] (toList st.sig) (toList st.oblMeta)
+  modifySt $ { sig := sig', oblMeta := cast meta' }
+ where
+  go : Nat -> Sig -> List SigEntry -> List OblMeta -> (Sig, List OblMeta)
+  go k acc [] ms = (acc, [])
+  go k acc (e@(SigEq ctx a b ty) :: rest) (m :: ms) =
+    if k >= keep && kCheckEqElem acc ctx kernelFuel (MkECert [] FBeta) a b ty == Right ()
+      then go (S k) acc rest ms
+      else let (s', ms') = go (S k) (acc :< e) rest ms in (s', m :: ms')
+  go k acc (e@(SigTyEq ctx x y) :: rest) (m :: ms) =
+    if k >= keep && kCheckEqTy acc ctx kernelFuel (MkECert [] FBeta) x y == Right ()
+      then go (S k) acc rest ms
+      else let (s', ms') = go (S k) (acc :< e) rest ms in (s', m :: ms')
+  go k acc (e :: rest) ms =
+    let (s', ms') = go k (acc :< e) rest ms in (s', ms')
+
+||| The number of constraint entries so far (the resolveConstraints
+||| marker).
+constraintCount : ElabM Nat
+constraintCount = do
+  st <- getSt
+  pure (length (toList st.oblMeta))
+
 ||| Kernel-check a clean item against the kernel's own Σ; extend it on
 ||| acceptance. Items elaborated under assumptions (dirty) are skipped —
 ||| they cannot be accepted anyway.
@@ -1882,11 +2114,13 @@ liftQE site (Right x) = pure x
 ||| lemma if it is ≡-typed. Mirrors elabItem's tail for surface defs.
 emitCoreDef : String -> String -> Ty -> Skel -> Elem -> Skel -> ElabM ()
 emitCoreDef site x ty tySk body bodySk = do
+  oblsAtStart <- constraintCount
   st <- getSt
   let q = if st.modPrefix == "" then x else "\{st.modPrefix}.\{x}"
   case sigLookup q st.sig of
     Just _ => throw "\{site}: duplicate signature name '\{x}'"
     Nothing => pure ()
+  resolveConstraints oblsAtStart
   after <- oblCount
   kernelAccept "\{site} \{x}"
     (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] ty tySk body bodySk))
@@ -1896,11 +2130,13 @@ emitCoreDef site x ty tySk body bodySk = do
 
 emitCoreTyDef : String -> String -> Ty -> Skel -> ElabM ()
 emitCoreTyDef site x ty tySk = do
+  oblsAtStart <- constraintCount
   st <- getSt
   let q = if st.modPrefix == "" then x else "\{st.modPrefix}.\{x}"
   case sigLookup q st.sig of
     Just _ => throw "\{site}: duplicate signature name '\{x}'"
     Nothing => pure ()
+  resolveConstraints oblsAtStart
   after <- oblCount
   kernelAccept "\{site} \{x}"
     (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty tySk))
@@ -1934,6 +2170,7 @@ applyChain = foldl PiApp
 export
 elabItem : SItem -> ElabM String
 elabItem (SDef x ty body) = do
+  oblsAtStart <- constraintCount
   st <- getSt
   -- the Σ-name is qualified by the module; the root file's entries
   -- stay bare
@@ -1948,6 +2185,7 @@ elabItem (SDef x ty body) = do
   -- clean means the RUN is clean: an earlier item's assumption poisons
   -- everything after it (the kernel Σ cannot contain the earlier item,
   -- so references to it are unresolvable anyway)
+  resolveConstraints oblsAtStart
   after <- oblCount
   kernelAccept "def \{x}"
     (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] ty' tySk body' bodySk))
@@ -1956,12 +2194,14 @@ elabItem (SDef x ty body) = do
   addLemma q [<] ty'
   pure "defined \{x}"
 elabItem (STypeDef x ty) = do
+  oblsAtStart <- constraintCount
   st <- getSt
   let q = if st.modPrefix == "" then x else "\{st.modPrefix}.\{x}"
   case sigLookup q st.sig of
     Just _ => throw "type \{x}: duplicate signature name"
     Nothing => pure ()
   (ty', tySk) <- elabTy [<] [<] "type \{x}" ty
+  resolveConstraints oblsAtStart
   after <- oblCount
   kernelAccept "type \{x}"
     (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty' tySk))

@@ -211,13 +211,16 @@ mutual
   -- T{4}: atoms
   parseSTyAtom : FixTable -> NameEnv -> Rule STy
   parseSTyAtom tbl env =
-        (do kwc '?'; x <- parseName; pure (STyHole x))
+        (do kwc '?'; x <- parseName; pure (STyHole False x))
     <|> (kw "𝟘" $> STyZero)
     <|> (kw "𝟙" $> STyOne)
     <|> (kw "ℕ" $> STyNat)
     <|> (kw "𝕌" $> STyUniv)
     <|> (kw "Ω" $> STyProp)
-    <|> (do x <- parseDottedName; pure (STySig x))
+    <|> (do x <- parseDottedName
+            case unpack x of
+              ('_' :: rest) => pure (STyHole True (pack rest))
+              _ => pure (STySig x))
     <|> (do kwc '('; sp; t <- parseSTy tbl env; sp; kwc ')'; pure t)
 
   -- t{0}: top-level comma = pair (right-assoc)
@@ -343,7 +346,7 @@ mutual
         -- char-level token stream enforces adjacency — a space fails
         -- the name parser). Tried before the operator atom, so a bare
         -- `?` operator token stays available
-        (do kwc '?'; x <- parseName; pure (SHole x))
+        (do kwc '?'; x <- parseName; pure (SHole False x))
         -- mention form: (+) — the operator as an ordinary reference
     <|> (do kwc '('; sp; op <- parseOpRef; sp; kwc ')'; pure (SSig op))
         -- a FIXITY-FREE operator token is an ordinary name atom (⊥, ⊤,
@@ -371,12 +374,19 @@ mutual
     <|> (kw "𝟙"   $> SOneC)
     <|> (kw "ℕ"   $> SNatC)
     <|> (do x <- parseDottedName
-            case resolveVar env x of
-              Just i  => pure (SVar x i)
-              -- locals shadow the signature; whether the name exists
-              -- in Σ is the elaborator's question, not the parser's
-              -- (a dotted name never resolves locally)
-              Nothing => pure (SSig x))
+            case unpack x of
+              -- a `_`-leading identifier (or bare `_`) is a SOLVABLE
+              -- hole — the elaborator may instantiate it; `_`-leading
+              -- names are reserved for this (binder wildcards are a
+              -- separate production and unaffected)
+              ('_' :: rest) => pure (SHole True (pack rest))
+              _ =>
+                case resolveVar env x of
+                  Just i  => pure (SVar x i)
+                  -- locals shadow the signature; whether the name
+                  -- exists in Σ is the elaborator's question, not the
+                  -- parser's (a dotted name never resolves locally)
+                  Nothing => pure (SSig x))
 
 -- ===== Items =====
 --

@@ -321,7 +321,12 @@ x ∉ Σ
 #   Σ Γ ⊦ t : A — the filling term lives in the PREFIX preceding the
 #   hole — then Σ Σ'[t/x] ⊦ J[t/x], where [t/x] replaces every
 #   reference x[e˲] by t[e˲]. Ditto for a type declaration filled by
-#   Σ Γ ⊦ T type.
+#   Σ Γ ⊦ T type. The IN-PLACE variant needs no substitution at all:
+#   Σ (Γ ⊦ x ≔ t : A) Σ' ⊦ J follows directly, since every rule that
+#   applied to the declaration entry has its conclusion re-derivable
+#   from the definition entry (el-sig-decl's conclusion is
+#   el-sig-var's) and no rule depends on x LACKING a body — the flip
+#   only refines, adding the equations x[e˲] ≜ t[e˲].
 #
 # * DISCHARGE. If Σ (Γ ⊦ a₀ ≐ a₁ : A) Σ' ⊦ J and Σ Γ ⊦ a₀ ≐ a₁ : A —
 #   the constraint is DERIVABLE in its prefix — then Σ Σ' ⊦ J: the

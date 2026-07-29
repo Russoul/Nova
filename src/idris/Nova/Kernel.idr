@@ -753,6 +753,38 @@ mutual
       Just (SigTyDecl delta _) => checkSubstP sig ctx (toList es) (toList delta)
       _ => kerr "kernel: bad signature reference in proof type"
 
+||| Legality of a hole solution (docs/NovaFoundation.txt,
+||| INSTANTIATION): over the declaration's own context, the proposed
+||| body checks at the declared type AGAINST THE PREFIX Σ preceding
+||| the declaration — a name minted after the hole is simply absent
+||| from the prefix and fails the lookup. Skeleton-free (the tiny
+||| checker), so solutions outside its fragment are rejected: no flip,
+||| the site stays an obligation — conservative, never unsound.
+export
+kCheckSolution : Sig -> Nat -> Ctx -> Elem -> Ty -> Either KErr ()
+kCheckSolution sig fuel ctx t ty =
+  map fst $ runKM (do
+    goCtx [<] (toList ctx)
+    checkTyP sig ctx ty
+    checkP sig ctx t ty) fuel
+ where
+  goCtx : Ctx -> List Ty -> KM ()
+  goCtx acc [] = pure ()
+  goCtx acc (a :: rest) = do checkTyP sig acc a; goCtx (acc :< a) rest
+
+||| Ditto for a TYPE hole: the proposed type is well-formed over the
+||| declaration's context against the prefix.
+export
+kCheckTySolution : Sig -> Nat -> Ctx -> Ty -> Either KErr ()
+kCheckTySolution sig fuel ctx t =
+  map fst $ runKM (do
+    goCtx [<] (toList ctx)
+    checkTyP sig ctx t) fuel
+ where
+  goCtx : Ctx -> List Ty -> KM ()
+  goCtx acc [] = pure ()
+  goCtx acc (a :: rest) = do checkTyP sig acc a; goCtx (acc :< a) rest
+
 -- ===== Selector application =====
 
 applySel : Sig -> Ctx -> (Elem, Elem, Ty) -> Sel -> KM (Elem, Elem, Ty)
