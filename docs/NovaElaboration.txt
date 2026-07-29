@@ -224,23 +224,30 @@ E   — the equation store, feeding algorithmic discharge. Three sources:
         S-component closure is included too (derivable via a
         predecessor, no rule needed). class is NOT decomposed:
         quotients are not injective.
-      * ASSUMED OBLIGATIONS: every obligation, the moment it is assumed
-        (see ↓ below), so that the run continues coherently and the same
-        mismatch never surfaces twice.
+      * ASSUMED CONSTRAINTS: every equation constraint of Σ (each one
+        an equation assumed by ↓ below), so that the run continues
+        coherently and the same mismatch never surfaces twice.
 
-O   — the obligation list, in surfacing order. Each entry records a
-      statement (Γ ⊢? a ≐ b : A, or Γ ⊢? A ≐ B type), the item and
-      source position that surfaced it, and — when its two sides were
-      themselves elaborated under earlier assumptions — a note naming
-      those earlier obligations.
+There is NO separate obligation store: an OBLIGATION is a constraint
+entry of Σ (Foundation: sig-eq/sig-ty-eq — the signature is OPEN
+during a run), appended in surfacing order. Alongside each entry the
+elaborator keeps DISPLAY METADATA — outside the theory, consumed only
+by the report printer: the item and source position that surfaced it,
+the binder-name environment of its context, and — when its two sides
+were themselves elaborated under earlier assumptions — a note naming
+the composite equation it was decomposed from. The report enumerates
+Σ's constraint entries in order, and a run is ACCEPTED exactly when
+its final Σ is DEFINITIONAL (Foundation: no constraints — and, once
+surface holes land, no declarations).
 
 The distinction that keeps this sound: entries of E may be USED freely
-by conversion during the run, but an obligation is only ever CLOSED —
-removed from the report — by matching an accepted lemma present in Σ on
-a LATER RUN. Within a run, an equation that matches an already-assumed
-obligation is deduplicated against it, not discharged by it. Assumptions
-therefore can never launder themselves into proofs; the wall between
-"assumed" and "proven" is crossed only by the prepend-and-rerun cycle.
+by conversion during the run, but a constraint is only ever CLOSED —
+absent from the next run's Σ — because a lemma accepted earlier on
+that LATER RUN discharges the site that would have minted it. Within a
+run, an equation that matches an already-assumed constraint is
+deduplicated against it, not discharged by it. Assumptions therefore
+can never launder themselves into proofs; the wall between "assumed"
+and "proven" is crossed only by the prepend-and-rerun cycle.
 
 //////////// Judgement forms /////////////
 
@@ -271,8 +278,9 @@ el-pi-beta, el-sigma-beta₁, el-sigma-beta₂, el-nat-beta-z,
 el-nat-beta-s, el-quot-beta, el-qiit-beta (the eliminator at a
 saturated constructor of the nf-identical signature),
 el-sig-beta/ty-sig-beta (signature
-unfolding — total in this hole-free setting, since every Σ entry has a
-definiens), and the El-decoding family (ty-el-zero, ty-el-one,
+unfolding — for DEFINITION entries; a declaration reference is stuck
+by design, el-sig-decl/ty-sig-decl, and constraint entries are
+nameless and never referenced), and the El-decoding family (ty-el-zero, ty-el-one,
 ty-el-nat, ty-el-pi, ty-el-sigma, ty-el-eq, ty-el-quot — the last
 decoding El (A / r) ≜ El A / r, the Ω-valued relation passing through
 undecoded — and ty-el-qiit, El (𝒮.𝕤 ē) ≜ 𝒮.𝕤 ē; Prf ∥A∥ has no
@@ -619,15 +627,17 @@ whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 #      completeness upgrade; none of these mechanisms affects
 #      soundness — each discharge is a Foundation derivation via
 #      (el-sub-cong-fix) + congruence + transitivity + reflection.
-#   8. ASSUME: append the equation to O (with source position, and with
-#      the composite it was decomposed from, if any) and to E; succeed.
+#   8. ASSUME: append the equation to Σ as a constraint entry (sig-eq/
+#      sig-ty-eq), record its display metadata (source position, and
+#      the composite it was decomposed from, if any), and add it to E;
+#      succeed.
 #
 # Invariant (statement well-formedness): every equation reaching ↓ has
 # both sides produced by elaboration at the stated type, in the stated
 # context, under the assumptions active at that moment. Consequently
-# obligation statements are well-formed in Foundation extended by the
-# obligations that PRECEDE them in surfacing order — the report order
-# is always a valid discharge order. An obligation whose statement
+# each constraint entry is well-formed against its Σ PREFIX — exactly
+# the premise shape of sig-eq — and the report order is always a valid
+# discharge order. An obligation whose statement
 # depends on earlier assumptions is annotated with them; prove those
 # first (or in one joint lemma) and the later statement becomes
 # statable in the base theory. Cyclic dependence cannot arise in this

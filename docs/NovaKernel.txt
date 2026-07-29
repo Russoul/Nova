@@ -96,6 +96,16 @@ eliminator — nf never invents progress. A signature reference to a
 name missing from Σ, or used at the wrong syntactic class (a term
 definition in type position or vice versa), is rejected outright.
 
+Σ may be OPEN (Foundation, DEFINITIONAL AND OPEN SIGNATURES): during
+an elaboration run it carries the run's assumed equation constraints,
+and eventually hole declarations. A reference to a DECLARATION is
+STUCK — typed by el-sig-decl/ty-sig-decl, no contraction — and nf
+leaves it as a neutral head. Constraint entries are nameless and
+never referenced by terms, so nf never sees them; they exist for the
+equational theory (el-sig-eq/ty-sig-eq). Only nf and equality replay
+tolerate open signatures: Nova.Compute (the uncertified evaluator)
+assumes a definitional Σ and rejects open entries outright.
+
 Fuel is a LIVENESS bound, not a semantic one: under inconsistent
 hypotheses a well-formed term may have no normal form (see
 NovaFoundation.txt, preface), and the fuel bound is what keeps the

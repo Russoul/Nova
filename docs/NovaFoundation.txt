@@ -65,6 +65,10 @@ x ::= <signature-entry-identifier>
 Σ ::= ε
     | Σ (Γ ⊦ x ≔ a : A)     # term definition
     | Σ (Γ ⊦ x ≔ T type)    # type definition
+    | Σ (Γ ⊦ x : A)         # term declaration (a HOLE — no definiens)
+    | Σ (Γ ⊦ x type)        # type declaration
+    | Σ (Γ ⊦ a ≐ a : A)     # element equation constraint (nameless)
+    | Σ (Γ ⊦ T ≐ T type)    # type equation constraint (nameless)
 
 # typing context
 Γ ::= ε      # empty typing context
@@ -267,6 +271,67 @@ x ∉ Σ
 x ∉ Σ
 ---------------------- (sig-ty-def)
 Σ (Γ ⊦ x ≔ A type) sig
+
+Σ Γ ⊦ A type
+x ∉ Σ
+------------------ (sig-decl)
+Σ (Γ ⊦ x : A) sig
+
+Σ Γ ctx
+x ∉ Σ
+------------------- (sig-ty-decl)
+Σ (Γ ⊦ x type) sig
+
+Σ Γ ⊦ a₀ : A
+Σ Γ ⊦ a₁ : A
+------------------------ (sig-eq)
+Σ (Γ ⊦ a₀ ≐ a₁ : A) sig
+
+Σ Γ ⊦ A₀ type
+Σ Γ ⊦ A₁ type
+-------------------------- (sig-ty-eq)
+Σ (Γ ⊦ A₀ ≐ A₁ type) sig
+
+# DEFINITIONAL AND OPEN SIGNATURES. A signature is DEFINITIONAL when
+# every entry is a definition (sig-def/sig-ty-def). The other entry
+# kinds make it OPEN: a DECLARATION is a hole — a name with a type and
+# no definiens, whose references x[e˲] are STUCK (el-sig-decl /
+# ty-sig-decl below; deliberately no -beta) — and a CONSTRAINT is an
+# assumed equation, used through el-sig-eq/ty-sig-eq exactly like a
+# definitional equality. Open signatures are the working states of an
+# elaboration run (docs/NovaElaboration.txt): the declarations and
+# constraints of the run's signature ARE its open proof obligations,
+# and a run is ACCEPTED only once its signature is definitional.
+#
+# The canonical-forms semantics below reads over definitional
+# signatures only. An open signature denotes the CLASS of its
+# definitional REFINEMENTS — the signatures obtained by instantiating
+# every declaration and discharging every constraint (the two
+# admissible principles next); every judgement derived over the open
+# signature holds over each refinement. The class may be EMPTY (a hole
+# at Prf ∥𝟘∥, a constraint Z ≐ S Z : ℕ): judgements under
+# unsatisfiable assumptions carry no absolute content — which is why
+# acceptance demands a definitional signature and nothing weaker.
+#
+# Both refinement principles are META-THEOREMS (by induction on
+# derivations), not rules of the theory — the workflow they justify is
+# edit-and-rerun, never an in-place signature surgery:
+#
+# * INSTANTIATION (signature cut). If Σ (Γ ⊦ x : A) Σ' ⊦ J and
+#   Σ Γ ⊦ t : A — the filling term lives in the PREFIX preceding the
+#   hole — then Σ Σ'[t/x] ⊦ J[t/x], where [t/x] replaces every
+#   reference x[e˲] by t[e˲]. Ditto for a type declaration filled by
+#   Σ Γ ⊦ T type.
+#
+# * DISCHARGE. If Σ (Γ ⊦ a₀ ≐ a₁ : A) Σ' ⊦ J and Σ Γ ⊦ a₀ ≐ a₁ : A —
+#   the constraint is DERIVABLE in its prefix — then Σ Σ' ⊦ J: the
+#   entry deletes, every el-sig-eq use of it being derivable outright.
+#   Ditto for type constraints via ty-sig-eq.
+#
+# Substitution action is uniform in the entry kind: the -sub-sig-var
+# rules (ty-sub-sig-var, el-sub-sig-var), stated below for
+# definitions, are adopted verbatim for declarations —
+# x[e˲][σ] ≜ x[e˲ ∘ σ] whichever entry x names.
 
 ///////// Rules (ctx) /////////
 
@@ -491,6 +556,20 @@ e˲ : Δ ⇒ Γ norm
 e˲ : Δ ⇒ Γ norm
 -------------------------- (ty-sig-beta)
 Σ Δ ⊦ x[e˲] ≜ A[e˲] type
+
+# Open-signature references: a type declaration types its references
+# but never unfolds them (no -beta — the reference is stuck); a type
+# constraint is used as a definitional equality.
+
+(Γ ⊦ x type) ∈ Σ
+e˲ : Δ ⇒ Γ norm
+------------------ (ty-sig-decl)
+Σ Δ ⊦ x[e˲] type
+
+(Γ ⊦ A₀ ≐ A₁ type) ∈ Σ
+e˲ : Δ ⇒ Γ norm
+------------------------------ (ty-sig-eq)
+Σ Δ ⊦ A₀[e˲] ≐ A₁[e˲] type
 
 # El-decoding: El of a code computes to the type it encodes.
 
@@ -1812,6 +1891,20 @@ e˲ : Δ ⇒ Γ norm
 e˲ : Δ ⇒ Γ norm
 ------------------------------ (el-sig-beta)
 Σ Δ ⊦ x[e˲] ≜ a[e˲] : A[e˲]
+
+# Open-signature references (see DEFINITIONAL AND OPEN SIGNATURES): a
+# declaration types its references but never unfolds them (no -beta);
+# an element constraint is used as a definitional equality.
+
+(Γ ⊦ x : A) ∈ Σ
+e˲ : Δ ⇒ Γ norm
+--------------------- (el-sig-decl)
+Σ Δ ⊦ x[e˲] : A[e˲]
+
+(Γ ⊦ a₀ ≐ a₁ : A) ∈ Σ
+e˲ : Δ ⇒ Γ norm
+--------------------------------- (el-sig-eq)
+Σ Δ ⊦ a₀[e˲] ≐ a₁[e˲] : A[e˲]
 
 # Substitution action on elements: t[σ] is defined by meta-level
 # induction on t via the ≜-equations below.
