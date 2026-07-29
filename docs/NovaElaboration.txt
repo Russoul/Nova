@@ -507,6 +507,29 @@ x ∉ Σ (as ?x)
 # ACCEPTED files — a rerun re-solves them deterministically — while
 # `?`-holes never can.
 #
+# Three refinements make elided PROOF-COMBINATOR INDICES (trans/sym-
+# style applications with every index a `_`) solve wholesale — the
+# intended fillings being near-syntactic, the machinery is kept
+# deliberately first-order and intensional (in this extensional
+# theory solutions are wildly non-unique up to ≐; the elaborator
+# never searches that quotient — any pick is kernel-checked, and
+# proof irrelevance makes index picks invisible downstream):
+#  * ↓ decomposes WEAK-HEAD-normal sides first (whnf: contract the
+#    head, keep every subterm as written; hole references are stuck),
+#    falling back to the lemma-normalized sides only when the whnf
+#    pair matches no case — full normalization would macro-expand
+#    definitions into the children, and hypothesis REWRITING would
+#    canonicalize straight through a hole's identity spine, masking
+#    the pattern;
+#  * the pattern solver takes the solution from the other side AS
+#    WRITTEN when the kernel accepts it, walking it back into the
+#    declaration's prefix by single δ-steps otherwise (a later-minted
+#    def's DEFINIENS is often prefix-legal when its name is not);
+#  * an equation between two unsolved solvable holes ALIASES them:
+#    the declared types are converted first (solving their own
+#    embedded holes), then the later declaration flips to a reference
+#    to the earlier.
+#
 # ITEM-END CONSTRAINT DELETION (Foundation: DISCHARGE): a flip can
 # make an equation assumed EARLIER IN THE SAME ITEM derivable by
 # beta. At item end, each constraint the current item minted is

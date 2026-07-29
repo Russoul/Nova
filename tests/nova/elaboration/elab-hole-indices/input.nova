@@ -1,0 +1,11 @@
+-- proof-combinator indices elided wholesale: pinned by the types of
+-- the proof arguments (whnf decomposition keeps as-written spellings;
+-- hole-hole equations alias; later-def solutions unfold to the prefix)
+def trans : (A : 𝕌) (x : El A) (y : El A) (z : El A) →
+            (x ≡ y ∈ El A) → (y ≡ z ∈ El A) → x ≡ z ∈ El A ≔
+  λA. λx. λy. λz. λp. λq. ⋆
+def sym : (A : 𝕌) (x : El A) (y : El A) → (x ≡ y ∈ El A) → y ≡ x ∈ El A ≔
+  λA. λx. λy. λp. ⋆
+def test : (a : El ℕ) (b : El ℕ) (c : El ℕ) →
+           (a ≡ b ∈ El ℕ) → (b ≡ c ∈ El ℕ) → a ≡ c ∈ El ℕ ≔
+  λa. λb. λc. λp. λq. trans _ _ _ _ p (sym _ _ _ (sym _ _ _ q))

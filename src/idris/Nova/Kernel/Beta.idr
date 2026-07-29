@@ -181,3 +181,73 @@ export
 betaCtx : Sig -> Ctx -> Ctx
 betaCtx sig [<]          = [<]
 betaCtx sig (rest :< ty) = betaCtx sig rest :< betaTy sig ty
+
+mutual
+  ||| WEAK-HEAD normalization, tolerant of open signatures and open
+  ||| contexts: contract only at the head, leave every subterm AS
+  ||| WRITTEN, and return stuck forms instead of crashing (a scrutinee
+  ||| may be a variable or a hole reference here, unlike Nova.Compute's
+  ||| closed-term evaluator). Used by the elaborator's decomposition so
+  ||| children keep the user's spellings — full betaElem would unfold
+  ||| every definition on the way.
+  export
+  whnfE : Sig -> Elem -> Elem
+  whnfE sig (NatElim z s t) =
+    case whnfE sig t of
+      NatIntro0   => whnfE sig z
+      NatIntro1 n => whnfE sig (substElem s (Ext (Ext Id n) (NatElim z s n)))
+      t'          => NatElim z s t'
+  whnfE sig (PiApp f e) =
+    case whnfE sig f of
+      PiIntro g => whnfE sig (substElem g (Ext Id e))
+      f'        => PiApp f' e
+  whnfE sig (SigmaElim1 t) =
+    case whnfE sig t of
+      SigmaIntro a _ => whnfE sig a
+      t'             => SigmaElim1 t'
+  whnfE sig (SigmaElim2 t) =
+    case whnfE sig t of
+      SigmaIntro _ b => whnfE sig b
+      t'             => SigmaElim2 t'
+  whnfE sig (SigVar x es) =
+    case sigLookup x sig of
+      Just (SigDef _ _ a _) => whnfE sig (substElem a (embed es))
+      _ => SigVar x es
+  whnfE sig (QuotElim f q) =
+    case whnfE sig q of
+      Class a => whnfE sig (substElem f (Ext Id a))
+      q'      => QuotElim f q'
+  whnfE sig (Squash t) =
+    case whnfT sig t of
+      Prf p => whnfE sig p       -- code-squash-prf
+      t'    => Squash t'
+  whnfE sig (QElim sg k ms fs es w) =
+    case whnfE sig w of
+      QCtor sgW c theta =>
+        -- el-qiit-beta demands nf-identical signatures; anything less
+        -- than syntactic identity is left to the full-beta fallback
+        if sgW == sg
+          then case qElimBetaRhs sg ms fs c theta of
+                 Right rhs => whnfE sig rhs
+                 Left _ => QElim sg k ms fs es (QCtor sgW c theta)
+          else QElim sg k ms fs es (QCtor sgW c theta)
+      w' => QElim sg k ms fs es w'
+  whnfE sig e = e
+
+  export
+  whnfT : Sig -> Ty -> Ty
+  whnfT sig (El e) =
+    case whnfE sig e of
+      Elem.ZeroTy      => Ty.ZeroTy
+      Elem.OneTy       => Ty.OneTy
+      Elem.NatTy       => Ty.NatTy
+      Elem.PiTy a b    => Ty.PiTy (El a) (El b)
+      Elem.SigmaTy a b => Ty.SigmaTy (El a) (El b)
+      QuotTy a r       => Quotient (El a) r
+      QSortC sg k es   => QSort sg k es    -- ty-el-qiit
+      e'               => El e'
+  whnfT sig (Ty.SigVar x es) =
+    case sigLookup x sig of
+      Just (SigTyDef _ _ a) => whnfT sig (substTy a (embed es))
+      _ => Ty.SigVar x es
+  whnfT sig t = t

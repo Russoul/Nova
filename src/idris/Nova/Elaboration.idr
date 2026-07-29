@@ -217,6 +217,19 @@ wkSpine : (n : Nat) -> (k : Nat) -> SubNorm
 wkSpine Z k = [<]
 wkSpine (S n) k = cast (map CtxVar (reverse [k .. k + n]))
 
+||| ONE δ-step at the head: a definition reference unfolds to its
+||| definiens under the spine; anything else is left alone. Used to
+||| walk a hole solution back INTO the declaration's prefix (a later
+||| def's body may be prefix-legal even when its name is not) without
+||| beta-normalizing the whole term.
+unfoldHead : Sig -> Elem -> Maybe Elem
+unfoldHead sig (SigVar x es) =
+  case sigLookup x sig of
+    Just (SigDef _ _ a _) => Just (substElem a (embed es))
+    _ => Nothing
+unfoldHead sig (PiApp f e) = map (\f' => PiApp f' e) (unfoldHead sig f)
+unfoldHead sig _ = Nothing
+
 ||| Position of the entry binding a name (leftmost/oldest first).
 sigIndexOf : String -> List SigEntry -> Maybe Nat
 sigIndexOf q = go 0
@@ -1421,14 +1434,46 @@ mutual
   ||| After a flip the reference unfolds by el-sig-beta, so the
   ||| equation that forced it discharges by plain beta on retry.
   ||| Returns True iff a flip happened.
-  patternSolveE : Ctx -> Elem -> Elem -> Ty -> ElabM Bool
-  patternSolveE ctx a b ty = do
+  patternSolveE : Ctx -> NameEnv -> String -> Elem -> Elem -> Ty -> ElabM Bool
+  patternSolveE ctx env site a b ty = do
     st <- getSt
     let aN = betaElem st.sig a
     let bN = betaElem st.sig b
-    r <- go st aN bN
+    -- beta only ever EXPOSES the hole side; the solution is taken
+    -- from the other side AS WRITTEN when the kernel accepts it —
+    -- the intended, syntactic filling (beta-normalizing it could
+    -- leave the tiny checker's fragment, e.g. unfold a def into a
+    -- quot-elim) — falling back to its beta-normal form
+    r <- bothHoles st aN bN
+    r <- if r then pure True else go st aN b
+    r <- if r then pure True else go st aN bN
+    r <- if r then pure True else go st bN a
     if r then pure True else go st bN aN
    where
+    ||| The candidate body, walked into the prefix by single δ-steps:
+    ||| the first spelling the kernel accepts wins (as written when
+    ||| possible — the intended, syntactic filling).
+    trySolutions : Nat -> Sig -> Elem -> Sig -> Ctx -> Ty -> Maybe Elem
+    trySolutions Z full t pre delta dty = Nothing
+    trySolutions (S fuel) full t pre delta dty =
+      case kCheckSolution pre kernelFuel delta t dty of
+        Right () => Just t
+        -- unfold against the FULL signature: the offending name is a
+        -- LATER def, absent from the prefix by construction
+        Left _ => case unfoldHead full t of
+                    Just t' => trySolutions fuel full t' pre delta dty
+                    Nothing => Nothing
+
+    holeDecl : ElabSt -> Elem -> Maybe (String, Ty)
+    holeDecl st (SigVar q es) =
+      case sigLookup q st.sig of
+        Just (SigDecl delta _ dty) =>
+          if delta == ctx && es == idSpine (length ctx)
+             && any (\m => m.hname == q && m.hsolvable) (toList st.holeMeta)
+            then Just (q, dty)
+            else Nothing
+        _ => Nothing
+    holeDecl _ _ = Nothing
     flipDecl : String -> Elem -> ElabM Bool
     flipDecl q t = do
       st <- getSt
@@ -1438,14 +1483,14 @@ mutual
         Just i =>
           case getAt i ls of
             Just (SigDecl delta _ dty) =>
-              case kCheckSolution (cast (take i ls)) kernelFuel delta t dty of
-                Left _ => pure False
-                Right () => do
-                  let def = SigDef delta q t dty
+              case trySolutions 8 st.sig t (cast (take i ls)) delta dty of
+                Nothing => pure False
+                Just tOk => do
+                  let def = SigDef delta q tOk dty
                   -- mirror into the kernel's Σ only when the solution
                   -- also checks there (it lacks dirty-run entries; if
                   -- this fails the run is dirty and the copy unused)
-                  let ks = if kCheckSolution st.kernelSig kernelFuel delta t dty == Right ()
+                  let ks = if kCheckSolution st.kernelSig kernelFuel delta tOk dty == Right ()
                              then st.kernelSig :< def
                              else st.kernelSig
                   modifySt $ { sig := cast (take i ls ++ [def] ++ drop (S i) ls)
@@ -1464,6 +1509,25 @@ mutual
         _ => pure False
     go st _ _ = pure False
 
+    ||| Both sides are unsolved solvable holes: ALIAS — align the two
+    ||| declared types first (their own holes pattern-solve in the
+    ||| process), then flip the LATER declaration to a reference to
+    ||| the earlier (the prefix direction; the flip's kernel check
+    ||| normalizes through the just-solved type holes).
+    bothHoles : ElabSt -> Elem -> Elem -> ElabM Bool
+    bothHoles st x y =
+      case (holeDecl st x, holeDecl st y) of
+        (Just (q1, ty1), Just (q2, ty2)) =>
+          if q1 == q2 then pure False else do
+            ignore $ convTy ctx env site Nothing ty1 ty2
+            st' <- getSt
+            let ls = toList st'.sig
+            case (sigIndexOf q1 ls, sigIndexOf q2 ls) of
+              (Just i1, Just i2) =>
+                if i1 < i2 then flipDecl q2 x else flipDecl q1 y
+              _ => pure False
+        _ => pure False
+
   ||| Type-hole counterpart: a stuck type declaration reference
   ||| equated with a type — flip sig-ty-decl to sig-ty-def.
   patternSolveT : Ctx -> Ty -> Ty -> ElabM Bool
@@ -1471,9 +1535,23 @@ mutual
     st <- getSt
     let aN = betaTy st.sig tyA
     let bN = betaTy st.sig tyB
-    r <- go st aN bN
+    -- as-written solution preferred; see patternSolveE
+    r <- bothHolesT st aN bN
+    r <- if r then pure True else go st aN tyB
+    r <- if r then pure True else go st aN bN
+    r <- if r then pure True else go st bN tyA
     if r then pure True else go st bN aN
    where
+    holeTyDecl : ElabSt -> Ty -> Maybe String
+    holeTyDecl st (Ty.SigVar q es) =
+      case sigLookup q st.sig of
+        Just (SigTyDecl delta _) =>
+          if delta == ctx && es == idSpine (length ctx)
+             && any (\m => m.hname == q && m.hsolvable) (toList st.holeMeta)
+            then Just q
+            else Nothing
+        _ => Nothing
+    holeTyDecl _ _ = Nothing
     flipTyDecl : String -> Ty -> ElabM Bool
     flipTyDecl q t = do
       st <- getSt
@@ -1506,6 +1584,18 @@ mutual
         _ => pure False
     go st _ _ = pure False
 
+    bothHolesT : ElabSt -> Ty -> Ty -> ElabM Bool
+    bothHolesT st x y =
+      case (holeTyDecl st x, holeTyDecl st y) of
+        (Just q1, Just q2) =>
+          if q1 == q2 then pure False else do
+            let ls = toList st.sig
+            case (sigIndexOf q1 ls, sigIndexOf q2 ls) of
+              (Just i1, Just i2) =>
+                if i1 < i2 then flipTyDecl q2 x else flipTyDecl q1 y
+              _ => pure False
+        _ => pure False
+
   ||| Γ ⊢ a ≐ b : A ↓ — always succeeds; assumes what it cannot discharge.
   convElem : Ctx -> NameEnv -> String -> Maybe Stmt -> Elem -> Elem -> Ty -> ElabM (Maybe ECert)
   convElem ctx env site comp a b ty = do
@@ -1513,7 +1603,7 @@ mutual
     case r of
       Right cert => pure (Just cert)
       Left site1 => do
-        solved <- patternSolveE ctx a b ty
+        solved <- patternSolveE ctx env site1 a b ty
         r2 <- the (ElabM (Either String ECert)) $
                 if solved then attemptE ctx site1 a b ty else pure (Left site1)
         case r2 of
@@ -1522,10 +1612,20 @@ mutual
             st <- getSt
             let cur = StElem ctx env a b ty
             let comp' = comp <|> Just cur
+            -- decompose WEAK-HEAD sides first: children then keep the
+            -- user's own spellings — full beta would macro-expand
+            -- every definition, and hypothesis REWRITING (a → b under
+            -- p : a ≡ b) canonicalizes straight through a hole's
+            -- spine, masking the solvable pattern. Structure that
+            -- only lemma normalization exposes still decomposes: the
+            -- final fallback retries with the rewritten sides.
+            let aB = whnfE st.sig a
+            let bB = whnfE st.sig b
             let a' = rwNfElem st ctx a
             let b' = rwNfElem st ctx b
+            let again = if (aB, bB) == (a', b') then Nothing else Just (a', b')
             n0 <- oblCount
-            decompose site2 cur comp' a' b' (rwNfTy st ctx ty)
+            decompose site2 cur comp' aB bB again (rwNfTy st ctx ty)
             n1 <- oblCount
             if n1 == n0
               then do
@@ -1535,14 +1635,14 @@ mutual
                 -- acceptance semantics honest (the site still has no
                 -- certificate; the remedy is a lemma that makes it
                 -- directly matchable).
-                r3 <- attemptE ctx site2 a b ty
+                r3 <- attemptE ctx site a b ty
                 case r3 of
                   Right cert => pure (Just cert)
                   Left site3 => do assume cur site3 comp; pure Nothing
               else pure Nothing
    where
-    decompose : String -> Stmt -> Maybe Stmt -> Elem -> Elem -> Ty -> ElabM ()
-    decompose site cur comp' a' b' tyW = do
+    decompose : String -> Stmt -> Maybe Stmt -> Elem -> Elem -> Maybe (Elem, Elem) -> Ty -> ElabM ()
+    decompose site cur comp' a' b' again tyW = do
         st <- getSt
         case (a', b', tyW) of
           -- congruence decomposition — faithful (an equivalence) for
@@ -1595,7 +1695,11 @@ mutual
                         Just (Ty.PiTy dom _) => ignore $ convElem ctx env site comp' x y dom
                         _ => assume cur site comp
               else assume cur site comp
-          _ => assume cur site comp
+          _ => case again of
+                 -- the beta-normal sides matched no case: retry with
+                 -- the lemma-normalized ones before assuming
+                 Just (aR, bR) => decompose site cur comp' aR bR Nothing tyW
+                 Nothing => assume cur site comp
 
   ||| Γ ⊢ A ≐ B type ↓
   convTy : Ctx -> NameEnv -> String -> Maybe Stmt -> Ty -> Ty -> ElabM (Maybe ECert)
@@ -1613,19 +1717,24 @@ mutual
             st <- getSt
             let cur = StTy ctx env tyA tyB
             let comp' = comp <|> Just cur
+            let aB = whnfT st.sig tyA
+            let bB = whnfT st.sig tyB
+            let aR = rwNfTy st ctx tyA
+            let bR = rwNfTy st ctx tyB
+            let again = if (aB, bB) == (aR, bR) then Nothing else Just (aR, bR)
             n0 <- oblCount
-            decomposeT site2 cur comp' (rwNfTy st ctx tyA) (rwNfTy st ctx tyB)
+            decomposeT site2 cur comp' aB bB again
             n1 <- oblCount
             if n1 == n0
               then do
-                r3 <- attemptT ctx site2 tyA tyB
+                r3 <- attemptT ctx site tyA tyB
                 case r3 of
                   Right cert => pure (Just cert)
                   Left site3 => do assume cur site3 comp; pure Nothing
               else pure Nothing
    where
-    decomposeT : String -> Stmt -> Maybe Stmt -> Ty -> Ty -> ElabM ()
-    decomposeT site cur comp' tyA' tyB' = do
+    decomposeT : String -> Stmt -> Maybe Stmt -> Ty -> Ty -> Maybe (Ty, Ty) -> ElabM ()
+    decomposeT site cur comp' tyA' tyB' again = do
         st <- getSt
         case (tyA', tyB') of
           (Ty.PiTy a0 b0, Ty.PiTy a1 b1) => do
@@ -1645,7 +1754,9 @@ mutual
           (rigid, El y) => case codeOf rigid of
                              Just c => ignore $ convElem ctx env site comp' c y Ty.UniverseTy
                              Nothing => assume cur site comp
-          _ => assume cur site comp
+          _ => case again of
+                 Just (aR, bR) => decomposeT site cur comp' aR bR Nothing
+                 Nothing => assume cur site comp
 
 -- ===== Bidirectional elaboration =====
 
