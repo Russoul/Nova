@@ -15,4 +15,5 @@ TOKENS (11):
 SYMBOLS (1):
   id (kind 12) [L1:1-L1:23]
 DEFINITION(id): SAME FILE [L1:1-L1:23]
+HOVER(id): null
 SERVER EXIT CODE: 0

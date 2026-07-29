@@ -13,6 +13,8 @@ module Nova.Elaboration.Surface
 import Data.SnocList
 import Data.String
 
+import Me.Russoul.Text.Range
+
 %default total
 
 mutual
@@ -40,8 +42,9 @@ mutual
     STyPrf : SElem -> STy
     ||| ?x (rigid) or _x/_ (solvable) — a hole in type position: a
     ||| type declaration in Σ, stuck until (if solvable) instantiated;
-    ||| blocks acceptance while it remains a declaration
-    STyHole : (solvable : Bool) -> String -> STy
+    ||| blocks acceptance while it remains a declaration. The range is
+    ||| the token's source span (display metadata, for the LSP).
+    STyHole : Maybe Range -> (solvable : Bool) -> String -> STy
 
   public export
   data SElem : Type where
@@ -96,8 +99,9 @@ mutual
     ||| Σ at the ambient context, stuck until (if solvable)
     ||| instantiated by a pattern equation; reported with its type
     ||| while open. Checking position only — a hole has no type of its
-    ||| own to infer.
-    SHole : (solvable : Bool) -> String -> SElem
+    ||| own to infer. The range is the token's source span (display
+    ||| metadata, for the LSP).
+    SHole : Maybe Range -> (solvable : Bool) -> String -> SElem
 
 -- ===== Operators are names =====
 --
@@ -218,7 +222,7 @@ mutual
     show (STyEl e) = "El (\{show e})"
     show STyProp = "Ω"
     show (STyPrf e) = "Prf (\{show e})"
-    show (STyHole solvable x) = if solvable then "_\{x}" else "?\{x}"
+    show (STyHole _ solvable x) = if solvable then "_\{x}" else "?\{x}"
 
   export covering
   Show SElem where
@@ -250,7 +254,7 @@ mutual
     show (SStarWit e) = "⋆ (\{show e})"
     show (SSquashElim e x body) = "SquashElim (\{show e}) \{x} (\{show body})"
     show (SAnn t ty) = "Ann (\{show t}) (\{show ty})"
-    show (SHole solvable x) = if solvable then "_\{x}" else "?\{x}"
+    show (SHole _ solvable x) = if solvable then "_\{x}" else "?\{x}"
 
 export
 Show SImport where

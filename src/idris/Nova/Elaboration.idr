@@ -123,6 +123,8 @@ record HoleMeta where
   ||| may the elaborator instantiate this hole? (surface `_x`; a rigid
   ||| `?x` is never solved) — policy, not theory: both are sig-decls
   hsolvable : Bool
+  ||| the minting occurrence's source span (LSP hover/diagnostics)
+  hrange : Maybe Range
 
 record ElabSt where
   constructor MkElabSt
@@ -139,6 +141,9 @@ record ElabSt where
   ||| display metadata for Σ's declaration entries (holes), in minting
   ||| order (invariant: one per SigDecl/SigTyDecl of `sig`)
   holeMeta : SnocList HoleMeta
+  ||| every hole occurrence's source span (minting AND reuse sites),
+  ||| for LSP position lookup
+  holeOccs : SnocList (String, Range)
   ||| dotted name of the module being elaborated; "" = the root file,
   ||| whose entries stay unqualified
   modPrefix : String
@@ -148,7 +153,7 @@ record ElabSt where
   vis : SnocList (String, String)
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [<] [<] "" [<]
+initSt = MkElabSt [<] [<] [] [] [] [<] [<] [<] "" [<]
 
 ||| Resolve a surface signature reference: aliases first (own module,
 ||| opened imports), else the name itself (qualified references reach
@@ -1454,6 +1459,7 @@ record HoleView where
   hvenv : NameEnv
   hvty : Maybe Ty
   hvsite : String
+  hvrange : Maybe Range
 
 ||| The hole report view: Σ's declaration entries zipped with their
 ||| display metadata, in minting order.
@@ -1466,8 +1472,8 @@ holeView st = mapMaybe view (toList st.sig)
   metaFor : String -> Maybe HoleMeta
   metaFor x = find (\m => m.hname == x) (toList st.holeMeta)
   view : SigEntry -> Maybe HoleView
-  view (SigDecl ctx x ty) = map (\m => MkHoleView x (zonkCtx st ctx) m.henv (Just (zonkTy st ty)) m.hsite) (metaFor x)
-  view (SigTyDecl ctx x) = map (\m => MkHoleView x (zonkCtx st ctx) m.henv Nothing m.hsite) (metaFor x)
+  view (SigDecl ctx x ty) = map (\m => MkHoleView x (zonkCtx st ctx) m.henv (Just (zonkTy st ty)) m.hsite m.hrange) (metaFor x)
+  view (SigTyDecl ctx x) = map (\m => MkHoleView x (zonkCtx st ctx) m.henv Nothing m.hsite m.hrange) (metaFor x)
   view _ = Nothing
 
 ||| ASSUME (docs/NovaElaboration.txt, ↓ step 8): append the equation to
@@ -1971,7 +1977,7 @@ mutual
   elabTy ctx env site (STyPrf e) = do
     (e', eSk) <- checkElem ctx env site e Ty.PropTy
     pure (Prf e', Nd [] [eSk])
-  elabTy ctx env site (STyHole solvable x) = do
+  elabTy ctx env site (STyHole mrng solvable x) = do
     -- a TYPE hole: a type declaration entry at the ambient context
     -- (sig-ty-decl); references are stuck (ty-sig-decl). Solvable
     -- type holes are instantiated by type pattern equations
@@ -1982,6 +1988,7 @@ mutual
                else "?\{x}"
     let q = if st.modPrefix == "" then q0 else "\{st.modPrefix}.\{q0}"
     let baseSk = Nd [] (replicate (length ctx) (Nd [] []))
+    whenJust mrng (\r => modifySt $ { holeOccs $= (:< (q, r)) })
     let reuseT : Ctx -> ElabM (Ty, Skel)
         reuseT = \delta =>
           let n = length delta
@@ -1997,7 +2004,7 @@ mutual
       Just _ => throw "\{site}: '\{q0}' names a non-type signature entry"
       Nothing => do
         modifySt $ { sig $= (:< SigTyDecl ctx q)
-                   , holeMeta $= (:< MkHoleMeta q env site solvable) }
+                   , holeMeta $= (:< MkHoleMeta q env site solvable mrng) }
         pure (Ty.SigVar q (idSpine (length ctx)), baseSk)
 
   export
@@ -2006,7 +2013,7 @@ mutual
     case ctxLookup ctx i of
       Just ty => pure (CtxVar i, ty, Nd [] [])
       Nothing => throw "\{site}: variable index out of bounds"
-  inferElem ctx env site (SHole solvable x) =
+  inferElem ctx env site (SHole _ solvable x) =
     let pre = the String (if solvable then "_" else "?") in
     throw "\{site}: hole \{pre}\{x} in inference position — its type is undetermined here\{structuralHint}"
   inferElem ctx env site (SSig x0) = do
@@ -2197,7 +2204,7 @@ mutual
                 (body', bodySk) <- checkElem (ctx :< a) (env :< xn) site body (substTy (Prf q) Wk)
                 pure (Star, withExpose exp (Nd [PSquashElim e' eSk body' bodySk] []))
           _ => throw "\{site}: squash-elim scrutinee checked against Prf of a non-∥∥ code\{structuralHint}"
-  checkElem ctx env site (SHole solvable x) ty = do
+  checkElem ctx env site (SHole mrng solvable x) ty = do
     -- a hole: a declaration entry at the AMBIENT context (sig-decl);
     -- the reference carries the identity spine and is stuck
     -- (el-sig-decl). A rigid `?x` is reported and never solved; a
@@ -2216,6 +2223,7 @@ mutual
     -- it (the weakened identity spine); the occurrence's expected
     -- type converts against the (weakened) declared one — a switch,
     -- like any reference.
+    whenJust mrng (\r => modifySt $ { holeOccs $= (:< (q, r)) })
     let reuse : Ctx -> Ty -> ElabM (Elem, Skel)
         reuse = \delta, dty =>
           let n = length delta
@@ -2233,7 +2241,7 @@ mutual
       Just _ => throw "\{site}: '\{q0}' names a non-element signature entry"
       Nothing => do
         modifySt $ { sig $= (:< SigDecl ctx q ty)
-                   , holeMeta $= (:< MkHoleMeta q env site solvable) }
+                   , holeMeta $= (:< MkHoleMeta q env site solvable mrng) }
         pure (SigVar q (idSpine (length ctx)), baseSk)
   checkElem ctx env site t ty = do
     (t', inferred, tSk) <- inferElem ctx env site t
@@ -2969,13 +2977,69 @@ elabFile content =
 ||| to the open document" (mname == "", the root — see
 ||| `Nova.Elaboration.Loader.loadProgram`) from "this came from an
 ||| imported file, don't paint this range in MY document".
+||| One hole of the ROOT module, for LSP consumers: every occurrence's
+||| span, and the rendered judgement — the hole's context and type
+||| while open, its solution once solved. All display strings are
+||| zonked (solved holes unfolded).
+public export
+record HoleInfo where
+  constructor MkHoleInfo
+  hiName : String
+  hiSolvable : Bool
+  ||| Nothing while open; Just (rendered solution) once solved
+  hiSolution : Maybe String
+  ||| the rendered judgement: `(ctx) ⊢ ? : T`, or `(ctx) ⊢ x ≔ t : T`
+  hiText : String
+  ||| the minting occurrence first, then reuse occurrences
+  hiOccs : List Range
+
+||| The LSP hole table: one row per hole of the ROOT module (module
+||| prefix "" — hole names of imported modules are dot-qualified),
+||| solved and open alike, in minting order.
+holeInfos : FixTable -> ElabSt -> List HoleInfo
+holeInfos tbl st = mapMaybe row (toList st.holeMeta)
+ where
+  occsOf : String -> List Range
+  occsOf q = [r | (n, r) <- toList st.holeOccs, n == q]
+
+  judge : NameEnv -> Ctx -> String -> String
+  judge env ctx rhs =
+    let tele = prettyTelescope tbl ctx env in
+    (if tele == "" then "" else tele ++ " ") ++ "⊢ " ++ rhs
+
+  row : HoleMeta -> Maybe HoleInfo
+  row m =
+    if isInfixOf "." m.hname then Nothing else
+    case sigLookup m.hname st.sig of
+      Just (SigDecl ctx _ ty) => Just $ MkHoleInfo m.hname m.hsolvable Nothing
+        (judge m.henv (zonkCtx st ctx) "? : \{prettyTyN tbl m.henv (zonkTy st ty)}")
+        (occsOf m.hname)
+      Just (SigTyDecl ctx _) => Just $ MkHoleInfo m.hname m.hsolvable Nothing
+        (judge m.henv (zonkCtx st ctx) "? type")
+        (occsOf m.hname)
+      Just (SigDef ctx _ t ty) =>
+        let sol = prettyElemN tbl m.henv (zonkElem st t) in
+        Just $ MkHoleInfo m.hname m.hsolvable (Just sol)
+          (judge m.henv (zonkCtx st ctx) "\{m.hname} ≔ \{sol} : \{prettyTyN tbl m.henv (zonkTy st ty)}")
+          (occsOf m.hname)
+      Just (SigTyDef ctx _ ty) =>
+        let sol = prettyTyN tbl m.henv (zonkTy st ty) in
+        Just $ MkHoleInfo m.hname m.hsolvable (Just sol)
+          (judge m.henv (zonkCtx st ctx) "\{m.hname} ≔ \{sol} type")
+          (occsOf m.hname)
+      _ => Nothing
+
 public export
 record ElabReport where
   constructor MkElabReport
   obligations : List (String, Maybe Range, Obligation)
-  ||| open holes, pre-rendered (module, item range, report text) —
-  ||| same attribution granularity as obligations
+  ||| open holes, pre-rendered (module, range, report text) — the
+  ||| range is the hole token's own when the parser recorded one,
+  ||| the enclosing item's otherwise
   holes : List (String, Maybe Range, String)
+  ||| the LSP hole table: the ROOT module's holes, solved and open
+  ||| alike (hover, inlay hints)
+  holeTable : List HoleInfo
   ||| at most one per run — elaboration of a dependency-ordered program
   ||| stops at the first hard failure, same as `elabProgram`
   errors : List (String, Maybe Range, String)
@@ -3007,27 +3071,29 @@ elabProgramReport units = go initSt units [] [] []
       Left err => Left (([], []), rng, err)
       Right (st', _) =>
         let tagged = map (\o => (mname, rng, o)) (newObls st st')
-            taggedH = map (\h => (mname, rng, prettyHole tbl h)) (newHoles st st') in
+            -- a hole diagnostic lands on the hole TOKEN when the
+            -- parser recorded its span, on the item otherwise
+            taggedH = map (\h => (mname, h.hvrange <|> rng, prettyHole tbl h)) (newHoles st st') in
         case goItems tbl mname st' rest of
           Left ((obls, hs), r, err) => Left ((tagged ++ obls, taggedH ++ hs), r, err)
           Right (st'', (obls, hs)) => Right (st'', (tagged ++ obls, taggedH ++ hs))
 
   go : ElabSt -> List ModUnit -> List (String, Maybe Range, Obligation) -> List (String, Maybe Range, String) -> List (String, Maybe Range, String) -> ElabReport
-  go st [] obls hs errs = MkElabReport obls hs errs
+  go st [] obls hs errs = MkElabReport obls hs [] errs
   go st (MkModUnit name imps tbl items _ :: rest) obls hs errs =
     let st = { modPrefix := name, vis := [<] } st in
     case runElabM (installImports imps) st of
-      Left err => MkElabReport obls hs (errs ++ [(name, Nothing, err)])
+      Left err => MkElabReport obls hs (holeInfos tbl st) (errs ++ [(name, Nothing, err)])
       Right (st, ()) =>
         case goItems tbl name st items of
-          Left ((itemObls, itemHs), rng, err) => MkElabReport (obls ++ itemObls) (hs ++ itemHs) (errs ++ [(name, rng, err)])
+          Left ((itemObls, itemHs), rng, err) => MkElabReport (obls ++ itemObls) (hs ++ itemHs) [] (errs ++ [(name, rng, err)])
           Right (st', (itemObls, itemHs)) =>
             case rest of
-              [] => MkElabReport (obls ++ itemObls) (hs ++ itemHs) errs
+              [] => MkElabReport (obls ++ itemObls) (hs ++ itemHs) (holeInfos tbl st') errs
               _ =>
                 -- only ACCEPTED modules are importable: a module's
                 -- signature segment must be DEFINITIONAL
                 case (oblView st', holeView st') of
                   ([], []) => go st' rest (obls ++ itemObls) (hs ++ itemHs) errs
-                  _ => MkElabReport (obls ++ itemObls) (hs ++ itemHs)
+                  _ => MkElabReport (obls ++ itemObls) (hs ++ itemHs) (holeInfos tbl st')
                          (errs ++ [(name, Nothing, "module \{name} has open obligations and cannot be imported")])

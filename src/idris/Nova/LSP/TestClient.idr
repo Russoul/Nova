@@ -196,6 +196,17 @@ renderDefinition fixtureUri result =
     let label = if uri == fixtureUri then "SAME FILE" else "OTHER FILE: \{basename uri}"
     pure "\{label} [\{renderRange rng}]")
 
+||| Normalized hover result: the markdown value flattened to one line
+||| (newlines shown as ⏎) plus the answer range.
+renderHover : JSON -> String
+renderHover JNull = "null"
+renderHover result =
+  fromMaybe "?" (do
+    value <- getPath ["contents", "value"] result >>= asString
+    let flat = fastConcat (map (\c => if c == '\n' then " ⏎ " else cast c) (unpack value))
+    let rng = maybe "?" renderRange (getField "range" result)
+    pure "[\{rng}] \{flat}")
+
 -- ===== the scripted conversation =====
 
 ||| `word`'s first occurrence in the fixture is used as the cursor
@@ -264,7 +275,16 @@ runLspTest lspBinPath fixtureAbsPath word = do
   let defResult = fromMaybe JNull (getField "result" defResp)
   putStrLn "DEFINITION(\{word}): \{renderDefinition uri defResult}"
 
-  writeMessage proc.input (req 5 "shutdown" JNull)
+  writeMessage proc.input (req 5 "textDocument/hover" (JObject
+    [ ("textDocument", JObject [("uri", JString uri)])
+    , ("position", JObject [("line", JNumber (cast wline)), ("character", JNumber (cast wcol))])
+    ]))
+  Just hovResp <- readMessage proc.output
+    | Nothing => dieMsg "no response to hover"
+  let hovResult = fromMaybe JNull (getField "result" hovResp)
+  putStrLn "HOVER(\{word}): \{renderHover hovResult}"
+
+  writeMessage proc.input (req 6 "shutdown" JNull)
   Just _ <- readMessage proc.output
     | Nothing => dieMsg "no response to shutdown"
   writeMessage proc.input (notif "exit" JNull)

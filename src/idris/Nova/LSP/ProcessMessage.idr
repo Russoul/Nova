@@ -141,6 +141,30 @@ handleRequest TextDocumentDocumentSymbol params = whenActiveRequest $ \_ => do
   let syms = documentSymbols (lines doc.source) doc.rootUnit.mitems
   pure (pure (make syms))
 
+handleRequest TextDocumentHover params = whenActiveRequest $ \_ => do
+  logI Channel "Received hover request for \{show params.textDocument.uri}"
+  Just doc <- getDoc params.textDocument.uri
+    | Nothing => pure (pure (make MkNull))
+  let lns = lines doc.source
+  let pos = fromLspPosition lns params.position
+  -- a hole occurrence under the cursor answers with the hole's
+  -- judgement: context and type while open, the solution once solved
+  let hits = [ (hi, r) | hi <- doc.report.holeTable, r <- hi.hiOccs
+             , posInRange pos r ]
+  case hits of
+    [] => pure (pure (make MkNull))
+    ((hi, r) :: _) => do
+      let kind = the String $
+                   if hi.hiSolvable
+                     then maybe "unsolved hole" (const "solved hole") hi.hiSolution
+                     else "rigid hole"
+      let text = kind ++ " " ++ hi.hiName ++ "\n" ++ hi.hiText
+      let content = MkMarkupContent Markdown ("```nova\n" ++ text ++ "\n```")
+      pure (pure (make (MkHover (make content) (Just (toLspRange lns r)))))
+ where
+  posInRange : Me.Russoul.Text.Position.Position -> Me.Russoul.Text.Range.Range -> Bool
+  posInRange p (MkRange s e) = s <= p && p <= e
+
 handleRequest TextDocumentDefinition params = whenActiveRequest $ \_ => do
   logI Channel "Received definition request for \{show params.textDocument.uri}"
   Just doc <- getDoc params.textDocument.uri
