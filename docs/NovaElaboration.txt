@@ -524,11 +524,21 @@ x ∉ Σ (as ?x)
 #  * the pattern solver takes the solution from the other side AS
 #    WRITTEN when the kernel accepts it, walking it back into the
 #    declaration's prefix by single δ-steps otherwise (a later-minted
-#    def's DEFINIENS is often prefix-legal when its name is not);
+#    def's DEFINIENS is often prefix-legal when its name is not); a
+#    WEAKENED occurrence (the hole under k more binders, carrying the
+#    weakened identity spine — an eliminator motive's body pinning
+#    the eliminator's parameter) solves by STRENGTHENING the solution
+#    back to the hole's own context, refused if it mentions any of
+#    the k binders;
 #  * an equation between two unsolved solvable holes ALIASES them:
 #    the declared types are converted first (solving their own
 #    embedded holes), then the later declaration flips to a reference
 #    to the earlier.
+# The kernel-Σ MIRROR of the solved holes happens once per item, at
+# item end, in minting order (each solution is prefix-legal, so
+# earlier mirrors carry later ones) — mirroring at flip time would be
+# order-fragile: a solution may mention a hole solved only later in
+# the item.
 #
 # ITEM-END CONSTRAINT DELETION (Foundation: DISCHARGE): a flip can
 # make an equation assumed EARLIER IN THE SAME ITEM derivable by
