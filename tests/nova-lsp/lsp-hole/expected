@@ -1,4 +1,5 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
+INLAY PROVIDER: true
 DIAGNOSTICS (1):
   [L2:46-L2:51]   [?base] (n : ℕ) ⊢ ? : plus Z n ≡ n ∈ ℕ
       at: def lemma
@@ -60,4 +61,6 @@ SYMBOLS (2):
   lemma (kind 12) [L2:1-L2:51]
 DEFINITION(?base): null
 HOVER(?base): [L2:46-L2:51] ```nova ⏎ rigid hole ?base ⏎ (n : ℕ) ⊢ ? : plus Z n ≡ n ∈ ℕ ⏎ ```
+INLAY HINTS (1):
+  [L2:51] (kind 1) : plus Z n ≡ n ∈ ℕ
 SERVER EXIT CODE: 0

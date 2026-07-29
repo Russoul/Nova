@@ -207,6 +207,16 @@ renderHover result =
     let rng = maybe "?" renderRange (getField "range" result)
     pure "[\{rng}] \{flat}")
 
+renderHint : JSON -> String
+renderHint h =
+  let pos = fromMaybe "?" (do
+              l <- getPath ["position", "line"] h >>= asInt
+              c <- getPath ["position", "character"] h >>= asInt
+              pure "L\{show (l + 1)}:\{show (c + 1)}")
+      label = fromMaybe "?" (getField "label" h >>= asString)
+      kind = fromMaybe (-1) (getField "kind" h >>= asInt)
+  in "  [\{pos}] (kind \{show kind})\{label}"
+
 -- ===== the scripted conversation =====
 
 ||| `word`'s first occurrence in the fixture is used as the cursor
@@ -229,6 +239,8 @@ runLspTest lspBinPath fixtureAbsPath word = do
                  xs <- asArray arr
                  traverse asString xs)
   putStrLn "LEGEND: \{show legend}"
+  let inlay = fromMaybe JNull (getPath ["result", "capabilities", "inlayHintProvider"] initResp)
+  putStrLn "INLAY PROVIDER: \{stringify inlay}"
 
   writeMessage proc.input (notif "initialized" (JObject []))
 
@@ -284,7 +296,20 @@ runLspTest lspBinPath fixtureAbsPath word = do
   let hovResult = fromMaybe JNull (getField "result" hovResp)
   putStrLn "HOVER(\{word}): \{renderHover hovResult}"
 
-  writeMessage proc.input (req 6 "shutdown" JNull)
+  writeMessage proc.input (req 6 "textDocument/inlayHint" (JObject
+    [ ("textDocument", JObject [("uri", JString uri)])
+    , ("range", JObject
+        [ ("start", JObject [("line", JNumber 0), ("character", JNumber 0)])
+        , ("end", JObject [("line", JNumber 9999), ("character", JNumber 0)])
+        ])
+    ]))
+  Just hintResp <- readMessage proc.output
+    | Nothing => dieMsg "no response to inlayHint"
+  let hints = fromMaybe [] (getPath ["result"] hintResp >>= asArray)
+  putStrLn "INLAY HINTS (\{show (length hints)}):"
+  traverse_ (putStrLn . renderHint) hints
+
+  writeMessage proc.input (req 7 "shutdown" JNull)
   Just _ <- readMessage proc.output
     | Nothing => dieMsg "no response to shutdown"
   writeMessage proc.input (notif "exit" JNull)

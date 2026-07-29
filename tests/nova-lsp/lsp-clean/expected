@@ -1,4 +1,5 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
+INLAY PROVIDER: true
 DIAGNOSTICS (0):
 TOKENS (11):
   L1:1+3 keyword
@@ -16,4 +17,5 @@ SYMBOLS (1):
   id (kind 12) [L1:1-L1:23]
 DEFINITION(id): SAME FILE [L1:1-L1:23]
 HOVER(id): null
+INLAY HINTS (0):
 SERVER EXIT CODE: 0

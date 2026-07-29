@@ -1,4 +1,5 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
+INLAY PROVIDER: true
 DIAGNOSTICS (0):
 TOKENS (12):
   L1:1+6 keyword
@@ -17,4 +18,5 @@ SYMBOLS (1):
   two (kind 12) [L2:1-L2:20]
 DEFINITION(one): OTHER FILE: lib.nova [L1:1-L1:18]
 HOVER(one): null
+INLAY HINTS (0):
 SERVER EXIT CODE: 0

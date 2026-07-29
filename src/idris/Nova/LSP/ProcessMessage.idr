@@ -107,6 +107,83 @@ whenNotShutdownNotification k =
 whenActiveNotification : Ref LSPConf LSPConfiguration => (InitializeParams -> IO ()) -> IO ()
 whenActiveNotification = whenNotShutdownNotification . whenInitializedNotification
 
+-- ===== raw-JSON requests (outside lsp-lib's Method universe) =====
+
+jStr : String -> JSON
+jStr = JString
+
+jField : String -> JSON -> Maybe JSON
+jField k (JObject kvs) = lookup k kvs
+jField _ _ = Nothing
+
+jPath : List String -> JSON -> Maybe JSON
+jPath [] j = Just j
+jPath (k :: ks) j = jField k j >>= jPath ks
+
+||| One inlay hint: the elaborator's decision pushed to the editor —
+||| ` ≔ solution` after a solved hole, ` : type` after an open one.
+||| Labels are truncated; hover carries the full judgement.
+inlayHintJSON : (lns : List String) -> HoleInfo -> Me.Russoul.Text.Range.Range -> Maybe JSON
+inlayHintJSON lns hi occ =
+  let lspEnd = toLspPosition lns occ.end
+      label = case hi.hiSolution of
+                Just sol => "≔ " ++ sol
+                Nothing => case break (== '⊢') (unpack hi.hiText) of
+                  -- the judgement's right-hand side: `? : T` / `? type`
+                  (_, ('⊢' :: ' ' :: '?' :: rhs)) => pack rhs
+                  _ => ""
+  in if label == "" then Nothing else
+     let label = trim label in
+     let shown = if length label > 60 then substr 0 57 label ++ "…" else label in
+     Just (JObject
+       [ ("position", JObject [("line", JNumber (cast lspEnd.line)), ("character", JNumber (cast lspEnd.character))])
+       , ("label", JString (" " ++ shown))
+       , ("kind", JNumber (case hi.hiSolution of Just _ => 2; Nothing => 1))  -- Parameter / Type
+       , ("paddingLeft", JBoolean False)
+       ])
+
+||| Requests handled on raw JSON, BEFORE the typed dispatch: returns
+||| True when the request was consumed (a response has been sent).
+||| textDocument/inlayHint is absent from the pinned lsp-lib's Method
+||| type (an LSP 3.17 feature), and initialize must inject the
+||| inlayHintProvider capability the typed ServerCapabilities record
+||| cannot express.
+export
+handleRawRequest : Ref LSPConf LSPConfiguration
+                => (method : String) -> (id : JSON) -> (params : Maybe JSON)
+                -> IO Bool
+handleRawRequest "initialize" id mparams = do
+  logI Channel "Received initialization request (raw path)"
+  let Just params = the (Maybe InitializeParams) (mparams >>= fromJSON)
+    | Nothing => pure False   -- let the typed path report the shape error
+  update LSPConf {initialized := Just params}
+  logI Server "Server initialized"
+  let base = toJSON (MkInitializeResult serverCapabilities (Just serverInfo))
+  let result = case base of
+                 JObject fields =>
+                   JObject (map (\(k, v) => if k == "capabilities"
+                                   then (k, injectInlay v)
+                                   else (k, v)) fields)
+                 other => other
+  sendRawResult id result
+  pure True
+ where
+  injectInlay : JSON -> JSON
+  injectInlay (JObject caps) = JObject (caps ++ [("inlayHintProvider", JBoolean True)])
+  injectInlay other = other
+handleRawRequest "textDocument/inlayHint" id mparams = do
+  logI Channel "Received inlayHint request"
+  let Just uri = the (Maybe DocumentURI) (mparams >>= jPath ["textDocument", "uri"] >>= fromJSON)
+    | Nothing => do sendRawResult id JNull; pure True
+  Just doc <- getDoc uri
+    | Nothing => do sendRawResult id (JArray []); pure True
+  let lns = lines doc.source
+  let hints = mapMaybe (\(hi, occ) => inlayHintJSON lns hi occ)
+                [ (hi, occ) | hi <- doc.report.holeTable, occ <- hi.hiOccs ]
+  sendRawResult id (JArray hints)
+  pure True
+handleRawRequest _ _ _ = pure False
+
 -- ===== requests =====
 
 export
