@@ -238,7 +238,9 @@ mutual
     es' <- kSubNorm sig es
     case sigLookup x sig of
       Just (SigDef _ _ a _) => do burn; kElem sig (substElem a (embed es'))
-      Just (SigTyDef _ _ _) => kerr "kernel: type definition '\{x}' used as a term"
+      -- el-sig-decl: a declaration reference is stuck (no -beta)
+      Just (SigDecl _ _ _) => pure (SigVar x es')
+      Just _ => kerr "kernel: signature name '\{x}' is not a term entry"
       Nothing => kerr "kernel: unknown signature name '\{x}'"
   kElem sig (Class a) = Class <$> kElem sig a
   kElem sig (QuotElim f q) = do
@@ -316,7 +318,9 @@ mutual
     es' <- kSubNorm sig es
     case sigLookup x sig of
       Just (SigTyDef _ _ a) => do burn; kTy sig (substTy a (embed es'))
-      Just (SigDef _ _ _ _) => kerr "kernel: term definition '\{x}' used as a type"
+      -- ty-sig-decl: a declaration reference is stuck (no -beta)
+      Just (SigTyDecl _ _) => pure (Ty.SigVar x es')
+      Just _ => kerr "kernel: signature name '\{x}' is not a type entry"
       Nothing => kerr "kernel: unknown signature name '\{x}'"
   kTy sig (QSort sg k es) = [| QSort (kQSig sig sg) (pure k) (kSubNorm sig es) |]
 
@@ -466,6 +470,10 @@ mutual
   inferP sig ctx (SigVar x es) =
     case sigLookup x sig of
       Just (SigDef delta _ _ ty) => do
+        checkSubstP sig ctx (toList es) (toList delta)
+        pure (substTy ty (embed es))
+      -- el-sig-decl: a hole reference types like a def reference
+      Just (SigDecl delta _ ty) => do
         checkSubstP sig ctx (toList es) (toList delta)
         pure (substTy ty (embed es))
       _ => kerr "kernel: bad signature reference in proof"
@@ -742,6 +750,7 @@ mutual
   checkTyP sig ctx (Ty.SigVar x es) =
     case sigLookup x sig of
       Just (SigTyDef delta _ _) => checkSubstP sig ctx (toList es) (toList delta)
+      Just (SigTyDecl delta _) => checkSubstP sig ctx (toList es) (toList delta)
       _ => kerr "kernel: bad signature reference in proof type"
 
 -- ===== Selector application =====
@@ -930,6 +939,11 @@ mutual
           Just entryTy =>
             pure (Just (substTy entryTy (embed (cast (take i (toList es))))))
           Nothing => pure Nothing
+      Just (SigDecl delta _ _) =>
+        case getAt i (toList delta) of
+          Just entryTy =>
+            pure (Just (substTy entryTy (embed (cast (take i (toList es))))))
+          Nothing => pure Nothing
       _ => pure Nothing
   childTyE sig ctx (Just pe) (Class _) 0 = do
     t <- kTy sig pe
@@ -982,6 +996,7 @@ mutual
   inferNeK sig ctx (SigVar x es) =
     case sigLookup x sig of
       Just (SigDef _ _ _ ty) => pure (Just (substTy ty (embed es)))
+      Just (SigDecl _ _ ty) => pure (Just (substTy ty (embed es)))
       _ => pure Nothing
   inferNeK sig ctx _ = pure Nothing
 
@@ -1461,7 +1476,11 @@ mutual
               Just (SigDef delta _ _ ty) => do
                 kCheckSubstK sig ctx (toList es) (toList delta) (childSkels sk)
                 pure (substTy ty (embed es))
-              Just (SigTyDef _ _ _) => kerr "kernel: type definition used as a term"
+              -- el-sig-decl: a hole reference types like a def reference
+              Just (SigDecl delta _ ty) => do
+                kCheckSubstK sig ctx (toList es) (toList delta) (childSkels sk)
+                pure (substTy ty (embed es))
+              Just _ => kerr "kernel: signature name is not a term entry"
               Nothing => kerr "kernel: unknown signature name"
           OneIntro => pure Ty.OneTy
           NatIntro0 => pure Ty.NatTy

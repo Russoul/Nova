@@ -148,7 +148,9 @@ mutual
   whnfElem sig (SigVar x es) =
     case sigLookup x sig of
       Just (SigDef _ _ a _) => whnfElem sig (substElem a (embed es))
-      Just (SigTyDef _ _ _) => assert_total $ idris_crash "whnfElem: signature identifier '\{x}' is a type definition, used as a term"
+      -- the evaluator runs over ACCEPTED (definitional) signatures
+      -- only; a declaration or wrong-class reference is unreachable
+      Just _                => assert_total $ idris_crash "whnfElem: signature identifier '\{x}' is not a term definition (Compute assumes a definitional Σ)"
       Nothing               => assert_total $ idris_crash "whnfElem: signature identifier '\{x}' not found"
   whnfElem sig (Class a)          = Class a
   whnfElem sig (QuotElim f q) =
@@ -195,7 +197,7 @@ mutual
   whnfTy sig (Ty.SigVar x es) =
     case sigLookup x sig of
       Just (SigTyDef _ _ a) => whnfTy sig (substTy a (embed es))
-      Just (SigDef _ _ _ _) => assert_total $ idris_crash "whnfTy: signature identifier '\{x}' is a term definition, used as a type"
+      Just _                => assert_total $ idris_crash "whnfTy: signature identifier '\{x}' is not a type definition (Compute assumes a definitional Σ)"
       Nothing               => assert_total $ idris_crash "whnfTy: signature identifier '\{x}' not found"
   whnfTy sig (QSort sg k es)   = QSort sg k es
 

@@ -184,12 +184,35 @@ data SigEntry : Type where
   SigDef : Ctx -> SigIdentifier -> Elem -> Ty -> SigEntry
   ||| Γ ⊦ x ≔ A type  (type definition)
   SigTyDef : Ctx -> SigIdentifier -> Ty -> SigEntry
+  ||| Γ ⊦ x : A  (term declaration — a hole; references are stuck,
+  ||| el-sig-decl)
+  SigDecl : Ctx -> SigIdentifier -> Ty -> SigEntry
+  ||| Γ ⊦ x type  (type declaration; references are stuck, ty-sig-decl)
+  SigTyDecl : Ctx -> SigIdentifier -> SigEntry
+  ||| Γ ⊦ a₀ ≐ a₁ : A  (element equation constraint — nameless,
+  ||| sig-eq; used through el-sig-eq)
+  SigEq : Ctx -> Elem -> Elem -> Ty -> SigEntry
+  ||| Γ ⊦ A₀ ≐ A₁ type  (type equation constraint — nameless,
+  ||| sig-ty-eq; used through ty-sig-eq)
+  SigTyEq : Ctx -> Ty -> Ty -> SigEntry
 
-||| The name a signature entry binds.
+||| The name a signature entry binds (constraint entries bind none).
 public export
-sigEntryName : SigEntry -> SigIdentifier
-sigEntryName (SigDef _ x _ _) = x
-sigEntryName (SigTyDef _ x _) = x
+sigEntryName : SigEntry -> Maybe SigIdentifier
+sigEntryName (SigDef _ x _ _) = Just x
+sigEntryName (SigTyDef _ x _) = Just x
+sigEntryName (SigDecl _ x _) = Just x
+sigEntryName (SigTyDecl _ x) = Just x
+sigEntryName (SigEq _ _ _ _) = Nothing
+sigEntryName (SigTyEq _ _ _) = Nothing
+
+||| Is this entry a definition? A signature all of whose entries are
+||| definitions is DEFINITIONAL (Foundation: acceptance requires it).
+public export
+sigEntryIsDef : SigEntry -> Bool
+sigEntryIsDef (SigDef _ _ _ _) = True
+sigEntryIsDef (SigTyDef _ _ _) = True
+sigEntryIsDef _ = False
 
 public export
 Sig : Type
@@ -200,7 +223,7 @@ export covering
 sigLookup : SigIdentifier -> Sig -> Maybe SigEntry
 sigLookup _ [<] = Nothing
 sigLookup x (rest :< entry) =
-  if sigEntryName entry == x then Just entry else sigLookup x rest
+  if sigEntryName entry == Just x then Just entry else sigLookup x rest
 
 ||| σ⁺ ≜ σ∘↑, ☐₀
 public export

@@ -7,7 +7,10 @@ module Nova.Elaboration
 -- Every rule mirrors a docs/NovaFoundation.txt rule; the conversion
 -- judgements never fail — an equation that cannot be discharged
 -- algorithmically is ASSUMED and reported as an obligation. A file is
--- accepted exactly when a run ends with zero obligations.
+-- accepted exactly when a run's final signature is DEFINITIONAL: the
+-- run's assumptions live in Σ itself as constraint entries (sig-eq/
+-- sig-ty-eq), so "zero obligations" and "no non-definition entries"
+-- are the same check.
 --
 -- Discharge machinery ("E" of the spec), in the order tried:
 --   * beta-normalization (beta, El-decoding, signature unfolding);
@@ -98,6 +101,17 @@ record Obligation where
   site : String
   composite : Maybe Stmt
 
+||| Display metadata of one assumed constraint — outside the theory,
+||| consumed only by the report printer. The statement itself lives in
+||| Σ as a constraint entry (docs/NovaElaboration.txt: there is no
+||| separate obligation store); this record is aligned with Σ's
+||| constraint entries in surfacing order.
+record OblMeta where
+  constructor MkOblMeta
+  oenv : NameEnv
+  osite : String
+  ocomposite : Maybe Stmt
+
 record ElabSt where
   constructor MkElabSt
   sig : Sig
@@ -107,7 +121,9 @@ record ElabSt where
   lemmas : List Cand
   assumedE : List (Ctx, Elem, Elem, Ty)   -- normalized keys of assumed elem equations
   assumedT : List (Ctx, Ty, Ty)           -- normalized keys of assumed type equations
-  obls : SnocList Obligation
+  ||| display metadata for Σ's constraint entries, in surfacing order
+  ||| (invariant: one per SigEq/SigTyEq of `sig`, appended together)
+  oblMeta : SnocList OblMeta
   ||| dotted name of the module being elaborated; "" = the root file,
   ||| whose entries stay unqualified
   modPrefix : String
@@ -1256,8 +1272,25 @@ assumedMatchE st ctx a b ty =
 oblCount : ElabM Nat
 oblCount = do
   st <- getSt
-  pure (length (toList st.obls))
+  pure (length (toList st.oblMeta))
 
+||| The report view: Σ's constraint entries — the run's obligations,
+||| in surfacing order — zipped with their display metadata.
+oblView : ElabSt -> List Obligation
+oblView st = go (toList st.sig) (toList st.oblMeta)
+ where
+  go : List SigEntry -> List OblMeta -> List Obligation
+  go (SigEq ctx a b ty :: rest) (m :: ms) =
+    MkObl (StElem ctx m.oenv a b ty) m.osite m.ocomposite :: go rest ms
+  go (SigTyEq ctx x y :: rest) (m :: ms) =
+    MkObl (StTy ctx m.oenv x y) m.osite m.ocomposite :: go rest ms
+  go (_ :: rest) ms = go rest ms
+  go [] _ = []
+
+||| ASSUME (docs/NovaElaboration.txt, ↓ step 8): append the equation to
+||| Σ as a constraint entry — sig-eq/sig-ty-eq; the signature is OPEN
+||| from here until a rerun stops minting the entry — and record its
+||| display metadata alongside.
 assume : Stmt -> String -> Maybe Stmt -> ElabM ()
 assume stmt site comp = do
   st <- getSt
@@ -1267,7 +1300,8 @@ assume stmt site comp = do
         then pure ()
         else modifySt $ \s =>
           { assumedE $= ((ctx, rwNfElem st ctx a, rwNfElem st ctx b, betaTy st.sig ty) ::)
-          , obls $= (:< MkObl stmt site comp) } s
+          , sig $= (:< SigEq ctx a b ty)
+          , oblMeta $= (:< MkOblMeta env site comp) } s
     StTy ctx env x y => do
       let x' = rwNfTy st ctx x
           y' = rwNfTy st ctx y
@@ -1275,7 +1309,8 @@ assume stmt site comp = do
         then pure ()
         else modifySt $ \s =>
           { assumedT $= ((ctx, x', y') ::)
-          , obls $= (:< MkObl stmt site comp) } s
+          , sig $= (:< SigTyEq ctx x y)
+          , oblMeta $= (:< MkOblMeta env site comp) } s
  where
   fst4 : (a, b, c, d) -> a
   fst4 (x, _, _, _) = x
@@ -1483,7 +1518,8 @@ mutual
       -- empty substitution
       Just (SigTyDef [<] _ _) => pure (Ty.SigVar x [<], Nd [] [])
       Just (SigTyDef _ _ _) => throw "\{site}: '\{x}' has a non-empty declaration context"
-      Just (SigDef _ _ _ _) => throw "\{site}: '\{x}' is a term definition, used as a type"
+      Just (SigTyDecl [<] _) => pure (Ty.SigVar x [<], Nd [] [])
+      Just _ => throw "\{site}: '\{x}' is not usable as a type here"
       Nothing => throw "\{site}: unknown signature name '\{x}'"
   elabTy ctx env site (STyPi x a b) = do
     (a', aSk) <- elabTy ctx env site a
@@ -1524,7 +1560,8 @@ mutual
     case sigLookup x st.sig of
       Just (SigDef [<] _ _ ty) => pure (SigVar x [<], ty, Nd [] [])
       Just (SigDef _ _ _ _) => throw "\{site}: '\{x}' has a non-empty declaration context"
-      Just (SigTyDef _ _ _) => throw "\{site}: '\{x}' is a type definition, used as a term"
+      Just (SigDecl [<] _ ty) => pure (SigVar x [<], ty, Nd [] [])
+      Just _ => throw "\{site}: '\{x}' is not usable as a term here"
       Nothing => throw "\{site}: unknown name '\{x}'"
   inferElem ctx env site SUnitI = pure (OneIntro, Ty.OneTy, Nd [] [])
   inferElem ctx env site SZeroN = pure (NatIntro0, Ty.NatTy, Nd [] [])
@@ -2208,7 +2245,7 @@ elabProgram units = go initSt units []
  where
   finish : FixTable -> ElabSt -> List String -> String
   finish tbl st echoes =
-    let oblList = toList st.obls in
+    let oblList = oblView st in
     joinBy "\n" echoes ++ "\n" ++
     (case oblList of
        [] => "Accepted."
@@ -2239,8 +2276,9 @@ elabProgram units = go initSt units []
             case rest of
               [] => finish tbl st' (echoes ++ hdr ++ itemEchoes)
               _ =>
-                -- only ACCEPTED modules are importable
-                case toList st'.obls of
+                -- only ACCEPTED modules are importable: a module's
+                -- signature segment must be DEFINITIONAL
+                case oblView st' of
                   [] => go st' rest (echoes ++ hdr ++ itemEchoes)
                   os => joinBy "\n" (echoes ++ hdr ++ itemEchoes) ++ "\n" ++
                         oblReport tbl os ++ "\n" ++
@@ -2274,7 +2312,7 @@ elabProgramSig units = go initSt units
         case goItems st items of
           Left err => Left err
           Right st' =>
-            case toList st'.obls of
+            case oblView st' of
               os@(_ :: _) => Left (oblReport tbl os ++ "\nmodule \{name} has open obligations")
               []          => case rest of
                                [] => Right st'.kernelSig
@@ -2312,11 +2350,12 @@ export
 elabProgramReport : List ModUnit -> ElabReport
 elabProgramReport units = go initSt units [] []
  where
-  -- newly-appended obligations since `before`: obls only ever grows by
-  -- `:<` (see `assume`), so `before` is always a prefix of `after`.
+  -- newly-appended obligations since `before`: constraints only ever
+  -- grow by `:<` (see `assume`), so `before` is always a prefix of
+  -- `after`.
   newObls : (before, after : ElabSt) -> List Obligation
   newObls before after =
-    drop (length (toList before.obls)) (toList after.obls)
+    drop (length (toList before.oblMeta)) (oblView after)
 
   goItems : String -> ElabSt -> List (Maybe Range, SItem)
           -> Either (List (String, Maybe Range, Obligation), Maybe Range, String)
@@ -2344,8 +2383,9 @@ elabProgramReport units = go initSt units [] []
             case rest of
               [] => MkElabReport (obls ++ itemObls) errs
               _ =>
-                -- only ACCEPTED modules are importable
-                case toList st'.obls of
+                -- only ACCEPTED modules are importable: a module's
+                -- signature segment must be DEFINITIONAL
+                case oblView st' of
                   [] => go st' rest (obls ++ itemObls) errs
                   _ => MkElabReport (obls ++ itemObls)
                          (errs ++ [(name, Nothing, "module \{name} has open obligations and cannot be imported")])

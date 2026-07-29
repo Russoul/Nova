@@ -73,7 +73,9 @@ mutual
     let es' = betaSubNorm sig es
     in case sigLookup x sig of
          Just (SigDef _ _ a _) => betaElem sig (substElem a (embed es'))
-         Just (SigTyDef _ _ _) => assert_total $ idris_crash "betaElem: signature identifier '\{x}' is a type definition, used as a term"
+         -- el-sig-decl: a declaration reference is stuck (no -beta)
+         Just (SigDecl _ _ _)  => SigVar x es'
+         Just _                => assert_total $ idris_crash "betaElem: signature identifier '\{x}' is not a term entry"
          Nothing               => assert_total $ idris_crash "betaElem: signature identifier '\{x}' not found"
   betaElem sig (Class a)          = Class (betaElem sig a)
   betaElem sig (QuotElim f q) =
@@ -157,7 +159,9 @@ mutual
     let es' = betaSubNorm sig es
     in case sigLookup x sig of
          Just (SigTyDef _ _ a) => betaTy sig (substTy a (embed es'))
-         Just (SigDef _ _ _ _) => assert_total $ idris_crash "betaTy: signature identifier '\{x}' is a term definition, used as a type"
+         -- ty-sig-decl: a declaration reference is stuck (no -beta)
+         Just (SigTyDecl _ _)  => Ty.SigVar x es'
+         Just _                => assert_total $ idris_crash "betaTy: signature identifier '\{x}' is not a type entry"
          Nothing               => assert_total $ idris_crash "betaTy: signature identifier '\{x}' not found"
   betaTy sig (QSort sg k es)  = QSort (betaQSig sig sg) k (betaSubNorm sig es)
 
