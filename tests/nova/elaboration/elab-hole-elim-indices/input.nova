@@ -1,0 +1,12 @@
+-- eliminator indices and the motive's ∈-slot elided: the parameter
+-- hole is pinned under the motive's binders (weakened occurrence,
+-- solved by strengthening) and the motive's type hole is solved
+-- before the parameter hole is — the kernel mirror happens at item
+-- end, in minting order, so the order of solving cannot strand an
+-- entry outside the kernel's Σ
+data [a : 𝕌] ( Id   : (x : El a) (y : El a) → U
+             ; refl : (x : El a) → El (Id x x) )
+def idToEq : (a : 𝕌) (x : El a) (y : El a) → El (Id a x y) → x ≡ y ∈ El a ≔
+  λa. λx. λy. λp. IdElimP _a (λu. λv. λw. (u ≡ v ∈ _)) (λu. ⋆) _ _ p
+def idToEq2 : (a : 𝕌) (x : El a) (y : El a) → El (Id a x y) → x ≡ y ∈ El a ≔
+  λa. λx. λy. λp. IdElimP _b (λu. λv. λw. (u ≡ v ∈ El a)) (λu. ⋆) _ _ p

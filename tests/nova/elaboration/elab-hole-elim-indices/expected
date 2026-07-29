@@ -1,0 +1,4 @@
+defined data (Id, refl)
+defined idToEq
+defined idToEq2
+Accepted.

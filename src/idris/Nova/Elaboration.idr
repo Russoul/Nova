@@ -230,6 +230,17 @@ unfoldHead sig (SigVar x es) =
 unfoldHead sig (PiApp f e) = map (\f' => PiApp f' e) (unfoldHead sig f)
 unfoldHead sig _ = Nothing
 
+||| Strengthen away the k innermost binders (Nothing if any of them
+||| is mentioned) — how a solution found at a binder-extended
+||| occurrence moves back to the hole's own context.
+strengthenK : Nat -> Elem -> Maybe Elem
+strengthenK Z t = Just t
+strengthenK (S k) t = strengthenElem 0 t >>= strengthenK k
+
+strengthenKTy : Nat -> Ty -> Maybe Ty
+strengthenKTy Z t = Just t
+strengthenKTy (S k) t = strengthenTy 0 t >>= strengthenKTy k
+
 ||| Position of the entry binding a name (leftmost/oldest first).
 sigIndexOf : String -> List SigEntry -> Maybe Nat
 sigIndexOf q = go 0
@@ -1486,15 +1497,12 @@ mutual
               case trySolutions 8 st.sig t (cast (take i ls)) delta dty of
                 Nothing => pure False
                 Just tOk => do
+                  -- the kernel-Σ mirror happens once, at item end
+                  -- (mirrorHoleDefs): mirroring here would be
+                  -- order-fragile — the solution may mention a hole
+                  -- that is itself solved only later
                   let def = SigDef delta q tOk dty
-                  -- mirror into the kernel's Σ only when the solution
-                  -- also checks there (it lacks dirty-run entries; if
-                  -- this fails the run is dirty and the copy unused)
-                  let ks = if kCheckSolution st.kernelSig kernelFuel delta tOk dty == Right ()
-                             then st.kernelSig :< def
-                             else st.kernelSig
-                  modifySt $ { sig := cast (take i ls ++ [def] ++ drop (S i) ls)
-                             , kernelSig := ks }
+                  modifySt $ { sig := cast (take i ls ++ [def] ++ drop (S i) ls) }
                   pure True
             _ => pure False
 
@@ -1502,10 +1510,22 @@ mutual
     go st (SigVar q es) t =
       case sigLookup q st.sig of
         Just (SigDecl delta _ dty) =>
-          if delta == ctx && es == idSpine (length ctx)
-             && any (\m => m.hname == q && m.hsolvable) (toList st.holeMeta)
-            then flipDecl q t
-            else pure False
+          let n = length delta
+              k = minus (length ctx) n in
+          if not (any (\m => m.hname == q && m.hsolvable) (toList st.holeMeta))
+            then pure False
+            else if delta == ctx && es == idSpine (length ctx)
+              then flipDecl q t
+              -- a WEAKENED occurrence (under k more binders, the
+              -- weakened identity spine): the solution moves to the
+              -- hole's own context by strengthening — refused if it
+              -- mentions any of the k binders
+              else if n + k == length ctx && take n (toList ctx) == toList delta
+                      && es == wkSpine n k && k /= 0
+                then case strengthenK k t of
+                       Just t' => flipDecl q t'
+                       Nothing => pure False
+                else pure False
         _ => pure False
     go st _ _ = pure False
 
@@ -1565,11 +1585,7 @@ mutual
                 Left _ => pure False
                 Right () => do
                   let def = SigTyDef delta q t
-                  let ks = if kCheckTySolution st.kernelSig kernelFuel delta t == Right ()
-                             then st.kernelSig :< def
-                             else st.kernelSig
-                  modifySt $ { sig := cast (take i ls ++ [def] ++ drop (S i) ls)
-                             , kernelSig := ks }
+                  modifySt $ { sig := cast (take i ls ++ [def] ++ drop (S i) ls) }
                   pure True
             _ => pure False
 
@@ -1577,10 +1593,18 @@ mutual
     go st (Ty.SigVar q es) t =
       case sigLookup q st.sig of
         Just (SigTyDecl delta _) =>
-          if delta == ctx && es == idSpine (length ctx)
-             && any (\m => m.hname == q && m.hsolvable) (toList st.holeMeta)
-            then flipTyDecl q t
-            else pure False
+          let n = length delta
+              k = minus (length ctx) n in
+          if not (any (\m => m.hname == q && m.hsolvable) (toList st.holeMeta))
+            then pure False
+            else if delta == ctx && es == idSpine (length ctx)
+              then flipTyDecl q t
+              else if n + k == length ctx && take n (toList ctx) == toList delta
+                      && es == wkSpine n k && k /= 0
+                then case strengthenKTy k t of
+                       Just t' => flipTyDecl q t'
+                       Nothing => pure False
+                else pure False
         _ => pure False
     go st _ _ = pure False
 
@@ -2205,6 +2229,35 @@ constraintCount = do
   st <- getSt
   pure (length (toList st.oblMeta))
 
+||| Mirror solved holes into the kernel's Σ — ONCE, at item end, in
+||| minting order (each solution is prefix-legal, so earlier mirrors
+||| carry later ones). Eager per-flip mirroring is order-fragile: a
+||| solution may mention a hole that is itself solved only later in
+||| the same item. A mirror that still fails (the solution mentions a
+||| dirty-run entry) is skipped — the run is dirty in that case and
+||| the kernel copy is never consulted.
+mirrorHoleDefs : ElabM ()
+mirrorHoleDefs = do
+  st <- getSt
+  modifySt $ { kernelSig := go st (toList st.holeMeta) st.kernelSig }
+ where
+  go : ElabSt -> List HoleMeta -> Sig -> Sig
+  go st [] ks = ks
+  go st (m :: ms) ks =
+    case sigLookup m.hname ks of
+      Just _ => go st ms ks
+      Nothing =>
+        case sigLookup m.hname st.sig of
+          Just (SigDef delta q t dty) =>
+            if kCheckSolution ks kernelFuel delta t dty == Right ()
+              then go st ms (ks :< SigDef delta q t dty)
+              else go st ms ks
+          Just (SigTyDef delta q t) =>
+            if kCheckTySolution ks kernelFuel delta t == Right ()
+              then go st ms (ks :< SigTyDef delta q t)
+              else go st ms ks
+          _ => go st ms ks
+
 ||| Kernel-check a clean item against the kernel's own Σ; extend it on
 ||| acceptance. Items elaborated under assumptions (dirty) are skipped —
 ||| they cannot be accepted anyway.
@@ -2232,6 +2285,7 @@ emitCoreDef site x ty tySk body bodySk = do
     Just _ => throw "\{site}: duplicate signature name '\{x}'"
     Nothing => pure ()
   resolveConstraints oblsAtStart
+  mirrorHoleDefs
   after <- oblCount
   kernelAccept "\{site} \{x}"
     (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] ty tySk body bodySk))
@@ -2248,6 +2302,7 @@ emitCoreTyDef site x ty tySk = do
     Just _ => throw "\{site}: duplicate signature name '\{x}'"
     Nothing => pure ()
   resolveConstraints oblsAtStart
+  mirrorHoleDefs
   after <- oblCount
   kernelAccept "\{site} \{x}"
     (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty tySk))
@@ -2297,6 +2352,7 @@ elabItem (SDef x ty body) = do
   -- everything after it (the kernel Σ cannot contain the earlier item,
   -- so references to it are unresolvable anyway)
   resolveConstraints oblsAtStart
+  mirrorHoleDefs
   after <- oblCount
   kernelAccept "def \{x}"
     (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] ty' tySk body' bodySk))
@@ -2313,6 +2369,7 @@ elabItem (STypeDef x ty) = do
     Nothing => pure ()
   (ty', tySk) <- elabTy [<] [<] "type \{x}" ty
   resolveConstraints oblsAtStart
+  mirrorHoleDefs
   after <- oblCount
   kernelAccept "type \{x}"
     (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty' tySk))
