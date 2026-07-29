@@ -1,6 +1,6 @@
 defined plus
-defined first
+defined first [+1 obligation, +1 hole]
 defined pin
 open obligations (1):
-  [1] ⊢ plus Z _m ≐ S Z : ℕ
+  [1] ⊢ plus Z (S Z) ≐ S Z : ℕ
       at: def first: checking ⋆

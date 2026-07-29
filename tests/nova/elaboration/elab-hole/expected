@@ -1,7 +1,7 @@
 defined plus
-defined lemma
-defined f
-defined mixed
+defined lemma [+1 hole]
+defined f [+1 hole]
+defined mixed [+1 obligation, +1 hole]
 open obligations (1):
   [1] (n : ℕ) ⊢ ?k ≐ S n : ℕ
       at: def mixed: checking ⋆

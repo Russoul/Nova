@@ -1,6 +1,6 @@
 module dirty:
 defined plus
-defined bad
+defined bad [+1 obligation]
 open obligations (1):
   [1] (n : ℕ) ⊢ dirty.plus Z n ≐ n : ℕ
       at: def bad: checking ⋆

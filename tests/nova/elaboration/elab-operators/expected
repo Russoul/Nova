@@ -4,7 +4,7 @@ defined +
 defined *
 defined opTest
 defined mention
-defined needsLemma
+defined needsLemma [+1 obligation]
 open obligations (1):
   [1] (n : ℕ) ⊢ Z + n ≐ n : ℕ
       at: def needsLemma: checking ⋆

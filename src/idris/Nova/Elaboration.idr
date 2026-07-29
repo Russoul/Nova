@@ -1340,6 +1340,98 @@ oblCount = do
   st <- getSt
   pure (length (filter (not . sigEntryIsDef) (toList st.sig)))
 
+mutual
+  ||| DISPLAY zonking: unfold references to SOLVED HOLES — their
+  ||| entries are elaborator-minted defs — so reported statements and
+  ||| hole types read through the run's own inventions (`Prf _3 →
+  ||| Prf _4` says nothing; `Prf ⊤ → Prf ⊥` says absurdity). User
+  ||| definitions stay folded. Solutions are prefix-legal, so the
+  ||| recursion is well-founded.
+  zonkElem : ElabSt -> Elem -> Elem
+  zonkElem st (SigVar x es) =
+    let es' = zonkSubNorm st es in
+    if any (\m => m.hname == x) (toList st.holeMeta)
+      then case sigLookup x st.sig of
+             Just (SigDef _ _ a _) => zonkElem st (substElem a (embed es'))
+             _ => SigVar x es'
+      else SigVar x es'
+  zonkElem st (CtxVar n) = CtxVar n
+  zonkElem st (ZeroElim t) = ZeroElim (zonkElem st t)
+  zonkElem st OneIntro = OneIntro
+  zonkElem st NatIntro0 = NatIntro0
+  zonkElem st (NatIntro1 t) = NatIntro1 (zonkElem st t)
+  zonkElem st (NatElim z s' t) = NatElim (zonkElem st z) (zonkElem st s') (zonkElem st t)
+  zonkElem st (PiIntro f) = PiIntro (zonkElem st f)
+  zonkElem st (PiApp f e) = PiApp (zonkElem st f) (zonkElem st e)
+  zonkElem st (SigmaIntro a b) = SigmaIntro (zonkElem st a) (zonkElem st b)
+  zonkElem st (SigmaElim1 t) = SigmaElim1 (zonkElem st t)
+  zonkElem st (SigmaElim2 t) = SigmaElim2 (zonkElem st t)
+  zonkElem st Elem.ZeroTy = Elem.ZeroTy
+  zonkElem st Elem.OneTy = Elem.OneTy
+  zonkElem st Elem.NatTy = Elem.NatTy
+  zonkElem st (Elem.PiTy a b) = Elem.PiTy (zonkElem st a) (zonkElem st b)
+  zonkElem st (Elem.SigmaTy a b) = Elem.SigmaTy (zonkElem st a) (zonkElem st b)
+  zonkElem st (Elem.EqTy l r t) = Elem.EqTy (zonkElem st l) (zonkElem st r) (zonkTy st t)
+  zonkElem st (QuotTy a r) = QuotTy (zonkElem st a) (zonkElem st r)
+  zonkElem st (Class a) = Class (zonkElem st a)
+  zonkElem st (QuotElim f q) = QuotElim (zonkElem st f) (zonkElem st q)
+  zonkElem st (Squash t) = Squash (zonkTy st t)
+  zonkElem st Star = Star
+  zonkElem st (QSortC sg k es) = QSortC (zonkQSig st sg) k (zonkSubNorm st es)
+  zonkElem st (QCtor sg k es) = QCtor (zonkQSig st sg) k (zonkSubNorm st es)
+  zonkElem st (QElim sg k ms fs es w) =
+    QElim (zonkQSig st sg) k (map (zonkTy st) ms) (map (zonkElem st) fs)
+          (zonkSubNorm st es) (zonkElem st w)
+
+  zonkTy : ElabSt -> Ty -> Ty
+  zonkTy st (Ty.SigVar x es) =
+    let es' = zonkSubNorm st es in
+    if any (\m => m.hname == x) (toList st.holeMeta)
+      then case sigLookup x st.sig of
+             Just (SigTyDef _ _ a) => zonkTy st (substTy a (embed es'))
+             _ => Ty.SigVar x es'
+      else Ty.SigVar x es'
+  zonkTy st Ty.ZeroTy = Ty.ZeroTy
+  zonkTy st Ty.OneTy = Ty.OneTy
+  zonkTy st Ty.NatTy = Ty.NatTy
+  zonkTy st Ty.UniverseTy = Ty.UniverseTy
+  zonkTy st (Ty.PiTy a b) = Ty.PiTy (zonkTy st a) (zonkTy st b)
+  zonkTy st (Ty.SigmaTy a b) = Ty.SigmaTy (zonkTy st a) (zonkTy st b)
+  zonkTy st (El e) = El (zonkElem st e)
+  zonkTy st PropTy = PropTy
+  zonkTy st (Prf e) = Prf (zonkElem st e)
+  zonkTy st (Quotient a r) = Quotient (zonkTy st a) (zonkElem st r)
+  zonkTy st (QSort sg k es) = QSort (zonkQSig st sg) k (zonkSubNorm st es)
+
+  zonkSubNorm : ElabSt -> SubNorm -> SubNorm
+  zonkSubNorm st [<] = [<]
+  zonkSubNorm st (es :< e) = zonkSubNorm st es :< zonkElem st e
+
+  zonkQTm : ElabSt -> QTm -> QTm
+  zonkQTm st (QVar i) = QVar i
+  zonkQTm st (QAppE f e) = QAppE (zonkQTm st f) (zonkElem st e)
+  zonkQTm st (QAppI f a) = QAppI (zonkQTm st f) (zonkQTm st a)
+  zonkQTm st (QEqC l r u) = QEqC (zonkQTm st l) (zonkQTm st r) (zonkQTm st u)
+
+  zonkQTy : ElabSt -> QTy -> QTy
+  zonkQTy st QU = QU
+  zonkQTy st (QEl t) = QEl (zonkQTm st t)
+  zonkQTy st (QPiExt a b) = QPiExt (zonkTy st a) (zonkQTy st b)
+  zonkQTy st (QPiInd u b) = QPiInd (zonkQTm st u) (zonkQTy st b)
+
+  zonkQSig : ElabSt -> QSig -> QSig
+  zonkQSig st = map (zonkQTy st)
+
+zonkCtx : ElabSt -> Ctx -> Ctx
+zonkCtx st [<] = [<]
+zonkCtx st (rest :< ty) = zonkCtx st rest :< zonkTy st ty
+
+zonkStmt : ElabSt -> Stmt -> Stmt
+zonkStmt st (StElem ctx env a b ty) =
+  StElem (zonkCtx st ctx) env (zonkElem st a) (zonkElem st b) (zonkTy st ty)
+zonkStmt st (StTy ctx env a b) =
+  StTy (zonkCtx st ctx) env (zonkTy st a) (zonkTy st b)
+
 ||| The report view: Σ's constraint entries — the run's obligations,
 ||| in surfacing order — zipped with their display metadata.
 oblView : ElabSt -> List Obligation
@@ -1347,9 +1439,9 @@ oblView st = go (toList st.sig) (toList st.oblMeta)
  where
   go : List SigEntry -> List OblMeta -> List Obligation
   go (SigEq ctx a b ty :: rest) (m :: ms) =
-    MkObl (StElem ctx m.oenv a b ty) m.osite m.ocomposite :: go rest ms
+    MkObl (zonkStmt st (StElem ctx m.oenv a b ty)) m.osite (map (zonkStmt st) m.ocomposite) :: go rest ms
   go (SigTyEq ctx x y :: rest) (m :: ms) =
-    MkObl (StTy ctx m.oenv x y) m.osite m.ocomposite :: go rest ms
+    MkObl (zonkStmt st (StTy ctx m.oenv x y)) m.osite (map (zonkStmt st) m.ocomposite) :: go rest ms
   go (_ :: rest) ms = go rest ms
   go [] _ = []
 
@@ -1374,8 +1466,8 @@ holeView st = mapMaybe view (toList st.sig)
   metaFor : String -> Maybe HoleMeta
   metaFor x = find (\m => m.hname == x) (toList st.holeMeta)
   view : SigEntry -> Maybe HoleView
-  view (SigDecl ctx x ty) = map (\m => MkHoleView x ctx m.henv (Just ty) m.hsite) (metaFor x)
-  view (SigTyDecl ctx x) = map (\m => MkHoleView x ctx m.henv Nothing m.hsite) (metaFor x)
+  view (SigDecl ctx x ty) = map (\m => MkHoleView x (zonkCtx st ctx) m.henv (Just (zonkTy st ty)) m.hsite) (metaFor x)
+  view (SigTyDecl ctx x) = map (\m => MkHoleView x (zonkCtx st ctx) m.henv Nothing m.hsite) (metaFor x)
   view _ = Nothing
 
 ||| ASSUME (docs/NovaElaboration.txt, ↓ step 8): append the equation to
@@ -2333,10 +2425,38 @@ piChainSkel (d :: ds) = Nd [] [d, piChainSkel ds]
 applyChain : Elem -> List Elem -> Elem
 applyChain = foldl PiApp
 
+||| Σ's open-entry census: (constraints, declarations).
+openCensus : ElabM (Nat, Nat)
+openCensus = do
+  st <- getSt
+  pure (length (oblView st), length (holeView st))
+
+||| The per-item echo suffix: what this item left OPEN — the ⋆-payment
+||| and hole assumptions a reader would otherwise only discover in the
+||| end-of-run report. "defined boom [+1 hole]" is an honest receipt;
+||| a bare "defined boom" for an item that just assumed ¬⊤'s realizer
+||| reads like success.
+opensSuffix : (before : (Nat, Nat)) -> ElabM String
+opensSuffix (ob, hb) = do
+  (o', h') <- openCensus
+  let o = minus o' ob
+  let h = minus h' hb
+  let parts = the (List String)
+                ((if o == 0 then [] else ["+\{show o} obligation\{plural o}"]) ++
+                 (if h == 0 then [] else ["+\{show h} hole\{plural h}"]))
+  pure (case parts of
+          [] => ""
+          _ => " [" ++ joinBy ", " parts ++ "]")
+ where
+  plural : Nat -> String
+  plural 1 = ""
+  plural _ = "s"
+
 export
 elabItem : SItem -> ElabM String
 elabItem (SDef x ty body) = do
   oblsAtStart <- constraintCount
+  census <- openCensus
   st <- getSt
   -- the Σ-name is qualified by the module; the root file's entries
   -- stay bare
@@ -2359,9 +2479,11 @@ elabItem (SDef x ty body) = do
     (after == 0)
   modifySt $ { sig $= (:< SigDef [<] q body' ty'), vis $= (:< (x, q)) }
   addLemma q [<] ty'
-  pure "defined \{x}"
+  suffix <- opensSuffix census
+  pure "defined \{x}\{suffix}"
 elabItem (STypeDef x ty) = do
   oblsAtStart <- constraintCount
+  census <- openCensus
   st <- getSt
   let q = if st.modPrefix == "" then x else "\{st.modPrefix}.\{x}"
   case sigLookup q st.sig of
@@ -2375,8 +2497,10 @@ elabItem (STypeDef x ty) = do
     (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty' tySk))
     (after == 0)
   modifySt $ { sig $= (:< SigTyDef [<] q ty'), vis $= (:< (x, q)) }
-  pure "defined type \{x}"
+  suffix <- opensSuffix census
+  pure "defined type \{x}\{suffix}"
 elabItem (SData params decls) = do
+  census <- openCensus
   let site = "data " ++ (case decls of
                            (d :: _) => d.dqname
                            [] => "")
@@ -2405,7 +2529,8 @@ elabItem (SData params decls) = do
                    emitElim site pre sg k True d.dqname
       QKPoint => emitCtor site pre sg k d.dqname
       QKEq => emitEq site pre sg k d.dqname) named
-  pure ("defined data (" ++ joinBy ", " (map (.dqname) decls) ++ ")")
+  suffix <- opensSuffix census
+  pure ("defined data (" ++ joinBy ", " (map (.dqname) decls) ++ ")" ++ suffix)
  where
   zipWithIndex : Nat -> List a -> List (Nat, a)
   zipWithIndex _ [] = []

@@ -1,5 +1,5 @@
 defined plus
-defined one
+defined one [+1 obligation]
 defined two
 open obligations (1):
   [1] (n : ℕ) ⊢ plus Z n ≐ n : ℕ
