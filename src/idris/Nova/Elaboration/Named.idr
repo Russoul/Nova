@@ -179,6 +179,13 @@ freshIH = freshFromList candidatesIH
 -- to name. Mirrors the printer's own binder-depth bookkeeping exactly —
 -- each nested binder increments `k` by however many slots it introduces.
 
+||| Is this spine the identity substitution over a context of length
+||| n — ☐ₙ₋₁, ..., ☐₀? (How a hole minted at the ambient context is
+||| referenced at its own site.)
+isIdSpineN : Nat -> SubNorm -> Bool
+isIdSpineN n es = toList es == map CtxVar (reverse [0 .. minus n 1]) && n /= 0
+
+
 mutual
   usesIndexTy : Nat -> Ty -> Bool
   usesIndexTy k Ty.ZeroTy = False
@@ -351,7 +358,12 @@ mutual
   prettyElemAtomN tbl env Elem.NatTy = "ℕ"
   prettyElemAtomN tbl env (Squash t) = "∥" ++ prettyTyN tbl env t ++ "∥"
   prettyElemAtomN tbl env (SigVar x [<]) = if isOpName x then "(" ++ x ++ ")" else x
-  prettyElemAtomN tbl env (SigVar x es) = x ++ "[" ++ prettySubNormN tbl env es ++ "]"
+  -- an identity-spine reference at its own context (a hole at the
+  -- ambient Γ) prints bare: `?k`, not `?k[n]`
+  prettyElemAtomN tbl env (SigVar x es) =
+    if isIdSpineN (length env) es
+      then x
+      else x ++ "[" ++ prettySubNormN tbl env es ++ "]"
   prettyElemAtomN tbl env (QSortC sg k es) = "𝒮." ++ show k ++ "[" ++ prettySubNormN tbl env es ++ "]"
   prettyElemAtomN tbl env (QCtor sg k es) = "𝒮." ++ show k ++ "[" ++ prettySubNormN tbl env es ++ "]"
   prettyElemAtomN tbl env (QElim sg k ms fs es w) =
@@ -413,7 +425,10 @@ mutual
   prettyTyAtomN tbl env Ty.UniverseTy = "𝕌"
   prettyTyAtomN tbl env Ty.PropTy = "Ω"
   prettyTyAtomN tbl env (Ty.SigVar x [<]) = if isOpName x then "(" ++ x ++ ")" else x
-  prettyTyAtomN tbl env (Ty.SigVar x es) = x ++ "[" ++ prettySubNormN tbl env es ++ "]"
+  prettyTyAtomN tbl env (Ty.SigVar x es) =
+    if isIdSpineN (length env) es
+      then x
+      else x ++ "[" ++ prettySubNormN tbl env es ++ "]"
   prettyTyAtomN tbl env (QSort sg k es) = "𝒮." ++ show k ++ "[" ++ prettySubNormN tbl env es ++ "]"
   prettyTyAtomN tbl env ty = "(" ++ prettyTyN tbl env ty ++ ")"
 

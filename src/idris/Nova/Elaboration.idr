@@ -112,6 +112,15 @@ record OblMeta where
   osite : String
   ocomposite : Maybe Stmt
 
+||| Display metadata of one hole — same discipline as OblMeta: the
+||| hole itself is a declaration entry of Σ; this record is aligned
+||| with Σ's declaration entries in minting order.
+record HoleMeta where
+  constructor MkHoleMeta
+  hname : String
+  henv : NameEnv
+  hsite : String
+
 record ElabSt where
   constructor MkElabSt
   sig : Sig
@@ -124,6 +133,9 @@ record ElabSt where
   ||| display metadata for Σ's constraint entries, in surfacing order
   ||| (invariant: one per SigEq/SigTyEq of `sig`, appended together)
   oblMeta : SnocList OblMeta
+  ||| display metadata for Σ's declaration entries (holes), in minting
+  ||| order (invariant: one per SigDecl/SigTyDecl of `sig`)
+  holeMeta : SnocList HoleMeta
   ||| dotted name of the module being elaborated; "" = the root file,
   ||| whose entries stay unqualified
   modPrefix : String
@@ -133,7 +145,7 @@ record ElabSt where
   vis : SnocList (String, String)
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [<] "" [<]
+initSt = MkElabSt [<] [<] [] [] [] [<] [<] "" [<]
 
 ||| Resolve a surface signature reference: aliases first (own module,
 ||| opened imports), else the name itself (qualified references reach
@@ -187,6 +199,13 @@ throw e = MkElabM $ \_ => Left e
 licProof : StepLic -> Elem
 licProof (LProof p) = p
 licProof (LPath _ _ _) = assert_total $ idris_crash "licProof: path license in a rewrite trace"
+
+||| The identity NORMAL substitution over a context of length n:
+||| ☐ₙ₋₁, ..., ☐₀ (outermost first) — how a hole minted at the ambient
+||| context is referenced at its own site.
+idSpine : Nat -> SubNorm
+idSpine Z = [<]
+idSpine (S n) = cast (map CtxVar (reverse [0 .. n]))
 
 ||| Γ‖ᵢ (same as the derivation checker's private helper).
 ctxLookup : Ctx -> Nat -> Maybe Ty
@@ -900,6 +919,7 @@ inferNe st ctx (SigmaElim2 t) =
 inferNe st ctx (SigVar x es) =
   case sigLookup x st.sig of
     Just (SigDef _ _ _ ty) => Just (substTy ty (embed es))
+    Just (SigDecl _ _ ty) => Just (substTy ty (embed es))
     _ => Nothing
 inferNe _ _ _ = Nothing
 
@@ -1269,10 +1289,12 @@ assumedMatchE st ctx a b ty =
 
 -- ===== Committing conversion (the ↓ judgements) =====
 
+||| The number of OPEN entries so far — constraints AND holes: either
+||| makes Σ non-definitional, so either dirties the run.
 oblCount : ElabM Nat
 oblCount = do
   st <- getSt
-  pure (length (toList st.oblMeta))
+  pure (length (toList st.oblMeta) + length (toList st.holeMeta))
 
 ||| The report view: Σ's constraint entries — the run's obligations,
 ||| in surfacing order — zipped with their display metadata.
@@ -1284,6 +1306,29 @@ oblView st = go (toList st.sig) (toList st.oblMeta)
     MkObl (StElem ctx m.oenv a b ty) m.osite m.ocomposite :: go rest ms
   go (SigTyEq ctx x y :: rest) (m :: ms) =
     MkObl (StTy ctx m.oenv x y) m.osite m.ocomposite :: go rest ms
+  go (_ :: rest) ms = go rest ms
+  go [] _ = []
+
+||| One hole for the report: its Σ-name, context (with binder names),
+||| type (Nothing for a type hole) and surfacing site.
+record HoleView where
+  constructor MkHoleView
+  hvname : String
+  hvctx : Ctx
+  hvenv : NameEnv
+  hvty : Maybe Ty
+  hvsite : String
+
+||| The hole report view: Σ's declaration entries zipped with their
+||| display metadata, in minting order.
+holeView : ElabSt -> List HoleView
+holeView st = go (toList st.sig) (toList st.holeMeta)
+ where
+  go : List SigEntry -> List HoleMeta -> List HoleView
+  go (SigDecl ctx x ty :: rest) (m :: ms) =
+    MkHoleView x ctx m.henv (Just ty) m.hsite :: go rest ms
+  go (SigTyDecl ctx x :: rest) (m :: ms) =
+    MkHoleView x ctx m.henv Nothing m.hsite :: go rest ms
   go (_ :: rest) ms = go rest ms
   go [] _ = []
 
@@ -1547,6 +1592,18 @@ mutual
   elabTy ctx env site (STyPrf e) = do
     (e', eSk) <- checkElem ctx env site e Ty.PropTy
     pure (Prf e', Nd [] [eSk])
+  elabTy ctx env site (STyHole x) = do
+    -- a rigid TYPE hole: a type declaration entry at the ambient
+    -- context (sig-ty-decl); references are stuck (ty-sig-decl)
+    st <- getSt
+    let q = if st.modPrefix == "" then "?\{x}" else "\{st.modPrefix}.?\{x}"
+    case sigLookup q st.sig of
+      Just _ => throw "\{site}: duplicate hole name '?\{x}'"
+      Nothing => pure ()
+    modifySt $ { sig $= (:< SigTyDecl ctx q)
+               , holeMeta $= (:< MkHoleMeta q env site) }
+    pure (Ty.SigVar q (idSpine (length ctx)),
+          Nd [] (replicate (length ctx) (Nd [] [])))
 
   export
   inferElem : Ctx -> NameEnv -> String -> SElem -> ElabM (Elem, Ty, Skel)
@@ -1554,6 +1611,8 @@ mutual
     case ctxLookup ctx i of
       Just ty => pure (CtxVar i, ty, Nd [] [])
       Nothing => throw "\{site}: variable index out of bounds"
+  inferElem ctx env site (SHole x) =
+    throw "\{site}: hole ?\{x} in inference position — its type is undetermined here\{structuralHint}"
   inferElem ctx env site (SSig x0) = do
     st <- getSt
     let x = resolveSigName st x0
@@ -1742,6 +1801,19 @@ mutual
                 (body', bodySk) <- checkElem (ctx :< a) (env :< xn) site body (substTy (Prf q) Wk)
                 pure (Star, withExpose exp (Nd [PSquashElim e' eSk body' bodySk] []))
           _ => throw "\{site}: squash-elim scrutinee checked against Prf of a non-∥∥ code\{structuralHint}"
+  checkElem ctx env site (SHole x) ty = do
+    -- a rigid hole: a declaration entry at the AMBIENT context
+    -- (sig-decl); the reference carries the identity spine and is
+    -- stuck (el-sig-decl). Reported, never solved; blocks acceptance.
+    st <- getSt
+    let q = if st.modPrefix == "" then "?\{x}" else "\{st.modPrefix}.?\{x}"
+    case sigLookup q st.sig of
+      Just _ => throw "\{site}: duplicate hole name '?\{x}'"
+      Nothing => pure ()
+    modifySt $ { sig $= (:< SigDecl ctx q ty)
+               , holeMeta $= (:< MkHoleMeta q env site) }
+    pure (SigVar q (idSpine (length ctx)),
+          Nd [] (replicate (length ctx) (Nd [] [])))
   checkElem ctx env site t ty = do
     (t', inferred, tSk) <- inferElem ctx env site t
     c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
@@ -2218,6 +2290,33 @@ oblReport tbl os =
   "open obligations (\{show (length os)}):\n" ++
   joinBy "\n" (zipWith (prettyObligation tbl) [0 .. minus (length os) 1] os)
 
+||| Render one hole for the report (exported for LSP consumers, like
+||| prettyObligation).
+export
+prettyHole : FixTable -> HoleView -> String
+prettyHole tbl h =
+  let tele = prettyTelescope tbl h.hvctx h.hvenv in
+  "  [\{h.hvname}] " ++ (if tele == "" then "" else tele ++ " ") ++
+  (case h.hvty of
+     Just ty => "⊢ ? : \{prettyTyN tbl h.hvenv ty}"
+     Nothing => "⊢ ? type") ++
+  "\n      at: \{h.hvsite}"
+
+holeReport : FixTable -> List HoleView -> String
+holeReport tbl hs =
+  "open holes (\{show (length hs)}):\n" ++
+  joinBy "\n" (map (prettyHole tbl) hs)
+
+||| The composed end-of-run report of everything keeping Σ
+||| non-definitional; empty exactly when the run is accepted.
+openReport : FixTable -> ElabSt -> Maybe String
+openReport tbl st =
+  case (oblView st, holeView st) of
+    ([], []) => Nothing
+    (os, hs) => Just $ joinBy "\n"
+      ((case os of [] => []; _ => [oblReport tbl os]) ++
+       (case hs of [] => []; _ => [holeReport tbl hs]))
+
 ||| Install a module's import aliases: each opened name must exist in
 ||| the imported module's Σ segment.
 installImports : List SImport -> ElabM ()
@@ -2245,11 +2344,10 @@ elabProgram units = go initSt units []
  where
   finish : FixTable -> ElabSt -> List String -> String
   finish tbl st echoes =
-    let oblList = oblView st in
     joinBy "\n" echoes ++ "\n" ++
-    (case oblList of
-       [] => "Accepted."
-       os => oblReport tbl os)
+    (case openReport tbl st of
+       Nothing => "Accepted."
+       Just rep => rep)
 
   goItems : ElabSt -> List (Maybe Range, SItem) -> Either (List String, String) (ElabSt, List String)
   goItems st [] = Right (st, [])
@@ -2278,10 +2376,10 @@ elabProgram units = go initSt units []
               _ =>
                 -- only ACCEPTED modules are importable: a module's
                 -- signature segment must be DEFINITIONAL
-                case oblView st' of
-                  [] => go st' rest (echoes ++ hdr ++ itemEchoes)
-                  os => joinBy "\n" (echoes ++ hdr ++ itemEchoes) ++ "\n" ++
-                        oblReport tbl os ++ "\n" ++
+                case openReport tbl st' of
+                  Nothing => go st' rest (echoes ++ hdr ++ itemEchoes)
+                  Just rep => joinBy "\n" (echoes ++ hdr ++ itemEchoes) ++ "\n" ++
+                        rep ++ "\n" ++
                         "Error: module \{name} has open obligations and cannot be imported"
 
 ||| Elaborate a dependency-ordered program to its final kernel Σ,
@@ -2312,11 +2410,11 @@ elabProgramSig units = go initSt units
         case goItems st items of
           Left err => Left err
           Right st' =>
-            case oblView st' of
-              os@(_ :: _) => Left (oblReport tbl os ++ "\nmodule \{name} has open obligations")
-              []          => case rest of
-                               [] => Right st'.kernelSig
-                               _  => go st' rest
+            case openReport tbl st' of
+              Just rep => Left (rep ++ "\nmodule \{name} has open obligations")
+              Nothing  => case rest of
+                            [] => Right st'.kernelSig
+                            _  => go st' rest
 
 ||| Elaborate a single surface file (no imports — resolving them needs
 ||| the module loader); the returned string is the complete report.
@@ -2342,50 +2440,61 @@ public export
 record ElabReport where
   constructor MkElabReport
   obligations : List (String, Maybe Range, Obligation)
+  ||| open holes, pre-rendered (module, item range, report text) —
+  ||| same attribution granularity as obligations
+  holes : List (String, Maybe Range, String)
   ||| at most one per run — elaboration of a dependency-ordered program
   ||| stops at the first hard failure, same as `elabProgram`
   errors : List (String, Maybe Range, String)
 
 export
 elabProgramReport : List ModUnit -> ElabReport
-elabProgramReport units = go initSt units [] []
+elabProgramReport units = go initSt units [] [] []
  where
-  -- newly-appended obligations since `before`: constraints only ever
-  -- grow by `:<` (see `assume`), so `before` is always a prefix of
-  -- `after`.
+  -- newly-appended obligations/holes since `before`: both only ever
+  -- grow by `:<` (see `assume` and the hole minting sites), so
+  -- `before` is always a prefix of `after`.
   newObls : (before, after : ElabSt) -> List Obligation
   newObls before after =
     drop (length (toList before.oblMeta)) (oblView after)
 
-  goItems : String -> ElabSt -> List (Maybe Range, SItem)
-          -> Either (List (String, Maybe Range, Obligation), Maybe Range, String)
-                    (ElabSt, List (String, Maybe Range, Obligation))
-  goItems mname st [] = Right (st, [])
-  goItems mname st ((rng, item) :: rest) =
-    case runElabM (elabItem item) st of
-      Left err => Left ([], rng, err)
-      Right (st', _) =>
-        let tagged = map (\o => (mname, rng, o)) (newObls st st') in
-        case goItems mname st' rest of
-          Left (obls, r, err) => Left (tagged ++ obls, r, err)
-          Right (st'', obls) => Right (st'', tagged ++ obls)
+  newHoles : (before, after : ElabSt) -> List HoleView
+  newHoles before after =
+    drop (length (toList before.holeMeta)) (holeView after)
 
-  go : ElabSt -> List ModUnit -> List (String, Maybe Range, Obligation) -> List (String, Maybe Range, String) -> ElabReport
-  go st [] obls errs = MkElabReport obls errs
-  go st (MkModUnit name imps tbl items _ :: rest) obls errs =
+  Tagged : Type
+  Tagged = (List (String, Maybe Range, Obligation), List (String, Maybe Range, String))
+
+  goItems : FixTable -> String -> ElabSt -> List (Maybe Range, SItem)
+          -> Either (Tagged, Maybe Range, String)
+                    (ElabSt, Tagged)
+  goItems tbl mname st [] = Right (st, ([], []))
+  goItems tbl mname st ((rng, item) :: rest) =
+    case runElabM (elabItem item) st of
+      Left err => Left (([], []), rng, err)
+      Right (st', _) =>
+        let tagged = map (\o => (mname, rng, o)) (newObls st st')
+            taggedH = map (\h => (mname, rng, prettyHole tbl h)) (newHoles st st') in
+        case goItems tbl mname st' rest of
+          Left ((obls, hs), r, err) => Left ((tagged ++ obls, taggedH ++ hs), r, err)
+          Right (st'', (obls, hs)) => Right (st'', (tagged ++ obls, taggedH ++ hs))
+
+  go : ElabSt -> List ModUnit -> List (String, Maybe Range, Obligation) -> List (String, Maybe Range, String) -> List (String, Maybe Range, String) -> ElabReport
+  go st [] obls hs errs = MkElabReport obls hs errs
+  go st (MkModUnit name imps tbl items _ :: rest) obls hs errs =
     let st = { modPrefix := name, vis := [<] } st in
     case runElabM (installImports imps) st of
-      Left err => MkElabReport obls (errs ++ [(name, Nothing, err)])
+      Left err => MkElabReport obls hs (errs ++ [(name, Nothing, err)])
       Right (st, ()) =>
-        case goItems name st items of
-          Left (itemObls, rng, err) => MkElabReport (obls ++ itemObls) (errs ++ [(name, rng, err)])
-          Right (st', itemObls) =>
+        case goItems tbl name st items of
+          Left ((itemObls, itemHs), rng, err) => MkElabReport (obls ++ itemObls) (hs ++ itemHs) (errs ++ [(name, rng, err)])
+          Right (st', (itemObls, itemHs)) =>
             case rest of
-              [] => MkElabReport (obls ++ itemObls) errs
+              [] => MkElabReport (obls ++ itemObls) (hs ++ itemHs) errs
               _ =>
                 -- only ACCEPTED modules are importable: a module's
                 -- signature segment must be DEFINITIONAL
-                case oblView st' of
-                  [] => go st' rest (obls ++ itemObls) errs
-                  _ => MkElabReport (obls ++ itemObls)
+                case (oblView st', holeView st') of
+                  ([], []) => go st' rest (obls ++ itemObls) (hs ++ itemHs) errs
+                  _ => MkElabReport (obls ++ itemObls) (hs ++ itemHs)
                          (errs ++ [(name, Nothing, "module \{name} has open obligations and cannot be imported")])

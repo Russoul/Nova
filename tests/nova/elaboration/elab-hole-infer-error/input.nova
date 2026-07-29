@@ -1,0 +1,2 @@
+-- a hole in inference position has no type of its own: structural error
+def bad : ℕ ≔ ?f .π₁

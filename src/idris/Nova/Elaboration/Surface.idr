@@ -38,6 +38,9 @@ mutual
     STyProp : STy
     ||| Prf t
     STyPrf : SElem -> STy
+    ||| ?x — a rigid hole in type position (a type declaration in Σ:
+    ||| stuck, reported, never solved; blocks acceptance)
+    STyHole : String -> STy
 
   public export
   data SElem : Type where
@@ -88,6 +91,11 @@ mutual
     SSquashElim : SElem -> (name : String) -> SElem -> SElem
     ||| (t : T) — ascription; the lever into inference mode
     SAnn : SElem -> STy -> SElem
+    ||| ?x — a rigid hole: a term declaration in Σ at the ambient
+    ||| context (stuck, reported with its type, never solved; blocks
+    ||| acceptance). Checking position only — a hole has no type of
+    ||| its own to infer.
+    SHole : String -> SElem
 
 -- ===== Operators are names =====
 --
@@ -208,6 +216,7 @@ mutual
     show (STyEl e) = "El (\{show e})"
     show STyProp = "Ω"
     show (STyPrf e) = "Prf (\{show e})"
+    show (STyHole x) = "?\{x}"
 
   export covering
   Show SElem where
@@ -239,6 +248,7 @@ mutual
     show (SStarWit e) = "⋆ (\{show e})"
     show (SSquashElim e x body) = "SquashElim (\{show e}) \{x} (\{show body})"
     show (SAnn t ty) = "Ann (\{show t}) (\{show ty})"
+    show (SHole x) = "?\{x}"
 
 export
 Show SImport where

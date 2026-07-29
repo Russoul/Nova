@@ -463,6 +463,24 @@ whnf(C) = Prf p        p evident: whnf(p) = ∥A∥ with whnf(A) = 𝟙
 # them), so all structure lives in the judgemental layer and in
 # prepended lemmas.
 
+x ∉ Σ (as ?x)
+------------------------------------------------ (e-hole)     # (?x)
+Γ ⊢ ?x ⇐ C ⇝ ?x[𝕚𝕕]      extends Σ with (Γ ⊦ ?x : C)
+# A RIGID HOLE (Foundation: sig-decl): a declaration entry at the
+# AMBIENT context, referenced with the identity normal substitution
+# ☐ₖ₋₁, ..., ☐₀. References are stuck (el-sig-decl); the hole is
+# reported with its context and type, is never solved, and keeps Σ
+# non-definitional — acceptance is blocked until the user edits it
+# away. Checking position only: a hole in inference position is a
+# structural error (its type is undetermined — ascribe). Hole names
+# are unique per run. Interactivity is the point: the report (and an
+# LSP consumer) answers "what goes here?" with the hole's type.
+# The same token in TYPE position mints a type declaration
+# (sig-ty-decl): Γ ⊢ ?x ⇝ ?x[𝕚𝕕] type, extending Σ with (Γ ⊦ ?x type)
+# — (e-ty-hole). A hole-headed type offers no Π/Σ/quotient structure,
+# so an intro form checked against one fails with the usual
+# structural error, naming the hole.
+
 whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 --------------------------------------- (e-star-wit)          # (⋆ e)
 Γ ⊢ ⋆ e ⇐ C ⇝ ⋆

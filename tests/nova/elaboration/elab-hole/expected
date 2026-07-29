@@ -1,0 +1,15 @@
+defined plus
+defined lemma
+defined f
+defined mixed
+open obligations (1):
+  [1] (n : ℕ) ⊢ ?k ≐ S n : ℕ
+      at: def mixed: checking ⋆
+      from composite: (n : ℕ) ⊢ S ?k ≐ S (S n) : ℕ
+open holes (3):
+  [?base] (n : ℕ) ⊢ ? : plus Z n ≡ n ∈ ℕ
+      at: def lemma
+  [?T] ⊢ ? type
+      at: def f
+  [?k] (n : ℕ) ⊢ ? : ℕ
+      at: def mixed

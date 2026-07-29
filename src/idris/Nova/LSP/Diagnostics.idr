@@ -61,5 +61,8 @@ toDiagnostics source tbl report =
   map (\(mname, rng, o) => mkDiagnostic (rangeFor lns mname rng) (annotate mname (prettyObligation tbl 0 o)))
       report.obligations
   ++
+  map (\(mname, rng, h) => mkDiagnostic (rangeFor lns mname rng) (annotate mname h))
+      report.holes
+  ++
   map (\(mname, rng, msg) => mkDiagnostic (rangeFor lns mname rng) (annotate mname msg))
       report.errors

@@ -211,7 +211,8 @@ mutual
   -- T{4}: atoms
   parseSTyAtom : FixTable -> NameEnv -> Rule STy
   parseSTyAtom tbl env =
-        (kw "𝟘" $> STyZero)
+        (do kwc '?'; x <- parseName; pure (STyHole x))
+    <|> (kw "𝟘" $> STyZero)
     <|> (kw "𝟙" $> STyOne)
     <|> (kw "ℕ" $> STyNat)
     <|> (kw "𝕌" $> STyUniv)
@@ -338,8 +339,13 @@ mutual
   -- t{5}: atoms, including ascription
   parseSElemAtom : FixTable -> NameEnv -> Rule SElem
   parseSElemAtom tbl env =
+        -- a rigid hole: `?` immediately followed by a name (the
+        -- char-level token stream enforces adjacency — a space fails
+        -- the name parser). Tried before the operator atom, so a bare
+        -- `?` operator token stays available
+        (do kwc '?'; x <- parseName; pure (SHole x))
         -- mention form: (+) — the operator as an ordinary reference
-        (do kwc '('; sp; op <- parseOpRef; sp; kwc ')'; pure (SSig op))
+    <|> (do kwc '('; sp; op <- parseOpRef; sp; kwc ')'; pure (SSig op))
         -- a FIXITY-FREE operator token is an ordinary name atom (⊥, ⊤,
         -- prefix-applied ¬); declared-infix operators are excluded, so
         -- application juxtaposition never captures them

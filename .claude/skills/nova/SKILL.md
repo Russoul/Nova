@@ -31,6 +31,13 @@ open obligations (1):
 Each obligation is an equation, under binders, that the engine had to
 ASSUME. Your job: make it derivable, then re-run.
 
+HOLES: write `?name` for any element (checking position only — ascribe
+if you must use one where a type would be inferred) or any type. The
+run continues and the report lists each hole with its context and
+type (`open holes (n): [?name] (x : ℕ) ⊢ ? : T — at: def foo`) — use
+them to ask the elaborator "what goes here?". A file with holes is
+never accepted; hole names are unique per run.
+
 ## How discharge works (the key mental model)
 
 Every accepted `def` whose type is an equation (possibly under Π-binders)
