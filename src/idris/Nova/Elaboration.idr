@@ -1809,6 +1809,58 @@ mutual
               _ => pure False
         _ => pure False
 
+  ||| FIRST-ORDER SPINE SOLVING: both sides are application chains
+  ||| with syntactically EQUAL heads (after aligning by a few δ-steps
+  ||| on either head) — run the pattern solver argwise. Heads are not
+  ||| injective (EqN 0 0 ≐ EqN 1 1 both hold), so this is merely
+  ||| sufficient and its picks are not unique — the standing contract:
+  ||| it runs only after direct discharge failed, every flip is
+  ||| kernel-checked against the prefix, and a wrong pick surfaces as
+  ||| a precise obligation instead of an opaque composite. Flips only,
+  ||| no assumes — safe as an item-end re-solve too.
+  spineSolveE : Ctx -> NameEnv -> String -> Elem -> Elem -> ElabM Bool
+  spineSolveE ctx env site a b = do
+    st <- getSt
+    tryPairs (variants st a) (variants st b)
+   where
+    peel : Elem -> (Elem, List Elem)
+    peel (PiApp f e) = let (h, as) = peel f in (h, as ++ [e])
+    peel e = (e, [])
+
+    variants : ElabSt -> Elem -> List Elem
+    variants st e = e :: (case unfoldHead st.sig e of
+                            Just e' => e' :: (case unfoldHead st.sig e' of
+                                                Just e'' => [e'']
+                                                Nothing => [])
+                            Nothing => [])
+
+    argSolve : List (Elem, Elem) -> ElabM Bool
+    argSolve [] = pure False
+    argSolve ((x, y) :: rest) = do
+      r1 <- patternSolveE ctx env site x y Ty.UniverseTy
+      r2 <- argSolve rest
+      pure (r1 || r2)
+
+    try1 : Elem -> Elem -> ElabM Bool
+    try1 x y =
+      let (h1, as1) = peel x
+          (h2, as2) = peel y in
+      if h1 == h2 && length as1 == length as2 && not (null as1)
+        then argSolve (zip as1 as2)
+        else pure False
+
+    tryPairs : List Elem -> List Elem -> ElabM Bool
+    tryPairs [] _ = pure False
+    tryPairs (x :: xs) ys = do
+      r <- go1 x ys
+      if r then pure True else tryPairs xs ys
+     where
+      go1 : Elem -> List Elem -> ElabM Bool
+      go1 x [] = pure False
+      go1 x (y :: ys') = do
+        r <- try1 x y
+        if r then pure True else go1 x ys'
+
   ||| Γ ⊢ a ≐ b : A ↓ — always succeeds; assumes what it cannot discharge.
   convElem : Ctx -> NameEnv -> String -> Maybe Stmt -> Elem -> Elem -> Ty -> ElabM (Maybe ECert)
   convElem ctx env site comp a b ty = do
@@ -1817,6 +1869,7 @@ mutual
       Right cert => pure (Just cert)
       Left site1 => do
         solved <- patternSolveE ctx env site1 a b ty
+        solved <- if solved then pure True else spineSolveE ctx env site1 a b
         r2 <- the (ElabM (Either String ECert)) $
                 if solved then attemptE ctx site1 a b ty else pure (Left site1)
         case r2 of
@@ -2414,10 +2467,41 @@ addLemma name delta ty = do
 ||| end "definitional" with a skipped item inside it.
 resolveConstraints : Nat -> ElabM ()
 resolveConstraints keep = do
+  sweep 4
   st <- getSt
   let (sig', meta') = go 0 [<] (toList st.sig) (toList st.oblMeta)
   modifySt $ { sig := sig', oblMeta := cast meta' }
  where
+  ||| RE-SOLVE before deleting: an equation assumed mid-item may have
+  ||| become solvable — a later argument pinned the hole it could not
+  ||| legally define (the 3rd-arg/4th-arg ordering of an iffIntro
+  ||| application), or a spine head became δ-alignable after a flip.
+  ||| Flips only (no assumes); iterate while progress.
+  stmts : ElabSt -> List (Nat, SigEntry, OblMeta)
+  stmts st = go2 0 (toList st.sig) (toList st.oblMeta)
+   where
+    go2 : Nat -> List SigEntry -> List OblMeta -> List (Nat, SigEntry, OblMeta)
+    go2 k (e@(SigEq _ _ _ _) :: rest) (m :: ms) = (k, e, m) :: go2 (S k) rest ms
+    go2 k (e@(SigTyEq _ _ _) :: rest) (m :: ms) = (k, e, m) :: go2 (S k) rest ms
+    go2 k (_ :: rest) ms = go2 k rest ms
+    go2 _ [] _ = []
+
+  solveOne : (Nat, SigEntry, OblMeta) -> ElabM Bool
+  solveOne (k, SigEq ctx a b ty, m) =
+    if k < keep then pure False else do
+      r1 <- patternSolveE ctx m.oenv m.osite a b ty
+      r2 <- spineSolveE ctx m.oenv m.osite a b
+      pure (r1 || r2)
+  solveOne (k, SigTyEq ctx x y, m) =
+    if k < keep then pure False else patternSolveT ctx m.oenv m.osite x y
+  solveOne _ = pure False
+
+  sweep : Nat -> ElabM ()
+  sweep Z = pure ()
+  sweep (S fuel) = do
+    st <- getSt
+    rs <- traverse solveOne (stmts st)
+    when (any id rs) (sweep fuel)
   go : Nat -> Sig -> List SigEntry -> List OblMeta -> (Sig, List OblMeta)
   go k acc [] ms = (acc, [])
   go k acc (e@(SigEq ctx a b ty) :: rest) (m :: ms) =
