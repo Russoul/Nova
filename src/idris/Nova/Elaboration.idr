@@ -1391,6 +1391,10 @@ resugarQ st occ = go (toList st.sig)
   headMatch : Elem -> Elem -> Bool
   headMatch (QSortC _ kP _) (QSortC _ k _) = kP == k
   headMatch (QCtor _ cP _) (QCtor _ c _) = cP == c
+  -- an eliminator occurrence: the emitted def's motive/method
+  -- positions are λ-binders, i.e. pure pattern variables — and the
+  -- El-/Prf-wrapped motive shapes keep the Elim/ElimP twins disjoint
+  headMatch (QElim _ jP _ _ _ _) (QElim _ j _ _ _ _) = jP == j
   headMatch _ _ = False
 
   go : List SigEntry -> Maybe Elem
@@ -1451,8 +1455,9 @@ mutual
     let z = QCtor (zonkQSig st sg) k (zonkSubNorm st es) in
     fromMaybe z (resugarQ st z)
   zonkElem st (QElim sg k ms fs es w) =
-    QElim (zonkQSig st sg) k (map (zonkTy st) ms) (map (zonkElem st) fs)
-          (zonkSubNorm st es) (zonkElem st w)
+    let z = QElim (zonkQSig st sg) k (map (zonkTy st) ms) (map (zonkElem st) fs)
+                  (zonkSubNorm st es) (zonkElem st w) in
+    fromMaybe z (resugarQ st z)
 
   zonkTy : ElabSt -> Ty -> Ty
   zonkTy st (Ty.SigVar x es) =
