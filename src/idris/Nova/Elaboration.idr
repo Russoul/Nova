@@ -246,6 +246,34 @@ strengthenKTy : Nat -> Ty -> Maybe Ty
 strengthenKTy Z t = Just t
 strengthenKTy (S k) t = strengthenTy 0 t >>= strengthenKTy k
 
+||| The DEPTH-0 embedded Nova type pieces of two same-shape QIIT
+||| signatures, paired entrywise — the external Π-domains standing at
+||| the AMBIENT context, which is where an instantiated parameter
+||| lands (`El _nat` vs `El ℕ`). Nothing on any ToS-structural
+||| mismatch (entry count, binder shapes, ToS codes). Pieces under
+||| binders are deliberately skipped: their equality follows from the
+||| parameter equations once solved, via the composite retry.
+qsigDom0Pieces : QSig -> QSig -> Maybe (List (Ty, Ty))
+qsigDom0Pieces sg0 sg1 =
+  if length sg0 /= length sg1 then Nothing
+  else map concat (traverse (uncurry (goTy 0)) (zip sg0 sg1))
+ where
+  goTm : QTm -> QTm -> Maybe ()
+  goTm (QVar i) (QVar j) = if i == j then Just () else Nothing
+  goTm (QAppE f e) (QAppE g e') = goTm f g   -- embedded elems: typeless here, skipped
+  goTm (QAppI f a) (QAppI g b) = do goTm f g; goTm a b
+  goTm (QEqC l r u) (QEqC l' r' u') = do goTm l l'; goTm r r'; goTm u u'
+  goTm _ _ = Nothing
+
+  goTy : Nat -> QTy -> QTy -> Maybe (List (Ty, Ty))
+  goTy d QU QU = Just []
+  goTy d (QEl t) (QEl t') = map (const []) (goTm t t')
+  goTy d (QPiExt a b) (QPiExt a' b') =
+    map (\rest => (if d == 0 && a /= a' then [(a, a')] else []) ++ rest)
+        (goTy (S d) b b')
+  goTy d (QPiInd u b) (QPiInd u' b') = do ignore (goTm u u'); goTy (S d) b b'
+  goTy _ _ _ = Nothing
+
 ||| Position of the entry binding a name (leftmost/oldest first).
 sigIndexOf : String -> List SigEntry -> Maybe Nat
 sigIndexOf q = go 0
@@ -1796,6 +1824,14 @@ mutual
           (QuotTy x r, QuotTy x' r', Ty.UniverseTy) => do
             ignore $ convElem ctx env site comp' x x' Ty.UniverseTy
             ignore $ convElem (ctx :< El x' :< substTy (El x') Wk) (env :< "x" :< "y") site comp' r r' Ty.PropTy
+          -- code-qiit identity: structural, like ty-qiit (the code and
+          -- the type decode to the same former)
+          (QSortC sg0 k0 es0, QSortC sg1 k1 es1, Ty.UniverseTy) =>
+            if k0 == k1 && es0 == es1
+              then case qsigDom0Pieces sg0 sg1 of
+                     Just pieces => traverse_ (\(t0, t1) => ignore $ convTy ctx env site comp' t0 t1) pieces
+                     Nothing => assume cur site comp
+              else assume cur site comp
           -- sufficient direction at Ω: equal squashees give equal props
           -- (the faithful iff route lives in spEqStructC's propext)
           (Squash tA, Squash tB, Ty.PropTy) =>
@@ -1868,6 +1904,16 @@ mutual
           (Ty.Quotient a0 r0, Ty.Quotient a1 r1) => do
             ignore $ convTy ctx env site comp' a0 a1
             ignore $ convElem (ctx :< a1 :< substTy a1 Wk) (env :< "x" :< "y") site comp' r0 r1 Ty.PropTy
+          -- ty-qiit identity is STRUCTURAL (Foundation, IDENTITY):
+          -- signatures, sort position, indices. Decompose the
+          -- signatures' depth-0 embedded domains — instantiated
+          -- parameters land there
+          (QSort sg0 k0 es0, QSort sg1 k1 es1) =>
+            if k0 == k1 && es0 == es1
+              then case qsigDom0Pieces sg0 sg1 of
+                     Just pieces => traverse_ (\(t0, t1) => ignore $ convTy ctx env site comp' t0 t1) pieces
+                     Nothing => assume cur site comp
+              else assume cur site comp
           (El x, El y) => ignore $ convElem ctx env site comp' x y Ty.UniverseTy
           (Prf x, Prf y) => ignore $ convElem ctx env site comp' x y Ty.PropTy
           (El x, rigid) => case codeOf rigid of

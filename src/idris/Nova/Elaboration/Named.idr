@@ -348,6 +348,30 @@ mutual
   prettyElemPostfixN tbl env e = prettyElemAtomN tbl env e
 
   export
+  ||| A QIIT sort, signature spelled out: `𝒮{U; (El ℕ) ⇛ ⬡0; …}.k[ē]`
+  ||| — the signature is the sort's IDENTITY (structural, nameless),
+  ||| so a diagnostic naming only `𝒮.k` hides exactly the part two
+  ||| mismatched sorts differ in (an instantiated parameter, say).
+  prettyQSortN : FixTable -> NameEnv -> QSig -> Nat -> SubNorm -> String
+  prettyQSortN tbl env sg k es =
+    "𝒮{" ++ concat (intersperse "; " (map (prettyQTyN tbl env) sg)) ++ "}." ++ show k ++
+    "[" ++ prettySubNormN tbl env es ++ "]"
+
+  prettyQTmN : FixTable -> NameEnv -> QTm -> String
+  prettyQTmN tbl env (QVar i) = "⬡" ++ show i
+  prettyQTmN tbl env (QAppE f e) = prettyQTmN tbl env f ++ " " ++ prettyElemAtomN tbl env e
+  prettyQTmN tbl env (QAppI f a) = prettyQTmN tbl env f ++ " (" ++ prettyQTmN tbl env a ++ ")"
+  prettyQTmN tbl env (QEqC l r u) =
+    prettyQTmN tbl env l ++ " ≡ " ++ prettyQTmN tbl env r ++ " ∈ " ++ prettyQTmN tbl env u
+
+  prettyQTyN : FixTable -> NameEnv -> QTy -> String
+  prettyQTyN tbl env QU = "U"
+  prettyQTyN tbl env (QEl t) = "El (" ++ prettyQTmN tbl env t ++ ")"
+  prettyQTyN tbl env (QPiExt a b) =
+    "(" ++ prettyTyN tbl env a ++ ") ⇛ " ++ prettyQTyN tbl (env :< wildcard) b
+  prettyQTyN tbl env (QPiInd u b) =
+    "(" ++ prettyQTmN tbl env u ++ ") ⇛ " ++ prettyQTyN tbl (env :< wildcard) b
+
   prettyElemAtomN : FixTable -> NameEnv -> Elem -> String
   prettyElemAtomN tbl env (CtxVar n) = nameAt env n
   prettyElemAtomN tbl env OneIntro = "()"
@@ -364,7 +388,7 @@ mutual
     if isIdSpineN (length env) es
       then x
       else x ++ "[" ++ prettySubNormN tbl env es ++ "]"
-  prettyElemAtomN tbl env (QSortC sg k es) = "𝒮." ++ show k ++ "[" ++ prettySubNormN tbl env es ++ "]"
+  prettyElemAtomN tbl env (QSortC sg k es) = prettyQSortN tbl env sg k es
   prettyElemAtomN tbl env (QCtor sg k es) = "𝒮." ++ show k ++ "[" ++ prettySubNormN tbl env es ++ "]"
   prettyElemAtomN tbl env (QElim sg k ms fs es w) =
     "𝒮." ++ show k ++ "-elim[" ++ prettySubNormN tbl env es ++ "](" ++ prettyElemN tbl env w ++ ")"
@@ -429,7 +453,7 @@ mutual
     if isIdSpineN (length env) es
       then x
       else x ++ "[" ++ prettySubNormN tbl env es ++ "]"
-  prettyTyAtomN tbl env (QSort sg k es) = "𝒮." ++ show k ++ "[" ++ prettySubNormN tbl env es ++ "]"
+  prettyTyAtomN tbl env (QSort sg k es) = prettyQSortN tbl env sg k es
   prettyTyAtomN tbl env ty = "(" ++ prettyTyN tbl env ty ++ ")"
 
 -- ===== Ctx =====
