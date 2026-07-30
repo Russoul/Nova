@@ -1,5 +1,5 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
-CAPS: hover=true definition=true documentSymbol=true inlayHint=true
+CAPS: hover=true definition=true documentSymbol=true
 DIAGNOSTICS (1):
   [L1:1-L1:29] def bad: unknown name 'undefinedThing'
 TOKENS (6):
@@ -13,5 +13,4 @@ SYMBOLS (1):
   bad (kind 12) [L1:1-L1:29]
 DEFINITION(undefinedThing): null
 HOVER(undefinedThing): null
-INLAY HINTS (0):
 SERVER EXIT CODE: 0

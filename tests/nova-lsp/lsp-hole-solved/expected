@@ -1,5 +1,5 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
-CAPS: hover=true definition=true documentSymbol=true inlayHint=true
+CAPS: hover=true definition=true documentSymbol=true
 DIAGNOSTICS (0):
 TOKENS (45):
   L1:1+3 keyword
@@ -52,6 +52,4 @@ SYMBOLS (2):
   solved (kind 12) [L2:1-L2:36]
 DEFINITION(_m): null
 HOVER(_m): [L2:16-L2:18] ```nova ⏎ solved hole _m ⏎ ⊢ _m ≔ S Z : ℕ ⏎ ```
-INLAY HINTS (1):
-  [L2:18] (kind 2) ≔ S Z
 SERVER EXIT CODE: 0

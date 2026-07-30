@@ -54,11 +54,9 @@ semanticTokensOptions = MkSemanticTokensOptions
 ||| Default server capabilities sent to clients during `initialize`.
 ||| Implemented (see `Nova.LSP.ProcessMessage`): textDocumentSync,
 ||| semanticTokensProvider, hoverProvider, definitionProvider,
-||| documentSymbolProvider — plus inlayHintProvider, injected into the
-||| initialize response by the raw-JSON path (the pinned lsp-lib's
-||| record predates it). Everything else is explicitly disabled rather
-||| than left `Nothing`, so a client never mistakes "we didn't say"
-||| for "try it anyway".
+||| documentSymbolProvider. Everything else is explicitly disabled
+||| rather than left `Nothing`, so a client never mistakes "we didn't
+||| say" for "try it anyway".
 export
 serverCapabilities : ServerCapabilities
 serverCapabilities =

@@ -1,5 +1,5 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
-CAPS: hover=true definition=true documentSymbol=true inlayHint=true
+CAPS: hover=true definition=true documentSymbol=true
 DIAGNOSTICS (1):
   [L3:1-L3:52]   [1] (n : ℕ) ⊢ plus Z n ≐ n : ℕ
       at: def needsLemma: checking ⋆
@@ -61,5 +61,4 @@ SYMBOLS (2):
   needsLemma (kind 12) [L3:1-L3:52]
 DEFINITION(plus): SAME FILE [L1:1-L1:62]
 HOVER(plus): null
-INLAY HINTS (0):
 SERVER EXIT CODE: 0

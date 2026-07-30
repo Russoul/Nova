@@ -70,13 +70,6 @@ handleMessage = do
             | _ => do
                 logE Channel "Message id is not of the correct type"
                 sendUnknownResponseMessage (invalidRequest "id is not int or string")
-          -- raw-JSON methods first: textDocument/inlayHint lives
-          -- outside the pinned lsp-lib's Method type, and initialize
-          -- injects a capability the typed record cannot express
-          False <- case methodJSON of
-                     JString m => handleRawRequest m idJSON (lookup "params" fields)
-                     _ => pure False
-            | True => pure ()
           let Just method = fromJSON {a = Method Client Request} methodJSON
             | _ => do
                 logE Channel "Method not found"

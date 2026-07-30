@@ -52,15 +52,6 @@ writeResponse msg = do
     | Left err => log Error Server "Can't write response in writeResponse, reason: \{show err}"
   fflush outputHandle
 
-||| Sends a raw JSON-RPC SUCCESS response — for methods handled
-||| outside lsp-lib's typed Method universe (textDocument/inlayHint;
-||| the capability-injecting initialize). `id` is echoed verbatim.
-export
-sendRawResult : Ref LSPConf LSPConfiguration => (id : JSON) -> (result : JSON) -> IO ()
-sendRawResult id result = do
-  writeResponse (JObject [("jsonrpc", JString "2.0"), ("id", id), ("result", result)])
-  logI Channel "Sent raw response"
-
 ||| Sends a new notification from the server to the client.
 export
 sendNotificationMessage : Ref LSPConf LSPConfiguration
