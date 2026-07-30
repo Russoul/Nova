@@ -113,6 +113,13 @@ parseName = do
                               name /= "data")
     pure name
 
+||| A name with its span — binder positions record it so the LSP can
+||| ascribe the elaborated type to the occurrence.
+parseNameR : Rule SName
+parseNameR = do
+  (r, x) <- bounds parseName
+  pure (x, r)
+
 ||| A possibly-qualified name: x or M.x or A.B.x. The dot only counts
 ||| when an identifier follows (so `p.π₁` backtracks to a projection).
 parseDottedName : Rule String
@@ -194,12 +201,12 @@ mutual
       Just (env', groups) => pure (env', (x, a) :: groups)
 
   -- (x y. r)  or bare r as sugar for (_ _. r) — r is an Ω-valued ELEMENT
-  parseQuotRel : FixTable -> NameEnv -> Rule (String, String, SElem)
+  parseQuotRel : FixTable -> NameEnv -> Rule (SName, SName, SElem)
   parseQuotRel tbl env =
-        (do kwc '('; sp; x <- parseName; space; y <- parseName
-            sp; kwc '.'; sp; r <- parseSElemNoComma tbl (env :< x :< y); sp; kwc ')'
+        (do kwc '('; sp; x <- parseNameR; space; y <- parseNameR
+            sp; kwc '.'; sp; r <- parseSElemNoComma tbl (env :< fst x :< fst y); sp; kwc ')'
             pure (x, y, r))
-    <|> (do r <- parseSElemPrefix tbl (env :< wildcard :< wildcard); pure (wildcard, wildcard, r))
+    <|> (do r <- parseSElemPrefix tbl (env :< wildcard :< wildcard); pure ((wildcard, Nothing), (wildcard, Nothing), r))
 
   -- T{2}: El / Prf
   parseSTyEl : FixTable -> NameEnv -> Rule STy
@@ -283,41 +290,41 @@ mutual
       Nothing => pure (env :< x, [(x, a)])
       Just (env', groups) => pure (env', (x, a) :: groups)
 
-  parseQuotRelC : FixTable -> NameEnv -> Rule (String, String, SElem)
+  parseQuotRelC : FixTable -> NameEnv -> Rule (SName, SName, SElem)
   parseQuotRelC tbl env =
-        (do kwc '('; sp; x <- parseName; space; y <- parseName
-            sp; kwc '.'; sp; r <- parseSElemNoComma tbl (env :< x :< y); sp; kwc ')'
+        (do kwc '('; sp; x <- parseNameR; space; y <- parseNameR
+            sp; kwc '.'; sp; r <- parseSElemNoComma tbl (env :< fst x :< fst y); sp; kwc ')'
             pure (x, y, r))
-    <|> (do r <- parseSElemPrefix tbl (env :< wildcard :< wildcard); pure (wildcard, wildcard, r))
+    <|> (do r <- parseSElemPrefix tbl (env :< wildcard :< wildcard); pure ((wildcard, Nothing), (wildcard, Nothing), r))
 
   -- t{2}: prefix forms, motive-first eliminators
   parseSElemPrefix : FixTable -> NameEnv -> Rule SElem
   parseSElemPrefix tbl env =
         -- λ's body extends over operators: λx. x + y ≡ λx. (x + y)
-        (do kw "λ"; sp; x <- parseName; sp; kwc '.'; sp
-            e <- parseSElemOp tbl (env :< x); pure (SLam x e))
+        (do kw "λ"; sp; x <- parseNameR; sp; kwc '.'; sp
+            e <- parseSElemOp tbl (env :< fst x); pure (SLam x e))
     <|> (do kw "𝟘-elim"; space; e <- parseSElemAtom tbl env; pure (SZeroElim e))
     <|> (do kw "ℕ-elim"; space
-            kwc '('; sp; n <- parseName; sp; kwc '.'; sp
-            mot <- parseSTy tbl (env :< n); sp; kwc ')'; sp
+            kwc '('; sp; n <- parseNameR; sp; kwc '.'; sp
+            mot <- parseSTy tbl (env :< fst n); sp; kwc ')'; sp
             z <- parseSElemAtom tbl env; sp
-            kwc '('; sp; n2 <- parseName; space; ih <- parseName
-            sp; kwc '.'; sp; s <- parseSElem tbl (env :< n2 :< ih); sp; kwc ')'; sp
+            kwc '('; sp; n2 <- parseNameR; space; ih <- parseNameR
+            sp; kwc '.'; sp; s <- parseSElem tbl (env :< fst n2 :< fst ih); sp; kwc ')'; sp
             t <- parseSElemAtom tbl env
             pure (SNatElim n mot z n2 ih s t))
     <|> (do kw "S"; space; e <- parseSElemAtom tbl env; pure (SSuc e))
     <|> (do kw "class"; space; e <- parseSElemAtom tbl env; pure (SClass e))
     <|> (do kw "quot-elim"; space
-            kwc '('; sp; z <- parseName; sp; kwc '.'; sp
-            mot <- parseSTy tbl (env :< z); sp; kwc ')'; sp
-            kwc '('; sp; a <- parseName; sp; kwc '.'; sp
-            f <- parseSElem tbl (env :< a); sp; kwc ')'; sp
+            kwc '('; sp; z <- parseNameR; sp; kwc '.'; sp
+            mot <- parseSTy tbl (env :< fst z); sp; kwc ')'; sp
+            kwc '('; sp; a <- parseNameR; sp; kwc '.'; sp
+            f <- parseSElem tbl (env :< fst a); sp; kwc ')'; sp
             q <- parseSElemAtom tbl env
             pure (SQuotElim z mot a f q))
     <|> (do kw "squash-elim"; space
             e <- parseSElemAtom tbl env; sp
-            kwc '('; sp; x <- parseName; sp; kwc '.'; sp
-            body <- parseSElem tbl (env :< x); sp; kwc ')'
+            kwc '('; sp; x <- parseNameR; sp; kwc '.'; sp
+            body <- parseSElem tbl (env :< fst x); sp; kwc ')'
             pure (SSquashElim e x body))
     <|> (do kw "⋆"
             w <- optional (do space; parseSElemAtom tbl env)

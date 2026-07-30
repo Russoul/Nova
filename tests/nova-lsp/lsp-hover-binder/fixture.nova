@@ -1,0 +1,1 @@
+def double : ℕ → ℕ ≔ λlofo. ℕ-elim (mn. ℕ) Z (pk ihq. S (S ihq)) lofo

@@ -152,7 +152,13 @@ handleRequest TextDocumentHover params = whenActiveRequest $ \_ => do
   let hits = [ (hi, r) | hi <- doc.report.holeTable, r <- hi.hiOccs
              , posInRange pos r ]
   case hits of
-    [] => pure (pure (make MkNull))
+    [] =>
+      -- binder occurrences: ascribe the elaborated type
+      case [ (r, txt) | (r, txt) <- doc.report.binderTable, posInRange pos r ] of
+        ((r, txt) :: _) => do
+          let content = MkMarkupContent Markdown ("```nova\n" ++ txt ++ "\n```")
+          pure (pure (make (MkHover (make content) (Just (toLspRange lns r)))))
+        [] => pure (pure (make MkNull))
     ((hi, r) :: _) => do
       let kind = the String $
                    if hi.hiSolvable

@@ -1,0 +1,37 @@
+LEGEND: ["keyword", "variable", "operator", "number", "comment"]
+CAPS: hover=true definition=true documentSymbol=true
+DIAGNOSTICS (0):
+TOKENS (28):
+  L1:1+3 keyword
+  L1:5+6 variable
+  L1:12+1 keyword
+  L1:14+1 keyword
+  L1:16+1 keyword
+  L1:18+1 keyword
+  L1:20+1 keyword
+  L1:22+1 keyword
+  L1:23+4 variable
+  L1:27+1 keyword
+  L1:29+6 keyword
+  L1:36+1 keyword
+  L1:37+2 variable
+  L1:39+1 keyword
+  L1:41+1 keyword
+  L1:42+1 keyword
+  L1:44+1 keyword
+  L1:46+1 keyword
+  L1:47+2 variable
+  L1:50+3 variable
+  L1:53+1 keyword
+  L1:55+1 keyword
+  L1:57+1 keyword
+  L1:58+1 keyword
+  L1:60+3 variable
+  L1:63+1 keyword
+  L1:64+1 keyword
+  L1:66+4 variable
+SYMBOLS (1):
+  double (kind 12) [L1:1-L1:70]
+DEFINITION(lofo): null
+HOVER(lofo): [L1:23-L1:27] ```nova ⏎ lofo : ℕ ⏎ ```
+SERVER EXIT CODE: 0

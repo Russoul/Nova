@@ -144,6 +144,9 @@ record ElabSt where
   ||| every hole occurrence's source span (minting AND reuse sites),
   ||| for LSP position lookup
   holeOccs : SnocList (String, Range)
+  ||| binder occurrences with their elaborated types (module, span,
+  ||| binding context/env, name, type) — LSP hover ascription
+  binderTypes : SnocList (String, Range, Ctx, NameEnv, String, Ty)
   ||| dotted name of the module being elaborated; "" = the root file,
   ||| whose entries stay unqualified
   modPrefix : String
@@ -153,7 +156,7 @@ record ElabSt where
   vis : SnocList (String, String)
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [<] [<] [<] "" [<]
+initSt = MkElabSt [<] [<] [] [] [] [<] [<] [<] [<] "" [<]
 
 ||| Resolve a surface signature reference: aliases first (own module,
 ||| opened imports), else the name itself (qualified references reach
@@ -1367,6 +1370,14 @@ assumedMatchE st ctx a b ty =
 
 -- ===== Committing conversion (the ↓ judgements) =====
 
+||| Record a binder occurrence's elaborated type (nothing without a
+||| span — core-built or wildcard binders).
+recordBinder : Maybe Range -> Ctx -> NameEnv -> String -> Ty -> ElabM ()
+recordBinder Nothing _ _ _ _ = pure ()
+recordBinder (Just r) ctx env x ty = do
+  st <- getSt
+  modifySt $ { binderTypes $= (:< (st.modPrefix, r, ctx, env, x, ty)) }
+
 ||| The number of OPEN entries so far — constraints AND declarations:
 ||| either makes Σ non-definitional, so either dirties the run.
 ||| Derived from Σ itself: hole flips (decl→def) and item-end
@@ -2121,8 +2132,10 @@ mutual
     (a', aSk) <- elabTy ctx env site a
     (b', bSk) <- elabTy (ctx :< a') (env :< x) site b
     pure (Ty.SigmaTy a' b', Nd [] [aSk, bSk])
-  elabTy ctx env site (STyQuot a nx ny r) = do
+  elabTy ctx env site (STyQuot a (nx, nxr) (ny, nyr) r) = do
     (a', aSk) <- elabTy ctx env site a
+    recordBinder nxr ctx env nx a'
+    recordBinder nyr (ctx :< a') (env :< nx) ny (substTy a' Wk)
     (r', rSk) <- checkElem (ctx :< a' :< substTy a' Wk) (env :< nx :< ny) site r Ty.PropTy
     pure (Ty.Quotient a' r', Nd [] [aSk, rSk])
   elabTy ctx env site (STyEq l r t) = do
@@ -2216,20 +2229,25 @@ mutual
     (ty', tySk) <- elabTy ctx env site ty
     (t', tSk) <- checkElem ctx env site t ty'
     pure (t', ty', addPayload (PIntroTy ty' tySk) tSk)
-  inferElem ctx env site (SNatElim n mot z n2 ih s t) = do
+  inferElem ctx env site (SNatElim (n, nr) mot z (n2, n2r) (ih, ihr) s t) = do
+    recordBinder nr ctx env n Ty.NatTy
     (motTy, motSk) <- elabTy (ctx :< Ty.NatTy) (env :< n) site mot
     (z', zSk) <- checkElem ctx env site z (substTy motTy (Ext Id NatIntro0))
+    recordBinder n2r ctx env n2 Ty.NatTy
+    recordBinder ihr (ctx :< Ty.NatTy) (env :< n2) ih motTy
     (s', sSk) <- checkElem (ctx :< Ty.NatTy :< motTy) (env :< n2 :< ih) site s
                    (substTy motTy (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk))
     (t', tSk) <- checkElem ctx env site t Ty.NatTy
     pure (NatElim z' s' t', substTy motTy (Ext Id t'),
           Nd [PMotive motTy motSk] [zSk, sSk, tSk])
-  inferElem ctx env site (SQuotElim zn mot an f q) = do
+  inferElem ctx env site (SQuotElim (zn, zr) mot (an, ar) f q) = do
     (q', qTy, qSk) <- inferElem ctx env site q
     st <- getSt
     case preferQuot st ctx qTy of
       Just (a, r, _) => do
+        recordBinder zr ctx env zn (Ty.Quotient a r)
         (motTy, motSk) <- elabTy (ctx :< Ty.Quotient a r) (env :< zn) site mot
+        recordBinder ar ctx env an a
         (f', fSk) <- checkElem (ctx :< a) (env :< an) site f
                        (substTy motTy (Ext Wk (Class (CtxVar 0))))
         -- well-definedness: f respects R (Foundation's f⁼ premise; the
@@ -2254,8 +2272,10 @@ mutual
     (a', aSk) <- checkElem ctx env site a Ty.UniverseTy
     (b', bSk) <- checkElem (ctx :< El a') (env :< x) site b Ty.UniverseTy
     pure (Elem.SigmaTy a' b', Ty.UniverseTy, Nd [] [aSk, bSk])
-  inferElem ctx env site (SQuotC a nx ny r) = do
+  inferElem ctx env site (SQuotC a (nx, nxr) (ny, nyr) r) = do
     (a', aSk) <- checkElem ctx env site a Ty.UniverseTy
+    recordBinder nxr ctx env nx (El a')
+    recordBinder nyr (ctx :< El a') (env :< nx) ny (substTy (El a') Wk)
     (r', rSk) <- checkElem (ctx :< El a' :< substTy (El a') Wk) (env :< nx :< ny) site r Ty.PropTy
     pure (QuotTy a' r', Ty.UniverseTy, Nd [] [aSk, rSk])
   inferElem ctx env site (SSquash t) = do
@@ -2285,10 +2305,11 @@ mutual
 
   export
   checkElem : Ctx -> NameEnv -> String -> SElem -> Ty -> ElabM (Elem, Skel)
-  checkElem ctx env site (SLam x t) ty = do
+  checkElem ctx env site (SLam (x, xr) t) ty = do
     st <- getSt
     case preferPi st ctx ty of
       Just (a, b, exp) => do
+        recordBinder xr ctx env x a
         (t', tSk) <- checkElem (ctx :< a) (env :< x) site t b
         pure (PiIntro t', withExpose exp (Nd [] [tSk]))
       Nothing => throw "\{site}: λ checked against a non-Π type\{structuralHint}"
@@ -2363,7 +2384,8 @@ mutual
             case preferPrf st ctx ty of
               Nothing => throw "\{site}: squash-elim checked against a non-Prf goal (el-squash-e-prf reaches only further propositions)\{structuralHint}"
               Just (q, exp) => do
-                (body', bodySk) <- checkElem (ctx :< a) (env :< xn) site body (substTy (Prf q) Wk)
+                recordBinder (snd xn) ctx env (fst xn) a
+                (body', bodySk) <- checkElem (ctx :< a) (env :< fst xn) site body (substTy (Prf q) Wk)
                 pure (Star, withExpose exp (Nd [PSquashElim e' eSk body' bodySk] []))
           _ => throw "\{site}: squash-elim scrutinee checked against Prf of a non-∥∥ code\{structuralHint}"
   checkElem ctx env site (SHole mrng solvable x) ty = do
@@ -3222,6 +3244,13 @@ holeInfos tbl st = mapMaybe row (toList st.holeMeta)
           (occsOf m.hname)
       _ => Nothing
 
+||| The LSP binder table: the ROOT module's binder occurrences,
+||| rendered zonked.
+binderInfos : FixTable -> ElabSt -> List (Range, String)
+binderInfos tbl st =
+  [ (r, "\{x} : \{prettyTyN tbl env (zonkTy st ty)}")
+  | (m, r, ctx, env, x, ty) <- toList st.binderTypes, m == "" ]
+
 public export
 record ElabReport where
   constructor MkElabReport
@@ -3233,6 +3262,9 @@ record ElabReport where
   ||| the LSP hole table: the ROOT module's holes, solved and open
   ||| alike (hover, inlay hints)
   holeTable : List HoleInfo
+  ||| the ROOT module's binder occurrences with rendered types —
+  ||| hover ascription for λ/eliminator binders
+  binderTable : List (Range, String)
   ||| at most one per run — elaboration of a dependency-ordered program
   ||| stops at the first hard failure, same as `elabProgram`
   errors : List (String, Maybe Range, String)
@@ -3272,21 +3304,21 @@ elabProgramReport units = go initSt units [] [] []
           Right (st'', (obls, hs)) => Right (st'', (tagged ++ obls, taggedH ++ hs))
 
   go : ElabSt -> List ModUnit -> List (String, Maybe Range, Obligation) -> List (String, Maybe Range, String) -> List (String, Maybe Range, String) -> ElabReport
-  go st [] obls hs errs = MkElabReport obls hs [] errs
+  go st [] obls hs errs = MkElabReport obls hs [] [] errs
   go st (MkModUnit name imps tbl items _ :: rest) obls hs errs =
     let st = { modPrefix := name, vis := [<] } st in
     case runElabM (installImports imps) st of
-      Left err => MkElabReport obls hs (holeInfos tbl st) (errs ++ [(name, Nothing, err)])
+      Left err => MkElabReport obls hs (holeInfos tbl st) (binderInfos tbl st) (errs ++ [(name, Nothing, err)])
       Right (st, ()) =>
         case goItems tbl name st items of
-          Left ((itemObls, itemHs), rng, err) => MkElabReport (obls ++ itemObls) (hs ++ itemHs) [] (errs ++ [(name, rng, err)])
+          Left ((itemObls, itemHs), rng, err) => MkElabReport (obls ++ itemObls) (hs ++ itemHs) [] [] (errs ++ [(name, rng, err)])
           Right (st', (itemObls, itemHs)) =>
             case rest of
-              [] => MkElabReport (obls ++ itemObls) (hs ++ itemHs) (holeInfos tbl st') errs
+              [] => MkElabReport (obls ++ itemObls) (hs ++ itemHs) (holeInfos tbl st') (binderInfos tbl st') errs
               _ =>
                 -- only ACCEPTED modules are importable: a module's
                 -- signature segment must be DEFINITIONAL
                 case (oblView st', holeView st') of
                   ([], []) => go st' rest (obls ++ itemObls) (hs ++ itemHs) errs
-                  _ => MkElabReport (obls ++ itemObls) (hs ++ itemHs) (holeInfos tbl st')
+                  _ => MkElabReport (obls ++ itemObls) (hs ++ itemHs) (holeInfos tbl st') (binderInfos tbl st')
                          (errs ++ [(name, Nothing, "module \{name} has open obligations and cannot be imported")])

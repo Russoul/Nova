@@ -1,0 +1,3 @@
+#!/bin/sh
+DIR="$(cd "$(dirname "$0")" && pwd)"
+"$1" lsp "$NOVA_LSP_BIN" "$DIR/fixture.nova" lofo

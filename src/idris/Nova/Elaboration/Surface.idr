@@ -17,6 +17,12 @@ import Me.Russoul.Text.Range
 
 %default total
 
+||| A binder-position name with its source span (display metadata —
+||| the LSP ascribes elaborated types to binder occurrences).
+public export
+SName : Type
+SName = (String, Maybe Range)
+
 mutual
   public export
   data STy : Type where
@@ -31,7 +37,7 @@ mutual
     ||| (x:T) ⨯ U
     STySigma : (name : String) -> STy -> STy -> STy
     ||| T / (x y. r) — r is an Ω-valued element
-    STyQuot : STy -> (nx, ny : String) -> SElem -> STy
+    STyQuot : STy -> (nx, ny : SName) -> SElem -> STy
     ||| t ≡ t ∈ T
     STyEq : SElem -> SElem -> STy -> STy
     ||| El t
@@ -57,7 +63,7 @@ mutual
     SZeroN : SElem
     SSuc : SElem -> SElem
     ||| λx. t
-    SLam : (name : String) -> SElem -> SElem
+    SLam : (name : SName) -> SElem -> SElem
     SApp : SElem -> SElem -> SElem
     SPair : SElem -> SElem -> SElem
     SProj1 : SElem -> SElem
@@ -71,16 +77,16 @@ mutual
     ||| (x:t) ⨯ u  (code)
     SSigmaC : (name : String) -> SElem -> SElem -> SElem
     ||| t / (x y. r)  (code)
-    SQuotC : SElem -> (nx, ny : String) -> SElem -> SElem
+    SQuotC : SElem -> (nx, ny : SName) -> SElem -> SElem
     ||| t ≡ t ∈ T — the equality PROP (an Ω-element; the ∈-slot
     ||| embeds a TYPE, like ∥-∥)
     SEqC : SElem -> SElem -> STy -> SElem
     SZeroElim : SElem -> SElem
     ||| ℕ-elim (n. T) z (n ih. s) t — motive-first
-    SNatElim : (n : String) -> STy -> SElem -> (n2, ih : String) -> SElem -> SElem -> SElem
+    SNatElim : (n : SName) -> STy -> SElem -> (n2, ih : SName) -> SElem -> SElem -> SElem
     SClass : SElem -> SElem
     ||| quot-elim (z. T) (a. f) q — motive-first
-    SQuotElim : (z : String) -> STy -> (a : String) -> SElem -> SElem -> SElem
+    SQuotElim : (z : SName) -> STy -> (a : SName) -> SElem -> SElem -> SElem
     ||| ∥T∥ — squash: proposition from an arbitrary type
     SSquash : STy -> SElem
     ||| ⋆ — the canonical proof of a true proposition (evident 𝟙-/
@@ -92,7 +98,7 @@ mutual
     ||| squash-elim e (x. body) — el-squash-e-prf: eliminate a proof of
     ||| a squashed proposition into a further proposition, via a
     ||| hypothetical inhabitant x of the raw squashee
-    SSquashElim : SElem -> (name : String) -> SElem -> SElem
+    SSquashElim : SElem -> (name : SName) -> SElem -> SElem
     ||| (t : T) — ascription; the lever into inference mode
     SAnn : SElem -> STy -> SElem
     ||| ?x (rigid) or _x/_ (solvable) — a hole: a term declaration in
@@ -217,7 +223,7 @@ mutual
     show (STySig x) = "\{x}"
     show (STyPi x a b) = "Pi \{x} (\{show a}) (\{show b})"
     show (STySigma x a b) = "Sigma \{x} (\{show a}) (\{show b})"
-    show (STyQuot a x y r) = "Quot (\{show a}) \{x} \{y} (\{show r})"
+    show (STyQuot a x y r) = "Quot (\{show a}) \{fst x} \{fst y} (\{show r})"
     show (STyEq l r t) = "Eq (\{show l}) (\{show r}) (\{show t})"
     show (STyEl e) = "El (\{show e})"
     show STyProp = "Ω"
@@ -231,7 +237,7 @@ mutual
     show SUnitI = "()"
     show SZeroN = "Z"
     show (SSuc t) = "S (\{show t})"
-    show (SLam x t) = "Lam \{x} (\{show t})"
+    show (SLam x t) = "Lam \{fst x} (\{show t})"
     show (SApp f e) = "App (\{show f}) (\{show e})"
     show (SPair a b) = "Pair (\{show a}) (\{show b})"
     show (SProj1 t) = "P1 (\{show t})"
@@ -241,18 +247,18 @@ mutual
     show SNatC = "ℕc"
     show (SPiC x a b) = "PiC \{x} (\{show a}) (\{show b})"
     show (SSigmaC x a b) = "SigmaC \{x} (\{show a}) (\{show b})"
-    show (SQuotC a x y r) = "QuotC (\{show a}) \{x} \{y} (\{show r})"
+    show (SQuotC a x y r) = "QuotC (\{show a}) \{fst x} \{fst y} (\{show r})"
     show (SEqC l r t) = "EqC (\{show l}) (\{show r}) (\{show t})"
     show (SZeroElim t) = "ZeroElim (\{show t})"
     show (SNatElim n mot z n2 ih s t) =
-      "NatElim \{n} (\{show mot}) (\{show z}) \{n2} \{ih} (\{show s}) (\{show t})"
+      "NatElim \{fst n} (\{show mot}) (\{show z}) \{fst n2} \{fst ih} (\{show s}) (\{show t})"
     show (SClass t) = "Class (\{show t})"
     show (SQuotElim z mot a f q) =
-      "QuotElim \{z} (\{show mot}) \{a} (\{show f}) (\{show q})"
+      "QuotElim \{fst z} (\{show mot}) \{fst a} (\{show f}) (\{show q})"
     show (SSquash t) = "Squash (\{show t})"
     show SStar = "⋆"
     show (SStarWit e) = "⋆ (\{show e})"
-    show (SSquashElim e x body) = "SquashElim (\{show e}) \{x} (\{show body})"
+    show (SSquashElim e x body) = "SquashElim (\{show e}) \{fst x} (\{show body})"
     show (SAnn t ty) = "Ann (\{show t}) (\{show ty})"
     show (SHole _ solvable x) = if solvable then "_\{x}" else "?\{x}"
 
