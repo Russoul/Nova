@@ -1373,6 +1373,40 @@ oblCount = do
   st <- getSt
   pure (length (filter (not . sigEntryIsDef) (toList st.sig)))
 
+||| DISPLAY resugaring: a QIIT sort (or constructor) printed through
+||| the Σ entry that NAMES it. The data macro emits, per sort and
+||| constructor, a def whose body is the saturated former under the
+||| parameter λs — so matching each such body against the concrete
+||| occurrence (first-order, the discharge engine's matcher, which
+||| descends into carried signatures) recovers the instantiated
+||| parameters, and the display form is the name applied to them:
+||| El (Bag ℕ) instead of 𝒮{U; …}.0[]. Best effort — no hit, no harm.
+resugarQ : ElabSt -> Elem -> Maybe Elem
+resugarQ st occ = go (toList st.sig)
+ where
+  peel : Elem -> (Nat, Elem)
+  peel (PiIntro f) = let (n, c) = peel f in (S n, c)
+  peel e = (Z, e)
+
+  headMatch : Elem -> Elem -> Bool
+  headMatch (QSortC _ kP _) (QSortC _ k _) = kP == k
+  headMatch (QCtor _ cP _) (QCtor _ c _) = cP == c
+  headMatch _ _ = False
+
+  go : List SigEntry -> Maybe Elem
+  go [] = Nothing
+  go (SigDef [<] name body _ :: rest) =
+    let (n, core) = peel body in
+    if not (headMatch core occ) then go rest else
+    case matchElemP n 0 0 core occ [] of
+      Nothing => go rest
+      Just bs =>
+        case traverse (\prm => lookup prm bs)
+               (the (List Nat) (if n == 0 then [] else reverse [0 .. minus n 1])) of
+          Just args => Just (foldl PiApp (SigVar name [<]) args)
+          Nothing => go rest
+  go (_ :: rest) = go rest
+
 mutual
   ||| DISPLAY zonking: unfold references to SOLVED HOLES — their
   ||| entries are elaborator-minted defs — so reported statements and
@@ -1410,8 +1444,12 @@ mutual
   zonkElem st (QuotElim f q) = QuotElim (zonkElem st f) (zonkElem st q)
   zonkElem st (Squash t) = Squash (zonkTy st t)
   zonkElem st Star = Star
-  zonkElem st (QSortC sg k es) = QSortC (zonkQSig st sg) k (zonkSubNorm st es)
-  zonkElem st (QCtor sg k es) = QCtor (zonkQSig st sg) k (zonkSubNorm st es)
+  zonkElem st (QSortC sg k es) =
+    let z = QSortC (zonkQSig st sg) k (zonkSubNorm st es) in
+    fromMaybe z (resugarQ st z)
+  zonkElem st (QCtor sg k es) =
+    let z = QCtor (zonkQSig st sg) k (zonkSubNorm st es) in
+    fromMaybe z (resugarQ st z)
   zonkElem st (QElim sg k ms fs es w) =
     QElim (zonkQSig st sg) k (map (zonkTy st) ms) (map (zonkElem st) fs)
           (zonkSubNorm st es) (zonkElem st w)
@@ -1434,7 +1472,12 @@ mutual
   zonkTy st PropTy = PropTy
   zonkTy st (Prf e) = Prf (zonkElem st e)
   zonkTy st (Quotient a r) = Quotient (zonkTy st a) (zonkElem st r)
-  zonkTy st (QSort sg k es) = QSort (zonkQSig st sg) k (zonkSubNorm st es)
+  zonkTy st (QSort sg k es) =
+    let zsg = zonkQSig st sg
+        zes = zonkSubNorm st es in
+    case resugarQ st (QSortC zsg k zes) of
+      Just code => El code
+      Nothing => QSort zsg k zes
 
   zonkSubNorm : ElabSt -> SubNorm -> SubNorm
   zonkSubNorm st [<] = [<]
