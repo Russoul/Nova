@@ -239,8 +239,11 @@ runLspTest lspBinPath fixtureAbsPath word = do
                  xs <- asArray arr
                  traverse asString xs)
   putStrLn "LEGEND: \{show legend}"
-  let inlay = fromMaybe JNull (getPath ["result", "capabilities", "inlayHintProvider"] initResp)
-  putStrLn "INLAY PROVIDER: \{stringify inlay}"
+  -- pin the advertised capabilities of every implemented method: a
+  -- REAL client (unlike this one) refuses to send requests the server
+  -- did not advertise, so a handler behind a false flag is dead code
+  let cap = \k => stringify (fromMaybe JNull (getPath ["result", "capabilities", k] initResp))
+  putStrLn "CAPS: hover=\{cap "hoverProvider"} definition=\{cap "definitionProvider"} documentSymbol=\{cap "documentSymbolProvider"} inlayHint=\{cap "inlayHintProvider"}"
 
   writeMessage proc.input (notif "initialized" (JObject []))
 

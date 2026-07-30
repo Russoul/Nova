@@ -1,5 +1,5 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
-INLAY PROVIDER: true
+CAPS: hover=true definition=true documentSymbol=true inlayHint=true
 DIAGNOSTICS (1):
   [L2:46-L2:51]   [?base] (n : ℕ) ⊢ ? : plus Z n ≡ n ∈ ℕ
       at: def lemma

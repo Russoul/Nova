@@ -1,5 +1,5 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
-INLAY PROVIDER: true
+CAPS: hover=true definition=true documentSymbol=true inlayHint=true
 DIAGNOSTICS (1):
   [L3:1-L3:52]   [1] (n : ℕ) ⊢ plus Z n ≐ n : ℕ
       at: def needsLemma: checking ⋆

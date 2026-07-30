@@ -1,5 +1,5 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
-INLAY PROVIDER: true
+CAPS: hover=true definition=true documentSymbol=true inlayHint=true
 DIAGNOSTICS (1):
   [L1:1-L1:29] def bad: unknown name 'undefinedThing'
 TOKENS (6):
