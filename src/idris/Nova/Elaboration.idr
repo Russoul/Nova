@@ -323,6 +323,9 @@ codeOf (Ty.SigmaTy a b) = Elem.SigmaTy <$> codeOf a <*> codeOf b
 -- El (A / R) ≜ El A / R, so it passes through unchanged
 codeOf (Quotient a r) = QuotTy <$> codeOf a <*> Just r
 codeOf (El e) = Just e
+-- code-qiit: a sort's code is the sort former itself (smallness is
+-- enforced wherever the code is USED — inferP rejects large ones)
+codeOf (QSort sg k es) = Just (QSortC sg k es)
 -- Ω and Prf p deliberately have NO codes in 𝕌 (the load-bearing
 -- prohibition of the Ω design — see docs/NovaFoundation.txt)
 codeOf _ = Nothing
@@ -1724,8 +1727,8 @@ mutual
 
   ||| Type-hole counterpart: a stuck type declaration reference
   ||| equated with a type — flip sig-ty-decl to sig-ty-def.
-  patternSolveT : Ctx -> Ty -> Ty -> ElabM Bool
-  patternSolveT ctx tyA tyB = do
+  patternSolveT : Ctx -> NameEnv -> String -> Ty -> Ty -> ElabM Bool
+  patternSolveT ctx env site tyA tyB = do
     st <- getSt
     let aN = betaTy st.sig tyA
     let bN = betaTy st.sig tyB
@@ -1734,8 +1737,20 @@ mutual
     r <- if r then pure True else go st aN tyB
     r <- if r then pure True else go st aN bN
     r <- if r then pure True else go st bN tyA
-    if r then pure True else go st bN aN
+    r <- if r then pure True else go st bN aN
+    -- an ELEMENT-code hole under El: `El _c ≐ T` pins _c to T's code
+    -- (e-eq's ∈-slot `El _`, say) — taken from the RAW side when it
+    -- has one, so the solution stays as written (Bag ℕ, not the
+    -- expanded sort former)
+    r <- if r then pure True else elHole aN tyB bN
+    if r then pure True else elHole bN tyA aN
    where
+    elHole : Ty -> Ty -> Ty -> ElabM Bool
+    elHole (El e@(SigVar q es)) rawOther betaOther =
+      case the (Maybe Elem) (codeOf rawOther <|> codeOf betaOther) of
+        Just c => patternSolveE ctx env site e c Ty.UniverseTy
+        Nothing => pure False
+    elHole _ _ _ = pure False
     holeTyDecl : ElabSt -> Ty -> Maybe String
     holeTyDecl st (Ty.SigVar q es) =
       case sigLookup q st.sig of
@@ -1914,7 +1929,7 @@ mutual
     case r of
       Right cert => pure (Just cert)
       Left site1 => do
-        solved <- patternSolveT ctx tyA tyB
+        solved <- patternSolveT ctx env site1 tyA tyB
         r2 <- the (ElabM (Either String ECert)) $
                 if solved then attemptT ctx site1 tyA tyB else pure (Left site1)
         case r2 of
