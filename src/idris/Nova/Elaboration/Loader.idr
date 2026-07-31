@@ -55,17 +55,31 @@ importTable fm = concatMap
            Nothing => []
            Just tbl => filter (\(op, _) => op `elem` i.opens) tbl)
 
-parseHeader : (label : String) -> String -> Either String (List SImport)
-parseHeader label content =
+||| A load failure, structured for the LSP: the failing file and the
+||| error's span within it, when known (parse errors) — the message
+||| carries the full rendered text either way, so CLI output is
+||| unchanged.
+public export
+record LoadErr where
+  constructor MkLoadErr
+  lfile : Maybe String
+  lrange : Maybe Range
+  lmsg : String
+
+plainErr : String -> LoadErr
+plainErr = MkLoadErr Nothing Nothing
+
+parseHeader : (label : String) -> (path : String) -> String -> Either LoadErr (List SImport)
+parseHeader label path content =
   case runSurfaceParser parseSHeader content of
-    Left err => Left "parse error in \{label}: \{err}"
+    Left (rng, err) => Left (MkLoadErr (Just path) rng "parse error in \{label}: \{err}")
     Right (_, r) => Right r
 
-parseModule : (label : String) -> FixTable -> String
-            -> Either String (SnocList (Range, TokenKind), List SImport, FixTable, List (Maybe Range, SItem))
-parseModule label tbl content =
+parseModule : (label : String) -> (path : String) -> FixTable -> String
+            -> Either LoadErr (SnocList (Range, TokenKind), List SImport, FixTable, List (Maybe Range, SItem))
+parseModule label path tbl content =
   case runSurfaceParser (parseSFile tbl) content of
-    Left err => Left "parse error in \{label}: \{err}"
+    Left (rng, err) => Left (MkLoadErr (Just path) rng "parse error in \{label}: \{err}")
     Right (toks, (imps, tbl', items)) => Right (toks, imps, tbl', items)
 
 mutual
@@ -75,31 +89,31 @@ mutual
   ||| declared fixities for its importers.
   loadOne : (rootDir : String) -> (visiting : List String) -> (done : List String)
           -> (fixs : FixMap) -> (acc : List ModUnit) -> (mname : String)
-          -> IO (Either String (List String, FixMap, List ModUnit))
+          -> IO (Either LoadErr (List String, FixMap, List ModUnit))
   loadOne rootDir visiting done fixs acc mname =
     if mname `elem` done
       then pure (Right (done, fixs, acc))
       else if mname `elem` visiting
-        then pure (Left "import cycle through module '\{mname}'")
+        then pure (Left (plainErr "import cycle through module '\{mname}'"))
         else do
           let path = modPath rootDir mname
           Right content <- readFile path
-            | Left err => pure (Left "cannot read module '\{mname}' (\{path}): \{show err}")
+            | Left err => pure (Left (plainErr "cannot read module '\{mname}' (\{path}): \{show err}"))
           -- two-stage parse: the header names the dependencies whose
           -- fixity tables the body parse needs
-          let Right hdr = parseHeader "module \{mname} (\{path})" content
+          let Right hdr = parseHeader "module \{mname} (\{path})" path content
             | Left err => pure (Left err)
           Right (done', fixs', acc') <- loadMany rootDir (mname :: visiting) done fixs acc (map (\i => i.mname) hdr)
             | Left err => pure (Left err)
           let tbl0 = importTable fixs' hdr
-          let Right (toks, imps, decls, items) = parseModule "module \{mname} (\{path})" tbl0 content
+          let Right (toks, imps, decls, items) = parseModule "module \{mname} (\{path})" path tbl0 content
             | Left err => pure (Left err)
           pure (Right (mname :: done', (mname, decls) :: fixs',
                        acc' ++ [MkModUnit mname imps (decls ++ tbl0) items toks]))
 
   loadMany : (rootDir : String) -> (visiting : List String) -> (done : List String)
            -> (fixs : FixMap) -> (acc : List ModUnit) -> List String
-           -> IO (Either String (List String, FixMap, List ModUnit))
+           -> IO (Either LoadErr (List String, FixMap, List ModUnit))
   loadMany rootDir visiting done fixs acc [] = pure (Right (done, fixs, acc))
   loadMany rootDir visiting done fixs acc (m :: ms) = do
     Right (done', fixs', acc') <- loadOne rootDir visiting done fixs acc m
@@ -109,16 +123,16 @@ mutual
 ||| Load a root file and its import graph; the result is dependency-
 ||| ordered with the root (module name "") last.
 export
-loadProgram : (rootPath : String) -> IO (Either String (List ModUnit))
+loadProgram : (rootPath : String) -> IO (Either LoadErr (List ModUnit))
 loadProgram rootPath = do
   Right content <- readFile rootPath
-    | Left err => pure (Left "cannot read '\{rootPath}': \{show err}")
-  let Right hdr = parseHeader rootPath content
+    | Left err => pure (Left (plainErr "cannot read '\{rootPath}': \{show err}"))
+  let Right hdr = parseHeader rootPath rootPath content
     | Left err => pure (Left err)
   Right (_, fixs, deps) <- loadMany (dirOf rootPath) [] [] [] [] (map (\i => i.mname) hdr)
     | Left err => pure (Left err)
   let tbl0 = importTable fixs hdr
-  let Right (toks, imps, decls, items) = parseModule rootPath tbl0 content
+  let Right (toks, imps, decls, items) = parseModule rootPath rootPath tbl0 content
     | Left err => pure (Left err)
   pure (Right (deps ++ [MkModUnit "" imps (decls ++ tbl0) items toks]))
 
@@ -127,7 +141,7 @@ export
 elabPath : String -> IO String
 elabPath rootPath = do
   Right units <- loadProgram rootPath
-    | Left err => pure "Error: \{err}"
+    | Left err => pure "Error: \{err.lmsg}"
   pure (elabProgram units)
 
 ||| Load, elaborate (requiring full acceptance — Nova.Compute assumes
@@ -141,7 +155,7 @@ export
 runPath : (rootPath : String) -> (name : String) -> IO (Either String String)
 runPath rootPath name = do
   Right units <- loadProgram rootPath
-    | Left err => pure (Left err)
+    | Left err => pure (Left err.lmsg)
   pure $ do
     sig <- elabProgramSig units
     case sigLookup name sig of

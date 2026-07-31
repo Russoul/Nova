@@ -3255,7 +3255,7 @@ export
 elabFile : String -> String
 elabFile content =
   case runSurfaceParser (parseSFile []) content of
-    Left err => "Parse error: \{err}"
+    Left (_, err) => "Parse error: \{err}"
     Right (toks, ([], decls, items)) => elabProgram [MkModUnit "" [] decls items toks]
     Right (_, (_, _, _)) => "Error: this entry point resolves no imports (use the module-aware loader)"
 

@@ -10,6 +10,7 @@ import Me.Russoul.Text.Range
 import Me.Russoul.Text.Position
 
 import Nova.Elaboration
+import Nova.Elaboration.Loader
 import Nova.Elaboration.Surface
 import Nova.LSP.Encoding
 
@@ -47,11 +48,20 @@ annotate "" msg = msg
 annotate mname msg = "in module \{mname}: " ++ msg
 
 ||| A hard failure from `Nova.Elaboration.Loader.loadProgram` itself
-||| (file not found, header parse error, import cycle, ...) — no
-||| module/range to attribute it to at all, so it's whole-document.
+||| (parse error, file not found, import cycle, ...). A parse error in
+||| the OPEN document itself lands on its actual span (the loader
+||| carries the failing file and range); anything else — a failure in
+||| an imported file included, whose positions belong to a different
+||| document — stays whole-document, with the message naming the file.
 export
-loadErrorDiagnostic : String -> Diagnostic
-loadErrorDiagnostic msg = mkDiagnostic wholeDocument msg
+loadErrorDiagnostic : (source : String) -> (rootPath : String) -> LoadErr -> Diagnostic
+loadErrorDiagnostic source rootPath err =
+  case (err.lfile, err.lrange) of
+    (Just f, Just r) =>
+      if f == rootPath
+        then mkDiagnostic (toLspRange (lines source) r) err.lmsg
+        else mkDiagnostic wholeDocument err.lmsg
+    _ => mkDiagnostic wholeDocument err.lmsg
 
 ||| Diagnostics for one open document's `ElabReport` — see
 ||| `Nova.Elaboration.elabProgramReport`. `source` is the open

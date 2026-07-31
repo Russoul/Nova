@@ -1,0 +1,3 @@
+def ok : ℕ ≔ Z
+def broken : ℕ ≔ S S ((
+def after : ℕ ≔ Z

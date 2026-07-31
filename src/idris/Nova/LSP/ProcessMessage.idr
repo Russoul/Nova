@@ -56,8 +56,12 @@ loadURI uri version = do
   let fpath = uri.path
   Right units <- loadProgram fpath
     | Left err => do
-        logE Server "Failed to load \{show uri}: \{err}"
-        sendDiagnostics uri version [loadErrorDiagnostic err]
+        logE Server "Failed to load \{show uri}: \{err.lmsg}"
+        -- the open document's own text, for positioning a parse error
+        -- at its span (UTF-16 column conversion needs the lines)
+        src <- readFile fpath
+        sendDiagnostics uri version
+          [loadErrorDiagnostic (either (const "") id src) fpath err]
   let Just root = last' units
     | Nothing => logE Server "loadProgram returned no modules for \{show uri}"
   Right source <- readFile fpath

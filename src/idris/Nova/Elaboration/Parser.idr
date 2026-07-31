@@ -647,12 +647,21 @@ clipCommentRange lines (MkRange start _) =
     (line :: _) => MkRange start (MkPosition start.line (cast (length line)))
     []          => MkRange start start
 
+||| The span a parsing error points at — a real token range when the
+||| failure is at a token, a one-column-wide range at the consumed
+||| position otherwise (an LSP diagnostic needs SOME width).
+parseErrRange : ParsingError Token (SnocList (Range, TokenKind)) -> Range
+parseErrRange err =
+  case err.range of
+    Left r  => r
+    Right p => MkRange p (MkPosition p.line (p.column + 1))
+
 export
-runSurfaceParser : Rule a -> String -> Either String (SnocList (Range, TokenKind), a)
+runSurfaceParser : Rule a -> String -> Either (Maybe Range, String) (SnocList (Range, TokenKind), a)
 runSurfaceParser rule input =
   let (commentRanges, toks) = tokenise (unpack input)
       srcLines = lines input in
   case parseWith [<] (rule <* eof) (normaliseTokens toks) of
-    Left err  => Left (showParseErr err)
+    Left err  => Left (Just (parseErrRange err), showParseErr err)
     Right (kinds, _, x, _) =>
       Right (kinds <>< map (\r => (clipCommentRange srcLines r, Comment)) (toList commentRanges), x)

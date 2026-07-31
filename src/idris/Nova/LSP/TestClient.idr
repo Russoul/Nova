@@ -213,6 +213,19 @@ renderHover result =
     let rng = maybe "?" renderRange (getField "range" result)
     pure "[\{rng}] \{flat}")
 
+||| Replace every occurrence of `needle` (non-empty) in `hay`.
+replaceAll : (needle : String) -> (repl : String) -> String -> String
+replaceAll needle repl hay = pack (go (unpack hay))
+ where
+  n : List Char
+  n = unpack needle
+  go : List Char -> List Char
+  go [] = []
+  go cs@(c :: rest) =
+    if n /= [] && isPrefixOf n cs
+      then unpack repl ++ go (drop (length n) cs)
+      else c :: go rest
+
 -- ===== the scripted conversation =====
 
 ||| `word`'s first occurrence in the fixture is used as the cursor
@@ -255,7 +268,9 @@ runLspTest lspBinPath fixtureAbsPath word = do
     | Nothing => dieMsg "no publishDiagnostics notification"
   let diags = fromMaybe [] (getPath ["params", "diagnostics"] diagMsg >>= asArray)
   putStrLn "DIAGNOSTICS (\{show (length diags)}):"
-  traverse_ (putStrLn . renderDiagnostic) diags
+  -- absolute fixture paths in messages (a parse error names its file)
+  -- would break golden portability across checkouts
+  traverse_ (putStrLn . replaceAll fixtureAbsPath "FIXTURE" . renderDiagnostic) diags
 
   writeMessage proc.input (req 2 "textDocument/semanticTokens/full" (JObject [("textDocument", JObject [("uri", JString uri)])]))
   Just toksResp <- readMessage proc.output
