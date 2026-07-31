@@ -2184,20 +2184,26 @@ mutual
 
   export
   inferElem : Ctx -> NameEnv -> String -> SElem -> ElabM (Elem, Ty, Skel)
-  inferElem ctx env site (SVar n i) =
+  inferElem ctx env site (SVar mrng n i) =
     case ctxLookup ctx i of
-      Just ty => pure (CtxVar i, ty, Nd [] [])
+      Just ty => do
+        recordBinder mrng ctx env n ty
+        pure (CtxVar i, ty, Nd [] [])
       Nothing => throw "\{site}: variable index out of bounds"
   inferElem ctx env site (SHole _ solvable x) =
     let pre = the String (if solvable then "_" else "?") in
     throw "\{site}: hole \{pre}\{x} in inference position — its type is undetermined here\{structuralHint}"
-  inferElem ctx env site (SSig x0) = do
+  inferElem ctx env site (SSig mrng x0) = do
     st <- getSt
     let x = resolveSigName st x0
     case sigLookup x st.sig of
-      Just (SigDef [<] _ _ ty) => pure (SigVar x [<], ty, Nd [] [])
+      Just (SigDef [<] _ _ ty) => do
+        recordBinder mrng ctx env x0 ty
+        pure (SigVar x [<], ty, Nd [] [])
       Just (SigDef _ _ _ _) => throw "\{site}: '\{x}' has a non-empty declaration context"
-      Just (SigDecl [<] _ ty) => pure (SigVar x [<], ty, Nd [] [])
+      Just (SigDecl [<] _ ty) => do
+        recordBinder mrng ctx env x0 ty
+        pure (SigVar x [<], ty, Nd [] [])
       Just _ => throw "\{site}: '\{x}' is not usable as a term here"
       Nothing => throw "\{site}: unknown name '\{x}'"
   inferElem ctx env site SUnitI = pure (OneIntro, Ty.OneTy, Nd [] [])

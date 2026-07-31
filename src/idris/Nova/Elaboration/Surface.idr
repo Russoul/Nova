@@ -55,10 +55,10 @@ mutual
   public export
   data SElem : Type where
     ||| ☐ᵢ — a resolved local variable (the parser resolved the name)
-    SVar : (name : String) -> Nat -> SElem
+    SVar : Maybe Range -> (name : String) -> Nat -> SElem
     ||| x — an identifier that resolved to no local binder: a
     ||| signature reference (locals shadow the signature)
-    SSig : String -> SElem
+    SSig : Maybe Range -> String -> SElem
     SUnitI : SElem
     SZeroN : SElem
     SSuc : SElem -> SElem
@@ -232,8 +232,8 @@ mutual
 
   export covering
   Show SElem where
-    show (SVar n i) = "\{n}@\{show i}"
-    show (SSig x) = "\{x}@sig"
+    show (SVar _ n i) = "\{n}@\{show i}"
+    show (SSig _ x) = "\{x}@sig"
     show SUnitI = "()"
     show SZeroN = "Z"
     show (SSuc t) = "S (\{show t})"

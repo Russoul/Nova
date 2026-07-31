@@ -278,7 +278,7 @@ mutual
                     guard "operator precedence" (p >= minP)
                     sp
                     r <- climb (case assoc of AssocL => S p; AssocR => p)
-                    cont (SApp (SApp (SSig op) l) r) minP)
+                    cont (SApp (SApp (SSig Nothing op) l) r) minP)
         <|> pure l
 
   parseBinderGroupsC : FixTable -> NameEnv -> Rule (NameEnv, List (String, SElem))
@@ -355,13 +355,13 @@ mutual
         -- `?` operator token stays available
         (do (r, x) <- bounds (do kwc '?'; parseName); pure (SHole r False x))
         -- mention form: (+) — the operator as an ordinary reference
-    <|> (do kwc '('; sp; op <- parseOpRef; sp; kwc ')'; pure (SSig op))
+    <|> (do (r, op) <- bounds (do kwc '('; sp; op <- parseOpRef; sp; kwc ')'; pure op); pure (SSig r op))
         -- a FIXITY-FREE operator token is an ordinary name atom (⊥, ⊤,
         -- prefix-applied ¬); declared-infix operators are excluded, so
         -- application juxtaposition never captures them
     <|> (do op <- parseOpName
             case lookup op tbl of
-              Nothing => pure (SSig op)
+              Nothing => pure (SSig Nothing op)
               Just _ => fail "infix operator in atom position")
     <|> (do kwc '('
             sp
@@ -389,11 +389,11 @@ mutual
               ('_' :: rest) => pure (SHole r True (pack rest))
               _ =>
                 case resolveVar env x of
-                  Just i  => pure (SVar x i)
+                  Just i  => pure (SVar r x i)
                   -- locals shadow the signature; whether the name
                   -- exists in Σ is the elaborator's question, not the
                   -- parser's (a dotted name never resolves locally)
-                  Nothing => pure (SSig x))
+                  Nothing => pure (SSig r x))
 
 -- ===== Items =====
 --
