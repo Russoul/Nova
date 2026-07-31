@@ -16,11 +16,11 @@ import Nova.LSP.Encoding
 wholeDocument : Location.Range
 wholeDocument = Location.MkRange (Location.MkPosition 0 0) (Location.MkPosition 0 0)
 
-mkDiagnostic : Location.Range -> String -> Diagnostic
-mkDiagnostic range message =
+mkDiagnosticAt : DiagnosticSeverity -> Location.Range -> String -> Diagnostic
+mkDiagnosticAt sev range message =
   MkDiagnostic
     { range              = range
-    , severity           = Just Error
+    , severity           = Just sev
     , code               = Nothing
     , codeDescription    = Nothing
     , source             = Just "nova"
@@ -29,6 +29,9 @@ mkDiagnostic range message =
     , relatedInformation = Nothing
     , data_              = Nothing
     }
+
+mkDiagnostic : Location.Range -> String -> Diagnostic
+mkDiagnostic = mkDiagnosticAt Error
 
 -- an obligation/error range belonging to a module other than the
 -- root ("" — see `Nova.Elaboration.Loader.loadProgram`) is a
@@ -61,7 +64,10 @@ toDiagnostics source tbl report =
   map (\(mname, rng, o) => mkDiagnostic (rangeFor lns mname rng) (annotate mname (prettyObligation tbl 0 o)))
       report.obligations
   ++
-  map (\(mname, rng, h) => mkDiagnostic (rangeFor lns mname rng) (annotate mname h))
+  -- open holes are the WORKING state of a development, not a defect
+  -- in it: acceptance is blocked, but every hole is something the
+  -- user deliberately wrote — a warning, not an error
+  map (\(mname, rng, h) => mkDiagnosticAt Warning (rangeFor lns mname rng) (annotate mname h))
       report.holes
   ++
   map (\(mname, rng, msg) => mkDiagnostic (rangeFor lns mname rng) (annotate mname msg))

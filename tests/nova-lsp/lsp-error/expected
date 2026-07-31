@@ -1,7 +1,7 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
 CAPS: hover=true definition=true documentSymbol=true
 DIAGNOSTICS (1):
-  [L1:1-L1:29] def bad: unknown name 'undefinedThing'
+  [L1:1-L1:29] (error) def bad: unknown name 'undefinedThing'
 TOKENS (6):
   L1:1+3 keyword
   L1:5+3 variable

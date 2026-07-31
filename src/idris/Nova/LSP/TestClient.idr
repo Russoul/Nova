@@ -132,8 +132,14 @@ renderDiagnostic d =
                 el <- getPath ["end", "line"] r >>= asInt
                 ec <- getPath ["end", "character"] r >>= asInt
                 pure "L\{show (sl + 1)}:\{show (sc + 1)}-L\{show (el + 1)}:\{show (ec + 1)}")
+      sev = case getField "severity" d >>= asInt of
+              Just 1 => "error"
+              Just 2 => "warning"
+              Just 3 => "info"
+              Just 4 => "hint"
+              _ => "?"
       msg = fromMaybe "?" (getField "message" d >>= asString)
-  in "  [\{range}] \{msg}"
+  in "  [\{range}] (\{sev}) \{msg}"
 
 renderRange : JSON -> String
 renderRange r =
