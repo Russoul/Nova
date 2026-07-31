@@ -744,6 +744,21 @@ def x : T ≔ t          extends Σ with (ε ⊦ x ≔ t̂ : A)
 ------------------------------------------------------------- (e-typedef)
 type x ≔ T             extends Σ with (ε ⊦ x ≔ A type)
 
+ε ⊢ T ⇝ A type
+------------------------------------------------------------- (e-decl)
+def x : T              extends Σ with (ε ⊦ x : A)
+# A DECLARATION — a def without a definiens (Foundation: sig-decl at
+# ε). Treated as a NAMED RIGID HOLE end to end: same Σ entry, same
+# open-holes report row, same acceptance wall; references type by
+# el-sig-decl and are stuck. One addition beyond a hole: a declared
+# EQUATION (a Prf-of-≡ type, possibly under Π-binders) registers in
+# the lemma store like any accepted lemma — its stuck reference is a
+# proof element, so el-reflect makes the equation judgementally
+# available. That is the abstract-interface idiom: declare the
+# carrier and its laws, program against them, and everything checks
+# relative to the interface (and is ACCEPTED only once the
+# declarations are given definientia).
+
 # Parameters are Π-binders in T; partial application of an item is
 # therefore first-class, which the telescoped form never was (x[e˲]
 # demanded the full substitution back to Γ). The price is confined to

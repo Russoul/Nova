@@ -194,6 +194,10 @@ public export
 data SItem : Type where
   ||| def x : T ≔ t — always in the empty context
   SDef : String -> STy -> SElem -> SItem
+  ||| def x : T — a DECLARATION: a def without a definiens, entering Σ
+  ||| as a sig-decl and reported as an open hole (the name's span is
+  ||| kept for hover)
+  SDeclDef : (nrng : Maybe Range) -> String -> STy -> SItem
   ||| type x ≔ T — always in the empty context
   STypeDef : String -> STy -> SItem
   ||| data [x : T]* ( n : Q ; … ) — a QIIT signature literal over an
@@ -206,6 +210,7 @@ data SItem : Type where
 export
 itemName : SItem -> String
 itemName (SDef n _ _) = n
+itemName (SDeclDef _ n _) = n
 itemName (STypeDef n _) = n
 itemName (SData _ ds) = case ds of
   (d :: _) => d.dqname
@@ -291,6 +296,7 @@ Show SQDecl where
 export covering
 Show SItem where
   show (SDef x ty body) = "def \{x} : \{show ty} := \{show body}"
+  show (SDeclDef _ x ty) = "def \{x} : \{show ty}"
   show (STypeDef x ty) = "type \{x} := \{show ty}"
   show (SData ps ds) =
     "data " ++ concatMap (\p => case p of (x, t) => "[\{x} : \{show t}] ") ps

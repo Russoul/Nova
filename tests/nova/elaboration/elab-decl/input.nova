@@ -1,0 +1,8 @@
+-- an ABSTRACT INTERFACE: a declared carrier with declared laws; the
+-- laws register as lemmas (their stuck references reflect), so code
+-- against the interface checks — acceptance stays blocked until the
+-- declarations are given definientia
+def vect : ℕ → 𝕌 → 𝕌
+def vectS : (n : ℕ) (A : 𝕌) → vect (S n) A ≡ (A ⨯ vect n A) ∈ 𝕌
+def two : 𝕌 ≔ vect (S (S Z)) ℕ
+def twoIsPair : two ≡ (ℕ ⨯ vect (S Z) ℕ) ∈ 𝕌 ≔ ⋆

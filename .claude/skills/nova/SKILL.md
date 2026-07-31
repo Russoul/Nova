@@ -44,6 +44,12 @@ the source. A hole nothing pins stays open and is reported. Reusing a
 hole name refers to the same hole (same context or under more
 binders); `_`-leading identifiers are reserved.
 
+DECLARATIONS: `def x : T` with no `≔` declares x abstractly — a named
+rigid hole in Σ. References are stuck; a declared EQUATION registers
+as a lemma (the abstract-interface idiom: declare a carrier and its
+laws, program against them). Reported under open holes; acceptance
+stays blocked until the definiens is supplied.
+
 ## How discharge works (the key mental model)
 
 Every accepted `def` whose type is an equation (possibly under Π-binders)

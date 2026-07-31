@@ -2758,6 +2758,29 @@ elabItem (SDef x ty body) = do
   addLemma q [<] ty'
   suffix <- opensSuffix census
   pure "defined \{x}\{suffix}"
+elabItem (SDeclDef nrng x ty) = do
+  -- a DECLARATION (docs/NovaFoundation.txt, sig-decl at ε): exactly a
+  -- rigid hole with a user-facing name — same Σ entry, same report,
+  -- same acceptance wall; references type by el-sig-decl and are
+  -- stuck. The remedy is supplying the definiens (or importing a
+  -- module that will, once such a mechanism exists).
+  census <- openCensus
+  st <- getSt
+  let q = if st.modPrefix == "" then x else "\{st.modPrefix}.\{x}"
+  case sigLookup q st.sig of
+    Just _ => throw "def \{x}: duplicate signature name"
+    Nothing => pure ()
+  (ty', tySk) <- elabTy [<] [<] "def \{x}" ty
+  modifySt $ { sig $= (:< SigDecl [<] q ty')
+             , holeMeta $= (:< MkHoleMeta q [<] "def \{x}" False nrng)
+             , vis $= (:< (x, q)) }
+  -- a DECLARED equation is a lemma like any accepted one: its stuck
+  -- reference is a proof element (el-sig-decl), so el-reflect makes
+  -- the equation judgementally available — that is what an abstract
+  -- interface's equational axioms are FOR
+  addLemma q [<] ty'
+  suffix <- opensSuffix census
+  pure "declared \{x}\{suffix}"
 elabItem (STypeDef x ty) = do
   oblsAtStart <- constraintCount
   census <- openCensus

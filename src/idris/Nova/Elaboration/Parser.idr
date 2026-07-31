@@ -519,12 +519,14 @@ export
 parseSItem : FixTable -> Rule SItem
 parseSItem tbl =
       (do kw "def"; space
-          x <- parseName <|> parseOpName; sp
+          (r, x) <- bounds (parseName <|> parseOpName); sp
           kwc ':'; sp
           ty <- parseSTy tbl [<]; sp
-          kw "≔"; sp
-          body <- parseSElem tbl [<]
-          pure (SDef x ty body))
+          mbody <- optional (do kw "≔"; sp; parseSElem tbl [<])
+          pure (case mbody of
+                  Just body => SDef x ty body
+                  -- a def without a definiens: a DECLARATION
+                  Nothing => SDeclDef r x ty))
   <|> (do kw "type"; space
           x <- parseName; sp
           kw "≔"; sp
