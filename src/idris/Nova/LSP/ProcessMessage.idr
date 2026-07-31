@@ -50,10 +50,20 @@ clearDoc uri = update LSPConf { docs $= filter ((/= uri) . fst) }
 ||| `loadProgram`'s last unit is always the root (mname == ""), i.e.
 ||| the opened file itself; that unit's tokens/fixity table are what
 ||| this document's semantic tokens and obligation pretty-printing use.
+||| Clear diagnostics this root previously published to OTHER files'
+||| URIs (see LSPConfiguration.crossDiags), so nothing goes stale
+||| across reloads.
+clearCrossDiags : Ref LSPConf LSPConfiguration => DocumentURI -> IO ()
+clearCrossDiags root = do
+  extras <- gets LSPConf (fromMaybe [] . lookup root . crossDiags)
+  traverse_ (\u => sendDiagnostics u Nothing []) extras
+  update LSPConf { crossDiags $= filter ((/= root) . fst) }
+
 loadURI : Ref LSPConf LSPConfiguration => DocumentURI -> Maybe Int -> IO ()
 loadURI uri version = do
   logI Server "Loading \{show uri}"
   let fpath = uri.path
+  clearCrossDiags uri
   Right units <- loadProgram fpath
     | Left err => do
         logE Server "Failed to load \{show uri}: \{err.lmsg}"
@@ -62,6 +72,21 @@ loadURI uri version = do
         src <- readFile fpath
         sendDiagnostics uri version
           [loadErrorDiagnostic (either (const "") id src) fpath err]
+        -- a parse error in an IMPORTED file also lands in that file's
+        -- own buffer, at its exact span — the open document only gets
+        -- the whole-document banner naming it
+        case (err.lfile, err.lrange) of
+          (Just f, Just r) =>
+            if f /= fpath
+              then do
+                Right depSrc <- readFile f
+                  | Left _ => pure ()
+                let depUri = pathToURI f
+                sendDiagnostics depUri Nothing
+                  [mkParseDiagnostic (toLspRange (lines depSrc) r) err.lmsg]
+                update LSPConf { crossDiags $= ((uri, [depUri]) ::) }
+              else pure ()
+          _ => pure ()
   let Just root = last' units
     | Nothing => logE Server "loadProgram returned no modules for \{show uri}"
   Right source <- readFile fpath

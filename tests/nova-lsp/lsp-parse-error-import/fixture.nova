@@ -1,0 +1,2 @@
+import broken
+def ok : ℕ ≔ Z

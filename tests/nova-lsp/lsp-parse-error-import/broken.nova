@@ -1,0 +1,2 @@
+def dep : ℕ ≔ Z
+def bad : ℕ ≔ S S ((

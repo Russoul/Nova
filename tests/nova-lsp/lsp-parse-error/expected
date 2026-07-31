@@ -1,7 +1,7 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
 CAPS: hover=true definition=true documentSymbol=true
 DIAGNOSTICS (1):
-  [L2:21-L2:22] (error) parse error in FIXTURE: PARSING ERROR: Reserved keyword @ L2:21
+  [L2:21-L2:22] (error) parse error in DIR/fixture.nova: PARSING ERROR: Reserved keyword @ L2:21
 Last commited @ L2:18
 Next token: Whitespace @ L2:21-L2:22
 TOKENS (0):

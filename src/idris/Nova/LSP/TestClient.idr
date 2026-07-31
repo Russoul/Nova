@@ -189,6 +189,12 @@ findWordPosition word content = go 0 (lines content)
 basename : String -> String
 basename path = List1.last (split (== '/') path)
 
+dirname : String -> String
+dirname path =
+  case reverse (forget (split (== '/') path)) of
+    (_ :: parentRev@(_ :: _)) => joinBy "/" (reverse parentRev)
+    _ => "."
+
 ||| Normalized go-to-definition result: whether the target is the SAME
 ||| file as the one we opened (a real absolute path would break golden
 ||| tests across checkouts, so it's never printed) or another file
@@ -212,6 +218,23 @@ renderHover result =
     let flat = fastConcat (map (\c => if c == '\n' then " ⏎ " else cast c) (unpack value))
     let rng = maybe "?" renderRange (getField "range" result)
     pure "[\{rng}] \{flat}")
+
+||| Read until a NON-notification message arrives, rendering any
+||| publishDiagnostics notifications passed on the way (cross-file
+||| diagnostics arrive interleaved with response traffic).
+readDraining : File -> (fixtureUri : String) -> (normalise : String -> String) -> IO (Maybe JSON)
+readDraining h fixtureUri normalise = do
+  Just msg <- readMessage h
+    | Nothing => pure Nothing
+  case getField "method" msg of
+    Just (JString "textDocument/publishDiagnostics") => do
+      let uri = fromMaybe "?" (getPath ["params", "uri"] msg >>= asString)
+      let label = if uri == fixtureUri then "FIXTURE" else basename uri
+      let diags = fromMaybe [] (getPath ["params", "diagnostics"] msg >>= asArray)
+      putStrLn "DIAGNOSTICS FOR \{label} (\{show (length diags)}):"
+      traverse_ (putStrLn . normalise . renderDiagnostic) diags
+      readDraining h fixtureUri normalise
+    _ => pure (Just msg)
 
 ||| Replace every occurrence of `needle` (non-empty) in `hay`.
 replaceAll : (needle : String) -> (repl : String) -> String -> String
@@ -268,12 +291,13 @@ runLspTest lspBinPath fixtureAbsPath word = do
     | Nothing => dieMsg "no publishDiagnostics notification"
   let diags = fromMaybe [] (getPath ["params", "diagnostics"] diagMsg >>= asArray)
   putStrLn "DIAGNOSTICS (\{show (length diags)}):"
-  -- absolute fixture paths in messages (a parse error names its file)
-  -- would break golden portability across checkouts
-  traverse_ (putStrLn . replaceAll fixtureAbsPath "FIXTURE" . renderDiagnostic) diags
+  -- absolute paths in messages (a parse error names its file) would
+  -- break golden portability across checkouts
+  let normalise = replaceAll fixtureAbsPath "FIXTURE" . replaceAll (dirname fixtureAbsPath) "DIR"
+  traverse_ (putStrLn . normalise . renderDiagnostic) diags
 
   writeMessage proc.input (req 2 "textDocument/semanticTokens/full" (JObject [("textDocument", JObject [("uri", JString uri)])]))
-  Just toksResp <- readMessage proc.output
+  Just toksResp <- readDraining proc.output uri normalise
     | Nothing => dieMsg "no response to semanticTokens/full"
   let rawToks = fromMaybe [] (do
                   arr <- getPath ["result", "data"] toksResp
@@ -284,7 +308,7 @@ runLspTest lspBinPath fixtureAbsPath word = do
   traverse_ (putStrLn . renderToken) toks
 
   writeMessage proc.input (req 3 "textDocument/documentSymbol" (JObject [("textDocument", JObject [("uri", JString uri)])]))
-  Just symResp <- readMessage proc.output
+  Just symResp <- readDraining proc.output uri normalise
     | Nothing => dieMsg "no response to documentSymbol"
   let syms = fromMaybe [] (getPath ["result"] symResp >>= asArray)
   putStrLn "SYMBOLS (\{show (length syms)}):"
@@ -296,7 +320,7 @@ runLspTest lspBinPath fixtureAbsPath word = do
     [ ("textDocument", JObject [("uri", JString uri)])
     , ("position", JObject [("line", JNumber (cast wline)), ("character", JNumber (cast wcol))])
     ]))
-  Just defResp <- readMessage proc.output
+  Just defResp <- readDraining proc.output uri normalise
     | Nothing => dieMsg "no response to definition"
   let defResult = fromMaybe JNull (getField "result" defResp)
   putStrLn "DEFINITION(\{word}): \{renderDefinition uri defResult}"
@@ -305,13 +329,13 @@ runLspTest lspBinPath fixtureAbsPath word = do
     [ ("textDocument", JObject [("uri", JString uri)])
     , ("position", JObject [("line", JNumber (cast wline)), ("character", JNumber (cast wcol))])
     ]))
-  Just hovResp <- readMessage proc.output
+  Just hovResp <- readDraining proc.output uri normalise
     | Nothing => dieMsg "no response to hover"
   let hovResult = fromMaybe JNull (getField "result" hovResp)
   putStrLn "HOVER(\{word}): \{renderHover hovResult}"
 
   writeMessage proc.input (req 6 "shutdown" JNull)
-  Just _ <- readMessage proc.output
+  Just _ <- readDraining proc.output uri normalise
     | Nothing => dieMsg "no response to shutdown"
   writeMessage proc.input (notif "exit" JNull)
 

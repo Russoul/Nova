@@ -49,6 +49,11 @@ record LSPConfiguration where
   isShutdown : Bool
   ||| Currently open documents and their last load's results.
   docs : List (DocumentURI, DocState)
+  ||| URIs OTHER than the root that the root's last load published
+  ||| diagnostics to (a parse error in an imported file lands in that
+  ||| file's own buffer) — cleared before each reload so nothing goes
+  ||| stale.
+  crossDiags : List (DocumentURI, List DocumentURI)
 
 ||| Server default configuration. Uses standard input and standard
 ||| output for input/output.
@@ -62,4 +67,5 @@ defaultConfig =
     , initialized  = Nothing
     , isShutdown   = False
     , docs         = []
+    , crossDiags   = []
     }

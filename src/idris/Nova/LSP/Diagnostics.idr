@@ -47,6 +47,12 @@ annotate : String -> String -> String
 annotate "" msg = msg
 annotate mname msg = "in module \{mname}: " ++ msg
 
+||| A positioned hard-error diagnostic (a parse error published to an
+||| imported file's own URI).
+export
+mkParseDiagnostic : Location.Range -> String -> Diagnostic
+mkParseDiagnostic = mkDiagnostic
+
 ||| A hard failure from `Nova.Elaboration.Loader.loadProgram` itself
 ||| (parse error, file not found, import cycle, ...). A parse error in
 ||| the OPEN document itself lands on its actual span (the loader
