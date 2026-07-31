@@ -1965,6 +1965,19 @@ mutual
                   pure True
             _ => pure False
 
+    ||| Peel `_h[es] ☐_{k-1} … ☐₀` (outermost application first, so the
+    ||| args must be ☐₀, ☐₁, … inward): the ETA shape Π-domain
+    ||| decomposition under fresh binders always produces.
+    peelVars : Nat -> Elem -> Maybe (Elem, Nat)
+    peelVars j (PiApp f (CtxVar i)) = if i == j then peelVars (S j) f else Nothing
+    peelVars j (PiApp _ _) = Nothing
+    peelVars Z e = Nothing
+    peelVars j e = Just (e, j)
+
+    wrapPis : Nat -> Elem -> Elem
+    wrapPis Z e = e
+    wrapPis (S n) e = wrapPis n (PiIntro e)
+
     go : ElabSt -> Elem -> Elem -> ElabM Bool
     go st (SigVar q es) t =
       case sigLookup q st.sig of
@@ -1985,6 +1998,24 @@ mutual
                        Just t' => flipDecl q t'
                        Nothing => pure False
                 else pure False
+        _ => pure False
+    -- an ETA-APPLIED occurrence (the Miller pattern the Π-domain
+    -- decomposition emits): the hole, weakened below k binders and
+    -- applied to exactly those binders — `_h[wkⁿ] ☐₁ ☐₀ ≐ t` solves
+    -- as `_h ≔ λλt`, the binders becoming the λs (indices already
+    -- agree, so t wraps verbatim)
+    go st e@(PiApp _ _) t =
+      case peelVars 0 e of
+        Just (SigVar q es, k) =>
+          case sigLookup q st.sig of
+            Just (SigDecl delta _ dty) =>
+              let n = length delta in
+              if any (\m => m.hname == q && m.hsolvable) (toList st.holeMeta)
+                 && n + k == length ctx && take n (toList ctx) == toList delta
+                 && es == wkSpine n k
+                then flipDecl q (wrapPis k t)
+                else pure False
+            _ => pure False
         _ => pure False
     go st _ _ = pure False
 

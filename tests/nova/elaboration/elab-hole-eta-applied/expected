@@ -1,0 +1,4 @@
+defined data (Q, cls, qeq)
+defined qlift
+defined qliftBeta
+Accepted.
