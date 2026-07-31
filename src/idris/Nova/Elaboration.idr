@@ -2372,10 +2372,22 @@ mutual
             ignore $ convTy ctx env site comp' t t'
             ignore $ convElem ctx env site comp' l l' t'
             ignore $ convElem ctx env site comp' r r' t'
-          (NatElim z s t0, NatElim z' s' t1, _) =>
+          (NatElim z s t0, NatElim z' s' t1, tyW') =>
             if z == z' && s == s'
               then ignore $ convElem ctx env site comp' t0 t1 Ty.NatTy
-              else assume cur site comp
+              -- equal TARGETS: congruence in the returns instead —
+              -- decompose z and s, typed by the constant-motive
+              -- reading (the kernel's own discipline for elim
+              -- equations, approximation A1); this is where an
+              -- instantiated hole hides (vect's step: _A ⨯ ih vs
+              -- A ⨯ ih). A genuinely dependent motive just fails to
+              -- solve and assumes, as before.
+              else if t0 == t1
+                then do
+                  ignore $ convElem ctx env site comp' z z' tyW'
+                  ignore $ convElem (ctx :< Ty.NatTy :< substTy tyW' Wk) (env :< "i" :< "ih")
+                                    site comp' s s' (substTy tyW' (wkN 2))
+                else assume cur site comp
           (PiApp f x, PiApp g y, _) =>
             if f == g
               then do st' <- getSt

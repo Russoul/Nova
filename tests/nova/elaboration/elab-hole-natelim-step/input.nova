@@ -1,0 +1,8 @@
+-- Regression: a hole inside an ℕ-elim STEP function, pinned by an
+-- equation whose two elims share their target — congruence must
+-- decompose the returns (constant-motive reading) instead of
+-- requiring syntactically equal steps.
+def vect : ℕ → 𝕌 → 𝕌 ≔ λn. λa. ℕ-elim (i. 𝕌) 𝟙 (i ih. a ⨯ ih) n
+
+def idv : (n : ℕ) (A : 𝕌) → El (vect n A) → El (vect n _A) ≔
+  λn. λA. λv. v
