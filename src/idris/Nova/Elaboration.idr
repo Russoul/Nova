@@ -225,6 +225,135 @@ wkSpine : (n : Nat) -> (k : Nat) -> SubNorm
 wkSpine Z k = [<]
 wkSpine (S n) k = cast (map CtxVar (reverse [k .. k + n]))
 
+||| Rewrite every signature reference through `f` (Nothing = keep):
+||| the workhorse of prefix-legalization — inlining a later def's
+||| definiens, or renaming a later hole to its inserted twin.
+mapRefsT : (String -> SubNorm -> Maybe Elem) -> Ty -> Ty
+mapRefsSub : (String -> SubNorm -> Maybe Elem) -> SubNorm -> SubNorm
+mapRefsQTm : (String -> SubNorm -> Maybe Elem) -> QTm -> QTm
+mapRefsQTy : (String -> SubNorm -> Maybe Elem) -> QTy -> QTy
+mapRefsQSig : (String -> SubNorm -> Maybe Elem) -> QSig -> QSig
+
+mapRefsE : (String -> SubNorm -> Maybe Elem) -> Elem -> Elem
+mapRefsE f (SigVar x es) =
+  let es2 = mapRefsSub f es in
+  fromMaybe (SigVar x es2) (f x es2)
+mapRefsE f (CtxVar n) = CtxVar n
+mapRefsE f (ZeroElim t) = ZeroElim (mapRefsE f t)
+mapRefsE f OneIntro = OneIntro
+mapRefsE f NatIntro0 = NatIntro0
+mapRefsE f (NatIntro1 t) = NatIntro1 (mapRefsE f t)
+mapRefsE f (NatElim z s t) = NatElim (mapRefsE f z) (mapRefsE f s) (mapRefsE f t)
+mapRefsE f (PiIntro g) = PiIntro (mapRefsE f g)
+mapRefsE f (PiApp g e) = PiApp (mapRefsE f g) (mapRefsE f e)
+mapRefsE f (SigmaIntro a b) = SigmaIntro (mapRefsE f a) (mapRefsE f b)
+mapRefsE f (SigmaElim1 t) = SigmaElim1 (mapRefsE f t)
+mapRefsE f (SigmaElim2 t) = SigmaElim2 (mapRefsE f t)
+mapRefsE f Elem.ZeroTy = Elem.ZeroTy
+mapRefsE f Elem.OneTy = Elem.OneTy
+mapRefsE f Elem.NatTy = Elem.NatTy
+mapRefsE f (Elem.PiTy a b) = Elem.PiTy (mapRefsE f a) (mapRefsE f b)
+mapRefsE f (Elem.SigmaTy a b) = Elem.SigmaTy (mapRefsE f a) (mapRefsE f b)
+mapRefsE f (Elem.EqTy l r t) = Elem.EqTy (mapRefsE f l) (mapRefsE f r) (mapRefsT f t)
+mapRefsE f (QuotTy a r) = QuotTy (mapRefsE f a) (mapRefsE f r)
+mapRefsE f (Class a) = Class (mapRefsE f a)
+mapRefsE f (QuotElim g q) = QuotElim (mapRefsE f g) (mapRefsE f q)
+mapRefsE f (Squash t) = Squash (mapRefsT f t)
+mapRefsE f Star = Star
+mapRefsE f (QSortC sg k es) = QSortC (mapRefsQSig f sg) k (mapRefsSub f es)
+mapRefsE f (QCtor sg k es) = QCtor (mapRefsQSig f sg) k (mapRefsSub f es)
+mapRefsE f (QElim sg k ms fs es w) =
+  QElim (mapRefsQSig f sg) k (map (mapRefsT f) ms) (map (mapRefsE f) fs)
+        (mapRefsSub f es) (mapRefsE f w)
+
+mapRefsT f Ty.ZeroTy = Ty.ZeroTy
+mapRefsT f Ty.OneTy = Ty.OneTy
+mapRefsT f Ty.NatTy = Ty.NatTy
+mapRefsT f Ty.UniverseTy = Ty.UniverseTy
+mapRefsT f (Ty.PiTy a b) = Ty.PiTy (mapRefsT f a) (mapRefsT f b)
+mapRefsT f (Ty.SigmaTy a b) = Ty.SigmaTy (mapRefsT f a) (mapRefsT f b)
+mapRefsT f (El e) = El (mapRefsE f e)
+mapRefsT f PropTy = PropTy
+mapRefsT f (Prf e) = Prf (mapRefsE f e)
+mapRefsT f (Quotient a r) = Quotient (mapRefsT f a) (mapRefsE f r)
+mapRefsT f (Ty.SigVar x es) = Ty.SigVar x (mapRefsSub f es)
+mapRefsT f (QSort sg k es) = QSort (mapRefsQSig f sg) k (mapRefsSub f es)
+
+mapRefsSub f [<] = [<]
+mapRefsSub f (es :< e) = mapRefsSub f es :< mapRefsE f e
+
+mapRefsQTm f (QVar i) = QVar i
+mapRefsQTm f (QAppE g e) = QAppE (mapRefsQTm f g) (mapRefsE f e)
+mapRefsQTm f (QAppI g a) = QAppI (mapRefsQTm f g) (mapRefsQTm f a)
+mapRefsQTm f (QEqC l r u) = QEqC (mapRefsQTm f l) (mapRefsQTm f r) (mapRefsQTm f u)
+
+mapRefsQTy f QU = QU
+mapRefsQTy f (QEl t) = QEl (mapRefsQTm f t)
+mapRefsQTy f (QPiExt a b) = QPiExt (mapRefsT f a) (mapRefsQTy f b)
+mapRefsQTy f (QPiInd u b) = QPiInd (mapRefsQTm f u) (mapRefsQTy f b)
+
+mapRefsQSig f = map (mapRefsQTy f)
+
+||| Every signature name an element references (with duplicates).
+collectRefsE : Elem -> List String
+collectRefsE e = go e
+ where
+  goT : Ty -> List String
+  goQTm : QTm -> List String
+  goQTy : QTy -> List String
+  go : Elem -> List String
+  go (SigVar x es) = x :: concatMap go (toList es)
+  go (CtxVar _) = []
+  go (ZeroElim t) = go t
+  go OneIntro = []
+  go NatIntro0 = []
+  go (NatIntro1 t) = go t
+  go (NatElim z s t) = go z ++ go s ++ go t
+  go (PiIntro f) = go f
+  go (PiApp f x) = go f ++ go x
+  go (SigmaIntro a b) = go a ++ go b
+  go (SigmaElim1 t) = go t
+  go (SigmaElim2 t) = go t
+  go Elem.ZeroTy = []
+  go Elem.OneTy = []
+  go Elem.NatTy = []
+  go (Elem.PiTy a b) = go a ++ go b
+  go (Elem.SigmaTy a b) = go a ++ go b
+  go (Elem.EqTy l r t) = go l ++ go r ++ goT t
+  go (QuotTy a r) = go a ++ go r
+  go (Class a) = go a
+  go (QuotElim f q) = go f ++ go q
+  go (Squash t) = goT t
+  go Star = []
+  go (QSortC sg k es) = concatMap goQTy sg ++ concatMap go (toList es)
+  go (QCtor sg k es) = concatMap goQTy sg ++ concatMap go (toList es)
+  go (QElim sg k ms fs es w) =
+    concatMap goQTy sg ++ concatMap goT ms ++ concatMap go fs ++
+    concatMap go (toList es) ++ go w
+
+  goQTm (QVar _) = []
+  goQTm (QAppE f e) = goQTm f ++ go e
+  goQTm (QAppI f a) = goQTm f ++ goQTm a
+  goQTm (QEqC l r u) = goQTm l ++ goQTm r ++ goQTm u
+
+  goQTy QU = []
+  goQTy (QEl t) = goQTm t
+  goQTy (QPiExt a b) = goT a ++ goQTy b
+  goQTy (QPiInd u b) = goQTm u ++ goQTy b
+
+  goT Ty.ZeroTy = []
+  goT Ty.OneTy = []
+  goT Ty.NatTy = []
+  goT Ty.UniverseTy = []
+  goT (Ty.PiTy a b) = goT a ++ goT b
+  goT (Ty.SigmaTy a b) = goT a ++ goT b
+  goT (El x) = go x
+  goT PropTy = []
+  goT (Prf x) = go x
+  goT (Quotient a r) = goT a ++ go r
+  goT (Ty.SigVar x es) = x :: concatMap go (toList es)
+  goT (QSort sg k es) = concatMap goQTy sg ++ concatMap go (toList es)
+
 ||| ONE δ-step at the head: a definition reference unfolds to its
 ||| definiens under the spine; anything else is left alone. Used to
 ||| walk a hole solution back INTO the declaration's prefix (a later
@@ -1736,6 +1865,59 @@ mutual
         _ => Nothing
     holeDecl _ _ = Nothing
     flipDecl : String -> Elem -> ElabM Bool
+
+    ||| PREFIX-LEGALIZE a candidate solution for the declaration at
+    ||| position qPos: a reference to a LATER definition INLINES its
+    ||| definiens (indices strictly decrease, so this terminates); a
+    ||| reference to a later unsolved SOLVABLE hole at the same
+    ||| context is IMITATED — a fresh hole of the same type is
+    ||| inserted before the target, the later hole is aliased to it,
+    ||| and the reference renamed. This is what closes the
+    ||| minted-out-of-order graphs application chains produce
+    ||| (impIntro _ _ (constP _ _ …): the outer prop hole's solution
+    ||| mentions the inner holes).
+    legalize : Nat -> String -> Ctx -> Elem -> ElabM (Maybe Elem)
+    legalize Z q ctxQ t = pure Nothing
+    legalize (S fuel) q ctxQ t = do
+      st <- getSt
+      let ls = toList st.sig
+      case sigIndexOf q ls of
+        Nothing => pure Nothing
+        Just qPos => do
+          let laters = nub [ n | n <- collectRefsE t
+                           , maybe False (> qPos) (sigIndexOf n ls) ]
+          if null laters then pure (Just t) else do
+            r <- processOne st ls qPos t laters
+            case r of
+              Nothing => pure Nothing
+              Just t' => legalize fuel q ctxQ t'
+     where
+      processOne : ElabSt -> List SigEntry -> Nat -> Elem -> List String -> ElabM (Maybe Elem)
+      processOne st ls qPos t [] = pure (Just t)
+      processOne st ls qPos t (n :: _) =
+        case sigLookup n st.sig of
+          -- a later DEF: inline its definiens at every reference
+          Just (SigDef _ _ body _) =>
+            pure (Just (mapRefsE (\x, es => if x == n then Just (substElem body (embed es)) else Nothing) t))
+          -- a later unsolved SOLVABLE hole at the same context:
+          -- imitate with a fresh earlier twin
+          Just (SigDecl deltaN _ dtyN) =>
+            if not (any (\m => m.hname == n && m.hsolvable) (toList st.holeMeta))
+               || deltaN /= ctxQ
+               -- the twin's type must itself be prefix-legal
+               || not (null [ x | x <- collectRefsE (Squash dtyN)
+                            , maybe False (>= qPos) (sigIndexOf x ls) ])
+              then pure Nothing
+              else do
+                let fresh = "_i\{show (length (toList st.holeMeta))}"
+                modifySt $ { sig := cast (take qPos ls ++ [SigDecl deltaN fresh dtyN] ++ drop qPos ls)
+                           , holeMeta $= (:< MkHoleMeta fresh [<] "legalize" True Nothing) }
+                aliased <- flipDecl n (SigVar fresh (idSpine (length deltaN)))
+                if aliased
+                  then pure (Just (mapRefsE (\x, es => if x == n then Just (SigVar fresh es) else Nothing) t))
+                  else pure Nothing
+          _ => pure Nothing
+
     flipDecl q t = do
       st <- getSt
       let ls = toList st.sig
@@ -1745,7 +1927,25 @@ mutual
           case getAt i ls of
             Just (SigDecl delta _ dty) =>
               case trySolutions 8 st.sig t (cast (take i ls)) delta dty of
-                Nothing => pure False
+                Nothing => do
+                  mt <- legalize 8 q delta t
+                  case mt of
+                    Nothing => pure False
+                    Just t2 => do
+                      st2 <- getSt
+                      let ls2 = toList st2.sig
+                      case sigIndexOf q ls2 of
+                        Nothing => pure False
+                        Just i2 =>
+                          case getAt i2 ls2 of
+                            Just (SigDecl delta2 _ dty2) =>
+                              case trySolutions 8 st2.sig t2 (cast (take i2 ls2)) delta2 dty2 of
+                                Nothing => pure False
+                                Just tOk2 => do
+                                  let def2 = SigDef delta2 q tOk2 dty2
+                                  modifySt $ { sig := cast (take i2 ls2 ++ [def2] ++ drop (S i2) ls2) }
+                                  pure True
+                            _ => pure False
                 Just tOk => do
                   -- the kernel-Σ mirror happens once, at item end
                   -- (mirrorHoleDefs): mirroring here would be
