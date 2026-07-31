@@ -382,13 +382,15 @@ strengthenKTy : Nat -> Ty -> Maybe Ty
 strengthenKTy Z t = Just t
 strengthenKTy (S k) t = strengthenTy 0 t >>= strengthenKTy k
 
-||| The DEPTH-0 embedded Nova type pieces of two same-shape QIIT
-||| signatures, paired entrywise — the external Π-domains standing at
-||| the AMBIENT context, which is where an instantiated parameter
-||| lands (`El _nat` vs `El ℕ`). Nothing on any ToS-structural
-||| mismatch (entry count, binder shapes, ToS codes). Pieces under
-||| binders are deliberately skipped: their equality follows from the
-||| parameter equations once solved, via the composite retry.
+||| The AMBIENT embedded Nova type pieces of two same-shape QIIT
+||| signatures, paired entrywise — the external Π-domains that stand
+||| at (or strengthen to) the ambient context, which is where an
+||| instantiated parameter lands (`El _nat` vs `El ℕ`) no matter how
+||| deep the entry buries it (vcons : (n : El ℕ) (x : El a) → …).
+||| Nothing on any ToS-structural mismatch (entry count, binder
+||| shapes, ToS codes). Domains that genuinely use their local ToS
+||| binders are skipped: their equality follows from the ambient
+||| pieces once solved, via the composite retry.
 qsigDom0Pieces : QSig -> QSig -> Maybe (List (Ty, Ty))
 qsigDom0Pieces sg0 sg1 =
   if length sg0 /= length sg1 then Nothing
@@ -405,8 +407,11 @@ qsigDom0Pieces sg0 sg1 =
   goTy d QU QU = Just []
   goTy d (QEl t) (QEl t') = map (const []) (goTm t t')
   goTy d (QPiExt a b) (QPiExt a' b') =
-    map (\rest => (if d == 0 && a /= a' then [(a, a')] else []) ++ rest)
-        (goTy (S d) b b')
+    let piece = if a == a' then []
+                else case (strengthenKTy d a, strengthenKTy d a') of
+                       (Just s0, Just s1) => [(s0, s1)]
+                       _ => []
+    in map (piece ++) (goTy (S d) b b')
   goTy d (QPiInd u b) (QPiInd u' b') = do ignore (goTm u u'); goTy (S d) b b'
   goTy _ _ _ = Nothing
 

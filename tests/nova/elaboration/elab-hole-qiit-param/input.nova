@@ -1,0 +1,9 @@
+-- Regression: a QIIT parameter hole where the parameter occurs ONLY
+-- under a ToS binder (vcons buries x : El a below n : El ℕ), so the
+-- signature decomposition must lift under-binder domains that use no
+-- local binders back to the ambient context to emit El _nat ≐ El ℕ.
+data [a : 𝕌] ( V : (n : El ℕ) → U
+             ; vnil : El (V Z)
+             ; vcons : (n : El ℕ) (x : El a) (xs : El (V n)) → El (V (S n)) )
+
+def single : El (V ℕ (S Z)) ≔ vcons _ Z (S Z) (vnil _nat)
