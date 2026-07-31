@@ -17,4 +17,6 @@ SYMBOLS (1):
   id (kind 12) [L1:1-L1:23]
 DEFINITION(id): SAME FILE [L1:1-L1:23]
 HOVER(id): null
+DIAGNOSTICS FOR FIXTURE (0):
+SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
 SERVER EXIT CODE: 0

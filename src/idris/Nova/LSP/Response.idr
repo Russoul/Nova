@@ -64,6 +64,24 @@ sendNotificationMessage method params = do
   logI Channel "Sent notification message for method \{stringify (toJSON method)}"
   logD Channel "Notification sent: \{stringify msg}"
 
+||| Sends a new SERVER-initiated request to the client, minting a
+||| fresh id. Fire-and-forget: the client's response is discarded by
+||| the main loop (see `Nova.LSP.App.handleMessage`), so this suits
+||| only requests whose result carries no information (e.g.
+||| `workspace/semanticTokens/refresh`, whose result is null).
+export
+sendRequestMessage : Ref LSPConf LSPConfiguration
+                  => (method : Method Server Request)
+                  -> (params : MessageParams method)
+                  -> IO ()
+sendRequestMessage method params = do
+  reqId <- gets LSPConf nextRequestId
+  update LSPConf { nextRequestId $= (+ 1) }
+  let msg = toJSON $ MkRequestMessage (make reqId) method params
+  writeResponse msg
+  logI Channel "Sent request message for method \{stringify (toJSON method)}"
+  logD Channel "Request sent: \{stringify msg}"
+
 ||| Sends a response message to a request received from the client.
 export
 sendResponseMessage : Ref LSPConf LSPConfiguration

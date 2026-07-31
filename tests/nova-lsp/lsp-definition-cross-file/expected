@@ -18,4 +18,6 @@ SYMBOLS (1):
   two (kind 12) [L2:1-L2:20]
 DEFINITION(one): OTHER FILE: lib.nova [L1:1-L1:18]
 HOVER(one): null
+DIAGNOSTICS FOR FIXTURE (0):
+SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
 SERVER EXIT CODE: 0

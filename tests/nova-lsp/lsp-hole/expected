@@ -61,4 +61,8 @@ SYMBOLS (2):
   lemma (kind 12) [L2:1-L2:51]
 DEFINITION(?base): null
 HOVER(?base): [L2:46-L2:51] ```nova ⏎ rigid hole ?base ⏎ (n : ℕ) ⊢ ? : plus Z n ≡ n ∈ ℕ ⏎ ```
+DIAGNOSTICS FOR FIXTURE (1):
+  [L2:46-L2:51] (warning)   [?base] (n : ℕ) ⊢ ? : plus Z n ≡ n ∈ ℕ
+      at: def lemma
+SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
 SERVER EXIT CODE: 0

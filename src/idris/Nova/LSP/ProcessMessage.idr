@@ -98,6 +98,21 @@ loadURI uri version = do
 
 -- ===== guards =====
 
+||| Ask the client to drop its semantic-token caches and re-pull
+||| (`workspace/semanticTokens/refresh`). Tokens are a client-pull
+||| feature — the server cannot push them — and this request is the
+||| only server-side lever, so it is gated on the client capability
+||| that advertises support for it. A client without it re-pulls on
+||| its own schedule and simply lags until the next edit.
+semanticTokensRefresh : Ref LSPConf LSPConfiguration => IO ()
+semanticTokensRefresh = do
+  Just conf <- gets LSPConf initialized
+    | Nothing => pure ()
+  let supported = fromMaybe False $
+        conf.capabilities.workspace >>= semanticTokens >>= refreshSupport
+  when supported $
+    sendRequestMessage WorkspaceSemanticTokensRefresh Nothing
+
 whenInitializedRequest : Ref LSPConf LSPConfiguration => (InitializeParams -> IO (Either ResponseError a)) -> IO (Either ResponseError a)
 whenInitializedRequest k =
   case !(gets LSPConf initialized) of
@@ -243,6 +258,11 @@ handleNotification TextDocumentDidOpen params = whenActiveNotification $ \_ => d
 handleNotification TextDocumentDidSave params = whenActiveNotification $ \_ => do
   logI Channel "Received didSave notification for \{show params.textDocument.uri}"
   loadURI params.textDocument.uri Nothing
+  -- semantic tokens are CLIENT-pull, and clients re-pull on buffer
+  -- edits — but our tokens only change here, on the post-save reload
+  -- (didChange is ignored), so by the time we have fresh tokens the
+  -- client has stopped asking. Nudge it to invalidate and re-pull.
+  semanticTokensRefresh
 
 handleNotification TextDocumentDidClose params = whenActiveNotification $ \_ => do
   logI Channel "Received didClose notification for \{show params.textDocument.uri}"

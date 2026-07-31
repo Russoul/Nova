@@ -12,4 +12,14 @@ TOKENS (0):
 SYMBOLS (0):
 DEFINITION(ok): null
 HOVER(ok): null
+DIAGNOSTICS FOR broken.nova (0):
+DIAGNOSTICS FOR FIXTURE (1):
+  [L1:1-L1:1] (error) parse error in module broken (DIR/broken.nova): PARSING ERROR: Reserved keyword @ L2:18
+Last commited @ L2:15
+Next token: Whitespace @ L2:18-L2:19
+DIAGNOSTICS FOR broken.nova (1):
+  [L2:18-L2:19] (error) parse error in module broken (DIR/broken.nova): PARSING ERROR: Reserved keyword @ L2:18
+Last commited @ L2:15
+Next token: Whitespace @ L2:18-L2:19
+SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
 SERVER EXIT CODE: 0

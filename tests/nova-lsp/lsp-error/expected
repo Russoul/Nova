@@ -13,4 +13,7 @@ SYMBOLS (1):
   bad (kind 12) [L1:1-L1:29]
 DEFINITION(undefinedThing): null
 HOVER(undefinedThing): null
+DIAGNOSTICS FOR FIXTURE (1):
+  [L1:1-L1:29] (error) def bad: unknown name 'undefinedThing'
+SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
 SERVER EXIT CODE: 0

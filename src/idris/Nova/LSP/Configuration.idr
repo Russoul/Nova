@@ -54,6 +54,11 @@ record LSPConfiguration where
   ||| file's own buffer) — cleared before each reload so nothing goes
   ||| stale.
   crossDiags : List (DocumentURI, List DocumentURI)
+  ||| Next id for a SERVER-initiated request (jsonrpc ids must be
+  ||| unique per direction; responses are ignored — see
+  ||| `Nova.LSP.App.handleMessage` — but the ids still must not
+  ||| collide).
+  nextRequestId : Int
 
 ||| Server default configuration. Uses standard input and standard
 ||| output for input/output.
@@ -61,11 +66,12 @@ export
 defaultConfig : LSPConfiguration
 defaultConfig =
   MkLSPConfiguration
-    { inputHandle  = stdin
-    , outputHandle = stdout
-    , logHandle    = stderr
-    , initialized  = Nothing
-    , isShutdown   = False
-    , docs         = []
-    , crossDiags   = []
+    { inputHandle   = stdin
+    , outputHandle  = stdout
+    , logHandle     = stderr
+    , initialized   = Nothing
+    , isShutdown    = False
+    , docs          = []
+    , crossDiags    = []
+    , nextRequestId = 0
     }

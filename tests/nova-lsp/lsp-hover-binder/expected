@@ -51,4 +51,6 @@ SYMBOLS (2):
   four (kind 12) [L2:1-L2:41]
 DEFINITION(lofo): null
 HOVER(lofo): [L1:23-L1:27] ```nova ⏎ lofo : ℕ ⏎ ```
+DIAGNOSTICS FOR FIXTURE (0):
+SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
 SERVER EXIT CODE: 0

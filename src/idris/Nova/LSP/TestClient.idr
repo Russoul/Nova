@@ -263,7 +263,15 @@ runLspTest lspBinPath fixtureAbsPath word = do
   Right proc <- popen2 lspBinPath
     | Left err => dieMsg "cannot spawn \{lspBinPath}: \{show err}"
 
-  writeMessage proc.input (req 1 "initialize" (JObject [("processId", JNull), ("rootUri", JNull), ("capabilities", JObject [])]))
+  writeMessage proc.input (req 1 "initialize" (JObject
+    [ ("processId", JNull), ("rootUri", JNull)
+    -- advertise refresh support so the didSave step below can pin the
+    -- server's workspace/semanticTokens/refresh nudge
+    , ("capabilities", JObject
+        [ ("workspace", JObject
+            [ ("semanticTokens", JObject [("refreshSupport", JBoolean True)]) ])
+        ])
+    ]))
   Just initResp <- readMessage proc.output
     | Nothing => dieMsg "no response to initialize"
   let legend = fromMaybe [] (do
@@ -333,6 +341,22 @@ runLspTest lspBinPath fixtureAbsPath word = do
     | Nothing => dieMsg "no response to hover"
   let hovResult = fromMaybe JNull (getField "result" hovResp)
   putStrLn "HOVER(\{word}): \{renderHover hovResult}"
+
+  -- a save reloads the document (fresh diagnostics for it and any
+  -- cross-file targets, drained here) and must end with the server
+  -- asking the client to re-pull semantic tokens — tokens are client-
+  -- pull, and the client's own re-pull triggers (buffer edits) all
+  -- fire BEFORE the reload that changes them
+  writeMessage proc.input (notif "textDocument/didSave" (JObject
+    [ ("textDocument", JObject [("uri", JString uri)]) ]))
+  Just afterSave <- readDraining proc.output uri normalise
+    | Nothing => dieMsg "no server request after didSave"
+  let saveMethod = fromMaybe "?" (getField "method" afterSave >>= asString)
+  putStrLn "SERVER REQUEST AFTER DIDSAVE: \{saveMethod}"
+  -- answer it, as a real client would (the server discards the reply)
+  case getField "id" afterSave of
+    Just idJ => writeMessage proc.input (JObject [("jsonrpc", JString "2.0"), ("id", idJ), ("result", JNull)])
+    Nothing => pure ()
 
   writeMessage proc.input (req 6 "shutdown" JNull)
   Just _ <- readDraining proc.output uri normalise

@@ -52,4 +52,6 @@ SYMBOLS (2):
   solved (kind 12) [L2:1-L2:36]
 DEFINITION(_m): null
 HOVER(_m): [L2:16-L2:18] ```nova ⏎ solved hole _m ⏎ ⊢ _m ≔ S Z : ℕ ⏎ ```
+DIAGNOSTICS FOR FIXTURE (0):
+SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
 SERVER EXIT CODE: 0
