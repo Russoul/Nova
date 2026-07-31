@@ -46,6 +46,7 @@ import Nova.Kernel.QIIT
 import Nova.Kernel.Parser
 import Nova.Kernel
 
+import Me.Russoul.Text.Position
 import Me.Russoul.Text.Range
 import Nova.Elaboration.Named
 import Nova.Elaboration.Surface
@@ -199,6 +200,9 @@ getSt = MkElabM $ \st => Right (st, st)
 
 modifySt : (ElabSt -> ElabSt) -> ElabM ()
 modifySt f = MkElabM $ \st => Right (f st, ())
+
+putSt : ElabSt -> ElabM ()
+putSt st = modifySt (const st)
 
 throw : Err -> ElabM a
 throw e = MkElabM $ \_ => Left e
@@ -2134,6 +2138,106 @@ mutual
         r <- try1 x y
         if r then pure True else go1 x ys'
 
+  ||| CANDIDATE-DIRECTED SOLVING — rewrite-then-unify: one side is an
+  ||| instance of a lemma's lhs (or rhs), and the OTHER side then
+  ||| unifies with the instantiated rhs (lhs) by hole-flipping. This
+  ||| composes the engine's two halves — lemma matching and hole
+  ||| solving — and is the only way a size-INCREASING law can pin
+  ||| holes: vectS (vect (suc n) a ≡ ∥El a∥ ∧ vect n a) has no
+  ||| rewrite orientation, but `vect (suc k) A ≐ _51 ∧ _52` matches
+  ||| its lhs and the rhs instance ∥El A∥ ∧ vect k A pins _51/_52
+  ||| argwise. Flips only, no assumes; the caller's retry produces
+  ||| the actual certificate through the standard path.
+  lemmaSolveE : Ctx -> NameEnv -> String -> Elem -> Elem -> ElabM Bool
+  lemmaSolveE ctx env site a b = do
+    st <- getSt
+    let cs = mkCandSet st ctx
+    let aN = betaElem st.sig a
+    let bN = betaElem st.sig b
+    go cs.all aN bN
+   where
+    or2 : ElabM Bool -> ElabM Bool -> ElabM Bool
+    or2 mx my = do
+      x <- mx
+      y <- my
+      pure (x || y)
+
+    mutual
+      ||| Structural first-order UNIFICATION, flips only: descend
+      ||| through constructors in parallel — extending the context at
+      ||| binders, so weakened hole occurrences keep solving — with a
+      ||| pattern-solve at hole leaves; stop quietly on mismatch
+      ||| (sound either way — the caller's retry decides). The second
+      ||| side is the lemma INSTANCE: concrete, so it supplies binder
+      ||| types.
+      uniE : Ctx -> Elem -> Elem -> ElabM Bool
+      uniE uctx x y = do
+        st <- getSt
+        let xB = betaElem st.sig x
+        let yB = betaElem st.sig y
+        r <- patternSolveE uctx env site xB yB Ty.UniverseTy
+        if r then pure True else do
+          r <- spineSolveE uctx env site xB yB
+          if r then pure True else
+            case (xB, yB) of
+              (Squash u, Squash v) => uniT uctx u v
+              (Elem.PiTy u c, Elem.PiTy v c') =>
+                or2 (uniE uctx u v) (uniE (uctx :< El v) c c')
+              (Elem.SigmaTy u c, Elem.SigmaTy v c') =>
+                or2 (uniE uctx u v) (uniE (uctx :< El v) c c')
+              (Elem.EqTy l r t, Elem.EqTy l' r' t') =>
+                or2 (uniT uctx t t') (or2 (uniE uctx l l') (uniE uctx r r'))
+              (QuotTy u r1, QuotTy v r2) =>
+                or2 (uniE uctx u v) (uniE (uctx :< El v :< substTy (El v) Wk) r1 r2)
+              (NatIntro1 u, NatIntro1 v) => uniE uctx u v
+              (SigmaIntro u c, SigmaIntro v c') => or2 (uniE uctx u v) (uniE uctx c c')
+              (Class u, Class v) => uniE uctx u v
+              _ => pure False
+
+      uniT : Ctx -> Ty -> Ty -> ElabM Bool
+      uniT uctx x y = do
+        st <- getSt
+        let xB = betaTy st.sig x
+        let yB = betaTy st.sig y
+        case (xB, yB) of
+          (Prf u, Prf v) => uniE uctx u v
+          (El u, El v) => uniE uctx u v
+          (Ty.PiTy u c, Ty.PiTy v c') => or2 (uniT uctx u v) (uniT (uctx :< v) c c')
+          (Ty.SigmaTy u c, Ty.SigmaTy v c') => or2 (uniT uctx u v) (uniT (uctx :< v) c c')
+          (Quotient u r1, Quotient v r2) =>
+            or2 (uniT uctx u v) (uniE (uctx :< v :< substTy v Wk) r1 r2)
+          (El u, v) => case codeOf v of
+                         Just c => uniE uctx u c
+                         Nothing => pure False
+          (u, El v) => case codeOf u of
+                         Just c => uniE uctx c v
+                         Nothing => pure False
+          _ => pure False
+
+    solveWith : Elem -> Elem -> ElabM Bool
+    solveWith inst target = uniE ctx target inst
+
+    tryRhs : Elem -> Elem -> Cand -> ElabM Bool
+    tryRhs x y c =
+      case matchElemP c.params 0 0 c.rhs x [] >>= instSub c.params 0 of
+        Just sigma => solveWith (substElem c.lhs sigma) y
+        Nothing => pure False
+
+    tryCand : Elem -> Elem -> Cand -> ElabM Bool
+    tryCand x y c =
+      case matchElemP c.params 0 0 c.lhs x [] >>= instSub c.params 0 of
+        Just sigma => do
+          r <- solveWith (substElem c.rhs sigma) y
+          if r then pure True else tryRhs x y c
+        Nothing => tryRhs x y c
+
+    go : List Cand -> Elem -> Elem -> ElabM Bool
+    go [] _ _ = pure False
+    go (c :: rest) x y = do
+      r <- tryCand x y c
+      r <- if r then pure True else tryCand y x c
+      if r then pure True else go rest x y
+
   ||| Γ ⊢ a ≐ b : A ↓ — always succeeds; assumes what it cannot discharge.
   convElem : Ctx -> NameEnv -> String -> Maybe Stmt -> Elem -> Elem -> Ty -> ElabM (Maybe ECert)
   convElem ctx env site comp a b ty = do
@@ -2143,6 +2247,7 @@ mutual
       Left site1 => do
         solved <- patternSolveE ctx env site1 a b ty
         solved <- if solved then pure True else spineSolveE ctx env site1 a b
+        solved <- if solved then pure True else lemmaSolveE ctx env site1 a b
         r2 <- the (ElabM (Either String ECert)) $
                 if solved then attemptE ctx site1 a b ty else pure (Left site1)
         case r2 of
@@ -2420,8 +2525,11 @@ mutual
     -- type holes are instantiated by type pattern equations
     -- (patternSolveT).
     st <- getSt
-    let q0 = if solvable
-               then (if x == "" then "_\{show (length (toList st.holeMeta))}" else "_\{x}")
+    let q0 = the String $ if solvable
+               then (case (x, mrng) of
+                       ("", Just r) => case r.start of MkPosition ln cl => "_r\{show ln}c\{show cl}"
+                       ("", Nothing) => "_\{show (length (toList st.holeMeta))}"
+                       _ => "_\{x}")
                else "?\{x}"
     let q = if st.modPrefix == "" then q0 else "\{st.modPrefix}.\{q0}"
     let baseSk = Nd [] (replicate (length ctx) (Nd [] []))
@@ -2692,8 +2800,14 @@ mutual
     -- (the decl→def flip in patternSolveE). Either blocks acceptance
     -- while it remains a declaration.
     st <- getSt
-    let q0 = if solvable
-               then (if x == "" then "_\{show (length (toList st.holeMeta))}" else "_\{x}")
+    -- anonymous holes are named by POSITION, not by a mint counter:
+    -- the internal rerun must find the previous pass's solved twin
+    -- under the same name
+    let q0 = the String $ if solvable
+               then (case (x, mrng) of
+                       ("", Just r) => case r.start of MkPosition ln cl => "_r\{show ln}c\{show cl}"
+                       ("", Nothing) => "_\{show (length (toList st.holeMeta))}"
+                       _ => "_\{x}")
                else "?\{x}"
     let q = if st.modPrefix == "" then q0 else "\{st.modPrefix}.\{q0}"
     let baseSk = Nd [] (replicate (length ctx) (Nd [] []))
@@ -2809,7 +2923,8 @@ resolveConstraints keep = do
     if k < keep then pure False else do
       r1 <- patternSolveE ctx m.oenv m.osite a b ty
       r2 <- spineSolveE ctx m.oenv m.osite a b
-      pure (r1 || r2)
+      r3 <- lemmaSolveE ctx m.oenv m.osite a b
+      pure (r1 || r2 || r3)
   solveOne (k, SigTyEq ctx x y, m) =
     if k < keep then pure False else patternSolveT ctx m.oenv m.osite x y
   solveOne _ = pure False
@@ -2971,9 +3086,44 @@ opensSuffix (ob, hb) = do
   plural 1 = ""
   plural _ = "s"
 
+||| One-shot elaboration of an item (the body of elabItem below).
+elabItemGo : SItem -> ElabM String
+
+||| Elaborate an item; if the ITEM-END sweep solved holes that were
+||| still declarations when their use sites were checked (minted out
+||| of order, pinned late — a lemma-directed solve at the last
+||| moment), the sites carry dummy certificates that can never be
+||| repaired in place. The INTERNAL RERUN closes the loop: reset to
+||| the pre-item state, KEEP the solved holes as definitions, and
+||| elaborate the item once more — each hole occurrence now hits the
+||| reuse path as a reference to a solved def, every conversion sees
+||| concrete values, and the sites get real certificates.
 export
 elabItem : SItem -> ElabM String
-elabItem (SDef x ty body) = do
+elabItem item = do
+  pre <- getSt
+  echo <- elabItemGo item
+  st <- getSt
+  after <- oblCount
+  let preHoles = length (toList pre.holeMeta)
+  let newSolved = [ m | m <- drop preHoles (toList st.holeMeta)
+                  , case sigLookup m.hname st.sig of
+                      Just (SigDef _ _ _ _) => True
+                      Just (SigTyDef _ _ _) => True
+                      _ => False ]
+  preOpen <- pure (length (filter (not . sigEntryIsDef) (toList pre.sig)))
+  if after == preOpen || null newSolved
+    then pure echo
+    else do
+      -- rerun with the solved holes carried over
+      let keepDefs = [ e | e <- toList st.sig
+                     , maybe False (\n => any (\m => m.hname == n) newSolved) (sigEntryName e)
+                     , sigEntryIsDef e ]
+      putSt ({ sig := pre.sig <>< keepDefs
+             , holeMeta := pre.holeMeta <>< newSolved } pre)
+      elabItemGo item
+
+elabItemGo (SDef x ty body) = do
   oblsAtStart <- constraintCount
   census <- openCensus
   st <- getSt
@@ -3000,7 +3150,7 @@ elabItem (SDef x ty body) = do
   addLemma q [<] ty'
   suffix <- opensSuffix census
   pure "defined \{x}\{suffix}"
-elabItem (SDeclDef nrng x ty) = do
+elabItemGo (SDeclDef nrng x ty) = do
   -- a DECLARATION (docs/NovaFoundation.txt, sig-decl at ε): exactly a
   -- rigid hole with a user-facing name — same Σ entry, same report,
   -- same acceptance wall; references type by el-sig-decl and are
@@ -3023,7 +3173,7 @@ elabItem (SDeclDef nrng x ty) = do
   addLemma q [<] ty'
   suffix <- opensSuffix census
   pure "declared \{x}\{suffix}"
-elabItem (STypeDef x ty) = do
+elabItemGo (STypeDef x ty) = do
   oblsAtStart <- constraintCount
   census <- openCensus
   st <- getSt
@@ -3041,7 +3191,7 @@ elabItem (STypeDef x ty) = do
   modifySt $ { sig $= (:< SigTyDef [<] q ty'), vis $= (:< (x, q)) }
   suffix <- opensSuffix census
   pure "defined type \{x}\{suffix}"
-elabItem (SData params decls) = do
+elabItemGo (SData params decls) = do
   census <- openCensus
   let site = "data " ++ (case decls of
                            (d :: _) => d.dqname
