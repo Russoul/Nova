@@ -158,6 +158,8 @@ implementation's names):
     | propext s ⟨sk⟩ t ⟨sk⟩                        (FPropExt)
     | prfCong 𝒞                                    (FPrfCong)
     | quotCong 𝒞                                   (FQuotCong)
+    | piCong 𝒞 𝒞                                   (FPiCong)
+    | sigmaCong 𝒞 𝒞                                (FSigmaCong)
     | qiitCong 𝒞̄ 𝒞̄                                 (FQiitCong)
 
   The three Ω finals: propext is code-prop-eq — the sides are prop codes
@@ -469,7 +471,11 @@ type formers as in §6. The final is beta (nf-equal types), or one of
 the extensional-component congruences whose components cannot be
 flattened into steps: prfCong 𝒞 (both sides Prf-headed, 𝒞 proves the
 codes equal at Ω — ty-prf-cong), quotCong 𝒞 (both sides A / _ at a
-common domain, 𝒞 proves the relations equal at Ω — ty-quot-cong), and
+common domain, 𝒞 proves the relations equal at Ω — ty-quot-cong),
+piCong 𝒞 𝒞 / sigmaCong 𝒞 𝒞 (ty-pi-cong / ty-sigma-cong,
+componentwise: domain certificate, then codomain certificate under
+the RIGHT domain — needed exactly when a component's equality is
+itself extensional, e.g. a Prf codomain equal only by propext), and
 qiitCong 𝒞̄p 𝒞̄i (both sides sort applications 𝒮₀.𝕤 ē₀ / 𝒮₁.𝕤 ē₁ AT THE
 SAME SORT POSITION: 𝒮₀ and 𝒮₁ must be identical nameless ToS syntax up
 to their embedded Nova pieces — positions, entry shapes, binder

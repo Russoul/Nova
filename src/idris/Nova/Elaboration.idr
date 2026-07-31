@@ -1313,6 +1313,17 @@ mutual
     congFinal (Prf p) (Prf q) base = do
       sub <- spEqElemC dep st cs ctx p q Ty.PropTy
       pure (MkECert base (FPrfCong sub))
+    -- ty-pi-cong / ty-sigma-cong: an Ω-valued component (a Prf
+    -- codomain, say) cannot flatten into steps — carry component
+    -- certificates instead
+    congFinal (Ty.PiTy a0 b0) (Ty.PiTy a1 b1) base = do
+      dc <- spEqTyC dep st cs ctx a0 a1
+      cc <- spEqTyC dep st (extendCS cs) (ctx :< a1) b0 b1
+      pure (MkECert base (FPiCong dc cc))
+    congFinal (Ty.SigmaTy a0 b0) (Ty.SigmaTy a1 b1) base = do
+      dc <- spEqTyC dep st cs ctx a0 a1
+      cc <- spEqTyC dep st (extendCS cs) (ctx :< a1) b0 b1
+      pure (MkECert base (FSigmaCong dc cc))
     congFinal (Ty.Quotient a0 r0) (Ty.Quotient a1 r1) base =
       if a0 == a1
         then do
@@ -1369,6 +1380,15 @@ assumedMatchE st ctx a b ty =
       st.assumedE
 
 -- ===== Committing conversion (the ↓ judgements) =====
+
+||| The number of constraint entries so far. Distinct from oblCount:
+||| the decompose bookkeeping must count CONSTRAINTS only — a hole
+||| flip during child conversion SHRINKS the open-entry census, and
+||| must not read as "children surfaced something".
+constraintCountM : ElabM Nat
+constraintCountM = do
+  st <- getSt
+  pure (length (toList st.oblMeta))
 
 ||| Record a binder occurrence's elaborated type (nothing without a
 ||| span — core-built or wildcard binders).
@@ -1901,9 +1921,9 @@ mutual
             let a' = rwNfElem st ctx a
             let b' = rwNfElem st ctx b
             let again = if (aB, bB) == (a', b') then Nothing else Just (a', b')
-            n0 <- oblCount
+            n0 <- constraintCountM
             decompose site2 cur comp' aB bB again (rwNfTy st ctx ty)
-            n1 <- oblCount
+            n1 <- constraintCountM
             if n1 == n0
               then do
                 -- children all discharged — or SOLVED a hole, in which
@@ -2007,9 +2027,9 @@ mutual
             let aR = rwNfTy st ctx tyA
             let bR = rwNfTy st ctx tyB
             let again = if (aB, bB) == (aR, bR) then Nothing else Just (aR, bR)
-            n0 <- oblCount
+            n0 <- constraintCountM
             decomposeT site2 cur comp' aB bB again
-            n1 <- oblCount
+            n1 <- constraintCountM
             if n1 == n0
               then do
                 r3 <- attemptT ctx site tyA tyB
@@ -2342,6 +2362,16 @@ mutual
     case preferPrf st ctx ty of
       Nothing => throw "\{site}: ⋆ checked against a non-Prf type\{structuralHint}"
       Just (p, exp) => do
+        -- ⋆ against a SOLVABLE-HOLE-headed prop: pin it to ∥𝟙∥, THE
+        -- canonical true proposition. ⋆ forces the prop true, and at
+        -- Ω all true props are judgementally EQUAL (code-prop-eq), so
+        -- the pick is canonical up to ≐ — a later pinning equation
+        -- ∥𝟙∥ ≐ q discharges via the propext synthesis when q is
+        -- provable, and surfaces honestly otherwise.
+        solvedP <- case betaElem st.sig p of
+                     hp@(SigVar _ _) => patternSolveE ctx env site hp (Squash Ty.OneTy) Ty.PropTy
+                     _ => pure False
+        st <- getSt
         -- el-eq-i / el-squash-i: an equality prop is THE payment rule
         -- (checking ⋆ emits its equation into ↓); a squashed 𝟙 is
         -- witnessed outright. Prefer the prop as written for readable
@@ -2360,6 +2390,24 @@ mutual
               _ => throw "\{site}: ⋆ can prove only equality props and 𝟙-shaped squashes automatically (write `⋆ ⟨witness⟩` to supply one directly)"
           _ => throw "\{site}: ⋆ checked against a non-evident proposition\{structuralHint}"
   checkElem ctx env site (SStarWit w) ty = do
+    st <- getSt
+    -- ⋆ w against a solvable-hole-headed prop: the witness's inferred
+    -- type pins it — the hole becomes ∥A∥ for w : A
+    case preferPrf st ctx ty of
+      Just (hp@(SigVar _ _), _) => do
+        st <- getSt
+        case betaElem st.sig hp of
+          SigVar _ _ => do
+            (w', wTy, wSk) <- inferElem ctx env site w
+            solved <- patternSolveE ctx env site hp (Squash wTy) Ty.PropTy
+            if solved
+              then pure (Star, Nd [PSquashWit w' wSk] [])
+              else checkStarWitAt ctx env site w ty
+          _ => checkStarWitAt ctx env site w ty
+      _ => checkStarWitAt ctx env site w ty
+   where
+    checkStarWitAt : Ctx -> NameEnv -> String -> SElem -> Ty -> ElabM (Elem, Skel)
+    checkStarWitAt ctx env site w ty = do
     st <- getSt
     case preferPrf st ctx ty of
       Nothing => throw "\{site}: ⋆ checked against a non-Prf type\{structuralHint}"

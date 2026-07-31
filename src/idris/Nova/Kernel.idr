@@ -133,6 +133,13 @@ mutual
     ||| certificate proves the relations equal at Ω (under the domain
     ||| twice)
     FQuotCong : ECert -> Final
+    ||| ty-pi-cong for a TYPE certificate: domain certificate, then
+    ||| codomain certificate under the (right) domain — needed when a
+    ||| component's equality is extensional (Ω-valued) and cannot be
+    ||| flattened into steps
+    FPiCong : ECert -> ECert -> Final
+    ||| ty-sigma-cong, same shape
+    FSigmaCong : ECert -> ECert -> Final
 
   public export
   record ECert where
@@ -517,6 +524,10 @@ mutual
     checkTyP sig ctx t
     checkP sig ctx l t
     checkP sig ctx r t
+    pure Ty.PropTy
+  -- code-squash: ∥A∥ : Ω for any type A
+  inferP sig ctx (Squash t) = do
+    checkTyP sig ctx t
     pure Ty.PropTy
   -- code-qiit as a proof-spine argument (a 𝕌 parameter materialized
   -- at a QIIT sort code)
@@ -1309,6 +1320,8 @@ mutual
           _ => kerr "kernel: propext final at a non-Ω type"
       FPrfCong _ => kerr "kernel: Prf-congruence final on an element equation"
       FQuotCong _ => kerr "kernel: quotient-congruence final on an element equation"
+      FPiCong _ _ => kerr "kernel: Π-congruence final on an element equation"
+      FSigmaCong _ _ => kerr "kernel: Σ-congruence final on an element equation"
    where
     goSteps : Ty -> List Step -> Elem -> Elem -> KM (Elem, Elem)
     goSteps tyU [] l' r' = pure (l', r')
@@ -1330,7 +1343,7 @@ mutual
     b0 <- kTy sig b
     (a1, b1) <- goSteps cert.steps a0 b0
     case cert.final of
-      FBeta => if a1 == b1 then pure () else kerr "kernel: types differ after replay"
+      FBeta => if a1 == b1 then pure () else kerr "kernel: types differ after replay [\{show a1} VS \{show b1}]"
       -- ty-prf-cong: equal prop codes decode to equal types
       FPrfCong c =>
         case (a1, b1) of
@@ -1344,6 +1357,20 @@ mutual
               then kEqElem sig (ctx :< d0 :< substTy d0 Wk) c r0 r1 Ty.PropTy
               else kerr "kernel: quotient-congruence final at unequal domains"
           _ => kerr "kernel: quotient-congruence final at non-quotient types"
+      -- ty-pi-cong / ty-sigma-cong: componentwise, codomain under the
+      -- right domain (equal domains give equal PERs)
+      FPiCong dc cc =>
+        case (a1, b1) of
+          (Ty.PiTy d0 c0, Ty.PiTy d1 c1) => do
+            kEqTy sig ctx dc d0 d1
+            kEqTy sig (ctx :< d1) cc c0 c1
+          _ => kerr "kernel: Π-congruence final at non-Π types"
+      FSigmaCong dc cc =>
+        case (a1, b1) of
+          (Ty.SigmaTy d0 c0, Ty.SigmaTy d1 c1) => do
+            kEqTy sig ctx dc d0 d1
+            kEqTy sig (ctx :< d1) cc c0 c1
+          _ => kerr "kernel: Σ-congruence final at non-Σ types"
       _ => kerr "kernel: unsupported final for a type equation"
    where
     goSteps : List Step -> Ty -> Ty -> KM (Ty, Ty)
