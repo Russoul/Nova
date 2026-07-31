@@ -1,0 +1,4 @@
+def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
+infixl 6 ⊕
+def ⊕ : ℕ → ℕ → ℕ ≔ plus
+def three : ℕ ≔ S Z ⊕ S (S Z)

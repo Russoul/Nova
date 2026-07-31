@@ -271,14 +271,14 @@ mutual
       cont : SElem -> Nat -> Rule SElem
       cont l minP =
             (do sp
-                op <- parseOpName
+                (rng, op) <- bounds parseOpName
                 case lookup op tbl of
                   Nothing => fail "operator '\{op}' has no fixity in scope"
                   Just (assoc, p) => do
                     guard "operator precedence" (p >= minP)
                     sp
                     r <- climb (case assoc of AssocL => S p; AssocR => p)
-                    cont (SApp (SApp (SSig Nothing op) l) r) minP)
+                    cont (SApp (SApp (SSig rng op) l) r) minP)
         <|> pure l
 
   parseBinderGroupsC : FixTable -> NameEnv -> Rule (NameEnv, List (String, SElem))
@@ -359,9 +359,9 @@ mutual
         -- a FIXITY-FREE operator token is an ordinary name atom (⊥, ⊤,
         -- prefix-applied ¬); declared-infix operators are excluded, so
         -- application juxtaposition never captures them
-    <|> (do op <- parseOpName
+    <|> (do (rng, op) <- bounds parseOpName
             case lookup op tbl of
-              Nothing => pure (SSig Nothing op)
+              Nothing => pure (SSig rng op)
               Just _ => fail "infix operator in atom position")
     <|> (do kwc '('
             sp
