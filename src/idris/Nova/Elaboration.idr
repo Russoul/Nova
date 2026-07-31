@@ -3116,21 +3116,54 @@ elabItem item = do
   after <- oblCount
   let preHoles = length (toList pre.holeMeta)
   let newHoles = drop preHoles (toList st.holeMeta)
-  -- the carried set is CLOSED under references: a solved hole's body
-  -- may reference a twin that never got a value (legalize's inserted
-  -- imitations), so unsolved DECLS travel too — in Σ order, keeping
-  -- every body's prefix intact. Dropping them would leave dangling
-  -- names and crash the rerun's normalizer.
-  let keepEntries = [ e | e <- toList st.sig
-                    , maybe False (\n => any (\m => m.hname == n) newHoles) (sigEntryName e) ]
-  let anySolved = any sigEntryIsDef keepEntries
+  let newNames = map hname newHoles
+  let newEntries = [ e | e <- toList st.sig
+                   , maybe False (`elem` newNames) (sigEntryName e) ]
+  -- the carried set is the item's SOLVED holes plus the reference
+  -- CLOSURE of their solutions among the item's other new entries: a
+  -- solution may mention a twin that never got a value of its own
+  -- (legalize's inserted imitations), and dropping the twin decl
+  -- would leave a dangling name and crash the rerun's normalizer.
+  -- Nothing else travels — in particular an item's own declaration
+  -- entry (a `def x : T` declaration IS a hole) must be re-minted by
+  -- the rerun, not carried into a duplicate-name error. Σ order is
+  -- preserved, keeping every carried body's prefix intact.
+  let solvedNames = mapMaybe sigEntryName (filter sigEntryIsDef newEntries)
+  let keepNames = closeRefs newEntries (length newEntries) solvedNames solvedNames
+  let keepEntries = [ e | e <- newEntries
+                    , maybe False (`elem` keepNames) (sigEntryName e) ]
+  let keepMetas = [ m | m <- newHoles, m.hname `elem` keepNames ]
   preOpen <- pure (length (filter (not . sigEntryIsDef) (toList pre.sig)))
-  if after == preOpen || not anySolved
+  if after == preOpen || null solvedNames
     then pure echo
     else do
       putSt ({ sig := pre.sig <>< keepEntries
-             , holeMeta := pre.holeMeta <>< newHoles } pre)
+             , holeMeta := pre.holeMeta <>< keepMetas } pre)
       elabItemGo item
+ where
+  ||| Every Σ-name an entry's context, type, and body reference (Ty
+  ||| pieces go through Squash to reuse the Elem collector).
+  entryRefs : SigEntry -> List String
+  entryRefs (SigDef delta _ t dty) =
+    concatMap (collectRefsE . Squash) (toList delta) ++ collectRefsE (Squash dty) ++ collectRefsE t
+  entryRefs (SigTyDef delta _ t) =
+    concatMap (collectRefsE . Squash) (toList delta) ++ collectRefsE (Squash t)
+  entryRefs (SigDecl delta _ dty) =
+    concatMap (collectRefsE . Squash) (toList delta) ++ collectRefsE (Squash dty)
+  entryRefs _ = []
+
+  ||| Fixpoint of `entryRefs` over `pool`, seeded by `frontier`; the
+  ||| fuel (|pool| suffices — each round adds at least one pool name)
+  ||| is only there for totality.
+  closeRefs : List SigEntry -> Nat -> List String -> List String -> List String
+  closeRefs pool Z acc _ = acc
+  closeRefs pool (S fuel) acc frontier =
+    let step = nub [ n | e <- pool
+                   , maybe False (`elem` frontier) (sigEntryName e)
+                   , n <- entryRefs e
+                   , any (\e' => sigEntryName e' == Just n) pool
+                   , not (n `elem` acc) ]
+    in if null step then acc else closeRefs pool fuel (acc ++ step) step
 
 elabItemGo (SDef x ty body) = do
   oblsAtStart <- constraintCount
