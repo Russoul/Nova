@@ -2965,24 +2965,33 @@ constraintCount = do
 mirrorHoleDefs : ElabM ()
 mirrorHoleDefs = do
   st <- getSt
-  modifySt $ { kernelSig := go st (toList st.holeMeta) st.kernelSig }
+  -- Σ ORDER, not minting order: legalize inserts imitation twins
+  -- BEFORE the holes whose solutions reference them, so walking the
+  -- signature mirrors each body after its dependencies
+  let holeNames = map hname (toList st.holeMeta)
+  let entries = [ e | e <- toList st.sig
+                , maybe False (`elem` holeNames) (sigEntryName e) ]
+  modifySt $ { kernelSig := go entries st.kernelSig }
  where
-  go : ElabSt -> List HoleMeta -> Sig -> Sig
-  go st [] ks = ks
-  go st (m :: ms) ks =
-    case sigLookup m.hname ks of
-      Just _ => go st ms ks
-      Nothing =>
-        case sigLookup m.hname st.sig of
-          Just (SigDef delta q t dty) =>
-            if kCheckSolution ks kernelFuel delta t dty == Right ()
-              then go st ms (ks :< SigDef delta q t dty)
-              else go st ms ks
-          Just (SigTyDef delta q t) =>
-            if kCheckTySolution ks kernelFuel delta t == Right ()
-              then go st ms (ks :< SigTyDef delta q t)
-              else go st ms ks
-          _ => go st ms ks
+  go : List SigEntry -> Sig -> Sig
+  go [] ks = ks
+  go (e :: rest) ks =
+    case sigEntryName e of
+      Nothing => go rest ks
+      Just q =>
+        case sigLookup q ks of
+          Just _ => go rest ks
+          Nothing =>
+            case e of
+              SigDef delta _ t dty =>
+                if kCheckSolution ks kernelFuel delta t dty == Right ()
+                  then go rest (ks :< e)
+                  else go rest ks
+              SigTyDef delta _ t =>
+                if kCheckTySolution ks kernelFuel delta t == Right ()
+                  then go rest (ks :< e)
+                  else go rest ks
+              _ => go rest ks
 
 ||| Kernel-check a clean item against the kernel's own Σ; extend it on
 ||| acceptance. Items elaborated under assumptions (dirty) are skipped —
@@ -3106,21 +3115,21 @@ elabItem item = do
   st <- getSt
   after <- oblCount
   let preHoles = length (toList pre.holeMeta)
-  let newSolved = [ m | m <- drop preHoles (toList st.holeMeta)
-                  , case sigLookup m.hname st.sig of
-                      Just (SigDef _ _ _ _) => True
-                      Just (SigTyDef _ _ _) => True
-                      _ => False ]
+  let newHoles = drop preHoles (toList st.holeMeta)
+  -- the carried set is CLOSED under references: a solved hole's body
+  -- may reference a twin that never got a value (legalize's inserted
+  -- imitations), so unsolved DECLS travel too — in Σ order, keeping
+  -- every body's prefix intact. Dropping them would leave dangling
+  -- names and crash the rerun's normalizer.
+  let keepEntries = [ e | e <- toList st.sig
+                    , maybe False (\n => any (\m => m.hname == n) newHoles) (sigEntryName e) ]
+  let anySolved = any sigEntryIsDef keepEntries
   preOpen <- pure (length (filter (not . sigEntryIsDef) (toList pre.sig)))
-  if after == preOpen || null newSolved
+  if after == preOpen || not anySolved
     then pure echo
     else do
-      -- rerun with the solved holes carried over
-      let keepDefs = [ e | e <- toList st.sig
-                     , maybe False (\n => any (\m => m.hname == n) newSolved) (sigEntryName e)
-                     , sigEntryIsDef e ]
-      putSt ({ sig := pre.sig <>< keepDefs
-             , holeMeta := pre.holeMeta <>< newSolved } pre)
+      putSt ({ sig := pre.sig <>< keepEntries
+             , holeMeta := pre.holeMeta <>< newHoles } pre)
       elabItemGo item
 
 elabItemGo (SDef x ty body) = do

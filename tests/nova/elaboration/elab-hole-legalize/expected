@@ -1,0 +1,10 @@
+defined ⊥
+defined ⊃
+defined ¬
+defined ∨
+defined impIntro
+defined impApply
+defined orInl
+defined orInr
+defined notNotLem
+Accepted.
