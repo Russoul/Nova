@@ -2372,22 +2372,24 @@ mutual
             ignore $ convTy ctx env site comp' t t'
             ignore $ convElem ctx env site comp' l l' t'
             ignore $ convElem ctx env site comp' r r' t'
-          (NatElim z s t0, NatElim z' s' t1, tyW') =>
-            if z == z' && s == s'
-              then ignore $ convElem ctx env site comp' t0 t1 Ty.NatTy
-              -- equal TARGETS: congruence in the returns instead —
-              -- decompose z and s, typed by the constant-motive
-              -- reading (the kernel's own discipline for elim
-              -- equations, approximation A1); this is where an
-              -- instantiated hole hides (vect's step: _A ⨯ ih vs
-              -- A ⨯ ih). A genuinely dependent motive just fails to
-              -- solve and assumes, as before.
-              else if t0 == t1
-                then do
-                  ignore $ convElem ctx env site comp' z z' tyW'
-                  ignore $ convElem (ctx :< Ty.NatTy :< substTy tyW' Wk) (env :< "i" :< "ih")
-                                    site comp' s s' (substTy tyW' (wkN 2))
-                else assume cur site comp
+          -- ℕ-elim congruence, componentwise like the Π/Σ cases:
+          -- differing components each get their own equation instead
+          -- of gating on syntactic equality of the others — an
+          -- equation may carry holes in SEVERAL components at once
+          -- (vect k A ≐ vect _k _a puts one in the step and one in
+          -- the target), and gating on the not-yet-solved ones
+          -- deadlocks the solvable ones. z and s are typed by the
+          -- constant-motive reading (the kernel's own discipline for
+          -- elim equations, approximation A1); a genuinely dependent
+          -- motive just fails to solve and assumes its piece.
+          (NatElim z s t0, NatElim z' s' t1, tyW') => do
+            when (z /= z') $
+              ignore $ convElem ctx env site comp' z z' tyW'
+            when (s /= s') $
+              ignore $ convElem (ctx :< Ty.NatTy :< substTy tyW' Wk) (env :< "i" :< "ih")
+                                site comp' s s' (substTy tyW' (wkN 2))
+            when (t0 /= t1) $
+              ignore $ convElem ctx env site comp' t0 t1 Ty.NatTy
           (PiApp f x, PiApp g y, _) =>
             if f == g
               then do st' <- getSt
