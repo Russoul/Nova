@@ -494,6 +494,7 @@ sqDecl tbl penv entries = do
 parseSData : FixTable -> Rule SItem
 parseSData tbl = do
   kw "data"; sp
+  commit
   (penv, params) <- parseParams [<]
   kwc '('; sp
   ds <- go penv [<]
@@ -515,19 +516,26 @@ parseSData tbl = do
     rest <- optional (do sp; kwc ';'; sp; go penv (entries :< d.dqname))
     pure (d :: fromMaybe [] rest)
 
+-- COMMITS: after an item's leading keyword the parse can be nothing
+-- else, so commit — a failure deep inside the item then propagates
+-- with its REAL position instead of backtracking to the item
+-- boundary, where the file loop would end and report a useless
+-- "Expected end of input" at the next `def`. The commit inside the
+-- optional ≔-body keeps `def x : T ≔ <garbage>` a hard error at the
+-- garbage rather than mis-reading the item as a declaration.
 export
 parseSItem : FixTable -> Rule SItem
 parseSItem tbl =
-      (do kw "def"; space
+      (do kw "def"; space; commit
           (r, x) <- bounds (parseName <|> parseOpName); sp
           kwc ':'; sp
           ty <- parseSTy tbl [<]; sp
-          mbody <- optional (do kw "≔"; sp; parseSElem tbl [<])
+          mbody <- optional (do kw "≔"; sp; commit; parseSElem tbl [<])
           pure (case mbody of
                   Just body => SDef x ty body
                   -- a def without a definiens: a DECLARATION
                   Nothing => SDeclDef r x ty))
-  <|> (do kw "type"; space
+  <|> (do kw "type"; space; commit
           x <- parseName; sp
           kw "≔"; sp
           ty <- parseSTy tbl [<]
@@ -537,7 +545,7 @@ parseSItem tbl =
 export
 parseSImport : Rule SImport
 parseSImport = do
-  kw "import"; space
+  kw "import"; space; commit
   m <- parseDottedName
   opens <- optional (do sp; kwc '('; sp
                         n <- parseName <|> parseOpName
@@ -552,6 +560,7 @@ parseFixity : Rule (String, Assoc, Nat)
 parseFixity = do
   assoc <- (kw "infixl" $> AssocL) <|> (kw "infixr" $> AssocR)
   space
+  commit
   (r, d) <- bounds (terminal "precedence digit (0-9)" digitTok)
   emit r Number
   space
