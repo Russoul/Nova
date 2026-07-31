@@ -1449,9 +1449,12 @@ mutual
   ||| DISPLAY zonking: unfold references to SOLVED HOLES — their
   ||| entries are elaborator-minted defs — so reported statements and
   ||| hole types read through the run's own inventions (`Prf _3 →
-  ||| Prf _4` says nothing; `Prf ⊤ → Prf ⊥` says absurdity). User
-  ||| definitions stay folded. Solutions are prefix-legal, so the
-  ||| recursion is well-founded.
+  ||| Prf _4` says nothing; `Prf ⊤ → Prf ⊥` says absurdity), and
+  ||| contract EVERY β-redex (λ, projections, eliminators at
+  ||| constructors, El-decoding, code-squash-prf): an instantiated
+  ||| motive `(λx. P x) zero` reads as `P zero`. DEFINITIONS stay
+  ||| folded — δ is the one contraction display never takes, so terms
+  ||| keep the user's names.
   zonkElem : ElabSt -> Elem -> Elem
   zonkElem st (SigVar x es) =
     let es' = zonkSubNorm st es in
@@ -1465,12 +1468,25 @@ mutual
   zonkElem st OneIntro = OneIntro
   zonkElem st NatIntro0 = NatIntro0
   zonkElem st (NatIntro1 t) = NatIntro1 (zonkElem st t)
-  zonkElem st (NatElim z s' t) = NatElim (zonkElem st z) (zonkElem st s') (zonkElem st t)
+  zonkElem st (NatElim z s' t) =
+    case zonkElem st t of
+      NatIntro0 => zonkElem st z
+      NatIntro1 n => zonkElem st (substElem s' (Ext (Ext Id n) (NatElim z s' n)))
+      t2 => NatElim (zonkElem st z) (zonkElem st s') t2
   zonkElem st (PiIntro f) = PiIntro (zonkElem st f)
-  zonkElem st (PiApp f e) = PiApp (zonkElem st f) (zonkElem st e)
+  zonkElem st (PiApp f e) =
+    case zonkElem st f of
+      PiIntro g => zonkElem st (substElem g (Ext Id e))
+      f2 => PiApp f2 (zonkElem st e)
   zonkElem st (SigmaIntro a b) = SigmaIntro (zonkElem st a) (zonkElem st b)
-  zonkElem st (SigmaElim1 t) = SigmaElim1 (zonkElem st t)
-  zonkElem st (SigmaElim2 t) = SigmaElim2 (zonkElem st t)
+  zonkElem st (SigmaElim1 t) =
+    case zonkElem st t of
+      SigmaIntro a _ => a
+      t2 => SigmaElim1 t2
+  zonkElem st (SigmaElim2 t) =
+    case zonkElem st t of
+      SigmaIntro _ b => b
+      t2 => SigmaElim2 t2
   zonkElem st Elem.ZeroTy = Elem.ZeroTy
   zonkElem st Elem.OneTy = Elem.OneTy
   zonkElem st Elem.NatTy = Elem.NatTy
@@ -1479,8 +1495,14 @@ mutual
   zonkElem st (Elem.EqTy l r t) = Elem.EqTy (zonkElem st l) (zonkElem st r) (zonkTy st t)
   zonkElem st (QuotTy a r) = QuotTy (zonkElem st a) (zonkElem st r)
   zonkElem st (Class a) = Class (zonkElem st a)
-  zonkElem st (QuotElim f q) = QuotElim (zonkElem st f) (zonkElem st q)
-  zonkElem st (Squash t) = Squash (zonkTy st t)
+  zonkElem st (QuotElim f q) =
+    case zonkElem st q of
+      Class a => zonkElem st (substElem f (Ext Id a))
+      q2 => QuotElim (zonkElem st f) q2
+  zonkElem st (Squash t) =
+    case zonkTy st t of
+      Prf p => p          -- code-squash-prf
+      t2 => Squash t2
   zonkElem st Star = Star
   zonkElem st (QSortC sg k es) =
     let z = QSortC (zonkQSig st sg) k (zonkSubNorm st es) in
@@ -1489,9 +1511,15 @@ mutual
     let z = QCtor (zonkQSig st sg) k (zonkSubNorm st es) in
     fromMaybe z (resugarQ st z)
   zonkElem st (QElim sg k ms fs es w) =
-    let z = QElim (zonkQSig st sg) k (map (zonkTy st) ms) (map (zonkElem st) fs)
-                  (zonkSubNorm st es) (zonkElem st w) in
-    fromMaybe z (resugarQ st z)
+    case zonkElem st w of
+      QCtor sgW c theta =>
+        -- el-qiit-beta at nf-identical signatures
+        if zonkQSig st sg == sgW
+          then case qElimBetaRhs (zonkQSig st sg) (map (zonkTy st) ms) (map (zonkElem st) fs) c theta of
+                 Right rhs => zonkElem st rhs
+                 Left _ => zonkElimStuck st sg k ms fs es (QCtor sgW c theta)
+          else zonkElimStuck st sg k ms fs es (QCtor sgW c theta)
+      w2 => zonkElimStuck st sg k ms fs es w2
 
   zonkTy : ElabSt -> Ty -> Ty
   zonkTy st (Ty.SigVar x es) =
@@ -1507,7 +1535,15 @@ mutual
   zonkTy st Ty.UniverseTy = Ty.UniverseTy
   zonkTy st (Ty.PiTy a b) = Ty.PiTy (zonkTy st a) (zonkTy st b)
   zonkTy st (Ty.SigmaTy a b) = Ty.SigmaTy (zonkTy st a) (zonkTy st b)
-  zonkTy st (El e) = El (zonkElem st e)
+  zonkTy st (El e) =
+    case zonkElem st e of
+      Elem.ZeroTy      => Ty.ZeroTy
+      Elem.OneTy       => Ty.OneTy
+      Elem.NatTy       => Ty.NatTy
+      Elem.PiTy a b    => Ty.PiTy (zonkTy st (El a)) (zonkTy st (El b))
+      Elem.SigmaTy a b => Ty.SigmaTy (zonkTy st (El a)) (zonkTy st (El b))
+      QuotTy a r       => Quotient (zonkTy st (El a)) r
+      e2 => El e2
   zonkTy st PropTy = PropTy
   zonkTy st (Prf e) = Prf (zonkElem st e)
   zonkTy st (Quotient a r) = Quotient (zonkTy st a) (zonkElem st r)
@@ -1517,6 +1553,12 @@ mutual
     case resugarQ st (QSortC zsg k zes) of
       Just code => El code
       Nothing => QSort zsg k zes
+
+  zonkElimStuck : ElabSt -> QSig -> Nat -> List Ty -> List Elem -> SubNorm -> Elem -> Elem
+  zonkElimStuck st sg k ms fs es w2 =
+    let z = QElim (zonkQSig st sg) k (map (zonkTy st) ms) (map (zonkElem st) fs)
+                  (zonkSubNorm st es) w2 in
+    fromMaybe z (resugarQ st z)
 
   zonkSubNorm : ElabSt -> SubNorm -> SubNorm
   zonkSubNorm st [<] = [<]

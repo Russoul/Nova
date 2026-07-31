@@ -3,4 +3,4 @@ defined q2bad [+1 obligation]
 open obligations (1):
   [1] ⊢ Z ≐ S Z : ℕ
       at: def q2bad: checking ⋆ [replay failed: kernel: step type does not match the position]
-      from composite: ⊢ class Z ≐ class (S Z) : ℕ / (n x. ∥n ≡ x ∈ ℕ∥)
+      from composite: ⊢ class Z ≐ class (S Z) : ℕ / (n x. n ≡ x ∈ ℕ)
