@@ -11,6 +11,7 @@ module Nova.Elaboration.Named
 -- core carries none).
 
 import Data.List
+import Data.List1
 import Data.SnocList
 import Data.Maybe
 
@@ -179,6 +180,11 @@ freshIH = freshFromList candidatesIH
 -- to name. Mirrors the printer's own binder-depth bookkeeping exactly —
 -- each nested binder increments `k` by however many slots it introduces.
 
+||| A qualified name's final segment (prop.⊃ → ⊃) — how the source
+||| spelled an opened operator.
+lastSeg : String -> String
+lastSeg x = pack (reverse (takeWhile (/= '.') (reverse (unpack x))))
+
 ||| Is this spine the identity substitution over a context of length
 ||| n — ☐ₙ₋₁, ..., ☐₀? (How a hole minted at the ambient context is
 ||| referenced at its own site.)
@@ -314,11 +320,14 @@ mutual
   -- spelling ((+) a b), which is always valid.
   prettyElemOpN : FixTable -> NameEnv -> (minPrec : Nat) -> Elem -> String
   prettyElemOpN tbl env minP e@(PiApp (PiApp (SigVar op [<]) a) b) =
-    case (isOpName op, lookup op tbl) of
+    -- fixity keys the OPENED bare token, Σ-names are qualified: a
+    -- reference like prop.⊃ finds its fixity (and lays out) by its
+    -- last segment — the spelling the source used
+    case (isOpName op, lookup op tbl <|> lookup (lastSeg op) tbl) of
       (True, Just (assoc, p)) =>
         let lP = case assoc of AssocL => p; AssocR => S p
             rP = case assoc of AssocL => S p; AssocR => p
-            body = prettyElemOpN tbl env lP a ++ " " ++ op ++ " " ++ prettyElemOpN tbl env rP b
+            body = prettyElemOpN tbl env lP a ++ " " ++ lastSeg op ++ " " ++ prettyElemOpN tbl env rP b
         in if p < minP then "(" ++ body ++ ")" else body
       _ => prettyElemPrefixN tbl env e
   prettyElemOpN tbl env minP e = prettyElemPrefixN tbl env e
