@@ -1,4 +1,4 @@
-LEGEND: ["keyword", "variable", "operator", "number", "comment"]
+LEGEND: ["keyword", "variable", "operator", "number", "comment", "unsolved_meta", "solved_meta"]
 CAPS: hover=true definition=true documentSymbol=true
 DIAGNOSTICS (1):
   [L3:1-L3:52] (error)   [1] (n : ℕ) ⊢ plus Z n ≐ n : ℕ

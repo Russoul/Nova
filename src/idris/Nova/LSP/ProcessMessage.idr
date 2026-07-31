@@ -175,7 +175,15 @@ handleRequest TextDocumentSemanticTokensFull params = whenActiveRequest $ \_ => 
   logI Channel "Received semanticTokens/full request for \{show params.textDocument.uri}"
   Just doc <- getDoc params.textDocument.uri
     | Nothing => pure (pure (make MkNull))
-  let toks = getSemanticTokens doc.source (toList doc.rootUnit.mtokens)
+  -- hole occurrences recolored by elaboration state. Restricted to
+  -- SURFACE hole syntax (`?x`/`_x`/`_`): `def x : T` declarations are
+  -- holes too, but painting every reference to an abstract name would
+  -- drown the file
+  let holeOccs = [ (r, isJust h.hiSolution)
+                 | h <- doc.report.holeTable
+                 , isPrefixOf "?" h.hiName || isPrefixOf "_" h.hiName
+                 , r <- h.hiOccs ]
+  let toks = getSemanticTokens doc.source (toList doc.rootUnit.mtokens) holeOccs
   pure (pure (make (MkSemanticTokens Nothing toks)))
 
 handleRequest TextDocumentDocumentSymbol params = whenActiveRequest $ \_ => do

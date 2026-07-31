@@ -1,4 +1,4 @@
-LEGEND: ["keyword", "variable", "operator", "number", "comment"]
+LEGEND: ["keyword", "variable", "operator", "number", "comment", "unsolved_meta", "solved_meta"]
 CAPS: hover=true definition=true documentSymbol=true
 DIAGNOSTICS (1):
   [L1:1-L1:1] (error) parse error in module broken (DIR/broken.nova): PARSING ERROR: Reserved keyword @ L2:18

@@ -1,4 +1,4 @@
-LEGEND: ["keyword", "variable", "operator", "number", "comment"]
+LEGEND: ["keyword", "variable", "operator", "number", "comment", "unsolved_meta", "solved_meta"]
 CAPS: hover=true definition=true documentSymbol=true
 DIAGNOSTICS (1):
   [L2:46-L2:51] (warning)   [?base] (n : ℕ) ⊢ ? : plus Z n ≡ n ∈ ℕ
@@ -54,8 +54,8 @@ TOKENS (52):
   L2:42+1 keyword
   L2:43+1 variable
   L2:44+1 keyword
-  L2:46+1 keyword
-  L2:47+4 variable
+  L2:46+1 unsolved_meta
+  L2:47+4 unsolved_meta
 SYMBOLS (2):
   plus (kind 12) [L1:1-L1:62]
   lemma (kind 12) [L2:1-L2:51]
