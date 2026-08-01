@@ -59,7 +59,11 @@ clearCrossDiags root = do
   traverse_ (\u => sendDiagnostics u Nothing []) extras
   update LSPConf { crossDiags $= filter ((/= root) . fst) }
 
-loadURI : Ref LSPConf LSPConfiguration => DocumentURI -> Maybe Int -> IO ()
+||| True iff the document's `DocState` was actually refreshed. On a
+||| failed load (parse error, unreadable file, ...) the PREVIOUS
+||| DocState stays — its tokens describe the OLD content, so callers
+||| must not prompt the client to re-pull them against the new text.
+loadURI : Ref LSPConf LSPConfiguration => DocumentURI -> Maybe Int -> IO Bool
 loadURI uri version = do
   logI Server "Loading \{show uri}"
   let fpath = uri.path
@@ -80,21 +84,25 @@ loadURI uri version = do
             if f /= fpath
               then do
                 Right depSrc <- readFile f
-                  | Left _ => pure ()
+                  | Left _ => pure False
                 let depUri = pathToURI f
                 sendDiagnostics depUri Nothing
                   [mkParseDiagnostic (toLspRange (lines depSrc) r) err.lmsg]
                 update LSPConf { crossDiags $= ((uri, [depUri]) ::) }
-              else pure ()
-          _ => pure ()
+                pure False
+              else pure False
+          _ => pure False
   let Just root = last' units
-    | Nothing => logE Server "loadProgram returned no modules for \{show uri}"
+    | Nothing => do logE Server "loadProgram returned no modules for \{show uri}"
+                    pure False
   Right source <- readFile fpath
-    | Left err => logE Server "Cannot re-read \{fpath}: \{show err}"
+    | Left err => do logE Server "Cannot re-read \{fpath}: \{show err}"
+                     pure False
   let report = elabProgramReport units
   let index = buildIndex fpath units
   setDoc uri (MkDocState source root index report)
   sendDiagnostics uri version (toDiagnostics source root.mfix report)
+  pure True
 
 -- ===== guards =====
 
@@ -261,16 +269,20 @@ handleNotification Exit params = do
 
 handleNotification TextDocumentDidOpen params = whenActiveNotification $ \_ => do
   logI Channel "Received didOpen notification for \{show params.textDocument.uri}"
-  loadURI params.textDocument.uri (Just params.textDocument.version)
+  ignore $ loadURI params.textDocument.uri (Just params.textDocument.version)
 
 handleNotification TextDocumentDidSave params = whenActiveNotification $ \_ => do
   logI Channel "Received didSave notification for \{show params.textDocument.uri}"
-  loadURI params.textDocument.uri Nothing
+  refreshed <- loadURI params.textDocument.uri Nothing
   -- semantic tokens are CLIENT-pull, and clients re-pull on buffer
   -- edits — but our tokens only change here, on the post-save reload
   -- (didChange is ignored), so by the time we have fresh tokens the
-  -- client has stopped asking. Nudge it to invalidate and re-pull.
-  semanticTokensRefresh
+  -- client has stopped asking. Nudge it to invalidate and re-pull —
+  -- but ONLY when the reload succeeded: after a failed reload the
+  -- cached tokens still describe the PREVIOUS content, and forcing
+  -- the client to re-apply them against the new text misplaces every
+  -- highlight. Left alone, the client's own marks track the edit.
+  when refreshed semanticTokensRefresh
 
 handleNotification TextDocumentDidClose params = whenActiveNotification $ \_ => do
   logI Channel "Received didClose notification for \{show params.textDocument.uri}"

@@ -343,20 +343,29 @@ runLspTest lspBinPath fixtureAbsPath word = do
   putStrLn "HOVER(\{word}): \{renderHover hovResult}"
 
   -- a save reloads the document (fresh diagnostics for it and any
-  -- cross-file targets, drained here) and must end with the server
-  -- asking the client to re-pull semantic tokens — tokens are client-
-  -- pull, and the client's own re-pull triggers (buffer edits) all
-  -- fire BEFORE the reload that changes them
+  -- cross-file targets, drained here) and — when the reload SUCCEEDS
+  -- — ends with the server asking the client to re-pull semantic
+  -- tokens (tokens are client-pull, and the client's own re-pull
+  -- triggers all fire BEFORE the reload that changes them). A FAILED
+  -- reload must stay silent: the cached tokens describe the old
+  -- content. The sentinel request bounds the wait either way — the
+  -- server answers strictly in order, so whatever the didSave
+  -- produced arrives before the sentinel's response.
   writeMessage proc.input (notif "textDocument/didSave" (JObject
     [ ("textDocument", JObject [("uri", JString uri)]) ]))
+  writeMessage proc.input (req 7 "textDocument/documentSymbol" (JObject [("textDocument", JObject [("uri", JString uri)])]))
   Just afterSave <- readDraining proc.output uri normalise
-    | Nothing => dieMsg "no server request after didSave"
-  let saveMethod = fromMaybe "?" (getField "method" afterSave >>= asString)
-  putStrLn "SERVER REQUEST AFTER DIDSAVE: \{saveMethod}"
-  -- answer it, as a real client would (the server discards the reply)
-  case getField "id" afterSave of
-    Just idJ => writeMessage proc.input (JObject [("jsonrpc", JString "2.0"), ("id", idJ), ("result", JNull)])
-    Nothing => pure ()
+    | Nothing => dieMsg "no message after didSave"
+  case getField "method" afterSave >>= asString of
+    Just m => do
+      putStrLn "SERVER REQUEST AFTER DIDSAVE: \{m}"
+      -- answer it, as a real client would (the server discards the
+      -- reply), then consume the sentinel's response
+      case getField "id" afterSave of
+        Just idJ => writeMessage proc.input (JObject [("jsonrpc", JString "2.0"), ("id", idJ), ("result", JNull)])
+        Nothing => pure ()
+      ignore $ readDraining proc.output uri normalise
+    Nothing => putStrLn "SERVER REQUEST AFTER DIDSAVE: none"
 
   writeMessage proc.input (req 6 "shutdown" JNull)
   Just _ <- readDraining proc.output uri normalise
