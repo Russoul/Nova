@@ -1,0 +1,5 @@
+defined data (Q, cls, qeq)
+defined data (V, vnil, vcons)
+defined two
+defined q1
+Accepted.

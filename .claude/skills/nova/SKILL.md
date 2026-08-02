@@ -152,6 +152,9 @@ data [a : 𝕌] [r : El a → El a → Ω]
   anything else is EXTERNAL. Write external naturals as `El ℕ`, not
   `ℕ` — a non-code external domain makes the signature LARGE and a
   large sort cannot be code-valued or parameterized.
+- A NON-DEPENDENT domain may stand bare: `cls : El a → El Q` is
+  `(x : El a) → El Q` with an anonymous binder; bare and named
+  binders mix freely (`vcons : (n : El ℕ) → El (V n) → El (V (S n))`).
 - Generated names: the sorts, the constructors, and TWO eliminators
   per sort: `<Sort>Elim` (code-valued motives `… → 𝕌`, coherence
   hypotheses) and `<Sort>ElimP` (prop-valued motives `… → Ω`, results

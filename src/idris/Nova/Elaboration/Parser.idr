@@ -449,6 +449,16 @@ sqDomain tbl tos ext =
       (do kw "El"; space; q <- sqCode tbl tos ext; pure (Right q))
   <|> (Left <$> parseSTy tbl ext)
 
+||| An ANONYMOUS domain: like `sqDomain`, but the external case stops
+||| below the arrow level (T{2}) — a greedy full type would swallow
+||| the rest of the entry (`ℕ → El Q` must be TWO pieces, not one
+||| function type). Higher-order external domains stay parenthesized,
+||| which re-enters the full type grammar.
+sqDomainNoArrow : FixTable -> NameEnv -> NameEnv -> Rule (Either STy SQTm)
+sqDomainNoArrow tbl tos ext =
+      (do kw "El"; space; q <- sqCode tbl tos ext; pure (Right q))
+  <|> (Left <$> parseSTyEl tbl ext)
+
 sqRes : FixTable -> NameEnv -> NameEnv -> Rule SQRes
 sqRes tbl tos ext =
       (do kw "U"; pure SQResU)
@@ -475,21 +485,31 @@ sqBinders tbl tos ext = do
     Nothing => pure (tos', ext', [(x, d)])
     Just (tos'', ext'', bs) => pure (tos'', ext'', (x, d) :: bs)
 
+||| An entry's telescope-and-result: named binder groups iterate as
+||| before ((x : D) (y : D') → R ≡ (x : D) → (y : D') → R), and a
+||| NON-DEPENDENT domain may stand bare — `cls : El a → El Q` — the
+||| anonymous binder entering the right zone under the wildcard name
+||| (which never resolves, so nothing can reference it).
+sqTele : FixTable -> NameEnv -> NameEnv -> Rule (List (String, Either STy SQTm), SQRes)
+sqTele tbl tos ext =
+      (do (tos', ext', bs) <- sqBinders tbl tos ext
+          sp; kw "→"; sp
+          (rest, res) <- sqTele tbl tos' ext'
+          pure (bs ++ rest, res))
+  <|> (do d <- sqDomainNoArrow tbl tos ext
+          sp; kw "→"; sp
+          let tos' = case d of { Left _ => tos; Right _ => tos :< wildcard }
+          let ext' = case d of { Left _ => ext :< wildcard; Right _ => ext }
+          (rest, res) <- sqTele tbl tos' ext'
+          pure ((wildcard, d) :: rest, res))
+  <|> (do res <- sqRes tbl tos ext
+          pure ([], res))
+
 sqDecl : FixTable -> NameEnv -> NameEnv -> Rule SQDecl
 sqDecl tbl penv entries = do
   n <- parseName; sp; kwc ':'; sp
-  withBinders n <|> bare n
- where
-  withBinders : String -> Rule SQDecl
-  withBinders n = do
-    (tos, ext, bs) <- sqBinders tbl entries penv
-    sp; kw "→"; sp
-    res <- sqRes tbl tos ext
-    pure (MkSQDecl n bs res)
-  bare : String -> Rule SQDecl
-  bare n = do
-    res <- sqRes tbl entries penv
-    pure (MkSQDecl n [] res)
+  (bs, res) <- sqTele tbl entries penv
+  pure (MkSQDecl n bs res)
 
 parseSData : FixTable -> Rule SItem
 parseSData tbl = do

@@ -73,8 +73,9 @@ fixity ::= infixl d op | infixr d op          # d a digit 0-9
 
 # Q is the ToS type grammar of a data entry — Foundation's qiit-types
 # in surface clothes (→ inside a data literal is Foundation's ⇛;
-# binder groups iterate as everywhere):
-#   Q ::= U | El q | ((x : D))+ → Q
+# binder groups iterate as everywhere, and a NON-DEPENDENT domain may
+# stand bare, binding an anonymous binder — cls : El a → El Q):
+#   Q ::= U | El q | ((x : D))+ → Q | D → Q
 # with q a ToS code (a sort name applied to arguments, or l ≡ r
 # between sort elements) and D a domain CLASSIFIED BY NAME RESOLUTION:
 # `El q` whose head resolves to a sort of the SAME literal (or an ≡
