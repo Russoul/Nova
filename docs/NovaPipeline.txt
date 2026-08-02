@@ -77,10 +77,12 @@ Consequences of the split:
 
 ////////// The artifact: annotated trees, not annotated terms //////////
 
-Foundation's core syntax stays bare and EXTRINSIC: a term inhabits many
-types at once (a spelling and its El-decoding; an index and its
-lemma-equal form), so "the type of a subterm" does not exist in the
-theory — only a chosen spelling. Nothing judgmentally inert belongs in
+Foundation's core syntax stays BARE — and the kernel, checking
+spellings, necessarily works extrinsically even though the theory's
+official reading is intrinsic (docs/NovaSyntax.txt): a spelling
+inhabits many types at once (a spelling and its El-decoding; an index
+and its lemma-equal form), so "the type of a subterm" is not
+recoverable from the artifact — only a chosen spelling. Nothing judgmentally inert belongs in
 the theory's syntax: no coercion or transport term formers, no type
 annotations, no J. (Coercion is a RULE — el-ty-coe — and stays one.
 Equality proofs are consumed by reflection and produced as ⋆; the

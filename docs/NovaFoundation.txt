@@ -1,6 +1,6 @@
 ////////// Preface //////////
 
-#! highlight keywords: ⊦ : ; , · [ ] ‖ .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ ⇓ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id λ → ⨯ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S ⋆ Prf class ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ 𝟘-elim ℕ-elim quot-elim squash-elim -elim qctx qty qsig ctx type tel mot dalg eprob sect norm small sig nf qpath
+#! highlight keywords: ⊦ : ; , · [ ] ‖ .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id λ → ⨯ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S ⋆ Prf class ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ 𝟘-elim ℕ-elim quot-elim squash-elim -elim qctx qty qsig ctx type tel mot dalg eprob sect norm small sig nf qpath
 #! highlight tos: 𝔄 𝔅 𝕥 𝕦 𝕧 𝕤 𝕔 𝕜 𝕘 𝕒 𝕓 𝕞 Φ 𝒮 ς 𝔎
 #! highlight nova: Γ Δ Ξ Σ σ τ δ θ latin
 #! highlight meta: 𝑤 ρ υ π 𝒞 ℰ
@@ -15,11 +15,25 @@
 # render ink. They carry no theory content.)
 #
 # This file contains a formalisation of Nova's type theory: Extensional Computational Type Theory.
-# We present the theory extrinsically: https://ncatlab.org/nlab/show/intrinsic+and+extrinsic+views+of+typing
+# The presentation is by inference rules over a first-order grammar, and
+# its OFFICIAL reading is INTRINSIC
+# (https://ncatlab.org/nlab/show/intrinsic+and+extrinsic+views+of+typing):
+# the judgements are simultaneously-defined sorts, the rules their
+# constructors, and a term exists only at its type — the grammar below
+# is notation for constructor shapes, not a prior universe of raw terms
+# that typing then carves. docs/NovaSyntax.txt makes this reading
+# precise (a quotient inductive-inductive-recursive definition) for a
+# fragment, and classifies where every rule class lands in it.
 #
-# Semantics to syntactic forms is assigned via evaluation and canonical forms.
+# Semantics is assigned by the SETOID MODEL: a type denotes a
+# structural CODE together with a proof-irrelevant equivalence relation
+# on the code's decoding — type equality is equality of codes, element
+# equality is the relation. docs/NovaModel.txt constructs the code
+# layer for the structural fragment; the relation layer is where
+# quotients, Ω-truth and the QIIT congruences live (see the SEMANTICS
+# notes at their rules).
 #
-# NOTE: well-formed terms need not normalize in an inconsistent context.
+# NOTE: well-typed terms need not normalize in an inconsistent context.
 # Equality reflection makes typability hypothesis-sensitive: e.g. under
 # Γ ∋ h : Prf (A ≡ (A → A) ∈ 𝕌), reflection gives El A ≐ El A → El A, so
 # self-application types and ω ω is well-formed at El A, where ω ≜ λx. x x
@@ -718,14 +732,16 @@ e˲ : Γ₁ ⇒ Γ norm
 # (both function spaces are the empty set), yet 𝟙 ≐ ℕ is refuted, so
 # before these rules the composite equality was derivable in a context
 # where the component equality was not. Adding them is a semantic
-# commitment, and it is the one this file's preface already makes:
-# semantics is assigned via evaluation and canonical forms, i.e. the
-# type system is an inductively defined PER on canonical forms, where
-# two Π-types are equal BY DEFINITION exactly when their domains are
-# equal and their codomains are equal on related arguments — and
-# likewise for the other formers. Under that semantics these rules are
-# sound; models that collapse structurally distinct types (the
-# set-theoretic one above) are hereby excluded. A concrete consequence:
+# commitment, and it is the one this file's preface already makes: a
+# type denotes a structural CODE (docs/NovaModel.txt's code
+# universes), so two Π-types are equal exactly when their heads and
+# components are — the rules are the meta's ordinary constructor
+# injectivity, read back through the interpretation — and likewise
+# for the other formers. Under that semantics these rules are sound;
+# models that collapse structurally distinct types (the set-theoretic
+# one above) are hereby excluded, and the code-universe model shows
+# the exclusion is not vacuous: all the rules hold in it at once
+# (NovaModel's soundness notes). A concrete consequence:
 # a context hypothesizing (𝟙 → 𝟘) ≡ (ℕ → 𝟘) ∈ 𝕌 is now INCONSISTENT
 # (𝟙 ≐ ℕ gives Z ≐ S Z : ℕ via el-one-prop and coercion, and a ℕ-elim
 # discriminator into 𝕌 turns that into an inhabitant of 𝟘).
@@ -754,7 +770,8 @@ e˲ : Γ₁ ⇒ Γ norm
 #  * No-confusion (a Π-type is never equal to ℕ, a Σ-type, ...) is NOT
 #    expressible as a rule of this positive inference system, and in
 #    inconsistent contexts it is false. It remains a meta-property of
-#    consistent contexts under the canonical-forms semantics.
+#    consistent contexts, inherited from the meta's no-confusion for
+#    the code universes (docs/NovaModel.txt).
 #  * S-injectivity and pair-injectivity need no rules: they are already
 #    derivable (congruence with a ℕ-elim predecessor, respectively the
 #    projections).
@@ -785,8 +802,9 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ t₀ ≐ t₁ : 𝕌
 
 # The same principles one level down, for the universe codes: the
-# canonical-forms semantics gives 𝕌 a structural PER on codes, so the
-# code constructors are injective as elements of 𝕌.
+# setoid model gives 𝕌 a structural universe of codes (Code₀ in
+# docs/NovaModel.txt), so the code constructors are injective as
+# elements of 𝕌.
 
 Γ ▷ El a₀ ⊦ b₀ : 𝕌
 Γ ▷ El a₁ ⊦ b₁ : 𝕌
@@ -1102,23 +1120,25 @@ e˲ : Γ₁ ⇒ Γ norm
 #  * Elimination goes only into equations and props: a squashed
 #    hypothesis may be unsquashed exactly when the goal cannot
 #    observe WHICH proof was used — equational goals (judgements do
-#    not consult realizers) and propositional goals (the realizer is
+#    not consult witnesses) and propositional goals (the witness is
 #    ⋆ either way). With ≡ Ω-valued, el-squash-e-eq is ADMISSIBLE:
 #    equality props exist at every type (large included), so el-eq-i
 #    under the binder, el-squash-e-prf and el-reflect derive it. It
 #    is kept as a rule for the kernel's convenience. There is
 #    deliberately NO eliminator into arbitrary types — el-prf-prop
-#    would force it constant, and it would refute realizer
+#    would force it constant, and it would refute witness
 #    irrelevance in the model. The eliminators need no congruence
 #    rules: their conclusions are equations, respectively ⋆-typings
 #    covered by el-prf-prop.
 #  * IMPREDICATIVITY. ∥-∥ squashes arbitrary types, including
 #    quantifications over Ω itself and over 𝕌. This is sound
 #    because the candidate denotations of props form a FIXED
-#    two-point lattice — ∅ and {(⋆,⋆)} — that does not grow with the
-#    quantification domain: a universally quantified prop is an
-#    infimum in that lattice, realized uniformly by λ ⋆ (precedent:
-#    the PER models of the Calculus of Constructions). The
+#    two-point lattice — the empty and the unit subsingleton setoid —
+#    that does not grow with the quantification domain: a universally
+#    quantified prop is an infimum in that lattice, witnessed
+#    uniformly by ⋆ (precedent: the proof-irrelevant setoid models,
+#    where Prop is exactly this lattice; the PER models of CC ran the
+#    same argument with realizers). The
 #    restrictions above are the license for this; each blocks a known
 #    paradox:
 #      - proof irrelevance blocks Girard/Hurkens: nothing can be
@@ -1167,24 +1187,27 @@ e˲ : Γ₁ ⇒ Γ norm
 #      3. Equality proofs reflect directly: el-reflect reads
 #         a₀ ≐ a₁ : B off any s : Prf (a₀ ≡ a₁ ∈ B) — no squash
 #         apparatus is involved.
-#  * SEMANTICS. ⟦Prf p⟧ = {(t,t') | t ⇓ ⋆ and t' ⇓ ⋆} if p is true,
-#    ∅ otherwise — where ∥A∥ is true iff A is inhabited, and
-#    (a₀ ≡ a₁ ∈ A) is true iff a₀ ~ a₁ in ⟦A⟧; ∥A∥ ~ ∥B∥ : Ω iff A
-#    and B are equi-inhabited. code-prop-eq holds on the nose (iff-equal props
-#    have IDENTICAL decodings); el-squash-e-* are validated by
-#    instantiating their premise at any closed witness — the
-#    conclusion never consults which one. Model note: the prop layer
-#    cannot be built by the same stagewise induction as the rest of
-#    the type system (the Π-over-Ω clause consults Ω's full
-#    domain, non-monotonically); it is instead given IN ADVANCE — the
-#    fixed lattice above, with prop-truth defined against the full
-#    type system. A two-layer construction, as in the PER models of
-#    CC. The Ω-valued quotient slot adds no further impredicative
-#    dependency: the quotient clause consumes Ω-truth POINTWISE
-#    (⟦El (A / R)⟧ is ⟦El A⟧ coarsened by the truth of R at each
-#    pair), so quotient codes stay small however impredicative their
-#    relation — propositional resizing, in HoTT terms, which the PER
-#    model validates.
+#  * SEMANTICS. In the setoid model ⟦Prf p⟧ is a subsingleton
+#    setoid: carrier 𝟙 if p is true, 𝟘 otherwise (all elements
+#    related either way) — where ∥A∥ is true iff ⟦A⟧'s carrier is
+#    inhabited, and (a₀ ≡ a₁ ∈ A) is true iff ⟦a₀⟧ ~ ⟦a₁⟧ in ⟦A⟧'s
+#    relation; ∥A∥ ~ ∥B∥ : Ω iff A and B are equi-inhabited.
+#    code-prop-eq holds on the nose (iff-equal props have IDENTICAL
+#    denotations); el-squash-e-* are validated by instantiating their
+#    premise at any carrier element — the conclusion never consults
+#    which one. Model note: the prop layer cannot be built by the
+#    same stagewise induction as the rest of the type system (the
+#    Π-over-Ω clause consults Ω's full domain, non-monotonically); it
+#    is instead given IN ADVANCE — the fixed lattice above, with
+#    prop-truth defined against the full type system. A two-layer
+#    construction, as in the impredicative-Prop setoid models (and,
+#    before them, the PER models of CC). The Ω-valued quotient slot
+#    adds no further impredicative dependency: the quotient clause
+#    consumes Ω-truth POINTWISE (⟦El (A / R)⟧ keeps ⟦El A⟧'s carrier
+#    and coarsens its relation by the truth of R at each pair — in
+#    the setoid model a quotient is FREE), so quotient codes stay
+#    small however impredicative their relation — propositional
+#    resizing, in HoTT terms, which the setoid model validates.
 
 Γ ⊦ A type
 ------------------ (code-squash)
@@ -1601,14 +1624,15 @@ e˲ : Γ₁ ⇒ Γ norm
 
 # A signature is SMALL when every Nova type it embeds (the external Π
 # domains) is itself codable — of the form El a, or Prf p (props are
-# size-free: trivial PERs, per the Ω block). Only SMALL signatures get
-# a universe code. This is the ty-pi/code-pi divide, and here it is
-# load-bearing: with a LARGE external domain — say (a : 𝕌) — the
-# code's decoding would contain 𝕌 as a RETRACT (eliminate at constant
-# motive 𝕌 with method a ↦ a), the classic type-in-type collapse; and
-# the model agrees — the universe's PER cannot be constructed while
-# consulting its own totality. Large signatures still form perfectly
-# good TYPES (ty-qiit above); they just have no code.
+# size-free: subsingleton setoids, per the Ω block). Only SMALL
+# signatures get a universe code. This is the ty-pi/code-pi divide,
+# and here it is load-bearing: with a LARGE external domain — say
+# (a : 𝕌) — the code's decoding would contain 𝕌 as a RETRACT
+# (eliminate at constant motive 𝕌 with method a ↦ a), the classic
+# type-in-type collapse; and the model agrees — the universe of
+# codes cannot be constructed while consulting its own totality.
+# Large signatures still form perfectly good TYPES (ty-qiit above);
+# they just have no code.
 
 Γ ⊦ 𝒮 qsig      𝒮 small      𝒮(𝕤) = 𝔎  (𝔎 U-ended)      Γ ⊦ ē : ⌊𝔎⌋ᵗ
 --------------------------------------------------------------------------- (code-qiit)
@@ -1621,8 +1645,9 @@ e˲ : Γ₁ ⇒ Γ norm
 # INTRODUCTION — point constructor, FULLY SATURATED: θ supplies every
 # argument at once, and 𝒮.𝕔 θ is the canonical form of its sort. A
 # bare curried 𝒮.𝕔 : ⌊𝔄⌋ is deliberately NOT a term: in the empty
-# context it would be a non-λ inhabitant of a Π-type, breaking the
-# canonical-forms semantics of Π (λ-only) — the same violation the
+# context it would be a non-λ inhabitant of a Π-type, breaking
+# canonicity at Π (a closed Π-inhabitant is a λ —
+# docs/NovaSyntax.txt's gluing theorem) — the same violation the
 # judgemental el-qiit-path avoids at ≡-types. Nothing is lost: a
 # partial application is a λ away, λ (𝒮.𝕔 (…, ☐₀)).
 
@@ -1634,7 +1659,7 @@ e˲ : Γ₁ ⇒ Γ norm
 # el-quot-eq's shape, generalized. Deliberately no proof term is
 # minted: equality is Ω-valued, so an equation entry's reflected type
 # is a Prf, whose one canonical form is ⋆ — a constructor form there
-# would be a second canonical inhabitant, refuting realizer
+# would be a second canonical inhabitant, refuting witness
 # irrelevance. Nothing is lost — the Prf-type is inhabited by ⋆
 # via el-eq-i once el-qiit-path imposes the equation — and any
 # witness data the equation is conditional on (e.g. the quotient's
@@ -1848,20 +1873,22 @@ for each point position 𝕔 of 𝒮 (𝒮(𝕔) = 𝔄, ending in El (𝕤 ī);
 #     only Nova types (sort-free: the Nova zone has no inductive
 #     variables) or El-codes; U and Π-types never occur left of a ⇛.
 #     This grammar is the DECIDABLE proxy for a semantic condition:
-#     that the signature's operator be monotone on the PER lattice. A
+#     that the signature's operator be monotone on the lattice of
+#     relations (the setoid congruences over the carrier). A
 #     future revision could widen the domain grammar and instead
 #     discharge a monotonicity obligation as an ordinary premise,
 #     admitting monotone-but-not-positive operators; postulated here
 #     in the positive fragment only.
 #   * SEMANTICS. The postulate asserts that 𝒮's INITIAL ALGEBRA exists
-#     in the canonical-forms model: carriers are the constructor terms
-#     quotiented by the congruence GENERATED by the equation
-#     constructors, 𝒮.𝕤-elim is the unique section into any displayed
+#     in the setoid model: carriers are the constructor terms, the
+#     setoid relation is the congruence GENERATED by the equation
+#     constructors (no quotienting step — coarsening the relation IS
+#     the quotient), 𝒮.𝕤-elim is the unique section into any displayed
 #     algebra (el-qiit-eta), and β holds on the nose. This is the
 #     initiality commitment of Altenkirch–Kaposi–Kovács (finitary QIITs),
-#     transported to the extensional PER setting where the coherence
-#     tower degenerates. As with the injectivity rules, models that fail
-#     initiality are hereby excluded.
+#     transported to the proof-irrelevant setoid setting where the
+#     coherence tower degenerates. As with the injectivity rules,
+#     models that fail initiality are hereby excluded.
 
 # EXAMPLE (inductive-inductive: contexts and types). The signature
 #     𝒮 = ( Con : U
@@ -2234,6 +2261,6 @@ e˲ : Γ₁ ⇒ Γ norm
 ///////// Rule name scheme /////////
 
 # Names follow <class>-<former>-<kind> uniformly (see Conventions).
-# The PER schema instances are ctx-refl/-sym/-trans, sub-…, sub-norm-…,
-# ty-…, el-…, tel-…, sp-…. All other names appear verbatim on their
-# rules; there are no synonyms.
+# The equivalence schema instances are ctx-refl/-sym/-trans, sub-…,
+# sub-norm-…, ty-…, el-…, tel-…, sp-…. All other names appear verbatim
+# on their rules; there are no synonyms.
