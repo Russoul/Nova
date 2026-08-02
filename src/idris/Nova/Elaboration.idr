@@ -1965,18 +1965,46 @@ mutual
                   pure True
             _ => pure False
 
-    ||| Peel `_h[es] ☐_{k-1} … ☐₀` (outermost application first, so the
-    ||| args must be ☐₀, ☐₁, … inward): the ETA shape Π-domain
-    ||| decomposition under fresh binders always produces.
-    peelVars : Nat -> Elem -> Maybe (Elem, Nat)
-    peelVars j (PiApp f (CtxVar i)) = if i == j then peelVars (S j) f else Nothing
-    peelVars j (PiApp _ _) = Nothing
-    peelVars Z e = Nothing
-    peelVars j e = Just (e, j)
+    ||| Peel a variable-applied head: `h ☐_{j₁} … ☐_{jₘ}` gives the
+    ||| head and the applied indices in APPLICATION order. Nothing if
+    ||| any argument is not a bare context variable.
+    peelVars : Elem -> Maybe (Elem, List Nat)
+    peelVars (PiApp f (CtxVar i)) = map (mapSnd (++ [i])) (peelVars f)
+    peelVars (PiApp _ _) = Nothing
+    peelVars e = Just (e, [])
 
     wrapPis : Nat -> Elem -> Elem
     wrapPis Z e = e
     wrapPis (S n) e = wrapPis n (PiIntro e)
+
+    idxIn : Nat -> List Nat -> Maybe Nat
+    idxIn x = go' 0
+     where
+      go' : Nat -> List Nat -> Maybe Nat
+      go' _ [] = Nothing
+      go' i (y :: ys) = if x == y then Just i else go' (S i) ys
+
+    ||| Miller-pattern INVERSION: `t` stands at Γ ▷ Δ (|Γ| = n hole
+    ||| context, |Δ| = k local binders) and becomes the body of the
+    ||| m-ary λ-solution at Γ. The i-th applied local (application
+    ||| order) becomes the i-th λ binder; ambient variables shift from
+    ||| depth k to depth m; any OTHER local is mapped to an
+    ||| out-of-range index — a poison the flip's kernel check refuses,
+    ||| which is exactly the non-pattern case (the target genuinely
+    ||| uses a binder the hole is not applied to).
+    invert : (n : Nat) -> (k : Nat) -> (m : Nat) -> List Nat -> Elem -> Elem
+    invert n k m args t =
+      let nk = n + k
+          spine = cast {to = SubNorm} (map termFor (reverse [0 .. minus nk 1]))
+      in substElem t (embed spine)
+     where
+      termFor : Nat -> Elem
+      termFor j =
+        case idxIn j args of
+          Just i => CtxVar (minus (minus m 1) i)
+          Nothing => if j < k
+                       then CtxVar (n + m + k + 1)  -- poison: out of range
+                       else CtxVar (minus j k + m)
 
     go : ElabSt -> Elem -> Elem -> ElabM Bool
     go st (SigVar q es) t =
@@ -1999,21 +2027,26 @@ mutual
                        Nothing => pure False
                 else pure False
         _ => pure False
-    -- an ETA-APPLIED occurrence (the Miller pattern the Π-domain
-    -- decomposition emits): the hole, weakened below k binders and
-    -- applied to exactly those binders — `_h[wkⁿ] ☐₁ ☐₀ ≐ t` solves
-    -- as `_h ≔ λλt`, the binders becoming the λs (indices already
-    -- agree, so t wraps verbatim)
+    -- a VARIABLE-APPLIED occurrence (Miller pattern): the hole,
+    -- weakened below k binders and applied to distinct LOCAL binders
+    -- (`_h[wkⁿ] v w ≐ t`, the shape Π-domain decomposition emits) —
+    -- the applied binders become the solution's λs by inversion.
+    -- Only strictly-local, pairwise-distinct variable arguments
+    -- qualify: an ambient argument is already in the hole's support
+    -- (no unique solution), and a repeated one is ambiguous.
     go st e@(PiApp _ _) t =
-      case peelVars 0 e of
-        Just (SigVar q es, k) =>
+      case peelVars e of
+        Just (SigVar q es, args@(_ :: _)) =>
           case sigLookup q st.sig of
             Just (SigDecl delta _ dty) =>
-              let n = length delta in
-              if any (\m => m.hname == q && m.hsolvable) (toList st.holeMeta)
+              let n = length delta
+                  k = minus (length ctx) n
+                  m = length args in
+              if any (\mt => mt.hname == q && mt.hsolvable) (toList st.holeMeta)
                  && n + k == length ctx && take n (toList ctx) == toList delta
                  && es == wkSpine n k
-                then flipDecl q (wrapPis k t)
+                 && all (< k) args && nub args == args
+                then flipDecl q (wrapPis m (invert n k m args t))
                 else pure False
             _ => pure False
         _ => pure False
@@ -2141,11 +2174,17 @@ mutual
     peel e = (e, [])
 
     variants : ElabSt -> Elem -> List Elem
-    variants st e = e :: (case unfoldHead st.sig e of
-                            Just e' => e' :: (case unfoldHead st.sig e' of
-                                                Just e'' => [e'']
-                                                Nothing => [])
-                            Nothing => [])
+    variants st e =
+      -- the beta-normal spelling matters when the head is a SOLVED
+      -- hole reference: unfoldHead alone leaves the redex unreduced
+      -- ((\x.\y. R x y)[..] a b), so its head never aligns with the
+      -- other side's
+      nub (e :: betaElem st.sig e ::
+           (case unfoldHead st.sig e of
+              Just e' => e' :: (case unfoldHead st.sig e' of
+                                  Just e'' => [e'']
+                                  Nothing => [])
+              Nothing => []))
 
     argSolve : List (Elem, Elem) -> ElabM Bool
     argSolve [] = pure False
