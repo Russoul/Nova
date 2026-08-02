@@ -2,11 +2,11 @@
 -- (Foundation's Con/Ty worked example). Ty is a sort INDEXED BY AN
 -- ELEMENT OF ANOTHER SORT of the same signature.
 data ( Con : U
-     ; Ty  : (g : El Con) → U
+     ; Ty  : El Con → U
      ; nil : El Con
-     ; ext : (g : El Con) (A : El (Ty g)) → El Con
-     ; unit : (g : El Con) → El (Ty g)
-     ; arr : (g : El Con) (A : El (Ty g)) (B : El (Ty g)) → El (Ty g) )
+     ; ext : (gamma : El Con) → El (Ty gamma) → El Con
+     ; unit : (gamma : El Con) → El (Ty gamma)
+     ; arr : (gamma : El Con) → El (Ty gamma) → El (Ty gamma) → El (Ty gamma) )
 
 -- a context: nil ▷ unit ▷ (unit → unit)
 def g1 : El Con ≔ ext nil (unit nil)
@@ -19,10 +19,10 @@ def clen : El Con → ℕ ≔
         Z
         (λg. λihg. λA. λihA. S ihg)
         (λg. λihg. S Z)
-        (λg. λihg. λA. λihA. λB. λihB. S (ihA))
+        (λg. λihg. λA. λihA. λB. λihB. S ihA)
         g
 
-def clenG2 : clen g2 ≡ S (S Z) ∈ ℕ ≔ ⋆
+def clenG2 : clen g2 ≡ S (S Z) ∈ _ ≔ ⋆
 
 -- the same elimination problem read at the Ty motive: type size
 def tsize : (g : El Con) → El (Ty g) → ℕ ≔
@@ -30,7 +30,7 @@ def tsize : (g : El Con) → El (Ty g) → ℕ ≔
         Z
         (λg. λihg. λA. λihA. S ihg)
         (λg. λihg. S Z)
-        (λg. λihg. λA. λihA. λB. λihB. S (ihA))
+        (λg. λihg. λA. λihA. λB. λihB. S ihA)
         g t
 
-def tsizeArr : tsize g1 (arr g1 (unit g1) (unit g1)) ≡ S (S Z) ∈ ℕ ≔ ⋆
+def tsizeArr : tsize g1 (arr g1 (unit g1) (unit g1)) ≡ S (S Z) ∈ _ ≔ ⋆

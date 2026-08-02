@@ -1,3 +1,4 @@
+import prelude (constP)
 import prop (⊤, ⊥, ↔, iffIntro, reflectSquash)
 import equality (cong, sym, transport)
 
@@ -21,12 +22,12 @@ def eqNRefl : (n : ℕ) → Prf (EqN n n) ≔
 def eqNSound : (n : ℕ) → (m : ℕ) → Prf (EqN n m) → n ≡ m ∈ ℕ ≔
   λn. ℕ-elim (k. (m : ℕ) → Prf (EqN k m) → k ≡ m ∈ ℕ)
     (λm. ℕ-elim (j. Prf (EqN Z j) → Z ≡ j ∈ ℕ)
-      (λh. ⋆)
-      (j ih2. λh. reflectSquash Z (S j) (squash-elim h (x. 𝟘-elim x)))
+      (constP _ _ ⋆)
+      (j ih2. λh. reflectSquash _ _ _ (squash-elim h (x. 𝟘-elim x)))
       m)
     (n ih. λm. ℕ-elim (j. Prf (EqN (S n) j) → S n ≡ j ∈ ℕ)
-      (λh. reflectSquash (S n) Z (squash-elim h (x. 𝟘-elim x)))
-      (j ih2. λh. ((λheq. ⋆) : (n ≡ j ∈ ℕ) → (S n ≡ S j ∈ ℕ)) (ih j h))
+      (λh. reflectSquash _ _ _ (squash-elim h (x. 𝟘-elim x)))
+      (j ih2. λh. ih j h)
       m)
     n
 
@@ -34,12 +35,12 @@ def eqNSound : (n : ℕ) → (m : ℕ) → Prf (EqN n m) → n ≡ m ∈ ℕ ≔
 -- along a bad Z ≡ S j equation lands a 𝟙-witness in 𝟘
 def isZeroCode : ℕ → 𝕌 ≔ λn. ℕ-elim (_. 𝕌) 𝟙 (n ih. 𝟘) n
 def zNotS : (j : ℕ) → (Z ≡ S j ∈ ℕ) → 𝟘 ≔
-  λj. λh. transport ℕ isZeroCode Z (S j) h ()
+  λj. λh. transport _ isZeroCode _ _ h ()
 
 -- S is injective: predecessor congruence recovers n ≡ j from S n ≡ S j
 def pred : ℕ → ℕ ≔ λn. ℕ-elim (_. ℕ) Z (n ih. n) n
 def predEq : (n : ℕ) → (j : ℕ) → (S n ≡ S j ∈ ℕ) → n ≡ j ∈ ℕ ≔
-  λn. λj. λh. cong ℕ (λ_. ℕ) pred (S n) (S j) h
+  λn. λj. λh. cong _ (λ_. _) pred _ _ h
 
 -- completeness: the built-in equality implies EqN, by double
 -- induction mirroring EqN's own recursion — the Z/S-mismatch cases
@@ -48,11 +49,11 @@ def eqNComplete : (n : ℕ) → (m : ℕ) → (n ≡ m ∈ ℕ) → Prf (EqN n m
   λn. ℕ-elim (k. (m : ℕ) → (k ≡ m ∈ ℕ) → Prf (EqN k m))
     (λm. ℕ-elim (j. (Z ≡ j ∈ ℕ) → Prf (EqN Z j))
       (λh. ⋆)
-      (j ih2. λh. 𝟘-elim (zNotS j h))
+      (j ih2. λh. 𝟘-elim (zNotS _ h))
       m)
     (n ih. λm. ℕ-elim (j. (S n ≡ j ∈ ℕ) → Prf (EqN (S n) j))
-      (λh. 𝟘-elim (zNotS n (sym ℕ (S n) Z h)))
-      (j ih2. λh. ih j (predEq n j h))
+      (λh. 𝟘-elim (zNotS _ (sym _ _ _ h)))
+      (j ih2. λh. ih j (predEq _ _ h))
       m)
     n
 
@@ -60,11 +61,11 @@ def eqNComplete : (n : ℕ) → (m : ℕ) → (n ≡ m ∈ ℕ) → Prf (EqN n m
 -- squashed built-in equality (Ω is impredicative, ≡ ∈ ℕ is not, so
 -- ∥-∥ is the bridge)
 def eqNSoundP : (n : ℕ) → (m : ℕ) → Prf (EqN n m) → Prf (n ≡ m ∈ ℕ) ≔
-  λn. λm. λh. ⋆ (eqNSound n m h)
+  λn. λm. λh. ⋆ (eqNSound _ _ h)
 
 def eqNCompleteP : (n : ℕ) → (m : ℕ) → Prf (n ≡ m ∈ ℕ) → Prf (EqN n m) ≔
   -- ∥Prf p∥ ≜ p (code-squash-prf): h already proves the equation
-  λn. λm. λh. eqNComplete n m h
+  λn. λm. λh. eqNComplete _ _ h
 
 def eqNIff : (n : ℕ) → (m : ℕ) → Prf (EqN n m ↔ (n ≡ m ∈ ℕ)) ≔
-  λn. λm. iffIntro (EqN n m) (n ≡ m ∈ ℕ) (eqNSoundP n m) (eqNCompleteP n m)
+  λn. λm. iffIntro _ _ (eqNSoundP _ _) (eqNCompleteP _ _)

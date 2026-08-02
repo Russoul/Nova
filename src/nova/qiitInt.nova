@@ -2,8 +2,8 @@
 -- are mutually inverse, imposed as equations with INDUCTIVE binders.
 data ( I : U
      ; zero : El I
-     ; suc : (i : El I) → El I
-     ; pred : (i : El I) → El I
+     ; suc : El I → El I
+     ; pred : El I → El I
      ; sucpred : (i : El I) → suc (pred i) ≡ i ∈ El I
      ; predsuc : (i : El I) → pred (suc i) ≡ i ∈ El I )
 
@@ -13,5 +13,5 @@ def neg : El I → El I ≔
   λi. IElim (λw. I) zero (λx. λih. pred ih) (λx. λih. suc ih)
         (λx. λih. ⋆) (λx. λih. ⋆) i
 
-def negSucPred : neg (suc (pred zero)) ≡ zero ∈ El I ≔ ⋆
-def negPred : neg (pred zero) ≡ suc zero ∈ El I ≔ ⋆
+def negSucPred : neg (suc (pred zero)) ≡ zero ∈ _ ≔ ⋆
+def negPred : neg (pred zero) ≡ suc zero ∈ _ ≔ ⋆

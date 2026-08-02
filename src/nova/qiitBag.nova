@@ -4,23 +4,23 @@
 -- and so does everything defined below — instances are applications.
 data [a : 𝕌] ( Bag : U
              ; nil : El Bag
-             ; ins : (x : El a) (m : El Bag) → El Bag
+             ; ins : El a → El Bag → El Bag
              ; swp : (x : El a) (y : El a) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )
 
 -- the imposed equation, GENERICALLY, via the store (the generated swp
 -- lemma discharges the ⋆ at every carrier at once)
 def swapG : (a : 𝕌) (x : El a) (y : El a) (m : El (Bag a)) →
-            ins a x (ins a y m) ≡ ins a y (ins a x m) ∈ El (Bag a) ≔
+            ins _ x (ins _ y m) ≡ ins _ y (ins _ x m) ∈ _ ≔
   λa. λx. λy. λm. ⋆
 
 -- size, defined once for every carrier — the method is
 -- order-insensitive, so the coherence argument is ⋆
 def size : (a : 𝕌) → El (Bag a) → ℕ ≔
-  λa. λm. BagElim a (λb. ℕ) Z (λx. λr. λih. S ih) (λx. λy. λr. λih. ⋆) m
+  λa. λm. BagElim _ (λb. ℕ) Z (λx. λr. λih. S ih) (λx. λy. λr. λih. ⋆) m
 
 -- instances: applications of the generic definitions
-def swapN : ins ℕ Z (ins ℕ (S Z) (nil ℕ)) ≡ ins ℕ (S Z) (ins ℕ Z (nil ℕ)) ∈ El (Bag ℕ) ≔
-  swapG ℕ Z (S Z) (nil ℕ)
+def swapN : ins _ Z (ins _ (S Z) (nil _)) ≡ ins _ (S Z) (ins _ Z (nil _)) ∈ _ ≔
+  swapG _ Z (S Z) (nil _)
 
-def sizeTwoN : size ℕ (ins ℕ Z (ins ℕ (S Z) (nil ℕ))) ≡ S (S Z) ∈ ℕ ≔ ⋆
-def sizeOneU : size 𝟙 (ins 𝟙 () (nil 𝟙)) ≡ S Z ∈ ℕ ≔ ⋆
+def sizeTwoN : size _ (ins _ Z (ins _ (S Z) (nil _))) ≡ S (S Z) ∈ _ ≔ ⋆
+def sizeOneU : size _ (ins _ () (nil _)) ≡ S Z ∈ _ ≔ ⋆

@@ -7,38 +7,38 @@
 -- below), and that iff is all a proposition can soundly give.
 import prop (↔, iffIntro)
 
-data [a : 𝕌] ( Id   : (x : El a) (y : El a) → U
+data [a : 𝕌] ( Id   : El a → El a → U
              ; refl : (x : El a) → El (Id x x) )
 
 -- reflection, by prop-motive induction (J into a proposition): the
 -- refl method's equation is evident, and ElimP asks no coherences
-def idToEq : (a : 𝕌) (x : El a) (y : El a) → El (Id a x y) → x ≡ y ∈ El a ≔
-  λa. λx. λy. λp. IdElimP a (λu. λv. λw. (u ≡ v ∈ El a)) (λu. ⋆) x y p
+def idToEq : (a : 𝕌) (x : El a) (y : El a) → El (Id _ x y) → x ≡ y ∈ _ ≔
+  λa. λx. λy. λp. IdElimP _ (λu. λv. λw. (u ≡ v ∈ _)) (λu. ⋆) _ _ p
 
 -- introduction: with x ≐ y reflected from the hypothesis, refl a x
 -- already inhabits Id a x y (index congruence)
-def eqToId : (a : 𝕌) (x : El a) (y : El a) → (x ≡ y ∈ El a) → El (Id a x y) ≔
-  λa. λx. λy. λh. refl a x
+def eqToId : (a : 𝕌) (x : El a) (y : El a) → (x ≡ y ∈ El a) → El (Id _ x y) ≔
+  λa. λx. λy. λh. refl _ x
 
 -- the bridge, packaged: Id and ≡ are the same proposition up to iff
 def idIffEq : (a : 𝕌) (x : El a) (y : El a) →
-              Prf (∥ El (Id a x y) ∥ ↔ (x ≡ y ∈ El a)) ≔
-  λa. λx. λy. iffIntro ∥ El (Id a x y) ∥ (x ≡ y ∈ El a)
-    (λh. squash-elim h (p. idToEq a x y p))
-    (λh. ⋆ (eqToId a x y h))
+              Prf (∥ El (Id _ x y) ∥ ↔ (x ≡ y ∈ _)) ≔
+  λa. λx. λy. iffIntro ∥ El (Id _ x y) ∥ (x ≡ y ∈ _)
+    (λh. squash-elim h (p. idToEq _ _ _ p))
+    (λh. ⋆ (eqToId _ _ _ h))
 
 -- round trips compute: β at refl on one side, index congruence on the
 -- other
 def idToEqBeta : (a : 𝕌) (x : El a) →
-                 idToEq a x x (refl a x) ≡ ⋆ ∈ Prf (x ≡ x ∈ El a) ≔
+                 idToEq _ _ _ (refl _ x) ≡ ⋆ ∈ Prf (x ≡ x ∈ _) ≔
   λa. λx. ⋆
 def eqToIdBeta : (a : 𝕌) (x : El a) →
-                 eqToId a x x ⋆ ≡ refl a x ∈ El (Id a x x) ≔
+                 eqToId _ x x ⋆ ≡ refl _ x ∈ El (Id _ x x) ≔
   λa. λx. ⋆
 
 -- equality as DATA in a small type — what the Ω-valued ≡ cannot do
 -- (no 𝕌-code) and Id restores: a subset code by an equation
-def OnlyZ : 𝕌 ≔ (n : ℕ) ⨯ Id ℕ n Z
-def onlyZ : El OnlyZ ≔ Z , refl ℕ Z
-def onlyZIsZ : (v : El OnlyZ) → v .π₁ ≡ Z ∈ ℕ ≔
-  λv. idToEq ℕ (v .π₁) Z (v .π₂)
+def OnlyZ : 𝕌 ≔ (n : ℕ) ⨯ Id _ n Z
+def onlyZ : El OnlyZ ≔ Z , refl _ Z
+def onlyZIsZ : (v : El OnlyZ) → v .π₁ ≡ Z ∈ _ ≔
+  λv. idToEq _ _ _ (v .π₂)

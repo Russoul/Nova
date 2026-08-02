@@ -1,0 +1,7 @@
+def id : (A : 𝕌) (x : El A) → El A ≔ λA. λx. x
+
+def idP : (A : Ω) (x : Prf A) → Prf A ≔ λA. λx. x
+
+def const : (A : 𝕌) (B : 𝕌) (x : El A) (y : El B) → El A ≔ λA. λB. λx. λy. x
+
+def constP : (A : Ω) (B : Ω) (x : Prf A) (y : Prf B) → Prf A ≔ λA. λB. λx. λy. x

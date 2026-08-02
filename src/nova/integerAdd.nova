@@ -8,7 +8,7 @@ import integer (Int)
 -- the relation is Ω-valued now, so the conditional hypothesis is the
 -- squash Prf ∥…∥; reflection unsquashes it where the proof is used
 def intAddWD : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ) (h : Prf (b1 + c2 ≡ b2 + c1 ∈ ℕ)) →
-  (a1 + b1) + (a2 + c2) ≡ (a2 + b2) + (a1 + c1) ∈ ℕ ≔
+  (a1 + b1) + (a2 + c2) ≡ (a2 + b2) + (a1 + c1) ∈ _ ≔
   λa1. λa2. λb1. λb2. λc1. λc2. λh. ℕ-elim (k. (a1 + b1) + (k + c2) ≡ (k + b2) + (a1 + c1) ∈ ℕ)
     ⋆ (k ih. ⋆) a2
 
@@ -45,7 +45,7 @@ def intAddTest : intAdd (class (Z , Z)) (class (S Z , S Z)) ≡ class (S Z , S Z
 
 -- commutativity: two quotient eliminations at ≡-motives reduce to the
 -- representative-level cross-sum permutation
-def intAddComm : (x : El Int) (y : El Int) → intAdd x y ≡ intAdd y x ∈ El Int ≔
+def intAddComm : (x : El Int) (y : El Int) → intAdd x y ≡ intAdd y x ∈ _ ≔
   λx. λy. quot-elim
     (q. intAdd q y ≡ intAdd y q ∈ El Int)
     (a. quot-elim
@@ -57,14 +57,14 @@ def intAddComm : (x : El Int) (y : El Int) → intAdd x y ≡ intAdd y x ∈ El 
 -- associativity: three eliminations; the representatives reassociate
 -- by plusAssoc and close by commutativity of the cross sum
 def intAddAssoc : (x : El Int) (y : El Int) (z : El Int) →
-  intAdd (intAdd x y) z ≡ intAdd x (intAdd y z) ∈ El Int ≔
+  intAdd (intAdd x y) z ≡ intAdd x (intAdd y z) ∈ _ ≔
   λx. λy. λz. quot-elim
-    (q. intAdd (intAdd q y) z ≡ intAdd q (intAdd y z) ∈ El Int)
+    (q. intAdd (intAdd q y) z ≡ intAdd q (intAdd y z) ∈ _)
     (a. quot-elim
-          (q. intAdd (intAdd (class a) q) z ≡ intAdd (class a) (intAdd q z) ∈ El Int)
+          (q. intAdd (intAdd (class a) q) z ≡ intAdd (class a) (intAdd q z) ∈ _)
           (b. quot-elim
                 (q. intAdd (intAdd (class a) (class b)) q
-                      ≡ intAdd (class a) (intAdd (class b) q) ∈ El Int)
+                      ≡ intAdd (class a) (intAdd (class b) q) ∈ _)
                 (c. ⋆)
                 z)
           y)

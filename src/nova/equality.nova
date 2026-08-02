@@ -39,15 +39,18 @@ def transportP : (A : 𝕌) (P : El A → Ω) (a : El A) (b : El A) →
 -- only, and this needs composition (f b ← f a ≐ g a → g b). That
 -- composition is exactly transport at an equality-prop motive.
 def transportEq : (A : 𝕌) (B : 𝕌) (f : El A → El B) (g : El A → El B) →
-                  (a : El A) (b : El A) → (a ≡ b ∈ El A) →
-                  (f a ≡ g a ∈ El B) →
-                  f b ≡ g b ∈ El B ≔
+                  (a : El A) (b : El A) → (a ≡ b ∈ _) →
+                  (f a ≡ g a ∈ _) →
+                  f b ≡ g b ∈ _ ≔
   λA. λB. λf. λg. λa. λb. λh. λe.
-    transportP A (λx. (f x ≡ g x ∈ El B)) a b h e
+    transportP _ (λx. (f x ≡ g x ∈ _)) _ _ h e
 
 -- dependent congruence: in an extensional theory it is one ⋆, since
 -- reflecting the hypothesis makes the sides and their types equal
 def cong : (A : 𝕌) (B : El A → 𝕌) (f : (v : El A) → El (B v)) →
-           (v : El A) (w : El A) → (v ≡ w ∈ El A) →
-           f v ≡ f w ∈ El (B w) ≔
+           (v : El A) (w : El A) → (v ≡ w ∈ _) →
+           f v ≡ f w ∈ _ ≔
   λA. λB. λf. λv. λw. λh. ⋆
+
+def irr : (A : 𝕌) (v : El A) (u : El A) (p : v ≡ u ∈ _) → p ≡ ⋆ ∈ (v ≡ u ∈ _)
+  ≔ λA. λv. λu. λp. ⋆

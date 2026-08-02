@@ -31,7 +31,7 @@ def classEqOfRel : (p : ℕ ⨯ ℕ) (q : ℕ ⨯ ℕ) → Prf (IntR p q) → cl
 -- normPair's own representative is IntR-related to its input (that's
 -- normSound), so its class is the same Int
 def classNormPairEq : (p : ℕ ⨯ ℕ) → class (normPair (p .π₁) (p .π₂)) ≡ class p ∈ El Int ≔
-  λp. classEqOfRel (normPair (p .π₁) (p .π₂)) p (⋆ (normSound (p .π₁) (p .π₂)))
+  λp. classEqOfRel (normPair (p .π₁) (p .π₂)) p (normSound (p .π₁) (p .π₂))
 
 -- normalization doesn't change the value: intNormalize z is z. The
 -- quot-elim's well-definedness goal here is an EQUATION (not an Ω
@@ -55,10 +55,10 @@ def eqIRefl : (z : El Int) → Prf (EqI z z) ≔ λz. ⋆
 -- coincide whenever EqI holds
 def eqISound : (z1 : El Int) (z2 : El Int) → Prf (EqI z1 z2) → z1 ≡ z2 ∈ El Int ≔
   λz1. λz2. λh.
-    trans Int z1 (intNormalize z1) z2
-      (sym Int (intNormalize z1) z1 (intNormalizeId z1))
-      (trans Int (intNormalize z1) (intNormalize z2) z2
-        (reflectSquashAt Int (intNormalize z1) (intNormalize z2) h)
+    trans _ _ _ _
+      (sym _ _ _ (intNormalizeId z1))
+      (trans _ _ _ _
+        (reflectSquashAt _ _ _ h)
         (intNormalizeId z2))
 
 -- completeness: z1 ≡ z2 reflects, so intNormalize z1 and intNormalize
@@ -69,11 +69,11 @@ def eqIComplete : (z1 : El Int) (z2 : El Int) → (z1 ≡ z2 ∈ El Int) → Prf
 -- the logical equivalence, packaged with prop.nova's ↔ against the
 -- squashed built-in equality
 def eqISoundP : (z1 : El Int) (z2 : El Int) → Prf (EqI z1 z2) → Prf (z1 ≡ z2 ∈ El Int) ≔
-  λz1. λz2. λh. ⋆ (eqISound z1 z2 h)
+  λz1. λz2. λh. eqISound _ _ h
 
 def eqICompleteP : (z1 : El Int) (z2 : El Int) → Prf (z1 ≡ z2 ∈ El Int) → Prf (EqI z1 z2) ≔
   -- ∥Prf p∥ ≜ p (code-squash-prf): h already proves the equation
-  λz1. λz2. λh. eqIComplete z1 z2 h
+  λz1. λz2. λh. eqIComplete _ _ h
 
 def eqIIff : (z1 : El Int) (z2 : El Int) → Prf (EqI z1 z2 ↔ (z1 ≡ z2 ∈ El Int)) ≔
-  λz1. λz2. iffIntro (EqI z1 z2) (z1 ≡ z2 ∈ El Int) (eqISoundP z1 z2) (eqICompleteP z1 z2)
+  λz1. λz2. iffIntro _ _ (eqISoundP _ _) (eqICompleteP _ _)

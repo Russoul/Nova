@@ -2,9 +2,9 @@
 -- carrier (external index arity over the ambient [a : 𝕌]), with
 -- dependent elimination at an indexed motive — and the functions at
 -- the same generality.
-data [a : 𝕌] ( V : (n : El ℕ) → U
+data [a : 𝕌] ( V : El ℕ → U
              ; vnil : El (V Z)
-             ; vcons : (n : El ℕ) (x : El a) (xs : El (V n)) → El (V (S n)) )
+             ; vcons : (n : El ℕ) → El a → El (V n) → El (V (S n)) )
 
 -- the GENERIC FOLD: one dependent elimination for every carrier and
 -- every result code
@@ -15,14 +15,14 @@ def vfold : (a : 𝕌) (b : 𝕌) (z : El b) (c : El a → El b → El b)
 
 -- generic length and an instance-level sum, both folds
 def vlen : (a : 𝕌) (n : El ℕ) → El (V a n) → ℕ ≔
-  λa. λn. λv. vfold a ℕ Z (λx. λih. S ih) n v
+  λa. λn. λv. vfold _ _ Z (λx. λih. S ih) n v
 
 def plusV : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) y (n ih. S ih) x
 
-def vsum : (n : El ℕ) → El (V ℕ n) → ℕ ≔
-  λn. λv. vfold ℕ ℕ Z (λx. λih. plusV x ih) n v
+def vsum : (n : El ℕ) → El (V _ n) → ℕ ≔
+  λn. λv. vfold _ _ Z (λx. λih. plusV x ih) n v
 
-def single : El (V ℕ (S Z)) ≔ vcons ℕ Z (S (S (S Z))) (vnil ℕ)
+def single : El (V _ (S Z)) ≔ vcons _ Z (S (S (S Z))) (vnil _)
 
-def vsumSingle : vsum (S Z) single ≡ S (S (S Z)) ∈ ℕ ≔ ⋆
-def vlenSingle : vlen ℕ (S Z) single ≡ S Z ∈ ℕ ≔ ⋆
+def vsumSingle : vsum (S Z) single ≡ S (S (S Z)) ∈ _ ≔ ⋆
+def vlenSingle : vlen ℕ (S Z) single ≡ S Z ∈ _ ≔ ⋆

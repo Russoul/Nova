@@ -2,18 +2,18 @@
 -- signature, with the derived eliminator computing by el-qiit-beta.
 data ( N : U
      ; z : El N
-     ; s : (n : El N) → El N )
+     ; s : El N → El N )
 
 def plusQ : El N → El N → El N ≔
   λa. λb. NElim (λn. N) b (λn. λih. s ih) a
 
-def plusQzl : (b : El N) → plusQ z b ≡ b ∈ El N ≔ λb. ⋆
+def plusQzl : (b : El N) → plusQ z b ≡ b ∈ _ ≔ λb. ⋆
 
-def plusQsl : (a : El N) (b : El N) → plusQ (s a) b ≡ s (plusQ a b) ∈ El N ≔
+def plusQsl : (a : El N) (b : El N) → plusQ (s a) b ≡ s (plusQ a b) ∈ _ ≔
   λa. λb. ⋆
 
 -- induction: plusQ a z ≡ a, by NElimP at the equality PROP motive
 -- (equality is Ω-valued: the prop-flavored eliminator carries Ω-valued
 -- motives and, by proof irrelevance, needs no coherence arguments)
-def plusQzr : (a : El N) → plusQ a z ≡ a ∈ El N ≔
+def plusQzr : (a : El N) → plusQ a z ≡ a ∈ _ ≔
   λa. NElimP (λn. (plusQ n z ≡ n ∈ El N)) ⋆ (λn. λih. ⋆) a
