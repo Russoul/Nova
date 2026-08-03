@@ -1051,62 +1051,93 @@ mutual
   ||| positions being passed THROUGH (congruence needs no type at
   ||| intermediate hops), fatal only at the rewrite point itself.
   childTyE : Sig -> Ctx -> Maybe Ty -> Elem -> Nat -> KM (Maybe Ty)
-  childTyE sig ctx pexp (ZeroElim _) 0 = pure (Just Ty.ZeroTy)
-  childTyE sig ctx pexp (NatIntro1 _) 0 = pure (Just Ty.NatTy)
-  childTyE sig ctx pexp (NatElim _ _ _) 0 = pure pexp                    -- constant-motive reading
-  childTyE sig ctx pexp (NatElim _ _ _) 1 = pure (map (weakenTyN 2) pexp)
-  childTyE sig ctx pexp (NatElim _ _ _) 2 = pure (Just Ty.NatTy)
-  childTyE sig ctx (Just pe) (PiIntro _) 0 = do
-    t <- kTy sig pe
-    case t of
-      Ty.PiTy _ b => pure (Just b)
+  -- SINGLE-COLUMN matching, deliberately: one clause per former, the
+  -- child index (a Nat — nested S-patterns!) and the expected-type
+  -- Maybe dispatched in the BODY. The former ⨯ index ⨯ Maybe product
+  -- pattern this replaces made the compile-time case tree and its
+  -- coverage check the single most expensive item in the file
+  -- (~23s / most of the peak RSS).
+  childTyE sig ctx pexp (ZeroElim _) i =
+    pure (if i == 0 then Just Ty.ZeroTy else Nothing)
+  childTyE sig ctx pexp (NatIntro1 _) i =
+    pure (if i == 0 then Just Ty.NatTy else Nothing)
+  childTyE sig ctx pexp (NatElim _ _ _) i =
+    case i of
+      0 => pure pexp                    -- constant-motive reading
+      1 => pure (map (weakenTyN 2) pexp)
+      2 => pure (Just Ty.NatTy)
       _ => pure Nothing
-  childTyE sig ctx pexp (PiApp f _) 0 = pure Nothing
-  childTyE sig ctx pexp (PiApp f _) 1 = do
-    mf <- inferNeK sig ctx f
-    case mf of
-      Just fTy => do
-        t <- kTy sig fTy
+  childTyE sig ctx pexp (PiIntro _) i =
+    case (pexp, i) of
+      (Just pe, 0) => do
+        t <- kTy sig pe
         case t of
-          Ty.PiTy a _ => pure (Just a)
+          Ty.PiTy _ b => pure (Just b)
           _ => pure Nothing
-      Nothing => pure Nothing
-  childTyE sig ctx (Just pe) (SigmaIntro _ _) 0 = do
-    t <- kTy sig pe
-    case t of
-      Ty.SigmaTy a _ => pure (Just a)
       _ => pure Nothing
-  childTyE sig ctx (Just pe) (SigmaIntro u _) 1 = do
-    t <- kTy sig pe
-    case t of
-      Ty.SigmaTy _ b => pure (Just (substTy b (Ext Id u)))
+  childTyE sig ctx pexp (PiApp f _) i =
+    case i of
+      1 => do
+        mf <- inferNeK sig ctx f
+        case mf of
+          Just fTy => do
+            t <- kTy sig fTy
+            case t of
+              Ty.PiTy a _ => pure (Just a)
+              _ => pure Nothing
+          Nothing => pure Nothing
       _ => pure Nothing
-  childTyE sig ctx pexp (SigmaElim1 u) 0 = inferNeK sig ctx u
-  childTyE sig ctx pexp (SigmaElim2 u) 0 = inferNeK sig ctx u
-  childTyE sig ctx (Just pe) (Inj1 _) 0 = do
-    t <- kTy sig pe
-    case t of
-      Ty.SumTy a _ => pure (Just a)
+  childTyE sig ctx pexp (SigmaIntro u _) i =
+    case (pexp, i) of
+      (Just pe, 0) => do
+        t <- kTy sig pe
+        case t of
+          Ty.SigmaTy a _ => pure (Just a)
+          _ => pure Nothing
+      (Just pe, 1) => do
+        t <- kTy sig pe
+        case t of
+          Ty.SigmaTy _ b => pure (Just (substTy b (Ext Id u)))
+          _ => pure Nothing
       _ => pure Nothing
-  childTyE sig ctx (Just pe) (Inj2 _) 0 = do
-    t <- kTy sig pe
-    case t of
-      Ty.SumTy _ b => pure (Just b)
+  childTyE sig ctx pexp (SigmaElim1 u) i =
+    if i == 0 then inferNeK sig ctx u else pure Nothing
+  childTyE sig ctx pexp (SigmaElim2 u) i =
+    if i == 0 then inferNeK sig ctx u else pure Nothing
+  childTyE sig ctx pexp (Inj1 _) i =
+    case (pexp, i) of
+      (Just pe, 0) => do
+        t <- kTy sig pe
+        case t of
+          Ty.SumTy a _ => pure (Just a)
+          _ => pure Nothing
+      _ => pure Nothing
+  childTyE sig ctx pexp (Inj2 _) i =
+    case (pexp, i) of
+      (Just pe, 0) => do
+        t <- kTy sig pe
+        case t of
+          Ty.SumTy _ b => pure (Just b)
+          _ => pure Nothing
       _ => pure Nothing
   -- ⊎-elim: the case positions are motive-dependent (undetermined);
   -- the scrutinee's type is neutrally inferable
-  childTyE sig ctx pexp (SumElim _ _ t) 2 = inferNeK sig ctx t
-  childTyE sig ctx pexp (Elem.SumTy _ _) 0 = pure (Just Ty.UniverseTy)
-  childTyE sig ctx pexp (Elem.SumTy _ _) 1 = pure (Just Ty.UniverseTy)
-  childTyE sig ctx pexp (Elem.PiTy _ _) 0 = pure (Just Ty.UniverseTy)
-  childTyE sig ctx pexp (Elem.PiTy _ _) 1 = pure (Just Ty.UniverseTy)
-  childTyE sig ctx pexp (Elem.SigmaTy _ _) 0 = pure (Just Ty.UniverseTy)
-  childTyE sig ctx pexp (Elem.SigmaTy _ _) 1 = pure (Just Ty.UniverseTy)
-  childTyE sig ctx pexp (Elem.EqTy _ _ t) 0 = pure (Just t)
-  childTyE sig ctx pexp (Elem.EqTy _ _ t) 1 = pure (Just t)
-  -- child 2 is a TYPE child (walked by the type descent)
-  childTyE sig ctx pexp (QuotTy _ _) 0 = pure (Just Ty.UniverseTy)
-  childTyE sig ctx pexp (QuotTy _ _) 1 = pure (Just Ty.PropTy)
+  childTyE sig ctx pexp (SumElim _ _ t) i =
+    if i == 2 then inferNeK sig ctx t else pure Nothing
+  childTyE sig ctx pexp (Elem.SumTy _ _) i =
+    pure (if i == 0 || i == 1 then Just Ty.UniverseTy else Nothing)
+  childTyE sig ctx pexp (Elem.PiTy _ _) i =
+    pure (if i == 0 || i == 1 then Just Ty.UniverseTy else Nothing)
+  childTyE sig ctx pexp (Elem.SigmaTy _ _) i =
+    pure (if i == 0 || i == 1 then Just Ty.UniverseTy else Nothing)
+  -- child 2 of ≡ is a TYPE child (walked by the type descent)
+  childTyE sig ctx pexp (Elem.EqTy _ _ t) i =
+    pure (if i == 0 || i == 1 then Just t else Nothing)
+  childTyE sig ctx pexp (QuotTy _ _) i =
+    case i of
+      0 => pure (Just Ty.UniverseTy)
+      1 => pure (Just Ty.PropTy)
+      _ => pure Nothing
   childTyE sig ctx pexp (SigVar x es) i =
     case sigLookup x sig of
       Just (SigDef delta _ _ _) =>
@@ -1120,18 +1151,26 @@ mutual
             pure (Just (substTy entryTy (embed (cast (take i (toList es))))))
           Nothing => pure Nothing
       _ => pure Nothing
-  childTyE sig ctx (Just pe) (Class _) 0 = do
-    t <- kTy sig pe
-    case t of
-      Ty.Quotient dom _ => pure (Just dom)
+  childTyE sig ctx pexp (Class _) i =
+    case (pexp, i) of
+      (Just pe, 0) => do
+        t <- kTy sig pe
+        case t of
+          Ty.Quotient dom _ => pure (Just dom)
+          _ => pure Nothing
       _ => pure Nothing
-  childTyE sig ctx pexp (QuotElim _ q) 1 = inferNeK sig ctx q
+  childTyE sig ctx pexp (QuotElim _ q) i =
+    if i == 1 then inferNeK sig ctx q else pure Nothing
   -- ν formers: out's scrutinee is neutrally inferable; corec's carrier
   -- is a code, its seed at the carrier's decoding (the body, child 1,
   -- is carrier-dependent — undetermined, like ⊎-elim's cases)
-  childTyE sig ctx pexp (Out t) 0 = inferNeK sig ctx t
-  childTyE sig ctx pexp (Corec _ _ _ _) 0 = pure (Just Ty.UniverseTy)
-  childTyE sig ctx pexp (Corec _ a _ _) 2 = pure (Just (El a))
+  childTyE sig ctx pexp (Out t) i =
+    if i == 0 then inferNeK sig ctx t else pure Nothing
+  childTyE sig ctx pexp (Corec _ a _ _) i =
+    case i of
+      0 => pure (Just Ty.UniverseTy)
+      2 => pure (Just (El a))
+      _ => pure Nothing
   -- QIIT formers: spine child i's type is the reflected telescope's
   -- entry i, instantiated by the earlier children — always determined
   childTyE sig ctx pexp (QSortC sg k es) i = qSpineChildTy sg k es i
