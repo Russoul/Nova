@@ -120,7 +120,10 @@ Types: `𝟘 𝟙 ℕ 𝕌 Ω`, `(x : T) → U` and `T → U`, `(x : T) ⨯ U`,
 `T ⊎ U` (non-dependent disjoint union; binds TIGHTER than → ⨯, so
 `A ⊎ B → C` is `(A ⊎ B) → C`),
 `l ≡ r ∈ T` (SUGAR for `Prf (l ≡ r ∈ T)` — equality is an Ω-valued
-PROPOSITION), `El t`, `T / (x y. r)` (r is Ω-valued), `Prf p`.
+PROPOSITION), `El t`, `T / (x y. r)` (r is Ω-valued), `Prf p`,
+`ν F` (coinductive type at a one-hole polynomial `F ::= 𝕏 | K t |
+F ⨯ F | F ⊎ F | (x:t) ⨯ F | (x:t) → F` — external pieces are codes;
+e.g. `ν (K a ⨯ 𝕏)` is streams of `a`).
 `∥T∥` squashes any type to a proposition; `∥Prf p∥ ≜ p`.
 
 Elements: `λx. t`; application by juxtaposition; `(t : T)` ascription
@@ -132,6 +135,13 @@ the ∈-slot takes a TYPE, so write `∈ El a` for a code `a`);
 `⊎-elim (w. T) (a. l) (b. r) t` (motive, left case, right case,
 scrutinee — β on both injections);
 `class t` (quotient intro); `quot-elim (x. T) (a. f) q`;
+`out t` (the coinductive observation — infers, like the projections)
+and `corec (x : a. f) u` (corecursor: carrier code `a`, coalgebra
+body `f` over `x : El a`, seed `u` — checking-only, the polynomial
+comes from the expected ν-type; β: `out (corec …)` runs one step.
+The coinduction law el-nu-eta is judgemental in the theory but has
+NO kernel certificate — like el-qiit-eta — so only β-closing
+equations discharge today; bisimulation-shaped goals stay open);
 `⋆` (canonical proof; `⋆ e` with explicit witness);
 `squash-elim e (x. body)`. Universe codes are written like their types
 (`𝟘 𝟙 ℕ`, `(x : t) → u`, `l ≡ r ∈ t`).
@@ -210,6 +220,8 @@ data [a : 𝕌] [r : El a → El a → Ω]
 - `src/nova/` — the corpus, one topic per file: `nat` (arithmetic),
   `sum` (the disjoint union ⊎: inj₁/inj₂, ⊎-elim, β/η, derived
   injectivity and disjointness),
+  `stream` (coinductive streams and conaturals: ν, out, corec,
+  β-driven observation lemmas),
   `equality`/`prop` (≡ and Ω), `quotient`/`quottyuniv` (quotients),
   `vect`/`vectAppend` (𝕌-indexed families), `qiitNat`/`qiitBag`/
   `qiitQuot`/`qiitVec` (QIIT basics), `id` (the identity family —

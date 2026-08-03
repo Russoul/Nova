@@ -142,6 +142,14 @@ mutual
             t <- parseElemAtom
             pure (SumElim l r t))
     <|> (do str_ "class"; space; e <- parseElemAtom; pure (Class e))
+    <|> (do str_ "ν"; space; f <- parsePolyAtom; pure (Elem.NuTy f))
+    <|> (do str_ "out"; space; e <- parseElemAtom; pure (Out e))
+    <|> (do str_ "corec"; space
+            f <- parsePolyAtom; space
+            a <- parseElemAtom; space
+            g <- parseElemAtom; space
+            x <- parseElemAtom
+            pure (Corec f a g x))
     <|> (do str_ "quot-elim"; space
             f <- parseElemAtom; space
             q <- parseElemAtom
@@ -274,7 +282,34 @@ mutual
   parseTyEl =
         (do str_ "El"; space; e <- parseElemAtom; pure (El e))
     <|> (do str_ "Prf"; space; e <- parseElemAtom; pure (Prf e))
+    <|> (do str_ "ν"; space; f <- parsePolyAtom; pure (Ty.NuTy f))
     <|> parseTyAtom
+
+  -- Polynomials (one-hole codes): binders and products at the top,
+  -- sums tighter, atoms innermost — the surface grammar's levels.
+  covering
+  parsePoly : Rule Poly
+  parsePoly =
+        (do str_ "El"; space; a <- parseElemAtom; sp
+            (do str_ "⨯"; sp; f <- parsePoly; pure (PSigma a f))
+              <|> (do str_ "→"; sp; f <- parsePoly; pure (PPi a f)))
+    <|> (do f <- parsePolySum
+            (do sp; str_ "⨯"; sp; g <- parsePoly; pure (PProd f g))
+              <|> pure f)
+
+  covering
+  parsePolySum : Rule Poly
+  parsePolySum = do
+    f <- parsePolyAtom
+    (do sp; str_ "⊎"; sp; g <- parsePolySum; pure (PSum f g))
+      <|> pure f
+
+  covering
+  parsePolyAtom : Rule Poly
+  parsePolyAtom =
+        (str_ "𝕏" $> PHole)
+    <|> (do str_ "K"; space; a <- parseElemAtom; pure (PConst a))
+    <|> (do char_ '('; sp; f <- parsePoly; sp; char_ ')'; pure f)
 
   -- Constant types, signature type variable, and parenthesised type
   covering

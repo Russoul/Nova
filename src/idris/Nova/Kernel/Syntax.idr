@@ -55,6 +55,9 @@ mutual
       ||| 𝒮.k ē  (the sort at entry position k of the carried QIIT
       ||| signature, at index spine ē — ty-qiit)
       QSort : QSig -> Nat -> SubNorm -> Ty
+      ||| ν 𝔽  (the coinductive type at the carried polynomial — ty-nu;
+      ||| 𝔽 is carried, so ν-equality is structural, like a QIIT's 𝒮)
+      NuTy : Poly -> Ty
 
   namespace Elem
     public export
@@ -139,6 +142,18 @@ mutual
       ||| in entry order, terms over Γ; then the index spine and the
       ||| eliminee. Coherences are CHECKED (kernel PQCoh), not stored.)
       QElim : QSig -> Nat -> List Ty -> List Elem -> SubNorm -> Elem -> Elem
+      ||| ν 𝔽  (universe code for the coinductive type — code-nu; every
+      ||| polynomial is small, the grammar enforces it)
+      NuTy : Poly -> Elem
+      ||| out t  (the coinductive observation — el-nu-e, the ELIMINATOR;
+      ||| lazy: computes only at a corec head, el-nu-beta)
+      Out : Elem -> Elem
+      ||| corec 𝔽 a f x  (the corecursor — el-nu-i, the INTRODUCTION:
+      ||| carried polynomial, carrier code, coalgebra body — one bound
+      ||| variable over El a — and seed. 𝔽 and a are CARRIED, like ℰ at
+      ||| QElim: el-nu-beta consumes map_𝔽, so the redex is
+      ||| self-contained)
+      Corec : Poly -> Elem -> Elem -> Elem -> Elem
 
   namespace QTm
     ||| Theory-of-signatures terms (docs/NovaFoundation.txt, QIIT
@@ -172,6 +187,27 @@ mutual
       QPiExt : Ty -> QTy -> QTy
       ||| El 𝕥 ⇛ 𝔄 — INDUCTIVE Π (𝕥 a sort code; binds a ToS variable)
       QPiInd : QTm -> QTy -> QTy
+
+  namespace Poly
+    ||| One-hole polynomial codes (docs/NovaFoundation.txt, coinductive
+    ||| section): the hole 𝕏, external CODE pieces, products, sums, and
+    ||| the two binding formers (a left-hand El a binds a Nova variable
+    ||| in the body's embedded pieces). Strict positivity is
+    ||| grammatical: the hole never sits left of an exponent.
+    public export
+    data Poly : Type where
+      ||| 𝕏 — the hole
+      PHole : Poly
+      ||| K a — constant at a code
+      PConst : Elem -> Poly
+      ||| 𝔽 ⨯ 𝔾 — product (non-binding)
+      PProd : Poly -> Poly -> Poly
+      ||| 𝔽 ⊎ 𝔾 — sum
+      PSum : Poly -> Poly -> Poly
+      ||| El a ⨯ 𝔽 — dependent pair over external data (binds)
+      PSigma : Elem -> Poly -> Poly
+      ||| El a → 𝔽 — exponent with external domain (binds)
+      PPi : Elem -> Poly -> Poly
 
   ||| A QIIT signature IS a closed qiit-context: entries in declaration
   ||| order (position 0 first), ANONYMOUS — a signature mints no names.
@@ -374,6 +410,7 @@ mutual
     Quotient a r   == Quotient a' r'   = a == a' && r == r'
     Ty.SigVar x s  == Ty.SigVar x' s'  = x == x' && s == s'
     QSort s k es   == QSort s' k' es'  = s == s' && k == k' && es == es'
+    NuTy f         == NuTy f'          = f == f'
     _              == _                = False
 
   public export
@@ -410,6 +447,9 @@ mutual
     QCtor s k es     == QCtor s' k' es'    = s == s' && k == k' && es == es'
     QElim s k ms fs es w == QElim s' k' ms' fs' es' w' =
       s == s' && k == k' && ms == ms' && fs == fs' && es == es' && w == w'
+    Elem.NuTy f      == Elem.NuTy f'       = f == f'
+    Out t            == Out t'             = t == t'
+    Corec p a f x    == Corec p' a' f' x'  = p == p' && a == a' && f == f' && x == x'
     _                == _                  = False
 
   public export
@@ -428,6 +468,17 @@ mutual
     QEl t       == QEl t'         = t == t'
     QPiExt a b  == QPiExt a' b'   = a == a' && b == b'
     QPiInd u b  == QPiInd u' b'   = u == u' && b == b'
+    _           == _              = False
+
+  public export
+  covering
+  Eq Poly where
+    PHole       == PHole          = True
+    PConst a    == PConst a'      = a == a'
+    PProd f g   == PProd f' g'    = f == f' && g == g'
+    PSum f g    == PSum f' g'     = f == f' && g == g'
+    PSigma a f  == PSigma a' f'   = a == a' && f == f'
+    PPi a f     == PPi a' f'      = a == a' && f == f'
     _           == _              = False
 
 mutual
@@ -488,6 +539,9 @@ mutual
     compare (Ty.SigVar _ _)  _                  = LT
     compare _                (Ty.SigVar _ _)    = GT
     compare (QSort s k es)   (QSort s' k' es')  = compare s s' <+> compare k k' <+> compare es es'
+    compare (QSort _ _ _)    _                  = LT
+    compare _                (QSort _ _ _)      = GT
+    compare (NuTy f)         (NuTy f')          = compare f f'
 
   public export
   covering
@@ -581,6 +635,16 @@ mutual
     compare _                  (QCtor _ _ _)        = GT
     compare (QElim s k ms fs es w) (QElim s' k' ms' fs' es' w') =
       compare s s' <+> compare k k' <+> compare ms ms' <+> compare fs fs' <+> compare es es' <+> compare w w'
+    compare (QElim _ _ _ _ _ _) _                   = LT
+    compare _                  (QElim _ _ _ _ _ _)  = GT
+    compare (Elem.NuTy f)      (Elem.NuTy f')       = compare f f'
+    compare (Elem.NuTy _)      _                    = LT
+    compare _                  (Elem.NuTy _)        = GT
+    compare (Out t)            (Out t')             = compare t t'
+    compare (Out _)            _                    = LT
+    compare _                  (Out _)              = GT
+    compare (Corec p a f x)    (Corec p' a' f' x')  =
+      compare p p' <+> compare a a' <+> compare f f' <+> compare x x'
 
   public export
   covering
@@ -610,6 +674,26 @@ mutual
     compare _             (QPiExt _ _)    = GT
     compare (QPiInd u b)  (QPiInd u' b')  = compare u u' <+> compare b b'
 
+  public export
+  covering
+  Ord Poly where
+    compare PHole         PHole           = EQ
+    compare PHole         _               = LT
+    compare _             PHole           = GT
+    compare (PConst a)    (PConst a')     = compare a a'
+    compare (PConst _)    _               = LT
+    compare _             (PConst _)      = GT
+    compare (PProd f g)   (PProd f' g')   = compare f f' <+> compare g g'
+    compare (PProd _ _)   _               = LT
+    compare _             (PProd _ _)     = GT
+    compare (PSum f g)    (PSum f' g')    = compare f f' <+> compare g g'
+    compare (PSum _ _)    _               = LT
+    compare _             (PSum _ _)      = GT
+    compare (PSigma a f)  (PSigma a' f')  = compare a a' <+> compare f f'
+    compare (PSigma _ _)  _               = LT
+    compare _             (PSigma _ _)    = GT
+    compare (PPi a f)     (PPi a' f')     = compare a a' <+> compare f f'
+
 mutual
   public export
   covering
@@ -636,6 +720,7 @@ mutual
     show (Quotient a r) = "Quotient (\{show a}) (\{show r})"
     show (Ty.SigVar x s) = "SigVar \{show x} (\{show s})"
     show (QSort s k es) = "QSort (\{show s}) \{show k} (\{show es})"
+    show (NuTy f) = "NuTy (\{show f})"
 
   public export
   covering
@@ -671,6 +756,9 @@ mutual
     show (QCtor s k es) = "QCtor (\{show s}) \{show k} (\{show es})"
     show (QElim s k ms fs es w) =
       "QElim (\{show s}) \{show k} (\{show ms}) (\{show fs}) (\{show es}) (\{show w})"
+    show (Elem.NuTy f) = "NuTy (\{show f})"
+    show (Out t) = "Out (\{show t})"
+    show (Corec p a f x) = "Corec (\{show p}) (\{show a}) (\{show f}) (\{show x})"
 
   public export
   covering
@@ -687,3 +775,13 @@ mutual
     show (QEl t) = "QEl (\{show t})"
     show (QPiExt a b) = "QPiExt (\{show a}) (\{show b})"
     show (QPiInd u b) = "QPiInd (\{show u}) (\{show b})"
+
+  public export
+  covering
+  Show Poly where
+    show PHole = "PHole"
+    show (PConst a) = "PConst (\{show a})"
+    show (PProd f g) = "PProd (\{show f}) (\{show g})"
+    show (PSum f g) = "PSum (\{show f}) (\{show g})"
+    show (PSigma a f) = "PSigma (\{show a}) (\{show f})"
+    show (PPi a f) = "PPi (\{show a}) (\{show f})"

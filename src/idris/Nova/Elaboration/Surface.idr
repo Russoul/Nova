@@ -48,11 +48,31 @@ mutual
     STyProp : STy
     ||| Prf t
     STyPrf : SElem -> STy
+    ||| ν F — the coinductive type at a surface polynomial
+    STyNu : SPoly -> STy
     ||| ?x (rigid) or _x/_ (solvable) — a hole in type position: a
     ||| type declaration in Σ, stuck until (if solvable) instantiated;
     ||| blocks acceptance while it remains a declaration. The range is
     ||| the token's source span (display metadata, for the LSP).
     STyHole : Maybe Range -> (solvable : Bool) -> String -> STy
+
+  ||| Surface polynomials — the one-hole codes of Foundation's
+  ||| coinductive section. External pieces are element-level CODES; a
+  ||| left-hand (x:t) binds x in the body.
+  public export
+  data SPoly : Type where
+    ||| 𝕏 — the hole
+    SPHole : SPoly
+    ||| K t — constant at a code
+    SPConst : SElem -> SPoly
+    ||| F ⨯ G — product (non-binding)
+    SPProd : SPoly -> SPoly -> SPoly
+    ||| F ⊎ G — sum
+    SPSum : SPoly -> SPoly -> SPoly
+    ||| (x:t) ⨯ F — dependent pair over external data (binds)
+    SPSigma : (x : SName) -> SElem -> SPoly -> SPoly
+    ||| (x:t) → F — exponent with external domain (binds)
+    SPPi : (x : SName) -> SElem -> SPoly -> SPoly
 
   public export
   data SElem : Type where
@@ -97,6 +117,15 @@ mutual
     SClass : SElem -> SElem
     ||| quot-elim (z. T) (a. f) q — motive-first
     SQuotElim : (z : SName) -> STy -> (a : SName) -> SElem -> SElem -> SElem
+    ||| ν F — the ν CODE (infers at 𝕌)
+    SNuC : SPoly -> SElem
+    ||| out t — the coinductive observation (infers, like the
+    ||| projections)
+    SOut : SElem -> SElem
+    ||| corec (x : a. f) u — carrier code inline as a binder
+    ||| annotation; checking-only (the polynomial comes from the
+    ||| expected ν-type)
+    SCorec : (x : SName) -> SElem -> SElem -> SElem -> SElem
     ||| ∥T∥ — squash: proposition from an arbitrary type
     SSquash : STy -> SElem
     ||| ⋆ — the canonical proof of a true proposition (evident 𝟙-/
@@ -242,6 +271,7 @@ mutual
     show (STyQuot a x y r) = "Quot (\{show a}) \{fst x} \{fst y} (\{show r})"
     show (STyEq l r t) = "Eq (\{show l}) (\{show r}) (\{show t})"
     show (STyEl e) = "El (\{show e})"
+    show (STyNu f) = "Nu (\{show f})"
     show STyProp = "Ω"
     show (STyPrf e) = "Prf (\{show e})"
     show (STyHole _ solvable x) = if solvable then "_\{x}" else "?\{x}"
@@ -276,12 +306,26 @@ mutual
     show (SClass t) = "Class (\{show t})"
     show (SQuotElim z mot a f q) =
       "QuotElim \{fst z} (\{show mot}) \{fst a} (\{show f}) (\{show q})"
+    show (SNuC f) = "NuC (\{show f})"
+    show (SOut e) = "Out (\{show e})"
+    show (SCorec x a f u) =
+      "Corec \{fst x} (\{show a}) (\{show f}) (\{show u})"
     show (SSquash t) = "Squash (\{show t})"
     show SStar = "⋆"
     show (SStarWit e) = "⋆ (\{show e})"
     show (SSquashElim e x body) = "SquashElim (\{show e}) \{fst x} (\{show body})"
     show (SAnn t ty) = "Ann (\{show t}) (\{show ty})"
     show (SHole _ solvable x) = if solvable then "_\{x}" else "?\{x}"
+
+  public export
+  covering
+  Show SPoly where
+    show SPHole = "𝕏"
+    show (SPConst a) = "K (\{show a})"
+    show (SPProd f g) = "PProd (\{show f}) (\{show g})"
+    show (SPSum f g) = "PSum (\{show f}) (\{show g})"
+    show (SPSigma x a f) = "PSigma \{fst x} (\{show a}) (\{show f})"
+    show (SPPi x a f) = "PPi \{fst x} (\{show a}) (\{show f})"
 
 export
 Show SImport where

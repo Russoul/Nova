@@ -83,6 +83,10 @@ mutual
     QElim (substQSig sg sigma) k
       (substMotives sg ms sigma) (map (\f => substElem f sigma) fs)
       (substSubNorm es sigma) (substElem w sigma)
+  substElem (Elem.NuTy f)      sigma = Elem.NuTy (substPoly f sigma)
+  substElem (Out t)            sigma = Out (substElem t sigma)
+  substElem (Corec p a f x)    sigma =
+    Corec (substPoly p sigma) (substElem a sigma) (substElem f (under sigma)) (substElem x sigma)
 
   ||| Motive i lives over Γ·⌊𝔎ᵢ⌋ᵗ ▷ 𝒮.kᵢ δ — lift σ once per index
   ||| binder plus once for the eliminee.
@@ -119,6 +123,17 @@ mutual
   substQSig : QSig -> Sub -> QSig
   substQSig sg sigma = map (\t => substQTy t sigma) sg
 
+  ||| 𝔽[σ] — σ on the embedded Nova pieces, lifted under the binding
+  ||| formers; the hole is inert.
+  export
+  substPoly : Poly -> Sub -> Poly
+  substPoly PHole        sigma = PHole
+  substPoly (PConst a)   sigma = PConst (substElem a sigma)
+  substPoly (PProd f g)  sigma = PProd (substPoly f sigma) (substPoly g sigma)
+  substPoly (PSum f g)   sigma = PSum (substPoly f sigma) (substPoly g sigma)
+  substPoly (PSigma a f) sigma = PSigma (substElem a sigma) (substPoly f (under sigma))
+  substPoly (PPi a f)    sigma = PPi (substElem a sigma) (substPoly f (under sigma))
+
   ||| T[σ]
   export
   substTy : Ty -> Sub -> Ty
@@ -135,6 +150,7 @@ mutual
   substTy (Quotient a r)        sigma = Quotient (substTy a sigma) (substElem r (under (under sigma)))
   substTy (Ty.SigVar x es)      sigma = Ty.SigVar x (substSubNorm es sigma)
   substTy (QSort sg k es)       sigma = QSort (substQSig sg sigma) k (substSubNorm es sigma)
+  substTy (Ty.NuTy f)           sigma = Ty.NuTy (substPoly f sigma)
 
 
 
@@ -205,6 +221,11 @@ mutual
     goMs [] (m :: rest) = Nothing
     goMs (kk :: ks) (m :: rest) =
       [| strengthenTy (d + S (qArityLen sg kk)) m :: goMs ks rest |]
+  strengthenElem d (Elem.NuTy f)      = Elem.NuTy <$> strengthenPoly d f
+  strengthenElem d (Out t)            = Out <$> strengthenElem d t
+  strengthenElem d (Corec p a f x)    =
+    Corec <$> strengthenPoly d p <*> strengthenElem d a
+          <*> strengthenElem (1 + d) f <*> strengthenElem d x
 
   export
   strengthenQTm : (depth : Nat) -> QTm -> Maybe QTm
@@ -223,6 +244,15 @@ mutual
   export
   strengthenQSig : (depth : Nat) -> QSig -> Maybe QSig
   strengthenQSig d = traverse (strengthenQTy d)
+
+  export
+  strengthenPoly : (depth : Nat) -> Poly -> Maybe Poly
+  strengthenPoly d PHole        = Just PHole
+  strengthenPoly d (PConst a)   = PConst <$> strengthenElem d a
+  strengthenPoly d (PProd f g)  = PProd <$> strengthenPoly d f <*> strengthenPoly d g
+  strengthenPoly d (PSum f g)   = PSum <$> strengthenPoly d f <*> strengthenPoly d g
+  strengthenPoly d (PSigma a f) = PSigma <$> strengthenElem d a <*> strengthenPoly (1 + d) f
+  strengthenPoly d (PPi a f)    = PPi <$> strengthenElem d a <*> strengthenPoly (1 + d) f
 
   export
   strengthenSubNorm : (depth : Nat) -> SubNorm -> Maybe SubNorm
@@ -244,6 +274,7 @@ mutual
   strengthenTy d (Quotient a r)    = Quotient <$> strengthenTy d a <*> strengthenElem (2 + d) r
   strengthenTy d (Ty.SigVar x es)  = Ty.SigVar x <$> strengthenSubNorm d es
   strengthenTy d (QSort sg k es)   = QSort <$> strengthenQSig d sg <*> Just k <*> strengthenSubNorm d es
+  strengthenTy d (Ty.NuTy f)       = Ty.NuTy <$> strengthenPoly d f
 
 ||| Only surface-shaped substitutions (flat Ext/Terminal element lists)
 ||| strengthen; Id/Wk/Chain are index-sensitive and never appear in
@@ -266,3 +297,48 @@ weakenSub : Sub -> Sub
 weakenSub Terminal  = Terminal
 weakenSub (Ext s e) = Ext (weakenSub s) (substElem e Wk)
 weakenSub s         = assert_total $ idris_crash "weakenSub: non-surface substitution"
+
+
+-- ===== Coinductive meta-operations (Foundation, coinductive section) =====
+
+||| ⌊𝔽⌋(c) — the code with the hole filled by c (a code over the same
+||| context as 𝔽). c weakens under the binding formers; the non-binding
+||| product's second component crosses code-sigma's binder, so it
+||| weakens too.
+export covering
+reflectPoly : Poly -> Elem -> Elem
+reflectPoly PHole        c = c
+reflectPoly (PConst a)   c = a
+reflectPoly (PProd f g)  c =
+  Elem.SigmaTy (reflectPoly f c) (substElem (reflectPoly g c) Wk)
+reflectPoly (PSum f g)   c = Elem.SumTy (reflectPoly f c) (reflectPoly g c)
+reflectPoly (PSigma a f) c = Elem.SigmaTy a (reflectPoly f (substElem c Wk))
+reflectPoly (PPi a f)    c = Elem.PiTy a (reflectPoly f (substElem c Wk))
+
+||| map_𝔽 g x — the functorial action, applied: an element of
+||| El ⌊𝔽⌋(c₀) rebuilt with g : El c₀ → El c₁ at the hole positions.
+||| g and x weaken under the binders the clauses cross; at the binding
+||| formers the body polynomial is INSTANTIATED (PSigma: at the first
+||| component; PPi: at the freshly bound argument).
+export covering
+mapPoly : Poly -> (g : Elem) -> (x : Elem) -> Elem
+mapPoly PHole        g x = PiApp g x
+mapPoly (PConst a)   g x = x
+mapPoly (PProd f h)  g x =
+  SigmaIntro (mapPoly f g (SigmaElim1 x)) (mapPoly h g (SigmaElim2 x))
+mapPoly (PSum f h)   g x =
+  SumElim (Inj1 (mapPoly (substPoly f Wk) (substElem g Wk) (CtxVar 0)))
+          (Inj2 (mapPoly (substPoly h Wk) (substElem g Wk) (CtxVar 0)))
+          x
+mapPoly (PSigma a f) g x =
+  SigmaIntro (SigmaElim1 x)
+             (mapPoly (substPoly f (Ext Id (SigmaElim1 x))) g (SigmaElim2 x))
+mapPoly (PPi a f)    g x =
+  PiIntro (mapPoly f (substElem g Wk) (PiApp (substElem x Wk) (CtxVar 0)))
+
+||| hᵉˡ ≜ λ (corec 𝔽 a f[↑] ☐₀) — the corecursor as a function term
+||| (el-nu-beta's re-wrapper).
+export covering
+corecFun : Poly -> (a : Elem) -> (f : Elem) -> Elem
+corecFun p a f =
+  PiIntro (Corec (substPoly p Wk) (substElem a Wk) (substElem f (under Wk)) (CtxVar 0))

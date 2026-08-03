@@ -1,0 +1,7 @@
+defined stream
+defined cons
+defined tl
+defined tlCons [+1 obligation]
+open obligations (1):
+  [1] (a : 𝕌) (x : El a) (s : El (stream a)) ⊢ tl a (cons a x s) ≐ s : El (stream a)
+      at: def tlCons: checking ⋆

@@ -183,7 +183,10 @@ t ::= x [e˲]         # element in the signature context
     | ν 𝔽            # universe code for the coinductive type at 𝔽
                      #   (every polynomial is small — see "Coinductive types")
     | out t          # coinductive observation (the ELIMINATOR)
-    | corec t t      # corecursor (the INTRODUCTION: coalgebra body, seed)
+    | corec 𝔽 t t t  # corecursor (the INTRODUCTION: polynomial, carrier
+                     #   code, coalgebra body, seed — 𝔽 and the carrier are
+                     #   CARRIED, like ℰ at 𝒮.𝕤-elim: el-nu-beta consumes
+                     #   map_𝔽, so the redex must be self-contained)
 
 # (type) telescope
 Δ ::= ε | T ◁ Δ
@@ -2508,17 +2511,18 @@ e˲ : Γ₁ ⇒ Γ norm
 ------------------------------ (el-nu-e)
 Γ ⊦ out t : El ⌊𝔽⌋(ν 𝔽)
 
-# INTRODUCTION — the corecursor: any coalgebra maps in. The carrier
-# a and the polynomial 𝔽 are read off the typing, as R is at
-# quot-elim; f is the coalgebra body, x the seed. Write
-# hᵉˡ ≜ λ (corec f[↑] ☐₀) for the corecursor as a function term
+# INTRODUCTION — the corecursor: any coalgebra maps in. The
+# polynomial 𝔽 and the carrier code a are CARRIED by the term (like
+# ℰ at 𝒮.𝕤-elim — β consumes map_𝔽, so the redex is
+# self-contained); f is the coalgebra body, x the seed. Write
+# hᵉˡ ≜ λ (corec 𝔽 a f[↑] ☐₀) for the corecursor as a function term
 # (cf. φᵉˡ at el-qiit-beta):
 
 Γ ⊦ 𝔽 poly      Γ ⊦ a : 𝕌
 Γ ▷ El a ⊦ f : El ⌊𝔽⌋(a)[↑]
 Γ ⊦ x : El a
 ------------------------------ (el-nu-i)
-Γ ⊦ corec f x : ν 𝔽
+Γ ⊦ corec 𝔽 a f x : ν 𝔽
 
 # COMPUTATION (β) — observing a corecursive value runs the
 # coalgebra one step and re-wraps the recursive positions:
@@ -2527,7 +2531,7 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ▷ El a ⊦ f : El ⌊𝔽⌋(a)[↑]
 Γ ⊦ x : El a
 ------------------------------------------------------------- (el-nu-beta)
-Γ ⊦ out (corec f x) ≜ map_𝔽 hᵉˡ (f[id, x]) : El ⌊𝔽⌋(ν 𝔽)
+Γ ⊦ out (corec 𝔽 a f x) ≜ map_𝔽 hᵉˡ (f[id, x]) : El ⌊𝔽⌋(ν 𝔽)
 
 # UNIQUENESS (η) — the coinduction principle, el-quot-eta's shape:
 # any candidate commuting with the observation IS the corecursor.
@@ -2538,7 +2542,7 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ▷ El a ⊦ out h ≐ map_𝔽 ((λ h)[↑]) f : El ⌊𝔽⌋(ν 𝔽)[↑]
 Γ ⊦ x : El a
 ------------------------------------------------------------- (el-nu-eta)
-Γ ⊦ h[id, x] ≐ corec f x : ν 𝔽
+Γ ⊦ h[id, x] ≐ corec 𝔽 a f x : ν 𝔽
 
 # Corollary (two-candidate form, as at ℕ and ⊎): two maps into ν 𝔽
 # commuting with out through the same coalgebra are equal — chain
@@ -2552,10 +2556,11 @@ e˲ : Γ₁ ⇒ Γ norm
 # Nova pieces, lifted under the binders; the hole is inert):
 #     (ν 𝔽)[σ]        ≜ ν 𝔽[σ]          (type and code)
 #     (out t)[σ]      ≜ out t[σ]
-#     (corec f x)[σ]  ≜ corec f[σ⁺] x[σ]
+#     (corec 𝔽 a f x)[σ]  ≜ corec 𝔽[σ] a[σ] f[σ⁺] x[σ]
 
 # NOTES.
-#   * LAMBEK. in ≜ λ (corec (map_𝔽 (λ (out ☐₀)) ☐₀) ☐₀) inverts out
+#   * LAMBEK. in ≜ λ (corec 𝔽 ⌊𝔽⌋(ν 𝔽) (map_𝔽 (λ (out ☐₀)) ☐₀) ☐₀)
+#     inverts out
 #     up to ≐ — out ∘ in by el-nu-beta plus the functor laws,
 #     in ∘ out by el-nu-eta — so ν 𝔽 ≅ El ⌊𝔽⌋(ν 𝔽) elementwise,
 #     while the TYPES stay structurally distinct (IDENTITY above).

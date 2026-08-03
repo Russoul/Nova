@@ -111,7 +111,7 @@ fixity ::= infixl d op | infixr d op          # d a digit 0-9
 # Types. Elaboration needs no rule keywords and no context prefixes —
 # the context is always implicit in where a subterm sits.
 T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | Ω | x | (T{≥0})
-T{2} ::= El t{≥4} | Prf t{≥4}
+T{2} ::= El t{≥4} | Prf t{≥4} | ν F{≥2}
 T{1} ::= ((x:T{≥0}))+ → T{≥0} | ((x:T{≥0}))+ ⨯ T{≥0}
        | T{≥1½} / (x y. t{≥1})
 T{1½} ::= T{≥2} ⊎ T{≥1½}
@@ -139,6 +139,9 @@ T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
 #   2. ℕ-elim and quot-elim take their motives inline, motive-first.
 #      Motives are not inferable without higher-order unification, so
 #      they are mandatory syntax here.
+#   3. corec takes its state CARRIER inline, as a binder annotation —
+#      corec (x : a. f) u — the carrier code is not recoverable from
+#      the expected ν-type, so it is mandatory syntax, like a motive.
 t{5} ::= x | () | Z | ⋆ | ∥T{≥0}∥ | 𝟘 | 𝟙 | ℕ | (t{≥0}) | (t{≥0} : T{≥0})
 t{3} ::= t{≥3} t{≥4} | t{≥3} .π₁ | t{≥3} .π₂                 (left-assoc)
 t{2} ::= λx. t{≥1½}
@@ -151,6 +154,10 @@ t{2} ::= λx. t{≥1½}
                                                               #   right case, scrutinee
        | class t{≥4}
        | quot-elim (z. T{≥0}) (a. t{≥0}) t{≥4}                # motive, case fn, scrutinee
+       | ν F{≥2}                                              # the ν CODE (⇒ 𝕌)
+       | out t{≥4}
+       | corec (x : t{≥0}. t{≥0}) t{≥4}                       # carrier code + coalgebra
+                                                              #   body (one binder), seed
        | squash-elim t{≥4} (x. t{≥0})               # el-squash-e-prf: eliminate a
                                                      #   proof of a squash into a
                                                      #   further proposition
@@ -172,6 +179,15 @@ t{1¼} ::= t{≥1½} ⊎ t{≥1¼}            # the ⊎ code — tighter than th
 # automatic counterpart since there is nothing to search for.
 t{1½} ::= t{≥2} (op t{≥2})*     # declared infix operators, by fixity
 t{0} ::= t{≥1} , t{≥0}                                        (right-assoc)
+
+# Polynomials (the one-hole codes of Foundation's coinductive
+# section). The hole is 𝕏; external pieces are element-level CODES.
+# ⊎ binds tighter than ⨯, as everywhere; the binder forms mirror the
+# type-level binder groups (a left-hand (x:t) BINDS x in the body):
+F{2} ::= 𝕏 | K t{≥4} | (F{≥0})
+F{1½} ::= F{≥2} ⊎ F{≥1½}
+F{1} ::= F{≥1½} ⨯ F{≥1} | ((x:t{≥0}))+ ⨯ F{≥1} | ((x:t{≥0}))+ → F{≥1}
+F{0} ::= F{≥1}
 
 # Name-dropping sugar: `A → B` for `(_:A) → B`, `A / R` for
 # `A / (_ _. R)`, `_` in any binder.
@@ -289,13 +305,14 @@ instead an error asking the user for an ascription or annotation.
 whnf(–) is weak-head normalization by Foundation's ≜ rules:
 el-pi-beta, el-sigma-beta₁, el-sigma-beta₂, el-nat-beta-z,
 el-nat-beta-s, el-sum-beta₁, el-sum-beta₂, el-quot-beta,
-el-qiit-beta (the eliminator at a
+el-nu-beta (out at a corec head — map_𝔽 and hᵉˡ expanding by
+Foundation's ≜-clauses), el-qiit-beta (the eliminator at a
 saturated constructor of the nf-identical signature),
 el-sig-beta/ty-sig-beta (signature
 unfolding — for DEFINITION entries; a declaration reference is stuck
 by design, el-sig-decl/ty-sig-decl, and constraint entries are
 nameless and never referenced), and the El-decoding family (ty-el-zero, ty-el-one,
-ty-el-nat, ty-el-pi, ty-el-sigma, ty-el-sum, ty-el-eq, ty-el-quot — the last
+ty-el-nat, ty-el-pi, ty-el-sigma, ty-el-sum, ty-el-nu, ty-el-eq, ty-el-quot — the last
 decoding El (A / r) ≜ El A / r, the Ω-valued relation passing through
 undecoded — and ty-el-qiit, El (𝒮.𝕤 ē) ≜ 𝒮.𝕤 ē; Prf ∥A∥ has no
 decoding rule). Per
@@ -338,6 +355,21 @@ never an unsound acceptance.
 Γ ▷ x:A ▷ y:A[↑] ⊢ r ⇐ Ω ⇝ r̂            # the relation is Ω-valued
 ------------------------------ (e-ty-quot)                    # (A / r)
 Γ ⊢ T / (x y. r) ⇝ A / r̂ type
+
+Γ ⊢ F ⇝ 𝔽 poly
+-------------------------- (e-ty-nu)                          # (ν 𝔽)
+Γ ⊢ ν F ⇝ ν 𝔽 type
+
+# Polynomial elaboration Γ ⊢ F ⇝ 𝔽 poly — structural, each external
+# piece a code, the context growing under the binder forms
+# (Foundation's poly-* rules):
+
+Γ ⊢ 𝕏 ⇝ 𝕏 poly                                    (e-poly-hole)
+Γ ⊢ t ⇐ 𝕌 ⇝ a   ⟹   Γ ⊢ K t ⇝ K a poly           (e-poly-const)
+componentwise at F ⨯ G and F ⊎ G                  (e-poly-prod, e-poly-sum)
+Γ ⊢ t ⇐ 𝕌 ⇝ a   Γ ▷ x:El a ⊢ F ⇝ 𝔽 poly
+   ⟹   Γ ⊢ (x:t) ⨯ F ⇝ El a ⨯ 𝔽 poly             (e-poly-sigma)
+   ⟹   Γ ⊢ (x:t) → F ⇝ El a → 𝔽 poly             (e-poly-pi)
 
 Γ ⊢ p ⇐ Ω ⇝ p̂
 ------------------- (e-ty-prf)                                # (Prf p)
@@ -411,6 +443,12 @@ never an unsound acceptance.
 # no side condition beyond the branches themselves — β covers both
 # injections, so unlike quot-elim there is no well-definedness premise
 
+Γ ⊢ t ⇒ C ⇝ t̂        whnf(C) = ν 𝔽
+------------------------------------------ (e-out)
+Γ ⊢ out t ⇒ El ⌊𝔽⌋(ν 𝔽) ⇝ out t̂           # (out t)
+# fully inference-driven, like the projections: no motive, the
+# polynomial read off the scrutinee's whnf type
+
 Γ ⊢ q ⇒ C ⇝ q̂        whnf(C) = A / r
 Γ ▷ z:(A / r) ⊢ T ⇝ B type
 Γ ▷ a:A ⊢ f ⇐ B[↑, class ☐₀] ⇝ f̂
@@ -444,6 +482,10 @@ never an unsound acceptance.
 ------------------------------------------------------------ (e-code-quot)
 Γ ⊢ t / (x y. r) ⇒ 𝕌 ⇝ a / r̂                                  # (A / r : 𝕌)
    # the relation is checked at Ω, not 𝕌
+
+Γ ⊢ F ⇝ 𝔽 poly
+------------------------ (e-code-nu)                          # (ν 𝔽 : 𝕌)
+Γ ⊢ ν F ⇒ 𝕌 ⇝ ν 𝔽
 
 Γ ⊢ T ⇝ A type        Γ ⊢ t₀ ⇐ A ⇝ a₀        Γ ⊢ t₁ ⇐ A ⇝ a₁
 --------------------------------------------------------------- (e-eq)
@@ -482,6 +524,13 @@ whnf(C) = A ⊎ B        Γ ⊢ a ⇐ A ⇝ â
 whnf(C) = A / r        Γ ⊢ a ⇐ A ⇝ â
 -------------------------------------- (e-class)              # (class a)
 Γ ⊢ class a ⇐ C ⇝ class â
+
+whnf(C) = ν 𝔽        Γ ⊢ t ⇐ 𝕌 ⇝ a
+Γ ▷ x:El a ⊢ f ⇐ El ⌊𝔽⌋(a)[↑] ⇝ f̂        Γ ⊢ u ⇐ El a ⇝ û
+------------------------------------------------------------ (e-corec)
+Γ ⊢ corec (x : t. f) u ⇐ C ⇝ corec 𝔽 a f̂ û    # (corec 𝔽 a f x)
+# checking-only, like λ and class: the polynomial comes from the
+# expected type. In ⇒ position, ascribe.
 
 whnf(C) = Prf p        p evident: whnf(p) = ∥A∥ with whnf(A) = 𝟙
                         (witness ()), or whnf(p) = (l ≡ r ∈ A) with

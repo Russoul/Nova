@@ -1,0 +1,2 @@
+#!/bin/sh
+"$1" run elem "corec (K ℕ ⨯ 𝕏) ℕ (Z , ☐₀) Z"
