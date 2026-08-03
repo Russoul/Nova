@@ -609,6 +609,23 @@ Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
      Σ; Γ ⊦ ⋆ ⇐ T ⟨sk⟩                       # el-eq-i over replay
      # disambiguated from the squash rules below by nf(T)'s prop head
 
+  el-nu-coind rides ⋆ too — COINDUCTION at an equality prop over a
+  ν-type, the payload carrying the invariant, the endpoint proof and
+  the one-step closure, each with its skeleton (all three are checked
+  terms, not replay certificates — the premises are prop
+  inhabitations, exactly the item-level checker's job):
+
+     nf(T) ⇓ Prf p    nf(p) ⇓ (l ≡ r ∈ E)    nf(E) ⇓ ν 𝔽
+     sk carries coind R ⟨skR⟩, p̂ ⟨skp⟩, q̂ ⟨skq⟩
+     Σ; Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ⊦ R ⇐ Ω ⟨skR⟩
+     Σ; Γ ⊦ p̂ ⇐ Prf R[id, l, r] ⟨skp⟩
+     Σ; Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ▷ Prf R ⊦ q̂ ⇐ Prf (lift_𝔽(R) (out ☐₂) (out ☐₁)) ⟨skq⟩
+     -------------------------------------------------------------------
+     Σ; Γ ⊦ ⋆ ⇐ T ⟨sk⟩                       # el-nu-coind
+     # lift_𝔽 is the RELATOR (Foundation, coinductive section) —
+     # KERNEL-computed from 𝔽 and R, like out's result type; the
+     # closure's type is the rule's shape, never elaborator-supplied
+
      nf(T) ⇓ A ⊎ B    Σ; Γ ⊦ a ⇐ A ⟨sk.0⟩
      -------------------------------------               # el-sum-i₁
      Σ; Γ ⊦ inj₁ a ⇐ T ⟨sk⟩                (inj₂ analogously at B)
@@ -817,9 +834,12 @@ EQUATION REPLAY (A1, A2), and three added by the QIIT extension
       through Σ, where the item level carries the full apparatus
       (coherences as PQCoh certificates, §8).
 
-  A5  NO η CERTIFICATE FOR QIITs OR ν. el-qiit-eta and el-nu-eta
-      (like el-nat-eta, el-sum-eta and el-quot-eta before them) have
-      no replay final;
+  A5  NO η CERTIFICATE FOR QIITs. el-qiit-eta (like el-nat-eta,
+      el-sum-eta and el-quot-eta before it) has no replay final; for
+      ν the gap is CLOSED, by el-nu-coind as a ⋆-payload (§8) — the
+      admissible relational form, not el-nu-eta itself (whose
+      candidate h would be a carried higher-order payload; the
+      relational form subsumes it via graph invariants);
       uniqueness arguments live in the elaborator as lemmas, not in
       kernel certificates (an el-sum-eta instance is proven as an
       ordinary ⊎-elim lemma at an equality motive, β closing both

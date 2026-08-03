@@ -2551,6 +2551,51 @@ e˲ : Γ₁ ⇒ Γ norm
 # is a coalgebra on its own carrier, and its two projections
 # commute.
 
+# COINDUCTION, RELATIONAL FORM — el-nu-eta's corollary adopted as a
+# rule for the kernel's convenience (the el-squash-e-eq precedent:
+# ADMISSIBLE, kept because the kernel replays it directly). It needs
+# one more ≜-meta-operation, the RELATOR lift_𝔽(R) — the relation
+# lifting of a polynomial: for Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ⊦ R : Ω and
+# elements u, v of ⌊𝔽⌋(ν 𝔽)'s decoding (R's base weakens under every
+# binder the clauses cross; its own two binders lift over it):
+#
+#     lift_𝕏(R) u v          ≜ R[id, u, v]
+#     lift_{K a}(R) u v      ≜ u ≡ v ∈ El a
+#     lift_{𝔽 ⨯ 𝔾}(R) u v    ≜ ∥Prf (lift_𝔽(R) (u .π₁) (v .π₁))
+#                                 ⨯ Prf (lift_𝔾(R) (u .π₂) (v .π₂))∥
+#     lift_{𝔽 ⊎ 𝔾}(R) u v    ≜ ⊎-elim at motive Ω, on u then v:
+#                              the diagonal branches lift the
+#                              payloads, the off-diagonal ones are ⊥
+#                              — definitional collapse at canonical
+#                              forms, the tag mismatch judgementally
+#                              visible
+#     lift_{El a ⨯ 𝔽}(R) u v ≜ ∥(h : Prf (u .π₁ ≡ v .π₁ ∈ El a))
+#                                 ⨯ Prf (lift_{𝔽[u .π₁]}(R) (u .π₂) (v .π₂))∥
+#                              # the two instances are ≐ under h by
+#                              # el-reflect — no transport, the same
+#                              # extensional degeneration as the
+#                              # QIIT ᴰ-clauses
+#     lift_{El a → 𝔽}(R) u v ≜ ∥(x : El a) → Prf (lift_𝔽(R) (u x) (v x))∥
+
+Γ ⊦ 𝔽 poly
+Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ⊦ R : Ω
+Γ ⊦ p : Prf R[id, t₀, t₁]
+Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ▷ Prf R ⊦ q : Prf (lift_𝔽(R) (out ☐₂) (out ☐₁))
+Γ ⊦ t₀ : ν 𝔽      Γ ⊦ t₁ : ν 𝔽
+------------------------------------------------------------------- (el-nu-coind)
+Γ ⊦ t₀ ≐ t₁ : ν 𝔽
+
+# DERIVATION (why admissible). From R build the subset carrier
+# b ≜ (νᶜ ⨯ νᶜ) ⨯ prf R — νᶜ the ν-code, prf the derivable prf-code
+# of the Ω block's impredicativity note — with the coalgebra
+# observing the FIRST component, the closure q transporting the
+# invariant to the tails; both projections commute with out (the
+# second by q's head equations, reflected), so el-nu-eta equates
+# them through the corecursor, and instantiating at (t₀, t₁, p)
+# gives the conclusion. The kernel replays the rule as stated
+# instead (a ⋆-payload — docs/NovaKernel.txt §8): the subset-carrier
+# construction is the JUSTIFICATION, not the implementation.
+
 # SUBSTITUTION ACTION. Substitution acts through the carried
 # polynomial (𝔽[σ] the evident meta-operation: σ on the embedded
 # Nova pieces, lifted under the binders; the hole is inert):

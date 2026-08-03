@@ -158,6 +158,9 @@ t{2} ::= λx. t{≥1½}
        | out t{≥4}
        | corec (x : t{≥0}. t{≥0}) t{≥4}                       # carrier code + coalgebra
                                                               #   body (one binder), seed
+       | coind (x y. t{≥0}) t{≥4} (x y h. t{≥0})              # invariant, endpoint proof,
+                                                              #   one-step closure — see
+                                                              #   e-coind
        | squash-elim t{≥4} (x. t{≥0})               # el-squash-e-prf: eliminate a
                                                      #   proof of a squash into a
                                                      #   further proposition
@@ -531,6 +534,28 @@ whnf(C) = ν 𝔽        Γ ⊢ t ⇐ 𝕌 ⇝ a
 Γ ⊢ corec (x : t. f) u ⇐ C ⇝ corec 𝔽 a f̂ û    # (corec 𝔽 a f x)
 # checking-only, like λ and class: the polynomial comes from the
 # expected type. In ⇒ position, ascribe.
+
+whnf(C) = Prf p    whnf(p) = (l ≡ r ∈ E)    whnf(E) = ν 𝔽
+Γ ▷ x:ν 𝔽 ▷ y:(ν 𝔽)[↑] ⊢ R ⇐ Ω ⇝ R̂
+Γ ⊢ p ⇐ Prf R̂[id, l, r] ⇝ p̂
+Γ ▷ x:ν 𝔽 ▷ y:(ν 𝔽)[↑] ▷ h:Prf R̂ ⊢ q ⇐ Prf (lift_𝔽(R̂) (out ☐₂) (out ☐₁)) ⇝ q̂
+------------------------------------------------------------ (e-coind)
+Γ ⊢ coind (x y. R) p (x y h. q) ⇐ C ⇝ ⋆
+# el-nu-coind's surface form: the core term is ⋆; the invariant,
+# endpoint proof and closure ship in the skeleton payload
+# (docs/NovaKernel.txt §8). The closure's expected type is the
+# RELATOR at the generic observations — its sub-goals surface as
+# ordinary obligations, dischargeable by the usual loop. Two engine
+# facts make the closure proofs ergonomic: (1) a GROUND hypothesis
+# whose type is a (possibly dependent) Σ-tree of Prf-equalities
+# licenses one rewrite candidate per component, the proof element
+# being the projection chain (el-reflect takes any Prf-typed term) —
+# the shape squash-elim binds for conjunction/existential
+# invariants; (2) a VARIABLE-DEFINITION hypothesis — ☐ₙ ≡ t with ☐ₙ
+# not in t — is admitted as a rewrite rule even when size-increasing
+# (each application strictly removes an occurrence, so it
+# terminates): the "this variable is that machine" pattern every
+# graph invariant produces.
 
 whnf(C) = Prf p        p evident: whnf(p) = ∥A∥ with whnf(A) = 𝟙
                         (witness ()), or whnf(p) = (l ≡ r ∈ A) with

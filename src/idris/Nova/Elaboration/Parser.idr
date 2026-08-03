@@ -376,6 +376,14 @@ mutual
             f <- parseSElem tbl (env :< fst x); sp; kwc ')'; sp
             u <- parseSElemAtom tbl env
             pure (SCorec x a f u))
+    <|> (do kw "coind"; space
+            kwc '('; sp; x <- parseNameR; space; y <- parseNameR; sp; kwc '.'; sp
+            r <- parseSElem tbl (env :< fst x :< fst y); sp; kwc ')'; sp
+            pw <- parseSElemAtom tbl env; sp
+            kwc '('; sp; mx <- parseNameR; space; my <- parseNameR; space; mh <- parseNameR
+            sp; kwc '.'; sp
+            q <- parseSElem tbl (env :< fst mx :< fst my :< fst mh); sp; kwc ')'
+            pure (SCoind x y r pw mx my mh q))
     <|> (do kw "quot-elim"; space
             kwc '('; sp; z <- parseNameR; sp; kwc '.'; sp
             mot <- parseSTy tbl (env :< fst z); sp; kwc ')'; sp

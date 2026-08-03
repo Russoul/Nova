@@ -102,6 +102,12 @@ mutual
     ||| of the carried signature, replayed in the entry's ᴰ-context
     ||| (the QIIT generalization of quot-elim's wd)
     PQCoh : List ECert -> Payload
+    ||| coinduction behind a ⋆ checked at an equality prop over a
+    ||| ν-type (el-nu-coind): the invariant R (Ω-valued, two bound
+    ||| variables), the proof that R holds at the equation's
+    ||| endpoints, and the one-step closure — R implies the RELATOR
+    ||| lift_𝔽(R) after one observation — each with its skeleton
+    PNuCoind : Elem -> Skel -> Elem -> Skel -> Elem -> Skel -> Payload
 
   public export
   data Skel : Type where
@@ -1120,6 +1126,12 @@ mutual
       Ty.Quotient dom _ => pure (Just dom)
       _ => pure Nothing
   childTyE sig ctx pexp (QuotElim _ q) 1 = inferNeK sig ctx q
+  -- ν formers: out's scrutinee is neutrally inferable; corec's carrier
+  -- is a code, its seed at the carrier's decoding (the body, child 1,
+  -- is carrier-dependent — undetermined, like ⊎-elim's cases)
+  childTyE sig ctx pexp (Out t) 0 = inferNeK sig ctx t
+  childTyE sig ctx pexp (Corec _ _ _ _) 0 = pure (Just Ty.UniverseTy)
+  childTyE sig ctx pexp (Corec _ a _ _) 2 = pure (Just (El a))
   -- QIIT formers: spine child i's type is the reflected telescope's
   -- entry i, instantiated by the earlier children — always determined
   childTyE sig ctx pexp (QSortC sg k es) i = qSpineChildTy sg k es i
@@ -1247,6 +1259,10 @@ goE sig ctx lic (i :: p) b mexp u = do
                 Nothing => kerr "kernel: bad path"
             Nothing => kerr "kernel: bad path"
         (Class a, 0) => Class <$> goE sig ctx lic p b childTy a
+        (Out t', 0) => Out <$> goE sig ctx lic p b childTy t'
+        (Corec pf a f x, 0) => (\a' => Corec pf a' f x) <$> goE sig ctx lic p b childTy a
+        (Corec pf a f x, 1) => (\f' => Corec pf a f' x) <$> goE sig ctx lic p (1 + b) childTy f
+        (Corec pf a f x, 2) => Corec pf a f <$> goE sig ctx lic p b childTy x
         (QuotElim f q, 0) => (\f' => QuotElim f' q) <$> goE sig ctx lic p (1 + b) childTy f
         (QuotElim f q, 1) => QuotElim f <$> goE sig ctx lic p b childTy q
         (Squash t, 0) => Squash <$> goTy sig ctx lic p b t
@@ -1384,6 +1400,10 @@ pExpose _ = Nothing
 pSquashWit : Payload -> Maybe (Elem, Skel)
 pSquashWit (PSquashWit e sk) = Just (e, sk)
 pSquashWit _ = Nothing
+
+pNuCoind : Payload -> Maybe (Elem, Skel, Elem, Skel, Elem, Skel)
+pNuCoind (PNuCoind r skR pw skp qw skq) = Just (r, skR, pw, skp, qw, skq)
+pNuCoind _ = Nothing
 
 pSquashElim : Payload -> Maybe (Elem, Skel, Elem, Skel)
 pSquashElim (PSquashElim e esk b bsk) = Just (e, esk, b, bsk)
@@ -1588,9 +1608,40 @@ mutual
                       _ => kerr "kernel: refl-eq payload at a non-equality prop"
                   _ => kerr "kernel: ⋆ checked at a non-Prf type"
               Nothing =>
+               -- el-nu-coind: ⋆ at an equality prop over a ν-type,
+               -- by COINDUCTION — invariant, endpoint proof, and
+               -- one-step closure at the relator (the admissible
+               -- rule; Foundation, coinductive NOTES)
+               case takeP pNuCoind sk of
+                Just ((r, skR, pw, skp, qw, skq), _) => do
+                  ty' <- kTy sig ty
+                  case ty' of
+                    Prf pc => do
+                      pc' <- kElem sig pc
+                      case pc' of
+                        Elem.EqTy l rhs ety => do
+                          ety' <- kTy sig ety
+                          case ety' of
+                            Ty.NuTy f => do
+                              let nuT = Ty.NuTy f
+                              -- the invariant is an Ω-relation
+                              kCheckE sig (ctx :< nuT :< substTy nuT Wk) r Ty.PropTy skR
+                              -- it holds at the endpoints
+                              kCheckE sig ctx pw (Prf (substElem r (Ext (Ext Id l) rhs))) skp
+                              -- one-step closure under the generic hypotheses
+                              let ctx3 = ctx :< nuT :< substTy nuT Wk :< Prf r
+                              let wk3 = Chain Wk (Chain Wk Wk)
+                              let f3 = substPoly f wk3
+                              let r3 = substElem r (under (under wk3))
+                              kCheckE sig ctx3 qw
+                                (Prf (liftPoly f3 r3 (Out (CtxVar 2)) (Out (CtxVar 1)))) skq
+                            _ => kerr "kernel: coinduction payload at an equation over a non-ν type"
+                        _ => kerr "kernel: coinduction payload at a non-equality prop"
+                    _ => kerr "kernel: ⋆ checked at a non-Prf type"
+                Nothing =>
                 -- el-squash-i: ⋆ : Prf ∥A∥ carries its witness (an
                 -- inhabitant of the squashee) as a payload
-                case takeP pSquashWit sk of
+                 case takeP pSquashWit sk of
                   Just ((wit, witSk), _) => do
                     ty' <- kTy sig ty
                     case ty' of

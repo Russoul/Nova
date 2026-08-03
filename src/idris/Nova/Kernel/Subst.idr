@@ -342,3 +342,48 @@ export covering
 corecFun : Poly -> (a : Elem) -> (f : Elem) -> Elem
 corecFun p a f =
   PiIntro (Corec (substPoly p Wk) (substElem a Wk) (substElem f (under Wk)) (CtxVar 0))
+
+||| lift_𝔽(R) u v — the RELATOR: the relation lifting of a polynomial
+||| (Foundation, el-nu-coind). R is an Ω-valued OPEN term with two
+||| bound variables (Γ ▷ ν𝔽 ▷ (ν𝔽)[↑], ☐₁ the left side, ☐₀ the
+||| right); u and v are elements of El ⌊𝔽⌋(c)'s decoding in the
+||| ambient context; the result is an Ω-element there. One clause per
+||| former: the hole instantiates R, constants compare by ≡, products
+||| are Ω-conjunctions (squashed Σ of Prfs), sums match tags by a
+||| dependent ⊎-elim at motive Ω (⊥ off the diagonal, definitional
+||| collapse on it), the dependent pair binds the first-component
+||| equation so the instances are ≐ by reflection (no transport), and
+||| exponents lift pointwise. R's BASE weakens under every binder the
+||| clauses cross (its own two binders lift over it).
+export covering
+liftPoly : Poly -> (r : Elem) -> (u : Elem) -> (v : Elem) -> Elem
+liftPoly PHole        r u v = substElem r (Ext (Ext Id u) v)
+liftPoly (PConst a)   r u v = Elem.EqTy u v (El a)
+liftPoly (PProd f g)  r u v =
+  Squash (Ty.SigmaTy (Prf (liftPoly f r (SigmaElim1 u) (SigmaElim1 v)))
+                     (substTy (Prf (liftPoly g r (SigmaElim2 u) (SigmaElim2 v))) Wk))
+liftPoly (PSum f g)   r u v =
+  SumElim
+    (SumElim (liftPoly f (wk2base r) (CtxVar 1) (CtxVar 0))
+             (Squash Ty.ZeroTy)
+             (substElem v Wk))
+    (SumElim (Squash Ty.ZeroTy)
+             (liftPoly g (wk2base r) (CtxVar 1) (CtxVar 0))
+             (substElem v Wk))
+    u
+ where
+  wk2base : Elem -> Elem
+  wk2base e = substElem (substElem e (under (under Wk))) (under (under Wk))
+liftPoly (PSigma a f) r u v =
+  Squash (Ty.SigmaTy
+    (Prf (Elem.EqTy (SigmaElim1 u) (SigmaElim1 v) (El a)))
+    (Prf (liftPoly (substPoly (substPoly f (Ext Id (SigmaElim1 u))) Wk)
+                   (substElem r (under (under Wk)))
+                   (substElem (SigmaElim2 u) Wk)
+                   (substElem (SigmaElim2 v) Wk))))
+liftPoly (PPi a f)    r u v =
+  Squash (Ty.PiTy (El a)
+    (Prf (liftPoly f
+                   (substElem r (under (under Wk)))
+                   (PiApp (substElem u Wk) (CtxVar 0))
+                   (PiApp (substElem v Wk) (CtxVar 0)))))

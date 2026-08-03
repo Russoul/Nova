@@ -138,10 +138,16 @@ scrutinee — β on both injections);
 `out t` (the coinductive observation — infers, like the projections)
 and `corec (x : a. f) u` (corecursor: carrier code `a`, coalgebra
 body `f` over `x : El a`, seed `u` — checking-only, the polynomial
-comes from the expected ν-type; β: `out (corec …)` runs one step.
-The coinduction law el-nu-eta is judgemental in the theory but has
-NO kernel certificate — like el-qiit-eta — so only β-closing
-equations discharge today; bisimulation-shaped goals stay open);
+comes from the expected ν-type; β: `out (corec …)` runs one step);
+`coind (x y. R) p (x y h. q)` (COINDUCTION, el-nu-coind, checked at
+`Prf (l ≡ r ∈ El (ν F))`: invariant `R` at Ω over the two sides,
+`p : Prf (R l r)`, and `q` the one-step closure — under generic
+`x y` and `h : Prf (R x y)`, prove the observations RELATOR-related.
+Idioms: conjunction/existential invariants are squashed Σs —
+`squash-elim h (w. ⋆ (…))` unpacks them, and the engine harvests
+`w`'s projected equations automatically; `u ≡ ⟨machine⟩`-shaped
+components act as unfold-once rewrite rules. See stream.nova's
+tlCons and streamBisim.nova's bisimReflect);
 `⋆` (canonical proof; `⋆ e` with explicit witness);
 `squash-elim e (x. body)`. Universe codes are written like their types
 (`𝟘 𝟙 ℕ`, `(x : t) → u`, `l ≡ r ∈ t`).
@@ -221,7 +227,10 @@ data [a : 𝕌] [r : El a → El a → Ω]
   `sum` (the disjoint union ⊎: inj₁/inj₂, ⊎-elim, β/η, derived
   injectivity and disjointness),
   `stream` (coinductive streams and conaturals: ν, out, corec,
-  β-driven observation lemmas),
+  β-driven observation lemmas, tlCons by graph-invariant coind),
+  `streamEq`/`streamBisim` (observational equality in Ω, bisimilarity
+  as the impredicative gfp, bisimReflect — bisimilarity implies
+  equality — and the map-id/map-fusion equalities),
   `equality`/`prop` (≡ and Ω), `quotient`/`quottyuniv` (quotients),
   `vect`/`vectAppend` (𝕌-indexed families), `qiitNat`/`qiitBag`/
   `qiitQuot`/`qiitVec` (QIIT basics), `id` (the identity family —

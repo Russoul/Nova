@@ -1,7 +1,7 @@
 defined stream
-defined cons
-defined tl
-defined tlCons [+1 obligation]
+defined zeros
+defined ones
+defined bad [+1 obligation]
 open obligations (1):
-  [1] (a : 𝕌) (x : El a) (s : El (stream a)) ⊢ tl a (cons a x s) ≐ s : El (stream a)
-      at: def tlCons: checking ⋆
+  [1] (x : ν (K ℕ ⨯ 𝕏)) (y : ν (K ℕ ⨯ 𝕏)) (h : Prf ∥Prf (x ≡ zeros ∈ El (stream ℕ)) ⨯ Prf (y ≡ ones ∈ El (stream ℕ))∥) (w : Prf (x ≡ corec (z : 𝟙. Z, z) () ∈ ν (K ℕ ⨯ 𝕏)) ⨯ Prf (y ≡ corec (z : 𝟙. S Z, z) () ∈ ν (K ℕ ⨯ 𝕏))) ⊢ (out x) .π₁ ≐ (out y) .π₁ : ℕ
+      at: def bad: checking ⋆

@@ -126,6 +126,13 @@ mutual
     ||| annotation; checking-only (the polynomial comes from the
     ||| expected ν-type)
     SCorec : (x : SName) -> SElem -> SElem -> SElem -> SElem
+    ||| coind (x y. R) p (x y h. q) — COINDUCTION (el-nu-coind),
+    ||| checked at Prf (l ≡ r ∈ El (ν F)): invariant R (Ω-valued,
+    ||| over the two sides), p a proof of R l r, q the one-step
+    ||| closure — under generic x y and h : Prf (R x y), a proof
+    ||| that the observations are lift_𝔽(R)-related
+    SCoind : (nx, ny : SName) -> SElem -> SElem ->
+             (mx, my, mh : SName) -> SElem -> SElem
     ||| ∥T∥ — squash: proposition from an arbitrary type
     SSquash : STy -> SElem
     ||| ⋆ — the canonical proof of a true proposition (evident 𝟙-/
@@ -310,6 +317,8 @@ mutual
     show (SOut e) = "Out (\{show e})"
     show (SCorec x a f u) =
       "Corec \{fst x} (\{show a}) (\{show f}) (\{show u})"
+    show (SCoind nx ny r pw mx my mh q) =
+      "Coind \{fst nx} \{fst ny} (\{show r}) (\{show pw}) \{fst mx} \{fst my} \{fst mh} (\{show q})"
     show (SSquash t) = "Squash (\{show t})"
     show SStar = "⋆"
     show (SStarWit e) = "⋆ (\{show e})"
