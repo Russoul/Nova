@@ -236,6 +236,11 @@ mutual
     case f' of
       PiIntro g => do burn; kElem sig (substElem g (Ext Id e'))
       _ => pure (PiApp f' e')
+  -- el-let-beta: a let is ALWAYS a redex — let a b ≜ b[id, a, ⋆]
+  -- (normal forms contain no let; one fuel unit, like every contraction)
+  kElem sig (Let a b) = do
+    burn
+    kElem sig (substElem b (Ext (Ext Id a) Star))
   kElem sig (SigmaIntro a b) = [| SigmaIntro (kElem sig a) (kElem sig b) |]
   kElem sig (SigmaElim1 t) = do
     t' <- kElem sig t
@@ -1741,6 +1746,15 @@ mutual
                 kCheckE sig ctx x (El aC) (skelChild 2 sk)
               _ => kerr "kernel: corec checked at a non-ν type"
           ZeroElim t => kCheckE sig ctx t Ty.ZeroTy (skelChild 0 sk)
+          -- el-let (spec §8): definiens INFERRED (an intro-form
+          -- definiens carries intro-ty on child 0), body under the
+          -- value and its unfolding equation, checked at T[↑ ∘ ↑] —
+          -- fully general, since T lives over Γ and the hypothesis
+          -- makes (id, a, ⋆) ∘ (↑ ∘ ↑) ≐ id
+          Let a b => do
+            aTy <- kInferE sig ctx a (skelChild 0 sk)
+            let hyp = Prf (Elem.EqTy (CtxVar 0) (substElem a Wk) (substTy aTy Wk))
+            kCheckE sig (ctx :< aTy :< hyp) b (weakenTyN 2 ty) (skelChild 1 sk)
           QCtor sgC c theta => do
             -- el-qiit-intro, SATURATED. The signature is nf(T)'s own —
             -- already validated where T was — and the term's must be
@@ -1840,6 +1854,13 @@ mutual
             case tTy of
               Ty.NuTy f => pure (El (reflectPoly f (Elem.NuTy f)))
               _ => kerr "kernel: observing a non-ν element"
+          -- el-let (spec §8): let infers when its body does; the
+          -- result substitutes the value and the ⋆-proof away
+          Let a b => do
+            aTy <- kInferE sig ctx a (skelChild 0 sk)
+            let hyp = Prf (Elem.EqTy (CtxVar 0) (substElem a Wk) (substTy aTy Wk))
+            bTy <- kInferE sig (ctx :< aTy :< hyp) b (skelChild 1 sk)
+            pure (substTy bTy (Ext (Ext Id a) Star))
           NatElim z st t =>
             case takeP pMotive sk of
               Just ((mot, motSk), _) => do

@@ -141,6 +141,10 @@ mutual
             r <- parseElemAtom; space
             t <- parseElemAtom
             pure (SumElim l r t))
+    <|> (do str_ "let"; space
+            a <- parseElemAtom; space
+            b <- parseElemAtom
+            pure (Let a b))
     <|> (do str_ "class"; space; e <- parseElemAtom; pure (Class e))
     <|> (do str_ "ν"; space; f <- parsePolyAtom; pure (Elem.NuTy f))
     <|> (do str_ "out"; space; e <- parseElemAtom; pure (Out e))

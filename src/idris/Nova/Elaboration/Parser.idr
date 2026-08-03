@@ -107,10 +107,13 @@ parseName = do
     -- so the parse fails deep and confusingly) or silently for Z/Refl
     -- (bare tokens — a reference just parses as the literal zero/Refl,
     -- no error at all).
+    -- let/in are reserved for the same reason as S/class: both are
+    -- syntactically valid identifiers, and a binder named `in` would
+    -- misparse every let-body boundary after it
     guard "Reserved keyword" (name /= "def" && name /= "type" && name /= "El" && name /= "Prf" &&
                               name /= "import" && name /= "infixl" && name /= "infixr" &&
                               name /= "S" && name /= "Z" && name /= "class" &&
-                              name /= "data")
+                              name /= "data" && name /= "let" && name /= "in")
     pure name
 
 ||| A name with its span — binder positions record it so the LSP can
@@ -346,6 +349,21 @@ mutual
         -- λ's body extends over operators: λx. x + y ≡ λx. (x + y)
         (do kw "λ"; sp; x <- parseNameR; sp; kwc '.'; sp
             e <- parseSElemOp tbl (env :< fst x); pure (SLam x e))
+        -- let x ≔ e in b / let x : T ≔ e in b — the annotated form is
+        -- sugar for an ascribed definiens (the definiens elaborates in
+        -- inference mode); the body extends over operators, like λ's.
+        -- The body's indices are counted against the CORE context,
+        -- which has TWO entries per let (el-let: the value, then its
+        -- unfolding equation) — so x is pushed under a wildcard slot
+        -- and resolves to index 1, the hypothesis slot (never
+        -- resolvable) holding index 0
+    <|> (do kw "let"; space; x <- parseNameR; sp
+            manno <- optional (do kwc ':'; sp; t <- parseSTy tbl env; sp; pure t)
+            kw "≔"; sp
+            e <- parseSElem tbl env; sp
+            kw "in"; sp
+            b <- parseSElemOp tbl (env :< fst x :< wildcard)
+            pure (SLet x (maybe e (SAnn e) manno) b))
     <|> (do kw "𝟘-elim"; space; e <- parseSElemAtom tbl env; pure (SZeroElim e))
     <|> (do kw "ℕ-elim"; space
             kwc '('; sp; n <- parseNameR; sp; kwc '.'; sp

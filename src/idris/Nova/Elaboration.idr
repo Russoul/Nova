@@ -251,6 +251,7 @@ mapRefsE f (NatIntro1 t) = NatIntro1 (mapRefsE f t)
 mapRefsE f (NatElim z s t) = NatElim (mapRefsE f z) (mapRefsE f s) (mapRefsE f t)
 mapRefsE f (PiIntro g) = PiIntro (mapRefsE f g)
 mapRefsE f (PiApp g e) = PiApp (mapRefsE f g) (mapRefsE f e)
+mapRefsE f (Let a b) = Let (mapRefsE f a) (mapRefsE f b)
 mapRefsE f (SigmaIntro a b) = SigmaIntro (mapRefsE f a) (mapRefsE f b)
 mapRefsE f (SigmaElim1 t) = SigmaElim1 (mapRefsE f t)
 mapRefsE f (SigmaElim2 t) = SigmaElim2 (mapRefsE f t)
@@ -333,6 +334,7 @@ collectRefsE e = go e
   go (NatElim z s t) = go z ++ go s ++ go t
   go (PiIntro f) = go f
   go (PiApp f x) = go f ++ go x
+  go (Let a b) = go a ++ go b
   go (SigmaIntro a b) = go a ++ go b
   go (SigmaElim1 t) = go t
   go (SigmaElim2 t) = go t
@@ -737,6 +739,7 @@ elemSize (NatIntro1 t) = S (elemSize t)
 elemSize (NatElim z s t) = S (elemSize z + elemSize s + elemSize t)
 elemSize (PiIntro f) = S (elemSize f)
 elemSize (PiApp f e) = S (elemSize f + elemSize e)
+elemSize (Let a b) = S (elemSize a + elemSize b)
 elemSize (SigmaIntro u v) = S (elemSize u + elemSize v)
 elemSize (SigmaElim1 t) = S (elemSize t)
 elemSize (SigmaElim2 t) = S (elemSize t)
@@ -1818,6 +1821,8 @@ mutual
     case zonkElem st f of
       PiIntro g => zonkElem st (substElem g (Ext Id e))
       f2 => PiApp f2 (zonkElem st e)
+  -- el-let-beta: a let is always a redex
+  zonkElem st (Let a b) = zonkElem st (substElem b (Ext (Ext Id a) Star))
   zonkElem st (SigmaIntro a b) = SigmaIntro (zonkElem st a) (zonkElem st b)
   zonkElem st (SigmaElim1 t) =
     case zonkElem st t of
@@ -3008,6 +3013,17 @@ mutual
     (ty', tySk) <- elabTy ctx env site ty
     (t', tSk) <- checkElem ctx env site t ty'
     pure (t', ty', addPayload (PIntroTy ty' tySk) tSk)
+  inferElem ctx env site (SLet (x, xr) e b) = do
+    -- e-let: the definiens is INFERRED (an annotated surface let
+    -- arrives as an ascribed definiens); the body is elaborated under
+    -- the value AND its unfolding hypothesis — a Prf of an equality
+    -- prop, so E's HYPOTHESIS source reflects x ≐ e into discharge
+    -- automatically: the definition is transparent inside the body
+    (e', eTy, eSk) <- inferElem ctx env site e
+    recordBinder xr ctx env x eTy
+    let hyp = Prf (Elem.EqTy (CtxVar 0) (substElem e' Wk) (substTy eTy Wk))
+    (b', bTy, bSk) <- inferElem (ctx :< eTy :< hyp) (env :< x :< wildcard) site b
+    pure (Let e' b', substTy bTy (Ext (Ext Id e') Star), Nd [] [eSk, bSk])
   inferElem ctx env site (SNatElim (n, nr) mot z (n2, n2r) (ih, ihr) s t) = do
     recordBinder nr ctx env n Ty.NatTy
     (motTy, motSk) <- elabTy (ctx :< Ty.NatTy) (env :< n) site mot
@@ -3355,6 +3371,18 @@ mutual
         modifySt $ { sig $= (:< SigDecl ctx q ty)
                    , holeMeta $= (:< MkHoleMeta q env site solvable mrng) }
         pure (SigVar q (idSpine (length ctx)), baseSk)
+  checkElem ctx env site (SLet (x, xr) e b) ty = do
+    -- e-let-check: let PROPAGATES the ambient mode to its body (a
+    -- checking-only body form works under a let without ascription).
+    -- The expected type lives over Γ, so the body checks at its double
+    -- weakening — fully general, not an approximation (docs/
+    -- NovaKernel.txt §8, el-let)
+    (e', eTy, eSk) <- inferElem ctx env site e
+    recordBinder xr ctx env x eTy
+    let hyp = Prf (Elem.EqTy (CtxVar 0) (substElem e' Wk) (substTy eTy Wk))
+    (b', bSk) <- checkElem (ctx :< eTy :< hyp) (env :< x :< wildcard) site b
+                   (substTy (substTy ty Wk) Wk)
+    pure (Let e' b', Nd [] [eSk, bSk])
   checkElem ctx env site t ty = do
     (t', inferred, tSk) <- inferElem ctx env site t
     c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty

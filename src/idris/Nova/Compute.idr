@@ -129,6 +129,8 @@ mutual
     case whnfElem sig f of
       PiIntro g => whnfElem sig (substElem g (Ext Id e))
       _ => assert_total $ idris_crash "whnfElem: application head is not a function (impossible for a closed, well-typed term)"
+  -- el-let-beta: a let is ALWAYS a redex
+  whnfElem sig (Let a b) = whnfElem sig (substElem b (Ext (Ext Id a) Star))
   whnfElem sig (SigmaIntro a b)   = SigmaIntro a b
   whnfElem sig (SigmaElim1 t) =
     case whnfElem sig t of
@@ -255,6 +257,7 @@ mutual
     go (Elem.EqTy l r t)  = Elem.EqTy (nfElem sig l) (nfElem sig r) (nfTy sig t)
     go (QuotTy a r)       = QuotTy (nfElem sig a) r   -- r: under a binder, left alone
     go (SigVar x es)      = SigVar x es   -- unreachable: whnf always unfolds x[e˲]
+    go (Let a b)          = Let a b   -- unreachable: whnf always contracts a let
     go (Class a)          = Class (nfElem sig a)
     go (QuotElim f q)     = QuotElim f (nfElem sig q)   -- f: under a binder, left alone
     go (Squash t)         =

@@ -86,6 +86,12 @@ mutual
     SSuc : SElem -> SElem
     ||| λx. t
     SLam : (name : SName) -> SElem -> SElem
+    ||| let x ≔ e in b — the body binds x (the definiens' value); the
+    ||| unfolding-equation binder of the core form (el-let) is inserted
+    ||| by elaboration and has no surface spelling. An annotated
+    ||| definiens (let x : T ≔ e in b) is parse-level sugar for
+    ||| let x ≔ (e : T) in b.
+    SLet : (name : SName) -> SElem -> SElem -> SElem
     SApp : SElem -> SElem -> SElem
     SPair : SElem -> SElem -> SElem
     SProj1 : SElem -> SElem
@@ -291,6 +297,7 @@ mutual
     show SZeroN = "Z"
     show (SSuc t) = "S (\{show t})"
     show (SLam x t) = "Lam \{fst x} (\{show t})"
+    show (SLet x e b) = "Let \{fst x} (\{show e}) (\{show b})"
     show (SApp f e) = "App (\{show f}) (\{show e})"
     show (SPair a b) = "Pair (\{show a}) (\{show b})"
     show (SProj1 t) = "P1 (\{show t})"
