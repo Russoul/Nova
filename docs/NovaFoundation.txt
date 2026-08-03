@@ -1,7 +1,7 @@
 ////////// Preface //////////
 
-#! highlight keywords: ⊦ : ; , · [ ] ‖ .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id λ → ⨯ ⊎ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S ⋆ Prf class inj₁ inj₂ ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ 𝟘-elim ℕ-elim quot-elim squash-elim ⊎-elim -elim qctx qty qsig ctx type tel mot dalg eprob sect norm small sig nf qpath
-#! highlight tos: 𝔄 𝔅 𝕥 𝕦 𝕧 𝕤 𝕔 𝕜 𝕘 𝕒 𝕓 𝕞 Φ 𝒮 ς 𝔎
+#! highlight keywords: ⊦ : ; , · [ ] ‖ .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id λ → ⨯ ⊎ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S ⋆ Prf class inj₁ inj₂ ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ 𝟘-elim ℕ-elim quot-elim squash-elim ⊎-elim -elim qctx qty qsig ctx type tel mot dalg eprob sect norm small sig nf qpath ν 𝕏 K out corec poly map
+#! highlight tos: 𝔄 𝔅 𝕥 𝕦 𝕧 𝕤 𝕔 𝕜 𝕘 𝕒 𝕓 𝕞 Φ 𝒮 ς 𝔎 𝔽 𝔾
 #! highlight nova: Γ Δ Ξ Σ σ τ δ θ latin
 #! highlight meta: 𝑤 ρ υ π 𝒞 ℰ
 #! highlight indexed: ☐ ⬡ ‖
@@ -75,6 +75,14 @@
 #    constructors are INDUCTIVE (they may relate constructor terms across
 #    indices and participate in the induction). ℕ, (⊎) and (/) are
 #    retained for now.
+#  * Coinductive types: a second SCHEME, dual to QIITs in its smallest
+#    useful form — for each POLYNOMIAL 𝔽 (a one-hole strictly positive
+#    code), the type ν 𝔽, its observation out (the eliminator), its
+#    corecursor corec (the introduction), β running one observation
+#    step, and a uniqueness law that is the coinduction principle
+#    (bisimulation implies equality). Every ν 𝔽 is DERIVABLE (an
+#    ℕ-indexed limit — see SUBSUMPTION in the coinductive notes);
+#    the scheme is kept for structural identity and one-step β.
 
 ///////////// Syntax ///////////////
 
@@ -129,6 +137,9 @@ T ::= x [e˲]         # type in the signature context
     | 𝒮.𝕤 ē          # sort 𝕤 of a QIIT signature 𝒮 at index spine ē
                      #   (see "Quotient inductive-inductive types"); 𝒮 is
                      #   carried in the type, so QIIT equality is structural
+    | ν 𝔽            # coinductive type at polynomial 𝔽 (see "Coinductive
+                     #   types"); 𝔽 is carried in the type, so ν-equality
+                     #   is structural
 
 # element
 t ::= x [e˲]         # element in the signature context
@@ -169,6 +180,10 @@ t ::= x [e˲]         # element in the signature context
                      #   content is a judgement — see el-qiit-path)
     | 𝒮.𝕤-elim ℰ ē t # QIIT eliminator (elimination problem ℰ, indices ē,
                      #   eliminee t) — see the QIIT section
+    | ν 𝔽            # universe code for the coinductive type at 𝔽
+                     #   (every polynomial is small — see "Coinductive types")
+    | out t          # coinductive observation (the ELIMINATOR)
+    | corec t t      # corecursor (the INTRODUCTION: coalgebra body, seed)
 
 # (type) telescope
 Δ ::= ε | T ◁ Δ
@@ -239,7 +254,7 @@ t ::= x [e˲]         # element in the signature context
 
 # * NAMES. Every rule carries a canonical name on its inference line,
 #   following one homogeneous scheme — <class>-<former>-<kind> — where
-#   the class is the judgement class (ctx, sub, sub-norm, ty, el, code,
+#   the class is the judgement class (ctx, sub, sub-norm, ty, el, code, poly,
 #   tel, sp), the former names the connective or constructor, and the
 #   kind distinguishes introduction (i), elimination (e), computation
 #   (beta), uniqueness (eta), congruence (cong), injectivity (inj),
@@ -275,9 +290,13 @@ t ::= x [e˲]         # element in the signature context
   Γ ⊦ ℰ : 𝒮 dalg               Γ ⊦ 𝒮 qsig   (displayed algebra, ℰ = C̄ ; m̄)
   Γ ⊦ ℰ : 𝒮 eprob              Γ ⊦ ℰ : 𝒮 dalg   (elimination problem)
   Γ ⊦ φ : C̄ sect               Γ ⊦ C̄ : 𝒮 mot    (section candidate)
+  Γ ⊦ 𝔽 poly                   Γ ctx        (polynomial — see "Coinductive types")
   # the theory-of-signatures judgements (dual zone Γ ; Φ — Nova zone,
   # then ToS zone) are defined in the QIIT section; a signature is
-  # nothing but a well-formed qiit-context.
+  # nothing but a well-formed qiit-context. Like signatures,
+  # polynomials are inert syntax with no equality judgement of their
+  # own: they are compared structurally, per IDENTITY in each scheme's
+  # section.
 
 # A context extension Γ ▷ A presupposes Γ ctx and Γ ⊦ A type, so a
 # premise stated under Γ ▷ A carries A's well-formedness with it (and
@@ -2358,6 +2377,224 @@ e˲ : Γ₁ ⇒ Γ norm
 --------------------------- (code-squash-cong) # admissible via code-prop-eq + el-ty-coe
 Γ ⊦ ∥A₀∥ ≐ ∥A₁∥ : Ω
 
+///////// Coinductive types (polynomial codes) /////////
+#
+# The dual scheme to QIITs, in its smallest useful form: for each
+# POLYNOMIAL 𝔽 — a one-hole strictly positive code, no binders over
+# the hole, no internal fixpoints — the rules below license the
+# coinductive type ν 𝔽, its observation out (the ELIMINATOR), its
+# corecursor corec (the INTRODUCTION), a β-law running one
+# observation step, and a uniqueness law (η) that IS the coinduction
+# principle. The polarity is Π's, not ℕ's: canonical forms are
+# corec-headed, out forces lazily, and elements are compared by
+# observation. Like a QIIT signature, 𝔽 is not a Σ-entry and mints
+# no names — it is carried by the formers and compared structurally.
+#
+# THE EXTENSIONAL PAYOFF, dual to the QIIT section's: uniqueness of
+# the corecursor is a plain judgemental rule. In intensional
+# theories judgemental finality is rejected as undecidable, and
+# coinductive equality degenerates into hand-rolled bisimulation
+# setoids; here ≐ is already reflection-strong, so el-nu-eta is
+# homogeneous with el-qiit-eta — and BISIMULATION IMPLIES EQUALITY
+# becomes a corollary rather than a discipline.
+
+# POLYNOMIALS — grammar. External pieces are CODES, so every
+# polynomial is small and ν 𝔽 always has a code (no smallness side
+# condition — the grammar enforces it). A left-hand `El a` BINDS a
+# Nova variable in its body, exactly as code-sigma/code-pi bind; the
+# two product forms are distinguished by their left-hand side (K a
+# ⨯ … is the non-binding instance of the same shape). The hole 𝕏
+# never occurs left of a → — strict positivity is GRAMMATICAL, with
+# nothing to check (the same decidable-proxy commitment as
+# RELAXATION in the QIIT notes: here the semantic condition is that
+# 𝔽's operator be monotone on the setoid lattice).
+
+#   polynomial
+    𝔽, 𝔾 ::= 𝕏               # the hole
+           | K a             # constant at a code
+           | 𝔽 ⨯ 𝔾           # product
+           | 𝔽 ⊎ 𝔾           # sum — onto the native ⊎
+           | El a ⨯ 𝔽        # dependent pair over external data
+                             #   (binds a NOVA variable)
+           | El a → 𝔽        # exponent with external domain
+                             #   (binds a NOVA variable)
+
+Γ ctx
+--------------- (poly-hole)
+Γ ⊦ 𝕏 poly
+
+Γ ⊦ a : 𝕌
+---------------- (poly-const)
+Γ ⊦ K a poly
+
+Γ ⊦ 𝔽 poly      Γ ⊦ 𝔾 poly
+---------------------------- (poly-prod)
+Γ ⊦ 𝔽 ⨯ 𝔾 poly
+
+Γ ⊦ 𝔽 poly      Γ ⊦ 𝔾 poly
+---------------------------- (poly-sum)
+Γ ⊦ 𝔽 ⊎ 𝔾 poly
+
+Γ ⊦ a : 𝕌      Γ ▷ El a ⊦ 𝔽 poly
+---------------------------------- (poly-sigma)
+Γ ⊦ El a ⨯ 𝔽 poly
+
+Γ ⊦ a : 𝕌      Γ ▷ El a ⊦ 𝔽 poly
+---------------------------------- (poly-pi)
+Γ ⊦ El a → 𝔽 poly
+
+# REFLECTION ⌊𝔽⌋(c) — the code with the hole filled by Γ ⊦ c : 𝕌
+# (≜-defined by meta-level induction on 𝔽, like the QIIT ⌊·⌋; c
+# weakens under the binders):
+
+    ⌊𝕏⌋(c)          ≜ c
+    ⌊K a⌋(c)        ≜ a
+    ⌊𝔽 ⨯ 𝔾⌋(c)      ≜ ⌊𝔽⌋(c) ⨯ ⌊𝔾⌋(c)[↑]      # code-sigma, non-dependent
+    ⌊𝔽 ⊎ 𝔾⌋(c)      ≜ ⌊𝔽⌋(c) ⊎ ⌊𝔾⌋(c)         # code-sum, direct
+    ⌊El a ⨯ 𝔽⌋(c)   ≜ a ⨯ ⌊𝔽⌋(c[↑])
+    ⌊El a → 𝔽⌋(c)   ≜ a → ⌊𝔽⌋(c[↑])
+
+# FUNCTORIAL ACTION map_𝔽 — for Γ ⊦ g : El c₀ → El c₁, a function
+# term Γ ⊦ map_𝔽 g : El ⌊𝔽⌋(c₀) → El ⌊𝔽⌋(c₁), ≜-defined by
+# meta-level induction on 𝔽 (clauses written applied; at the binding
+# formers the recursion proceeds at the instantiated body and g
+# weakens under the binder; the sum clause is ⊎-elim at constant
+# motive):
+
+    map_𝕏 g x             ≜ g x
+    map_{K a} g x         ≜ x
+    map_{𝔽 ⨯ 𝔾} g p       ≜ (map_𝔽 g (p .π₁) , map_𝔾 g (p .π₂))
+    map_{𝔽 ⊎ 𝔾} g s       ≜ ⊎-elim (inj₁ (map_𝔽 g[↑] ☐₀)) (inj₂ (map_𝔾 g[↑] ☐₀)) s
+    map_{El a ⨯ 𝔽} g p    ≜ (p .π₁ , map_𝔽 g (p .π₂))
+    map_{El a → 𝔽} g f    ≜ λ (map_𝔽 g[↑] (f[↑] ☐₀))
+
+# The FUNCTOR LAWS — map_𝔽 (λ ☐₀) ≐ λ ☐₀ and
+# map_𝔽 (g₁ ∘ g₀-composite) ≐ map_𝔽 g₁ ∘ map_𝔽 g₀ pointwise — are
+# derivable per polynomial by meta-level induction on 𝔽, each
+# instance an ordinary internal equation (β, η and ⊎-eta per
+# former).
+
+# IDENTITY (structural). ν 𝔽 carries its polynomial; two ν-types
+# are equal exactly when their polynomials are — nameless indexed
+# syntax, compared componentwise (embedded Nova pieces by the
+# existing congruence/injectivity rules), iso-recursive: the
+# comparison never unfolds the fixpoint into its body. ν 𝔽 and
+# El ⌊𝔽⌋(ν 𝔽) are ISOMORPHIC (out one way; the derivable in below
+# the other) and deliberately never ≐ — same commitment as the QIIT
+# IDENTITY paragraph. Congruence and injectivity are structural, by
+# that meta-recursion (code-nu-cong/-inj are the componentwise
+# instances, not stated per former).
+
+# FORMATION. Every polynomial names a small type:
+
+Γ ⊦ 𝔽 poly
+--------------- (ty-nu)
+Γ ⊦ ν 𝔽 type
+
+Γ ⊦ 𝔽 poly
+--------------- (code-nu)
+Γ ⊦ ν 𝔽 : 𝕌
+
+Γ ⊦ 𝔽 poly
+--------------------------- (ty-el-nu)
+Γ ⊦ El (ν 𝔽) ≜ ν 𝔽 type
+
+# ELIMINATION — the observation. A sort of this scheme has no
+# constructor canonical forms; out is the only way to consume it,
+# and the only computation is β below (out of a neutral is
+# neutral):
+
+Γ ⊦ 𝔽 poly      Γ ⊦ t : ν 𝔽
+------------------------------ (el-nu-e)
+Γ ⊦ out t : El ⌊𝔽⌋(ν 𝔽)
+
+# INTRODUCTION — the corecursor: any coalgebra maps in. The carrier
+# a and the polynomial 𝔽 are read off the typing, as R is at
+# quot-elim; f is the coalgebra body, x the seed. Write
+# hᵉˡ ≜ λ (corec f[↑] ☐₀) for the corecursor as a function term
+# (cf. φᵉˡ at el-qiit-beta):
+
+Γ ⊦ 𝔽 poly      Γ ⊦ a : 𝕌
+Γ ▷ El a ⊦ f : El ⌊𝔽⌋(a)[↑]
+Γ ⊦ x : El a
+------------------------------ (el-nu-i)
+Γ ⊦ corec f x : ν 𝔽
+
+# COMPUTATION (β) — observing a corecursive value runs the
+# coalgebra one step and re-wraps the recursive positions:
+
+Γ ⊦ 𝔽 poly      Γ ⊦ a : 𝕌
+Γ ▷ El a ⊦ f : El ⌊𝔽⌋(a)[↑]
+Γ ⊦ x : El a
+------------------------------------------------------------- (el-nu-beta)
+Γ ⊦ out (corec f x) ≜ map_𝔽 hᵉˡ (f[id, x]) : El ⌊𝔽⌋(ν 𝔽)
+
+# UNIQUENESS (η) — the coinduction principle, el-quot-eta's shape:
+# any candidate commuting with the observation IS the corecursor.
+
+Γ ⊦ 𝔽 poly      Γ ⊦ a : 𝕌
+Γ ▷ El a ⊦ f : El ⌊𝔽⌋(a)[↑]
+Γ ▷ El a ⊦ h : (ν 𝔽)[↑]
+Γ ▷ El a ⊦ out h ≐ map_𝔽 ((λ h)[↑]) f : El ⌊𝔽⌋(ν 𝔽)[↑]
+Γ ⊦ x : El a
+------------------------------------------------------------- (el-nu-eta)
+Γ ⊦ h[id, x] ≐ corec f x : ν 𝔽
+
+# Corollary (two-candidate form, as at ℕ and ⊎): two maps into ν 𝔽
+# commuting with out through the same coalgebra are equal — chain
+# el-nu-eta through the corecursor they both equal. This is the
+# internal BISIMULATION-IMPLIES-EQUALITY principle: a bisimulation
+# is a coalgebra on its own carrier, and its two projections
+# commute.
+
+# SUBSTITUTION ACTION. Substitution acts through the carried
+# polynomial (𝔽[σ] the evident meta-operation: σ on the embedded
+# Nova pieces, lifted under the binders; the hole is inert):
+#     (ν 𝔽)[σ]        ≜ ν 𝔽[σ]          (type and code)
+#     (out t)[σ]      ≜ out t[σ]
+#     (corec f x)[σ]  ≜ corec f[σ⁺] x[σ]
+
+# NOTES.
+#   * LAMBEK. in ≜ λ (corec (map_𝔽 (λ (out ☐₀)) ☐₀) ☐₀) inverts out
+#     up to ≐ — out ∘ in by el-nu-beta plus the functor laws,
+#     in ∘ out by el-nu-eta — so ν 𝔽 ≅ El ⌊𝔽⌋(ν 𝔽) elementwise,
+#     while the TYPES stay structurally distinct (IDENTITY above).
+#   * SUBSUMPTION (conservativity). Every ν 𝔽 is definable: with
+#     F̂ⁿ(𝟙) : 𝕌 by ℕ-elim at motive 𝕌, the ℕ-indexed limit
+#         (g : ℕ → El (F̂ⁿ 𝟙)-family) ⨯ Prf (restriction coherence)
+#     is a final 𝔽-coalgebra — containers preserve this limit — with
+#     out, corec and both laws provable (β up to lemmas, η by
+#     ℕ-induction and funext-via-reflection). The scheme is retained
+#     for structural identity, one-step β, and the uniform η; the
+#     encoding is its justification, exactly as the QIIT SEMANTICS
+#     note is for that scheme.
+#   * SEMANTICS. In the setoid model the carrier of ν 𝔽 is the
+#     meta-level limit above (the descending chain of the monotone
+#     operator, converging at ω), and the relation is the LARGEST
+#     BISIMULATION — el-nu-eta is finality, validated on the nose.
+#     Models that fail finality are hereby excluded, as models
+#     failing initiality are by the QIIT notes.
+#   * DELIBERATE OMISSIONS, each with a known upgrade path: no
+#     internal fixpoints in the grammar (interleaved nesting like
+#     ν of X ↦ A ⨯ List X needs the inner functor reified to
+#     shape-and-positions form by hand; non-interleaved nesting is
+#     free through K-constants at previously formed ν/QIIT codes);
+#     no indexed or mutual coinductive sorts and no coequations
+#     (those want the full dual theory of cosignatures); no ν under
+#     a QIIT constructor domain (an inner ν forces infinitary
+#     branching, which the finitary ToS grammar excludes).
+#
+# EXAMPLES.
+#     Stream a  ≜ ν (K a ⨯ 𝕏)
+#     Conat     ≜ ν (K 𝟙 ⊎ 𝕏)
+#     Colist a  ≜ ν (K 𝟙 ⊎ (K a ⨯ 𝕏))
+#     Cotree a  ≜ ν (K 𝟙 ⊎ (K a ⨯ (𝕏 ⨯ 𝕏)))    # leaf/node infinite trees
+#     Moore a b ≜ ν (K b ⨯ (El a → 𝕏))
+#   head, tail, and friends are out followed by projections and
+#   ⊎-elim; constructors (cons, and Cotree's leaf/node) are in
+#   instances. Surface codata declarations elaborate to
+#   ν-polynomials — docs/NovaElaboration.txt's business.
+
 ///////// Rules (elem list) /////////
 
 Γ ctx
@@ -2421,5 +2658,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 # Names follow <class>-<former>-<kind> uniformly (see Conventions).
 # The equivalence schema instances are ctx-refl/-sym/-trans, sub-…,
-# sub-norm-…, ty-…, el-…, tel-…, sp-…. All other names appear verbatim
-# on their rules; there are no synonyms.
+# sub-norm-…, ty-…, el-…, tel-…, sp-…. The poly class has
+# well-formedness rules only (polynomials are inert syntax, no
+# equality judgement). All other names appear verbatim on their
+# rules; there are no synonyms.
