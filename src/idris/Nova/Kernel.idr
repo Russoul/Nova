@@ -39,6 +39,9 @@ data Sel : Type where
   SelSuc : Sel                       -- S x ≐ S y ⇒ x ≐ y : ℕ
   SelDom : Sel                       -- (a₀→b₀) ≐ (a₁→b₁) : 𝕌 ⇒ a₀ ≐ a₁ : 𝕌 (also ⨯)
   SelCod : Elem -> Sel               -- ⇒ b₀[id,u] ≐ b₁[id,u] : 𝕌 (also ⨯)
+  SelSumL : Sel                      -- (a₀⊎b₀) ≐ (a₁⊎b₁) : 𝕌 ⇒ a₀ ≐ a₁ : 𝕌
+  SelSumR : Sel                      -- ⇒ b₀ ≐ b₁ : 𝕌 (non-dependent: no
+                                     -- binder, no instantiation element)
   SelQDom : Sel                      -- (a₀/r₀) ≐ (a₁/r₁) : 𝕌 ⇒ a₀ ≐ a₁ : 𝕌
   SelQRel : Elem -> Elem -> Sel      -- ⇒ r₀[id,u,v] ≐ r₁[id,u,v] : 𝕌
   SelQIdx : Nat -> Sel               -- 𝒮.s ē₀ ≐ 𝒮.s ē₁ : 𝕌 ⇒ ē₀ᵢ ≐ ē₁ᵢ (QIIT
@@ -140,6 +143,10 @@ mutual
     FPiCong : ECert -> ECert -> Final
     ||| ty-sigma-cong, same shape
     FSigmaCong : ECert -> ECert -> Final
+    ||| ty-sum-cong, componentwise — both components over Γ (no
+    ||| binder to cross), needed when a component's equality is
+    ||| extensional and cannot flatten into steps
+    FSumCong : ECert -> ECert -> Final
 
   public export
   record ECert where
@@ -234,11 +241,22 @@ mutual
     case t' of
       SigmaIntro _ b => do burn; pure b
       _ => pure (SigmaElim2 t')
+  kElem sig (Inj1 t) = Inj1 <$> kElem sig t
+  kElem sig (Inj2 t) = Inj2 <$> kElem sig t
+  kElem sig (SumElim l r t) = do
+    l' <- kElem sig l
+    r' <- kElem sig r
+    t' <- kElem sig t
+    case t' of
+      Inj1 a => do burn; kElem sig (substElem l' (Ext Id a))
+      Inj2 b => do burn; kElem sig (substElem r' (Ext Id b))
+      _ => pure (SumElim l' r' t')
   kElem sig Elem.ZeroTy = pure Elem.ZeroTy
   kElem sig Elem.OneTy = pure Elem.OneTy
   kElem sig Elem.NatTy = pure Elem.NatTy
   kElem sig (Elem.PiTy a b) = [| Elem.PiTy (kElem sig a) (kElem sig b) |]
   kElem sig (Elem.SigmaTy a b) = [| Elem.SigmaTy (kElem sig a) (kElem sig b) |]
+  kElem sig (Elem.SumTy a b) = [| Elem.SumTy (kElem sig a) (kElem sig b) |]
   kElem sig (Elem.EqTy l r t) = [| Elem.EqTy (kElem sig l) (kElem sig r) (kTy sig t) |]
   kElem sig (QuotTy a r) = [| QuotTy (kElem sig a) (kElem sig r) |]
   kElem sig (SigVar x es) = do
@@ -307,6 +325,7 @@ mutual
   kTy sig Ty.UniverseTy = pure Ty.UniverseTy
   kTy sig (Ty.PiTy a b) = [| Ty.PiTy (kTy sig a) (kTy sig b) |]
   kTy sig (Ty.SigmaTy a b) = [| Ty.SigmaTy (kTy sig a) (kTy sig b) |]
+  kTy sig (Ty.SumTy a b) = [| Ty.SumTy (kTy sig a) (kTy sig b) |]
   kTy sig (El e) = do
     e' <- kElem sig e
     case e' of
@@ -315,6 +334,7 @@ mutual
       Elem.NatTy => do burn; pure Ty.NatTy
       Elem.PiTy a b => do burn; kTy sig (Ty.PiTy (El a) (El b))
       Elem.SigmaTy a b => do burn; kTy sig (Ty.SigmaTy (El a) (El b))
+      Elem.SumTy a b => do burn; kTy sig (Ty.SumTy (El a) (El b))
       QuotTy a r => do burn; kTy sig (Quotient (El a) r)
       QSortC sg k es => do burn; pure (QSort sg k es)   -- ty-el-qiit
       _ => pure (El e')
@@ -380,6 +400,14 @@ mutual
       _ => Left "kernel: bad path"
   pathE (i :: p) b f (SigmaElim1 t) = if i == 0 then SigmaElim1 <$> pathE p b f t else Left "kernel: bad path"
   pathE (i :: p) b f (SigmaElim2 t) = if i == 0 then SigmaElim2 <$> pathE p b f t else Left "kernel: bad path"
+  pathE (i :: p) b f (Inj1 t) = if i == 0 then Inj1 <$> pathE p b f t else Left "kernel: bad path"
+  pathE (i :: p) b f (Inj2 t) = if i == 0 then Inj2 <$> pathE p b f t else Left "kernel: bad path"
+  pathE (i :: p) b f (SumElim l r t) =
+    case i of
+      0 => (\l' => SumElim l' r t) <$> pathE p (1 + b) f l
+      1 => (\r' => SumElim l r' t) <$> pathE p (1 + b) f r
+      2 => (\t' => SumElim l r t') <$> pathE p b f t
+      _ => Left "kernel: bad path"
   pathE (i :: p) b f (Elem.PiTy a c) =
     case i of
       0 => (\a' => Elem.PiTy a' c) <$> pathE p b f a
@@ -389,6 +417,11 @@ mutual
     case i of
       0 => (\a' => Elem.SigmaTy a' c) <$> pathE p b f a
       1 => (\c' => Elem.SigmaTy a c') <$> pathE p (1 + b) f c
+      _ => Left "kernel: bad path"
+  pathE (i :: p) b f (Elem.SumTy a c) =
+    case i of
+      0 => (\a' => Elem.SumTy a' c) <$> pathE p b f a
+      1 => (\c' => Elem.SumTy a c') <$> pathE p b f c
       _ => Left "kernel: bad path"
   pathE (i :: p) b f (Elem.EqTy l r t) =
     case i of
@@ -429,6 +462,10 @@ mutual
       0 => (\a' => Ty.SigmaTy a' c) <$> pathT p b f a
       1 => (\c' => Ty.SigmaTy a c') <$> pathT p (1 + b) f c
       _ => Left "kernel: bad path"
+  pathT (i :: p) b f (Ty.SumTy a c) =
+    case i of
+      0 => (\a' => Ty.SumTy a' c) <$> pathT p b f a
+      1 => (\c' => Ty.SumTy a c') <$> pathT p b f c
       _ => Left "kernel: bad path"
   pathT (i :: p) b f (El e) = if i == 0 then El <$> pathE p b f e else Left "kernel: bad path"
   pathT (i :: p) b f (Prf e) = if i == 0 then Prf <$> pathE p b f e else Left "kernel: bad path"
@@ -515,6 +552,10 @@ mutual
   inferP sig ctx (Elem.SigmaTy a b) = do
     checkP sig ctx a Ty.UniverseTy
     checkP sig (ctx :< El a) b Ty.UniverseTy
+    pure Ty.UniverseTy
+  inferP sig ctx (Elem.SumTy a b) = do
+    checkP sig ctx a Ty.UniverseTy
+    checkP sig ctx b Ty.UniverseTy
     pure Ty.UniverseTy
   inferP sig ctx (QuotTy a r) = do
     checkP sig ctx a Ty.UniverseTy
@@ -637,6 +678,26 @@ mutual
     case ty' of
       Ty.SigmaTy a b => do checkP sig ctx u a; checkP sig ctx v (substTy b (Ext Id u))
       _ => kerr "kernel: pair proof at non-⨯ type"
+  -- el-sum-i₁ / el-sum-i₂ as proof arguments
+  checkP sig ctx (Inj1 a) ty = do
+    ty' <- kTy sig ty
+    case ty' of
+      Ty.SumTy dom _ => checkP sig ctx a dom
+      _ => kerr "kernel: inj₁ proof at non-⊎ type"
+  checkP sig ctx (Inj2 b) ty = do
+    ty' <- kTy sig ty
+    case ty' of
+      Ty.SumTy _ cod => checkP sig ctx b cod
+      _ => kerr "kernel: inj₂ proof at non-⊎ type"
+  -- ⊎-elim with a CONSTANT motive (approximation A1): the el-sum-e
+  -- instance whose motive is T[↑]; the scrutinee's ⊎-type is inferred
+  checkP sig ctx (SumElim l r t) ty = do
+    tTy <- inferP sig ctx t >>= kTy sig
+    case tTy of
+      Ty.SumTy a b => do
+        checkP sig (ctx :< a) l (substTy ty Wk)
+        checkP sig (ctx :< b) r (substTy ty Wk)
+      _ => kerr "kernel: ⊎-elim proof scrutinee at non-⊎ type"
   -- el-qiit-intro as a proof argument (spec §3): the saturated
   -- constructor at its sort, the term's signature nf-identical to the
   -- type's, spine checked entrywise, indices compared
@@ -750,6 +811,9 @@ mutual
   checkTyP sig ctx (Ty.SigmaTy a b) = do
     checkTyP sig ctx a
     checkTyP sig (ctx :< a) b
+  checkTyP sig ctx (Ty.SumTy a b) = do
+    checkTyP sig ctx a
+    checkTyP sig ctx b
   checkTyP sig ctx (El e) = checkP sig ctx e Ty.UniverseTy
   checkTyP sig ctx (Prf p) = checkP sig ctx p Ty.PropTy
   checkTyP sig ctx (Quotient a r) = do
@@ -807,6 +871,9 @@ applySel sig ctx (l, r, _) sel = do
     (SelCod u, Elem.SigmaTy _ b0, Elem.SigmaTy a1 b1) => do
       checkP sig ctx u (El a1)
       pure (substElem b0 (Ext Id u), substElem b1 (Ext Id u), Ty.UniverseTy)
+    -- code-sum-inj: non-dependent, both components at 𝕌 directly
+    (SelSumL, Elem.SumTy a0 _, Elem.SumTy a1 _) => pure (a0, a1, Ty.UniverseTy)
+    (SelSumR, Elem.SumTy _ b0, Elem.SumTy _ b1) => pure (b0, b1, Ty.UniverseTy)
     (SelQDom, QuotTy a0 _, QuotTy a1 _) => pure (a0, a1, Ty.UniverseTy)
     -- code-quot-inj: the relation components live at Ω
     (SelQRel u v, QuotTy _ r0, QuotTy a1 r1) => do
@@ -959,6 +1026,21 @@ mutual
       _ => pure Nothing
   childTyE sig ctx pexp (SigmaElim1 u) 0 = inferNeK sig ctx u
   childTyE sig ctx pexp (SigmaElim2 u) 0 = inferNeK sig ctx u
+  childTyE sig ctx (Just pe) (Inj1 _) 0 = do
+    t <- kTy sig pe
+    case t of
+      Ty.SumTy a _ => pure (Just a)
+      _ => pure Nothing
+  childTyE sig ctx (Just pe) (Inj2 _) 0 = do
+    t <- kTy sig pe
+    case t of
+      Ty.SumTy _ b => pure (Just b)
+      _ => pure Nothing
+  -- ⊎-elim: the case positions are motive-dependent (undetermined);
+  -- the scrutinee's type is neutrally inferable
+  childTyE sig ctx pexp (SumElim _ _ t) 2 = inferNeK sig ctx t
+  childTyE sig ctx pexp (Elem.SumTy _ _) 0 = pure (Just Ty.UniverseTy)
+  childTyE sig ctx pexp (Elem.SumTy _ _) 1 = pure (Just Ty.UniverseTy)
   childTyE sig ctx pexp (Elem.PiTy _ _) 0 = pure (Just Ty.UniverseTy)
   childTyE sig ctx pexp (Elem.PiTy _ _) 1 = pure (Just Ty.UniverseTy)
   childTyE sig ctx pexp (Elem.SigmaTy _ _) 0 = pure (Just Ty.UniverseTy)
@@ -1078,12 +1160,19 @@ goE sig ctx lic (i :: p) b mexp u = do
         (PiApp f e, 1) => PiApp f <$> goE sig ctx lic p b childTy e
         (SigmaElim1 t', 0) => SigmaElim1 <$> goE sig ctx lic p b childTy t'
         (SigmaElim2 t', 0) => SigmaElim2 <$> goE sig ctx lic p b childTy t'
+        (Inj1 t', 0) => Inj1 <$> goE sig ctx lic p b childTy t'
+        (Inj2 t', 0) => Inj2 <$> goE sig ctx lic p b childTy t'
+        (SumElim l r t', 0) => (\l' => SumElim l' r t') <$> goE sig ctx lic p (1 + b) childTy l
+        (SumElim l r t', 1) => (\r' => SumElim l r' t') <$> goE sig ctx lic p (1 + b) childTy r
+        (SumElim l r t', 2) => SumElim l r <$> goE sig ctx lic p b childTy t'
         (SigmaIntro x y, 0) => (\x' => SigmaIntro x' y) <$> goE sig ctx lic p b childTy x
         (SigmaIntro x y, 1) => SigmaIntro x <$> goE sig ctx lic p b childTy y
         (Elem.PiTy a c, 0) => (\a' => Elem.PiTy a' c) <$> goE sig ctx lic p b childTy a
         (Elem.PiTy a c, 1) => Elem.PiTy a <$> goE sig ctx lic p (1 + b) childTy c
         (Elem.SigmaTy a c, 0) => (\a' => Elem.SigmaTy a' c) <$> goE sig ctx lic p b childTy a
         (Elem.SigmaTy a c, 1) => Elem.SigmaTy a <$> goE sig ctx lic p (1 + b) childTy c
+        (Elem.SumTy a c, 0) => (\a' => Elem.SumTy a' c) <$> goE sig ctx lic p b childTy a
+        (Elem.SumTy a c, 1) => Elem.SumTy a <$> goE sig ctx lic p b childTy c
         (Elem.EqTy l r t', 0) => (\l' => Elem.EqTy l' r t') <$> goE sig ctx lic p b childTy l
         (Elem.EqTy l r t', 1) => (\r' => Elem.EqTy l r' t') <$> goE sig ctx lic p b childTy r
         (Elem.EqTy l r t', 2) => Elem.EqTy l r <$> goTy sig ctx lic p b t'
@@ -1128,6 +1217,11 @@ goTy sig ctx lic (i :: p) b (Ty.SigmaTy a c) =
   case i of
     0 => (\a' => Ty.SigmaTy a' c) <$> goTy sig ctx lic p b a
     1 => Ty.SigmaTy a <$> goTy sig ctx lic p (1 + b) c
+    _ => kerr "kernel: bad path"
+goTy sig ctx lic (i :: p) b (Ty.SumTy a c) =
+  case i of
+    0 => (\a' => Ty.SumTy a' c) <$> goTy sig ctx lic p b a
+    1 => Ty.SumTy a <$> goTy sig ctx lic p b c
     _ => kerr "kernel: bad path"
 goTy sig ctx lic (i :: p) b (El e) =
   if i == 0 then El <$> goE sig ctx lic p b (Just Ty.UniverseTy) e
@@ -1247,6 +1341,8 @@ wkSubN (S n) = Chain (wkSubN n) Wk
 isIntro : Elem -> Bool
 isIntro (PiIntro _) = True
 isIntro (SigmaIntro _ _) = True
+isIntro (Inj1 _) = True
+isIntro (Inj2 _) = True
 isIntro (Class _) = True
 isIntro (ZeroElim _) = True
 isIntro Star = True
@@ -1322,6 +1418,7 @@ mutual
       FQuotCong _ => kerr "kernel: quotient-congruence final on an element equation"
       FPiCong _ _ => kerr "kernel: Π-congruence final on an element equation"
       FSigmaCong _ _ => kerr "kernel: Σ-congruence final on an element equation"
+      FSumCong _ _ => kerr "kernel: ⊎-congruence final on an element equation"
    where
     goSteps : Ty -> List Step -> Elem -> Elem -> KM (Elem, Elem)
     goSteps tyU [] l' r' = pure (l', r')
@@ -1371,6 +1468,13 @@ mutual
             kEqTy sig ctx dc d0 d1
             kEqTy sig (ctx :< d1) cc c0 c1
           _ => kerr "kernel: Σ-congruence final at non-Σ types"
+      -- ty-sum-cong: componentwise, both components over Γ
+      FSumCong lc rc =>
+        case (a1, b1) of
+          (Ty.SumTy l0 r0, Ty.SumTy l1 r1) => do
+            kEqTy sig ctx lc l0 l1
+            kEqTy sig ctx rc r0 r1
+          _ => kerr "kernel: ⊎-congruence final at non-⊎ types"
       _ => kerr "kernel: unsupported final for a type equation"
    where
     goSteps : List Step -> Ty -> Ty -> KM (Ty, Ty)
@@ -1455,6 +1559,16 @@ mutual
                             _ => kerr "kernel: squash-elim scrutinee at Prf of a non-∥∥ code"
                         _ => kerr "kernel: squash-elim scrutinee has non-Prf type"
                     Nothing => kerr "kernel: ⋆ without its witness or squash-elim annotation"
+          Inj1 a => do
+            ty' <- kTy sig ty
+            case ty' of
+              Ty.SumTy dom _ => kCheckE sig ctx a dom (skelChild 0 sk)
+              _ => kerr "kernel: inj₁ checked at a non-⊎ type"
+          Inj2 a => do
+            ty' <- kTy sig ty
+            case ty' of
+              Ty.SumTy _ cod => kCheckE sig ctx a cod (skelChild 0 sk)
+              _ => kerr "kernel: inj₂ checked at a non-⊎ type"
           Class a => do
             ty' <- kTy sig ty
             case ty' of
@@ -1564,6 +1678,22 @@ mutual
                 kCheckE sig ctx t Ty.NatTy (skelChild 2 sk)
                 pure (substTy mot (Ext Id t))
               Nothing => kerr "kernel: ℕ-elim without a motive annotation"
+          SumElim l r t =>
+            -- el-sum-e: the motive arrives as a payload, the
+            -- scrutinee's ⊎-type is inferred (like quot-elim's)
+            case takeP pMotive sk of
+              Just ((mot, motSk), _) => do
+                tTy <- kInferE sig ctx t (skelChild 2 sk) >>= kTy sig
+                case tTy of
+                  Ty.SumTy a b => do
+                    kCheckTyK sig (ctx :< Ty.SumTy a b) mot motSk
+                    kCheckE sig (ctx :< a) l
+                      (substTy mot (Ext Wk (Inj1 (CtxVar 0)))) (skelChild 0 sk)
+                    kCheckE sig (ctx :< b) r
+                      (substTy mot (Ext Wk (Inj2 (CtxVar 0)))) (skelChild 1 sk)
+                    pure (substTy mot (Ext Id t))
+                  _ => kerr "kernel: ⊎-elim of a non-⊎ scrutinee"
+              Nothing => kerr "kernel: ⊎-elim without a motive annotation"
           QuotElim f q =>
             case (takeP pMotive sk, takeP pWD sk) of
               (Just ((mot, motSk), _), Just (wd, _)) => do
@@ -1660,6 +1790,10 @@ mutual
             kCheckE sig ctx a Ty.UniverseTy (skelChild 0 sk)
             kCheckE sig (ctx :< El a) b Ty.UniverseTy (skelChild 1 sk)
             pure Ty.UniverseTy
+          Elem.SumTy a b => do
+            kCheckE sig ctx a Ty.UniverseTy (skelChild 0 sk)
+            kCheckE sig ctx b Ty.UniverseTy (skelChild 1 sk)
+            pure Ty.UniverseTy
           QuotTy a r => do
             kCheckE sig ctx a Ty.UniverseTy (skelChild 0 sk)
             kCheckE sig (ctx :< El a :< substTy (El a) Wk) r Ty.PropTy (skelChild 1 sk)
@@ -1692,6 +1826,9 @@ mutual
   kCheckTyK sig ctx (Ty.SigmaTy a b) sk = do
     kCheckTyK sig ctx a (skelChild 0 sk)
     kCheckTyK sig (ctx :< a) b (skelChild 1 sk)
+  kCheckTyK sig ctx (Ty.SumTy a b) sk = do
+    kCheckTyK sig ctx a (skelChild 0 sk)
+    kCheckTyK sig ctx b (skelChild 1 sk)
   kCheckTyK sig ctx (El e) sk = kCheckE sig ctx e Ty.UniverseTy (skelChild 0 sk)
   kCheckTyK sig ctx Ty.PropTy _ = pure ()
   kCheckTyK sig ctx (Prf p) sk = kCheckE sig ctx p Ty.PropTy (skelChild 0 sk)

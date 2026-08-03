@@ -184,11 +184,19 @@ mutual
             sp
             (do kw "→"; sp; b <- parseSTy tbl env'; pure (foldGroups STyPi groups b))
               <|> (do kw "⨯"; sp; b <- parseSTy tbl env'; pure (foldGroups STySigma groups b)))
-    <|> (do a <- parseSTyEl tbl env
+    <|> (do a <- parseSTySum tbl env
             (do sp; kw "→"; sp; b <- parseSTy tbl (env :< wildcard); pure (STyPi wildcard a b))
               <|> (do sp; kw "⨯"; sp; b <- parseSTy tbl (env :< wildcard); pure (STySigma wildcard a b))
               <|> (do sp; kw "/"; sp; (x, y, r) <- parseQuotRel tbl env; pure (STyQuot a x y r))
               <|> pure a)
+
+  -- T{1½}: ⊎ — non-dependent, right-assoc, binds TIGHTER than → ⨯ /
+  -- (Agda's convention: A ⊎ B → C is (A ⊎ B) → C)
+  parseSTySum : FixTable -> NameEnv -> Rule STy
+  parseSTySum tbl env = do
+    a <- parseSTyEl tbl env
+    (do sp; kw "⊎"; sp; b <- parseSTySum tbl env; pure (STySum a b))
+      <|> pure a
 
   -- one or more (x:T) groups, each scoping over the ones after it
   parseBinderGroups : FixTable -> NameEnv -> Rule (NameEnv, List (String, STy))
@@ -246,15 +254,23 @@ mutual
             sp
             (do kw "→"; sp; b <- parseSElemNoComma tbl env'; pure (foldGroups SPiC groups b))
               <|> (do kw "⨯"; sp; b <- parseSElemNoComma tbl env'; pure (foldGroups SSigmaC groups b)))
-    <|> (do e <- parseSElemOp tbl env
+    <|> (do e <- parseSElemSumC tbl env
             (do sp; kw "→"; sp; e' <- parseSElemNoComma tbl (env :< wildcard); pure (SPiC wildcard e e'))
               <|> (do sp; kw "⨯"; sp; e' <- parseSElemNoComma tbl (env :< wildcard); pure (SSigmaC wildcard e e'))
               <|> (do sp; kw "/"; sp; (x, y, r) <- parseQuotRelC tbl env; pure (SQuotC e x y r))
               <|> (do sp; kw "≡"; sp
-                      e1 <- parseSElemOp tbl env; sp; kw "∈"; sp
+                      e1 <- parseSElemSumC tbl env; sp; kw "∈"; sp
                       t2 <- parseSTyEl tbl env
                       pure (SEqC e e1 t2))
               <|> pure e)
+
+  -- t{1¼}: the ⊎ code — like the ⊎ type, tighter than the other
+  -- infix code formers
+  parseSElemSumC : FixTable -> NameEnv -> Rule SElem
+  parseSElemSumC tbl env = do
+    e <- parseSElemOp tbl env
+    (do sp; kw "⊎"; sp; e' <- parseSElemSumC tbl env; pure (SSumC e e'))
+      <|> pure e
 
   -- t{1½}: declared infix operators — precedence climbing over the
   -- fixity table. An operator token is a NAME; infix use is
@@ -313,6 +329,17 @@ mutual
             t <- parseSElemAtom tbl env
             pure (SNatElim n mot z n2 ih s t))
     <|> (do kw "S"; space; e <- parseSElemAtom tbl env; pure (SSuc e))
+    <|> (do kw "inj₁"; space; e <- parseSElemAtom tbl env; pure (SInj1 e))
+    <|> (do kw "inj₂"; space; e <- parseSElemAtom tbl env; pure (SInj2 e))
+    <|> (do kw "⊎-elim"; space
+            kwc '('; sp; z <- parseNameR; sp; kwc '.'; sp
+            mot <- parseSTy tbl (env :< fst z); sp; kwc ')'; sp
+            kwc '('; sp; a <- parseNameR; sp; kwc '.'; sp
+            l <- parseSElem tbl (env :< fst a); sp; kwc ')'; sp
+            kwc '('; sp; b <- parseNameR; sp; kwc '.'; sp
+            r <- parseSElem tbl (env :< fst b); sp; kwc ')'; sp
+            t <- parseSElemAtom tbl env
+            pure (SSumElim z mot a l b r t))
     <|> (do kw "class"; space; e <- parseSElemAtom tbl env; pure (SClass e))
     <|> (do kw "quot-elim"; space
             kwc '('; sp; z <- parseNameR; sp; kwc '.'; sp

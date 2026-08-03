@@ -1,0 +1,4 @@
+-- ⊎-elim reduces at both injections (el-sum-beta₁/₂)
+def swap : (a : 𝕌) (b : 𝕌) → El (a ⊎ b) → El (b ⊎ a) ≔
+  λa. λb. λt. ⊎-elim (w. El (b ⊎ a)) (x. inj₂ x) (y. inj₁ y) t
+def val : El (𝟙 ⊎ ℕ) ≔ swap ℕ 𝟙 (inj₁ (S Z))

@@ -61,11 +61,15 @@ mutual
   substElem (SigmaIntro a b)   sigma = SigmaIntro (substElem a sigma) (substElem b sigma)
   substElem (SigmaElim1 t)     sigma = SigmaElim1 (substElem t sigma)
   substElem (SigmaElim2 t)     sigma = SigmaElim2 (substElem t sigma)
+  substElem (Inj1 t)           sigma = Inj1 (substElem t sigma)
+  substElem (Inj2 t)           sigma = Inj2 (substElem t sigma)
+  substElem (SumElim l r t)    sigma = SumElim (substElem l (under sigma)) (substElem r (under sigma)) (substElem t sigma)
   substElem Elem.ZeroTy        sigma = Elem.ZeroTy
   substElem Elem.OneTy         sigma = Elem.OneTy
   substElem Elem.NatTy         sigma = Elem.NatTy
   substElem (Elem.PiTy a b)    sigma = Elem.PiTy (substElem a sigma) (substElem b (under sigma))
   substElem (Elem.SigmaTy a b) sigma = Elem.SigmaTy (substElem a sigma) (substElem b (under sigma))
+  substElem (Elem.SumTy a b)   sigma = Elem.SumTy (substElem a sigma) (substElem b sigma)
   substElem (Elem.EqTy l r t)  sigma = Elem.EqTy (substElem l sigma) (substElem r sigma) (substTy t sigma)
   substElem (QuotTy a r)       sigma = QuotTy (substElem a sigma) (substElem r (under (under sigma)))
   substElem (SigVar x es)      sigma = SigVar x (substSubNorm es sigma)
@@ -124,6 +128,7 @@ mutual
   substTy Ty.UniverseTy         sigma = Ty.UniverseTy
   substTy (Ty.PiTy a b)         sigma = Ty.PiTy (substTy a sigma) (substTy b (under sigma))
   substTy (Ty.SigmaTy a b)      sigma = Ty.SigmaTy (substTy a sigma) (substTy b (under sigma))
+  substTy (Ty.SumTy a b)        sigma = Ty.SumTy (substTy a sigma) (substTy b sigma)
   substTy (El e)                sigma = El (substElem e sigma)
   substTy PropTy                sigma = PropTy
   substTy (Prf e)               sigma = Prf (substElem e sigma)
@@ -171,11 +176,15 @@ mutual
   strengthenElem d (SigmaIntro a b)   = SigmaIntro <$> strengthenElem d a <*> strengthenElem d b
   strengthenElem d (SigmaElim1 t)     = SigmaElim1 <$> strengthenElem d t
   strengthenElem d (SigmaElim2 t)     = SigmaElim2 <$> strengthenElem d t
+  strengthenElem d (Inj1 t)           = Inj1 <$> strengthenElem d t
+  strengthenElem d (Inj2 t)           = Inj2 <$> strengthenElem d t
+  strengthenElem d (SumElim l r t)    = SumElim <$> strengthenElem (1 + d) l <*> strengthenElem (1 + d) r <*> strengthenElem d t
   strengthenElem d Elem.ZeroTy        = Just Elem.ZeroTy
   strengthenElem d Elem.OneTy         = Just Elem.OneTy
   strengthenElem d Elem.NatTy         = Just Elem.NatTy
   strengthenElem d (Elem.PiTy a b)    = Elem.PiTy <$> strengthenElem d a <*> strengthenElem (1 + d) b
   strengthenElem d (Elem.SigmaTy a b) = Elem.SigmaTy <$> strengthenElem d a <*> strengthenElem (1 + d) b
+  strengthenElem d (Elem.SumTy a b)   = Elem.SumTy <$> strengthenElem d a <*> strengthenElem d b
   strengthenElem d (Elem.EqTy l r t)  = Elem.EqTy <$> strengthenElem d l <*> strengthenElem d r <*> strengthenTy d t
   strengthenElem d (QuotTy a r)       = QuotTy <$> strengthenElem d a <*> strengthenElem (2 + d) r
   strengthenElem d (SigVar x es)      = SigVar x <$> strengthenSubNorm d es
@@ -228,6 +237,7 @@ mutual
   strengthenTy d Ty.UniverseTy     = Just Ty.UniverseTy
   strengthenTy d (Ty.PiTy a b)     = Ty.PiTy <$> strengthenTy d a <*> strengthenTy (1 + d) b
   strengthenTy d (Ty.SigmaTy a b)  = Ty.SigmaTy <$> strengthenTy d a <*> strengthenTy (1 + d) b
+  strengthenTy d (Ty.SumTy a b)    = Ty.SumTy <$> strengthenTy d a <*> strengthenTy d b
   strengthenTy d (El e)            = El <$> strengthenElem d e
   strengthenTy d PropTy            = Just PropTy
   strengthenTy d (Prf e)           = Prf <$> strengthenElem d e

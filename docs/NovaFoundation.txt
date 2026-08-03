@@ -1,6 +1,6 @@
 ////////// Preface //////////
 
-#! highlight keywords: ⊦ : ; , · [ ] ‖ .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id λ → ⨯ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S ⋆ Prf class ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ 𝟘-elim ℕ-elim quot-elim squash-elim -elim qctx qty qsig ctx type tel mot dalg eprob sect norm small sig nf qpath
+#! highlight keywords: ⊦ : ; , · [ ] ‖ .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id λ → ⨯ ⊎ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S ⋆ Prf class inj₁ inj₂ ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ 𝟘-elim ℕ-elim quot-elim squash-elim ⊎-elim -elim qctx qty qsig ctx type tel mot dalg eprob sect norm small sig nf qpath
 #! highlight tos: 𝔄 𝔅 𝕥 𝕦 𝕧 𝕤 𝕔 𝕜 𝕘 𝕒 𝕓 𝕞 Φ 𝒮 ς 𝔎
 #! highlight nova: Γ Δ Ξ Σ σ τ δ θ latin
 #! highlight meta: 𝑤 ρ υ π 𝒞 ℰ
@@ -52,6 +52,11 @@
 #  * Natural numbers type: ℕ
 #  * Dependent product type: (→)
 #  * Dependent sum type: (⨯)
+#  * Non-dependent sum type: (⊎) — the disjoint union, with injections
+#    inj₁/inj₂ and a dependent eliminator ⊎-elim (β on each injection,
+#    uniqueness η in el-nat-eta's style). DEFINABLE as a QIIT (a
+#    two-point signature — see SUBSUMPTION in the QIIT notes); retained
+#    as a standalone former, like ℕ and (/)
 #  * Equality proposition: (≡), Ω-valued, with reflection — used through
 #    Prf; proof-irrelevant by el-prf-prop (see the Ω block)
 #  * Quotient type: (/), by an Ω-valued relation
@@ -63,12 +68,13 @@
 #    constructors), the sorts 𝒮.𝕤 ē as types, their constructors 𝒮.𝕔 θ,
 #    the imposed path equations, and a dependent eliminator 𝒮.𝕤-elim with
 #    its computation and uniqueness laws. Every rule is stated against a
-#    signature (no Σ-entry; 𝒮 is carried by the formers). This subsumes ℕ
-#    and (/) (each a one-line signature), including indexed inductive types
+#    signature (no Σ-entry; 𝒮 is carried by the formers). This subsumes ℕ,
+#    (⊎) and (/) (each a one- or two-line signature), including indexed
+#    inductive types
 #    and quotient inductive types as special cases; its equation
 #    constructors are INDUCTIVE (they may relate constructor terms across
-#    indices and participate in the induction). ℕ and (/) are retained for
-#    now.
+#    indices and participate in the induction). ℕ, (⊎) and (/) are
+#    retained for now.
 
 ///////////// Syntax ///////////////
 
@@ -114,6 +120,7 @@ T ::= x [e˲]         # type in the signature context
     | Ω              # universe of mere propositions
     | T → T          # dependent product type (Π)
     | T ⨯ T          # dependent sum type (Σ)
+    | T ⊎ T          # non-dependent sum type (disjoint union)
     | El t           # Every element of the universe is a type
     | T / t          # quotient type (t an Ω-valued relation)
     | Prf t          # decoding of a proposition (Ω's El; deliberately not
@@ -131,11 +138,16 @@ t ::= x [e˲]         # element in the signature context
     | t , t          # dependent sum type introduction
     | t .π₁          # dependent sum type elimination (1)
     | t .π₂          # dependent sum type elimination (2)
+    | inj₁ t         # non-dependent sum type introduction (left)
+    | inj₂ t         # non-dependent sum type introduction (right)
+    | ⊎-elim t t t   # non-dependent sum type elimination
+                     #   (left case, right case, eliminee)
     | 𝟘              # element of the universe
     | 𝟙              # element of the universe
     | ℕ              # element of the universe
     | t → t          # element of the universe (encodes Π)
     | t ⨯ t          # element of the universe (encodes Σ)
+    | t ⊎ t          # element of the universe (encodes ⊎)
     | t ≡ t ∈ T      # equality PROPOSITION — an Ω-element; T an
                      #   arbitrary TYPE, so equality props exist at
                      #   large types (see the Ω block)
@@ -553,6 +565,11 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 ------------------ (ty-sigma)
 Γ ⊦ A ⨯ B type
 
+Γ ⊦ A type
+Γ ⊦ B type
+------------------ (ty-sum)     # non-dependent: B over Γ, not Γ ▷ A
+Γ ⊦ A ⊎ B type
+
 Γ ⊦ A : 𝕌
 ----------------- (ty-el)
 Γ ⊦ El A type
@@ -609,6 +626,11 @@ e˲ : Δ ⇒ Γ norm
 Γ ⊦ El (A ⨯ B) ≜ El A ⨯ El B type
 
 Γ ⊦ A : 𝕌
+Γ ⊦ B : 𝕌
+---------------------------------- (ty-el-sum)
+Γ ⊦ El (A ⊎ B) ≜ El A ⊎ El B type
+
+Γ ⊦ A : 𝕌
 Γ ▷ El A ▷ (El A)[↑] ⊦ R : Ω
 ---------------------------------- (ty-el-quot)
 Γ ⊦ El (A / R) ≜ El A / R type
@@ -662,6 +684,12 @@ e˲ : Δ ⇒ Γ norm
 Γ₀ ⊦ (A ⨯ B)[σ] ≜ A[σ] ⨯ B[σ⁺] type
 
 Γ₁ ⊦ A type
+Γ₁ ⊦ B type
+σ : Γ₀ ⇒ Γ₁
+--------------------------------------- (ty-sub-sum)
+Γ₀ ⊦ (A ⊎ B)[σ] ≜ A[σ] ⊎ B[σ] type
+
+Γ₁ ⊦ A type
 Γ₁ ▷ A ▷ A[↑] ⊦ R : Ω
 σ : Γ₀ ⇒ Γ₁
 ---------------------------------------- (ty-sub-quot)
@@ -708,6 +736,11 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ▷ A₁ ⊦ B₀ ≐ B₁ type
 ------------------------------- (ty-sigma-cong)
 Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ type
+
+Γ ⊦ A₀ ≐ A₁ type
+Γ ⊦ B₀ ≐ B₁ type
+------------------------------- (ty-sum-cong)
+Γ ⊦ A₀ ⊎ B₀ ≐ A₁ ⊎ B₁ type
 
 Γ ⊦ A₀ ≐ A₁ type
 Γ ▷ A₁ ▷ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
@@ -774,7 +807,13 @@ e˲ : Γ₁ ⇒ Γ norm
 #    the code universes (docs/NovaModel.txt).
 #  * S-injectivity and pair-injectivity need no rules: they are already
 #    derivable (congruence with a ℕ-elim predecessor, respectively the
-#    projections).
+#    projections). Ditto inj₁/inj₂-injectivity and -disjointness:
+#    injectivity by a ⊎-elim retraction at constant motive A whose
+#    right case returns a fixed default (the compared element itself
+#    serves), disjointness by a ⊎-elim discriminator at constant
+#    motive ℕ (Z left, S Z right) followed by the standard Z ≐ S Z
+#    refutation. The TYPE former ⊎ is injective by rule below, like
+#    every other structural former.
 
 Γ ▷ A₀ ⊦ B₀ type
 Γ ▷ A₁ ⊦ B₁ type
@@ -789,6 +828,11 @@ e˲ : Γ₁ ⇒ Γ norm
 ------------------------------ (ty-sigma-inj)
 Γ ⊦ A₀ ≐ A₁ type
 Γ ▷ A₁ ⊦ B₀ ≐ B₁ type
+
+Γ ⊦ A₀ ⊎ B₀ ≐ A₁ ⊎ B₁ type
+------------------------------ (ty-sum-inj)   # non-dependent: both
+Γ ⊦ A₀ ≐ A₁ type                              #   components over Γ
+Γ ⊦ B₀ ≐ B₁ type
 
 Γ ▷ A₀ ▷ A₀[↑] ⊦ R₀ : Ω
 Γ ▷ A₁ ▷ A₁[↑] ⊦ R₁ : Ω
@@ -819,6 +863,11 @@ e˲ : Γ₁ ⇒ Γ norm
 ------------------------------ (code-sigma-inj)
 Γ ⊦ a₀ ≐ a₁ : 𝕌
 Γ ▷ El a₁ ⊦ b₀ ≐ b₁ : 𝕌
+
+Γ ⊦ a₀ ⊎ b₀ ≐ a₁ ⊎ b₁ : 𝕌
+------------------------------ (code-sum-inj)
+Γ ⊦ a₀ ≐ a₁ : 𝕌
+Γ ⊦ b₀ ≐ b₁ : 𝕌
 
 Γ ▷ El a₀ ▷ (El a₀)[↑] ⊦ r₀ : Ω
 Γ ▷ El a₁ ▷ (El a₁)[↑] ⊦ r₁ : Ω
@@ -896,6 +945,11 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ▷ El A ⊦ B : 𝕌
 -------------------- (code-sigma)
 Γ ⊦ A ⨯ B : 𝕌
+
+Γ ⊦ A : 𝕌
+Γ ⊦ B : 𝕌
+-------------------- (code-sum)
+Γ ⊦ A ⊎ B : 𝕌
 
 Γ ⊦ A : 𝕌
 Γ ▷ El A ▷ (El A)[↑] ⊦ R : Ω
@@ -1019,6 +1073,57 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ t : A ⨯ B
 ------------------------------------ (el-sigma-eta)
 Γ ⊦ (t .π₁ , t .π₂) ≐ t : A ⨯ B
+
+# ⊎ — the non-dependent sum (disjoint union). Two injections; the
+# eliminator is DEPENDENT (motive C over Γ ▷ A ⊎ B), with β on each
+# injection. Uniqueness (η) is stated as elimination into equality —
+# el-nat-eta's shape: any map out of A ⊎ B that agrees with the case
+# functions on both injections IS the eliminator.
+
+Γ ⊦ B type
+Γ ⊦ a : A
+------------------------ (el-sum-i₁)
+Γ ⊦ inj₁ a : A ⊎ B
+
+Γ ⊦ A type
+Γ ⊦ b : B
+------------------------ (el-sum-i₂)
+Γ ⊦ inj₂ b : A ⊎ B
+
+Γ ▷ A ⊎ B ⊦ C type
+Γ ▷ A ⊦ l : C[↑, inj₁ ☐₀]
+Γ ▷ B ⊦ r : C[↑, inj₂ ☐₀]
+Γ ⊦ t : A ⊎ B
+---------------------------------- (el-sum-e, motive C)
+Γ ⊦ ⊎-elim l r t : C[id, t]
+
+Γ ▷ A ⊎ B ⊦ C type
+Γ ▷ A ⊦ l : C[↑, inj₁ ☐₀]
+Γ ▷ B ⊦ r : C[↑, inj₂ ☐₀]
+Γ ⊦ a : A
+------------------------------------------------------------ (el-sum-beta₁)
+Γ ⊦ ⊎-elim l r (inj₁ a) ≜ l[id, a] : C[id, inj₁ a]
+
+Γ ▷ A ⊎ B ⊦ C type
+Γ ▷ A ⊦ l : C[↑, inj₁ ☐₀]
+Γ ▷ B ⊦ r : C[↑, inj₂ ☐₀]
+Γ ⊦ b : B
+------------------------------------------------------------ (el-sum-beta₂)
+Γ ⊦ ⊎-elim l r (inj₂ b) ≜ r[id, b] : C[id, inj₂ b]
+
+Γ ▷ A ⊎ B ⊦ C type
+Γ ▷ A ⊎ B ⊦ g : C
+Γ ▷ A ⊦ l : C[↑, inj₁ ☐₀]
+Γ ▷ B ⊦ r : C[↑, inj₂ ☐₀]
+Γ ▷ A ⊦ g[↑, inj₁ ☐₀] ≐ l : C[↑, inj₁ ☐₀]
+Γ ▷ B ⊦ g[↑, inj₂ ☐₀] ≐ r : C[↑, inj₂ ☐₀]
+Γ ⊦ t : A ⊎ B
+------------------------------------------------- (el-sum-eta, motive C)
+Γ ⊦ g[id, t] ≐ ⊎-elim l r t : C[id, t]
+
+# Corollary (two-candidate form, as at ℕ): two maps out of A ⊎ B that
+# agree on both injections are equal — chain el-sum-eta through the
+# eliminator they both equal.
 
 # ≡ is Ω-VALUED: formation, introduction and reflection live in the Ω
 # block below, alongside squash — equality is a proposition, used
@@ -1274,9 +1379,10 @@ e˲ : Γ₁ ⇒ Γ norm
 # signature (⊦ 𝒮 qsig as a premise); a signature is NOT a Σ-entry and
 # mints no names — 𝒮 is carried by the formers themselves (as A / R
 # carries A and R). These are the inductive-inductive quotient types of
-# Altenkirch–Kaposi. The scheme SUBSUMES ℕ and (/), and covers indexed
+# Altenkirch–Kaposi. The scheme SUBSUMES ℕ, (⊎) and (/), and covers
+# indexed
 # inductive types (well-founded trees included) and quotient inductive
-# types generally; ℕ and (/) are retained for now.
+# types generally; ℕ, (⊎) and (/) are retained for now.
 #
 # THE EXTENSIONAL PAYOFF. Under equality reflection (with Ω for
 # proof-irrelevance) every type is a set: no higher paths, no coherence
@@ -1858,7 +1964,12 @@ for each point position 𝕔 of 𝒮 (𝒮(𝕔) = 𝔄, ending in El (𝕤 ī);
 # NOTES.
 #   * SUBSUMPTION. ℕ is 𝒮.𝕟 · for 𝒮 = (𝕟 : U; Z : El 𝕟;
 #     S : (𝕧 : El 𝕟) ⇛ El 𝕟). The quotient A / R is 𝒮.𝕢 · for the
-#     signature under IDENTITY above. An indexed inductive type
+#     signature under IDENTITY above. The disjoint union A ⊎ B is
+#     𝒮.𝕤 · for 𝒮 = (𝕤 : U; inl : (x : A) ⇛ El 𝕤;
+#     inr : (y : B) ⇛ El 𝕤) — two external-domain points, no
+#     equations; its eliminator's β and η are el-qiit-beta/-eta at
+#     that signature, which is exactly why ⊎'s standalone rules could
+#     be READ OFF the scheme. An indexed inductive type
 #     (well-founded trees included) is a sorts-and-points signature:
 #     sorts with index arities over I, one point constructor per node
 #     shape whose inductive binders are the subtrees. Because QIIT
@@ -1978,6 +2089,12 @@ e˲ : Δ ⇒ Γ norm
 Γ₀ ⊦ (A ⨯ B)[σ] ≜ A[σ] ⨯ B[σ⁺] : 𝕌
 
 Γ₁ ⊦ A : 𝕌
+Γ₁ ⊦ B : 𝕌
+σ : Γ₀ ⇒ Γ₁
+---------------------------------------- (el-sub-code-sum)
+Γ₀ ⊦ (A ⊎ B)[σ] ≜ A[σ] ⊎ B[σ] : 𝕌
+
+Γ₁ ⊦ A : 𝕌
 Γ₁ ▷ El A ▷ (El A)[↑] ⊦ R : Ω
 σ : Γ₀ ⇒ Γ₁
 ------------------------------------------ (el-sub-code-quot)
@@ -2016,6 +2133,26 @@ e˲ : Δ ⇒ Γ norm
 σ : Γ₀ ⇒ Γ₁
 ------------------------------------------------------- (el-sub-proj₂)
 Γ₀ ⊦ (t .π₂)[σ] ≜ t[σ] .π₂ : B[σ, t[σ] .π₁]
+
+Γ₁ ⊦ B type
+Γ₁ ⊦ a : A
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------ (el-sub-inj₁)
+Γ₀ ⊦ (inj₁ a)[σ] ≜ inj₁ a[σ] : A[σ] ⊎ B[σ]
+
+Γ₁ ⊦ A type
+Γ₁ ⊦ b : B
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------ (el-sub-inj₂)
+Γ₀ ⊦ (inj₂ b)[σ] ≜ inj₂ b[σ] : A[σ] ⊎ B[σ]
+
+Γ ▷ A ⊎ B ⊦ C type
+Γ ▷ A ⊦ l : C[↑, inj₁ ☐₀]
+Γ ▷ B ⊦ r : C[↑, inj₂ ☐₀]
+Γ ⊦ t : A ⊎ B
+σ : Δ ⇒ Γ
+------------------------------------------------------------------- (el-sub-sum-e)
+Δ ⊦ (⊎-elim l r t)[σ] ≜ ⊎-elim l[σ⁺] r[σ⁺] t[σ] : C[σ, t[σ]]
 
 Γ₁ ⊦ a₀ : A
 Γ₁ ⊦ a₁ : A
@@ -2146,6 +2283,23 @@ e˲ : Γ₁ ⇒ Γ norm
 ------------------------------------------- (el-proj₂-cong)
 Γ ⊦ t₀ .π₂ ≐ t₁ .π₂ : B[id, t₁ .π₁]
 
+Γ ⊦ B type
+Γ ⊦ a₀ ≐ a₁ : A
+--------------------------------- (el-inj₁-cong)
+Γ ⊦ inj₁ a₀ ≐ inj₁ a₁ : A ⊎ B
+
+Γ ⊦ A type
+Γ ⊦ b₀ ≐ b₁ : B
+--------------------------------- (el-inj₂-cong)
+Γ ⊦ inj₂ b₀ ≐ inj₂ b₁ : A ⊎ B
+
+Γ ▷ A ⊎ B ⊦ C type
+Γ ▷ A ⊦ l₀ ≐ l₁ : C[↑, inj₁ ☐₀]
+Γ ▷ B ⊦ r₀ ≐ r₁ : C[↑, inj₂ ☐₀]
+Γ ⊦ t₀ ≐ t₁ : A ⊎ B
+------------------------------------------------------ (el-sum-e-cong, motive C)
+Γ ⊦ ⊎-elim l₀ r₀ t₀ ≐ ⊎-elim l₁ r₁ t₁ : C[id, t₁]
+
 Γ ⊦ t₀ ≐ t₁ : ℕ
 ------------------------- (el-suc-cong)
 Γ ⊦ S t₀ ≐ S t₁ : ℕ
@@ -2189,6 +2343,11 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ▷ El A₁ ⊦ B₀ ≐ B₁ : 𝕌
 ------------------------------- (code-sigma-cong)
 Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ : 𝕌
+
+Γ ⊦ A₀ ≐ A₁ : 𝕌
+Γ ⊦ B₀ ≐ B₁ : 𝕌
+------------------------------- (code-sum-cong)
+Γ ⊦ A₀ ⊎ B₀ ≐ A₁ ⊎ B₁ : 𝕌
 
 Γ ⊦ A₀ ≐ A₁ : 𝕌
 Γ ▷ El A₁ ▷ (El A₁)[↑] ⊦ R₀ ≐ R₁ : Ω

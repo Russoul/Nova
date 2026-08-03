@@ -200,6 +200,7 @@ mutual
   usesIndexTy k Ty.UniverseTy = False
   usesIndexTy k (Ty.PiTy a b) = usesIndexTy k a || usesIndexTy (S k) b
   usesIndexTy k (Ty.SigmaTy a b) = usesIndexTy k a || usesIndexTy (S k) b
+  usesIndexTy k (Ty.SumTy a b) = usesIndexTy k a || usesIndexTy k b
   usesIndexTy k (El e) = usesIndexElem k e
   usesIndexTy k PropTy = False
   usesIndexTy k (Prf e) = usesIndexElem k e
@@ -234,11 +235,15 @@ mutual
   usesIndexElem k (SigmaIntro e e') = usesIndexElem k e || usesIndexElem k e'
   usesIndexElem k (SigmaElim1 e) = usesIndexElem k e
   usesIndexElem k (SigmaElim2 e) = usesIndexElem k e
+  usesIndexElem k (Inj1 e) = usesIndexElem k e
+  usesIndexElem k (Inj2 e) = usesIndexElem k e
+  usesIndexElem k (SumElim l r t) = usesIndexElem (S k) l || usesIndexElem (S k) r || usesIndexElem k t
   usesIndexElem k Elem.ZeroTy = False
   usesIndexElem k Elem.OneTy = False
   usesIndexElem k Elem.NatTy = False
   usesIndexElem k (Elem.PiTy e e') = usesIndexElem k e || usesIndexElem (S k) e'
   usesIndexElem k (Elem.SigmaTy e e') = usesIndexElem k e || usesIndexElem (S k) e'
+  usesIndexElem k (Elem.SumTy e e') = usesIndexElem k e || usesIndexElem k e'
   usesIndexElem k (Elem.EqTy e0 e1 t2) = usesIndexElem k e0 || usesIndexElem k e1 || usesIndexTy k t2
   usesIndexElem k (QuotTy a r) = usesIndexElem k a || usesIndexElem (S (S k)) r
   usesIndexElem k (SigVar x es) = usesIndexSubNorm k es
@@ -306,6 +311,7 @@ mutual
       then let x = freshGeneric env
            in "(" ++ x ++ ":" ++ prettyElemN tbl env e ++ ") ⨯ " ++ prettyElemNoCommaN tbl (env :< x) e'
       else prettyElemOpN tbl env 0 e ++ " ⨯ " ++ prettyElemNoCommaN tbl (env :< wildcard) e'
+  prettyElemNoCommaN tbl env e@(Elem.SumTy _ _) = prettyElemSumN tbl env e
   prettyElemNoCommaN tbl env (Elem.EqTy e0 e1 t2) =
     prettyElemOpN tbl env 0 e0 ++ " ≡ " ++ prettyElemOpN tbl env 0 e1 ++ " ∈ " ++ prettyTyArrowN tbl env t2
   prettyElemNoCommaN tbl env (QuotTy e r) =
@@ -313,6 +319,14 @@ mutual
         y = freshGeneric (env :< x)
     in prettyElemOpN tbl env 0 e ++ " / (" ++ x ++ " " ++ y ++ ". " ++ prettyElemNoCommaN tbl (env :< x :< y) r ++ ")"
   prettyElemNoCommaN tbl env e = prettyElemOpN tbl env 0 e
+
+  -- the ⊎ code binds tighter than the other infix element formers
+  -- (chain at its own level; any non-sum component prints at the
+  -- operator level, which parenthesizes arrows and pairs)
+  prettyElemSumN : FixTable -> NameEnv -> Elem -> String
+  prettyElemSumN tbl env (Elem.SumTy e e') =
+    prettyElemOpN tbl env 0 e ++ " ⊎ " ++ prettyElemSumN tbl env e'
+  prettyElemSumN tbl env e = prettyElemOpN tbl env 0 e
 
   -- t{1½}: operator applications, precedence-aware — parenthesized
   -- exactly when the operator binds looser than the context demands.
@@ -344,6 +358,14 @@ mutual
     in "ℕ-elim " ++ prettyElemAtomN tbl env z ++
        " (" ++ n ++ " " ++ ih ++ ". " ++ prettyElemAtomN tbl (env :< n :< ih) s ++ ") " ++
        prettyElemAtomN tbl env t
+  prettyElemPrefixN tbl env (Inj1 a) = "inj₁ " ++ prettyElemAtomN tbl env a
+  prettyElemPrefixN tbl env (Inj2 a) = "inj₂ " ++ prettyElemAtomN tbl env a
+  prettyElemPrefixN tbl env (SumElim l r t) =
+    let a = if usesIndexElem 0 l then freshGeneric env else wildcard
+        b = if usesIndexElem 0 r then freshGeneric env else wildcard
+    in "⊎-elim (" ++ a ++ ". " ++ prettyElemN tbl (env :< a) l ++ ") ("
+         ++ b ++ ". " ++ prettyElemN tbl (env :< b) r ++ ") "
+         ++ prettyElemAtomN tbl env t
   prettyElemPrefixN tbl env (Class a) = "class " ++ prettyElemAtomN tbl env a
   prettyElemPrefixN tbl env (QuotElim f q) =
     let a = if usesIndexElem 0 f then freshGeneric env else wildcard
@@ -440,11 +462,19 @@ mutual
       then let x = freshForTy a env
            in "(" ++ x ++ ":" ++ prettyTyN tbl env a ++ ") ⨯ " ++ prettyTyArrowN tbl (env :< x) b
       else prettyTyElN tbl env a ++ " ⨯ " ++ prettyTyArrowN tbl (env :< wildcard) b
+  prettyTyArrowN tbl env ty@(Ty.SumTy _ _) = prettyTySumN tbl env ty
   prettyTyArrowN tbl env (Ty.Quotient a r) =
     let x = freshForTy a env
         y = freshGeneric (env :< x)
     in prettyTyElN tbl env a ++ " / (" ++ x ++ " " ++ y ++ ". " ++ prettyElemNoCommaN tbl (env :< x :< y) r ++ ")"
   prettyTyArrowN tbl env ty = prettyTyElN tbl env ty
+
+  -- ⊎ binds tighter than → ⨯ / (its own level; non-sum components
+  -- print at the El level, which parenthesizes looser forms)
+  prettyTySumN : FixTable -> NameEnv -> Ty -> String
+  prettyTySumN tbl env (Ty.SumTy a b) =
+    prettyTyElN tbl env a ++ " ⊎ " ++ prettyTySumN tbl env b
+  prettyTySumN tbl env ty = prettyTyElN tbl env ty
 
   prettyTyElN : FixTable -> NameEnv -> Ty -> String
   prettyTyElN tbl env (El e) = "El " ++ prettyElemAtomN tbl env e

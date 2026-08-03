@@ -1,0 +1,4 @@
+defined bad [+1 obligation]
+open obligations (1):
+  [1] (a : 𝕌) (x : El a) ⊢ inj₁ x ≐ inj₂ x : El a ⊎ El a
+      at: def bad: checking ⋆

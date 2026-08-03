@@ -102,14 +102,24 @@ mutual
   covering
   parseElemNoComma : Rule Elem
   parseElemNoComma = do
-    e <- parseElemPrefix
+    e <- parseElemSum
     (do sp; str_ "→"; sp; e' <- parseElemNoComma; pure (Elem.PiTy e e'))
       <|> (do sp; str_ "⨯"; sp; e' <- parseElemNoComma; pure (Elem.SigmaTy e e'))
       <|> (do sp; str_ "/"; sp; e' <- parseElemNoComma; pure (Elem.QuotTy e e'))
       <|> (do sp; str_ "≡"; sp
-              e1 <- parseElemPrefix; sp; str_ "∈"; sp
+              e1 <- parseElemSum; sp; str_ "∈"; sp
               t2 <- parseTyEl
               pure (Elem.EqTy e e1 t2))
+      <|> pure e
+
+  -- e₁ ⊎ e₂ (right-assoc SumTy element) — non-dependent; binds
+  -- TIGHTER than the other infix element formers (Agda's convention:
+  -- a ⊎ b → c is (a ⊎ b) → c)
+  covering
+  parseElemSum : Rule Elem
+  parseElemSum = do
+    e <- parseElemPrefix
+    (do sp; str_ "⊎"; sp; e' <- parseElemSum; pure (Elem.SumTy e e'))
       <|> pure e
 
   -- Prefix operators: take an atomic argument
@@ -124,6 +134,13 @@ mutual
             t <- parseElemAtom
             pure (NatElim z s t))
     <|> (do str_ "S"; space; e <- parseElemAtom; pure (NatIntro1 e))
+    <|> (do str_ "inj₁"; space; e <- parseElemAtom; pure (Inj1 e))
+    <|> (do str_ "inj₂"; space; e <- parseElemAtom; pure (Inj2 e))
+    <|> (do str_ "⊎-elim"; space
+            l <- parseElemAtom; space
+            r <- parseElemAtom; space
+            t <- parseElemAtom
+            pure (SumElim l r t))
     <|> (do str_ "class"; space; e <- parseElemAtom; pure (Class e))
     <|> (do str_ "quot-elim"; space
             f <- parseElemAtom; space
@@ -237,10 +254,18 @@ mutual
   covering
   parseTyArrow : Rule Ty
   parseTyArrow = do
-    a <- parseTyEl
+    a <- parseTySum
     (do sp; str_ "→"; sp; b <- parseTyArrow; pure (Ty.PiTy a b))
       <|> (do sp; str_ "⨯"; sp; b <- parseTyArrow; pure (Ty.SigmaTy a b))
       <|> (do sp; str_ "/"; sp; r <- parseElemNoComma; pure (Ty.Quotient a r))
+      <|> pure a
+
+  -- A ⊎ B (right-assoc, non-dependent) — tighter than → ⨯ /
+  covering
+  parseTySum : Rule Ty
+  parseTySum = do
+    a <- parseTyEl
+    (do sp; str_ "⊎"; sp; b <- parseTySum; pure (Ty.SumTy a b))
       <|> pure a
 
   -- El e / Prf e  (prefix, argument is an Elem atom)

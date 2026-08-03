@@ -36,6 +36,8 @@ mutual
     STyPi : (name : String) -> STy -> STy -> STy
     ||| (x:T) ⨯ U
     STySigma : (name : String) -> STy -> STy -> STy
+    ||| T ⊎ U — non-dependent, no binder
+    STySum : STy -> STy -> STy
     ||| T / (x y. r) — r is an Ω-valued element
     STyQuot : STy -> (nx, ny : SName) -> SElem -> STy
     ||| t ≡ t ∈ T
@@ -76,6 +78,8 @@ mutual
     SPiC : (name : String) -> SElem -> SElem -> SElem
     ||| (x:t) ⨯ u  (code)
     SSigmaC : (name : String) -> SElem -> SElem -> SElem
+    ||| t ⊎ u  (code — non-dependent, no binder)
+    SSumC : SElem -> SElem -> SElem
     ||| t / (x y. r)  (code)
     SQuotC : SElem -> (nx, ny : SName) -> SElem -> SElem
     ||| t ≡ t ∈ T — the equality PROP (an Ω-element; the ∈-slot
@@ -84,6 +88,12 @@ mutual
     SZeroElim : SElem -> SElem
     ||| ℕ-elim (n. T) z (n ih. s) t — motive-first
     SNatElim : (n : SName) -> STy -> SElem -> (n2, ih : SName) -> SElem -> SElem -> SElem
+    ||| inj₁ t / inj₂ t — sum introductions
+    SInj1 : SElem -> SElem
+    SInj2 : SElem -> SElem
+    ||| ⊎-elim (z. T) (a. l) (b. r) t — motive, left case, right
+    ||| case, scrutinee
+    SSumElim : (z : SName) -> STy -> (a : SName) -> SElem -> (b : SName) -> SElem -> SElem -> SElem
     SClass : SElem -> SElem
     ||| quot-elim (z. T) (a. f) q — motive-first
     SQuotElim : (z : SName) -> STy -> (a : SName) -> SElem -> SElem -> SElem
@@ -228,6 +238,7 @@ mutual
     show (STySig x) = "\{x}"
     show (STyPi x a b) = "Pi \{x} (\{show a}) (\{show b})"
     show (STySigma x a b) = "Sigma \{x} (\{show a}) (\{show b})"
+    show (STySum a b) = "Sum (\{show a}) (\{show b})"
     show (STyQuot a x y r) = "Quot (\{show a}) \{fst x} \{fst y} (\{show r})"
     show (STyEq l r t) = "Eq (\{show l}) (\{show r}) (\{show t})"
     show (STyEl e) = "El (\{show e})"
@@ -252,11 +263,16 @@ mutual
     show SNatC = "ℕc"
     show (SPiC x a b) = "PiC \{x} (\{show a}) (\{show b})"
     show (SSigmaC x a b) = "SigmaC \{x} (\{show a}) (\{show b})"
+    show (SSumC a b) = "SumC (\{show a}) (\{show b})"
     show (SQuotC a x y r) = "QuotC (\{show a}) \{fst x} \{fst y} (\{show r})"
     show (SEqC l r t) = "EqC (\{show l}) (\{show r}) (\{show t})"
     show (SZeroElim t) = "ZeroElim (\{show t})"
     show (SNatElim n mot z n2 ih s t) =
       "NatElim \{fst n} (\{show mot}) (\{show z}) \{fst n2} \{fst ih} (\{show s}) (\{show t})"
+    show (SInj1 t) = "Inj1 (\{show t})"
+    show (SInj2 t) = "Inj2 (\{show t})"
+    show (SSumElim z mot a l b r t) =
+      "SumElim \{fst z} (\{show mot}) \{fst a} (\{show l}) \{fst b} (\{show r}) (\{show t})"
     show (SClass t) = "Class (\{show t})"
     show (SQuotElim z mot a f q) =
       "QuotElim \{fst z} (\{show mot}) \{fst a} (\{show f}) (\{show q})"

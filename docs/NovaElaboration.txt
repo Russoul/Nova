@@ -112,7 +112,12 @@ fixity ::= infixl d op | infixr d op          # d a digit 0-9
 # the context is always implicit in where a subterm sits.
 T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | Ω | x | (T{≥0})
 T{2} ::= El t{≥4} | Prf t{≥4}
-T{1} ::= ((x:T{≥0}))+ → T{≥0} | ((x:T{≥0}))+ ⨯ T{≥0} | T{≥2} / (x y. t{≥1})
+T{1} ::= ((x:T{≥0}))+ → T{≥0} | ((x:T{≥0}))+ ⨯ T{≥0}
+       | T{≥1½} / (x y. t{≥1})
+T{1½} ::= T{≥2} ⊎ T{≥1½}
+# ⊎ is NON-DEPENDENT (no binder form), right-associative, and binds
+# TIGHTER than → ⨯ / (Agda's convention: A ⊎ B → C is (A ⊎ B) → C);
+# the T{1} infixes take their left operand at T{≥1½}
 T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
 # the quotient relation is an Ω-valued ELEMENT (t), not a type.
 # EQUALITY IS Ω-VALUED (NovaFoundation.txt, Ω block): the surface
@@ -140,16 +145,23 @@ t{2} ::= λx. t{≥1½}
        | 𝟘-elim t{≥4}
        | S t{≥4}
        | ℕ-elim (n. T{≥0}) t{≥4} (n ih. t{≥4}) t{≥4}          # motive, z, s, scrutinee
+       | inj₁ t{≥4}
+       | inj₂ t{≥4}
+       | ⊎-elim (z. T{≥0}) (a. t{≥0}) (b. t{≥0}) t{≥4}        # motive, left case,
+                                                              #   right case, scrutinee
        | class t{≥4}
        | quot-elim (z. T{≥0}) (a. t{≥0}) t{≥4}                # motive, case fn, scrutinee
        | squash-elim t{≥4} (x. t{≥0})               # el-squash-e-prf: eliminate a
                                                      #   proof of a squash into a
                                                      #   further proposition
        | ⋆ t{≥4}                          # el-squash-i, explicit witness (any A)
-t{1} ::= ((x:t{≥0}))+ → t{≥1} | ((x:t{≥0}))+ ⨯ t{≥1} | t{≥2} / (x y. t{≥1})
+t{1} ::= ((x:t{≥0}))+ → t{≥1} | ((x:t{≥0}))+ ⨯ t{≥1}
+       | t{≥1¼} / (x y. t{≥1})
                                                               # universe codes
-       | t{≥2} ≡ t{≥2} ∈ T{≥2}       # the equality PROP (an Ω-element);
+       | t{≥1¼} ≡ t{≥1¼} ∈ T{≥2}     # the equality PROP (an Ω-element);
                                      #   ∈ embeds a TYPE, like ∥-∥
+t{1¼} ::= t{≥1½} ⊎ t{≥1¼}            # the ⊎ code — tighter than the
+                                     #   t{1} infixes, like its type
 # ∥T∥ (squash), ≡ (equality props) and ⋆ (the canonical proof) are
 # the Ω introductions; a squashed type is an Ω-valued element. Bare ⋆
 # (t{5}) auto-synthesizes only for evident propositions — a squashed
@@ -276,13 +288,14 @@ instead an error asking the user for an ascription or annotation.
 
 whnf(–) is weak-head normalization by Foundation's ≜ rules:
 el-pi-beta, el-sigma-beta₁, el-sigma-beta₂, el-nat-beta-z,
-el-nat-beta-s, el-quot-beta, el-qiit-beta (the eliminator at a
+el-nat-beta-s, el-sum-beta₁, el-sum-beta₂, el-quot-beta,
+el-qiit-beta (the eliminator at a
 saturated constructor of the nf-identical signature),
 el-sig-beta/ty-sig-beta (signature
 unfolding — for DEFINITION entries; a declaration reference is stuck
 by design, el-sig-decl/ty-sig-decl, and constraint entries are
 nameless and never referenced), and the El-decoding family (ty-el-zero, ty-el-one,
-ty-el-nat, ty-el-pi, ty-el-sigma, ty-el-eq, ty-el-quot — the last
+ty-el-nat, ty-el-pi, ty-el-sigma, ty-el-sum, ty-el-eq, ty-el-quot — the last
 decoding El (A / r) ≜ El A / r, the Ω-valued relation passing through
 undecoded — and ty-el-qiit, El (𝒮.𝕤 ē) ≜ 𝒮.𝕤 ē; Prf ∥A∥ has no
 decoding rule). Per
@@ -315,6 +328,11 @@ never an unsound acceptance.
 Γ ▷ x:A ⊢ U ⇝ B type
 -------------------------- (e-ty-sigma)                       # (A ⨯ B)
 Γ ⊢ (x:T) ⨯ U ⇝ A ⨯ B type
+
+Γ ⊢ T ⇝ A type
+Γ ⊢ U ⇝ B type
+-------------------------- (e-ty-sum)                         # (A ⊎ B)
+Γ ⊢ T ⊎ U ⇝ A ⊎ B type
 
 Γ ⊢ T ⇝ A type
 Γ ▷ x:A ▷ y:A[↑] ⊢ r ⇐ Ω ⇝ r̂            # the relation is Ω-valued
@@ -383,6 +401,16 @@ never an unsound acceptance.
 Γ ⊢ ℕ-elim (n. T) z (n ih. s) t ⇒ A[id, t̂] ⇝ ℕ-elim ẑ ŝ t̂
                                         # (ℕ-elim z s t motive A)
 
+Γ ⊢ t ⇒ C ⇝ t̂        whnf(C) = A ⊎ B
+Γ ▷ z:(A ⊎ B) ⊢ T ⇝ M type
+Γ ▷ a:A ⊢ l ⇐ M[↑, inj₁ ☐₀] ⇝ l̂
+Γ ▷ b:B ⊢ r ⇐ M[↑, inj₂ ☐₀] ⇝ r̂
+------------------------------------------------------------ (e-sumelim)
+Γ ⊢ ⊎-elim (z. T) (a. l) (b. r) t ⇒ M[id, t̂] ⇝ ⊎-elim l̂ r̂ t̂
+                                # (⊎-elim l r t motive M)
+# no side condition beyond the branches themselves — β covers both
+# injections, so unlike quot-elim there is no well-definedness premise
+
 Γ ⊢ q ⇒ C ⇝ q̂        whnf(C) = A / r
 Γ ▷ z:(A / r) ⊢ T ⇝ B type
 Γ ▷ a:A ⊢ f ⇐ B[↑, class ☐₀] ⇝ f̂
@@ -406,6 +434,11 @@ never an unsound acceptance.
 ---------------------------------------------- (e-code-pi)    # (A → B : 𝕌)
 Γ ⊢ (x:t) → u ⇒ 𝕌 ⇝ a → b
    (e-code-sigma analogous for ⨯)                             # (A ⨯ B : 𝕌)
+
+Γ ⊢ t ⇐ 𝕌 ⇝ a        Γ ⊢ u ⇐ 𝕌 ⇝ b
+------------------------------------ (e-code-sum)             # (A ⊎ B : 𝕌)
+Γ ⊢ t ⊎ u ⇒ 𝕌 ⇝ a ⊎ b
+   # non-dependent: u is checked over Γ, not Γ ▷ El a
 
 Γ ⊢ t ⇐ 𝕌 ⇝ a        Γ ▷ x:El a ▷ y:(El a)[↑] ⊢ r ⇐ Ω ⇝ r̂
 ------------------------------------------------------------ (e-code-quot)
@@ -440,6 +473,11 @@ whnf(C) = A → B        Γ ▷ x:A ⊢ t ⇐ B ⇝ t̂
 whnf(C) = A ⨯ B        Γ ⊢ u ⇐ A ⇝ û        Γ ⊢ v ⇐ B[id, û] ⇝ v̂
 ------------------------------------------------------------------ (e-pair)
 Γ ⊢ u , v ⇐ C ⇝ û , v̂                                          # (a, b)
+
+whnf(C) = A ⊎ B        Γ ⊢ a ⇐ A ⇝ â
+-------------------------------------- (e-inj₁)               # (inj₁ a)
+Γ ⊢ inj₁ a ⇐ C ⇝ inj₁ â
+   (e-inj₂ analogous at B)                                    # (inj₂ b)
 
 whnf(C) = A / r        Γ ⊢ a ⇐ A ⇝ â
 -------------------------------------- (e-class)              # (class a)
@@ -588,8 +626,10 @@ whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 # term elaboration. Note the direction of failure: never an error —
 # the residual equation is assumed and reported.
 
-# Mode inventory. Checking-only forms: λ, pairs, class, ⋆, ⋆ e,
-# squash-elim, 𝟘-elim (their types are not determined by their syntax);
+# Mode inventory. Checking-only forms: λ, pairs, inj₁, inj₂, class,
+# ⋆, ⋆ e,
+# squash-elim, 𝟘-elim (their types are not determined by their syntax
+# — an injection alone does not determine the OTHER summand);
 # encountering one in inference position is a structural error whose
 # fix is an ascription. Everything else — including ∥-∥ — infers and
 # reaches checking mode through e-switch.
@@ -622,6 +662,9 @@ whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 #      hypotheses. Decomposition:
 #        A₀ → B₀   ≐ A₁ → B₁    ⇐  A₀ ≐ A₁ type;  Γ ▷ A₁ ⊢ B₀ ≐ B₁ type
 #        A₀ ⨯ B₀   ≐ A₁ ⨯ B₁    ⇐  likewise
+#        A₀ ⊎ B₀   ≐ A₁ ⊎ B₁    ⇐  A₀ ≐ A₁ type;  B₀ ≐ B₁ type
+#                                  (both over Γ — non-dependent;
+#                                  faithful by ty-sum-inj)
 #        A₀ / r₀   ≐ A₁ / r₁    ⇐  A₀ ≐ A₁ type;  Γ ▷ A₁ ▷ A₁[↑] ⊢ r₀ ≐ r₁ : Ω
 #                                  (the relation is compared AT Ω, where
 #                                  ≐ is iff — ty-quot-cong)
@@ -653,6 +696,11 @@ whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 #                                  is a path lemma from E (the data
 #                                  item's eq-lemmas land there)
 #        S a       ≐ S b        ⇐  a ≐ b : ℕ
+#        inj₁ a    ≐ inj₁ b     ⇐  a ≐ b : A  (at A ⊎ B; faithful —
+#                                  injection injectivity is derivable;
+#                                  likewise inj₂ at B. An inj₁/inj₂
+#                                  HEAD MISMATCH stays an obligation,
+#                                  like every rigid mismatch)
 #        class a   ≐ class b    ⇐  a ≐ b : A, OR — the WITNESS path,
 #                                  (class⁼ r) — by the shape of the
 #                                  instantiated relation r[id, a, b] (an
