@@ -1,0 +1,27 @@
+-- sum clause: conat, the classic ∞ = ∞ + 1
+def conat : 𝕌 ≔ ν (K 𝟙 ⊎ 𝕏)
+def cinf : El conat ≔ corec (s : 𝟙. inj₂ s) ()
+def csucc : El conat → El conat ≔
+  λn. corec (p : 𝟙 ⊎ conat. inj₂ (⊎-elim (w. 𝟙 ⊎ El conat) (u. inj₁ u) (m. out m) p)) (out n)
+def infSucc : cinf ≡ csucc cinf ∈ El conat ≔
+  coind (x y. ∥(x ≡ cinf ∈ El conat) ⨯ (y ≡ csucc cinf ∈ El conat)∥)
+        (⋆ ((⋆ , ⋆)))
+        (x y h. squash-elim h (w. ⋆ ((⋆ , ⋆))))
+
+-- exponent clause: Moore machines, constant machines over two carriers
+def moore : 𝕌 ≔ ν (K ℕ ⨯ ((i : ℕ) → 𝕏))
+def m1 : El moore ≔ corec (s : 𝟙. (Z , λi. s)) ()
+def m2 : El moore ≔ corec (s : ℕ. (Z , λi. s)) Z
+def mEq : m1 ≡ m2 ∈ El moore ≔
+  coind (x y. ∥(x ≡ m1 ∈ El moore) ⨯ (y ≡ m2 ∈ El moore)∥)
+        (⋆ ((⋆ , ⋆)))
+        (x y h. squash-elim h (w. ⋆ ((⋆ , ⋆ (λi. ⋆ ((⋆ , ⋆)))))))
+
+-- dependent-pair clause: a binder polynomial
+def dep : 𝕌 ≔ ν ((n : ℕ) ⨯ 𝕏)
+def d1 : El dep ≔ corec (s : 𝟙. (Z , s)) ()
+def d2 : El dep ≔ corec (s : ℕ. (Z , s)) Z
+def dEq : d1 ≡ d2 ∈ El dep ≔
+  coind (x y. ∥(x ≡ d1 ∈ El dep) ⨯ (y ≡ d2 ∈ El dep)∥)
+        (⋆ ((⋆ , ⋆)))
+        (x y h. squash-elim h (w. ⋆ ((⋆ , ⋆ ((⋆ , ⋆))))))

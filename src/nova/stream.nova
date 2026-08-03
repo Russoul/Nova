@@ -90,3 +90,13 @@ def tlCons : (a : 𝕌) (x : El a) (s : El (stream a)) →
           (⋆ ((s , (⋆ , ⋆))))
           (u v h. squash-elim h (w.
             ⋆ ((⋆ , ⋆ (((out (w .π₁)) .π₂ , (⋆ , ⋆)))))))
+
+-- conat's classic coinductive theorem: ∞ is its own successor. The
+-- closure exercises the relator's SUM clause: the ⊎-elim at motive Ω
+-- is stuck at the generic observations, un-stuck by the invariant's
+-- variable-definition equations, and collapses definitionally on the
+-- inj₂/inj₂ diagonal.
+def infSucc : cinf ≡ csucc cinf ∈ El conat ≔
+  coind (x y. ∥(x ≡ cinf ∈ El conat) ⨯ (y ≡ csucc cinf ∈ El conat)∥)
+        (⋆ ((⋆ , ⋆)))
+        (x y h. squash-elim h (w. ⋆ ((⋆ , ⋆))))
