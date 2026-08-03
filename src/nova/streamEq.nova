@@ -1,0 +1,59 @@
+import stream (stream, hd, tl, mapS, iterate)
+
+-- Observational equality of streams: two streams are related iff
+-- every finite observation agrees — the ℕ-indexed spelling of
+-- bisimilarity, definable TODAY as an Ω-proposition (squash of a Π
+-- over ℕ of equations). Its theory below runs on ℕ-INDUCTION where a
+-- bisimulation proof would use coinduction: el-nu-eta is judgemental
+-- in the theory but has no kernel certificate (NovaKernel.txt, A5),
+-- so the REFLECTION of obsEq into ≡ is the one statement that stays
+-- out of reach here — everything observational is provable now.
+
+-- n-fold tail, unfolding head-first: tlN (S n) s ≐ tlN n (tl s)
+def tlN : (a : 𝕌) → ℕ → El (stream a) → El (stream a) ≔
+  λa. λn. ℕ-elim (m. El (stream a) → El (stream a)) (λs. s) (m ih. λs. ih (tl _ s)) n
+
+-- the n-th observation
+def nth : (a : 𝕌) → ℕ → El (stream a) → El a ≔
+  λa. λn. λs. hd _ (tlN _ n s)
+
+-- observational equality, in Ω
+def obsEq : (a : 𝕌) → El (stream a) → El (stream a) → Ω ≔
+  λa. λs. λt. ∥(n : ℕ) → Prf (nth _ n s ≡ nth _ n t ∈ El a)∥
+
+-- reflexivity: every observation is ≐-reflexive
+def obsEqRefl : (a : 𝕌) (s : El (stream a)) → Prf (obsEq _ s s) ≔
+  λa. λs. ⋆ (λn. ⋆)
+
+-- map commutes with EVERY observation, by ℕ-induction — the step is
+-- judgemental: tl (mapS f s) ≐ mapS f (tl s) is one el-nu-beta
+def nthMap : (a : 𝕌) (b : 𝕌) (f : El a → El b) (n : ℕ) (s : El (stream a)) →
+    nth _ n (mapS _ _ f s) ≡ f (nth _ n s) ∈ El b ≔
+  λa. λb. λf. λn.
+    ℕ-elim (m. (s : El (stream a)) → nth _ m (mapS _ _ f s) ≡ f (nth _ m s) ∈ El b)
+      (λs. ⋆)
+      (m ih. λs. ih (tl _ s))
+      n
+
+-- mapping the identity is observationally the identity — the
+-- η-needing `mapS id s ≡ s` weakened to its observational shadow,
+-- where it is PROVABLE
+def mapIdObsEq : (a : 𝕌) (s : El (stream a)) → Prf (obsEq _ (mapS _ _ (λx. x) s) s) ≔
+  λa. λs. ⋆ (λn. nthMap _ _ (λx. x) n s)
+
+-- likewise map fusion, observationally: composing maps is mapping
+-- the composite
+def mapFuseObsEq : (a : 𝕌) (b : 𝕌) (c : 𝕌) (f : El a → El b) (g : El b → El c)
+    (s : El (stream a)) →
+    Prf (obsEq _ (mapS _ _ g (mapS _ _ f s)) (mapS _ _ (λx. g (f x)) s)) ≔
+  λa. λb. λc. λf. λg. λs.
+    ⋆ (λn. (ℕ-elim (m. (t : El (stream a)) →
+              nth _ m (mapS _ _ g (mapS _ _ f t)) ≡ nth _ m (mapS _ _ (λx. g (f x)) t) ∈ El c)
+          (λt. ⋆)
+          (m ih. λt. ih (tl _ t))
+          n) s)
+
+-- the tail of an iterate is the iterate of the image, observationally
+def iterShiftObsEq : (a : 𝕌) (f : El a → El a) (x : El a) →
+    Prf (obsEq _ (tl _ (iterate _ f x)) (iterate _ f (f x))) ≔
+  λa. λf. λx. ⋆ (λn. ⋆)
