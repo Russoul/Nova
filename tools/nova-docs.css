@@ -1,0 +1,48 @@
+/* Palette matches tools/render-specs.py's CSS, so the rendered specs
+   page and rendered .nova sources read as one system. */
+:root {
+  --paper:#f7f8fa; --ink:#20242d; --faint:#5c6472; --hair:#d8dce2;
+  --panel:#eef0f4; --tos:#0e7c86; --nova:#2f5fc0; --meta:#7862a8;
+  --link:#0e7c86; --gold:#92700c; --natc:#b03a70;
+}
+@media (prefers-color-scheme: dark) { :root {
+  --paper:#191b20; --ink:#dcdee4; --faint:#9aa1ae; --hair:#33373f;
+  --panel:#20232a; --tos:#53cad4; --nova:#82a5ea; --meta:#a995d6;
+  --link:#53cad4; --gold:#d8b45e; --natc:#e592bb;
+}}
+:root[data-theme="dark"] {
+  --paper:#191b20; --ink:#dcdee4; --faint:#9aa1ae; --hair:#33373f;
+  --panel:#20232a; --tos:#53cad4; --nova:#82a5ea; --meta:#a995d6;
+  --link:#53cad4; --gold:#d8b45e; --natc:#e592bb;
+}
+:root[data-theme="light"] {
+  --paper:#f7f8fa; --ink:#20242d; --faint:#5c6472; --hair:#d8dce2;
+  --panel:#eef0f4; --tos:#0e7c86; --nova:#2f5fc0; --meta:#7862a8;
+  --link:#0e7c86; --gold:#92700c; --natc:#b03a70;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0 auto; max-width:900px; padding:1.5rem 1.25rem 4rem;
+  background:var(--paper); color:var(--ink);
+  font-family:ui-sans-serif,system-ui,sans-serif;
+}
+h1 { font-size:1.15rem; font-weight:600; }
+a { color:var(--link); }
+ul { line-height:1.9; }
+pre {
+  background:var(--panel); border:1px solid var(--hair); border-radius:6px;
+  padding:1rem; overflow-x:auto;
+}
+code.nova-source {
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-size:14px; line-height:1.5; white-space:pre;
+}
+.tok-keyword    { color:var(--gold); font-weight:600; }
+.tok-variable   { color:var(--ink); }
+.tok-operator   { color:var(--nova); }
+.tok-number     { color:var(--natc); }
+.tok-comment    { color:var(--faint); font-style:italic; }
+.tok-unsolved_meta {
+  color:var(--meta); text-decoration:underline dotted var(--meta);
+}
+.tok-solved_meta { color:var(--tos); }

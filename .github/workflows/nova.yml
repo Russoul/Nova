@@ -69,3 +69,59 @@ jobs:
 
       - name: Run tests
         run: ./test.sh
+
+      - name: Build nova-docs
+        run: pack build nova-docs.ipkg
+
+      - name: Render Nova sources
+        run: |
+          mkdir -p build/docs/nova
+          pack run nova-docs.ipkg build/docs/nova src/nova/*.nova
+          cp tools/nova-docs.css build/docs/nova/
+
+      - name: Upload rendered Nova sources
+        uses: actions/upload-artifact@v4
+        with:
+          name: rendered-nova-docs
+          path: build/docs/nova
+
+  deploy-pages:
+    needs: [specs, build-and-test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download rendered specs
+        uses: actions/download-artifact@v4
+        with:
+          name: rendered-specs
+          path: site
+
+      - name: Download rendered Nova sources
+        uses: actions/download-artifact@v4
+        with:
+          name: rendered-nova-docs
+          path: site/nova
+
+      - name: Add landing page
+        run: cp tools/pages-index.html site/index.html
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
