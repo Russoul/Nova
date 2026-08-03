@@ -1,6 +1,6 @@
 ////////// Preface //////////
 
-#! highlight keywords: ⊦ : ; , · [ ] ‖ .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id λ → ⨯ ⊎ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S ⋆ Prf class inj₁ inj₂ ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ 𝟘-elim ℕ-elim quot-elim squash-elim ⊎-elim -elim qctx qty qsig ctx type tel mot dalg eprob sect norm small sig nf qpath ν 𝕏 K out corec poly map
+#! highlight keywords: ⊦ : ; , · [ ] ‖ .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id λ let → ⨯ ⊎ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S ⋆ Prf class inj₁ inj₂ ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ 𝟘-elim ℕ-elim quot-elim squash-elim ⊎-elim -elim qctx qty qsig ctx type tel mot dalg eprob sect norm small sig nf qpath ν 𝕏 K out corec poly map
 #! highlight tos: 𝔄 𝔅 𝕥 𝕦 𝕧 𝕤 𝕔 𝕜 𝕘 𝕒 𝕓 𝕞 Φ 𝒮 ς 𝔎 𝔽 𝔾
 #! highlight nova: Γ Δ Ξ Σ σ τ δ θ latin
 #! highlight meta: 𝑤 ρ υ π 𝒞 ℰ
@@ -146,6 +146,9 @@ t ::= x [e˲]         # element in the signature context
     | ☐ᵢ             # i-th element in the typing context
     | λ t            # dependent product type introduction
     | t t            # dependent product type elimination
+    | let t t        # let-expression (definiens, body — the body
+                     #   binds the definiens AND its unfolding
+                     #   equation; see the let block)
     | t , t          # dependent sum type introduction
     | t .π₁          # dependent sum type elimination (1)
     | t .π₂          # dependent sum type elimination (2)
@@ -1063,6 +1066,36 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ f : A → B
 --------------------------------- (el-pi-eta)
 Γ ⊦ λ (f[↑] ☐₀) ≐ f : A → B
+
+# let — the local DEFINITION: the body is typed under TWO binders,
+# the definiens' value and its UNFOLDING EQUATION, so inside b the
+# definiendum unfolds judgementally — el-reflect on ☐₀ gives
+# ☐₁ ≐ a[↑ ∘ ↑] : A[↑ ∘ ↑]. This is a definition-carrying context
+# discipline (Γ ▷ (x ≔ a : A)) with NO new context former:
+# extensionally a definition IS a variable plus a Prf of its
+# unfolding — the same degeneration that collapses the QIIT
+# coherence tower. el-let-beta unfolds the whole expression to the
+# instantiated body, the ⋆ typed by el-eq-i at the reflexive
+# instance a ≡ a, so a let and its unfolding are interchangeable
+# everywhere. NOT a type former — nothing is introduced or
+# eliminated, hence no eta and no injectivity — and DEFINABLE:
+# let a b ≐ ((λ (λ b)) a) ⋆ (two el-pi-beta steps compute the
+# encoding to b[id, a, ⋆]; ty-pi forms its Π-types from the
+# premises' presuppositions). Retained like ℕ and (/) for
+# convenience, not necessity — here the convenience is SYNTACTIC
+# IDENTITY: a local definition should read (and print) as one, not
+# as its λ-plumbing. A body that ignores the equation just weakens
+# past ☐₀ — the "weak" (opaque-binder) let is the special case.
+
+Γ ⊦ a : A
+Γ ▷ A ▷ Prf (☐₀ ≡ a[↑] ∈ A[↑]) ⊦ b : B
+------------------------------------------ (el-let)
+Γ ⊦ let a b : B[id, a, ⋆]
+
+Γ ⊦ a : A
+Γ ▷ A ▷ Prf (☐₀ ≡ a[↑] ∈ A[↑]) ⊦ b : B
+---------------------------------------------- (el-let-beta)
+Γ ⊦ let a b ≜ b[id, a, ⋆] : B[id, a, ⋆]
 
 # Σ.
 
@@ -2139,6 +2172,15 @@ e˲ : Δ ⇒ Γ norm
 ------------------------------------------ (el-sub-app)
 Γ₀ ⊦ (f e)[σ] ≜ f[σ] e[σ] : B[σ, e[σ]]
 
+Γ₁ ⊦ a : A
+Γ₁ ▷ A ▷ Prf (☐₀ ≡ a[↑] ∈ A[↑]) ⊦ b : B
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------------- (el-sub-let)
+Γ₀ ⊦ (let a b)[σ] ≜ let a[σ] b[σ⁺⁺] : B[σ, a[σ], ⋆]
+# (coherent: ☐₀[σ⁺] ≜ ☐₀ and a[↑][σ⁺] ≐ a[σ][↑], so the Prf entry
+# lands as the unfolding equation OF a[σ] — the RHS is the let at
+# a[σ] — and ⋆[σ] ≜ ⋆ keeps the conclusion type in shape)
+
 Γ₁ ▷ A ⊦ B type
 Γ₁ ⊦ a : A
 Γ₁ ⊦ b : B[id, a]
@@ -2290,6 +2332,14 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ a₀ ≐ a₁ : A
 ------------------------------------ (el-app-cong)
 Γ ⊦ f₀ a₀ ≐ f₁ a₁ : B[id, a₁]
+
+Γ ⊦ a₀ ≐ a₁ : A
+Γ ▷ A ▷ Prf (☐₀ ≡ a₁[↑] ∈ A[↑]) ⊦ b₀ ≐ b₁ : B
+--------------------------------------------------- (el-let-cong)
+Γ ⊦ let a₀ b₀ ≐ let a₁ b₁ : B[id, a₁, ⋆]
+# (the a₀- and a₁-instance contexts are equal — ctx-ext-cong with
+# code-eq-cong — so the premise is stated at the a₁ instance, as at
+# the other congruences)
 
 Γ ▷ A ⊦ B type
 Γ ⊦ a₀ ≐ a₁ : A
