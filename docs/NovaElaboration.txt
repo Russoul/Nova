@@ -145,6 +145,10 @@ T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
 t{5} ::= x | () | Z | ⋆ | ∥T{≥0}∥ | 𝟘 | 𝟙 | ℕ | (t{≥0}) | (t{≥0} : T{≥0})
 t{3} ::= t{≥3} t{≥4} | t{≥3} .π₁ | t{≥3} .π₂                 (left-assoc)
 t{2} ::= λx. t{≥1½}
+       | let x ≔ t{≥0} in t{≥1½}                              # let-expression
+       | let x : T{≥0} ≔ t{≥0} in t{≥1½}                      #   (annotated
+                                                              #   definiens) —
+                                                              #   see e-let
        | 𝟘-elim t{≥4}
        | S t{≥4}
        | ℕ-elim (n. T{≥0}) t{≥4} (n ih. t{≥4}) t{≥4}          # motive, z, s, scrutinee
@@ -306,7 +310,8 @@ instead an error asking the user for an ascription or annotation.
 //////// whnf ////////
 
 whnf(–) is weak-head normalization by Foundation's ≜ rules:
-el-pi-beta, el-sigma-beta₁, el-sigma-beta₂, el-nat-beta-z,
+el-pi-beta, el-let-beta (a let is always a redex — no whnf ever
+returns one), el-sigma-beta₁, el-sigma-beta₂, el-nat-beta-z,
 el-nat-beta-s, el-sum-beta₁, el-sum-beta₂, el-quot-beta,
 el-nu-beta (out at a corec head — map_𝔽 and hᵉˡ expanding by
 Foundation's ≜-clauses), el-qiit-beta (the eliminator at a
@@ -427,6 +432,21 @@ componentwise at F ⨯ G and F ⊎ G                  (e-poly-prod, e-poly-sum)
 Γ ⊢ t ⇐ A ⇝ t̂
 ---------------------- (e-ann)
 Γ ⊢ (t : T) ⇒ A ⇝ t̂
+
+Γ ⊢ e ⇒ A ⇝ ê
+Γ ▷ x:A ▷ h:Prf (☐₀ ≡ ê[↑] ∈ A[↑]) ⊢ b ⇒ B ⇝ b̂
+-------------------------------------------------- (e-let)    # (let a b)
+Γ ⊢ let x ≔ e in b ⇒ B[id, ê, ⋆] ⇝ let ê b̂
+# The DEFINIENS is inferred — a checking-only definiens (λ, pair, ...)
+# takes the annotated form, which is parse-level sugar for ascription:
+#     let x : T ≔ e in b   ≜   let x ≔ (e : T) in b
+# The BODY is elaborated under x AND the unfolding hypothesis h. h's
+# type is a Prf of an equality prop, so E's HYPOTHESIS source reflects
+# ☐₁ ≐ ê[↑ ∘ ↑] into discharge automatically: the definition is
+# TRANSPARENT inside the body with no new mechanism — Foundation's
+# el-let, the definition-carrying-context reading. h never appears in
+# b (nothing binds it on the surface); it exists for discharge and for
+# the kernel's context, and the report printer renders it silently.
 
 Γ ▷ n:ℕ ⊢ T ⇝ A type
 Γ ⊢ z ⇐ A[id, Z] ⇝ ẑ
@@ -692,6 +712,17 @@ whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 # Any expected C; 𝟘-elim is the one form that checks against
 # everything. In inference position it is a structural error (ascribe).
 
+Γ ⊢ e ⇒ A ⇝ ê
+Γ ▷ x:A ▷ h:Prf (☐₀ ≡ ê[↑] ∈ A[↑]) ⊢ b ⇐ C[↑ ∘ ↑] ⇝ b̂
+--------------------------------------------------------- (e-let-check)
+Γ ⊢ let x ≔ e in b ⇐ C ⇝ let ê b̂
+# let PROPAGATES the ambient mode to its body — this direct checking
+# rule (rather than e-let + e-switch) is what lets a checking-only
+# body form (a λ, a pair, a ⋆) sit under a let without ascription.
+# C lives over Γ, so checking b at C[↑ ∘ ↑] is fully general, not an
+# approximation (docs/NovaKernel.txt §8, el-let). The definiens and
+# the hypothesis are exactly as at e-let.
+
 Γ ⊢ t ⇒ B ⇝ t̂        Γ ⊢ B ≐ C type ↓
 --------------------------------------- (e-switch)
 Γ ⊢ t ⇐ C ⇝ t̂
@@ -705,7 +736,9 @@ whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 # squash-elim, 𝟘-elim (their types are not determined by their syntax
 # — an injection alone does not determine the OTHER summand);
 # encountering one in inference position is a structural error whose
-# fix is an ascription. Everything else — including ∥-∥ — infers and
+# fix is an ascription. let is BOTH-MODE: its body elaborates in the
+# ambient mode (e-let / e-let-check), its definiens always in
+# inference mode. Everything else — including ∥-∥ — infers and
 # reaches checking mode through e-switch.
 
 //////////// Conversion and discharge (the ↓ judgements) /////////////
