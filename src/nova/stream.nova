@@ -76,3 +76,17 @@ def hdMap : (a : 𝕌) (b : 𝕌) (f : El a → El b) (t : El (stream a)) →
 def hdTlMap : (a : 𝕌) (b : 𝕌) (f : El a → El b) (t : El (stream a)) →
     hd _ (tl _ (mapS _ _ f t)) ≡ f (hd _ (tl _ t)) ∈ El b ≔
   λa. λb. λf. λt. ⋆
+
+-- With coinduction dischargeable (el-nu-coind; `coind`), the
+-- η-needing laws close. tlCons: the tail of a cons is the consed
+-- stream — by coinduction with a GRAPH invariant: u is v's image
+-- under the one-step machine, for SOME v.
+def tlCons : (a : 𝕌) (x : El a) (s : El (stream a)) →
+    tl _ (cons _ x s) ≡ s ∈ El (stream a) ≔
+  λa. λx. λs.
+    coind (u v. ∥(w : El (stream a)) ⨯
+                  ((u ≡ corec (p : a ⨯ stream a. ((p .π₁) , out (p .π₂))) (out w) ∈ El (stream a)) ⨯
+                   (v ≡ w ∈ El (stream a)))∥)
+          (⋆ ((s , (⋆ , ⋆))))
+          (u v h. squash-elim h (w.
+            ⋆ ((⋆ , ⋆ (((out (w .π₁)) .π₂ , (⋆ , ⋆)))))))

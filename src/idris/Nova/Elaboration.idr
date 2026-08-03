@@ -881,10 +881,22 @@ permutative c = isJust (go 0 c.lhs c.rhs [])
 ||| permutative and growing equations never rewrite).
 ordered : List Cand -> List Cand
 ordered cs =
-  let usable = filter (\c => elemSize c.rhs <= elemSize c.lhs && not (permutative c)) cs
+  let usable = filter (\c => (elemSize c.rhs <= elemSize c.lhs || varDef c) && not (permutative c)) cs
       shrinking = filter (\c => elemSize c.rhs < elemSize c.lhs) usable
       rest = filter (\c => not (elemSize c.rhs < elemSize c.lhs)) usable
   in shrinking ++ rest
+ where
+  -- a VARIABLE-DEFINITION rule — ground, ☐ₙ ⇝ t with ☐ₙ not in t —
+  -- terminates regardless of size (each application strictly removes
+  -- an occurrence), so it is usable as a rewrite rule even when
+  -- growing: the "the hypothesis defines this variable" pattern that
+  -- coinduction invariants produce
+  varDef : Cand -> Bool
+  varDef c =
+    c.params == 0 &&
+    (case c.lhs of
+       CtxVar n => isJust (strengthenElem n c.rhs)
+       _ => False)
 
 -- ===== Step materialization =====
 --
@@ -1174,7 +1186,7 @@ closeCand c =
 ||| against the lemma store, RECORDING the normalization so the kernel
 ||| can bridge from the raw reflected equation.
 hypCands : ElabSt -> Ctx -> List Cand
-hypCands st ctx = concatMap closeCand (mapMaybe candAt [0 .. minus (length ctx) 1])
+hypCands st ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length ctx) 1])
  where
   lemmaRw : List Cand
   lemmaRw = ordered st.lemmas
@@ -1211,6 +1223,46 @@ hypCands st ctx = concatMap closeCand (mapMaybe candAt [0 .. minus (length ctx) 
              else Just (MkCand "hypothesis" k (lastEntries k ctx')
                           (betaElem st.sig l) (betaElem st.sig r) mk [] [])
       Nothing => Nothing
+
+  -- a GROUND hypothesis whose type is a (nested, non-dependent) Σ of
+  -- Prf-equalities licenses one candidate per component, the proof
+  -- element being the projection chain (el-reflect takes any
+  -- Prf-typed term, so a projection is a legitimate witness). This is
+  -- the shape squash-elim binds when an invariant is a conjunction.
+  groundEqCand : Elem -> (Elem, Elem, Ty) -> Cand
+  groundEqCand prf (l, r, t) =
+    let (l1, lSteps) = rwNfElemS st.sig lemmaRw True (betaElem st.sig l)
+        (r1, rSteps) = rwNfElemS st.sig lemmaRw True (betaElem st.sig r)
+    in MkCand "hypothesis" 0 [] l1 r1 (\_ => Just (prf, [])) (toPSteps lSteps) (toPSteps rSteps)
+
+  pairEqs : Nat -> (proj : Elem) -> Ty -> List (Elem, (Elem, Elem, Ty))
+  pairEqs fuel proj ty =
+    case fuel of
+      Z => []
+      S fuel' =>
+        case betaTy st.sig ty of
+          Prf p =>
+            case betaElem st.sig p of
+              Elem.EqTy l r t => [(proj, (l, r, t))]
+              _ => []
+          Ty.SigmaTy a b =>
+            -- dependent Σs instantiate the body at the projection —
+            -- existential invariants (Σ of data and equations) land here
+            pairEqs fuel' (SigmaElim1 proj) a ++
+            pairEqs fuel' (SigmaElim2 proj) (substTy b (Ext Id (SigmaElim1 proj)))
+          _ => []
+
+  candsAt : Nat -> List Cand
+  candsAt i =
+    case candAt i of
+      Just c => [c]
+      Nothing =>
+        case ctxLookup ctx i of
+          Just tyI =>
+            case betaTy st.sig tyI of
+              tyB@(Ty.SigmaTy _ _) => map (uncurry groundEqCand) (pairEqs 8 (CtxVar i) tyB)
+              _ => []
+          Nothing => []
 
 record CandSet where
   constructor MkCandSet
@@ -3043,6 +3095,8 @@ mutual
       Nothing => throw "\{site}: out scrutinee has non-ν type\{structuralHint}"
   inferElem ctx env site (SCorec _ _ _ _) =
     throw "\{site}: cannot infer the type of corec (the polynomial comes from the expected ν-type)\{structuralHint}"
+  inferElem ctx env site (SCoind _ _ _ _ _ _ _ _) =
+    throw "\{site}: cannot infer the type of coind (the equation comes from the expected Prf type)\{structuralHint}"
   inferElem ctx env site (SInj1 _) =
     throw "\{site}: cannot infer the type of inj₁ (the other summand is undetermined)\{structuralHint}"
   inferElem ctx env site (SInj2 _) =
@@ -3100,6 +3154,42 @@ mutual
         (u', uSk) <- checkElem ctx env site u (El a')
         pure (Corec p a' f' u', withExpose exp (Nd [] [aSk, fSk, uSk]))
       Nothing => throw "\{site}: corec checked against a non-ν type\{structuralHint}"
+  checkElem ctx env site (SCoind (xn, xr) (yn, yr) rS pS (mxn, mxr) (myn, myr) (mhn, mhr) qS) ty = do
+    -- e-coind: el-nu-coind's surface form, at Prf (l ≡ r ∈ El (ν F)) —
+    -- invariant, endpoint proof, one-step closure at the relator
+    st <- getSt
+    case preferPrf st ctx ty of
+      Nothing => throw "\{site}: coind checked against a non-Prf type\{structuralHint}"
+      Just (pc, exp) => do
+        let pcUse = case pc of
+                      Elem.EqTy _ _ _ => pc
+                      _ => betaElem st.sig pc
+        case pcUse of
+          Elem.EqTy l rhs ety => do
+            let fM = case whnfT st.sig ety of
+                       Ty.NuTy f => Just f
+                       _ => case rwNfTy st ctx ety of
+                              Ty.NuTy f => Just f
+                              _ => Nothing
+            case fM of
+              Nothing => throw "\{site}: coind at an equation over a non-ν type\{structuralHint}"
+              Just f => do
+                let nuT = Ty.NuTy f
+                recordBinder xr ctx env xn nuT
+                recordBinder yr (ctx :< nuT) (env :< xn) yn (substTy nuT Wk)
+                (r', skR) <- checkElem (ctx :< nuT :< substTy nuT Wk) (env :< xn :< yn) site rS Ty.PropTy
+                (p', skp) <- checkElem ctx env site pS (Prf (substElem r' (Ext (Ext Id l) rhs)))
+                let ctx3 = ctx :< nuT :< substTy nuT Wk :< Prf r'
+                let wk3 = Chain Wk (Chain Wk Wk)
+                let f3 = substPoly f wk3
+                let r3 = substElem r' (under (under wk3))
+                recordBinder mxr ctx env mxn nuT
+                recordBinder myr (ctx :< nuT) (env :< mxn) myn (substTy nuT Wk)
+                recordBinder mhr (ctx :< nuT :< substTy nuT Wk) (env :< mxn :< myn) mhn (Prf r')
+                (q', skq) <- checkElem ctx3 (env :< mxn :< myn :< mhn) site qS
+                               (Prf (liftPoly f3 r3 (Out (CtxVar 2)) (Out (CtxVar 1))))
+                pure (Star, withExpose exp (Nd [PNuCoind r' skR p' skp q' skq] []))
+          _ => throw "\{site}: coind checked against a non-equality proposition\{structuralHint}"
   checkElem ctx env site (SClass a) ty = do
     st <- getSt
     case preferQuot st ctx ty of

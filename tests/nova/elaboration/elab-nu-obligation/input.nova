@@ -1,8 +1,10 @@
--- a bisimulation-shaped equation needs el-nu-eta, which has no kernel
--- certificate (NovaKernel.txt, A5): it stays an OBLIGATION, not an error
+-- coinduction with a NON-closing invariant: the closure's head
+-- component is Z ≐ S Z, which stays an OBLIGATION (not an error) —
+-- the coind payload composes with the ordinary obligation loop
 def stream : 𝕌 → 𝕌 ≔ λa. ν (K a ⨯ 𝕏)
-def cons : (a : 𝕌) → El a → El (stream a) → El (stream a) ≔
-  λa. λx. λs. corec (p : a ⨯ stream a. ((p .π₁) , out (p .π₂))) (x , s)
-def tl : (a : 𝕌) → El (stream a) → El (stream a) ≔ λa. λt. (out t) .π₂
-def tlCons : (a : 𝕌) (x : El a) (s : El (stream a)) → tl _ (cons _ x s) ≡ s ∈ El (stream a) ≔
-  λa. λx. λs. ⋆
+def zeros : El (stream ℕ) ≔ corec (s : 𝟙. (Z , s)) ()
+def ones : El (stream ℕ) ≔ corec (s : 𝟙. (S Z , s)) ()
+def bad : zeros ≡ ones ∈ El (stream ℕ) ≔
+  coind (x y. ∥(x ≡ zeros ∈ El (stream ℕ)) ⨯ (y ≡ ones ∈ El (stream ℕ))∥)
+        (⋆ ((⋆ , ⋆)))
+        (x y h. squash-elim h (w. ⋆ ((⋆ , ⋆ ((⋆ , ⋆))))))

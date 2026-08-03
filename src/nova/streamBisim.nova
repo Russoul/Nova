@@ -1,6 +1,6 @@
 import equality (cong)
 import stream (stream, hd, tl, mapS)
-import streamEq (tlN, nth, obsEq, obsEqRefl, nthMap, mapIdObsEq)
+import streamEq (tlN, nth, obsEq, obsEqRefl, nthMap, mapIdObsEq, mapFuseObsEq)
 
 -- Observational equality, restated CORECURSIVELY: two streams are
 -- bisimilar iff SOME relation relates them, agrees on heads, and is
@@ -68,3 +68,28 @@ def bisimObsEq : (a : 𝕌) (s : El (stream a)) (t : El (stream a)) →
 def mapIdBisim : (a : 𝕌) (s : El (stream a)) →
     Prf (bisim _ (mapS _ _ (λx. x) s) s) ≔
   λa. λs. obsEqBisim _ _ _ (mapIdObsEq _ s)
+
+-- THE REFLECTION: bisimilarity implies equality — el-nu-coind's
+-- surface form, with bisim ITSELF as the invariant and the unfold
+-- laws as the one-step closure. This is the theorem that upgrades
+-- every observational result below it to a judgemental equation.
+def bisimReflect : (a : 𝕌) (s : El (stream a)) (t : El (stream a)) →
+    Prf (bisim _ s t) → Prf (s ≡ t ∈ El (stream a)) ≔
+  λa. λs. λt. λh.
+    coind (x y. bisim _ x y) h
+          (x y hb. ⋆ ((bisimHd _ x y hb , bisimTl _ x y hb)))
+
+def obsEqReflect : (a : 𝕌) (s : El (stream a)) (t : El (stream a)) →
+    Prf (obsEq _ s t) → Prf (s ≡ t ∈ El (stream a)) ≔
+  λa. λs. λt. λh. bisimReflect _ s t (obsEqBisim _ s t h)
+
+-- the η-needing equalities, now judgemental theorems
+def mapIdEq : (a : 𝕌) (s : El (stream a)) →
+    mapS _ _ (λx. x) s ≡ s ∈ El (stream a) ≔
+  λa. λs. bisimReflect _ _ _ (mapIdBisim _ s)
+
+def mapFuseEq : (a : 𝕌) (b : 𝕌) (c : 𝕌) (f : El a → El b) (g : El b → El c)
+    (s : El (stream a)) →
+    mapS _ _ g (mapS _ _ f s) ≡ mapS _ _ (λx. g (f x)) s ∈ El (stream c) ≔
+  λa. λb. λc. λf. λg. λs.
+    obsEqReflect _ _ _ (mapFuseObsEq _ _ _ f g s)
