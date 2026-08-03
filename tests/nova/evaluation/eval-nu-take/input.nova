@@ -1,0 +1,18 @@
+-- take the first N elements of a COLIST, padding with Z past its
+-- end: ℕ-elim drives N observations (one el-nu-beta each, through
+-- ⊎-elim on the colist's step), the result a nested pair at an
+-- ℕ-elim-defined vector code
+def clist : 𝕌 ≔ ν (K 𝟙 ⊎ (K ℕ ⨯ 𝕏))
+def step : 𝕌 ≔ 𝟙 ⊎ (ℕ ⨯ clist)
+def cnil : El clist ≔ corec (s : 𝟙. inj₁ s) ()
+def ccons : El ℕ → El clist → El clist ≔
+  λx. λt. corec (p : step. ⊎-elim (w. El (𝟙 ⊎ (ℕ ⨯ step))) (u. inj₁ u) (q. inj₂ ((q .π₁) , out (q .π₂))) p)
+            (inj₂ (x , t))
+def vecc : ℕ → 𝕌 ≔ λn. ℕ-elim (m. 𝕌) 𝟙 (m ih. ℕ ⨯ ih) n
+def take : (n : ℕ) → El clist → El (vecc n) ≔
+  λn. ℕ-elim (m. El clist → El (vecc m)) (λt. ())
+        (m ih. λt. ⊎-elim (w. El (vecc (S m))) (u. (Z , ih cnil)) (q. ((q .π₁) , ih (q .π₂))) (out t))
+        n
+-- [1, 2] taken to depth 4: two elements, then two Z-pads
+def val : El (vecc (S (S (S (S Z))))) ≔
+  take (S (S (S (S Z)))) (ccons (S Z) (ccons (S (S Z)) cnil))
