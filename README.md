@@ -9,6 +9,8 @@ Written in [Idris2](https://github.com/idris-lang/Idris2).
 See `docs/NovaFoundation.txt` for the theory, `docs/NovaPipeline.txt`
 for the architecture, `docs/NovaElaboration.txt` for the surface
 syntax and elaborator, and `docs/NovaKernel.txt` for the kernel rules.
+Browse the rendered specs and syntax-highlighted `src/nova/*.nova`
+sources online at [russoul.github.io/Nova](https://russoul.github.io/Nova/).
 
 ### Dependencies
 
