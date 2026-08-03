@@ -237,6 +237,7 @@ mapRefsSub : (String -> SubNorm -> Maybe Elem) -> SubNorm -> SubNorm
 mapRefsQTm : (String -> SubNorm -> Maybe Elem) -> QTm -> QTm
 mapRefsQTy : (String -> SubNorm -> Maybe Elem) -> QTy -> QTy
 mapRefsQSig : (String -> SubNorm -> Maybe Elem) -> QSig -> QSig
+mapRefsPoly : (String -> SubNorm -> Maybe Elem) -> Poly -> Poly
 
 mapRefsE : (String -> SubNorm -> Maybe Elem) -> Elem -> Elem
 mapRefsE f (SigVar x es) =
@@ -273,6 +274,9 @@ mapRefsE f (QCtor sg k es) = QCtor (mapRefsQSig f sg) k (mapRefsSub f es)
 mapRefsE f (QElim sg k ms fs es w) =
   QElim (mapRefsQSig f sg) k (map (mapRefsT f) ms) (map (mapRefsE f) fs)
         (mapRefsSub f es) (mapRefsE f w)
+mapRefsE f (Elem.NuTy p) = Elem.NuTy (mapRefsPoly f p)
+mapRefsE f (Out t) = Out (mapRefsE f t)
+mapRefsE f (Corec p a g x) = Corec (mapRefsPoly f p) (mapRefsE f a) (mapRefsE f g) (mapRefsE f x)
 
 mapRefsT f Ty.ZeroTy = Ty.ZeroTy
 mapRefsT f Ty.OneTy = Ty.OneTy
@@ -287,6 +291,7 @@ mapRefsT f (Prf e) = Prf (mapRefsE f e)
 mapRefsT f (Quotient a r) = Quotient (mapRefsT f a) (mapRefsE f r)
 mapRefsT f (Ty.SigVar x es) = Ty.SigVar x (mapRefsSub f es)
 mapRefsT f (QSort sg k es) = QSort (mapRefsQSig f sg) k (mapRefsSub f es)
+mapRefsT f (Ty.NuTy p) = Ty.NuTy (mapRefsPoly f p)
 
 mapRefsSub f [<] = [<]
 mapRefsSub f (es :< e) = mapRefsSub f es :< mapRefsE f e
@@ -303,6 +308,13 @@ mapRefsQTy f (QPiInd u b) = QPiInd (mapRefsQTm f u) (mapRefsQTy f b)
 
 mapRefsQSig f = map (mapRefsQTy f)
 
+mapRefsPoly f PHole = PHole
+mapRefsPoly f (PConst a) = PConst (mapRefsE f a)
+mapRefsPoly f (PProd g h) = PProd (mapRefsPoly f g) (mapRefsPoly f h)
+mapRefsPoly f (PSum g h) = PSum (mapRefsPoly f g) (mapRefsPoly f h)
+mapRefsPoly f (PSigma a g) = PSigma (mapRefsE f a) (mapRefsPoly f g)
+mapRefsPoly f (PPi a g) = PPi (mapRefsE f a) (mapRefsPoly f g)
+
 ||| Every signature name an element references (with duplicates).
 collectRefsE : Elem -> List String
 collectRefsE e = go e
@@ -310,6 +322,7 @@ collectRefsE e = go e
   goT : Ty -> List String
   goQTm : QTm -> List String
   goQTy : QTy -> List String
+  goP : Poly -> List String
   go : Elem -> List String
   go (SigVar x es) = x :: concatMap go (toList es)
   go (CtxVar _) = []
@@ -343,6 +356,16 @@ collectRefsE e = go e
   go (QElim sg k ms fs es w) =
     concatMap goQTy sg ++ concatMap goT ms ++ concatMap go fs ++
     concatMap go (toList es) ++ go w
+  go (Elem.NuTy p) = goP p
+  go (Out t) = go t
+  go (Corec p a f x) = goP p ++ go a ++ go f ++ go x
+
+  goP PHole = []
+  goP (PConst a) = go a
+  goP (PProd f g) = goP f ++ goP g
+  goP (PSum f g) = goP f ++ goP g
+  goP (PSigma a f) = go a ++ goP f
+  goP (PPi a f) = go a ++ goP f
 
   goQTm (QVar _) = []
   goQTm (QAppE f e) = goQTm f ++ go e
@@ -367,6 +390,7 @@ collectRefsE e = go e
   goT (Quotient a r) = goT a ++ go r
   goT (Ty.SigVar x es) = x :: concatMap go (toList es)
   goT (QSort sg k es) = concatMap goQTy sg ++ concatMap go (toList es)
+  goT (Ty.NuTy p) = goP p
 
 ||| ONE δ-step at the head: a definition reference unfolds to its
 ||| definiens under the spine; anything else is left alone. Used to
@@ -425,6 +449,29 @@ qsigDom0Pieces sg0 sg1 =
   goTy d (QPiInd u b) (QPiInd u' b') = do ignore (goTm u u'); goTy (S d) b b'
   goTy _ _ _ = Nothing
 
+||| ν identity is STRUCTURAL on the carried polynomial: same shape, the
+||| embedded codes compared pairwise. Depth-0 pieces (not under a
+||| polynomial binder) come back for decomposition, strengthened;
+||| deeper mismatches make the whole comparison conservative (Nothing).
+polyDom0Pieces : Poly -> Poly -> Maybe (List (Elem, Elem))
+polyDom0Pieces = goP 0
+ where
+  piece0 : Nat -> Elem -> Elem -> Maybe (List (Elem, Elem))
+  piece0 d a a' =
+    if a == a' then Just []
+    else if d == 0 then Just [(a, a')]
+    else case (strengthenElem d a, strengthenElem d a') of
+           (Just s0, Just s1) => Just [(s0, s1)]
+           _ => Nothing
+  goP : Nat -> Poly -> Poly -> Maybe (List (Elem, Elem))
+  goP d PHole PHole = Just []
+  goP d (PConst a) (PConst a') = piece0 d a a'
+  goP d (PProd f g) (PProd f' g') = [| goP d f f' ++ goP d g g' |]
+  goP d (PSum f g) (PSum f' g') = [| goP d f f' ++ goP d g g' |]
+  goP d (PSigma a f) (PSigma a' f') = [| piece0 d a a' ++ goP (S d) f f' |]
+  goP d (PPi a f) (PPi a' f') = [| piece0 d a a' ++ goP (S d) f f' |]
+  goP _ _ _ = Nothing
+
 ||| Position of the entry binding a name (leftmost/oldest first).
 sigIndexOf : String -> List SigEntry -> Maybe Nat
 sigIndexOf q = go 0
@@ -474,6 +521,7 @@ codeOf (Ty.SumTy a b) = Elem.SumTy <$> codeOf a <*> codeOf b
 -- the relation is an Ω-element in BOTH the type former and the code:
 -- El (A / R) ≜ El A / R, so it passes through unchanged
 codeOf (Quotient a r) = QuotTy <$> codeOf a <*> Just r
+codeOf (Ty.NuTy f) = Just (Elem.NuTy f)
 codeOf (El e) = Just e
 -- code-qiit: a sort's code is the sort former itself (smallness is
 -- enforced wherever the code is USED — inferP rejects large ones)
@@ -678,6 +726,8 @@ condSub k p bs =
 ||| below).
 tySize : Ty -> Nat
 
+polySize : Poly -> Nat
+
 elemSize : Elem -> Nat
 elemSize (CtxVar _) = 1
 elemSize (ZeroElim t) = S (elemSize t)
@@ -714,6 +764,9 @@ elemSize (QElim _ _ ms fs es w) =
   S (foldl (\acc, m => acc + tySize m) 0 ms +
      foldl (\acc, f => acc + elemSize f) 0 fs +
      foldl (\acc, e => acc + elemSize e) 0 es + elemSize w)
+elemSize (Elem.NuTy p) = S (polySize p)
+elemSize (Out t) = S (elemSize t)
+elemSize (Corec p a f x) = S (polySize p + elemSize a + elemSize f + elemSize x)
 
 tySize Ty.ZeroTy = 1
 tySize Ty.OneTy = 1
@@ -728,6 +781,14 @@ tySize (Prf e) = S (elemSize e)
 tySize (Quotient a r) = S (tySize a + elemSize r)
 tySize (Ty.SigVar _ es) = S (foldl (\acc, e => acc + elemSize e) 0 es)
 tySize (QSort _ _ es) = S (foldl (\acc, e => acc + elemSize e) 0 es)
+tySize (Ty.NuTy p) = S (polySize p)
+
+polySize PHole = 1
+polySize (PConst a) = S (elemSize a)
+polySize (PProd f g) = S (polySize f + polySize g)
+polySize (PSum f g) = S (polySize f + polySize g)
+polySize (PSigma a f) = S (elemSize a + polySize f)
+polySize (PPi a f) = S (elemSize a + polySize f)
 
 ||| Equal up to a bijective renaming of the parametric variables
 ||| (commutativity-shaped) — such equations loop as rewrite rules.
@@ -958,6 +1019,13 @@ rewriteElemS side c pi d t =
   descend (QElim sg k ms fs es w) =
     spineAt es (\es' => QElim sg k ms fs es' w)
       <|> at (length (toList es)) 0 w (\w' => QElim sg k ms fs es w')
+  -- ν formers: out's scrutinee and corec's carrier/body/seed are
+  -- addressable; the carried polynomial is OPAQUE, like a signature
+  descend (Out t) = at 0 0 t Out
+  descend (Corec p a f x) =
+    at 0 0 a (\a' => Corec p a' f x)
+      <|> at 1 1 f (\f' => Corec p a f' x)
+      <|> at 2 0 x (\x' => Corec p a f x')
   descend _ = Nothing
 
 rewriteTyS side c pi d Ty.ZeroTy = Nothing
@@ -981,6 +1049,9 @@ rewriteTyS side c pi d (El e) =
 rewriteTyS side c pi d (Quotient a r) =
   ((\(a', st) => (Quotient a' r, st)) <$> rewriteTyS side c (0 :: pi) d a)
     <|> ((\(r', st) => (Quotient a r', st)) <$> rewriteElemS side c (1 :: pi) (2 + d) r)
+-- a ν type has no child indices: the carried polynomial is OPAQUE to
+-- paths, like a carried signature (NovaKernel.txt, child indexing)
+rewriteTyS side c pi d (Ty.NuTy f) = Nothing
 -- QIIT sort application: rewriting reaches the INDEX SPINE; the carried
 -- signature is OPAQUE to paths (NovaKernel.txt, A3)
 rewriteTyS side c pi d (QSort sg k es) =
@@ -1745,6 +1816,14 @@ mutual
                  Left _ => zonkElimStuck st sg k ms fs es (QCtor sgW c theta)
           else zonkElimStuck st sg k ms fs es (QCtor sgW c theta)
       w2 => zonkElimStuck st sg k ms fs es w2
+  zonkElem st (Elem.NuTy p) = Elem.NuTy (zonkPoly st p)
+  zonkElem st (Out t) =
+    case zonkElem st t of
+      -- el-nu-beta at a corec head
+      Corec p a f x => zonkElem st (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+      t2 => Out t2
+  zonkElem st (Corec p a f x) =
+    Corec (zonkPoly st p) (zonkElem st a) (zonkElem st f) (zonkElem st x)
 
   zonkTy : ElabSt -> Ty -> Ty
   zonkTy st (Ty.SigVar x es) =
@@ -1780,6 +1859,7 @@ mutual
     case resugarQ st (QSortC zsg k zes) of
       Just code => El code
       Nothing => QSort zsg k zes
+  zonkTy st (Ty.NuTy p) = Ty.NuTy (zonkPoly st p)
 
   zonkElimStuck : ElabSt -> QSig -> Nat -> List Ty -> List Elem -> SubNorm -> Elem -> Elem
   zonkElimStuck st sg k ms fs es w2 =
@@ -1805,6 +1885,14 @@ mutual
 
   zonkQSig : ElabSt -> QSig -> QSig
   zonkQSig st = map (zonkQTy st)
+
+  zonkPoly : ElabSt -> Poly -> Poly
+  zonkPoly st PHole = PHole
+  zonkPoly st (PConst a) = PConst (zonkElem st a)
+  zonkPoly st (PProd f g) = PProd (zonkPoly st f) (zonkPoly st g)
+  zonkPoly st (PSum f g) = PSum (zonkPoly st f) (zonkPoly st g)
+  zonkPoly st (PSigma a f) = PSigma (zonkElem st a) (zonkPoly st f)
+  zonkPoly st (PPi a f) = PPi (zonkElem st a) (zonkPoly st f)
 
 zonkCtx : ElabSt -> Ctx -> Ctx
 zonkCtx st [<] = [<]
@@ -2606,6 +2694,12 @@ mutual
                      Just pieces => traverse_ (\(t0, t1) => ignore $ convTy ctx env site comp' t0 t1) pieces
                      Nothing => assume cur site comp
               else assume cur site comp
+          -- ν identity is STRUCTURAL (Foundation, coinductive IDENTITY):
+          -- same polynomial shape, embedded codes decomposed pairwise
+          (Ty.NuTy f0, Ty.NuTy f1) =>
+            case polyDom0Pieces f0 f1 of
+              Just pieces => traverse_ (\(e0, e1) => ignore $ convElem ctx env site comp' e0 e1 Ty.UniverseTy) pieces
+              Nothing => assume cur site comp
           (El x, El y) => ignore $ convElem ctx env site comp' x y Ty.UniverseTy
           (Prf x, Prf y) => ignore $ convElem ctx env site comp' x y Ty.PropTy
           (El x, rigid) => case codeOf rigid of
@@ -2660,6 +2754,12 @@ preferSum st ctx ty = case rwNfTy st ctx ty of
                         tyX@(Ty.SumTy a b) => (\e => (a, b, Just e)) <$> exposeCert st ctx ty tyX
                         _ => Nothing
 
+preferNu : ElabSt -> Ctx -> Ty -> Maybe (Poly, Maybe (Ty, ECert))
+preferNu st ctx (Ty.NuTy f) = Just (f, Nothing)
+preferNu st ctx ty = case rwNfTy st ctx ty of
+                       tyX@(Ty.NuTy f) => (\e => (f, Just e)) <$> exposeCert st ctx ty tyX
+                       _ => Nothing
+
 preferQuot : ElabSt -> Ctx -> Ty -> Maybe (Ty, Elem, Maybe (Ty, ECert))
 preferQuot st ctx (Ty.Quotient a r) = Just (a, r, Nothing)
 preferQuot st ctx ty = case rwNfTy st ctx ty of
@@ -2679,6 +2779,33 @@ withExpose (Just (tyX, c)) sk = addPayload (PExpose tyX c) sk
 
 mutual
   export
+  ||| Γ ⊢ F ⇝ 𝔽 poly (e-poly-*): each embedded piece a code at 𝕌, the
+  ||| context growing under the binder forms; skeleton children
+  ||| accumulate in binder order (the kernel's kCheckPolyK order).
+  elabPoly : Ctx -> NameEnv -> String -> SPoly -> ElabM (Poly, List Skel)
+  elabPoly ctx env site SPHole = pure (PHole, [])
+  elabPoly ctx env site (SPConst a) = do
+    (a', aSk) <- checkElem ctx env site a Ty.UniverseTy
+    pure (PConst a', [aSk])
+  elabPoly ctx env site (SPProd f g) = do
+    (f', fSks) <- elabPoly ctx env site f
+    (g', gSks) <- elabPoly ctx env site g
+    pure (PProd f' g', fSks ++ gSks)
+  elabPoly ctx env site (SPSum f g) = do
+    (f', fSks) <- elabPoly ctx env site f
+    (g', gSks) <- elabPoly ctx env site g
+    pure (PSum f' g', fSks ++ gSks)
+  elabPoly ctx env site (SPSigma (xn, xr) a f) = do
+    (a', aSk) <- checkElem ctx env site a Ty.UniverseTy
+    recordBinder xr ctx env xn (El a')
+    (f', fSks) <- elabPoly (ctx :< El a') (env :< xn) site f
+    pure (PSigma a' f', aSk :: fSks)
+  elabPoly ctx env site (SPPi (xn, xr) a f) = do
+    (a', aSk) <- checkElem ctx env site a Ty.UniverseTy
+    recordBinder xr ctx env xn (El a')
+    (f', fSks) <- elabPoly (ctx :< El a') (env :< xn) site f
+    pure (PPi a' f', aSk :: fSks)
+
   elabTy : Ctx -> NameEnv -> String -> STy -> ElabM (Ty, Skel)
   elabTy ctx env site STyZero = pure (Ty.ZeroTy, Nd [] [])
   elabTy ctx env site STyOne = pure (Ty.OneTy, Nd [] [])
@@ -2713,6 +2840,10 @@ mutual
     recordBinder nyr (ctx :< a') (env :< nx) ny (substTy a' Wk)
     (r', rSk) <- checkElem (ctx :< a' :< substTy a' Wk) (env :< nx :< ny) site r Ty.PropTy
     pure (Ty.Quotient a' r', Nd [] [aSk, rSk])
+  elabTy ctx env site (STyNu f) = do
+    -- e-ty-nu
+    (f', fSks) <- elabPoly ctx env site f
+    pure (Ty.NuTy f', Nd [] fSks)
   elabTy ctx env site (STyEq l r t) = do
     -- e-ty-eq: the surface ≡-TYPE elaborates to Prf of the equality
     -- prop (equality is Ω-valued)
@@ -2898,6 +3029,20 @@ mutual
     (l', lSk) <- checkElem ctx env site l t'
     (r', rSk) <- checkElem ctx env site r t'
     pure (Elem.EqTy l' r' t', Ty.PropTy, Nd [] [lSk, rSk, tSk])
+  inferElem ctx env site (SNuC f) = do
+    -- e-code-nu
+    (f', fSks) <- elabPoly ctx env site f
+    pure (Elem.NuTy f', Ty.UniverseTy, Nd [] fSks)
+  inferElem ctx env site (SOut t) = do
+    -- e-out: fully inference-driven, the polynomial read off the
+    -- scrutinee's type
+    (t', tTy, tSk) <- inferElem ctx env site t
+    st <- getSt
+    case preferNu st ctx tTy of
+      Just (p, _) => pure (Out t', El (reflectPoly p (Elem.NuTy p)), Nd [] [tSk])
+      Nothing => throw "\{site}: out scrutinee has non-ν type\{structuralHint}"
+  inferElem ctx env site (SCorec _ _ _ _) =
+    throw "\{site}: cannot infer the type of corec (the polynomial comes from the expected ν-type)\{structuralHint}"
   inferElem ctx env site (SInj1 _) =
     throw "\{site}: cannot infer the type of inj₁ (the other summand is undetermined)\{structuralHint}"
   inferElem ctx env site (SInj2 _) =
@@ -2943,6 +3088,18 @@ mutual
         (b', bSk) <- checkElem ctx env site b cod
         pure (Inj2 b', withExpose exp (Nd [] [bSk]))
       Nothing => throw "\{site}: inj₂ checked against a non-⊎ type\{structuralHint}"
+  checkElem ctx env site (SCorec (xn, xr) a f u) ty = do
+    -- e-corec: checking-only, like λ and class
+    st <- getSt
+    case preferNu st ctx ty of
+      Just (p, exp) => do
+        (a', aSk) <- checkElem ctx env site a Ty.UniverseTy
+        recordBinder xr ctx env xn (El a')
+        (f', fSk) <- checkElem (ctx :< El a') (env :< xn) site f
+                       (substTy (El (reflectPoly p a')) Wk)
+        (u', uSk) <- checkElem ctx env site u (El a')
+        pure (Corec p a' f' u', withExpose exp (Nd [] [aSk, fSk, uSk]))
+      Nothing => throw "\{site}: corec checked against a non-ν type\{structuralHint}"
   checkElem ctx env site (SClass a) ty = do
     st <- getSt
     case preferQuot st ctx ty of

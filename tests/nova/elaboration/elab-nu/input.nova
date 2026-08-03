@@ -1,0 +1,11 @@
+-- ν formation, corec introduction, out observation; both β-lemmas
+-- close by computation (el-nu-beta)
+def stream : 𝕌 → 𝕌 ≔ λa. ν (K a ⨯ 𝕏)
+def iterate : (a : 𝕌) → (El a → El a) → El a → El (stream a) ≔
+  λa. λf. λx. corec (s : a. (s , f s)) x
+def hd : (a : 𝕌) → El (stream a) → El a ≔ λa. λt. (out t) .π₁
+def tl : (a : 𝕌) → El (stream a) → El (stream a) ≔ λa. λt. (out t) .π₂
+def hdIter : (a : 𝕌) (f : El a → El a) (x : El a) → hd _ (iterate _ f x) ≡ x ∈ El a ≔
+  λa. λf. λx. ⋆
+def hdTlIter : (a : 𝕌) (f : El a → El a) (x : El a) → hd _ (tl _ (iterate _ f x)) ≡ f x ∈ El a ≔
+  λa. λf. λx. ⋆

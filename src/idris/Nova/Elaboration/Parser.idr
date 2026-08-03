@@ -221,7 +221,34 @@ mutual
   parseSTyEl tbl env =
         (do kw "El"; space; e <- parseSElemAtom tbl env; pure (STyEl e))
     <|> (do kw "Prf"; space; e <- parseSElemAtom tbl env; pure (STyPrf e))
+    <|> (do kw "ν"; space; f <- parseSPolyAtom tbl env; pure (STyNu f))
     <|> parseSTyAtom tbl env
+
+  -- Polynomials (NovaElaboration.txt, F{·} grammar): binders and
+  -- products at the top, sums tighter, atoms innermost.
+  parseSPoly : FixTable -> NameEnv -> Rule SPoly
+  parseSPoly tbl env =
+        (do kwc '('; sp; x <- parseNameR; sp; kwc ':'; sp
+            a <- parseSElemNoComma tbl env; sp; kwc ')'; sp
+            (do kw "⨯"; sp; f <- parseSPoly tbl (env :< fst x); pure (SPSigma x a f))
+              <|> (do kw "→"; sp; f <- parseSPoly tbl (env :< fst x); pure (SPPi x a f)))
+    <|> (do f <- parseSPolySum tbl env
+            (do sp; kw "⨯"; sp; g <- parseSPoly tbl env; pure (SPProd f g))
+              <|> pure f)
+
+  -- F{1½}: ⊎, right-assoc, tighter than ⨯ (as everywhere)
+  parseSPolySum : FixTable -> NameEnv -> Rule SPoly
+  parseSPolySum tbl env = do
+    f <- parseSPolyAtom tbl env
+    (do sp; kw "⊎"; sp; g <- parseSPolySum tbl env; pure (SPSum f g))
+      <|> pure f
+
+  -- F{2}: atoms — the hole, constants, parens
+  parseSPolyAtom : FixTable -> NameEnv -> Rule SPoly
+  parseSPolyAtom tbl env =
+        (kw "𝕏" $> SPHole)
+    <|> (do kw "K"; space; a <- parseSElemAtom tbl env; pure (SPConst a))
+    <|> (do kwc '('; sp; f <- parseSPoly tbl env; sp; kwc ')'; pure f)
 
   -- T{4}: atoms
   parseSTyAtom : FixTable -> NameEnv -> Rule STy
@@ -341,6 +368,14 @@ mutual
             t <- parseSElemAtom tbl env
             pure (SSumElim z mot a l b r t))
     <|> (do kw "class"; space; e <- parseSElemAtom tbl env; pure (SClass e))
+    <|> (do kw "ν"; space; f <- parseSPolyAtom tbl env; pure (SNuC f))
+    <|> (do kw "out"; space; e <- parseSElemAtom tbl env; pure (SOut e))
+    <|> (do kw "corec"; space
+            kwc '('; sp; x <- parseNameR; sp; kwc ':'; sp
+            a <- parseSElemNoComma tbl env; sp; kwc '.'; sp
+            f <- parseSElem tbl (env :< fst x); sp; kwc ')'; sp
+            u <- parseSElemAtom tbl env
+            pure (SCorec x a f u))
     <|> (do kw "quot-elim"; space
             kwc '('; sp; z <- parseNameR; sp; kwc '.'; sp
             mot <- parseSTy tbl (env :< fst z); sp; kwc ')'; sp

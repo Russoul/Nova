@@ -1,0 +1,78 @@
+-- Coinductive streams and conaturals — the ν-scheme at its two
+-- simplest polynomials (NovaFoundation.txt, "Coinductive types").
+-- Stream a ≔ ν (K a ⨯ 𝕏): one observation, out, splitting into head
+-- and tail; corec builds a stream from any coalgebra. Every lemma
+-- below closes by COMPUTATION (el-nu-beta plus projections/⊎-elim):
+-- the uniqueness law el-nu-eta is judgemental in the theory but has
+-- no kernel certificate (NovaKernel.txt, A5 — same status as
+-- el-qiit-eta), so bisimulation-shaped equations are out of scope
+-- here; see the deliberate obligation in the test suite.
+
+def stream : 𝕌 → 𝕌 ≔ λa. ν (K a ⨯ 𝕏)
+
+def hd : (a : 𝕌) → El (stream a) → El a ≔
+  λa. λt. (out t) .π₁
+
+def tl : (a : 𝕌) → El (stream a) → El (stream a) ≔
+  λa. λt. (out t) .π₂
+
+-- cons, by corecursion at the one-step carrier a ⨯ stream a: emit the
+-- stored head, then continue by OBSERVING the stored tail — Lambek's
+-- in, specialized
+def cons : (a : 𝕌) → El a → El (stream a) → El (stream a) ≔
+  λa. λx. λs. corec (p : a ⨯ stream a. ((p .π₁) , out (p .π₂))) (x , s)
+
+-- iterate f x: the stream x, f x, f (f x), …
+def iterate : (a : 𝕌) → (El a → El a) → El a → El (stream a) ≔
+  λa. λf. λx. corec (s : a. (s , f s)) x
+
+-- β-lemmas: one el-nu-beta step each (plus pairing/projections)
+def hdCons : (a : 𝕌) (x : El a) (s : El (stream a)) → hd _ (cons _ x s) ≡ x ∈ El a ≔
+  λa. λx. λs. ⋆
+def hdIterate : (a : 𝕌) (f : El a → El a) (x : El a) → hd _ (iterate _ f x) ≡ x ∈ El a ≔
+  λa. λf. λx. ⋆
+
+-- two observation steps: the tail of an iterate is the iterate of the
+-- image — hd ∘ tl commutes with one application of f
+def hdTlIterate : (a : 𝕌) (f : El a → El a) (x : El a) →
+    hd _ (tl _ (iterate _ f x)) ≡ f x ∈ El a ≔
+  λa. λf. λx. ⋆
+
+-- the head under one cons-then-tail: reaches the stored tail's head
+def hdTlCons : (a : 𝕌) (x : El a) (s : El (stream a)) →
+    hd _ (tl _ (cons _ x s)) ≡ hd _ s ∈ El a ≔
+  λa. λx. λs. ⋆
+
+-- Conaturals: ν (K 𝟙 ⊎ 𝕏) — zero observes as inj₁, a successor as
+-- inj₂ of its predecessor; ∞ is its own predecessor
+def conat : 𝕌 ≔ ν (K 𝟙 ⊎ 𝕏)
+
+def czero : El conat ≔ corec (s : 𝟙. inj₁ s) ()
+def cinf : El conat ≔ corec (s : 𝟙. inj₂ s) ()
+
+-- observation shapes, by computation (el-nu-beta + el-sum-beta)
+def outZero : out czero ≡ inj₁ () ∈ 𝟙 ⊎ El conat ≔ ⋆
+def outInf : out cinf ≡ inj₂ cinf ∈ 𝟙 ⊎ El conat ≔ ⋆
+
+-- csucc: emit inj₂ of the stored conat, continuing by observation
+def csucc : El conat → El conat ≔
+  λn. corec (p : 𝟙 ⊎ conat. inj₂ (⊎-elim (w. 𝟙 ⊎ El conat) (u. inj₁ u) (m. out m) p)) (out n)
+
+-- a successor always observes as inj₂ — one β step, the payload
+-- irrelevant to the shape (⊎-elim at an equality motive would refute
+-- inj₁; here the equation is between the injections themselves)
+def outSuccInf : out (csucc cinf) ≡ inj₂ (csucc cinf) ∈ 𝟙 ⊎ El conat ≔ ⋆
+
+-- map over streams: relabel every element, by corecursion on the
+-- source stream itself
+def mapS : (a : 𝕌) (b : 𝕌) → (El a → El b) → El (stream a) → El (stream b) ≔
+  λa. λb. λf. λt. corec (s : stream a. (f (hd _ s) , tl _ s)) t
+
+-- map commutes with the observations — the finite-depth shadow of
+-- the (η-needing) map-fusion laws, closed by pure computation
+def hdMap : (a : 𝕌) (b : 𝕌) (f : El a → El b) (t : El (stream a)) →
+    hd _ (mapS _ _ f t) ≡ f (hd _ t) ∈ El b ≔
+  λa. λb. λf. λt. ⋆
+def hdTlMap : (a : 𝕌) (b : 𝕌) (f : El a → El b) (t : El (stream a)) →
+    hd _ (tl _ (mapS _ _ f t)) ≡ f (hd _ (tl _ t)) ∈ El b ≔
+  λa. λb. λf. λt. ⋆

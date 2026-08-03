@@ -1,0 +1,7 @@
+defined stream
+defined iterate
+defined hd
+defined tl
+defined hdIter
+defined hdTlIter
+Accepted.

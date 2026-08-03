@@ -115,6 +115,25 @@ mutual
                     Left err => assert_total $ idris_crash "betaElem: el-qiit-beta on an ill-formed eliminator: \{err}"
              else QElim sg' k ms' fs' es' (QCtor sgW c theta)
          w' => QElim sg' k ms' fs' es' w'
+  betaElem sig (Elem.NuTy f)      = Elem.NuTy (betaPoly sig f)
+  betaElem sig (Out t) =
+    case betaElem sig t of
+      -- el-nu-beta: out at a corec head runs the coalgebra one step
+      -- and re-wraps the recursive positions (map_𝔽 hᵉˡ f[id, x])
+      Corec p a f x => betaElem sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+      t'            => Out t'
+  betaElem sig (Corec p a f x) =
+    Corec (betaPoly sig p) (betaElem sig a) (betaElem sig f) (betaElem sig x)
+
+  ||| The carried polynomial, with every embedded Nova piece normalized.
+  export
+  betaPoly : Sig -> Poly -> Poly
+  betaPoly sig PHole        = PHole
+  betaPoly sig (PConst a)   = PConst (betaElem sig a)
+  betaPoly sig (PProd f g)  = PProd (betaPoly sig f) (betaPoly sig g)
+  betaPoly sig (PSum f g)   = PSum (betaPoly sig f) (betaPoly sig g)
+  betaPoly sig (PSigma a f) = PSigma (betaElem sig a) (betaPoly sig f)
+  betaPoly sig (PPi a f)    = PPi (betaElem sig a) (betaPoly sig f)
 
   ||| The carried signature, with every embedded Nova piece normalized.
   export
@@ -163,6 +182,7 @@ mutual
       Elem.SumTy a b   => betaTy sig (Ty.SumTy (El a) (El b))
       QuotTy a r       => betaTy sig (Quotient (El a) r)
       QSortC sg k es   => QSort sg k es      -- ty-el-qiit
+      Elem.NuTy f      => Ty.NuTy (betaPoly sig f)   -- ty-el-nu
       e'               => El e'
   betaTy sig PropTy           = PropTy
   betaTy sig (Prf e)          = Prf (betaElem sig e)
@@ -176,6 +196,7 @@ mutual
          Just _                => assert_total $ idris_crash "betaTy: signature identifier '\{x}' is not a type entry"
          Nothing               => assert_total $ idris_crash "betaTy: signature identifier '\{x}' not found"
   betaTy sig (QSort sg k es)  = QSort (betaQSig sig sg) k (betaSubNorm sig es)
+  betaTy sig (Ty.NuTy f)      = Ty.NuTy (betaPoly sig f)
 
 ||| σ, with every element's own beta-redexes rewritten.
 export
@@ -249,6 +270,10 @@ mutual
                  Left _ => QElim sg k ms fs es (QCtor sgW c theta)
           else QElim sg k ms fs es (QCtor sgW c theta)
       w' => QElim sg k ms fs es w'
+  whnfE sig (Out t) =
+    case whnfE sig t of
+      Corec p a f x => whnfE sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+      t'            => Out t'
   whnfE sig e = e
 
   export
@@ -263,6 +288,7 @@ mutual
       Elem.SumTy a b   => Ty.SumTy (El a) (El b)
       QuotTy a r       => Quotient (El a) r
       QSortC sg k es   => QSort sg k es    -- ty-el-qiit
+      Elem.NuTy f      => Ty.NuTy f        -- ty-el-nu
       e'               => El e'
   whnfT sig (Ty.SigVar x es) =
     case sigLookup x sig of

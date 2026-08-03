@@ -31,6 +31,8 @@ kernel-only judgement forms added:
   Σ; Γ ⊦ t ⇒ T ⟨sk⟩              item-level inference
   Σ; Γ ⊦ T type ⟨sk⟩             item-level formation
   Σ; Γ ⊦ 𝒮 qsig ⟨sk⟩             item-level QIIT signature checking (§8)
+  Σ; Γ ⊦ 𝔽 poly ⟨sk⟩             item-level polynomial checking (inside
+                                 ν formation — Foundation's poly-* rules)
 
 Every kernel judgement is decided inside a FUEL MONAD: a computation
 either returns, fails with a reason, or exhausts its fuel — and fuel
@@ -54,6 +56,11 @@ of fuel, are exactly:
   ⊎-elim l r (inj₁ a) ≜ l[id, a]                    # el-sum-beta₁
   ⊎-elim l r (inj₂ b) ≜ r[id, b]                    # el-sum-beta₂
   quot-elim f (class a) ≜ f[id, a]                  # el-quot-beta
+  out (corec 𝔽 a f x) ≜ map_𝔽 hᵉˡ f[id, x]         # el-nu-beta; map_𝔽 and
+                                                    # hᵉˡ = λ (corec 𝔽 a f[↑] ☐₀)
+                                                    # expand by Foundation's
+                                                    # ≜-clauses at contraction
+                                                    # time (one fuel unit)
   𝒮.𝕤-elim ℰ ē (𝒮′.𝕔 θ) ≜ m_𝕔 θ⟨φᵉˡ⟩               # el-qiit-beta; fires
                                                     # only when 𝒮 and 𝒮′ are
                                                     # IDENTICAL after nf
@@ -68,6 +75,7 @@ of fuel, are exactly:
   El (a ⊎ b)         ≜  El a ⊎ El b
   El (a / r)         ≜  El a / r      # the Ω-valued relation is NOT decoded
   El (𝒮.𝕤 ē)         ≜  𝒮.𝕤 ē        # ty-el-qiit
+  El (ν 𝔽)           ≜  ν 𝔽          # ty-el-nu
 
 Ω adds exactly ONE contraction clause:
 
@@ -167,6 +175,7 @@ implementation's names):
     | sigmaCong 𝒞 𝒞                                (FSigmaCong)
     | sumCong 𝒞 𝒞                                  (FSumCong)
     | qiitCong 𝒞̄ 𝒞̄                                 (FQiitCong)
+    | nuCong 𝒞̄                                     (FNuCong)
 
   The three Ω finals: propext is code-prop-eq — the sides are prop codes
   and s, t are the two hypothetical implications, CHECKED as typings
@@ -203,10 +212,12 @@ Child indexing, shared by paths, the typed descent (§6) and skeletons
              𝒮.𝕤 ē (code) → 0.. (the index spine)
              𝒮.𝕔 θ → 0.. (the argument spine)
              𝒮.𝕤-elim ℰ ē w → 0..n-1 (the index spine), n (the eliminee)
+             out t → 0               corec 𝔽 a f x → 0, 1(1), 2
+             ν 𝔽 (code) → (none)
   types:     A → B → 0, 1(1)         A ⨯ B → 0, 1(1)
              A ⊎ B → 0, 1            El e → 0ᵉ               Prf e → 0ᵉ
              A / r → 0, 1ᵉ(2)        x[e˲] → 0..ᵉ
-             𝒮.𝕤 ē → 0..ᵉ
+             𝒮.𝕤 ē → 0..ᵉ            ν 𝔽 → (none)
   (ᶜ marks universe codes; ᵉ marks descent into an element child, ᵗ into
    a type child. The quotient relation is an Ω-valued element child. A
    carried signature 𝒮 and eliminator problem ℰ have NO child indices —
@@ -240,7 +251,9 @@ a generic lemma's 𝕌-parameter materialized at a concrete code is a
 legitimate spine argument — and so does a small signature's sort code,
 its index spine checked positionally against the reflected arity:
 
-  Σ; Γ ⊦ ℕc ⇒ᵖ 𝕌     (likewise 𝟘c, 𝟙c; Π/Σ/⊎/quot/≡ codes componentwise)
+  Σ; Γ ⊦ ℕc ⇒ᵖ 𝕌     (likewise 𝟘c, 𝟙c; Π/Σ/⊎/quot/≡ codes componentwise;
+                      a ν code checks its polynomial's embedded pieces at 𝕌
+                      in binder order, the context growing under El-binders)
 
   𝒮 small   𝒮(𝕜) = 𝔄 ending in U   Σ; Γ ⊦ ē ⇐ᵖ ⌊𝔄⌋ᵗ (entrywise)
   --------------------------------------------------------------
@@ -273,6 +286,15 @@ introduction forms structurally and falls back to infer-and-compare:
   Σ; Γ ⊦ ⊎-elim l r t ⇐ᵖ T          # CONSTANT-MOTIVE (approximation
                                     # A1, see §9): the instance of
                                     # el-sum-e with motive T[↑]
+
+  Σ; Γ ⊦ t ⇒ᵖ Tt   nf(Tt) ⇓ ν 𝔽
+  --------------------------------------   # el-nu-e: fully
+  Σ; Γ ⊦ out t ⇒ᵖ El ⌊𝔽⌋(ν 𝔽)             # inference-driven
+
+  nf(T) ⇓ ν 𝔽   (the term's carried 𝔽 nf-identical to nf(T)'s)
+  Σ; Γ ⊦ a ⇐ᵖ 𝕌   Σ; Γ ▷ El a ⊦ f ⇐ᵖ El ⌊𝔽⌋(a)[↑]   Σ; Γ ⊦ x ⇐ᵖ El a
+  --------------------------------------------------------------------
+  Σ; Γ ⊦ corec 𝔽 a f x ⇐ᵖ T               # el-nu-i
 
   nf(T) ⇓ 𝒮.𝕤 ē   𝒮(𝕔) = 𝔄 ending in El (𝕤 ī)
   Σ; Γ ⊦ θ ⇐ᵖ ⌊𝔄⌋ᵗ (entrywise)   nf(⌊ī⌋[θ]) = nf(ē)
@@ -430,6 +452,9 @@ type E; — means undetermined):
   x[e˲]           child i : Δᵢ[e˲ prefix] # the telescope entry's type
   class a         child 0 : A            when nf(E) ⇓ A / r
   quot-elim f q   child 0 : —, child 1 : ⇒ᴺ(q)
+  out t           child 0 : ⇒ᴺ(t)
+  corec 𝔽 a f x   child 0 : 𝕌, child 1 : —   # carrier-dependent (like
+                  child 2 : El a              # quot-elim's case function)
   𝒮.𝕤 ē (code)    child i : entry i of ⌊𝔎⌋ᵗ, instantiated by the
                             preceding children     (𝒮(𝕤) = 𝔎)
   𝒮.𝕔 θ           child i : entry i of ⌊𝔄⌋ᵗ, likewise   (𝒮(𝕔) = 𝔄)
@@ -505,7 +530,14 @@ componentwise: domain certificate, then codomain certificate under
 the RIGHT domain — needed exactly when a component's equality is
 itself extensional, e.g. a Prf codomain equal only by propext),
 sumCong 𝒞 𝒞 (ty-sum-cong, componentwise — both components over Γ,
-no binder to cross), and
+no binder to cross),
+nuCong 𝒞̄ (both sides ν types/codes ν 𝔽₀ / ν 𝔽₁: the polynomials must
+be identical one-hole syntax up to their embedded Nova pieces — former
+shapes and binder structure compared syntactically — with each aligned
+pair of embedded pieces replayed by its certificate, in the Nova-zone
+context accumulated from the binders passed. Foundation's structural ν
+congruence, stated there by meta-recursion; the same final closes a
+CODE equation ν 𝔽₀ ≐ ν 𝔽₁ : 𝕌 in element replay), and
 qiitCong 𝒞̄p 𝒞̄i (both sides sort applications 𝒮₀.𝕤 ē₀ / 𝒮₁.𝕤 ē₁ AT THE
 SAME SORT POSITION: 𝒮₀ and 𝒮₁ must be identical nameless ToS syntax up
 to their embedded Nova pieces — positions, entry shapes, binder
@@ -585,6 +617,12 @@ Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
      -------------------------------------               # el-quot-i
      Σ; Γ ⊦ class a ⇐ T ⟨sk⟩
 
+     nf(T) ⇓ ν 𝔽    (the term's carried 𝔽 nf-identical to nf(T)'s)
+     Σ; Γ ⊦ a ⇐ 𝕌 ⟨sk.0⟩    Σ; Γ ▷ El a ⊦ f ⇐ El ⌊𝔽⌋(a)[↑] ⟨sk.1⟩
+     Σ; Γ ⊦ x ⇐ El a ⟨sk.2⟩
+     ------------------------------------------------------------
+     Σ; Γ ⊦ corec 𝔽 a f x ⇐ T ⟨sk⟩                      # el-nu-i
+
      nf(T) ⇓ 𝒮.𝕤 ē    𝒮(𝕔) = 𝔄 ending in El (𝕤 ī)
      Σ; Γ ⊦ θᵢ ⇐ (entry i of ⌊𝔄⌋ᵗ)[θ prefix] ⟨sk.i⟩ (entrywise)
      nf(⌊ī⌋[θ]) = nf(ē)
@@ -660,6 +698,13 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
      Σ; Γ ⊦ quot-elim f q ⇒ M[id, q]                    # el-quot-e
   (the well-definedness hypothesis is Prf r — the DECODED relation)
 
+  out is fully inference-driven — no motive, no skeleton payload
+  beyond the scrutinee's:
+
+     Σ; Γ ⊦ t ⇒ Tt ⟨sk.0⟩    nf(Tt) ⇓ ν 𝔽
+     ------------------------------------------------------------
+     Σ; Γ ⊦ out t ⇒ El ⌊𝔽⌋(ν 𝔽)                        # el-nu-e
+
   The QIIT eliminator carries its own motives and methods (ℰ = C̄ ; m̄
   in the TERM, Foundation's design), so no motive payload is needed —
   only the coherences, which are equations, arrive as certificates:
@@ -695,7 +740,10 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
   ascription payload) is rejected.
 
 Formation  Σ; Γ ⊦ T type ⟨sk⟩ : structural over the type formers
-(ty-pi/sigma/sum/el/prf/quot/ty-prop/ty-sig-var), El's code checked at 𝕌,
+(ty-pi/sigma/sum/el/prf/quot/nu/ty-prop/ty-sig-var), El's code checked at 𝕌,
+a ν type's polynomial checked structurally (poly-hole/-const/-prod/
+-sum/-sigma/-pi: each embedded code at 𝕌, the context growing under
+the El-binders, skeleton children along in binder order),
 Prf's code and the quotient's relation checked at Ω, signature-type
 arguments checked against their telescope — all with skeleton
 children along. A sort
@@ -769,8 +817,9 @@ EQUATION REPLAY (A1, A2), and three added by the QIIT extension
       through Σ, where the item level carries the full apparatus
       (coherences as PQCoh certificates, §8).
 
-  A5  NO η CERTIFICATE FOR QIITs. el-qiit-eta (like el-nat-eta,
-      el-sum-eta and el-quot-eta before it) has no replay final;
+  A5  NO η CERTIFICATE FOR QIITs OR ν. el-qiit-eta and el-nu-eta
+      (like el-nat-eta, el-sum-eta and el-quot-eta before them) have
+      no replay final;
       uniqueness arguments live in the elaborator as lemmas, not in
       kernel certificates (an el-sum-eta instance is proven as an
       ordinary ⊎-elim lemma at an equality motive, β closing both

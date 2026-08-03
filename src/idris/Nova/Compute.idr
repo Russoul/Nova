@@ -170,6 +170,12 @@ mutual
       Prf p => whnfElem sig p     -- code-squash-prf: ∥Prf p∥ ≜ p
       t'    => Squash t'
   whnfElem sig Star               = Star
+  whnfElem sig (Elem.NuTy f)      = Elem.NuTy f
+  whnfElem sig (Corec p a f x)    = Corec p a f x   -- co-data: a corec head is canonical
+  whnfElem sig (Out t) =
+    case whnfElem sig t of
+      Corec p a f x => whnfElem sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+      _ => assert_total $ idris_crash "whnfElem: out scrutinee is not a corec head (impossible for a closed, well-typed term)"
   whnfElem sig (QSortC sg k es)   = QSortC sg k es
   whnfElem sig (QCtor sg k es)    = QCtor sg k es
   whnfElem sig (QElim sg k ms fs es w) =
@@ -190,6 +196,7 @@ mutual
   whnfTy sig (Ty.PiTy a b)     = Ty.PiTy a b   -- co-data
   whnfTy sig (Ty.SigmaTy a b)  = Ty.SigmaTy a b
   whnfTy sig (Ty.SumTy a b)    = Ty.SumTy a b
+  whnfTy sig (Ty.NuTy f)       = Ty.NuTy f
   whnfTy sig (El e) =
     case whnfElem sig e of
       Elem.ZeroTy      => Ty.ZeroTy
@@ -200,6 +207,7 @@ mutual
       Elem.SumTy a b   => Ty.SumTy (El a) (El b)
       QuotTy a r       => Quotient (El a) r
       QSortC sg k es   => QSort sg k es   -- ty-el-qiit
+      Elem.NuTy f      => Ty.NuTy f       -- ty-el-nu
       _ => assert_total $ idris_crash "whnfTy: El argument is not a universe code (impossible for a closed, well-typed term)"
   whnfTy sig PropTy            = PropTy
   whnfTy sig (Prf e)           = Prf e
@@ -257,6 +265,9 @@ mutual
     go (QSortC sg k es)   = QSortC sg k (nfSubNorm sig es)   -- sg: a bundle of binder telescopes, left alone
     go (QCtor sg k es)    = QCtor sg k (nfSubNorm sig es)
     go (QElim sg k ms fs es w) = QElim sg k ms fs (nfSubNorm sig es) (nfElem sig w)
+    go (Elem.NuTy f)      = Elem.NuTy f   -- 𝔽: embedded pieces partly under binders, left alone
+    go (Out t)            = Out (nfElem sig t)
+    go (Corec p a f x)    = Corec p (nfElem sig a) f (nfElem sig x)   -- f: under a binder, left alone
 
   ||| T's normal form: whnf, then nf on every immediate subterm that
   ||| stays in the SAME context (see nfElem).
@@ -278,6 +289,7 @@ mutual
     go (Quotient a r)    = Quotient (nfTy sig a) r   -- r: under a binder, left alone
     go (Ty.SigVar x es)  = Ty.SigVar x es   -- unreachable: whnf always unfolds x[e˲]
     go (QSort sg k es)   = QSort sg k (nfSubNorm sig es)   -- sg: a bundle of binder telescopes, left alone
+    go (Ty.NuTy f)       = Ty.NuTy f   -- 𝔽 carried, left alone
 
   export
   nfSubNorm : Sig -> SubNorm -> SubNorm

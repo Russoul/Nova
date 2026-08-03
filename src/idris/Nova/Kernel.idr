@@ -300,6 +300,25 @@ mutual
                     Left err => kerr "kernel: \{err}"
           else pure (QElim sg' k ms' fs' es' w')
       _ => pure (QElim sg' k ms' fs' es' w')
+  kElem sig (Elem.NuTy f) = [| Elem.NuTy (kPoly sig f) |]
+  kElem sig (Out t) = do
+    t' <- kElem sig t
+    case t' of
+      -- el-nu-beta: run the coalgebra one step, re-wrap the recursive
+      -- positions (map_𝔽 hᵉˡ f[id, x])
+      Corec p a f x => do burn
+                          kElem sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+      _ => pure (Out t')
+  kElem sig (Corec p a f x) =
+    [| Corec (kPoly sig p) (kElem sig a) (kElem sig f) (kElem sig x) |]
+
+  kPoly : Sig -> Poly -> KM Poly
+  kPoly sig PHole        = pure PHole
+  kPoly sig (PConst a)   = [| PConst (kElem sig a) |]
+  kPoly sig (PProd f g)  = [| PProd (kPoly sig f) (kPoly sig g) |]
+  kPoly sig (PSum f g)   = [| PSum (kPoly sig f) (kPoly sig g) |]
+  kPoly sig (PSigma a f) = [| PSigma (kElem sig a) (kPoly sig f) |]
+  kPoly sig (PPi a f)    = [| PPi (kElem sig a) (kPoly sig f) |]
 
   kQTm : Sig -> QTm -> KM QTm
   kQTm sig (QVar i) = pure (QVar i)
@@ -337,6 +356,7 @@ mutual
       Elem.SumTy a b => do burn; kTy sig (Ty.SumTy (El a) (El b))
       QuotTy a r => do burn; kTy sig (Quotient (El a) r)
       QSortC sg k es => do burn; pure (QSort sg k es)   -- ty-el-qiit
+      Elem.NuTy f => do burn; pure (Ty.NuTy f)          -- ty-el-nu
       _ => pure (El e')
   kTy sig PropTy = pure PropTy
   kTy sig (Prf p) = Prf <$> kElem sig p
@@ -350,6 +370,7 @@ mutual
       Just _ => kerr "kernel: signature name '\{x}' is not a type entry"
       Nothing => kerr "kernel: unknown signature name '\{x}'"
   kTy sig (QSort sg k es) = [| QSort (kQSig sig sg) (pure k) (kSubNorm sig es) |]
+  kTy sig (Ty.NuTy f) = [| Ty.NuTy (kPoly sig f) |]
 
 -- ===== Path rewriting =====
 --
@@ -536,6 +557,12 @@ mutual
     case tTy of
       Ty.SigmaTy _ b => pure (substTy b (Ext Id (SigmaElim1 t)))
       _ => kerr "kernel: proof projects a non-pair"
+  -- el-nu-e: fully inference-driven, like the projections
+  inferP sig ctx (Out t) = do
+    tTy <- inferP sig ctx t >>= kTy sig
+    case tTy of
+      Ty.NuTy f => pure (El (reflectPoly f (Elem.NuTy f)))
+      _ => kerr "kernel: proof observes a non-ν element"
   inferP sig ctx OneIntro = pure Ty.OneTy
   inferP sig ctx NatIntro0 = pure Ty.NatTy
   inferP sig ctx (NatIntro1 t) = do checkP sig ctx t Ty.NatTy; pure Ty.NatTy
@@ -698,6 +725,19 @@ mutual
         checkP sig (ctx :< a) l (substTy ty Wk)
         checkP sig (ctx :< b) r (substTy ty Wk)
       _ => kerr "kernel: ⊎-elim proof scrutinee at non-⊎ type"
+  -- el-nu-i as a proof argument: the carried 𝔽 must be nf-identical to
+  -- the expected ν-type's
+  checkP sig ctx (Corec p a f x) ty = do
+    ty' <- kTy sig ty
+    case ty' of
+      Ty.NuTy pT => do
+        p' <- kPoly sig p
+        pT' <- kPoly sig pT
+        if p' == pT' then pure () else kerr "kernel: corec proof carries a different polynomial than its ν-type"
+        checkP sig ctx a Ty.UniverseTy
+        checkP sig (ctx :< El a) f (substTy (El (reflectPoly p a)) Wk)
+        checkP sig ctx x (El a)
+      _ => kerr "kernel: corec proof at non-ν type"
   -- el-qiit-intro as a proof argument (spec §3): the saturated
   -- constructor at its sort, the term's signature nf-identical to the
   -- type's, spine checked entrywise, indices compared
@@ -797,6 +837,16 @@ mutual
         Nothing => kerr "kernel: sort index spine out of range"
       goIdx (S i) rest tel
 
+  ||| Γ ⊦ 𝔽 poly, tiny-checker side (Foundation's poly-* rules): each
+  ||| embedded code at 𝕌, the context growing under the binding formers.
+  checkPolyP : Sig -> Ctx -> Poly -> KM ()
+  checkPolyP sig ctx PHole        = pure ()
+  checkPolyP sig ctx (PConst a)   = checkP sig ctx a Ty.UniverseTy
+  checkPolyP sig ctx (PProd f g)  = do checkPolyP sig ctx f; checkPolyP sig ctx g
+  checkPolyP sig ctx (PSum f g)   = do checkPolyP sig ctx f; checkPolyP sig ctx g
+  checkPolyP sig ctx (PSigma a f) = do checkP sig ctx a Ty.UniverseTy; checkPolyP sig (ctx :< El a) f
+  checkPolyP sig ctx (PPi a f)    = do checkP sig ctx a Ty.UniverseTy; checkPolyP sig (ctx :< El a) f
+
   ||| Γ ⊢ A type, tiny-checker side (needed for eliminator motives that
   ||| arrive inside proof spines).
   checkTyP : Sig -> Ctx -> Ty -> KM ()
@@ -822,6 +872,7 @@ mutual
   checkTyP sig ctx (QSort sg k es) = do
     sg' <- kQSig sig sg
     checkQSpineP sig ctx sg' k es
+  checkTyP sig ctx (Ty.NuTy f) = checkPolyP sig ctx f
   checkTyP sig ctx (Ty.SigVar x es) =
     case sigLookup x sig of
       Just (SigTyDef delta _ _) => checkSubstP sig ctx (toList es) (toList delta)
@@ -1109,6 +1160,15 @@ mutual
         t' <- kTy sig tTy
         case t' of
           Ty.SigmaTy a _ => pure (Just a)
+          _ => pure Nothing
+      Nothing => pure Nothing
+  inferNeK sig ctx (Out t) = do
+    mt <- inferNeK sig ctx t
+    case mt of
+      Just tTy => do
+        t' <- kTy sig tTy
+        case t' of
+          Ty.NuTy f => pure (Just (El (reflectPoly f (Elem.NuTy f))))
           _ => pure Nothing
       Nothing => pure Nothing
   inferNeK sig ctx (SigVar x es) =
@@ -1574,6 +1634,22 @@ mutual
             case ty' of
               Ty.Quotient dom _ => kCheckE sig ctx a dom (skelChild 0 sk)
               _ => kerr "kernel: class checked at a non-quotient type"
+          -- el-nu-i: the carried 𝔽 must be nf-identical to the
+          -- expected ν-type's; carrier at 𝕌, coalgebra body over the
+          -- carrier at the reflected observation type, seed at the
+          -- carrier
+          Corec p aC f x => do
+            ty' <- kTy sig ty
+            case ty' of
+              Ty.NuTy pT => do
+                p' <- kPoly sig p
+                pT' <- kPoly sig pT
+                if p' == pT' then pure ()
+                  else kerr "kernel: corec carries a different polynomial than its ν-type"
+                kCheckE sig ctx aC Ty.UniverseTy (skelChild 0 sk)
+                kCheckE sig (ctx :< El aC) f (substTy (El (reflectPoly p aC)) Wk) (skelChild 1 sk)
+                kCheckE sig ctx x (El aC) (skelChild 2 sk)
+              _ => kerr "kernel: corec checked at a non-ν type"
           ZeroElim t => kCheckE sig ctx t Ty.ZeroTy (skelChild 0 sk)
           QCtor sgC c theta => do
             -- el-qiit-intro, SATURATED. The signature is nf(T)'s own —
@@ -1668,6 +1744,12 @@ mutual
             case tTy of
               Ty.SigmaTy _ b => pure (substTy b (Ext Id (SigmaElim1 t)))
               _ => kerr "kernel: projecting a non-pair"
+          -- el-nu-e: fully inference-driven, no motive payload
+          Out t => do
+            tTy <- kInferE sig ctx t (skelChild 0 sk) >>= kTy sig
+            case tTy of
+              Ty.NuTy f => pure (El (reflectPoly f (Elem.NuTy f)))
+              _ => kerr "kernel: observing a non-ν element"
           NatElim z st t =>
             case takeP pMotive sk of
               Just ((mot, motSk), _) => do
@@ -1794,6 +1876,11 @@ mutual
             kCheckE sig ctx a Ty.UniverseTy (skelChild 0 sk)
             kCheckE sig ctx b Ty.UniverseTy (skelChild 1 sk)
             pure Ty.UniverseTy
+          -- code-nu: the polynomial's pieces, skeleton children in
+          -- binder order (every polynomial is small)
+          Elem.NuTy f => do
+            _ <- kCheckPolyK sig ctx f 0 sk
+            pure Ty.UniverseTy
           QuotTy a r => do
             kCheckE sig ctx a Ty.UniverseTy (skelChild 0 sk)
             kCheckE sig (ctx :< El a :< substTy (El a) Wk) r Ty.PropTy (skelChild 1 sk)
@@ -1812,6 +1899,28 @@ mutual
    where
     childSkels : Skel -> List Skel
     childSkels (Nd _ cs) = cs
+
+  ||| Γ ⊦ 𝔽 poly, kernel-side (Foundation's poly-* rules): each
+  ||| embedded code at 𝕌 with its skeleton child, children indexed in
+  ||| binder order across the whole polynomial; returns the next child
+  ||| index.
+  kCheckPolyK : Sig -> Ctx -> Poly -> (i : Nat) -> Skel -> KM Nat
+  kCheckPolyK sig ctx PHole        i sk = pure i
+  kCheckPolyK sig ctx (PConst a)   i sk = do
+    kCheckE sig ctx a Ty.UniverseTy (skelChild i sk)
+    pure (S i)
+  kCheckPolyK sig ctx (PProd f g)  i sk = do
+    i' <- kCheckPolyK sig ctx f i sk
+    kCheckPolyK sig ctx g i' sk
+  kCheckPolyK sig ctx (PSum f g)   i sk = do
+    i' <- kCheckPolyK sig ctx f i sk
+    kCheckPolyK sig ctx g i' sk
+  kCheckPolyK sig ctx (PSigma a f) i sk = do
+    kCheckE sig ctx a Ty.UniverseTy (skelChild i sk)
+    kCheckPolyK sig (ctx :< El a) f (S i) sk
+  kCheckPolyK sig ctx (PPi a f)    i sk = do
+    kCheckE sig ctx a Ty.UniverseTy (skelChild i sk)
+    kCheckPolyK sig (ctx :< El a) f (S i) sk
 
   ||| Γ ⊢ A type, kernel-side.
   export
@@ -1839,6 +1948,10 @@ mutual
     -- ty-qiit: the signature and the index spine against its arity
     kQSigCheck sig ctx sg
     kQSortSpine sig ctx sg k es sk
+  kCheckTyK sig ctx (Ty.NuTy f) sk = do
+    -- ty-nu: the polynomial's pieces, skeleton children in binder order
+    _ <- kCheckPolyK sig ctx f 0 sk
+    pure ()
   kCheckTyK sig ctx (Ty.SigVar x es) sk =
     case sigLookup x sig of
       Just (SigTyDef delta _ _) =>

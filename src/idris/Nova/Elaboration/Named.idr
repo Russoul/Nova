@@ -207,6 +207,7 @@ mutual
   usesIndexTy k (Quotient a r) = usesIndexTy k a || usesIndexElem (S (S k)) r
   usesIndexTy k (Ty.SigVar x es) = usesIndexSubNorm k es
   usesIndexTy k (QSort sg j es) = usesIndexQSig k sg || usesIndexSubNorm k es
+  usesIndexTy k (Ty.NuTy f) = usesIndexPoly k f
 
   usesIndexQSig : Nat -> QSig -> Bool
   usesIndexQSig k = any (usesIndexQTy k)
@@ -222,6 +223,14 @@ mutual
   usesIndexQTm k (QAppE f e) = usesIndexQTm k f || usesIndexElem k e
   usesIndexQTm k (QAppI f a) = usesIndexQTm k f || usesIndexQTm k a
   usesIndexQTm k (QEqC l r u) = usesIndexQTm k l || usesIndexQTm k r || usesIndexQTm k u
+
+  usesIndexPoly : Nat -> Poly -> Bool
+  usesIndexPoly k PHole = False
+  usesIndexPoly k (PConst a) = usesIndexElem k a
+  usesIndexPoly k (PProd f g) = usesIndexPoly k f || usesIndexPoly k g
+  usesIndexPoly k (PSum f g) = usesIndexPoly k f || usesIndexPoly k g
+  usesIndexPoly k (PSigma a f) = usesIndexElem k a || usesIndexPoly (S k) f
+  usesIndexPoly k (PPi a f) = usesIndexElem k a || usesIndexPoly (S k) f
 
   usesIndexElem : Nat -> Elem -> Bool
   usesIndexElem k (CtxVar n) = n == k
@@ -259,6 +268,10 @@ mutual
    where
     usesIndexMotive : (Nat, Ty) -> Bool
     usesIndexMotive (sj, m) = usesIndexTy (k + S (qArityLen sg sj)) m
+  usesIndexElem k (Elem.NuTy f) = usesIndexPoly k f
+  usesIndexElem k (Out t) = usesIndexElem k t
+  usesIndexElem k (Corec p a f x) =
+    usesIndexPoly k p || usesIndexElem k a || usesIndexElem (S k) f || usesIndexElem k x
 
   usesIndexSubNorm : Nat -> SubNorm -> Bool
   usesIndexSubNorm k [<] = False
@@ -367,6 +380,14 @@ mutual
          ++ b ++ ". " ++ prettyElemN tbl (env :< b) r ++ ") "
          ++ prettyElemAtomN tbl env t
   prettyElemPrefixN tbl env (Class a) = "class " ++ prettyElemAtomN tbl env a
+  prettyElemPrefixN tbl env (Elem.NuTy f) = "ν " ++ prettyPolyAtomN tbl env f
+  prettyElemPrefixN tbl env (Out t) = "out " ++ prettyElemAtomN tbl env t
+  prettyElemPrefixN tbl env (Corec p a f x) =
+    -- surface-faithful: the carried 𝔽 is not printed (it is the
+    -- expected ν-type's, recovered at checking)
+    let v = if usesIndexElem 0 f then freshGeneric env else wildcard
+    in "corec (" ++ v ++ " : " ++ prettyElemNoCommaN tbl env a ++ ". "
+         ++ prettyElemN tbl (env :< v) f ++ ") " ++ prettyElemAtomN tbl env x
   prettyElemPrefixN tbl env (QuotElim f q) =
     let a = if usesIndexElem 0 f then freshGeneric env else wildcard
     in "quot-elim (" ++ a ++ ". " ++ prettyElemN tbl (env :< a) f ++ ") " ++ prettyElemAtomN tbl env q
@@ -479,7 +500,31 @@ mutual
   prettyTyElN : FixTable -> NameEnv -> Ty -> String
   prettyTyElN tbl env (El e) = "El " ++ prettyElemAtomN tbl env e
   prettyTyElN tbl env (Prf e) = "Prf " ++ prettyElemAtomN tbl env e
+  prettyTyElN tbl env (Ty.NuTy f) = "ν " ++ prettyPolyAtomN tbl env f
   prettyTyElN tbl env ty = prettyTyAtomN tbl env ty
+
+  -- Polynomials, by the surface grammar's levels: binders and products
+  -- at the top, sums tighter, atoms (𝕏, K t, parens) innermost.
+  prettyPolyN : FixTable -> NameEnv -> Poly -> String
+  prettyPolyN tbl env (PProd f g) =
+    prettyPolySumN tbl env f ++ " ⨯ " ++ prettyPolyN tbl env g
+  prettyPolyN tbl env (PSigma a f) =
+    let x = if usesIndexPoly 0 f then freshGeneric env else wildcard
+    in "(" ++ x ++ ":" ++ prettyElemNoCommaN tbl env a ++ ") ⨯ " ++ prettyPolyN tbl (env :< x) f
+  prettyPolyN tbl env (PPi a f) =
+    let x = if usesIndexPoly 0 f then freshGeneric env else wildcard
+    in "(" ++ x ++ ":" ++ prettyElemNoCommaN tbl env a ++ ") → " ++ prettyPolyN tbl (env :< x) f
+  prettyPolyN tbl env f = prettyPolySumN tbl env f
+
+  prettyPolySumN : FixTable -> NameEnv -> Poly -> String
+  prettyPolySumN tbl env (PSum f g) =
+    prettyPolyAtomN tbl env f ++ " ⊎ " ++ prettyPolySumN tbl env g
+  prettyPolySumN tbl env f = prettyPolyAtomN tbl env f
+
+  prettyPolyAtomN : FixTable -> NameEnv -> Poly -> String
+  prettyPolyAtomN tbl env PHole = "𝕏"
+  prettyPolyAtomN tbl env (PConst a) = "K " ++ prettyElemAtomN tbl env a
+  prettyPolyAtomN tbl env f = "(" ++ prettyPolyN tbl env f ++ ")"
 
   prettyTyAtomN : FixTable -> NameEnv -> Ty -> String
   prettyTyAtomN tbl env Ty.ZeroTy = "𝟘"

@@ -1,0 +1,1 @@
+Corec (PProd (PConst (NatTy)) (PHole)) (NatTy) (SigmaIntro (NatIntro0) (CtxVar 0)) (NatIntro0)
