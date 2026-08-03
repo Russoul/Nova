@@ -1,0 +1,4 @@
+def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
+
+-- a let is always a redex: nf contracts it and shares nothing
+def four : ℕ ≔ let two ≔ S (S Z) in plus two two

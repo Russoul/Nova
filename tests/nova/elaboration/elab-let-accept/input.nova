@@ -1,0 +1,18 @@
+def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
+
+-- checking mode, nested lets, annotated definiens
+def letNested : ℕ ≔
+  let a : ℕ ≔ S Z in
+  let b ≔ plus a a in
+  plus b b
+
+-- let in inference position (application head); body a variable
+def letApp : ℕ ≔ (let f ≔ (λx. S x : ℕ → ℕ) in f) Z
+
+-- transparency: the ⋆ is stated at the ABBREVIATION m, the goal at
+-- its unfolding — both hops walk through the let's own hypothesis
+def letShared : (n : ℕ) → plus (plus n n) Z ≡ plus n n ∈ ℕ ≔
+  λn. let m ≔ plus n n in (⋆ : plus m Z ≡ m ∈ ℕ)
+
+-- the outside view: a let equals its unfolding by β
+def letUnfolds : letNested ≡ plus (plus (S Z) (S Z)) (plus (S Z) (S Z)) ∈ ℕ ≔ ⋆

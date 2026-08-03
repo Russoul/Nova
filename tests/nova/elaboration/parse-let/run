@@ -1,0 +1,2 @@
+#!/bin/sh
+"$1" run surface-elem "let x : ℕ ≔ Z in S x"

@@ -58,6 +58,7 @@ mutual
   substElem (NatElim z s t)    sigma = NatElim (substElem z sigma) (substElem s (under (under sigma))) (substElem t sigma)
   substElem (PiIntro f)        sigma = PiIntro (substElem f (under sigma))
   substElem (PiApp f e)        sigma = PiApp (substElem f sigma) (substElem e sigma)
+  substElem (Let a b)          sigma = Let (substElem a sigma) (substElem b (under (under sigma)))
   substElem (SigmaIntro a b)   sigma = SigmaIntro (substElem a sigma) (substElem b sigma)
   substElem (SigmaElim1 t)     sigma = SigmaElim1 (substElem t sigma)
   substElem (SigmaElim2 t)     sigma = SigmaElim2 (substElem t sigma)
@@ -189,6 +190,7 @@ mutual
   strengthenElem d (NatElim z s t)    = NatElim <$> strengthenElem d z <*> strengthenElem (2 + d) s <*> strengthenElem d t
   strengthenElem d (PiIntro f)        = PiIntro <$> strengthenElem (1 + d) f
   strengthenElem d (PiApp f e)        = PiApp <$> strengthenElem d f <*> strengthenElem d e
+  strengthenElem d (Let a b)          = Let <$> strengthenElem d a <*> strengthenElem (2 + d) b
   strengthenElem d (SigmaIntro a b)   = SigmaIntro <$> strengthenElem d a <*> strengthenElem d b
   strengthenElem d (SigmaElim1 t)     = SigmaElim1 <$> strengthenElem d t
   strengthenElem d (SigmaElim2 t)     = SigmaElim2 <$> strengthenElem d t

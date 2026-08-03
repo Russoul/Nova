@@ -78,6 +78,12 @@ mutual
       PiIntro : Elem -> Elem
       ||| f e
       PiApp : Elem -> Elem -> Elem
+      ||| let a b  (let-expression: definiens, then body. The body
+      ||| binds the definiens' VALUE and its UNFOLDING EQUATION —
+      ||| Γ ▷ A ▷ Prf (☐₀ ≡ a[↑] ∈ A[↑]), el-let — so the definiendum
+      ||| unfolds judgementally inside it. Always a redex: el-let-beta
+      ||| contracts to b[id, a, ⋆], so normal forms contain no let.)
+      Let : Elem -> Elem -> Elem
       ||| t , t (sigma introduction / pair)
       SigmaIntro : Elem -> Elem -> Elem
       ||| t .π₁  (sigma elimination, first projection)
@@ -424,6 +430,7 @@ mutual
     NatElim z s t    == NatElim z' s' t'   = z == z' && s == s' && t == t'
     PiIntro e        == PiIntro e'         = e == e'
     PiApp f e        == PiApp f' e'         = f == f' && e == e'
+    Let a b          == Let a' b'           = a == a' && b == b'
     SigmaIntro e1 e2 == SigmaIntro e1' e2' = e1 == e1' && e2 == e2'
     SigmaElim1 e     == SigmaElim1 e'      = e == e'
     SigmaElim2 e     == SigmaElim2 e'      = e == e'
@@ -570,6 +577,9 @@ mutual
     compare (PiApp f e)        (PiApp f' e')         = compare f f' <+> compare e e'
     compare (PiApp _ _)        _                    = LT
     compare _                  (PiApp _ _)          = GT
+    compare (Let a b)          (Let a' b')          = compare a a' <+> compare b b'
+    compare (Let _ _)          _                    = LT
+    compare _                  (Let _ _)            = GT
     compare (SigmaIntro e1 e2) (SigmaIntro e1' e2') = compare e1 e1' <+> compare e2 e2'
     compare (SigmaIntro _ _)   _                    = LT
     compare _                  (SigmaIntro _ _)     = GT
@@ -733,6 +743,7 @@ mutual
     show (NatElim z s t) = "NatElim (\{show z}) (\{show s}) (\{show t})"
     show (PiIntro e) = "PiIntro (\{show e})"
     show (PiApp f e) = "PiApp (\{show f}) (\{show e})"
+    show (Let a b) = "Let (\{show a}) (\{show b})"
     show (SigmaIntro e1 e2) = "SigmaIntro (\{show e1}) (\{show e2})"
     show (SigmaElim1 e) = "SigmaElim1 (\{show e})"
     show (SigmaElim2 e) = "SigmaElim2 (\{show e})"

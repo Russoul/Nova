@@ -53,6 +53,10 @@ mutual
     in case betaElem sig f of
          PiIntro g => betaElem sig (substElem g (Ext Id e'))
          f'        => PiApp f' e'
+  -- el-let-beta: a let is ALWAYS a redex — let a b ≜ b[id, a, ⋆]
+  -- (normal forms contain no let)
+  betaElem sig (Let a b) =
+    betaElem sig (substElem b (Ext (Ext Id a) Star))
   betaElem sig (SigmaIntro a b)   = SigmaIntro (betaElem sig a) (betaElem sig b)
   betaElem sig (SigmaElim1 t) =
     case betaElem sig t of
@@ -234,6 +238,9 @@ mutual
     case whnfE sig f of
       PiIntro g => whnfE sig (substElem g (Ext Id e))
       f'        => PiApp f' e
+  whnfE sig (Let a b) =
+    -- el-let-beta: unconditional — no whnf ever returns a let
+    whnfE sig (substElem b (Ext (Ext Id a) Star))
   whnfE sig (SigmaElim1 t) =
     case whnfE sig t of
       SigmaIntro a _ => whnfE sig a

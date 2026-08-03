@@ -241,6 +241,7 @@ mutual
   usesIndexElem k (NatElim z s t) = usesIndexElem k z || usesIndexElem (S (S k)) s || usesIndexElem k t
   usesIndexElem k (PiIntro e) = usesIndexElem (S k) e
   usesIndexElem k (PiApp f e) = usesIndexElem k f || usesIndexElem k e
+  usesIndexElem k (Let a b) = usesIndexElem k a || usesIndexElem (S (S k)) b
   usesIndexElem k (SigmaIntro e e') = usesIndexElem k e || usesIndexElem k e'
   usesIndexElem k (SigmaElim1 e) = usesIndexElem k e
   usesIndexElem k (SigmaElim2 e) = usesIndexElem k e
@@ -363,6 +364,15 @@ mutual
   prettyElemPrefixN tbl env (PiIntro e) =
     let x = freshGeneric env
     in "λ" ++ x ++ ". " ++ prettyElemOpN tbl (env :< x) 0 e
+  prettyElemPrefixN tbl env (Let a b) =
+    -- surface-faithful: the unfolding-equation binder has no surface
+    -- spelling and elaborator-produced bodies never reference it; it
+    -- still enters the env (under a fresh Prf-flavored name) so a
+    -- reference in hand-built core would at least print visibly
+    let x = freshGeneric env
+        h = freshFromList candidatesPrf (env :< x)
+    in "let " ++ x ++ " ≔ " ++ prettyElemN tbl env a ++ " in "
+         ++ prettyElemOpN tbl (env :< x :< h) 0 b
   prettyElemPrefixN tbl env (ZeroElim e) = "𝟘-elim " ++ prettyElemAtomN tbl env e
   prettyElemPrefixN tbl env (NatIntro1 e) = "S " ++ prettyElemAtomN tbl env e
   prettyElemPrefixN tbl env (NatElim z s t) =
