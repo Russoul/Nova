@@ -2806,6 +2806,18 @@ preferSum st ctx ty = case rwNfTy st ctx ty of
                         tyX@(Ty.SumTy a b) => (\e => (a, b, Just e)) <$> exposeCert st ctx ty tyX
                         _ => Nothing
 
+||| A prop stuck only up to hypothesis rewriting (e.g. the relator's
+||| ⊎-elim at neutral observations, unstuck by a variable-definition
+||| hypothesis): rewrite it and bridge with an exposure certificate
+||| from the ORIGINAL expected type.
+exposeProp : ElabSt -> Ctx -> Ty -> Elem -> (Elem, Maybe (Ty, ECert))
+exposeProp st ctx ty p =
+  let pR = rwNfElem st ctx p in
+  if pR == p then (p, Nothing)
+  else case exposeCert st ctx ty (Prf pR) of
+         Just e2 => (pR, Just e2)
+         Nothing => (p, Nothing)
+
 preferNu : ElabSt -> Ctx -> Ty -> Maybe (Poly, Maybe (Ty, ECert))
 preferNu st ctx (Ty.NuTy f) = Just (f, Nothing)
 preferNu st ctx ty = case rwNfTy st ctx ty of
@@ -3220,9 +3232,15 @@ mutual
         -- witnessed outright. Prefer the prop as written for readable
         -- obligation statements; fall back to its normal form.
         let pN = betaElem st.sig p
-        let pUse = case p of
-                     Elem.EqTy _ _ _ => p
-                     _ => pN
+        let pUse0 = case p of
+                      Elem.EqTy _ _ _ => p
+                      _ => pN
+        (pUse, exp) <- pure $ case pUse0 of
+          Elem.EqTy _ _ _ => (pUse0, exp)
+          Squash _ => (pUse0, exp)
+          _ => case exposeProp st ctx ty pUse0 of
+                 (pR, Just e2) => (pR, Just e2)
+                 (pR, Nothing) => (pR, exp)
         case pUse of
           Elem.EqTy l r t => do
             c <- convElem ctx env "\{site}: checking ⋆" Nothing l r t
@@ -3258,7 +3276,14 @@ mutual
         -- el-squash-i, general form: w proves the squashee directly,
         -- whatever its shape. At an equality prop, any proof will do
         -- (el-prf-prop): w becomes a proof license for the equation.
-        case betaElem st.sig p of
+        let pB = betaElem st.sig p in
+        let (pUse, exp) = the (Elem, Maybe (Ty, ECert)) $ case pB of
+              Squash _ => (pB, exp)
+              Elem.EqTy _ _ _ => (pB, exp)
+              _ => case exposeProp st ctx ty pB of
+                     (pR, Just e2) => (pR, Just e2)
+                     (pR, Nothing) => (pR, exp)
+        in case pUse of
           Squash sq => do
             (w', wSk) <- checkElem ctx env site w sq
             pure (Star, withExpose exp (Nd [PSquashWit w' wSk] []))
