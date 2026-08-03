@@ -51,6 +51,8 @@ of fuel, are exactly:
   (a , b) .π₂        ≜  b                           # el-sigma-beta₂
   ℕ-elim z s Z       ≜  z                           # el-nat-beta-z
   ℕ-elim z s (S n)   ≜  s[id, n, ℕ-elim z s n]      # el-nat-beta-s
+  ⊎-elim l r (inj₁ a) ≜ l[id, a]                    # el-sum-beta₁
+  ⊎-elim l r (inj₂ b) ≜ r[id, b]                    # el-sum-beta₂
   quot-elim f (class a) ≜ f[id, a]                  # el-quot-beta
   𝒮.𝕤-elim ℰ ē (𝒮′.𝕔 θ) ≜ m_𝕔 θ⟨φᵉˡ⟩               # el-qiit-beta; fires
                                                     # only when 𝒮 and 𝒮′ are
@@ -63,6 +65,7 @@ of fuel, are exactly:
   El ℕ               ≜  ℕ
   El (a → b)         ≜  El a → El b
   El (a ⨯ b)         ≜  El a ⨯ El b
+  El (a ⊎ b)         ≜  El a ⊎ El b
   El (a / r)         ≜  El a / r      # the Ω-valued relation is NOT decoded
   El (𝒮.𝕤 ē)         ≜  𝒮.𝕤 ē        # ty-el-qiit
 
@@ -137,6 +140,8 @@ implementation's names):
       suc                                          (SelSuc)
     | dom                                          (SelDom)
     | cod u                                        (SelCod)
+    | suml                                         (SelSumL)
+    | sumr                                         (SelSumR)
     | qdom                                         (SelQDom)
     | qrel u v                                     (SelQRel)
     | qidx i                                       (SelQIdx)
@@ -160,6 +165,7 @@ implementation's names):
     | quotCong 𝒞                                   (FQuotCong)
     | piCong 𝒞 𝒞                                   (FPiCong)
     | sigmaCong 𝒞 𝒞                                (FSigmaCong)
+    | sumCong 𝒞 𝒞                                  (FSumCong)
     | qiitCong 𝒞̄ 𝒞̄                                 (FQiitCong)
 
   The three Ω finals: propext is code-prop-eq — the sides are prop codes
@@ -187,7 +193,9 @@ Child indexing, shared by paths, the typed descent (§6) and skeletons
              ℕ-elim z s t → 0, 1(2), 2
              λ f → 0(1)              f e → 0, 1
              (a , b) → 0, 1          t.π₁ / t.π₂ → 0
+             inj₁ t / inj₂ t → 0     ⊎-elim l r t → 0(1), 1(1), 2
              a →ᶜ b → 0, 1(1)        a ⨯ᶜ b → 0, 1(1)
+             a ⊎ᶜ b → 0, 1
              (l ≡ r ∈ T) → 0, 1, 2ᵗ  a /ᶜ r → 0, 1(2)
              x[e˲] → 0.. (left to right)
              class a → 0             quot-elim f q → 0(1), 1
@@ -196,7 +204,7 @@ Child indexing, shared by paths, the typed descent (§6) and skeletons
              𝒮.𝕔 θ → 0.. (the argument spine)
              𝒮.𝕤-elim ℰ ē w → 0..n-1 (the index spine), n (the eliminee)
   types:     A → B → 0, 1(1)         A ⨯ B → 0, 1(1)
-             El e → 0ᵉ               Prf e → 0ᵉ
+             A ⊎ B → 0, 1            El e → 0ᵉ               Prf e → 0ᵉ
              A / r → 0, 1ᵉ(2)        x[e˲] → 0..ᵉ
              𝒮.𝕤 ē → 0..ᵉ
   (ᶜ marks universe codes; ᵉ marks descent into an element child, ᵗ into
@@ -232,7 +240,7 @@ a generic lemma's 𝕌-parameter materialized at a concrete code is a
 legitimate spine argument — and so does a small signature's sort code,
 its index spine checked positionally against the reflected arity:
 
-  Σ; Γ ⊦ ℕc ⇒ᵖ 𝕌     (likewise 𝟘c, 𝟙c; Π/Σ/quot/≡ codes componentwise)
+  Σ; Γ ⊦ ℕc ⇒ᵖ 𝕌     (likewise 𝟘c, 𝟙c; Π/Σ/⊎/quot/≡ codes componentwise)
 
   𝒮 small   𝒮(𝕜) = 𝔄 ending in U   Σ; Γ ⊦ ē ⇐ᵖ ⌊𝔄⌋ᵗ (entrywise)
   --------------------------------------------------------------
@@ -254,6 +262,17 @@ introduction forms structurally and falls back to infer-and-compare:
   -----------------------------         Σ; Γ ⊦ u ⇐ᵖ A   Σ; Γ ⊦ v ⇐ᵖ B[id, u]
   Σ; Γ ⊦ class a ⇐ᵖ T                   ---------------------------------
                                         Σ; Γ ⊦ (u , v) ⇐ᵖ T
+
+  nf(T) ⇓ A ⊎ B   Σ; Γ ⊦ a ⇐ᵖ A         nf(T) ⇓ A ⊎ B   Σ; Γ ⊦ b ⇐ᵖ B
+  -----------------------------         -----------------------------
+  Σ; Γ ⊦ inj₁ a ⇐ᵖ T                    Σ; Γ ⊦ inj₂ b ⇐ᵖ T
+
+  Σ; Γ ⊦ t ⇒ᵖ Tt   nf(Tt) ⇓ A ⊎ B
+  Σ; Γ ▷ A ⊦ l ⇐ᵖ T[↑]   Σ; Γ ▷ B ⊦ r ⇐ᵖ T[↑]
+  --------------------------------------------------------------
+  Σ; Γ ⊦ ⊎-elim l r t ⇐ᵖ T          # CONSTANT-MOTIVE (approximation
+                                    # A1, see §9): the instance of
+                                    # el-sum-e with motive T[↑]
 
   nf(T) ⇓ 𝒮.𝕤 ē   𝒮(𝕔) = 𝔄 ending in El (𝕤 ī)
   Σ; Γ ⊦ θ ⇐ᵖ ⌊𝔄⌋ᵗ (entrywise)   nf(⌊ī⌋[θ]) = nf(ē)
@@ -331,6 +350,10 @@ do not match is rejected.
   cod u    : (a₀ → b₀) ≐ (a₁ → b₁) : 𝕌 ⇒  b₀[id,u] ≐ b₁[id,u] : 𝕌
              requires  Σ; Γ ⊦ u ⇐ᵖ El a₁
              # code-pi-inj second component, instantiated at u (el-sub-cong-fix)
+  suml     : (a₀ ⊎ b₀) ≐ (a₁ ⊎ b₁) : 𝕌 ⇒  a₀ ≐ a₁ : 𝕌
+  sumr     : (a₀ ⊎ b₀) ≐ (a₁ ⊎ b₁) : 𝕌 ⇒  b₀ ≐ b₁ : 𝕌
+             # code-sum-inj; non-dependent, so neither component
+             # crosses a binder and no instantiation element is needed
   qdom     : (a₀ / r₀) ≐ (a₁ / r₁) : 𝕌 ⇒  a₀ ≐ a₁ : 𝕌      # code-quot-inj
   qrel u v : (a₀ / r₀) ≐ (a₁ / r₁) : 𝕌 ⇒  r₀[id,u,v] ≐ r₁[id,u,v] : Ω
              requires  Σ; Γ ⊦ u ⇐ᵖ El a₁   Σ; Γ ⊦ v ⇐ᵖ El a₁
@@ -394,6 +417,11 @@ type E; — means undetermined):
   (u , v)         child 0 : A            when nf(E) ⇓ A ⨯ B
                   child 1 : B[id, u]
   t.π₁ / t.π₂     child 0 : ⇒ᴺ(t)
+  inj₁ a          child 0 : A            when nf(E) ⇓ A ⊎ B
+  inj₂ b          child 0 : B            when nf(E) ⇓ A ⊎ B
+  ⊎-elim l r t    children 0, 1 : —      # motive-dependent (like
+                  child 2 : ⇒ᴺ(t)        # quot-elim's case function)
+  a ⊎ᶜ b          children : 𝕌
   a →ᶜ b, a ⨯ᶜ b  children : 𝕌
   (l ≡ r ∈ T)     children 0,1 : T, child 2 : a type child
                   # the Ω-valued equality prop; congruence is
@@ -475,7 +503,9 @@ common domain, 𝒞 proves the relations equal at Ω — ty-quot-cong),
 piCong 𝒞 𝒞 / sigmaCong 𝒞 𝒞 (ty-pi-cong / ty-sigma-cong,
 componentwise: domain certificate, then codomain certificate under
 the RIGHT domain — needed exactly when a component's equality is
-itself extensional, e.g. a Prf codomain equal only by propext), and
+itself extensional, e.g. a Prf codomain equal only by propext),
+sumCong 𝒞 𝒞 (ty-sum-cong, componentwise — both components over Γ,
+no binder to cross), and
 qiitCong 𝒞̄p 𝒞̄i (both sides sort applications 𝒮₀.𝕤 ē₀ / 𝒮₁.𝕤 ē₁ AT THE
 SAME SORT POSITION: 𝒮₀ and 𝒮₁ must be identical nameless ToS syntax up
 to their embedded Nova pieces — positions, entry shapes, binder
@@ -547,6 +577,10 @@ Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
      Σ; Γ ⊦ ⋆ ⇐ T ⟨sk⟩                       # el-eq-i over replay
      # disambiguated from the squash rules below by nf(T)'s prop head
 
+     nf(T) ⇓ A ⊎ B    Σ; Γ ⊦ a ⇐ A ⟨sk.0⟩
+     -------------------------------------               # el-sum-i₁
+     Σ; Γ ⊦ inj₁ a ⇐ T ⟨sk⟩                (inj₂ analogously at B)
+
      nf(T) ⇓ A / r    Σ; Γ ⊦ a ⇐ A ⟨sk.0⟩
      -------------------------------------               # el-quot-i
      Σ; Γ ⊦ class a ⇐ T ⟨sk⟩
@@ -604,6 +638,17 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
      ------------------------------------------------------------
      Σ; Γ ⊦ ℕ-elim z s t ⇒ M[id, t]                     # el-nat-e
 
+  ⊎-elim demands its motive; the scrutinee's type is inferred (its
+  head is neutral or an injection in the emitted fragment):
+
+     sk carries motive M ⟨skM⟩
+     Σ; Γ ⊦ t ⇒ Tt ⟨sk.2⟩    nf(Tt) ⇓ A ⊎ B
+     Σ; Γ ▷ A ⊎ B ⊦ M type ⟨skM⟩
+     Σ; Γ ▷ A ⊦ l ⇐ M[↑, inj₁ ☐₀] ⟨sk.0⟩
+     Σ; Γ ▷ B ⊦ r ⇐ M[↑, inj₂ ☐₀] ⟨sk.1⟩
+     ------------------------------------------------------------
+     Σ; Γ ⊦ ⊎-elim l r t ⇒ M[id, t]                     # el-sum-e
+
   quot-elim demands motive AND well-definedness:
 
      sk carries motive M ⟨skM⟩ and wd 𝒞
@@ -650,7 +695,7 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
   ascription payload) is rejected.
 
 Formation  Σ; Γ ⊦ T type ⟨sk⟩ : structural over the type formers
-(ty-pi/sigma/el/prf/quot/ty-prop/ty-sig-var), El's code checked at 𝕌,
+(ty-pi/sigma/sum/el/prf/quot/ty-prop/ty-sig-var), El's code checked at 𝕌,
 Prf's code and the quotient's relation checked at Ω, signature-type
 arguments checked against their telescope — all with skeleton
 children along. A sort
@@ -693,8 +738,10 @@ EQUATION REPLAY (A1, A2), and three added by the QIIT extension
 
   A1  CONSTANT MOTIVE. In proof-argument checking (§3) an ℕ-elim
       argument is checked by the el-nat-e instance whose motive is
-      T[↑]; in the typed descent (§6) the z/s positions of an ℕ-elim
-      are typed by the same reading. Dependent-motive recursors
+      T[↑], and a ⊎-elim argument by the el-sum-e instance likewise;
+      in the typed descent (§6) the z/s positions of an ℕ-elim
+      are typed by the same reading (a ⊎-elim's case positions stay
+      undetermined there). Dependent-motive recursors
       cannot be rewritten at those positions and their proofs cannot
       appear as step arguments; the ITEM level (§8) carries real
       motives and has no such limit.
@@ -722,10 +769,12 @@ EQUATION REPLAY (A1, A2), and three added by the QIIT extension
       through Σ, where the item level carries the full apparatus
       (coherences as PQCoh certificates, §8).
 
-  A5  NO η CERTIFICATE FOR QIITs. el-qiit-eta (like el-nat-eta and
-      el-quot-eta before it) has no replay final; uniqueness
-      arguments live in the elaborator as lemmas, not in kernel
-      certificates. The Π/Σ η finals are unaffected.
+  A5  NO η CERTIFICATE FOR QIITs. el-qiit-eta (like el-nat-eta,
+      el-sum-eta and el-quot-eta before it) has no replay final;
+      uniqueness arguments live in the elaborator as lemmas, not in
+      kernel certificates (an el-sum-eta instance is proven as an
+      ordinary ⊎-elim lemma at an equality motive, β closing both
+      cases). The Π/Σ η finals are unaffected.
 
   A6  FIRST-ORDER SIGNATURE FRAGMENT. The signature checker (§8)
       covers the fragment the elaborator emits: no equation-code

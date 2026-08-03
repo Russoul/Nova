@@ -33,6 +33,9 @@ mutual
       PiTy : Ty -> Ty -> Ty
       ||| T ⨯ T  (dependent sum type, Σ)
       SigmaTy : Ty -> Ty -> Ty
+      ||| T ⊎ T  (non-dependent sum type — disjoint union; both
+      ||| components live over the same context, no binder)
+      SumTy : Ty -> Ty -> Ty
       ||| El t  (every element of the universe is a type)
       El : Elem -> Ty
       ||| Ω  (the universe of mere propositions — anti-structural: its
@@ -78,6 +81,15 @@ mutual
       SigmaElim1 : Elem -> Elem
       ||| t .π₂  (sigma elimination, second projection)
       SigmaElim2 : Elem -> Elem
+      ||| inj₁ t  (sum type introduction, left)
+      Inj1 : Elem -> Elem
+      ||| inj₂ t  (sum type introduction, right)
+      Inj2 : Elem -> Elem
+      ||| ⊎-elim l r t  (sum type elimination: the left case — one
+      ||| bound variable over the left summand — then the right case
+      ||| — one bound variable over the right summand — then the
+      ||| eliminee)
+      SumElim : Elem -> Elem -> Elem -> Elem
       ||| 𝟘  (universe element)
       ZeroTy : Elem
       ||| 𝟙  (universe element)
@@ -88,6 +100,9 @@ mutual
       PiTy : Elem -> Elem -> Elem
       ||| t ⨯ t  (universe element encoding Σ)
       SigmaTy : Elem -> Elem -> Elem
+      ||| t ⊎ t  (universe element encoding ⊎ — non-dependent, no
+      ||| binder in either component)
+      SumTy : Elem -> Elem -> Elem
       ||| t ≡ t ∈ T  (the equality PROPOSITION — an Ω-element; the
       ||| third component is an arbitrary TYPE, so equality props
       ||| exist at large types. code-eq; no 𝕌-code for equality
@@ -352,6 +367,7 @@ mutual
     UniverseTy     == UniverseTy       = True
     PiTy a b       == PiTy a' b'       = a == a' && b == b'
     SigmaTy a b    == SigmaTy a' b'    = a == a' && b == b'
+    SumTy a b      == SumTy a' b'      = a == a' && b == b'
     El e           == El e'            = e == e'
     PropTy         == PropTy           = True
     Prf e          == Prf e'           = e == e'
@@ -374,11 +390,15 @@ mutual
     SigmaIntro e1 e2 == SigmaIntro e1' e2' = e1 == e1' && e2 == e2'
     SigmaElim1 e     == SigmaElim1 e'      = e == e'
     SigmaElim2 e     == SigmaElim2 e'      = e == e'
+    Inj1 e           == Inj1 e'            = e == e'
+    Inj2 e           == Inj2 e'            = e == e'
+    SumElim l r t    == SumElim l' r' t'   = l == l' && r == r' && t == t'
     Elem.ZeroTy      == Elem.ZeroTy        = True
     Elem.OneTy       == Elem.OneTy         = True
     Elem.NatTy       == Elem.NatTy         = True
     Elem.PiTy a b    == Elem.PiTy a' b'    = a == a' && b == b'
     Elem.SigmaTy a b == Elem.SigmaTy a' b' = a == a' && b == b'
+    Elem.SumTy a b   == Elem.SumTy a' b'   = a == a' && b == b'
     Elem.EqTy l r t  == Elem.EqTy l' r' t' = l == l' && r == r' && t == t'
     QuotTy a r       == QuotTy a' r'       = a == a' && r == r'
     SigVar x s       == SigVar x' s'        = x == x' && s == s'
@@ -449,6 +469,9 @@ mutual
     compare (SigmaTy a b)    (SigmaTy a' b')    = compare a a' <+> compare b b'
     compare (SigmaTy _ _)    _                  = LT
     compare _                (SigmaTy _ _)      = GT
+    compare (SumTy a b)      (SumTy a' b')      = compare a a' <+> compare b b'
+    compare (SumTy _ _)      _                  = LT
+    compare _                (SumTy _ _)        = GT
     compare (El e)           (El e')            = compare e e'
     compare (El _)           _                  = LT
     compare _                (El _)             = GT
@@ -502,6 +525,15 @@ mutual
     compare (SigmaElim2 e)     (SigmaElim2 e')      = compare e e'
     compare (SigmaElim2 _)     _                    = LT
     compare _                  (SigmaElim2 _)       = GT
+    compare (Inj1 e)           (Inj1 e')            = compare e e'
+    compare (Inj1 _)           _                    = LT
+    compare _                  (Inj1 _)             = GT
+    compare (Inj2 e)           (Inj2 e')            = compare e e'
+    compare (Inj2 _)           _                    = LT
+    compare _                  (Inj2 _)             = GT
+    compare (SumElim l r t)    (SumElim l' r' t')   = compare l l' <+> compare r r' <+> compare t t'
+    compare (SumElim _ _ _)    _                    = LT
+    compare _                  (SumElim _ _ _)      = GT
     compare Elem.ZeroTy        Elem.ZeroTy          = EQ
     compare Elem.ZeroTy        _                    = LT
     compare _                  Elem.ZeroTy          = GT
@@ -517,6 +549,9 @@ mutual
     compare (Elem.SigmaTy a b) (Elem.SigmaTy a' b') = compare a a' <+> compare b b'
     compare (Elem.SigmaTy _ _) _                    = LT
     compare _                  (Elem.SigmaTy _ _)   = GT
+    compare (Elem.SumTy a b)   (Elem.SumTy a' b')   = compare a a' <+> compare b b'
+    compare (Elem.SumTy _ _)   _                    = LT
+    compare _                  (Elem.SumTy _ _)     = GT
     compare (Elem.EqTy l r t)  (Elem.EqTy l' r' t') = compare l l' <+> compare r r' <+> compare t t'
     compare (Elem.EqTy _ _ _)  _                    = LT
     compare _                  (Elem.EqTy _ _ _)    = GT
@@ -594,6 +629,7 @@ mutual
     show UniverseTy = "UniverseTy"
     show (PiTy a b) = "PiTy (\{show a}) (\{show b})"
     show (SigmaTy a b) = "SigmaTy (\{show a}) (\{show b})"
+    show (SumTy a b) = "SumTy (\{show a}) (\{show b})"
     show (El e) = "El (\{show e})"
     show PropTy = "PropTy"
     show (Prf e) = "Prf (\{show e})"
@@ -615,11 +651,15 @@ mutual
     show (SigmaIntro e1 e2) = "SigmaIntro (\{show e1}) (\{show e2})"
     show (SigmaElim1 e) = "SigmaElim1 (\{show e})"
     show (SigmaElim2 e) = "SigmaElim2 (\{show e})"
+    show (Inj1 e) = "Inj1 (\{show e})"
+    show (Inj2 e) = "Inj2 (\{show e})"
+    show (SumElim l r t) = "SumElim (\{show l}) (\{show r}) (\{show t})"
     show Elem.ZeroTy = "ZeroTy"
     show Elem.OneTy = "OneTy"
     show Elem.NatTy = "NatTy"
     show (Elem.PiTy e1 e2) = "PiTy (\{show e1}) (\{show e2})"
     show (Elem.SigmaTy e1 e2) = "SigmaTy (\{show e1}) (\{show e2})"
+    show (Elem.SumTy e1 e2) = "SumTy (\{show e1}) (\{show e2})"
     show (Elem.EqTy e0 e1 t) = "EqTy (\{show e0}) (\{show e1}) (\{show t})"
     show (QuotTy a r) = "QuotTy (\{show a}) (\{show r})"
     show (SigVar x s) = "SigVar \{show x} (\{show s})"

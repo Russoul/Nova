@@ -1,0 +1,10 @@
+-- β on both injections and the propositional η/uniqueness instance,
+-- by case analysis at an equality motive
+def swap : (a : 𝕌) (b : 𝕌) → El (a ⊎ b) → El (b ⊎ a) ≔
+  λa. λb. λt. ⊎-elim (w. El (b ⊎ a)) (x. inj₂ x) (y. inj₁ y) t
+def swapBeta1 : (a : 𝕌) (b : 𝕌) (x : El a) → swap a b (inj₁ x) ≡ inj₂ x ∈ El (b ⊎ a) ≔
+  λa. λb. λx. ⋆
+def swapBeta2 : (a : 𝕌) (b : 𝕌) (y : El b) → swap a b (inj₂ y) ≡ inj₁ y ∈ El (b ⊎ a) ≔
+  λa. λb. λy. ⋆
+def swapInvol : (a : 𝕌) (b : 𝕌) (t : El (a ⊎ b)) → swap b a (swap a b t) ≡ t ∈ El (a ⊎ b) ≔
+  λa. λb. λt. ⊎-elim (w. swap b a (swap a b w) ≡ w ∈ El (a ⊎ b)) (x. ⋆) (y. ⋆) t

@@ -62,11 +62,21 @@ mutual
     case betaElem sig t of
       SigmaIntro _ b => b
       t'             => SigmaElim2 t'
+  betaElem sig (Inj1 t)           = Inj1 (betaElem sig t)
+  betaElem sig (Inj2 t)           = Inj2 (betaElem sig t)
+  betaElem sig (SumElim l r t) =
+    let l' = betaElem sig l
+        r' = betaElem sig r
+    in case betaElem sig t of
+         Inj1 a => betaElem sig (substElem l' (Ext Id a))
+         Inj2 b => betaElem sig (substElem r' (Ext Id b))
+         t'     => SumElim l' r' t'
   betaElem sig Elem.ZeroTy        = Elem.ZeroTy
   betaElem sig Elem.OneTy         = Elem.OneTy
   betaElem sig Elem.NatTy         = Elem.NatTy
   betaElem sig (Elem.PiTy a b)    = Elem.PiTy (betaElem sig a) (betaElem sig b)
   betaElem sig (Elem.SigmaTy a b) = Elem.SigmaTy (betaElem sig a) (betaElem sig b)
+  betaElem sig (Elem.SumTy a b)   = Elem.SumTy (betaElem sig a) (betaElem sig b)
   betaElem sig (Elem.EqTy l r t)  = Elem.EqTy (betaElem sig l) (betaElem sig r) (betaTy sig t)
   betaElem sig (QuotTy a r)       = QuotTy (betaElem sig a) (betaElem sig r)
   betaElem sig (SigVar x es) =
@@ -142,6 +152,7 @@ mutual
   betaTy sig Ty.UniverseTy    = Ty.UniverseTy
   betaTy sig (Ty.PiTy a b)    = Ty.PiTy (betaTy sig a) (betaTy sig b)
   betaTy sig (Ty.SigmaTy a b) = Ty.SigmaTy (betaTy sig a) (betaTy sig b)
+  betaTy sig (Ty.SumTy a b)   = Ty.SumTy (betaTy sig a) (betaTy sig b)
   betaTy sig (El e) =
     case betaElem sig e of
       Elem.ZeroTy      => Ty.ZeroTy
@@ -149,6 +160,7 @@ mutual
       Elem.NatTy       => Ty.NatTy
       Elem.PiTy a b    => betaTy sig (Ty.PiTy (El a) (El b))
       Elem.SigmaTy a b => betaTy sig (Ty.SigmaTy (El a) (El b))
+      Elem.SumTy a b   => betaTy sig (Ty.SumTy (El a) (El b))
       QuotTy a r       => betaTy sig (Quotient (El a) r)
       QSortC sg k es   => QSort sg k es      -- ty-el-qiit
       e'               => El e'
@@ -209,6 +221,11 @@ mutual
     case whnfE sig t of
       SigmaIntro _ b => whnfE sig b
       t'             => SigmaElim2 t'
+  whnfE sig (SumElim l r t) =
+    case whnfE sig t of
+      Inj1 a => whnfE sig (substElem l (Ext Id a))
+      Inj2 b => whnfE sig (substElem r (Ext Id b))
+      t'     => SumElim l r t'
   whnfE sig (SigVar x es) =
     case sigLookup x sig of
       Just (SigDef _ _ a _) => whnfE sig (substElem a (embed es))
@@ -243,6 +260,7 @@ mutual
       Elem.NatTy       => Ty.NatTy
       Elem.PiTy a b    => Ty.PiTy (El a) (El b)
       Elem.SigmaTy a b => Ty.SigmaTy (El a) (El b)
+      Elem.SumTy a b   => Ty.SumTy (El a) (El b)
       QuotTy a r       => Quotient (El a) r
       QSortC sg k es   => QSort sg k es    -- ty-el-qiit
       e'               => El e'

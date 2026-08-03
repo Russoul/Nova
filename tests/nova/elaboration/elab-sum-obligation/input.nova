@@ -1,0 +1,3 @@
+-- an inj₁/inj₂ head mismatch is an OBLIGATION, not an error
+-- (no-confusion is a meta-property of consistent contexts)
+def bad : (a : 𝕌) (x : El a) → inj₁ x ≡ inj₂ x ∈ El (a ⊎ a) ≔ λa. λx. ⋆

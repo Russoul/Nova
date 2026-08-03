@@ -138,11 +138,19 @@ mutual
     case whnfElem sig t of
       SigmaIntro _ b => whnfElem sig b
       _ => assert_total $ idris_crash "whnfElem: .π₂ scrutinee is not a pair (impossible for a closed, well-typed term)"
+  whnfElem sig (Inj1 t)           = Inj1 t
+  whnfElem sig (Inj2 t)           = Inj2 t
+  whnfElem sig (SumElim l r t) =
+    case whnfElem sig t of
+      Inj1 a => whnfElem sig (substElem l (Ext Id a))
+      Inj2 b => whnfElem sig (substElem r (Ext Id b))
+      _ => assert_total $ idris_crash "whnfElem: ⊎-elim scrutinee is not an injection (impossible for a closed, well-typed term)"
   whnfElem sig Elem.ZeroTy        = Elem.ZeroTy
   whnfElem sig Elem.OneTy         = Elem.OneTy
   whnfElem sig Elem.NatTy         = Elem.NatTy
   whnfElem sig (Elem.PiTy a b)    = Elem.PiTy a b   -- co-data
   whnfElem sig (Elem.SigmaTy a b) = Elem.SigmaTy a b
+  whnfElem sig (Elem.SumTy a b)   = Elem.SumTy a b
   whnfElem sig (Elem.EqTy l r t)  = Elem.EqTy l r t
   whnfElem sig (QuotTy a r)       = QuotTy a r
   whnfElem sig (SigVar x es) =
@@ -181,6 +189,7 @@ mutual
   whnfTy sig Ty.UniverseTy     = Ty.UniverseTy
   whnfTy sig (Ty.PiTy a b)     = Ty.PiTy a b   -- co-data
   whnfTy sig (Ty.SigmaTy a b)  = Ty.SigmaTy a b
+  whnfTy sig (Ty.SumTy a b)    = Ty.SumTy a b
   whnfTy sig (El e) =
     case whnfElem sig e of
       Elem.ZeroTy      => Ty.ZeroTy
@@ -188,6 +197,7 @@ mutual
       Elem.NatTy       => Ty.NatTy
       Elem.PiTy a b    => Ty.PiTy (El a) (El b)
       Elem.SigmaTy a b => Ty.SigmaTy (El a) (El b)
+      Elem.SumTy a b   => Ty.SumTy (El a) (El b)
       QuotTy a r       => Quotient (El a) r
       QSortC sg k es   => QSort sg k es   -- ty-el-qiit
       _ => assert_total $ idris_crash "whnfTy: El argument is not a universe code (impossible for a closed, well-typed term)"
@@ -225,11 +235,15 @@ mutual
     go (SigmaIntro a b)   = SigmaIntro (nfElem sig a) (nfElem sig b)   -- a Σ VALUE: no binder crossed
     go (SigmaElim1 t)     = SigmaElim1 (nfElem sig t)
     go (SigmaElim2 t)     = SigmaElim2 (nfElem sig t)
+    go (Inj1 t)           = Inj1 (nfElem sig t)   -- an injection is data: no binder crossed
+    go (Inj2 t)           = Inj2 (nfElem sig t)
+    go (SumElim l r t)    = SumElim l r (nfElem sig t)   -- l, r: under a binder, left alone
     go Elem.ZeroTy        = Elem.ZeroTy
     go Elem.OneTy         = Elem.OneTy
     go Elem.NatTy         = Elem.NatTy
     go (Elem.PiTy a b)    = Elem.PiTy a b   -- co-data: leave domain/codomain
     go (Elem.SigmaTy a b) = Elem.SigmaTy (nfElem sig a) b   -- b: under a binder, left alone
+    go (Elem.SumTy a b)   = Elem.SumTy (nfElem sig a) (nfElem sig b)   -- non-dependent: BOTH recursed
     go (Elem.EqTy l r t)  = Elem.EqTy (nfElem sig l) (nfElem sig r) (nfTy sig t)
     go (QuotTy a r)       = QuotTy (nfElem sig a) r   -- r: under a binder, left alone
     go (SigVar x es)      = SigVar x es   -- unreachable: whnf always unfolds x[e˲]
@@ -257,6 +271,7 @@ mutual
     go Ty.UniverseTy     = Ty.UniverseTy
     go (Ty.PiTy a b)     = Ty.PiTy a b   -- co-data: leave domain/codomain
     go (Ty.SigmaTy a b)  = Ty.SigmaTy (nfTy sig a) b   -- b: under a binder, left alone
+    go (Ty.SumTy a b)    = Ty.SumTy (nfTy sig a) (nfTy sig b)   -- non-dependent: BOTH recursed
     go (El e)            = El (nfElem sig e)
     go PropTy            = PropTy
     go (Prf e)           = Prf (nfElem sig e)

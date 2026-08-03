@@ -117,6 +117,8 @@ data [a : 𝕌] ( … )                -- QIIT signature (see below)
 ```
 
 Types: `𝟘 𝟙 ℕ 𝕌 Ω`, `(x : T) → U` and `T → U`, `(x : T) ⨯ U`,
+`T ⊎ U` (non-dependent disjoint union; binds TIGHTER than → ⨯, so
+`A ⊎ B → C` is `(A ⊎ B) → C`),
 `l ≡ r ∈ T` (SUGAR for `Prf (l ≡ r ∈ T)` — equality is an Ω-valued
 PROPOSITION), `El t`, `T / (x y. r)` (r is Ω-valued), `Prf p`.
 `∥T∥` squashes any type to a proposition; `∥Prf p∥ ≜ p`.
@@ -126,6 +128,9 @@ Elements: `λx. t`; application by juxtaposition; `(t : T)` ascription
 projections; `Z`, `S t`; `l ≡ r ∈ T` (the equality prop, at Ω —
 the ∈-slot takes a TYPE, so write `∈ El a` for a code `a`);
 `ℕ-elim (n. T) z (n ih. s) t` (motive first);
+`inj₁ t`/`inj₂ t` (sum intros, checking-only) and
+`⊎-elim (w. T) (a. l) (b. r) t` (motive, left case, right case,
+scrutinee — β on both injections);
 `class t` (quotient intro); `quot-elim (x. T) (a. f) q`;
 `⋆` (canonical proof; `⋆ e` with explicit witness);
 `squash-elim e (x. body)`. Universe codes are written like their types
@@ -203,6 +208,8 @@ data [a : 𝕌] [r : El a → El a → Ω]
 - `docs/NovaKernel.txt` — certificates and approximations (A1–A6).
 - `docs/NovaPipeline.txt` — the trust architecture.
 - `src/nova/` — the corpus, one topic per file: `nat` (arithmetic),
+  `sum` (the disjoint union ⊎: inj₁/inj₂, ⊎-elim, β/η, derived
+  injectivity and disjointness),
   `equality`/`prop` (≡ and Ω), `quotient`/`quottyuniv` (quotients),
   `vect`/`vectAppend` (𝕌-indexed families), `qiitNat`/`qiitBag`/
   `qiitQuot`/`qiitVec` (QIIT basics), `id` (the identity family —
