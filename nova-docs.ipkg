@@ -1,0 +1,46 @@
+package nova-docs
+version = 0.1.0
+
+depends = contrib, just-a-parser, lsp-lib
+
+executable = nova-docs
+main = Nova.Docs.Render
+
+modules = Nova.Kernel.Syntax
+        , Nova.Kernel.Subst
+        , Nova.Kernel.Beta
+        , Nova.Kernel
+        , Nova.Kernel.QIIT
+        , Nova.Compute
+        , Nova.Elaboration.Named
+        , Nova.Elaboration
+        , Nova.Elaboration.Surface
+        , Nova.Elaboration.Parser
+        , Nova.Elaboration.Loader
+        , Nova.Kernel.Parser
+
+        , Solver.CommutativeMonoid
+        , Solver.CommutativeMonoid.Evaluation
+        , Solver.CommutativeMonoid.Language
+        , Solver.CommutativeMonoid.Normalisation
+        , Solver.CommutativeMonoid.Parser
+        , Solver.CommutativeMonoid.Quotation
+        , Solver.CommutativeMonoid.Value
+
+        , Data.Util
+
+        , Control.Monad.EitherSt
+        , Control.Monad.IOEither
+        , Control.Monad.Id
+        , Control.Monad.MaybeSt
+        , Control.Monad.Reader
+        , Control.Monad.St
+        , Control.Monad.StEither
+
+        , Nova.LSP.Capabilities
+        , Nova.LSP.Encoding
+        , Nova.LSP.SemanticTokens
+
+        , Nova.Docs.Render
+
+sourcedir = "src/idris"

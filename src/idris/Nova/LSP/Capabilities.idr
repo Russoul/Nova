@@ -55,9 +55,16 @@ export
 solvedHoleIndex : Int
 solvedHoleIndex = 6
 
+||| Token type names in legend order (index must match `tokenKindIndex`/
+||| `unsolvedHoleIndex`/`solvedHoleIndex`) — exported so non-LSP
+||| consumers (e.g. static HTML rendering) can resolve a classified
+||| token's index back to a name without duplicating this list.
+export
+tokenTypeNames : List String
+tokenTypeNames = map tokenKindName tokenKinds ++ ["unsolved_meta", "solved_meta"]
+
 semanticTokensLegend : SemanticTokensLegend
-semanticTokensLegend = MkSemanticTokensLegend
-  (map tokenKindName tokenKinds ++ ["unsolved_meta", "solved_meta"]) []
+semanticTokensLegend = MkSemanticTokensLegend tokenTypeNames []
 
 semanticTokensOptions : SemanticTokensOptions
 semanticTokensOptions = MkSemanticTokensOptions

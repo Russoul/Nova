@@ -18,6 +18,10 @@ compareStart (r1, _) (r2, _) =
 
 ||| LSP's relative-delta encoding is only meaningful over a single,
 ||| start-position-ordered pass, so this always runs before `encode`.
+||| Exported for non-LSP consumers (e.g. static HTML rendering) that
+||| want the same start-ordered, hole-overlaid classification without
+||| the wire-format delta encoding.
+export
 sortTokens : List (Range, a) -> List (Range, a)
 sortTokens = sortBy compareStart
 
@@ -59,6 +63,7 @@ within inner outer = posLE outer.start inner.start && posLE inner.end outer.end
 ||| reclassify every token inside a hole occurrence range by the
 ||| hole's state instead. `holeOccs` pairs each occurrence range with
 ||| whether the hole is SOLVED.
+export
 overlay : List (Range, Bool) -> (Range, TokenKind) -> (Range, Int)
 overlay occs (r, k) =
   case find (\(hr, _) => within r hr) occs of
