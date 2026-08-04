@@ -624,13 +624,93 @@ parseSData tbl = do
     rest <- optional (do sp; kwc ';'; sp; go penv (entries :< d.dqname))
     pure (d :: fromMaybe [] rest)
 
+-- ===== Defining equations (the clausal def item) =====
+--
+-- Clause LHSs are pattern spellings headed by the item's own name;
+-- the marker `|` is RESERVED for this role (withdrawn from the
+-- operator alphabet — see Nova.Elaboration.Surface.opChar), and the
+-- clause separator is ≔, as at def, so `=` stays an ordinary
+-- operator token.
+
+mutual
+  ||| pat ::= x | Z | S pat | inj₁ pat | inj₂ pat | (pat) — any depth
+  ||| (the FRAGMENT demands depth 1, the grammar does not); constructor
+  ||| arguments sit at atom level, like application arguments.
+  parsePat : Rule SPat
+  parsePat =
+        (do kw "S"; space; p <- parsePatAtom; pure (SPSuc p))
+    <|> (do kw "inj₁"; space; p <- parsePatAtom; pure (SPInj1 p))
+    <|> (do kw "inj₂"; space; p <- parsePatAtom; pure (SPInj2 p))
+    <|> parsePatAtom
+
+  parsePatAtom : Rule SPat
+  parsePatAtom =
+        (kw "Z" $> SPZero)
+    <|> (do kwc '('; sp; p <- parsePat; sp; kwc ')'; pure p)
+    <|> (do x <- parseNameR; pure (SPVar x))
+
+||| The binder telescope a clause's patterns spell: one slot per
+||| variable in order of first appearance; a wildcard is always a
+||| fresh slot, a repeated name reuses its slot (nonlinear LHS —
+||| expressible here, rejected by the structural fragment).
+patVarsOf : List SPat -> List SName
+patVarsOf = foldl goP []
+ where
+  goP : List SName -> SPat -> List SName
+  goP acc (SPVar x) =
+    if fst x /= wildcard && elem (fst x) (map fst acc)
+      then acc
+      else acc ++ [x]
+  goP acc SPZero = acc
+  goP acc (SPSuc p) = goP acc p
+  goP acc (SPInj1 p) = goP acc p
+  goP acc (SPInj2 p) = goP acc p
+
+||| lhs ::= n pat* | pat op pat — the head must be the item's own name
+||| (parsed as an ordinary application or infix spelling and REREAD as
+||| patterns; the mention form (op) works as a prefix head).
+parseClauseLhs : String -> Rule (List SPat)
+parseClauseLhs iname =
+      (do h <- parseHead
+          guard "the clause head must be the item's name" (h == iname)
+          many (do sp; parsePatAtom))
+  <|> (do p1 <- parsePat; sp
+          op <- parseOpName
+          guard "the clause head must be the item's name" (op == iname)
+          sp
+          p2 <- parsePat
+          pure [p1, p2])
+ where
+  parseHead : Rule String
+  parseHead =
+        parseName
+    <|> parseOpName
+    <|> (do kwc '('; sp; op <- parseOpRef; sp; kwc ')'; pure op)
+
+||| clause ::= | lhs ≔ t ([n])? — the RHS is parsed in the LHS's
+||| binder telescope; the optional [n] names the clause's equation
+||| lemma.
+parseSClause : FixTable -> String -> Rule SClause
+parseSClause tbl iname = do
+  kwc '|'; sp
+  commit
+  pats <- parseClauseLhs iname
+  sp; kw "≔"; sp
+  let vars = patVarsOf pats
+  rhs <- parseSElem tbl ([<] <>< map fst vars)
+  mn <- optional (do sp; kwc '['; sp; n <- parseName; sp; kwc ']'; pure n)
+  pure (MkSClause pats vars rhs mn)
+
 -- COMMITS: after an item's leading keyword the parse can be nothing
 -- else, so commit — a failure deep inside the item then propagates
 -- with its REAL position instead of backtracking to the item
 -- boundary, where the file loop would end and report a useless
 -- "Expected end of input" at the next `def`. The commit inside the
 -- optional ≔-body keeps `def x : T ≔ <garbage>` a hard error at the
--- garbage rather than mis-reading the item as a declaration.
+-- garbage rather than mis-reading the item as a declaration. The
+-- commit after a clause's `|` likewise keeps a malformed clause a
+-- hard error while letting the clause loop end cleanly at the next
+-- item.
 export
 parseSItem : FixTable -> Rule SItem
 parseSItem tbl =
@@ -638,11 +718,15 @@ parseSItem tbl =
           (r, x) <- bounds (parseName <|> parseOpName); sp
           kwc ':'; sp
           ty <- parseSTy tbl [<]; sp
+          metaEta <- optional (do kwc '['; sp; n <- parseName; sp; kwc ']'; sp; pure n)
           mbody <- optional (do kw "≔"; sp; commit; parseSElem tbl [<])
-          pure (case mbody of
-                  Just body => SDef x ty body
-                  -- a def without a definiens: a DECLARATION
-                  Nothing => SDeclDef r x ty))
+          cls <- many (do sp; parseSClause tbl x)
+          case (metaEta, mbody, cls) of
+            (Nothing, Just body, []) => pure (SDef x ty body)
+            -- a def without a definiens: a DECLARATION
+            (Nothing, Nothing, []) => pure (SDeclDef r x ty)
+            (_, _, (c :: cs)) => pure (SClausalDef r x ty metaEta mbody (c :: cs))
+            (Just _, _, []) => fail "clauses expected after a uniqueness-name override")
   <|> (do kw "type"; space; commit
           x <- parseName; sp
           kw "≔"; sp

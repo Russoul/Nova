@@ -1,0 +1,2 @@
+#!/bin/sh
+"$1" run surface-item "def plus : ℕ → ℕ → ℕ [pe] ≔ Z | plus Z n ≔ n [pz] | plus (S m) n ≔ S (plus m n)"

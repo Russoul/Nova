@@ -1,0 +1,26 @@
+def plus : ℕ → ℕ → ℕ
+  | plus Z n ≔ n
+  | plus (S m) n ≔ S (plus m n)
+
+def plusZr : (n : ℕ) → plus n Z ≡ n ∈ ℕ
+  ≔ λn. ℕ-elim (x. plus x Z ≡ x ∈ ℕ) ⋆ (k ih. ⋆) n
+
+def plusByHand : ℕ → ℕ → ℕ ≔ λm. λn. ℕ-elim (x. ℕ) n (k ih. S ih) m
+def byHandIsPlus : (m : ℕ) (n : ℕ) → plusByHand m n ≡ plus m n ∈ ℕ
+  ≔ λm. λn. plusEta plusByHand (λx. ⋆) (λk. λx. ⋆) m n
+
+def addAcc : ℕ → ℕ → ℕ
+  | addAcc Z n ≔ n
+  | addAcc (S m) n ≔ addAcc m (S n)
+
+def swap : ℕ ⊎ 𝟙 → 𝟙 ⊎ ℕ
+  | swap (inj₁ n) ≔ inj₂ n
+  | swap (inj₂ u) ≔ inj₁ u
+
+def double : ℕ → ℕ
+  | double n ≔ plus n n
+
+infixl 6 ⊞
+def ⊞ : ℕ → ℕ → ℕ [oplusEta]
+  | Z ⊞ n ≔ n [oplusZ]
+  | S m ⊞ n ≔ S (m ⊞ n) [oplusS]

@@ -1,0 +1,3 @@
+def fib : ℕ → ℕ
+  | fib Z ≔ Z
+  | fib (S m) ≔ fib (S m)

@@ -185,11 +185,12 @@ FixTable : Type
 FixTable = List (String, Assoc, Nat)
 
 ||| The operator alphabet. Excludes the reserved theory tokens
-||| (→ ⨯ ≡ ∈ ≔ / . , : parens) and comment dashes are eaten by the
-||| lexer, so no operator may contain "--".
+||| (→ ⨯ ≡ ∈ ≔ / . , : parens) — and `|`, the clause marker of the
+||| clausal def item — and comment dashes are eaten by the lexer, so
+||| no operator may contain "--".
 public export
 opChar : Char -> Bool
-opChar c = c `elem` unpack "+-*<>=&|!?%^~@#⊕⊗⊙⊞⊟∙∘·≤≥∸⧺⊥⊤∧∨⊃¬↔"
+opChar c = c `elem` unpack "+-*<>=&!?%^~@#⊕⊗⊙⊞⊟∙∘·≤≥∸⧺⊥⊤∧∨⊃¬↔"
 
 ||| Is the (possibly qualified) name operator-shaped? Decided by its
 ||| final segment.
@@ -242,6 +243,35 @@ record SQDecl where
   dqbinders : List (String, Either STy SQTm)
   dqres : SQRes
 
+-- ===== Defining equations (the clausal def item) =====
+
+||| A clause LHS pattern (docs/NovaElaboration.txt, "Defining
+||| equations"): constructor spellings and variables, any depth — the
+||| structural FRAGMENT demands depth 1, the grammar does not.
+public export
+data SPat : Type where
+  SPVar : SName -> SPat
+  SPZero : SPat
+  SPSuc : SPat -> SPat
+  SPInj1 : SPat -> SPat
+  SPInj2 : SPat -> SPat
+
+||| One defining equation: `| lhs ≔ rhs [name]?`. The LHS patterns
+||| cover the leading columns of the item's type; `cvars` is the
+||| binder telescope the patterns spell — one slot per variable in
+||| order of first appearance (a wildcard is always a fresh slot, a
+||| repeated name reuses its slot — nonlinear LHSs are expressible,
+||| the fragment rejects them). The RHS is parsed in exactly that
+||| environment.
+public export
+record SClause where
+  constructor MkSClause
+  cpats : List SPat
+  cvars : List SName
+  crhs : SElem
+  ||| the [name] override for this clause's equation lemma
+  cname : Maybe String
+
 public export
 data SItem : Type where
   ||| def x : T ≔ t — always in the empty context
@@ -258,6 +288,15 @@ data SItem : Type where
   ||| Π-abstracted over the parameters (docs/NovaElaboration.txt,
   ||| QIIT section)
   SData : List (String, STy) -> List SQDecl -> SItem
+  ||| def x : T [eta]? (≔ t)? clause+ — a def with DEFINING EQUATIONS
+  ||| (docs/NovaElaboration.txt, "Defining equations"): an ITEM MACRO
+  ||| expanding into the definition proper (a synthesized eliminator
+  ||| body, the user's witness t, or a declaration), one Π-closed
+  ||| equation lemma per clause, and the pointwise uniqueness lemma
+  ||| (named by the [eta] override)
+  SClausalDef : (nrng : Maybe Range) -> String -> STy ->
+                (etaName : Maybe String) -> (witness : Maybe SElem) ->
+                List SClause -> SItem
 
 export
 itemName : SItem -> String
@@ -267,6 +306,7 @@ itemName (STypeDef n _) = n
 itemName (SData _ ds) = case ds of
   (d :: _) => d.dqname
   [] => "data"
+itemName (SClausalDef _ n _ _ _ _) = n
 
 -- ===== Show instances (parser golden tests) =====
 
@@ -349,6 +389,20 @@ Show SImport where
   show (MkSImport m os) = "import \{m} (\{joinBy ", " os})"
 
 export covering
+Show SPat where
+  show (SPVar x) = fst x
+  show SPZero = "Z"
+  show (SPSuc p) = "S (\{show p})"
+  show (SPInj1 p) = "Inj1 (\{show p})"
+  show (SPInj2 p) = "Inj2 (\{show p})"
+
+export covering
+Show SClause where
+  show (MkSClause ps _ rhs mn) =
+    "| " ++ joinBy " " (map show ps) ++ " := " ++ show rhs
+      ++ maybe "" (\n => " [\{n}]") mn
+
+export covering
 Show SQTm where
   show (SQVar n i) = "\{n}@⬡\{show i}"
   show (SQAppE f e) = "AppE (\{show f}) (\{show e})"
@@ -377,3 +431,8 @@ Show SItem where
   show (SData ps ds) =
     "data " ++ concatMap (\p => case p of (x, t) => "[\{x} : \{show t}] ") ps
       ++ "(" ++ joinBy " ; " (map show ds) ++ ")"
+  show (SClausalDef _ x ty eta w cls) =
+    "def \{x} : \{show ty}"
+      ++ maybe "" (\n => " [\{n}]") eta
+      ++ maybe "" (\t => " := \{show t}") w
+      ++ concatMap (\c => " \{show c}") cls

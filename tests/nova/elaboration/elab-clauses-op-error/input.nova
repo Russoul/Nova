@@ -1,0 +1,4 @@
+infixl 6 +
+def + : ℕ → ℕ → ℕ
+  | Z + n ≔ n
+  | S m + n ≔ S (m + n)

@@ -20,6 +20,7 @@ import Language.LSP.Message.Location
 import Nova.Kernel.Parser
 import Nova.Elaboration
 import Nova.Elaboration.Surface
+import Nova.Elaboration.Clauses
 import Nova.Elaboration.Loader
 
 import Nova.LSP.Encoding
@@ -54,6 +55,7 @@ itemNames (SDef x _ _) = [x]
 itemNames (SDeclDef _ x _) = [x]
 itemNames (STypeDef x _) = [x]
 itemNames (SData _ decls) = map dqname decls
+itemNames (SClausalDef _ x _ eta _ cls) = clausalNames x eta cls
 
 ||| Σ's own qualification: bare in the root file, module-prefixed
 ||| otherwise (`Nova.Elaboration.emitCoreDef`'s `q`).
@@ -163,3 +165,4 @@ documentSymbols lns = concatMap toSymbols
       SDeclDef _ x _ => [mkSymbol lns x Function r]
       STypeDef x _  => [mkSymbol lns x Class r]
       SData _ decls => map (\d => mkSymbol lns d.dqname (declSymbolKind d.dqres) r) decls
+      SClausalDef _ x _ eta _ cls => map (\n => mkSymbol lns n Function r) (clausalNames x eta cls)

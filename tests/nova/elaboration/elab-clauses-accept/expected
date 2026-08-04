@@ -1,0 +1,9 @@
+defined plus by clauses (plus, plusZ, plusS, plusEta)
+defined plusZr
+defined plusByHand
+defined byHandIsPlus
+defined addAcc by clauses (addAcc, addAccZ, addAccS, addAccEta)
+defined swap by clauses (swap, swapInl, swapInr, swapEta)
+defined double by clauses (double, doubleEq, doubleEta)
+defined ⊞ by clauses (⊞, oplusZ, oplusS, oplusEta)
+Accepted.
