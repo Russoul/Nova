@@ -1,0 +1,10 @@
+declared fib and its equations (fib, fibZ, fibS, fibEta) — clauses outside the structural fragment [+4 holes]
+open holes (4):
+  [fib] ⊢ ? : ℕ → ℕ
+      at: def fib
+  [fibZ] ⊢ ? : fib Z ≡ Z ∈ ℕ
+      at: def fibZ
+  [fibS] ⊢ ? : (n:ℕ) → Prf (fib (S n) ≡ fib (S n) ∈ ℕ)
+      at: def fibS
+  [fibEta] ⊢ ? : (x:ℕ → ℕ) → Prf (x Z ≡ Z ∈ ℕ) → ((n:ℕ) → Prf (x (S n) ≡ x (S n) ∈ ℕ)) → (n:ℕ) → Prf (x n ≡ fib n ∈ ℕ)
+      at: def fibEta

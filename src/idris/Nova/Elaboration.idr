@@ -50,6 +50,7 @@ import Me.Russoul.Text.Position
 import Me.Russoul.Text.Range
 import Nova.Elaboration.Named
 import Nova.Elaboration.Surface
+import Nova.Elaboration.Clauses
 import Nova.Elaboration.Parser
 
 %default covering
@@ -4042,6 +4043,24 @@ elabItemGo (SData params decls) = do
     upto : Nat -> List Nat
     upto Z = []
     upto (S n) = upto n ++ [n]
+
+elabItemGo (SClausalDef nrng x ty etaName witness clauses) = do
+  -- a def with DEFINING EQUATIONS (docs/NovaElaboration.txt,
+  -- "Defining equations"): an ITEM MACRO. The expansion is pure
+  -- surface-level synthesis (Nova.Elaboration.Clauses); the batch —
+  -- the definition, the Π-closed clause lemmas, the uniqueness
+  -- lemma — elaborates through the ordinary item pipeline, so
+  -- obligations, lemma registration, kernel checking and the report
+  -- need no clause awareness at all. A Left is a STRUCTURAL error;
+  -- everything non-structural degrades inside the expansion (witness
+  -- tier / declaration tier) rather than failing.
+  census <- openCensus
+  case expandClausal nrng x ty etaName witness clauses of
+    Left err => throw "def \{x}: \{err}"
+    Right (MkExpansion items echo) => do
+      ignore $ traverse elabItemGo items
+      suffix <- opensSuffix census
+      pure (echo ++ suffix)
 
 -- ===== Report =====
 

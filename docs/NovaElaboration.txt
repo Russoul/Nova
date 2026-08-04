@@ -1266,6 +1266,17 @@ pointwise, exhibit that g satisfies the clauses.
 # independent of where ρ came from). The same silent-induction
 # pipeline as every ℕ-elim proof; if the engine ever misses, the
 # residue is an ordinary obligation, never a wrong acceptance.
+#
+# One such miss is CURRENT, recorded by a golden test
+# (elab-clauses-eta-obligation): a recursive call NESTED under
+# another application — mul's  plus n (mul m n)  — puts the
+# ih-rewrite inside an argument of a stuck eliminator spine, a
+# position whose expected type equation replay's typed descent
+# cannot yet determine (the constant-motive approximation,
+# docs/NovaPipeline.txt "Status"). The definition and its clause
+# lemmas still accept; only the uniqueness ⋆ stands, as an ordinary
+# obligation. Widening the descent — the argument position's type is
+# the head's synthesizable domain — is engine/kernel future work.
 
 # OUTSIDE THE FRAGMENT (deeper patterns, another split type, several
 # split columns, a missing or duplicated constructor, non-structural
@@ -1465,4 +1476,7 @@ Two corollaries worth keeping in view while implementing:
   (out (f x̄) ≔ …) compiling to corec, uniqueness by el-nu-coind
   with the graph invariant as the bisimulation; strong induction /
   course-of-values as an alternative existence synthesis; mutual
-  blocks as a single QIIT elimination problem.
+  blocks as a single QIIT elimination problem. ENGINE: typed descent
+  through neutral-application arguments, so a NESTED recursive call
+  (mul-shape) discharges its uniqueness ⋆ — today that ⋆ stands as
+  an ordinary obligation (elab-clauses-eta-obligation).

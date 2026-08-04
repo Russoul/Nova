@@ -1,0 +1,3 @@
+defined pred by clauses via witness (pred, predZ, predS, predEta)
+defined usePredS
+Accepted.
