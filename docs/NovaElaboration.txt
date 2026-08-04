@@ -53,7 +53,8 @@ term/type grammar below is self-contained.
 # A file is a sequence of items. `def` introduces a term definition,
 # `type` a type definition — the two signature-entry forms of
 # Foundation's Σ; `data` is an ITEM MACRO that expands into a batch
-# of them (QIIT section below). Every item is declared in the EMPTY context:
+# of them (QIIT section below), and a def with CLAUSES is likewise an
+# item macro (Defining equations section below). Every item is declared in the EMPTY context:
 # parameters are ordinary Π-binders in the item's type (the iterated
 # binder syntax below keeps that pleasant), and a reference to an
 # item is a bare name. Foundation's Σ entries keep their general
@@ -73,6 +74,33 @@ item  ::= def  n : T{≥0} ≔ t{≥0}
                                               #   ambient PARAMETER
                                               #   telescope, see the QIIT
                                               #   section below
+        | def  n : T{≥0} ([n])? (≔ t{≥0})? clause+
+                                              # a def with DEFINING
+                                              #   EQUATIONS — an ITEM
+                                              #   MACRO; the optional [n]
+                                              #   names the uniqueness
+                                              #   lemma, the optional
+                                              #   definiens is the WITNESS
+                                              #   form. See the Defining
+                                              #   equations section below
+clause ::= | lhs ≔ t{≥0} ([n])?               # each clause OPENS with the
+                                              #   marker |, RESERVED for
+                                              #   this role; the optional
+                                              #   [n] names the clause's
+                                              #   equation lemma
+lhs    ::= n pat* | pat op pat                # the head is the item's own
+                                              #   name (infix use needs a
+                                              #   fixity, as anywhere);
+                                              #   parsed as an ordinary
+                                              #   application spelling and
+                                              #   REREAD as patterns
+pat    ::= x | Z | S pat | inj₁ pat | inj₂ pat | (pat)
+                                              # constructor spellings and
+                                              #   variables, any depth —
+                                              #   the FRAGMENT demands
+                                              #   depth 1, the grammar
+                                              #   does not (`_` in any
+                                              #   binder, as everywhere)
 fixity ::= infixl d op | infixr d op          # d a digit 0-9
 
 # Q is the ToS type grammar of a data entry — Foundation's qiit-types
@@ -98,8 +126,9 @@ fixity ::= infixl d op | infixr d op          # d a digit 0-9
 # the name, and the name is the operator (binary applications of
 # operator-shaped names lay out infix, fully parenthesized).
 # Operator tokens are maximal runs of the operator alphabet
-#   + - * < > = & | ! ? % ^ ~ @ # ⊕ ⊗ ⊙ ⊞ ⊟ ∙ ∘ · ≤ ≥ ∸ ⧺ ⊥ ⊤ ∧ ∨ ⊃ ¬ ↔
-# (the reserved theory tokens → ⨯ ≡ ∈ ≔ / . , : are excluded, and the
+#   + - * < > = & ! ? % ^ ~ @ # ⊕ ⊗ ⊙ ⊞ ⊟ ∙ ∘ · ≤ ≥ ∸ ⧺ ⊥ ⊤ ∧ ∨ ⊃ ¬ ↔
+# (the reserved theory tokens → ⨯ ≡ ∈ ≔ / . , : are excluded — and so
+# is |, the clause marker of the clausal def item — and the
 # lexer eats "--" as a comment, so no operator contains it). The
 # mention form (op) — e.g. (+) — is the operator as an ordinary
 # reference, usable anywhere an atom is; local binders are never
@@ -1081,6 +1110,208 @@ the swap by computation — e-star turns it into an ordinary obligation
 otherwise — or as a reference to a proven lemma. Nothing about
 obligations, discharge or the report is QIIT-aware.
 
+//////////// Defining equations: the clausal def item /////////////
+
+A def with CLAUSES is an ITEM MACRO, data's sibling. The item
+
+  def plus : ℕ → ℕ → ℕ
+    | plus Z n     ≔ n
+    | plus (S m) n ≔ S (plus m n)
+
+asserts that its equations DETERMINE the definiendum — that the space
+of solutions
+
+  (ρ : ℕ → ℕ → ℕ) ⨯ ((n : ℕ) → ρ Z n ≡ n ∈ ℕ)
+                  ⨯ ((m : ℕ) (n : ℕ) → ρ (S m) n ≡ S (ρ m n) ∈ ℕ)
+
+is CONTRACTIBLE (has an element, and any two of its elements are
+equal — the iso-to-𝟙 reading) — and expands into a batch of ordinary
+defs naming the three pieces of that assertion. The macro itself adds
+nothing to Σ; nothing about obligations, discharge, modules or the
+report is clause-aware; no Foundation rule and no kernel capability
+is added.
+
+  def plus  : ℕ → ℕ → ℕ                                    # EXISTENCE
+            ≔ λm. ℕ-elim (x. ℕ → ℕ) (λn. n) (k ih. λn. S (ih n)) m
+  def plusZ : (n : ℕ) → plus Z n ≡ n ∈ ℕ                   # the CLAUSES,
+            ≔ λn. ⋆                                        #   Π-closed
+  def plusS : (m : ℕ) (n : ℕ) → plus (S m) n ≡ S (plus m n) ∈ ℕ
+            ≔ λm. λn. ⋆
+  def plusEta :                                            # UNIQUENESS
+        (g : ℕ → ℕ → ℕ)
+      → (hz : (n : ℕ) → g Z n ≡ n ∈ ℕ)
+      → (hs : (m : ℕ) (n : ℕ) → g (S m) n ≡ S (g m n) ∈ ℕ)
+      → (m : ℕ) (n : ℕ) → g m n ≡ plus m n ∈ ℕ
+      ≔ λg. λhz. λhs. λm.
+          ℕ-elim (x. (n : ℕ) → g x n ≡ plus x n ∈ ℕ)
+                 (λn. ⋆) (k ih. λn. ⋆) m
+
+In general, for  def f : (x₁ : A₁) → … → (xₖ : Aₖ) → B  with clauses
+f p̄ᵢ ≔ tᵢ, the batch is
+
+  def f    : (x₁ : A₁) → … → (xₖ : Aₖ) → B ≔ ρ
+  def nᵢ   : Π(Γᵢ). f p̄ᵢ ≡ tᵢ ∈ B[p̄ᵢ] ≔ λ…. ⋆
+             # Γᵢ the PATTERN TELESCOPE: the columns in order, the
+             # split column contributing its constructor's argument
+             # (nothing at Z); recursive occurrences in tᵢ stay
+             # REFERENCES to f
+  def nEta : (g : (x₁ : A₁) → … → (xₖ : Aₖ) → B)
+           → (h₁ : Π(Γ₁). g p̄₁ ≡ t₁[g/f] ∈ B[p̄₁]) → …
+           → (x₁ : A₁) → … → (xₖ : Aₖ)
+           → g x₁ … xₖ ≡ f x₁ … xₖ ∈ B
+
+Read the batch as the definition's INTERFACE: the equations are the
+definition, ρ is an implementation detail. On every later item and
+run the clause lemmas are ACCEPTED LEMMAS of E, so a conversion
+touching f at a constructor discharges by a ONE-STEP match against
+them — no unfolding of f through the eliminator, no fuel spent — the
+"make the trace directly matchable" remedy (docs/NovaPipeline.txt)
+pre-applied. nEta is the recursor's universal property as a store
+entry: stated POINTWISE (its trailing binders are determined by the
+equation's sides — no function-type equality needed), its g-clause
+premises are equality-typed parameters the sides do not determine,
+i.e. SIDE CONDITIONS in E's documented sense — to prove g ≐ f
+pointwise, exhibit that g satisfies the clauses.
+
+# SURFACE FORM. Clause LHSs are parsed as ordinary application (or
+# infix) spellings headed by the item's own name and REREAD as
+# patterns: every argument position must be a variable or a
+# constructor pattern — Z, S p, inj₁ p, inj₂ p, any depth, possibly
+# parenthesized; all clauses spell the same number k ≥ 1 of
+# positions, covering the leading k columns of the item's type
+# (Π's past the k-th stay inside B — the generated equations then
+# sit at a Π-type, which ≡ embeds like any other). Any other LHS
+# spelling is a structural error — missing structure, not a failed
+# equation (the dividing line of Judgement forms). The clause
+# separator is ≔, as at def: a clause IS a definiens, given
+# pointwise (`=` remains an ordinary operator token). The marker |
+# is RESERVED — withdrawn from the operator alphabet — because a
+# clause may directly follow the witness form's definiens, where an
+# infix reading would capture it.
+
+# NAMES. The expansion mints Σ names; the reproducibility invariant
+# demands they be a pure function of the source. For an
+# identifier-named item n the defaults append the split
+# constructor's tag — nZ, nS at an ℕ split; nInl, nInr at a ⊎ split
+# (subscripts are not identifier characters); nEq for the no-split
+# form — and nEta for uniqueness. A trailing [m] on a clause
+# overrides its lemma's name; [m] on the header (after the type)
+# overrides the uniqueness name. An OPERATOR-named item has no
+# identifier to prefix: every clause and the header must carry the
+# override, a structural error otherwise —
+#
+#   infixl 6 +
+#   def + : ℕ → ℕ → ℕ [plusEta]
+#     | Z + n   ≔ n [plusZ]
+#     | S m + n ≔ S (m + n) [plusS]
+#
+# Generated names enter Σ like any other entry (duplicates are the
+# usual structural error).
+
+# THE STRUCTURAL FRAGMENT — the clause shapes the splitter compiles:
+#   * exactly one column j bears constructor patterns across the
+#     clauses (the SPLIT COLUMN) — every other position is a
+#     variable in every clause, and each clause's LHS variables are
+#     DISTINCT (linear patterns). No split column is permitted iff
+#     there is a single clause (the NO-SPLIT form).
+#   * whnf(Aⱼ) is ℕ and the split patterns are exactly Z and S m
+#     (each once, either order), or whnf(Aⱼ) is a ⊎ and they are
+#     exactly inj₁ a and inj₂ b (El-decodings included — ty-el-nat,
+#     ty-el-sum).
+#   * recursion is STRUCTURAL: f does not occur in the Z / inj₁ /
+#     inj₂ / no-split bodies, and each of its occurrences in the
+#     S-clause body heads an application of at least j arguments
+#     whose first j−1 are the clause's own column variables and
+#     whose j-th is the predecessor m. Arguments PAST the split
+#     column are arbitrary terms — the Π-motive below quantifies
+#     over the trailing columns, so recursion at a changed later
+#     argument is in the fragment.
+# Fragment membership is syntactic, hence deterministic — which tier
+# below fires is a pure function of the source.
+
+# SYNTHESIS (ℕ at column j shown; ⊎ is the same shape minus
+# recursion; the no-split form is λ-abstraction alone). The witness
+# eliminates the split variable at the motive that Π-CLOSES the
+# trailing columns — they may depend on it, and the closure is what
+# makes the induction hypothesis a FUNCTION over them:
+#
+#   ρ ≔ λx₁. … λxⱼ.
+#         ℕ-elim (x. (xⱼ₊₁ : Aⱼ₊₁[x]) → … → (xₖ : Aₖ[x]) → B[x])
+#                (λxⱼ₊₁. … λxₖ. t_Z′)
+#                (m ih. λxⱼ₊₁. … λxₖ. t_S′)
+#                xⱼ
+#
+# t_C′ is the clause body with its variables mapped to the
+# corresponding binders and every recursive call f x₁ … xⱼ₋₁ m ē
+# replaced (innermost first) by ih ē. The clause-lemma bodies are
+# λ…. ⋆: unfolding f (el-sig-beta) and one β step land both sides of
+# each clause on a common normal form, so e-star's equation
+# discharges by computation — obligation-free, replayed by the
+# kernel as ordinary beta finals.
+#
+# The nEta body is the same eliminator at the pointwise EQUALITY
+# motive, both cases ⋆ (the plusEta shape above, Π-closure of the
+# trailing columns included; the no-split form needs no eliminator —
+# its body is λ…. ⋆ outright). This is deliberate: el-nat-eta,
+# el-sum-eta, el-qiit-eta have NO kernel replay finals
+# (docs/NovaKernel.txt, caveat A5) and need none — the generated
+# proof is A5's route, an ordinary eliminator lemma at an equality
+# motive. Its ⋆'s discharge from E with no new mechanism: each
+# case's goal rewrites by the matching g-clause hypothesis (an
+# ambient equality hypothesis, peeled, parametric), by ih at the
+# recursive positions — parametric in the trailing columns exactly
+# because the motive Π-closed them — and by the CLAUSE LEMMAS on the
+# f side (they precede nEta in the batch, so they are in E; no
+# unfolding of ρ is ever needed, which also makes the proof
+# independent of where ρ came from). The same silent-induction
+# pipeline as every ℕ-elim proof; if the engine ever misses, the
+# residue is an ordinary obligation, never a wrong acceptance.
+
+# OUTSIDE THE FRAGMENT (deeper patterns, another split type, several
+# split columns, a missing or duplicated constructor, non-structural
+# recursion) the item DEGRADES; it never walls:
+#   * WITH a witness — def f : T ≔ t | clauses — the splitter is
+#     skipped: f is an ordinary def with definiens t, and the clause
+#     lemmas are emitted with bodies λ…. ⋆. Each ⋆ that does not
+#     discharge is an ordinary obligation, sited at the clausal item
+#     under the generated lemma's name (e-star: stated exactly where
+#     the user claimed it); the remedy is the standard
+#     prepend-a-lemma-and-rerun. nEta's body is still SYNTHESIZED
+#     whenever the clauses are fragment-shaped — the eta induction
+#     needs only the clause lemmas, not ρ's provenance — and is
+#     λ…. ⋆ otherwise, surfacing the uniqueness statement as one
+#     obligation.
+#   * WITHOUT a witness the whole batch demotes to DECLARATIONS
+#     (e-decl): f, the clause lemmas and nEta enter Σ as named rigid
+#     holes. The clause lemmas — Prf-of-≡ under Π's — register in
+#     the lemma store as declared equations (the abstract-interface
+#     idiom of e-decl), so everything downstream elaborates against
+#     the interface; acceptance is blocked by the holes, and the
+#     remedy is a witness (≔ t) or clauses reshaped into the
+#     fragment.
+# Three tiers, one semantics: in the fragment the elaborator proves
+# everything; witness-tier the user supplies existence and proves
+# the equations; declaration-tier the file merely ASSERTS the
+# interface. What the item MEANS never changes — only who does the
+# work.
+
+# ADEQUACY. For an in-fragment item Foundation derives, over the
+# accepted Σ: each clause equation for ρ (el-sig-beta plus one β
+# step), and the uniqueness statement — nEta is el-nat-eta /
+# el-sum-eta internalized through Prf and reflection, and the
+# generated proof RE-DERIVES it rather than citing it, which is why
+# the kernel needs no η finals. Together the two halves say the
+# solution space is contractible and the item denotes ITS unique
+# inhabitant. A missing case loses uniqueness, contradictory
+# overlapping clauses lose existence — coverage and consistency are
+# SEMANTIC here, obligations rather than checkers — and no clause
+# set needs a termination argument, now or ever: everything compiles
+# to eliminators, and totality is the theory's.
+
+# DEFERRED extensions are enumerated in Future work; each is a new
+# way to fill the same three artifact slots — new synthesis tactics,
+# never new semantics.
+
 //////////// Modules /////////////
 
 A MODULE is a file; a dotted module name resolves against the root
@@ -1226,3 +1457,12 @@ Two corollaries worth keeping in view while implementing:
   type/element positions (today a QIIT is reachable only through a
   data item's generated names); indexed sorts of LARGE signatures
   (unnameable in the closed-item discipline).
+* Clausal defs beyond the structural fragment (Defining equations
+  section; each item fills the same three artifact slots): nested
+  patterns and multi-column splits (split trees); QIIT splits —
+  point-only signatures first, quotiented sorts demanding
+  per-clause-pair well-definedness after; COPATTERN clauses
+  (out (f x̄) ≔ …) compiling to corec, uniqueness by el-nu-coind
+  with the graph invariant as the bisimulation; strong induction /
+  course-of-values as an alternative existence synthesis; mutual
+  blocks as a single QIIT elimination problem.
