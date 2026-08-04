@@ -62,6 +62,10 @@ term/type grammar below is self-contained.
 file  ::= import* (item | fixity)*
 imp   ::= import M | import M (n (, n)*)
 item  ::= def  n : T{≥0} ≔ t{≥0}
+        | def  n : T{≥0}                      # a DECLARATION — a def
+                                              #   without a definiens,
+                                              #   a NAMED RIGID HOLE;
+                                              #   see e-decl in Items
         | type x ≔ T{≥0}
         | data ([x : T{≥0}])* ( n : Q (; n : Q)* )
                                               # a QIIT signature literal —
