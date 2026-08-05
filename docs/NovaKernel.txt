@@ -248,7 +248,9 @@ el-sigma-e₁/₂ and the ℕ/𝟙 introductions:
   -----------------------------
   Σ; Γ ⊦ t.π₁ ⇒ᵖ A
 
-  Σ; Γ ⊦ () ⇒ᵖ 𝟙      Σ; Γ ⊦ Z ⇒ᵖ ℕ      Σ; Γ ⊦ t ⇐ᵖ ℕ ⇒ S t ⇒ᵖ ℕ
+  Σ; Γ ⊦ () ⇒ᵖ 𝟙      Σ; Γ ⊦ Z ⇒ᵖ ℕ      Σ; Γ ⊦ t ⇐ᵖ ℕ
+                                          ---------------
+                                          Σ; Γ ⊦ S t ⇒ᵖ ℕ
 
 Universe CODES infer at 𝕌 (components checked at their code types) —
 a generic lemma's 𝕌-parameter materialized at a concrete code is a
