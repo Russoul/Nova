@@ -64,34 +64,39 @@ There are no kernel-only judgement forms. (Compare today's ⇒ᵖ/⇐ᵖ,
 
 A derivation is a tree
 
-  D ::= rule(𝑤̄ ; D̄)
+  D ::= rule(D̄)
 
 where `rule` is a Foundation rule name (the canonical <class>-
-<former>-<kind> names — there are no synonyms), 𝑤̄ are the rule's
-GENUINE INPUTS, and D̄ are subderivations for its DEMANDED premises,
-in the rule's stated order.
-
-  * GENUINE INPUTS are what Foundation already marks as such: the
-    premises "never omitted" by the closure convention — eliminator
-    motives, the middle subject of a transitivity, the data of the
-    coercion rules — plus, mechanically, any spelling the rule's
-    premises or conclusion mention that no subderivation's conclusion
-    determines (el-pi-i's domain A, el-sigma-i's family B, inj₁'s
-    other summand). Nothing else is carried: no contexts, no
-    conclusions, no types recoverable from premises.
+<former>-<kind> names — there are no synonyms) and D̄ are
+subderivations for its DEMANDED premises, in the rule's stated
+order. A node carries NO auxiliary spellings: replay is SYNTHESIS —
+a subderivation's replay OUTPUTS its concluded judgement, spelling
+and all — so everything a rule mentions is DELIVERED by some
+premise's conclusion. Foundation's declarative "genuine inputs"
+(eliminator motives, the middle subject of a transitivity, the data
+of the coercion rules) are all premise-delivered here: the motive by
+its retained formation premise, the middle by either transitivity
+premise (α-compared across the two), the coercion target by the
+equation premise. The only node data beyond the tag are the atoms
+that name the SUBJECT itself and occur in no premise: a variable's
+index, a signature reference's name, a QIIT position.
 
   * DEMANDED premises are the rule's RETAINED premises (as Foundation
-    states them), plus — the INTRODUCTION DISCIPLINE — a formation
-    subderivation for every genuine-input spelling that enters the
-    derivation fresh (one the retained premises' conclusions and
-    their presupposition closures do not cover). Foundation's
-    expansion convention says closure premises are recoverable; the
-    fresh introductions are exactly the ones that are not, and a
-    checker that skipped them would accept λ f : A → B with garbage
-    A. All other closure premises are NOT demanded — they are
-    derivable from the demanded ones by Foundation's presupposition
-    meta-theorem, reified below as projection when a later node needs
-    one explicitly.
+    states them), plus — the DELIVERY DISCIPLINE — a formation
+    subderivation for every spelling the node USES that no retained
+    premise delivers. A spelling is USED when it enters a later
+    premise's CONTEXT or a side condition — contexts are INPUTS to
+    replay, so their spellings must be delivered by a PRECEDING
+    premise (el-pi-i's domain A, delivered by Γ ⊦ A type before the
+    body premise extends Γ with it; a checker without that demand
+    would accept λ f : A → B with garbage A). A spelling that
+    appears only in the CONCLUSION is an OUTPUT, delivered by the
+    premise that concludes it, and needs nothing (el-pi-i's B: read
+    off the body premise; its formation is in that premise's
+    presupposition closure). All other closure premises are NOT
+    demanded — derivable by Foundation's presupposition meta-theorem,
+    reified below as projection when a later node needs one
+    explicitly.
 
 CONCLUSIONS ARE COMPUTED, NOT STORED. The checker is one structural
 recursion
@@ -100,9 +105,9 @@ recursion
 
 taking the ambient signature and context as INPUTS (threaded, never
 carried in nodes) and returning the node's concluded judgement BODY.
-Per node: recurse into the demanded premises (extending Γ where the
-rule says — by a genuine-input spelling whose formation subtree was
-just checked), verify the side conditions (α-comparisons between
+Per node: recurse into the demanded premises in order (extending Γ
+where the rule says — by a spelling an earlier premise's conclusion
+delivered), verify the side conditions (α-comparisons between
 premise conclusions and the rule's metavariable pattern; substitution
 applications; the ≜-meta-operations), and assemble the conclusion by
 the rule's own conclusion scheme. The rule tag decides everything:
@@ -191,34 +196,44 @@ Foundation-side precedent for both additions: el-nu-coind and
 el-squash-e-eq, admissible forms adopted as rules "for the kernel's
 convenience". These two are the same move, made once and named.
 
-////////// Rule-by-rule: what a node carries //////////
+////////// Rule-by-rule: demands and deliveries //////////
 
-Mechanically derivable from Foundation's statements (genuine inputs +
-demanded premises); the recurring shapes, by example:
+Mechanically derivable from Foundation's statements by the delivery
+discipline; the recurring shapes, by example (each premise's replay
+DELIVERS its concluded spellings to the ones after it and to the
+side conditions):
 
-  el-pi-i      inputs: A.        demands: Γ ⊦ A type;  Γ ▷ A ⊦ f : B.
-               concludes λ f : A → B (B read off the premise).
-  el-pi-e      inputs: none.     demands: f : Π A B;  e : A′;
+  el-pi-i      demands: Γ ⊦ A type (delivers A);  Γ ▷ A ⊦ f : B.
+               concludes λ f : A → B — B read off the body premise;
+               its formation is presupposition-derivable, so it is
+               neither demanded nor carried.
+  el-pi-e      demands: f : Π A B;  e : A′;
                side condition A′ = A (α). Conversion is never silent:
-               a mismatch needs an explicit el-coe node.
-  el-sigma-i   inputs: B (the family).  demands: Γ ▷ A ⊦ B type;
-               u : A;  v : B[id, u].
-  el-nat-e     inputs: none — the motive is Foundation's retained
-               formation premise.  demands: Γ ▷ ℕ ⊦ A type;
+               a mismatch needs an explicit el-ty-coe node.
+  el-sigma-i   demands: u : A (delivers A);  Γ ▷ A ⊦ B type
+               (delivers the family — USED by the side condition, so
+               it must precede);  v : T,  side condition
+               T = B[id, u] (α, after substitution).
+  el-nat-e     demands: Γ ▷ ℕ ⊦ A type — the motive, delivered by
+               Foundation's own retained formation premise;
                z : A[id, Z];  s (under Γ ▷ ℕ ▷ A);  t : ℕ.
-  el-ty-coe    inputs: none.  demands: t : A;  Γ ⊦ A ≐ B type.
-               concludes t : B.
-  *-trans      inputs: the middle subject, WITH its demanded
-               formation (Foundation: "transitivity's middle subject
-               a₁, with J(a₁), is an input of the rule").
-  *-cong       inputs: none — component equations' conclusions
+  el-ty-coe    demands: t : A;  Γ ⊦ A′ ≐ B type;  side condition
+               A′ = A (α).  concludes t : B — the target delivered
+               by the equation premise.
+  *-trans      demands: the two equation premises; side condition:
+               the middle subjects α-agree. (Foundation's declarative
+               reading makes the middle "an input of the rule, with
+               J(a₁)" — in replay both are delivered: the middle by
+               either premise, its well-formedness by presupposition.)
+  *-cong       demands: the component equations — their conclusions
                determine everything.
-  el-reflect   inputs: none.  demands: Γ ⊦ p : Prf (l ≡ r ∈ A) — a
-               TYPING derivation, replacing today's ⇒ᵖ fragment
-               wholesale: any Foundation-typeable proof element
-               works, Π-motive eliminator spines included.
-  el-sig-*     inputs: the name x.  demands: e˲ : Γ ⇒ Δ norm
-               (entrywise); Σ-lookup is a side condition.
+  el-reflect   demands: Γ ⊦ p : Prf (l ≡ r ∈ A) — a TYPING
+               derivation, replacing today's ⇒ᵖ fragment wholesale:
+               any Foundation-typeable proof element works, Π-motive
+               eliminator spines included.
+  el-sig-*     atom: the name x.  demands: e˲ : Γ ⇒ Δ norm
+               (entrywise); the Σ-lookup (delivering Δ and the
+               entry's type) is a side condition.
   ≜ rules      each is an ordinary ≐ node (oriented); in practice
                almost always subsumed by the oracle.
   el-*-eta     ordinary nodes with their premise subtrees — el-nat-eta,
@@ -227,9 +242,9 @@ demanded premises); the recurring shapes, by example:
                a clausal def's uniqueness lemma may cite them directly
                instead of re-deriving through an eliminator at an
                equality motive.
-  el-qiit-path inputs: none.  demands: the constructor spine
-               entrywise at the reflected telescope (replaces the
-               LPath license).
+  el-qiit-path atom: the entry position.  demands: the constructor
+               spine entrywise at the reflected telescope (replaces
+               the LPath license).
   eprob/dalg   formation nodes whose method-image equation premises
                are ≐ subderivations (replacing qcoh certificates);
                the ᴰ/⌊·⌋/⟦·⟧ meta-operations are checker functions,
@@ -270,11 +285,11 @@ context's formation — trivial for items, which live in ε — a
 derivation the kernel accepts concludes a Foundation-derivable
 judgement. The induction is over nodes: demanded premises are
 derivable by the inductive hypothesis; omitted closure premises are
-derivable from them by the presupposition meta-theorem; fresh
-introductions carry their own formation subtrees by the introduction
-discipline; the two admissible additions are justified in their
-sections; and the side conditions (α, substitution action,
-meta-operations) are the meta-level floor.
+derivable from them by the presupposition meta-theorem; every
+spelling a node uses was delivered by a preceding premise's
+derivable conclusion (the delivery discipline); the two admissible
+additions are justified in their sections; and the side conditions
+(α, substitution action, meta-operations) are the meta-level floor.
 
 That floor — what remains trusted — is exactly today's:
 α-comparison, substitution action, the ≜-meta-operations (map_𝔽,
@@ -300,7 +315,8 @@ machinery being demoted):
                                         payloads — motives, intro
                                         types — were a compressed
                                         spelling of exactly the
-                                        genuine inputs)
+                                        delivering premises'
+                                        subjects)
   switch certificate                 →  el-ty-coe node with the ≐
                                         subtree
   step (path, proof, sels, flip)     →  trans ∘ congruence chain

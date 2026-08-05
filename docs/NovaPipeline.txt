@@ -332,11 +332,12 @@ certificates.
 
 Phasing:
 
-  0. SPEC — docs/NovaDerivations.txt (format: rule-per-node trees,
-     genuine inputs carried, conclusions computed, contexts threaded;
-     the introduction discipline; presupposition projection; the nf
-     oracle with its load-bearing typing premise; the retirement
-     map).                                              [DONE]
+  0. SPEC — docs/NovaDerivations.txt (format: rule-per-node trees
+     with no carried spellings — replay is synthesis, every spelling
+     delivered by a premise's conclusion; conclusions computed,
+     contexts threaded; the delivery discipline; presupposition
+     projection; the nf oracle with its load-bearing typing premise;
+     the retirement map).                               [DONE]
   1. TRUSTED CORE — the derivation datatype, `conclude`, the two
      admissible schemas, the oracle over the existing normalizer.
   2. BRIDGE — today's kernel instrumented to EMIT derivations
