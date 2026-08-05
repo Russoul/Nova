@@ -18,6 +18,15 @@ nothing here chooses: every rule is syntax-directed, every premise is
 checked mechanically, and the sole inputs beyond the core term are the
 certificate and the skeleton the elaborator hands over.
 
+STATUS NOTE — the derivation rework (docs/NovaPipeline.txt, last
+section; design in docs/NovaDerivations.txt) will demote the design
+below from the trusted kernel to the untrusted RECONSTRUCTOR: the
+same machinery, instrumented to emit Foundation-rule derivations that
+a smaller replay kernel checks. Until that cutover this file remains
+the implemented kernel's spec; afterwards it describes reconstruction
+machinery whose incompleteness is a quality property, not a safety
+one.
+
 Notation is Foundation's (contexts Γ, signature Σ, elements t, types
 T, judgemental equality ≐, definitional contraction ≜), with three
 kernel-only judgement forms added:

@@ -11,9 +11,16 @@ layers are specified elsewhere:
 
   * docs/NovaFoundation.txt   — the THEORY. Sole source of truth; every
                                 other layer answers to it.
-  * docs/NovaKernel.txt       — the KERNEL, rule by rule: fuel-bounded
-                                normalization, certificate replay,
-                                item-level checking over skeletons.
+  * docs/NovaKernel.txt       — the KERNEL as implemented, rule by
+                                rule: fuel-bounded normalization,
+                                certificate replay, item-level
+                                checking over skeletons. Slated for
+                                demotion to the untrusted
+                                RECONSTRUCTOR by the derivation
+                                rework (last section below).
+  * docs/NovaDerivations.txt  — the kernel rework's TARGET: the
+                                derivation format and the replay
+                                kernel that checks it.
   * docs/NovaElaboration.txt  — the elaborator: surface syntax,
                                 bidirectional rules, the obligation
                                 lifecycle.
@@ -153,6 +160,14 @@ exporting kernel derivations to an external checker) or fuel coupling
 bites. The floor in every variant: α-comparison and substitution stay
 trusted — no kernel design knows less than that.
 
+REVISITED — see "The derivation rework" below. The rework adopts the
+fallback's direction in generalized form: not β-steps in
+certificates, but ALL judgements certified, as Foundation-rule
+derivation trees — while keeping the fuel-bounded ≜-engine as an
+admissible ORACLE rule, which neutralizes exactly the size argument
+that made trace-beta lose here. This section stands as the record of
+why the oracle exists.
+
 ////////// Who produces what: the two tactic layers //////////
 
 The criterion is addressability and persistence.
@@ -280,3 +295,61 @@ item level carries real motives): ℕ-elim z/s rewrite positions and
 ℕ-elim proof arguments use the CONSTANT-MOTIVE reading — a valid
 congruence/elimination instance whose premises are demanded at the
 constant type.
+
+////////// The derivation rework (target architecture) //////////
+
+DECISION (recorded here; design in docs/NovaDerivations.txt): the
+kernel is being reworked into a DERIVATION CHECKER — judgements
+exactly Foundation's, rules exactly Foundation's, plus two admissible
+schemas (presupposition projection; the nf oracle, which is this
+pipeline's fuel-bounded ≜-engine wearing a rule's name). The
+elaborator-side machinery hands over candidate derivations; the
+kernel replays them, rule instance by rule instance, with no
+reconstruction of its own.
+
+Why now. The current kernel re-derives judgements from bare core plus
+hints, and bare core deliberately loses what derivations have —
+eliminator motives above all. Every acknowledged approximation in
+docs/NovaKernel.txt (the constant-motive readings, the proof-spine
+fragment A4–A6, the typed descent's undetermined positions, the
+neutral-subterm rule and its binder-crossing residue) is a negotiated
+position on that one frontier, each a trust-bearing reimplementation
+of something the elaborator already knows. Checking derivations
+deletes the frontier by construction and reduces the kernel audit to
+a side-by-side diff against NovaFoundation.txt. The trusted floor is
+unchanged: α-comparison, substitution, the ≜-meta-operations, the
+normalizer, fuel.
+
+The LCF division sharpens rather than moves: search stays out of the
+trusted base, and now RECONSTRUCTION does too. Today's kernel is not
+deleted — it crosses the boundary and becomes the RECONSTRUCTOR, an
+untrusted component (the discharge engine's kind) that rebuilds
+derivations from the current artifacts; its incompleteness becomes a
+quality property. The obligation lifecycle, open signatures, module
+semantics, the report, and the reproducibility invariant are
+untouched — derivations are as ephemeral and regenerable as today's
+certificates.
+
+Phasing:
+
+  0. SPEC — docs/NovaDerivations.txt (format: rule-per-node trees,
+     genuine inputs carried, conclusions computed, contexts threaded;
+     the introduction discipline; presupposition projection; the nf
+     oracle with its load-bearing typing premise; the retirement
+     map).                                              [DONE]
+  1. TRUSTED CORE — the derivation datatype, `conclude`, the two
+     admissible schemas, the oracle over the existing normalizer.
+  2. BRIDGE — today's kernel instrumented to EMIT derivations
+     (becoming the reconstructor); acceptance re-seated on the new
+     core. Elaborator, discharge engine and artifact formats
+     untouched, so the golden suite and corpus pin the cutover.
+  3. CONSOLIDATION (incremental, unhurried) — the elaborator emits
+     derivations directly where reconstruction is weak or wasteful;
+     the trace→derivation translation absorbs the discharge engine's
+     certificate format; skeletons retire when nothing consumes
+     them.
+
+Cost, stated honestly: until phase 3 completes, an item is walked
+three times (elaborate, reconstruct, replay) — a constant factor,
+bought back by deleting the reconstruction frontier from the trusted
+base and every A-caveat with it.

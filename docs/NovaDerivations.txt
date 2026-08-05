@@ -1,0 +1,355 @@
+////////// NovaDerivations.txt — derivations as artifacts: the replay kernel //////////
+
+////////// Purpose //////////
+
+This file specifies the TARGET design of the kernel rework (status
+and phasing: docs/NovaPipeline.txt, "The derivation rework"): a
+kernel that checks CANDIDATE DERIVATIONS of docs/NovaFoundation.txt's
+judgements. The judgements are exactly Foundation's. The rules are
+exactly Foundation's — plus two admissible additions specified here
+(presupposition projection and the nf oracle), each justified once.
+Nothing is reconstructed: where today's kernel re-derives typing from
+bare core plus hints (docs/NovaKernel.txt), the new kernel is handed
+the derivation and replays it, rule instance by rule instance.
+
+Why. Bare core deliberately loses what derivations have — eliminator
+motives above all — so any kernel that reconstructs has an
+irreducible completeness frontier, and today's kernel spec is
+substantially a catalogue of negotiated positions on that frontier:
+the proof-spine fragment and its A4–A6 restrictions, the typed
+descent's child-type table, the constant-motive readings (A1), the
+neutral-subterm rule and its binder-crossing residue. Each is a
+kernel-side, trust-bearing reimplementation of something the
+elaborator already knows. Checking derivations deletes the frontier
+by construction — whatever is Foundation-derivable is checkable,
+because the derivation arrives instead of being guessed — and
+reduces the kernel audit to a diff: one checker clause per
+Foundation rule, read side by side with the rule.
+
+At cutover, today's kernel does not die: it crosses the trust
+boundary and becomes the RECONSTRUCTOR — untrusted machinery, of the
+discharge engine's kind, that rebuilds derivations from the
+elaborator's current artifacts. Its approximations demote from
+soundness-audit burdens to ordinary incompleteness. (Phasing in
+docs/NovaPipeline.txt.)
+
+Disambiguation: the removed "derivation-era" machinery (.rules
+sessions, the fact table — NovaElaboration.txt, Preface) was a
+SURFACE-LEVEL rule-application interface for humans and AIs. The
+derivations here are Foundation-rule trees, machine-built and
+machine-checked, never authored and never read; the agent-facing
+currency remains surface statements and obligations, unchanged.
+
+////////// The judgements //////////
+
+Exactly Foundation's inventory — the judgement-form table of
+NovaFoundation.txt ("Judgement forms and their presuppositions") is
+adopted wholesale, presupposition column included:
+
+  Σ sig                          Γ ctx            Γ₀ ≐ Γ₁ ctx
+  σ : Γ ⇒ Δ                      σ₀ ≐ σ₁ : Γ ⇒ Δ
+  e˲ : Γ ⇒ Δ norm                e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm
+  Γ ⊦ A type                     Γ ⊦ A₀ ≐ A₁ type
+  Γ ⊦ a : A                      Γ ⊦ a₀ ≐ a₁ : A
+  Γ ⊦ Δ tel                      Γ ⊦ Δ₀ ≐ Δ₁ tel
+  Γ ⊦ ē : Δ                      Γ ⊦ ē₀ ≐ ē₁ : Δ
+  Γ ⊦ Φ qctx    Γ ; Φ ⊦ 𝔄 qty    Γ ; Φ ⊦ 𝕥 : 𝔄    Γ ⊦ ς : Φ₀ ⇒ Φ₁
+  Γ ⊦ 𝒮 qsig    Γ ⊦ C̄ : 𝒮 mot    Γ ⊦ ℰ : 𝒮 dalg   Γ ⊦ ℰ : 𝒮 eprob
+  Γ ⊦ φ : C̄ sect                 Γ ⊦ 𝔽 poly
+
+There are no kernel-only judgement forms. (Compare today's ⇒ᵖ/⇐ᵖ,
+𝒞 ▷, ⟨sk⟩ — all retired; §Retirement below.)
+
+////////// The derivation format //////////
+
+A derivation is a tree
+
+  D ::= rule(𝑤̄ ; D̄)
+
+where `rule` is a Foundation rule name (the canonical <class>-
+<former>-<kind> names — there are no synonyms), 𝑤̄ are the rule's
+GENUINE INPUTS, and D̄ are subderivations for its DEMANDED premises,
+in the rule's stated order.
+
+  * GENUINE INPUTS are what Foundation already marks as such: the
+    premises "never omitted" by the closure convention — eliminator
+    motives, the middle subject of a transitivity, the data of the
+    coercion rules — plus, mechanically, any spelling the rule's
+    premises or conclusion mention that no subderivation's conclusion
+    determines (el-pi-i's domain A, el-sigma-i's family B, inj₁'s
+    other summand). Nothing else is carried: no contexts, no
+    conclusions, no types recoverable from premises.
+
+  * DEMANDED premises are the rule's RETAINED premises (as Foundation
+    states them), plus — the INTRODUCTION DISCIPLINE — a formation
+    subderivation for every genuine-input spelling that enters the
+    derivation fresh (one the retained premises' conclusions and
+    their presupposition closures do not cover). Foundation's
+    expansion convention says closure premises are recoverable; the
+    fresh introductions are exactly the ones that are not, and a
+    checker that skipped them would accept λ f : A → B with garbage
+    A. All other closure premises are NOT demanded — they are
+    derivable from the demanded ones by Foundation's presupposition
+    meta-theorem, reified below as projection when a later node needs
+    one explicitly.
+
+CONCLUSIONS ARE COMPUTED, NOT STORED. The checker is one structural
+recursion
+
+  conclude : Σ → Γ → D → KM J
+
+taking the ambient signature and context as INPUTS (threaded, never
+carried in nodes) and returning the node's concluded judgement BODY.
+Per node: recurse into the demanded premises (extending Γ where the
+rule says — by a genuine-input spelling whose formation subtree was
+just checked), verify the side conditions (α-comparisons between
+premise conclusions and the rule's metavariable pattern; substitution
+applications; the ≜-meta-operations), and assemble the conclusion by
+the rule's own conclusion scheme. The rule tag decides everything:
+no search, no choices, no reconstruction. A node is rejected with
+its rule tag and the computed-vs-expected mismatch.
+
+Because conclusions are computed and contexts threaded, derivation
+size is STRUCTURAL: O(size of the subject term) for typing, plus the
+equality subtrees at conversion sites — never proportional to
+reduction length (the nf oracle keeps computation out of the trees;
+below).
+
+Two format notes, both pragmatics rather than semantics:
+
+  * SHARING. The same subderivation may be cited from several parents
+    (both orientations of a rewrite; deduplicated obligations). The
+    checker MAY memoize conclusions by node identity; the format MAY
+    later grow an explicit sharing node. Neither changes what is
+    accepted.
+  * The subject term is DETERMINED by its typing derivation (read the
+    conclusion), so an item's derivation subsumes its erasure; the
+    erasure is still handed over separately for Σ-storage and
+    printing, and the kernel α-compares it against the derivation's
+    concluded subject.
+
+////////// Admissible addition 1: presupposition projection //////////
+
+Foundation's meta-theorem — the presuppositions of a derivable
+judgement are derivable — is adopted as a rule schema, one instance
+per row of the judgement-form table:
+
+  D concludes J        P a presupposition of J (per the table)
+  ------------------------------------------------------ (presup)
+  P
+
+e.g. from Γ ⊦ t₀ ≐ t₁ : A conclude Γ ⊦ t₀ : A (or t₁ : A, or by
+chaining Γ ⊦ A type). Justified once, by the meta-theorem; audited
+once, against the table. This is what keeps derivations linear:
+a rewrite chain threads the typing of its intermediate spellings
+through projections from each step's conclusion instead of
+re-deriving it, and the nf oracle's typing premise (below) is
+usually a projection.
+
+////////// Admissible addition 2: the nf oracle //////////
+
+The one computational extension — the reason the trace-beta fallback
+originally lost (docs/NovaPipeline.txt, "Computation in the kernel")
+was certificate size proportional to reduction length; the oracle
+keeps computation out of the trees:
+
+  Γ ⊦ t : A        nf(t) ⇓ t′  (fuel-bounded)
+  ------------------------------------------- (nf-expand)
+  Γ ⊦ t ≐ t′ : A
+
+  Γ ⊦ A type       nf(A) ⇓ A′
+  ------------------------------------------- (nf-expand-ty)
+  Γ ⊦ A ≐ A′ type
+
+nf is today's normalizer unchanged — Foundation's ≜ rules clause for
+clause, one fuel unit per contraction, exhaustion = rejection. The
+typing premise is LOAD-BEARING: ≜'s rules carry typing premises, so
+nf-expand is admissible only over a typed subject (subject reduction:
+each contraction along the reduction of a typed term is a typed ≜
+instance, and the chain composes by el-trans/ty-trans). An oracle
+over untyped spellings would accept judgements Foundation cannot
+state — normalization discards subterms, so equal normal forms say
+nothing about the spellings' formation.
+
+The everyday composite, worth a fused node so the common case is one
+comparison:
+
+  Γ ⊦ t₀ : A     Γ ⊦ t₁ : A     nf(t₀) = nf(t₁)
+  ---------------------------------------------- (nf-eq)
+  Γ ⊦ t₀ ≐ t₁ : A            # ≝ trans(nf-expand t₀, sym(nf-expand t₁))
+
+(and nf-eq-ty likewise). WHNF: deliberately not a separate rule. The
+trusted surface is identical — whnf and nf share the ≜-clause set,
+and the fixpoint driver was never the dangerous part — while a
+whnf-only oracle would force explicit congruence descent around
+every deep normalization, inflating trees for no audit gain. If
+per-step auditability is ever wanted (exporting derivations to an
+external checker), the natural extension is a single-≜-step rule
+ALONGSIDE the oracle, not a whnf restriction of it.
+
+Foundation-side precedent for both additions: el-nu-coind and
+el-squash-e-eq, admissible forms adopted as rules "for the kernel's
+convenience". These two are the same move, made once and named.
+
+////////// Rule-by-rule: what a node carries //////////
+
+Mechanically derivable from Foundation's statements (genuine inputs +
+demanded premises); the recurring shapes, by example:
+
+  el-pi-i      inputs: A.        demands: Γ ⊦ A type;  Γ ▷ A ⊦ f : B.
+               concludes λ f : A → B (B read off the premise).
+  el-pi-e      inputs: none.     demands: f : Π A B;  e : A′;
+               side condition A′ = A (α). Conversion is never silent:
+               a mismatch needs an explicit el-coe node.
+  el-sigma-i   inputs: B (the family).  demands: Γ ▷ A ⊦ B type;
+               u : A;  v : B[id, u].
+  el-nat-e     inputs: none — the motive is Foundation's retained
+               formation premise.  demands: Γ ▷ ℕ ⊦ A type;
+               z : A[id, Z];  s (under Γ ▷ ℕ ▷ A);  t : ℕ.
+  el-ty-coe    inputs: none.  demands: t : A;  Γ ⊦ A ≐ B type.
+               concludes t : B.
+  *-trans      inputs: the middle subject, WITH its demanded
+               formation (Foundation: "transitivity's middle subject
+               a₁, with J(a₁), is an input of the rule").
+  *-cong       inputs: none — component equations' conclusions
+               determine everything.
+  el-reflect   inputs: none.  demands: Γ ⊦ p : Prf (l ≡ r ∈ A) — a
+               TYPING derivation, replacing today's ⇒ᵖ fragment
+               wholesale: any Foundation-typeable proof element
+               works, Π-motive eliminator spines included.
+  el-sig-*     inputs: the name x.  demands: e˲ : Γ ⇒ Δ norm
+               (entrywise); Σ-lookup is a side condition.
+  ≜ rules      each is an ordinary ≐ node (oriented); in practice
+               almost always subsumed by the oracle.
+  el-*-eta     ordinary nodes with their premise subtrees — el-nat-eta,
+               el-sum-eta, el-quot-eta, el-qiit-eta become REPLAYABLE
+               for the first time (today's A5 records their absence);
+               a clausal def's uniqueness lemma may cite them directly
+               instead of re-deriving through an eliminator at an
+               equality motive.
+  el-qiit-path inputs: none.  demands: the constructor spine
+               entrywise at the reflected telescope (replaces the
+               LPath license).
+  eprob/dalg   formation nodes whose method-image equation premises
+               are ≐ subderivations (replacing qcoh certificates);
+               the ᴰ/⌊·⌋/⟦·⟧ meta-operations are checker functions,
+               as today — Foundation defines them by meta-recursion,
+               not rules, and no format avoids computing them.
+
+////////// Items and acceptance //////////
+
+An item artifact is (name, type spelling T, body spelling t) plus
+two derivations, both in the EMPTY context:
+
+  D_T concluding  ε ⊦ T type
+  D_t concluding  ε ⊦ t : T      (T α-equal to D_T's subject)
+
+The kernel replays both, α-compares the concluded spellings against
+the handed ones, and extends its Σ by sig-def on acceptance — a
+sig-rule node, like everything else. Type items, declarations
+(sig-decl) and data items (a Γ ⊦ 𝒮 qsig derivation plus the
+expansion batch's ordinary defs) follow the same shape. Open
+signatures, constraint entries, the obligation lifecycle, module
+qualification and the report are UNTOUCHED: acceptance is still "the
+run's final Σ is definitional and every item was admitted", and a
+derivation is as ephemeral and regenerable as today's certificates —
+the reproducibility invariant stands verbatim.
+
+Fuel: per-item budget from the artifact's margin, spent one unit per
+≜-contraction inside oracle leaves; the checker's own recursion is
+structural and needs none. Exhaustion is rejection; the kernel stays
+total.
+
+////////// The soundness contract //////////
+
+Derivations are EXTRINSIC objects — trees of spellings — and the
+checker manipulates them mechanically; neither side of any judgement
+is presupposed. Read declaratively, acceptance is the CONDITIONAL
+(the same reading as today's replay, stated once): given the root
+context's formation — trivial for items, which live in ε — a
+derivation the kernel accepts concludes a Foundation-derivable
+judgement. The induction is over nodes: demanded premises are
+derivable by the inductive hypothesis; omitted closure premises are
+derivable from them by the presupposition meta-theorem; fresh
+introductions carry their own formation subtrees by the introduction
+discipline; the two admissible additions are justified in their
+sections; and the side conditions (α, substitution action,
+meta-operations) are the meta-level floor.
+
+That floor — what remains trusted — is exactly today's:
+α-comparison, substitution action, the ≜-meta-operations (map_𝔽,
+lift_𝔽, ⌊·⌋, ᴰ⟨·⟩, ⟦·⟧, ToS reflection and substitution), the
+normalizer, and the fuel monad. On top of it, the checker clauses:
+one per Foundation rule plus the two admissible schemas. The audit
+is a side-by-side diff against NovaFoundation.txt, which is the
+point of the design.
+
+The historical exploits stay dead for a simpler reason than today's
+positional checks: type-blind rewriting is INEXPRESSIBLE — a
+congruence node demands its component equation at the component's
+type because that is what the rule says, and a cross-quotient or
+parametric-𝟙 step simply has no derivation.
+
+////////// Retirement map //////////
+
+What today's kernel mechanism becomes (the migration audit, and the
+reconstructor's target output — docs/NovaKernel.txt describes the
+machinery being demoted):
+
+  bidirectional item checking ⟨sk⟩   →  D_T / D_t (the skeleton's
+                                        payloads — motives, intro
+                                        types — were a compressed
+                                        spelling of exactly the
+                                        genuine inputs)
+  switch certificate                 →  el-ty-coe node with the ≐
+                                        subtree
+  step (path, proof, sels, flip)     →  trans ∘ congruence chain
+                                        (one node per path entry)
+                                        ∘ [sym] ∘ el-reflect over the
+                                        proof's typing derivation,
+                                        injectivity selectors as their
+                                        inj rule nodes
+  normalization between steps        →  nf-eq / nf-expand leaves
+                                        (+ presup projections
+                                        threading the intermediate
+                                        typings)
+  finals: beta                       →  nf-eq
+          prop                       →  el-one-prop / el-zero-prop /
+                                        el-prf-prop
+          witness                    →  el-quot-eq (+ nested subtree)
+          ηΠ / ηΣ                    →  el-pi-eta / el-sigma-eta
+          propext                    →  code-prop-eq
+          coind                      →  el-nu-coind
+          qcoh                       →  eprob formation premises
+  type bridge / head exposure        →  dissolved: ordinary
+                                        el-ty-coe / ty-trans placement
+  ⇒ᵖ/⇐ᵖ proof fragment (A4–A6)       →  gone; proofs arrive with
+                                        typing derivations
+  typed path descent, childTy table  →  gone; congruence nodes carry
+                                        their component types
+  constant-motive readings (A1)      →  gone; motives are inputs
+  neutral-subterm rule + its
+    binder-crossing residue          →  gone; subsumed by real
+                                        congruence instances
+  kCheckSolution (hole flips)        →  a typing derivation against
+                                        the prefix Σ — the tiny
+                                        checker's fragment restriction
+                                        disappears with it
+
+////////// Migration //////////
+
+Phasing, status and the decision record live in docs/NovaPipeline.txt
+("The derivation rework"). In outline: (1) this trusted core —
+format, conclude, the two admissible schemas, the oracle; (2) today's
+kernel instrumented to EMIT derivations, becoming the untrusted
+reconstructor, with acceptance re-seated on the new core — the
+elaborator, discharge engine, and every existing artifact format
+untouched, so the golden suite and corpus pin the cutover; (3)
+incremental: the elaborator emits derivations directly where
+reconstruction is weak or wasteful, the trace→derivation translation
+(the retirement map above) absorbing the discharge engine's
+certificates; skeletons retire when nothing consumes them. The
+transition's cost is honest: until (3) completes, an item is walked
+three times — elaborate, reconstruct, replay — a constant factor
+bought back by deleting the reconstruction frontier from the trusted
+base.
