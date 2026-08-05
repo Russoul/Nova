@@ -114,6 +114,27 @@ the rule's own conclusion scheme. The rule tag decides everything:
 no search, no choices, no reconstruction. A node is rejected with
 its rule tag and the computed-vs-expected mismatch.
 
+CONTEXTS ARE INPUTS, IRREVOCABLY — a premise's replay outputs its
+judgement body, never the context the checker supplied it. The
+alternative (contexts synthesized bottom-up) founders at the leaves:
+a variable carries only its index, so each leaf would have to carry
+the context it sits in — mass duplication — or the checker would
+have to defer with constraints and unify, which is search. The
+asymmetry is also why a sub-replay cannot certify its own context,
+and hence why the delivering formation premise at a context-
+extending rule is not redundant: replay under Γ ▷ A establishes its
+conclusion CONDITIONAL on Γ ▷ A ctx (the soundness reading below) —
+the checker READS context entries at variable leaves and reading
+certifies nothing, and a body that never inspects ☐₀ replays under
+garbage A without complaint. Presupposition projection cannot
+discharge the condition either: a projection consumes a premise's
+OUTPUT, whose derivability is exactly what is conditional on the
+context INPUT — the premise cannot justify its own context. The
+formation premise therefore does double duty in one subtree: it
+hands the checker the spelling to extend Γ with, and it discharges
+the extension's condition, keeping the soundness induction's
+residual conditions confined to the root (where ε ctx is trivial).
+
 Because conclusions are computed and contexts threaded, derivation
 size is STRUCTURAL: O(size of the subject term) for typing, plus the
 equality subtrees at conversion sites — never proportional to
