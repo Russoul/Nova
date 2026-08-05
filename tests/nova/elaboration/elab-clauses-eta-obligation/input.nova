@@ -1,10 +1,9 @@
--- The eta synthesis's CURRENT engine boundary (see the "Defining
--- equations" section of docs/NovaElaboration.txt): a recursive call
--- nested under another application puts the induction-hypothesis
--- rewrite inside an argument of a stuck eliminator spine, where
--- equation replay's typed descent cannot determine the position's
--- type. The definition and its clause lemmas accept; the uniqueness
--- ⋆ stands as an ordinary obligation.
+-- A recursive call NESTED under another application: the uniqueness
+-- proof's ih-rewrite lands inside an argument of a stuck eliminator
+-- spine — a type-undetermined position, discharged through the
+-- NEUTRAL-SUBTERM rule (docs/NovaKernel.txt §6) plus the
+-- unknown-type congruence descent (docs/NovaElaboration.txt, step 3
+-- of the ↓ loop). This golden pins the shape.
 def plus : ℕ → ℕ → ℕ
   | plus Z n ≔ n
   | plus (S m) n ≔ S (plus m n)

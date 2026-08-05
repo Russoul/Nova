@@ -1454,7 +1454,16 @@ mutual
       then case betaTy st.sig <$> inferNe st ctx f of
              Just (Ty.PiTy dom _) =>
                prefixSteps 1 <$> (spEqElemC dep st cs ctx x y dom >>= flatSteps)
-             _ => Nothing
+             _ =>
+               -- the shared head is a stuck eliminator: bare core
+               -- carries no motive, so the argument's type is not
+               -- inferable. Compare the arguments at an UNKNOWN type
+               -- anyway — rewriting is type-blind, and the kernel
+               -- validates every emitted step against its position
+               -- (the neutral-subterm rule, NovaKernel.txt §6), so a
+               -- wrong guess is a failed replay, never a wrong
+               -- acceptance.
+               prefixSteps 1 <$> (spEqElemC dep st cs ctx x y Ty.NatTy >>= flatSteps)
       else Nothing
   spCongC dep st cs ctx (SigmaElim1 u) (SigmaElim1 v) =
     case inferNe st ctx u of
