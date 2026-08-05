@@ -248,9 +248,11 @@ el-sigma-e₁/₂ and the ℕ/𝟙 introductions:
   -----------------------------
   Σ; Γ ⊦ t.π₁ ⇒ᵖ A
 
-  Σ; Γ ⊦ () ⇒ᵖ 𝟙      Σ; Γ ⊦ Z ⇒ᵖ ℕ      Σ; Γ ⊦ t ⇐ᵖ ℕ
-                                          ---------------
-                                          Σ; Γ ⊦ S t ⇒ᵖ ℕ
+  Σ; Γ ⊦ () ⇒ᵖ 𝟙      Σ; Γ ⊦ Z ⇒ᵖ ℕ
+
+                      Σ; Γ ⊦ t ⇐ᵖ ℕ
+                      ---------------
+                      Σ; Γ ⊦ S t ⇒ᵖ ℕ
 
 Universe CODES infer at 𝕌 (components checked at their code types) —
 a generic lemma's 𝕌-parameter materialized at a concrete code is a
@@ -631,10 +633,23 @@ Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
      replay 𝒞 ▷ T′ ≐ T. (The conversion is CERTIFIED, never decided
      by the kernel.)
   2. Otherwise, if sk carries expose T′ 𝒞: replay 𝒞 ▷ T ≐ T′ and
-     continue checking at T′. (T′'s well-formedness follows from T's
-     by the certified equality; the intro checks against the exposed
-     head and coercion — judgementally the identity — transports the
-     result. This is PExpose; its equation-level twin is the bridge.)
+     continue checking at T′. (No formation check of T′ precedes the
+     replay, and none is needed: replay is EXTRINSIC — spelling
+     surgery presupposing neither side — both sides entering as bare
+     syntax, each step's license carrying its own components'
+     typedness (the proof's ⇒ᵖ-inferred Prf-type presupposes the
+     equation's sides). Read declaratively it is a CONDITIONAL:
+     given Γ ⊦ T type — an invariant of this pass, every expected
+     type being built from the item's checked type by nf and
+     structural decomposition — a successful replay makes nf(T′) a
+     well-formed type ≐ T. And nf(T′) is all the continuation
+     consumes: step 3 normalizes before matching the head, so the
+     intro checks against the exposed head and coercion —
+     judgementally the identity — transports the result. Raw T′ is
+     never established well-formed (≜-expansion does not reflect
+     formation) and never needs to be: it is a REPRESENTATIVE, like
+     every annotation. This is PExpose; its equation-level twin is
+     the bridge, where the same conditional reading applies.)
   3. Then by the head of t:
 
      nf(T) ⇓ A → B    Σ; Γ ▷ A ⊦ f ⇐ B ⟨sk.0⟩
