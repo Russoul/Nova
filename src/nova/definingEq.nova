@@ -55,3 +55,11 @@ def ⊞ : ℕ → ℕ → ℕ [oplusEta]
 def pred : ℕ → ℕ ≔ λn. ℕ-elim (x. ℕ) Z (k ih. k) n
   | pred Z ≔ Z
   | pred (S m) ≔ m
+
+-- a recursive call NESTED under another application: mulEta's
+-- ih-rewrite lands inside an argument of a stuck eliminator spine —
+-- discharged through the kernel's NEUTRAL-SUBTERM rule
+-- (docs/NovaKernel.txt §6) and the unknown-type congruence descent
+def mul : ℕ → ℕ → ℕ
+  | mul Z n ≔ Z
+  | mul (S m) n ≔ plus n (mul m n)

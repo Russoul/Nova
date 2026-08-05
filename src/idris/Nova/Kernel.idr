@@ -1243,15 +1243,31 @@ goTy : Sig -> Ctx -> (Elem, Elem, Ty) -> List Nat -> Nat -> Ty -> KM Ty
 ||| against each position's expected type.
 goE : Sig -> Ctx -> (Elem, Elem, Ty) -> List Nat -> Nat -> Maybe Ty -> Elem -> KM Elem
 goE sig ctx lic@(le, re, ltyN) [] b mexp u = do
-  case mexp of
-    Nothing => kerr "kernel: step at a type-undetermined position"
-    Just expTy => do
-      expN <- kTy sig expTy
-      if expN /= weakenTyN b ltyN
-        then kerr "kernel: step type does not match the position"
-        else if u == weakenN b le
-          then pure (weakenN b re)
-          else kerr "kernel: step does not match the subterm"
+  expN <- case mexp of
+    Just expTy => kTy sig expTy
+    Nothing =>
+      -- the NEUTRAL-SUBTERM rule (spec §6): at a type-undetermined
+      -- rewrite point, the subterm's own ⇒ᴺ-type serves in the
+      -- positional check — any type a neutral inhabits is
+      -- judgementally equal to its synthesized type (typing
+      -- inversion: a neutral's typings factor through its head's
+      -- declared type plus conversion; the multi-typing the check
+      -- guards against lives at INTRO forms, which ⇒ᴺ refuses).
+      -- Binder-crossing paths are excluded: the crossed binders'
+      -- types are untracked here, so the subterm's variables could
+      -- not be resolved against ctx.
+      if b == 0
+        then do
+          mu <- inferNeK sig ctx u
+          case mu of
+            Just uTy => kTy sig uTy
+            Nothing => kerr "kernel: step at a type-undetermined position"
+        else kerr "kernel: step at a type-undetermined position"
+  if expN /= weakenTyN b ltyN
+    then kerr "kernel: step type does not match the position"
+    else if u == weakenN b le
+      then pure (weakenN b re)
+      else kerr "kernel: step does not match the subterm"
 goE sig ctx lic (i :: p) b mexp u = do
   childTy <- childTyE sig ctx mexp u i
   let goQSpine : SubNorm -> (SubNorm -> Elem) -> KM Elem

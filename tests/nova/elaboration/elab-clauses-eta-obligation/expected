@@ -1,5 +1,3 @@
 defined plus by clauses (plus, plusZ, plusS, plusEta)
-defined mul by clauses (mul, mulZ, mulS, mulEta) [+1 obligation]
-open obligations (1):
-  [1] (g : ℕ → ℕ → ℕ) (mulZ : (n:ℕ) → Prf (g Z n ≡ Z ∈ ℕ)) (mulS : (n:ℕ) → (m:ℕ) → Prf (g (S n) m ≡ plus m (g n m) ∈ ℕ)) (_ : ℕ) (m : ℕ) (ih : (n:ℕ) → Prf (g m n ≡ mul m n ∈ ℕ)) (_ : ℕ) ⊢ g (S m) _ ≐ mul (S m) _ : ℕ
-      at: def mulEta: checking ⋆
+defined mul by clauses (mul, mulZ, mulS, mulEta)
+Accepted.
