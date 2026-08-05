@@ -853,7 +853,19 @@ whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 #        a₀ , b₀   ≐ a₁ , b₁    ⇐  componentwise at the Σ-type
 #        neutral spines with the same head variable/eliminator:
 #                                  componentwise (app-cong, proj-cong,
-#                                  ℕ-elim-cong, quot-elim-cong)
+#                                  ℕ-elim-cong, quot-elim-cong). When
+#                                  the shared head is a STUCK
+#                                  ELIMINATOR its type is not
+#                                  inferable (bare core carries no
+#                                  motive), so the argument components
+#                                  are compared at an UNDETERMINED
+#                                  type: rewriting is type-blind, and
+#                                  the kernel validates every emitted
+#                                  step positionally — at such
+#                                  positions by the NEUTRAL-SUBTERM
+#                                  rule (docs/NovaKernel.txt §6) — so
+#                                  a wrong guess is a failed replay,
+#                                  never a wrong acceptance.
 #   4. Mixed El: whnf leaves `El a` (a neutral) against a rigid type B.
 #      When B is in the image of El-decoding with codable components
 #      (𝟘, 𝟙, ℕ, arrows/pairs/quotients/eq of codable parts), reduce to
@@ -1267,16 +1279,15 @@ pointwise, exhibit that g satisfies the clauses.
 # pipeline as every ℕ-elim proof; if the engine ever misses, the
 # residue is an ordinary obligation, never a wrong acceptance.
 #
-# One such miss is CURRENT, recorded by a golden test
-# (elab-clauses-eta-obligation): a recursive call NESTED under
-# another application — mul's  plus n (mul m n)  — puts the
-# ih-rewrite inside an argument of a stuck eliminator spine, a
-# position whose expected type equation replay's typed descent
-# cannot yet determine (the constant-motive approximation,
-# docs/NovaPipeline.txt "Status"). The definition and its clause
-# lemmas still accept; only the uniqueness ⋆ stands, as an ordinary
-# obligation. Widening the descent — the argument position's type is
-# the head's synthesizable domain — is engine/kernel future work.
+# A recursive call NESTED under another application — mul's
+# plus n (mul m n) — exercises exactly this residue-not-wall
+# machinery's outer edge: the ih-rewrite lands inside an argument of
+# a stuck eliminator spine, a position whose expected type the
+# descent cannot determine. It discharges through the
+# NEUTRAL-SUBTERM rule (docs/NovaKernel.txt §6 — the argument being
+# rewritten types itself) plus the unknown-type congruence descent
+# (step 3 of the ↓ loop); the golden elab-clauses-eta-obligation
+# pins the shape.
 
 # OUTSIDE THE FRAGMENT (deeper patterns, another split type, several
 # split columns, a missing or duplicated constructor, non-structural
@@ -1476,7 +1487,4 @@ Two corollaries worth keeping in view while implementing:
   (out (f x̄) ≔ …) compiling to corec, uniqueness by el-nu-coind
   with the graph invariant as the bisimulation; strong induction /
   course-of-values as an alternative existence synthesis; mutual
-  blocks as a single QIIT elimination problem. ENGINE: typed descent
-  through neutral-application arguments, so a NESTED recursive call
-  (mul-shape) discharges its uniqueness ⋆ — today that ⋆ stands as
-  an ordinary obligation (elab-clauses-eta-obligation).
+  blocks as a single QIIT elimination problem.

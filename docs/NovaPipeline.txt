@@ -232,7 +232,10 @@ exhaustion = reject), proof-element inference/checking for elimination
 spines and intro forms, injectivity selectors, TYPED PATH DESCENT
 (every rewrite's licensed equation is verified against its position's
 locally determined expected type — intermediate hops need no type,
-congruence only demands the child equation at the rewrite point), and
+congruence only demands the child equation at the rewrite point, and
+a type-undetermined rewrite point accepts a neutral subterm at its
+own synthesized type, the NEUTRAL-SUBTERM rule of the kernel spec's
+§6), and
 replay of the certificate finals (beta, el-zero-prop/el-one-prop,
 quotient witnesses, el-pi-eta/el-sigma-eta). The discharge engine emits certificates for every discharge
 (rewrite traces with parametric-context normalization bridging,

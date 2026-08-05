@@ -428,13 +428,39 @@ equation's type in situ at the rewrite point:
     ------------------------------------------------
     u rewrites to r[↑ᵇ]
 
-  at path end with expected type UNDETERMINED: reject.
+  at path end with expected type UNDETERMINED, no binders crossed
+  (b = 0), and the subterm a NEUTRAL with a ⇒ᴺ-synthesizable type
+  (the NEUTRAL-SUBTERM rule):
+    nf(⇒ᴺ(u)) = nf(A)     # the licensed type matches the SUBTERM
+    u = l
+    ------------------------------------------------
+    u rewrites to r
+
+  at path end with expected type UNDETERMINED otherwise: reject.
 
 An expected type is undetermined at positions whose type only a
 motive or a non-normal spelling would determine; that is harmless at
 positions merely passed THROUGH (an intermediate hop of the path
-needs no type — congruence demands nothing there) and fatal only at
-the rewrite point itself. The child-type table (parent's expected
+needs no type — congruence demands nothing there) and consequential
+only at the rewrite point itself.
+
+THE NEUTRAL-SUBTERM RULE, justified. At a type-undetermined rewrite
+point the positional check may be paid by the subterm instead: any
+type a neutral inhabits is judgementally equal to its ⇒ᴺ-type — a
+typing INVERSION (a neutral's typings factor through its head's
+declared type plus conversion; no other rule types a variable- or
+reference-headed spine) — so the position's expected type, whatever
+it is, converts to nf(⇒ᴺ(u)), and the congruence instance is
+licensed at it. The multi-typing that makes the positional check
+load-bearing lives at INTRO forms (a class spelling inhabits every
+quotient that relates its representative), and ⇒ᴺ refuses intro
+heads — the historical exploits stay dead. Binder-crossing paths are
+excluded because the descent does not track crossed binders' types
+(the subterm's variables could not be resolved against Γ); that
+residue is an approximation in A1's spirit. The rule is what lets a
+rewrite land inside an ARGUMENT of a stuck eliminator spine — the
+head's type needs the lost motive, but the argument being rewritten
+is typically a variable-headed spine that types itself. The child-type table (parent's expected
 type E; — means undetermined):
 
   𝟘-elim t        child 0 : 𝟘
