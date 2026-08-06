@@ -351,11 +351,21 @@ Phasing:
      QIIT typing/equality nodes (sort/code instances, constructors,
      the eliminator with COHERENCE EQUALITY DERIVATIONS — A4's
      β-only restriction retired — and el-qiit-path). Exercised by
-     the deriv-core golden. Remaining: the demand-driven qsig walk
-     (DQSigK interim-borrows the kernel's qctx checker, itself in
-     today's trusted base), el-qiit-eta with the mot/dalg/sect
-     classes, tel/sp formation, and the equality classes for
-     ctx/sub/tel/sp.]
+     the deriv-core golden. Remaining, in the order phase 2's traffic
+     will demand them: CONGRUENCE COMPLETENESS — the eliminator
+     congruences with their motive premises (how A1 retires for
+     real), let/class/inj/code/out/corec congruence, and
+     signature-reference and QIIT spine congruence (needing the
+     e˲-equality class or its entrywise composites); the INJECTIVITY
+     rules (the certificate selectors' targets); the demand-driven
+     qsig walk (DQSigK interim-borrows the kernel's qctx checker —
+     no trust regression, but a cutover blocker that keeps A4/A6
+     alive for signatures); el-qiit-eta with the mot/dalg/sect
+     classes (customer: future QIIT splits' uniqueness lemmas);
+     tel/sp formation and the remaining ctx/sub/tel equality classes
+     (consumers pending). Sequencing: driven by phase 2's bridge —
+     each missing derivation form surfaces as a translation failure,
+     the golden suite the completeness meter.]
   2. BRIDGE — today's kernel instrumented to EMIT derivations
      (becoming the reconstructor); acceptance re-seated on the new
      core. Elaborator, discharge engine and artifact formats
