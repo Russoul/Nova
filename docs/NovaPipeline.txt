@@ -340,6 +340,13 @@ Phasing:
      the retirement map).                               [DONE]
   1. TRUSTED CORE — the derivation datatype, `conclude`, the two
      admissible schemas, the oracle over the existing normalizer.
+     [IN PROGRESS — Nova.Kernel.Derivation: the element language's
+     core fragment is checked (formation, typing, equivalence,
+     coercion, reflection, congruence, props, Π/Σ η, normal
+     substitutions, sig references and constraints, projection, the
+     oracle), exercised by the deriv-core golden. Remaining: the
+     quotient rules (el-quot-i/e and the witness equality), the ν
+     layer, the QIIT layer, and the ctx/tel/σ judgement classes.]
   2. BRIDGE — today's kernel instrumented to EMIT derivations
      (becoming the reconstructor); acceptance re-seated on the new
      core. Elaborator, discharge engine and artifact formats

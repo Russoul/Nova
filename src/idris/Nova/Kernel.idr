@@ -176,15 +176,19 @@ public export
 KErr : Type
 KErr = String
 
+export
 data KM : Type -> Type where
   MkKM : (Nat -> Either KErr (a, Nat)) -> KM a
 
+export
 runKM : KM a -> Nat -> Either KErr (a, Nat)
 runKM (MkKM f) = f
 
+export
 Functor KM where
   map f (MkKM g) = MkKM $ \n => map (mapFst f) (g n)
 
+export
 Applicative KM where
   pure x = MkKM $ \n => Right (x, n)
   (MkKM f) <*> (MkKM g) = MkKM $ \n => do
@@ -192,11 +196,13 @@ Applicative KM where
     (x, n'') <- g n'
     Right (h x, n'')
 
+export
 Monad KM where
   (MkKM f) >>= k = MkKM $ \n => do
     (x, n') <- f n
     runKM (k x) n'
 
+export
 kerr : KErr -> KM a
 kerr e = MkKM $ \_ => Left e
 
@@ -209,6 +215,7 @@ burn = MkKM $ \n => case n of
 -- ===== Fuel-bounded normalization (Foundation's ≜, clause for clause) =====
 
 mutual
+  export
   kSubNorm : Sig -> SubNorm -> KM SubNorm
   kSubNorm sig [<] = pure [<]
   kSubNorm sig (es :< e) = [| kSubNorm sig es :< kElem sig e |]
