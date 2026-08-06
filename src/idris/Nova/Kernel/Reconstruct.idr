@@ -646,7 +646,44 @@ mutual
                         pure (DElSquashEPrf dq de' db)
                       _ => Nothing
                   _ => Nothing
-              Nothing => Nothing
+              -- the ASSUMPTION ROUTE: ⋆ at an equality prop justified
+              -- by a hypothesis of that very equality — reflect the
+              -- variable, reintroduce (el-eq-i), spellings by the nf
+              -- oracle on both ends
+              Nothing => do
+                tyN <- nfT sig ty
+                let Prf (Elem.EqTy a b t) = tyN
+                  | _ => Nothing
+                d0 <- byRefl a b t <|> byAssum tyN 0
+                if ty == tyN then Just d0
+                  else do
+                    dTy <- reTy sig ctx ty emptySkel
+                    pure (DElTyCoe (DTySym (DNfExpandTy dTy)) d0)
+   where
+    -- ⋆ at an equality prop whose sides agree up to nf: el-refl,
+    -- the mismatched spellings closed by the nf oracle
+    byRefl : Elem -> Elem -> Ty -> Maybe Deriv
+    byRefl a b t = do
+      aN <- nfE sig a
+      bN <- nfE sig b
+      let True = aN == bN
+        | False => Nothing
+      da <- reCheck sig ctx a t emptySkel
+      db <- reCheck sig ctx b t emptySkel
+      pure $ if a == b then DElEqI (DElRefl da)
+                       else DElEqI (DNfEq da db)
+
+    byAssum : Ty -> Nat -> Maybe Deriv
+    byAssum tyN i = do
+      vty <- ctxAt ctx i
+      (do vN <- nfT sig vty
+          let True = vN == tyN
+            | False => Nothing
+          let dv = DElVar i
+          dvN <- if vty == vN then Just dv
+                 else Just (DElTyCoe (DNfExpandTy (DPresupElTy dv)) dv)
+          pure (DElEqI (DElReflect dvN)))
+       <|> byAssum tyN (S i)
   reCheckGo sig ctx (PiApp f e) ty sk =
     case reInferGo sig ctx (PiApp f e) sk of
       Just (d, ity) => coerce sig ctx d ity ty
@@ -1114,8 +1151,8 @@ reEq sig ctx (MkECertF tyEx steps final) l r ty = do
                   Just (tyX, certT) => do
                     dBr <- reEqTy sig ctx certT ty tyX
                     Just (tyX, Just dBr)
-  dl0 <- checkBridged l ty'
-  dr0 <- checkBridged r ty' 
+  dl0 <- endpoint l ty' pre
+  dr0 <- endpoint r ty' pre
   (chL, curL) <- goSide ty' (DElRefl dl0, l) (filter (.onLhs) steps)
   (chR, curR) <- goSide ty' (DElRefl dr0, r) (filter (not . (.onLhs)) steps)
   mid <- closeE sig ctx ty' chL curL chR curR final
@@ -1125,8 +1162,17 @@ reEq sig ctx (MkECertF tyEx steps final) l r ty = do
     Just dBr => DElEqTyCoe (DTySym dBr) whole
  where
   ||| An endpoint whose typing is hypothesis-sensitive rides the
-  ||| bridge over one of the certificate's own steps.
+  ||| bridge over one of the certificate's own steps; one that types
+  ||| only at the equation's raw spelling rides the pre-bridge.
   checkBridged : Elem -> Ty -> Maybe Deriv
+
+  endpoint : Elem -> Ty -> Maybe Deriv -> Maybe Deriv
+  endpoint e t pre =
+    checkBridged e t
+    <|> (do dBr <- pre
+            d <- reCheck sig ctx e ty emptySkel
+            pure (DElTyCoe dBr d))
+
   checkBridged e t =
     reCheck sig ctx e t emptySkel
     <|> (do (de, ety) <- reInfer sig ctx e emptySkel

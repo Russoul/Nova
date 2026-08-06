@@ -431,8 +431,14 @@ Phasing:
      a def whose raw type spells solved holes is checked at nf and
      ridden back on the type derivation already in hand. The chain
      type is the certificate's own (tyEx), not the equation's — a
-     mixed-spelling trans caught by the shadow, not by the meter
-     (currently 10/27 files fully covered; every covered item
+     mixed-spelling trans caught by the shadow, not by the meter.
+     Eleventh slice: the ⋆-ENDPOINT ROUTES — an equation endpoint
+     that types only at the raw equation type rides the
+     certificate's own pre-bridge (tyEx) into the chain type; a bare
+     ⋆ at an equality prop closes by reflexivity when the sides
+     agree up to nf, else by an assumption of that very equality
+     (reflect the hypothesis, reintroduce) — the proof-irrelevance
+     shape (currently 11/27 files fully covered; every covered item
      agrees). Bails, honestly: SelQIdx, placements through
      eliminators, `data … Elim` items, hole solutions. Remaining:
      those bails driven down by the strict-mode meter, then the
