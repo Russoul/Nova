@@ -68,6 +68,10 @@ pRefl : Payload -> Maybe ECert
 pRefl (PReflEq c) = Just c
 pRefl _ = Nothing
 
+pWDc : Payload -> Maybe ECert
+pWDc (PWD c) = Just c
+pWDc _ = Nothing
+
 pSqW : Payload -> Maybe (Elem, Skel)
 pSqW (PSquashWit e s) = Just (e, s)
 pSqW _ = Nothing
@@ -120,8 +124,26 @@ mutual
       Just (SigTyDef delta _ _) => DTySig x <$> reSubN sig ctx es (toList delta)
       Just (SigTyDecl delta _) => DTySig x <$> reSubN sig ctx es (toList delta)
       _ => Nothing
-  reTy sig ctx (Ty.NuTy f) sk = Nothing        -- later slice
+  reTy sig ctx (Ty.NuTy f) sk = DTyNu <$> rePoly sig ctx f
   reTy sig ctx (QSort sg k es) sk = Nothing    -- later slice
+
+  ||| Polynomial formation, structural (codes reconstructed bare).
+  rePoly : Sig -> Ctx -> Poly -> Maybe Deriv
+  rePoly sig ctx PHole = Just DPolyHole
+  rePoly sig ctx (PConst a) =
+    DPolyConst <$> reCheck sig ctx a Ty.UniverseTy emptySkel
+  rePoly sig ctx (PProd f g) =
+    [| DPolyProd (rePoly sig ctx f) (rePoly sig ctx g) |]
+  rePoly sig ctx (PSum f g) =
+    [| DPolySum (rePoly sig ctx f) (rePoly sig ctx g) |]
+  rePoly sig ctx (PSigma a f) = do
+    da <- reCheck sig ctx a Ty.UniverseTy emptySkel
+    df <- rePoly sig (ctx :< El a) f
+    pure (DPolySigma da df)
+  rePoly sig ctx (PPi a f) = do
+    da <- reCheck sig ctx a Ty.UniverseTy emptySkel
+    df <- rePoly sig (ctx :< El a) f
+    pure (DPolyPi da df)
 
   ||| A normal substitution against a target telescope (Σ-entry
   ||| contexts are outermost-first lists).
@@ -232,6 +254,35 @@ mutual
     da <- reTy sig ctx a (childAt 0 sk)
     pure (DCodeSquash da, Ty.PropTy)
   reInfer sig ctx (Class a) sk = Nothing       -- intro: checking-only
+  reInfer sig ctx (Out t) sk = do
+    (dt, tty) <- reInfer sig ctx t (childAt 0 sk)
+    case tty of
+      Ty.NuTy f => do
+        dp <- rePoly sig ctx f
+        pure (DElNuE dp dt, El (reflectPoly f (Elem.NuTy f)))
+      _ => Nothing
+  reInfer sig ctx (QuotElim f q) sk = do
+    (mot, motSk) <- payload pMot sk
+    wd <- payload pWDc sk
+    (dq, qty) <- reInfer sig ctx q (childAt 1 sk)
+    case qty of
+      Ty.Quotient a r => do
+        dmot <- reTy sig (ctx :< Ty.Quotient a r) mot motSk
+        df <- reCheck sig (ctx :< a) f
+                (substTy mot (Ext Wk (Class (CtxVar 0)))) (childAt 0 sk)
+        dresp <-
+          if betaOnly wd
+            then do
+              let wk3 = Chain Wk (Chain Wk Wk)
+              let wdCtx = ctx :< a :< substTy a Wk :< Prf r
+              dl <- reCheck sig wdCtx (substElem f (Ext wk3 (CtxVar 2)))
+                      (substTy mot (Ext wk3 (Class (CtxVar 2)))) emptySkel
+              dr <- reCheck sig wdCtx (substElem f (Ext wk3 (CtxVar 1)))
+                      (substTy mot (Ext wk3 (Class (CtxVar 2)))) emptySkel
+              pure (DNfEq dl dr)
+            else Nothing
+        pure (DElQuotE dq dmot df dresp, substTy mot (Ext Id q))
+      _ => Nothing
   reInfer sig ctx _ sk = Nothing
 
   ||| Checking: switch/expose payloads translated on the β-only
@@ -296,6 +347,19 @@ mutual
         dr <- reCheck sig (ctx :< dom :< substTy dom Wk) rel Ty.PropTy emptySkel
         pure (DElQuotI da dr)
       _ => Nothing
+  reCheckGo sig ctx (Corec pf a body x) ty sk =
+    case ty of
+      Ty.NuTy f =>
+        if pf == f
+          then do
+            dp <- rePoly sig ctx f
+            da <- reCheck sig ctx a Ty.UniverseTy (childAt 0 sk)
+            db <- reCheck sig (ctx :< El a) body
+                    (substTy (El (reflectPoly f a)) Wk) (childAt 1 sk)
+            dx <- reCheck sig ctx x (El a) (childAt 2 sk)
+            pure (DElNuI dp da db dx)
+          else Nothing
+      _ => Nothing
   reCheckGo sig ctx (ZeroElim t) ty sk = do
     dA <- reTy sig ctx ty emptySkel
     dt <- reCheck sig ctx t Ty.ZeroTy (childAt 0 sk)
@@ -336,6 +400,21 @@ mutual
         pure (DElTyCoe (DNfEqTy di dt) d)
 
 -- ===== The shadow entry point =====
+
+||| A type item's formation derivation.
+export
+shadowTyDef : Sig -> Nat -> KTyDefArt -> Maybe (Either KErr ())
+shadowTyDef sig fuel art =
+  case art.ttele of
+    [] => do
+      dT <- reTy sig [<] art.tty art.ttySkel
+      pure $ do
+        jT <- concludeItem sig fuel dT
+        case jT of
+          JTy t => if t == art.tty then Right ()
+                   else Left "shadow: type item concluded a different spelling"
+          _ => Left "shadow: type item concluded a non-formation judgement"
+    _ => Nothing
 
 ||| Reconstruct a def item's two derivations (the type's formation
 ||| and the body's typing). Nothing = outside this slice's coverage.

@@ -3582,6 +3582,16 @@ shadowAccept name art clean = do
       Just (Right ()) => pure ()
       Just (Left err) => throw "\{name}: DERIVATION SHADOW DISAGREES: \{err}"
 
+shadowTyAccept : String -> KTyDefArt -> Bool -> ElabM ()
+shadowTyAccept name art clean = do
+  st <- getSt
+  if not clean
+    then pure ()
+    else case shadowTyDef st.kernelSig kernelFuel art of
+      Nothing => pure ()
+      Just (Right ()) => pure ()
+      Just (Left err) => throw "\{name}: DERIVATION SHADOW DISAGREES: \{err}"
+
 ||| Emit one core definition item: kernel-check, extend Σ, register a
 ||| lemma if it is ≡-typed. Mirrors elabItem's tail for surface defs.
 emitCoreDef : String -> String -> Ty -> Skel -> Elem -> Skel -> ElabM ()
@@ -3616,6 +3626,7 @@ emitCoreTyDef site x ty tySk = do
   kernelAccept "\{site} \{x}"
     (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty tySk))
     (after == 0)
+  shadowTyAccept "\{site} \{x}" (MkKTyDefArt q [] ty tySk) (after == 0)
   modifySt $ { sig $= (:< SigTyDef [<] q ty), vis $= (:< (x, q)) }
 
 wrapLams : Nat -> Elem -> Elem
@@ -3805,6 +3816,7 @@ elabItemGo (STypeDef x ty) = do
   kernelAccept "type \{x}"
     (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty' tySk))
     (after == 0)
+  shadowTyAccept "type \{x}" (MkKTyDefArt q [] ty' tySk) (after == 0)
   modifySt $ { sig $= (:< SigTyDef [<] q ty'), vis $= (:< (x, q)) }
   suffix <- opensSuffix census
   pure "defined type \{x}\{suffix}"
