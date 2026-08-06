@@ -447,11 +447,17 @@ Phasing:
      rule the derivation core had missed); and every placement
      parent now squares its child equation's type spelling with the
      congruence's demand by the nf oracle (eqAtNf), which cleared a
-     latent el-sum-e-cong disagreement (currently 12/27 files fully
-     covered; every covered item agrees). Bails, honestly: SelQIdx,
-     placements through eliminators, `data … Elim` items, hole
-     solutions. Remaining: those bails driven down by the
-     strict-mode meter, then the re-seat.]
+     latent el-sum-e-cong disagreement. Thirteenth slice: TYPING
+     NORMALIZED SPELLINGS — a bare ⋆ at an equality prop closes by
+     nf-reflexivity even when the sides are eliminator-headed, via
+     the ENDO guess (an uninferable applied head tried at a → a on
+     the argument's own type — the iterated-observation shape nf
+     produces) and corec made inferable (it carries its polynomial)
+     (currently 13/27 files fully covered; every covered item
+     agrees). Bails, honestly: SelQIdx, placements through
+     eliminators, `data … Elim` items, hole solutions. Remaining:
+     those bails driven down by the strict-mode meter, then the
+     re-seat.]
   3. CONSOLIDATION (incremental, unhurried) — the elaborator emits
      derivations directly where reconstruction is weak or wasteful;
      the trace→derivation translation absorbs the discharge engine's

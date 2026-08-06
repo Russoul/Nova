@@ -318,14 +318,25 @@ mutual
         d <- reSubN sig ctx es (toList delta)
         pure (DElSig x d, substTy a (embed es))
       _ => Nothing
-  reInferGo sig ctx (PiApp f e) sk = do
-    (df, fty) <- reInfer sig ctx f (childAt 0 sk) >>= expose sig
-    case fty of
-      Ty.PiTy a b => do
-        de <- reCheck sig ctx e a (childAt 1 sk)
-        db <- reTy sig (ctx :< a) b emptySkel
-        pure (DElPiE df de db, substTy b (Ext Id e))
-      _ => Nothing
+  reInferGo sig ctx (PiApp f e) sk =
+    (do (df, fty) <- reInfer sig ctx f (childAt 0 sk) >>= expose sig
+        case fty of
+          Ty.PiTy a b => do
+            de <- reCheck sig ctx e a (childAt 1 sk)
+            db <- reTy sig (ctx :< a) b emptySkel
+            pure (DElPiE df de db, substTy b (Ext Id e))
+          _ => Nothing)
+    <|> (do
+      -- the ENDO guess: an uninferable applied head (a normalized
+      -- eliminator iterating a step) tried at a → a, the argument's
+      -- own type — conclude arbitrates
+      (de, a) <- reInfer sig ctx e (childAt 1 sk)
+      df <- reCheck sig ctx f (Ty.PiTy a (substTy a Wk)) (childAt 0 sk)
+      db <- reTy sig (ctx :< a) (substTy a Wk) emptySkel
+      pure (DElPiE df de db, a))
+  reInferGo sig ctx (Corec pf a body x) sk = do
+    d <- reCheckGo sig ctx (Corec pf a body x) (Ty.NuTy pf) sk
+    pure (d, Ty.NuTy pf)
   reInferGo sig ctx (SigmaElim1 t) sk = do
     (dt, tty) <- reInfer sig ctx t (childAt 0 sk) >>= expose sig
     case tty of
