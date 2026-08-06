@@ -3546,11 +3546,23 @@ mirrorHoleDefs = do
           Nothing =>
             case e of
               SigDef delta _ t dty =>
-                if kCheckSolution ks kernelFuel delta t dty == Right ()
+                -- the SEAT, for solutions: emitted derivations
+                -- replayed by the derivation kernel; the old
+                -- kernel's verdict only where emission fails (the
+                -- hole-solution residue)
+                if (case emitSol ks delta t dty of
+                      Just ds =>
+                        acceptSolItem ks kernelFuel ds delta dty t == Right ()
+                      Nothing =>
+                        kCheckSolution ks kernelFuel delta t dty == Right ())
                   then go rest (ks :< e)
                   else go rest ks
               SigTyDef delta _ t =>
-                if kCheckTySolution ks kernelFuel delta t == Right ()
+                if (case emitTySol ks delta t of
+                      Just ds =>
+                        acceptTySolItem ks kernelFuel ds delta t == Right ()
+                      Nothing =>
+                        kCheckTySolution ks kernelFuel delta t == Right ())
                   then go rest (ks :< e)
                   else go rest ks
               _ => go rest ks
@@ -3574,13 +3586,15 @@ seatAccept name residue art entry clean = do
   st <- getSt
   if not clean
     then pure ()
-    else case shadowDef st.kernelSig kernelFuel art of
-      Just (Right ()) => modifySt $ { kernelSig $= (:< entry) }
-      Just (Left err) =>
-        throw "\{name}: derivation kernel REJECTED the item: \{err}"
+    else case emitDef st.kernelSig art of
+      Just ds =>
+        case acceptDefItem st.kernelSig kernelFuel ds art.dty art.body of
+          Right () => modifySt $ { kernelSig $= (:< entry) }
+          Left err =>
+            throw "\{name}: derivation kernel REJECTED the item: \{err}"
       Nothing => do
         if st.strictDeriv
-          then throw "\{name}: NOT COVERED by the derivation reconstructor"
+          then throw "\{name}: NOT COVERED by derivation emission"
           else pure ()
         case residue st.kernelSig of
           Right entry' => modifySt $ { kernelSig $= (:< entry') }
@@ -3591,13 +3605,15 @@ seatTyAccept name residue art entry clean = do
   st <- getSt
   if not clean
     then pure ()
-    else case shadowTyDef st.kernelSig kernelFuel art of
-      Just (Right ()) => modifySt $ { kernelSig $= (:< entry) }
-      Just (Left err) =>
-        throw "\{name}: derivation kernel REJECTED the item: \{err}"
+    else case emitTyDef st.kernelSig art of
+      Just dT =>
+        case acceptTyDefItem st.kernelSig kernelFuel dT art.tty of
+          Right () => modifySt $ { kernelSig $= (:< entry) }
+          Left err =>
+            throw "\{name}: derivation kernel REJECTED the item: \{err}"
       Nothing => do
         if st.strictDeriv
-          then throw "\{name}: NOT COVERED by the derivation reconstructor"
+          then throw "\{name}: NOT COVERED by derivation emission"
           else pure ()
         case residue st.kernelSig of
           Right entry' => modifySt $ { kernelSig $= (:< entry') }

@@ -1,22 +1,22 @@
 module Nova.Kernel.Reconstruct
 
--- Phase 2 of the derivation rework (docs/NovaPipeline.txt, "The
--- derivation rework"): the RECONSTRUCTOR — untrusted machinery
--- rebuilding NovaDerivations.txt derivations from the elaborator's
--- current artifacts (core terms plus annotation skeletons). During
--- the bridge it SHADOWS the old kernel: wherever it produces a
--- derivation, conclude's verdict must agree with the old kernel's
--- (a mismatch is loud); where it cannot yet, it returns Nothing and
--- the old kernel's verdict stands alone. Its incompleteness is a
--- coverage ratchet, never a soundness question.
+-- The elaborator's DERIVATION EMISSION pass (docs/NovaPipeline.txt,
+-- "The derivation rework", phase 3): untrusted machinery that turns
+-- the elaborator's artifacts (core terms plus annotation skeletons —
+-- motives, expected types, discharge certificates) into
+-- NovaDerivations.txt derivations, run by the elaborator itself at
+-- item acceptance. The emitted derivations are what the seat hands
+-- the trusted replay kernel (Nova.Kernel.Derivation, acceptDefItem
+-- and kin); an emission failure (Nothing) drops the item to the
+-- documented residue, where the old kernel's verdict stands alone —
+-- incompleteness here is a coverage question, never a soundness one.
 --
--- Coverage of this first slice: the structural core — formation,
--- the element formers with their skeleton motives, sig references —
--- with conversion sites translated on the β-ONLY route (a switch or
--- expose certificate with no steps and an FBeta final becomes
--- el-ty-coe over nf-eq-ty; a refl-eq ⋆ becomes el-eq-i over nf-eq).
--- Step-carrying certificates (the rewrite traces) translate in a
--- later slice via the retirement map.
+-- Historically this module was the phase-2 RECONSTRUCTOR, shadowing
+-- the old kernel item by item until the seat flipped; the guessing
+-- machinery (motive synthesis, endpoint bridges, instantiation
+-- searches) remains because the artifacts still lose information the
+-- elaborator once had — each consolidation slice that records more
+-- at elaboration time retires a guess here.
 
 import Data.List
 import Data.Maybe
@@ -2065,64 +2065,70 @@ closeT sig ctx chA curA chB curB (FSumCong lc rc) =
     _ => Nothing
 closeT sig ctx chA curA chB curB _ = Nothing
 
--- ===== The shadow entry point =====
+-- ===== The EMISSION entry points (called by the elaborator's seat) =====
 
 ||| A type item's formation derivation.
 export
-shadowTyDef : Sig -> Nat -> KTyDefArt -> Maybe (Either KErr ())
-shadowTyDef sig fuel art =
+emitTyDef : Sig -> KTyDefArt -> Maybe Deriv
+emitTyDef sig art =
   case art.ttele of
-    [] => do
-      dT <- reTy sig [<] art.tty art.ttySkel
-      pure $ do
-        jT <- concludeItem sig fuel dT
-        case jT of
-          JTy t => if t == art.tty then Right ()
-                   else Left "shadow: type item concluded a different spelling"
-          _ => Left "shadow: type item concluded a non-formation judgement"
+    [] => reTy sig [<] art.tty art.ttySkel
     _ => Nothing
 
-||| Reconstruct a def item's two derivations (the type's formation
-||| and the body's typing). Nothing = outside this slice's coverage.
+||| A body's typing at its stated type, with the fallbacks: plain
+||| reconstruction, formation-threaded (the type derivation rides
+||| down the spelling), and the nf route (solved holes unfolded, the
+||| result ridden back on the type derivation).
+emitBody : Sig -> Ctx -> Elem -> Ty -> Skel -> Deriv -> Maybe Deriv
+emitBody sig ctx body ty bodySk dT =
+  reCheck sig ctx body ty bodySk
+  <|> reCheckF sig ctx body ty bodySk dT
+  <|> (do tyN <- nfT sig ty
+          let False = tyN == ty
+            | True => Nothing
+          let dTN = DPresupTyR (DNfExpandTy dT)
+          d <- dbg "emit: body"
+                 (reCheck sig ctx body tyN bodySk
+                  <|> reCheckF sig ctx body tyN bodySk dTN)
+          pure (DElTyCoe (DTySym (DNfExpandTy dT)) d))
+
+||| A def item's two derivations (the type's formation and the
+||| body's typing). Nothing = emission does not cover the item (the
+||| residue).
 export
-reDefArt : Sig -> KDefArt -> Maybe (Deriv, Deriv)
-reDefArt sig art =
+emitDef : Sig -> KDefArt -> Maybe (Deriv, Deriv)
+emitDef sig art =
   case art.tele of
     [] => do
-      dT <- dbg "defart: type" (reTy sig [<] art.dty art.dtySkel)
-      -- when the raw spelling carries solved holes whose re-derivation
-      -- is hypothesis-sensitive, check at nf (holes unfolded) and ride
-      -- dT back to the spelling
-      dt <- reCheck sig [<] art.body art.dty art.bodySkel
-            <|> reCheckF sig [<] art.body art.dty art.bodySkel dT
-            <|> (do tyN <- nfT sig art.dty
-                    let False = tyN == art.dty
-                      | True => Nothing
-                    let dTN = DPresupTyR (DNfExpandTy dT)
-                    d <- dbg "defart: body"
-                           (reCheck sig [<] art.body tyN art.bodySkel
-                            <|> reCheckF sig [<] art.body tyN art.bodySkel dTN)
-                    pure (DElTyCoe (DTySym (DNfExpandTy dT)) d))
+      dT <- dbg "emit: type" (reTy sig [<] art.dty art.dtySkel)
+      dt <- emitBody sig [<] art.body art.dty art.bodySkel dT
       pure (dT, dt)
     _ => Nothing
 
-||| The shadow verdict: Nothing = not covered (silent); Just (Left e)
-||| = the reconstructor produced a derivation that conclude REJECTED
-||| or that concluded a different judgement (loud); Just (Right ())
-||| = agreement.
+||| A solution telescope's formation derivation plus the context's
+||| entrywise type derivations — solutions carry no skeletons, so
+||| everything is emitted bare.
+emitTele : Sig -> Ctx -> Maybe Deriv
+emitTele sig [<] = Just DCtxEmpty
+emitTele sig (rest :< a) = do
+  dG <- emitTele sig rest
+  dA <- reTy sig rest a emptySkel
+  pure (DCtxExt dG dA)
+
+||| A hole solution's derivations: the telescope's formation, the
+||| type's formation and the body's typing in the telescope context.
 export
-shadowDef : Sig -> Nat -> KDefArt -> Maybe (Either KErr ())
-shadowDef sig fuel art = do
-  (dT, dt) <- reDefArt sig art
-  pure $ do
-    jT <- concludeItem sig fuel dT
-    case jT of
-      JTy t => if t == art.dty then Right ()
-               else Left "shadow: type formation concluded [\{show t}] expected [\{show art.dty}]"
-      _ => Left "shadow: type derivation concluded a non-formation judgement"
-    jt <- concludeItem sig fuel dt
-    case jt of
-      JEl b ty =>
-        if b == art.body && ty == art.dty then Right ()
-        else Left "shadow: body typing concluded a different judgement"
-      _ => Left "shadow: body derivation concluded a non-typing judgement"
+emitSol : Sig -> Ctx -> Elem -> Ty -> Maybe (Deriv, Deriv, Deriv)
+emitSol sig delta body ty = do
+  dCtx <- emitTele sig delta
+  dT <- reTy sig delta ty emptySkel
+  dt <- emitBody sig delta body ty emptySkel dT
+  pure (dCtx, dT, dt)
+
+||| A type-valued hole solution's derivations.
+export
+emitTySol : Sig -> Ctx -> Ty -> Maybe (Deriv, Deriv)
+emitTySol sig delta ty = do
+  dCtx <- emitTele sig delta
+  dT <- reTy sig delta ty emptySkel
+  pure (dCtx, dT)

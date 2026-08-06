@@ -558,13 +558,14 @@ Phasing:
          cannot silently grow. Exit: phase 3 — the elaborator emits
          the derivation alongside the artifact instead of having it
          reconstructed.
-       * HOLE SOLUTIONS. Solved holes are mirrored into the kernel Σ
-         by kCheckSolution/kCheckTySolution (old kernel, unshadowed)
-         — a solution the old kernel cannot re-check is silently NOT
-         mirrored (references to it stay stuck), so this residue
-         affects completeness, not the accepted-item invariant of
-         covered items. Exit: the same phase-3 emission, or a
-         solution-shaped reconstruction entry.
+       * HOLE SOLUTIONS — RETIRED IN PRACTICE (phase 3, first
+         slice): the mirror now emits each solution's derivations
+         and the derivation kernel accepts them;
+         kCheckSolution/kCheckTySolution remain only as a fallback
+         for solutions emission cannot cover, and nothing in the
+         suite or corpus reaches it. A solution neither emitted nor
+         old-kernel-checkable is silently not mirrored (references
+         stay stuck) — completeness, never soundness.
 
      The accepted-item invariant, after the seat: for every item the
      reconstructor covers, acceptance = a Foundation-rule derivation
@@ -576,6 +577,25 @@ Phasing:
      the trace→derivation translation absorbs the discharge engine's
      certificate format; skeletons retire when nothing consumes
      them.
+     [IN PROGRESS — first slice: the EMISSION BOUNDARY. What was the
+     reconstructor is now, in code structure as in trust story, the
+     elaborator's derivation-emission pass: the elaborator emits
+     (emitDef/emitTyDef, Nova.Kernel.Reconstruct) and hands the seat
+     derivations; the trusted side exposes item ACCEPTANCE functions
+     (acceptDefItem and kin, Nova.Kernel.Derivation) that replay
+     them against the item's stated judgements — the seat composes
+     exactly these two. And HOLE SOLUTIONS are seated: the mirror
+     emits each solution's derivations (telescope formation
+     entrywise, then the type and body in the telescope context —
+     solutions carry no skeletons, so emission is bare) and the
+     derivation kernel accepts them; the old kernel's
+     kCheckSolution remains only as a fallback, which the entire
+     suite and corpus no longer exercise (measured: with the
+     fallback disabled, 140/140 and 27/27 still pass). The
+     hole-solution residue entry below is thereby retired in
+     practice; the guessing machinery in the emission pass retires
+     guess by guess as later slices record more at elaboration
+     time.]
 
 Cost, stated honestly: until phase 3 completes, an item is walked
 three times (elaborate, reconstruct, replay) — a constant factor,

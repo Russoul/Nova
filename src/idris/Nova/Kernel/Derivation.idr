@@ -2218,3 +2218,86 @@ concludeQSub sig ctx phi d = kerr "derivation: expected a qsub node"
 export
 concludeItem : Sig -> Nat -> Deriv -> Either KErr Judg
 concludeItem sig fuel d = map fst (runKM (conclude sig [<] d) fuel)
+
+||| Check a derivation in a given context input (a solution's
+||| telescope); the context's own formation is the caller's burden
+||| (acceptSolItem replays it first).
+export
+concludeAt : Sig -> Nat -> Ctx -> Deriv -> Either KErr Judg
+concludeAt sig fuel ctx d = map fst (runKM (conclude sig ctx d) fuel)
+
+-- ===== ITEM ACCEPTANCE (docs/NovaDerivations.txt, "Items and
+-- acceptance") — the seat's trusted half: replay the derivations the
+-- elaborator EMITTED and demand they conclude EXACTLY the item's
+-- stated judgements. =====
+
+||| A def item: the type's formation and the body's typing, both in
+||| the empty context.
+export
+acceptDefItem : Sig -> Nat -> (Deriv, Deriv) -> Ty -> Elem -> Either KErr ()
+acceptDefItem sig fuel (dT, dt) ty body = do
+  jT <- concludeItem sig fuel dT
+  case jT of
+    JTy t =>
+      if t == ty then Right ()
+      else Left "acceptance: type formation concluded [\{show t}] expected [\{show ty}]"
+    _ => Left "acceptance: type derivation concluded a non-formation judgement"
+  jt <- concludeItem sig fuel dt
+  case jt of
+    JEl b bty =>
+      if b == body && bty == ty then Right ()
+      else Left "acceptance: body typing concluded a different judgement"
+    _ => Left "acceptance: body derivation concluded a non-typing judgement"
+
+||| A type item: one formation derivation in the empty context.
+export
+acceptTyDefItem : Sig -> Nat -> Deriv -> Ty -> Either KErr ()
+acceptTyDefItem sig fuel dT ty = do
+  jT <- concludeItem sig fuel dT
+  case jT of
+    JTy t =>
+      if t == ty then Right ()
+      else Left "acceptance: type item concluded a different spelling"
+    _ => Left "acceptance: type item concluded a non-formation judgement"
+
+||| A hole solution: the telescope's formation replayed first (the
+||| soundness reading's residual condition discharged at this root),
+||| then the type and body in the telescope context.
+export
+acceptSolItem : Sig -> Nat -> (Deriv, Deriv, Deriv) -> Ctx -> Ty -> Elem -> Either KErr ()
+acceptSolItem sig fuel (dCtx, dT, dt) delta ty body = do
+  jC <- concludeItem sig fuel dCtx
+  case jC of
+    JCtx g =>
+      if g == delta then Right ()
+      else Left "acceptance: solution telescope concluded a different context"
+    _ => Left "acceptance: solution telescope concluded a non-context judgement"
+  jT <- concludeAt sig fuel delta dT
+  case jT of
+    JTy t =>
+      if t == ty then Right ()
+      else Left "acceptance: solution type concluded a different spelling"
+    _ => Left "acceptance: solution type concluded a non-formation judgement"
+  jt <- concludeAt sig fuel delta dt
+  case jt of
+    JEl b bty =>
+      if b == body && bty == ty then Right ()
+      else Left "acceptance: solution body concluded a different judgement"
+    _ => Left "acceptance: solution body concluded a non-typing judgement"
+
+||| A type-valued hole solution.
+export
+acceptTySolItem : Sig -> Nat -> (Deriv, Deriv) -> Ctx -> Ty -> Either KErr ()
+acceptTySolItem sig fuel (dCtx, dT) delta ty = do
+  jC <- concludeItem sig fuel dCtx
+  case jC of
+    JCtx g =>
+      if g == delta then Right ()
+      else Left "acceptance: solution telescope concluded a different context"
+    _ => Left "acceptance: solution telescope concluded a non-context judgement"
+  jT <- concludeAt sig fuel delta dT
+  case jT of
+    JTy t =>
+      if t == ty then Right ()
+      else Left "acceptance: solution type concluded a different spelling"
+    _ => Left "acceptance: solution type concluded a non-formation judgement"
