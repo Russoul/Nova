@@ -525,7 +525,22 @@ Phasing:
      components placeable (el-pair-cong). integerAdd and
      integerNormalize cover fully (25/27; every covered item
      agrees). Remaining: eqInt's iff tail, the vector-append tail —
-     then the re-seat.]
+     then the re-seat. Twenty-second slice, toward those tails: a
+     step's ∀-lemma RE-INSTANTIATED at searched arguments (candidate
+     tuples from the pair's own subterms and the context, filtered
+     along the lemma's Π tower or signature telescope — a type
+     instance shifts by zeroPlusId at m+k where the step licensed it
+     at m); NatElim bridged component-wise (z and index; constant
+     motive at the position's type); β-met bridge shapes conjugated
+     by the oracle; MOTIVE ABSTRACTION (the expected type with the
+     scrutinee's spelling replaced by the fresh binder) as the
+     indexed-motive guess at eliminator placements; checked lets.
+     Both tails narrow but stand: eqIIff's argument types spell
+     quot-elim'd Ω codes whose well-definedness cannot be re-derived
+     bare (the hole-solution residue — phase 3's elaborator-emitted
+     derivations are the principled fix), and vappendAssoc still
+     needs one lemma-instance step INSIDE an El-vs-unfolding bridge
+     (an index congruence composed with β at the type level).]
   3. CONSOLIDATION (incremental, unhurried) — the elaborator emits
      derivations directly where reconstruction is weak or wasteful;
      the trace→derivation translation absorbs the discharge engine's

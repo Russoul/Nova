@@ -1044,6 +1044,80 @@ headPi sig ctx f e exp =
       (_, a) <- reInfer sig ctx e emptySkel
       pure (a, substTy exp Wk)
 
+-- one-level children of an element (the common formers), for the
+-- candidate pools of the instantiation searches
+kidsE : Elem -> List Elem
+kidsE (ZeroElim u) = [u]
+kidsE (NatIntro1 u) = [u]
+kidsE (NatElim z st u) = [z, u]
+kidsE (PiApp f u) = [f, u]
+kidsE (SigmaIntro u v) = [u, v]
+kidsE (SigmaElim1 u) = [u]
+kidsE (SigmaElim2 u) = [u]
+kidsE (Inj1 u) = [u]
+kidsE (Inj2 u) = [u]
+kidsE (SumElim _ _ u) = [u]
+kidsE (Elem.EqTy l r _) = [l, r]
+kidsE (Class u) = [u]
+kidsE (QuotElim _ q) = [q]
+kidsE (Out u) = [u]
+kidsE (QCtor _ _ es) = toList es
+kidsE (QSortC _ _ es) = toList es
+kidsE _ = []
+
+subterms : Nat -> Elem -> List Elem
+subterms Z e = [e]
+subterms (S d) e = e :: concatMap (subterms d) (kidsE e)
+
+-- MOTIVE ABSTRACTION: the expected type with occurrences of the
+-- scrutinee's (weakened) spelling replaced by the fresh binder —
+-- the indexed-motive guess for a normalized eliminator spelling.
+-- Conservative: unhandled formers are left untouched (a missed
+-- occurrence just means the guessed motive fails downstream).
+mutual
+  absE : Elem -> Nat -> Elem -> Elem
+  absE t b e =
+    if e == wkN b t then CtxVar b else
+    case e of
+      ZeroElim u => ZeroElim (absE t b u)
+      NatIntro1 u => NatIntro1 (absE t b u)
+      NatElim z st u => NatElim (absE t b z) (absE t (2 + b) st) (absE t b u)
+      PiIntro f => PiIntro (absE t (S b) f)
+      PiApp f u => PiApp (absE t b f) (absE t b u)
+      Let a u => Let (absE t b a) (absE t (2 + b) u)
+      SigmaIntro u v => SigmaIntro (absE t b u) (absE t b v)
+      SigmaElim1 u => SigmaElim1 (absE t b u)
+      SigmaElim2 u => SigmaElim2 (absE t b u)
+      Inj1 u => Inj1 (absE t b u)
+      Inj2 u => Inj2 (absE t b u)
+      SumElim l r u => SumElim (absE t (S b) l) (absE t (S b) r) (absE t b u)
+      Elem.PiTy a c => Elem.PiTy (absE t b a) (absE t (S b) c)
+      Elem.SigmaTy a c => Elem.SigmaTy (absE t b a) (absE t (S b) c)
+      Elem.SumTy a c => Elem.SumTy (absE t b a) (absE t b c)
+      Elem.EqTy l r ty => Elem.EqTy (absE t b l) (absE t b r) (absTy t b ty)
+      QuotTy a r => QuotTy (absE t b a) (absE t (2 + b) r)
+      Elem.SigVar x es => Elem.SigVar x (cast (map (absE t b) (toList es)))
+      Class u => Class (absE t b u)
+      QuotElim f q => QuotElim (absE t (S b) f) (absE t b q)
+      Squash ty => Squash (absTy t b ty)
+      QSortC sg k es => QSortC sg k (cast (map (absE t b) (toList es)))
+      QCtor sg k es => QCtor sg k (cast (map (absE t b) (toList es)))
+      Out u => Out (absE t b u)
+      _ => e
+
+  absTy : Elem -> Nat -> Ty -> Ty
+  absTy t b ty =
+    case ty of
+      Ty.PiTy a c => Ty.PiTy (absTy t b a) (absTy t (S b) c)
+      Ty.SigmaTy a c => Ty.SigmaTy (absTy t b a) (absTy t (S b) c)
+      Ty.SumTy a c => Ty.SumTy (absTy t b a) (absTy t b c)
+      El e => El (absE t b e)
+      Prf e => Prf (absE t b e)
+      Ty.Quotient a r => Ty.Quotient (absTy t b a) (absE t (2 + b) r)
+      Ty.SigVar x es => Ty.SigVar x (cast (map (absE t b) (toList es)))
+      QSort sg k es => QSort sg k (cast (map (absE t b) (toList es)))
+      _ => ty
+
 rePlaceT : Sig -> Ctx -> Step -> Nat -> List Nat -> Ty -> Maybe (Deriv, Ty)
 
 ||| Coerce an element-equation derivation from its own type spelling
@@ -1138,15 +1212,17 @@ rePlaceE sig ctx step d (i :: p) exp cur =
           pure (DElInj2Cong dc dl, Inj2 b', Ty.SumTy l r)
         _ => Nothing
     (NatElim z st t, 2) => do
-      let mot = substTy exp Wk
-      dmot <- reTy sig (ctx :< Ty.NatTy) mot emptySkel
-      dz <- reCheck sig ctx z exp emptySkel
-      dst <- reCheck sig (ctx :< Ty.NatTy :< mot) st
-               (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) emptySkel
       (dc0, t', chTy) <- rePlaceE sig ctx step d p Ty.NatTy t
       dc <- eqAtNf sig ctx dc0 chTy Ty.NatTy
-      pure (DElNatECong dmot (DElRefl dz) (DElRefl dst) dc,
-            NatElim z st t', exp)
+      let tryMot = \mot => do
+            dmot <- reTy sig (ctx :< Ty.NatTy) mot emptySkel
+            dz <- reCheck sig ctx z (substTy mot (Ext Id NatIntro0)) emptySkel
+            dst <- reCheck sig (ctx :< Ty.NatTy :< mot) st
+                     (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) emptySkel
+            pure (DElNatECong dmot (DElRefl dz) (DElRefl dst) dc,
+                  NatElim z st t', substTy mot (Ext Id t'))
+      tryMot (substTy exp Wk)
+        <|> tryMot (absTy (substElem t Wk) 0 (substTy exp Wk))
     (NatElim z st t, 0) => do
       let mot = substTy exp Wk
       dmot <- reTy sig (ctx :< Ty.NatTy) mot emptySkel
@@ -1390,6 +1466,100 @@ qPathLeaf sig ctx x y = do
         firstJust (tryTheta sg xN yN j) (take 64 (spines tel cands [])))
     <|> tryEntries sg xN yN cands rest
 
+||| A step's ∀-lemma RE-INSTANTIATED: the licensed proof is an
+||| application tower; the mismatched pair may be the lemma's
+||| equation at DIFFERENT arguments (a type instance shifted along
+||| the rewrite). Candidate arguments from the pair's own subterms
+||| and the context, type-filtered along the lemma's Π tower.
+lemmaLeaf : Sig -> Ctx -> Step -> Nat -> Elem -> Elem -> Maybe (Deriv, Ty)
+lemmaLeaf sig ctx step d x y = do
+  let LProof p = step.lic
+    | _ => dbg "lemma: not an LProof" Nothing
+  let (h0, appArgs) = peel (wkN d p) []
+  (spineTys, rebuild, arity) <- the (Maybe (List Ty, List Elem -> Maybe Elem, Nat)) $
+    case h0 of
+      Elem.SigVar nm es => do
+        delta <- the (Maybe (List Ty)) $ case sigLookup nm sig of
+                   Just (SigDef dctx _ _ _) => Just (toList dctx)
+                   Just (SigDecl dctx _ _) => Just (toList dctx)
+                   _ => Nothing
+        let nSpine = length (toList es)
+        let True = nSpine == length delta
+          | False => Nothing
+        pure (delta,
+              \newArgs =>
+                let (sp, aps) = splitAt nSpine newArgs in
+                Just (applyE (Elem.SigVar nm (cast sp)) aps),
+              nSpine + length appArgs)
+      _ => do
+        let False = length appArgs == 0
+          | True => Nothing
+        pure ([], \newArgs => Just (applyE h0 newArgs), length appArgs)
+  let pool = map CtxVar [0 .. minus (length (toList ctx)) 1]
+             ++ subterms 3 x ++ subterms 3 y
+  xN <- nfE sig x
+  yN <- nfE sig y
+  dbg "lemma: no instantiation matched"
+    (firstJust (tryArgs rebuild xN yN)
+       (take 64 (tuples spineTys rebuild pool arity [])))
+ where
+  peel : Elem -> List Elem -> (Elem, List Elem)
+  peel (PiApp f u) acc = peel f (u :: acc)
+  peel h acc = (h, acc)
+
+  applyE : Elem -> List Elem -> Elem
+  applyE h [] = h
+  applyE h (u :: rest) = applyE (PiApp h u) rest
+
+  firstJust : (List Elem -> Maybe (Deriv, Ty)) -> List (List Elem) -> Maybe (Deriv, Ty)
+  firstJust f [] = Nothing
+  firstJust f (v :: rest) = f v <|> firstJust f rest
+
+  slotTy : List Ty -> (List Elem -> Maybe Elem) -> List Elem -> Maybe Ty
+  slotTy spineTys rebuild acc =
+    let i = length acc in
+    case getAt i spineTys of
+      -- a signature-spine slot: the telescope entry instantiated by
+      -- the prefix
+      Just dTy => Just (substTy dTy (foldl Ext Id (take i acc)))
+      Nothing => do
+        -- an application slot: the rebuilt partial application's Π
+        partial0 <- rebuild acc
+        (_, hty) <- reInfer sig ctx partial0 emptySkel
+        htyN <- nfT sig hty
+        let Ty.PiTy a _ = htyN
+          | _ => Nothing
+        pure a
+
+  tuples : List Ty -> (List Elem -> Maybe Elem) -> List Elem -> Nat -> List Elem -> List (List Elem)
+  tuples spineTys rebuild pool Z acc = [acc]
+  tuples spineTys rebuild pool (S k) acc =
+    case slotTy spineTys rebuild acc of
+      Nothing => []
+      Just want =>
+        concatMap (\c => case reCheck sig ctx c want emptySkel of
+                            Just _ => tuples spineTys rebuild pool k (acc ++ [c])
+                            Nothing => [])
+          pool
+
+  tryArgs : (List Elem -> Maybe Elem) -> Elem -> Elem -> List Elem -> Maybe (Deriv, Ty)
+  tryArgs rebuild xN yN theta = do
+    p' <- rebuild theta
+    (dp, pty) <- reInfer sig ctx p' emptySkel
+    ptyN <- nfT sig pty
+    dp' <- if pty == ptyN then Just dp
+           else Just (DElTyCoe (DNfExpandTy (DPresupElTy dp)) dp)
+    let Prf (Elem.EqTy le re t) = ptyN
+      | _ => Nothing
+    let dR = DElReflect dp'
+    leN <- nfE sig le
+    reN <- nfE sig re
+    let dRN = DElTrans (DElSym (DNfExpand (DPresupElL dR)))
+                (DElTrans dR (DNfExpand (DPresupElR dR)))
+    if leN == xN && reN == yN then Just (dRN, t)
+      else if leN == yN && reN == xN then Just (DElSym dRN, t)
+      else Nothing
+
 ||| The HYPOTHESIS-SENSITIVE TYPE BRIDGE: a placement at a dependent
 ||| position shifts the equation's type by the step's own licensed
 ||| equation. Walk the two type spellings in parallel — α-equal parts
@@ -1417,7 +1587,19 @@ reBridgeT sig ctx step d a b =
         da <- reBridgeT sig ctx step d a0 a1
         dr <- reBridgeE sig (ctx :< a1 :< substTy a1 Wk) step (2 + d) r0 r1 Ty.PropTy
         pure (DTyQuotCong da dr)
-      _ => dbg "bridgeT shape: \{show a} VS \{show b}" Nothing
+      _ =>
+        -- shapes disagree only up to β: meet at nf, conjugated by
+        -- the oracle
+        (do aN <- nfT sig a
+            bN <- nfT sig b
+            let False = aN == a && bN == b
+              | True => Nothing
+            dBr <- reBridgeT sig ctx step d aN bN
+            da <- reTy sig ctx a emptySkel
+            db <- reTy sig ctx b emptySkel
+            pure (DTyTrans (DNfExpandTy da)
+                    (DTyTrans dBr (DTySym (DNfExpandTy db)))))
+        <|> dbg "bridgeT shape: \{show a} VS \{show b}" Nothing
 
 reBridgeE sig ctx step d x y exp =
   if x == y
@@ -1431,11 +1613,26 @@ reBridgeE sig ctx step d x y exp =
           atExp dEq t)
       <|> (do (dEq, t) <- qPathLeaf sig ctx x y
               atExp dEq t)
+      <|> (do stp <- step
+              (dEq, t) <- lemmaLeaf sig ctx stp d x y
+              atExp dEq t)
       <|> byHyp 0
       <|> byQuotHyp
       <|> (case (x, y) of
              (NatIntro1 u, NatIntro1 v) =>
                DElSucCong <$> reBridgeE sig ctx step d u v Ty.NatTy
+             (NatElim z0 s0 t0, NatElim z1 s1 t1) => do
+               -- same step branch; z and the index bridged, the
+               -- constant motive at the position's own type
+               let True = s0 == s1
+                 | False => Nothing
+               let mot = substTy exp Wk
+               dmot <- reTy sig (ctx :< Ty.NatTy) mot emptySkel
+               dzq <- reBridgeE sig ctx step d z0 z1 exp
+               dst <- reCheck sig (ctx :< Ty.NatTy :< mot) s0
+                        (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) emptySkel
+               dtq <- reBridgeE sig ctx step d t0 t1 Ty.NatTy
+               pure (DElNatECong dmot dzq (DElRefl dst) dtq)
              (PiApp f u, PiApp g v) => do
                let True = f == g
                  | False => Nothing
