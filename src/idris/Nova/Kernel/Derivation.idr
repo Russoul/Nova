@@ -259,6 +259,10 @@ data Deriv : Type where
   DElSquashI : Deriv -> Deriv
   ||| el-eq-i: Γ ⊦ a₀ ≐ a₁ : A  ⊢  Γ ⊦ ⋆ : Prf (a₀ ≡ a₁ ∈ A)
   DElEqI : Deriv -> Deriv
+  ||| el-squash-e-prf — delivery order q (the target prop), s, t:
+  ||| Γ ⊦ q : Ω;  Γ ⊦ s : Prf ∥A∥;  Γ ▷ A ⊦ t : (Prf q)[↑]
+  ||| ⊢  Γ ⊦ ⋆ : Prf q
+  DElSquashEPrf : Deriv -> Deriv -> Deriv -> Deriv
   ||| el-ty-coe: Γ ⊦ A₀ ≐ A₁ type;  Γ ⊦ a : A₀  ⊢  Γ ⊦ a : A₁
   DElTyCoe : Deriv -> Deriv -> Deriv
 
@@ -1051,6 +1055,16 @@ conclude sig ctx (DElSquashI dT) = do
 conclude sig ctx (DElEqI dEq) = do
   (a0, a1, a) <- conclude sig ctx dEq >>= needElEq
   pure (JEl Star (Prf (Elem.EqTy a0 a1 a)))
+conclude sig ctx (DElSquashEPrf dQ dS dT) = do
+  (q, qty) <- conclude sig ctx dQ >>= needEl
+  alphaTy "el-squash-e-prf (q)" qty Ty.PropTy
+  (_, sty) <- conclude sig ctx dS >>= needEl
+  case sty of
+    Prf (Squash a) => do
+      (_, tty) <- conclude sig (ctx :< a) dT >>= needEl
+      alphaTy "el-squash-e-prf (t)" tty (wkTy (Prf q))
+      pure (JEl Star (Prf q))
+    _ => kerr "derivation: el-squash-e-prf: premise not at a squash"
 conclude sig ctx (DElTyCoe dEq dA) = do
   (a0, a1) <- conclude sig ctx dEq >>= needTyEq
   (a, aty) <- conclude sig ctx dA >>= needEl

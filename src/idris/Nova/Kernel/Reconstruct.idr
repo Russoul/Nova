@@ -81,6 +81,10 @@ pWDc : Payload -> Maybe ECert
 pWDc (PWD c) = Just c
 pWDc _ = Nothing
 
+pSqE : Payload -> Maybe (Elem, Skel, Elem, Skel)
+pSqE (PSquashElim e se b sb) = Just (e, se, b, sb)
+pSqE _ = Nothing
+
 pSqW : Payload -> Maybe (Elem, Skel)
 pSqW (PSquashWit e s) = Just (e, s)
 pSqW _ = Nothing
@@ -538,7 +542,23 @@ mutual
                 dw <- reCheck sig ctx w a wSk
                 pure (DElSquashI dw)
               _ => Nothing
-          Nothing => Nothing
+          Nothing =>
+            case payload pSqE sk of
+              Just (e, ske, b, skb) =>
+                case ty of
+                  Prf q => do
+                    dq <- reCheck sig ctx q Ty.PropTy emptySkel
+                    (de, ety) <- reInfer sig ctx e ske
+                    etyN <- nfT sig ety
+                    de' <- if ety == etyN then Just de
+                           else Just (DElTyCoe (DNfExpandTy (DPresupElTy de)) de)
+                    case etyN of
+                      Prf (Squash a) => do
+                        db <- reCheck sig (ctx :< a) b (substTy (Prf q) Wk) skb
+                        pure (DElSquashEPrf dq de' db)
+                      _ => Nothing
+                  _ => Nothing
+              Nothing => Nothing
   reCheckGo sig ctx e ty sk = do
     (d, ity) <- reInfer sig ctx e sk
     coerce sig ctx d ity ty
@@ -928,6 +948,19 @@ closeE sig ctx ty chL curL chR curR (FEtaPi c) = do
           dt <- reTy sig ctx ty emptySkel
           pure (DElEqTyCoe (DNfEqTy dtN dt) two)
     _ => Nothing
+closeE sig ctx ty chL curL chR curR (FPropExt fs fsk bs bsk) = do
+  tyN <- nfT sig ty
+  let True = tyN == Ty.PropTy
+    | False => Nothing
+  dP <- Just (DPresupElR chL)
+  dQ <- Just (DPresupElR chR)
+  dS <- reCheck sig (ctx :< Prf curL) fs (substTy (Prf curR) Wk) fsk
+  dT <- reCheck sig (ctx :< Prf curR) bs (substTy (Prf curL) Wk) bsk
+  dP' <- if ty == Ty.PropTy then Just dP
+         else Just (DElTyCoe (DNfExpandTy (DPresupElTy dP)) dP)
+  dQ' <- if ty == Ty.PropTy then Just dQ
+         else Just (DElTyCoe (DNfExpandTy (DPresupElTy dQ)) dQ)
+  pure (DCodePropEq dP' dQ' dS dT)
 closeE sig ctx ty chL curL chR curR (FWitness mc) = do
   tyN <- nfT sig ty
   case (curL, curR, tyN) of

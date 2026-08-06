@@ -158,9 +158,13 @@ record ElabSt where
   ||| opened names of its imports (last entry wins; locals were already
   ||| resolved by the parser and never reach this table)
   vis : SnocList (String, String)
+  ||| the derivation rework's STRICT MODE (phase 2's coverage meter):
+  ||| an accepted item the reconstructor cannot cover becomes an
+  ||| error instead of a silent fallback
+  strictDeriv : Bool
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [<] [<] [<] [<] "" [<]
+initSt = MkElabSt [<] [<] [] [] [] [<] [<] [<] [<] "" [<] False
 
 ||| Resolve a surface signature reference: aliases first (own module,
 ||| opened imports), else the name itself (qualified references reach
@@ -3578,7 +3582,9 @@ shadowAccept name art clean = do
   if not clean
     then pure ()
     else case shadowDef st.kernelSig kernelFuel art of
-      Nothing => pure ()
+      Nothing => if st.strictDeriv
+                   then throw "\{name}: NOT COVERED by the derivation reconstructor"
+                   else pure ()
       Just (Right ()) => pure ()
       Just (Left err) => throw "\{name}: DERIVATION SHADOW DISAGREES: \{err}"
 
@@ -3588,7 +3594,9 @@ shadowTyAccept name art clean = do
   if not clean
     then pure ()
     else case shadowTyDef st.kernelSig kernelFuel art of
-      Nothing => pure ()
+      Nothing => if st.strictDeriv
+                   then throw "\{name}: NOT COVERED by the derivation reconstructor"
+                   else pure ()
       Just (Right ()) => pure ()
       Just (Left err) => throw "\{name}: DERIVATION SHADOW DISAGREES: \{err}"
 
@@ -4211,8 +4219,8 @@ installImports (MkSImport m opens :: rest) = do
 ||| ACCEPTED — clean and fully kernel-checked — before anything may
 ||| import it; the root reports its obligations as usual.
 export
-elabProgram : List ModUnit -> String
-elabProgram units = go initSt units []
+elabProgramStrict : Bool -> List ModUnit -> String
+elabProgramStrict strict units = go ({ strictDeriv := strict } initSt) units []
  where
   finish : FixTable -> ElabSt -> List String -> String
   finish tbl st echoes =
@@ -4287,6 +4295,11 @@ elabProgramSig units = go initSt units
               Nothing  => case rest of
                             [] => Right st'.kernelSig
                             _  => go st' rest
+
+||| The default (non-strict) entry.
+export
+elabProgram : List ModUnit -> String
+elabProgram = elabProgramStrict False
 
 ||| Elaborate a single surface file (no imports — resolving them needs
 ||| the module loader); the returned string is the complete report.

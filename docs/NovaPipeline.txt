@@ -412,11 +412,16 @@ Phasing:
      translation — each Sel to its injectivity node, the
      instantiating selectors composed with el-sub-cong-fix, SelSuc
      riding the derivable predecessor route (el-nat-e-cong at the
-     constant motive, conjugated by nf-expand). Bails, honestly:
-     SelQIdx, dependent positions shifted beyond nf (the
+     constant motive, conjugated by nf-expand). Sixth slice: el-squash-e-prf
+     (a rule the derivation core had missed — the reconstructor's
+     coverage sweep found it), the FPropExt final, and STRICT MODE —
+     NOVA_STRICT_DERIVATIONS=1 makes an uncovered accepted item an
+     error, turning the corpus into a coverage meter (currently 3/27
+     files fully covered; every covered item agrees). Bails,
+     honestly: SelQIdx, dependent positions shifted beyond nf (the
      hypothesis-sensitive residue), placements through eliminators,
-     hole solutions. Remaining: those bails, a strict mode to
-     measure coverage, then the re-seat.]
+     hole solutions. Remaining: those bails driven down by the
+     strict-mode meter, then the re-seat.]
   3. CONSOLIDATION (incremental, unhurried) — the elaborator emits
      derivations directly where reconstruction is weak or wasteful;
      the trace→derivation translation absorbs the discharge engine's

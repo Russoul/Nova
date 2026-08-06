@@ -1,5 +1,7 @@
 module Nova.Elaboration.Loader
 
+import System
+
 -- The module loader: resolves a root .nova file's import graph into
 -- the dependency-ordered list of modules that elabProgram consumes.
 --
@@ -10,6 +12,7 @@ module Nova.Elaboration.Loader
 -- once. All file IO lives here; elaboration itself stays pure.
 
 import Data.List
+import Data.Maybe
 import Data.List1
 import Data.SnocList
 import Data.String
@@ -142,7 +145,8 @@ elabPath : String -> IO String
 elabPath rootPath = do
   Right units <- loadProgram rootPath
     | Left err => pure "Error: \{err.lmsg}"
-  pure (elabProgram units)
+  strict <- getEnv "NOVA_STRICT_DERIVATIONS"
+  pure (elabProgramStrict (isJust strict) units)
 
 ||| Load, elaborate (requiring full acceptance — Nova.Compute assumes
 ||| closed, well-typed input), and compute the normal form of a named
