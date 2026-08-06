@@ -81,6 +81,14 @@ pWDc : Payload -> Maybe ECert
 pWDc (PWD c) = Just c
 pWDc _ = Nothing
 
+pIntro : Payload -> Maybe (Ty, Skel)
+pIntro (PIntroTy t s) = Just (t, s)
+pIntro _ = Nothing
+
+isIntro : Payload -> Bool
+isIntro (PIntroTy _ _) = True
+isIntro _ = False
+
 pSqE : Payload -> Maybe (Elem, Skel, Elem, Skel)
 pSqE (PSquashElim e se b sb) = Just (e, se, b, sb)
 pSqE _ = Nothing
@@ -277,10 +285,18 @@ mutual
   ||| and its concluded type.
   export
   reInfer : Sig -> Ctx -> Elem -> Skel -> Maybe (Deriv, Ty)
-  reInfer sig ctx (CtxVar i) sk = do
+  reInfer sig ctx e sk =
+    case payload pIntro sk of
+      Just (t, _) => do
+        d <- reCheck sig ctx e t (dropP isIntro sk)
+        pure (d, t)
+      Nothing => reInferGo sig ctx e sk
+
+  reInferGo : Sig -> Ctx -> Elem -> Skel -> Maybe (Deriv, Ty)
+  reInferGo sig ctx (CtxVar i) sk = do
     ty <- ctxAt ctx i
     pure (DElVar i, ty)
-  reInfer sig ctx (Elem.SigVar x es) sk =
+  reInferGo sig ctx (Elem.SigVar x es) sk =
     case sigLookup x sig of
       Just (SigDef delta _ _ a) => do
         d <- reSubN sig ctx es (toList delta)
@@ -289,7 +305,7 @@ mutual
         d <- reSubN sig ctx es (toList delta)
         pure (DElSig x d, substTy a (embed es))
       _ => Nothing
-  reInfer sig ctx (PiApp f e) sk = do
+  reInferGo sig ctx (PiApp f e) sk = do
     (df, fty) <- reInfer sig ctx f (childAt 0 sk)
     case fty of
       Ty.PiTy a b => do
@@ -297,30 +313,42 @@ mutual
         db <- reTy sig (ctx :< a) b emptySkel
         pure (DElPiE df de db, substTy b (Ext Id e))
       _ => Nothing
-  reInfer sig ctx (SigmaElim1 t) sk = do
+  reInferGo sig ctx (SigmaElim1 t) sk = do
     (dt, tty) <- reInfer sig ctx t (childAt 0 sk)
     case tty of
       Ty.SigmaTy a _ => pure (DElSigmaE1 dt, a)
       _ => Nothing
-  reInfer sig ctx (SigmaElim2 t) sk = do
+  reInferGo sig ctx (SigmaElim2 t) sk = do
     (dt, tty) <- reInfer sig ctx t (childAt 0 sk)
     case tty of
       Ty.SigmaTy _ b => pure (DElSigmaE2 dt, substTy b (Ext Id (SigmaElim1 t)))
       _ => Nothing
-  reInfer sig ctx (Let a b) sk = do
+  reInferGo sig ctx (Let a b) sk = do
     (da, aty) <- reInfer sig ctx a (childAt 0 sk)
     let hyp = Prf (Elem.EqTy (CtxVar 0) (substElem a Wk) (substTy aty Wk))
     (db, bty) <- reInfer sig (ctx :< aty :< hyp) b (childAt 1 sk)
     pure (DElLet da db, substTy bty (Ext (Ext Id a) Star))
-  reInfer sig ctx (NatElim z s t) sk = do
-    (mot, motSk) <- payload pMot sk
-    dmot <- reTy sig (ctx :< Ty.NatTy) mot motSk
-    dz <- reCheck sig ctx z (substTy mot (Ext Id NatIntro0)) (childAt 0 sk)
-    ds <- reCheck sig (ctx :< Ty.NatTy :< mot) s
-            (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) (childAt 1 sk)
-    dt <- reCheck sig ctx t Ty.NatTy (childAt 2 sk)
-    pure (DElNatE dmot dz ds dt, substTy mot (Ext Id t))
-  reInfer sig ctx (SumElim l r t) sk = do
+  reInferGo sig ctx (NatElim z s t) sk =
+    case payload pMot sk of
+      Nothing => do
+        -- no motive annotation (a spelling arisen from normalization,
+        -- not from the item body): the CONSTANT-MOTIVE guess — A1's
+        -- de facto fragment, recovered bare
+        (dz, zty) <- reInfer sig ctx z emptySkel
+        let mot = substTy zty Wk
+        dmot <- reTy sig (ctx :< Ty.NatTy) mot emptySkel
+        ds <- reCheck sig (ctx :< Ty.NatTy :< mot) s
+                (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) emptySkel
+        dt <- reCheck sig ctx t Ty.NatTy emptySkel
+        pure (DElNatE dmot dz ds dt, zty)
+      Just (mot, motSk) => do
+        dmot <- reTy sig (ctx :< Ty.NatTy) mot motSk
+        dz <- reCheck sig ctx z (substTy mot (Ext Id NatIntro0)) (childAt 0 sk)
+        ds <- reCheck sig (ctx :< Ty.NatTy :< mot) s
+                (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) (childAt 1 sk)
+        dt <- reCheck sig ctx t Ty.NatTy (childAt 2 sk)
+        pure (DElNatE dmot dz ds dt, substTy mot (Ext Id t))
+  reInferGo sig ctx (SumElim l r t) sk = do
     (mot, motSk) <- payload pMot sk
     (dt, tty) <- reInfer sig ctx t (childAt 2 sk)
     case tty of
@@ -330,44 +358,44 @@ mutual
         dr <- reCheck sig (ctx :< b) r (substTy mot (Ext Wk (Inj2 (CtxVar 0)))) (childAt 1 sk)
         pure (DElSumE dt dmot dl dr, substTy mot (Ext Id t))
       _ => Nothing
-  reInfer sig ctx NatIntro0 sk = Just (DElNatZ, Ty.NatTy)
-  reInfer sig ctx (NatIntro1 t) sk = do
+  reInferGo sig ctx NatIntro0 sk = Just (DElNatZ, Ty.NatTy)
+  reInferGo sig ctx (NatIntro1 t) sk = do
     d <- reCheck sig ctx t Ty.NatTy (childAt 0 sk)
     pure (DElNatS d, Ty.NatTy)
-  reInfer sig ctx OneIntro sk = Just (DElOneI, Ty.OneTy)
+  reInferGo sig ctx OneIntro sk = Just (DElOneI, Ty.OneTy)
   -- universe and Ω codes
-  reInfer sig ctx Elem.ZeroTy sk = Just (DCodeZero, Ty.UniverseTy)
-  reInfer sig ctx Elem.OneTy sk = Just (DCodeOne, Ty.UniverseTy)
-  reInfer sig ctx Elem.NatTy sk = Just (DCodeNat, Ty.UniverseTy)
-  reInfer sig ctx (Elem.PiTy a b) sk = do
+  reInferGo sig ctx Elem.ZeroTy sk = Just (DCodeZero, Ty.UniverseTy)
+  reInferGo sig ctx Elem.OneTy sk = Just (DCodeOne, Ty.UniverseTy)
+  reInferGo sig ctx Elem.NatTy sk = Just (DCodeNat, Ty.UniverseTy)
+  reInferGo sig ctx (Elem.PiTy a b) sk = do
     da <- reCheck sig ctx a Ty.UniverseTy (childAt 0 sk)
     db <- reCheck sig (ctx :< El a) b Ty.UniverseTy (childAt 1 sk)
     pure (DCodePi da db, Ty.UniverseTy)
-  reInfer sig ctx (Elem.SigmaTy a b) sk = do
+  reInferGo sig ctx (Elem.SigmaTy a b) sk = do
     da <- reCheck sig ctx a Ty.UniverseTy (childAt 0 sk)
     db <- reCheck sig (ctx :< El a) b Ty.UniverseTy (childAt 1 sk)
     pure (DCodeSigma da db, Ty.UniverseTy)
-  reInfer sig ctx (Elem.SumTy a b) sk = do
+  reInferGo sig ctx (Elem.SumTy a b) sk = do
     da <- reCheck sig ctx a Ty.UniverseTy (childAt 0 sk)
     db <- reCheck sig ctx b Ty.UniverseTy (childAt 1 sk)
     pure (DCodeSum da db, Ty.UniverseTy)
-  reInfer sig ctx (Elem.QuotTy a r) sk = do
+  reInferGo sig ctx (Elem.QuotTy a r) sk = do
     da <- reCheck sig ctx a Ty.UniverseTy (childAt 0 sk)
     dr <- reCheck sig (ctx :< El a :< substTy (El a) Wk) r Ty.PropTy (childAt 1 sk)
     pure (DCodeQuot da dr, Ty.UniverseTy)
-  reInfer sig ctx (Elem.EqTy l r t) sk = do
+  reInferGo sig ctx (Elem.EqTy l r t) sk = do
     dt <- reTy sig ctx t (childAt 2 sk)
     dl <- reCheck sig ctx l t (childAt 0 sk)
     dr <- reCheck sig ctx r t (childAt 1 sk)
     pure (DCodeEq dt dl dr, Ty.PropTy)
-  reInfer sig ctx (Squash a) sk = do
+  reInferGo sig ctx (Squash a) sk = do
     da <- reTy sig ctx a (childAt 0 sk)
     pure (DCodeSquash da, Ty.PropTy)
-  reInfer sig ctx (QSortC sg k es) sk = do
+  reInferGo sig ctx (QSortC sg k es) sk = do
     dSig <- reQSig sig ctx sg
     ds <- reQSpine sig ctx sg k (toList es)
     pure (DCodeQSort k dSig ds, Ty.UniverseTy)
-  reInfer sig ctx (QCtor sg k es) sk = do
+  reInferGo sig ctx (QCtor sg k es) sk = do
     dSig <- reQSig sig ctx sg
     ds <- reQSpine sig ctx sg k (toList es)
     entry <- qEntry sg k
@@ -375,7 +403,7 @@ mutual
     (wEnd, hd) <- e2m (walkVals sg (qwAt k) entry (toList es))
     (srt, idx) <- e2m (pointHead sg wEnd hd)
     pure (DQCtor k dSig ds, QSort sg srt idx)
-  reInfer sig ctx (QElim sg k mots fs es w) sk = do
+  reInferGo sig ctx (QElim sg k mots fs es w) sk = do
     dSig <- reQSig sig ctx sg
     let cohCerts = case payload pQC sk of
                      Just cs => cs
@@ -422,15 +450,15 @@ mutual
       d <- reEq sig cctx c lhs rhs cty
       ds <- goCohs ejs rest
       pure (d :: ds)
-  reInfer sig ctx (Class a) sk = Nothing       -- intro: checking-only
-  reInfer sig ctx (Out t) sk = do
+  reInferGo sig ctx (Class a) sk = Nothing       -- intro: checking-only
+  reInferGo sig ctx (Out t) sk = do
     (dt, tty) <- reInfer sig ctx t (childAt 0 sk)
     case tty of
       Ty.NuTy f => do
         dp <- rePoly sig ctx f
         pure (DElNuE dp dt, El (reflectPoly f (Elem.NuTy f)))
       _ => Nothing
-  reInfer sig ctx (QuotElim f q) sk = do
+  reInferGo sig ctx (QuotElim f q) sk = do
     (mot, motSk) <- payload pMot sk
     wd <- payload pWDc sk
     (dq, qty) <- reInfer sig ctx q (childAt 1 sk)
@@ -447,7 +475,7 @@ mutual
                    (substTy mot (Ext wk3 (Class (CtxVar 2))))
         pure (DElQuotE dq dmot df dresp, substTy mot (Ext Id q))
       _ => Nothing
-  reInfer sig ctx _ sk = Nothing
+  reInferGo sig ctx _ sk = Nothing
 
   ||| Checking: switch/expose payloads translated on the β-only
   ||| route; intro forms structurally; fallback infer-and-α-compare
@@ -524,6 +552,20 @@ mutual
             pure (DElNuI dp da db dx)
           else Nothing
       _ => Nothing
+  reCheckGo sig ctx (NatElim z st t) ty sk =
+    case payload pMot sk of
+      Just _ => do
+        (d, ity) <- reInferGo sig ctx (NatElim z st t) sk
+        coerce sig ctx d ity ty
+      Nothing => do
+        -- constant motive at the EXPECTED type
+        let mot = substTy ty Wk
+        dmot <- reTy sig (ctx :< Ty.NatTy) mot emptySkel
+        dz <- reCheck sig ctx z ty (childAt 0 sk)
+        ds <- reCheck sig (ctx :< Ty.NatTy :< mot) st
+                (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) (childAt 1 sk)
+        dt <- reCheck sig ctx t Ty.NatTy (childAt 2 sk)
+        pure (DElNatE dmot dz ds dt)
   reCheckGo sig ctx (ZeroElim t) ty sk = do
     dA <- reTy sig ctx ty emptySkel
     dt <- reCheck sig ctx t Ty.ZeroTy (childAt 0 sk)
@@ -559,6 +601,18 @@ mutual
                       _ => Nothing
                   _ => Nothing
               Nothing => Nothing
+  reCheckGo sig ctx (PiApp f e) ty sk =
+    case reInferGo sig ctx (PiApp f e) sk of
+      Just (d, ity) => coerce sig ctx d ity ty
+      Nothing => do
+        -- the constant-codomain guess for an uninferable head (an
+        -- applied eliminator from a normalized spelling)
+        (_, a) <- reInfer sig ctx e (childAt 1 sk)
+        let b = substTy ty Wk
+        df <- reCheck sig ctx f (Ty.PiTy a b) (childAt 0 sk)
+        de <- reCheck sig ctx e a (childAt 1 sk)
+        db <- reTy sig (ctx :< a) b emptySkel
+        pure (DElPiE df de db)
   reCheckGo sig ctx e ty sk = do
     (d, ity) <- reInfer sig ctx e sk
     coerce sig ctx d ity ty
@@ -716,6 +770,18 @@ reLicensed sig ctx step d =
                            else (dEqN, leN, reN)
       pure (dO, lO, rO, t)
 
+||| An application head's Π type: by inference when the head is
+||| inferable, else the CONSTANT-CODOMAIN guess — domain from the
+||| argument, codomain from the application's expected type (the
+||| applied-eliminator fragment).
+headPi : Sig -> Ctx -> Elem -> Elem -> Ty -> Maybe (Ty, Ty)
+headPi sig ctx f e exp =
+  case reInfer sig ctx f emptySkel of
+    Just (_, Ty.PiTy a b) => Just (a, b)
+    _ => do
+      (_, a) <- reInfer sig ctx e emptySkel
+      pure (a, substTy exp Wk)
+
 ||| Placement: rewrite `cur` at `path` by the step's licensed
 ||| equation, emitting the congruence chain; returns the derivation
 ||| (cur ≐ cur′ at the expected type) and cur′.
@@ -743,22 +809,17 @@ rePlaceE sig ctx step d (i :: p) exp cur =
       (dc, t', _) <- rePlaceE sig ctx step d p Ty.NatTy t
       pure (DElSucCong dc, NatIntro1 t', Ty.NatTy)
     (PiApp f e, 0) => do
-      (df, fty) <- reInfer sig ctx f emptySkel
-      case fty of
-        Ty.PiTy a b => do
-          (dc, f', _) <- rePlaceE sig ctx step d p (Ty.PiTy a b) f
-          de <- reCheck sig ctx e a emptySkel
-          db <- reTy sig (ctx :< a) b emptySkel
-          pure (DElAppCong dc (DElRefl de) db, PiApp f' e, substTy b (Ext Id e))
-        _ => Nothing
+      (a, b) <- headPi sig ctx f e exp
+      (dc, f', _) <- rePlaceE sig ctx step d p (Ty.PiTy a b) f
+      de <- reCheck sig ctx e a emptySkel
+      db <- reTy sig (ctx :< a) b emptySkel
+      pure (DElAppCong dc (DElRefl de) db, PiApp f' e, substTy b (Ext Id e))
     (PiApp f e, 1) => do
-      (df, fty) <- reInfer sig ctx f emptySkel
-      case fty of
-        Ty.PiTy a b => do
-          (dc, e', _) <- rePlaceE sig ctx step d p a e
-          db <- reTy sig (ctx :< a) b emptySkel
-          pure (DElAppCong (DElRefl df) dc db, PiApp f e', substTy b (Ext Id e'))
-        _ => Nothing
+      (a, b) <- headPi sig ctx f e exp
+      df <- reCheck sig ctx f (Ty.PiTy a b) emptySkel
+      (dc, e', _) <- rePlaceE sig ctx step d p a e
+      db <- reTy sig (ctx :< a) b emptySkel
+      pure (DElAppCong (DElRefl df) dc db, PiApp f e', substTy b (Ext Id e'))
     (Inj1 a, 0) =>
       case exp of
         Ty.SumTy l r => do
@@ -773,6 +834,35 @@ rePlaceE sig ctx step d (i :: p) exp cur =
           dl <- reTy sig ctx l emptySkel
           pure (DElInj2Cong dc dl, Inj2 b', Ty.SumTy l r)
         _ => Nothing
+    (NatElim z st t, 2) => do
+      (dz, zty) <- reInfer sig ctx z emptySkel
+      let mot = substTy zty Wk
+      dmot <- reTy sig (ctx :< Ty.NatTy) mot emptySkel
+      dst <- reCheck sig (ctx :< Ty.NatTy :< mot) st
+               (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) emptySkel
+      (dc, t', _) <- rePlaceE sig ctx step d p Ty.NatTy t
+      pure (DElNatECong dmot (DElRefl dz) (DElRefl dst) dc,
+            NatElim z st t', zty)
+    (NatElim z st t, 0) => do
+      (dz0, zty) <- reInfer sig ctx z emptySkel
+      let mot = substTy zty Wk
+      dmot <- reTy sig (ctx :< Ty.NatTy) mot emptySkel
+      (dc, z', _) <- rePlaceE sig ctx step d p zty z
+      dst <- reCheck sig (ctx :< Ty.NatTy :< mot) st
+               (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) emptySkel
+      dt <- reCheck sig ctx t Ty.NatTy emptySkel
+      pure (DElNatECong dmot dc (DElRefl dst) (DElRefl dt),
+            NatElim z' st t, zty)
+    (NatElim z st t, 1) => do
+      (dz, zty) <- reInfer sig ctx z emptySkel
+      let mot = substTy zty Wk
+      dmot <- reTy sig (ctx :< Ty.NatTy) mot emptySkel
+      let sctx = ctx :< Ty.NatTy :< mot
+      (dc, st', _) <- rePlaceE sig sctx step (2 + d) p
+                        (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) st
+      dt <- reCheck sig ctx t Ty.NatTy emptySkel
+      pure (DElNatECong dmot (DElRefl dz) dc (DElRefl dt),
+            NatElim z st' t, zty)
     (Class a, 0) =>
       case exp of
         Ty.Quotient dom rel => do
@@ -961,6 +1051,25 @@ closeE sig ctx ty chL curL chR curR (FPropExt fs fsk bs bsk) = do
   dQ' <- if ty == Ty.PropTy then Just dQ
          else Just (DElTyCoe (DNfExpandTy (DPresupElTy dQ)) dQ)
   pure (DCodePropEq dP' dQ' dS dT)
+closeE sig ctx ty chL curL chR curR (FEtaSigma c1 c2) = do
+  tyN <- nfT sig ty
+  case tyN of
+    Ty.SigmaTy a b => do
+      let coeIf : Deriv -> Deriv
+          coeIf d = if tyN == ty then d
+                    else DElTyCoe (DNfExpandTy (DPresupElTy d)) d
+      let dl = coeIf (DPresupElR chL)
+      let dr = coeIf (DPresupElR chR)
+      dP1 <- reEq sig ctx c1 (SigmaElim1 curL) (SigmaElim1 curR) a
+      dP2 <- reEq sig ctx c2 (SigmaElim2 curL) (SigmaElim2 curR)
+               (substTy b (Ext Id (SigmaElim1 curL)))
+      let two = DElSigmaEta dl dr dP1 dP2
+      if tyN == ty then Just two
+        else do
+          dtN <- reTy sig ctx tyN emptySkel
+          dt <- reTy sig ctx ty emptySkel
+          pure (DElEqTyCoe (DNfEqTy dtN dt) two)
+    _ => Nothing
 closeE sig ctx ty chL curL chR curR (FWitness mc) = do
   tyN <- nfT sig ty
   case (curL, curR, tyN) of
