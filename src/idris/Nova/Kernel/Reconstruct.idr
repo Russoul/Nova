@@ -1374,6 +1374,7 @@ reBridgeE sig ctx step d x y exp =
       <|> (do (dEq, t) <- qPathLeaf sig ctx x y
               atExp dEq t)
       <|> byHyp 0
+      <|> byQuotHyp
       <|> (case (x, y) of
              (NatIntro1 u, NatIntro1 v) =>
                DElSucCong <$> reBridgeE sig ctx step d u v Ty.NatTy
@@ -1421,6 +1422,36 @@ reBridgeE sig ctx step d x y exp =
         dt <- reTy sig ctx t emptySkel
         de <- reTy sig ctx exp emptySkel
         pure (DElEqTyCoe (DNfEqTy dt de) dEq)
+
+  -- classes of related representatives: el-quot-eq with the witness
+  -- found among the context's hypotheses
+  byQuotHyp : Maybe Deriv
+  byQuotHyp = do
+    expN <- nfT sig exp
+    let Ty.Quotient dom rel = expN
+      | _ => Nothing
+    let (Class x0, Class y0) = (x, y)
+      | _ => Nothing
+    da <- reCheck sig ctx x0 dom emptySkel
+    db <- reCheck sig ctx y0 dom emptySkel
+    dR <- reCheck sig (ctx :< dom :< substTy dom Wk) rel Ty.PropTy emptySkel
+    let want = Prf (substElem rel (Ext (Ext Id x0) y0))
+    wantN <- nfT sig want
+    dh <- findHyp want wantN 0
+    atExp (DElQuotEq da db dR dh) expN
+   where
+    findHyp : Ty -> Ty -> Nat -> Maybe Deriv
+    findHyp want wantN i = do
+      vty <- ctxAt ctx i
+      (do let dv = DElVar i
+          if vty == want then Just dv
+            else do
+              vN <- nfT sig vty
+              let True = vN == wantN
+                | False => Nothing
+              dW <- reTy sig ctx want emptySkel
+              pure (DElTyCoe (DNfEqTy (DPresupElTy dv) dW) dv))
+       <|> findHyp want wantN (S i)
 
   -- a context hypothesis of the very equality, reflected (the pair
   -- being bridged is already normalized, so match at nf)
@@ -1530,11 +1561,60 @@ reEqEnds sig ctx (MkECertF tyEx steps final) l r ty ends =
             pure (DElTyCoe (DTySym (DNfExpandTy dT))
                     (DElTyCoe dBr deN)))
     <|> byLicense steps
+    <|> byPropExt
    where
     firstStep : List Step -> Ty -> Ty -> Maybe Deriv
     firstStep [] a b = reBridgeT sig ctx Nothing 0 a b
     firstStep (stp :: rest) a b =
       reBridgeT sig ctx (Just stp) 0 a b <|> firstStep rest a b
+
+    -- both props hold — the target by reflexivity, the endpoint's own
+    -- by the endpoint itself — so their Prfs are equal by
+    -- code-prop-eq (propositional extensionality)
+    byPropExt : Maybe Deriv
+    byPropExt = do
+      (de, ety) <- reInfer sig ctx e emptySkel
+      etyN <- nfT sig ety
+      tN <- nfT sig t
+      let Prf psi = etyN
+        | _ => Nothing
+      let Prf phi = tN
+        | _ => Nothing
+      -- e at its nf'd Prf
+      let deN = if ety == etyN then de
+                else DElTyCoe (DNfExpandTy (DPresupElTy de)) de
+      let dP = DInvPrfCode (DPresupElTy deN)
+      dQ <- reCheck sig ctx phi Ty.PropTy emptySkel
+      -- Prf phi inhabited under Prf psi: phi an equality whose sides
+      -- agree up to nf
+      dS <- do let Elem.EqTy a b t' = substElem phi Wk
+                 | _ => Nothing
+               let ctxS = ctx :< Prf psi
+               aN <- nfE sig a
+               bN <- nfE sig b
+               let True = aN == bN
+                 | False => Nothing
+               da <- reCheck sig ctxS a t' emptySkel
+               db <- reCheck sig ctxS b t' emptySkel
+               pure $ if a == b then DElEqI (DElRefl da)
+                                else DElEqI (DNfEq da db)
+      -- Prf psi inhabited under Prf phi: the endpoint itself, weakened
+      dT <- do let ctxT = ctx :< Prf phi
+               (deW, etyW) <- reInfer sig ctxT (substElem e Wk) emptySkel
+               let dPsiW = DPresupTyL (DTySubCongFix DSubWk
+                             (DTyRefl (DTyPrf dP)))
+               if etyW == substTy (Prf psi) Wk then Just deW
+                 else do
+                   wN <- nfT sig etyW
+                   pN <- nfT sig (substTy (Prf psi) Wk)
+                   let True = wN == pN
+                     | False => Nothing
+                   pure (DElTyCoe (DNfEqTy (DPresupElTy deW) dPsiW) deW)
+      let dBr = DTyPrfCong (DCodePropEq dP dQ dS dT)
+      -- e at Prf psi, ridden over the bridge, then back to raw t
+      dTgt <- reTy sig ctx t emptySkel
+      pure (DElTyCoe (DTySym (DNfExpandTy dTgt))
+              (DElTyCoe dBr deN))
 
     -- the endpoint IS a side of some step's licensed equation: its
     -- typing is that equation's presupposition

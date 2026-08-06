@@ -415,6 +415,8 @@ data Deriv : Type where
   DInvPrfEqL : Deriv -> Deriv
   DInvPrfEqR : Deriv -> Deriv
   DInvPrfEqTy : Deriv -> Deriv
+  ||| from Γ ⊦ Prf p type conclude Γ ⊦ p : Ω
+  DInvPrfCode : Deriv -> Deriv
 
   -- ----- ADMISSIBLE: the nf oracle -----
   ||| nf-expand: Γ ⊦ t : A  ⊢  Γ ⊦ t ≐ nf(t) : A
@@ -1657,6 +1659,11 @@ conclude sig ctx (DInvPrfEqTy d) = do
   case t of
     Prf (Elem.EqTy _ _ ty) => pure (JTy ty)
     _ => kerr "derivation: inv-prf-eq-ty: premise not a Prf-equality formation"
+conclude sig ctx (DInvPrfCode d) = do
+  t <- conclude sig ctx d >>= needTy
+  case t of
+    Prf p => pure (JEl p Ty.PropTy)
+    _ => kerr "derivation: inv-prf-code: premise not a Prf formation"
 
 -- ADMISSIBLE: the nf oracle (the typing premise is load-bearing —
 -- docs/NovaDerivations.txt)

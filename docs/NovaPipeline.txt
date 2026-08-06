@@ -505,7 +505,17 @@ Phasing:
      (normalization-heavy endpoint typings) and the vector-append
      tail (an INDEXED motive for a normalized eliminator spelling —
      placements need motive abstraction). Remaining: those bails
-     driven down by the strict-mode meter, then the re-seat.]
+     driven down by the strict-mode meter, then the re-seat.
+     Twentieth slice: two more endpoint routes — classes of related
+     representatives take el-quot-eq with the witness found among
+     the context's hypotheses (the genuine-quotient dual of the
+     QIIT path search), and an endpoint whose Prf differs from the
+     goal's beyond nf rides code-prop-eq (both props HOLD: the
+     goal's by nf-reflexivity, the endpoint's own by the endpoint
+     itself, weakened — with inv-prf-code delivering the Ω-typing
+     from the presupposed formation). eqInt's normalization identity
+     covers; its iff tail, integerAdd's outer well-definedness and
+     the vector-append tail remain (24/27).]
   3. CONSOLIDATION (incremental, unhurried) — the elaborator emits
      derivations directly where reconstruction is weak or wasteful;
      the trace→derivation translation absorbs the discharge engine's
