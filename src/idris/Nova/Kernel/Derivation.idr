@@ -329,6 +329,8 @@ data Deriv : Type where
   DTySumCong : Deriv -> Deriv -> Deriv
   ||| ty-el-cong: Γ ⊦ a ≐ b : 𝕌
   DTyElCong : Deriv -> Deriv
+  ||| ty-quot-cong: Γ ⊦ A₀ ≐ A₁ type;  Γ ▷ A₁ ▷ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
+  DTyQuotCong : Deriv -> Deriv -> Deriv
   ||| el-nat-e-cong (motive A) / el-sum-e-cong (motive C; delivery
   ||| order teq, C, leq, req) / el-zero-e-cong (no t⁼ premise —
   ||| stronger than a congruence) / el-quot-e-cong (motive B;
@@ -1232,6 +1234,11 @@ conclude sig ctx (DTySumCong dL dR) = do
   (a0, a1) <- conclude sig ctx dL >>= needTyEq
   (b0, b1) <- conclude sig ctx dR >>= needTyEq
   pure (JTyEq (Ty.SumTy a0 b0) (Ty.SumTy a1 b1))
+conclude sig ctx (DTyQuotCong dA dR) = do
+  (a0, a1) <- conclude sig ctx dA >>= needTyEq
+  (r0, r1, rty) <- conclude sig (ctx :< a1 :< wkTy a1) dR >>= needElEq
+  alphaTy "ty-quot-cong" rty Ty.PropTy
+  pure (JTyEq (Ty.Quotient a0 r0) (Ty.Quotient a1 r1))
 conclude sig ctx (DTyElCong d) = do
   (a, b, ty) <- conclude sig ctx d >>= needElEq
   alphaTy "ty-el-cong" ty Ty.UniverseTy

@@ -148,6 +148,15 @@ closeE : Sig -> Ctx -> Ty -> Deriv -> Elem -> Deriv -> Elem -> Final -> Maybe De
 closeT : Sig -> Ctx -> Deriv -> Ty -> Deriv -> Ty -> Final -> Maybe Deriv
 
 mutual
+  ||| Expose a synthesized type's head by normalization, coercing the
+  ||| derivation along the oracle when the spelling changes.
+  expose : Sig -> (Deriv, Ty) -> Maybe (Deriv, Ty)
+  expose sig (d, ty) = do
+    tyN <- nfT sig ty
+    if tyN == ty
+      then Just (d, ty)
+      else Just (DElTyCoe (DNfExpandTy (DPresupElTy d)) d, tyN)
+
   ||| Formation, skeleton-guided (pass emptySkel for spellings whose
   ||| skeleton is unavailable — anything needing a payload then bails).
   export
@@ -306,7 +315,7 @@ mutual
         pure (DElSig x d, substTy a (embed es))
       _ => Nothing
   reInferGo sig ctx (PiApp f e) sk = do
-    (df, fty) <- reInfer sig ctx f (childAt 0 sk)
+    (df, fty) <- reInfer sig ctx f (childAt 0 sk) >>= expose sig
     case fty of
       Ty.PiTy a b => do
         de <- reCheck sig ctx e a (childAt 1 sk)
@@ -314,12 +323,12 @@ mutual
         pure (DElPiE df de db, substTy b (Ext Id e))
       _ => Nothing
   reInferGo sig ctx (SigmaElim1 t) sk = do
-    (dt, tty) <- reInfer sig ctx t (childAt 0 sk)
+    (dt, tty) <- reInfer sig ctx t (childAt 0 sk) >>= expose sig
     case tty of
       Ty.SigmaTy a _ => pure (DElSigmaE1 dt, a)
       _ => Nothing
   reInferGo sig ctx (SigmaElim2 t) sk = do
-    (dt, tty) <- reInfer sig ctx t (childAt 0 sk)
+    (dt, tty) <- reInfer sig ctx t (childAt 0 sk) >>= expose sig
     case tty of
       Ty.SigmaTy _ b => pure (DElSigmaE2 dt, substTy b (Ext Id (SigmaElim1 t)))
       _ => Nothing
@@ -350,7 +359,7 @@ mutual
         pure (DElNatE dmot dz ds dt, substTy mot (Ext Id t))
   reInferGo sig ctx (SumElim l r t) sk = do
     (mot, motSk) <- payload pMot sk
-    (dt, tty) <- reInfer sig ctx t (childAt 2 sk)
+    (dt, tty) <- reInfer sig ctx t (childAt 2 sk) >>= expose sig
     case tty of
       Ty.SumTy a b => do
         dmot <- reTy sig (ctx :< Ty.SumTy a b) mot motSk
@@ -450,9 +459,12 @@ mutual
       d <- reEq sig cctx c lhs rhs cty
       ds <- goCohs ejs rest
       pure (d :: ds)
+  reInferGo sig ctx (Elem.NuTy f) sk = do
+    dp <- rePoly sig ctx f
+    pure (DCodeNu dp, Ty.UniverseTy)
   reInferGo sig ctx (Class a) sk = Nothing       -- intro: checking-only
   reInferGo sig ctx (Out t) sk = do
-    (dt, tty) <- reInfer sig ctx t (childAt 0 sk)
+    (dt, tty) <- reInfer sig ctx t (childAt 0 sk) >>= expose sig
     case tty of
       Ty.NuTy f => do
         dp <- rePoly sig ctx f
@@ -461,7 +473,7 @@ mutual
   reInferGo sig ctx (QuotElim f q) sk = do
     (mot, motSk) <- payload pMot sk
     wd <- payload pWDc sk
-    (dq, qty) <- reInfer sig ctx q (childAt 1 sk)
+    (dq, qty) <- reInfer sig ctx q (childAt 1 sk) >>= expose sig
     case qty of
       Ty.Quotient a r => do
         dmot <- reTy sig (ctx :< Ty.Quotient a r) mot motSk
@@ -497,7 +509,18 @@ mutual
             d <- reCheckGo sig ctx e tyX (dropP isExp sk)
             dEq <- reEqTy sig ctx cert ty tyX
             pure (DElTyCoe (DTySym dEq) d)
-          Nothing => reCheckGo sig ctx e ty sk
+          Nothing => do
+            tyN <- nfT sig ty
+            if tyN == ty
+              then reCheckGo sig ctx e ty sk
+              else
+                -- expose the expected type (the old kernel matches
+                -- heads up to nf); conclude back at the raw spelling
+                case reCheckGo sig ctx e tyN sk of
+                  Just d => do
+                    dT <- reTy sig ctx ty emptySkel
+                    pure (DElTyCoe (DTySym (DNfExpandTy dT)) d)
+                  Nothing => reCheckGo sig ctx e ty sk
 
   reCheckGo : Sig -> Ctx -> Elem -> Ty -> Skel -> Maybe Deriv
   reCheckGo sig ctx (PiIntro f) ty sk =
@@ -566,6 +589,21 @@ mutual
                 (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) (childAt 1 sk)
         dt <- reCheck sig ctx t Ty.NatTy (childAt 2 sk)
         pure (DElNatE dmot dz ds dt)
+  reCheckGo sig ctx (SumElim l r t) ty sk =
+    case payload pMot sk of
+      Just _ => do
+        (d, ity) <- reInferGo sig ctx (SumElim l r t) sk
+        coerce sig ctx d ity ty
+      Nothing => do
+        (dt, tty) <- reInfer sig ctx t (childAt 2 sk) >>= expose sig
+        case tty of
+          Ty.SumTy a b => do
+            let mot = substTy ty Wk
+            dmot <- reTy sig (ctx :< Ty.SumTy a b) mot emptySkel
+            dl <- reCheck sig (ctx :< a) l (substTy ty Wk) (childAt 0 sk)
+            dr <- reCheck sig (ctx :< b) r (substTy ty Wk) (childAt 1 sk)
+            pure (DElSumE dt dmot dl dr)
+          _ => Nothing
   reCheckGo sig ctx (ZeroElim t) ty sk = do
     dA <- reTy sig ctx ty emptySkel
     dt <- reCheck sig ctx t Ty.ZeroTy (childAt 0 sk)
@@ -863,6 +901,18 @@ rePlaceE sig ctx step d (i :: p) exp cur =
       dt <- reCheck sig ctx t Ty.NatTy emptySkel
       pure (DElNatECong dmot (DElRefl dz) dc (DElRefl dt),
             NatElim z st' t, zty)
+    (SumElim l r t, 2) => do
+      (dt, tty) <- reInfer sig ctx t emptySkel >>= expose sig
+      case tty of
+        Ty.SumTy a b => do
+          let mot = substTy exp Wk
+          dmot <- reTy sig (ctx :< Ty.SumTy a b) mot emptySkel
+          dl <- reCheck sig (ctx :< a) l (substTy exp Wk) emptySkel
+          dr <- reCheck sig (ctx :< b) r (substTy exp Wk) emptySkel
+          (dc, t', _) <- rePlaceE sig ctx step d p (Ty.SumTy a b) t
+          pure (DElSumECong dc dmot (DElRefl dl) (DElRefl dr),
+                SumElim l r t', exp)
+        _ => Nothing
     (Class a, 0) =>
       case exp of
         Ty.Quotient dom rel => do
@@ -1104,6 +1154,15 @@ closeT sig ctx chA curA chB curB FBeta =
 closeT sig ctx chA curA chB curB (FPrfCong c) =
   case (curA, curB) of
     (Prf p, Prf q) => DTyPrfCong <$> reEq sig ctx c p q Ty.PropTy
+    _ => Nothing
+closeT sig ctx chA curA chB curB (FQuotCong c) =
+  case (curA, curB) of
+    (Ty.Quotient d0 r0, Ty.Quotient d1 r1) => do
+      let True = d0 == d1
+        | False => Nothing
+      dr <- reEq sig (ctx :< d0 :< substTy d0 Wk) c r0 r1 Ty.PropTy
+      dd <- reTy sig ctx d0 emptySkel
+      pure (DTyQuotCong (DTyRefl dd) dr)
     _ => Nothing
 closeT sig ctx chA curA chB curB (FPiCong dc cc) =
   case (curA, curB) of
