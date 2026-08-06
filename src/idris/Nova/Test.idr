@@ -65,6 +65,25 @@ derivCases =
     -- demands a typing derivation, so an equation between elements
     -- of DIFFERENT types dies at the type side condition
   , ("oracle-type-clash", DNfEq DElNatZ DElOneI)
+    -- quotients: Z and S Z are equal classes under the total relation
+  , ("quot-class-eq", DElQuotEq DElNatZ (DElNatS DElNatZ)
+      (DCodeSquash DTyOne) (DElSquashI DElOneI))
+    -- el-nat-eta, replayable at last: the identity candidate twice
+  , ("nat-eta", DElNatEta DTyNat (DElVar 0) (DElVar 0)
+      DElNatZ (DElNatS (DElVar 1))
+      (DElRefl DElNatZ)
+      (DElRefl (DElNatS (DElVar 0)))
+      (DElRefl (DElNatS (DElVar 0)))
+      (DElNatS DElNatZ))
+    -- the ν layer: formation at K ℕ ⨯ 𝕏
+  , ("nu-type", DTyNu (DPolyK (PProd (PConst Elem.NatTy) PHole) [DCodeNat]))
+    -- el-sub-cong-fix: a reflexive equation over ▷ℕ, instantiated
+  , ("sub-cong-fix", DElSubCongFix
+      (DSubExt DSubId DTyNat DElNatZ)
+      (DElRefl (DElVar 0)))
+    -- REJECTION: a quotient witness at the wrong proposition
+  , ("quot-bad-witness", DElQuotEq DElNatZ (DElNatS DElNatZ)
+      (DCodeSquash DTyOne) (DElEqI (DElRefl DElNatZ)))
   ]
 
 runDerivTests : IO ()

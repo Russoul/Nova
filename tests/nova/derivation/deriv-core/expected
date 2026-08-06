@@ -7,3 +7,8 @@ eta-pi: ⊦ PiIntro (PiApp (PiIntro (CtxVar 0)) (CtxVar 0)) ≐ PiIntro (CtxVar 
 garbage-domain: REJECTED [derivation: ty-el: type mismatch [NatTy VS UniverseTy]]
 trans-mismatch: REJECTED [derivation: el-trans (middle): element mismatch [NatIntro1 (NatIntro0) VS NatIntro0]]
 oracle-type-clash: REJECTED [derivation: nf-eq: type mismatch [OneTy VS NatTy]]
+quot-class-eq: ⊦ Class (NatIntro0) ≐ Class (NatIntro1 (NatIntro0)) : Quotient (NatTy) (Squash (OneTy))
+nat-eta: ⊦ NatIntro1 (NatIntro0) ≐ NatIntro1 (NatIntro0) : NatTy
+nu-type: ⊦ NuTy (PProd (PConst (NatTy)) (PHole)) type
+sub-cong-fix: ⊦ NatIntro0 ≐ NatIntro0 : NatTy
+quot-bad-witness: REJECTED [derivation: el-quot-eq (witness): type mismatch [Prf (EqTy (NatIntro0) (NatIntro0) (NatTy)) VS Prf (Squash (OneTy))]]

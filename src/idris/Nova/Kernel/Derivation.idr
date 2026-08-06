@@ -25,6 +25,7 @@ import Data.SnocList
 
 import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
+import Nova.Kernel.QIIT
 import Nova.Kernel
 
 %default covering
@@ -43,6 +44,15 @@ data Judg : Type where
   JElEq : Elem -> Elem -> Ty -> Judg
   ||| e˲ : Γ ⇒ Δ norm — Δ (the target telescope) is the output
   JSubN : SubNorm -> Ctx -> Judg
+  ||| Δ ctx — the formed context is the output (the ambient input is
+  ||| irrelevant to this class)
+  JCtx : Ctx -> Judg
+  ||| σ : Γ ⇒ Δ — Γ is the ambient input, Δ the output
+  JSub : Sub -> Ctx -> Judg
+  ||| Γ ⊦ 𝔽 poly
+  JPoly : Poly -> Judg
+  ||| Γ ⊦ 𝒮 qsig
+  JQSig : QSig -> Judg
 
 export covering
 Show Judg where
@@ -51,6 +61,10 @@ Show Judg where
   show (JTyEq a b) = "⊦ \{show a} ≐ \{show b} type"
   show (JElEq t u a) = "⊦ \{show t} ≐ \{show u} : \{show a}"
   show (JSubN es _) = "⊦ subst (\{show (length (toList es))} entries)"
+  show (JCtx d) = "⊦ ctx (\{show (length d)} entries)"
+  show (JSub s _) = "⊦ \{show s} sub"
+  show (JPoly f) = "⊦ \{show f} poly"
+  show (JQSig sg) = "⊦ qsig (\{show (length sg)} entries)"
 
 -- ===== Derivations =====
 
@@ -227,6 +241,106 @@ data Deriv : Type where
   ||| nf-eq-ty
   DNfEqTy : Deriv -> Deriv -> Deriv
 
+  -- ----- quotients -----
+  ||| el-quot-i — delivery order a (delivers A), R:
+  ||| Γ ⊦ a : A;  Γ ▷ A ▷ A[↑] ⊦ R : Ω  ⊢  Γ ⊦ class a : A / R
+  DElQuotI : Deriv -> Deriv -> Deriv
+  ||| el-quot-eq — delivery order a, b, R, r:
+  ||| Γ ⊦ r : Prf R[id, a, b]  ⊢  Γ ⊦ class a ≐ class b : A / R
+  DElQuotEq : Deriv -> Deriv -> Deriv -> Deriv -> Deriv
+  ||| el-quot-e (motive B retained) — delivery order q (delivers
+  ||| A / R), B, f, the well-definedness equation:
+  ||| Γ ▷ (A/R) ⊦ B type;  Γ ▷ A ⊦ f : B[↑, class ☐₀];
+  ||| Γ ▷ A ▷ A[↑] ▷ Prf R ⊦ f[↑∘↑∘↑, ☐₂] ≐ f[↑∘↑∘↑, ☐₁]
+  |||   : B[↑∘↑∘↑, class ☐₂]
+  DElQuotE : Deriv -> Deriv -> Deriv -> Deriv -> Deriv
+  ||| el-quot-eta — delivery order q, B, g, f, well-definedness,
+  ||| agreement (Γ ▷ A ⊦ g[↑, class ☐₀] ≐ f : B[↑, class ☐₀]):
+  ||| concludes g[id, q] ≐ quot-elim f q : B[id, q]
+  DElQuotEta : Deriv -> Deriv -> Deriv -> Deriv -> Deriv -> Deriv -> Deriv
+
+  -- ----- the remaining η rules (A5's retirement) -----
+  ||| el-nat-eta (motive A) — premises in Foundation's order:
+  ||| A; f₀; f₁ (over Γ ▷ ℕ); z; s; the Z-agreement
+  ||| f₀[id,Z] ≐ f₁[id,Z]; the two S-agreements
+  ||| fᵢ[↑, S ☐₀] ≐ s[id, fᵢ]; t  ⊢  f₀[id,t] ≐ f₁[id,t] : A[id,t]
+  DElNatEta : Deriv -> Deriv -> Deriv -> Deriv -> Deriv ->
+              Deriv -> Deriv -> Deriv -> Deriv -> Deriv
+  ||| el-sum-eta (motive C) — delivery order t (delivers A ⊎ B), C,
+  ||| g, l, r, the two agreements g[↑, injᵢ ☐₀] ≐ l/r:
+  ||| concludes g[id, t] ≐ ⊎-elim l r t : C[id, t]
+  DElSumEta : Deriv -> Deriv -> Deriv -> Deriv -> Deriv ->
+              Deriv -> Deriv -> Deriv
+
+  -- ----- contexts and substitutions -----
+  ||| ctx-empty / ctx-ext (the formed context is the OUTPUT; the
+  ||| formation premise runs under the prefix being extended)
+  DCtxEmpty : Deriv
+  DCtxExt : Deriv -> Deriv -> Deriv
+  ||| sub-empty: · : Γ ⇒ ε
+  DSubEmpty : Deriv
+  ||| sub-id: id : Γ ⇒ Γ
+  DSubId : Deriv
+  ||| sub-wk: ↑ : Γ ▷ A ⇒ Γ (the ambient must be an extension)
+  DSubWk : Deriv
+  ||| sub-ext — delivery order σ (delivers Γ₁), A (over Γ₁), t
+  ||| side-checked at A[σ]:  (σ, t) : Γ ⇒ Γ₁ ▷ A
+  DSubExt : Deriv -> Deriv -> Deriv -> Deriv
+  ||| sub-comp — delivery order σ : Γ ⇒ Γ₁ (ambient), τ : Γ₁ ⇒ Γ₂:
+  ||| τ ∘ σ : Γ ⇒ Γ₂
+  DSubComp : Deriv -> Deriv -> Deriv
+  ||| el-sub-cong-fix (admissible in Foundation, adopted): σ delivers
+  ||| Γ₁; the equation lives over Γ₁; concludes it substituted
+  DElSubCongFix : Deriv -> Deriv -> Deriv
+  ||| ty-sub-cong-fix
+  DTySubCongFix : Deriv -> Deriv -> Deriv
+
+  -- ----- the ν layer -----
+  ||| poly formation: the polynomial is subject-atom data; the listed
+  ||| derivations check its embedded pieces in binder order (codes at
+  ||| 𝕌, the context growing under El-binders) — Foundation's poly-*
+  ||| rules composed syntax-directedly
+  DPolyK : Poly -> List Deriv -> Deriv
+  ||| ty-nu / code-nu
+  DTyNu : Deriv -> Deriv
+  DCodeNu : Deriv -> Deriv
+  ||| el-nu-e: Γ ⊦ 𝔽 poly;  Γ ⊦ t : ν 𝔽  ⊢  Γ ⊦ out t : El ⌊𝔽⌋(ν 𝔽)
+  DElNuE : Deriv -> Deriv -> Deriv
+  ||| el-nu-i: Γ ⊦ 𝔽 poly;  Γ ⊦ a : 𝕌;  Γ ▷ El a ⊦ f : El ⌊𝔽⌋(a)[↑];
+  ||| Γ ⊦ x : El a  ⊢  Γ ⊦ corec 𝔽 a f x : ν 𝔽
+  DElNuI : Deriv -> Deriv -> Deriv -> Deriv -> Deriv
+  ||| el-nu-coind — delivery order 𝔽, t₀, t₁, R (over ▷ν𝔽▷(ν𝔽)[↑]),
+  ||| p : Prf R[id,t₀,t₁], q (the one-step closure at lift_𝔽(R)):
+  ||| concludes t₀ ≐ t₁ : ν 𝔽
+  DElNuCoind : Deriv -> Deriv -> Deriv -> Deriv -> Deriv -> Deriv -> Deriv
+
+  -- ----- the QIIT layer -----
+  ||| Γ ⊦ 𝒮 qsig — INTERIM: checked by the kernel's existing qctx
+  ||| walk (kQSigCheck, itself in today's trusted base and mirroring
+  ||| Foundation's qctx/qty/qtm rules; its embedded Nova pieces go
+  ||| through the A4 tiny checker). The demand-driven walk — one
+  ||| subderivation per embedded piece — is the outstanding phase-1
+  ||| item (docs/NovaPipeline.txt status).
+  DQSigK : QSig -> Deriv
+  ||| sort-instance formation Γ ⊦ 𝒮.𝕤 ē type — the spine entrywise
+  ||| at the reflected arity telescope
+  DTyQSort : Nat -> Deriv -> List Deriv -> Deriv
+  ||| code-qiit (small signatures only)
+  DCodeQSort : Nat -> Deriv -> List Deriv -> Deriv
+  ||| el-qiit-intro: the constructor spine entrywise; concludes at
+  ||| the point's sort instance
+  DQCtor : Nat -> Deriv -> List Deriv -> Deriv
+  ||| el-qiit-elim — signature premise, then per sort a motive
+  ||| formation (under its reflected telescope plus the sort's self
+  ||| entry), per point a method typing (at its ᴰ method type), per
+  ||| equation a COHERENCE EQUALITY DERIVATION (under the entry's
+  ||| ᴰ-telescope — A4's β-only restriction retired), then the index
+  ||| spine and the scrutinee
+  DQElim : Nat -> Deriv -> List Deriv -> List Deriv -> List Deriv ->
+           List Deriv -> Deriv -> Deriv
+  ||| el-qiit-path: the imposed equation at the given spine
+  DQPath : Nat -> Deriv -> List Deriv -> Deriv
+
 -- ===== Premise-class extraction =====
 
 needTy : Judg -> KM Ty
@@ -248,6 +362,27 @@ needElEq j = kerr "derivation: expected an element-equation premise"
 needSubN : Judg -> KM (SubNorm, Ctx)
 needSubN (JSubN es delta) = pure (es, delta)
 needSubN j = kerr "derivation: expected a normal-substitution premise"
+
+
+needCtx : Judg -> KM Ctx
+needCtx (JCtx g) = pure g
+needCtx j = kerr "derivation: expected a context-formation premise"
+
+needSub : Judg -> KM (Sub, Ctx)
+needSub (JSub s d) = pure (s, d)
+needSub j = kerr "derivation: expected a substitution premise"
+
+needPoly : Judg -> KM Poly
+needPoly (JPoly f) = pure f
+needPoly j = kerr "derivation: expected a polynomial premise"
+
+needQSig : Judg -> KM QSig
+needQSig (JQSig sg) = pure sg
+needQSig j = kerr "derivation: expected a signature premise"
+
+liftQE : Either QErr a -> KM a
+liftQE (Left e) = kerr "derivation: \{e}"
+liftQE (Right x) = pure x
 
 ||| The side-condition α-comparison, with the rule named in the
 ||| rejection.
@@ -275,8 +410,39 @@ wkEl e = substElem e Wk
 
 -- ===== The checker =====
 
+||| Declared ahead: the spine helper below recurses into it.
 export
 conclude : Sig -> Ctx -> Deriv -> KM Judg
+
+||| A ToS entry's reflected binder telescope.
+qArity : QSig -> Nat -> KM (QTy, List Ty)
+qArity sg k = do
+  entry <- case qEntry sg k of
+             Just e => pure e
+             Nothing => kerr "derivation: qiit position out of range"
+  (tel, _, _) <- liftQE (reflTel sg (qwAt k) entry)
+  pure (entry, tel)
+
+||| A spine checked entrywise against a reflected telescope: each
+||| entry's concluded type must match the telescope's, instantiated
+||| by the earlier entries.
+qSpine : String -> Sig -> Ctx -> List Deriv -> List Ty -> KM (List Elem)
+qSpine rule sig ctx ds tel = do
+  pairs <- traverse (\d => conclude sig ctx d >>= needEl) ds
+  let args = map fst pairs
+  if length args /= length tel
+    then kerr "derivation: \{rule}: spine length mismatch"
+    else pure ()
+  goChk 0 pairs args
+  pure args
+ where
+  goChk : Nat -> List (Elem, Ty) -> List Elem -> KM ()
+  goChk i [] _ = pure ()
+  goChk i ((e, ety) :: rest) args = do
+    case telInst tel i args of
+      Just want => alphaTy rule ety want
+      Nothing => kerr "derivation: \{rule}: telescope instantiation failed"
+    goChk (S i) rest args
 
 -- type formation
 conclude sig ctx DTyZero = pure (JTy Ty.ZeroTy)
@@ -671,6 +837,314 @@ conclude sig ctx (DNfEqTy d0 d1) = do
   n1 <- kTy sig a1
   alphaTy "nf-eq-ty" n0 n1
   pure (JTyEq a0 a1)
+
+
+-- quotients
+conclude sig ctx (DElQuotI dA dR) = do
+  (a, aty) <- conclude sig ctx dA >>= needEl
+  (r, rty) <- conclude sig (ctx :< aty :< wkTy aty) dR >>= needEl
+  alphaTy "el-quot-i" rty Ty.PropTy
+  pure (JEl (Class a) (Ty.Quotient aty r))
+conclude sig ctx (DElQuotEq dA dB dR dW) = do
+  (a, aty) <- conclude sig ctx dA >>= needEl
+  (b, bty) <- conclude sig ctx dB >>= needEl
+  alphaTy "el-quot-eq" bty aty
+  (r, rty) <- conclude sig (ctx :< aty :< wkTy aty) dR >>= needEl
+  alphaTy "el-quot-eq" rty Ty.PropTy
+  (_, wty) <- conclude sig ctx dW >>= needEl
+  alphaTy "el-quot-eq (witness)" wty
+    (Prf (substElem r (Ext (Ext Id a) b)))
+  pure (JElEq (Class a) (Class b) (Ty.Quotient aty r))
+conclude sig ctx (DElQuotE dQ dB dF dResp) = do
+  (q, qty) <- conclude sig ctx dQ >>= needEl
+  case qty of
+    Ty.Quotient a r => do
+      b <- conclude sig (ctx :< Ty.Quotient a r) dB >>= needTy
+      (f, fty) <- conclude sig (ctx :< a) dF >>= needEl
+      alphaTy "el-quot-e (case)" fty (substTy b (Ext Wk (Class (CtxVar 0))))
+      let wk3 = Chain Wk (Chain Wk Wk)
+      (l, r', ety) <- conclude sig (ctx :< a :< wkTy a :< Prf r) dResp >>= needElEq
+      alphaEl "el-quot-e (wd l)" l (substElem f (Ext wk3 (CtxVar 2)))
+      alphaEl "el-quot-e (wd r)" r' (substElem f (Ext wk3 (CtxVar 1)))
+      alphaTy "el-quot-e (wd ty)" ety (substTy b (Ext wk3 (Class (CtxVar 2))))
+      pure (JEl (QuotElim f q) (substTy b (Ext Id q)))
+    _ => kerr "derivation: el-quot-e: scrutinee not at a quotient type"
+conclude sig ctx (DElQuotEta dQ dB dG dF dResp dAg) = do
+  (q, qty) <- conclude sig ctx dQ >>= needEl
+  case qty of
+    Ty.Quotient a r => do
+      b <- conclude sig (ctx :< Ty.Quotient a r) dB >>= needTy
+      (g, gty) <- conclude sig (ctx :< Ty.Quotient a r) dG >>= needEl
+      alphaTy "el-quot-eta (g)" gty b
+      (f, fty) <- conclude sig (ctx :< a) dF >>= needEl
+      alphaTy "el-quot-eta (f)" fty (substTy b (Ext Wk (Class (CtxVar 0))))
+      let wk3 = Chain Wk (Chain Wk Wk)
+      (l, r', ety) <- conclude sig (ctx :< a :< wkTy a :< Prf r) dResp >>= needElEq
+      alphaEl "el-quot-eta (wd l)" l (substElem f (Ext wk3 (CtxVar 2)))
+      alphaEl "el-quot-eta (wd r)" r' (substElem f (Ext wk3 (CtxVar 1)))
+      alphaTy "el-quot-eta (wd ty)" ety (substTy b (Ext wk3 (Class (CtxVar 2))))
+      (gl, gr, aty') <- conclude sig (ctx :< a) dAg >>= needElEq
+      alphaEl "el-quot-eta (ag l)" gl (substElem g (Ext Wk (Class (CtxVar 0))))
+      alphaEl "el-quot-eta (ag r)" gr f
+      alphaTy "el-quot-eta (ag ty)" aty' (substTy b (Ext Wk (Class (CtxVar 0))))
+      pure (JElEq (substElem g (Ext Id q)) (QuotElim f q) (substTy b (Ext Id q)))
+    _ => kerr "derivation: el-quot-eta: scrutinee not at a quotient type"
+
+-- the remaining η rules
+conclude sig ctx (DElNatEta dMot dF0 dF1 dZ dS dEqZ dEqS0 dEqS1 dT) = do
+  mot <- conclude sig (ctx :< Ty.NatTy) dMot >>= needTy
+  (f0, f0ty) <- conclude sig (ctx :< Ty.NatTy) dF0 >>= needEl
+  alphaTy "el-nat-eta (f₀)" f0ty mot
+  (f1, f1ty) <- conclude sig (ctx :< Ty.NatTy) dF1 >>= needEl
+  alphaTy "el-nat-eta (f₁)" f1ty mot
+  (z, zty) <- conclude sig ctx dZ >>= needEl
+  alphaTy "el-nat-eta (z)" zty (substTy mot (Ext Id NatIntro0))
+  (s, sty) <- conclude sig (ctx :< Ty.NatTy :< mot) dS >>= needEl
+  alphaTy "el-nat-eta (s)" sty
+    (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk))
+  (zl, zr, zety) <- conclude sig ctx dEqZ >>= needElEq
+  alphaEl "el-nat-eta (Z l)" zl (substElem f0 (Ext Id NatIntro0))
+  alphaEl "el-nat-eta (Z r)" zr (substElem f1 (Ext Id NatIntro0))
+  alphaTy "el-nat-eta (Z ty)" zety (substTy mot (Ext Id NatIntro0))
+  let sSub = Ext Wk (NatIntro1 (CtxVar 0))
+  (s0l, s0r, s0ty) <- conclude sig (ctx :< Ty.NatTy) dEqS0 >>= needElEq
+  alphaEl "el-nat-eta (S₀ l)" s0l (substElem f0 sSub)
+  alphaEl "el-nat-eta (S₀ r)" s0r (substElem s (Ext Id f0))
+  alphaTy "el-nat-eta (S₀ ty)" s0ty (substTy mot sSub)
+  (s1l, s1r, s1ty) <- conclude sig (ctx :< Ty.NatTy) dEqS1 >>= needElEq
+  alphaEl "el-nat-eta (S₁ l)" s1l (substElem f1 sSub)
+  alphaEl "el-nat-eta (S₁ r)" s1r (substElem s (Ext Id f1))
+  alphaTy "el-nat-eta (S₁ ty)" s1ty (substTy mot sSub)
+  (t, tty) <- conclude sig ctx dT >>= needEl
+  alphaTy "el-nat-eta (t)" tty Ty.NatTy
+  pure (JElEq (substElem f0 (Ext Id t)) (substElem f1 (Ext Id t))
+              (substTy mot (Ext Id t)))
+conclude sig ctx (DElSumEta dT dC dG dL dR dAgL dAgR) = do
+  (t, tty) <- conclude sig ctx dT >>= needEl
+  case tty of
+    Ty.SumTy a b => do
+      c <- conclude sig (ctx :< Ty.SumTy a b) dC >>= needTy
+      (g, gty) <- conclude sig (ctx :< Ty.SumTy a b) dG >>= needEl
+      alphaTy "el-sum-eta (g)" gty c
+      let lSub = Ext Wk (Inj1 (CtxVar 0))
+      let rSub = Ext Wk (Inj2 (CtxVar 0))
+      (l, lty) <- conclude sig (ctx :< a) dL >>= needEl
+      alphaTy "el-sum-eta (l)" lty (substTy c lSub)
+      (r, rty) <- conclude sig (ctx :< b) dR >>= needEl
+      alphaTy "el-sum-eta (r)" rty (substTy c rSub)
+      (all', alr, alty) <- conclude sig (ctx :< a) dAgL >>= needElEq
+      alphaEl "el-sum-eta (agl l)" all' (substElem g lSub)
+      alphaEl "el-sum-eta (agl r)" alr l
+      alphaTy "el-sum-eta (agl ty)" alty (substTy c lSub)
+      (arl, arr, arty) <- conclude sig (ctx :< b) dAgR >>= needElEq
+      alphaEl "el-sum-eta (agr l)" arl (substElem g rSub)
+      alphaEl "el-sum-eta (agr r)" arr r
+      alphaTy "el-sum-eta (agr ty)" arty (substTy c rSub)
+      pure (JElEq (substElem g (Ext Id t)) (SumElim l r t) (substTy c (Ext Id t)))
+    _ => kerr "derivation: el-sum-eta: scrutinee not at a ⊎ type"
+
+-- contexts and substitutions
+conclude sig ctx DCtxEmpty = pure (JCtx [<])
+conclude sig ctx (DCtxExt dG dA) = do
+  g <- conclude sig ctx dG >>= needCtx
+  a <- conclude sig g dA >>= needTy
+  pure (JCtx (g :< a))
+conclude sig ctx DSubEmpty = pure (JSub Terminal [<])
+conclude sig ctx DSubId = pure (JSub Id ctx)
+conclude sig ctx DSubWk =
+  case ctx of
+    (rest :< _) => pure (JSub Wk rest)
+    [<] => kerr "derivation: sub-wk: the ambient context is empty"
+conclude sig ctx (DSubExt dS dA dT) = do
+  (s, g1) <- conclude sig ctx dS >>= needSub
+  a <- conclude sig g1 dA >>= needTy
+  (t, tty) <- conclude sig ctx dT >>= needEl
+  alphaTy "sub-ext" tty (substTy a s)
+  pure (JSub (Ext s t) (g1 :< a))
+conclude sig ctx (DSubComp dS dT) = do
+  (s, g1) <- conclude sig ctx dS >>= needSub
+  (t, g2) <- conclude sig g1 dT >>= needSub
+  pure (JSub (Chain t s) g2)
+conclude sig ctx (DElSubCongFix dS dEq) = do
+  (s, g1) <- conclude sig ctx dS >>= needSub
+  (t0, t1, a) <- conclude sig g1 dEq >>= needElEq
+  pure (JElEq (substElem t0 s) (substElem t1 s) (substTy a s))
+conclude sig ctx (DTySubCongFix dS dEq) = do
+  (s, g1) <- conclude sig ctx dS >>= needSub
+  (a0, a1) <- conclude sig g1 dEq >>= needTyEq
+  pure (JTyEq (substTy a0 s) (substTy a1 s))
+
+-- the ν layer
+conclude sig ctx (DPolyK f ds) = do
+  rest <- goPoly ctx f ds
+  case rest of
+    [] => pure (JPoly f)
+    _ => kerr "derivation: poly: too many embedded-piece premises"
+ where
+  goPoly : Ctx -> Poly -> List Deriv -> KM (List Deriv)
+  goPoly c PHole ds = pure ds
+  goPoly c (PConst a) (d :: ds) = do
+    (a', aty) <- conclude sig c d >>= needEl
+    alphaTy "poly (K)" aty Ty.UniverseTy
+    alphaEl "poly (K)" a' a
+    pure ds
+  goPoly c (PProd p q) ds = goPoly c p ds >>= goPoly c q
+  goPoly c (PSum p q) ds = goPoly c p ds >>= goPoly c q
+  goPoly c (PSigma a p) (d :: ds) = do
+    (a', aty) <- conclude sig c d >>= needEl
+    alphaTy "poly (⨯)" aty Ty.UniverseTy
+    alphaEl "poly (⨯)" a' a
+    goPoly (c :< El a) p ds
+  goPoly c (PPi a p) (d :: ds) = do
+    (a', aty) <- conclude sig c d >>= needEl
+    alphaTy "poly (→)" aty Ty.UniverseTy
+    alphaEl "poly (→)" a' a
+    goPoly (c :< El a) p ds
+  goPoly c _ [] = kerr "derivation: poly: missing an embedded-piece premise"
+conclude sig ctx (DTyNu dF) = do
+  f <- conclude sig ctx dF >>= needPoly
+  pure (JTy (Ty.NuTy f))
+conclude sig ctx (DCodeNu dF) = do
+  f <- conclude sig ctx dF >>= needPoly
+  pure (JEl (Elem.NuTy f) Ty.UniverseTy)
+conclude sig ctx (DElNuE dF dT) = do
+  f <- conclude sig ctx dF >>= needPoly
+  (t, tty) <- conclude sig ctx dT >>= needEl
+  alphaTy "el-nu-e" tty (Ty.NuTy f)
+  pure (JEl (Out t) (El (reflectPoly f (Elem.NuTy f))))
+conclude sig ctx (DElNuI dF dA dBody dX) = do
+  f <- conclude sig ctx dF >>= needPoly
+  (a, aty) <- conclude sig ctx dA >>= needEl
+  alphaTy "el-nu-i (carrier)" aty Ty.UniverseTy
+  (body, bty) <- conclude sig (ctx :< El a) dBody >>= needEl
+  alphaTy "el-nu-i (coalgebra)" bty (wkTy (El (reflectPoly f a)))
+  (x, xty) <- conclude sig ctx dX >>= needEl
+  alphaTy "el-nu-i (seed)" xty (El a)
+  pure (JEl (Corec f a body x) (Ty.NuTy f))
+conclude sig ctx (DElNuCoind dF dT0 dT1 dR dP dQ) = do
+  f <- conclude sig ctx dF >>= needPoly
+  (t0, t0ty) <- conclude sig ctx dT0 >>= needEl
+  alphaTy "el-nu-coind (t₀)" t0ty (Ty.NuTy f)
+  (t1, t1ty) <- conclude sig ctx dT1 >>= needEl
+  alphaTy "el-nu-coind (t₁)" t1ty (Ty.NuTy f)
+  (r, rty) <- conclude sig (ctx :< Ty.NuTy f :< Ty.NuTy f) dR >>= needEl
+  alphaTy "el-nu-coind (R)" rty Ty.PropTy
+  (_, pty) <- conclude sig ctx dP >>= needEl
+  alphaTy "el-nu-coind (endpoint)" pty
+    (Prf (substElem r (Ext (Ext Id t0) t1)))
+  (_, qty) <- conclude sig (ctx :< Ty.NuTy f :< Ty.NuTy f :< Prf r) dQ >>= needEl
+  alphaTy "el-nu-coind (closure)" qty
+    (Prf (liftPoly f r (Out (CtxVar 2)) (Out (CtxVar 1))))
+  pure (JElEq t0 t1 (Ty.NuTy f))
+
+-- the QIIT layer
+conclude sig ctx (DQSigK sg) = do
+  sg' <- kQSig sig sg
+  kQSigCheck sig ctx sg'
+  pure (JQSig sg')
+conclude sig ctx (DTyQSort k dSig ds) = do
+  sg <- conclude sig ctx dSig >>= needQSig
+  (entry, tel) <- qArity sg k
+  es <- qSpine "ty-qiit" sig ctx ds tel
+  pure (JTy (QSort sg k (cast es)))
+conclude sig ctx (DCodeQSort k dSig ds) = do
+  sg <- conclude sig ctx dSig >>= needQSig
+  if qSigSmall sg then pure ()
+    else kerr "derivation: code-qiit: signature not small"
+  (entry, tel) <- qArity sg k
+  es <- qSpine "code-qiit" sig ctx ds tel
+  pure (JEl (QSortC sg k (cast es)) Ty.UniverseTy)
+conclude sig ctx (DQCtor k dSig ds) = do
+  sg <- conclude sig ctx dSig >>= needQSig
+  entry <- case qEntry sg k of
+             Just e => pure e
+             Nothing => kerr "derivation: el-qiit-intro: position out of range"
+  case qEntryKind entry of
+    QKPoint => pure ()
+    _ => kerr "derivation: el-qiit-intro: not a point constructor"
+  (tel, _, _) <- liftQE (reflTel sg (qwAt k) entry)
+  es <- qSpine "el-qiit-intro" sig ctx ds tel
+  (wEnd, hd) <- liftQE (walkVals sg (qwAt k) entry es)
+  (srt, idx) <- liftQE (pointHead sg wEnd hd)
+  pure (JEl (QCtor sg k (cast es)) (QSort sg srt idx))
+conclude sig ctx (DQElim k dSig dMots dMths dCohs dSp dW) = do
+  sg <- conclude sig ctx dSig >>= needQSig
+  entry <- case qEntry sg k of
+             Just e => pure e
+             Nothing => kerr "derivation: el-qiit-elim: sort out of range"
+  case qEntryKind entry of
+    QKSort => pure ()
+    _ => kerr "derivation: el-qiit-elim: not a sort position"
+  let sortPs = qPositions QKSort sg
+  let pointPs = qPositions QKPoint sg
+  let eqPs = qPositions QKEq sg
+  mots <- goMots sg sortPs dMots
+  mths <- goMths sg mots pointPs dMths
+  goCohs sg mots mths eqPs dCohs
+  (tel, _, _) <- liftQE (reflTel sg (qwAt k) entry)
+  es <- qSpine "el-qiit-elim" sig ctx dSp tel
+  (w, wty) <- conclude sig ctx dW >>= needEl
+  alphaTy "el-qiit-elim (scrutinee)" wty (QSort sg k (cast es))
+  o <- case qOrdinal QKSort sg k of
+         Just x => pure x
+         Nothing => kerr "derivation: el-qiit-elim: sort ordinal"
+  motK <- case getAt o mots of
+            Just m => pure m
+            Nothing => kerr "derivation: el-qiit-elim: motive missing"
+  pure (JEl (QElim sg k mots mths (cast es) w)
+            (substTy motK (Ext (foldl Ext Id es) w)))
+ where
+  goMots : QSig -> List Nat -> List Deriv -> KM (List Ty)
+  goMots sg [] [] = pure []
+  goMots sg (sj :: sjs) (d :: ds) = do
+    sjE <- case qEntry sg sj of
+             Just x => pure x
+             Nothing => kerr "derivation: el-qiit-elim: sort out of range"
+    (tel, wEnd, _) <- liftQE (reflTel sg (qwAt sj) sjE)
+    let mctx = foldl (:<) ctx tel
+    let selfTy = QSort (substQSig sg wEnd.ups) sj (varSpine (length tel))
+    mot <- conclude sig (mctx :< selfTy) d >>= needTy
+    rest <- goMots sg sjs ds
+    pure (mot :: rest)
+  goMots _ _ _ = kerr "derivation: el-qiit-elim: motive count mismatch"
+
+  goMths : QSig -> List Ty -> List Nat -> List Deriv -> KM (List Elem)
+  goMths sg mots [] [] = pure []
+  goMths sg mots (cj :: cjs) (d :: ds) = do
+    mty <- liftQE (methodTy sg mots cj)
+    (m, mty') <- conclude sig ctx d >>= needEl
+    alphaTy "el-qiit-elim (method)" mty' mty
+    rest <- goMths sg mots cjs ds
+    pure (m :: rest)
+  goMths _ _ _ _ = kerr "derivation: el-qiit-elim: method count mismatch"
+
+  goCohs : QSig -> List Ty -> List Elem -> List Nat -> List Deriv -> KM ()
+  goCohs sg mots mths [] [] = pure ()
+  goCohs sg mots mths (ej :: ejs) (d :: ds) = do
+    (dtel, _, lhs, rhs, cty) <- liftQE (coherenceAt sg mots mths ej)
+    let cctx = foldl (:<) ctx dtel
+    (l, r, ety) <- conclude sig cctx d >>= needElEq
+    alphaEl "el-qiit-elim (coherence l)" l lhs
+    alphaEl "el-qiit-elim (coherence r)" r rhs
+    alphaTy "el-qiit-elim (coherence ty)" ety cty
+    goCohs sg mots mths ejs ds
+  goCohs _ _ _ _ _ = kerr "derivation: el-qiit-elim: coherence count mismatch"
+conclude sig ctx (DQPath k dSig ds) = do
+  sg <- conclude sig ctx dSig >>= needQSig
+  entry <- case qEntry sg k of
+             Just e => pure e
+             Nothing => kerr "derivation: el-qiit-path: position out of range"
+  case qEntryKind entry of
+    QKEq => pure ()
+    _ => kerr "derivation: el-qiit-path: not an equation constructor"
+  (tel, _, _) <- liftQE (reflTel sg (qwAt k) entry)
+  es <- qSpine "el-qiit-path" sig ctx ds tel
+  (wEnd, hd) <- liftQE (walkVals sg (qwAt k) entry es)
+  (lq, rq, uq) <- liftQE (eqHead hd)
+  l <- liftQE (reflTm sg wEnd lq)
+  r <- liftQE (reflTm sg wEnd rq)
+  t <- liftQE (reflCodeTy sg wEnd uq)
+  pure (JElEq l r t)
 
 -- ===== Entry point =====
 

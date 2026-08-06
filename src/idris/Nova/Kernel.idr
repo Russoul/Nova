@@ -350,6 +350,7 @@ mutual
   kQTy sig (QPiExt a b) = [| QPiExt (kTy sig a) (kQTy sig b) |]
   kQTy sig (QPiInd u b) = [| QPiInd (kQTm sig u) (kQTy sig b) |]
 
+  export
   kQSig : Sig -> QSig -> KM QSig
   kQSig sig = traverse (kQTy sig)
 
@@ -2104,6 +2105,7 @@ mutual
   ||| incompleteness, never unsoundness. Embedded Nova pieces are
   ||| checked with empty skeletons (neutral-checkable in the emitted
   ||| fragment).
+  export
   kQSigCheck : Sig -> Ctx -> QSig -> KM ()
   kQSigCheck sig ctx sg = goEntries 0 sg
    where
