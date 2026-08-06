@@ -497,10 +497,15 @@ Phasing:
      the prop-final close now rides the chain's presupposed
      formation back to the raw spelling (a latent mixed-spelling
      el-trans the shadow caught on the Bag eliminator) (currently
-     23/27; every covered item agrees). Bails, honestly: qiitInt's
-     prop eliminator, integer tails, the vector-append tail.
-     Remaining: those bails driven down by the strict-mode meter,
-     then the re-seat.]
+     23/27; every covered item agrees). Nineteenth slice: the path
+     search accepts a one-sided constructor pair (a variable against
+     pred (suc v) — the truncation path applied under one nesting),
+     candidates drawn from nested spines (currently 24/27; every
+     covered item agrees). Bails, honestly: the integer tails
+     (normalization-heavy endpoint typings) and the vector-append
+     tail (an INDEXED motive for a normalized eliminator spelling —
+     placements need motive abstraction). Remaining: those bails
+     driven down by the strict-mode meter, then the re-seat.]
   3. CONSOLIDATION (incremental, unhurried) — the elaborator emits
      derivations directly where reconstruction is weak or wasteful;
      the trace→derivation translation absorbs the discharge engine's

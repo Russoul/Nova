@@ -1265,18 +1265,22 @@ rePlaceT sig ctx step d path ty = Nothing
 ||| orientation) wins. Conclude arbitrates, as with every guess.
 qPathLeaf : Sig -> Ctx -> Elem -> Elem -> Maybe (Deriv, Ty)
 qPathLeaf sig ctx x y = do
-  let QCtor sg _ xs = x
-    | _ => Nothing
-  let QCtor sg' _ ys = y
-    | _ => Nothing
-  let True = sg == sg'
-    | False => Nothing
+  sg <- case (x, y) of
+          (QCtor sg _ _, _) => Just sg
+          (_, QCtor sg _ _) => Just sg
+          _ => Nothing
   xN <- nfE sig x
   yN <- nfE sig y
   let cands = map CtxVar [0 .. minus (length (toList ctx)) 1]
-              ++ toList xs ++ toList ys
+              ++ collect 2 x ++ collect 2 y
   tryEntries sg xN yN cands (eqPositions sg 0)
  where
+  collect : Nat -> Elem -> List Elem
+  collect Z _ = []
+  collect (S k) (QCtor _ _ es) =
+    let l = toList es in l ++ concatMap (collect k) l
+  collect _ _ = []
+
   eqPositions : QSig -> Nat -> List Nat
   eqPositions [] _ = []
   eqPositions (e :: rest) i =
