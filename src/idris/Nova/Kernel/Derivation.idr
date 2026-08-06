@@ -288,6 +288,48 @@ data Deriv : Type where
   DTySumCong : Deriv -> Deriv -> Deriv
   ||| ty-el-cong: Γ ⊦ a ≐ b : 𝕌
   DTyElCong : Deriv -> Deriv
+  ||| el-nat-e-cong (motive A) / el-sum-e-cong (motive C; delivery
+  ||| order teq, C, leq, req) / el-zero-e-cong (no t⁼ premise —
+  ||| stronger than a congruence) / el-quot-e-cong (motive B;
+  ||| delivery order qeq, B, f₀, f₁, wd₀, wd₁, feq)
+  DElNatECong : Deriv -> Deriv -> Deriv -> Deriv -> Deriv
+  DElSumECong : Deriv -> Deriv -> Deriv -> Deriv -> Deriv
+  DElZeroECong : Deriv -> Deriv -> Deriv -> Deriv
+  DElQuotECong : Deriv -> Deriv -> Deriv -> Deriv -> Deriv -> Deriv -> Deriv -> Deriv
+  ||| el-let-cong: aeq; beq under Γ ▷ A ▷ Prf (☐₀ ≡ a₁[↑] ∈ A[↑])
+  DElLetCong : Deriv -> Deriv -> Deriv
+  ||| el-class-cong (delivery order aeq, R) / el-inj₁-cong (aeq, B) /
+  ||| el-inj₂-cong (beq, A)
+  DElClassCong : Deriv -> Deriv -> Deriv
+  DElInj1Cong : Deriv -> Deriv -> Deriv
+  DElInj2Cong : Deriv -> Deriv -> Deriv
+  ||| the universe-code congruences (bodies under El a₁)
+  DCodePiCong : Deriv -> Deriv -> Deriv
+  DCodeSigmaCong : Deriv -> Deriv -> Deriv
+  DCodeSumCong : Deriv -> Deriv -> Deriv
+  DCodeQuotCong : Deriv -> Deriv -> Deriv
+  DCodeSquashCong : Deriv -> Deriv
+  ||| code-eq-cong (delivery order tyeq, aeq at A₁, beq at A₁)
+  DCodeEqCong : Deriv -> Deriv -> Deriv -> Deriv
+  ||| INJECTIVITY (grouped conclusions split, one node per
+  ||| conclusion; premises shared per Foundation's statements)
+  DTyPiInjDom : Deriv -> Deriv -> Deriv -> Deriv
+  DTyPiInjCod : Deriv -> Deriv -> Deriv -> Deriv
+  DTySigmaInjDom : Deriv -> Deriv -> Deriv -> Deriv
+  DTySigmaInjCod : Deriv -> Deriv -> Deriv -> Deriv
+  DTySumInjL : Deriv -> Deriv
+  DTySumInjR : Deriv -> Deriv
+  DTyQuotInjDom : Deriv -> Deriv -> Deriv -> Deriv
+  DTyQuotInjRel : Deriv -> Deriv -> Deriv -> Deriv
+  DTyElInj : Deriv -> Deriv
+  DCodePiInjDom : Deriv -> Deriv -> Deriv -> Deriv
+  DCodePiInjCod : Deriv -> Deriv -> Deriv -> Deriv
+  DCodeSigmaInjDom : Deriv -> Deriv -> Deriv -> Deriv
+  DCodeSigmaInjCod : Deriv -> Deriv -> Deriv -> Deriv
+  DCodeSumInjL : Deriv -> Deriv
+  DCodeSumInjR : Deriv -> Deriv
+  DCodeQuotInjDom : Deriv -> Deriv -> Deriv -> Deriv
+  DCodeQuotInjRel : Deriv -> Deriv -> Deriv -> Deriv
   ||| ty-prf-cong: Γ ⊦ p ≐ q : Ω
   DTyPrfCong : Deriv -> Deriv
 
@@ -543,6 +585,85 @@ concludeQTm : Sig -> Ctx -> SnocList QTy -> Deriv -> KM (QTm, QTy)
 ||| Γ ⊦ ς : Φ₀ ⇒ Φ₁ (Φ₀ the input, Φ₁ the output)
 export
 concludeQSub : Sig -> Ctx -> SnocList QTy -> Deriv -> KM (QSub, SnocList QTy)
+
+
+piProj : Ty -> Maybe (Ty, Ty)
+piProj (Ty.PiTy a b) = Just (a, b)
+piProj _ = Nothing
+
+sgProj : Ty -> Maybe (Ty, Ty)
+sgProj (Ty.SigmaTy a b) = Just (a, b)
+sgProj _ = Nothing
+
+piCProj : Elem -> Maybe (Elem, Elem)
+piCProj (Elem.PiTy a b) = Just (a, b)
+piCProj _ = Nothing
+
+sgCProj : Elem -> Maybe (Elem, Elem)
+sgCProj (Elem.SigmaTy a b) = Just (a, b)
+sgCProj _ = Nothing
+
+||| The shared premise pack of the binder-former injectivity rules
+||| (grouped conclusions split into two nodes): the equation delivers
+||| both spellings, the two formation premises are side-compared at
+||| their own domains.
+tyBinInj : Sig -> Ctx -> String -> (Ty -> Maybe (Ty, Ty)) ->
+           Deriv -> Deriv -> Deriv -> KM (Ty, Ty, Ty, Ty)
+tyBinInj sig ctx rule proj dB0 dB1 dEq = do
+  (l, r) <- conclude sig ctx dEq >>= needTyEq
+  case (proj l, proj r) of
+    (Just (a0, b0), Just (a1, b1)) => do
+      b0' <- conclude sig (ctx :< a0) dB0 >>= needTy
+      alphaTy rule b0' b0
+      b1' <- conclude sig (ctx :< a1) dB1 >>= needTy
+      alphaTy rule b1' b1
+      pure (a0, a1, b0, b1)
+    _ => kerr "derivation: \{rule}: equation not between the right formers"
+
+codeBinInj : Sig -> Ctx -> String -> (Elem -> Maybe (Elem, Elem)) ->
+             Deriv -> Deriv -> Deriv -> KM (Elem, Elem, Elem, Elem)
+codeBinInj sig ctx rule proj dB0 dB1 dEq = do
+  (l, r, ty) <- conclude sig ctx dEq >>= needElEq
+  alphaTy rule ty Ty.UniverseTy
+  case (proj l, proj r) of
+    (Just (a0, b0), Just (a1, b1)) => do
+      (b0', b0ty) <- conclude sig (ctx :< El a0) dB0 >>= needEl
+      alphaTy rule b0ty Ty.UniverseTy
+      alphaEl rule b0' b0
+      (b1', b1ty) <- conclude sig (ctx :< El a1) dB1 >>= needEl
+      alphaTy rule b1ty Ty.UniverseTy
+      alphaEl rule b1' b1
+      pure (a0, a1, b0, b1)
+    _ => kerr "derivation: \{rule}: equation not between the right formers"
+
+tyQuotInj : Sig -> Ctx -> Deriv -> Deriv -> Deriv -> KM (Ty, Ty, Elem, Elem)
+tyQuotInj sig ctx dR0 dR1 dEq = do
+  (l, r) <- conclude sig ctx dEq >>= needTyEq
+  case (l, r) of
+    (Ty.Quotient a0 r0, Ty.Quotient a1 r1) => do
+      (r0', r0ty) <- conclude sig (ctx :< a0 :< wkTy a0) dR0 >>= needEl
+      alphaTy "ty-quot-inj" r0ty Ty.PropTy
+      alphaEl "ty-quot-inj" r0' r0
+      (r1', r1ty) <- conclude sig (ctx :< a1 :< wkTy a1) dR1 >>= needEl
+      alphaTy "ty-quot-inj" r1ty Ty.PropTy
+      alphaEl "ty-quot-inj" r1' r1
+      pure (a0, a1, r0, r1)
+    _ => kerr "derivation: ty-quot-inj: equation not between quotients"
+
+codeQuotInj : Sig -> Ctx -> Deriv -> Deriv -> Deriv -> KM (Elem, Elem, Elem, Elem)
+codeQuotInj sig ctx dR0 dR1 dEq = do
+  (l, r, ty) <- conclude sig ctx dEq >>= needElEq
+  alphaTy "code-quot-inj" ty Ty.UniverseTy
+  case (l, r) of
+    (Elem.QuotTy a0 r0, Elem.QuotTy a1 r1) => do
+      (r0', r0ty) <- conclude sig (ctx :< El a0 :< wkTy (El a0)) dR0 >>= needEl
+      alphaTy "code-quot-inj" r0ty Ty.PropTy
+      alphaEl "code-quot-inj" r0' r0
+      (r1', r1ty) <- conclude sig (ctx :< El a1 :< wkTy (El a1)) dR1 >>= needEl
+      alphaTy "code-quot-inj" r1ty Ty.PropTy
+      alphaEl "code-quot-inj" r1' r1
+      pure (a0, a1, r0, r1)
+    _ => kerr "derivation: code-quot-inj: equation not between quotient codes"
 
 ||| A ToS entry's reflected binder telescope.
 qArity : QSig -> Nat -> KM (QTy, List Ty)
@@ -915,6 +1036,181 @@ conclude sig ctx (DTyPrfCong d) = do
   (p, q, ty) <- conclude sig ctx d >>= needElEq
   alphaTy "ty-prf-cong" ty Ty.PropTy
   pure (JTyEq (Prf p) (Prf q))
+
+
+-- eliminator and remaining congruences
+conclude sig ctx (DElNatECong dMot dZ dS dT) = do
+  mot <- conclude sig (ctx :< Ty.NatTy) dMot >>= needTy
+  (z0, z1, zty) <- conclude sig ctx dZ >>= needElEq
+  alphaTy "el-nat-e-cong (z)" zty (substTy mot (Ext Id NatIntro0))
+  (s0, s1, sty) <- conclude sig (ctx :< Ty.NatTy :< mot) dS >>= needElEq
+  alphaTy "el-nat-e-cong (s)" sty
+    (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk))
+  (t0, t1, tty) <- conclude sig ctx dT >>= needElEq
+  alphaTy "el-nat-e-cong (t)" tty Ty.NatTy
+  pure (JElEq (NatElim z0 s0 t0) (NatElim z1 s1 t1) (substTy mot (Ext Id t1)))
+conclude sig ctx (DElSumECong dT dC dL dR) = do
+  (t0, t1, tty) <- conclude sig ctx dT >>= needElEq
+  case tty of
+    Ty.SumTy a b => do
+      c <- conclude sig (ctx :< Ty.SumTy a b) dC >>= needTy
+      (l0, l1, lty) <- conclude sig (ctx :< a) dL >>= needElEq
+      alphaTy "el-sum-e-cong (l)" lty (substTy c (Ext Wk (Inj1 (CtxVar 0))))
+      (r0, r1, rty) <- conclude sig (ctx :< b) dR >>= needElEq
+      alphaTy "el-sum-e-cong (r)" rty (substTy c (Ext Wk (Inj2 (CtxVar 0))))
+      pure (JElEq (SumElim l0 r0 t0) (SumElim l1 r1 t1) (substTy c (Ext Id t1)))
+    _ => kerr "derivation: el-sum-e-cong: scrutinees not at a ⊎ type"
+conclude sig ctx (DElZeroECong dA d0 d1) = do
+  a <- conclude sig ctx dA >>= needTy
+  (t0, t0ty) <- conclude sig ctx d0 >>= needEl
+  alphaTy "el-zero-e-cong" t0ty Ty.ZeroTy
+  (t1, t1ty) <- conclude sig ctx d1 >>= needEl
+  alphaTy "el-zero-e-cong" t1ty Ty.ZeroTy
+  pure (JElEq (ZeroElim t0) (ZeroElim t1) a)
+conclude sig ctx (DElQuotECong dQ dB dF0 dF1 dW0 dW1 dFeq) = do
+  (q0, q1, qty) <- conclude sig ctx dQ >>= needElEq
+  case qty of
+    Ty.Quotient a r => do
+      b <- conclude sig (ctx :< Ty.Quotient a r) dB >>= needTy
+      let cse = substTy b (Ext Wk (Class (CtxVar 0)))
+      (f0, f0ty) <- conclude sig (ctx :< a) dF0 >>= needEl
+      alphaTy "el-quot-e-cong (f₀)" f0ty cse
+      (f1, f1ty) <- conclude sig (ctx :< a) dF1 >>= needEl
+      alphaTy "el-quot-e-cong (f₁)" f1ty cse
+      let wk3 = Chain Wk (Chain Wk Wk)
+      let wdCtx = ctx :< a :< wkTy a :< Prf r
+      let wdTy = substTy b (Ext wk3 (Class (CtxVar 2)))
+      (w0l, w0r, w0ty) <- conclude sig wdCtx dW0 >>= needElEq
+      alphaEl "el-quot-e-cong (wd₀ l)" w0l (substElem f0 (Ext wk3 (CtxVar 2)))
+      alphaEl "el-quot-e-cong (wd₀ r)" w0r (substElem f0 (Ext wk3 (CtxVar 1)))
+      alphaTy "el-quot-e-cong (wd₀ ty)" w0ty wdTy
+      (w1l, w1r, w1ty) <- conclude sig wdCtx dW1 >>= needElEq
+      alphaEl "el-quot-e-cong (wd₁ l)" w1l (substElem f1 (Ext wk3 (CtxVar 2)))
+      alphaEl "el-quot-e-cong (wd₁ r)" w1r (substElem f1 (Ext wk3 (CtxVar 1)))
+      alphaTy "el-quot-e-cong (wd₁ ty)" w1ty wdTy
+      (fl, fr, fety) <- conclude sig (ctx :< a) dFeq >>= needElEq
+      alphaEl "el-quot-e-cong (f⁼ l)" fl f0
+      alphaEl "el-quot-e-cong (f⁼ r)" fr f1
+      alphaTy "el-quot-e-cong (f⁼ ty)" fety cse
+      pure (JElEq (QuotElim f0 q0) (QuotElim f1 q1) (substTy b (Ext Id q1)))
+    _ => kerr "derivation: el-quot-e-cong: scrutinees not at a quotient type"
+conclude sig ctx (DElLetCong dA dB) = do
+  (a0, a1, aty) <- conclude sig ctx dA >>= needElEq
+  let hyp = Prf (Elem.EqTy (CtxVar 0) (wkEl a1) (wkTy aty))
+  (b0, b1, bty) <- conclude sig (ctx :< aty :< hyp) dB >>= needElEq
+  pure (JElEq (Let a0 b0) (Let a1 b1) (substTy bty (Ext (Ext Id a1) Star)))
+conclude sig ctx (DElClassCong dA dR) = do
+  (a0, a1, aty) <- conclude sig ctx dA >>= needElEq
+  (r, rty) <- conclude sig (ctx :< aty :< wkTy aty) dR >>= needEl
+  alphaTy "el-class-cong" rty Ty.PropTy
+  pure (JElEq (Class a0) (Class a1) (Ty.Quotient aty r))
+conclude sig ctx (DElInj1Cong dA dB) = do
+  (a0, a1, aty) <- conclude sig ctx dA >>= needElEq
+  b <- conclude sig ctx dB >>= needTy
+  pure (JElEq (Inj1 a0) (Inj1 a1) (Ty.SumTy aty b))
+conclude sig ctx (DElInj2Cong dB dA) = do
+  (b0, b1, bty) <- conclude sig ctx dB >>= needElEq
+  a <- conclude sig ctx dA >>= needTy
+  pure (JElEq (Inj2 b0) (Inj2 b1) (Ty.SumTy a bty))
+conclude sig ctx (DCodePiCong dA dB) = do
+  (a0, a1, aty) <- conclude sig ctx dA >>= needElEq
+  alphaTy "code-pi-cong" aty Ty.UniverseTy
+  (b0, b1, bty) <- conclude sig (ctx :< El a1) dB >>= needElEq
+  alphaTy "code-pi-cong" bty Ty.UniverseTy
+  pure (JElEq (Elem.PiTy a0 b0) (Elem.PiTy a1 b1) Ty.UniverseTy)
+conclude sig ctx (DCodeSigmaCong dA dB) = do
+  (a0, a1, aty) <- conclude sig ctx dA >>= needElEq
+  alphaTy "code-sigma-cong" aty Ty.UniverseTy
+  (b0, b1, bty) <- conclude sig (ctx :< El a1) dB >>= needElEq
+  alphaTy "code-sigma-cong" bty Ty.UniverseTy
+  pure (JElEq (Elem.SigmaTy a0 b0) (Elem.SigmaTy a1 b1) Ty.UniverseTy)
+conclude sig ctx (DCodeSumCong dA dB) = do
+  (a0, a1, aty) <- conclude sig ctx dA >>= needElEq
+  alphaTy "code-sum-cong" aty Ty.UniverseTy
+  (b0, b1, bty) <- conclude sig ctx dB >>= needElEq
+  alphaTy "code-sum-cong" bty Ty.UniverseTy
+  pure (JElEq (Elem.SumTy a0 b0) (Elem.SumTy a1 b1) Ty.UniverseTy)
+conclude sig ctx (DCodeQuotCong dA dR) = do
+  (a0, a1, aty) <- conclude sig ctx dA >>= needElEq
+  alphaTy "code-quot-cong" aty Ty.UniverseTy
+  (r0, r1, rty) <- conclude sig (ctx :< El a1 :< wkTy (El a1)) dR >>= needElEq
+  alphaTy "code-quot-cong" rty Ty.PropTy
+  pure (JElEq (Elem.QuotTy a0 r0) (Elem.QuotTy a1 r1) Ty.UniverseTy)
+conclude sig ctx (DCodeSquashCong dA) = do
+  (a0, a1) <- conclude sig ctx dA >>= needTyEq
+  pure (JElEq (Squash a0) (Squash a1) Ty.PropTy)
+conclude sig ctx (DCodeEqCong dTy dA dB) = do
+  (t0, t1) <- conclude sig ctx dTy >>= needTyEq
+  (a0, a1, aty) <- conclude sig ctx dA >>= needElEq
+  alphaTy "code-eq-cong (a)" aty t1
+  (b0, b1, bty) <- conclude sig ctx dB >>= needElEq
+  alphaTy "code-eq-cong (b)" bty t1
+  pure (JElEq (Elem.EqTy a0 b0 t0) (Elem.EqTy a1 b1 t1) Ty.PropTy)
+
+-- injectivity (grouped conclusions split)
+conclude sig ctx (DTyPiInjDom dB0 dB1 dEq) = do
+  (a0, a1, b0, b1) <- tyBinInj sig ctx "ty-pi-inj" piProj dB0 dB1 dEq
+  pure (JTyEq a0 a1)
+conclude sig ctx (DTyPiInjCod dB0 dB1 dEq) = do
+  (a0, a1, b0, b1) <- tyBinInj sig ctx "ty-pi-inj" piProj dB0 dB1 dEq
+  pure (JTyEq b0 b1)
+conclude sig ctx (DTySigmaInjDom dB0 dB1 dEq) = do
+  (a0, a1, b0, b1) <- tyBinInj sig ctx "ty-sigma-inj" sgProj dB0 dB1 dEq
+  pure (JTyEq a0 a1)
+conclude sig ctx (DTySigmaInjCod dB0 dB1 dEq) = do
+  (a0, a1, b0, b1) <- tyBinInj sig ctx "ty-sigma-inj" sgProj dB0 dB1 dEq
+  pure (JTyEq b0 b1)
+conclude sig ctx (DTySumInjL dEq) = do
+  (l, r) <- conclude sig ctx dEq >>= needTyEq
+  case (l, r) of
+    (Ty.SumTy a0 _, Ty.SumTy a1 _) => pure (JTyEq a0 a1)
+    _ => kerr "derivation: ty-sum-inj: not a ⊎ equation"
+conclude sig ctx (DTySumInjR dEq) = do
+  (l, r) <- conclude sig ctx dEq >>= needTyEq
+  case (l, r) of
+    (Ty.SumTy _ b0, Ty.SumTy _ b1) => pure (JTyEq b0 b1)
+    _ => kerr "derivation: ty-sum-inj: not a ⊎ equation"
+conclude sig ctx (DTyQuotInjDom dR0 dR1 dEq) = do
+  (a0, a1, r0, r1) <- tyQuotInj sig ctx dR0 dR1 dEq
+  pure (JTyEq a0 a1)
+conclude sig ctx (DTyQuotInjRel dR0 dR1 dEq) = do
+  (a0, a1, r0, r1) <- tyQuotInj sig ctx dR0 dR1 dEq
+  pure (JElEq r0 r1 Ty.PropTy)
+conclude sig ctx (DTyElInj dEq) = do
+  (l, r) <- conclude sig ctx dEq >>= needTyEq
+  case (l, r) of
+    (El t0, El t1) => pure (JElEq t0 t1 Ty.UniverseTy)
+    _ => kerr "derivation: ty-el-inj: not an El equation"
+conclude sig ctx (DCodePiInjDom dB0 dB1 dEq) = do
+  (a0, a1, b0, b1) <- codeBinInj sig ctx "code-pi-inj" piCProj dB0 dB1 dEq
+  pure (JElEq a0 a1 Ty.UniverseTy)
+conclude sig ctx (DCodePiInjCod dB0 dB1 dEq) = do
+  (a0, a1, b0, b1) <- codeBinInj sig ctx "code-pi-inj" piCProj dB0 dB1 dEq
+  pure (JElEq b0 b1 Ty.UniverseTy)
+conclude sig ctx (DCodeSigmaInjDom dB0 dB1 dEq) = do
+  (a0, a1, b0, b1) <- codeBinInj sig ctx "code-sigma-inj" sgCProj dB0 dB1 dEq
+  pure (JElEq a0 a1 Ty.UniverseTy)
+conclude sig ctx (DCodeSigmaInjCod dB0 dB1 dEq) = do
+  (a0, a1, b0, b1) <- codeBinInj sig ctx "code-sigma-inj" sgCProj dB0 dB1 dEq
+  pure (JElEq b0 b1 Ty.UniverseTy)
+conclude sig ctx (DCodeSumInjL dEq) = do
+  (l, r, ty) <- conclude sig ctx dEq >>= needElEq
+  alphaTy "code-sum-inj" ty Ty.UniverseTy
+  case (l, r) of
+    (Elem.SumTy a0 _, Elem.SumTy a1 _) => pure (JElEq a0 a1 Ty.UniverseTy)
+    _ => kerr "derivation: code-sum-inj: not a ⊎ code equation"
+conclude sig ctx (DCodeSumInjR dEq) = do
+  (l, r, ty) <- conclude sig ctx dEq >>= needElEq
+  alphaTy "code-sum-inj" ty Ty.UniverseTy
+  case (l, r) of
+    (Elem.SumTy _ b0, Elem.SumTy _ b1) => pure (JElEq b0 b1 Ty.UniverseTy)
+    _ => kerr "derivation: code-sum-inj: not a ⊎ code equation"
+conclude sig ctx (DCodeQuotInjDom dR0 dR1 dEq) = do
+  (a0, a1, r0, r1) <- codeQuotInj sig ctx dR0 dR1 dEq
+  pure (JElEq a0 a1 Ty.UniverseTy)
+conclude sig ctx (DCodeQuotInjRel dR0 dR1 dEq) = do
+  (a0, a1, r0, r1) <- codeQuotInj sig ctx dR0 dR1 dEq
+  pure (JElEq r0 r1 Ty.PropTy)
 
 -- normal substitutions
 conclude sig ctx DSubNEmpty = pure (JSubN [<] [<])

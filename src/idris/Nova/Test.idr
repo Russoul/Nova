@@ -100,6 +100,14 @@ derivCases =
   , ("qiit-z", DQCtor 1 natSigD [])
     -- REJECTION: a sort reference into an empty ToS zone
   , ("qtm-var-range", DQSig (DQCtxExt DQCtxEmpty (DQTyEl (DQTmVar 0))))
+    -- eliminator congruence with its motive premise (A1's retirement)
+  , ("natelim-cong", DElNatECong DTyNat
+      (DElRefl DElNatZ)
+      (DElRefl (DElNatS (DElVar 1)))
+      (DElRefl (DElNatS DElNatZ)))
+    -- injectivity: the domain component of a Π-type equation
+  , ("pi-inj-dom", DTyPiInjDom DTyNat DTyNat
+      (DTyRefl (DTyPi DTyNat DTyNat)))
   ]
 
 runDerivTests : IO ()
