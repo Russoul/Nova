@@ -1257,14 +1257,85 @@ rePlaceT sig ctx step d (i :: p) (QSort sg k es) = do
   pure (DTyQSortCong k dSig ds, QSort sg k (cast l'))
 rePlaceT sig ctx step d path ty = Nothing
 
+||| A path-constructor equation with a SEARCHED instantiation: for
+||| each equation entry of the signature, candidate spines are built
+||| slot by slot from the mismatched pair's own constructor arguments
+||| and the context's variables, type-filtered; the first
+||| instantiation whose reflected endpoints match the pair (either
+||| orientation) wins. Conclude arbitrates, as with every guess.
+qPathLeaf : Sig -> Ctx -> Elem -> Elem -> Maybe (Deriv, Ty)
+qPathLeaf sig ctx x y = do
+  let QCtor sg _ xs = x
+    | _ => Nothing
+  let QCtor sg' _ ys = y
+    | _ => Nothing
+  let True = sg == sg'
+    | False => Nothing
+  xN <- nfE sig x
+  yN <- nfE sig y
+  let cands = map CtxVar [0 .. minus (length (toList ctx)) 1]
+              ++ toList xs ++ toList ys
+  tryEntries sg xN yN cands (eqPositions sg 0)
+ where
+  eqPositions : QSig -> Nat -> List Nat
+  eqPositions [] _ = []
+  eqPositions (e :: rest) i =
+    case qEntryKind e of
+      QKEq => i :: eqPositions rest (S i)
+      _ => eqPositions rest (S i)
+
+  spines : List Ty -> List Elem -> List Elem -> List (List Elem)
+  spines tel cands acc =
+    case getAt (length acc) tel of
+      Nothing => [acc]
+      Just _ =>
+        case telInst tel (length acc) acc of
+          Nothing => []
+          Just want =>
+            concatMap (\c => case reCheck sig ctx c want emptySkel of
+                                Just _ => spines tel cands (acc ++ [c])
+                                Nothing => [])
+              cands
+
+  tryTheta : QSig -> Elem -> Elem -> Nat -> List Elem -> Maybe (Deriv, Ty)
+  tryTheta sg xN yN j theta = do
+    dSig <- reQSig sig ctx sg
+    ds <- reQSpine sig ctx sg j theta
+    entry <- qEntry sg j
+    (wEnd, hd) <- either (const Nothing) Just (walkVals sg (qwAt j) entry theta)
+    (lq, rq, uq) <- either (const Nothing) Just (eqHead hd)
+    le <- either (const Nothing) Just (reflTm sg wEnd lq)
+    re <- either (const Nothing) Just (reflTm sg wEnd rq)
+    t <- either (const Nothing) Just (reflCodeTy sg wEnd uq)
+    let dEq = DQPath j dSig ds
+    leN <- nfE sig le
+    reN <- nfE sig re
+    let dEqN = DElTrans (DElSym (DNfExpand (DPresupElL dEq)))
+                 (DElTrans dEq (DNfExpand (DPresupElR dEq)))
+    if leN == xN && reN == yN then Just (dEqN, t)
+      else if leN == yN && reN == xN then Just (DElSym dEqN, t)
+      else Nothing
+
+  firstJust : (a -> Maybe b) -> List a -> Maybe b
+  firstJust f [] = Nothing
+  firstJust f (v :: rest) = f v <|> firstJust f rest
+
+  tryEntries : QSig -> Elem -> Elem -> List Elem -> List Nat -> Maybe (Deriv, Ty)
+  tryEntries _ _ _ _ [] = Nothing
+  tryEntries sg xN yN cands (j :: rest) =
+    (do entry <- qEntry sg j
+        (tel, _, _) <- either (const Nothing) Just (reflTel sg (qwAt j) entry)
+        firstJust (tryTheta sg xN yN j) (take 64 (spines tel cands [])))
+    <|> tryEntries sg xN yN cands rest
+
 ||| The HYPOTHESIS-SENSITIVE TYPE BRIDGE: a placement at a dependent
 ||| position shifts the equation's type by the step's own licensed
 ||| equation. Walk the two type spellings in parallel — α-equal parts
 ||| by refl, elements at the licensed pair by the licensed equation
 ||| itself (coerced to the position), congruence in between.
-reBridgeE : Sig -> Ctx -> Step -> Nat -> Elem -> Elem -> Ty -> Maybe Deriv
+reBridgeE : Sig -> Ctx -> Maybe Step -> Nat -> Elem -> Elem -> Ty -> Maybe Deriv
 
-reBridgeT : Sig -> Ctx -> Step -> Nat -> Ty -> Ty -> Maybe Deriv
+reBridgeT : Sig -> Ctx -> Maybe Step -> Nat -> Ty -> Ty -> Maybe Deriv
 reBridgeT sig ctx step d a b =
   if a == b
     then DTyRefl <$> reTy sig ctx a emptySkel
@@ -1284,25 +1355,21 @@ reBridgeT sig ctx step d a b =
         da <- reBridgeT sig ctx step d a0 a1
         dr <- reBridgeE sig (ctx :< a1 :< substTy a1 Wk) step (2 + d) r0 r1 Ty.PropTy
         pure (DTyQuotCong da dr)
-      _ => Nothing
+      _ => dbg "bridgeT shape: \{show a} VS \{show b}" Nothing
 
 reBridgeE sig ctx step d x y exp =
   if x == y
     then DElRefl <$> reCheck sig ctx x exp emptySkel
     else
-      (do (dEq0, le, re, t) <- reLicensed sig ctx step d
+      (do stp <- step
+          (dEq0, le, re, t) <- dbg "bridgeE: no license" (reLicensed sig ctx stp d)
           dEq <- if x == le && y == re then Just dEq0
                  else if x == re && y == le then Just (DElSym dEq0)
-                 else Nothing
-          if t == exp then Just dEq
-            else do
-              tN <- nfT sig t
-              eN <- nfT sig exp
-              let True = tN == eN
-                | False => Nothing
-              dt <- reTy sig ctx t emptySkel
-              de <- reTy sig ctx exp emptySkel
-              pure (DElEqTyCoe (DNfEqTy dt de) dEq))
+                 else dbg "bridgeE leaf: \{show x} / \{show y} VS licensed \{show le} / \{show re}" Nothing
+          atExp dEq t)
+      <|> (do (dEq, t) <- qPathLeaf sig ctx x y
+              atExp dEq t)
+      <|> byHyp 0
       <|> (case (x, y) of
              (NatIntro1 u, NatIntro1 v) =>
                DElSucCong <$> reBridgeE sig ctx step d u v Ty.NatTy
@@ -1320,7 +1387,58 @@ reBridgeE sig ctx step d x y exp =
                dl <- reBridgeE sig ctx step d l0 l1 t1
                dr <- reBridgeE sig ctx step d r0 r1 t1
                pure (DCodeEqCong dt dl dr)
+             (QCtor sg0 k0 es0, QCtor sg1 k1 es1) => do
+               let True = sg0 == sg1 && k0 == k1
+                 | False => Nothing
+               entry <- qEntry sg0 k0
+               (tel, _, _) <- either (const Nothing) Just
+                                (reflTel sg0 (qwAt k0) entry)
+               let l0 = toList es0
+               let l1 = toList es1
+               let True = length l0 == length l1
+                 | False => Nothing
+               dSig <- reQSig sig ctx sg0
+               ds <- traverse (\(j, e0, e1) => do
+                       etj <- telInst tel j l0
+                       reBridgeE sig ctx step d e0 e1 etj)
+                     (zipWith3 (\j,a,b => (j,a,b))
+                        [0 .. minus (length l0) 1] l0 l1)
+               pure (DQCtorCong k0 dSig ds)
              _ => Nothing)
+ where
+  atExp : Deriv -> Ty -> Maybe Deriv
+  atExp dEq t =
+    if t == exp then Just dEq
+      else do
+        tN <- nfT sig t
+        eN <- nfT sig exp
+        let True = tN == eN
+          | False => Nothing
+        dt <- reTy sig ctx t emptySkel
+        de <- reTy sig ctx exp emptySkel
+        pure (DElEqTyCoe (DNfEqTy dt de) dEq)
+
+  -- a context hypothesis of the very equality, reflected (the pair
+  -- being bridged is already normalized, so match at nf)
+  byHyp : Nat -> Maybe Deriv
+  byHyp i = do
+    vty <- ctxAt ctx i
+    (do vN <- nfT sig vty
+        let Prf (Elem.EqTy le re t) = vN
+          | _ => Nothing
+        let dv = DElVar i
+        dvN <- if vty == vN then Just dv
+               else Just (DElTyCoe (DNfExpandTy (DPresupElTy dv)) dv)
+        let dR = DElReflect dvN
+        leN <- nfE sig le
+        reN <- nfE sig re
+        let dRN = DElTrans (DElSym (DNfExpand (DPresupElL dR)))
+                    (DElTrans dR (DNfExpand (DPresupElR dR)))
+        dEq <- if x == leN && y == reN then Just dRN
+               else if x == reN && y == leN then Just (DElSym dRN)
+               else Nothing
+        atExp dEq t)
+     <|> byHyp (S i)
 
 ||| One side's rolling chain: side₀ ≐ cur, extended by a step.
 stepChainE : Sig -> Ctx -> Ty -> (Deriv, Elem) -> Step -> Maybe (Deriv, Elem)
@@ -1344,7 +1462,7 @@ stepChainE sig ctx ty (chain, cur) step = do
                 else do
                   -- the dependent shift: bridge by the step's own
                   -- licensed equation, walked through the two types
-                  dBr <- reBridgeT sig ctx step 0 pN tN
+                  dBr <- reBridgeT sig ctx (Just step) 0 pN tN
                   dPlN <- do
                     dP <- reTy sig ctx pN emptySkel
                     pure (DElEqTyCoe (DNfEqTy (DPresupElTy (DPresupElL dPl)) dP) dPl)
@@ -1363,7 +1481,8 @@ stepChainT sig ctx (chain, cur) step = do
 
 reEq sig ctx cert l r ty = reEqEnds sig ctx cert l r ty Nothing
 
-reEqEnds sig ctx (MkECertF tyEx steps final) l r ty ends = do
+reEqEnds sig ctx (MkECertF tyEx steps final) l r ty ends =
+  (if reconDebug then trace "reqe: \{show l} EQ \{show r} nsteps \{show (length steps)} tyEx \{show (maybe False (const True) tyEx)}" (Just ()) else Just ()) >>= \_ => do
   (ty', pre) <- the (Maybe (Ty, Maybe Deriv)) $ case tyEx of
                   Nothing => Just (ty, Nothing)
                   Just (tyX, certT) => do
@@ -1406,11 +1525,31 @@ reEqEnds sig ctx (MkECertF tyEx steps final) l r ty ends = do
             dT <- reTy sig ctx t emptySkel
             pure (DElTyCoe (DTySym (DNfExpandTy dT))
                     (DElTyCoe dBr deN)))
+    <|> byLicense steps
    where
     firstStep : List Step -> Ty -> Ty -> Maybe Deriv
-    firstStep [] _ _ = Nothing
+    firstStep [] a b = reBridgeT sig ctx Nothing 0 a b
     firstStep (stp :: rest) a b =
-      reBridgeT sig ctx stp 0 a b <|> firstStep rest a b
+      reBridgeT sig ctx (Just stp) 0 a b <|> firstStep rest a b
+
+    -- the endpoint IS a side of some step's licensed equation: its
+    -- typing is that equation's presupposition
+    byLicense : List Step -> Maybe Deriv
+    byLicense [] = Nothing
+    byLicense (stp :: rest) =
+      (do (dEq, le, re, lt) <- reLicensed sig ctx stp 0
+          dp <- if e == le then Just (DPresupElL dEq)
+                else if e == re then Just (DPresupElR dEq)
+                else Nothing
+          if lt == t then Just dp
+            else do
+              lN <- nfT sig lt
+              tN <- nfT sig t
+              let True = lN == tN
+                | False => Nothing
+              dT <- reTy sig ctx t emptySkel
+              pure (DElTyCoe (DNfEqTy (DPresupElTy dp) dT) dp))
+      <|> byLicense rest
 
   goSide : Ty -> (Deriv, Elem) -> List Step -> Maybe (Deriv, Elem)
   goSide t st [] = Just st
@@ -1442,14 +1581,17 @@ closeE sig ctx ty chL curL chR curR FProp = do
   let coeIf : Deriv -> Deriv
       coeIf d = if tyN == ty then d
                 else DElTyCoe (DNfExpandTy (DPresupElTy d)) d
+  -- the prop rule concludes at nf(ty); the chains sit at ty — ride
+  -- the chain's own presupposed formation back to the raw spelling
+  let backIf : Deriv -> Deriv
+      backIf d = if tyN == ty then d
+                 else DElEqTyCoe
+                        (DTySym (DNfExpandTy (DPresupElTy (DPresupElL chL)))) d
   case tyN of
-    Prf _ => Just (DElPrfProp (coeIf (DPresupElR chL)) (coeIf (DPresupElR chR)))
-    Ty.OneTy => Just (DElOneProp (coeIf (DPresupElR chL)) (coeIf (DPresupElR chR)))
-    Ty.ZeroTy => Just (DElZeroProp (coeIf (DPresupElR chL)) (coeIf (DPresupElR chR)))
+    Prf _ => Just (backIf (DElPrfProp (coeIf (DPresupElR chL)) (coeIf (DPresupElR chR))))
+    Ty.OneTy => Just (backIf (DElOneProp (coeIf (DPresupElR chL)) (coeIf (DPresupElR chR))))
+    Ty.ZeroTy => Just (backIf (DElZeroProp (coeIf (DPresupElR chL)) (coeIf (DPresupElR chR))))
     _ => Nothing
- where
-  x : ()
-  x = ()
 closeE sig ctx ty chL curL chR curR (FEtaPi c) = do
   tyN <- nfT sig ty
   case tyN of

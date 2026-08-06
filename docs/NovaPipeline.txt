@@ -485,10 +485,22 @@ Phasing:
      POINT-CONSTRUCTOR SPINE via el-qiit-intro-cong — the structural
      block's congruence reading for QCtor, arguments each at the
      left instantiation, concluding at the left spine's sort
-     instance (currently 19/27; every covered item agrees). Bails,
-     honestly: `data … Elim` items (4 files), integer tails, the
-     vector-append tail. Remaining: those bails driven down by the
-     strict-mode meter, then the re-seat.]
+     instance (currently 19/27; every covered item agrees).
+     Eighteenth slice: the ELIMINATOR ITEMS — a well-definedness
+     equation's endpoint whose typing is its own step license's
+     presupposition; the bridges made STEP-OPTIONAL, closing
+     mismatched pairs by a SEARCHED path-constructor instantiation
+     (candidate spines from the pair's own constructor arguments and
+     the context's variables, type-filtered, endpoints verified at
+     nf — the quotient's cls-equation under its relation witness) or
+     by a context hypothesis of the very equality, reflected; and
+     the prop-final close now rides the chain's presupposed
+     formation back to the raw spelling (a latent mixed-spelling
+     el-trans the shadow caught on the Bag eliminator) (currently
+     23/27; every covered item agrees). Bails, honestly: qiitInt's
+     prop eliminator, integer tails, the vector-append tail.
+     Remaining: those bails driven down by the strict-mode meter,
+     then the re-seat.]
   3. CONSOLIDATION (incremental, unhurried) — the elaborator emits
      derivations directly where reconstruction is weak or wasteful;
      the trace→derivation translation absorbs the discharge engine's
