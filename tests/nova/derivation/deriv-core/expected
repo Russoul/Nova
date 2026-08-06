@@ -12,3 +12,6 @@ nat-eta: ⊦ NatIntro1 (NatIntro0) ≐ NatIntro1 (NatIntro0) : NatTy
 nu-type: ⊦ NuTy (PProd (PConst (NatTy)) (PHole)) type
 sub-cong-fix: ⊦ NatIntro0 ≐ NatIntro0 : NatTy
 quot-bad-witness: REJECTED [derivation: el-quot-eq (witness): type mismatch [Prf (EqTy (NatIntro0) (NatIntro0) (NatTy)) VS Prf (Squash (OneTy))]]
+qsig-nat: ⊦ qsig (3 entries)
+qiit-z: ⊦ QCtor ([QU, QEl (QVar 0), QPiInd (QVar 1) (QEl (QVar 2))]) 1 ([< ]) : QSort ([QU, QEl (QVar 0), QPiInd (QVar 1) (QEl (QVar 2))]) 0 ([< ])
+qtm-var-range: REJECTED [derivation: qtm-var: index out of range]

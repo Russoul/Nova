@@ -42,6 +42,16 @@ runParse parser input =
 -- (docs/NovaDerivations.txt); each prints its name and the computed
 -- conclusion or the rejection reason.
 
+||| ℕ as a QIIT (Foundation's SUBSUMPTION note), formed rule by rule:
+||| (𝕟 : U;  Z : El ⬡₀;  S : (𝕧 : El 𝕟) ⇛ El 𝕟).
+natSigD : Deriv
+natSigD = DQSig
+  (DQCtxExt
+    (DQCtxExt
+      (DQCtxExt DQCtxEmpty DQTyUniv)
+      (DQTyEl (DQTmVar 0)))
+    (DQTyPiInd (DQTmVar 1) (DQTyEl (DQTmVar 2))))
+
 derivCases : List (String, Deriv)
 derivCases =
   [ ("id-fun", DElPiI DTyNat (DElVar 0))
@@ -76,7 +86,7 @@ derivCases =
       (DElRefl (DElNatS (DElVar 0)))
       (DElNatS DElNatZ))
     -- the ν layer: formation at K ℕ ⨯ 𝕏
-  , ("nu-type", DTyNu (DPolyK (PProd (PConst Elem.NatTy) PHole) [DCodeNat]))
+  , ("nu-type", DTyNu (DPolyProd (DPolyConst DCodeNat) DPolyHole))
     -- el-sub-cong-fix: a reflexive equation over ▷ℕ, instantiated
   , ("sub-cong-fix", DElSubCongFix
       (DSubExt DSubId DTyNat DElNatZ)
@@ -84,6 +94,12 @@ derivCases =
     -- REJECTION: a quotient witness at the wrong proposition
   , ("quot-bad-witness", DElQuotEq DElNatZ (DElNatS DElNatZ)
       (DCodeSquash DTyOne) (DElEqI (DElRefl DElNatZ)))
+    -- the ToS layer, first-class: ℕ-as-QIIT formed rule by rule,
+    -- and its Z constructor typed against the formed signature
+  , ("qsig-nat", natSigD)
+  , ("qiit-z", DQCtor 1 natSigD [])
+    -- REJECTION: a sort reference into an empty ToS zone
+  , ("qtm-var-range", DQSig (DQCtxExt DQCtxEmpty (DQTyEl (DQTmVar 0))))
   ]
 
 runDerivTests : IO ()

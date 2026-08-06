@@ -266,6 +266,16 @@ side conditions):
   el-qiit-path atom: the entry position.  demands: the constructor
                spine entrywise at the reflected telescope (replaces
                the LPath license).
+  qctx/qty/qtm/qsub — FIRST-CLASS, one node per Foundation rule. The
+               dual zone Γ ; Φ threads Φ as an INPUT exactly as Γ is
+               (its own conclude family); qctx formation OUTPUTS the
+               zone it forms, and Γ ⊦ 𝒮 qsig is its closed reading.
+               The ToS substitution calculus (𝕚𝕕/⇑/∘/ext, the lift
+               derived) is first-class syntax here — the kernel never
+               needed ς reified, its walk instantiating on the fly —
+               with its action the meta-operation Foundation defines
+               clause by clause (an inductive binder lifts ς, an
+               external binder Nova-weakens its embedded pieces).
   eprob/dalg   formation nodes whose method-image equation premises
                are ≐ subderivations (replacing qcoh certificates);
                the ᴰ/⌊·⌋/⟦·⟧ meta-operations are checker functions,

@@ -30,6 +30,79 @@ import Nova.Kernel
 
 %default covering
 
+-- ===== The ToS substitution calculus (Foundation: 𝕚𝕕/⇑/∘/ext) =====
+--
+-- ς is first-class syntax here (the kernel had no need of it — its
+-- walk instantiates on the fly); its ACTION is the meta-operation
+-- Foundation defines one clause per former: an INDUCTIVE binder
+-- lifts ς, an EXTERNAL binder Nova-weakens ς's embedded pieces (ToS
+-- indices do not shift at a Nova binder).
+
+public export
+data QSub : Type where
+  QSId : QSub
+  QSWk : QSub
+  QSComp : QSub -> QSub -> QSub
+  QSExt : QSub -> QTm -> QSub
+
+mutual
+  ||| ς's value at index i (𝕥[τ ∘ ς] = 𝕥[τ][ς]).
+  qsApply : QSub -> Nat -> QTm
+  qsApply QSId i = QVar i
+  qsApply QSWk i = QVar (S i)
+  qsApply (QSComp tau sig) i = qSubTm sig (qsApply tau i)
+  qsApply (QSExt sig t) Z = t
+  qsApply (QSExt sig t) (S i) = qsApply sig i
+
+  ||| Nova-weaken ς's embedded pieces (crossing an external binder).
+  qsWkNova : QSub -> QSub
+  qsWkNova QSId = QSId
+  qsWkNova QSWk = QSWk
+  qsWkNova (QSComp tau sig) = QSComp (qsWkNova tau) (qsWkNova sig)
+  qsWkNova (QSExt sig t) = QSExt (qsWkNova sig) (substQTm t Wk)
+
+  ||| ς⁺ ≜ (ς ∘ ⇑, ⬡₀) — the derived lift at an inductive binder.
+  qsLift : QSub -> QSub
+  qsLift sig = QSExt (QSComp sig QSWk) (QVar 0)
+
+  qSubTm : QSub -> QTm -> QTm
+  qSubTm sig (QVar i) = qsApply sig i
+  qSubTm sig (QAppE f e) = QAppE (qSubTm sig f) e
+  qSubTm sig (QAppI f a) = QAppI (qSubTm sig f) (qSubTm sig a)
+  qSubTm sig (QEqC l r u) = QEqC (qSubTm sig l) (qSubTm sig r) (qSubTm sig u)
+
+  qSubTy : QSub -> QTy -> QTy
+  qSubTy sig QU = QU
+  qSubTy sig (QEl t) = QEl (qSubTm sig t)
+  qSubTy sig (QPiExt a b) = QPiExt a (qSubTy (qsWkNova sig) b)
+  qSubTy sig (QPiInd t b) = QPiInd (qSubTm sig t) (qSubTy (qsLift sig) b)
+
+||| ToS index shift (crossing inductive binders): add n to QVar
+||| indices ≥ the cutoff. Nova pieces are untouched.
+qShiftTm : (cutoff, n : Nat) -> QTm -> QTm
+qShiftTm c n (QVar i) = if i >= c then QVar (i + n) else QVar i
+qShiftTm c n (QAppE f e) = QAppE (qShiftTm c n f) e
+qShiftTm c n (QAppI f a) = QAppI (qShiftTm c n f) (qShiftTm c n a)
+qShiftTm c n (QEqC l r u) = QEqC (qShiftTm c n l) (qShiftTm c n r) (qShiftTm c n u)
+
+qShiftTy : (cutoff, n : Nat) -> QTy -> QTy
+qShiftTy c n QU = QU
+qShiftTy c n (QEl t) = QEl (qShiftTm c n t)
+qShiftTy c n (QPiExt a b) = QPiExt a (qShiftTy c n b)
+qShiftTy c n (QPiInd t b) = QPiInd (qShiftTm c n t) (qShiftTy (S c) n b)
+
+||| Φ‖ᵢ — the entry's type as seen at the current position (its ToS
+||| indices shifted past the entries above it).
+phiAt : SnocList QTy -> Nat -> Maybe QTy
+phiAt [<] _ = Nothing
+phiAt (rest :< a) Z = Just (qShiftTy 0 1 a)
+phiAt (rest :< a) (S n) = map (qShiftTy 0 1) (phiAt rest n)
+
+||| Φ[↑] — Nova-weakening the whole ToS zone (crossing an external
+||| binder; ToS indices do not shift).
+phiWkNova : SnocList QTy -> SnocList QTy
+phiWkNova = map (\a => substQTy a Wk)
+
 -- ===== Judgement bodies (contexts are inputs, never outputs) =====
 
 public export
@@ -53,6 +126,10 @@ data Judg : Type where
   JPoly : Poly -> Judg
   ||| Γ ⊦ 𝒮 qsig
   JQSig : QSig -> Judg
+  ||| Γ ⊦ Φ qctx — the formed ToS context (innermost LAST), an output
+  JQCtx : SnocList QTy -> Judg
+  ||| Γ ⊦ ς : Φ₀ ⇒ Φ₁ — Φ₀ the ambient ToS input, Φ₁ the output
+  JQSub : QSub -> SnocList QTy -> Judg
 
 export covering
 Show Judg where
@@ -65,6 +142,8 @@ Show Judg where
   show (JSub s _) = "⊦ \{show s} sub"
   show (JPoly f) = "⊦ \{show f} poly"
   show (JQSig sg) = "⊦ qsig (\{show (length sg)} entries)"
+  show (JQCtx phi) = "⊦ qctx (\{show (length (toList phi))} entries)"
+  show (JQSub _ _) = "⊦ qsub"
 
 -- ===== Derivations =====
 
@@ -296,11 +375,15 @@ data Deriv : Type where
   DTySubCongFix : Deriv -> Deriv -> Deriv
 
   -- ----- the ν layer -----
-  ||| poly formation: the polynomial is subject-atom data; the listed
-  ||| derivations check its embedded pieces in binder order (codes at
-  ||| 𝕌, the context growing under El-binders) — Foundation's poly-*
-  ||| rules composed syntax-directedly
-  DPolyK : Poly -> List Deriv -> Deriv
+  ||| poly-hole / poly-const / poly-prod / poly-sum / poly-sigma /
+  ||| poly-pi — one node per Foundation rule (the binding formers'
+  ||| bodies under Γ ▷ El a)
+  DPolyHole : Deriv
+  DPolyConst : Deriv -> Deriv
+  DPolyProd : Deriv -> Deriv -> Deriv
+  DPolySum : Deriv -> Deriv -> Deriv
+  DPolySigma : Deriv -> Deriv -> Deriv
+  DPolyPi : Deriv -> Deriv -> Deriv
   ||| ty-nu / code-nu
   DTyNu : Deriv -> Deriv
   DCodeNu : Deriv -> Deriv
@@ -315,13 +398,42 @@ data Deriv : Type where
   DElNuCoind : Deriv -> Deriv -> Deriv -> Deriv -> Deriv -> Deriv -> Deriv
 
   -- ----- the QIIT layer -----
-  ||| Γ ⊦ 𝒮 qsig — INTERIM: checked by the kernel's existing qctx
-  ||| walk (kQSigCheck, itself in today's trusted base and mirroring
-  ||| Foundation's qctx/qty/qtm rules; its embedded Nova pieces go
-  ||| through the A4 tiny checker). The demand-driven walk — one
-  ||| subderivation per embedded piece — is the outstanding phase-1
-  ||| item (docs/NovaPipeline.txt status).
-  DQSigK : QSig -> Deriv
+  -- the ToS layer, one node per Foundation rule. The qty/qtm/qsub
+  -- judgements live in the dual zone Γ ; Φ — Φ is threaded as an
+  -- INPUT by their own conclude family (concludeQTy/QTm/QSub below),
+  -- exactly as Γ is; qctx formation OUTPUTS the zone it forms.
+  ||| qctx-empty / qctx-ext (the entry premise checked in the zone
+  ||| formed so far)
+  DQCtxEmpty : Deriv
+  DQCtxExt : Deriv -> Deriv -> Deriv
+  ||| Γ ⊦ 𝒮 qsig ≜ Γ ⊦ 𝒮 qctx — the reading of a closed qctx as a
+  ||| signature (kernel entry order: outermost first)
+  DQSig : Deriv -> Deriv
+  ||| qty-univ / qty-el / qty-pi-ext (binds a Nova variable: the Nova
+  ||| zone grows, Φ Nova-weakens) / qty-pi-ind (binds a ToS variable)
+  DQTyUniv : Deriv
+  DQTyEl : Deriv -> Deriv
+  DQTyPiExt : Deriv -> Deriv -> Deriv
+  DQTyPiInd : Deriv -> Deriv -> Deriv
+  ||| qtm-var: Γ ; Φ ⊦ ⬡ᵢ : Φ‖ᵢ
+  DQTmVar : Nat -> Deriv
+  ||| qtm-app-ext: 𝕥 : A ⇛ 𝔄;  Γ ⊦ t : A  ⊢  𝕥 t : 𝔄[t]
+  DQTmAppExt : Deriv -> Deriv -> Deriv
+  ||| qtm-app-ind: 𝕥 : El 𝕦 ⇛ 𝔄;  𝕥′ : El 𝕦  ⊢  𝕥 𝕥′ : 𝔄[𝕥′]
+  DQTmAppInd : Deriv -> Deriv -> Deriv
+  ||| qtm-eq: both sides at the same El 𝕦; the equation code lands
+  ||| in U
+  DQTmEq : Deriv -> Deriv -> Deriv
+  ||| qsub-id / qsub-wk / qsub-comp (delivery order ς then τ) /
+  ||| qsub-ext (delivery order ς, 𝔄 over the target, 𝕥 at 𝔄[ς])
+  DQSubId : Deriv
+  DQSubWk : Deriv
+  DQSubComp : Deriv -> Deriv -> Deriv
+  DQSubExt : Deriv -> Deriv -> Deriv -> Deriv
+  ||| qtm-sub / qty-sub — delivery order ς (delivers Φ₁), the piece
+  ||| over Φ₁
+  DQTmSub : Deriv -> Deriv -> Deriv
+  DQTySub : Deriv -> Deriv -> Deriv
   ||| sort-instance formation Γ ⊦ 𝒮.𝕤 ē type — the spine entrywise
   ||| at the reflected arity telescope
   DTyQSort : Nat -> Deriv -> List Deriv -> Deriv
@@ -380,6 +492,10 @@ needQSig : Judg -> KM QSig
 needQSig (JQSig sg) = pure sg
 needQSig j = kerr "derivation: expected a signature premise"
 
+needQCtx : Judg -> KM (SnocList QTy)
+needQCtx (JQCtx phi) = pure phi
+needQCtx j = kerr "derivation: expected a qctx premise"
+
 liftQE : Either QErr a -> KM a
 liftQE (Left e) = kerr "derivation: \{e}"
 liftQE (Right x) = pure x
@@ -410,9 +526,23 @@ wkEl e = substElem e Wk
 
 -- ===== The checker =====
 
-||| Declared ahead: the spine helper below recurses into it.
+||| Declared ahead: the spine helper below recurses into it, and the
+||| ToS family (dual zone Γ ; Φ — Φ threaded as an input, exactly as
+||| Γ is) is mutual with it.
 export
 conclude : Sig -> Ctx -> Deriv -> KM Judg
+
+||| Γ ; Φ ⊦ 𝔄 qty
+export
+concludeQTy : Sig -> Ctx -> SnocList QTy -> Deriv -> KM QTy
+
+||| Γ ; Φ ⊦ 𝕥 : 𝔄
+export
+concludeQTm : Sig -> Ctx -> SnocList QTy -> Deriv -> KM (QTm, QTy)
+
+||| Γ ⊦ ς : Φ₀ ⇒ Φ₁ (Φ₀ the input, Φ₁ the output)
+export
+concludeQSub : Sig -> Ctx -> SnocList QTy -> Deriv -> KM (QSub, SnocList QTy)
 
 ||| A ToS entry's reflected binder telescope.
 qArity : QSig -> Nat -> KM (QTy, List Ty)
@@ -975,32 +1105,29 @@ conclude sig ctx (DTySubCongFix dS dEq) = do
   pure (JTyEq (substTy a0 s) (substTy a1 s))
 
 -- the ν layer
-conclude sig ctx (DPolyK f ds) = do
-  rest <- goPoly ctx f ds
-  case rest of
-    [] => pure (JPoly f)
-    _ => kerr "derivation: poly: too many embedded-piece premises"
- where
-  goPoly : Ctx -> Poly -> List Deriv -> KM (List Deriv)
-  goPoly c PHole ds = pure ds
-  goPoly c (PConst a) (d :: ds) = do
-    (a', aty) <- conclude sig c d >>= needEl
-    alphaTy "poly (K)" aty Ty.UniverseTy
-    alphaEl "poly (K)" a' a
-    pure ds
-  goPoly c (PProd p q) ds = goPoly c p ds >>= goPoly c q
-  goPoly c (PSum p q) ds = goPoly c p ds >>= goPoly c q
-  goPoly c (PSigma a p) (d :: ds) = do
-    (a', aty) <- conclude sig c d >>= needEl
-    alphaTy "poly (⨯)" aty Ty.UniverseTy
-    alphaEl "poly (⨯)" a' a
-    goPoly (c :< El a) p ds
-  goPoly c (PPi a p) (d :: ds) = do
-    (a', aty) <- conclude sig c d >>= needEl
-    alphaTy "poly (→)" aty Ty.UniverseTy
-    alphaEl "poly (→)" a' a
-    goPoly (c :< El a) p ds
-  goPoly c _ [] = kerr "derivation: poly: missing an embedded-piece premise"
+conclude sig ctx DPolyHole = pure (JPoly PHole)
+conclude sig ctx (DPolyConst dA) = do
+  (a, aty) <- conclude sig ctx dA >>= needEl
+  alphaTy "poly-const" aty Ty.UniverseTy
+  pure (JPoly (PConst a))
+conclude sig ctx (DPolyProd dF dG) = do
+  f <- conclude sig ctx dF >>= needPoly
+  g <- conclude sig ctx dG >>= needPoly
+  pure (JPoly (PProd f g))
+conclude sig ctx (DPolySum dF dG) = do
+  f <- conclude sig ctx dF >>= needPoly
+  g <- conclude sig ctx dG >>= needPoly
+  pure (JPoly (PSum f g))
+conclude sig ctx (DPolySigma dA dF) = do
+  (a, aty) <- conclude sig ctx dA >>= needEl
+  alphaTy "poly-sigma" aty Ty.UniverseTy
+  f <- conclude sig (ctx :< El a) dF >>= needPoly
+  pure (JPoly (PSigma a f))
+conclude sig ctx (DPolyPi dA dF) = do
+  (a, aty) <- conclude sig ctx dA >>= needEl
+  alphaTy "poly-pi" aty Ty.UniverseTy
+  f <- conclude sig (ctx :< El a) dF >>= needPoly
+  pure (JPoly (PPi a f))
 conclude sig ctx (DTyNu dF) = do
   f <- conclude sig ctx dF >>= needPoly
   pure (JTy (Ty.NuTy f))
@@ -1037,11 +1164,31 @@ conclude sig ctx (DElNuCoind dF dT0 dT1 dR dP dQ) = do
     (Prf (liftPoly f r (Out (CtxVar 2)) (Out (CtxVar 1))))
   pure (JElEq t0 t1 (Ty.NuTy f))
 
--- the QIIT layer
-conclude sig ctx (DQSigK sg) = do
-  sg' <- kQSig sig sg
-  kQSigCheck sig ctx sg'
-  pure (JQSig sg')
+-- the ToS layer
+conclude sig ctx DQCtxEmpty = pure (JQCtx [<])
+conclude sig ctx (DQCtxExt dPhi dA) = do
+  phi <- conclude sig ctx dPhi >>= needQCtx
+  a <- concludeQTy sig ctx phi dA
+  pure (JQCtx (phi :< a))
+conclude sig ctx (DQSig dPhi) = do
+  phi <- conclude sig ctx dPhi >>= needQCtx
+  pure (JQSig (toList phi))
+conclude sig ctx d@DQTyUniv = kerr "derivation: qty node outside the Γ;Φ zone"
+conclude sig ctx d@(DQTyEl _) = kerr "derivation: qty node outside the Γ;Φ zone"
+conclude sig ctx d@(DQTyPiExt _ _) = kerr "derivation: qty node outside the Γ;Φ zone"
+conclude sig ctx d@(DQTyPiInd _ _) = kerr "derivation: qty node outside the Γ;Φ zone"
+conclude sig ctx d@(DQTmVar _) = kerr "derivation: qtm node outside the Γ;Φ zone"
+conclude sig ctx d@(DQTmAppExt _ _) = kerr "derivation: qtm node outside the Γ;Φ zone"
+conclude sig ctx d@(DQTmAppInd _ _) = kerr "derivation: qtm node outside the Γ;Φ zone"
+conclude sig ctx d@(DQTmEq _ _) = kerr "derivation: qtm node outside the Γ;Φ zone"
+conclude sig ctx d@(DQTmSub _ _) = kerr "derivation: qtm node outside the Γ;Φ zone"
+conclude sig ctx d@DQSubId = kerr "derivation: qsub node outside the Γ;Φ zone"
+conclude sig ctx d@DQSubWk = kerr "derivation: qsub node outside the Γ;Φ zone"
+conclude sig ctx d@(DQSubComp _ _) = kerr "derivation: qsub node outside the Γ;Φ zone"
+conclude sig ctx d@(DQSubExt _ _ _) = kerr "derivation: qsub node outside the Γ;Φ zone"
+conclude sig ctx d@(DQTySub _ _) = kerr "derivation: qty node outside the Γ;Φ zone"
+
+-- the QIIT item layer
 conclude sig ctx (DTyQSort k dSig ds) = do
   sg <- conclude sig ctx dSig >>= needQSig
   (entry, tel) <- qArity sg k
@@ -1145,6 +1292,85 @@ conclude sig ctx (DQPath k dSig ds) = do
   r <- liftQE (reflTm sg wEnd rq)
   t <- liftQE (reflCodeTy sg wEnd uq)
   pure (JElEq l r t)
+
+-- ===== The ToS family (dual zone Γ ; Φ) =====
+
+concludeQTy sig ctx phi DQTyUniv = pure QU
+concludeQTy sig ctx phi (DQTyEl dT) = do
+  (t, tty) <- concludeQTm sig ctx phi dT
+  case tty of
+    QU => pure (QEl t)
+    _ => kerr "derivation: qty-el: code premise not at U"
+concludeQTy sig ctx phi (DQTyPiExt dA dB) = do
+  a <- conclude sig ctx dA >>= needTy
+  b <- concludeQTy sig (ctx :< a) (phiWkNova phi) dB
+  pure (QPiExt a b)
+concludeQTy sig ctx phi (DQTyPiInd dT dB) = do
+  (t, tty) <- concludeQTm sig ctx phi dT
+  case tty of
+    QU => do
+      b <- concludeQTy sig ctx (phi :< QEl t) dB
+      pure (QPiInd t b)
+    _ => kerr "derivation: qty-pi-ind: domain code not at U"
+concludeQTy sig ctx phi (DQTySub dS dA) = do
+  (sg, phi1) <- concludeQSub sig ctx phi dS
+  a <- concludeQTy sig ctx phi1 dA
+  pure (qSubTy sg a)
+concludeQTy sig ctx phi d = kerr "derivation: expected a qty node"
+
+concludeQTm sig ctx phi (DQTmVar i) =
+  case phiAt phi i of
+    Just a => pure (QVar i, a)
+    Nothing => kerr "derivation: qtm-var: index out of range"
+concludeQTm sig ctx phi (DQTmAppExt dF dE) = do
+  (f, fty) <- concludeQTm sig ctx phi dF
+  case fty of
+    QPiExt a b => do
+      (e, ety) <- conclude sig ctx dE >>= needEl
+      alphaTy "qtm-app-ext" ety a
+      pure (QAppE f e, substQTy b (Ext Id e))
+    _ => kerr "derivation: qtm-app-ext: not at an external ⇛"
+concludeQTm sig ctx phi (DQTmAppInd dF dA) = do
+  (f, fty) <- concludeQTm sig ctx phi dF
+  case fty of
+    QPiInd u b => do
+      (a, aty) <- concludeQTm sig ctx phi dA
+      if aty == QEl u then pure ()
+        else kerr "derivation: qtm-app-ind: argument not at the domain sort"
+      pure (QAppI f a, qSubTy (QSExt QSId a) b)
+    _ => kerr "derivation: qtm-app-ind: not at an inductive ⇛"
+concludeQTm sig ctx phi (DQTmEq dL dR) = do
+  (l, lty) <- concludeQTm sig ctx phi dL
+  (r, rty) <- concludeQTm sig ctx phi dR
+  case (lty, rty) of
+    (QEl u, QEl u') =>
+      if u == u'
+        then pure (QEqC l r u, QU)
+        else kerr "derivation: qtm-eq: sides at different sorts"
+    _ => kerr "derivation: qtm-eq: sides not at El of a sort"
+concludeQTm sig ctx phi (DQTmSub dS dT) = do
+  (sg, phi1) <- concludeQSub sig ctx phi dS
+  (t, a) <- concludeQTm sig ctx phi1 dT
+  pure (qSubTm sg t, qSubTy sg a)
+concludeQTm sig ctx phi d = kerr "derivation: expected a qtm node"
+
+concludeQSub sig ctx phi DQSubId = pure (QSId, phi)
+concludeQSub sig ctx phi DQSubWk =
+  case phi of
+    (rest :< _) => pure (QSWk, rest)
+    [<] => kerr "derivation: qsub-wk: the ToS zone is empty"
+concludeQSub sig ctx phi (DQSubComp dS dT) = do
+  (sg, phi1) <- concludeQSub sig ctx phi dS
+  (tau, phi2) <- concludeQSub sig ctx phi1 dT
+  pure (QSComp tau sg, phi2)
+concludeQSub sig ctx phi (DQSubExt dS dA dT) = do
+  (sg, phi1) <- concludeQSub sig ctx phi dS
+  a <- concludeQTy sig ctx phi1 dA
+  (t, tty) <- concludeQTm sig ctx phi dT
+  if tty == qSubTy sg a then pure ()
+    else kerr "derivation: qsub-ext: entry not at 𝔄[ς]"
+  pure (QSExt sg t, phi1 :< a)
+concludeQSub sig ctx phi d = kerr "derivation: expected a qsub node"
 
 -- ===== Entry point =====
 
