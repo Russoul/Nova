@@ -381,11 +381,15 @@ Phasing:
      (becoming the reconstructor); acceptance re-seated on the new
      core. Elaborator, discharge engine and artifact formats
      untouched, so the golden suite and corpus pin the cutover.
-     [IN PROGRESS — Nova.Kernel.Reconstruct rebuilds derivations
-     from the current artifacts (terms + skeletons) and SHADOWS the
-     old kernel at def-item acceptance: where it produces a
-     derivation, conclude must agree (a disagreement is a hard
-     error); where it cannot, the old kernel's verdict stands alone.
+     [RE-SEATED — Nova.Kernel.Reconstruct rebuilds derivations from
+     the current artifacts (terms + skeletons), and ACCEPTANCE NOW
+     SITS ON conclude: where the reconstructor produces derivations,
+     an item is accepted iff replay concludes exactly its stated
+     judgements — the old kernel does not run at all. Where it
+     cannot (the RESIDUE, below), the old kernel's verdict stands
+     alone, as before the rework. The road there, slice by slice —
+     the shadow phase, during which conclude had to AGREE with the
+     old kernel wherever covered, a disagreement a hard error:
      First slice: the structural core with skeleton motives and
      β-only conversion translation (switch/expose → el-ty-coe over
      nf-eq-ty, refl-eq ⋆ → el-eq-i over nf-eq); the whole corpus
@@ -535,12 +539,38 @@ Phasing:
      by the oracle; MOTIVE ABSTRACTION (the expected type with the
      scrutinee's spelling replaced by the fresh binder) as the
      indexed-motive guess at eliminator placements; checked lets.
-     Both tails narrow but stand: eqIIff's argument types spell
-     quot-elim'd Ω codes whose well-definedness cannot be re-derived
-     bare (the hole-solution residue — phase 3's elaborator-emitted
-     derivations are the principled fix), and vappendAssoc still
-     needs one lemma-instance step INSIDE an El-vs-unfolding bridge
-     (an index congruence composed with β at the type level).]
+     Both tails narrow but stand, and with the twenty-third slice
+     the seat FLIPS with them documented as residue.
+
+     THE RESIDUE — where the old kernel's verdict still stands
+     alone, each with its reason and its exit:
+
+       * ITEMS THE RECONSTRUCTOR DOES NOT COVER. Two corpus files:
+         eqInt past eqIIff — argument types spell quot-elim'd
+         Ω codes whose well-definedness equations cannot be
+         re-derived bare (they need the arithmetic the elaborator's
+         certificates carried for OTHER spellings; this is the
+         hole-solution shape); and vectByIndAppend past vappendAssoc
+         — one lemma-instance step inside an El-vs-unfolding type
+         bridge (an index congruence composed with β at the type
+         level). NOVA_STRICT_DERIVATIONS=1 remains the meter: it
+         turns a residue fallback into an error, so the residue
+         cannot silently grow. Exit: phase 3 — the elaborator emits
+         the derivation alongside the artifact instead of having it
+         reconstructed.
+       * HOLE SOLUTIONS. Solved holes are mirrored into the kernel Σ
+         by kCheckSolution/kCheckTySolution (old kernel, unshadowed)
+         — a solution the old kernel cannot re-check is silently NOT
+         mirrored (references to it stay stuck), so this residue
+         affects completeness, not the accepted-item invariant of
+         covered items. Exit: the same phase-3 emission, or a
+         solution-shaped reconstruction entry.
+
+     The accepted-item invariant, after the seat: for every item the
+     reconstructor covers, acceptance = a Foundation-rule derivation
+     replayed by conclude to exactly the item's stated judgements;
+     for the residue, acceptance = the old kernel's verdict, exactly
+     as documented in docs/NovaKernel.txt.]
   3. CONSOLIDATION (incremental, unhurried) — the elaborator emits
      derivations directly where reconstruction is weak or wasteful;
      the trace→derivation translation absorbs the discharge engine's

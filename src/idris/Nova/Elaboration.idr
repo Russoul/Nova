@@ -3555,50 +3555,53 @@ mirrorHoleDefs = do
                   else go rest ks
               _ => go rest ks
 
-||| Kernel-check a clean item against the kernel's own Σ; extend it on
-||| acceptance. Items elaborated under assumptions (dirty) are skipped —
-||| they cannot be accepted anyway.
-kernelAccept : String -> (Sig -> Either KErr SigEntry) -> Bool -> ElabM ()
-kernelAccept name check clean = do
-  st <- getSt
-  if not clean
-    then pure ()
-    else case check st.kernelSig of
-      Right entry => modifySt $ { kernelSig $= (:< entry) }
-      Left err => throw "\{name}: KERNEL REJECTED the elaborated item: \{err}"
-
 liftQE : String -> Either QErr a -> ElabM a
 liftQE site (Left e) = throw "\{site}: \{e}"
 liftQE site (Right x) = pure x
 
-||| The derivation-rework SHADOW (docs/NovaPipeline.txt, phase 2):
-||| wherever the reconstructor produces a derivation for an accepted
-||| item, conclude must agree — a disagreement is a hard error, loud
-||| in the test suite. Uncovered items pass silently (the coverage
-||| ratchet).
-shadowAccept : String -> KDefArt -> Bool -> ElabM ()
-shadowAccept name art clean = do
+||| ACCEPTANCE, RE-SEATED on the derivation kernel (docs/NovaPipeline.txt,
+||| phase 2 — the trust inversion). Where the reconstructor produces
+||| derivations, conclude IS the verdict: the item is accepted iff
+||| replay concludes exactly its stated judgements, and the old
+||| kernel does not run at all. Where reconstruction does not cover —
+||| the RESIDUE, documented in the pipeline status — the old kernel's
+||| verdict stands alone, as before the rework. Items elaborated
+||| under assumptions (dirty) are skipped — they cannot be accepted
+||| anyway. NOVA_STRICT_DERIVATIONS=1 turns a residue fallback into
+||| an error (the coverage meter, unchanged).
+seatAccept : String -> (Sig -> Either KErr SigEntry) -> KDefArt -> SigEntry -> Bool -> ElabM ()
+seatAccept name residue art entry clean = do
   st <- getSt
   if not clean
     then pure ()
     else case shadowDef st.kernelSig kernelFuel art of
-      Nothing => if st.strictDeriv
-                   then throw "\{name}: NOT COVERED by the derivation reconstructor"
-                   else pure ()
-      Just (Right ()) => pure ()
-      Just (Left err) => throw "\{name}: DERIVATION SHADOW DISAGREES: \{err}"
+      Just (Right ()) => modifySt $ { kernelSig $= (:< entry) }
+      Just (Left err) =>
+        throw "\{name}: derivation kernel REJECTED the item: \{err}"
+      Nothing => do
+        if st.strictDeriv
+          then throw "\{name}: NOT COVERED by the derivation reconstructor"
+          else pure ()
+        case residue st.kernelSig of
+          Right entry' => modifySt $ { kernelSig $= (:< entry') }
+          Left err => throw "\{name}: KERNEL REJECTED the elaborated item: \{err}"
 
-shadowTyAccept : String -> KTyDefArt -> Bool -> ElabM ()
-shadowTyAccept name art clean = do
+seatTyAccept : String -> (Sig -> Either KErr SigEntry) -> KTyDefArt -> SigEntry -> Bool -> ElabM ()
+seatTyAccept name residue art entry clean = do
   st <- getSt
   if not clean
     then pure ()
     else case shadowTyDef st.kernelSig kernelFuel art of
-      Nothing => if st.strictDeriv
-                   then throw "\{name}: NOT COVERED by the derivation reconstructor"
-                   else pure ()
-      Just (Right ()) => pure ()
-      Just (Left err) => throw "\{name}: DERIVATION SHADOW DISAGREES: \{err}"
+      Just (Right ()) => modifySt $ { kernelSig $= (:< entry) }
+      Just (Left err) =>
+        throw "\{name}: derivation kernel REJECTED the item: \{err}"
+      Nothing => do
+        if st.strictDeriv
+          then throw "\{name}: NOT COVERED by the derivation reconstructor"
+          else pure ()
+        case residue st.kernelSig of
+          Right entry' => modifySt $ { kernelSig $= (:< entry') }
+          Left err => throw "\{name}: KERNEL REJECTED the elaborated item: \{err}"
 
 ||| Emit one core definition item: kernel-check, extend Σ, register a
 ||| lemma if it is ≡-typed. Mirrors elabItem's tail for surface defs.
@@ -3613,10 +3616,11 @@ emitCoreDef site x ty tySk body bodySk = do
   resolveConstraints oblsAtStart
   mirrorHoleDefs
   after <- oblCount
-  kernelAccept "\{site} \{x}"
+  seatAccept "\{site} \{x}"
     (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] ty tySk body bodySk))
+    (MkKDefArt q [] ty tySk body bodySk)
+    (SigDef [<] q body ty)
     (after == 0)
-  shadowAccept "\{site} \{x}" (MkKDefArt q [] ty tySk body bodySk) (after == 0)
   modifySt $ { sig $= (:< SigDef [<] q body ty), vis $= (:< (x, q)) }
   addLemma q [<] ty
 
@@ -3631,10 +3635,11 @@ emitCoreTyDef site x ty tySk = do
   resolveConstraints oblsAtStart
   mirrorHoleDefs
   after <- oblCount
-  kernelAccept "\{site} \{x}"
+  seatTyAccept "\{site} \{x}"
     (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty tySk))
+    (MkKTyDefArt q [] ty tySk)
+    (SigTyDef [<] q ty)
     (after == 0)
-  shadowTyAccept "\{site} \{x}" (MkKTyDefArt q [] ty tySk) (after == 0)
   modifySt $ { sig $= (:< SigTyDef [<] q ty), vis $= (:< (x, q)) }
 
 wrapLams : Nat -> Elem -> Elem
@@ -3778,10 +3783,11 @@ elabItemGo (SDef x ty body) = do
   resolveConstraints oblsAtStart
   mirrorHoleDefs
   after <- oblCount
-  kernelAccept "def \{x}"
+  seatAccept "def \{x}"
     (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] ty' tySk body' bodySk))
+    (MkKDefArt q [] ty' tySk body' bodySk)
+    (SigDef [<] q body' ty')
     (after == 0)
-  shadowAccept "def \{x}" (MkKDefArt q [] ty' tySk body' bodySk) (after == 0)
   modifySt $ { sig $= (:< SigDef [<] q body' ty'), vis $= (:< (x, q)) }
   addLemma q [<] ty'
   suffix <- opensSuffix census
@@ -3821,10 +3827,11 @@ elabItemGo (STypeDef x ty) = do
   resolveConstraints oblsAtStart
   mirrorHoleDefs
   after <- oblCount
-  kernelAccept "type \{x}"
+  seatTyAccept "type \{x}"
     (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty' tySk))
+    (MkKTyDefArt q [] ty' tySk)
+    (SigTyDef [<] q ty')
     (after == 0)
-  shadowTyAccept "type \{x}" (MkKTyDefArt q [] ty' tySk) (after == 0)
   modifySt $ { sig $= (:< SigTyDef [<] q ty'), vis $= (:< (x, q)) }
   suffix <- opensSuffix census
   pure "defined type \{x}\{suffix}"

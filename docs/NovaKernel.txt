@@ -18,14 +18,17 @@ nothing here chooses: every rule is syntax-directed, every premise is
 checked mechanically, and the sole inputs beyond the core term are the
 certificate and the skeleton the elaborator hands over.
 
-STATUS NOTE — the derivation rework (docs/NovaPipeline.txt, last
-section; design in docs/NovaDerivations.txt) will demote the design
-below from the trusted kernel to the untrusted RECONSTRUCTOR: the
-same machinery, instrumented to emit Foundation-rule derivations that
-a smaller replay kernel checks. Until that cutover this file remains
-the implemented kernel's spec; afterwards it describes reconstruction
-machinery whose incompleteness is a quality property, not a safety
-one.
+STATUS NOTE — the cutover has happened: the derivation rework
+(docs/NovaPipeline.txt, last section; design in
+docs/NovaDerivations.txt) has RE-SEATED acceptance on the derivation
+kernel. Wherever the reconstructor produces Foundation-rule
+derivations, the replay kernel's verdict is the acceptance and the
+design below does not run; there its incompleteness is a quality
+property, not a safety one. For the documented RESIDUE
+(docs/NovaPipeline.txt, "THE RESIDUE") — items the reconstructor
+does not yet cover, and hole-solution mirroring — the design below
+is still the acceptance authority, and for that residue this file
+remains a trusted-kernel spec.
 
 Notation is Foundation's (contexts Γ, signature Σ, elements t, types
 T, judgemental equality ≐, definitional contraction ≜), with three
