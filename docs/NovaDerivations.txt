@@ -181,7 +181,8 @@ formation delivers its parts.
 
   D concludes Γ ⊦ Π A B type
   --------------------------- (inv-pi-dom)     and inv-pi-cod,
-  Γ ⊦ A type                                   inv-sigma-dom/cod
+  Γ ⊦ A type                                   inv-sigma-dom/cod,
+                                               inv-prf-eq-lhs/rhs/ty
 
 Justified by the inversion meta-theorem: a formation judgement with
 a former head arises only from that former's formation rule (there

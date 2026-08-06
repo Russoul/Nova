@@ -156,6 +156,11 @@ wkN (S n) e = wkN n (substElem e Wk)
 export
 reEq : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty -> Maybe Deriv
 
+||| … with optional pre-derived endpoint typings (formation-threaded
+||| inversion at a ⋆ goal), each concluding at the raw equation type.
+reEqEnds : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty ->
+           Maybe (Deriv, Deriv) -> Maybe Deriv
+
 ||| … and for type equations Γ ⊦ a ≐ b.
 export
 reEqTy : Sig -> Ctx -> ECert -> Ty -> Ty -> Maybe Deriv
@@ -385,9 +390,16 @@ mutual
         pure (DElNatE dmot dz ds dt, zty)
       Just (mot, motSk) => do
         dmot <- reTy sig (ctx :< Ty.NatTy) mot motSk
-        dz <- reCheck sig ctx z (substTy mot (Ext Id NatIntro0)) (childAt 0 sk)
-        ds <- reCheck sig (ctx :< Ty.NatTy :< mot) s
-                (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) (childAt 1 sk)
+        -- branch goal formations: the motive instantiated along the
+        -- branch's substitution (ty-sub via cong-fix over refl)
+        let zF = DPresupTyL (DTySubCongFix
+                   (DSubExt DSubId DTyNat DElNatZ) (DTyRefl dmot))
+        let sSub = DSubComp DSubWk
+                     (DSubExt DSubWk DTyNat (DElNatS (DElVar 0)))
+        let sF = DPresupTyL (DTySubCongFix sSub (DTyRefl dmot))
+        dz <- reCheckF sig ctx z (substTy mot (Ext Id NatIntro0)) (childAt 0 sk) zF
+        ds <- reCheckF sig (ctx :< Ty.NatTy :< mot) s
+                (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) (childAt 1 sk) sF
         dt <- reCheck sig ctx t Ty.NatTy (childAt 2 sk)
         pure (DElNatE dmot dz ds dt, substTy mot (Ext Id t))
   reInferGo sig ctx (SumElim l r t) sk = do
@@ -396,8 +408,19 @@ mutual
     case tty of
       Ty.SumTy a b => do
         dmot <- reTy sig (ctx :< Ty.SumTy a b) mot motSk
-        dl <- reCheck sig (ctx :< a) l (substTy mot (Ext Wk (Inj1 (CtxVar 0)))) (childAt 0 sk)
-        dr <- reCheck sig (ctx :< b) r (substTy mot (Ext Wk (Inj2 (CtxVar 0)))) (childAt 1 sk)
+        da <- reTy sig ctx a emptySkel
+        db <- reTy sig ctx b emptySkel
+        let wkOf = \d => DPresupTyL (DTySubCongFix DSubWk (DTyRefl d))
+        let lF = DPresupTyL (DTySubCongFix
+                   (DSubExt DSubWk (DTySum da db)
+                     (DElSumI1 (DElVar 0) (wkOf db)))
+                   (DTyRefl dmot))
+        dl <- reCheckF sig (ctx :< a) l (substTy mot (Ext Wk (Inj1 (CtxVar 0)))) (childAt 0 sk) lF
+        let rF = DPresupTyL (DTySubCongFix
+                   (DSubExt DSubWk (DTySum da db)
+                     (DElSumI2 (DElVar 0) (wkOf da)))
+                   (DTyRefl dmot))
+        dr <- reCheckF sig (ctx :< b) r (substTy mot (Ext Wk (Inj2 (CtxVar 0)))) (childAt 1 sk) rF
         pure (DElSumE dt dmot dl dr, substTy mot (Ext Id t))
       _ => Nothing
   reInferGo sig ctx NatIntro0 sk = Just (DElNatZ, Ty.NatTy)
@@ -562,6 +585,38 @@ mutual
                     dT <- reTy sig ctx ty emptySkel
                     pure (DElTyCoe (DTySym (DNfExpandTy dT)) d)
                   Nothing => reCheckGo sig ctx e ty sk
+
+  ||| Checking WITH the expected type's formation derivation in hand
+  ||| (threaded down lambda spines and into ⋆ goals): where plain
+  ||| reconstruction cannot re-type a goal's endpoints — normalized
+  ||| eliminator spellings, hypothesis-sensitive holes — formation
+  ||| INVERSION delivers them from the threaded derivation.
+  export
+  reCheckF : Sig -> Ctx -> Elem -> Ty -> Skel -> Deriv -> Maybe Deriv
+  reCheckF sig ctx (PiIntro f) (Ty.PiTy a b) sk dF = do
+    da <- reTy sig ctx a emptySkel <|> Just (DInvPiDom dF)
+    df <- reCheckF sig (ctx :< a) f b (childAt 0 sk) (DInvPiCod dF)
+    pure (DElPiI da df)
+  reCheckF sig ctx Star ty sk dF =
+    reCheck sig ctx Star ty sk
+    <|> (case (payload pRefl sk, ty) of
+          (Just cert, Prf (Elem.EqTy l r t)) =>
+            dbg "star-inv: \{show l} EQ \{show r} AT \{show t}"
+              (DElEqI <$> reEqEnds sig ctx cert l r t
+                           (Just (DInvPrfEqL dF, DInvPrfEqR dF)))
+          (Just cert, _) => do
+            -- goal not a literal equality prop: expose by nf, ride
+            -- the threaded formation both ways
+            tyN <- nfT sig ty
+            let Prf (Elem.EqTy l r t) = tyN
+              | _ => Nothing
+            let dFN = DPresupTyR (DNfExpandTy dF)
+            d0 <- dbg "star-inv (nf): \{show l} EQ \{show r}"
+                    (DElEqI <$> reEqEnds sig ctx cert l r t
+                                 (Just (DInvPrfEqL dFN, DInvPrfEqR dFN)))
+            pure (DElTyCoe (DTySym (DNfExpandTy dF)) d0)
+          _ => Nothing)
+  reCheckF sig ctx e ty sk dF = reCheck sig ctx e ty sk
 
   reCheckGo : Sig -> Ctx -> Elem -> Ty -> Skel -> Maybe Deriv
   reCheckGo sig ctx (PiIntro f) ty sk =
@@ -1248,14 +1303,16 @@ stepChainT sig ctx (chain, cur) step = do
   (dPl, cur') <- rePlaceT sig ctx step 0 step.path curN
   pure (DTyTrans chain2 dPl, cur')
 
-reEq sig ctx (MkECertF tyEx steps final) l r ty = do
+reEq sig ctx cert l r ty = reEqEnds sig ctx cert l r ty Nothing
+
+reEqEnds sig ctx (MkECertF tyEx steps final) l r ty ends = do
   (ty', pre) <- the (Maybe (Ty, Maybe Deriv)) $ case tyEx of
                   Nothing => Just (ty, Nothing)
                   Just (tyX, certT) => do
                     dBr <- reEqTy sig ctx certT ty tyX
                     Just (tyX, Just dBr)
-  dl0 <- dbg "req: endpoint L \{show l} AT \{show ty'}" (endpoint l ty' pre)
-  dr0 <- dbg "req: endpoint R \{show r} AT \{show ty'}" (endpoint r ty' pre)
+  dl0 <- dbg "req: endpoint L \{show l} AT \{show ty'}" (endpoint l ty' pre (fst <$> ends))
+  dr0 <- dbg "req: endpoint R \{show r} AT \{show ty'}" (endpoint r ty' pre (snd <$> ends))
   (chL, curL) <- dbg "req: chain L" (goSide ty' (DElRefl dl0, l) (filter (.onLhs) steps))
   (chR, curR) <- dbg "req: chain R" (goSide ty' (DElRefl dr0, r) (filter (not . (.onLhs)) steps))
   mid <- dbg "req: close, curL \{show curL} curR \{show curR}" (closeE sig ctx ty' chL curL chR curR final)
@@ -1269,12 +1326,16 @@ reEq sig ctx (MkECertF tyEx steps final) l r ty = do
   ||| only at the equation's raw spelling rides the pre-bridge.
   checkBridged : Elem -> Ty -> Maybe Deriv
 
-  endpoint : Elem -> Ty -> Maybe Deriv -> Maybe Deriv
-  endpoint e t pre =
+  endpoint : Elem -> Ty -> Maybe Deriv -> Maybe Deriv -> Maybe Deriv
+  endpoint e t pre end =
     checkBridged e t
     <|> (do dBr <- pre
             d <- reCheck sig ctx e ty emptySkel
             pure (DElTyCoe dBr d))
+    <|> (do d <- end
+            case pre of
+              Nothing => Just d
+              Just dBr => Just (DElTyCoe dBr d))
 
   checkBridged e t =
     reCheck sig ctx e t emptySkel
@@ -1478,10 +1539,14 @@ reDefArt sig art =
       -- is hypothesis-sensitive, check at nf (holes unfolded) and ride
       -- dT back to the spelling
       dt <- reCheck sig [<] art.body art.dty art.bodySkel
+            <|> reCheckF sig [<] art.body art.dty art.bodySkel dT
             <|> (do tyN <- nfT sig art.dty
                     let False = tyN == art.dty
                       | True => Nothing
-                    d <- dbg "defart: body" (reCheck sig [<] art.body tyN art.bodySkel)
+                    let dTN = DPresupTyR (DNfExpandTy dT)
+                    d <- dbg "defart: body"
+                           (reCheck sig [<] art.body tyN art.bodySkel
+                            <|> reCheckF sig [<] art.body tyN art.bodySkel dTN)
                     pure (DElTyCoe (DTySym (DNfExpandTy dT)) d))
       pure (dT, dt)
     _ => Nothing

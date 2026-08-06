@@ -463,10 +463,18 @@ Phasing:
      linear (inversion re-replays the head, exponential on nested
      spines — an out-of-fuel caught by the shadow). Plus
      NOVA_RECON_DEBUG=1, a permanent first-failure-spine diagnostic
-     (currently 15/27; every covered item agrees). Bails, honestly:
-     SelQIdx, placements through eliminators, `data … Elim` items,
-     hole solutions. Remaining: those bails driven down by the
-     strict-mode meter, then the re-seat.]
+     (currently 15/27; every covered item agrees). Fifteenth slice:
+     FORMATION THREADING — the def type's derivation rides down the
+     body's lambda spine (inv-pi-cod per binder) and elim-branch
+     goals get theirs from the motive derivation substituted along
+     the branch's section (ty-sub as cong-fix over refl), so a ⋆
+     goal's endpoints arrive by the Prf-equality inversions instead
+     of re-typing normalized eliminator spellings bare — sum.nova's
+     η law, whose endpoints spell ⊎-elim over an injected variable,
+     is the paradigm case (currently 16/27; every covered item
+     agrees). Bails, honestly: SelQIdx, `data … Elim` items, hole
+     solutions, integer/vector tails. Remaining: those bails driven
+     down by the strict-mode meter, then the re-seat.]
   3. CONSOLIDATION (incremental, unhurried) — the elaborator emits
      derivations directly where reconstruction is weak or wasteful;
      the trace→derivation translation absorbs the discharge engine's
