@@ -144,6 +144,12 @@ data Judg : Type where
   JQCtx : SnocList QTy -> Judg
   ||| Γ ⊦ ς : Φ₀ ⇒ Φ₁ — Φ₀ the ambient ToS input, Φ₁ the output
   JQSub : QSub -> SnocList QTy -> Judg
+  ||| Γ ⊦ C̄ : 𝒮 mot / Γ ⊦ ℰ : 𝒮 dalg / Γ ⊦ ℰ : 𝒮 eprob /
+  ||| Γ ⊦ φ : C̄ sect
+  JMot : QSig -> List Ty -> Judg
+  JDalg : QSig -> List Ty -> List Elem -> Judg
+  JEProb : QSig -> List Ty -> List Elem -> Judg
+  JSect : QSig -> List Ty -> List Elem -> Judg
 
 export covering
 Show Judg where
@@ -158,6 +164,10 @@ Show Judg where
   show (JQSig sg) = "⊦ qsig (\{show (length sg)} entries)"
   show (JQCtx phi) = "⊦ qctx (\{show (length (toList phi))} entries)"
   show (JQSub _ _) = "⊦ qsub"
+  show (JMot _ ms) = "⊦ mot (\{show (length ms)})"
+  show (JDalg _ _ _) = "⊦ dalg"
+  show (JEProb _ _ _) = "⊦ eprob"
+  show (JSect _ _ _) = "⊦ sect"
   show (JCtxEq _ _) = "⊦ ctx ≐ ctx"
   show (JSubEq _ _ _) = "⊦ sub ≐ sub"
   show (JSubNEq _ _ _) = "⊦ norm ≐ norm"
@@ -547,14 +557,25 @@ data Deriv : Type where
   ||| el-qiit-intro: the constructor spine entrywise; concludes at
   ||| the point's sort instance
   DQCtor : Nat -> Deriv -> List Deriv -> Deriv
-  ||| el-qiit-elim — signature premise, then per sort a motive
-  ||| formation (under its reflected telescope plus the sort's self
-  ||| entry), per point a method typing (at its ᴰ method type), per
-  ||| equation a COHERENCE EQUALITY DERIVATION (under the entry's
-  ||| ᴰ-telescope — A4's β-only restriction retired), then the index
-  ||| spine and the scrutinee
-  DQElim : Nat -> Deriv -> List Deriv -> List Deriv -> List Deriv ->
-           List Deriv -> Deriv -> Deriv
+  ||| the elimination-problem judgement classes, first-class:
+  ||| mot (per-sort motive formation, each under its reflected
+  ||| telescope plus the sort's self entry), dalg (a mot plus
+  ||| per-point method typings at their ᴰ method types), eprob (a
+  ||| dalg whose method-image equations hold — one COHERENCE EQUALITY
+  ||| DERIVATION per equation entry, under its ᴰ-telescope; A4's
+  ||| β-only restriction retired), sect (per-sort candidates typed at
+  ||| the motives)
+  DQMot : Deriv -> List Deriv -> Deriv
+  DQDalg : Deriv -> List Deriv -> Deriv
+  DQEProb : Deriv -> List Deriv -> Deriv
+  DQSect : Deriv -> List Deriv -> Deriv
+  ||| el-qiit-elim: an eprob premise, the index spine, the scrutinee
+  DQElim : Nat -> Deriv -> List Deriv -> Deriv -> Deriv
+  ||| el-qiit-eta: an eprob premise, a sect premise, per-point
+  ||| AGREEMENT equations h_𝕤[⌊ī⌋, 𝒮.𝕔 θ] ≐ m_𝕔 θ⟨h⟩ (under the
+  ||| constructor's reflected telescope), the index spine, the
+  ||| scrutinee — concludes h_𝕤[ē, w] ≐ 𝒮.𝕤-elim ℰ ē w
+  DQEta : Nat -> Deriv -> Deriv -> List Deriv -> List Deriv -> Deriv -> Deriv
   ||| el-qiit-path: the imposed equation at the given spine
   DQPath : Nat -> Deriv -> List Deriv -> Deriv
 
@@ -756,6 +777,24 @@ codeQuotInj sig ctx dR0 dR1 dEq = do
       pure (a0, a1, r0, r1)
     _ => kerr "derivation: code-quot-inj: equation not between quotient codes"
 
+
+needMot : Judg -> KM (QSig, List Ty)
+needMot (JMot sg ms) = pure (sg, ms)
+needMot j = kerr "derivation: expected a mot premise"
+
+needDalg : Judg -> KM (QSig, List Ty, List Elem)
+needDalg (JDalg sg ms fs) = pure (sg, ms, fs)
+needDalg j = kerr "derivation: expected a dalg premise"
+
+needEProb : Judg -> KM (QSig, List Ty, List Elem)
+needEProb (JEProb sg ms fs) = pure (sg, ms, fs)
+needEProb j = kerr "derivation: expected an eprob premise"
+
+needSect : Judg -> KM (QSig, List Ty, List Elem)
+needSect (JSect sg ms hs) = pure (sg, ms, hs)
+needSect j = kerr "derivation: expected a sect premise"
+
+
 ||| A ToS entry's reflected binder telescope.
 qArity : QSig -> Nat -> KM (QTy, List Ty)
 qArity sg k = do
@@ -785,6 +824,44 @@ qSpine rule sig ctx ds tel = do
       Just want => alphaTy rule ety want
       Nothing => kerr "derivation: \{rule}: telescope instantiation failed"
     goChk (S i) rest args
+
+||| A sort's motive/candidate context: the reflected telescope plus
+||| the sort's self entry; also its sort ordinal.
+qSortCtx : Sig -> Ctx -> QSig -> Nat -> KM (Ctx, List Ty, Nat)
+qSortCtx sig ctx sg sj = do
+  sjE <- case qEntry sg sj of
+           Just x => pure x
+           Nothing => kerr "derivation: sort out of range"
+  (tel, wEnd, _) <- liftQE (reflTel sg (qwAt sj) sjE)
+  let selfTy = QSort (substQSig sg wEnd.ups) sj (varSpine (length tel))
+  so <- case qOrdinal QKSort sg sj of
+          Just x => pure x
+          Nothing => kerr "derivation: sort ordinal"
+  pure ((foldl (:<) ctx tel) :< selfTy, tel, so)
+
+||| The eliminator rules' shared tail: the index spine at the sort's
+||| reflected arity, the scrutinee at the sort instance, the sort's
+||| motive.
+qElimEnd : Sig -> Ctx -> QSig -> List Ty -> Nat -> List Deriv -> Deriv ->
+           KM (List Elem, Elem, Ty)
+qElimEnd sig ctx sg mots k dSp dW = do
+  entry <- case qEntry sg k of
+             Just e => pure e
+             Nothing => kerr "derivation: el-qiit-elim: sort out of range"
+  case qEntryKind entry of
+    QKSort => pure ()
+    _ => kerr "derivation: el-qiit-elim: not a sort position"
+  (tel, _, _) <- liftQE (reflTel sg (qwAt k) entry)
+  es <- qSpine "el-qiit-elim" sig ctx dSp tel
+  (w, wty) <- conclude sig ctx dW >>= needEl
+  alphaTy "el-qiit-elim (scrutinee)" wty (QSort sg k (cast es))
+  o <- case qOrdinal QKSort sg k of
+         Just x => pure x
+         Nothing => kerr "derivation: el-qiit-elim: sort ordinal"
+  motK <- case getAt o mots of
+            Just m => pure m
+            Nothing => kerr "derivation: el-qiit-elim: motive missing"
+  pure (es, w, motK)
 
 -- type formation
 conclude sig ctx DTyZero = pure (JTy Ty.ZeroTy)
@@ -1728,68 +1805,115 @@ conclude sig ctx (DQCtor k dSig ds) = do
   (wEnd, hd) <- liftQE (walkVals sg (qwAt k) entry es)
   (srt, idx) <- liftQE (pointHead sg wEnd hd)
   pure (JEl (QCtor sg k (cast es)) (QSort sg srt idx))
-conclude sig ctx (DQElim k dSig dMots dMths dCohs dSp dW) = do
+conclude sig ctx (DQMot dSig ds) = do
   sg <- conclude sig ctx dSig >>= needQSig
-  entry <- case qEntry sg k of
-             Just e => pure e
-             Nothing => kerr "derivation: el-qiit-elim: sort out of range"
-  case qEntryKind entry of
-    QKSort => pure ()
-    _ => kerr "derivation: el-qiit-elim: not a sort position"
-  let sortPs = qPositions QKSort sg
-  let pointPs = qPositions QKPoint sg
-  let eqPs = qPositions QKEq sg
-  mots <- goMots sg sortPs dMots
-  mths <- goMths sg mots pointPs dMths
-  goCohs sg mots mths eqPs dCohs
-  (tel, _, _) <- liftQE (reflTel sg (qwAt k) entry)
-  es <- qSpine "el-qiit-elim" sig ctx dSp tel
-  (w, wty) <- conclude sig ctx dW >>= needEl
-  alphaTy "el-qiit-elim (scrutinee)" wty (QSort sg k (cast es))
-  o <- case qOrdinal QKSort sg k of
-         Just x => pure x
-         Nothing => kerr "derivation: el-qiit-elim: sort ordinal"
-  motK <- case getAt o mots of
-            Just m => pure m
-            Nothing => kerr "derivation: el-qiit-elim: motive missing"
-  pure (JEl (QElim sg k mots mths (cast es) w)
-            (substTy motK (Ext (foldl Ext Id es) w)))
+  mots <- goMots sg (qPositions QKSort sg) ds
+  pure (JMot sg mots)
  where
   goMots : QSig -> List Nat -> List Deriv -> KM (List Ty)
   goMots sg [] [] = pure []
-  goMots sg (sj :: sjs) (d :: ds) = do
-    sjE <- case qEntry sg sj of
-             Just x => pure x
-             Nothing => kerr "derivation: el-qiit-elim: sort out of range"
-    (tel, wEnd, _) <- liftQE (reflTel sg (qwAt sj) sjE)
-    let mctx = foldl (:<) ctx tel
-    let selfTy = QSort (substQSig sg wEnd.ups) sj (varSpine (length tel))
-    mot <- conclude sig (mctx :< selfTy) d >>= needTy
-    rest <- goMots sg sjs ds
-    pure (mot :: rest)
-  goMots _ _ _ = kerr "derivation: el-qiit-elim: motive count mismatch"
-
+  goMots sg (sj :: sjs) (d :: rest) = do
+    (mctx, _, _) <- qSortCtx sig ctx sg sj
+    mot <- conclude sig mctx d >>= needTy
+    more <- goMots sg sjs rest
+    pure (mot :: more)
+  goMots _ _ _ = kerr "derivation: mot: motive count mismatch"
+conclude sig ctx (DQDalg dMot ds) = do
+  (sg, mots) <- conclude sig ctx dMot >>= needMot
+  mths <- goMths sg mots (qPositions QKPoint sg) ds
+  pure (JDalg sg mots mths)
+ where
   goMths : QSig -> List Ty -> List Nat -> List Deriv -> KM (List Elem)
   goMths sg mots [] [] = pure []
-  goMths sg mots (cj :: cjs) (d :: ds) = do
+  goMths sg mots (cj :: cjs) (d :: rest) = do
     mty <- liftQE (methodTy sg mots cj)
     (m, mty') <- conclude sig ctx d >>= needEl
-    alphaTy "el-qiit-elim (method)" mty' mty
-    rest <- goMths sg mots cjs ds
-    pure (m :: rest)
-  goMths _ _ _ _ = kerr "derivation: el-qiit-elim: method count mismatch"
-
+    alphaTy "dalg (method)" mty' mty
+    more <- goMths sg mots cjs rest
+    pure (m :: more)
+  goMths _ _ _ _ = kerr "derivation: dalg: method count mismatch"
+conclude sig ctx (DQEProb dDalg ds) = do
+  (sg, mots, mths) <- conclude sig ctx dDalg >>= needDalg
+  goCohs sg mots mths (qPositions QKEq sg) ds
+  pure (JEProb sg mots mths)
+ where
   goCohs : QSig -> List Ty -> List Elem -> List Nat -> List Deriv -> KM ()
   goCohs sg mots mths [] [] = pure ()
-  goCohs sg mots mths (ej :: ejs) (d :: ds) = do
+  goCohs sg mots mths (ej :: ejs) (d :: rest) = do
     (dtel, _, lhs, rhs, cty) <- liftQE (coherenceAt sg mots mths ej)
     let cctx = foldl (:<) ctx dtel
     (l, r, ety) <- conclude sig cctx d >>= needElEq
-    alphaEl "el-qiit-elim (coherence l)" l lhs
-    alphaEl "el-qiit-elim (coherence r)" r rhs
-    alphaTy "el-qiit-elim (coherence ty)" ety cty
-    goCohs sg mots mths ejs ds
-  goCohs _ _ _ _ _ = kerr "derivation: el-qiit-elim: coherence count mismatch"
+    alphaEl "eprob (coherence l)" l lhs
+    alphaEl "eprob (coherence r)" r rhs
+    alphaTy "eprob (coherence ty)" ety cty
+    goCohs sg mots mths ejs rest
+  goCohs _ _ _ _ _ = kerr "derivation: eprob: coherence count mismatch"
+conclude sig ctx (DQSect dMot ds) = do
+  (sg, mots) <- conclude sig ctx dMot >>= needMot
+  hs <- goSects sg mots (qPositions QKSort sg) ds
+  pure (JSect sg mots hs)
+ where
+  goSects : QSig -> List Ty -> List Nat -> List Deriv -> KM (List Elem)
+  goSects sg mots [] [] = pure []
+  goSects sg mots (sj :: sjs) (d :: rest) = do
+    (mctx, _, so) <- qSortCtx sig ctx sg sj
+    mot <- case getAt so mots of
+             Just m => pure m
+             Nothing => kerr "derivation: sect: motive missing"
+    (h, hty) <- conclude sig mctx d >>= needEl
+    alphaTy "sect" hty mot
+    more <- goSects sg mots sjs rest
+    pure (h :: more)
+  goSects _ _ _ _ = kerr "derivation: sect: candidate count mismatch"
+conclude sig ctx (DQElim k dEP dSp dW) = do
+  (sg, mots, mths) <- conclude sig ctx dEP >>= needEProb
+  (es, w, motK) <- qElimEnd sig ctx sg mots k dSp dW
+  pure (JEl (QElim sg k mots mths (cast es) w)
+            (substTy motK (Ext (foldl Ext Id es) w)))
+conclude sig ctx (DQEta k dEP dSect dAgs dSp dW) = do
+  (sg, mots, mths) <- conclude sig ctx dEP >>= needEProb
+  (sg', mots', hs) <- conclude sig ctx dSect >>= needSect
+  if sg' == sg && mots' == mots then pure ()
+    else kerr "derivation: el-qiit-eta: sect premise at a different problem"
+  goAgrees sg mots mths hs (qPositions QKPoint sg) dAgs
+  (es, w, motK) <- qElimEnd sig ctx sg mots k dSp dW
+  so <- case qOrdinal QKSort sg k of
+          Just x => pure x
+          Nothing => kerr "derivation: el-qiit-eta: sort ordinal"
+  hK <- case getAt so hs of
+          Just h => pure h
+          Nothing => kerr "derivation: el-qiit-eta: candidate missing"
+  pure (JElEq (substElem hK (Ext (foldl Ext Id es) w))
+              (QElim sg k mots mths (cast es) w)
+              (substTy motK (Ext (foldl Ext Id es) w)))
+ where
+  goAgrees : QSig -> List Ty -> List Elem -> List Elem -> List Nat -> List Deriv -> KM ()
+  goAgrees sg mots mths hs [] [] = pure ()
+  goAgrees sg mots mths hs (cj :: cjs) (d :: rest) = do
+    cjE <- case qEntry sg cj of
+             Just x => pure x
+             Nothing => kerr "derivation: el-qiit-eta: ctor out of range"
+    (tel, wEnd, hd) <- liftQE (reflTel sg (qwAt cj) cjE)
+    let cctx = foldl (:<) ctx tel
+    (srt, idx) <- liftQE (pointHead sg wEnd hd)
+    so <- case qOrdinal QKSort sg srt of
+            Just x => pure x
+            Nothing => kerr "derivation: el-qiit-eta: sort ordinal"
+    hS <- case getAt so hs of
+            Just h => pure h
+            Nothing => kerr "derivation: el-qiit-eta: candidate missing"
+    motS <- case getAt so mots of
+              Just m => pure m
+              Nothing => kerr "derivation: el-qiit-eta: motive missing"
+    let ctor = QCtor sg cj (varSpine (length tel))
+    let inst = Ext (foldl Ext Id (toList idx)) ctor
+    rhs <- liftQE (qSectRhs sg mots mths hs cj (varSpine (length tel)))
+    (l, r, ety) <- conclude sig cctx d >>= needElEq
+    alphaEl "el-qiit-eta (agreement l)" l (substElem hS inst)
+    alphaEl "el-qiit-eta (agreement r)" r rhs
+    alphaTy "el-qiit-eta (agreement ty)" ety (substTy motS inst)
+    goAgrees sg mots mths hs cjs rest
+  goAgrees _ _ _ _ _ _ = kerr "derivation: el-qiit-eta: agreement count mismatch"
 conclude sig ctx (DQPath k dSig ds) = do
   sg <- conclude sig ctx dSig >>= needQSig
   entry <- case qEntry sg k of

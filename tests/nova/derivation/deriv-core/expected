@@ -14,6 +14,7 @@ sub-cong-fix: ⊦ NatIntro0 ≐ NatIntro0 : NatTy
 quot-bad-witness: REJECTED [derivation: el-quot-eq (witness): type mismatch [Prf (EqTy (NatIntro0) (NatIntro0) (NatTy)) VS Prf (Squash (OneTy))]]
 qsig-nat: ⊦ qsig (3 entries)
 qiit-z: ⊦ QCtor ([QU, QEl (QVar 0), QPiInd (QVar 1) (QEl (QVar 2))]) 1 ([< ]) : QSort ([QU, QEl (QVar 0), QPiInd (QVar 1) (QEl (QVar 2))]) 0 ([< ])
+qiit-eta: ⊦ QCtor ([QU, QEl (QVar 0)]) 1 ([< ]) ≐ QElim ([QU, QEl (QVar 0)]) 0 ([QSort ([QU, QEl (QVar 0)]) 0 ([< ])]) ([QCtor ([QU, QEl (QVar 0)]) 1 ([< ])]) ([< ]) (QCtor ([QU, QEl (QVar 0)]) 1 ([< ])) : QSort ([QU, QEl (QVar 0)]) 0 ([< ])
 qtm-var-range: REJECTED [derivation: qtm-var: index out of range]
 natelim-cong: ⊦ NatElim (NatIntro0) (NatIntro1 (CtxVar 1)) (NatIntro1 (NatIntro0)) ≐ NatElim (NatIntro0) (NatIntro1 (CtxVar 1)) (NatIntro1 (NatIntro0)) : NatTy
 pi-inj-dom: ⊦ NatTy ≐ NatTy type

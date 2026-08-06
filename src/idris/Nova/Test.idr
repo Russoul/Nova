@@ -98,6 +98,18 @@ derivCases =
     -- and its Z constructor typed against the formed signature
   , ("qsig-nat", natSigD)
   , ("qiit-z", DQCtor 1 natSigD [])
+    -- el-qiit-eta over the one-sort one-constructor signature
+    -- (𝕤 : U; c : El ⬡₀), constant motive 𝕤, the identity as the
+    -- section candidate: concludes ☐₀[id, c] ≐ elim c, i.e. c ≐ elim c
+  , ("qiit-eta",
+      let sigD = DQSig (DQCtxExt (DQCtxExt DQCtxEmpty DQTyUniv)
+                                 (DQTyEl (DQTmVar 0)))
+          motD = DQMot sigD [DTyQSort 0 sigD []]
+          epD = DQEProb (DQDalg motD [DQCtor 1 sigD []]) []
+      in DQEta 0 epD
+           (DQSect motD [DElVar 0])
+           [DElRefl (DQCtor 1 sigD [])]
+           [] (DQCtor 1 sigD []))
     -- REJECTION: a sort reference into an empty ToS zone
   , ("qtm-var-range", DQSig (DQCtxExt DQCtxEmpty (DQTyEl (DQTmVar 0))))
     -- eliminator congruence with its motive premise (A1's retirement)
