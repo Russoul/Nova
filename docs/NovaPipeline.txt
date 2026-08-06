@@ -513,9 +513,19 @@ Phasing:
      goal's beyond nf rides code-prop-eq (both props HOLD: the
      goal's by nf-reflexivity, the endpoint's own by the endpoint
      itself, weakened — with inv-prf-code delivering the Ω-typing
-     from the presupposed formation). eqInt's normalization identity
-     covers; its iff tail, integerAdd's outer well-definedness and
-     the vector-append tail remain (24/27).]
+     from the presupposed formation). Twenty-first slice: quot-elim
+     REVISITED — the body goal's formation threaded from the motive
+     derivation (its instance along ⟨wk, class ☐₀⟩ by the sub
+     calculus), the well-definedness endpoints delivered as
+     SUBSTITUTION INSTANCES of the body derivation itself (the
+     body's binder sent to ☐₂ by a weakening, to ☐₁ by an extension;
+     the ☐₁ instance carried across by code-prop-eq when the motive
+     is a prop), the witness final matching its classes raw-first
+     and at nf as a fallback with nf-expand bridges, and pair
+     components placeable (el-pair-cong). integerAdd and
+     integerNormalize cover fully (25/27; every covered item
+     agrees). Remaining: eqInt's iff tail, the vector-append tail —
+     then the re-seat.]
   3. CONSOLIDATION (incremental, unhurried) — the elaborator emits
      derivations directly where reconstruction is weak or wasteful;
      the trace→derivation translation absorbs the discharge engine's

@@ -540,20 +540,60 @@ mutual
         pure (DElNuE dp dt, El (reflectPoly f (Elem.NuTy f)))
       _ => Nothing
   reInferGo sig ctx (QuotElim f q) sk = do
-    (mot, motSk) <- payload pMot sk
-    wd <- payload pWDc sk
-    (dq, qty) <- reInfer sig ctx q (childAt 1 sk) >>= expose sig
+    (mot, motSk) <- dbg "quotE: no motive payload" (payload pMot sk)
+    wd <- dbg "quotE: no wd payload" (payload pWDc sk)
+    (dq, qty) <- dbg "quotE: scrutinee" (reInfer sig ctx q (childAt 1 sk) >>= expose sig)
     case qty of
       Ty.Quotient a r => do
-        dmot <- reTy sig (ctx :< Ty.Quotient a r) mot motSk
-        df <- reCheck sig (ctx :< a) f
-                (substTy mot (Ext Wk (Class (CtxVar 0)))) (childAt 0 sk)
+        dmot <- dbg "quotE: motive" (reTy sig (ctx :< Ty.Quotient a r) mot motSk)
+        -- the body goal's formation: the motive instantiated along
+        -- ⟨wk, class ☐₀⟩ — threaded so a ⋆ body's endpoints arrive
+        -- by inversion instead of bare re-derivation
+        let bodyTy = substTy mot (Ext Wk (Class (CtxVar 0)))
+        let mBodyF = do
+              dRelW <- reCheck sig
+                         (ctx :< a :< substTy a Wk
+                              :< substTy (substTy a Wk) Wk)
+                         (substElem r (under (under Wk))) Ty.PropTy emptySkel
+              let dCls = DElQuotI (DElVar 0) dRelW
+              let dS = DSubExt DSubWk (DPresupElTy dq) dCls
+              pure (DPresupTyL (DTySubCongFix dS (DTyRefl dmot)))
+        df <- dbg "quotE: body"
+                (reCheck sig (ctx :< a) f bodyTy (childAt 0 sk)
+                 <|> (do bodyF <- mBodyF
+                         reCheckF sig (ctx :< a) f bodyTy (childAt 0 sk) bodyF))
         let wk3 = Chain Wk (Chain Wk Wk)
         let wdCtx = ctx :< a :< substTy a Wk :< Prf r
-        dresp <- reEq sig wdCtx wd
+        -- the well-definedness endpoints are SUBSTITUTION INSTANCES
+        -- of the body derivation: the body's binder sent to ☐₂ (a
+        -- weakening) and to ☐₁ (an extension)
+        let wk3S = DSubComp (DSubComp DSubWk DSubWk) DSubWk
+        let endL = DPresupElL (DElSubCongFix (DSubComp DSubWk DSubWk)
+                     (DElRefl df))
+        let bodyTyI1 = substTy mot (Ext wk3 (Class (CtxVar 1)))
+        let bodyTyI2 = substTy mot (Ext wk3 (Class (CtxVar 2)))
+        let mEndR = do
+              dA <- reTy sig ctx a emptySkel
+              let endR0 = DPresupElL (DElSubCongFix
+                            (DSubExt wk3S dA (DElVar 1)) (DElRefl df))
+              if bodyTyI1 == bodyTyI2 then Just endR0
+                else do
+                  -- endR sits at the ☐₁ instance; the equation is
+                  -- stated at the ☐₂ instance — both Prfs are
+                  -- inhabited by the two ends, so code-prop-eq
+                  -- carries it across
+                  let (Prf _, Prf _) = (bodyTyI1, bodyTyI2)
+                    | _ => Nothing
+                  let dP = DInvPrfCode (DPresupElTy endR0)
+                  let dQ = DInvPrfCode (DPresupElTy endL)
+                  let dS = DPresupElL (DElSubCongFix DSubWk (DElRefl endL))
+                  let dT = DPresupElL (DElSubCongFix DSubWk (DElRefl endR0))
+                  pure (DElTyCoe (DTyPrfCong (DCodePropEq dP dQ dS dT)) endR0)
+        dresp <- reEqEnds sig wdCtx wd
                    (substElem f (Ext wk3 (CtxVar 2)))
                    (substElem f (Ext wk3 (CtxVar 1)))
                    (substTy mot (Ext wk3 (Class (CtxVar 2))))
+                   (map (\dR => (endL, dR)) mEndR)
         pure (DElQuotE dq dmot df dresp, substTy mot (Ext Id q))
       _ => Nothing
   reInferGo sig ctx _ sk = Nothing
@@ -1063,6 +1103,24 @@ rePlaceE sig ctx step d (i :: p) exp cur =
       db <- reTy sig (ctx :< a) b emptySkel
             <|> Just (DInvPiCod (DPresupElTy df))
       pure (DElAppCong (DElRefl df) dc db, PiApp f e', substTy b (Ext Id e'))
+    (SigmaIntro u v, 0) => do
+      expN <- nfT sig exp
+      let Ty.SigmaTy a b = expN
+        | _ => Nothing
+      (dc0, u', chTy) <- rePlaceE sig ctx step d p a u
+      dc <- eqAtNf sig ctx dc0 chTy a
+      db <- reTy sig (ctx :< a) b emptySkel
+      dv <- reCheck sig ctx v (substTy b (Ext Id u')) emptySkel
+      pure (DElPairCong dc db (DElRefl dv), SigmaIntro u' v, expN)
+    (SigmaIntro u v, 1) => do
+      expN <- nfT sig exp
+      let Ty.SigmaTy a b = expN
+        | _ => Nothing
+      du <- reCheck sig ctx u a emptySkel
+      db <- reTy sig (ctx :< a) b emptySkel
+      (dc0, v', chTy) <- rePlaceE sig ctx step d p (substTy b (Ext Id u)) v
+      dc <- eqAtNf sig ctx dc0 chTy (substTy b (Ext Id u))
+      pure (DElPairCong (DElRefl du) db dc, SigmaIntro u v', expN)
     (Inj1 a, 0) =>
       case exp of
         Ty.SumTy l r => do
@@ -1675,7 +1733,7 @@ closeE sig ctx ty chL curL chR curR FProp = do
     Prf _ => Just (backIf (DElPrfProp (coeIf (DPresupElR chL)) (coeIf (DPresupElR chR))))
     Ty.OneTy => Just (backIf (DElOneProp (coeIf (DPresupElR chL)) (coeIf (DPresupElR chR))))
     Ty.ZeroTy => Just (backIf (DElZeroProp (coeIf (DPresupElR chL)) (coeIf (DPresupElR chR))))
-    _ => Nothing
+    _ => dbg "closeE: prop final at non-prop nf: \{show tyN}" Nothing
 closeE sig ctx ty chL curL chR curR (FEtaPi c) = do
   tyN <- nfT sig ty
   case tyN of
@@ -1729,8 +1787,21 @@ closeE sig ctx ty chL curL chR curR (FEtaSigma c1 c2) = do
     _ => Nothing
 closeE sig ctx ty chL curL chR curR (FWitness mc) = do
   tyN <- nfT sig ty
-  case (curL, curR, tyN) of
-    (Class x, Class y, Ty.Quotient dom rel) => do
+  let Ty.Quotient dom rel = tyN
+    | _ => dbg "closeE: witness final at a non-quotient" Nothing
+  (case (curL, curR) of
+     (Class x, Class y) => witClass tyN dom rel x y False
+     _ => do
+       -- the chains may end at un-β-reduced spellings of the
+       -- classes: meet them at nf
+       lN <- nfE sig curL
+       rN <- nfE sig curR
+       let (Class x, Class y) = (lN, rN)
+         | _ => dbg "closeE: witness final, ends not classes" Nothing
+       witClass tyN dom rel x y True)
+ where
+  witClass : Ty -> Ty -> Elem -> Elem -> Elem -> Bool -> Maybe Deriv
+  witClass tyN dom rel x y bridge = do
       dx <- reCheck sig ctx x dom emptySkel
       dy <- reCheck sig ctx y dom emptySkel
       drel <- reCheck sig (ctx :< dom :< substTy dom Wk) rel Ty.PropTy emptySkel
@@ -1747,13 +1818,16 @@ closeE sig ctx ty chL curL chR curR (FWitness mc) = do
                 pure (DElTyCoe (DTySym (DNfExpandTy dPrf)) dstar)
               _ => Nothing
       let two = DElQuotEq dx dy drel dw
-      if tyN == ty then Just two
-        else do
-          dtN <- reTy sig ctx tyN emptySkel
-          dt <- reTy sig ctx ty emptySkel
-          pure (DElEqTyCoe (DNfEqTy dtN dt) two)
-    _ => Nothing
-closeE sig ctx ty chL curL chR curR _ = Nothing
+      twoAt <- if tyN == ty then Just two
+                 else do
+                   dtN <- reTy sig ctx tyN emptySkel
+                   dt <- reTy sig ctx ty emptySkel
+                   pure (DElEqTyCoe (DNfEqTy dtN dt) two)
+      pure $ if bridge
+               then DElTrans (DNfExpand (DPresupElR chL))
+                      (DElTrans twoAt (DElSym (DNfExpand (DPresupElR chR))))
+               else twoAt
+closeE sig ctx ty chL curL chR curR _ = dbg "closeE: untranslated final" Nothing
 
 -- the final, type side
 closeT sig ctx chA curA chB curB FBeta =
