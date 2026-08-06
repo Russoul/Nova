@@ -901,7 +901,7 @@ conclude sig ctx (DTySig x dSub) = do
   case sigLookup x sig of
     Just (SigTyDef gamma _ a) => do
       alphaCtx "ty-sig-var" delta gamma
-      pure (JTy (substTy a (embed es)))
+      pure (JTy (Ty.SigVar x es))
     Just (SigTyDecl gamma _) => do
       alphaCtx "ty-sig-decl" delta gamma
       pure (JTy (Ty.SigVar x es))

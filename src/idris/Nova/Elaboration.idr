@@ -45,6 +45,8 @@ import Nova.Kernel.Beta
 import Nova.Kernel.QIIT
 import Nova.Kernel.Parser
 import Nova.Kernel
+import Nova.Kernel.Derivation
+import Nova.Kernel.Reconstruct
 
 import Me.Russoul.Text.Position
 import Me.Russoul.Text.Range
@@ -3565,6 +3567,21 @@ liftQE : String -> Either QErr a -> ElabM a
 liftQE site (Left e) = throw "\{site}: \{e}"
 liftQE site (Right x) = pure x
 
+||| The derivation-rework SHADOW (docs/NovaPipeline.txt, phase 2):
+||| wherever the reconstructor produces a derivation for an accepted
+||| item, conclude must agree — a disagreement is a hard error, loud
+||| in the test suite. Uncovered items pass silently (the coverage
+||| ratchet).
+shadowAccept : String -> KDefArt -> Bool -> ElabM ()
+shadowAccept name art clean = do
+  st <- getSt
+  if not clean
+    then pure ()
+    else case shadowDef st.kernelSig kernelFuel art of
+      Nothing => pure ()
+      Just (Right ()) => pure ()
+      Just (Left err) => throw "\{name}: DERIVATION SHADOW DISAGREES: \{err}"
+
 ||| Emit one core definition item: kernel-check, extend Σ, register a
 ||| lemma if it is ≡-typed. Mirrors elabItem's tail for surface defs.
 emitCoreDef : String -> String -> Ty -> Skel -> Elem -> Skel -> ElabM ()
@@ -3581,6 +3598,7 @@ emitCoreDef site x ty tySk body bodySk = do
   kernelAccept "\{site} \{x}"
     (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] ty tySk body bodySk))
     (after == 0)
+  shadowAccept "\{site} \{x}" (MkKDefArt q [] ty tySk body bodySk) (after == 0)
   modifySt $ { sig $= (:< SigDef [<] q body ty), vis $= (:< (x, q)) }
   addLemma q [<] ty
 
@@ -3744,6 +3762,7 @@ elabItemGo (SDef x ty body) = do
   kernelAccept "def \{x}"
     (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] ty' tySk body' bodySk))
     (after == 0)
+  shadowAccept "def \{x}" (MkKDefArt q [] ty' tySk body' bodySk) (after == 0)
   modifySt $ { sig $= (:< SigDef [<] q body' ty'), vis $= (:< (x, q)) }
   addLemma q [<] ty'
   suffix <- opensSuffix census

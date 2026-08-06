@@ -381,6 +381,19 @@ Phasing:
      (becoming the reconstructor); acceptance re-seated on the new
      core. Elaborator, discharge engine and artifact formats
      untouched, so the golden suite and corpus pin the cutover.
+     [IN PROGRESS — Nova.Kernel.Reconstruct rebuilds derivations
+     from the current artifacts (terms + skeletons) and SHADOWS the
+     old kernel at def-item acceptance: where it produces a
+     derivation, conclude must agree (a disagreement is a hard
+     error); where it cannot, the old kernel's verdict stands alone.
+     First slice: the structural core with skeleton motives and
+     β-only conversion translation (switch/expose → el-ty-coe over
+     nf-eq-ty, refl-eq ⋆ → el-eq-i over nf-eq); the whole corpus
+     passes with the shadow live, which already caught a conclude
+     bug (ty-sig-var concluding its unfolding — ty-sig-beta's
+     business). Remaining: step-carrying certificates via the
+     retirement map, the quotient/ν/QIIT formers, type items and
+     hole solutions under the shadow, then the re-seat.]
   3. CONSOLIDATION (incremental, unhurried) — the elaborator emits
      derivations directly where reconstruction is weak or wasteful;
      the trace→derivation translation absorbs the discharge engine's
