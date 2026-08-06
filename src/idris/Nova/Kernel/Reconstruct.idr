@@ -462,6 +462,14 @@ mutual
   reInferGo sig ctx (Elem.NuTy f) sk = do
     dp <- rePoly sig ctx f
     pure (DCodeNu dp, Ty.UniverseTy)
+  reInferGo sig ctx (SigmaIntro u v) sk = do
+    -- the CONSTANT-FAMILY guess (a pair in a normalized spelling
+    -- carries no family, like an eliminator its motive)
+    (du, uty) <- reInfer sig ctx u (childAt 0 sk)
+    (dv, vty) <- reInfer sig ctx v (childAt 1 sk)
+    let b = substTy vty Wk
+    db <- reTy sig (ctx :< uty) b emptySkel
+    pure (DElSigmaI du db dv, Ty.SigmaTy uty b)
   reInferGo sig ctx (Class a) sk = Nothing       -- intro: checking-only
   reInferGo sig ctx (Out t) sk = do
     (dt, tty) <- reInfer sig ctx t (childAt 0 sk) >>= expose sig
@@ -873,34 +881,33 @@ rePlaceE sig ctx step d (i :: p) exp cur =
           pure (DElInj2Cong dc dl, Inj2 b', Ty.SumTy l r)
         _ => Nothing
     (NatElim z st t, 2) => do
-      (dz, zty) <- reInfer sig ctx z emptySkel
-      let mot = substTy zty Wk
+      let mot = substTy exp Wk
       dmot <- reTy sig (ctx :< Ty.NatTy) mot emptySkel
+      dz <- reCheck sig ctx z exp emptySkel
       dst <- reCheck sig (ctx :< Ty.NatTy :< mot) st
                (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) emptySkel
       (dc, t', _) <- rePlaceE sig ctx step d p Ty.NatTy t
       pure (DElNatECong dmot (DElRefl dz) (DElRefl dst) dc,
-            NatElim z st t', zty)
+            NatElim z st t', exp)
     (NatElim z st t, 0) => do
-      (dz0, zty) <- reInfer sig ctx z emptySkel
-      let mot = substTy zty Wk
+      let mot = substTy exp Wk
       dmot <- reTy sig (ctx :< Ty.NatTy) mot emptySkel
-      (dc, z', _) <- rePlaceE sig ctx step d p zty z
+      (dc, z', _) <- rePlaceE sig ctx step d p exp z
       dst <- reCheck sig (ctx :< Ty.NatTy :< mot) st
                (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) emptySkel
       dt <- reCheck sig ctx t Ty.NatTy emptySkel
       pure (DElNatECong dmot dc (DElRefl dst) (DElRefl dt),
-            NatElim z' st t, zty)
+            NatElim z' st t, exp)
     (NatElim z st t, 1) => do
-      (dz, zty) <- reInfer sig ctx z emptySkel
-      let mot = substTy zty Wk
+      let mot = substTy exp Wk
       dmot <- reTy sig (ctx :< Ty.NatTy) mot emptySkel
+      dz <- reCheck sig ctx z exp emptySkel
       let sctx = ctx :< Ty.NatTy :< mot
       (dc, st', _) <- rePlaceE sig sctx step (2 + d) p
                         (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) st
       dt <- reCheck sig ctx t Ty.NatTy emptySkel
       pure (DElNatECong dmot (DElRefl dz) dc (DElRefl dt),
-            NatElim z st' t, zty)
+            NatElim z st' t, exp)
     (SumElim l r t, 2) => do
       (dt, tty) <- reInfer sig ctx t emptySkel >>= expose sig
       case tty of
