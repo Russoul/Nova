@@ -64,7 +64,10 @@ derivCases =
   , ("presup-left", DPresupElL (DNfEq
       (DElPiE (DElPiI DTyNat (DElVar 0)) DElNatZ DTyNat)
       DElNatZ))
-  , ("eta-pi", DElPiEta (DElPiI DTyNat (DElVar 0)))
+    -- two-candidate el-pi-eta: the identity against itself, the
+    -- application equation by refl
+  , ("eta-pi", DElPiEta (DElPiI DTyNat (DElVar 0)) (DElPiI DTyNat (DElVar 0))
+      (DElRefl (DElPiE (DElPiI DTyNat (DElVar 0)) (DElVar 0) DTyNat)))
     -- REJECTIONS: a garbage domain dies at its formation premise …
   , ("garbage-domain", DElPiI (DTyEl DElNatZ) (DElVar 0))
     -- … and a transitivity whose middles differ dies at the side
@@ -88,7 +91,7 @@ derivCases =
     -- the ν layer: formation at K ℕ ⨯ 𝕏
   , ("nu-type", DTyNu (DPolyProd (DPolyConst DCodeNat) DPolyHole))
     -- el-sub-cong-fix: a reflexive equation over ▷ℕ, instantiated
-  , ("sub-cong-fix", DElSubCongFix
+  , ("sub-fix", DElSubCongFix
       (DSubExt DSubId DTyNat DElNatZ)
       (DElRefl (DElVar 0)))
     -- REJECTION: a quotient witness at the wrong proposition
@@ -111,7 +114,7 @@ derivCases =
            [DElRefl (DQCtor 1 sigD [])]
            [] (DQCtor 1 sigD []))
     -- REJECTION: a sort reference into an empty ToS zone
-  , ("qtm-var-range", DQSig (DQCtxExt DQCtxEmpty (DQTyEl (DQTmVar 0))))
+  , ("qtm-range", DQSig (DQCtxExt DQCtxEmpty (DQTyEl (DQTmVar 0))))
     -- eliminator congruence with its motive premise (A1's retirement)
   , ("natelim-cong", DElNatECong DTyNat
       (DElRefl DElNatZ)

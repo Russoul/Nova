@@ -1063,9 +1063,21 @@ e˲ : Γ₁ ⇒ Γ norm
 --------------------------------------- (el-pi-beta)
 Γ ⊦ (λ f) e ≜ f[id, e] : B[id, e]
 
-Γ ⊦ f : A → B
+# η is stated in TWO-CANDIDATE form, like the eliminators' η rules
+# below: any two functions with judgementally equal applications are
+# equal — judgemental function extensionality. The COPY-η spelling
+# λ (f[↑] ☐₀) ≐ f is the instance at candidates λ (f[↑] ☐₀) and f
+# (their applications collapse by el-pi-beta), and ξ — el-lam-cong —
+# is the instance at candidates λ f₀ and λ f₁ (likewise); the
+# two-candidate form is EQUIVALENT to the pair {copy-η, ξ} and is
+# taken as the basis. See "Congruence rules: admissibility" below
+# for the structure this choice induces.
+
+Γ ⊦ f₀ : A → B
+Γ ⊦ f₁ : A → B
+Γ ▷ A ⊦ f₀[↑] ☐₀ ≐ f₁[↑] ☐₀ : B
 --------------------------------- (el-pi-eta)
-Γ ⊦ λ (f[↑] ☐₀) ≐ f : A → B
+Γ ⊦ f₀ ≐ f₁ : A → B
 
 # let — the local DEFINITION: the body is typed under TWO binders,
 # the definiens' value and its UNFOLDING EQUATION, so inside b the
@@ -1125,9 +1137,16 @@ e˲ : Γ₁ ⇒ Γ norm
 ------------------------------------ (el-sigma-beta₂)
 Γ ⊦ (a, b) .π₂ ≜ b : B[id, a]
 
-Γ ⊦ t : A ⨯ B
+# TWO-CANDIDATE, like el-pi-eta. Surjective pairing
+# (t .π₁ , t .π₂) ≐ t is the instance at candidates (t .π₁ , t .π₂)
+# and t, the projections collapsing by el-sigma-beta.
+
+Γ ⊦ t₀ : A ⨯ B
+Γ ⊦ t₁ : A ⨯ B
+Γ ⊦ t₀ .π₁ ≐ t₁ .π₁ : A
+Γ ⊦ t₀ .π₂ ≐ t₁ .π₂ : B[id, t₀ .π₁]
 ------------------------------------ (el-sigma-eta)
-Γ ⊦ (t .π₁ , t .π₂) ≐ t : A ⨯ B
+Γ ⊦ t₀ ≐ t₁ : A ⨯ B
 
 # ⊎ — the non-dependent sum (disjoint union). Two injections; the
 # eliminator is DEPENDENT (motive C over Γ ▷ A ⊎ B), with β on each
@@ -2323,9 +2342,40 @@ e˲ : Γ₁ ⇒ Γ norm
 --------------------------------- (el-sub-cong-fix) # admissible: specialize via sub-refl
 Γ₀ ⊦ t₀[σ] ≐ t₁[σ] : A[σ]
 
+# CONGRUENCE RULES: ADMISSIBILITY. With η in two-candidate form, the
+# congruence rules of this section are ADMISSIBLE, in three groups,
+# and are stated — like el-nu-coind — for the kernel's convenience:
+# small derivations, direct replay.
+#   * SPINE positions (el-app-cong, el-suc-cong, pair/proj, the
+#     injections, class, every scrutinee; ty-el-cong and ty-prf-cong
+#     at the type level): via the SUBSTITUTION CALCULUS — refl of the
+#     generic spine over an extended context, the component equations
+#     pushed in by sub-ext-cong + el-sub-cong (ty-sub-cong at the
+#     type level).
+#   * BINDER positions of formers with a two-candidate uniqueness
+#     principle: el-lam-cong via el-pi-eta (the ξ instance noted
+#     there); el-nat-e-cong, el-sum-e-cong, el-quot-e-cong via their
+#     η rules — the two eliminator spellings are the candidates, the
+#     β agreements close the clauses, and the binder-wise premises
+#     are consumed by el-sub-cong-fix, never by a congruence under a
+#     binder; the QIIT structural congruence via el-qiit-eta; corec
+#     via el-nu-eta / el-nu-coind (which is why NO out/corec
+#     congruence is stated at all); el-let-cong via el-let-beta +
+#     el-sub-cong (a let is a redex — no η exists and none is
+#     needed); el-zero-e-cong via el-zero-prop + the spine route.
+#     The universe-code congruences reduce to the type-level ones
+#     via El-decoding + ty-el-inj (code-squash-cong and code-eq-cong
+#     carry their own admissibility notes).
+#   * The PRIMITIVE residue — the rules everything above reduces to:
+#     el-sub-cong (the one rule that moves an equation across
+#     contexts) with the ext-cong family, and the TYPE-former
+#     congruences ty-pi-cong, ty-sigma-cong, ty-sum-cong,
+#     ty-quot-cong — types are not elements, so the generic-spine
+#     route is unavailable and no type-level η exists.
+
 Γ ▷ A ⊦ f₀ ≐ f₁ : B
---------------------------- (el-lam-cong)
-Γ ⊦ λ f₀ ≐ λ f₁ : A → B
+--------------------------- (el-lam-cong) # admissible: the ξ instance
+Γ ⊦ λ f₀ ≐ λ f₁ : A → B                   #   of el-pi-eta
 
 Γ ▷ A ⊦ B type
 Γ ⊦ f₀ ≐ f₁ : A → B

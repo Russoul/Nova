@@ -204,7 +204,10 @@ comparison:
   ---------------------------------------------- (nf-eq)
   Γ ⊦ t₀ ≐ t₁ : A            # ≝ trans(nf-expand t₀, sym(nf-expand t₁))
 
-(and nf-eq-ty likewise). WHNF: deliberately not a separate rule. The
+  Γ ⊦ A₀ type     Γ ⊦ A₁ type     nf(A₀) = nf(A₁)
+  ------------------------------------------------ (nf-eq-ty)
+  Γ ⊦ A₀ ≐ A₁ type
+ WHNF: deliberately not a separate rule. The
 trusted surface is identical — whnf and nf share the ≜-clause set,
 and the fixpoint driver was never the dangerous part — while a
 whnf-only oracle would force explicit congruence descent around

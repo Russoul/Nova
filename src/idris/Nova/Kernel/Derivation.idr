@@ -293,10 +293,12 @@ data Deriv : Type where
   ||| Γ ⊦ p : Ω;  Γ ⊦ q : Ω;
   ||| Γ ▷ Prf p ⊦ s : (Prf q)[↑];  Γ ▷ Prf q ⊦ t : (Prf p)[↑]
   DCodePropEq : Deriv -> Deriv -> Deriv -> Deriv -> Deriv
-  ||| el-pi-eta: Γ ⊦ f : A → B  ⊢  Γ ⊦ λ (f[↑] ☐₀) ≐ f : A → B
-  DElPiEta : Deriv -> Deriv
-  ||| el-sigma-eta: Γ ⊦ t : A ⨯ B  ⊢  Γ ⊦ (t.π₁ , t.π₂) ≐ t : A ⨯ B
-  DElSigmaEta : Deriv -> Deriv
+  ||| el-pi-eta, TWO-CANDIDATE (judgemental function extensionality):
+  ||| f₀, f₁ : A → B;  Γ ▷ A ⊦ f₀[↑] ☐₀ ≐ f₁[↑] ☐₀ : B  ⊢  f₀ ≐ f₁
+  DElPiEta : Deriv -> Deriv -> Deriv -> Deriv
+  ||| el-sigma-eta, TWO-CANDIDATE: t₀, t₁ : A ⨯ B; the projections
+  ||| pairwise equal (π₂ at B[id, t₀.π₁])  ⊢  t₀ ≐ t₁
+  DElSigmaEta : Deriv -> Deriv -> Deriv -> Deriv -> Deriv
 
   -- ----- equality: congruence -----
   ||| el-lam-cong: Γ ⊦ A type (delivers the domain);  Γ ▷ A ⊦ f₀ ≐ f₁ : B
@@ -1134,18 +1136,34 @@ conclude sig ctx (DCodePropEq dP dQ dS dT) = do
   (_, tty) <- conclude sig (ctx :< Prf q) dT >>= needEl
   alphaTy "code-prop-eq (←)" tty (wkTy (Prf p))
   pure (JElEq p q Ty.PropTy)
-conclude sig ctx (DElPiEta dF) = do
-  (f, fty) <- conclude sig ctx dF >>= needEl
-  case fty of
-    Ty.PiTy a b =>
-      pure (JElEq (PiIntro (PiApp (wkEl f) (CtxVar 0))) f (Ty.PiTy a b))
-    _ => kerr "derivation: el-pi-eta: premise not at a Π type"
-conclude sig ctx (DElSigmaEta dT) = do
-  (t, tty) <- conclude sig ctx dT >>= needEl
-  case tty of
-    Ty.SigmaTy a b =>
-      pure (JElEq (SigmaIntro (SigmaElim1 t) (SigmaElim2 t)) t (Ty.SigmaTy a b))
-    _ => kerr "derivation: el-sigma-eta: premise not at a ⨯ type"
+conclude sig ctx (DElPiEta dF0 dF1 dEq) = do
+  (f0, f0ty) <- conclude sig ctx dF0 >>= needEl
+  case f0ty of
+    Ty.PiTy a b => do
+      (f1, f1ty) <- conclude sig ctx dF1 >>= needEl
+      alphaTy "el-pi-eta (f₁)" f1ty (Ty.PiTy a b)
+      (l, r, ety) <- conclude sig (ctx :< a) dEq >>= needElEq
+      alphaEl "el-pi-eta (l)" l (PiApp (wkEl f0) (CtxVar 0))
+      alphaEl "el-pi-eta (r)" r (PiApp (wkEl f1) (CtxVar 0))
+      alphaTy "el-pi-eta (ty)" ety b
+      pure (JElEq f0 f1 (Ty.PiTy a b))
+    _ => kerr "derivation: el-pi-eta: candidates not at a Π type"
+conclude sig ctx (DElSigmaEta dT0 dT1 dP1 dP2) = do
+  (t0, t0ty) <- conclude sig ctx dT0 >>= needEl
+  case t0ty of
+    Ty.SigmaTy a b => do
+      (t1, t1ty) <- conclude sig ctx dT1 >>= needEl
+      alphaTy "el-sigma-eta (t₁)" t1ty (Ty.SigmaTy a b)
+      (p1l, p1r, p1ty) <- conclude sig ctx dP1 >>= needElEq
+      alphaEl "el-sigma-eta (π₁ l)" p1l (SigmaElim1 t0)
+      alphaEl "el-sigma-eta (π₁ r)" p1r (SigmaElim1 t1)
+      alphaTy "el-sigma-eta (π₁ ty)" p1ty a
+      (p2l, p2r, p2ty) <- conclude sig ctx dP2 >>= needElEq
+      alphaEl "el-sigma-eta (π₂ l)" p2l (SigmaElim2 t0)
+      alphaEl "el-sigma-eta (π₂ r)" p2r (SigmaElim2 t1)
+      alphaTy "el-sigma-eta (π₂ ty)" p2ty (substTy b (Ext Id (SigmaElim1 t0)))
+      pure (JElEq t0 t1 (Ty.SigmaTy a b))
+    _ => kerr "derivation: el-sigma-eta: candidates not at a ⨯ type"
 
 -- equality: congruence
 conclude sig ctx (DElLamCong dA dF) = do
@@ -1428,7 +1446,7 @@ conclude sig ctx (DSubNTrans d01 d12) = do
   (e0, e1, d') <- conclude sig ctx d01 >>= needSubNEq
   (e1', e2, d'') <- conclude sig ctx d12 >>= needSubNEq
   if e1' == e1 && d'' == d' then pure ()
-    else kerr "derivation: sub-norm-trans: middle mismatch"
+    else kerr "derivation: sub-norm (trans): middle mismatch"
   pure (JSubNEq e0 e2 d')
 conclude sig ctx (DSubNExtCong dEs dA dT) = do
   (e0, e1, delta) <- conclude sig ctx dEs >>= needSubNEq
