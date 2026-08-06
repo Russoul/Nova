@@ -19,7 +19,10 @@ module Nova.Kernel.Reconstruct
 -- later slice via the retirement map.
 
 import Data.List
+import Data.Maybe
 import Data.SnocList
+import Debug.Trace
+import System
 
 import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
@@ -28,6 +31,15 @@ import Nova.Kernel
 import Nova.Kernel.Derivation
 
 %default covering
+
+-- NOVA_RECON_DEBUG=1 prints the first-failure spine of a bailing
+-- reconstruction (untrusted diagnostics; never touches replay)
+reconDebug : Bool
+reconDebug = unsafePerformIO (isJust <$> getEnv "NOVA_RECON_DEBUG")
+
+dbg : Lazy String -> Maybe a -> Maybe a
+dbg msg Nothing = if reconDebug then trace (force msg) Nothing else Nothing
+dbg _ x = x
 
 -- local copies of the kernel's (private) skeleton helpers
 childAt : Nat -> Skel -> Skel
@@ -323,7 +335,12 @@ mutual
         case fty of
           Ty.PiTy a b => do
             de <- reCheck sig ctx e a (childAt 1 sk)
+            -- the retained codomain premise: re-derived when bare
+            -- derivation is possible (cheap, no sharing), else by
+            -- inv-pi-cod of the head's presupposed Π formation (a
+            -- hole-carrying codomain is underivable bare)
             db <- reTy sig (ctx :< a) b emptySkel
+                  <|> Just (DInvPiCod (DPresupElTy df))
             pure (DElPiE df de db, substTy b (Ext Id e))
           _ => Nothing)
     <|> (do
@@ -333,6 +350,7 @@ mutual
       (de, a) <- reInfer sig ctx e (childAt 1 sk)
       df <- reCheck sig ctx f (Ty.PiTy a (substTy a Wk)) (childAt 0 sk)
       db <- reTy sig (ctx :< a) (substTy a Wk) emptySkel
+            <|> Just (DInvPiCod (DPresupElTy df))
       pure (DElPiE df de db, a))
   reInferGo sig ctx (Corec pf a body x) sk = do
     d <- reCheckGo sig ctx (Corec pf a body x) (Ty.NuTy pf) sk
@@ -549,18 +567,18 @@ mutual
   reCheckGo sig ctx (PiIntro f) ty sk =
     case ty of
       Ty.PiTy a b => do
-        da <- reTy sig ctx a emptySkel
-        df <- reCheck sig (ctx :< a) f b (childAt 0 sk)
+        da <- dbg "lam: domain \{show a}" (reTy sig ctx a emptySkel)
+        df <- dbg "lam: body AT \{show b}" (reCheck sig (ctx :< a) f b (childAt 0 sk))
         pure (DElPiI da df)
-      _ => Nothing
+      _ => dbg "lam: goal not a Pi: \{show ty}" Nothing
   reCheckGo sig ctx (SigmaIntro u v) ty sk =
     case ty of
       Ty.SigmaTy a b => do
-        du <- reCheck sig ctx u a (childAt 0 sk)
-        db <- reTy sig (ctx :< a) b emptySkel
-        dv <- reCheck sig ctx v (substTy b (Ext Id u)) (childAt 1 sk)
+        du <- dbg "pair: fst \{show u} AT \{show a}" (reCheck sig ctx u a (childAt 0 sk))
+        db <- dbg "pair: family" (reTy sig (ctx :< a) b emptySkel)
+        dv <- dbg "pair: snd \{show v} AT \{show (substTy b (Ext Id u))}" (reCheck sig ctx v (substTy b (Ext Id u)) (childAt 1 sk))
         pure (DElSigmaI du db dv)
-      _ => Nothing
+      _ => dbg "pair: goal not a Sigma: \{show ty}" Nothing
   reCheckGo sig ctx (Inj1 a) ty sk =
     case ty of
       Ty.SumTy l r => do
@@ -635,8 +653,8 @@ mutual
     case payload pRefl sk of
       Just cert =>
         case ty of
-          Prf (Elem.EqTy l r t) => DElEqI <$> reEq sig ctx cert l r t
-          _ => Nothing
+          Prf (Elem.EqTy l r t) => dbg "star-cert: \{show l} EQ \{show r} AT \{show t}" (DElEqI <$> reEq sig ctx cert l r t)
+          _ => dbg "star-cert: goal not an eq prop: \{show ty}" Nothing
       Nothing =>
        case payload pNuC sk of
         -- el-nu-coind: ⋆ at an equality prop over a ν type, by
@@ -648,15 +666,16 @@ mutual
           let Ty.NuTy f = ety
             | _ => Nothing
           let nuT = Ty.NuTy f
-          dF <- rePoly sig ctx f
-          dT0 <- reCheck sig ctx l nuT emptySkel
-          dT1 <- reCheck sig ctx rhs nuT emptySkel
-          dR <- reCheck sig (ctx :< nuT :< substTy nuT Wk) r Ty.PropTy skR
-          dP <- reCheck sig ctx pw (Prf (substElem r (Ext (Ext Id l) rhs))) skp
+          dF <- dbg "coind: poly" (rePoly sig ctx f)
+          dT0 <- dbg "coind: t0" (reCheck sig ctx l nuT emptySkel)
+          dT1 <- dbg "coind: t1" (reCheck sig ctx rhs nuT emptySkel)
+          dR <- dbg "coind: invariant" (reCheck sig (ctx :< nuT :< substTy nuT Wk) r Ty.PropTy skR)
+          dP <- dbg "coind: endpoint" (reCheck sig ctx pw (Prf (substElem r (Ext (Ext Id l) rhs))) skp)
           let wk3 = Chain Wk (Chain Wk Wk)
           dQ <- reCheck sig (ctx :< nuT :< substTy nuT Wk :< Prf r) qw
                   (Prf (liftPoly (substPoly f wk3) (substElem r (under (under wk3)))
                           (Out (CtxVar 2)) (Out (CtxVar 1)))) skq
+                <|> dbg "coind: closure" Nothing
           let d0 = DElEqI (DElNuCoind dF dT0 dT1 dR dP dQ)
           if ty == tyN then Just d0
             else do
@@ -667,9 +686,9 @@ mutual
           Just (w, wSk) =>
             case ty of
               Prf (Squash a) => do
-                dw <- reCheck sig ctx w a wSk
+                dw <- dbg "star-wit: \{show w} AT \{show a}" (reCheck sig ctx w a wSk)
                 pure (DElSquashI dw)
-              _ => Nothing
+              _ => dbg "star-wit: goal not a squash: \{show ty}" Nothing
           Nothing =>
             case payload pSqE sk of
               Just (e, ske, b, skb) =>
@@ -682,10 +701,10 @@ mutual
                            else Just (DElTyCoe (DNfExpandTy (DPresupElTy de)) de)
                     case etyN of
                       Prf (Squash a) => do
-                        db <- reCheck sig (ctx :< a) b (substTy (Prf q) Wk) skb
+                        db <- dbg "star-sqe: body" (reCheck sig (ctx :< a) b (substTy (Prf q) Wk) skb)
                         pure (DElSquashEPrf dq de' db)
-                      _ => Nothing
-                  _ => Nothing
+                      _ => dbg "star-sqe: scrutinee not a squash" Nothing
+                  _ => dbg "star-sqe: goal not Prf" Nothing
               -- the ASSUMPTION ROUTE: ⋆ at an equality prop justified
               -- by a hypothesis of that very equality — reflect the
               -- variable, reintroduce (el-eq-i), spellings by the nf
@@ -694,7 +713,7 @@ mutual
                 tyN <- nfT sig ty
                 let Prf (Elem.EqTy a b t) = tyN
                   | _ => Nothing
-                d0 <- byRefl a b t <|> byAssum tyN 0
+                d0 <- dbg "star-bare: \{show a} EQ \{show b} AT \{show t}" (byRefl a b t <|> byAssum tyN 0)
                 if ty == tyN then Just d0
                   else do
                     dTy <- reTy sig ctx ty emptySkel
@@ -735,9 +754,10 @@ mutual
         df <- reCheck sig ctx f (Ty.PiTy a b) (childAt 0 sk)
         de <- reCheck sig ctx e a (childAt 1 sk)
         db <- reTy sig (ctx :< a) b emptySkel
+              <|> Just (DInvPiCod (DPresupElTy df))
         pure (DElPiE df de db)
   reCheckGo sig ctx e ty sk = do
-    (d, ity) <- reInfer sig ctx e sk
+    (d, ity) <- dbg "infer: \{show e}" (reInfer sig ctx e sk)
     coerce sig ctx d ity ty
 
   ||| α-equal: the derivation already concludes at the expected
@@ -752,7 +772,7 @@ mutual
         iN <- nfT sig ity
         tN <- nfT sig ty
         let True = iN == tN
-          | False => Nothing
+          | False => dbg "coerce: \{show iN} VS \{show tN}" Nothing
         di <- reTy sig ctx ity emptySkel
         dt <- reTy sig ctx ty emptySkel
         pure (DElTyCoe (DNfEqTy di dt) d)
@@ -926,9 +946,9 @@ eqAtNf sig ctx dEq cur tgt =
 ||| (cur ≐ cur′ at the expected type) and cur′.
 rePlaceE : Sig -> Ctx -> Step -> Nat -> List Nat -> Ty -> Elem -> Maybe (Deriv, Elem, Ty)
 rePlaceE sig ctx step d [] exp cur = do
-  (dEq, le, re, t) <- reLicensed sig ctx step d
+  (dEq, le, re, t) <- dbg "leaf: license" (reLicensed sig ctx step d)
   let True = cur == le
-    | False => Nothing
+    | False => dbg "leaf: cur \{show cur} /= licensed \{show le}" Nothing
   d' <- if t == exp then Just dEq
         else do
           -- only a β-bridge: a position whose type differs from the
@@ -954,6 +974,7 @@ rePlaceE sig ctx step d (i :: p) exp cur =
       dc <- eqAtNf sig ctx dc0 chTy (Ty.PiTy a b)
       de <- reCheck sig ctx e a emptySkel
       db <- reTy sig (ctx :< a) b emptySkel
+            <|> Just (DInvPiCod (DPresupElTy (DPresupElL dc)))
       pure (DElAppCong dc (DElRefl de) db, PiApp f' e, substTy b (Ext Id e))
     (PiApp f e, 1) => do
       (a, b) <- headPi sig ctx f e exp
@@ -961,6 +982,7 @@ rePlaceE sig ctx step d (i :: p) exp cur =
       (dc0, e', chTy) <- rePlaceE sig ctx step d p a e
       dc <- eqAtNf sig ctx dc0 chTy a
       db <- reTy sig (ctx :< a) b emptySkel
+            <|> Just (DInvPiCod (DPresupElTy df))
       pure (DElAppCong (DElRefl df) dc db, PiApp f e', substTy b (Ext Id e'))
     (Inj1 a, 0) =>
       case exp of
@@ -1178,6 +1200,7 @@ reBridgeE sig ctx step d x y exp =
                df <- reCheck sig ctx f (Ty.PiTy a b) emptySkel
                dc <- reBridgeE sig ctx step d u v a
                db <- reTy sig (ctx :< a) b emptySkel
+                     <|> Just (DInvPiCod (DPresupElTy df))
                pure (DElAppCong (DElRefl df) dc db)
              (Elem.EqTy l0 r0 t0, Elem.EqTy l1 r1 t1) => do
                dt <- reBridgeT sig ctx step d t0 t1
@@ -1192,7 +1215,7 @@ stepChainE sig ctx ty (chain, cur) step = do
   curN <- nfE sig cur
   chain2 <- if curN == cur then Just chain
             else Just (DElTrans chain (DNfExpand (DPresupElR chain)))
-  (dPl, cur', plTy) <- rePlaceE sig ctx step 0 step.path ty curN
+  (dPl, cur', plTy) <- dbg "step: place \{show step.path} in \{show curN}" (rePlaceE sig ctx step 0 step.path ty curN)
   -- the placement congruence concludes at its own computed spelling
   -- of the type; bridge back to the chain's spelling when nf-equal
   -- (a dependent position shifted beyond nf is outside this slice)
@@ -1231,11 +1254,11 @@ reEq sig ctx (MkECertF tyEx steps final) l r ty = do
                   Just (tyX, certT) => do
                     dBr <- reEqTy sig ctx certT ty tyX
                     Just (tyX, Just dBr)
-  dl0 <- endpoint l ty' pre
-  dr0 <- endpoint r ty' pre
-  (chL, curL) <- goSide ty' (DElRefl dl0, l) (filter (.onLhs) steps)
-  (chR, curR) <- goSide ty' (DElRefl dr0, r) (filter (not . (.onLhs)) steps)
-  mid <- closeE sig ctx ty' chL curL chR curR final
+  dl0 <- dbg "req: endpoint L \{show l} AT \{show ty'}" (endpoint l ty' pre)
+  dr0 <- dbg "req: endpoint R \{show r} AT \{show ty'}" (endpoint r ty' pre)
+  (chL, curL) <- dbg "req: chain L" (goSide ty' (DElRefl dl0, l) (filter (.onLhs) steps))
+  (chR, curR) <- dbg "req: chain R" (goSide ty' (DElRefl dr0, r) (filter (not . (.onLhs)) steps))
+  mid <- dbg "req: close, curL \{show curL} curR \{show curR}" (closeE sig ctx ty' chL curL chR curR final)
   let whole = DElTrans chL (DElTrans mid (DElSym chR))
   pure $ case pre of
     Nothing => whole
@@ -1450,7 +1473,7 @@ reDefArt : Sig -> KDefArt -> Maybe (Deriv, Deriv)
 reDefArt sig art =
   case art.tele of
     [] => do
-      dT <- reTy sig [<] art.dty art.dtySkel
+      dT <- dbg "defart: type" (reTy sig [<] art.dty art.dtySkel)
       -- when the raw spelling carries solved holes whose re-derivation
       -- is hypothesis-sensitive, check at nf (holes unfolded) and ride
       -- dT back to the spelling
@@ -1458,7 +1481,7 @@ reDefArt sig art =
             <|> (do tyN <- nfT sig art.dty
                     let False = tyN == art.dty
                       | True => Nothing
-                    d <- reCheck sig [<] art.body tyN art.bodySkel
+                    d <- dbg "defart: body" (reCheck sig [<] art.body tyN art.bodySkel)
                     pure (DElTyCoe (DTySym (DNfExpandTy dT)) d))
       pure (dT, dt)
     _ => Nothing

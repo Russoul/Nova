@@ -395,6 +395,16 @@ data Deriv : Type where
   DPresupTyL : Deriv -> Deriv
   DPresupTyR : Deriv -> Deriv
 
+  -- ----- ADMISSIBLE: formation inversion -----
+  ||| from Γ ⊦ Π A B type conclude Γ ⊦ A type
+  DInvPiDom : Deriv -> Deriv
+  ||| from Γ ⊦ Π A B type conclude Γ ▷ A ⊦ B type — replayed in the
+  ||| extended context input, whose top binder must α-match A
+  DInvPiCod : Deriv -> Deriv
+  ||| the Σ instances
+  DInvSigmaDom : Deriv -> Deriv
+  DInvSigmaCod : Deriv -> Deriv
+
   -- ----- ADMISSIBLE: the nf oracle -----
   ||| nf-expand: Γ ⊦ t : A  ⊢  Γ ⊦ t ≐ nf(t) : A
   DNfExpand : Deriv -> Deriv
@@ -1579,6 +1589,40 @@ conclude sig ctx (DPresupTyL d) = do
 conclude sig ctx (DPresupTyR d) = do
   (_, a1) <- conclude sig ctx d >>= needTyEq
   pure (JTy a1)
+
+-- ADMISSIBLE: formation inversion (docs/NovaDerivations.txt) — the
+-- cod instances replay their premise BELOW the top binder, which
+-- must α-match the inverted domain
+conclude sig ctx (DInvPiDom d) = do
+  t <- conclude sig ctx d >>= needTy
+  case t of
+    Ty.PiTy a _ => pure (JTy a)
+    _ => kerr "derivation: inv-pi-dom: premise not a Π formation"
+conclude sig ctx (DInvPiCod d) =
+  case ctx of
+    rest :< a' => do
+      t <- conclude sig rest d >>= needTy
+      case t of
+        Ty.PiTy a b => do
+          alphaTy "inv-pi-cod (binder)" a a'
+          pure (JTy b)
+        _ => kerr "derivation: inv-pi-cod: premise not a Π formation"
+    [<] => kerr "derivation: inv-pi-cod: empty context"
+conclude sig ctx (DInvSigmaDom d) = do
+  t <- conclude sig ctx d >>= needTy
+  case t of
+    Ty.SigmaTy a _ => pure (JTy a)
+    _ => kerr "derivation: inv-sigma-dom: premise not a Σ formation"
+conclude sig ctx (DInvSigmaCod d) =
+  case ctx of
+    rest :< a' => do
+      t <- conclude sig rest d >>= needTy
+      case t of
+        Ty.SigmaTy a b => do
+          alphaTy "inv-sigma-cod (binder)" a a'
+          pure (JTy b)
+        _ => kerr "derivation: inv-sigma-cod: premise not a Σ formation"
+    [<] => kerr "derivation: inv-sigma-cod: empty context"
 
 -- ADMISSIBLE: the nf oracle (the typing premise is load-bearing —
 -- docs/NovaDerivations.txt)

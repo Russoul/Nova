@@ -6,8 +6,9 @@ This file specifies the TARGET design of the kernel rework (status
 and phasing: docs/NovaPipeline.txt, "The derivation rework"): a
 kernel that checks CANDIDATE DERIVATIONS of docs/NovaFoundation.txt's
 judgements. The judgements are exactly Foundation's. The rules are
-exactly Foundation's — plus two admissible additions specified here
-(presupposition projection and the nf oracle), each justified once.
+exactly Foundation's — plus three admissible additions specified
+here (presupposition projection, formation inversion, and the nf
+oracle), each justified once.
 Nothing is reconstructed: where today's kernel re-derives typing from
 bare core plus hints (docs/NovaKernel.txt), the new kernel is handed
 the derivation and replays it, rule instance by rule instance.
@@ -171,6 +172,28 @@ a rewrite chain threads the typing of its intermediate spellings
 through projections from each step's conclusion instead of
 re-deriving it, and the nf oracle's typing premise (below) is
 usually a projection.
+
+////////// Admissible addition 1½: formation inversion //////////
+
+The dual of projection, for the Π/Σ formation premises Foundation
+retains (el-pi-e's Γ ▷ A ⊦ B type, and kin): a former-headed
+formation delivers its parts.
+
+  D concludes Γ ⊦ Π A B type
+  --------------------------- (inv-pi-dom)     and inv-pi-cod,
+  Γ ⊦ A type                                   inv-sigma-dom/cod
+
+Justified by the inversion meta-theorem: a formation judgement with
+a former head arises only from that former's formation rule (there
+are no type-level conversion conclusions of `A type` shape, and a
+substitution instance computes to a former-headed spelling whose
+parts are themselves substitution instances of the premise parts).
+The cod instances conclude under the extended context, whose top
+binder must α-match the inverted domain. This is what lets an
+APPLICATION spine reuse the head's own typing for the retained
+codomain premise — el-pi-e's B arrives by inv-pi-cod of the head's
+presupposed Π formation — instead of re-deriving a spelling that may
+carry hypothesis-sensitive solved holes (underivable bare).
 
 ////////// Admissible addition 2: the nf oracle //////////
 

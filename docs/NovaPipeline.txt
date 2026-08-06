@@ -454,10 +454,19 @@ Phasing:
      the argument's own type — the iterated-observation shape nf
      produces) and corec made inferable (it carries its polynomial)
      (currently 13/27 files fully covered; every covered item
-     agrees). Bails, honestly: SelQIdx, placements through
-     eliminators, `data … Elim` items, hole solutions. Remaining:
-     those bails driven down by the strict-mode meter, then the
-     re-seat.]
+     agrees). Fourteenth slice: FORMATION INVERSION (NovaDerivations,
+     admissible addition 1½) — el-pi-e's retained codomain premise
+     arrives by inv-pi-cod of the head's presupposed Π formation
+     when the codomain spells solved holes underivable bare (a
+     hole-carrying def APPLIED — cong at stream observations); bare
+     re-derivation stays primary so shared-subtree replay cost stays
+     linear (inversion re-replays the head, exponential on nested
+     spines — an out-of-fuel caught by the shadow). Plus
+     NOVA_RECON_DEBUG=1, a permanent first-failure-spine diagnostic
+     (currently 15/27; every covered item agrees). Bails, honestly:
+     SelQIdx, placements through eliminators, `data … Elim` items,
+     hole solutions. Remaining: those bails driven down by the
+     strict-mode meter, then the re-seat.]
   3. CONSOLIDATION (incremental, unhurried) — the elaborator emits
      derivations directly where reconstruction is weak or wasteful;
      the trace→derivation translation absorbs the discharge engine's
