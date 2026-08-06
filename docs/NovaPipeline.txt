@@ -403,11 +403,15 @@ Phasing:
      chains with sibling refls, finals mapped (beta → nf-eq, prop
      rules, quotient witnesses, Π-η, the type congruence finals);
      intermediate typings all flow through presupposition
-     projections. Bails, honestly: selector-carrying steps,
-     LPath licenses, dependent positions shifted beyond nf,
-     placements through eliminators. Remaining: those bails, the
-     QIIT formers, hole solutions under the shadow, then the
-     re-seat.]
+     projections. Fourth slice: the QIIT
+     formers — signatures rebuilt through the first-class ToS nodes
+     (Φ threaded, embedded pieces checked at their spelled domains),
+     sort instances and codes, constructors, and the eliminator with
+     its PQCoh coherence certificates through the translator; LPath
+     licenses become DQPath leaves. Bails, honestly: selector-
+     carrying steps, dependent positions shifted beyond nf (the
+     hypothesis-sensitive residue), placements through eliminators,
+     hole solutions. Remaining: those bails, then the re-seat.]
   3. CONSOLIDATION (incremental, unhurried) — the elaborator emits
      derivations directly where reconstruction is weak or wasteful;
      the trace→derivation translation absorbs the discharge engine's

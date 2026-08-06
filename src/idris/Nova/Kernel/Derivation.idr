@@ -65,12 +65,14 @@ mutual
   qsLift : QSub -> QSub
   qsLift sig = QSExt (QSComp sig QSWk) (QVar 0)
 
+  export
   qSubTm : QSub -> QTm -> QTm
   qSubTm sig (QVar i) = qsApply sig i
   qSubTm sig (QAppE f e) = QAppE (qSubTm sig f) e
   qSubTm sig (QAppI f a) = QAppI (qSubTm sig f) (qSubTm sig a)
   qSubTm sig (QEqC l r u) = QEqC (qSubTm sig l) (qSubTm sig r) (qSubTm sig u)
 
+  export
   qSubTy : QSub -> QTy -> QTy
   qSubTy sig QU = QU
   qSubTy sig (QEl t) = QEl (qSubTm sig t)
@@ -93,6 +95,7 @@ qShiftTy c n (QPiInd t b) = QPiInd (qShiftTm c n t) (qShiftTy (S c) n b)
 
 ||| Φ‖ᵢ — the entry's type as seen at the current position (its ToS
 ||| indices shifted past the entries above it).
+export
 phiAt : SnocList QTy -> Nat -> Maybe QTy
 phiAt [<] _ = Nothing
 phiAt (rest :< a) Z = Just (qShiftTy 0 1 a)
@@ -100,6 +103,7 @@ phiAt (rest :< a) (S n) = map (qShiftTy 0 1) (phiAt rest n)
 
 ||| Φ[↑] — Nova-weakening the whole ToS zone (crossing an external
 ||| binder; ToS indices do not shift).
+export
 phiWkNova : SnocList QTy -> SnocList QTy
 phiWkNova = map (\a => substQTy a Wk)
 

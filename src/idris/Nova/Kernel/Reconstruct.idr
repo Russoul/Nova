@@ -23,6 +23,7 @@ import Data.SnocList
 
 import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
+import Nova.Kernel.QIIT
 import Nova.Kernel
 import Nova.Kernel.Derivation
 
@@ -67,6 +68,14 @@ pExp _ = Nothing
 pRefl : Payload -> Maybe ECert
 pRefl (PReflEq c) = Just c
 pRefl _ = Nothing
+
+e2m : Either e a -> Maybe a
+e2m (Right x) = Just x
+e2m (Left _) = Nothing
+
+pQC : Payload -> Maybe (List ECert)
+pQC (PQCoh cs) = Just cs
+pQC _ = Nothing
 
 pWDc : Payload -> Maybe ECert
 pWDc (PWD c) = Just c
@@ -154,7 +163,75 @@ mutual
       Just (SigTyDecl delta _) => DTySig x <$> reSubN sig ctx es (toList delta)
       _ => Nothing
   reTy sig ctx (Ty.NuTy f) sk = DTyNu <$> rePoly sig ctx f
-  reTy sig ctx (QSort sg k es) sk = Nothing    -- later slice
+  reTy sig ctx (QSort sg k es) sk = do
+    dSig <- reQSig sig ctx sg
+    ds <- reQSpine sig ctx sg k (toList es)
+    pure (DTyQSort k dSig ds)
+
+  ||| A signature's qctx formation, rebuilt from its spelling (the
+  ||| ToS zone threaded to type the embedded pieces at their spelled
+  ||| domains).
+  reQSig : Sig -> Ctx -> QSig -> Maybe Deriv
+  reQSig sig ctx sg = DQSig . fst <$> go (reverse sg)
+   where
+    go : List QTy -> Maybe (Deriv, SnocList QTy)
+    go [] = Just (DQCtxEmpty, [<])
+    go (e :: earlier) = do
+      (dPhi, phi) <- go earlier
+      dE <- reQTy sig ctx phi e
+      pure (DQCtxExt dPhi dE, phi :< e)
+
+  reQTy : Sig -> Ctx -> SnocList QTy -> QTy -> Maybe Deriv
+  reQTy sig ctx phi QU = Just DQTyUniv
+  reQTy sig ctx phi (QEl t) = DQTyEl . fst <$> reQTm sig ctx phi t
+  reQTy sig ctx phi (QPiExt a b) =
+    [| DQTyPiExt (reTy sig ctx a emptySkel)
+                 (reQTy sig (ctx :< a) (phiWkNova phi) b) |]
+  reQTy sig ctx phi (QPiInd t b) = do
+    (dt, _) <- reQTm sig ctx phi t
+    db <- reQTy sig ctx (phi :< QEl t) b
+    pure (DQTyPiInd dt db)
+
+  reQTm : Sig -> Ctx -> SnocList QTy -> QTm -> Maybe (Deriv, QTy)
+  reQTm sig ctx phi (QVar i) = do
+    a <- phiAt phi i
+    pure (DQTmVar i, a)
+  reQTm sig ctx phi (QAppE f e) = do
+    (df, fty) <- reQTm sig ctx phi f
+    case fty of
+      QPiExt a b => do
+        de <- reCheck sig ctx e a emptySkel
+        pure (DQTmAppExt df de, substQTy b (Ext Id e))
+      _ => Nothing
+  reQTm sig ctx phi (QAppI f a) = do
+    (df, fty) <- reQTm sig ctx phi f
+    case fty of
+      QPiInd u b => do
+        (da, _) <- reQTm sig ctx phi a
+        pure (DQTmAppInd df da, qSubTy (QSExt QSId a) b)
+      _ => Nothing
+  reQTm sig ctx phi (QEqC l r u) = do
+    (dl, _) <- reQTm sig ctx phi l
+    (dr, _) <- reQTm sig ctx phi r
+    pure (DQTmEq dl dr, QU)
+
+  ||| A constructor/sort spine, entrywise at the reflected telescope.
+  reQSpine : Sig -> Ctx -> QSig -> Nat -> List Elem -> Maybe (List Deriv)
+  reQSpine sig ctx sg k args = do
+    entry <- qEntry sg k
+    (tel, _, _) <- eitherToMaybe (reflTel sg (qwAt k) entry)
+    goSp 0 tel args
+   where
+    eitherToMaybe : Either e a -> Maybe a
+    eitherToMaybe (Right x) = Just x
+    eitherToMaybe (Left _) = Nothing
+    goSp : Nat -> List Ty -> List Elem -> Maybe (List Deriv)
+    goSp i tel [] = Just []
+    goSp i tel (a :: rest) = do
+      want <- telInst tel i args
+      d <- reCheck sig ctx a want emptySkel
+      ds <- goSp (S i) tel rest
+      pure (d :: ds)
 
   ||| Polynomial formation, structural (codes reconstructed bare).
   rePoly : Sig -> Ctx -> Poly -> Maybe Deriv
@@ -282,6 +359,65 @@ mutual
   reInfer sig ctx (Squash a) sk = do
     da <- reTy sig ctx a (childAt 0 sk)
     pure (DCodeSquash da, Ty.PropTy)
+  reInfer sig ctx (QSortC sg k es) sk = do
+    dSig <- reQSig sig ctx sg
+    ds <- reQSpine sig ctx sg k (toList es)
+    pure (DCodeQSort k dSig ds, Ty.UniverseTy)
+  reInfer sig ctx (QCtor sg k es) sk = do
+    dSig <- reQSig sig ctx sg
+    ds <- reQSpine sig ctx sg k (toList es)
+    entry <- qEntry sg k
+    (tel, _, _) <- e2m (reflTel sg (qwAt k) entry)
+    (wEnd, hd) <- e2m (walkVals sg (qwAt k) entry (toList es))
+    (srt, idx) <- e2m (pointHead sg wEnd hd)
+    pure (DQCtor k dSig ds, QSort sg srt idx)
+  reInfer sig ctx (QElim sg k mots fs es w) sk = do
+    dSig <- reQSig sig ctx sg
+    let cohCerts = case payload pQC sk of
+                     Just cs => cs
+                     Nothing => []
+    motDs <- goMots (qPositions QKSort sg) mots
+    mthDs <- goMths (qPositions QKPoint sg) fs
+    cohDs <- goCohs (qPositions QKEq sg) cohCerts
+    let dEP = DQEProb (DQDalg (DQMot dSig motDs) mthDs) cohDs
+    ds <- reQSpine sig ctx sg k (toList es)
+    entry <- qEntry sg k
+    o <- qOrdinal QKSort sg k
+    motK <- getAt o mots
+    dW <- reCheck sig ctx w (QSort sg k es) emptySkel
+    pure (DQElim k dEP ds dW,
+          substTy motK (Ext (foldl Ext Id (toList es)) w))
+   where
+    goMots : List Nat -> List Ty -> Maybe (List Deriv)
+    goMots [] [] = Just []
+    goMots (sj :: sjs) (m :: ms) = do
+      sjE <- qEntry sg sj
+      (tel, wEnd, _) <- e2m (reflTel sg (qwAt sj) sjE)
+      let mctx = foldl (:<) ctx tel
+      let selfTy = QSort (substQSig sg wEnd.ups) sj (varSpine (length tel))
+      d <- reTy sig (mctx :< selfTy) m emptySkel
+      ds <- goMots sjs ms
+      pure (d :: ds)
+    goMots _ _ = Nothing
+    goMths : List Nat -> List Elem -> Maybe (List Deriv)
+    goMths [] [] = Just []
+    goMths (cj :: cjs) (m :: ms) = do
+      mty <- e2m (methodTy sg mots cj)
+      d <- reCheck sig ctx m mty emptySkel
+      ds <- goMths cjs ms
+      pure (d :: ds)
+    goMths _ _ = Nothing
+    goCohs : List Nat -> List ECert -> Maybe (List Deriv)
+    goCohs [] _ = Just []
+    goCohs (ej :: ejs) certs = do
+      (c, rest) <- the (Maybe (ECert, List ECert)) $ case certs of
+                     (c :: cs) => Just (c, cs)
+                     [] => Nothing
+      (dtel, _, lhs, rhs, cty) <- e2m (coherenceAt sg mots fs ej)
+      let cctx = foldl (:<) ctx dtel
+      d <- reEq sig cctx c lhs rhs cty
+      ds <- goCohs ejs rest
+      pure (d :: ds)
   reInfer sig ctx (Class a) sk = Nothing       -- intro: checking-only
   reInfer sig ctx (Out t) sk = do
     (dt, tty) <- reInfer sig ctx t (childAt 0 sk)
@@ -368,6 +504,9 @@ mutual
         dr <- reCheck sig (ctx :< dom :< substTy dom Wk) rel Ty.PropTy emptySkel
         pure (DElQuotI da dr)
       _ => Nothing
+  reCheckGo sig ctx e@(QCtor _ _ _) ty sk = do
+    (d, ity) <- reInfer sig ctx e sk
+    coerce sig ctx d ity ty
   reCheckGo sig ctx (Corec pf a body x) ty sk =
     case ty of
       Ty.NuTy f =>
@@ -411,6 +550,12 @@ mutual
     if ity == ty
       then Just d
       else do
+        -- only a β-bridge; a hypothesis-sensitive difference is
+        -- outside this slice (bail, silent fallback)
+        iN <- nfT sig ity
+        tN <- nfT sig ty
+        let True = iN == tN
+          | False => Nothing
         di <- reTy sig ctx ity emptySkel
         dt <- reTy sig ctx ty emptySkel
         pure (DElTyCoe (DNfEqTy di dt) d)
@@ -445,7 +590,28 @@ reLicensed sig ctx step d =
                                else (dEqN, leN, reN)
           pure (dO, lO, rO, t)
         _ => Nothing
-    LPath _ _ _ => Nothing
+    LPath sg k theta => do
+      let [] = step.sels
+        | _ => Nothing
+      let thetaW = map (wkN d) (toList theta)
+      dSig <- reQSig sig ctx sg
+      ds <- reQSpine sig ctx sg k thetaW
+      entry <- qEntry sg k
+      (tel, _, _) <- e2m (reflTel sg (qwAt k) entry)
+      (wEnd, hd) <- e2m (walkVals sg (qwAt k) entry thetaW)
+      (lq, rq, uq) <- e2m (eqHead hd)
+      le <- e2m (reflTm sg wEnd lq)
+      re <- e2m (reflTm sg wEnd rq)
+      t <- e2m (reflCodeTy sg wEnd uq)
+      let dEq = DQPath k dSig ds
+      leN <- nfE sig le
+      reN <- nfE sig re
+      let dEqN = DElTrans (DElSym (DNfExpand (DPresupElL dEq)))
+                   (DElTrans dEq (DNfExpand (DPresupElR dEq)))
+      let (dO, lO, rO) = if step.flip
+                           then (DElSym dEqN, reN, leN)
+                           else (dEqN, leN, reN)
+      pure (dO, lO, rO, t)
 
 ||| Placement: rewrite `cur` at `path` by the step's licensed
 ||| equation, emitting the congruence chain; returns the derivation
