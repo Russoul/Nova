@@ -438,11 +438,20 @@ Phasing:
      ⋆ at an equality prop closes by reflexivity when the sides
      agree up to nf, else by an assumption of that very equality
      (reflect the hypothesis, reintroduce) — the proof-irrelevance
-     shape (currently 11/27 files fully covered; every covered item
-     agrees). Bails, honestly: SelQIdx, placements through
-     eliminators, `data … Elim` items, hole solutions. Remaining:
-     those bails driven down by the strict-mode meter, then the
-     re-seat.]
+     shape. Twelfth slice: COINDUCTION — the ⋆-coinduction payload
+     replayed through el-nu-coind (whose conclude clause had spelled
+     the second ν binder and the closure's 𝔽/R unweakened — fixed
+     against Foundation); `out` placements ride Foundation's spine
+     route (out ☐₀ over Γ ▷ ν𝔽, the component pushed in by
+     sub-ext-cong + el-sub-cong — sub-ext-cong itself a Foundation
+     rule the derivation core had missed); and every placement
+     parent now squares its child equation's type spelling with the
+     congruence's demand by the nf oracle (eqAtNf), which cleared a
+     latent el-sum-e-cong disagreement (currently 12/27 files fully
+     covered; every covered item agrees). Bails, honestly: SelQIdx,
+     placements through eliminators, `data … Elim` items, hole
+     solutions. Remaining: those bails driven down by the
+     strict-mode meter, then the re-seat.]
   3. CONSOLIDATION (incremental, unhurried) — the elaborator emits
      derivations directly where reconstruction is weak or wasteful;
      the trace→derivation translation absorbs the discharge engine's

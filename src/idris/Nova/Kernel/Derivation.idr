@@ -453,6 +453,10 @@ data Deriv : Type where
   ||| sub-comp — delivery order σ : Γ ⇒ Γ₁ (ambient), τ : Γ₁ ⇒ Γ₂:
   ||| τ ∘ σ : Γ ⇒ Γ₂
   DSubComp : Deriv -> Deriv -> Deriv
+  ||| sub-ext-cong — delivery order σ₀ ≐ σ₁ (delivers Γ₁), A (over
+  ||| Γ₁), the component equation side-checked at A[σ₁]:
+  ||| (σ₀, t₀) ≐ (σ₁, t₁) : Γ ⇒ Γ₁ ▷ A
+  DSubExtCong : Deriv -> Deriv -> Deriv -> Deriv
   ||| el-sub-cong-fix (admissible in Foundation, adopted): σ delivers
   ||| Γ₁; the equation lives over Γ₁; concludes it substituted
   DElSubCongFix : Deriv -> Deriv -> Deriv
@@ -1729,6 +1733,12 @@ conclude sig ctx (DSubComp dS dT) = do
   (s, g1) <- conclude sig ctx dS >>= needSub
   (t, g2) <- conclude sig g1 dT >>= needSub
   pure (JSub (Chain t s) g2)
+conclude sig ctx (DSubExtCong dS dA dT) = do
+  (s0, s1, g1) <- conclude sig ctx dS >>= needSubEq
+  a <- conclude sig g1 dA >>= needTy
+  (t0, t1, tty) <- conclude sig ctx dT >>= needElEq
+  alphaTy "sub-ext-cong" tty (substTy a s1)
+  pure (JSubEq (Ext s0 t0) (Ext s1 t1) (g1 :< a))
 conclude sig ctx (DElSubCongFix dS dEq) = do
   (s, g1) <- conclude sig ctx dS >>= needSub
   (t0, t1, a) <- conclude sig g1 dEq >>= needElEq
@@ -1784,19 +1794,22 @@ conclude sig ctx (DElNuI dF dA dBody dX) = do
   pure (JEl (Corec f a body x) (Ty.NuTy f))
 conclude sig ctx (DElNuCoind dF dT0 dT1 dR dP dQ) = do
   f <- conclude sig ctx dF >>= needPoly
+  let nuT = Ty.NuTy f
   (t0, t0ty) <- conclude sig ctx dT0 >>= needEl
-  alphaTy "el-nu-coind (t₀)" t0ty (Ty.NuTy f)
+  alphaTy "el-nu-coind (t₀)" t0ty nuT
   (t1, t1ty) <- conclude sig ctx dT1 >>= needEl
-  alphaTy "el-nu-coind (t₁)" t1ty (Ty.NuTy f)
-  (r, rty) <- conclude sig (ctx :< Ty.NuTy f :< Ty.NuTy f) dR >>= needEl
+  alphaTy "el-nu-coind (t₁)" t1ty nuT
+  (r, rty) <- conclude sig (ctx :< nuT :< substTy nuT Wk) dR >>= needEl
   alphaTy "el-nu-coind (R)" rty Ty.PropTy
   (_, pty) <- conclude sig ctx dP >>= needEl
   alphaTy "el-nu-coind (endpoint)" pty
     (Prf (substElem r (Ext (Ext Id t0) t1)))
-  (_, qty) <- conclude sig (ctx :< Ty.NuTy f :< Ty.NuTy f :< Prf r) dQ >>= needEl
+  let wk3 = Chain Wk (Chain Wk Wk)
+  (_, qty) <- conclude sig (ctx :< nuT :< substTy nuT Wk :< Prf r) dQ >>= needEl
   alphaTy "el-nu-coind (closure)" qty
-    (Prf (liftPoly f r (Out (CtxVar 2)) (Out (CtxVar 1))))
-  pure (JElEq t0 t1 (Ty.NuTy f))
+    (Prf (liftPoly (substPoly f wk3) (substElem r (under (under wk3)))
+            (Out (CtxVar 2)) (Out (CtxVar 1))))
+  pure (JElEq t0 t1 nuT)
 
 -- the ToS layer
 conclude sig ctx DQCtxEmpty = pure (JQCtx [<])

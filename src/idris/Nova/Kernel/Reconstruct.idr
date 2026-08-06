@@ -97,6 +97,10 @@ pSqW : Payload -> Maybe (Elem, Skel)
 pSqW (PSquashWit e s) = Just (e, s)
 pSqW _ = Nothing
 
+pNuC : Payload -> Maybe (Elem, Skel, Elem, Skel, Elem, Skel)
+pNuC (PNuCoind r skR pw skp qw skq) = Just (r, skR, pw, skp, qw, skq)
+pNuC _ = Nothing
+
 isSw : Payload -> Bool
 isSw (PSwitch _) = True
 isSw _ = False
@@ -623,7 +627,32 @@ mutual
           Prf (Elem.EqTy l r t) => DElEqI <$> reEq sig ctx cert l r t
           _ => Nothing
       Nothing =>
-        case payload pSqW sk of
+       case payload pNuC sk of
+        -- el-nu-coind: ⋆ at an equality prop over a ν type, by
+        -- COINDUCTION — invariant, endpoint proof, one-step closure
+        Just (r, skR, pw, skp, qw, skq) => do
+          tyN <- nfT sig ty
+          let Prf (Elem.EqTy l rhs ety) = tyN
+            | _ => Nothing
+          let Ty.NuTy f = ety
+            | _ => Nothing
+          let nuT = Ty.NuTy f
+          dF <- rePoly sig ctx f
+          dT0 <- reCheck sig ctx l nuT emptySkel
+          dT1 <- reCheck sig ctx rhs nuT emptySkel
+          dR <- reCheck sig (ctx :< nuT :< substTy nuT Wk) r Ty.PropTy skR
+          dP <- reCheck sig ctx pw (Prf (substElem r (Ext (Ext Id l) rhs))) skp
+          let wk3 = Chain Wk (Chain Wk Wk)
+          dQ <- reCheck sig (ctx :< nuT :< substTy nuT Wk :< Prf r) qw
+                  (Prf (liftPoly (substPoly f wk3) (substElem r (under (under wk3)))
+                          (Out (CtxVar 2)) (Out (CtxVar 1)))) skq
+          let d0 = DElEqI (DElNuCoind dF dT0 dT1 dR dP dQ)
+          if ty == tyN then Just d0
+            else do
+              dTy <- reTy sig ctx ty emptySkel
+              pure (DElTyCoe (DTySym (DNfExpandTy dTy)) d0)
+        Nothing =>
+         case payload pSqW sk of
           Just (w, wSk) =>
             case ty of
               Prf (Squash a) => do
@@ -867,6 +896,20 @@ headPi sig ctx f e exp =
 
 rePlaceT : Sig -> Ctx -> Step -> Nat -> List Nat -> Ty -> Maybe (Deriv, Ty)
 
+||| Coerce an element-equation derivation from its own type spelling
+||| to a target spelling, the two nf-equal (the oracle bridge).
+eqAtNf : Sig -> Ctx -> Deriv -> Ty -> Ty -> Maybe Deriv
+eqAtNf sig ctx dEq cur tgt =
+  if cur == tgt then Just dEq
+    else do
+      cN <- nfT sig cur
+      tN <- nfT sig tgt
+      let True = cN == tN
+        | False => Nothing
+      dC <- reTy sig ctx cur emptySkel
+      dT <- reTy sig ctx tgt emptySkel
+      pure (DElEqTyCoe (DNfEqTy dC dT) dEq)
+
 ||| Placement: rewrite `cur` at `path` by the step's licensed
 ||| equation, emitting the congruence chain; returns the derivation
 ||| (cur ≐ cur′ at the expected type) and cur′.
@@ -891,31 +934,36 @@ rePlaceE sig ctx step d [] exp cur = do
 rePlaceE sig ctx step d (i :: p) exp cur =
   case (cur, i) of
     (NatIntro1 t, 0) => do
-      (dc, t', _) <- rePlaceE sig ctx step d p Ty.NatTy t
+      (dc0, t', chTy) <- rePlaceE sig ctx step d p Ty.NatTy t
+      dc <- eqAtNf sig ctx dc0 chTy Ty.NatTy
       pure (DElSucCong dc, NatIntro1 t', Ty.NatTy)
     (PiApp f e, 0) => do
       (a, b) <- headPi sig ctx f e exp
-      (dc, f', _) <- rePlaceE sig ctx step d p (Ty.PiTy a b) f
+      (dc0, f', chTy) <- rePlaceE sig ctx step d p (Ty.PiTy a b) f
+      dc <- eqAtNf sig ctx dc0 chTy (Ty.PiTy a b)
       de <- reCheck sig ctx e a emptySkel
       db <- reTy sig (ctx :< a) b emptySkel
       pure (DElAppCong dc (DElRefl de) db, PiApp f' e, substTy b (Ext Id e))
     (PiApp f e, 1) => do
       (a, b) <- headPi sig ctx f e exp
       df <- reCheck sig ctx f (Ty.PiTy a b) emptySkel
-      (dc, e', _) <- rePlaceE sig ctx step d p a e
+      (dc0, e', chTy) <- rePlaceE sig ctx step d p a e
+      dc <- eqAtNf sig ctx dc0 chTy a
       db <- reTy sig (ctx :< a) b emptySkel
       pure (DElAppCong (DElRefl df) dc db, PiApp f e', substTy b (Ext Id e'))
     (Inj1 a, 0) =>
       case exp of
         Ty.SumTy l r => do
-          (dc, a', _) <- rePlaceE sig ctx step d p l a
+          (dc0, a', chTy) <- rePlaceE sig ctx step d p l a
+          dc <- eqAtNf sig ctx dc0 chTy l
           dr <- reTy sig ctx r emptySkel
           pure (DElInj1Cong dc dr, Inj1 a', Ty.SumTy l r)
         _ => Nothing
     (Inj2 b, 0) =>
       case exp of
         Ty.SumTy l r => do
-          (dc, b', _) <- rePlaceE sig ctx step d p r b
+          (dc0, b', chTy) <- rePlaceE sig ctx step d p r b
+          dc <- eqAtNf sig ctx dc0 chTy r
           dl <- reTy sig ctx l emptySkel
           pure (DElInj2Cong dc dl, Inj2 b', Ty.SumTy l r)
         _ => Nothing
@@ -925,7 +973,8 @@ rePlaceE sig ctx step d (i :: p) exp cur =
       dz <- reCheck sig ctx z exp emptySkel
       dst <- reCheck sig (ctx :< Ty.NatTy :< mot) st
                (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) emptySkel
-      (dc, t', _) <- rePlaceE sig ctx step d p Ty.NatTy t
+      (dc0, t', chTy) <- rePlaceE sig ctx step d p Ty.NatTy t
+      dc <- eqAtNf sig ctx dc0 chTy Ty.NatTy
       pure (DElNatECong dmot (DElRefl dz) (DElRefl dst) dc,
             NatElim z st t', exp)
     (NatElim z st t, 0) => do
@@ -955,7 +1004,8 @@ rePlaceE sig ctx step d (i :: p) exp cur =
           dmot <- reTy sig (ctx :< Ty.SumTy a b) mot emptySkel
           dl <- reCheck sig (ctx :< a) l (substTy exp Wk) emptySkel
           dr <- reCheck sig (ctx :< b) r (substTy exp Wk) emptySkel
-          (dc, t', _) <- rePlaceE sig ctx step d p (Ty.SumTy a b) t
+          (dc0, t', chTy) <- rePlaceE sig ctx step d p (Ty.SumTy a b) t
+          dc <- eqAtNf sig ctx dc0 chTy (Ty.SumTy a b)
           pure (DElSumECong dc dmot (DElRefl dl) (DElRefl dr),
                 SumElim l r t', exp)
         _ => Nothing
@@ -966,19 +1016,38 @@ rePlaceE sig ctx step d (i :: p) exp cur =
           dr <- reCheck sig (ctx :< dom :< substTy dom Wk) rel Ty.PropTy emptySkel
           pure (DElClassCong dc dr, Class a', Ty.Quotient dom rel)
         _ => Nothing
+    (Out t, 0) => do
+      -- Foundation's spine route: out ☐₀ over Γ ▷ ν𝔽, the component
+      -- equation pushed in by sub-ext-cong + el-sub-cong
+      (dt, tty) <- reInfer sig ctx t emptySkel
+      ttyN <- nfT sig tty
+      let Ty.NuTy f = ttyN
+        | _ => Nothing
+      let nuT = Ty.NuTy f
+      (dc0, t', chTy) <- rePlaceE sig ctx step d p nuT t
+      dc <- eqAtNf sig ctx dc0 chTy nuT
+      dNu <- reTy sig ctx nuT emptySkel
+      (dSp, spTy) <- reInfer sig (ctx :< nuT) (Out (CtxVar 0)) emptySkel
+      let dS = DSubExtCong (DSubRefl DSubId) dNu dc
+      pure (DElSubCong dS (DElRefl dSp), Out t',
+            substTy spTy (Ext Id t'))
     (SigmaElim1 t, 0) => do
       (dt, tty) <- reInfer sig ctx t emptySkel
-      (dc, t', _) <- rePlaceE sig ctx step d p tty t
-      case tty of
-        Ty.SigmaTy a _ => pure (DElProj1Cong dc, SigmaElim1 t', a)
-        _ => Nothing
+      ttyN <- nfT sig tty
+      let Ty.SigmaTy a _ = ttyN
+        | _ => Nothing
+      (dc0, t', chTy) <- rePlaceE sig ctx step d p ttyN t
+      dc <- eqAtNf sig ctx dc0 chTy ttyN
+      pure (DElProj1Cong dc, SigmaElim1 t', a)
     (SigmaElim2 t, 0) => do
       (dt, tty) <- reInfer sig ctx t emptySkel
-      (dc, t', _) <- rePlaceE sig ctx step d p tty t
-      case tty of
-        Ty.SigmaTy _ b => pure (DElProj2Cong dc, SigmaElim2 t',
-                                substTy b (Ext Id (SigmaElim1 t')))
-        _ => Nothing
+      ttyN <- nfT sig tty
+      let Ty.SigmaTy _ b = ttyN
+        | _ => Nothing
+      (dc0, t', chTy) <- rePlaceE sig ctx step d p ttyN t
+      dc <- eqAtNf sig ctx dc0 chTy ttyN
+      pure (DElProj2Cong dc, SigmaElim2 t',
+            substTy b (Ext Id (SigmaElim1 t')))
     (Elem.EqTy l r t, 0) => do
       dt <- reTy sig ctx t emptySkel
       (dc, l', _) <- rePlaceE sig ctx step d p t l
