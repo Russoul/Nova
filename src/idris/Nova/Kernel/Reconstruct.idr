@@ -562,6 +562,90 @@ mutual
 
 -- ===== Certificate translation (the retirement map) =====
 
+||| Selector translation: each Sel maps to its injectivity node
+||| (instantiating selectors compose with el-sub-cong-fix); SelSuc
+||| rides the derivable predecessor route — el-nat-e-cong at the
+||| constant motive, conjugated by nf-expand.
+applySelR : Sig -> Ctx -> (Deriv, Elem, Elem, Ty) -> Sel -> Maybe (Deriv, Elem, Elem, Ty)
+applySelR sig ctx (dEq, le, re, t) SelSuc =
+  case (le, re) of
+    (NatIntro1 a, NatIntro1 b) => do
+      let predCong = DElNatECong DTyNat (DElRefl DElNatZ)
+                       (DElRefl (DElVar 1)) dEq
+      let d = DElTrans (DElSym (DNfExpand (DPresupElL predCong)))
+                (DElTrans predCong (DNfExpand (DPresupElR predCong)))
+      pure (d, a, b, Ty.NatTy)
+    _ => Nothing
+applySelR sig ctx (dEq, le, re, t) SelDom =
+  case (le, re) of
+    (Elem.PiTy a0 b0, Elem.PiTy a1 b1) => do
+      d0 <- reCheck sig (ctx :< El a0) b0 Ty.UniverseTy emptySkel
+      d1 <- reCheck sig (ctx :< El a1) b1 Ty.UniverseTy emptySkel
+      pure (DCodePiInjDom d0 d1 dEq, a0, a1, Ty.UniverseTy)
+    (Elem.SigmaTy a0 b0, Elem.SigmaTy a1 b1) => do
+      d0 <- reCheck sig (ctx :< El a0) b0 Ty.UniverseTy emptySkel
+      d1 <- reCheck sig (ctx :< El a1) b1 Ty.UniverseTy emptySkel
+      pure (DCodeSigmaInjDom d0 d1 dEq, a0, a1, Ty.UniverseTy)
+    _ => Nothing
+applySelR sig ctx (dEq, le, re, t) (SelCod u) =
+  case (le, re) of
+    (Elem.PiTy a0 b0, Elem.PiTy a1 b1) => do
+      d0 <- reCheck sig (ctx :< El a0) b0 Ty.UniverseTy emptySkel
+      d1 <- reCheck sig (ctx :< El a1) b1 Ty.UniverseTy emptySkel
+      inst sig ctx (DCodePiInjCod d0 d1 dEq) a1 u b0 b1
+    (Elem.SigmaTy a0 b0, Elem.SigmaTy a1 b1) => do
+      d0 <- reCheck sig (ctx :< El a0) b0 Ty.UniverseTy emptySkel
+      d1 <- reCheck sig (ctx :< El a1) b1 Ty.UniverseTy emptySkel
+      inst sig ctx (DCodeSigmaInjCod d0 d1 dEq) a1 u b0 b1
+    _ => Nothing
+ where
+  inst : Sig -> Ctx -> Deriv -> Elem -> Elem -> Elem -> Elem ->
+         Maybe (Deriv, Elem, Elem, Ty)
+  inst sig ctx dC a1 u b0 b1 = do
+    dA <- reTy sig ctx (El a1) emptySkel
+    dU <- reCheck sig ctx u (El a1) emptySkel
+    let d = DElSubCongFix (DSubExt DSubId dA dU) dC
+    pure (d, substElem b0 (Ext Id u), substElem b1 (Ext Id u), Ty.UniverseTy)
+applySelR sig ctx (dEq, le, re, t) SelSumL =
+  case (le, re) of
+    (Elem.SumTy a0 _, Elem.SumTy a1 _) =>
+      pure (DCodeSumInjL dEq, a0, a1, Ty.UniverseTy)
+    _ => Nothing
+applySelR sig ctx (dEq, le, re, t) SelSumR =
+  case (le, re) of
+    (Elem.SumTy _ b0, Elem.SumTy _ b1) =>
+      pure (DCodeSumInjR dEq, b0, b1, Ty.UniverseTy)
+    _ => Nothing
+applySelR sig ctx (dEq, le, re, t) SelQDom =
+  case (le, re) of
+    (Elem.QuotTy a0 r0, Elem.QuotTy a1 r1) => do
+      d0 <- reCheck sig (ctx :< El a0 :< substTy (El a0) Wk) r0 Ty.PropTy emptySkel
+      d1 <- reCheck sig (ctx :< El a1 :< substTy (El a1) Wk) r1 Ty.PropTy emptySkel
+      pure (DCodeQuotInjDom d0 d1 dEq, a0, a1, Ty.UniverseTy)
+    _ => Nothing
+applySelR sig ctx (dEq, le, re, t) (SelQRel u v) =
+  case (le, re) of
+    (Elem.QuotTy a0 r0, Elem.QuotTy a1 r1) => do
+      d0 <- reCheck sig (ctx :< El a0 :< substTy (El a0) Wk) r0 Ty.PropTy emptySkel
+      d1 <- reCheck sig (ctx :< El a1 :< substTy (El a1) Wk) r1 Ty.PropTy emptySkel
+      let dC = DCodeQuotInjRel d0 d1 dEq
+      dA <- reTy sig ctx (El a1) emptySkel
+      dU <- reCheck sig ctx u (El a1) emptySkel
+      dA2 <- reTy sig (ctx :< El a1) (substTy (El a1) Wk) emptySkel
+      dV <- reCheck sig ctx v (El a1) emptySkel
+      let sub = DSubExt (DSubExt DSubId dA dU) dA2 dV
+      let d = DElSubCongFix sub dC
+      pure (d, substElem r0 (Ext (Ext Id u) v),
+               substElem r1 (Ext (Ext Id u) v), Ty.PropTy)
+    _ => Nothing
+applySelR sig ctx st (SelQIdx _) = Nothing
+
+foldSels : Sig -> Ctx -> (Deriv, Elem, Elem, Ty) -> List Sel -> Maybe (Deriv, Elem, Elem, Ty)
+foldSels sig ctx st [] = Just st
+foldSels sig ctx st (sel :: rest) = do
+  st' <- applySelR sig ctx st sel
+  foldSels sig ctx st' rest
+
 ||| The licensed equation of a step at depth d (crossed binders),
 ||| reconstructed AT the leaf's context: the proof spelling is
 ||| weakened and re-inferred there, its type exposed to a literal
@@ -570,21 +654,20 @@ reLicensed : Sig -> Ctx -> Step -> Nat -> Maybe (Deriv, Elem, Elem, Ty)
 reLicensed sig ctx step d =
   case step.lic of
     LProof p => do
-      let [] = step.sels
-        | _ => Nothing
       let pw = wkN d p
       (dp, pty) <- reInfer sig ctx pw emptySkel
       ptyN <- nfT sig pty
       dp' <- if pty == ptyN then Just dp
              else Just (DElTyCoe (DNfExpandTy (DPresupElTy dp)) dp)
       case ptyN of
-        Prf (Elem.EqTy le re t) => do
-          let dEq = DElReflect dp'
+        Prf (Elem.EqTy le0 re0 t0) => do
+          (dSel, le, re, t) <- foldSels sig ctx
+                                 (DElReflect dp', le0, re0, t0) step.sels
           -- normalize the licensed sides (replay compares nfs)
           leN <- nfE sig le
           reN <- nfE sig re
-          let dEqN = DElTrans (DElSym (DNfExpand (DPresupElL dEq)))
-                       (DElTrans dEq (DNfExpand (DPresupElR dEq)))
+          let dEqN = DElTrans (DElSym (DNfExpand (DPresupElL dSel)))
+                       (DElTrans dSel (DNfExpand (DPresupElR dSel)))
           let (dO, lO, rO) = if step.flip
                                then (DElSym dEqN, reN, leN)
                                else (dEqN, leN, reN)

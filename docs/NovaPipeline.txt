@@ -408,10 +408,15 @@ Phasing:
      (Φ threaded, embedded pieces checked at their spelled domains),
      sort instances and codes, constructors, and the eliminator with
      its PQCoh coherence certificates through the translator; LPath
-     licenses become DQPath leaves. Bails, honestly: selector-
-     carrying steps, dependent positions shifted beyond nf (the
+     licenses become DQPath leaves. Fifth slice: SELECTOR
+     translation — each Sel to its injectivity node, the
+     instantiating selectors composed with el-sub-cong-fix, SelSuc
+     riding the derivable predecessor route (el-nat-e-cong at the
+     constant motive, conjugated by nf-expand). Bails, honestly:
+     SelQIdx, dependent positions shifted beyond nf (the
      hypothesis-sensitive residue), placements through eliminators,
-     hole solutions. Remaining: those bails, then the re-seat.]
+     hole solutions. Remaining: those bails, a strict mode to
+     measure coverage, then the re-seat.]
   3. CONSOLIDATION (incremental, unhurried) — the elaborator emits
      derivations directly where reconstruction is weak or wasteful;
      the trace→derivation translation absorbs the discharge engine's
