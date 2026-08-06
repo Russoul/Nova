@@ -373,6 +373,12 @@ data Deriv : Type where
   DCodeSumInjR : Deriv -> Deriv
   DCodeQuotInjDom : Deriv -> Deriv -> Deriv -> Deriv
   DCodeQuotInjRel : Deriv -> Deriv -> Deriv -> Deriv
+  ||| QIIT code injectivity, indexwise (Foundation states the QIIT
+  ||| congruence/injectivity block structurally): from
+  ||| 𝒮.𝕤 ē₀ ≐ 𝒮.𝕤 ē₁ : 𝕌 with the spines α-agreeing before i,
+  ||| conclude ē₀ᵢ ≐ ē₁ᵢ : Eᵢ (entry i of the reflected telescope,
+  ||| instantiated by the shared prefix)
+  DCodeQSortInjIdx : Nat -> Deriv -> Deriv
   ||| ty-prf-cong: Γ ⊦ p ≐ q : Ω
   DTyPrfCong : Deriv -> Deriv
 
@@ -583,6 +589,10 @@ data Deriv : Type where
   ||| sort-instance formation Γ ⊦ 𝒮.𝕤 ē type — the spine entrywise
   ||| at the reflected arity telescope
   DTyQSort : Nat -> Deriv -> List Deriv -> Deriv
+  ||| the QSort formation congruence, spine-wise (Foundation's QIIT
+  ||| congruence block, stated structurally): index equations each
+  ||| checked at the telescope entry instantiated by the LEFT spine
+  DTyQSortCong : Nat -> Deriv -> List Deriv -> Deriv
   ||| code-qiit (small signatures only)
   DCodeQSort : Nat -> Deriv -> List Deriv -> Deriv
   ||| el-qiit-intro: the constructor spine entrywise; concludes at
@@ -1900,11 +1910,45 @@ conclude sig ctx d@(DQSubExt _ _ _) = kerr "derivation: qsub node outside the Γ
 conclude sig ctx d@(DQTySub _ _) = kerr "derivation: qty node outside the Γ;Φ zone"
 
 -- the QIIT item layer
+conclude sig ctx (DCodeQSortInjIdx i d) = do
+  (c0, c1, ty) <- conclude sig ctx d >>= needElEq
+  alphaTy "code-qsort-inj-idx (universe)" ty Ty.UniverseTy
+  case (c0, c1) of
+    (QSortC sg0 k0 es0, QSortC sg1 k1 es1) => do
+      if sg0 == sg1 && k0 == k1 then pure ()
+        else kerr "derivation: code-qsort-inj-idx: different signatures or sorts"
+      let l0 = toList es0
+      let l1 = toList es1
+      if take i l0 == take i l1 then pure ()
+        else kerr "derivation: code-qsort-inj-idx: spines differ before i"
+      (_, tel) <- qArity sg0 k0
+      case (getAt i l0, getAt i l1, telInst tel i l0) of
+        (Just a0, Just a1, Just e) => pure (JElEq a0 a1 e)
+        _ => kerr "derivation: code-qsort-inj-idx: index out of range"
+    _ => kerr "derivation: code-qsort-inj-idx: premise not between sort codes"
 conclude sig ctx (DTyQSort k dSig ds) = do
   sg <- conclude sig ctx dSig >>= needQSig
   (entry, tel) <- qArity sg k
   es <- qSpine "ty-qiit" sig ctx ds tel
   pure (JTy (QSort sg k (cast es)))
+conclude sig ctx (DTyQSortCong k dSig ds) = do
+  sg <- conclude sig ctx dSig >>= needQSig
+  (_, tel) <- qArity sg k
+  triples <- traverse (\d => conclude sig ctx d >>= needElEq) ds
+  let es0 = map (\(a, _, _) => a) triples
+  let es1 = map (\(_, b, _) => b) triples
+  if length es0 == length tel then pure ()
+    else kerr "derivation: ty-qiit-cong: spine length mismatch"
+  goChk tel 0 triples es0
+  pure (JTyEq (QSort sg k (cast es0)) (QSort sg k (cast es1)))
+ where
+  goChk : List Ty -> Nat -> List (Elem, Elem, Ty) -> List Elem -> KM ()
+  goChk tel i [] _ = pure ()
+  goChk tel i ((_, _, ety) :: rest) es0 = do
+    case telInst tel i es0 of
+      Just want => alphaTy "ty-qiit-cong" ety want
+      Nothing => kerr "derivation: ty-qiit-cong: telescope instantiation failed"
+    goChk tel (S i) rest es0
 conclude sig ctx (DCodeQSort k dSig ds) = do
   sg <- conclude sig ctx dSig >>= needQSig
   if qSigSmall sg then pure ()

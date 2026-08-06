@@ -472,9 +472,17 @@ Phasing:
      of re-typing normalized eliminator spellings bare — sum.nova's
      η law, whose endpoints spell ⊎-elim over an injected variable,
      is the paradigm case (currently 16/27; every covered item
-     agrees). Bails, honestly: SelQIdx, `data … Elim` items, hole
-     solutions, integer/vector tails. Remaining: those bails driven
-     down by the strict-mode meter, then the re-seat.]
+     agrees). Sixteenth slice: the LAST SELECTOR — SelQIdx
+     translates to code-qsort-inj-idx (QIIT code injectivity,
+     indexwise; Foundation states the QIIT congruence/injectivity
+     block structurally, so the node is its indexwise reading), and
+     the dual placement — rewriting INTO a QSort index — goes
+     through ty-qiit-cong, the same block's congruence reading, with
+     sibling indices refl at the left-spine instantiation (currently
+     17/27; every covered item agrees). Bails, honestly: `data …
+     Elim` items, hole solutions, integer/vector/letExpr tails.
+     Remaining: those bails driven down by the strict-mode meter,
+     then the re-seat.]
   3. CONSOLIDATION (incremental, unhurried) — the elaborator emits
      derivations directly where reconstruction is weak or wasteful;
      the trace→derivation translation absorbs the discharge engine's

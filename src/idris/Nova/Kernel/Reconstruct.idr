@@ -151,6 +151,11 @@ wkN : Nat -> Elem -> Elem
 wkN Z e = e
 wkN (S n) e = wkN n (substElem e Wk)
 
+setAtL : Nat -> a -> List a -> Maybe (List a)
+setAtL _ _ [] = Nothing
+setAtL Z x (_ :: rest) = Just (x :: rest)
+setAtL (S n) x (y :: rest) = (y ::) <$> setAtL n x rest
+
 ||| Certificate translation (the retirement map, executable): an
 ||| equality derivation for Γ ⊦ l ≐ r : ty from an ECert.
 export
@@ -910,7 +915,21 @@ applySelR sig ctx (dEq, le, re, t) (SelQRel u v) =
       pure (d, substElem r0 (Ext (Ext Id u) v),
                substElem r1 (Ext (Ext Id u) v), Ty.PropTy)
     _ => Nothing
-applySelR sig ctx st (SelQIdx _) = Nothing
+applySelR sig ctx (dEq, le, re, t) (SelQIdx i) =
+  case (le, re) of
+    (QSortC sg0 k0 es0, QSortC sg1 k1 es1) => do
+      let True = sg0 == sg1 && k0 == k1
+        | False => Nothing
+      let l0 = toList es0
+      let True = take i l0 == take i (toList es1)
+        | False => Nothing
+      entry <- qEntry sg0 k0
+      (tel, _, _) <- either (const Nothing) Just (reflTel sg0 (qwAt k0) entry)
+      a0 <- getAt i l0
+      a1 <- getAt i (toList es1)
+      e <- telInst tel i l0
+      pure (DCodeQSortInjIdx i dEq, a0, a1, e)
+    _ => Nothing
 
 foldSels : Sig -> Ctx -> (Deriv, Elem, Elem, Ty) -> List Sel -> Maybe (Deriv, Elem, Elem, Ty)
 foldSels sig ctx st [] = Just st
@@ -1197,6 +1216,22 @@ rePlaceT sig ctx step d (1 :: p) (Ty.SumTy a b) = do
   da <- reTy sig ctx a emptySkel
   (dc, b') <- rePlaceT sig ctx step d p b
   pure (DTySumCong (DTyRefl da) dc, Ty.SumTy a b')
+rePlaceT sig ctx step d (i :: p) (QSort sg k es) = do
+  entry <- qEntry sg k
+  (tel, _, _) <- either (const Nothing) Just (reflTel sg (qwAt k) entry)
+  let l = toList es
+  e <- getAt i l
+  ety <- telInst tel i l
+  (dc0, e', chTy) <- rePlaceE sig ctx step d p ety e
+  dc <- eqAtNf sig ctx dc0 chTy ety
+  dSig <- reQSig sig ctx sg
+  ds <- traverse (\(j, ej) =>
+          if j == i then Just dc
+          else do etj <- telInst tel j l
+                  DElRefl <$> reCheck sig ctx ej etj emptySkel)
+        (zip [0 .. minus (length l) 1] l)
+  l' <- maybe Nothing Just (setAtL i e' l)
+  pure (DTyQSortCong k dSig ds, QSort sg k (cast l'))
 rePlaceT sig ctx step d path ty = Nothing
 
 ||| The HYPOTHESIS-SENSITIVE TYPE BRIDGE: a placement at a dependent
@@ -1300,7 +1335,7 @@ stepChainT sig ctx (chain, cur) step = do
   curN <- nfT sig cur
   chain2 <- if curN == cur then Just chain
             else Just (DTyTrans chain (DNfExpandTy (DPresupTyR chain)))
-  (dPl, cur') <- rePlaceT sig ctx step 0 step.path curN
+  (dPl, cur') <- dbg "stepT: place \{show step.path} in \{show curN}" (rePlaceT sig ctx step 0 step.path curN)
   pure (DTyTrans chain2 dPl, cur')
 
 reEq sig ctx cert l r ty = reEqEnds sig ctx cert l r ty Nothing
@@ -1362,12 +1397,12 @@ reEqEnds sig ctx (MkECertF tyEx steps final) l r ty ends = do
 
 reEqTy sig ctx (MkECertF tyEx steps final) a b = do
   let Nothing = tyEx
-    | _ => Nothing
-  da0 <- reTy sig ctx a emptySkel
-  db0 <- reTy sig ctx b emptySkel
-  (chA, curA) <- goSide (DTyRefl da0, a) (filter (.onLhs) steps)
-  (chB, curB) <- goSide (DTyRefl db0, b) (filter (not . (.onLhs)) steps)
-  mid <- closeT sig ctx chA curA chB curB final
+    | _ => dbg "reqty: nested tyEx" Nothing
+  da0 <- dbg "reqty: endpoint L \{show a}" (reTy sig ctx a emptySkel)
+  db0 <- dbg "reqty: endpoint R \{show b}" (reTy sig ctx b emptySkel)
+  (chA, curA) <- dbg "reqty: chain L" (goSide (DTyRefl da0, a) (filter (.onLhs) steps))
+  (chB, curB) <- dbg "reqty: chain R" (goSide (DTyRefl db0, b) (filter (not . (.onLhs)) steps))
+  mid <- dbg "reqty: close, curA \{show curA} curB \{show curB}" (closeT sig ctx chA curA chB curB final)
   pure (DTyTrans chA (DTyTrans mid (DTySym chB)))
  where
   goSide : (Deriv, Ty) -> List Step -> Maybe (Deriv, Ty)
