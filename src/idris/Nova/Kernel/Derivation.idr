@@ -124,6 +124,20 @@ data Judg : Type where
   JSub : Sub -> Ctx -> Judg
   ||| Γ ⊦ 𝔽 poly
   JPoly : Poly -> Judg
+  ||| Γ₀ ≐ Γ₁ ctx (ambient-independent, like JCtx)
+  JCtxEq : Ctx -> Ctx -> Judg
+  ||| σ₀ ≐ σ₁ : Γ ⇒ Δ
+  JSubEq : Sub -> Sub -> Ctx -> Judg
+  ||| e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm
+  JSubNEq : SubNorm -> SubNorm -> Ctx -> Judg
+  ||| Γ ⊦ Δ tel (the telescope's entries, outermost first)
+  JTel : List Ty -> Judg
+  ||| Γ ⊦ Δ₀ ≐ Δ₁ tel
+  JTelEq : List Ty -> List Ty -> Judg
+  ||| Γ ⊦ ē : Δ
+  JSp : List Elem -> List Ty -> Judg
+  ||| Γ ⊦ ē₀ ≐ ē₁ : Δ
+  JSpEq : List Elem -> List Elem -> List Ty -> Judg
   ||| Γ ⊦ 𝒮 qsig
   JQSig : QSig -> Judg
   ||| Γ ⊦ Φ qctx — the formed ToS context (innermost LAST), an output
@@ -144,6 +158,13 @@ Show Judg where
   show (JQSig sg) = "⊦ qsig (\{show (length sg)} entries)"
   show (JQCtx phi) = "⊦ qctx (\{show (length (toList phi))} entries)"
   show (JQSub _ _) = "⊦ qsub"
+  show (JCtxEq _ _) = "⊦ ctx ≐ ctx"
+  show (JSubEq _ _ _) = "⊦ sub ≐ sub"
+  show (JSubNEq _ _ _) = "⊦ norm ≐ norm"
+  show (JTel d) = "⊦ tel (\{show (length d)} entries)"
+  show (JTelEq _ _) = "⊦ tel ≐ tel"
+  show (JSp es _) = "⊦ sp (\{show (length es)} entries)"
+  show (JSpEq _ _ _) = "⊦ sp ≐ sp"
 
 -- ===== Derivations =====
 
@@ -415,6 +436,48 @@ data Deriv : Type where
   DElSubCongFix : Deriv -> Deriv -> Deriv
   ||| ty-sub-cong-fix
   DTySubCongFix : Deriv -> Deriv -> Deriv
+  ||| the equivalence-rule instances for the remaining classes
+  ||| (adopted once per class in Foundation)
+  DCtxRefl : Deriv -> Deriv
+  DCtxSym : Deriv -> Deriv
+  DCtxTrans : Deriv -> Deriv -> Deriv
+  DSubRefl : Deriv -> Deriv
+  DSubSym : Deriv -> Deriv
+  DSubTrans : Deriv -> Deriv -> Deriv
+  DSubNRefl : Deriv -> Deriv
+  DSubNSym : Deriv -> Deriv
+  DSubNTrans : Deriv -> Deriv -> Deriv
+  DTelRefl : Deriv -> Deriv
+  DTelSym : Deriv -> Deriv
+  DTelTrans : Deriv -> Deriv -> Deriv
+  DSpRefl : Deriv -> Deriv
+  DSpSym : Deriv -> Deriv
+  DSpTrans : Deriv -> Deriv -> Deriv
+  ||| ctx-ext-cong: Γ₀ ≐ Γ₁ ctx;  Γ₁ ⊦ A₀ ≐ A₁ type
+  DCtxExtCong : Deriv -> Deriv -> Deriv
+  ||| sub-norm-ext-cong — delivery order the norm equation (delivers
+  ||| the target prefix), A over it, the entry equation at A[e˲₁]
+  DSubNExtCong : Deriv -> Deriv -> Deriv -> Deriv
+  ||| el-sub-cong / ty-sub-cong (the full forms; σ₀ ≐ σ₁ delivered
+  ||| first, the equation over the target)
+  DElSubCong : Deriv -> Deriv -> Deriv
+  DTySubCong : Deriv -> Deriv -> Deriv
+  ||| tel-empty / tel-ext / tel-ext-cong
+  DTelEmpty : Deriv
+  DTelExt : Deriv -> Deriv -> Deriv
+  DTelExtCong : Deriv -> Deriv -> Deriv
+  ||| sp-empty / sp-ext / sp-ext-cong (Δ instantiated at the head)
+  DSpEmpty : Deriv
+  DSpExt : Deriv -> Deriv -> Deriv -> Deriv
+  DSpExtCong : Deriv -> Deriv -> Deriv -> Deriv
+  ||| the context-coercion rules: ty-coe-ctx / el-coe-ctx /
+  ||| ty-eq-coe-ctx / el-eq-coe-ctx — the ambient must α-match the
+  ||| equation's RIGHT context; the judgement premise runs under the
+  ||| LEFT
+  DTyCoeCtx : Deriv -> Deriv -> Deriv
+  DElCoeCtx : Deriv -> Deriv -> Deriv
+  DTyEqCoeCtx : Deriv -> Deriv -> Deriv
+  DElEqCoeCtx : Deriv -> Deriv -> Deriv
 
   -- ----- the ν layer -----
   ||| poly-hole / poly-const / poly-prod / poly-sum / poly-sigma /
@@ -537,6 +600,34 @@ needQSig j = kerr "derivation: expected a signature premise"
 needQCtx : Judg -> KM (SnocList QTy)
 needQCtx (JQCtx phi) = pure phi
 needQCtx j = kerr "derivation: expected a qctx premise"
+
+needCtxEq : Judg -> KM (Ctx, Ctx)
+needCtxEq (JCtxEq g0 g1) = pure (g0, g1)
+needCtxEq j = kerr "derivation: expected a context-equation premise"
+
+needSubEq : Judg -> KM (Sub, Sub, Ctx)
+needSubEq (JSubEq s0 s1 d) = pure (s0, s1, d)
+needSubEq j = kerr "derivation: expected a substitution-equation premise"
+
+needSubNEq : Judg -> KM (SubNorm, SubNorm, Ctx)
+needSubNEq (JSubNEq e0 e1 d) = pure (e0, e1, d)
+needSubNEq j = kerr "derivation: expected a normal-substitution-equation premise"
+
+needTel : Judg -> KM (List Ty)
+needTel (JTel d) = pure d
+needTel j = kerr "derivation: expected a telescope premise"
+
+needTelEq : Judg -> KM (List Ty, List Ty)
+needTelEq (JTelEq d0 d1) = pure (d0, d1)
+needTelEq j = kerr "derivation: expected a telescope-equation premise"
+
+needSp : Judg -> KM (List Elem, List Ty)
+needSp (JSp es d) = pure (es, d)
+needSp j = kerr "derivation: expected an element-list premise"
+
+needSpEq : Judg -> KM (List Elem, List Elem, List Ty)
+needSpEq (JSpEq e0 e1 d) = pure (e0, e1, d)
+needSpEq j = kerr "derivation: expected an element-list-equation premise"
 
 liftQE : Either QErr a -> KM a
 liftQE (Left e) = kerr "derivation: \{e}"
@@ -1220,6 +1311,133 @@ conclude sig ctx (DSubNExt dEs dA dE) = do
   (e, ety) <- conclude sig ctx dE >>= needEl
   alphaTy "sub-norm-ext" ety (substTy a (embed es))
   pure (JSubN (es :< e) (delta :< a))
+
+
+-- the remaining equivalence instances, ext-congruences, coercions
+conclude sig ctx (DCtxRefl d) = do
+  g <- conclude sig ctx d >>= needCtx
+  pure (JCtxEq g g)
+conclude sig ctx (DCtxSym d) = do
+  (g0, g1) <- conclude sig ctx d >>= needCtxEq
+  pure (JCtxEq g1 g0)
+conclude sig ctx (DCtxTrans d01 d12) = do
+  (g0, g1) <- conclude sig ctx d01 >>= needCtxEq
+  (g1', g2) <- conclude sig ctx d12 >>= needCtxEq
+  if g1' == g1 then pure () else kerr "derivation: ctx-trans: middle mismatch"
+  pure (JCtxEq g0 g2)
+conclude sig ctx (DCtxExtCong dG dA) = do
+  (g0, g1) <- conclude sig ctx dG >>= needCtxEq
+  (a0, a1) <- conclude sig g1 dA >>= needTyEq
+  pure (JCtxEq (g0 :< a0) (g1 :< a1))
+conclude sig ctx (DSubRefl d) = do
+  (s', d') <- conclude sig ctx d >>= needSub
+  pure (JSubEq s' s' d')
+conclude sig ctx (DSubSym d) = do
+  (s0, s1, d') <- conclude sig ctx d >>= needSubEq
+  pure (JSubEq s1 s0 d')
+conclude sig ctx (DSubTrans d01 d12) = do
+  (s0, s1, d') <- conclude sig ctx d01 >>= needSubEq
+  (s1', s2, d'') <- conclude sig ctx d12 >>= needSubEq
+  if s1' == s1 && d'' == d' then pure ()
+    else kerr "derivation: sub-trans: middle mismatch"
+  pure (JSubEq s0 s2 d')
+conclude sig ctx (DSubNRefl d) = do
+  (es, d') <- conclude sig ctx d >>= needSubN
+  pure (JSubNEq es es d')
+conclude sig ctx (DSubNSym d) = do
+  (e0, e1, d') <- conclude sig ctx d >>= needSubNEq
+  pure (JSubNEq e1 e0 d')
+conclude sig ctx (DSubNTrans d01 d12) = do
+  (e0, e1, d') <- conclude sig ctx d01 >>= needSubNEq
+  (e1', e2, d'') <- conclude sig ctx d12 >>= needSubNEq
+  if e1' == e1 && d'' == d' then pure ()
+    else kerr "derivation: sub-norm-trans: middle mismatch"
+  pure (JSubNEq e0 e2 d')
+conclude sig ctx (DSubNExtCong dEs dA dT) = do
+  (e0, e1, delta) <- conclude sig ctx dEs >>= needSubNEq
+  a <- conclude sig delta dA >>= needTy
+  (t0, t1, tty) <- conclude sig ctx dT >>= needElEq
+  alphaTy "sub-norm-ext-cong" tty (substTy a (embed e1))
+  pure (JSubNEq (e0 :< t0) (e1 :< t1) (delta :< a))
+conclude sig ctx (DElSubCong dS dEq) = do
+  (s0, s1, g1) <- conclude sig ctx dS >>= needSubEq
+  (t0, t1, a) <- conclude sig g1 dEq >>= needElEq
+  pure (JElEq (substElem t0 s0) (substElem t1 s1) (substTy a s1))
+conclude sig ctx (DTySubCong dS dEq) = do
+  (s0, s1, g1) <- conclude sig ctx dS >>= needSubEq
+  (a0, a1) <- conclude sig g1 dEq >>= needTyEq
+  pure (JTyEq (substTy a0 s0) (substTy a1 s1))
+conclude sig ctx DTelEmpty = pure (JTel [])
+conclude sig ctx (DTelExt dA dD) = do
+  a <- conclude sig ctx dA >>= needTy
+  d <- conclude sig (ctx :< a) dD >>= needTel
+  pure (JTel (a :: d))
+conclude sig ctx (DTelExtCong dA dD) = do
+  (a0, a1) <- conclude sig ctx dA >>= needTyEq
+  (d0, d1) <- conclude sig (ctx :< a1) dD >>= needTelEq
+  pure (JTelEq (a0 :: d0) (a1 :: d1))
+conclude sig ctx (DTelRefl d) = do
+  t <- conclude sig ctx d >>= needTel
+  pure (JTelEq t t)
+conclude sig ctx (DTelSym d) = do
+  (d0, d1) <- conclude sig ctx d >>= needTelEq
+  pure (JTelEq d1 d0)
+conclude sig ctx (DTelTrans d01 d12) = do
+  (d0, d1) <- conclude sig ctx d01 >>= needTelEq
+  (d1', d2) <- conclude sig ctx d12 >>= needTelEq
+  if d1' == d1 then pure () else kerr "derivation: tel-trans: middle mismatch"
+  pure (JTelEq d0 d2)
+conclude sig ctx DSpEmpty = pure (JSp [] [])
+conclude sig ctx (DSpExt dE dD dEs) = do
+  (e, a) <- conclude sig ctx dE >>= needEl
+  d <- conclude sig (ctx :< a) dD >>= needTel
+  (es, dInst) <- conclude sig ctx dEs >>= needSp
+  if dInst == map (\t => substTy t (Ext Id e)) d then pure ()
+    else kerr "derivation: sp-ext: tail not at the instantiated telescope"
+  pure (JSp (e :: es) (a :: d))
+conclude sig ctx (DSpExtCong dE dD dEs) = do
+  (e0, e1, a) <- conclude sig ctx dE >>= needElEq
+  d <- conclude sig (ctx :< a) dD >>= needTel
+  (es0, es1, dInst) <- conclude sig ctx dEs >>= needSpEq
+  if dInst == map (\t => substTy t (Ext Id e1)) d then pure ()
+    else kerr "derivation: sp-ext-cong: tails not at the instantiated telescope"
+  pure (JSpEq (e0 :: es0) (e1 :: es1) (a :: d))
+conclude sig ctx (DSpRefl d) = do
+  (es, d') <- conclude sig ctx d >>= needSp
+  pure (JSpEq es es d')
+conclude sig ctx (DSpSym d) = do
+  (e0, e1, d') <- conclude sig ctx d >>= needSpEq
+  pure (JSpEq e1 e0 d')
+conclude sig ctx (DSpTrans d01 d12) = do
+  (e0, e1, d') <- conclude sig ctx d01 >>= needSpEq
+  (e1', e2, d'') <- conclude sig ctx d12 >>= needSpEq
+  if e1' == e1 && d'' == d' then pure ()
+    else kerr "derivation: sp-trans: middle mismatch"
+  pure (JSpEq e0 e2 d')
+conclude sig ctx (DTyCoeCtx dG dA) = do
+  (g0, g1) <- conclude sig ctx dG >>= needCtxEq
+  if ctx == g1 then pure ()
+    else kerr "derivation: ty-coe-ctx: ambient is not the equation's right context"
+  a <- conclude sig g0 dA >>= needTy
+  pure (JTy a)
+conclude sig ctx (DElCoeCtx dG dA) = do
+  (g0, g1) <- conclude sig ctx dG >>= needCtxEq
+  if ctx == g1 then pure ()
+    else kerr "derivation: el-coe-ctx: ambient is not the equation's right context"
+  (a, aty) <- conclude sig g0 dA >>= needEl
+  pure (JEl a aty)
+conclude sig ctx (DTyEqCoeCtx dG dA) = do
+  (g0, g1) <- conclude sig ctx dG >>= needCtxEq
+  if ctx == g1 then pure ()
+    else kerr "derivation: ty-eq-coe-ctx: ambient is not the equation's right context"
+  (a0, a1) <- conclude sig g0 dA >>= needTyEq
+  pure (JTyEq a0 a1)
+conclude sig ctx (DElEqCoeCtx dG dA) = do
+  (g0, g1) <- conclude sig ctx dG >>= needCtxEq
+  if ctx == g1 then pure ()
+    else kerr "derivation: el-eq-coe-ctx: ambient is not the equation's right context"
+  (t0, t1, a) <- conclude sig g0 dA >>= needElEq
+  pure (JElEq t0 t1 a)
 
 -- ADMISSIBLE: presupposition projection
 conclude sig ctx (DPresupElL d) = do
