@@ -394,9 +394,20 @@ Phasing:
      business). Second slice: type items under the
      shadow, ν formation/intro/observation (poly rebuilt rule by
      rule), and quotient elimination with β-only well-definedness.
-     Remaining: step-carrying certificates via the retirement map
-     (the big one), the QIIT formers, hole solutions under the
-     shadow, then the re-seat.]
+     Third slice: the CERTIFICATE
+     TRANSLATOR — the retirement map executable: rolling per-side
+     trans chains with nf-expand bridges, licensed equations
+     reconstructed AT the leaf's context (weakened proof spellings
+     re-inferred there, exposed to a literal equality prop by
+     projection + the oracle), flips as sym, paths as congruence
+     chains with sibling refls, finals mapped (beta → nf-eq, prop
+     rules, quotient witnesses, Π-η, the type congruence finals);
+     intermediate typings all flow through presupposition
+     projections. Bails, honestly: selector-carrying steps,
+     LPath licenses, dependent positions shifted beyond nf,
+     placements through eliminators. Remaining: those bails, the
+     QIIT formers, hole solutions under the shadow, then the
+     re-seat.]
   3. CONSOLIDATION (incremental, unhurried) — the elaborator emits
      derivations directly where reconstruction is weak or wasteful;
      the trace→derivation translation absorbs the discharge engine's
