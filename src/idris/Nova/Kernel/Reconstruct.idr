@@ -828,6 +828,8 @@ headPi sig ctx f e exp =
       (_, a) <- reInfer sig ctx e emptySkel
       pure (a, substTy exp Wk)
 
+rePlaceT : Sig -> Ctx -> Step -> Nat -> List Nat -> Ty -> Maybe (Deriv, Ty)
+
 ||| Placement: rewrite `cur` at `path` by the step's licensed
 ||| equation, emitting the congruence chain; returns the derivation
 ||| (cur ≐ cur′ at the expected type) and cur′.
@@ -950,6 +952,17 @@ rePlaceE sig ctx step d (i :: p) exp cur =
       dl <- reCheck sig ctx l t emptySkel
       (dc, r', _) <- rePlaceE sig ctx step d p t r
       pure (DCodeEqCong (DTyRefl dt) (DElRefl dl) dc, Elem.EqTy l r' t, Ty.PropTy)
+    (Elem.EqTy l r t, 2) => do
+      -- a rewrite in the ∈-slot: the sides ride the CHILD TYPE
+      -- EQUATION itself into the new type — the hypothesis-sensitive
+      -- bridge, derived rather than oracled
+      (dc, t') <- rePlaceT sig ctx step d p t
+      dl <- reCheck sig ctx l t emptySkel
+      dr <- reCheck sig ctx r t emptySkel
+      pure (DCodeEqCong dc
+              (DElEqTyCoe dc (DElRefl dl))
+              (DElEqTyCoe dc (DElRefl dr)),
+            Elem.EqTy l r t', Ty.PropTy)
     (Elem.SumTy a b, 0) => do
       (dc, a', _) <- rePlaceE sig ctx step d p Ty.UniverseTy a
       db <- reCheck sig ctx b Ty.UniverseTy emptySkel
@@ -960,7 +973,6 @@ rePlaceE sig ctx step d (i :: p) exp cur =
       pure (DCodeSumCong (DElRefl da) dc, Elem.SumTy a b', Ty.UniverseTy)
     _ => Nothing
 
-rePlaceT : Sig -> Ctx -> Step -> Nat -> List Nat -> Ty -> Maybe (Deriv, Ty)
 rePlaceT sig ctx step d (0 :: p) (El e) = do
   (dc, e', _) <- rePlaceE sig ctx step d p Ty.UniverseTy e
   pure (DTyElCong dc, El e')
@@ -993,6 +1005,70 @@ rePlaceT sig ctx step d (1 :: p) (Ty.SumTy a b) = do
   pure (DTySumCong (DTyRefl da) dc, Ty.SumTy a b')
 rePlaceT sig ctx step d path ty = Nothing
 
+||| The HYPOTHESIS-SENSITIVE TYPE BRIDGE: a placement at a dependent
+||| position shifts the equation's type by the step's own licensed
+||| equation. Walk the two type spellings in parallel — α-equal parts
+||| by refl, elements at the licensed pair by the licensed equation
+||| itself (coerced to the position), congruence in between.
+reBridgeE : Sig -> Ctx -> Step -> Nat -> Elem -> Elem -> Ty -> Maybe Deriv
+
+reBridgeT : Sig -> Ctx -> Step -> Nat -> Ty -> Ty -> Maybe Deriv
+reBridgeT sig ctx step d a b =
+  if a == b
+    then DTyRefl <$> reTy sig ctx a emptySkel
+    else case (a, b) of
+      (El x, El y) => DTyElCong <$> reBridgeE sig ctx step d x y Ty.UniverseTy
+      (Prf x, Prf y) => DTyPrfCong <$> reBridgeE sig ctx step d x y Ty.PropTy
+      (Ty.PiTy a0 b0, Ty.PiTy a1 b1) =>
+        [| DTyPiCong (reBridgeT sig ctx step d a0 a1)
+                     (reBridgeT sig (ctx :< a1) step (S d) b0 b1) |]
+      (Ty.SigmaTy a0 b0, Ty.SigmaTy a1 b1) =>
+        [| DTySigmaCong (reBridgeT sig ctx step d a0 a1)
+                        (reBridgeT sig (ctx :< a1) step (S d) b0 b1) |]
+      (Ty.SumTy a0 b0, Ty.SumTy a1 b1) =>
+        [| DTySumCong (reBridgeT sig ctx step d a0 a1)
+                      (reBridgeT sig ctx step d b0 b1) |]
+      (Ty.Quotient a0 r0, Ty.Quotient a1 r1) => do
+        da <- reBridgeT sig ctx step d a0 a1
+        dr <- reBridgeE sig (ctx :< a1 :< substTy a1 Wk) step (2 + d) r0 r1 Ty.PropTy
+        pure (DTyQuotCong da dr)
+      _ => Nothing
+
+reBridgeE sig ctx step d x y exp =
+  if x == y
+    then DElRefl <$> reCheck sig ctx x exp emptySkel
+    else
+      (do (dEq0, le, re, t) <- reLicensed sig ctx step d
+          dEq <- if x == le && y == re then Just dEq0
+                 else if x == re && y == le then Just (DElSym dEq0)
+                 else Nothing
+          if t == exp then Just dEq
+            else do
+              tN <- nfT sig t
+              eN <- nfT sig exp
+              let True = tN == eN
+                | False => Nothing
+              dt <- reTy sig ctx t emptySkel
+              de <- reTy sig ctx exp emptySkel
+              pure (DElEqTyCoe (DNfEqTy dt de) dEq))
+      <|> (case (x, y) of
+             (NatIntro1 u, NatIntro1 v) =>
+               DElSucCong <$> reBridgeE sig ctx step d u v Ty.NatTy
+             (PiApp f u, PiApp g v) => do
+               let True = f == g
+                 | False => Nothing
+               (a, b) <- headPi sig ctx f u exp
+               df <- reCheck sig ctx f (Ty.PiTy a b) emptySkel
+               dc <- reBridgeE sig ctx step d u v a
+               db <- reTy sig (ctx :< a) b emptySkel
+               pure (DElAppCong (DElRefl df) dc db)
+             (Elem.EqTy l0 r0 t0, Elem.EqTy l1 r1 t1) => do
+               dt <- reBridgeT sig ctx step d t0 t1
+               dl <- reBridgeE sig ctx step d l0 l1 t1
+               dr <- reBridgeE sig ctx step d r0 r1 t1
+               pure (DCodeEqCong dt dl dr)
+             _ => Nothing)
+
 ||| One side's rolling chain: side₀ ≐ cur, extended by a step.
 stepChainE : Sig -> Ctx -> Ty -> (Deriv, Elem) -> Step -> Maybe (Deriv, Elem)
 stepChainE sig ctx ty (chain, cur) step = do
@@ -1008,10 +1084,20 @@ stepChainE sig ctx ty (chain, cur) step = do
             else do
               pN <- nfT sig plTy
               tN <- nfT sig ty
-              let True = pN == tN
-                | False => Nothing
-              dTy <- reTy sig ctx ty emptySkel
-              pure (DElEqTyCoe (DNfEqTy (DPresupElTy (DPresupElL dPl)) dTy) dPl)
+              if pN == tN
+                then do
+                  dTy <- reTy sig ctx ty emptySkel
+                  pure (DElEqTyCoe (DNfEqTy (DPresupElTy (DPresupElL dPl)) dTy) dPl)
+                else do
+                  -- the dependent shift: bridge by the step's own
+                  -- licensed equation, walked through the two types
+                  dBr <- reBridgeT sig ctx step 0 pN tN
+                  dPlN <- do
+                    dP <- reTy sig ctx pN emptySkel
+                    pure (DElEqTyCoe (DNfEqTy (DPresupElTy (DPresupElL dPl)) dP) dPl)
+                  dTy <- reTy sig ctx ty emptySkel
+                  let atN = DElEqTyCoe dBr dPlN
+                  pure (DElEqTyCoe (DTySym (DNfExpandTy dTy)) atN)
   pure (DElTrans chain2 dPl', cur')
 
 stepChainT : Sig -> Ctx -> (Deriv, Ty) -> Step -> Maybe (Deriv, Ty)
@@ -1028,21 +1114,41 @@ reEq sig ctx (MkECertF tyEx steps final) l r ty = do
                   Just (tyX, certT) => do
                     dBr <- reEqTy sig ctx certT ty tyX
                     Just (tyX, Just dBr)
-  dl0 <- reCheck sig ctx l ty' emptySkel
-  dr0 <- reCheck sig ctx r ty' emptySkel
-  (chL, curL) <- goSide (DElRefl dl0, l) (filter (.onLhs) steps)
-  (chR, curR) <- goSide (DElRefl dr0, r) (filter (not . (.onLhs)) steps)
+  dl0 <- checkBridged l ty'
+  dr0 <- checkBridged r ty' 
+  (chL, curL) <- goSide ty' (DElRefl dl0, l) (filter (.onLhs) steps)
+  (chR, curR) <- goSide ty' (DElRefl dr0, r) (filter (not . (.onLhs)) steps)
   mid <- closeE sig ctx ty' chL curL chR curR final
   let whole = DElTrans chL (DElTrans mid (DElSym chR))
   pure $ case pre of
     Nothing => whole
     Just dBr => DElEqTyCoe (DTySym dBr) whole
  where
-  goSide : (Deriv, Elem) -> List Step -> Maybe (Deriv, Elem)
-  goSide st [] = Just st
-  goSide st (stp :: rest) = do
-    st' <- stepChainE sig ctx ty st stp
-    goSide st' rest
+  ||| An endpoint whose typing is hypothesis-sensitive rides the
+  ||| bridge over one of the certificate's own steps.
+  checkBridged : Elem -> Ty -> Maybe Deriv
+  checkBridged e t =
+    reCheck sig ctx e t emptySkel
+    <|> (do (de, ety) <- reInfer sig ctx e emptySkel
+            eN <- nfT sig ety
+            tN <- nfT sig t
+            dBr <- firstStep steps eN tN
+            deN <- do dP <- reTy sig ctx eN emptySkel
+                      pure (DElTyCoe (DNfExpandTy (DPresupElTy de)) de)
+            dT <- reTy sig ctx t emptySkel
+            pure (DElTyCoe (DTySym (DNfExpandTy dT))
+                    (DElTyCoe dBr deN)))
+   where
+    firstStep : List Step -> Ty -> Ty -> Maybe Deriv
+    firstStep [] _ _ = Nothing
+    firstStep (stp :: rest) a b =
+      reBridgeT sig ctx stp 0 a b <|> firstStep rest a b
+
+  goSide : Ty -> (Deriv, Elem) -> List Step -> Maybe (Deriv, Elem)
+  goSide t st [] = Just st
+  goSide t st (stp :: rest) = do
+    st' <- stepChainE sig ctx t st stp
+    goSide t st' rest
 
 reEqTy sig ctx (MkECertF tyEx steps final) a b = do
   let Nothing = tyEx
@@ -1219,7 +1325,15 @@ reDefArt sig art =
   case art.tele of
     [] => do
       dT <- reTy sig [<] art.dty art.dtySkel
+      -- when the raw spelling carries solved holes whose re-derivation
+      -- is hypothesis-sensitive, check at nf (holes unfolded) and ride
+      -- dT back to the spelling
       dt <- reCheck sig [<] art.body art.dty art.bodySkel
+            <|> (do tyN <- nfT sig art.dty
+                    let False = tyN == art.dty
+                      | True => Nothing
+                    d <- reCheck sig [<] art.body tyN art.bodySkel
+                    pure (DElTyCoe (DTySym (DNfExpandTy dT)) d))
       pure (dT, dt)
     _ => Nothing
 

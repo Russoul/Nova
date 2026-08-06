@@ -416,12 +416,27 @@ Phasing:
      (a rule the derivation core had missed — the reconstructor's
      coverage sweep found it), the FPropExt final, and STRICT MODE —
      NOVA_STRICT_DERIVATIONS=1 makes an uncovered accepted item an
-     error, turning the corpus into a coverage meter (currently 3/27
-     files fully covered; every covered item agrees). Bails,
-     honestly: SelQIdx, dependent positions shifted beyond nf (the
-     hypothesis-sensitive residue), placements through eliminators,
-     hole solutions. Remaining: those bails driven down by the
-     strict-mode meter, then the re-seat.]
+     error, turning the corpus into a coverage meter. Seventh
+     through ninth slices: the applied-eliminator fragment (an
+     eliminator head applied under a constant-codomain guess), head
+     exposure by nf on both the synthesized and the expected side,
+     and placement motives read off the expected type. Tenth slice:
+     the HYPOTHESIS-SENSITIVE TYPE BRIDGE — a placement at a
+     dependent position shifts the equation's type by the step's own
+     licensed equation, so the two spellings are walked in parallel
+     and the mismatched pair is closed by that very equation
+     (both orientations); endpoints whose typing needs the
+     hypothesis ride the same bridge; rewriting into the equality
+     code's ∈-slot goes through the derived code-eq congruence; and
+     a def whose raw type spells solved holes is checked at nf and
+     ridden back on the type derivation already in hand. The chain
+     type is the certificate's own (tyEx), not the equation's — a
+     mixed-spelling trans caught by the shadow, not by the meter
+     (currently 10/27 files fully covered; every covered item
+     agrees). Bails, honestly: SelQIdx, placements through
+     eliminators, `data … Elim` items, hole solutions. Remaining:
+     those bails driven down by the strict-mode meter, then the
+     re-seat.]
   3. CONSOLIDATION (incremental, unhurried) — the elaborator emits
      derivations directly where reconstruction is weak or wasteful;
      the trace→derivation translation absorbs the discharge engine's
