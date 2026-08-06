@@ -676,6 +676,11 @@ mutual
             pure (DElNuI dp da db dx)
           else Nothing
       _ => Nothing
+  reCheckGo sig ctx (Let a b) ty sk = do
+    (da, aty) <- reInfer sig ctx a (childAt 0 sk)
+    let hyp = Prf (Elem.EqTy (CtxVar 0) (substElem a Wk) (substTy aty Wk))
+    db <- reCheck sig (ctx :< aty :< hyp) b (substTy ty (Chain Wk Wk)) (childAt 1 sk)
+    pure (DElLet da db)
   reCheckGo sig ctx (NatElim z st t) ty sk =
     case payload pMot sk of
       Just _ => do
@@ -1176,6 +1181,24 @@ rePlaceE sig ctx step d (i :: p) exp cur =
               (DElEqTyCoe dc (DElRefl dl))
               (DElEqTyCoe dc (DElRefl dr)),
             Elem.EqTy l r t', Ty.PropTy)
+    (QCtor sg k es, _) => do
+      entry <- qEntry sg k
+      (tel, _, _) <- either (const Nothing) Just (reflTel sg (qwAt k) entry)
+      let ls = toList es
+      e0 <- getAt i ls
+      ety <- telInst tel i ls
+      (dc0, e', chTy) <- rePlaceE sig ctx step d p ety e0
+      dc <- eqAtNf sig ctx dc0 chTy ety
+      dSig <- reQSig sig ctx sg
+      ds <- traverse (\(j, ej) =>
+              if j == i then Just dc
+              else do etj <- telInst tel j ls
+                      DElRefl <$> reCheck sig ctx ej etj emptySkel)
+            (zip [0 .. minus (length ls) 1] ls)
+      ls' <- setAtL i e' ls
+      (wEnd, hd) <- either (const Nothing) Just (walkVals sg (qwAt k) entry ls)
+      (srt, idx) <- either (const Nothing) Just (pointHead sg wEnd hd)
+      pure (DQCtorCong k dSig ds, QCtor sg k (cast ls'), QSort sg srt idx)
     (Elem.SumTy a b, 0) => do
       (dc, a', _) <- rePlaceE sig ctx step d p Ty.UniverseTy a
       db <- reCheck sig ctx b Ty.UniverseTy emptySkel

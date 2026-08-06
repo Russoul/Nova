@@ -593,6 +593,10 @@ data Deriv : Type where
   ||| congruence block, stated structurally): index equations each
   ||| checked at the telescope entry instantiated by the LEFT spine
   DTyQSortCong : Nat -> Deriv -> List Deriv -> Deriv
+  ||| the point-constructor spine congruence (the same structural
+  ||| block): argument equations each at the left instantiation;
+  ||| concludes at the left spine's sort instance
+  DQCtorCong : Nat -> Deriv -> List Deriv -> Deriv
   ||| code-qiit (small signatures only)
   DCodeQSort : Nat -> Deriv -> List Deriv -> Deriv
   ||| el-qiit-intro: the constructor spine entrywise; concludes at
@@ -1969,6 +1973,32 @@ conclude sig ctx (DQCtor k dSig ds) = do
   (wEnd, hd) <- liftQE (walkVals sg (qwAt k) entry es)
   (srt, idx) <- liftQE (pointHead sg wEnd hd)
   pure (JEl (QCtor sg k (cast es)) (QSort sg srt idx))
+conclude sig ctx (DQCtorCong k dSig ds) = do
+  sg <- conclude sig ctx dSig >>= needQSig
+  entry <- case qEntry sg k of
+             Just e => pure e
+             Nothing => kerr "derivation: el-qiit-intro-cong: position out of range"
+  case qEntryKind entry of
+    QKPoint => pure ()
+    _ => kerr "derivation: el-qiit-intro-cong: not a point constructor"
+  (tel, _, _) <- liftQE (reflTel sg (qwAt k) entry)
+  triples <- traverse (\d => conclude sig ctx d >>= needElEq) ds
+  let es0 = map (\(a, _, _) => a) triples
+  let es1 = map (\(_, b, _) => b) triples
+  if length es0 == length tel then pure ()
+    else kerr "derivation: el-qiit-intro-cong: spine length mismatch"
+  goChk tel 0 triples es0
+  (wEnd, hd) <- liftQE (walkVals sg (qwAt k) entry es0)
+  (srt, idx) <- liftQE (pointHead sg wEnd hd)
+  pure (JElEq (QCtor sg k (cast es0)) (QCtor sg k (cast es1)) (QSort sg srt idx))
+ where
+  goChk : List Ty -> Nat -> List (Elem, Elem, Ty) -> List Elem -> KM ()
+  goChk tel i [] _ = pure ()
+  goChk tel i ((_, _, ety) :: rest) es0 = do
+    case telInst tel i es0 of
+      Just want => alphaTy "el-qiit-intro-cong" ety want
+      Nothing => kerr "derivation: el-qiit-intro-cong: telescope instantiation failed"
+    goChk tel (S i) rest es0
 conclude sig ctx (DQMot dSig ds) = do
   sg <- conclude sig ctx dSig >>= needQSig
   mots <- goMots sg (qPositions QKSort sg) ds

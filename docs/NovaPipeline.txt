@@ -479,10 +479,16 @@ Phasing:
      the dual placement — rewriting INTO a QSort index — goes
      through ty-qiit-cong, the same block's congruence reading, with
      sibling indices refl at the left-spine instantiation (currently
-     17/27; every covered item agrees). Bails, honestly: `data …
-     Elim` items, hole solutions, integer/vector/letExpr tails.
-     Remaining: those bails driven down by the strict-mode meter,
-     then the re-seat.]
+     17/27; every covered item agrees). Seventeenth slice: a checked
+     LET (the body ⋆'s expose certificate closes the abbreviation
+     gap through the let's own hypothesis), and rewriting inside a
+     POINT-CONSTRUCTOR SPINE via el-qiit-intro-cong — the structural
+     block's congruence reading for QCtor, arguments each at the
+     left instantiation, concluding at the left spine's sort
+     instance (currently 19/27; every covered item agrees). Bails,
+     honestly: `data … Elim` items (4 files), integer tails, the
+     vector-append tail. Remaining: those bails driven down by the
+     strict-mode meter, then the re-seat.]
   3. CONSOLIDATION (incremental, unhurried) — the elaborator emits
      derivations directly where reconstruction is weak or wasteful;
      the trace→derivation translation absorbs the discharge engine's
