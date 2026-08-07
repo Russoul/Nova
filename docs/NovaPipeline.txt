@@ -629,14 +629,25 @@ Phasing:
      formation-threaded checker covers switch sites and application
      arguments (the domain by inv-pi-dom of the head's presupposed
      Π). eqInt COVERS FULLY — the eqIIff tail falls (26/27; every
-     covered item agrees). vectByIndAppend alone remains, its bottom
-     now precisely visible: a dependent-position rewrite induces a
-     type-instance shift needing a COMPOSITE of store lemmas
-     (zeroPlusId then plusSucc) that the certificate never recorded
-     — the element step is recorded, the induced type chain is not.
-     Exit: the engine records induced type-steps at dependent
-     positions (a certificate-format enrichment), the one honest
-     piece of engine-side emission left.]
+     covered item agrees). vectByIndAppend alone remains. Fourth
+     slice — a finding worth its cost: the planned "engine-side
+     certificate enrichment" rests on a FALSE premise. The engine's
+     replay never forms the shifted instance types at all — it
+     rewrites spellings and compares normal forms at the one fixed
+     equation type — so there is no induced type chain for it to
+     record; the shifts are artifacts of the DERIVATION-side
+     congruence conclusions (el-app-cong concludes at B[e′], the
+     chain speaks B[e]). A store-lemma instantiation search at the
+     shift sites was built and REVERTED: typed enumeration times a
+     hundred retry attempts is a budget storm, and its proposals
+     drift into junk spellings (kept: the step's own lemma
+     re-instantiated, tag-gated and pool-filtered — cheap and
+     precise). The principled exit is search-free and derivation-
+     side: the PLACEMENT builds its own pre-instance bridge from the
+     child equation it already holds — sub-ext-cong on ⟨id, child⟩,
+     then ty-sub-cong at the fixed family — composed level by level
+     up the placement walk. That is the next slice's design; until
+     it lands, vectByIndAppend stays the one-file residue (26/27).]
 
 Cost, stated honestly: until phase 3 completes, an item is walked
 three times (elaborate, reconstruct, replay) — a constant factor,

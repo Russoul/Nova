@@ -1567,13 +1567,32 @@ qPathLeaf sig ctx x y = do
 ||| equation at DIFFERENT arguments (a type instance shifted along
 ||| the rewrite). Candidate arguments from the pair's own subterms
 ||| and the context, type-filtered along the lemma's Π tower.
+-- a coarse head tag, for prefiltering store lemmas against a
+-- code's subterms
+headTag : Elem -> String
+headTag (CtxVar _) = "var"
+headTag (Elem.SigVar q _) = "sig:" ++ q
+headTag (PiApp f _) = headTag f
+headTag (NatElim z _ _) = "natelim:" ++ headTag z
+headTag (SumElim _ _ _) = "sumelim"
+headTag (QuotElim _ _) = "quotelim"
+headTag (QElim _ _ _ _ _ _) = "qelim"
+headTag (SigmaElim1 _) = "proj1"
+headTag (SigmaElim2 _) = "proj2"
+headTag (NatIntro1 _) = "suc"
+headTag NatIntro0 = "zero"
+headTag (Class _) = "class"
+headTag (QCtor _ k _) = "qctor" ++ show k
+headTag (Out _) = "out"
+headTag _ = "other"
+
 ||| Every well-typed instantiation of a step's ∀-lemma over a
 ||| candidate pool: the licensed proof's application spine (PiApp
 ||| tower or signature spine) re-built at searched arguments,
 ||| type-filtered along the Π tower or telescope; each result is the
 ||| reflected equation (conjugated to nf) with its endpoints and
 ||| type.
-lemmaInsts : Sig -> Ctx -> Step -> Nat -> List Elem -> List (Deriv, Elem, Elem, Ty)
+lemmaInsts : Sig -> Ctx -> Step -> Nat -> List Elem -> List (Deriv, Elem, Elem, Ty, Elem)
 lemmaInsts sig ctx step d pool0 =
   let pool = nub pool0 in
   case step.lic of
@@ -1636,7 +1655,7 @@ lemmaInsts sig ctx step d pool0 =
                             Nothing => [])
           pool
 
-  instOf : (List Elem -> Maybe Elem) -> List Elem -> Maybe (Deriv, Elem, Elem, Ty)
+  instOf : (List Elem -> Maybe Elem) -> List Elem -> Maybe (Deriv, Elem, Elem, Ty, Elem)
   instOf rebuild theta = do
     p' <- rebuild theta
     (dp, pty) <- reInfer sig ctx p' emptySkel
@@ -1650,20 +1669,29 @@ lemmaInsts sig ctx step d pool0 =
     reN <- nfE sig re
     let dRN = DElTrans (DElSym (DNfExpand (DPresupElL dR)))
                 (DElTrans dR (DNfExpand (DPresupElR dR)))
-    pure (dRN, leN, reN, t)
+    pure (dRN, leN, reN, t, p')
 
 ||| A step's ∀-lemma re-instantiated to MATCH a mismatched pair.
 lemmaLeaf : Sig -> Ctx -> Step -> Nat -> Elem -> Elem -> Maybe (Deriv, Ty)
 lemmaLeaf sig ctx step d x y = do
+  -- enumerate only when the pair's rigid heads overlap the
+  -- license's — typed enumeration on a hopeless pair is what blows
+  -- the budget
+  (_, le, re, _) <- reLicensed sig ctx step d
+  let licTags = filter (/= "var") [headTag le, headTag re]
+  let pairTags = filter (/= "var") [headTag x, headTag y]
+  let True = any (\t => elem t licTags) pairTags
+             || (null pairTags && null licTags)
+    | False => Nothing
   xN <- nfE sig x
   yN <- nfE sig y
   let pool = map CtxVar [0 .. minus (length (toList ctx)) 1]
              ++ subterms 3 x ++ subterms 3 y
   pick xN yN (lemmaInsts sig ctx step d pool)
  where
-  pick : Elem -> Elem -> List (Deriv, Elem, Elem, Ty) -> Maybe (Deriv, Ty)
+  pick : Elem -> Elem -> List (Deriv, Elem, Elem, Ty, Elem) -> Maybe (Deriv, Ty)
   pick xN yN [] = dbg "lemma: none matched for \{show xN} / \{show yN}" Nothing
-  pick xN yN ((dEq, leN, reN, t) :: rest) =
+  pick xN yN ((dEq, leN, reN, t, _) :: rest) =
     if leN == xN && reN == yN then Just (dEq, t)
       else if leN == yN && reN == xN then Just (DElSym dEq, t)
       else pick xN yN rest
@@ -1894,42 +1922,63 @@ chkStep sig ctx step d e ty =
                   (DElTyCoe dBr deN)))
 
 -- The SEARCH-ENABLED bridge, for the step sites only (a dependent
--- shift whose lemma instance differs from the step's own): propose
--- the licensed lemma re-instantiated over the code's subterms, walk
--- the proposal, β-meet the remainder. Never re-enters itself — the
--- inner walks use the plain bridge — so the cost is one bounded
--- proposal round per failing shift.
-reBridgeTSearch sig ctx stp d a b =
+-- shift whose lemma composite the certificate never recorded): the
+-- step's own lemma re-instantiated, and the Σ-recoverable store's
+-- lemmas whose generic heads match the code's subterms — two
+-- proposal rounds (a dependent shift may compose two lemmas: the
+-- element step's and the index law the shift exposes), the inner
+-- walks always the plain bridge.
+reBridgeTSearchN : Nat -> Sig -> Ctx -> Step -> Nat -> Ty -> Ty -> Maybe Deriv
+reBridgeTSearchN Z sig ctx stp d a b = reBridgeT sig ctx (Just stp) d a b
+reBridgeTSearchN (S fuel) sig ctx stp d a b =
   reBridgeT sig ctx (Just stp) d a b
   <|> (propose a b <|> (DTySym <$> propose b a))
  where
-  goProp : Elem -> Elem -> Elem -> Ty -> Maybe Deriv
-  goProp x leN reN tgt = do
+  goProp : Elem -> Elem -> Elem -> Elem -> Ty -> Maybe Deriv
+  goProp pf x leN reN tgt = do
     let x' = replE leN reN 0 x
     let False = x' == x
       | True => Nothing
-    dc <- reBridgeE sig ctx (Just stp) d x x' Ty.UniverseTy
+    -- the walk closes its changed leaves with the PROPOSING
+    -- instance's own equation, carried as a synthesized license
+    let instStp = MkStep True [] (LProof pf) [] False
+    dc <- reBridgeE sig ctx (Just instStp) 0 x x' Ty.UniverseTy
     dEx' <- reTy sig ctx (El x') emptySkel
     exN <- nfT sig (El x')
     dBr2 <- if exN == tgt
               then DTyRefl <$> reTy sig ctx tgt emptySkel
-              else reBridgeT sig ctx (Just stp) d exN tgt
+              else reBridgeTSearchN fuel sig ctx stp d exN tgt
     pure (DTyTrans (DTyElCong dc)
             (DTyTrans (DNfExpandTy dEx') dBr2))
 
-  firstProp : Elem -> Ty -> List (Deriv, Elem, Elem, Ty) -> Maybe Deriv
+  firstProp : Elem -> Ty -> List (Deriv, Elem, Elem, Ty, Elem) -> Maybe Deriv
   firstProp x tgt [] = Nothing
-  firstProp x tgt ((_, leN, reN, _) :: rest) =
-    goProp x leN reN tgt <|> goProp x reN leN tgt
+  firstProp x tgt ((_, leN, reN, _, pf) :: rest) =
+    goProp pf x leN reN tgt <|> goProp pf x reN leN tgt
     <|> firstProp x tgt rest
+
+  -- a cheap syntactic pool filter: the instantiation slots of the
+  -- current store's index lemmas are ℕ-shaped, and typed filtering
+  -- of code-sized candidates is what blew the budget
+  natish : Elem -> Bool
+  natish (CtxVar _) = True
+  natish NatIntro0 = True
+  natish (NatIntro1 _) = True
+  natish e@(NatElim _ _ _) =
+    let t = headTag e in
+    t /= "natelim:other"
+  natish _ = False
 
   propose : Ty -> Ty -> Maybe Deriv
   propose src tgt = do
     let El x = src
       | _ => Nothing
-    let pool = map CtxVar [0 .. minus (length (toList ctx)) 1]
-               ++ subterms 4 x
+    let pool = nub (filter natish
+                      (map CtxVar [0 .. minus (length (toList ctx)) 1]
+                       ++ subterms 4 x))
     firstProp x tgt (take 12 (lemmaInsts sig ctx stp d pool))
+
+reBridgeTSearch sig ctx stp d a b = reBridgeTSearchN 2 sig ctx stp d a b
 
 ||| One side's rolling chain: side₀ ≐ cur, extended by a step.
 stepChainE : Sig -> Ctx -> Ty -> (Deriv, Elem) -> Step -> Maybe (Deriv, Elem)
