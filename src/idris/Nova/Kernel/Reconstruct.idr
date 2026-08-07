@@ -21,6 +21,8 @@ module Nova.Kernel.Reconstruct
 import Data.List
 import Data.Maybe
 import Data.SnocList
+import Data.SortedMap
+import Data.IORef
 import Debug.Trace
 import System
 
@@ -137,15 +139,69 @@ betaOnly _ = False
 fuelR : Nat
 fuelR = 1000000
 
+-- ===== MEMOIZED EMISSION (docs/NovaPipeline.txt, phase 3) =====
+-- The emission pass is a tree of alternatives, and every alternative
+-- re-runs everything beneath it — identical sub-problems are solved
+-- hundreds of times on a failing body (measured: millions of
+-- normalizations on one item). The memo tables make each distinct
+-- (context, subject, type) sub-problem cost one solution per item;
+-- FAILURES are cached too, which is what stops the retry storms.
+-- Keys are the spellings' Show output (structural, hence injective);
+-- Σ is fixed within one item, so the tables clear at each emission
+-- entry. Untrusted side only — replay never sees a cache, so a
+-- cache bug is wasted work or incompleteness, never unsoundness.
+
+%noinline
+memoNfE : IORef (SortedMap String (Maybe Elem))
+memoNfE = unsafePerformIO (newIORef empty)
+
+%noinline
+memoNfT : IORef (SortedMap String (Maybe Ty))
+memoNfT = unsafePerformIO (newIORef empty)
+
+%noinline
+memoChk : IORef (SortedMap String (Maybe Deriv))
+memoChk = unsafePerformIO (newIORef empty)
+
+%noinline
+memoInf : IORef (SortedMap String (Maybe (Deriv, Ty)))
+memoInf = unsafePerformIO (newIORef empty)
+
+%noinline
+memoTy : IORef (SortedMap String (Maybe Deriv))
+memoTy = unsafePerformIO (newIORef empty)
+
+withMemo : IORef (SortedMap String (Maybe a)) -> String -> Lazy (Maybe a) -> Maybe a
+withMemo ref k act = unsafePerformIO $ do
+  m <- readIORef ref
+  case lookup k m of
+    Just v => pure v
+    Nothing => do
+      let v = force act
+      modifyIORef ref (insert k v)
+      pure v
+
+%noinline
+clearMemos : () -> Maybe ()
+clearMemos _ = unsafePerformIO $ do
+  writeIORef memoNfE empty
+  writeIORef memoNfT empty
+  writeIORef memoChk empty
+  writeIORef memoInf empty
+  writeIORef memoTy empty
+  pure (Just ())
+
 nfE : Sig -> Elem -> Maybe Elem
-nfE sig e = case runKM (kElem sig e) fuelR of
-  Right (x, _) => Just x
-  Left _ => Nothing
+nfE sig e = withMemo memoNfE (show e)
+  (case runKM (kElem sig e) fuelR of
+     Right (x, _) => Just x
+     Left _ => Nothing)
 
 nfT : Sig -> Ty -> Maybe Ty
-nfT sig t = case runKM (kTy sig t) fuelR of
-  Right (x, _) => Just x
-  Left _ => Nothing
+nfT sig t = withMemo memoNfT (show t)
+  (case runKM (kTy sig t) fuelR of
+     Right (x, _) => Just x
+     Left _ => Nothing)
 
 wkN : Nat -> Elem -> Elem
 wkN Z e = e
@@ -200,30 +256,36 @@ mutual
   ||| skeleton is unavailable — anything needing a payload then bails).
   export
   reTy : Sig -> Ctx -> Ty -> Skel -> Maybe Deriv
-  reTy sig ctx Ty.ZeroTy sk = Just DTyZero
-  reTy sig ctx Ty.OneTy sk = Just DTyOne
-  reTy sig ctx Ty.NatTy sk = Just DTyNat
-  reTy sig ctx Ty.UniverseTy sk = Just DTyUniv
-  reTy sig ctx Ty.PropTy sk = Just DTyProp
-  reTy sig ctx (Ty.PiTy a b) sk =
+  reTy sig ctx ty (Nd [] []) =
+    withMemo memoTy "\{show ctx}|T|\{show ty}"
+      (reTyB sig ctx ty emptySkel)
+  reTy sig ctx ty sk = reTyB sig ctx ty sk
+
+  reTyB : Sig -> Ctx -> Ty -> Skel -> Maybe Deriv
+  reTyB sig ctx Ty.ZeroTy sk = Just DTyZero
+  reTyB sig ctx Ty.OneTy sk = Just DTyOne
+  reTyB sig ctx Ty.NatTy sk = Just DTyNat
+  reTyB sig ctx Ty.UniverseTy sk = Just DTyUniv
+  reTyB sig ctx Ty.PropTy sk = Just DTyProp
+  reTyB sig ctx (Ty.PiTy a b) sk =
     [| DTyPi (reTy sig ctx a (childAt 0 sk)) (reTy sig (ctx :< a) b (childAt 1 sk)) |]
-  reTy sig ctx (Ty.SigmaTy a b) sk =
+  reTyB sig ctx (Ty.SigmaTy a b) sk =
     [| DTySigma (reTy sig ctx a (childAt 0 sk)) (reTy sig (ctx :< a) b (childAt 1 sk)) |]
-  reTy sig ctx (Ty.SumTy a b) sk =
+  reTyB sig ctx (Ty.SumTy a b) sk =
     [| DTySum (reTy sig ctx a (childAt 0 sk)) (reTy sig ctx b (childAt 1 sk)) |]
-  reTy sig ctx (El e) sk = DTyEl <$> reCheck sig ctx e Ty.UniverseTy (childAt 0 sk)
-  reTy sig ctx (Prf e) sk = DTyPrf <$> reCheck sig ctx e Ty.PropTy (childAt 0 sk)
-  reTy sig ctx (Ty.Quotient a r) sk = do
+  reTyB sig ctx (El e) sk = DTyEl <$> reCheck sig ctx e Ty.UniverseTy (childAt 0 sk)
+  reTyB sig ctx (Prf e) sk = DTyPrf <$> reCheck sig ctx e Ty.PropTy (childAt 0 sk)
+  reTyB sig ctx (Ty.Quotient a r) sk = do
     da <- reTy sig ctx a (childAt 0 sk)
     dr <- reCheck sig (ctx :< a :< substTy a Wk) r Ty.PropTy (childAt 1 sk)
     pure (DTyQuot da dr)
-  reTy sig ctx (Ty.SigVar x es) sk =
+  reTyB sig ctx (Ty.SigVar x es) sk =
     case sigLookup x sig of
       Just (SigTyDef delta _ _) => DTySig x <$> reSubN sig ctx es (toList delta)
       Just (SigTyDecl delta _) => DTySig x <$> reSubN sig ctx es (toList delta)
       _ => Nothing
-  reTy sig ctx (Ty.NuTy f) sk = DTyNu <$> rePoly sig ctx f
-  reTy sig ctx (QSort sg k es) sk = do
+  reTyB sig ctx (Ty.NuTy f) sk = DTyNu <$> rePoly sig ctx f
+  reTyB sig ctx (QSort sg k es) sk = do
     dSig <- reQSig sig ctx sg
     ds <- reQSpine sig ctx sg k (toList es)
     pure (DTyQSort k dSig ds)
@@ -333,7 +395,13 @@ mutual
   ||| and its concluded type.
   export
   reInfer : Sig -> Ctx -> Elem -> Skel -> Maybe (Deriv, Ty)
-  reInfer sig ctx e sk =
+  reInfer sig ctx e (Nd [] []) =
+    withMemo memoInf "\{show ctx}|I|\{show e}"
+      (reInferB sig ctx e emptySkel)
+  reInfer sig ctx e sk = reInferB sig ctx e sk
+
+  reInferB : Sig -> Ctx -> Elem -> Skel -> Maybe (Deriv, Ty)
+  reInferB sig ctx e sk =
     case payload pIntro sk of
       Just (t, _) => do
         d <- reCheck sig ctx e t (dropP isIntro sk)
@@ -618,7 +686,13 @@ mutual
   ||| (with a β coercion when spellings differ).
   export
   reCheck : Sig -> Ctx -> Elem -> Ty -> Skel -> Maybe Deriv
-  reCheck sig ctx e ty sk =
+  reCheck sig ctx e ty (Nd [] []) =
+    withMemo memoChk "\{show ctx}|C|\{show e}:\{show ty}"
+      (reCheckB sig ctx e ty emptySkel)
+  reCheck sig ctx e ty sk = reCheckB sig ctx e ty sk
+
+  reCheckB : Sig -> Ctx -> Elem -> Ty -> Skel -> Maybe Deriv
+  reCheckB sig ctx e ty sk =
     case payload pSw sk of
       Just cert => do
         (d, ity) <- reInfer sig ctx e (dropP isSw sk)
@@ -2440,7 +2514,9 @@ export
 emitTyDef : Sig -> KTyDefArt -> Maybe Deriv
 emitTyDef sig art =
   case art.ttele of
-    [] => reTy sig [<] art.tty art.ttySkel
+    [] => do
+      _ <- clearMemos ()
+      reTy sig [<] art.tty art.ttySkel
     _ => Nothing
 
 ||| A body's typing at its stated type, with the fallbacks: plain
@@ -2468,6 +2544,7 @@ emitDef : Sig -> KDefArt -> Maybe (Deriv, Deriv)
 emitDef sig art =
   case art.tele of
     [] => do
+      _ <- clearMemos ()
       dT <- dbg "emit: type" (reTy sig [<] art.dty art.dtySkel)
       dt <- emitBody sig [<] art.body art.dty art.bodySkel dT
       pure (dT, dt)
@@ -2488,6 +2565,7 @@ emitTele sig (rest :< a) = do
 export
 emitSol : Sig -> Ctx -> Elem -> Ty -> Maybe (Deriv, Deriv, Deriv)
 emitSol sig delta body ty = do
+  _ <- clearMemos ()
   dCtx <- emitTele sig delta
   dT <- reTy sig delta ty emptySkel
   dt <- emitBody sig delta body ty emptySkel dT
@@ -2497,6 +2575,7 @@ emitSol sig delta body ty = do
 export
 emitTySol : Sig -> Ctx -> Ty -> Maybe (Deriv, Deriv)
 emitTySol sig delta ty = do
+  _ <- clearMemos ()
   dCtx <- emitTele sig delta
   dT <- reTy sig delta ty emptySkel
   pure (dCtx, dT)

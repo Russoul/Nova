@@ -663,7 +663,25 @@ Phasing:
      subproblems wholesale, and no per-site search discipline fixes
      that — an infrastructure slice (memo tables or a single-pass
      attempt discipline), after which the raw-first chains become
-     affordable. Fifth slice: that design LANDED at its
+     affordable. Seventh slice: MEMOIZED EMISSION, landed — memo
+     tables over the skeleton-free entry points (checking,
+     inference, formation, and both normalizers), keyed by the
+     spellings' structural Show output with the context included;
+     FAILURES are cached too, which is what stops the retry storms;
+     the tables clear at each emission entry (Σ is fixed within one
+     item — and the clear must be a real function, not a top-level
+     constant: a CAF clears once ever, and the stale tables that
+     resulted cost four covered files before the meter caught it).
+     Untrusted side only — replay never sees a cache. The residue
+     file's attempt tree drops from minutes to ~4s; covered files
+     pay a modest key-construction overhead. The raw-first
+     placement was then re-applied on the memoized base and STILL
+     exceeds budget — with duplicates eliminated, its cost is
+     DISTINCT work: every variant spelling makes each downstream
+     sub-problem new, so no cache helps. The next lever is pruning
+     the attempt tree itself (translating each ⋆'s certificate once
+     and sharing it across the body-level attempts), not caching.
+     Fifth slice: that design LANDED at its
      three shift-introducing cases — el-app-cong's argument
      position, the second projection, and the ℕ-elim scrutinee each
      coerce their conclusion back to the PRE-instance by their own

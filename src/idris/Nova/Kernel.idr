@@ -1345,6 +1345,7 @@ goE sig ctx lic (i :: p) b mexp u = do
 ||| Apply one step to an element known (by the replay invariant) to be
 ||| well-typed at tyRoot: descend the path computing expected types,
 ||| verify the licensed equation's type in situ, rewrite.
+export
 stepElem : Sig -> Ctx -> Step -> Ty -> Elem -> KM Elem
 stepElem sig ctx step tyRoot t = do
   (le, re, lty) <- licensed sig ctx step
