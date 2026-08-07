@@ -611,7 +611,32 @@ Phasing:
      successor branch stands one wall further (the ih application
      under the abstracted motive), and eqIIff stands unchanged —
      both remain the residue, their exit the engine-side emission
-     this phase is for.]
+     this phase is for. Third slice: the CERTIFICATE FORMAT
+     ABSORBED — formations ride the certificate's own structure
+     instead of bare re-derivation, everywhere. reEqTy takes
+     optional endpoint formations (a switch's inferred side by
+     presupposition, an expose's checked side likewise); a side
+     untouched by steps closes ONE-SIDED, by the chain's own
+     β-normal end — its formation arriving free as the conclusion's
+     presupposition, in both orientations; the tyEx pre-bridge
+     REPORTS WHERE IT REACHED and the equation carries on at the
+     reached spelling; the type-congruence finals hand their
+     component equations inversion-projected formations; the
+     placement walk THREADS the chain's presupposed typing down
+     through the formers (inv-el-code, inv-prf-code, and the
+     code-eq typing inversions inv-code-eq-lhs/rhs/ty — subject-
+     directed, so type conversion cannot interfere); and the
+     formation-threaded checker covers switch sites and application
+     arguments (the domain by inv-pi-dom of the head's presupposed
+     Π). eqInt COVERS FULLY — the eqIIff tail falls (26/27; every
+     covered item agrees). vectByIndAppend alone remains, its bottom
+     now precisely visible: a dependent-position rewrite induces a
+     type-instance shift needing a COMPOSITE of store lemmas
+     (zeroPlusId then plusSucc) that the certificate never recorded
+     — the element step is recorded, the induced type chain is not.
+     Exit: the engine records induced type-steps at dependent
+     positions (a certificate-format enrichment), the one honest
+     piece of engine-side emission left.]
 
 Cost, stated honestly: until phase 3 completes, an item is walked
 three times (elaborate, reconstruct, replay) — a constant factor,

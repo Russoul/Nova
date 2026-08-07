@@ -417,6 +417,13 @@ data Deriv : Type where
   DInvPrfEqTy : Deriv -> Deriv
   ||| from Γ ⊦ Prf p type conclude Γ ⊦ p : Ω
   DInvPrfCode : Deriv -> Deriv
+  ||| from Γ ⊦ El a type conclude Γ ⊦ a : 𝕌
+  DInvElCode : Deriv -> Deriv
+  ||| typing inversion of the equality code (code-eq's premises):
+  ||| from Γ ⊦ (l ≡ r ∈ t) : Ω conclude Γ ⊦ l : t (…r : t, …t type)
+  DInvCodeEqL : Deriv -> Deriv
+  DInvCodeEqR : Deriv -> Deriv
+  DInvCodeEqTy : Deriv -> Deriv
 
   -- ----- ADMISSIBLE: the nf oracle -----
   ||| nf-expand: Γ ⊦ t : A  ⊢  Γ ⊦ t ≐ nf(t) : A
@@ -1664,6 +1671,29 @@ conclude sig ctx (DInvPrfCode d) = do
   case t of
     Prf p => pure (JEl p Ty.PropTy)
     _ => kerr "derivation: inv-prf-code: premise not a Prf formation"
+conclude sig ctx (DInvElCode d) = do
+  t <- conclude sig ctx d >>= needTy
+  case t of
+    El a => pure (JEl a Ty.UniverseTy)
+    _ => kerr "derivation: inv-el-code: premise not an El formation"
+conclude sig ctx (DInvCodeEqL d) = do
+  (c, cty) <- conclude sig ctx d >>= needEl
+  alphaTy "inv-code-eq-lhs" cty Ty.PropTy
+  case c of
+    Elem.EqTy l _ t => pure (JEl l t)
+    _ => kerr "derivation: inv-code-eq-lhs: premise not an equality code"
+conclude sig ctx (DInvCodeEqR d) = do
+  (c, cty) <- conclude sig ctx d >>= needEl
+  alphaTy "inv-code-eq-rhs" cty Ty.PropTy
+  case c of
+    Elem.EqTy _ r t => pure (JEl r t)
+    _ => kerr "derivation: inv-code-eq-rhs: premise not an equality code"
+conclude sig ctx (DInvCodeEqTy d) = do
+  (c, cty) <- conclude sig ctx d >>= needEl
+  alphaTy "inv-code-eq-ty" cty Ty.PropTy
+  case c of
+    Elem.EqTy _ _ t => pure (JTy t)
+    _ => kerr "derivation: inv-code-eq-ty: premise not an equality code"
 
 -- ADMISSIBLE: the nf oracle (the typing premise is load-bearing —
 -- docs/NovaDerivations.txt)

@@ -166,7 +166,20 @@ reEq : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty -> Maybe Deriv
 reEqEnds : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty ->
            Maybe (Deriv, Deriv) -> Maybe Deriv
 
-||| … and for type equations Γ ⊦ a ≐ b.
+||| … and for type equations Γ ⊦ a ≐ b — the ends are optional
+||| endpoint FORMATIONS (presupposition-projected by the caller: a
+||| switch's inferred side, an expose's checked side), replacing bare
+||| re-derivation of spellings the certificate already speaks for.
+reEqTyEnds : Sig -> Ctx -> ECert -> Ty -> Ty ->
+             (Maybe Deriv, Maybe Deriv) -> Maybe Deriv
+
+||| The pre-bridge variant that REPORTS WHERE IT REACHED: when the
+||| far side is untouched by steps, the chain closes at its own
+||| β-normal end — which may spell differently from the engine's
+||| recorded target while meaning the same type — and the caller
+||| carries on at the reached spelling.
+reEqTyReach : Sig -> Ctx -> ECert -> Ty -> Ty -> Maybe (Deriv, Ty)
+
 export
 reEqTy : Sig -> Ctx -> ECert -> Ty -> Ty -> Maybe Deriv
 
@@ -345,6 +358,8 @@ mutual
         case fty of
           Ty.PiTy a b => do
             de <- reCheck sig ctx e a (childAt 1 sk)
+                  <|> reCheckF sig ctx e a (childAt 1 sk)
+                        (DInvPiDom (DPresupElTy df))
             -- the retained codomain premise: re-derived when bare
             -- derivation is possible (cheap, no sharing), else by
             -- inv-pi-cod of the head's presupposed Π formation (a
@@ -610,13 +625,15 @@ mutual
         if ity == ty
           then Just d
           else do
-            dEq <- reEqTy sig ctx cert ity ty
+            dEq <- reEqTyEnds sig ctx cert ity ty
+                     (Just (DPresupElTy d), Nothing)
             pure (DElTyCoe dEq d)
       Nothing =>
         case payload pExp sk of
           Just (tyX, cert) => do
             d <- reCheckGo sig ctx e tyX (dropP isExp sk)
-            dEq <- reEqTy sig ctx cert ty tyX
+            dEq <- reEqTyEnds sig ctx cert ty tyX
+                     (Nothing, Just (DPresupElTy d))
             pure (DElTyCoe (DTySym dEq) d)
           Nothing => do
             tyN <- nfT sig ty
@@ -661,7 +678,15 @@ mutual
                                  (Just (DInvPrfEqL dFN, DInvPrfEqR dFN)))
             pure (DElTyCoe (DTySym (DNfExpandTy dF)) d0)
           _ => Nothing)
-  reCheckF sig ctx e ty sk dF = reCheck sig ctx e ty sk
+  reCheckF sig ctx e ty sk dF =
+    reCheck sig ctx e ty sk
+    <|> (case payload pSw sk of
+          Just cert => do
+            (d, ity) <- reInfer sig ctx e (dropP isSw sk)
+            dEq <- reEqTyEnds sig ctx cert ity ty
+                     (Just (DPresupElTy d), Just dF)
+            pure (DElTyCoe dEq d)
+          Nothing => Nothing)
 
   reCheckGo : Sig -> Ctx -> Elem -> Ty -> Skel -> Maybe Deriv
   reCheckGo sig ctx (PiIntro f) ty sk =
@@ -1166,9 +1191,11 @@ mutual
       QSort sg k es => QSort sg k (cast (map (absE t b) (toList es)))
       _ => ty
 
-rePlaceT : Sig -> Ctx -> Step -> Nat -> List Nat -> Ty -> Maybe (Deriv, Ty)
+rePlaceT : Sig -> Ctx -> Step -> Nat -> List Nat -> Ty -> Maybe Deriv -> Maybe (Deriv, Ty)
 
 chkStep : Sig -> Ctx -> Step -> Nat -> Elem -> Ty -> Maybe Deriv
+
+reBridgeTSearch : Sig -> Ctx -> Step -> Nat -> Ty -> Ty -> Maybe Deriv
 
 ||| Coerce an element-equation derivation from its own type spelling
 ||| to a target spelling, the two nf-equal (the oracle bridge).
@@ -1187,8 +1214,8 @@ eqAtNf sig ctx dEq cur tgt =
 ||| Placement: rewrite `cur` at `path` by the step's licensed
 ||| equation, emitting the congruence chain; returns the derivation
 ||| (cur ≐ cur′ at the expected type) and cur′.
-rePlaceE : Sig -> Ctx -> Step -> Nat -> List Nat -> Ty -> Elem -> Maybe (Deriv, Elem, Ty)
-rePlaceE sig ctx step d [] exp cur = do
+rePlaceE : Sig -> Ctx -> Step -> Nat -> List Nat -> Ty -> Elem -> Maybe Deriv -> Maybe (Deriv, Elem, Ty)
+rePlaceE sig ctx step d [] exp cur mty = do
   (dEq, le, re, t) <- dbg "leaf: license" (reLicensed sig ctx step d)
   let True = cur == le
     | False => dbg "leaf: cur \{show cur} /= licensed \{show le}" Nothing
@@ -1205,15 +1232,15 @@ rePlaceE sig ctx step d [] exp cur = do
           de <- reTy sig ctx exp emptySkel
           pure (DElEqTyCoe (DNfEqTy dt de) dEq)
   pure (d', re, if t == exp then t else exp)
-rePlaceE sig ctx step d (i :: p) exp cur =
+rePlaceE sig ctx step d (i :: p) exp cur mty =
   case (cur, i) of
     (NatIntro1 t, 0) => do
-      (dc0, t', chTy) <- rePlaceE sig ctx step d p Ty.NatTy t
+      (dc0, t', chTy) <- rePlaceE sig ctx step d p Ty.NatTy t Nothing
       dc <- eqAtNf sig ctx dc0 chTy Ty.NatTy
       pure (DElSucCong dc, NatIntro1 t', Ty.NatTy)
     (PiApp f e, 0) => do
       (a, b) <- headPi sig ctx f e exp
-      (dc0, f', chTy) <- rePlaceE sig ctx step d p (Ty.PiTy a b) f
+      (dc0, f', chTy) <- rePlaceE sig ctx step d p (Ty.PiTy a b) f Nothing
       dc <- eqAtNf sig ctx dc0 chTy (Ty.PiTy a b)
       de <- reCheck sig ctx e a emptySkel
       db <- reTy sig (ctx :< a) b emptySkel
@@ -1222,7 +1249,7 @@ rePlaceE sig ctx step d (i :: p) exp cur =
     (PiApp f e, 1) => do
       (a, b) <- headPi sig ctx f e exp
       df <- reCheck sig ctx f (Ty.PiTy a b) emptySkel
-      (dc0, e', chTy) <- rePlaceE sig ctx step d p a e
+      (dc0, e', chTy) <- rePlaceE sig ctx step d p a e Nothing
       dc <- eqAtNf sig ctx dc0 chTy a
       db <- reTy sig (ctx :< a) b emptySkel
             <|> Just (DInvPiCod (DPresupElTy df))
@@ -1231,7 +1258,7 @@ rePlaceE sig ctx step d (i :: p) exp cur =
       expN <- nfT sig exp
       let Ty.SigmaTy a b = expN
         | _ => Nothing
-      (dc0, u', chTy) <- rePlaceE sig ctx step d p a u
+      (dc0, u', chTy) <- rePlaceE sig ctx step d p a u Nothing
       dc <- eqAtNf sig ctx dc0 chTy a
       db <- reTy sig (ctx :< a) b emptySkel
       dv <- reCheck sig ctx v (substTy b (Ext Id u')) emptySkel
@@ -1242,13 +1269,13 @@ rePlaceE sig ctx step d (i :: p) exp cur =
         | _ => Nothing
       du <- reCheck sig ctx u a emptySkel
       db <- reTy sig (ctx :< a) b emptySkel
-      (dc0, v', chTy) <- rePlaceE sig ctx step d p (substTy b (Ext Id u)) v
+      (dc0, v', chTy) <- rePlaceE sig ctx step d p (substTy b (Ext Id u)) v Nothing
       dc <- eqAtNf sig ctx dc0 chTy (substTy b (Ext Id u))
       pure (DElPairCong (DElRefl du) db dc, SigmaIntro u v', expN)
     (Inj1 a, 0) =>
       case exp of
         Ty.SumTy l r => do
-          (dc0, a', chTy) <- rePlaceE sig ctx step d p l a
+          (dc0, a', chTy) <- rePlaceE sig ctx step d p l a Nothing
           dc <- eqAtNf sig ctx dc0 chTy l
           dr <- reTy sig ctx r emptySkel
           pure (DElInj1Cong dc dr, Inj1 a', Ty.SumTy l r)
@@ -1256,13 +1283,13 @@ rePlaceE sig ctx step d (i :: p) exp cur =
     (Inj2 b, 0) =>
       case exp of
         Ty.SumTy l r => do
-          (dc0, b', chTy) <- rePlaceE sig ctx step d p r b
+          (dc0, b', chTy) <- rePlaceE sig ctx step d p r b Nothing
           dc <- eqAtNf sig ctx dc0 chTy r
           dl <- reTy sig ctx l emptySkel
           pure (DElInj2Cong dc dl, Inj2 b', Ty.SumTy l r)
         _ => Nothing
     (NatElim z st t, 2) => do
-      (dc0, t', chTy) <- rePlaceE sig ctx step d p Ty.NatTy t
+      (dc0, t', chTy) <- rePlaceE sig ctx step d p Ty.NatTy t Nothing
       dc <- eqAtNf sig ctx dc0 chTy Ty.NatTy
       let tryMot = \mot => do
             dmot <- dbg "natEmot: motive \{show mot}" (reTy sig (ctx :< Ty.NatTy) mot emptySkel)
@@ -1281,7 +1308,7 @@ rePlaceE sig ctx step d (i :: p) exp cur =
     (NatElim z st t, 0) => do
       let mot = substTy exp Wk
       dmot <- reTy sig (ctx :< Ty.NatTy) mot emptySkel
-      (dc, z', _) <- rePlaceE sig ctx step d p exp z
+      (dc, z', _) <- rePlaceE sig ctx step d p exp z Nothing
       dst <- reCheck sig (ctx :< Ty.NatTy :< mot) st
                (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) emptySkel
       dt <- reCheck sig ctx t Ty.NatTy emptySkel
@@ -1293,7 +1320,7 @@ rePlaceE sig ctx step d (i :: p) exp cur =
       dz <- reCheck sig ctx z exp emptySkel
       let sctx = ctx :< Ty.NatTy :< mot
       (dc, st', _) <- rePlaceE sig sctx step (2 + d) p
-                        (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) st
+                        (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) st Nothing
       dt <- reCheck sig ctx t Ty.NatTy emptySkel
       pure (DElNatECong dmot (DElRefl dz) dc (DElRefl dt),
             NatElim z st' t, exp)
@@ -1305,7 +1332,7 @@ rePlaceE sig ctx step d (i :: p) exp cur =
           dmot <- reTy sig (ctx :< Ty.SumTy a b) mot emptySkel
           dl <- reCheck sig (ctx :< a) l (substTy exp Wk) emptySkel
           dr <- reCheck sig (ctx :< b) r (substTy exp Wk) emptySkel
-          (dc0, t', chTy) <- rePlaceE sig ctx step d p (Ty.SumTy a b) t
+          (dc0, t', chTy) <- rePlaceE sig ctx step d p (Ty.SumTy a b) t Nothing
           dc <- eqAtNf sig ctx dc0 chTy (Ty.SumTy a b)
           pure (DElSumECong dc dmot (DElRefl dl) (DElRefl dr),
                 SumElim l r t', exp)
@@ -1313,7 +1340,7 @@ rePlaceE sig ctx step d (i :: p) exp cur =
     (Class a, 0) =>
       case exp of
         Ty.Quotient dom rel => do
-          (dc, a', _) <- rePlaceE sig ctx step d p dom a
+          (dc, a', _) <- rePlaceE sig ctx step d p dom a Nothing
           dr <- reCheck sig (ctx :< dom :< substTy dom Wk) rel Ty.PropTy emptySkel
           pure (DElClassCong dc dr, Class a', Ty.Quotient dom rel)
         _ => Nothing
@@ -1325,7 +1352,7 @@ rePlaceE sig ctx step d (i :: p) exp cur =
       let Ty.NuTy f = ttyN
         | _ => Nothing
       let nuT = Ty.NuTy f
-      (dc0, t', chTy) <- rePlaceE sig ctx step d p nuT t
+      (dc0, t', chTy) <- rePlaceE sig ctx step d p nuT t Nothing
       dc <- eqAtNf sig ctx dc0 chTy nuT
       dNu <- reTy sig ctx nuT emptySkel
       (dSp, spTy) <- reInfer sig (ctx :< nuT) (Out (CtxVar 0)) emptySkel
@@ -1337,7 +1364,7 @@ rePlaceE sig ctx step d (i :: p) exp cur =
       ttyN <- nfT sig tty
       let Ty.SigmaTy a _ = ttyN
         | _ => Nothing
-      (dc0, t', chTy) <- rePlaceE sig ctx step d p ttyN t
+      (dc0, t', chTy) <- rePlaceE sig ctx step d p ttyN t Nothing
       dc <- eqAtNf sig ctx dc0 chTy ttyN
       pure (DElProj1Cong dc, SigmaElim1 t', a)
     (SigmaElim2 t, 0) => do
@@ -1345,27 +1372,35 @@ rePlaceE sig ctx step d (i :: p) exp cur =
       ttyN <- nfT sig tty
       let Ty.SigmaTy _ b = ttyN
         | _ => Nothing
-      (dc0, t', chTy) <- rePlaceE sig ctx step d p ttyN t
+      (dc0, t', chTy) <- rePlaceE sig ctx step d p ttyN t Nothing
       dc <- eqAtNf sig ctx dc0 chTy ttyN
       pure (DElProj2Cong dc, SigmaElim2 t',
             substTy b (Ext Id (SigmaElim1 t')))
     (Elem.EqTy l r t, 0) => do
       dt <- reTy sig ctx t emptySkel
+            <|> (DInvCodeEqTy <$> mty)
       (dc, l', _) <- rePlaceE sig ctx step d p t l
+                       (DInvCodeEqL <$> mty)
       dr <- reCheck sig ctx r t emptySkel
+            <|> (DInvCodeEqR <$> mty)
       pure (DCodeEqCong (DTyRefl dt) dc (DElRefl dr), Elem.EqTy l' r t, Ty.PropTy)
     (Elem.EqTy l r t, 1) => do
       dt <- reTy sig ctx t emptySkel
+            <|> (DInvCodeEqTy <$> mty)
       dl <- reCheck sig ctx l t emptySkel
+            <|> (DInvCodeEqL <$> mty)
       (dc, r', _) <- rePlaceE sig ctx step d p t r
+                       (DInvCodeEqR <$> mty)
       pure (DCodeEqCong (DTyRefl dt) (DElRefl dl) dc, Elem.EqTy l r' t, Ty.PropTy)
     (Elem.EqTy l r t, 2) => do
       -- a rewrite in the ∈-slot: the sides ride the CHILD TYPE
       -- EQUATION itself into the new type — the hypothesis-sensitive
       -- bridge, derived rather than oracled
-      (dc, t') <- rePlaceT sig ctx step d p t
+      (dc, t') <- rePlaceT sig ctx step d p t (DInvCodeEqTy <$> mty)
       dl <- reCheck sig ctx l t emptySkel
+            <|> (DInvCodeEqL <$> mty)
       dr <- reCheck sig ctx r t emptySkel
+            <|> (DInvCodeEqR <$> mty)
       pure (DCodeEqCong dc
               (DElEqTyCoe dc (DElRefl dl))
               (DElEqTyCoe dc (DElRefl dr)),
@@ -1376,7 +1411,7 @@ rePlaceE sig ctx step d (i :: p) exp cur =
       let ls = toList es
       e0 <- getAt i ls
       ety <- telInst tel i ls
-      (dc0, e', chTy) <- rePlaceE sig ctx step d p ety e0
+      (dc0, e', chTy) <- rePlaceE sig ctx step d p ety e0 Nothing
       dc <- eqAtNf sig ctx dc0 chTy ety
       dSig <- reQSig sig ctx sg
       ds <- traverse (\(j, ej) =>
@@ -1389,52 +1424,58 @@ rePlaceE sig ctx step d (i :: p) exp cur =
       (srt, idx) <- either (const Nothing) Just (pointHead sg wEnd hd)
       pure (DQCtorCong k dSig ds, QCtor sg k (cast ls'), QSort sg srt idx)
     (Elem.SumTy a b, 0) => do
-      (dc, a', _) <- rePlaceE sig ctx step d p Ty.UniverseTy a
+      (dc, a', _) <- rePlaceE sig ctx step d p Ty.UniverseTy a Nothing
       db <- reCheck sig ctx b Ty.UniverseTy emptySkel
       pure (DCodeSumCong dc (DElRefl db), Elem.SumTy a' b, Ty.UniverseTy)
     (Elem.SumTy a b, 1) => do
       da <- reCheck sig ctx a Ty.UniverseTy emptySkel
-      (dc, b', _) <- rePlaceE sig ctx step d p Ty.UniverseTy b
+      (dc, b', _) <- rePlaceE sig ctx step d p Ty.UniverseTy b Nothing
       pure (DCodeSumCong (DElRefl da) dc, Elem.SumTy a b', Ty.UniverseTy)
     _ => Nothing
 
-rePlaceT sig ctx step d (0 :: p) (El e) = do
+rePlaceT sig ctx step d (0 :: p) (El e) mtf = do
   (dc, e', _) <- rePlaceE sig ctx step d p Ty.UniverseTy e
+                   (DInvElCode <$> mtf)
   pure (DTyElCong dc, El e')
-rePlaceT sig ctx step d (0 :: p) (Prf e) = do
+rePlaceT sig ctx step d (0 :: p) (Prf e) mtf = do
   (dc, e', _) <- rePlaceE sig ctx step d p Ty.PropTy e
+                   (DInvPrfCode <$> mtf)
   pure (DTyPrfCong dc, Prf e')
-rePlaceT sig ctx step d (0 :: p) (Ty.PiTy a b) = do
-  (dc, a') <- rePlaceT sig ctx step d p a
+rePlaceT sig ctx step d (0 :: p) (Ty.PiTy a b) mtf = do
+  (dc, a') <- rePlaceT sig ctx step d p a (DInvPiDom <$> mtf)
   db <- reTy sig (ctx :< a') b emptySkel
+        <|> (DInvPiCod <$> mtf)
   pure (DTyPiCong dc (DTyRefl db), Ty.PiTy a' b)
-rePlaceT sig ctx step d (1 :: p) (Ty.PiTy a b) = do
+rePlaceT sig ctx step d (1 :: p) (Ty.PiTy a b) mtf = do
   da <- reTy sig ctx a emptySkel
-  (dc, b') <- rePlaceT sig (ctx :< a) step (S d) p b
+        <|> (DInvPiDom <$> mtf)
+  (dc, b') <- rePlaceT sig (ctx :< a) step (S d) p b (DInvPiCod <$> mtf)
   pure (DTyPiCong (DTyRefl da) dc, Ty.PiTy a b')
-rePlaceT sig ctx step d (0 :: p) (Ty.SigmaTy a b) = do
-  (dc, a') <- rePlaceT sig ctx step d p a
+rePlaceT sig ctx step d (0 :: p) (Ty.SigmaTy a b) mtf = do
+  (dc, a') <- rePlaceT sig ctx step d p a (DInvSigmaDom <$> mtf)
   db <- reTy sig (ctx :< a') b emptySkel
+        <|> (DInvSigmaCod <$> mtf)
   pure (DTySigmaCong dc (DTyRefl db), Ty.SigmaTy a' b)
-rePlaceT sig ctx step d (1 :: p) (Ty.SigmaTy a b) = do
+rePlaceT sig ctx step d (1 :: p) (Ty.SigmaTy a b) mtf = do
   da <- reTy sig ctx a emptySkel
-  (dc, b') <- rePlaceT sig (ctx :< a) step (S d) p b
+        <|> (DInvSigmaDom <$> mtf)
+  (dc, b') <- rePlaceT sig (ctx :< a) step (S d) p b (DInvSigmaCod <$> mtf)
   pure (DTySigmaCong (DTyRefl da) dc, Ty.SigmaTy a b')
-rePlaceT sig ctx step d (0 :: p) (Ty.SumTy a b) = do
-  (dc, a') <- rePlaceT sig ctx step d p a
+rePlaceT sig ctx step d (0 :: p) (Ty.SumTy a b) mtf = do
+  (dc, a') <- rePlaceT sig ctx step d p a Nothing
   db <- reTy sig ctx b emptySkel
   pure (DTySumCong dc (DTyRefl db), Ty.SumTy a' b)
-rePlaceT sig ctx step d (1 :: p) (Ty.SumTy a b) = do
+rePlaceT sig ctx step d (1 :: p) (Ty.SumTy a b) mtf = do
   da <- reTy sig ctx a emptySkel
-  (dc, b') <- rePlaceT sig ctx step d p b
+  (dc, b') <- rePlaceT sig ctx step d p b Nothing
   pure (DTySumCong (DTyRefl da) dc, Ty.SumTy a b')
-rePlaceT sig ctx step d (i :: p) (QSort sg k es) = do
+rePlaceT sig ctx step d (i :: p) (QSort sg k es) mtf = do
   entry <- qEntry sg k
   (tel, _, _) <- either (const Nothing) Just (reflTel sg (qwAt k) entry)
   let l = toList es
   e <- getAt i l
   ety <- telInst tel i l
-  (dc0, e', chTy) <- rePlaceE sig ctx step d p ety e
+  (dc0, e', chTy) <- rePlaceE sig ctx step d p ety e Nothing
   dc <- eqAtNf sig ctx dc0 chTy ety
   dSig <- reQSig sig ctx sg
   ds <- traverse (\(j, ej) =>
@@ -1444,7 +1485,7 @@ rePlaceT sig ctx step d (i :: p) (QSort sg k es) = do
         (zip [0 .. minus (length l) 1] l)
   l' <- maybe Nothing Just (setAtL i e' l)
   pure (DTyQSortCong k dSig ds, QSort sg k (cast l'))
-rePlaceT sig ctx step d path ty = Nothing
+rePlaceT sig ctx step d path ty mtf = Nothing
 
 ||| A path-constructor equation with a SEARCHED instantiation: for
 ||| each equation entry of the signature, candidate spines are built
@@ -1621,7 +1662,7 @@ lemmaLeaf sig ctx step d x y = do
   pick xN yN (lemmaInsts sig ctx step d pool)
  where
   pick : Elem -> Elem -> List (Deriv, Elem, Elem, Ty) -> Maybe (Deriv, Ty)
-  pick xN yN [] = dbg "lemma: no instantiation matched" Nothing
+  pick xN yN [] = dbg "lemma: none matched for \{show xN} / \{show yN}" Nothing
   pick xN yN ((dEq, leN, reN, t) :: rest) =
     if leN == xN && reN == yN then Just (dEq, t)
       else if leN == yN && reN == xN then Just (DElSym dEq, t)
@@ -1846,7 +1887,7 @@ chkStep sig ctx step d e ty =
   <|> (do (de, ity) <- reInfer sig ctx e emptySkel
           iN <- nfT sig ity
           tN <- nfT sig ty
-          dBr <- reBridgeT sig ctx (Just step) d iN tN
+          dBr <- reBridgeTSearch sig ctx step d iN tN
           let deN = DElTyCoe (DNfExpandTy (DPresupElTy de)) de
           dT <- reTy sig ctx ty emptySkel
           pure (DElTyCoe (DTySym (DNfExpandTy dT))
@@ -1858,7 +1899,6 @@ chkStep sig ctx step d e ty =
 -- the proposal, β-meet the remainder. Never re-enters itself — the
 -- inner walks use the plain bridge — so the cost is one bounded
 -- proposal round per failing shift.
-reBridgeTSearch : Sig -> Ctx -> Step -> Nat -> Ty -> Ty -> Maybe Deriv
 reBridgeTSearch sig ctx stp d a b =
   reBridgeT sig ctx (Just stp) d a b
   <|> (propose a b <|> (DTySym <$> propose b a))
@@ -1888,8 +1928,8 @@ reBridgeTSearch sig ctx stp d a b =
     let El x = src
       | _ => Nothing
     let pool = map CtxVar [0 .. minus (length (toList ctx)) 1]
-               ++ subterms 2 x
-    firstProp x tgt (take 8 (lemmaInsts sig ctx stp d pool))
+               ++ subterms 4 x
+    firstProp x tgt (take 12 (lemmaInsts sig ctx stp d pool))
 
 ||| One side's rolling chain: side₀ ≐ cur, extended by a step.
 stepChainE : Sig -> Ctx -> Ty -> (Deriv, Elem) -> Step -> Maybe (Deriv, Elem)
@@ -1897,7 +1937,9 @@ stepChainE sig ctx ty (chain, cur) step = do
   curN <- nfE sig cur
   chain2 <- if curN == cur then Just chain
             else Just (DElTrans chain (DNfExpand (DPresupElR chain)))
-  (dPl, cur', plTy) <- dbg "step: place \{show step.path} in \{show curN}" (rePlaceE sig ctx step 0 step.path ty curN)
+  (dPl, cur', plTy) <- dbg "step: place \{show step.path} in \{show curN}"
+                         (rePlaceE sig ctx step 0 step.path ty curN
+                            (Just (DPresupElR chain2)))
   -- the placement congruence concludes at its own computed spelling
   -- of the type; bridge back to the chain's spelling when nf-equal
   -- (a dependent position shifted beyond nf is outside this slice)
@@ -1927,7 +1969,9 @@ stepChainT sig ctx (chain, cur) step = do
   curN <- nfT sig cur
   chain2 <- if curN == cur then Just chain
             else Just (DTyTrans chain (DNfExpandTy (DPresupTyR chain)))
-  (dPl, cur') <- dbg "stepT: place \{show step.path} in \{show curN}" (rePlaceT sig ctx step 0 step.path curN)
+  (dPl, cur') <- dbg "stepT: place \{show step.path} in \{show curN}"
+                    (rePlaceT sig ctx step 0 step.path curN
+                       (Just (DPresupTyR chain2)))
   pure (DTyTrans chain2 dPl, cur')
 
 reEq sig ctx cert l r ty = reEqEnds sig ctx cert l r ty Nothing
@@ -1937,8 +1981,8 @@ reEqEnds sig ctx (MkECertF tyEx steps final) l r ty ends =
   (ty', pre) <- the (Maybe (Ty, Maybe Deriv)) $ case tyEx of
                   Nothing => Just (ty, Nothing)
                   Just (tyX, certT) => do
-                    dBr <- reEqTy sig ctx certT ty tyX
-                    Just (tyX, Just dBr)
+                    (dBr, tyR) <- reEqTyReach sig ctx certT ty tyX
+                    Just (tyR, Just dBr)
   dl0 <- dbg "req: endpoint L \{show l} AT \{show ty'}" (endpoint l ty' pre (fst <$> ends))
   dr0 <- dbg "req: endpoint R \{show r} AT \{show ty'}" (endpoint r ty' pre (snd <$> ends))
   (chL, curL) <- dbg "req: chain L" (goSide ty' (DElRefl dl0, l) (filter (.onLhs) steps))
@@ -2057,21 +2101,82 @@ reEqEnds sig ctx (MkECertF tyEx steps final) l r ty ends =
     st' <- stepChainE sig ctx t st stp
     goSide t st' rest
 
-reEqTy sig ctx (MkECertF tyEx steps final) a b = do
+reEqTy sig ctx cert a b = reEqTyEnds sig ctx cert a b (Nothing, Nothing)
+
+reEqTyReach sig ctx cert@(MkECertF tyEx steps final) a b = do
+  let Nothing = tyEx
+    | _ => Nothing
+  reach <|> ((\d => (d, b)) <$> reEqTy sig ctx cert a b)
+ where
+  goSideR : (Deriv, Ty) -> List Step -> Maybe (Deriv, Ty)
+
+  reach : Maybe (Deriv, Ty)
+  reach = do
+    let [] = filter (not . (.onLhs)) steps
+      | _ => Nothing
+    let FBeta = final
+      | _ => Nothing
+    da0 <- reTy sig ctx a emptySkel
+    (chA, curA) <- goSideR (DTyRefl da0, a) (filter (.onLhs) steps)
+    curAN <- nfT sig curA
+    pure (DTyTrans chA (DNfExpandTy (DPresupTyR chA)), curAN)
+
+  goSideR st [] = Just st
+  goSideR st (stp :: rest) = do
+    st' <- stepChainT sig ctx st stp
+    goSideR st' rest
+
+reEqTyEnds sig ctx (MkECertF tyEx steps final) a b (endA, endB) = do
   let Nothing = tyEx
     | _ => dbg "reqty: nested tyEx" Nothing
-  da0 <- dbg "reqty: endpoint L \{show a}" (reTy sig ctx a emptySkel)
-  db0 <- dbg "reqty: endpoint R \{show b}" (reTy sig ctx b emptySkel)
-  (chA, curA) <- dbg "reqty: chain L" (goSide (DTyRefl da0, a) (filter (.onLhs) steps))
-  (chB, curB) <- dbg "reqty: chain R" (goSide (DTyRefl db0, b) (filter (not . (.onLhs)) steps))
-  mid <- dbg "reqty: close, curA \{show curA} curB \{show curB}" (closeT sig ctx chA curA chB curB final)
-  pure (DTyTrans chA (DTyTrans mid (DTySym chB)))
+  oneSidedR <|> (do
+    da0 <- dbg "reqty: endpoint L \{show a}"
+             (reTy sig ctx a emptySkel <|> endA)
+    (chA, curA) <- dbg "reqty: chain L" (goSide (DTyRefl da0, a) (filter (.onLhs) steps))
+    oneSided chA curA <|> twoSided chA curA)
  where
   goSide : (Deriv, Ty) -> List Step -> Maybe (Deriv, Ty)
   goSide st [] = Just st
   goSide st (stp :: rest) = do
     st' <- stepChainT sig ctx st stp
     goSide st' rest
+
+  -- the far side untouched by steps and β-equal to where the chain
+  -- landed: close by nf-expansion — its formation arrives FREE as
+  -- the conclusion's presupposition, never re-derived
+  oneSided : Deriv -> Ty -> Maybe Deriv
+  oneSided chA curA = do
+    let [] = filter (not . (.onLhs)) steps
+      | _ => dbg "oneSided: b-side has steps" Nothing
+    let FBeta = final
+      | _ => dbg "oneSided: non-beta final" Nothing
+    curAN <- nfT sig curA
+    let True = curAN == b
+      | False => dbg "oneSided: nf(curA) \{show curAN} /= b \{show b}" Nothing
+    pure (DTyTrans chA (DNfExpandTy (DPresupTyR chA)))
+
+  -- …and mirrored: the a side untouched, the b chain closing at a's
+  -- spelling — a's formation likewise never re-derived
+  oneSidedR : Maybe Deriv
+  oneSidedR = do
+    let [] = filter (.onLhs) steps
+      | _ => Nothing
+    let FBeta = final
+      | _ => Nothing
+    db0 <- reTy sig ctx b emptySkel <|> endB
+    (chB, curB) <- goSide (DTyRefl db0, b) (filter (not . (.onLhs)) steps)
+    curBN <- nfT sig curB
+    let True = curBN == a
+      | False => Nothing
+    pure (DTySym (DTyTrans chB (DNfExpandTy (DPresupTyR chB))))
+
+  twoSided : Deriv -> Ty -> Maybe Deriv
+  twoSided chA curA = do
+    db0 <- dbg "reqty: endpoint R \{show b}"
+             (reTy sig ctx b emptySkel <|> endB)
+    (chB, curB) <- dbg "reqty: chain R" (goSide (DTyRefl db0, b) (filter (not . (.onLhs)) steps))
+    mid <- dbg "reqty: close, curA \{show curA} curB \{show curB}" (closeT sig ctx chA curA chB curB final)
+    pure (DTyTrans chA (DTyTrans mid (DTySym chB)))
 
 -- the final, elem side
 closeE sig ctx ty chL curL chR curR FBeta =
@@ -2192,7 +2297,13 @@ closeT sig ctx chA curA chB curB FBeta =
   Just (DNfEqTy (DPresupTyR chA) (DPresupTyR chB))
 closeT sig ctx chA curA chB curB (FPrfCong c) =
   case (curA, curB) of
-    (Prf p, Prf q) => DTyPrfCong <$> reEq sig ctx c p q Ty.PropTy
+    (Prf p, Prf q) =>
+      -- the codes' Ω-typings arrive by inversion of the chains' own
+      -- presupposed formations — an unfolded code (a quot-elim'd Ω)
+      -- is never re-derived bare
+      DTyPrfCong <$> reEqEnds sig ctx c p q Ty.PropTy
+                       (Just (DInvPrfCode (DPresupTyR chA),
+                              DInvPrfCode (DPresupTyR chB)))
     _ => Nothing
 closeT sig ctx chA curA chB curB (FQuotCong c) =
   case (curA, curB) of
@@ -2206,15 +2317,25 @@ closeT sig ctx chA curA chB curB (FQuotCong c) =
 closeT sig ctx chA curA chB curB (FPiCong dc cc) =
   case (curA, curB) of
     (Ty.PiTy a0 b0, Ty.PiTy a1 b1) => do
-      dd <- reEqTy sig ctx dc a0 a1
-      dcc <- reEqTy sig (ctx :< a1) cc b0 b1
+      -- component formations by inversion of the chains' presupposed
+      -- formations — unfolded spellings never re-derived bare
+      let fA = DPresupTyR chA
+      let fB = DPresupTyR chB
+      dd <- reEqTyEnds sig ctx dc a0 a1
+              (Just (DInvPiDom fA), Just (DInvPiDom fB))
+      dcc <- reEqTyEnds sig (ctx :< a1) cc b0 b1
+               (Nothing, Just (DInvPiCod fB))
       pure (DTyPiCong dd dcc)
     _ => Nothing
 closeT sig ctx chA curA chB curB (FSigmaCong dc cc) =
   case (curA, curB) of
     (Ty.SigmaTy a0 b0, Ty.SigmaTy a1 b1) => do
-      dd <- reEqTy sig ctx dc a0 a1
-      dcc <- reEqTy sig (ctx :< a1) cc b0 b1
+      let fA = DPresupTyR chA
+      let fB = DPresupTyR chB
+      dd <- reEqTyEnds sig ctx dc a0 a1
+              (Just (DInvSigmaDom fA), Just (DInvSigmaDom fB))
+      dcc <- reEqTyEnds sig (ctx :< a1) cc b0 b1
+               (Nothing, Just (DInvSigmaCod fB))
       pure (DTySigmaCong dd dcc)
     _ => Nothing
 closeT sig ctx chA curA chB curB (FSumCong lc rc) =
