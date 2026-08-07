@@ -646,7 +646,24 @@ Phasing:
      side: the PLACEMENT builds its own pre-instance bridge from the
      child equation it already holds — sub-ext-cong on ⟨id, child⟩,
      then ty-sub-cong at the fixed family — composed level by level
-     up the placement walk. Fifth slice: that design LANDED at its
+     up the placement walk. Sixth slice, explored and REVERTED whole —
+     recorded because the measurements matter: RAW-FIRST STEP
+     PLACEMENT works. A step placed at the raw spelling — the
+     licensed occurrence found up to nf through solved-hole
+     references, the intended occurrence disambiguated by the old
+     kernel's own step replayer, the two spellings joined by a lean
+     one-difference walk — bypasses the β-created towers entirely,
+     and raw placement failures fell from 58 to 4 on the residue
+     file. But the unlocked progress expanded the downstream
+     attempt cascade, whose ambient bridge costs (leaf searches
+     times roughly a hundred retry attempts) ran to millions of
+     normalizations; even a per-item normal-form cache left the
+     file an order of magnitude over budget. The prerequisite is
+     MEMOIZED EMISSION: the retry structure re-solves identical
+     subproblems wholesale, and no per-site search discipline fixes
+     that — an infrastructure slice (memo tables or a single-pass
+     attempt discipline), after which the raw-first chains become
+     affordable. Fifth slice: that design LANDED at its
      three shift-introducing cases — el-app-cong's argument
      position, the second projection, and the ℕ-elim scrutinee each
      coerce their conclusion back to the PRE-instance by their own
