@@ -595,7 +595,23 @@ Phasing:
      hole-solution residue entry below is thereby retired in
      practice; the guessing machinery in the emission pass retires
      guess by guess as later slices record more at elaboration
-     time.]
+     time. Second slice, at the two def-item tails: branch checks of
+     an indexed-motive placement descend lambdas and bridge at the
+     leaf with the step's own lemma (chkStep); motive abstraction
+     keys on either side of the rewrite (the expected type is the
+     motive instance at whichever spelling the equation's type
+     already speaks); a subterm-rewrite proposal (replE) lets a
+     bridge cross an index rewrite that changes a code's shape only
+     after β; and the ∀-lemma instantiation search is SCOPED — leaf
+     sites and the per-step shift sites only, never the ambient
+     bridge, after an ambient version sent covered items into
+     minutes-long search storms (the whole suite now runs in ~35s,
+     the corpus meter in ~11s, and anything past ~15s per item is
+     treated as a blowup). vappendAssoc's nil branch now closes; its
+     successor branch stands one wall further (the ih application
+     under the abstracted motive), and eqIIff stands unchanged —
+     both remain the residue, their exit the engine-side emission
+     this phase is for.]
 
 Cost, stated honestly: until phase 3 completes, an item is walked
 three times (elaborate, reconstruct, replay) — a constant factor,

@@ -1069,6 +1069,54 @@ subterms : Nat -> Elem -> List Elem
 subterms Z e = [e]
 subterms (S d) e = e :: concatMap (subterms d) (kidsE e)
 
+-- SUBTERM REWRITE: every occurrence of a target spelling replaced
+-- by another (both weakened across binders) — the spelling-level
+-- companion of the congruence walks, used to PROPOSE a rewritten
+-- code whose bridge the walks then derive.
+mutual
+  replE : Elem -> Elem -> Nat -> Elem -> Elem
+  replE t r b e =
+    if e == wkN b t then wkN b r else
+    case e of
+      ZeroElim u => ZeroElim (replE t r b u)
+      NatIntro1 u => NatIntro1 (replE t r b u)
+      NatElim z st u => NatElim (replE t r b z) (replE t r (2 + b) st) (replE t r b u)
+      PiIntro f => PiIntro (replE t r (S b) f)
+      PiApp f u => PiApp (replE t r b f) (replE t r b u)
+      Let a u => Let (replE t r b a) (replE t r (2 + b) u)
+      SigmaIntro u v => SigmaIntro (replE t r b u) (replE t r b v)
+      SigmaElim1 u => SigmaElim1 (replE t r b u)
+      SigmaElim2 u => SigmaElim2 (replE t r b u)
+      Inj1 u => Inj1 (replE t r b u)
+      Inj2 u => Inj2 (replE t r b u)
+      SumElim l rr u => SumElim (replE t r (S b) l) (replE t r (S b) rr) (replE t r b u)
+      Elem.PiTy a c => Elem.PiTy (replE t r b a) (replE t r (S b) c)
+      Elem.SigmaTy a c => Elem.SigmaTy (replE t r b a) (replE t r (S b) c)
+      Elem.SumTy a c => Elem.SumTy (replE t r b a) (replE t r b c)
+      Elem.EqTy l rr ty => Elem.EqTy (replE t r b l) (replE t r b rr) (replTy t r b ty)
+      QuotTy a rr => QuotTy (replE t r b a) (replE t r (2 + b) rr)
+      Elem.SigVar x es => Elem.SigVar x (cast (map (replE t r b) (toList es)))
+      Class u => Class (replE t r b u)
+      QuotElim f q => QuotElim (replE t r (S b) f) (replE t r b q)
+      Squash ty => Squash (replTy t r b ty)
+      QSortC sg k es => QSortC sg k (cast (map (replE t r b) (toList es)))
+      QCtor sg k es => QCtor sg k (cast (map (replE t r b) (toList es)))
+      Out u => Out (replE t r b u)
+      _ => e
+
+  replTy : Elem -> Elem -> Nat -> Ty -> Ty
+  replTy t r b ty =
+    case ty of
+      Ty.PiTy a c => Ty.PiTy (replTy t r b a) (replTy t r (S b) c)
+      Ty.SigmaTy a c => Ty.SigmaTy (replTy t r b a) (replTy t r (S b) c)
+      Ty.SumTy a c => Ty.SumTy (replTy t r b a) (replTy t r b c)
+      El e => El (replE t r b e)
+      Prf e => Prf (replE t r b e)
+      Ty.Quotient a rr => Ty.Quotient (replTy t r b a) (replE t r (2 + b) rr)
+      Ty.SigVar x es => Ty.SigVar x (cast (map (replE t r b) (toList es)))
+      QSort sg k es => QSort sg k (cast (map (replE t r b) (toList es)))
+      _ => ty
+
 -- MOTIVE ABSTRACTION: the expected type with occurrences of the
 -- scrutinee's (weakened) spelling replaced by the fresh binder —
 -- the indexed-motive guess for a normalized eliminator spelling.
@@ -1119,6 +1167,8 @@ mutual
       _ => ty
 
 rePlaceT : Sig -> Ctx -> Step -> Nat -> List Nat -> Ty -> Maybe (Deriv, Ty)
+
+chkStep : Sig -> Ctx -> Step -> Nat -> Elem -> Ty -> Maybe Deriv
 
 ||| Coerce an element-equation derivation from its own type spelling
 ||| to a target spelling, the two nf-equal (the oracle bridge).
@@ -1215,14 +1265,19 @@ rePlaceE sig ctx step d (i :: p) exp cur =
       (dc0, t', chTy) <- rePlaceE sig ctx step d p Ty.NatTy t
       dc <- eqAtNf sig ctx dc0 chTy Ty.NatTy
       let tryMot = \mot => do
-            dmot <- reTy sig (ctx :< Ty.NatTy) mot emptySkel
-            dz <- reCheck sig ctx z (substTy mot (Ext Id NatIntro0)) emptySkel
-            dst <- reCheck sig (ctx :< Ty.NatTy :< mot) st
-                     (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) emptySkel
+            dmot <- dbg "natEmot: motive \{show mot}" (reTy sig (ctx :< Ty.NatTy) mot emptySkel)
+            dz <- dbg "natEmot: z" (chkStep sig ctx step d z (substTy mot (Ext Id NatIntro0)))
+            dst <- dbg "natEmot: st" (chkStep sig (ctx :< Ty.NatTy :< mot) step (2 + d) st
+                     (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)))
             pure (DElNatECong dmot (DElRefl dz) (DElRefl dst) dc,
                   NatElim z st t', substTy mot (Ext Id t'))
       tryMot (substTy exp Wk)
+        -- the expected type is the motive INSTANCE — at the original
+        -- scrutinee if the surroundings kept its spelling, at the
+        -- REWRITTEN one if the equation's type already speaks the
+        -- other side — so try abstracting both
         <|> tryMot (absTy (substElem t Wk) 0 (substTy exp Wk))
+        <|> tryMot (absTy (substElem t' Wk) 0 (substTy exp Wk))
     (NatElim z st t, 0) => do
       let mot = substTy exp Wk
       dmot <- reTy sig (ctx :< Ty.NatTy) mot emptySkel
@@ -1471,37 +1526,42 @@ qPathLeaf sig ctx x y = do
 ||| equation at DIFFERENT arguments (a type instance shifted along
 ||| the rewrite). Candidate arguments from the pair's own subterms
 ||| and the context, type-filtered along the lemma's Π tower.
-lemmaLeaf : Sig -> Ctx -> Step -> Nat -> Elem -> Elem -> Maybe (Deriv, Ty)
-lemmaLeaf sig ctx step d x y = do
-  let LProof p = step.lic
-    | _ => dbg "lemma: not an LProof" Nothing
-  let (h0, appArgs) = peel (wkN d p) []
-  (spineTys, rebuild, arity) <- the (Maybe (List Ty, List Elem -> Maybe Elem, Nat)) $
-    case h0 of
-      Elem.SigVar nm es => do
-        delta <- the (Maybe (List Ty)) $ case sigLookup nm sig of
-                   Just (SigDef dctx _ _ _) => Just (toList dctx)
-                   Just (SigDecl dctx _ _) => Just (toList dctx)
-                   _ => Nothing
-        let nSpine = length (toList es)
-        let True = nSpine == length delta
-          | False => Nothing
-        pure (delta,
-              \newArgs =>
-                let (sp, aps) = splitAt nSpine newArgs in
-                Just (applyE (Elem.SigVar nm (cast sp)) aps),
-              nSpine + length appArgs)
-      _ => do
-        let False = length appArgs == 0
-          | True => Nothing
-        pure ([], \newArgs => Just (applyE h0 newArgs), length appArgs)
-  let pool = map CtxVar [0 .. minus (length (toList ctx)) 1]
-             ++ subterms 3 x ++ subterms 3 y
-  xN <- nfE sig x
-  yN <- nfE sig y
-  dbg "lemma: no instantiation matched"
-    (firstJust (tryArgs rebuild xN yN)
-       (take 64 (tuples spineTys rebuild pool arity [])))
+||| Every well-typed instantiation of a step's ∀-lemma over a
+||| candidate pool: the licensed proof's application spine (PiApp
+||| tower or signature spine) re-built at searched arguments,
+||| type-filtered along the Π tower or telescope; each result is the
+||| reflected equation (conjugated to nf) with its endpoints and
+||| type.
+lemmaInsts : Sig -> Ctx -> Step -> Nat -> List Elem -> List (Deriv, Elem, Elem, Ty)
+lemmaInsts sig ctx step d pool0 =
+  let pool = nub pool0 in
+  case step.lic of
+    LProof p =>
+      let (h0, appArgs) = peel (wkN d p) [] in
+      case the (Maybe (List Ty, List Elem -> Maybe Elem, Nat)) $
+        (case h0 of
+          Elem.SigVar nm es => do
+            delta <- the (Maybe (List Ty)) $ case sigLookup nm sig of
+                       Just (SigDef dctx _ _ _) => Just (toList dctx)
+                       Just (SigDecl dctx _ _) => Just (toList dctx)
+                       _ => Nothing
+            let nSpine = length (toList es)
+            let True = nSpine == length delta
+              | False => Nothing
+            pure (delta,
+                  \newArgs =>
+                    let (sp, aps) = splitAt nSpine newArgs in
+                    Just (applyE (Elem.SigVar nm (cast sp)) aps),
+                  nSpine + length appArgs)
+          _ => do
+            let False = length appArgs == 0
+              | True => Nothing
+            pure ([], \newArgs => Just (applyE h0 newArgs), length appArgs)) of
+        Nothing => []
+        Just (spineTys, rebuild, arity) =>
+          mapMaybe (instOf rebuild)
+            (take 24 (tuples spineTys rebuild pool arity []))
+    _ => []
  where
   peel : Elem -> List Elem -> (Elem, List Elem)
   peel (PiApp f u) acc = peel f (u :: acc)
@@ -1511,19 +1571,12 @@ lemmaLeaf sig ctx step d x y = do
   applyE h [] = h
   applyE h (u :: rest) = applyE (PiApp h u) rest
 
-  firstJust : (List Elem -> Maybe (Deriv, Ty)) -> List (List Elem) -> Maybe (Deriv, Ty)
-  firstJust f [] = Nothing
-  firstJust f (v :: rest) = f v <|> firstJust f rest
-
   slotTy : List Ty -> (List Elem -> Maybe Elem) -> List Elem -> Maybe Ty
   slotTy spineTys rebuild acc =
     let i = length acc in
     case getAt i spineTys of
-      -- a signature-spine slot: the telescope entry instantiated by
-      -- the prefix
       Just dTy => Just (substTy dTy (foldl Ext Id (take i acc)))
       Nothing => do
-        -- an application slot: the rebuilt partial application's Π
         partial0 <- rebuild acc
         (_, hty) <- reInfer sig ctx partial0 emptySkel
         htyN <- nfT sig hty
@@ -1542,8 +1595,8 @@ lemmaLeaf sig ctx step d x y = do
                             Nothing => [])
           pool
 
-  tryArgs : (List Elem -> Maybe Elem) -> Elem -> Elem -> List Elem -> Maybe (Deriv, Ty)
-  tryArgs rebuild xN yN theta = do
+  instOf : (List Elem -> Maybe Elem) -> List Elem -> Maybe (Deriv, Elem, Elem, Ty)
+  instOf rebuild theta = do
     p' <- rebuild theta
     (dp, pty) <- reInfer sig ctx p' emptySkel
     ptyN <- nfT sig pty
@@ -1556,9 +1609,23 @@ lemmaLeaf sig ctx step d x y = do
     reN <- nfE sig re
     let dRN = DElTrans (DElSym (DNfExpand (DPresupElL dR)))
                 (DElTrans dR (DNfExpand (DPresupElR dR)))
-    if leN == xN && reN == yN then Just (dRN, t)
-      else if leN == yN && reN == xN then Just (DElSym dRN, t)
-      else Nothing
+    pure (dRN, leN, reN, t)
+
+||| A step's ∀-lemma re-instantiated to MATCH a mismatched pair.
+lemmaLeaf : Sig -> Ctx -> Step -> Nat -> Elem -> Elem -> Maybe (Deriv, Ty)
+lemmaLeaf sig ctx step d x y = do
+  xN <- nfE sig x
+  yN <- nfE sig y
+  let pool = map CtxVar [0 .. minus (length (toList ctx)) 1]
+             ++ subterms 3 x ++ subterms 3 y
+  pick xN yN (lemmaInsts sig ctx step d pool)
+ where
+  pick : Elem -> Elem -> List (Deriv, Elem, Elem, Ty) -> Maybe (Deriv, Ty)
+  pick xN yN [] = dbg "lemma: no instantiation matched" Nothing
+  pick xN yN ((dEq, leN, reN, t) :: rest) =
+    if leN == xN && reN == yN then Just (dEq, t)
+      else if leN == yN && reN == xN then Just (DElSym dEq, t)
+      else pick xN yN rest
 
 ||| The HYPOTHESIS-SENSITIVE TYPE BRIDGE: a placement at a dependent
 ||| position shifts the equation's type by the step's own licensed
@@ -1599,7 +1666,37 @@ reBridgeT sig ctx step d a b =
             db <- reTy sig ctx b emptySkel
             pure (DTyTrans (DNfExpandTy da)
                     (DTyTrans dBr (DTySym (DNfExpandTy db)))))
-        <|> dbg "bridgeT shape: \{show a} VS \{show b}" Nothing
+        -- or an INDEX REWRITE inside a code changes its shape only
+        -- after β: propose the rewritten code (the licensed pair
+        -- replaced throughout), derive its bridge by the congruence
+        -- walk, β-meet the remainder
+        <|> (byRewrite a b <|> (DTySym <$> byRewrite b a))
+        <|> dbg "bridgeT shape (step? \{show (maybe False (const True) step)}): \{show a} VS \{show b}" Nothing
+ where
+  byRewrite : Ty -> Ty -> Maybe Deriv
+  byRewrite src tgt = do
+    stp <- step
+    let El x = src
+      | _ => Nothing
+    (dEq0, le, re, t) <- reLicensed sig ctx stp 0
+    goRw x le re tgt <|> goRw x re le tgt
+   where
+    goRw : Elem -> Elem -> Elem -> Ty -> Maybe Deriv
+
+    goRw x le re tgt = do
+      let x' = replE le re 0 x
+      let False = x' == x
+        | True => Nothing
+      dc <- reBridgeE sig ctx step d x x' Ty.UniverseTy
+      dEx' <- reTy sig ctx (El x') emptySkel
+      exN <- nfT sig (El x')
+      dBr2 <- if exN == tgt
+                then do
+                  dTgt <- reTy sig ctx tgt emptySkel
+                  pure (DTyRefl dTgt)
+                else reBridgeT sig ctx step d exN tgt
+      pure (DTyTrans (DTyElCong dc)
+              (DTyTrans (DNfExpandTy dEx') dBr2))
 
 reBridgeE sig ctx step d x y exp =
   if x == y
@@ -1730,6 +1827,70 @@ reBridgeE sig ctx step d x y exp =
         atExp dEq t)
      <|> byHyp (S i)
 
+-- Checking through lambdas with the step's bridges at the leaf: a
+-- branch of an INDEXED motive placement may type only through the
+-- step's own lemma (the nil case's vec k against vec (Z+k)).
+chkStep sig ctx step d (PiIntro f) ty = do
+  tyN <- nfT sig ty
+  let Ty.PiTy a b = tyN
+    | _ => Nothing
+  da <- reTy sig ctx a emptySkel
+  df <- chkStep sig (ctx :< a) step (S d) f b
+  let d0 = DElPiI da df
+  if tyN == ty then Just d0
+    else do
+      dT <- reTy sig ctx ty emptySkel
+      pure (DElTyCoe (DTySym (DNfExpandTy dT)) d0)
+chkStep sig ctx step d e ty =
+  reCheck sig ctx e ty emptySkel
+  <|> (do (de, ity) <- reInfer sig ctx e emptySkel
+          iN <- nfT sig ity
+          tN <- nfT sig ty
+          dBr <- reBridgeT sig ctx (Just step) d iN tN
+          let deN = DElTyCoe (DNfExpandTy (DPresupElTy de)) de
+          dT <- reTy sig ctx ty emptySkel
+          pure (DElTyCoe (DTySym (DNfExpandTy dT))
+                  (DElTyCoe dBr deN)))
+
+-- The SEARCH-ENABLED bridge, for the step sites only (a dependent
+-- shift whose lemma instance differs from the step's own): propose
+-- the licensed lemma re-instantiated over the code's subterms, walk
+-- the proposal, β-meet the remainder. Never re-enters itself — the
+-- inner walks use the plain bridge — so the cost is one bounded
+-- proposal round per failing shift.
+reBridgeTSearch : Sig -> Ctx -> Step -> Nat -> Ty -> Ty -> Maybe Deriv
+reBridgeTSearch sig ctx stp d a b =
+  reBridgeT sig ctx (Just stp) d a b
+  <|> (propose a b <|> (DTySym <$> propose b a))
+ where
+  goProp : Elem -> Elem -> Elem -> Ty -> Maybe Deriv
+  goProp x leN reN tgt = do
+    let x' = replE leN reN 0 x
+    let False = x' == x
+      | True => Nothing
+    dc <- reBridgeE sig ctx (Just stp) d x x' Ty.UniverseTy
+    dEx' <- reTy sig ctx (El x') emptySkel
+    exN <- nfT sig (El x')
+    dBr2 <- if exN == tgt
+              then DTyRefl <$> reTy sig ctx tgt emptySkel
+              else reBridgeT sig ctx (Just stp) d exN tgt
+    pure (DTyTrans (DTyElCong dc)
+            (DTyTrans (DNfExpandTy dEx') dBr2))
+
+  firstProp : Elem -> Ty -> List (Deriv, Elem, Elem, Ty) -> Maybe Deriv
+  firstProp x tgt [] = Nothing
+  firstProp x tgt ((_, leN, reN, _) :: rest) =
+    goProp x leN reN tgt <|> goProp x reN leN tgt
+    <|> firstProp x tgt rest
+
+  propose : Ty -> Ty -> Maybe Deriv
+  propose src tgt = do
+    let El x = src
+      | _ => Nothing
+    let pool = map CtxVar [0 .. minus (length (toList ctx)) 1]
+               ++ subterms 2 x
+    firstProp x tgt (take 8 (lemmaInsts sig ctx stp d pool))
+
 ||| One side's rolling chain: side₀ ≐ cur, extended by a step.
 stepChainE : Sig -> Ctx -> Ty -> (Deriv, Elem) -> Step -> Maybe (Deriv, Elem)
 stepChainE sig ctx ty (chain, cur) step = do
@@ -1752,7 +1913,7 @@ stepChainE sig ctx ty (chain, cur) step = do
                 else do
                   -- the dependent shift: bridge by the step's own
                   -- licensed equation, walked through the two types
-                  dBr <- reBridgeT sig ctx (Just step) 0 pN tN
+                  dBr <- reBridgeTSearch sig ctx step 0 pN tN
                   dPlN <- do
                     dP <- reTy sig ctx pN emptySkel
                     pure (DElEqTyCoe (DNfEqTy (DPresupElTy (DPresupElL dPl)) dP) dPl)
