@@ -45,6 +45,8 @@ import Nova.Kernel.Beta
 import Nova.Kernel.QIIT
 import Nova.Kernel.Parser
 import Nova.Kernel
+import Nova.Kernel.Derivation
+import Nova.Kernel.Reconstruct
 
 import Me.Russoul.Text.Position
 import Me.Russoul.Text.Range
@@ -156,9 +158,13 @@ record ElabSt where
   ||| opened names of its imports (last entry wins; locals were already
   ||| resolved by the parser and never reach this table)
   vis : SnocList (String, String)
+  ||| the derivation rework's STRICT MODE (phase 2's coverage meter):
+  ||| an accepted item the reconstructor cannot cover becomes an
+  ||| error instead of a silent fallback
+  strictDeriv : Bool
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [<] [<] [<] [<] "" [<]
+initSt = MkElabSt [<] [<] [] [] [] [<] [<] [<] [<] "" [<] False
 
 ||| Resolve a surface signature reference: aliases first (own module,
 ||| opened imports), else the name itself (qualified references reach
@@ -215,6 +221,7 @@ throw e = MkElabM $ \_ => Left e
 licProof : StepLic -> Elem
 licProof (LProof p) = p
 licProof (LPath _ _ _) = assert_total $ idris_crash "licProof: path license in a rewrite trace"
+licProof LBeta = assert_total $ idris_crash "licProof: positional exposure in a rewrite trace"
 
 ||| The identity NORMAL substitution over a context of length n:
 ||| ☐ₙ₋₁, ..., ☐₀ (outermost first) — how a hole minted at the ambient
@@ -1341,13 +1348,13 @@ prefixSteps i = map ({ path $= (i ::) })
 ||| Steps of a certificate that is pure steps + beta (flattenable into
 ||| a parent at a path); Nothing when the final is type-directed.
 flatSteps : ECert -> Maybe (List Step)
-flatSteps (MkECertF Nothing steps FBeta) = Just steps
+flatSteps (MkECertF Nothing steps FBeta _) = Just steps
 flatSteps _ = Nothing
 
 ||| ... and with no proofs needed at all (safe under binders, where a
 ||| Γ-level proof reference would go out of scope).
 stepFree : ECert -> Bool
-stepFree (MkECertF Nothing [] FBeta) = True
+stepFree (MkECertF Nothing [] FBeta _) = True
 stepFree _ = False
 
 mutual
@@ -1368,17 +1375,17 @@ mutual
         base = aSteps ++ bSteps
         tyN = betaTy st.sig tyX in
     if a' == b'
-      then Just (MkECertF bridge base FBeta)
+      then Just (MkECertF bridge base FBeta [])
       else
         (do rest <- candMatchC dep st cs ctx a' b' tyN >>= unbridged
-            pure (MkECertF bridge (base ++ rest.steps) rest.final))
+            pure (MkECertF bridge (base ++ rest.steps) rest.final []))
         <|> (do rest <- spEqStructC dep st cs ctx a' b' tyN >>= unbridged
-                pure (MkECertF bridge (base ++ rest.steps) rest.final))
+                pure (MkECertF bridge (base ++ rest.steps) rest.final []))
         <|> (do congSteps <- spCongC dep st cs ctx a' b'
-                pure (MkECertF bridge (base ++ congSteps) FBeta))
+                pure (MkECertF bridge (base ++ congSteps) FBeta []))
    where
     unbridged : ECert -> Maybe ECert
-    unbridged c@(MkECertF Nothing _ _) = Just c
+    unbridged c@(MkECertF Nothing _ _ _) = Just c
     unbridged _ = Nothing
 
   spEqStructC : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Ty -> Maybe ECert
@@ -1552,7 +1559,7 @@ mutual
     firstJ (Nothing :: rest) = firstJ rest
 
     noBridge : ECert -> Maybe ECert
-    noBridge c@(MkECertF Nothing _ _) = Just c
+    noBridge c@(MkECertF Nothing _ _ _) = Just c
     noBridge _ = Nothing
 
     paramTy : Cand -> Nat -> Maybe Ty
@@ -3270,7 +3277,8 @@ mutual
         case pUse of
           Elem.EqTy l r t => do
             c <- convElem ctx env "\{site}: checking ⋆" Nothing l r t
-            pure (Star, withExpose exp (Nd [PReflEq (certOr c)] []))
+            pure (Star, withExpose exp
+              (Nd [PReflEq (certOr c)] []))
           Squash sq =>
             case betaTy st.sig sq of
               Ty.OneTy => pure (Star, withExpose exp (Nd [PSquashWit OneIntro (Nd [] [])] []))
@@ -3540,30 +3548,78 @@ mirrorHoleDefs = do
           Nothing =>
             case e of
               SigDef delta _ t dty =>
-                if kCheckSolution ks kernelFuel delta t dty == Right ()
+                -- the SEAT, for solutions: emitted derivations
+                -- replayed by the derivation kernel; the old
+                -- kernel's verdict only where emission fails (the
+                -- hole-solution residue)
+                if (case emitSol ks delta t dty of
+                      Just ds =>
+                        acceptSolItem ks kernelFuel ds delta dty t == Right ()
+                      Nothing =>
+                        kCheckSolution ks kernelFuel delta t dty == Right ())
                   then go rest (ks :< e)
                   else go rest ks
               SigTyDef delta _ t =>
-                if kCheckTySolution ks kernelFuel delta t == Right ()
+                if (case emitTySol ks delta t of
+                      Just ds =>
+                        acceptTySolItem ks kernelFuel ds delta t == Right ()
+                      Nothing =>
+                        kCheckTySolution ks kernelFuel delta t == Right ())
                   then go rest (ks :< e)
                   else go rest ks
               _ => go rest ks
 
-||| Kernel-check a clean item against the kernel's own Σ; extend it on
-||| acceptance. Items elaborated under assumptions (dirty) are skipped —
-||| they cannot be accepted anyway.
-kernelAccept : String -> (Sig -> Either KErr SigEntry) -> Bool -> ElabM ()
-kernelAccept name check clean = do
-  st <- getSt
-  if not clean
-    then pure ()
-    else case check st.kernelSig of
-      Right entry => modifySt $ { kernelSig $= (:< entry) }
-      Left err => throw "\{name}: KERNEL REJECTED the elaborated item: \{err}"
-
 liftQE : String -> Either QErr a -> ElabM a
 liftQE site (Left e) = throw "\{site}: \{e}"
 liftQE site (Right x) = pure x
+
+||| ACCEPTANCE, RE-SEATED on the derivation kernel (docs/NovaPipeline.txt,
+||| phase 2 — the trust inversion). Where the reconstructor produces
+||| derivations, conclude IS the verdict: the item is accepted iff
+||| replay concludes exactly its stated judgements, and the old
+||| kernel does not run at all. Where reconstruction does not cover —
+||| the RESIDUE, documented in the pipeline status — the old kernel's
+||| verdict stands alone, as before the rework. Items elaborated
+||| under assumptions (dirty) are skipped — they cannot be accepted
+||| anyway. NOVA_STRICT_DERIVATIONS=1 turns a residue fallback into
+||| an error (the coverage meter, unchanged).
+seatAccept : String -> (Sig -> Either KErr SigEntry) -> KDefArt -> SigEntry -> Bool -> ElabM ()
+seatAccept name residue art entry clean = do
+  st <- getSt
+  if not clean
+    then pure ()
+    else case emitDef st.kernelSig art of
+      Just ds =>
+        case acceptDefItem st.kernelSig kernelFuel ds art.dty art.body of
+          Right () => modifySt $ { kernelSig $= (:< entry) }
+          Left err =>
+            throw "\{name}: derivation kernel REJECTED the item: \{err}"
+      Nothing => do
+        if st.strictDeriv
+          then throw "\{name}: NOT COVERED by derivation emission"
+          else pure ()
+        case residue st.kernelSig of
+          Right entry' => modifySt $ { kernelSig $= (:< entry') }
+          Left err => throw "\{name}: KERNEL REJECTED the elaborated item: \{err}"
+
+seatTyAccept : String -> (Sig -> Either KErr SigEntry) -> KTyDefArt -> SigEntry -> Bool -> ElabM ()
+seatTyAccept name residue art entry clean = do
+  st <- getSt
+  if not clean
+    then pure ()
+    else case emitTyDef st.kernelSig art of
+      Just dT =>
+        case acceptTyDefItem st.kernelSig kernelFuel dT art.tty of
+          Right () => modifySt $ { kernelSig $= (:< entry) }
+          Left err =>
+            throw "\{name}: derivation kernel REJECTED the item: \{err}"
+      Nothing => do
+        if st.strictDeriv
+          then throw "\{name}: NOT COVERED by derivation emission"
+          else pure ()
+        case residue st.kernelSig of
+          Right entry' => modifySt $ { kernelSig $= (:< entry') }
+          Left err => throw "\{name}: KERNEL REJECTED the elaborated item: \{err}"
 
 ||| Emit one core definition item: kernel-check, extend Σ, register a
 ||| lemma if it is ≡-typed. Mirrors elabItem's tail for surface defs.
@@ -3578,8 +3634,10 @@ emitCoreDef site x ty tySk body bodySk = do
   resolveConstraints oblsAtStart
   mirrorHoleDefs
   after <- oblCount
-  kernelAccept "\{site} \{x}"
+  seatAccept "\{site} \{x}"
     (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] ty tySk body bodySk))
+    (MkKDefArt q [] ty tySk body bodySk)
+    (SigDef [<] q body ty)
     (after == 0)
   modifySt $ { sig $= (:< SigDef [<] q body ty), vis $= (:< (x, q)) }
   addLemma q [<] ty
@@ -3595,8 +3653,10 @@ emitCoreTyDef site x ty tySk = do
   resolveConstraints oblsAtStart
   mirrorHoleDefs
   after <- oblCount
-  kernelAccept "\{site} \{x}"
+  seatTyAccept "\{site} \{x}"
     (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty tySk))
+    (MkKTyDefArt q [] ty tySk)
+    (SigTyDef [<] q ty)
     (after == 0)
   modifySt $ { sig $= (:< SigTyDef [<] q ty), vis $= (:< (x, q)) }
 
@@ -3741,8 +3801,10 @@ elabItemGo (SDef x ty body) = do
   resolveConstraints oblsAtStart
   mirrorHoleDefs
   after <- oblCount
-  kernelAccept "def \{x}"
+  seatAccept "def \{x}"
     (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] ty' tySk body' bodySk))
+    (MkKDefArt q [] ty' tySk body' bodySk)
+    (SigDef [<] q body' ty')
     (after == 0)
   modifySt $ { sig $= (:< SigDef [<] q body' ty'), vis $= (:< (x, q)) }
   addLemma q [<] ty'
@@ -3783,8 +3845,10 @@ elabItemGo (STypeDef x ty) = do
   resolveConstraints oblsAtStart
   mirrorHoleDefs
   after <- oblCount
-  kernelAccept "type \{x}"
+  seatTyAccept "type \{x}"
     (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty' tySk))
+    (MkKTyDefArt q [] ty' tySk)
+    (SigTyDef [<] q ty')
     (after == 0)
   modifySt $ { sig $= (:< SigTyDef [<] q ty'), vis $= (:< (x, q)) }
   suffix <- opensSuffix census
@@ -4180,8 +4244,8 @@ installImports (MkSImport m opens :: rest) = do
 ||| ACCEPTED — clean and fully kernel-checked — before anything may
 ||| import it; the root reports its obligations as usual.
 export
-elabProgram : List ModUnit -> String
-elabProgram units = go initSt units []
+elabProgramStrict : Bool -> List ModUnit -> String
+elabProgramStrict strict units = go ({ strictDeriv := strict } initSt) units []
  where
   finish : FixTable -> ElabSt -> List String -> String
   finish tbl st echoes =
@@ -4256,6 +4320,11 @@ elabProgramSig units = go initSt units
               Nothing  => case rest of
                             [] => Right st'.kernelSig
                             _  => go st' rest
+
+||| The default (non-strict) entry.
+export
+elabProgram : List ModUnit -> String
+elabProgram = elabProgramStrict False
 
 ||| Elaborate a single surface file (no imports — resolving them needs
 ||| the module loader); the returned string is the complete report.

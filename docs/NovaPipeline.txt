@@ -11,9 +11,16 @@ layers are specified elsewhere:
 
   * docs/NovaFoundation.txt   — the THEORY. Sole source of truth; every
                                 other layer answers to it.
-  * docs/NovaKernel.txt       — the KERNEL, rule by rule: fuel-bounded
-                                normalization, certificate replay,
-                                item-level checking over skeletons.
+  * docs/NovaKernel.txt       — the KERNEL as implemented, rule by
+                                rule: fuel-bounded normalization,
+                                certificate replay, item-level
+                                checking over skeletons. Slated for
+                                demotion to the untrusted
+                                RECONSTRUCTOR by the derivation
+                                rework (last section below).
+  * docs/NovaDerivations.txt  — the kernel rework's TARGET: the
+                                derivation format and the replay
+                                kernel that checks it.
   * docs/NovaElaboration.txt  — the elaborator: surface syntax,
                                 bidirectional rules, the obligation
                                 lifecycle.
@@ -153,6 +160,14 @@ exporting kernel derivations to an external checker) or fuel coupling
 bites. The floor in every variant: α-comparison and substitution stay
 trusted — no kernel design knows less than that.
 
+REVISITED — see "The derivation rework" below. The rework adopts the
+fallback's direction in generalized form: not β-steps in
+certificates, but ALL judgements certified, as Foundation-rule
+derivation trees — while keeping the fuel-bounded ≜-engine as an
+admissible ORACLE rule, which neutralizes exactly the size argument
+that made trace-beta lose here. This section stands as the record of
+why the oracle exists.
+
 ////////// Who produces what: the two tactic layers //////////
 
 The criterion is addressability and persistence.
@@ -280,3 +295,439 @@ item level carries real motives): ℕ-elim z/s rewrite positions and
 ℕ-elim proof arguments use the CONSTANT-MOTIVE reading — a valid
 congruence/elimination instance whose premises are demanded at the
 constant type.
+
+////////// The derivation rework (target architecture) //////////
+
+DECISION (recorded here; design in docs/NovaDerivations.txt): the
+kernel is being reworked into a DERIVATION CHECKER — judgements
+exactly Foundation's, rules exactly Foundation's, plus two admissible
+schemas (presupposition projection; the nf oracle, which is this
+pipeline's fuel-bounded ≜-engine wearing a rule's name). The
+elaborator-side machinery hands over candidate derivations; the
+kernel replays them, rule instance by rule instance, with no
+reconstruction of its own.
+
+Why now. The current kernel re-derives judgements from bare core plus
+hints, and bare core deliberately loses what derivations have —
+eliminator motives above all. Every acknowledged approximation in
+docs/NovaKernel.txt (the constant-motive readings, the proof-spine
+fragment A4–A6, the typed descent's undetermined positions, the
+neutral-subterm rule and its binder-crossing residue) is a negotiated
+position on that one frontier, each a trust-bearing reimplementation
+of something the elaborator already knows. Checking derivations
+deletes the frontier by construction and reduces the kernel audit to
+a side-by-side diff against NovaFoundation.txt. The trusted floor is
+unchanged: α-comparison, substitution, the ≜-meta-operations, the
+normalizer, fuel.
+
+The LCF division sharpens rather than moves: search stays out of the
+trusted base, and now RECONSTRUCTION does too. Today's kernel is not
+deleted — it crosses the boundary and becomes the RECONSTRUCTOR, an
+untrusted component (the discharge engine's kind) that rebuilds
+derivations from the current artifacts; its incompleteness becomes a
+quality property. The obligation lifecycle, open signatures, module
+semantics, the report, and the reproducibility invariant are
+untouched — derivations are as ephemeral and regenerable as today's
+certificates.
+
+Phasing:
+
+  0. SPEC — docs/NovaDerivations.txt (format: rule-per-node trees
+     with no carried spellings — replay is synthesis, every spelling
+     delivered by a premise's conclusion; conclusions computed,
+     contexts threaded; the delivery discipline; presupposition
+     projection; the nf oracle with its load-bearing typing premise;
+     the retirement map).                               [DONE]
+  1. TRUSTED CORE — the derivation datatype, `conclude`, the two
+     admissible schemas, the oracle over the existing normalizer.
+     [IN PROGRESS — Nova.Kernel.Derivation checks: the element
+     language (formation, typing, equivalence, coercion, reflection,
+     congruence, props, normal substitutions, sig references and
+     constraints, projection, the oracle); the quotient rules
+     including the witness equality and el-quot-eta; the η rules
+     el-nat-eta and el-sum-eta (A5 retired at the derivation level);
+     ctx formation, σ typing and el/ty-sub-cong-fix; the ν layer
+     (poly formation, ty/code-nu, el-nu-i/e, el-nu-coind); and the
+     QIIT typing/equality nodes (sort/code instances, constructors,
+     the eliminator with COHERENCE EQUALITY DERIVATIONS — A4's
+     β-only restriction retired — and el-qiit-path). Exercised by
+     the deriv-core golden; the ToS layer is FIRST-CLASS — qctx/qty/
+     qtm/qsub one node per Foundation rule, Φ threaded as an input
+     in its own conclude family, the ς-calculus reified with its
+     action as the meta-operation — so signature formation carries
+     no borrowed checking and no A4/A6 residue (ℕ-as-QIIT is formed
+     rule by rule in the golden and consumed by the eliminator
+     machinery unchanged), and the poly rules are likewise one node
+     per rule; the congruence set is complete (eliminator congruences
+     with their motive premises — A1's derivation-level retirement —
+     let/class/inj/code congruence, sub-norm-ext-cong for spine
+     congruence, the full el/ty-sub-cong); the injectivity rules are
+     in (ty and code, grouped conclusions split per node); tel/sp
+     formation, the ctx/sub/sub-norm/tel/sp equality classes with
+     their adopted-once equivalence instances, and the four
+     context-coercion rules are in; and the elimination-problem
+     classes mot/dalg/eprob/sect are first-class judgements, with
+     el-qiit-elim taking an eprob premise and EL-QIIT-ETA replayable
+     (the golden replays c ≐ 𝒮.𝕤-elim ℰ · c from an identity section
+     candidate; the section-spine meta-operation θ⟨h⟩ generalized to
+     arbitrary candidates in Nova.Kernel.QIIT.qSectRhs). Residue,
+     all consumer-pending: out/corec congruence (Foundation states
+     none — admissible via el-nu-coind), sub-ext/comp-cong and the
+     sub-norm context-coercion rules, and the x[e˲]-congruence
+     ASSEMBLY (sub-norm-ext-cong + el-sub-cong compose it; phase 2's
+     translator will pick the spelling). Phase 2 — the bridge — is
+     next.]
+  2. BRIDGE — today's kernel instrumented to EMIT derivations
+     (becoming the reconstructor); acceptance re-seated on the new
+     core. Elaborator, discharge engine and artifact formats
+     untouched, so the golden suite and corpus pin the cutover.
+     [RE-SEATED — Nova.Kernel.Reconstruct rebuilds derivations from
+     the current artifacts (terms + skeletons), and ACCEPTANCE NOW
+     SITS ON conclude: where the reconstructor produces derivations,
+     an item is accepted iff replay concludes exactly its stated
+     judgements — the old kernel does not run at all. Where it
+     cannot (the RESIDUE, below), the old kernel's verdict stands
+     alone, as before the rework. The road there, slice by slice —
+     the shadow phase, during which conclude had to AGREE with the
+     old kernel wherever covered, a disagreement a hard error:
+     First slice: the structural core with skeleton motives and
+     β-only conversion translation (switch/expose → el-ty-coe over
+     nf-eq-ty, refl-eq ⋆ → el-eq-i over nf-eq); the whole corpus
+     passes with the shadow live, which already caught a conclude
+     bug (ty-sig-var concluding its unfolding — ty-sig-beta's
+     business). Second slice: type items under the
+     shadow, ν formation/intro/observation (poly rebuilt rule by
+     rule), and quotient elimination with β-only well-definedness.
+     Third slice: the CERTIFICATE
+     TRANSLATOR — the retirement map executable: rolling per-side
+     trans chains with nf-expand bridges, licensed equations
+     reconstructed AT the leaf's context (weakened proof spellings
+     re-inferred there, exposed to a literal equality prop by
+     projection + the oracle), flips as sym, paths as congruence
+     chains with sibling refls, finals mapped (beta → nf-eq, prop
+     rules, quotient witnesses, Π-η, the type congruence finals);
+     intermediate typings all flow through presupposition
+     projections. Fourth slice: the QIIT
+     formers — signatures rebuilt through the first-class ToS nodes
+     (Φ threaded, embedded pieces checked at their spelled domains),
+     sort instances and codes, constructors, and the eliminator with
+     its PQCoh coherence certificates through the translator; LPath
+     licenses become DQPath leaves. Fifth slice: SELECTOR
+     translation — each Sel to its injectivity node, the
+     instantiating selectors composed with el-sub-cong-fix, SelSuc
+     riding the derivable predecessor route (el-nat-e-cong at the
+     constant motive, conjugated by nf-expand). Sixth slice: el-squash-e-prf
+     (a rule the derivation core had missed — the reconstructor's
+     coverage sweep found it), the FPropExt final, and STRICT MODE —
+     NOVA_STRICT_DERIVATIONS=1 makes an uncovered accepted item an
+     error, turning the corpus into a coverage meter. Seventh
+     through ninth slices: the applied-eliminator fragment (an
+     eliminator head applied under a constant-codomain guess), head
+     exposure by nf on both the synthesized and the expected side,
+     and placement motives read off the expected type. Tenth slice:
+     the HYPOTHESIS-SENSITIVE TYPE BRIDGE — a placement at a
+     dependent position shifts the equation's type by the step's own
+     licensed equation, so the two spellings are walked in parallel
+     and the mismatched pair is closed by that very equation
+     (both orientations); endpoints whose typing needs the
+     hypothesis ride the same bridge; rewriting into the equality
+     code's ∈-slot goes through the derived code-eq congruence; and
+     a def whose raw type spells solved holes is checked at nf and
+     ridden back on the type derivation already in hand. The chain
+     type is the certificate's own (tyEx), not the equation's — a
+     mixed-spelling trans caught by the shadow, not by the meter.
+     Eleventh slice: the ⋆-ENDPOINT ROUTES — an equation endpoint
+     that types only at the raw equation type rides the
+     certificate's own pre-bridge (tyEx) into the chain type; a bare
+     ⋆ at an equality prop closes by reflexivity when the sides
+     agree up to nf, else by an assumption of that very equality
+     (reflect the hypothesis, reintroduce) — the proof-irrelevance
+     shape. Twelfth slice: COINDUCTION — the ⋆-coinduction payload
+     replayed through el-nu-coind (whose conclude clause had spelled
+     the second ν binder and the closure's 𝔽/R unweakened — fixed
+     against Foundation); `out` placements ride Foundation's spine
+     route (out ☐₀ over Γ ▷ ν𝔽, the component pushed in by
+     sub-ext-cong + el-sub-cong — sub-ext-cong itself a Foundation
+     rule the derivation core had missed); and every placement
+     parent now squares its child equation's type spelling with the
+     congruence's demand by the nf oracle (eqAtNf), which cleared a
+     latent el-sum-e-cong disagreement. Thirteenth slice: TYPING
+     NORMALIZED SPELLINGS — a bare ⋆ at an equality prop closes by
+     nf-reflexivity even when the sides are eliminator-headed, via
+     the ENDO guess (an uninferable applied head tried at a → a on
+     the argument's own type — the iterated-observation shape nf
+     produces) and corec made inferable (it carries its polynomial)
+     (currently 13/27 files fully covered; every covered item
+     agrees). Fourteenth slice: FORMATION INVERSION (NovaDerivations,
+     admissible addition 1½) — el-pi-e's retained codomain premise
+     arrives by inv-pi-cod of the head's presupposed Π formation
+     when the codomain spells solved holes underivable bare (a
+     hole-carrying def APPLIED — cong at stream observations); bare
+     re-derivation stays primary so shared-subtree replay cost stays
+     linear (inversion re-replays the head, exponential on nested
+     spines — an out-of-fuel caught by the shadow). Plus
+     NOVA_RECON_DEBUG=1, a permanent first-failure-spine diagnostic
+     (currently 15/27; every covered item agrees). Fifteenth slice:
+     FORMATION THREADING — the def type's derivation rides down the
+     body's lambda spine (inv-pi-cod per binder) and elim-branch
+     goals get theirs from the motive derivation substituted along
+     the branch's section (ty-sub as cong-fix over refl), so a ⋆
+     goal's endpoints arrive by the Prf-equality inversions instead
+     of re-typing normalized eliminator spellings bare — sum.nova's
+     η law, whose endpoints spell ⊎-elim over an injected variable,
+     is the paradigm case (currently 16/27; every covered item
+     agrees). Sixteenth slice: the LAST SELECTOR — SelQIdx
+     translates to code-qsort-inj-idx (QIIT code injectivity,
+     indexwise; Foundation states the QIIT congruence/injectivity
+     block structurally, so the node is its indexwise reading), and
+     the dual placement — rewriting INTO a QSort index — goes
+     through ty-qiit-cong, the same block's congruence reading, with
+     sibling indices refl at the left-spine instantiation (currently
+     17/27; every covered item agrees). Seventeenth slice: a checked
+     LET (the body ⋆'s expose certificate closes the abbreviation
+     gap through the let's own hypothesis), and rewriting inside a
+     POINT-CONSTRUCTOR SPINE via el-qiit-intro-cong — the structural
+     block's congruence reading for QCtor, arguments each at the
+     left instantiation, concluding at the left spine's sort
+     instance (currently 19/27; every covered item agrees).
+     Eighteenth slice: the ELIMINATOR ITEMS — a well-definedness
+     equation's endpoint whose typing is its own step license's
+     presupposition; the bridges made STEP-OPTIONAL, closing
+     mismatched pairs by a SEARCHED path-constructor instantiation
+     (candidate spines from the pair's own constructor arguments and
+     the context's variables, type-filtered, endpoints verified at
+     nf — the quotient's cls-equation under its relation witness) or
+     by a context hypothesis of the very equality, reflected; and
+     the prop-final close now rides the chain's presupposed
+     formation back to the raw spelling (a latent mixed-spelling
+     el-trans the shadow caught on the Bag eliminator) (currently
+     23/27; every covered item agrees). Nineteenth slice: the path
+     search accepts a one-sided constructor pair (a variable against
+     pred (suc v) — the truncation path applied under one nesting),
+     candidates drawn from nested spines (currently 24/27; every
+     covered item agrees). Bails, honestly: the integer tails
+     (normalization-heavy endpoint typings) and the vector-append
+     tail (an INDEXED motive for a normalized eliminator spelling —
+     placements need motive abstraction). Remaining: those bails
+     driven down by the strict-mode meter, then the re-seat.
+     Twentieth slice: two more endpoint routes — classes of related
+     representatives take el-quot-eq with the witness found among
+     the context's hypotheses (the genuine-quotient dual of the
+     QIIT path search), and an endpoint whose Prf differs from the
+     goal's beyond nf rides code-prop-eq (both props HOLD: the
+     goal's by nf-reflexivity, the endpoint's own by the endpoint
+     itself, weakened — with inv-prf-code delivering the Ω-typing
+     from the presupposed formation). Twenty-first slice: quot-elim
+     REVISITED — the body goal's formation threaded from the motive
+     derivation (its instance along ⟨wk, class ☐₀⟩ by the sub
+     calculus), the well-definedness endpoints delivered as
+     SUBSTITUTION INSTANCES of the body derivation itself (the
+     body's binder sent to ☐₂ by a weakening, to ☐₁ by an extension;
+     the ☐₁ instance carried across by code-prop-eq when the motive
+     is a prop), the witness final matching its classes raw-first
+     and at nf as a fallback with nf-expand bridges, and pair
+     components placeable (el-pair-cong). integerAdd and
+     integerNormalize cover fully (25/27; every covered item
+     agrees). Remaining: eqInt's iff tail, the vector-append tail —
+     then the re-seat. Twenty-second slice, toward those tails: a
+     step's ∀-lemma RE-INSTANTIATED at searched arguments (candidate
+     tuples from the pair's own subterms and the context, filtered
+     along the lemma's Π tower or signature telescope — a type
+     instance shifts by zeroPlusId at m+k where the step licensed it
+     at m); NatElim bridged component-wise (z and index; constant
+     motive at the position's type); β-met bridge shapes conjugated
+     by the oracle; MOTIVE ABSTRACTION (the expected type with the
+     scrutinee's spelling replaced by the fresh binder) as the
+     indexed-motive guess at eliminator placements; checked lets.
+     Both tails narrow but stand, and with the twenty-third slice
+     the seat FLIPS with them documented as residue.
+
+     THE RESIDUE — where the old kernel's verdict still stands
+     alone, each with its reason and its exit:
+
+       * ITEMS THE RECONSTRUCTOR DOES NOT COVER. Two corpus files:
+         eqInt past eqIIff — argument types spell quot-elim'd
+         Ω codes whose well-definedness equations cannot be
+         re-derived bare (they need the arithmetic the elaborator's
+         certificates carried for OTHER spellings; this is the
+         hole-solution shape); and vectByIndAppend past vappendAssoc
+         — one lemma-instance step inside an El-vs-unfolding type
+         bridge (an index congruence composed with β at the type
+         level). NOVA_STRICT_DERIVATIONS=1 remains the meter: it
+         turns a residue fallback into an error, so the residue
+         cannot silently grow. Exit: phase 3 — the elaborator emits
+         the derivation alongside the artifact instead of having it
+         reconstructed.
+       * HOLE SOLUTIONS — RETIRED IN PRACTICE (phase 3, first
+         slice): the mirror now emits each solution's derivations
+         and the derivation kernel accepts them;
+         kCheckSolution/kCheckTySolution remain only as a fallback
+         for solutions emission cannot cover, and nothing in the
+         suite or corpus reaches it. A solution neither emitted nor
+         old-kernel-checkable is silently not mirrored (references
+         stay stuck) — completeness, never soundness.
+
+     The accepted-item invariant, after the seat: for every item the
+     reconstructor covers, acceptance = a Foundation-rule derivation
+     replayed by conclude to exactly the item's stated judgements;
+     for the residue, acceptance = the old kernel's verdict, exactly
+     as documented in docs/NovaKernel.txt.]
+  3. CONSOLIDATION (incremental, unhurried) — the elaborator emits
+     derivations directly where reconstruction is weak or wasteful;
+     the trace→derivation translation absorbs the discharge engine's
+     certificate format; skeletons retire when nothing consumes
+     them.
+     [IN PROGRESS — first slice: the EMISSION BOUNDARY. What was the
+     reconstructor is now, in code structure as in trust story, the
+     elaborator's derivation-emission pass: the elaborator emits
+     (emitDef/emitTyDef, Nova.Kernel.Reconstruct) and hands the seat
+     derivations; the trusted side exposes item ACCEPTANCE functions
+     (acceptDefItem and kin, Nova.Kernel.Derivation) that replay
+     them against the item's stated judgements — the seat composes
+     exactly these two. And HOLE SOLUTIONS are seated: the mirror
+     emits each solution's derivations (telescope formation
+     entrywise, then the type and body in the telescope context —
+     solutions carry no skeletons, so emission is bare) and the
+     derivation kernel accepts them; the old kernel's
+     kCheckSolution remains only as a fallback, which the entire
+     suite and corpus no longer exercise (measured: with the
+     fallback disabled, 140/140 and 27/27 still pass). The
+     hole-solution residue entry below is thereby retired in
+     practice; the guessing machinery in the emission pass retires
+     guess by guess as later slices record more at elaboration
+     time. Second slice, at the two def-item tails: branch checks of
+     an indexed-motive placement descend lambdas and bridge at the
+     leaf with the step's own lemma (chkStep); motive abstraction
+     keys on either side of the rewrite (the expected type is the
+     motive instance at whichever spelling the equation's type
+     already speaks); a subterm-rewrite proposal (replE) lets a
+     bridge cross an index rewrite that changes a code's shape only
+     after β; and the ∀-lemma instantiation search is SCOPED — leaf
+     sites and the per-step shift sites only, never the ambient
+     bridge, after an ambient version sent covered items into
+     minutes-long search storms (the whole suite now runs in ~35s,
+     the corpus meter in ~11s, and anything past ~15s per item is
+     treated as a blowup). vappendAssoc's nil branch now closes; its
+     successor branch stands one wall further (the ih application
+     under the abstracted motive), and eqIIff stands unchanged —
+     both remain the residue, their exit the engine-side emission
+     this phase is for. Third slice: the CERTIFICATE FORMAT
+     ABSORBED — formations ride the certificate's own structure
+     instead of bare re-derivation, everywhere. reEqTy takes
+     optional endpoint formations (a switch's inferred side by
+     presupposition, an expose's checked side likewise); a side
+     untouched by steps closes ONE-SIDED, by the chain's own
+     β-normal end — its formation arriving free as the conclusion's
+     presupposition, in both orientations; the tyEx pre-bridge
+     REPORTS WHERE IT REACHED and the equation carries on at the
+     reached spelling; the type-congruence finals hand their
+     component equations inversion-projected formations; the
+     placement walk THREADS the chain's presupposed typing down
+     through the formers (inv-el-code, inv-prf-code, and the
+     code-eq typing inversions inv-code-eq-lhs/rhs/ty — subject-
+     directed, so type conversion cannot interfere); and the
+     formation-threaded checker covers switch sites and application
+     arguments (the domain by inv-pi-dom of the head's presupposed
+     Π). eqInt COVERS FULLY — the eqIIff tail falls (26/27; every
+     covered item agrees). vectByIndAppend alone remains. Fourth
+     slice — a finding worth its cost: the planned "engine-side
+     certificate enrichment" rests on a FALSE premise. The engine's
+     replay never forms the shifted instance types at all — it
+     rewrites spellings and compares normal forms at the one fixed
+     equation type — so there is no induced type chain for it to
+     record; the shifts are artifacts of the DERIVATION-side
+     congruence conclusions (el-app-cong concludes at B[e′], the
+     chain speaks B[e]). A store-lemma instantiation search at the
+     shift sites was built and REVERTED: typed enumeration times a
+     hundred retry attempts is a budget storm, and its proposals
+     drift into junk spellings (kept: the step's own lemma
+     re-instantiated, tag-gated and pool-filtered — cheap and
+     precise). The principled exit is search-free and derivation-
+     side: the PLACEMENT builds its own pre-instance bridge from the
+     child equation it already holds — sub-ext-cong on ⟨id, child⟩,
+     then ty-sub-cong at the fixed family — composed level by level
+     up the placement walk. Sixth slice, explored and REVERTED whole —
+     recorded because the measurements matter: RAW-FIRST STEP
+     PLACEMENT works. A step placed at the raw spelling — the
+     licensed occurrence found up to nf through solved-hole
+     references, the intended occurrence disambiguated by the old
+     kernel's own step replayer, the two spellings joined by a lean
+     one-difference walk — bypasses the β-created towers entirely,
+     and raw placement failures fell from 58 to 4 on the residue
+     file. But the unlocked progress expanded the downstream
+     attempt cascade, whose ambient bridge costs (leaf searches
+     times roughly a hundred retry attempts) ran to millions of
+     normalizations; even a per-item normal-form cache left the
+     file an order of magnitude over budget. The prerequisite is
+     MEMOIZED EMISSION: the retry structure re-solves identical
+     subproblems wholesale, and no per-site search discipline fixes
+     that — an infrastructure slice (memo tables or a single-pass
+     attempt discipline), after which the raw-first chains become
+     affordable. Seventh slice: MEMOIZED EMISSION, landed — memo
+     tables over the skeleton-free entry points (checking,
+     inference, formation, and both normalizers), keyed by the
+     spellings' structural Show output with the context included;
+     FAILURES are cached too, which is what stops the retry storms;
+     the tables clear at each emission entry (Σ is fixed within one
+     item — and the clear must be a real function, not a top-level
+     constant: a CAF clears once ever, and the stale tables that
+     resulted cost four covered files before the meter caught it).
+     Untrusted side only — replay never sees a cache. The residue
+     file's attempt tree drops from minutes to ~4s; covered files
+     pay a modest key-construction overhead. The raw-first
+     placement was then re-applied on the memoized base and STILL
+     exceeds budget — with duplicates eliminated, its cost is
+     DISTINCT work: every variant spelling makes each downstream
+     sub-problem new, so no cache helps. The next lever is pruning
+     the attempt tree itself (translating each ⋆'s certificate once
+     and sharing it across the body-level attempts), not caching.
+     Fifth slice: that design LANDED at its
+     three shift-introducing cases — el-app-cong's argument
+     position, the second projection, and the ℕ-elim scrutinee each
+     coerce their conclusion back to the PRE-instance by their own
+     child equation (sub-ext-cong on ⟨id, sym child⟩, ty-sub-cong at
+     the fixed family), so the surrounding chain sees no dependent
+     shift at all. vectByIndAppend still stands — beneath the chain
+     shifts, its successor branch's ih application under the
+     abstracted motive wants composites of index laws at spellings
+     only the original elaboration knew; that is phase 3's full
+     end-state (the elaborator emitting the induction's derivations
+     at its own ⋆s), not another reconstruction guess. Eighth
+     slice: BETA-AT AND THE POSITIONAL ROUTE, landed — the kernel
+     gains the single-≜-step rule (docs/NovaDerivations.txt,
+     addition 2½: one contraction at a path inside a typed term, no
+     subterm typing premise, by subject reduction) plus the
+     machinery under it (a one-step contractor per ≜ rule, path
+     readers/writers, an LBeta step license); when a certificate's
+     legacy replay fails at a ⋆ goal, the emission RE-EXPRESSES its
+     chain against the goal's spellings as they arrive: each
+     licensed side is SEARCHED for as a subterm — matching against
+     the license's STATEMENT spelling (licensedRaw, nothing
+     normalized), ≜-contracting goal or license only where the match
+     demands (a two-sided meet), every goal contraction recorded as
+     a beta-at link, the lemma path rebased to the found position —
+     and the re-expressed chain replays with placements on the raw
+     spellings (no motive guesses), a compact rolling typing witness
+     (embedding the whole chain in each link's premise replays
+     exponentially), and the type-expansion skipped (positional
+     steps are re-expressed at the raw type; the recorded expansion
+     belongs to the legacy chain). Landed with it: memoized rescue
+     and bridge-search tables, size gates on every search that
+     walks normalized spellings, and a match-directed instantiation
+     pool (an instance's endpoints must BE the pair, so its
+     arguments occur in it — blind enumeration buries the right
+     tuple beyond any affordable cap). This clears the z-branch ⋆
+     and every index-law equation whose licensed spelling meets its
+     goal; the successor branch still stands on its LAST gap, now
+     precisely one: a placement's DEPENDENT SHIFT whose two nf'd
+     vect indexes differ by an index-law COMPOSITE (one instance
+     per side, e.g. plus-assoc against zero-id), and the
+     instance-meet bridge for that pair (lemBridgeT, present,
+     env-gated NOVA_LEMBR) still exceeds budget on its enumeration.
+     The one-file residue holds at 26/27, and the residue file's
+     full attempt tree now runs in ~1s.]
+
+Cost, stated honestly: until phase 3 completes, an item is walked
+three times (elaborate, reconstruct, replay) — a constant factor,
+bought back by deleting the reconstruction frontier from the trusted
+base and every A-caveat with it.

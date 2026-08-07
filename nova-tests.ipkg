@@ -8,6 +8,8 @@ modules = Nova.Kernel.Syntax
         , Nova.Kernel.Beta
         , Nova.Kernel
         , Nova.Kernel.QIIT
+        , Nova.Kernel.Derivation
+        , Nova.Kernel.Reconstruct
         , Nova.Compute
         , Nova.Elaboration.Named
         , Nova.Kernel.Parser

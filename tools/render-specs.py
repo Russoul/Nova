@@ -39,6 +39,7 @@ FILES = [
     ("model", "docs/NovaModel.txt", "Nova Model"),
     ("syntax", "docs/NovaSyntax.txt", "Nova Syntax"),
     ("kernel", "docs/NovaKernel.txt", "Nova Kernel"),
+    ("derivations", "docs/NovaDerivations.txt", "Nova Derivations"),
     ("elaboration", "docs/NovaElaboration.txt", "Nova Elaboration"),
     ("pipeline", "docs/NovaPipeline.txt", "Nova Pipeline"),
 ]

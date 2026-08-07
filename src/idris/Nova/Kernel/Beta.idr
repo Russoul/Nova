@@ -19,6 +19,8 @@ module Nova.Kernel.Beta
 -- universe code, decoded by betaTy's El case below. Prf has NO decoding
 -- rule (Prf ∥A∥ does not reduce to A — that is the point of the squash).
 
+import Data.List
+import Data.SnocList
 import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
 import Nova.Kernel.QIIT
@@ -302,3 +304,388 @@ mutual
       Just (SigTyDef _ _ a) => whnfT sig (substTy a (embed es))
       _ => Ty.SigVar x es
   whnfT sig t = t
+
+
+-- ===== SINGLE-STEP CONTRACTION AT A PATH (the beta-at primitive;
+-- docs/NovaDerivations.txt, the nf oracle section) =====
+--
+-- One ≜ contraction, HEAD position: exactly one clause per ≜ rule,
+-- read side by side with Foundation's ≜ section. Nothing when the
+-- head is not a redex — the caller (a beta-at derivation node, or
+-- the engine's positionalizer) owns the position choice.
+
+export
+step1E : Sig -> Elem -> Maybe Elem
+step1E sig (PiApp (PiIntro g) e) = Just (substElem g (Ext Id e))
+step1E sig (Let a b) = Just (substElem b (Ext (Ext Id a) Star))
+step1E sig (NatElim z s NatIntro0) = Just z
+step1E sig (NatElim z s (NatIntro1 n)) =
+  Just (substElem s (Ext (Ext Id n) (NatElim z s n)))
+step1E sig (SigmaElim1 (SigmaIntro a _)) = Just a
+step1E sig (SigmaElim2 (SigmaIntro _ b)) = Just b
+step1E sig (SumElim l r (Inj1 a)) = Just (substElem l (Ext Id a))
+step1E sig (SumElim l r (Inj2 b)) = Just (substElem r (Ext Id b))
+step1E sig (Elem.SigVar x es) =
+  case sigLookup x sig of
+    Just (SigDef _ _ a _) => Just (substElem a (embed es))
+    _ => Nothing
+step1E sig (QuotElim f (Class a)) = Just (substElem f (Ext Id a))
+step1E sig (Squash (Prf p)) = Just p
+step1E sig (QElim sg k ms fs es (QCtor sgW c theta)) =
+  if sgW == sg
+    then case qElimBetaRhs sg ms fs c theta of
+           Right rhs => Just rhs
+           Left _ => Nothing
+    else Nothing
+step1E sig (Out (Corec p a f x)) =
+  Just (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+step1E sig _ = Nothing
+
+export
+step1T : Sig -> Ty -> Maybe Ty
+step1T sig (El Elem.ZeroTy) = Just Ty.ZeroTy
+step1T sig (El Elem.OneTy) = Just Ty.OneTy
+step1T sig (El Elem.NatTy) = Just Ty.NatTy
+step1T sig (El (Elem.PiTy a b)) = Just (Ty.PiTy (El a) (El b))
+step1T sig (El (Elem.SigmaTy a b)) = Just (Ty.SigmaTy (El a) (El b))
+step1T sig (El (Elem.SumTy a b)) = Just (Ty.SumTy (El a) (El b))
+step1T sig (El (QuotTy a r)) = Just (Quotient (El a) r)
+step1T sig (El (QSortC sg k es)) = Just (QSort sg k es)
+step1T sig (El (Elem.NuTy f)) = Just (Ty.NuTy f)
+step1T sig (Ty.SigVar x es) =
+  case sigLookup x sig of
+    Just (SigTyDef _ _ a) => Just (substTy a (embed es))
+    _ => Nothing
+step1T sig _ = Nothing
+
+-- The path descent: pure spelling surgery, child indices exactly the
+-- kernel's table (docs/NovaKernel.txt path grammar; binders cross
+-- silently — contraction carries no license to weaken).
+mutual
+  export
+  contractAtE : Sig -> List Nat -> Elem -> Maybe Elem
+  contractAtE sig [] e = step1E sig e
+  contractAtE sig (i :: p) e =
+    case (e, i) of
+      (ZeroElim t, 0) => ZeroElim <$> contractAtE sig p t
+      (NatIntro1 t, 0) => NatIntro1 <$> contractAtE sig p t
+      (NatElim z s t, 0) => (\z' => NatElim z' s t) <$> contractAtE sig p z
+      (NatElim z s t, 1) => (\s' => NatElim z s' t) <$> contractAtE sig p s
+      (NatElim z s t, 2) => NatElim z s <$> contractAtE sig p t
+      (PiIntro f, 0) => PiIntro <$> contractAtE sig p f
+      (PiApp f e2, 0) => (\f' => PiApp f' e2) <$> contractAtE sig p f
+      (PiApp f e2, 1) => PiApp f <$> contractAtE sig p e2
+      (Let a b, 0) => (\a' => Let a' b) <$> contractAtE sig p a
+      (Let a b, 1) => Let a <$> contractAtE sig p b
+      (SigmaIntro a b, 0) => (\a' => SigmaIntro a' b) <$> contractAtE sig p a
+      (SigmaIntro a b, 1) => SigmaIntro a <$> contractAtE sig p b
+      (SigmaElim1 t, 0) => SigmaElim1 <$> contractAtE sig p t
+      (SigmaElim2 t, 0) => SigmaElim2 <$> contractAtE sig p t
+      (Inj1 t, 0) => Inj1 <$> contractAtE sig p t
+      (Inj2 t, 0) => Inj2 <$> contractAtE sig p t
+      (SumElim l r t, 0) => (\l' => SumElim l' r t) <$> contractAtE sig p l
+      (SumElim l r t, 1) => (\r' => SumElim l r' t) <$> contractAtE sig p r
+      (SumElim l r t, 2) => SumElim l r <$> contractAtE sig p t
+      (Elem.PiTy a b, 0) => (\a' => Elem.PiTy a' b) <$> contractAtE sig p a
+      (Elem.PiTy a b, 1) => Elem.PiTy a <$> contractAtE sig p b
+      (Elem.SigmaTy a b, 0) => (\a' => Elem.SigmaTy a' b) <$> contractAtE sig p a
+      (Elem.SigmaTy a b, 1) => Elem.SigmaTy a <$> contractAtE sig p b
+      (Elem.SumTy a b, 0) => (\a' => Elem.SumTy a' b) <$> contractAtE sig p a
+      (Elem.SumTy a b, 1) => Elem.SumTy a <$> contractAtE sig p b
+      (Elem.EqTy l r t, 0) => (\l' => Elem.EqTy l' r t) <$> contractAtE sig p l
+      (Elem.EqTy l r t, 1) => (\r' => Elem.EqTy l r' t) <$> contractAtE sig p r
+      (Elem.EqTy l r t, 2) => Elem.EqTy l r <$> contractAtT sig p t
+      (QuotTy a r, 0) => (\a' => QuotTy a' r) <$> contractAtE sig p a
+      (QuotTy a r, 1) => QuotTy a <$> contractAtE sig p r
+      (Elem.SigVar x es, _) =>
+        Elem.SigVar x <$> contractSpine sig i p es
+      (Class a, 0) => Class <$> contractAtE sig p a
+      (QuotElim f q, 0) => (\f' => QuotElim f' q) <$> contractAtE sig p f
+      (QuotElim f q, 1) => QuotElim f <$> contractAtE sig p q
+      (Squash t, 0) => Squash <$> contractAtT sig p t
+      (QSortC sg k es, _) =>
+        (\es' => QSortC sg k es') <$> contractSpine sig i p es
+      (QCtor sg k es, _) =>
+        (\es' => QCtor sg k es') <$> contractSpine sig i p es
+      (QElim sg k ms fs es w, _) =>
+        if i == length (toList es)
+          then QElim sg k ms fs es <$> contractAtE sig p w
+          else (\es' => QElim sg k ms fs es' w) <$> contractSpine sig i p es
+      (Out t, 0) => Out <$> contractAtE sig p t
+      (Corec pf a f x, 0) => (\a' => Corec pf a' f x) <$> contractAtE sig p a
+      (Corec pf a f x, 1) => (\f' => Corec pf a f' x) <$> contractAtE sig p f
+      (Corec pf a f x, 2) => Corec pf a f <$> contractAtE sig p x
+      _ => Nothing
+
+  export
+  contractAtT : Sig -> List Nat -> Ty -> Maybe Ty
+  contractAtT sig [] t = step1T sig t
+  contractAtT sig (i :: p) t =
+    case (t, i) of
+      (Ty.PiTy a b, 0) => (\a' => Ty.PiTy a' b) <$> contractAtT sig p a
+      (Ty.PiTy a b, 1) => Ty.PiTy a <$> contractAtT sig p b
+      (Ty.SigmaTy a b, 0) => (\a' => Ty.SigmaTy a' b) <$> contractAtT sig p a
+      (Ty.SigmaTy a b, 1) => Ty.SigmaTy a <$> contractAtT sig p b
+      (Ty.SumTy a b, 0) => (\a' => Ty.SumTy a' b) <$> contractAtT sig p a
+      (Ty.SumTy a b, 1) => Ty.SumTy a <$> contractAtT sig p b
+      (El e, 0) => El <$> contractAtE sig p e
+      (Prf e, 0) => Prf <$> contractAtE sig p e
+      (Quotient a r, 0) => (\a' => Quotient a' r) <$> contractAtT sig p a
+      (Quotient a r, 1) => Quotient a <$> contractAtE sig p r
+      (Ty.SigVar x es, _) =>
+        Ty.SigVar x <$> contractSpine sig i p es
+      (QSort sg k es, _) =>
+        (\es' => QSort sg k es') <$> contractSpine sig i p es
+      _ => Nothing
+
+  contractSpine : Sig -> Nat -> List Nat -> SubNorm -> Maybe SubNorm
+  contractSpine sig i p es = do
+    let l = toList es
+    e <- getAt i l
+    e' <- contractAtE sig p e
+    l' <- setAt i e' l
+    pure (cast l')
+   where
+    setAt : Nat -> a -> List a -> Maybe (List a)
+    setAt _ _ [] = Nothing
+    setAt Z x (_ :: rest) = Just (x :: rest)
+    setAt (S n) x (y :: rest) = (y ::) <$> setAt n x rest
+
+
+-- ===== READING AND SEARCHING POSITIONS (companions to contractAt,
+-- same child table) =====
+
+mutual
+  ||| The subterm at a path — Left for element positions, Right for
+  ||| type positions (a path may cross EqTy's ∈-slot or ∥·∥'s body).
+  export
+  subAtE : List Nat -> Elem -> Maybe (Either Elem Ty)
+  subAtE [] e = Just (Left e)
+  subAtE (i :: p) e =
+    case (e, i) of
+      (ZeroElim t, 0) => subAtE p t
+      (NatIntro1 t, 0) => subAtE p t
+      (NatElim z s t, 0) => subAtE p z
+      (NatElim z s t, 1) => subAtE p s
+      (NatElim z s t, 2) => subAtE p t
+      (PiIntro f, 0) => subAtE p f
+      (PiApp f e2, 0) => subAtE p f
+      (PiApp f e2, 1) => subAtE p e2
+      (Let a b, 0) => subAtE p a
+      (Let a b, 1) => subAtE p b
+      (SigmaIntro a b, 0) => subAtE p a
+      (SigmaIntro a b, 1) => subAtE p b
+      (SigmaElim1 t, 0) => subAtE p t
+      (SigmaElim2 t, 0) => subAtE p t
+      (Inj1 t, 0) => subAtE p t
+      (Inj2 t, 0) => subAtE p t
+      (SumElim l r t, 0) => subAtE p l
+      (SumElim l r t, 1) => subAtE p r
+      (SumElim l r t, 2) => subAtE p t
+      (Elem.PiTy a b, 0) => subAtE p a
+      (Elem.PiTy a b, 1) => subAtE p b
+      (Elem.SigmaTy a b, 0) => subAtE p a
+      (Elem.SigmaTy a b, 1) => subAtE p b
+      (Elem.SumTy a b, 0) => subAtE p a
+      (Elem.SumTy a b, 1) => subAtE p b
+      (Elem.EqTy l r t, 0) => subAtE p l
+      (Elem.EqTy l r t, 1) => subAtE p r
+      (Elem.EqTy l r t, 2) => subAtT p t
+      (QuotTy a r, 0) => subAtE p a
+      (QuotTy a r, 1) => subAtE p r
+      (Elem.SigVar x es, _) => do
+        e2 <- getAt i (toList es)
+        subAtE p e2
+      (Class a, 0) => subAtE p a
+      (QuotElim f q, 0) => subAtE p f
+      (QuotElim f q, 1) => subAtE p q
+      (Squash t, 0) => subAtT p t
+      (QSortC sg k es, _) => do
+        e2 <- getAt i (toList es)
+        subAtE p e2
+      (QCtor sg k es, _) => do
+        e2 <- getAt i (toList es)
+        subAtE p e2
+      (QElim sg k ms fs es w, _) =>
+        if i == length (toList es)
+          then subAtE p w
+          else do e2 <- getAt i (toList es)
+                  subAtE p e2
+      (Out t, 0) => subAtE p t
+      (Corec pf a f x, 0) => subAtE p a
+      (Corec pf a f x, 1) => subAtE p f
+      (Corec pf a f x, 2) => subAtE p x
+      _ => Nothing
+
+  export
+  subAtT : List Nat -> Ty -> Maybe (Either Elem Ty)
+  subAtT [] t = Just (Right t)
+  subAtT (i :: p) t =
+    case (t, i) of
+      (Ty.PiTy a b, 0) => subAtT p a
+      (Ty.PiTy a b, 1) => subAtT p b
+      (Ty.SigmaTy a b, 0) => subAtT p a
+      (Ty.SigmaTy a b, 1) => subAtT p b
+      (Ty.SumTy a b, 0) => subAtT p a
+      (Ty.SumTy a b, 1) => subAtT p b
+      (El e, 0) => subAtE p e
+      (Prf e, 0) => subAtE p e
+      (Quotient a r, 0) => subAtT p a
+      (Quotient a r, 1) => subAtE p r
+      (Ty.SigVar x es, _) => do
+        e2 <- getAt i (toList es)
+        subAtE p e2
+      (QSort sg k es, _) => do
+        e2 <- getAt i (toList es)
+        subAtE p e2
+      _ => Nothing
+
+mutual
+  ||| The outermost-leftmost ≜ redex position inside an element.
+  export
+  findRedexE : Sig -> Elem -> Maybe (List Nat)
+  findRedexE sig e =
+    case step1E sig e of
+      Just _ => Just []
+      Nothing => goKids (childIx e)
+   where
+    goKids : List (Nat, Either Elem Ty) -> Maybe (List Nat)
+    goKids [] = Nothing
+    goKids ((i, Left c) :: rest) =
+      ((i ::) <$> findRedexE sig c) <|> goKids rest
+    goKids ((i, Right c) :: rest) =
+      ((i ::) <$> findRedexT sig c) <|> goKids rest
+
+    childIx : Elem -> List (Nat, Either Elem Ty)
+    childIx (ZeroElim t) = [(0, Left t)]
+    childIx (NatIntro1 t) = [(0, Left t)]
+    childIx (NatElim z s t) = [(0, Left z), (1, Left s), (2, Left t)]
+    childIx (PiIntro f) = [(0, Left f)]
+    childIx (PiApp f e2) = [(0, Left f), (1, Left e2)]
+    childIx (Let a b) = [(0, Left a), (1, Left b)]
+    childIx (SigmaIntro a b) = [(0, Left a), (1, Left b)]
+    childIx (SigmaElim1 t) = [(0, Left t)]
+    childIx (SigmaElim2 t) = [(0, Left t)]
+    childIx (Inj1 t) = [(0, Left t)]
+    childIx (Inj2 t) = [(0, Left t)]
+    childIx (SumElim l r t) = [(0, Left l), (1, Left r), (2, Left t)]
+    childIx (Elem.PiTy a b) = [(0, Left a), (1, Left b)]
+    childIx (Elem.SigmaTy a b) = [(0, Left a), (1, Left b)]
+    childIx (Elem.SumTy a b) = [(0, Left a), (1, Left b)]
+    childIx (Elem.EqTy l r t) = [(0, Left l), (1, Left r), (2, Right t)]
+    childIx (QuotTy a r) = [(0, Left a), (1, Left r)]
+    childIx (Elem.SigVar x es) =
+      map (\(i, e2) => (i, Left e2))
+        (zip [0 .. minus (length (toList es)) 1] (toList es))
+    childIx (Class a) = [(0, Left a)]
+    childIx (QuotElim f q) = [(0, Left f), (1, Left q)]
+    childIx (Squash t) = [(0, Right t)]
+    childIx (QSortC sg k es) =
+      map (\(i, e2) => (i, Left e2))
+        (zip [0 .. minus (length (toList es)) 1] (toList es))
+    childIx (QCtor sg k es) =
+      map (\(i, e2) => (i, Left e2))
+        (zip [0 .. minus (length (toList es)) 1] (toList es))
+    childIx (QElim sg k ms fs es w) =
+      map (\(i, e2) => (i, Left e2))
+        (zip [0 .. minus (length (toList es)) 1] (toList es))
+      ++ [(length (toList es), Left w)]
+    childIx (Out t) = [(0, Left t)]
+    childIx (Corec pf a f x) = [(0, Left a), (1, Left f), (2, Left x)]
+    childIx _ = []
+
+  export
+  findRedexT : Sig -> Ty -> Maybe (List Nat)
+  findRedexT sig t =
+    case step1T sig t of
+      Just _ => Just []
+      Nothing =>
+        case t of
+          Ty.PiTy a b => ((0 ::) <$> findRedexT sig a) <|> ((1 ::) <$> findRedexT sig b)
+          Ty.SigmaTy a b => ((0 ::) <$> findRedexT sig a) <|> ((1 ::) <$> findRedexT sig b)
+          Ty.SumTy a b => ((0 ::) <$> findRedexT sig a) <|> ((1 ::) <$> findRedexT sig b)
+          El e => (0 ::) <$> findRedexE sig e
+          Prf e => (0 ::) <$> findRedexE sig e
+          Quotient a r => ((0 ::) <$> findRedexT sig a) <|> ((1 ::) <$> findRedexE sig r)
+          _ => Nothing
+
+
+||| Replace the subterm at a path outright (the positionalizer's
+||| untyped lemma application; the caller owns the equality evidence).
+export
+replaceAtE : List Nat -> Elem -> Elem -> Maybe Elem
+replaceAtE [] r _ = Just r
+replaceAtE (i :: p) r e =
+  case (e, i) of
+    (ZeroElim t, 0) => ZeroElim <$> replaceAtE p r t
+    (NatIntro1 t, 0) => NatIntro1 <$> replaceAtE p r t
+    (NatElim z s t, 0) => (\z' => NatElim z' s t) <$> replaceAtE p r z
+    (NatElim z s t, 1) => (\s' => NatElim z s' t) <$> replaceAtE p r s
+    (NatElim z s t, 2) => NatElim z s <$> replaceAtE p r t
+    (PiIntro f, 0) => PiIntro <$> replaceAtE p r f
+    (PiApp f e2, 0) => (\f' => PiApp f' e2) <$> replaceAtE p r f
+    (PiApp f e2, 1) => PiApp f <$> replaceAtE p r e2
+    (Let a b, 0) => (\a' => Let a' b) <$> replaceAtE p r a
+    (Let a b, 1) => Let a <$> replaceAtE p r b
+    (SigmaIntro a b, 0) => (\a' => SigmaIntro a' b) <$> replaceAtE p r a
+    (SigmaIntro a b, 1) => SigmaIntro a <$> replaceAtE p r b
+    (SigmaElim1 t, 0) => SigmaElim1 <$> replaceAtE p r t
+    (SigmaElim2 t, 0) => SigmaElim2 <$> replaceAtE p r t
+    (Inj1 t, 0) => Inj1 <$> replaceAtE p r t
+    (Inj2 t, 0) => Inj2 <$> replaceAtE p r t
+    (SumElim l r2 t, 0) => (\l' => SumElim l' r2 t) <$> replaceAtE p r l
+    (SumElim l r2 t, 1) => (\r2' => SumElim l r2' t) <$> replaceAtE p r r2
+    (SumElim l r2 t, 2) => SumElim l r2 <$> replaceAtE p r t
+    (Elem.PiTy a b, 0) => (\a' => Elem.PiTy a' b) <$> replaceAtE p r a
+    (Elem.PiTy a b, 1) => Elem.PiTy a <$> replaceAtE p r b
+    (Elem.SigmaTy a b, 0) => (\a' => Elem.SigmaTy a' b) <$> replaceAtE p r a
+    (Elem.SigmaTy a b, 1) => Elem.SigmaTy a <$> replaceAtE p r b
+    (Elem.SumTy a b, 0) => (\a' => Elem.SumTy a' b) <$> replaceAtE p r a
+    (Elem.SumTy a b, 1) => Elem.SumTy a <$> replaceAtE p r b
+    (Elem.EqTy l r2 t, 0) => (\l' => Elem.EqTy l' r2 t) <$> replaceAtE p r l
+    (Elem.EqTy l r2 t, 1) => (\r2' => Elem.EqTy l r2' t) <$> replaceAtE p r r2
+    (QuotTy a r2, 0) => (\a' => QuotTy a' r2) <$> replaceAtE p r a
+    (QuotTy a r2, 1) => QuotTy a <$> replaceAtE p r r2
+    (Elem.SigVar x es, _) => Elem.SigVar x <$> spineSet i p es
+    (Class a, 0) => Class <$> replaceAtE p r a
+    (QuotElim f q, 0) => (\f' => QuotElim f' q) <$> replaceAtE p r f
+    (QuotElim f q, 1) => QuotElim f <$> replaceAtE p r q
+    (QSortC sg k es, _) => (\es' => QSortC sg k es') <$> spineSet i p es
+    (QCtor sg k es, _) => (\es' => QCtor sg k es') <$> spineSet i p es
+    (QElim sg k ms fs es w, _) =>
+      if i == length (toList es)
+        then QElim sg k ms fs es <$> replaceAtE p r w
+        else (\es' => QElim sg k ms fs es' w) <$> spineSet i p es
+    (Out t, 0) => Out <$> replaceAtE p r t
+    (Corec pf a f x, 0) => (\a' => Corec pf a' f x) <$> replaceAtE p r a
+    (Corec pf a f x, 1) => (\f' => Corec pf a f' x) <$> replaceAtE p r f
+    (Corec pf a f x, 2) => Corec pf a f <$> replaceAtE p r x
+    _ => Nothing
+ where
+  spineSet : Nat -> List Nat -> SubNorm -> Maybe SubNorm
+  spineSet i p es = do
+    let l = toList es
+    e2 <- getAt i l
+    e2' <- replaceAtE p r e2
+    l' <- setL i e2' l
+    pure (cast l')
+   where
+    setL : Nat -> a -> List a -> Maybe (List a)
+    setL _ _ [] = Nothing
+    setL Z x (_ :: rest) = Just (x :: rest)
+    setL (S n) x (y :: rest) = (y ::) <$> setL n x rest
+
+||| The PRINCIPAL child of an elimination — the position whose
+||| exposure can unlock the head (whnf order).
+export
+principalIx : Elem -> Maybe Nat
+principalIx (PiApp _ _) = Just 0
+principalIx (NatElim _ _ _) = Just 2
+principalIx (SigmaElim1 _) = Just 0
+principalIx (SigmaElim2 _) = Just 0
+principalIx (SumElim _ _ _) = Just 2
+principalIx (QuotElim _ _) = Just 1
+principalIx (QElim _ _ _ _ es _) = Just (length (toList es))
+principalIx (Out _) = Just 0
+principalIx (Squash _) = Just 0
+principalIx _ = Nothing
