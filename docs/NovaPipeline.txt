@@ -646,8 +646,19 @@ Phasing:
      side: the PLACEMENT builds its own pre-instance bridge from the
      child equation it already holds — sub-ext-cong on ⟨id, child⟩,
      then ty-sub-cong at the fixed family — composed level by level
-     up the placement walk. That is the next slice's design; until
-     it lands, vectByIndAppend stays the one-file residue (26/27).]
+     up the placement walk. Fifth slice: that design LANDED at its
+     three shift-introducing cases — el-app-cong's argument
+     position, the second projection, and the ℕ-elim scrutinee each
+     coerce their conclusion back to the PRE-instance by their own
+     child equation (sub-ext-cong on ⟨id, sym child⟩, ty-sub-cong at
+     the fixed family), so the surrounding chain sees no dependent
+     shift at all. vectByIndAppend still stands — beneath the chain
+     shifts, its successor branch's ih application under the
+     abstracted motive wants composites of index laws at spellings
+     only the original elaboration knew; that is phase 3's full
+     end-state (the elaborator emitting the induction's derivations
+     at its own ⋆s), not another reconstruction guess. The one-file
+     residue holds at 26/27.]
 
 Cost, stated honestly: until phase 3 completes, an item is walked
 three times (elaborate, reconstruct, replay) — a constant factor,

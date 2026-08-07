@@ -1253,7 +1253,21 @@ rePlaceE sig ctx step d (i :: p) exp cur mty =
       dc <- eqAtNf sig ctx dc0 chTy a
       db <- reTy sig (ctx :< a) b emptySkel
             <|> Just (DInvPiCod (DPresupElTy df))
-      pure (DElAppCong (DElRefl df) dc db, PiApp f e', substTy b (Ext Id e'))
+      -- the congruence concludes at the POST-instance B[id,e′]; the
+      -- child equation itself bridges it back to the PRE-instance
+      -- the surrounding chain speaks (sub-ext-cong on ⟨id,·⟩, then
+      -- ty-sub-cong at the fixed family) — the dependent shift is
+      -- neutralized at source, no search
+      let dA = reTy sig ctx a emptySkel
+               <|> Just (DInvPiDom (DPresupElTy df))
+      case dA of
+        Nothing => pure (DElAppCong (DElRefl df) dc db,
+                         PiApp f e', substTy b (Ext Id e'))
+        Just dA' => do
+          let dS = DSubExtCong (DSubRefl DSubId) dA' (DElSym dc)
+          let bridge = DTySubCong dS (DTyRefl db)
+          pure (DElEqTyCoe bridge (DElAppCong (DElRefl df) dc db),
+                PiApp f e', substTy b (Ext Id e))
     (SigmaIntro u v, 0) => do
       expN <- nfT sig exp
       let Ty.SigmaTy a b = expN
@@ -1296,8 +1310,13 @@ rePlaceE sig ctx step d (i :: p) exp cur mty =
             dz <- dbg "natEmot: z" (chkStep sig ctx step d z (substTy mot (Ext Id NatIntro0)))
             dst <- dbg "natEmot: st" (chkStep sig (ctx :< Ty.NatTy :< mot) step (2 + d) st
                      (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)))
-            pure (DElNatECong dmot (DElRefl dz) (DElRefl dst) dc,
-                  NatElim z st t', substTy mot (Ext Id t'))
+            -- shift neutralized at source: the scrutinee equation
+            -- bridges mot[id,t′] back to mot[id,t]
+            let dS = DSubExtCong (DSubRefl DSubId) DTyNat (DElSym dc)
+            let bridge = DTySubCong dS (DTyRefl dmot)
+            pure (DElEqTyCoe bridge
+                    (DElNatECong dmot (DElRefl dz) (DElRefl dst) dc),
+                  NatElim z st t', substTy mot (Ext Id t))
       tryMot (substTy exp Wk)
         -- the expected type is the motive INSTANCE — at the original
         -- scrutinee if the surroundings kept its spelling, at the
@@ -1370,12 +1389,30 @@ rePlaceE sig ctx step d (i :: p) exp cur mty =
     (SigmaElim2 t, 0) => do
       (dt, tty) <- reInfer sig ctx t emptySkel
       ttyN <- nfT sig tty
-      let Ty.SigmaTy _ b = ttyN
+      let Ty.SigmaTy a b = ttyN
         | _ => Nothing
       (dc0, t', chTy) <- rePlaceE sig ctx step d p ttyN t Nothing
       dc <- eqAtNf sig ctx dc0 chTy ttyN
-      pure (DElProj2Cong dc, SigmaElim2 t',
-            substTy b (Ext Id (SigmaElim1 t')))
+      -- shift neutralized at source, as at PiApp-1: the first
+      -- projections' equation bridges B[id, π₁ t′] back to
+      -- B[id, π₁ t]
+      let mPieces = do
+            dTy <- reTy sig ctx ttyN emptySkel
+                   <|> Just (DPresupElTy dt)
+            da <- reTy sig ctx a emptySkel
+                  <|> Just (DInvSigmaDom dTy)
+            db <- reTy sig (ctx :< a) b emptySkel
+                  <|> Just (DInvSigmaCod dTy)
+            pure (da, db)
+      case mPieces of
+        Nothing => pure (DElProj2Cong dc, SigmaElim2 t',
+                         substTy b (Ext Id (SigmaElim1 t')))
+        Just (da, db) => do
+          let dS = DSubExtCong (DSubRefl DSubId) da
+                     (DElSym (DElProj1Cong dc))
+          let bridge = DTySubCong dS (DTyRefl db)
+          pure (DElEqTyCoe bridge (DElProj2Cong dc), SigmaElim2 t',
+                substTy b (Ext Id (SigmaElim1 t)))
     (Elem.EqTy l r t, 0) => do
       dt <- reTy sig ctx t emptySkel
             <|> (DInvCodeEqTy <$> mty)
