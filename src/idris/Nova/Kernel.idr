@@ -24,6 +24,7 @@ import Data.SnocList
 
 import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
+import Nova.Kernel.Beta
 import Nova.Kernel.QIIT
 
 %default covering
@@ -58,6 +59,11 @@ public export
 data StepLic : Type where
   LProof : Elem -> StepLic
   LPath : QSig -> Nat -> SubNorm -> StepLic
+  ||| ONE ≜ contraction at the step's path — no equation, no sels, no
+  ||| flip; the POSITIONAL entries of an exposure script (beta-at at
+  ||| replay). Lives only in a certificate's `pos` field: the legacy
+  ||| step list never carries it.
+  LBeta : StepLic
 
 ||| One replay step: at `path` (child indices; binders crossed are
 ||| counted by the walk itself) in the chosen side, rewrite by the
@@ -165,10 +171,17 @@ mutual
     tyEx : Maybe (Ty, ECert)
     steps : List Step
     final : Final
+    ||| The POSITIONAL script (docs/NovaDerivations.txt, beta-at):
+    ||| the same rewrite chain re-expressed against lazily-exposed
+    ||| spellings — LBeta exposures interleaved with the lemma steps,
+    ||| paths valid on the raw sides as spelled. Empty = not
+    ||| positionalized; the legacy `steps` stay authoritative for the
+    ||| old kernel's normalize-and-compare replay either way.
+    pos : List Step
 
 public export
 MkECert : List Step -> Final -> ECert
-MkECert = MkECertF Nothing
+MkECert steps final = MkECertF Nothing steps final []
 
 -- ===== Fuel monad =====
 
@@ -980,6 +993,7 @@ applySel sig ctx (l, r, _) sel = do
 ||| validated by the descent's positional type check, which compares
 ||| the licensed type (embedding 𝒮 syntactically) against the rewrite
 ||| site's own. Components and orientation apply to both.
+export
 licensed : Sig -> Ctx -> Step -> KM (Elem, Elem, Ty)
 licensed sig ctx step = do
   (l, r, t) <- base step.lic
@@ -1000,6 +1014,7 @@ licensed sig ctx step = do
   exposeEq _ = kerr "kernel: step proof is not an equality"
 
   base : StepLic -> KM (Elem, Elem, Ty)
+  base LBeta = kerr "kernel: a positional exposure step has no licensed equation"
   base (LProof p) = do
     pty <- inferP sig ctx p >>= kTy sig
     exposeEq pty
@@ -1034,6 +1049,29 @@ licensed sig ctx step = do
         Nothing => kerr "kernel: path license telescope mismatch"
       checkTelArgs (S i) rest tel
 
+  foldlM : (acc -> x -> KM acc) -> acc -> List x -> KM acc
+  foldlM f a [] = pure a
+  foldlM f a (y :: ys) = f a y >>= \a' => foldlM f a' ys
+
+||| The step's licensed equation at its STATEMENT spelling: the
+||| proof's inferred type read as an equality directly, components
+||| and orientation applied, nothing normalized. Positional
+||| re-expression matches these spellings inside terms as written; a
+||| license that only exposes its equation through normalization
+||| falls back to `licensed`.
+export
+licensedRaw : Sig -> Ctx -> Step -> KM (Elem, Elem, Ty)
+licensedRaw sig ctx step =
+  case step.lic of
+    LProof p => do
+      pty <- inferP sig ctx p
+      case pty of
+        Prf (Elem.EqTy l r t) => do
+          (l', r', t') <- foldlM (applySel sig ctx) (l, r, t) step.sels
+          pure (if step.flip then (r', l', t') else (l', r', t'))
+        _ => licensed sig ctx step
+    _ => licensed sig ctx step
+ where
   foldlM : (acc -> x -> KM acc) -> acc -> List x -> KM acc
   foldlM f a [] = pure a
   foldlM f a (y :: ys) = f a y >>= \a' => foldlM f a' ys
@@ -1347,6 +1385,10 @@ goE sig ctx lic (i :: p) b mexp u = do
 ||| verify the licensed equation's type in situ, rewrite.
 export
 stepElem : Sig -> Ctx -> Step -> Ty -> Elem -> KM Elem
+stepElem sig ctx (MkStep _ path LBeta _ _) tyRoot t =
+  case contractAtE sig path t of
+    Just t' => pure t'
+    Nothing => kerr "kernel: positional exposure: no ≜ redex at the path"
 stepElem sig ctx step tyRoot t = do
   (le, re, lty) <- licensed sig ctx step
   ltyN <- kTy sig lty

@@ -692,8 +692,40 @@ Phasing:
      abstracted motive wants composites of index laws at spellings
      only the original elaboration knew; that is phase 3's full
      end-state (the elaborator emitting the induction's derivations
-     at its own ⋆s), not another reconstruction guess. The one-file
-     residue holds at 26/27.]
+     at its own ⋆s), not another reconstruction guess. Eighth
+     slice: BETA-AT AND THE POSITIONAL ROUTE, landed — the kernel
+     gains the single-≜-step rule (docs/NovaDerivations.txt,
+     addition 2½: one contraction at a path inside a typed term, no
+     subterm typing premise, by subject reduction) plus the
+     machinery under it (a one-step contractor per ≜ rule, path
+     readers/writers, an LBeta step license); when a certificate's
+     legacy replay fails at a ⋆ goal, the emission RE-EXPRESSES its
+     chain against the goal's spellings as they arrive: each
+     licensed side is SEARCHED for as a subterm — matching against
+     the license's STATEMENT spelling (licensedRaw, nothing
+     normalized), ≜-contracting goal or license only where the match
+     demands (a two-sided meet), every goal contraction recorded as
+     a beta-at link, the lemma path rebased to the found position —
+     and the re-expressed chain replays with placements on the raw
+     spellings (no motive guesses), a compact rolling typing witness
+     (embedding the whole chain in each link's premise replays
+     exponentially), and the type-expansion skipped (positional
+     steps are re-expressed at the raw type; the recorded expansion
+     belongs to the legacy chain). Landed with it: memoized rescue
+     and bridge-search tables, size gates on every search that
+     walks normalized spellings, and a match-directed instantiation
+     pool (an instance's endpoints must BE the pair, so its
+     arguments occur in it — blind enumeration buries the right
+     tuple beyond any affordable cap). This clears the z-branch ⋆
+     and every index-law equation whose licensed spelling meets its
+     goal; the successor branch still stands on its LAST gap, now
+     precisely one: a placement's DEPENDENT SHIFT whose two nf'd
+     vect indexes differ by an index-law COMPOSITE (one instance
+     per side, e.g. plus-assoc against zero-id), and the
+     instance-meet bridge for that pair (lemBridgeT, present,
+     env-gated NOVA_LEMBR) still exceeds budget on its enumeration.
+     The one-file residue holds at 26/27, and the residue file's
+     full attempt tree now runs in ~1s.]
 
 Cost, stated honestly: until phase 3 completes, an item is walked
 three times (elaborate, reconstruct, replay) — a constant factor,

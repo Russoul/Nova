@@ -25,6 +25,7 @@ import Data.SnocList
 
 import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
+import Nova.Kernel.Beta
 import Nova.Kernel.QIIT
 import Nova.Kernel
 
@@ -426,6 +427,16 @@ data Deriv : Type where
   DInvCodeEqTy : Deriv -> Deriv
 
   -- ----- ADMISSIBLE: the nf oracle -----
+  ||| beta-at — ONE ≜ contraction at a path inside a TYPED term,
+  ||| unidirectional, no typing premise for the subterm (subject
+  ||| reduction; the oracle's own justification composes exactly
+  ||| these): Γ ⊦ t : A  ⊢  Γ ⊦ t ≐ t′ : A  where t′ = t contracted
+  ||| at p. The path is an atom naming the position, like a
+  ||| variable's index.
+  DBetaAt : List Nat -> Deriv -> Deriv
+  ||| … and at the type level (El-decoding and type-level unfolding
+  ||| included)
+  DBetaAtTy : List Nat -> Deriv -> Deriv
   ||| nf-expand: Γ ⊦ t : A  ⊢  Γ ⊦ t ≐ nf(t) : A
   DNfExpand : Deriv -> Deriv
   ||| nf-expand-ty
@@ -1694,6 +1705,21 @@ conclude sig ctx (DInvCodeEqTy d) = do
   case c of
     Elem.EqTy _ _ t => pure (JTy t)
     _ => kerr "derivation: inv-code-eq-ty: premise not an equality code"
+
+-- ADMISSIBLE: beta-at — replay is pure spelling surgery: descend the
+-- path, demand a ≜ redex, contract (Nova.Kernel.Beta, one clause per
+-- ≜ rule); the conclusion's right side is COMPUTED, and its typing
+-- flows to consumers by presupposition
+conclude sig ctx (DBetaAt p d) = do
+  (t, a) <- conclude sig ctx d >>= needEl
+  case contractAtE sig p t of
+    Just t' => pure (JElEq t t' a)
+    Nothing => kerr "derivation: beta-at: no ≜ redex at the path"
+conclude sig ctx (DBetaAtTy p d) = do
+  a <- conclude sig ctx d >>= needTy
+  case contractAtT sig p a of
+    Just a' => pure (JTyEq a a')
+    Nothing => kerr "derivation: beta-at-ty: no ≜ redex at the path"
 
 -- ADMISSIBLE: the nf oracle (the typing premise is load-bearing —
 -- docs/NovaDerivations.txt)

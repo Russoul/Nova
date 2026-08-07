@@ -251,6 +251,43 @@ Foundation-side precedent for both additions: el-nu-coind and
 el-squash-e-eq, admissible forms adopted as rules "for the kernel's
 convenience". These two are the same move, made once and named.
 
+////////// Admissible addition 2½: beta-at //////////
+
+The single-≜-step rule reserved above, adopted — not as a whnf
+restriction of the oracle but as its POSITIONAL complement: one ≜
+contraction at a stated path inside a typed term, the off-path
+regions untouched.
+
+  Γ ⊦ t : A        t|p ≜-contracts, t[p ↦ contractum] = t′
+  --------------------------------------------------------- (beta-at)
+  Γ ⊦ t ≐ t′ : A
+
+  Γ ⊦ A type       A|p ≜-contracts, A[p ↦ contractum] = A′
+  --------------------------------------------------------- (beta-at-ty)
+  Γ ⊦ A ≐ A′ type
+
+The justification is the nf oracle's own: subject reduction. The
+subterm at p carries NO typing premise of its own — the root's
+typing derivation types every subterm occurrence (at the type the
+occurrence has THERE, whatever it is), and a ≜ contraction preserves
+any typing its redex has, so replacing the occurrence preserves the
+root's. In the setoid model the rule reads off the same argument
+pointwise. Note what makes this safe where an untyped LEMMA rewrite
+at a path would not be: a lemma equation l ≐ r holds AT A STATED
+TYPE, and an occurrence of l inside t may sit at a different type
+(with eq-reflection, spellings inhabit many types), so lemma
+rewriting keeps its typed congruence walk; ≜ steps alone are
+type-blind by subject reduction.
+
+Why the oracle is not enough: certificate replay against spellings
+AS WRITTEN (docs/NovaPipeline.txt, phase 3 — the positional route)
+must expose a redex here and there without normalizing the
+neighborhood, because full normalization of an eliminator over an
+open scrutinee manufactures the very motive-reconstruction problem
+the route exists to avoid. beta-at is the exposure link: free of
+premises beyond the rolling typing witness, a chain of them costs
+the replay one contraction each.
+
 ////////// Rule-by-rule: demands and deliveries //////////
 
 Mechanically derivable from Foundation's statements by the delivery

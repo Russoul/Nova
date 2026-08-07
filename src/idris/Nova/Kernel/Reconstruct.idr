@@ -28,6 +28,7 @@ import System
 
 import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
+import Nova.Kernel.Beta
 import Nova.Kernel.QIIT
 import Nova.Kernel
 import Nova.Kernel.Derivation
@@ -38,6 +39,12 @@ import Nova.Kernel.Derivation
 -- reconstruction (untrusted diagnostics; never touches replay)
 reconDebug : Bool
 reconDebug = unsafePerformIO (isJust <$> getEnv "NOVA_RECON_DEBUG")
+
+-- the instance-meet type bridge is still over budget on its search
+-- (see docs/NovaPipeline.txt, phase 3 status): opt-in until bounded
+%noinline
+onLemBr : Bool
+onLemBr = unsafePerformIO (isJust <$> getEnv "NOVA_LEMBR")
 
 dbg : Lazy String -> Maybe a -> Maybe a
 dbg msg Nothing = if reconDebug then trace (force msg) Nothing else Nothing
@@ -133,7 +140,7 @@ unsnocL (x :: xs) = do (i, l) <- unsnocL xs; pure (x :: i, l)
 
 ||| A β-only certificate: no bridge, no steps, an FBeta final.
 betaOnly : ECert -> Bool
-betaOnly (MkECertF Nothing [] FBeta) = True
+betaOnly (MkECertF Nothing [] FBeta _) = True
 betaOnly _ = False
 
 fuelR : Nat
@@ -171,6 +178,18 @@ memoInf = unsafePerformIO (newIORef empty)
 memoTy : IORef (SortedMap String (Maybe Deriv))
 memoTy = unsafePerformIO (newIORef empty)
 
+%noinline
+memoResc : IORef (SortedMap String (Maybe Deriv))
+memoResc = unsafePerformIO (newIORef empty)
+
+%noinline
+memoBr : IORef (SortedMap String (Maybe Deriv))
+memoBr = unsafePerformIO (newIORef empty)
+
+%noinline
+memoLL : IORef (SortedMap String (Maybe (Deriv, Ty)))
+memoLL = unsafePerformIO (newIORef empty)
+
 withMemo : IORef (SortedMap String (Maybe a)) -> String -> Lazy (Maybe a) -> Maybe a
 withMemo ref k act = unsafePerformIO $ do
   m <- readIORef ref
@@ -189,6 +208,9 @@ clearMemos _ = unsafePerformIO $ do
   writeIORef memoChk empty
   writeIORef memoInf empty
   writeIORef memoTy empty
+  writeIORef memoResc empty
+  writeIORef memoBr empty
+  writeIORef memoLL empty
   pure (Just ())
 
 nfE : Sig -> Elem -> Maybe Elem
@@ -222,12 +244,25 @@ reEq : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty -> Maybe Deriv
 reEqEnds : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty ->
            Maybe (Deriv, Deriv) -> Maybe Deriv
 
+reEqEndsGo : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty ->
+             Maybe (Deriv, Deriv) -> Maybe Deriv
+
+||| … the ⋆-goal entry: on legacy failure, the certificate is
+||| re-expressed positionally against the goal's own spellings (the
+||| rescue is confined here — it must not fire inside nested
+||| placement machinery).
+reEqStar : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty ->
+           Maybe (Deriv, Deriv) -> Maybe Deriv
+
 ||| … and for type equations Γ ⊦ a ≐ b — the ends are optional
 ||| endpoint FORMATIONS (presupposition-projected by the caller: a
 ||| switch's inferred side, an expose's checked side), replacing bare
 ||| re-derivation of spellings the certificate already speaks for.
 reEqTyEnds : Sig -> Ctx -> ECert -> Ty -> Ty ->
              (Maybe Deriv, Maybe Deriv) -> Maybe Deriv
+
+reEqTyEndsGo : Sig -> Ctx -> ECert -> Ty -> Ty ->
+               (Maybe Deriv, Maybe Deriv) -> Maybe Deriv
 
 ||| The pre-bridge variant that REPORTS WHERE IT REACHED: when the
 ||| far side is untouched by steps, the chain closes at its own
@@ -734,11 +769,13 @@ mutual
     df <- reCheckF sig (ctx :< a) f b (childAt 0 sk) (DInvPiCod dF)
     pure (DElPiI da df)
   reCheckF sig ctx Star ty sk dF =
-    reCheck sig ctx Star ty sk
-    <|> (case (payload pRefl sk, ty) of
+    -- the inversion route FIRST: the plain route re-derives the
+    -- goal's endpoints from their spellings, and on normalized
+    -- eliminator instances that search is unbounded
+    (case (payload pRefl sk, ty) of
           (Just cert, Prf (Elem.EqTy l r t)) =>
             dbg "star-inv: \{show l} EQ \{show r} AT \{show t}"
-              (DElEqI <$> reEqEnds sig ctx cert l r t
+              (DElEqI <$> reEqStar sig ctx cert l r t
                            (Just (DInvPrfEqL dF, DInvPrfEqR dF)))
           (Just cert, _) => do
             -- goal not a literal equality prop: expose by nf, ride
@@ -748,10 +785,11 @@ mutual
               | _ => Nothing
             let dFN = DPresupTyR (DNfExpandTy dF)
             d0 <- dbg "star-inv (nf): \{show l} EQ \{show r}"
-                    (DElEqI <$> reEqEnds sig ctx cert l r t
+                    (DElEqI <$> reEqStar sig ctx cert l r t
                                  (Just (DInvPrfEqL dFN, DInvPrfEqR dFN)))
             pure (DElTyCoe (DTySym (DNfExpandTy dF)) d0)
           _ => Nothing)
+    <|> reCheck sig ctx Star ty sk
   reCheckF sig ctx e ty sk dF =
     reCheck sig ctx e ty sk
     <|> (case payload pSw sk of
@@ -857,7 +895,7 @@ mutual
     case payload pRefl sk of
       Just cert =>
         case ty of
-          Prf (Elem.EqTy l r t) => dbg "star-cert: \{show l} EQ \{show r} AT \{show t}" (DElEqI <$> reEq sig ctx cert l r t)
+          Prf (Elem.EqTy l r t) => dbg "star-cert: \{show l} EQ \{show r} AT \{show t}" (DElEqI <$> reEqStar sig ctx cert l r t Nothing)
           _ => dbg "star-cert: goal not an eq prop: \{show ty}" Nothing
       Nothing =>
        case payload pNuC sk of
@@ -1085,9 +1123,190 @@ foldSels sig ctx st (sel :: rest) = do
 ||| reconstructed AT the leaf's context: the proof spelling is
 ||| weakened and re-inferred there, its type exposed to a literal
 ||| equality prop by the oracle when needed.
+posFuel : Nat
+posFuel = 4096
+
+headTagE : Elem -> Nat
+headTagE (CtxVar _) = 0
+headTagE (ZeroElim _) = 1
+headTagE OneIntro = 2
+headTagE NatIntro0 = 3
+headTagE (NatIntro1 _) = 4
+headTagE (NatElim _ _ _) = 5
+headTagE (PiIntro _) = 6
+headTagE (PiApp _ _) = 7
+headTagE (Let _ _) = 8
+headTagE (SigmaIntro _ _) = 9
+headTagE (SigmaElim1 _) = 10
+headTagE (SigmaElim2 _) = 11
+headTagE (Inj1 _) = 12
+headTagE (Inj2 _) = 13
+headTagE (SumElim _ _ _) = 14
+headTagE ZeroTy = 15
+headTagE OneTy = 16
+headTagE NatTy = 17
+headTagE (PiTy _ _) = 18
+headTagE (SigmaTy _ _) = 19
+headTagE (SumTy _ _) = 20
+headTagE (EqTy _ _ _) = 21
+headTagE (QuotTy _ _) = 22
+headTagE (SigVar _ _) = 23
+headTagE (Class _) = 24
+headTagE (QuotElim _ _) = 25
+headTagE (Squash _) = 26
+headTagE Star = 27
+headTagE (QSortC _ _ _) = 28
+headTagE (QCtor _ _ _) = 29
+headTagE (QElim _ _ _ _ _ _) = 30
+headTagE (NuTy _) = 31
+headTagE (Out _) = 32
+headTagE (Corec _ _ _ _) = 33
+
+||| One whnf move at an (absolute) position: contract there if the
+||| head is a ≜ redex, else at the deepest principal descendant that
+||| is (whnf order); a type position gets a head contraction only.
+whnfMoveAt : Sig -> List Nat -> Elem -> Maybe (List Nat, Elem)
+whnfMoveAt sig q0 t =
+  case subAtE q0 t of
+    Just (Right sub) => do
+      _ <- step1T sig sub
+      t' <- contractAtE sig q0 t
+      Just (q0, t')
+    Just (Left sub) => do
+      q <- unlock posFuel q0 sub
+      t' <- contractAtE sig q t
+      Just (q, t')
+    Nothing => Nothing
+ where
+  unlock : Nat -> List Nat -> Elem -> Maybe (List Nat)
+  unlock Z _ _ = Nothing
+  unlock (S fuel) q sub =
+    case step1E sig sub of
+      Just _ => Just q
+      Nothing => do
+        j <- principalIx sub
+        Left sub' <- subAtE [j] sub
+          | _ => Nothing
+        unlock fuel (q ++ [j]) sub'
+
+||| The (absolute) position at which a whnf move helps `sub` grow
+||| toward `le`: heads differing means contract HERE; heads agreeing
+||| means descend into the outermost-leftmost differing child.
+diffPosE : Sig -> Nat -> List Nat -> Elem -> Elem -> Maybe (List Nat)
+diffPosE sig Z q _ _ = Just q
+diffPosE sig (S fuel) q sub le =
+  if headTagE sub /= headTagE le
+    then Just q
+    else probe [0, 1, 2, 3, 4, 5]
+ where
+  probe : List Nat -> Maybe (List Nat)
+  probe [] = Just q
+  probe (j :: js) =
+    case (subAtE [j] sub, subAtE [j] le) of
+      (Just (Left a), Just (Left b)) =>
+        if a == b then probe js
+        else diffPosE sig fuel (q ++ [j]) a b
+      (Just (Right a), Just (Right b)) =>
+        if a == b then probe js
+        else Just (q ++ [j])
+      (Nothing, Nothing) => Just q
+      _ => Just q
+
+||| Expose inside t (recording every contraction) until the subterm
+||| at q equals a ≜-reduct of le: the goal side moves first; where it
+||| is stuck, the LICENSE side contracts instead (unrecorded — the
+||| placement leaf rebuilds that chain itself, as beta-at links on
+||| the licensed equation).
+forceMeetE : Sig -> Nat -> List Nat -> Elem -> Elem -> Maybe (List (List Nat), Elem)
+forceMeetE sig Z _ _ _ = Nothing
+forceMeetE sig (S fuel) q t le = do
+  Left sub <- subAtE q t
+    | _ => Nothing
+  if sub == le
+    then Just ([], t)
+    else do
+      dq <- diffPosE sig 64 q sub le
+      case whnfMoveAt sig dq t of
+        Just (q', t') => do
+          (qs, t'') <- forceMeetE sig fuel q t' le
+          pure (q' :: qs, t'')
+        Nothing => do
+          let rel = drop (length q) dq
+          (_, le') <- whnfMoveAt sig rel le
+          forceMeetE sig fuel q t le'
+
+||| Does the needle occur as a subterm (probed by index)?
+occursE : Nat -> Elem -> Elem -> Bool
+occursE Z _ _ = False
+occursE (S f) n h =
+  n == h || walk [0, 1, 2, 3, 4, 5]
+ where
+  walk : List Nat -> Bool
+  walk [] = False
+  walk (j :: js) =
+    case subAtE [j] h of
+      Just (Left h') => occursE f n h' || walk js
+      _ => walk js
+
+||| Fueled node count of a type spelling (probed by index): the
+||| leftover fuel, Z signalling "at least this big".
+tySizeFuel : Nat -> List Nat -> Ty -> Nat
+tySizeFuel Z _ _ = Z
+tySizeFuel (S f) q t = walk f [0, 1, 2, 3, 4, 5]
+ where
+  walk : Nat -> List Nat -> Nat
+  walk f [] = f
+  walk f (j :: js) =
+    case subAtT (q ++ [j]) t of
+      Just _ => walk (tySizeFuel f (q ++ [j]) t) js
+      Nothing => walk f js
+
+||| Element positions of t, outermost-leftmost (probed by index),
+||| FUELED: enumeration stops when the budget runs dry, so a huge
+||| spelling costs its budget and no more. Returns the leftover fuel
+||| (Z signals a truncated listing).
+candPosB : Nat -> List Nat -> Elem -> (Nat, List (List Nat))
+candPosB Z q t = (Z, [])
+candPosB (S f) q t =
+  let (f', rest) = walk f [0, 1, 2, 3, 4, 5] in (f', q :: rest)
+ where
+  walk : Nat -> List Nat -> (Nat, List (List Nat))
+  walk f [] = (f, [])
+  walk f (j :: js) =
+    case subAtE (q ++ [j]) t of
+      Just (Left _) =>
+        let (f1, ps) = candPosB f (q ++ [j]) t
+            (f2, ps2) = walk f1 js
+        in (f2, ps ++ ps2)
+      _ => walk f js
+
+||| Does a spelling exceed the position budget (probed by index)?
+candPosOver : Nat -> Elem -> Bool
+candPosOver n e = fst (candPosB (S n) [] e) == 0
+
+||| The licensed equation at its STATEMENT spelling (nothing
+||| normalized): the positional route matches these inside terms as
+||| written.
+reLicensedRaw : Sig -> Ctx -> Step -> Nat -> Maybe (Deriv, Elem, Elem, Ty)
+reLicensedRaw sig ctx step d =
+  case step.lic of
+    LProof p => do
+      let pw = wkN d p
+      (dp, pty) <- reInfer sig ctx pw emptySkel
+      let Prf (Elem.EqTy le0 re0 t0) = pty
+        | _ => Nothing
+      (dSel, le, re, t) <- foldSels sig ctx
+                             (DElReflect dp, le0, re0, t0) step.sels
+      let (dO, lO, rO) = if step.flip
+                           then (DElSym dSel, re, le)
+                           else (dSel, le, re)
+      pure (dO, lO, rO, t)
+    _ => Nothing
+
 reLicensed : Sig -> Ctx -> Step -> Nat -> Maybe (Deriv, Elem, Elem, Ty)
 reLicensed sig ctx step d =
   case step.lic of
+    LBeta => Nothing
     LProof p => do
       let pw = wkN d p
       (dp, pty) <- reInfer sig ctx pw emptySkel
@@ -1289,23 +1508,51 @@ eqAtNf sig ctx dEq cur tgt =
 ||| equation, emitting the congruence chain; returns the derivation
 ||| (cur ≐ cur′ at the expected type) and cur′.
 rePlaceE : Sig -> Ctx -> Step -> Nat -> List Nat -> Ty -> Elem -> Maybe Deriv -> Maybe (Deriv, Elem, Ty)
-rePlaceE sig ctx step d [] exp cur mty = do
-  (dEq, le, re, t) <- dbg "leaf: license" (reLicensed sig ctx step d)
-  let True = cur == le
-    | False => dbg "leaf: cur \{show cur} /= licensed \{show le}" Nothing
-  d' <- if t == exp then Just dEq
-        else do
-          -- only a β-bridge: a position whose type differs from the
-          -- licensed type beyond nf (a dependent position shifted by
-          -- an earlier rewrite) is outside this slice
-          tN <- nfT sig t
-          eN <- nfT sig exp
-          let True = tN == eN
-            | False => Nothing
-          dt <- reTy sig ctx t emptySkel
-          de <- reTy sig ctx exp emptySkel
-          pure (DElEqTyCoe (DNfEqTy dt de) dEq)
-  pure (d', re, if t == exp then t else exp)
+rePlaceE sig ctx step d [] exp cur mty =
+  leafWith True (reLicensedRaw sig ctx step d)
+  <|> leafWith False (dbg "leaf: license" (reLicensed sig ctx step d))
+ where
+  -- the licensed lhs may be spelled a few ≜ steps ABOVE the position's
+  -- spelling: contract it toward cur, each move a beta-at link
+  meetLe : Nat -> Deriv -> Elem -> Maybe Deriv
+  meetLe Z _ _ = Nothing
+  meetLe (S fuel) ch le =
+    if le == cur
+      then Just ch
+      else do
+        dq <- diffPosE sig 64 [] le cur
+        (q', le') <- whnfMoveAt sig dq le
+        meetLe fuel (DElTrans ch (DBetaAt q' (DPresupElR ch))) le'
+
+  -- the ≜-meet fires only against the RAW license spelling (the nf'd
+  -- one already met if it ever will), and only for small spellings —
+  -- it contracts inside the license, and each miss costs its fuel
+  leafWith : Bool -> Maybe (Deriv, Elem, Elem, Ty) -> Maybe (Deriv, Elem, Ty)
+  leafWith allowMeet mlic = do
+    (dEq0, le, re, t) <- mlic
+    dEq <- if cur == le
+             then Just dEq0
+             else do
+               let True = allowMeet
+                 | False => Nothing
+               let False = candPosOver 80 le
+                 | True => Nothing
+               dch <- dbg "leaf: cur \{show cur} /= licensed \{show le}"
+                        (meetLe 24 (DElRefl (DPresupElL dEq0)) le)
+               pure (DElTrans (DElSym dch) dEq0)
+    d' <- if t == exp then Just dEq
+          else do
+            -- only a β-bridge: a position whose type differs from the
+            -- licensed type beyond nf (a dependent position shifted by
+            -- an earlier rewrite) is outside this slice
+            tN <- nfT sig t
+            eN <- nfT sig exp
+            let True = tN == eN
+              | False => Nothing
+            dt <- reTy sig ctx t emptySkel
+            de <- reTy sig ctx exp emptySkel
+            pure (DElEqTyCoe (DNfEqTy dt de) dEq)
+    pure (d', re, if t == exp then t else exp)
 rePlaceE sig ctx step d (i :: p) exp cur mty =
   case (cur, i) of
     (NatIntro1 t, 0) => do
@@ -1782,9 +2029,22 @@ lemmaInsts sig ctx step d pool0 =
                 (DElTrans dR (DNfExpand (DPresupElR dR)))
     pure (dRN, leN, reN, t, p')
 
+lemmaLeafB : Sig -> Ctx -> Step -> Nat -> Elem -> Elem -> Maybe (Deriv, Ty)
+
 ||| A step's ∀-lemma re-instantiated to MATCH a mismatched pair.
 lemmaLeaf : Sig -> Ctx -> Step -> Nat -> Elem -> Elem -> Maybe (Deriv, Ty)
-lemmaLeaf sig ctx step d x y = do
+lemmaLeaf sig ctx step d x y =
+  withMemo memoLL "\{show (length (toList ctx))}|LL|\{show d}|\{lk}|\{show x}=\{show y}"
+    (lemmaLeafB sig ctx step d x y)
+ where
+  lk : String
+  lk = show step.path ++ show step.flip ++
+       (case step.lic of
+          LProof pf => show pf
+          LBeta => "|β"
+          LPath _ k th => "|π\{show k}\{show (toList th)}")
+
+lemmaLeafB sig ctx step d x y = do
   -- enumerate only when the pair's rigid heads overlap the
   -- license's — typed enumeration on a hopeless pair is what blows
   -- the budget
@@ -1796,8 +2056,19 @@ lemmaLeaf sig ctx step d x y = do
     | False => Nothing
   xN <- nfE sig x
   yN <- nfE sig y
-  let pool = map CtxVar [0 .. minus (length (toList ctx)) 1]
-             ++ subterms 3 x ++ subterms 3 y
+  -- ∀-re-instantiation pays off only on SMALL pairs (index laws);
+  -- a tower pair costs its enumeration at every walk leaf
+  let False = candPosOver 240 xN || candPosOver 240 yN
+    | True => Nothing
+  -- match-directed pool: an instantiation's endpoints must BE the
+  -- pair, so its arguments occur in it — blind enumeration buries
+  -- the right tuple beyond any affordable cap
+  let relevant = \c => case nfE sig c of
+                         Just cN => occursE 400 cN xN || occursE 400 cN yN
+                         Nothing => False
+  let pool = filter relevant
+               (map CtxVar [0 .. minus (length (toList ctx)) 1]
+                ++ subterms 3 x ++ subterms 3 y)
   pick xN yN (lemmaInsts sig ctx step d pool)
  where
   pick : Elem -> Elem -> List (Deriv, Elem, Elem, Ty, Elem) -> Maybe (Deriv, Ty)
@@ -1812,10 +2083,23 @@ lemmaLeaf sig ctx step d x y = do
 ||| equation. Walk the two type spellings in parallel — α-equal parts
 ||| by refl, elements at the licensed pair by the licensed equation
 ||| itself (coerced to the position), congruence in between.
+stKey : Maybe Step -> String
+stKey Nothing = "-"
+stKey (Just st) =
+  show st.path ++ show st.flip ++ show st.onLhs ++
+  (case st.lic of
+     LProof pf => show pf
+     LBeta => "|β"
+     LPath _ k th => "|π\{show k}\{show (toList th)}")
+
 reBridgeE : Sig -> Ctx -> Maybe Step -> Nat -> Elem -> Elem -> Ty -> Maybe Deriv
 
+reBridgeTB : Sig -> Ctx -> Maybe Step -> Nat -> Ty -> Ty -> Maybe Deriv
+
 reBridgeT : Sig -> Ctx -> Maybe Step -> Nat -> Ty -> Ty -> Maybe Deriv
-reBridgeT sig ctx step d a b =
+reBridgeT sig ctx step d a b = reBridgeTB sig ctx step d a b
+
+reBridgeTB sig ctx step d a b =
   if a == b
     then DTyRefl <$> reTy sig ctx a emptySkel
     else case (a, b) of
@@ -2043,7 +2327,11 @@ reBridgeTSearchN : Nat -> Sig -> Ctx -> Step -> Nat -> Ty -> Ty -> Maybe Deriv
 reBridgeTSearchN Z sig ctx stp d a b = reBridgeT sig ctx (Just stp) d a b
 reBridgeTSearchN (S fuel) sig ctx stp d a b =
   reBridgeT sig ctx (Just stp) d a b
-  <|> (propose a b <|> (DTySym <$> propose b a))
+  <|> (do -- proposing instances over a LARGE spelling is the blowup
+          -- the positional route exists to avoid: decline instead
+          let False = tySizeFuel 81 [] a == 0 || tySizeFuel 81 [] b == 0
+            | True => Nothing
+          propose a b <|> (DTySym <$> propose b a))
  where
   goProp : Elem -> Elem -> Elem -> Elem -> Ty -> Maybe Deriv
   goProp pf x leN reN tgt = do
@@ -2089,40 +2377,210 @@ reBridgeTSearchN (S fuel) sig ctx stp d a b =
                        ++ subterms 4 x))
     firstProp x tgt (take 12 (lemmaInsts sig ctx stp d pool))
 
-reBridgeTSearch sig ctx stp d a b = reBridgeTSearchN 2 sig ctx stp d a b
+reBridgeTSearch sig ctx stp d a b =
+  withMemo memoBr "\{show (length (toList ctx))}|BR|\{show d}|\{licKey}|\{show a}=\{show b}"
+    (reBridgeTSearchN 2 sig ctx stp d a b)
+ where
+  licKey : String
+  licKey = show stp.path ++ show stp.onLhs ++ show stp.flip ++
+           (case stp.lic of
+              LProof pf => show pf
+              LBeta => "|β"
+              LPath _ k th => "|π\{show k}\{show (toList th)}")
 
-||| One side's rolling chain: side₀ ≐ cur, extended by a step.
-stepChainE : Sig -> Ctx -> Ty -> (Deriv, Elem) -> Step -> Maybe (Deriv, Elem)
-stepChainE sig ctx ty (chain, cur) step = do
-  curN <- nfE sig cur
-  chain2 <- if curN == cur then Just chain
-            else Just (DElTrans chain (DNfExpand (DPresupElR chain)))
-  (dPl, cur', plTy) <- dbg "step: place \{show step.path} in \{show curN}"
-                         (rePlaceE sig ctx step 0 step.path ty curN
-                            (Just (DPresupElR chain2)))
+||| One side's rolling chain: side₀ ≐ cur, extended by a step. The
+||| rolling state carries a COMPACT typing derivation of cur (the
+||| last link's right presupposition) — embedding the whole chain in
+||| each link's premise duplicates it exponentially at replay.
+stepChainE : Sig -> Ctx -> Bool -> List Step -> Ty -> (Deriv, Deriv, Elem) -> Step -> Maybe (Deriv, Deriv, Elem)
+stepChainE sig ctx positional allSteps ty (chain, dCur, cur) step =
+  case step.lic of
+    -- a positional exposure: ONE ≜ contraction at the recorded path,
+    -- a beta-at link — the spelling stays exact and typing flows by
+    -- presupposition
+    LBeta => do
+      cur' <- dbg "posLB: no redex at \{show step.path} in \{show cur}"
+                (contractAtE sig step.path cur)
+      let link = DBetaAt step.path dCur
+      pure (DElTrans chain link, DPresupElR link, cur')
+    _ => if positional then posRoute <|> nfRoute else nfRoute
+ where
+  -- the dependent shift may be imposed by ANY of the certificate's
+  -- licenses (an index law travels as its own step): try each
+  anyLic : (Step -> Maybe Deriv) -> Maybe Deriv
+  anyLic f = go (step :: allSteps)
+   where
+    go : List Step -> Maybe Deriv
+    go [] = Nothing
+    go (st :: rest) = f st <|> go rest
+
+  -- two codes that differ by index laws meet by lemma instances
+  -- placed at prefixes of their disagreement (one per side, bounded
+  -- recursion): enumerate the pool's instances (match-directed)
+  -- whose nf endpoints touch the differing subpair, place via a
+  -- synthesized step — the congruence walk crosses only code
+  -- spellings, whose motives are constant — and recurse on the rest
+  lemBridgeT : Nat -> Ty -> Ty -> Maybe Deriv
+  lemBridgeT Z _ _ = Nothing
+  lemBridgeT (S fuel) (El x) (El y) = do
+    let True = onLemBr
+      | False => Nothing
+    if x == y
+      then DTyRefl <$> reTy sig ctx (El x) emptySkel
+      else do
+        dq <- diffPosE sig 64 [] x y
+        dx <- reCheck sig ctx x Ty.UniverseTy emptySkel
+        dy <- reCheck sig ctx y Ty.UniverseTy emptySkel
+        goPre dx dy (reverse (inits dq))
+   where
+    insts : Elem -> Elem -> List (Elem, Elem, Elem)
+    insts xa ya =
+      -- match-directed: an instantiation's endpoints must BE the
+      -- pair, so its arguments occur in it — the unfiltered pool
+      -- costs its cube in typed slot checks
+      let rel = \c => case nfE sig c of
+                        Just cN => occursE 400 cN xa || occursE 400 cN ya
+                        Nothing => False
+          pool = filter rel
+                   (map CtxVar [0 .. minus (length (toList ctx)) 1]
+                    ++ subterms 3 xa ++ subterms 3 ya)
+      in concatMap (\st => map (\(_, leN, reN, _, pf) => (leN, reN, pf))
+                             (lemmaInsts sig ctx st 0 pool))
+                   (step :: allSteps)
+
+    place : Deriv -> List Nat -> Elem -> Elem -> Bool -> Maybe (Deriv, Elem)
+    place dz p z pf flp = do
+      let stp = MkStep True p (LProof pf) [] flp
+      (dEq, z', _) <- rePlaceE sig ctx stp 0 p Ty.UniverseTy z (Just dz)
+      Just (dEq, z')
+
+    closeAt : Deriv -> Deriv -> Bool -> List Nat -> Maybe Deriv
+    closeAt dx dy deepest p = do
+      Left xa <- subAtE p x
+        | _ => Nothing
+      Left ya <- subAtE p y
+        | _ => Nothing
+      let False = xa == ya
+        | True => Nothing
+      let is = take 24 (insts xa ya)
+      fullClose xa ya is
+        <|> (do -- one-sided steps: only at the DEEPEST disagreement
+                -- (recursion at every prefix branches exponentially)
+                let True = deepest
+                  | False => Nothing
+                (pf, reN) <- pickBy xa is
+                (dEq, x') <- place dx p x pf False
+                let False = x' == x
+                  | True => Nothing
+                rec <- lemBridgeT fuel (El x') (El y)
+                pure (DTyTrans (DTyElCong dEq) rec))
+        <|> (do let True = deepest
+                  | False => Nothing
+                (pf, reN) <- pickBy ya is
+                (dEq, y') <- place dy p y pf False
+                let False = y' == y
+                  | True => Nothing
+                rec <- lemBridgeT fuel (El x) (El y')
+                pure (DTyTrans rec (DTySym (DTyElCong dEq))))
+     where
+      fullClose : Elem -> Elem -> List (Elem, Elem, Elem) -> Maybe Deriv
+      fullClose xa ya [] = Nothing
+      fullClose xa ya ((leN, reN, pf) :: more) =
+        (do let True = leN == xa && reN == ya
+              | False => Nothing
+            (dEq, x') <- place dx p x pf False
+            let True = x' == y
+              | False => Nothing
+            pure (DTyElCong dEq))
+        <|> (do let True = reN == xa && leN == ya
+                  | False => Nothing
+                (dEq, x') <- place dx p x pf True
+                let True = x' == y
+                  | False => Nothing
+                pure (DTyElCong dEq))
+        <|> fullClose xa ya more
+
+      pickBy : Elem -> List (Elem, Elem, Elem) -> Maybe (Elem, Elem)
+      pickBy za [] = Nothing
+      pickBy za ((leN, reN, pf) :: more) =
+        if leN == za then Just (pf, reN) else pickBy za more
+
+    -- the prefix list arrives deepest-first: one-sided recursion is
+    -- allowed only at its head
+    goPre : Deriv -> Deriv -> List (List Nat) -> Maybe Deriv
+    goPre dx dy [] = Nothing
+    goPre dx dy (p :: ps) = closeAt dx dy True p <|> goRest ps
+     where
+      goRest : List (List Nat) -> Maybe Deriv
+      goRest [] = Nothing
+      goRest (q :: qs) = closeAt dx dy False q <|> goRest qs
+  lemBridgeT _ _ _ = Nothing
+
   -- the placement congruence concludes at its own computed spelling
-  -- of the type; bridge back to the chain's spelling when nf-equal
-  -- (a dependent position shifted beyond nf is outside this slice)
-  dPl' <- if plTy == ty
-            then Just dPl
+  -- of the type; bridge back to the chain's spelling when nf-equal,
+  -- else by the step's own licensed equation walked through the two
+  -- types (the dependent shift). `deep` opens the instance-proposing
+  -- search — affordable only on the legacy nf route; the positional
+  -- route's spellings are raw, where the plain walk closes, and the
+  -- nf'd search space is exactly the tower blowup it avoids.
+  bridgeTo : Bool -> Deriv -> Ty -> Maybe Deriv
+  bridgeTo deep dPl plTy =
+    if plTy == ty
+      then Just dPl
+      else do
+        pN <- nfT sig plTy
+        tN <- nfT sig ty
+        if pN == tN
+          then do
+            dTy <- reTy sig ctx ty emptySkel
+            pure (DElEqTyCoe (DNfEqTy (DPresupElTy (DPresupElL dPl)) dTy) dPl)
+          else if deep
+            then do
+              -- the legacy nf route: instance-proposing search over
+              -- the normalized spellings
+              dBr <- reBridgeTSearch sig ctx step 0 pN tN
+              dPlN <- do
+                dP <- reTy sig ctx pN emptySkel
+                pure (DElEqTyCoe (DNfEqTy (DPresupElTy (DPresupElL dPl)) dP) dPl)
+              dTy <- reTy sig ctx ty emptySkel
+              let atN = DElEqTyCoe dBr dPlN
+              pure (DElEqTyCoe (DTySym (DNfExpandTy dTy)) atN)
             else do
-              pN <- nfT sig plTy
-              tN <- nfT sig ty
-              if pN == tN
-                then do
-                  dTy <- reTy sig ctx ty emptySkel
-                  pure (DElEqTyCoe (DNfEqTy (DPresupElTy (DPresupElL dPl)) dTy) dPl)
-                else do
-                  -- the dependent shift: bridge by the step's own
-                  -- licensed equation, walked through the two types
-                  dBr <- reBridgeTSearch sig ctx step 0 pN tN
-                  dPlN <- do
-                    dP <- reTy sig ctx pN emptySkel
-                    pure (DElEqTyCoe (DNfEqTy (DPresupElTy (DPresupElL dPl)) dP) dPl)
-                  dTy <- reTy sig ctx ty emptySkel
-                  let atN = DElEqTyCoe dBr dPlN
-                  pure (DElEqTyCoe (DTySym (DNfExpandTy dTy)) atN)
-  pure (DElTrans chain2 dPl', cur')
+              -- the positional route: two nf'd types differing by
+              -- index laws meet by pool-instance placements — never
+              -- the proposing search, whose space over towers is the
+              -- blowup this route avoids
+              let False = tySizeFuel 601 [] pN == 0
+                | True => Nothing
+              dBr <- lemBridgeT 3 pN tN
+              dPlN <- do
+                dP <- reTy sig ctx pN emptySkel
+                pure (DElEqTyCoe (DNfEqTy (DPresupElTy (DPresupElL dPl)) dP) dPl)
+              dTy <- reTy sig ctx ty emptySkel
+              let atN = DElEqTyCoe dBr dPlN
+              pure (DElEqTyCoe (DTySym (DNfExpandTy dTy)) atN)
+
+  -- a POSITIONALIZED lemma step's path lands on the chain's spelling
+  -- as it stands — place without normalizing
+  posRoute : Maybe (Deriv, Deriv, Elem)
+  posRoute = do
+    (dPl, cur', plTy) <- dbg "posPL: place \{show step.path} in \{show cur}"
+                           (rePlaceE sig ctx step 0 step.path ty cur
+                              (Just dCur))
+    dPl' <- dbg "posBR: \{show plTy} vs \{show ty}" (bridgeTo False dPl plTy)
+    pure (DElTrans chain dPl', DPresupElR dPl', cur')
+
+  nfRoute : Maybe (Deriv, Deriv, Elem)
+  nfRoute = do
+    curN <- nfE sig cur
+    (chain2, dCur2) <- if curN == cur then Just (chain, dCur)
+                       else let link = DNfExpand dCur in
+                            Just (DElTrans chain link, DPresupElR link)
+    (dPl, cur', plTy) <- dbg "step: place \{show step.path} in \{show curN}"
+                           (rePlaceE sig ctx step 0 step.path ty curN
+                              (Just dCur2))
+    dPl' <- bridgeTo True dPl plTy
+    pure (DElTrans chain2 dPl', DPresupElR dPl', cur')
 
 stepChainT : Sig -> Ctx -> (Deriv, Ty) -> Step -> Maybe (Deriv, Ty)
 stepChainT sig ctx (chain, cur) step = do
@@ -2134,25 +2592,143 @@ stepChainT sig ctx (chain, cur) step = do
                        (Just (DPresupTyR chain2)))
   pure (DTyTrans chain2 dPl, cur')
 
+-- ===== THE POSITIONALIZER (docs/NovaDerivations.txt, beta-at;
+-- docs/NovaPipeline.txt phase 3) =====
+--
+-- A certificate's steps address the engine's fully-normalized
+-- spellings; when their replay fails, the same chain is RE-EXPRESSED
+-- against the equation's spellings as they actually arrive here:
+-- each licensed side is SEARCHED for as a subterm, contracting a ≜
+-- redex (recorded as an LBeta entry — a beta-at link, free of
+-- typing premises) only where the match demands it. Lemma paths then
+-- land on spellings whose off-path regions stay as written, where
+-- congruence types without motive guesses.
+
+||| One side's steps, re-expressed against the spelling in hand: for
+||| each step, search for the licensed lhs as a subterm of the
+||| evolving spelling — exposing ≜ redexes only where the match
+||| demands (each recorded as an LBeta entry) — then rewrite there.
+||| The lemma path is rebased to the found position.
+posSide : Sig -> Ctx -> Elem -> List Step -> Maybe (List Step)
+posSide sig ctx side0 steps0 = do
+  -- rescue only spellings AS WRITTEN: a fully-normalized side has
+  -- hundreds of positions and its search is exactly the blowup this
+  -- route exists to avoid
+  let (rem0, _) = candPosB 161 [] side0
+  let False = rem0 == 0
+    | True => Nothing
+  go posFuel side0 steps0 []
+ where
+  firstAtF : Nat -> List (List Nat) -> Elem -> Elem -> Maybe (List Nat, List (List Nat), Elem)
+
+  -- meet at the position; failing that, contract the position's own
+  -- root (recorded) and search the regrown subtree — an occurrence
+  -- may only exist under a contraction of the whole (an eliminator
+  -- branch the spelling has not yet taken)
+  -- every proper prefix of the lemma path must be ≜-stable: the
+  -- typed placement cannot pass through a redex spelling (a
+  -- PiIntro-headed application has no inferable head)
+  stableAlong : Elem -> List Nat -> Bool
+  stableAlong t q = goSt [] q
+   where
+    goSt : List Nat -> List Nat -> Bool
+    goSt pre [] = True
+    goSt pre (i :: rest) =
+      case subAtE pre t of
+        Just (Left sub) => case step1E sig sub of
+                             Just _ => False
+                             Nothing => goSt (pre ++ [i]) rest
+        _ => goSt (pre ++ [i]) rest
+
+  matchAt : Elem -> Elem -> List Nat -> Maybe (List Nat, List (List Nat), Elem)
+  matchAt t le q = do
+    (es, t') <- forceMeetE sig 96 q t le
+    let True = stableAlong t' q
+      | False => Nothing
+    Just (q, es, t')
+
+  -- one round: the occurrence anywhere in the spelling as it stands;
+  -- failing that, ONE whnf move at the root (recorded) and again —
+  -- the occurrence may only exist under a contraction the spelling
+  -- has not yet taken
+  searchLoop : Nat -> Elem -> Elem -> List (List Nat) -> Maybe (List Nat, List (List Nat), Elem)
+  searchLoop Z _ _ _ = Nothing
+  searchLoop (S k) t le acc =
+    case firstQ (snd (candPosB 160 [] t)) of
+      Just (q, es, t') => Just (q, acc ++ es, t')
+      Nothing => do
+        (q', t') <- whnfMoveAt sig [] t
+        searchLoop k t' le (acc ++ [q'])
+   where
+    firstQ : List (List Nat) -> Maybe (List Nat, List (List Nat), Elem)
+    firstQ [] = Nothing
+    firstQ (q :: qs) = matchAt t le q <|> firstQ qs
+
+  go : Nat -> Elem -> List Step -> List (List Step) -> Maybe (List Step)
+  go _ t [] acc = Just (concat (reverse acc))
+  go Z _ _ _ = Nothing
+  go (S fuel) t (stp :: rest) acc = do
+    (le, re, _) <- case runKM (licensedRaw sig ctx stp) fuelR of
+                     Right (x, _) => Just x
+                     Left _ => Nothing
+    (q, exps, tExp) <- dbg "resc: no occurrence of \{show le} IN \{show t}"
+                         (searchLoop 24 t le [])
+    t' <- replaceAtE q re tExp
+    let betas = map (\p => MkStep stp.onLhs p LBeta [] False) exps
+    go fuel t' rest ((betas ++ [{ path := q } stp]) :: acc)
+
 reEq sig ctx cert l r ty = reEqEnds sig ctx cert l r ty Nothing
 
-reEqEnds sig ctx (MkECertF tyEx steps final) l r ty ends =
+reEqEnds sig ctx cert l r ty ends =
+  reEqEndsGo sig ctx cert l r ty ends
+
+reEqStar sig ctx cert l r ty ends =
+  reEqEndsGo sig ctx cert l r ty ends
+  <|> (do let False = null cert.steps
+            | True => Nothing
+          -- size-gate BEFORE the memo key: the key shows the
+          -- spellings, and a fully-normalized side is huge
+          let (remL, _) = candPosB 161 [] l
+          let False = remL == 0
+            | True => Nothing
+          let (remR, _) = candPosB 161 [] r
+          let False = remR == 0
+            | True => Nothing
+          withMemo memoResc "\{show ctx}|RS\{show (maybe False (const True) ends)}|\{show l}=\{show r}:\{show ty}" $ do
+            pl <- posSide sig ctx l (filter (.onLhs) cert.steps)
+            pr <- posSide sig ctx r (filter (not . (.onLhs)) cert.steps)
+            dbg "resc: scripted \{show (length (pl ++ pr))} but the replay declined for \{show l}"
+              (reEqEndsGo sig ctx ({ pos := pl ++ pr } cert) l r ty ends))
+
+reEqEndsGo sig ctx (MkECertF tyEx steps0 final posSteps) l r ty ends =
   (if reconDebug then trace "reqe: \{show l} EQ \{show r} nsteps \{show (length steps)} tyEx \{show (maybe False (const True) tyEx)}" (Just ()) else Just ()) >>= \_ => do
-  (ty', pre) <- the (Maybe (Ty, Maybe Deriv)) $ case tyEx of
-                  Nothing => Just (ty, Nothing)
-                  Just (tyX, certT) => do
+  -- a POSITIONAL replay is re-expressed against the equation's own
+  -- spellings at its RAW type: the recorded type-expansion belongs
+  -- to the legacy chain (whose steps were recorded at the expanded
+  -- type), and replaying it walks the very towers this route avoids
+  (ty', pre) <- dbg "req: tyEx reach \{show ty}" $
+                the (Maybe (Ty, Maybe Deriv)) $ case (tyEx, posSteps) of
+                  (Nothing, _) => Just (ty, Nothing)
+                  (Just _, _ :: _) => Just (ty, Nothing)
+                  (Just (tyX, certT), []) => do
                     (dBr, tyR) <- reEqTyReach sig ctx certT ty tyX
                     Just (tyR, Just dBr)
   dl0 <- dbg "req: endpoint L \{show l} AT \{show ty'}" (endpoint l ty' pre (fst <$> ends))
   dr0 <- dbg "req: endpoint R \{show r} AT \{show ty'}" (endpoint r ty' pre (snd <$> ends))
-  (chL, curL) <- dbg "req: chain L" (goSide ty' (DElRefl dl0, l) (filter (.onLhs) steps))
-  (chR, curR) <- dbg "req: chain R" (goSide ty' (DElRefl dr0, r) (filter (not . (.onLhs)) steps))
+  (chL, _, curL) <- dbg "req: chain L" (goSide ty' (DElRefl dl0, dl0, l) (filter (.onLhs) steps))
+  (chR, _, curR) <- dbg "req: chain R" (goSide ty' (DElRefl dr0, dr0, r) (filter (not . (.onLhs)) steps))
   mid <- dbg "req: close, curL \{show curL} curR \{show curR}" (closeE sig ctx ty' chL curL chR curR final)
   let whole = DElTrans chL (DElTrans mid (DElSym chR))
   pure $ case pre of
     Nothing => whole
     Just dBr => DElEqTyCoe (DTySym dBr) whole
  where
+  -- a POSITIONALIZED certificate re-expresses the same chain against
+  -- lazily-exposed spellings: prefer it — its lemma paths land on the
+  -- raw sides directly and its exposures are beta-at links
+  steps : List Step
+  steps = if null posSteps then steps0 else posSteps
+
   ||| An endpoint whose typing is hypothesis-sensitive rides the
   ||| bridge over one of the certificate's own steps; one that types
   ||| only at the equation's raw spelling rides the pre-bridge.
@@ -2174,6 +2750,11 @@ reEqEnds sig ctx (MkECertF tyEx steps final) l r ty ends =
     <|> (do (de, ety) <- reInfer sig ctx e emptySkel
             eN <- nfT sig ety
             tN <- nfT sig t
+            -- lemma-walking two NORMALIZED types is affordable only
+            -- while they are small; a tower pair is the blowup the
+            -- positional route exists to avoid
+            let False = tySizeFuel 81 [] eN == 0
+              | True => Nothing
             dBr <- firstStep steps eN tN
             deN <- do dP <- reTy sig ctx eN emptySkel
                       pure (DElTyCoe (DNfExpandTy (DPresupElTy de)) de)
@@ -2255,15 +2836,23 @@ reEqEnds sig ctx (MkECertF tyEx steps final) l r ty ends =
               pure (DElTyCoe (DNfEqTy (DPresupElTy dp) dT) dp))
       <|> byLicense rest
 
-  goSide : Ty -> (Deriv, Elem) -> List Step -> Maybe (Deriv, Elem)
+  -- the license pool for dependent-shift bridging: every step of
+  -- the certificate AND of its recorded type-expansion certificate
+  -- (an index law may only be spelled there)
+  licPool : List Step
+  licPool = steps ++ (case tyEx of
+                        Just (_, certT) => certT.steps
+                        Nothing => [])
+
+  goSide : Ty -> (Deriv, Deriv, Elem) -> List Step -> Maybe (Deriv, Deriv, Elem)
   goSide t st [] = Just st
   goSide t st (stp :: rest) = do
-    st' <- stepChainE sig ctx t st stp
+    st' <- stepChainE sig ctx (not (null posSteps)) licPool t st stp
     goSide t st' rest
 
 reEqTy sig ctx cert a b = reEqTyEnds sig ctx cert a b (Nothing, Nothing)
 
-reEqTyReach sig ctx cert@(MkECertF tyEx steps final) a b = do
+reEqTyReach sig ctx cert@(MkECertF tyEx steps final _) a b = do
   let Nothing = tyEx
     | _ => Nothing
   reach <|> ((\d => (d, b)) <$> reEqTy sig ctx cert a b)
@@ -2286,7 +2875,13 @@ reEqTyReach sig ctx cert@(MkECertF tyEx steps final) a b = do
     st' <- stepChainT sig ctx st stp
     goSideR st' rest
 
-reEqTyEnds sig ctx (MkECertF tyEx steps final) a b (endA, endB) = do
+reEqTyEnds sig ctx cert a b ends =
+  reEqTyEndsGo sig ctx cert a b ends
+  <|> (case cert.pos of
+        [] => Nothing
+        _ => reEqTyEndsGo sig ctx ({ pos := [] } cert) a b ends)
+
+reEqTyEndsGo sig ctx (MkECertF tyEx steps0 final posSteps) a b (endA, endB) = do
   let Nothing = tyEx
     | _ => dbg "reqty: nested tyEx" Nothing
   oneSidedR <|> (do
@@ -2295,6 +2890,9 @@ reEqTyEnds sig ctx (MkECertF tyEx steps final) a b (endA, endB) = do
     (chA, curA) <- dbg "reqty: chain L" (goSide (DTyRefl da0, a) (filter (.onLhs) steps))
     oneSided chA curA <|> twoSided chA curA)
  where
+  steps : List Step
+  steps = if null posSteps then steps0 else posSteps
+
   goSide : (Deriv, Ty) -> List Step -> Maybe (Deriv, Ty)
   goSide st [] = Just st
   goSide st (stp :: rest) = do
@@ -2525,8 +3123,8 @@ emitTyDef sig art =
 ||| result ridden back on the type derivation).
 emitBody : Sig -> Ctx -> Elem -> Ty -> Skel -> Deriv -> Maybe Deriv
 emitBody sig ctx body ty bodySk dT =
-  reCheck sig ctx body ty bodySk
-  <|> reCheckF sig ctx body ty bodySk dT
+  reCheckF sig ctx body ty bodySk dT
+  <|> reCheck sig ctx body ty bodySk
   <|> (do tyN <- nfT sig ty
           let False = tyN == ty
             | True => Nothing

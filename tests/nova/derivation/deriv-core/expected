@@ -18,3 +18,5 @@ qiit-eta: ⊦ QCtor ([QU, QEl (QVar 0)]) 1 ([< ]) ≐ QElim ([QU, QEl (QVar 0)])
 qtm-range: REJECTED [derivation: qtm-var: index out of range]
 natelim-cong: ⊦ NatElim (NatIntro0) (NatIntro1 (CtxVar 1)) (NatIntro1 (NatIntro0)) ≐ NatElim (NatIntro0) (NatIntro1 (CtxVar 1)) (NatIntro1 (NatIntro0)) : NatTy
 pi-inj-dom: ⊦ NatTy ≐ NatTy type
+beta-at: ⊦ NatIntro1 (PiApp (PiIntro (CtxVar 0)) (NatIntro0)) ≐ NatIntro1 (NatIntro0) : NatTy
+beta-at-stuck: REJECTED [derivation: beta-at: no ≜ redex at the path]

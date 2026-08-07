@@ -123,6 +123,13 @@ derivCases =
     -- injectivity: the domain component of a Π-type equation
   , ("pi-inj-dom", DTyPiInjDom DTyNat DTyNat
       (DTyRefl (DTyPi DTyNat DTyNat)))
+    -- beta-at: ONE ≜ contraction at a path inside a typed term — the
+    -- subterm carries no typing premise of its own (subject
+    -- reduction, like the nf oracle)
+  , ("beta-at", DBetaAt [0]
+      (DElNatS (DElPiE (DElPiI DTyNat (DElVar 0)) DElNatZ DTyNat)))
+    -- REJECTION: the path must land on a ≜ redex
+  , ("beta-at-stuck", DBetaAt [0] (DElNatS DElNatZ))
   ]
 
 runDerivTests : IO ()

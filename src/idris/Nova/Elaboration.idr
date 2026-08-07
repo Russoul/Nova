@@ -221,6 +221,7 @@ throw e = MkElabM $ \_ => Left e
 licProof : StepLic -> Elem
 licProof (LProof p) = p
 licProof (LPath _ _ _) = assert_total $ idris_crash "licProof: path license in a rewrite trace"
+licProof LBeta = assert_total $ idris_crash "licProof: positional exposure in a rewrite trace"
 
 ||| The identity NORMAL substitution over a context of length n:
 ||| ☐ₙ₋₁, ..., ☐₀ (outermost first) — how a hole minted at the ambient
@@ -1347,13 +1348,13 @@ prefixSteps i = map ({ path $= (i ::) })
 ||| Steps of a certificate that is pure steps + beta (flattenable into
 ||| a parent at a path); Nothing when the final is type-directed.
 flatSteps : ECert -> Maybe (List Step)
-flatSteps (MkECertF Nothing steps FBeta) = Just steps
+flatSteps (MkECertF Nothing steps FBeta _) = Just steps
 flatSteps _ = Nothing
 
 ||| ... and with no proofs needed at all (safe under binders, where a
 ||| Γ-level proof reference would go out of scope).
 stepFree : ECert -> Bool
-stepFree (MkECertF Nothing [] FBeta) = True
+stepFree (MkECertF Nothing [] FBeta _) = True
 stepFree _ = False
 
 mutual
@@ -1374,17 +1375,17 @@ mutual
         base = aSteps ++ bSteps
         tyN = betaTy st.sig tyX in
     if a' == b'
-      then Just (MkECertF bridge base FBeta)
+      then Just (MkECertF bridge base FBeta [])
       else
         (do rest <- candMatchC dep st cs ctx a' b' tyN >>= unbridged
-            pure (MkECertF bridge (base ++ rest.steps) rest.final))
+            pure (MkECertF bridge (base ++ rest.steps) rest.final []))
         <|> (do rest <- spEqStructC dep st cs ctx a' b' tyN >>= unbridged
-                pure (MkECertF bridge (base ++ rest.steps) rest.final))
+                pure (MkECertF bridge (base ++ rest.steps) rest.final []))
         <|> (do congSteps <- spCongC dep st cs ctx a' b'
-                pure (MkECertF bridge (base ++ congSteps) FBeta))
+                pure (MkECertF bridge (base ++ congSteps) FBeta []))
    where
     unbridged : ECert -> Maybe ECert
-    unbridged c@(MkECertF Nothing _ _) = Just c
+    unbridged c@(MkECertF Nothing _ _ _) = Just c
     unbridged _ = Nothing
 
   spEqStructC : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Ty -> Maybe ECert
@@ -1558,7 +1559,7 @@ mutual
     firstJ (Nothing :: rest) = firstJ rest
 
     noBridge : ECert -> Maybe ECert
-    noBridge c@(MkECertF Nothing _ _) = Just c
+    noBridge c@(MkECertF Nothing _ _ _) = Just c
     noBridge _ = Nothing
 
     paramTy : Cand -> Nat -> Maybe Ty
@@ -3276,7 +3277,8 @@ mutual
         case pUse of
           Elem.EqTy l r t => do
             c <- convElem ctx env "\{site}: checking ⋆" Nothing l r t
-            pure (Star, withExpose exp (Nd [PReflEq (certOr c)] []))
+            pure (Star, withExpose exp
+              (Nd [PReflEq (certOr c)] []))
           Squash sq =>
             case betaTy st.sig sq of
               Ty.OneTy => pure (Star, withExpose exp (Nd [PSquashWit OneIntro (Nd [] [])] []))
