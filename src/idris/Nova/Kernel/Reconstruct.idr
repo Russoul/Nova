@@ -22,9 +22,12 @@ import Data.List
 import Data.Maybe
 import Data.SnocList
 import Data.SortedMap
+import Data.Bits
 import Data.IORef
 import Debug.Trace
 import System
+import System.File
+import System.Clock
 
 import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
@@ -40,11 +43,13 @@ import Nova.Kernel.Derivation
 reconDebug : Bool
 reconDebug = unsafePerformIO (isJust <$> getEnv "NOVA_RECON_DEBUG")
 
--- the instance-meet type bridge is still over budget on its search
--- (see docs/NovaPipeline.txt, phase 3 status): opt-in until bounded
-%noinline
-onLemBr : Bool
-onLemBr = unsafePerformIO (isJust <$> getEnv "NOVA_LEMBR")
+-- unbuffered probe (stderr survives a killed run; trace does not)
+export
+etrace : String -> a -> a
+etrace msg x = unsafePerformIO $ do
+  t <- clockTime Monotonic
+  _ <- fPutStrLn stderr "[\{show (seconds t)}.\{show (nanoseconds t `div` 100000000)}] \{msg}"
+  pure x
 
 dbg : Lazy String -> Maybe a -> Maybe a
 dbg msg Nothing = if reconDebug then trace (force msg) Nothing else Nothing
@@ -158,25 +163,206 @@ fuelR = 1000000
 -- entry. Untrusted side only — replay never sees a cache, so a
 -- cache bug is wasted work or incompleteness, never unsoundness.
 
+-- ===== structural hashing (memo keys) =====
+--
+-- Show-string keys copy kilobytes per lookup — on normalized
+-- eliminator spellings the key building dominated the entire
+-- emission (a memmove storm in the profile). Keys are structural
+-- hashes; exactness is restored by an == check on the bucket, so a
+-- collision costs a comparison, never a wrong reuse. Exotic payloads
+-- (ToS signatures, polynomials) hash by tag alone for the same
+-- reason.
+
+headTagE : Elem -> Nat
+headTagE (CtxVar _) = 0
+headTagE (ZeroElim _) = 1
+headTagE OneIntro = 2
+headTagE NatIntro0 = 3
+headTagE (NatIntro1 _) = 4
+headTagE (NatElim _ _ _) = 5
+headTagE (PiIntro _) = 6
+headTagE (PiApp _ _) = 7
+headTagE (Let _ _) = 8
+headTagE (SigmaIntro _ _) = 9
+headTagE (SigmaElim1 _) = 10
+headTagE (SigmaElim2 _) = 11
+headTagE (Inj1 _) = 12
+headTagE (Inj2 _) = 13
+headTagE (SumElim _ _ _) = 14
+headTagE ZeroTy = 15
+headTagE OneTy = 16
+headTagE NatTy = 17
+headTagE (PiTy _ _) = 18
+headTagE (SigmaTy _ _) = 19
+headTagE (SumTy _ _) = 20
+headTagE (EqTy _ _ _) = 21
+headTagE (QuotTy _ _) = 22
+headTagE (SigVar _ _) = 23
+headTagE (Class _) = 24
+headTagE (QuotElim _ _) = 25
+headTagE (Squash _) = 26
+headTagE Star = 27
+headTagE (QSortC _ _ _) = 28
+headTagE (QCtor _ _ _) = 29
+headTagE (QElim _ _ _ _ _ _) = 30
+headTagE (NuTy _) = 31
+headTagE (Out _) = 32
+headTagE (Corec _ _ _ _) = 33
+
+-- fixnum-safe: operands stay under 2^30, products under 2^60 —
+-- Bits64 arithmetic normalizes through chez bignums and was itself
+-- the hotspot. The multiplier is a parameter: every key is TWO
+-- independent hashes, and the second replaces the structural ==
+-- check a bucket would need — comparing keys whose contexts hold
+-- thousand-node motive candidates was itself the blowup. A double
+-- collision mis-reuses a memo entry on the UNTRUSTED side: the
+-- replay rejects the resulting derivation, so the risk is a
+-- once-in-2^60 spurious rejection, never unsoundness.
+hcomb : Integer -> Integer -> Integer -> Integer
+hcomb m h x = (h * m + x) `mod` 536870909
+
+hashStr : Integer -> Integer -> String -> Integer
+hashStr m h = foldl (\h', c => hcomb m h' (cast (ord c))) h . unpack
+
+mutual
+  hashE : Integer -> Integer -> Elem -> Integer
+  hashE m h e =
+    let h = hcomb m h (cast (headTagE e) + 101) in
+    case e of
+      CtxVar n => hcomb m h (cast n)
+      ZeroElim a => hashE m h a
+      NatIntro1 a => hashE m h a
+      NatElim a b c => hashE m (hashE m (hashE m h a) b) c
+      PiIntro a => hashE m h a
+      PiApp a b => hashE m (hashE m h a) b
+      Let a b => hashE m (hashE m h a) b
+      SigmaIntro a b => hashE m (hashE m h a) b
+      SigmaElim1 a => hashE m h a
+      SigmaElim2 a => hashE m h a
+      Inj1 a => hashE m h a
+      Inj2 a => hashE m h a
+      SumElim a b c => hashE m (hashE m (hashE m h a) b) c
+      Elem.PiTy a b => hashE m (hashE m h a) b
+      Elem.SigmaTy a b => hashE m (hashE m h a) b
+      Elem.SumTy a b => hashE m (hashE m h a) b
+      Elem.EqTy a b t => hashT m (hashE m (hashE m h a) b) t
+      QuotTy a b => hashE m (hashE m h a) b
+      Elem.SigVar x sub => hashSubN m (hashStr m h x) sub
+      Class a => hashE m h a
+      QuotElim a b => hashE m (hashE m h a) b
+      Squash t => hashT m h t
+      QSortC sg k sub => hashSubN m (hcomb m (hashQSig m h sg) (cast k)) sub
+      QCtor sg k sub => hashSubN m (hcomb m (hashQSig m h sg) (cast k)) sub
+      QElim sg k tys es sub a =>
+        hashE m (hashSubN m (foldl (hashE m) (foldl (hashT m) (hcomb m (hashQSig m h sg) (cast k)) tys) es) sub) a
+      Out a => hashE m h a
+      Corec pl a b c => hashE m (hashE m (hashE m (hashPoly m h pl) a) b) c
+      Elem.NuTy pl => hashPoly m h pl
+      _ => h
+
+  hashT : Integer -> Integer -> Ty -> Integer
+  hashT m h t =
+    case t of
+      UniverseTy => hcomb m h 1
+      Ty.PiTy a b => hashT m (hashT m (hcomb m h 2) a) b
+      Ty.SigmaTy a b => hashT m (hashT m (hcomb m h 3) a) b
+      Ty.SumTy a b => hashT m (hashT m (hcomb m h 4) a) b
+      El a => hashE m (hcomb m h 5) a
+      PropTy => hcomb m h 6
+      Prf a => hashE m (hcomb m h 7) a
+      Quotient a b => hashE m (hashT m (hcomb m h 8) a) b
+      Ty.SigVar x sub => hashSubN m (hashStr m (hcomb m h 9) x) sub
+      QSort sg k sub => hashSubN m (hcomb m (hashQSig m (hcomb m h 10) sg) (cast k)) sub
+      Ty.NuTy pl => hashPoly m (hcomb m h 18) pl
+      Ty.NatTy => hcomb m h 11
+      Ty.ZeroTy => hcomb m h 12
+      Ty.OneTy => hcomb m h 13
+      _ => hcomb m h 14
+
+  hashSubN : Integer -> Integer -> SubNorm -> Integer
+  hashSubN m h sub = foldl (hashE m) (hcomb m h 15) (toList sub)
+
+  hashQTm : Integer -> Integer -> QTm -> Integer
+  hashQTm m h (QVar n) = hcomb m (hcomb m h 41) (cast n)
+  hashQTm m h (QAppE a e) = hashE m (hashQTm m (hcomb m h 42) a) e
+  hashQTm m h (QAppI a b) = hashQTm m (hashQTm m (hcomb m h 43) a) b
+  hashQTm m h (QEqC a b c) = hashQTm m (hashQTm m (hashQTm m (hcomb m h 44) a) b) c
+
+  hashQTy : Integer -> Integer -> QTy -> Integer
+  hashQTy m h QU = hcomb m h 45
+  hashQTy m h (QEl a) = hashQTm m (hcomb m h 46) a
+  hashQTy m h (QPiExt t a) = hashQTy m (hashT m (hcomb m h 47) t) a
+  hashQTy m h (QPiInd a b) = hashQTy m (hashQTm m (hcomb m h 48) a) b
+
+  hashQSig : Integer -> Integer -> QSig -> Integer
+  hashQSig m h sg = foldl (hashQTy m) (hcomb m h 49) sg
+
+  hashPoly : Integer -> Integer -> Poly -> Integer
+  hashPoly m h PHole = hcomb m h 50
+  hashPoly m h (PConst a) = hashE m (hcomb m h 51) a
+  hashPoly m h (PProd a b) = hashPoly m (hashPoly m (hcomb m h 52) a) b
+  hashPoly m h (PSum a b) = hashPoly m (hashPoly m (hcomb m h 53) a) b
+  hashPoly m h (PSigma a b) = hashPoly m (hashE m (hcomb m h 54) a) b
+  hashPoly m h (PPi a b) = hashPoly m (hashE m (hcomb m h 55) a) b
+
+hashCtx : Integer -> Ctx -> Integer
+hashCtx m cx = foldl (hashT m) 16 (toList cx)
+
+withMemoH : IORef (SortedMap Integer (List (Integer, Maybe v))) ->
+            Integer -> Integer -> Lazy (Maybe v) -> Maybe v
+withMemoH ref h1 h2 act = unsafePerformIO $ do
+  m <- readIORef ref
+  let bucket = fromMaybe [] (lookup h1 m)
+  case lookup h2 bucket of
+    Just v => pure v
+    Nothing => do
+      let v = force act
+      modifyIORef ref (insert h1 ((h2, v) :: bucket))
+      pure v
+
 %noinline
-memoNfE : IORef (SortedMap String (Maybe Elem))
+memoNfE : IORef (SortedMap Integer (List (Integer, Maybe Elem)))
 memoNfE = unsafePerformIO (newIORef empty)
 
 %noinline
-memoNfT : IORef (SortedMap String (Maybe Ty))
+memoNfT : IORef (SortedMap Integer (List (Integer, Maybe Ty)))
 memoNfT = unsafePerformIO (newIORef empty)
 
 %noinline
-memoChk : IORef (SortedMap String (Maybe Deriv))
+memoChk : IORef (SortedMap Integer (List (Integer, Maybe Deriv)))
 memoChk = unsafePerformIO (newIORef empty)
 
 %noinline
-memoInf : IORef (SortedMap String (Maybe (Deriv, Ty)))
+memoInf : IORef (SortedMap Integer (List (Integer, Maybe (Deriv, Ty))))
 memoInf = unsafePerformIO (newIORef empty)
 
 %noinline
-memoTy : IORef (SortedMap String (Maybe Deriv))
+memoTy : IORef (SortedMap Integer (List (Integer, Maybe Deriv)))
 memoTy = unsafePerformIO (newIORef empty)
+
+-- the per-item WORK BUDGET: one countdown over every reconstruction
+-- entry point. An attempt subtree that would run for minutes burns
+-- its allowance and the item falls to residue in bounded time — the
+-- "assume it blows up" policy, internalized. Untrusted side only:
+-- exhaustion is incompleteness, never unsoundness.
+%noinline
+workBudget : IORef Int
+workBudget = unsafePerformIO (newIORef 0)
+
+spendOk : () -> Bool
+spendOk _ = unsafePerformIO $ do
+  n <- readIORef workBudget
+  if n <= 0
+    then pure False
+    else do
+      writeIORef workBudget (n - 1)
+      pure True
+
+%noinline
+resetBudget : Int -> Maybe ()
+resetBudget n = unsafePerformIO $ do
+  writeIORef workBudget n
+  pure (Just ())
 
 %noinline
 memoResc : IORef (SortedMap String (Maybe Deriv))
@@ -189,6 +375,10 @@ memoBr = unsafePerformIO (newIORef empty)
 %noinline
 memoLL : IORef (SortedMap String (Maybe (Deriv, Ty)))
 memoLL = unsafePerformIO (newIORef empty)
+
+%noinline
+memoLB : IORef (SortedMap String (Maybe Deriv))
+memoLB = unsafePerformIO (newIORef empty)
 
 withMemo : IORef (SortedMap String (Maybe a)) -> String -> Lazy (Maybe a) -> Maybe a
 withMemo ref k act = unsafePerformIO $ do
@@ -203,6 +393,7 @@ withMemo ref k act = unsafePerformIO $ do
 %noinline
 clearMemos : () -> Maybe ()
 clearMemos _ = unsafePerformIO $ do
+  writeIORef workBudget 400000
   writeIORef memoNfE empty
   writeIORef memoNfT empty
   writeIORef memoChk empty
@@ -211,19 +402,26 @@ clearMemos _ = unsafePerformIO $ do
   writeIORef memoResc empty
   writeIORef memoBr empty
   writeIORef memoLL empty
+  writeIORef memoLB empty
   pure (Just ())
 
 nfE : Sig -> Elem -> Maybe Elem
-nfE sig e = withMemo memoNfE (show e)
-  (case runKM (kElem sig e) fuelR of
-     Right (x, _) => Just x
-     Left _ => Nothing)
+nfE sig e = do
+  let True = spendOk ()
+    | False => Nothing
+  withMemoH memoNfE (hashE 33 17 e) (hashE 131 19 e)
+    (case runKM (kElem sig e) fuelR of
+       Right (x, _) => Just x
+       Left _ => Nothing)
 
 nfT : Sig -> Ty -> Maybe Ty
-nfT sig t = withMemo memoNfT (show t)
-  (case runKM (kTy sig t) fuelR of
-     Right (x, _) => Just x
-     Left _ => Nothing)
+nfT sig t = do
+  let True = spendOk ()
+    | False => Nothing
+  withMemoH memoNfT (hashT 33 17 t) (hashT 131 19 t)
+    (case runKM (kTy sig t) fuelR of
+       Right (x, _) => Just x
+       Left _ => Nothing)
 
 wkN : Nat -> Elem -> Elem
 wkN Z e = e
@@ -291,8 +489,10 @@ mutual
   ||| skeleton is unavailable — anything needing a payload then bails).
   export
   reTy : Sig -> Ctx -> Ty -> Skel -> Maybe Deriv
-  reTy sig ctx ty (Nd [] []) =
-    withMemo memoTy "\{show ctx}|T|\{show ty}"
+  reTy sig ctx ty (Nd [] []) = do
+    let True = spendOk ()
+      | False => Nothing
+    withMemoH memoTy (hashT 33 (hashCtx 33 ctx) ty) (hashT 131 (hashCtx 131 ctx) ty)
       (reTyB sig ctx ty emptySkel)
   reTy sig ctx ty sk = reTyB sig ctx ty sk
 
@@ -430,8 +630,10 @@ mutual
   ||| and its concluded type.
   export
   reInfer : Sig -> Ctx -> Elem -> Skel -> Maybe (Deriv, Ty)
-  reInfer sig ctx e (Nd [] []) =
-    withMemo memoInf "\{show ctx}|I|\{show e}"
+  reInfer sig ctx e (Nd [] []) = do
+    let True = spendOk ()
+      | False => Nothing
+    withMemoH memoInf (hashE 33 (hashCtx 33 ctx) e) (hashE 131 (hashCtx 131 ctx) e)
       (reInferB sig ctx e emptySkel)
   reInfer sig ctx e sk = reInferB sig ctx e sk
 
@@ -721,8 +923,10 @@ mutual
   ||| (with a β coercion when spellings differ).
   export
   reCheck : Sig -> Ctx -> Elem -> Ty -> Skel -> Maybe Deriv
-  reCheck sig ctx e ty (Nd [] []) =
-    withMemo memoChk "\{show ctx}|C|\{show e}:\{show ty}"
+  reCheck sig ctx e ty (Nd [] []) = do
+    let True = spendOk ()
+      | False => Nothing
+    withMemoH memoChk (hashT 33 (hashE 33 (hashCtx 33 ctx) e) ty) (hashT 131 (hashE 131 (hashCtx 131 ctx) e) ty)
       (reCheckB sig ctx e ty emptySkel)
   reCheck sig ctx e ty sk = reCheckB sig ctx e ty sk
 
@@ -1126,42 +1330,6 @@ foldSels sig ctx st (sel :: rest) = do
 posFuel : Nat
 posFuel = 4096
 
-headTagE : Elem -> Nat
-headTagE (CtxVar _) = 0
-headTagE (ZeroElim _) = 1
-headTagE OneIntro = 2
-headTagE NatIntro0 = 3
-headTagE (NatIntro1 _) = 4
-headTagE (NatElim _ _ _) = 5
-headTagE (PiIntro _) = 6
-headTagE (PiApp _ _) = 7
-headTagE (Let _ _) = 8
-headTagE (SigmaIntro _ _) = 9
-headTagE (SigmaElim1 _) = 10
-headTagE (SigmaElim2 _) = 11
-headTagE (Inj1 _) = 12
-headTagE (Inj2 _) = 13
-headTagE (SumElim _ _ _) = 14
-headTagE ZeroTy = 15
-headTagE OneTy = 16
-headTagE NatTy = 17
-headTagE (PiTy _ _) = 18
-headTagE (SigmaTy _ _) = 19
-headTagE (SumTy _ _) = 20
-headTagE (EqTy _ _ _) = 21
-headTagE (QuotTy _ _) = 22
-headTagE (SigVar _ _) = 23
-headTagE (Class _) = 24
-headTagE (QuotElim _ _) = 25
-headTagE (Squash _) = 26
-headTagE Star = 27
-headTagE (QSortC _ _ _) = 28
-headTagE (QCtor _ _ _) = 29
-headTagE (QElim _ _ _ _ _ _) = 30
-headTagE (NuTy _) = 31
-headTagE (Out _) = 32
-headTagE (Corec _ _ _ _) = 33
-
 ||| One whnf move at an (absolute) position: contract there if the
 ||| head is a ≜ redex, else at the deepest principal descendant that
 ||| is (whnf order); a type position gets a head contraction only.
@@ -1212,6 +1380,29 @@ diffPosE sig (S fuel) q sub le =
       (Nothing, Nothing) => Just q
       _ => Just q
 
+||| Element positions of t, outermost-leftmost (probed by index),
+||| FUELED: enumeration stops when the budget runs dry, so a huge
+||| spelling costs its budget and no more. Returns the leftover fuel
+||| (Z signals a truncated listing).
+candPosB : Nat -> List Nat -> Elem -> (Nat, List (List Nat))
+candPosB Z q t = (Z, [])
+candPosB (S f) q t =
+  let (f', rest) = walk f [0, 1, 2, 3, 4, 5] in (f', q :: rest)
+ where
+  walk : Nat -> List Nat -> (Nat, List (List Nat))
+  walk f [] = (f, [])
+  walk f (j :: js) =
+    case subAtE (q ++ [j]) t of
+      Just (Left _) =>
+        let (f1, ps) = candPosB f (q ++ [j]) t
+            (f2, ps2) = walk f1 js
+        in (f2, ps ++ ps2)
+      _ => walk f js
+
+||| Does a spelling exceed the position budget (probed by index)?
+candPosOver : Nat -> Elem -> Bool
+candPosOver n e = fst (candPosB (S n) [] e) == 0
+
 ||| Expose inside t (recording every contraction) until the subterm
 ||| at q equals a ≜-reduct of le: the goal side moves first; where it
 ||| is stuck, the LICENSE side contracts instead (unrecorded — the
@@ -1225,6 +1416,9 @@ forceMeetE sig (S fuel) q t le = do
   if sub == le
     then Just ([], t)
     else do
+      -- a contraction can DOUBLE a spelling: bound growth per round
+      let False = fst (candPosB 401 [] sub) == 0 || fst (candPosB 201 [] le) == 0
+        | True => Nothing
       dq <- diffPosE sig 64 q sub le
       case whnfMoveAt sig dq t of
         Just (q', t') => do
@@ -1260,29 +1454,6 @@ tySizeFuel (S f) q t = walk f [0, 1, 2, 3, 4, 5]
     case subAtT (q ++ [j]) t of
       Just _ => walk (tySizeFuel f (q ++ [j]) t) js
       Nothing => walk f js
-
-||| Element positions of t, outermost-leftmost (probed by index),
-||| FUELED: enumeration stops when the budget runs dry, so a huge
-||| spelling costs its budget and no more. Returns the leftover fuel
-||| (Z signals a truncated listing).
-candPosB : Nat -> List Nat -> Elem -> (Nat, List (List Nat))
-candPosB Z q t = (Z, [])
-candPosB (S f) q t =
-  let (f', rest) = walk f [0, 1, 2, 3, 4, 5] in (f', q :: rest)
- where
-  walk : Nat -> List Nat -> (Nat, List (List Nat))
-  walk f [] = (f, [])
-  walk f (j :: js) =
-    case subAtE (q ++ [j]) t of
-      Just (Left _) =>
-        let (f1, ps) = candPosB f (q ++ [j]) t
-            (f2, ps2) = walk f1 js
-        in (f2, ps ++ ps2)
-      _ => walk f js
-
-||| Does a spelling exceed the position budget (probed by index)?
-candPosOver : Nat -> Elem -> Bool
-candPosOver n e = fst (candPosB (S n) [] e) == 0
 
 ||| The licensed equation at its STATEMENT spelling (nothing
 ||| normalized): the positional route matches these inside terms as
@@ -1520,6 +1691,10 @@ rePlaceE sig ctx step d [] exp cur mty =
     if le == cur
       then Just ch
       else do
+        -- a contraction can DOUBLE the spelling (β duplicates its
+        -- argument): bound the growth per round, not just at entry
+        let False = fst (candPosB 301 [] le) == 0
+          | True => Nothing
         dq <- diffPosE sig 64 [] le cur
         (q', le') <- whnfMoveAt sig dq le
         meetLe fuel (DElTrans ch (DBetaAt q' (DPresupElR ch))) le'
@@ -1624,6 +1799,10 @@ rePlaceE sig ctx step d (i :: p) exp cur mty =
           pure (DElInj2Cong dc dl, Inj2 b', Ty.SumTy l r)
         _ => Nothing
     (NatElim z st t, 2) => do
+      -- motive attempts re-check both branches per candidate: on a
+      -- huge spelling that is the blowup — decline fast
+      let False = fst (candPosB 501 [] st) == 0 || tySizeFuel 501 [] exp == 0
+        | True => Nothing
       (dc0, t', chTy) <- rePlaceE sig ctx step d p Ty.NatTy t Nothing
       dc <- eqAtNf sig ctx dc0 chTy Ty.NatTy
       let tryMot = \mot => do
@@ -2058,7 +2237,7 @@ lemmaLeafB sig ctx step d x y = do
   yN <- nfE sig y
   -- ∀-re-instantiation pays off only on SMALL pairs (index laws);
   -- a tower pair costs its enumeration at every walk leaf
-  let False = candPosOver 240 xN || candPosOver 240 yN
+  let False = candPosOver 60 xN || candPosOver 60 yN
     | True => Nothing
   -- match-directed pool: an instantiation's endpoints must BE the
   -- pair, so its arguments occur in it — blind enumeration buries
@@ -2414,106 +2593,150 @@ stepChainE sig ctx positional allSteps ty (chain, dCur, cur) step =
     go [] = Nothing
     go (st :: rest) = f st <|> go rest
 
-  -- two codes that differ by index laws meet by lemma instances
-  -- placed at prefixes of their disagreement (one per side, bounded
-  -- recursion): enumerate the pool's instances (match-directed)
-  -- whose nf endpoints touch the differing subpair, place via a
-  -- synthesized step — the congruence walk crosses only code
-  -- spellings, whose motives are constant — and recurse on the rest
+  -- two codes that differ by index laws meet by RECORDED lemma
+  -- instances placed at prefixes of their disagreement (one per
+  -- side, bounded recursion). The pool's steps are fully
+  -- instantiated licenses — the certificate and its type-expansion
+  -- recorded them — so matching is EXACT comparison of their
+  -- licensed sides against the differing subpair: no
+  -- re-instantiation, no enumeration. The congruence walk crosses
+  -- only code spellings, whose motives are constant.
   lemBridgeT : Nat -> Ty -> Ty -> Maybe Deriv
   lemBridgeT Z _ _ = Nothing
-  lemBridgeT (S fuel) (El x) (El y) = do
-    let True = onLemBr
-      | False => Nothing
+  lemBridgeT (S fuel) (El x) (El y) =
     if x == y
       then DTyRefl <$> reTy sig ctx (El x) emptySkel
       else do
-        dq <- diffPosE sig 64 [] x y
-        dx <- reCheck sig ctx x Ty.UniverseTy emptySkel
-        dy <- reCheck sig ctx y Ty.UniverseTy emptySkel
-        goPre dx dy (reverse (inits dq))
+        -- the pool is tiny and fully instantiated: no matches means
+        -- no bridge, decided before anything walks or checks
+        let is = recInsts
+        let False = null is
+          | True => Nothing
+        withMemo memoLB "\{show (length (toList ctx))}|LB|\{stKey (Just step)}|\{show x}=\{show y}" $ do
+          dq <- diffPosE sig 64 [] x y
+          goPre is (reverse (inits dq))
    where
-    insts : Elem -> Elem -> List (Elem, Elem, Elem)
-    insts xa ya =
-      -- match-directed: an instantiation's endpoints must BE the
-      -- pair, so its arguments occur in it — the unfiltered pool
-      -- costs its cube in typed slot checks
-      let rel = \c => case nfE sig c of
-                        Just cN => occursE 400 cN xa || occursE 400 cN ya
-                        Nothing => False
-          pool = filter rel
-                   (map CtxVar [0 .. minus (length (toList ctx)) 1]
-                    ++ subterms 3 xa ++ subterms 3 ya)
-      in concatMap (\st => map (\(_, leN, reN, _, pf) => (leN, reN, pf))
-                             (lemmaInsts sig ctx st 0 pool))
-                   (step :: allSteps)
+    -- each pool step's licensed equation, at both its normalized and
+    -- statement spellings, with its DERIVATION — matching is exact
+    -- comparison, placement is direct congruence assembly
+    recInsts : List (Elem, Elem, Deriv)
+    recInsts =
+      concatMap (\st =>
+        case st.lic of
+          LProof _ =>
+            (case reLicensed sig ctx st 0 of
+               Just (dEq, le, re, _) => [(le, re, dEq)]
+               Nothing => [])
+            ++ (case reLicensedRaw sig ctx st 0 of
+                  Just (dEq, le, re, _) => [(le, re, dEq)]
+                  Nothing => [])
+          _ => []) (step :: allSteps)
 
-    place : Deriv -> List Nat -> Elem -> Elem -> Bool -> Maybe (Deriv, Elem)
-    place dz p z pf flp = do
-      let stp = MkStep True p (LProof pf) [] flp
-      (dEq, z', _) <- rePlaceE sig ctx stp 0 p Ty.UniverseTy z (Just dz)
-      Just (dEq, z')
+    -- congruence along a CODE path, assembled directly: every node
+    -- on the way lives at a closed constant type (𝕌 or ℕ), so the
+    -- eliminator congruences take the constant motive and no bridge,
+    -- no motive guess, and no search can arise
+    codeCongAt : Nat -> Ctx -> Ty -> List Nat -> Elem -> Deriv -> Maybe Deriv
+    codeCongAt Z _ _ _ _ _ = Nothing
+    codeCongAt (S f) cx exp [] z dEq = Just dEq
+    codeCongAt (S f) cx exp (i :: rest) z dEq =
+      case (z, i) of
+        (NatIntro1 u, 0) => do
+          dc <- codeCongAt f cx Ty.NatTy rest u dEq
+          pure (DElSucCong dc)
+        (NatElim zb sb t, 2) => do
+          let mot = substTy exp Wk
+          dmot <- reTy sig (cx :< Ty.NatTy) mot emptySkel
+          dz <- reCheck sig cx zb (substTy mot (Ext Id NatIntro0)) emptySkel
+          ds <- reCheck sig (cx :< Ty.NatTy :< mot) sb
+                  (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) emptySkel
+          dc <- codeCongAt f cx Ty.NatTy rest t dEq
+          pure (DElNatECong dmot (DElRefl dz) (DElRefl ds) dc)
+        (NatElim zb sb t, 0) => do
+          let mot = substTy exp Wk
+          dmot <- reTy sig (cx :< Ty.NatTy) mot emptySkel
+          ds <- reCheck sig (cx :< Ty.NatTy :< mot) sb
+                  (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) emptySkel
+          dt <- reCheck sig cx t Ty.NatTy emptySkel
+          dc <- codeCongAt f cx (substTy mot (Ext Id NatIntro0)) rest zb dEq
+          pure (DElNatECong dmot dc (DElRefl ds) (DElRefl dt))
+        (NatElim zb sb t, 1) => do
+          let mot = substTy exp Wk
+          dmot <- reTy sig (cx :< Ty.NatTy) mot emptySkel
+          dz <- reCheck sig cx zb (substTy mot (Ext Id NatIntro0)) emptySkel
+          dt <- reCheck sig cx t Ty.NatTy emptySkel
+          dc <- codeCongAt f (cx :< Ty.NatTy :< mot)
+                  (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) rest sb dEq
+          pure (DElNatECong dmot (DElRefl dz) dc (DElRefl dt))
+        _ => Nothing
 
-    closeAt : Deriv -> Deriv -> Bool -> List Nat -> Maybe Deriv
-    closeAt dx dy deepest p = do
+    place : List Nat -> Elem -> Deriv -> Elem -> Maybe (Deriv, Elem)
+    place p z dEq re = do
+      d <- codeCongAt 32 ctx Ty.UniverseTy p z dEq
+      z' <- replaceAtE p re z
+      pure (d, z')
+
+    closeAt : List (Elem, Elem, Deriv) -> Bool -> List Nat -> Maybe Deriv
+    closeAt recIs deepest p = do
       Left xa <- subAtE p x
         | _ => Nothing
       Left ya <- subAtE p y
         | _ => Nothing
       let False = xa == ya
         | True => Nothing
-      let is = take 24 (insts xa ya)
-      fullClose xa ya is
+      fullClose xa ya recIs
         <|> (do -- one-sided steps: only at the DEEPEST disagreement
                 -- (recursion at every prefix branches exponentially)
                 let True = deepest
                   | False => Nothing
-                (pf, reN) <- pickBy xa is
-                (dEq, x') <- place dx p x pf False
+                (dEq, re) <- pickBy xa recIs
+                (dc, x') <- place p x dEq re
                 let False = x' == x
                   | True => Nothing
                 rec <- lemBridgeT fuel (El x') (El y)
-                pure (DTyTrans (DTyElCong dEq) rec))
+                pure (DTyTrans (DTyElCong dc) rec))
         <|> (do let True = deepest
                   | False => Nothing
-                (pf, reN) <- pickBy ya is
-                (dEq, y') <- place dy p y pf False
+                (dEq, re) <- pickBy ya recIs
+                (dc, y') <- place p y dEq re
                 let False = y' == y
                   | True => Nothing
                 rec <- lemBridgeT fuel (El x) (El y')
-                pure (DTyTrans rec (DTySym (DTyElCong dEq))))
+                pure (DTyTrans rec (DTySym (DTyElCong dc))))
      where
-      fullClose : Elem -> Elem -> List (Elem, Elem, Elem) -> Maybe Deriv
+      fullClose : Elem -> Elem -> List (Elem, Elem, Deriv) -> Maybe Deriv
       fullClose xa ya [] = Nothing
-      fullClose xa ya ((leN, reN, pf) :: more) =
+      fullClose xa ya ((leN, reN, dEq) :: more) =
         (do let True = leN == xa && reN == ya
               | False => Nothing
-            (dEq, x') <- place dx p x pf False
+            (dc, x') <- place p x dEq reN
             let True = x' == y
               | False => Nothing
-            pure (DTyElCong dEq))
+            pure (DTyElCong dc))
         <|> (do let True = reN == xa && leN == ya
                   | False => Nothing
-                (dEq, x') <- place dx p x pf True
+                (dc, x') <- place p x (DElSym dEq) leN
                 let True = x' == y
                   | False => Nothing
-                pure (DTyElCong dEq))
+                pure (DTyElCong dc))
         <|> fullClose xa ya more
 
-      pickBy : Elem -> List (Elem, Elem, Elem) -> Maybe (Elem, Elem)
+      pickBy : Elem -> List (Elem, Elem, Deriv) -> Maybe (Deriv, Elem)
       pickBy za [] = Nothing
-      pickBy za ((leN, reN, pf) :: more) =
-        if leN == za then Just (pf, reN) else pickBy za more
+      pickBy za ((leN, reN, dEq) :: more) =
+        if leN == za then Just (dEq, reN)
+        else if reN == za then Just (DElSym dEq, leN)
+        else pickBy za more
 
     -- the prefix list arrives deepest-first: one-sided recursion is
     -- allowed only at its head
-    goPre : Deriv -> Deriv -> List (List Nat) -> Maybe Deriv
-    goPre dx dy [] = Nothing
-    goPre dx dy (p :: ps) = closeAt dx dy True p <|> goRest ps
+    goPre : List (Elem, Elem, Deriv) -> List (List Nat) -> Maybe Deriv
+    goPre recIs [] = Nothing
+    goPre recIs (p :: ps) = closeAt recIs True p <|> goRest ps
      where
       goRest : List (List Nat) -> Maybe Deriv
       goRest [] = Nothing
-      goRest (q :: qs) = closeAt dx dy False q <|> goRest qs
+      goRest (q :: qs) = closeAt recIs False q <|> goRest qs
   lemBridgeT _ _ _ = Nothing
 
   -- the placement congruence concludes at its own computed spelling
@@ -2523,42 +2746,39 @@ stepChainE sig ctx positional allSteps ty (chain, dCur, cur) step =
   -- search — affordable only on the legacy nf route; the positional
   -- route's spellings are raw, where the plain walk closes, and the
   -- nf'd search space is exactly the tower blowup it avoids.
+  -- the formations this bridge needs are all PRESUPPOSITIONS of
+  -- derivations in hand — re-deriving a normalized eliminator type's
+  -- formation from its spelling is the motive-guessing blowup
   bridgeTo : Bool -> Deriv -> Ty -> Maybe Deriv
   bridgeTo deep dPl plTy =
     if plTy == ty
       then Just dPl
       else do
+        let False = tySizeFuel 601 [] plTy == 0 || tySizeFuel 601 [] ty == 0
+          | True => Nothing
         pN <- nfT sig plTy
         tN <- nfT sig ty
+        let dPlTy = DPresupElTy (DPresupElL dPl)          -- ⊢ plTy type
+        let dTy = DPresupElTy dCur                        -- ⊢ ty type
         if pN == tN
-          then do
-            dTy <- reTy sig ctx ty emptySkel
-            pure (DElEqTyCoe (DNfEqTy (DPresupElTy (DPresupElL dPl)) dTy) dPl)
-          else if deep
-            then do
-              -- the legacy nf route: instance-proposing search over
-              -- the normalized spellings
-              dBr <- reBridgeTSearch sig ctx step 0 pN tN
-              dPlN <- do
-                dP <- reTy sig ctx pN emptySkel
-                pure (DElEqTyCoe (DNfEqTy (DPresupElTy (DPresupElL dPl)) dP) dPl)
-              dTy <- reTy sig ctx ty emptySkel
-              let atN = DElEqTyCoe dBr dPlN
-              pure (DElEqTyCoe (DTySym (DNfExpandTy dTy)) atN)
-            else do
-              -- the positional route: two nf'd types differing by
-              -- index laws meet by pool-instance placements — never
-              -- the proposing search, whose space over towers is the
-              -- blowup this route avoids
-              let False = tySizeFuel 601 [] pN == 0
-                | True => Nothing
-              dBr <- lemBridgeT 3 pN tN
-              dPlN <- do
-                dP <- reTy sig ctx pN emptySkel
-                pure (DElEqTyCoe (DNfEqTy (DPresupElTy (DPresupElL dPl)) dP) dPl)
-              dTy <- reTy sig ctx ty emptySkel
-              let atN = DElEqTyCoe dBr dPlN
-              pure (DElEqTyCoe (DTySym (DNfExpandTy dTy)) atN)
+          then pure (DElEqTyCoe (DNfEqTy dPlTy dTy) dPl)
+          else do
+            let dPN = DPresupTyR (DNfExpandTy dPlTy)      -- ⊢ pN type
+            let dPlN = DElEqTyCoe (DNfEqTy dPlTy dPN) dPl
+            dBr <- if deep
+                     then
+                       -- the legacy nf route: instance-proposing
+                       -- search over the normalized spellings
+                       reBridgeTSearch sig ctx step 0 pN tN
+                     else do
+                       -- the positional route: two nf'd types
+                       -- differing by index laws meet by recorded
+                       -- pool instances — never the proposing search
+                       let False = tySizeFuel 601 [] pN == 0
+                         | True => Nothing
+                       lemBridgeT 3 pN tN
+            let atN = DElEqTyCoe dBr dPlN
+            pure (DElEqTyCoe (DTySym (DNfExpandTy dTy)) atN)
 
   -- a POSITIONALIZED lemma step's path lands on the chain's spelling
   -- as it stands — place without normalizing
@@ -2572,7 +2792,16 @@ stepChainE sig ctx positional allSteps ty (chain, dCur, cur) step =
 
   nfRoute : Maybe (Deriv, Deriv, Elem)
   nfRoute = do
+    -- a huge spelling is hopeless here twice over: normalizing it is
+    -- the kernel walking an explosion, and placing into the result
+    -- re-derives eliminator branches of that size per motive attempt
+    -- — decline BEFORE the normalizer runs, and let the positional
+    -- rescue have the chain
+    let False = fst (candPosB 501 [] cur) == 0
+      | True => Nothing
     curN <- nfE sig cur
+    let False = fst (candPosB 501 [] curN) == 0
+      | True => Nothing
     (chain2, dCur2) <- if curN == cur then Just (chain, dCur)
                        else let link = DNfExpand dCur in
                             Just (DElTrans chain link, DPresupElR link)
@@ -2657,6 +2886,9 @@ posSide sig ctx side0 steps0 = do
     case firstQ (snd (candPosB 160 [] t)) of
       Just (q, es, t') => Just (q, acc ++ es, t')
       Nothing => do
+        -- root exposure can DOUBLE the side: bound growth per round
+        let False = fst (candPosB 401 [] t) == 0
+          | True => Nothing
         (q', t') <- whnfMoveAt sig [] t
         searchLoop k t' le (acc ++ [q'])
    where

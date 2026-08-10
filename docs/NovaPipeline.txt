@@ -727,7 +727,27 @@ Phasing:
      instance-meet bridge for that pair (lemBridgeT, present,
      env-gated NOVA_LEMBR) still exceeds budget on its enumeration.
      The one-file residue holds at 26/27, and the residue file's
-     full attempt tree now runs in ~1s.]
+     full attempt tree now runs in ~1s. Ninth slice (the stopgap,
+     partial): the instance-meet bridge is rebuilt on RECORDED
+     instances — the pool's steps are fully instantiated licenses,
+     so matching is exact comparison and placement is direct code
+     congruence (constant motives, no search); the successor
+     branch's dependent-shift pair now CLOSES, and the enumeration
+     it replaces is deleted. What stands after it is one level
+     deeper — the S-instantiated branch re-check, whose spellings
+     explode under exposure — and rather than another wall-by-wall
+     chase the emission gains a per-item WORK BUDGET (one countdown
+     over every reconstruction entry; exhaustion is residue in
+     bounded time, never a hang) plus structural-hash memo keys
+     (double-hash fingerprints over spellings, ToS signatures and
+     polynomials included — Show-string keys were a measured
+     memmove storm, and structural == on motive-bearing contexts a
+     measured walk storm). The meter drops to ~14s, the suite to
+     ~40s, and no input can hold the emission for minutes again.
+     The residue holds at 26/27; the recorded-instance bridge is
+     evidence FOR the revised end-state rather than a route around
+     it — the instances it consumes are exactly the witnesses
+     judgment-carrying elaboration would have in hand.]
 
 ////////// Phase 3 end-state, revised: judgment-carrying elaboration //////////
 
