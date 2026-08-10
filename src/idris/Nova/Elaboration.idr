@@ -3089,7 +3089,9 @@ mutual
         recordBinder br ctx env bn b
         (r', rSk) <- checkElem (ctx :< b) (env :< bn) site r
                        (substTy motTy (Ext Wk (Inj2 (CtxVar 0))))
-        pure (SumElim l' r' t', substTy motTy (Ext Id t'),
+        mirrorHoleDefs
+        stB <- getSt
+        pure (birthSumE stB.kernelSig ctx a b motTy l' r' t', substTy motTy (Ext Id t'),
               Nd [PMotive motTy motSk] [lSk, rSk, tSk])
       Nothing => throw "\{site}: ⊎-elim scrutinee has non-⊎ type\{structuralHint}"
   inferElem ctx env site (SQuotElim (zn, zr) mot (an, ar) f q) = do
@@ -3110,7 +3112,10 @@ mutual
           (substElem f' (Ext wk3 (CtxVar 2)))
           (substElem f' (Ext wk3 (CtxVar 1)))
           (substTy motTy (Ext wk3 (Class (CtxVar 2))))
-        pure (QuotElim f' q', substTy motTy (Ext Id q'),
+        mirrorHoleDefs
+        stB <- getSt
+        pure (birthQuotE stB.kernelSig ctx a r motTy f' q' (certOr wd),
+              substTy motTy (Ext Id q'),
               Nd [PMotive motTy motSk, PWD (certOr wd)] [fSk, qSk])
       Nothing => throw "\{site}: quot-elim scrutinee has non-quotient type\{structuralHint}"
   inferElem ctx env site SZeroC = pure (Elem.ZeroTy, Ty.UniverseTy, Nd [] [])

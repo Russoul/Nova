@@ -3548,6 +3548,56 @@ birthNatE sig ctx mot z s t = unsafePerformIO $ do
       pure (if reconDebug then trace "el: natE born" (NatElim z s t) else NatElim z s t)
     Nothing => pure (NatElim z s t)
 
+||| ⊎-elim's typing, the same move as birthNatE.
+export
+%noinline
+birthSumE : Sig -> Ctx -> Ty -> Ty -> Ty -> Elem -> Elem -> Elem -> Elem
+birthSumE sig ctx a b mot l r t = unsafePerformIO $ do
+  _ <- writeIORef workBudget 100000
+  let concl = substTy mot (Ext Id t)
+  let mder = do dt <- reCheck sig ctx t (Ty.SumTy a b) emptySkel
+                dmot <- reTy sig (ctx :< Ty.SumTy a b) mot emptySkel
+                dl <- reCheck sig (ctx :< a) l (substTy mot (Ext Wk (Inj1 (CtxVar 0)))) emptySkel
+                dr <- reCheck sig (ctx :< b) r (substTy mot (Ext Wk (Inj2 (CtxVar 0)))) emptySkel
+                let d = DElSumE dt dmot dl dr
+                let True = concludesEl sig ctx d (SumElim l r t) concl
+                  | False => Nothing
+                pure d
+  case mder of
+    Just d => do
+      _ <- storeElDeriv ctx (SumElim l r t) concl d
+      pure (if reconDebug then trace "el: sumE born" (SumElim l r t) else SumElim l r t)
+    Nothing => pure (SumElim l r t)
+
+||| quot-elim's typing: the well-definedness premise is an EQUATION
+||| the same site just discharged, so it comes from the equation
+||| store (or its certificate through the translator, once).
+export
+%noinline
+birthQuotE : Sig -> Ctx -> Ty -> Elem -> Ty -> Elem -> Elem -> ECert -> Elem
+birthQuotE sig ctx a rel mot f q wd = unsafePerformIO $ do
+  _ <- writeIORef workBudget 100000
+  let concl = substTy mot (Ext Id q)
+  let wk3 = Chain Wk (Chain Wk Wk)
+  let wdCtx = ctx :< a :< substTy a Wk :< Prf rel
+  let wdL = substElem f (Ext wk3 (CtxVar 2))
+  let wdR = substElem f (Ext wk3 (CtxVar 1))
+  let wdTy = substTy mot (Ext wk3 (Class (CtxVar 2)))
+  let mder = do dq <- reCheck sig ctx q (Ty.Quotient a rel) emptySkel
+                dmot <- reTy sig (ctx :< Ty.Quotient a rel) mot emptySkel
+                df <- reCheck sig (ctx :< a) f (substTy mot (Ext Wk (Class (CtxVar 0)))) emptySkel
+                dresp <- lookupEqDeriv sig wdCtx wdL wdR wdTy
+                         <|> reEqStar sig wdCtx wd wdL wdR wdTy Nothing
+                let d = DElQuotE dq dmot df dresp
+                let True = concludesEl sig ctx d (QuotElim f q) concl
+                  | False => Nothing
+                pure d
+  case mder of
+    Just d => do
+      _ <- storeElDeriv ctx (QuotElim f q) concl d
+      pure (if reconDebug then trace "el: quotE born" (QuotElim f q) else QuotElim f q)
+    Nothing => pure (QuotElim f q)
+
 ||| The type-equation twin of birthEqDeriv.
 export
 %noinline
