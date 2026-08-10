@@ -162,8 +162,13 @@ record ElabSt where
   ||| an accepted item the reconstructor cannot cover becomes an
   ||| error instead of a silent fallback
   strictDeriv : Bool
+  ||| fingerprint (solved holes, |kernel Σ|) at the last mirror WALK:
+  ||| unchanged means the walk (whose runs are deterministic in these
+  ||| by withFreshEmission) has nothing new to see
+  mirroredAt : Nat
+
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [<] [<] [<] [<] "" [<] False
+initSt = MkElabSt [<] [<] [] [] [] [<] [<] [<] [<] "" [<] False 0
 
 ||| Resolve a surface signature reference: aliases first (own module,
 ||| opened imports), else the name itself (qualified references reach
@@ -3557,7 +3562,20 @@ mirrorHoleDefs = do
   let holeNames = map hname (toList st.holeMeta)
   let entries = [ e | e <- toList st.sig
                 , maybe False (`elem` holeNames) (sigEntryName e) ]
-  modifySt $ { kernelSig := go entries st.kernelSig }
+  -- solving REPLACES a declaration with a definition in place, so
+  -- the gate's fingerprint counts solved holes (with |kernel Σ|,
+  -- since a failed mirror retries when a dependency item seats);
+  -- the walk runs under withFreshEmission, making its outcome a
+  -- function of exactly these
+  let solved = length (filter (\e => case e of
+                                       SigDef _ _ _ _ => True
+                                       SigTyDef _ _ _ => True
+                                       _ => False) entries)
+  let fp = S (solved * 1048576 + length (toList st.kernelSig))
+  if fp == st.mirroredAt
+    then pure ()
+    else modifySt $ { kernelSig := withFreshEmission (go entries st.kernelSig)
+                    , mirroredAt := fp }
  where
   go : List SigEntry -> Sig -> Sig
   go [] ks = ks

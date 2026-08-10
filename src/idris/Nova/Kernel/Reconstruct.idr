@@ -492,9 +492,8 @@ withMemo ref k act = unsafePerformIO $ do
       modifyIORef ref (insert k v)
       pure v
 
-%noinline
-clearMemos : () -> Maybe ()
-clearMemos _ = unsafePerformIO $ do
+resetMemosIO : IO ()
+resetMemosIO = do
   writeIORef workBudget 400000
   writeIORef memoNfE empty
   writeIORef memoNfT empty
@@ -505,6 +504,25 @@ clearMemos _ = unsafePerformIO $ do
   writeIORef memoBr empty
   writeIORef memoLL empty
   writeIORef memoLB empty
+
+||| Run an emission under a fresh budget and cold memo tables: the
+||| outcome becomes a function of the ARGUMENTS alone, so callers may
+||| gate on a fingerprint of them (the mirror's gate assumed this and
+||| was reverted when leftover budget and stale entries falsified
+||| it). The resets are sequenced IO and the payload is forced inside
+||| them — dataflow-forced, since erased bindings and identical-branch
+||| cases both taught us they silently vanish.
+export
+%noinline
+withFreshEmission : Lazy a -> a
+withFreshEmission act = unsafePerformIO $ do
+  resetMemosIO
+  pure (force act)
+
+%noinline
+clearMemos : () -> Maybe ()
+clearMemos _ = unsafePerformIO $ do
+  resetMemosIO
   pure (Just ())
 
 nfE : Sig -> Elem -> Maybe Elem
