@@ -320,25 +320,69 @@ withMemoH ref h1 h2 act = unsafePerformIO $ do
       modifyIORef ref (insert h1 ((h2, v) :: bucket))
       pure v
 
+-- one constructor per table, applied to a distinct tag: identical
+-- right-hand sides (unsafePerformIO (newIORef empty)) are merged by
+-- the backend into ONE shared reference — the tables must differ
+-- syntactically to exist separately
+%noinline
+mkTable : Ord k => Integer -> IORef (SortedMap k v)
+mkTable _ = unsafePerformIO (newIORef empty)
+
 %noinline
 memoNfE : IORef (SortedMap Integer (List (Integer, Maybe Elem)))
-memoNfE = unsafePerformIO (newIORef empty)
+memoNfE = mkTable 1
 
 %noinline
 memoNfT : IORef (SortedMap Integer (List (Integer, Maybe Ty)))
-memoNfT = unsafePerformIO (newIORef empty)
+memoNfT = mkTable 2
 
 %noinline
 memoChk : IORef (SortedMap Integer (List (Integer, Maybe Deriv)))
-memoChk = unsafePerformIO (newIORef empty)
+memoChk = mkTable 3
 
 %noinline
 memoInf : IORef (SortedMap Integer (List (Integer, Maybe (Deriv, Ty))))
-memoInf = unsafePerformIO (newIORef empty)
+memoInf = mkTable 4
 
 %noinline
 memoTy : IORef (SortedMap Integer (List (Integer, Maybe Deriv)))
-memoTy = unsafePerformIO (newIORef empty)
+memoTy = mkTable 5
+
+-- ===== derivations born at certificate birth =====
+--
+-- The judgment-carrying pilot (docs/NovaPipeline.txt, "Phase 3
+-- end-state, revised"): when the discharge engine certifies a ⋆
+-- equation, the derivation is assembled THERE — where the engine's
+-- knowledge is in hand — validated by conclude, and stored; the
+-- seat's star routes prefer a stored derivation and fall back to
+-- reconstruction. Every consumer revalidates against ITS signature
+-- before use, so a derivation gone stale (a hole solved since
+-- birth) costs a fallback, never a rejection.
+
+%noinline
+storedEq : IORef (SortedMap Integer (List (Integer, Deriv)))
+storedEq = mkTable 10
+
+eqKey : Ctx -> Elem -> Elem -> Ty -> (Integer, Integer)
+eqKey ctx l r ty =
+  ( hashT 33 (hashE 33 (hashE 33 (hashCtx 33 ctx) l) r) ty
+  , hashT 131 (hashE 131 (hashE 131 (hashCtx 131 ctx) l) r) ty )
+
+concludesEq : Sig -> Ctx -> Deriv -> Elem -> Elem -> Ty -> Bool
+concludesEq sig ctx d l r ty =
+  case runKM (conclude sig ctx d) fuelR of
+    Right (JElEq l' r' ty', _) => l' == l && r' == r && ty' == ty
+    _ => False
+
+lookupEqDeriv : Sig -> Ctx -> Elem -> Elem -> Ty -> Maybe Deriv
+lookupEqDeriv sig ctx l r ty = unsafePerformIO $ do
+  m <- readIORef storedEq
+  let (h1, h2) = eqKey ctx l r ty
+  case lookup h2 (fromMaybe [] (lookup h1 m)) of
+    Just d => pure (if concludesEq sig ctx d l r ty
+                      then (if reconDebug then trace "eq: stored deriv used" (Just d) else Just d)
+                      else (if reconDebug then trace "eq: stored deriv stale" Nothing else Nothing))
+    Nothing => pure Nothing
 
 -- the per-item WORK BUDGET: one countdown over every reconstruction
 -- entry point. An attempt subtree that would run for minutes burns
@@ -366,19 +410,19 @@ resetBudget n = unsafePerformIO $ do
 
 %noinline
 memoResc : IORef (SortedMap String (Maybe Deriv))
-memoResc = unsafePerformIO (newIORef empty)
+memoResc = mkTable 6
 
 %noinline
 memoBr : IORef (SortedMap String (Maybe Deriv))
-memoBr = unsafePerformIO (newIORef empty)
+memoBr = mkTable 7
 
 %noinline
 memoLL : IORef (SortedMap String (Maybe (Deriv, Ty)))
-memoLL = unsafePerformIO (newIORef empty)
+memoLL = mkTable 8
 
 %noinline
 memoLB : IORef (SortedMap String (Maybe Deriv))
-memoLB = unsafePerformIO (newIORef empty)
+memoLB = mkTable 9
 
 withMemo : IORef (SortedMap String (Maybe a)) -> String -> Lazy (Maybe a) -> Maybe a
 withMemo ref k act = unsafePerformIO $ do
@@ -444,6 +488,9 @@ reEqEnds : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty ->
 
 reEqEndsGo : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty ->
              Maybe (Deriv, Deriv) -> Maybe Deriv
+
+reEqEndsGoB : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty ->
+              Maybe (Deriv, Deriv) -> Maybe Deriv
 
 ||| … the ⋆-goal entry: on legacy failure, the certificate is
 ||| re-expressed positionally against the goal's own spellings (the
@@ -2932,7 +2979,10 @@ reEqStar sig ctx cert l r ty ends =
             dbg "resc: scripted \{show (length (pl ++ pr))} but the replay declined for \{show l}"
               (reEqEndsGo sig ctx ({ pos := pl ++ pr } cert) l r ty ends))
 
-reEqEndsGo sig ctx (MkECertF tyEx steps0 final posSteps) l r ty ends =
+reEqEndsGo sig ctx cert l r ty ends =
+  lookupEqDeriv sig ctx l r ty <|> reEqEndsGoB sig ctx cert l r ty ends
+
+reEqEndsGoB sig ctx (MkECertF tyEx steps0 final posSteps) l r ty ends =
   (if reconDebug then trace "reqe: \{show l} EQ \{show r} nsteps \{show (length steps)} tyEx \{show (maybe False (const True) tyEx)}" (Just ()) else Just ()) >>= \_ => do
   -- a POSITIONAL replay is re-expressed against the equation's own
   -- spellings at its RAW type: the recorded type-expansion belongs
@@ -3365,6 +3415,37 @@ emitBody sig ctx body ty bodySk dT =
                  (reCheck sig ctx body tyN bodySk
                   <|> reCheckF sig ctx body tyN bodySk dTN)
           pure (DElTyCoe (DTySym (DNfExpandTy dT)) d))
+
+||| At certificate birth: a ⋆ equation whose certificate closes by
+||| pure computation (no steps, no type expansion) is one nf-oracle
+||| node over its endpoint typings — assemble, validate by conclude,
+||| store. Anything else stays with the seat's translator for now;
+||| the refiner grows here. Returns its certificate so the caller's
+||| data flow carries the effect (the caller is pure).
+export
+%noinline
+birthEqDeriv : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty -> ECert
+birthEqDeriv sig ctx cert l r ty = unsafePerformIO $ do
+  _ <- writeIORef workBudget 100000
+  let mder = do d <- the (Maybe Deriv) $ case cert of
+                       -- pure computation: one nf-oracle node over
+                       -- the endpoint typings
+                       MkECertF Nothing [] FBeta _ => do
+                         dl <- reCheck sig ctx l ty emptySkel
+                         dr <- reCheck sig ctx r ty emptySkel
+                         pure (DNfEq dl dr)
+                       -- anything stepped: the translator, run ONCE
+                       -- here instead of per seat attempt
+                       _ => reEqStar sig ctx cert l r ty Nothing
+                let True = concludesEq sig ctx d l r ty
+                  | False => Nothing
+                pure d
+  case mder of
+    Just d => do
+      let (h1, h2) = eqKey ctx l r ty
+      modifyIORef storedEq (\m => insert h1 ((h2, d) :: fromMaybe [] (lookup h1 m)) m)
+      pure (if reconDebug then trace "eq: born \{show h1}" cert else cert)
+    Nothing => pure cert
 
 ||| A def item's two derivations (the type's formation and the
 ||| body's typing). Nothing = emission does not cover the item (the

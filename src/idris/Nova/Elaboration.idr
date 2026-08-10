@@ -2051,6 +2051,17 @@ assume stmt site comp = do
   fth4 : (a, b, c, d) -> d
   fth4 (_, _, _, x) = x
 
+||| Mirror solved holes into the kernel's Σ — in Σ order (each
+||| solution is prefix-legal, so earlier mirrors carry later ones);
+||| incremental, so safe to call both at item end and at certificate
+||| birth (where it makes solved holes visible to the derivation
+||| assembler). Eager per-flip mirroring is order-fragile: a
+||| solution may mention a hole that is itself solved only later in
+||| the same item. A mirror that still fails (the solution mentions a
+||| dirty-run entry) is skipped — the run is dirty in that case and
+||| the kernel copy is never consulted. Defined with the seat below.
+mirrorHoleDefs : ElabM ()
+
 mutual
   ||| One discharge attempt: engine + eager kernel replay. Right =
   ||| replayed certificate; Left = the site string, annotated when the
@@ -2062,7 +2073,14 @@ mutual
     let cs = mkCandSet st ctx
     let mcert = spEqElemC spDepth st cs ctx a b ty
     case map (\cert => (cert, kCheckEqElem st.sig ctx kernelFuel cert a b ty)) mcert of
-      Just (cert, Right ()) => pure (Right cert)
+      Just (cert, Right ()) => do
+        -- the judgment-carrying pilot: assemble and store the
+        -- equation's derivation at birth where the shape allows —
+        -- solved holes mirrored first, so hole-typed equations can
+        -- type their endpoints
+        mirrorHoleDefs
+        st' <- getSt
+        pure (Right (birthEqDeriv st'.kernelSig ctx cert a b ty))
       Just (_, Left kerrMsg) => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
       Nothing => pure (Left site)
 
@@ -3519,14 +3537,7 @@ constraintCount = do
   st <- getSt
   pure (length (toList st.oblMeta))
 
-||| Mirror solved holes into the kernel's Σ — ONCE, at item end, in
-||| minting order (each solution is prefix-legal, so earlier mirrors
-||| carry later ones). Eager per-flip mirroring is order-fragile: a
-||| solution may mention a hole that is itself solved only later in
-||| the same item. A mirror that still fails (the solution mentions a
-||| dirty-run entry) is skipped — the run is dirty in that case and
-||| the kernel copy is never consulted.
-mirrorHoleDefs : ElabM ()
+-- (declared above attemptE; docstring there)
 mirrorHoleDefs = do
   st <- getSt
   -- Σ ORDER, not minting order: legalize inserts imitation twins
