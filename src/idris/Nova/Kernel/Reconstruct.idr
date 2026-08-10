@@ -378,6 +378,39 @@ concludesEq sig ctx d l r ty =
 storedTyEq : IORef (SortedMap Integer (List (Integer, Deriv)))
 storedTyEq = mkTable 11
 
+-- typing judgments the ELABORATOR knew: the universal interface for
+-- ported routes — any elaboration point holding a derivation of
+-- Γ ⊦ t : A stores it here, and reconstruction becomes lookup-first
+%noinline
+storedEl : IORef (SortedMap Integer (List (Integer, Deriv)))
+storedEl = mkTable 12
+
+elKey : Ctx -> Elem -> Ty -> (Integer, Integer)
+elKey ctx e ty =
+  ( hashT 33 (hashE 33 (hashCtx 33 ctx) e) ty
+  , hashT 131 (hashE 131 (hashCtx 131 ctx) e) ty )
+
+concludesEl : Sig -> Ctx -> Deriv -> Elem -> Ty -> Bool
+concludesEl sig ctx d e ty =
+  case runKM (conclude sig ctx d) fuelR of
+    Right (JEl e' ty', _) => e' == e && ty' == ty
+    _ => False
+
+lookupElDeriv : Sig -> Ctx -> Elem -> Ty -> Maybe Deriv
+lookupElDeriv sig ctx e ty = unsafePerformIO $ do
+  m <- readIORef storedEl
+  let (h1, h2) = elKey ctx e ty
+  case lookup h2 (fromMaybe [] (lookup h1 m)) of
+    Just d => pure (if concludesEl sig ctx d e ty
+                      then (if reconDebug then trace "el: stored deriv used" (Just d) else Just d)
+                      else (if reconDebug then trace "el: stored deriv stale" Nothing else Nothing))
+    Nothing => pure Nothing
+
+storeElDeriv : Ctx -> Elem -> Ty -> Deriv -> IO ()
+storeElDeriv ctx e ty d = do
+  let (h1, h2) = elKey ctx e ty
+  modifyIORef storedEl (\m => insert h1 ((h2, d) :: fromMaybe [] (lookup h1 m)) m)
+
 tyEqKey : Ctx -> Ty -> Ty -> (Integer, Integer)
 tyEqKey ctx a b =
   ( hashT 33 (hashT 33 (hashCtx 33 ctx) a) b
@@ -1001,9 +1034,12 @@ mutual
   reCheck sig ctx e ty (Nd [] []) = do
     let True = spendOk ()
       | False => Nothing
+    let Nothing = lookupElDeriv sig ctx e ty
+      | Just d => Just d
     withMemoH memoChk (hashT 33 (hashE 33 (hashCtx 33 ctx) e) ty) (hashT 131 (hashE 131 (hashCtx 131 ctx) e) ty)
       (reCheckB sig ctx e ty emptySkel)
-  reCheck sig ctx e ty sk = reCheckB sig ctx e ty sk
+  reCheck sig ctx e ty sk =
+    lookupElDeriv sig ctx e ty <|> reCheckB sig ctx e ty sk
 
   reCheckB : Sig -> Ctx -> Elem -> Ty -> Skel -> Maybe Deriv
   reCheckB sig ctx e ty sk =
@@ -1048,9 +1084,11 @@ mutual
     df <- reCheckF sig (ctx :< a) f b (childAt 0 sk) (DInvPiCod dF)
     pure (DElPiI da df)
   reCheckF sig ctx Star ty sk dF =
-    -- the inversion route FIRST: the plain route re-derives the
+    -- a stored derivation first (the elaborator knew this typing),
+    -- then the inversion route: the plain route re-derives the
     -- goal's endpoints from their spellings, and on normalized
     -- eliminator instances that search is unbounded
+    lookupElDeriv sig ctx Star ty <|>
     (case (payload pRefl sk, ty) of
           (Just cert, Prf (Elem.EqTy l r t)) =>
             dbg "star-inv: \{show l} EQ \{show r} AT \{show t}"
@@ -1171,6 +1209,7 @@ mutual
     dt <- reCheck sig ctx t Ty.ZeroTy (childAt 0 sk)
     pure (DElZeroE dA dt)
   reCheckGo sig ctx Star ty sk =
+    lookupElDeriv sig ctx Star ty <|>
     case payload pRefl sk of
       Just cert =>
         case ty of
@@ -3475,6 +3514,10 @@ birthEqDeriv sig ctx cert l r ty = unsafePerformIO $ do
     Just d => do
       let (h1, h2) = eqKey ctx l r ty
       modifyIORef storedEq (\m => insert h1 ((h2, d) :: fromMaybe [] (lookup h1 m)) m)
+      -- the ⋆ inhabiting this equation is typed by one el-eq-i node:
+      -- the first entry of the typing store, and the reason the
+      -- seat's star routes stop being special
+      _ <- storeElDeriv ctx Star (Prf (Elem.EqTy l r ty)) (DElEqI d)
       pure (if reconDebug then trace "eq: born \{show h1}" cert else cert)
     Nothing => pure cert
 
