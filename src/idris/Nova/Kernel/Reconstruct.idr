@@ -374,6 +374,31 @@ concludesEq sig ctx d l r ty =
     Right (JElEq l' r' ty', _) => l' == l && r' == r && ty' == ty
     _ => False
 
+%noinline
+storedTyEq : IORef (SortedMap Integer (List (Integer, Deriv)))
+storedTyEq = mkTable 11
+
+tyEqKey : Ctx -> Ty -> Ty -> (Integer, Integer)
+tyEqKey ctx a b =
+  ( hashT 33 (hashT 33 (hashCtx 33 ctx) a) b
+  , hashT 131 (hashT 131 (hashCtx 131 ctx) a) b )
+
+concludesTyEq : Sig -> Ctx -> Deriv -> Ty -> Ty -> Bool
+concludesTyEq sig ctx d a b =
+  case runKM (conclude sig ctx d) fuelR of
+    Right (JTyEq a' b', _) => a' == a && b' == b
+    _ => False
+
+lookupTyEqDeriv : Sig -> Ctx -> Ty -> Ty -> Maybe Deriv
+lookupTyEqDeriv sig ctx a b = unsafePerformIO $ do
+  m <- readIORef storedTyEq
+  let (h1, h2) = tyEqKey ctx a b
+  case lookup h2 (fromMaybe [] (lookup h1 m)) of
+    Just d => pure (if concludesTyEq sig ctx d a b
+                      then (if reconDebug then trace "eq: stored ty-deriv used" (Just d) else Just d)
+                      else Nothing)
+    Nothing => pure Nothing
+
 lookupEqDeriv : Sig -> Ctx -> Elem -> Elem -> Ty -> Maybe Deriv
 lookupEqDeriv sig ctx l r ty = unsafePerformIO $ do
   m <- readIORef storedEq
@@ -508,6 +533,9 @@ reEqTyEnds : Sig -> Ctx -> ECert -> Ty -> Ty ->
 
 reEqTyEndsGo : Sig -> Ctx -> ECert -> Ty -> Ty ->
                (Maybe Deriv, Maybe Deriv) -> Maybe Deriv
+
+reEqTyEndsGoB : Sig -> Ctx -> ECert -> Ty -> Ty ->
+                (Maybe Deriv, Maybe Deriv) -> Maybe Deriv
 
 ||| The pre-bridge variant that REPORTS WHERE IT REACHED: when the
 ||| far side is untouched by steps, the chain closes at its own
@@ -3163,7 +3191,10 @@ reEqTyEnds sig ctx cert a b ends =
         [] => Nothing
         _ => reEqTyEndsGo sig ctx ({ pos := [] } cert) a b ends)
 
-reEqTyEndsGo sig ctx (MkECertF tyEx steps0 final posSteps) a b (endA, endB) = do
+reEqTyEndsGo sig ctx cert a b ends =
+  lookupTyEqDeriv sig ctx a b <|> reEqTyEndsGoB sig ctx cert a b ends
+
+reEqTyEndsGoB sig ctx (MkECertF tyEx steps0 final posSteps) a b (endA, endB) = do
   let Nothing = tyEx
     | _ => dbg "reqty: nested tyEx" Nothing
   oneSidedR <|> (do
@@ -3445,6 +3476,28 @@ birthEqDeriv sig ctx cert l r ty = unsafePerformIO $ do
       let (h1, h2) = eqKey ctx l r ty
       modifyIORef storedEq (\m => insert h1 ((h2, d) :: fromMaybe [] (lookup h1 m)) m)
       pure (if reconDebug then trace "eq: born \{show h1}" cert else cert)
+    Nothing => pure cert
+
+||| The type-equation twin of birthEqDeriv.
+export
+%noinline
+birthTyEqDeriv : Sig -> Ctx -> ECert -> Ty -> Ty -> ECert
+birthTyEqDeriv sig ctx cert a b = unsafePerformIO $ do
+  _ <- writeIORef workBudget 100000
+  let mder = do d <- the (Maybe Deriv) $ case cert of
+                       MkECertF Nothing [] FBeta _ => do
+                         da <- reTy sig ctx a emptySkel
+                         db <- reTy sig ctx b emptySkel
+                         pure (DNfEqTy da db)
+                       _ => reEqTy sig ctx cert a b
+                let True = concludesTyEq sig ctx d a b
+                  | False => Nothing
+                pure d
+  case mder of
+    Just d => do
+      let (h1, h2) = tyEqKey ctx a b
+      modifyIORef storedTyEq (\m => insert h1 ((h2, d) :: fromMaybe [] (lookup h1 m)) m)
+      pure (if reconDebug then trace "eq: ty born \{show h1}" cert else cert)
     Nothing => pure cert
 
 ||| A def item's two derivations (the type's formation and the

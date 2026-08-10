@@ -162,7 +162,6 @@ record ElabSt where
   ||| an accepted item the reconstructor cannot cover becomes an
   ||| error instead of a silent fallback
   strictDeriv : Bool
-
 initSt : ElabSt
 initSt = MkElabSt [<] [<] [] [] [] [<] [<] [<] [<] "" [<] False
 
@@ -2090,7 +2089,10 @@ mutual
     let cs = mkCandSet st ctx
     let mcert = spEqTyC spDepth st cs ctx tyA tyB
     case map (\cert => (cert, kCheckEqTy st.sig ctx kernelFuel cert tyA tyB)) mcert of
-      Just (cert, Right ()) => pure (Right cert)
+      Just (cert, Right ()) => do
+        mirrorHoleDefs
+        st' <- getSt
+        pure (Right (birthTyEqDeriv st'.kernelSig ctx cert tyA tyB))
       Just (_, Left kerrMsg) => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
       Nothing => pure (Left site)
 
