@@ -576,7 +576,9 @@ Phasing:
      derivations directly where reconstruction is weak or wasteful;
      the trace→derivation translation absorbs the discharge engine's
      certificate format; skeletons retire when nothing consumes
-     them.
+     them. (The end-state has since been revised and strengthened —
+     see "Phase 3 end-state, revised" below: the elaborator does not
+     merely EMIT derivations, it WORKS IN them.)
      [IN PROGRESS — first slice: the EMISSION BOUNDARY. What was the
      reconstructor is now, in code structure as in trust story, the
      elaborator's derivation-emission pass: the elaborator emits
@@ -726,6 +728,101 @@ Phasing:
      env-gated NOVA_LEMBR) still exceeds budget on its enumeration.
      The one-file residue holds at 26/27, and the residue file's
      full attempt tree now runs in ~1s.]
+
+////////// Phase 3 end-state, revised: judgment-carrying elaboration //////////
+
+The eighth slice's last gap (the dependent-shift composite) forced
+the question the phasing had deferred: WHERE do derivations come
+from? Every formulation so far — reconstruct at the seat, enrich the
+certificate, emit at the ⋆s — is a way of inverting an erasure after
+the fact. The revised end-state stops erasing instead:
+
+  THE ELABORATOR WORKS IN DERIVATIONS. Its working state is not the
+  triple (context, element, type) but a derivation concluding that
+  judgement; the triple is the derivation's ERASURE, cached for
+  matching and printing. Erasure loses data by design — that is what
+  makes it cheap — and every phase-3 difficulty to date has been the
+  cost of inverting it: motive reconstruction, shift witnesses, the
+  positional meet, each a fiber of a projection that is not
+  injective. Computed upstairs, there is nothing to invert.
+
+The theory already says this. NovaFoundation's official reading is
+intrinsic, and NovaSyntax makes it a QIIR: in that reading a term IS
+its typing derivation, quotiented by the equations. A derivation
+value is a point of the presentation before quotienting; erasure is
+the quotient map; conclude checks that a candidate point coheres.
+Judgment-carrying elaboration is the implementation converging on
+the spec's own semantics — today's elaborator computes in the image
+of the projection, the revised one computes in the presentation.
+
+The commitments, each load-bearing:
+
+  * NO NAKED SPELLINGS. Every term the elaborator holds arrives with
+    its derivation. Premise access — the typing of a subterm, the
+    motive of an eliminator, the domain behind an application — is
+    PROJECTION through the derivation's administrative nodes
+    (coercions, substitution wraps), a deterministic unfold with no
+    choice points; never INVERSION, which in an extensional theory
+    is a meta-theorem that conversion makes false or hard. The
+    presupposition and projection nodes already in the derivation
+    language let most of it stay there, deferred to replay.
+
+  * SUBSTITUTION WRAPS. The admissible substitution lemma is not run
+    at every application node; the calculus has explicit
+    substitutions and sub-congruence rules, so substitution on a
+    derivation is a CONSTRUCTOR — one node, O(1) — and the executable
+    admissible lemma pushes wraps down only on demand, one clause at
+    a time, during projection.
+
+  * COMPUTATION STEPS ARE EQUATIONS. A normalization the proof will
+    descend into is a traced beta-at chain (each contraction one
+    premise-free link; the right presupposition delivers the new
+    spelling's judgement); a normalization it will not descend into
+    is one nf-oracle node. Contraction-born spellings never travel
+    naked, so the class of problems they caused does not exist here.
+
+  * REWRITING IS DEMOTED FROM MECHANISM TO COROLLARY. There are no
+    paths, no splices, no positional type reading, and the
+    certificate format has no successor. What a rewrite used to do is
+    expressed natively: trans, congruence frames (congruence with
+    refl in the unchanged children), a lemma instance at the root of
+    a subgoal — built FORWARD, premises in hand, by a refiner over
+    equation goals. convElem's decompose is already this shape at the
+    outer layer; the revision extends it all the way down and deletes
+    the positional core beneath it.
+
+  * SEARCH IS ERASED AND UNPRIVILEGED. Undecidability means the
+    intermediates of a trans chain and the choice of lemma instances
+    remain a search; the nf-and-meet rewriter survives, if at all, as
+    a heuristic over erasures that PROPOSES plans. The refiner
+    constructs from proposals with the derivation in hand, so the
+    information gap between finder and justifier — the defining
+    failure mode of the reconstruction era — cannot open. A proposal
+    that does not construct is a failed proposal, not residue.
+
+  * HOLES STAY IN Σ. A hole is a signature declaration, its solution
+    a later item; derivations reference holes by name and replay
+    against the final signature. Nothing ever substitutes into a
+    stored derivation.
+
+  * THE TRUST STORY DOES NOT MOVE. Derivations are untrusted data;
+    the seat erases and replays through conclude, which remains the
+    sole authority. Derivation hygiene (collapsing coercions by refl,
+    fusing trans chains) rewrites only along admissible steps, so the
+    artifact stays a complete, walkable record — no data lost.
+
+Migration is strangler-fig, inside the existing elaborator, under
+the existing meters: the construction spine of checking and
+inference ports route by route to judgment-carrying form; the
+emission pass (Nova.Kernel.Reconstruct) is demoted to the ADAPTER
+that lifts still-erased routes to derivations, falling to the old
+kernel where it cannot; the strict meter then measures the port —
+covered-by-construction against covered-by-adapter against residue.
+One stopgap precedes it (recording the dependent-shift witnesses in
+today's certificates, closing the meter at 27/27) and is deleted
+with the rest. At the end, the reconstruction pass, the certificate
+format, and the old kernel's equation replay are deleted; the cost
+model collapses from three walks to one.
 
 Cost, stated honestly: until phase 3 completes, an item is walked
 three times (elaborate, reconstruct, replay) — a constant factor,
