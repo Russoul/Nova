@@ -3070,7 +3070,11 @@ mutual
     (s', sSk) <- checkElem (ctx :< Ty.NatTy :< motTy) (env :< n2 :< ih) site s
                    (substTy motTy (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk))
     (t', tSk) <- checkElem ctx env site t Ty.NatTy
-    pure (NatElim z' s' t', substTy motTy (Ext Id t'),
+    -- the judgment-carrying pilot: the motive is in hand HERE and
+    -- nowhere later — birth the eliminator's typing derivation
+    mirrorHoleDefs
+    stB <- getSt
+    pure (birthNatE stB.kernelSig ctx motTy z' s' t', substTy motTy (Ext Id t'),
           Nd [PMotive motTy motSk] [zSk, sSk, tSk])
   inferElem ctx env site (SSumElim (zn, zr) mot (an, ar) l (bn, br) r t) = do
     (t', tTy, tSk) <- inferElem ctx env site t

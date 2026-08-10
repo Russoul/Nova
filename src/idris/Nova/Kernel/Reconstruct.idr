@@ -3521,6 +3521,33 @@ birthEqDeriv sig ctx cert l r ty = unsafePerformIO $ do
       pure (if reconDebug then trace "eq: born \{show h1}" cert else cert)
     Nothing => pure cert
 
+||| An ℕ-elim's typing, born where the elaborator still HOLDS the
+||| motive (core syntax drops it — that loss is what the seat's
+||| motive guessing exists to reconstruct). Premises come through
+||| the adapter, which is lookup-first, so child typings compose
+||| from the store as more routes port. Returns the constructed
+||| spelling so the caller's data flow carries the effect.
+export
+%noinline
+birthNatE : Sig -> Ctx -> Ty -> Elem -> Elem -> Elem -> Elem
+birthNatE sig ctx mot z s t = unsafePerformIO $ do
+  _ <- writeIORef workBudget 100000
+  let concl = substTy mot (Ext Id t)
+  let mder = do dmot <- reTy sig (ctx :< Ty.NatTy) mot emptySkel
+                dz <- reCheck sig ctx z (substTy mot (Ext Id NatIntro0)) emptySkel
+                ds <- reCheck sig (ctx :< Ty.NatTy :< mot) s
+                        (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) emptySkel
+                dt <- reCheck sig ctx t Ty.NatTy emptySkel
+                let d = DElNatE dmot dz ds dt
+                let True = concludesEl sig ctx d (NatElim z s t) concl
+                  | False => Nothing
+                pure d
+  case mder of
+    Just d => do
+      _ <- storeElDeriv ctx (NatElim z s t) concl d
+      pure (if reconDebug then trace "el: natE born" (NatElim z s t) else NatElim z s t)
+    Nothing => pure (NatElim z s t)
+
 ||| The type-equation twin of birthEqDeriv.
 export
 %noinline
