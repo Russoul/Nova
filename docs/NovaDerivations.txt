@@ -288,6 +288,34 @@ the route exists to avoid. beta-at is the exposure link: free of
 premises beyond the rolling typing witness, a chain of them costs
 the replay one contraction each.
 
+////////// Admissible addition 3: sharing //////////
+
+Derivations are DAGs in practice — one judgment's derivation feeds
+many premises — but the format is a tree, so replay walks a shared
+subderivation once per citation. At item scale this is not a
+constant: a body assembled from stored derivations embedded per use
+went out of replay fuel on real corpus input. The remedy is sharing
+made EXPLICIT in the artifact, not a cache in the checker:
+
+  Δ ⊦ D₀ ⇓ J₀        Γ ⊦ D₁ ⇓ J     (⟨i⟩ in D₁ cites (Δ, J₀))
+  ------------------------------------------------------------ (share)
+  Γ ⊦ share Δ D₀ D₁ ⇓ J
+
+  ---------------------------------------------- (share-ref)
+  Γ ⊦ ⟨i⟩ ⇓ Jᵢ        # legal exactly at Γ = Δᵢ
+
+The environment of bindings is an INPUT of replay, like the context;
+indices are absolute, outermost binding first. A citation is legal
+exactly at the binding's context — judgments do not weaken silently;
+reuse under a binder must pass through explicit rules. The carried Δ
+is payload, like an eliminator's motive.
+
+Justification: a citation replays nothing and asserts nothing new —
+it uses a judgment the SAME replay run already concluded, exactly as
+a Σ reference uses an accepted item's. In the setoid model, share is
+an ordinary let. conclude stays cache-free: sharing is visible in
+the artifact, auditable, and preserved by export.
+
 ////////// Rule-by-rule: demands and deliveries //////////
 
 Mechanically derivable from Foundation's statements by the delivery

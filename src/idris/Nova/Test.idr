@@ -130,6 +130,15 @@ derivCases =
       (DElNatS (DElPiE (DElPiI DTyNat (DElVar 0)) DElNatZ DTyNat)))
     -- REJECTION: the path must land on a ≜ redex
   , ("beta-at-stuck", DBetaAt [0] (DElNatS DElNatZ))
+    -- sharing: one binding, cited twice — replay concludes the
+    -- binding once
+  , ("share", DShare [<] DElNatZ
+      (DElTrans (DElRefl (DRef 0)) (DElRefl (DRef 0))))
+    -- REJECTION: a citation under a binder — the reference is legal
+    -- exactly at the binding's context
+  , ("share-wrong-ctx", DShare [<] DElNatZ (DElPiI DTyNat (DRef 0)))
+    -- REJECTION: no such binding
+  , ("share-range", DRef 5)
   ]
 
 runDerivTests : IO ()

@@ -370,7 +370,7 @@ eqKey ctx l r ty =
 
 concludesEq : Sig -> Ctx -> Deriv -> Elem -> Elem -> Ty -> Bool
 concludesEq sig ctx d l r ty =
-  case runKM (conclude sig ctx d) fuelR of
+  case runKM (conclude [] sig ctx d) fuelR of
     Right (JElEq l' r' ty', _) => l' == l && r' == r && ty' == ty
     _ => False
 
@@ -409,7 +409,7 @@ elKey ctx e ty =
 
 concludesEl : Sig -> Ctx -> Deriv -> Elem -> Ty -> Bool
 concludesEl sig ctx d e ty =
-  case runKM (conclude sig ctx d) fuelR of
+  case runKM (conclude [] sig ctx d) fuelR of
     Right (JEl e' ty', _) => e' == e && ty' == ty
     _ => False
 
@@ -444,7 +444,7 @@ tyEqKey ctx a b =
 
 concludesTyEq : Sig -> Ctx -> Deriv -> Ty -> Ty -> Bool
 concludesTyEq sig ctx d a b =
-  case runKM (conclude sig ctx d) fuelR of
+  case runKM (conclude [] sig ctx d) fuelR of
     Right (JTyEq a' b', _) => a' == a && b' == b
     _ => False
 

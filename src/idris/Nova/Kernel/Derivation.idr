@@ -443,6 +443,15 @@ data Deriv : Type where
   DNfExpandTy : Deriv -> Deriv
   ||| nf-eq: Γ ⊦ t₀ : A;  Γ ⊦ t₁ : A;  nf(t₀) = nf(t₁)
   DNfEq : Deriv -> Deriv -> Deriv
+  ||| share Δ D₀ D₁ — let-bound subderivation (admissible addition 3,
+  ||| docs/NovaDerivations.txt): D₀ concludes ONCE, under the carried
+  ||| context Δ; within D₁ the binding is cited by DRef, legal exactly
+  ||| at Δ. Sharing is explicit in the artifact — replay walks each
+  ||| bound derivation once, and conclude stays cache-free.
+  DShare : Ctx -> Deriv -> Deriv -> Deriv
+  ||| ⟨i⟩ — cite the i-th share binding (absolute index, outermost
+  ||| first)
+  DRef : Nat -> Deriv
   ||| nf-eq-ty
   DNfEqTy : Deriv -> Deriv -> Deriv
 
@@ -745,23 +754,29 @@ wkEl e = substElem e Wk
 
 -- ===== The checker =====
 
+||| The share environment: judgments concluded by enclosing DShare
+||| bindings, each with the context it was concluded under.
+public export
+ShareEnv : Type
+ShareEnv = List (Ctx, Judg)
+
 ||| Declared ahead: the spine helper below recurses into it, and the
 ||| ToS family (dual zone Γ ; Φ — Φ threaded as an input, exactly as
 ||| Γ is) is mutual with it.
 export
-conclude : Sig -> Ctx -> Deriv -> KM Judg
+conclude : ShareEnv -> Sig -> Ctx -> Deriv -> KM Judg
 
 ||| Γ ; Φ ⊦ 𝔄 qty
 export
-concludeQTy : Sig -> Ctx -> SnocList QTy -> Deriv -> KM QTy
+concludeQTy : ShareEnv -> Sig -> Ctx -> SnocList QTy -> Deriv -> KM QTy
 
 ||| Γ ; Φ ⊦ 𝕥 : 𝔄
 export
-concludeQTm : Sig -> Ctx -> SnocList QTy -> Deriv -> KM (QTm, QTy)
+concludeQTm : ShareEnv -> Sig -> Ctx -> SnocList QTy -> Deriv -> KM (QTm, QTy)
 
 ||| Γ ⊦ ς : Φ₀ ⇒ Φ₁ (Φ₀ the input, Φ₁ the output)
 export
-concludeQSub : Sig -> Ctx -> SnocList QTy -> Deriv -> KM (QSub, SnocList QTy)
+concludeQSub : ShareEnv -> Sig -> Ctx -> SnocList QTy -> Deriv -> KM (QSub, SnocList QTy)
 
 
 piProj : Ty -> Maybe (Ty, Ty)
@@ -784,59 +799,59 @@ sgCProj _ = Nothing
 ||| (grouped conclusions split into two nodes): the equation delivers
 ||| both spellings, the two formation premises are side-compared at
 ||| their own domains.
-tyBinInj : Sig -> Ctx -> String -> (Ty -> Maybe (Ty, Ty)) ->
+tyBinInj : ShareEnv -> Sig -> Ctx -> String -> (Ty -> Maybe (Ty, Ty)) ->
            Deriv -> Deriv -> Deriv -> KM (Ty, Ty, Ty, Ty)
-tyBinInj sig ctx rule proj dB0 dB1 dEq = do
-  (l, r) <- conclude sig ctx dEq >>= needTyEq
+tyBinInj env sig ctx rule proj dB0 dB1 dEq = do
+  (l, r) <- conclude env sig ctx dEq >>= needTyEq
   case (proj l, proj r) of
     (Just (a0, b0), Just (a1, b1)) => do
-      b0' <- conclude sig (ctx :< a0) dB0 >>= needTy
+      b0' <- conclude env sig (ctx :< a0) dB0 >>= needTy
       alphaTy rule b0' b0
-      b1' <- conclude sig (ctx :< a1) dB1 >>= needTy
+      b1' <- conclude env sig (ctx :< a1) dB1 >>= needTy
       alphaTy rule b1' b1
       pure (a0, a1, b0, b1)
     _ => kerr "derivation: \{rule}: equation not between the right formers"
 
-codeBinInj : Sig -> Ctx -> String -> (Elem -> Maybe (Elem, Elem)) ->
+codeBinInj : ShareEnv -> Sig -> Ctx -> String -> (Elem -> Maybe (Elem, Elem)) ->
              Deriv -> Deriv -> Deriv -> KM (Elem, Elem, Elem, Elem)
-codeBinInj sig ctx rule proj dB0 dB1 dEq = do
-  (l, r, ty) <- conclude sig ctx dEq >>= needElEq
+codeBinInj env sig ctx rule proj dB0 dB1 dEq = do
+  (l, r, ty) <- conclude env sig ctx dEq >>= needElEq
   alphaTy rule ty Ty.UniverseTy
   case (proj l, proj r) of
     (Just (a0, b0), Just (a1, b1)) => do
-      (b0', b0ty) <- conclude sig (ctx :< El a0) dB0 >>= needEl
+      (b0', b0ty) <- conclude env sig (ctx :< El a0) dB0 >>= needEl
       alphaTy rule b0ty Ty.UniverseTy
       alphaEl rule b0' b0
-      (b1', b1ty) <- conclude sig (ctx :< El a1) dB1 >>= needEl
+      (b1', b1ty) <- conclude env sig (ctx :< El a1) dB1 >>= needEl
       alphaTy rule b1ty Ty.UniverseTy
       alphaEl rule b1' b1
       pure (a0, a1, b0, b1)
     _ => kerr "derivation: \{rule}: equation not between the right formers"
 
-tyQuotInj : Sig -> Ctx -> Deriv -> Deriv -> Deriv -> KM (Ty, Ty, Elem, Elem)
-tyQuotInj sig ctx dR0 dR1 dEq = do
-  (l, r) <- conclude sig ctx dEq >>= needTyEq
+tyQuotInj : ShareEnv -> Sig -> Ctx -> Deriv -> Deriv -> Deriv -> KM (Ty, Ty, Elem, Elem)
+tyQuotInj env sig ctx dR0 dR1 dEq = do
+  (l, r) <- conclude env sig ctx dEq >>= needTyEq
   case (l, r) of
     (Ty.Quotient a0 r0, Ty.Quotient a1 r1) => do
-      (r0', r0ty) <- conclude sig (ctx :< a0 :< wkTy a0) dR0 >>= needEl
+      (r0', r0ty) <- conclude env sig (ctx :< a0 :< wkTy a0) dR0 >>= needEl
       alphaTy "ty-quot-inj" r0ty Ty.PropTy
       alphaEl "ty-quot-inj" r0' r0
-      (r1', r1ty) <- conclude sig (ctx :< a1 :< wkTy a1) dR1 >>= needEl
+      (r1', r1ty) <- conclude env sig (ctx :< a1 :< wkTy a1) dR1 >>= needEl
       alphaTy "ty-quot-inj" r1ty Ty.PropTy
       alphaEl "ty-quot-inj" r1' r1
       pure (a0, a1, r0, r1)
     _ => kerr "derivation: ty-quot-inj: equation not between quotients"
 
-codeQuotInj : Sig -> Ctx -> Deriv -> Deriv -> Deriv -> KM (Elem, Elem, Elem, Elem)
-codeQuotInj sig ctx dR0 dR1 dEq = do
-  (l, r, ty) <- conclude sig ctx dEq >>= needElEq
+codeQuotInj : ShareEnv -> Sig -> Ctx -> Deriv -> Deriv -> Deriv -> KM (Elem, Elem, Elem, Elem)
+codeQuotInj env sig ctx dR0 dR1 dEq = do
+  (l, r, ty) <- conclude env sig ctx dEq >>= needElEq
   alphaTy "code-quot-inj" ty Ty.UniverseTy
   case (l, r) of
     (Elem.QuotTy a0 r0, Elem.QuotTy a1 r1) => do
-      (r0', r0ty) <- conclude sig (ctx :< El a0 :< wkTy (El a0)) dR0 >>= needEl
+      (r0', r0ty) <- conclude env sig (ctx :< El a0 :< wkTy (El a0)) dR0 >>= needEl
       alphaTy "code-quot-inj" r0ty Ty.PropTy
       alphaEl "code-quot-inj" r0' r0
-      (r1', r1ty) <- conclude sig (ctx :< El a1 :< wkTy (El a1)) dR1 >>= needEl
+      (r1', r1ty) <- conclude env sig (ctx :< El a1 :< wkTy (El a1)) dR1 >>= needEl
       alphaTy "code-quot-inj" r1ty Ty.PropTy
       alphaEl "code-quot-inj" r1' r1
       pure (a0, a1, r0, r1)
@@ -872,9 +887,9 @@ qArity sg k = do
 ||| A spine checked entrywise against a reflected telescope: each
 ||| entry's concluded type must match the telescope's, instantiated
 ||| by the earlier entries.
-qSpine : String -> Sig -> Ctx -> List Deriv -> List Ty -> KM (List Elem)
-qSpine rule sig ctx ds tel = do
-  pairs <- traverse (\d => conclude sig ctx d >>= needEl) ds
+qSpine : ShareEnv -> String -> Sig -> Ctx -> List Deriv -> List Ty -> KM (List Elem)
+qSpine env rule sig ctx ds tel = do
+  pairs <- traverse (\d => conclude env sig ctx d >>= needEl) ds
   let args = map fst pairs
   if length args /= length tel
     then kerr "derivation: \{rule}: spine length mismatch"
@@ -907,9 +922,9 @@ qSortCtx sig ctx sg sj = do
 ||| The eliminator rules' shared tail: the index spine at the sort's
 ||| reflected arity, the scrutinee at the sort instance, the sort's
 ||| motive.
-qElimEnd : Sig -> Ctx -> QSig -> List Ty -> Nat -> List Deriv -> Deriv ->
+qElimEnd : ShareEnv -> Sig -> Ctx -> QSig -> List Ty -> Nat -> List Deriv -> Deriv ->
            KM (List Elem, Elem, Ty)
-qElimEnd sig ctx sg mots k dSp dW = do
+qElimEnd env sig ctx sg mots k dSp dW = do
   entry <- case qEntry sg k of
              Just e => pure e
              Nothing => kerr "derivation: el-qiit-elim: sort out of range"
@@ -917,8 +932,8 @@ qElimEnd sig ctx sg mots k dSp dW = do
     QKSort => pure ()
     _ => kerr "derivation: el-qiit-elim: not a sort position"
   (tel, _, _) <- liftQE (reflTel sg (qwAt k) entry)
-  es <- qSpine "el-qiit-elim" sig ctx dSp tel
-  (w, wty) <- conclude sig ctx dW >>= needEl
+  es <- qSpine env "el-qiit-elim" sig ctx dSp tel
+  (w, wty) <- conclude env sig ctx dW >>= needEl
   alphaTy "el-qiit-elim (scrutinee)" wty (QSort sg k (cast es))
   o <- case qOrdinal QKSort sg k of
          Just x => pure x
@@ -929,38 +944,38 @@ qElimEnd sig ctx sg mots k dSp dW = do
   pure (es, w, motK)
 
 -- type formation
-conclude sig ctx DTyZero = pure (JTy Ty.ZeroTy)
-conclude sig ctx DTyOne = pure (JTy Ty.OneTy)
-conclude sig ctx DTyNat = pure (JTy Ty.NatTy)
-conclude sig ctx DTyUniv = pure (JTy Ty.UniverseTy)
-conclude sig ctx DTyProp = pure (JTy Ty.PropTy)
-conclude sig ctx (DTyPi dA dB) = do
-  a <- conclude sig ctx dA >>= needTy
-  b <- conclude sig (ctx :< a) dB >>= needTy
+conclude env sig ctx DTyZero = pure (JTy Ty.ZeroTy)
+conclude env sig ctx DTyOne = pure (JTy Ty.OneTy)
+conclude env sig ctx DTyNat = pure (JTy Ty.NatTy)
+conclude env sig ctx DTyUniv = pure (JTy Ty.UniverseTy)
+conclude env sig ctx DTyProp = pure (JTy Ty.PropTy)
+conclude env sig ctx (DTyPi dA dB) = do
+  a <- conclude env sig ctx dA >>= needTy
+  b <- conclude env sig (ctx :< a) dB >>= needTy
   pure (JTy (Ty.PiTy a b))
-conclude sig ctx (DTySigma dA dB) = do
-  a <- conclude sig ctx dA >>= needTy
-  b <- conclude sig (ctx :< a) dB >>= needTy
+conclude env sig ctx (DTySigma dA dB) = do
+  a <- conclude env sig ctx dA >>= needTy
+  b <- conclude env sig (ctx :< a) dB >>= needTy
   pure (JTy (Ty.SigmaTy a b))
-conclude sig ctx (DTySum dA dB) = do
-  a <- conclude sig ctx dA >>= needTy
-  b <- conclude sig ctx dB >>= needTy
+conclude env sig ctx (DTySum dA dB) = do
+  a <- conclude env sig ctx dA >>= needTy
+  b <- conclude env sig ctx dB >>= needTy
   pure (JTy (Ty.SumTy a b))
-conclude sig ctx (DTyEl dA) = do
-  (a, ty) <- conclude sig ctx dA >>= needEl
+conclude env sig ctx (DTyEl dA) = do
+  (a, ty) <- conclude env sig ctx dA >>= needEl
   alphaTy "ty-el" ty Ty.UniverseTy
   pure (JTy (El a))
-conclude sig ctx (DTyPrf dP) = do
-  (p, ty) <- conclude sig ctx dP >>= needEl
+conclude env sig ctx (DTyPrf dP) = do
+  (p, ty) <- conclude env sig ctx dP >>= needEl
   alphaTy "ty-prf" ty Ty.PropTy
   pure (JTy (Prf p))
-conclude sig ctx (DTyQuot dA dR) = do
-  a <- conclude sig ctx dA >>= needTy
-  (r, rty) <- conclude sig (ctx :< a :< wkTy a) dR >>= needEl
+conclude env sig ctx (DTyQuot dA dR) = do
+  a <- conclude env sig ctx dA >>= needTy
+  (r, rty) <- conclude env sig (ctx :< a :< wkTy a) dR >>= needEl
   alphaTy "ty-quot" rty Ty.PropTy
   pure (JTy (Ty.Quotient a r))
-conclude sig ctx (DTySig x dSub) = do
-  (es, delta) <- conclude sig ctx dSub >>= needSubN
+conclude env sig ctx (DTySig x dSub) = do
+  (es, delta) <- conclude env sig ctx dSub >>= needSubN
   case sigLookup x sig of
     Just (SigTyDef gamma _ a) => do
       alphaCtx "ty-sig-var" delta gamma
@@ -976,12 +991,12 @@ conclude sig ctx (DTySig x dSub) = do
     else kerr "derivation: \{rule}: entry context mismatch"
 
 -- element typing
-conclude sig ctx (DElVar n) =
+conclude env sig ctx (DElVar n) =
   case ctxAt ctx n of
     Just a => pure (JEl (CtxVar n) a)
     Nothing => kerr "derivation: el-var: index out of range"
-conclude sig ctx (DElSig x dSub) = do
-  (es, delta) <- conclude sig ctx dSub >>= needSubN
+conclude env sig ctx (DElSig x dSub) = do
+  (es, delta) <- conclude env sig ctx dSub >>= needSubN
   case sigLookup x sig of
     Just (SigDef gamma _ _ a) => do
       if delta == gamma then pure ()
@@ -992,176 +1007,176 @@ conclude sig ctx (DElSig x dSub) = do
         else kerr "derivation: el-sig-decl: entry context mismatch"
       pure (JEl (Elem.SigVar x es) (substTy a (embed es)))
     _ => kerr "derivation: el-sig: no term entry '\{x}'"
-conclude sig ctx DCodeZero = pure (JEl Elem.ZeroTy Ty.UniverseTy)
-conclude sig ctx DCodeOne = pure (JEl Elem.OneTy Ty.UniverseTy)
-conclude sig ctx DCodeNat = pure (JEl Elem.NatTy Ty.UniverseTy)
-conclude sig ctx (DCodePi dA dB) = do
-  (a, aty) <- conclude sig ctx dA >>= needEl
+conclude env sig ctx DCodeZero = pure (JEl Elem.ZeroTy Ty.UniverseTy)
+conclude env sig ctx DCodeOne = pure (JEl Elem.OneTy Ty.UniverseTy)
+conclude env sig ctx DCodeNat = pure (JEl Elem.NatTy Ty.UniverseTy)
+conclude env sig ctx (DCodePi dA dB) = do
+  (a, aty) <- conclude env sig ctx dA >>= needEl
   alphaTy "code-pi" aty Ty.UniverseTy
-  (b, bty) <- conclude sig (ctx :< El a) dB >>= needEl
+  (b, bty) <- conclude env sig (ctx :< El a) dB >>= needEl
   alphaTy "code-pi" bty Ty.UniverseTy
   pure (JEl (Elem.PiTy a b) Ty.UniverseTy)
-conclude sig ctx (DCodeSigma dA dB) = do
-  (a, aty) <- conclude sig ctx dA >>= needEl
+conclude env sig ctx (DCodeSigma dA dB) = do
+  (a, aty) <- conclude env sig ctx dA >>= needEl
   alphaTy "code-sigma" aty Ty.UniverseTy
-  (b, bty) <- conclude sig (ctx :< El a) dB >>= needEl
+  (b, bty) <- conclude env sig (ctx :< El a) dB >>= needEl
   alphaTy "code-sigma" bty Ty.UniverseTy
   pure (JEl (Elem.SigmaTy a b) Ty.UniverseTy)
-conclude sig ctx (DCodeSum dA dB) = do
-  (a, aty) <- conclude sig ctx dA >>= needEl
+conclude env sig ctx (DCodeSum dA dB) = do
+  (a, aty) <- conclude env sig ctx dA >>= needEl
   alphaTy "code-sum" aty Ty.UniverseTy
-  (b, bty) <- conclude sig ctx dB >>= needEl
+  (b, bty) <- conclude env sig ctx dB >>= needEl
   alphaTy "code-sum" bty Ty.UniverseTy
   pure (JEl (Elem.SumTy a b) Ty.UniverseTy)
-conclude sig ctx (DCodeQuot dA dR) = do
-  (a, aty) <- conclude sig ctx dA >>= needEl
+conclude env sig ctx (DCodeQuot dA dR) = do
+  (a, aty) <- conclude env sig ctx dA >>= needEl
   alphaTy "code-quot" aty Ty.UniverseTy
-  (r, rty) <- conclude sig (ctx :< El a :< wkTy (El a)) dR >>= needEl
+  (r, rty) <- conclude env sig (ctx :< El a :< wkTy (El a)) dR >>= needEl
   alphaTy "code-quot" rty Ty.PropTy
   pure (JEl (Elem.QuotTy a r) Ty.UniverseTy)
-conclude sig ctx (DCodeEq dT dL dR) = do
-  t <- conclude sig ctx dT >>= needTy
-  (l, lty) <- conclude sig ctx dL >>= needEl
+conclude env sig ctx (DCodeEq dT dL dR) = do
+  t <- conclude env sig ctx dT >>= needTy
+  (l, lty) <- conclude env sig ctx dL >>= needEl
   alphaTy "code-eq" lty t
-  (r, rty) <- conclude sig ctx dR >>= needEl
+  (r, rty) <- conclude env sig ctx dR >>= needEl
   alphaTy "code-eq" rty t
   pure (JEl (Elem.EqTy l r t) Ty.PropTy)
-conclude sig ctx (DCodeSquash dA) = do
-  a <- conclude sig ctx dA >>= needTy
+conclude env sig ctx (DCodeSquash dA) = do
+  a <- conclude env sig ctx dA >>= needTy
   pure (JEl (Squash a) Ty.PropTy)
-conclude sig ctx (DElZeroE dA dT) = do
-  a <- conclude sig ctx dA >>= needTy
-  (t, tty) <- conclude sig ctx dT >>= needEl
+conclude env sig ctx (DElZeroE dA dT) = do
+  a <- conclude env sig ctx dA >>= needTy
+  (t, tty) <- conclude env sig ctx dT >>= needEl
   alphaTy "el-zero-e" tty Ty.ZeroTy
   pure (JEl (ZeroElim t) a)
-conclude sig ctx DElOneI = pure (JEl OneIntro Ty.OneTy)
-conclude sig ctx DElNatZ = pure (JEl NatIntro0 Ty.NatTy)
-conclude sig ctx (DElNatS dT) = do
-  (t, tty) <- conclude sig ctx dT >>= needEl
+conclude env sig ctx DElOneI = pure (JEl OneIntro Ty.OneTy)
+conclude env sig ctx DElNatZ = pure (JEl NatIntro0 Ty.NatTy)
+conclude env sig ctx (DElNatS dT) = do
+  (t, tty) <- conclude env sig ctx dT >>= needEl
   alphaTy "el-nat-s" tty Ty.NatTy
   pure (JEl (NatIntro1 t) Ty.NatTy)
-conclude sig ctx (DElNatE dMot dZ dS dT) = do
-  mot <- conclude sig (ctx :< Ty.NatTy) dMot >>= needTy
-  (z, zty) <- conclude sig ctx dZ >>= needEl
+conclude env sig ctx (DElNatE dMot dZ dS dT) = do
+  mot <- conclude env sig (ctx :< Ty.NatTy) dMot >>= needTy
+  (z, zty) <- conclude env sig ctx dZ >>= needEl
   alphaTy "el-nat-e (z)" zty (substTy mot (Ext Id NatIntro0))
-  (s, sty) <- conclude sig (ctx :< Ty.NatTy :< mot) dS >>= needEl
+  (s, sty) <- conclude env sig (ctx :< Ty.NatTy :< mot) dS >>= needEl
   alphaTy "el-nat-e (s)" sty
     (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk))
-  (t, tty) <- conclude sig ctx dT >>= needEl
+  (t, tty) <- conclude env sig ctx dT >>= needEl
   alphaTy "el-nat-e (t)" tty Ty.NatTy
   pure (JEl (NatElim z s t) (substTy mot (Ext Id t)))
-conclude sig ctx (DElPiI dA dF) = do
-  a <- conclude sig ctx dA >>= needTy
-  (f, b) <- conclude sig (ctx :< a) dF >>= needEl
+conclude env sig ctx (DElPiI dA dF) = do
+  a <- conclude env sig ctx dA >>= needTy
+  (f, b) <- conclude env sig (ctx :< a) dF >>= needEl
   pure (JEl (PiIntro f) (Ty.PiTy a b))
-conclude sig ctx (DElPiE dF dE dB) = do
-  (f, fty) <- conclude sig ctx dF >>= needEl
+conclude env sig ctx (DElPiE dF dE dB) = do
+  (f, fty) <- conclude env sig ctx dF >>= needEl
   case fty of
     Ty.PiTy a b => do
-      (e, ety) <- conclude sig ctx dE >>= needEl
+      (e, ety) <- conclude env sig ctx dE >>= needEl
       alphaTy "el-pi-e (arg)" ety a
-      b' <- conclude sig (ctx :< a) dB >>= needTy
+      b' <- conclude env sig (ctx :< a) dB >>= needTy
       alphaTy "el-pi-e (cod)" b' b
       pure (JEl (PiApp f e) (substTy b (Ext Id e)))
     _ => kerr "derivation: el-pi-e: function premise not at a Π type"
-conclude sig ctx (DElLet dA dB) = do
-  (a, aty) <- conclude sig ctx dA >>= needEl
+conclude env sig ctx (DElLet dA dB) = do
+  (a, aty) <- conclude env sig ctx dA >>= needEl
   let hyp = Prf (Elem.EqTy (CtxVar 0) (wkEl a) (wkTy aty))
-  (b, bty) <- conclude sig (ctx :< aty :< hyp) dB >>= needEl
+  (b, bty) <- conclude env sig (ctx :< aty :< hyp) dB >>= needEl
   pure (JEl (Let a b) (substTy bty (Ext (Ext Id a) Star)))
-conclude sig ctx (DElSigmaI dA dB dV) = do
-  (a, aty) <- conclude sig ctx dA >>= needEl
-  b <- conclude sig (ctx :< aty) dB >>= needTy
-  (v, vty) <- conclude sig ctx dV >>= needEl
+conclude env sig ctx (DElSigmaI dA dB dV) = do
+  (a, aty) <- conclude env sig ctx dA >>= needEl
+  b <- conclude env sig (ctx :< aty) dB >>= needTy
+  (v, vty) <- conclude env sig ctx dV >>= needEl
   alphaTy "el-sigma-i" vty (substTy b (Ext Id a))
   pure (JEl (SigmaIntro a v) (Ty.SigmaTy aty b))
-conclude sig ctx (DElSigmaE1 dT) = do
-  (t, tty) <- conclude sig ctx dT >>= needEl
+conclude env sig ctx (DElSigmaE1 dT) = do
+  (t, tty) <- conclude env sig ctx dT >>= needEl
   case tty of
     Ty.SigmaTy a _ => pure (JEl (SigmaElim1 t) a)
     _ => kerr "derivation: el-sigma-e₁: premise not at a ⨯ type"
-conclude sig ctx (DElSigmaE2 dT) = do
-  (t, tty) <- conclude sig ctx dT >>= needEl
+conclude env sig ctx (DElSigmaE2 dT) = do
+  (t, tty) <- conclude env sig ctx dT >>= needEl
   case tty of
     Ty.SigmaTy _ b => pure (JEl (SigmaElim2 t) (substTy b (Ext Id (SigmaElim1 t))))
     _ => kerr "derivation: el-sigma-e₂: premise not at a ⨯ type"
-conclude sig ctx (DElSumI1 dA dB) = do
-  (a, aty) <- conclude sig ctx dA >>= needEl
-  b <- conclude sig ctx dB >>= needTy
+conclude env sig ctx (DElSumI1 dA dB) = do
+  (a, aty) <- conclude env sig ctx dA >>= needEl
+  b <- conclude env sig ctx dB >>= needTy
   pure (JEl (Inj1 a) (Ty.SumTy aty b))
-conclude sig ctx (DElSumI2 dB dA) = do
-  (b, bty) <- conclude sig ctx dB >>= needEl
-  a <- conclude sig ctx dA >>= needTy
+conclude env sig ctx (DElSumI2 dB dA) = do
+  (b, bty) <- conclude env sig ctx dB >>= needEl
+  a <- conclude env sig ctx dA >>= needTy
   pure (JEl (Inj2 b) (Ty.SumTy a bty))
-conclude sig ctx (DElSumE dT dC dL dR) = do
-  (t, tty) <- conclude sig ctx dT >>= needEl
+conclude env sig ctx (DElSumE dT dC dL dR) = do
+  (t, tty) <- conclude env sig ctx dT >>= needEl
   case tty of
     Ty.SumTy a b => do
-      c <- conclude sig (ctx :< Ty.SumTy a b) dC >>= needTy
-      (l, lty) <- conclude sig (ctx :< a) dL >>= needEl
+      c <- conclude env sig (ctx :< Ty.SumTy a b) dC >>= needTy
+      (l, lty) <- conclude env sig (ctx :< a) dL >>= needEl
       alphaTy "el-sum-e (l)" lty (substTy c (Ext Wk (Inj1 (CtxVar 0))))
-      (r, rty) <- conclude sig (ctx :< b) dR >>= needEl
+      (r, rty) <- conclude env sig (ctx :< b) dR >>= needEl
       alphaTy "el-sum-e (r)" rty (substTy c (Ext Wk (Inj2 (CtxVar 0))))
       pure (JEl (SumElim l r t) (substTy c (Ext Id t)))
     _ => kerr "derivation: el-sum-e: scrutinee not at a ⊎ type"
-conclude sig ctx (DElSquashI dT) = do
-  (_, a) <- conclude sig ctx dT >>= needEl
+conclude env sig ctx (DElSquashI dT) = do
+  (_, a) <- conclude env sig ctx dT >>= needEl
   pure (JEl Star (Prf (Squash a)))
-conclude sig ctx (DElEqI dEq) = do
-  (a0, a1, a) <- conclude sig ctx dEq >>= needElEq
+conclude env sig ctx (DElEqI dEq) = do
+  (a0, a1, a) <- conclude env sig ctx dEq >>= needElEq
   pure (JEl Star (Prf (Elem.EqTy a0 a1 a)))
-conclude sig ctx (DElSquashEPrf dQ dS dT) = do
-  (q, qty) <- conclude sig ctx dQ >>= needEl
+conclude env sig ctx (DElSquashEPrf dQ dS dT) = do
+  (q, qty) <- conclude env sig ctx dQ >>= needEl
   alphaTy "el-squash-e-prf (q)" qty Ty.PropTy
-  (_, sty) <- conclude sig ctx dS >>= needEl
+  (_, sty) <- conclude env sig ctx dS >>= needEl
   case sty of
     Prf (Squash a) => do
-      (_, tty) <- conclude sig (ctx :< a) dT >>= needEl
+      (_, tty) <- conclude env sig (ctx :< a) dT >>= needEl
       alphaTy "el-squash-e-prf (t)" tty (wkTy (Prf q))
       pure (JEl Star (Prf q))
     _ => kerr "derivation: el-squash-e-prf: premise not at a squash"
-conclude sig ctx (DElTyCoe dEq dA) = do
-  (a0, a1) <- conclude sig ctx dEq >>= needTyEq
-  (a, aty) <- conclude sig ctx dA >>= needEl
+conclude env sig ctx (DElTyCoe dEq dA) = do
+  (a0, a1) <- conclude env sig ctx dEq >>= needTyEq
+  (a, aty) <- conclude env sig ctx dA >>= needEl
   alphaTy "el-ty-coe" aty a0
   pure (JEl a a1)
 
 -- equality: equivalence, coercion, reflection
-conclude sig ctx (DElRefl dT) = do
-  (t, a) <- conclude sig ctx dT >>= needEl
+conclude env sig ctx (DElRefl dT) = do
+  (t, a) <- conclude env sig ctx dT >>= needEl
   pure (JElEq t t a)
-conclude sig ctx (DElSym d) = do
-  (t0, t1, a) <- conclude sig ctx d >>= needElEq
+conclude env sig ctx (DElSym d) = do
+  (t0, t1, a) <- conclude env sig ctx d >>= needElEq
   pure (JElEq t1 t0 a)
-conclude sig ctx (DElTrans d01 d12) = do
-  (t0, t1, a) <- conclude sig ctx d01 >>= needElEq
-  (t1', t2, a') <- conclude sig ctx d12 >>= needElEq
+conclude env sig ctx (DElTrans d01 d12) = do
+  (t0, t1, a) <- conclude env sig ctx d01 >>= needElEq
+  (t1', t2, a') <- conclude env sig ctx d12 >>= needElEq
   alphaEl "el-trans (middle)" t1' t1
   alphaTy "el-trans (type)" a' a
   pure (JElEq t0 t2 a)
-conclude sig ctx (DTyRefl dT) = do
-  a <- conclude sig ctx dT >>= needTy
+conclude env sig ctx (DTyRefl dT) = do
+  a <- conclude env sig ctx dT >>= needTy
   pure (JTyEq a a)
-conclude sig ctx (DTySym d) = do
-  (a0, a1) <- conclude sig ctx d >>= needTyEq
+conclude env sig ctx (DTySym d) = do
+  (a0, a1) <- conclude env sig ctx d >>= needTyEq
   pure (JTyEq a1 a0)
-conclude sig ctx (DTyTrans d01 d12) = do
-  (a0, a1) <- conclude sig ctx d01 >>= needTyEq
-  (a1', a2) <- conclude sig ctx d12 >>= needTyEq
+conclude env sig ctx (DTyTrans d01 d12) = do
+  (a0, a1) <- conclude env sig ctx d01 >>= needTyEq
+  (a1', a2) <- conclude env sig ctx d12 >>= needTyEq
   alphaTy "ty-trans (middle)" a1' a1
   pure (JTyEq a0 a2)
-conclude sig ctx (DElEqTyCoe dTyEq dEq) = do
-  (a0, a1) <- conclude sig ctx dTyEq >>= needTyEq
-  (t0, t1, a) <- conclude sig ctx dEq >>= needElEq
+conclude env sig ctx (DElEqTyCoe dTyEq dEq) = do
+  (a0, a1) <- conclude env sig ctx dTyEq >>= needTyEq
+  (t0, t1, a) <- conclude env sig ctx dEq >>= needElEq
   alphaTy "el-eq-ty-coe" a a0
   pure (JElEq t0 t1 a1)
-conclude sig ctx (DElReflect dS) = do
-  (_, sty) <- conclude sig ctx dS >>= needEl
+conclude env sig ctx (DElReflect dS) = do
+  (_, sty) <- conclude env sig ctx dS >>= needEl
   case sty of
     Prf (Elem.EqTy a0 a1 a) => pure (JElEq a0 a1 a)
     _ => kerr "derivation: el-reflect: premise not at a literal equality prop"
-conclude sig ctx (DElSigEq pos dSub) = do
-  (es, delta) <- conclude sig ctx dSub >>= needSubN
+conclude env sig ctx (DElSigEq pos dSub) = do
+  (es, delta) <- conclude env sig ctx dSub >>= needSubN
   case getAt pos (toList sig) of
     Just (SigEq gamma a0 a1 a) => do
       if delta == gamma then pure ()
@@ -1169,8 +1184,8 @@ conclude sig ctx (DElSigEq pos dSub) = do
       pure (JElEq (substElem a0 (embed es)) (substElem a1 (embed es))
                   (substTy a (embed es)))
     _ => kerr "derivation: el-sig-eq: no constraint entry at position \{show pos}"
-conclude sig ctx (DTySigEq pos dSub) = do
-  (es, delta) <- conclude sig ctx dSub >>= needSubN
+conclude env sig ctx (DTySigEq pos dSub) = do
+  (es, delta) <- conclude env sig ctx dSub >>= needSubN
   case getAt pos (toList sig) of
     Just (SigTyEq gamma a0 a1) => do
       if delta == gamma then pure ()
@@ -1179,59 +1194,59 @@ conclude sig ctx (DTySigEq pos dSub) = do
     _ => kerr "derivation: ty-sig-eq: no type constraint at position \{show pos}"
 
 -- equality: props and η
-conclude sig ctx (DElZeroProp d0 d1) = do
-  (t0, ty0) <- conclude sig ctx d0 >>= needEl
+conclude env sig ctx (DElZeroProp d0 d1) = do
+  (t0, ty0) <- conclude env sig ctx d0 >>= needEl
   alphaTy "el-zero-prop" ty0 Ty.ZeroTy
-  (t1, ty1) <- conclude sig ctx d1 >>= needEl
+  (t1, ty1) <- conclude env sig ctx d1 >>= needEl
   alphaTy "el-zero-prop" ty1 Ty.ZeroTy
   pure (JElEq t0 t1 Ty.ZeroTy)
-conclude sig ctx (DElOneProp d0 d1) = do
-  (t0, ty0) <- conclude sig ctx d0 >>= needEl
+conclude env sig ctx (DElOneProp d0 d1) = do
+  (t0, ty0) <- conclude env sig ctx d0 >>= needEl
   alphaTy "el-one-prop" ty0 Ty.OneTy
-  (t1, ty1) <- conclude sig ctx d1 >>= needEl
+  (t1, ty1) <- conclude env sig ctx d1 >>= needEl
   alphaTy "el-one-prop" ty1 Ty.OneTy
   pure (JElEq t0 t1 Ty.OneTy)
-conclude sig ctx (DElPrfProp d0 d1) = do
-  (t0, ty0) <- conclude sig ctx d0 >>= needEl
+conclude env sig ctx (DElPrfProp d0 d1) = do
+  (t0, ty0) <- conclude env sig ctx d0 >>= needEl
   case ty0 of
     Prf p => do
-      (t1, ty1) <- conclude sig ctx d1 >>= needEl
+      (t1, ty1) <- conclude env sig ctx d1 >>= needEl
       alphaTy "el-prf-prop" ty1 (Prf p)
       pure (JElEq t0 t1 (Prf p))
     _ => kerr "derivation: el-prf-prop: premise not at a Prf type"
-conclude sig ctx (DCodePropEq dP dQ dS dT) = do
-  (p, pty) <- conclude sig ctx dP >>= needEl
+conclude env sig ctx (DCodePropEq dP dQ dS dT) = do
+  (p, pty) <- conclude env sig ctx dP >>= needEl
   alphaTy "code-prop-eq" pty Ty.PropTy
-  (q, qty) <- conclude sig ctx dQ >>= needEl
+  (q, qty) <- conclude env sig ctx dQ >>= needEl
   alphaTy "code-prop-eq" qty Ty.PropTy
-  (_, sty) <- conclude sig (ctx :< Prf p) dS >>= needEl
+  (_, sty) <- conclude env sig (ctx :< Prf p) dS >>= needEl
   alphaTy "code-prop-eq (→)" sty (wkTy (Prf q))
-  (_, tty) <- conclude sig (ctx :< Prf q) dT >>= needEl
+  (_, tty) <- conclude env sig (ctx :< Prf q) dT >>= needEl
   alphaTy "code-prop-eq (←)" tty (wkTy (Prf p))
   pure (JElEq p q Ty.PropTy)
-conclude sig ctx (DElPiEta dF0 dF1 dEq) = do
-  (f0, f0ty) <- conclude sig ctx dF0 >>= needEl
+conclude env sig ctx (DElPiEta dF0 dF1 dEq) = do
+  (f0, f0ty) <- conclude env sig ctx dF0 >>= needEl
   case f0ty of
     Ty.PiTy a b => do
-      (f1, f1ty) <- conclude sig ctx dF1 >>= needEl
+      (f1, f1ty) <- conclude env sig ctx dF1 >>= needEl
       alphaTy "el-pi-eta (f₁)" f1ty (Ty.PiTy a b)
-      (l, r, ety) <- conclude sig (ctx :< a) dEq >>= needElEq
+      (l, r, ety) <- conclude env sig (ctx :< a) dEq >>= needElEq
       alphaEl "el-pi-eta (l)" l (PiApp (wkEl f0) (CtxVar 0))
       alphaEl "el-pi-eta (r)" r (PiApp (wkEl f1) (CtxVar 0))
       alphaTy "el-pi-eta (ty)" ety b
       pure (JElEq f0 f1 (Ty.PiTy a b))
     _ => kerr "derivation: el-pi-eta: candidates not at a Π type"
-conclude sig ctx (DElSigmaEta dT0 dT1 dP1 dP2) = do
-  (t0, t0ty) <- conclude sig ctx dT0 >>= needEl
+conclude env sig ctx (DElSigmaEta dT0 dT1 dP1 dP2) = do
+  (t0, t0ty) <- conclude env sig ctx dT0 >>= needEl
   case t0ty of
     Ty.SigmaTy a b => do
-      (t1, t1ty) <- conclude sig ctx dT1 >>= needEl
+      (t1, t1ty) <- conclude env sig ctx dT1 >>= needEl
       alphaTy "el-sigma-eta (t₁)" t1ty (Ty.SigmaTy a b)
-      (p1l, p1r, p1ty) <- conclude sig ctx dP1 >>= needElEq
+      (p1l, p1r, p1ty) <- conclude env sig ctx dP1 >>= needElEq
       alphaEl "el-sigma-eta (π₁ l)" p1l (SigmaElim1 t0)
       alphaEl "el-sigma-eta (π₁ r)" p1r (SigmaElim1 t1)
       alphaTy "el-sigma-eta (π₁ ty)" p1ty a
-      (p2l, p2r, p2ty) <- conclude sig ctx dP2 >>= needElEq
+      (p2l, p2r, p2ty) <- conclude env sig ctx dP2 >>= needElEq
       alphaEl "el-sigma-eta (π₂ l)" p2l (SigmaElim2 t0)
       alphaEl "el-sigma-eta (π₂ r)" p2r (SigmaElim2 t1)
       alphaTy "el-sigma-eta (π₂ ty)" p2ty (substTy b (Ext Id (SigmaElim1 t0)))
@@ -1239,468 +1254,468 @@ conclude sig ctx (DElSigmaEta dT0 dT1 dP1 dP2) = do
     _ => kerr "derivation: el-sigma-eta: candidates not at a ⨯ type"
 
 -- equality: congruence
-conclude sig ctx (DElLamCong dA dF) = do
-  a <- conclude sig ctx dA >>= needTy
-  (f0, f1, b) <- conclude sig (ctx :< a) dF >>= needElEq
+conclude env sig ctx (DElLamCong dA dF) = do
+  a <- conclude env sig ctx dA >>= needTy
+  (f0, f1, b) <- conclude env sig (ctx :< a) dF >>= needElEq
   pure (JElEq (PiIntro f0) (PiIntro f1) (Ty.PiTy a b))
-conclude sig ctx (DElAppCong dF dA dB) = do
-  (f0, f1, fty) <- conclude sig ctx dF >>= needElEq
+conclude env sig ctx (DElAppCong dF dA dB) = do
+  (f0, f1, fty) <- conclude env sig ctx dF >>= needElEq
   case fty of
     Ty.PiTy a b => do
-      (a0, a1, aty) <- conclude sig ctx dA >>= needElEq
+      (a0, a1, aty) <- conclude env sig ctx dA >>= needElEq
       alphaTy "el-app-cong (arg)" aty a
-      b' <- conclude sig (ctx :< a) dB >>= needTy
+      b' <- conclude env sig (ctx :< a) dB >>= needTy
       alphaTy "el-app-cong (cod)" b' b
       pure (JElEq (PiApp f0 a0) (PiApp f1 a1) (substTy b (Ext Id a1)))
     _ => kerr "derivation: el-app-cong: premise not at a Π type"
-conclude sig ctx (DElSucCong d) = do
-  (t0, t1, a) <- conclude sig ctx d >>= needElEq
+conclude env sig ctx (DElSucCong d) = do
+  (t0, t1, a) <- conclude env sig ctx d >>= needElEq
   alphaTy "el-suc-cong" a Ty.NatTy
   pure (JElEq (NatIntro1 t0) (NatIntro1 t1) Ty.NatTy)
-conclude sig ctx (DElPairCong dA dB dV) = do
-  (a0, a1, aty) <- conclude sig ctx dA >>= needElEq
-  b <- conclude sig (ctx :< aty) dB >>= needTy
-  (b0, b1, vty) <- conclude sig ctx dV >>= needElEq
+conclude env sig ctx (DElPairCong dA dB dV) = do
+  (a0, a1, aty) <- conclude env sig ctx dA >>= needElEq
+  b <- conclude env sig (ctx :< aty) dB >>= needTy
+  (b0, b1, vty) <- conclude env sig ctx dV >>= needElEq
   alphaTy "el-pair-cong" vty (substTy b (Ext Id a1))
   pure (JElEq (SigmaIntro a0 b0) (SigmaIntro a1 b1) (Ty.SigmaTy aty b))
-conclude sig ctx (DElProj1Cong d) = do
-  (t0, t1, tty) <- conclude sig ctx d >>= needElEq
+conclude env sig ctx (DElProj1Cong d) = do
+  (t0, t1, tty) <- conclude env sig ctx d >>= needElEq
   case tty of
     Ty.SigmaTy a _ => pure (JElEq (SigmaElim1 t0) (SigmaElim1 t1) a)
     _ => kerr "derivation: el-proj₁-cong: premise not at a ⨯ type"
-conclude sig ctx (DElProj2Cong d) = do
-  (t0, t1, tty) <- conclude sig ctx d >>= needElEq
+conclude env sig ctx (DElProj2Cong d) = do
+  (t0, t1, tty) <- conclude env sig ctx d >>= needElEq
   case tty of
     Ty.SigmaTy _ b =>
       pure (JElEq (SigmaElim2 t0) (SigmaElim2 t1)
                   (substTy b (Ext Id (SigmaElim1 t1))))
     _ => kerr "derivation: el-proj₂-cong: premise not at a ⨯ type"
-conclude sig ctx (DTyPiCong dD dC) = do
-  (a0, a1) <- conclude sig ctx dD >>= needTyEq
-  (b0, b1) <- conclude sig (ctx :< a1) dC >>= needTyEq
+conclude env sig ctx (DTyPiCong dD dC) = do
+  (a0, a1) <- conclude env sig ctx dD >>= needTyEq
+  (b0, b1) <- conclude env sig (ctx :< a1) dC >>= needTyEq
   pure (JTyEq (Ty.PiTy a0 b0) (Ty.PiTy a1 b1))
-conclude sig ctx (DTySigmaCong dD dC) = do
-  (a0, a1) <- conclude sig ctx dD >>= needTyEq
-  (b0, b1) <- conclude sig (ctx :< a1) dC >>= needTyEq
+conclude env sig ctx (DTySigmaCong dD dC) = do
+  (a0, a1) <- conclude env sig ctx dD >>= needTyEq
+  (b0, b1) <- conclude env sig (ctx :< a1) dC >>= needTyEq
   pure (JTyEq (Ty.SigmaTy a0 b0) (Ty.SigmaTy a1 b1))
-conclude sig ctx (DTySumCong dL dR) = do
-  (a0, a1) <- conclude sig ctx dL >>= needTyEq
-  (b0, b1) <- conclude sig ctx dR >>= needTyEq
+conclude env sig ctx (DTySumCong dL dR) = do
+  (a0, a1) <- conclude env sig ctx dL >>= needTyEq
+  (b0, b1) <- conclude env sig ctx dR >>= needTyEq
   pure (JTyEq (Ty.SumTy a0 b0) (Ty.SumTy a1 b1))
-conclude sig ctx (DTyQuotCong dA dR) = do
-  (a0, a1) <- conclude sig ctx dA >>= needTyEq
-  (r0, r1, rty) <- conclude sig (ctx :< a1 :< wkTy a1) dR >>= needElEq
+conclude env sig ctx (DTyQuotCong dA dR) = do
+  (a0, a1) <- conclude env sig ctx dA >>= needTyEq
+  (r0, r1, rty) <- conclude env sig (ctx :< a1 :< wkTy a1) dR >>= needElEq
   alphaTy "ty-quot-cong" rty Ty.PropTy
   pure (JTyEq (Ty.Quotient a0 r0) (Ty.Quotient a1 r1))
-conclude sig ctx (DTyElCong d) = do
-  (a, b, ty) <- conclude sig ctx d >>= needElEq
+conclude env sig ctx (DTyElCong d) = do
+  (a, b, ty) <- conclude env sig ctx d >>= needElEq
   alphaTy "ty-el-cong" ty Ty.UniverseTy
   pure (JTyEq (El a) (El b))
-conclude sig ctx (DTyPrfCong d) = do
-  (p, q, ty) <- conclude sig ctx d >>= needElEq
+conclude env sig ctx (DTyPrfCong d) = do
+  (p, q, ty) <- conclude env sig ctx d >>= needElEq
   alphaTy "ty-prf-cong" ty Ty.PropTy
   pure (JTyEq (Prf p) (Prf q))
 
 
 -- eliminator and remaining congruences
-conclude sig ctx (DElNatECong dMot dZ dS dT) = do
-  mot <- conclude sig (ctx :< Ty.NatTy) dMot >>= needTy
-  (z0, z1, zty) <- conclude sig ctx dZ >>= needElEq
+conclude env sig ctx (DElNatECong dMot dZ dS dT) = do
+  mot <- conclude env sig (ctx :< Ty.NatTy) dMot >>= needTy
+  (z0, z1, zty) <- conclude env sig ctx dZ >>= needElEq
   alphaTy "el-nat-e-cong (z)" zty (substTy mot (Ext Id NatIntro0))
-  (s0, s1, sty) <- conclude sig (ctx :< Ty.NatTy :< mot) dS >>= needElEq
+  (s0, s1, sty) <- conclude env sig (ctx :< Ty.NatTy :< mot) dS >>= needElEq
   alphaTy "el-nat-e-cong (s)" sty
     (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk))
-  (t0, t1, tty) <- conclude sig ctx dT >>= needElEq
+  (t0, t1, tty) <- conclude env sig ctx dT >>= needElEq
   alphaTy "el-nat-e-cong (t)" tty Ty.NatTy
   pure (JElEq (NatElim z0 s0 t0) (NatElim z1 s1 t1) (substTy mot (Ext Id t1)))
-conclude sig ctx (DElSumECong dT dC dL dR) = do
-  (t0, t1, tty) <- conclude sig ctx dT >>= needElEq
+conclude env sig ctx (DElSumECong dT dC dL dR) = do
+  (t0, t1, tty) <- conclude env sig ctx dT >>= needElEq
   case tty of
     Ty.SumTy a b => do
-      c <- conclude sig (ctx :< Ty.SumTy a b) dC >>= needTy
-      (l0, l1, lty) <- conclude sig (ctx :< a) dL >>= needElEq
+      c <- conclude env sig (ctx :< Ty.SumTy a b) dC >>= needTy
+      (l0, l1, lty) <- conclude env sig (ctx :< a) dL >>= needElEq
       alphaTy "el-sum-e-cong (l)" lty (substTy c (Ext Wk (Inj1 (CtxVar 0))))
-      (r0, r1, rty) <- conclude sig (ctx :< b) dR >>= needElEq
+      (r0, r1, rty) <- conclude env sig (ctx :< b) dR >>= needElEq
       alphaTy "el-sum-e-cong (r)" rty (substTy c (Ext Wk (Inj2 (CtxVar 0))))
       pure (JElEq (SumElim l0 r0 t0) (SumElim l1 r1 t1) (substTy c (Ext Id t1)))
     _ => kerr "derivation: el-sum-e-cong: scrutinees not at a ⊎ type"
-conclude sig ctx (DElZeroECong dA d0 d1) = do
-  a <- conclude sig ctx dA >>= needTy
-  (t0, t0ty) <- conclude sig ctx d0 >>= needEl
+conclude env sig ctx (DElZeroECong dA d0 d1) = do
+  a <- conclude env sig ctx dA >>= needTy
+  (t0, t0ty) <- conclude env sig ctx d0 >>= needEl
   alphaTy "el-zero-e-cong" t0ty Ty.ZeroTy
-  (t1, t1ty) <- conclude sig ctx d1 >>= needEl
+  (t1, t1ty) <- conclude env sig ctx d1 >>= needEl
   alphaTy "el-zero-e-cong" t1ty Ty.ZeroTy
   pure (JElEq (ZeroElim t0) (ZeroElim t1) a)
-conclude sig ctx (DElQuotECong dQ dB dF0 dF1 dW0 dW1 dFeq) = do
-  (q0, q1, qty) <- conclude sig ctx dQ >>= needElEq
+conclude env sig ctx (DElQuotECong dQ dB dF0 dF1 dW0 dW1 dFeq) = do
+  (q0, q1, qty) <- conclude env sig ctx dQ >>= needElEq
   case qty of
     Ty.Quotient a r => do
-      b <- conclude sig (ctx :< Ty.Quotient a r) dB >>= needTy
+      b <- conclude env sig (ctx :< Ty.Quotient a r) dB >>= needTy
       let cse = substTy b (Ext Wk (Class (CtxVar 0)))
-      (f0, f0ty) <- conclude sig (ctx :< a) dF0 >>= needEl
+      (f0, f0ty) <- conclude env sig (ctx :< a) dF0 >>= needEl
       alphaTy "el-quot-e-cong (f₀)" f0ty cse
-      (f1, f1ty) <- conclude sig (ctx :< a) dF1 >>= needEl
+      (f1, f1ty) <- conclude env sig (ctx :< a) dF1 >>= needEl
       alphaTy "el-quot-e-cong (f₁)" f1ty cse
       let wk3 = Chain Wk (Chain Wk Wk)
       let wdCtx = ctx :< a :< wkTy a :< Prf r
       let wdTy = substTy b (Ext wk3 (Class (CtxVar 2)))
-      (w0l, w0r, w0ty) <- conclude sig wdCtx dW0 >>= needElEq
+      (w0l, w0r, w0ty) <- conclude env sig wdCtx dW0 >>= needElEq
       alphaEl "el-quot-e-cong (wd₀ l)" w0l (substElem f0 (Ext wk3 (CtxVar 2)))
       alphaEl "el-quot-e-cong (wd₀ r)" w0r (substElem f0 (Ext wk3 (CtxVar 1)))
       alphaTy "el-quot-e-cong (wd₀ ty)" w0ty wdTy
-      (w1l, w1r, w1ty) <- conclude sig wdCtx dW1 >>= needElEq
+      (w1l, w1r, w1ty) <- conclude env sig wdCtx dW1 >>= needElEq
       alphaEl "el-quot-e-cong (wd₁ l)" w1l (substElem f1 (Ext wk3 (CtxVar 2)))
       alphaEl "el-quot-e-cong (wd₁ r)" w1r (substElem f1 (Ext wk3 (CtxVar 1)))
       alphaTy "el-quot-e-cong (wd₁ ty)" w1ty wdTy
-      (fl, fr, fety) <- conclude sig (ctx :< a) dFeq >>= needElEq
+      (fl, fr, fety) <- conclude env sig (ctx :< a) dFeq >>= needElEq
       alphaEl "el-quot-e-cong (f⁼ l)" fl f0
       alphaEl "el-quot-e-cong (f⁼ r)" fr f1
       alphaTy "el-quot-e-cong (f⁼ ty)" fety cse
       pure (JElEq (QuotElim f0 q0) (QuotElim f1 q1) (substTy b (Ext Id q1)))
     _ => kerr "derivation: el-quot-e-cong: scrutinees not at a quotient type"
-conclude sig ctx (DElLetCong dA dB) = do
-  (a0, a1, aty) <- conclude sig ctx dA >>= needElEq
+conclude env sig ctx (DElLetCong dA dB) = do
+  (a0, a1, aty) <- conclude env sig ctx dA >>= needElEq
   let hyp = Prf (Elem.EqTy (CtxVar 0) (wkEl a1) (wkTy aty))
-  (b0, b1, bty) <- conclude sig (ctx :< aty :< hyp) dB >>= needElEq
+  (b0, b1, bty) <- conclude env sig (ctx :< aty :< hyp) dB >>= needElEq
   pure (JElEq (Let a0 b0) (Let a1 b1) (substTy bty (Ext (Ext Id a1) Star)))
-conclude sig ctx (DElClassCong dA dR) = do
-  (a0, a1, aty) <- conclude sig ctx dA >>= needElEq
-  (r, rty) <- conclude sig (ctx :< aty :< wkTy aty) dR >>= needEl
+conclude env sig ctx (DElClassCong dA dR) = do
+  (a0, a1, aty) <- conclude env sig ctx dA >>= needElEq
+  (r, rty) <- conclude env sig (ctx :< aty :< wkTy aty) dR >>= needEl
   alphaTy "el-class-cong" rty Ty.PropTy
   pure (JElEq (Class a0) (Class a1) (Ty.Quotient aty r))
-conclude sig ctx (DElInj1Cong dA dB) = do
-  (a0, a1, aty) <- conclude sig ctx dA >>= needElEq
-  b <- conclude sig ctx dB >>= needTy
+conclude env sig ctx (DElInj1Cong dA dB) = do
+  (a0, a1, aty) <- conclude env sig ctx dA >>= needElEq
+  b <- conclude env sig ctx dB >>= needTy
   pure (JElEq (Inj1 a0) (Inj1 a1) (Ty.SumTy aty b))
-conclude sig ctx (DElInj2Cong dB dA) = do
-  (b0, b1, bty) <- conclude sig ctx dB >>= needElEq
-  a <- conclude sig ctx dA >>= needTy
+conclude env sig ctx (DElInj2Cong dB dA) = do
+  (b0, b1, bty) <- conclude env sig ctx dB >>= needElEq
+  a <- conclude env sig ctx dA >>= needTy
   pure (JElEq (Inj2 b0) (Inj2 b1) (Ty.SumTy a bty))
-conclude sig ctx (DCodePiCong dA dB) = do
-  (a0, a1, aty) <- conclude sig ctx dA >>= needElEq
+conclude env sig ctx (DCodePiCong dA dB) = do
+  (a0, a1, aty) <- conclude env sig ctx dA >>= needElEq
   alphaTy "code-pi-cong" aty Ty.UniverseTy
-  (b0, b1, bty) <- conclude sig (ctx :< El a1) dB >>= needElEq
+  (b0, b1, bty) <- conclude env sig (ctx :< El a1) dB >>= needElEq
   alphaTy "code-pi-cong" bty Ty.UniverseTy
   pure (JElEq (Elem.PiTy a0 b0) (Elem.PiTy a1 b1) Ty.UniverseTy)
-conclude sig ctx (DCodeSigmaCong dA dB) = do
-  (a0, a1, aty) <- conclude sig ctx dA >>= needElEq
+conclude env sig ctx (DCodeSigmaCong dA dB) = do
+  (a0, a1, aty) <- conclude env sig ctx dA >>= needElEq
   alphaTy "code-sigma-cong" aty Ty.UniverseTy
-  (b0, b1, bty) <- conclude sig (ctx :< El a1) dB >>= needElEq
+  (b0, b1, bty) <- conclude env sig (ctx :< El a1) dB >>= needElEq
   alphaTy "code-sigma-cong" bty Ty.UniverseTy
   pure (JElEq (Elem.SigmaTy a0 b0) (Elem.SigmaTy a1 b1) Ty.UniverseTy)
-conclude sig ctx (DCodeSumCong dA dB) = do
-  (a0, a1, aty) <- conclude sig ctx dA >>= needElEq
+conclude env sig ctx (DCodeSumCong dA dB) = do
+  (a0, a1, aty) <- conclude env sig ctx dA >>= needElEq
   alphaTy "code-sum-cong" aty Ty.UniverseTy
-  (b0, b1, bty) <- conclude sig ctx dB >>= needElEq
+  (b0, b1, bty) <- conclude env sig ctx dB >>= needElEq
   alphaTy "code-sum-cong" bty Ty.UniverseTy
   pure (JElEq (Elem.SumTy a0 b0) (Elem.SumTy a1 b1) Ty.UniverseTy)
-conclude sig ctx (DCodeQuotCong dA dR) = do
-  (a0, a1, aty) <- conclude sig ctx dA >>= needElEq
+conclude env sig ctx (DCodeQuotCong dA dR) = do
+  (a0, a1, aty) <- conclude env sig ctx dA >>= needElEq
   alphaTy "code-quot-cong" aty Ty.UniverseTy
-  (r0, r1, rty) <- conclude sig (ctx :< El a1 :< wkTy (El a1)) dR >>= needElEq
+  (r0, r1, rty) <- conclude env sig (ctx :< El a1 :< wkTy (El a1)) dR >>= needElEq
   alphaTy "code-quot-cong" rty Ty.PropTy
   pure (JElEq (Elem.QuotTy a0 r0) (Elem.QuotTy a1 r1) Ty.UniverseTy)
-conclude sig ctx (DCodeSquashCong dA) = do
-  (a0, a1) <- conclude sig ctx dA >>= needTyEq
+conclude env sig ctx (DCodeSquashCong dA) = do
+  (a0, a1) <- conclude env sig ctx dA >>= needTyEq
   pure (JElEq (Squash a0) (Squash a1) Ty.PropTy)
-conclude sig ctx (DCodeEqCong dTy dA dB) = do
-  (t0, t1) <- conclude sig ctx dTy >>= needTyEq
-  (a0, a1, aty) <- conclude sig ctx dA >>= needElEq
+conclude env sig ctx (DCodeEqCong dTy dA dB) = do
+  (t0, t1) <- conclude env sig ctx dTy >>= needTyEq
+  (a0, a1, aty) <- conclude env sig ctx dA >>= needElEq
   alphaTy "code-eq-cong (a)" aty t1
-  (b0, b1, bty) <- conclude sig ctx dB >>= needElEq
+  (b0, b1, bty) <- conclude env sig ctx dB >>= needElEq
   alphaTy "code-eq-cong (b)" bty t1
   pure (JElEq (Elem.EqTy a0 b0 t0) (Elem.EqTy a1 b1 t1) Ty.PropTy)
 
 -- injectivity (grouped conclusions split)
-conclude sig ctx (DTyPiInjDom dB0 dB1 dEq) = do
-  (a0, a1, b0, b1) <- tyBinInj sig ctx "ty-pi-inj" piProj dB0 dB1 dEq
+conclude env sig ctx (DTyPiInjDom dB0 dB1 dEq) = do
+  (a0, a1, b0, b1) <- tyBinInj env sig ctx "ty-pi-inj" piProj dB0 dB1 dEq
   pure (JTyEq a0 a1)
-conclude sig ctx (DTyPiInjCod dB0 dB1 dEq) = do
-  (a0, a1, b0, b1) <- tyBinInj sig ctx "ty-pi-inj" piProj dB0 dB1 dEq
+conclude env sig ctx (DTyPiInjCod dB0 dB1 dEq) = do
+  (a0, a1, b0, b1) <- tyBinInj env sig ctx "ty-pi-inj" piProj dB0 dB1 dEq
   pure (JTyEq b0 b1)
-conclude sig ctx (DTySigmaInjDom dB0 dB1 dEq) = do
-  (a0, a1, b0, b1) <- tyBinInj sig ctx "ty-sigma-inj" sgProj dB0 dB1 dEq
+conclude env sig ctx (DTySigmaInjDom dB0 dB1 dEq) = do
+  (a0, a1, b0, b1) <- tyBinInj env sig ctx "ty-sigma-inj" sgProj dB0 dB1 dEq
   pure (JTyEq a0 a1)
-conclude sig ctx (DTySigmaInjCod dB0 dB1 dEq) = do
-  (a0, a1, b0, b1) <- tyBinInj sig ctx "ty-sigma-inj" sgProj dB0 dB1 dEq
+conclude env sig ctx (DTySigmaInjCod dB0 dB1 dEq) = do
+  (a0, a1, b0, b1) <- tyBinInj env sig ctx "ty-sigma-inj" sgProj dB0 dB1 dEq
   pure (JTyEq b0 b1)
-conclude sig ctx (DTySumInjL dEq) = do
-  (l, r) <- conclude sig ctx dEq >>= needTyEq
+conclude env sig ctx (DTySumInjL dEq) = do
+  (l, r) <- conclude env sig ctx dEq >>= needTyEq
   case (l, r) of
     (Ty.SumTy a0 _, Ty.SumTy a1 _) => pure (JTyEq a0 a1)
     _ => kerr "derivation: ty-sum-inj: not a ⊎ equation"
-conclude sig ctx (DTySumInjR dEq) = do
-  (l, r) <- conclude sig ctx dEq >>= needTyEq
+conclude env sig ctx (DTySumInjR dEq) = do
+  (l, r) <- conclude env sig ctx dEq >>= needTyEq
   case (l, r) of
     (Ty.SumTy _ b0, Ty.SumTy _ b1) => pure (JTyEq b0 b1)
     _ => kerr "derivation: ty-sum-inj: not a ⊎ equation"
-conclude sig ctx (DTyQuotInjDom dR0 dR1 dEq) = do
-  (a0, a1, r0, r1) <- tyQuotInj sig ctx dR0 dR1 dEq
+conclude env sig ctx (DTyQuotInjDom dR0 dR1 dEq) = do
+  (a0, a1, r0, r1) <- tyQuotInj env sig ctx dR0 dR1 dEq
   pure (JTyEq a0 a1)
-conclude sig ctx (DTyQuotInjRel dR0 dR1 dEq) = do
-  (a0, a1, r0, r1) <- tyQuotInj sig ctx dR0 dR1 dEq
+conclude env sig ctx (DTyQuotInjRel dR0 dR1 dEq) = do
+  (a0, a1, r0, r1) <- tyQuotInj env sig ctx dR0 dR1 dEq
   pure (JElEq r0 r1 Ty.PropTy)
-conclude sig ctx (DTyElInj dEq) = do
-  (l, r) <- conclude sig ctx dEq >>= needTyEq
+conclude env sig ctx (DTyElInj dEq) = do
+  (l, r) <- conclude env sig ctx dEq >>= needTyEq
   case (l, r) of
     (El t0, El t1) => pure (JElEq t0 t1 Ty.UniverseTy)
     _ => kerr "derivation: ty-el-inj: not an El equation"
-conclude sig ctx (DCodePiInjDom dB0 dB1 dEq) = do
-  (a0, a1, b0, b1) <- codeBinInj sig ctx "code-pi-inj" piCProj dB0 dB1 dEq
+conclude env sig ctx (DCodePiInjDom dB0 dB1 dEq) = do
+  (a0, a1, b0, b1) <- codeBinInj env sig ctx "code-pi-inj" piCProj dB0 dB1 dEq
   pure (JElEq a0 a1 Ty.UniverseTy)
-conclude sig ctx (DCodePiInjCod dB0 dB1 dEq) = do
-  (a0, a1, b0, b1) <- codeBinInj sig ctx "code-pi-inj" piCProj dB0 dB1 dEq
+conclude env sig ctx (DCodePiInjCod dB0 dB1 dEq) = do
+  (a0, a1, b0, b1) <- codeBinInj env sig ctx "code-pi-inj" piCProj dB0 dB1 dEq
   pure (JElEq b0 b1 Ty.UniverseTy)
-conclude sig ctx (DCodeSigmaInjDom dB0 dB1 dEq) = do
-  (a0, a1, b0, b1) <- codeBinInj sig ctx "code-sigma-inj" sgCProj dB0 dB1 dEq
+conclude env sig ctx (DCodeSigmaInjDom dB0 dB1 dEq) = do
+  (a0, a1, b0, b1) <- codeBinInj env sig ctx "code-sigma-inj" sgCProj dB0 dB1 dEq
   pure (JElEq a0 a1 Ty.UniverseTy)
-conclude sig ctx (DCodeSigmaInjCod dB0 dB1 dEq) = do
-  (a0, a1, b0, b1) <- codeBinInj sig ctx "code-sigma-inj" sgCProj dB0 dB1 dEq
+conclude env sig ctx (DCodeSigmaInjCod dB0 dB1 dEq) = do
+  (a0, a1, b0, b1) <- codeBinInj env sig ctx "code-sigma-inj" sgCProj dB0 dB1 dEq
   pure (JElEq b0 b1 Ty.UniverseTy)
-conclude sig ctx (DCodeSumInjL dEq) = do
-  (l, r, ty) <- conclude sig ctx dEq >>= needElEq
+conclude env sig ctx (DCodeSumInjL dEq) = do
+  (l, r, ty) <- conclude env sig ctx dEq >>= needElEq
   alphaTy "code-sum-inj" ty Ty.UniverseTy
   case (l, r) of
     (Elem.SumTy a0 _, Elem.SumTy a1 _) => pure (JElEq a0 a1 Ty.UniverseTy)
     _ => kerr "derivation: code-sum-inj: not a ⊎ code equation"
-conclude sig ctx (DCodeSumInjR dEq) = do
-  (l, r, ty) <- conclude sig ctx dEq >>= needElEq
+conclude env sig ctx (DCodeSumInjR dEq) = do
+  (l, r, ty) <- conclude env sig ctx dEq >>= needElEq
   alphaTy "code-sum-inj" ty Ty.UniverseTy
   case (l, r) of
     (Elem.SumTy _ b0, Elem.SumTy _ b1) => pure (JElEq b0 b1 Ty.UniverseTy)
     _ => kerr "derivation: code-sum-inj: not a ⊎ code equation"
-conclude sig ctx (DCodeQuotInjDom dR0 dR1 dEq) = do
-  (a0, a1, r0, r1) <- codeQuotInj sig ctx dR0 dR1 dEq
+conclude env sig ctx (DCodeQuotInjDom dR0 dR1 dEq) = do
+  (a0, a1, r0, r1) <- codeQuotInj env sig ctx dR0 dR1 dEq
   pure (JElEq a0 a1 Ty.UniverseTy)
-conclude sig ctx (DCodeQuotInjRel dR0 dR1 dEq) = do
-  (a0, a1, r0, r1) <- codeQuotInj sig ctx dR0 dR1 dEq
+conclude env sig ctx (DCodeQuotInjRel dR0 dR1 dEq) = do
+  (a0, a1, r0, r1) <- codeQuotInj env sig ctx dR0 dR1 dEq
   pure (JElEq r0 r1 Ty.PropTy)
 
 -- normal substitutions
-conclude sig ctx DSubNEmpty = pure (JSubN [<] [<])
-conclude sig ctx (DSubNExt dEs dA dE) = do
-  (es, delta) <- conclude sig ctx dEs >>= needSubN
-  a <- conclude sig delta dA >>= needTy
-  (e, ety) <- conclude sig ctx dE >>= needEl
+conclude env sig ctx DSubNEmpty = pure (JSubN [<] [<])
+conclude env sig ctx (DSubNExt dEs dA dE) = do
+  (es, delta) <- conclude env sig ctx dEs >>= needSubN
+  a <- conclude env sig delta dA >>= needTy
+  (e, ety) <- conclude env sig ctx dE >>= needEl
   alphaTy "sub-norm-ext" ety (substTy a (embed es))
   pure (JSubN (es :< e) (delta :< a))
 
 
 -- the remaining equivalence instances, ext-congruences, coercions
-conclude sig ctx (DCtxRefl d) = do
-  g <- conclude sig ctx d >>= needCtx
+conclude env sig ctx (DCtxRefl d) = do
+  g <- conclude env sig ctx d >>= needCtx
   pure (JCtxEq g g)
-conclude sig ctx (DCtxSym d) = do
-  (g0, g1) <- conclude sig ctx d >>= needCtxEq
+conclude env sig ctx (DCtxSym d) = do
+  (g0, g1) <- conclude env sig ctx d >>= needCtxEq
   pure (JCtxEq g1 g0)
-conclude sig ctx (DCtxTrans d01 d12) = do
-  (g0, g1) <- conclude sig ctx d01 >>= needCtxEq
-  (g1', g2) <- conclude sig ctx d12 >>= needCtxEq
+conclude env sig ctx (DCtxTrans d01 d12) = do
+  (g0, g1) <- conclude env sig ctx d01 >>= needCtxEq
+  (g1', g2) <- conclude env sig ctx d12 >>= needCtxEq
   if g1' == g1 then pure () else kerr "derivation: ctx-trans: middle mismatch"
   pure (JCtxEq g0 g2)
-conclude sig ctx (DCtxExtCong dG dA) = do
-  (g0, g1) <- conclude sig ctx dG >>= needCtxEq
-  (a0, a1) <- conclude sig g1 dA >>= needTyEq
+conclude env sig ctx (DCtxExtCong dG dA) = do
+  (g0, g1) <- conclude env sig ctx dG >>= needCtxEq
+  (a0, a1) <- conclude env sig g1 dA >>= needTyEq
   pure (JCtxEq (g0 :< a0) (g1 :< a1))
-conclude sig ctx (DSubRefl d) = do
-  (s', d') <- conclude sig ctx d >>= needSub
+conclude env sig ctx (DSubRefl d) = do
+  (s', d') <- conclude env sig ctx d >>= needSub
   pure (JSubEq s' s' d')
-conclude sig ctx (DSubSym d) = do
-  (s0, s1, d') <- conclude sig ctx d >>= needSubEq
+conclude env sig ctx (DSubSym d) = do
+  (s0, s1, d') <- conclude env sig ctx d >>= needSubEq
   pure (JSubEq s1 s0 d')
-conclude sig ctx (DSubTrans d01 d12) = do
-  (s0, s1, d') <- conclude sig ctx d01 >>= needSubEq
-  (s1', s2, d'') <- conclude sig ctx d12 >>= needSubEq
+conclude env sig ctx (DSubTrans d01 d12) = do
+  (s0, s1, d') <- conclude env sig ctx d01 >>= needSubEq
+  (s1', s2, d'') <- conclude env sig ctx d12 >>= needSubEq
   if s1' == s1 && d'' == d' then pure ()
     else kerr "derivation: sub-trans: middle mismatch"
   pure (JSubEq s0 s2 d')
-conclude sig ctx (DSubNRefl d) = do
-  (es, d') <- conclude sig ctx d >>= needSubN
+conclude env sig ctx (DSubNRefl d) = do
+  (es, d') <- conclude env sig ctx d >>= needSubN
   pure (JSubNEq es es d')
-conclude sig ctx (DSubNSym d) = do
-  (e0, e1, d') <- conclude sig ctx d >>= needSubNEq
+conclude env sig ctx (DSubNSym d) = do
+  (e0, e1, d') <- conclude env sig ctx d >>= needSubNEq
   pure (JSubNEq e1 e0 d')
-conclude sig ctx (DSubNTrans d01 d12) = do
-  (e0, e1, d') <- conclude sig ctx d01 >>= needSubNEq
-  (e1', e2, d'') <- conclude sig ctx d12 >>= needSubNEq
+conclude env sig ctx (DSubNTrans d01 d12) = do
+  (e0, e1, d') <- conclude env sig ctx d01 >>= needSubNEq
+  (e1', e2, d'') <- conclude env sig ctx d12 >>= needSubNEq
   if e1' == e1 && d'' == d' then pure ()
     else kerr "derivation: sub-norm (trans): middle mismatch"
   pure (JSubNEq e0 e2 d')
-conclude sig ctx (DSubNExtCong dEs dA dT) = do
-  (e0, e1, delta) <- conclude sig ctx dEs >>= needSubNEq
-  a <- conclude sig delta dA >>= needTy
-  (t0, t1, tty) <- conclude sig ctx dT >>= needElEq
+conclude env sig ctx (DSubNExtCong dEs dA dT) = do
+  (e0, e1, delta) <- conclude env sig ctx dEs >>= needSubNEq
+  a <- conclude env sig delta dA >>= needTy
+  (t0, t1, tty) <- conclude env sig ctx dT >>= needElEq
   alphaTy "sub-norm-ext-cong" tty (substTy a (embed e1))
   pure (JSubNEq (e0 :< t0) (e1 :< t1) (delta :< a))
-conclude sig ctx (DElSubCong dS dEq) = do
-  (s0, s1, g1) <- conclude sig ctx dS >>= needSubEq
-  (t0, t1, a) <- conclude sig g1 dEq >>= needElEq
+conclude env sig ctx (DElSubCong dS dEq) = do
+  (s0, s1, g1) <- conclude env sig ctx dS >>= needSubEq
+  (t0, t1, a) <- conclude env sig g1 dEq >>= needElEq
   pure (JElEq (substElem t0 s0) (substElem t1 s1) (substTy a s1))
-conclude sig ctx (DTySubCong dS dEq) = do
-  (s0, s1, g1) <- conclude sig ctx dS >>= needSubEq
-  (a0, a1) <- conclude sig g1 dEq >>= needTyEq
+conclude env sig ctx (DTySubCong dS dEq) = do
+  (s0, s1, g1) <- conclude env sig ctx dS >>= needSubEq
+  (a0, a1) <- conclude env sig g1 dEq >>= needTyEq
   pure (JTyEq (substTy a0 s0) (substTy a1 s1))
-conclude sig ctx DTelEmpty = pure (JTel [])
-conclude sig ctx (DTelExt dA dD) = do
-  a <- conclude sig ctx dA >>= needTy
-  d <- conclude sig (ctx :< a) dD >>= needTel
+conclude env sig ctx DTelEmpty = pure (JTel [])
+conclude env sig ctx (DTelExt dA dD) = do
+  a <- conclude env sig ctx dA >>= needTy
+  d <- conclude env sig (ctx :< a) dD >>= needTel
   pure (JTel (a :: d))
-conclude sig ctx (DTelExtCong dA dD) = do
-  (a0, a1) <- conclude sig ctx dA >>= needTyEq
-  (d0, d1) <- conclude sig (ctx :< a1) dD >>= needTelEq
+conclude env sig ctx (DTelExtCong dA dD) = do
+  (a0, a1) <- conclude env sig ctx dA >>= needTyEq
+  (d0, d1) <- conclude env sig (ctx :< a1) dD >>= needTelEq
   pure (JTelEq (a0 :: d0) (a1 :: d1))
-conclude sig ctx (DTelRefl d) = do
-  t <- conclude sig ctx d >>= needTel
+conclude env sig ctx (DTelRefl d) = do
+  t <- conclude env sig ctx d >>= needTel
   pure (JTelEq t t)
-conclude sig ctx (DTelSym d) = do
-  (d0, d1) <- conclude sig ctx d >>= needTelEq
+conclude env sig ctx (DTelSym d) = do
+  (d0, d1) <- conclude env sig ctx d >>= needTelEq
   pure (JTelEq d1 d0)
-conclude sig ctx (DTelTrans d01 d12) = do
-  (d0, d1) <- conclude sig ctx d01 >>= needTelEq
-  (d1', d2) <- conclude sig ctx d12 >>= needTelEq
+conclude env sig ctx (DTelTrans d01 d12) = do
+  (d0, d1) <- conclude env sig ctx d01 >>= needTelEq
+  (d1', d2) <- conclude env sig ctx d12 >>= needTelEq
   if d1' == d1 then pure () else kerr "derivation: tel-trans: middle mismatch"
   pure (JTelEq d0 d2)
-conclude sig ctx DSpEmpty = pure (JSp [] [])
-conclude sig ctx (DSpExt dE dD dEs) = do
-  (e, a) <- conclude sig ctx dE >>= needEl
-  d <- conclude sig (ctx :< a) dD >>= needTel
-  (es, dInst) <- conclude sig ctx dEs >>= needSp
+conclude env sig ctx DSpEmpty = pure (JSp [] [])
+conclude env sig ctx (DSpExt dE dD dEs) = do
+  (e, a) <- conclude env sig ctx dE >>= needEl
+  d <- conclude env sig (ctx :< a) dD >>= needTel
+  (es, dInst) <- conclude env sig ctx dEs >>= needSp
   if dInst == map (\t => substTy t (Ext Id e)) d then pure ()
     else kerr "derivation: sp-ext: tail not at the instantiated telescope"
   pure (JSp (e :: es) (a :: d))
-conclude sig ctx (DSpExtCong dE dD dEs) = do
-  (e0, e1, a) <- conclude sig ctx dE >>= needElEq
-  d <- conclude sig (ctx :< a) dD >>= needTel
-  (es0, es1, dInst) <- conclude sig ctx dEs >>= needSpEq
+conclude env sig ctx (DSpExtCong dE dD dEs) = do
+  (e0, e1, a) <- conclude env sig ctx dE >>= needElEq
+  d <- conclude env sig (ctx :< a) dD >>= needTel
+  (es0, es1, dInst) <- conclude env sig ctx dEs >>= needSpEq
   if dInst == map (\t => substTy t (Ext Id e1)) d then pure ()
     else kerr "derivation: sp-ext-cong: tails not at the instantiated telescope"
   pure (JSpEq (e0 :: es0) (e1 :: es1) (a :: d))
-conclude sig ctx (DSpRefl d) = do
-  (es, d') <- conclude sig ctx d >>= needSp
+conclude env sig ctx (DSpRefl d) = do
+  (es, d') <- conclude env sig ctx d >>= needSp
   pure (JSpEq es es d')
-conclude sig ctx (DSpSym d) = do
-  (e0, e1, d') <- conclude sig ctx d >>= needSpEq
+conclude env sig ctx (DSpSym d) = do
+  (e0, e1, d') <- conclude env sig ctx d >>= needSpEq
   pure (JSpEq e1 e0 d')
-conclude sig ctx (DSpTrans d01 d12) = do
-  (e0, e1, d') <- conclude sig ctx d01 >>= needSpEq
-  (e1', e2, d'') <- conclude sig ctx d12 >>= needSpEq
+conclude env sig ctx (DSpTrans d01 d12) = do
+  (e0, e1, d') <- conclude env sig ctx d01 >>= needSpEq
+  (e1', e2, d'') <- conclude env sig ctx d12 >>= needSpEq
   if e1' == e1 && d'' == d' then pure ()
     else kerr "derivation: sp-trans: middle mismatch"
   pure (JSpEq e0 e2 d')
-conclude sig ctx (DTyCoeCtx dG dA) = do
-  (g0, g1) <- conclude sig ctx dG >>= needCtxEq
+conclude env sig ctx (DTyCoeCtx dG dA) = do
+  (g0, g1) <- conclude env sig ctx dG >>= needCtxEq
   if ctx == g1 then pure ()
     else kerr "derivation: ty-coe-ctx: ambient is not the equation's right context"
-  a <- conclude sig g0 dA >>= needTy
+  a <- conclude env sig g0 dA >>= needTy
   pure (JTy a)
-conclude sig ctx (DElCoeCtx dG dA) = do
-  (g0, g1) <- conclude sig ctx dG >>= needCtxEq
+conclude env sig ctx (DElCoeCtx dG dA) = do
+  (g0, g1) <- conclude env sig ctx dG >>= needCtxEq
   if ctx == g1 then pure ()
     else kerr "derivation: el-coe-ctx: ambient is not the equation's right context"
-  (a, aty) <- conclude sig g0 dA >>= needEl
+  (a, aty) <- conclude env sig g0 dA >>= needEl
   pure (JEl a aty)
-conclude sig ctx (DTyEqCoeCtx dG dA) = do
-  (g0, g1) <- conclude sig ctx dG >>= needCtxEq
+conclude env sig ctx (DTyEqCoeCtx dG dA) = do
+  (g0, g1) <- conclude env sig ctx dG >>= needCtxEq
   if ctx == g1 then pure ()
     else kerr "derivation: ty-eq-coe-ctx: ambient is not the equation's right context"
-  (a0, a1) <- conclude sig g0 dA >>= needTyEq
+  (a0, a1) <- conclude env sig g0 dA >>= needTyEq
   pure (JTyEq a0 a1)
-conclude sig ctx (DElEqCoeCtx dG dA) = do
-  (g0, g1) <- conclude sig ctx dG >>= needCtxEq
+conclude env sig ctx (DElEqCoeCtx dG dA) = do
+  (g0, g1) <- conclude env sig ctx dG >>= needCtxEq
   if ctx == g1 then pure ()
     else kerr "derivation: el-eq-coe-ctx: ambient is not the equation's right context"
-  (t0, t1, a) <- conclude sig g0 dA >>= needElEq
+  (t0, t1, a) <- conclude env sig g0 dA >>= needElEq
   pure (JElEq t0 t1 a)
 
 -- ADMISSIBLE: presupposition projection
-conclude sig ctx (DPresupElL d) = do
-  (t0, _, a) <- conclude sig ctx d >>= needElEq
+conclude env sig ctx (DPresupElL d) = do
+  (t0, _, a) <- conclude env sig ctx d >>= needElEq
   pure (JEl t0 a)
-conclude sig ctx (DPresupElR d) = do
-  (_, t1, a) <- conclude sig ctx d >>= needElEq
+conclude env sig ctx (DPresupElR d) = do
+  (_, t1, a) <- conclude env sig ctx d >>= needElEq
   pure (JEl t1 a)
-conclude sig ctx (DPresupElTy d) = do
-  (_, a) <- conclude sig ctx d >>= needEl
+conclude env sig ctx (DPresupElTy d) = do
+  (_, a) <- conclude env sig ctx d >>= needEl
   pure (JTy a)
-conclude sig ctx (DPresupTyL d) = do
-  (a0, _) <- conclude sig ctx d >>= needTyEq
+conclude env sig ctx (DPresupTyL d) = do
+  (a0, _) <- conclude env sig ctx d >>= needTyEq
   pure (JTy a0)
-conclude sig ctx (DPresupTyR d) = do
-  (_, a1) <- conclude sig ctx d >>= needTyEq
+conclude env sig ctx (DPresupTyR d) = do
+  (_, a1) <- conclude env sig ctx d >>= needTyEq
   pure (JTy a1)
 
 -- ADMISSIBLE: formation inversion (docs/NovaDerivations.txt) — the
 -- cod instances replay their premise BELOW the top binder, which
 -- must α-match the inverted domain
-conclude sig ctx (DInvPiDom d) = do
-  t <- conclude sig ctx d >>= needTy
+conclude env sig ctx (DInvPiDom d) = do
+  t <- conclude env sig ctx d >>= needTy
   case t of
     Ty.PiTy a _ => pure (JTy a)
     _ => kerr "derivation: inv-pi-dom: premise not a Π formation"
-conclude sig ctx (DInvPiCod d) =
+conclude env sig ctx (DInvPiCod d) =
   case ctx of
     rest :< a' => do
-      t <- conclude sig rest d >>= needTy
+      t <- conclude env sig rest d >>= needTy
       case t of
         Ty.PiTy a b => do
           alphaTy "inv-pi-cod (binder)" a a'
           pure (JTy b)
         _ => kerr "derivation: inv-pi-cod: premise not a Π formation"
     [<] => kerr "derivation: inv-pi-cod: empty context"
-conclude sig ctx (DInvSigmaDom d) = do
-  t <- conclude sig ctx d >>= needTy
+conclude env sig ctx (DInvSigmaDom d) = do
+  t <- conclude env sig ctx d >>= needTy
   case t of
     Ty.SigmaTy a _ => pure (JTy a)
     _ => kerr "derivation: inv-sigma-dom: premise not a Σ formation"
-conclude sig ctx (DInvSigmaCod d) =
+conclude env sig ctx (DInvSigmaCod d) =
   case ctx of
     rest :< a' => do
-      t <- conclude sig rest d >>= needTy
+      t <- conclude env sig rest d >>= needTy
       case t of
         Ty.SigmaTy a b => do
           alphaTy "inv-sigma-cod (binder)" a a'
           pure (JTy b)
         _ => kerr "derivation: inv-sigma-cod: premise not a Σ formation"
     [<] => kerr "derivation: inv-sigma-cod: empty context"
-conclude sig ctx (DInvPrfEqL d) = do
-  t <- conclude sig ctx d >>= needTy
+conclude env sig ctx (DInvPrfEqL d) = do
+  t <- conclude env sig ctx d >>= needTy
   case t of
     Prf (Elem.EqTy a _ ty) => pure (JEl a ty)
     _ => kerr "derivation: inv-prf-eq-lhs: premise not a Prf-equality formation"
-conclude sig ctx (DInvPrfEqR d) = do
-  t <- conclude sig ctx d >>= needTy
+conclude env sig ctx (DInvPrfEqR d) = do
+  t <- conclude env sig ctx d >>= needTy
   case t of
     Prf (Elem.EqTy _ b ty) => pure (JEl b ty)
     _ => kerr "derivation: inv-prf-eq-rhs: premise not a Prf-equality formation"
-conclude sig ctx (DInvPrfEqTy d) = do
-  t <- conclude sig ctx d >>= needTy
+conclude env sig ctx (DInvPrfEqTy d) = do
+  t <- conclude env sig ctx d >>= needTy
   case t of
     Prf (Elem.EqTy _ _ ty) => pure (JTy ty)
     _ => kerr "derivation: inv-prf-eq-ty: premise not a Prf-equality formation"
-conclude sig ctx (DInvPrfCode d) = do
-  t <- conclude sig ctx d >>= needTy
+conclude env sig ctx (DInvPrfCode d) = do
+  t <- conclude env sig ctx d >>= needTy
   case t of
     Prf p => pure (JEl p Ty.PropTy)
     _ => kerr "derivation: inv-prf-code: premise not a Prf formation"
-conclude sig ctx (DInvElCode d) = do
-  t <- conclude sig ctx d >>= needTy
+conclude env sig ctx (DInvElCode d) = do
+  t <- conclude env sig ctx d >>= needTy
   case t of
     El a => pure (JEl a Ty.UniverseTy)
     _ => kerr "derivation: inv-el-code: premise not an El formation"
-conclude sig ctx (DInvCodeEqL d) = do
-  (c, cty) <- conclude sig ctx d >>= needEl
+conclude env sig ctx (DInvCodeEqL d) = do
+  (c, cty) <- conclude env sig ctx d >>= needEl
   alphaTy "inv-code-eq-lhs" cty Ty.PropTy
   case c of
     Elem.EqTy l _ t => pure (JEl l t)
     _ => kerr "derivation: inv-code-eq-lhs: premise not an equality code"
-conclude sig ctx (DInvCodeEqR d) = do
-  (c, cty) <- conclude sig ctx d >>= needEl
+conclude env sig ctx (DInvCodeEqR d) = do
+  (c, cty) <- conclude env sig ctx d >>= needEl
   alphaTy "inv-code-eq-rhs" cty Ty.PropTy
   case c of
     Elem.EqTy _ r t => pure (JEl r t)
     _ => kerr "derivation: inv-code-eq-rhs: premise not an equality code"
-conclude sig ctx (DInvCodeEqTy d) = do
-  (c, cty) <- conclude sig ctx d >>= needEl
+conclude env sig ctx (DInvCodeEqTy d) = do
+  (c, cty) <- conclude env sig ctx d >>= needEl
   alphaTy "inv-code-eq-ty" cty Ty.PropTy
   case c of
     Elem.EqTy _ _ t => pure (JTy t)
@@ -1710,38 +1725,53 @@ conclude sig ctx (DInvCodeEqTy d) = do
 -- path, demand a ≜ redex, contract (Nova.Kernel.Beta, one clause per
 -- ≜ rule); the conclusion's right side is COMPUTED, and its typing
 -- flows to consumers by presupposition
-conclude sig ctx (DBetaAt p d) = do
-  (t, a) <- conclude sig ctx d >>= needEl
+conclude env sig ctx (DBetaAt p d) = do
+  (t, a) <- conclude env sig ctx d >>= needEl
   case contractAtE sig p t of
     Just t' => pure (JElEq t t' a)
     Nothing => kerr "derivation: beta-at: no ≜ redex at the path"
-conclude sig ctx (DBetaAtTy p d) = do
-  a <- conclude sig ctx d >>= needTy
+conclude env sig ctx (DBetaAtTy p d) = do
+  a <- conclude env sig ctx d >>= needTy
   case contractAtT sig p a of
     Just a' => pure (JTyEq a a')
     Nothing => kerr "derivation: beta-at-ty: no ≜ redex at the path"
 
 -- ADMISSIBLE: the nf oracle (the typing premise is load-bearing —
 -- docs/NovaDerivations.txt)
-conclude sig ctx (DNfExpand d) = do
-  (t, a) <- conclude sig ctx d >>= needEl
+conclude env sig ctx (DNfExpand d) = do
+  (t, a) <- conclude env sig ctx d >>= needEl
   t' <- kElem sig t
   pure (JElEq t t' a)
-conclude sig ctx (DNfExpandTy d) = do
-  a <- conclude sig ctx d >>= needTy
+conclude env sig ctx (DNfExpandTy d) = do
+  a <- conclude env sig ctx d >>= needTy
   a' <- kTy sig a
   pure (JTyEq a a')
-conclude sig ctx (DNfEq d0 d1) = do
-  (t0, a) <- conclude sig ctx d0 >>= needEl
-  (t1, a') <- conclude sig ctx d1 >>= needEl
+conclude env sig ctx (DShare cx d body) = do
+  j <- conclude env sig cx d
+  conclude (env ++ [(cx, j)]) sig ctx body
+conclude env sig ctx (DRef i) =
+  case inBounds' i env of
+    Just (cx, j) =>
+      if cx == ctx
+        then pure j
+        else kerr "derivation: share-ref cited outside its binding context"
+    Nothing => kerr "derivation: share-ref out of range"
+ where
+  inBounds' : Nat -> List a -> Maybe a
+  inBounds' _ [] = Nothing
+  inBounds' Z (x :: _) = Just x
+  inBounds' (S n) (_ :: rest) = inBounds' n rest
+conclude env sig ctx (DNfEq d0 d1) = do
+  (t0, a) <- conclude env sig ctx d0 >>= needEl
+  (t1, a') <- conclude env sig ctx d1 >>= needEl
   alphaTy "nf-eq" a' a
   n0 <- kElem sig t0
   n1 <- kElem sig t1
   alphaEl "nf-eq" n0 n1
   pure (JElEq t0 t1 a)
-conclude sig ctx (DNfEqTy d0 d1) = do
-  a0 <- conclude sig ctx d0 >>= needTy
-  a1 <- conclude sig ctx d1 >>= needTy
+conclude env sig ctx (DNfEqTy d0 d1) = do
+  a0 <- conclude env sig ctx d0 >>= needTy
+  a1 <- conclude env sig ctx d1 >>= needTy
   n0 <- kTy sig a0
   n1 <- kTy sig a1
   alphaTy "nf-eq-ty" n0 n1
@@ -1749,50 +1779,50 @@ conclude sig ctx (DNfEqTy d0 d1) = do
 
 
 -- quotients
-conclude sig ctx (DElQuotI dA dR) = do
-  (a, aty) <- conclude sig ctx dA >>= needEl
-  (r, rty) <- conclude sig (ctx :< aty :< wkTy aty) dR >>= needEl
+conclude env sig ctx (DElQuotI dA dR) = do
+  (a, aty) <- conclude env sig ctx dA >>= needEl
+  (r, rty) <- conclude env sig (ctx :< aty :< wkTy aty) dR >>= needEl
   alphaTy "el-quot-i" rty Ty.PropTy
   pure (JEl (Class a) (Ty.Quotient aty r))
-conclude sig ctx (DElQuotEq dA dB dR dW) = do
-  (a, aty) <- conclude sig ctx dA >>= needEl
-  (b, bty) <- conclude sig ctx dB >>= needEl
+conclude env sig ctx (DElQuotEq dA dB dR dW) = do
+  (a, aty) <- conclude env sig ctx dA >>= needEl
+  (b, bty) <- conclude env sig ctx dB >>= needEl
   alphaTy "el-quot-eq" bty aty
-  (r, rty) <- conclude sig (ctx :< aty :< wkTy aty) dR >>= needEl
+  (r, rty) <- conclude env sig (ctx :< aty :< wkTy aty) dR >>= needEl
   alphaTy "el-quot-eq" rty Ty.PropTy
-  (_, wty) <- conclude sig ctx dW >>= needEl
+  (_, wty) <- conclude env sig ctx dW >>= needEl
   alphaTy "el-quot-eq (witness)" wty
     (Prf (substElem r (Ext (Ext Id a) b)))
   pure (JElEq (Class a) (Class b) (Ty.Quotient aty r))
-conclude sig ctx (DElQuotE dQ dB dF dResp) = do
-  (q, qty) <- conclude sig ctx dQ >>= needEl
+conclude env sig ctx (DElQuotE dQ dB dF dResp) = do
+  (q, qty) <- conclude env sig ctx dQ >>= needEl
   case qty of
     Ty.Quotient a r => do
-      b <- conclude sig (ctx :< Ty.Quotient a r) dB >>= needTy
-      (f, fty) <- conclude sig (ctx :< a) dF >>= needEl
+      b <- conclude env sig (ctx :< Ty.Quotient a r) dB >>= needTy
+      (f, fty) <- conclude env sig (ctx :< a) dF >>= needEl
       alphaTy "el-quot-e (case)" fty (substTy b (Ext Wk (Class (CtxVar 0))))
       let wk3 = Chain Wk (Chain Wk Wk)
-      (l, r', ety) <- conclude sig (ctx :< a :< wkTy a :< Prf r) dResp >>= needElEq
+      (l, r', ety) <- conclude env sig (ctx :< a :< wkTy a :< Prf r) dResp >>= needElEq
       alphaEl "el-quot-e (wd l)" l (substElem f (Ext wk3 (CtxVar 2)))
       alphaEl "el-quot-e (wd r)" r' (substElem f (Ext wk3 (CtxVar 1)))
       alphaTy "el-quot-e (wd ty)" ety (substTy b (Ext wk3 (Class (CtxVar 2))))
       pure (JEl (QuotElim f q) (substTy b (Ext Id q)))
     _ => kerr "derivation: el-quot-e: scrutinee not at a quotient type"
-conclude sig ctx (DElQuotEta dQ dB dG dF dResp dAg) = do
-  (q, qty) <- conclude sig ctx dQ >>= needEl
+conclude env sig ctx (DElQuotEta dQ dB dG dF dResp dAg) = do
+  (q, qty) <- conclude env sig ctx dQ >>= needEl
   case qty of
     Ty.Quotient a r => do
-      b <- conclude sig (ctx :< Ty.Quotient a r) dB >>= needTy
-      (g, gty) <- conclude sig (ctx :< Ty.Quotient a r) dG >>= needEl
+      b <- conclude env sig (ctx :< Ty.Quotient a r) dB >>= needTy
+      (g, gty) <- conclude env sig (ctx :< Ty.Quotient a r) dG >>= needEl
       alphaTy "el-quot-eta (g)" gty b
-      (f, fty) <- conclude sig (ctx :< a) dF >>= needEl
+      (f, fty) <- conclude env sig (ctx :< a) dF >>= needEl
       alphaTy "el-quot-eta (f)" fty (substTy b (Ext Wk (Class (CtxVar 0))))
       let wk3 = Chain Wk (Chain Wk Wk)
-      (l, r', ety) <- conclude sig (ctx :< a :< wkTy a :< Prf r) dResp >>= needElEq
+      (l, r', ety) <- conclude env sig (ctx :< a :< wkTy a :< Prf r) dResp >>= needElEq
       alphaEl "el-quot-eta (wd l)" l (substElem f (Ext wk3 (CtxVar 2)))
       alphaEl "el-quot-eta (wd r)" r' (substElem f (Ext wk3 (CtxVar 1)))
       alphaTy "el-quot-eta (wd ty)" ety (substTy b (Ext wk3 (Class (CtxVar 2))))
-      (gl, gr, aty') <- conclude sig (ctx :< a) dAg >>= needElEq
+      (gl, gr, aty') <- conclude env sig (ctx :< a) dAg >>= needElEq
       alphaEl "el-quot-eta (ag l)" gl (substElem g (Ext Wk (Class (CtxVar 0))))
       alphaEl "el-quot-eta (ag r)" gr f
       alphaTy "el-quot-eta (ag ty)" aty' (substTy b (Ext Wk (Class (CtxVar 0))))
@@ -1800,52 +1830,52 @@ conclude sig ctx (DElQuotEta dQ dB dG dF dResp dAg) = do
     _ => kerr "derivation: el-quot-eta: scrutinee not at a quotient type"
 
 -- the remaining η rules
-conclude sig ctx (DElNatEta dMot dF0 dF1 dZ dS dEqZ dEqS0 dEqS1 dT) = do
-  mot <- conclude sig (ctx :< Ty.NatTy) dMot >>= needTy
-  (f0, f0ty) <- conclude sig (ctx :< Ty.NatTy) dF0 >>= needEl
+conclude env sig ctx (DElNatEta dMot dF0 dF1 dZ dS dEqZ dEqS0 dEqS1 dT) = do
+  mot <- conclude env sig (ctx :< Ty.NatTy) dMot >>= needTy
+  (f0, f0ty) <- conclude env sig (ctx :< Ty.NatTy) dF0 >>= needEl
   alphaTy "el-nat-eta (f₀)" f0ty mot
-  (f1, f1ty) <- conclude sig (ctx :< Ty.NatTy) dF1 >>= needEl
+  (f1, f1ty) <- conclude env sig (ctx :< Ty.NatTy) dF1 >>= needEl
   alphaTy "el-nat-eta (f₁)" f1ty mot
-  (z, zty) <- conclude sig ctx dZ >>= needEl
+  (z, zty) <- conclude env sig ctx dZ >>= needEl
   alphaTy "el-nat-eta (z)" zty (substTy mot (Ext Id NatIntro0))
-  (s, sty) <- conclude sig (ctx :< Ty.NatTy :< mot) dS >>= needEl
+  (s, sty) <- conclude env sig (ctx :< Ty.NatTy :< mot) dS >>= needEl
   alphaTy "el-nat-eta (s)" sty
     (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk))
-  (zl, zr, zety) <- conclude sig ctx dEqZ >>= needElEq
+  (zl, zr, zety) <- conclude env sig ctx dEqZ >>= needElEq
   alphaEl "el-nat-eta (Z l)" zl (substElem f0 (Ext Id NatIntro0))
   alphaEl "el-nat-eta (Z r)" zr (substElem f1 (Ext Id NatIntro0))
   alphaTy "el-nat-eta (Z ty)" zety (substTy mot (Ext Id NatIntro0))
   let sSub = Ext Wk (NatIntro1 (CtxVar 0))
-  (s0l, s0r, s0ty) <- conclude sig (ctx :< Ty.NatTy) dEqS0 >>= needElEq
+  (s0l, s0r, s0ty) <- conclude env sig (ctx :< Ty.NatTy) dEqS0 >>= needElEq
   alphaEl "el-nat-eta (S₀ l)" s0l (substElem f0 sSub)
   alphaEl "el-nat-eta (S₀ r)" s0r (substElem s (Ext Id f0))
   alphaTy "el-nat-eta (S₀ ty)" s0ty (substTy mot sSub)
-  (s1l, s1r, s1ty) <- conclude sig (ctx :< Ty.NatTy) dEqS1 >>= needElEq
+  (s1l, s1r, s1ty) <- conclude env sig (ctx :< Ty.NatTy) dEqS1 >>= needElEq
   alphaEl "el-nat-eta (S₁ l)" s1l (substElem f1 sSub)
   alphaEl "el-nat-eta (S₁ r)" s1r (substElem s (Ext Id f1))
   alphaTy "el-nat-eta (S₁ ty)" s1ty (substTy mot sSub)
-  (t, tty) <- conclude sig ctx dT >>= needEl
+  (t, tty) <- conclude env sig ctx dT >>= needEl
   alphaTy "el-nat-eta (t)" tty Ty.NatTy
   pure (JElEq (substElem f0 (Ext Id t)) (substElem f1 (Ext Id t))
               (substTy mot (Ext Id t)))
-conclude sig ctx (DElSumEta dT dC dG dL dR dAgL dAgR) = do
-  (t, tty) <- conclude sig ctx dT >>= needEl
+conclude env sig ctx (DElSumEta dT dC dG dL dR dAgL dAgR) = do
+  (t, tty) <- conclude env sig ctx dT >>= needEl
   case tty of
     Ty.SumTy a b => do
-      c <- conclude sig (ctx :< Ty.SumTy a b) dC >>= needTy
-      (g, gty) <- conclude sig (ctx :< Ty.SumTy a b) dG >>= needEl
+      c <- conclude env sig (ctx :< Ty.SumTy a b) dC >>= needTy
+      (g, gty) <- conclude env sig (ctx :< Ty.SumTy a b) dG >>= needEl
       alphaTy "el-sum-eta (g)" gty c
       let lSub = Ext Wk (Inj1 (CtxVar 0))
       let rSub = Ext Wk (Inj2 (CtxVar 0))
-      (l, lty) <- conclude sig (ctx :< a) dL >>= needEl
+      (l, lty) <- conclude env sig (ctx :< a) dL >>= needEl
       alphaTy "el-sum-eta (l)" lty (substTy c lSub)
-      (r, rty) <- conclude sig (ctx :< b) dR >>= needEl
+      (r, rty) <- conclude env sig (ctx :< b) dR >>= needEl
       alphaTy "el-sum-eta (r)" rty (substTy c rSub)
-      (all', alr, alty) <- conclude sig (ctx :< a) dAgL >>= needElEq
+      (all', alr, alty) <- conclude env sig (ctx :< a) dAgL >>= needElEq
       alphaEl "el-sum-eta (agl l)" all' (substElem g lSub)
       alphaEl "el-sum-eta (agl r)" alr l
       alphaTy "el-sum-eta (agl ty)" alty (substTy c lSub)
-      (arl, arr, arty) <- conclude sig (ctx :< b) dAgR >>= needElEq
+      (arl, arr, arty) <- conclude env sig (ctx :< b) dAgR >>= needElEq
       alphaEl "el-sum-eta (agr l)" arl (substElem g rSub)
       alphaEl "el-sum-eta (agr r)" arr r
       alphaTy "el-sum-eta (agr ty)" arty (substTy c rSub)
@@ -1853,132 +1883,132 @@ conclude sig ctx (DElSumEta dT dC dG dL dR dAgL dAgR) = do
     _ => kerr "derivation: el-sum-eta: scrutinee not at a ⊎ type"
 
 -- contexts and substitutions
-conclude sig ctx DCtxEmpty = pure (JCtx [<])
-conclude sig ctx (DCtxExt dG dA) = do
-  g <- conclude sig ctx dG >>= needCtx
-  a <- conclude sig g dA >>= needTy
+conclude env sig ctx DCtxEmpty = pure (JCtx [<])
+conclude env sig ctx (DCtxExt dG dA) = do
+  g <- conclude env sig ctx dG >>= needCtx
+  a <- conclude env sig g dA >>= needTy
   pure (JCtx (g :< a))
-conclude sig ctx DSubEmpty = pure (JSub Terminal [<])
-conclude sig ctx DSubId = pure (JSub Id ctx)
-conclude sig ctx DSubWk =
+conclude env sig ctx DSubEmpty = pure (JSub Terminal [<])
+conclude env sig ctx DSubId = pure (JSub Id ctx)
+conclude env sig ctx DSubWk =
   case ctx of
     (rest :< _) => pure (JSub Wk rest)
     [<] => kerr "derivation: sub-wk: the ambient context is empty"
-conclude sig ctx (DSubExt dS dA dT) = do
-  (s, g1) <- conclude sig ctx dS >>= needSub
-  a <- conclude sig g1 dA >>= needTy
-  (t, tty) <- conclude sig ctx dT >>= needEl
+conclude env sig ctx (DSubExt dS dA dT) = do
+  (s, g1) <- conclude env sig ctx dS >>= needSub
+  a <- conclude env sig g1 dA >>= needTy
+  (t, tty) <- conclude env sig ctx dT >>= needEl
   alphaTy "sub-ext" tty (substTy a s)
   pure (JSub (Ext s t) (g1 :< a))
-conclude sig ctx (DSubComp dS dT) = do
-  (s, g1) <- conclude sig ctx dS >>= needSub
-  (t, g2) <- conclude sig g1 dT >>= needSub
+conclude env sig ctx (DSubComp dS dT) = do
+  (s, g1) <- conclude env sig ctx dS >>= needSub
+  (t, g2) <- conclude env sig g1 dT >>= needSub
   pure (JSub (Chain t s) g2)
-conclude sig ctx (DSubExtCong dS dA dT) = do
-  (s0, s1, g1) <- conclude sig ctx dS >>= needSubEq
-  a <- conclude sig g1 dA >>= needTy
-  (t0, t1, tty) <- conclude sig ctx dT >>= needElEq
+conclude env sig ctx (DSubExtCong dS dA dT) = do
+  (s0, s1, g1) <- conclude env sig ctx dS >>= needSubEq
+  a <- conclude env sig g1 dA >>= needTy
+  (t0, t1, tty) <- conclude env sig ctx dT >>= needElEq
   alphaTy "sub-ext-cong" tty (substTy a s1)
   pure (JSubEq (Ext s0 t0) (Ext s1 t1) (g1 :< a))
-conclude sig ctx (DElSubCongFix dS dEq) = do
-  (s, g1) <- conclude sig ctx dS >>= needSub
-  (t0, t1, a) <- conclude sig g1 dEq >>= needElEq
+conclude env sig ctx (DElSubCongFix dS dEq) = do
+  (s, g1) <- conclude env sig ctx dS >>= needSub
+  (t0, t1, a) <- conclude env sig g1 dEq >>= needElEq
   pure (JElEq (substElem t0 s) (substElem t1 s) (substTy a s))
-conclude sig ctx (DTySubCongFix dS dEq) = do
-  (s, g1) <- conclude sig ctx dS >>= needSub
-  (a0, a1) <- conclude sig g1 dEq >>= needTyEq
+conclude env sig ctx (DTySubCongFix dS dEq) = do
+  (s, g1) <- conclude env sig ctx dS >>= needSub
+  (a0, a1) <- conclude env sig g1 dEq >>= needTyEq
   pure (JTyEq (substTy a0 s) (substTy a1 s))
 
 -- the ν layer
-conclude sig ctx DPolyHole = pure (JPoly PHole)
-conclude sig ctx (DPolyConst dA) = do
-  (a, aty) <- conclude sig ctx dA >>= needEl
+conclude env sig ctx DPolyHole = pure (JPoly PHole)
+conclude env sig ctx (DPolyConst dA) = do
+  (a, aty) <- conclude env sig ctx dA >>= needEl
   alphaTy "poly-const" aty Ty.UniverseTy
   pure (JPoly (PConst a))
-conclude sig ctx (DPolyProd dF dG) = do
-  f <- conclude sig ctx dF >>= needPoly
-  g <- conclude sig ctx dG >>= needPoly
+conclude env sig ctx (DPolyProd dF dG) = do
+  f <- conclude env sig ctx dF >>= needPoly
+  g <- conclude env sig ctx dG >>= needPoly
   pure (JPoly (PProd f g))
-conclude sig ctx (DPolySum dF dG) = do
-  f <- conclude sig ctx dF >>= needPoly
-  g <- conclude sig ctx dG >>= needPoly
+conclude env sig ctx (DPolySum dF dG) = do
+  f <- conclude env sig ctx dF >>= needPoly
+  g <- conclude env sig ctx dG >>= needPoly
   pure (JPoly (PSum f g))
-conclude sig ctx (DPolySigma dA dF) = do
-  (a, aty) <- conclude sig ctx dA >>= needEl
+conclude env sig ctx (DPolySigma dA dF) = do
+  (a, aty) <- conclude env sig ctx dA >>= needEl
   alphaTy "poly-sigma" aty Ty.UniverseTy
-  f <- conclude sig (ctx :< El a) dF >>= needPoly
+  f <- conclude env sig (ctx :< El a) dF >>= needPoly
   pure (JPoly (PSigma a f))
-conclude sig ctx (DPolyPi dA dF) = do
-  (a, aty) <- conclude sig ctx dA >>= needEl
+conclude env sig ctx (DPolyPi dA dF) = do
+  (a, aty) <- conclude env sig ctx dA >>= needEl
   alphaTy "poly-pi" aty Ty.UniverseTy
-  f <- conclude sig (ctx :< El a) dF >>= needPoly
+  f <- conclude env sig (ctx :< El a) dF >>= needPoly
   pure (JPoly (PPi a f))
-conclude sig ctx (DTyNu dF) = do
-  f <- conclude sig ctx dF >>= needPoly
+conclude env sig ctx (DTyNu dF) = do
+  f <- conclude env sig ctx dF >>= needPoly
   pure (JTy (Ty.NuTy f))
-conclude sig ctx (DCodeNu dF) = do
-  f <- conclude sig ctx dF >>= needPoly
+conclude env sig ctx (DCodeNu dF) = do
+  f <- conclude env sig ctx dF >>= needPoly
   pure (JEl (Elem.NuTy f) Ty.UniverseTy)
-conclude sig ctx (DElNuE dF dT) = do
-  f <- conclude sig ctx dF >>= needPoly
-  (t, tty) <- conclude sig ctx dT >>= needEl
+conclude env sig ctx (DElNuE dF dT) = do
+  f <- conclude env sig ctx dF >>= needPoly
+  (t, tty) <- conclude env sig ctx dT >>= needEl
   alphaTy "el-nu-e" tty (Ty.NuTy f)
   pure (JEl (Out t) (El (reflectPoly f (Elem.NuTy f))))
-conclude sig ctx (DElNuI dF dA dBody dX) = do
-  f <- conclude sig ctx dF >>= needPoly
-  (a, aty) <- conclude sig ctx dA >>= needEl
+conclude env sig ctx (DElNuI dF dA dBody dX) = do
+  f <- conclude env sig ctx dF >>= needPoly
+  (a, aty) <- conclude env sig ctx dA >>= needEl
   alphaTy "el-nu-i (carrier)" aty Ty.UniverseTy
-  (body, bty) <- conclude sig (ctx :< El a) dBody >>= needEl
+  (body, bty) <- conclude env sig (ctx :< El a) dBody >>= needEl
   alphaTy "el-nu-i (coalgebra)" bty (wkTy (El (reflectPoly f a)))
-  (x, xty) <- conclude sig ctx dX >>= needEl
+  (x, xty) <- conclude env sig ctx dX >>= needEl
   alphaTy "el-nu-i (seed)" xty (El a)
   pure (JEl (Corec f a body x) (Ty.NuTy f))
-conclude sig ctx (DElNuCoind dF dT0 dT1 dR dP dQ) = do
-  f <- conclude sig ctx dF >>= needPoly
+conclude env sig ctx (DElNuCoind dF dT0 dT1 dR dP dQ) = do
+  f <- conclude env sig ctx dF >>= needPoly
   let nuT = Ty.NuTy f
-  (t0, t0ty) <- conclude sig ctx dT0 >>= needEl
+  (t0, t0ty) <- conclude env sig ctx dT0 >>= needEl
   alphaTy "el-nu-coind (t₀)" t0ty nuT
-  (t1, t1ty) <- conclude sig ctx dT1 >>= needEl
+  (t1, t1ty) <- conclude env sig ctx dT1 >>= needEl
   alphaTy "el-nu-coind (t₁)" t1ty nuT
-  (r, rty) <- conclude sig (ctx :< nuT :< substTy nuT Wk) dR >>= needEl
+  (r, rty) <- conclude env sig (ctx :< nuT :< substTy nuT Wk) dR >>= needEl
   alphaTy "el-nu-coind (R)" rty Ty.PropTy
-  (_, pty) <- conclude sig ctx dP >>= needEl
+  (_, pty) <- conclude env sig ctx dP >>= needEl
   alphaTy "el-nu-coind (endpoint)" pty
     (Prf (substElem r (Ext (Ext Id t0) t1)))
   let wk3 = Chain Wk (Chain Wk Wk)
-  (_, qty) <- conclude sig (ctx :< nuT :< substTy nuT Wk :< Prf r) dQ >>= needEl
+  (_, qty) <- conclude env sig (ctx :< nuT :< substTy nuT Wk :< Prf r) dQ >>= needEl
   alphaTy "el-nu-coind (closure)" qty
     (Prf (liftPoly (substPoly f wk3) (substElem r (under (under wk3)))
             (Out (CtxVar 2)) (Out (CtxVar 1))))
   pure (JElEq t0 t1 nuT)
 
 -- the ToS layer
-conclude sig ctx DQCtxEmpty = pure (JQCtx [<])
-conclude sig ctx (DQCtxExt dPhi dA) = do
-  phi <- conclude sig ctx dPhi >>= needQCtx
-  a <- concludeQTy sig ctx phi dA
+conclude env sig ctx DQCtxEmpty = pure (JQCtx [<])
+conclude env sig ctx (DQCtxExt dPhi dA) = do
+  phi <- conclude env sig ctx dPhi >>= needQCtx
+  a <- concludeQTy env sig ctx phi dA
   pure (JQCtx (phi :< a))
-conclude sig ctx (DQSig dPhi) = do
-  phi <- conclude sig ctx dPhi >>= needQCtx
+conclude env sig ctx (DQSig dPhi) = do
+  phi <- conclude env sig ctx dPhi >>= needQCtx
   pure (JQSig (toList phi))
-conclude sig ctx d@DQTyUniv = kerr "derivation: qty node outside the Γ;Φ zone"
-conclude sig ctx d@(DQTyEl _) = kerr "derivation: qty node outside the Γ;Φ zone"
-conclude sig ctx d@(DQTyPiExt _ _) = kerr "derivation: qty node outside the Γ;Φ zone"
-conclude sig ctx d@(DQTyPiInd _ _) = kerr "derivation: qty node outside the Γ;Φ zone"
-conclude sig ctx d@(DQTmVar _) = kerr "derivation: qtm node outside the Γ;Φ zone"
-conclude sig ctx d@(DQTmAppExt _ _) = kerr "derivation: qtm node outside the Γ;Φ zone"
-conclude sig ctx d@(DQTmAppInd _ _) = kerr "derivation: qtm node outside the Γ;Φ zone"
-conclude sig ctx d@(DQTmEq _ _) = kerr "derivation: qtm node outside the Γ;Φ zone"
-conclude sig ctx d@(DQTmSub _ _) = kerr "derivation: qtm node outside the Γ;Φ zone"
-conclude sig ctx d@DQSubId = kerr "derivation: qsub node outside the Γ;Φ zone"
-conclude sig ctx d@DQSubWk = kerr "derivation: qsub node outside the Γ;Φ zone"
-conclude sig ctx d@(DQSubComp _ _) = kerr "derivation: qsub node outside the Γ;Φ zone"
-conclude sig ctx d@(DQSubExt _ _ _) = kerr "derivation: qsub node outside the Γ;Φ zone"
-conclude sig ctx d@(DQTySub _ _) = kerr "derivation: qty node outside the Γ;Φ zone"
+conclude env sig ctx d@DQTyUniv = kerr "derivation: qty node outside the Γ;Φ zone"
+conclude env sig ctx d@(DQTyEl _) = kerr "derivation: qty node outside the Γ;Φ zone"
+conclude env sig ctx d@(DQTyPiExt _ _) = kerr "derivation: qty node outside the Γ;Φ zone"
+conclude env sig ctx d@(DQTyPiInd _ _) = kerr "derivation: qty node outside the Γ;Φ zone"
+conclude env sig ctx d@(DQTmVar _) = kerr "derivation: qtm node outside the Γ;Φ zone"
+conclude env sig ctx d@(DQTmAppExt _ _) = kerr "derivation: qtm node outside the Γ;Φ zone"
+conclude env sig ctx d@(DQTmAppInd _ _) = kerr "derivation: qtm node outside the Γ;Φ zone"
+conclude env sig ctx d@(DQTmEq _ _) = kerr "derivation: qtm node outside the Γ;Φ zone"
+conclude env sig ctx d@(DQTmSub _ _) = kerr "derivation: qtm node outside the Γ;Φ zone"
+conclude env sig ctx d@DQSubId = kerr "derivation: qsub node outside the Γ;Φ zone"
+conclude env sig ctx d@DQSubWk = kerr "derivation: qsub node outside the Γ;Φ zone"
+conclude env sig ctx d@(DQSubComp _ _) = kerr "derivation: qsub node outside the Γ;Φ zone"
+conclude env sig ctx d@(DQSubExt _ _ _) = kerr "derivation: qsub node outside the Γ;Φ zone"
+conclude env sig ctx d@(DQTySub _ _) = kerr "derivation: qty node outside the Γ;Φ zone"
 
 -- the QIIT item layer
-conclude sig ctx (DCodeQSortInjIdx i d) = do
-  (c0, c1, ty) <- conclude sig ctx d >>= needElEq
+conclude env sig ctx (DCodeQSortInjIdx i d) = do
+  (c0, c1, ty) <- conclude env sig ctx d >>= needElEq
   alphaTy "code-qsort-inj-idx (universe)" ty Ty.UniverseTy
   case (c0, c1) of
     (QSortC sg0 k0 es0, QSortC sg1 k1 es1) => do
@@ -1993,15 +2023,15 @@ conclude sig ctx (DCodeQSortInjIdx i d) = do
         (Just a0, Just a1, Just e) => pure (JElEq a0 a1 e)
         _ => kerr "derivation: code-qsort-inj-idx: index out of range"
     _ => kerr "derivation: code-qsort-inj-idx: premise not between sort codes"
-conclude sig ctx (DTyQSort k dSig ds) = do
-  sg <- conclude sig ctx dSig >>= needQSig
+conclude env sig ctx (DTyQSort k dSig ds) = do
+  sg <- conclude env sig ctx dSig >>= needQSig
   (entry, tel) <- qArity sg k
-  es <- qSpine "ty-qiit" sig ctx ds tel
+  es <- qSpine env "ty-qiit" sig ctx ds tel
   pure (JTy (QSort sg k (cast es)))
-conclude sig ctx (DTyQSortCong k dSig ds) = do
-  sg <- conclude sig ctx dSig >>= needQSig
+conclude env sig ctx (DTyQSortCong k dSig ds) = do
+  sg <- conclude env sig ctx dSig >>= needQSig
   (_, tel) <- qArity sg k
-  triples <- traverse (\d => conclude sig ctx d >>= needElEq) ds
+  triples <- traverse (\d => conclude env sig ctx d >>= needElEq) ds
   let es0 = map (\(a, _, _) => a) triples
   let es1 = map (\(_, b, _) => b) triples
   if length es0 == length tel then pure ()
@@ -2016,15 +2046,15 @@ conclude sig ctx (DTyQSortCong k dSig ds) = do
       Just want => alphaTy "ty-qiit-cong" ety want
       Nothing => kerr "derivation: ty-qiit-cong: telescope instantiation failed"
     goChk tel (S i) rest es0
-conclude sig ctx (DCodeQSort k dSig ds) = do
-  sg <- conclude sig ctx dSig >>= needQSig
+conclude env sig ctx (DCodeQSort k dSig ds) = do
+  sg <- conclude env sig ctx dSig >>= needQSig
   if qSigSmall sg then pure ()
     else kerr "derivation: code-qiit: signature not small"
   (entry, tel) <- qArity sg k
-  es <- qSpine "code-qiit" sig ctx ds tel
+  es <- qSpine env "code-qiit" sig ctx ds tel
   pure (JEl (QSortC sg k (cast es)) Ty.UniverseTy)
-conclude sig ctx (DQCtor k dSig ds) = do
-  sg <- conclude sig ctx dSig >>= needQSig
+conclude env sig ctx (DQCtor k dSig ds) = do
+  sg <- conclude env sig ctx dSig >>= needQSig
   entry <- case qEntry sg k of
              Just e => pure e
              Nothing => kerr "derivation: el-qiit-intro: position out of range"
@@ -2032,12 +2062,12 @@ conclude sig ctx (DQCtor k dSig ds) = do
     QKPoint => pure ()
     _ => kerr "derivation: el-qiit-intro: not a point constructor"
   (tel, _, _) <- liftQE (reflTel sg (qwAt k) entry)
-  es <- qSpine "el-qiit-intro" sig ctx ds tel
+  es <- qSpine env "el-qiit-intro" sig ctx ds tel
   (wEnd, hd) <- liftQE (walkVals sg (qwAt k) entry es)
   (srt, idx) <- liftQE (pointHead sg wEnd hd)
   pure (JEl (QCtor sg k (cast es)) (QSort sg srt idx))
-conclude sig ctx (DQCtorCong k dSig ds) = do
-  sg <- conclude sig ctx dSig >>= needQSig
+conclude env sig ctx (DQCtorCong k dSig ds) = do
+  sg <- conclude env sig ctx dSig >>= needQSig
   entry <- case qEntry sg k of
              Just e => pure e
              Nothing => kerr "derivation: el-qiit-intro-cong: position out of range"
@@ -2045,7 +2075,7 @@ conclude sig ctx (DQCtorCong k dSig ds) = do
     QKPoint => pure ()
     _ => kerr "derivation: el-qiit-intro-cong: not a point constructor"
   (tel, _, _) <- liftQE (reflTel sg (qwAt k) entry)
-  triples <- traverse (\d => conclude sig ctx d >>= needElEq) ds
+  triples <- traverse (\d => conclude env sig ctx d >>= needElEq) ds
   let es0 = map (\(a, _, _) => a) triples
   let es1 = map (\(_, b, _) => b) triples
   if length es0 == length tel then pure ()
@@ -2062,8 +2092,8 @@ conclude sig ctx (DQCtorCong k dSig ds) = do
       Just want => alphaTy "el-qiit-intro-cong" ety want
       Nothing => kerr "derivation: el-qiit-intro-cong: telescope instantiation failed"
     goChk tel (S i) rest es0
-conclude sig ctx (DQMot dSig ds) = do
-  sg <- conclude sig ctx dSig >>= needQSig
+conclude env sig ctx (DQMot dSig ds) = do
+  sg <- conclude env sig ctx dSig >>= needQSig
   mots <- goMots sg (qPositions QKSort sg) ds
   pure (JMot sg mots)
  where
@@ -2071,12 +2101,12 @@ conclude sig ctx (DQMot dSig ds) = do
   goMots sg [] [] = pure []
   goMots sg (sj :: sjs) (d :: rest) = do
     (mctx, _, _) <- qSortCtx sig ctx sg sj
-    mot <- conclude sig mctx d >>= needTy
+    mot <- conclude env sig mctx d >>= needTy
     more <- goMots sg sjs rest
     pure (mot :: more)
   goMots _ _ _ = kerr "derivation: mot: motive count mismatch"
-conclude sig ctx (DQDalg dMot ds) = do
-  (sg, mots) <- conclude sig ctx dMot >>= needMot
+conclude env sig ctx (DQDalg dMot ds) = do
+  (sg, mots) <- conclude env sig ctx dMot >>= needMot
   mths <- goMths sg mots (qPositions QKPoint sg) ds
   pure (JDalg sg mots mths)
  where
@@ -2084,13 +2114,13 @@ conclude sig ctx (DQDalg dMot ds) = do
   goMths sg mots [] [] = pure []
   goMths sg mots (cj :: cjs) (d :: rest) = do
     mty <- liftQE (methodTy sg mots cj)
-    (m, mty') <- conclude sig ctx d >>= needEl
+    (m, mty') <- conclude env sig ctx d >>= needEl
     alphaTy "dalg (method)" mty' mty
     more <- goMths sg mots cjs rest
     pure (m :: more)
   goMths _ _ _ _ = kerr "derivation: dalg: method count mismatch"
-conclude sig ctx (DQEProb dDalg ds) = do
-  (sg, mots, mths) <- conclude sig ctx dDalg >>= needDalg
+conclude env sig ctx (DQEProb dDalg ds) = do
+  (sg, mots, mths) <- conclude env sig ctx dDalg >>= needDalg
   goCohs sg mots mths (qPositions QKEq sg) ds
   pure (JEProb sg mots mths)
  where
@@ -2099,14 +2129,14 @@ conclude sig ctx (DQEProb dDalg ds) = do
   goCohs sg mots mths (ej :: ejs) (d :: rest) = do
     (dtel, _, lhs, rhs, cty) <- liftQE (coherenceAt sg mots mths ej)
     let cctx = foldl (:<) ctx dtel
-    (l, r, ety) <- conclude sig cctx d >>= needElEq
+    (l, r, ety) <- conclude env sig cctx d >>= needElEq
     alphaEl "eprob (coherence l)" l lhs
     alphaEl "eprob (coherence r)" r rhs
     alphaTy "eprob (coherence ty)" ety cty
     goCohs sg mots mths ejs rest
   goCohs _ _ _ _ _ = kerr "derivation: eprob: coherence count mismatch"
-conclude sig ctx (DQSect dMot ds) = do
-  (sg, mots) <- conclude sig ctx dMot >>= needMot
+conclude env sig ctx (DQSect dMot ds) = do
+  (sg, mots) <- conclude env sig ctx dMot >>= needMot
   hs <- goSects sg mots (qPositions QKSort sg) ds
   pure (JSect sg mots hs)
  where
@@ -2117,23 +2147,23 @@ conclude sig ctx (DQSect dMot ds) = do
     mot <- case getAt so mots of
              Just m => pure m
              Nothing => kerr "derivation: sect: motive missing"
-    (h, hty) <- conclude sig mctx d >>= needEl
+    (h, hty) <- conclude env sig mctx d >>= needEl
     alphaTy "sect" hty mot
     more <- goSects sg mots sjs rest
     pure (h :: more)
   goSects _ _ _ _ = kerr "derivation: sect: candidate count mismatch"
-conclude sig ctx (DQElim k dEP dSp dW) = do
-  (sg, mots, mths) <- conclude sig ctx dEP >>= needEProb
-  (es, w, motK) <- qElimEnd sig ctx sg mots k dSp dW
+conclude env sig ctx (DQElim k dEP dSp dW) = do
+  (sg, mots, mths) <- conclude env sig ctx dEP >>= needEProb
+  (es, w, motK) <- qElimEnd env sig ctx sg mots k dSp dW
   pure (JEl (QElim sg k mots mths (cast es) w)
             (substTy motK (Ext (foldl Ext Id es) w)))
-conclude sig ctx (DQEta k dEP dSect dAgs dSp dW) = do
-  (sg, mots, mths) <- conclude sig ctx dEP >>= needEProb
-  (sg', mots', hs) <- conclude sig ctx dSect >>= needSect
+conclude env sig ctx (DQEta k dEP dSect dAgs dSp dW) = do
+  (sg, mots, mths) <- conclude env sig ctx dEP >>= needEProb
+  (sg', mots', hs) <- conclude env sig ctx dSect >>= needSect
   if sg' == sg && mots' == mots then pure ()
     else kerr "derivation: el-qiit-eta: sect premise at a different problem"
   goAgrees sg mots mths hs (qPositions QKPoint sg) dAgs
-  (es, w, motK) <- qElimEnd sig ctx sg mots k dSp dW
+  (es, w, motK) <- qElimEnd env sig ctx sg mots k dSp dW
   so <- case qOrdinal QKSort sg k of
           Just x => pure x
           Nothing => kerr "derivation: el-qiit-eta: sort ordinal"
@@ -2165,14 +2195,14 @@ conclude sig ctx (DQEta k dEP dSect dAgs dSp dW) = do
     let ctor = QCtor sg cj (varSpine (length tel))
     let inst = Ext (foldl Ext Id (toList idx)) ctor
     rhs <- liftQE (qSectRhs sg mots mths hs cj (varSpine (length tel)))
-    (l, r, ety) <- conclude sig cctx d >>= needElEq
+    (l, r, ety) <- conclude env sig cctx d >>= needElEq
     alphaEl "el-qiit-eta (agreement l)" l (substElem hS inst)
     alphaEl "el-qiit-eta (agreement r)" r rhs
     alphaTy "el-qiit-eta (agreement ty)" ety (substTy motS inst)
     goAgrees sg mots mths hs cjs rest
   goAgrees _ _ _ _ _ _ = kerr "derivation: el-qiit-eta: agreement count mismatch"
-conclude sig ctx (DQPath k dSig ds) = do
-  sg <- conclude sig ctx dSig >>= needQSig
+conclude env sig ctx (DQPath k dSig ds) = do
+  sg <- conclude env sig ctx dSig >>= needQSig
   entry <- case qEntry sg k of
              Just e => pure e
              Nothing => kerr "derivation: el-qiit-path: position out of range"
@@ -2180,7 +2210,7 @@ conclude sig ctx (DQPath k dSig ds) = do
     QKEq => pure ()
     _ => kerr "derivation: el-qiit-path: not an equation constructor"
   (tel, _, _) <- liftQE (reflTel sg (qwAt k) entry)
-  es <- qSpine "el-qiit-path" sig ctx ds tel
+  es <- qSpine env "el-qiit-path" sig ctx ds tel
   (wEnd, hd) <- liftQE (walkVals sg (qwAt k) entry es)
   (lq, rq, uq) <- liftQE (eqHead hd)
   l <- liftQE (reflTm sg wEnd lq)
@@ -2190,82 +2220,82 @@ conclude sig ctx (DQPath k dSig ds) = do
 
 -- ===== The ToS family (dual zone Γ ; Φ) =====
 
-concludeQTy sig ctx phi DQTyUniv = pure QU
-concludeQTy sig ctx phi (DQTyEl dT) = do
-  (t, tty) <- concludeQTm sig ctx phi dT
+concludeQTy env sig ctx phi DQTyUniv = pure QU
+concludeQTy env sig ctx phi (DQTyEl dT) = do
+  (t, tty) <- concludeQTm env sig ctx phi dT
   case tty of
     QU => pure (QEl t)
     _ => kerr "derivation: qty-el: code premise not at U"
-concludeQTy sig ctx phi (DQTyPiExt dA dB) = do
-  a <- conclude sig ctx dA >>= needTy
-  b <- concludeQTy sig (ctx :< a) (phiWkNova phi) dB
+concludeQTy env sig ctx phi (DQTyPiExt dA dB) = do
+  a <- conclude env sig ctx dA >>= needTy
+  b <- concludeQTy env sig (ctx :< a) (phiWkNova phi) dB
   pure (QPiExt a b)
-concludeQTy sig ctx phi (DQTyPiInd dT dB) = do
-  (t, tty) <- concludeQTm sig ctx phi dT
+concludeQTy env sig ctx phi (DQTyPiInd dT dB) = do
+  (t, tty) <- concludeQTm env sig ctx phi dT
   case tty of
     QU => do
-      b <- concludeQTy sig ctx (phi :< QEl t) dB
+      b <- concludeQTy env sig ctx (phi :< QEl t) dB
       pure (QPiInd t b)
     _ => kerr "derivation: qty-pi-ind: domain code not at U"
-concludeQTy sig ctx phi (DQTySub dS dA) = do
-  (sg, phi1) <- concludeQSub sig ctx phi dS
-  a <- concludeQTy sig ctx phi1 dA
+concludeQTy env sig ctx phi (DQTySub dS dA) = do
+  (sg, phi1) <- concludeQSub env sig ctx phi dS
+  a <- concludeQTy env sig ctx phi1 dA
   pure (qSubTy sg a)
-concludeQTy sig ctx phi d = kerr "derivation: expected a qty node"
+concludeQTy env sig ctx phi d = kerr "derivation: expected a qty node"
 
-concludeQTm sig ctx phi (DQTmVar i) =
+concludeQTm env sig ctx phi (DQTmVar i) =
   case phiAt phi i of
     Just a => pure (QVar i, a)
     Nothing => kerr "derivation: qtm-var: index out of range"
-concludeQTm sig ctx phi (DQTmAppExt dF dE) = do
-  (f, fty) <- concludeQTm sig ctx phi dF
+concludeQTm env sig ctx phi (DQTmAppExt dF dE) = do
+  (f, fty) <- concludeQTm env sig ctx phi dF
   case fty of
     QPiExt a b => do
-      (e, ety) <- conclude sig ctx dE >>= needEl
+      (e, ety) <- conclude env sig ctx dE >>= needEl
       alphaTy "qtm-app-ext" ety a
       pure (QAppE f e, substQTy b (Ext Id e))
     _ => kerr "derivation: qtm-app-ext: not at an external ⇛"
-concludeQTm sig ctx phi (DQTmAppInd dF dA) = do
-  (f, fty) <- concludeQTm sig ctx phi dF
+concludeQTm env sig ctx phi (DQTmAppInd dF dA) = do
+  (f, fty) <- concludeQTm env sig ctx phi dF
   case fty of
     QPiInd u b => do
-      (a, aty) <- concludeQTm sig ctx phi dA
+      (a, aty) <- concludeQTm env sig ctx phi dA
       if aty == QEl u then pure ()
         else kerr "derivation: qtm-app-ind: argument not at the domain sort"
       pure (QAppI f a, qSubTy (QSExt QSId a) b)
     _ => kerr "derivation: qtm-app-ind: not at an inductive ⇛"
-concludeQTm sig ctx phi (DQTmEq dL dR) = do
-  (l, lty) <- concludeQTm sig ctx phi dL
-  (r, rty) <- concludeQTm sig ctx phi dR
+concludeQTm env sig ctx phi (DQTmEq dL dR) = do
+  (l, lty) <- concludeQTm env sig ctx phi dL
+  (r, rty) <- concludeQTm env sig ctx phi dR
   case (lty, rty) of
     (QEl u, QEl u') =>
       if u == u'
         then pure (QEqC l r u, QU)
         else kerr "derivation: qtm-eq: sides at different sorts"
     _ => kerr "derivation: qtm-eq: sides not at El of a sort"
-concludeQTm sig ctx phi (DQTmSub dS dT) = do
-  (sg, phi1) <- concludeQSub sig ctx phi dS
-  (t, a) <- concludeQTm sig ctx phi1 dT
+concludeQTm env sig ctx phi (DQTmSub dS dT) = do
+  (sg, phi1) <- concludeQSub env sig ctx phi dS
+  (t, a) <- concludeQTm env sig ctx phi1 dT
   pure (qSubTm sg t, qSubTy sg a)
-concludeQTm sig ctx phi d = kerr "derivation: expected a qtm node"
+concludeQTm env sig ctx phi d = kerr "derivation: expected a qtm node"
 
-concludeQSub sig ctx phi DQSubId = pure (QSId, phi)
-concludeQSub sig ctx phi DQSubWk =
+concludeQSub env sig ctx phi DQSubId = pure (QSId, phi)
+concludeQSub env sig ctx phi DQSubWk =
   case phi of
     (rest :< _) => pure (QSWk, rest)
     [<] => kerr "derivation: qsub-wk: the ToS zone is empty"
-concludeQSub sig ctx phi (DQSubComp dS dT) = do
-  (sg, phi1) <- concludeQSub sig ctx phi dS
-  (tau, phi2) <- concludeQSub sig ctx phi1 dT
+concludeQSub env sig ctx phi (DQSubComp dS dT) = do
+  (sg, phi1) <- concludeQSub env sig ctx phi dS
+  (tau, phi2) <- concludeQSub env sig ctx phi1 dT
   pure (QSComp tau sg, phi2)
-concludeQSub sig ctx phi (DQSubExt dS dA dT) = do
-  (sg, phi1) <- concludeQSub sig ctx phi dS
-  a <- concludeQTy sig ctx phi1 dA
-  (t, tty) <- concludeQTm sig ctx phi dT
+concludeQSub env sig ctx phi (DQSubExt dS dA dT) = do
+  (sg, phi1) <- concludeQSub env sig ctx phi dS
+  a <- concludeQTy env sig ctx phi1 dA
+  (t, tty) <- concludeQTm env sig ctx phi dT
   if tty == qSubTy sg a then pure ()
     else kerr "derivation: qsub-ext: entry not at 𝔄[ς]"
   pure (QSExt sg t, phi1 :< a)
-concludeQSub sig ctx phi d = kerr "derivation: expected a qsub node"
+concludeQSub env sig ctx phi d = kerr "derivation: expected a qsub node"
 
 -- ===== Entry point =====
 
@@ -2273,14 +2303,14 @@ concludeQSub sig ctx phi d = kerr "derivation: expected a qsub node"
 ||| Left is the rejection reason (fuel exhaustion included).
 export
 concludeItem : Sig -> Nat -> Deriv -> Either KErr Judg
-concludeItem sig fuel d = map fst (runKM (conclude sig [<] d) fuel)
+concludeItem sig fuel d = map fst (runKM (conclude [] sig [<] d) fuel)
 
 ||| Check a derivation in a given context input (a solution's
 ||| telescope); the context's own formation is the caller's burden
 ||| (acceptSolItem replays it first).
 export
 concludeAt : Sig -> Nat -> Ctx -> Deriv -> Either KErr Judg
-concludeAt sig fuel ctx d = map fst (runKM (conclude sig ctx d) fuel)
+concludeAt sig fuel ctx d = map fst (runKM (conclude [] sig ctx d) fuel)
 
 -- ===== ITEM ACCEPTANCE (docs/NovaDerivations.txt, "Items and
 -- acceptance") — the seat's trusted half: replay the derivations the
