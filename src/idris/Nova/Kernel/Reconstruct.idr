@@ -3742,6 +3742,61 @@ birthPiE sig ctx a b f e = unsafePerformIO $ do
       pure (if reconDebug then trace "el: piE born" (PiApp f e) else PiApp f e)
     Nothing => pure (PiApp f e)
 
+||| A pair's typing at its checked Σ (el-sigma-i).
+export
+%noinline
+birthSigmaI : Sig -> Ctx -> Ty -> Ty -> Elem -> Elem -> Elem
+birthSigmaI sig ctx a b u v = unsafePerformIO $ do
+  let False = candPosOver 150 (SigmaIntro u v)
+    | True => pure (SigmaIntro u v)
+  _ <- writeIORef workBudget 600
+  let mder = do du <- reCheck sig ctx u a emptySkel
+                db <- reTy sig (ctx :< a) b emptySkel
+                dv <- reCheck sig ctx v (substTy b (Ext Id u)) emptySkel
+                pure (DElSigmaI du db dv)
+  case mder of
+    Just d => do
+      _ <- storeElDeriv ctx (SigmaIntro u v) (Ty.SigmaTy a b) d
+      pure (if reconDebug then trace "el: sigI born" (SigmaIntro u v) else SigmaIntro u v)
+    Nothing => pure (SigmaIntro u v)
+
+||| A projection's typing at its scrutinee's exposed Σ.
+export
+%noinline
+birthProj : Sig -> Ctx -> Bool -> Ty -> Ty -> Elem -> Elem
+birthProj sig ctx first a b t = unsafePerformIO $ do
+  let e = if first then SigmaElim1 t else SigmaElim2 t
+  let concl = if first then a else substTy b (Ext Id (SigmaElim1 t))
+  let False = candPosOver 150 e
+    | True => pure e
+  _ <- writeIORef workBudget 600
+  let mder = do dt <- reCheck sig ctx t (Ty.SigmaTy a b) emptySkel
+                pure (if first then DElSigmaE1 dt else DElSigmaE2 dt)
+  case mder of
+    Just d => do
+      _ <- storeElDeriv ctx e concl d
+      pure (if reconDebug then trace "el: proj born" e else e)
+    Nothing => pure e
+
+||| A let's typing (el-let): the body's judgment lives under the
+||| value and its unfolding hypothesis.
+export
+%noinline
+birthLet : Sig -> Ctx -> Ty -> Ty -> Elem -> Elem -> Elem
+birthLet sig ctx eTy bTy e b = unsafePerformIO $ do
+  let False = candPosOver 150 (Let e b)
+    | True => pure (Let e b)
+  _ <- writeIORef workBudget 600
+  let hyp = Prf (Elem.EqTy (CtxVar 0) (substElem e Wk) (substTy eTy Wk))
+  let mder = do de <- reCheck sig ctx e eTy emptySkel
+                db <- reCheck sig (ctx :< eTy :< hyp) b bTy emptySkel
+                pure (DElLet de db)
+  case mder of
+    Just d => do
+      _ <- storeElDeriv ctx (Let e b) (substTy bTy (Ext (Ext Id e) Star)) d
+      pure (if reconDebug then trace "el: let born" (Let e b) else Let e b)
+    Nothing => pure (Let e b)
+
 ||| The type-equation twin of birthEqDeriv.
 export
 %noinline

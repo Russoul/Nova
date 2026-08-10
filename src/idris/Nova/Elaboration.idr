@@ -3046,13 +3046,17 @@ mutual
     (t', tTy, tSk) <- inferElem ctx env site t
     st <- getSt
     case preferSigma st ctx tTy of
-      Just (a, b, _) => pure (SigmaElim1 t', a, Nd [] [tSk])
+      Just (a, b, _) => do
+        stB <- getSt
+        pure (birthProj stB.kernelSig ctx True a b t', a, Nd [] [tSk])
       Nothing => throw "\{site}: cannot project from a term of non-⨯ type\{structuralHint}"
   inferElem ctx env site (SProj2 t) = do
     (t', tTy, tSk) <- inferElem ctx env site t
     st <- getSt
     case preferSigma st ctx tTy of
-      Just (a, b, _) => pure (SigmaElim2 t', substTy b (Ext Id (SigmaElim1 t')), Nd [] [tSk])
+      Just (a, b, _) => do
+        stB <- getSt
+        pure (birthProj stB.kernelSig ctx False a b t', substTy b (Ext Id (SigmaElim1 t')), Nd [] [tSk])
       Nothing => throw "\{site}: cannot project from a term of non-⨯ type\{structuralHint}"
   inferElem ctx env site (SAnn t ty) = do
     (ty', tySk) <- elabTy ctx env site ty
@@ -3068,7 +3072,8 @@ mutual
     recordBinder xr ctx env x eTy
     let hyp = Prf (Elem.EqTy (CtxVar 0) (substElem e' Wk) (substTy eTy Wk))
     (b', bTy, bSk) <- inferElem (ctx :< eTy :< hyp) (env :< x :< wildcard) site b
-    pure (Let e' b', substTy bTy (Ext (Ext Id e') Star), Nd [] [eSk, bSk])
+    stB <- getSt
+    pure (birthLet stB.kernelSig ctx eTy bTy e' b', substTy bTy (Ext (Ext Id e') Star), Nd [] [eSk, bSk])
   inferElem ctx env site (SNatElim (n, nr) mot z (n2, n2r) (ih, ihr) s t) = do
     recordBinder nr ctx env n Ty.NatTy
     (motTy, motSk) <- elabTy (ctx :< Ty.NatTy) (env :< n) site mot
@@ -3209,7 +3214,8 @@ mutual
       Just (a, b, exp) => do
         (u', uSk) <- checkElem ctx env site u a
         (v', vSk) <- checkElem ctx env site v (substTy b (Ext Id u'))
-        pure (SigmaIntro u' v', withExpose exp (Nd [] [uSk, vSk]))
+        stB <- getSt
+        pure (birthSigmaI stB.kernelSig ctx a b u' v', withExpose exp (Nd [] [uSk, vSk]))
       Nothing => throw "\{site}: pair checked against a non-⨯ type\{structuralHint}"
   checkElem ctx env site (SInj1 a) ty = do
     st <- getSt
