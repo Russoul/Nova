@@ -14,6 +14,7 @@ modules = Nova.Kernel.Syntax
         , Nova.Kernel.Derivation
         , Nova.Kernel.Reconstruct
         , Nova.Compute
+        , Nova.Elaboration.Jud
         , Nova.Elaboration.Named
         , Nova.Elaboration
         , Nova.Elaboration.Surface
