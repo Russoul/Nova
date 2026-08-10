@@ -385,6 +385,23 @@ storedTyEq = mkTable 11
 storedEl : IORef (SortedMap Integer (List (Integer, Deriv)))
 storedEl = mkTable 12
 
+-- entries whose validation already succeeded: Σ only grows and a
+-- derivation valid in Σ stays valid in every extension (signature
+-- weakening), so one verdict per entry suffices — without this,
+-- every hit replays its whole premise tree
+%noinline
+validated : IORef (SortedMap Integer (List Integer))
+validated = mkTable 13
+
+isValidated : (Integer, Integer) -> Bool
+isValidated (h1, h2) = unsafePerformIO $ do
+  m <- readIORef validated
+  pure (elem h2 (fromMaybe [] (lookup h1 m)))
+
+markValidated : (Integer, Integer) -> IO ()
+markValidated (h1, h2) =
+  modifyIORef validated (\m => insert h1 (h2 :: fromMaybe [] (lookup h1 m)) m)
+
 elKey : Ctx -> Elem -> Ty -> (Integer, Integer)
 elKey ctx e ty =
   ( hashT 33 (hashE 33 (hashCtx 33 ctx) e) ty
@@ -401,11 +418,20 @@ lookupElDeriv sig ctx e ty = unsafePerformIO $ do
   m <- readIORef storedEl
   let (h1, h2) = elKey ctx e ty
   case lookup h2 (fromMaybe [] (lookup h1 m)) of
-    Just d => pure (if concludesEl sig ctx d e ty
-                      then (if reconDebug then trace "el: stored deriv used" (Just d) else Just d)
-                      else (if reconDebug then trace "el: stored deriv stale" Nothing else Nothing))
+    Just d =>
+      if isValidated (h1 + 63, h2)
+        then pure (Just d)
+        else if concludesEl sig ctx d e ty
+          then do
+            _ <- markValidated (h1 + 63, h2)
+            pure (if reconDebug then trace "el: stored deriv used" (Just d) else Just d)
+          else pure (if reconDebug then trace "el: stored deriv stale" Nothing else Nothing)
     Nothing => pure Nothing
 
+-- births store OPTIMISTICALLY: the lookup validates before every
+-- use, so a wrong entry costs a fallback there — validating at birth
+-- too replays each nested premise tree per enclosing birth,
+-- quadratically
 storeElDeriv : Ctx -> Elem -> Ty -> Deriv -> IO ()
 storeElDeriv ctx e ty d = do
   let (h1, h2) = elKey ctx e ty
@@ -427,9 +453,14 @@ lookupTyEqDeriv sig ctx a b = unsafePerformIO $ do
   m <- readIORef storedTyEq
   let (h1, h2) = tyEqKey ctx a b
   case lookup h2 (fromMaybe [] (lookup h1 m)) of
-    Just d => pure (if concludesTyEq sig ctx d a b
-                      then (if reconDebug then trace "eq: stored ty-deriv used" (Just d) else Just d)
-                      else Nothing)
+    Just d =>
+      if isValidated (h1 + 21, h2)
+        then pure (Just d)
+        else if concludesTyEq sig ctx d a b
+          then do
+            _ <- markValidated (h1 + 21, h2)
+            pure (if reconDebug then trace "eq: stored ty-deriv used" (Just d) else Just d)
+          else pure Nothing
     Nothing => pure Nothing
 
 lookupEqDeriv : Sig -> Ctx -> Elem -> Elem -> Ty -> Maybe Deriv
@@ -437,9 +468,14 @@ lookupEqDeriv sig ctx l r ty = unsafePerformIO $ do
   m <- readIORef storedEq
   let (h1, h2) = eqKey ctx l r ty
   case lookup h2 (fromMaybe [] (lookup h1 m)) of
-    Just d => pure (if concludesEq sig ctx d l r ty
-                      then (if reconDebug then trace "eq: stored deriv used" (Just d) else Just d)
-                      else (if reconDebug then trace "eq: stored deriv stale" Nothing else Nothing))
+    Just d =>
+      if isValidated (h1 + 7, h2)
+        then pure (Just d)
+        else if concludesEq sig ctx d l r ty
+          then do
+            _ <- markValidated (h1 + 7, h2)
+            pure (if reconDebug then trace "eq: stored deriv used" (Just d) else Just d)
+          else pure (if reconDebug then trace "eq: stored deriv stale" Nothing else Nothing)
     Nothing => pure Nothing
 
 -- the per-item WORK BUDGET: one countdown over every reconstruction
@@ -3556,10 +3592,7 @@ birthNatE sig ctx mot z s t = unsafePerformIO $ do
                 ds <- reCheck sig (ctx :< Ty.NatTy :< mot) s
                         (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) emptySkel
                 dt <- reCheck sig ctx t Ty.NatTy emptySkel
-                let d = DElNatE dmot dz ds dt
-                let True = concludesEl sig ctx d (NatElim z s t) concl
-                  | False => Nothing
-                pure d
+                pure (DElNatE dmot dz ds dt)
   case mder of
     Just d => do
       _ <- storeElDeriv ctx (NatElim z s t) concl d
@@ -3577,10 +3610,7 @@ birthSumE sig ctx a b mot l r t = unsafePerformIO $ do
                 dmot <- reTy sig (ctx :< Ty.SumTy a b) mot emptySkel
                 dl <- reCheck sig (ctx :< a) l (substTy mot (Ext Wk (Inj1 (CtxVar 0)))) emptySkel
                 dr <- reCheck sig (ctx :< b) r (substTy mot (Ext Wk (Inj2 (CtxVar 0)))) emptySkel
-                let d = DElSumE dt dmot dl dr
-                let True = concludesEl sig ctx d (SumElim l r t) concl
-                  | False => Nothing
-                pure d
+                pure (DElSumE dt dmot dl dr)
   case mder of
     Just d => do
       _ <- storeElDeriv ctx (SumElim l r t) concl d
@@ -3606,10 +3636,7 @@ birthQuotE sig ctx a rel mot f q wd = unsafePerformIO $ do
                 df <- reCheck sig (ctx :< a) f (substTy mot (Ext Wk (Class (CtxVar 0)))) emptySkel
                 dresp <- lookupEqDeriv sig wdCtx wdL wdR wdTy
                          <|> reEqStar sig wdCtx wd wdL wdR wdTy Nothing
-                let d = DElQuotE dq dmot df dresp
-                let True = concludesEl sig ctx d (QuotElim f q) concl
-                  | False => Nothing
-                pure d
+                pure (DElQuotE dq dmot df dresp)
   case mder of
     Just d => do
       _ <- storeElDeriv ctx (QuotElim f q) concl d
