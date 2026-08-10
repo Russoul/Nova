@@ -393,6 +393,57 @@ storedEl = mkTable 12
 validated : IORef (SortedMap Integer (List Integer))
 validated = mkTable 13
 
+%noinline
+mkRef : Integer -> a -> IORef a
+mkRef _ v = unsafePerformIO (newIORef v)
+
+-- ===== sharing (DShare/DRef) at the seat =====
+--
+-- During the BODY emission, a store hit is served as a CITATION into
+-- the item's share registry instead of an embedded tree; emitDef
+-- wraps the finished body in the registry's DShare chain, so replay
+-- concludes each consumed derivation once however many times the
+-- body cites it. Births run with sharing off — store entries stay
+-- self-contained.
+
+%noinline
+shareReg : IORef (SnocList (Ctx, Deriv))
+shareReg = mkRef 14 [<]
+
+%noinline
+shareIdxTbl : IORef (SortedMap Integer (List (Integer, Nat)))
+shareIdxTbl = mkTable 15
+
+%noinline
+sharingOn : IORef Bool
+sharingOn = mkRef 16 False
+
+serveShared : (Integer, Integer) -> Ctx -> Deriv -> IO Deriv
+serveShared (h1, h2) cx d = do
+  True <- readIORef sharingOn
+    | False => pure d
+  m <- readIORef shareIdxTbl
+  case lookup h2 (fromMaybe [] (lookup h1 m)) of
+    Just i => pure (DRef i)
+    Nothing => do
+      reg <- readIORef shareReg
+      let i = length (toList reg)
+      writeIORef shareReg (reg :< (cx, d))
+      modifyIORef shareIdxTbl (\m' => insert h1 ((h2, i) :: fromMaybe [] (lookup h1 m')) m')
+      pure (DRef i)
+
+%noinline
+setSharing : Bool -> Maybe ()
+setSharing b = unsafePerformIO $ do
+  writeIORef sharingOn b
+  pure (Just ())
+
+%noinline
+wrapShares : Deriv -> Deriv
+wrapShares body = unsafePerformIO $ do
+  reg <- readIORef shareReg
+  pure (foldr (\(cx, d), acc => DShare cx d acc) body (toList reg))
+
 isValidated : (Integer, Integer) -> Bool
 isValidated (h1, h2) = unsafePerformIO $ do
   m <- readIORef validated
@@ -420,11 +471,12 @@ lookupElDeriv sig ctx e ty = unsafePerformIO $ do
   case lookup h2 (fromMaybe [] (lookup h1 m)) of
     Just d =>
       if isValidated (h1 + 63, h2)
-        then pure (Just d)
+        then Just <$> serveShared (h1, h2) ctx d
         else if concludesEl sig ctx d e ty
           then do
             _ <- markValidated (h1 + 63, h2)
-            pure (if reconDebug then trace "el: stored deriv used" (Just d) else Just d)
+            d' <- serveShared (h1, h2) ctx d
+            pure (if reconDebug then trace "el: stored deriv used" (Just d') else Just d')
           else pure (if reconDebug then trace "el: stored deriv stale" Nothing else Nothing)
     Nothing => pure Nothing
 
@@ -455,11 +507,12 @@ lookupTyEqDeriv sig ctx a b = unsafePerformIO $ do
   case lookup h2 (fromMaybe [] (lookup h1 m)) of
     Just d =>
       if isValidated (h1 + 21, h2)
-        then pure (Just d)
+        then Just <$> serveShared (h1 + 9, h2) ctx d
         else if concludesTyEq sig ctx d a b
           then do
             _ <- markValidated (h1 + 21, h2)
-            pure (if reconDebug then trace "eq: stored ty-deriv used" (Just d) else Just d)
+            d' <- serveShared (h1 + 9, h2) ctx d
+            pure (if reconDebug then trace "eq: stored ty-deriv used" (Just d') else Just d')
           else pure Nothing
     Nothing => pure Nothing
 
@@ -470,11 +523,12 @@ lookupEqDeriv sig ctx l r ty = unsafePerformIO $ do
   case lookup h2 (fromMaybe [] (lookup h1 m)) of
     Just d =>
       if isValidated (h1 + 7, h2)
-        then pure (Just d)
+        then Just <$> serveShared (h1 + 3, h2) ctx d
         else if concludesEq sig ctx d l r ty
           then do
             _ <- markValidated (h1 + 7, h2)
-            pure (if reconDebug then trace "eq: stored deriv used" (Just d) else Just d)
+            d' <- serveShared (h1 + 3, h2) ctx d
+            pure (if reconDebug then trace "eq: stored deriv used" (Just d') else Just d')
           else pure (if reconDebug then trace "eq: stored deriv stale" Nothing else Nothing)
     Nothing => pure Nothing
 
@@ -530,6 +584,9 @@ withMemo ref k act = unsafePerformIO $ do
 
 resetMemosIO : IO ()
 resetMemosIO = do
+  writeIORef shareReg [<]
+  writeIORef shareIdxTbl empty
+  writeIORef sharingOn False
   writeIORef workBudget 400000
   writeIORef memoNfE empty
   writeIORef memoNfT empty
@@ -3643,6 +3700,48 @@ birthQuotE sig ctx a rel mot f q wd = unsafePerformIO $ do
       pure (if reconDebug then trace "el: quotE born" (QuotElim f q) else QuotElim f q)
     Nothing => pure (QuotElim f q)
 
+||| A λ's typing at its checked Π (el-pi-i): the body's judgment
+||| composes from the store as its own nodes birth.
+export
+%noinline
+birthPiI : Sig -> Ctx -> Ty -> Ty -> Elem -> Elem
+birthPiI sig ctx a b body = unsafePerformIO $ do
+  -- keying is structural: hashing every node's whole subtree is
+  -- quadratic over an item — only small nodes birth (they carry the
+  -- consumption anyway)
+  let False = candPosOver 150 body
+    | True => pure (PiIntro body)
+  _ <- writeIORef workBudget 600
+  let mder = do da <- reTy sig ctx a emptySkel
+                db <- reCheck sig (ctx :< a) body b emptySkel
+                pure (DElPiI da db)
+  case mder of
+    Just d => do
+      _ <- storeElDeriv ctx (PiIntro body) (Ty.PiTy a b) d
+      pure (if reconDebug then trace "el: piI born" (PiIntro body) else PiIntro body)
+    Nothing => pure (PiIntro body)
+
+||| An application's typing at the function's exposed Π (el-pi-e).
+export
+%noinline
+birthPiE : Sig -> Ctx -> Ty -> Ty -> Elem -> Elem -> Elem
+birthPiE sig ctx a b f e = unsafePerformIO $ do
+  let False = candPosOver 150 (PiApp f e)
+    | True => pure (PiApp f e)
+  -- the spine fires per node: a small budget makes a store-served
+  -- birth cheap and a reconstruction-shaped one bail immediately
+  _ <- writeIORef workBudget 600
+  let concl = substTy b (Ext Id e)
+  let mder = do df <- reCheck sig ctx f (Ty.PiTy a b) emptySkel
+                de <- reCheck sig ctx e a emptySkel
+                db <- reTy sig (ctx :< a) b emptySkel
+                pure (DElPiE df de db)
+  case mder of
+    Just d => do
+      _ <- storeElDeriv ctx (PiApp f e) concl d
+      pure (if reconDebug then trace "el: piE born" (PiApp f e) else PiApp f e)
+    Nothing => pure (PiApp f e)
+
 ||| The type-equation twin of birthEqDeriv.
 export
 %noinline
@@ -3675,7 +3774,12 @@ emitDef sig art =
     [] => do
       _ <- clearMemos ()
       dT <- dbg "emit: type" (reTy sig [<] art.dty art.dtySkel)
-      dt <- emitBody sig [<] art.body art.dty art.bodySkel dT
+      -- store hits during the BODY emission are served as citations;
+      -- the finished body wraps in the registry's DShare chain
+      _ <- setSharing True
+      dt0 <- emitBody sig [<] art.body art.dty art.bodySkel dT
+      let dt = wrapShares dt0
+      _ <- setSharing False
       pure (dT, dt)
     _ => Nothing
 

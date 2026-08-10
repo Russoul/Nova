@@ -3037,7 +3037,10 @@ mutual
     case preferPi st ctx fTy of
       Just (a, b, _) => do
         (e', eSk) <- checkElem ctx env site e a
-        pure (PiApp f' e', substTy b (Ext Id e'), Nd [] [fSk, eSk])
+        -- no mirror here: the spine fires per node and the mirror's
+        -- scan would multiply by it; a hole-blocked birth declines
+        stB <- getSt
+        pure (birthPiE stB.kernelSig ctx a b f' e', substTy b (Ext Id e'), Nd [] [fSk, eSk])
       Nothing => throw "\{site}: cannot apply a term of non-Π type\{structuralHint}"
   inferElem ctx env site (SProj1 t) = do
     (t', tTy, tSk) <- inferElem ctx env site t
@@ -3197,7 +3200,8 @@ mutual
       Just (a, b, exp) => do
         recordBinder xr ctx env x a
         (t', tSk) <- checkElem (ctx :< a) (env :< x) site t b
-        pure (PiIntro t', withExpose exp (Nd [] [tSk]))
+        stB <- getSt
+        pure (birthPiI stB.kernelSig ctx a b t', withExpose exp (Nd [] [tSk]))
       Nothing => throw "\{site}: λ checked against a non-Π type\{structuralHint}"
   checkElem ctx env site (SPair u v) ty = do
     st <- getSt
