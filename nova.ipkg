@@ -6,7 +6,8 @@ depends = contrib, just-a-parser
 executable = nova
 main = Nova.Application
 
-modules = Nova.Kernel.Syntax
+modules = Nova.Profile
+        , Nova.Kernel.Syntax
         , Nova.Kernel.Subst
         , Nova.Kernel.Beta
         , Nova.Kernel
