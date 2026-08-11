@@ -66,6 +66,14 @@ def impIntro : (p : Ω) (q : Ω) → (Prf p → Prf q) → Prf (p ⊃ q) ≔
 def impApply : (p : Ω) (q : Ω) → Prf (p ⊃ q) → Prf p → Prf q ≔
   λp. λq. λh. λx. squash-elim h (f. f x)
 
+-- ⊥ ≜ ∥𝟘∥, so 𝟘-elim cannot consume a Prf ⊥ directly: a refutation
+-- has to unsquash first. absurdP names that step. There is deliberately
+-- no El A-valued counterpart: el-squash-e-prf reaches only further
+-- PROPOSITIONS, so a Prf ⊥ can never produce data — for that one needs
+-- a 𝟘 itself, which 𝟘-elim already consumes.
+def absurdP : (p : Ω) → Prf ⊥ → Prf p ≔
+  λp. λh. squash-elim h (x. 𝟘-elim x)
+
 def orInl : (p : Ω) (q : Ω) → Prf p → Prf (p ∨ q) ≔
   λp. λq. λx. ⋆ (λr. λf. λg. f x)
 def orInr : (p : Ω) (q : Ω) → Prf q → Prf (p ∨ q) ≔
