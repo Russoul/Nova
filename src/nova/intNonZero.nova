@@ -1,11 +1,12 @@
 import nat (+, *, zeroMult, multSucId, sucPlus, plusComm)
-import integer (Int, intZero, intOne)
+import integer (Int, IntR, intZero, intOne)
 import integerMul (intMul, intMulCong2, classPairEta)
 import eqNat (zNotS)
-import eqInt (intCanon, intCanonClass, EqZ, NeqZ, neqZSound)
-import prop (¬, ⊥, andFst, andSnd, absurdP)
+import eqInt (intCanon, intCanonClass)
+import prop (¬, ⊥, absurdP)
 import rational (NZ, nzPos, nzNeg, nzToInt, nzMul)
 import rationalQ (nzToIntMul)
+import intEffective (intEffective)
 import rationalInv (nzOfPair, notIntro, notApply, intCanonProdZero)
 import equality (trans, sym, cong)
 
@@ -74,12 +75,21 @@ def nzOfInt : (z : El Int) →
 
 -- ===== the image of NZ misses zero =====
 
+-- a disequality of CLASSES from a refuted relation: this is what
+-- effectivity is for. Before intEffective.nova landed the only route
+-- was through a computing observational equality (eqInt.nova's EqZ);
+-- now the class equation hands IntR back directly.
+def intNeqOfNotRel : (p : ℕ ⨯ ℕ) (q : ℕ ⨯ ℕ) (k : Prf (IntR p q) → 𝟘) →
+  Prf (¬ (class p ≡ class q ∈ El Int)) ≔
+  λp. λq. λk.
+    notIntro (class p ≡ class q ∈ El Int) (λh. ⋆ (k (intEffective p q h)))
+
+-- IntR (S n , Z) (Z , Z) reduces to S n ≡ Z, and IntR (Z , S n) (Z , Z)
+-- to Z ≡ S n — both refuted by eqNat.nova's zNotS
 def nzToIntNonZero : (e : El NZ) → Prf (¬ (nzToInt e ≡ intZero ∈ El Int)) ≔
   λe. ⊎-elim (w. Prf (¬ (nzToInt w ≡ intZero ∈ El Int)))
-    (n. neqZSound (nzToInt (nzPos n)) intZero
-          (notIntro (EqZ (nzToInt (nzPos n)) intZero) (λh. andFst _ _ h)))
-    (n. neqZSound (nzToInt (nzNeg n)) intZero
-          (notIntro (EqZ (nzToInt (nzNeg n)) intZero) (λh. andSnd _ _ h)))
+    (n. intNeqOfNotRel (S n , Z) (Z , Z) (λr. zNotS n (sym ℕ (S n) Z r)))
+    (n. intNeqOfNotRel (Z , S n) (Z , Z) (λr. zNotS n r))
     e
 
 -- ===== ℤ has no zero divisors =====
