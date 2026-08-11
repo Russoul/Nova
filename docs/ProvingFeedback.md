@@ -69,6 +69,53 @@ e.g. `⋆ ⟨f, g⟩` at an `Ω`-equation goal, or acceptance of a
 `Prf (p ↔ q)` witness. This single gap forced the detour in D-1 and is
 noted as a limitation in `eqInt.nova`'s own header.
 
+### A-5. Squash elimination stops at propositions, and cannot be widened for free
+
+`el-squash-e-prf` lands in `Prf q` (its conclusion is literally `⋆`);
+there is deliberately no eliminator into arbitrary types. The obvious
+refinement — *allow it into any type C that is a subsingleton* — is
+the standard rule elsewhere (HoTT's truncation recursion into props,
+Lean's `Squash.lift`), and Foundation's own stated objection does not
+rule it out: "el-prf-prop would force it constant" is harmless exactly
+when C has at most one element. The model justification also carries
+over verbatim — "validated by instantiating their premise at any
+carrier element; the conclusion never consults which one" is precisely
+what a subsingleton C licenses.
+
+What blocks it is the *forced* realizer irrelevance: `Prf p`'s one
+canonical form is `⋆`, so **there is no Prf-beta** (Foundation says so
+outright). An eliminator into a data-carrying C could therefore never
+reduce: a closed term of a Σ-type would be stuck, never a pair. The
+rule would buy derivations, not algorithms.
+
+Concretely, in this development: `(v : El Q) ⨯ Prf (qMul u v ≡ qOne)`
+IS a subsingleton (inverses are unique — `qInvUniqueVal`,
+`qInvWitnessUnique` in `rationalAlgInv.nova`), so the rule would have
+derived the non-erased inverse straight from the squashed one, deleting
+`intCanon`'s data-valued view and the no-zero-divisor argument (~250
+lines). But the inverse so obtained would not compute: `qInv (qcls
+third) ≡ qcls 3` holds by `⋆` today and would not then. The two are
+genuinely different results.
+
+### A-6. Equality combinators are 𝕌-indexed, so large types have none
+
+`trans`, `sym`, `cong`, `transport` all take `(A : 𝕌)`. A type carrying
+a `Prf` — such as the inverse Σ above — is not a code, so **none of
+them apply**, and `trans (…) …` at such a type is not even a parse.
+Every development that touches a large type must re-declare its own
+transitivity, symmetry and η, monomorphically, spelling the type out
+at each occurrence.
+
+Worse, the code-generic `pairEta : (A B : 𝕌) …` misfires there: the
+engine matches it against a large-Σ η goal, instantiates `A`/`B` with
+non-codes, and the kernel rejects the certificate — B-3 again, one
+level up. That is why `qInvIsProp` is stated in pair-congruence form
+(`invPairCong`, both sides literal pairs, no η) rather than as
+`w ≡ w'`.
+
+**Suggested fix:** a second set of combinators quantified over *types*
+rather than codes, or admissible congruence/η at arbitrary types.
+
 ---
 
 ## B. Engine / kernel mismatches
