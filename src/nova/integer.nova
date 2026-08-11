@@ -13,3 +13,15 @@ def Int : 𝕌 ≔ (ℕ ⨯ ℕ) / (p q. (p .π₁ + q .π₂ ≡ p .π₂ + q .
 def IntR : (ℕ ⨯ ℕ) → (ℕ ⨯ ℕ) → Ω ≔ λp. λq. (p .π₁ + q .π₂ ≡ p .π₂ + q .π₁ ∈ ℕ)
 -- 0 = 0: (Z,Z) and (S Z, S Z) are the same integer
 def zeroEq : class (Z , Z) ≡ class (S Z , S Z) ∈ El Int ≔ ⋆
+
+-- the two constants, here rather than in each caller: they are pure Int
+-- notions, and integerMul.nova, rational.nova and eqInt.nova all need them
+def intZero : El Int ≔ class (Z , Z)
+def intOne : El Int ≔ class (S Z , Z)
+
+-- negation swaps the components of a representative; the
+-- well-definedness goal is the defining relation read backwards
+def intNeg : El Int → El Int ≔
+  λz. quot-elim (w. El Int) (p. class (p .π₂ , p .π₁)) z
+
+def intNegZero : intNeg intZero ≡ intZero ∈ El Int ≔ ⋆
