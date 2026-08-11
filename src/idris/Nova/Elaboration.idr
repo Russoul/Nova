@@ -52,6 +52,7 @@ import Nova.Elaboration.Named
 import Nova.Elaboration.Surface
 import Nova.Elaboration.Clauses
 import Nova.Elaboration.Parser
+import Nova.Profile
 
 %default covering
 
@@ -2056,22 +2057,35 @@ mutual
   attemptE : Ctx -> String -> Elem -> Elem -> Ty -> ElabM (Either String ECert)
   attemptE ctx site a b ty = do
     st <- getSt
-    let cs = mkCandSet st ctx
+    let t0 = nowNs ()
+    let cs0 = mkCandSet st ctx
+    let t1 = bump "cands" (nowNs () - t0) (nowNs ())
+    let cs = bump "candN" (cast (length cs0.all)) cs0
     let mcert = spEqElemC spDepth st cs ctx a b ty
-    case map (\cert => (cert, kCheckEqElem st.sig ctx kernelFuel cert a b ty)) mcert of
-      Just (cert, Right ()) => pure (Right cert)
-      Just (_, Left kerrMsg) => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
+    let t2 = bump "engine" (nowNs () - t1) (nowNs ())
+    case mcert of
       Nothing => pure (Left site)
+      Just cert =>
+        let kres = kCheckEqElem st.sig ctx kernelFuel cert a b ty in
+        case bump "kernel" (nowNs () - t2) kres of
+          Right () => pure (Right cert)
+          Left kerrMsg => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
 
   attemptT : Ctx -> String -> Ty -> Ty -> ElabM (Either String ECert)
   attemptT ctx site tyA tyB = do
     st <- getSt
+    let t0 = nowNs ()
     let cs = mkCandSet st ctx
+    let t1 = bump "cands" (nowNs () - t0) (nowNs ())
     let mcert = spEqTyC spDepth st cs ctx tyA tyB
-    case map (\cert => (cert, kCheckEqTy st.sig ctx kernelFuel cert tyA tyB)) mcert of
-      Just (cert, Right ()) => pure (Right cert)
-      Just (_, Left kerrMsg) => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
+    let t2 = bump "engine" (nowNs () - t1) (nowNs ())
+    case mcert of
       Nothing => pure (Left site)
+      Just cert =>
+        let kres = kCheckEqTy st.sig ctx kernelFuel cert tyA tyB in
+        case bump "kernel" (nowNs () - t2) kres of
+          Right () => pure (Right cert)
+          Left kerrMsg => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
 
   ||| One side is an UNSOLVED SOLVABLE hole at its own context: flip
   ||| its declaration to a definition whose body is the other side —
@@ -3584,9 +3598,12 @@ kernelAccept name check clean = do
   st <- getSt
   if not clean
     then pure ()
-    else case check st.kernelSig of
-      Right entry => modifySt $ { kernelSig $= (:< entry) }
-      Left err => throw "\{name}: KERNEL REJECTED the elaborated item: \{err}"
+    else
+      let t0 = nowNs () in
+      let res = check st.kernelSig in
+      case bump "kitem" (nowNs () - t0) res of
+        Right entry => modifySt $ { kernelSig $= (:< entry) }
+        Left err => throw "\{name}: KERNEL REJECTED the elaborated item: \{err}"
 
 liftQE : String -> Either QErr a -> ElabM a
 liftQE site (Left e) = throw "\{site}: \{e}"

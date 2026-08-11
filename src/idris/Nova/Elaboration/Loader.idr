@@ -23,6 +23,7 @@ import Nova.Compute
 import Nova.Elaboration
 import Nova.Elaboration.Surface
 import Nova.Elaboration.Parser
+import Nova.Profile
 
 import System.File
 
@@ -142,7 +143,10 @@ elabPath : String -> IO String
 elabPath rootPath = do
   Right units <- loadProgram rootPath
     | Left err => pure "Error: \{err.lmsg}"
-  pure (elabProgram units)
+  let out = elabProgram units
+  let _ = length out
+  dumpProfile
+  pure out
 
 ||| Load, elaborate (requiring full acceptance — Nova.Compute assumes
 ||| closed, well-typed input), and compute the normal form of a named
