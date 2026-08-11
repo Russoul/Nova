@@ -1,0 +1,54 @@
+import nat (+, plusComm, plusCancel, plusCongL, plusCongR, swapMid)
+import integer (Int, IntR)
+import equality (trans)
+import quotEffective (effectiveAtEquiv)
+
+-- Int IS EFFECTIVE, on the nose: equal classes give IntR back, not
+-- merely its equivalence closure.
+--
+-- quotEffective.nova's effectiveAtEquiv supplies the quotient reasoning
+-- and asks for exactly one thing in return — that IntR be an
+-- equivalence. That is arithmetic, and only transitivity is real work:
+-- it is ℕ CANCELLATION applied to a rearrangement of the two
+-- hypotheses. Nothing below mentions a quotient.
+
+-- the arithmetic core, over bare naturals: the ℤ-construction's
+-- transitivity. Add the cancelled summand c + d to both sides, walk it
+-- across the two hypotheses, cancel again
+def cancelStep : (a : ℕ) (b : ℕ) (c : ℕ) (d : ℕ) (e : ℕ) (f : ℕ) →
+  (a + d ≡ b + c ∈ ℕ) → (c + f ≡ d + e ∈ ℕ) →
+  (a + f) + (c + d) ≡ (b + e) + (c + d) ∈ ℕ ≔
+  λa. λb. λc. λd. λe. λf. λh1. λh2.
+    trans _ _ _ _ (swapMid a f c d)
+      (trans _ _ _ _ (plusCongL (a + d) (b + c) (c + f) h1)
+        (trans _ _ _ _ (plusCongR (b + c) (c + f) (d + e) h2)
+          (trans _ _ _ _ (swapMid b c d e)
+            (plusCongR (b + e) (d + c) (c + d) (plusComm c d)))))
+
+def cancelTrans : (a : ℕ) (b : ℕ) (c : ℕ) (d : ℕ) (e : ℕ) (f : ℕ) →
+  (a + d ≡ b + c ∈ ℕ) → (c + f ≡ d + e ∈ ℕ) → a + f ≡ b + e ∈ ℕ ≔
+  λa. λb. λc. λd. λe. λf. λh1. λh2.
+    plusCancel (a + f) (b + e) (c + d) (cancelStep a b c d e f h1 h2)
+
+-- IntR is an equivalence. Reflexivity and symmetry are commutativity, so
+-- one ⋆ each; transitivity is cancelTrans at the four components
+def intRRefl : (p : ℕ ⨯ ℕ) → Prf (IntR p p) ≔ λp. ⋆
+
+def intRSymm : (p : ℕ ⨯ ℕ) (q : ℕ ⨯ ℕ) → Prf (IntR p q) → Prf (IntR q p) ≔
+  λp. λq. λh. ⋆
+
+def intRTrans : (p : ℕ ⨯ ℕ) (q : ℕ ⨯ ℕ) (s : ℕ ⨯ ℕ) →
+  Prf (IntR p q) → Prf (IntR q s) → Prf (IntR p s) ≔
+  λp. λq. λs. λh1. λh2.
+    cancelTrans (p .π₁) (p .π₂) (q .π₁) (q .π₂) (s .π₁) (s .π₂) h1 h2
+
+-- EFFECTIVITY for Int, on the nose
+def intEffective : (p : ℕ ⨯ ℕ) (q : ℕ ⨯ ℕ) →
+  Prf (class p ≡ class q ∈ El Int) → Prf (IntR p q) ≔
+  effectiveAtEquiv (ℕ ⨯ ℕ) IntR intRRefl intRTrans intRSymm
+
+-- what it is for: the classes of (Z,Z) and (S Z, S Z) are equal
+-- (integer.nova's zeroEq), so their representatives are IntR-related —
+-- read back off the class equation, with no representative in sight
+def zeroRel : Prf (IntR (Z , Z) (S Z , S Z)) ≔
+  intEffective (Z , Z) (S Z , S Z) ⋆

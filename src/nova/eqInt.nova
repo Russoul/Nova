@@ -1,5 +1,5 @@
 import nat (+)
-import integer (Int)
+import integer (Int, IntR)
 import integerNormalize (normPair, normSound, intNormalize)
 import equality (sym, trans)
 import prop (↔, iffIntro)
@@ -20,11 +20,9 @@ import prop (↔, iffIntro)
 -- proof-irrelevant (every ≡-proof is ⋆ on the nose), so THIS
 -- well-definedness is free.
 
--- IntR is Int's own quotient relation, named for reuse; a proof of it
+-- IntR is Int's own quotient relation (integer.nova); a proof of it
 -- gives equal classes directly (el-quot-eq, automatic given a term of
 -- Prf (IntR p q) in context — no extra machinery needed).
-def IntR : (ℕ ⨯ ℕ) → (ℕ ⨯ ℕ) → Ω ≔ λp. λq. (p .π₁ + q .π₂ ≡ p .π₂ + q .π₁ ∈ ℕ)
-
 def classEqOfRel : (p : ℕ ⨯ ℕ) (q : ℕ ⨯ ℕ) → Prf (IntR p q) → class p ≡ class q ∈ El Int ≔
   λp. λq. λh. ⋆
 
