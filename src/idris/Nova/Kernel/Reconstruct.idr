@@ -484,10 +484,25 @@ lookupElDeriv sig ctx e ty = unsafePerformIO $ do
 -- use, so a wrong entry costs a fallback there — validating at birth
 -- too replays each nested premise tree per enclosing birth,
 -- quadratically
+-- the by-term secondary index: hash(Γ, t) → the (type, derivation)
+-- entries for t — the flexible lookup scans these for an nf-equal
+-- type when the exact spelling misses
+%noinline
+storedElByTm : IORef (SortedMap Integer (List (Integer, List (Ty, Deriv))))
+storedElByTm = mkTable 17
+
+tmKey : Ctx -> Elem -> (Integer, Integer)
+tmKey ctx e = (hashE 33 (hashCtx 33 ctx) e, hashE 131 (hashCtx 131 ctx) e)
+
 storeElDeriv : Ctx -> Elem -> Ty -> Deriv -> IO ()
 storeElDeriv ctx e ty d = do
   let (h1, h2) = elKey ctx e ty
   modifyIORef storedEl (\m => insert h1 ((h2, d) :: fromMaybe [] (lookup h1 m)) m)
+  let (t1, t2) = tmKey ctx e
+  modifyIORef storedElByTm (\m =>
+    let bucket = fromMaybe [] (lookup t1 m)
+        entries = fromMaybe [] (lookup t2 bucket)
+    in insert t1 ((t2, (ty, d) :: entries) :: filter (\(k, _) => k /= t2) bucket) m)
 
 tyEqKey : Ctx -> Ty -> Ty -> (Integer, Integer)
 tyEqKey ctx a b =
@@ -635,6 +650,41 @@ nfT sig t = do
     (case runKM (kTy sig t) fuelR of
        Right (x, _) => Just x
        Left _ => Nothing)
+
+||| The FLEXIBLE lookup: exact spelling first; else any stored entry
+||| for the same term whose type is nf-equal to the asked one, served
+||| through a coercion — the stored side's formation comes free by
+||| presupposition, the ASKED side's must come from the caller (the
+||| F-route threads exactly that).
+lookupElDerivAt : Sig -> Ctx -> Elem -> Ty -> Deriv -> Maybe Deriv
+lookupElDerivAt sig ctx e ty dF =
+  lookupElDeriv sig ctx e ty <|> flex
+ where
+  flex : Maybe Deriv
+  flex = unsafePerformIO $ do
+    m <- readIORef storedElByTm
+    let (t1, t2) = tmKey ctx e
+    go (fromMaybe [] (lookup t2 (fromMaybe [] (lookup t1 m))))
+   where
+    go : List (Ty, Deriv) -> IO (Maybe Deriv)
+    go [] = pure Nothing
+    go ((ty', d) :: rest) = do
+      let Just tyN = nfT sig ty
+        | Nothing => pure Nothing
+      let Just tyN' = nfT sig ty'
+        | Nothing => go rest
+      if tyN' /= tyN
+        then go rest
+        else do
+          let (h1, h2) = elKey ctx e ty'
+          let ok = isValidated (h1 + 63, h2) || concludesEl sig ctx d e ty'
+          if not ok
+            then go rest
+            else do
+              _ <- markValidated (h1 + 63, h2)
+              dS <- serveShared (h1, h2) ctx d
+              let d' = DElTyCoe (DNfEqTy (DPresupElTy dS) dF) dS
+              pure (if reconDebug then trace "el: flex deriv used" (Just d') else Just d')
 
 wkN : Nat -> Elem -> Elem
 wkN Z e = e
@@ -1219,7 +1269,8 @@ mutual
           _ => Nothing)
     <|> reCheck sig ctx Star ty sk
   reCheckF sig ctx e ty sk dF =
-    reCheck sig ctx e ty sk
+    lookupElDerivAt sig ctx e ty dF
+    <|> reCheck sig ctx e ty sk
     <|> (case payload pSw sk of
           Just cert => do
             (d, ity) <- reInfer sig ctx e (dropP isSw sk)
