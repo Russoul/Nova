@@ -1,0 +1,116 @@
+import nat (+, *, zeroMult, multSucId, sucPlus, plusComm)
+import integer (Int, intZero, intOne)
+import integerMul (intMul, intMulCong2, classPairEta)
+import eqNat (zNotS)
+import eqInt (intCanon, intCanonClass, EqZ, NeqZ, neqZSound)
+import prop (¬, ⊥, andFst, andSnd, absurdP)
+import rational (NZ, nzPos, nzNeg, nzToInt, nzMul)
+import rationalQ (nzToIntMul)
+import rationalInv (nzOfPair, notIntro, notApply, intCanonProdZero)
+import equality (trans, sym, cong)
+
+-- The DATA-valued view of an integer: either an NZ whose image it is,
+-- or a proof that it is zero. This is rationalInv.nova's intNZView with
+-- the squash removed — and removing the squash is exactly what turns
+-- "an inverse exists" into "here is the inverse".
+--
+-- It is definable because intCanon is an honest FUNCTION El Int → ℕ ⨯ ℕ
+-- (its well-definedness was discharged in eqInt.nova), so the case
+-- analysis below is on nats, not on a quotient: no further
+-- well-definedness obligation arises, and nothing has to be erased.
+
+-- ===== the view =====
+
+def nzOfPairD : (a : ℕ) (b : ℕ) (hab : Prf (a * b ≡ Z ∈ ℕ)) →
+  ((e : El NZ) ⨯ Prf (nzToInt e ≡ class (a , b) ∈ El Int))
+    ⊎ Prf (class (a , b) ≡ intZero ∈ El Int) ≔
+  λa.
+    ℕ-elim (k. (b : ℕ) → Prf (k * b ≡ Z ∈ ℕ) →
+              (((e : El NZ) ⨯ Prf (nzToInt e ≡ class (k , b) ∈ El Int))
+                 ⊎ Prf (class (k , b) ≡ intZero ∈ El Int)))
+      (λb.
+        ℕ-elim (j. Prf (Z * j ≡ Z ∈ ℕ) →
+                  (((e : El NZ) ⨯ Prf (nzToInt e ≡ class (Z , j) ∈ El Int))
+                     ⊎ Prf (class (Z , j) ≡ intZero ∈ El Int)))
+          (λhab. inj₂ ⋆)
+          (j ihb. λhab. inj₁ (nzNeg j , ⋆))
+          b)
+      (k ih. λb.
+        ℕ-elim (j. Prf (S k * j ≡ Z ∈ ℕ) →
+                  (((e : El NZ) ⨯ Prf (nzToInt e ≡ class (S k , j) ∈ El Int))
+                     ⊎ Prf (class (S k , j) ≡ intZero ∈ El Int)))
+          (λhab. inj₁ (nzPos k , ⋆))
+          (j ihb. λhab.
+            𝟘-elim (zNotS (k + S k * j)
+              (trans ℕ Z (S k * S j) (S (k + S k * j))
+                (sym ℕ _ _ hab)
+                (trans ℕ (S k * S j) (S k + S k * j) (S (k + S k * j))
+                  (multSucId (S k) j)
+                  (sucPlus k (S k * j))))))
+          b)
+      a
+
+-- kept abstract in p, as always (docs/ProvingFeedback.md D-3)
+def nzOfIntAt : (z : El Int) (p : ℕ ⨯ ℕ)
+  (hz : Prf (class p ≡ z ∈ El Int))
+  (hab : Prf (p .π₁ * p .π₂ ≡ Z ∈ ℕ)) →
+  ((e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int)) ⊎ Prf (z ≡ intZero ∈ El Int) ≔
+  λz. λp. λhz. λhab.
+    ⊎-elim (w. (((e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int))
+                  ⊎ Prf (z ≡ intZero ∈ El Int)))
+      (u. inj₁ (u .π₁ ,
+                trans Int (nzToInt (u .π₁)) (class (p .π₁ , p .π₂)) z
+                  (u .π₂)
+                  (trans Int (class (p .π₁ , p .π₂)) (class p) z (classPairEta p) hz)))
+      (u. inj₂ (trans Int z (class (p .π₁ , p .π₂)) intZero
+                  (sym Int _ _
+                    (trans Int (class (p .π₁ , p .π₂)) (class p) z (classPairEta p) hz))
+                  u))
+      (nzOfPairD (p .π₁) (p .π₂) hab)
+
+def nzOfInt : (z : El Int) →
+  ((e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int)) ⊎ Prf (z ≡ intZero ∈ El Int) ≔
+  λz. nzOfIntAt z (intCanon z) (intCanonClass z) (intCanonProdZero z)
+
+-- ===== the image of NZ misses zero =====
+
+def nzToIntNonZero : (e : El NZ) → Prf (¬ (nzToInt e ≡ intZero ∈ El Int)) ≔
+  λe. ⊎-elim (w. Prf (¬ (nzToInt w ≡ intZero ∈ El Int)))
+    (n. neqZSound (nzToInt (nzPos n)) intZero
+          (notIntro (EqZ (nzToInt (nzPos n)) intZero) (λh. andFst _ _ h)))
+    (n. neqZSound (nzToInt (nzNeg n)) intZero
+          (notIntro (EqZ (nzToInt (nzNeg n)) intZero) (λh. andSnd _ _ h)))
+    e
+
+-- ===== ℤ has no zero divisors =====
+--
+-- Constructive, and with no double-negation: the view above DECIDES
+-- whether x is zero, so the argument is a case split, not a refutation.
+def intNoZeroDiv : (x : El Int) (y : El Int)
+  (hxy : Prf (intMul x y ≡ intZero ∈ El Int))
+  (hy : Prf (¬ (y ≡ intZero ∈ El Int))) →
+  x ≡ intZero ∈ El Int ≔
+  λx. λy. λhxy. λhy.
+    ⊎-elim (w. (x ≡ intZero ∈ El Int))
+      (ex.
+        ⊎-elim (w. (x ≡ intZero ∈ El Int))
+          (ey.
+            absurdP (x ≡ intZero ∈ El Int)
+              (notApply (nzToInt (nzMul (ex .π₁) (ey .π₁)) ≡ intZero ∈ El Int)
+                (nzToIntNonZero (nzMul (ex .π₁) (ey .π₁)))
+                (trans Int
+                  (nzToInt (nzMul (ex .π₁) (ey .π₁)))
+                  (intMul x y)
+                  intZero
+                  (trans Int
+                    (nzToInt (nzMul (ex .π₁) (ey .π₁)))
+                    (intMul (nzToInt (ex .π₁)) (nzToInt (ey .π₁)))
+                    (intMul x y)
+                    (nzToIntMul (ex .π₁) (ey .π₁))
+                    (intMulCong2 _ _ _ _ (ex .π₂) (ey .π₂)))
+                  hxy)))
+          (ey. absurdP (x ≡ intZero ∈ El Int)
+                 (notApply (y ≡ intZero ∈ El Int) hy ey))
+          (nzOfInt y))
+      (ex. ex)
+      (nzOfInt x)

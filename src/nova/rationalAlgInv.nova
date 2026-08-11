@@ -1,0 +1,198 @@
+-- intNonZero FIRST: it fixes the elaboration order of the transitive
+-- imports, and integerNormalize's own well-definedness proof only
+-- survives if it is elaborated before rationalQ's clsEqOfRel enters
+-- the store (docs/ProvingFeedback.md B-3/B-5)
+import intNonZero (nzOfInt, nzToIntNonZero, intNoZeroDiv)
+import nat (+, *, plusComm, plusAssoc, multComm)
+import integer (Int, intZero, intOne)
+import integerMul (intMul, intMulComm, intMulOneL, intMulOneR,
+                   intMulZeroL, intMulZeroR, intMulCong2)
+import prop (¬, ⊥, absurdP)
+import rational (NZ, nzPos, nzToInt, nzMul, Rat, mkRat, num, den, ratZero, ratOne,
+                 ratEta, half, third)
+import rationalQ (Q, qcls, qZero, qOne, qMul, ratMul, RatR, clsEqOfRel, dInt,
+                  nzToIntMul, mulCongL, mulCongR, NZQ, qOfNzq)
+import rationalInv (notIntro, notApply, numNonZero)
+import equality (trans, sym, cong)
+
+-- The ALGORITHMIC inverse: a total function qInv : El Q → El Q that
+-- computes a multiplicative inverse (and returns 0 at 0), together
+-- with the non-erased existence statement
+--
+--   (u : El Q) (h : Prf (u ≢ 0)) → (v : El Q) ⨯ Prf (qMul u v ≡ qOne)
+--
+-- whose first component IS the inverse, not a squashed promise.
+--
+-- What makes this possible is intNonZero.nova's DATA-valued view
+-- nzOfInt: the numerator's sign is decided by a function, so the
+-- inverse can branch on it. The price is that qInv's descent to the
+-- quotient needs ℤ to have no zero divisors — for related p, p′ the
+-- numerators are not equal, so the two branches must be shown to agree,
+-- and the mixed case (one numerator zero, the other not) is refuted
+-- exactly by intNoZeroDiv.
+
+-- ===== the inverse on representatives =====
+
+-- taking the view as an argument (rather than calling nzOfInt inside)
+-- is what lets the proofs below case-split on it: they eliminate the
+-- same scrutinee under a motive mentioning invRepAt
+def invRepAt : (p : El Rat) →
+  (((e : El NZ) ⨯ Prf (nzToInt e ≡ num p ∈ El Int))
+     ⊎ Prf (num p ≡ intZero ∈ El Int)) →
+  El Rat ≔
+  λp. λv. ⊎-elim (w. El Rat) (u. mkRat (dInt p) (u .π₁)) (u. ratZero) v
+
+def invRep : El Rat → El Rat ≔ λp. invRepAt p (nzOfInt (num p))
+
+-- ===== well-definedness =====
+
+def invRepWDAt : (p : El Rat) (p' : El Rat) (h : Prf (RatR p p'))
+  (v : ((e : El NZ) ⨯ Prf (nzToInt e ≡ num p ∈ El Int))
+         ⊎ Prf (num p ≡ intZero ∈ El Int))
+  (v' : ((e : El NZ) ⨯ Prf (nzToInt e ≡ num p' ∈ El Int))
+          ⊎ Prf (num p' ≡ intZero ∈ El Int)) →
+  intMul (num (invRepAt p v)) (dInt (invRepAt p' v'))
+    ≡ intMul (num (invRepAt p' v')) (dInt (invRepAt p v)) ∈ El Int ≔
+  λp. λp'. λh. λv. λv'.
+    ⊎-elim (w. (intMul (num (invRepAt p w)) (dInt (invRepAt p' v'))
+                  ≡ intMul (num (invRepAt p' v')) (dInt (invRepAt p w)) ∈ El Int))
+      (ex.
+        ⊎-elim (w. (intMul (num (invRepAt p (inj₁ ex))) (dInt (invRepAt p' w))
+                      ≡ intMul (num (invRepAt p' w)) (dInt (invRepAt p (inj₁ ex))) ∈ El Int))
+          -- both numerators non-zero: the goal IS the hypothesis, commuted
+          (ey.
+            trans Int
+              (intMul (dInt p) (nzToInt (ey .π₁)))
+              (intMul (dInt p) (num p'))
+              (intMul (dInt p') (nzToInt (ex .π₁)))
+              (mulCongR (dInt p) (nzToInt (ey .π₁)) (num p') (ey .π₂))
+              (trans Int
+                (intMul (dInt p) (num p'))
+                (intMul (dInt p') (num p))
+                (intMul (dInt p') (nzToInt (ex .π₁)))
+                (trans Int
+                  (intMul (dInt p) (num p'))
+                  (intMul (num p') (dInt p))
+                  (intMul (dInt p') (num p))
+                  (intMulComm (dInt p) (num p'))
+                  (trans Int
+                    (intMul (num p') (dInt p))
+                    (intMul (num p) (dInt p'))
+                    (intMul (dInt p') (num p))
+                    (sym Int _ _ h)
+                    (intMulComm (num p) (dInt p'))))
+                (mulCongR (dInt p') (num p) (nzToInt (ex .π₁)) (sym Int _ _ (ex .π₂)))))
+          -- p′'s numerator is zero, p's is not: impossible, by no zero divisors
+          (ey.
+            absurdP (intMul (num (invRepAt p (inj₁ ex))) (dInt (invRepAt p' (inj₂ ey)))
+                       ≡ intMul (num (invRepAt p' (inj₂ ey))) (dInt (invRepAt p (inj₁ ex)))
+                       ∈ El Int)
+              (notApply (nzToInt (ex .π₁) ≡ intZero ∈ El Int)
+                (nzToIntNonZero (ex .π₁))
+                (trans Int (nzToInt (ex .π₁)) (num p) intZero
+                  (ex .π₂)
+                  (intNoZeroDiv (num p) (dInt p')
+                    (trans Int (intMul (num p) (dInt p')) (intMul (num p') (dInt p)) intZero
+                      h
+                      (trans Int (intMul (num p') (dInt p)) (intMul intZero (dInt p)) intZero
+                        (mulCongL (num p') intZero (dInt p) ey)
+                        (intMulZeroL (dInt p))))
+                    (nzToIntNonZero (den p'))))))
+          v')
+      (ex.
+        ⊎-elim (w. (intMul (num (invRepAt p (inj₂ ex))) (dInt (invRepAt p' w))
+                      ≡ intMul (num (invRepAt p' w)) (dInt (invRepAt p (inj₂ ex))) ∈ El Int))
+          -- p's numerator is zero, p′'s is not: impossible, symmetrically
+          (ey.
+            absurdP (intMul (num (invRepAt p (inj₂ ex))) (dInt (invRepAt p' (inj₁ ey)))
+                       ≡ intMul (num (invRepAt p' (inj₁ ey))) (dInt (invRepAt p (inj₂ ex)))
+                       ∈ El Int)
+              (notApply (nzToInt (ey .π₁) ≡ intZero ∈ El Int)
+                (nzToIntNonZero (ey .π₁))
+                (trans Int (nzToInt (ey .π₁)) (num p') intZero
+                  (ey .π₂)
+                  (intNoZeroDiv (num p') (dInt p)
+                    (trans Int (intMul (num p') (dInt p)) (intMul (num p) (dInt p')) intZero
+                      (sym Int _ _ h)
+                      (trans Int (intMul (num p) (dInt p')) (intMul intZero (dInt p')) intZero
+                        (mulCongL (num p) intZero (dInt p') ex)
+                        (intMulZeroL (dInt p'))))
+                    (nzToIntNonZero (den p))))))
+          -- both zero: both inverses are the junk value
+          (ey. ⋆)
+          v')
+      v
+
+def invRepWD : (p : El Rat) (p' : El Rat) (h : Prf (RatR p p')) →
+  intMul (num (invRep p)) (dInt (invRep p'))
+    ≡ intMul (num (invRep p')) (dInt (invRep p)) ∈ El Int ≔
+  λp. λp'. λh. invRepWDAt p p' h (nzOfInt (num p)) (nzOfInt (num p'))
+
+-- ===== the inverse on ℚ =====
+
+def qInv : El Q → El Q ≔
+  λu. quot-elim (w. El Q) (p. class (invRep p)) u
+
+def qInvCls : (p : El Rat) → qInv (qcls p) ≡ qcls (invRep p) ∈ El Q ≔ λp. ⋆
+
+-- junk at zero, by construction
+def qInvZero : qInv qZero ≡ qZero ∈ El Q ≔ ⋆
+
+-- ===== correctness =====
+
+-- at a representative with a non-zero numerator: p · (D/e) is
+-- (n·D)/(d·e), and cross-multiplying against 1/1 leaves n·D ≡ D·n
+def invRepRel : (p : El Rat) (e : El NZ) (he : Prf (nzToInt e ≡ num p ∈ El Int)) →
+  intMul (num (ratMul p (mkRat (dInt p) e))) (dInt ratOne)
+    ≡ intMul (num ratOne) (dInt (ratMul p (mkRat (dInt p) e))) ∈ El Int ≔
+  λp. λe. λhe.
+    trans Int
+      (intMul (num (ratMul p (mkRat (dInt p) e))) (dInt ratOne))
+      (intMul (num p) (dInt p))
+      (intMul (num ratOne) (dInt (ratMul p (mkRat (dInt p) e))))
+      (intMulOneR (intMul (num p) (dInt p)))
+      (trans Int
+        (intMul (num p) (dInt p))
+        (intMul (dInt p) (nzToInt e))
+        (intMul (num ratOne) (dInt (ratMul p (mkRat (dInt p) e))))
+        (trans Int
+          (intMul (num p) (dInt p))
+          (intMul (dInt p) (num p))
+          (intMul (dInt p) (nzToInt e))
+          (intMulComm (num p) (dInt p))
+          (mulCongR (dInt p) (num p) (nzToInt e) (sym Int _ _ he)))
+        (trans Int
+          (intMul (dInt p) (nzToInt e))
+          (dInt (ratMul p (mkRat (dInt p) e)))
+          (intMul (num ratOne) (dInt (ratMul p (mkRat (dInt p) e))))
+          (sym Int _ _ (nzToIntMul (den p) e))
+          (sym Int _ _ (intMulOneL (dInt (ratMul p (mkRat (dInt p) e)))))))
+
+def invRepCorrectAt : (p : El Rat) (hnz : Prf (¬ (num p ≡ intZero ∈ El Int)))
+  (v : ((e : El NZ) ⨯ Prf (nzToInt e ≡ num p ∈ El Int))
+         ⊎ Prf (num p ≡ intZero ∈ El Int)) →
+  class (ratMul p (invRepAt p v)) ≡ qOne ∈ El Q ≔
+  λp. λhnz. λv.
+    ⊎-elim (w. (class (ratMul p (invRepAt p w)) ≡ qOne ∈ El Q))
+      (ex. clsEqOfRel (ratMul p (mkRat (dInt p) (ex .π₁))) ratOne
+             (invRepRel p (ex .π₁) (ex .π₂)))
+      (ex. absurdP (class (ratMul p (invRepAt p (inj₂ ex))) ≡ qOne ∈ El Q)
+             (notApply (num p ≡ intZero ∈ El Int) hnz ex))
+      v
+
+def qMulInvR : (u : El Q) (h : Prf (¬ (u ≡ qZero ∈ El Q))) →
+  qMul u (qInv u) ≡ qOne ∈ El Q ≔
+  λu.
+    quot-elim (w. Prf (¬ (w ≡ qZero ∈ El Q)) → (qMul w (qInv w) ≡ qOne ∈ El Q))
+      (p. λh. invRepCorrectAt p (numNonZero p h) (nzOfInt (num p)))
+      u
+
+-- ===== the non-erased existence statement =====
+--
+-- a Σ-TYPE, not a squash: the first component is the inverse itself
+def qInvExistsD : (u : El Q) (h : Prf (¬ (u ≡ qZero ∈ El Q))) →
+  (v : El Q) ⨯ Prf (qMul u v ≡ qOne ∈ El Q) ≔
+  λu. λh. (qInv u , qMulInvR u h)
+
+-- and it computes: (⅓)⁻¹ = 3
+def qInvThird : qInv (qcls third) ≡ qcls (mkRat (class (S (S (S Z)) , Z)) (nzPos Z)) ∈ El Q ≔ ⋆
