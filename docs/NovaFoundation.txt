@@ -1376,7 +1376,7 @@ e˲ : Γ₁ ⇒ Γ norm
 #         class Z ≐ class (S (S Z)) by transitivity, whence Prf of
 #         (S Z ≡ S (S Z) ∈ ℕ), whence Z ≐ S Z by el-reflect and
 #         S-injectivity, whence 𝟘. Nothing may read R off a class
-#         equation; only R⁺. See docs/EffectiveQuotients.txt.
+#         equation; only R⁺.
 #      3. Equality proofs reflect directly: el-reflect reads
 #         a₀ ≐ a₁ : B off any s : Prf (a₀ ≡ a₁ ∈ B) — no squash
 #         apparatus is involved.

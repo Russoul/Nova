@@ -8,8 +8,8 @@ import equality (transportP, sym, trans)
 -- EQUIVALENCE RULES) while (/) quotients by an ARBITRARY Ω-valued
 -- relation (ty-quot), so class equality is closed under symmetry and
 -- transitivity whether or not r is — reversing el-quot-eq pointwise
--- would be inconsistent (docs/EffectiveQuotients.txt §2 does the
--- damage: the successor graph collapses ℕ).
+-- would be inconsistent (the successor graph at the end of this file
+-- collapses ℕ; NovaFoundation.txt's Ω block spells the damage out).
 --
 -- What comes back is the equivalence CLOSURE r⁺ — prop.nova's rClosure,
 -- the impredicative intersection of every equivalence containing r —
@@ -91,7 +91,7 @@ def natEqEffective : (a : El ℕ) (b : El ℕ) →
 -- rule reading r off any of the last two would inhabit
 -- Prf (S Z ≡ S (S Z) ∈ ℕ) and collapse ℕ. (Chaining is not automatic:
 -- sgHop2 goes through sgHop1 as a rewrite candidate, so the hops must
--- be named — see docs/EffectiveQuotients.txt §8, E7)
+-- be named — drop sgHop1 and sgHop2 stops elaborating)
 def SG : 𝕌 ≔ ℕ / (n m. (S n ≡ m ∈ ℕ))
 def sgHop1 : class Z ≡ class (S Z) ∈ El SG ≔ ⋆
 def sgHop2 : class Z ≡ class (S (S Z)) ∈ El SG ≔ ⋆
