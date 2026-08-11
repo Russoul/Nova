@@ -169,6 +169,7 @@ implementation's names):
       beta                                         (FBeta)
     | prop                                         (FProp)
     | witness 𝒞?                                   (FWitness)
+    | witnessPrf w ⟨sk⟩                            (FWitnessPrf)
     | ηΠ 𝒞                                         (FEtaPi)
     | ηΣ 𝒞 𝒞                                       (FEtaSigma)
     | propext s ⟨sk⟩ t ⟨sk⟩                        (FPropExt)
@@ -181,8 +182,9 @@ implementation's names):
     | nuCong 𝒞̄                                     (FNuCong)
 
   The three Ω finals: propext is code-prop-eq — the sides are prop codes
-  and s, t are the two hypothetical implications, CHECKED as typings
-  (Γ ▷ Prf p ⊦ s ⇐ Prf q[↑] and symmetrically); prfCong is ty-prf-cong
+  and s, t are the two implications, CHECKED as typings at their
+  function types (Γ ⊦ s ⇐ Prf p → Prf q and symmetrically; §7 on why
+  the function form rather than the hypothetical one); prfCong is ty-prf-cong
   on a TYPE equation (both sides Prf-headed, 𝒞 proves the codes equal at
   Ω); quotCong is ty-quot-cong at a reflexive domain (both sides A / _,
   𝒞 proves the relations equal at Ω under the domain twice). FProp also
@@ -549,17 +551,34 @@ final):
                then by the shape of nf(r[id, a, b]) (an Ω code):
                  ⇓ ∥𝟙∥              — accepted (witness ())
                  ⇓ (wl ≡ wr ∈ W)    — replay 𝒞 ▷ wl ≐ wr : W
-               # el-quot-eq: the relation is Ω-valued, so its witness
-               # shapes are prop codes — a squashed 𝟙 or an equality
-               # prop (el-eq-i)
+               # el-quot-eq with the witness RE-DERIVED from the
+               # relation's shape — a squashed 𝟙 or an equality prop
+               # (el-eq-i). Only those two shapes; anything else takes
+               # the proof-carrying final below
+  witnessPrf w σ
+               sides are class a ≐ class b and nf(T) ⇓ A / r; check
+               Σ; Γ ⊦ w ⇐ Prf r[id, a, b] with skeleton σ (§8).
+               # el-quot-eq, faithful: its premise, presented. The
+               # relation is an ARBITRARY Ω-valued term — impredicative
+               # closures, conjunctions, disjunctions, relation
+               # variables — none of which the shape test above
+               # reaches. Trust: one already-licensed rule, checked
+               # exactly as propext's implications are
   ηΠ 𝒞         nf(T) ⇓ A → B; replay
                Σ; Γ ▷ A ⊦ 𝒞 ▷ l[↑] ☐₀ ≐ r[↑] ☐₀ : B     # el-pi-eta
   ηΣ 𝒞₁ 𝒞₂     nf(T) ⇓ A ⨯ B; replay
                𝒞₁ ▷ l.π₁ ≐ r.π₁ : A
                𝒞₂ ▷ l.π₂ ≐ r.π₂ : B[id, l.π₁]           # el-sigma-eta
-  propext ...  nf(T) ⇓ Ω, sides prop codes p, q; check the two
-               hypothetical implications as typings
-               (Γ ▷ Prf p ⊦ s ⇐ Prf q[↑] and symmetrically).  # code-prop-eq
+  propext f σ g σ′
+               nf(T) ⇓ Ω, sides prop codes p, q; check the two
+               implications as typings, AS FUNCTIONS over Γ
+               (Γ ⊦ f ⇐ Prf p → Prf q and symmetrically). Equivalent
+               to the hypothetical form (Γ ▷ Prf p ⊦ f ☐₀ ⇐ Prf q[↑])
+               by Π intro/elim, and the form a surface term can hand
+               over: a checked term's variable indices are fixed
+               against the context it was written in, so a proof the
+               elaborator did not itself synthesize cannot be moved
+               under a hypothesis binder.  # code-prop-eq
 
 Type equations — Σ; Γ ⊦ 𝒞 ▷ T₀ ≐ T₁: no bridge is admissible (a
 bridge on a type equation would be circular), steps apply through the

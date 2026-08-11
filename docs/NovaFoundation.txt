@@ -1221,6 +1221,14 @@ e˲ : Γ₁ ⇒ Γ norm
 ---------------------------------------------- (el-quot-eta, motive B)
 Γ ⊦ g[id, q] ≐ quot-elim f q : B[id, q]
 
+# el-quot-eq HAS NO CONVERSE at R: the relation slot is arbitrary while
+# ≐ is an equivalence, so class equality is R's equivalence closure and
+# nothing less. What IS recovered from class a ≐ class b — R⁺, exactly,
+# and R itself when R is an equivalence — is EFFECTIVITY, derived in the
+# Ω block below (Consequences for quotients, item 2); it needs Ω as a
+# quot-elim motive, which is why B ranges over TYPES here and Ω is one
+# (ty-prop).
+
 # Ω: equality, squash, proof irrelevance, propositional
 # extensionality.
 #
@@ -1317,7 +1325,11 @@ e˲ : Γ₁ ⇒ Γ norm
 #        prf r ≜ Id (ℕ / r̂) (class Z) (class (S Z)), a 𝕌-code whose
 #        decoding is inhabited iff r — el-quot-eq plus el-qiit-intro
 #        one way, effectivity along (x ≡ y ∈ ℕ) ∨ r plus qiit
-#        elimination the other. So 𝕌's element slots already contain Ω up to iff,
+#        elimination the other. (Both steps quotient by a ∨-shaped
+#        relation, so both need el-quot-eq's witness SUPPLIED, not
+#        re-derived from the relation's shape —
+#        docs/NovaElaboration.txt, e-star-quot-wit.)
+#        So 𝕌's element slots already contain Ω up to iff,
 #        and the load-bearing prohibition is exactly the first
 #        clause: no code for Ω ITSELF. Propositions and powersets
 #        embed only into the CODES of 𝕌 — a large collection — never
@@ -1337,13 +1349,34 @@ e˲ : Γ₁ ⇒ Γ norm
 #         code-prop-eq under Γ ▷ A ▷ A[↑] gives R₀ ≐ R₁ : Ω, then
 #         ty-quot-cong; dually ty-quot-inj returns only iff-content.
 #         A proof-relevant presentation is recovered as A / ∥R∥.
-#      2. Effectivity: for R : Ω over Γ ▷ A ▷ A[↑], an equivalence
-#         at squash level, class a ≐ class b : A / R implies
-#         Prf R[id, a, b] inhabited — via quot-elim at the constant
-#         motive Ω with f ≔ R[id, a, ☐₀], coherence discharged by
-#         code-prop-eq from symmetry/transitivity, then el-quot-beta,
-#         ty-prf-cong and el-ty-coe on ⋆. Combined with r⁺ above this
-#         characterizes quotient equality for ARBITRARY relations.
+#      2. Effectivity, in the ONLY form it can take: quotient equality
+#         is the equivalence CLOSURE. For R : Ω over Γ ▷ A ▷ A[↑] with
+#         no assumption whatever,
+#
+#           class a ≐ class b : A / R  ⟺  Prf R⁺[id, a, b] inhabited
+#
+#         (⟸) R⁺ is least among the equivalences containing R, and
+#         (class ☐₁ ≡ class ☐₀ ∈ A / R) is one — el-quot-eq for
+#         containment, the EQUIVALENCE RULES for the rest.
+#         (⟹) quot-elim at the constant motive Ω with f ≔ R⁺[id, a, ☐₀]:
+#         coherence is R⁺ a x ⟺ R⁺ a y under Prf R[id, x, y], by
+#         code-prop-eq from R⁺'s OWN transitivity and symmetry (this is
+#         why the motive is the closure and not R: nothing about R is
+#         needed); then el-quot-beta at class a, congruence along the
+#         class equation, ty-prf-cong and el-ty-coe carry R⁺'s
+#         reflexivity proof to b. Both directions stay inside A / R — no
+#         transport to A / R⁺, which by item 1 is a DIFFERENT type.
+#         Corollary: where R is an equivalence, R⁺ collapses into it by
+#         leastness and effectivity holds ON THE NOSE — the familiar
+#         form, with the hypotheses that make it true.
+#         The naive form — R itself back, pointwise, for arbitrary R —
+#         is REFUTABLE, not merely unproved: ≐ is an equivalence at
+#         every judgement class while ty-quot's relation slot is
+#         arbitrary, so at R ≔ (S ☐₁ ≡ ☐₀ ∈ ℕ) one has
+#         class Z ≐ class (S (S Z)) by transitivity, whence Prf of
+#         (S Z ≡ S (S Z) ∈ ℕ), whence Z ≐ S Z by el-reflect and
+#         S-injectivity, whence 𝟘. Nothing may read R off a class
+#         equation; only R⁺. See docs/EffectiveQuotients.txt.
 #      3. Equality proofs reflect directly: el-reflect reads
 #         a₀ ≐ a₁ : B off any s : Prf (a₀ ≡ a₁ ∈ B) — no squash
 #         apparatus is involved.
@@ -1368,6 +1401,18 @@ e˲ : Γ₁ ⇒ Γ norm
 #    the setoid model a quotient is FREE), so quotient codes stay
 #    small however impredicative their relation — propositional
 #    resizing, in HoTT terms, which the setoid model validates.
+#    PRECISELY: the coarsened relation must still be an EQUIVALENCE
+#    (that is what a setoid is), so it is the equivalence closure of
+#    ⟦El A⟧'s relation together with R's truth — exactly R⁺'s
+#    denotation. "Coarsens by the truth of R at each pair" is the
+#    closure's description only when R is already an equivalence
+#    containing ≐_A; in general read the closure, and effectivity
+#    (item 2 above) is the syntactic counterpart. This does NOT
+#    collapse A / R into A / R⁺: type equality is equality of CODES,
+#    the quotient code carries its relation, and R, R⁺ are not
+#    pointwise equi-inhabited — so ty-quot-inj is untouched, at the
+#    price that two quotient types may denote the same setoid while
+#    remaining distinct types.
 
 Γ ⊦ A type
 ------------------ (code-squash)
