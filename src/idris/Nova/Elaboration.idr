@@ -1422,20 +1422,24 @@ mutual
     (be, bsk) <- mkImpl b a
     pure (MkECert [] (FPropExt fe fsk be bsk))
    where
-    -- under ctx ▷ Prf src, a proof of (Prf tgt)[↑]: 𝟙-shaped squashes
-    -- outright, equality props by a nested discharge (which may use
-    -- the hypothesis as a rewrite candidate)
+    -- Prf src → Prf tgt, as a λ whose body is a proof of (Prf tgt)[↑]
+    -- under ctx ▷ Prf src: 𝟙-shaped squashes outright, equality props
+    -- by a nested discharge (which may use the hypothesis as a rewrite
+    -- candidate)
     mkImpl : Elem -> Elem -> Maybe (Elem, Skel)
     mkImpl src tgt =
       let ctx' = ctx :< Prf src in
       case betaElem st.sig (substElem tgt Wk) of
         Squash sq => case betaTy st.sig sq of
-          Ty.OneTy => Just (Star, Nd [PSquashWit OneIntro (Nd [] [])] [])
+          Ty.OneTy => Just (lam (Nd [PSquashWit OneIntro (Nd [] [])] []))
           _ => Nothing
         Elem.EqTy l r t => do
           c <- spEqElemC dep st (mkCandSet st ctx') ctx' l r t
-          Just (Star, Nd [PReflEq c] [])
+          Just (lam (Nd [PReflEq c] []))
         _ => Nothing
+     where
+      lam : Skel -> (Elem, Skel)
+      lam bodySk = (PiIntro Star, Nd [] [bodySk])
   spEqStructC _ _ _ _ _ _ _ = Nothing
 
   ||| Syntactic congruence descent: same-headed sides compared
@@ -3313,10 +3317,33 @@ mutual
           Squash sq => do
             (w', wSk) <- checkElem ctx env site w sq
             pure (Star, withExpose exp (Nd [PSquashWit w' wSk] []))
-          pN@(Elem.EqTy _ _ _) => do
-            (w', _) <- checkElem ctx env site w (Prf pN)
-            let cert = MkECert [MkStep True [] (LProof w') [] False] FBeta
-            pure (Star, withExpose exp (Nd [PReflEq cert] []))
+          pN@(Elem.EqTy pl pr qty) => do
+            -- The two FAITHFUL routes at an equation no automatic shape
+            -- reaches. code-prop-eq at Ω (e-star-propext): the witness
+            -- is the PAIR of implications, each an ordinary function
+            -- between the decodings. el-quot-eq at a quotient
+            -- (e-star-quot-wit): the witness proves the relation at the
+            -- two representatives, whatever the relation's shape.
+            -- Anything else keeps the license reading — w proves this
+            -- very equation.
+            mcert <- case (betaTy st.sig qty, pl, pr, w) of
+              (Ty.PropTy, _, _, SPair f g) => do
+                let pTy = Prf pl
+                let qTy = Prf pr
+                (f', fSk) <- checkElem ctx env site f (Ty.PiTy pTy (substTy qTy Wk))
+                (g', gSk) <- checkElem ctx env site g (Ty.PiTy qTy (substTy pTy Wk))
+                pure (Just (MkECert [] (FPropExt f' fSk g' gSk)))
+              (Ty.Quotient _ rel, Class a, Class b, _) => do
+                (w', wSk) <- checkElem ctx env site w
+                               (Prf (substElem rel (Ext (Ext Id a) b)))
+                pure (Just (MkECert [] (FWitnessPrf w' wSk)))
+              _ => pure Nothing
+            case mcert of
+              Just cert => pure (Star, withExpose exp (Nd [PReflEq cert] []))
+              Nothing => do
+                (w', _) <- checkElem ctx env site w (Prf pN)
+                let cert = MkECert [MkStep True [] (LProof w') [] False] FBeta
+                pure (Star, withExpose exp (Nd [PReflEq cert] []))
           _ => throw "\{site}: ⋆ checked against Prf of a non-∥∥ code\{structuralHint}"
   checkElem ctx env site (SSquashElim e xn body) ty = do
     st <- getSt

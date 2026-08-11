@@ -1,0 +1,5 @@
+-- code-prop-eq where nothing is evident: the two implications are
+-- supplied as a pair (e-star-propext). No search could find them —
+-- at opaque p and q there is nothing to compute.
+def propExt : (p : Ω) (q : Ω) → (Prf p → Prf q) → (Prf q → Prf p) → p ≡ q ∈ Ω ≔
+  λp. λq. λf. λg. ⋆ (f , g)

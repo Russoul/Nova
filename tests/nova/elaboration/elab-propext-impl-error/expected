@@ -1,0 +1,8 @@
+defined bad [+2 obligations]
+open obligations (2):
+  [1] (p : Ω) (q : Ω) (f : Prf p → Prf p) (x : Prf p) ⊢ p ≐ q : Ω
+      at: def bad: inferred vs expected type
+      from composite: (p : Ω) (q : Ω) (f : Prf p → Prf p) ⊢ Prf p → Prf p ≐ Prf p → Prf q type
+  [2] (p : Ω) (q : Ω) (f : Prf p → Prf p) ⊢ p ≐ q : Ω
+      at: def bad: inferred vs expected type
+      from composite: (p : Ω) (q : Ω) (f : Prf p → Prf p) ⊢ Prf p → Prf p ≐ Prf q → Prf p type
