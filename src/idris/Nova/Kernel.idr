@@ -125,14 +125,25 @@ mutual
     ||| equation the nested certificate establishes (witness ⋆;
     ||| el-quot-eq)
     FWitness : Maybe ECert -> Final
+    ||| el-quot-eq with the witness SUPPLIED: class a ≐ class b at
+    ||| A / R by a proof of Prf R[id,a,b], checked with its skeleton.
+    ||| FWitness above re-derives the witness from the relation's
+    ||| SHAPE and so reaches only ∥𝟙∥ and equality props; this is the
+    ||| faithful route, at an arbitrary Ω-valued relation — the
+    ||| premise of el-quot-eq, presented.
+    FWitnessPrf : Elem -> Skel -> Final
     ||| el-pi-eta: compare applied to the fresh variable, under the domain
     FEtaPi : ECert -> Final
     ||| el-sigma-eta: compare the projections
     FEtaSigma : ECert -> ECert -> Final
     ||| code-prop-eq (propositional extensionality) at Ω: mutually
-    ||| implied prop codes are equal. Carries the two hypothetical
-    ||| proofs — s : (Prf q)[↑] under Γ ▷ Prf p, and t : (Prf p)[↑]
-    ||| under Γ ▷ Prf q — with their checking skeletons.
+    ||| implied prop codes are equal. Carries the two implications as
+    ||| FUNCTIONS over Γ — f : Prf p → Prf q and g : Prf q → Prf p —
+    ||| with their checking skeletons. (Equivalent to carrying the
+    ||| hypothetical proofs f ☐₀ / g ☐₀ under Γ ▷ Prf p / Γ ▷ Prf q,
+    ||| by Π intro/elim; the function form is what a surface term can
+    ||| hand over, since a checked term's variable indices are fixed
+    ||| against the context it was written in.)
     FPropExt : Elem -> Skel -> Elem -> Skel -> Final
     ||| ty-prf-cong for a TYPE certificate: both sides are Prf-headed
     ||| and the nested certificate proves the codes equal at Ω
@@ -1528,6 +1539,15 @@ mutual
                   Nothing => kerr "kernel: witness final needs a certificate at an equality relation"
               _ => kerr "kernel: witness final at a non-evident relation"
           _ => kerr "kernel: witness final at a non-class equation"
+      -- el-quot-eq, faithful: the relation instance is inhabited by
+      -- the supplied proof, whatever the relation's shape
+      FWitnessPrf w skW => do
+        ty' <- kTy sig tyU
+        case (l1, r1, ty') of
+          (Class a, Class b, Ty.Quotient _ rel) => do
+            relInst <- kElem sig (substElem rel (Ext (Ext Id a) b))
+            kCheckE sig ctx w (Prf relInst) skW
+          _ => kerr "kernel: supplied-witness final at a non-class equation"
       FEtaPi c => do
         ty' <- kTy sig tyU
         case ty' of
@@ -1546,13 +1566,13 @@ mutual
               (substTy cod (Ext Id (SigmaElim1 l1)))
           _ => kerr "kernel: Σ-η final at a non-Σ type"
       FPropExt s skS t skT => do
-        -- code-prop-eq: the sides are prop codes; each direction is a
-        -- hypothetical proof of the other's decoding
+        -- code-prop-eq: the sides are prop codes; each direction is an
+        -- implication between their decodings
         ty' <- kTy sig tyU
         case ty' of
           Ty.PropTy => do
-            kCheckE sig (ctx :< Prf l1) s (substTy (Prf r1) Wk) skS
-            kCheckE sig (ctx :< Prf r1) t (substTy (Prf l1) Wk) skT
+            kCheckE sig ctx s (Ty.PiTy (Prf l1) (substTy (Prf r1) Wk)) skS
+            kCheckE sig ctx t (Ty.PiTy (Prf r1) (substTy (Prf l1) Wk)) skT
           _ => kerr "kernel: propext final at a non-Ω type"
       FPrfCong _ => kerr "kernel: Prf-congruence final on an element equation"
       FQuotCong _ => kerr "kernel: quotient-congruence final on an element equation"

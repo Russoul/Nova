@@ -1,0 +1,4 @@
+-- the supplied implications are CHECKED: an implication at the wrong
+-- codomain does not pass for propext
+def bad : (p : Ω) (q : Ω) → (Prf p → Prf p) → p ≡ q ∈ Ω ≔
+  λp. λq. λf. ⋆ (f , f)
