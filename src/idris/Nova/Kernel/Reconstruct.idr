@@ -418,6 +418,19 @@ shareIdxTbl = mkTable 15
 sharingOn : IORef Bool
 sharingOn = mkRef 16 False
 
+-- the current equation's license pool, for placement-level bridging
+-- (a lemma rewrite inside an argument shifts its type by an index
+-- law whose instance the certificate recorded)
+%noinline
+licPoolRef : IORef (List Step)
+licPoolRef = mkRef 19 []
+
+%noinline
+setLicPool : List Step -> Maybe ()
+setLicPool ps = unsafePerformIO $ do
+  writeIORef licPoolRef ps
+  pure (Just ())
+
 serveShared : (Integer, Integer) -> Ctx -> Deriv -> IO Deriv
 serveShared (h1, h2) cx d = do
   True <- readIORef sharingOn
@@ -1980,6 +1993,216 @@ reBridgeTSearch : Sig -> Ctx -> Step -> Nat -> Ty -> Ty -> Maybe Deriv
 
 ||| Coerce an element-equation derivation from its own type spelling
 ||| to a target spelling, the two nf-equal (the oracle bridge).
+-- two codes that differ by index laws meet by RECORDED lemma
+-- instances placed at prefixes of their disagreement (one per
+-- side, bounded recursion). The pool's steps are fully
+-- instantiated licenses — the certificate and its type-expansion
+-- recorded them — so matching is EXACT comparison of their
+-- licensed sides against the differing subpair: no
+-- re-instantiation, no enumeration. The congruence walk crosses
+-- only code spellings, whose motives are constant.
+stKey : Maybe Step -> String
+stKey Nothing = "-"
+stKey (Just st) =
+  show st.path ++ show st.flip ++ show st.onLhs ++
+  (case st.lic of
+     LProof pf => show pf
+     LBeta => "|β"
+     LPath _ k th => "|π\{show k}\{show (toList th)}")
+
+lemBridgeT : Sig -> Ctx -> List Step -> Nat -> Ty -> Ty -> Maybe Deriv
+lemBridgeT _ _ _ Z _ _ = Nothing
+lemBridgeT sig ctx pool (S fuel) (El x) (El y) =
+  if x == y
+    then DTyRefl <$> reTy sig ctx (El x) emptySkel
+    else do
+      -- the pool is tiny and fully instantiated: no matches means
+      -- no bridge, decided before anything walks or checks
+      let is = recInsts
+      let False = null is
+        | True => Nothing
+      withMemo memoLB "\{show (length (toList ctx))}|LB|\{concatMap (stKey . Just) pool}|\{show x}=\{show y}" $ do
+        dq <- diffPosE sig 64 [] x y
+        goPre is (reverse (inits dq))
+ where
+  -- each pool step's licensed equation, at both its normalized and
+  -- statement spellings, with its DERIVATION — matching is exact
+  -- comparison, placement is direct congruence assembly
+  recInsts : List (Elem, Elem, Deriv)
+  recInsts =
+    concatMap (\st =>
+      case st.lic of
+        LProof _ =>
+          (case reLicensed sig ctx st 0 of
+             Just (dEq, le, re, _) => [(le, re, dEq)]
+             Nothing => [])
+          ++ (case reLicensedRaw sig ctx st 0 of
+                Just (dEq, le, re, _) => [(le, re, dEq)]
+                Nothing => [])
+        _ => []) pool
+
+  -- congruence along a CODE path, assembled directly: every node
+  -- on the way lives at a closed constant type (𝕌 or ℕ), so the
+  -- eliminator congruences take the constant motive and no bridge,
+  -- no motive guess, and no search can arise
+  codeCongAt : Nat -> Ctx -> Ty -> List Nat -> Elem -> Deriv -> Maybe Deriv
+  codeCongAt Z _ _ _ _ _ = Nothing
+  codeCongAt (S f) cx exp [] z dEq = Just dEq
+  codeCongAt (S f) cx exp (i :: rest) z dEq =
+    case (z, i) of
+      (NatIntro1 u, 0) => do
+        dc <- codeCongAt f cx Ty.NatTy rest u dEq
+        pure (DElSucCong dc)
+      (NatElim zb sb t, 2) => do
+        let mot = substTy exp Wk
+        dmot <- reTy sig (cx :< Ty.NatTy) mot emptySkel
+        dz <- reCheck sig cx zb (substTy mot (Ext Id NatIntro0)) emptySkel
+        ds <- reCheck sig (cx :< Ty.NatTy :< mot) sb
+                (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) emptySkel
+        dc <- codeCongAt f cx Ty.NatTy rest t dEq
+        pure (DElNatECong dmot (DElRefl dz) (DElRefl ds) dc)
+      (NatElim zb sb t, 0) => do
+        let mot = substTy exp Wk
+        dmot <- reTy sig (cx :< Ty.NatTy) mot emptySkel
+        ds <- reCheck sig (cx :< Ty.NatTy :< mot) sb
+                (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) emptySkel
+        dt <- reCheck sig cx t Ty.NatTy emptySkel
+        dc <- codeCongAt f cx (substTy mot (Ext Id NatIntro0)) rest zb dEq
+        pure (DElNatECong dmot dc (DElRefl ds) (DElRefl dt))
+      (NatElim zb sb t, 1) => do
+        let mot = substTy exp Wk
+        dmot <- reTy sig (cx :< Ty.NatTy) mot emptySkel
+        dz <- reCheck sig cx zb (substTy mot (Ext Id NatIntro0)) emptySkel
+        dt <- reCheck sig cx t Ty.NatTy emptySkel
+        dc <- codeCongAt f (cx :< Ty.NatTy :< mot)
+                (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) rest sb dEq
+        pure (DElNatECong dmot (DElRefl dz) dc (DElRefl dt))
+      _ => Nothing
+
+  place : List Nat -> Elem -> Deriv -> Elem -> Maybe (Deriv, Elem)
+  place p z dEq re = do
+    d <- codeCongAt 32 ctx Ty.UniverseTy p z dEq
+    z' <- replaceAtE p re z
+    pure (d, z')
+
+  closeAt : List (Elem, Elem, Deriv) -> Bool -> List Nat -> Maybe Deriv
+  closeAt recIs deepest p = do
+    Left xa <- subAtE p x
+      | _ => Nothing
+    Left ya <- subAtE p y
+      | _ => Nothing
+    let False = xa == ya
+      | True => Nothing
+    fullClose xa ya recIs
+      <|> (do -- one-sided steps: only at the DEEPEST disagreement
+              -- (recursion at every prefix branches exponentially)
+              let True = deepest
+                | False => Nothing
+              (dEq, re) <- pickBy xa recIs
+              (dc, x') <- place p x dEq re
+              let False = x' == x
+                | True => Nothing
+              rec <- lemBridgeT sig ctx pool fuel (El x') (El y)
+              pure (DTyTrans (DTyElCong dc) rec))
+      <|> (do let True = deepest
+                | False => Nothing
+              (dEq, re) <- pickBy ya recIs
+              (dc, y') <- place p y dEq re
+              let False = y' == y
+                | True => Nothing
+              rec <- lemBridgeT sig ctx pool fuel (El x) (El y')
+              pure (DTyTrans rec (DTySym (DTyElCong dc))))
+   where
+    fullClose : Elem -> Elem -> List (Elem, Elem, Deriv) -> Maybe Deriv
+    fullClose xa ya [] = Nothing
+    fullClose xa ya ((leN, reN, dEq) :: more) =
+      (do let True = leN == xa && reN == ya
+            | False => Nothing
+          (dc, x') <- place p x dEq reN
+          let True = x' == y
+            | False => Nothing
+          pure (DTyElCong dc))
+      <|> (do let True = reN == xa && leN == ya
+                | False => Nothing
+              (dc, x') <- place p x (DElSym dEq) leN
+              let True = x' == y
+                | False => Nothing
+              pure (DTyElCong dc))
+      <|> fullClose xa ya more
+
+    pickBy : Elem -> List (Elem, Elem, Deriv) -> Maybe (Deriv, Elem)
+    pickBy za [] = Nothing
+    pickBy za ((leN, reN, dEq) :: more) =
+      if leN == za then Just (dEq, reN)
+      else if reN == za then Just (DElSym dEq, leN)
+      else pickBy za more
+
+  -- the prefix list arrives deepest-first: one-sided recursion is
+  -- allowed only at its head
+  goPre : List (Elem, Elem, Deriv) -> List (List Nat) -> Maybe Deriv
+  goPre recIs [] = Nothing
+  goPre recIs (p :: ps) = closeAt recIs True p <|> goRest ps
+   where
+    goRest : List (List Nat) -> Maybe Deriv
+    goRest [] = Nothing
+    goRest (q :: qs) = closeAt recIs False q <|> goRest qs
+-- one side El, the other an EXPOSED former: the unfolding is
+-- blocked behind an index law — rewrite the code by a recorded
+-- instance at an exact occurrence, then close through the oracle
+lemBridgeT sig ctx pool (S fuel) (El x) b = goPool pool
+ where
+  firstPosG : Elem -> Elem -> Maybe (List Nat)
+  firstPosG le z = goP (snd (candPosB 160 [] z))
+   where
+    goP : List (List Nat) -> Maybe (List Nat)
+    goP [] = Nothing
+    goP (q :: qs) =
+      case subAtE q z of
+        Just (Left sub) => if sub == le then Just q else goP qs
+        _ => goP qs
+
+  codeCongG : Nat -> Ctx -> Ty -> List Nat -> Elem -> Deriv -> Maybe Deriv
+  codeCongG Z _ _ _ _ _ = Nothing
+  codeCongG (S f) cx exp [] z dEq = Just dEq
+  codeCongG (S f) cx exp (i :: rest) z dEq =
+    case (z, i) of
+      (NatIntro1 u, 0) => DElSucCong <$> codeCongG f cx Ty.NatTy rest u dEq
+      (NatElim zb sb t, 2) => do
+        let mot = substTy exp Wk
+        dmot <- reTy sig (cx :< Ty.NatTy) mot emptySkel
+        dz <- reCheck sig cx zb (substTy mot (Ext Id NatIntro0)) emptySkel
+        ds <- reCheck sig (cx :< Ty.NatTy :< mot) sb
+                (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) emptySkel
+        dc <- codeCongG f cx Ty.NatTy rest t dEq
+        pure (DElNatECong dmot (DElRefl dz) (DElRefl ds) dc)
+      _ => Nothing
+
+  tryInst : Deriv -> Elem -> Elem -> Maybe Deriv
+  tryInst dEq le re = do
+    q <- firstPosG le x
+    dc <- codeCongG 32 ctx Ty.UniverseTy q x dEq
+    x' <- replaceAtE q re x
+    xN <- nfT sig (El x')
+    bN <- nfT sig b
+    let dEl = DTyElCong dc
+    if xN == bN
+      then do
+        dB <- lookupTyDeriv sig ctx b <|> reTy sig ctx b emptySkel
+        pure (DTyTrans dEl (DNfEqTy (DPresupTyR dEl) dB))
+      else do
+        rec <- lemBridgeT sig ctx pool fuel (El x') b
+        pure (DTyTrans dEl rec)
+
+  goPool : List Step -> Maybe Deriv
+  goPool [] = Nothing
+  goPool (st :: rest) =
+    (do (dEq, le, re, _) <- reLicensed sig ctx st 0
+        tryInst dEq le re <|> tryInst (DElSym dEq) re le)
+    <|> (do (dEq, le, re, _) <- reLicensedRaw sig ctx st 0
+            tryInst dEq le re <|> tryInst (DElSym dEq) re le)
+    <|> goPool rest
+lemBridgeT _ _ _ _ _ _ = Nothing
+
 eqAtNf : Sig -> Ctx -> Deriv -> Ty -> Ty -> Maybe Deriv
 eqAtNf sig ctx dEq cur tgt =
   if cur == tgt then Just dEq
@@ -1991,6 +2214,25 @@ eqAtNf sig ctx dEq cur tgt =
       dC <- reTy sig ctx cur emptySkel
       dT <- reTy sig ctx tgt emptySkel
       pure (DElEqTyCoe (DNfEqTy dC dT) dEq)
+
+||| … and past nf: a DEPENDENT SHIFT between the spellings, closed by
+||| the recorded-instance bridge over the current equation's license
+||| pool (an argument's inner rewrite shifts its type by an index law
+||| the certificate carries).
+eqAtLem : Sig -> Ctx -> Deriv -> Ty -> Ty -> Maybe Deriv
+eqAtLem sig ctx dEq cur tgt =
+  eqAtNf sig ctx dEq cur tgt
+  <|> do
+    let pool@(_ :: _) = unsafePerformIO (readIORef licPoolRef)
+      | [] => Nothing
+    cN <- nfT sig cur
+    tN <- nfT sig tgt
+    dBr <- lemBridgeT sig ctx pool 3 cN tN
+    dT <- lookupTyDeriv sig ctx tgt <|> reTy sig ctx tgt emptySkel
+    let dCur = DPresupElTy (DPresupElL dEq)
+    let dCN = DPresupTyR (DNfExpandTy dCur)
+    let atN = DElEqTyCoe dBr (DElEqTyCoe (DNfEqTy dCur dCN) dEq)
+    pure (DElEqTyCoe (DTySym (DNfExpandTy dT)) atN)
 
 ||| Placement: rewrite `cur` at `path` by the step's licensed
 ||| equation, emitting the congruence chain; returns the derivation
@@ -2034,27 +2276,36 @@ rePlaceE sig ctx step d [] exp cur mty =
                pure (DElTrans (DElSym dch) dEq0)
     d' <- if t == exp then Just dEq
           else do
-            -- only a β-bridge: a position whose type differs from the
-            -- licensed type beyond nf (a dependent position shifted by
-            -- an earlier rewrite) is outside this slice
             tN <- nfT sig t
             eN <- nfT sig exp
-            let True = tN == eN
-              | False => Nothing
-            dt <- reTy sig ctx t emptySkel
-            de <- reTy sig ctx exp emptySkel
-            pure (DElEqTyCoe (DNfEqTy dt de) dEq)
+            if tN == eN
+              then do
+                dt <- reTy sig ctx t emptySkel
+                de <- reTy sig ctx exp emptySkel
+                pure (DElEqTyCoe (DNfEqTy dt de) dEq)
+              else do
+                -- a dependent position shifted by an earlier rewrite:
+                -- the recorded-instance bridge over the equation's
+                -- license pool closes what nf cannot
+                let pool@(_ :: _) = unsafePerformIO (readIORef licPoolRef)
+                  | [] => Nothing
+                dBr <- lemBridgeT sig ctx pool 3 tN eN
+                dE <- lookupTyDeriv sig ctx exp <|> reTy sig ctx exp emptySkel
+                let dT = DPresupElTy (DPresupElL dEq)
+                let dTN = DPresupTyR (DNfExpandTy dT)
+                let atN = DElEqTyCoe dBr (DElEqTyCoe (DNfEqTy dT dTN) dEq)
+                pure (DElEqTyCoe (DTySym (DNfExpandTy dE)) atN)
     pure (d', re, if t == exp then t else exp)
 rePlaceE sig ctx step d (i :: p) exp cur mty =
   case (cur, i) of
     (NatIntro1 t, 0) => do
       (dc0, t', chTy) <- rePlaceE sig ctx step d p Ty.NatTy t Nothing
-      dc <- eqAtNf sig ctx dc0 chTy Ty.NatTy
+      dc <- eqAtLem sig ctx dc0 chTy Ty.NatTy
       pure (DElSucCong dc, NatIntro1 t', Ty.NatTy)
     (PiApp f e, 0) => do
       (a, b) <- headPi sig ctx f e exp
       (dc0, f', chTy) <- rePlaceE sig ctx step d p (Ty.PiTy a b) f Nothing
-      dc <- eqAtNf sig ctx dc0 chTy (Ty.PiTy a b)
+      dc <- eqAtLem sig ctx dc0 chTy (Ty.PiTy a b)
       de <- reCheck sig ctx e a emptySkel
       db <- reTy sig (ctx :< a) b emptySkel
             <|> Just (DInvPiCod (DPresupElTy (DPresupElL dc)))
@@ -2063,7 +2314,7 @@ rePlaceE sig ctx step d (i :: p) exp cur mty =
       (a, b) <- headPi sig ctx f e exp
       df <- reCheck sig ctx f (Ty.PiTy a b) emptySkel
       (dc0, e', chTy) <- rePlaceE sig ctx step d p a e Nothing
-      dc <- eqAtNf sig ctx dc0 chTy a
+      dc <- eqAtLem sig ctx dc0 chTy a
       db <- reTy sig (ctx :< a) b emptySkel
             <|> Just (DInvPiCod (DPresupElTy df))
       -- the congruence concludes at the POST-instance B[id,e′]; the
@@ -2086,7 +2337,7 @@ rePlaceE sig ctx step d (i :: p) exp cur mty =
       let Ty.SigmaTy a b = expN
         | _ => Nothing
       (dc0, u', chTy) <- rePlaceE sig ctx step d p a u Nothing
-      dc <- eqAtNf sig ctx dc0 chTy a
+      dc <- eqAtLem sig ctx dc0 chTy a
       db <- reTy sig (ctx :< a) b emptySkel
       dv <- reCheck sig ctx v (substTy b (Ext Id u')) emptySkel
       pure (DElPairCong dc db (DElRefl dv), SigmaIntro u' v, expN)
@@ -2097,13 +2348,13 @@ rePlaceE sig ctx step d (i :: p) exp cur mty =
       du <- reCheck sig ctx u a emptySkel
       db <- reTy sig (ctx :< a) b emptySkel
       (dc0, v', chTy) <- rePlaceE sig ctx step d p (substTy b (Ext Id u)) v Nothing
-      dc <- eqAtNf sig ctx dc0 chTy (substTy b (Ext Id u))
+      dc <- eqAtLem sig ctx dc0 chTy (substTy b (Ext Id u))
       pure (DElPairCong (DElRefl du) db dc, SigmaIntro u v', expN)
     (Inj1 a, 0) =>
       case exp of
         Ty.SumTy l r => do
           (dc0, a', chTy) <- rePlaceE sig ctx step d p l a Nothing
-          dc <- eqAtNf sig ctx dc0 chTy l
+          dc <- eqAtLem sig ctx dc0 chTy l
           dr <- reTy sig ctx r emptySkel
           pure (DElInj1Cong dc dr, Inj1 a', Ty.SumTy l r)
         _ => Nothing
@@ -2111,7 +2362,7 @@ rePlaceE sig ctx step d (i :: p) exp cur mty =
       case exp of
         Ty.SumTy l r => do
           (dc0, b', chTy) <- rePlaceE sig ctx step d p r b Nothing
-          dc <- eqAtNf sig ctx dc0 chTy r
+          dc <- eqAtLem sig ctx dc0 chTy r
           dl <- reTy sig ctx l emptySkel
           pure (DElInj2Cong dc dl, Inj2 b', Ty.SumTy l r)
         _ => Nothing
@@ -2121,7 +2372,7 @@ rePlaceE sig ctx step d (i :: p) exp cur mty =
       let False = fst (candPosB 501 [] st) == 0 || tySizeFuel 501 [] exp == 0
         | True => Nothing
       (dc0, t', chTy) <- rePlaceE sig ctx step d p Ty.NatTy t Nothing
-      dc <- eqAtNf sig ctx dc0 chTy Ty.NatTy
+      dc <- eqAtLem sig ctx dc0 chTy Ty.NatTy
       let tryMot = \mot => do
             dmot <- dbg "natEmot: motive \{show mot}" (reTy sig (ctx :< Ty.NatTy) mot emptySkel)
             dz <- dbg "natEmot: z" (chkStep sig ctx step d z (substTy mot (Ext Id NatIntro0)))
@@ -2169,7 +2420,7 @@ rePlaceE sig ctx step d (i :: p) exp cur mty =
           dl <- reCheck sig (ctx :< a) l (substTy exp Wk) emptySkel
           dr <- reCheck sig (ctx :< b) r (substTy exp Wk) emptySkel
           (dc0, t', chTy) <- rePlaceE sig ctx step d p (Ty.SumTy a b) t Nothing
-          dc <- eqAtNf sig ctx dc0 chTy (Ty.SumTy a b)
+          dc <- eqAtLem sig ctx dc0 chTy (Ty.SumTy a b)
           pure (DElSumECong dc dmot (DElRefl dl) (DElRefl dr),
                 SumElim l r t', exp)
         _ => Nothing
@@ -2189,7 +2440,7 @@ rePlaceE sig ctx step d (i :: p) exp cur mty =
         | _ => Nothing
       let nuT = Ty.NuTy f
       (dc0, t', chTy) <- rePlaceE sig ctx step d p nuT t Nothing
-      dc <- eqAtNf sig ctx dc0 chTy nuT
+      dc <- eqAtLem sig ctx dc0 chTy nuT
       dNu <- reTy sig ctx nuT emptySkel
       (dSp, spTy) <- reInfer sig (ctx :< nuT) (Out (CtxVar 0)) emptySkel
       let dS = DSubExtCong (DSubRefl DSubId) dNu dc
@@ -2201,7 +2452,7 @@ rePlaceE sig ctx step d (i :: p) exp cur mty =
       let Ty.SigmaTy a _ = ttyN
         | _ => Nothing
       (dc0, t', chTy) <- rePlaceE sig ctx step d p ttyN t Nothing
-      dc <- eqAtNf sig ctx dc0 chTy ttyN
+      dc <- eqAtLem sig ctx dc0 chTy ttyN
       pure (DElProj1Cong dc, SigmaElim1 t', a)
     (SigmaElim2 t, 0) => do
       (dt, tty) <- reInfer sig ctx t emptySkel
@@ -2209,7 +2460,7 @@ rePlaceE sig ctx step d (i :: p) exp cur mty =
       let Ty.SigmaTy a b = ttyN
         | _ => Nothing
       (dc0, t', chTy) <- rePlaceE sig ctx step d p ttyN t Nothing
-      dc <- eqAtNf sig ctx dc0 chTy ttyN
+      dc <- eqAtLem sig ctx dc0 chTy ttyN
       -- shift neutralized at source, as at PiApp-1: the first
       -- projections' equation bridges B[id, π₁ t′] back to
       -- B[id, π₁ t]
@@ -2266,7 +2517,7 @@ rePlaceE sig ctx step d (i :: p) exp cur mty =
       e0 <- getAt i ls
       ety <- telInst tel i ls
       (dc0, e', chTy) <- rePlaceE sig ctx step d p ety e0 Nothing
-      dc <- eqAtNf sig ctx dc0 chTy ety
+      dc <- eqAtLem sig ctx dc0 chTy ety
       dSig <- reQSig sig ctx sg
       ds <- traverse (\(j, ej) =>
               if j == i then Just dc
@@ -2330,7 +2581,7 @@ rePlaceT sig ctx step d (i :: p) (QSort sg k es) mtf = do
   e <- getAt i l
   ety <- telInst tel i l
   (dc0, e', chTy) <- rePlaceE sig ctx step d p ety e Nothing
-  dc <- eqAtNf sig ctx dc0 chTy ety
+  dc <- eqAtLem sig ctx dc0 chTy ety
   dSig <- reQSig sig ctx sg
   ds <- traverse (\(j, ej) =>
           if j == i then Just dc
@@ -2579,14 +2830,6 @@ lemmaLeafB sig ctx step d x y = do
 ||| equation. Walk the two type spellings in parallel — α-equal parts
 ||| by refl, elements at the licensed pair by the licensed equation
 ||| itself (coerced to the position), congruence in between.
-stKey : Maybe Step -> String
-stKey Nothing = "-"
-stKey (Just st) =
-  show st.path ++ show st.flip ++ show st.onLhs ++
-  (case st.lic of
-     LProof pf => show pf
-     LBeta => "|β"
-     LPath _ k th => "|π\{show k}\{show (toList th)}")
 
 reBridgeE : Sig -> Ctx -> Maybe Step -> Nat -> Elem -> Elem -> Ty -> Maybe Deriv
 
@@ -2910,151 +3153,9 @@ stepChainE sig ctx positional allSteps ty (chain, dCur, cur) step =
     go [] = Nothing
     go (st :: rest) = f st <|> go rest
 
-  -- two codes that differ by index laws meet by RECORDED lemma
-  -- instances placed at prefixes of their disagreement (one per
-  -- side, bounded recursion). The pool's steps are fully
-  -- instantiated licenses — the certificate and its type-expansion
-  -- recorded them — so matching is EXACT comparison of their
-  -- licensed sides against the differing subpair: no
-  -- re-instantiation, no enumeration. The congruence walk crosses
-  -- only code spellings, whose motives are constant.
-  lemBridgeT : Nat -> Ty -> Ty -> Maybe Deriv
-  lemBridgeT Z _ _ = Nothing
-  lemBridgeT (S fuel) (El x) (El y) =
-    if x == y
-      then DTyRefl <$> reTy sig ctx (El x) emptySkel
-      else do
-        -- the pool is tiny and fully instantiated: no matches means
-        -- no bridge, decided before anything walks or checks
-        let is = recInsts
-        let False = null is
-          | True => Nothing
-        withMemo memoLB "\{show (length (toList ctx))}|LB|\{stKey (Just step)}|\{show x}=\{show y}" $ do
-          dq <- diffPosE sig 64 [] x y
-          goPre is (reverse (inits dq))
-   where
-    -- each pool step's licensed equation, at both its normalized and
-    -- statement spellings, with its DERIVATION — matching is exact
-    -- comparison, placement is direct congruence assembly
-    recInsts : List (Elem, Elem, Deriv)
-    recInsts =
-      concatMap (\st =>
-        case st.lic of
-          LProof _ =>
-            (case reLicensed sig ctx st 0 of
-               Just (dEq, le, re, _) => [(le, re, dEq)]
-               Nothing => [])
-            ++ (case reLicensedRaw sig ctx st 0 of
-                  Just (dEq, le, re, _) => [(le, re, dEq)]
-                  Nothing => [])
-          _ => []) (step :: allSteps)
+  -- (lemBridgeT extracted to the top level — the placement's type
+  -- reconciliation needs it too; the pool travels as a parameter)
 
-    -- congruence along a CODE path, assembled directly: every node
-    -- on the way lives at a closed constant type (𝕌 or ℕ), so the
-    -- eliminator congruences take the constant motive and no bridge,
-    -- no motive guess, and no search can arise
-    codeCongAt : Nat -> Ctx -> Ty -> List Nat -> Elem -> Deriv -> Maybe Deriv
-    codeCongAt Z _ _ _ _ _ = Nothing
-    codeCongAt (S f) cx exp [] z dEq = Just dEq
-    codeCongAt (S f) cx exp (i :: rest) z dEq =
-      case (z, i) of
-        (NatIntro1 u, 0) => do
-          dc <- codeCongAt f cx Ty.NatTy rest u dEq
-          pure (DElSucCong dc)
-        (NatElim zb sb t, 2) => do
-          let mot = substTy exp Wk
-          dmot <- reTy sig (cx :< Ty.NatTy) mot emptySkel
-          dz <- reCheck sig cx zb (substTy mot (Ext Id NatIntro0)) emptySkel
-          ds <- reCheck sig (cx :< Ty.NatTy :< mot) sb
-                  (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) emptySkel
-          dc <- codeCongAt f cx Ty.NatTy rest t dEq
-          pure (DElNatECong dmot (DElRefl dz) (DElRefl ds) dc)
-        (NatElim zb sb t, 0) => do
-          let mot = substTy exp Wk
-          dmot <- reTy sig (cx :< Ty.NatTy) mot emptySkel
-          ds <- reCheck sig (cx :< Ty.NatTy :< mot) sb
-                  (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) emptySkel
-          dt <- reCheck sig cx t Ty.NatTy emptySkel
-          dc <- codeCongAt f cx (substTy mot (Ext Id NatIntro0)) rest zb dEq
-          pure (DElNatECong dmot dc (DElRefl ds) (DElRefl dt))
-        (NatElim zb sb t, 1) => do
-          let mot = substTy exp Wk
-          dmot <- reTy sig (cx :< Ty.NatTy) mot emptySkel
-          dz <- reCheck sig cx zb (substTy mot (Ext Id NatIntro0)) emptySkel
-          dt <- reCheck sig cx t Ty.NatTy emptySkel
-          dc <- codeCongAt f (cx :< Ty.NatTy :< mot)
-                  (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) rest sb dEq
-          pure (DElNatECong dmot (DElRefl dz) dc (DElRefl dt))
-        _ => Nothing
-
-    place : List Nat -> Elem -> Deriv -> Elem -> Maybe (Deriv, Elem)
-    place p z dEq re = do
-      d <- codeCongAt 32 ctx Ty.UniverseTy p z dEq
-      z' <- replaceAtE p re z
-      pure (d, z')
-
-    closeAt : List (Elem, Elem, Deriv) -> Bool -> List Nat -> Maybe Deriv
-    closeAt recIs deepest p = do
-      Left xa <- subAtE p x
-        | _ => Nothing
-      Left ya <- subAtE p y
-        | _ => Nothing
-      let False = xa == ya
-        | True => Nothing
-      fullClose xa ya recIs
-        <|> (do -- one-sided steps: only at the DEEPEST disagreement
-                -- (recursion at every prefix branches exponentially)
-                let True = deepest
-                  | False => Nothing
-                (dEq, re) <- pickBy xa recIs
-                (dc, x') <- place p x dEq re
-                let False = x' == x
-                  | True => Nothing
-                rec <- lemBridgeT fuel (El x') (El y)
-                pure (DTyTrans (DTyElCong dc) rec))
-        <|> (do let True = deepest
-                  | False => Nothing
-                (dEq, re) <- pickBy ya recIs
-                (dc, y') <- place p y dEq re
-                let False = y' == y
-                  | True => Nothing
-                rec <- lemBridgeT fuel (El x) (El y')
-                pure (DTyTrans rec (DTySym (DTyElCong dc))))
-     where
-      fullClose : Elem -> Elem -> List (Elem, Elem, Deriv) -> Maybe Deriv
-      fullClose xa ya [] = Nothing
-      fullClose xa ya ((leN, reN, dEq) :: more) =
-        (do let True = leN == xa && reN == ya
-              | False => Nothing
-            (dc, x') <- place p x dEq reN
-            let True = x' == y
-              | False => Nothing
-            pure (DTyElCong dc))
-        <|> (do let True = reN == xa && leN == ya
-                  | False => Nothing
-                (dc, x') <- place p x (DElSym dEq) leN
-                let True = x' == y
-                  | False => Nothing
-                pure (DTyElCong dc))
-        <|> fullClose xa ya more
-
-      pickBy : Elem -> List (Elem, Elem, Deriv) -> Maybe (Deriv, Elem)
-      pickBy za [] = Nothing
-      pickBy za ((leN, reN, dEq) :: more) =
-        if leN == za then Just (dEq, reN)
-        else if reN == za then Just (DElSym dEq, leN)
-        else pickBy za more
-
-    -- the prefix list arrives deepest-first: one-sided recursion is
-    -- allowed only at its head
-    goPre : List (Elem, Elem, Deriv) -> List (List Nat) -> Maybe Deriv
-    goPre recIs [] = Nothing
-    goPre recIs (p :: ps) = closeAt recIs True p <|> goRest ps
-     where
-      goRest : List (List Nat) -> Maybe Deriv
-      goRest [] = Nothing
-      goRest (q :: qs) = closeAt recIs False q <|> goRest qs
-  lemBridgeT _ _ _ = Nothing
 
   -- the placement congruence concludes at its own computed spelling
   -- of the type; bridge back to the chain's spelling when nf-equal,
@@ -3093,7 +3194,7 @@ stepChainE sig ctx positional allSteps ty (chain, dCur, cur) step =
                        -- pool instances — never the proposing search
                        let False = tySizeFuel 601 [] pN == 0
                          | True => Nothing
-                       lemBridgeT 3 pN tN
+                       lemBridgeT sig ctx (step :: allSteps) 3 pN tN
             let atN = DElEqTyCoe dBr dPlN
             pure (DElEqTyCoe (DTySym (DNfExpandTy dTy)) atN)
 
@@ -3253,6 +3354,9 @@ reEqEndsGo sig ctx cert l r ty ends =
   lookupEqDeriv sig ctx l r ty <|> reEqEndsGoB sig ctx cert l r ty ends
 
 reEqEndsGoB sig ctx (MkECertF tyEx steps0 final posSteps) l r ty ends =
+  setLicPool (steps0 ++ posSteps ++ (case tyEx of
+                                       Just (_, certT) => certT.steps
+                                       Nothing => [])) >>= \_ =>
   (if reconDebug then trace "reqe: \{show l} EQ \{show r} nsteps \{show (length steps)} tyEx \{show (maybe False (const True) tyEx)}" (Just ()) else Just ()) >>= \_ => do
   -- a POSITIONAL replay is re-expressed against the equation's own
   -- spellings at its RAW type: the recorded type-expansion belongs
