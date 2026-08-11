@@ -11,7 +11,8 @@ import prop (¬, ⊥, absurdP)
 import rational (NZ, nzPos, nzToInt, nzMul, Rat, mkRat, num, den, ratZero, ratOne,
                  ratEta, half, third)
 import rationalQ (Q, qcls, qZero, qOne, qMul, ratMul, RatR, clsEqOfRel, dInt,
-                  nzToIntMul, mulCongL, mulCongR, NZQ, qOfNzq)
+                  nzToIntMul, mulCongL, mulCongR, NZQ, qOfNzq,
+                  qMulOneL, qMulOneR, qMulComm, qMulAssoc)
 import rationalInv (notIntro, notApply, numNonZero)
 import equality (trans, sym, cong)
 
@@ -196,3 +197,47 @@ def qInvExistsD : (u : El Q) (h : Prf (¬ (u ≡ qZero ∈ El Q))) →
 
 -- and it computes: (⅓)⁻¹ = 3
 def qInvThird : qInv (qcls third) ≡ qcls (mkRat (class (S (S (S Z)) , Z)) (nzPos Z)) ∈ El Q ≔ ⋆
+
+-- ===== the inverse type is a proposition =====
+--
+-- Inverses are unique, so ((v : El Q) ⨯ Prf (qMul u v ≡ qOne)) has at
+-- most one element: it is an h-prop, even though it is not a Prf.
+-- (See docs/ProvingFeedback.md A-5 on what an eliminator into such
+-- types would and would not buy.)
+def qInvUniqueVal : (u : El Q) (v : El Q) (v' : El Q)
+  (h : Prf (qMul u v ≡ qOne ∈ El Q)) (h' : Prf (qMul u v' ≡ qOne ∈ El Q)) →
+  v ≡ v' ∈ El Q ≔
+  λu. λv. λv'. λh. λh'.
+    trans Q v (qMul v qOne) v'
+      (sym Q _ _ (qMulOneR v))
+      (trans Q (qMul v qOne) (qMul v (qMul u v')) v'
+        (cong Q (λx. Q) (λx. qMul v x) qOne (qMul u v') (sym Q _ _ h'))
+        (trans Q (qMul v (qMul u v')) (qMul (qMul v u) v') v'
+          (sym Q _ _ (qMulAssoc v u v'))
+          (trans Q (qMul (qMul v u) v') (qMul (qMul u v) v') v'
+            (cong Q (λx. Q) (λx. qMul x v') (qMul v u) (qMul u v) (qMulComm v u))
+            (trans Q (qMul (qMul u v) v') (qMul qOne v') v'
+              (cong Q (λx. Q) (λx. qMul x v') (qMul u v) qOne h)
+              (qMulOneL v')))))
+
+-- packaging: with the two values equal (and the two proofs equal by
+-- proof irrelevance) the pairs are equal. Note trans/sym/cong are
+-- 𝕌-INDEXED, so none of them apply at this Σ — it carries a Prf and is
+-- therefore not a code. Everything here has to be a bare ⋆.
+-- Packaging it as "the inverse type is an h-prop" runs into the fact
+-- that equality.nova's trans/sym/cong are 𝕌-INDEXED: this Σ carries a
+-- Prf, so it is not a code and none of them apply. What is available
+-- without them is the pair-congruence form — no Σ-η needed, since both
+-- sides are literal pairs.
+def invPairCong : (u : El Q) (a : El Q) (a' : El Q)
+  (b : Prf (qMul u a ≡ qOne ∈ El Q)) (b' : Prf (qMul u a' ≡ qOne ∈ El Q))
+  (h : Prf (a ≡ a' ∈ El Q)) →
+  (a , b) ≡ (a' , b') ∈ ((v : El Q) ⨯ Prf (qMul u v ≡ qOne ∈ El Q)) ≔
+  λu. λa. λa'. λb. λb'. λh. ⋆
+
+-- so any two inverse-witnesses are equal, given as pairs
+def qInvWitnessUnique : (u : El Q) (a : El Q) (a' : El Q)
+  (b : Prf (qMul u a ≡ qOne ∈ El Q)) (b' : Prf (qMul u a' ≡ qOne ∈ El Q)) →
+  (a , b) ≡ (a' , b') ∈ ((v : El Q) ⨯ Prf (qMul u v ≡ qOne ∈ El Q)) ≔
+  λu. λa. λa'. λb. λb'.
+    invPairCong u a a' b b' (qInvUniqueVal u a a' b b')
