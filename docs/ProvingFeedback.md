@@ -59,6 +59,13 @@ equivalence (`effectiveAtEquiv`), and `intEffective.nova` instantiates
 it for ℤ. A disequality is now three lines — refute the relation and
 compose (`intNonZero.nova`'s `intNeqOfNotRel`).
 
+Downstream, `rationalEffective.nova` instantiates the same corollary at
+ℚ. The one premise `effectiveAtEquiv` asks for — that the relation be
+an equivalence — is where the earlier work paid off: transitivity of
+cross-multiplication is cancellation by a non-zero integer, i.e.
+`intNoZeroDiv`. Effectivity then delivers the converse that had been
+out of reach (`qOfNzqNonZero`, `qInvertibleIffNonZero`).
+
 What this does **not** give, and the distinction is worth keeping:
 effectivity is PROPOSITIONAL. It hands back `Prf (r p q)`, never a
 decision. Anything that has to branch on zero-ness still needs a
