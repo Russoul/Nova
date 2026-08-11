@@ -18,6 +18,33 @@ def plusAssoc : (n : ℕ) (m : ℕ) (k : ℕ) → n + m + k ≡ n + (m + k) ∈ 
 def swapLeft : (a : ℕ) (b : ℕ) (c : ℕ) → a + (b + c) ≡ b + (a + c) ∈ _ ≔
   λa. λb. λc. ℕ-elim (k. a + (b + k) ≡ b + (a + k) ∈ _) ⋆ (k ih. ⋆) c
 
+-- congruence in each summand — one ⋆ each: reflecting the hypothesis
+-- makes the two sides the same term
+def plusCongL : (a : ℕ) (b : ℕ) (c : ℕ) → (a ≡ b ∈ ℕ) → a + c ≡ b + c ∈ ℕ ≔
+  λa. λb. λc. λh. ⋆
+def plusCongR : (a : ℕ) (b : ℕ) (c : ℕ) → (b ≡ c ∈ ℕ) → a + b ≡ a + c ∈ ℕ ≔
+  λa. λb. λc. λh. ⋆
+
+-- (x+y)+(z+w) ≡ (x+w)+(z+y) — the inner summands swap. Discharged by
+-- whole-equation matching against plusAssoc/plusComm/swapLeft above
+def swapMid : (x : ℕ) (y : ℕ) (z : ℕ) (w : ℕ) →
+  (x + y) + (z + w) ≡ (x + w) + (z + y) ∈ ℕ ≔
+  λx. λy. λz. λw. ⋆
+
+-- S is injective — the kernel's suc selector, named. Bare ⋆: reflecting
+-- the hypothesis gives S n ≐ S m, whose suc-component the selector
+-- reads off (docs/NovaKernel.txt §5)
+def sucInj : (n : ℕ) (m : ℕ) → (S n ≡ S m ∈ ℕ) → n ≡ m ∈ ℕ ≔ λn. λm. λh. ⋆
+
+-- CANCELLATION: (· + k) is injective, i.e. a common right summand
+-- cancels. Induction on the cancelled summand — each step peels one
+-- successor off both sides (n + S j ≜ S (n + j)) and hands it to sucInj
+def plusCancel : (n : ℕ) (m : ℕ) (k : ℕ) → (n + k ≡ m + k ∈ ℕ) → n ≡ m ∈ ℕ ≔
+  λn. λm. λk. ℕ-elim (j. (n + j ≡ m + j ∈ ℕ) → n ≡ m ∈ ℕ)
+    (λh. ⋆)
+    (j ih. λh. ih (sucInj (n + j) (m + j) h))
+    k
+
 def multZeroId : (n : ℕ) → n * Z ≡ Z ∈ _ ≔ λn. ⋆
 def multSucId : (n : ℕ) (m : ℕ) → n * S m ≡ n + n * m ∈ _ ≔ λn. λm. ⋆
 def zeroMult : (n : ℕ) → Z * n ≡ Z ∈ ℕ ≔ λn. ℕ-elim (k. Z * k ≡ Z ∈ _) ⋆ (k ih. ⋆) n
