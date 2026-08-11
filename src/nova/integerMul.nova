@@ -1,0 +1,306 @@
+import nat (+, *, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusComm, plusAssoc, swapLeft,
+            multZeroId, multSucId, zeroMult, sucMult, multComm, multDistrib, multAssoc)
+import integer (Int, intZero, intOne, intNeg)
+import integerAdd (intAdd, intAddComm, intAddAssoc)
+import equality (trans, cong, sym)
+
+-- Multiplication of integers as difference pairs:
+--   (a₁,a₂) · (b₁,b₂) ≔ (a₁b₁ + a₂b₂, a₁b₂ + a₂b₁)
+-- Unlike addition, both well-definedness obligations need real work:
+-- the cross-sum identity has to be regrouped by DISTRIBUTIVITY before
+-- the relatedness hypothesis can fire.
+
+-- ===== nat lemmas, in the orientation the engine can use =====
+--
+-- Rewriting is oriented and size-decreasing, so nat.nova's
+-- distributivity — stated in the size-INCREASING direction — never
+-- fires as a rewrite rule. Its flips do; each is proved by ⋆, the
+-- original firing by whole-equation match on the flipped goal.
+
+def distribBack : (n : ℕ) (m : ℕ) (k : ℕ) → n * m + n * k ≡ n * (m + k) ∈ ℕ ≔
+  λn. λm. λk. ⋆
+
+-- right distributivity: nat.nova has only the left law, so this is
+-- multComm on each factor, distribBack in the middle, multComm back
+def distribBackR : (m : ℕ) (k : ℕ) (n : ℕ) → m * n + k * n ≡ (m + k) * n ∈ ℕ ≔
+  λm. λk. λn.
+    trans ℕ _ (n * m + n * k) _
+      (trans ℕ _ (n * m + k * n) _
+        (cong ℕ (λu. ℕ) (λw. w + k * n) _ _ (multComm n m))
+        (cong ℕ (λu. ℕ) (λw. n * m + w) _ _ (multComm n k)))
+      (trans ℕ _ (n * (m + k)) _
+        (distribBack n m k)
+        (multComm (m + k) n))
+
+-- the two exchanges of a four-term sum
+def swap4 : (p : ℕ) (q : ℕ) (r : ℕ) (s : ℕ) → (p + q) + (r + s) ≡ (p + r) + (q + s) ∈ ℕ ≔
+  λp. λq. λr. λs. ⋆
+
+def swap4b : (p : ℕ) (q : ℕ) (r : ℕ) (s : ℕ) → (p + q) + (r + s) ≡ (p + s) + (q + r) ∈ ℕ ≔
+  λp. λq. λr. λs. ⋆
+
+-- congruence of + in each argument: with h reflected the two sides
+-- are judgemental, so each is one ⋆ (and unlike a rewrite step, a
+-- lemma application is unconstrained by the position it lands in)
+def plusCongL : (x : ℕ) (y : ℕ) (z : ℕ) → (x ≡ y ∈ ℕ) → x + z ≡ y + z ∈ ℕ ≔
+  λx. λy. λz. λh. ⋆
+def plusCongR : (x : ℕ) (y : ℕ) (z : ℕ) → (y ≡ z ∈ ℕ) → x + y ≡ x + z ∈ ℕ ≔
+  λx. λy. λz. λh. ⋆
+
+-- x*y*z + x*u*v ≡ x*(y*z + u*v): reassociate both products, then
+-- collect the common left factor
+def collectL : (x : ℕ) (y : ℕ) (z : ℕ) (u : ℕ) (v : ℕ) →
+  x * y * z + x * u * v ≡ x * (y * z + u * v) ∈ ℕ ≔
+  λx. λy. λz. λu. λv.
+    trans ℕ (x * y * z + x * u * v) (x * (y * z) + x * (u * v)) (x * (y * z + u * v))
+      (trans ℕ (x * y * z + x * u * v) (x * (y * z) + x * u * v) (x * (y * z) + x * (u * v))
+        (plusCongL (x * y * z) (x * (y * z)) (x * u * v) (multAssoc x y z))
+        (plusCongR (x * (y * z)) (x * u * v) (x * (u * v)) (multAssoc x u v)))
+      (distribBack x (y * z) (u * v))
+
+-- the representative-level associativity identity, one component of
+-- it; the other component is this one with c₁ and c₂ swapped.
+-- Expand both products by right distributivity, exchange the middle
+-- two summands, then collect a₁ and a₂ back out.
+def assocRep : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ) →
+  (a1 * b1 + a2 * b2) * c1 + (a1 * b2 + a2 * b1) * c2
+    ≡ a1 * (b1 * c1 + b2 * c2) + a2 * (b1 * c2 + b2 * c1) ∈ ℕ ≔
+  λa1. λa2. λb1. λb2. λc1. λc2.
+    trans ℕ
+      ((a1 * b1 + a2 * b2) * c1 + (a1 * b2 + a2 * b1) * c2)
+      ((a1 * b1 * c1 + a2 * b2 * c1) + (a1 * b2 * c2 + a2 * b1 * c2))
+      (a1 * (b1 * c1 + b2 * c2) + a2 * (b1 * c2 + b2 * c1))
+      (trans ℕ
+        ((a1 * b1 + a2 * b2) * c1 + (a1 * b2 + a2 * b1) * c2)
+        ((a1 * b1 * c1 + a2 * b2 * c1) + (a1 * b2 + a2 * b1) * c2)
+        ((a1 * b1 * c1 + a2 * b2 * c1) + (a1 * b2 * c2 + a2 * b1 * c2))
+        (plusCongL ((a1 * b1 + a2 * b2) * c1) (a1 * b1 * c1 + a2 * b2 * c1) ((a1 * b2 + a2 * b1) * c2)
+           (sym ℕ _ _ (distribBackR (a1 * b1) (a2 * b2) c1)))
+        (plusCongR (a1 * b1 * c1 + a2 * b2 * c1) ((a1 * b2 + a2 * b1) * c2) (a1 * b2 * c2 + a2 * b1 * c2)
+           (sym ℕ _ _ (distribBackR (a1 * b2) (a2 * b1) c2))))
+      (trans ℕ
+        ((a1 * b1 * c1 + a2 * b2 * c1) + (a1 * b2 * c2 + a2 * b1 * c2))
+        ((a1 * b1 * c1 + a1 * b2 * c2) + (a2 * b2 * c1 + a2 * b1 * c2))
+        (a1 * (b1 * c1 + b2 * c2) + a2 * (b1 * c2 + b2 * c1))
+        (swap4 (a1 * b1 * c1) (a2 * b2 * c1) (a1 * b2 * c2) (a2 * b1 * c2))
+        (trans ℕ
+          ((a1 * b1 * c1 + a1 * b2 * c2) + (a2 * b2 * c1 + a2 * b1 * c2))
+          (a1 * (b1 * c1 + b2 * c2) + (a2 * b2 * c1 + a2 * b1 * c2))
+          (a1 * (b1 * c1 + b2 * c2) + a2 * (b1 * c2 + b2 * c1))
+          (plusCongL (a1 * b1 * c1 + a1 * b2 * c2) (a1 * (b1 * c1 + b2 * c2)) (a2 * b2 * c1 + a2 * b1 * c2)
+             (collectL a1 b1 c1 b2 c2))
+          (plusCongR (a1 * (b1 * c1 + b2 * c2)) (a2 * b2 * c1 + a2 * b1 * c2) (a2 * (b1 * c2 + b2 * c1))
+            (trans ℕ
+              (a2 * b2 * c1 + a2 * b1 * c2)
+              (a2 * (b2 * c1 + b1 * c2))
+              (a2 * (b1 * c2 + b2 * c1))
+              (collectL a2 b2 c1 b1 c2)
+              (cong ℕ (λw. ℕ) (λw. a2 * w) _ _ (plusComm (b1 * c2) (b2 * c1)))))))
+
+-- regroup a cross-sum by the LEFT factor: this is the shape the inner
+-- well-definedness goal takes, and once regrouped the relatedness
+-- hypothesis makes the two sides judgementally equal
+def sum4Distrib : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ) →
+  (a1 * b1 + a2 * b2) + (a1 * c2 + a2 * c1) ≡ a1 * (b1 + c2) + a2 * (b2 + c1) ∈ ℕ ≔
+  λa1. λa2. λb1. λb2. λc1. λc2.
+    trans ℕ _ ((a1 * b1 + a1 * c2) + (a2 * b2 + a2 * c1)) _
+      (swap4 (a1 * b1) (a2 * b2) (a1 * c2) (a2 * c1))
+      (trans ℕ _ (a1 * (b1 + c2) + (a2 * b2 + a2 * c1)) _
+        (cong ℕ (λu. ℕ) (λw. w + (a2 * b2 + a2 * c1)) _ _ (distribBack a1 b1 c2))
+        (cong ℕ (λu. ℕ) (λw. a1 * (b1 + c2) + w) _ _ (distribBack a2 b2 c1)))
+
+-- and by the RIGHT factor: the shape of the OUTER well-definedness goal
+def sum4DistribR : (x1 : ℕ) (x2 : ℕ) (y1 : ℕ) (y2 : ℕ) (c1 : ℕ) (c2 : ℕ) →
+  (x1 * c1 + x2 * c2) + (y1 * c2 + y2 * c1) ≡ (x1 + y2) * c1 + (x2 + y1) * c2 ∈ ℕ ≔
+  λx1. λx2. λy1. λy2. λc1. λc2.
+    trans ℕ _ ((x1 * c1 + y2 * c1) + (x2 * c2 + y1 * c2)) _
+      (swap4b (x1 * c1) (x2 * c2) (y1 * c2) (y2 * c1))
+      (trans ℕ _ ((x1 + y2) * c1 + (x2 * c2 + y1 * c2)) _
+        (cong ℕ (λu. ℕ) (λw. w + (x2 * c2 + y1 * c2)) _ _ (distribBackR x1 y2 c1))
+        (cong ℕ (λu. ℕ) (λw. (x1 + y2) * c1 + w) _ _ (distribBackR x2 y1 c2)))
+
+-- ===== the two well-definedness lemmas =====
+
+-- inner: y varies. Both sides regroup to a₁·t + a₂·t′ with t and t′
+-- interchanged, and h makes t ≐ t′.
+def intMulWD : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ)
+  (h : Prf (b1 + c2 ≡ b2 + c1 ∈ ℕ)) →
+  (a1 * b1 + a2 * b2) + (a1 * c2 + a2 * c1) ≡ (a1 * b2 + a2 * b1) + (a1 * c1 + a2 * c2) ∈ ℕ ≔
+  λa1. λa2. λb1. λb2. λc1. λc2. λh.
+    trans ℕ _ (a1 * (b1 + c2) + a2 * (b2 + c1)) _
+      (sum4Distrib a1 a2 b1 b2 c1 c2)
+      (sym ℕ _ _ (sum4Distrib a1 a2 b2 b1 c2 c1))
+
+-- outer: x varies; the same regrouping, by the right factor
+def intMulWDRep : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ)
+  (h : Prf (a1 + b2 ≡ a2 + b1 ∈ ℕ)) →
+  (a1 * c1 + a2 * c2) + (b1 * c2 + b2 * c1) ≡ (a1 * c2 + a2 * c1) + (b1 * c1 + b2 * c2) ∈ ℕ ≔
+  λa1. λa2. λb1. λb2. λc1. λc2. λh.
+    trans ℕ _ ((a1 + b2) * c1 + (a2 + b1) * c2) _
+      (sum4DistribR a1 a2 b1 b2 c1 c2)
+      (sym ℕ _ _ (sum4DistribR a2 a1 b2 b1 c1 c2))
+
+-- the outer well-definedness, in the quot-elim shape the elaborator
+-- actually asks for (integerAdd.nova's intAddWDOuter, one level up):
+-- eliminate the remaining argument and the goal becomes the nat
+-- relation intMulWDRep proves
+def intMulWDOuter : (a : ℕ ⨯ ℕ) (b : ℕ ⨯ ℕ)
+  (h : Prf (a .π₁ + b .π₂ ≡ a .π₂ + b .π₁ ∈ ℕ)) (zy : El Int) →
+  quot-elim (z. El Int) (x. class (a .π₁ * x .π₁ + a .π₂ * x .π₂ , a .π₁ * x .π₂ + a .π₂ * x .π₁)) zy
+    ≡ quot-elim (z. El Int) (x. class (b .π₁ * x .π₁ + b .π₂ * x .π₂ , b .π₁ * x .π₂ + b .π₂ * x .π₁)) zy
+    ∈ El Int ≔
+  λa. λb. λh. λzy. quot-elim
+    (q. quot-elim (z. El Int) (x. class (a .π₁ * x .π₁ + a .π₂ * x .π₂ , a .π₁ * x .π₂ + a .π₂ * x .π₁)) q
+          ≡ quot-elim (z. El Int) (x. class (b .π₁ * x .π₁ + b .π₂ * x .π₂ , b .π₁ * x .π₂ + b .π₂ * x .π₁)) q
+          ∈ El Int)
+    (c. ⋆)
+    zy
+
+-- ===== multiplication =====
+
+def intMul : El Int → El Int → El Int ≔
+  λx. λy.
+    quot-elim (w. El Int)
+      (a. quot-elim (w. El Int)
+            (b. class (a .π₁ * b .π₁ + a .π₂ * b .π₂ , a .π₁ * b .π₂ + a .π₂ * b .π₁))
+            y)
+      x
+
+-- 2 · 3 = 6 and (−2) · 3 = −6
+def intMulTest1 : intMul (class (S (S Z) , Z)) (class (S (S (S Z)) , Z))
+  ≡ class (S (S (S (S (S (S Z))))) , Z) ∈ El Int ≔ ⋆
+def intMulTest2 : intMul (class (Z , S (S Z))) (class (S (S (S Z)) , Z))
+  ≡ class (Z , S (S (S (S (S (S Z)))))) ∈ El Int ≔ ⋆
+
+
+-- ===== the ring laws =====
+
+-- Σ-η. Stated GENERICALLY: the engine's matching is first-order and
+-- would happily fire a ℕ ⨯ ℕ-specific version at a pair of ANY type,
+-- and the kernel then rejects the certificate — so the lemma has to
+-- be true at the type it gets used at.
+def pairEta : (A : 𝕌) (B : 𝕌) (p : El (A ⨯ B)) → (p .π₁ , p .π₂) ≡ p ∈ El (A ⨯ B) ≔
+  λA. λB. λp. ⋆
+
+def classPairEta : (p : ℕ ⨯ ℕ) → class (p .π₁ , p .π₂) ≡ class p ∈ El Int ≔
+  λp. cong _ (λu. Int) (λr. class r) _ _ (pairEta ℕ ℕ p)
+
+def oneMult : (m : ℕ) → S Z * m ≡ m ∈ ℕ ≔ λm. ⋆
+
+-- class (u₁,u₂) ≡ class (v₁,v₂) from the two component equations:
+-- reflection makes the components judgemental, so this is one ⋆
+def classCong2 : (u1 : ℕ) (u2 : ℕ) (v1 : ℕ) (v2 : ℕ) →
+  (u1 ≡ v1 ∈ ℕ) → (u2 ≡ v2 ∈ ℕ) → class (u1 , u2) ≡ class (v1 , v2) ∈ El Int ≔
+  λu1. λu2. λv1. λv2. λh1. λh2. ⋆
+
+-- multiplication by 1 on the LEFT does not compute (nat.nova's * is
+-- recursive in its SECOND argument), so oneMult/zeroMult have to fire
+-- before Σ-η can close it; on the right it is all β (intMulOneR)
+def intMulOneL : (z : El Int) → intMul intOne z ≡ z ∈ El Int ≔
+  λz. quot-elim (w. intMul intOne w ≡ w ∈ El Int)
+        (p. trans Int _ (class (p .π₁ , p .π₂)) _ ⋆ (classPairEta p)) z
+
+def intMulOneR : (z : El Int) → intMul z intOne ≡ z ∈ El Int ≔
+  λz. quot-elim (w. intMul w intOne ≡ w ∈ El Int) (p. classPairEta p) z
+
+def intMulZeroL : (z : El Int) → intMul intZero z ≡ intZero ∈ El Int ≔
+  λz. quot-elim (w. intMul intZero w ≡ intZero ∈ El Int) (p. ⋆) z
+
+def intMulZeroR : (z : El Int) → intMul z intZero ≡ intZero ∈ El Int ≔
+  λz. quot-elim (w. intMul w intZero ≡ intZero ∈ El Int) (p. ⋆) z
+
+-- u₁v₁ + u₂v₂ ≡ v₁u₁ + v₂u₂: multComm is permutative, so it never
+-- rewrites — each factor has to be commuted by an explicit cong
+def mulComm2 : (u1 : ℕ) (u2 : ℕ) (v1 : ℕ) (v2 : ℕ) →
+  u1 * v1 + u2 * v2 ≡ v1 * u1 + v2 * u2 ∈ ℕ ≔
+  λu1. λu2. λv1. λv2.
+    trans ℕ _ (v1 * u1 + u2 * v2) _
+      (cong ℕ (λw. ℕ) (λw. w + u2 * v2) _ _ (multComm v1 u1))
+      (cong ℕ (λw. ℕ) (λw. v1 * u1 + w) _ _ (multComm v2 u2))
+
+def intMulComm : (x : El Int) (y : El Int) → intMul x y ≡ intMul y x ∈ El Int ≔
+  λx. λy. quot-elim (v. intMul v y ≡ intMul y v ∈ El Int)
+    (a. quot-elim (w. intMul (class a) w ≡ intMul w (class a) ∈ El Int)
+          (b. classCong2 _ _ _ _
+                (mulComm2 (a .π₁) (a .π₂) (b .π₁) (b .π₂))
+                (trans ℕ _ (b .π₂ * a .π₁ + b .π₁ * a .π₂) _
+                  (mulComm2 (a .π₁) (a .π₂) (b .π₂) (b .π₁))
+                  (plusComm (b .π₁ * a .π₂) (b .π₂ * a .π₁))))
+          y)
+    x
+
+def intMulAssoc : (x : El Int) (y : El Int) (z : El Int) →
+  intMul (intMul x y) z ≡ intMul x (intMul y z) ∈ El Int ≔
+  λx. λy. λz. quot-elim (v. intMul (intMul v y) z ≡ intMul v (intMul y z) ∈ El Int)
+    (a. quot-elim (w. intMul (intMul (class a) w) z ≡ intMul (class a) (intMul w z) ∈ El Int)
+          (b. quot-elim (w. intMul (intMul (class a) (class b)) w
+                              ≡ intMul (class a) (intMul (class b) w) ∈ El Int)
+                (c. classCong2 _ _ _ _
+                      (assocRep (a .π₁) (a .π₂) (b .π₁) (b .π₂) (c .π₁) (c .π₂))
+                      (assocRep (a .π₁) (a .π₂) (b .π₁) (b .π₂) (c .π₂) (c .π₁)))
+                z)
+          y)
+    x
+
+def intMulDistribL : (x : El Int) (y : El Int) (z : El Int) →
+  intMul x (intAdd y z) ≡ intAdd (intMul x y) (intMul x z) ∈ El Int ≔
+  λx. λy. λz. quot-elim (v. intMul v (intAdd y z) ≡ intAdd (intMul v y) (intMul v z) ∈ El Int)
+    (a. quot-elim (w. intMul (class a) (intAdd w z) ≡ intAdd (intMul (class a) w) (intMul (class a) z) ∈ El Int)
+          (b. quot-elim (w. intMul (class a) (intAdd (class b) w)
+                              ≡ intAdd (intMul (class a) (class b)) (intMul (class a) w) ∈ El Int)
+                (c. ⋆) z)
+          y)
+    x
+
+-- congruence in both arguments, for building chains: reflection makes
+-- the hypotheses judgemental, so each is one ⋆
+def intAddCong2 : (x : El Int) (y : El Int) (u : El Int) (v : El Int) →
+  (x ≡ u ∈ El Int) → (y ≡ v ∈ El Int) → intAdd x y ≡ intAdd u v ∈ El Int ≔
+  λx. λy. λu. λv. λh1. λh2. ⋆
+
+def intMulCong2 : (x : El Int) (y : El Int) (u : El Int) (v : El Int) →
+  (x ≡ u ∈ El Int) → (y ≡ v ∈ El Int) → intMul x y ≡ intMul u v ∈ El Int ≔
+  λx. λy. λu. λv. λh1. λh2. ⋆
+
+-- distributivity on the right, from the left law by commuting thrice
+def intMulDistribR : (x : El Int) (y : El Int) (z : El Int) →
+  intMul (intAdd x y) z ≡ intAdd (intMul x z) (intMul y z) ∈ El Int ≔
+  λx. λy. λz.
+    trans Int (intMul (intAdd x y) z) (intAdd (intMul z x) (intMul z y)) (intAdd (intMul x z) (intMul y z))
+      (trans Int (intMul (intAdd x y) z) (intMul z (intAdd x y)) (intAdd (intMul z x) (intMul z y))
+        (intMulComm (intAdd x y) z)
+        (intMulDistribL z x y))
+      (intAddCong2 _ _ _ _ (intMulComm z x) (intMulComm z y))
+
+-- ===== negation =====
+
+def intNegNeg : (z : El Int) → intNeg (intNeg z) ≡ z ∈ El Int ≔
+  λz. quot-elim (w. intNeg (intNeg w) ≡ w ∈ El Int) (p. classPairEta p) z
+
+-- z + (−z) = 0: on representatives the relation is p₁+p₂ ≡ p₂+p₁
+def intAddNegR : (z : El Int) → intAdd z (intNeg z) ≡ intZero ∈ El Int ≔
+  λz. quot-elim (w. intAdd w (intNeg w) ≡ intZero ∈ El Int) (p. ⋆) z
+
+def intAddNegL : (z : El Int) → intAdd (intNeg z) z ≡ intZero ∈ El Int ≔
+  λz. quot-elim (w. intAdd (intNeg w) w ≡ intZero ∈ El Int) (p. ⋆) z
+
+-- (−x)·y = −(x·y): the two representatives differ by plusComm in each
+-- component
+def intMulNegL : (x : El Int) (y : El Int) →
+  intMul (intNeg x) y ≡ intNeg (intMul x y) ∈ El Int ≔
+  λx. λy. quot-elim (v. intMul (intNeg v) y ≡ intNeg (intMul v y) ∈ El Int)
+    (a. quot-elim (w. intMul (intNeg (class a)) w ≡ intNeg (intMul (class a) w) ∈ El Int)
+          (b. classCong2 _ _ _ _
+                (plusComm (a .π₁ * b .π₂) (a .π₂ * b .π₁))
+                (plusComm (a .π₁ * b .π₁) (a .π₂ * b .π₂)))
+          y)
+    x
+
+def intMulNegR : (x : El Int) (y : El Int) →
+  intMul x (intNeg y) ≡ intNeg (intMul x y) ∈ El Int ≔
+  λx. λy.
+    trans Int (intMul x (intNeg y)) (intMul (intNeg y) x) (intNeg (intMul x y))
+      (intMulComm x (intNeg y))
+      (trans Int (intMul (intNeg y) x) (intNeg (intMul y x)) (intNeg (intMul x y))
+        (intMulNegL y x)
+        (cong Int (λu. Int) intNeg _ _ (intMulComm y x)))
