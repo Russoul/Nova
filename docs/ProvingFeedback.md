@@ -47,27 +47,45 @@ Worth stating in the docs explicitly: *any* "partial operation defined
 where a property holds" must be re-expressed as a total operation on a
 type whose elements structurally satisfy the property.
 
-### A-3. Quotients are not effective
+### A-3. Quotients are not effective — RESOLVED upstream
 
-Nothing inverts `el-quot-eq`: from `class p ≡ class q` one cannot
-recover `Prf (R p q)`. Combined with A-4 this means disequalities in a
-quotient type are not available for free — see D-1 for the workaround
-that eventually produced one.
+*Was:* nothing inverts `el-quot-eq`, so from `class p ≡ class q` one
+could not recover `Prf (R p q)`, and disequalities in a quotient type
+were unavailable.
 
-### A-4. `code-prop-eq` (propositional extensionality) is not usable
+*Now:* `quotEffective.nova` shows class equality **is** the equivalence
+closure `r⁺` (`classEqIff`), with effectivity on the nose at an
+equivalence (`effectiveAtEquiv`), and `intEffective.nova` instantiates
+it for ℤ. A disequality is now three lines — refute the relation and
+compose (`intNonZero.nova`'s `intNeqOfNotRel`).
 
-The rule exists and is judgemental, but there is no term form for it
-and the elaborator's automatic check only fires on the evident
-(`𝟙`-shaped / reflexive-`≡`-shaped) cases. In particular it does not
-use mutual implications sitting in the context. Consequence: the
-natural way to define an observational relation on a quotient —
-`quot-elim` landing in `Ω` — is blocked, because its well-definedness
-obligation is exactly a propext instance.
+What this does **not** give, and the distinction is worth keeping:
+effectivity is PROPOSITIONAL. It hands back `Prf (r p q)`, never a
+decision. Anything that has to branch on zero-ness still needs a
+canonical form computed as data (D-4), which is why `intCanon` and its
+`normPairWD` survive unchanged.
 
-**Suggested fix (high value):** an introduction form for `code-prop-eq`,
-e.g. `⋆ ⟨f, g⟩` at an `Ω`-equation goal, or acceptance of a
-`Prf (p ↔ q)` witness. This single gap forced the detour in D-1 and is
-noted as a limitation in `eqInt.nova`'s own header.
+### A-4. `code-prop-eq` is not usable — RESOLVED upstream
+
+*Was:* the rule was judgemental but had no term form, and the automatic
+check fired only on the evident (`𝟙`-shaped / reflexive-`≡`-shaped)
+cases — so the natural way to define an observational relation on a
+quotient, `quot-elim` landing in `Ω`, was blocked on its
+well-definedness.
+
+*Now:* exactly the suggested fix landed — supplied witnesses
+(`e-star-propext`), surfaced as
+
+```
+propExt : (p : Ω) (q : Ω) → (Prf p → Prf q) → (Prf q → Prf p) → p ≡ q ∈ Ω
+propExtOfIff : (p : Ω) (q : Ω) → Prf (p ↔ q) → p ≡ q ∈ Ω
+```
+
+and the companion `e-star-quot-wit` for class equations, which makes
+`classEqOfRel` generic in the relation (`⋆ h`, no shape restriction, `r`
+may be a variable). `quotEffective.nova`'s `clsRelWd` is the first real
+use: an Ω-equation between two closure instances, discharged by
+`propExt` from the closure's own transitivity and symmetry.
 
 ### A-5. Squash elimination stops at propositions, and cannot be widened for free
 
@@ -355,8 +373,11 @@ must reconstruct the intended statement before writing the lemma.
 
 ### D-1. Getting a disequality out of a quotient
 
-Wanted: `¬ (intOne ≡ intZero ∈ El Int)`. Blocked by A-3 + A-4: the
-natural `quot-elim` into `Ω` owes a propext instance.
+Wanted: `¬ (intOne ≡ intZero ∈ El Int)`. Blocked at the time by
+A-3 + A-4: the natural `quot-elim` into `Ω` owed a propext instance.
+(Both are since resolved — the disequality itself is now immediate from
+effectivity. The construction below is kept because what it produces is
+a canonical form as DATA, which effectivity does not give.)
 
 The route that works: extract the canonical representative as a **pair
 of nats** rather than deciding inside `Ω`.

@@ -91,6 +91,15 @@ def eqIIff : (z1 : El Int) (z2 : El Int) → Prf (EqI z1 z2 ↔ (z1 ≡ z2 ∈ E
 -- a NAT-level equation — no propositional extensionality anywhere,
 -- which is what blocked the direct Ω-valued comparison (see the note
 -- at the top of this file).
+--
+-- SINCE: prop.nova's propExt (supplied witnesses, e-star-propext) and
+-- intEffective.nova have both landed, so the Ω-valued route is no
+-- longer blocked, and a bare DISEQUALITY no longer needs any of this —
+-- effectivity reads IntR straight off a class equation
+-- (intNonZero.nova's intNeqOfNotRel). What survives the change is the
+-- part effectivity cannot give: intCanon is a FUNCTION into data, and
+-- that is what lets intNonZero.nova DECIDE zero-ness and hand back a
+-- witness. Propositional effectivity is not a decision procedure.
 
 -- normPair n Z ≡ (n , Z)
 def normPairZR : (n : ℕ) → normPair n Z ≡ (n , Z) ∈ El (ℕ ⨯ ℕ) ≔

@@ -12,8 +12,10 @@ import equality (trans, cong)
 -- so outright), so a Σ carrying a proof cannot be a code and Rat would
 -- be a large `type`: no El Rat, no generic (A : 𝕌) combinators, no use
 -- as a code anywhere. Worse, it would be practically uninhabited —
--- writing ½ needs a proof of an Int DISEQUALITY, and quotients here
--- are not effective (nothing inverts el-quot-eq).
+-- writing ½ needs a proof of an Int DISEQUALITY. (When this was
+-- written nothing inverted el-quot-eq at all; intEffective.nova now
+-- gives IntR back from a class equation, so the disequality is cheap —
+-- but the encoding below is still the one that keeps Rat a 𝕌-code.)
 --
 -- So the denominator ranges over NZ, whose elements ARE the non-zero
 -- integers by construction: inj₁ n and inj₂ n denote +(n+1) and
