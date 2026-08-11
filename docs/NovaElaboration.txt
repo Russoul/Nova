@@ -617,7 +617,8 @@ whnf(C) = Prf p        p evident: whnf(p) = ∥A∥ with whnf(A) = 𝟙
 Γ ⊢ ⋆ ⇐ C ⇝ ⋆
 # el-squash-i / el-eq-i. A proposition that is not evident in one of
 # these two shapes is a structural error (write `⋆ e` and supply a
-# witness directly). Proof irrelevance (el-prf-prop) is not a
+# witness directly — e-star-wit, or, at the two extensional equations,
+# e-star-propext / e-star-quot-wit below). Proof irrelevance (el-prf-prop) is not a
 # checking rule but a DISCHARGE final: any two proofs of a Prf type
 # are ≐, handled in the ↓ loop.
 # THE payment rule, at equality props: ⋆ is the surface syntax for
@@ -728,6 +729,36 @@ whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 # the core term, only into the skeleton (squash-wit, NovaKernel.txt)
 # for the kernel to re-verify.
 
+whnf(C) = Prf (p ≡ q ∈ Ω)
+Γ ⊢ f ⇐ Prf p → Prf q ⇝ f̂        Γ ⊢ g ⇐ Prf q → Prf p ⇝ ĝ
+------------------------------------------------------------ (e-star-propext)
+Γ ⊢ ⋆ (f , g) ⇐ C ⇝ ⋆                                     # (⋆ (f , g))
+# code-prop-eq, SUPPLIED. The Ω-equation finals the engine can
+# synthesize are the evident ones (↓ below: a 𝟙-shaped squash, an
+# equality prop closed by a nested discharge); an implication with
+# CONTENT — a cancellation lemma, a closure's transitivity — is
+# beyond any search, and without this rule unreachable. The pair
+# reading is not a special Σ: it is the witness of the derived
+# proposition ∥(Prf p → Prf q) ⨯ (Prf q → Prf p)∥, spelled where the
+# rule needs it. Erases to ⋆; the implications ship in the
+# certificate's propext final (NovaKernel.txt §2, §7).
+
+whnf(C) = Prf (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ Prf R[id, a, b] ⇝ ê
+---------------------------------------------------------------- (e-star-quot-wit)
+Γ ⊢ ⋆ e ⇐ C ⇝ ⋆                                                # (⋆ e)
+# el-quot-eq, SUPPLIED — its premise, written. The engine's automatic
+# route re-derives the witness from the relation's shape and so
+# reaches only ∥𝟙∥ and equality props (↓ below); this rule reaches
+# every Ω-valued relation, in particular an impredicative closure, a
+# conjunction/disjunction, or a relation VARIABLE — so a lemma may be
+# generic in the relation it quotients by. Ships in the certificate's
+# witnessPrf final.
+#
+# Both rules dispatch on the GOAL, not on e: at a Prf ∥A∥ goal `⋆ e`
+# is still e-star-wit, and at any other equation `⋆ e` still reads e
+# as a proof of that very equation (a license for it). The three
+# readings are disjoint by the goal's whnf.
+
 Γ ⊢ e ⇒ P        whnf(P) = Prf ∥A∥        whnf(C) = Prf q
 Γ ▷ A ⊢ b ⇐ (Prf q)[↑] ⇝ b̂
 ------------------------------------------------------------ (e-squash-elim)
@@ -818,9 +849,15 @@ whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 #        ∥A∥       ≐ ∥B∥        ⇐  A ≐ B type (sufficient), OR — the
 #                                  faithful route at Ω — code-prop-eq
 #                                  (propext): the two implications
-#                                  Prf ∥A∥ → Prf ∥B∥ and back, each with
-#                                  its witness synthesized under the
-#                                  hypothesis
+#                                  Prf ∥A∥ → Prf ∥B∥ and back. Synthesis
+#                                  reaches them only when the target is
+#                                  evident (𝟙-shaped, or an equality
+#                                  prop discharged with the hypothesis
+#                                  as a candidate); otherwise the
+#                                  composite stays, and the
+#                                  implications are written by hand
+#                                  (e-star-propext) — an implication
+#                                  with content is not searchable
 #        𝒮₀.𝕤 ē₀  ≐ 𝒮₁.𝕤 ē₁    ⇐  the signatures identical nameless ToS
 #                                  syntax up to embedded Nova pieces and
 #                                  the sort positions equal (else the
@@ -849,7 +886,9 @@ whnf(C) = Prf ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 #                                  equality-prop-shaped one reduces the
 #                                  witness to its equation (⋆ by
 #                                  el-eq-i); other shapes keep the
-#                                  composite
+#                                  composite — for those the witness is
+#                                  written, not searched
+#                                  (e-star-quot-wit)
 #        a₀ , b₀   ≐ a₁ , b₁    ⇐  componentwise at the Σ-type
 #        neutral spines with the same head variable/eliminator:
 #                                  componentwise (app-cong, proj-cong,
