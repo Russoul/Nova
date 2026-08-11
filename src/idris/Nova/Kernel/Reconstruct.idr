@@ -3757,10 +3757,10 @@ export
 %noinline
 birthPiI : Sig -> Ctx -> Ty -> Ty -> Elem -> Elem
 birthPiI sig ctx a b body = unsafePerformIO $ do
-  -- keying is structural: hashing every node's whole subtree is
-  -- quadratic over an item — only small nodes birth (they carry the
-  -- consumption anyway)
-  let False = candPosOver 150 body
+  -- the budget bounds the adapters; the size bound only caps the
+  -- keying cost, and the top nodes of a big body are the highest
+  -- value entries
+  let False = candPosOver 4000 body
     | True => pure (PiIntro body)
   _ <- writeIORef workBudget 600
   let mder = do da <- reTy sig ctx a emptySkel
@@ -3777,7 +3777,7 @@ export
 %noinline
 birthPiE : Sig -> Ctx -> Ty -> Ty -> Elem -> Elem -> Elem
 birthPiE sig ctx a b f e = unsafePerformIO $ do
-  let False = candPosOver 150 (PiApp f e)
+  let False = candPosOver 4000 (PiApp f e)
     | True => pure (PiApp f e)
   -- the spine fires per node: a small budget makes a store-served
   -- birth cheap and a reconstruction-shaped one bail immediately
