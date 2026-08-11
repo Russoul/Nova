@@ -17,6 +17,13 @@ def irrel : (p : Ω) (x : Prf p) (y : Prf p) → x ≡ y ∈ Prf p ≔ λp. λx.
 -- the two proposition codes are equal.
 def propext : ∥𝟙∥ ≡ (Z ≡ Z ∈ ℕ) ∈ Ω ≔ ⋆
 
+-- the same rule at ARBITRARY propositions, where nothing is evident:
+-- the two implications are supplied, as `⋆ ⟨f , g⟩` (e-star-propext).
+-- Automatic discharge reaches only the 𝟙-/≡-shaped cases above, and
+-- no search can replace this one — the implications carry content.
+def propExt : (p : Ω) (q : Ω) → (Prf p → Prf q) → (Prf q → Prf p) → p ≡ q ∈ Ω ≔
+  λp. λq. λf. λg. ⋆ (f , g)
+
 -- squashed reflection: a squashed equality reflects into a judgemental
 -- equality (el-squash-e-eq + el-reflect).
 def reflectSquash : (A : 𝕌) (a : El A) (b : El A) (h : Prf (a ≡ b ∈ _)) → Prf (a ≡ b ∈ _) ≔
@@ -77,6 +84,11 @@ def iffLeft : (p : Ω) (q : Ω) → Prf (p ↔ q) → Prf p → Prf q ≔
   λp. λq. λh. impApply _ _ (andFst _ _ h)
 def iffRight : (p : Ω) (q : Ω) → Prf (p ↔ q) → Prf q → Prf p ≔
   λp. λq. λh. impApply _ _ (andSnd _ _ h)
+
+-- code-prop-eq against ↔: iff-equal propositions are EQUAL codes, so
+-- one can be rewritten to the other anywhere a prop is expected
+def propExtOfIff : (p : Ω) (q : Ω) → Prf (p ↔ q) → p ≡ q ∈ Ω ≔
+  λp. λq. λh. propExt _ _ (iffLeft _ _ h) (iffRight _ _ h)
 
 -- Curry/uncurry as a logical equivalence (each direction its own
 -- lemma, rather than a literal code-prop-eq equality — code-prop-eq's
