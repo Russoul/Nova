@@ -1,0 +1,242 @@
+import nat (+, *, plusZeroId, zeroPlusId, plusComm, plusAssoc, swapLeft,
+            multZeroId, zeroMult, sucMult, multComm, multDistrib)
+import integer (Int, intZero, intOne, intNeg)
+import integerAdd (intAdd, intAddComm)
+import equality (trans, cong)
+
+-- Rationals over integer.nova's Int, with a STRUCTURALLY non-zero
+-- denominator.
+--
+-- Why not `(d : El Int) ⨯ Prf (d ≢ 0)`: Prf has no 𝕌-code (there is no
+-- code for Ω or for Prf p in 𝕌 — NovaFoundation.txt's Ω section says
+-- so outright), so a Σ carrying a proof cannot be a code and Rat would
+-- be a large `type`: no El Rat, no generic (A : 𝕌) combinators, no use
+-- as a code anywhere. Worse, it would be practically uninhabited —
+-- writing ½ needs a proof of an Int DISEQUALITY, and quotients here
+-- are not effective (nothing inverts el-quot-eq).
+--
+-- So the denominator ranges over NZ, whose elements ARE the non-zero
+-- integers by construction: inj₁ n and inj₂ n denote +(n+1) and
+-- -(n+1). Everything stays small, elements are free, and nzToInt
+-- embeds NZ back into Int.
+
+-- ===== the non-zero integers =====
+
+def NZ : 𝕌 ≔ ℕ ⊎ ℕ
+
+def nzPos : ℕ → El NZ ≔ λn. inj₁ n   -- +(n+1)
+def nzNeg : ℕ → El NZ ≔ λn. inj₂ n   -- -(n+1)
+
+def nzOne : El NZ ≔ nzPos Z
+
+def nzToInt : El NZ → El Int ≔
+  λd. ⊎-elim (w. El Int) (n. class (S n , Z)) (n. class (Z , S n)) d
+
+-- the magnitudes multiply: (m+1)(k+1) = m*k + m + k + 1, so the stored
+-- (magnitude − 1) of the product is m*k + m + k; the sign is the usual
+-- product of signs. Closure of NZ under multiplication is therefore
+-- definitional — there is no side condition to discharge.
+def nzMul : El NZ → El NZ → El NZ ≔
+  λx. λy. ⊎-elim (w. El NZ)
+    (m. ⊎-elim (v. El NZ) (k. nzPos (m * k + m + k)) (k. nzNeg (m * k + m + k)) y)
+    (m. ⊎-elim (v. El NZ) (k. nzNeg (m * k + m + k)) (k. nzPos (m * k + m + k)) y)
+    x
+
+def nzMulOneL : (y : El NZ) → nzMul nzOne y ≡ y ∈ El NZ ≔
+  λy. ⊎-elim (w. nzMul nzOne w ≡ w ∈ El NZ) (k. ⋆) (k. ⋆) y
+
+def nzMulOneR : (x : El NZ) → nzMul x nzOne ≡ x ∈ El NZ ≔
+  λx. ⊎-elim (w. nzMul w nzOne ≡ w ∈ El NZ) (m. ⋆) (m. ⋆) x
+
+-- ===== nat lemmas, in the orientation the engine can use =====
+--
+-- Rewriting is ORIENTED and size-decreasing, so nat.nova's
+-- distributivity and successor-multiplication laws — both stated in
+-- the size-INCREASING direction — never fire as rewrite rules. Their
+-- flips do; each is proved by ⋆, the original firing by
+-- whole-equation match on the flipped goal.
+
+def distribBack : (n : ℕ) (m : ℕ) (k : ℕ) → n * m + n * k ≡ n * (m + k) ∈ ℕ ≔
+  λn. λm. λk. ⋆
+
+def sucMultBack : (n : ℕ) (m : ℕ) → m + n * m ≡ S n * m ∈ ℕ ≔ λn. λm. ⋆
+
+def oneMult : (m : ℕ) → S Z * m ≡ m ∈ ℕ ≔ λm. ⋆
+
+-- ===== scaling an integer by a non-zero integer =====
+--
+-- Rational addition needs num · den, i.e. multiplication in Int. A
+-- general intMul owes a quotient well-definedness proof in BOTH
+-- arguments (the (a₁−a₂)(b₁−b₂) cross-sum identity). But one factor is
+-- always a DENOMINATOR — an NZ, i.e. a SIGN and a NAT — so it suffices
+-- to scale by a nat and negate: n · (a, b) ≔ (n*a, n*b), whose
+-- well-definedness is one application of distributivity.
+
+def intAddZeroL : (z : El Int) → intAdd intZero z ≡ z ∈ El Int ≔
+  λz. quot-elim (w. intAdd intZero w ≡ w ∈ El Int) (p. ⋆) z
+
+def intAddZeroR : (z : El Int) → intAdd z intZero ≡ z ∈ El Int ≔
+  λz. quot-elim (w. intAdd w intZero ≡ w ∈ El Int) (p. ⋆) z
+
+def intScaleN : ℕ → El Int → El Int ≔
+  λn. λz. quot-elim (w. El Int) (p. class (n * p .π₁ , n * p .π₂)) z
+
+def intScaleNZero : (n : ℕ) → intScaleN n intZero ≡ intZero ∈ El Int ≔ λn. ⋆
+
+def intScaleNOne : (z : El Int) → intScaleN (S Z) z ≡ z ∈ El Int ≔
+  λz. quot-elim (w. intScaleN (S Z) w ≡ w ∈ El Int) (p. ⋆) z
+
+-- scaling by n+1 really is n+1 iterated additions — the definition by
+-- representatives agrees with the recursive one
+def intScaleNSuc : (n : ℕ) (z : El Int) →
+  intScaleN (S n) z ≡ intAdd z (intScaleN n z) ∈ El Int ≔
+  λn. λz. quot-elim (w. intScaleN (S n) w ≡ intAdd w (intScaleN n w) ∈ El Int) (p. ⋆) z
+
+def intScale : El NZ → El Int → El Int ≔
+  λd. λz. ⊎-elim (w. El Int)
+    (n. intScaleN (S n) z)
+    (n. intNeg (intScaleN (S n) z))
+    d
+
+def intScaleOne : (z : El Int) → intScale nzOne z ≡ z ∈ El Int ≔ λz. ⋆
+
+def intScaleZero : (d : El NZ) → intScale d intZero ≡ intZero ∈ El Int ≔
+  λd. ⊎-elim (w. intScale w intZero ≡ intZero ∈ El Int) (n. ⋆) (n. ⋆) d
+
+-- Adding a scaled zero. Both arguments of intAdd are quot-elim
+-- SCRUTINEE positions, and a rewrite may not land in one unless the
+-- subterm is ⇒ᴺ-inferable (NovaKernel.txt §6, the neutral-subterm
+-- rule) — which a stuck ⊎-elim like `intScale d intZero` is not. So
+-- the ⊎-elim on d is done here, where each branch closes at the ROOT
+-- (a type-determined position) against intAddZeroL/R, and the other
+-- summand is kept a VARIABLE so there is nothing to rewrite in it.
+-- Callers compose with trans rather than ask the engine to rewrite
+-- these in place.
+def intAddScaleZeroL : (d : El NZ) (y : El Int) →
+  intAdd (intScale d intZero) y ≡ y ∈ El Int ≔
+  λd. λy. ⊎-elim (w. intAdd (intScale w intZero) y ≡ y ∈ El Int)
+        (n. intAddZeroL y) (n. intAddZeroL y) d
+
+def intAddScaleZeroR : (d : El NZ) (y : El Int) →
+  intAdd y (intScale d intZero) ≡ y ∈ El Int ≔
+  λd. λy. ⊎-elim (w. intAdd y (intScale w intZero) ≡ y ∈ El Int)
+        (n. intAddZeroR y) (n. intAddZeroR y) d
+
+-- scaling by d agrees with multiplying by d's image in Int
+def intScaleToInt : (d : El NZ) → intScale d (class (S Z , Z)) ≡ nzToInt d ∈ El Int ≔
+  λd. ⊎-elim (w. intScale w (class (S Z , Z)) ≡ nzToInt w ∈ El Int) (n. ⋆) (n. ⋆) d
+
+-- ===== the rationals =====
+
+def Rat : 𝕌 ≔ Int ⨯ NZ
+
+def mkRat : El Int → El NZ → El Rat ≔ λn. λd. (n , d)
+
+def num : El Rat → El Int ≔ λq. q .π₁
+def den : El Rat → El NZ ≔ λq. q .π₂
+def denInt : El Rat → El Int ≔ λq. nzToInt (q .π₂)
+
+def ratOfInt : El Int → El Rat ≔ λz. mkRat z nzOne
+def ratZero : El Rat ≔ ratOfInt intZero
+def ratOne : El Rat ≔ ratOfInt intOne
+
+-- n₁/d₁ + n₂/d₂ ≔ (n₁·d₂ + n₂·d₁) / (d₁·d₂). Rat is a plain Σ-code —
+-- pair construction, nothing to discharge. (Once Rat is quotiented by
+-- cross-multiplication, ratAdd will owe a descent proof; that is the
+-- next step, not this one.)
+def ratAdd : El Rat → El Rat → El Rat ≔
+  λp. λq. mkRat
+    (intAdd (intScale (den q) (num p)) (intScale (den p) (num q)))
+    (nzMul (den p) (den q))
+
+-- ½ + ½ = 4/4, unreduced, as the raw representation demands
+def half : El Rat ≔ mkRat intOne (nzPos (S Z))
+def ratAddTest : ratAdd half half ≡ mkRat (class (S (S (S (S Z))) , Z)) (nzPos (S (S (S Z)))) ∈ El Rat ≔ ⋆
+
+-- ⅓ + (−⅓) = 0/(−9): numerator cancels, denominator keeps its sign
+def third : El Rat ≔ mkRat intOne (nzPos (S (S Z)))
+def negThird : El Rat ≔ mkRat intOne (nzNeg (S (S Z)))
+def ratAddTest2 : ratAdd third negThird ≡ mkRat intZero (nzNeg (S (S (S (S (S (S (S (S Z)))))))))
+  ∈ El Rat ≔ ⋆
+
+-- ===== 0/1 is a unit =====
+
+-- componentwise first: the numerator collapses by the scaled-zero
+-- unit followed by intScaleOne, the denominator by nzMulOne
+def ratAddZeroLNum : (q : El Rat) →
+  intAdd (intScale (den q) intZero) (intScale nzOne (num q)) ≡ num q ∈ El Int ≔
+  λq. trans _ _ _ _
+        (intAddScaleZeroL (den q) (intScale nzOne (num q)))
+        (intScaleOne (num q))
+
+def ratAddZeroRNum : (q : El Rat) →
+  intAdd (intScale nzOne (num q)) (intScale (den q) intZero) ≡ num q ∈ El Int ≔
+  λq. trans _ _ _ _
+        (intAddScaleZeroR (den q) (intScale nzOne (num q)))
+        (intScaleOne (num q))
+
+-- Σ-η, as a step of its own: el-sigma-eta is judgemental in the
+-- theory but the kernel's normal forms do not contract (t.π₁ , t.π₂),
+-- so the last hop has to be named
+def ratEta : (q : El Rat) → mkRat (num q) (den q) ≡ q ∈ El Rat ≔ λq. ⋆
+
+-- and then the pair, one component at a time
+def ratAddZeroL : (q : El Rat) → ratAdd ratZero q ≡ q ∈ El Rat ≔
+  λq. trans _ _ _ _
+        (trans _ _ _ _
+          (cong _ (λw. Rat) (λx. mkRat x (nzMul nzOne (den q))) _ _ (ratAddZeroLNum q))
+          (cong _ (λw. Rat) (λd. mkRat (num q) d) _ _ (nzMulOneL (den q))))
+        (ratEta q)
+
+def ratAddZeroR : (q : El Rat) → ratAdd q ratZero ≡ q ∈ El Rat ≔
+  λq. trans _ _ _ _
+        (trans _ _ _ _
+          (cong _ (λw. Rat) (λx. mkRat x (nzMul (den q) nzOne)) _ _ (ratAddZeroRNum q))
+          (cong _ (λw. Rat) (λd. mkRat (num q) d) _ _ (nzMulOneR (den q))))
+        (ratEta q)
+
+-- ===== commutativity =====
+
+-- (x + m) + k ≡ (x + k) + m: the addends the cross-sum needs swapped
+def plusSwapRight : (x : ℕ) (m : ℕ) (k : ℕ) → x + m + k ≡ x + k + m ∈ ℕ ≔
+  λx. λm. λk. ⋆
+
+-- the magnitude arithmetic of nzMul is symmetric: multComm on the
+-- product, then the swap above on the two summands
+def mulPlusComm : (m : ℕ) (k : ℕ) → m * k + m + k ≡ k * m + k + m ∈ ℕ ≔
+  λm. λk. trans _ _ _ _
+    (cong _ (λu. ℕ) (λw. w + m + k) _ _ (multComm k m))
+    (plusSwapRight (k * m) m k)
+
+def nzMulComm : (x : El NZ) (y : El NZ) → nzMul x y ≡ nzMul y x ∈ El NZ ≔
+  λx. λy. ⊎-elim (v. nzMul v y ≡ nzMul y v ∈ El NZ)
+    (m. ⊎-elim (w. nzMul (nzPos m) w ≡ nzMul w (nzPos m) ∈ El NZ)
+          (k. cong _ (λu. NZ) nzPos _ _ (mulPlusComm m k))
+          (k. cong _ (λu. NZ) nzNeg _ _ (mulPlusComm m k))
+          y)
+    (m. ⊎-elim (w. nzMul (nzNeg m) w ≡ nzMul w (nzNeg m) ∈ El NZ)
+          (k. cong _ (λu. NZ) nzNeg _ _ (mulPlusComm m k))
+          (k. cong _ (λu. NZ) nzPos _ _ (mulPlusComm m k))
+          y)
+    x
+
+-- p + q ≡ q + p: intAddComm on the numerator, nzMulComm on the
+-- denominator (the middle term of the trans spelled out — the
+-- elaborator has nothing else to pin it against)
+def ratAddComm : (p : El Rat) (q : El Rat) → ratAdd p q ≡ ratAdd q p ∈ El Rat ≔
+  λp. λq. trans Rat (ratAdd p q)
+    (mkRat (intAdd (intScale (den p) (num q)) (intScale (den q) (num p)))
+           (nzMul (den p) (den q)))
+    (ratAdd q p)
+    (cong Int (λu. Rat) (λx. mkRat x (nzMul (den p) (den q))) _ _
+      (intAddComm (intScale (den q) (num p)) (intScale (den p) (num q))))
+    (cong NZ (λu. Rat)
+      (λd. mkRat (intAdd (intScale (den p) (num q)) (intScale (den q) (num p))) d) _ _
+      (nzMulComm (den p) (den q)))
+
+-- ===== negation =====
+
+-- negate the numerator, keep the denominator
+def ratNeg : El Rat → El Rat ≔ λp. mkRat (intNeg (num p)) (den p)
+
+def ratNegHalf : ratNeg half ≡ mkRat (class (Z , S Z)) (nzPos (S Z)) ∈ El Rat ≔ ⋆
