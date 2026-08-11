@@ -651,6 +651,42 @@ nfT sig t = do
        Right (x, _) => Just x
        Left _ => Nothing)
 
+-- formations the ELABORATOR knew (Γ ⊦ A type)
+%noinline
+storedTy2 : IORef (SortedMap Integer (List (Integer, Deriv)))
+storedTy2 = mkTable 18
+
+fmKey : Ctx -> Ty -> (Integer, Integer)
+fmKey ctx t = (hashT 33 (hashCtx 33 ctx) t, hashT 131 (hashCtx 131 ctx) t)
+
+concludesTy : Sig -> Ctx -> Deriv -> Ty -> Bool
+concludesTy sig ctx d t =
+  case runKM (conclude [] sig ctx d) fuelR of
+    Right (JTy t', _) => t' == t
+    _ => False
+
+lookupTyDeriv : Sig -> Ctx -> Ty -> Maybe Deriv
+lookupTyDeriv sig ctx t = unsafePerformIO $ do
+  m <- readIORef storedTy2
+  let (h1, h2) = fmKey ctx t
+  case lookup h2 (fromMaybe [] (lookup h1 m)) of
+    Just d =>
+      if isValidated (h1 + 127, h2)
+        then Just <$> serveShared (h1 + 5, h2) ctx d
+        else if concludesTy sig ctx d t
+          then do
+            _ <- markValidated (h1 + 127, h2)
+            d' <- serveShared (h1 + 5, h2) ctx d
+            pure (if reconDebug then trace "ty: stored formation used" (Just d') else Just d')
+          else pure Nothing
+    Nothing => pure Nothing
+
+%noinline
+storeTyDeriv : Ctx -> Ty -> Deriv -> IO ()
+storeTyDeriv ctx t d = do
+  let (h1, h2) = fmKey ctx t
+  modifyIORef storedTy2 (\m => insert h1 ((h2, d) :: fromMaybe [] (lookup h1 m)) m)
+
 ||| The FLEXIBLE lookup: exact spelling first; else any stored entry
 ||| for the same term whose type is nf-equal to the asked one, served
 ||| through a coercion — the stored side's formation comes free by
@@ -1240,11 +1276,17 @@ mutual
   ||| INVERSION delivers them from the threaded derivation.
   export
   reCheckF : Sig -> Ctx -> Elem -> Ty -> Skel -> Deriv -> Maybe Deriv
-  reCheckF sig ctx (PiIntro f) (Ty.PiTy a b) sk dF = do
+  reCheckF sig ctx e ty sk dF =
+    -- a stored typing at the OUTERMOST node serves the whole subtree
+    -- in one citation; the structural descent is the fallback
+    lookupElDerivAt sig ctx e ty dF <|> reCheckFGo sig ctx e ty sk dF
+
+  reCheckFGo : Sig -> Ctx -> Elem -> Ty -> Skel -> Deriv -> Maybe Deriv
+  reCheckFGo sig ctx (PiIntro f) (Ty.PiTy a b) sk dF = do
     da <- reTy sig ctx a emptySkel <|> Just (DInvPiDom dF)
     df <- reCheckF sig (ctx :< a) f b (childAt 0 sk) (DInvPiCod dF)
     pure (DElPiI da df)
-  reCheckF sig ctx Star ty sk dF =
+  reCheckFGo sig ctx Star ty sk dF =
     -- a stored derivation first (the elaborator knew this typing),
     -- then the inversion route: the plain route re-derives the
     -- goal's endpoints from their spellings, and on normalized
@@ -1268,9 +1310,8 @@ mutual
             pure (DElTyCoe (DTySym (DNfExpandTy dF)) d0)
           _ => Nothing)
     <|> reCheck sig ctx Star ty sk
-  reCheckF sig ctx e ty sk dF =
-    lookupElDerivAt sig ctx e ty dF
-    <|> reCheck sig ctx e ty sk
+  reCheckFGo sig ctx e ty sk dF =
+    reCheck sig ctx e ty sk
     <|> (case payload pSw sk of
           Just cert => do
             (d, ity) <- reInfer sig ctx e (dropP isSw sk)
@@ -3683,6 +3724,18 @@ birthEqDeriv sig ctx cert l r ty = unsafePerformIO $ do
       pure (if reconDebug then trace "eq: born \{show h1}" cert else cert)
     Nothing => pure cert
 
+-- birth adapters: formation from the store else re-derivation;
+-- checking exact-else-FLEX (the formation store supplies the drift
+-- coercion's missing premise) else re-derivation
+fmF : Sig -> Ctx -> Ty -> Maybe Deriv
+fmF sig cx t = lookupTyDeriv sig cx t <|> reTy sig cx t emptySkel
+
+chkF : Sig -> Ctx -> Elem -> Ty -> Maybe Deriv
+chkF sig cx e t =
+  (do dF <- lookupTyDeriv sig cx t
+      lookupElDerivAt sig cx e t dF)
+  <|> reCheck sig cx e t emptySkel
+
 ||| An ℕ-elim's typing, born where the elaborator still HOLDS the
 ||| motive (core syntax drops it — that loss is what the seat's
 ||| motive guessing exists to reconstruct). Premises come through
@@ -3695,11 +3748,11 @@ birthNatE : Sig -> Ctx -> Ty -> Elem -> Elem -> Elem -> Elem
 birthNatE sig ctx mot z s t = unsafePerformIO $ do
   _ <- writeIORef workBudget 100000
   let concl = substTy mot (Ext Id t)
-  let mder = do dmot <- reTy sig (ctx :< Ty.NatTy) mot emptySkel
-                dz <- reCheck sig ctx z (substTy mot (Ext Id NatIntro0)) emptySkel
-                ds <- reCheck sig (ctx :< Ty.NatTy :< mot) s
-                        (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)) emptySkel
-                dt <- reCheck sig ctx t Ty.NatTy emptySkel
+  let mder = do dmot <- fmF sig (ctx :< Ty.NatTy) mot
+                dz <- chkF sig ctx z (substTy mot (Ext Id NatIntro0))
+                ds <- chkF sig (ctx :< Ty.NatTy :< mot) s
+                        (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk))
+                dt <- chkF sig ctx t Ty.NatTy
                 pure (DElNatE dmot dz ds dt)
   case mder of
     Just d => do
@@ -3751,6 +3804,31 @@ birthQuotE sig ctx a rel mot f q wd = unsafePerformIO $ do
       pure (if reconDebug then trace "el: quotE born" (QuotElim f q) else QuotElim f q)
     Nothing => pure (QuotElim f q)
 
+||| A formation's derivation, born at the elaboration clause that
+||| composed the type: one node over the components' formations.
+export
+%noinline
+birthTy : Sig -> Ctx -> Ty -> Ty
+birthTy sig ctx t = unsafePerformIO $ do
+  let False = tySizeFuel 4001 [] t == 0
+    | True => pure t
+  _ <- writeIORef workBudget 600
+  let mder = the (Maybe Deriv) $ case t of
+        Ty.PiTy a b => [| DTyPi (fmF sig ctx a) (fmF sig (ctx :< a) b) |]
+        Ty.SigmaTy a b => [| DTySigma (fmF sig ctx a) (fmF sig (ctx :< a) b) |]
+        Ty.SumTy a b => [| DTySum (fmF sig ctx a) (fmF sig ctx b) |]
+        El e => DTyEl <$> chkF sig ctx e Ty.UniverseTy
+        Prf e => DTyPrf <$> chkF sig ctx e Ty.PropTy
+        Ty.Quotient a r =>
+          [| DTyQuot (fmF sig ctx a)
+                     (chkF sig (ctx :< a :< substTy a Wk) r Ty.PropTy) |]
+        _ => Nothing
+  case mder of
+    Just d => do
+      _ <- storeTyDeriv ctx t d
+      pure (if reconDebug then trace "ty: formation born" t else t)
+    Nothing => pure t
+
 ||| A λ's typing at its checked Π (el-pi-i): the body's judgment
 ||| composes from the store as its own nodes birth.
 export
@@ -3763,8 +3841,8 @@ birthPiI sig ctx a b body = unsafePerformIO $ do
   let False = candPosOver 4000 body
     | True => pure (PiIntro body)
   _ <- writeIORef workBudget 600
-  let mder = do da <- reTy sig ctx a emptySkel
-                db <- reCheck sig (ctx :< a) body b emptySkel
+  let mder = do da <- fmF sig ctx a
+                db <- chkF sig (ctx :< a) body b
                 pure (DElPiI da db)
   case mder of
     Just d => do
@@ -3783,9 +3861,9 @@ birthPiE sig ctx a b f e = unsafePerformIO $ do
   -- birth cheap and a reconstruction-shaped one bail immediately
   _ <- writeIORef workBudget 600
   let concl = substTy b (Ext Id e)
-  let mder = do df <- reCheck sig ctx f (Ty.PiTy a b) emptySkel
-                de <- reCheck sig ctx e a emptySkel
-                db <- reTy sig (ctx :< a) b emptySkel
+  let mder = do df <- chkF sig ctx f (Ty.PiTy a b)
+                de <- chkF sig ctx e a
+                db <- fmF sig (ctx :< a) b
                 pure (DElPiE df de db)
   case mder of
     Just d => do

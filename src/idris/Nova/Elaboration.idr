@@ -2936,21 +2936,25 @@ mutual
   elabTy ctx env site (STyPi x a b) = do
     (a', aSk) <- elabTy ctx env site a
     (b', bSk) <- elabTy (ctx :< a') (env :< x) site b
-    pure (Ty.PiTy a' b', Nd [] [aSk, bSk])
+    stB <- getSt
+    pure (birthTy stB.kernelSig ctx (Ty.PiTy a' b'), Nd [] [aSk, bSk])
   elabTy ctx env site (STySigma x a b) = do
     (a', aSk) <- elabTy ctx env site a
     (b', bSk) <- elabTy (ctx :< a') (env :< x) site b
-    pure (Ty.SigmaTy a' b', Nd [] [aSk, bSk])
+    stB <- getSt
+    pure (birthTy stB.kernelSig ctx (Ty.SigmaTy a' b'), Nd [] [aSk, bSk])
   elabTy ctx env site (STySum a b) = do
     (a', aSk) <- elabTy ctx env site a
     (b', bSk) <- elabTy ctx env site b
-    pure (Ty.SumTy a' b', Nd [] [aSk, bSk])
+    stB <- getSt
+    pure (birthTy stB.kernelSig ctx (Ty.SumTy a' b'), Nd [] [aSk, bSk])
   elabTy ctx env site (STyQuot a (nx, nxr) (ny, nyr) r) = do
     (a', aSk) <- elabTy ctx env site a
     recordBinder nxr ctx env nx a'
     recordBinder nyr (ctx :< a') (env :< nx) ny (substTy a' Wk)
     (r', rSk) <- checkElem (ctx :< a' :< substTy a' Wk) (env :< nx :< ny) site r Ty.PropTy
-    pure (Ty.Quotient a' r', Nd [] [aSk, rSk])
+    stB <- getSt
+    pure (birthTy stB.kernelSig ctx (Ty.Quotient a' r'), Nd [] [aSk, rSk])
   elabTy ctx env site (STyNu f) = do
     -- e-ty-nu
     (f', fSks) <- elabPoly ctx env site f
@@ -2964,11 +2968,13 @@ mutual
     pure (Prf (Elem.EqTy l' r' t'), Nd [] [Nd [] [lSk, rSk, tSk]])
   elabTy ctx env site (STyEl e) = do
     (e', eSk) <- checkElem ctx env site e Ty.UniverseTy
-    pure (El e', Nd [] [eSk])
+    stB <- getSt
+    pure (birthTy stB.kernelSig ctx (El e'), Nd [] [eSk])
   elabTy ctx env site STyProp = pure (Ty.PropTy, Nd [] [])
   elabTy ctx env site (STyPrf e) = do
     (e', eSk) <- checkElem ctx env site e Ty.PropTy
-    pure (Prf e', Nd [] [eSk])
+    stB <- getSt
+    pure (birthTy stB.kernelSig ctx (Prf e'), Nd [] [eSk])
   elabTy ctx env site (STyHole mrng solvable x) = do
     -- a TYPE hole: a type declaration entry at the ambient context
     -- (sig-ty-decl); references are stuck (ty-sig-decl). Solvable
