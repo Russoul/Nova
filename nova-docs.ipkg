@@ -8,10 +8,10 @@ main = Nova.Docs.Render
 
 modules = Nova.Kernel.Syntax
         , Nova.Kernel.Subst
-        , Nova.Kernel.Beta
         , Nova.Kernel
         , Nova.Kernel.QIIT
         , Nova.Compute
+        , Nova.Elaboration.Beta
         , Nova.Elaboration.Named
         , Nova.Elaboration
         , Nova.Elaboration.Surface
