@@ -147,7 +147,8 @@ definingEq          1.13 →  0.08   14x
 1. **The kernel's own normaliser.** After the memo, `kernel` (5.1s)
    and `kitem` (3.6s) are together 47% of the remaining 18.6s and did
    not move at all — they normalise through `Nova.Kernel`, not
-   `Nova.Kernel.Beta`. The same memo applied there is the obvious next
+   `Nova.Elaboration.Beta` (then still named `Nova.Kernel.Beta`). The
+   same memo applied there is the obvious next
    step, and it is the trusted path, so it wants the principled version
    (nf stored on the Σ entry) rather than a global IORef.
 2. **The remaining engine time**, 6.1s over 11,432 attempts.
@@ -203,7 +204,8 @@ weakening it.
 
 ## The kernel's own normaliser
 
-`Nova.Kernel`'s `kElem`/`kTy` never touch `Nova.Kernel.Beta` — they
+`Nova.Kernel`'s `kElem`/`kTy` never touch the elaborator's normaliser —
+they
 have their own copy of the same rules, fuel-bounded inside `KM`, and
 the same defect: `kElem sig (SigVar x es)` δ-expands the definition and
 re-normalises its whole body on every mention. That is why the
@@ -248,9 +250,10 @@ Against the 5.20s baseline the per-call cache keeps ~80% of the win and
 is sound by construction, which is the better trade.
 
 **The trusted path now contains no `unsafePerformIO`.** What remains is
-in `Nova.Kernel.Beta`, which despite its name is imported by
-`Nova.Elaboration` alone — the trusted `Nova.Kernel` does not use it.
-That memo is below the trust boundary: a stale entry there can only
+in the elaborator's normaliser, which `Nova.Elaboration` alone imports.
+It used to be called `Nova.Kernel.Beta` — a name that invited exactly
+the wrong assumption, and it is now `Nova.Elaboration.Beta`, with the
+memo tables folded back into it. That memo is below the trust boundary: a stale entry there can only
 cost completeness (a bad certificate is rejected at replay), never
 soundness. Moving it into `ElabSt` would mean threading a cache through
 `betaElem`'s 100 internal recursions and 64 call sites, or making `Sig`

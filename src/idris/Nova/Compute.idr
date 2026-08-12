@@ -12,7 +12,7 @@ module Nova.Compute
 -- whnfElem/whnfTy contract ONLY a term's own head redex chain, by
 -- Foundation's ≜ rules (el-pi-beta, el-sigma-beta₁/₂, el-nat-beta-z/s,
 -- el-quot-beta, el-qiit-beta, el-sig-beta/ty-sig-beta, the El-decoding
--- family) — exactly Nova.Kernel.Beta's contraction clauses, but each
+-- family) — exactly Nova.Elaboration.Beta's contraction clauses, but each
 -- one stops the instant its own head is exposed, instead of also
 -- descending into every subterm. A term with no head redex — every
 -- canonical/constructor form (𝟘-/𝟙-/ℕ-introductions, λ, pairs, universe
