@@ -1,0 +1,45 @@
+-- Every module of the corpus, so the whole thing can be checked in ONE
+-- run: the loader deduplicates by module name, so each dependency
+-- elaborates once instead of once per importer.
+--
+-- Since the lemma store is scoped to a module's import closure, a
+-- module elaborates here exactly as it does standalone — the order of
+-- the imports below does not matter, and this file subsumes the
+-- per-file sweep. check-elaborations.sh verifies the list is complete.
+
+import definingEq
+import nat
+import integer
+import integerNormalize
+import equality
+import prop
+import prelude
+import eqNat
+import eqInt
+import id
+import quotEffective
+import intEffective
+import integerAdd
+import integerMul
+import rational
+import rationalQ
+import rationalInv
+import intNonZero
+import letExpr
+import qiitBag
+import qiitConTy
+import qiitCross
+import qiitInt
+import qiitNat
+import qiitQuot
+import qiitVec
+import quotient
+import quottyuniv
+import rationalAlgInv
+import rationalEffective
+import stream
+import streamEq
+import streamBisim
+import sum
+import vectByInd
+import vectByIndAppend
