@@ -10,6 +10,7 @@ modules = Nova.Profile
         , Nova.Kernel.Syntax
         , Nova.Kernel.Subst
         , Nova.Kernel.Beta
+        , Nova.Kernel.NfCache
         , Nova.Kernel
         , Nova.Kernel.QIIT
         , Nova.Compute

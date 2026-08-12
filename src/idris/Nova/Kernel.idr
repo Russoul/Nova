@@ -25,6 +25,7 @@ import Data.SnocList
 import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
 import Nova.Kernel.QIIT
+import Nova.Kernel.NfCache
 
 %default covering
 
@@ -284,7 +285,17 @@ mutual
   kElem sig (SigVar x es) = do
     es' <- kSubNorm sig es
     case sigLookup x sig of
-      Just (SigDef _ _ a _) => do burn; kElem sig (substElem a (embed es'))
+      Just (SigDef _ _ a _) => do
+        burn
+        -- nf(body) is recomputed on every mention otherwise; at a
+        -- top-level item es' is empty and the substitution is the
+        -- identity, so the cached form IS the answer
+        nfa <- case nfLookup kElemNf x of
+                 Just v => pure v
+                 Nothing => do v <- kElem sig a; pure (nfInsert kElemNf x v)
+        case es' of
+          [<] => pure nfa
+          _   => kElem sig (substElem nfa (embed es'))
       -- el-sig-decl: a declaration reference is stuck (no -beta)
       Just (SigDecl _ _ _) => pure (SigVar x es')
       Just _ => kerr "kernel: signature name '\{x}' is not a term entry"
@@ -386,7 +397,14 @@ mutual
   kTy sig (Ty.SigVar x es) = do
     es' <- kSubNorm sig es
     case sigLookup x sig of
-      Just (SigTyDef _ _ a) => do burn; kTy sig (substTy a (embed es'))
+      Just (SigTyDef _ _ a) => do
+        burn
+        nfa <- case nfLookup kTyNf x of
+                 Just v => pure v
+                 Nothing => do v <- kTy sig a; pure (nfInsert kTyNf x v)
+        case es' of
+          [<] => pure nfa
+          _   => kTy sig (substTy nfa (embed es'))
       -- ty-sig-decl: a declaration reference is stuck (no -beta)
       Just (SigTyDecl _ _) => pure (Ty.SigVar x es')
       Just _ => kerr "kernel: signature name '\{x}' is not a type entry"

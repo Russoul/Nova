@@ -199,3 +199,58 @@ What it buys:
 Since a module elaborates inside `all.nova` exactly as it does
 standalone, the aggregate *subsumes* the per-file sweep rather than
 weakening it.
+
+
+## The kernel's own normaliser
+
+`Nova.Kernel`'s `kElem`/`kTy` never touch `Nova.Kernel.Beta` — they
+have their own copy of the same rules, fuel-bounded inside `KM`, and
+the same defect: `kElem sig (SigVar x es)` δ-expands the definition and
+re-normalises its whole body on every mention. That is why the
+`Beta` memo left `kernel` (5.2s) and `kitem` (3.7s) untouched.
+
+Both tables now live in `Nova.Kernel.NfCache`, shared by the two
+normalisers but kept separate per normaliser, and cleared together at
+the non-monotone Σ sites. `kElem` also short-circuits when the spine is
+empty: the substitution is the identity there, so the cached form IS
+the answer and the re-traversal can be skipped entirely.
+
+One consequence worth naming: `burn` is not charged for the contractions
+inside a cached body, so a certificate that previously exhausted fuel
+may now replay. Fuel is a resource guard, not a soundness mechanism, and
+the change only makes the kernel accept more — never a different normal
+form.
+
+`rationalQ`, on the same base:
+
+```
+                 before    after
+wall             17.65s    7.96s
+kernel replay      5.20s   0.51s   -90%
+item check         3.68s   0.32s   -91%
+engine             3.96s   3.97s   unchanged
+```
+
+Corpus:
+
+```
+rationalAlgInv     28.49 → 12.15
+rationalEffective  27.28 → 11.74
+intNonZero         26.15 → 11.13
+rationalInv        23.84 → 10.54
+rationalQ          18.45 →  7.51
+all.nova (one run) 26.10 → 14.93
+```
+
+`./check-elaborations.sh` is now **19.5s** including `pack build`
+(which is itself 15.6s of it — the corpus check proper is under 5s,
+against 129s when this started).
+
+A measurement caveat recorded here because it nearly caused a
+misattribution: the engine figure of 6.1s quoted in the previous
+section was taken before the branch was rebased onto the updated
+`proving-in-nova`, whose `integer.nova` moves `zeroEq` earlier. That
+changes where an equation-typed lemma enters the store and is worth
+~2s on its own. Re-measuring the previous commit on the current base
+gives 3.96s, so the kernel memo left the engine untouched, as it
+should have.
