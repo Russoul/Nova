@@ -52,12 +52,13 @@ Notes:
 * Only 1,951 of the 11,432 attempts are element conversions; the rest
   are type conversions.
 * Candidate sets average **90** entries per attempt.
-* The eager kernel replay is **load-bearing for search**, not just
-  verification. Stubbing it out (to measure its cost by subtraction)
-  makes `rational.nova` fail at `intAddScaleZeroL`: the engine relies
-  on replay *failure* to reject a route and try another, so a bad
-  certificate that used to be caught mid-search now flows through to
-  the item check. Its 5.1s cannot simply be deleted.
+* The eager kernel replay is a **gate**, not a search oracle. Stubbing
+  it out (to measure its cost by subtraction) makes `rational.nova`
+  fail at `intAddScaleZeroL`: without it a rejected certificate reaches
+  the item-level check, which fails the item outright. `attemptE` takes
+  ONE shot — on replay failure it returns Left and the caller retries
+  with a different *refinement*, never with a different candidate. Its
+  5.1s cannot simply be deleted.
 * `mkCandSet` is rebuilt per attempt from `st.lemmas`, which only
   changes between items — and `rwNfElem` rebuilds it again per call.
 
@@ -154,3 +155,47 @@ definingEq          1.13 →  0.08   14x
    with the number of preceding items, because every attempt scans a
    lemma store that only grows. That is the structural issue the
    head-symbol index failed to address.
+
+
+## Scoping the lemma store — and checking the corpus in one run
+
+`st.lemmas` accumulated across every module of a run, so a module saw
+the lemmas of modules it does not import, whichever happened to be
+elaborated earlier. That is the root of ProvingFeedback's B-5/B-8, and
+it is what made an aggregate root impossible: importing all 36 modules
+into one file failed with
+
+```
+Error: module intEffective has open obligations and cannot be imported
+  [1] (p : ℕ ⨯ ℕ) ⊢ p .π₁ ≐ p .π₂ : ℕ
+      at: def intRRefl: checking ⋆ [replay failed: proof argument type mismatch]
+```
+
+— `intRRefl` is `⋆` at a goal that is plain `plusComm`, and the module
+passes standalone. Some earlier module's lemma matched the shape first
+and produced a certificate the kernel rejects; since `attemptE` does not
+retry with another candidate, the equation was assumed instead.
+
+Each module's own lemmas are now archived under its name when it
+finishes, and entering a module rebuilds the visible store as the
+concatenation of its import closure's archives, newest module first.
+
+**For a standalone run this is a no-op**: the loader loads exactly the
+root's closure, so every previously elaborated module is already in the
+closure and the flattened order is unchanged. The corpus passing
+unchanged (142/142, 36/36) is therefore an exact regression test.
+
+What it buys:
+
+* the aggregate works — and in **either** import order, alphabetical or
+  topological, which is the point: a module's acceptance no longer
+  depends on what else is in the run;
+* the whole corpus checks in **26.1s** in one run, against **129s** for
+  the per-file sweep and 54.7s for maximal-modules-only;
+* `check-elaborations.sh` now runs `src/nova/all.nova` by default (31.5s
+  including `pack build`), verifying first that every module is listed;
+  `--per-file` keeps the old sweep.
+
+Since a module elaborates inside `all.nova` exactly as it does
+standalone, the aggregate *subsumes* the per-file sweep rather than
+weakening it.
