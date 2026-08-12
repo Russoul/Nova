@@ -136,6 +136,16 @@ record ElabSt where
   ||| the authoritative Σ (docs/NovaPipeline.txt)
   kernelSig : Sig
   lemmas : List Cand
+  ||| the Σ-level candidate partition, derived from `lemmas` and
+  ||| recomputed only when a lemma is added: all (degenerates dropped),
+  ||| the two `ordered` blocks, and the hop-only set
+  candCs : List Cand
+  candShrink : List Cand
+  candRest : List Cand
+  candHops : List Cand
+  ||| candShrink ++ candRest, precomputed: the whole rewrite list when
+  ||| Γ contributes nothing
+  candRw : List Cand
   assumedE : List (Ctx, Elem, Elem, Ty)   -- normalized keys of assumed elem equations
   assumedT : List (Ctx, Ty, Ty)           -- normalized keys of assumed type equations
   ||| display metadata for Σ's constraint entries, in surfacing order
@@ -159,7 +169,7 @@ record ElabSt where
   vis : SnocList (String, String)
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [<] [<] [<] [<] "" [<]
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" [<]
 
 ||| Resolve a surface signature reference: aliases first (own module,
 ||| opened imports), else the name itself (qualified references reach
@@ -884,12 +894,12 @@ permutative c = isJust (go 0 c.lhs c.rhs [])
 
 ||| Candidates usable as REWRITE rules (strictly-shrinking first;
 ||| permutative and growing equations never rewrite).
-ordered : List Cand -> List Cand
-ordered cs =
+orderedParts : List Cand -> (List Cand, List Cand)
+orderedParts cs =
   let usable = filter (\c => (elemSize c.rhs <= elemSize c.lhs || varDef c) && not (permutative c)) cs
       shrinking = filter (\c => elemSize c.rhs < elemSize c.lhs) usable
       rest = filter (\c => not (elemSize c.rhs < elemSize c.lhs)) usable
-  in shrinking ++ rest
+  in (shrinking, rest)
  where
   -- a VARIABLE-DEFINITION rule — ground, ☐ₙ ⇝ t with ☐ₙ not in t —
   -- terminates regardless of size (each application strictly removes
@@ -1144,6 +1154,18 @@ selArity (SelCod _) = 1
 selArity (SelQRel _ _) = 2
 selArity _ = 0
 
+ordered : List Cand -> List Cand
+ordered cs = let (a, b) = orderedParts cs in a ++ b
+
+||| The Σ-level partition of a lemma store: what mkCandSet used to
+||| recompute on every attempt.
+sigCandParts : List Cand -> (List Cand, List Cand, List Cand, List Cand)
+sigCandParts ls =
+  let cs = filter (\c => c.lhs /= c.rhs) ls
+      (sh, re) = orderedParts cs
+      hp = filter (\c => permutative c || elemSize c.rhs > elemSize c.lhs) cs
+  in (cs, sh, re, hp)
+
 ||| Close a candidate under component decomposition (code injectivity;
 ||| S via a derivable predecessor). Only un-normalized candidates are
 ||| closed: a component of a lemma-rewritten side would not match the
@@ -1194,7 +1216,7 @@ hypCands : ElabSt -> Ctx -> List Cand
 hypCands st ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length ctx) 1])
  where
   lemmaRw : List Cand
-  lemmaRw = ordered st.lemmas
+  lemmaRw = st.candRw
 
   toPSteps : List Step -> List PStep
   toPSteps = map (\s => MkPStep s.path (licProof s.lic) s.sels s.flip)
@@ -1279,11 +1301,17 @@ mkCandSet : ElabSt -> Ctx -> CandSet
 mkCandSet st ctx =
   -- degenerate candidates (sides identical after normalization) carry
   -- no content beyond beta and — with a bare-parameter lhs — would
-  -- match ANYTHING as a hop, emitting ill-typed junk steps
-  let cs = filter (\c => c.lhs /= c.rhs) (st.lemmas ++ hypCands st ctx)
-      rws = ordered cs
-      hopsOnly = filter (\c => permutative c || elemSize c.rhs > elemSize c.lhs) cs
-  in MkCandSet cs rws hopsOnly
+  -- match ANYTHING as a hop, emitting ill-typed junk steps.
+  -- The Σ-level part is cached in ElabSt (sigCandParts); only the
+  -- Γ-level hypotheses are computed here, and at a top-level item
+  -- there are none.
+  case hypCands st ctx of
+    [] => MkCandSet st.candCs st.candRw st.candHops
+    hs =>
+      let (hcs, hsh, hre, hhp) = sigCandParts hs
+      in MkCandSet (st.candCs ++ hcs)
+                   (st.candShrink ++ hsh ++ st.candRest ++ hre)
+                   (st.candHops ++ hhp)
 
 rwNfElem : ElabSt -> Ctx -> Elem -> Elem
 rwNfElem st ctx e = fst (rwNfElemS st.sig (mkCandSet st ctx).rw True e)
@@ -2181,7 +2209,7 @@ mutual
               then pure Nothing
               else do
                 let fresh = "_i\{show (length (toList st.holeMeta))}"
-                modifySt $ { sig := cast (take qPos ls ++ [SigDecl deltaN fresh dtyN] ++ drop qPos ls)
+                modifySt $ { sig := resetNfCaches (cast (take qPos ls ++ [SigDecl deltaN fresh dtyN] ++ drop qPos ls))
                            , holeMeta $= (:< MkHoleMeta fresh [<] "legalize" True Nothing) }
                 aliased <- flipDecl n (SigVar fresh (idSpine (length deltaN)))
                 if aliased
@@ -2214,7 +2242,7 @@ mutual
                                 Nothing => pure False
                                 Just tOk2 => do
                                   let def2 = SigDef delta2 q tOk2 dty2
-                                  modifySt $ { sig := cast (take i2 ls2 ++ [def2] ++ drop (S i2) ls2) }
+                                  modifySt $ { sig := resetNfCaches (cast (take i2 ls2 ++ [def2] ++ drop (S i2) ls2)) }
                                   pure True
                             _ => pure False
                 Just tOk => do
@@ -2223,7 +2251,7 @@ mutual
                   -- order-fragile — the solution may mention a hole
                   -- that is itself solved only later
                   let def = SigDef delta q tOk dty
-                  modifySt $ { sig := cast (take i ls ++ [def] ++ drop (S i) ls) }
+                  modifySt $ { sig := resetNfCaches (cast (take i ls ++ [def] ++ drop (S i) ls)) }
                   pure True
             _ => pure False
 
@@ -2382,7 +2410,7 @@ mutual
                 Left _ => pure False
                 Right () => do
                   let def = SigTyDef delta q t
-                  modifySt $ { sig := cast (take i ls ++ [def] ++ drop (S i) ls) }
+                  modifySt $ { sig := resetNfCaches (cast (take i ls ++ [def] ++ drop (S i) ls)) }
                   pure True
             _ => pure False
 
@@ -3463,7 +3491,7 @@ addLemma name delta ty = do
       -- Sides normalized against the store as of this point (recording
       -- the normalization so the kernel can bridge from the raw
       -- reflected equation); closed under component decomposition.
-      let lemmaRw = ordered st.lemmas
+      let lemmaRw = st.candRw
           k = length delta'
           teleLen = length delta
           peeledN = minus k teleLen
@@ -3478,8 +3506,12 @@ addLemma name delta ty = do
           rRes = rwNfElemS st.sig lemmaRw True (betaElem st.sig r)
           toP : List Step -> List PStep
           toP = map (\s => MkPStep s.path (licProof s.lic) s.sels s.flip)
-      in modifySt $ { lemmas $= (closeCand (MkCand name k (toList delta') (fst lRes) (fst rRes)
-                                                   mk (toP (snd lRes)) (toP (snd rRes))) ++) }
+      in modifySt $ \st' =>
+           let ls = closeCand (MkCand name k (toList delta') (fst lRes) (fst rRes)
+                                      mk (toP (snd lRes)) (toP (snd rRes))) ++ st'.lemmas
+               (cs, sh, re, hp) = sigCandParts ls
+           in { lemmas := ls, candCs := cs, candShrink := sh
+              , candRest := re, candHops := hp, candRw := sh ++ re } st'
     _ => pure ()
 
 ||| Item-end constraint deletion (docs/NovaFoundation.txt, DISCHARGE):
@@ -3499,7 +3531,7 @@ resolveConstraints keep = do
   sweep 4
   st <- getSt
   let (sig', meta') = go 0 [<] (toList st.sig) (toList st.oblMeta)
-  modifySt $ { sig := sig', oblMeta := cast meta' }
+  modifySt $ { sig := resetNfCaches sig', oblMeta := cast meta' }
  where
   ||| RE-SOLVE before deleting: an equation assumed mid-item may have
   ||| become solvable — a later argument pinned the hole it could not
@@ -3737,7 +3769,7 @@ elabItem item = do
   if after == preOpen || null solvedNames
     then pure echo
     else do
-      putSt ({ sig := pre.sig <>< keepEntries
+      putSt ({ sig := resetNfCaches (pre.sig <>< keepEntries)
              , holeMeta := pre.holeMeta <>< keepMetas } pre)
       elabItemGo item
  where
