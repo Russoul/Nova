@@ -39,14 +39,6 @@ export
 betaTyNf : IORef (SortedMap String Ty)
 betaTyNf = unsafePerformIO (newIORef empty)
 
-export
-kElemNf : IORef (SortedMap String Elem)
-kElemNf = unsafePerformIO (newIORef empty)
-
-export
-kTyNf : IORef (SortedMap String Ty)
-kTyNf = unsafePerformIO (newIORef empty)
-
 ||| Look a name up; Nothing if it has not been normalised yet.
 export
 nfLookup : IORef (SortedMap String a) -> String -> Maybe a
@@ -76,6 +68,4 @@ resetNfCaches : (x : a) -> a
 resetNfCaches x = unsafePerformIO $ do
   writeIORef betaElemNf empty
   writeIORef betaTyNf empty
-  writeIORef kElemNf empty
-  writeIORef kTyNf empty
   pure x

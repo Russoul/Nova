@@ -21,11 +21,11 @@ module Nova.Kernel
 import Data.List
 import Data.Maybe
 import Data.SnocList
+import Data.SortedMap
 
 import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
 import Nova.Kernel.QIIT
-import Nova.Kernel.NfCache
 
 %default covering
 
@@ -188,11 +188,28 @@ public export
 KErr : Type
 KErr = String
 
+||| The kernel's own state: the fuel budget, and the normal forms it
+||| has computed for signature definitions during THIS check.
+|||
+||| The memo is the kernel's own work, never anything handed to it —
+||| NovaPipeline's trust boundary forbids believing a normal form
+||| computed above the kernel, so this cannot be shared with the
+||| elaborator's normaliser. It lives for one runKM call, which is where
+||| the repetition is: a term mentions its dependencies many times over.
+record KSt where
+  constructor MkKSt
+  fuel : Nat
+  nfE : SortedMap String Elem
+  nfT : SortedMap String Ty
+
 data KM : Type -> Type where
-  MkKM : (Nat -> Either KErr (a, Nat)) -> KM a
+  MkKM : (KSt -> Either KErr (a, KSt)) -> KM a
+
+runKMSt : KM a -> KSt -> Either KErr (a, KSt)
+runKMSt (MkKM f) = f
 
 runKM : KM a -> Nat -> Either KErr (a, Nat)
-runKM (MkKM f) = f
+runKM m n = map (mapSnd fuel) (runKMSt m (MkKSt n empty empty))
 
 Functor KM where
   map f (MkKM g) = MkKM $ \n => map (mapFst f) (g n)
@@ -207,16 +224,28 @@ Applicative KM where
 Monad KM where
   (MkKM f) >>= k = MkKM $ \n => do
     (x, n') <- f n
-    runKM (k x) n'
+    runKMSt (k x) n'
 
 kerr : KErr -> KM a
 kerr e = MkKM $ \_ => Left e
 
 ||| One ≜-contraction's worth of fuel.
 burn : KM ()
-burn = MkKM $ \n => case n of
+burn = MkKM $ \st => case st.fuel of
   Z => Left "kernel: out of fuel"
-  S m => Right ((), m)
+  S m => Right ((), { fuel := m } st)
+
+kNfElemGet : String -> KM (Maybe Elem)
+kNfElemGet x = MkKM $ \st => Right (lookup x st.nfE, st)
+
+kNfElemPut : String -> Elem -> KM Elem
+kNfElemPut x v = MkKM $ \st => Right (v, { nfE $= insert x v } st)
+
+kNfTyGet : String -> KM (Maybe Ty)
+kNfTyGet x = MkKM $ \st => Right (lookup x st.nfT, st)
+
+kNfTyPut : String -> Ty -> KM Ty
+kNfTyPut x v = MkKM $ \st => Right (v, { nfT $= insert x v } st)
 
 -- ===== Fuel-bounded normalization (Foundation's ≜, clause for clause) =====
 
@@ -290,9 +319,10 @@ mutual
         -- nf(body) is recomputed on every mention otherwise; at a
         -- top-level item es' is empty and the substitution is the
         -- identity, so the cached form IS the answer
-        nfa <- case nfLookup kElemNf x of
+        cached <- kNfElemGet x
+        nfa <- case cached of
                  Just v => pure v
-                 Nothing => do v <- kElem sig a; pure (nfInsert kElemNf x v)
+                 Nothing => do v <- kElem sig a; kNfElemPut x v
         case es' of
           [<] => pure nfa
           _   => kElem sig (substElem nfa (embed es'))
@@ -399,9 +429,10 @@ mutual
     case sigLookup x sig of
       Just (SigTyDef _ _ a) => do
         burn
-        nfa <- case nfLookup kTyNf x of
+        cached <- kNfTyGet x
+        nfa <- case cached of
                  Just v => pure v
-                 Nothing => do v <- kTy sig a; pure (nfInsert kTyNf x v)
+                 Nothing => do v <- kTy sig a; kNfTyPut x v
         case es' of
           [<] => pure nfa
           _   => kTy sig (substTy nfa (embed es'))
