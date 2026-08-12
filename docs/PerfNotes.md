@@ -221,6 +221,42 @@ may now replay. Fuel is a resource guard, not a soundness mechanism, and
 the change only makes the kernel accept more — never a different normal
 form.
 
+### …and where that memo is allowed to live
+
+NovaPipeline is explicit: *"Everything above the kernel is UNTRUSTED …
+the kernel re-establishes every judgement from its own Σ"*. A normal
+form computed by the elaborator is precisely what the kernel may not
+believe, so the two normalisers **cannot share a table** — not as a
+global, not on the Σ entry, not anywhere the elaborator can write.
+
+So the kernel's memo is state of `KM`, alongside the fuel it already
+threads, populated only by `kElem`/`kTy` themselves and living for one
+`runKM` call. Nothing crosses the boundary, and the kernel stays
+stateless and total from the outside.
+
+The per-call scope costs almost nothing, because the repetition is
+*within* a check — a term mentions its dependencies many times over:
+
+```
+                    global IORef   KM state (per call)
+wall                    7.96s          7.99s
+kernel replay           0.51s          0.98s
+item check              0.32s          0.29s
+```
+
+Against the 5.20s baseline the per-call cache keeps ~80% of the win and
+is sound by construction, which is the better trade.
+
+**The trusted path now contains no `unsafePerformIO`.** What remains is
+in `Nova.Kernel.Beta`, which despite its name is imported by
+`Nova.Elaboration` alone — the trusted `Nova.Kernel` does not use it.
+That memo is below the trust boundary: a stale entry there can only
+cost completeness (a bad certificate is rejected at replay), never
+soundness. Moving it into `ElabSt` would mean threading a cache through
+`betaElem`'s 100 internal recursions and 64 call sites, or making `Sig`
+a record; worth doing if the goal is zero `unsafePerformIO` anywhere,
+but it buys correctness of nothing that is currently wrong.
+
 `rationalQ`, on the same base:
 
 ```
