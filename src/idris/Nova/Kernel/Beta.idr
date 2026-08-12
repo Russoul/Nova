@@ -23,7 +23,50 @@ import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
 import Nova.Kernel.QIIT
 
+import Data.IORef
+import Data.SortedMap
+
 %default covering
+
+||| name -> normal form of that definition's body. Sound because a
+||| definition's body mentions only earlier entries and entries are
+||| never redefined; names are module-qualified, hence unique.
+nfDefCache : IORef (SortedMap String Elem)
+nfDefCache = unsafePerformIO (newIORef empty)
+
+nfDefTyCache : IORef (SortedMap String Ty)
+nfDefTyCache = unsafePerformIO (newIORef empty)
+
+||| Drop both memo tables, returning the value handed in. Called
+||| wherever Σ changes non-monotonically (a hole flipping to a
+||| definition, or constraint deletion rebuilding Σ): a cached normal
+||| form may mention a name whose meaning just changed.
+export
+resetNfCaches : (x : a) -> a
+resetNfCaches x = unsafePerformIO $ do
+  writeIORef nfDefCache empty
+  writeIORef nfDefTyCache empty
+  pure x
+
+memoElem : String -> (Lazy Elem) -> Elem
+memoElem x v = unsafePerformIO $ do
+  m <- readIORef nfDefCache
+  case lookup x m of
+    Just w => pure w
+    Nothing => do
+      let w = force v
+      modifyIORef nfDefCache (insert x w)
+      pure w
+
+memoTy : String -> (Lazy Ty) -> Ty
+memoTy x v = unsafePerformIO $ do
+  m <- readIORef nfDefTyCache
+  case lookup x m of
+    Just w => pure w
+    Nothing => do
+      let w = force v
+      modifyIORef nfDefTyCache (insert x w)
+      pure w
 
 mutual
   ||| e˲, with every element's own beta-redexes rewritten.
@@ -86,7 +129,7 @@ mutual
   betaElem sig (SigVar x es) =
     let es' = betaSubNorm sig es
     in case sigLookup x sig of
-         Just (SigDef _ _ a _) => betaElem sig (substElem a (embed es'))
+         Just (SigDef _ _ a _) => betaElem sig (substElem (memoElem x (betaElem sig a)) (embed es'))
          -- el-sig-decl: a declaration reference is stuck (no -beta)
          Just (SigDecl _ _ _)  => SigVar x es'
          Just _                => assert_total $ idris_crash "betaElem: signature identifier '\{x}' is not a term entry"
@@ -194,7 +237,7 @@ mutual
   betaTy sig (Ty.SigVar x es) =
     let es' = betaSubNorm sig es
     in case sigLookup x sig of
-         Just (SigTyDef _ _ a) => betaTy sig (substTy a (embed es'))
+         Just (SigTyDef _ _ a) => betaTy sig (substTy (memoTy x (betaTy sig a)) (embed es'))
          -- ty-sig-decl: a declaration reference is stuck (no -beta)
          Just (SigTyDecl _ _)  => Ty.SigVar x es'
          Just _                => assert_total $ idris_crash "betaTy: signature identifier '\{x}' is not a type entry"
