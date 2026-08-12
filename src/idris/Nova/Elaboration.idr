@@ -146,6 +146,15 @@ record ElabSt where
   ||| candShrink ++ candRest, precomputed: the whole rewrite list when
   ||| Γ contributes nothing
   candRw : List Cand
+  ||| the CURRENT module's own lemmas, newest first (archived under its
+  ||| name when the module finishes)
+  ownLemmas : List Cand
+  ||| finished modules' own lemmas, newest MODULE first
+  modLemmas : List (String, List Cand)
+  ||| finished modules' direct imports, for the transitive closure
+  modImports : List (String, List String)
+  ||| the module being elaborated, and its direct imports
+  curImports : List String
   assumedE : List (Ctx, Elem, Elem, Ty)   -- normalized keys of assumed elem equations
   assumedT : List (Ctx, Ty, Ty)           -- normalized keys of assumed type equations
   ||| display metadata for Σ's constraint entries, in surfacing order
@@ -169,7 +178,7 @@ record ElabSt where
   vis : SnocList (String, String)
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" [<]
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" [<]
 
 ||| Resolve a surface signature reference: aliases first (own module,
 ||| opened imports), else the name itself (qualified references reach
@@ -3510,7 +3519,10 @@ addLemma name delta ty = do
            let ls = closeCand (MkCand name k (toList delta') (fst lRes) (fst rRes)
                                       mk (toP (snd lRes)) (toP (snd rRes))) ++ st'.lemmas
                (cs, sh, re, hp) = sigCandParts ls
-           in { lemmas := ls, candCs := cs, candShrink := sh
+               new = closeCand (MkCand name k (toList delta') (fst lRes) (fst rRes)
+                                       mk (toP (snd lRes)) (toP (snd rRes)))
+           in { lemmas := ls, ownLemmas := new ++ st'.ownLemmas
+              , candCs := cs, candShrink := sh
               , candRest := re, candHops := hp, candRw := sh ++ re } st'
     _ => pure ()
 
@@ -4236,6 +4248,39 @@ openReport tbl st =
 
 ||| Install a module's import aliases: each opened name must exist in
 ||| the imported module's Σ segment.
+||| Transitive import closure over the finished modules' import lists.
+modClosure : List (String, List String) -> List String -> List String
+modClosure imps = go (length imps) []
+ where
+  go : Nat -> List String -> List String -> List String
+  go Z acc _ = acc
+  go (S fuel) acc [] = acc
+  go (S fuel) acc (m :: ms) =
+    if m `elem` acc
+      then go fuel acc ms
+      else go fuel (m :: acc) (fromMaybe [] (lookup m imps) ++ ms)
+
+||| Archive the module that just finished and scope the store to the
+||| next module's import closure. The visible list is the closure's
+||| archives concatenated in newest-module-first order — exactly the
+||| flattened order a standalone run of that module produces.
+enterModule : String -> List String -> ElabM ()
+enterModule name imps = do
+  st <- getSt
+  let archived = if st.modPrefix == "" && isNil st.ownLemmas
+                   then st.modLemmas
+                   else (st.modPrefix, st.ownLemmas) :: st.modLemmas
+  let archivedI = (st.modPrefix, st.curImports) :: st.modImports
+  let closure = modClosure archivedI imps
+  let visible = concatMap (\(_, ls) => ls) (filter (\(m, _) => m `elem` closure) archived)
+  let (cs, sh, re, hp) = sigCandParts visible
+  putSt $ { modPrefix := name, vis := [<]
+          , lemmas := visible, ownLemmas := []
+          , modLemmas := archived, modImports := archivedI
+          , curImports := imps
+          , candCs := cs, candShrink := sh, candRest := re
+          , candHops := hp, candRw := sh ++ re } st
+
 installImports : List SImport -> ElabM ()
 installImports [] = pure ()
 installImports (MkSImport m opens :: rest) = do
@@ -4279,9 +4324,9 @@ elabProgram units = go initSt units []
   go : ElabSt -> List ModUnit -> List String -> String
   go st [] echoes = joinBy "\n" (echoes ++ ["Error: empty program"])
   go st (MkModUnit name imps tbl items _ :: rest) echoes = do
-    -- a fresh visibility table per module: its own imports only
-    let st = { modPrefix := name, vis := [<] } st
-    case runElabM (installImports imps) st of
+    -- a fresh visibility table per module: its own imports only, and a
+    -- lemma store scoped to its import closure
+    case runElabM (enterModule name (map mname imps) >> installImports imps) st of
       Left err => joinBy "\n" (echoes ++ ["Error: \{err}"])
       Right (st, ()) =>
         let hdr = if name == "" then [] else ["module \{name}:"] in
@@ -4320,7 +4365,7 @@ elabProgramSig units = go initSt units
   go : ElabSt -> List ModUnit -> Either String Sig
   go st [] = Left "empty program"
   go st (MkModUnit name imps tbl items _ :: rest) =
-    let st = { modPrefix := name, vis := [<] } st in
+    let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
     case runElabM (installImports imps) st of
       Left err => Left err
       Right (st, ()) =>
@@ -4467,7 +4512,7 @@ elabProgramReport units = go initSt units [] [] []
   go : ElabSt -> List ModUnit -> List (String, Maybe Range, Obligation) -> List (String, Maybe Range, String) -> List (String, Maybe Range, String) -> ElabReport
   go st [] obls hs errs = MkElabReport obls hs [] [] errs
   go st (MkModUnit name imps tbl items _ :: rest) obls hs errs =
-    let st = { modPrefix := name, vis := [<] } st in
+    let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
     case runElabM (installImports imps) st of
       Left err => MkElabReport obls hs (holeInfos tbl st) (binderInfos tbl st) (errs ++ [(name, Nothing, err)])
       Right (st, ()) =>
