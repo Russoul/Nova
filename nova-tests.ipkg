@@ -5,10 +5,10 @@ depends = contrib, just-a-parser, test, lsp-lib
 
 modules = Nova.Kernel.Syntax
         , Nova.Kernel.Subst
-        , Nova.Kernel.Beta
         , Nova.Kernel
         , Nova.Kernel.QIIT
         , Nova.Compute
+        , Nova.Elaboration.Beta
         , Nova.Elaboration.Named
         , Nova.Kernel.Parser
         , Nova.Elaboration

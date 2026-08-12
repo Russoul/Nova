@@ -1,5 +1,11 @@
-module Nova.Kernel.Beta
+module Nova.Elaboration.Beta
 
+-- The ELABORATOR's beta-normaliser. UNTRUSTED: the kernel has its own
+-- (Nova.Kernel's kElem/kTy, fuel-bounded inside KM) and never consults
+-- this one — NovaPipeline's boundary forbids the kernel believing a
+-- normal form computed above it. This module lived under Nova.Kernel.*
+-- for a while, which invited exactly the wrong assumption.
+--
 -- A direct, structurally-recursive beta-reduction algorithm for Ctx/Sub/Ty/
 -- Elem/SubNorm, matching every "by definition" (≜) computation
 -- rule in docs/NovaFoundation.txt — Π-β, Σ-β₁, Σ-β₂, ℕ-elim-β-Z,
@@ -23,9 +29,65 @@ import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
 import Nova.Kernel.QIIT
 
-import Nova.Kernel.NfCache
+import Data.IORef
+import Data.SortedMap
 
 %default covering
+
+-- ===== memoised definition normal forms =====
+--
+-- betaElem (SigVar x es) unfolds a definition and re-normalises its
+-- whole body on every mention. At a top-level item the declaration
+-- context is empty, so the spine is empty and the substitution is the
+-- identity: the call recomputes nf(body) from scratch. A body mentions
+-- only earlier entries and names are module-qualified, so nf(body) is
+-- stable — for as long as Σ is only EXTENDED.
+--
+-- It is not: the elaborator flips a SigDecl (stuck hole) to a SigDef
+-- when a hole is solved, and constraint deletion rebuilds Σ, at which
+-- point a cached form may mention a name whose meaning changed.
+-- `resetNfCaches` is called at exactly those sites.
+--
+-- The unsafePerformIO here is BELOW the trust boundary (see the module
+-- header): a stale entry costs completeness, never soundness, since a
+-- certificate built on one is rejected at replay. The kernel keeps its
+-- own memo in KM's state and shares nothing with this one.
+
+export
+betaElemNf : IORef (SortedMap String Elem)
+betaElemNf = unsafePerformIO (newIORef empty)
+
+export
+betaTyNf : IORef (SortedMap String Ty)
+betaTyNf = unsafePerformIO (newIORef empty)
+
+nfLookup : IORef (SortedMap String a) -> String -> Maybe a
+nfLookup ref x = unsafePerformIO $ do
+  m <- readIORef ref
+  pure (lookup x m)
+
+nfInsert : IORef (SortedMap String a) -> String -> (v : a) -> a
+nfInsert ref x v = unsafePerformIO $ do
+  modifyIORef ref (insert x v)
+  pure v
+
+||| Memoise a lazily-supplied normal form under `x`.
+export
+nfMemo : IORef (SortedMap String a) -> String -> (Lazy a) -> a
+nfMemo ref x v =
+  case nfLookup ref x of
+    Just w => w
+    Nothing => nfInsert ref x (force v)
+
+||| Drop both tables, returning the value handed in. Called wherever Σ
+||| changes non-monotonically.
+export
+resetNfCaches : (x : a) -> a
+resetNfCaches x = unsafePerformIO $ do
+  writeIORef betaElemNf empty
+  writeIORef betaTyNf empty
+  pure x
+
 
 mutual
   ||| e˲, with every element's own beta-redexes rewritten.

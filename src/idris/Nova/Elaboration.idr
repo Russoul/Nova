@@ -41,8 +41,7 @@ import Data.String
 
 import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
-import Nova.Kernel.Beta
-import Nova.Kernel.NfCache
+import Nova.Elaboration.Beta
 import Nova.Kernel.QIIT
 import Nova.Kernel.Parser
 import Nova.Kernel
