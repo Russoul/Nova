@@ -119,30 +119,30 @@ def normPairWD : (a : ℕ) (b : ℕ) (c : ℕ) (d : ℕ) (h : Prf (a + d ≡ b +
     ℕ-elim (k. (b : ℕ) → (c : ℕ) → (d : ℕ) → (k + d ≡ b + c ∈ ℕ) →
               (normPair k b ≡ normPair c d ∈ El (ℕ ⨯ ℕ)))
       (λb. λc. λd. λh.
-        trans (ℕ ⨯ ℕ) (normPair Z b) (Z , b) (normPair c d)
+        trans _ (normPair Z b) _ _
           ⋆
-          (trans (ℕ ⨯ ℕ) (Z , b) (normPair c (b + c)) (normPair c d)
-            (sym (ℕ ⨯ ℕ) _ _ (normPairLeftZ b c))
-            (cong ℕ (λu. (ℕ ⨯ ℕ)) (λx. normPair c x) (b + c) d
-              (sym ℕ _ _ (trans ℕ d (Z + d) (b + c) (sym ℕ _ _ (zeroPlusId d)) h)))))
+          (trans _ _ _ (normPair c d)
+            (sym _ _ _ (normPairLeftZ b c))
+            (cong _ _ (λx. normPair c x) _ _
+              (sym _ _ _ (trans _ _ _ _ (sym _ _ _ (zeroPlusId d)) h)))))
       (a' ih. λb.
         ℕ-elim (j. (c : ℕ) → (d : ℕ) → (S a' + d ≡ j + c ∈ ℕ) →
                   (normPair (S a') j ≡ normPair c d ∈ El (ℕ ⨯ ℕ)))
           (λc. λd. λh.
-            trans (ℕ ⨯ ℕ) (normPair (S a') Z) (S a' , Z) (normPair c d)
+            trans _ _ _ _
               ⋆
-              (trans (ℕ ⨯ ℕ) (S a' , Z) (normPair (S a' + d) d) (normPair c d)
-                (sym (ℕ ⨯ ℕ) _ _ (normPairRightZ (S a') d))
-                (cong ℕ (λu. (ℕ ⨯ ℕ)) (λx. normPair x d) (S a' + d) c
-                  (trans ℕ (S a' + d) (Z + c) c h (zeroPlusId c)))))
+              (trans _ _ _ _
+                (sym _ _ _ (normPairRightZ (S a') d))
+                (cong _ _ (λx. normPair x d) _ _
+                  (trans _ _ _ _ h (zeroPlusId _)))))
           (b' ihb. λc. λd. λh.
             ih b' c d
-              (predEq (a' + d) (b' + c)
-                (trans ℕ (S (a' + d)) (S a' + d) (S (b' + c))
-                  (sym ℕ _ _ (sucPlus a' d))
-                  (trans ℕ (S a' + d) (S b' + c) (S (b' + c))
+              (predEq _ _
+                (trans _ _ _ _
+                  (sym _ _ _ (sucPlus _ _))
+                  (trans _ _ _ _
                     h
-                    (sucPlus b' c)))))
+                    (sucPlus _ _)))))
           b)
       a
 
@@ -167,11 +167,11 @@ def pairEtaG : (A : 𝕌) (B : 𝕌) (p : El (A ⨯ B)) → (p .π₁ , p .π₂
 def pairEq2 : (A : 𝕌) (B : 𝕌) (x : El (A ⨯ B)) (y : El (A ⨯ B)) →
   (x .π₁ ≡ y .π₁ ∈ El A) → (x .π₂ ≡ y .π₂ ∈ El B) → x ≡ y ∈ El (A ⨯ B) ≔
   λA. λB. λx. λy. λh1. λh2.
-    trans (A ⨯ B) x (y .π₁ , y .π₂) y
-      (trans (A ⨯ B) x (x .π₁ , x .π₂) (y .π₁ , y .π₂)
-        (sym (A ⨯ B) _ _ (pairEtaG A B x))
+    trans _ _ _ _
+      (trans _ _ _ _
+        (sym _ _ _ (pairEtaG _ _ x))
         ⋆)
-      (pairEtaG A B y)
+      (pairEtaG _ _ y)
 
 -- ===== EqZ: equality that computes =====
 
@@ -184,23 +184,23 @@ def eqZRefl : (z : El Int) → Prf (EqZ z z) ≔
 
 def eqZSound : (z1 : El Int) (z2 : El Int) → Prf (EqZ z1 z2) → z1 ≡ z2 ∈ El Int ≔
   λz1. λz2. λh.
-    trans Int z1 (class (intCanon z1)) z2
-      (sym Int _ _ (intCanonClass z1))
-      (trans Int (class (intCanon z1)) (class (intCanon z2)) z2
-        (cong (ℕ ⨯ ℕ) (λu. Int) (λr. class r) (intCanon z1) (intCanon z2)
-          (pairEq2 ℕ ℕ (intCanon z1) (intCanon z2)
+    trans _ _ _ _
+      (sym _ _ _ (intCanonClass _))
+      (trans Int _ _ _
+        (cong _ (λu. Int) (λr. class r) _ _
+          (pairEq2 _ _ (intCanon z1) (intCanon z2)
             (eqNSound _ _ (andFst _ _ h))
             (eqNSound _ _ (andSnd _ _ h))))
-        (intCanonClass z2))
+        (intCanonClass _))
 
 def eqZComplete : (z1 : El Int) (z2 : El Int) → (z1 ≡ z2 ∈ El Int) → Prf (EqZ z1 z2) ≔
   λz1. λz2. λh.
-    andIntro (EqN (intCanon z1 .π₁) (intCanon z2 .π₁))
-             (EqN (intCanon z1 .π₂) (intCanon z2 .π₂))
+    andIntro _
+             _
       (eqNComplete (intCanon z1 .π₁) (intCanon z2 .π₁)
-        (cong Int (λu. ℕ) (λz. intCanon z .π₁) z1 z2 h))
+        (cong _ _ (λz. intCanon z .π₁) _ _ h))
       (eqNComplete (intCanon z1 .π₂) (intCanon z2 .π₂)
-        (cong Int (λu. ℕ) (λz. intCanon z .π₂) z1 z2 h))
+        (cong _ _ (λz. intCanon z .π₂) _ _ h))
 
 def eqZSoundP : (z1 : El Int) (z2 : El Int) → Prf (EqZ z1 z2) → Prf (z1 ≡ z2 ∈ El Int) ≔
   λz1. λz2. λh. eqZSound _ _ h

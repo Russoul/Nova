@@ -293,7 +293,7 @@ def notApply : (p : Ω) → Prf (¬ p) → Prf p → Prf ⊥ ≔
 — removes the conversion from every call site and fixed it. These
 belong in `prop.nova`.
 
-### B-8. Import ORDER decides whether a transitive import elaborates
+### B-8. Import ORDER decides whether a transitive import elaborates — RESOLVED upstream
 
 `integerNormalize.nova`'s `intNormalize` — accepted everywhere else —
 failed with `proof argument type mismatch` when a new module listed its
@@ -317,6 +317,14 @@ Workaround: import the module that fixes the good order **first**
 This is the sharpest form of B-5: **a module's acceptance is not a
 property of the module.** Anything downstream can break it, and the
 error surfaces inside a file the author never touched.
+
+*Now:* the lemma store is scoped to a module's import closure — each
+module's lemmas are archived under its name and the visible store is
+rebuilt on entry from the closure's archives. A module no longer sees
+lemmas of modules it does not import, so acceptance IS a property of the
+module again. The aggregate root `src/nova/all.nova` elaborates in
+either alphabetical or topological order, which is the regression test
+for it; `check-elaborations.sh` uses it by default.
 
 ## C. Discharge-engine ergonomics
 
@@ -467,19 +475,62 @@ commutative — it halves the descent work.
 
 ## E. Elaborator ergonomics
 
-### E-1. Metavariables are not solved from `⋆`-shaped arguments
+### E-1. `_` is solved from the ARGUMENTS, never from the goal
 
-`intMulCong2 _ _ _ _ ⋆ h` leaves the reflexive side's endpoints
-unsolved — a `⋆` pins nothing — and a `trans` whose middle is `_` often
-fails to resolve. The fix is always the same: spell the endpoints out.
-Cost a round trip in `ratAddNumMulL/R`, `assocRep`, `qNegNeg`,
-`ratAddComm`.
+An index written `_` is filled only when some *later argument's* type
+pins it. The expected type of the whole application never contributes:
 
-**Suggested fix:** propagate the expected type into `trans`/`cong`
-argument positions more aggressively; or report *which* `_` is
-unsolved with its expected type (currently one gets a hole named by
-source position, which is good, plus an unrelated-looking conversion
-error, which is not).
+```
+def idLemma : (a : ℕ) → a ≡ a ∈ ℕ ≔ λa. ⋆
+def probeId : (x : ℕ) → x ≡ x ∈ ℕ ≔ λx. idLemma _    -- ? : ℕ, unsolved
+```
+
+The goal `x ≡ x ∈ ℕ` determines `a ≔ x` first-order — no El-decoding, no
+defined function in the way — and the hole still survives to the report.
+
+**Mechanism.** `convTy` (Elaboration.idr) runs `attemptT` first and
+reaches the solver only when the attempt FAILED:
+
+```
+r <- attemptT ctx site tyA tyB
+case r of
+  Right cert => pure (Just cert)        -- holes never touched
+  Left site1 => do solved <- patternSolveT ...
+```
+
+For an equation-typed conclusion the attempt succeeds **vacuously**:
+code-prop-eq equates any two true propositions, and `Prf (_h ≡ _h ∈ ℕ)`
+and `Prf (x ≡ x ∈ ℕ)` are both reflexivity instances, hence both true,
+hence equal codes. The conversion is discharged without ever looking at
+`_h`.
+
+`sym _ _ _ h` works for the complementary reason: there the holes meet
+`h`'s type while still *un*related (`_a ≡ _b` is not evidently true), so
+`attemptT` fails, `patternSolveT` runs, and Miller inversion fills them.
+
+So the rule is exact: **an index of an equation-typed lemma is
+recoverable iff some proof argument mentions it.** Which is also why
+`intMulCong2 _ _ _ _ ⋆ h` leaves the reflexive side unsolved — `⋆`
+mentions nothing.
+
+**Two candidate fixes**, in increasing order of ambition:
+
+1. When solvable holes are in play, run the solving pass BEFORE
+   `attemptT` (or again after a vacuous success). Cheap, and fixes every
+   case where a side IS a hole.
+2. Extend the solver to congruent decomposition on the UNNORMALIZED
+   spine, so `intMul _a _b ≟ intMul z x` solves componentwise. This is
+   what the remaining residue needs: after β the two sides are stuck
+   `quot-elim`/`ℕ-elim` spines with no rigid head left to match, so
+   nothing fires. Solving is only a guess that the following `attemptT`
+   verifies, so decomposition costs nothing in soundness.
+
+**Measured** by blanking every index position in the ℚ development and
+keeping what still elaborates (see the `blank.py` sweep in the session
+notes): most go. The residue is exactly the arguments of the arithmetic
+lemmas — `assocRep`, `distribBack`, `multAssoc`, `intMulComm`, … — whose
+indices appear in the conclusion only under `+`, `*` or `intMul`. Fix 2
+is what would collect those.
 
 ### E-2. Proof terms are enormous because every hop repeats its endpoints
 

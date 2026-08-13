@@ -24,13 +24,13 @@ def distribBack : (n : ℕ) (m : ℕ) (k : ℕ) → n * m + n * k ≡ n * (m + k
 -- multComm on each factor, distribBack in the middle, multComm back
 def distribBackR : (m : ℕ) (k : ℕ) (n : ℕ) → m * n + k * n ≡ (m + k) * n ∈ ℕ ≔
   λm. λk. λn.
-    trans ℕ _ (n * m + n * k) _
-      (trans ℕ _ (n * m + k * n) _
-        (cong ℕ (λu. ℕ) (λw. w + k * n) _ _ (multComm n m))
-        (cong ℕ (λu. ℕ) (λw. n * m + w) _ _ (multComm n k)))
-      (trans ℕ _ (n * (m + k)) _
-        (distribBack n m k)
-        (multComm (m + k) n))
+    trans _ _ _ _
+      (trans _ _ _ _
+        (cong _ _ (λw. w + k * n) _ _ (multComm _ _))
+        (cong _ _ (λw. n * m + w) _ _ (multComm _ _)))
+      (trans _ _ _ _
+        (distribBack _ _ _)
+        (multComm _ _))
 
 -- the two exchanges of a four-term sum
 def swap4 : (p : ℕ) (q : ℕ) (r : ℕ) (s : ℕ) → (p + q) + (r + s) ≡ (p + r) + (q + s) ∈ ℕ ≔
@@ -52,10 +52,10 @@ def plusCongR : (x : ℕ) (y : ℕ) (z : ℕ) → (y ≡ z ∈ ℕ) → x + y �
 def collectL : (x : ℕ) (y : ℕ) (z : ℕ) (u : ℕ) (v : ℕ) →
   x * y * z + x * u * v ≡ x * (y * z + u * v) ∈ ℕ ≔
   λx. λy. λz. λu. λv.
-    trans ℕ (x * y * z + x * u * v) (x * (y * z) + x * (u * v)) (x * (y * z + u * v))
-      (trans ℕ (x * y * z + x * u * v) (x * (y * z) + x * u * v) (x * (y * z) + x * (u * v))
-        (plusCongL (x * y * z) (x * (y * z)) (x * u * v) (multAssoc x y z))
-        (plusCongR (x * (y * z)) (x * u * v) (x * (u * v)) (multAssoc x u v)))
+    trans _ _ _ _
+      (trans _ _ _ _
+        (plusCongL _ _ _ (multAssoc _ _ _))
+        (plusCongR _ _ _ (multAssoc _ _ _)))
       (distribBack x (y * z) (u * v))
 
 -- the representative-level associativity identity, one component of
@@ -66,36 +66,36 @@ def assocRep : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ)
   (a1 * b1 + a2 * b2) * c1 + (a1 * b2 + a2 * b1) * c2
     ≡ a1 * (b1 * c1 + b2 * c2) + a2 * (b1 * c2 + b2 * c1) ∈ ℕ ≔
   λa1. λa2. λb1. λb2. λc1. λc2.
-    trans ℕ
-      ((a1 * b1 + a2 * b2) * c1 + (a1 * b2 + a2 * b1) * c2)
-      ((a1 * b1 * c1 + a2 * b2 * c1) + (a1 * b2 * c2 + a2 * b1 * c2))
-      (a1 * (b1 * c1 + b2 * c2) + a2 * (b1 * c2 + b2 * c1))
-      (trans ℕ
-        ((a1 * b1 + a2 * b2) * c1 + (a1 * b2 + a2 * b1) * c2)
-        ((a1 * b1 * c1 + a2 * b2 * c1) + (a1 * b2 + a2 * b1) * c2)
-        ((a1 * b1 * c1 + a2 * b2 * c1) + (a1 * b2 * c2 + a2 * b1 * c2))
-        (plusCongL ((a1 * b1 + a2 * b2) * c1) (a1 * b1 * c1 + a2 * b2 * c1) ((a1 * b2 + a2 * b1) * c2)
-           (sym ℕ _ _ (distribBackR (a1 * b1) (a2 * b2) c1)))
-        (plusCongR (a1 * b1 * c1 + a2 * b2 * c1) ((a1 * b2 + a2 * b1) * c2) (a1 * b2 * c2 + a2 * b1 * c2)
-           (sym ℕ _ _ (distribBackR (a1 * b2) (a2 * b1) c2))))
-      (trans ℕ
-        ((a1 * b1 * c1 + a2 * b2 * c1) + (a1 * b2 * c2 + a2 * b1 * c2))
-        ((a1 * b1 * c1 + a1 * b2 * c2) + (a2 * b2 * c1 + a2 * b1 * c2))
-        (a1 * (b1 * c1 + b2 * c2) + a2 * (b1 * c2 + b2 * c1))
-        (swap4 (a1 * b1 * c1) (a2 * b2 * c1) (a1 * b2 * c2) (a2 * b1 * c2))
-        (trans ℕ
-          ((a1 * b1 * c1 + a1 * b2 * c2) + (a2 * b2 * c1 + a2 * b1 * c2))
-          (a1 * (b1 * c1 + b2 * c2) + (a2 * b2 * c1 + a2 * b1 * c2))
-          (a1 * (b1 * c1 + b2 * c2) + a2 * (b1 * c2 + b2 * c1))
-          (plusCongL (a1 * b1 * c1 + a1 * b2 * c2) (a1 * (b1 * c1 + b2 * c2)) (a2 * b2 * c1 + a2 * b1 * c2)
-             (collectL a1 b1 c1 b2 c2))
-          (plusCongR (a1 * (b1 * c1 + b2 * c2)) (a2 * b2 * c1 + a2 * b1 * c2) (a2 * (b1 * c2 + b2 * c1))
-            (trans ℕ
-              (a2 * b2 * c1 + a2 * b1 * c2)
-              (a2 * (b2 * c1 + b1 * c2))
-              (a2 * (b1 * c2 + b2 * c1))
-              (collectL a2 b2 c1 b1 c2)
-              (cong ℕ (λw. ℕ) (λw. a2 * w) _ _ (plusComm (b1 * c2) (b2 * c1)))))))
+    trans _
+      _
+      _
+      _
+      (trans _
+        _
+        _
+        _
+        (plusCongL _ _ _
+           (sym _ _ _ (distribBackR _ _ _)))
+        (plusCongR _ _ _
+           (sym _ _ _ (distribBackR _ _ _))))
+      (trans _
+        _
+        _
+        _
+        (swap4 _ _ _ _)
+        (trans _
+          _
+          _
+          _
+          (plusCongL _ _ _
+             (collectL _ _ _ _ _))
+          (plusCongR _ _ _
+            (trans _
+              _
+              _
+              _
+              (collectL _ _ _ _ _)
+              (cong _ _ (λw. a2 * w) _ _ (plusComm _ _))))))
 
 -- regroup a cross-sum by the LEFT factor: this is the shape the inner
 -- well-definedness goal takes, and once regrouped the relatedness
@@ -103,21 +103,21 @@ def assocRep : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ)
 def sum4Distrib : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ) →
   (a1 * b1 + a2 * b2) + (a1 * c2 + a2 * c1) ≡ a1 * (b1 + c2) + a2 * (b2 + c1) ∈ ℕ ≔
   λa1. λa2. λb1. λb2. λc1. λc2.
-    trans ℕ _ ((a1 * b1 + a1 * c2) + (a2 * b2 + a2 * c1)) _
-      (swap4 (a1 * b1) (a2 * b2) (a1 * c2) (a2 * c1))
-      (trans ℕ _ (a1 * (b1 + c2) + (a2 * b2 + a2 * c1)) _
-        (cong ℕ (λu. ℕ) (λw. w + (a2 * b2 + a2 * c1)) _ _ (distribBack a1 b1 c2))
-        (cong ℕ (λu. ℕ) (λw. a1 * (b1 + c2) + w) _ _ (distribBack a2 b2 c1)))
+    trans _ _ _ _
+      (swap4 _ _ _ _)
+      (trans _ _ _ _
+        (cong _ _ (λw. w + (a2 * b2 + a2 * c1)) _ _ (distribBack _ _ _))
+        (cong _ _ (λw. a1 * (b1 + c2) + w) _ _ (distribBack _ _ _)))
 
 -- and by the RIGHT factor: the shape of the OUTER well-definedness goal
 def sum4DistribR : (x1 : ℕ) (x2 : ℕ) (y1 : ℕ) (y2 : ℕ) (c1 : ℕ) (c2 : ℕ) →
   (x1 * c1 + x2 * c2) + (y1 * c2 + y2 * c1) ≡ (x1 + y2) * c1 + (x2 + y1) * c2 ∈ ℕ ≔
   λx1. λx2. λy1. λy2. λc1. λc2.
-    trans ℕ _ ((x1 * c1 + y2 * c1) + (x2 * c2 + y1 * c2)) _
-      (swap4b (x1 * c1) (x2 * c2) (y1 * c2) (y2 * c1))
-      (trans ℕ _ ((x1 + y2) * c1 + (x2 * c2 + y1 * c2)) _
-        (cong ℕ (λu. ℕ) (λw. w + (x2 * c2 + y1 * c2)) _ _ (distribBackR x1 y2 c1))
-        (cong ℕ (λu. ℕ) (λw. (x1 + y2) * c1 + w) _ _ (distribBackR x2 y1 c2)))
+    trans _ _ _ _
+      (swap4b _ _ _ _)
+      (trans _ _ _ _
+        (cong _ _ (λw. w + (x2 * c2 + y1 * c2)) _ _ (distribBackR _ _ _))
+        (cong _ _ (λw. (x1 + y2) * c1 + w) _ _ (distribBackR _ _ _)))
 
 -- ===== the two well-definedness lemmas =====
 
@@ -127,18 +127,18 @@ def intMulWD : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ)
   (h : Prf (b1 + c2 ≡ b2 + c1 ∈ ℕ)) →
   (a1 * b1 + a2 * b2) + (a1 * c2 + a2 * c1) ≡ (a1 * b2 + a2 * b1) + (a1 * c1 + a2 * c2) ∈ ℕ ≔
   λa1. λa2. λb1. λb2. λc1. λc2. λh.
-    trans ℕ _ (a1 * (b1 + c2) + a2 * (b2 + c1)) _
-      (sum4Distrib a1 a2 b1 b2 c1 c2)
-      (sym ℕ _ _ (sum4Distrib a1 a2 b2 b1 c2 c1))
+    trans _ _ _ _
+      (sum4Distrib _ _ b1 _ _ c2)
+      (sym _ _ _ (sum4Distrib a1 a2 b2 b1 c2 c1))
 
 -- outer: x varies; the same regrouping, by the right factor
 def intMulWDRep : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ)
   (h : Prf (a1 + b2 ≡ a2 + b1 ∈ ℕ)) →
   (a1 * c1 + a2 * c2) + (b1 * c2 + b2 * c1) ≡ (a1 * c2 + a2 * c1) + (b1 * c1 + b2 * c2) ∈ ℕ ≔
   λa1. λa2. λb1. λb2. λc1. λc2. λh.
-    trans ℕ _ ((a1 + b2) * c1 + (a2 + b1) * c2) _
-      (sum4DistribR a1 a2 b1 b2 c1 c2)
-      (sym ℕ _ _ (sum4DistribR a2 a1 b2 b1 c1 c2))
+    trans _ _ _ _
+      (sum4DistribR _ _ _ _ _ _)
+      (sym _ _ _ (sum4DistribR a2 a1 b2 b1 c1 c2))
 
 -- the outer well-definedness, in the quot-elim shape the elaborator
 -- actually asks for (integerAdd.nova's intAddWDOuter, one level up):
@@ -183,7 +183,7 @@ def pairEta : (A : 𝕌) (B : 𝕌) (p : El (A ⨯ B)) → (p .π₁ , p .π₂)
   λA. λB. λp. ⋆
 
 def classPairEta : (p : ℕ ⨯ ℕ) → class (p .π₁ , p .π₂) ≡ class p ∈ El Int ≔
-  λp. cong _ (λu. Int) (λr. class r) _ _ (pairEta ℕ ℕ p)
+  λp. cong _ (λu. Int) (λr. class r) _ _ (pairEta _ _ p)
 
 def oneMult : (m : ℕ) → S Z * m ≡ m ∈ ℕ ≔ λm. ⋆
 
@@ -198,7 +198,7 @@ def classCong2 : (u1 : ℕ) (u2 : ℕ) (v1 : ℕ) (v2 : ℕ) →
 -- before Σ-η can close it; on the right it is all β (intMulOneR)
 def intMulOneL : (z : El Int) → intMul intOne z ≡ z ∈ El Int ≔
   λz. quot-elim (w. intMul intOne w ≡ w ∈ El Int)
-        (p. trans Int _ (class (p .π₁ , p .π₂)) _ ⋆ (classPairEta p)) z
+        (p. trans _ _ _ _ ⋆ (classPairEta p)) z
 
 def intMulOneR : (z : El Int) → intMul z intOne ≡ z ∈ El Int ≔
   λz. quot-elim (w. intMul w intOne ≡ w ∈ El Int) (p. classPairEta p) z
@@ -214,17 +214,17 @@ def intMulZeroR : (z : El Int) → intMul z intZero ≡ intZero ∈ El Int ≔
 def mulComm2 : (u1 : ℕ) (u2 : ℕ) (v1 : ℕ) (v2 : ℕ) →
   u1 * v1 + u2 * v2 ≡ v1 * u1 + v2 * u2 ∈ ℕ ≔
   λu1. λu2. λv1. λv2.
-    trans ℕ _ (v1 * u1 + u2 * v2) _
-      (cong ℕ (λw. ℕ) (λw. w + u2 * v2) _ _ (multComm v1 u1))
-      (cong ℕ (λw. ℕ) (λw. v1 * u1 + w) _ _ (multComm v2 u2))
+    trans _ _ _ _
+      (cong _ _ (λw. w + u2 * v2) _ _ (multComm _ _))
+      (cong _ _ (λw. v1 * u1 + w) _ _ (multComm _ _))
 
 def intMulComm : (x : El Int) (y : El Int) → intMul x y ≡ intMul y x ∈ El Int ≔
   λx. λy. quot-elim (v. intMul v y ≡ intMul y v ∈ El Int)
     (a. quot-elim (w. intMul (class a) w ≡ intMul w (class a) ∈ El Int)
           (b. classCong2 _ _ _ _
-                (mulComm2 (a .π₁) (a .π₂) (b .π₁) (b .π₂))
-                (trans ℕ _ (b .π₂ * a .π₁ + b .π₁ * a .π₂) _
-                  (mulComm2 (a .π₁) (a .π₂) (b .π₂) (b .π₁))
+                (mulComm2 _ _ (b .π₁) (b .π₂))
+                (trans _ _ _ _
+                  (mulComm2 _ _ _ _)
                   (plusComm (b .π₁ * a .π₂) (b .π₂ * a .π₁))))
           y)
     x
@@ -266,10 +266,10 @@ def intMulCong2 : (x : El Int) (y : El Int) (u : El Int) (v : El Int) →
 def intMulDistribR : (x : El Int) (y : El Int) (z : El Int) →
   intMul (intAdd x y) z ≡ intAdd (intMul x z) (intMul y z) ∈ El Int ≔
   λx. λy. λz.
-    trans Int (intMul (intAdd x y) z) (intAdd (intMul z x) (intMul z y)) (intAdd (intMul x z) (intMul y z))
-      (trans Int (intMul (intAdd x y) z) (intMul z (intAdd x y)) (intAdd (intMul z x) (intMul z y))
-        (intMulComm (intAdd x y) z)
-        (intMulDistribL z x y))
+    trans _ _ _ _
+      (trans _ _ _ _
+        (intMulComm _ _)
+        (intMulDistribL _ x y))
       (intAddCong2 _ _ _ _ (intMulComm z x) (intMulComm z y))
 
 -- ===== negation =====
@@ -299,8 +299,8 @@ def intMulNegL : (x : El Int) (y : El Int) →
 def intMulNegR : (x : El Int) (y : El Int) →
   intMul x (intNeg y) ≡ intNeg (intMul x y) ∈ El Int ≔
   λx. λy.
-    trans Int (intMul x (intNeg y)) (intMul (intNeg y) x) (intNeg (intMul x y))
-      (intMulComm x (intNeg y))
-      (trans Int (intMul (intNeg y) x) (intNeg (intMul y x)) (intNeg (intMul x y))
-        (intMulNegL y x)
-        (cong Int (λu. Int) intNeg _ _ (intMulComm y x)))
+    trans _ _ _ _
+      (intMulComm _ _)
+      (trans _ _ _ _
+        (intMulNegL y _)
+        (cong _ _ intNeg _ _ (intMulComm y x)))
