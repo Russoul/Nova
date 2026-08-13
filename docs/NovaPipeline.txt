@@ -918,3 +918,36 @@ Cost, stated honestly: until phase 3 completes, an item is walked
 three times (elaborate, reconstruct, replay) — a constant factor,
 bought back by deleting the reconstruction frontier from the trusted
 base and every A-caveat with it.
+
+    [The port, first slice — the spine speaks Jud. Parallel
+     judgment-carrying entry points (inferElemJ / checkElemJ /
+     elabTyJ) own the ported routes and recurse through themselves,
+     delegating whole subtrees to the erased elaborator at unported
+     nodes; the def item's type and body enter through them. Ported
+     so far: variables, closed signature references, ℕ-constructors,
+     𝟙-intro, application (function inferred to a LITERAL Π — the
+     rewrite-normalizer exposure drops the judgment, its port needs
+     the certificate as a derivation), λ (the expected type's
+     formation threaded from the caller: an application's domain by
+     inversion, a def's type by its own construction), ℕ-elim (the
+     motive's formation constructed by elabTyJ, the branch instances
+     by one substitution wrap each), the equal-type switch, and the
+     formations Π/Σ/El/Prf/≡-as-Prf plus the nullary primitives. A
+     ported route CONSTRUCTS its judgment from sub-judgments — one
+     node per rule, premises in hand — and stores the derivation in
+     the same stores the births fill, where the emission pass
+     already consumes them; every composition is gated on the cached
+     erasures agreeing with the erased flow's spellings, so a ported
+     judgment never changes what elaboration produces, only what it
+     KNOWS. Pre-mirror hole references are fine: the judgment is
+     untrusted and validated at consumption, so the formation store
+     is read optimistically. Measured coverage-by-construction:
+     81–238 stored judgments per corpus file that reconstruction
+     previously served (or failed to); suite and meter unchanged
+     (140/140, 26/27 at ~42s). Not yet ported, in likely order of
+     value: the ty-sig formation (hole-headed motive ambients — the
+     one gate all twelve nat.nova eliminator motives fail on),
+     exposure sites, the conversion coercion at the switch (needs
+     convTy's certificate as a derivation — the refiner's seed),
+     pairs/projections/let, and hole references in element
+     position.]

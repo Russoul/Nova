@@ -112,6 +112,98 @@ export
 judCoe : JudTyEq -> Jud -> Jud
 judCoe eq j = MkJud (DElTyCoe eq.deriv j.deriv) j.ctx j.elem eq.rhs
 
+-- ===== introductions and references =====
+
+export
+judZero : Ctx -> Jud
+judZero cx = MkJud DElNatZ cx NatIntro0 Ty.NatTy
+
+export
+judSuc : Jud -> Jud
+judSuc j = MkJud (DElNatS j.deriv) j.ctx (NatIntro1 j.elem) Ty.NatTy
+
+export
+judOneI : Ctx -> Jud
+judOneI cx = MkJud DElOneI cx OneIntro Ty.OneTy
+
+||| A closed signature reference (empty declaration context): el-sig
+||| at the empty spine. The cached type is spelled as conclude spells
+||| it — the closed type substituted along the empty embedding.
+export
+judSig0 : SigIdentifier -> Ty -> Ctx -> Jud
+judSig0 x a cx =
+  MkJud (DElSig x DSubNEmpty) cx (Elem.SigVar x [<]) (substTy a Terminal)
+
+export
+judTyNat : Ctx -> JudTy
+judTyNat cx = MkJudTy DTyNat cx Ty.NatTy
+
+||| The nullary formations, written down directly.
+export
+judTyPrim : Ctx -> Ty -> Maybe JudTy
+judTyPrim cx Ty.NatTy = Just (MkJudTy DTyNat cx Ty.NatTy)
+judTyPrim cx Ty.OneTy = Just (MkJudTy DTyOne cx Ty.OneTy)
+judTyPrim cx Ty.ZeroTy = Just (MkJudTy DTyZero cx Ty.ZeroTy)
+judTyPrim cx Ty.UniverseTy = Just (MkJudTy DTyUniv cx Ty.UniverseTy)
+judTyPrim cx Ty.PropTy = Just (MkJudTy DTyProp cx Ty.PropTy)
+judTyPrim _ _ = Nothing
+
+||| A formation substituted along a substitution DERIVATION
+||| (ty-sub-cong-fix at refl, presupposed): one wrap; conclude
+||| computes the substituted spelling eagerly, and the caller caches
+||| the same spelling.
+export
+judSubTy : Deriv -> Ctx -> Ty -> JudTy -> JudTy
+judSubTy dS cx sp ft =
+  MkJudTy (DPresupTyL (DTySubCongFix dS (DTyRefl ft.deriv))) cx sp
+
+||| ℕ-elimination (el-nat-e): the motive's formation over ctx▷ℕ and
+||| the three premises, each at its motive instance.
+export
+judNatE : JudTy -> Jud -> Jud -> Jud -> Jud
+judNatE mot z s t =
+  MkJud (DElNatE mot.deriv z.deriv s.deriv t.deriv) t.ctx
+    (NatElim z.elem s.elem t.elem) (substTy mot.ty (Ext Id t.elem))
+
+-- ===== type formations by construction =====
+
+export
+judTyPrf : Jud -> JudTy
+judTyPrf p = MkJudTy (DTyPrf p.deriv) p.ctx (Prf p.elem)
+
+export
+judTyEl : Jud -> JudTy
+judTyEl a = MkJudTy (DTyEl a.deriv) a.ctx (El a.elem)
+
+export
+judTyPi : JudTy -> JudTy -> JudTy
+judTyPi a b = MkJudTy (DTyPi a.deriv b.deriv) a.ctx (Ty.PiTy a.ty b.ty)
+
+export
+judTySigma : JudTy -> JudTy -> JudTy
+judTySigma a b = MkJudTy (DTySigma a.deriv b.deriv) a.ctx (Ty.SigmaTy a.ty b.ty)
+
+||| The equality PROPOSITION's code (code-eq): the ambient type's
+||| formation and the two sides at it.
+export
+judCodeEq : JudTy -> Jud -> Jud -> Jud
+judCodeEq t l r =
+  MkJud (DCodeEq t.deriv l.deriv r.deriv) t.ctx
+    (Elem.EqTy l.elem r.elem t.ty) Ty.PropTy
+
+-- ===== formation projections =====
+-- The domain and codomain formations behind a function's Π, read by
+-- presupposition + inversion — one node each, deterministic, never
+-- reconstructed. The spellings are the caller's (it exposed the Π).
+
+export
+judInvPiDom : Jud -> Ty -> JudTy
+judInvPiDom f a = MkJudTy (DInvPiDom (DPresupElTy f.deriv)) f.ctx a
+
+export
+judInvPiCod : Jud -> Ty -> Ty -> JudTy
+judInvPiCod f a b = MkJudTy (DInvPiCod (DPresupElTy f.deriv)) (f.ctx :< a) b
+
 -- ===== equational rules =====
 
 export

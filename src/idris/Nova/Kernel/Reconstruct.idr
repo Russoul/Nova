@@ -40,6 +40,7 @@ import Nova.Kernel.Derivation
 
 -- NOVA_RECON_DEBUG=1 prints the first-failure spine of a bailing
 -- reconstruction (untrusted diagnostics; never touches replay)
+export
 reconDebug : Bool
 reconDebug = unsafePerformIO (isJust <$> getEnv "NOVA_RECON_DEBUG")
 
@@ -4957,6 +4958,41 @@ birthPiE sig ctx a b f e = unsafePerformIO $ do
       _ <- storeElDeriv ctx (PiApp f e) concl d
       pure (if reconDebug then trace "el: piE born" (PiApp f e) else PiApp f e)
     Nothing => pure (PiApp f e)
+
+||| A judgment CONSTRUCTED by the elaborator (the port,
+||| docs/NovaPipeline.txt phase 3 end-state), stored as-is: the
+||| covered-by-construction route — no reconstruction runs at all.
+||| Optimistic like every birth; validity is checked at lookup.
+||| Identity on its last argument (dataflow-forced).
+export
+%noinline
+storeJudEl : Ctx -> Elem -> Ty -> Deriv -> a -> a
+storeJudEl ctx e ty d v = unsafePerformIO $ do
+  storeElDeriv ctx e ty d
+  pure (if reconDebug then trace "jud: constructed" v else v)
+
+||| A constructed FORMATION stored as-is (the port's counterpart of
+||| storeJudEl for types). Identity on its last argument.
+export
+%noinline
+storeJudTy : Ctx -> Ty -> Deriv -> a -> a
+storeJudTy ctx t d v = unsafePerformIO $ do
+  storeTyDeriv ctx t d
+  pure (if reconDebug then trace "jud: ty constructed" v else v)
+
+||| The stored formation for a spelling, exposed for the port's
+||| judgment threading (a def item's just-elaborated type has its
+||| birth-stored formation here) — read OPTIMISTICALLY, without
+||| validation: mid-elaboration the kernel Σ may not yet hold the
+||| hole entries the formation cites (the mirror runs later), and
+||| the composed judgment is untrusted data validated at
+||| consumption, exactly like every birth.
+export
+judStoredTy : Sig -> Ctx -> Ty -> Maybe Deriv
+judStoredTy _ ctx t = unsafePerformIO $ do
+  m <- readIORef storedTy2
+  let (h1, h2) = fmKey ctx t
+  pure (lookup h2 (fromMaybe [] (lookup h1 m)))
 
 ||| A pair's typing at its checked Σ (el-sigma-i).
 export
