@@ -749,6 +749,44 @@ Phasing:
      it — the instances it consumes are exactly the witnesses
      judgment-carrying elaboration would have in hand.]
 
+    [Tenth slice, the DERIVATION WALK: placement machinery reads its
+     premises off a rolling structural witness instead of
+     reconstructing them. The chain carries, beside the compact
+     presupposition witness, a STRUCTURAL one: seeded per side (the
+     by-term store, else one plain inference under its own
+     allowance), transformed per exposure by constructive subject
+     reduction (stepTypedE: one ≜ contraction ON the derivation —
+     β from the λ's own premises, ℕ-elim from the branches, SigVar
+     unfold by substituting into the recorded body derivation), and
+     read by rePlaceE's ZIPPER routes (Π-app both slots, pair
+     second slot, ℕ-elim scrutinee — the MOTIVE is a premise read,
+     never a guess). Premise access as projection arrives early:
+     dvView projects a side's typing out of the equation's own
+     congruence skeleton (presup-of-cong views, presup-of-beta-at
+     via the walk), so the placement's own conclusion re-seeds the
+     witness after each rewrite. Accepted items record their body
+     derivations by name (share-free re-emission for small bodies —
+     a DShare citation cannot be walked — plus an on-demand lazy
+     record for residue-accepted solutions). Around the walk, the
+     bridge machinery gained what the pool recordings cannot give:
+     nf'd variants of recorded instances, ∀-re-instantiation by
+     first-order MATCHING of a lemma's nf'd statement sides against
+     the pair (enumeration cannot reach a three-argument tuple),
+     closed SIGNATURE laws as instance sources (no recorded-context
+     skew), and one-sided rewrites at any occurrence within any
+     disagreement prefix, backtracking across candidates under the
+     fuel bound and the memo. Result: the S-instance's FIRST
+     placement — the eighth slice's wall — goes through end to end,
+     bridge included. What stands is one level deeper again: the
+     SECOND placement's witness view crosses a position the first
+     rewrite shifted, where the β-substitution inside the walk
+     needs the propositional index bridge itself — the walk's
+     typing-rule exactness meets the same shift the equation rules
+     absorb in their conclusion instances. The residue holds at
+     26/27 (suite 140/140, meter ~35s); every mechanism above is
+     permanent judgment-carrying substance, not stopgap — the
+     witness IS the Jud the end-state elaborator will carry.]
+
 ////////// Phase 3 end-state, revised: judgment-carrying elaboration //////////
 
 The eighth slice's last gap (the dependent-shift composite) forced

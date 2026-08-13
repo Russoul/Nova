@@ -3608,13 +3608,18 @@ mirrorHoleDefs = do
                 -- replayed by the derivation kernel; the old
                 -- kernel's verdict only where emission fails (the
                 -- hole-solution residue)
-                if (case emitSol ks delta t dty of
-                      Just ds =>
-                        acceptSolItem ks kernelFuel ds delta dty t == Right ()
-                      Nothing =>
-                        kCheckSolution ks kernelFuel delta t dty == Right ())
-                  then go rest (ks :< e)
-                  else go rest ks
+                case emitSol ks delta t dty of
+                  Just ds =>
+                    if acceptSolItem ks kernelFuel ds delta dty t == Right ()
+                      -- the accepted body's derivation, recorded by
+                      -- name: what a SigVar unfold in the derivation
+                      -- walk substitutes into
+                      then go rest (ks :< recordSigDeriv q (snd (snd ds)) e)
+                      else go rest ks
+                  Nothing =>
+                    if kCheckSolution ks kernelFuel delta t dty == Right ()
+                      then go rest (ks :< e)
+                      else go rest ks
               SigTyDef delta _ t =>
                 if (case emitTySol ks delta t of
                       Just ds =>
@@ -3647,7 +3652,12 @@ seatAccept name residue art entry clean = do
     else case emitDef st.kernelSig art of
       Just ds =>
         case acceptDefItem st.kernelSig kernelFuel ds art.dty art.body of
-          Right () => modifySt $ { kernelSig $= (:< entry) }
+          Right () =>
+            -- record a share-free body derivation where affordable
+            -- (the walk cannot cite DShare bindings); the accepted
+            -- emission is the fallback
+            let dRec = fromMaybe (snd ds) (plainDefDeriv st.kernelSig art) in
+            modifySt $ { kernelSig $= (:< recordSigDeriv art.dname dRec entry) }
           Left err =>
             throw "\{name}: derivation kernel REJECTED the item: \{err}"
       Nothing => do
