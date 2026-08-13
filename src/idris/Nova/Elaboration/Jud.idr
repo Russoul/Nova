@@ -165,6 +165,31 @@ judNatE mot z s t =
   MkJud (DElNatE mot.deriv z.deriv s.deriv t.deriv) t.ctx
     (NatElim z.elem s.elem t.elem) (substTy mot.ty (Ext Id t.elem))
 
+||| The JUDGMENT CONTEXT: alongside the erased context, the
+||| formation derivation of each entry (over its prefix) where the
+||| port had it in hand at the push. The intrinsic context, arriving
+||| strangler-fig: entries pushed by unported routes carry Nothing.
+public export
+JCtx : Type
+JCtx = SnocList (Maybe Deriv)
+
+||| A signature TYPE reference at a spine of plain variables
+||| (ty-sig-var/decl): a hole at its own context (innermost variable
+||| k = 0), or at an extension by k binders. The sub-norm premise
+||| chain is written from the declaration context's entry formations.
+export
+judTySigVars : SigIdentifier -> JCtx -> Nat -> Ty -> Ctx -> Maybe JudTy
+judTySigVars x jdelta k sp cx = do
+  dSub <- go jdelta k
+  pure (MkJudTy (DTySig x dSub) cx sp)
+ where
+  go : JCtx -> Nat -> Maybe Deriv
+  go [<] _ = Just DSubNEmpty
+  go (rest :< mA) d = do
+    dEs <- go rest (S d)
+    dA <- mA
+    pure (DSubNExt dEs dA (DElVar d))
+
 -- ===== type formations by construction =====
 
 export

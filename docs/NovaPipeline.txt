@@ -944,10 +944,17 @@ base and every A-caveat with it.
      is read optimistically. Measured coverage-by-construction:
      81–238 stored judgments per corpus file that reconstruction
      previously served (or failed to); suite and meter unchanged
-     (140/140, 26/27 at ~42s). Not yet ported, in likely order of
-     value: the ty-sig formation (hole-headed motive ambients — the
-     one gate all twelve nat.nova eliminator motives fail on),
-     exposure sites, the conversion coercion at the switch (needs
-     convTy's certificate as a derivation — the refiner's seed),
-     pairs/projections/let, and hole references in element
-     position.]
+     (140/140, 26/27 at ~42s). A second increment threads
+     the INTRINSIC CONTEXT: alongside the erased context, `jctx`
+     carries each binder's formation derivation where the pushing
+     route had it in hand (a λ's domain by inversion, an
+     eliminator's ℕ, a Π's just-constructed domain) — and the
+     ty-sig formation route writes a type hole's formation from it,
+     the sub-norm premise chain read straight off the judgment
+     context (hole-typed eliminator motives now construct). Not yet
+     ported, in order of value: the CONVERSION COERCION at the
+     switch — every remaining gate failure in the corpus is this
+     one wall (an inferred ℕ against a hole-spelled expected type;
+     it needs convTy's certificate as a derivation, i.e. the
+     refiner's seed) — then exposure sites, pairs/projections/let,
+     and hole references in element position.]

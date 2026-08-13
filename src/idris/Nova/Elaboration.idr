@@ -3471,29 +3471,31 @@ mutual
   ||| erasures agreeing with the erased flow's spellings — a ported
   ||| judgment never changes what elaboration produces, only what it
   ||| KNOWS. Exposure sites (a Π reached through the rewrite
-  ||| normalizer) are not ported yet and drop the judgment.
+  ||| normalizer) are not ported yet and drop the judgment. `jctx`
+  ||| carries each binder's formation where the pushing route had it
+  ||| — the intrinsic context, arriving strangler-fig.
   export
-  inferElemJ : Ctx -> NameEnv -> String -> SElem -> ElabM (Elem, Ty, Skel, Maybe Jud)
-  inferElemJ ctx env site s@(SVar _ _ i) = do
+  inferElemJ : Ctx -> JCtx -> NameEnv -> String -> SElem -> ElabM (Elem, Ty, Skel, Maybe Jud)
+  inferElemJ ctx jctx env site s@(SVar _ _ i) = do
     (e, ty, sk) <- inferElem ctx env site s
     pure (e, ty, sk, judVar ctx i)
-  inferElemJ ctx env site s@(SSig _ _) = do
+  inferElemJ ctx jctx env site s@(SSig _ _) = do
     (e, ty, sk) <- inferElem ctx env site s
     let mJ = the (Maybe Jud) $ case e of
                SigVar x [<] => Just (judSig0 x ty ctx)
                _ => Nothing
     pure (e, ty, sk, mJ)
-  inferElemJ ctx env site SZeroN = do
+  inferElemJ ctx jctx env site SZeroN = do
     (e, ty, sk) <- inferElem ctx env site SZeroN
     pure (e, ty, sk, Just (judZero ctx))
-  inferElemJ ctx env site SUnitI = do
+  inferElemJ ctx jctx env site SUnitI = do
     (e, ty, sk) <- inferElem ctx env site SUnitI
     pure (e, ty, sk, Just (judOneI ctx))
-  inferElemJ ctx env site (SSuc t) = do
-    (t', tSk, mtJ) <- checkElemJ ctx env site t Ty.NatTy (Just (judTyNat ctx))
+  inferElemJ ctx jctx env site (SSuc t) = do
+    (t', tSk, mtJ) <- checkElemJ ctx jctx env site t Ty.NatTy (Just (judTyNat ctx))
     pure (NatIntro1 t', Ty.NatTy, Nd [] [tSk], judSuc <$> mtJ)
-  inferElemJ ctx env site (SApp f e) = do
-    (f', fTy, fSk, mfJ) <- inferElemJ ctx env site f
+  inferElemJ ctx jctx env site (SApp f e) = do
+    (f', fTy, fSk, mfJ) <- inferElemJ ctx jctx env site f
     st <- getSt
     case preferPi st ctx fTy of
       Just (a, b, exp) => do
@@ -3504,7 +3506,7 @@ mutual
                       let True = fJ.ty == Ty.PiTy a b
                         | _ => Nothing
                       Just fJ
-        (e', eSk, meJ) <- checkElemJ ctx env site e a
+        (e', eSk, meJ) <- checkElemJ ctx jctx env site e a
                             ((\fJ => judInvPiDom fJ a) <$> mfJok)
         stB <- getSt
         let mJ = the (Maybe Jud) $ do
@@ -3519,25 +3521,26 @@ mutual
                     Nothing => birthPiE stB.kernelSig ctx a b f' e'
         pure (app, substTy b (Ext Id e'), Nd [] [fSk, eSk], mJ)
       Nothing => throw "\{site}: cannot apply a term of non-Π type\{structuralHint}"
-  inferElemJ ctx env site (SNatElim (n, nr) mot z (n2, n2r) (ih, ihr) s t) = do
+  inferElemJ ctx jctx env site (SNatElim (n, nr) mot z (n2, n2r) (ih, ihr) s t) = do
     recordBinder nr ctx env n Ty.NatTy
-    (motTy, motSk, mMotJT0) <- elabTyJ (ctx :< Ty.NatTy) (env :< n) site mot
+    (motTy, motSk, mMotJT0) <- elabTyJ (ctx :< Ty.NatTy) (jctx :< Just DTyNat) (env :< n) site mot
     stM <- getSt
     let mMotJT = mMotJT0
                  <|> (the (Maybe JudTy) $ do
                         d <- judStoredTy stM.kernelSig (ctx :< Ty.NatTy) motTy
                         Just (MkJudTy d (ctx :< Ty.NatTy) motTy))
     let zTy = substTy motTy (Ext Id NatIntro0)
-    (z', zSk, mzJ) <- checkElemJ ctx env site z zTy
+    (z', zSk, mzJ) <- checkElemJ ctx jctx env site z zTy
                         ((\mj => judSubTy (DSubExt DSubId DTyNat DElNatZ) ctx zTy mj) <$> mMotJT)
     recordBinder n2r ctx env n2 Ty.NatTy
     recordBinder ihr (ctx :< Ty.NatTy) (env :< n2) ih motTy
     let sctx = ctx :< Ty.NatTy :< motTy
+    let sjctx = jctx :< Just DTyNat :< ((.deriv) <$> mMotJT)
     let sTy = substTy motTy (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)
     let sSub = DSubComp DSubWk (DSubExt DSubWk DTyNat (DElNatS (DElVar 0)))
-    (s', sSk, msJ) <- checkElemJ sctx (env :< n2 :< ih) site s sTy
+    (s', sSk, msJ) <- checkElemJ sctx sjctx (env :< n2 :< ih) site s sTy
                         ((\mj => judSubTy sSub sctx sTy mj) <$> mMotJT)
-    (t', tSk, mtJ) <- checkElemJ ctx env site t Ty.NatTy (Just (judTyNat ctx))
+    (t', tSk, mtJ) <- checkElemJ ctx jctx env site t Ty.NatTy (Just (judTyNat ctx))
     mirrorHoleDefs
     stB <- getSt
     let mJ = the (Maybe Jud) $ do
@@ -3553,7 +3556,7 @@ mutual
                  | _ => Nothing
                Just (judNatE motJT zJ sJ tJ)
     let mJ = if reconDebug
-               then trace "jud: natE mot=\{show (isJust mMotJT)} z=\{show (isJust mzJ)} s=\{show (isJust msJ)} t=\{show (isJust mtJ)} whole=\{show (isJust mJ)} MOT=\{show motTy}" mJ
+               then trace "jud: natE mot=\{show (isJust mMotJT)} z=\{show (isJust mzJ)} s=\{show (isJust msJ)} t=\{show (isJust mtJ)} whole=\{show (isJust mJ)}" mJ
                else mJ
     let elimE = case mJ of
                   Just j => storeJudEl ctx (NatElim z' s' t') (substTy motTy (Ext Id t'))
@@ -3561,17 +3564,17 @@ mutual
                   Nothing => birthNatE stB.kernelSig ctx motTy z' s' t'
     pure (elimE, substTy motTy (Ext Id t'),
           Nd [PMotive motTy motSk] [zSk, sSk, tSk], mJ)
-  inferElemJ ctx env site s = do
+  inferElemJ ctx jctx env site s = do
     (e, ty, sk) <- inferElem ctx env site s
     pure (e, ty, sk, Nothing)
 
   ||| The checking side of the port; `mFT` is the EXPECTED TYPE's
   ||| formation where the caller holds one (an application's domain
-  ||| by inversion, a def item's type by its stored birth) — the λ
-  ||| route needs it for el-pi-i's domain premise.
+  ||| by inversion, a def item's type by its own construction) — the
+  ||| λ route needs it for el-pi-i's domain premise.
   export
-  checkElemJ : Ctx -> NameEnv -> String -> SElem -> Ty -> Maybe JudTy -> ElabM (Elem, Skel, Maybe Jud)
-  checkElemJ ctx env site (SLam (x, xr) t) ty mFT = do
+  checkElemJ : Ctx -> JCtx -> NameEnv -> String -> SElem -> Ty -> Maybe JudTy -> ElabM (Elem, Skel, Maybe Jud)
+  checkElemJ ctx jctx env site (SLam (x, xr) t) ty mFT = do
     st <- getSt
     case preferPi st ctx ty of
       Just (a, b, exp) => do
@@ -3583,7 +3586,9 @@ mutual
                       let True = ft.ty == ty
                         | _ => Nothing
                       Just ft
-        (t', tSk, mtJ) <- checkElemJ (ctx :< a) (env :< x) site t b
+        (t', tSk, mtJ) <- checkElemJ (ctx :< a)
+                            (jctx :< ((\ft => DInvPiDom ft.deriv) <$> mFTok))
+                            (env :< x) site t b
                             ((\ft => MkJudTy (DInvPiCod ft.deriv) (ctx :< a) b) <$> mFTok)
         stB <- getSt
         let mJ = the (Maybe Jud) $ do
@@ -3598,7 +3603,7 @@ mutual
                     Nothing => birthPiI stB.kernelSig ctx a b t'
         pure (lam, withExpose exp (Nd [] [tSk]), mJ)
       Nothing => throw "\{site}: λ checked against a non-Π type\{structuralHint}"
-  checkElemJ ctx env site t ty mFT =
+  checkElemJ ctx jctx env site t ty mFT =
     case t of
       SVar _ _ _ => switchJ
       SSig _ _ => switchJ
@@ -3616,7 +3621,7 @@ mutual
     -- is a later route — it needs the equation as a derivation)
     switchJ : ElabM (Elem, Skel, Maybe Jud)
     switchJ = do
-      (t', inferred, tSk, mtJ) <- inferElemJ ctx env site t
+      (t', inferred, tSk, mtJ) <- inferElemJ ctx jctx env site t
       c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
       let mJ = the (Maybe Jud) $ do
                  tJ <- mtJ
@@ -3633,10 +3638,10 @@ mutual
   ||| pre-mirror hole references are fine here, the judgment is
   ||| untrusted and validated at consumption).
   export
-  elabTyJ : Ctx -> NameEnv -> String -> STy -> ElabM (Ty, Skel, Maybe JudTy)
-  elabTyJ ctx env site (STyPi x a b) = do
-    (a', aSk, maJ) <- elabTyJ ctx env site a
-    (b', bSk, mbJ) <- elabTyJ (ctx :< a') (env :< x) site b
+  elabTyJ : Ctx -> JCtx -> NameEnv -> String -> STy -> ElabM (Ty, Skel, Maybe JudTy)
+  elabTyJ ctx jctx env site (STyPi x a b) = do
+    (a', aSk, maJ) <- elabTyJ ctx jctx env site a
+    (b', bSk, mbJ) <- elabTyJ (ctx :< a') (jctx :< ((.deriv) <$> maJ)) (env :< x) site b
     stB <- getSt
     let mJT = the (Maybe JudTy) $ do
                 aJ <- maJ
@@ -3646,9 +3651,9 @@ mutual
                 Just _ => Ty.PiTy a' b'
                 Nothing => birthTy stB.kernelSig ctx (Ty.PiTy a' b')
     pure (piT, Nd [] [aSk, bSk], mJT)
-  elabTyJ ctx env site (STySigma x a b) = do
-    (a', aSk, maJ) <- elabTyJ ctx env site a
-    (b', bSk, mbJ) <- elabTyJ (ctx :< a') (env :< x) site b
+  elabTyJ ctx jctx env site (STySigma x a b) = do
+    (a', aSk, maJ) <- elabTyJ ctx jctx env site a
+    (b', bSk, mbJ) <- elabTyJ (ctx :< a') (jctx :< ((.deriv) <$> maJ)) (env :< x) site b
     stB <- getSt
     let mJT = the (Maybe JudTy) $ do
                 aJ <- maJ
@@ -3658,10 +3663,10 @@ mutual
                 Just _ => Ty.SigmaTy a' b'
                 Nothing => birthTy stB.kernelSig ctx (Ty.SigmaTy a' b')
     pure (sgT, Nd [] [aSk, bSk], mJT)
-  elabTyJ ctx env site (STyEq l r t) = do
-    (t', tSk, mtJT) <- elabTyJ ctx env site t
-    (l', lSk, mlJ) <- checkElemJ ctx env site l t' mtJT
-    (r', rSk, mrJ) <- checkElemJ ctx env site r t' mtJT
+  elabTyJ ctx jctx env site (STyEq l r t) = do
+    (t', tSk, mtJT) <- elabTyJ ctx jctx env site t
+    (l', lSk, mlJ) <- checkElemJ ctx jctx env site l t' mtJT
+    (r', rSk, mrJ) <- checkElemJ ctx jctx env site r t' mtJT
     let mJT = the (Maybe JudTy) $ do
                 tJT <- mtJT
                 lJ <- mlJ
@@ -3672,8 +3677,8 @@ mutual
                   | _ => Nothing
                 Just (judTyPrf (judCodeEq tJT lJ rJ))
     pure (Prf (Elem.EqTy l' r' t'), Nd [] [Nd [] [lSk, rSk, tSk]], mJT)
-  elabTyJ ctx env site (STyEl e) = do
-    (e', eSk, meJ) <- checkElemJ ctx env site e Ty.UniverseTy (judTyPrim ctx Ty.UniverseTy)
+  elabTyJ ctx jctx env site (STyEl e) = do
+    (e', eSk, meJ) <- checkElemJ ctx jctx env site e Ty.UniverseTy (judTyPrim ctx Ty.UniverseTy)
     stB <- getSt
     let mJT = the (Maybe JudTy) $ do
                 eJ <- meJ
@@ -3684,8 +3689,8 @@ mutual
                 Just j => storeJudTy ctx (El e') j.deriv (El e')
                 Nothing => birthTy stB.kernelSig ctx (El e')
     pure (elT, Nd [] [eSk], mJT)
-  elabTyJ ctx env site (STyPrf e) = do
-    (e', eSk, meJ) <- checkElemJ ctx env site e Ty.PropTy (judTyPrim ctx Ty.PropTy)
+  elabTyJ ctx jctx env site (STyPrf e) = do
+    (e', eSk, meJ) <- checkElemJ ctx jctx env site e Ty.PropTy (judTyPrim ctx Ty.PropTy)
     stB <- getSt
     let mJT = the (Maybe JudTy) $ do
                 eJ <- meJ
@@ -3696,9 +3701,20 @@ mutual
                 Just j => storeJudTy ctx (Prf e') j.deriv (Prf e')
                 Nothing => birthTy stB.kernelSig ctx (Prf e')
     pure (prT, Nd [] [eSk], mJT)
-  elabTyJ ctx env site t = do
+  elabTyJ ctx jctx env site t = do
     (t', sk) <- elabTy ctx env site t
-    pure (t', sk, judTyPrim ctx t')
+    let mJT = judTyPrim ctx t'
+              <|> (the (Maybe JudTy) $ case t' of
+                     -- a type HOLE at its own context, or a closed
+                     -- signature type: ty-sig with the sub-norm
+                     -- premises read off the judgment context
+                     Ty.SigVar q [<] => judTySigVars q [<] 0 t' ctx
+                     Ty.SigVar q es =>
+                       if es == idSpine (length ctx)
+                         then judTySigVars q jctx 0 t' ctx
+                         else Nothing
+                     _ => Nothing)
+    pure (t', sk, mJT)
 
 -- ===== Items =====
 
@@ -4105,14 +4121,14 @@ elabItemGo (SDef x ty body) = do
   -- item's type, references are bare names
   -- the port's entry: type and body elaborate through the
   -- judgment-carrying spine
-  (ty', tySk, mFT0) <- elabTyJ [<] [<] "def \{x}" ty
+  (ty', tySk, mFT0) <- elabTyJ [<] [<] [<] "def \{x}" ty
   stFT <- getSt
   let mFT = mFT0
             <|> ((\d => MkJudTy d [<] ty') <$> judStoredTy stFT.kernelSig [<] ty')
   let mFT = if reconDebug
               then trace "jud: def \{x} formation \{show (isJust mFT)}" mFT
               else mFT
-  (body', bodySk, _) <- checkElemJ [<] [<] "def \{x}" body ty' mFT
+  (body', bodySk, _) <- checkElemJ [<] [<] [<] "def \{x}" body ty' mFT
   -- clean means the RUN is clean: an earlier item's assumption poisons
   -- everything after it (the kernel Σ cannot contain the earlier item,
   -- so references to it are unresolvable anyway)
