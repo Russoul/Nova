@@ -1,0 +1,16 @@
+defined +
+defined *
+defined plusZeroId
+defined plusSucId
+defined zeroPlusId
+defined sucPlus
+defined plusComm
+defined plusAssoc
+defined swapLeft
+defined multZeroId
+defined multSucId
+defined zeroMult
+defined sucMult
+defined multComm
+defined mulComm2
+Accepted.
