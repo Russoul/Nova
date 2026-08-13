@@ -1,4 +1,5 @@
 def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
 def zeroPlusId : (n : ℕ) → plus Z n ≡ n ∈ ℕ ≔ λn. ℕ-elim (k. plus Z k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
--- discharged by the prepended lemma via rewriting
-def uses : (n : ℕ) → plus n Z ≡ plus Z n ∈ ℕ ≔ λn. ⋆
+-- discharged by the prepended lemma, NAMED at the site (the
+-- searchless default: store use is spelled, never searched)
+def uses : (n : ℕ) → plus n Z ≡ plus Z n ∈ ℕ using (zeroPlusId) ≔ λn. ⋆

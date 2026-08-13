@@ -4068,7 +4068,12 @@ elabItemGo : SItem -> ElabM String
 ||| concrete values, and the sites get real certificates.
 export
 elabItem : SItem -> ElabM String
-elabItem item = do
+elabItem item = withScope (if scopedMode then Just [] else Nothing) $ do
+  -- THE SEARCHLESS DEFAULT: every item elaborates with an empty
+  -- Σ-scope — discharges see hypotheses and computation only — and a
+  -- def's using-clause overrides it (the SDef handler installs the
+  -- resolved names over this). NOVA_GLOBAL_STORE=1 restores the
+  -- historical whole-store search.
   pre <- getSt
   echo <- elabItemGo item
   st <- getSt

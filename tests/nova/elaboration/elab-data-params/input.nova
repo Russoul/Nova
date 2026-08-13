@@ -9,7 +9,7 @@ data [a : 𝕌] ( Bag : U
 def swapN : ins ℕ Z (ins ℕ (S Z) (nil ℕ)) ≡ ins ℕ (S Z) (ins ℕ Z (nil ℕ)) ∈ El (Bag ℕ) ≔
   swp ℕ Z (S Z) (nil ℕ)
 
-def swapN' : ins ℕ Z (ins ℕ (S Z) (nil ℕ)) ≡ ins ℕ (S Z) (ins ℕ Z (nil ℕ)) ∈ El (Bag ℕ) ≔ ⋆
+def swapN' : ins ℕ Z (ins ℕ (S Z) (nil ℕ)) ≡ ins ℕ (S Z) (ins ℕ Z (nil ℕ)) ∈ El (Bag ℕ) using (swapN) ≔ ⋆
 
 -- polymorphic size, defined once for every a
 def sizeP : (a : 𝕌) → El (Bag a) → ℕ ≔

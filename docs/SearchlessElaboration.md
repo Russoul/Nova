@@ -526,7 +526,21 @@ design: `using`/chains bound the store factor (part I), clause-driven
 computation bounds the size factor (part II), and per-conversion cost
 approaches O(written proof) in both dimensions.
 
-## 14. Experiment inventory
+## 14. Status: the bargain, landed
+
+Part I's moves have shipped (see git history on this branch): §5.2 calc
+chains; §5.3 as `using` clauses at item and ⋆ level, with the corpus
+fully migrated (156 clauses) and the SCOPED DISCHARGE now the default
+semantics of `docs/NovaElaboration.txt` (NOVA_GLOBAL_STORE=1 is the
+migration escape hatch); §5.4 as the report's `hint:` line. Measured on
+the corpus: unannotated 33.6s wall / 20.7s engine → annotated, scoped
+12.8s / 0.52s — the store factor is retired and per-conversion cost
+tracks the named set, so the superlinear curve of §2 is gone
+structurally. §5.5 (AC) and Part II (clause-driven normalization, the
+size factor) remain open; what is left of the engine time is almost
+entirely §9's δ-blowup.
+
+## 15. Experiment inventory
 
 Everything below is measurement scaffolding or experiment, not design
 commitment; all of it is inert without `NOVA_PROFILE=1` except the

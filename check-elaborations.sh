@@ -63,14 +63,14 @@ else
   exit 1
 fi
 
-# ... and again under the SEARCHLESS default (SearchlessElaboration.md
-# §5.3): every item without a `using` clause discharges with hypotheses
-# and computation only, so this run proves the corpus's store use is
-# fully NAMED — acceptance is a function of the file, not the store
-if output="$(NOVA_SCOPED=1 "$APP" elab "$ALL" 2>&1)"; then
-  echo "$count/$count elaborations passed (scoped)"
+# ... and again under NOVA_GLOBAL_STORE=1, the migration escape hatch
+# (the default is the SEARCHLESS discipline — SearchlessElaboration.md
+# §5.3, docs/NovaElaboration.txt): the corpus must accept identically
+# whether store use is scoped to the using-clauses or searched
+if output="$(NOVA_GLOBAL_STORE=1 "$APP" elab "$ALL" 2>&1)"; then
+  echo "$count/$count elaborations passed (global store)"
 else
-  echo "FAIL (scoped): $ALL"
+  echo "FAIL (global store): $ALL"
   echo "$output" | sed 's/^/  /'
   exit 1
 fi
