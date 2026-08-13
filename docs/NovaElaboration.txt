@@ -30,13 +30,21 @@ The elaboration model in one paragraph:
 
   The elaborator processes one signature entry at a time, in file order.
   Where checking meets an equation it cannot discharge algorithmically
-  (by computation, by congruence, or from the accepted lemma store), it
-  does not fail: it ASSUMES the equation, records it as an obligation,
-  and carries on. At the end of the run all remaining obligations are
-  reported. The user (human or AI) discharges an obligation by
-  PREPENDING a lemma — an ordinary definition whose type is the
-  corresponding equality type — before the entry that surfaced it, and
-  re-running. A file is ACCEPTED exactly when a run ends with zero
+  (by computation, by congruence, by a hypothesis of the context, or by
+  a lemma the item NAMES in its `using` clause), it does not fail: it
+  ASSUMES the equation, records it as an obligation, and carries on. At
+  the end of the run all remaining obligations are reported — each with
+  an advisory HINT naming what a one-shot probe of the whole store
+  found would close it, when something would. The user (human or AI)
+  discharges an obligation by PREPENDING a lemma — an ordinary
+  definition whose type is the corresponding equality type — before the
+  entry that surfaced it, NAMING it at the surfacing item, and
+  re-running. Discharge is thereby SEARCHLESS: whether an item is
+  accepted depends on the item, its hypotheses, computation, and the
+  lemmas it names — never on what else the store happens to contain,
+  nor on the store's order (the historical whole-store search remains
+  available as a migration escape hatch, NOVA_GLOBAL_STORE=1, and as
+  the hint probe). A file is ACCEPTED exactly when a run ends with zero
   obligations; nothing survives between runs, and no assumption ever
   participates in an accepting run. Equality proofs in this theory are
   computationally irrelevant, so an assumed equation never changes what
@@ -62,7 +70,21 @@ term/type grammar below is self-contained.
 # ones — so the normal-substitution syntax x[t˲] has no surface form.
 file  ::= import* (item | fixity)*
 imp   ::= import M | import M (n (, n)*)
-item  ::= def  n : T{≥0} ≔ t{≥0}
+item  ::= def  n : T{≥0} uses? ≔ t{≥0}
+                                              # uses ::= using n
+                                              #        | using (n (, n)*)
+                                              #   — the item's DISCHARGE
+                                              #   SCOPE: every equation
+                                              #   the item's checking
+                                              #   emits into ↓ sees the
+                                              #   named lemmas plus the
+                                              #   hypotheses of its
+                                              #   context, and nothing
+                                              #   else of the store. An
+                                              #   item WITHOUT a clause
+                                              #   sees hypotheses only.
+                                              #   See Conversion and
+                                              #   discharge below.
         | def  n : T{≥0}                      # a DECLARATION — a def
                                               #   without a definiens,
                                               #   a NAMED RIGID HOLE;
@@ -202,11 +224,26 @@ t{2} ::= λx. t{≥1½}
                                                      #   proof of a squash into a
                                                      #   further proposition
        | ⋆ t{≥4}                          # el-squash-i, explicit witness (any A)
+       | ⋆ uses                 # ⋆ with a SITE-LOCAL discharge scope,
+                                #   overriding the item's: the named
+                                #   lemmas + hypotheses (e-star-using).
+                                #   `using` is CONTEXTUAL, recognized
+                                #   only right after ⋆ — a witness
+                                #   genuinely named using is written
+                                #   parenthesized
 t{1} ::= ((x:t{≥0}))+ → t{≥1} | ((x:t{≥0}))+ ⨯ t{≥1}
        | t{≥1¼} / (x y. t{≥1})
                                                               # universe codes
        | t{≥1¼} ≡ t{≥1¼} ∈ T{≥2}     # the equality PROP (an Ω-element);
                                      #   ∈ embeds a TYPE, like ∥-∥
+       | t{≥1¼} (≡⟨ t{≥0} ⟩ t{≥1¼})+
+                # a CALC CHAIN — a checking-only PROOF form at
+                #   Prf (l ≡ r ∈ A): midpoints stated once, each link's
+                #   justification an inferable proof of SOME equation;
+                #   erases to ⋆ (e-chain below). ≡⟨ disambiguates from
+                #   the equality prop by its next character, and a
+                #   chain CONTINUES a λ body under the λ:
+                #   λx. a ≡⟨ e ⟩ b  parses as  λx. (a ≡⟨ e ⟩ b)
 t{1¼} ::= t{≥1½} ⊎ t{≥1¼}            # the ⊎ code — tighter than the
                                      #   t{1} infixes, like its type
 # ∥T∥ (squash), ≡ (equality props) and ⋆ (the canonical proof) are
@@ -296,6 +333,24 @@ E   — the equation store, feeding algorithmic discharge. Three sources:
       * ASSUMED CONSTRAINTS: every equation constraint of Σ (each one
         an equation assumed by ↓ below), so that the run continues
         coherently and the same mismatch never surfaces twice.
+
+      THE SCOPE. E is a STORE, not a search space: discharge at a site
+      consults only the site's SCOPE — the lemmas the enclosing item
+      NAMES (its `using` clause; a `⋆ using`/chain overrides locally)
+      plus the HYPOTHESES of the context, which are always in scope,
+      plus the assumed-constraint deduplication. An item without a
+      clause scopes to hypotheses alone. Consequences: whether an item
+      is accepted is a function of the item, not of the store or its
+      order; per-conversion cost is proportional to the named set, not
+      the library; and a lemma that would fire spuriously (the
+      type-blind-matching exploits of the soundness section) is never
+      even tried unless named — and when named, the kernel gate rejects
+      it as before. A using-name that resolves to nothing, or to a
+      Σ entry that is not an equation lemma of the visible store, is a
+      STRUCTURAL error — it could only scope the site to nothing.
+      Candidate SIDES remain normalized against the store as of their
+      acceptance (a property of the stored form; import order remains
+      semantic in exactly that sense and no other).
 
 There is NO separate obligation store: an OBLIGATION is a constraint
 entry of Σ (Foundation: sig-eq/sig-ty-eq — the signature is OPEN
@@ -623,12 +678,23 @@ whnf(C) = Prf p        p evident: whnf(p) = ∥A∥ with whnf(A) = 𝟙
 # are ≐, handled in the ↓ loop.
 # THE payment rule, at equality props: ⋆ is the surface syntax for
 # "this equation holds" — checking it emits the equation itself into
-# ↓. Discharged by computation → silent; by an accepted lemma →
-# silent; otherwise it IS the obligation, stated exactly where the
-# user claimed it. There is no other proof syntax for equalities, by
-# design: equality proofs carry no information (reflection erases
-# them), so all structure lives in the judgemental layer and in
-# prepended lemmas.
+# ↓. Discharged by computation → silent; by a hypothesis or a NAMED
+# lemma of the site's scope → silent; otherwise it IS the obligation,
+# stated exactly where the user claimed it (with the hint of ↓ step 8
+# alongside). The proof syntaxes for equalities are ⋆ (with the scope
+# saying which facts pay it) and the calc chain (e-chain below, with
+# the links saying which fact pays each step): equality proofs carry
+# no information (reflection erases them), so all structure lives in
+# the judgemental layer and in prepended, NAMED lemmas.
+
+whnf(C) = Prf p        (e-star's premises, verbatim)
+--------------------------------------------------- (e-star-using)
+Γ ⊢ ⋆ using (n₁, …, nₖ) ⇐ C ⇝ ⋆
+# e-star under a SITE-LOCAL scope: the equation's ↓ runs with
+# candidates n₁ … nₖ + hypotheses, overriding the item's clause for
+# this site alone. Same erasure, same certificate discipline. An nᵢ
+# that is unknown, or not an equation lemma of the visible store, is
+# a structural error.
 
 x ∉ Σ (as ?x)
 ------------------------------------------------ (e-hole)     # (?x)
@@ -742,6 +808,30 @@ whnf(C) = Prf (p ≡ q ∈ Ω)
 # proposition ∥(Prf p → Prf q) ⨯ (Prf q → Prf p)∥, spelled where the
 # rule needs it. Erases to ⋆; the implications ship in the
 # certificate's propext final (NovaKernel.txt §2, §7).
+
+whnf(C) = Prf p    whnf(p) = (l ≡ r ∈ A)
+Γ ⊢ x₀ ⇐ A ⇝ x̂₀    …    Γ ⊢ xₖ ⇐ A ⇝ x̂ₖ                # the midpoints
+Γ ⊢ eᵢ ⇒ Pᵢ ⇝ êᵢ    whnf(Pᵢ) = Prf (uᵢ ≡ vᵢ ∈ Tᵢ)      # each link's
+                                                        # justification
+                                                        # proves SOME
+                                                        # equation
+Γ ⊢ x̂ᵢ₋₁ ≐ x̂ᵢ : A ↓  with scope {êᵢ's reflected equation} + hypotheses
+------------------------------------------------------------ (e-chain)
+Γ ⊢ x₀ ≡⟨ e₁ ⟩ x₁ … ≡⟨ eₖ ⟩ xₖ ⇐ C ⇝ ⋆
+# The CALC CHAIN. Each ADJACENCY discharges against its own link's
+# equation alone (plus hypotheses) — the link may prove a
+# SUB-equation, applied at its position and in either orientation by
+# the ordinary ↓ mechanisms — so a broken link surfaces as its own
+# obligation ("chain, step i"), with the step-8 hint alongside. The
+# composite l ≐ r certificate is TRANSITIVITY STITCHING of the
+# adjacency certificates (each segment's lhs steps forward, its rhs
+# steps reversed and flip-inverted onto the lhs walk — step
+# inversion is the engine's own bridging discipline, and the kernel
+# re-normalizes between steps), validated by kernel replay, with one
+# links-scoped ↓ attempt as fallback. Erases to ⋆ like every
+# equality proof; justifications must be INFERABLE (a ⋆-family form
+# is a structural error — a computational step needs no link, since
+# adjacencies compare modulo computation anyway).
 
 whnf(C) = Prf (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ Prf R[id, a, b] ⇝ ê
 ---------------------------------------------------------------- (e-star-quot-wit)
@@ -922,7 +1012,9 @@ whnf(C) = Prf (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ Prf R[id, a, b
 #      neutrals gain nothing from η, and η-expanding them regenerates
 #      the very eliminations congruence descent (step 3) came from —
 #      an η/congruence loop.
-#   7. STORE USE — three complementary mechanisms over E:
+#   7. SCOPED STORE USE — three complementary mechanisms over the
+#      site's SCOPE (the named lemmas + hypotheses; see THE SCOPE in
+#      Elaboration state — never the whole store):
 #      * REWRITING: equations usable as terminating rules — strictly
 #        size-decreasing instances first (plus n Z → n), then
 #        size-preserving NON-PERMUTATIVE ones (plus n (S m) →
@@ -960,7 +1052,13 @@ whnf(C) = Prf (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ Prf R[id, a, b
 #   8. ASSUME: append the equation to Σ as a constraint entry (sig-eq/
 #      sig-ty-eq), record its display metadata (source position, and
 #      the composite it was decomposed from, if any), and add it to E;
-#      succeed.
+#      succeed. Before assuming, probe the WHOLE store once — the same
+#      mechanisms, unscoped, plus kernel replay of the result — and
+#      record what would have closed the equation (or its composite) as
+#      an advisory HINT in the display metadata: search demoted to
+#      feedback, never acceptance. The remedy the report prints is
+#      thereby usually literal: add the hinted name to the using
+#      clause.
 #
 # Invariant (statement well-formedness): every equation reaching ↓ has
 # both sides produced by elaboration at the stated type, in the stated
@@ -979,6 +1077,15 @@ whnf(C) = Prf (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ Prf R[id, a, b
 ε ⊢ t ⇐ A ⇝ t̂
 ------------------------------------------------------------- (e-def)
 def x : T ≔ t          extends Σ with (ε ⊦ x ≔ t̂ : A)
+# Both premises run under the item's DISCHARGE SCOPE (THE SCOPE,
+# Elaboration state): `def x : T using (n₁, …) ≔ t` resolves the
+# names like any signature reference (aliases first) and scopes every
+# ↓ of the item to them + hypotheses; without the clause the item
+# scopes to hypotheses alone. Name-resolution failures are structural
+# errors at the item. The clausal-def item macro does not yet accept
+# a clause (its generated defs scope to hypotheses, which the
+# generated proofs need — plus computation — and nothing else);
+# declarations discharge nothing and take none.
 
 ε ⊢ T ⇝ A type
 ------------------------------------------------------------- (e-typedef)
@@ -1410,10 +1517,12 @@ Two consequences worth stating plainly:
   * Σ-inclusion is transitive (an imported entry's body references
     ITS imports, which the kernel must resolve), and so is qualified
     access; only bare-name visibility is per-module.
-  * The lemma store is built from Σ, so importing a module imports
-    its equalities as discharge candidates — that is the point — and
-    import order, like item order, is semantic: candidate sides are
-    normalized against the store at storage time.
+  * The lemma store is built from Σ, so importing a module makes its
+    equalities NAMEABLE as discharge candidates — that is the point.
+    With discharge scoped, import order (like item order) is semantic
+    only in the residual sense that candidate SIDES are normalized
+    against the store at storage time; which candidates a site
+    consults is decided by its using clause alone.
 
 //////////// The report /////////////
 
@@ -1422,6 +1531,7 @@ At end of run, obligations are reported in surfacing order:
   open obligations (2):
     [1] (n : ℕ) ⊢ plus n Z ≐ n : ℕ
         at: vappend_nil, line 14 (checking ⋆)
+        hint: closes with plus_zero
     [2] (n m : ℕ) (a : 𝕌) (xs : El (vect n a)) ⊢ ...
         at: vappend_assoc, line 22 (switch: inferred vs expected type)
         from composite: El (vect (plus n Z) a) ≐ El (vect n a) type
@@ -1432,6 +1542,11 @@ Report conventions:
     context (binder names recovered from the name environment).
   * `from composite:` shows the pre-decomposition equation, for the
     case where the sufficient direction overshot.
+  * `hint:` is ↓ step 8's whole-store probe: what would close this
+    equation (or, prefixed `composite`, its composite) if named —
+    advisory only, kernel-replayed before being printed, and absent
+    when the probe finds nothing. The usual remedy is to add the
+    hinted name to the surfacing item's using clause.
   * `statement uses:` lists the earlier obligations under which this
     statement is well-formed; discharge those first. (Coarse
     approximation — "all earlier ones" — is a legal fallback.)
@@ -1444,13 +1559,20 @@ Discharging an obligation: prepend, before the item that surfaced it,
   def plus_zero : (n : ℕ) → plus n Z ≡ n ∈ ℕ ≔ λn. <proof>
 
 — an ordinary def whose type is the obligation's statement as an
-equality type (generalized over its context by Π-binders). On rerun,
-its reflected equation is in E before the surfacing site elaborates,
-and step 7 discharges silently. The proof itself is whatever the theory
+equality type (generalized over its context by Π-binders) — and NAME
+it at the surfacing item:
+
+  def vappend_nil : ... using (plus_zero) ≔ ...
+
+On rerun, the reflected equation is in the site's scope and step 7
+discharges silently. The proof itself is whatever the theory
 requires — `⋆` when the equation is by computation, an ℕ-elim with
-an equality motive for inductive content — and elaborating IT may
-surface further (strictly smaller) obligations; the loop converges
-because each accepted lemma is content the file genuinely needed.
+an equality motive for inductive content, a calc chain for equational
+content — and elaborating IT may surface further (strictly smaller)
+obligations; the loop converges because each accepted lemma is
+content the file genuinely needed, and the file ends up a
+self-contained record of WHY it is accepted: every fact each item
+depends on is written at the item.
 
 //////////// Metatheory: the soundness contract /////////////
 
@@ -1498,6 +1620,13 @@ Two corollaries worth keeping in view while implementing:
     the moving. This is the extensionality dividend, and it is why the
     obligation mechanism composes: proving Oᵢ never changes any term,
     only the acceptability of the file.
+  * Scoping (THE SCOPE, and the using clauses) affects COMPLETENESS
+    of discharge only, never soundness: it removes candidates, every
+    remaining discharge carries the same kernel-replayed certificate,
+    and the contract above is stated per-derivation, not per-store.
+    What it buys is determinism — acceptance is a function of the
+    file — and per-conversion cost proportional to the named set.
+    The measured case for the design is docs/SearchlessElaboration.md.
 
 //////////// Future work (explicitly out of scope here) /////////////
 
@@ -1508,8 +1637,11 @@ Two corollaries worth keeping in view while implementing:
   mentions an unsolved hole — such steps postpone until the hole is
   filled. This restriction is what keeps occurs-checking a complete
   dependency criterion and the instantiation lemma stateable.
-* Congruence/transitivity closure of E (e-graph) for discharge
-  completeness; `using <lemma>` hints for deterministic discharge.
+* Congruence/transitivity closure (e-graph) for the HINT probe's
+  completeness — the advisory layer is where a stronger search is
+  pure upside. (The `using` clauses themselves have landed, item- and
+  site-level, as the scoped-discharge semantics above; deferred:
+  a clause slot for the clausal-def and data item macros.)
 * Incremental re-elaboration (caching per item) — requires recording
   per-item assumption sets; whole-file re-runs make this unnecessary
   at current scale.

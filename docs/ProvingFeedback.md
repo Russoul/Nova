@@ -240,13 +240,22 @@ a green-looking item in a file with open obligations elsewhere is not.
 report them separately from genuinely closed ones; consider not adding
 assumed equations to the candidate store at all.
 
-### B-5. Context sensitivity of proofs
+### B-5. Context sensitivity of proofs — RESOLVED by scoped discharge
 
-Following from B-3/B-4: whether a `⋆` closes depends on the full
+*Was:* following from B-3/B-4: whether a `⋆` closes depends on the full
 candidate store, which depends on imports, on item order within the
 file, and on whether *other* items failed. Proofs are therefore not
 stable under refactoring — moving a lemma, or adding an unrelated
 import, can break a proof several items later.
+
+*Now:* discharge is SCOPED (docs/SearchlessElaboration.md §5.3, the
+default semantics of NovaElaboration.txt): an item sees only the
+lemmas its `using` clause names, plus hypotheses — so whether it
+closes is a function of the item. B-3's misfires are never tried
+unless named (and the kernel gate still rejects them when they are);
+the store's only residual order-sensitivity is the normalized form of
+stored candidate SIDES. The whole-store search survives as the
+report's `hint:` line, which usually names the exact clause edit.
 
 ---
 

@@ -1,4 +1,5 @@
 -- a TRUE lemma (𝟙-Prop): any two units are equal
 def triv : (x : 𝟙) (y : 𝟙) → x ≡ y ∈ 𝟙 ≔ λx. λy. ⋆
--- a FALSE claim at ℕ — does the 𝟙-lemma "discharge" it?
-def boom : Z ≡ S Z ∈ ℕ ≔ ⋆
+-- a FALSE claim at ℕ — the 𝟙-lemma is NAMED, so the engine tries
+-- it; the kernel gate must reject the certificate
+def boom : Z ≡ S Z ∈ ℕ using (triv) ≔ ⋆

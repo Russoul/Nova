@@ -11,18 +11,18 @@ def plusSucId : (n : ℕ) (m : ℕ) → n + S m ≡ S (n + m) ∈ ℕ ≔ λn. �
 def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ ≔ λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
 def sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ ≔
   λn. λm. ℕ-elim (k. S n + k ≡ S (n + k) ∈ ℕ) ⋆ (k ih. ⋆) m
-def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ ≔
+def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ using (sucPlus, zeroPlusId) ≔
   λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ ℕ) ⋆ (k ih. ⋆) m
 def plusAssoc : (n : ℕ) (m : ℕ) (k : ℕ) → n + m + k ≡ n + (m + k) ∈ ℕ ≔
   λn. λm. λk. ℕ-elim (j. n + m + j ≡ n + (m + j) ∈ ℕ) ⋆ (j ih. ⋆) k
-def swapLeft : (a : ℕ) (b : ℕ) (c : ℕ) → a + (b + c) ≡ b + (a + c) ∈ ℕ ≔
+def swapLeft : (a : ℕ) (b : ℕ) (c : ℕ) → a + (b + c) ≡ b + (a + c) ∈ ℕ using (plusComm) ≔
   λa. λb. λc. ℕ-elim (k. a + (b + k) ≡ b + (a + k) ∈ ℕ) ⋆ (k ih. ⋆) c
 def multZeroId : (n : ℕ) → n * Z ≡ Z ∈ ℕ ≔ λn. ⋆
 def multSucId : (n : ℕ) (m : ℕ) → n * S m ≡ n + n * m ∈ ℕ ≔ λn. λm. ⋆
 def zeroMult : (n : ℕ) → Z * n ≡ Z ∈ ℕ ≔ λn. ℕ-elim (k. Z * k ≡ Z ∈ ℕ) ⋆ (k ih. ⋆) n
-def sucMult : (n : ℕ) (m : ℕ) → S n * m ≡ m + n * m ∈ ℕ ≔
+def sucMult : (n : ℕ) (m : ℕ) → S n * m ≡ m + n * m ∈ ℕ using (swapLeft, sucPlus) ≔
   λn. λm. ℕ-elim (k. S n * k ≡ k + n * k ∈ ℕ) ⋆ (k ih. ⋆) m
-def multComm : (n : ℕ) (m : ℕ) → m * n ≡ n * m ∈ ℕ ≔
+def multComm : (n : ℕ) (m : ℕ) → m * n ≡ n * m ∈ ℕ using (multZeroId, multSucId, sucMult, zeroMult) ≔
   λn. λm. ℕ-elim (k. k * n ≡ n * k ∈ ℕ) ⋆ (k ih. ⋆) m
 
 -- each link is a SUB-equation, applied at an inner position and (for
