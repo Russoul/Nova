@@ -60,42 +60,28 @@ def collectL : (x : ℕ) (y : ℕ) (z : ℕ) (u : ℕ) (v : ℕ) →
 
 -- the representative-level associativity identity, one component of
 -- it; the other component is this one with c₁ and c₂ swapped.
--- Expand both products by right distributivity, exchange the middle
--- two summands, then collect a₁ and a₂ back out.
+-- A CALC CHAIN (docs/SearchlessElaboration.md §5.2): expand both
+-- products by right distributivity, exchange the middle two summands,
+-- then collect a₁ and a₂ back out — each link a named sub-equation,
+-- its position and orientation found by the link-scoped engine (no
+-- sym, no cong wrappers, no repeated midpoints)
 def assocRep : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ) →
   (a1 * b1 + a2 * b2) * c1 + (a1 * b2 + a2 * b1) * c2
     ≡ a1 * (b1 * c1 + b2 * c2) + a2 * (b1 * c2 + b2 * c1) ∈ ℕ ≔
   λa1. λa2. λb1. λb2. λc1. λc2.
-    trans _
-      _
-      _
-      _
-      (trans _
-        _
-        _
-        _
-        (plusCongL _ _ _
-           (sym _ _ _ (distribBackR _ _ _)))
-        (plusCongR _ _ _
-           (sym _ _ _ (distribBackR _ _ _))))
-      (trans _
-        _
-        _
-        _
-        (swap4 _ _ _ _)
-        (trans _
-          _
-          _
-          _
-          (plusCongL _ _ _
-             (collectL _ _ _ _ _))
-          (plusCongR _ _ _
-            (trans _
-              _
-              _
-              _
-              (collectL _ _ _ _ _)
-              (cong _ _ (λw. a2 * w) _ _ (plusComm _ _))))))
+    (a1 * b1 + a2 * b2) * c1 + (a1 * b2 + a2 * b1) * c2
+      ≡⟨ distribBackR (a1 * b1) (a2 * b2) c1 ⟩
+    (a1 * b1 * c1 + a2 * b2 * c1) + (a1 * b2 + a2 * b1) * c2
+      ≡⟨ distribBackR (a1 * b2) (a2 * b1) c2 ⟩
+    (a1 * b1 * c1 + a2 * b2 * c1) + (a1 * b2 * c2 + a2 * b1 * c2)
+      ≡⟨ swap4 (a1 * b1 * c1) (a2 * b2 * c1) (a1 * b2 * c2) (a2 * b1 * c2) ⟩
+    (a1 * b1 * c1 + a1 * b2 * c2) + (a2 * b2 * c1 + a2 * b1 * c2)
+      ≡⟨ collectL a1 b1 c1 b2 c2 ⟩
+    a1 * (b1 * c1 + b2 * c2) + (a2 * b2 * c1 + a2 * b1 * c2)
+      ≡⟨ collectL a2 b2 c1 b1 c2 ⟩
+    a1 * (b1 * c1 + b2 * c2) + a2 * (b2 * c1 + b1 * c2)
+      ≡⟨ plusComm (b1 * c2) (b2 * c1) ⟩
+    a1 * (b1 * c1 + b2 * c2) + a2 * (b1 * c2 + b2 * c1)
 
 -- regroup a cross-sum by the LEFT factor: this is the shape the inner
 -- well-definedness goal takes, and once regrouped the relatedness

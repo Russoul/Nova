@@ -97,6 +97,9 @@ mutual
   mapRefsE f g d (SStarWit e) = SStarWit (mapRefsE f g d e)
   mapRefsE f g d (SSquashElim e x body) =
     SSquashElim (mapRefsE f g d e) x (mapRefsE f g (S d) body)
+  mapRefsE f g d (SChain x ls) =
+    SChain (mapRefsE f g d x)
+           (map (\(j, y) => (mapRefsE f g d j, mapRefsE f g d y)) ls)
   mapRefsE f g d (SAnn e ty) = SAnn (mapRefsE f g d e) (mapRefsTy f g d ty)
   mapRefsE f g d (SHole r s x) = SHole r s x
 
@@ -201,6 +204,8 @@ mutual
   occursE f (SStarUsing _) = False
   occursE f (SStarWit e) = occursE f e
   occursE f (SSquashElim e _ body) = occursE f e || occursE f body
+  occursE f (SChain x ls) =
+    occursE f x || any (\(j, y) => occursE f j || occursE f y) ls
   occursE f (SAnn e ty) = occursE f e || occursTy f ty
   occursE f (SHole _ _ _) = False
 
@@ -324,6 +329,12 @@ mutual
   rwE f mk lead d SStar = Just SStar
   rwE f mk lead d (SStarUsing ns) = Just (SStarUsing ns)
   rwE f mk lead d (SStarWit e) = SStarWit <$> rwE f mk lead d e
+  rwE f mk lead d (SChain x ls) =
+    do x' <- rwE f mk lead d x
+       ls' <- traverse (\(j, y) => do j' <- rwE f mk lead d j
+                                      y' <- rwE f mk lead d y
+                                      pure (j', y')) ls
+       pure (SChain x' ls')
   rwE f mk lead d (SSquashElim e x body) =
     do e' <- rwE f mk lead d e; body' <- rwE f mk lead (S d) body
        pure (SSquashElim e' x body')

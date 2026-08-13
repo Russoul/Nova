@@ -158,6 +158,15 @@ mutual
     ||| a squashed proposition into a further proposition, via a
     ||| hypothetical inhabitant x of the raw squashee
     SSquashElim : SElem -> (name : SName) -> SElem -> SElem
+    ||| x ≡⟨ e ⟩ y ≡⟨ e' ⟩ z — a CALC CHAIN
+    ||| (docs/SearchlessElaboration.md §5.2), checking-only at
+    ||| Prf (l ≡ r ∈ A): the head and each subsequent term are
+    ||| midpoints (each stated once), and each link's justification e
+    ||| is an INFERABLE proof of some equation; the adjacency between
+    ||| consecutive midpoints is discharged by computation plus that
+    ||| one reflected equation (plus hypotheses) — never the global
+    ||| store. Erases to ⋆, like every equality proof.
+    SChain : SElem -> List (SElem, SElem) -> SElem
     ||| (t : T) — ascription; the lever into inference mode
     SAnn : SElem -> STy -> SElem
     ||| ?x (rigid) or _x/_ (solvable) — a hole: a term declaration in
@@ -377,6 +386,8 @@ mutual
     show SStar = "⋆"
     show (SStarWit e) = "⋆ (\{show e})"
     show (SStarUsing ns) = "⋆ using (\{joinBy ", " ns})"
+    show (SChain x ls) =
+      "\{show x}" ++ concat (map (\(j, y) => " ≡⟨ \{show j} ⟩ \{show y}") ls)
     show (SSquashElim e x body) = "SquashElim (\{show e}) \{fst x} (\{show body})"
     show (SAnn t ty) = "Ann (\{show t}) (\{show ty})"
     show (SHole _ solvable x) = if solvable then "_\{x}" else "?\{x}"
