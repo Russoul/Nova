@@ -42,7 +42,7 @@ def addCongR : (x : El Int) (y : El Int) (z : El Int) →
 def intMulCancel : (x : El Int) (y : El Int) (d : El Int)
   (h : Prf (intMul x d ≡ intMul y d ∈ El Int))
   (hd : Prf (¬ (d ≡ intZero ∈ El Int))) →
-  x ≡ y ∈ El Int ≔
+  x ≡ y ∈ El Int using (intAddNegL, intMulNegL, intAddZeroL, intAddZeroR) ≔
   λx. λy. λd. λh. λhd.
     sym _ _ _
       (trans _ _ _ _
@@ -75,7 +75,7 @@ def intMulCancel : (x : El Int) (y : El Int) (d : El Int)
 
 -- (a·b)·c ≡ (a·c)·b, the one rearrangement transitivity needs
 def mulSwapRight : (a : El Int) (b : El Int) (c : El Int) →
-  intMul (intMul a b) c ≡ intMul (intMul a c) b ∈ El Int ≔
+  intMul (intMul a b) c ≡ intMul (intMul a c) b ∈ El Int using (intMulAssoc) ≔
   λa. λb. λc.
     trans _ _ _ _
       (intMulAssoc _ b _)
@@ -92,7 +92,7 @@ def ratRSymm : (p : El Rat) (q : El Rat) → Prf (RatR p q) → Prf (RatR q p) �
 -- the two hypotheses, and cancel — the middle denominator is non-zero
 -- because it is the image of an NZ
 def ratRTrans : (p : El Rat) (q : El Rat) (r : El Rat) →
-  Prf (RatR p q) → Prf (RatR q r) → Prf (RatR p r) ≔
+  Prf (RatR p q) → Prf (RatR q r) → Prf (RatR p r) using (intMulAssoc) ≔
   λp. λq. λr. λh1. λh2.
     intMulCancel _ _ _
       (trans _
@@ -127,7 +127,7 @@ def qEffective : (p : El Rat) (q : El Rat) →
 -- the converse of rationalInv.nova's ratZeroOfNumZero, which needed
 -- effectivity and so could not be stated until now
 def numZeroOfRatZero : (p : El Rat) (h : Prf (class p ≡ qZero ∈ El Q)) →
-  num p ≡ intZero ∈ El Int ≔
+  num p ≡ intZero ∈ El Int using (intMulOneR, intMulZeroL) ≔
   λp. λh.
     trans _ _ _ _
       (sym Int _ _ (intMulOneR (num p)))

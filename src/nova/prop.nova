@@ -31,7 +31,7 @@ def reflectSquash : (A : 𝕌) (a : El A) (b : El A) (h : Prf (a ≡ b ∈ _)) �
 
 -- ty-quot-cong: quotients by iff-equal Ω relations are the SAME type,
 -- so a variable of one moves to the other with no coercion.
-def quotIff : (A : 𝕌) (v : El A / (n m. ∥𝟙∥)) → El A / (n m. (Z ≡ Z ∈ _)) ≔ λA. λv. v
+def quotIff : (A : 𝕌) (v : El A / (n m. ∥𝟙∥)) → El A / (n m. (Z ≡ Z ∈ _)) using (propext) ≔ λA. λv. v
 
 -- Impredicative connectives (Ω section, docs/NovaFoundation.txt): ⊤, ⊥,
 -- ∧, ⊃ are the squashed types the theory itself names in its notes.

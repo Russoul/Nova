@@ -10,7 +10,7 @@ def normPair : ℕ → ℕ → ℕ ⨯ ℕ ≔
 
 -- normPair a b is R-related to (a, b)
 def normSound : (a : ℕ) → (b : ℕ) →
-  (normPair a b) .π₁ + b ≡ (normPair a b) .π₂ + a ∈ ℕ ≔
+  (normPair a b) .π₁ + b ≡ (normPair a b) .π₂ + a ∈ ℕ using (zeroPlusId) ≔
   λa.
     ℕ-elim (k. (b : ℕ) → (normPair k b) .π₁ + b ≡ (normPair k b) .π₂ + k ∈ ℕ)
       (λb. ⋆)
@@ -22,9 +22,9 @@ def normSound : (a : ℕ) → (b : ℕ) →
       a
 
 -- at the quotient, normalization is invisible
-def normClass : (a : ℕ) (b : ℕ) → class (normPair a b) ≡ class (a , b) ∈ El Int ≔ λa. λb. ⋆
+def normClass : (a : ℕ) (b : ℕ) → class (normPair a b) ≡ class (a , b) ∈ El Int using (normSound) ≔ λa. λb. ⋆
 
-def intNormalize : El Int → El Int ≔
+def intNormalize : El Int → El Int using (normClass) ≔
   λz. quot-elim (w. El Int) (rep. class (normPair (rep .π₁) (rep .π₂))) z
 
 def intNormalizeTest1 : intNormalize (class (S Z , Z)) ≡ class (S Z , Z) ∈ El Int ≔ ⋆

@@ -24,7 +24,7 @@ import equality (trans, sym, cong)
 
 def nzOfPairD : (a : ℕ) (b : ℕ) (hab : Prf (a * b ≡ Z ∈ ℕ)) →
   ((e : El NZ) ⨯ Prf (nzToInt e ≡ class (a , b) ∈ El Int))
-    ⊎ Prf (class (a , b) ≡ intZero ∈ El Int) ≔
+    ⊎ Prf (class (a , b) ≡ intZero ∈ El Int) using (sucPlus, zeroMult) ≔
   λa.
     ℕ-elim (k. (b : ℕ) → Prf (k * b ≡ Z ∈ ℕ) →
               (((e : El NZ) ⨯ Prf (nzToInt e ≡ class (k , b) ∈ El Int))
@@ -55,7 +55,7 @@ def nzOfPairD : (a : ℕ) (b : ℕ) (hab : Prf (a * b ≡ Z ∈ ℕ)) →
 def nzOfIntAt : (z : El Int) (p : ℕ ⨯ ℕ)
   (hz : Prf (class p ≡ z ∈ El Int))
   (hab : Prf (p .π₁ * p .π₂ ≡ Z ∈ ℕ)) →
-  ((e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int)) ⊎ Prf (z ≡ intZero ∈ El Int) ≔
+  ((e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int)) ⊎ Prf (z ≡ intZero ∈ El Int) using (classPairEta) ≔
   λz. λp. λhz. λhab.
     ⊎-elim (w. (((e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int))
                   ⊎ Prf (z ≡ intZero ∈ El Int)))
@@ -70,7 +70,7 @@ def nzOfIntAt : (z : El Int) (p : ℕ ⨯ ℕ)
       (nzOfPairD (p .π₁) (p .π₂) hab)
 
 def nzOfInt : (z : El Int) →
-  ((e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int)) ⊎ Prf (z ≡ intZero ∈ El Int) ≔
+  ((e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int)) ⊎ Prf (z ≡ intZero ∈ El Int) using (intCanonClass) ≔
   λz. nzOfIntAt z (intCanon z) (intCanonClass z) (intCanonProdZero z)
 
 -- ===== the image of NZ misses zero =====

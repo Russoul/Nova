@@ -10,7 +10,7 @@ data [a : 𝕌] ( Bag : U
 -- the imposed equation, GENERICALLY, via the store (the generated swp
 -- lemma discharges the ⋆ at every carrier at once)
 def swapG : (a : 𝕌) (x : El a) (y : El a) (m : El (Bag a)) →
-            ins _ x (ins _ y m) ≡ ins _ y (ins _ x m) ∈ _ ≔
+            ins _ x (ins _ y m) ≡ ins _ y (ins _ x m) ∈ _ using (swp) ≔
   λa. λx. λy. λm. ⋆
 
 -- size, defined once for every carrier — the method is

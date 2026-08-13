@@ -28,7 +28,7 @@ import equality (trans, sym, cong)
 -- (a*b ≡ Z in ℕ says exactly "a is Z or b is Z") rather than a
 -- disjunction, so the case analysis below stays first-order
 def normProdZero : (a : ℕ) (b : ℕ) →
-  normPair a b .π₁ * normPair a b .π₂ ≡ Z ∈ ℕ ≔
+  normPair a b .π₁ * normPair a b .π₂ ≡ Z ∈ ℕ using (zeroMult) ≔
   λa. ℕ-elim (k. (b : ℕ) → (normPair k b .π₁ * normPair k b .π₂ ≡ Z ∈ ℕ))
         (λb. ⋆)
         (k ih. λb.
@@ -38,7 +38,7 @@ def normProdZero : (a : ℕ) (b : ℕ) →
             b)
         a
 
-def intCanonProdZero : (z : El Int) → intCanon z .π₁ * intCanon z .π₂ ≡ Z ∈ ℕ ≔
+def intCanonProdZero : (z : El Int) → intCanon z .π₁ * intCanon z .π₂ ≡ Z ∈ ℕ using (normProdZero) ≔
   λz. quot-elim (w. (intCanon w .π₁ * intCanon w .π₂ ≡ Z ∈ ℕ))
         (p. normProdZero (p .π₁) (p .π₂))
         z
@@ -50,7 +50,7 @@ def intCanonProdZero : (z : El Int) → intCanon z .π₁ * intCanon z .π₂ �
 -- (S,S) case contradicts canonicity
 def nzOfPair : (a : ℕ) (b : ℕ) (hab : Prf (a * b ≡ Z ∈ ℕ))
   (hnz : Prf (¬ (class (a , b) ≡ intZero ∈ El Int))) →
-  Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ class (a , b) ∈ El Int)∥ ≔
+  Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ class (a , b) ∈ El Int)∥ using (sucPlus, zeroMult) ≔
   λa.
     ℕ-elim (k. (b : ℕ) → Prf (k * b ≡ Z ∈ ℕ) →
               Prf (¬ (class (k , b) ≡ intZero ∈ El Int)) →
@@ -99,7 +99,7 @@ def intNZViewAt : (z : El Int) (p : ℕ ⨯ ℕ)
   (hz : Prf (class p ≡ z ∈ El Int))
   (hab : Prf (p .π₁ * p .π₂ ≡ Z ∈ ℕ))
   (hnz : Prf (¬ (z ≡ intZero ∈ El Int))) →
-  Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int)∥ ≔
+  Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int)∥ using (classPairEta) ≔
   λz. λp. λhz. λhab. λhnz.
     squash-elim
       (nzOfPair (p .π₁) (p .π₂) hab
@@ -115,7 +115,7 @@ def intNZViewAt : (z : El Int) (p : ℕ ⨯ ℕ)
                (trans Int (class (p .π₁ , p .π₂)) (class p) z (classPairEta p) hz)))
 
 def intNZView : (z : El Int) (hnz : Prf (¬ (z ≡ intZero ∈ El Int))) →
-  Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int)∥ ≔
+  Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int)∥ using (intCanonProdZero) ≔
   λz. λhnz. intNZViewAt z (intCanon z) (intCanonClass z) (intCanonProdZero z) hnz
 
 -- ===== transferring non-zeroness to the numerator =====
@@ -123,7 +123,7 @@ def intNZView : (z : El Int) (hnz : Prf (¬ (z ≡ intZero ∈ El Int))) →
 -- the easy direction of effectivity (el-quot-eq): a zero numerator
 -- makes the class zero
 def ratZeroOfNumZero : (p : El Rat) (h : Prf (num p ≡ intZero ∈ El Int)) →
-  class p ≡ qZero ∈ El Q ≔
+  class p ≡ qZero ∈ El Q using (intMulOneR, intMulZeroL) ≔
   λp. λh.
     clsEqOfRel p ratZero
       (trans Int

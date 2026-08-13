@@ -62,3 +62,15 @@ else
   echo "$output" | sed 's/^/  /'
   exit 1
 fi
+
+# ... and again under the SEARCHLESS default (SearchlessElaboration.md
+# §5.3): every item without a `using` clause discharges with hypotheses
+# and computation only, so this run proves the corpus's store use is
+# fully NAMED — acceptance is a function of the file, not the store
+if output="$(NOVA_SCOPED=1 "$APP" elab "$ALL" 2>&1)"; then
+  echo "$count/$count elaborations passed (scoped)"
+else
+  echo "FAIL (scoped): $ALL"
+  echo "$output" | sed 's/^/  /'
+  exit 1
+fi
