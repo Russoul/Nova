@@ -798,14 +798,26 @@ Phasing:
      (structural descent preserving the rewrite-chain fuel, refl
      where a component already agrees, instances under binders
      supplied by the context-robust signature-law matcher after the
-     empty-recordings bail learned to defer to proposals). What
-     remains is the COMPOSITION of those closures inside one
-     fitNode call on the partially-applied function's Π-tower: each
-     leg closes in isolation, and the assembled search still
-     declines — an exploration-ordering residue in the legacy
-     replay's bridge, not a missing rule. The corner is exactly the
-     class of reconciliation the judgment-carrying port dissolves:
-     a witness carried from birth is spelled right by construction.]
+     empty-recordings bail learned to defer to proposals). A further
+     round closed the composition too: the empty-recordings bail
+     defers to the signature-law matcher on SMALL pairs (the
+     under-binder components where recordings cannot instantiate —
+     the license pool is also restored across nested replays now,
+     as the witness already was), the bridge carries the endpoints'
+     FORMATIONS down the Π/Σ descent (a refl leg must not re-derive
+     a normalized eliminator code's formation — the motive-guessing
+     wall, met again one level down), and the walk's defensive
+     concludes run at a separate VALIDATION FUEL with fuel-death a
+     soft verdict (a fitted composite can out-fuel a check without
+     being wrong; the megastep attempts were a measured 3x on the
+     meter). With all of that the S-case chain WALKS END TO END —
+     every exposure and both placements' witnesses. What remains is
+     the second placement's leaf: its licensed spelling meets the
+     chain's at a type whose nf blows past every allowance, the
+     last un-walked reconstruction in the file. The corner is
+     exactly the class of reconciliation the judgment-carrying port
+     dissolves: a witness carried from birth is spelled right by
+     construction.]
 
 ////////// Phase 3 end-state, revised: judgment-carrying elaboration //////////
 

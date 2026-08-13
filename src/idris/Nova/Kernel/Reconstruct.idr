@@ -151,6 +151,12 @@ betaOnly _ = False
 fuelR : Nat
 fuelR = 1000000
 
+-- validation fuel: the walk's DEFENSIVE concludes (witness checks,
+-- premise fits) die fast rather than replay a megastep — a fuel
+-- death there is a soft verdict, never a rejection
+fuelV : Nat
+fuelV = 100000
+
 -- ===== MEMOIZED EMISSION (docs/NovaPipeline.txt, phase 3) =====
 -- The emission pass is a tree of alternatives, and every alternative
 -- re-runs everything beneath it — identical sub-problems are solved
@@ -2122,8 +2128,15 @@ dTag _ = "?"
 
 lemBridgeT : Sig -> Ctx -> List Step -> Nat -> Ty -> Ty -> Maybe Deriv
 
+-- the same bridge carrying the endpoints' FORMATION derivations
+-- where the caller has them: a refl leg or a Π/Σ component under
+-- binders must not re-derive a normalized eliminator code's
+-- formation from its spelling (the motive-guessing wall) — it
+-- inverts the formation in hand instead
+lemBridgeTF : Sig -> Ctx -> List Step -> Nat -> (Maybe Deriv, Maybe Deriv) -> Ty -> Ty -> Maybe Deriv
+
 -- refl where the spellings already agree, the bridge otherwise
-lemBridgeTR : Sig -> Ctx -> List Step -> Nat -> Ty -> Ty -> Maybe Deriv
+lemBridgeTR : Sig -> Ctx -> List Step -> Nat -> (Maybe Deriv, Maybe Deriv) -> Ty -> Ty -> Maybe Deriv
 
 -- a ℕ-constructor spelling's typing, written down directly (a
 -- reflected equation's side has no structural projection, but its
@@ -2184,9 +2197,9 @@ childE _ _ = Nothing
 fitEntry : Sig -> Maybe Ctx -> Deriv -> Deriv -> Deriv
 fitEntry sig mctx dE dA = fromMaybe plainCoe $ do
   ctx <- mctx
-  Right (JEl _ tE, _) <- Just (runKM (conclude [] sig ctx dE) fuelR)
+  Right (JEl _ tE, _) <- Just (runKM (conclude [] sig ctx dE) fuelV)
     | _ => dbg "wit: fitE conclude dE dead" Nothing
-  Right (JTy tA, _) <- Just (runKM (conclude [] sig ctx dA) fuelR)
+  Right (JTy tA, _) <- Just (runKM (conclude [] sig ctx dA) fuelV)
     | _ => dbg "wit: fitE conclude dA dead" Nothing
   if tE == tA
     then Just dE
@@ -2199,7 +2212,10 @@ fitEntry sig mctx dE dA = fromMaybe plainCoe $ do
           let pool = unsafePerformIO (readIORef licPoolRef)
           _ <- resetBudget 50000
           dBr <- dbg "wit: fitE bridge dead \{show tEN} VS \{show tAN}"
-                   (lemBridgeT sig ctx pool 16 tEN tAN)
+                   (lemBridgeTF sig ctx pool 16
+                      (Just (DPresupTyR (DNfExpandTy (DPresupElTy dE))),
+                       Just (DPresupTyR (DNfExpandTy dA)))
+                      tEN tAN)
           -- tE ≐ tEN ≐ tAN ≐ tA, each leg its own rule
           pure (DElTyCoe (DTySym (DNfExpandTy dA))
                  (DElTyCoe dBr
@@ -2213,9 +2229,9 @@ fitEntry sig mctx dE dA = fromMaybe plainCoe $ do
 fitNode : Sig -> Maybe Ctx -> Deriv -> Deriv -> Deriv
 fitNode sig mctx old new = fromMaybe plainCoe $ do
   ctx <- mctx
-  Right (JEl _ tN, _) <- Just (runKM (conclude [] sig ctx new) fuelR)
+  Right (JEl _ tN, _) <- Just (runKM (conclude [] sig ctx new) fuelV)
     | _ => dbg "wit: fitN conclude new dead" Nothing
-  Right (JEl _ tO, _) <- Just (runKM (conclude [] sig ctx old) fuelR)
+  Right (JEl _ tO, _) <- Just (runKM (conclude [] sig ctx old) fuelV)
     | _ => dbg "wit: fitN conclude old dead" Nothing
   if tN == tO
     then Just new
@@ -2228,7 +2244,10 @@ fitNode sig mctx old new = fromMaybe plainCoe $ do
           let pool = unsafePerformIO (readIORef licPoolRef)
           _ <- resetBudget 50000
           dBr <- dbg "wit: fitN bridge dead \{show tNN} VS \{show tON}"
-                   (lemBridgeT sig ctx pool 16 tNN tON)
+                   (lemBridgeTF sig ctx pool 16
+                      (Just (DPresupTyR (DNfExpandTy (DPresupElTy new))),
+                       Just (DPresupTyR (DNfExpandTy (DPresupElTy old))))
+                      tNN tON)
           pure (DElTyCoe (DTySym (DNfExpandTy (DPresupElTy old)))
                  (DElTyCoe dBr
                    (DElTyCoe (DNfExpandTy (DPresupElTy new)) new)))
@@ -2420,13 +2439,19 @@ setChainWit w = unsafePerformIO $ do
 readChainWit : () -> Maybe Deriv
 readChainWit _ = unsafePerformIO (readIORef chainWit)
 
--- an equation replay is RE-ENTRANT (a chain step licenses through
--- nested replays, each seeding its own witness and clearing it on
--- exit): the outer chain's witness is restored around every body
 %noinline
-restoreWitAfter : Maybe Deriv -> Maybe a -> Maybe a
-restoreWitAfter saved r = unsafePerformIO $ do
-  writeIORef chainWit saved
+readLicPool : () -> List Step
+readLicPool _ = unsafePerformIO (readIORef licPoolRef)
+
+-- an equation replay is RE-ENTRANT (a chain step licenses through
+-- nested replays, each seeding its own witness and license pool and
+-- clearing them on exit): the outer chain's state is restored
+-- around every body
+%noinline
+restoreWitAfter : (Maybe Deriv, List Step) -> Maybe a -> Maybe a
+restoreWitAfter (savedW, savedP) r = unsafePerformIO $ do
+  writeIORef chainWit savedW
+  writeIORef licPoolRef savedP
   pure r
 
 
@@ -2443,13 +2468,13 @@ elWitFor sig ctx e = unsafePerformIO $ do
 
 witEl : Sig -> Ctx -> Deriv -> Maybe (Elem, Ty)
 witEl sig ctx dw =
-  case runKM (conclude [] sig ctx dw) fuelR of
+  case runKM (conclude [] sig ctx dw) fuelV of
     Right (JEl e t, _) => Just (e, t)
     _ => Nothing
 
 witTy : Sig -> Ctx -> Deriv -> Maybe Ty
 witTy sig ctx dw =
-  case runKM (conclude [] sig ctx dw) fuelR of
+  case runKM (conclude [] sig ctx dw) fuelV of
     Right (JTy t, _) => Just t
     _ => Nothing
 
@@ -2477,12 +2502,19 @@ plainWit sig ctx e = unsafePerformIO $ do
 witView : Sig -> Ctx -> Elem -> Maybe Deriv -> Maybe Deriv
 witView sig ctx cur wit = do
   w <- wit
-  case runKM (conclude [] sig ctx w) fuelR of
+  case runKM (conclude [] sig ctx w) fuelV of
     Right (JEl e _, _) =>
       if e == cur then dbg "wit: view crack miss \{dTag w}" (dvView sig w)
         else dbg "wit: view speaks \{show e} not \{show cur}" Nothing
     Right _ => dbg "wit: view not an El judgment" Nothing
-    Left err => dbg "wit: view conclude: \{err}" Nothing
+    Left err =>
+      -- a fitted composite can out-fuel the DEFENSIVE erasure check
+      -- without being wrong (its coercions re-normalize per level);
+      -- the walk stays untrusted either way — the seat replays the
+      -- final artifact with the real fuel
+      if err == "kernel: out of fuel"
+        then dvView sig w
+        else dbg "wit: view conclude: \{err}" Nothing
 
 stKey : Maybe Step -> String
 stKey Nothing = "-"
@@ -2558,17 +2590,22 @@ lemmaInsts : Sig -> Ctx -> Step -> Nat -> List Elem -> (Elem, Elem) -> List (Der
 ||| recording may speak another context's variables.
 sigLawInsts : Sig -> Ctx -> (Elem, Elem) -> List (Elem, Elem, Deriv)
 
-lemBridgeT _ _ _ Z _ _ = Nothing
-lemBridgeT sig ctx pool (S fuel) (El x) (El y) =
+lemBridgeT sig ctx pool fuel a b =
+  lemBridgeTF sig ctx pool fuel (Nothing, Nothing) a b
+
+lemBridgeTF _ _ _ Z _ _ _ = Nothing
+lemBridgeTF sig ctx pool (S fuel) (mFL, _) (El x) (El y) =
   if x == y
-    then DTyRefl <$> reTy sig ctx (El x) emptySkel
+    then DTyRefl <$> (mFL <|> lookupTyDeriv sig ctx (El x)
+                          <|> reTy sig ctx (El x) emptySkel)
     else do
-      -- the pool is tiny and fully instantiated: nothing to try
-      -- means no bridge, decided before anything walks or checks
-      -- (closeAt can still PROPOSE instances from the pool's lemmas
-      -- and the signature's laws, so only a bare call bails)
+      -- bail early only when nothing can fire: no recordings, no
+      -- pool to propose from, AND a pair too large for the
+      -- signature-law matcher (small pairs still reach closeAt,
+      -- whose proposals need no pool — the under-binder case)
       let is = recInsts
       let False = null is && null pool
+                    && (candPosOver 40 x || candPosOver 40 y)
         | True => Nothing
       _ <- if reconDebug
              then trace "wit: LB \{show (length is)} insts FOR \{show x} VS \{show y}: \{show (map (\(u, v, _) => (u, v)) is)}" (Just ())
@@ -2762,7 +2799,7 @@ lemBridgeT sig ctx pool (S fuel) (El x) (El y) =
 -- one side El, the other an EXPOSED former: the unfolding is
 -- blocked behind an index law — rewrite the code by a recorded
 -- instance at an exact occurrence, then close through the oracle
-lemBridgeT sig ctx pool (S fuel) (El x) b = goPool pool
+lemBridgeTF sig ctx pool (S fuel) _ (El x) b = goPool pool
  where
   firstPosG : Elem -> Elem -> Maybe (List Nat)
   firstPosG le z = goP (snd (candPosB 160 [] z))
@@ -2852,28 +2889,36 @@ lemBridgeT sig ctx pool (S fuel) (El x) b = goPool pool
 -- a Π/Σ pair differing at an inner component: component-wise
 -- congruence, each leg refl where it already agrees (a function
 -- prefix's type shifts only at the domains the rewrite reaches)
-lemBridgeT sig ctx pool (S fuel) (Ty.PiTy a0 b0) (Ty.PiTy a1 b1) =
+lemBridgeTF sig ctx pool (S fuel) (mFL, mFR) (Ty.PiTy a0 b0) (Ty.PiTy a1 b1) =
   -- structural descent, not search: the types shrink, so the fuel
-  -- (which bounds the REWRITE chains) carries through undiminished
+  -- (which bounds the REWRITE chains) carries through undiminished;
+  -- component formations by INVERSION of the ones in hand
   (if reconDebug then trace "wit: LBpi enter \{show fuel}" (Just ()) else Just ()) >>= \_ =>
   [| DTyPiCong (dbg "wit: LBpi dom dead \{show a0} VS \{show a1}"
-                 (lemBridgeTR sig ctx pool (S fuel) a0 a1))
+                 (lemBridgeTR sig ctx pool (S fuel)
+                    (DInvPiDom <$> mFL, DInvPiDom <$> mFR) a0 a1))
                (dbg "wit: LBpi cod dead"
-                 (lemBridgeTR sig (ctx :< a1) pool (S fuel) b0 b1)) |]
-lemBridgeT sig ctx pool (S fuel) (Ty.SigmaTy a0 b0) (Ty.SigmaTy a1 b1) =
-  [| DTySigmaCong (lemBridgeTR sig ctx pool (S fuel) a0 a1)
-                  (lemBridgeTR sig (ctx :< a1) pool (S fuel) b0 b1) |]
+                 (lemBridgeTR sig (ctx :< a1) pool (S fuel)
+                    (DInvPiCod <$> mFL, DInvPiCod <$> mFR) b0 b1)) |]
+lemBridgeTF sig ctx pool (S fuel) (mFL, mFR) (Ty.SigmaTy a0 b0) (Ty.SigmaTy a1 b1) =
+  [| DTySigmaCong (lemBridgeTR sig ctx pool (S fuel)
+                     (DInvSigmaDom <$> mFL, DInvSigmaDom <$> mFR) a0 a1)
+                  (lemBridgeTR sig (ctx :< a1) pool (S fuel)
+                     (DInvSigmaCod <$> mFL, DInvSigmaCod <$> mFR) b0 b1) |]
 -- an exposed former against an El code: the El-vs-former clause,
 -- mirrored (the unfolding blocked behind an index law can sit on
 -- either side)
-lemBridgeT sig ctx pool (S fuel) a b@(El _) =
-  DTySym <$> dbg "wit: LBflip dead" (lemBridgeT sig ctx pool (S fuel) b a)
-lemBridgeT _ _ _ _ _ _ = Nothing
+lemBridgeTF sig ctx pool (S fuel) (mFL, mFR) a b@(El _) =
+  DTySym <$> dbg "wit: LBflip dead"
+    (lemBridgeTF sig ctx pool (S fuel) (mFR, mFL) b a)
+lemBridgeTF _ _ _ fuel _ a b =
+  dbg "wit: LB catchall f=\{show fuel} \{show a} VS \{show b}" Nothing
 
-lemBridgeTR sig ctx pool fuel a b =
+lemBridgeTR sig ctx pool fuel (mFL, mFR) a b =
   if a == b
-    then DTyRefl <$> (lookupTyDeriv sig ctx a <|> reTy sig ctx a emptySkel)
-    else lemBridgeT sig ctx pool fuel a b
+    then DTyRefl <$> (mFL <|> mFR <|> lookupTyDeriv sig ctx a
+                          <|> reTy sig ctx a emptySkel)
+    else lemBridgeTF sig ctx pool fuel (mFL, mFR) a b
 
 eqAtNf : Sig -> Ctx -> Deriv -> Ty -> Ty -> Maybe Deriv
 eqAtNf sig ctx dEq cur tgt =
@@ -2911,8 +2956,9 @@ eqAtLem sig ctx dEq cur tgt =
 ||| (cur ≐ cur′ at the expected type) and cur′.
 rePlaceE : Sig -> Ctx -> Step -> Nat -> List Nat -> Ty -> Elem -> Maybe Deriv -> Maybe Deriv -> Maybe (Deriv, Elem, Ty)
 rePlaceE sig ctx step d [] exp cur mty wit =
-  leafWith True (reLicensedRaw sig ctx step d)
+  leafWith True (dbg "leaf: raw license dead" (reLicensedRaw sig ctx step d))
   <|> leafWith False (dbg "leaf: license" (reLicensed sig ctx step d))
+  <|> dbg "leaf: declined cur=\{show cur} exp=\{show exp}" Nothing
  where
   -- the licensed lhs may be spelled a few ≜ steps ABOVE the position's
   -- spelling: contract it toward cur, each move a beta-at link
@@ -2941,19 +2987,19 @@ rePlaceE sig ctx step d [] exp cur mty wit =
              else do
                let True = allowMeet
                  | False => Nothing
-               let False = candPosOver 80 le
-                 | True => Nothing
+               let False = candPosOver 400 le
+                 | True => dbg "leaf: meet size gate" Nothing
                dch <- dbg "leaf: cur \{show cur} /= licensed \{show le}"
                         (meetLe 24 (DElRefl (DPresupElL dEq0)) le)
                pure (DElTrans (DElSym dch) dEq0)
     d' <- if t == exp then Just dEq
           else do
-            tN <- nfT sig t
-            eN <- nfT sig exp
+            tN <- dbg "leaf: fit nfT t dead \{show t}" (nfT sig t)
+            eN <- dbg "leaf: fit nfT exp dead \{show exp}" (nfT sig exp)
             if tN == eN
               then do
-                dt <- reTy sig ctx t emptySkel
-                de <- reTy sig ctx exp emptySkel
+                dt <- dbg "leaf: fit reTy t \{show t}" (reTy sig ctx t emptySkel)
+                de <- dbg "leaf: fit reTy exp \{show exp}" (reTy sig ctx exp emptySkel)
                 pure (DElEqTyCoe (DNfEqTy dt de) dEq)
               else do
                 -- a dependent position shifted by an earlier rewrite:
@@ -2961,8 +3007,10 @@ rePlaceE sig ctx step d [] exp cur mty wit =
                 -- license pool closes what nf cannot
                 let pool@(_ :: _) = unsafePerformIO (readIORef licPoolRef)
                   | [] => Nothing
-                dBr <- lemBridgeT sig ctx pool 3 tN eN
-                dE <- lookupTyDeriv sig ctx exp <|> reTy sig ctx exp emptySkel
+                dBr <- dbg "leaf: fit pool \{show tN} VS \{show eN}"
+                         (lemBridgeT sig ctx pool 3 tN eN)
+                dE <- dbg "leaf: fit exp form"
+                        (lookupTyDeriv sig ctx exp <|> reTy sig ctx exp emptySkel)
                 let dT = DPresupElTy (DPresupElL dEq)
                 let dTN = DPresupTyR (DNfExpandTy dT)
                 let atN = DElEqTyCoe dBr (DElEqTyCoe (DNfEqTy dT dTN) dEq)
@@ -3054,7 +3102,12 @@ rePlaceE sig ctx step d (i :: p) exp cur mty wit =
           | v => dbg "wit: pair1 not pair: \{dTag v}" Nothing
         (_, a) <- dbg "wit: pair1 fst conclude miss" (witEl sig ctx wU)
         b <- dbg "wit: pair1 family conclude miss" (witTy sig (ctx :< a) wB)
-        (dc0, v', chTy) <- rePlaceE sig ctx step d p (substTy b (Ext Id u)) v Nothing (Just wV)
+        -- the recursion runs at the WITNESS's spelling of v's type
+        -- (the license speaks that world); eqAtLem bridges the
+        -- result back to the pair-congruence's instance
+        let vExp = fromMaybe (substTy b (Ext Id u))
+                     (snd <$> witEl sig ctx wV)
+        (dc0, v', chTy) <- rePlaceE sig ctx step d p vExp v Nothing (Just wV)
         dc <- dbg "wit: pair1 eqAtLem miss" (eqAtLem sig ctx dc0 chTy (substTy b (Ext Id u)))
         pure (DElPairCong (DElRefl wU) wB dc, SigmaIntro u v', Ty.SigmaTy a b))
       <|> (do
@@ -3556,12 +3609,41 @@ lemmaInsts sig ctx step d pool0 (xN, yN) =
                 (DElTrans dR (DNfExpand (DPresupElR dR)))
     pure (dRN, leN, reN, t, p')
 
-sigLawInsts sig ctx (xa, ya) = concatMap tryEntry (toList sig)
+-- the signature's law statements, nf'd once per signature LENGTH
+-- (Σ only grows): re-normalizing every law at every closeAt call was
+-- a measured 3x on the meter
+%noinline
+sigLawTbl : IORef (Integer, List (SigIdentifier, Nat, Elem, Elem))
+sigLawTbl = mkRef 23 (-1, [])
+
+sigLawPats : Sig -> List (SigIdentifier, Nat, Elem, Elem)
+sigLawPats sig = unsafePerformIO $ do
+  (n, cached) <- readIORef sigLawTbl
+  let m = the Integer (cast (length (toList sig)))
+  if n == m
+    then pure cached
+    else do
+      let fresh = mapMaybe pat (toList sig)
+      writeIORef sigLawTbl (m, fresh)
+      pure fresh
  where
   stripPis : Ty -> (Nat, Ty)
   stripPis (Ty.PiTy _ b) = let (k, r) = stripPis b in (S k, r)
   stripPis t = (Z, t)
 
+  pat : SigEntry -> Maybe (SigIdentifier, Nat, Elem, Elem)
+  pat (SigDef [<] nm _ dty) =
+    let (nPi, body) = stripPis dty in
+    case (nPi, body) of
+      (S _, Prf (Elem.EqTy lhs rhs _)) =>
+        Just (nm, nPi,
+              fromMaybe lhs (nfE sig lhs),
+              fromMaybe rhs (nfE sig rhs))
+      _ => Nothing
+  pat _ = Nothing
+
+sigLawInsts sig ctx (xa, ya) = concatMap tryLaw (sigLawPats sig)
+ where
   mk : SigIdentifier -> List Elem -> Maybe (Elem, Elem, Deriv)
   mk nm args = do
     let pf = foldl PiApp (Elem.SigVar nm [<]) args
@@ -3579,18 +3661,11 @@ sigLawInsts sig ctx (xa, ya) = concatMap tryEntry (toList sig)
           DElTrans (DElSym (DNfExpand (DPresupElL dR)))
             (DElTrans dR (DNfExpand (DPresupElR dR))))
 
-  tryEntry : SigEntry -> List (Elem, Elem, Deriv)
-  tryEntry (SigDef [<] nm _ dty) =
-    let (nPi, body) = stripPis dty in
-    case body of
-      Prf (Elem.EqTy lhs rhs _) =>
-        let lhsN = fromMaybe lhs (nfE sig lhs)
-            rhsN = fromMaybe rhs (nfE sig rhs) in
-        mapMaybe (mk nm)
-          (nub (mapMaybe (\(pt, tg) => matchStTuple nPi pt tg)
-                  [(lhsN, xa), (lhsN, ya), (rhsN, xa), (rhsN, ya)]))
-      _ => []
-  tryEntry _ = []
+  tryLaw : (SigIdentifier, Nat, Elem, Elem) -> List (Elem, Elem, Deriv)
+  tryLaw (nm, nPi, lhsN, rhsN) =
+    mapMaybe (mk nm)
+      (nub (mapMaybe (\(pt, tg) => matchStTuple nPi pt tg)
+              [(lhsN, xa), (lhsN, ya), (rhsN, xa), (rhsN, ya)]))
 
 lemmaLeafB : Sig -> Ctx -> Step -> Nat -> Elem -> Elem -> Maybe (Deriv, Ty)
 
@@ -4244,7 +4319,7 @@ reEqEndsGo sig ctx cert l r ty ends =
   lookupEqDeriv sig ctx l r ty <|> reEqEndsGoB sig ctx cert l r ty ends
 
 reEqEndsGoB sig ctx (MkECertF tyEx steps0 final posSteps) l r ty ends =
-  restoreWitAfter (readChainWit ()) $
+  restoreWitAfter (readChainWit (), readLicPool ()) $
   setLicPool (steps0 ++ posSteps ++ (case tyEx of
                                        Just (_, certT) => certT.steps
                                        Nothing => [])) >>= \_ =>
