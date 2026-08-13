@@ -905,11 +905,35 @@ permutative c = isJust (go 0 c.lhs c.rhs [])
 ||| permutative and growing equations never rewrite).
 orderedParts : List Cand -> (List Cand, List Cand)
 orderedParts cs =
-  let usable = filter (\c => (elemSize c.rhs <= elemSize c.lhs || varDef c) && not (permutative c)) cs
+  let usable = filter (\c => (elemSize c.rhs <= elemSize c.lhs || varDef c || clauseShaped c) && not (permutative c)) cs
       shrinking = filter (\c => elemSize c.rhs < elemSize c.lhs) usable
       rest = filter (\c => not (elemSize c.rhs < elemSize c.lhs)) usable
   in (shrinking, rest)
  where
+  -- EXPERIMENT (searchless research): a CLAUSE-SHAPED candidate — a
+  -- SigVar-headed application spine with a constructor-headed argument
+  -- — is admitted as a rewrite rule even when size-increasing: each
+  -- firing consumes a constructor the pattern demands, so it plays the
+  -- role of one ι-step of computation stated in the abstraction's own
+  -- vocabulary (the clause lemmas of a clausal def are exactly this).
+  ctorHeaded : Elem -> Bool
+  ctorHeaded NatIntro0 = True
+  ctorHeaded (NatIntro1 _) = True
+  ctorHeaded (Inj1 _) = True
+  ctorHeaded (Inj2 _) = True
+  ctorHeaded (Class _) = True
+  ctorHeaded (QCtor _ _ _) = True
+  ctorHeaded _ = False
+
+  spineArgs : Elem -> (Elem, List Elem)
+  spineArgs (PiApp f x) = let (h, as) = spineArgs f in (h, as ++ [x])
+  spineArgs e = (e, [])
+
+  clauseShaped : Cand -> Bool
+  clauseShaped c =
+    case spineArgs c.lhs of
+      (SigVar _ _, args) => any ctorHeaded args
+      _ => False
   -- a VARIABLE-DEFINITION rule — ground, ☐ₙ ⇝ t with ☐ₙ not in t —
   -- terminates regardless of size (each application strictly removes
   -- an occurrence), so it is usable as a rewrite rule even when
@@ -1373,6 +1397,14 @@ extendCS cs = MkCandSet (map wk cs.all) (map wk cs.rw) (map wk cs.hops)
 spDepth : Nat
 spDepth = 3
 
+||| Measurement scaffolding: time a pure computation against a label.
+||| Sequential lets pin the evaluation order (the attemptE pattern).
+timed : String -> (() -> a) -> a
+timed label f =
+  let t0 = nowNs ()
+      r = f ()
+  in bump label (nowNs () - t0) r
+
 prefixSteps : Nat -> List Step -> List Step
 prefixSteps i = map ({ path $= (i ::) })
 
@@ -1397,22 +1429,27 @@ mutual
     -- takes steps, the certificate carries them as a TYPE BRIDGE and
     -- the whole replay happens at the exposed type (where positions
     -- the steps land on are structurally determined)
-    let (tyX, tySteps) = rwNfTyS st.sig cs.rw True ty
+    let t0 = nowNs ()
+        (tyX, tySteps) = rwNfTyS st.sig cs.rw True ty
         bridge = case tySteps of
                    [] => Nothing
                    _ => Just (tyX, MkECert tySteps FBeta)
         (a', aSteps) = rwNfElemS st.sig cs.rw True a
         (b', bSteps) = rwNfElemS st.sig cs.rw False b
         base = aSteps ++ bSteps
-        tyN = betaTy st.sig tyX in
-    if a' == b'
+        tyN = betaTy st.sig tyX
+        eqFast = bump "sp-rwnf" (nowNs () - t0)
+                   (bump "sz-in" (cast (elemSize a + elemSize b))
+                     (bump "sz-nf" (cast (elemSize a' + elemSize b'))
+                       (a' == b'))) in
+    if eqFast
       then Just (MkECertF bridge base FBeta)
       else
-        (do rest <- candMatchC dep st cs ctx a' b' tyN >>= unbridged
+        (do rest <- timed "sp-match" (\_ => candMatchC dep st cs ctx a' b' tyN) >>= unbridged
             pure (MkECertF bridge (base ++ rest.steps) rest.final))
-        <|> (do rest <- spEqStructC dep st cs ctx a' b' tyN >>= unbridged
+        <|> (do rest <- timed "sp-struct" (\_ => spEqStructC dep st cs ctx a' b' tyN) >>= unbridged
                 pure (MkECertF bridge (base ++ rest.steps) rest.final))
-        <|> (do congSteps <- spCongC dep st cs ctx a' b'
+        <|> (do congSteps <- timed "sp-cong" (\_ => spCongC dep st cs ctx a' b')
                 pure (MkECertF bridge (base ++ congSteps) FBeta))
    where
     unbridged : ECert -> Maybe ECert
@@ -1686,9 +1723,10 @@ mutual
   ||| Γ ⊢ A ≐ B, speculatively, with evidence.
   spEqTyC : Nat -> ElabSt -> CandSet -> Ctx -> Ty -> Ty -> Maybe ECert
   spEqTyC dep st cs ctx tyA tyB =
-    let (a, aSteps) = rwNfTyS st.sig cs.rw True tyA
+    let t0 = nowNs ()
+        (a, aSteps) = rwNfTyS st.sig cs.rw True tyA
         (b, bSteps) = rwNfTyS st.sig cs.rw False tyB
-        base = aSteps ++ bSteps in
+        base = bump "sp-rwnf-ty" (nowNs () - t0) (aSteps ++ bSteps) in
     ((\rest => MkECert (base ++ rest) FBeta) <$> go a b)
       <|> congFinal a b base
    where
@@ -2098,7 +2136,9 @@ mutual
     let cs0 = mkCandSet st ctx
     let t1 = bump "cands" (nowNs () - t0) (nowNs ())
     let cs = bump "candN" (cast (length cs0.all)) cs0
-    let mcert = spEqElemC spDepth st cs ctx a b ty
+    let tyM = bump "sz-att-in" (cast (elemSize a + elemSize b)) ty
+    let tyM2 = bump "sz-att-nf" (cast (elemSize (betaElem st.sig a) + elemSize (betaElem st.sig b))) tyM
+    let mcert = spEqElemC spDepth st cs ctx a b tyM2
     let t2 = bump "engine" (nowNs () - t1) (nowNs ())
     case mcert of
       Nothing => pure (Left site)
