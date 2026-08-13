@@ -13,7 +13,7 @@ data [a : 𝕌] ( Bag : U
 
 -- 2. elimination INTO a QIIT: bag append — the motive is the Bag code
 --    itself, and the coherence is exactly the swap lemma
-def bapp : (a : 𝕌) → El (Bag a) → El (Bag a) → El (Bag a) ≔
+def bapp : (a : 𝕌) → El (Bag a) → El (Bag a) → El (Bag a) using (bswp) ≔
   λa. λm. λn. BagElim _ (λw. Bag a) n (λx. λr. λih. bins a x ih) (λx. λy. λr. λih. ⋆) m
 
 -- 3. a map BETWEEN QIITs: the order-forgetting quotient map L → Bag ℕ
@@ -23,7 +23,7 @@ def toBag : El L → El (Bag ℕ) ≔
 -- toBag coequalizes adjacent transpositions (the universal property's
 -- defining triangle, at the generators): by β + the swap lemma
 def toBagSwap : (x : El ℕ) (y : El ℕ) (t : El L) →
-                toBag (lcons x (lcons y t)) ≡ toBag (lcons y (lcons x t)) ∈ El _ ≔
+                toBag (lcons x (lcons y t)) ≡ toBag (lcons y (lcons x t)) ∈ El _ using (bswp) ≔
   λx. λy. λt. ⋆
 
 -- 4. a QIIT whose signature EMBEDS a previous QIIT's reflection: trees
