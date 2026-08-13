@@ -5,7 +5,7 @@ def + : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
 def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ ≔ λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
 def sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ ≔
   λn. λm. ℕ-elim (k. S n + k ≡ S (n + k) ∈ ℕ) ⋆ (k ih. ⋆) m
-def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ ≔
+def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ using (sucPlus, zeroPlusId) ≔
   λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ ℕ) ⋆ (k ih. ⋆) m
 def plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ ≔ λn. ⋆
 

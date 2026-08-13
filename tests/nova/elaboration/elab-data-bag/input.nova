@@ -9,7 +9,7 @@ data ( Bag : U
 def swap12 : ins Z (ins (S Z) nil) ≡ ins (S Z) (ins Z nil) ∈ El Bag ≔
   swp Z (S Z) nil
 
-def swap12' : ins Z (ins (S Z) nil) ≡ ins (S Z) (ins Z nil) ∈ El Bag ≔ ⋆
+def swap12' : ins Z (ins (S Z) nil) ≡ ins (S Z) (ins Z nil) ∈ El Bag using (swap12) ≔ ⋆
 
 -- eliminate: the size of a bag — the method is order-insensitive, so
 -- the COHERENCE argument is ⋆ (β makes both sides S (S ih))
