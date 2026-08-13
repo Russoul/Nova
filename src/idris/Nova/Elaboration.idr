@@ -1520,7 +1520,7 @@ mutual
         (b', bSteps) = rwNfElemS st.sig cs.rw False b
         base = aSteps ++ bSteps
         tyN = betaTy st.sig tyX
-        eqFast = bump "sp-rwnf" (nowNs () - t0)
+        eqFast = bump "rwnf-elem" (nowNs () - t0)
                    (bump "sz-in" (cast (elemSize a + elemSize b))
                      (bump "sz-nf" (cast (elemSize a' + elemSize b'))
                        (a' == b'))) in
@@ -1808,7 +1808,7 @@ mutual
     let t0 = nowNs ()
         (a, aSteps) = rwNfTyS st.sig cs.rw True tyA
         (b, bSteps) = rwNfTyS st.sig cs.rw False tyB
-        base = bump "sp-rwnf-ty" (nowNs () - t0) (aSteps ++ bSteps) in
+        base = bump "rwnf-ty" (nowNs () - t0) (aSteps ++ bSteps) in
     ((\rest => MkECert (base ++ rest) FBeta) <$> go a b)
       <|> congFinal a b base
    where
