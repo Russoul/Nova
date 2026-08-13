@@ -8,3 +8,4 @@ open obligations (1):
   [1] (a : ℕ) (b : ℕ) ⊢ a ≐ b : ℕ
       at: def scopedBad: checking ⋆
       from composite: (a : ℕ) (b : ℕ) ⊢ a + b ≐ b + a : ℕ
+      hint: composite closes with plusComm
