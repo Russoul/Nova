@@ -91,6 +91,9 @@ mutual
            (mapRefsE f g (S (S (S d))) q)
   mapRefsE f g d (SSquash t) = SSquash (mapRefsTy f g d t)
   mapRefsE f g d SStar = SStar
+  -- using-names are Σ references outside the term grammar (never the
+  -- item's own recursive occurrence), so they pass through unchanged
+  mapRefsE f g d (SStarUsing ns) = SStarUsing ns
   mapRefsE f g d (SStarWit e) = SStarWit (mapRefsE f g d e)
   mapRefsE f g d (SSquashElim e x body) =
     SSquashElim (mapRefsE f g d e) x (mapRefsE f g (S d) body)
@@ -195,6 +198,7 @@ mutual
   occursE f (SCoind _ _ r pw _ _ _ q) = occursE f r || occursE f pw || occursE f q
   occursE f (SSquash t) = occursTy f t
   occursE f SStar = False
+  occursE f (SStarUsing _) = False
   occursE f (SStarWit e) = occursE f e
   occursE f (SSquashElim e _ body) = occursE f e || occursE f body
   occursE f (SAnn e ty) = occursE f e || occursTy f ty
@@ -318,6 +322,7 @@ mutual
        pure (SCoind nx ny r' pw' mx my mh q')
   rwE f mk lead d (SSquash t) = SSquash <$> rwTy f mk lead d t
   rwE f mk lead d SStar = Just SStar
+  rwE f mk lead d (SStarUsing ns) = Just (SStarUsing ns)
   rwE f mk lead d (SStarWit e) = SStarWit <$> rwE f mk lead d e
   rwE f mk lead d (SSquashElim e x body) =
     do e' <- rwE f mk lead d e; body' <- rwE f mk lead (S d) body

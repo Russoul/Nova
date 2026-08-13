@@ -1,0 +1,4 @@
+-- a using-name that is not an equation lemma of the visible store is
+-- a structural error, not a silently-empty scope
+def notEq : ℕ → ℕ ≔ λx. x
+def refl0 : Z ≡ Z ∈ ℕ ≔ ⋆ using notEq
