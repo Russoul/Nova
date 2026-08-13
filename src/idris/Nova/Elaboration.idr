@@ -51,6 +51,7 @@ import Nova.Kernel.Reconstruct
 import Me.Russoul.Text.Position
 import Me.Russoul.Text.Range
 import Debug.Trace
+import System
 
 import Nova.Elaboration.Jud
 import Nova.Elaboration.Named
@@ -3603,6 +3604,57 @@ mutual
                     Nothing => birthPiI stB.kernelSig ctx a b t'
         pure (lam, withExpose exp (Nd [] [tSk]), mJ)
       Nothing => throw "\{site}: λ checked against a non-Π type\{structuralHint}"
+  checkElemJ ctx jctx env site h@(SHole _ _ _) ty mFT = do
+    -- a hole USE: the reference's judgment is el-sig with the
+    -- sub-norm chain read off the judgment context (fresh holes and
+    -- same-context reuses only; extension reuses carry a weakened
+    -- spine and wait their turn)
+    (e, sk) <- checkElem ctx env site h ty
+    let mJ = the (Maybe Jud) $ case e of
+               SigVar q es =>
+                 if es == idSpine (length ctx)
+                   then judSigVars q jctx 0 e ty ctx
+                   else Nothing
+               _ => Nothing
+    pure (e, sk, mJ)
+  checkElemJ ctx jctx env site (SPair u v) ty mFT = do
+    st <- getSt
+    case preferSigma st ctx ty of
+      Just (a, b, exp) => do
+        let mFTok = the (Maybe JudTy) $ do
+                      ft <- mFT
+                      let Nothing = exp
+                        | _ => Nothing
+                      let True = ft.ty == ty
+                        | _ => Nothing
+                      Just ft
+        (u', uSk, muJ) <- checkElemJ ctx jctx env site u a
+                            ((\ft => MkJudTy (DInvSigmaDom ft.deriv) ctx a) <$> mFTok)
+        let vTy = substTy b (Ext Id u')
+        let mVFT = the (Maybe JudTy) $ do
+                     ft <- mFTok
+                     uJ <- muJ
+                     let True = uJ.ty == a
+                       | _ => Nothing
+                     Just (judSubTy (DSubExt DSubId (DInvSigmaDom ft.deriv) uJ.deriv)
+                             ctx vTy (MkJudTy (DInvSigmaCod ft.deriv) (ctx :< a) b))
+        (v', vSk, mvJ) <- checkElemJ ctx jctx env site v vTy mVFT
+        stB <- getSt
+        let mJ = the (Maybe Jud) $ do
+                   ft <- mFTok
+                   uJ <- muJ
+                   vJ <- mvJ
+                   let True = uJ.ty == a
+                     | _ => Nothing
+                   let True = vJ.ty == vTy
+                     | _ => Nothing
+                   Just (judSigmaI uJ (MkJudTy (DInvSigmaCod ft.deriv) (ctx :< a) b) vJ)
+        let pr = case mJ of
+                   Just j => storeJudEl ctx (SigmaIntro u' v') (Ty.SigmaTy a b)
+                               j.deriv (SigmaIntro u' v')
+                   Nothing => birthSigmaI stB.kernelSig ctx a b u' v'
+        pure (pr, withExpose exp (Nd [] [uSk, vSk]), mJ)
+      Nothing => throw "\{site}: pair checked against a non-⨯ type\{structuralHint}"
   checkElemJ ctx jctx env site t ty mFT =
     case t of
       SVar _ _ _ => switchJ

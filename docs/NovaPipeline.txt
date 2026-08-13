@@ -951,10 +951,25 @@ base and every A-caveat with it.
      eliminator's ℕ, a Π's just-constructed domain) — and the
      ty-sig formation route writes a type hole's formation from it,
      the sub-norm premise chain read straight off the judgment
-     context (hole-typed eliminator motives now construct). Not yet
-     ported, in order of value: the CONVERSION COERCION at the
-     switch — every remaining gate failure in the corpus is this
-     one wall (an inferred ℕ against a hole-spelled expected type;
-     it needs convTy's certificate as a derivation, i.e. the
-     refiner's seed) — then exposure sites, pairs/projections/let,
-     and hole references in element position.]
+     context (hole-typed eliminator motives now construct). A third increment ports
+     the SWITCH COERCION — different spellings coerce along nf-eq of
+     the two formations already in hand (the inferred side's by
+     presupposition, the expected side's threaded), an optimistic
+     node that concludes whenever the types are nf-equal AT
+     CONSUMPTION, i.e. post-hole-solving; a conversion true only by
+     a rewrite lemma stays for the refiner. With it the
+     computational eliminators compose end to end. A fourth ports
+     HOLE USES (el-sig with the sub-norm chain read off the judgment
+     context — every proof spine's hole arguments) and PAIRS (the
+     second component's expected formation is one substitution wrap
+     over the Σ's inverted codomain). Measured after all four:
+     83–468 constructed judgments per corpus file. Cost, honestly:
+     the meter sits at ~84s (from ~42s) — the flood of stored
+     constructed entries each pays one consumption-time validation,
+     the mid-port triple-walk cost the end-state deletes; a
+     Σ-length-keyed failure cache already stops re-validation of
+     entries whose holes have not solved yet, and validation
+     batching is the next lever if the meter matters before the
+     erased routes start retiring. Remaining routes: ⋆-discharge
+     (the certificate as a derivation — the refiner), exposure
+     sites, projections/let, eliminators beyond ℕ.]

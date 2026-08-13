@@ -190,6 +190,33 @@ judTySigVars x jdelta k sp cx = do
     dA <- mA
     pure (DSubNExt dEs dA (DElVar d))
 
+||| A signature ELEMENT reference at a spine of plain variables —
+||| the shape of every hole USE at its own context (el-sig): the
+||| sub-norm chain reads off the judgment context, the conclusion
+||| type is the caller's spelling (untrusted, validated at
+||| consumption like everything here).
+export
+judSigVars : SigIdentifier -> JCtx -> Nat -> Elem -> Ty -> Ctx -> Maybe Jud
+judSigVars x jdelta k sp ty cx = do
+  dSub <- go jdelta k
+  pure (MkJud (DElSig x dSub) cx sp ty)
+ where
+  go : JCtx -> Nat -> Maybe Deriv
+  go [<] _ = Just DSubNEmpty
+  go (rest :< mA) d = do
+    dEs <- go rest (S d)
+    dA <- mA
+    pure (DSubNExt dEs dA (DElVar d))
+
+||| Pair introduction (el-sigma-i): the first component, the
+||| codomain family's formation over the extended context, the
+||| second component at the family's first-component instance.
+export
+judSigmaI : Jud -> JudTy -> Jud -> Jud
+judSigmaI u cod v =
+  MkJud (DElSigmaI u.deriv cod.deriv v.deriv) u.ctx
+    (SigmaIntro u.elem v.elem) (Ty.SigmaTy u.ty cod.ty)
+
 -- ===== type formations by construction =====
 
 export

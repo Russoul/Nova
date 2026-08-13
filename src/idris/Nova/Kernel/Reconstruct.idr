@@ -484,6 +484,26 @@ concludesEl sig ctx d e ty =
     Right (JEl e' ty', _) => e' == e && ty' == ty
     _ => False
 
+-- entries that FAILED validation, with the Σ-length at the failure:
+-- Σ only grows, so re-validating before it has is pure re-work (a
+-- port-stored judgment citing an unsolved hole fails at every
+-- lookup until the mirror lands it — a measured 2x on the meter)
+%noinline
+invalidAt : IORef (SortedMap (Integer, Integer) Nat)
+invalidAt = mkRef 24 empty
+
+%noinline
+failedHere : (Integer, Integer) -> Nat -> IO Bool
+failedHere k n = do
+  m <- readIORef invalidAt
+  pure (case lookup k m of
+          Just n' => n' == n
+          Nothing => False)
+
+%noinline
+markFailed : (Integer, Integer) -> Nat -> IO ()
+markFailed k n = modifyIORef invalidAt (insert k n)
+
 lookupElDeriv : Sig -> Ctx -> Elem -> Ty -> Maybe Deriv
 lookupElDeriv sig ctx e ty = unsafePerformIO $ do
   m <- readIORef storedEl
@@ -492,12 +512,18 @@ lookupElDeriv sig ctx e ty = unsafePerformIO $ do
     Just d =>
       if isValidated (h1 + 63, h2)
         then Just <$> serveShared (h1, h2) ctx d
-        else if concludesEl sig ctx d e ty
-          then do
-            _ <- markValidated (h1 + 63, h2)
-            d' <- serveShared (h1, h2) ctx d
-            pure (if reconDebug then trace "el: stored deriv used" (Just d') else Just d')
-          else pure (if reconDebug then trace "el: stored deriv stale" Nothing else Nothing)
+        else do
+          let n = length (toList sig)
+          False <- failedHere (h1 + 63, h2) n
+            | True => pure Nothing
+          if concludesEl sig ctx d e ty
+            then do
+              _ <- markValidated (h1 + 63, h2)
+              d' <- serveShared (h1, h2) ctx d
+              pure (if reconDebug then trace "el: stored deriv used" (Just d') else Just d')
+            else do
+              markFailed (h1 + 63, h2) n
+              pure (if reconDebug then trace "el: stored deriv stale" Nothing else Nothing)
     Nothing => pure Nothing
 
 -- births store OPTIMISTICALLY: the lookup validates before every
@@ -693,12 +719,18 @@ lookupTyDeriv sig ctx t = unsafePerformIO $ do
     Just d =>
       if isValidated (h1 + 127, h2)
         then Just <$> serveShared (h1 + 5, h2) ctx d
-        else if concludesTy sig ctx d t
-          then do
-            _ <- markValidated (h1 + 127, h2)
-            d' <- serveShared (h1 + 5, h2) ctx d
-            pure (if reconDebug then trace "ty: stored formation used" (Just d') else Just d')
-          else pure Nothing
+        else do
+          let n = length (toList sig)
+          False <- failedHere (h1 + 127, h2) n
+            | True => pure Nothing
+          if concludesTy sig ctx d t
+            then do
+              _ <- markValidated (h1 + 127, h2)
+              d' <- serveShared (h1 + 5, h2) ctx d
+              pure (if reconDebug then trace "ty: stored formation used" (Just d') else Just d')
+            else do
+              markFailed (h1 + 127, h2) n
+              pure Nothing
     Nothing => pure Nothing
 
 %noinline
@@ -733,9 +765,15 @@ lookupElDerivAt sig ctx e ty dF =
         then go rest
         else do
           let (h1, h2) = elKey ctx e ty'
-          let ok = isValidated (h1 + 63, h2) || concludesEl sig ctx d e ty'
+          let n = length (toList sig)
+          preFailed <- failedHere (h1 + 63, h2) n
+          let ok = not preFailed
+                   && (isValidated (h1 + 63, h2) || concludesEl sig ctx d e ty')
           if not ok
-            then go rest
+            then do
+              when (not preFailed && not (isValidated (h1 + 63, h2)))
+                (markFailed (h1 + 63, h2) n)
+              go rest
             else do
               _ <- markValidated (h1 + 63, h2)
               dS <- serveShared (h1, h2) ctx d
