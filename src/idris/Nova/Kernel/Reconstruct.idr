@@ -2120,6 +2120,8 @@ dTag (DElReflect _) = "reflect"
 dTag (DCodeEqCong _ _ _) = "codeeqcong"
 dTag _ = "?"
 
+lemBridgeT : Sig -> Ctx -> List Step -> Nat -> Ty -> Ty -> Maybe Deriv
+
 -- a ℕ-constructor spelling's typing, written down directly (a
 -- reflected equation's side has no structural projection, but its
 -- SPELLING is in the walker's hand)
@@ -2170,6 +2172,65 @@ childE 0 (SigmaElim1 t) = Just t
 childE 0 (SigmaElim2 t) = Just t
 childE _ _ = Nothing
 
+-- an entry's typing coerced to the EXACT spelling an enclosing node
+-- demands: identical spellings pass through, nf-equal ones ride
+-- nf-eq, a REAL index shift rides the recorded license pool — the
+-- one coercion the walk cannot dodge (a beta-redex whose earlier
+-- argument was rewritten instantiates later domains at the new
+-- index while the entries' witnesses speak the old)
+fitEntry : Sig -> Maybe Ctx -> Deriv -> Deriv -> Deriv
+fitEntry sig mctx dE dA = fromMaybe plainCoe $ do
+  ctx <- mctx
+  Right (JEl _ tE, _) <- Just (runKM (conclude [] sig ctx dE) fuelR)
+    | _ => dbg "wit: fitE conclude dE dead" Nothing
+  Right (JTy tA, _) <- Just (runKM (conclude [] sig ctx dA) fuelR)
+    | _ => dbg "wit: fitE conclude dA dead" Nothing
+  if tE == tA
+    then Just dE
+    else do
+      tEN <- nfT sig tE
+      tAN <- nfT sig tA
+      if tEN == tAN
+        then Just plainCoe
+        else do
+          let pool = unsafePerformIO (readIORef licPoolRef)
+          dBr <- dbg "wit: fitE bridge dead \{show tEN} VS \{show tAN}"
+                   (lemBridgeT sig ctx pool 6 tEN tAN)
+          -- tE ≐ tEN ≐ tAN ≐ tA, each leg its own rule
+          pure (DElTyCoe (DTySym (DNfExpandTy dA))
+                 (DElTyCoe dBr
+                   (DElTyCoe (DNfExpandTy (DPresupElTy dE)) dE)))
+ where
+  plainCoe : Deriv
+  plainCoe = DElTyCoe (DNfEqTy (DPresupElTy dE) dA) dE
+
+-- a stepped premise coerced back to the ORIGINAL node's concluded
+-- type: same three-way fit, the target read off the old node
+fitNode : Sig -> Maybe Ctx -> Deriv -> Deriv -> Deriv
+fitNode sig mctx old new = fromMaybe plainCoe $ do
+  ctx <- mctx
+  Right (JEl _ tN, _) <- Just (runKM (conclude [] sig ctx new) fuelR)
+    | _ => dbg "wit: fitN conclude new dead" Nothing
+  Right (JEl _ tO, _) <- Just (runKM (conclude [] sig ctx old) fuelR)
+    | _ => dbg "wit: fitN conclude old dead" Nothing
+  if tN == tO
+    then Just new
+    else do
+      tNN <- nfT sig tN
+      tON <- nfT sig tO
+      if tNN == tON
+        then Just plainCoe
+        else do
+          let pool = unsafePerformIO (readIORef licPoolRef)
+          dBr <- dbg "wit: fitN bridge dead \{show tNN} VS \{show tON}"
+                   (lemBridgeT sig ctx pool 6 tNN tON)
+          pure (DElTyCoe (DTySym (DNfExpandTy (DPresupElTy old)))
+                 (DElTyCoe dBr
+                   (DElTyCoe (DNfExpandTy (DPresupElTy new)) new)))
+ where
+  plainCoe : Deriv
+  plainCoe = DElTyCoe (DNfEqTy (DPresupElTy new) (DPresupElTy old)) new
+
 mutual
   -- normalize a witness to a structural head: type coercions are
   -- transparent (the term beneath is what the walk follows), and a
@@ -2202,7 +2263,7 @@ mutual
   dvView sig (DPresupElL (DNfEq da _)) = dvView sig da
   dvView sig (DPresupElR (DNfEq _ db)) = dvView sig db
   dvView sig (DPresupElL (DBetaAt _ d)) = dvView sig d
-  dvView sig (DPresupElR (DBetaAt q d)) = stepTypedE sig q Nothing d >>= dvView sig
+  dvView sig (DPresupElR (DBetaAt q d)) = stepTypedE sig Nothing q Nothing d >>= dvView sig
   dvView sig (DPresupElL (DElAppCong dc de dB)) =
     dvView sig (DElPiE (DPresupElL dc) (DPresupElL de) dB)
   dvView sig (DPresupElR (DElAppCong dc de dB)) =
@@ -2271,8 +2332,8 @@ mutual
 
   -- the redex's contraction, witnessed: exactly step1E's head cases,
   -- each contractum's derivation assembled from the redex's premises
-  headTyped : Sig -> Maybe Elem -> Deriv -> Maybe Deriv
-  headTyped sig me d = do
+  headTyped : Sig -> Maybe Ctx -> Maybe Elem -> Deriv -> Maybe Deriv
+  headTyped sig mctx me d = do
     v <- dbg "wit: no head view" (dvView sig d)
     case v of
       DElPiE dF dE dB => do
@@ -2280,10 +2341,9 @@ mutual
         let DElPiI dA dBody = vF
           | _ => dbg "wit: head fn not lam: \{dTag vF}" Nothing
         -- the argument's typing may spell the domain differently
-        -- than the λ's own formation (recorded vs re-inferred
-        -- spellings): sub-ext checks them EXACTLY — coerce
-        let dE' = DElTyCoe (DNfEqTy (DPresupElTy dE) dA) dE
-        pure (subWrapD (DSubExt DSubId dA dE') dBody)
+        -- than the λ's own formation, or sit a REAL index shift
+        -- away: sub-ext checks spellings EXACTLY — fit the entry
+        pure (subWrapD (DSubExt DSubId dA (fitEntry sig mctx dE dA)) dBody)
       DElSig x dSubN => do
         dBody <- dbg "wit: no sig deriv \{x}"
                    (lookupSigDeriv x <|> lazySigDeriv sig x)
@@ -2314,30 +2374,29 @@ mutual
 
   ||| One ≜ contraction at a path, on the WITNESS: the enclosing nodes
   ||| rebuild around the stepped premise.
-  stepTypedE : Sig -> List Nat -> Maybe Elem -> Deriv -> Maybe Deriv
-  stepTypedE sig [] me d = headTyped sig me d
-  stepTypedE sig (i :: p) me d = do
+  stepTypedE : Sig -> Maybe Ctx -> List Nat -> Maybe Elem -> Deriv -> Maybe Deriv
+  stepTypedE sig mctx [] me d = headTyped sig mctx me d
+  stepTypedE sig mctx (i :: p) me d = do
     v <- dbg "wit: no view at \{show (i :: p)}" (dvView sig d)
     let mc = me >>= childE i
     case (v, i) of
-      (DElPiE dF dE dB, 0) => (\x => DElPiE (reTyped dF x) dE dB) <$> stepTypedE sig p mc dF
-      (DElPiE dF dE dB, 1) => (\x => DElPiE dF (reTyped dE x) dB) <$> stepTypedE sig p mc dE
-      (DElNatE dM dZ dSt dT, 0) => (\x => DElNatE dM (reTyped dZ x) dSt dT) <$> stepTypedE sig p mc dZ
-      (DElNatE dM dZ dSt dT, 1) => (\x => DElNatE dM dZ (reTyped dSt x) dT) <$> stepTypedE sig p mc dSt
-      (DElNatE dM dZ dSt dT, 2) => (\x => DElNatE dM dZ dSt (reTyped dT x)) <$> stepTypedE sig p mc dT
-      (DElNatS d', 0) => (DElNatS . reTyped d') <$> stepTypedE sig p mc d'
-      (DElSigmaI dU dB dV, 0) => (\x => DElSigmaI (reTyped dU x) dB dV) <$> stepTypedE sig p mc dU
-      (DElSigmaI dU dB dV, 1) => (\x => DElSigmaI dU dB (reTyped dV x)) <$> stepTypedE sig p mc dV
-      (DElSigmaE1 d', 0) => (DElSigmaE1 . reTyped d') <$> stepTypedE sig p mc d'
-      (DElSigmaE2 d', 0) => (DElSigmaE2 . reTyped d') <$> stepTypedE sig p mc d'
+      (DElPiE dF dE dB, 0) => (\x => DElPiE (reTyped dF x) dE dB) <$> stepTypedE sig mctx p mc dF
+      (DElPiE dF dE dB, 1) => (\x => DElPiE dF (reTyped dE x) dB) <$> stepTypedE sig mctx p mc dE
+      (DElNatE dM dZ dSt dT, 0) => (\x => DElNatE dM (reTyped dZ x) dSt dT) <$> stepTypedE sig mctx p mc dZ
+      (DElNatE dM dZ dSt dT, 1) => (\x => DElNatE dM dZ (reTyped dSt x) dT) <$> stepTypedE sig Nothing p mc dSt
+      (DElNatE dM dZ dSt dT, 2) => (\x => DElNatE dM dZ dSt (reTyped dT x)) <$> stepTypedE sig mctx p mc dT
+      (DElNatS d', 0) => (DElNatS . reTyped d') <$> stepTypedE sig mctx p mc d'
+      (DElSigmaI dU dB dV, 0) => (\x => DElSigmaI (reTyped dU x) dB dV) <$> stepTypedE sig mctx p mc dU
+      (DElSigmaI dU dB dV, 1) => (\x => DElSigmaI dU dB (reTyped dV x)) <$> stepTypedE sig mctx p mc dV
+      (DElSigmaE1 d', 0) => (DElSigmaE1 . reTyped d') <$> stepTypedE sig mctx p mc d'
+      (DElSigmaE2 d', 0) => (DElSigmaE2 . reTyped d') <$> stepTypedE sig mctx p mc d'
       _ => dbg "wit: no case at \{show (i :: p)}: \{dTag v}" Nothing
    where
-    -- a stepped premise concludes at an nf-EQUAL but possibly
-    -- differently-spelled type (an unfold rewrites the type's spelling
-    -- too); the enclosing node demands the ORIGINAL spelling exactly —
-    -- coerce back along nf-eq of the two presupposed formations
+    -- a stepped premise concludes at a differently-spelled — or
+    -- genuinely SHIFTED — type; the enclosing node demands the
+    -- ORIGINAL spelling exactly: the three-way fit closes it
     reTyped : Deriv -> Deriv -> Deriv
-    reTyped old new = DElTyCoe (DNfEqTy (DPresupElTy new) (DPresupElTy old)) new
+    reTyped old new = fitNode sig mctx old new
 
 -- the chain's rolling STRUCTURAL witness (alongside the compact
 -- presupposition witness): set per side, transformed per exposure,
@@ -2494,7 +2553,6 @@ lemmaInsts : Sig -> Ctx -> Step -> Nat -> List Elem -> (Elem, Elem) -> List (Der
 ||| recording may speak another context's variables.
 sigLawInsts : Sig -> Ctx -> (Elem, Elem) -> List (Elem, Elem, Deriv)
 
-lemBridgeT : Sig -> Ctx -> List Step -> Nat -> Ty -> Ty -> Maybe Deriv
 lemBridgeT _ _ _ Z _ _ = Nothing
 lemBridgeT sig ctx pool (S fuel) (El x) (El y) =
   if x == y
@@ -3868,7 +3926,7 @@ stepChainE sig ctx positional allSteps mTyEx ty (chain, dCur, cur) step =
       -- subject reduction run forward on the derivation (a failure
       -- just drops the witness — placements fall back to
       -- reconstruction, never the chain)
-      let w' = readChainWit () >>= stepTypedE sig step.path (Just cur)
+      let w' = readChainWit () >>= stepTypedE sig (Just ctx) step.path (Just cur)
       _ <- setChainWit (if reconDebug then trace "wit: step \{show step.path} -> \{show (isJust w')}" w' else w')
       pure (DElTrans chain link, DPresupElR link, cur')
     _ => do
