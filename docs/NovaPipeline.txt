@@ -791,10 +791,21 @@ Phasing:
      node demands — identical spellings pass, nf-equal ones ride
      nf-eq, a REAL index shift rides the license pool through
      lemBridgeT with the ambient context threaded (dropped at
-     binders). The remaining gap, precisely: the shifted β's next
-     domain compares El-tower-at-stuck-index against the unfolded
-     Σ-form spelled one binder deeper — an El-vs-former bridge with
-     a context skew the fit does not yet reconcile.]
+     binders). The El-vs-former leg of that gap now closes (the
+     El-vs-former clause gained the nf'd and match-proposed
+     instances the El/El clause already had, plus its mirror
+     orientation), and lemBridgeT walks Π/Σ towers component-wise
+     (structural descent preserving the rewrite-chain fuel, refl
+     where a component already agrees, instances under binders
+     supplied by the context-robust signature-law matcher after the
+     empty-recordings bail learned to defer to proposals). What
+     remains is the COMPOSITION of those closures inside one
+     fitNode call on the partially-applied function's Π-tower: each
+     leg closes in isolation, and the assembled search still
+     declines — an exploration-ordering residue in the legacy
+     replay's bridge, not a missing rule. The corner is exactly the
+     class of reconciliation the judgment-carrying port dissolves:
+     a witness carried from birth is spelled right by construction.]
 
 ////////// Phase 3 end-state, revised: judgment-carrying elaboration //////////
 

@@ -2122,6 +2122,9 @@ dTag _ = "?"
 
 lemBridgeT : Sig -> Ctx -> List Step -> Nat -> Ty -> Ty -> Maybe Deriv
 
+-- refl where the spellings already agree, the bridge otherwise
+lemBridgeTR : Sig -> Ctx -> List Step -> Nat -> Ty -> Ty -> Maybe Deriv
+
 -- a ℕ-constructor spelling's typing, written down directly (a
 -- reflected equation's side has no structural projection, but its
 -- SPELLING is in the walker's hand)
@@ -2194,8 +2197,9 @@ fitEntry sig mctx dE dA = fromMaybe plainCoe $ do
         then Just plainCoe
         else do
           let pool = unsafePerformIO (readIORef licPoolRef)
+          _ <- resetBudget 50000
           dBr <- dbg "wit: fitE bridge dead \{show tEN} VS \{show tAN}"
-                   (lemBridgeT sig ctx pool 6 tEN tAN)
+                   (lemBridgeT sig ctx pool 16 tEN tAN)
           -- tE ≐ tEN ≐ tAN ≐ tA, each leg its own rule
           pure (DElTyCoe (DTySym (DNfExpandTy dA))
                  (DElTyCoe dBr
@@ -2222,8 +2226,9 @@ fitNode sig mctx old new = fromMaybe plainCoe $ do
         then Just plainCoe
         else do
           let pool = unsafePerformIO (readIORef licPoolRef)
+          _ <- resetBudget 50000
           dBr <- dbg "wit: fitN bridge dead \{show tNN} VS \{show tON}"
-                   (lemBridgeT sig ctx pool 6 tNN tON)
+                   (lemBridgeT sig ctx pool 16 tNN tON)
           pure (DElTyCoe (DTySym (DNfExpandTy (DPresupElTy old)))
                  (DElTyCoe dBr
                    (DElTyCoe (DNfExpandTy (DPresupElTy new)) new)))
@@ -2558,10 +2563,12 @@ lemBridgeT sig ctx pool (S fuel) (El x) (El y) =
   if x == y
     then DTyRefl <$> reTy sig ctx (El x) emptySkel
     else do
-      -- the pool is tiny and fully instantiated: no matches means
-      -- no bridge, decided before anything walks or checks
+      -- the pool is tiny and fully instantiated: nothing to try
+      -- means no bridge, decided before anything walks or checks
+      -- (closeAt can still PROPOSE instances from the pool's lemmas
+      -- and the signature's laws, so only a bare call bails)
       let is = recInsts
-      let False = null is
+      let False = null is && null pool
         | True => Nothing
       _ <- if reconDebug
              then trace "wit: LB \{show (length is)} insts FOR \{show x} VS \{show y}: \{show (map (\(u, v, _) => (u, v)) is)}" (Just ())
@@ -2799,15 +2806,74 @@ lemBridgeT sig ctx pool (S fuel) (El x) b = goPool pool
         rec <- lemBridgeT sig ctx pool fuel (El x') b
         pure (DTyTrans dEl rec)
 
+  -- as in the El/El clause: an instance's spelling may hold a
+  -- β-redex the goal's nf'd code has contracted — offer nf'd sides,
+  -- the equation conjugated by nf-expansion
+  atNfG : (Deriv, Elem, Elem) -> List (Elem, Elem, Deriv)
+  atNfG (dEq, le, re) =
+    case (nfE sig le, nfE sig re) of
+      (Just leN, Just reN) =>
+        if leN == le && reN == re then []
+          else [(leN, reN,
+                 DElTrans (DElSym (DNfExpand (DPresupElL dEq)))
+                   (DElTrans dEq (DNfExpand (DPresupElR dEq))))]
+      _ => []
+
+  -- closed signature laws instantiated by matching against the
+  -- SUBTERMS the rewrite could land on (small ones only)
+  propG : List (Elem, Elem, Deriv)
+  propG =
+    concatMap (\q =>
+      case subAtE q x of
+        Just (Left sub) =>
+          if candPosOver 30 sub then []
+            else sigLawInsts sig ctx (sub, sub)
+        _ => [])
+      ([] :: take 40 (snd (candPosB 160 [] x)))
+
+  insts : List (Elem, Elem, Deriv)
+  insts =
+    concatMap (\st =>
+      (case reLicensed sig ctx st 0 of
+         Just (dEq, le, re, _) => [(le, re, dEq)] ++ atNfG (dEq, le, re)
+         Nothing => [])
+      ++ (case reLicensedRaw sig ctx st 0 of
+            Just (dEq, le, re, _) => [(le, re, dEq)] ++ atNfG (dEq, le, re)
+            Nothing => [])) pool
+    ++ propG
+
   goPool : List Step -> Maybe Deriv
-  goPool [] = Nothing
-  goPool (st :: rest) =
-    (do (dEq, le, re, _) <- reLicensed sig ctx st 0
-        tryInst dEq le re <|> tryInst (DElSym dEq) re le)
-    <|> (do (dEq, le, re, _) <- reLicensedRaw sig ctx st 0
-            tryInst dEq le re <|> tryInst (DElSym dEq) re le)
-    <|> goPool rest
+  goPool _ = goIs insts
+   where
+    goIs : List (Elem, Elem, Deriv) -> Maybe Deriv
+    goIs [] = dbg "wit: LBf dead \{show x} VS \{show b}" Nothing
+    goIs ((le, re, dEq) :: rest) =
+      tryInst dEq le re <|> tryInst (DElSym dEq) re le <|> goIs rest
+-- a Π/Σ pair differing at an inner component: component-wise
+-- congruence, each leg refl where it already agrees (a function
+-- prefix's type shifts only at the domains the rewrite reaches)
+lemBridgeT sig ctx pool (S fuel) (Ty.PiTy a0 b0) (Ty.PiTy a1 b1) =
+  -- structural descent, not search: the types shrink, so the fuel
+  -- (which bounds the REWRITE chains) carries through undiminished
+  (if reconDebug then trace "wit: LBpi enter \{show fuel}" (Just ()) else Just ()) >>= \_ =>
+  [| DTyPiCong (dbg "wit: LBpi dom dead \{show a0} VS \{show a1}"
+                 (lemBridgeTR sig ctx pool (S fuel) a0 a1))
+               (dbg "wit: LBpi cod dead"
+                 (lemBridgeTR sig (ctx :< a1) pool (S fuel) b0 b1)) |]
+lemBridgeT sig ctx pool (S fuel) (Ty.SigmaTy a0 b0) (Ty.SigmaTy a1 b1) =
+  [| DTySigmaCong (lemBridgeTR sig ctx pool (S fuel) a0 a1)
+                  (lemBridgeTR sig (ctx :< a1) pool (S fuel) b0 b1) |]
+-- an exposed former against an El code: the El-vs-former clause,
+-- mirrored (the unfolding blocked behind an index law can sit on
+-- either side)
+lemBridgeT sig ctx pool (S fuel) a b@(El _) =
+  DTySym <$> dbg "wit: LBflip dead" (lemBridgeT sig ctx pool (S fuel) b a)
 lemBridgeT _ _ _ _ _ _ = Nothing
+
+lemBridgeTR sig ctx pool fuel a b =
+  if a == b
+    then DTyRefl <$> (lookupTyDeriv sig ctx a <|> reTy sig ctx a emptySkel)
+    else lemBridgeT sig ctx pool fuel a b
 
 eqAtNf : Sig -> Ctx -> Deriv -> Ty -> Ty -> Maybe Deriv
 eqAtNf sig ctx dEq cur tgt =
