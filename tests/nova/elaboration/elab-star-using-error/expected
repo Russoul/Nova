@@ -1,0 +1,2 @@
+defined notEq
+Error: def refl0: using: 'notEq' is not an equation lemma in the visible store

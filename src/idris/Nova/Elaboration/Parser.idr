@@ -415,11 +415,33 @@ mutual
             body <- parseSElem tbl (env :< fst x); sp; kwc ')'
             pure (SSquashElim e x body))
     <|> (do kw "⋆"
-            w <- optional (do space; parseSElemAtom tbl env)
-            pure (case w of
-                    Nothing => SStar
-                    Just e  => SStarWit e))
+            -- `using` is a CONTEXTUAL keyword: recognized only here,
+            -- immediately after ⋆ (a witness genuinely named `using`
+            -- is written parenthesized: ⋆ (using))
+            u <- optional (do space; kw "using"; space; parseUsingNames)
+            case u of
+              Just ns => pure (SStarUsing ns)
+              Nothing => do
+                w <- optional (do space; parseSElemAtom tbl env)
+                pure (case w of
+                        Nothing => SStar
+                        Just e  => SStarWit e))
     <|> parseSElemApp tbl env
+   where
+    -- a lemma reference for a using-clause: a (possibly qualified)
+    -- identifier, or a bare operator token (no infix context here, so
+    -- no mention form needed)
+    usingName : Rule String
+    usingName = parseDottedName <|> parseOpName
+
+    parseUsingNames : Rule (List String)
+    parseUsingNames =
+          (do kwc '('; sp
+              n <- usingName
+              ns <- many (do sp; kwc ','; sp; usingName)
+              sp; kwc ')'
+              pure (n :: ns))
+      <|> (do n <- usingName; pure [n])
 
   -- t{3}: application / projection chains
   parseSElemApp : FixTable -> NameEnv -> Rule SElem
