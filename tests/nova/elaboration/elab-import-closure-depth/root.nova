@@ -1,0 +1,13 @@
+-- REGRESSION (modClosure fuel): five shallow imports whose duplicate
+-- base-mentions exhausted the old walk's fuel before `e` was reached,
+-- silently dropping e's archive from the root's visible store — the
+-- using clause turns that into a hard error, so acceptance here pins
+-- the closure walk's completeness
+import a
+import b
+import c
+import d
+import e
+
+def probe : (x : ℕ) (y : ℕ) → (x ≡ y ∈ ℕ) → y ≡ x ∈ ℕ using (e.esym) ≔
+  λx. λy. λh. ⋆

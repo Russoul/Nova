@@ -4575,15 +4575,20 @@ openReport tbl st =
 ||| the imported module's Σ segment.
 ||| Transitive import closure over the finished modules' import lists.
 modClosure : List (String, List String) -> List String -> List String
-modClosure imps = go (length imps) []
+modClosure imps = go (S (length imps)) []
  where
+  -- fuel bounds ADDITIONS (at most one per known module, so |imps|+1
+  -- suffices); a duplicate skip shrinks the frontier structurally and
+  -- must not spend fuel — the frontier holds one entry per MENTION,
+  -- and charging skips truncated deep closures (the store-visibility
+  -- bug a root with many shared dependencies exposed)
   go : Nat -> List String -> List String -> List String
   go Z acc _ = acc
-  go (S fuel) acc [] = acc
-  go (S fuel) acc (m :: ms) =
+  go fuel acc [] = acc
+  go fuel@(S fuel') acc (m :: ms) =
     if m `elem` acc
       then go fuel acc ms
-      else go fuel (m :: acc) (fromMaybe [] (lookup m imps) ++ ms)
+      else go fuel' (m :: acc) (fromMaybe [] (lookup m imps) ++ ms)
 
 ||| Archive the module that just finished and scope the store to the
 ||| next module's import closure. The visible list is the closure's

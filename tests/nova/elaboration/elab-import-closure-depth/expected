@@ -1,0 +1,14 @@
+module base:
+defined bzero
+module a:
+defined adef
+module b:
+defined bdef
+module c:
+defined cdef
+module d:
+defined ddef
+module e:
+defined esym
+defined probe
+Accepted.
