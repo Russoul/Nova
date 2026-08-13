@@ -288,11 +288,28 @@ mutual
             (do sp; kw "→"; sp; e' <- parseSElemNoComma tbl (env :< wildcard); pure (SPiC wildcard e e'))
               <|> (do sp; kw "⨯"; sp; e' <- parseSElemNoComma tbl (env :< wildcard); pure (SSigmaC wildcard e e'))
               <|> (do sp; kw "/"; sp; (x, y, r) <- parseQuotRelC tbl env; pure (SQuotC e x y r))
+              -- calc chain: ≡⟨ … ⟩ disambiguates from the equality
+              -- prop by its very next character (backtracking)
+              <|> (do sp; links <- parseChainLinks tbl env
+                      pure (SChain e links))
               <|> (do sp; kw "≡"; sp
                       e1 <- parseSElemSumC tbl env; sp; kw "∈"; sp
                       t2 <- parseSTyEl tbl env
                       pure (SEqC e e1 t2))
               <|> pure e)
+
+  -- links of a calc chain: ≡⟨ justification ⟩ midpoint, one or more
+  -- (docs/SearchlessElaboration.md §5.2); the justification is a full
+  -- element (delimited by ⟩), the midpoint sits at the equality
+  -- prop's own side level
+  parseChainLinks : FixTable -> NameEnv -> Rule (List (SElem, SElem))
+  parseChainLinks tbl env = do
+    kw "≡⟨"; sp
+    j <- parseSElem tbl env
+    sp; kw "⟩"; sp
+    x <- parseSElemSumC tbl env
+    rest <- optional (do sp; parseChainLinks tbl env)
+    pure ((j, x) :: fromMaybe [] rest)
 
   -- t{1¼}: the ⊎ code — like the ⊎ type, tighter than the other
   -- infix code formers
@@ -346,9 +363,14 @@ mutual
   -- t{2}: prefix forms, motive-first eliminators
   parseSElemPrefix : FixTable -> NameEnv -> Rule SElem
   parseSElemPrefix tbl env =
-        -- λ's body extends over operators: λx. x + y ≡ λx. (x + y)
+        -- λ's body extends over operators: λx. x + y ≡ λx. (x + y) —
+        -- and over a following CALC CHAIN, which scopes under the λ:
+        -- λx. a ≡⟨ e ⟩ b parses as λx. (a ≡⟨ e ⟩ b)
         (do kw "λ"; sp; x <- parseNameR; sp; kwc '.'; sp
-            e <- parseSElemOp tbl (env :< fst x); pure (SLam x e))
+            e <- parseSElemOp tbl (env :< fst x)
+            (do sp; links <- parseChainLinks tbl (env :< fst x)
+                pure (SLam x (SChain e links)))
+              <|> pure (SLam x e))
         -- let x ≔ e in b / let x : T ≔ e in b — the annotated form is
         -- sugar for an ascribed definiens (the definiens elaborates in
         -- inference mode); the body extends over operators, like λ's.

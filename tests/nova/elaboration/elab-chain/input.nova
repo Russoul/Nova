@@ -1,0 +1,35 @@
+-- calc chains (SearchlessElaboration.md §5.2): midpoints once, each
+-- link a named sub-equation; adjacency positions/orientations found
+-- by the LINK-SCOPED engine (never the global store), the composite
+-- certificate stitched from the adjacency certificates
+infixl 6 +
+infixl 7 *
+def + : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
+def * : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) Z (n ih. x + ih) y
+def plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ ≔ λn. ⋆
+def plusSucId : (n : ℕ) (m : ℕ) → n + S m ≡ S (n + m) ∈ ℕ ≔ λn. λm. ⋆
+def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ ≔ λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
+def sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ ≔
+  λn. λm. ℕ-elim (k. S n + k ≡ S (n + k) ∈ ℕ) ⋆ (k ih. ⋆) m
+def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ ≔
+  λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ ℕ) ⋆ (k ih. ⋆) m
+def plusAssoc : (n : ℕ) (m : ℕ) (k : ℕ) → n + m + k ≡ n + (m + k) ∈ ℕ ≔
+  λn. λm. λk. ℕ-elim (j. n + m + j ≡ n + (m + j) ∈ ℕ) ⋆ (j ih. ⋆) k
+def swapLeft : (a : ℕ) (b : ℕ) (c : ℕ) → a + (b + c) ≡ b + (a + c) ∈ ℕ ≔
+  λa. λb. λc. ℕ-elim (k. a + (b + k) ≡ b + (a + k) ∈ ℕ) ⋆ (k ih. ⋆) c
+def multZeroId : (n : ℕ) → n * Z ≡ Z ∈ ℕ ≔ λn. ⋆
+def multSucId : (n : ℕ) (m : ℕ) → n * S m ≡ n + n * m ∈ ℕ ≔ λn. λm. ⋆
+def zeroMult : (n : ℕ) → Z * n ≡ Z ∈ ℕ ≔ λn. ℕ-elim (k. Z * k ≡ Z ∈ ℕ) ⋆ (k ih. ⋆) n
+def sucMult : (n : ℕ) (m : ℕ) → S n * m ≡ m + n * m ∈ ℕ ≔
+  λn. λm. ℕ-elim (k. S n * k ≡ k + n * k ∈ ℕ) ⋆ (k ih. ⋆) m
+def multComm : (n : ℕ) (m : ℕ) → m * n ≡ n * m ∈ ℕ ≔
+  λn. λm. ℕ-elim (k. k * n ≡ n * k ∈ ℕ) ⋆ (k ih. ⋆) m
+
+-- each link is a SUB-equation, applied at an inner position and (for
+-- the second) in the flipped orientation — no cong, no sym
+def mulComm2 : (u1 : ℕ) (u2 : ℕ) (v1 : ℕ) (v2 : ℕ) →
+  u1 * v1 + u2 * v2 ≡ v1 * u1 + v2 * u2 ∈ ℕ ≔
+  λu1. λu2. λv1. λv2.
+    u1 * v1 + u2 * v2
+      ≡⟨ multComm v1 u1 ⟩ v1 * u1 + u2 * v2
+      ≡⟨ multComm u2 v2 ⟩ v1 * u1 + v2 * u2

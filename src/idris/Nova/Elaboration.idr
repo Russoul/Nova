@@ -188,9 +188,17 @@ record ElabSt where
   ||| `⋆ using (…)` site (docs/SearchlessElaboration.md §5.3); Nothing
   ||| = the full store, the historical behavior.
   scope : Maybe (List String)
+  ||| SITE-LOCAL candidates, merged into every candidate set while
+  ||| set: the reflected link justifications of a calc chain (§5.2).
+  ||| Ground, at the site's own context — set transiently, like scope.
+  localCands : List Cand
+  ||| transient override of the engine's match/hop depth budget: a
+  ||| chain needs one hop per link, so its composite discharge runs at
+  ||| depth links + spDepth instead of the fixed spDepth
+  depthOv : Maybe Nat
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" [<] Nothing
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" [<] Nothing [] Nothing
 
 ||| Resolve a surface signature reference: aliases first (own module,
 ||| opened imports), else the name itself (qualified references reach
@@ -252,6 +260,19 @@ withScope sc act = do
   modifySt { scope := sc }
   r <- act
   modifySt { scope := old }
+  pure r
+
+||| Run an action with site-local candidates, an EMPTY Σ-scope (a
+||| chain never consults the global store) and a depth budget sized to
+||| the chain — restoring all three after. Used by the calc-chain rule
+||| (docs/SearchlessElaboration.md §5.2).
+withLocal : List Cand -> Nat -> ElabM a -> ElabM a
+withLocal cs d act = do
+  st <- getSt
+  let (oldC, oldD, oldS) = (st.localCands, st.depthOv, st.scope)
+  modifySt { localCands := cs, depthOv := Just d, scope := Just [] }
+  r <- act
+  modifySt { localCands := oldC, depthOv := oldD, scope := oldS }
   pure r
 
 -- ===== Small core utilities =====
@@ -1381,7 +1402,7 @@ mkCandSet st ctx =
       sRw = case st.scope of
               Nothing => st.candRw
               Just _ => sShrink ++ sRest
-  in case hypCands st sRw ctx of
+  in case hypCands st sRw ctx ++ st.localCands of
        [] => MkCandSet sCs sRw sHops
        hs =>
          let (hcs, hsh, hre, hhp) = sigCandParts hs
@@ -2261,7 +2282,7 @@ mutual
     let cs = bump "candN" (cast (length cs0.all)) cs0
     let tyM = bump "sz-att-in" (cast (elemSize a + elemSize b)) ty
     let tyM2 = bump "sz-att-nf" (cast (elemSize (betaElem st.sig a) + elemSize (betaElem st.sig b))) tyM
-    let mcert = spEqElemC spDepth st cs ctx a b tyM2
+    let mcert = spEqElemC (fromMaybe spDepth st.depthOv) st cs ctx a b tyM2
     let t2 = bump "engine" (nowNs () - t1) (nowNs ())
     case mcert of
       Nothing => pure (Left site)
@@ -2277,7 +2298,7 @@ mutual
     let t0 = nowNs ()
     let cs = mkCandSet st ctx
     let t1 = bump "cands" (nowNs () - t0) (nowNs ())
-    let mcert = spEqTyC spDepth st cs ctx tyA tyB
+    let mcert = spEqTyC (fromMaybe spDepth st.depthOv) st cs ctx tyA tyB
     let t2 = bump "engine" (nowNs () - t1) (nowNs ())
     case mcert of
       Nothing => pure (Left site)
@@ -3330,6 +3351,8 @@ mutual
     throw "\{site}: cannot infer the type of ⋆ ⟨witness⟩\{structuralHint}"
   inferElem ctx env site (SStarUsing _) =
     throw "\{site}: cannot infer the type of ⋆ using (…)\{structuralHint}"
+  inferElem ctx env site (SChain _ _) =
+    throw "\{site}: cannot infer the type of a chain (its equality comes from the expected Prf type)\{structuralHint}"
   inferElem ctx env site (SSquashElim _ _ _) =
     throw "\{site}: cannot infer the type of squash-elim\{structuralHint}"
   inferElem ctx env site (SEqC l r t) = do
@@ -3514,6 +3537,99 @@ mutual
             then pure ()
             else throw "\{site}: using: '\{x}' is not an equation lemma in the visible store") rs
     withScope (Just rs) (checkElem ctx env site SStar ty)
+  -- e-chain (docs/SearchlessElaboration.md §5.2): x ≡⟨ e ⟩ y … at
+  -- Prf (l ≡ r ∈ A). Midpoints check at A; each justification INFERS
+  -- and must prove an equation, which becomes a site-local ground
+  -- candidate (its reflected equation, exactly a hypothesis's shape).
+  -- Each ADJACENCY discharges against its own link's candidate plus
+  -- hypotheses — never the global store — so a failed link surfaces
+  -- as its own obligation, at its own step. The COMPOSITE l ≐ r then
+  -- discharges once with every link in scope and one hop of depth per
+  -- link; the certificate composition (bridging, positional steps,
+  -- flips) is the engine's ordinary step materialization. Erases to ⋆.
+  checkElem ctx env site (SChain x0 links) ty = do
+    st <- getSt
+    case preferPrf st ctx ty of
+      Nothing => throw "\{site}: a chain proves an equality — checked against a non-Prf type\{structuralHint}"
+      Just (p, exp) => do
+        let pUse = case p of
+                     Elem.EqTy _ _ _ => p
+                     _ => betaElem st.sig p
+        case pUse of
+          Elem.EqTy l r tA => do
+            (x0', _) <- checkElem ctx env site x0 tA
+            mids <- traverse (\(_, x) => map fst (checkElem ctx env site x tA)) links
+            cands <- traverse (\(j, _) => linkCand j) links
+            adjCerts <- adjacencies tA 1 x0' (zip cands mids)
+            cert <- composite tA l r cands adjCerts
+            pure (Star, withExpose exp (Nd [PReflEq (certOr cert)] []))
+          _ => throw "\{site}: chain checked against a non-equality proposition\{structuralHint}"
+   where
+    ||| a link justification, inferred and reflected into a ground
+    ||| candidate (closed under component decomposition, like a
+    ||| hypothesis)
+    linkCand : SElem -> ElabM (List Cand)
+    linkCand j = do
+      (j', jTy, _) <- inferElem ctx env site j
+      st <- getSt
+      case betaTy st.sig jTy of
+        Prf pj => case betaElem st.sig pj of
+          Elem.EqTy u v _ =>
+            pure (closeCand (MkCand "chain link" 0 []
+                    (betaElem st.sig u) (betaElem st.sig v)
+                    (\_ => Just (j', [])) [] []))
+          _ => throw "\{site}: a chain justification must prove an equation"
+        _ => throw "\{site}: a chain justification must prove an equation"
+
+    ||| discharge each adjacency against ITS link only; a failure is
+    ||| an ordinary obligation sited at its step (and, being scoped,
+    ||| gets a global-store hint if one exists)
+    adjacencies : Ty -> Nat -> Elem -> List (List Cand, Elem) -> ElabM (List (Maybe ECert))
+    adjacencies tA i prev [] = pure []
+    adjacencies tA i prev ((cs, next) :: rest) = do
+      m <- withLocal cs spDepth $
+             convElem ctx env "\{site}: chain, step \{show i}" Nothing prev next tA
+      ms <- adjacencies tA (S i) next rest
+      pure (m :: ms)
+
+    ||| TRANSITIVITY STITCHING of one adjacency certificate (xᵢ ≐ xᵢ₊₁,
+    ||| flattenable: bridge-free steps + FBeta) into the composite's
+    ||| lhs walk: the lhs steps forward (they start from nf(xᵢ), which
+    ||| is where the previous segment ended), then the rhs steps
+    ||| REVERSED and INVERTED — walking the common normal form back out
+    ||| to xᵢ₊₁ (the flip-toggle is materialize's own inversion
+    ||| discipline; the kernel re-normalizes after every step, so the
+    ||| segments meet on the nose)
+    stitchOne : List Step -> List Step
+    stitchOne steps =
+      filter (\s => s.onLhs) steps
+        ++ map (\s => { flip $= not, onLhs := True } s)
+               (reverse (filter (\s => not s.onLhs) steps))
+
+    ||| the composite certificate for l ≐ r: stitch the adjacency
+    ||| certificates and validate by kernel replay; when stitching is
+    ||| unavailable (a failed adjacency keeps the run honest without a
+    ||| second obligation; an exotic final falls back to one scoped
+    ||| engine call over all the links), degrade exactly as ⋆ does
+    composite : Ty -> Elem -> Elem -> List (List Cand) -> List (Maybe ECert) -> ElabM (Maybe ECert)
+    composite tA l r cands adjCerts = do
+      st <- getSt
+      if not (all isJust adjCerts)
+        then pure Nothing   -- the failed step already carries the obligation
+        else do
+          let stitched = map (map stitchOne . flatSteps) (catMaybes adjCerts)
+          case traverse id stitched of
+            Just segs =>
+              let cert = MkECert (concat segs) FBeta in
+              case kCheckEqElem st.sig ctx kernelFuel cert l r tA of
+                Right () => pure (Just cert)
+                Left _ => fallback
+            Nothing => fallback
+     where
+      fallback : ElabM (Maybe ECert)
+      fallback =
+        withLocal (concat cands) (length links + spDepth) $
+          convElem ctx env "\{site}: checking chain" Nothing l r tA
   checkElem ctx env site (SStarWit w) ty = do
     st <- getSt
     -- ⋆ w against a solvable-hole-headed prop: the witness's inferred
