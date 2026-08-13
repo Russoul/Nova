@@ -2993,7 +2993,15 @@ rePlaceE sig ctx step d [] exp cur mty wit =
                         (meetLe 24 (DElRefl (DPresupElL dEq0)) le)
                pure (DElTrans (DElSym dch) dEq0)
     d' <- if t == exp then Just dEq
-          else do
+          else (do
+            -- component-wise bridge on the RAW spellings first: nf
+            -- of the whole instance is exactly the blowup this leaf
+            -- keeps dying on, while the components stay small
+            let pool = readLicPool ()
+            dBr <- lemBridgeTF sig ctx pool 16
+                     (Just (DPresupElTy (DPresupElL dEq)), Nothing) t exp
+            pure (DElEqTyCoe dBr dEq))
+          <|> do
             tN <- dbg "leaf: fit nfT t dead \{show t}" (nfT sig t)
             eN <- dbg "leaf: fit nfT exp dead \{show exp}" (nfT sig exp)
             if tN == eN
