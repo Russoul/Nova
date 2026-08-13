@@ -51,7 +51,7 @@ itemRange = fromMaybe emptyRange
 ||| `Nova.Elaboration.Parser.parseSData`), so this is item-level
 ||| granularity, same caveat as `ModUnit.mitems`.
 itemNames : SItem -> List String
-itemNames (SDef x _ _) = [x]
+itemNames (SDef x _ _ _) = [x]
 itemNames (SDeclDef _ x _) = [x]
 itemNames (STypeDef x _) = [x]
 itemNames (SData _ decls) = map dqname decls
@@ -161,7 +161,7 @@ documentSymbols lns = concatMap toSymbols
   toSymbols (rng, item) =
     let r = itemRange rng in
     case item of
-      SDef x _ _    => [mkSymbol lns x Function r]
+      SDef x _ _ _  => [mkSymbol lns x Function r]
       SDeclDef _ x _ => [mkSymbol lns x Function r]
       STypeDef x _  => [mkSymbol lns x Class r]
       SData _ decls => map (\d => mkSymbol lns d.dqname (declSymbolKind d.dqres) r) decls

@@ -1,0 +1,2 @@
+#!/bin/sh
+NOVA_SCOPED=1 "$1" elab input.nova

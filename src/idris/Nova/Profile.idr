@@ -12,8 +12,10 @@ module Nova.Profile
 
 import Data.IORef
 import Data.List
+import Data.Maybe
 import System.Clock
 import System
+import System.File
 
 %default covering
 
@@ -39,6 +41,26 @@ export
 bump : String -> Integer -> (x : a) -> a
 bump label d x = unsafePerformIO $ do
   modifyIORef slots (add label d)
+  pure x
+
+||| NOVA_SCOPED=1: every def without a `using` clause elaborates with
+||| an EMPTY Σ-scope — its discharges see hypotheses and computation
+||| only, and store use must be named (SearchlessElaboration.md §5.3,
+||| the searchless default). Read once per process; a mode, not a
+||| trusted-path concern (scoping only ever removes candidates).
+export
+scopedMode : Bool
+scopedMode = unsafePerformIO (map isJust (getEnv "NOVA_SCOPED"))
+
+||| Print an audit line to stderr under NOVA_AUDIT=1, returning `x`
+||| unchanged — the scope-migration survey hook (which discharge sites
+||| consume which Σ-lemmas), same non-trusted-path discipline as bump.
+export
+audit : String -> (x : a) -> a
+audit line x = unsafePerformIO $ do
+  Just _ <- getEnv "NOVA_AUDIT"
+    | Nothing => pure x
+  _ <- fPutStrLn stderr line
   pure x
 
 ||| Printed only under NOVA_PROFILE=1, so ordinary runs are unchanged.

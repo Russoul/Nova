@@ -157,6 +157,23 @@ parseOpRef = do
   op <- parseOpName
   pure (joinBy "." (pre ++ [op]))
 
+||| A lemma reference for a `using` clause (term-level `⋆ using` and
+||| item-level `def … using`): a (possibly qualified) identifier, or a
+||| bare operator token (no infix context here, so no mention form
+||| needed).
+usingName : Rule String
+usingName = parseDottedName <|> parseOpName
+
+export
+parseUsingNames : Rule (List String)
+parseUsingNames =
+      (do kwc '('; sp
+          n <- usingName
+          ns <- many (do sp; kwc ','; sp; usingName)
+          sp; kwc ')'
+          pure (n :: ns))
+  <|> (do n <- usingName; pure [n])
+
 foldGroups : (String -> a -> b -> b) -> List (String, a) -> b -> b
 foldGroups f [] b = b
 foldGroups f ((x, t) :: rest) b = f x t (foldGroups f rest b)
@@ -449,21 +466,6 @@ mutual
                         Nothing => SStar
                         Just e  => SStarWit e))
     <|> parseSElemApp tbl env
-   where
-    -- a lemma reference for a using-clause: a (possibly qualified)
-    -- identifier, or a bare operator token (no infix context here, so
-    -- no mention form needed)
-    usingName : Rule String
-    usingName = parseDottedName <|> parseOpName
-
-    parseUsingNames : Rule (List String)
-    parseUsingNames =
-          (do kwc '('; sp
-              n <- usingName
-              ns <- many (do sp; kwc ','; sp; usingName)
-              sp; kwc ')'
-              pure (n :: ns))
-      <|> (do n <- usingName; pure [n])
 
   -- t{3}: application / projection chains
   parseSElemApp : FixTable -> NameEnv -> Rule SElem
@@ -762,14 +764,24 @@ parseSItem tbl =
           (r, x) <- bounds (parseName <|> parseOpName); sp
           kwc ':'; sp
           ty <- parseSTy tbl [<]; sp
+          -- item-level using (SearchlessElaboration.md §5.3): scopes
+          -- EVERY discharge of the item — ⋆s, switches, WD premises —
+          -- to the named lemmas plus hypotheses
+          muses <- optional (do kw "using"; sp; ns <- parseUsingNames; sp; pure ns)
           metaEta <- optional (do kwc '['; sp; n <- parseName; sp; kwc ']'; sp; pure n)
           mbody <- optional (do kw "≔"; sp; commit; parseSElem tbl [<])
           cls <- many (do sp; parseSClause tbl x)
           case (metaEta, mbody, cls) of
-            (Nothing, Just body, []) => pure (SDef x ty body)
+            (Nothing, Just body, []) => pure (SDef x ty body muses)
             -- a def without a definiens: a DECLARATION
-            (Nothing, Nothing, []) => pure (SDeclDef r x ty)
-            (_, _, (c :: cs)) => pure (SClausalDef r x ty metaEta mbody (c :: cs))
+            (Nothing, Nothing, []) =>
+              case muses of
+                Nothing => pure (SDeclDef r x ty)
+                Just _ => fail "a declaration discharges nothing — using is for defs with a definiens"
+            (_, _, (c :: cs)) =>
+              case muses of
+                Nothing => pure (SClausalDef r x ty metaEta mbody (c :: cs))
+                Just _ => fail "using on a clausal def is not supported yet"
             (Just _, _, []) => fail "clauses expected after a uniqueness-name override")
   <|> (do kw "type"; space; commit
           x <- parseName; sp
