@@ -1,0 +1,3 @@
+import base
+
+def esym : (n : ℕ) (m : ℕ) → (n ≡ m ∈ ℕ) → m ≡ n ∈ ℕ ≔ λn. λm. λh. ⋆
