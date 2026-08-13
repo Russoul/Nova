@@ -176,9 +176,15 @@ record ElabSt where
   ||| opened names of its imports (last entry wins; locals were already
   ||| resolved by the parser and never reach this table)
   vis : SnocList (String, String)
+  ||| when Just, the Σ-level candidate SCOPE of the current discharge
+  ||| site: only the lemmas named here participate in matching and
+  ||| rewriting (hypotheses of Γ always do). Set transiently around a
+  ||| `⋆ using (…)` site (docs/SearchlessElaboration.md §5.3); Nothing
+  ||| = the full store, the historical behavior.
+  scope : Maybe (List String)
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" [<]
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" [<] Nothing
 
 ||| Resolve a surface signature reference: aliases first (own module,
 ||| opened imports), else the name itself (qualified references reach
@@ -227,6 +233,20 @@ putSt st = modifySt (const st)
 
 throw : Err -> ElabM a
 throw e = MkElabM $ \_ => Left e
+
+||| Run an action with the discharge scope set (docs/
+||| SearchlessElaboration.md §5.3), restoring the previous scope after.
+||| An error aborts the run outright (the state is discarded on Left),
+||| so no restore is needed on that path.
+withScope : Maybe (List String) -> ElabM a -> ElabM a
+withScope Nothing act = act
+withScope sc act = do
+  st <- getSt
+  let old = st.scope
+  modifySt { scope := sc }
+  r <- act
+  modifySt { scope := old }
+  pure r
 
 -- ===== Small core utilities =====
 
@@ -1244,12 +1264,14 @@ closeCand c =
 ||| Eq-typed hypotheses of Γ (leading Πs peeled) as candidates with base
 ||| Γ. Ground hypotheses (no peeled binders) are additionally normalized
 ||| against the lemma store, RECORDING the normalization so the kernel
-||| can bridge from the raw reflected equation.
-hypCands : ElabSt -> Ctx -> List Cand
-hypCands st ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length ctx) 1])
+||| can bridge from the raw reflected equation. The rewrite set is a
+||| parameter so a SCOPED site normalizes its hypotheses against the
+||| scoped rules only.
+hypCands : ElabSt -> (rw : List Cand) -> Ctx -> List Cand
+hypCands st rw ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length ctx) 1])
  where
   lemmaRw : List Cand
-  lemmaRw = st.candRw
+  lemmaRw = rw
 
   toPSteps : List Step -> List PStep
   toPSteps = map (\s => MkPStep s.path (licProof s.lic) s.sels s.flip)
@@ -1338,13 +1360,28 @@ mkCandSet st ctx =
   -- The Σ-level part is cached in ElabSt (sigCandParts); only the
   -- Γ-level hypotheses are computed here, and at a top-level item
   -- there are none.
-  case hypCands st ctx of
-    [] => MkCandSet st.candCs st.candRw st.candHops
-    hs =>
-      let (hcs, hsh, hre, hhp) = sigCandParts hs
-      in MkCandSet (st.candCs ++ hcs)
-                   (st.candShrink ++ hsh ++ st.candRest ++ hre)
-                   (st.candHops ++ hhp)
+  --
+  -- A SCOPE (a `⋆ using` site) restricts the Σ-level part to the named
+  -- lemmas — the partition is recomputed over the filtered store, and
+  -- the hypotheses normalize against the scoped rules. Candidate SIDES
+  -- were normalized against the store as of their acceptance (a global
+  -- property of the stored form, unchanged by scoping); scoping
+  -- controls which equations PARTICIPATE.
+  let (sCs, sShrink, sRest, sHops) =
+        the (List Cand, List Cand, List Cand, List Cand) $
+        case st.scope of
+          Nothing => (st.candCs, st.candShrink, st.candRest, st.candHops)
+          Just names => sigCandParts (filter (\c => elem c.candName names) st.lemmas)
+      sRw = case st.scope of
+              Nothing => st.candRw
+              Just _ => sShrink ++ sRest
+  in case hypCands st sRw ctx of
+       [] => MkCandSet sCs sRw sHops
+       hs =>
+         let (hcs, hsh, hre, hhp) = sigCandParts hs
+         in MkCandSet (sCs ++ hcs)
+                      (sShrink ++ hsh ++ sRest ++ hre)
+                      (sHops ++ hhp)
 
 rwNfElem : ElabSt -> Ctx -> Elem -> Elem
 rwNfElem st ctx e = fst (rwNfElemS st.sig (mkCandSet st ctx).rw True e)
@@ -3205,6 +3242,8 @@ mutual
     throw "\{site}: cannot infer the type of ⋆\{structuralHint}"
   inferElem ctx env site (SStarWit _) =
     throw "\{site}: cannot infer the type of ⋆ ⟨witness⟩\{structuralHint}"
+  inferElem ctx env site (SStarUsing _) =
+    throw "\{site}: cannot infer the type of ⋆ using (…)\{structuralHint}"
   inferElem ctx env site (SSquashElim _ _ _) =
     throw "\{site}: cannot infer the type of squash-elim\{structuralHint}"
   inferElem ctx env site (SEqC l r t) = do
@@ -3371,6 +3410,24 @@ mutual
               Ty.OneTy => pure (Star, withExpose exp (Nd [PSquashWit OneIntro (Nd [] [])] []))
               _ => throw "\{site}: ⋆ can prove only equality props and 𝟙-shaped squashes automatically (write `⋆ ⟨witness⟩` to supply one directly)"
           _ => throw "\{site}: ⋆ checked against a non-evident proposition\{structuralHint}"
+  -- ⋆ using (…): the SStar rule verbatim, under a discharge scope —
+  -- only the named lemmas (plus hypotheses) participate, so the site
+  -- is deterministic and module-local (SearchlessElaboration.md §5.3).
+  -- Names resolve like any signature reference (aliases first); a name
+  -- that is absent, or present but not an equation lemma of the
+  -- visible store, is a structural error — it could only scope the
+  -- site to nothing.
+  checkElem ctx env site (SStarUsing ns) ty = do
+    st <- getSt
+    let rs = map (resolveSigName st) ns
+    traverse_ (\x =>
+      case sigLookup x st.sig of
+        Nothing => throw "\{site}: using: unknown name '\{x}'"
+        Just _ =>
+          if any (\c => c.candName == x) st.lemmas
+            then pure ()
+            else throw "\{site}: using: '\{x}' is not an equation lemma in the visible store") rs
+    withScope (Just rs) (checkElem ctx env site SStar ty)
   checkElem ctx env site (SStarWit w) ty = do
     st <- getSt
     -- ⋆ w against a solvable-hole-headed prop: the witness's inferred

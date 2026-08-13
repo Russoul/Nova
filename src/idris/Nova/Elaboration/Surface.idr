@@ -147,6 +147,13 @@ mutual
     ||| ⋆ e — el-squash-i with an explicit witness: e proves the
     ||| squashee directly, for squashees of any shape
     SStarWit : SElem -> SElem
+    ||| ⋆ using n / ⋆ using (n, …) — the canonical proof with a SCOPED
+    ||| discharge: only the named Σ lemmas (plus the hypotheses of Γ)
+    ||| participate in the equation's discharge, so acceptance of the
+    ||| site depends on nothing else in the store — deterministic and
+    ||| module-local (docs/SearchlessElaboration.md §5.3). Names are
+    ||| surface spellings, resolved against Σ at elaboration time.
+    SStarUsing : List String -> SElem
     ||| squash-elim e (x. body) — el-squash-e-prf: eliminate a proof of
     ||| a squashed proposition into a further proposition, via a
     ||| hypothetical inhabitant x of the raw squashee
@@ -369,6 +376,7 @@ mutual
     show (SSquash t) = "Squash (\{show t})"
     show SStar = "⋆"
     show (SStarWit e) = "⋆ (\{show e})"
+    show (SStarUsing ns) = "⋆ using (\{joinBy ", " ns})"
     show (SSquashElim e x body) = "SquashElim (\{show e}) \{fst x} (\{show body})"
     show (SAnn t ty) = "Ann (\{show t}) (\{show ty})"
     show (SHole _ solvable x) = if solvable then "_\{x}" else "?\{x}"
