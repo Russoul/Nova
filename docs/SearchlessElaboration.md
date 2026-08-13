@@ -62,12 +62,12 @@ the extensionality dividend. None of it consults the store. Mechanisms
 ## 2. The numbers
 
 Measurement setup: three labels added inside the speculative engine
-(`sp-rwnf`, `sp-rwnf-ty` around the rewrite fixpoints; `sp-match` /
+(`rwnf-elem`, `rwnf-ty` around the rewrite fixpoints; `sp-match` /
 `sp-struct` / `sp-cong` around the three alternatives of
 `spEqElemC`'s slow path), same `NOVA_PROFILE=1` scaffolding as the
 existing `engine`/`kernel`/`cands` labels. Caveat for readers of the
 raw dump: hops recurse into `spEqElemC`, so the slow-path labels are
-cumulative-inclusive and overlap; `sp-rwnf`/`sp-rwnf-ty` are leaf
+cumulative-inclusive and overlap; `rwnf-elem`/`rwnf-ty` are leaf
 intervals and sum truthfully.
 
 `all.nova` (the whole corpus in one run, accepted; ~17.1s wall
@@ -546,7 +546,7 @@ Everything below is measurement scaffolding or experiment, not design
 commitment; all of it is inert without `NOVA_PROFILE=1` except the
 classifier change, which the full corpus regression covers.
 
-* Profiling labels in `Nova/Elaboration.idr`: `sp-rwnf`, `sp-rwnf-ty`
+* Profiling labels in `Nova/Elaboration.idr`: `rwnf-elem`, `rwnf-ty`
   (rewrite-fixpoint leaf time), `sp-match`/`sp-struct`/`sp-cong`
   (slow-path alternatives; cumulative-inclusive under hop recursion),
   `sz-att-in`/`sz-att-nf` (top-level goal sizes, written vs
