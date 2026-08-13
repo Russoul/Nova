@@ -103,6 +103,10 @@ record Obligation where
   stmt : Stmt
   site : String
   composite : Maybe Stmt
+  ||| advisory (docs/SearchlessElaboration.md §5.4): what a one-shot
+  ||| GLOBAL-store probe found when this SCOPED site failed — search
+  ||| as feedback, never as acceptance
+  hint : Maybe String
 
 ||| Display metadata of one assumed constraint — outside the theory,
 ||| consumed only by the report printer. The statement itself lives in
@@ -114,6 +118,8 @@ record OblMeta where
   oenv : NameEnv
   osite : String
   ocomposite : Maybe Stmt
+  ||| advisory hint recorded at assume time (§5.4) — display only
+  ohint : Maybe String
 
 ||| Display metadata of one hole — same discipline as OblMeta: the
 ||| hole itself is a declaration entry of Σ; this record is aligned
@@ -2095,9 +2101,9 @@ oblView st = go (toList st.sig) (toList st.oblMeta)
  where
   go : List SigEntry -> List OblMeta -> List Obligation
   go (SigEq ctx a b ty :: rest) (m :: ms) =
-    MkObl (zonkStmt st (StElem ctx m.oenv a b ty)) m.osite (map (zonkStmt st) m.ocomposite) :: go rest ms
+    MkObl (zonkStmt st (StElem ctx m.oenv a b ty)) m.osite (map (zonkStmt st) m.ocomposite) m.ohint :: go rest ms
   go (SigTyEq ctx x y :: rest) (m :: ms) =
-    MkObl (zonkStmt st (StTy ctx m.oenv x y)) m.osite (map (zonkStmt st) m.ocomposite) :: go rest ms
+    MkObl (zonkStmt st (StTy ctx m.oenv x y)) m.osite (map (zonkStmt st) m.ocomposite) m.ohint :: go rest ms
   go (_ :: rest) ms = go rest ms
   go [] _ = []
 
@@ -2127,6 +2133,74 @@ holeView st = mapMaybe view (toList st.sig)
   view (SigTyDecl ctx x) = map (\m => MkHoleView x (zonkCtx st ctx) m.henv Nothing m.hsite m.hrange) (metaFor x)
   view _ = Nothing
 
+||| Σ-lemma names a certificate's steps rely on: heads of LProof
+||| elements (hypothesis proofs are CtxVar-headed and contribute
+||| nothing), nested certificates included. Display only.
+hintNamesC : ECert -> List String
+hintNamesC (MkECertF tyEx steps final) =
+  (case tyEx of
+     Nothing => []
+     Just (_, c) => hintNamesC c)
+    ++ concatMap fromStep steps
+    ++ fromFinal final
+ where
+  headName : Elem -> List String
+  headName (PiApp f _) = headName f
+  headName (SigVar x _) = [x]
+  headName _ = []
+
+  fromStep : Step -> List String
+  fromStep s = case s.lic of
+                 LProof e => headName e
+                 LPath _ _ _ => []
+
+  fromFinal : Final -> List String
+  fromFinal (FWitness (Just c)) = hintNamesC c
+  fromFinal (FEtaPi c) = hintNamesC c
+  fromFinal (FEtaSigma c1 c2) = hintNamesC c1 ++ hintNamesC c2
+  fromFinal (FPrfCong c) = hintNamesC c
+  fromFinal (FQuotCong c) = hintNamesC c
+  fromFinal (FPiCong c1 c2) = hintNamesC c1 ++ hintNamesC c2
+  fromFinal (FSigmaCong c1 c2) = hintNamesC c1 ++ hintNamesC c2
+  fromFinal (FSumCong c1 c2) = hintNamesC c1 ++ hintNamesC c2
+  fromFinal _ = []
+
+||| §5.4 (docs/SearchlessElaboration.md): when a SCOPED site is about
+||| to assume, probe the GLOBAL store once. A discharge the kernel
+||| replays becomes a hint on the obligation — search as feedback,
+||| never as acceptance (the site stays assumed either way).
+hintE : ElabSt -> Ctx -> Elem -> Elem -> Ty -> Maybe String
+hintE st ctx a b ty =
+  case st.scope of
+    Nothing => Nothing
+    Just _ =>
+      let stG = { scope := Nothing } st in
+      case spEqElemC spDepth stG (mkCandSet stG ctx) ctx a b ty of
+        Nothing => Nothing
+        Just cert =>
+          case kCheckEqElem stG.sig ctx kernelFuel cert a b ty of
+            Left _ => Nothing
+            Right () =>
+              case nub (hintNamesC cert) of
+                [] => Nothing
+                ns => Just "closes with \{joinBy ", " ns}"
+
+hintT : ElabSt -> Ctx -> Ty -> Ty -> Maybe String
+hintT st ctx x y =
+  case st.scope of
+    Nothing => Nothing
+    Just _ =>
+      let stG = { scope := Nothing } st in
+      case spEqTyC spDepth stG (mkCandSet stG ctx) ctx x y of
+        Nothing => Nothing
+        Just cert =>
+          case kCheckEqTy stG.sig ctx kernelFuel cert x y of
+            Left _ => Nothing
+            Right () =>
+              case nub (hintNamesC cert) of
+                [] => Nothing
+                ns => Just "closes with \{joinBy ", " ns}"
+
 ||| ASSUME (docs/NovaElaboration.txt, ↓ step 8): append the equation to
 ||| Σ as a constraint entry — sig-eq/sig-ty-eq; the signature is OPEN
 ||| from here until a rerun stops minting the entry — and record its
@@ -2141,7 +2215,7 @@ assume stmt site comp = do
         else modifySt $ \s =>
           { assumedE $= ((ctx, rwNfElem st ctx a, rwNfElem st ctx b, betaTy st.sig ty) ::)
           , sig $= (:< SigEq ctx a b ty)
-          , oblMeta $= (:< MkOblMeta env site comp) } s
+          , oblMeta $= (:< MkOblMeta env site comp (hintOf st)) } s
     StTy ctx env x y => do
       let x' = rwNfTy st ctx x
           y' = rwNfTy st ctx y
@@ -2150,7 +2224,19 @@ assume stmt site comp = do
         else modifySt $ \s =>
           { assumedT $= ((ctx, x', y') ::)
           , sig $= (:< SigTyEq ctx x y)
-          , oblMeta $= (:< MkOblMeta env site comp) } s
+          , oblMeta $= (:< MkOblMeta env site comp (hintOf st)) } s
+ where
+  hintFor : ElabSt -> Stmt -> Maybe String
+  hintFor st (StElem ctx _ a b ty) = hintE st ctx a b ty
+  hintFor st (StTy ctx _ x y) = hintT st ctx x y
+
+  ||| the statement's own hint, else the COMPOSITE's — a decomposed
+  ||| child may be unprovable while the composite it descended from
+  ||| closes wholesale (the report prints the composite alongside)
+  hintOf : ElabSt -> Maybe String
+  hintOf st =
+    hintFor st stmt
+      <|> (comp >>= \c => map ("composite " ++) (hintFor st c))
  where
   fst4 : (a, b, c, d) -> a
   fst4 (x, _, _, _) = x
@@ -4292,7 +4378,10 @@ prettyObligation tbl i obl =
   "      at: \{obl.site}" ++
   (case obl.composite of
      Nothing => ""
-     Just c => "\n      from composite: \{prettyStmt tbl c}")
+     Just c => "\n      from composite: \{prettyStmt tbl c}") ++
+  (case obl.hint of
+     Nothing => ""
+     Just h => "\n      hint: \{h}")
 
 ||| One module of a program: its dotted name ("" for the root file,
 ||| whose entries stay unqualified), its import lines, its items.
