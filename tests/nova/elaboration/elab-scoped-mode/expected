@@ -1,0 +1,13 @@
+defined +
+defined zeroPlusId
+defined sucPlus
+defined plusComm
+defined byComputation
+defined byHypothesis
+defined needsStore [+1 obligation]
+defined named
+open obligations (1):
+  [1] (a : ℕ) (b : ℕ) ⊢ a ≐ b : ℕ
+      at: def needsStore: checking ⋆
+      from composite: (a : ℕ) (b : ℕ) ⊢ a + b ≐ b + a : ℕ
+      hint: composite closes with plusComm

@@ -1,0 +1,18 @@
+-- NOVA_SCOPED=1: an item WITHOUT a using clause discharges with
+-- hypotheses and computation only — store use must be named
+infixl 6 +
+def + : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
+def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ ≔ λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
+def sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ ≔
+  λn. λm. ℕ-elim (k. S n + k ≡ S (n + k) ∈ ℕ) ⋆ (k ih. ⋆) m
+def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ using (sucPlus, zeroPlusId) ≔
+  λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ ℕ) ⋆ (k ih. ⋆) m
+
+-- computation + hypotheses still silent: no store needed
+def byComputation : (n : ℕ) → n + Z ≡ n ∈ ℕ ≔ λn. ⋆
+def byHypothesis : (a : ℕ) (b : ℕ) (c : ℕ) → (a ≡ b ∈ ℕ) → a + c ≡ b + c ∈ ℕ ≔
+  λa. λb. λc. λh. ⋆
+-- store use unnamed: an obligation, with the hint naming the remedy
+def needsStore : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ ≔ λa. λb. ⋆
+-- the same site, named: silent
+def named : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ using (plusComm) ≔ λa. λb. ⋆

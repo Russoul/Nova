@@ -262,6 +262,24 @@ withScope sc act = do
   modifySt { scope := old }
   pure r
 
+||| Resolve and validate a `using` clause's names (term- or
+||| item-level): aliases first, then the name itself; a name that is
+||| absent from Σ, or present but not an equation lemma of the visible
+||| store, is a structural error — it could only scope the site to
+||| nothing.
+resolveUsingNames : String -> List String -> ElabM (List String)
+resolveUsingNames site ns = do
+  st <- getSt
+  let rs = map (resolveSigName st) ns
+  traverse_ (\x =>
+    case sigLookup x st.sig of
+      Nothing => throw "\{site}: using: unknown name '\{x}'"
+      Just _ =>
+        if any (\c => c.candName == x) st.lemmas
+          then pure ()
+          else throw "\{site}: using: '\{x}' is not an equation lemma in the visible store") rs
+  pure rs
+
 ||| Run an action with site-local candidates, an EMPTY Σ-scope (a
 ||| chain never consults the global store) and a depth budget sized to
 ||| the chain — restoring all three after. Used by the calc-chain rule
@@ -2289,7 +2307,10 @@ mutual
       Just cert =>
         let kres = kCheckEqElem st.sig ctx kernelFuel cert a b ty in
         case bump "kernel" (nowNs () - t2) kres of
-          Right () => pure (Right cert)
+          Right () =>
+            let names = nub (hintNamesC cert) in
+            pure (Right (if null names then cert
+                           else audit "AUDIT elem | \{st.modPrefix} | \{site} | \{joinBy ", " names}" cert))
           Left kerrMsg => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
 
   attemptT : Ctx -> String -> Ty -> Ty -> ElabM (Either String ECert)
@@ -2305,7 +2326,10 @@ mutual
       Just cert =>
         let kres = kCheckEqTy st.sig ctx kernelFuel cert tyA tyB in
         case bump "kernel" (nowNs () - t2) kres of
-          Right () => pure (Right cert)
+          Right () =>
+            let names = nub (hintNamesC cert) in
+            pure (Right (if null names then cert
+                           else audit "AUDIT ty | \{st.modPrefix} | \{site} | \{joinBy ", " names}" cert))
           Left kerrMsg => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
 
   ||| One side is an UNSOLVED SOLVABLE hole at its own context: flip
@@ -3527,15 +3551,7 @@ mutual
   -- visible store, is a structural error — it could only scope the
   -- site to nothing.
   checkElem ctx env site (SStarUsing ns) ty = do
-    st <- getSt
-    let rs = map (resolveSigName st) ns
-    traverse_ (\x =>
-      case sigLookup x st.sig of
-        Nothing => throw "\{site}: using: unknown name '\{x}'"
-        Just _ =>
-          if any (\c => c.candName == x) st.lemmas
-            then pure ()
-            else throw "\{site}: using: '\{x}' is not an equation lemma in the visible store") rs
+    rs <- resolveUsingNames site ns
     withScope (Just rs) (checkElem ctx env site SStar ty)
   -- e-chain (docs/SearchlessElaboration.md §5.2): x ≡⟨ e ⟩ y … at
   -- Prf (l ≡ r ∈ A). Midpoints check at A; each justification INFERS
@@ -4108,7 +4124,7 @@ elabItem item = do
                    , not (n `elem` acc) ]
     in if null step then acc else closeRefs pool fuel (acc ++ step) step
 
-elabItemGo (SDef x ty body) = do
+elabItemGo (SDef x ty body muses) = do
   oblsAtStart <- constraintCount
   census <- openCensus
   st <- getSt
@@ -4118,10 +4134,17 @@ elabItemGo (SDef x ty body) = do
   case sigLookup q st.sig of
     Just _ => throw "def \{x}: duplicate signature name"
     Nothing => pure ()
+  -- the item's discharge scope: its using-clause if it has one; under
+  -- NOVA_SCOPED, an unannotated item sees hypotheses and computation
+  -- only (the searchless default — SearchlessElaboration.md §5.3);
+  -- otherwise the full store (the historical behavior)
+  sc <- case muses of
+          Just ns => map Just (resolveUsingNames "def \{x}" ns)
+          Nothing => pure (if scopedMode then Just [] else Nothing)
   -- items live in the EMPTY context: parameters are Π-binders in the
   -- item's type, references are bare names
-  (ty', tySk) <- elabTy [<] [<] "def \{x}" ty
-  (body', bodySk) <- checkElem [<] [<] "def \{x}" body ty'
+  (ty', tySk) <- withScope sc (elabTy [<] [<] "def \{x}" ty)
+  (body', bodySk) <- withScope sc (checkElem [<] [<] "def \{x}" body ty')
   -- clean means the RUN is clean: an earlier item's assumption poisons
   -- everything after it (the kernel Σ cannot contain the earlier item,
   -- so references to it are unresolvable anyway)

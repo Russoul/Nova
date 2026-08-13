@@ -290,8 +290,11 @@ record SClause where
 
 public export
 data SItem : Type where
-  ||| def x : T ≔ t — always in the empty context
-  SDef : String -> STy -> SElem -> SItem
+  ||| def x : T (using (n, …))? ≔ t — always in the empty context.
+  ||| The optional using-clause scopes EVERY discharge of the item to
+  ||| the named Σ lemmas plus hypotheses
+  ||| (docs/SearchlessElaboration.md §5.3)
+  SDef : String -> STy -> SElem -> Maybe (List String) -> SItem
   ||| def x : T — a DECLARATION: a def without a definiens, entering Σ
   ||| as a sig-decl and reported as an open hole (the name's span is
   ||| kept for hover)
@@ -316,7 +319,7 @@ data SItem : Type where
 
 export
 itemName : SItem -> String
-itemName (SDef n _ _) = n
+itemName (SDef n _ _ _) = n
 itemName (SDeclDef _ n _) = n
 itemName (STypeDef n _) = n
 itemName (SData _ ds) = case ds of
@@ -444,7 +447,12 @@ Show SQDecl where
 
 export covering
 Show SItem where
-  show (SDef x ty body) = "def \{x} : \{show ty} := \{show body}"
+  show (SDef x ty body mu) =
+    "def \{x} : \{show ty}" ++
+    (case mu of
+       Nothing => ""
+       Just ns => " using (\{joinBy ", " ns})") ++
+    " := \{show body}"
   show (SDeclDef _ x ty) = "def \{x} : \{show ty}"
   show (STypeDef x ty) = "type \{x} := \{show ty}"
   show (SData ps ds) =
