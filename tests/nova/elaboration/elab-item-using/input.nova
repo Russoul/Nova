@@ -1,0 +1,18 @@
+-- item-level using (SearchlessElaboration.md §5.3): scopes EVERY
+-- discharge of the item — ⋆s, switches, exposure — to the named
+-- lemmas plus hypotheses; the restriction shows as an obligation
+infixl 6 +
+def + : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
+def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ ≔ λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
+def sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ ≔
+  λn. λm. ℕ-elim (k. S n + k ≡ S (n + k) ∈ ℕ) ⋆ (k ih. ⋆) m
+def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ ≔
+  λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ ℕ) ⋆ (k ih. ⋆) m
+def plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ ≔ λn. ⋆
+
+-- the whole item discharges against plusComm + hypotheses only
+def scopedItem : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ using (plusComm) ≔
+  λa. λb. ⋆
+-- restriction: plusComm exists but is not named
+def scopedItemBad : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ using (plusZeroId) ≔
+  λa. λb. ⋆

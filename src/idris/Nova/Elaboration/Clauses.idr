@@ -807,18 +807,18 @@ expandClausal nrng fname ty etaName witness clauses = do
       -- are fragment-shaped — it rewrites by the clause lemmas, never
       -- by unfolding the witness
       Right (MkExpansion
-               (SDef fname ty w
-                  :: zipWith3 SDef lemNames lemTys lemBodies
-                  ++ [SDef etaN eTy (fromMaybe eBodyStar eBodySynth)])
+               (SDef fname ty w Nothing
+                  :: zipWith3 (\n, t, b => SDef n t b Nothing) lemNames lemTys lemBodies
+                  ++ [SDef etaN eTy (fromMaybe eBodyStar eBodySynth) Nothing])
                "defined \{fname} by clauses via witness (\{joinBy ", " names})")
     Nothing =>
       case (shape, shape >>= shapedRho cols b k) of
         (Just _, Just rho) =>
           -- THE FRAGMENT: everything synthesized
           Right (MkExpansion
-                   (SDef fname ty rho
-                      :: zipWith3 SDef lemNames lemTys lemBodies
-                      ++ [SDef etaN eTy (fromMaybe eBodyStar eBodySynth)])
+                   (SDef fname ty rho Nothing
+                      :: zipWith3 (\n, t, b => SDef n t b Nothing) lemNames lemTys lemBodies
+                      ++ [SDef etaN eTy (fromMaybe eBodyStar eBodySynth) Nothing])
                    "defined \{fname} by clauses (\{joinBy ", " names})")
         _ =>
           -- DECLARATION TIER: the whole batch demotes to named rigid
