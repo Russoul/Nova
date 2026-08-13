@@ -3616,20 +3616,29 @@ mutual
         (e, sk) <- checkElem ctx env site t ty
         pure (e, sk, Nothing)
    where
-    -- the ported switch: the judgment survives only when the
-    -- inferred type IS the expected spelling (a conversion coercion
-    -- is a later route — it needs the equation as a derivation)
+    -- the ported switch. Identical spellings pass the judgment
+    -- through; different ones coerce along nf-eq of the TWO
+    -- FORMATIONS IN HAND (the inferred side's by presupposition,
+    -- the expected side's threaded in) — an optimistic node that
+    -- concludes whenever the types are nf-equal AT CONSUMPTION,
+    -- which is post-hole-solving. A conversion true only by a
+    -- rewrite lemma stays unported (the refiner's seed).
     switchJ : ElabM (Elem, Skel, Maybe Jud)
     switchJ = do
       (t', inferred, tSk, mtJ) <- inferElemJ ctx jctx env site t
       c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
       let mJ = the (Maybe Jud) $ do
                  tJ <- mtJ
-                 let True = inferred == ty
+                 let True = tJ.ty == inferred
                    | _ => Nothing
-                 let True = tJ.ty == ty
-                   | _ => Nothing
-                 Just tJ
+                 if inferred == ty
+                   then Just tJ
+                   else do
+                     ft <- mFT
+                     let True = ft.ty == ty
+                       | _ => Nothing
+                     Just (judCoe (MkJudTyEq (DNfEqTy (DPresupElTy tJ.deriv) ft.deriv)
+                                     ctx inferred ty) tJ)
       pure (t', addPayload (PSwitch (certOr c)) tSk, mJ)
 
   ||| The formation side of the port: a ported type route CONSTRUCTS
