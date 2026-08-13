@@ -19,7 +19,7 @@ def eqNRefl : (n : ℕ) → Prf (EqN n n) ≔
 -- cases are absurd (h squashes to 𝟘, which proves anything, including
 -- an equation), the matching cases fall out of the inductive
 -- hypothesis by congruence on S
-def eqNSound : (n : ℕ) → (m : ℕ) → Prf (EqN n m) → n ≡ m ∈ ℕ ≔
+def eqNSound : (n : ℕ) → (m : ℕ) → Prf (EqN n m) → n ≡ m ∈ ℕ using (prop.propext) ≔
   λn. ℕ-elim (k. (m : ℕ) → Prf (EqN k m) → k ≡ m ∈ ℕ)
     (λm. ℕ-elim (j. Prf (EqN Z j) → Z ≡ j ∈ ℕ)
       (constP _ _ ⋆)

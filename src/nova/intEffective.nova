@@ -17,7 +17,7 @@ import quotEffective (effectiveAtEquiv)
 -- across the two hypotheses, cancel again
 def cancelStep : (a : ℕ) (b : ℕ) (c : ℕ) (d : ℕ) (e : ℕ) (f : ℕ) →
   (a + d ≡ b + c ∈ ℕ) → (c + f ≡ d + e ∈ ℕ) →
-  (a + f) + (c + d) ≡ (b + e) + (c + d) ∈ ℕ ≔
+  (a + f) + (c + d) ≡ (b + e) + (c + d) ∈ ℕ using (nat.plusAssoc) ≔
   λa. λb. λc. λd. λe. λf. λh1. λh2.
     trans _ _ _ _ (swapMid a f c d)
       (trans _ _ _ _ (plusCongL (a + d) (b + c) (c + f) h1)
@@ -26,15 +26,15 @@ def cancelStep : (a : ℕ) (b : ℕ) (c : ℕ) (d : ℕ) (e : ℕ) (f : ℕ) →
             (plusCongR (b + e) (d + c) (c + d) (plusComm c d)))))
 
 def cancelTrans : (a : ℕ) (b : ℕ) (c : ℕ) (d : ℕ) (e : ℕ) (f : ℕ) →
-  (a + d ≡ b + c ∈ ℕ) → (c + f ≡ d + e ∈ ℕ) → a + f ≡ b + e ∈ ℕ ≔
+  (a + d ≡ b + c ∈ ℕ) → (c + f ≡ d + e ∈ ℕ) → a + f ≡ b + e ∈ ℕ using (nat.plusAssoc) ≔
   λa. λb. λc. λd. λe. λf. λh1. λh2.
     plusCancel (a + f) (b + e) (c + d) (cancelStep a b c d e f h1 h2)
 
 -- IntR is an equivalence. Reflexivity and symmetry are commutativity, so
 -- one ⋆ each; transitivity is cancelTrans at the four components
-def intRRefl : (p : ℕ ⨯ ℕ) → Prf (IntR p p) ≔ λp. ⋆
+def intRRefl : (p : ℕ ⨯ ℕ) → Prf (IntR p p) using (plusComm) ≔ λp. ⋆
 
-def intRSymm : (p : ℕ ⨯ ℕ) (q : ℕ ⨯ ℕ) → Prf (IntR p q) → Prf (IntR q p) ≔
+def intRSymm : (p : ℕ ⨯ ℕ) (q : ℕ ⨯ ℕ) → Prf (IntR p q) → Prf (IntR q p) using (plusComm) ≔
   λp. λq. λh. ⋆
 
 def intRTrans : (p : ℕ ⨯ ℕ) (q : ℕ ⨯ ℕ) (s : ℕ ⨯ ℕ) →
@@ -50,5 +50,5 @@ def intEffective : (p : ℕ ⨯ ℕ) (q : ℕ ⨯ ℕ) →
 -- what it is for: the classes of (Z,Z) and (S Z, S Z) are equal
 -- (integer.nova's zeroEq), so their representatives are IntR-related —
 -- read back off the class equation, with no representative in sight
-def zeroRel : Prf (IntR (Z , Z) (S Z , S Z)) ≔
+def zeroRel : Prf (IntR (Z , Z) (S Z , S Z)) using (integer.zeroEq) ≔
   intEffective (Z , Z) (S Z , S Z) ⋆

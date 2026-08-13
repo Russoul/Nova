@@ -1,7 +1,7 @@
 import nat (+, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusAssoc)
 import vectByInd (vect)
 
-def vappend : (n : ℕ) → (A : 𝕌) → (m : ℕ) → El (vect n A) → El (vect m A) → El (vect (n + m) A) ≔
+def vappend : (n : ℕ) → (A : 𝕌) → (m : ℕ) → El (vect n A) → El (vect m A) → El (vect (n + m) A) using (sucPlus, zeroPlusId) ≔
   λn. λA. λm.
     ℕ-elim (k. El (vect k A) → El (vect m A) → El (vect (k + m) A))
       (λv. λw. w)
@@ -10,10 +10,10 @@ def vappend : (n : ℕ) → (A : 𝕌) → (m : ℕ) → El (vect n A) → El (v
 
 -- This equation holds by direct computation
 def vappendZ : (A : 𝕌) (n : ℕ) (v : El (vect Z A)) (w : El (vect n A)) → vappend Z _ _ v w ≡ w ∈ El (vect n A)
-  ≔ λA. λn. λv. λw. ⋆
+  using (zeroPlusId) ≔ λA. λn. λv. λw. ⋆
 
 def vappendS : (n : ℕ) (A : 𝕌) (m : ℕ) (v : El (vect (S n) A)) (w : El (vect m A)) →
-  vappend _ _ _ v w ≡ (v .π₁ , vappend _ _ _ (v .π₂) w) ∈ El (vect (S n + m) A) ≔
+  vappend _ _ _ v w ≡ (v .π₁ , vappend _ _ _ (v .π₂) w) ∈ El (vect (S n + m) A) using (sucPlus) ≔
                                                                --  ^^^^^^^^^ FIXME: Can't be synthesised
   λn. λA. λm. λv. λw. ⋆
 
@@ -23,7 +23,7 @@ def vappendS : (n : ℕ) (A : 𝕌) (m : ℕ) (v : El (vect (S n) A)) (w : El (v
 def vappendAssoc : (n : ℕ) (A : 𝕌) (m : ℕ) (k : ℕ) (v : El (vect m A)) (w : El (vect k A)) (u : El (vect n A)) →
   vappend _ _ _ (vappend _ _ _ u v) w
     ≡ vappend _ _ _ u (vappend _ _ _ v w)
-    ∈ El (vect _ _) ≔
+    ∈ El (vect _ _) using (plusAssoc, sucPlus, zeroPlusId) ≔
   λn. λA. λm. λk. λv. λw. λu. (ℕ-elim
     (p. (q : El (vect p _)) →
         (vappend _ _ _ (vappend _ _ _ q v) w

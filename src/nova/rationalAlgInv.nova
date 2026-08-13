@@ -53,7 +53,7 @@ def invRepWDAt : (p : El Rat) (p' : El Rat) (h : Prf (RatR p p'))
   (v' : ((e : El NZ) ⨯ Prf (nzToInt e ≡ num p' ∈ El Int))
           ⊎ Prf (num p' ≡ intZero ∈ El Int)) →
   intMul (num (invRepAt p v)) (dInt (invRepAt p' v'))
-    ≡ intMul (num (invRepAt p' v')) (dInt (invRepAt p v)) ∈ El Int ≔
+    ≡ intMul (num (invRepAt p' v')) (dInt (invRepAt p v)) ∈ El Int using (intMulOneR, intMulZeroL) ≔
   λp. λp'. λh. λv. λv'.
     ⊎-elim (w. (intMul (num (invRepAt p w)) (dInt (invRepAt p' v'))
                   ≡ intMul (num (invRepAt p' v')) (dInt (invRepAt p w)) ∈ El Int))
@@ -131,7 +131,7 @@ def invRepWD : (p : El Rat) (p' : El Rat) (h : Prf (RatR p p')) →
 
 -- ===== the inverse on ℚ =====
 
-def qInv : El Q → El Q ≔
+def qInv : El Q → El Q using (invRepWD) ≔
   λu. quot-elim (w. El Q) (p. class (invRep p)) u
 
 def qInvCls : (p : El Rat) → qInv (qcls p) ≡ qcls (invRep p) ∈ El Q ≔ λp. ⋆
@@ -172,7 +172,7 @@ def invRepRel : (p : El Rat) (e : El NZ) (he : Prf (nzToInt e ≡ num p ∈ El I
 def invRepCorrectAt : (p : El Rat) (hnz : Prf (¬ (num p ≡ intZero ∈ El Int)))
   (v : ((e : El NZ) ⨯ Prf (nzToInt e ≡ num p ∈ El Int))
          ⊎ Prf (num p ≡ intZero ∈ El Int)) →
-  class (ratMul p (invRepAt p v)) ≡ qOne ∈ El Q ≔
+  class (ratMul p (invRepAt p v)) ≡ qOne ∈ El Q using (intMulZeroR, rational.nzMulOneR) ≔
   λp. λhnz. λv.
     ⊎-elim (w. (class (ratMul p (invRepAt p w)) ≡ qOne ∈ El Q))
       (ex. clsEqOfRel (ratMul p (mkRat (dInt p) (ex .π₁))) ratOne

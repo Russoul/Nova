@@ -30,14 +30,14 @@ def classEqOfRel : (p : ℕ ⨯ ℕ) (q : ℕ ⨯ ℕ) → Prf (IntR p q) → cl
 
 -- normPair's own representative is IntR-related to its input (that's
 -- normSound), so its class is the same Int
-def classNormPairEq : (p : ℕ ⨯ ℕ) → class (normPair (p .π₁) (p .π₂)) ≡ class p ∈ El Int ≔
+def classNormPairEq : (p : ℕ ⨯ ℕ) → class (normPair (p .π₁) (p .π₂)) ≡ class p ∈ El Int using (integerNormalize.normClass, normSound) ≔
   λp. classEqOfRel (normPair (p .π₁) (p .π₂)) p (normSound (p .π₁) (p .π₂))
 
 -- normalization doesn't change the value: intNormalize z is z. The
 -- quot-elim's well-definedness goal here is an EQUATION (not an Ω
 -- code), so it's discharged for free by proof irrelevance regardless
 -- of how the representative varies.
-def intNormalizeId : (z : El Int) → intNormalize z ≡ z ∈ El Int ≔
+def intNormalizeId : (z : El Int) → intNormalize z ≡ z ∈ El Int using (classNormPairEq, integerNormalize.normClass) ≔
   λz. quot-elim (w. intNormalize w ≡ w ∈ El Int) (p. classNormPairEq p) z
 
 -- a squashed equality at any 𝕌-code reflects into a judgemental one —
@@ -49,11 +49,11 @@ def reflectSquashAt : (A : 𝕌) (a : El A) (b : El A) (h : Prf (a ≡ b ∈ El 
 
 def EqI : El Int → El Int → Ω ≔ λz1. λz2. (intNormalize z1 ≡ intNormalize z2 ∈ El Int)
 
-def eqIRefl : (z : El Int) → Prf (EqI z z) ≔ λz. ⋆
+def eqIRefl : (z : El Int) → Prf (EqI z z) using (intNormalizeId) ≔ λz. ⋆
 
 -- soundness: z1 and z2 both equal their own normalizations, which
 -- coincide whenever EqI holds
-def eqISound : (z1 : El Int) (z2 : El Int) → Prf (EqI z1 z2) → z1 ≡ z2 ∈ El Int ≔
+def eqISound : (z1 : El Int) (z2 : El Int) → Prf (EqI z1 z2) → z1 ≡ z2 ∈ El Int using (intNormalizeId) ≔
   λz1. λz2. λh.
     trans _ _ _ _
       (sym _ _ _ (intNormalizeId z1))
@@ -63,19 +63,19 @@ def eqISound : (z1 : El Int) (z2 : El Int) → Prf (EqI z1 z2) → z1 ≡ z2 ∈
 
 -- completeness: z1 ≡ z2 reflects, so intNormalize z1 and intNormalize
 -- z2 are the same term — the evident-≡-shape squashee bare ⋆ handles
-def eqIComplete : (z1 : El Int) (z2 : El Int) → (z1 ≡ z2 ∈ El Int) → Prf (EqI z1 z2) ≔
+def eqIComplete : (z1 : El Int) (z2 : El Int) → (z1 ≡ z2 ∈ El Int) → Prf (EqI z1 z2) using (intNormalizeId) ≔
   λz1. λz2. λh. ⋆
 
 -- the logical equivalence, packaged with prop.nova's ↔ against the
 -- squashed built-in equality
-def eqISoundP : (z1 : El Int) (z2 : El Int) → Prf (EqI z1 z2) → Prf (z1 ≡ z2 ∈ El Int) ≔
+def eqISoundP : (z1 : El Int) (z2 : El Int) → Prf (EqI z1 z2) → Prf (z1 ≡ z2 ∈ El Int) using (intNormalizeId) ≔
   λz1. λz2. λh. eqISound _ _ h
 
-def eqICompleteP : (z1 : El Int) (z2 : El Int) → Prf (z1 ≡ z2 ∈ El Int) → Prf (EqI z1 z2) ≔
+def eqICompleteP : (z1 : El Int) (z2 : El Int) → Prf (z1 ≡ z2 ∈ El Int) → Prf (EqI z1 z2) using (intNormalizeId) ≔
   -- ∥Prf p∥ ≜ p (code-squash-prf): h already proves the equation
   λz1. λz2. λh. eqIComplete _ _ h
 
-def eqIIff : (z1 : El Int) (z2 : El Int) → Prf (EqI z1 z2 ↔ (z1 ≡ z2 ∈ El Int)) ≔
+def eqIIff : (z1 : El Int) (z2 : El Int) → Prf (EqI z1 z2 ↔ (z1 ≡ z2 ∈ El Int)) using (intNormalizeId) ≔
   λz1. λz2. iffIntro _ _ (eqISoundP _ _) (eqICompleteP _ _)
 
 -- ===== observational equality, the computing one =====
@@ -110,11 +110,11 @@ def normPairLeftZ : (b : ℕ) (c : ℕ) → normPair c (b + c) ≡ (Z , b) ∈ E
   λb. λc. ℕ-elim (k. normPair k (b + k) ≡ (Z , b) ∈ El (ℕ ⨯ ℕ)) ⋆ (k ih. ⋆) c
 
 -- normPair (n + d) d ≡ (n , Z)
-def normPairRightZ : (n : ℕ) (d : ℕ) → normPair (n + d) d ≡ (n , Z) ∈ El (ℕ ⨯ ℕ) ≔
+def normPairRightZ : (n : ℕ) (d : ℕ) → normPair (n + d) d ≡ (n , Z) ∈ El (ℕ ⨯ ℕ) using (normPairZR) ≔
   λn. λd. ℕ-elim (k. normPair (n + k) k ≡ (n , Z) ∈ El (ℕ ⨯ ℕ)) (normPairZR n) (k ih. ⋆) d
 
 def normPairWD : (a : ℕ) (b : ℕ) (c : ℕ) (d : ℕ) (h : Prf (a + d ≡ b + c ∈ ℕ)) →
-  normPair a b ≡ normPair c d ∈ El (ℕ ⨯ ℕ) ≔
+  normPair a b ≡ normPair c d ∈ El (ℕ ⨯ ℕ) using (normPairLeftZ, normPairRightZ, sucPlus, zeroPlusId) ≔
   λa.
     ℕ-elim (k. (b : ℕ) → (c : ℕ) → (d : ℕ) → (k + d ≡ b + c ∈ ℕ) →
               (normPair k b ≡ normPair c d ∈ El (ℕ ⨯ ℕ)))
@@ -147,10 +147,10 @@ def normPairWD : (a : ℕ) (b : ℕ) (c : ℕ) (d : ℕ) (h : Prf (a + d ≡ b +
       a
 
 -- the canonical representative of an integer
-def intCanon : El Int → ℕ ⨯ ℕ ≔
+def intCanon : El Int → ℕ ⨯ ℕ using (normPairWD) ≔
   λz. quot-elim (w. ℕ ⨯ ℕ) (p. normPair (p .π₁) (p .π₂)) z
 
-def intCanonClass : (z : El Int) → class (intCanon z) ≡ z ∈ El Int ≔
+def intCanonClass : (z : El Int) → class (intCanon z) ≡ z ∈ El Int using (classNormPairEq, integerNormalize.normClass) ≔
   λz. quot-elim (w. (class (intCanon w) ≡ w ∈ El Int)) (p. classNormPairEq p) z
 
 def intCanonOne : intCanon intOne ≡ (S Z , Z) ∈ El (ℕ ⨯ ℕ) ≔ ⋆
@@ -182,7 +182,7 @@ def EqZ : El Int → El Int → Ω ≔
 def eqZRefl : (z : El Int) → Prf (EqZ z z) ≔
   λz. andIntro _ _ (eqNRefl (intCanon z .π₁)) (eqNRefl (intCanon z .π₂))
 
-def eqZSound : (z1 : El Int) (z2 : El Int) → Prf (EqZ z1 z2) → z1 ≡ z2 ∈ El Int ≔
+def eqZSound : (z1 : El Int) (z2 : El Int) → Prf (EqZ z1 z2) → z1 ≡ z2 ∈ El Int using (intCanonClass) ≔
   λz1. λz2. λh.
     trans _ _ _ _
       (sym _ _ _ (intCanonClass _))

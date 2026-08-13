@@ -24,19 +24,19 @@ import equality (trans, cong, sym)
 -- intScale d z is multiplication by d's image: on representatives the
 -- two differ only by a Z*x summand
 def intScaleIsMul : (d : El NZ) (z : El Int) →
-  intScale d z ≡ intMul (nzToInt d) z ∈ El Int ≔
+  intScale d z ≡ intMul (nzToInt d) z ∈ El Int using (zeroMult, zeroPlusId) ≔
   λd. λz. ⊎-elim (w. intScale w z ≡ intMul (nzToInt w) z ∈ El Int)
     (n. quot-elim (v. intScale (nzPos n) v ≡ intMul (nzToInt (nzPos n)) v ∈ El Int) (p. ⋆) z)
     (n. quot-elim (v. intScale (nzNeg n) v ≡ intMul (nzToInt (nzNeg n)) v ∈ El Int) (p. ⋆) z)
     d
 
 -- (m+1)(k+1) = mk + m + k + 1: the magnitude law behind nzMul
-def sucMulSuc : (m : ℕ) (k : ℕ) → S m * S k ≡ S (m * k + m + k) ∈ ℕ ≔
+def sucMulSuc : (m : ℕ) (k : ℕ) → S m * S k ≡ S (m * k + m + k) ∈ ℕ using (plusAssoc, plusComm, nat.sucPlus, rational.mulPlusComm, rational.sucMultBack) ≔
   λm. λk. ⋆
 
 -- nzToInt is multiplicative
 def nzToIntMul : (d : El NZ) (e : El NZ) →
-  nzToInt (nzMul d e) ≡ intMul (nzToInt d) (nzToInt e) ∈ El Int ≔
+  nzToInt (nzMul d e) ≡ intMul (nzToInt d) (nzToInt e) ∈ El Int using (plusAssoc, nat.sucPlus, zeroMult, zeroPlusId, sucMulSuc) ≔
   λd. λe. ⊎-elim (w. nzToInt (nzMul w e) ≡ intMul (nzToInt w) (nzToInt e) ∈ El Int)
     (m. ⊎-elim (v. nzToInt (nzMul (nzPos m) v) ≡ intMul (nzToInt (nzPos m)) (nzToInt v) ∈ El Int)
           (k. ⋆) (k. ⋆) e)
@@ -60,7 +60,7 @@ def mulCongR : (x : El Int) (y : El Int) (z : El Int) →
 
 -- x·(y·z) ≡ y·(x·z)
 def mulSwapHead : (x : El Int) (y : El Int) (z : El Int) →
-  intMul x (intMul y z) ≡ intMul y (intMul x z) ∈ El Int ≔
+  intMul x (intMul y z) ≡ intMul y (intMul x z) ∈ El Int using (intMulAssoc) ≔
   λx. λy. λz.
     trans Int (intMul x (intMul y z)) (intMul (intMul x y) z) (intMul y (intMul x z))
       (sym Int _ _ (intMulAssoc x y z))
@@ -156,13 +156,13 @@ def ratAddNumMul : (p : El Rat) (q : El Rat) →
   λp. λq. intAddCong2 _ _ _ _ (intScaleIsMul (den q) (num p)) (intScaleIsMul (den p) (num q))
 
 def ratAddDenMul : (p : El Rat) (q : El Rat) →
-  dInt (ratAdd p q) ≡ intMul (dInt p) (dInt q) ∈ El Int ≔
+  dInt (ratAdd p q) ≡ intMul (dInt p) (dInt q) ∈ El Int using (nzToIntMul) ≔
   λp. λq. nzToIntMul (den p) (den q)
 
 -- the relation instance the inner well-definedness goal reduces to
 def qAddWDInner : (p : El Rat) (q : El Rat) (q' : El Rat) (h : Prf (RatR q q')) →
   intMul (num (ratAdd p q)) (dInt (ratAdd p q'))
-    ≡ intMul (num (ratAdd p q')) (dInt (ratAdd p q)) ∈ El Int ≔
+    ≡ intMul (num (ratAdd p q')) (dInt (ratAdd p q)) ∈ El Int using (nzToIntMul) ≔
   λp. λq. λq'. λh.
     trans Int
       (intMul (num (ratAdd p q)) (dInt (ratAdd p q')))
@@ -201,14 +201,14 @@ def qAddWDOuterCls : (p : El Rat) (p' : El Rat) (c : El Rat) (h : Prf (RatR p p'
 -- ...in the quot-elim shape the elaborator asks for
 def qAddWDOuter : (p : El Rat) (p' : El Rat) (h : Prf (RatR p p')) (v : El Q) →
   quot-elim (w. El Q) (x. class (ratAdd p x)) v
-    ≡ quot-elim (w. El Q) (x. class (ratAdd p' x)) v ∈ El Q ≔
+    ≡ quot-elim (w. El Q) (x. class (ratAdd p' x)) v ∈ El Q using (qAddWDInnerCls) ≔
   λp. λp'. λh. λv.
     quot-elim (w. quot-elim (z. El Q) (x. class (ratAdd p x)) w
                     ≡ quot-elim (z. El Q) (x. class (ratAdd p' x)) w ∈ El Q)
       (c. qAddWDOuterCls p p' c h)
       v
 
-def qAdd : El Q → El Q → El Q ≔
+def qAdd : El Q → El Q → El Q using (qAddWDInnerCls, qAddWDOuter) ≔
   λu. λv. quot-elim (w. El Q) (p. quot-elim (w. El Q) (q. class (ratAdd p q)) v) u
 
 -- ===== ℚ, at last =====
@@ -221,11 +221,11 @@ def qAddCls : (p : El Rat) (q : El Rat) →
   qAdd (qcls p) (qcls q) ≡ qcls (ratAdd p q) ∈ El Q ≔ λp. λq. ⋆
 
 -- ½ + ½ = 1. On Rat this was 4/4; the quotient identifies it with 1/1
-def qAddHalves : qAdd (qcls half) (qcls half) ≡ qOne ∈ El Q ≔ ⋆
+def qAddHalves : qAdd (qcls half) (qcls half) ≡ qOne ∈ El Q using (clsEqOfRel) ≔ ⋆
 
 -- ⅓ + ⅓ = ⅔
 def qAddThirds : qAdd (qcls third) (qcls third)
-  ≡ qcls (mkRat (class (S (S Z) , Z)) (nzPos (S (S Z)))) ∈ El Q ≔ ⋆
+  ≡ qcls (mkRat (class (S (S Z) , Z)) (nzPos (S (S Z)))) ∈ El Q using (clsEqOfRel) ≔ ⋆
 
 def qAddComm : (u : El Q) (v : El Q) → qAdd u v ≡ qAdd v u ∈ El Q ≔
   λu. λv. quot-elim (w. qAdd w v ≡ qAdd v w ∈ El Q)
@@ -234,12 +234,12 @@ def qAddComm : (u : El Q) (v : El Q) → qAdd u v ≡ qAdd v u ∈ El Q ≔
           v)
     u
 
-def qAddZeroL : (u : El Q) → qAdd qZero u ≡ u ∈ El Q ≔
+def qAddZeroL : (u : El Q) → qAdd qZero u ≡ u ∈ El Q using (nzMulOneL) ≔
   λu. quot-elim (w. qAdd qZero w ≡ w ∈ El Q)
         (p. cong Rat (λx. Q) (λr. class r) _ _ (ratAddZeroL p))
         u
 
-def qAddZeroR : (u : El Q) → qAdd u qZero ≡ u ∈ El Q ≔
+def qAddZeroR : (u : El Q) → qAdd u qZero ≡ u ∈ El Q using (nzMulOneR) ≔
   λu. quot-elim (w. qAdd w qZero ≡ w ∈ El Q)
         (p. cong Rat (λx. Q) (λr. class r) _ _ (ratAddZeroR p))
         u
@@ -252,7 +252,7 @@ def qAddZeroR : (u : El Q) → qAdd u qZero ≡ u ∈ El Q ≔
 -- sucMulSuc, multAssoc equates those, and S is injective (eqNat.nova's
 -- predEq).
 def magAssoc : (m : ℕ) (k : ℕ) (l : ℕ) →
-  (m * k + m + k) * l + (m * k + m + k) + l ≡ m * (k * l + k + l) + m + (k * l + k + l) ∈ ℕ ≔
+  (m * k + m + k) * l + (m * k + m + k) + l ≡ m * (k * l + k + l) + m + (k * l + k + l) ∈ ℕ using (plusAssoc, nat.sucPlus, zeroPlusId) ≔
   λm. λk. λl.
     predEq _ _
       (trans ℕ
@@ -279,7 +279,7 @@ def magAssoc : (m : ℕ) (k : ℕ) (l : ℕ) →
 
 -- eight sign cases, one magnitude law
 def nzMulAssoc : (x : El NZ) (y : El NZ) (z : El NZ) →
-  nzMul (nzMul x y) z ≡ nzMul x (nzMul y z) ∈ El NZ ≔
+  nzMul (nzMul x y) z ≡ nzMul x (nzMul y z) ∈ El NZ using (plusAssoc, magAssoc) ≔
   λx. λy. λz.
     ⊎-elim (a. nzMul (nzMul a y) z ≡ nzMul a (nzMul y z) ∈ El NZ)
       (m. ⊎-elim (b. nzMul (nzMul (nzPos m) b) z ≡ nzMul (nzPos m) (nzMul b z) ∈ El NZ)
@@ -306,7 +306,7 @@ def crossAssocNum : (n1 : El Int) (d1 : El Int) (n2 : El Int) (d2 : El Int)
   (n3 : El Int) (d3 : El Int) →
   intAdd (intMul d3 (intAdd (intMul d2 n1) (intMul d1 n2))) (intMul (intMul d1 d2) n3)
     ≡ intAdd (intMul (intMul d2 d3) n1) (intMul d1 (intAdd (intMul d3 n2) (intMul d2 n3)))
-    ∈ El Int ≔
+    ∈ El Int using (intMulAssoc) ≔
   λn1. λd1. λn2. λd2. λn3. λd3.
     trans Int
       (intAdd (intMul d3 (intAdd (intMul d2 n1) (intMul d1 n2))) (intMul (intMul d1 d2) n3))
@@ -341,7 +341,7 @@ def crossAssocNum : (n1 : El Int) (d1 : El Int) (n2 : El Int) (d2 : El Int)
 def ratAddNumMulL : (p : El Rat) (q : El Rat) (r : El Rat) →
   num (ratAdd (ratAdd p q) r)
     ≡ intAdd (intMul (dInt r) (intAdd (intMul (dInt q) (num p)) (intMul (dInt p) (num q))))
-             (intMul (intMul (dInt p) (dInt q)) (num r)) ∈ El Int ≔
+             (intMul (intMul (dInt p) (dInt q)) (num r)) ∈ El Int using (intMulAssoc, nzToIntMul) ≔
   λp. λq. λr.
     trans Int
       (num (ratAdd (ratAdd p q) r))
@@ -359,7 +359,7 @@ def ratAddNumMulR : (p : El Rat) (q : El Rat) (r : El Rat) →
   num (ratAdd p (ratAdd q r))
     ≡ intAdd (intMul (intMul (dInt q) (dInt r)) (num p))
              (intMul (dInt p) (intAdd (intMul (dInt r) (num q)) (intMul (dInt q) (num r))))
-    ∈ El Int ≔
+    ∈ El Int using (intMulAssoc, nzToIntMul) ≔
   λp. λq. λr.
     trans Int
       (num (ratAdd p (ratAdd q r)))
@@ -420,14 +420,14 @@ def qAddAssoc : (u : El Q) (v : El Q) (w : El Q) →
       u
 
 -- ⅓ + (⅓ + ⅓) = 1, the associated way round
-def qAddThirdsAssoc : qAdd (qcls third) (qAdd (qcls third) (qcls third)) ≡ qOne ∈ El Q ≔ ⋆
+def qAddThirdsAssoc : qAdd (qcls third) (qAdd (qcls third) (qcls third)) ≡ qOne ∈ El Q using (clsEqOfRel) ≔ ⋆
 
 -- ===== negation: ℚ is a group =====
 
 -- negation respects the relation: (−n₁)·d₁′ ≡ −(n₁·d₁′) ≡ −(n₁′·d₁)
 def ratNegWD : (p : El Rat) (p' : El Rat) (h : Prf (RatR p p')) →
   intMul (num (ratNeg p)) (dInt (ratNeg p'))
-    ≡ intMul (num (ratNeg p')) (dInt (ratNeg p)) ∈ El Int ≔
+    ≡ intMul (num (ratNeg p')) (dInt (ratNeg p)) ∈ El Int using (intMulNegL) ≔
   λp. λp'. λh.
     trans Int
       (intMul (num (ratNeg p)) (dInt (ratNeg p')))
@@ -442,16 +442,16 @@ def ratNegWD : (p : El Rat) (p' : El Rat) (h : Prf (RatR p p')) →
         (sym Int _ _ (intMulNegL (num p') (dInt p))))
 
 def ratNegWDCls : (p : El Rat) (p' : El Rat) (h : Prf (RatR p p')) →
-  class (ratNeg p) ≡ class (ratNeg p') ∈ El Q ≔
+  class (ratNeg p) ≡ class (ratNeg p') ∈ El Q using (intMulNegL) ≔
   λp. λp'. λh. clsEqOfRel (ratNeg p) (ratNeg p') (ratNegWD p p' h)
 
-def qNeg : El Q → El Q ≔ λu. quot-elim (w. El Q) (p. class (ratNeg p)) u
+def qNeg : El Q → El Q using (ratNegWDCls) ≔ λu. quot-elim (w. El Q) (p. class (ratNeg p)) u
 
 def qNegCls : (p : El Rat) → qNeg (qcls p) ≡ qcls (ratNeg p) ∈ El Q ≔ λp. ⋆
 
 -- p + (−p) has numerator zero: collect the common denominator and use
 -- z + (−z) ≡ 0 in Int
-def ratAddNegNum : (p : El Rat) → num (ratAdd p (ratNeg p)) ≡ intZero ∈ El Int ≔
+def ratAddNegNum : (p : El Rat) → num (ratAdd p (ratNeg p)) ≡ intZero ∈ El Int using (intAddNegR, intMulZeroR) ≔
   λp.
     trans Int
       (num (ratAdd p (ratNeg p)))
@@ -474,7 +474,7 @@ def ratAddNegNum : (p : El Rat) → num (ratAdd p (ratNeg p)) ≡ intZero ∈ El
 -- This is the first law that is NOT already true on Rat.
 def ratAddNegRel : (p : El Rat) →
   intMul (num (ratAdd p (ratNeg p))) (dInt ratZero)
-    ≡ intMul (num ratZero) (dInt (ratAdd p (ratNeg p))) ∈ El Int ≔
+    ≡ intMul (num ratZero) (dInt (ratAdd p (ratNeg p))) ∈ El Int using (ratAddNegNum) ≔
   λp.
     trans Int
       (intMul (num (ratAdd p (ratNeg p))) (dInt ratZero))
@@ -488,18 +488,18 @@ def ratAddNegRel : (p : El Rat) →
         (intMulZeroL (dInt ratZero)))
       (sym Int _ _ (intMulZeroL (dInt (ratAdd p (ratNeg p)))))
 
-def qAddNegR : (u : El Q) → qAdd u (qNeg u) ≡ qZero ∈ El Q ≔
+def qAddNegR : (u : El Q) → qAdd u (qNeg u) ≡ qZero ∈ El Q using (ratAddNegNum) ≔
   λu. quot-elim (w. qAdd w (qNeg w) ≡ qZero ∈ El Q)
         (p. clsEqOfRel (ratAdd p (ratNeg p)) ratZero (ratAddNegRel p))
         u
 
-def qAddNegL : (u : El Q) → qAdd (qNeg u) u ≡ qZero ∈ El Q ≔
+def qAddNegL : (u : El Q) → qAdd (qNeg u) u ≡ qZero ∈ El Q using (qAddNegR) ≔
   λu. trans Q (qAdd (qNeg u) u) (qAdd u (qNeg u)) qZero
         (qAddComm (qNeg u) u)
         (qAddNegR u)
 
 -- negation is involutive, and ½ − ⅓ = ⅙
-def qNegNeg : (u : El Q) → qNeg (qNeg u) ≡ u ∈ El Q ≔
+def qNegNeg : (u : El Q) → qNeg (qNeg u) ≡ u ∈ El Q using (intNegNeg, ratEta) ≔
   λu. quot-elim (w. qNeg (qNeg w) ≡ w ∈ El Q)
         (p. cong Rat (λx. Q) (λt. class t)
               (mkRat (intNeg (intNeg (num p))) (den p)) p
@@ -533,7 +533,7 @@ def ratMulComm : (p : El Rat) (q : El Rat) → ratMul p q ≡ ratMul q p ∈ El 
         (nzMulComm (den p) (den q)))
 
 def ratMulAssoc : (p : El Rat) (q : El Rat) (r : El Rat) →
-  ratMul (ratMul p q) r ≡ ratMul p (ratMul q r) ∈ El Rat ≔
+  ratMul (ratMul p q) r ≡ ratMul p (ratMul q r) ∈ El Rat using (intMulAssoc) ≔
   λp. λq. λr.
     trans Rat (ratMul (ratMul p q) r)
       (mkRat (intMul (num p) (intMul (num q) (num r)))
@@ -544,7 +544,7 @@ def ratMulAssoc : (p : El Rat) (q : El Rat) (r : El Rat) →
       (cong NZ (λu. Rat) (λd. mkRat (intMul (num p) (intMul (num q) (num r))) d) _ _
         (nzMulAssoc (den p) (den q) (den r)))
 
-def ratMulOneR : (p : El Rat) → ratMul p ratOne ≡ p ∈ El Rat ≔
+def ratMulOneR : (p : El Rat) → ratMul p ratOne ≡ p ∈ El Rat using (intMulOneR, nzMulOneR, ratEta) ≔
   λp.
     trans Rat (ratMul p ratOne) (mkRat (num p) (den p)) p
       (trans Rat (ratMul p ratOne)
@@ -568,7 +568,7 @@ def relFlip : (n2 : El Int) (d2 : El Int) (n3 : El Int) (d3 : El Int)
 
 def qMulWDInner : (p : El Rat) (q : El Rat) (q' : El Rat) (h : Prf (RatR q q')) →
   intMul (num (ratMul p q)) (dInt (ratMul p q'))
-    ≡ intMul (num (ratMul p q')) (dInt (ratMul p q)) ∈ El Int ≔
+    ≡ intMul (num (ratMul p q')) (dInt (ratMul p q)) ∈ El Int using (nzToIntMul) ≔
   λp. λq. λq'. λh.
     trans Int
       (intMul (num (ratMul p q)) (dInt (ratMul p q')))
@@ -612,14 +612,14 @@ def qMulWDOuterCls : (p : El Rat) (p' : El Rat) (c : El Rat) (h : Prf (RatR p p'
 
 def qMulWDOuter : (p : El Rat) (p' : El Rat) (h : Prf (RatR p p')) (v : El Q) →
   quot-elim (w. El Q) (x. class (ratMul p x)) v
-    ≡ quot-elim (w. El Q) (x. class (ratMul p' x)) v ∈ El Q ≔
+    ≡ quot-elim (w. El Q) (x. class (ratMul p' x)) v ∈ El Q using (qMulWDInnerCls) ≔
   λp. λp'. λh. λv.
     quot-elim (w. quot-elim (z. El Q) (x. class (ratMul p x)) w
                     ≡ quot-elim (z. El Q) (x. class (ratMul p' x)) w ∈ El Q)
       (c. qMulWDOuterCls p p' c h)
       v
 
-def qMul : El Q → El Q → El Q ≔
+def qMul : El Q → El Q → El Q using (qMulWDInnerCls, qMulWDOuter) ≔
   λu. λv. quot-elim (w. El Q) (p. quot-elim (w. El Q) (q. class (ratMul p q)) v) u
 
 def qMulCls : (p : El Rat) (q : El Rat) →
@@ -633,7 +633,7 @@ def qMulComm : (u : El Q) (v : El Q) → qMul u v ≡ qMul v u ∈ El Q ≔
     u
 
 def qMulAssoc : (u : El Q) (v : El Q) (w : El Q) →
-  qMul (qMul u v) w ≡ qMul u (qMul v w) ∈ El Q ≔
+  qMul (qMul u v) w ≡ qMul u (qMul v w) ∈ El Q using (intMulAssoc) ≔
   λu. λv. λw.
     quot-elim (a. qMul (qMul a v) w ≡ qMul a (qMul v w) ∈ El Q)
       (p. quot-elim (b. qMul (qMul (class p) b) w ≡ qMul (class p) (qMul b w) ∈ El Q)
@@ -644,12 +644,12 @@ def qMulAssoc : (u : El Q) (v : El Q) (w : El Q) →
             v)
       u
 
-def qMulOneR : (u : El Q) → qMul u qOne ≡ u ∈ El Q ≔
+def qMulOneR : (u : El Q) → qMul u qOne ≡ u ∈ El Q using (intMulOneR, nzMulOneR, ratEta) ≔
   λu. quot-elim (a. qMul a qOne ≡ a ∈ El Q)
         (p. cong Rat (λx. Q) (λt. class t) _ _ (ratMulOneR p))
         u
 
-def qMulOneL : (u : El Q) → qMul qOne u ≡ u ∈ El Q ≔
+def qMulOneL : (u : El Q) → qMul qOne u ≡ u ∈ El Q using (qMulOneR) ≔
   λu. trans Q (qMul qOne u) (qMul u qOne) u (qMulComm qOne u) (qMulOneR u)
 
 -- ⅓ · ½ = ⅙
@@ -675,7 +675,7 @@ def mulHoist : (a : El Int) (b : El Int) (c : El Int) (d : El Int) →
 
 -- x·(a·y) ≡ (a·x)·y
 def mulShiftL : (x : El Int) (a : El Int) (y : El Int) →
-  intMul x (intMul a y) ≡ intMul (intMul a x) y ∈ El Int ≔
+  intMul x (intMul a y) ≡ intMul (intMul a x) y ∈ El Int using (intMulAssoc) ≔
   λx. λa. λy.
     trans Int (intMul x (intMul a y)) (intMul (intMul x a) y) (intMul (intMul a x) y)
       (sym Int _ _ (intMulAssoc x a y))
@@ -683,7 +683,7 @@ def mulShiftL : (x : El Int) (a : El Int) (y : El Int) →
 
 -- dInt of the product-of-sums denominator, expanded
 def dIntMul3 : (p : El Rat) (q : El Rat) (r : El Rat) →
-  dInt (ratMul p (ratAdd q r)) ≡ intMul (dInt p) (intMul (dInt q) (dInt r)) ∈ El Int ≔
+  dInt (ratMul p (ratAdd q r)) ≡ intMul (dInt p) (intMul (dInt q) (dInt r)) ∈ El Int using (nzToIntMul) ≔
   λp. λq. λr.
     trans Int
       (dInt (ratMul p (ratAdd q r)))
@@ -695,7 +695,7 @@ def dIntMul3 : (p : El Rat) (q : El Rat) (r : El Rat) →
 
 def distribDen : (p : El Rat) (q : El Rat) (r : El Rat) →
   dInt (ratAdd (ratMul p q) (ratMul p r))
-    ≡ intMul (dInt p) (dInt (ratMul p (ratAdd q r))) ∈ El Int ≔
+    ≡ intMul (dInt p) (dInt (ratMul p (ratAdd q r))) ∈ El Int using (nzToIntMul) ≔
   λp. λq. λr.
     trans Int
       (dInt (ratAdd (ratMul p q) (ratMul p r)))
@@ -717,7 +717,7 @@ def distribDen : (p : El Rat) (q : El Rat) (r : El Rat) →
 
 def distribNum : (p : El Rat) (q : El Rat) (r : El Rat) →
   num (ratAdd (ratMul p q) (ratMul p r))
-    ≡ intMul (dInt p) (num (ratMul p (ratAdd q r))) ∈ El Int ≔
+    ≡ intMul (dInt p) (num (ratMul p (ratAdd q r))) ∈ El Int using (nzToIntMul) ≔
   λp. λq. λr.
     trans Int
       (num (ratAdd (ratMul p q) (ratMul p r)))
@@ -773,7 +773,7 @@ def distribNum : (p : El Rat) (q : El Rat) (r : El Rat) →
 def qDistribRel : (p : El Rat) (q : El Rat) (r : El Rat) →
   intMul (num (ratMul p (ratAdd q r))) (dInt (ratAdd (ratMul p q) (ratMul p r)))
     ≡ intMul (num (ratAdd (ratMul p q) (ratMul p r))) (dInt (ratMul p (ratAdd q r)))
-    ∈ El Int ≔
+    ∈ El Int using (distribNum) ≔
   λp. λq. λr.
     trans Int
       (intMul (num (ratMul p (ratAdd q r))) (dInt (ratAdd (ratMul p q) (ratMul p r))))
@@ -797,7 +797,7 @@ def qDistribRel : (p : El Rat) (q : El Rat) (r : El Rat) →
           (sym Int _ _ (distribNum p q r))))
 
 def qDistribL : (u : El Q) (v : El Q) (w : El Q) →
-  qMul u (qAdd v w) ≡ qAdd (qMul u v) (qMul u w) ∈ El Q ≔
+  qMul u (qAdd v w) ≡ qAdd (qMul u v) (qMul u w) ∈ El Q using (distribNum) ≔
   λu. λv. λw.
     quot-elim (a. qMul a (qAdd v w) ≡ qAdd (qMul a v) (qMul a w) ∈ El Q)
       (p. quot-elim (b. qMul (class p) (qAdd b w) ≡ qAdd (qMul (class p) b) (qMul (class p) w) ∈ El Q)
@@ -827,7 +827,7 @@ def qDistribR : (u : El Q) (v : El Q) (w : El Q) →
 -- with 0/1
 def ratMulZeroRel : (p : El Rat) →
   intMul (num (ratMul ratZero p)) (dInt ratZero)
-    ≡ intMul (num ratZero) (dInt (ratMul ratZero p)) ∈ El Int ≔
+    ≡ intMul (num ratZero) (dInt (ratMul ratZero p)) ∈ El Int using (intMulZeroL) ≔
   λp.
     trans Int
       (intMul (num (ratMul ratZero p)) (dInt ratZero))
@@ -841,12 +841,12 @@ def ratMulZeroRel : (p : El Rat) →
         (intMulZeroL (dInt ratZero)))
       (sym Int _ _ (intMulZeroL (dInt (ratMul ratZero p))))
 
-def qMulZeroL : (u : El Q) → qMul qZero u ≡ qZero ∈ El Q ≔
+def qMulZeroL : (u : El Q) → qMul qZero u ≡ qZero ∈ El Q using (intMulZeroL, nzMulOneL) ≔
   λu. quot-elim (a. qMul qZero a ≡ qZero ∈ El Q)
         (p. clsEqOfRel (ratMul ratZero p) ratZero (ratMulZeroRel p))
         u
 
-def qMulZeroR : (u : El Q) → qMul u qZero ≡ qZero ∈ El Q ≔
+def qMulZeroR : (u : El Q) → qMul u qZero ≡ qZero ∈ El Q using (qMulZeroL) ≔
   λu. trans Q (qMul u qZero) (qMul qZero u) qZero (qMulComm u qZero) (qMulZeroL u)
 
 -- Reciprocals. A rational has an inverse exactly when its NUMERATOR is
@@ -868,7 +868,7 @@ def nzqInvInv : (x : El NZQ) → nzqInv (nzqInv x) ≡ x ∈ El NZQ ≔
 -- against 1/1 leaves exactly N·D ≡ D·N
 def nzqInvRel : (x : El NZQ) →
   intMul (num (ratMul (nzqToRat x) (nzqToRat (nzqInv x)))) (dInt ratOne)
-    ≡ intMul (num ratOne) (dInt (ratMul (nzqToRat x) (nzqToRat (nzqInv x)))) ∈ El Int ≔
+    ≡ intMul (num ratOne) (dInt (ratMul (nzqToRat x) (nzqToRat (nzqInv x)))) ∈ El Int using (nzToIntMul) ≔
   λx.
     trans Int
       (intMul (num (ratMul (nzqToRat x) (nzqToRat (nzqInv x)))) (dInt ratOne))
@@ -899,4 +899,4 @@ def qMulInvL : (x : El NZQ) → qMul (qOfNzq (nzqInv x)) (qOfNzq x) ≡ qOne ∈
 def nzqThird : El NZQ ≔ (nzPos Z , nzPos (S (S Z)))
 def nzqThirdIsThird : qOfNzq nzqThird ≡ qcls third ∈ El Q ≔ ⋆
 def nzqInvThird : qOfNzq (nzqInv nzqThird) ≡ qcls (mkRat (class (S (S (S Z)) , Z)) nzOne) ∈ El Q ≔ ⋆
-def qMulInvThird : qMul (qOfNzq nzqThird) (qOfNzq (nzqInv nzqThird)) ≡ qOne ∈ El Q ≔ ⋆
+def qMulInvThird : qMul (qOfNzq nzqThird) (qOfNzq (nzqInv nzqThird)) ≡ qOne ∈ El Q using (clsEqOfRel) ≔ ⋆
