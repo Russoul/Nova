@@ -1,0 +1,28 @@
+import monoid (Monoid)
+
+-- The type of (small) groups: a monoid signature plus an inverse
+-- operation, flat (its own carrier/op/unit components rather than a
+-- nested Monoid) so that instance components stay one projection
+-- deep. The forgetful map below recovers the underlying monoid.
+type Group ≔
+  (G : 𝕌)
+  (op : El G → El G → El G)
+  (inv : El G → El G)
+  (e : El G)
+  (assoc : (x : El G) (y : El G) (z : El G) →
+             op (op x y) z ≡ op x (op y z) ∈ El G)
+  (unitL : (x : El G) → op e x ≡ x ∈ El G)
+  (unitR : (x : El G) → op x e ≡ x ∈ El G)
+  (invL : (x : El G) → op (inv x) x ≡ e ∈ El G) ⨯
+  ((x : El G) → op x (inv x) ≡ e ∈ El G)
+
+-- Forgetting the inverse: every Monoid component is a projection of
+-- the Group, and each law's type matches the Monoid component type
+-- on the nose (α-identical after the projections substitute in).
+def groupMonoid : Group → Monoid ≔
+  λg. (g .π₁ ,
+       g .π₂ .π₁ ,
+       g .π₂ .π₂ .π₂ .π₁ ,
+       g .π₂ .π₂ .π₂ .π₂ .π₁ ,
+       g .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ ,
+       g .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁)

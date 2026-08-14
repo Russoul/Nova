@@ -1,0 +1,16 @@
+import integer (Int, intZero, intNeg)
+import integerAdd (intAdd, intAddAssoc)
+import integerMul (intAddNegL, intAddNegR)
+import rational (intAddZeroL, intAddZeroR)
+import monoid (Monoid)
+import group (Group, groupMonoid)
+
+-- (ℤ, +, -, 0) is a group: carrier the quotient code Int, and every
+-- law an existing corpus lemma (the unit laws live in rational.nova,
+-- the inverse laws in integerMul.nova — imported from where they are).
+def intAddGroup : Group ≔
+  (Int , intAdd , intNeg , intZero ,
+   intAddAssoc , intAddZeroL , intAddZeroR , intAddNegL , intAddNegR)
+
+-- and therefore a monoid, through the forgetful map.
+def intAddMonoid : Monoid ≔ groupMonoid intAddGroup

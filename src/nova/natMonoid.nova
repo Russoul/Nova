@@ -1,0 +1,19 @@
+import nat (+, *, plusAssoc, zeroPlusId, plusZeroId, multAssoc, sucPlus)
+import monoid (Monoid)
+
+-- (ℕ, +, 0) is a monoid: every law is an existing nat.nova lemma.
+-- The operator slots take the mention form (+)/(*) — an operator IS
+-- its definition's name.
+def natAddMonoid : Monoid ≔
+  (ℕ , (+) , Z , plusAssoc , zeroPlusId , plusZeroId)
+
+-- The unit laws for * at S Z. On the right the whole statement is a
+-- δβ-computation (n * S Z unwinds through * and + to n); on the left
+-- the elimination is stuck on n, so it is an induction.
+def multOneR : (n : ℕ) → n * S Z ≡ n ∈ ℕ ≔ λn. ⋆
+def oneMultL : (n : ℕ) → S Z * n ≡ n ∈ ℕ using (sucPlus, zeroPlusId) ≔
+  λn. ℕ-elim (k. S Z * k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
+
+-- (ℕ, *, 1) is a monoid.
+def natMulMonoid : Monoid ≔
+  (ℕ , (*) , S Z , multAssoc , oneMultL , multOneR)
