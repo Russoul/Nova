@@ -1236,13 +1236,21 @@ mkCandSet st ctx =
       sRw = case st.scope of
               Nothing => st.candRw
               Just _ => sShrink ++ sRest
-  in case hypCands st sRw ctx ++ st.localCands of
-       [] => MkCandSet sCs sRw sHops
-       hs =>
-         let (hcs, hsh, hre, hhp) = sigCandParts hs
-         in MkCandSet (sCs ++ hcs)
-                      (sShrink ++ hsh ++ sRest ++ hre)
-                      (sHops ++ hhp)
+  -- LOCALS (a chain adjacency's link) come FIRST — both their rule
+  -- blocks, ahead of every hypothesis and store rule: a link's rule
+  -- must act before a sibling hypothesis's can corrupt the sides away
+  -- from the link's shape (a hypothesis k ≡ Z rewriting inside
+  -- a + k ≐ b leaves the link a + k ≡ b nothing to match, and a
+  -- SHRINK hypothesis outranks a size-preserving link in the merged
+  -- blocks, so the blocks must not be merged).
+  in case (st.localCands, hypCands st sRw ctx) of
+       ([], []) => MkCandSet sCs sRw sHops
+       (ls, hs) =>
+         let (lcs, lsh, lre, lhp) = sigCandParts ls
+             (hcs, hsh, hre, hhp) = sigCandParts hs
+         in MkCandSet (lcs ++ sCs ++ hcs)
+                      (lsh ++ lre ++ sShrink ++ hsh ++ sRest ++ hre)
+                      (lhp ++ sHops ++ hhp)
 
 rwNfElem : ElabSt -> Ctx -> Elem -> Elem
 rwNfElem st ctx e = fst (rwNfElemS st.sig (mkCandSet st ctx).rw True e)

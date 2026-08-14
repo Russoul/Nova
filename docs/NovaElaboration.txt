@@ -752,7 +752,12 @@ whnf(C) = Prf p    whnf(p) = (l ≡ r ∈ A)
 # equation alone (plus hypotheses) — the link may prove a
 # SUB-equation, applied at its position and in either orientation by
 # the ordinary ↓ mechanisms — so a broken link surfaces as its own
-# obligation ("chain, step i"), with the step-8 hint alongside. The
+# obligation ("chain, step i"), with the step-8 hint alongside.
+# The link's rules OUTRANK every hypothesis and store rule, both its
+# size classes ahead of both of theirs: the adjacency was spelled to
+# the link's shape, and a sibling hypothesis rewriting first can
+# destroy that shape (k ≡ Z rewriting inside a + k ≐ b leaves the
+# link a + k ≡ b nothing to match — sound, closable, and stuck). The
 # composite l ≐ r certificate is TRANSITIVITY STITCHING of the
 # adjacency certificates (each segment's lhs steps forward, its rhs
 # steps reversed and flip-inverted onto the lhs walk — step
