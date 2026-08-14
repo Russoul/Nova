@@ -1,0 +1,21 @@
+import rationalQ (Q, qAdd, qMul, qNeg, qZero, qOne,
+                  qAddAssoc, qAddComm, qAddZeroL, qAddZeroR, qAddNegL, qAddNegR,
+                  qMulAssoc, qMulComm, qMulOneL, qMulOneR, qDistribL, qDistribR)
+import rationalEffective (qOneNotZero)
+import rationalInv (qInvExists)
+import monoid (Monoid)
+import group (Group)
+import field (Field, fieldAddGroup, fieldMulMonoid)
+
+-- ℚ is a field: twenty components, twenty existing corpus lemmas.
+-- The inverse component is rationalInv's qInvExists verbatim — the
+-- Field type was shaped to its statement.
+def ratField : Field ≔
+  (Q , qAdd , qMul , qNeg , qZero , qOne ,
+   qAddAssoc , qAddComm , qAddZeroL , qAddZeroR , qAddNegL , qAddNegR ,
+   qMulAssoc , qMulComm , qMulOneL , qMulOneR , qDistribL , qDistribR ,
+   qOneNotZero , qInvExists)
+
+-- and therefore (ℚ, +, -, 0) is a group and (ℚ, *, 1) a monoid.
+def ratAddGroup : Group ≔ fieldAddGroup ratField
+def ratMulMonoid : Monoid ≔ fieldMulMonoid ratField

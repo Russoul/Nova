@@ -8,6 +8,12 @@
 -- per-file sweep. check-elaborations.sh verifies the list is complete.
 
 import definingEq
+import monoid
+import group
+import field
+import natMonoid
+import intGroup
+import ratField
 import nat
 import integer
 import integerNormalize
