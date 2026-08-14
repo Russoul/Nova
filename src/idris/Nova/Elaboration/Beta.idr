@@ -283,6 +283,163 @@ betaCtx : Sig -> Ctx -> Ctx
 betaCtx sig [<]          = [<]
 betaCtx sig (rest :< ty) = betaCtx sig rest :< betaTy sig ty
 
+-- ===== the COMPUTATIONAL normaliser (↓ step ½ — tier 1) =====
+--
+-- The δ-FREE deep normaliser: every ≜ rule EXCEPT signature unfolding
+-- (x-β / ty-x-β) — a definition reference is STUCK, like a
+-- declaration's. Two sides that join under it are equal "by
+-- computation" in the strict sense: Π/Σ/ℕ/⊎/quotient/QIIT/ν
+-- eliminations at their introductions, let, El-decoding — with no
+-- store, no hypotheses, and no abstraction loss (terms stay in the
+-- vocabulary they were written in, and normal forms stay
+-- surface-sized: none of the δ-blowup). Signature-free by
+-- construction: x-β was the ONLY rule that consulted Σ.
+
+mutual
+  export
+  compSubNorm : SubNorm -> SubNorm
+  compSubNorm [<] = [<]
+  compSubNorm (es :< e) = compSubNorm es :< compElem e
+
+  export
+  compElem : Elem -> Elem
+  compElem (CtxVar n)         = CtxVar n
+  compElem (ZeroElim t)       = ZeroElim (compElem t)
+  compElem OneIntro           = OneIntro
+  compElem NatIntro0          = NatIntro0
+  compElem (NatIntro1 t)      = NatIntro1 (compElem t)
+  compElem (NatElim z s t) =
+    let z' = compElem z
+        s' = compElem s
+    in case compElem t of
+         NatIntro0    => z'
+         NatIntro1 n  => compElem (substElem s' (Ext (Ext Id n) (NatElim z' s' n)))
+         t'           => NatElim z' s' t'
+  compElem (PiIntro f)        = PiIntro (compElem f)
+  compElem (PiApp f e) =
+    let e' = compElem e
+    in case compElem f of
+         PiIntro g => compElem (substElem g (Ext Id e'))
+         f'        => PiApp f' e'
+  compElem (Let a b) =
+    compElem (substElem b (Ext (Ext Id a) Star))
+  compElem (SigmaIntro a b)   = SigmaIntro (compElem a) (compElem b)
+  compElem (SigmaElim1 t) =
+    case compElem t of
+      SigmaIntro a _ => a
+      t'             => SigmaElim1 t'
+  compElem (SigmaElim2 t) =
+    case compElem t of
+      SigmaIntro _ b => b
+      t'             => SigmaElim2 t'
+  compElem (Inj1 t)           = Inj1 (compElem t)
+  compElem (Inj2 t)           = Inj2 (compElem t)
+  compElem (SumElim l r t) =
+    let l' = compElem l
+        r' = compElem r
+    in case compElem t of
+         Inj1 a => compElem (substElem l' (Ext Id a))
+         Inj2 b => compElem (substElem r' (Ext Id b))
+         t'     => SumElim l' r' t'
+  compElem Elem.ZeroTy        = Elem.ZeroTy
+  compElem Elem.OneTy         = Elem.OneTy
+  compElem Elem.NatTy         = Elem.NatTy
+  compElem (Elem.PiTy a b)    = Elem.PiTy (compElem a) (compElem b)
+  compElem (Elem.SigmaTy a b) = Elem.SigmaTy (compElem a) (compElem b)
+  compElem (Elem.SumTy a b)   = Elem.SumTy (compElem a) (compElem b)
+  compElem (Elem.EqTy l r t)  = Elem.EqTy (compElem l) (compElem r) (compTy t)
+  compElem (QuotTy a r)       = QuotTy (compElem a) (compElem r)
+  -- x-β omitted: a definition reference is STUCK here, by design
+  compElem (SigVar x es)      = SigVar x (compSubNorm es)
+  compElem (Class a)          = Class (compElem a)
+  compElem (QuotElim f q) =
+    case compElem q of
+      Class a => compElem (substElem (compElem f) (Ext Id a))
+      q'      => QuotElim (compElem f) q'
+  compElem (Squash t)         =
+    case compTy t of
+      Prf p => p
+      t'    => Squash t'
+  compElem Star               = Star
+  compElem (QSortC sg k es)   = QSortC (compQSig sg) k (compSubNorm es)
+  compElem (QCtor sg k es)    = QCtor (compQSig sg) k (compSubNorm es)
+  compElem (QElim sg k ms fs es w) =
+    let sg' = compQSig sg
+        ms' = map compTy ms
+        fs' = map compElem fs
+        es' = compSubNorm es
+    in case compElem w of
+         QCtor sgW c theta =>
+           if sgW == sg'
+             then case qElimBetaRhs sg' ms' fs' c theta of
+                    Right rhs => compElem rhs
+                    Left _ => QElim sg' k ms' fs' es' (QCtor sgW c theta)
+             else QElim sg' k ms' fs' es' (QCtor sgW c theta)
+         w' => QElim sg' k ms' fs' es' w'
+  compElem (Elem.NuTy f)      = Elem.NuTy (compPoly f)
+  compElem (Out t) =
+    case compElem t of
+      Corec p a f x => compElem (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+      t'            => Out t'
+  compElem (Corec p a f x) =
+    Corec (compPoly p) (compElem a) (compElem f) (compElem x)
+
+  export
+  compPoly : Poly -> Poly
+  compPoly PHole        = PHole
+  compPoly (PConst a)   = PConst (compElem a)
+  compPoly (PProd f g)  = PProd (compPoly f) (compPoly g)
+  compPoly (PSum f g)   = PSum (compPoly f) (compPoly g)
+  compPoly (PSigma a f) = PSigma (compElem a) (compPoly f)
+  compPoly (PPi a f)    = PPi (compElem a) (compPoly f)
+
+  export
+  compQTm : QTm -> QTm
+  compQTm (QVar i)     = QVar i
+  compQTm (QAppE f e)  = QAppE (compQTm f) (compElem e)
+  compQTm (QAppI f a)  = QAppI (compQTm f) (compQTm a)
+  compQTm (QEqC l r u) = QEqC (compQTm l) (compQTm r) (compQTm u)
+
+  export
+  compQTy : QTy -> QTy
+  compQTy QU           = QU
+  compQTy (QEl t)      = QEl (compQTm t)
+  compQTy (QPiExt a b) = QPiExt (compTy a) (compQTy b)
+  compQTy (QPiInd u b) = QPiInd (compQTm u) (compQTy b)
+
+  export
+  compQSig : QSig -> QSig
+  compQSig = map compQTy
+
+  export
+  compTy : Ty -> Ty
+  compTy Ty.ZeroTy        = Ty.ZeroTy
+  compTy Ty.OneTy         = Ty.OneTy
+  compTy Ty.NatTy         = Ty.NatTy
+  compTy Ty.UniverseTy    = Ty.UniverseTy
+  compTy (Ty.PiTy a b)    = Ty.PiTy (compTy a) (compTy b)
+  compTy (Ty.SigmaTy a b) = Ty.SigmaTy (compTy a) (compTy b)
+  compTy (Ty.SumTy a b)   = Ty.SumTy (compTy a) (compTy b)
+  compTy (El e) =
+    case compElem e of
+      Elem.ZeroTy      => Ty.ZeroTy
+      Elem.OneTy       => Ty.OneTy
+      Elem.NatTy       => Ty.NatTy
+      Elem.PiTy a b    => compTy (Ty.PiTy (El a) (El b))
+      Elem.SigmaTy a b => compTy (Ty.SigmaTy (El a) (El b))
+      Elem.SumTy a b   => compTy (Ty.SumTy (El a) (El b))
+      QuotTy a r       => compTy (Quotient (El a) r)
+      QSortC sg k es   => QSort sg k es
+      Elem.NuTy f      => Ty.NuTy (compPoly f)
+      e'               => El e'
+  compTy PropTy           = PropTy
+  compTy (Prf e)          = Prf (compElem e)
+  compTy (Quotient a r)   = Quotient (compTy a) (compElem r)
+  -- ty-x-β omitted, like x-β above
+  compTy (Ty.SigVar x es) = Ty.SigVar x (compSubNorm es)
+  compTy (QSort sg k es)  = QSort (compQSig sg) k (compSubNorm es)
+  compTy (Ty.NuTy f)      = Ty.NuTy (compPoly f)
+
 mutual
   ||| WEAK-HEAD normalization, tolerant of open signatures and open
   ||| contexts: contract only at the head, leave every subterm AS

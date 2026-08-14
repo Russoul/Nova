@@ -908,6 +908,17 @@ whnf(C) = Prf (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ Prf R[id, a, b
 #      an equation whose sides coincide textually costs one
 #      comparison, unconditionally — measured, that is the majority
 #      of a long explicit proof's switch conversions.
+#   ½. COMPUTATIONAL join: both sides normalized by every ≜ rule
+#      EXCEPT signature unfolding — Π/Σ/ℕ/⊎/quotient/QIIT/ν
+#      eliminations at their introductions, let, El-decoding; a
+#      definition reference is STUCK — and α-compared. This is the
+#      strict sense of "trivial by computation": it costs
+#      surface-sized work (definitions never open, so there is no
+#      δ-blowup to walk), consults no store and no hypotheses, and
+#      loses no abstraction. Discharged here → the empty
+#      compare-beta-normal-forms certificate, eagerly replayed (the
+#      sides differ as written, so the replay stays as the canary for
+#      any engine/kernel normaliser disagreement).
 #   1. whnf both sides (this alone discharges everything the old
 #      derivation machinery called "by computation": β, El-decoding,
 #      signature unfolding).
