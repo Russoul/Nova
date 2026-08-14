@@ -284,8 +284,8 @@ data SItem : Type where
   ||| (docs/SearchlessElaboration.md §5.3)
   SDef : String -> STy -> SElem -> Maybe (List String) -> SItem
   ||| def x : T — a DECLARATION: a def without a definiens, entering Σ
-  ||| as a sig-decl and reported as an open hole (the name's span is
-  ||| kept for hover)
+  ||| as a sig-decl and reported as an open declaration (the name's
+  ||| span is kept for diagnostics)
   SDeclDef : (nrng : Maybe Range) -> String -> STy -> SItem
   ||| type x ≔ T — always in the empty context
   STypeDef : String -> STy -> SItem

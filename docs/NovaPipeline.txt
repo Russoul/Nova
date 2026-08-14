@@ -190,9 +190,9 @@ site and the composite it descended from. The user or AI discharges an
 obligation by prepending an ordinary def whose type is the
 obligation's statement as an equality type, and re-running. A file is
 accepted exactly when the run's final signature is DEFINITIONAL (no
-constraints, and — once surface holes land — no declarations) AND the
-kernel replays every certificate. Nothing survives between runs. (Full
-lifecycle, stratification and metatheory: docs/NovaElaboration.txt.)
+constraints and no declarations) AND the kernel replays every
+certificate. Nothing survives between runs. (Full lifecycle,
+stratification and metatheory: docs/NovaElaboration.txt.)
 
 ////////// Why this shape //////////
 
@@ -280,3 +280,15 @@ item level carries real motives): ℕ-elim z/s rewrite positions and
 ℕ-elim proof arguments use the CONSTANT-MOTIVE reading — a valid
 congruence/elimination instance whose premises are demanded at the
 constant type.
+
+Discharge is SEARCHLESS by default (docs/SearchlessElaboration.md):
+a site's candidates are the enclosing item's `using`-named lemmas
+plus its hypotheses — never the whole store, which survives only as
+the advisory `hint:` probe on failed discharges. In front of the
+engine sit two free conversion tiers: α-identity and the δ-free
+computational join (β/ι/El-decoding without definition unfolding),
+which between them close the overwhelming majority of sites.
+Surface holes/metavariables are REMOVED (the first implementation
+was measured as the dominant elaboration cost and the only source
+of in-place Σ mutation); a redesign is future work
+(docs/NovaElaboration.txt, Future work).

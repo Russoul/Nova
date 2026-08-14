@@ -1,8 +1,8 @@
-declared vect [+1 hole]
-declared vectS [+1 hole]
+declared vect [+1 declaration]
+declared vectS [+1 declaration]
 defined two
 defined twoIsPair
-open holes (2):
+open declarations (2):
   [vect] ⊢ ? : ℕ → 𝕌 → 𝕌
       at: def vect
   [vectS] ⊢ ? : (n:ℕ) → (A:𝕌) → Prf (vect (S n) A ≡ (A ⨯ vect n A) ∈ 𝕌)

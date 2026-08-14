@@ -42,26 +42,13 @@ tokenKindName Operator   = "operator"
 tokenKindName Number     = "number"
 tokenKindName Comment    = "comment"
 
-||| LSP-layer token types appended after the parser kinds: hole
-||| occurrences reclassified by elaboration state (see
-||| `Nova.LSP.SemanticTokens.getSemanticTokens`'s overlay). Not LSP
-||| standard names — hole-ness has no standard type — so clients need
-||| a theme rule for them; the names follow the idris2-lsp precedent.
-export
-unsolvedHoleIndex : Int
-unsolvedHoleIndex = 5
-
-export
-solvedHoleIndex : Int
-solvedHoleIndex = 6
-
-||| Token type names in legend order (index must match `tokenKindIndex`/
-||| `unsolvedHoleIndex`/`solvedHoleIndex`) — exported so non-LSP
-||| consumers (e.g. static HTML rendering) can resolve a classified
-||| token's index back to a name without duplicating this list.
+||| Token type names in legend order (index must match
+||| `tokenKindIndex`) — exported so non-LSP consumers (e.g. static
+||| HTML rendering) can resolve a classified token's index back to a
+||| name without duplicating this list.
 export
 tokenTypeNames : List String
-tokenTypeNames = map tokenKindName tokenKinds ++ ["unsolved_meta", "solved_meta"]
+tokenTypeNames = map tokenKindName tokenKinds
 
 semanticTokensLegend : SemanticTokensLegend
 semanticTokensLegend = MkSemanticTokensLegend tokenTypeNames []

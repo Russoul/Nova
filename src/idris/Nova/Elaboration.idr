@@ -122,19 +122,16 @@ record OblMeta where
   ||| advisory hint recorded at assume time (§5.4) — display only
   ohint : Maybe String
 
-||| Display metadata of one hole — same discipline as OblMeta: the
-||| hole itself is a declaration entry of Σ; this record is aligned
-||| with Σ's declaration entries in minting order.
-record HoleMeta where
-  constructor MkHoleMeta
-  hname : String
-  henv : NameEnv
-  hsite : String
-  ||| may the elaborator instantiate this hole? (surface `_x`; a rigid
-  ||| `?x` is never solved) — policy, not theory: both are sig-decls
-  hsolvable : Bool
-  ||| the minting occurrence's source span (LSP hover/diagnostics)
-  hrange : Maybe Range
+||| Display metadata of one declaration — same discipline as OblMeta:
+||| the declaration itself is a sig-decl entry of Σ; this record is
+||| aligned with Σ's declaration entries in minting order.
+record DeclMeta where
+  constructor MkDeclMeta
+  dname : String
+  denv : NameEnv
+  dsite : String
+  ||| the declaring item's source span (LSP diagnostics)
+  drange : Maybe Range
 
 record ElabSt where
   constructor MkElabSt
@@ -167,9 +164,9 @@ record ElabSt where
   ||| display metadata for Σ's constraint entries, in surfacing order
   ||| (invariant: one per SigEq/SigTyEq of `sig`, appended together)
   oblMeta : SnocList OblMeta
-  ||| display metadata for Σ's declaration entries (holes), in minting
-  ||| order (invariant: one per SigDecl/SigTyDecl of `sig`)
-  holeMeta : SnocList HoleMeta
+  ||| display metadata for Σ's declaration entries, in minting order
+  ||| (invariant: one per SigDecl/SigTyDecl of `sig`)
+  declMeta : SnocList DeclMeta
   ||| binder occurrences with their elaborated types (module, span,
   ||| binding context/env, name, type) — LSP hover ascription
   binderTypes : SnocList (String, Range, Ctx, NameEnv, String, Ty)
@@ -299,205 +296,8 @@ licProof : StepLic -> Elem
 licProof (LProof p) = p
 licProof (LPath _ _ _) = assert_total $ idris_crash "licProof: path license in a rewrite trace"
 
-||| The identity NORMAL substitution over a context of length n:
-||| ☐ₙ₋₁, ..., ☐₀ (outermost first) — how a hole minted at the ambient
-||| context is referenced at its own site.
-idSpine : Nat -> SubNorm
-idSpine Z = [<]
-idSpine (S n) = cast (map CtxVar (reverse [0 .. n]))
-
-||| The identity spine of a length-n entry context, weakened under k
-||| further binders: ☐ₖ₊ₙ₋₁, ..., ☐ₖ — how a hole minted at Γ is
-||| referenced at Γ ▷ Δ (|Δ| = k).
-wkSpine : (n : Nat) -> (k : Nat) -> SubNorm
-wkSpine Z k = [<]
-wkSpine (S n) k = cast (map CtxVar (reverse [k .. k + n]))
-
-||| Rewrite every signature reference through `f` (Nothing = keep):
-||| the workhorse of prefix-legalization — inlining a later def's
-||| definiens, or renaming a later hole to its inserted twin.
-mapRefsT : (String -> SubNorm -> Maybe Elem) -> Ty -> Ty
-mapRefsSub : (String -> SubNorm -> Maybe Elem) -> SubNorm -> SubNorm
-mapRefsQTm : (String -> SubNorm -> Maybe Elem) -> QTm -> QTm
-mapRefsQTy : (String -> SubNorm -> Maybe Elem) -> QTy -> QTy
-mapRefsQSig : (String -> SubNorm -> Maybe Elem) -> QSig -> QSig
-mapRefsPoly : (String -> SubNorm -> Maybe Elem) -> Poly -> Poly
-
-mapRefsE : (String -> SubNorm -> Maybe Elem) -> Elem -> Elem
-mapRefsE f (SigVar x es) =
-  let es2 = mapRefsSub f es in
-  fromMaybe (SigVar x es2) (f x es2)
-mapRefsE f (CtxVar n) = CtxVar n
-mapRefsE f (ZeroElim t) = ZeroElim (mapRefsE f t)
-mapRefsE f OneIntro = OneIntro
-mapRefsE f NatIntro0 = NatIntro0
-mapRefsE f (NatIntro1 t) = NatIntro1 (mapRefsE f t)
-mapRefsE f (NatElim z s t) = NatElim (mapRefsE f z) (mapRefsE f s) (mapRefsE f t)
-mapRefsE f (PiIntro g) = PiIntro (mapRefsE f g)
-mapRefsE f (PiApp g e) = PiApp (mapRefsE f g) (mapRefsE f e)
-mapRefsE f (Let a b) = Let (mapRefsE f a) (mapRefsE f b)
-mapRefsE f (SigmaIntro a b) = SigmaIntro (mapRefsE f a) (mapRefsE f b)
-mapRefsE f (SigmaElim1 t) = SigmaElim1 (mapRefsE f t)
-mapRefsE f (SigmaElim2 t) = SigmaElim2 (mapRefsE f t)
-mapRefsE f (Inj1 t) = Inj1 (mapRefsE f t)
-mapRefsE f (Inj2 t) = Inj2 (mapRefsE f t)
-mapRefsE f (SumElim l r t) = SumElim (mapRefsE f l) (mapRefsE f r) (mapRefsE f t)
-mapRefsE f Elem.ZeroTy = Elem.ZeroTy
-mapRefsE f Elem.OneTy = Elem.OneTy
-mapRefsE f Elem.NatTy = Elem.NatTy
-mapRefsE f (Elem.PiTy a b) = Elem.PiTy (mapRefsE f a) (mapRefsE f b)
-mapRefsE f (Elem.SigmaTy a b) = Elem.SigmaTy (mapRefsE f a) (mapRefsE f b)
-mapRefsE f (Elem.SumTy a b) = Elem.SumTy (mapRefsE f a) (mapRefsE f b)
-mapRefsE f (Elem.EqTy l r t) = Elem.EqTy (mapRefsE f l) (mapRefsE f r) (mapRefsT f t)
-mapRefsE f (QuotTy a r) = QuotTy (mapRefsE f a) (mapRefsE f r)
-mapRefsE f (Class a) = Class (mapRefsE f a)
-mapRefsE f (QuotElim g q) = QuotElim (mapRefsE f g) (mapRefsE f q)
-mapRefsE f (Squash t) = Squash (mapRefsT f t)
-mapRefsE f Star = Star
-mapRefsE f (QSortC sg k es) = QSortC (mapRefsQSig f sg) k (mapRefsSub f es)
-mapRefsE f (QCtor sg k es) = QCtor (mapRefsQSig f sg) k (mapRefsSub f es)
-mapRefsE f (QElim sg k ms fs es w) =
-  QElim (mapRefsQSig f sg) k (map (mapRefsT f) ms) (map (mapRefsE f) fs)
-        (mapRefsSub f es) (mapRefsE f w)
-mapRefsE f (Elem.NuTy p) = Elem.NuTy (mapRefsPoly f p)
-mapRefsE f (Out t) = Out (mapRefsE f t)
-mapRefsE f (Corec p a g x) = Corec (mapRefsPoly f p) (mapRefsE f a) (mapRefsE f g) (mapRefsE f x)
-
-mapRefsT f Ty.ZeroTy = Ty.ZeroTy
-mapRefsT f Ty.OneTy = Ty.OneTy
-mapRefsT f Ty.NatTy = Ty.NatTy
-mapRefsT f Ty.UniverseTy = Ty.UniverseTy
-mapRefsT f (Ty.PiTy a b) = Ty.PiTy (mapRefsT f a) (mapRefsT f b)
-mapRefsT f (Ty.SigmaTy a b) = Ty.SigmaTy (mapRefsT f a) (mapRefsT f b)
-mapRefsT f (Ty.SumTy a b) = Ty.SumTy (mapRefsT f a) (mapRefsT f b)
-mapRefsT f (El e) = El (mapRefsE f e)
-mapRefsT f PropTy = PropTy
-mapRefsT f (Prf e) = Prf (mapRefsE f e)
-mapRefsT f (Quotient a r) = Quotient (mapRefsT f a) (mapRefsE f r)
-mapRefsT f (Ty.SigVar x es) = Ty.SigVar x (mapRefsSub f es)
-mapRefsT f (QSort sg k es) = QSort (mapRefsQSig f sg) k (mapRefsSub f es)
-mapRefsT f (Ty.NuTy p) = Ty.NuTy (mapRefsPoly f p)
-
-mapRefsSub f [<] = [<]
-mapRefsSub f (es :< e) = mapRefsSub f es :< mapRefsE f e
-
-mapRefsQTm f (QVar i) = QVar i
-mapRefsQTm f (QAppE g e) = QAppE (mapRefsQTm f g) (mapRefsE f e)
-mapRefsQTm f (QAppI g a) = QAppI (mapRefsQTm f g) (mapRefsQTm f a)
-mapRefsQTm f (QEqC l r u) = QEqC (mapRefsQTm f l) (mapRefsQTm f r) (mapRefsQTm f u)
-
-mapRefsQTy f QU = QU
-mapRefsQTy f (QEl t) = QEl (mapRefsQTm f t)
-mapRefsQTy f (QPiExt a b) = QPiExt (mapRefsT f a) (mapRefsQTy f b)
-mapRefsQTy f (QPiInd u b) = QPiInd (mapRefsQTm f u) (mapRefsQTy f b)
-
-mapRefsQSig f = map (mapRefsQTy f)
-
-mapRefsPoly f PHole = PHole
-mapRefsPoly f (PConst a) = PConst (mapRefsE f a)
-mapRefsPoly f (PProd g h) = PProd (mapRefsPoly f g) (mapRefsPoly f h)
-mapRefsPoly f (PSum g h) = PSum (mapRefsPoly f g) (mapRefsPoly f h)
-mapRefsPoly f (PSigma a g) = PSigma (mapRefsE f a) (mapRefsPoly f g)
-mapRefsPoly f (PPi a g) = PPi (mapRefsE f a) (mapRefsPoly f g)
-
-||| Every signature name an element references (with duplicates).
-collectRefsE : Elem -> List String
-collectRefsE e = go e
- where
-  goT : Ty -> List String
-  goQTm : QTm -> List String
-  goQTy : QTy -> List String
-  goP : Poly -> List String
-  go : Elem -> List String
-  go (SigVar x es) = x :: concatMap go (toList es)
-  go (CtxVar _) = []
-  go (ZeroElim t) = go t
-  go OneIntro = []
-  go NatIntro0 = []
-  go (NatIntro1 t) = go t
-  go (NatElim z s t) = go z ++ go s ++ go t
-  go (PiIntro f) = go f
-  go (PiApp f x) = go f ++ go x
-  go (Let a b) = go a ++ go b
-  go (SigmaIntro a b) = go a ++ go b
-  go (SigmaElim1 t) = go t
-  go (SigmaElim2 t) = go t
-  go (Inj1 t) = go t
-  go (Inj2 t) = go t
-  go (SumElim l r t) = go l ++ go r ++ go t
-  go Elem.ZeroTy = []
-  go Elem.OneTy = []
-  go Elem.NatTy = []
-  go (Elem.PiTy a b) = go a ++ go b
-  go (Elem.SigmaTy a b) = go a ++ go b
-  go (Elem.SumTy a b) = go a ++ go b
-  go (Elem.EqTy l r t) = go l ++ go r ++ goT t
-  go (QuotTy a r) = go a ++ go r
-  go (Class a) = go a
-  go (QuotElim f q) = go f ++ go q
-  go (Squash t) = goT t
-  go Star = []
-  go (QSortC sg k es) = concatMap goQTy sg ++ concatMap go (toList es)
-  go (QCtor sg k es) = concatMap goQTy sg ++ concatMap go (toList es)
-  go (QElim sg k ms fs es w) =
-    concatMap goQTy sg ++ concatMap goT ms ++ concatMap go fs ++
-    concatMap go (toList es) ++ go w
-  go (Elem.NuTy p) = goP p
-  go (Out t) = go t
-  go (Corec p a f x) = goP p ++ go a ++ go f ++ go x
-
-  goP PHole = []
-  goP (PConst a) = go a
-  goP (PProd f g) = goP f ++ goP g
-  goP (PSum f g) = goP f ++ goP g
-  goP (PSigma a f) = go a ++ goP f
-  goP (PPi a f) = go a ++ goP f
-
-  goQTm (QVar _) = []
-  goQTm (QAppE f e) = goQTm f ++ go e
-  goQTm (QAppI f a) = goQTm f ++ goQTm a
-  goQTm (QEqC l r u) = goQTm l ++ goQTm r ++ goQTm u
-
-  goQTy QU = []
-  goQTy (QEl t) = goQTm t
-  goQTy (QPiExt a b) = goT a ++ goQTy b
-  goQTy (QPiInd u b) = goQTm u ++ goQTy b
-
-  goT Ty.ZeroTy = []
-  goT Ty.OneTy = []
-  goT Ty.NatTy = []
-  goT Ty.UniverseTy = []
-  goT (Ty.PiTy a b) = goT a ++ goT b
-  goT (Ty.SigmaTy a b) = goT a ++ goT b
-  goT (Ty.SumTy a b) = goT a ++ goT b
-  goT (El x) = go x
-  goT PropTy = []
-  goT (Prf x) = go x
-  goT (Quotient a r) = goT a ++ go r
-  goT (Ty.SigVar x es) = x :: concatMap go (toList es)
-  goT (QSort sg k es) = concatMap goQTy sg ++ concatMap go (toList es)
-  goT (Ty.NuTy p) = goP p
-
-||| ONE δ-step at the head: a definition reference unfolds to its
-||| definiens under the spine; anything else is left alone. Used to
-||| walk a hole solution back INTO the declaration's prefix (a later
-||| def's body may be prefix-legal even when its name is not) without
-||| beta-normalizing the whole term.
-unfoldHead : Sig -> Elem -> Maybe Elem
-unfoldHead sig (SigVar x es) =
-  case sigLookup x sig of
-    Just (SigDef _ _ a _) => Just (substElem a (embed es))
-    _ => Nothing
-unfoldHead sig (PiApp f e) = map (\f' => PiApp f' e) (unfoldHead sig f)
-unfoldHead sig _ = Nothing
-
-||| Strengthen away the k innermost binders (Nothing if any of them
-||| is mentioned) — how a solution found at a binder-extended
-||| occurrence moves back to the hole's own context.
-strengthenK : Nat -> Elem -> Maybe Elem
-strengthenK Z t = Just t
-strengthenK (S k) t = strengthenElem 0 t >>= strengthenK k
-
+||| Strengthen a type away from the k innermost binders
+||| (Nothing if any of them is mentioned).
 strengthenKTy : Nat -> Ty -> Maybe Ty
 strengthenKTy Z t = Just t
 strengthenKTy (S k) t = strengthenTy 0 t >>= strengthenKTy k
@@ -505,12 +305,12 @@ strengthenKTy (S k) t = strengthenTy 0 t >>= strengthenKTy k
 ||| The AMBIENT embedded Nova type pieces of two same-shape QIIT
 ||| signatures, paired entrywise — the external Π-domains that stand
 ||| at (or strengthen to) the ambient context, which is where an
-||| instantiated parameter lands (`El _nat` vs `El ℕ`) no matter how
-||| deep the entry buries it (vcons : (n : El ℕ) (x : El a) → …).
-||| Nothing on any ToS-structural mismatch (entry count, binder
-||| shapes, ToS codes). Domains that genuinely use their local ToS
-||| binders are skipped: their equality follows from the ambient
-||| pieces once solved, via the composite retry.
+||| instantiated parameter lands no matter how deep the entry buries
+||| it (vcons : (n : El ℕ) (x : El a) → …). Nothing on any
+||| ToS-structural mismatch (entry count, binder shapes, ToS codes).
+||| Domains that genuinely use their local ToS binders are skipped:
+||| their equality follows from the ambient pieces, via the composite
+||| retry.
 qsigDom0Pieces : QSig -> QSig -> Maybe (List (Ty, Ty))
 qsigDom0Pieces sg0 sg1 =
   if length sg0 /= length sg1 then Nothing
@@ -558,13 +358,6 @@ polyDom0Pieces = goP 0
   goP d (PPi a f) (PPi a' f') = [| piece0 d a a' ++ goP (S d) f f' |]
   goP _ _ _ = Nothing
 
-||| Position of the entry binding a name (leftmost/oldest first).
-sigIndexOf : String -> List SigEntry -> Maybe Nat
-sigIndexOf q = go 0
- where
-  go : Nat -> List SigEntry -> Maybe Nat
-  go i [] = Nothing
-  go i (e :: rest) = if sigEntryName e == Just q then Just i else go (S i) rest
 
 ||| Γ‖ᵢ (same as the derivation checker's private helper).
 ctxLookup : Ctx -> Nat -> Maybe Ty
@@ -1915,9 +1708,8 @@ assumedMatchE st ctx a b ty =
 -- ===== Committing conversion (the ↓ judgements) =====
 
 ||| The number of constraint entries so far. Distinct from oblCount:
-||| the decompose bookkeeping must count CONSTRAINTS only — a hole
-||| flip during child conversion SHRINKS the open-entry census, and
-||| must not read as "children surfaced something".
+||| the decompose bookkeeping counts CONSTRAINTS only — a declaration
+||| minted mid-item must not read as "children surfaced something".
 constraintCountM : ElabM Nat
 constraintCountM = do
   st <- getSt
@@ -1933,8 +1725,6 @@ recordBinder (Just r) ctx env x ty = do
 
 ||| The number of OPEN entries so far — constraints AND declarations:
 ||| either makes Σ non-definitional, so either dirties the run.
-||| Derived from Σ itself: hole flips (decl→def) and item-end
-||| constraint deletions must be reflected immediately.
 oblCount : ElabM Nat
 oblCount = do
   st <- getSt
@@ -1978,179 +1768,102 @@ resugarQ st occ = go (toList st.sig)
           Nothing => go rest
   go (_ :: rest) = go rest
 
+-- DISPLAY normalization: reported statements, obligation sides and
+-- declaration types are shown with every β-redex contracted (λ,
+-- projections, eliminators at constructors, El-decoding,
+-- code-squash-prf) while DEFINITIONS stay folded — δ is the one
+-- contraction display never takes, so terms keep the user's names.
+-- The contraction is exactly the tier-½ normalizer
+-- (Nova.Elaboration.Beta), reused; on top of it, QIIT formers are
+-- resugared through the Σ entries that name them (resugarQ above).
 mutual
-  ||| DISPLAY zonking: unfold references to SOLVED HOLES — their
-  ||| entries are elaborator-minted defs — so reported statements and
-  ||| hole types read through the run's own inventions (`Prf _3 →
-  ||| Prf _4` says nothing; `Prf ⊤ → Prf ⊥` says absurdity), and
-  ||| contract EVERY β-redex (λ, projections, eliminators at
-  ||| constructors, El-decoding, code-squash-prf): an instantiated
-  ||| motive `(λx. P x) zero` reads as `P zero`. DEFINITIONS stay
-  ||| folded — δ is the one contraction display never takes, so terms
-  ||| keep the user's names.
-  zonkElem : ElabSt -> Elem -> Elem
-  zonkElem st (SigVar x es) =
-    let es' = zonkSubNorm st es in
-    if any (\m => m.hname == x) (toList st.holeMeta)
-      then case sigLookup x st.sig of
-             Just (SigDef _ _ a _) => zonkElem st (substElem a (embed es'))
-             _ => SigVar x es'
-      else SigVar x es'
-  zonkElem st (CtxVar n) = CtxVar n
-  zonkElem st (ZeroElim t) = ZeroElim (zonkElem st t)
-  zonkElem st OneIntro = OneIntro
-  zonkElem st NatIntro0 = NatIntro0
-  zonkElem st (NatIntro1 t) = NatIntro1 (zonkElem st t)
-  zonkElem st (NatElim z s' t) =
-    case zonkElem st t of
-      NatIntro0 => zonkElem st z
-      NatIntro1 n => zonkElem st (substElem s' (Ext (Ext Id n) (NatElim z s' n)))
-      t2 => NatElim (zonkElem st z) (zonkElem st s') t2
-  zonkElem st (PiIntro f) = PiIntro (zonkElem st f)
-  zonkElem st (PiApp f e) =
-    case zonkElem st f of
-      PiIntro g => zonkElem st (substElem g (Ext Id e))
-      f2 => PiApp f2 (zonkElem st e)
-  -- el-let-beta: a let is always a redex
-  zonkElem st (Let a b) = zonkElem st (substElem b (Ext (Ext Id a) Star))
-  zonkElem st (SigmaIntro a b) = SigmaIntro (zonkElem st a) (zonkElem st b)
-  zonkElem st (SigmaElim1 t) =
-    case zonkElem st t of
-      SigmaIntro a _ => a
-      t2 => SigmaElim1 t2
-  zonkElem st (SigmaElim2 t) =
-    case zonkElem st t of
-      SigmaIntro _ b => b
-      t2 => SigmaElim2 t2
-  zonkElem st (Inj1 t) = Inj1 (zonkElem st t)
-  zonkElem st (Inj2 t) = Inj2 (zonkElem st t)
-  zonkElem st (SumElim l r t) =
-    case zonkElem st t of
-      Inj1 a => zonkElem st (substElem l (Ext Id a))
-      Inj2 b => zonkElem st (substElem r (Ext Id b))
-      t2 => SumElim (zonkElem st l) (zonkElem st r) t2
-  zonkElem st Elem.ZeroTy = Elem.ZeroTy
-  zonkElem st Elem.OneTy = Elem.OneTy
-  zonkElem st Elem.NatTy = Elem.NatTy
-  zonkElem st (Elem.PiTy a b) = Elem.PiTy (zonkElem st a) (zonkElem st b)
-  zonkElem st (Elem.SigmaTy a b) = Elem.SigmaTy (zonkElem st a) (zonkElem st b)
-  zonkElem st (Elem.SumTy a b) = Elem.SumTy (zonkElem st a) (zonkElem st b)
-  zonkElem st (Elem.EqTy l r t) = Elem.EqTy (zonkElem st l) (zonkElem st r) (zonkTy st t)
-  zonkElem st (QuotTy a r) = QuotTy (zonkElem st a) (zonkElem st r)
-  zonkElem st (Class a) = Class (zonkElem st a)
-  zonkElem st (QuotElim f q) =
-    case zonkElem st q of
-      Class a => zonkElem st (substElem f (Ext Id a))
-      q2 => QuotElim (zonkElem st f) q2
-  zonkElem st (Squash t) =
-    case zonkTy st t of
-      Prf p => p          -- code-squash-prf
-      t2 => Squash t2
-  zonkElem st Star = Star
-  zonkElem st (QSortC sg k es) =
-    let z = QSortC (zonkQSig st sg) k (zonkSubNorm st es) in
+  resugarElem : ElabSt -> Elem -> Elem
+  resugarElem st e@(QSortC sg k es) =
+    let z = QSortC (map (resugarQTy st) sg) k (resugarSub st es) in
     fromMaybe z (resugarQ st z)
-  zonkElem st (QCtor sg k es) =
-    let z = QCtor (zonkQSig st sg) k (zonkSubNorm st es) in
+  resugarElem st e@(QCtor sg k es) =
+    let z = QCtor (map (resugarQTy st) sg) k (resugarSub st es) in
     fromMaybe z (resugarQ st z)
-  zonkElem st (QElim sg k ms fs es w) =
-    case zonkElem st w of
-      QCtor sgW c theta =>
-        -- el-qiit-beta at nf-identical signatures
-        if zonkQSig st sg == sgW
-          then case qElimBetaRhs (zonkQSig st sg) (map (zonkTy st) ms) (map (zonkElem st) fs) c theta of
-                 Right rhs => zonkElem st rhs
-                 Left _ => zonkElimStuck st sg k ms fs es (QCtor sgW c theta)
-          else zonkElimStuck st sg k ms fs es (QCtor sgW c theta)
-      w2 => zonkElimStuck st sg k ms fs es w2
-  zonkElem st (Elem.NuTy p) = Elem.NuTy (zonkPoly st p)
-  zonkElem st (Out t) =
-    case zonkElem st t of
-      -- el-nu-beta at a corec head
-      Corec p a f x => zonkElem st (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
-      t2 => Out t2
-  zonkElem st (Corec p a f x) =
-    Corec (zonkPoly st p) (zonkElem st a) (zonkElem st f) (zonkElem st x)
+  resugarElem st (QElim sg k ms fs es w) =
+    QElim (map (resugarQTy st) sg) k (map (resugarTy st) ms)
+          (map (resugarElem st) fs) (resugarSub st es) (resugarElem st w)
+  resugarElem st (ZeroElim t) = ZeroElim (resugarElem st t)
+  resugarElem st (NatIntro1 t) = NatIntro1 (resugarElem st t)
+  resugarElem st (NatElim z f t) = NatElim (resugarElem st z) (resugarElem st f) (resugarElem st t)
+  resugarElem st (PiIntro f) = PiIntro (resugarElem st f)
+  resugarElem st (PiApp f e) = PiApp (resugarElem st f) (resugarElem st e)
+  resugarElem st (Let a b) = Let (resugarElem st a) (resugarElem st b)
+  resugarElem st (SigmaIntro a b) = SigmaIntro (resugarElem st a) (resugarElem st b)
+  resugarElem st (SigmaElim1 t) = SigmaElim1 (resugarElem st t)
+  resugarElem st (SigmaElim2 t) = SigmaElim2 (resugarElem st t)
+  resugarElem st (Inj1 t) = Inj1 (resugarElem st t)
+  resugarElem st (Inj2 t) = Inj2 (resugarElem st t)
+  resugarElem st (SumElim l r t) = SumElim (resugarElem st l) (resugarElem st r) (resugarElem st t)
+  resugarElem st (Elem.PiTy a b) = Elem.PiTy (resugarElem st a) (resugarElem st b)
+  resugarElem st (Elem.SigmaTy a b) = Elem.SigmaTy (resugarElem st a) (resugarElem st b)
+  resugarElem st (Elem.SumTy a b) = Elem.SumTy (resugarElem st a) (resugarElem st b)
+  resugarElem st (Elem.EqTy l r t) = Elem.EqTy (resugarElem st l) (resugarElem st r) (resugarTy st t)
+  resugarElem st (QuotTy a r) = QuotTy (resugarElem st a) (resugarElem st r)
+  resugarElem st (Class a) = Class (resugarElem st a)
+  resugarElem st (QuotElim f q) = QuotElim (resugarElem st f) (resugarElem st q)
+  resugarElem st (Squash t) = Squash (resugarTy st t)
+  resugarElem st (SigVar x es) = SigVar x (resugarSub st es)
+  resugarElem st (Elem.NuTy f) = Elem.NuTy (resugarPoly st f)
+  resugarElem st (Out t) = Out (resugarElem st t)
+  resugarElem st (Corec f a g x) =
+    Corec (resugarPoly st f) (resugarElem st a) (resugarElem st g) (resugarElem st x)
+  resugarElem st e = e
 
-  zonkTy : ElabSt -> Ty -> Ty
-  zonkTy st (Ty.SigVar x es) =
-    let es' = zonkSubNorm st es in
-    if any (\m => m.hname == x) (toList st.holeMeta)
-      then case sigLookup x st.sig of
-             Just (SigTyDef _ _ a) => zonkTy st (substTy a (embed es'))
-             _ => Ty.SigVar x es'
-      else Ty.SigVar x es'
-  zonkTy st Ty.ZeroTy = Ty.ZeroTy
-  zonkTy st Ty.OneTy = Ty.OneTy
-  zonkTy st Ty.NatTy = Ty.NatTy
-  zonkTy st Ty.UniverseTy = Ty.UniverseTy
-  zonkTy st (Ty.PiTy a b) = Ty.PiTy (zonkTy st a) (zonkTy st b)
-  zonkTy st (Ty.SigmaTy a b) = Ty.SigmaTy (zonkTy st a) (zonkTy st b)
-  zonkTy st (Ty.SumTy a b) = Ty.SumTy (zonkTy st a) (zonkTy st b)
-  zonkTy st (El e) =
-    case zonkElem st e of
-      Elem.ZeroTy      => Ty.ZeroTy
-      Elem.OneTy       => Ty.OneTy
-      Elem.NatTy       => Ty.NatTy
-      Elem.PiTy a b    => Ty.PiTy (zonkTy st (El a)) (zonkTy st (El b))
-      Elem.SigmaTy a b => Ty.SigmaTy (zonkTy st (El a)) (zonkTy st (El b))
-      Elem.SumTy a b   => Ty.SumTy (zonkTy st (El a)) (zonkTy st (El b))
-      QuotTy a r       => Quotient (zonkTy st (El a)) r
-      e2 => El e2
-  zonkTy st PropTy = PropTy
-  zonkTy st (Prf e) = Prf (zonkElem st e)
-  zonkTy st (Quotient a r) = Quotient (zonkTy st a) (zonkElem st r)
-  zonkTy st (QSort sg k es) =
-    let zsg = zonkQSig st sg
-        zes = zonkSubNorm st es in
+  resugarTy : ElabSt -> Ty -> Ty
+  resugarTy st (QSort sg k es) =
+    let zsg = map (resugarQTy st) sg
+        zes = resugarSub st es in
     case resugarQ st (QSortC zsg k zes) of
       Just code => El code
       Nothing => QSort zsg k zes
-  zonkTy st (Ty.NuTy p) = Ty.NuTy (zonkPoly st p)
+  resugarTy st (Ty.PiTy a b) = Ty.PiTy (resugarTy st a) (resugarTy st b)
+  resugarTy st (Ty.SigmaTy a b) = Ty.SigmaTy (resugarTy st a) (resugarTy st b)
+  resugarTy st (Ty.SumTy a b) = Ty.SumTy (resugarTy st a) (resugarTy st b)
+  resugarTy st (El e) = El (resugarElem st e)
+  resugarTy st (Prf e) = Prf (resugarElem st e)
+  resugarTy st (Quotient a r) = Quotient (resugarTy st a) (resugarElem st r)
+  resugarTy st (Ty.SigVar x es) = Ty.SigVar x (resugarSub st es)
+  resugarTy st (Ty.NuTy f) = Ty.NuTy (resugarPoly st f)
+  resugarTy st t = t
 
-  zonkElimStuck : ElabSt -> QSig -> Nat -> List Ty -> List Elem -> SubNorm -> Elem -> Elem
-  zonkElimStuck st sg k ms fs es w2 =
-    let z = QElim (zonkQSig st sg) k (map (zonkTy st) ms) (map (zonkElem st) fs)
-                  (zonkSubNorm st es) w2 in
-    fromMaybe z (resugarQ st z)
+  resugarSub : ElabSt -> SubNorm -> SubNorm
+  resugarSub st [<] = [<]
+  resugarSub st (es :< e) = resugarSub st es :< resugarElem st e
 
-  zonkSubNorm : ElabSt -> SubNorm -> SubNorm
-  zonkSubNorm st [<] = [<]
-  zonkSubNorm st (es :< e) = zonkSubNorm st es :< zonkElem st e
+  resugarQTy : ElabSt -> QTy -> QTy
+  resugarQTy st QU = QU
+  resugarQTy st (QEl t) = QEl t
+  resugarQTy st (QPiExt a b) = QPiExt (resugarTy st a) (resugarQTy st b)
+  resugarQTy st (QPiInd u b) = QPiInd u (resugarQTy st b)
 
-  zonkQTm : ElabSt -> QTm -> QTm
-  zonkQTm st (QVar i) = QVar i
-  zonkQTm st (QAppE f e) = QAppE (zonkQTm st f) (zonkElem st e)
-  zonkQTm st (QAppI f a) = QAppI (zonkQTm st f) (zonkQTm st a)
-  zonkQTm st (QEqC l r u) = QEqC (zonkQTm st l) (zonkQTm st r) (zonkQTm st u)
+  resugarPoly : ElabSt -> Poly -> Poly
+  resugarPoly st PHole = PHole
+  resugarPoly st (PConst a) = PConst (resugarElem st a)
+  resugarPoly st (PProd f g) = PProd (resugarPoly st f) (resugarPoly st g)
+  resugarPoly st (PSum f g) = PSum (resugarPoly st f) (resugarPoly st g)
+  resugarPoly st (PSigma a f) = PSigma (resugarElem st a) (resugarPoly st f)
+  resugarPoly st (PPi a f) = PPi (resugarElem st a) (resugarPoly st f)
 
-  zonkQTy : ElabSt -> QTy -> QTy
-  zonkQTy st QU = QU
-  zonkQTy st (QEl t) = QEl (zonkQTm st t)
-  zonkQTy st (QPiExt a b) = QPiExt (zonkTy st a) (zonkQTy st b)
-  zonkQTy st (QPiInd u b) = QPiInd (zonkQTm st u) (zonkQTy st b)
+displayElem : ElabSt -> Elem -> Elem
+displayElem st = resugarElem st . compElem
 
-  zonkQSig : ElabSt -> QSig -> QSig
-  zonkQSig st = map (zonkQTy st)
+displayTy : ElabSt -> Ty -> Ty
+displayTy st = resugarTy st . compTy
 
-  zonkPoly : ElabSt -> Poly -> Poly
-  zonkPoly st PHole = PHole
-  zonkPoly st (PConst a) = PConst (zonkElem st a)
-  zonkPoly st (PProd f g) = PProd (zonkPoly st f) (zonkPoly st g)
-  zonkPoly st (PSum f g) = PSum (zonkPoly st f) (zonkPoly st g)
-  zonkPoly st (PSigma a f) = PSigma (zonkElem st a) (zonkPoly st f)
-  zonkPoly st (PPi a f) = PPi (zonkElem st a) (zonkPoly st f)
+displayCtx : ElabSt -> Ctx -> Ctx
+displayCtx st [<] = [<]
+displayCtx st (rest :< ty) = displayCtx st rest :< displayTy st ty
 
-zonkCtx : ElabSt -> Ctx -> Ctx
-zonkCtx st [<] = [<]
-zonkCtx st (rest :< ty) = zonkCtx st rest :< zonkTy st ty
-
-zonkStmt : ElabSt -> Stmt -> Stmt
-zonkStmt st (StElem ctx env a b ty) =
-  StElem (zonkCtx st ctx) env (zonkElem st a) (zonkElem st b) (zonkTy st ty)
-zonkStmt st (StTy ctx env a b) =
-  StTy (zonkCtx st ctx) env (zonkTy st a) (zonkTy st b)
-
+displayStmt : ElabSt -> Stmt -> Stmt
+displayStmt st (StElem ctx env a b ty) =
+  StElem (displayCtx st ctx) env (displayElem st a) (displayElem st b) (displayTy st ty)
+displayStmt st (StTy ctx env a b) =
+  StTy (displayCtx st ctx) env (displayTy st a) (displayTy st b)
 ||| The report view: Σ's constraint entries — the run's obligations,
 ||| in surfacing order — zipped with their display metadata.
 oblView : ElabSt -> List Obligation
@@ -2158,36 +1871,33 @@ oblView st = go (toList st.sig) (toList st.oblMeta)
  where
   go : List SigEntry -> List OblMeta -> List Obligation
   go (SigEq ctx a b ty :: rest) (m :: ms) =
-    MkObl (zonkStmt st (StElem ctx m.oenv a b ty)) m.osite (map (zonkStmt st) m.ocomposite) m.ohint :: go rest ms
+    MkObl (displayStmt st (StElem ctx m.oenv a b ty)) m.osite (map (displayStmt st) m.ocomposite) m.ohint :: go rest ms
   go (SigTyEq ctx x y :: rest) (m :: ms) =
-    MkObl (zonkStmt st (StTy ctx m.oenv x y)) m.osite (map (zonkStmt st) m.ocomposite) m.ohint :: go rest ms
+    MkObl (displayStmt st (StTy ctx m.oenv x y)) m.osite (map (displayStmt st) m.ocomposite) m.ohint :: go rest ms
   go (_ :: rest) ms = go rest ms
   go [] _ = []
 
-||| One hole for the report: its Σ-name, context (with binder names),
-||| type (Nothing for a type hole) and surfacing site.
-record HoleView where
-  constructor MkHoleView
-  hvname : String
-  hvctx : Ctx
-  hvenv : NameEnv
-  hvty : Maybe Ty
-  hvsite : String
-  hvrange : Maybe Range
+||| One declaration for the report: its Σ-name, context (with binder
+||| names), type (Nothing for a type declaration) and declaring item.
+record DeclView where
+  constructor MkDeclView
+  dvname : String
+  dvctx : Ctx
+  dvenv : NameEnv
+  dvty : Maybe Ty
+  dvsite : String
+  dvrange : Maybe Range
 
-||| The hole report view: Σ's declaration entries zipped with their
-||| display metadata, in minting order.
-holeView : ElabSt -> List HoleView
-holeView st = mapMaybe view (toList st.sig)
+||| The declaration report view: Σ's declaration entries zipped with
+||| their display metadata, in minting order.
+declView : ElabSt -> List DeclView
+declView st = mapMaybe view (toList st.sig)
  where
-  -- matched BY NAME, not positionally: a solved hole's declaration
-  -- becomes a definition (its meta goes stale harmlessly), so zip
-  -- order is not stable under flips
-  metaFor : String -> Maybe HoleMeta
-  metaFor x = find (\m => m.hname == x) (toList st.holeMeta)
-  view : SigEntry -> Maybe HoleView
-  view (SigDecl ctx x ty) = map (\m => MkHoleView x (zonkCtx st ctx) m.henv (Just (zonkTy st ty)) m.hsite m.hrange) (metaFor x)
-  view (SigTyDecl ctx x) = map (\m => MkHoleView x (zonkCtx st ctx) m.henv Nothing m.hsite m.hrange) (metaFor x)
+  metaFor : String -> Maybe DeclMeta
+  metaFor x = find (\m => m.dname == x) (toList st.declMeta)
+  view : SigEntry -> Maybe DeclView
+  view (SigDecl ctx x ty) = map (\m => MkDeclView x (displayCtx st ctx) m.denv (Just (displayTy st ty)) m.dsite m.drange) (metaFor x)
+  view (SigTyDecl ctx x) = map (\m => MkDeclView x (displayCtx st ctx) m.denv Nothing m.dsite m.drange) (metaFor x)
   view _ = Nothing
 
 ||| Σ-lemma names a certificate's steps rely on: heads of LProof
@@ -2496,7 +2206,7 @@ mutual
           -- ℕ-elim congruence, componentwise like the Π/Σ cases:
           -- differing components each get their own equation instead
           -- of gating on syntactic equality of the others — an
-          -- equation may carry holes in SEVERAL components at once
+          -- equation may differ in SEVERAL components at once
           -- (vect k A ≐ vect _k _a puts one in the step and one in
           -- the target), and gating on the not-yet-solved ones
           -- deadlocks the solvable ones. z and s are typed by the
@@ -3364,11 +3074,11 @@ applyChain = foldl PiApp
 openCensus : ElabM (Nat, Nat)
 openCensus = do
   st <- getSt
-  pure (length (oblView st), length (holeView st))
+  pure (length (oblView st), length (declView st))
 
 ||| The per-item echo suffix: what this item left OPEN — the ⋆-payment
-||| and hole assumptions a reader would otherwise only discover in the
-||| end-of-run report. "defined boom [+1 hole]" is an honest receipt;
+||| and declarations a reader would otherwise only discover in the
+||| end-of-run report. "defined boom [+1 declaration]" is an honest receipt;
 ||| a bare "defined boom" for an item that just assumed ¬⊤'s realizer
 ||| reads like success.
 opensSuffix : (before : (Nat, Nat)) -> ElabM String
@@ -3378,7 +3088,7 @@ opensSuffix (ob, hb) = do
   let h = minus h' hb
   let parts = the (List String)
                 ((if o == 0 then [] else ["+\{show o} obligation\{plural o}"]) ++
-                 (if h == 0 then [] else ["+\{show h} hole\{plural h}"]))
+                 (if h == 0 then [] else ["+\{show h} declaration\{plural h}"]))
   pure (case parts of
           [] => ""
           _ => " [" ++ joinBy ", " parts ++ "]")
@@ -3390,14 +3100,6 @@ opensSuffix (ob, hb) = do
 ||| One-shot elaboration of an item (the body of elabItem below).
 elabItemGo : SItem -> ElabM String
 
-||| Elaborate an item; if the ITEM-END sweep solved holes that were
-||| still declarations when their use sites were checked (minted out
-||| of order, pinned late — a lemma-directed solve at the last
-||| moment), the sites carry dummy certificates that can never be
-||| repaired in place. The INTERNAL RERUN closes the loop: reset to
-||| the pre-item state, KEEP the solved holes as definitions, and
-||| elaborate the item once more — each hole occurrence now hits the
-||| reuse path as a reference to a solved def, every conversion sees
 ||| Elaborate an item under the searchless default scope: hypotheses
 ||| and computation only, unless the def's using-clause overrides it
 ||| (the SDef handler installs the resolved names over this).
@@ -3440,10 +3142,9 @@ elabItemGo (SDef x ty body muses) = do
   suffix <- opensSuffix census
   pure "defined \{x}\{suffix}"
 elabItemGo (SDeclDef nrng x ty) = do
-  -- a DECLARATION (docs/NovaFoundation.txt, sig-decl at ε): exactly a
-  -- rigid hole with a user-facing name — same Σ entry, same report,
-  -- same acceptance wall; references type by el-sig-decl and are
-  -- stuck. The remedy is supplying the definiens (or importing a
+  -- a DECLARATION (docs/NovaFoundation.txt, sig-decl at ε): a stuck
+  -- named entry — reported as open, blocking acceptance; references
+  -- type by el-sig-decl. The remedy is supplying the definiens (or importing a
   -- module that will, once such a mechanism exists).
   census <- openCensus
   st <- getSt
@@ -3453,7 +3154,7 @@ elabItemGo (SDeclDef nrng x ty) = do
     Nothing => pure ()
   (ty', tySk) <- elabTy [<] [<] "def \{x}" ty
   modifySt $ { sig $= (:< SigDecl [<] q ty')
-             , holeMeta $= (:< MkHoleMeta q [<] "def \{x}" False nrng)
+             , declMeta $= (:< MkDeclMeta q [<] "def \{x}" nrng)
              , vis $= (:< (x, q)) }
   -- a DECLARED equation is a lemma like any accepted one: its stuck
   -- reference is a proof element (el-sig-decl), so el-reflect makes
@@ -3822,32 +3523,32 @@ oblReport tbl os =
   "open obligations (\{show (length os)}):\n" ++
   joinBy "\n" (zipWith (prettyObligation tbl) [0 .. minus (length os) 1] os)
 
-||| Render one hole for the report (exported for LSP consumers, like
-||| prettyObligation).
+||| Render one declaration for the report (exported for LSP consumers,
+||| like prettyObligation).
 export
-prettyHole : FixTable -> HoleView -> String
-prettyHole tbl h =
-  let tele = prettyTelescope tbl h.hvctx h.hvenv in
-  "  [\{h.hvname}] " ++ (if tele == "" then "" else tele ++ " ") ++
-  (case h.hvty of
-     Just ty => "⊢ ? : \{prettyTyN tbl h.hvenv ty}"
+prettyDecl : FixTable -> DeclView -> String
+prettyDecl tbl h =
+  let tele = prettyTelescope tbl h.dvctx h.dvenv in
+  "  [\{h.dvname}] " ++ (if tele == "" then "" else tele ++ " ") ++
+  (case h.dvty of
+     Just ty => "⊢ ? : \{prettyTyN tbl h.dvenv ty}"
      Nothing => "⊢ ? type") ++
-  "\n      at: \{h.hvsite}"
+  "\n      at: \{h.dvsite}"
 
-holeReport : FixTable -> List HoleView -> String
-holeReport tbl hs =
-  "open holes (\{show (length hs)}):\n" ++
-  joinBy "\n" (map (prettyHole tbl) hs)
+declReport : FixTable -> List DeclView -> String
+declReport tbl hs =
+  "open declarations (\{show (length hs)}):\n" ++
+  joinBy "\n" (map (prettyDecl tbl) hs)
 
 ||| The composed end-of-run report of everything keeping Σ
 ||| non-definitional; empty exactly when the run is accepted.
 openReport : FixTable -> ElabSt -> Maybe String
 openReport tbl st =
-  case (oblView st, holeView st) of
+  case (oblView st, declView st) of
     ([], []) => Nothing
     (os, hs) => Just $ joinBy "\n"
       ((case os of [] => []; _ => [oblReport tbl os]) ++
-       (case hs of [] => []; _ => [holeReport tbl hs]))
+       (case hs of [] => []; _ => [declReport tbl hs]))
 
 ||| Install a module's import aliases: each opened name must exist in
 ||| the imported module's Σ segment.
@@ -3912,12 +3613,6 @@ export
 elabProgram : List ModUnit -> String
 elabProgram units = go initSt units []
  where
-  ||| DEBLANK emission (on the NOVA_AUDIT stream): one line per SOLVED
-  ||| solvable hole occurrence — module | start | end | the inferred
-  ||| solution, rendered in surface syntax at the hole's own binder
-  ||| environment (zonked, so it reads through the run's other
-  ||| inventions). A splicing tool pastes these back over the `_`
-  ||| tokens; see PerfNotes "The cost of a hole" for why the corpus is
   finish : FixTable -> ElabSt -> List String -> String
   finish tbl st echoes =
     joinBy "\n" echoes ++ "\n" ++
@@ -4012,76 +3707,20 @@ elabFile content =
 ||| to the open document" (mname == "", the root — see
 ||| `Nova.Elaboration.Loader.loadProgram`) from "this came from an
 ||| imported file, don't paint this range in MY document".
-||| One hole of the ROOT module, for LSP consumers: every occurrence's
-||| span, and the rendered judgement — the hole's context and type
-||| while open, its solution once solved. All display strings are
-||| zonked (solved holes unfolded).
-public export
-record HoleInfo where
-  constructor MkHoleInfo
-  hiName : String
-  hiSolvable : Bool
-  ||| Nothing while open; Just (rendered solution) once solved
-  hiSolution : Maybe String
-  ||| the rendered judgement: `(ctx) ⊢ ? : T`, or `(ctx) ⊢ x ≔ t : T`
-  hiText : String
-  ||| the minting occurrence first, then reuse occurrences
-  hiOccs : List Range
-
-||| The LSP hole table: one row per hole of the ROOT module (module
-||| prefix "" — hole names of imported modules are dot-qualified),
-||| solved and open alike, in minting order.
-holeInfos : FixTable -> ElabSt -> List HoleInfo
-holeInfos tbl st = mapMaybe row (toList st.holeMeta)
- where
-  occsOf : String -> List Range
-  occsOf q = []   -- occurrence spans were hole machinery; declarations have none
-
-  judge : NameEnv -> Ctx -> String -> String
-  judge env ctx rhs =
-    let tele = prettyTelescope tbl ctx env in
-    (if tele == "" then "" else tele ++ " ") ++ "⊢ " ++ rhs
-
-  row : HoleMeta -> Maybe HoleInfo
-  row m =
-    if isInfixOf "." m.hname then Nothing else
-    case sigLookup m.hname st.sig of
-      Just (SigDecl ctx _ ty) => Just $ MkHoleInfo m.hname m.hsolvable Nothing
-        (judge m.henv (zonkCtx st ctx) "? : \{prettyTyN tbl m.henv (zonkTy st ty)}")
-        (occsOf m.hname)
-      Just (SigTyDecl ctx _) => Just $ MkHoleInfo m.hname m.hsolvable Nothing
-        (judge m.henv (zonkCtx st ctx) "? type")
-        (occsOf m.hname)
-      Just (SigDef ctx _ t ty) =>
-        let sol = prettyElemN tbl m.henv (zonkElem st t) in
-        Just $ MkHoleInfo m.hname m.hsolvable (Just sol)
-          (judge m.henv (zonkCtx st ctx) "\{m.hname} ≔ \{sol} : \{prettyTyN tbl m.henv (zonkTy st ty)}")
-          (occsOf m.hname)
-      Just (SigTyDef ctx _ ty) =>
-        let sol = prettyTyN tbl m.henv (zonkTy st ty) in
-        Just $ MkHoleInfo m.hname m.hsolvable (Just sol)
-          (judge m.henv (zonkCtx st ctx) "\{m.hname} ≔ \{sol} type")
-          (occsOf m.hname)
-      _ => Nothing
-
 ||| The LSP binder table: the ROOT module's binder occurrences,
-||| rendered zonked.
+||| rendered display-normalized.
 binderInfos : FixTable -> ElabSt -> List (Range, String)
 binderInfos tbl st =
-  [ (r, "\{x} : \{prettyTyN tbl env (zonkTy st ty)}")
+  [ (r, "\{x} : \{prettyTyN tbl env (displayTy st ty)}")
   | (m, r, ctx, env, x, ty) <- toList st.binderTypes, m == "" ]
 
 public export
 record ElabReport where
   constructor MkElabReport
   obligations : List (String, Maybe Range, Obligation)
-  ||| open holes, pre-rendered (module, range, report text) — the
-  ||| range is the hole token's own when the parser recorded one,
-  ||| the enclosing item's otherwise
-  holes : List (String, Maybe Range, String)
-  ||| the LSP hole table: the ROOT module's holes, solved and open
-  ||| alike (hover, inlay hints)
-  holeTable : List HoleInfo
+  ||| open declarations, pre-rendered (module, range, report text) —
+  ||| the range is the declaring item's
+  decls : List (String, Maybe Range, String)
   ||| the ROOT module's binder occurrences with rendered types —
   ||| hover ascription for λ/eliminator binders
   binderTable : List (Range, String)
@@ -4093,16 +3732,16 @@ export
 elabProgramReport : List ModUnit -> ElabReport
 elabProgramReport units = go initSt units [] [] []
  where
-  -- newly-appended obligations/holes since `before`: both only ever
-  -- grow by `:<` (see `assume` and the hole minting sites), so
+  -- newly-appended obligations/declarations since `before`: both only
+  -- ever grow by `:<` (see `assume` and the SDeclDef handler), so
   -- `before` is always a prefix of `after`.
   newObls : (before, after : ElabSt) -> List Obligation
   newObls before after =
     drop (length (toList before.oblMeta)) (oblView after)
 
-  newHoles : (before, after : ElabSt) -> List HoleView
-  newHoles before after =
-    drop (length (toList before.holeMeta)) (holeView after)
+  newDecls : (before, after : ElabSt) -> List DeclView
+  newDecls before after =
+    drop (length (toList before.declMeta)) (declView after)
 
   Tagged : Type
   Tagged = (List (String, Maybe Range, Obligation), List (String, Maybe Range, String))
@@ -4116,29 +3755,28 @@ elabProgramReport units = go initSt units [] [] []
       Left err => Left (([], []), rng, err)
       Right (st', _) =>
         let tagged = map (\o => (mname, rng, o)) (newObls st st')
-            -- a hole diagnostic lands on the hole TOKEN when the
-            -- parser recorded its span, on the item otherwise
-            taggedH = map (\h => (mname, h.hvrange <|> rng, prettyHole tbl h)) (newHoles st st') in
+            -- a declaration diagnostic lands on the declaring item
+            taggedH = map (\h => (mname, h.dvrange <|> rng, prettyDecl tbl h)) (newDecls st st') in
         case goItems tbl mname st' rest of
           Left ((obls, hs), r, err) => Left ((tagged ++ obls, taggedH ++ hs), r, err)
           Right (st'', (obls, hs)) => Right (st'', (tagged ++ obls, taggedH ++ hs))
 
   go : ElabSt -> List ModUnit -> List (String, Maybe Range, Obligation) -> List (String, Maybe Range, String) -> List (String, Maybe Range, String) -> ElabReport
-  go st [] obls hs errs = MkElabReport obls hs [] [] errs
+  go st [] obls hs errs = MkElabReport obls hs [] errs
   go st (MkModUnit name imps tbl items _ :: rest) obls hs errs =
     let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
     case runElabM (installImports imps) st of
-      Left err => MkElabReport obls hs (holeInfos tbl st) (binderInfos tbl st) (errs ++ [(name, Nothing, err)])
+      Left err => MkElabReport obls hs (binderInfos tbl st) (errs ++ [(name, Nothing, err)])
       Right (st, ()) =>
         case goItems tbl name st items of
-          Left ((itemObls, itemHs), rng, err) => MkElabReport (obls ++ itemObls) (hs ++ itemHs) [] [] (errs ++ [(name, rng, err)])
+          Left ((itemObls, itemHs), rng, err) => MkElabReport (obls ++ itemObls) (hs ++ itemHs) [] (errs ++ [(name, rng, err)])
           Right (st', (itemObls, itemHs)) =>
             case rest of
-              [] => MkElabReport (obls ++ itemObls) (hs ++ itemHs) (holeInfos tbl st') (binderInfos tbl st') errs
+              [] => MkElabReport (obls ++ itemObls) (hs ++ itemHs) (binderInfos tbl st') errs
               _ =>
                 -- only ACCEPTED modules are importable: a module's
                 -- signature segment must be DEFINITIONAL
-                case (oblView st', holeView st') of
+                case (oblView st', declView st') of
                   ([], []) => go st' rest (obls ++ itemObls) (hs ++ itemHs) errs
-                  _ => MkElabReport (obls ++ itemObls) (hs ++ itemHs) (holeInfos tbl st') (binderInfos tbl st')
+                  _ => MkElabReport (obls ++ itemObls) (hs ++ itemHs) (binderInfos tbl st')
                          (errs ++ [(name, Nothing, "module \{name} has open obligations and cannot be imported")])
