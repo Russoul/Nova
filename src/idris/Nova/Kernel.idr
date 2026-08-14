@@ -1548,11 +1548,24 @@ isIntro (ZeroElim _) = True
 isIntro Star = True
 isIntro _ = False
 
+||| A bare compare-beta-normal-forms certificate: no bridge, no steps,
+||| the FBeta final. At α-IDENTICAL sides its replay is a foregone
+||| conclusion — the normalizer is a function, so nf(l) = nf(r) on the
+||| nose — which licenses the REFLEXIVITY fast path below: same
+||| acceptance set as running the replay, none of the normalization.
+reflCert : ECert -> Bool
+reflCert (MkECertF Nothing [] FBeta) = True
+reflCert _ = False
+
 mutual
   ||| Replay a certificate for the element equation Γ ⊢ l ≐ r : ty.
   export
   kEqElem : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty -> KM ()
-  kEqElem sig ctx cert l r ty = do
+  kEqElem sig ctx cert l r ty =
+    if reflCert cert && l == r then pure () else kEqElemGo sig ctx cert l r ty
+
+  kEqElemGo : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty -> KM ()
+  kEqElemGo sig ctx cert l r ty = do
     -- resolve the type bridge first: the rest of the replay happens at
     -- the (certified-equal) exposed type
     tyU <- case cert.tyEx of
@@ -1641,7 +1654,11 @@ mutual
   ||| Replay a certificate for the type equation Γ ⊢ A ≐ B.
   export
   kEqTy : Sig -> Ctx -> ECert -> Ty -> Ty -> KM ()
-  kEqTy sig ctx cert a b = do
+  kEqTy sig ctx cert a b =
+    if reflCert cert && a == b then pure () else kEqTyGo sig ctx cert a b
+
+  kEqTyGo : Sig -> Ctx -> ECert -> Ty -> Ty -> KM ()
+  kEqTyGo sig ctx cert a b = do
     case cert.tyEx of
       Nothing => pure ()
       Just _ => kerr "kernel: a type equation cannot carry a type bridge"

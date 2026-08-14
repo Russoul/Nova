@@ -167,6 +167,11 @@ implementation's names):
 
   final ::=                                        (Final)
       beta                                         (FBeta)
+        -- replay note: a bare beta final (no bridge, no steps) at
+        -- α-IDENTICAL sides is accepted by REFLEXIVITY without
+        -- normalizing — the normalizer is a function, so nf(l) and
+        -- nf(r) coincide on the nose; same acceptance set, none of
+        -- the work
     | prop                                         (FProp)
     | witness 𝒞?                                   (FWitness)
     | witnessPrf w ⟨sk⟩                            (FWitnessPrf)
