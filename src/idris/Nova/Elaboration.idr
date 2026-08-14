@@ -1487,6 +1487,13 @@ timed label f =
       r = f ()
   in bump label (nowNs () - t0) r
 
+||| Monadic sibling of `timed` for ElabM actions.
+timedM : String -> ElabM a -> ElabM a
+timedM label act = do
+  let t0 = nowNs ()
+  r <- act
+  pure (bump label (nowNs () - t0) r)
+
 prefixSteps : Nat -> List Step -> List Step
 prefixSteps i = map ({ path $= (i ::) })
 
@@ -2832,9 +2839,10 @@ mutual
     case r of
       Right cert => pure (Just cert)
       Left site1 => do
-        solved <- patternSolveE ctx env site1 a b ty
-        solved <- if solved then pure True else spineSolveE ctx env site1 a b
-        solved <- if solved then pure True else lemmaSolveE ctx env site1 a b
+        solved <- timedM "solve" $ do
+          solved <- patternSolveE ctx env site1 a b ty
+          solved <- if solved then pure True else spineSolveE ctx env site1 a b
+          if solved then pure True else lemmaSolveE ctx env site1 a b
         r2 <- the (ElabM (Either String ECert)) $
                 if solved then attemptE ctx site1 a b ty else pure (Left site1)
         case r2 of
@@ -3063,8 +3071,11 @@ certOr Nothing = MkECert [] FBeta
 ||| conversion certificate).
 exposeCert : ElabSt -> Ctx -> Ty -> Ty -> Maybe (Ty, ECert)
 exposeCert st ctx ty tyX =
-  let cs = mkCandSet st ctx in
-  map (\c => (tyX, c)) (spEqTyC spDepth st cs ctx ty tyX)
+  -- "expose" is the head-exposure engine entry — speculative
+  -- conversion OUTSIDE the committed attempts (which carry "engine")
+  timed "expose" $ \_ =>
+    let cs = mkCandSet st ctx in
+    map (\c => (tyX, c)) (spEqTyC spDepth st cs ctx ty tyX)
 
 preferPi : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, ECert))
 preferPi st ctx (Ty.PiTy a b) = Just (a, b, Nothing)
