@@ -13,23 +13,23 @@ def swap : (a : 𝕌) (b : 𝕌) → El (a ⊎ b) → El (b ⊎ a) ≔
   λa. λb. λt. ⊎-elim (w. El (b ⊎ a)) (x. inj₂ x) (y. inj₁ y) t
 
 -- β on each injection, by computation
-def swapBeta1 : (a : 𝕌) (b : 𝕌) (x : El a) → swap _ _ (inj₁ x) ≡ inj₂ x ∈ El (b ⊎ _) ≔
+def swapBeta1 : (a : 𝕌) (b : 𝕌) (x : El a) → swap (a) (b) (inj₁ x) ≡ inj₂ x ∈ El (b ⊎ (a)) ≔
   λa. λb. λx. ⋆
-def swapBeta2 : (a : 𝕌) (b : 𝕌) (y : El b) → swap _ _ (inj₂ y) ≡ inj₁ y ∈ El (_ ⊎ a) ≔
+def swapBeta2 : (a : 𝕌) (b : 𝕌) (y : El b) → swap (a) (b) (inj₂ y) ≡ inj₁ y ∈ El ((b) ⊎ a) ≔
   λa. λb. λy. ⋆
 
 -- swap is an involution: case analysis with an equality motive, both
 -- cases closing by β
-def swapInvol : (a : 𝕌) (b : 𝕌) (t : El (a ⊎ b)) → swap _ _ (swap _ _ t) ≡ t ∈ _ ≔
-  λa. λb. λt. ⊎-elim (w. swap _ _ (swap _ _ w) ≡ w ∈ _) (x. ⋆) (y. ⋆) t
+def swapInvol : (a : 𝕌) (b : 𝕌) (t : El (a ⊎ b)) → swap (b) (a) (swap (a) (b) t) ≡ t ∈ (El a ⊎ El b) ≔
+  λa. λb. λt. ⊎-elim (w. swap (b) (a) (swap (a) (b) w) ≡ w ∈ (El a ⊎ El b)) (x. ⋆) (y. ⋆) t
 
 -- the uniqueness (η) law, propositionally: any map out of a ⊎ b IS
 -- the eliminator over its own injection images (el-sum-eta's content,
 -- derived by ⊎-elim at an equality motive)
 def sumEta : (a : 𝕌) (b : 𝕌) (c : 𝕌) (f : El (a ⊎ b) → El c) (t : El (a ⊎ b)) →
-    ⊎-elim (w. El c) (x. f (inj₁ x)) (y. f (inj₂ y)) t ≡ f t ∈ _ ≔
+    ⊎-elim (w. El c) (x. f (inj₁ x)) (y. f (inj₂ y)) t ≡ f t ∈ (El c) ≔
   λa. λb. λc. λf. λt.
-    ⊎-elim (w. ⊎-elim (v. El c) (x. f (inj₁ x)) (y. f (inj₂ y)) w ≡ f w ∈ _)
+    ⊎-elim (w. ⊎-elim (v. El c) (x. f (inj₁ x)) (y. f (inj₂ y)) w ≡ f w ∈ (El c))
       (x. ⋆) (y. ⋆) t
 
 -- the ⊎ TYPE former and its code agree: El (a ⊎ b) ≐ El a ⊎ El b
@@ -39,7 +39,7 @@ def toCode : (a : 𝕌) (b : 𝕌) → El a ⊎ El b → El (a ⊎ b) ≔
   λa. λb. λt. ⊎-elim (w. El (a ⊎ b)) (x. inj₁ x) (y. inj₂ y) t
 def fromCode : (a : 𝕌) (b : 𝕌) → El (a ⊎ b) → El a ⊎ El b ≔
   λa. λb. λt. ⊎-elim (w. El a ⊎ El b) (x. inj₁ x) (y. inj₂ y) t
-def toFromId : (a : 𝕌) (b : 𝕌) (t : El (a ⊎ b)) → toCode _ _ (fromCode _ _ t) ≡ t ∈ _ ≔
+def toFromId : (a : 𝕌) (b : 𝕌) (t : El (a ⊎ b)) → toCode (a) (b) (fromCode (a) (b) t) ≡ t ∈ (El a ⊎ El b) ≔
   λa. λb. λt. ⊎-elim (w. toCode a b (fromCode a b w) ≡ w ∈ El (a ⊎ b)) (x. ⋆) (y. ⋆) t
 
 -- inj₁ is injective — DERIVABLE, no rule needed: a ⊎-elim retraction
@@ -48,8 +48,8 @@ def toFromId : (a : 𝕌) (b : 𝕌) (t : El (a ⊎ b)) → toCode _ _ (fromCode
 def outl : (a : 𝕌) (b : 𝕌) → El a → El (a ⊎ b) → El a ≔
   λa. λb. λd. λt. ⊎-elim (w. El a) (x. x) (y. d) t
 def inj1Injective : (a : 𝕌) (b : 𝕌) (x : El a) (x' : El a) →
-    (inj₁ x ≡ inj₁ x' ∈ El (_ ⊎ b)) → x ≡ x' ∈ _ ≔
-  λa. λb. λx. λx'. λh. cong _ (λw. a) (outl _ _ x) _ _ h
+    (inj₁ x ≡ inj₁ x' ∈ El ((a) ⊎ b)) → x ≡ x' ∈ (El a) ≔
+  λa. λb. λx. λx'. λh. cong (a ⊎ b) (λw. a) (outl (a) (b) x) (inj₁ x) (inj₁ x') h
 
 -- inj₁ and inj₂ are disjoint — also derivable: transport the
 -- "is-left" code along the bad equation and land a 𝟙-witness in 𝟘
@@ -57,4 +57,4 @@ def isLeftCode : (a : 𝕌) (b : 𝕌) → El (a ⊎ b) → 𝕌 ≔
   λa. λb. λt. ⊎-elim (w. 𝕌) (x. 𝟙) (y. 𝟘) t
 def inj1NotInj2 : (a : 𝕌) (b : 𝕌) (x : El a) (y : El b) →
     (inj₁ x ≡ inj₂ y ∈ El (a ⊎ b)) → 𝟘 ≔
-  λa. λb. λx. λy. λh. transport _ (isLeftCode _ _) _ _ h ()
+  λa. λb. λx. λy. λh. transport (a ⊎ b) (isLeftCode (a) (b)) (inj₁ x) (inj₂ y) h ()

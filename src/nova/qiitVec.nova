@@ -15,14 +15,14 @@ def vfold : (a : 𝕌) (b : 𝕌) (z : El b) (c : El a → El b → El b)
 
 -- generic length and an instance-level sum, both folds
 def vlen : (a : 𝕌) (n : El ℕ) → El (V a n) → ℕ ≔
-  λa. λn. λv. vfold _ _ Z (λx. λih. S ih) n v
+  λa. λn. λv. vfold (a) (ℕ) Z (λx. λih. S ih) n v
 
 def plusV : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) y (n ih. S ih) x
 
-def vsum : (n : El ℕ) → El (V _ n) → ℕ ≔
-  λn. λv. vfold _ _ Z (λx. λih. plusV x ih) n v
+def vsum : (n : El ℕ) → El (V (ℕ) n) → ℕ ≔
+  λn. λv. vfold (ℕ) (ℕ) Z (λx. λih. plusV x ih) n v
 
-def single : El (V _ (S Z)) ≔ vcons _ Z (S (S (S Z))) (vnil _)
+def single : El (V (ℕ) (S Z)) ≔ vcons (ℕ) Z (S (S (S Z))) (vnil (ℕ))
 
-def vsumSingle : vsum (S Z) single ≡ S (S (S Z)) ∈ _ ≔ ⋆
-def vlenSingle : vlen ℕ (S Z) single ≡ S Z ∈ _ ≔ ⋆
+def vsumSingle : vsum (S Z) single ≡ S (S (S Z)) ∈ (ℕ) ≔ ⋆
+def vlenSingle : vlen ℕ (S Z) single ≡ S Z ∈ (ℕ) ≔ ⋆

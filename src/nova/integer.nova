@@ -4,7 +4,7 @@ import nat (+)
 -- type position, but a `def ... : 𝕌` name is an ordinary term, usable
 -- wherever a 𝕌-code is expected (e.g. the (A : 𝕌) argument of
 -- equality.nova's generic combinators) — El Int in type position.
-def Int : 𝕌 ≔ (ℕ ⨯ ℕ) / (p q. (p .π₁ + q .π₂ ≡ p .π₂ + q .π₁ ∈ _))
+def Int : 𝕌 ≔ (ℕ ⨯ ℕ) / (p q. (p .π₁ + q .π₂ ≡ p .π₂ + q .π₁ ∈ (ℕ)))
 
 -- Int's own quotient relation, named: the relation slot above written as
 -- an ordinary function, for callers that need to SPEAK about it — a

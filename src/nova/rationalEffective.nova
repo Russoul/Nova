@@ -44,52 +44,40 @@ def intMulCancel : (x : El Int) (y : El Int) (d : El Int)
   (hd : Prf (¬ (d ≡ intZero ∈ El Int))) →
   x ≡ y ∈ El Int using (intAddNegL, intMulNegL, intAddZeroL, intAddZeroR) ≔
   λx. λy. λd. λh. λhd.
-    sym _ _ _
-      (trans _ _ _ _
-        (sym _ _ _ (intAddZeroL y))
-        (trans _ _ _ _
-          (addCongL _ _ _
-            (sym Int _ _
-              (intNoZeroDiv _ _
-                (trans _
-                  _
-                  _
-                  _
+    sym Int y x
+      (trans Int y (intAdd intZero y) x
+        (sym Int (integerAdd.intAdd integer.intZero y) (y) (intAddZeroL y))
+        (trans Int (intAdd intZero y) (intAdd (intAdd x (intNeg y)) y) x
+          (addCongL intZero (intAdd x (intNeg y)) y
+            (sym Int (integerAdd.intAdd x (integer.intNeg y)) (integer.intZero)
+              (intNoZeroDiv (intAdd x (intNeg y)) d
+                (trans Int
+                  (intMul (intAdd x (intNeg y)) d)
+                  (intAdd (intMul x d) (intMul (intNeg y) d))
+                  intZero
                   (intMulDistribR x (intNeg y) d)
-                  (trans _
-                    _
-                    _
-                    _
-                    (intAddCong2 _ _
-                                 _ _
+                  (trans Int
+                    (intAdd (intMul x d) (intMul (intNeg y) d))
+                    (intAdd (intMul y d) (intNeg (intMul y d)))
+                    intZero
+                    (intAddCong2 (intMul x d) (intMul (intNeg y) d)
+                                 (intMul y d) (intNeg (intMul y d))
                        h (intMulNegL y d))
                     (intAddNegR (intMul y d))))
                 hd)))
-          (trans _ _ _ _
+          (trans Int (intAdd (intAdd x (intNeg y)) y) (intAdd x (intAdd (intNeg y) y)) x
             (intAddAssoc x (intNeg y) y)
-            (trans _ _ _ _
-              (addCongR x _ _ (intAddNegL y))
+            (trans Int (intAdd x (intAdd (intNeg y) y)) (intAdd x intZero) x
+              (addCongR x (intAdd (intNeg y) y) intZero (intAddNegL y))
               (intAddZeroR x)))))
 
 -- ===== RatR is an equivalence =====
 
 -- (a·b)·c ≡ (a·c)·b, the one rearrangement transitivity needs
--- [style:rw] ORIGINAL — combinator spine with blanked indices; the
--- holes and every trans/cong argument's switch lean on the conversion
--- checker's rewrite machinery. Kept for the style experiment beside
--- its [style:explicit] twin below; candidate for later removal.
+-- (a·b)·c ≡ (a·c)·b, the one rearrangement transitivity needs — a
+-- calc chain: only tier-0/½ conversion is implicit, every step a
+-- named link, no holes
 def mulSwapRight : (a : El Int) (b : El Int) (c : El Int) →
-  intMul (intMul a b) c ≡ intMul (intMul a c) b ∈ El Int using (intMulAssoc) ≔
-  λa. λb. λc.
-    trans _ _ _ _
-      (intMulAssoc _ b _)
-      (trans _ _ _ _
-        (mulCongR _ _ _ (intMulComm b c))
-        (sym _ _ _ (intMulAssoc a c b)))
-
--- [style:explicit] TWIN of mulSwapRight — only tier-0/½ conversion is
--- implicit; every step is a named chain link, no holes, no combinators
-def mulSwapRightX : (a : El Int) (b : El Int) (c : El Int) →
   intMul (intMul a b) c ≡ intMul (intMul a c) b ∈ El Int ≔
   λa. λb. λc.
     intMul (intMul a b) c
@@ -100,7 +88,7 @@ def mulSwapRightX : (a : El Int) (b : El Int) (c : El Int) →
 def ratRRefl : (p : El Rat) → Prf (RatR p p) ≔ λp. ⋆
 
 def ratRSymm : (p : El Rat) (q : El Rat) → Prf (RatR p q) → Prf (RatR q p) ≔
-  λp. λq. λh. sym Int _ _ h
+  λp. λq. λh. sym Int (integerMul.intMul (rational.num p) (rationalQ.dInt q)) (integerMul.intMul (rational.num q) (rationalQ.dInt p)) h
 
 -- multiply the goal through by the middle denominator, walk it across
 -- the two hypotheses, and cancel — the middle denominator is non-zero
@@ -108,27 +96,27 @@ def ratRSymm : (p : El Rat) (q : El Rat) → Prf (RatR p q) → Prf (RatR q p) �
 def ratRTrans : (p : El Rat) (q : El Rat) (r : El Rat) →
   Prf (RatR p q) → Prf (RatR q r) → Prf (RatR p r) using (intMulAssoc) ≔
   λp. λq. λr. λh1. λh2.
-    intMulCancel _ _ _
-      (trans _
-        _
-        _
-        _
+    intMulCancel (intMul (num p) (dInt r)) (intMul (num r) (dInt p)) (dInt q)
+      (trans Int
+        (intMul (intMul (num p) (dInt r)) (dInt q))
+        (intMul (intMul (num p) (dInt q)) (dInt r))
+        (intMul (intMul (num r) (dInt p)) (dInt q))
         (mulSwapRight (num p) (dInt r) (dInt q))
-        (trans _
-          _
-          _
-          _
-          (mulCongL _ _ (dInt r) h1)
-          (trans _
-            _
-            _
-            _
+        (trans Int
+          (intMul (intMul (num p) (dInt q)) (dInt r))
+          (intMul (intMul (num q) (dInt p)) (dInt r))
+          (intMul (intMul (num r) (dInt p)) (dInt q))
+          (mulCongL (intMul (num p) (dInt q)) (intMul (num q) (dInt p)) (dInt r) h1)
+          (trans Int
+            (intMul (intMul (num q) (dInt p)) (dInt r))
+            (intMul (intMul (num q) (dInt r)) (dInt p))
+            (intMul (intMul (num r) (dInt p)) (dInt q))
             (mulSwapRight (num q) (dInt p) (dInt r))
-            (trans _
-              _
-              _
-              _
-              (mulCongL _ _ (dInt p) h2)
+            (trans Int
+              (intMul (intMul (num q) (dInt r)) (dInt p))
+              (intMul (intMul (num r) (dInt q)) (dInt p))
+              (intMul (intMul (num r) (dInt p)) (dInt q))
+              (mulCongL (intMul (num q) (dInt r)) (intMul (num r) (dInt q)) (dInt p) h2)
               (mulSwapRight (num r) (dInt q) (dInt p))))))
       (nzToIntNonZero (den q))
 
@@ -143,13 +131,15 @@ def qEffective : (p : El Rat) (q : El Rat) →
 def numZeroOfRatZero : (p : El Rat) (h : Prf (class p ≡ qZero ∈ El Q)) →
   num p ≡ intZero ∈ El Int using (intMulOneR, intMulZeroL) ≔
   λp. λh.
-    trans _ _ _ _
-      (sym Int _ _ (intMulOneR (num p)))
-      (trans _ _ _ _ (qEffective p ratZero h) (intMulZeroL (dInt p)))
+    trans Int (num p) (intMul (num p) (dInt ratZero)) intZero
+      (sym Int (integerMul.intMul (rational.num p) integer.intOne) (rational.num p) (intMulOneR (num p)))
+      (trans Int (intMul (num p) (dInt ratZero)) (intMul (num ratZero) (dInt p)) intZero
+        (qEffective p ratZero h)
+        (intMulZeroL (dInt p)))
 
 def numZeroIff : (p : El Rat) →
   Prf ((class p ≡ qZero ∈ El Q) ↔ (num p ≡ intZero ∈ El Int)) ≔
-  λp. iffIntro _ _ (numZeroOfRatZero p) (ratZeroOfNumZero p)
+  λp. iffIntro (class p ≡ rationalQ.qZero ∈ El rationalQ.Q) (rational.num p ≡ integer.intZero ∈ El integer.Int) (numZeroOfRatZero p) (ratZeroOfNumZero p)
 
 -- ===== the image of NZQ is exactly the non-zero rationals =====
 
@@ -165,7 +155,7 @@ def qOfNzqNonZero : (x : El NZQ) → Prf (¬ (qOfNzq x ≡ qZero ∈ El Q)) ≔
 def qNonZeroIffNzq : (u : El Q) →
   Prf ((¬ (u ≡ qZero ∈ El Q)) ↔ ∥(x : El NZQ) ⨯ Prf (qOfNzq x ≡ u ∈ El Q)∥) ≔
   λu.
-    iffIntro _ _
+    iffIntro ((prop.¬) (u ≡ rationalQ.qZero ∈ El rationalQ.Q)) (∥(v:El rationalQ.NZQ) ⨯ Prf (rationalQ.qOfNzq v ≡ u ∈ El rationalQ.Q)∥)
       (λh. qNonZeroIsNzq u h)
       (λh. squash-elim h (w.
         notIntro (u ≡ qZero ∈ El Q) (λe.
@@ -187,14 +177,14 @@ def qOneNotZero : Prf (¬ (qOne ≡ qZero ∈ El Q)) ≔
 def qInvertibleIffNonZero : (u : El Q) →
   Prf ((¬ (u ≡ qZero ∈ El Q)) ↔ ∥(v : El Q) ⨯ Prf (qMul u v ≡ qOne ∈ El Q)∥) ≔
   λu.
-    iffIntro _ _
+    iffIntro ((prop.¬) (u ≡ rationalQ.qZero ∈ El rationalQ.Q)) (∥(v:El rationalQ.Q) ⨯ Prf (rationalQ.qMul u v ≡ rationalQ.qOne ∈ El rationalQ.Q)∥)
       (λh. qInvExists u h)
       (λh. squash-elim h (w.
         notIntro (u ≡ qZero ∈ El Q) (λe.
           notApply (qOne ≡ qZero ∈ El Q)
             qOneNotZero
             (trans Q qOne (qMul u (w .π₁)) qZero
-              (sym Q _ _ (w .π₂))
+              (sym Q (class (class (S Z, Z), inj₁ Z)) (class (class (S Z, Z), inj₁ Z)) (w .π₂))
               (trans Q (qMul u (w .π₁)) (qMul qZero (w .π₁)) qZero
                 (cong Q (λt. Q) (λx. qMul x (w .π₁)) u qZero e)
                 (qMulZeroL (w .π₁)))))))

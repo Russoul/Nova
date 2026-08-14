@@ -13,5 +13,5 @@ def neg : El I → El I using (predsuc, sucpred) ≔
   λi. IElim (λw. I) zero (λx. λih. pred ih) (λx. λih. suc ih)
         (λx. λih. ⋆) (λx. λih. ⋆) i
 
-def negSucPred : neg (suc (pred zero)) ≡ zero ∈ _ using (predsuc) ≔ ⋆
-def negPred : neg (pred zero) ≡ suc zero ∈ _ ≔ ⋆
+def negSucPred : neg (suc (pred zero)) ≡ zero ∈ (El I) using (predsuc) ≔ ⋆
+def negPred : neg (pred zero) ≡ suc zero ∈ (El I) ≔ ⋆
