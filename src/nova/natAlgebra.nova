@@ -1,0 +1,60 @@
+import id (Id, idToEq, eqToId)
+import prelude (funext)
+
+-- ℕ-algebras, in the IsXXX style: structure on a small carrier as a
+-- 𝕌-family. An ℕ-algebra is a point and an endomap — no laws — and a
+-- homomorphism is a map commuting with both, its two laws stated with
+-- Id so hom-ness is itself a code. ℕ with (Z, S) is the INITIAL such
+-- algebra: natAlgInitial builds the fold into any algebra, and
+-- natAlgHomUnique shows any two homs out of ℕ agree — pointwise
+-- first, then at function level through prelude's funext (a theorem
+-- here: extensional theory).
+def IsNatAlgebra : 𝕌 → 𝕌 ≔ λA.
+  ((z : A) ⨯ (A → A))
+
+def NatAlgHom : (A : 𝕌) (B : 𝕌) →
+                El (IsNatAlgebra A) → El (IsNatAlgebra B) → 𝕌 ≔
+  λA. λB. λa. λb.
+    ((h : A → B) ⨯
+     (Id B (h (a .π₁)) (b .π₁)
+      ⨯ ((x : A) → Id B (h (a .π₂ x)) (b .π₂ (h x)))))
+
+-- ℕ is an ℕ-algebra (S eta-expanded: constructors are not functions).
+def natAlg : El (IsNatAlgebra ℕ) ≔ (Z , λn. S n)
+
+-- The fold: iterate the algebra's endomap from its point.
+def natFold : (A : 𝕌) → El (IsNatAlgebra A) → ℕ → El A ≔
+  λA. λa. λn. ℕ-elim (k. El A) (a .π₁) (k ih. a .π₂ ih) n
+
+-- EXISTENCE: the fold is a homomorphism into any algebra — both laws
+-- are δβ-computations (ℕ-elim at Z and at S), so each ⋆ is free.
+def natAlgInitial : (A : 𝕌) (a : El (IsNatAlgebra A)) →
+                    El (NatAlgHom ℕ A natAlg a) ≔
+  λA. λa.
+    (natFold A a ,
+     eqToId A (natFold A a Z) (a .π₁) ⋆ ,
+     λx. eqToId A (natFold A a (S x)) (a .π₂ (natFold A a x)) ⋆)
+
+-- UNIQUENESS: any two homomorphisms out of ℕ agree on every point, by
+-- induction. Each case let-binds the homs' laws (reflected from Id)
+-- as hypotheses; the base joins at a's point, the step joins at
+-- a's endomap of the induction hypothesis' common value.
+def natAlgHomUnique : (A : 𝕌) (a : El (IsNatAlgebra A))
+  (f : El (NatAlgHom ℕ A natAlg a)) (g : El (NatAlgHom ℕ A natAlg a))
+  (n : ℕ) → f .π₁ n ≡ g .π₁ n ∈ El A ≔
+  λA. λa. λf. λg. λn.
+    ℕ-elim (k. f .π₁ k ≡ g .π₁ k ∈ El A)
+      (let hf ≔ idToEq A (f .π₁ Z) (a .π₁) (f .π₂ .π₁) in
+       let hg ≔ idToEq A (g .π₁ Z) (a .π₁) (g .π₂ .π₁) in
+       ⋆)
+      (k ih.
+       let hf ≔ idToEq A (f .π₁ (S k)) (a .π₂ (f .π₁ k)) (f .π₂ .π₂ k) in
+       let hg ≔ idToEq A (g .π₁ (S k)) (a .π₂ (g .π₁ k)) (g .π₂ .π₂ k) in
+       ⋆)
+      n
+
+-- and at FUNCTION level, one funext away.
+def natAlgHomUniqueFun : (A : 𝕌) (a : El (IsNatAlgebra A))
+  (f : El (NatAlgHom ℕ A natAlg a)) (g : El (NatAlgHom ℕ A natAlg a)) →
+  f .π₁ ≡ g .π₁ ∈ El (ℕ → A) ≔
+  λA. λa. λf. λg. funext ℕ A (f .π₁) (g .π₁) (natAlgHomUnique A a f g)

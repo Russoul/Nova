@@ -955,13 +955,20 @@ whnf(C) = Prf (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ Prf R[id, a, b
 #      el-prf-prop (proof irrelevance: any two proofs of a proposition
 #      are equal; equality proofs included, since ≡ is Ω-valued and
 #      its proofs live at Prf).
-#   6. η: a λ against a neutral at Π compares via el-pi-eta (apply
-#      both to ☐₀ under the binder); a pair against a neutral at Σ
-#      via el-sigma-eta.
-#      η fires ONLY when one side is a literal introduction form: two
-#      neutrals gain nothing from η, and η-expanding them regenerates
-#      the very eliminations congruence descent (step 3) came from —
-#      an η/congruence loop.
+#   6. η: comparison at Π ALWAYS moves under the binder via el-pi-eta
+#      (both sides applied to ☐₀, the context extended, the scope's
+#      candidates weakened along — proof heads, recorded
+#      normalization steps and parameter types all shift). A λ side
+#      β-reduces and proceeds structurally; two NEUTRAL sides can
+#      still be joined POINTWISE, by a Π-wrapped equation hypothesis
+#      instantiated at the fresh variable — function extensionality,
+#      a THEOREM here (prelude.funext is a single ⋆), exactly as
+#      equality reflection promises. The η/congruence interplay is
+#      bounded: congruence descent re-raising the function-position
+#      equation is cut by the structural depth bound, so the loop the
+#      guard used to forbid cannot run away. A pair against a neutral
+#      at Σ compares via el-sigma-eta (projections; still
+#      intro-guarded).
 #   7. SCOPED STORE USE — three complementary mechanisms over the
 #      site's SCOPE (the named lemmas + hypotheses; see THE SCOPE in
 #      Elaboration state — never the whole store):
@@ -973,7 +980,13 @@ whnf(C) = Prf (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ Prf R[id, a, b
 #        fixpoint before every comparison. An equation whose sides are
 #        equal up to a bijective renaming of its parameters
 #        ("permutative": commutativity, exchange laws) NEVER rewrites —
-#        it would oscillate.
+#        it would oscillate. An equation whose lhs has NO RIGID head —
+#        a bare parameter spine like v or v .π₁ — never rewrites
+#        either: first-order matching is type-blind, so such a rule
+#        fires at arbitrarily ill-typed positions and its certificate
+#        dies at replay, taking the discharge with it. Both shapes
+#        remain available to whole-equation match and hops, where the
+#        full statement constrains the instantiation.
 #      * WHOLE-EQUATION MATCH: the equation (or its flip) matches a
 #        candidate's l/r under one consistent first-order
 #        instantiation; parameters the sides do not bind must carry a
