@@ -552,7 +552,35 @@ normaliser-in-waiting: its hit rate on this corpus is small until
 clause-ι joins it, by design — elaboration substitutes eagerly, so
 pure-β joins mostly arrive already α-identical.
 
-## 15. Experiment inventory
+## 15. The style experiment: explicit twins of the heavy proofs
+
+The operator-carries-direction endpoint, tested directly: the four
+most expensive proof items of the corpus (per-item timing labels,
+`item <name>` under NOVA_PROFILE) were rewritten as [style:explicit]
+twins beside their [style:rw] originals — calc chains with midpoints
+once, hypotheses invoked by name as links, congruence spelled where
+the kernel's positional rule demands it (B-1 surfacing honestly at
+write time instead of as a replay failure), and no `_` holes. Only
+tier-0/½ conversion plus the link-scoped adjacency machinery is
+implicit. Same run, same store:
+
+| item                          | [style:rw] | [style:explicit] |
+|-------------------------------|-----------|------------------|
+| rationalEffective.mulSwapRight | 583ms     | 22ms  (26×)      |
+| rationalQ.distribNum           | 528ms     | 30ms  (18×)      |
+| rationalQ.qMulWDInner          | 129ms     | 19ms  (7×)       |
+| rationalQ.qAddWDInner          | 101ms     | 17ms  (6×)       |
+
+The originals' cost decomposes as: hole-solving for the blanked
+combinator indices (the dominant share — `trans _ _ _ _` is cheap to
+write and expensive to elaborate), one inferred-vs-expected conversion
+per application node of the trans/cong spine on δ-expanded terms, and
+the rwNf normalization each of those runs. The twins pay none of it:
+spelled midpoints make the switch conversions tier-0 hits, and each
+adjacency discharges against a single named candidate. The originals
+are tagged for removal once the style beds in.
+
+## 16. Experiment inventory
 
 Everything below is measurement scaffolding or experiment, not design
 commitment; all of it is inert without `NOVA_PROFILE=1` except the
