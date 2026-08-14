@@ -24,19 +24,19 @@ def distribBack : (n : ℕ) (m : ℕ) (k : ℕ) → n * m + n * k ≡ n * (m + k
 -- multComm on each factor, distribBack in the middle, multComm back
 def distribBackR : (m : ℕ) (k : ℕ) (n : ℕ) → m * n + k * n ≡ (m + k) * n ∈ ℕ using (distribBack) ≔
   λm. λk. λn.
-    trans ℕ ((((m * n)) + ((k * n)))) (n * m + n * k) ((nat.*) ((nat.+) m k) n)
-      (trans ℕ ((((m * n)) + ((k * n)))) (n * m + k * n) ((((n * m)) + ((n * k))))
-        (cong ℕ (λu. ℕ) (λw. w + k * n) ((nat.*) m n) ((nat.*) n m) (multComm n m))
-        (cong ℕ (λu. ℕ) (λw. n * m + w) ((nat.*) k n) ((nat.*) n k) (multComm n k)))
-      (trans ℕ ((nat.+) ((nat.*) n m) ((nat.*) n k)) (n * (m + k)) ((nat.*) ((nat.+) m k) n)
+    trans ℕ (m * n + k * n) (n * m + n * k) ((m + k) * n)
+      (trans ℕ (m * n + k * n) (n * m + k * n) (n * m + n * k)
+        (cong ℕ (λu. ℕ) (λw. w + k * n) (m * n) (n * m) (multComm n m))
+        (cong ℕ (λu. ℕ) (λw. n * m + w) (k * n) (n * k) (multComm n k)))
+      (trans ℕ (n * m + n * k) (n * (m + k)) ((m + k) * n)
         (distribBack n m k)
         (multComm (m + k) n))
 
 -- the two exchanges of a four-term sum
-def swap4 : (p : ℕ) (q : ℕ) (r : ℕ) (s : ℕ) → (p + q) + (r + s) ≡ (p + r) + (q + s) ∈ ℕ using (plusAssoc, swapLeft, nat.swapMid) ≔
+def swap4 : (p : ℕ) (q : ℕ) (r : ℕ) (s : ℕ) → (p + q) + (r + s) ≡ p + r + (q + s) ∈ ℕ using (plusAssoc, swapLeft, nat.swapMid) ≔
   λp. λq. λr. λs. ⋆
 
-def swap4b : (p : ℕ) (q : ℕ) (r : ℕ) (s : ℕ) → (p + q) + (r + s) ≡ (p + s) + (q + r) ∈ ℕ using (integerAdd.intAddCross, swap4, plusAssoc) ≔
+def swap4b : (p : ℕ) (q : ℕ) (r : ℕ) (s : ℕ) → (p + q) + (r + s) ≡ p + s + (q + r) ∈ ℕ using (integerAdd.intAddCross, swap4, plusAssoc) ≔
   λp. λq. λr. λs. ⋆
 
 -- congruence of + in each argument: with h reflected the two sides
@@ -89,21 +89,21 @@ def assocRep : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ)
 def sum4Distrib : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ) →
   (a1 * b1 + a2 * b2) + (a1 * c2 + a2 * c1) ≡ a1 * (b1 + c2) + a2 * (b2 + c1) ∈ ℕ using (distribBack, plusAssoc) ≔
   λa1. λa2. λb1. λb2. λc1. λc2.
-    trans ℕ ((nat.+) ((nat.+) ((nat.*) a1 b1) ((nat.*) a2 b2)) ((nat.+) ((nat.*) a1 c2) ((nat.*) a2 c1))) ((a1 * b1 + a1 * c2) + (a2 * b2 + a2 * c1)) ((((a1 * ((b1 + c2)))) + ((a2 * ((b2 + c1))))))
+    trans ℕ (a1 * b1 + a2 * b2 + (a1 * c2 + a2 * c1)) (a1 * b1 + a1 * c2 + (a2 * b2 + a2 * c1)) (a1 * (b1 + c2) + a2 * (b2 + c1))
       (swap4 (a1 * b1) (a2 * b2) (a1 * c2) (a2 * c1))
-      (trans ℕ ((((((a1 * b1)) + ((a1 * c2)))) + ((((a2 * b2)) + ((a2 * c1)))))) (a1 * (b1 + c2) + (a2 * b2 + a2 * c1)) ((((a1 * ((b1 + c2)))) + ((a2 * ((b2 + c1))))))
-        (cong ℕ (λu. ℕ) (λw. w + (a2 * b2 + a2 * c1)) ((nat.+) ((nat.*) a1 b1) ((nat.*) a1 c2)) ((nat.*) a1 ((nat.+) b1 c2)) (distribBack a1 b1 c2))
-        (cong ℕ (λu. ℕ) (λw. a1 * (b1 + c2) + w) ((nat.+) ((nat.*) a2 b2) ((nat.*) a2 c1)) ((nat.*) a2 ((nat.+) b2 c1)) (distribBack a2 b2 c1)))
+      (trans ℕ (a1 * b1 + a1 * c2 + (a2 * b2 + a2 * c1)) (a1 * (b1 + c2) + (a2 * b2 + a2 * c1)) (a1 * (b1 + c2) + a2 * (b2 + c1))
+        (cong ℕ (λu. ℕ) (λw. w + (a2 * b2 + a2 * c1)) (a1 * b1 + a1 * c2) (a1 * (b1 + c2)) (distribBack a1 b1 c2))
+        (cong ℕ (λu. ℕ) (λw. a1 * (b1 + c2) + w) (a2 * b2 + a2 * c1) (a2 * (b2 + c1)) (distribBack a2 b2 c1)))
 
 -- and by the RIGHT factor: the shape of the OUTER well-definedness goal
 def sum4DistribR : (x1 : ℕ) (x2 : ℕ) (y1 : ℕ) (y2 : ℕ) (c1 : ℕ) (c2 : ℕ) →
   (x1 * c1 + x2 * c2) + (y1 * c2 + y2 * c1) ≡ (x1 + y2) * c1 + (x2 + y1) * c2 ∈ ℕ using (distribBackR, plusAssoc) ≔
   λx1. λx2. λy1. λy2. λc1. λc2.
-    trans ℕ ((nat.+) ((nat.+) ((nat.*) x1 c1) ((nat.*) x2 c2)) ((nat.+) ((nat.*) y1 c2) ((nat.*) y2 c1))) ((x1 * c1 + y2 * c1) + (x2 * c2 + y1 * c2)) ((((((x1 + y2)) * c1)) + ((((x2 + y1)) * c2))))
+    trans ℕ (x1 * c1 + x2 * c2 + (y1 * c2 + y2 * c1)) (x1 * c1 + y2 * c1 + (x2 * c2 + y1 * c2)) ((x1 + y2) * c1 + (x2 + y1) * c2)
       (swap4b (x1 * c1) (x2 * c2) (y1 * c2) (y2 * c1))
-      (trans ℕ ((((((x1 * c1)) + ((y2 * c1)))) + ((((x2 * c2)) + ((y1 * c2)))))) ((x1 + y2) * c1 + (x2 * c2 + y1 * c2)) ((((((x1 + y2)) * c1)) + ((((x2 + y1)) * c2))))
-        (cong ℕ (λu. ℕ) (λw. w + (x2 * c2 + y1 * c2)) ((nat.+) ((nat.*) x1 c1) ((nat.*) y2 c1)) ((nat.*) ((nat.+) x1 y2) c1) (distribBackR x1 y2 c1))
-        (cong ℕ (λu. ℕ) (λw. (x1 + y2) * c1 + w) ((nat.+) ((nat.*) x2 c2) ((nat.*) y1 c2)) ((nat.*) ((nat.+) x2 y1) c2) (distribBackR x2 y1 c2)))
+      (trans ℕ (x1 * c1 + y2 * c1 + (x2 * c2 + y1 * c2)) ((x1 + y2) * c1 + (x2 * c2 + y1 * c2)) ((x1 + y2) * c1 + (x2 + y1) * c2)
+        (cong ℕ (λu. ℕ) (λw. w + (x2 * c2 + y1 * c2)) (x1 * c1 + y2 * c1) ((x1 + y2) * c1) (distribBackR x1 y2 c1))
+        (cong ℕ (λu. ℕ) (λw. (x1 + y2) * c1 + w) (x2 * c2 + y1 * c2) ((x2 + y1) * c2) (distribBackR x2 y1 c2)))
 
 -- ===== the two well-definedness lemmas =====
 
@@ -111,20 +111,20 @@ def sum4DistribR : (x1 : ℕ) (x2 : ℕ) (y1 : ℕ) (y2 : ℕ) (c1 : ℕ) (c2 : 
 -- interchanged, and h makes t ≐ t′.
 def intMulWD : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ)
   (h : Prf (b1 + c2 ≡ b2 + c1 ∈ ℕ)) →
-  (a1 * b1 + a2 * b2) + (a1 * c2 + a2 * c1) ≡ (a1 * b2 + a2 * b1) + (a1 * c1 + a2 * c2) ∈ ℕ using (distribBack, distribBackR, sum4Distrib, plusAssoc) ≔
+  (a1 * b1 + a2 * b2) + (a1 * c2 + a2 * c1) ≡ a1 * b2 + a2 * b1 + (a1 * c1 + a2 * c2) ∈ ℕ using (distribBack, distribBackR, sum4Distrib, plusAssoc) ≔
   λa1. λa2. λb1. λb2. λc1. λc2. λh.
-    trans ℕ ((nat.+) ((nat.+) ((nat.*) a1 b1) ((nat.*) a2 b2)) ((nat.+) ((nat.*) a1 c2) ((nat.*) a2 c1))) (a1 * (b1 + c2) + a2 * (b2 + c1)) ((nat.+) ((nat.+) ((nat.*) a1 b2) ((nat.*) a2 b1)) ((nat.+) ((nat.*) a1 c1) ((nat.*) a2 c2)))
+    trans ℕ (a1 * b1 + a2 * b2 + (a1 * c2 + a2 * c1)) (a1 * (b1 + c2) + a2 * (b2 + c1)) (a1 * b2 + a2 * b1 + (a1 * c1 + a2 * c2))
       (sum4Distrib a1 a2 b1 b2 c1 c2)
-      (sym ℕ ((nat.+) ((nat.+) ((nat.*) a1 b2) ((nat.*) a2 b1)) ((nat.+) ((nat.*) a1 c1) ((nat.*) a2 c2))) ((nat.+) ((nat.*) a1 ((nat.+) b2 c1)) ((nat.*) a2 ((nat.+) b1 c2))) (sum4Distrib a1 a2 b2 b1 c2 c1))
+      (sym ℕ (a1 * b2 + a2 * b1 + (a1 * c1 + a2 * c2)) (a1 * (b2 + c1) + a2 * (b1 + c2)) (sum4Distrib a1 a2 b2 b1 c2 c1))
 
 -- outer: x varies; the same regrouping, by the right factor
 def intMulWDRep : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ)
   (h : Prf (a1 + b2 ≡ a2 + b1 ∈ ℕ)) →
-  (a1 * c1 + a2 * c2) + (b1 * c2 + b2 * c1) ≡ (a1 * c2 + a2 * c1) + (b1 * c1 + b2 * c2) ∈ ℕ using (distribBack, plusAssoc, plusComm, sum4DistribR) ≔
+  (a1 * c1 + a2 * c2) + (b1 * c2 + b2 * c1) ≡ a1 * c2 + a2 * c1 + (b1 * c1 + b2 * c2) ∈ ℕ using (distribBack, plusAssoc, plusComm, sum4DistribR) ≔
   λa1. λa2. λb1. λb2. λc1. λc2. λh.
-    trans ℕ ((nat.+) ((nat.+) ((nat.*) a1 c1) ((nat.*) a2 c2)) ((nat.+) ((nat.*) b1 c2) ((nat.*) b2 c1))) ((a1 + b2) * c1 + (a2 + b1) * c2) ((nat.+) ((nat.+) ((nat.*) a2 c1) ((nat.*) a1 c2)) ((nat.+) ((nat.*) b2 c2) ((nat.*) b1 c1)))
+    trans ℕ (a1 * c1 + a2 * c2 + (b1 * c2 + b2 * c1)) ((a1 + b2) * c1 + (a2 + b1) * c2) (a2 * c1 + a1 * c2 + (b2 * c2 + b1 * c1))
       (sum4DistribR a1 a2 b1 b2 c1 c2)
-      (sym ℕ ((nat.+) ((nat.+) ((nat.*) a2 c1) ((nat.*) a1 c2)) ((nat.+) ((nat.*) b2 c2) ((nat.*) b1 c1))) ((nat.+) ((nat.*) ((nat.+) a2 b1) c1) ((nat.*) ((nat.+) a1 b2) c2)) (sum4DistribR a2 a1 b2 b1 c1 c2))
+      (sym ℕ (a2 * c1 + a1 * c2 + (b2 * c2 + b1 * c1)) ((a2 + b1) * c1 + (a1 + b2) * c2) (sum4DistribR a2 a1 b2 b1 c1 c2))
 
 -- the outer well-definedness, in the quot-elim shape the elaborator
 -- actually asks for (integerAdd.nova's intAddWDOuter, one level up):
@@ -169,7 +169,7 @@ def pairEta : (A : 𝕌) (B : 𝕌) (p : El (A ⨯ B)) → (p .π₁ , p .π₂)
   λA. λB. λp. ⋆
 
 def classPairEta : (p : ℕ ⨯ ℕ) → class (p .π₁ , p .π₂) ≡ class p ∈ El Int ≔
-  λp. cong (ℕ ⨯ ℕ) (λu. Int) (λr. class r) (p .π₁, p .π₂) (p) (pairEta ℕ ℕ p)
+  λp. cong (ℕ ⨯ ℕ) (λu. Int) (λr. class r) (p .π₁, p .π₂) p (pairEta ℕ ℕ p)
 
 def oneMult : (m : ℕ) → S Z * m ≡ m ∈ ℕ using (multComm) ≔ λm. ⋆
 
@@ -200,16 +200,16 @@ def intMulZeroR : (z : El Int) → intMul z intZero ≡ intZero ∈ El Int ≔
 def mulComm2 : (u1 : ℕ) (u2 : ℕ) (v1 : ℕ) (v2 : ℕ) →
   u1 * v1 + u2 * v2 ≡ v1 * u1 + v2 * u2 ∈ ℕ ≔
   λu1. λu2. λv1. λv2.
-    trans ℕ ((((u1 * v1)) + ((u2 * v2)))) (v1 * u1 + u2 * v2) ((((v1 * u1)) + ((v2 * u2))))
-      (cong ℕ (λw. ℕ) (λw. w + u2 * v2) ((nat.*) u1 v1) ((nat.*) v1 u1) (multComm v1 u1))
-      (cong ℕ (λw. ℕ) (λw. v1 * u1 + w) ((nat.*) u2 v2) ((nat.*) v2 u2) (multComm v2 u2))
+    trans ℕ (u1 * v1 + u2 * v2) (v1 * u1 + u2 * v2) (v1 * u1 + v2 * u2)
+      (cong ℕ (λw. ℕ) (λw. w + u2 * v2) (u1 * v1) (v1 * u1) (multComm v1 u1))
+      (cong ℕ (λw. ℕ) (λw. v1 * u1 + w) (u2 * v2) (v2 * u2) (multComm v2 u2))
 
 def intMulComm : (x : El Int) (y : El Int) → intMul x y ≡ intMul y x ∈ El Int using (plusAssoc) ≔
   λx. λy. quot-elim (v. intMul v y ≡ intMul y v ∈ El Int)
     (a. quot-elim (w. intMul (class a) w ≡ intMul w (class a) ∈ El Int)
-          (b. classCong2 ((nat.+) ((nat.*) (a .π₁) (b .π₁)) ((nat.*) (a .π₂) (b .π₂))) ((nat.+) ((nat.*) (a .π₁) (b .π₂)) ((nat.*) (a .π₂) (b .π₁))) ((nat.+) ((nat.*) (b .π₁) (a .π₁)) ((nat.*) (b .π₂) (a .π₂))) ((nat.+) ((nat.*) (b .π₁) (a .π₂)) ((nat.*) (b .π₂) (a .π₁)))
+          (b. classCong2 ((a .π₁) * (b .π₁) + (a .π₂) * (b .π₂)) ((a .π₁) * (b .π₂) + (a .π₂) * (b .π₁)) ((b .π₁) * (a .π₁) + (b .π₂) * (a .π₂)) ((b .π₁) * (a .π₂) + (b .π₂) * (a .π₁))
                 (mulComm2 (a .π₁) (a .π₂) (b .π₁) (b .π₂))
-                (trans ℕ ((nat.+) ((nat.*) (a .π₁) (b .π₂)) ((nat.*) (a .π₂) (b .π₁))) (b .π₂ * a .π₁ + b .π₁ * a .π₂) ((nat.+) ((nat.*) (b .π₁) (a .π₂)) ((nat.*) (b .π₂) (a .π₁)))
+                (trans ℕ ((a .π₁) * (b .π₂) + (a .π₂) * (b .π₁)) (b .π₂ * a .π₁ + b .π₁ * a .π₂) ((b .π₁) * (a .π₂) + (b .π₂) * (a .π₁))
                   (mulComm2 (a .π₁) (a .π₂) (b .π₂) (b .π₁))
                   (plusComm (b .π₁ * a .π₂) (b .π₂ * a .π₁))))
           y)
@@ -221,7 +221,7 @@ def intMulAssoc : (x : El Int) (y : El Int) (z : El Int) →
     (a. quot-elim (w. intMul (intMul (class a) w) z ≡ intMul (class a) (intMul w z) ∈ El Int)
           (b. quot-elim (w. intMul (intMul (class a) (class b)) w
                               ≡ intMul (class a) (intMul (class b) w) ∈ El Int)
-                (c. classCong2 ((nat.+) ((nat.*) ((nat.+) ((nat.*) (a .π₁) (b .π₁)) ((nat.*) (a .π₂) (b .π₂))) (c .π₁)) ((nat.*) ((nat.+) ((nat.*) (a .π₁) (b .π₂)) ((nat.*) (a .π₂) (b .π₁))) (c .π₂))) ((nat.+) ((nat.*) ((nat.+) ((nat.*) (a .π₁) (b .π₁)) ((nat.*) (a .π₂) (b .π₂))) (c .π₂)) ((nat.*) ((nat.+) ((nat.*) (a .π₁) (b .π₂)) ((nat.*) (a .π₂) (b .π₁))) (c .π₁))) ((nat.+) ((nat.*) (a .π₁) ((nat.+) ((nat.*) (b .π₁) (c .π₁)) ((nat.*) (b .π₂) (c .π₂)))) ((nat.*) (a .π₂) ((nat.+) ((nat.*) (b .π₁) (c .π₂)) ((nat.*) (b .π₂) (c .π₁))))) ((nat.+) ((nat.*) (a .π₁) ((nat.+) ((nat.*) (b .π₁) (c .π₂)) ((nat.*) (b .π₂) (c .π₁)))) ((nat.*) (a .π₂) ((nat.+) ((nat.*) (b .π₁) (c .π₁)) ((nat.*) (b .π₂) (c .π₂)))))
+                (c. classCong2 (((a .π₁) * (b .π₁) + (a .π₂) * (b .π₂)) * (c .π₁) + ((a .π₁) * (b .π₂) + (a .π₂) * (b .π₁)) * (c .π₂)) (((a .π₁) * (b .π₁) + (a .π₂) * (b .π₂)) * (c .π₂) + ((a .π₁) * (b .π₂) + (a .π₂) * (b .π₁)) * (c .π₁)) ((a .π₁) * ((b .π₁) * (c .π₁) + (b .π₂) * (c .π₂)) + (a .π₂) * ((b .π₁) * (c .π₂) + (b .π₂) * (c .π₁))) ((a .π₁) * ((b .π₁) * (c .π₂) + (b .π₂) * (c .π₁)) + (a .π₂) * ((b .π₁) * (c .π₁) + (b .π₂) * (c .π₂)))
                       (assocRep (a .π₁) (a .π₂) (b .π₁) (b .π₂) (c .π₁) (c .π₂))
                       (assocRep (a .π₁) (a .π₂) (b .π₁) (b .π₂) (c .π₂) (c .π₁)))
                 z)
@@ -276,7 +276,7 @@ def intMulNegL : (x : El Int) (y : El Int) →
   intMul (intNeg x) y ≡ intNeg (intMul x y) ∈ El Int ≔
   λx. λy. quot-elim (v. intMul (intNeg v) y ≡ intNeg (intMul v y) ∈ El Int)
     (a. quot-elim (w. intMul (intNeg (class a)) w ≡ intNeg (intMul (class a) w) ∈ El Int)
-          (b. classCong2 ((nat.+) ((nat.*) (a .π₂) (b .π₁)) ((nat.*) (a .π₁) (b .π₂))) ((nat.+) ((nat.*) (a .π₂) (b .π₂)) ((nat.*) (a .π₁) (b .π₁))) ((nat.+) ((nat.*) (a .π₁) (b .π₂)) ((nat.*) (a .π₂) (b .π₁))) ((nat.+) ((nat.*) (a .π₁) (b .π₁)) ((nat.*) (a .π₂) (b .π₂)))
+          (b. classCong2 ((a .π₂) * (b .π₁) + (a .π₁) * (b .π₂)) ((a .π₂) * (b .π₂) + (a .π₁) * (b .π₁)) ((a .π₁) * (b .π₂) + (a .π₂) * (b .π₁)) ((a .π₁) * (b .π₁) + (a .π₂) * (b .π₂))
                 (plusComm (a .π₁ * b .π₂) (a .π₂ * b .π₁))
                 (plusComm (a .π₁ * b .π₁) (a .π₂ * b .π₂)))
           y)

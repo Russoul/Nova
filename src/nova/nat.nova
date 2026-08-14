@@ -2,21 +2,21 @@
 -- second argument) and their basic equational theory. The operators
 -- ARE the definitions' names (docs/NovaElaboration.txt).
 infixl 6 +
-def + : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. (ℕ)) x (n ih. S ih) y
+def + : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
 infixl 7 *
-def * : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. (ℕ)) Z (n ih. x + ih) y
+def * : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) Z (n ih. x + ih) y
 
-def plusZeroId : (n : ℕ) → n + Z ≡ n ∈ (ℕ) ≔ λn. ⋆
-def plusSucId : (n : ℕ) (m : ℕ) → n + S m ≡ S (n + m) ∈ (ℕ) ≔ λn. λm. ⋆
-def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ ≔ λn. ℕ-elim (k. Z + k ≡ k ∈ (ℕ)) ⋆ (k ih. ⋆) n
-def sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ ≔ λn. λm. ℕ-elim (k. S n + k ≡ S (n + k) ∈ (ℕ)) ⋆ (k ih. ⋆) m
-def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ using (sucPlus, zeroPlusId) ≔ λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ (ℕ)) ⋆ (k ih. ⋆) m
-def plusAssoc : (n : ℕ) (m : ℕ) (k : ℕ) → n + m + k ≡ n + (m + k) ∈ (ℕ) ≔
-  λn. λm. λk. ℕ-elim (j. n + m + j ≡ n + (m + j) ∈ (ℕ)) ⋆ (j ih. ⋆) k
+def plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ ≔ λn. ⋆
+def plusSucId : (n : ℕ) (m : ℕ) → n + S m ≡ S (n + m) ∈ ℕ ≔ λn. λm. ⋆
+def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ ≔ λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
+def sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ ≔ λn. λm. ℕ-elim (k. S n + k ≡ S (n + k) ∈ ℕ) ⋆ (k ih. ⋆) m
+def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ using (sucPlus, zeroPlusId) ≔ λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ ℕ) ⋆ (k ih. ⋆) m
+def plusAssoc : (n : ℕ) (m : ℕ) (k : ℕ) → n + m + k ≡ n + (m + k) ∈ ℕ ≔
+  λn. λm. λk. ℕ-elim (j. n + m + j ≡ n + (m + j) ∈ ℕ) ⋆ (j ih. ⋆) k
 
 -- a + (b + c) ≡ b + (a + c) — permutative, used by whole-equation match
-def swapLeft : (a : ℕ) (b : ℕ) (c : ℕ) → a + (b + c) ≡ b + (a + c) ∈ (ℕ) using (plusComm) ≔
-  λa. λb. λc. ℕ-elim (k. a + (b + k) ≡ b + (a + k) ∈ (ℕ)) ⋆ (k ih. ⋆) c
+def swapLeft : (a : ℕ) (b : ℕ) (c : ℕ) → a + (b + c) ≡ b + (a + c) ∈ ℕ using (plusComm) ≔
+  λa. λb. λc. ℕ-elim (k. a + (b + k) ≡ b + (a + k) ∈ ℕ) ⋆ (k ih. ⋆) c
 
 -- congruence in each summand — one ⋆ each: reflecting the hypothesis
 -- makes the two sides the same term
@@ -28,7 +28,7 @@ def plusCongR : (a : ℕ) (b : ℕ) (c : ℕ) → (b ≡ c ∈ ℕ) → a + b �
 -- (x+y)+(z+w) ≡ (x+w)+(z+y) — the inner summands swap. Discharged by
 -- whole-equation matching against plusAssoc/plusComm/swapLeft above
 def swapMid : (x : ℕ) (y : ℕ) (z : ℕ) (w : ℕ) →
-  (x + y) + (z + w) ≡ (x + w) + (z + y) ∈ ℕ using (plusAssoc, plusComm, swapLeft) ≔
+  (x + y) + (z + w) ≡ x + w + (z + y) ∈ ℕ using (plusAssoc, plusComm, swapLeft) ≔
   λx. λy. λz. λw. ⋆
 
 -- S is injective — the kernel's suc selector, named. Bare ⋆: reflecting
@@ -45,14 +45,14 @@ def plusCancel : (n : ℕ) (m : ℕ) (k : ℕ) → (n + k ≡ m + k ∈ ℕ) →
     (j ih. λh. ih (sucInj (n + j) (m + j) h))
     k
 
-def multZeroId : (n : ℕ) → n * Z ≡ Z ∈ (ℕ) ≔ λn. ⋆
-def multSucId : (n : ℕ) (m : ℕ) → n * S m ≡ n + n * m ∈ (ℕ) ≔ λn. λm. ⋆
-def zeroMult : (n : ℕ) → Z * n ≡ Z ∈ ℕ using (zeroPlusId) ≔ λn. ℕ-elim (k. Z * k ≡ Z ∈ (ℕ)) ⋆ (k ih. ⋆) n
-def sucMult : (n : ℕ) (m : ℕ) → S n * m ≡ m + n * m ∈ (ℕ) using (plusCongR, sucPlus, swapLeft) ≔
-  λn. λm. ℕ-elim (k. S n * k ≡ k + n * k ∈ (ℕ)) ⋆ (k ih. ⋆) m
-def multComm : (n : ℕ) (m : ℕ) → m * n ≡ n * m ∈ (ℕ) using (sucMult, zeroMult) ≔
-  λn. λm. ℕ-elim (k. k * n ≡ n * k ∈ (ℕ)) ⋆ (k ih. ⋆) m
-def multDistrib : (n : ℕ) (m : ℕ) (k : ℕ) → n * (m + k) ≡ n * m + n * k ∈ (ℕ) using (plusCongR, swapLeft) ≔
-  λn. λm. λk. ℕ-elim (j. n * (m + j) ≡ n * m + n * j ∈ (ℕ)) ⋆ (j ih. ⋆) k
-def multAssoc : (n : ℕ) (m : ℕ) (k : ℕ) → n * m * k ≡ n * (m * k) ∈ (ℕ) using (multDistrib) ≔
-  λn. λm. λk. ℕ-elim (j. n * m * j ≡ n * (m * j) ∈ (ℕ)) ⋆ (j ih. ⋆) k
+def multZeroId : (n : ℕ) → n * Z ≡ Z ∈ ℕ ≔ λn. ⋆
+def multSucId : (n : ℕ) (m : ℕ) → n * S m ≡ n + n * m ∈ ℕ ≔ λn. λm. ⋆
+def zeroMult : (n : ℕ) → Z * n ≡ Z ∈ ℕ using (zeroPlusId) ≔ λn. ℕ-elim (k. Z * k ≡ Z ∈ ℕ) ⋆ (k ih. ⋆) n
+def sucMult : (n : ℕ) (m : ℕ) → S n * m ≡ m + n * m ∈ ℕ using (plusCongR, sucPlus, swapLeft) ≔
+  λn. λm. ℕ-elim (k. S n * k ≡ k + n * k ∈ ℕ) ⋆ (k ih. ⋆) m
+def multComm : (n : ℕ) (m : ℕ) → m * n ≡ n * m ∈ ℕ using (sucMult, zeroMult) ≔
+  λn. λm. ℕ-elim (k. k * n ≡ n * k ∈ ℕ) ⋆ (k ih. ⋆) m
+def multDistrib : (n : ℕ) (m : ℕ) (k : ℕ) → n * (m + k) ≡ n * m + n * k ∈ ℕ using (plusCongR, swapLeft) ≔
+  λn. λm. λk. ℕ-elim (j. n * (m + j) ≡ n * m + n * j ∈ ℕ) ⋆ (j ih. ⋆) k
+def multAssoc : (n : ℕ) (m : ℕ) (k : ℕ) → n * m * k ≡ n * (m * k) ∈ ℕ using (multDistrib) ≔
+  λn. λm. λk. ℕ-elim (j. n * m * j ≡ n * (m * j) ∈ ℕ) ⋆ (j ih. ⋆) k

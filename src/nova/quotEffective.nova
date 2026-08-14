@@ -43,7 +43,7 @@ def classEqOfClosure : (A : 𝕌) (r : El A → El A → Ω) (a : El A) (b : El 
 def clsRelWd : (A : 𝕌) (r : El A → El A → Ω) (a : El A) (x : El A) (y : El A) →
   Prf (r x y) → rClosure A r a x ≡ rClosure A r a y ∈ Ω ≔
   λA. λr. λa. λx. λy. λh.
-    propExt (prop.rClosure A r a x) (∥(z:El A → El A → Ω) → ((v:El A) → (w:El A) → Prf (r v w) → Prf (z v w)) → ((v:El A) → Prf (z v v)) → ((v:El A) → (w:El A) → (u:El A) → Prf (z v w) → Prf (z w u) → Prf (z v u)) → ((v:El A) → (w:El A) → Prf (z v w) → Prf (z w v)) → Prf (z a y)∥)
+    propExt (rClosure A r a x) (∥(z:El A → El A → Ω) → ((v:El A) → (w:El A) → Prf (r v w) → Prf (z v w)) → ((v:El A) → Prf (z v v)) → ((v:El A) → (w:El A) → (u:El A) → Prf (z v w) → Prf (z w u) → Prf (z v u)) → ((v:El A) → (w:El A) → Prf (z v w) → Prf (z w v)) → Prf (z a y)∥)
       (λk. rClosureTrans A r a x y k (rClosureContains A r x y h))
       (λk. rClosureTrans A r a y x k (rClosureSymm A r x y (rClosureContains A r x y h)))
 
@@ -62,7 +62,7 @@ def effective : (A : 𝕌) (r : El A → El A → Ω) (a : El A) (b : El A) →
 -- the characterization: quotient equality is exactly r⁺
 def classEqIff : (A : 𝕌) (r : El A → El A → Ω) (a : El A) (b : El A) →
   Prf ((class a ≡ class b ∈ El (A / (u v. r u v))) ↔ rClosure A r a b) ≔
-  λA. λr. λa. λb. iffIntro (class a ≡ class b ∈ (El A / (v x. r v x))) (prop.rClosure A r a b) (effective A r a b) (classEqOfClosure A r a b)
+  λA. λr. λa. λb. iffIntro (class a ≡ class b ∈ (El A / (v x. r v x))) (rClosure A r a b) (effective A r a b) (classEqOfClosure A r a b)
 
 -- COROLLARY: at an equivalence relation, effectivity on the nose — r
 -- itself is an equivalence containing r, so leastness collapses r⁺ into

@@ -18,78 +18,78 @@ def bisim : (a : 𝕌) → El (stream a) → El (stream a) → Ω ≔
   λa. λs. λt.
     ∥(r : El (stream a) → El (stream a) → Ω) ⨯
       ((x : El (stream a)) (y : El (stream a)) → Prf (r x y) →
-         Prf (hd (a) x ≡ hd (a) y ∈ El a) ⨯ Prf (r (tl (a) x) (tl (a) y))) ⨯
+         Prf (hd a x ≡ hd a y ∈ El a) ⨯ Prf (r (tl a x) (tl a y))) ⨯
       Prf (r s t)∥
 
 -- UNFOLD, head half: bisimilar streams agree at the head
 def bisimHd : (a : 𝕌) (s : El (stream a)) (t : El (stream a)) →
-    Prf (bisim (a) s t) → Prf (hd (a) s ≡ hd (a) t ∈ El a) ≔
+    Prf (bisim a s t) → Prf (hd a s ≡ hd a t ∈ El a) ≔
   λa. λs. λt. λh. squash-elim h (w. ((w .π₂ .π₁) s t (w .π₂ .π₂)) .π₁)
 
 -- UNFOLD, tail half: bisimilarity is preserved by observation —
 -- the SAME invariant relates the tails
 def bisimTl : (a : 𝕌) (s : El (stream a)) (t : El (stream a)) →
-    Prf (bisim (a) s t) → Prf (bisim (a) (tl (a) s) (tl (a) t)) ≔
+    Prf (bisim a s t) → Prf (bisim a (tl a s) (tl a t)) ≔
   λa. λs. λt. λh.
     squash-elim h (w.
-      ⋆ ((w .π₁ , ((w .π₂ .π₁) , ((w .π₂ .π₁) s t (w .π₂ .π₂)) .π₂))))
+      ⋆ (w .π₁ , ((w .π₂ .π₁) , ((w .π₂ .π₁) s t (w .π₂ .π₂)) .π₂)))
 
 -- a DIRECT corecursive proof: reflexivity, with judgemental equality
 -- itself as the invariant — heads by cong at hd, tails by cong at tl
-def bisimRefl : (a : 𝕌) (s : El (stream a)) → Prf (bisim (a) s s) ≔
+def bisimRefl : (a : 𝕌) (s : El (stream a)) → Prf (bisim a s s) ≔
   λa. λs.
-    ⋆ (((λx. λy. (x ≡ y ∈ El (stream a))) ,
-       ((λx. λy. λp. (cong (stream.stream a) (λv. a) (λv. hd (a) v) x y p ,
-                      cong (stream.stream a) (λv. stream a) (λv. tl (a) v) x y p)) ,
-        ⋆)))
+    ⋆ ((λx. λy. (x ≡ y ∈ El (stream a))) ,
+       ((λx. λy. λp. (cong (stream a) (λv. a) (λv. hd a v) x y p ,
+                      cong (stream a) (λv. stream a) (λv. tl a v) x y p)) ,
+        ⋆))
 
 -- obsEq ⊃ bisim: the ℕ-indexed relation is ITSELF a bisimulation —
 -- heads are observation 0, and shifting the index moves under one
 -- tail (nth n (tl x) ≐ nth (S n) x, judgementally)
 def obsEqBisim : (a : 𝕌) (s : El (stream a)) (t : El (stream a)) →
-    Prf (obsEq (a) s t) → Prf (bisim (a) s t) ≔
+    Prf (obsEq a s t) → Prf (bisim a s t) ≔
   λa. λs. λt. λh.
-    ⋆ (((λx. λy. obsEq (a) x y) ,
+    ⋆ ((λx. λy. obsEq a x y) ,
        ((λx. λy. λp. (squash-elim p (w. w Z) ,
                       squash-elim p (w. ⋆ (λn. w (S n))))) ,
-        h)))
+        h))
 
 -- bisim ⊃ obsEq: unfold n times, by ℕ-induction over the depth
 def bisimObsEq : (a : 𝕌) (s : El (stream a)) (t : El (stream a)) →
-    Prf (bisim (a) s t) → Prf (obsEq (a) s t) ≔
+    Prf (bisim a s t) → Prf (obsEq a s t) ≔
   λa. λs. λt. λh.
     ⋆ (λn. (ℕ-elim (m. (x : El (stream a)) → (y : El (stream a)) →
-                Prf (bisim (a) x y) → Prf (nth (a) m x ≡ nth (a) m y ∈ El a))
-          (λx. λy. λg. bisimHd (a) x y g)
-          (m ih. λx. λy. λg. ih (tl (a) x) (tl (a) y) (bisimTl (a) x y g))
+                Prf (bisim a x y) → Prf (nth a m x ≡ nth a m y ∈ El a))
+          (λx. λy. λg. bisimHd a x y g)
+          (m ih. λx. λy. λg. ih (tl a x) (tl a y) (bisimTl a x y g))
           n) s t h)
 
 -- interop corollary: map-identity, now in the corecursive spelling
 def mapIdBisim : (a : 𝕌) (s : El (stream a)) →
-    Prf (bisim (a) (mapS (a) (a) (λx. x) s) s) ≔
-  λa. λs. obsEqBisim (a) (stream.mapS a a (λx. x) s) (s) (mapIdObsEq (a) s)
+    Prf (bisim a (mapS a a (λx. x) s) s) ≔
+  λa. λs. obsEqBisim a (mapS a a (λx. x) s) s (mapIdObsEq a s)
 
 -- THE REFLECTION: bisimilarity implies equality — el-nu-coind's
 -- surface form, with bisim ITSELF as the invariant and the unfold
 -- laws as the one-step closure. This is the theorem that upgrades
 -- every observational result below it to a judgemental equation.
 def bisimReflect : (a : 𝕌) (s : El (stream a)) (t : El (stream a)) →
-    Prf (bisim (a) s t) → Prf (s ≡ t ∈ El (stream a)) ≔
+    Prf (bisim a s t) → Prf (s ≡ t ∈ El (stream a)) ≔
   λa. λs. λt. λh.
-    coind (x y. bisim (a) x y) h
-          (x y hb. ⋆ ((bisimHd (a) x y hb , bisimTl (a) x y hb)))
+    coind (x y. bisim a x y) h
+          (x y hb. ⋆ (bisimHd a x y hb , bisimTl a x y hb))
 
 def obsEqReflect : (a : 𝕌) (s : El (stream a)) (t : El (stream a)) →
-    Prf (obsEq (a) s t) → Prf (s ≡ t ∈ El (stream a)) ≔
-  λa. λs. λt. λh. bisimReflect (a) s t (obsEqBisim (a) s t h)
+    Prf (obsEq a s t) → Prf (s ≡ t ∈ El (stream a)) ≔
+  λa. λs. λt. λh. bisimReflect a s t (obsEqBisim a s t h)
 
 -- the η-needing equalities, now judgemental theorems
 def mapIdEq : (a : 𝕌) (s : El (stream a)) →
-    mapS (a) (a) (λx. x) s ≡ s ∈ El (stream a) ≔
-  λa. λs. bisimReflect (a) (stream.mapS a a (λx. x) s) (s) (mapIdBisim (a) s)
+    mapS a a (λx. x) s ≡ s ∈ El (stream a) ≔
+  λa. λs. bisimReflect a (mapS a a (λx. x) s) s (mapIdBisim a s)
 
 def mapFuseEq : (a : 𝕌) (b : 𝕌) (c : 𝕌) (f : El a → El b) (g : El b → El c)
     (s : El (stream a)) →
-    mapS (b) (c) g (mapS (a) (b) f s) ≡ mapS (a) (c) (λx. g (f x)) s ∈ El (stream c) ≔
+    mapS b c g (mapS a b f s) ≡ mapS a c (λx. g (f x)) s ∈ El (stream c) ≔
   λa. λb. λc. λf. λg. λs.
-    obsEqReflect (c) (stream.mapS b c g (stream.mapS a b f s)) (stream.mapS a c (λx. g (f x)) s) (mapFuseObsEq (a) (b) (c) f g s)
+    obsEqReflect c (mapS b c g (mapS a b f s)) (mapS a c (λx. g (f x)) s) (mapFuseObsEq a b c f g s)

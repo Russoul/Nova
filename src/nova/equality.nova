@@ -43,7 +43,7 @@ def transportEq : (A : 𝕌) (B : 𝕌) (f : El A → El B) (g : El A → El B) 
                   (f a ≡ g a ∈ (El B)) →
                   f b ≡ g b ∈ (El B) ≔
   λA. λB. λf. λg. λa. λb. λh. λe.
-    transportP (A) (λx. (f x ≡ g x ∈ (El B))) (a) (b) h e
+    transportP A (λx. (f x ≡ g x ∈ (El B))) a b h e
 
 -- dependent congruence: in an extensional theory it is one ⋆, since
 -- reflecting the hypothesis makes the sides and their types equal
