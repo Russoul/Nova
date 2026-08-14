@@ -141,12 +141,15 @@ loadProgram rootPath = do
 export
 elabPath : String -> IO String
 elabPath rootPath = do
+  let t0 = nowNs ()
   Right units <- loadProgram rootPath
     | Left err => pure "Error: \{err.lmsg}"
+  let t1 = bump "phase-load-parse" (nowNs () - t0) (nowNs ())
   let out = elabProgram units
   let _ = length out
+  let out2 = bump "phase-elaborate" (nowNs () - t1) out
   dumpProfile
-  pure out
+  pure out2
 
 ||| Load, elaborate (requiring full acceptance — Nova.Compute assumes
 ||| closed, well-typed input), and compute the normal form of a named
