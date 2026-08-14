@@ -53,13 +53,26 @@ import Data.SortedMap
 -- certificate built on one is rejected at replay. The kernel keeps its
 -- own memo in KM's state and shares nothing with this one.
 
+-- ONE allocation for ALL the tables: the Chez backend deduplicates
+-- syntactically identical nullary CAFs, so three separate
+-- `unsafePerformIO (newIORef empty)` definitions silently share ONE
+-- ref (confirmed by exploit: SigEntry inserts reinterpreted as Elem
+-- normal forms). Allocating the refs in a single action makes them
+-- distinct by construction.
+nfCaches : (IORef (SortedMap String Elem), IORef (SortedMap String Ty), IORef (SortedMap String SigEntry))
+nfCaches = unsafePerformIO $ do
+  e <- newIORef empty
+  t <- newIORef empty
+  se <- newIORef empty
+  pure (e, t, se)
+
 export
 betaElemNf : IORef (SortedMap String Elem)
-betaElemNf = unsafePerformIO (newIORef empty)
+betaElemNf = fst nfCaches
 
 export
 betaTyNf : IORef (SortedMap String Ty)
-betaTyNf = unsafePerformIO (newIORef empty)
+betaTyNf = fst (snd nfCaches)
 
 nfLookup : IORef (SortedMap String a) -> String -> Maybe a
 nfLookup ref x = unsafePerformIO $ do
@@ -79,13 +92,36 @@ nfMemo ref x v =
     Just w => w
     Nothing => nfInsert ref x (force v)
 
-||| Drop both tables, returning the value handed in. Called wherever Σ
+||| name → entry for the normalisers' SigVar cases: the linear
+||| sigLookup scan — measured at ~40% of all execution — is paid once
+||| per name instead of once per mention. POSITIVE entries only: a
+||| name's entry is stable while Σ only extends (the same monotonicity
+||| the nf memos lean on; flips and rebuilds clear this table below,
+||| at the same sites). Negatives fall back to the scan and are never
+||| cached — a name added later must be found later. Below the trust
+||| boundary like everything here: a stale entry costs a rejected
+||| certificate, never a wrong acceptance.
+export
+sigEntryIx : IORef (SortedMap String SigEntry)
+sigEntryIx = snd (snd nfCaches)
+
+export
+cachedSigLookup : Sig -> String -> Maybe SigEntry
+cachedSigLookup sig x =
+  case nfLookup sigEntryIx x of
+    Just e => Just e
+    Nothing => case sigLookup x sig of
+                 Just e => Just (nfInsert sigEntryIx x e)
+                 Nothing => Nothing
+
+||| Drop all tables, returning the value handed in. Called wherever Σ
 ||| changes non-monotonically.
 export
 resetNfCaches : (x : a) -> a
 resetNfCaches x = unsafePerformIO $ do
   writeIORef betaElemNf empty
   writeIORef betaTyNf empty
+  writeIORef sigEntryIx empty
   pure x
 
 
@@ -149,7 +185,7 @@ mutual
   betaElem sig (QuotTy a r)       = QuotTy (betaElem sig a) (betaElem sig r)
   betaElem sig (SigVar x es) =
     let es' = betaSubNorm sig es
-    in case sigLookup x sig of
+    in case cachedSigLookup sig x of
          Just (SigDef _ _ a _) => betaElem sig (substElem (nfMemo betaElemNf x (betaElem sig a)) (embed es'))
          -- el-sig-decl: a declaration reference is stuck (no -beta)
          Just (SigDecl _ _ _)  => SigVar x es'
@@ -257,7 +293,7 @@ mutual
   betaTy sig (Quotient a r)   = Quotient (betaTy sig a) (betaElem sig r)
   betaTy sig (Ty.SigVar x es) =
     let es' = betaSubNorm sig es
-    in case sigLookup x sig of
+    in case cachedSigLookup sig x of
          Just (SigTyDef _ _ a) => betaTy sig (substTy (nfMemo betaTyNf x (betaTy sig a)) (embed es'))
          -- ty-sig-decl: a declaration reference is stuck (no -beta)
          Just (SigTyDecl _ _)  => Ty.SigVar x es'
@@ -476,7 +512,7 @@ mutual
       Inj2 b => whnfE sig (substElem r (Ext Id b))
       t'     => SumElim l r t'
   whnfE sig (SigVar x es) =
-    case sigLookup x sig of
+    case cachedSigLookup sig x of
       Just (SigDef _ _ a _) => whnfE sig (substElem a (embed es))
       _ => SigVar x es
   whnfE sig (QuotElim f q) =
@@ -519,7 +555,7 @@ mutual
       Elem.NuTy f      => Ty.NuTy f        -- ty-el-nu
       e'               => El e'
   whnfT sig (Ty.SigVar x es) =
-    case sigLookup x sig of
+    case cachedSigLookup sig x of
       Just (SigTyDef _ _ a) => whnfT sig (substTy a (embed es))
       _ => Ty.SigVar x es
   whnfT sig t = t

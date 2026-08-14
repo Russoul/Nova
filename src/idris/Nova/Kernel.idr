@@ -201,6 +201,12 @@ record KSt where
   fuel : Nat
   nfE : SortedMap String Elem
   nfT : SortedMap String Ty
+  ||| name → entry, built lazily during THIS check: Σ is fixed for the
+  ||| lifetime of one runKM call, so a positive hit is stable, and the
+  ||| linear sigLookup scan — measured at ~40% of all execution on the
+  ||| hot paths — is paid once per name instead of once per mention.
+  ||| Same per-call discipline as the nf memo above.
+  sigIx : SortedMap String SigEntry
 
 data KM : Type -> Type where
   MkKM : (KSt -> Either KErr (a, KSt)) -> KM a
@@ -209,7 +215,7 @@ runKMSt : KM a -> KSt -> Either KErr (a, KSt)
 runKMSt (MkKM f) = f
 
 runKM : KM a -> Nat -> Either KErr (a, Nat)
-runKM m n = map (mapSnd fuel) (runKMSt m (MkKSt n empty empty))
+runKM m n = map (mapSnd fuel) (runKMSt m (MkKSt n empty empty empty))
 
 Functor KM where
   map f (MkKM g) = MkKM $ \n => map (mapFst f) (g n)
@@ -246,6 +252,17 @@ kNfTyGet x = MkKM $ \st => Right (lookup x st.nfT, st)
 
 kNfTyPut : String -> Ty -> KM Ty
 kNfTyPut x v = MkKM $ \st => Right (v, { nfT $= insert x v } st)
+
+||| Name-indexed signature lookup (see KSt.sigIx). Negatives are never
+||| cached — they cost one scan and stay correct by construction.
+kSigLookup : Sig -> SigIdentifier -> KM (Maybe SigEntry)
+kSigLookup sig x = MkKM $ \st =>
+  case lookup x st.sigIx of
+    Just e => Right (Just e, st)
+    Nothing =>
+      case sigLookup x sig of
+        Just e => Right (Just e, { sigIx $= insert x e } st)
+        Nothing => Right (Nothing, st)
 
 -- ===== Fuel-bounded normalization (Foundation's ≜, clause for clause) =====
 
@@ -313,7 +330,7 @@ mutual
   kElem sig (QuotTy a r) = [| QuotTy (kElem sig a) (kElem sig r) |]
   kElem sig (SigVar x es) = do
     es' <- kSubNorm sig es
-    case sigLookup x sig of
+    kSigLookup sig x >>= \entryX => case entryX of
       Just (SigDef _ _ a _) => do
         burn
         -- nf(body) is recomputed on every mention otherwise; at a
@@ -426,7 +443,7 @@ mutual
   kTy sig (Quotient a r) = [| Quotient (kTy sig a) (kElem sig r) |]
   kTy sig (Ty.SigVar x es) = do
     es' <- kSubNorm sig es
-    case sigLookup x sig of
+    kSigLookup sig x >>= \entryX => case entryX of
       Just (SigTyDef _ _ a) => do
         burn
         cached <- kNfTyGet x
@@ -604,7 +621,7 @@ mutual
       Just ty => pure ty
       Nothing => kerr "kernel: proof variable out of bounds"
   inferP sig ctx (SigVar x es) =
-    case sigLookup x sig of
+    kSigLookup sig x >>= \entryX => case entryX of
       Just (SigDef delta _ _ ty) => do
         checkSubstP sig ctx (toList es) (toList delta)
         pure (substTy ty (embed es))
@@ -945,7 +962,7 @@ mutual
     checkQSpineP sig ctx sg' k es
   checkTyP sig ctx (Ty.NuTy f) = checkPolyP sig ctx f
   checkTyP sig ctx (Ty.SigVar x es) =
-    case sigLookup x sig of
+    kSigLookup sig x >>= \entryX => case entryX of
       Just (SigTyDef delta _ _) => checkSubstP sig ctx (toList es) (toList delta)
       Just (SigTyDecl delta _) => checkSubstP sig ctx (toList es) (toList delta)
       _ => kerr "kernel: bad signature reference in proof type"
@@ -1204,7 +1221,7 @@ mutual
       1 => pure (Just Ty.PropTy)
       _ => pure Nothing
   childTyE sig ctx pexp (SigVar x es) i =
-    case sigLookup x sig of
+    kSigLookup sig x >>= \entryX => case entryX of
       Just (SigDef delta _ _ _) =>
         case getAt i (toList delta) of
           Just entryTy =>
@@ -1288,7 +1305,7 @@ mutual
           _ => pure Nothing
       Nothing => pure Nothing
   inferNeK sig ctx (SigVar x es) =
-    case sigLookup x sig of
+    kSigLookup sig x >>= \entryX => case entryX of
       Just (SigDef _ _ _ ty) => pure (Just (substTy ty (embed es)))
       Just (SigDecl _ _ ty) => pure (Just (substTy ty (embed es)))
       _ => pure Nothing
@@ -1445,7 +1462,7 @@ goTy sig ctx lic (i :: p) b (QSort sg k es) =
                 Nothing => kerr "kernel: bad path"
             _ => kerr "kernel: bad path"
 goTy sig ctx lic (i :: p) b (Ty.SigVar x es) =
-  case sigLookup x sig of
+  kSigLookup sig x >>= \entryX => case entryX of
     Just (SigTyDef delta _ _) =>
       case (subNormAt i es, getAt i (toList delta)) of
         (Just e, Just entryTy) => do
@@ -1920,7 +1937,7 @@ mutual
               Just ty => pure ty
               Nothing => kerr "kernel: variable out of bounds"
           SigVar x es =>
-            case sigLookup x sig of
+            kSigLookup sig x >>= \entryX => case entryX of
               Just (SigDef delta _ _ ty) => do
                 kCheckSubstK sig ctx (toList es) (toList delta) (childSkels sk)
                 pure (substTy ty (embed es))
@@ -2166,7 +2183,7 @@ mutual
     _ <- kCheckPolyK sig ctx f 0 sk
     pure ()
   kCheckTyK sig ctx (Ty.SigVar x es) sk =
-    case sigLookup x sig of
+    kSigLookup sig x >>= \entryX => case entryX of
       Just (SigTyDef delta _ _) =>
         kCheckSubstK sig ctx (toList es) (toList delta) (childSkels' sk)
       _ => kerr "kernel: bad signature type reference"

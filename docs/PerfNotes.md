@@ -293,3 +293,33 @@ changes where an equation-typed lemma enters the store and is worth
 ~2s on its own. Re-measuring the previous commit on the current base
 gives 3.96s, so the kernel memo left the engine untouched, as it
 should have.
+
+## The Σ-lookup index
+
+A Chez source-profile (per-expression execution counts, mapped back to
+Idris definitions — the driver lives in the session scratchpad and is
+trivially recreated: `compile-profile 'source` + `load-program` +
+`profile-dump-list`) put `sigLookup` and its per-entry costs at ~40% of
+ALL execution: a linear scan of the Σ snoclist comparing
+`Maybe String`, run on every SigVar occurrence of every normalization
+walk. Substitution — the natural suspect — measured ~4%.
+
+Fix, two halves along the trust boundary: the kernel gets a per-call
+name→entry `SortedMap` in KM state (Σ is fixed for one runKM, so a
+positive hit is stable — same discipline as its nf memo); the
+elaborator gets a global positive-only cache beside the nf memos,
+cleared at the same resetNfCaches sites, negatives never cached.
+
+Found on the way, confirmed by exploit: the Chez backend DEDUPLICATES
+syntactically identical nullary CAFs, so `betaElemNf`, `betaTyNf` and
+the new table — all `unsafePerformIO (newIORef empty)` — silently
+shared ONE ref. The first two had always collided harmlessly (term-
+and type-def names are disjoint); the new table shared keys with both,
+and a SigEntry reinterpreted as an Elem normal form walked into
+`substVar` as garbage. All tables are now allocated in a single IO
+action, distinct by construction.
+
+all.nova, scoped default: wall 11.0s → 9.3s; elaborate phase 10.3s →
+8.6s; kernel replay 0.83s → 0.44s; item check 0.51s → 0.26s; engine
+0.38s → 0.17s. The profile's top family is now the rewrite matcher
+(matchElemP + rewriteElemS + descent ≈ 21%) — Part II's target.
