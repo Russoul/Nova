@@ -2307,7 +2307,8 @@ mutual
     let cs = bump "candN" (cast (length cs0.all)) cs0
     let tyM = bump "sz-att-in" (cast (elemSize a + elemSize b)) ty
     let tyM2 = bump "sz-att-nf" (cast (elemSize (betaElem st.sig a) + elemSize (betaElem st.sig b))) tyM
-    let mcert = spEqElemC (fromMaybe spDepth st.depthOv) st cs ctx a b tyM2
+    let tyM3 = if a == b then bump "syn-eq-elem" 1 tyM2 else tyM2
+    let mcert = spEqElemC (fromMaybe spDepth st.depthOv) st cs ctx a b tyM3
     let t2 = bump "engine" (nowNs () - t1) (nowNs ())
     case mcert of
       Nothing => pure (Left site)
@@ -2315,9 +2316,10 @@ mutual
         let kres = kCheckEqElem st.sig ctx kernelFuel cert a b ty in
         case bump "kernel" (nowNs () - t2) kres of
           Right () =>
-            let names = nub (hintNamesC cert) in
-            pure (Right (if null names then cert
-                           else audit "AUDIT elem | \{st.modPrefix} | \{site} | \{joinBy ", " names}" cert))
+            let cert1 = if stepFree cert then bump "triv-stepless-elem" 1 cert else cert in
+            let names = nub (hintNamesC cert1) in
+            pure (Right (if null names then cert1
+                           else audit "AUDIT elem | \{st.modPrefix} | \{site} | \{joinBy ", " names}" cert1))
           Left kerrMsg => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
 
   attemptT : Ctx -> String -> Ty -> Ty -> ElabM (Either String ECert)
@@ -2326,7 +2328,8 @@ mutual
     let t0 = nowNs ()
     let cs = mkCandSet st ctx
     let t1 = bump "cands" (nowNs () - t0) (nowNs ())
-    let mcert = spEqTyC (fromMaybe spDepth st.depthOv) st cs ctx tyA tyB
+    let tyB2 = if tyA == tyB then bump "syn-eq-ty" 1 tyB else tyB
+    let mcert = spEqTyC (fromMaybe spDepth st.depthOv) st cs ctx tyA tyB2
     let t2 = bump "engine" (nowNs () - t1) (nowNs ())
     case mcert of
       Nothing => pure (Left site)
