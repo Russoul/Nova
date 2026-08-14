@@ -1,0 +1,57 @@
+import prop (¬)
+import monoid (Monoid)
+import group (Group)
+
+-- The type of (small) fields, flat like Group: two commutative
+-- operations sharing a carrier, additive inverses, distributivity,
+-- nontriviality, and multiplicative inverses for nonzero elements.
+-- The inverse law is EXISTENTIAL (a squashed pair), not an inverse
+-- operation: an operation would have to choose a value at zero, and
+-- the corpus's qInvExists is exactly this statement.
+type Field ≔
+  (F : 𝕌)
+  (add : El F → El F → El F)
+  (mul : El F → El F → El F)
+  (neg : El F → El F)
+  (zero : El F)
+  (one : El F)
+  (addAssoc : (x : El F) (y : El F) (z : El F) →
+                add (add x y) z ≡ add x (add y z) ∈ El F)
+  (addComm : (x : El F) (y : El F) → add x y ≡ add y x ∈ El F)
+  (addZeroL : (x : El F) → add zero x ≡ x ∈ El F)
+  (addZeroR : (x : El F) → add x zero ≡ x ∈ El F)
+  (addNegL : (x : El F) → add (neg x) x ≡ zero ∈ El F)
+  (addNegR : (x : El F) → add x (neg x) ≡ zero ∈ El F)
+  (mulAssoc : (x : El F) (y : El F) (z : El F) →
+                mul (mul x y) z ≡ mul x (mul y z) ∈ El F)
+  (mulComm : (x : El F) (y : El F) → mul x y ≡ mul y x ∈ El F)
+  (mulOneL : (x : El F) → mul one x ≡ x ∈ El F)
+  (mulOneR : (x : El F) → mul x one ≡ x ∈ El F)
+  (distribL : (x : El F) (y : El F) (z : El F) →
+                mul x (add y z) ≡ add (mul x y) (mul x z) ∈ El F)
+  (distribR : (x : El F) (y : El F) (z : El F) →
+                mul (add y z) x ≡ add (mul y x) (mul z x) ∈ El F)
+  (oneNotZero : Prf (¬ (one ≡ zero ∈ El F))) ⨯
+  ((x : El F) → Prf (¬ (x ≡ zero ∈ El F)) →
+     Prf ∥(y : El F) ⨯ Prf (mul x y ≡ one ∈ El F)∥)
+
+-- The additive structure is a group under neg...
+def fieldAddGroup : Field → Group ≔
+  λf. (f .π₁ ,
+       f .π₂ .π₁ ,
+       f .π₂ .π₂ .π₂ .π₁ ,
+       f .π₂ .π₂ .π₂ .π₂ .π₁ ,
+       f .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ ,
+       f .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ ,
+       f .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ ,
+       f .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ ,
+       f .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁)
+
+-- ...and the multiplicative structure a monoid under one.
+def fieldMulMonoid : Field → Monoid ≔
+  λf. (f .π₁ ,
+       f .π₂ .π₂ .π₁ ,
+       f .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ ,
+       f .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ ,
+       f .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ ,
+       f .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁)
