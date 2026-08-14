@@ -183,15 +183,7 @@ handleRequest TextDocumentSemanticTokensFull params = whenActiveRequest $ \_ => 
   logI Channel "Received semanticTokens/full request for \{show params.textDocument.uri}"
   Just doc <- getDoc params.textDocument.uri
     | Nothing => pure (pure (make MkNull))
-  -- hole occurrences recolored by elaboration state. Restricted to
-  -- SURFACE hole syntax (`?x`/`_x`/`_`): `def x : T` declarations are
-  -- holes too, but painting every reference to an abstract name would
-  -- drown the file
-  let holeOccs = [ (r, isJust h.hiSolution)
-                 | h <- doc.report.holeTable
-                 , isPrefixOf "?" h.hiName || isPrefixOf "_" h.hiName
-                 , r <- h.hiOccs ]
-  let toks = getSemanticTokens doc.source (toList doc.rootUnit.mtokens) holeOccs
+  let toks = getSemanticTokens doc.source (toList doc.rootUnit.mtokens)
   pure (pure (make (MkSemanticTokens Nothing toks)))
 
 handleRequest TextDocumentDocumentSymbol params = whenActiveRequest $ \_ => do
@@ -207,26 +199,12 @@ handleRequest TextDocumentHover params = whenActiveRequest $ \_ => do
     | Nothing => pure (pure (make MkNull))
   let lns = lines doc.source
   let pos = fromLspPosition lns params.position
-  -- a hole occurrence under the cursor answers with the hole's
-  -- judgement: context and type while open, the solution once solved
-  let hits = [ (hi, r) | hi <- doc.report.holeTable, r <- hi.hiOccs
-             , posInRange pos r ]
-  case hits of
-    [] =>
-      -- binder occurrences: ascribe the elaborated type
-      case [ (r, txt) | (r, txt) <- doc.report.binderTable, posInRange pos r ] of
-        ((r, txt) :: _) => do
-          let content = MkMarkupContent Markdown ("```nova\n" ++ txt ++ "\n```")
-          pure (pure (make (MkHover (make content) (Just (toLspRange lns r)))))
-        [] => pure (pure (make MkNull))
-    ((hi, r) :: _) => do
-      let kind = the String $
-                   if hi.hiSolvable
-                     then maybe "unsolved hole" (const "solved hole") hi.hiSolution
-                     else "rigid hole"
-      let text = kind ++ " " ++ hi.hiName ++ "\n" ++ hi.hiText
-      let content = MkMarkupContent Markdown ("```nova\n" ++ text ++ "\n```")
+  -- binder occurrences: ascribe the elaborated type
+  case [ (r, txt) | (r, txt) <- doc.report.binderTable, posInRange pos r ] of
+    ((r, txt) :: _) => do
+      let content = MkMarkupContent Markdown ("```nova\n" ++ txt ++ "\n```")
       pure (pure (make (MkHover (make content) (Just (toLspRange lns r)))))
+    [] => pure (pure (make MkNull))
  where
   posInRange : Me.Russoul.Text.Position.Position -> Me.Russoul.Text.Range.Range -> Bool
   posInRange p (MkRange s e) = s <= p && p <= e

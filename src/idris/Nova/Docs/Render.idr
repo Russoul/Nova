@@ -1,9 +1,9 @@
 module Nova.Docs.Render
 
 -- Batch static-HTML renderer for .nova surface files: runs the same
--- load/elaborate pipeline the `nova elab` CLI runs (Nova.Elaboration.
--- Loader.loadProgram), reuses the LSP's own token classification and
--- hole-state overlay (Nova.LSP.SemanticTokens), and paints the source
+-- loading pipeline the `nova elab` CLI runs (Nova.Elaboration.
+-- Loader.loadProgram), reuses the LSP's own token classification
+-- (Nova.LSP.SemanticTokens), and paints the source
 -- with one <span class="tok-..."> per classified token — so a
 -- rendered page's highlighting always matches what an editor's LSP
 -- client shows, with no separate classifier to keep in sync.
@@ -75,13 +75,13 @@ renderLines lineNo (l :: ls) toks =
   let (html, leftover) = renderLine lineNo 0 (unpack l) toks
   in html :: renderLines (lineNo + 1) ls leftover
 
-||| Same classification+hole-overlay a `semanticTokens/full` response
-||| carries (Nova.LSP.SemanticTokens.getSemanticTokens), just emitted
-||| as HTML spans instead of the LSP wire format's delta-encoded ints.
-renderSource : String -> List (Range, TokenKind) -> List (Range, Bool) -> String
-renderSource source rawToks holeOccs =
-  let overlaid = sortTokens (map (overlay holeOccs) rawToks)
-  in joinBy "\n" (renderLines 0 (lines source) overlaid)
+||| Same classification a `semanticTokens/full` response carries
+||| (Nova.LSP.SemanticTokens.getSemanticTokens), just emitted as HTML
+||| spans instead of the LSP wire format's delta-encoded ints.
+renderSource : String -> List (Range, TokenKind) -> String
+renderSource source rawToks =
+  let sorted = sortTokens (map (\(r, k) => (r, tokenKindIndex k)) rawToks)
+  in joinBy "\n" (renderLines 0 (lines source) sorted)
 
 htmlPage : (title : String) -> String -> String
 htmlPage title body = joinBy "\n"
@@ -103,17 +103,6 @@ htmlPage title body = joinBy "\n"
 
 -- ===== driver =====
 
-||| Surface hole syntax only (`?x`/`_x`/`_`), recolored by solved
-||| state — same restriction and same source (ElabReport.holeTable)
-||| as Nova.LSP.ProcessMessage's TextDocumentSemanticTokensFull.
-holeOccsOf : ElabReport -> List (Range, Bool)
-holeOccsOf report =
-  [ (r, isJust h.hiSolution)
-  | h <- report.holeTable
-  , isPrefixOf "?" h.hiName || isPrefixOf "_" h.hiName
-  , r <- h.hiOccs
-  ]
-
 baseNameOf : String -> String
 baseNameOf path =
   let name = List1.last (split (== '/') path) in
@@ -121,7 +110,7 @@ baseNameOf path =
     then pack (reverse (drop 5 (reverse (unpack name))))
     else name
 
-||| Load, elaborate (for hole state) and render one .nova file to a
+||| Load and render one .nova file to a
 ||| standalone HTML page. Errors (parse/load failure) are reported,
 ||| not thrown — one bad file shouldn't abort the whole batch.
 renderFile : String -> IO (Either String (String, String))
@@ -132,9 +121,7 @@ renderFile path = do
     | Nothing => pure (Left "loadProgram returned no modules for \{path}")
   Right source <- readFile path
     | Left err => pure (Left "cannot read \{path}: \{show err}")
-  let report = elabProgramReport units
-  let holeOccs = holeOccsOf report
-  let body = renderSource source (toList root.mtokens) holeOccs
+  let body = renderSource source (toList root.mtokens)
   let base = baseNameOf path
   pure (Right (base, htmlPage base body))
 

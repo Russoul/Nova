@@ -186,8 +186,8 @@ lastSeg : String -> String
 lastSeg x = pack (reverse (takeWhile (/= '.') (reverse (unpack x))))
 
 ||| Is this spine the identity substitution over a context of length
-||| n — ☐ₙ₋₁, ..., ☐₀? (How a hole minted at the ambient context is
-||| referenced at its own site.)
+||| n — ☐ₙ₋₁, ..., ☐₀? (How a Σ entry minted at the ambient context
+||| is referenced at its own site.)
 isIdSpineN : Nat -> SubNorm -> Bool
 isIdSpineN n es = toList es == map CtxVar (reverse [0 .. minus n 1]) && n /= 0
 
@@ -444,8 +444,8 @@ mutual
   prettyElemAtomN tbl env Elem.NatTy = "ℕ"
   prettyElemAtomN tbl env (Squash t) = "∥" ++ prettyTyN tbl env t ++ "∥"
   prettyElemAtomN tbl env (SigVar x [<]) = if isOpName x then "(" ++ x ++ ")" else x
-  -- an identity-spine reference at its own context (a hole at the
-  -- ambient Γ) prints bare: `?k`, not `?k[n]`
+  -- an identity-spine reference at its own context prints bare:
+  -- `x`, not `x[n]`
   prettyElemAtomN tbl env (SigVar x es) =
     if isIdSpineN (length env) es
       then x

@@ -1,4 +1,4 @@
-LEGEND: ["keyword", "variable", "operator", "number", "comment", "unsolved_meta", "solved_meta"]
+LEGEND: ["keyword", "variable", "operator", "number", "comment"]
 CAPS: hover=true definition=true documentSymbol=true
 DIAGNOSTICS (0):
 TOKENS (12):

@@ -1,5 +1,5 @@
-declared fib and its equations (fib, fibZ, fibS, fibEta) — clauses outside the structural fragment [+4 holes]
-open holes (4):
+declared fib and its equations (fib, fibZ, fibS, fibEta) — clauses outside the structural fragment [+4 declarations]
+open declarations (4):
   [fib] ⊢ ? : ℕ → ℕ
       at: def fib
   [fibZ] ⊢ ? : fib Z ≡ Z ∈ ℕ
