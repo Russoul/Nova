@@ -541,6 +541,25 @@ lemmas — `assocRep`, `distribBack`, `multAssoc`, `intMulComm`, … — whose
 indices appear in the conclusion only under `+`, `*` or `intMul`. Fix 2
 is what would collect those.
 
+### E-1½. Holes are the most expensive surface feature to elaborate
+
+Follow-up to E-1, on the COST axis (measured; full anatomy in
+PerfNotes "The cost of a hole"): the heaviest proof item of the corpus
+spends ~98% of its 458ms on its ~16 blanked indices — the identical
+combinator spine with indices spelled runs in 10ms. The blanking sweep
+made the heavy files ~2–3× slower to elaborate overall.
+
+Cause, briefly: each hole pays a full doomed discharge attempt before
+the solver runs (E-1's ordering), each solved hole's in-place Σ flip
+wipes the normal-form caches, an unsolved hole starves the free
+conversion tiers, and late solves re-elaborate the whole item.
+
+**Suggested fix:** E-1's candidate fix 1 (solve before the attempt when
+a side is an unsolved-hole spine) now pays twice — completeness AND
+the attempt tax; plus dependency-scoped cache eviction on flips.
+Until then: on hot items, spell the indices — `_` is cheap to write
+and expensive to elaborate.
+
 ### E-2. Proof terms are enormous because every hop repeats its endpoints
 
 A five-step calculation becomes a thirty-line nested `trans`, each

@@ -323,3 +323,53 @@ all.nova, scoped default: wall 11.0s → 9.3s; elaborate phase 10.3s →
 8.6s; kernel replay 0.83s → 0.44s; item check 0.51s → 0.26s; engine
 0.38s → 0.17s. The profile's top family is now the rewrite matcher
 (matchElemP + rewriteElemS + descent ≈ 21%) — Part II's target.
+
+## The cost of a hole
+
+Per-item timing (the `item <name>` label) put the four heaviest proof
+items at 100–583ms; their explicit calc-chain twins run 6–26× faster
+(SearchlessElaboration §15). A controlled three-way variant of the
+heaviest — same lemma, same imports, one run — decomposes the cost:
+
+```
+swapA  combinator spine, blanked `_` indices     458ms
+swapB  the IDENTICAL spine, indices spelled       10ms
+swapC  the calc-chain twin                        10ms
+```
+
+The trans/cong spine was never the problem — fully spelled it costs
+the same as a chain. **~98% of the original's cost is the holes**, and
+the mechanism decomposes into four parts:
+
+1. **The attempt tax.** The solver is only reachable after a FULL
+   FAILED discharge attempt (ProvingFeedback E-1 documents the
+   ordering and why it also loses solutions). Every hole-bearing
+   equation pays: a complete engine walk with the hole stuck —
+   guaranteed to fail — then the solve, then a complete re-attempt
+   with eager kernel replay. ~16 holes in swapA ≈ 2–3× on every
+   conversion, on the most expensive operands in the corpus.
+2. **Cache demolition on every flip.** A solved hole flips its Σ
+   declaration to a definition IN PLACE — non-monotone — so
+   resetNfCaches wipes the def-nf memo and the Σ-index; the next
+   conversion re-normalises every mentioned definition from scratch.
+   The new `nf-reset` counter: 1,145 wipes discarding ~10.9k cached
+   normal forms in one small run. Holes couple directly to the SIZE
+   factor: cost ≈ #holes × rebuild-all-nfs-in-scope.
+3. **Tier starvation.** An unsolved hole side is a stuck `_r…`
+   reference — never α-identical, never computationally joinable — so
+   the ↓ loop's free tiers (steps 0 and ½) cannot fire at sites that
+   are free in the spelled variant.
+4. **Kernel work per solve.** kCheckSolution against the Σ prefix per
+   attempt (plus legalize's δ-walk retries), item-end re-mirroring of
+   each solved hole, and — for late solves — the whole-item internal
+   RERUN (the `calls=2` items pay everything twice).
+
+Remedies, in leverage order: solve BEFORE the doomed attempt when a
+side is syntactically an unsolved-hole spine (E-1's candidate fix 1 —
+it repairs the completeness gap and deletes mechanism 1 in the same
+move); dependency-scoped cache eviction on flip instead of wipe-all;
+batching flips per item to avoid rerun churn. And a corpus-level
+decision: the index-blanking sweep trades ~45× elaboration time on
+heavy items for written terseness — under the AI-operator metric
+(generation is cheap; latency and feedback are not) that trade runs
+the wrong way.
