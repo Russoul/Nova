@@ -167,15 +167,15 @@ def ratAddTest2 : ratAdd third negThird ≡ mkRat intZero (nzNeg (S (S (S (S (S 
 -- unit followed by intScaleOne, the denominator by nzMulOne
 def ratAddZeroLNum : (q : El Rat) →
   intAdd (intScale (den q) intZero) (intScale nzOne (num q)) ≡ num q ∈ El Int using (intScaleNOne) ≔
-  λq. trans _ _ _ _
-        (intAddScaleZeroL (den q) _)
-        (intScaleOne _)
+  λq. trans (integer.Int) (integerAdd.intAdd (intScale (den q) integer.intZero) (intScale nzOne (num q))) (intScale nzOne (num q)) (num q)
+        (intAddScaleZeroL (den q) (intScale nzOne (num q)))
+        (intScaleOne (num q))
 
 def ratAddZeroRNum : (q : El Rat) →
   intAdd (intScale nzOne (num q)) (intScale (den q) intZero) ≡ num q ∈ El Int using (intScaleNOne) ≔
-  λq. trans _ _ _ _
-        (intAddScaleZeroR (den q) _)
-        (intScaleOne _)
+  λq. trans (integer.Int) (integerAdd.intAdd (intScale nzOne (num q)) (intScale (den q) integer.intZero)) (intScale nzOne (num q)) (num q)
+        (intAddScaleZeroR (den q) (intScale nzOne (num q)))
+        (intScaleOne (num q))
 
 -- Σ-η, as a step of its own: el-sigma-eta is judgemental in the
 -- theory but the kernel's normal forms do not contract (t.π₁ , t.π₂),
@@ -184,17 +184,17 @@ def ratEta : (q : El Rat) → mkRat (num q) (den q) ≡ q ∈ El Rat ≔ λq. �
 
 -- and then the pair, one component at a time
 def ratAddZeroL : (q : El Rat) → ratAdd ratZero q ≡ q ∈ El Rat using (nzMulOneL, ratEta) ≔
-  λq. trans _ _ _ _
-        (trans _ _ _ _
-          (cong _ _ (λx. mkRat x (nzMul nzOne (den q))) _ _ (ratAddZeroLNum q))
-          (cong _ _ (λd. mkRat (num q) d) _ _ (nzMulOneL _)))
+  λq. trans Rat (ratAdd ratZero q) (q .π₁, q .π₂) (q)
+        (trans Rat (ratAdd ratZero q) (mkRat (num q) (nzMul nzOne (den q))) (q .π₁, q .π₂)
+          (cong (integer.Int) (λw. Rat) (λx. mkRat x (nzMul nzOne (den q))) (integerAdd.intAdd (intScale (den q) integer.intZero) (intScale nzOne (num q))) (num q) (ratAddZeroLNum q))
+          (cong (NZ) (λw. Rat) (λd. mkRat (num q) d) (nzMul nzOne (den q)) (den q) (nzMulOneL (den q))))
         (ratEta q)
 
 def ratAddZeroR : (q : El Rat) → ratAdd q ratZero ≡ q ∈ El Rat using (nzMulOneR, ratEta) ≔
-  λq. trans _ _ _ _
-        (trans _ _ _ _
-          (cong _ _ (λx. mkRat x (nzMul (den q) nzOne)) _ _ (ratAddZeroRNum q))
-          (cong _ _ (λd. mkRat (num q) d) _ _ (nzMulOneR _)))
+  λq. trans Rat (ratAdd q ratZero) (q .π₁, q .π₂) (q)
+        (trans Rat (ratAdd q ratZero) (mkRat (num q) (nzMul (den q) nzOne)) (q .π₁, q .π₂)
+          (cong (integer.Int) (λw. Rat) (λx. mkRat x (nzMul (den q) nzOne)) (integerAdd.intAdd (intScale nzOne (num q)) (intScale (den q) integer.intZero)) (num q) (ratAddZeroRNum q))
+          (cong (NZ) (λw. Rat) (λd. mkRat (num q) d) (nzMul (den q) nzOne) (den q) (nzMulOneR (den q))))
         (ratEta q)
 
 -- ===== commutativity =====
@@ -206,19 +206,19 @@ def plusSwapRight : (x : ℕ) (m : ℕ) (k : ℕ) → x + m + k ≡ x + k + m �
 -- the magnitude arithmetic of nzMul is symmetric: multComm on the
 -- product, then the swap above on the two summands
 def mulPlusComm : (m : ℕ) (k : ℕ) → m * k + m + k ≡ k * m + k + m ∈ ℕ using (plusAssoc) ≔
-  λm. λk. trans _ _ _ _
-    (cong _ _ (λw. w + m + k) _ _ (multComm _ _))
-    (plusSwapRight _ _ _)
+  λm. λk. trans (ℕ) ((((((m * k)) + m)) + k)) ((((((k * m)) + m)) + k)) ((nat.+) ((nat.+) ((nat.*) k m) k) m)
+    (cong (ℕ) (λu. ℕ) (λw. w + m + k) ((nat.*) m k) ((nat.*) k m) (multComm k m))
+    (plusSwapRight (k * m) m k)
 
 def nzMulComm : (x : El NZ) (y : El NZ) → nzMul x y ≡ nzMul y x ∈ El NZ using (plusAssoc) ≔
   λx. λy. ⊎-elim (v. nzMul v y ≡ nzMul y v ∈ El NZ)
     (m. ⊎-elim (w. nzMul (nzPos m) w ≡ nzMul w (nzPos m) ∈ El NZ)
-          (k. cong _ _ nzPos _ _ (mulPlusComm _ _))
-          (k. cong _ _ nzNeg _ _ (mulPlusComm _ _))
+          (k. cong (ℕ) (λu. NZ) nzPos ((nat.+) ((nat.+) ((nat.*) m k) m) k) ((nat.+) ((nat.+) ((nat.*) k m) k) m) (mulPlusComm m k))
+          (k. cong (ℕ) (λu. NZ) nzNeg ((nat.+) ((nat.+) ((nat.*) m k) m) k) ((nat.+) ((nat.+) ((nat.*) k m) k) m) (mulPlusComm m k))
           y)
     (m. ⊎-elim (w. nzMul (nzNeg m) w ≡ nzMul w (nzNeg m) ∈ El NZ)
-          (k. cong _ _ nzNeg _ _ (mulPlusComm _ _))
-          (k. cong _ _ nzPos _ _ (mulPlusComm _ _))
+          (k. cong (ℕ) (λu. NZ) nzNeg ((nat.+) ((nat.+) ((nat.*) m k) m) k) ((nat.+) ((nat.+) ((nat.*) k m) k) m) (mulPlusComm m k))
+          (k. cong (ℕ) (λu. NZ) nzPos ((nat.+) ((nat.+) ((nat.*) m k) m) k) ((nat.+) ((nat.+) ((nat.*) k m) k) m) (mulPlusComm m k))
           y)
     x
 
@@ -226,15 +226,15 @@ def nzMulComm : (x : El NZ) (y : El NZ) → nzMul x y ≡ nzMul y x ∈ El NZ us
 -- denominator (the middle term of the trans spelled out — the
 -- elaborator has nothing else to pin it against)
 def ratAddComm : (p : El Rat) (q : El Rat) → ratAdd p q ≡ ratAdd q p ∈ El Rat ≔
-  λp. λq. trans _ _
+  λp. λq. trans Rat (ratAdd p q)
     (mkRat (intAdd (intScale (den p) (num q)) (intScale (den q) (num p)))
            (nzMul (den p) (den q)))
-    _
-    (cong _ _ (λx. mkRat x (nzMul (den p) (den q))) _ _
-      (intAddComm _ _))
-    (cong _ _
-      (λd. mkRat (intAdd (intScale (den p) (num q)) (intScale (den q) (num p))) d) _ _
-      (nzMulComm _ _))
+    (ratAdd q p)
+    (cong Int (λu. Rat) (λx. mkRat x (nzMul (den p) (den q))) (integerAdd.intAdd (intScale (den q) (num p)) (intScale (den p) (num q))) (integerAdd.intAdd (intScale (den p) (num q)) (intScale (den q) (num p)))
+      (intAddComm (intScale (den q) (num p)) (intScale (den p) (num q))))
+    (cong NZ (λu. Rat)
+      (λd. mkRat (intAdd (intScale (den p) (num q)) (intScale (den q) (num p))) d) (nzMul (den p) (den q)) (nzMul (den q) (den p))
+      (nzMulComm (den p) (den q)))
 
 -- ===== negation =====
 

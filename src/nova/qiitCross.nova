@@ -14,16 +14,16 @@ data [a : 𝕌] ( Bag : U
 -- 2. elimination INTO a QIIT: bag append — the motive is the Bag code
 --    itself, and the coherence is exactly the swap lemma
 def bapp : (a : 𝕌) → El (Bag a) → El (Bag a) → El (Bag a) using (bswp) ≔
-  λa. λm. λn. BagElim _ (λw. Bag a) n (λx. λr. λih. bins a x ih) (λx. λy. λr. λih. ⋆) m
+  λa. λm. λn. BagElim (a) (λw. Bag a) n (λx. λr. λih. bins a x ih) (λx. λy. λr. λih. ⋆) m
 
 -- 3. a map BETWEEN QIITs: the order-forgetting quotient map L → Bag ℕ
 def toBag : El L → El (Bag ℕ) ≔
-  λt. LElim (λw. Bag ℕ) (bnil _) (λx. λr. λih. bins _ x ih) t
+  λt. LElim (λw. Bag ℕ) (bnil (ℕ)) (λx. λr. λih. bins (ℕ) x ih) t
 
 -- toBag coequalizes adjacent transpositions (the universal property's
 -- defining triangle, at the generators): by β + the swap lemma
 def toBagSwap : (x : El ℕ) (y : El ℕ) (t : El L) →
-                toBag (lcons x (lcons y t)) ≡ toBag (lcons y (lcons x t)) ∈ El _ using (bswp) ≔
+                toBag (lcons x (lcons y t)) ≡ toBag (lcons y (lcons x t)) ∈ El (Bag ℕ) using (bswp) ≔
   λx. λy. λt. ⋆
 
 -- 4. a QIIT whose signature EMBEDS a previous QIIT's reflection: trees
@@ -36,9 +36,9 @@ data ( P : U
 -- flatten a tree by appending its bags — elimination whose methods use
 -- the previous eliminator-derived function
 def flatten : El P → El (Bag ℕ) ≔
-  λp. PElim (λw. Bag ℕ) (λb. b) (λl. λihl. λr. λihr. bapp _ ihl ihr) p
+  λp. PElim (λw. Bag ℕ) (λb. b) (λl. λihl. λr. λihr. bapp (ℕ) ihl ihr) p
 
 -- computation across all three QIITs at once
-def two : El (Bag ℕ) ≔ bins _ Z (bins _ (S Z) (bnil _))
-def flatTest : flatten (node (leaf (toBag (lcons Z lnil))) (leaf (bins _ (S Z) (bnil _))))
-               ≡ two ∈ _ ≔ ⋆
+def two : El (Bag ℕ) ≔ bins (ℕ) Z (bins (ℕ) (S Z) (bnil (ℕ)))
+def flatTest : flatten (node (leaf (toBag (lcons Z lnil))) (leaf (bins (ℕ) (S Z) (bnil (ℕ)))))
+               ≡ two ∈ (El (Bag ℕ)) ≔ ⋆

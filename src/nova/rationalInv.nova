@@ -72,7 +72,7 @@ def nzOfPair : (a : ℕ) (b : ℕ) (hab : Prf (a * b ≡ Z ∈ ℕ))
           (j ihb. λhab. λhnz.
             𝟘-elim (zNotS (k + S k * j)
               (trans ℕ Z (S k * S j) (S (k + S k * j))
-                (sym ℕ _ _ hab)
+                (sym ℕ ((nat.*) (S k) (S j)) (Z) hab)
                 (trans ℕ (S k * S j) (S k + S k * j) (S (k + S k * j))
                   (multSucId (S k) j)
                   (sucPlus k (S k * j))))))
@@ -106,7 +106,7 @@ def intNZViewAt : (z : El Int) (p : ℕ ⨯ ℕ)
         (notIntro (class (p .π₁ , p .π₂) ≡ intZero ∈ El Int) (λe.
           notApply (z ≡ intZero ∈ El Int) hnz
             (trans Int z (class (p .π₁ , p .π₂)) intZero
-              (sym Int _ _
+              (sym Int (class (p .π₁, p .π₂)) (z)
                 (trans Int (class (p .π₁ , p .π₂)) (class p) z (classPairEta p) hz))
               e))))
       (w. ⋆ (w .π₁ ,
@@ -133,7 +133,7 @@ def ratZeroOfNumZero : (p : El Rat) (h : Prf (num p ≡ intZero ∈ El Int)) →
         (trans Int (intMul (num p) (dInt ratZero)) (num p) intZero
           (intMulOneR (num p))
           h)
-        (sym Int _ _ (intMulZeroL (dInt p))))
+        (sym Int (integerMul.intMul integer.intZero (rationalQ.dInt p)) (integer.intZero) (intMulZeroL (dInt p))))
 
 def numNonZero : (p : El Rat) (h : Prf (¬ (class p ≡ qZero ∈ El Q))) →
   Prf (¬ (num p ≡ intZero ∈ El Int)) ≔
@@ -153,8 +153,8 @@ def qNonZeroIsNzq : (u : El Q) (h : Prf (¬ (u ≡ qZero ∈ El Q))) →
                  trans Q (class (mkRat (nzToInt (w .π₁)) (den p)))
                          (class (mkRat (num p) (den p)))
                          (class p)
-                   (cong Int (λv. Q) (λx. class (mkRat x (den p))) _ _ (w .π₂))
-                   (cong Rat (λv. Q) (λt. class t) _ _ (ratEta p)))))
+                   (cong Int (λv. Q) (λx. class (mkRat x (den p))) (nzToInt (w .π₁)) (p .π₁) (w .π₂))
+                   (cong Rat (λv. Q) (λt. class t) (rational.mkRat (rational.num p) (rational.den p)) (p) (ratEta p)))))
       u
 
 -- ===== the theorem =====
@@ -168,6 +168,6 @@ def qInvExists : (u : El Q) (h : Prf (¬ (u ≡ qZero ∈ El Q))) →
                (qMul u (qOfNzq (nzqInv (w .π₁))))
                (qMul (qOfNzq (w .π₁)) (qOfNzq (nzqInv (w .π₁))))
                qOne
-               (sym Q _ _
-                 (cong Q (λv. Q) (λx. qMul x (qOfNzq (nzqInv (w .π₁)))) _ _ (w .π₂)))
+               (sym Q (rationalQ.qMul (rationalQ.qOfNzq (w .π₁)) (rationalQ.qOfNzq (rationalQ.nzqInv (w .π₁)))) (rationalQ.qMul u (rationalQ.qOfNzq (rationalQ.nzqInv (w .π₁))))
+                 (cong Q (λv. Q) (λx. qMul x (qOfNzq (nzqInv (w .π₁)))) (qOfNzq (w .π₁)) (u) (w .π₂)))
                (qMulInv (w .π₁))))

@@ -35,6 +35,7 @@ module Nova.Elaboration
 -- a subterm by a judgementally equal one is congruence.
 
 import Data.List
+import Data.List1
 import Data.Maybe
 import Data.SnocList
 import Data.String
@@ -4699,8 +4700,45 @@ export
 elabProgram : List ModUnit -> String
 elabProgram units = go initSt units []
  where
+  ||| DEBLANK emission (on the NOVA_AUDIT stream): one line per SOLVED
+  ||| solvable hole occurrence — module | start | end | the inferred
+  ||| solution, rendered in surface syntax at the hole's own binder
+  ||| environment (zonked, so it reads through the run's other
+  ||| inventions). A splicing tool pastes these back over the `_`
+  ||| tokens; see PerfNotes "The cost of a hole" for why the corpus is
+  ||| going hole-free.
+  deblankLines : FixTable -> ElabSt -> String
+  deblankLines tbl st = concat (map line (toList st.holeOccs))
+   where
+    envOf : String -> NameEnv
+    envOf q = case find (\m => m.hname == q) (toList st.holeMeta) of
+                Just m => m.henv
+                Nothing => [<]
+
+    modOf : String -> String
+    modOf q = case reverse (forget (split (== '.') q)) of
+                (_ :: rest) => joinBy "." (reverse rest)
+                [] => ""
+
+    solvable : String -> Bool
+    solvable q = case reverse (forget (split (== '.') q)) of
+                   (leaf :: _) => isPrefixOf "_" leaf
+                   [] => False
+
+    line : (String, Range) -> String
+    line (q, MkRange (MkPosition l0 c0) (MkPosition l1 c1)) =
+      if not (solvable q) then "" else
+      let pos = "\{modOf q}|\{show l0}:\{show c0}|\{show l1}:\{show c1}" in
+      case sigLookup q st.sig of
+        Just (SigDef _ _ body _) =>
+          "DEBLANK|\{pos}|\{prettyElemN tbl (envOf q) (zonkElem st body)}\n"
+        Just (SigTyDef _ _ a) =>
+          "DEBLANKTY|\{pos}|\{prettyTyN tbl (envOf q) (zonkTy st a)}\n"
+        _ => ""
+
   finish : FixTable -> ElabSt -> List String -> String
   finish tbl st echoes =
+    audit (deblankLines tbl st) $
     joinBy "\n" echoes ++ "\n" ++
     (case openReport tbl st of
        Nothing => "Accepted."
