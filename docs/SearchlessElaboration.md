@@ -571,14 +571,17 @@ implicit. Same run, same store:
 | rationalQ.qMulWDInner          | 129ms     | 19ms  (7×)       |
 | rationalQ.qAddWDInner          | 101ms     | 17ms  (6×)       |
 
-The originals' cost decomposes as: hole-solving for the blanked
-combinator indices (the dominant share — `trans _ _ _ _` is cheap to
-write and expensive to elaborate), one inferred-vs-expected conversion
-per application node of the trans/cong spine on δ-expanded terms, and
-the rwNf normalization each of those runs. The twins pay none of it:
-spelled midpoints make the switch conversions tier-0 hits, and each
-adjacency discharges against a single named candidate. The originals
-are tagged for removal once the style beds in.
+A controlled follow-up (PerfNotes, "The cost of a hole") decomposed
+the originals' cost exactly: the heaviest item at 458ms runs in 10ms
+with the IDENTICAL combinator spine and spelled indices — the same as
+its chain twin. The spine was never the problem; **~98% of the cost is
+the `_` holes** (a doomed full attempt before each solve, a
+cache-wiping Σ flip after it, tier starvation while unsolved, and
+item-end rerun churn — ProvingFeedback E-1/E-1½). The twins avoid all
+of it by construction: no declarations minted, spelled midpoints make
+the switch conversions tier-0 hits, and each adjacency discharges
+against a single named candidate. The originals are tagged for removal
+once the style beds in.
 
 ## 16. Experiment inventory
 

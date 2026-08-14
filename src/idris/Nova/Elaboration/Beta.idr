@@ -29,6 +29,8 @@ import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
 import Nova.Kernel.QIIT
 
+import Nova.Profile
+
 import Data.IORef
 import Data.SortedMap
 
@@ -119,10 +121,13 @@ cachedSigLookup sig x =
 export
 resetNfCaches : (x : a) -> a
 resetNfCaches x = unsafePerformIO $ do
+  m <- readIORef betaElemNf
+  -- measurement: how many cached nfs each wipe discards (NOVA_PROFILE)
+  let x2 = bump "nf-reset" (cast (length (Data.SortedMap.toList m))) x
   writeIORef betaElemNf empty
   writeIORef betaTyNf empty
   writeIORef sigEntryIx empty
-  pure x
+  pure x2
 
 
 mutual
