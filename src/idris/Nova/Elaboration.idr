@@ -1451,7 +1451,9 @@ inferNe st ctx (SigmaElim2 t) =
     Just (Ty.SigmaTy a b) => Just (substTy b (Ext Id (SigmaElim1 t)))
     _ => Nothing
 inferNe st ctx (SigVar x es) =
-  case sigLookup x st.sig of
+  -- cachedSigLookup: the name index (below trust — inferNe only feeds
+  -- the engine, and its output is validated at replay)
+  case cachedSigLookup st.sig x of
     Just (SigDef _ _ _ ty) => Just (substTy ty (embed es))
     Just (SigDecl _ _ ty) => Just (substTy ty (embed es))
     _ => Nothing
@@ -3303,7 +3305,9 @@ mutual
   inferElem ctx env site (SSig mrng x0) = do
     st <- getSt
     let x = resolveSigName st x0
-    case sigLookup x st.sig of
+    -- cachedSigLookup: positive-only name index; the unknown-name
+    -- error path below always re-scans (negatives are never cached)
+    case cachedSigLookup st.sig x of
       Just (SigDef [<] _ _ ty) => do
         recordBinder mrng ctx env x0 ty
         pure (SigVar x [<], ty, Nd [] [])
