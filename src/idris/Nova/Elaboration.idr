@@ -170,9 +170,6 @@ record ElabSt where
   ||| display metadata for Σ's declaration entries (holes), in minting
   ||| order (invariant: one per SigDecl/SigTyDecl of `sig`)
   holeMeta : SnocList HoleMeta
-  ||| every hole occurrence's source span (minting AND reuse sites),
-  ||| for LSP position lookup
-  holeOccs : SnocList (String, Range)
   ||| binder occurrences with their elaborated types (module, span,
   ||| binding context/env, name, type) — LSP hover ascription
   binderTypes : SnocList (String, Range, Ctx, NameEnv, String, Ty)
@@ -199,7 +196,7 @@ record ElabSt where
   depthOv : Maybe Nat
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" [<] Nothing [] Nothing
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] "" [<] Nothing [] Nothing
 
 ||| Resolve a surface signature reference: aliases first (own module,
 ||| opened imports), else the name itself (qualified references reach
@@ -2354,7 +2351,17 @@ mutual
                     let names = nub (hintNamesC cert1) in
                     pure (Right (if null names then cert1
                                    else audit "AUDIT elem | \{st.modPrefix} | \{site} | \{joinBy ", " names}" cert1))
-                  Left kerrMsg => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
+                  Left kerrMsg =>
+                    -- the engine's route overreached (a step the
+                    -- kernel's positional rules reject) — before
+                    -- giving up, retry with the BARE compare-beta-
+                    -- normal-forms certificate: an equation that holds
+                    -- by plain δβ must not be lost to an overzealous
+                    -- rewrite (this rescue lived in the removed
+                    -- item-end deletion pass; it belongs at the site)
+                    case kCheckEqElem st.sig ctx kernelFuel (MkECert [] FBeta) a b ty of
+                      Right () => pure (Right (MkECert [] FBeta))
+                      Left _ => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
 
   attemptT : Ctx -> String -> Ty -> Ty -> ElabM (Either String ECert)
   attemptT ctx site tyA tyB =
@@ -2385,500 +2392,11 @@ mutual
                     let names = nub (hintNamesC cert) in
                     pure (Right (if null names then cert
                                    else audit "AUDIT ty | \{st.modPrefix} | \{site} | \{joinBy ", " names}" cert))
-                  Left kerrMsg => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
-
-  ||| One side is an UNSOLVED SOLVABLE hole at its own context: flip
-  ||| its declaration to a definition whose body is the other side —
-  ||| the INSTANTIATION refinement, kernel-checked against the PREFIX
-  ||| preceding the declaration (a name minted later is absent from
-  ||| the prefix, so scope and occurs violations fail the lookup).
-  ||| After a flip the reference unfolds by el-sig-beta, so the
-  ||| equation that forced it discharges by plain beta on retry.
-  ||| Returns True iff a flip happened.
-  patternSolveE : Ctx -> NameEnv -> String -> Elem -> Elem -> Ty -> ElabM Bool
-  patternSolveE ctx env site a b ty = do
-    st <- getSt
-    let aN = betaElem st.sig a
-    let bN = betaElem st.sig b
-    -- beta only ever EXPOSES the hole side; the solution is taken
-    -- from the other side AS WRITTEN when the kernel accepts it —
-    -- the intended, syntactic filling (beta-normalizing it could
-    -- leave the tiny checker's fragment, e.g. unfold a def into a
-    -- quot-elim) — falling back to its beta-normal form
-    r <- bothHoles st aN bN
-    r <- if r then pure True else go st aN b
-    r <- if r then pure True else go st aN bN
-    r <- if r then pure True else go st bN a
-    if r then pure True else go st bN aN
-   where
-    ||| The candidate body, walked into the prefix by single δ-steps:
-    ||| the first spelling the kernel accepts wins (as written when
-    ||| possible — the intended, syntactic filling).
-    trySolutions : Nat -> Sig -> Elem -> Sig -> Ctx -> Ty -> Maybe Elem
-    trySolutions Z full t pre delta dty = Nothing
-    trySolutions (S fuel) full t pre delta dty =
-      case kCheckSolution pre kernelFuel delta t dty of
-        Right () => Just t
-        -- unfold against the FULL signature: the offending name is a
-        -- LATER def, absent from the prefix by construction
-        Left _ => case unfoldHead full t of
-                    Just t' => trySolutions fuel full t' pre delta dty
-                    Nothing => Nothing
-
-    holeDecl : ElabSt -> Elem -> Maybe (String, Ty)
-    holeDecl st (SigVar q es) =
-      case sigLookup q st.sig of
-        Just (SigDecl delta _ dty) =>
-          if delta == ctx && es == idSpine (length ctx)
-             && any (\m => m.hname == q && m.hsolvable) (toList st.holeMeta)
-            then Just (q, dty)
-            else Nothing
-        _ => Nothing
-    holeDecl _ _ = Nothing
-    flipDecl : String -> Elem -> ElabM Bool
-
-    ||| PREFIX-LEGALIZE a candidate solution for the declaration at
-    ||| position qPos: a reference to a LATER definition INLINES its
-    ||| definiens (indices strictly decrease, so this terminates); a
-    ||| reference to a later unsolved SOLVABLE hole at the same
-    ||| context is IMITATED — a fresh hole of the same type is
-    ||| inserted before the target, the later hole is aliased to it,
-    ||| and the reference renamed. This is what closes the
-    ||| minted-out-of-order graphs application chains produce
-    ||| (impIntro _ _ (constP _ _ …): the outer prop hole's solution
-    ||| mentions the inner holes).
-    legalize : Nat -> String -> Ctx -> Elem -> ElabM (Maybe Elem)
-    legalize Z q ctxQ t = pure Nothing
-    legalize (S fuel) q ctxQ t = do
-      st <- getSt
-      let ls = toList st.sig
-      case sigIndexOf q ls of
-        Nothing => pure Nothing
-        Just qPos => do
-          let laters = nub [ n | n <- collectRefsE t
-                           , maybe False (> qPos) (sigIndexOf n ls) ]
-          if null laters then pure (Just t) else do
-            r <- processOne st ls qPos t laters
-            case r of
-              Nothing => pure Nothing
-              Just t' => legalize fuel q ctxQ t'
-     where
-      processOne : ElabSt -> List SigEntry -> Nat -> Elem -> List String -> ElabM (Maybe Elem)
-      processOne st ls qPos t [] = pure (Just t)
-      processOne st ls qPos t (n :: _) =
-        case sigLookup n st.sig of
-          -- a later DEF: inline its definiens at every reference
-          Just (SigDef _ _ body _) =>
-            pure (Just (mapRefsE (\x, es => if x == n then Just (substElem body (embed es)) else Nothing) t))
-          -- a later unsolved SOLVABLE hole at the same context:
-          -- imitate with a fresh earlier twin
-          Just (SigDecl deltaN _ dtyN) =>
-            if not (any (\m => m.hname == n && m.hsolvable) (toList st.holeMeta))
-               || deltaN /= ctxQ
-               -- the twin's type must itself be prefix-legal
-               || not (null [ x | x <- collectRefsE (Squash dtyN)
-                            , maybe False (>= qPos) (sigIndexOf x ls) ])
-              then pure Nothing
-              else do
-                let fresh = "_i\{show (length (toList st.holeMeta))}"
-                modifySt $ { sig := resetNfCaches (cast (take qPos ls ++ [SigDecl deltaN fresh dtyN] ++ drop qPos ls))
-                           , holeMeta $= (:< MkHoleMeta fresh [<] "legalize" True Nothing) }
-                aliased <- flipDecl n (SigVar fresh (idSpine (length deltaN)))
-                if aliased
-                  then pure (Just (mapRefsE (\x, es => if x == n then Just (SigVar fresh es) else Nothing) t))
-                  else pure Nothing
-          _ => pure Nothing
-
-    flipDecl q t = do
-      st <- getSt
-      let ls = toList st.sig
-      case sigIndexOf q ls of
-        Nothing => pure False
-        Just i =>
-          case getAt i ls of
-            Just (SigDecl delta _ dty) =>
-              case trySolutions 8 st.sig t (cast (take i ls)) delta dty of
-                Nothing => do
-                  mt <- legalize 8 q delta t
-                  case mt of
-                    Nothing => pure False
-                    Just t2 => do
-                      st2 <- getSt
-                      let ls2 = toList st2.sig
-                      case sigIndexOf q ls2 of
-                        Nothing => pure False
-                        Just i2 =>
-                          case getAt i2 ls2 of
-                            Just (SigDecl delta2 _ dty2) =>
-                              case trySolutions 8 st2.sig t2 (cast (take i2 ls2)) delta2 dty2 of
-                                Nothing => pure False
-                                Just tOk2 => do
-                                  let def2 = SigDef delta2 q tOk2 dty2
-                                  modifySt $ { sig := resetNfCaches (cast (take i2 ls2 ++ [def2] ++ drop (S i2) ls2)) }
-                                  pure True
-                            _ => pure False
-                Just tOk => do
-                  -- the kernel-Σ mirror happens once, at item end
-                  -- (mirrorHoleDefs): mirroring here would be
-                  -- order-fragile — the solution may mention a hole
-                  -- that is itself solved only later
-                  let def = SigDef delta q tOk dty
-                  modifySt $ { sig := resetNfCaches (cast (take i ls ++ [def] ++ drop (S i) ls)) }
-                  pure True
-            _ => pure False
-
-    ||| Peel a variable-applied head: `h ☐_{j₁} … ☐_{jₘ}` gives the
-    ||| head and the applied indices in APPLICATION order. Nothing if
-    ||| any argument is not a bare context variable.
-    peelVars : Elem -> Maybe (Elem, List Nat)
-    peelVars (PiApp f (CtxVar i)) = map (mapSnd (++ [i])) (peelVars f)
-    peelVars (PiApp _ _) = Nothing
-    peelVars e = Just (e, [])
-
-    wrapPis : Nat -> Elem -> Elem
-    wrapPis Z e = e
-    wrapPis (S n) e = wrapPis n (PiIntro e)
-
-    idxIn : Nat -> List Nat -> Maybe Nat
-    idxIn x = go' 0
-     where
-      go' : Nat -> List Nat -> Maybe Nat
-      go' _ [] = Nothing
-      go' i (y :: ys) = if x == y then Just i else go' (S i) ys
-
-    ||| Miller-pattern INVERSION: `t` stands at Γ ▷ Δ (|Γ| = n hole
-    ||| context, |Δ| = k local binders) and becomes the body of the
-    ||| m-ary λ-solution at Γ. The i-th applied local (application
-    ||| order) becomes the i-th λ binder; ambient variables shift from
-    ||| depth k to depth m; any OTHER local is mapped to an
-    ||| out-of-range index — a poison the flip's kernel check refuses,
-    ||| which is exactly the non-pattern case (the target genuinely
-    ||| uses a binder the hole is not applied to).
-    invert : (n : Nat) -> (k : Nat) -> (m : Nat) -> List Nat -> Elem -> Elem
-    invert n k m args t =
-      let nk = n + k
-          spine = cast {to = SubNorm} (map termFor (reverse [0 .. minus nk 1]))
-      in substElem t (embed spine)
-     where
-      termFor : Nat -> Elem
-      termFor j =
-        case idxIn j args of
-          Just i => CtxVar (minus (minus m 1) i)
-          Nothing => if j < k
-                       then CtxVar (n + m + k + 1)  -- poison: out of range
-                       else CtxVar (minus j k + m)
-
-    go : ElabSt -> Elem -> Elem -> ElabM Bool
-    go st (SigVar q es) t =
-      case sigLookup q st.sig of
-        Just (SigDecl delta _ dty) =>
-          let n = length delta
-              k = minus (length ctx) n in
-          if not (any (\m => m.hname == q && m.hsolvable) (toList st.holeMeta))
-            then pure False
-            else if delta == ctx && es == idSpine (length ctx)
-              then flipDecl q t
-              -- a WEAKENED occurrence (under k more binders, the
-              -- weakened identity spine): the solution moves to the
-              -- hole's own context by strengthening — refused if it
-              -- mentions any of the k binders
-              else if n + k == length ctx && take n (toList ctx) == toList delta
-                      && es == wkSpine n k && k /= 0
-                then case strengthenK k t of
-                       Just t' => flipDecl q t'
-                       Nothing => pure False
-                else pure False
-        _ => pure False
-    -- a VARIABLE-APPLIED occurrence (Miller pattern): the hole,
-    -- weakened below k binders and applied to distinct LOCAL binders
-    -- (`_h[wkⁿ] v w ≐ t`, the shape Π-domain decomposition emits) —
-    -- the applied binders become the solution's λs by inversion.
-    -- Only strictly-local, pairwise-distinct variable arguments
-    -- qualify: an ambient argument is already in the hole's support
-    -- (no unique solution), and a repeated one is ambiguous.
-    go st e@(PiApp _ _) t =
-      case peelVars e of
-        Just (SigVar q es, args@(_ :: _)) =>
-          case sigLookup q st.sig of
-            Just (SigDecl delta _ dty) =>
-              let n = length delta
-                  k = minus (length ctx) n
-                  m = length args in
-              if any (\mt => mt.hname == q && mt.hsolvable) (toList st.holeMeta)
-                 && n + k == length ctx && take n (toList ctx) == toList delta
-                 && es == wkSpine n k
-                 && all (< k) args && nub args == args
-                then flipDecl q (wrapPis m (invert n k m args t))
-                else pure False
-            _ => pure False
-        _ => pure False
-    go st _ _ = pure False
-
-    ||| Both sides are unsolved solvable holes: ALIAS — align the two
-    ||| declared types first (their own holes pattern-solve in the
-    ||| process), then flip the LATER declaration to a reference to
-    ||| the earlier (the prefix direction; the flip's kernel check
-    ||| normalizes through the just-solved type holes).
-    bothHoles : ElabSt -> Elem -> Elem -> ElabM Bool
-    bothHoles st x y =
-      case (holeDecl st x, holeDecl st y) of
-        (Just (q1, ty1), Just (q2, ty2)) =>
-          if q1 == q2 then pure False else do
-            ignore $ convTy ctx env site Nothing ty1 ty2
-            st' <- getSt
-            let ls = toList st'.sig
-            case (sigIndexOf q1 ls, sigIndexOf q2 ls) of
-              (Just i1, Just i2) =>
-                if i1 < i2 then flipDecl q2 x else flipDecl q1 y
-              _ => pure False
-        _ => pure False
-
-  ||| Type-hole counterpart: a stuck type declaration reference
-  ||| equated with a type — flip sig-ty-decl to sig-ty-def.
-  patternSolveT : Ctx -> NameEnv -> String -> Ty -> Ty -> ElabM Bool
-  patternSolveT ctx env site tyA tyB = do
-    st <- getSt
-    let aN = betaTy st.sig tyA
-    let bN = betaTy st.sig tyB
-    -- as-written solution preferred; see patternSolveE
-    r <- bothHolesT st aN bN
-    r <- if r then pure True else go st aN tyB
-    r <- if r then pure True else go st aN bN
-    r <- if r then pure True else go st bN tyA
-    r <- if r then pure True else go st bN aN
-    -- an ELEMENT-code hole under El: `El _c ≐ T` pins _c to T's code
-    -- (e-eq's ∈-slot `El _`, say) — taken from the RAW side when it
-    -- has one, so the solution stays as written (Bag ℕ, not the
-    -- expanded sort former)
-    r <- if r then pure True else elHole aN tyB bN
-    if r then pure True else elHole bN tyA aN
-   where
-    elHole : Ty -> Ty -> Ty -> ElabM Bool
-    elHole (El e@(SigVar q es)) rawOther betaOther =
-      case the (Maybe Elem) (codeOf rawOther <|> codeOf betaOther) of
-        Just c => patternSolveE ctx env site e c Ty.UniverseTy
-        Nothing => pure False
-    elHole _ _ _ = pure False
-    holeTyDecl : ElabSt -> Ty -> Maybe String
-    holeTyDecl st (Ty.SigVar q es) =
-      case sigLookup q st.sig of
-        Just (SigTyDecl delta _) =>
-          if delta == ctx && es == idSpine (length ctx)
-             && any (\m => m.hname == q && m.hsolvable) (toList st.holeMeta)
-            then Just q
-            else Nothing
-        _ => Nothing
-    holeTyDecl _ _ = Nothing
-    flipTyDecl : String -> Ty -> ElabM Bool
-    flipTyDecl q t = do
-      st <- getSt
-      let ls = toList st.sig
-      case sigIndexOf q ls of
-        Nothing => pure False
-        Just i =>
-          case getAt i ls of
-            Just (SigTyDecl delta _) =>
-              case kCheckTySolution (cast (take i ls)) kernelFuel delta t of
-                Left _ => pure False
-                Right () => do
-                  let def = SigTyDef delta q t
-                  modifySt $ { sig := resetNfCaches (cast (take i ls ++ [def] ++ drop (S i) ls)) }
-                  pure True
-            _ => pure False
-
-    go : ElabSt -> Ty -> Ty -> ElabM Bool
-    go st (Ty.SigVar q es) t =
-      case sigLookup q st.sig of
-        Just (SigTyDecl delta _) =>
-          let n = length delta
-              k = minus (length ctx) n in
-          if not (any (\m => m.hname == q && m.hsolvable) (toList st.holeMeta))
-            then pure False
-            else if delta == ctx && es == idSpine (length ctx)
-              then flipTyDecl q t
-              else if n + k == length ctx && take n (toList ctx) == toList delta
-                      && es == wkSpine n k && k /= 0
-                then case strengthenKTy k t of
-                       Just t' => flipTyDecl q t'
-                       Nothing => pure False
-                else pure False
-        _ => pure False
-    go st _ _ = pure False
-
-    bothHolesT : ElabSt -> Ty -> Ty -> ElabM Bool
-    bothHolesT st x y =
-      case (holeTyDecl st x, holeTyDecl st y) of
-        (Just q1, Just q2) =>
-          if q1 == q2 then pure False else do
-            let ls = toList st.sig
-            case (sigIndexOf q1 ls, sigIndexOf q2 ls) of
-              (Just i1, Just i2) =>
-                if i1 < i2 then flipTyDecl q2 x else flipTyDecl q1 y
-              _ => pure False
-        _ => pure False
-
-  ||| FIRST-ORDER SPINE SOLVING: both sides are application chains
-  ||| with syntactically EQUAL heads (after aligning by a few δ-steps
-  ||| on either head) — run the pattern solver argwise. Heads are not
-  ||| injective (EqN 0 0 ≐ EqN 1 1 both hold), so this is merely
-  ||| sufficient and its picks are not unique — the standing contract:
-  ||| it runs only after direct discharge failed, every flip is
-  ||| kernel-checked against the prefix, and a wrong pick surfaces as
-  ||| a precise obligation instead of an opaque composite. Flips only,
-  ||| no assumes — safe as an item-end re-solve too.
-  spineSolveE : Ctx -> NameEnv -> String -> Elem -> Elem -> ElabM Bool
-  spineSolveE ctx env site a b = do
-    st <- getSt
-    tryPairs (variants st a) (variants st b)
-   where
-    peel : Elem -> (Elem, List Elem)
-    peel (PiApp f e) = let (h, as) = peel f in (h, as ++ [e])
-    peel e = (e, [])
-
-    variants : ElabSt -> Elem -> List Elem
-    variants st e =
-      -- the beta-normal spelling matters when the head is a SOLVED
-      -- hole reference: unfoldHead alone leaves the redex unreduced
-      -- ((\x.\y. R x y)[..] a b), so its head never aligns with the
-      -- other side's
-      nub (e :: betaElem st.sig e ::
-           (case unfoldHead st.sig e of
-              Just e' => e' :: (case unfoldHead st.sig e' of
-                                  Just e'' => [e'']
-                                  Nothing => [])
-              Nothing => []))
-
-    argSolve : List (Elem, Elem) -> ElabM Bool
-    argSolve [] = pure False
-    argSolve ((x, y) :: rest) = do
-      r1 <- patternSolveE ctx env site x y Ty.UniverseTy
-      r2 <- argSolve rest
-      pure (r1 || r2)
-
-    try1 : Elem -> Elem -> ElabM Bool
-    try1 x y =
-      let (h1, as1) = peel x
-          (h2, as2) = peel y in
-      if h1 == h2 && length as1 == length as2 && not (null as1)
-        then argSolve (zip as1 as2)
-        else pure False
-
-    tryPairs : List Elem -> List Elem -> ElabM Bool
-    tryPairs [] _ = pure False
-    tryPairs (x :: xs) ys = do
-      r <- go1 x ys
-      if r then pure True else tryPairs xs ys
-     where
-      go1 : Elem -> List Elem -> ElabM Bool
-      go1 x [] = pure False
-      go1 x (y :: ys') = do
-        r <- try1 x y
-        if r then pure True else go1 x ys'
-
-  ||| CANDIDATE-DIRECTED SOLVING — rewrite-then-unify: one side is an
-  ||| instance of a lemma's lhs (or rhs), and the OTHER side then
-  ||| unifies with the instantiated rhs (lhs) by hole-flipping. This
-  ||| composes the engine's two halves — lemma matching and hole
-  ||| solving — and is the only way a size-INCREASING law can pin
-  ||| holes: vectS (vect (suc n) a ≡ ∥El a∥ ∧ vect n a) has no
-  ||| rewrite orientation, but `vect (suc k) A ≐ _51 ∧ _52` matches
-  ||| its lhs and the rhs instance ∥El A∥ ∧ vect k A pins _51/_52
-  ||| argwise. Flips only, no assumes; the caller's retry produces
-  ||| the actual certificate through the standard path.
-  lemmaSolveE : Ctx -> NameEnv -> String -> Elem -> Elem -> ElabM Bool
-  lemmaSolveE ctx env site a b = do
-    st <- getSt
-    let cs = mkCandSet st ctx
-    let aN = betaElem st.sig a
-    let bN = betaElem st.sig b
-    go cs.all aN bN
-   where
-    or2 : ElabM Bool -> ElabM Bool -> ElabM Bool
-    or2 mx my = do
-      x <- mx
-      y <- my
-      pure (x || y)
-
-    mutual
-      ||| Structural first-order UNIFICATION, flips only: descend
-      ||| through constructors in parallel — extending the context at
-      ||| binders, so weakened hole occurrences keep solving — with a
-      ||| pattern-solve at hole leaves; stop quietly on mismatch
-      ||| (sound either way — the caller's retry decides). The second
-      ||| side is the lemma INSTANCE: concrete, so it supplies binder
-      ||| types.
-      uniE : Ctx -> Elem -> Elem -> ElabM Bool
-      uniE uctx x y = do
-        st <- getSt
-        let xB = betaElem st.sig x
-        let yB = betaElem st.sig y
-        r <- patternSolveE uctx env site xB yB Ty.UniverseTy
-        if r then pure True else do
-          r <- spineSolveE uctx env site xB yB
-          if r then pure True else
-            case (xB, yB) of
-              (Squash u, Squash v) => uniT uctx u v
-              (Elem.PiTy u c, Elem.PiTy v c') =>
-                or2 (uniE uctx u v) (uniE (uctx :< El v) c c')
-              (Elem.SigmaTy u c, Elem.SigmaTy v c') =>
-                or2 (uniE uctx u v) (uniE (uctx :< El v) c c')
-              (Elem.SumTy u c, Elem.SumTy v c') =>
-                or2 (uniE uctx u v) (uniE uctx c c')
-              (Inj1 u, Inj1 v) => uniE uctx u v
-              (Inj2 u, Inj2 v) => uniE uctx u v
-              (Elem.EqTy l r t, Elem.EqTy l' r' t') =>
-                or2 (uniT uctx t t') (or2 (uniE uctx l l') (uniE uctx r r'))
-              (QuotTy u r1, QuotTy v r2) =>
-                or2 (uniE uctx u v) (uniE (uctx :< El v :< substTy (El v) Wk) r1 r2)
-              (NatIntro1 u, NatIntro1 v) => uniE uctx u v
-              (SigmaIntro u c, SigmaIntro v c') => or2 (uniE uctx u v) (uniE uctx c c')
-              (Class u, Class v) => uniE uctx u v
-              _ => pure False
-
-      uniT : Ctx -> Ty -> Ty -> ElabM Bool
-      uniT uctx x y = do
-        st <- getSt
-        let xB = betaTy st.sig x
-        let yB = betaTy st.sig y
-        case (xB, yB) of
-          (Prf u, Prf v) => uniE uctx u v
-          (El u, El v) => uniE uctx u v
-          (Ty.PiTy u c, Ty.PiTy v c') => or2 (uniT uctx u v) (uniT (uctx :< v) c c')
-          (Ty.SigmaTy u c, Ty.SigmaTy v c') => or2 (uniT uctx u v) (uniT (uctx :< v) c c')
-          (Ty.SumTy u c, Ty.SumTy v c') => or2 (uniT uctx u v) (uniT uctx c c')
-          (Quotient u r1, Quotient v r2) =>
-            or2 (uniT uctx u v) (uniE (uctx :< v :< substTy v Wk) r1 r2)
-          (El u, v) => case codeOf v of
-                         Just c => uniE uctx u c
-                         Nothing => pure False
-          (u, El v) => case codeOf u of
-                         Just c => uniE uctx c v
-                         Nothing => pure False
-          _ => pure False
-
-    solveWith : Elem -> Elem -> ElabM Bool
-    solveWith inst target = uniE ctx target inst
-
-    tryRhs : Elem -> Elem -> Cand -> ElabM Bool
-    tryRhs x y c =
-      case matchElemP c.params 0 0 c.rhs x [] >>= instSub c.params 0 of
-        Just sigma => solveWith (substElem c.lhs sigma) y
-        Nothing => pure False
-
-    tryCand : Elem -> Elem -> Cand -> ElabM Bool
-    tryCand x y c =
-      case matchElemP c.params 0 0 c.lhs x [] >>= instSub c.params 0 of
-        Just sigma => do
-          r <- solveWith (substElem c.rhs sigma) y
-          if r then pure True else tryRhs x y c
-        Nothing => tryRhs x y c
-
-    go : List Cand -> Elem -> Elem -> ElabM Bool
-    go [] _ _ = pure False
-    go (c :: rest) x y = do
-      r <- tryCand x y c
-      r <- if r then pure True else tryCand y x c
-      if r then pure True else go rest x y
+                  Left kerrMsg =>
+                    -- bare-beta rescue, as at attemptE
+                    case kCheckEqTy st.sig ctx kernelFuel (MkECert [] FBeta) tyA tyB of
+                      Right () => pure (Right (MkECert [] FBeta))
+                      Left _ => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
 
   ||| Γ ⊢ a ≐ b : A ↓ — always succeeds; assumes what it cannot discharge.
   convElem : Ctx -> NameEnv -> String -> Maybe Stmt -> Elem -> Elem -> Ty -> ElabM (Maybe ECert)
@@ -2886,26 +2404,15 @@ mutual
     r <- attemptE ctx site a b ty
     case r of
       Right cert => pure (Just cert)
-      Left site1 => do
-        solved <- timedM "solve" $ do
-          solved <- patternSolveE ctx env site1 a b ty
-          solved <- if solved then pure True else spineSolveE ctx env site1 a b
-          if solved then pure True else lemmaSolveE ctx env site1 a b
-        r2 <- the (ElabM (Either String ECert)) $
-                if solved then attemptE ctx site1 a b ty else pure (Left site1)
-        case r2 of
-          Right cert => pure (Just cert)
-          Left site2 => do
+      Left site2 => do
             st <- getSt
             let cur = StElem ctx env a b ty
             let comp' = comp <|> Just cur
             -- decompose WEAK-HEAD sides first: children then keep the
             -- user's own spellings — full beta would macro-expand
-            -- every definition, and hypothesis REWRITING (a → b under
-            -- p : a ≡ b) canonicalizes straight through a hole's
-            -- spine, masking the solvable pattern. Structure that
-            -- only lemma normalization exposes still decomposes: the
-            -- final fallback retries with the rewritten sides.
+            -- every definition into them. Structure that only lemma
+            -- normalization exposes still decomposes: the final
+            -- fallback retries with the rewritten sides.
             let aB = whnfE st.sig a
             let bB = whnfE st.sig b
             let a' = rwNfElem st ctx a
@@ -2916,12 +2423,8 @@ mutual
             n1 <- constraintCountM
             if n1 == n0
               then do
-                -- children all discharged — or SOLVED a hole, in which
-                -- case the composite may now hold by beta: retry once
-                -- before assuming it. An assumed composite keeps the
-                -- acceptance semantics honest (the site still has no
-                -- certificate; the remedy is a lemma that makes it
-                -- directly matchable).
+                -- children all discharged: the composite may now hold
+                -- outright — retry once before assuming it
                 r3 <- attemptE ctx site a b ty
                 case r3 of
                   Right cert => pure (Just cert)
@@ -3027,13 +2530,7 @@ mutual
     r <- attemptT ctx site tyA tyB
     case r of
       Right cert => pure (Just cert)
-      Left site1 => do
-        solved <- patternSolveT ctx env site1 tyA tyB
-        r2 <- the (ElabM (Either String ECert)) $
-                if solved then attemptT ctx site1 tyA tyB else pure (Left site1)
-        case r2 of
-          Right cert => pure (Just cert)
-          Left site2 => do
+      Left site2 => do
             st <- getSt
             let cur = StTy ctx env tyA tyB
             let comp' = comp <|> Just cur
@@ -3259,39 +2756,6 @@ mutual
   elabTy ctx env site (STyPrf e) = do
     (e', eSk) <- checkElem ctx env site e Ty.PropTy
     pure (Prf e', Nd [] [eSk])
-  elabTy ctx env site (STyHole mrng solvable x) = do
-    -- a TYPE hole: a type declaration entry at the ambient context
-    -- (sig-ty-decl); references are stuck (ty-sig-decl). Solvable
-    -- type holes are instantiated by type pattern equations
-    -- (patternSolveT).
-    st <- getSt
-    let q0 = the String $ if solvable
-               then (case (x, mrng) of
-                       ("", Just r) => case r.start of MkPosition ln cl => "_r\{show ln}c\{show cl}"
-                       ("", Nothing) => "_\{show (length (toList st.holeMeta))}"
-                       _ => "_\{x}")
-               else "?\{x}"
-    let q = if st.modPrefix == "" then q0 else "\{st.modPrefix}.\{q0}"
-    let baseSk = Nd [] (replicate (length ctx) (Nd [] []))
-    whenJust mrng (\r => modifySt $ { holeOccs $= (:< (q, r)) })
-    let reuseT : Ctx -> ElabM (Ty, Skel)
-        reuseT = \delta =>
-          let n = length delta
-              k = minus (length ctx) n in
-          if take n (toList ctx) == toList delta && n + k == length ctx
-            then pure (Ty.SigVar q (wkSpine n k), Nd [] (replicate n (Nd [] [])))
-            else throw "\{site}: hole \{q0} reused in a context that does not extend its own — use a fresh hole name"
-    case sigLookup q st.sig of
-      -- repeat occurrence: a reference to the same (possibly solved)
-      -- type declaration, at its own context or an extension
-      Just (SigTyDecl delta _) => reuseT delta
-      Just (SigTyDef delta _ _) => reuseT delta
-      Just _ => throw "\{site}: '\{q0}' names a non-type signature entry"
-      Nothing => do
-        modifySt $ { sig $= (:< SigTyDecl ctx q)
-                   , holeMeta $= (:< MkHoleMeta q env site solvable mrng) }
-        pure (Ty.SigVar q (idSpine (length ctx)), baseSk)
-
   export
   inferElem : Ctx -> NameEnv -> String -> SElem -> ElabM (Elem, Ty, Skel)
   inferElem ctx env site (SVar mrng n i) =
@@ -3300,9 +2764,6 @@ mutual
         recordBinder mrng ctx env n ty
         pure (CtxVar i, ty, Nd [] [])
       Nothing => throw "\{site}: variable index out of bounds"
-  inferElem ctx env site (SHole _ solvable x) =
-    let pre = the String (if solvable then "_" else "?") in
-    throw "\{site}: hole \{pre}\{x} in inference position — its type is undetermined here\{structuralHint}"
   inferElem ctx env site (SSig mrng x0) = do
     st <- getSt
     let x = resolveSigName st x0
@@ -3571,16 +3032,6 @@ mutual
     case preferPrf st ctx ty of
       Nothing => throw "\{site}: ⋆ checked against a non-Prf type\{structuralHint}"
       Just (p, exp) => do
-        -- ⋆ against a SOLVABLE-HOLE-headed prop: pin it to ∥𝟙∥, THE
-        -- canonical true proposition. ⋆ forces the prop true, and at
-        -- Ω all true props are judgementally EQUAL (code-prop-eq), so
-        -- the pick is canonical up to ≐ — a later pinning equation
-        -- ∥𝟙∥ ≐ q discharges via the propext synthesis when q is
-        -- provable, and surfaces honestly otherwise.
-        solvedP <- case betaElem st.sig p of
-                     hp@(SigVar _ _) => patternSolveE ctx env site hp (Squash Ty.OneTy) Ty.PropTy
-                     _ => pure False
-        st <- getSt
         -- el-eq-i / el-squash-i: an equality prop is THE payment rule
         -- (checking ⋆ emits its equation into ↓); a squashed 𝟙 is
         -- witnessed outright. Prefer the prop as written for readable
@@ -3709,24 +3160,6 @@ mutual
           convElem ctx env "\{site}: checking chain" Nothing l r tA
   checkElem ctx env site (SStarWit w) ty = do
     st <- getSt
-    -- ⋆ w against a solvable-hole-headed prop: the witness's inferred
-    -- type pins it — the hole becomes ∥A∥ for w : A
-    case preferPrf st ctx ty of
-      Just (hp@(SigVar _ _), _) => do
-        st <- getSt
-        case betaElem st.sig hp of
-          SigVar _ _ => do
-            (w', wTy, wSk) <- inferElem ctx env site w
-            solved <- patternSolveE ctx env site hp (Squash wTy) Ty.PropTy
-            if solved
-              then pure (Star, Nd [PSquashWit w' wSk] [])
-              else checkStarWitAt ctx env site w ty
-          _ => checkStarWitAt ctx env site w ty
-      _ => checkStarWitAt ctx env site w ty
-   where
-    checkStarWitAt : Ctx -> NameEnv -> String -> SElem -> Ty -> ElabM (Elem, Skel)
-    checkStarWitAt ctx env site w ty = do
-    st <- getSt
     case preferPrf st ctx ty of
       Nothing => throw "\{site}: ⋆ checked against a non-Prf type\{structuralHint}"
       Just (p, exp) =>
@@ -3790,51 +3223,6 @@ mutual
                 (body', bodySk) <- checkElem (ctx :< a) (env :< fst xn) site body (substTy (Prf q) Wk)
                 pure (Star, withExpose exp (Nd [PSquashElim e' eSk body' bodySk] []))
           _ => throw "\{site}: squash-elim scrutinee checked against Prf of a non-∥∥ code\{structuralHint}"
-  checkElem ctx env site (SHole mrng solvable x) ty = do
-    -- a hole: a declaration entry at the AMBIENT context (sig-decl);
-    -- the reference carries the identity spine and is stuck
-    -- (el-sig-decl). A rigid `?x` is reported and never solved; a
-    -- solvable `_x`/`_` may be instantiated by pattern equations
-    -- (the decl→def flip in patternSolveE). Either blocks acceptance
-    -- while it remains a declaration.
-    st <- getSt
-    -- anonymous holes are named by POSITION, not by a mint counter:
-    -- the internal rerun must find the previous pass's solved twin
-    -- under the same name
-    let q0 = the String $ if solvable
-               then (case (x, mrng) of
-                       ("", Just r) => case r.start of MkPosition ln cl => "_r\{show ln}c\{show cl}"
-                       ("", Nothing) => "_\{show (length (toList st.holeMeta))}"
-                       _ => "_\{x}")
-               else "?\{x}"
-    let q = if st.modPrefix == "" then q0 else "\{st.modPrefix}.\{q0}"
-    let baseSk = Nd [] (replicate (length ctx) (Nd [] []))
-    -- a REPEAT occurrence is a reference to the same entry — the
-    -- still-open declaration, or the definition a solve flipped it
-    -- to. Valid at the entry's own context or any binder EXTENSION of
-    -- it (the weakened identity spine); the occurrence's expected
-    -- type converts against the (weakened) declared one — a switch,
-    -- like any reference.
-    whenJust mrng (\r => modifySt $ { holeOccs $= (:< (q, r)) })
-    let reuse : Ctx -> Ty -> ElabM (Elem, Skel)
-        reuse = \delta, dty =>
-          let n = length delta
-              k = minus (length ctx) n in
-          if take n (toList ctx) == toList delta && n + k == length ctx
-            then do
-              let es = wkSpine n k
-              let dtyW = substTy dty (embed es)
-              c <- convTy ctx env "\{site}: hole \{q0} reused at a different type" Nothing dtyW ty
-              pure (SigVar q es, addPayload (PSwitch (certOr c)) (Nd [] (replicate n (Nd [] []))))
-            else throw "\{site}: hole \{q0} reused in a context that does not extend its own — use a fresh hole name"
-    case sigLookup q st.sig of
-      Just (SigDecl delta _ dty) => reuse delta dty
-      Just (SigDef delta _ _ dty) => reuse delta dty
-      Just _ => throw "\{site}: '\{q0}' names a non-element signature entry"
-      Nothing => do
-        modifySt $ { sig $= (:< SigDecl ctx q ty)
-                   , holeMeta $= (:< MkHoleMeta q env site solvable mrng) }
-        pure (SigVar q (idSpine (length ctx)), baseSk)
   checkElem ctx env site (SLet (x, xr) e b) ty = do
     -- e-let-check: let PROPAGATES the ambient mode to its body (a
     -- checking-only body form works under a let without ascription).
@@ -3902,116 +3290,6 @@ addLemma name delta ty = do
               , candRest := re, candHops := hp, candRw := sh ++ re } st'
     _ => pure ()
 
-||| Item-end constraint deletion (docs/NovaFoundation.txt, DISCHARGE):
-||| a hole instantiated mid-item unfolds from then on, which can make
-||| an earlier-assumed constraint OF THE SAME ITEM derivable by plain
-||| beta. Each such constraint is re-attempted against ITS OWN PREFIX
-||| with the exact certificate its site already embeds (the bare
-||| compare-beta-normal-forms dummy) — so deletion never claims more
-||| than the kernel replay of the item will deliver — and deleted on
-||| success, with its display metadata (kept positionally aligned).
-||| `keep` is the constraint count at ITEM START: constraints of
-||| EARLIER items are never deleted — their items' kernel admission
-||| was already decided, and deleting their record would let a run
-||| end "definitional" with a skipped item inside it.
-resolveConstraints : Nat -> ElabM ()
-resolveConstraints keep = do
-  sweep 4
-  st <- getSt
-  let (sig', meta') = go 0 [<] (toList st.sig) (toList st.oblMeta)
-  modifySt $ { sig := resetNfCaches sig', oblMeta := cast meta' }
- where
-  ||| RE-SOLVE before deleting: an equation assumed mid-item may have
-  ||| become solvable — a later argument pinned the hole it could not
-  ||| legally define (the 3rd-arg/4th-arg ordering of an iffIntro
-  ||| application), or a spine head became δ-alignable after a flip.
-  ||| Flips only (no assumes); iterate while progress.
-  stmts : ElabSt -> List (Nat, SigEntry, OblMeta)
-  stmts st = go2 0 (toList st.sig) (toList st.oblMeta)
-   where
-    go2 : Nat -> List SigEntry -> List OblMeta -> List (Nat, SigEntry, OblMeta)
-    go2 k (e@(SigEq _ _ _ _) :: rest) (m :: ms) = (k, e, m) :: go2 (S k) rest ms
-    go2 k (e@(SigTyEq _ _ _) :: rest) (m :: ms) = (k, e, m) :: go2 (S k) rest ms
-    go2 k (_ :: rest) ms = go2 k rest ms
-    go2 _ [] _ = []
-
-  solveOne : (Nat, SigEntry, OblMeta) -> ElabM Bool
-  solveOne (k, SigEq ctx a b ty, m) =
-    if k < keep then pure False else do
-      r1 <- patternSolveE ctx m.oenv m.osite a b ty
-      r2 <- spineSolveE ctx m.oenv m.osite a b
-      r3 <- lemmaSolveE ctx m.oenv m.osite a b
-      pure (r1 || r2 || r3)
-  solveOne (k, SigTyEq ctx x y, m) =
-    if k < keep then pure False else patternSolveT ctx m.oenv m.osite x y
-  solveOne _ = pure False
-
-  sweep : Nat -> ElabM ()
-  sweep Z = pure ()
-  sweep (S fuel) = do
-    st <- getSt
-    rs <- traverse solveOne (stmts st)
-    when (any id rs) (sweep fuel)
-  go : Nat -> Sig -> List SigEntry -> List OblMeta -> (Sig, List OblMeta)
-  go k acc [] ms = (acc, [])
-  go k acc (e@(SigEq ctx a b ty) :: rest) (m :: ms) =
-    if k >= keep && kCheckEqElem acc ctx kernelFuel (MkECert [] FBeta) a b ty == Right ()
-      then go (S k) acc rest ms
-      else let (s', ms') = go (S k) (acc :< e) rest ms in (s', m :: ms')
-  go k acc (e@(SigTyEq ctx x y) :: rest) (m :: ms) =
-    if k >= keep && kCheckEqTy acc ctx kernelFuel (MkECert [] FBeta) x y == Right ()
-      then go (S k) acc rest ms
-      else let (s', ms') = go (S k) (acc :< e) rest ms in (s', m :: ms')
-  go k acc (e :: rest) ms =
-    let (s', ms') = go k (acc :< e) rest ms in (s', ms')
-
-||| The number of constraint entries so far (the resolveConstraints
-||| marker).
-constraintCount : ElabM Nat
-constraintCount = do
-  st <- getSt
-  pure (length (toList st.oblMeta))
-
-||| Mirror solved holes into the kernel's Σ — ONCE, at item end, in
-||| minting order (each solution is prefix-legal, so earlier mirrors
-||| carry later ones). Eager per-flip mirroring is order-fragile: a
-||| solution may mention a hole that is itself solved only later in
-||| the same item. A mirror that still fails (the solution mentions a
-||| dirty-run entry) is skipped — the run is dirty in that case and
-||| the kernel copy is never consulted.
-mirrorHoleDefs : ElabM ()
-mirrorHoleDefs = do
-  st <- getSt
-  -- Σ ORDER, not minting order: legalize inserts imitation twins
-  -- BEFORE the holes whose solutions reference them, so walking the
-  -- signature mirrors each body after its dependencies
-  let holeNames = map hname (toList st.holeMeta)
-  let entries = [ e | e <- toList st.sig
-                , maybe False (`elem` holeNames) (sigEntryName e) ]
-  modifySt $ { kernelSig := go entries st.kernelSig }
- where
-  go : List SigEntry -> Sig -> Sig
-  go [] ks = ks
-  go (e :: rest) ks =
-    case sigEntryName e of
-      Nothing => go rest ks
-      Just q =>
-        case sigLookup q ks of
-          Just _ => go rest ks
-          Nothing =>
-            case e of
-              SigDef delta _ t dty =>
-                if kCheckSolution ks kernelFuel delta t dty == Right ()
-                  then go rest (ks :< e)
-                  else go rest ks
-              SigTyDef delta _ t =>
-                if kCheckTySolution ks kernelFuel delta t == Right ()
-                  then go rest (ks :< e)
-                  else go rest ks
-              _ => go rest ks
-
-||| Kernel-check a clean item against the kernel's own Σ; extend it on
-||| acceptance. Items elaborated under assumptions (dirty) are skipped —
 ||| they cannot be accepted anyway.
 kernelAccept : String -> (Sig -> Either KErr SigEntry) -> Bool -> ElabM ()
 kernelAccept name check clean = do
@@ -4033,14 +3311,11 @@ liftQE site (Right x) = pure x
 ||| lemma if it is ≡-typed. Mirrors elabItem's tail for surface defs.
 emitCoreDef : String -> String -> Ty -> Skel -> Elem -> Skel -> ElabM ()
 emitCoreDef site x ty tySk body bodySk = do
-  oblsAtStart <- constraintCount
   st <- getSt
   let q = if st.modPrefix == "" then x else "\{st.modPrefix}.\{x}"
   case sigLookup q st.sig of
     Just _ => throw "\{site}: duplicate signature name '\{x}'"
     Nothing => pure ()
-  resolveConstraints oblsAtStart
-  mirrorHoleDefs
   after <- oblCount
   kernelAccept "\{site} \{x}"
     (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] ty tySk body bodySk))
@@ -4050,14 +3325,11 @@ emitCoreDef site x ty tySk body bodySk = do
 
 emitCoreTyDef : String -> String -> Ty -> Skel -> ElabM ()
 emitCoreTyDef site x ty tySk = do
-  oblsAtStart <- constraintCount
   st <- getSt
   let q = if st.modPrefix == "" then x else "\{st.modPrefix}.\{x}"
   case sigLookup q st.sig of
     Just _ => throw "\{site}: duplicate signature name '\{x}'"
     Nothing => pure ()
-  resolveConstraints oblsAtStart
-  mirrorHoleDefs
   after <- oblCount
   kernelAccept "\{site} \{x}"
     (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty tySk))
@@ -4126,72 +3398,17 @@ elabItemGo : SItem -> ElabM String
 ||| the pre-item state, KEEP the solved holes as definitions, and
 ||| elaborate the item once more — each hole occurrence now hits the
 ||| reuse path as a reference to a solved def, every conversion sees
-||| concrete values, and the sites get real certificates.
+||| Elaborate an item under the searchless default scope: hypotheses
+||| and computation only, unless the def's using-clause overrides it
+||| (the SDef handler installs the resolved names over this).
+||| NOVA_GLOBAL_STORE=1 restores the historical whole-store search.
 export
 elabItem : SItem -> ElabM String
 elabItem item = withScope (if scopedMode then Just [] else Nothing) $ do
-  -- THE SEARCHLESS DEFAULT: every item elaborates with an empty
-  -- Σ-scope — discharges see hypotheses and computation only — and a
-  -- def's using-clause overrides it (the SDef handler installs the
-  -- resolved names over this). NOVA_GLOBAL_STORE=1 restores the
-  -- historical whole-store search.
   pre <- getSt
-  echo <- timedM "item \{pre.modPrefix}.\{itemName item}" (elabItemGo item)
-  st <- getSt
-  after <- oblCount
-  let preHoles = length (toList pre.holeMeta)
-  let newHoles = drop preHoles (toList st.holeMeta)
-  let newNames = map hname newHoles
-  let newEntries = [ e | e <- toList st.sig
-                   , maybe False (`elem` newNames) (sigEntryName e) ]
-  -- the carried set is the item's SOLVED holes plus the reference
-  -- CLOSURE of their solutions among the item's other new entries: a
-  -- solution may mention a twin that never got a value of its own
-  -- (legalize's inserted imitations), and dropping the twin decl
-  -- would leave a dangling name and crash the rerun's normalizer.
-  -- Nothing else travels — in particular an item's own declaration
-  -- entry (a `def x : T` declaration IS a hole) must be re-minted by
-  -- the rerun, not carried into a duplicate-name error. Σ order is
-  -- preserved, keeping every carried body's prefix intact.
-  let solvedNames = mapMaybe sigEntryName (filter sigEntryIsDef newEntries)
-  let keepNames = closeRefs newEntries (length newEntries) solvedNames solvedNames
-  let keepEntries = [ e | e <- newEntries
-                    , maybe False (`elem` keepNames) (sigEntryName e) ]
-  let keepMetas = [ m | m <- newHoles, m.hname `elem` keepNames ]
-  preOpen <- pure (length (filter (not . sigEntryIsDef) (toList pre.sig)))
-  if after == preOpen || null solvedNames
-    then pure echo
-    else do
-      putSt ({ sig := resetNfCaches (pre.sig <>< keepEntries)
-             , holeMeta := pre.holeMeta <>< keepMetas } pre)
-      timedM "item \{pre.modPrefix}.\{itemName item}" (elabItemGo item)
- where
-  ||| Every Σ-name an entry's context, type, and body reference (Ty
-  ||| pieces go through Squash to reuse the Elem collector).
-  entryRefs : SigEntry -> List String
-  entryRefs (SigDef delta _ t dty) =
-    concatMap (collectRefsE . Squash) (toList delta) ++ collectRefsE (Squash dty) ++ collectRefsE t
-  entryRefs (SigTyDef delta _ t) =
-    concatMap (collectRefsE . Squash) (toList delta) ++ collectRefsE (Squash t)
-  entryRefs (SigDecl delta _ dty) =
-    concatMap (collectRefsE . Squash) (toList delta) ++ collectRefsE (Squash dty)
-  entryRefs _ = []
-
-  ||| Fixpoint of `entryRefs` over `pool`, seeded by `frontier`; the
-  ||| fuel (|pool| suffices — each round adds at least one pool name)
-  ||| is only there for totality.
-  closeRefs : List SigEntry -> Nat -> List String -> List String -> List String
-  closeRefs pool Z acc _ = acc
-  closeRefs pool (S fuel) acc frontier =
-    let step = nub [ n | e <- pool
-                   , maybe False (`elem` frontier) (sigEntryName e)
-                   , n <- entryRefs e
-                   , any (\e' => sigEntryName e' == Just n) pool
-                   , not (n `elem` acc) ]
-    in if null step then acc else closeRefs pool fuel (acc ++ step) step
+  timedM "item \{pre.modPrefix}.\{itemName item}" (elabItemGo item)
 
 elabItemGo (SDef x ty body muses) = do
-  oblsAtStart <- constraintCount
   census <- openCensus
   st <- getSt
   -- the Σ-name is qualified by the module; the root file's entries
@@ -4214,8 +3431,6 @@ elabItemGo (SDef x ty body muses) = do
   -- clean means the RUN is clean: an earlier item's assumption poisons
   -- everything after it (the kernel Σ cannot contain the earlier item,
   -- so references to it are unresolvable anyway)
-  resolveConstraints oblsAtStart
-  mirrorHoleDefs
   after <- oblCount
   kernelAccept "def \{x}"
     (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] ty' tySk body' bodySk))
@@ -4248,7 +3463,6 @@ elabItemGo (SDeclDef nrng x ty) = do
   suffix <- opensSuffix census
   pure "declared \{x}\{suffix}"
 elabItemGo (STypeDef x ty) = do
-  oblsAtStart <- constraintCount
   census <- openCensus
   st <- getSt
   let q = if st.modPrefix == "" then x else "\{st.modPrefix}.\{x}"
@@ -4256,8 +3470,6 @@ elabItemGo (STypeDef x ty) = do
     Just _ => throw "type \{x}: duplicate signature name"
     Nothing => pure ()
   (ty', tySk) <- elabTy [<] [<] "type \{x}" ty
-  resolveConstraints oblsAtStart
-  mirrorHoleDefs
   after <- oblCount
   kernelAccept "type \{x}"
     (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty' tySk))
@@ -4706,39 +3918,8 @@ elabProgram units = go initSt units []
   ||| environment (zonked, so it reads through the run's other
   ||| inventions). A splicing tool pastes these back over the `_`
   ||| tokens; see PerfNotes "The cost of a hole" for why the corpus is
-  ||| going hole-free.
-  deblankLines : FixTable -> ElabSt -> String
-  deblankLines tbl st = concat (map line (toList st.holeOccs))
-   where
-    envOf : String -> NameEnv
-    envOf q = case find (\m => m.hname == q) (toList st.holeMeta) of
-                Just m => m.henv
-                Nothing => [<]
-
-    modOf : String -> String
-    modOf q = case reverse (forget (split (== '.') q)) of
-                (_ :: rest) => joinBy "." (reverse rest)
-                [] => ""
-
-    solvable : String -> Bool
-    solvable q = case reverse (forget (split (== '.') q)) of
-                   (leaf :: _) => isPrefixOf "_" leaf
-                   [] => False
-
-    line : (String, Range) -> String
-    line (q, MkRange (MkPosition l0 c0) (MkPosition l1 c1)) =
-      if not (solvable q) then "" else
-      let pos = "\{modOf q}|\{show l0}:\{show c0}|\{show l1}:\{show c1}" in
-      case sigLookup q st.sig of
-        Just (SigDef _ _ body _) =>
-          "DEBLANK|\{pos}|\{prettyElemN tbl (envOf q) (zonkElem st body)}\n"
-        Just (SigTyDef _ _ a) =>
-          "DEBLANKTY|\{pos}|\{prettyTyN tbl (envOf q) (zonkTy st a)}\n"
-        _ => ""
-
   finish : FixTable -> ElabSt -> List String -> String
   finish tbl st echoes =
-    audit (deblankLines tbl st) $
     joinBy "\n" echoes ++ "\n" ++
     (case openReport tbl st of
        Nothing => "Accepted."
@@ -4854,7 +4035,7 @@ holeInfos : FixTable -> ElabSt -> List HoleInfo
 holeInfos tbl st = mapMaybe row (toList st.holeMeta)
  where
   occsOf : String -> List Range
-  occsOf q = [r | (n, r) <- toList st.holeOccs, n == q]
+  occsOf q = []   -- occurrence spans were hole machinery; declarations have none
 
   judge : NameEnv -> Ctx -> String -> String
   judge env ctx rhs =

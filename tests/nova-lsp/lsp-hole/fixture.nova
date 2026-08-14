@@ -1,2 +1,0 @@
-def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
-def lemma : (n : ℕ) → plus Z n ≡ n ∈ ℕ ≔ λn. ?base
