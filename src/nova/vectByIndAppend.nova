@@ -9,11 +9,11 @@ def vappend : (n : ℕ) → (A : 𝕌) → (m : ℕ) → El (vect n A) → El (v
       n
 
 -- This equation holds by direct computation
-def vappendZ : (A : 𝕌) (n : ℕ) (v : El (vect Z A)) (w : El (vect n A)) → vappend Z (A) (n) v w ≡ w ∈ El (vect n A)
+def vappendZ : (A : 𝕌) (n : ℕ) (v : El (vect Z A)) (w : El (vect n A)) → vappend Z A n v w ≡ w ∈ El (vect n A)
   using (zeroPlusId) ≔ λA. λn. λv. λw. ⋆
 
 def vappendS : (n : ℕ) (A : 𝕌) (m : ℕ) (v : El (vect (S n) A)) (w : El (vect m A)) →
-  vappend (S n) (A) (m) v w ≡ (v .π₁ , vappend (n) (A) (m) (v .π₂) w) ∈ El (vect (S n + m) A) using (sucPlus) ≔
+  vappend (S n) A m v w ≡ (v .π₁ , vappend n A m (v .π₂) w) ∈ El (vect (S n + m) A) using (sucPlus) ≔
                                                                --  ^^^^^^^^^ FIXME: Can't be synthesised
   λn. λA. λm. λv. λw. ⋆
 
@@ -21,14 +21,14 @@ def vappendS : (n : ℕ) (A : 𝕌) (m : ℕ) (v : El (vect (S n) A)) (w : El (v
 -- plus-associativity (the two sides' lengths differ intensionally)
 -- — the extensional mismatch the imported plus lemmas discharge.
 def vappendAssoc : (n : ℕ) (A : 𝕌) (m : ℕ) (k : ℕ) (v : El (vect m A)) (w : El (vect k A)) (u : El (vect n A)) →
-  vappend ((n + m)) (A) (k) (vappend (n) (A) (m) u v) w
-    ≡ vappend (n) (A) ((m + k)) u (vappend (m) (A) (k) v w)
-    ∈ El (vect ((((n + m)) + k)) (A)) using (plusAssoc, sucPlus, zeroPlusId) ≔
+  vappend (n + m) A k (vappend n A m u v) w
+    ≡ vappend n A (m + k) u (vappend m A k v w)
+    ∈ El (vect (n + m + k) A) using (plusAssoc, sucPlus, zeroPlusId) ≔
   λn. λA. λm. λk. λv. λw. λu. (ℕ-elim
-    (p. (q : El (vect p (A))) →
-        (vappend ((p + m)) (A) (k) (vappend (p) (A) (m) q v) w
-           ≡ vappend (p) (A) ((m + k)) q (vappend (m) (A) (k) v w)
-           ∈ El (vect (p + (m + k)) (A))))
+    (p. (q : El (vect p A)) →
+        (vappend (p + m) A k (vappend p A m q v) w
+           ≡ vappend p A (m + k) q (vappend m A k v w)
+           ∈ El (vect (p + (m + k)) A)))
                   --  ^^^^^^^^^^^^^ FIXME: Can't be synthesised
     (λq. ⋆)
     (p ih. λq. ⋆)

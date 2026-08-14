@@ -46,10 +46,10 @@ def intMulCancel : (x : El Int) (y : El Int) (d : El Int)
   λx. λy. λd. λh. λhd.
     sym Int y x
       (trans Int y (intAdd intZero y) x
-        (sym Int (integerAdd.intAdd integer.intZero y) (y) (intAddZeroL y))
+        (sym Int (intAdd intZero y) y (intAddZeroL y))
         (trans Int (intAdd intZero y) (intAdd (intAdd x (intNeg y)) y) x
           (addCongL intZero (intAdd x (intNeg y)) y
-            (sym Int (integerAdd.intAdd x (integer.intNeg y)) (integer.intZero)
+            (sym Int (intAdd x (intNeg y)) intZero
               (intNoZeroDiv (intAdd x (intNeg y)) d
                 (trans Int
                   (intMul (intAdd x (intNeg y)) d)
@@ -88,7 +88,7 @@ def mulSwapRight : (a : El Int) (b : El Int) (c : El Int) →
 def ratRRefl : (p : El Rat) → Prf (RatR p p) ≔ λp. ⋆
 
 def ratRSymm : (p : El Rat) (q : El Rat) → Prf (RatR p q) → Prf (RatR q p) ≔
-  λp. λq. λh. sym Int (integerMul.intMul (rational.num p) (rationalQ.dInt q)) (integerMul.intMul (rational.num q) (rationalQ.dInt p)) h
+  λp. λq. λh. sym Int (intMul (num p) (dInt q)) (intMul (num q) (dInt p)) h
 
 -- multiply the goal through by the middle denominator, walk it across
 -- the two hypotheses, and cancel — the middle denominator is non-zero
@@ -132,14 +132,14 @@ def numZeroOfRatZero : (p : El Rat) (h : Prf (class p ≡ qZero ∈ El Q)) →
   num p ≡ intZero ∈ El Int using (intMulOneR, intMulZeroL) ≔
   λp. λh.
     trans Int (num p) (intMul (num p) (dInt ratZero)) intZero
-      (sym Int (integerMul.intMul (rational.num p) integer.intOne) (rational.num p) (intMulOneR (num p)))
+      (sym Int (intMul (num p) intOne) (num p) (intMulOneR (num p)))
       (trans Int (intMul (num p) (dInt ratZero)) (intMul (num ratZero) (dInt p)) intZero
         (qEffective p ratZero h)
         (intMulZeroL (dInt p)))
 
 def numZeroIff : (p : El Rat) →
   Prf ((class p ≡ qZero ∈ El Q) ↔ (num p ≡ intZero ∈ El Int)) ≔
-  λp. iffIntro (class p ≡ rationalQ.qZero ∈ El rationalQ.Q) (rational.num p ≡ integer.intZero ∈ El integer.Int) (numZeroOfRatZero p) (ratZeroOfNumZero p)
+  λp. iffIntro (class p ≡ qZero ∈ El Q) (num p ≡ intZero ∈ El Int) (numZeroOfRatZero p) (ratZeroOfNumZero p)
 
 -- ===== the image of NZQ is exactly the non-zero rationals =====
 
@@ -155,7 +155,7 @@ def qOfNzqNonZero : (x : El NZQ) → Prf (¬ (qOfNzq x ≡ qZero ∈ El Q)) ≔
 def qNonZeroIffNzq : (u : El Q) →
   Prf ((¬ (u ≡ qZero ∈ El Q)) ↔ ∥(x : El NZQ) ⨯ Prf (qOfNzq x ≡ u ∈ El Q)∥) ≔
   λu.
-    iffIntro ((prop.¬) (u ≡ rationalQ.qZero ∈ El rationalQ.Q)) (∥(v:El rationalQ.NZQ) ⨯ Prf (rationalQ.qOfNzq v ≡ u ∈ El rationalQ.Q)∥)
+    iffIntro (¬ (u ≡ qZero ∈ El Q)) (∥(v:El NZQ) ⨯ Prf (qOfNzq v ≡ u ∈ El Q)∥)
       (λh. qNonZeroIsNzq u h)
       (λh. squash-elim h (w.
         notIntro (u ≡ qZero ∈ El Q) (λe.
@@ -177,7 +177,7 @@ def qOneNotZero : Prf (¬ (qOne ≡ qZero ∈ El Q)) ≔
 def qInvertibleIffNonZero : (u : El Q) →
   Prf ((¬ (u ≡ qZero ∈ El Q)) ↔ ∥(v : El Q) ⨯ Prf (qMul u v ≡ qOne ∈ El Q)∥) ≔
   λu.
-    iffIntro ((prop.¬) (u ≡ rationalQ.qZero ∈ El rationalQ.Q)) (∥(v:El rationalQ.Q) ⨯ Prf (rationalQ.qMul u v ≡ rationalQ.qOne ∈ El rationalQ.Q)∥)
+    iffIntro (¬ (u ≡ qZero ∈ El Q)) (∥(v:El Q) ⨯ Prf (qMul u v ≡ qOne ∈ El Q)∥)
       (λh. qInvExists u h)
       (λh. squash-elim h (w.
         notIntro (u ≡ qZero ∈ El Q) (λe.

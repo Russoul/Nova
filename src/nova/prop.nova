@@ -31,7 +31,7 @@ def reflectSquash : (A : 𝕌) (a : El A) (b : El A) (h : Prf (a ≡ b ∈ (El A
 
 -- ty-quot-cong: quotients by iff-equal Ω relations are the SAME type,
 -- so a variable of one moves to the other with no coercion.
-def quotIff : (A : 𝕌) (v : El A / (n m. ∥𝟙∥)) → El A / (n m. (Z ≡ Z ∈ (ℕ))) using (propext) ≔ λA. λv. v
+def quotIff : (A : 𝕌) (v : El A / (n m. ∥𝟙∥)) → El A / (n m. (Z ≡ Z ∈ ℕ)) using (propext) ≔ λA. λv. v
 
 -- Impredicative connectives (Ω section, docs/NovaFoundation.txt): ⊤, ⊥,
 -- ∧, ⊃ are the squashed types the theory itself names in its notes.
@@ -79,7 +79,7 @@ def orInl : (p : Ω) (q : Ω) → Prf p → Prf (p ∨ q) ≔
 def orInr : (p : Ω) (q : Ω) → Prf q → Prf (p ∨ q) ≔
   λp. λq. λy. ⋆ (λr. λf. λg. g y)
 def orElim : (p : Ω) (q : Ω) (c : Ω) → Prf (p ∨ q) → (Prf p → Prf c) → (Prf q → Prf c) → Prf c ≔
-  λp. λq. λc. λh. λf. λg. squash-elim h (u. u (c) f g)
+  λp. λq. λc. λh. λf. λg. squash-elim h (u. u c f g)
 
 -- Logical equivalence, as a pair of implications (∧ + ⊃ already
 -- give this for free — ↔ names it so callers stop re-deriving it)
@@ -87,25 +87,25 @@ infixr 2 ↔
 def ↔ : Ω → Ω → Ω ≔ λp. λq. (p ⊃ q) ∧ (q ⊃ p)
 
 def iffIntro : (p : Ω) (q : Ω) → (Prf p → Prf q) → (Prf q → Prf p) → Prf (p ↔ q) ≔
-  λp. λq. λf. λg. andIntro ((⊃) p q) ((⊃) q p) (impIntro (p) (q) f) (impIntro (q) (p) g)
+  λp. λq. λf. λg. andIntro (p ⊃ q) (q ⊃ p) (impIntro p q f) (impIntro q p g)
 def iffLeft : (p : Ω) (q : Ω) → Prf (p ↔ q) → Prf p → Prf q ≔
-  λp. λq. λh. impApply (p) (q) (andFst ((⊃) p q) ((⊃) q p) h)
+  λp. λq. λh. impApply p q (andFst (p ⊃ q) (q ⊃ p) h)
 def iffRight : (p : Ω) (q : Ω) → Prf (p ↔ q) → Prf q → Prf p ≔
-  λp. λq. λh. impApply (q) (p) (andSnd ((⊃) p q) ((⊃) q p) h)
+  λp. λq. λh. impApply q p (andSnd (p ⊃ q) (q ⊃ p) h)
 
 -- code-prop-eq against ↔: iff-equal propositions are EQUAL codes, so
 -- one can be rewritten to the other anywhere a prop is expected
 def propExtOfIff : (p : Ω) (q : Ω) → Prf (p ↔ q) → p ≡ q ∈ Ω ≔
-  λp. λq. λh. propExt (p) (q) (iffLeft (p) (q) h) (iffRight (p) (q) h)
+  λp. λq. λh. propExt p q (iffLeft p q h) (iffRight p q h)
 
 -- Curry/uncurry as a logical equivalence (each direction its own
 -- lemma, rather than a literal code-prop-eq equality — code-prop-eq's
 -- automatic search is still 𝟙-/≡-shaped only; only el-squash-i/
 -- el-squash-e-prf were generalized).
 def curry : (p : Ω) (q : Ω) (c : Ω) → Prf ((p ∧ q) ⊃ c) → Prf (p ⊃ q ⊃ c) ≔
-  λp. λq. λc. λh. impIntro (p) (∥Prf q → Prf c∥) (λx. impIntro (q) (c) (λy. impApply ((∧) p q) (c) h (andIntro (p) (q) x y)))
+  λp. λq. λc. λh. impIntro p (∥Prf q → Prf c∥) (λx. impIntro q c (λy. impApply (p ∧ q) c h (andIntro p q x y)))
 def uncurry : (p : Ω) (q : Ω) (c : Ω) → Prf (p ⊃ q ⊃ c) → Prf ((p ∧ q) ⊃ c) ≔
-  λp. λq. λc. λh. impIntro ((∧) p q) (c) (λpq. impApply (q) (c) (impApply (p) ((⊃) q c) h (andFst (p) (q) pq)) (andSnd (p) (q) pq))
+  λp. λq. λc. λh. impIntro (p ∧ q) c (λpq. impApply q c (impApply p (q ⊃ c) h (andFst p q pq)) (andSnd p q pq))
 
 
 -- Weak/intuitionistic excluded middle: ¬¬(p ∨ ¬p) holds constructively
@@ -114,10 +114,10 @@ def uncurry : (p : Ω) (q : Ω) (c : Ω) → Prf (p ⊃ q ⊃ c) → Prf ((p ∧
 -- and further props, never arbitrary types, yet this chains three
 -- levels of squash-elim/⋆ and still lands exactly on Prf ⊥).
 def notNotLem : (p : Ω) → Prf (¬ (¬ (p ∨ ¬ p))) ≔
-  λp. impIntro ((¬) ((∨) p ((¬) p))) ((⊥)) (λk.
-    impApply ((∨) p ((⊃) p (⊥))) ((⊥)) k
-      (orInr (p) ((⊃) p (⊥)) (impIntro (p) ((⊥)) (λhp.
-        impApply ((∨) p ((¬) p)) ((⊥)) k (orInl (p) ((¬) p) hp)))))
+  λp. impIntro (¬ (p ∨ (¬ p))) ⊥ (λk.
+    impApply (p ∨ (p ⊃ ⊥)) ⊥ k
+      (orInr p (p ⊃ ⊥) (impIntro p ⊥ (λhp.
+        impApply (p ∨ (¬ p)) ⊥ k (orInl p (¬ p) hp)))))
 
 -- Impredicative equivalence closure (the Ω section's flagship payoff
 -- note: "least relations by intersection — e.g. an equivalence closure
@@ -135,26 +135,26 @@ def rClosure : (A : 𝕌) → (El A → El A → Ω) → El A → El A → Ω �
 
 -- containment: instantiate the universal at the caller's own R
 def rClosureContains : (A : 𝕌) (r : El A → El A → Ω) (a : El A) (b : El A) →
-  Prf (r a b) → Prf (rClosure (A) r a b) ≔
-  λA. λr. λa. λb. λh. ⋆ (λR. λcont. λrefl. λtrans. λsymm. cont (a) (b) h)
+  Prf (r a b) → Prf (rClosure A r a b) ≔
+  λA. λr. λa. λb. λh. ⋆ (λR. λcont. λrefl. λtrans. λsymm. cont a b h)
 
 -- reflexivity, symmetry, transitivity: rClosure r is itself an
 -- equivalence relation, again by instantiating the universal
-def rClosureRefl : (A : 𝕌) (r : El A → El A → Ω) (a : El A) → Prf (rClosure (A) r a a) ≔
-  λA. λr. λa. ⋆ (λR. λcont. λrefl. λtrans. λsymm. refl (a))
+def rClosureRefl : (A : 𝕌) (r : El A → El A → Ω) (a : El A) → Prf (rClosure A r a a) ≔
+  λA. λr. λa. ⋆ (λR. λcont. λrefl. λtrans. λsymm. refl a)
 
 def rClosureSymm : (A : 𝕌) (r : El A → El A → Ω) (a : El A) (b : El A) →
-  Prf (rClosure (A) r a b) → Prf (rClosure (A) r b a) ≔
+  Prf (rClosure A r a b) → Prf (rClosure A r b a) ≔
   λA. λr. λa. λb. λh.
     squash-elim h (u. ⋆ (λR. λcont. λrefl. λtrans. λsymm. symm a b (u (λx. λy. R x y) cont refl trans symm)))
 
 def rClosureTrans : (A : 𝕌) (r : El A → El A → Ω) (a : El A) (b : El A) (c : El A) →
-  Prf (rClosure (A) r a b) → Prf (rClosure (A) r b c) → Prf (rClosure (A) r a c) ≔
+  Prf (rClosure A r a b) → Prf (rClosure A r b c) → Prf (rClosure A r a c) ≔
   λA. λr. λa. λb. λc. λhab. λhbc.
     squash-elim hab (uab.
       squash-elim hbc (ubc.
         ⋆ (λR. λcont. λrefl. λtrans. λsymm.
-            trans (a) (b) (c) (uab (λx. λy. R x y) cont refl trans symm) (ubc (λx. λy. R x y) cont refl trans symm))))
+            trans a b c (uab (λx. λy. R x y) cont refl trans symm) (ubc (λx. λy. R x y) cont refl trans symm))))
 
 -- least-ness: rClosure r implies membership in ANY equivalence
 -- relation containing r — unsquash the hypothesis and apply its
@@ -164,6 +164,6 @@ def rClosureLeast : (A : 𝕌) (r : El A → El A → Ω) (Q : El A → El A →
   → ((x : El A) → Prf (Q x x))
   → ((x : El A) (y : El A) (z : El A) → Prf (Q x y) → Prf (Q y z) → Prf (Q x z))
   → ((x : El A) (y : El A) → Prf (Q x y) → Prf (Q y x))
-  → (a : El A) (b : El A) → Prf (rClosure (A) r a b) → Prf (Q a b) ≔
+  → (a : El A) (b : El A) → Prf (rClosure A r a b) → Prf (Q a b) ≔
   λA. λr. λQ. λcontQ. λreflQ. λtransQ. λsymmQ. λa. λb. λh.
     squash-elim h (u. u (λx. λy. Q x y) contQ reflQ transQ symmQ)

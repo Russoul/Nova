@@ -17,12 +17,12 @@ import quotEffective (effectiveAtEquiv)
 -- across the two hypotheses, cancel again
 def cancelStep : (a : ℕ) (b : ℕ) (c : ℕ) (d : ℕ) (e : ℕ) (f : ℕ) →
   (a + d ≡ b + c ∈ ℕ) → (c + f ≡ d + e ∈ ℕ) →
-  (a + f) + (c + d) ≡ (b + e) + (c + d) ∈ ℕ using (nat.plusAssoc) ≔
+  (a + f) + (c + d) ≡ b + e + (c + d) ∈ ℕ using (nat.plusAssoc) ≔
   λa. λb. λc. λd. λe. λf. λh1. λh2.
-    trans (ℕ) ((nat.+) ((nat.+) a f) ((nat.+) c d)) ((nat.+) ((nat.+) a d) ((nat.+) c f)) ((nat.+) ((nat.+) b e) ((nat.+) c d)) (swapMid a f c d)
-      (trans (ℕ) ((nat.+) ((nat.+) a d) ((nat.+) c f)) ((nat.+) ((nat.+) b c) ((nat.+) c f)) ((nat.+) ((nat.+) b e) ((nat.+) c d)) (plusCongL (a + d) (b + c) (c + f) h1)
-        (trans (ℕ) ((nat.+) ((nat.+) b c) ((nat.+) c f)) ((nat.+) ((nat.+) b c) ((nat.+) d e)) ((nat.+) ((nat.+) b e) ((nat.+) c d)) (plusCongR (b + c) (c + f) (d + e) h2)
-          (trans (ℕ) ((nat.+) ((nat.+) b c) ((nat.+) d e)) ((nat.+) ((nat.+) b e) ((nat.+) d c)) ((nat.+) ((nat.+) b e) ((nat.+) c d)) (swapMid b c d e)
+    trans ℕ (a + f + (c + d)) (a + d + (c + f)) (b + e + (c + d)) (swapMid a f c d)
+      (trans ℕ (a + d + (c + f)) (b + c + (c + f)) (b + e + (c + d)) (plusCongL (a + d) (b + c) (c + f) h1)
+        (trans ℕ (b + c + (c + f)) (b + c + (d + e)) (b + e + (c + d)) (plusCongR (b + c) (c + f) (d + e) h2)
+          (trans ℕ (b + c + (d + e)) (b + e + (d + c)) (b + e + (c + d)) (swapMid b c d e)
             (plusCongR (b + e) (d + c) (c + d) (plusComm c d)))))
 
 def cancelTrans : (a : ℕ) (b : ℕ) (c : ℕ) (d : ℕ) (e : ℕ) (f : ℕ) →
