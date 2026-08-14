@@ -625,7 +625,7 @@ mutual
       Just (SigDef delta _ _ ty) => do
         checkSubstP sig ctx (toList es) (toList delta)
         pure (substTy ty (embed es))
-      -- el-sig-decl: a hole reference types like a def reference
+      -- el-sig-decl: a declaration reference types like a def reference
       Just (SigDecl delta _ ty) => do
         checkSubstP sig ctx (toList es) (toList delta)
         pure (substTy ty (embed es))
@@ -1916,7 +1916,7 @@ mutual
               Just (SigDef delta _ _ ty) => do
                 kCheckSubstK sig ctx (toList es) (toList delta) (childSkels sk)
                 pure (substTy ty (embed es))
-              -- el-sig-decl: a hole reference types like a def reference
+              -- el-sig-decl: a declaration reference types like a def reference
               Just (SigDecl delta _ ty) => do
                 kCheckSubstK sig ctx (toList es) (toList delta) (childSkels sk)
                 pure (substTy ty (embed es))

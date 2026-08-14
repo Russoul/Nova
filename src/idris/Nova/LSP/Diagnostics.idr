@@ -80,11 +80,11 @@ toDiagnostics source tbl report =
   map (\(mname, rng, o) => mkDiagnostic (rangeFor lns mname rng) (annotate mname (prettyObligation tbl 0 o)))
       report.obligations
   ++
-  -- open holes are the WORKING state of a development, not a defect
-  -- in it: acceptance is blocked, but every hole is something the
-  -- user deliberately wrote — a warning, not an error
+  -- open declarations are the WORKING state of a development, not a
+  -- defect in it: acceptance is blocked, but every declaration is
+  -- something the user deliberately wrote — a warning, not an error
   map (\(mname, rng, h) => mkDiagnosticAt Warning (rangeFor lns mname rng) (annotate mname h))
-      report.holes
+      report.decls
   ++
   map (\(mname, rng, msg) => mkDiagnostic (rangeFor lns mname rng) (annotate mname msg))
       report.errors

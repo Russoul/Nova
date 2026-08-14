@@ -381,9 +381,12 @@ their [style:rw] originals under the original names; the a92a9f7
 blanking is reverse-applied from git where its hunks still fit; the
 remaining 877 holes were filled by the elaborator itself — a DEBLANK
 emitter (deblankLines in Nova.Elaboration, on the NOVA_AUDIT stream)
-prints every solved hole's inferred solution with its source span, and
-tools/deblank.py splices them back over the `_` tokens, refolding
-δ-normal +/* renderings into operator form. Six sites needed hand
+printed every solved hole's inferred solution with its source span, and
+tools/deblank.py spliced them back over the `_` tokens, refolding
+δ-normal +/* renderings into operator form. (Emitter and splicer were
+one-shot scaffolding and are removed with hole support — git history
+keeps both; tools/tidy-surface.py later normalized the paste
+artifacts.) Six sites needed hand
 repair (inlined definition bodies rendered motive-less: Rat's code,
 nzToInt/qOfNzq spines, one ∈-precedence paren). The census closes at
 ZERO minted holes across the whole corpus; per-file sweep, both

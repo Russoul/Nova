@@ -1,5 +1,5 @@
-declared pred and its equations (pred, predS, predEta) — clauses outside the structural fragment [+3 holes]
-open holes (3):
+declared pred and its equations (pred, predS, predEta) — clauses outside the structural fragment [+3 declarations]
+open declarations (3):
   [pred] ⊢ ? : ℕ → ℕ
       at: def pred
   [predS] ⊢ ? : (n:ℕ) → Prf (pred (S n) ≡ n ∈ ℕ)
