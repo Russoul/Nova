@@ -80,9 +80,9 @@ def invRepWDAt : (p : El Rat) (p' : El Rat) (h : Prf (RatR p p'))
                     (intMul (num p') (dInt p))
                     (intMul (num p) (dInt p'))
                     (intMul (dInt p') (num p))
-                    (sym Int _ _ h)
+                    (sym Int (integerMul.intMul (rational.num p) (rationalQ.dInt p')) (integerMul.intMul (rational.num p') (rationalQ.dInt p)) h)
                     (intMulComm (num p) (dInt p'))))
-                (mulCongR (dInt p') (num p) (nzToInt (ex .π₁)) (sym Int _ _ (ex .π₂)))))
+                (mulCongR (dInt p') (num p) (nzToInt (ex .π₁)) (sym Int (rational.nzToInt (ex .π₁)) (rational.num p) (ex .π₂)))))
           -- p′'s numerator is zero, p's is not: impossible, by no zero divisors
           (ey.
             absurdP (intMul (num (invRepAt p (inj₁ ex))) (dInt (invRepAt p' (inj₂ ey)))
@@ -114,7 +114,7 @@ def invRepWDAt : (p : El Rat) (p' : El Rat) (h : Prf (RatR p p'))
                   (ey .π₂)
                   (intNoZeroDiv (num p') (dInt p)
                     (trans Int (intMul (num p') (dInt p)) (intMul (num p) (dInt p')) intZero
-                      (sym Int _ _ h)
+                      (sym Int (integerMul.intMul (rational.num p) (rationalQ.dInt p')) (integerMul.intMul (rational.num p') (rationalQ.dInt p)) h)
                       (trans Int (intMul (num p) (dInt p')) (intMul intZero (dInt p')) intZero
                         (mulCongL (num p) intZero (dInt p') ex)
                         (intMulZeroL (dInt p'))))
@@ -161,13 +161,13 @@ def invRepRel : (p : El Rat) (e : El NZ) (he : Prf (nzToInt e ≡ num p ∈ El I
           (intMul (dInt p) (num p))
           (intMul (dInt p) (nzToInt e))
           (intMulComm (num p) (dInt p))
-          (mulCongR (dInt p) (num p) (nzToInt e) (sym Int _ _ he)))
+          (mulCongR (dInt p) (num p) (nzToInt e) (sym Int (rational.nzToInt e) (rational.num p) he)))
         (trans Int
           (intMul (dInt p) (nzToInt e))
           (dInt (ratMul p (mkRat (dInt p) e)))
           (intMul (num ratOne) (dInt (ratMul p (mkRat (dInt p) e))))
-          (sym Int _ _ (nzToIntMul (den p) e))
-          (sym Int _ _ (intMulOneL (dInt (ratMul p (mkRat (dInt p) e)))))))
+          (sym Int (rational.nzToInt (rational.nzMul (rational.den p) e)) (integerMul.intMul (rational.nzToInt (rational.den p)) (rational.nzToInt e)) (nzToIntMul (den p) e))
+          (sym Int (integerMul.intMul integer.intOne (rationalQ.dInt (rationalQ.ratMul p (rational.mkRat (rationalQ.dInt p) e)))) (rationalQ.dInt (rationalQ.ratMul p (rational.mkRat (rationalQ.dInt p) e))) (intMulOneL (dInt (ratMul p (mkRat (dInt p) e)))))))
 
 def invRepCorrectAt : (p : El Rat) (hnz : Prf (¬ (num p ≡ intZero ∈ El Int)))
   (v : ((e : El NZ) ⨯ Prf (nzToInt e ≡ num p ∈ El Int))
@@ -209,11 +209,11 @@ def qInvUniqueVal : (u : El Q) (v : El Q) (v' : El Q)
   v ≡ v' ∈ El Q ≔
   λu. λv. λv'. λh. λh'.
     trans Q v (qMul v qOne) v'
-      (sym Q _ _ (qMulOneR v))
+      (sym Q (rationalQ.qMul v rationalQ.qOne) (v) (qMulOneR v))
       (trans Q (qMul v qOne) (qMul v (qMul u v')) v'
-        (cong Q (λx. Q) (λx. qMul v x) qOne (qMul u v') (sym Q _ _ h'))
+        (cong Q (λx. Q) (λx. qMul v x) qOne (qMul u v') (sym Q (rationalQ.qMul u v') (rationalQ.qOne) h'))
         (trans Q (qMul v (qMul u v')) (qMul (qMul v u) v') v'
-          (sym Q _ _ (qMulAssoc v u v'))
+          (sym Q (rationalQ.qMul (rationalQ.qMul v u) v') (rationalQ.qMul v (rationalQ.qMul u v')) (qMulAssoc v u v'))
           (trans Q (qMul (qMul v u) v') (qMul (qMul u v) v') v'
             (cong Q (λx. Q) (λx. qMul x v') (qMul v u) (qMul u v) (qMulComm v u))
             (trans Q (qMul (qMul u v) v') (qMul qOne v') v'

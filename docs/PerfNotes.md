@@ -373,3 +373,38 @@ decision: the index-blanking sweep trades ~45× elaboration time on
 heavy items for written terseness — under the AI-operator metric
 (generation is cheap; latency and feedback are not) that trade runs
 the wrong way.
+
+## The hole-free corpus
+
+Every `_` in the corpus is now spelled: the four explicit twins replace
+their [style:rw] originals under the original names; the a92a9f7
+blanking is reverse-applied from git where its hunks still fit; the
+remaining 877 holes were filled by the elaborator itself — a DEBLANK
+emitter (deblankLines in Nova.Elaboration, on the NOVA_AUDIT stream)
+prints every solved hole's inferred solution with its source span, and
+tools/deblank.py splices them back over the `_` tokens, refolding
+δ-normal +/* renderings into operator form. Six sites needed hand
+repair (inlined definition bodies rendered motive-less: Rat's code,
+nzToInt/qOfNzq spines, one ∈-precedence paren). The census closes at
+ZERO minted holes across the whole corpus; per-file sweep, both
+all.nova modes and 150/150 tests green.
+
+The timing collapse exceeded the per-item prediction:
+
+```
+                     holes (before)   hole-free
+wall (all.nova)          9.3s           1.44s
+elaborate phase          8.6s           0.60s
+load+parse               0.65s          0.79s   (now the largest phase)
+engine attempts          6,457          1,074
+eager kernel replays     4,016          1,074
+kernel replay time       0.44s          0.12s
+item admission           0.26s          0.19s
+solve calls              1,455          33
+```
+
+Session arc on the same corpus content: 33.6s → 9.3s → 1.44s. The
+hole machinery was not one cost among several — with the search
+already scoped, it WAS the elaboration cost: five of every six engine
+attempts existed to fail around a stuck hole. This is the baseline the
+hole-support removal (and the later redesign) starts from.

@@ -13,21 +13,21 @@ data [a : 𝕌] [r : El a → El a → Ω]
 -- argument IS the caller's respect proof, passed straight through.
 def qlift : (a : 𝕌) (r : El a → El a → Ω) (b : 𝕌)
             (f : El a → El b)
-            (resp : (x : El a) (y : El a) → Prf (r x y) → f x ≡ f y ∈ _)
-            → El (Q _ r) → El b ≔
+            (resp : (x : El a) (y : El a) → Prf (r x y) → f x ≡ f y ∈ (El b))
+            → El (Q (a) r) → El b ≔
   λa. λr. λb. λf. λresp. λq.
-    QElim a r (λw. b) (λx. f x) (λx. λy. λh. resp _ _ h) q
+    QElim a r (λw. b) (λx. f x) (λx. λy. λh. resp (x) (y) h) q
 
 def qliftBeta : (a : 𝕌) (r : El a → El a → Ω) (b : 𝕌)
                 (f : El a → El b)
                 (resp : (x : El a) (y : El a) → Prf (r x y) → f x ≡ f y ∈ El b)
-                (x : El a) → qlift _ _ _ f resp (cls _ r x) ≡ f x ∈ El b ≔
+                (x : El a) → qlift (a) (λy. λz. r y z) (b) f resp (cls (a) r x) ≡ f x ∈ El b ≔
   λa. λr. λb. λf. λresp. λx. ⋆
 
 -- instance: ℕ quotiented by squashed equality; toNat is one qlift
-def eqN : El ℕ → El ℕ → Ω ≔ λx. λy. (x ≡ y ∈ _)
+def eqN : El ℕ → El ℕ → Ω ≔ λx. λy. (x ≡ y ∈ (ℕ))
 
-def toNat : El (Q _ eqN) → ℕ ≔
-  λq. qlift _ eqN _ (λx. x) (λx. λy. λh. ⋆) q
+def toNat : El (Q (ℕ) eqN) → ℕ ≔
+  λq. qlift (ℕ) eqN (ℕ) (λx. x) (λx. λy. λh. ⋆) q
 
-def toNatCls : toNat (cls _ eqN (S Z)) ≡ S Z ∈ _ ≔ ⋆
+def toNatCls : toNat (cls (ℕ) eqN (S Z)) ≡ S Z ∈ (ℕ) ≔ ⋆

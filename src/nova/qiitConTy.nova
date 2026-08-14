@@ -22,7 +22,7 @@ def clen : El Con → ℕ ≔
         (λg. λihg. λA. λihA. λB. λihB. S ihA)
         g
 
-def clenG2 : clen g2 ≡ S (S Z) ∈ _ ≔ ⋆
+def clenG2 : clen g2 ≡ S (S Z) ∈ (ℕ) ≔ ⋆
 
 -- the same elimination problem read at the Ty motive: type size
 def tsize : (g : El Con) → El (Ty g) → ℕ ≔
@@ -33,4 +33,4 @@ def tsize : (g : El Con) → El (Ty g) → ℕ ≔
         (λg. λihg. λA. λihA. λB. λihB. S ihA)
         g t
 
-def tsizeArr : tsize g1 (arr g1 (unit g1) (unit g1)) ≡ S (S Z) ∈ _ ≔ ⋆
+def tsizeArr : tsize g1 (arr g1 (unit g1) (unit g1)) ≡ S (S Z) ∈ (ℕ) ≔ ⋆
