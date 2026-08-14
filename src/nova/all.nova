@@ -13,6 +13,7 @@ import group
 import field
 import natMonoid
 import natAlgebra
+import natOrder
 import intGroup
 import ratField
 import nat
