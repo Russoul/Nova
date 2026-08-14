@@ -1,57 +1,29 @@
-import prop (¬)
-import monoid (Monoid)
-import group (Group)
+import id (Id)
+import monoid (IsMonoid)
+import group (IsGroup)
 
--- The type of (small) fields, flat like Group: two commutative
--- operations sharing a carrier, additive inverses, distributivity,
--- nontriviality, and multiplicative inverses for nonzero elements.
--- The inverse law is EXISTENTIAL (a squashed pair), not an inverse
--- operation: an operation would have to choose a value at zero, and
--- the corpus's qInvExists is exactly this statement.
-type Field ≔
-  (F : 𝕌)
-  (add : El F → El F → El F)
-  (mul : El F → El F → El F)
-  (neg : El F → El F)
-  (zero : El F)
-  (one : El F)
-  (addAssoc : (x : El F) (y : El F) (z : El F) →
-                add (add x y) z ≡ add x (add y z) ∈ El F)
-  (addComm : (x : El F) (y : El F) → add x y ≡ add y x ∈ El F)
-  (addZeroL : (x : El F) → add zero x ≡ x ∈ El F)
-  (addZeroR : (x : El F) → add x zero ≡ x ∈ El F)
-  (addNegL : (x : El F) → add (neg x) x ≡ zero ∈ El F)
-  (addNegR : (x : El F) → add x (neg x) ≡ zero ∈ El F)
-  (mulAssoc : (x : El F) (y : El F) (z : El F) →
-                mul (mul x y) z ≡ mul x (mul y z) ∈ El F)
-  (mulComm : (x : El F) (y : El F) → mul x y ≡ mul y x ∈ El F)
-  (mulOneL : (x : El F) → mul one x ≡ x ∈ El F)
-  (mulOneR : (x : El F) → mul x one ≡ x ∈ El F)
-  (distribL : (x : El F) (y : El F) (z : El F) →
-                mul x (add y z) ≡ add (mul x y) (mul x z) ∈ El F)
-  (distribR : (x : El F) (y : El F) (z : El F) →
-                mul (add y z) x ≡ add (mul y x) (mul z x) ∈ El F)
-  (oneNotZero : Prf (¬ (one ≡ zero ∈ El F))) ⨯
-  ((x : El F) → Prf (¬ (x ≡ zero ∈ El F)) →
-     Prf ∥(y : El F) ⨯ Prf (mul x y ≡ one ∈ El F)∥)
-
--- The additive structure is a group under neg...
-def fieldAddGroup : Field → Group ≔
-  λf. (f .π₁ ,
-       f .π₂ .π₁ ,
-       f .π₂ .π₂ .π₂ .π₁ ,
-       f .π₂ .π₂ .π₂ .π₂ .π₁ ,
-       f .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ ,
-       f .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ ,
-       f .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ ,
-       f .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ ,
-       f .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁)
-
--- ...and the multiplicative structure a monoid under one.
-def fieldMulMonoid : Field → Monoid ≔
-  λf. (f .π₁ ,
-       f .π₂ .π₂ .π₁ ,
-       f .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ ,
-       f .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ ,
-       f .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ ,
-       f .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁)
+-- Field structure on a small carrier: an additive group and a
+-- multiplicative monoid (both codes, so both layer directly),
+-- commutativity of each, distributivity, and the two components the
+-- Ω-world could not put in a code — stated with Id they can be:
+--   * nontriviality is a FUNCTION Id F one zero → 𝟘 (an Id-refutation
+--     is data, where Prf ⊥ could never yield an element of 𝟘);
+--   * inverses are an UNSQUASHED Σ-code — "here is the inverse", not
+--     "one exists" — available to any nonzero x, with nonzero-ness
+--     itself an Id-refutation.
+def IsField : 𝕌 → 𝕌 ≔ λF.
+  ((g : IsGroup F)
+   (mm : IsMonoid F) ⨯
+   (let add ≔ g .π₁ .π₁ in
+    let zero ≔ g .π₁ .π₂ .π₁ in
+    let mul ≔ mm .π₁ in
+    let one ≔ mm .π₂ .π₁ in
+    (((x : F) (y : F) → Id F (add x y) (add y x))
+     ⨯ ((x : F) (y : F) → Id F (mul x y) (mul y x))
+     ⨯ ((x : F) (y : F) (z : F) →
+          Id F (mul x (add y z)) (add (mul x y) (mul x z)))
+     ⨯ ((x : F) (y : F) (z : F) →
+          Id F (mul (add y z) x) (add (mul y x) (mul z x)))
+     ⨯ ((p : Id F one zero) → 𝟘)
+     ⨯ ((x : F) (k : (p : Id F x zero) → 𝟘) →
+          (y : F) ⨯ Id F (mul x y) one))))

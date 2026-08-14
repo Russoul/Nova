@@ -1,18 +1,21 @@
--- The type of (small) monoids: a carrier CODE M : 𝕌 with a binary
--- operation and a unit, packaged as a dependent pair type. The
--- structure itself cannot be a 𝕌-code — its laws are Prf-types and Ω
--- has no code — so it is a `type` item, and a concrete monoid is an
--- ordinary def of this type.
+import id (Id)
+
+-- Monoid STRUCTURE on a small carrier, as a 𝕌-family: IsMonoid M is a
+-- CODE packaging the operation, the unit and the laws, so it can sit
+-- inside other codes (IsGroup and IsField layer it directly) and be
+-- passed around as data. What makes this possible is id.nova's Id:
+-- the Ω-valued ≡ has no code, but its structural counterpart Id does,
+-- and the two are logically equivalent (idToEq/eqToId) — so laws
+-- stated with Id lose nothing, and instances convert the corpus's
+-- ≡-lemmas componentwise via eqToId.
 --
 -- Law orientations follow the corpus's conventions (plusAssoc,
 -- zeroPlusId, plusZeroId): assoc reassociates to the right, units
--- cancel toward the bare element — so the ℕ/ℤ/ℚ lemmas slot in as
--- components verbatim.
-type Monoid ≔
-  (M : 𝕌)
-  (op : El M → El M → El M)
-  (e : El M)
-  (assoc : (x : El M) (y : El M) (z : El M) →
-             op (op x y) z ≡ op x (op y z) ∈ El M)
-  (unitL : (x : El M) → op e x ≡ x ∈ El M) ⨯
-  ((x : El M) → op x e ≡ x ∈ El M)
+-- cancel toward the bare element.
+def IsMonoid : 𝕌 → 𝕌 ≔ λM.
+  ((op : M → M → M)
+   (e : M)
+   (assoc : (x : M) (y : M) (z : M) →
+              Id M (op (op x y) z) (op x (op y z)))
+   (unitL : (x : M) → Id M (op e x) x) ⨯
+   ((x : M) → Id M (op x e) x))
