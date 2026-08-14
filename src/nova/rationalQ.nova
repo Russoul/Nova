@@ -160,6 +160,8 @@ def ratAddDenMul : (p : El Rat) (q : El Rat) →
   λp. λq. nzToIntMul (den p) (den q)
 
 -- the relation instance the inner well-definedness goal reduces to
+-- [style:rw] ORIGINAL — kept for the style experiment beside its
+-- [style:explicit] twin below; candidate for later removal.
 def qAddWDInner : (p : El Rat) (q : El Rat) (q' : El Rat) (h : Prf (RatR q q')) →
   intMul (num (ratAdd p q)) (dInt (ratAdd p q'))
     ≡ intMul (num (ratAdd p q')) (dInt (ratAdd p q)) ∈ El Int using (nzToIntMul) ≔
@@ -178,6 +180,29 @@ def qAddWDInner : (p : El Rat) (q : El Rat) (q' : El Rat) (h : Prf (RatR q q')) 
         (intMul (num (ratAdd p q')) (dInt (ratAdd p q)))
         (crossAddWD (num p) (dInt p) (num q) (dInt q) (num q') (dInt q') h)
         (sym Int _ _ (intMulCong2 _ _ _ _ (ratAddNumMul p q') (ratAddDenMul p q))))
+
+-- [style:explicit] TWIN of qAddWDInner — only tier-0/½ conversion is
+-- implicit: the hypothesis h is invoked by name as a chain link, the
+-- congruences are spelled, no holes
+def qAddWDInnerX : (p : El Rat) (q : El Rat) (q' : El Rat) (h : Prf (RatR q q')) →
+  intMul (num (ratAdd p q)) (dInt (ratAdd p q'))
+    ≡ intMul (num (ratAdd p q')) (dInt (ratAdd p q)) ∈ El Int ≔
+  λp. λq. λq'. λh.
+    intMul (num (ratAdd p q)) (dInt (ratAdd p q'))
+      ≡⟨ intMulCong2 (num (ratAdd p q)) (dInt (ratAdd p q'))
+           (intAdd (intMul (dInt q) (num p)) (intMul (dInt p) (num q)))
+           (intMul (dInt p) (dInt q'))
+           (ratAddNumMul p q) (ratAddDenMul p q') ⟩
+    intMul (intAdd (intMul (dInt q) (num p)) (intMul (dInt p) (num q)))
+           (intMul (dInt p) (dInt q'))
+      ≡⟨ crossAddWD (num p) (dInt p) (num q) (dInt q) (num q') (dInt q') h ⟩
+    intMul (intAdd (intMul (dInt q') (num p)) (intMul (dInt p) (num q')))
+           (intMul (dInt p) (dInt q))
+      ≡⟨ intMulCong2 (num (ratAdd p q')) (dInt (ratAdd p q))
+           (intAdd (intMul (dInt q') (num p)) (intMul (dInt p) (num q')))
+           (intMul (dInt p) (dInt q))
+           (ratAddNumMul p q') (ratAddDenMul p q) ⟩
+    intMul (num (ratAdd p q')) (dInt (ratAdd p q))
 
 -- el-quot-eq: a proof of the relation gives equal classes
 def clsEqOfRel : (p : El Rat) (q : El Rat) → Prf (RatR p q) → class p ≡ class q ∈ El Q ≔
@@ -566,6 +591,8 @@ def relFlip : (n2 : El Int) (d2 : El Int) (n3 : El Int) (d3 : El Int)
         h
         (intMulComm n3 d2))
 
+-- [style:rw] ORIGINAL — kept for the style experiment beside its
+-- [style:explicit] twin below; candidate for later removal.
 def qMulWDInner : (p : El Rat) (q : El Rat) (q' : El Rat) (h : Prf (RatR q q')) →
   intMul (num (ratMul p q)) (dInt (ratMul p q'))
     ≡ intMul (num (ratMul p q')) (dInt (ratMul p q)) ∈ El Int using (nzToIntMul) ≔
@@ -596,6 +623,28 @@ def qMulWDInner : (p : El Rat) (q : El Rat) (q' : El Rat) (h : Prf (RatR q q')) 
         (sym Int _ _
           (mulCongR (intMul (num p) (num q')) (dInt (ratMul p q))
             (intMul (dInt p) (dInt q)) (nzToIntMul (den p) (den q)))))
+
+-- [style:explicit] TWIN of qMulWDInner — h invoked by name (via
+-- relFlip) as a chain link; congruences spelled; no holes
+def qMulWDInnerX : (p : El Rat) (q : El Rat) (q' : El Rat) (h : Prf (RatR q q')) →
+  intMul (num (ratMul p q)) (dInt (ratMul p q'))
+    ≡ intMul (num (ratMul p q')) (dInt (ratMul p q)) ∈ El Int ≔
+  λp. λq. λq'. λh.
+    intMul (num (ratMul p q)) (dInt (ratMul p q'))
+      ≡⟨ mulCongR (intMul (num p) (num q)) (dInt (ratMul p q'))
+           (intMul (dInt p) (dInt q')) (nzToIntMul (den p) (den q')) ⟩
+    intMul (intMul (num p) (num q)) (intMul (dInt p) (dInt q'))
+      ≡⟨ mulSwapOuter (num p) (num q) (dInt p) (dInt q') ⟩
+    intMul (intMul (dInt q') (num q)) (intMul (dInt p) (num p))
+      ≡⟨ mulCongL (intMul (dInt q') (num q)) (intMul (dInt q) (num q'))
+           (intMul (dInt p) (num p))
+           (relFlip (num q) (dInt q) (num q') (dInt q') h) ⟩
+    intMul (intMul (dInt q) (num q')) (intMul (dInt p) (num p))
+      ≡⟨ mulSwapOuter (num p) (num q') (dInt p) (dInt q) ⟩
+    intMul (intMul (num p) (num q')) (intMul (dInt p) (dInt q))
+      ≡⟨ mulCongR (intMul (num p) (num q')) (dInt (ratMul p q))
+           (intMul (dInt p) (dInt q)) (nzToIntMul (den p) (den q)) ⟩
+    intMul (num (ratMul p q')) (dInt (ratMul p q))
 
 def qMulWDInnerCls : (p : El Rat) (q : El Rat) (q' : El Rat) (h : Prf (RatR q q')) →
   class (ratMul p q) ≡ class (ratMul p q') ∈ El Q ≔
@@ -715,6 +764,8 @@ def distribDen : (p : El Rat) (q : El Rat) (r : El Rat) →
         (mulCongR (dInt p) (intMul (dInt p) (intMul (dInt q) (dInt r)))
           (dInt (ratMul p (ratAdd q r))) (sym Int _ _ (dIntMul3 p q r))))
 
+-- [style:rw] ORIGINAL — kept for the style experiment beside its
+-- [style:explicit] twin below; candidate for later removal.
 def distribNum : (p : El Rat) (q : El Rat) (r : El Rat) →
   num (ratAdd (ratMul p q) (ratMul p r))
     ≡ intMul (dInt p) (num (ratMul p (ratAdd q r))) ∈ El Int using (nzToIntMul) ≔
@@ -769,6 +820,54 @@ def distribNum : (p : El Rat) (q : El Rat) (r : El Rat) →
                 (intAdd (intMul (dInt r) (num q)) (intMul (dInt q) (num r)))
                 (num (ratAdd q r))
                 (sym Int _ _ (ratAddNumMul q r)))))))
+
+-- [style:explicit] TWIN of distribNum — six links, midpoints once,
+-- congruences spelled, no holes; orientation is the link engine's
+def distribNumX : (p : El Rat) (q : El Rat) (r : El Rat) →
+  num (ratAdd (ratMul p q) (ratMul p r))
+    ≡ intMul (dInt p) (num (ratMul p (ratAdd q r))) ∈ El Int ≔
+  λp. λq. λr.
+    num (ratAdd (ratMul p q) (ratMul p r))
+      ≡⟨ ratAddNumMul (ratMul p q) (ratMul p r) ⟩
+    intAdd (intMul (dInt (ratMul p r)) (num (ratMul p q)))
+           (intMul (dInt (ratMul p q)) (num (ratMul p r)))
+      ≡⟨ intAddCong2 (intMul (dInt (ratMul p r)) (num (ratMul p q)))
+                     (intMul (dInt (ratMul p q)) (num (ratMul p r)))
+                     (intMul (intMul (dInt p) (dInt r)) (intMul (num p) (num q)))
+                     (intMul (intMul (dInt p) (dInt q)) (intMul (num p) (num r)))
+           (mulCongL (dInt (ratMul p r)) (intMul (dInt p) (dInt r))
+              (intMul (num p) (num q)) (nzToIntMul (den p) (den r)))
+           (mulCongL (dInt (ratMul p q)) (intMul (dInt p) (dInt q))
+              (intMul (num p) (num r)) (nzToIntMul (den p) (den q))) ⟩
+    intAdd (intMul (intMul (dInt p) (dInt r)) (intMul (num p) (num q)))
+           (intMul (intMul (dInt p) (dInt q)) (intMul (num p) (num r)))
+      ≡⟨ intAddCong2 (intMul (intMul (dInt p) (dInt r)) (intMul (num p) (num q)))
+                     (intMul (intMul (dInt p) (dInt q)) (intMul (num p) (num r)))
+                     (intMul (dInt p) (intMul (num p) (intMul (dInt r) (num q))))
+                     (intMul (dInt p) (intMul (num p) (intMul (dInt q) (num r))))
+           (mulHoist (dInt p) (dInt r) (num p) (num q))
+           (mulHoist (dInt p) (dInt q) (num p) (num r)) ⟩
+    intAdd (intMul (dInt p) (intMul (num p) (intMul (dInt r) (num q))))
+           (intMul (dInt p) (intMul (num p) (intMul (dInt q) (num r))))
+      ≡⟨ intMulDistribL (dInt p)
+           (intMul (num p) (intMul (dInt r) (num q)))
+           (intMul (num p) (intMul (dInt q) (num r))) ⟩
+    intMul (dInt p) (intAdd (intMul (num p) (intMul (dInt r) (num q)))
+                            (intMul (num p) (intMul (dInt q) (num r))))
+      ≡⟨ mulCongR (dInt p)
+           (intMul (num p) (intAdd (intMul (dInt r) (num q)) (intMul (dInt q) (num r))))
+           (intAdd (intMul (num p) (intMul (dInt r) (num q)))
+                   (intMul (num p) (intMul (dInt q) (num r))))
+           (intMulDistribL (num p) (intMul (dInt r) (num q)) (intMul (dInt q) (num r))) ⟩
+    intMul (dInt p) (intMul (num p) (intAdd (intMul (dInt r) (num q))
+                                            (intMul (dInt q) (num r))))
+      ≡⟨ mulCongR (dInt p)
+           (intMul (num p) (num (ratAdd q r)))
+           (intMul (num p) (intAdd (intMul (dInt r) (num q)) (intMul (dInt q) (num r))))
+           (mulCongR (num p) (num (ratAdd q r))
+              (intAdd (intMul (dInt r) (num q)) (intMul (dInt q) (num r)))
+              (ratAddNumMul q r)) ⟩
+    intMul (dInt p) (num (ratMul p (ratAdd q r)))
 
 def qDistribRel : (p : El Rat) (q : El Rat) (r : El Rat) →
   intMul (num (ratMul p (ratAdd q r))) (dInt (ratAdd (ratMul p q) (ratMul p r)))

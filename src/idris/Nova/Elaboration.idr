@@ -4135,7 +4135,7 @@ elabItem item = withScope (if scopedMode then Just [] else Nothing) $ do
   -- resolved names over this). NOVA_GLOBAL_STORE=1 restores the
   -- historical whole-store search.
   pre <- getSt
-  echo <- elabItemGo item
+  echo <- timedM "item \{pre.modPrefix}.\{itemName item}" (elabItemGo item)
   st <- getSt
   after <- oblCount
   let preHoles = length (toList pre.holeMeta)
@@ -4163,7 +4163,7 @@ elabItem item = withScope (if scopedMode then Just [] else Nothing) $ do
     else do
       putSt ({ sig := resetNfCaches (pre.sig <>< keepEntries)
              , holeMeta := pre.holeMeta <>< keepMetas } pre)
-      elabItemGo item
+      timedM "item \{pre.modPrefix}.\{itemName item}" (elabItemGo item)
  where
   ||| Every Σ-name an entry's context, type, and body reference (Ty
   ||| pieces go through Squash to reuse the Elem collector).
