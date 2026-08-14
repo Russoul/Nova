@@ -2,15 +2,23 @@ import integer (Int, intZero, intNeg)
 import integerAdd (intAdd, intAddAssoc)
 import integerMul (intAddNegL, intAddNegR)
 import rational (intAddZeroL, intAddZeroR)
-import monoid (Monoid)
-import group (Group, groupMonoid)
+import id (eqToId)
+import monoid (IsMonoid)
+import group (IsGroup)
 
--- (ℤ, +, -, 0) is a group: carrier the quotient code Int, and every
--- law an existing corpus lemma (the unit laws live in rational.nova,
--- the inverse laws in integerMul.nova — imported from where they are).
-def intAddGroup : Group ≔
-  (Int , intAdd , intNeg , intZero ,
-   intAddAssoc , intAddZeroL , intAddZeroR , intAddNegL , intAddNegR)
+-- (ℤ, +, -, 0) is a group: the monoid component first (every law an
+-- existing corpus lemma across the Id bridge — the unit laws live in
+-- rational.nova, the inverse laws in integerMul.nova, imported from
+-- where they are), then the inverse operation and its two laws.
+def intAddGroup : El (IsGroup Int) ≔
+  ((intAdd , intZero ,
+    λx. λy. λz. eqToId Int (intAdd (intAdd x y) z) (intAdd x (intAdd y z))
+                  (intAddAssoc x y z) ,
+    λx. eqToId Int (intAdd intZero x) x (intAddZeroL x) ,
+    λx. eqToId Int (intAdd x intZero) x (intAddZeroR x)) ,
+   intNeg ,
+   λx. eqToId Int (intAdd (intNeg x) x) intZero (intAddNegL x) ,
+   λx. eqToId Int (intAdd x (intNeg x)) intZero (intAddNegR x))
 
--- and therefore a monoid, through the forgetful map.
-def intAddMonoid : Monoid ≔ groupMonoid intAddGroup
+-- the underlying monoid is the group's first component
+def intAddMonoid : El (IsMonoid Int) ≔ intAddGroup .π₁
