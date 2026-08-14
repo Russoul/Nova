@@ -43,12 +43,8 @@ import Data.SortedMap
 -- context is empty, so the spine is empty and the substitution is the
 -- identity: the call recomputes nf(body) from scratch. A body mentions
 -- only earlier entries and names are module-qualified, so nf(body) is
--- stable — for as long as Σ is only EXTENDED.
---
--- It is not: the elaborator flips a SigDecl (stuck hole) to a SigDef
--- when a hole is solved, and constraint deletion rebuilds Σ, at which
--- point a cached form may mention a name whose meaning changed.
--- `resetNfCaches` is called at exactly those sites.
+-- stable: with hole support removed, Σ is only ever EXTENDED during a
+-- run, so a cached entry is valid for the run's lifetime.
 --
 -- The unsafePerformIO here is BELOW the trust boundary (see the module
 -- header): a stale entry costs completeness, never soundness, since a
@@ -115,19 +111,6 @@ cachedSigLookup sig x =
     Nothing => case sigLookup x sig of
                  Just e => Just (nfInsert sigEntryIx x e)
                  Nothing => Nothing
-
-||| Drop all tables, returning the value handed in. Called wherever Σ
-||| changes non-monotonically.
-export
-resetNfCaches : (x : a) -> a
-resetNfCaches x = unsafePerformIO $ do
-  m <- readIORef betaElemNf
-  -- measurement: how many cached nfs each wipe discards (NOVA_PROFILE)
-  let x2 = bump "nf-reset" (cast (length (Data.SortedMap.toList m))) x
-  writeIORef betaElemNf empty
-  writeIORef betaTyNf empty
-  writeIORef sigEntryIx empty
-  pure x2
 
 
 mutual

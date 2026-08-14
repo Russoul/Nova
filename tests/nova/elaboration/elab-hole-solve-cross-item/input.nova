@@ -1,5 +1,0 @@
-def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
--- the constraint predates the solve by one item: it must SURVIVE
--- (its item already missed kernel admission), keeping the run dirty
-def first : plus Z _m ≡ S Z ∈ ℕ ≔ ⋆
-def pin : _m ≡ S Z ∈ ℕ ≔ ⋆
