@@ -899,6 +899,15 @@ whnf(C) = Prf (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ Prf R[id, a, b
 
 # Both ↓ judgements follow the same loop:
 #
+#   0. α-IDENTICAL AS WRITTEN → discharged by REFLEXIVITY: no
+#      normalization, no candidate assembly, no eager kernel replay
+#      (replay of the empty compare-beta-normal-forms certificate at
+#      identical sides cannot fail — the kernel takes the same
+#      shortcut — and the item-level check still replays it). This is
+#      the cheap-conversion TIER the explicit proof style leans on:
+#      an equation whose sides coincide textually costs one
+#      comparison, unconditionally — measured, that is the majority
+#      of a long explicit proof's switch conversions.
 #   1. whnf both sides (this alone discharges everything the old
 #      derivation machinery called "by computation": β, El-decoding,
 #      signature unfolding).
