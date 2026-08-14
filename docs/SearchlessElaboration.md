@@ -540,6 +540,18 @@ structurally. §5.5 (AC) and Part II (clause-driven normalization, the
 size factor) remain open; what is left of the engine time is almost
 entirely §9's δ-blowup.
 
+The TRIVIALITY TIERS of the ↓ loop have landed too (steps 0 and ½ of
+NovaElaboration.txt): α-identical sides discharge by reflexivity with
+no normalization, no candidates and no eager replay (63% of the
+corpus's committed conversions — the explicit style's signature;
+−16% wall), and computationally-joined sides (every ≜ rule except
+definition unfolding) discharge for surface-sized work with the eager
+replay kept as the normaliser-agreement canary. The δ-free
+computational normaliser costs ~0.3µs per check and is Part II's
+normaliser-in-waiting: its hit rate on this corpus is small until
+clause-ι joins it, by design — elaboration substitutes eagerly, so
+pure-β joins mostly arrive already α-identical.
+
 ## 15. Experiment inventory
 
 Everything below is measurement scaffolding or experiment, not design
