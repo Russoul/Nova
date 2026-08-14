@@ -1514,6 +1514,10 @@ mutual
   ||| evidence.
   spEqElemC : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Ty -> Maybe ECert
   spEqElemC dep st cs ctx a b ty =
+    -- TIER 0 (↓ step 0): α-identical as written — reflexivity, before
+    -- any normalization; nested speculative comparisons (congruence
+    -- children, side conditions, hop residues) hit this constantly
+    if a == b then Just (MkECert [] FBeta) else
     -- expose the equation's type by lemma normalization; when that
     -- takes steps, the certificate carries them as a TYPE BRIDGE and
     -- the whole replay happens at the exposed type (where positions
@@ -1812,6 +1816,8 @@ mutual
   ||| Γ ⊢ A ≐ B, speculatively, with evidence.
   spEqTyC : Nat -> ElabSt -> CandSet -> Ctx -> Ty -> Ty -> Maybe ECert
   spEqTyC dep st cs ctx tyA tyB =
+    -- TIER 0, as at spEqElemC
+    if tyA == tyB then Just (MkECert [] FBeta) else
     let t0 = nowNs ()
         (a, aSteps) = rwNfTyS st.sig cs.rw True tyA
         (b, bSteps) = rwNfTyS st.sig cs.rw False tyB
@@ -2299,48 +2305,58 @@ mutual
   ||| engine produced a certificate that failed replay (engine bug
   ||| signal, reported on the obligation).
   attemptE : Ctx -> String -> Elem -> Elem -> Ty -> ElabM (Either String ECert)
-  attemptE ctx site a b ty = do
-    st <- getSt
-    let t0 = nowNs ()
-    let cs0 = mkCandSet st ctx
-    let t1 = bump "cands" (nowNs () - t0) (nowNs ())
-    let cs = bump "candN" (cast (length cs0.all)) cs0
-    let tyM = bump "sz-att-in" (cast (elemSize a + elemSize b)) ty
-    let tyM2 = bump "sz-att-nf" (cast (elemSize (betaElem st.sig a) + elemSize (betaElem st.sig b))) tyM
-    let tyM3 = if a == b then bump "syn-eq-elem" 1 tyM2 else tyM2
-    let mcert = spEqElemC (fromMaybe spDepth st.depthOv) st cs ctx a b tyM3
-    let t2 = bump "engine" (nowNs () - t1) (nowNs ())
-    case mcert of
-      Nothing => pure (Left site)
-      Just cert =>
-        let kres = kCheckEqElem st.sig ctx kernelFuel cert a b ty in
-        case bump "kernel" (nowNs () - t2) kres of
-          Right () =>
-            let cert1 = if stepFree cert then bump "triv-stepless-elem" 1 cert else cert in
-            let names = nub (hintNamesC cert1) in
-            pure (Right (if null names then cert1
-                           else audit "AUDIT elem | \{st.modPrefix} | \{site} | \{joinBy ", " names}" cert1))
-          Left kerrMsg => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
+  attemptE ctx site a b ty =
+    -- TIER 0 (↓ step 0): α-identical sides discharge by REFLEXIVITY —
+    -- no candidate assembly, no engine, and no eager replay: kernel
+    -- replay of the empty FBeta certificate at identical sides cannot
+    -- fail (its normalizer is deterministic), and the item-level
+    -- check still replays it
+    if a == b
+      then pure (Right (bump "syn-eq-elem" 1 (MkECert [] FBeta)))
+      else do
+        st <- getSt
+        let t0 = nowNs ()
+        let cs0 = mkCandSet st ctx
+        let t1 = bump "cands" (nowNs () - t0) (nowNs ())
+        let cs = bump "candN" (cast (length cs0.all)) cs0
+        let tyM = bump "sz-att-in" (cast (elemSize a + elemSize b)) ty
+        let tyM2 = bump "sz-att-nf" (cast (elemSize (betaElem st.sig a) + elemSize (betaElem st.sig b))) tyM
+        let mcert = spEqElemC (fromMaybe spDepth st.depthOv) st cs ctx a b tyM2
+        let t2 = bump "engine" (nowNs () - t1) (nowNs ())
+        case mcert of
+          Nothing => pure (Left site)
+          Just cert =>
+            let kres = kCheckEqElem st.sig ctx kernelFuel cert a b ty in
+            case bump "kernel" (nowNs () - t2) kres of
+              Right () =>
+                let cert1 = if stepFree cert then bump "triv-stepless-elem" 1 cert else cert in
+                let names = nub (hintNamesC cert1) in
+                pure (Right (if null names then cert1
+                               else audit "AUDIT elem | \{st.modPrefix} | \{site} | \{joinBy ", " names}" cert1))
+              Left kerrMsg => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
 
   attemptT : Ctx -> String -> Ty -> Ty -> ElabM (Either String ECert)
-  attemptT ctx site tyA tyB = do
-    st <- getSt
-    let t0 = nowNs ()
-    let cs = mkCandSet st ctx
-    let t1 = bump "cands" (nowNs () - t0) (nowNs ())
-    let tyB2 = if tyA == tyB then bump "syn-eq-ty" 1 tyB else tyB
-    let mcert = spEqTyC (fromMaybe spDepth st.depthOv) st cs ctx tyA tyB2
-    let t2 = bump "engine" (nowNs () - t1) (nowNs ())
-    case mcert of
-      Nothing => pure (Left site)
-      Just cert =>
-        let kres = kCheckEqTy st.sig ctx kernelFuel cert tyA tyB in
-        case bump "kernel" (nowNs () - t2) kres of
-          Right () =>
-            let names = nub (hintNamesC cert) in
-            pure (Right (if null names then cert
-                           else audit "AUDIT ty | \{st.modPrefix} | \{site} | \{joinBy ", " names}" cert))
-          Left kerrMsg => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
+  attemptT ctx site tyA tyB =
+    -- TIER 0, as at attemptE: identical types are equal by reflexivity
+    if tyA == tyB
+      then pure (Right (bump "syn-eq-ty" 1 (MkECert [] FBeta)))
+      else do
+        st <- getSt
+        let t0 = nowNs ()
+        let cs = mkCandSet st ctx
+        let t1 = bump "cands" (nowNs () - t0) (nowNs ())
+        let mcert = spEqTyC (fromMaybe spDepth st.depthOv) st cs ctx tyA tyB
+        let t2 = bump "engine" (nowNs () - t1) (nowNs ())
+        case mcert of
+          Nothing => pure (Left site)
+          Just cert =>
+            let kres = kCheckEqTy st.sig ctx kernelFuel cert tyA tyB in
+            case bump "kernel" (nowNs () - t2) kres of
+              Right () =>
+                let names = nub (hintNamesC cert) in
+                pure (Right (if null names then cert
+                               else audit "AUDIT ty | \{st.modPrefix} | \{site} | \{joinBy ", " names}" cert))
+              Left kerrMsg => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
 
   ||| One side is an UNSOLVED SOLVABLE hole at its own context: flip
   ||| its declaration to a definition whose body is the other side —
