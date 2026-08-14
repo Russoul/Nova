@@ -1,28 +1,14 @@
-import monoid (Monoid)
+import id (Id)
+import monoid (IsMonoid)
 
--- The type of (small) groups: a monoid signature plus an inverse
--- operation, flat (its own carrier/op/unit components rather than a
--- nested Monoid) so that instance components stay one projection
--- deep. The forgetful map below recovers the underlying monoid.
-type Group ≔
-  (G : 𝕌)
-  (op : El G → El G → El G)
-  (inv : El G → El G)
-  (e : El G)
-  (assoc : (x : El G) (y : El G) (z : El G) →
-             op (op x y) z ≡ op x (op y z) ∈ El G)
-  (unitL : (x : El G) → op e x ≡ x ∈ El G)
-  (unitR : (x : El G) → op x e ≡ x ∈ El G)
-  (invL : (x : El G) → op (inv x) x ≡ e ∈ El G) ⨯
-  ((x : El G) → op x (inv x) ≡ e ∈ El G)
-
--- Forgetting the inverse: every Monoid component is a projection of
--- the Group, and each law's type matches the Monoid component type
--- on the nose (α-identical after the projections substitute in).
-def groupMonoid : Group → Monoid ≔
-  λg. (g .π₁ ,
-       g .π₂ .π₁ ,
-       g .π₂ .π₂ .π₂ .π₁ ,
-       g .π₂ .π₂ .π₂ .π₂ .π₁ ,
-       g .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ ,
-       g .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁)
+-- Group structure on a small carrier: a monoid COMPONENT (IsMonoid is
+-- a code, so it layers directly — the underlying monoid of a group g
+-- is just g .π₁) plus an inverse operation and its laws. The lets
+-- name the monoid's projections so the laws read as written math.
+def IsGroup : 𝕌 → 𝕌 ≔ λG.
+  ((m : IsMonoid G)
+   (inv : G → G) ⨯
+   (let op ≔ m .π₁ in
+    let e ≔ m .π₂ .π₁ in
+    (((x : G) → Id G (op (inv x) x) e)
+     ⨯ ((x : G) → Id G (op x (inv x)) e))))
