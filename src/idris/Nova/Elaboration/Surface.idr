@@ -50,11 +50,6 @@ mutual
     STyPrf : SElem -> STy
     ||| ν F — the coinductive type at a surface polynomial
     STyNu : SPoly -> STy
-    ||| ?x (rigid) or _x/_ (solvable) — a hole in type position: a
-    ||| type declaration in Σ, stuck until (if solvable) instantiated;
-    ||| blocks acceptance while it remains a declaration. The range is
-    ||| the token's source span (display metadata, for the LSP).
-    STyHole : Maybe Range -> (solvable : Bool) -> String -> STy
 
   ||| Surface polynomials — the one-hole codes of Foundation's
   ||| coinductive section. External pieces are element-level CODES; a
@@ -169,13 +164,6 @@ mutual
     SChain : SElem -> List (SElem, SElem) -> SElem
     ||| (t : T) — ascription; the lever into inference mode
     SAnn : SElem -> STy -> SElem
-    ||| ?x (rigid) or _x/_ (solvable) — a hole: a term declaration in
-    ||| Σ at the ambient context, stuck until (if solvable)
-    ||| instantiated by a pattern equation; reported with its type
-    ||| while open. Checking position only — a hole has no type of its
-    ||| own to infer. The range is the token's source span (display
-    ||| metadata, for the LSP).
-    SHole : Maybe Range -> (solvable : Bool) -> String -> SElem
 
 -- ===== Operators are names =====
 --
@@ -346,7 +334,6 @@ mutual
     show (STyNu f) = "Nu (\{show f})"
     show STyProp = "Ω"
     show (STyPrf e) = "Prf (\{show e})"
-    show (STyHole _ solvable x) = if solvable then "_\{x}" else "?\{x}"
 
   export covering
   Show SElem where
@@ -393,7 +380,6 @@ mutual
       "\{show x}" ++ concat (map (\(j, y) => " ≡⟨ \{show j} ⟩ \{show y}") ls)
     show (SSquashElim e x body) = "SquashElim (\{show e}) \{fst x} (\{show body})"
     show (SAnn t ty) = "Ann (\{show t}) (\{show ty})"
-    show (SHole _ solvable x) = if solvable then "_\{x}" else "?\{x}"
 
   public export
   covering

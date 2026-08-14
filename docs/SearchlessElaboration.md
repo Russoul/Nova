@@ -583,6 +583,15 @@ the switch conversions tier-0 hits, and each adjacency discharges
 against a single named candidate. The originals are tagged for removal
 once the style beds in.
 
+*(Update: the style bedded in. The twins were promoted under the
+original names, every remaining blank in the corpus was inferred once
+and pasted in — the corpus is now hole-free end to end (whole pipeline
+9.3s → 1.44s wall) — and hole support was then removed outright from
+the elaborator, the kernel, and both specs. Σ never mutates in place
+anymore; the only state an item leaves behind is its own entries. The
+metavariable redesign starts from this clean base, with E-1/E-1½ and
+PerfNotes "The cost of a hole" as its requirements list.)*
+
 ## 16. Experiment inventory
 
 Everything below is measurement scaffolding or experiment, not design

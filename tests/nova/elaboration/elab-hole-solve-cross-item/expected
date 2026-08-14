@@ -1,6 +1,0 @@
-defined plus
-defined first [+1 obligation, +1 hole]
-defined pin
-open obligations (1):
-  [1] ⊢ plus Z (S Z) ≐ S Z : ℕ
-      at: def first: checking ⋆

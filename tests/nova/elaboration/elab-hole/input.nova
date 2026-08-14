@@ -1,7 +1,0 @@
-def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
--- a rigid hole in element position: reported with its type, in context
-def lemma : (n : ℕ) → plus Z n ≡ n ∈ ℕ ≔ λn. ?base
--- a rigid hole in type position
-def f : ?T → ℕ ≔ λx. Z
--- a hole inside a larger term; the obligation mentioning it prints it bare
-def mixed : (n : ℕ) → S ?k ≡ S (S n) ∈ ℕ ≔ λn. ⋆

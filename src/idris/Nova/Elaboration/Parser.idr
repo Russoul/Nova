@@ -273,15 +273,18 @@ mutual
   -- T{4}: atoms
   parseSTyAtom : FixTable -> NameEnv -> Rule STy
   parseSTyAtom tbl env =
-        (do (r, x) <- bounds (do kwc '?'; parseName); pure (STyHole r False x))
-    <|> (kw "𝟘" $> STyZero)
+        (kw "𝟘" $> STyZero)
     <|> (kw "𝟙" $> STyOne)
     <|> (kw "ℕ" $> STyNat)
     <|> (kw "𝕌" $> STyUniv)
     <|> (kw "Ω" $> STyProp)
     <|> (do (r, x) <- bounds parseDottedName
             case unpack x of
-              ('_' :: rest) => pure (STyHole r True (pack rest))
+              -- `_`-leading identifiers were HOLES; the machinery is
+              -- removed (PerfNotes "The cost of a hole") ahead of the
+              -- metavariable redesign. Binder wildcards are a separate
+              -- production and unaffected.
+              ('_' :: rest) => fail "holes are not supported (spell the type)"
               _ => pure (STySig x))
     <|> (do kwc '('; sp; t <- parseSTy tbl env; sp; kwc ')'; pure t)
 
@@ -483,13 +486,8 @@ mutual
   -- t{5}: atoms, including ascription
   parseSElemAtom : FixTable -> NameEnv -> Rule SElem
   parseSElemAtom tbl env =
-        -- a rigid hole: `?` immediately followed by a name (the
-        -- char-level token stream enforces adjacency — a space fails
-        -- the name parser). Tried before the operator atom, so a bare
-        -- `?` operator token stays available
-        (do (r, x) <- bounds (do kwc '?'; parseName); pure (SHole r False x))
         -- mention form: (+) — the operator as an ordinary reference
-    <|> (do (r, op) <- bounds (do kwc '('; sp; op <- parseOpRef; sp; kwc ')'; pure op); pure (SSig r op))
+        (do (r, op) <- bounds (do kwc '('; sp; op <- parseOpRef; sp; kwc ')'; pure op); pure (SSig r op))
         -- a FIXITY-FREE operator token is an ordinary name atom (⊥, ⊤,
         -- prefix-applied ¬); declared-infix operators are excluded, so
         -- application juxtaposition never captures them
@@ -516,11 +514,11 @@ mutual
     <|> (kw "ℕ"   $> SNatC)
     <|> (do (r, x) <- bounds parseDottedName
             case unpack x of
-              -- a `_`-leading identifier (or bare `_`) is a SOLVABLE
-              -- hole — the elaborator may instantiate it; `_`-leading
-              -- names are reserved for this (binder wildcards are a
-              -- separate production and unaffected)
-              ('_' :: rest) => pure (SHole r True (pack rest))
+              -- `_`-leading identifiers were HOLES; the machinery is
+              -- removed (PerfNotes "The cost of a hole") ahead of the
+              -- metavariable redesign. Binder wildcards are a separate
+              -- production and unaffected.
+              ('_' :: rest) => fail "holes are not supported (spell the term)"
               _ =>
                 case resolveVar env x of
                   Just i  => pure (SVar r x i)

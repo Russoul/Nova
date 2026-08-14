@@ -101,7 +101,6 @@ mutual
     SChain (mapRefsE f g d x)
            (map (\(j, y) => (mapRefsE f g d j, mapRefsE f g d y)) ls)
   mapRefsE f g d (SAnn e ty) = SAnn (mapRefsE f g d e) (mapRefsTy f g d ty)
-  mapRefsE f g d (SHole r s x) = SHole r s x
 
   mapRefsTy : (onVar : Nat -> Maybe Range -> String -> Nat -> SElem) ->
               (onSig : Nat -> Maybe Range -> String -> SElem) ->
@@ -120,7 +119,6 @@ mutual
   mapRefsTy f g d STyProp = STyProp
   mapRefsTy f g d (STyPrf e) = STyPrf (mapRefsE f g d e)
   mapRefsTy f g d (STyNu p) = STyNu (mapRefsP f g d p)
-  mapRefsTy f g d (STyHole r s x) = STyHole r s x
 
   mapRefsP : (onVar : Nat -> Maybe Range -> String -> Nat -> SElem) ->
              (onSig : Nat -> Maybe Range -> String -> SElem) ->
@@ -207,7 +205,6 @@ mutual
   occursE f (SChain x ls) =
     occursE f x || any (\(j, y) => occursE f j || occursE f y) ls
   occursE f (SAnn e ty) = occursE f e || occursTy f ty
-  occursE f (SHole _ _ _) = False
 
   occursTy : String -> STy -> Bool
   occursTy f STyZero = False
@@ -224,7 +221,6 @@ mutual
   occursTy f STyProp = False
   occursTy f (STyPrf e) = occursE f e
   occursTy f (STyNu p) = occursP f p
-  occursTy f (STyHole _ _ _) = False
 
   occursP : String -> SPoly -> Bool
   occursP f SPHole = False
@@ -339,7 +335,6 @@ mutual
     do e' <- rwE f mk lead d e; body' <- rwE f mk lead (S d) body
        pure (SSquashElim e' x body')
   rwE f mk lead d (SAnn e ty) = [| SAnn (rwE f mk lead d e) (rwTy f mk lead d ty) |]
-  rwE f mk lead d (SHole r s x) = Just (SHole r s x)
 
   rwTy : (f : String) -> (mk : Nat) -> (lead : List Nat) -> Nat -> STy -> Maybe STy
   rwTy f mk lead d STyZero = Just STyZero
@@ -358,7 +353,6 @@ mutual
   rwTy f mk lead d STyProp = Just STyProp
   rwTy f mk lead d (STyPrf e) = STyPrf <$> rwE f mk lead d e
   rwTy f mk lead d (STyNu p) = STyNu <$> rwP f mk lead d p
-  rwTy f mk lead d (STyHole r s x) = Just (STyHole r s x)
 
   rwP : (f : String) -> (mk : Nat) -> (lead : List Nat) -> Nat -> SPoly -> Maybe SPoly
   rwP f mk lead d SPHole = Just SPHole
