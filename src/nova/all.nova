@@ -12,6 +12,7 @@ import monoid
 import group
 import field
 import natMonoid
+import natAlgebra
 import intGroup
 import ratField
 import nat

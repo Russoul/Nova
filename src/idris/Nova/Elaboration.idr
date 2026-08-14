@@ -88,8 +88,12 @@ record Cand where
   lhs : Elem
   rhs : Elem
   ||| build (proof element, selectors) from complete match bindings;
-  ||| the proof lives in the query context Γ
-  emit : List (Nat, Elem) -> Maybe (Elem, List Sel)
+  ||| the proof lives in the query context Γ. The Nat is the WEAKENING
+  ||| DEPTH: how many binders the query context has been extended by
+  ||| since the candidate was built (extendCS wraps it) — the closure
+  ||| shifts its Γ-fixed parts by it, while bindings (already
+  ||| extended-context elements) pass through untouched.
+  emit : Nat -> List (Nat, Elem) -> Maybe (Elem, List Sel)
   ||| lemma-normalization steps for the lhs (to be INVERTED at replay:
   ||| they turned the raw side into the stored pattern) and the rhs
   preL : List PStep
@@ -815,7 +819,7 @@ kernelFuel = 1000000
 
 materialize : Cand -> Bindings -> (onLhs : Bool) -> (sitePath : List Nat) -> Maybe (List Step)
 materialize c bs side pi = do
-  (prfMain, selsMain) <- c.emit bs
+  (prfMain, selsMain) <- c.emit 0 bs
   sigma <- instSub c.params 0 bs
   let instStep = \ps : PStep => MkStep side (pi ++ ps.ppath) (LProof (substElem ps.pprf sigma)) ps.psels ps.pflip
   let pre = map (\ps => { flip $= not } (instStep ps)) (reverse c.preL)
@@ -824,7 +828,7 @@ materialize c bs side pi = do
 
 materializeFlip : Cand -> Bindings -> (onLhs : Bool) -> Maybe (List Step)
 materializeFlip c bs side = do
-  (prfMain, selsMain) <- c.emit bs
+  (prfMain, selsMain) <- c.emit 0 bs
   sigma <- instSub c.params 0 bs
   let instStep = \ps : PStep => MkStep side ps.ppath (LProof (substElem ps.pprf sigma)) ps.psels ps.pflip
   -- flipped whole-equation use at the root: post-normalization is
@@ -1046,12 +1050,33 @@ selArity _ = 0
 ordered : List Cand -> List Cand
 ordered cs = let (a, b) = orderedParts cs in a ++ b
 
+||| A REWRITE rule needs a RIGID symbol at its lhs head: a bare
+||| parameter spine (v, v .π₁, v x) matches every same-shaped term
+||| first-order, and with matching type-blind such a rule fires at
+||| arbitrarily ill-typed positions — the certificate then dies at
+||| replay and takes the whole discharge down with it (id.nova's
+||| onlyZIsZ, v .π₁ ≡ Z at El OnlyZ, was the observed shape: in
+||| global-store mode it rewrote a .π₁ at El (IsNatAlgebra A)).
+||| Whole-equation and hop use are unaffected: there the FULL
+||| statement must match, and replay still guards. A Γ-variable head
+||| (i ≥ params) IS rigid — a hypothesis about a fixed context
+||| element is a legitimate rule.
+rigidLhs : Cand -> Bool
+rigidLhs c = go c.lhs
+ where
+  go : Elem -> Bool
+  go (CtxVar i) = i >= c.params
+  go (PiApp f _) = go f
+  go (SigmaElim1 t) = go t
+  go (SigmaElim2 t) = go t
+  go _ = True
+
 ||| The Σ-level partition of a lemma store: what mkCandSet used to
 ||| recompute on every attempt.
 sigCandParts : List Cand -> (List Cand, List Cand, List Cand, List Cand)
 sigCandParts ls =
   let cs = filter (\c => c.lhs /= c.rhs) ls
-      (sh, re) = orderedParts cs
+      (sh, re) = orderedParts (filter rigidLhs cs)
       hp = filter (\c => permutative c || elemSize c.rhs > elemSize c.lhs) cs
   in (cs, sh, re, hp)
 
@@ -1070,9 +1095,9 @@ closeCand c =
     { params $= (+ n)
     , paramTys $= (++ tys)
     , lhs := l, rhs := r
-    , emit := \bs => do
+    , emit := \wk, bs => do
         let parentBs = mapMaybe (\(i, e) => if i >= n then Just (minus i n, e) else Nothing) bs
-        (p, sels) <- c.emit parentBs
+        (p, sels) <- c.emit wk parentBs
         sel <- mk bs
         pure (p, sels ++ [sel])
     } c
@@ -1129,11 +1154,11 @@ hypCands st rw ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length 
     let k = minus (length ctx') (length ctx)
     case eqShape peeled of
       Just (l, r, t) =>
-        let mk : Bindings -> Maybe (Elem, List Sel)
-            mk = \bs => do
+        let mk : Nat -> Bindings -> Maybe (Elem, List Sel)
+            mk = \wk, bs => do
               args <- traverse (\p => lookup p bs)
                         (the (List Nat) (if k == 0 then [] else reverse [0 .. minus k 1]))
-              pure (foldl PiApp (CtxVar i) args, the (List Sel) [])
+              pure (foldl PiApp (CtxVar (i + wk)) args, the (List Sel) [])
         in if k == 0
              then let (l1, lSteps) = rwNfElemS st.sig lemmaRw True (betaElem st.sig l)
                       (r1, rSteps) = rwNfElemS st.sig lemmaRw True (betaElem st.sig r)
@@ -1151,7 +1176,7 @@ hypCands st rw ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length 
   groundEqCand prf (l, r, t) =
     let (l1, lSteps) = rwNfElemS st.sig lemmaRw True (betaElem st.sig l)
         (r1, rSteps) = rwNfElemS st.sig lemmaRw True (betaElem st.sig r)
-    in MkCand "hypothesis" 0 [] l1 r1 (\_ => Just (prf, [])) (toPSteps lSteps) (toPSteps rSteps)
+    in MkCand "hypothesis" 0 [] l1 r1 (\wk, _ => Just (weakenElemN wk prf, [])) (toPSteps lSteps) (toPSteps rSteps)
 
   pairEqs : Nat -> (proj : Elem) -> Ty -> List (Elem, (Elem, Elem, Ty))
   pairEqs fuel proj ty =
@@ -1265,9 +1290,22 @@ extendCS cs = MkCandSet (map wk cs.all) (map wk cs.rw) (map wk cs.hops)
   liftK Z = Wk
   liftK (S n) = under (liftK n)
 
+  wkSel : Nat -> Sel -> Sel
+  wkSel n (SelCod u) = SelCod (substElem u (liftK n))
+  wkSel n s = s
+
+  wkP : Nat -> PStep -> PStep
+  wkP n = { pprf $= (\e => substElem e (liftK n))
+          , psels $= map (wkSel n) }
+
   wk : Cand -> Cand
   wk c = { lhs $= (\e => substElem e (liftK c.params))
-         , rhs $= (\e => substElem e (liftK c.params)) } c
+         , rhs $= (\e => substElem e (liftK c.params))
+         , paramTys := snd (foldl (\(j, acc), ty =>
+             (S j, acc ++ [substTy ty (liftK j)])) (the (Nat, List Ty) (Z, [])) c.paramTys)
+         , emit $= (\f, w => f (S w))
+         , preL $= map (wkP c.params)
+         , postR $= map (wkP c.params) } c
 
 spDepth : Nat
 spDepth = 3
@@ -1348,18 +1386,16 @@ mutual
   spEqStructC : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Ty -> Maybe ECert
   spEqStructC dep st cs ctx a b Ty.OneTy = Just (MkECert [] FProp)
   spEqStructC dep st cs ctx a b Ty.ZeroTy = Just (MkECert [] FProp)
+  -- el-pi-eta, UNCONDITIONALLY: even two neutral sides may be joined
+  -- pointwise (funext-via-reflection — a hypothesis (x : A) → Prf
+  -- (f x ≡ g x) becomes a whole-equation candidate for the body once
+  -- the context is extended). Terminates: recursion is on cod.
   spEqStructC dep st cs ctx a b (Ty.PiTy dom cod) =
-    if isPiIntro a || isPiIntro b
-      then do sub <- spEqElemC dep st (extendCS cs) (ctx :< dom)
-                        (betaElem st.sig (PiApp (substElem a Wk) (CtxVar 0)))
-                        (betaElem st.sig (PiApp (substElem b Wk) (CtxVar 0)))
-                        cod
-              pure (MkECert [] (FEtaPi sub))
-      else Nothing
-   where
-    isPiIntro : Elem -> Bool
-    isPiIntro (PiIntro _) = True
-    isPiIntro _ = False
+    do sub <- spEqElemC dep st (extendCS cs) (ctx :< dom)
+                (betaElem st.sig (PiApp (substElem a Wk) (CtxVar 0)))
+                (betaElem st.sig (PiApp (substElem b Wk) (CtxVar 0)))
+                cod
+       pure (MkECert [] (FEtaPi sub))
   spEqStructC dep st cs ctx a b (Ty.SigmaTy dom cod) =
     if isPair a || isPair b
       then do c1 <- spEqElemC dep st cs ctx (betaElem st.sig (SigmaElim1 a)) (betaElem st.sig (SigmaElim1 b)) dom
@@ -2815,7 +2851,7 @@ mutual
           Elem.EqTy u v _ =>
             pure (closeCand (MkCand "chain link" 0 []
                     (betaElem st.sig u) (betaElem st.sig v)
-                    (\_ => Just (j', [])) [] []))
+                    (\wk, _ => Just (weakenElemN wk j', [])) [] []))
           _ => throw "\{site}: a chain justification must prove an equation"
         _ => throw "\{site}: a chain justification must prove an equation"
 
@@ -2978,8 +3014,8 @@ addLemma name delta ty = do
           k = length delta'
           teleLen = length delta
           peeledN = minus k teleLen
-          mk : Bindings -> Maybe (Elem, List Sel)
-          mk = \bs => do
+          mk : Nat -> Bindings -> Maybe (Elem, List Sel)
+          mk = \wk, bs => do
             teleArgs <- traverse (\p => lookup p bs)
                           (the (List Nat) (if teleLen == 0 then [] else reverse [peeledN .. minus k 1]))
             peeledArgs <- traverse (\p => lookup p bs)
