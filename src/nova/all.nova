@@ -24,6 +24,8 @@ import realAdd
 import ratArch
 import realEq
 import realOrder
+import ratAbs
+import realAbs
 import intGroup
 import ratField
 import nat

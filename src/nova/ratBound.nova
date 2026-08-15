@@ -1,10 +1,11 @@
 import rationalQ (Q, qAdd, qNeg, qZero, qAddComm, qAddAssoc, qAddZeroL, qAddZeroR,
                   qAddNegL, qAddNegR, qNegNeg)
-import rationalOrder (Sign, sPos, sgnQ, NonNegS, LeQ, leQRefl, leQOfEq, leQTrans,
+import rationalOrder (Sign, sPos, sNeg, sZero, sgnQ, NonNegS, LeQ, leQRefl, leQOfEq, leQTrans,
+                      sZeroNotNeg, sPosNotNeg,
                       leQPlusMono, leQPlusMonoL, qNegAdd, qPairSwap, qSubSplit,
                       qSubPlusCancel)
 import equality (trans, sym, cong, transport)
-import id (Id, eqToId)
+import id (Id, eqToId, idToEq)
 
 -- Two-sided bounds on ℚ, stated WITHOUT an absolute value: `Bnd b u`
 -- says −b ≤ u ≤ b. This is the shape every regularity/closeness
@@ -182,15 +183,27 @@ def qSubPlusCancelL : (x : El Q) (y : El Q) (w : El Q) →
 
 -- ===== nonnegativity from a positive sign =====
 
+-- u − 0 is u : the one rewriting step every 0 ≤ u proof needs
+def qSubZeroR : (u : El Q) → qAdd u (qNeg qZero) ≡ u ∈ El Q ≔
+  λu.
+    trans Q (qAdd u (qNeg qZero)) (qAdd u qZero) u
+      (cong Q (λv. Q) (λv. qAdd u v) (qNeg qZero) qZero qNegZeroQ)
+      (qAddZeroR u)
+
+-- 0 ≤ u whenever u's sign is nonnegative
+def leQZeroOfNonNeg : (u : El Q) → El (NonNegS (sgnQ u)) → El (LeQ qZero u) ≔
+  λu. λh.
+    transport Sign NonNegS (sgnQ u) (sgnQ (qAdd u (qNeg qZero)))
+      (sym Sign (sgnQ (qAdd u (qNeg qZero))) (sgnQ u)
+         (cong Q (λv. Sign) (λv. sgnQ v) (qAdd u (qNeg qZero)) u (qSubZeroR u)))
+      h
+
 -- 0 ≤ u whenever u's sign is positive: the difference u − 0 is u
 def leQZeroOfPos : (u : El Q) → (sgnQ u ≡ sPos ∈ El Sign) → El (LeQ qZero u) ≔
   λu. λh.
     inj₂ (eqToId Sign (sgnQ (qAdd u (qNeg qZero))) sPos
       (trans Sign (sgnQ (qAdd u (qNeg qZero))) (sgnQ u) sPos
-         (cong Q (λv. Sign) (λv. sgnQ v) (qAdd u (qNeg qZero)) u
-            (trans Q (qAdd u (qNeg qZero)) (qAdd u qZero) u
-               (cong Q (λv. Q) (λv. qAdd u v) (qNeg qZero) qZero qNegZeroQ)
-               (qAddZeroR u)))
+         (cong Q (λv. Sign) (λv. sgnQ v) (qAdd u (qNeg qZero)) u (qSubZeroR u))
          h))
 
 -- ===== growing a bound by a nonnegative amount =====
@@ -227,3 +240,18 @@ def bndOfBothLe : (b : El Q) (u : El Q) (v : El Q) →
        (qAdd u (qNeg v)) (qSubFlip v u)
        (leQNegFlip (qAdd v (qNeg u)) b h2) ,
      h1)
+
+-- a nonnegative sign is not the negative one — the refutation every
+-- decision branch needs
+def nonNegNotNeg : (s : El Sign) → El (NonNegS s) → El (Id Sign s sNeg) → 𝟘 ≔
+  λs. λnn. λhn.
+    ⊎-elim (w. 𝟘)
+      (h0. sZeroNotNeg
+             (trans Sign sZero s sNeg
+                (sym Sign s sZero (idToEq Sign s sZero h0))
+                (idToEq Sign s sNeg hn)))
+      (hp. sPosNotNeg
+             (trans Sign sPos s sNeg
+                (sym Sign s sPos (idToEq Sign s sPos hp))
+                (idToEq Sign s sNeg hn)))
+      nn

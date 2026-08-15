@@ -1,0 +1,122 @@
+import rationalQ (Q, qAdd, qNeg, qZero, qOne)
+import rationalOrder (LeQ, leQTrans)
+import ratBound (Bnd)
+import ratAbs (qAbs, qAbsNeg, qAbsAbs, qAbsZero, qAbsTriangle, leQZeroAbs,
+               bndAbsSub, qAbsOfNonNeg)
+import ratHalf (dbl)
+import real (rBound, leQZeroBound, Regular, RSeq, REq, Real, constReg,
+             realOfQ, realZero, realOne)
+import realNeg (seqOf, regOf, regBnd, bndReg, reqOf, realEqOfREq,
+                realEqOfPointwise, rNeg, realNeg)
+import realAdd (rAdd, realAdd)
+import realOrder (RLeP, rleOf, LeR, leQSubZero)
+import equality (trans, sym, cong, transport)
+
+-- ABSOLUTE VALUE on ℝ, defined POINTWISE. It works pointwise — with no
+-- index shift and no Archimedean argument — for one reason: the
+-- reverse triangle inequality in ℚ,
+--
+--   | |a| − |b| |  ≤  |a − b|          (ratAbs.nova's bndAbsSub)
+--
+-- says |·| is 1-Lipschitz, so it preserves BOTH the regularity modulus
+-- and the closeness relation on the nose. The same accident makes the
+-- triangle inequality for ℝ a pointwise fact: |x ⊕ y| and |x| ⊕ |y|
+-- sample at the SAME doubled index, so the ℚ-level inequality is all
+-- that is needed.
+
+def absSeq : El (ℕ → Q) → El (ℕ → Q) ≔ λf. λn. qAbs (f n)
+
+def absReg : (f : El (ℕ → Q)) → El (Regular f) → El (Regular (absSeq f)) ≔
+  λf. λh.
+    bndReg (absSeq f)
+      (λm. λn. bndAbsSub (rBound m n) (f m) (f n) (regBnd f h m n))
+
+def rAbs : El RSeq → El RSeq ≔
+  λx. (absSeq (seqOf x) , absReg (seqOf x) (regOf x))
+
+def rAbsWD : (x : El RSeq) (y : El RSeq) →
+  Prf (REq x y) → Prf (REq (rAbs x) (rAbs y)) ≔
+  λx. λy. λh.
+    squash-elim h
+      (u. reqOf (rAbs x) (rAbs y)
+            (λn. bndAbsSub (rBound n n) (seqOf x n) (seqOf y n) (u n)))
+
+def rAbsWDCls : (x : El RSeq) (y : El RSeq) (h : Prf (REq x y)) →
+  class (rAbs x) ≡ class (rAbs y) ∈ El Real ≔
+  λx. λy. λh. realEqOfREq (rAbs x) (rAbs y) (rAbsWD x y h)
+
+def realAbs : El Real → El Real using (rAbsWDCls) ≔
+  λu. quot-elim (w. El Real) (p. class (rAbs p)) u
+
+def realAbsCls : (x : El RSeq) → realAbs (class x) ≡ class (rAbs x) ∈ El Real ≔
+  λx. ⋆
+
+-- ===== the laws =====
+
+def realAbsNeg : (u : El Real) → realAbs (realNeg u) ≡ realAbs u ∈ El Real ≔
+  λu.
+    quot-elim (w. realAbs (realNeg w) ≡ realAbs w ∈ El Real)
+      (p. realEqOfPointwise (rAbs (rNeg p)) (rAbs p)
+            (λn. qAbsNeg (seqOf p n)))
+      u
+
+def realAbsAbs : (u : El Real) → realAbs (realAbs u) ≡ realAbs u ∈ El Real ≔
+  λu.
+    quot-elim (w. realAbs (realAbs w) ≡ realAbs w ∈ El Real)
+      (p. realEqOfPointwise (rAbs (rAbs p)) (rAbs p)
+            (λn. qAbsAbs (seqOf p n)))
+      u
+
+def realAbsOfQ : (q : El Q) →
+  realAbs (realOfQ q) ≡ realOfQ (qAbs q) ∈ El Real ≔
+  λq.
+    realEqOfPointwise (rAbs ((λn. q) , constReg q))
+                      ((λn. qAbs q) , constReg (qAbs q))
+      (λn. ⋆)
+
+def realAbsZero : realAbs realZero ≡ realZero ∈ El Real ≔
+  realEqOfPointwise (rAbs ((λn. qZero) , constReg qZero))
+                    ((λn. qZero) , constReg qZero)
+    (λn. ⋆)
+
+-- ===== nonnegativity and the triangle inequality =====
+
+-- 0 ≤ |x| : pointwise, since 0 − |x_n| ≤ 0 ≤ 2/(n+1)
+def rleZeroAbs : (x : El RSeq) →
+  Prf (RLeP ((λn. qZero) , constReg qZero) (rAbs x)) ≔
+  λx.
+    rleOf ((λn. qZero) , constReg qZero) (rAbs x)
+      (λn.
+        leQTrans (qAdd qZero (qNeg (qAbs (seqOf x n)))) qZero (rBound n n)
+          (leQSubZero qZero (qAbs (seqOf x n)) (leQZeroAbs (seqOf x n)))
+          (leQZeroBound n n))
+
+def leRZeroAbs : (u : El Real) → Prf (LeR realZero (realAbs u)) ≔
+  λu. quot-elim (w. Prf (LeR realZero (realAbs w))) (x. rleZeroAbs x) u
+
+-- |x + y| ≤ |x| + |y| : both sides sample at the SAME doubled index,
+-- so this is ℚ's triangle inequality, pointwise
+def rleAbsTriangle : (x : El RSeq) (y : El RSeq) →
+  Prf (RLeP (rAbs (rAdd x y)) (rAdd (rAbs x) (rAbs y))) ≔
+  λx. λy.
+    rleOf (rAbs (rAdd x y)) (rAdd (rAbs x) (rAbs y))
+      (λn.
+        leQTrans
+          (qAdd (qAbs (qAdd (seqOf x (dbl n)) (seqOf y (dbl n))))
+                (qNeg (qAdd (qAbs (seqOf x (dbl n))) (qAbs (seqOf y (dbl n))))))
+          qZero (rBound n n)
+          (leQSubZero (qAbs (qAdd (seqOf x (dbl n)) (seqOf y (dbl n))))
+             (qAdd (qAbs (seqOf x (dbl n))) (qAbs (seqOf y (dbl n))))
+             (qAbsTriangle (seqOf x (dbl n)) (seqOf y (dbl n))))
+          (leQZeroBound n n))
+
+def leRAbsTriangle : (u : El Real) (v : El Real) →
+  Prf (LeR (realAbs (realAdd u v)) (realAdd (realAbs u) (realAbs v))) ≔
+  λu. λv.
+    quot-elim (t. Prf (LeR (realAbs (realAdd t v))
+                           (realAdd (realAbs t) (realAbs v))))
+      (x. quot-elim (t. Prf (LeR (realAbs (realAdd (class x) t))
+                                 (realAdd (realAbs (class x)) (realAbs t))))
+            (y. rleAbsTriangle x y)
+            v)
+      u

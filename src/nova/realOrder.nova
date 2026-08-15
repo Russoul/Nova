@@ -1,17 +1,18 @@
 import rationalQ (Q, qAdd, qNeg, qZero, qOne, qAddComm, qAddNegR)
 import rationalOrder (Sign, sPos, sgnQ, LeQ, leQRefl, leQTrans, leQPlusMono,
-                      leQPlusMonoL, qSubPlusCancel)
+                      leQPlusMonoL, qSubPlusCancel, leQAntisym, sgnCases)
 import ratBound (Bnd, bndSubSym, bndEqB, leQVia, leQAdd, bndOfBothLe,
-                 qSubPlusCancelL, leQZeroOfPos)
+                 qSubPlusCancelL, leQZeroOfPos, nonNegNotNeg)
 import ratHalf (dbl, qInvHalf)
-import ratArch (leQOfArch, qFourSum, leQTripleInv)
+import ratArch (leQOfArch, qFourSum, leQTripleInv, leQOfFalse, leQAddShift)
 import real (qInvNat, rBound, leQZeroBound, Regular, RSeq, REq, Real,
              constReg, realOfQ, realZero, realOne)
-import realNeg (seqOf, regOf, regBnd, reqOf, reqSym, realEqOfREq)
+import realNeg (seqOf, regOf, regBnd, reqOf, reqSym, realEqOfREq, rNeg,
+                realNeg, qNegSub)
 import realAdd (rBoundHalf, leQBoundDblDiag, rAdd, realAdd)
 import realEq (qtr, reqTrans)
 import prop (propExt)
-import equality (trans, sym, cong, transport)
+import equality (trans, sym, cong, transport, transportP)
 
 -- THE ORDER on ℝ, Bishop-style: x ≤ y iff x_n − y_n ≤ 2/(n+1) for
 -- every n. Read literally that is a statement about representatives,
@@ -275,3 +276,66 @@ def leROfQ : (p : El Q) (q : El Q) →
 def sgnQOnePos : sgnQ qOne ≡ sPos ∈ El Sign ≔ ⋆
 def leQZeroOne : El (LeQ qZero qOne) ≔ leQZeroOfPos qOne sgnQOnePos
 def leRZeroOne : Prf (LeR realZero realOne) ≔ leROfQ qZero qOne leQZeroOne
+
+-- ===== ...and reflects the order =====
+
+-- The converse direction needs the Archimedean principle: a constant
+-- sequence's closeness bound at index 2k+1 is exactly 1/(k+1), so
+-- p ≤ q + 1/(k+1) for every k, and leQOfArch closes it. The verdict is
+-- DATA, so the squash is opened only inside the refuted branch (D-6).
+def leQOfLeR : (p : El Q) (q : El Q) →
+  Prf (LeR (realOfQ p) (realOfQ q)) → El (LeQ p q) ≔
+  λp. λq. λh.
+    ⊎-elim (w. El (LeQ p q))
+      (nn. nn)
+      (hneg.
+        leQOfFalse p q
+          (squash-elim h
+             (u. ⋆ (nonNegNotNeg (sgnQ (qAdd q (qNeg p)))
+                      (leQOfArch p q
+                         (λk.
+                           leQAddShift p q (qInvNat k)
+                             (transport Q (λw. LeQ (qAdd p (qNeg q)) w)
+                                (rBound (dbl k) (dbl k)) (qInvNat k)
+                                (qInvHalf k)
+                                (u (dbl k)))))
+                      hneg))))
+      (sgnCases (sgnQ (qAdd q (qNeg p))))
+
+-- so ℚ ↪ ℝ is an order EMBEDDING, and in particular injective
+def realOfQInj : (p : El Q) (q : El Q) →
+  (realOfQ p ≡ realOfQ q ∈ El Real) → p ≡ q ∈ El Q ≔
+  λp. λq. λe.
+    leQAntisym p q
+      (leQOfLeR p q
+         (transportP Real (λw. LeR (realOfQ p) w) (realOfQ p) (realOfQ q) e
+            (leRRefl (realOfQ p))))
+      (leQOfLeR q p
+         (transportP Real (λw. LeR w (realOfQ p)) (realOfQ p) (realOfQ q) e
+            (leRRefl (realOfQ p))))
+
+-- ===== negation reverses the order =====
+
+def rleNeg : (x : El RSeq) (y : El RSeq) →
+  Prf (RLeP x y) → Prf (RLeP (rNeg y) (rNeg x)) ≔
+  λx. λy. λh.
+    squash-elim h
+      (u. rleOf (rNeg y) (rNeg x)
+            (λn.
+              transport Q (λw. LeQ w (rBound n n))
+                (qAdd (seqOf x n) (qNeg (seqOf y n)))
+                (qAdd (qNeg (seqOf y n)) (qNeg (qNeg (seqOf x n))))
+                (sym Q (qAdd (qNeg (seqOf y n)) (qNeg (qNeg (seqOf x n))))
+                       (qAdd (seqOf x n) (qNeg (seqOf y n)))
+                   (qNegSub (seqOf y n) (seqOf x n)))
+                (u n)))
+
+def leRNeg : (u : El Real) (v : El Real) →
+  Prf (LeR u v) → Prf (LeR (realNeg v) (realNeg u)) ≔
+  λu. λv.
+    quot-elim (t. Prf (LeR t v) → Prf (LeR (realNeg v) (realNeg t)))
+      (x. quot-elim (t. Prf (LeR (class x) t) →
+                        Prf (LeR (realNeg t) (realNeg (class x))))
+            (y. λp. rleNeg x y p)
+            v)
+      u
