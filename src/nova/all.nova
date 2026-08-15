@@ -14,6 +14,7 @@ import field
 import natMonoid
 import natAlgebra
 import natOrder
+import intOrder
 import intGroup
 import ratField
 import nat
