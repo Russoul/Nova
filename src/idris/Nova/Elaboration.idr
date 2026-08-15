@@ -2371,28 +2371,41 @@ certOr Nothing = MkECert [] FBeta
 exposeCert : ElabSt -> Ctx -> Ty -> Ty -> Maybe (Ty, ECert)
 exposeCert st ctx ty tyX =
   -- "expose" is the head-exposure engine entry — speculative
-  -- conversion OUTSIDE the committed attempts (which carry "engine")
+  -- conversion OUTSIDE the committed attempts (which carry "engine").
+  -- The certificate ships INSIDE the skeleton with no committed
+  -- replay of its own, so it is VALIDATED here: an exposure whose
+  -- steps the kernel rejects (a hypothesis rewriting under a code
+  -- binder, say) must not poison the item.
   timed "expose" $ \_ =>
     let cs = mkCandSet st ctx in
-    map (\c => (tyX, c)) (spEqTyC spDepth st cs ctx ty tyX)
+    do c <- spEqTyC spDepth st cs ctx ty tyX
+       case kCheckEqTy st.sig ctx kernelFuel c ty tyX of
+         Right () => Just (tyX, c)
+         Left _ => Nothing
 
 preferPi : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, ECert))
 preferPi st ctx (Ty.PiTy a b) = Just (a, b, Nothing)
-preferPi st ctx ty = case rwNfTy st ctx ty of
-                       tyX@(Ty.PiTy a b) => (\e => (a, b, Just e)) <$> exposeCert st ctx ty tyX
-                       _ => Nothing
+preferPi st ctx ty = case betaTy st.sig ty of
+                       tyX@(Ty.PiTy a b) => Just (a, b, Just (tyX, MkECert [] FBeta))
+                       _ => case rwNfTy st ctx ty of
+                              tyX@(Ty.PiTy a b) => (\e => (a, b, Just e)) <$> exposeCert st ctx ty tyX
+                              _ => Nothing
 
 preferSigma : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, ECert))
 preferSigma st ctx (Ty.SigmaTy a b) = Just (a, b, Nothing)
-preferSigma st ctx ty = case rwNfTy st ctx ty of
-                          tyX@(Ty.SigmaTy a b) => (\e => (a, b, Just e)) <$> exposeCert st ctx ty tyX
-                          _ => Nothing
+preferSigma st ctx ty = case betaTy st.sig ty of
+                          tyX@(Ty.SigmaTy a b) => Just (a, b, Just (tyX, MkECert [] FBeta))
+                          _ => case rwNfTy st ctx ty of
+                                 tyX@(Ty.SigmaTy a b) => (\e => (a, b, Just e)) <$> exposeCert st ctx ty tyX
+                                 _ => Nothing
 
 preferSum : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, ECert))
 preferSum st ctx (Ty.SumTy a b) = Just (a, b, Nothing)
-preferSum st ctx ty = case rwNfTy st ctx ty of
-                        tyX@(Ty.SumTy a b) => (\e => (a, b, Just e)) <$> exposeCert st ctx ty tyX
-                        _ => Nothing
+preferSum st ctx ty = case betaTy st.sig ty of
+                        tyX@(Ty.SumTy a b) => Just (a, b, Just (tyX, MkECert [] FBeta))
+                        _ => case rwNfTy st ctx ty of
+                               tyX@(Ty.SumTy a b) => (\e => (a, b, Just e)) <$> exposeCert st ctx ty tyX
+                               _ => Nothing
 
 ||| A prop stuck only up to hypothesis rewriting (e.g. the relator's
 ||| ⊎-elim at neutral observations, unstuck by a variable-definition
@@ -2408,21 +2421,27 @@ exposeProp st ctx ty p =
 
 preferNu : ElabSt -> Ctx -> Ty -> Maybe (Poly, Maybe (Ty, ECert))
 preferNu st ctx (Ty.NuTy f) = Just (f, Nothing)
-preferNu st ctx ty = case rwNfTy st ctx ty of
-                       tyX@(Ty.NuTy f) => (\e => (f, Just e)) <$> exposeCert st ctx ty tyX
-                       _ => Nothing
+preferNu st ctx ty = case betaTy st.sig ty of
+                       tyX@(Ty.NuTy f) => Just (f, Just (tyX, MkECert [] FBeta))
+                       _ => case rwNfTy st ctx ty of
+                              tyX@(Ty.NuTy f) => (\e => (f, Just e)) <$> exposeCert st ctx ty tyX
+                              _ => Nothing
 
 preferQuot : ElabSt -> Ctx -> Ty -> Maybe (Ty, Elem, Maybe (Ty, ECert))
 preferQuot st ctx (Ty.Quotient a r) = Just (a, r, Nothing)
-preferQuot st ctx ty = case rwNfTy st ctx ty of
-                         tyX@(Ty.Quotient a r) => (\e => (a, r, Just e)) <$> exposeCert st ctx ty tyX
-                         _ => Nothing
+preferQuot st ctx ty = case betaTy st.sig ty of
+                         tyX@(Ty.Quotient a r) => Just (a, r, Just (tyX, MkECert [] FBeta))
+                         _ => case rwNfTy st ctx ty of
+                                tyX@(Ty.Quotient a r) => (\e => (a, r, Just e)) <$> exposeCert st ctx ty tyX
+                                _ => Nothing
 
 preferPrf : ElabSt -> Ctx -> Ty -> Maybe (Elem, Maybe (Ty, ECert))
 preferPrf st ctx (Prf p) = Just (p, Nothing)
-preferPrf st ctx ty = case rwNfTy st ctx ty of
-                        tyX@(Prf p) => (\e => (p, Just e)) <$> exposeCert st ctx ty tyX
-                        _ => Nothing
+preferPrf st ctx ty = case betaTy st.sig ty of
+                        tyX@(Prf p) => Just (p, Just (tyX, MkECert [] FBeta))
+                        _ => case rwNfTy st ctx ty of
+                               tyX@(Prf p) => (\e => (p, Just e)) <$> exposeCert st ctx ty tyX
+                               _ => Nothing
 
 ||| Attach a PExpose payload when exposure happened by normalization.
 withExpose : Maybe (Ty, ECert) -> Skel -> Skel

@@ -1,0 +1,310 @@
+import nat (+, plusComm, zeroPlusId)
+import natOrder (LeN, leTotal, sumZeroL)
+import integer (Int, intZero, intNeg)
+import integerAdd (intAdd, intAddComm, intAddAssoc)
+import integerMul (intAddNegL, intAddNegR, intNegNeg, classPairEta)
+import rational (intAddZeroL, intAddZeroR)
+import eqInt (intCanon, intCanonClass)
+import intEffective (intEffective)
+import equality (trans, sym, cong)
+import id (Id, idToEq, eqToId)
+
+-- Order on ℤ, same shape as natOrder's LeN: the difference between
+-- two integers in the right order is a NATURAL, so x ≤ y is a nat
+-- witness k with an Id-proof that x + k closes the gap. No quot-elim
+-- into 𝕌 is ever needed (𝕌-equality is structural, so a code family
+-- BY REPRESENTATIVES has no well-definedness proof): the family is
+-- built by COMPOSITION — intAdd, intOfNat, Id — and the one place
+-- representatives must be touched (deciding the order) goes through
+-- the honest function intCanon.
+def intOfNat : ℕ → El Int ≔ λn. class (n , Z)
+
+def LeZ : El Int → El Int → 𝕌 ≔
+  λx. λy. ((k : ℕ) ⨯ Id Int (intAdd x (intOfNat k)) y)
+
+-- ===== glue: intOfNat is an order-embedding-ready map =====
+
+def intOfNatZero : intOfNat Z ≡ intZero ∈ El Int ≔ ⋆
+def intOfNatPlus : (a : ℕ) (b : ℕ) →
+  intAdd (intOfNat a) (intOfNat b) ≡ intOfNat (a + b) ∈ El Int ≔ λa. λb. ⋆
+def intOfNatInjZ : (k : ℕ) → (intOfNat k ≡ intZero ∈ El Int) → k ≡ Z ∈ ℕ ≔
+  λk. λh. let r ≔ intEffective (k , Z) (Z , Z) h in ⋆
+
+-- x + ofNat (a + b) ≡ (x + ofNat a) + ofNat b, hypothesis-free
+def intOfNatSplit : (x : El Int) (a : ℕ) (b : ℕ) →
+  intAdd x (intOfNat (a + b)) ≡ intAdd (intAdd x (intOfNat a)) (intOfNat b) ∈ El Int ≔
+  λx. λa. λb.
+    (intAdd x (intOfNat (a + b))
+       ≡⟨ cong Int (λu. Int) (λu. intAdd x u) (intOfNat (a + b))
+            (intAdd (intOfNat a) (intOfNat b))
+            (sym Int (intAdd (intOfNat a) (intOfNat b)) (intOfNat (a + b))
+               (intOfNatPlus a b)) ⟩
+     intAdd x (intAdd (intOfNat a) (intOfNat b))
+       ≡⟨ sym Int (intAdd (intAdd x (intOfNat a)) (intOfNat b))
+            (intAdd x (intAdd (intOfNat a) (intOfNat b)))
+            (intAddAssoc x (intOfNat a) (intOfNat b)) ⟩
+     intAdd (intAdd x (intOfNat a)) (intOfNat b))
+
+-- ===== additive-group plumbing =====
+
+def intNegAdd : (z : El Int) (w : El Int) →
+  intNeg (intAdd z w) ≡ intAdd (intNeg z) (intNeg w) ∈ El Int ≔
+  λz. λw.
+    quot-elim (u. intNeg (intAdd u w) ≡ intAdd (intNeg u) (intNeg w) ∈ El Int)
+      (p. quot-elim (v. intNeg (intAdd (class p) v)
+                          ≡ intAdd (intNeg (class p)) (intNeg v) ∈ El Int)
+            (q. ⋆) w)
+      z
+
+-- −x + (x + a) ≡ a, hypothesis-free
+def intNegPlusCancel : (x : El Int) (a : El Int) →
+  intAdd (intNeg x) (intAdd x a) ≡ a ∈ El Int ≔
+  λx. λa.
+    (intAdd (intNeg x) (intAdd x a)
+       ≡⟨ sym Int (intAdd (intAdd (intNeg x) x) a) (intAdd (intNeg x) (intAdd x a))
+            (intAddAssoc (intNeg x) x a) ⟩
+     intAdd (intAdd (intNeg x) x) a
+       ≡⟨ cong Int (λu. Int) (λu. intAdd u a) (intAdd (intNeg x) x) intZero
+            (intAddNegL x) ⟩
+     intAdd intZero a
+       ≡⟨ intAddZeroL a ⟩
+     a)
+
+def intCancelL : (x : El Int) (a : El Int) (b : El Int) →
+  (intAdd x a ≡ intAdd x b ∈ El Int) → a ≡ b ∈ El Int ≔
+  λx. λa. λb. λh.
+    trans Int a (intAdd (intNeg x) (intAdd x a)) b
+      (sym Int (intAdd (intNeg x) (intAdd x a)) a (intNegPlusCancel x a))
+      (trans Int (intAdd (intNeg x) (intAdd x a)) (intAdd (intNeg x) (intAdd x b)) b
+         (cong Int (λu. Int) (λu. intAdd (intNeg x) u) (intAdd x a) (intAdd x b) h)
+         (intNegPlusCancel x b))
+
+-- x + (y − x) ≡ y, and y − (y − x) ≡ x: the two rearrangements the
+-- order decision below hangs on
+def intPlusDiff : (x : El Int) (y : El Int) →
+  intAdd x (intAdd y (intNeg x)) ≡ y ∈ El Int ≔
+  λx. λy.
+    (intAdd x (intAdd y (intNeg x))
+       ≡⟨ cong Int (λu. Int) (λu. intAdd x u) (intAdd y (intNeg x))
+            (intAdd (intNeg x) y) (intAddComm y (intNeg x)) ⟩
+     intAdd x (intAdd (intNeg x) y)
+       ≡⟨ sym Int (intAdd (intAdd x (intNeg x)) y) (intAdd x (intAdd (intNeg x) y))
+            (intAddAssoc x (intNeg x) y) ⟩
+     intAdd (intAdd x (intNeg x)) y
+       ≡⟨ cong Int (λu. Int) (λu. intAdd u y) (intAdd x (intNeg x)) intZero
+            (intAddNegR x) ⟩
+     intAdd intZero y
+       ≡⟨ intAddZeroL y ⟩
+     y)
+
+def intPlusNegDiff : (x : El Int) (y : El Int) →
+  intAdd y (intNeg (intAdd y (intNeg x))) ≡ x ∈ El Int ≔
+  λx. λy.
+    (intAdd y (intNeg (intAdd y (intNeg x)))
+       ≡⟨ cong Int (λu. Int) (λu. intAdd y u) (intNeg (intAdd y (intNeg x)))
+            (intAdd (intNeg y) (intNeg (intNeg x))) (intNegAdd y (intNeg x)) ⟩
+     intAdd y (intAdd (intNeg y) (intNeg (intNeg x)))
+       ≡⟨ cong Int (λu. Int) (λu. intAdd y (intAdd (intNeg y) u))
+            (intNeg (intNeg x)) x (intNegNeg x) ⟩
+     intAdd y (intAdd (intNeg y) x)
+       ≡⟨ sym Int (intAdd (intAdd y (intNeg y)) x) (intAdd y (intAdd (intNeg y) x))
+            (intAddAssoc y (intNeg y) x) ⟩
+     intAdd (intAdd y (intNeg y)) x
+       ≡⟨ cong Int (λu. Int) (λu. intAdd u x) (intAdd y (intNeg y)) intZero
+            (intAddNegR y) ⟩
+     intAdd intZero x
+       ≡⟨ intAddZeroL x ⟩
+     x)
+
+-- ===== the order =====
+
+def leZRefl : (x : El Int) → El (LeZ x x) ≔
+  λx. (Z , eqToId Int (intAdd x (intOfNat Z)) x (intAddZeroR x))
+
+def leZOfEq : (x : El Int) (y : El Int) → (x ≡ y ∈ El Int) → El (LeZ x y) ≔
+  λx. λy. λh.
+    (Z , eqToId Int (intAdd x (intOfNat Z)) y
+           (trans Int (intAdd x (intOfNat Z)) x y (intAddZeroR x) h))
+
+def leZTrans : (x : El Int) (y : El Int) (z : El Int) →
+               El (LeZ x y) → El (LeZ y z) → El (LeZ x z) ≔
+  λx. λy. λz. λl1. λl2.
+    (l1 .π₁ + l2 .π₁ ,
+     eqToId Int (intAdd x (intOfNat (l1 .π₁ + l2 .π₁))) z
+       (trans Int (intAdd x (intOfNat (l1 .π₁ + l2 .π₁)))
+              (intAdd (intAdd x (intOfNat (l1 .π₁))) (intOfNat (l2 .π₁))) z
+              (intOfNatSplit x (l1 .π₁) (l2 .π₁))
+              (trans Int (intAdd (intAdd x (intOfNat (l1 .π₁))) (intOfNat (l2 .π₁)))
+                     (intAdd y (intOfNat (l2 .π₁))) z
+                     (cong Int (λu. Int) (λu. intAdd u (intOfNat (l2 .π₁)))
+                        (intAdd x (intOfNat (l1 .π₁))) y
+                        (idToEq Int (intAdd x (intOfNat (l1 .π₁))) y (l1 .π₂)))
+                     (idToEq Int (intAdd y (intOfNat (l2 .π₁))) z (l2 .π₂)))))
+
+def leZAntisym : (x : El Int) (y : El Int) →
+                 El (LeZ x y) → El (LeZ y x) → x ≡ y ∈ El Int ≔
+  λx. λy. λl1. λl2.
+    let h1 ≔ idToEq Int (intAdd x (intOfNat (l1 .π₁))) y (l1 .π₂) in
+    let h2 ≔ idToEq Int (intAdd y (intOfNat (l2 .π₁))) x (l2 .π₂) in
+    let loop : intAdd x (intOfNat (l1 .π₁ + l2 .π₁)) ≡ x ∈ El Int ≔
+      trans Int (intAdd x (intOfNat (l1 .π₁ + l2 .π₁)))
+            (intAdd (intAdd x (intOfNat (l1 .π₁))) (intOfNat (l2 .π₁))) x
+            (intOfNatSplit x (l1 .π₁) (l2 .π₁))
+            (trans Int (intAdd (intAdd x (intOfNat (l1 .π₁))) (intOfNat (l2 .π₁)))
+                   (intAdd y (intOfNat (l2 .π₁))) x
+                   (cong Int (λu. Int) (λu. intAdd u (intOfNat (l2 .π₁)))
+                      (intAdd x (intOfNat (l1 .π₁))) y h1)
+                   h2) in
+    let sumz : intOfNat (l1 .π₁ + l2 .π₁) ≡ intZero ∈ El Int ≔
+      intCancelL x (intOfNat (l1 .π₁ + l2 .π₁)) intZero
+        (trans Int (intAdd x (intOfNat (l1 .π₁ + l2 .π₁))) x (intAdd x intZero)
+               loop
+               (sym Int (intAdd x intZero) x (intAddZeroR x))) in
+    let k1z ≔ sumZeroL (l1 .π₁) (l2 .π₁) (intOfNatInjZ (l1 .π₁ + l2 .π₁) sumz) in
+    trans Int x (intAdd x (intOfNat (l1 .π₁))) y
+      (trans Int x (intAdd x intZero) (intAdd x (intOfNat (l1 .π₁)))
+         (sym Int (intAdd x intZero) x (intAddZeroR x))
+         (cong Int (λu. Int) (λu. intAdd x u) intZero (intOfNat (l1 .π₁))
+            (sym Int (intOfNat (l1 .π₁)) intZero
+               (trans Int (intOfNat (l1 .π₁)) (intOfNat Z) intZero
+                  (cong ℕ (λu. Int) (λu. intOfNat u) (l1 .π₁) Z k1z)
+                  intOfNatZero))))
+      h1
+
+-- ===== monotonicity =====
+
+-- the shuffle, HYPOTHESIS-FREE (an equation hypothesis in scope can
+-- rewrite inside a stuck-scrutinee position of both chain sides at
+-- once; such lockstep steps are unreplayable, so keep the shuffle in
+-- a helper and use the hypothesis only through cong)
+def intAddShiftR : (x : El Int) (w : El Int) (v : El Int) →
+  intAdd (intAdd x w) v ≡ intAdd (intAdd x v) w ∈ El Int ≔
+  λx. λw. λv.
+    (intAdd (intAdd x w) v
+       ≡⟨ intAddAssoc x w v ⟩
+     intAdd x (intAdd w v)
+       ≡⟨ cong Int (λu. Int) (λu. intAdd x u) (intAdd w v) (intAdd v w)
+            (intAddComm w v) ⟩
+     intAdd x (intAdd v w)
+       ≡⟨ sym Int (intAdd (intAdd x v) w) (intAdd x (intAdd v w))
+            (intAddAssoc x v w) ⟩
+     intAdd (intAdd x v) w)
+
+def leZPlusMonoR : (x : El Int) (y : El Int) (w : El Int) →
+                   El (LeZ x y) → El (LeZ (intAdd x w) (intAdd y w)) ≔
+  λx. λy. λw. λle.
+    (le .π₁ ,
+     eqToId Int (intAdd (intAdd x w) (intOfNat (le .π₁))) (intAdd y w)
+       (trans Int (intAdd (intAdd x w) (intOfNat (le .π₁)))
+              (intAdd (intAdd x (intOfNat (le .π₁))) w) (intAdd y w)
+              (intAddShiftR x w (intOfNat (le .π₁)))
+              (cong Int (λu. Int) (λu. intAdd u w) (intAdd x (intOfNat (le .π₁))) y
+                 (idToEq Int (intAdd x (intOfNat (le .π₁))) y (le .π₂)))))
+
+def leZPlusMonoL : (x : El Int) (y : El Int) (w : El Int) →
+                   El (LeZ x y) → El (LeZ (intAdd w x) (intAdd w y)) ≔
+  λx. λy. λw. λle.
+    leZTrans (intAdd w x) (intAdd x w) (intAdd w y)
+      (leZOfEq (intAdd w x) (intAdd x w) (intAddComm w x))
+      (leZTrans (intAdd x w) (intAdd y w) (intAdd w y)
+        (leZPlusMonoR x y w le)
+        (leZOfEq (intAdd y w) (intAdd w y) (intAddComm y w)))
+
+-- again the shuffle first, hypothesis-free
+def intNegAddCancel : (x : El Int) (v : El Int) →
+  intAdd (intNeg (intAdd x v)) v ≡ intNeg x ∈ El Int ≔
+  λx. λv.
+    (intAdd (intNeg (intAdd x v)) v
+       ≡⟨ cong Int (λu. Int) (λu. intAdd u v) (intNeg (intAdd x v))
+            (intAdd (intNeg x) (intNeg v)) (intNegAdd x v) ⟩
+     intAdd (intAdd (intNeg x) (intNeg v)) v
+       ≡⟨ intAddAssoc (intNeg x) (intNeg v) v ⟩
+     intAdd (intNeg x) (intAdd (intNeg v) v)
+       ≡⟨ cong Int (λu. Int) (λu. intAdd (intNeg x) u)
+            (intAdd (intNeg v) v) intZero (intAddNegL v) ⟩
+     intAdd (intNeg x) intZero
+       ≡⟨ intAddZeroR (intNeg x) ⟩
+     intNeg x)
+
+def leZNegFlip : (x : El Int) (y : El Int) →
+                 El (LeZ x y) → El (LeZ (intNeg y) (intNeg x)) ≔
+  λx. λy. λle.
+    (le .π₁ ,
+     eqToId Int (intAdd (intNeg y) (intOfNat (le .π₁))) (intNeg x)
+       (trans Int (intAdd (intNeg y) (intOfNat (le .π₁)))
+              (intAdd (intNeg (intAdd x (intOfNat (le .π₁)))) (intOfNat (le .π₁)))
+              (intNeg x)
+              (cong Int (λu. Int) (λu. intAdd (intNeg u) (intOfNat (le .π₁)))
+                 y (intAdd x (intOfNat (le .π₁)))
+                 (sym Int (intAdd x (intOfNat (le .π₁))) y
+                    (idToEq Int (intAdd x (intOfNat (le .π₁))) y (le .π₂))))
+              (intNegAddCancel x (intOfNat (le .π₁)))))
+
+-- ===== the ℕ bridge =====
+
+def leZOfNat : (a : ℕ) (b : ℕ) → El (LeN a b) →
+               El (LeZ (intOfNat a) (intOfNat b)) ≔
+  λa. λb. λle.
+    (le .π₁ ,
+     eqToId Int (intAdd (intOfNat a) (intOfNat (le .π₁))) (intOfNat b)
+       (trans Int (intAdd (intOfNat a) (intOfNat (le .π₁)))
+              (intOfNat (a + le .π₁)) (intOfNat b)
+              (intOfNatPlus a (le .π₁))
+              (cong ℕ (λu. Int) (λu. intOfNat u) (a + le .π₁) b
+                 (idToEq ℕ (a + le .π₁) b (le .π₂)))))
+
+-- ===== totality: decide by the canonical form of the difference =====
+
+-- The class-equation legs, kept ABSTRACT in the pair components
+-- (ProvingFeedback D-3): instantiated at intCanon's projections the
+-- engine would match against the δ-UNFOLDED canon — a bare quot-elim
+-- that proof-spine inference cannot type.
+def clsOfRelGe : (a : ℕ) (b : ℕ) (k : ℕ) → (b + k ≡ a ∈ ℕ) →
+  class (k , Z) ≡ class (a , b) ∈ El Int using (plusComm, zeroPlusId) ≔
+  λa. λb. λk. λh. ⋆
+
+def clsOfRelLe : (a : ℕ) (b : ℕ) (k : ℕ) → (a + k ≡ b ∈ ℕ) →
+  class (k , Z) ≡ class (b , a) ∈ El Int using (plusComm, zeroPlusId) ≔
+  λa. λb. λk. λh. ⋆
+
+def intNegClass : (p : ℕ ⨯ ℕ) →
+  intNeg (class p) ≡ class (p .π₂ , p .π₁) ∈ El Int ≔ λp. ⋆
+
+def leZTotal : (x : El Int) (y : El Int) →
+               El (LeZ x y) ⊎ El (LeZ y x) ≔
+  λx. λy.
+    let d ≔ intAdd y (intNeg x) in
+    let hd ≔ intCanonClass d in
+    ⊎-elim (w. El (LeZ x y) ⊎ El (LeZ y x))
+      (nn.
+        let hb ≔ idToEq ℕ (intCanon d .π₂ + nn .π₁) (intCanon d .π₁) (nn .π₂) in
+        let e1 : intOfNat (nn .π₁) ≡ class (intCanon d) ∈ El Int ≔
+          (intOfNat (nn .π₁)
+             ≡⟨ clsOfRelGe (intCanon d .π₁) (intCanon d .π₂) (nn .π₁) hb ⟩
+           class (intCanon d .π₁ , intCanon d .π₂)
+             ≡⟨ classPairEta (intCanon d) ⟩
+           class (intCanon d)) in
+        inj₁ (nn .π₁ ,
+              eqToId Int (intAdd x (intOfNat (nn .π₁))) y
+                (trans Int (intAdd x (intOfNat (nn .π₁))) (intAdd x d) y
+                   (cong Int (λu. Int) (λu. intAdd x u) (intOfNat (nn .π₁)) d
+                      (trans Int (intOfNat (nn .π₁)) (class (intCanon d)) d e1 hd))
+                   (intPlusDiff x y))))
+      (nn.
+        let ha ≔ idToEq ℕ (intCanon d .π₁ + nn .π₁) (intCanon d .π₂) (nn .π₂) in
+        let e2 : intOfNat (nn .π₁) ≡ intNeg (class (intCanon d)) ∈ El Int ≔
+          (intOfNat (nn .π₁)
+             ≡⟨ clsOfRelLe (intCanon d .π₁) (intCanon d .π₂) (nn .π₁) ha ⟩
+           class (intCanon d .π₂ , intCanon d .π₁)
+             ≡⟨ sym Int (intNeg (class (intCanon d))) (class (intCanon d .π₂ , intCanon d .π₁))
+                  (intNegClass (intCanon d)) ⟩
+           intNeg (class (intCanon d))) in
+        inj₂ (nn .π₁ ,
+              eqToId Int (intAdd y (intOfNat (nn .π₁))) x
+                (trans Int (intAdd y (intOfNat (nn .π₁))) (intAdd y (intNeg d)) x
+                   (cong Int (λu. Int) (λu. intAdd y u) (intOfNat (nn .π₁)) (intNeg d)
+                      (trans Int (intOfNat (nn .π₁)) (intNeg (class (intCanon d)))
+                             (intNeg d) e2
+                             (cong Int (λu. Int) (λu. intNeg u) (class (intCanon d)) d hd)))
+                   (intPlusNegDiff x y))))
+      (leTotal (intCanon d .π₂) (intCanon d .π₁))

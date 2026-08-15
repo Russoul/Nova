@@ -254,7 +254,10 @@ aligned with the core term carrying eliminator motives, expected types
 at checked intro forms, switch/refl-eq/well-definedness certificates, and
 head-exposure payloads (an expected type whose Π/Σ/quotient structure
 only lemma normalization exposes ships as the exposed type plus a type
-certificate). The kernel's Σ is the authoritative one: an item is
+certificate; pure-δβ exposures ship a stepless certificate, and a
+stepped exposure is kernel-VALIDATED at emission — it rides inside the
+skeleton with no committed replay of its own, so an invalid one, e.g.
+a hypothesis rewriting under a code binder, must never be shipped). The kernel's Σ is the authoritative one: an item is
 admitted to it only when the item re-checks from kernel Σ alone, and a
 file is accepted exactly when the run's final signature is
 definitional and every item was so admitted. Two consequences of that discipline are
