@@ -206,3 +206,24 @@ def leQSelfAddL : (a : El Q) (b : El Q) →
   λa. λb. λle.
     transport Q (λw. LeQ a w) (qAdd a b) (qAdd b a) (qAddComm a b)
       (leQSelfAdd a b le)
+
+-- the ONE-SIDED triangle inequality: a difference splits through a
+-- midpoint and the two upper bounds add
+def leQVia : (a : El Q) (b : El Q) (u : El Q) (v : El Q) (w : El Q) →
+  El (LeQ (qAdd u (qNeg v)) a) → El (LeQ (qAdd v (qNeg w)) b) →
+  El (LeQ (qAdd u (qNeg w)) (qAdd a b)) ≔
+  λa. λb. λu. λv. λw. λh1. λh2.
+    transport Q (λz. LeQ z (qAdd a b))
+      (qAdd (qAdd u (qNeg v)) (qAdd v (qNeg w))) (qAdd u (qNeg w))
+      (qSubVia u v w)
+      (leQAdd (qAdd u (qNeg v)) a (qAdd v (qNeg w)) b h1 h2)
+
+-- an upper bound on the reversed difference is a lower bound on it
+def bndOfBothLe : (b : El Q) (u : El Q) (v : El Q) →
+  El (LeQ (qAdd u (qNeg v)) b) → El (LeQ (qAdd v (qNeg u)) b) →
+  El (Bnd b (qAdd u (qNeg v))) ≔
+  λb. λu. λv. λh1. λh2.
+    (transport Q (λw. LeQ (qNeg b) w) (qNeg (qAdd v (qNeg u)))
+       (qAdd u (qNeg v)) (qSubFlip v u)
+       (leQNegFlip (qAdd v (qNeg u)) b h2) ,
+     h1)

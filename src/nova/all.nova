@@ -21,6 +21,9 @@ import ratBound
 import ratHalf
 import realNeg
 import realAdd
+import ratArch
+import realEq
+import realOrder
 import intGroup
 import ratField
 import nat

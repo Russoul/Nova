@@ -8,8 +8,11 @@ what it cost, and — where there is one — a suggested fix.
 
 Sources so far: the ℤ → Rat → ℚ development
 (`integer.nova`, `integerAdd.nova`, `integerMul.nova`, `rational.nova`,
-`rationalQ.nova`, `rationalInv.nova`) and the observational
-equality/disequality of ℤ (`eqInt.nova`).
+`rationalQ.nova`, `rationalInv.nova`), the observational
+equality/disequality of ℤ (`eqInt.nova`), and the constructive reals
+(`ratBound.nova`, `ratHalf.nova`, `ratArch.nova`, `realNeg.nova`,
+`realAdd.nova`, `realEq.nova`, `realOrder.nova`) — items tagged **[ℝ]**
+below come from the last of these.
 
 ---
 
@@ -140,6 +143,25 @@ level up. That is why `qInvIsProp` is stated in pair-congruence form
 
 **Suggested fix:** a second set of combinators quantified over *types*
 rather than codes, or admissible congruence/η at arbitrary types.
+
+### A-7. [ℝ] Proof components of a Σ-CODE are not irrelevant
+
+A Bishop real is a pair `(f , reg)` — a sequence and a proof that it is
+regular. `Regular f` is a 𝕌-code (a Π of a pair of `LeQ`s), *not* a
+`Prf`, because a Σ-code cannot carry a `Prf` (A-1). So two elements of
+`RSeq` with the SAME sequence and different regularity witnesses are
+not judgementally equal, and there is no way to make them so.
+
+Consequence for the whole development: **no law about ℝ may be proved
+by an equality in the carrier.** `realNeg (realNeg u) ≡ u` cannot go
+"the sequences are pointwise equal, hence the pairs are equal, hence
+the classes are"; it must go through the quotient relation
+(`realEqOfPointwise`) every single time. In practice this costs
+nothing — the relation is weaker than equality, so the route is
+strictly easier — but it has to be set up as the *only* route from the
+start. A development that reaches for carrier equality first will get
+stuck with no diagnosis, because the missing step is an irrelevance
+that does not exist.
 
 ---
 
@@ -335,6 +357,69 @@ module again. The aggregate root `src/nova/all.nova` elaborates in
 either alphabetical or topological order, which is the regression test
 for it; `check-elaborations.sh` uses it by default.
 
+### B-9. [ℝ] AC-shaped goals over a quotient carrier: derived, then rejected
+
+The sharpest recurrence of B-1. Bounds in the reals are sums of unit
+fractions, and a triangle-inequality chain produces them in whatever
+association `bndVia` happened to build. Re-associating a six-leaf sum
+
+```
+((β + (β+β)) + (β+β)) + β  ≡  ((β+β) + (β+β)) + (β+β)     -- in ℚ
+```
+
+is *pure associativity* (both sides right-nest to the same term), and
+`using (qAddAssoc, qAddComm, qLeftSwap, qPairSwap)` with `⋆` does find
+a derivation — which the kernel then refuses:
+
+```
+replay failed: kernel: proof element not inferable: QuotElim (QuotElim (Class …
+```
+
+Cause as in B-1: `qAdd` is `quot-elim` on both arguments, twice over
+(ℚ is a quotient of a Σ over a quotient), so *every* position inside a
+ℚ-sum is a stuck scrutinee and no rewrite may land there. The size of
+the dumped core term (~6 kB for one 8-leaf goal) also makes G-1 acute.
+
+Workaround that works, and is worth stating as a technique: **never let
+the chain choose the association.** Prove one *generic* rearrangement
+lemma over variables, where every position is variable-headed —
+
+```
+qFourSum : (a b y : El Q) → ((a+b) + y) + (b+a) ≡ (a+a) + ((b+b) + y)
+```
+
+— and apply it by name (`bndEqB`) at each step. `qFourSum` is four
+`cong`/`trans` links and elaborates instantly; the same identity
+attempted in situ on the real bound does not go through at all. This
+is D-3 (keep representatives abstract) applied to *operators* rather
+than to elements.
+
+**Suggested fix:** unchanged from C-2 — AC-normalisation would delete
+this entire class of lemma. Failing that, the engine should not offer a
+certificate whose steps sit inside a `quot-elim` scrutinee.
+
+### B-10. [ℝ] `el-quot-eq`'s automatic route stops at equation relations
+
+`class x ≐ class y` in `A / R` is discharged automatically only when
+`R` is `∥𝟙∥`-shaped or an equality proposition (NovaElaboration's note
+under `e-star-quot-wit`). The reals are quotiented by a *squashed*
+closeness condition, so
+
+```
+def realEqOfREq : (x y : El RSeq) → Prf (REq x y) → class x ≡ class y ∈ El Real ≔
+  λx. λy. λh. ⋆
+```
+
+reports a bare open obligation `class x ≐ class y : El Real`, with no
+indication that the fix is to write the witness: `⋆ h`. Since the same
+spelling *is* correct one module down (`clsEqOfRel` for ℚ, whose
+relation is an equation), the failure reads as a soundness surprise
+rather than as a missing argument.
+
+**Suggested fix:** when a `class a ≐ class b` obligation is reported and
+the goal's relation is not in the automatic fragment, say so and name
+`⋆ e` in the hint line.
+
 ## C. Discharge-engine ergonomics
 
 ### C-1. Oriented rewriting means library lemmas need flipped copies
@@ -479,6 +564,66 @@ For `qAdd`, the *outer* well-definedness obligation was discharged for
 free by `ratAddComm`: commuting turns it into the inner case with the
 arguments swapped. Worth remembering whenever an operation is
 commutative — it halves the descent work.
+
+### D-6. [ℝ] Squash the witness; land the use in a DECIDABLE type
+
+The Archimedean property of ℚ — every positive `u` dominates some
+`1/(k+1)` — is a function producing an index, so the obvious statement
+is a Σ. It cannot be one: the index depends on the *representative*
+(½ and 2/4 name 2 and 4), and `quot-elim` into a Σ-code owes a
+well-definedness proof that is false. The statement must be
+
+```
+qArch : (u : El Q) → (sgnQ u ≡ sPos ∈ El Sign) → Prf ∥El (ArchWit u)∥
+```
+
+which, by A-5/F-2, can then only be eliminated into a `Prf`. That looks
+fatal for the intended use — deriving an ORDER fact `LeQ a b`, which is
+data (a `⊎` of `Id`s).
+
+It is not, and the escape is reusable. The order is **decidable**
+(`sgnCases`), so the use runs as: decide; in the good branch return the
+verdict; in the bad branch derive `Prf ⊥` (there the squash may be
+eliminated, since ⊥ is a proposition) and then re-enter the data type
+through the equation it is built from —
+
+```
+leQOfFalse : (x y : El Q) → Prf ⊥ → El (LeQ x y) ≔
+  λx. λy. λf. inj₁ (eqToId Sign (sgnQ (qAdd y (qNeg x))) sZero
+                     (absurdP (sgnQ (qAdd y (qNeg x)) ≡ sZero ∈ El Sign) f))
+```
+
+`absurdP` gives the *equation* the constructor wants, and `inj₁` gives
+the datum. So F-2's "a `Prf ⊥` can never produce data" is true only for
+an arbitrary type: for a type whose constructors are indexed by
+equations — which every order/sign verdict in this corpus is — ⊥ does
+reach it.
+
+Rule of thumb: a squashed existential is harmless whenever the theorem
+it proves is decidable. Decide first, squash-eliminate only inside the
+refuted branch.
+
+### D-7. [ℝ] Two-sided bounds instead of an absolute value
+
+`|u| ≤ b` has no good definition here: `qAbs` would need a sign case
+split, and every triangle inequality would then be a four-way case
+analysis. Defining instead
+
+```
+Bnd : El Q → El Q → 𝕌 ≔ λb. λu. (LeQ (qNeg b) u ⨯ LeQ u b)
+```
+
+makes the triangle inequality a *pair of independent monotonicity
+steps* (`bndAdd`) with no case analysis at all, and the two halves
+never interact. Regularity and closeness in `real.nova` were already
+written in exactly this shape by hand; naming it turned four-line
+in-line pairs into `bndAdd`/`bndVia`/`bndWeaken` applications and made
+the addition and transitivity proofs readable.
+
+Generalisable: in a linearly ordered setting with no decidable
+absolute value, prefer the *conjunction of two inequalities* as the
+primitive. It is definitionally the same thing and proof-theoretically
+much cheaper.
 
 ---
 
@@ -626,6 +771,34 @@ element can either keep the raw `𝟘` around, as `nzOfPairD` does with
 `Prf (p ∧ q)` needs `andIntro _ _ ⋆ ⋆`. The error message says exactly
 this and is one of the better diagnostics in the system.
 
+### F-4. [ℝ] A Σ-CODE binds over a code; a Σ-TYPE binds over `El` — and
+mixing them reports `unknown name`
+
+Both spellings occur throughout the corpus and they are not
+interchangeable:
+
+```
+def T : 𝕌 ≔ ((m : Int) ⨯ Id Int m m)                 -- code:  domain is a CODE
+def V : (z : El Int) → ((e : El NZ) ⨯ Prf (…)) ⊎ …   -- type:  domain is El CODE
+```
+
+Writing the second form where a code is expected —
+`def T : 𝕌 ≔ ((m : El Int) ⨯ Id Int m m)` — fails with
+
+```
+Error: def T: unknown name 'm'
+```
+
+i.e. the binder is silently not a binder, and the error points at the
+*use* of `m`, several lines away, with no mention of `⨯` or of codes.
+This cost the most wall-clock of anything in the ℝ development per
+character typed, because the message sends you looking for a missing
+import.
+
+**Suggested fix:** when a `⨯`/`→` domain in code position is an `El`
+application, say "a Σ-code binds over a code; drop the `El`" rather
+than failing on the body.
+
 ---
 
 ## G. Diagnostics
@@ -677,6 +850,18 @@ Things that had to be built before the actual development could start:
   `equality.nova`, generically.
 * No generic Σ-η (`pairEta`) — see B-3 for why the specific version is
   actively dangerous.
+* **[ℝ]** `rationalOrder.nova` had `LeQ` with reflexivity, totality,
+  transitivity, antisymmetry and monotonicity, but none of: negation
+  reversal (`leQNegFlip`), two-argument addition (`leQAdd`),
+  `0 ≤ b → a ≤ a + b` (`leQSelfAdd`), or nonnegativity from a positive
+  sign (`leQZeroOfPos`). All four are three-line transports and all
+  four are needed before any bound algebra can start; they now live in
+  `ratBound.nova`.
+* **[ℝ]** No Archimedean property for ℚ, and nothing that computes a
+  unit fraction below a given positive rational. `ratArch.nova` builds
+  it from `intNonZero`'s decision plus a denominator-sign
+  normalisation (`qNegDen`); ~200 lines, and it is the prerequisite for
+  every fact about ℝ that is not an index shift.
 
 ---
 
