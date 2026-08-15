@@ -6,6 +6,7 @@ import rational (NZ, nzPos, nzNeg, nzToInt, nzMul, Rat, mkRat, num, den, denInt,
                  ratNeg, ratZero, ratAdd, intScale)
 import rationalQ (Q, RatR, qcls, qAdd, qNeg, qZero, qAddComm, qAddAssoc,
                   qAddZeroL, qAddZeroR, qAddNegL, qAddNegR, qNegNeg, nzToIntMul,
+                  qMul, qMulComm, qMulZeroL, qDistribR, ratMul,
                   intScaleIsMul)
 import intNonZero (nzOfInt, nzToIntNonZero, intNoZeroDiv)
 import intOrder (intMulDistribR)
@@ -830,3 +831,173 @@ def leQAntisym : (x : El Q) (y : El Q) →
                  en)))
           l2)
       l1
+
+-- ===== compatibility with the operations =====
+
+-- (y + w) − (x + w) ≡ y − x, hypothesis-free
+def qSubPlusCancel : (x : El Q) (y : El Q) (w : El Q) →
+  qAdd (qAdd y w) (qNeg (qAdd x w)) ≡ qAdd y (qNeg x) ∈ El Q ≔
+  λx. λy. λw.
+    (qAdd (qAdd y w) (qNeg (qAdd x w))
+       ≡⟨ cong Q (λv. Q) (λv. qAdd (qAdd y w) v) (qNeg (qAdd x w))
+            (qAdd (qNeg x) (qNeg w)) (qNegAdd x w) ⟩
+     qAdd (qAdd y w) (qAdd (qNeg x) (qNeg w))
+       ≡⟨ qPairSwap y w (qNeg x) (qNeg w) ⟩
+     qAdd (qAdd y (qNeg x)) (qAdd w (qNeg w))
+       ≡⟨ cong Q (λv. Q) (λv. qAdd (qAdd y (qNeg x)) v) (qAdd w (qNeg w)) qZero
+            (qAddNegR w) ⟩
+     qAdd (qAdd y (qNeg x)) qZero
+       ≡⟨ qAddZeroR (qAdd y (qNeg x)) ⟩
+     qAdd y (qNeg x))
+
+-- monotonicity of + : one transport along the cancelled difference
+def leQPlusMono : (x : El Q) (y : El Q) (w : El Q) →
+  El (LeQ x y) → El (LeQ (qAdd x w) (qAdd y w)) ≔
+  λx. λy. λw. λle.
+    transport Sign NonNegS
+      (sgnQ (qAdd y (qNeg x)))
+      (sgnQ (qAdd (qAdd y w) (qNeg (qAdd x w))))
+      (sym Sign (sgnQ (qAdd (qAdd y w) (qNeg (qAdd x w)))) (sgnQ (qAdd y (qNeg x)))
+         (cong Q (λv. Sign) (λv. sgnQ v)
+            (qAdd (qAdd y w) (qNeg (qAdd x w))) (qAdd y (qNeg x))
+            (qSubPlusCancel x y w)))
+      le
+
+def leQPlusMonoL : (x : El Q) (y : El Q) (w : El Q) →
+  El (LeQ x y) → El (LeQ (qAdd w x) (qAdd w y)) ≔
+  λx. λy. λw. λle.
+    transport Q (λv. LeQ v (qAdd w y)) (qAdd x w) (qAdd w x) (qAddComm x w)
+      (transport Q (λv. LeQ (qAdd x w) v) (qAdd y w) (qAdd w y) (qAddComm y w)
+         (leQPlusMono x y w le))
+
+-- positive fractions multiply to a positive fraction: interchange
+-- num·num · den·den into (num·den)·(num·den)
+def ratMulPos : (p : El Rat) (q : El Rat) →
+  (ratSgn p ≡ sPos ∈ El Sign) → (ratSgn q ≡ sPos ∈ El Sign) →
+  ratSgn (ratMul p q) ≡ sPos ∈ El Sign ≔
+  λp. λq. λhp. λhq.
+    trans Sign (ratSgn (ratMul p q))
+          (intSgn (intMul (intMul (num p) (denInt p)) (intMul (num q) (denInt q))))
+          sPos
+      (cong Int (λv. Sign) (λv. intSgn v)
+         (intMul (intMul (num p) (num q)) (nzToInt (nzMul (den p) (den q))))
+         (intMul (intMul (num p) (denInt p)) (intMul (num q) (denInt q)))
+         ((intMul (intMul (num p) (num q)) (nzToInt (nzMul (den p) (den q)))
+             ≡⟨ cong Int (λv. Int) (λv. intMul (intMul (num p) (num q)) v)
+                  (nzToInt (nzMul (den p) (den q)))
+                  (intMul (nzToInt (den p)) (nzToInt (den q)))
+                  (nzToIntMul (den p) (den q)) ⟩
+           intMul (intMul (num p) (num q)) (intMul (nzToInt (den p)) (nzToInt (den q)))
+             ≡⟨ mulPairSwap (num p) (num q) (nzToInt (den p)) (nzToInt (den q)) ⟩
+           intMul (intMul (num p) (nzToInt (den p)))
+                  (intMul (num q) (nzToInt (den q))))))
+      (intSgnPosMul (intMul (num p) (denInt p)) (intMul (num q) (denInt q)) hp hq)
+
+def sgnQMulPos : (u : El Q) (v : El Q) →
+  (sgnQ u ≡ sPos ∈ El Sign) → (sgnQ v ≡ sPos ∈ El Sign) →
+  sgnQ (qMul u v) ≡ sPos ∈ El Sign ≔
+  λu. λv.
+    (quot-elim (w. (sgnQ w ≡ sPos ∈ El Sign) → (sgnQ v ≡ sPos ∈ El Sign) →
+                   (sgnQ (qMul w v) ≡ sPos ∈ El Sign))
+       (p. (quot-elim (w. (sgnQ (class p) ≡ sPos ∈ El Sign) →
+                          (sgnQ w ≡ sPos ∈ El Sign) →
+                          (sgnQ (qMul (class p) w) ≡ sPos ∈ El Sign))
+              (q. λhp. λhq. ratMulPos p q hp hq)
+              v))
+       u)
+
+-- (−x)·c ≡ −(x·c) on ℚ, by inverse uniqueness
+def qNegMulL : (x : El Q) (c : El Q) →
+  qMul (qNeg x) c ≡ qNeg (qMul x c) ∈ El Q ≔
+  λx. λc.
+    qNegUnique (qMul x c) (qMul (qNeg x) c)
+      (trans Q (qAdd (qMul x c) (qMul (qNeg x) c))
+             (qMul (qAdd x (qNeg x)) c) qZero
+         (sym Q (qMul (qAdd x (qNeg x)) c)
+              (qAdd (qMul x c) (qMul (qNeg x) c))
+              (qDistribR c x (qNeg x)))
+         (trans Q (qMul (qAdd x (qNeg x)) c) (qMul qZero c) qZero
+            (cong Q (λv. Q) (λv. qMul v c) (qAdd x (qNeg x)) qZero (qAddNegR x))
+            (qMulZeroL c)))
+
+-- (y − x)·c ≡ y·c − x·c, hypothesis-free
+def qSubDistribR : (x : El Q) (y : El Q) (c : El Q) →
+  qMul (qAdd y (qNeg x)) c ≡ qAdd (qMul y c) (qNeg (qMul x c)) ∈ El Q ≔
+  λx. λy. λc.
+    (qMul (qAdd y (qNeg x)) c
+       ≡⟨ qDistribR c y (qNeg x) ⟩
+     qAdd (qMul y c) (qMul (qNeg x) c)
+       ≡⟨ cong Q (λv. Q) (λv. qAdd (qMul y c) v) (qMul (qNeg x) c)
+            (qNeg (qMul x c)) (qNegMulL x c) ⟩
+     qAdd (qMul y c) (qNeg (qMul x c)))
+
+-- monotonicity of · by a NONNEGATIVE scalar: case the scalar's sign —
+-- a zero scalar collapses both sides, a positive one cases the
+-- difference's own sign
+def leQMulMono : (x : El Q) (y : El Q) (c : El Q) →
+  El (LeQ x y) → El (LeQ qZero c) →
+  El (LeQ (qMul x c) (qMul y c)) ≔
+  λx. λy. λc. λle. λlc.
+    let dEq : sgnQ (qAdd (qMul y c) (qNeg (qMul x c)))
+                ≡ sgnQ (qMul (qAdd y (qNeg x)) c) ∈ El Sign ≔
+      cong Q (λv. Sign) (λv. sgnQ v)
+        (qAdd (qMul y c) (qNeg (qMul x c))) (qMul (qAdd y (qNeg x)) c)
+        (sym Q (qMul (qAdd y (qNeg x)) c) (qAdd (qMul y c) (qNeg (qMul x c)))
+           (qSubDistribR x y c)) in
+    let cEq : sgnQ (qAdd c (qNeg qZero)) ≡ sgnQ c ∈ El Sign ≔
+      cong Q (λv. Sign) (λv. sgnQ v) (qAdd c (qNeg qZero)) c
+        (trans Q (qAdd c (qNeg qZero)) (qAdd c qZero) c
+           (cong Q (λv. Q) (λv. qAdd c v) (qNeg qZero) qZero ⋆)
+           (qAddZeroR c)) in
+    ⊎-elim (w. El (LeQ (qMul x c) (qMul y c)))
+      (hc0.
+        -- c ≡ 0: both products are zero, difference too
+        let c0 : c ≡ qZero ∈ El Q ≔
+          sgnQZeroView c
+            (trans Sign (sgnQ c) (sgnQ (qAdd c (qNeg qZero))) sZero
+               (sym Sign (sgnQ (qAdd c (qNeg qZero))) (sgnQ c) cEq)
+               (idToEq Sign (sgnQ (qAdd c (qNeg qZero))) sZero hc0)) in
+        inj₁ (eqToId Sign (sgnQ (qAdd (qMul y c) (qNeg (qMul x c)))) sZero
+          (trans Sign (sgnQ (qAdd (qMul y c) (qNeg (qMul x c))))
+                 (sgnQ (qMul (qAdd y (qNeg x)) c)) sZero
+             dEq
+             (trans Sign (sgnQ (qMul (qAdd y (qNeg x)) c)) (sgnQ qZero) sZero
+                (cong Q (λv. Sign) (λv. sgnQ v) (qMul (qAdd y (qNeg x)) c) qZero
+                   (trans Q (qMul (qAdd y (qNeg x)) c) (qMul (qAdd y (qNeg x)) qZero) qZero
+                      (cong Q (λv. Q) (λv. qMul (qAdd y (qNeg x)) v) c qZero c0)
+                      (trans Q (qMul (qAdd y (qNeg x)) qZero) (qMul qZero (qAdd y (qNeg x))) qZero
+                         (qMulComm (qAdd y (qNeg x)) qZero)
+                         (qMulZeroL (qAdd y (qNeg x))))))
+                sgnQZero))))
+      (hcp.
+        -- c positive: case the difference's sign
+        let hcs : sgnQ c ≡ sPos ∈ El Sign ≔
+          trans Sign (sgnQ c) (sgnQ (qAdd c (qNeg qZero))) sPos
+            (sym Sign (sgnQ (qAdd c (qNeg qZero))) (sgnQ c) cEq)
+            (idToEq Sign (sgnQ (qAdd c (qNeg qZero))) sPos hcp) in
+        ⊎-elim (w. El (LeQ (qMul x c) (qMul y c)))
+          (hd0.
+            -- y − x ≡ 0: products differ by zero
+            let d0 : qAdd y (qNeg x) ≡ qZero ∈ El Q ≔
+              sgnQZeroView (qAdd y (qNeg x))
+                (idToEq Sign (sgnQ (qAdd y (qNeg x))) sZero hd0) in
+            inj₁ (eqToId Sign (sgnQ (qAdd (qMul y c) (qNeg (qMul x c)))) sZero
+              (trans Sign (sgnQ (qAdd (qMul y c) (qNeg (qMul x c))))
+                     (sgnQ (qMul (qAdd y (qNeg x)) c)) sZero
+                 dEq
+                 (trans Sign (sgnQ (qMul (qAdd y (qNeg x)) c)) (sgnQ qZero) sZero
+                    (cong Q (λv. Sign) (λv. sgnQ v) (qMul (qAdd y (qNeg x)) c) qZero
+                       (trans Q (qMul (qAdd y (qNeg x)) c) (qMul qZero c) qZero
+                          (cong Q (λv. Q) (λv. qMul v c) (qAdd y (qNeg x)) qZero d0)
+                          (qMulZeroL c)))
+                    sgnQZero))))
+          (hdp.
+            inj₂ (eqToId Sign (sgnQ (qAdd (qMul y c) (qNeg (qMul x c)))) sPos
+              (trans Sign (sgnQ (qAdd (qMul y c) (qNeg (qMul x c))))
+                     (sgnQ (qMul (qAdd y (qNeg x)) c)) sPos
+                 dEq
+                 (sgnQMulPos (qAdd y (qNeg x)) c
+                    (idToEq Sign (sgnQ (qAdd y (qNeg x))) sPos hdp)
+                    hcs))))
+          le)
+      lc
