@@ -30,6 +30,8 @@ import ratLt
 import realLt
 import realGroup
 import realMetric
+import ratMax
+import realLattice
 import natMore
 import intAbs
 import intGroup
