@@ -84,6 +84,7 @@ buildIndex rootPath = concatMap (moduleEntries rootPath (dirOf rootPath))
 
 ||| Mirrors `Nova.Elaboration.resolveSigName`'s `vis`: the module's own
 ||| items (by their bare name) plus its imports' opened aliases.
+export
 localAliases : ModUnit -> List (String, String)
 localAliases unit =
   concatMap (\(_, item) => map (\n => (n, qualify unit.mname n)) (itemNames item)) unit.mitems
@@ -100,6 +101,7 @@ resolveReference root index written =
   let qualified = fromMaybe written (lookup written (localAliases root)) in
   map (\(_, file, rng) => (file, rng)) (List.find (\(n, _, _) => n == qualified) index)
 
+export
 isNameKind : TokenKind -> Bool
 isNameKind Identifier = True
 isNameKind Operator   = True
@@ -110,6 +112,7 @@ contains (MkRange s e) p =
   (p.line > s.line || (p.line == s.line && p.column >= s.column)) &&
   (p.line < e.line || (p.line == e.line && p.column < e.column))
 
+export
 sliceRange : List String -> NRange -> String
 sliceRange lns (MkRange (MkPosition sl sc) (MkPosition el ec)) =
   if sl /= el
