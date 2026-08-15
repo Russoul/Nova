@@ -1313,8 +1313,8 @@ goE sig ctx lic@(le, re, ltyN) [] b mexp u = do
           mu <- inferNeK sig ctx u
           case mu of
             Just uTy => kTy sig uTy
-            Nothing => kerr "kernel: step at a type-undetermined position"
-        else kerr "kernel: step at a type-undetermined position"
+            Nothing => kerr "kernel: step at a type-undetermined position [not inferable: \{show u}]"
+        else kerr "kernel: step at a type-undetermined position [b=\{show b}, at \{show u}]"
   if expN /= weakenTyN b ltyN
     then kerr "kernel: step type does not match the position"
     else if u == weakenN b le
