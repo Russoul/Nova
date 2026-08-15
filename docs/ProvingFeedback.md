@@ -580,7 +580,7 @@ name subterms but does not remove the repetition in `trans`.
 
 ## F. Syntax
 
-### F-1. λ bodies do not extend past `⨯`
+### F-1. λ bodies do not extend past `⨯` — RESOLVED
 
 ```
 cong ℕ (λu. ℕ ⨯ ℕ) …
@@ -594,6 +594,12 @@ pitfall about parenthesising equality-typed λ bodies applies to
 
 **Suggested fix:** either let λ bodies extend maximally, or mention the
 enclosing operator in the error.
+
+**Resolution:** λ and let-in bodies now extend maximally — over
+operators, the code formers, ≡-elements, calc chains, and pairs. The
+one price is the Agda/Haskell convention that came with it: a λ that
+is a NON-FINAL pair component must be parenthesised (`(λx. e) , f`),
+and the corpus's structure-instance tuples were migrated accordingly.
 
 *Checked and NOT a problem:* multi-binder Π sugar inside an eliminator
 motive (`(k. (m : ℕ) (n : ℕ) → …)`) parses and elaborates fine.

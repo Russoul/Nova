@@ -8,8 +8,8 @@ import monoid (IsMonoid)
 -- expected ones exactly.
 def natAddMonoid : El (IsMonoid ℕ) ≔
   ((+) , Z ,
-   λx. λy. λz. eqToId ℕ (x + y + z) (x + (y + z)) (plusAssoc x y z) ,
-   λx. eqToId ℕ (Z + x) x (zeroPlusId x) ,
+   (λx. λy. λz. eqToId ℕ (x + y + z) (x + (y + z)) (plusAssoc x y z)) ,
+   (λx. eqToId ℕ (Z + x) x (zeroPlusId x)) ,
    λx. eqToId ℕ (x + Z) x (plusZeroId x))
 
 -- The unit laws for * at S Z. On the right the whole statement is a
@@ -22,6 +22,6 @@ def oneMultL : (n : ℕ) → S Z * n ≡ n ∈ ℕ using (sucPlus, zeroPlusId) �
 -- (ℕ, *, 1) is a monoid.
 def natMulMonoid : El (IsMonoid ℕ) ≔
   ((*) , S Z ,
-   λx. λy. λz. eqToId ℕ (x * y * z) (x * (y * z)) (multAssoc x y z) ,
-   λx. eqToId ℕ (S Z * x) x (oneMultL x) ,
+   (λx. λy. λz. eqToId ℕ (x * y * z) (x * (y * z)) (multAssoc x y z)) ,
+   (λx. eqToId ℕ (S Z * x) x (oneMultL x)) ,
    λx. eqToId ℕ (x * S Z) x (multOneR x))
