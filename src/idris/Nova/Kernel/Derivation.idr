@@ -2349,6 +2349,12 @@ acceptTyDefItem sig fuel dT ty = do
 ||| A hole solution: the telescope's formation replayed first (the
 ||| soundness reading's residual condition discharged at this root),
 ||| then the type and body in the telescope context.
+||| CAVEAT (dormant): encodes the SOURCE branch's hole story — "a
+||| solution is a later Σ item replayed against the final signature".
+||| This branch removed hole support (Σ only ever extends); a revival
+||| keeps conclude + acceptDefItem/acceptTyDefItem as-is and
+||| re-derives this pair from whatever the metavariable redesign
+||| lands on (ProvingFeedback E-1/E-1½).
 export
 acceptSolItem : Sig -> Nat -> (Deriv, Deriv, Deriv) -> Ctx -> Ty -> Elem -> Either KErr ()
 acceptSolItem sig fuel (dCtx, dT, dt) delta ty body = do
@@ -2371,7 +2377,8 @@ acceptSolItem sig fuel (dCtx, dT, dt) delta ty body = do
       else Left "acceptance: solution body concluded a different judgement"
     _ => Left "acceptance: solution body concluded a non-typing judgement"
 
-||| A type-valued hole solution.
+||| A type-valued hole solution. Same dormancy caveat as
+||| acceptSolItem above.
 export
 acceptTySolItem : Sig -> Nat -> (Deriv, Deriv) -> Ctx -> Ty -> Either KErr ()
 acceptTySolItem sig fuel (dCtx, dT) delta ty = do
