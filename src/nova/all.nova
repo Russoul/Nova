@@ -17,6 +17,10 @@ import natOrder
 import intOrder
 import rationalOrder
 import real
+import ratBound
+import ratHalf
+import realNeg
+import realAdd
 import intGroup
 import ratField
 import nat

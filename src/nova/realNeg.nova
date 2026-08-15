@@ -1,0 +1,145 @@
+import rationalQ (Q, qAdd, qNeg, qZero, qOne, qAddComm, qNegNeg)
+import rationalOrder (LeQ)
+import ratBound (Bnd, bndAdd, bndNeg, bndEq, bndEqB, bndZero, bndSubEq, bndSubSym,
+                 bndVia, bndWeaken, leQAdd, leQNegFlip)
+import real (qInvNat, rBound, rBoundPos, leQZeroBound, leQNegBoundZero,
+             Regular, RSeq, REq, Real, constReg, realOfQ, realZero, realOne)
+import equality (trans, sym, cong, transport)
+
+-- Negation on ℝ, and the two halves of REq being an equivalence that
+-- need no analysis (reflexivity and symmetry). Everything is done in
+-- the Bnd algebra of ratBound.nova: a regular sequence is exactly one
+-- whose differences are Bnd-bounded by rBound, and REq is exactly a
+-- pointwise Bnd by rBound n n.
+
+-- ===== regularity and closeness, in Bnd form =====
+
+-- `Regular f` unfolds to a Π of the same pair Bnd is: the two bridges
+-- below are the identity, and exist only to name the shape
+def regBnd : (f : El (ℕ → Q)) → El (Regular f) →
+  (m : ℕ) (n : ℕ) → El (Bnd (rBound m n) (qAdd (f m) (qNeg (f n)))) ≔
+  λf. λh. λm. λn. h m n
+
+def bndReg : (f : El (ℕ → Q)) →
+  ((m : ℕ) (n : ℕ) → El (Bnd (rBound m n) (qAdd (f m) (qNeg (f n))))) →
+  El (Regular f) ≔
+  λf. λh. λm. λn. h m n
+
+def seqOf : El RSeq → El (ℕ → Q) ≔ λx. x .π₁
+def regOf : (x : El RSeq) → El (Regular (seqOf x)) ≔ λx. x .π₂
+
+-- REq is a squashed pointwise bound; intro takes the witness, elim is
+-- squash-elim (the target below is always a Prf, so this is legal)
+def reqOf : (x : El RSeq) (y : El RSeq) →
+  ((n : ℕ) → El (Bnd (rBound n n) (qAdd (seqOf x n) (qNeg (seqOf y n))))) →
+  Prf (REq x y) ≔
+  λx. λy. λh. ⋆ h
+
+-- ===== the bound is symmetric and nonnegative =====
+
+def rBoundSym : (m : ℕ) (n : ℕ) → rBound m n ≡ rBound n m ∈ El Q ≔
+  λm. λn. qAddComm (qInvNat m) (qInvNat n)
+
+-- ===== reflexivity and symmetry of REq =====
+
+-- pointwise-equal sequences are REq-close: every difference is zero,
+-- and zero is bounded by the (nonnegative) rBound
+def reqOfPointwise : (x : El RSeq) (y : El RSeq) →
+  ((n : ℕ) → seqOf x n ≡ seqOf y n ∈ El Q) → Prf (REq x y) ≔
+  λx. λy. λe.
+    reqOf x y
+      (λn. bndSubEq (rBound n n) (seqOf x n) (seqOf y n)
+             (leQZeroBound n n) (e n))
+
+def reqRefl : (x : El RSeq) → Prf (REq x x) ≔
+  λx. reqOfPointwise x x (λn. ⋆)
+
+def reqSym : (x : El RSeq) (y : El RSeq) → Prf (REq x y) → Prf (REq y x) ≔
+  λx. λy. λh.
+    squash-elim h
+      (u. reqOf y x
+            (λn. bndSubSym (rBound n n) (seqOf x n) (seqOf y n) (u n)))
+
+-- classes are equal as soon as the representatives are close
+-- (el-quot-eq), and pointwise equality suffices
+def realEqOfREq : (x : El RSeq) (y : El RSeq) →
+  Prf (REq x y) → class x ≡ class y ∈ El Real ≔
+  λx. λy. λh. ⋆ h
+
+def realEqOfPointwise : (x : El RSeq) (y : El RSeq) →
+  ((n : ℕ) → seqOf x n ≡ seqOf y n ∈ El Q) → class x ≡ class y ∈ El Real ≔
+  λx. λy. λe. realEqOfREq x y (reqOfPointwise x y e)
+
+-- ===== negation =====
+
+def negSeq : El (ℕ → Q) → El (ℕ → Q) ≔ λf. λn. qNeg (f n)
+
+-- (−u) − (−v) ≡ v − u : the difference of the negations is the
+-- difference reversed
+def qNegSub : (u : El Q) (v : El Q) →
+  qAdd (qNeg u) (qNeg (qNeg v)) ≡ qAdd v (qNeg u) ∈ El Q ≔
+  λu. λv.
+    (qAdd (qNeg u) (qNeg (qNeg v))
+       ≡⟨ cong Q (λw. Q) (λw. qAdd (qNeg u) w) (qNeg (qNeg v)) v (qNegNeg v) ⟩
+     qAdd (qNeg u) v
+       ≡⟨ qAddComm (qNeg u) v ⟩
+     qAdd v (qNeg u))
+
+-- the negated sequence is regular: its (m,n) difference is the
+-- original's (n,m) difference, and rBound is symmetric
+def negReg : (f : El (ℕ → Q)) → El (Regular f) → El (Regular (negSeq f)) ≔
+  λf. λh.
+    bndReg (negSeq f)
+      (λm. λn.
+        bndEq (rBound m n) (qAdd (f n) (qNeg (f m)))
+          (qAdd (qNeg (f m)) (qNeg (qNeg (f n))))
+          (sym Q (qAdd (qNeg (f m)) (qNeg (qNeg (f n)))) (qAdd (f n) (qNeg (f m)))
+             (qNegSub (f m) (f n)))
+          (bndEqB (rBound n m) (rBound m n) (qAdd (f n) (qNeg (f m)))
+             (rBoundSym n m) (regBnd f h n m)))
+
+def rNeg : El RSeq → El RSeq ≔
+  λx. (negSeq (seqOf x) , negReg (seqOf x) (regOf x))
+
+-- negation respects closeness — same reversal, one index at a time
+def rNegWD : (x : El RSeq) (y : El RSeq) → Prf (REq x y) →
+  Prf (REq (rNeg x) (rNeg y)) ≔
+  λx. λy. λh.
+    squash-elim h
+      (u. reqOf (rNeg x) (rNeg y)
+            (λn.
+              bndEq (rBound n n) (qAdd (seqOf y n) (qNeg (seqOf x n)))
+                (qAdd (qNeg (seqOf x n)) (qNeg (qNeg (seqOf y n))))
+                (sym Q (qAdd (qNeg (seqOf x n)) (qNeg (qNeg (seqOf y n))))
+                       (qAdd (seqOf y n) (qNeg (seqOf x n)))
+                   (qNegSub (seqOf x n) (seqOf y n)))
+                (bndSubSym (rBound n n) (seqOf x n) (seqOf y n) (u n))))
+
+def rNegWDCls : (x : El RSeq) (y : El RSeq) (h : Prf (REq x y)) →
+  class (rNeg x) ≡ class (rNeg y) ∈ El Real ≔
+  λx. λy. λh. realEqOfREq (rNeg x) (rNeg y) (rNegWD x y h)
+
+def realNeg : El Real → El Real using (rNegWDCls) ≔
+  λu. quot-elim (w. El Real) (p. class (rNeg p)) u
+
+def realNegCls : (x : El RSeq) → realNeg (class x) ≡ class (rNeg x) ∈ El Real ≔
+  λx. ⋆
+
+-- ===== the laws =====
+
+def realNegNeg : (u : El Real) → realNeg (realNeg u) ≡ u ∈ El Real ≔
+  λu.
+    quot-elim (w. realNeg (realNeg w) ≡ w ∈ El Real)
+      (p. realEqOfPointwise (rNeg (rNeg p)) p (λn. qNegNeg (seqOf p n)))
+      u
+
+-- the embedding of ℚ is a homomorphism for negation: both sides are
+-- the constant sequence at −q
+def realNegOfQ : (q : El Q) → realNeg (realOfQ q) ≡ realOfQ (qNeg q) ∈ El Real ≔
+  λq. realEqOfPointwise (rNeg ((λn. q) , constReg q)) ((λn. qNeg q) , constReg (qNeg q))
+        (λn. ⋆)
+
+def realNegZero : realNeg realZero ≡ realZero ∈ El Real ≔
+  realEqOfPointwise (rNeg ((λn. qZero) , constReg qZero))
+                    ((λn. qZero) , constReg qZero)
+                    (λn. ⋆)

@@ -1,0 +1,140 @@
+import nat (+, *, sucPlus)
+import integer (Int, intOne)
+import integerAdd (intAdd)
+import integerMul (intMul, intMulOneL, intMulDistribL, intMulDistribR)
+import intOrder (intOfNat, intOfNatPlus)
+import rational (NZ, nzPos, nzMul, nzToInt, Rat, mkRat, num, den, ratAdd,
+                 intScale, intScaleToInt)
+import rationalQ (Q, qcls, qAdd, qAddCls, RatR, dInt, clsEqOfRel, nzToIntMul)
+import real (qInvNat)
+import equality (trans, sym, cong)
+
+-- The HALVING law for the harmonic bounds: 1/(2n+2) + 1/(2n+2) is
+-- 1/(n+1). This is the one arithmetic fact that makes addition on ℝ
+-- possible — Bishop's regular sequences carry their modulus in the
+-- type, so a sum has to be SAMPLED at doubled indices, and the
+-- doubling is paid for exactly here.
+--
+-- `dbl n` is the index whose bound halves n's: qInvNat k denotes
+-- 1/(k+1), so qInvNat (dbl n) is 1/(2n+2).
+--
+-- The proof never touches a difference-pair representative. Both
+-- fractions are 1/·, so cross-multiplication reduces to a RING
+-- identity in Int — ((g+g)+(g+g))·g ≡ (g+g)·(g+g), two
+-- distributivities — once the denominators are pushed through
+-- nzToInt.
+
+def dbl : ℕ → ℕ ≔ λn. S (n + n)
+
+-- ===== the Int identity behind it =====
+
+-- 4g² two ways: distribute right, then collect left
+def intDblSquare : (g : El Int) →
+  intMul (intAdd (intAdd g g) (intAdd g g)) g
+    ≡ intMul (intAdd g g) (intAdd g g) ∈ El Int ≔
+  λg.
+    (intMul (intAdd (intAdd g g) (intAdd g g)) g
+       ≡⟨ intMulDistribR (intAdd g g) (intAdd g g) g ⟩
+     intAdd (intMul (intAdd g g) g) (intMul (intAdd g g) g)
+       ≡⟨ sym Int (intMul (intAdd g g) (intAdd g g))
+            (intAdd (intMul (intAdd g g) g) (intMul (intAdd g g) g))
+            (intMulDistribL (intAdd g g) g g) ⟩
+     intMul (intAdd g g) (intAdd g g))
+
+-- ===== pushing the doubled index through nzToInt =====
+
+def nzPosInt : (k : ℕ) → nzToInt (nzPos k) ≡ intOfNat (S k) ∈ El Int ≔ λk. ⋆
+
+-- S (dbl n) is 2·(n+1) — one successor moved across a sum
+def sucDbl : (n : ℕ) → S (dbl n) ≡ S n + S n ∈ ℕ using (sucPlus) ≔ λn. ⋆
+
+-- the doubled denominator IS the original one, doubled in Int
+def nzPosDbl : (n : ℕ) →
+  nzToInt (nzPos (dbl n))
+    ≡ intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n)) ∈ El Int ≔
+  λn.
+    (nzToInt (nzPos (dbl n))
+       ≡⟨ nzPosInt (dbl n) ⟩
+     intOfNat (S (dbl n))
+       ≡⟨ cong ℕ (λw. Int) (λw. intOfNat w) (S (dbl n)) (S n + S n) (sucDbl n) ⟩
+     intOfNat (S n + S n)
+       ≡⟨ sym Int (intAdd (intOfNat (S n)) (intOfNat (S n))) (intOfNat (S n + S n))
+            (intOfNatPlus (S n) (S n)) ⟩
+     intAdd (intOfNat (S n)) (intOfNat (S n))
+       ≡⟨ sym Int (intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n)))
+            (intAdd (intOfNat (S n)) (intOfNat (S n)))
+            (cong Int (λw. Int) (λw. intAdd w w)
+               (nzToInt (nzPos n)) (intOfNat (S n)) (nzPosInt n)) ⟩
+     intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n)))
+
+-- ===== the cross-multiplication =====
+
+-- the unit fraction at index k, as a raw fraction
+def unitRat : ℕ → El Rat ≔ λk. mkRat intOne (nzPos k)
+
+-- scaling 1 by d is just d
+def scaleOne : (d : El NZ) → intScale d intOne ≡ nzToInt d ∈ El Int ≔
+  λd. intScaleToInt d
+
+-- the numerator of 1/d + 1/d is d + d
+def unitAddNum : (d : El NZ) →
+  num (ratAdd (mkRat intOne d) (mkRat intOne d))
+    ≡ intAdd (nzToInt d) (nzToInt d) ∈ El Int ≔
+  λd. cong Int (λw. Int) (λw. intAdd w w) (intScale d intOne) (nzToInt d) (scaleOne d)
+
+-- ...and its denominator is d·d
+def unitAddDen : (d : El NZ) →
+  dInt (ratAdd (mkRat intOne d) (mkRat intOne d))
+    ≡ intMul (nzToInt d) (nzToInt d) ∈ El Int ≔
+  λd. nzToIntMul d d
+
+-- 1/(2n+2) + 1/(2n+2) ~ 1/(n+1): cross-multiply and use intDblSquare
+def halfRel : (n : ℕ) →
+  Prf (RatR (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) (unitRat n)) ≔
+  λn.
+    (intMul (num (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))) (nzToInt (nzPos n))
+       ≡⟨ cong Int (λw. Int) (λw. intMul w (nzToInt (nzPos n)))
+            (num (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
+            (intAdd (nzToInt (nzPos (dbl n))) (nzToInt (nzPos (dbl n))))
+            (unitAddNum (nzPos (dbl n))) ⟩
+     intMul (intAdd (nzToInt (nzPos (dbl n))) (nzToInt (nzPos (dbl n))))
+            (nzToInt (nzPos n))
+       ≡⟨ cong Int (λw. Int)
+            (λw. intMul (intAdd w w) (nzToInt (nzPos n)))
+            (nzToInt (nzPos (dbl n)))
+            (intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n)))
+            (nzPosDbl n) ⟩
+     intMul (intAdd (intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n)))
+                    (intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n))))
+            (nzToInt (nzPos n))
+       ≡⟨ intDblSquare (nzToInt (nzPos n)) ⟩
+     intMul (intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n)))
+            (intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n)))
+       ≡⟨ sym Int (intMul (nzToInt (nzPos (dbl n))) (nzToInt (nzPos (dbl n))))
+            (intMul (intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n)))
+                    (intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n))))
+            (cong Int (λw. Int) (λw. intMul w w)
+               (nzToInt (nzPos (dbl n)))
+               (intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n)))
+               (nzPosDbl n)) ⟩
+     intMul (nzToInt (nzPos (dbl n))) (nzToInt (nzPos (dbl n)))
+       ≡⟨ sym Int (dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
+            (intMul (nzToInt (nzPos (dbl n))) (nzToInt (nzPos (dbl n))))
+            (unitAddDen (nzPos (dbl n))) ⟩
+     dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))
+       ≡⟨ sym Int (intMul intOne (dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))))
+            (dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
+            (intMulOneL (dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))) ⟩
+     intMul intOne (dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))))
+
+-- ===== the halving law =====
+
+def qInvHalf : (n : ℕ) →
+  qAdd (qInvNat (dbl n)) (qInvNat (dbl n)) ≡ qInvNat n ∈ El Q ≔
+  λn.
+    trans Q (qAdd (qInvNat (dbl n)) (qInvNat (dbl n)))
+            (qcls (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
+            (qInvNat n)
+      (qAddCls (unitRat (dbl n)) (unitRat (dbl n)))
+      (clsEqOfRel (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) (unitRat n)
+         (halfRel n))
