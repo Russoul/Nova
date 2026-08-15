@@ -1,0 +1,25 @@
+id-fun: ⊦ PiIntro (CtxVar 0) : PiTy (NatTy) (NatTy)
+pred: ⊦ PiIntro (NatElim (NatIntro0) (CtxVar 1) (CtxVar 0)) : PiTy (NatTy) (NatTy)
+beta-oracle: ⊦ PiApp (PiIntro (CtxVar 0)) (NatIntro0) ≐ NatIntro0 : NatTy
+reflect-roundtrip: ⊦ NatIntro0 ≐ NatIntro0 : NatTy
+presup-left: ⊦ PiApp (PiIntro (CtxVar 0)) (NatIntro0) : NatTy
+eta-pi: ⊦ PiIntro (CtxVar 0) ≐ PiIntro (CtxVar 0) : PiTy (NatTy) (NatTy)
+garbage-domain: REJECTED [derivation: ty-el: type mismatch [NatTy VS UniverseTy]]
+trans-mismatch: REJECTED [derivation: el-trans (middle): element mismatch [NatIntro1 (NatIntro0) VS NatIntro0]]
+oracle-type-clash: REJECTED [derivation: nf-eq: type mismatch [OneTy VS NatTy]]
+quot-class-eq: ⊦ Class (NatIntro0) ≐ Class (NatIntro1 (NatIntro0)) : Quotient (NatTy) (Squash (OneTy))
+nat-eta: ⊦ NatIntro1 (NatIntro0) ≐ NatIntro1 (NatIntro0) : NatTy
+nu-type: ⊦ NuTy (PProd (PConst (NatTy)) (PHole)) type
+sub-fix: ⊦ NatIntro0 ≐ NatIntro0 : NatTy
+quot-bad-witness: REJECTED [derivation: el-quot-eq (witness): type mismatch [Prf (EqTy (NatIntro0) (NatIntro0) (NatTy)) VS Prf (Squash (OneTy))]]
+qsig-nat: ⊦ qsig (3 entries)
+qiit-z: ⊦ QCtor ([QU, QEl (QVar 0), QPiInd (QVar 1) (QEl (QVar 2))]) 1 ([< ]) : QSort ([QU, QEl (QVar 0), QPiInd (QVar 1) (QEl (QVar 2))]) 0 ([< ])
+qiit-eta: ⊦ QCtor ([QU, QEl (QVar 0)]) 1 ([< ]) ≐ QElim ([QU, QEl (QVar 0)]) 0 ([QSort ([QU, QEl (QVar 0)]) 0 ([< ])]) ([QCtor ([QU, QEl (QVar 0)]) 1 ([< ])]) ([< ]) (QCtor ([QU, QEl (QVar 0)]) 1 ([< ])) : QSort ([QU, QEl (QVar 0)]) 0 ([< ])
+qtm-range: REJECTED [derivation: qtm-var: index out of range]
+natelim-cong: ⊦ NatElim (NatIntro0) (NatIntro1 (CtxVar 1)) (NatIntro1 (NatIntro0)) ≐ NatElim (NatIntro0) (NatIntro1 (CtxVar 1)) (NatIntro1 (NatIntro0)) : NatTy
+pi-inj-dom: ⊦ NatTy ≐ NatTy type
+beta-at: ⊦ NatIntro1 (PiApp (PiIntro (CtxVar 0)) (NatIntro0)) ≐ NatIntro1 (NatIntro0) : NatTy
+beta-at-stuck: REJECTED [derivation: beta-at: no ≜ redex at the path]
+share: ⊦ NatIntro0 ≐ NatIntro0 : NatTy
+share-wrong-ctx: REJECTED [derivation: share-ref cited outside its binding context]
+share-range: REJECTED [derivation: share-ref out of range]

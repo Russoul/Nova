@@ -274,6 +274,33 @@ qElimBetaRhs sg mots mths k theta = do
   go acc _ (QEl _) [] = Right acc
   go _ _ _ _ = Left "qiit: β constructor spine mismatch"
 
+||| m_𝕔 θ⟨h⟩ at an arbitrary SECTION CANDIDATE family (one element
+||| per sort, each over the sort's reflected telescope plus itself):
+||| qElimBetaRhs with the recursive positions materialized as h-calls
+||| instead of eliminator calls (Foundation's ·⟨·⟩ at h — el-qiit-eta's
+||| method images).
+export
+qSectRhs : QSig -> (motives : List Ty) -> (methods : List Elem)
+        -> (sects : List Elem)
+        -> (ctorPos : Nat) -> (theta : SubNorm) -> Either QErr Elem
+qSectRhs sg mots mths hs k theta = do
+  entry <- maybe (Left "qiit: ctor out of range") Right (qEntry sg k)
+  o <- maybe (Left "qiit: not a point-constructor position") Right (qOrdinal QKPoint sg k)
+  m <- maybe (Left "qiit: method missing") Right (getAt o mths)
+  go m (qwAt k) entry (toList theta)
+ where
+  go : Elem -> QW -> QTy -> List Elem -> Either QErr Elem
+  go acc w (QPiExt _ b) (v :: vs) = go (PiApp acc v) (crossExtVal v w) b vs
+  go acc w (QPiInd u b) (v :: vs) = do
+    (s, args) <- codeSort sg w u
+    idx <- reflArgs sg w args
+    so <- maybe (Left "qiit: sort ordinal") Right (qOrdinal QKSort sg s)
+    h <- maybe (Left "qiit: section missing") Right (getAt so hs)
+    let rec = substElem h (Ext (foldl Ext Id (toList idx)) v)
+    go (PiApp (PiApp acc v) rec) (crossIndVal v w) b vs
+  go acc _ (QEl _) [] = Right acc
+  go _ _ _ _ = Left "qiit: section constructor spine mismatch"
+
 -- ===== The ᴰ-walk (displayed telescope) =====
 
 ||| State of a ᴰ-walk over a constructor's binders, with VARIABLES:

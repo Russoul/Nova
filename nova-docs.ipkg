@@ -10,6 +10,8 @@ modules = Nova.Kernel.Syntax
         , Nova.Kernel.Subst
         , Nova.Kernel
         , Nova.Kernel.QIIT
+        , Nova.Kernel.Beta
+        , Nova.Kernel.Derivation
         , Nova.Compute
         , Nova.Elaboration.Beta
         , Nova.Elaboration.Named
