@@ -2009,20 +2009,20 @@ conclude env sig ctx d@(DQTySub _ _) = kerr "derivation: qty node outside the Γ
 -- the QIIT item layer
 conclude env sig ctx (DCodeQSortInjIdx i d) = do
   (c0, c1, ty) <- conclude env sig ctx d >>= needElEq
-  alphaTy "code-qsort-inj-idx (universe)" ty Ty.UniverseTy
+  alphaTy "code-qiit-inj (universe)" ty Ty.UniverseTy
   case (c0, c1) of
     (QSortC sg0 k0 es0, QSortC sg1 k1 es1) => do
       if sg0 == sg1 && k0 == k1 then pure ()
-        else kerr "derivation: code-qsort-inj-idx: different signatures or sorts"
+        else kerr "derivation: code-qiit-inj: different signatures or sorts"
       let l0 = toList es0
       let l1 = toList es1
       if take i l0 == take i l1 then pure ()
-        else kerr "derivation: code-qsort-inj-idx: spines differ before i"
+        else kerr "derivation: code-qiit-inj: spines differ before i"
       (_, tel) <- qArity sg0 k0
       case (getAt i l0, getAt i l1, telInst tel i l0) of
         (Just a0, Just a1, Just e) => pure (JElEq a0 a1 e)
-        _ => kerr "derivation: code-qsort-inj-idx: index out of range"
-    _ => kerr "derivation: code-qsort-inj-idx: premise not between sort codes"
+        _ => kerr "derivation: code-qiit-inj: index out of range"
+    _ => kerr "derivation: code-qiit-inj: premise not between sort codes"
 conclude env sig ctx (DTyQSort k dSig ds) = do
   sg <- conclude env sig ctx dSig >>= needQSig
   (entry, tel) <- qArity sg k

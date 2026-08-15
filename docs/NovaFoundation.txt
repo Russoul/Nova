@@ -1877,6 +1877,28 @@ e˲ : Γ₁ ⇒ Γ norm
 --------------------------------------------------------------------------- (el-qiit-path)
 Γ ⊦ ⌊l⌋[θ] ≐ ⌊r⌋[θ] : ⌊El 𝕦⌋[θ]      # 𝕦 the sides' common code
 
+# CONGRUENCE AND INJECTIVITY. ≐ is congruent at the QIIT formers as
+# at every former; the saturated forms' instances are stated because
+# their premises live at the reflected telescope — entry i's type
+# instantiated by the LEFT spine's prefix, the sub-norm-ext-cong
+# discipline. Injectivity: 𝕌's equality is STRUCTURAL and a signature
+# is inert syntax, so equal saturated sort codes have equal spines,
+# indexwise — the code-pi-inj block, extended to the QIIT former.
+
+Γ ⊦ 𝒮 qsig      Γ ⊦ e₀ᵢ ≐ e₁ᵢ : Eᵢ   (entrywise; Eᵢ is entry i of
+                ⌊𝒮(𝕤)⌋ᵗ, instantiated by ē₀'s prefix)
+------------------------------------------------------------- (ty-qiit-cong)
+Γ ⊦ 𝒮.𝕤 ē₀ ≐ 𝒮.𝕤 ē₁ type
+
+Γ ⊦ 𝒮 qsig      Γ ⊦ e₀ᵢ ≐ e₁ᵢ : Eᵢ   (entrywise at a point
+                constructor's telescope ⌊𝒮(𝕔)⌋ᵗ, same discipline)
+------------------------------------------------------------- (el-qiit-intro-cong)
+Γ ⊦ 𝒮.𝕔 ē₀ ≐ 𝒮.𝕔 ē₁ : ⌊El (𝕤 ī)⌋[ē₀]
+
+Γ ⊦ 𝒮.𝕤 ē₀ ≐ 𝒮.𝕤 ē₁ : 𝕌      e₀ⱼ = e₁ⱼ for j < i  (structurally)
+------------------------------------------------------------- (code-qiit-inj)
+Γ ⊦ e₀ᵢ ≐ e₁ᵢ : Eᵢ
+
 # ELIMINATION. The eliminator is specified by a LAYERED stack of
 # judgement forms — MOTIVE FAMILY, DISPLAYED ALGEBRA, ELIMINATION
 # PROBLEM, SECTION CANDIDATE (all registered in the judgement-forms
