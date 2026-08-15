@@ -12,12 +12,12 @@ import group (IsGroup)
 -- where they are), then the inverse operation and its two laws.
 def intAddGroup : El (IsGroup Int) ≔
   ((intAdd , intZero ,
-    λx. λy. λz. eqToId Int (intAdd (intAdd x y) z) (intAdd x (intAdd y z))
-                  (intAddAssoc x y z) ,
-    λx. eqToId Int (intAdd intZero x) x (intAddZeroL x) ,
+    (λx. λy. λz. eqToId Int (intAdd (intAdd x y) z) (intAdd x (intAdd y z))
+                  (intAddAssoc x y z)) ,
+    (λx. eqToId Int (intAdd intZero x) x (intAddZeroL x)) ,
     λx. eqToId Int (intAdd x intZero) x (intAddZeroR x)) ,
    intNeg ,
-   λx. eqToId Int (intAdd (intNeg x) x) intZero (intAddNegL x) ,
+   (λx. eqToId Int (intAdd (intNeg x) x) intZero (intAddNegL x)) ,
    λx. eqToId Int (intAdd x (intNeg x)) intZero (intAddNegR x))
 
 -- the underlying monoid is the group's first component

@@ -6,9 +6,9 @@ import monoid (IsMonoid)
 -- is just g .π₁) plus an inverse operation and its laws. The lets
 -- name the monoid's projections so the laws read as written math.
 def IsGroup : 𝕌 → 𝕌 ≔ λG.
-  ((m : IsMonoid G)
-   (inv : G → G) ⨯
-   (let op ≔ m .π₁ in
-    let e ≔ m .π₂ .π₁ in
-    (((x : G) → Id G (op (inv x) x) e)
-     ⨯ ((x : G) → Id G (op x (inv x)) e))))
+  (m : IsMonoid G)
+  (inv : G → G) ⨯
+  (let op ≔ m .π₁ in
+   let e ≔ m .π₂ .π₁ in
+   ((x : G) → Id G (op (inv x) x) e)
+   ⨯ ((x : G) → Id G (op x (inv x)) e))

@@ -13,9 +13,9 @@ import id (Id)
 -- zeroPlusId, plusZeroId): assoc reassociates to the right, units
 -- cancel toward the bare element.
 def IsMonoid : 𝕌 → 𝕌 ≔ λM.
-  ((op : M → M → M)
-   (e : M)
-   (assoc : (x : M) (y : M) (z : M) →
-              Id M (op (op x y) z) (op x (op y z)))
-   (unitL : (x : M) → Id M (op e x) x) ⨯
-   ((x : M) → Id M (op x e) x))
+  (op : M → M → M)
+  (e : M)
+  (assoc : (x : M) (y : M) (z : M) →
+             Id M (op (op x y) z) (op x (op y z)))
+  (unitL : (x : M) → Id M (op e x) x) ⨯
+  ((x : M) → Id M (op x e) x)

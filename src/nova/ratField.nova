@@ -19,17 +19,17 @@ import field (IsField)
 -- the Id bridge.
 def ratAddGroup : El (IsGroup Q) ≔
   ((qAdd , qZero ,
-    λx. λy. λz. eqToId Q (qAdd (qAdd x y) z) (qAdd x (qAdd y z)) (qAddAssoc x y z) ,
-    λx. eqToId Q (qAdd qZero x) x (qAddZeroL x) ,
+    (λx. λy. λz. eqToId Q (qAdd (qAdd x y) z) (qAdd x (qAdd y z)) (qAddAssoc x y z)) ,
+    (λx. eqToId Q (qAdd qZero x) x (qAddZeroL x)) ,
     λx. eqToId Q (qAdd x qZero) x (qAddZeroR x)) ,
    qNeg ,
-   λx. eqToId Q (qAdd (qNeg x) x) qZero (qAddNegL x) ,
+   (λx. eqToId Q (qAdd (qNeg x) x) qZero (qAddNegL x)) ,
    λx. eqToId Q (qAdd x (qNeg x)) qZero (qAddNegR x))
 
 def ratMulMonoid : El (IsMonoid Q) ≔
   (qMul , qOne ,
-   λx. λy. λz. eqToId Q (qMul (qMul x y) z) (qMul x (qMul y z)) (qMulAssoc x y z) ,
-   λx. eqToId Q (qMul qOne x) x (qMulOneL x) ,
+   (λx. λy. λz. eqToId Q (qMul (qMul x y) z) (qMul x (qMul y z)) (qMulAssoc x y z)) ,
+   (λx. eqToId Q (qMul qOne x) x (qMulOneL x)) ,
    λx. eqToId Q (qMul x qOne) x (qMulOneR x))
 
 -- Nontriviality at the DATA level: an element of 𝟘 from Id Q 1 0.
@@ -53,12 +53,12 @@ def qOneNotZeroD : El (Id Q qOne qZero) → 𝟘 ≔
 -- give an Id (eqToId), k would give 𝟘, and ⋆ witnesses ⊥ from it.
 def ratField : El (IsField Q) ≔
   (ratAddGroup , ratMulMonoid ,
-   λx. λy. eqToId Q (qAdd x y) (qAdd y x) (qAddComm x y) ,
-   λx. λy. eqToId Q (qMul x y) (qMul y x) (qMulComm x y) ,
-   λx. λy. λz. eqToId Q (qMul x (qAdd y z)) (qAdd (qMul x y) (qMul x z))
-                 (qDistribL x y z) ,
-   λx. λy. λz. eqToId Q (qMul (qAdd y z) x) (qAdd (qMul y x) (qMul z x))
-                 (qDistribR x y z) ,
+   (λx. λy. eqToId Q (qAdd x y) (qAdd y x) (qAddComm x y)) ,
+   (λx. λy. eqToId Q (qMul x y) (qMul y x) (qMulComm x y)) ,
+   (λx. λy. λz. eqToId Q (qMul x (qAdd y z)) (qAdd (qMul x y) (qMul x z))
+                 (qDistribL x y z)) ,
+   (λx. λy. λz. eqToId Q (qMul (qAdd y z) x) (qAdd (qMul y x) (qMul z x))
+                 (qDistribR x y z)) ,
    qOneNotZeroD ,
    λx. λk. (qInv x ,
             eqToId Q (qMul x (qInv x)) qOne

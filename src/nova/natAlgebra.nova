@@ -10,7 +10,7 @@ import prelude (funext)
 -- first, then at function level through prelude's funext (a theorem
 -- here: extensional theory).
 def IsNatAlgebra : 𝕌 → 𝕌 ≔ λA.
-  ((z : A) ⨯ (A → A))
+  (z : A) ⨯ (A → A)
 
 def NatAlgHom : (A : 𝕌) (B : 𝕌) →
                 El (IsNatAlgebra A) → El (IsNatAlgebra B) → 𝕌 ≔

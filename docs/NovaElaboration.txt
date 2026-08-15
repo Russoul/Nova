@@ -207,9 +207,18 @@ T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
 #      the expected ν-type, so it is mandatory syntax, like a motive.
 t{5} ::= x | () | Z | ⋆ | ∥T{≥0}∥ | 𝟘 | 𝟙 | ℕ | (t{≥0}) | (t{≥0} : T{≥0})
 t{3} ::= t{≥3} t{≥4} | t{≥3} .π₁ | t{≥3} .π₂                 (left-assoc)
-t{2} ::= λx. t{≥1½}
-       | let x ≔ t{≥0} in t{≥1½}                              # let-expression
-       | let x : T{≥0} ≔ t{≥0} in t{≥1½}                      #   (annotated
+t{2} ::= λx. t{≥0}                    # the body extends MAXIMALLY:
+                                      #   over operators, the code
+                                      #   formers → ⨯ ⊎ /, ≡-elements,
+                                      #   calc chains, and pairs —
+                                      #   λx. a , b is λx. (a , b), so
+                                      #   a λ that is a NON-FINAL pair
+                                      #   component must be
+                                      #   parenthesised
+       | let x ≔ t{≥0} in t{≥0}                               # let-expression;
+                                                              #   body maximal,
+                                                              #   like λ's
+       | let x : T{≥0} ≔ t{≥0} in t{≥0}                       #   (annotated
                                                               #   definiens) —
                                                               #   see e-let
        | 𝟘-elim t{≥4}

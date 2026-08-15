@@ -383,17 +383,18 @@ mutual
   -- t{2}: prefix forms, motive-first eliminators
   parseSElemPrefix : FixTable -> NameEnv -> Rule SElem
   parseSElemPrefix tbl env =
-        -- λ's body extends over operators: λx. x + y ≡ λx. (x + y) —
-        -- and over a following CALC CHAIN, which scopes under the λ:
-        -- λx. a ≡⟨ e ⟩ b parses as λx. (a ≡⟨ e ⟩ b)
+        -- λ's body extends MAXIMALLY (ProvingFeedback F-1): over
+        -- operators, the code formers → ⨯ ⊎ /, ≡-elements, calc
+        -- chains, AND pairs — λx. ℕ ⨯ ℕ is λx. (ℕ ⨯ ℕ), and
+        -- λx. a , b is λx. (a , b). A λ that is a non-final pair
+        -- component must therefore be parenthesised, the
+        -- Agda/Haskell convention.
         (do kw "λ"; sp; x <- parseNameR; sp; kwc '.'; sp
-            e <- parseSElemOp tbl (env :< fst x)
-            (do sp; links <- parseChainLinks tbl (env :< fst x)
-                pure (SLam x (SChain e links)))
-              <|> pure (SLam x e))
+            e <- parseSElem tbl (env :< fst x)
+            pure (SLam x e))
         -- let x ≔ e in b / let x : T ≔ e in b — the annotated form is
         -- sugar for an ascribed definiens (the definiens elaborates in
-        -- inference mode); the body extends over operators, like λ's.
+        -- inference mode); the body extends maximally, like λ's.
         -- The body's indices are counted against the CORE context,
         -- which has TWO entries per let (el-let: the value, then its
         -- unfolding equation) — so x is pushed under a wildcard slot
@@ -404,7 +405,7 @@ mutual
             kw "≔"; sp
             e <- parseSElem tbl env; sp
             kw "in"; sp
-            b <- parseSElemOp tbl (env :< fst x :< wildcard)
+            b <- parseSElem tbl (env :< fst x :< wildcard)
             pure (SLet x (maybe e (SAnn e) manno) b))
     <|> (do kw "𝟘-elim"; space; e <- parseSElemAtom tbl env; pure (SZeroElim e))
     <|> (do kw "ℕ-elim"; space
