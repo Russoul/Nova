@@ -1,0 +1,76 @@
+import nat (+, plusZeroId, zeroPlusId, plusComm, plusAssoc, sucPlus)
+import natOrder (sumZeroL, sumZeroR)
+import integer (Int, intZero, intOne, intNeg)
+import integerNormalize (normPair)
+import intOrder (intOfNat)
+import eqInt (intCanon, intCanonClass, normPairZR)
+import equality (trans, sym, cong)
+
+-- The MAGNITUDE of an integer, as a natural. `intCanon` already
+-- computes the canonical difference pair — one of whose components is
+-- Z — so the magnitude is just the sum of the two, and needs no new
+-- well-definedness: it is a function of a function.
+--
+-- This is the one place where ℤ has a canonical form and ℚ does not
+-- (that would need gcd), which is why the same construction cannot be
+-- repeated one level up.
+
+def intAbs : El Int → ℕ ≔ λz. intCanon z .π₁ + intCanon z .π₂
+
+def intAbsZero : intAbs intZero ≡ Z ∈ ℕ ≔ ⋆
+def intAbsOne : intAbs intOne ≡ S Z ∈ ℕ ≔ ⋆
+
+-- on a natural the magnitude is the natural back
+def intAbsOfNat : (n : ℕ) → intAbs (intOfNat n) ≡ n ∈ ℕ ≔
+  λn.
+    trans ℕ (intAbs (intOfNat n)) (n + Z) n
+      (cong (ℕ ⨯ ℕ) (λu. ℕ) (λp. p .π₁ + p .π₂) (normPair n Z) (n , Z)
+         (normPairZR n))
+      (plusZeroId n)
+
+-- zero magnitude names zero: both components of the canonical pair
+-- vanish, so the class is the class of (Z , Z)
+def intAbsZeroInv : (z : El Int) → (intAbs z ≡ Z ∈ ℕ) → z ≡ intZero ∈ El Int ≔
+  λz. λh.
+    trans Int z (class (intCanon z)) intZero
+      (sym Int (class (intCanon z)) z (intCanonClass z))
+      (trans Int (class (intCanon z)) (class (Z , Z)) intZero
+         (cong (ℕ ⨯ ℕ) (λu. Int) (λp. class p) (intCanon z) (Z , Z)
+            (eqInt.pairEq2 ℕ ℕ (intCanon z) (Z , Z)
+               (sumZeroL (intCanon z .π₁) (intCanon z .π₂) h)
+               (sumZeroR (intCanon z .π₁) (intCanon z .π₂) h)))
+         ⋆)
+
+-- ===== negation keeps the magnitude =====
+
+-- the canonical pair of the swapped input is the swapped canonical
+-- pair, and a sum does not notice the swap
+def normPairSum : (a : ℕ) (b : ℕ) →
+  normPair b a .π₁ + normPair b a .π₂ ≡ normPair a b .π₁ + normPair a b .π₂ ∈ ℕ
+  using (plusComm, zeroPlusId, plusZeroId) ≔
+  λa.
+    ℕ-elim (k. (b : ℕ) →
+             normPair b k .π₁ + normPair b k .π₂
+               ≡ normPair k b .π₁ + normPair k b .π₂ ∈ ℕ)
+      (λb.
+        trans ℕ (normPair b Z .π₁ + normPair b Z .π₂) (b + Z)
+              (normPair Z b .π₁ + normPair Z b .π₂)
+          (cong (ℕ ⨯ ℕ) (λu. ℕ) (λp. p .π₁ + p .π₂) (normPair b Z) (b , Z)
+             (normPairZR b))
+          (trans ℕ (b + Z) b (Z + b)
+             (plusZeroId b)
+             (sym ℕ (Z + b) b (zeroPlusId b))))
+      (n ih. λb.
+        ℕ-elim (m. normPair m (S n) .π₁ + normPair m (S n) .π₂
+                     ≡ normPair (S n) m .π₁ + normPair (S n) m .π₂ ∈ ℕ)
+          ⋆
+          (m ihb. ih m)
+          b)
+      a
+
+def intAbsNeg : (z : El Int) → intAbs (intNeg z) ≡ intAbs z ∈ ℕ
+  using (prop.irrel) ≔
+  λz.
+    quot-elim (w. intAbs (intNeg w) ≡ intAbs w ∈ ℕ)
+      (p. normPairSum (p .π₁) (p .π₂))
+      z
