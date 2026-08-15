@@ -1,0 +1,279 @@
+import rationalQ (Q, qAdd, qNeg, qZero)
+import rationalOrder (LeQ, leQTrans)
+import ratBound (Bnd, bndSubEq)
+import ratMax (qMax, qMin, leQMaxL, leQMaxR, qMaxLub, leQMinL, leQMinR, qMinGlb,
+               bndMaxSub, bndMinSub, leQAddOfBnd, qMinGlbShift)
+import ratArch (leQSubShift, leQAddShift)
+import real (rBound, leQZeroBound, Regular, RSeq, REq, Real, constReg,
+             realOfQ, realZero)
+import realNeg (seqOf, regOf, regBnd, bndReg, reqOf, realEqOfREq)
+import realOrder (RLeP, rleOf, LeR, leQSubZero)
+import equality (trans, sym, cong, transport)
+
+-- MAX and MIN on ℝ, POINTWISE. Like |·| (realAbs.nova) and unlike +,
+-- the lattice operations are 1-Lipschitz in each argument, so they
+-- preserve the regularity modulus and closeness on the nose: no
+-- doubled index, no Archimedean argument. ratMax.nova's bndMaxSub is
+-- the whole content; everything here is plumbing plus the two
+-- order laws.
+
+-- ===== max =====
+
+def maxSeq : El (ℕ → Q) → El (ℕ → Q) → El (ℕ → Q) ≔
+  λf. λg. λn. qMax (f n) (g n)
+
+def maxReg : (f : El (ℕ → Q)) (g : El (ℕ → Q)) →
+  El (Regular f) → El (Regular g) → El (Regular (maxSeq f g)) ≔
+  λf. λg. λhf. λhg.
+    bndReg (maxSeq f g)
+      (λm. λn.
+        bndMaxSub (rBound m n) (f m) (f n) (g m) (g n)
+          (regBnd f hf m n) (regBnd g hg m n))
+
+def rMax : El RSeq → El RSeq → El RSeq ≔
+  λx. λy. (maxSeq (seqOf x) (seqOf y) , maxReg (seqOf x) (seqOf y) (regOf x) (regOf y))
+
+def rMaxWDInner : (x : El RSeq) (y : El RSeq) (y' : El RSeq) →
+  Prf (REq y y') → Prf (REq (rMax x y) (rMax x y')) ≔
+  λx. λy. λy'. λh.
+    squash-elim h
+      (u. reqOf (rMax x y) (rMax x y')
+            (λn.
+              bndMaxSub (rBound n n) (seqOf x n) (seqOf x n)
+                        (seqOf y n) (seqOf y' n)
+                (bndSubEq (rBound n n) (seqOf x n) (seqOf x n)
+                   (leQZeroBound n n) ⋆)
+                (u n)))
+
+def rMaxWDOuterR : (x : El RSeq) (x' : El RSeq) (c : El RSeq) →
+  Prf (REq x x') → Prf (REq (rMax x c) (rMax x' c)) ≔
+  λx. λx'. λc. λh.
+    squash-elim h
+      (u. reqOf (rMax x c) (rMax x' c)
+            (λn.
+              bndMaxSub (rBound n n) (seqOf x n) (seqOf x' n)
+                        (seqOf c n) (seqOf c n)
+                (u n)
+                (bndSubEq (rBound n n) (seqOf c n) (seqOf c n)
+                   (leQZeroBound n n) ⋆)))
+
+def rMaxWDInnerCls : (x : El RSeq) (y : El RSeq) (y' : El RSeq) (h : Prf (REq y y')) →
+  class (rMax x y) ≡ class (rMax x y') ∈ El Real ≔
+  λx. λy. λy'. λh. realEqOfREq (rMax x y) (rMax x y') (rMaxWDInner x y y' h)
+
+def rMaxWDOuterCls : (x : El RSeq) (x' : El RSeq) (c : El RSeq) (h : Prf (REq x x')) →
+  class (rMax x c) ≡ class (rMax x' c) ∈ El Real ≔
+  λx. λx'. λc. λh. realEqOfREq (rMax x c) (rMax x' c) (rMaxWDOuterR x x' c h)
+
+def rMaxWDOuter : (x : El RSeq) (x' : El RSeq) (h : Prf (REq x x')) (v : El Real) →
+  quot-elim (w. El Real) (q. class (rMax x q)) v
+    ≡ quot-elim (w. El Real) (q. class (rMax x' q)) v ∈ El Real
+  using (rMaxWDInnerCls) ≔
+  λx. λx'. λh. λv.
+    quot-elim (w. quot-elim (z. El Real) (q. class (rMax x q)) w
+                    ≡ quot-elim (z. El Real) (q. class (rMax x' q)) w ∈ El Real)
+      (c. rMaxWDOuterCls x x' c h)
+      v
+
+def realMax : El Real → El Real → El Real using (rMaxWDInnerCls, rMaxWDOuter) ≔
+  λu. λv. quot-elim (w. El Real) (p. quot-elim (w. El Real) (q. class (rMax p q)) v) u
+
+def realMaxCls : (x : El RSeq) (y : El RSeq) →
+  realMax (class x) (class y) ≡ class (rMax x y) ∈ El Real ≔ λx. λy. ⋆
+
+-- ===== min =====
+
+def minSeq : El (ℕ → Q) → El (ℕ → Q) → El (ℕ → Q) ≔
+  λf. λg. λn. qMin (f n) (g n)
+
+def minReg : (f : El (ℕ → Q)) (g : El (ℕ → Q)) →
+  El (Regular f) → El (Regular g) → El (Regular (minSeq f g)) ≔
+  λf. λg. λhf. λhg.
+    bndReg (minSeq f g)
+      (λm. λn.
+        bndMinSub (rBound m n) (f m) (f n) (g m) (g n)
+          (regBnd f hf m n) (regBnd g hg m n))
+
+def rMin : El RSeq → El RSeq → El RSeq ≔
+  λx. λy. (minSeq (seqOf x) (seqOf y) , minReg (seqOf x) (seqOf y) (regOf x) (regOf y))
+
+def rMinWDInner : (x : El RSeq) (y : El RSeq) (y' : El RSeq) →
+  Prf (REq y y') → Prf (REq (rMin x y) (rMin x y')) ≔
+  λx. λy. λy'. λh.
+    squash-elim h
+      (u. reqOf (rMin x y) (rMin x y')
+            (λn.
+              bndMinSub (rBound n n) (seqOf x n) (seqOf x n)
+                        (seqOf y n) (seqOf y' n)
+                (bndSubEq (rBound n n) (seqOf x n) (seqOf x n)
+                   (leQZeroBound n n) ⋆)
+                (u n)))
+
+def rMinWDOuterR : (x : El RSeq) (x' : El RSeq) (c : El RSeq) →
+  Prf (REq x x') → Prf (REq (rMin x c) (rMin x' c)) ≔
+  λx. λx'. λc. λh.
+    squash-elim h
+      (u. reqOf (rMin x c) (rMin x' c)
+            (λn.
+              bndMinSub (rBound n n) (seqOf x n) (seqOf x' n)
+                        (seqOf c n) (seqOf c n)
+                (u n)
+                (bndSubEq (rBound n n) (seqOf c n) (seqOf c n)
+                   (leQZeroBound n n) ⋆)))
+
+def rMinWDInnerCls : (x : El RSeq) (y : El RSeq) (y' : El RSeq) (h : Prf (REq y y')) →
+  class (rMin x y) ≡ class (rMin x y') ∈ El Real ≔
+  λx. λy. λy'. λh. realEqOfREq (rMin x y) (rMin x y') (rMinWDInner x y y' h)
+
+def rMinWDOuterCls : (x : El RSeq) (x' : El RSeq) (c : El RSeq) (h : Prf (REq x x')) →
+  class (rMin x c) ≡ class (rMin x' c) ∈ El Real ≔
+  λx. λx'. λc. λh. realEqOfREq (rMin x c) (rMin x' c) (rMinWDOuterR x x' c h)
+
+def rMinWDOuter : (x : El RSeq) (x' : El RSeq) (h : Prf (REq x x')) (v : El Real) →
+  quot-elim (w. El Real) (q. class (rMin x q)) v
+    ≡ quot-elim (w. El Real) (q. class (rMin x' q)) v ∈ El Real
+  using (rMinWDInnerCls) ≔
+  λx. λx'. λh. λv.
+    quot-elim (w. quot-elim (z. El Real) (q. class (rMin x q)) w
+                    ≡ quot-elim (z. El Real) (q. class (rMin x' q)) w ∈ El Real)
+      (c. rMinWDOuterCls x x' c h)
+      v
+
+def realMin : El Real → El Real → El Real using (rMinWDInnerCls, rMinWDOuter) ≔
+  λu. λv. quot-elim (w. El Real) (p. quot-elim (w. El Real) (q. class (rMin p q)) v) u
+
+def realMinCls : (x : El RSeq) (y : El RSeq) →
+  realMin (class x) (class y) ≡ class (rMin x y) ∈ El Real ≔ λx. λy. ⋆
+
+-- ===== the lattice laws =====
+
+def rleMaxL : (x : El RSeq) (y : El RSeq) → Prf (RLeP x (rMax x y)) ≔
+  λx. λy.
+    rleOf x (rMax x y)
+      (λn.
+        leQTrans (qAdd (seqOf x n) (qNeg (qMax (seqOf x n) (seqOf y n)))) qZero
+                 (rBound n n)
+          (leQSubZero (seqOf x n) (qMax (seqOf x n) (seqOf y n))
+             (leQMaxL (seqOf x n) (seqOf y n)))
+          (leQZeroBound n n))
+
+def rleMaxR : (x : El RSeq) (y : El RSeq) → Prf (RLeP y (rMax x y)) ≔
+  λx. λy.
+    rleOf y (rMax x y)
+      (λn.
+        leQTrans (qAdd (seqOf y n) (qNeg (qMax (seqOf x n) (seqOf y n)))) qZero
+                 (rBound n n)
+          (leQSubZero (seqOf y n) (qMax (seqOf x n) (seqOf y n))
+             (leQMaxR (seqOf x n) (seqOf y n)))
+          (leQZeroBound n n))
+
+-- least upper bound: the two shifted ≤'s combine by qMaxLub and shift back
+def rMaxLub : (x : El RSeq) (y : El RSeq) (z : El RSeq) →
+  Prf (RLeP x z) → Prf (RLeP y z) → Prf (RLeP (rMax x y) z) ≔
+  λx. λy. λz. λh1. λh2.
+    squash-elim h1
+      (u. squash-elim h2
+            (v. rleOf (rMax x y) z
+                  (λn.
+                    leQSubShift (qMax (seqOf x n) (seqOf y n)) (seqOf z n)
+                                (rBound n n)
+                      (qMaxLub (seqOf x n) (seqOf y n)
+                               (qAdd (seqOf z n) (rBound n n))
+                         (leQAddShift (seqOf x n) (seqOf z n) (rBound n n) (u n))
+                         (leQAddShift (seqOf y n) (seqOf z n) (rBound n n)
+                            (v n))))))
+
+def rleMinL : (x : El RSeq) (y : El RSeq) → Prf (RLeP (rMin x y) x) ≔
+  λx. λy.
+    rleOf (rMin x y) x
+      (λn.
+        leQTrans (qAdd (qMin (seqOf x n) (seqOf y n)) (qNeg (seqOf x n))) qZero
+                 (rBound n n)
+          (leQSubZero (qMin (seqOf x n) (seqOf y n)) (seqOf x n)
+             (leQMinL (seqOf x n) (seqOf y n)))
+          (leQZeroBound n n))
+
+def rleMinR : (x : El RSeq) (y : El RSeq) → Prf (RLeP (rMin x y) y) ≔
+  λx. λy.
+    rleOf (rMin x y) y
+      (λn.
+        leQTrans (qAdd (qMin (seqOf x n) (seqOf y n)) (qNeg (seqOf y n))) qZero
+                 (rBound n n)
+          (leQSubZero (qMin (seqOf x n) (seqOf y n)) (seqOf y n)
+             (leQMinR (seqOf x n) (seqOf y n)))
+          (leQZeroBound n n))
+
+def rMinGlb : (x : El RSeq) (y : El RSeq) (z : El RSeq) →
+  Prf (RLeP z x) → Prf (RLeP z y) → Prf (RLeP z (rMin x y)) ≔
+  λx. λy. λz. λh1. λh2.
+    squash-elim h1
+      (u. squash-elim h2
+            (v. rleOf z (rMin x y)
+                  (λn.
+                    leQSubShift (seqOf z n) (qMin (seqOf x n) (seqOf y n))
+                                (rBound n n)
+                      (qMinGlbShift (seqOf x n) (seqOf y n) (seqOf z n)
+                                    (rBound n n)
+                         (leQAddShift (seqOf z n) (seqOf x n) (rBound n n) (u n))
+                         (leQAddShift (seqOf z n) (seqOf y n) (rBound n n)
+                            (v n))))))
+
+-- ===== lifted to ℝ =====
+
+def leRMaxL : (u : El Real) (v : El Real) → Prf (LeR u (realMax u v)) ≔
+  λu. λv.
+    quot-elim (t. Prf (LeR t (realMax t v)))
+      (x. quot-elim (t. Prf (LeR (class x) (realMax (class x) t)))
+            (y. rleMaxL x y)
+            v)
+      u
+
+def leRMaxR : (u : El Real) (v : El Real) → Prf (LeR v (realMax u v)) ≔
+  λu. λv.
+    quot-elim (t. Prf (LeR v (realMax t v)))
+      (x. quot-elim (t. Prf (LeR t (realMax (class x) t)))
+            (y. rleMaxR x y)
+            v)
+      u
+
+def leRMinL : (u : El Real) (v : El Real) → Prf (LeR (realMin u v) u) ≔
+  λu. λv.
+    quot-elim (t. Prf (LeR (realMin t v) t))
+      (x. quot-elim (t. Prf (LeR (realMin (class x) t) (class x)))
+            (y. rleMinL x y)
+            v)
+      u
+
+def leRMinR : (u : El Real) (v : El Real) → Prf (LeR (realMin u v) v) ≔
+  λu. λv.
+    quot-elim (t. Prf (LeR (realMin t v) v))
+      (x. quot-elim (t. Prf (LeR (realMin (class x) t) t))
+            (y. rleMinR x y)
+            v)
+      u
+
+def leRMaxLub : (u : El Real) (v : El Real) (w : El Real) →
+  Prf (LeR u w) → Prf (LeR v w) → Prf (LeR (realMax u v) w) ≔
+  λu. λv. λw.
+    quot-elim (t. Prf (LeR t w) → Prf (LeR v w) → Prf (LeR (realMax t v) w))
+      (x. quot-elim (t. Prf (LeR (class x) w) → Prf (LeR t w) →
+                        Prf (LeR (realMax (class x) t) w))
+            (y. quot-elim (t. Prf (LeR (class x) t) → Prf (LeR (class y) t) →
+                              Prf (LeR (realMax (class x) (class y)) t))
+                  (z. λp. λq. rMaxLub x y z p q)
+                  w)
+            v)
+      u
+
+def leRMinGlb : (u : El Real) (v : El Real) (w : El Real) →
+  Prf (LeR w u) → Prf (LeR w v) → Prf (LeR w (realMin u v)) ≔
+  λu. λv. λw.
+    quot-elim (t. Prf (LeR w t) → Prf (LeR w v) → Prf (LeR w (realMin t v)))
+      (x. quot-elim (t. Prf (LeR w (class x)) → Prf (LeR w t) →
+                        Prf (LeR w (realMin (class x) t)))
+            (y. quot-elim (t. Prf (LeR t (class x)) → Prf (LeR t (class y)) →
+                              Prf (LeR t (realMin (class x) (class y))))
+                  (z. λp. λq. rMinGlb x y z p q)
+                  w)
+            v)
+      u
