@@ -16,6 +16,7 @@ import natAlgebra
 import natOrder
 import intOrder
 import rationalOrder
+import real
 import intGroup
 import ratField
 import nat
