@@ -381,6 +381,33 @@ side conditions):
                as today — Foundation defines them by meta-recursion,
                not rules, and no format avoids computing them.
 
+The QIIT layer's congruences and injectivity, NAMED (Foundation
+leaves its congruence clauses unlisted and its code-injectivity block
+stops at the simple formers; the derivation format needs the names):
+
+Γ ⊦ 𝒮 qsig      Γ ⊦ e₀ᵢ ≐ e₁ᵢ : Eᵢ   (entrywise; Eᵢ is entry i of
+                the sort's reflected telescope, instantiated by the
+                LEFT spine's prefix — each premise's conclusion
+                delivers its spellings to the next)
+--------------------------------------------------- (ty-qiit-cong)
+Γ ⊦ 𝒮.𝕤 ē₀ ≐ 𝒮.𝕤 ē₁ type
+
+Γ ⊦ 𝒮 qsig      Γ ⊦ e₀ᵢ ≐ e₁ᵢ : Eᵢ   (entrywise at a POINT
+                constructor's reflected telescope, same discipline)
+--------------------------------------------------- (el-qiit-intro-cong)
+Γ ⊦ 𝒮.𝕔 ē₀ ≐ 𝒮.𝕔 ē₁ : 𝒮.𝕤 ī(ē₀)
+# both congruences are instances of ≐'s (unlisted) congruence
+# clauses at the QIIT formers; the eliminator's congruence is the
+# separate DQElimCong family
+
+Γ ⊦ 𝒮.𝕤ᶜ ē₀ ≐ 𝒮.𝕤ᶜ ē₁ : 𝕌      ē₀ and ē₁ agree before position i
+--------------------------------------------------- (code-qsort-inj-idx)
+Γ ⊦ ē₀ᵢ ≐ ē₁ᵢ : Eᵢ   (Eᵢ instantiated by the shared prefix)
+# indexwise injectivity of sort CODES: 𝕌's equality is STRUCTURAL
+# (the same block that gives code-pi-inj), and a signature is inert
+# syntax, so equal saturated sort codes have equal spines — this is
+# the rule id.nova's qidx selector replays
+
 ////////// Items and acceptance //////////
 
 An item artifact is (name, type spelling T, body spelling t) plus
