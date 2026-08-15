@@ -5,9 +5,11 @@ import integerMul (intMul, intMulOneL, intMulDistribL, intMulDistribR)
 import intOrder (intOfNat, intOfNatPlus)
 import rational (NZ, nzPos, nzMul, nzToInt, Rat, mkRat, num, den, ratAdd,
                  intScale, intScaleToInt)
-import rationalQ (Q, qcls, qAdd, qAddCls, RatR, dInt, clsEqOfRel, nzToIntMul)
-import real (qInvNat)
-import equality (trans, sym, cong)
+import rationalQ (Q, qcls, qAdd, qZero, qAddCls, RatR, dInt, clsEqOfRel, nzToIntMul)
+import rationalOrder (LeQ)
+import ratBound (leQSelfAdd, leQZeroOfPos)
+import real (qInvNat, qInvNatPos)
+import equality (trans, sym, cong, transport)
 
 -- The HALVING law for the harmonic bounds: 1/(2n+2) + 1/(2n+2) is
 -- 1/(n+1). This is the one arithmetic fact that makes addition on ℝ
@@ -138,3 +140,16 @@ def qInvHalf : (n : ℕ) →
       (qAddCls (unitRat (dbl n)) (unitRat (dbl n)))
       (clsEqOfRel (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) (unitRat n)
          (halfRel n))
+
+-- ===== the halved bound, as an inequality =====
+
+def leQZeroInvNat : (n : ℕ) → El (LeQ qZero (qInvNat n)) ≔
+  λn. leQZeroOfPos (qInvNat n) (qInvNatPos n)
+
+-- 1/(2n+2) ≤ 1/(n+1): the halved bound is at most the original,
+-- because the other half is nonnegative
+def leQInvDbl : (n : ℕ) → El (LeQ (qInvNat (dbl n)) (qInvNat n)) ≔
+  λn.
+    transport Q (λw. LeQ (qInvNat (dbl n)) w)
+      (qAdd (qInvNat (dbl n)) (qInvNat (dbl n))) (qInvNat n) (qInvHalf n)
+      (leQSelfAdd (qInvNat (dbl n)) (qInvNat (dbl n)) (leQZeroInvNat (dbl n)))

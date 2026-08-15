@@ -3,7 +3,7 @@ import rationalQ (Q, qAdd, qNeg, qZero, qOne, qAddComm, qAddAssoc, qAddZeroL,
 import rationalOrder (LeQ, leQRefl, leQTrans, qPairSwap, qSubPlusCancel)
 import ratBound (Bnd, bndAdd, bndEq, bndEqB, bndWeaken, bndSubEq,
                  qSubAdd, qSubPlusCancelL, leQAdd, leQSelfAdd, leQZeroOfPos)
-import ratHalf (dbl, qInvHalf)
+import ratHalf (dbl, qInvHalf, leQZeroInvNat, leQInvDbl)
 import real (qInvNat, qInvNatPos, rBound, leQZeroBound, Regular, RSeq, REq, Real,
              constReg, realOfQ, realZero, realOne)
 import realNeg (seqOf, regOf, regBnd, bndReg, reqOf, reqOfPointwise, reqRefl,
@@ -26,17 +26,6 @@ import equality (trans, sym, cong, transport)
 -- INDEX-SHIFT facts, closed by 1/(2n+2) ≤ 1/(n+1).
 
 -- ===== the harmonic bookkeeping =====
-
-def leQZeroInvNat : (n : ℕ) → El (LeQ qZero (qInvNat n)) ≔
-  λn. leQZeroOfPos (qInvNat n) (qInvNatPos n)
-
--- 1/(2n+2) ≤ 1/(n+1): the halved bound is at most the original,
--- because the other half is nonnegative
-def leQInvDbl : (n : ℕ) → El (LeQ (qInvNat (dbl n)) (qInvNat n)) ≔
-  λn.
-    transport Q (λw. LeQ (qInvNat (dbl n)) w)
-      (qAdd (qInvNat (dbl n)) (qInvNat (dbl n))) (qInvNat n) (qInvHalf n)
-      (leQSelfAdd (qInvNat (dbl n)) (qInvNat (dbl n)) (leQZeroInvNat (dbl n)))
 
 -- the doubled bound halves: 2·(1/(2m+2) + 1/(2n+2)) = 1/(m+1) + 1/(n+1)
 def rBoundHalf : (m : ℕ) (n : ℕ) →

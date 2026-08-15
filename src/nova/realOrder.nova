@@ -1,0 +1,277 @@
+import rationalQ (Q, qAdd, qNeg, qZero, qOne, qAddComm, qAddNegR)
+import rationalOrder (Sign, sPos, sgnQ, LeQ, leQRefl, leQTrans, leQPlusMono,
+                      leQPlusMonoL, qSubPlusCancel)
+import ratBound (Bnd, bndSubSym, bndEqB, leQVia, leQAdd, bndOfBothLe,
+                 qSubPlusCancelL, leQZeroOfPos)
+import ratHalf (dbl, qInvHalf)
+import ratArch (leQOfArch, qFourSum, leQTripleInv)
+import real (qInvNat, rBound, leQZeroBound, Regular, RSeq, REq, Real,
+             constReg, realOfQ, realZero, realOne)
+import realNeg (seqOf, regOf, regBnd, reqOf, reqSym, realEqOfREq)
+import realAdd (rBoundHalf, leQBoundDblDiag, rAdd, realAdd)
+import realEq (qtr, reqTrans)
+import prop (propExt)
+import equality (trans, sym, cong, transport)
+
+-- THE ORDER on ℝ, Bishop-style: x ≤ y iff x_n − y_n ≤ 2/(n+1) for
+-- every n. Read literally that is a statement about representatives,
+-- and it is NOT stable under REq on the nose — swapping y for a close
+-- y′ costs another 2/(n+1). Stability is recovered exactly as
+-- transitivity of REq was: run the comparison at a deeper index and
+-- let ratArch.nova's leQOfArch absorb the slack.
+--
+-- Both facts factor through ONE lemma, leQOfDouble: a four-times-too-
+-- large pointwise bound still implies ≤. Transitivity, invariance in
+-- either argument, and everything downstream are instances.
+--
+-- The relation is Ω-VALUED. A 𝕌-valued order could not descend to the
+-- quotient at all: quot-elim into 𝕌 would need the two types EQUAL,
+-- and Nova has propositional extensionality, not univalence.
+
+-- ===== the four-leg slack bound =====
+
+-- x_n − z_n ≤ (x_n − x_m) + (x_m − z_m) + (z_m − z_n), run at
+-- m = 8(k+1) − 1, where the middle bound 1/(k+1) and the two
+-- regularity gaps together stay under 2/(n+1) + 1/(k+1)
+def leQFour : (f : El (ℕ → Q)) (h : El (ℕ → Q)) →
+  El (Regular f) → El (Regular h) → (n : ℕ) (k : ℕ) →
+  El (LeQ (qAdd (f (dbl (qtr k))) (qNeg (h (dbl (qtr k)))))
+          (rBound (qtr k) (qtr k))) →
+  El (LeQ (qAdd (f n) (qNeg (h n))) (qAdd (rBound n n) (qInvNat k))) ≔
+  λf. λh. λhf. λhh. λn. λk. λmid.
+    leQTrans (qAdd (f n) (qNeg (h n)))
+      (qAdd (rBound n n)
+            (qAdd (qInvNat (qtr k)) (rBound (qtr k) (qtr k))))
+      (qAdd (rBound n n) (qInvNat k))
+      (transport Q
+         (λw. LeQ (qAdd (f n) (qNeg (h n)))
+                  (qAdd (rBound n n) (qAdd w (rBound (qtr k) (qtr k)))))
+         (qAdd (qInvNat (dbl (qtr k))) (qInvNat (dbl (qtr k))))
+         (qInvNat (qtr k))
+         (qInvHalf (qtr k))
+         (transport Q (λw. LeQ (qAdd (f n) (qNeg (h n))) w)
+            (qAdd (qAdd (rBound n (dbl (qtr k))) (rBound (qtr k) (qtr k)))
+                  (rBound (dbl (qtr k)) n))
+            (qAdd (qAdd (qInvNat n) (qInvNat n))
+                  (qAdd (qAdd (qInvNat (dbl (qtr k))) (qInvNat (dbl (qtr k))))
+                        (rBound (qtr k) (qtr k))))
+            (qFourSum (qInvNat n) (qInvNat (dbl (qtr k)))
+                      (rBound (qtr k) (qtr k)))
+            (leQVia (qAdd (rBound n (dbl (qtr k))) (rBound (qtr k) (qtr k)))
+                    (rBound (dbl (qtr k)) n)
+                    (f n) (h (dbl (qtr k))) (h n)
+               (leQVia (rBound n (dbl (qtr k))) (rBound (qtr k) (qtr k))
+                       (f n) (f (dbl (qtr k))) (h (dbl (qtr k)))
+                  ((regBnd f hf n (dbl (qtr k))) .π₂)
+                  mid)
+               ((regBnd h hh (dbl (qtr k)) n) .π₂))))
+      (leQPlusMonoL
+         (qAdd (qInvNat (qtr k)) (rBound (qtr k) (qtr k)))
+         (qInvNat k) (rBound n n) (leQTripleInv k))
+
+-- ===== the relation on representatives =====
+
+def RLeP : El RSeq → El RSeq → Ω ≔
+  λx. λy.
+    ∥El ((n : ℕ) →
+      LeQ (qAdd (seqOf x n) (qNeg (seqOf y n))) (rBound n n))∥
+
+def rleOf : (x : El RSeq) (y : El RSeq) →
+  ((n : ℕ) → El (LeQ (qAdd (seqOf x n) (qNeg (seqOf y n))) (rBound n n))) →
+  Prf (RLeP x y) ≔
+  λx. λy. λh. ⋆ h
+
+-- THE workhorse: a pointwise bound four times too large still gives ≤
+def rleOfDouble : (x : El RSeq) (z : El RSeq) →
+  ((j : ℕ) → El (LeQ (qAdd (seqOf x j) (qNeg (seqOf z j)))
+                     (qAdd (rBound j j) (rBound j j)))) →
+  Prf (RLeP x z) ≔
+  λx. λz. λd.
+    rleOf x z
+      (λn.
+        leQOfArch (qAdd (seqOf x n) (qNeg (seqOf z n))) (rBound n n)
+          (λk.
+            leQFour (seqOf x) (seqOf z) (regOf x) (regOf z) n k
+              (transport Q
+                 (λw. LeQ (qAdd (seqOf x (dbl (qtr k)))
+                                (qNeg (seqOf z (dbl (qtr k))))) w)
+                 (qAdd (rBound (dbl (qtr k)) (dbl (qtr k)))
+                       (rBound (dbl (qtr k)) (dbl (qtr k))))
+                 (rBound (qtr k) (qtr k))
+                 (rBoundHalf (qtr k) (qtr k))
+                 (d (dbl (qtr k))))))
+
+-- ===== reflexivity, transitivity, invariance =====
+
+def rleRefl : (x : El RSeq) → Prf (RLeP x x) ≔
+  λx.
+    rleOf x x
+      (λn.
+        transport Q (λw. LeQ w (rBound n n)) qZero
+          (qAdd (seqOf x n) (qNeg (seqOf x n)))
+          (sym Q (qAdd (seqOf x n) (qNeg (seqOf x n))) qZero
+             (qAddNegR (seqOf x n)))
+          (leQZeroBound n n))
+
+def rleTrans : (x : El RSeq) (y : El RSeq) (z : El RSeq) →
+  Prf (RLeP x y) → Prf (RLeP y z) → Prf (RLeP x z) ≔
+  λx. λy. λz. λh1. λh2.
+    squash-elim h1
+      (u. squash-elim h2
+            (v. rleOfDouble x z
+                  (λj. leQVia (rBound j j) (rBound j j)
+                         (seqOf x j) (seqOf y j) (seqOf z j) (u j) (v j))))
+
+-- replacing the RIGHT side by a close one
+def rleCongR : (x : El RSeq) (y : El RSeq) (y' : El RSeq) →
+  Prf (REq y y') → Prf (RLeP x y) → Prf (RLeP x y') ≔
+  λx. λy. λy'. λhe. λhl.
+    squash-elim hl
+      (u. squash-elim he
+            (v. rleOfDouble x y'
+                  (λj. leQVia (rBound j j) (rBound j j)
+                         (seqOf x j) (seqOf y j) (seqOf y' j)
+                         (u j) ((v j) .π₂))))
+
+-- ...and the LEFT
+def rleCongL : (x : El RSeq) (x' : El RSeq) (y : El RSeq) →
+  Prf (REq x x') → Prf (RLeP x y) → Prf (RLeP x' y) ≔
+  λx. λx'. λy. λhe. λhl.
+    squash-elim hl
+      (u. squash-elim he
+            (v. rleOfDouble x' y
+                  (λj. leQVia (rBound j j) (rBound j j)
+                         (seqOf x' j) (seqOf x j) (seqOf y j)
+                         ((bndSubSym (rBound j j) (seqOf x j) (seqOf x' j)
+                             (v j)) .π₂)
+                         (u j))))
+
+-- ===== descent to ℝ =====
+
+def rleWDInner : (x : El RSeq) (y : El RSeq) (y' : El RSeq) (h : Prf (REq y y')) →
+  RLeP x y ≡ RLeP x y' ∈ Ω ≔
+  λx. λy. λy'. λh.
+    propExt (RLeP x y) (RLeP x y')
+      (λp. rleCongR x y y' h p)
+      (λp. rleCongR x y' y (reqSym y y' h) p)
+
+def rleWDOuterCls : (x : El RSeq) (x' : El RSeq) (c : El RSeq) (h : Prf (REq x x')) →
+  RLeP x c ≡ RLeP x' c ∈ Ω ≔
+  λx. λx'. λc. λh.
+    propExt (RLeP x c) (RLeP x' c)
+      (λp. rleCongL x x' c h p)
+      (λp. rleCongL x' x c (reqSym x x' h) p)
+
+def rleWDOuter : (x : El RSeq) (x' : El RSeq) (h : Prf (REq x x')) (v : El Real) →
+  quot-elim (w. Ω) (y. RLeP x y) v ≡ quot-elim (w. Ω) (y. RLeP x' y) v ∈ Ω
+  using (rleWDInner) ≔
+  λx. λx'. λh. λv.
+    quot-elim (w. quot-elim (z. Ω) (y. RLeP x y) w
+                    ≡ quot-elim (z. Ω) (y. RLeP x' y) w ∈ Ω)
+      (c. rleWDOuterCls x x' c h)
+      v
+
+def LeR : El Real → El Real → Ω using (rleWDInner, rleWDOuter) ≔
+  λu. λv. quot-elim (w. Ω) (x. quot-elim (w. Ω) (y. RLeP x y) v) u
+
+def leRCls : (x : El RSeq) (y : El RSeq) →
+  LeR (class x) (class y) ≡ RLeP x y ∈ Ω ≔ λx. λy. ⋆
+
+-- ===== the order laws =====
+
+def leRRefl : (u : El Real) → Prf (LeR u u) ≔
+  λu. quot-elim (w. Prf (LeR w w)) (x. rleRefl x) u
+
+def leRTrans : (u : El Real) (v : El Real) (w : El Real) →
+  Prf (LeR u v) → Prf (LeR v w) → Prf (LeR u w) ≔
+  λu. λv. λw.
+    quot-elim (t. Prf (LeR t v) → Prf (LeR v w) → Prf (LeR t w))
+      (x. quot-elim (t. Prf (LeR (class x) t) → Prf (LeR t w) →
+                        Prf (LeR (class x) w))
+            (y. quot-elim (t. Prf (LeR (class x) (class y)) →
+                              Prf (LeR (class y) t) →
+                              Prf (LeR (class x) t))
+                  (z. λp. λq. rleTrans x y z p q)
+                  w)
+            v)
+      u
+
+-- antisymmetry: two one-sided bounds make a two-sided one, which is
+-- exactly REq — so the two reals are equal
+def rleAntisym : (x : El RSeq) (y : El RSeq) →
+  Prf (RLeP x y) → Prf (RLeP y x) → Prf (REq x y) ≔
+  λx. λy. λh1. λh2.
+    squash-elim h1
+      (u. squash-elim h2
+            (v. reqOf x y
+                  (λn. bndOfBothLe (rBound n n) (seqOf x n) (seqOf y n)
+                         (u n) (v n))))
+
+def leRAntisym : (u : El Real) (v : El Real) →
+  Prf (LeR u v) → Prf (LeR v u) → u ≡ v ∈ El Real ≔
+  λu. λv.
+    quot-elim (t. Prf (LeR t v) → Prf (LeR v t) → (t ≡ v ∈ El Real))
+      (x. quot-elim (t. Prf (LeR (class x) t) → Prf (LeR t (class x)) →
+                        (class x ≡ t ∈ El Real))
+            (y. λp. λq. realEqOfREq x y (rleAntisym x y p q))
+            v)
+      u
+
+-- ===== compatibility =====
+
+-- a common summand cancels, and the deeper sample only tightens
+def rleAddMono : (x : El RSeq) (y : El RSeq) (c : El RSeq) →
+  Prf (RLeP x y) → Prf (RLeP (rAdd x c) (rAdd y c)) ≔
+  λx. λy. λc. λh.
+    squash-elim h
+      (u. rleOf (rAdd x c) (rAdd y c)
+            (λn.
+              transport Q
+                (λw. LeQ w (rBound n n))
+                (qAdd (seqOf x (dbl n)) (qNeg (seqOf y (dbl n))))
+                (qAdd (qAdd (seqOf x (dbl n)) (seqOf c (dbl n)))
+                      (qNeg (qAdd (seqOf y (dbl n)) (seqOf c (dbl n)))))
+                (sym Q (qAdd (qAdd (seqOf x (dbl n)) (seqOf c (dbl n)))
+                             (qNeg (qAdd (seqOf y (dbl n)) (seqOf c (dbl n)))))
+                       (qAdd (seqOf x (dbl n)) (qNeg (seqOf y (dbl n))))
+                   (qSubPlusCancel (seqOf y (dbl n)) (seqOf x (dbl n))
+                      (seqOf c (dbl n))))
+                (leQTrans (qAdd (seqOf x (dbl n)) (qNeg (seqOf y (dbl n))))
+                          (rBound (dbl n) (dbl n)) (rBound n n)
+                   (u (dbl n)) (leQBoundDblDiag n))))
+
+def leRAddMono : (u : El Real) (v : El Real) (w : El Real) →
+  Prf (LeR u v) → Prf (LeR (realAdd u w) (realAdd v w)) ≔
+  λu. λv. λw.
+    quot-elim (t. Prf (LeR t v) → Prf (LeR (realAdd t w) (realAdd v w)))
+      (x. quot-elim (t. Prf (LeR (class x) t) →
+                        Prf (LeR (realAdd (class x) w) (realAdd t w)))
+            (y. quot-elim (t. Prf (LeR (class x) (class y)) →
+                              Prf (LeR (realAdd (class x) t)
+                                       (realAdd (class y) t)))
+                  (z. λp. rleAddMono x y z p)
+                  w)
+            v)
+      u
+
+-- ===== ℚ embeds order-preservingly =====
+
+-- p ≤ q in ℚ gives p − q ≤ 0
+def leQSubZero : (p : El Q) (q : El Q) →
+  El (LeQ p q) → El (LeQ (qAdd p (qNeg q)) qZero) ≔
+  λp. λq. λle.
+    transport Q (λw. LeQ (qAdd p (qNeg q)) w)
+      (qAdd q (qNeg q)) qZero (qAddNegR q)
+      (leQPlusMono p q (qNeg q) le)
+
+def leROfQ : (p : El Q) (q : El Q) →
+  El (LeQ p q) → Prf (LeR (realOfQ p) (realOfQ q)) ≔
+  λp. λq. λle.
+    rleOf ((λn. p) , constReg p) ((λn. q) , constReg q)
+      (λn. leQTrans (qAdd p (qNeg q)) qZero (rBound n n)
+             (leQSubZero p q le) (leQZeroBound n n))
+
+-- 0 ≤ 1 in ℝ, through ℚ: the sign of 1 computes
+def sgnQOnePos : sgnQ qOne ≡ sPos ∈ El Sign ≔ ⋆
+def leQZeroOne : El (LeQ qZero qOne) ≔ leQZeroOfPos qOne sgnQOnePos
+def leRZeroOne : Prf (LeR realZero realOne) ≔ leROfQ qZero qOne leQZeroOne
