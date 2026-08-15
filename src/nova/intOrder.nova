@@ -1,12 +1,13 @@
-import nat (+, plusComm, zeroPlusId)
+import nat (+, *, plusComm, zeroPlusId, zeroMult)
 import natOrder (LeN, leTotal, sumZeroL)
 import integer (Int, intZero, intNeg)
 import integerAdd (intAdd, intAddComm, intAddAssoc)
-import integerMul (intAddNegL, intAddNegR, intNegNeg, classPairEta)
+import integerMul (intMul, intMulComm, intMulDistribL,
+                   intAddNegL, intAddNegR, intNegNeg, classPairEta)
 import rational (intAddZeroL, intAddZeroR)
 import eqInt (intCanon, intCanonClass)
 import intEffective (intEffective)
-import equality (trans, sym, cong)
+import equality (trans, sym, cong, transport)
 import id (Id, idToEq, eqToId)
 
 -- Order on ℤ, same shape as natOrder's LeN: the difference between
@@ -308,3 +309,72 @@ def leZTotal : (x : El Int) (y : El Int) →
                              (cong Int (λu. Int) (λu. intNeg u) (class (intCanon d)) d hd)))
                    (intPlusNegDiff x y))))
       (leTotal (intCanon d .π₂) (intCanon d .π₁))
+
+-- ===== multiplicative order =====
+
+-- intOfNat is multiplicative (Z·b needs one zeroMult rewrite)
+def intOfNatMul : (a : ℕ) (b : ℕ) →
+  intMul (intOfNat a) (intOfNat b) ≡ intOfNat (a * b) ∈ El Int using (zeroMult) ≔
+  λa. λb. ⋆
+
+-- right distributivity, from the left one by commutativity
+def intMulDistribR : (a : El Int) (b : El Int) (c : El Int) →
+  intMul (intAdd a b) c ≡ intAdd (intMul a c) (intMul b c) ∈ El Int ≔
+  λa. λb. λc.
+    (intMul (intAdd a b) c
+       ≡⟨ intMulComm (intAdd a b) c ⟩
+     intMul c (intAdd a b)
+       ≡⟨ intMulDistribL c a b ⟩
+     intAdd (intMul c a) (intMul c b)
+       ≡⟨ cong Int (λv. Int) (λv. intAdd v (intMul c b)) (intMul c a) (intMul a c)
+            (intMulComm c a) ⟩
+     intAdd (intMul a c) (intMul c b)
+       ≡⟨ cong Int (λv. Int) (λv. intAdd (intMul a c) v) (intMul c b) (intMul b c)
+            (intMulComm c b) ⟩
+     intAdd (intMul a c) (intMul b c))
+
+-- scaling by a NATURAL preserves the order: the witness scales
+def leZMultMonoNat : (x : El Int) (y : El Int) (m : ℕ) →
+  El (LeZ x y) → El (LeZ (intMul x (intOfNat m)) (intMul y (intOfNat m))) ≔
+  λx. λy. λm. λle.
+    (le .π₁ * m ,
+     eqToId Int (intAdd (intMul x (intOfNat m)) (intOfNat (le .π₁ * m)))
+            (intMul y (intOfNat m))
+       (trans Int (intAdd (intMul x (intOfNat m)) (intOfNat (le .π₁ * m)))
+              (intAdd (intMul x (intOfNat m)) (intMul (intOfNat (le .π₁)) (intOfNat m)))
+              (intMul y (intOfNat m))
+          (cong Int (λv. Int) (λv. intAdd (intMul x (intOfNat m)) v)
+             (intOfNat (le .π₁ * m)) (intMul (intOfNat (le .π₁)) (intOfNat m))
+             (sym Int (intMul (intOfNat (le .π₁)) (intOfNat m)) (intOfNat (le .π₁ * m))
+                (intOfNatMul (le .π₁) m)))
+          (trans Int (intAdd (intMul x (intOfNat m)) (intMul (intOfNat (le .π₁)) (intOfNat m)))
+                 (intMul (intAdd x (intOfNat (le .π₁))) (intOfNat m))
+                 (intMul y (intOfNat m))
+             (sym Int (intMul (intAdd x (intOfNat (le .π₁))) (intOfNat m))
+                  (intAdd (intMul x (intOfNat m)) (intMul (intOfNat (le .π₁)) (intOfNat m)))
+                  (intMulDistribR x (intOfNat (le .π₁)) (intOfNat m)))
+             (cong Int (λv. Int) (λv. intMul v (intOfNat m))
+                (intAdd x (intOfNat (le .π₁))) y
+                (idToEq Int (intAdd x (intOfNat (le .π₁))) y (le .π₂))))))
+
+-- a nonneg integer is a natural, witnessed
+def leZNonNegView : (c : El Int) → El (LeZ intZero c) →
+  ((m : ℕ) ⨯ Prf (intOfNat m ≡ c ∈ El Int)) ≔
+  λc. λle.
+    (le .π₁ ,
+     trans Int (intOfNat (le .π₁)) (intAdd intZero (intOfNat (le .π₁))) c
+       (sym Int (intAdd intZero (intOfNat (le .π₁))) (intOfNat (le .π₁))
+          (intAddZeroL (intOfNat (le .π₁))))
+       (idToEq Int (intAdd intZero (intOfNat (le .π₁))) c (le .π₂)))
+
+-- scaling by a NONNEGATIVE integer preserves the order: view the
+-- scalar as a natural and TRANSPORT the scaled inequality along the
+-- view — LeZ is a 𝕌-family, so transport applies to it directly
+def leZMultMono : (x : El Int) (y : El Int) (c : El Int) →
+  El (LeZ x y) → El (LeZ intZero c) →
+  El (LeZ (intMul x c) (intMul y c)) ≔
+  λx. λy. λc. λle. λlc.
+    transport Int (λu. LeZ (intMul x u) (intMul y u))
+      (intOfNat (leZNonNegView c lc .π₁)) c
+      (leZNonNegView c lc .π₂)
+      (leZMultMonoNat x y (leZNonNegView c lc .π₁) le)
