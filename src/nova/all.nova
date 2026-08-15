@@ -28,6 +28,8 @@ import ratAbs
 import realAbs
 import ratLt
 import realLt
+import realGroup
+import realMetric
 import natMore
 import intAbs
 import intGroup

@@ -420,6 +420,50 @@ rather than as a missing argument.
 the goal's relation is not in the automatic fragment, say so and name
 `⋆ e` in the hint line.
 
+### B-11. [ℝ] A quot-elim whose method is not `⋆` owes an equation between PROOF TERMS
+
+`quot-elim` at an ≡-typed motive still generates its own
+well-definedness goal, and when the method is an explicit proof term
+that goal is
+
+```
+normPairSum (p .π₁) (p .π₂)  ≐  normPairSum (p' .π₁) (p' .π₂)
+    :  intAbs (intNeg (class p)) ≡ intAbs (class p) ∈ ℕ
+```
+
+— an equation between two *proofs* of the same proposition, i.e. an
+instance of proof irrelevance. The engine does not reach for
+irrelevance first; it looks for a derivation, finds one, and the kernel
+rejects the certificate (`proof element not inferable: NatElim …`).
+
+Worst of all, whether it does so is STORE-DEPENDENT: `intAbs.nova` was
+`Accepted.` standalone and failed the moment it was elaborated inside
+`src/nova/all.nova`. Naming `prop.irrel` in the `using` clause fixes it
+in both.
+
+Rule: **any `quot-elim` with a non-`⋆` method should list `prop.irrel`
+in `using`.**
+
+**Suggested fix:** try proof irrelevance FIRST at a `Prf`-typed goal,
+before any search.
+
+### B-12. [ℝ] Decomposition beats whole-equation match
+
+The same lemma, applied by name, works; left to `⋆` it does not. Goal:
+
+```
+normPair b a .π₁ + normPair b a .π₂  ≐  normPair a b .π₁ + normPair a b .π₂
+```
+
+with `normPairSum` (exactly that equation, over variables) in the
+`using` clause. The engine splits the sum congruentially into
+`… .π₁ ≐ … .π₁` and `… .π₂ ≐ … .π₂` — both FALSE, since the two
+components swap — and reports those. Whole-equation match never runs.
+
+**Suggested fix:** try whole-equation match against the named
+candidates before congruential decomposition, or at least fall back to
+it when a decomposed branch fails.
+
 ## C. Discharge-engine ergonomics
 
 ### C-1. Oriented rewriting means library lemmas need flipped copies
@@ -625,6 +669,33 @@ absolute value, prefer the *conjunction of two inequalities* as the
 primitive. It is definitionally the same thing and proof-theoretically
 much cheaper.
 
+### D-8. [ℝ] Define the relation one level UP, not on representatives
+
+The textbook definition of `<` on the reals is about representatives:
+*some* index n at which y_n beats x_n by more than the modulus. Stating
+it that way means owing a proof that it survives the quotient relation,
+and for `<` that proof is genuinely hard — it needs a quantitative
+"pick a deeper index" argument of its own.
+
+Stating it one level up instead —
+
+```
+LtR u v  ≜  ∥(k : ℕ) ⨯ Prf (LeR (realAdd u (realOfQ (qInvNat k))) v)∥
+```
+
+— makes invariance FREE: every constituent (`LeR`, `realAdd`,
+`realOfQ`) already lives on ℝ, so there is nothing to descend. The
+whole of `realLt.nova` is then ~180 lines with no representative in
+sight, and the only place the Archimedean property is spent is the
+single lemma relating it back to `<` on ℚ.
+
+The same reading explains why `realAbs.nova` is short and `realOrder.nova`
+is not: `|·|` is 1-Lipschitz, so it commutes with the quotient
+structure on the nose, while `≤` does not and had to be repaired by
+`leQOfArch`. **Before descending an operation to a quotient, check
+whether it can be assembled from operations that have already
+descended.**
+
 ---
 
 ## E. Elaborator ergonomics
@@ -704,6 +775,24 @@ a side is an unsolved-hole spine) now pays twice — completeness AND
 the attempt tax; plus dependency-scoped cache eviction on flips.
 Until then: on hot items, spell the indices — `_` is cheap to write
 and expensive to elaborate.
+
+### E-1¾. [ℝ] `transport` at a `Prf`-valued family fails as a λ error
+
+`transport`'s family is `El A → 𝕌`; for a family landing in `Ω` the
+combinator is `transportP`. Reaching for the wrong one —
+
+```
+transport Real (λw. LeR (realOfQ p) w) …          -- LeR : … → Ω
+```
+
+— is diagnosed as
+
+```
+λ checked against a non-Π type (ascribe the term: `(t : T)`)
+```
+
+which points at the λ rather than at the family's sort. Same class of
+mis-pointing as F-1 was.
 
 ### E-2. Proof terms are enormous because every hop repeats its endpoints
 
