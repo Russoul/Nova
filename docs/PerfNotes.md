@@ -260,11 +260,11 @@ is sound by construction, which is the better trade.
 in the elaborator's normaliser, which `Nova.Elaboration` alone imports.
 It was called `Nova.Kernel.Beta` at the time — a name that invited
 exactly the wrong assumption — and was renamed `Nova.Elaboration.Beta`,
-with the memo tables folded back into it. (The module name
-`Nova.Kernel.Beta` has since been REUSED by an unrelated arrival: the
-dormant derivation artifact's kernel-side walker family, which really
-is kernel-layer — see docs/NovaDerivations.txt. The two coexist by
-design.) That memo is below the trust boundary: a stale entry there can only
+with the memo tables folded back into it. (An unrelated arrival
+briefly reused the old name: the dormant derivation artifact's
+kernel-side walker family, which really is kernel-layer and now lives
+at `Nova.Kernel.Dormant.Beta` with the rest of that artifact — see
+docs/NovaDerivations.txt. The two coexist by design.) That memo is below the trust boundary: a stale entry there can only
 cost completeness (a bad certificate is rejected at replay), never
 soundness. Moving it into `ElabSt` would mean threading a cache through
 `betaElem`'s 100 internal recursions and 64 call sites, or making `Sig`

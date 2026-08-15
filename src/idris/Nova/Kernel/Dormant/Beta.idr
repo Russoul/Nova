@@ -1,4 +1,4 @@
-module Nova.Kernel.Beta
+module Nova.Kernel.Dormant.Beta
 
 -- A direct, structurally-recursive beta-reduction algorithm for Ctx/Sub/Ty/
 -- Elem/SubNorm, matching every "by definition" (≜) computation

@@ -7,8 +7,9 @@ modules = Nova.Kernel.Syntax
         , Nova.Kernel.Subst
         , Nova.Kernel
         , Nova.Kernel.QIIT
-        , Nova.Kernel.Beta
-        , Nova.Kernel.Derivation
+        , Nova.Kernel.Dormant.Beta
+        , Nova.Kernel.Dormant.Derivation
+        , Nova.Kernel.Dormant.Tests
         , Nova.Compute
         , Nova.Elaboration.Beta
         , Nova.Elaboration.Named

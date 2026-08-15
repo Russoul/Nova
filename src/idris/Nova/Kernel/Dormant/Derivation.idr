@@ -1,4 +1,4 @@
-module Nova.Kernel.Derivation
+module Nova.Kernel.Dormant.Derivation
 
 -- Phase 1 of the derivation rework (docs/NovaDerivations.txt;
 -- phasing and status in docs/NovaPipeline.txt): the trusted core.
@@ -25,7 +25,7 @@ import Data.SnocList
 
 import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
-import Nova.Kernel.Beta
+import Nova.Kernel.Dormant.Beta
 import Nova.Kernel.QIIT
 import Nova.Kernel
 

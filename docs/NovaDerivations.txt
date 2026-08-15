@@ -41,6 +41,14 @@ derivations here are Foundation-rule trees, machine-built and
 machine-checked, never authored and never read; the agent-facing
 currency remains surface statements and obligations, unchanged.
 
+The implementation lives, whole, under src/idris/Nova/Kernel/Dormant/
+— Derivation.idr (the Deriv rule set, conclude, the admissible
+additions, the acceptance API), Beta.idr (the walker family beta-at
+calls), and Tests.idr (the directly-wired candidate derivations the
+deriv-core golden runs). Dormant by design: buildable, tested, and
+hooked into nothing. It sits INSIDE Nova/Kernel because it is a
+kernel-layer client of the kernel monad's private core.
+
 ////////// The judgements //////////
 
 Exactly Foundation's inventory — the judgement-form table of
