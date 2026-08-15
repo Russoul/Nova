@@ -1,0 +1,195 @@
+import nat (+, *, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusComm, plusAssoc,
+            plusCancel, sucInj, multZeroId, multSucId, zeroMult, sucMult, multComm,
+            multDistrib, multAssoc)
+import natOrder (LeN, leRefl, leTrans, leTotal, sumZeroL, sumZeroR, leAntisym)
+import equality (trans, sym, cong)
+import id (Id, idToEq, eqToId)
+
+-- Arithmetic ℕ owes the rest of the corpus: right distributivity,
+-- cancellation on the left and by a non-zero factor, truncated
+-- subtraction with max/min, and exponentiation. Each of these was
+-- either re-derived ad hoc downstream (`distribBackR` lives in
+-- integerMul.nova, `oneMult` in rational.nova) or simply unavailable.
+
+-- ===== distributivity on the right =====
+
+def multDistribR : (n : ℕ) (m : ℕ) (k : ℕ) →
+  (m + k) * n ≡ m * n + k * n ∈ ℕ ≔
+  λn. λm. λk.
+    ((m + k) * n
+       ≡⟨ multComm (m + k) n ⟩
+     n * (m + k)
+       ≡⟨ multDistrib n m k ⟩
+     n * m + n * k
+       ≡⟨ cong ℕ (λu. ℕ) (λw. w + n * k) (n * m) (m * n) (multComm m n) ⟩
+     m * n + n * k
+       ≡⟨ cong ℕ (λu. ℕ) (λw. m * n + w) (n * k) (k * n) (multComm k n) ⟩
+     m * n + k * n)
+
+-- ===== cancellation =====
+
+def plusCancelL : (k : ℕ) (n : ℕ) (m : ℕ) → (k + n ≡ k + m ∈ ℕ) → n ≡ m ∈ ℕ ≔
+  λk. λn. λm. λh.
+    plusCancel n m k
+      (trans ℕ (n + k) (k + n) (m + k)
+         (plusComm k n)
+         (trans ℕ (k + n) (k + m) (m + k) h (plusComm m k)))
+
+-- a product with a SUCCESSOR is zero only if the other factor is
+def multZeroInv : (j : ℕ) (k : ℕ) → (j * S k ≡ Z ∈ ℕ) → j ≡ Z ∈ ℕ ≔
+  λj. λk. λh.
+    sumZeroL j (j * k)
+      (trans ℕ (j + j * k) (j * S k) Z
+         (sym ℕ (j * S k) (j + j * k) (multSucId j k))
+         h)
+
+-- cancellation by S k, under the assumption that the smaller side is
+-- known: the surplus times S k is zero, hence zero
+def multCancelLe : (n : ℕ) (m : ℕ) (k : ℕ) →
+  El (LeN n m) → (n * S k ≡ m * S k ∈ ℕ) → n ≡ m ∈ ℕ ≔
+  λn. λm. λk. λle. λh.
+    let e : n + le .π₁ ≡ m ∈ ℕ ≔ idToEq ℕ (n + le .π₁) m (le .π₂) in
+    let split : n * S k ≡ n * S k + le .π₁ * S k ∈ ℕ ≔
+      trans ℕ (n * S k) (m * S k) (n * S k + le .π₁ * S k)
+        h
+        (trans ℕ (m * S k) ((n + le .π₁) * S k) (n * S k + le .π₁ * S k)
+           (cong ℕ (λu. ℕ) (λw. w * S k) m (n + le .π₁)
+              (sym ℕ (n + le .π₁) m e))
+           (multDistribR (S k) n (le .π₁))) in
+    let jz : le .π₁ ≡ Z ∈ ℕ ≔
+      multZeroInv (le .π₁) k
+        (sym ℕ Z (le .π₁ * S k)
+           (plusCancelL (n * S k) Z (le .π₁ * S k) split)) in
+    trans ℕ n (n + le .π₁) m
+      (sym ℕ (n + le .π₁) n
+         (trans ℕ (n + le .π₁) (n + Z) n
+            (cong ℕ (λu. ℕ) (λw. n + w) (le .π₁) Z jz)
+            (plusZeroId n)))
+      e
+
+def multCancelR : (n : ℕ) (m : ℕ) (k : ℕ) →
+  (n * S k ≡ m * S k ∈ ℕ) → n ≡ m ∈ ℕ ≔
+  λn. λm. λk. λh.
+    ⊎-elim (w. n ≡ m ∈ ℕ)
+      (le. multCancelLe n m k le h)
+      (le. sym ℕ m n
+             (multCancelLe m n k le (sym ℕ (n * S k) (m * S k) h)))
+      (leTotal n m)
+
+-- ===== truncated subtraction =====
+
+def pred : ℕ → ℕ ≔ λn. ℕ-elim (k. ℕ) Z (k ih. k) n
+
+infixl 6 ∸
+def ∸ : ℕ → ℕ → ℕ ≔ λa. λb. ℕ-elim (k. ℕ) a (k ih. pred ih) b
+
+def monusZeroR : (a : ℕ) → a ∸ Z ≡ a ∈ ℕ ≔ λa. ⋆
+def monusSucR : (a : ℕ) (b : ℕ) → a ∸ S b ≡ pred (a ∸ b) ∈ ℕ ≔ λa. λb. ⋆
+
+def zeroMonus : (b : ℕ) → Z ∸ b ≡ Z ∈ ℕ ≔
+  λb. ℕ-elim (k. Z ∸ k ≡ Z ∈ ℕ) ⋆ (k ih. ⋆) b
+
+def sucMonusSuc : (a : ℕ) (b : ℕ) → S a ∸ S b ≡ a ∸ b ∈ ℕ ≔
+  λa. λb. ℕ-elim (k. S a ∸ S k ≡ a ∸ k ∈ ℕ) ⋆ (k ih. ⋆) b
+
+-- (a + b) − b is a, on the nose
+def plusMonus : (a : ℕ) (b : ℕ) → (a + b) ∸ b ≡ a ∈ ℕ using (sucMonusSuc) ≔
+  λa. λb. ℕ-elim (k. (a + k) ∸ k ≡ a ∈ ℕ) ⋆ (k ih. ⋆) b
+
+-- subtracting a sum is subtracting twice
+def monusPlus : (a : ℕ) (b : ℕ) (c : ℕ) →
+  a ∸ (b + c) ≡ (a ∸ b) ∸ c ∈ ℕ ≔
+  λa. λb. λc. ℕ-elim (k. a ∸ (b + k) ≡ (a ∸ b) ∸ k ∈ ℕ) ⋆ (k ih. ⋆) c
+
+def monusSelf : (a : ℕ) → a ∸ a ≡ Z ∈ ℕ using (sucMonusSuc) ≔
+  λa. ℕ-elim (k. k ∸ k ≡ Z ∈ ℕ) ⋆ (k ih. ⋆) a
+
+-- ...so a ≤ b makes a − b vanish
+def monusZeroOfLe : (a : ℕ) (b : ℕ) → El (LeN a b) → a ∸ b ≡ Z ∈ ℕ ≔
+  λa. λb. λle.
+    (a ∸ b
+       ≡⟨ cong ℕ (λu. ℕ) (λw. a ∸ w) b (a + le .π₁)
+            (sym ℕ (a + le .π₁) b (idToEq ℕ (a + le .π₁) b (le .π₂))) ⟩
+     a ∸ (a + le .π₁)
+       ≡⟨ monusPlus a a (le .π₁) ⟩
+     (a ∸ a) ∸ le .π₁
+       ≡⟨ cong ℕ (λu. ℕ) (λw. w ∸ le .π₁) (a ∸ a) Z (monusSelf a) ⟩
+     Z ∸ le .π₁
+       ≡⟨ zeroMonus (le .π₁) ⟩
+     Z)
+
+-- ...and a ≤ b makes the difference add back
+def leMonusPlus : (a : ℕ) (b : ℕ) → El (LeN a b) → a + (b ∸ a) ≡ b ∈ ℕ ≔
+  λa. λb. λle.
+    let e : a + le .π₁ ≡ b ∈ ℕ ≔ idToEq ℕ (a + le .π₁) b (le .π₂) in
+    (a + (b ∸ a)
+       ≡⟨ cong ℕ (λu. ℕ) (λw. a + (w ∸ a)) b (a + le .π₁) (sym ℕ (a + le .π₁) b e) ⟩
+     a + ((a + le .π₁) ∸ a)
+       ≡⟨ cong ℕ (λu. ℕ) (λw. a + (w ∸ a)) (a + le .π₁) (le .π₁ + a)
+            (plusComm (le .π₁) a) ⟩
+     a + ((le .π₁ + a) ∸ a)
+       ≡⟨ cong ℕ (λu. ℕ) (λw. a + w) ((le .π₁ + a) ∸ a) (le .π₁)
+            (plusMonus (le .π₁) a) ⟩
+     a + le .π₁
+       ≡⟨ e ⟩
+     b)
+
+-- ===== max and min =====
+
+def natMax : ℕ → ℕ → ℕ ≔ λa. λb. a + (b ∸ a)
+def natMin : ℕ → ℕ → ℕ ≔ λa. λb. a ∸ (a ∸ b)
+
+-- a sits under the max by construction: the witness is the difference
+def leMaxL : (a : ℕ) (b : ℕ) → El (LeN a (natMax a b)) ≔
+  λa. λb. (b ∸ a , eqToId ℕ (a + (b ∸ a)) (natMax a b) ⋆)
+
+-- and so does b, once the two cases are settled
+def leMaxR : (a : ℕ) (b : ℕ) → El (LeN b (natMax a b)) ≔
+  λa. λb.
+    ⊎-elim (w. El (LeN b (natMax a b)))
+      (le.
+        -- a ≤ b : the max IS b
+        (Z , eqToId ℕ (b + Z) (natMax a b)
+               (trans ℕ (b + Z) b (natMax a b)
+                  (plusZeroId b)
+                  (sym ℕ (natMax a b) b (leMonusPlus a b le)))))
+      (le.
+        -- b ≤ a : the max is a, and b ≤ a
+        (le .π₁ + (b ∸ a) ,
+         eqToId ℕ (b + (le .π₁ + (b ∸ a))) (natMax a b)
+           (trans ℕ (b + (le .π₁ + (b ∸ a))) (a + (b ∸ a)) (natMax a b)
+              (trans ℕ (b + (le .π₁ + (b ∸ a))) ((b + le .π₁) + (b ∸ a))
+                     (a + (b ∸ a))
+                 (sym ℕ ((b + le .π₁) + (b ∸ a)) (b + (le .π₁ + (b ∸ a)))
+                    (plusAssoc b (le .π₁) (b ∸ a)))
+                 (cong ℕ (λu. ℕ) (λw. w + (b ∸ a)) (b + le .π₁) a
+                    (idToEq ℕ (b + le .π₁) a (le .π₂))))
+              ⋆)))
+      (leTotal a b)
+
+def natMaxSelf : (a : ℕ) → natMax a a ≡ a ∈ ℕ ≔
+  λa.
+    trans ℕ (natMax a a) (a + Z) a
+      (cong ℕ (λu. ℕ) (λw. a + w) (a ∸ a) Z (monusSelf a))
+      (plusZeroId a)
+
+def natMinSelf : (a : ℕ) → natMin a a ≡ a ∈ ℕ ≔
+  λa.
+    trans ℕ (natMin a a) (a ∸ Z) a
+      (cong ℕ (λu. ℕ) (λw. a ∸ w) (a ∸ a) Z (monusSelf a))
+      (monusZeroR a)
+
+-- ===== exponentiation =====
+
+infixr 8 ^
+def ^ : ℕ → ℕ → ℕ ≔ λa. λn. ℕ-elim (k. ℕ) (S Z) (k ih. a * ih) n
+
+def expZero : (a : ℕ) → a ^ Z ≡ S Z ∈ ℕ ≔ λa. ⋆
+def expSuc : (a : ℕ) (n : ℕ) → a ^ S n ≡ a * a ^ n ∈ ℕ ≔ λa. λn. ⋆
+
+def oneExp : (n : ℕ) → S Z ^ n ≡ S Z ∈ ℕ using (multComm) ≔
+  λn. ℕ-elim (k. S Z ^ k ≡ S Z ∈ ℕ) ⋆ (k ih. ⋆) n
+
+def expPlus : (a : ℕ) (m : ℕ) (n : ℕ) →
+  a ^ (m + n) ≡ a ^ m * a ^ n ∈ ℕ using (multAssoc, multComm) ≔
+  λa. λm. λn. ℕ-elim (k. a ^ (m + k) ≡ a ^ m * a ^ k ∈ ℕ) ⋆ (k ih. ⋆) n

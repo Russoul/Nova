@@ -1,0 +1,175 @@
+import rationalQ (Q, qAdd, qNeg, qZero, qAddComm, qAddZeroR, qAddNegR, qNegNeg)
+import rationalOrder (Sign, sZero, sPos, sNeg, sgnFlip, sgnQ, sgnQZero, sgnCases,
+                      sgnQAddPos, sgnQZeroView, sgnQNegFlip, NonNegS, LeQ,
+                      leQTrans, qSubSplit, qDiffZero, qSubPlusCancel,
+                      sZeroNotPos, sNegNotPos, sPosNotNeg, qSubNeg)
+import ratBound (leQZeroOfPos, qSubPlusCancelL)
+import ratArch (sgnQSubFlip)
+import equality (trans, sym, cong, transport)
+import id (Id, eqToId, idToEq)
+
+-- The STRICT order on ℚ. `LeQ` reads the difference's sign as
+-- "nonnegative"; `LtQ` reads it as "positive". Everything is a
+-- statement about that one sign, so every proof below is a chain in
+-- `Sign` — no representative is ever opened.
+
+def LtQ : El Q → El Q → 𝕌 ≔ λx. λy. Id Sign (sgnQ (qAdd y (qNeg x))) sPos
+
+def ltQOfSgn : (x : El Q) (y : El Q) →
+  (sgnQ (qAdd y (qNeg x)) ≡ sPos ∈ El Sign) → El (LtQ x y) ≔
+  λx. λy. λh. eqToId Sign (sgnQ (qAdd y (qNeg x))) sPos h
+
+def sgnOfLtQ : (x : El Q) (y : El Q) →
+  El (LtQ x y) → sgnQ (qAdd y (qNeg x)) ≡ sPos ∈ El Sign ≔
+  λx. λy. λh. idToEq Sign (sgnQ (qAdd y (qNeg x))) sPos h
+
+-- strict implies non-strict, on the nose: a positive sign IS a
+-- nonnegative one
+def leQOfLtQ : (x : El Q) (y : El Q) → El (LtQ x y) → El (LeQ x y) ≔
+  λx. λy. λh. inj₂ h
+
+def ltQZero : (u : El Q) → El (LtQ qZero u) → El (LeQ qZero u) ≔
+  λu. λh. leQOfLtQ qZero u h
+
+-- ===== irreflexivity and asymmetry =====
+
+def ltQIrrefl : (x : El Q) → El (LtQ x x) → 𝟘 ≔
+  λx. λh.
+    sZeroNotPos
+      (trans Sign sZero (sgnQ (qAdd x (qNeg x))) sPos
+         (sym Sign (sgnQ (qAdd x (qNeg x))) sZero
+            (trans Sign (sgnQ (qAdd x (qNeg x))) (sgnQ qZero) sZero
+               (cong Q (λw. Sign) (λw. sgnQ w) (qAdd x (qNeg x)) qZero
+                  (qAddNegR x))
+               sgnQZero))
+         (sgnOfLtQ x x h))
+
+def ltQAsym : (x : El Q) (y : El Q) → El (LtQ x y) → El (LtQ y x) → 𝟘 ≔
+  λx. λy. λh1. λh2.
+    sNegNotPos
+      (trans Sign sNeg (sgnQ (qAdd x (qNeg y))) sPos
+         (sym Sign (sgnQ (qAdd x (qNeg y))) sNeg
+            (trans Sign (sgnQ (qAdd x (qNeg y))) (sgnFlip (sgnQ (qAdd y (qNeg x))))
+                   sNeg
+               (sgnQSubFlip x y)
+               (trans Sign (sgnFlip (sgnQ (qAdd y (qNeg x)))) (sgnFlip sPos) sNeg
+                  (cong Sign (λw. Sign) (λw. sgnFlip w)
+                     (sgnQ (qAdd y (qNeg x))) sPos (sgnOfLtQ x y h1))
+                  ⋆)))
+         (sgnOfLtQ y x h2))
+
+-- ===== transitivity, in all four mixed forms =====
+
+-- a positive plus a NONNEGATIVE is positive: the zero case collapses
+def sgnQAddPosNonNeg : (a : El Q) (b : El Q) →
+  (sgnQ a ≡ sPos ∈ El Sign) → El (NonNegS (sgnQ b)) →
+  sgnQ (qAdd a b) ≡ sPos ∈ El Sign ≔
+  λa. λb. λha. λhb.
+    ⊎-elim (w. sgnQ (qAdd a b) ≡ sPos ∈ El Sign)
+      (h0.
+        trans Sign (sgnQ (qAdd a b)) (sgnQ a) sPos
+          (cong Q (λw. Sign) (λw. sgnQ w) (qAdd a b) a
+             (trans Q (qAdd a b) (qAdd a qZero) a
+                (cong Q (λw. Q) (λw. qAdd a w) b qZero
+                   (sgnQZeroView b (idToEq Sign (sgnQ b) sZero h0)))
+                (qAddZeroR a)))
+          ha)
+      (hp. sgnQAddPos a b ha (idToEq Sign (sgnQ b) sPos hp))
+      hb
+
+def ltQTrans : (x : El Q) (y : El Q) (z : El Q) →
+  El (LtQ x y) → El (LtQ y z) → El (LtQ x z) ≔
+  λx. λy. λz. λh1. λh2.
+    ltQOfSgn x z
+      (trans Sign (sgnQ (qAdd z (qNeg x)))
+             (sgnQ (qAdd (qAdd z (qNeg y)) (qAdd y (qNeg x)))) sPos
+         (cong Q (λw. Sign) (λw. sgnQ w) (qAdd z (qNeg x))
+            (qAdd (qAdd z (qNeg y)) (qAdd y (qNeg x)))
+            (sym Q (qAdd (qAdd z (qNeg y)) (qAdd y (qNeg x))) (qAdd z (qNeg x))
+               (qSubSplit x y z)))
+         (sgnQAddPos (qAdd z (qNeg y)) (qAdd y (qNeg x))
+            (sgnOfLtQ y z h2) (sgnOfLtQ x y h1)))
+
+def leQLtTrans : (x : El Q) (y : El Q) (z : El Q) →
+  El (LeQ x y) → El (LtQ y z) → El (LtQ x z) ≔
+  λx. λy. λz. λh1. λh2.
+    ltQOfSgn x z
+      (trans Sign (sgnQ (qAdd z (qNeg x)))
+             (sgnQ (qAdd (qAdd z (qNeg y)) (qAdd y (qNeg x)))) sPos
+         (cong Q (λw. Sign) (λw. sgnQ w) (qAdd z (qNeg x))
+            (qAdd (qAdd z (qNeg y)) (qAdd y (qNeg x)))
+            (sym Q (qAdd (qAdd z (qNeg y)) (qAdd y (qNeg x))) (qAdd z (qNeg x))
+               (qSubSplit x y z)))
+         (sgnQAddPosNonNeg (qAdd z (qNeg y)) (qAdd y (qNeg x))
+            (sgnOfLtQ y z h2) h1))
+
+def ltQLeTrans : (x : El Q) (y : El Q) (z : El Q) →
+  El (LtQ x y) → El (LeQ y z) → El (LtQ x z) ≔
+  λx. λy. λz. λh1. λh2.
+    ltQOfSgn x z
+      (trans Sign (sgnQ (qAdd z (qNeg x)))
+             (sgnQ (qAdd (qAdd y (qNeg x)) (qAdd z (qNeg y)))) sPos
+         (cong Q (λw. Sign) (λw. sgnQ w) (qAdd z (qNeg x))
+            (qAdd (qAdd y (qNeg x)) (qAdd z (qNeg y)))
+            (trans Q (qAdd z (qNeg x))
+                   (qAdd (qAdd z (qNeg y)) (qAdd y (qNeg x)))
+                   (qAdd (qAdd y (qNeg x)) (qAdd z (qNeg y)))
+               (sym Q (qAdd (qAdd z (qNeg y)) (qAdd y (qNeg x))) (qAdd z (qNeg x))
+                  (qSubSplit x y z))
+               (qAddComm (qAdd z (qNeg y)) (qAdd y (qNeg x)))))
+         (sgnQAddPosNonNeg (qAdd y (qNeg x)) (qAdd z (qNeg y))
+            (sgnOfLtQ x y h1) h2))
+
+-- ===== trichotomy =====
+
+def ltQTrichotomy : (x : El Q) (y : El Q) →
+  El (LtQ x y) ⊎ (El (Id Q x y) ⊎ El (LtQ y x)) ≔
+  λx. λy.
+    ⊎-elim (w. El (LtQ x y) ⊎ (El (Id Q x y) ⊎ El (LtQ y x)))
+      (nn.
+        ⊎-elim (w. El (LtQ x y) ⊎ (El (Id Q x y) ⊎ El (LtQ y x)))
+          (h0. inj₂ (inj₁ (eqToId Q x y
+                 (sym Q y x
+                    (qDiffZero y x
+                       (sgnQZeroView (qAdd y (qNeg x))
+                          (idToEq Sign (sgnQ (qAdd y (qNeg x))) sZero h0)))))))
+          (hp. inj₁ hp)
+          nn)
+      (hneg.
+        inj₂ (inj₂ (ltQOfSgn y x
+          (trans Sign (sgnQ (qAdd x (qNeg y))) (sgnFlip (sgnQ (qAdd y (qNeg x))))
+                 sPos
+             (sgnQSubFlip x y)
+             (trans Sign (sgnFlip (sgnQ (qAdd y (qNeg x)))) (sgnFlip sNeg) sPos
+                (cong Sign (λw. Sign) (λw. sgnFlip w) (sgnQ (qAdd y (qNeg x))) sNeg
+                   (idToEq Sign (sgnQ (qAdd y (qNeg x))) sNeg hneg))
+                ⋆)))))
+      (sgnCases (sgnQ (qAdd y (qNeg x))))
+
+-- ===== compatibility with addition =====
+
+def ltQPlusMono : (x : El Q) (y : El Q) (w : El Q) →
+  El (LtQ x y) → El (LtQ (qAdd x w) (qAdd y w)) ≔
+  λx. λy. λw. λh.
+    transport Sign (λs. Id Sign s sPos)
+      (sgnQ (qAdd y (qNeg x)))
+      (sgnQ (qAdd (qAdd y w) (qNeg (qAdd x w))))
+      (sym Sign (sgnQ (qAdd (qAdd y w) (qNeg (qAdd x w))))
+                (sgnQ (qAdd y (qNeg x)))
+         (cong Q (λv. Sign) (λv. sgnQ v)
+            (qAdd (qAdd y w) (qNeg (qAdd x w))) (qAdd y (qNeg x))
+            (qSubPlusCancel x y w)))
+      h
+
+def ltQPlusMonoL : (x : El Q) (y : El Q) (w : El Q) →
+  El (LtQ x y) → El (LtQ (qAdd w x) (qAdd w y)) ≔
+  λx. λy. λw. λh.
+    transport Sign (λs. Id Sign s sPos)
+      (sgnQ (qAdd y (qNeg x)))
+      (sgnQ (qAdd (qAdd w y) (qNeg (qAdd w x))))
+      (sym Sign (sgnQ (qAdd (qAdd w y) (qNeg (qAdd w x))))
+                (sgnQ (qAdd y (qNeg x)))
+         (cong Q (λv. Sign) (λv. sgnQ v)
+            (qAdd (qAdd w y) (qNeg (qAdd w x))) (qAdd y (qNeg x))
+            (qSubPlusCancelL x y w)))
+      h

@@ -26,6 +26,10 @@ import realEq
 import realOrder
 import ratAbs
 import realAbs
+import ratLt
+import realLt
+import natMore
+import intAbs
 import intGroup
 import ratField
 import nat
