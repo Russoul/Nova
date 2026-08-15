@@ -973,7 +973,9 @@ whnf(C) = Prf (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ Prf R[id, a, b
 #      equation is cut by the structural depth bound, so the loop the
 #      guard used to forbid cannot run away. A pair against a neutral
 #      at Σ compares via el-sigma-eta (projections; still
-#      intro-guarded).
+#      intro-guarded), and SAME-TAG INJECTIONS at ⊎ compare by their
+#      payloads at the branch type (the inj final; el-one-prop then
+#      closes 𝟙 payloads — how a three-valued sign's cases pay).
 #   7. SCOPED STORE USE — three complementary mechanisms over the
 #      site's SCOPE (the named lemmas + hypotheses; see THE SCOPE in
 #      Elaboration state — never the whole store):

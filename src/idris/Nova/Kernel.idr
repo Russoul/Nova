@@ -133,6 +133,10 @@ mutual
     ||| faithful route, at an arbitrary Ω-valued relation — the
     ||| premise of el-quot-eq, presented.
     FWitnessPrf : Elem -> Skel -> Final
+    ||| same-tag injections at A ⊎ B are equal when their payloads are
+    ||| (congruence of ≐ at inj₁/inj₂); the nested certificate proves
+    ||| the payload equation at the branch type
+    FInj : ECert -> Final
     ||| el-pi-eta: compare applied to the fresh variable, under the domain
     FEtaPi : ECert -> Final
     ||| el-sigma-eta: compare the projections
@@ -1602,6 +1606,12 @@ mutual
             relInst <- kElem sig (substElem rel (Ext (Ext Id a) b))
             kCheckE sig ctx w (Prf relInst) skW
           _ => kerr "kernel: supplied-witness final at a non-class equation"
+      FInj c => do
+        ty' <- kTy sig tyU
+        case (l1, r1, ty') of
+          (Inj1 x, Inj1 y, Ty.SumTy a _) => kEqElem sig ctx c x y a
+          (Inj2 x, Inj2 y, Ty.SumTy _ b) => kEqElem sig ctx c x y b
+          _ => kerr "kernel: injection final at a non-matching equation"
       FEtaPi c => do
         ty' <- kTy sig tyU
         case ty' of
