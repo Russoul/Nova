@@ -215,6 +215,26 @@ data [a : 𝕌] [r : El a → El a → Ω]
   (e.g. `a + (b + c) ≡ b + (a + c)`).
 - The obligation report shows NORMALIZED sides; state lemmas against
   what the report prints, not against your source spelling.
+- A Σ-CODE binds over a code, a Σ-TYPE over `El` of one:
+  `((m : Int) ⨯ Id Int m m)` is a code, `((e : El NZ) ⨯ Prf p) ⊎ …` is a
+  type. Writing `El` in code position silently drops the binder and the
+  error is `unknown name 'm'` at the USE, several lines away.
+- `class a ≡ class b` is discharged automatically only when the
+  quotient's relation is `∥𝟙∥`-shaped or an equation. For any other
+  Ω-valued relation (a squash, a conjunction, a variable) SUPPLY the
+  witness: `⋆ h`, not `⋆`. The failure otherwise is a bare
+  `class x ≐ class y` obligation with no hint.
+- A `quot-elim` whose method is an explicit proof term (not `⋆`) owes
+  an equation BETWEEN PROOF TERMS as its own well-definedness goal;
+  name `prop.irrel` in `using`, or the engine finds a route the kernel
+  rejects — and whether it does is store-dependent.
+- `transport`'s family is `El A → 𝕌`; for one landing in `Ω` use
+  `transportP`. The wrong choice is reported as
+  `λ checked against a non-Π type`.
+- A calc-chain step whose justification would rewrite inside a
+  `quot-elim` scrutinee fails at replay; the same proof written with
+  explicit `trans` goes through, because a lemma application is
+  unconstrained by position.
 
 ## Where to look things up
 
@@ -238,6 +258,23 @@ data [a : 𝕌] [r : El a → El a → Ω]
   (recursive equations),
   `qiitConTy` (induction-induction), `qiitCross` (definitions built on
   earlier QIITs), `integer*` (a worked development).
+- The ℕ → ℤ → ℚ → ℝ tower, in dependency order: `nat`/`natMore`/
+  `natOrder` (arithmetic, monus/max/exp, ≤), `integer*`/`intOrder`/
+  `intAbs` (ℤ and its magnitude), `rational`/`rationalQ`/`rationalOrder`
+  (ℚ and its sign-based ≤), then `ratBound` (two-sided bounds `Bnd b u`
+  — the absolute-value-free primitive everything else is stated in),
+  `ratAbs`/`ratMax` (|·|, max, min, each characterised by a
+  least/greatest property), `ratLt` (strict <), `ratHalf` (the halving
+  law 1/(2n+2)+1/(2n+2) = 1/(n+1)) and `ratArch` (the Archimedean
+  property, and `leQOfArch`: "≤ b + 1/(k+1) for every k" collapses to
+  "≤ b").
+  ℝ is Bishop's regular sequences: `real` (the carrier), `realNeg`,
+  `realAdd` (doubled sampling), `realEq` (REq is an equivalence),
+  `realOrder` (≤, Ω-valued so it descends by propext), `realAbs`,
+  `realLattice`, `realLt`, `realGroup`, `realMetric`. Rule of thumb
+  learned there: an operation that is 1-Lipschitz on ℚ lifts
+  POINTWISE; one that is not (+) must sample at doubled indices, and
+  any relation that is not must be repaired by `leQOfArch`.
 - `python3 tools/render-specs.py` renders the specs to navigable HTML
   (`build/docs/specs.html`); `--check` cross-checks rule names against
   the sources.
