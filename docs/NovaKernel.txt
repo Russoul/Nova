@@ -164,6 +164,7 @@ implementation's names):
     | prop                                         (FProp)
     | witness 𝒞?                                   (FWitness)
     | witnessPrf w ⟨sk⟩                            (FWitnessPrf)
+    | inj 𝒞                                        (FInj)
     | ηΠ 𝒞                                         (FEtaPi)
     | ηΣ 𝒞 𝒞                                       (FEtaSigma)
     | propext s ⟨sk⟩ t ⟨sk⟩                        (FPropExt)
@@ -558,6 +559,12 @@ final):
                # variables — none of which the shape test above
                # reaches. Trust: one already-licensed rule, checked
                # exactly as propext's implications are
+  inj 𝒞        nf(T) ⇓ A ⊎ B; l, r same-tag injections; replay the
+               payload equation at the branch type (𝒞 ▷ x ≐ y : A
+               for inj₁ x ≐ inj₁ y; at B for inj₂) — the congruence
+               of ≐ at el-sum-i₁/i₂, presented as a final so that
+               el-one-prop can close 𝟙 payloads underneath (a
+               three-valued sign code's cases discharge this way)
   ηΠ 𝒞         nf(T) ⇓ A → B; replay
                Σ; Γ ▷ A ⊦ 𝒞 ▷ l[↑] ☐₀ ≐ r[↑] ☐₀ : B     # el-pi-eta
   ηΣ 𝒞₁ 𝒞₂     nf(T) ⇓ A ⨯ B; replay

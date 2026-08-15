@@ -1404,6 +1404,15 @@ mutual
                 (betaElem st.sig (PiApp (substElem b Wk) (CtxVar 0)))
                 cod
        pure (MkECert [] (FEtaPi sub))
+  -- same-tag injections at a sum: decompose to the payloads at the
+  -- branch type (≐-congruence at inj; el-one-prop then closes 𝟙
+  -- payloads, which is how a three-valued sign's cases discharge)
+  spEqStructC dep st cs ctx (Inj1 x) (Inj1 y) (Ty.SumTy domL _) =
+    do sub <- spEqElemC dep st cs ctx (betaElem st.sig x) (betaElem st.sig y) domL
+       pure (MkECert [] (FInj sub))
+  spEqStructC dep st cs ctx (Inj2 x) (Inj2 y) (Ty.SumTy _ domR) =
+    do sub <- spEqElemC dep st cs ctx (betaElem st.sig x) (betaElem st.sig y) domR
+       pure (MkECert [] (FInj sub))
   spEqStructC dep st cs ctx a b (Ty.SigmaTy dom cod) =
     if isPair a || isPair b
       then do c1 <- spEqElemC dep st cs ctx (betaElem st.sig (SigmaElim1 a)) (betaElem st.sig (SigmaElim1 b)) dom
@@ -1967,6 +1976,7 @@ hintNamesC (MkECertF tyEx steps final) =
 
   fromFinal : Final -> List String
   fromFinal (FWitness (Just c)) = hintNamesC c
+  fromFinal (FInj c) = hintNamesC c
   fromFinal (FEtaPi c) = hintNamesC c
   fromFinal (FEtaSigma c1 c2) = hintNamesC c1 ++ hintNamesC c2
   fromFinal (FPrfCong c) = hintNamesC c
