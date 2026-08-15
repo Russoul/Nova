@@ -426,3 +426,12 @@ def leQTripleInv : (k : ℕ) →
             (qInvNat (dbl k)) (qInvHalf (dbl k)))
          (qInvHalf k))
       (leQTripleQuad (qInvNat (dbl (dbl k))) (leQZeroInvNat (dbl (dbl k))))
+
+-- the converse of leQSubShift: a bound on the difference is a shifted ≤
+def leQAddShift : (a : El Q) (b : El Q) (q : El Q) →
+  El (LeQ (qAdd a (qNeg b)) q) → El (LeQ a (qAdd b q)) ≔
+  λa. λb. λq.
+    transport Q (λw. NonNegS (sgnQ w))
+      (qAdd q (qNeg (qAdd a (qNeg b)))) (qAdd (qAdd b q) (qNeg a))
+      (sym Q (qAdd (qAdd b q) (qNeg a)) (qAdd q (qNeg (qAdd a (qNeg b))))
+         (qShiftEq a b q))

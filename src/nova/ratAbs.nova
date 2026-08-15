@@ -1,0 +1,165 @@
+import rationalQ (Q, qAdd, qNeg, qZero, qAddComm, qAddAssoc, qAddZeroR,
+                  qAddNegR, qNegNeg)
+import rationalOrder (Sign, sZero, sPos, sNeg, sgnFlip, sgnQ, sgnQNegFlip, sgnCases,
+                      NonNegS, LeQ, leQRefl, leQTrans, leQPlusMono, leQAntisym,
+                      qPlusNegCancelR)
+import ratBound (Bnd, bndAdd, bndNeg, bndEq, bndZero, bndWeaken, bndOfBothLe,
+                 qNegZeroQ, leQZeroOfPos, leQZeroOfNonNeg, leQNegFlip)
+import equality (trans, sym, cong, transport)
+import id (Id, eqToId, idToEq)
+
+-- ABSOLUTE VALUE on ℚ. The order is decidable (`sgnCases`), so this is
+-- an honest function, not a squashed existence claim — and because
+-- `sgnQ` is already a function on the QUOTIENT, no well-definedness
+-- obligation arises anywhere below.
+--
+-- The organising fact is that |u| is the LEAST two-sided bound of u:
+--
+--   bndAbs      :  Bnd (qAbs u) u          -- it IS a bound
+--   absLeOfBnd  :  Bnd b u → qAbs u ≤ b    -- and the least one
+--
+-- Every other law — involutivity under negation, the triangle
+-- inequality, the reverse triangle inequality — follows from those two
+-- by antisymmetry, with no further case analysis. This is the payoff
+-- of ratBound.nova's decision to make two-sided bounds primitive
+-- (D-7): |·| is defined in terms of Bnd rather than the other way
+-- round.
+
+def qAbs : El Q → El Q ≔
+  λu. ⊎-elim (w. El Q) (nn. u) (hn. qNeg u) (sgnCases (sgnQ u))
+
+-- ===== the two characterising facts =====
+
+-- a negative sign flips to a positive one, so −u is nonnegative there
+def sgnQNegOfNeg : (u : El Q) →
+  El (Id Sign (sgnQ u) sNeg) → sgnQ (qNeg u) ≡ sPos ∈ El Sign ≔
+  λu. λhn.
+    trans Sign (sgnQ (qNeg u)) (sgnFlip (sgnQ u)) sPos
+      (sgnQNegFlip u)
+      (trans Sign (sgnFlip (sgnQ u)) (sgnFlip sNeg) sPos
+         (cong Sign (λw. Sign) (λw. sgnFlip w) (sgnQ u) sNeg
+            (idToEq Sign (sgnQ u) sNeg hn))
+         ⋆)
+
+def bndAbs : (u : El Q) → El (Bnd (qAbs u) u) ≔
+  λu.
+    ⊎-elim (w. El (Bnd (⊎-elim (v. El Q) (nn. u) (hn. qNeg u) w) u))
+      (nn.
+        (leQTrans (qNeg u) qZero u
+           ((bndZero u (leQZeroOfNonNeg u nn)) .π₁)
+           (leQZeroOfNonNeg u nn) ,
+         leQRefl u))
+      (hn.
+        (transport Q (λw. LeQ w u) u (qNeg (qNeg u))
+           (sym Q (qNeg (qNeg u)) u (qNegNeg u)) (leQRefl u) ,
+         leQTrans u qZero (qNeg u)
+           (transport Q (λw. LeQ w qZero) (qNeg (qNeg u)) u (qNegNeg u)
+              ((bndZero (qNeg u) (leQZeroOfPos (qNeg u) (sgnQNegOfNeg u hn))) .π₁))
+           (leQZeroOfPos (qNeg u) (sgnQNegOfNeg u hn))))
+      (sgnCases (sgnQ u))
+
+def absLeOfBnd : (b : El Q) (u : El Q) →
+  El (Bnd b u) → El (LeQ (qAbs u) b) ≔
+  λb. λu. λh.
+    ⊎-elim (w. El (LeQ (⊎-elim (v. El Q) (nn. u) (hn. qNeg u) w) b))
+      (nn. h .π₂)
+      (hn. (bndNeg b u h) .π₂)
+      (sgnCases (sgnQ u))
+
+-- ...and the converse: a bound on |u| is a two-sided bound on u
+def bndOfAbsLe : (b : El Q) (u : El Q) →
+  El (LeQ (qAbs u) b) → El (Bnd b u) ≔
+  λb. λu. λle. bndWeaken (qAbs u) b u le (bndAbs u)
+
+-- ===== the laws =====
+
+def leQZeroAbs : (u : El Q) → El (LeQ qZero (qAbs u)) ≔
+  λu.
+    ⊎-elim (w. El (LeQ qZero (⊎-elim (v. El Q) (nn. u) (hn. qNeg u) w)))
+      (nn. leQZeroOfNonNeg u nn)
+      (hn. leQZeroOfPos (qNeg u) (sgnQNegOfNeg u hn))
+      (sgnCases (sgnQ u))
+
+def qAbsNeg : (u : El Q) → qAbs (qNeg u) ≡ qAbs u ∈ El Q ≔
+  λu.
+    leQAntisym (qAbs (qNeg u)) (qAbs u)
+      (absLeOfBnd (qAbs u) (qNeg u) (bndNeg (qAbs u) u (bndAbs u)))
+      (absLeOfBnd (qAbs (qNeg u)) u
+         (bndEq (qAbs (qNeg u)) (qNeg (qNeg u)) u (qNegNeg u)
+            (bndNeg (qAbs (qNeg u)) (qNeg u) (bndAbs (qNeg u)))))
+
+-- the triangle inequality is bndAdd, read through leastness
+def qAbsTriangle : (u : El Q) (v : El Q) →
+  El (LeQ (qAbs (qAdd u v)) (qAdd (qAbs u) (qAbs v))) ≔
+  λu. λv.
+    absLeOfBnd (qAdd (qAbs u) (qAbs v)) (qAdd u v)
+      (bndAdd (qAbs u) (qAbs v) u v (bndAbs u) (bndAbs v))
+
+-- (a + b) − b ≡ a — the mirror of rationalOrder's qPlusNegCancelR
+def qAddSubCancel : (a : El Q) (b : El Q) →
+  qAdd (qAdd a b) (qNeg b) ≡ a ∈ El Q ≔
+  λa. λb.
+    (qAdd (qAdd a b) (qNeg b)
+       ≡⟨ qAddAssoc a b (qNeg b) ⟩
+     qAdd a (qAdd b (qNeg b))
+       ≡⟨ cong Q (λw. Q) (λw. qAdd a w) (qAdd b (qNeg b)) qZero (qAddNegR b) ⟩
+     qAdd a qZero
+       ≡⟨ qAddZeroR a ⟩
+     a)
+
+-- a ≤ b + c gives a − c ≤ b
+def leQSubOfLeAdd : (a : El Q) (b : El Q) (c : El Q) →
+  El (LeQ a (qAdd b c)) → El (LeQ (qAdd a (qNeg c)) b) ≔
+  λa. λb. λc. λle.
+    transport Q (λw. LeQ (qAdd a (qNeg c)) w)
+      (qAdd (qAdd b c) (qNeg c)) b (qAddSubCancel b c)
+      (leQPlusMono a (qAdd b c) (qNeg c) le)
+
+-- ===== the reverse triangle inequality =====
+
+-- |u| − |v| ≤ |u − v| : split u as (u − v) + v and use leastness
+def qAbsSubLe : (u : El Q) (v : El Q) →
+  El (LeQ (qAdd (qAbs u) (qNeg (qAbs v))) (qAbs (qAdd u (qNeg v)))) ≔
+  λu. λv.
+    leQSubOfLeAdd (qAbs u) (qAbs (qAdd u (qNeg v))) (qAbs v)
+      (transport Q (λw. LeQ (qAbs w) (qAdd (qAbs (qAdd u (qNeg v))) (qAbs v)))
+         (qAdd (qAdd u (qNeg v)) v) u (qPlusNegCancelR u v)
+         (qAbsTriangle (qAdd u (qNeg v)) v))
+
+-- ...so | |u| − |v| | ≤ |u − v|, and a bound on u − v bounds the
+-- difference of the absolute values
+def bndAbsSub : (b : El Q) (u : El Q) (v : El Q) →
+  El (Bnd b (qAdd u (qNeg v))) →
+  El (Bnd b (qAdd (qAbs u) (qNeg (qAbs v)))) ≔
+  λb. λu. λv. λh.
+    bndWeaken (qAbs (qAdd u (qNeg v))) b
+      (qAdd (qAbs u) (qNeg (qAbs v)))
+      (absLeOfBnd b (qAdd u (qNeg v)) h)
+      (bndOfBothLe (qAbs (qAdd u (qNeg v))) (qAbs u) (qAbs v)
+         (qAbsSubLe u v)
+         (transport Q (λw. LeQ (qAdd (qAbs v) (qNeg (qAbs u))) w)
+            (qAbs (qAdd v (qNeg u))) (qAbs (qAdd u (qNeg v)))
+            (trans Q (qAbs (qAdd v (qNeg u))) (qAbs (qNeg (qAdd v (qNeg u))))
+                   (qAbs (qAdd u (qNeg v)))
+               (sym Q (qAbs (qNeg (qAdd v (qNeg u)))) (qAbs (qAdd v (qNeg u)))
+                  (qAbsNeg (qAdd v (qNeg u))))
+               (cong Q (λw. Q) (λw. qAbs w) (qNeg (qAdd v (qNeg u)))
+                  (qAdd u (qNeg v)) (ratBound.qSubFlip v u)))
+            (qAbsSubLe v u)))
+
+-- ===== a nonnegative rational is its own absolute value =====
+
+def bndSelfOfNonNeg : (u : El Q) → El (LeQ qZero u) → El (Bnd u u) ≔
+  λu. λnn.
+    (leQTrans (qNeg u) qZero u ((bndZero u nn) .π₁) nn , leQRefl u)
+
+def qAbsOfNonNeg : (u : El Q) → El (LeQ qZero u) → qAbs u ≡ u ∈ El Q ≔
+  λu. λnn.
+    leQAntisym (qAbs u) u
+      (absLeOfBnd u u (bndSelfOfNonNeg u nn))
+      ((bndAbs u) .π₂)
+
+def qAbsAbs : (u : El Q) → qAbs (qAbs u) ≡ qAbs u ∈ El Q ≔
+  λu. qAbsOfNonNeg (qAbs u) (leQZeroAbs u)
+
+def qAbsZero : qAbs qZero ≡ qZero ∈ El Q ≔ ⋆
