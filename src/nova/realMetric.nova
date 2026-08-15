@@ -1,0 +1,101 @@
+import rationalQ (Q, qAdd, qNeg, qZero)
+import rationalOrder (LeQ, leQTrans)
+import ratAbs (qAbs, bndAbs)
+import ratBound (Bnd)
+import real (rBound, leQZeroBound, RSeq, Real, realOfQ, realZero, realOne)
+import realNeg (seqOf, rNeg, realNeg, realNegZero)
+import realAdd (realAdd)
+import realAbs (rAbs, realAbs, realAbsNeg, realAbsZero, leRZeroAbs,
+                leRAbsTriangle)
+import realOrder (RLeP, rleOf, LeR, leRAntisym, leRTrans, leQSubZero)
+import realGroup (realSub, realSubSelf, realSubVia, realNegSub, realSubZeroInv)
+import equality (trans, sym, cong, transport, transportP)
+
+-- ℝ AS A METRIC SPACE, with the distance valued in ℝ itself:
+--
+--   d u v ≔ |u − v|
+--
+-- symmetric, vanishing exactly on the diagonal, and satisfying the
+-- triangle inequality. Every proof is one rewrite of realGroup.nova's
+-- algebra composed with a fact about |·| that realAbs.nova already
+-- has — the metric axioms carry no analysis of their own.
+
+-- ===== |u| bounds u on both sides, at the level of ℝ =====
+
+def leRAbsSelf : (u : El Real) → Prf (LeR u (realAbs u)) ≔
+  λu.
+    quot-elim (w. Prf (LeR w (realAbs w)))
+      (x. rleOf x (rAbs x)
+            (λn.
+              leQTrans (qAdd (seqOf x n) (qNeg (qAbs (seqOf x n)))) qZero
+                       (rBound n n)
+                (leQSubZero (seqOf x n) (qAbs (seqOf x n))
+                   ((bndAbs (seqOf x n)) .π₂))
+                (leQZeroBound n n)))
+      u
+
+def leRNegAbsSelf : (u : El Real) → Prf (LeR (realNeg (realAbs u)) u) ≔
+  λu.
+    quot-elim (w. Prf (LeR (realNeg (realAbs w)) w))
+      (x. rleOf (rNeg (rAbs x)) x
+            (λn.
+              leQTrans (qAdd (qNeg (qAbs (seqOf x n))) (qNeg (seqOf x n))) qZero
+                       (rBound n n)
+                (leQSubZero (qNeg (qAbs (seqOf x n))) (seqOf x n)
+                   ((bndAbs (seqOf x n)) .π₁))
+                (leQZeroBound n n)))
+      u
+
+-- ...so a vanishing absolute value names zero
+def realAbsZeroInv : (u : El Real) →
+  (realAbs u ≡ realZero ∈ El Real) → u ≡ realZero ∈ El Real ≔
+  λu. λh.
+    leRAntisym u realZero
+      (transportP Real (λw. LeR u w) (realAbs u) realZero h (leRAbsSelf u))
+      (transportP Real (λw. LeR w u) (realNeg (realAbs u)) realZero
+         (trans Real (realNeg (realAbs u)) (realNeg realZero) realZero
+            (cong Real (λw. Real) (λw. realNeg w) (realAbs u) realZero h)
+            realNegZero)
+         (leRNegAbsSelf u))
+
+-- ===== the distance =====
+
+def realDist : El Real → El Real → El Real ≔ λu. λv. realAbs (realSub u v)
+
+def realDistSelf : (u : El Real) → realDist u u ≡ realZero ∈ El Real ≔
+  λu.
+    trans Real (realDist u u) (realAbs realZero) realZero
+      (cong Real (λw. Real) (λw. realAbs w) (realSub u u) realZero
+         (realSubSelf u))
+      realAbsZero
+
+def realDistSym : (u : El Real) (v : El Real) →
+  realDist u v ≡ realDist v u ∈ El Real ≔
+  λu. λv.
+    trans Real (realDist u v) (realAbs (realNeg (realSub u v))) (realDist v u)
+      (sym Real (realAbs (realNeg (realSub u v))) (realAbs (realSub u v))
+         (realAbsNeg (realSub u v)))
+      (cong Real (λw. Real) (λw. realAbs w) (realNeg (realSub u v))
+         (realSub v u) (realNegSub u v))
+
+def leRZeroDist : (u : El Real) (v : El Real) →
+  Prf (LeR realZero (realDist u v)) ≔
+  λu. λv. leRZeroAbs (realSub u v)
+
+-- identity of indiscernibles, via realAbsZeroInv and the group law
+def realDistZeroInv : (u : El Real) (v : El Real) →
+  (realDist u v ≡ realZero ∈ El Real) → u ≡ v ∈ El Real ≔
+  λu. λv. λh. realSubZeroInv u v (realAbsZeroInv (realSub u v) h)
+
+-- the triangle inequality: |·| adds along the three-term split
+def realDistTriangle : (u : El Real) (v : El Real) (w : El Real) →
+  Prf (LeR (realDist u w) (realAdd (realDist u v) (realDist v w))) ≔
+  λu. λv. λw.
+    transportP Real
+      (λt. LeR t (realAdd (realAbs (realSub u v)) (realAbs (realSub v w))))
+      (realAbs (realAdd (realSub u v) (realSub v w)))
+      (realDist u w)
+      (cong Real (λt. Real) (λt. realAbs t)
+         (realAdd (realSub u v) (realSub v w)) (realSub u w)
+         (realSubVia u v w))
+      (leRAbsTriangle (realSub u v) (realSub v w))

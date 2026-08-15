@@ -1,0 +1,161 @@
+import real (Real, realOfQ, realZero, realOne)
+import realNeg (realNeg, realNegNeg)
+import realAdd (realAdd, realAddComm, realAddAssoc, realAddZeroL, realAddZeroR,
+                realAddNegL, realAddNegR)
+import monoid (IsMonoid)
+import group (IsGroup)
+import equality (trans, sym, cong)
+import id (Id, eqToId, idToEq)
+
+-- (ℝ, +, −, 0) as a GROUP, in group.nova's vocabulary, plus the
+-- rearrangement lemmas every later ℝ argument needs. These mirror
+-- rationalOrder.nova's ℚ block one level up: the proofs are the same
+-- chains, and they have to be redone because the corpus has no
+-- group-generic algebra — the laws live behind Id, and instantiating
+-- them costs more than reproving them.
+
+def realAddGroup : El (IsGroup Real) ≔
+  ((realAdd , realZero ,
+    (λx. λy. λz. eqToId Real (realAdd (realAdd x y) z) (realAdd x (realAdd y z))
+                   (realAddAssoc x y z)) ,
+    (λx. eqToId Real (realAdd realZero x) x (realAddZeroL x)) ,
+    λx. eqToId Real (realAdd x realZero) x (realAddZeroR x)) ,
+   realNeg ,
+   (λx. eqToId Real (realAdd (realNeg x) x) realZero (realAddNegL x)) ,
+   λx. eqToId Real (realAdd x (realNeg x)) realZero (realAddNegR x))
+
+-- ===== rearrangement =====
+
+def realLeftSwap : (b : El Real) (c : El Real) (d : El Real) →
+  realAdd b (realAdd c d) ≡ realAdd c (realAdd b d) ∈ El Real ≔
+  λb. λc. λd.
+    (realAdd b (realAdd c d)
+       ≡⟨ sym Real (realAdd (realAdd b c) d) (realAdd b (realAdd c d))
+            (realAddAssoc b c d) ⟩
+     realAdd (realAdd b c) d
+       ≡⟨ cong Real (λv. Real) (λv. realAdd v d) (realAdd b c) (realAdd c b)
+            (realAddComm b c) ⟩
+     realAdd (realAdd c b) d
+       ≡⟨ realAddAssoc c b d ⟩
+     realAdd c (realAdd b d))
+
+def realPairSwap : (a : El Real) (b : El Real) (c : El Real) (d : El Real) →
+  realAdd (realAdd a b) (realAdd c d)
+    ≡ realAdd (realAdd a c) (realAdd b d) ∈ El Real ≔
+  λa. λb. λc. λd.
+    (realAdd (realAdd a b) (realAdd c d)
+       ≡⟨ realAddAssoc a b (realAdd c d) ⟩
+     realAdd a (realAdd b (realAdd c d))
+       ≡⟨ cong Real (λv. Real) (λv. realAdd a v) (realAdd b (realAdd c d))
+            (realAdd c (realAdd b d)) (realLeftSwap b c d) ⟩
+     realAdd a (realAdd c (realAdd b d))
+       ≡⟨ sym Real (realAdd (realAdd a c) (realAdd b d))
+            (realAdd a (realAdd c (realAdd b d)))
+            (realAddAssoc a c (realAdd b d)) ⟩
+     realAdd (realAdd a c) (realAdd b d))
+
+-- ===== inverses =====
+
+def realNegPlusCancel : (u : El Real) (v : El Real) →
+  realAdd (realNeg u) (realAdd u v) ≡ v ∈ El Real ≔
+  λu. λv.
+    (realAdd (realNeg u) (realAdd u v)
+       ≡⟨ sym Real (realAdd (realAdd (realNeg u) u) v)
+            (realAdd (realNeg u) (realAdd u v))
+            (realAddAssoc (realNeg u) u v) ⟩
+     realAdd (realAdd (realNeg u) u) v
+       ≡⟨ cong Real (λw. Real) (λw. realAdd w v) (realAdd (realNeg u) u) realZero
+            (realAddNegL u) ⟩
+     realAdd realZero v
+       ≡⟨ realAddZeroL v ⟩
+     v)
+
+def realNegUnique : (u : El Real) (v : El Real) →
+  (realAdd u v ≡ realZero ∈ El Real) → v ≡ realNeg u ∈ El Real ≔
+  -- explicit trans, not a chain: a chain step here lands at a
+  -- type-undetermined position inside realAdd's quot-elim (B-1)
+  λu. λv. λh.
+    trans Real v (realAdd (realNeg u) (realAdd u v)) (realNeg u)
+      (sym Real (realAdd (realNeg u) (realAdd u v)) v (realNegPlusCancel u v))
+      (trans Real (realAdd (realNeg u) (realAdd u v))
+             (realAdd (realNeg u) realZero) (realNeg u)
+         (cong Real (λw. Real) (λw. realAdd (realNeg u) w) (realAdd u v) realZero h)
+         (realAddZeroR (realNeg u)))
+
+def realNegAdd : (a : El Real) (b : El Real) →
+  realNeg (realAdd a b) ≡ realAdd (realNeg a) (realNeg b) ∈ El Real ≔
+  λa. λb.
+    sym Real (realAdd (realNeg a) (realNeg b)) (realNeg (realAdd a b))
+      (realNegUnique (realAdd a b) (realAdd (realNeg a) (realNeg b))
+         (realAdd (realAdd a b) (realAdd (realNeg a) (realNeg b))
+            ≡⟨ realPairSwap a b (realNeg a) (realNeg b) ⟩
+          realAdd (realAdd a (realNeg a)) (realAdd b (realNeg b))
+            ≡⟨ cong Real (λw. Real) (λw. realAdd w (realAdd b (realNeg b)))
+                 (realAdd a (realNeg a)) realZero (realAddNegR a) ⟩
+          realAdd realZero (realAdd b (realNeg b))
+            ≡⟨ realAddZeroL (realAdd b (realNeg b)) ⟩
+          realAdd b (realNeg b)
+            ≡⟨ realAddNegR b ⟩
+          realZero))
+
+-- ===== subtraction =====
+
+def realSub : El Real → El Real → El Real ≔
+  λu. λv. realAdd u (realNeg v)
+
+def realSubSelf : (u : El Real) → realSub u u ≡ realZero ∈ El Real ≔
+  λu. realAddNegR u
+
+def realSubZero : (u : El Real) → realSub u realZero ≡ u ∈ El Real ≔
+  λu.
+    trans Real (realSub u realZero) (realAdd u realZero) u
+      (cong Real (λw. Real) (λw. realAdd u w) (realNeg realZero) realZero
+         realNeg.realNegZero)
+      (realAddZeroR u)
+
+-- (u − v) + (v − w) ≡ u − w : the three-term split
+def realSubVia : (u : El Real) (v : El Real) (w : El Real) →
+  realAdd (realSub u v) (realSub v w) ≡ realSub u w ∈ El Real ≔
+  λu. λv. λw.
+    (realAdd (realAdd u (realNeg v)) (realAdd v (realNeg w))
+       ≡⟨ realAddAssoc u (realNeg v) (realAdd v (realNeg w)) ⟩
+     realAdd u (realAdd (realNeg v) (realAdd v (realNeg w)))
+       ≡⟨ cong Real (λz. Real) (λz. realAdd u z)
+            (realAdd (realNeg v) (realAdd v (realNeg w))) (realNeg w)
+            (realNegPlusCancel v (realNeg w)) ⟩
+     realAdd u (realNeg w))
+
+-- −(u − v) ≡ v − u
+def realNegSub : (u : El Real) (v : El Real) →
+  realNeg (realSub u v) ≡ realSub v u ∈ El Real ≔
+  λu. λv.
+    (realNeg (realAdd u (realNeg v))
+       ≡⟨ realNegAdd u (realNeg v) ⟩
+     realAdd (realNeg u) (realNeg (realNeg v))
+       ≡⟨ cong Real (λz. Real) (λz. realAdd (realNeg u) z) (realNeg (realNeg v)) v
+            (realNegNeg v) ⟩
+     realAdd (realNeg u) v
+       ≡⟨ realAddComm (realNeg u) v ⟩
+     realAdd v (realNeg u))
+
+-- (u − v) + v ≡ u, and hence a zero difference is an equality
+def realSubPlusCancel : (u : El Real) (v : El Real) →
+  realAdd (realSub u v) v ≡ u ∈ El Real ≔
+  λu. λv.
+    (realAdd (realAdd u (realNeg v)) v
+       ≡⟨ realAddAssoc u (realNeg v) v ⟩
+     realAdd u (realAdd (realNeg v) v)
+       ≡⟨ cong Real (λw. Real) (λw. realAdd u w) (realAdd (realNeg v) v) realZero
+            (realAddNegL v) ⟩
+     realAdd u realZero
+       ≡⟨ realAddZeroR u ⟩
+     u)
+
+def realSubZeroInv : (u : El Real) (v : El Real) →
+  (realSub u v ≡ realZero ∈ El Real) → u ≡ v ∈ El Real ≔
+  λu. λv. λh.
+    trans Real u (realAdd (realSub u v) v) v
+      (sym Real (realAdd (realSub u v) v) u (realSubPlusCancel u v))
+      (trans Real (realAdd (realSub u v) v) (realAdd realZero v) v
+         (cong Real (λw. Real) (λw. realAdd w v) (realSub u v) realZero h)
+         (realAddZeroL v))
