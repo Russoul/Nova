@@ -464,6 +464,26 @@ components swap — and reports those. Whole-equation match never runs.
 candidates before congruential decomposition, or at least fall back to
 it when a decomposed branch fails.
 
+### B-13. [ℝ] A calc chain can fail where the same proof by `trans` succeeds
+
+`realNegUnique`, written as
+
+```
+(v ≡⟨ sym … (realNegPlusCancel u v) ⟩ realAdd (realNeg u) (realAdd u v) ≡⟨ … ⟩ …)
+```
+
+fails with `chain, step 1 [replay failed: kernel: step at a
+type-undetermined position]`. The identical derivation written with two
+nested `trans` is accepted. Cause: a chain link is a rewrite STEP, and
+must land at a `⇒ᴺ`-inferable position (B-1); `realAdd` is a nested
+`quot-elim`, so its arguments are not. `trans` is an ordinary lemma
+application and is unconstrained by position.
+
+The chain form is otherwise the single biggest readability win in the
+corpus (E-2's suggested fix, delivered), so this is worth documenting
+rather than avoiding: **when a chain step fails at replay, re-spell
+that one step as `trans` before looking for a different lemma.**
+
 ## C. Discharge-engine ergonomics
 
 ### C-1. Oriented rewriting means library lemmas need flipped copies
@@ -970,3 +990,19 @@ Things that had to be built before the actual development could start:
 * **Error text for surface-level mistakes** (holes, unknown names,
   `⋆`-misuse) is precise and actionable. It is only the
   engine/kernel-boundary failures (B) that are opaque.
+* **[ℝ] The calc chain carries most of a real development.** Nearly
+  every lemma in `ratBound`/`ratArch`/`realAdd` is a `≡⟨ ⟩` chain, and
+  they read as the mathematics does. E-2's complaint is answered.
+* **[ℝ] Quotient descent scales.** ℝ is a quotient of a Σ over a
+  function space into a quotient of a Σ over a quotient of ℕ ⨯ ℕ, four
+  levels deep, and the descent recipe (`clsEqOfRel`-analogue +
+  `quot-elim` at an ≡- or Ω-motive + an inner/outer well-definedness
+  pair) worked unchanged at every level. Ten operations descended
+  without a single new idea.
+* **[ℝ] Ω-valued relations descend by `propExt` with no friction.**
+  `LeR` is a `quot-elim` into `Ω` in both arguments; the two
+  well-definedness goals are `propExt` applied to the two transfer
+  lemmas, and that is the entire descent. A 𝕌-valued order could not
+  have descended at all — there is no univalence — so the Ω/𝕌
+  distinction, which reads as a restriction elsewhere, is what makes
+  the order on ℝ definable.
