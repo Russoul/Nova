@@ -1,8 +1,11 @@
 # Elaborator performance — measurements
 
-Running notes for the `research-performance` branch. Numbers are wall
-clock on the branch tip, macOS/arm64, Chez backend, `pack build` at
-15.6s for reference.
+The performance campaign's running record, kept in chronological
+order: each section's numbers are wall clock AS MEASURED AT THAT
+POINT (macOS/arm64, Chez backend; `pack build` was 15.6s at the
+start). Later sections change the code the earlier ones measured —
+notes in brackets mark what has since been removed, so the knowledge
+keeps its context without dead references.
 
 ## Where the corpus stands
 
@@ -120,11 +123,13 @@ nf(body) from scratch". The bodies here are things like `qAdd`'s double
 A definition's body mentions only earlier entries, and names are
 module-qualified, so nf(body) is stable and memoisable on the name.
 
-Σ is **not** append-only, though: `flipDecl` replaces a `SigDecl`
-(stuck hole) with a `SigDef`, and constraint deletion rebuilds Σ. A
-cached normal form may mention a name whose meaning just changed, so
-both tables are dropped at those five sites. Flips are rare — once per
-solved hole — so this costs nothing measurable.
+Σ was **not** append-only at the time: the hole machinery flipped a
+`SigDecl` (stuck hole) to a `SigDef` in place, and constraint deletion
+rebuilt Σ. A cached normal form could mention a name whose meaning had
+just changed, so both tables were dropped at those sites. (Since the
+hole-support removal below, Σ only ever extends during a run, the drop
+sites are gone with the machinery that needed them, and the caches
+live for the run's whole lifetime.)
 
 Result, `rationalQ`: **35.1s → 18.6s**. engine 16.5s → 6.1s (−63%),
 `cands` 1.38s → 0.25s (−82%). The kernel's 5.1s and the item check's
@@ -211,9 +216,11 @@ the same defect: `kElem sig (SigVar x es)` δ-expands the definition and
 re-normalises its whole body on every mention. That is why the
 `Beta` memo left `kernel` (5.2s) and `kitem` (3.7s) untouched.
 
-Both tables now live in `Nova.Kernel.NfCache`, shared by the two
-normalisers but kept separate per normaliser, and cleared together at
-the non-monotone Σ sites. `kElem` also short-circuits when the spine is
+The first cut put both tables in a shared `Nova.Kernel.NfCache`
+module, kept separate per normaliser and cleared together at the
+then-existing non-monotone Σ sites. (That module was dissolved by the
+per-call decision in the next subsection; the clearing sites went with
+the hole machinery.) `kElem` also short-circuits when the spine is
 empty: the substitution is the identity there, so the cached form IS
 the answer and the re-traversal can be skipped entirely.
 
@@ -251,9 +258,13 @@ is sound by construction, which is the better trade.
 
 **The trusted path now contains no `unsafePerformIO`.** What remains is
 in the elaborator's normaliser, which `Nova.Elaboration` alone imports.
-It used to be called `Nova.Kernel.Beta` — a name that invited exactly
-the wrong assumption, and it is now `Nova.Elaboration.Beta`, with the
-memo tables folded back into it. That memo is below the trust boundary: a stale entry there can only
+It was called `Nova.Kernel.Beta` at the time — a name that invited
+exactly the wrong assumption — and was renamed `Nova.Elaboration.Beta`,
+with the memo tables folded back into it. (The module name
+`Nova.Kernel.Beta` has since been REUSED by an unrelated arrival: the
+dormant derivation artifact's kernel-side walker family, which really
+is kernel-layer — see docs/NovaDerivations.txt. The two coexist by
+design.) That memo is below the trust boundary: a stale entry there can only
 cost completeness (a bad certificate is rejected at replay), never
 soundness. Moving it into `ElabSt` would mean threading a cache through
 `betaElem`'s 100 internal recursions and 64 call sites, or making `Sig`
@@ -297,9 +308,8 @@ should have.
 ## The Σ-lookup index
 
 A Chez source-profile (per-expression execution counts, mapped back to
-Idris definitions — the driver lives in the session scratchpad and is
-trivially recreated: `compile-profile 'source` + `load-program` +
-`profile-dump-list`) put `sigLookup` and its per-entry costs at ~40% of
+Idris definitions — the driver is three lines, trivially recreated:
+`compile-profile 'source` + `load-program` + `profile-dump-list`) put `sigLookup` and its per-entry costs at ~40% of
 ALL execution: a linear scan of the Σ snoclist comparing
 `Maybe String`, run on every SigVar occurrence of every normalization
 walk. Substitution — the natural suspect — measured ~4%.
@@ -307,8 +317,9 @@ walk. Substitution — the natural suspect — measured ~4%.
 Fix, two halves along the trust boundary: the kernel gets a per-call
 name→entry `SortedMap` in KM state (Σ is fixed for one runKM, so a
 positive hit is stable — same discipline as its nf memo); the
-elaborator gets a global positive-only cache beside the nf memos,
-cleared at the same resetNfCaches sites, negatives never cached.
+elaborator gets a global positive-only cache beside the nf memos —
+cleared, at the time, at the same sites as those memos; today none of
+them is ever cleared (Σ only extends) — negatives never cached.
 
 Found on the way, confirmed by exploit: the Chez backend DEDUPLICATES
 syntactically identical nullary CAFs, so `betaElemNf`, `betaTyNf` and
@@ -350,10 +361,11 @@ the mechanism decomposes into four parts:
    conversion, on the most expensive operands in the corpus.
 2. **Cache demolition on every flip.** A solved hole flips its Σ
    declaration to a definition IN PLACE — non-monotone — so
-   resetNfCaches wipes the def-nf memo and the Σ-index; the next
-   conversion re-normalises every mentioned definition from scratch.
-   The new `nf-reset` counter: 1,145 wipes discarding ~10.9k cached
-   normal forms in one small run. Holes couple directly to the SIZE
+   the cache reset wiped the def-nf memo and the Σ-index; the next
+   conversion re-normalised every mentioned definition from scratch.
+   A (then-added, since removed with the machinery) `nf-reset` counter
+   measured 1,145 wipes discarding ~10.9k cached normal forms in one
+   small run. Holes couple directly to the SIZE
    factor: cost ≈ #holes × rebuild-all-nfs-in-scope.
 3. **Tier starvation.** An unsolved hole side is a stuck `_r…`
    reference — never α-identical, never computationally joinable — so
@@ -364,11 +376,14 @@ the mechanism decomposes into four parts:
    each solved hole, and — for late solves — the whole-item internal
    RERUN (the `calls=2` items pay everything twice).
 
-Remedies, in leverage order: solve BEFORE the doomed attempt when a
-side is syntactically an unsolved-hole spine (E-1's candidate fix 1 —
-it repairs the completeness gap and deletes mechanism 1 in the same
-move); dependency-scoped cache eviction on flip instead of wipe-all;
-batching flips per item to avoid rerun churn. And a corpus-level
+Remedies as assessed then, in leverage order: solve BEFORE the doomed
+attempt when a side is syntactically an unsolved-hole spine (E-1's
+candidate fix 1 — it repairs the completeness gap and deletes
+mechanism 1 in the same move); dependency-scoped cache eviction on
+flip instead of wipe-all; batching flips per item to avoid rerun
+churn. (Overtaken: hole support was removed outright — next section —
+so this list survives as REQUIREMENTS on the metavariable redesign,
+alongside ProvingFeedback E-1/E-1½.) And a corpus-level
 decision: the index-blanking sweep trades ~45× elaboration time on
 heavy items for written terseness — under the AI-operator metric
 (generation is cheap; latency and feedback are not) that trade runs
@@ -411,3 +426,16 @@ hole machinery was not one cost among several — with the search
 already scoped, it WAS the elaboration cost: five of every six engine
 attempts existed to fail around a stuck hole. This is the baseline the
 hole-support removal (and the later redesign) starts from.
+
+## Where it stands
+
+Hole support was subsequently removed outright (elaborator, kernel,
+specs), which shaved a further ~10% off the elaborate phase and made
+every cache in this file's story permanent for a run: Σ only extends.
+The corpus has since grown by the algebra/order/reals modules and
+checks in ~2.2s end to end, with the trusted side (kernel replay +
+item admission) and load+parse as the dominant phases and the
+discharge engine at ~1% of wall. The open performance items are the
+ones the growth curve will surface: load+parse scales with the corpus,
+and the metavariable redesign must not reintroduce mechanisms 1–4 of
+"The cost of a hole" above.
