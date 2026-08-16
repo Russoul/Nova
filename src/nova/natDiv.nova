@@ -32,7 +32,7 @@ def natCase : (C : 𝕌) → El C → (ℕ → El C) → ℕ → El C ≔
 def natCaseElimEqD : (C : 𝕌) (P : El C → 𝕌) (z : El C) (s : ℕ → El C) (n : ℕ) →
   ((n ≡ Z ∈ ℕ) → El (P z)) →
   ((m : ℕ) → (n ≡ S m ∈ ℕ) → El (P (s m))) →
-  El (P (natCase C z s n)) ≔
+  El (P (natCase C z s n)) using (natDiv.natCase.eq) ≔
   λC. λP. λz. λs. λn.
     ℕ-elim (k. ((k ≡ Z ∈ ℕ) → El (P z)) →
              ((m : ℕ) → (k ≡ S m ∈ ℕ) → El (P (s m))) →
@@ -44,7 +44,7 @@ def natCaseElimEqD : (C : 𝕌) (P : El C → 𝕌) (z : El C) (s : ℕ → El C
 def natCaseElimEq : (C : 𝕌) (P : El C → Ω) (z : El C) (s : ℕ → El C) (n : ℕ) →
   ((n ≡ Z ∈ ℕ) → Prf (P z)) →
   ((m : ℕ) → (n ≡ S m ∈ ℕ) → Prf (P (s m))) →
-  Prf (P (natCase C z s n)) ≔
+  Prf (P (natCase C z s n)) using (natDiv.natCase.eq) ≔
   λC. λP. λz. λs. λn.
     ℕ-elim (k. ((k ≡ Z ∈ ℕ) → Prf (P z)) →
              ((m : ℕ) → (k ≡ S m ∈ ℕ) → Prf (P (s m))) →
@@ -55,7 +55,8 @@ def natCaseElimEq : (C : 𝕌) (P : El C → Ω) (z : El C) (s : ℕ → El C) (
 
 -- ===== comparison, read off monus =====
 
-def leOfMonusZero : (a : ℕ) (b : ℕ) → (a ∸ b ≡ Z ∈ ℕ) → El (LeN a b) ≔
+def leOfMonusZero : (a : ℕ) (b : ℕ) → (a ∸ b ≡ Z ∈ ℕ) → El (LeN a b)
+  using (natMore.monusZeroR) ≔
   λa.
     ℕ-elim (k. (b : ℕ) → (k ∸ b ≡ Z ∈ ℕ) → El (LeN k b))
       (λb. λh. leZero b)
@@ -150,7 +151,7 @@ def modN : ℕ → ℕ → ℕ ≔ λa. λb. (dmAux a a b) .π₂
 
 def dmAuxEq : (f : ℕ) (a : ℕ) (b : ℕ) → El (LeN a f) →
   a ≡ (dmAux f a b) .π₁ * S b + (dmAux f a b) .π₂ ∈ ℕ
-  using (zeroMult, zeroPlusId) ≔
+  using (natDiv.dmAux.eq, natDiv.natCase.eq, zeroMult, zeroPlusId) ≔
   λf.
     ℕ-elim (k. (a : ℕ) (b : ℕ) → El (LeN a k) →
              (a ≡ (dmAux k a b) .π₁ * S b + (dmAux k a b) .π₂ ∈ ℕ))
@@ -199,7 +200,7 @@ def dmAuxEq : (f : ℕ) (a : ℕ) (b : ℕ) → El (LeN a f) →
       f
 
 def dmAuxLe : (f : ℕ) (a : ℕ) (b : ℕ) → El (LeN a f) →
-  El (LeN ((dmAux f a b) .π₂) b) ≔
+  El (LeN ((dmAux f a b) .π₂) b) using (id.Id.eq, natDiv.dmAux.eq, natDiv.natCase.eq) ≔
   λf.
     ℕ-elim (k. (a : ℕ) (b : ℕ) → El (LeN a k) →
              El (LeN ((dmAux k a b) .π₂) b))
@@ -220,10 +221,11 @@ def dmAuxLe : (f : ℕ) (a : ℕ) (b : ℕ) → El (LeN a f) →
 
 -- a itself is always enough fuel, so the two halves of the Euclidean
 -- specification hold unconditionally
-def divModEq : (a : ℕ) (b : ℕ) → a ≡ divN a b * S b + modN a b ∈ ℕ ≔
+def divModEq : (a : ℕ) (b : ℕ) → a ≡ divN a b * S b + modN a b ∈ ℕ
+  using (natDiv.divN.eq, natDiv.dmAux.eq, natDiv.modN.eq) ≔
   λa. λb. dmAuxEq a a b (leRefl a)
 
-def modLe : (a : ℕ) (b : ℕ) → El (LeN (modN a b) b) ≔
+def modLe : (a : ℕ) (b : ℕ) → El (LeN (modN a b) b) using (id.Id.eq, natDiv.dmAux.eq, natDiv.modN.eq) ≔
   λa. λb. dmAuxLe a a b (leRefl a)
 
 -- and it computes: 7 = 3·2 + 1
@@ -233,7 +235,7 @@ def modTest : modN (S (S (S (S (S (S (S Z))))))) (S Z) ≡ S Z ∈ ℕ ≔ ⋆
 -- ===== uniqueness of the quotient =====
 
 -- no natural is below its own successor's floor
-def leSucNotSelf : (a : ℕ) → El (LeN (S a) a) → 𝟘 ≔
+def leSucNotSelf : (a : ℕ) → El (LeN (S a) a) → 𝟘 using (nat.plusSucId) ≔
   λa. λle.
     zNotS (le .π₁)
       (sym ℕ (S (le .π₁)) Z
@@ -249,7 +251,7 @@ def leSucNotSelf : (a : ℕ) → El (LeN (S a) a) → 𝟘 ≔
 
 -- d·(d'+1) is strictly below (d+1)·(d'+1)
 def ltProdSuc : (d : ℕ) (d' : ℕ) →
-  El (LeN (S (d * S d')) (S d * S d')) ≔
+  El (LeN (S (d * S d')) (S d * S d')) using (nat.plusSucId) ≔
   λd. λd'.
     (d' ,
      eqToId ℕ (S (d * S d') + d') (S d * S d')

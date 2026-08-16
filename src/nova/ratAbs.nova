@@ -32,7 +32,8 @@ def qAbs : El Q → El Q ≔
 
 -- a negative sign flips to a positive one, so −u is nonnegative there
 def sgnQNegOfNeg : (u : El Q) →
-  El (Id Sign (sgnQ u) sNeg) → sgnQ (qNeg u) ≡ sPos ∈ El Sign ≔
+  El (Id Sign (sgnQ u) sNeg) → sgnQ (qNeg u) ≡ sPos ∈ El Sign
+  using (rationalOrder.sNeg.eq, rationalOrder.sPos.eq, rationalOrder.sgnFlip.eq) ≔
   λu. λhn.
     trans Sign (sgnQ (qNeg u)) (sgnFlip (sgnQ u)) sPos
       (sgnQNegFlip u)
@@ -41,7 +42,7 @@ def sgnQNegOfNeg : (u : El Q) →
             (idToEq Sign (sgnQ u) sNeg hn))
          ⋆)
 
-def bndAbs : (u : El Q) → El (Bnd (qAbs u) u) ≔
+def bndAbs : (u : El Q) → El (Bnd (qAbs u) u) using (id.Id.eq, ratAbs.qAbs.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnCases.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq) ≔
   λu.
     ⊎-elim (w. El (Bnd (⊎-elim (v. El Q) (nn. u) (hn. qNeg u) w) u))
       (nn.
@@ -59,7 +60,7 @@ def bndAbs : (u : El Q) → El (Bnd (qAbs u) u) ≔
       (sgnCases (sgnQ u))
 
 def absLeOfBnd : (b : El Q) (u : El Q) →
-  El (Bnd b u) → El (LeQ (qAbs u) b) ≔
+  El (Bnd b u) → El (LeQ (qAbs u) b) using (id.Id.eq, ratAbs.qAbs.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnCases.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq) ≔
   λb. λu. λh.
     ⊎-elim (w. El (LeQ (⊎-elim (v. El Q) (nn. u) (hn. qNeg u) w) b))
       (nn. h .π₂)
@@ -73,7 +74,7 @@ def bndOfAbsLe : (b : El Q) (u : El Q) →
 
 -- ===== the laws =====
 
-def leQZeroAbs : (u : El Q) → El (LeQ qZero (qAbs u)) ≔
+def leQZeroAbs : (u : El Q) → El (LeQ qZero (qAbs u)) using (id.Id.eq, ratAbs.qAbs.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnCases.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, rationalQ.qZero.eq) ≔
   λu.
     ⊎-elim (w. El (LeQ qZero (⊎-elim (v. El Q) (nn. u) (hn. qNeg u) w)))
       (nn. leQZeroOfNonNeg u nn)
@@ -201,7 +202,7 @@ def qNegMulR : (x : El Q) (c : El Q) →
       (cong Q (λw. Q) (λw. qNeg w) (qMul c x) (qMul x c) (qMulComm c x))
 
 def qAbsMul : (u : El Q) (v : El Q) →
-  qAbs (qMul u v) ≡ qMul (qAbs u) (qAbs v) ∈ El Q ≔
+  qAbs (qMul u v) ≡ qMul (qAbs u) (qAbs v) ∈ El Q using (ratAbs.qAbs.eq, rationalOrder.sgnCases.eq, rationalOrder.sgnQ.eq, rationalQ.qMul.eq, rationalQ.qNeg.eq) ≔
   λu. λv.
     ⊎-elim (w. qAbs (qMul u v)
                  ≡ qMul (⊎-elim (t. El Q) (nn. u) (hn. qNeg u) w) (qAbs v)

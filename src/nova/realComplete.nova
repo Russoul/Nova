@@ -41,7 +41,8 @@ import equality (trans, sym, cong, transport)
 
 def qInvQuarter : (j : ℕ) →
   qAdd (qAdd (qInvNat (qtr j)) (qInvNat (qtr j)))
-       (qAdd (qInvNat (qtr j)) (qInvNat (qtr j))) ≡ qInvNat j ∈ El Q ≔
+       (qAdd (qInvNat (qtr j)) (qInvNat (qtr j))) ≡ qInvNat j ∈ El Q
+  using (ratHalf.dbl.eq, rationalQ.qAdd.eq, real.qInvNat.eq, realEq.qtr.eq) ≔
   λj.
     trans Q
       (qAdd (qAdd (qInvNat (qtr j)) (qInvNat (qtr j)))
@@ -75,7 +76,7 @@ def leQQuarterSum : (m : ℕ) (n : ℕ) →
   El (LeQ (qAdd (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
                 (qAdd (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))
                       (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))))
-          (rBound m n)) ≔
+          (rBound m n)) using (id.Id.eq, ratHalf.dbl.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.qInvNat.eq, real.rBound.eq, realEq.qtr.eq) ≔
   λm. λn.
     transport Q
       (λw. LeQ (qAdd (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
@@ -135,7 +136,7 @@ def limSeq : El (ℕ → RSeq) → El (ℕ → Q) ≔
 --             ≤ (αm + αn)            + ((αm + αn) + (αn + αn))
 --             = 2αm + 4αn  ≤  4αm + 4αn  =  rBound m n
 def limReg : (x : El (ℕ → RSeq)) → El (RegSeqR x) →
-  El (Regular (limSeq x)) ≔
+  El (Regular (limSeq x)) using (id.Id.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.qInvNat.eq, real.rBound.eq, realComplete.limSeq.eq, realEq.qtr.eq, realNeg.seqOf.eq) ≔
   λx. λh.
     bndReg (limSeq x)
       (λm. λn.
@@ -200,7 +201,7 @@ def qSum7 : (b : El Q) (g : El Q) (a : El Q) →
 -- — an equality, not a weakening: quarter depth is exactly enough
 def limClose : (x : El (ℕ → RSeq)) (h : El (RegSeqR x)) (n : ℕ) (j : ℕ) →
   El (Bnd (qAdd (qInvNat n) (rBound j j))
-          (qAdd (seqOf (x n) j) (qNeg (limSeq x j)))) ≔
+          (qAdd (seqOf (x n) j) (qNeg (limSeq x j)))) using (id.Id.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.qInvNat.eq, real.rBound.eq, realComplete.limSeq.eq, realEq.qtr.eq, realNeg.seqOf.eq) ≔
   λx. λh. λn. λj.
     bndEqB
       (qAdd (rBound j (qtr j))
@@ -234,7 +235,8 @@ def limClose : (x : El (ℕ → RSeq)) (h : El (RegSeqR x)) (n : ℕ) (j : ℕ) 
 -- index the distance samples at, where the modulus rBound (2j+1)(2j+1)
 -- is exactly 1/(j+1) and so sits under rBound j j.
 def realLimClose : (x : El (ℕ → RSeq)) (h : El (RegSeqR x)) (n : ℕ) →
-  Prf (LeR (realDist (class (x n)) (realLim x h)) (realOfQ (qInvNat n))) ≔
+  Prf (LeR (realDist (class (x n)) (realLim x h)) (realOfQ (qInvNat n)))
+  using (equality.sym.eq, equality.transport.eq, id.Id.eq, integer.intOne.eq, ratAbs.bndAbsSub.eq, ratAbs.qAbs.eq, ratBound.bndEqB.eq, ratBound.bndVia.eq, ratBound.bndWeaken.eq, ratHalf.dbl.eq, rational.mkRat.eq, rational.nzPos.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalOrder.LeQ.eq, rationalOrder.NonNegS.eq, rationalOrder.Sign.eq, rationalOrder.ratSgn.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnCases.eq, rationalOrder.sgnQ.eq, rationalQ.Q.eq, rationalQ.qAdd.eq, rationalQ.qAddNegR.eq, rationalQ.qNeg.eq, rationalQ.qZero.eq, rationalQ.qcls.eq, real.constReg.eq, real.leQNegBoundZero.eq, real.leQZeroBound.eq, real.qInvNat.eq, real.rBound.eq, real.realOfQ.eq, realAbs.absReg.eq, realAbs.absSeq.eq, realAbs.rAbs.eq, realAbs.realAbs.eq, realAdd.addReg.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realAdd.realAdd.eq, realComplete.leQQuarterSum.eq, realComplete.limReg.eq, realComplete.limSeq.eq, realComplete.qSum6.eq, realComplete.rLim.eq, realComplete.realLim.eq, realEq.qtr.eq, realGroup.realSub.eq, realMetric.realDist.eq, realNeg.bndReg.eq, realNeg.negReg.eq, realNeg.negSeq.eq, realNeg.rNeg.eq, realNeg.realNeg.eq, realNeg.regBnd.eq, realNeg.regOf.eq, realNeg.seqOf.eq, realOrder.LeR.eq, realOrder.RLeP.eq) ≔
   λx. λh. λn.
     rleOf (rAbs (rAdd (x n) (rNeg (rLim x h))))
           ((λk. qInvNat n) , constReg (qInvNat n))
@@ -254,7 +256,8 @@ def realLimClose : (x : El (ℕ → RSeq)) (h : El (RegSeqR x)) (n : ℕ) →
 -- ...and the hypothesis really does say what it should: a pointwise
 -- RegSeqR makes the reals themselves 1/(m+1) + 1/(n+1)-close
 def regSeqRSound : (x : El (ℕ → RSeq)) (h : El (RegSeqR x)) (m : ℕ) (n : ℕ) →
-  Prf (LeR (realDist (class (x m)) (class (x n))) (realOfQ (rBound m n))) ≔
+  Prf (LeR (realDist (class (x m)) (class (x n))) (realOfQ (rBound m n)))
+  using (equality.sym.eq, equality.transport.eq, id.Id.eq, integer.intOne.eq, ratAbs.bndAbsSub.eq, ratAbs.qAbs.eq, ratHalf.dbl.eq, rational.mkRat.eq, rational.nzPos.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalOrder.LeQ.eq, rationalOrder.NonNegS.eq, rationalOrder.Sign.eq, rationalOrder.ratSgn.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnCases.eq, rationalOrder.sgnQ.eq, rationalQ.Q.eq, rationalQ.qAdd.eq, rationalQ.qAddNegR.eq, rationalQ.qNeg.eq, rationalQ.qZero.eq, rationalQ.qcls.eq, real.constReg.eq, real.leQNegBoundZero.eq, real.leQZeroBound.eq, real.qInvNat.eq, real.rBound.eq, real.realOfQ.eq, realAbs.absReg.eq, realAbs.absSeq.eq, realAbs.rAbs.eq, realAbs.realAbs.eq, realAdd.addReg.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realAdd.realAdd.eq, realGroup.realSub.eq, realMetric.realDist.eq, realNeg.bndReg.eq, realNeg.negReg.eq, realNeg.negSeq.eq, realNeg.rNeg.eq, realNeg.realNeg.eq, realNeg.regBnd.eq, realNeg.regOf.eq, realNeg.seqOf.eq, realOrder.LeR.eq, realOrder.RLeP.eq) ≔
   λx. λh. λm. λn.
     rleOf (rAbs (rAdd (x m) (rNeg (x n))))
           ((λk. rBound m n) , constReg (rBound m n))

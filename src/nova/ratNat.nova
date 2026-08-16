@@ -25,8 +25,8 @@ import id (Id, idToEq, eqToId)
 
 def qOfNat : ℕ → El Q ≔ λk. qcls (mkRat (intOfNat k) nzOne)
 
-def qOfNatZero : qOfNat Z ≡ qZero ∈ El Q ≔ ⋆
-def qOfNatOne : qOfNat (S Z) ≡ qOne ∈ El Q ≔ ⋆
+def qOfNatZero : qOfNat Z ≡ qZero ∈ El Q using (intOrder.intOfNat.eq, integer.intZero.eq, ratNat.qOfNat.eq, rational.mkRat.eq, rational.nzOne.eq, rational.nzPos.eq, rational.ratOfInt.eq, rational.ratZero.eq, rationalQ.qZero.eq, rationalQ.qcls.eq) ≔ ⋆
+def qOfNatOne : qOfNat (S Z) ≡ qOne ∈ El Q using (intOrder.intOfNat.eq, integer.intOne.eq, ratNat.qOfNat.eq, rational.mkRat.eq, rational.nzOne.eq, rational.nzPos.eq, rational.ratOfInt.eq, rational.ratOne.eq, rationalQ.qOne.eq, rationalQ.qcls.eq) ≔ ⋆
 
 -- ===== the difference of two naturals, in ℤ =====
 
@@ -36,11 +36,12 @@ def natDiffClass : (a : ℕ) (b : ℕ) (k : ℕ) → (a + k ≡ b ∈ ℕ) →
 
 -- effectivity of the ℤ quotient reads the two verdicts back as ℕ facts
 def natEqOfClassZero : (a : ℕ) (b : ℕ) →
-  (class (b , a) ≡ intZero ∈ El Int) → b ≡ a ∈ ℕ ≔
+  (class (b , a) ≡ intZero ∈ El Int) → b ≡ a ∈ ℕ using (integer.IntR.eq, integer.intZero.eq, nat.plusZeroId) ≔
   λa. λb. λh. intEffective (b , a) (Z , Z) h
 
 def natSucOfClassPos : (a : ℕ) (b : ℕ) (j : ℕ) →
-  (class (S j , Z) ≡ class (b , a) ∈ El Int) → a + S j ≡ b ∈ ℕ ≔
+  (class (S j , Z) ≡ class (b , a) ∈ El Int) → a + S j ≡ b ∈ ℕ
+  using (integer.IntR.eq) ≔
   λa. λb. λj. λh.
     trans ℕ (a + S j) (S j + a) b
       (plusComm (S j) a)
@@ -59,7 +60,7 @@ def nonNegSgnOfLe : (a : ℕ) (b : ℕ) → El (LeN a b) →
       (intSgnOfNatNonNeg (le .π₁))
 
 def leOfNonNegSgn : (a : ℕ) (b : ℕ) →
-  El (NonNegS (intSgn (class (b , a)))) → El (LeN a b) ≔
+  El (NonNegS (intSgn (class (b , a)))) → El (LeN a b) using (rational.nzPos.eq, rational.nzToInt.eq) ≔
   λa. λb. λnn.
     ⊎-elim (w. El (LeN a b))
       (h0.
@@ -102,7 +103,8 @@ def qOfNatDiffNum : (a : ℕ) (b : ℕ) →
       ⋆
 
 def sgnQOfNatDiff : (a : ℕ) (b : ℕ) →
-  sgnQ (qAdd (qOfNat b) (qNeg (qOfNat a))) ≡ intSgn (class (b , a)) ∈ El Sign ≔
+  sgnQ (qAdd (qOfNat b) (qNeg (qOfNat a))) ≡ intSgn (class (b , a)) ∈ El Sign
+  using (eqInt.classNormPairEq.eq, eqInt.intCanon.eq, eqInt.intCanonClass.eq, equality.sym.eq, equality.trans.eq, intNonZero.nzOfInt.eq, intNonZero.nzOfIntAt.eq, intNonZero.nzOfPairD.eq, intOrder.intOfNat.eq, integer.Int.eq, integer.intNeg.eq, integer.intOne.eq, integer.intZero.eq, integerAdd.intAdd.eq, integerMul.classPairEta.eq, integerMul.intMul.eq, integerNormalize.normPair.eq, ratNat.qOfNat.eq, rational.den.eq, rational.denInt.eq, rational.intScale.eq, rational.intScaleN.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzOne.eq, rational.nzPos.eq, rational.nzToInt.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalInv.intCanonProdZero.eq, rationalInv.normProdZero.eq, rationalOrder.intSgn.eq, rationalOrder.nzSgn.eq, rationalOrder.ratSgn.eq, rationalOrder.sNeg.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, rationalQ.qcls.eq) ≔
   λa. λb.
     trans Sign
       (sgnQ (qAdd (qOfNat b) (qNeg (qOfNat a))))
@@ -136,7 +138,7 @@ def leNOfQ : (a : ℕ) (b : ℕ) → El (LeQ (qOfNat a) (qOfNat b)) → El (LeN 
 
 -- the embedding is additive
 def qOfNatAdd : (a : ℕ) (b : ℕ) →
-  qAdd (qOfNat a) (qOfNat b) ≡ qOfNat (a + b) ∈ El Q ≔
+  qAdd (qOfNat a) (qOfNat b) ≡ qOfNat (a + b) ∈ El Q using (intOrder.intOfNat.eq, integer.intNeg.eq, integerAdd.intAdd.eq, ratNat.qOfNat.eq, rational.den.eq, rational.intScale.eq, rational.intScaleN.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzOne.eq, rational.nzPos.eq, rational.ratAdd.eq, rationalQ.qAdd.eq, rationalQ.qcls.eq) ≔
   λa. λb.
     trans Q (qAdd (qOfNat a) (qOfNat b))
             (qcls (mkRat (intAdd (intOfNat a) (intOfNat b)) nzOne))

@@ -22,7 +22,7 @@ import equality (trans, sym, cong, transport, transportP)
 
 -- ===== |u| bounds u on both sides, at the level of ℝ =====
 
-def leRAbsSelf : (u : El Real) → Prf (LeR u (realAbs u)) ≔
+def leRAbsSelf : (u : El Real) → Prf (LeR u (realAbs u)) using (id.Id.eq, ratAbs.qAbs.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalOrder.Sign.eq, rationalOrder.ratSgn.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnCases.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.qInvNat.eq, real.rBound.eq, realAbs.absSeq.eq, realAbs.rAbs.eq, realAbs.realAbs.eq, realNeg.seqOf.eq, realOrder.LeR.eq, realOrder.RLeP.eq) ≔
   λu.
     quot-elim (w. Prf (LeR w (realAbs w)))
       (x. rleOf x (rAbs x)
@@ -34,7 +34,8 @@ def leRAbsSelf : (u : El Real) → Prf (LeR u (realAbs u)) ≔
                 (leQZeroBound n n)))
       u
 
-def leRNegAbsSelf : (u : El Real) → Prf (LeR (realNeg (realAbs u)) u) ≔
+def leRNegAbsSelf : (u : El Real) → Prf (LeR (realNeg (realAbs u)) u)
+  using (id.Id.eq, ratAbs.qAbs.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalOrder.Sign.eq, rationalOrder.ratSgn.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnCases.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.qInvNat.eq, real.rBound.eq, realAbs.absSeq.eq, realAbs.rAbs.eq, realAbs.realAbs.eq, realNeg.negSeq.eq, realNeg.rNeg.eq, realNeg.realNeg.eq, realNeg.seqOf.eq, realOrder.LeR.eq, realOrder.RLeP.eq) ≔
   λu.
     quot-elim (w. Prf (LeR (realNeg (realAbs w)) w))
       (x. rleOf (rNeg (rAbs x)) x
@@ -62,7 +63,8 @@ def realAbsZeroInv : (u : El Real) →
 
 def realDist : El Real → El Real → El Real ≔ λu. λv. realAbs (realSub u v)
 
-def realDistSelf : (u : El Real) → realDist u u ≡ realZero ∈ El Real ≔
+def realDistSelf : (u : El Real) → realDist u u ≡ realZero ∈ El Real
+  using (realAbs.realAbs.eq, realGroup.realSub.eq, realMetric.realDist.eq) ≔
   λu.
     trans Real (realDist u u) (realAbs realZero) realZero
       (cong Real (λw. Real) (λw. realAbs w) (realSub u u) realZero
@@ -70,7 +72,7 @@ def realDistSelf : (u : El Real) → realDist u u ≡ realZero ∈ El Real ≔
       realAbsZero
 
 def realDistSym : (u : El Real) (v : El Real) →
-  realDist u v ≡ realDist v u ∈ El Real ≔
+  realDist u v ≡ realDist v u ∈ El Real using (realAbs.realAbs.eq, realGroup.realSub.eq, realMetric.realDist.eq) ≔
   λu. λv.
     trans Real (realDist u v) (realAbs (realNeg (realSub u v))) (realDist v u)
       (sym Real (realAbs (realNeg (realSub u v))) (realAbs (realSub u v))
@@ -79,17 +81,18 @@ def realDistSym : (u : El Real) (v : El Real) →
          (realSub v u) (realNegSub u v))
 
 def leRZeroDist : (u : El Real) (v : El Real) →
-  Prf (LeR realZero (realDist u v)) ≔
+  Prf (LeR realZero (realDist u v)) using (real.realZero.eq, realAbs.realAbs.eq, realGroup.realSub.eq, realMetric.realDist.eq, realOrder.LeR.eq) ≔
   λu. λv. leRZeroAbs (realSub u v)
 
 -- identity of indiscernibles, via realAbsZeroInv and the group law
 def realDistZeroInv : (u : El Real) (v : El Real) →
-  (realDist u v ≡ realZero ∈ El Real) → u ≡ v ∈ El Real ≔
+  (realDist u v ≡ realZero ∈ El Real) → u ≡ v ∈ El Real using (realAbs.realAbs.eq, realGroup.realSub.eq, realMetric.realDist.eq) ≔
   λu. λv. λh. realSubZeroInv u v (realAbsZeroInv (realSub u v) h)
 
 -- the triangle inequality: |·| adds along the three-term split
 def realDistTriangle : (u : El Real) (v : El Real) (w : El Real) →
-  Prf (LeR (realDist u w) (realAdd (realDist u v) (realDist v w))) ≔
+  Prf (LeR (realDist u w) (realAdd (realDist u v) (realDist v w)))
+  using (realAbs.realAbs.eq, realAdd.realAdd.eq, realGroup.realSub.eq, realMetric.realDist.eq) ≔
   λu. λv. λw.
     transportP Real
       (λt. LeR t (realAdd (realAbs (realSub u v)) (realAbs (realSub v w))))

@@ -10,7 +10,7 @@ import equality (sym, trans)
 -- canonicity: under the index equation (always derivable from the
 -- proof itself, by idToEq), every proof of Id a x y IS refl.
 def idCanon : (a : 𝕌) (x : El a) (y : El a) (p : El (Id a x y)) (h : x ≡ y ∈ El a) →
-              p ≡ refl a x ∈ El (Id a x y) ≔
+              p ≡ refl a x ∈ El (Id a x y) using (id.refl.eq) ≔
   λa. λx. λy. λp. λh.
     squash-elim
       (IdElimP a

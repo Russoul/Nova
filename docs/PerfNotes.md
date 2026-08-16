@@ -439,3 +439,223 @@ discharge engine at ~1% of wall. The open performance items are the
 ones the growth curve will surface: load+parse scales with the corpus,
 and the metavariable redesign must not reintroduce mechanisms 1–4 of
 "The cost of a hole" above.
+
+## The ℝ regression: substitution towers
+
+The completeness/abs/metric development blew the corpus up from ~2.2s
+to **6:07 wall** (elaborate phase 384s under NOVA_PROFILE). Two items
+were 80% of it: `realComplete.realLimClose` **230s** and
+`realAbs.realAbsAbs` **74s**. Phase split: item admission (`kitem`)
+153s, eager kernel replay 105s, engine 82s (of which `rwNfTyS` 63s at
+~27ms/call).
+
+A Chez source profile (the §"Σ-lookup index" driver; entries are flat
+lists `(count path bfp efp line col)` — count first) put the
+substitution family at **55% of all execution**: `substVar` 26.9%,
+`substElem` 22.9%, `under` 5.1% — against ~4% when last measured. The
+matcher family (`rewriteElemS`/`matchElemP`/descent) was 17%, the
+kernel normaliser + KM plumbing ~10%.
+
+The mechanism: `under σ = Ext (Chain σ Wk) ☐₀`, and
+`substVar n (Chain s t) = substElem (substVar n s) t` — so resolving a
+variable through an `under`-tower of depth k costs **k full copies of
+the resolved payload**, one per tower layer (x[σ][↑][↑]… applied
+literally). liftK/under towers are everywhere: every binder crossing
+in every β-contraction of every normaliser walk. The ℝ corpus made the
+payloads big and the towers deep: `realAbsAbs`'s eight type-level
+attempts each δ-expand ~2.9k-node written types to **~137k-node**
+normal forms (measured via a temporary `sz-att-ty-nf` bump); its
+structural twin `realAbsNeg`, whose expansions stay small, costs 2.3s
+against 78s.
+
+### Fix: shift-accumulating substVar (+ two shortcuts)
+
+`substVar` now resolves with a pending-shift accumulator: weakening
+compositions coalesce (`go n (Chain s Wk) k = go n s (S k)`) and the
+shift applies as ONE pass at the resolved payload (`t[↑ᵏ]` via a
+`wkTower` whose resolution allocates nothing). Extensionally identical
+to the literal equations. Alongside: `substElem`/`substTy` return the
+term unchanged at `Id` (terms are pure trees — nothing pending), and
+the elaborator's `betaElem`/`betaTy` got the kernel's empty-spine
+shortcut (the cached def-nf IS the answer; previously each top-level
+mention paid a full copy through `Terminal` plus a full re-walk).
+
+Result: corpus elaborate **384s → 235s** (wall 6:07 → 3:29), 138/138
+tests green. `realLimClose` 230→113s, `realAbsAbs` 74→46s; probeB
+(realAbs standalone) 95→61s with engine 33.5→16.2s, kitem 28.7→19.8s,
+kernel 24.7→16.9s. Post-fix source profile: subst family 31% (the
+accumulator's `go` is now the top single function at 15.5%), matcher
+29%, kernel+KM 16%.
+
+### What the numbers point at next (measured, not guessed)
+
+Isolating `realLimClose` (truncated-module diff): its 110s decomposes
+into ONE `kitem` call of **51s**, 14 attempt-level kernel replays of
+~2.3s each, and 14 type attempts whose `rwNfTyS` costs ~1.26s/call —
+but its conversion types δ-expand to only ~4k nodes. The regimes
+differ: `realAbsAbs` is size-bound (137k-node types), `realLimClose`
+is walk-bound (candidate-major matcher rounds; many replays per item).
+
+Kernel-side instrumentation of the replay split, one probeE run:
+`krepl-ty-nf` (normalising the two sides) **49.4s over 6,366 replays**
+vs `krepl-ty-steps` (replaying the recorded steps) **0.14s**; elements
+add 14.7s vs 3.4s. Average steps per certificate: **0.23**. Three
+ceilings measured on the way, all ~zero:
+
+* a cross-runKM def-nf cache (global-IORef prototype): 226→216s — the
+  per-call memo already catches what matters, re-confirming the
+  "…where that memo is allowed to live" measurement on the new corpus;
+* a whole-term side-nf memo: **0 hits in 14,668 lookups** — replayed
+  sides never repeat syntactically;
+* tier-1 replay cost (`kernel-t1-*`): 0.4–2.3s — comp-joinable
+  equations replay cheaply already.
+
+So the dominant remaining cost is: **thousands of near-miss conversion
+checks decided by brute-force normalise-both-and-compare**, in the
+kernel (stepless-FBeta replays, head-exposure `kTy` calls in
+`kCheckE`/`kInferE` — the Π-tower is re-normalised at every spine
+node) and in the engine (rwNf of both sides before any lemma is even
+needed). The sides are mostly-shared trees differing along one spine,
+and ~85% of tier-2 certificates end stepless — provable by plain δβ
+with no lemma machinery at all.
+
+Ranked plan:
+
+1. **Diff-directed conversion ("join check")**: recursive compare with
+   syntactic-equality pruning at every node, whnf + head-match on
+   mismatch — decides exactly nf-equality (untyped, η-free, as today)
+   while touching only the differing spine. Three deployment sites:
+   the kernel's stepless-FBeta replay path, the kernel's head-exposure
+   sites (whnf instead of full kTy at `case ty' of` matches), and an
+   engine tier 1½ before candidate assembly. Measured ceiling ~60s of
+   probeE's 206s in the kernel alone, plus most of the engine's rwNf.
+2. **Matcher round structure**: after a successful rewrite, only the
+   rewritten path can expose new redexes — re-normalise along it
+   instead of `betaElem` on the whole term per round; keep sizes with
+   the `seen` entries to make the cycle check O(1) on mismatch.
+3. The structural end-game if 1–2 are not enough: sharing-preserving
+   normalisation (NbE/closures) — the per-occurrence payload copy that
+   substitution still pays is inherent to tree substitution.
+
+(Overtaken before implementation: the αβ-conversion survey below made
+plan 1 moot for the elaborator — the strict subset removes the work
+instead of optimising it — and re-scopes its kernel half as the
+replay-side redesign of the new architecture.)
+
+## The αβ-conversion survey (NOVA_STRICT_CONV=1)
+
+A design decision, then its measurement. The decided architecture:
+automated conversion is **α + the computation rules + Prf-irrelevance
+(𝟙/𝟘/Prf) + named whole-equation matching** — no δ on equation sides,
+no η, no hops, no positional rewriting. Head exposure of TYPES keeps
+δ, but per-item whitelisted (a `using`-style unfold clause); everything
+outside the subset is the operator's to discharge, later assisted by
+explicit tactics / terser transport syntax. Rationale: performance
+must be consistent and proportional to what is written — the 34×
+realAbsNeg/realAbsAbs cliff is invisible in source and inherent to
+δ-driven conversion; terse proofs can be recovered intensionally
+opt-in, not as the default cost model.
+
+The survey mode implements the elaborator side of exactly that subset
+(kernel unchanged — it only ever accepts more than the engine emits):
+`rwNf*` gated to the computational normaliser, η/hops/`spCongC`
+disabled, equation sides never δ-expanded, and every CHECKING-position
+head exposure routed through a logged whnf-δ (`exposeE`/`exposeT`,
+`unf <module>|<name>` labels — the whitelist survey). Failures
+surface as ordinary obligations; a hard mid-checking failure drops the
+module and cascades. Dedup keys carry a size prefix (cheap prefilter).
+
+Corpus results, one run, 24s wall (default mode untouched: 138/138,
+209s):
+
+* **1,031 obligations across 497 of ~1,100 items** (2.1 per affected
+  item). By site: 676 inferred-vs-expected type conversions, 310
+  ⋆-proofs, 32 quot-elim well-definedness, 9 chain steps. 57 carry a
+  `hint:` naming an existing store lemma — pure `using`-clause
+  additions; the bulk of the rest are defining-equation shapes
+  (`plus Z n ≐ n`), the auto-generatable `<def>.eq` lemma family.
+  Heaviest modules: rationalQ 133, rationalOrder 61, realLattice 56,
+  realOrder/rational 44, realAdd/intAbs 39.
+* **Whitelists are small and stable**: 426 (module, name) unfold pairs
+  over 60 modules — ~7 per module, ≤22 at the worst (realComplete);
+  the names are exactly the type abbreviations (Int, Q, Id, LeN, LeZ,
+  Sign, LeQ, Real, RSeq, Regular…). Obligation statements stay in
+  surface vocabulary.
+* **4 modules dropped**, all genuinely dependent on removed
+  automation: stream (+ streamEq/streamBisim by cascade) — coinductive
+  props exposed only by HYPOTHESIS rewriting under squash-elim — and
+  vectByIndAppend (ℕ-elim-computed type family exposed by
+  hypothesis rewriting). These need restatement or an explicit
+  exposure construct.
+* **The cost model collapses as predicted**: engine 49ms, candidate
+  assembly 78ms, tier-1 4ms — the discharge engine is now noise. Of
+  the 24s: ~15.2s is the UNCHANGED kernel's δβ normalize-and-compare
+  replaying the certificates that still succeed, ~2s load+parse, the
+  rest obligation bookkeeping/display. With the kernel ported to the
+  same subset (αβ compare + whitelisted exposure + named-lemma
+  instantiation — a simplification, not an optimisation: the step
+  language largely disappears), the corpus projects to **~5s,
+  parse-dominated**, from 367s at this file's start.
+
+Migration is the remaining cost and it is mapped, mechanical, and
+hint-assisted: add the named `using` clauses the hints already print,
+generate the defining-equation lemmas, spell the cong/trans chains the
+310 ⋆-sites need, whitelist ~7 unfolds per module, restructure the 4
+dropped modules.
+
+## `<def>.eq` citations and the mechanical sweep
+
+The defining-equation lemma family landed as a NAMESPACE, not as
+minted items: a using-clause name `<def>.eq` resolves against Σ
+(aliases, then raw, then progressively stripped qualifiers — the same
+clause must parse in a standalone root and in the aggregate) and
+licenses UNFOLDING that definition in the site's equation joins. The
+strict join is then `comp ∘ unfold[cited]` — α + computation + exactly
+the cited δ — and the certificate stays the stepless FBeta the
+unchanged kernel already replays. No Σ entries, no new certificate
+forms, no cost for items that cite nothing. The engine's syntactic
+congruence descent (spCongC, strict children) stays enabled: it is the
+certificate-assembly twin of the faithful decompose splitting — one
+deterministic pass over the sides' common structure — not the banned
+positional candidate search. Obligations that would close under
+citations they don't yet have get a second hint stream: the sides'
+mentioned definitions are joined iteratively and reported as
+`closes by citing x.eq, …`.
+
+The clausal-def macro now cites for its own output: clause lemmas
+carry `using (<f>.eq)` (their ⋆-bodies hold by f's computation), the
+uniqueness lemma carries the clause lemmas plus `<f>.eq`. Constructed
+SItems take operator names fine — the surface parser, which cannot
+yet spell `+.eq` in a using list, is bypassed.
+
+The sweep (scratchpad `strict-sweep.py`) parses the survey report —
+attributing each obligation to its item by the `at: def` site, cursored
+through module order — and merges both hint streams into the items'
+using clauses, iterating to fixpoint. Two rounds converge:
+
+```
+obligations   1,018 → 240   (76% closed mechanically)
+items edited  386 across 58 corpus files (+489 lines of using clauses)
+dropped       stream/streamEq/streamBisim/vectByIndAppend (unchanged)
+```
+
+Default mode is untouched throughout: 138/138, all.nova Accepted
+(3:17 — the added clauses only widen item scopes, which the one-shot
+attempt tolerated everywhere).
+
+The 240 residue decomposes into: ~35 sites blocked ONLY by operator
+names in surface using-lists (`nat.+.eq` — a parser affordance away);
+the eta/uniqueness ⋆-cases and induction step-cases that genuinely
+need trans/cong chains (hypothesis on one side, store lemma on the
+other — hop territory, i.e. the operator's or a future tactic's job);
+and the 4 hypothesis-rewriting modules.
+
+The post-sweep strict profile is the kernel-port motivation in one
+line: **engine 0.6s, kernel replay 55s** (1,406 certs, wall 62s) — the
+unported kernel re-deciding by full δβ normalize-and-compare exactly
+the equations the strict engine joins in milliseconds. (kitem is ~0
+only because a dirty run skips item admission; a zero-obligation
+migrated corpus re-adds it — also αβ-cheap once the kernel speaks the
+subset.) The port — αβ compare + whitelisted exposure + named-lemma
+instantiation replacing the step-replay language — remains the single
+remaining performance item.

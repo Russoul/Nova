@@ -31,10 +31,10 @@ import equality (trans, sym, cong)
 -- ===== cancellation in ℤ =====
 
 def addCongL : (x : El Int) (y : El Int) (z : El Int) →
-  (x ≡ y ∈ El Int) → intAdd x z ≡ intAdd y z ∈ El Int ≔
+  (x ≡ y ∈ El Int) → intAdd x z ≡ intAdd y z ∈ El Int using (integerMul.intAddCong2) ≔
   λx. λy. λz. λh. ⋆
 def addCongR : (x : El Int) (y : El Int) (z : El Int) →
-  (y ≡ z ∈ El Int) → intAdd x y ≡ intAdd x z ∈ El Int ≔
+  (y ≡ z ∈ El Int) → intAdd x y ≡ intAdd x z ∈ El Int using (integerMul.intAddCong2) ≔
   λx. λy. λz. λh. ⋆
 
 -- x·d ≡ y·d with d ≠ 0 gives x ≡ y: the difference times d is zero,
@@ -87,14 +87,15 @@ def mulSwapRight : (a : El Int) (b : El Int) (c : El Int) →
 
 def ratRRefl : (p : El Rat) → Prf (RatR p p) ≔ λp. ⋆
 
-def ratRSymm : (p : El Rat) (q : El Rat) → Prf (RatR p q) → Prf (RatR q p) ≔
+def ratRSymm : (p : El Rat) (q : El Rat) → Prf (RatR p q) → Prf (RatR q p)
+  using (integer.Int.eq, integerMul.intMul.eq, rational.num.eq, rationalQ.RatR.eq, rationalQ.dInt.eq) ≔
   λp. λq. λh. sym Int (intMul (num p) (dInt q)) (intMul (num q) (dInt p)) h
 
 -- multiply the goal through by the middle denominator, walk it across
 -- the two hypotheses, and cancel — the middle denominator is non-zero
 -- because it is the image of an NZ
 def ratRTrans : (p : El Rat) (q : El Rat) (r : El Rat) →
-  Prf (RatR p q) → Prf (RatR q r) → Prf (RatR p r) using (intMulAssoc) ≔
+  Prf (RatR p q) → Prf (RatR q r) → Prf (RatR p r) using (intMulAssoc, integer.Int.eq, integerMul.intMul.eq, rational.den.eq, rational.num.eq, rational.nzToInt.eq, rationalQ.RatR.eq, rationalQ.dInt.eq) ≔
   λp. λq. λr. λh1. λh2.
     intMulCancel (intMul (num p) (dInt r)) (intMul (num r) (dInt p)) (dInt q)
       (trans Int
@@ -129,7 +130,7 @@ def qEffective : (p : El Rat) (q : El Rat) →
 -- the converse of rationalInv.nova's ratZeroOfNumZero, which needed
 -- effectivity and so could not be stated until now
 def numZeroOfRatZero : (p : El Rat) (h : Prf (class p ≡ qZero ∈ El Q)) →
-  num p ≡ intZero ∈ El Int using (intMulOneR, intMulZeroL) ≔
+  num p ≡ intZero ∈ El Int using (intMulOneR, intMulZeroL, integer.Int.eq, integer.intOne.eq, integer.intZero.eq, integerMul.intMul.eq, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.nzOne.eq, rational.nzPos.eq, rational.nzToInt.eq, rational.ratOfInt.eq, rational.ratZero.eq, rationalQ.RatR.eq, rationalQ.dInt.eq, rationalQ.qZero.eq, rationalQ.qcls.eq) ≔
   λp. λh.
     trans Int (num p) (intMul (num p) (dInt ratZero)) intZero
       (sym Int (intMul (num p) intOne) (num p) (intMulOneR (num p)))
@@ -143,7 +144,8 @@ def numZeroIff : (p : El Rat) →
 
 -- ===== the image of NZQ is exactly the non-zero rationals =====
 
-def qOfNzqNonZero : (x : El NZQ) → Prf (¬ (qOfNzq x ≡ qZero ∈ El Q)) ≔
+def qOfNzqNonZero : (x : El NZQ) → Prf (¬ (qOfNzq x ≡ qZero ∈ El Q))
+  using (rational.mkRat.eq, rational.num.eq, rational.nzToInt.eq, rationalQ.nzqToRat.eq, rationalQ.qOfNzq.eq, rationalQ.qcls.eq) ≔
   λx.
     notIntro (qOfNzq x ≡ qZero ∈ El Q) (λh.
       notApply (nzToInt (x .π₁) ≡ intZero ∈ El Int)
@@ -166,7 +168,7 @@ def qNonZeroIffNzq : (u : El Q) →
 -- ===== the field axiom, classically =====
 
 -- 1 ≠ 0: nzToInt nzOne IS intOne, and the image of an NZ misses zero
-def qOneNotZero : Prf (¬ (qOne ≡ qZero ∈ El Q)) ≔
+def qOneNotZero : Prf (¬ (qOne ≡ qZero ∈ El Q)) using (integer.intOne.eq, rational.mkRat.eq, rational.num.eq, rational.nzOne.eq, rational.nzPos.eq, rational.nzToInt.eq, rational.ratOfInt.eq, rational.ratOne.eq, rationalQ.qOne.eq, rationalQ.qcls.eq) ≔
   notIntro (qOne ≡ qZero ∈ El Q) (λh.
     notApply (intOne ≡ intZero ∈ El Int)
       (nzToIntNonZero nzOne)

@@ -83,7 +83,8 @@ def intAddZeroR : (z : El Int) → intAdd z intZero ≡ z ∈ El Int using (plus
 def intScaleN : ℕ → El Int → El Int using (distribBack) ≔
   λn. λz. quot-elim (w. El Int) (p. class (n * p .π₁ , n * p .π₂)) z
 
-def intScaleNZero : (n : ℕ) → intScaleN n intZero ≡ intZero ∈ El Int ≔ λn. ⋆
+def intScaleNZero : (n : ℕ) → intScaleN n intZero ≡ intZero ∈ El Int
+  using (integer.intZero.eq, rational.intScaleN.eq) ≔ λn. ⋆
 
 def intScaleNOne : (z : El Int) → intScaleN (S Z) z ≡ z ∈ El Int using (plusComm, oneMult) ≔
   λz. quot-elim (w. intScaleN (S Z) w ≡ w ∈ El Int) (p. ⋆) z
@@ -102,7 +103,8 @@ def intScale : El NZ → El Int → El Int ≔
 
 def intScaleOne : (z : El Int) → intScale nzOne z ≡ z ∈ El Int using (intScaleNOne) ≔ λz. ⋆
 
-def intScaleZero : (d : El NZ) → intScale d intZero ≡ intZero ∈ El Int ≔
+def intScaleZero : (d : El NZ) → intScale d intZero ≡ intZero ∈ El Int
+  using (integer.intNeg.eq, integer.intZero.eq, rational.intScale.eq, rational.intScaleN.eq) ≔
   λd. ⊎-elim (w. intScale w intZero ≡ intZero ∈ El Int) (n. ⋆) (n. ⋆) d
 
 -- Adding a scaled zero. Both arguments of intAdd are quot-elim
@@ -115,17 +117,18 @@ def intScaleZero : (d : El NZ) → intScale d intZero ≡ intZero ∈ El Int ≔
 -- Callers compose with trans rather than ask the engine to rewrite
 -- these in place.
 def intAddScaleZeroL : (d : El NZ) (y : El Int) →
-  intAdd (intScale d intZero) y ≡ y ∈ El Int using (intAddZeroL) ≔
+  intAdd (intScale d intZero) y ≡ y ∈ El Int using (intAddZeroL, integer.Int.eq, integer.intNeg.eq, integer.intZero.eq, integerAdd.intAdd.eq, rational.intScale.eq, rational.intScaleN.eq) ≔
   λd. λy. ⊎-elim (w. intAdd (intScale w intZero) y ≡ y ∈ El Int)
         (n. intAddZeroL y) (n. intAddZeroL y) d
 
 def intAddScaleZeroR : (d : El NZ) (y : El Int) →
-  intAdd y (intScale d intZero) ≡ y ∈ El Int using (intAddZeroR) ≔
+  intAdd y (intScale d intZero) ≡ y ∈ El Int using (intAddZeroR, rational.intScaleZero) ≔
   λd. λy. ⊎-elim (w. intAdd y (intScale w intZero) ≡ y ∈ El Int)
         (n. intAddZeroR y) (n. intAddZeroR y) d
 
 -- scaling by d agrees with multiplying by d's image in Int
-def intScaleToInt : (d : El NZ) → intScale d (class (S Z , Z)) ≡ nzToInt d ∈ El Int ≔
+def intScaleToInt : (d : El NZ) → intScale d (class (S Z , Z)) ≡ nzToInt d ∈ El Int
+  using (integer.intNeg.eq, rational.intScale.eq, rational.intScaleN.eq, rational.nzToInt.eq) ≔
   λd. ⊎-elim (w. intScale w (class (S Z , Z)) ≡ nzToInt w ∈ El Int) (n. ⋆) (n. ⋆) d
 
 -- ===== the rationals =====
@@ -153,7 +156,8 @@ def ratAdd : El Rat → El Rat → El Rat ≔
 
 -- ½ + ½ = 4/4, unreduced, as the raw representation demands
 def half : El Rat ≔ mkRat intOne (nzPos (S Z))
-def ratAddTest : ratAdd half half ≡ mkRat (class (S (S (S (S Z))) , Z)) (nzPos (S (S (S Z)))) ∈ El Rat ≔ ⋆
+def ratAddTest : ratAdd half half ≡ mkRat (class (S (S (S (S Z))) , Z)) (nzPos (S (S (S Z)))) ∈ El Rat
+  using (integer.intOne.eq, integerAdd.intAdd.eq, rational.den.eq, rational.half.eq, rational.intScale.eq, rational.intScaleN.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzPos.eq, rational.ratAdd.eq) ≔ ⋆
 
 -- ⅓ + (−⅓) = 0/(−9): numerator cancels, denominator keeps its sign
 def third : El Rat ≔ mkRat intOne (nzPos (S (S Z)))
@@ -183,14 +187,14 @@ def ratAddZeroRNum : (q : El Rat) →
 def ratEta : (q : El Rat) → mkRat (num q) (den q) ≡ q ∈ El Rat ≔ λq. ⋆
 
 -- and then the pair, one component at a time
-def ratAddZeroL : (q : El Rat) → ratAdd ratZero q ≡ q ∈ El Rat using (nzMulOneL, ratEta) ≔
+def ratAddZeroL : (q : El Rat) → ratAdd ratZero q ≡ q ∈ El Rat using (integer.intNeg.eq, integer.intZero.eq, integerAdd.intAdd.eq, nzMulOneL, ratEta, rational.Rat.eq, rational.den.eq, rational.intScale.eq, rational.intScaleN.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzNeg.eq, rational.nzOne.eq, rational.nzPos.eq, rational.ratAdd.eq, rational.ratOfInt.eq, rational.ratZero.eq) ≔
   λq. trans Rat (ratAdd ratZero q) (q .π₁, q .π₂) q
         (trans Rat (ratAdd ratZero q) (mkRat (num q) (nzMul nzOne (den q))) (q .π₁, q .π₂)
           (cong Int (λw. Rat) (λx. mkRat x (nzMul nzOne (den q))) (intAdd (intScale (den q) intZero) (intScale nzOne (num q))) (num q) (ratAddZeroLNum q))
           (cong NZ (λw. Rat) (λd. mkRat (num q) d) (nzMul nzOne (den q)) (den q) (nzMulOneL (den q))))
         (ratEta q)
 
-def ratAddZeroR : (q : El Rat) → ratAdd q ratZero ≡ q ∈ El Rat using (nzMulOneR, ratEta) ≔
+def ratAddZeroR : (q : El Rat) → ratAdd q ratZero ≡ q ∈ El Rat using (integer.intNeg.eq, integer.intZero.eq, integerAdd.intAdd.eq, nzMulOneR, ratEta, rational.Rat.eq, rational.den.eq, rational.intScale.eq, rational.intScaleN.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzNeg.eq, rational.nzOne.eq, rational.nzPos.eq, rational.ratAdd.eq, rational.ratOfInt.eq, rational.ratZero.eq) ≔
   λq. trans Rat (ratAdd q ratZero) (q .π₁, q .π₂) q
         (trans Rat (ratAdd q ratZero) (mkRat (num q) (nzMul (den q) nzOne)) (q .π₁, q .π₂)
           (cong Int (λw. Rat) (λx. mkRat x (nzMul (den q) nzOne)) (intAdd (intScale nzOne (num q)) (intScale (den q) intZero)) (num q) (ratAddZeroRNum q))
@@ -210,7 +214,7 @@ def mulPlusComm : (m : ℕ) (k : ℕ) → m * k + m + k ≡ k * m + k + m ∈ �
     (cong ℕ (λu. ℕ) (λw. w + m + k) (m * k) (k * m) (multComm k m))
     (plusSwapRight (k * m) m k)
 
-def nzMulComm : (x : El NZ) (y : El NZ) → nzMul x y ≡ nzMul y x ∈ El NZ using (plusAssoc) ≔
+def nzMulComm : (x : El NZ) (y : El NZ) → nzMul x y ≡ nzMul y x ∈ El NZ using (plusAssoc, rational.nzMul.eq, rational.nzNeg.eq, rational.nzPos.eq) ≔
   λx. λy. ⊎-elim (v. nzMul v y ≡ nzMul y v ∈ El NZ)
     (m. ⊎-elim (w. nzMul (nzPos m) w ≡ nzMul w (nzPos m) ∈ El NZ)
           (k. cong ℕ (λu. NZ) nzPos (m * k + m + k) (k * m + k + m) (mulPlusComm m k))
@@ -225,7 +229,8 @@ def nzMulComm : (x : El NZ) (y : El NZ) → nzMul x y ≡ nzMul y x ∈ El NZ us
 -- p + q ≡ q + p: intAddComm on the numerator, nzMulComm on the
 -- denominator (the middle term of the trans spelled out — the
 -- elaborator has nothing else to pin it against)
-def ratAddComm : (p : El Rat) (q : El Rat) → ratAdd p q ≡ ratAdd q p ∈ El Rat ≔
+def ratAddComm : (p : El Rat) (q : El Rat) → ratAdd p q ≡ ratAdd q p ∈ El Rat
+  using (integerAdd.intAdd.eq, rational.den.eq, rational.intScale.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.ratAdd.eq) ≔
   λp. λq. trans Rat (ratAdd p q)
     (mkRat (intAdd (intScale (den p) (num q)) (intScale (den q) (num p)))
            (nzMul (den p) (den q)))
@@ -241,4 +246,5 @@ def ratAddComm : (p : El Rat) (q : El Rat) → ratAdd p q ≡ ratAdd q p ∈ El 
 -- negate the numerator, keep the denominator
 def ratNeg : El Rat → El Rat ≔ λp. mkRat (intNeg (num p)) (den p)
 
-def ratNegHalf : ratNeg half ≡ mkRat (class (Z , S Z)) (nzPos (S Z)) ∈ El Rat ≔ ⋆
+def ratNegHalf : ratNeg half ≡ mkRat (class (Z , S Z)) (nzPos (S Z)) ∈ El Rat
+  using (integer.intNeg.eq, integer.intOne.eq, rational.den.eq, rational.half.eq, rational.mkRat.eq, rational.num.eq, rational.nzPos.eq, rational.ratNeg.eq) ≔ ⋆

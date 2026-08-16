@@ -51,7 +51,8 @@ def leTrans : (a : ℕ) (b : ℕ) (c : ℕ) →
         c)))
 
 -- a summand of zero is zero (both sides)
-def sumZeroR : (x : ℕ) (y : ℕ) → (x + y ≡ Z ∈ ℕ) → y ≡ Z ∈ ℕ ≔
+def sumZeroR : (x : ℕ) (y : ℕ) → (x + y ≡ Z ∈ ℕ) → y ≡ Z ∈ ℕ
+  using (nat.plusSucId) ≔
   λx. λy.
     ℕ-elim (j. (x + j ≡ Z ∈ ℕ) → j ≡ Z ∈ ℕ)
       (λh. ⋆)

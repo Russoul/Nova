@@ -45,7 +45,8 @@ def intDblSquare : (g : El Int) →
 
 -- ===== pushing the doubled index through nzToInt =====
 
-def nzPosInt : (k : ℕ) → nzToInt (nzPos k) ≡ intOfNat (S k) ∈ El Int ≔ λk. ⋆
+def nzPosInt : (k : ℕ) → nzToInt (nzPos k) ≡ intOfNat (S k) ∈ El Int
+  using (intOrder.intOfNat.eq, rational.nzPos.eq, rational.nzToInt.eq) ≔ λk. ⋆
 
 -- S (dbl n) is 2·(n+1) — one successor moved across a sum
 def sucDbl : (n : ℕ) → S (dbl n) ≡ S n + S n ∈ ℕ using (sucPlus) ≔ λn. ⋆
@@ -75,24 +76,26 @@ def nzPosDbl : (n : ℕ) →
 def unitRat : ℕ → El Rat ≔ λk. mkRat intOne (nzPos k)
 
 -- scaling 1 by d is just d
-def scaleOne : (d : El NZ) → intScale d intOne ≡ nzToInt d ∈ El Int ≔
+def scaleOne : (d : El NZ) → intScale d intOne ≡ nzToInt d ∈ El Int
+  using (integer.intOne.eq) ≔
   λd. intScaleToInt d
 
 -- the numerator of 1/d + 1/d is d + d
 def unitAddNum : (d : El NZ) →
   num (ratAdd (mkRat intOne d) (mkRat intOne d))
-    ≡ intAdd (nzToInt d) (nzToInt d) ∈ El Int ≔
+    ≡ intAdd (nzToInt d) (nzToInt d) ∈ El Int using (integer.intNeg.eq, integer.intOne.eq, integerAdd.intAdd.eq, rational.den.eq, rational.intScale.eq, rational.intScaleN.eq, rational.mkRat.eq, rational.num.eq, rational.ratAdd.eq) ≔
   λd. cong Int (λw. Int) (λw. intAdd w w) (intScale d intOne) (nzToInt d) (scaleOne d)
 
 -- ...and its denominator is d·d
 def unitAddDen : (d : El NZ) →
   dInt (ratAdd (mkRat intOne d) (mkRat intOne d))
-    ≡ intMul (nzToInt d) (nzToInt d) ∈ El Int ≔
+    ≡ intMul (nzToInt d) (nzToInt d) ∈ El Int using (integer.intOne.eq, integerAdd.intAdd.eq, rational.den.eq, rational.intScale.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzNeg.eq, rational.nzPos.eq, rational.nzToInt.eq, rational.ratAdd.eq, rationalQ.dInt.eq) ≔
   λd. nzToIntMul d d
 
 -- 1/(2n+2) + 1/(2n+2) ~ 1/(n+1): cross-multiply and use intDblSquare
 def halfRel : (n : ℕ) →
-  Prf (RatR (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) (unitRat n)) ≔
+  Prf (RatR (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) (unitRat n))
+  using (integer.intOne.eq, integerAdd.intAdd.eq, integerMul.intMul.eq, ratHalf.dbl.eq, ratHalf.intDblSquare, ratHalf.unitRat.eq, rational.den.eq, rational.intScale.eq, rational.intScaleN.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzPos.eq, rational.nzToInt.eq, rational.ratAdd.eq, rationalQ.dInt.eq) ≔
   λn.
     (intMul (num (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))) (nzToInt (nzPos n))
        ≡⟨ cong Int (λw. Int) (λw. intMul w (nzToInt (nzPos n)))
@@ -132,7 +135,8 @@ def halfRel : (n : ℕ) →
 -- ===== the halving law =====
 
 def qInvHalf : (n : ℕ) →
-  qAdd (qInvNat (dbl n)) (qInvNat (dbl n)) ≡ qInvNat n ∈ El Q ≔
+  qAdd (qInvNat (dbl n)) (qInvNat (dbl n)) ≡ qInvNat n ∈ El Q
+  using (integer.intOne.eq, ratHalf.dbl.eq, ratHalf.unitRat.eq, rational.mkRat.eq, rational.nzPos.eq, rational.ratAdd.eq, rationalQ.qAdd.eq, rationalQ.qcls.eq, real.qInvNat.eq) ≔
   λn.
     trans Q (qAdd (qInvNat (dbl n)) (qInvNat (dbl n)))
             (qcls (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))

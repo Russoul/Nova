@@ -22,7 +22,7 @@ def clen : El Con → ℕ ≔
         (λg. λihg. λA. λihA. λB. λihB. S ihA)
         g
 
-def clenG2 : clen g2 ≡ S (S Z) ∈ ℕ ≔ ⋆
+def clenG2 : clen g2 ≡ S (S Z) ∈ ℕ using (qiitConTy.ConElim.eq, qiitConTy.arr.eq, qiitConTy.clen.eq, qiitConTy.ext.eq, qiitConTy.g1.eq, qiitConTy.g2.eq, qiitConTy.nil.eq, qiitConTy.unit.eq) ≔ ⋆
 
 -- the same elimination problem read at the Ty motive: type size
 def tsize : (g : El Con) → El (Ty g) → ℕ ≔
@@ -33,4 +33,5 @@ def tsize : (g : El Con) → El (Ty g) → ℕ ≔
         (λg. λihg. λA. λihA. λB. λihB. S ihA)
         g t
 
-def tsizeArr : tsize g1 (arr g1 (unit g1) (unit g1)) ≡ S (S Z) ∈ ℕ ≔ ⋆
+def tsizeArr : tsize g1 (arr g1 (unit g1) (unit g1)) ≡ S (S Z) ∈ ℕ
+  using (qiitConTy.TyElim.eq, qiitConTy.arr.eq, qiitConTy.ext.eq, qiitConTy.g1.eq, qiitConTy.nil.eq, qiitConTy.tsize.eq, qiitConTy.unit.eq) ≔ ⋆

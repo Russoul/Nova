@@ -17,7 +17,8 @@ import id (Id, eqToId)
 -- 1/(n+1), and its positivity (the nz layer computes the sign)
 def qInvNat : ℕ → El Q ≔ λn. qcls (mkRat intOne (nzPos n))
 
-def qInvNatPos : (n : ℕ) → sgnQ (qInvNat n) ≡ sPos ∈ El Sign ≔
+def qInvNatPos : (n : ℕ) → sgnQ (qInvNat n) ≡ sPos ∈ El Sign
+  using (eqInt.intCanon.eq, eqInt.intCanonClass.eq, intNonZero.nzOfInt.eq, intNonZero.nzOfIntAt.eq, integer.intOne.eq, integerMul.intMul.eq, rational.denInt.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzOne.eq, rational.nzPos.eq, rational.nzToInt.eq, rationalInv.intCanonProdZero.eq, rationalOrder.intSgn.eq, rationalOrder.nzSgn.eq, rationalOrder.ratSgn.eq, rationalOrder.sNeg.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qcls.eq, real.qInvNat.eq) ≔
   λn.
     trans Sign (sgnQ (qInvNat n)) (intSgn (nzToInt (nzMul nzOne (nzPos n)))) sPos
       (cong Int (λv. Sign) (λv. intSgn v)
@@ -34,10 +35,11 @@ def qInvNatPos : (n : ℕ) → sgnQ (qInvNat n) ≡ sPos ∈ El Sign ≔
 -- the regularity bound 1/(m+1) + 1/(n+1), positive
 def rBound : ℕ → ℕ → El Q ≔ λm. λn. qAdd (qInvNat m) (qInvNat n)
 
-def rBoundPos : (m : ℕ) (n : ℕ) → sgnQ (rBound m n) ≡ sPos ∈ El Sign ≔
+def rBoundPos : (m : ℕ) (n : ℕ) → sgnQ (rBound m n) ≡ sPos ∈ El Sign
+  using (rationalQ.qAdd.eq, real.qInvNat.eq, real.rBound.eq) ≔
   λm. λn. sgnQAddPos (qInvNat m) (qInvNat n) (qInvNatPos m) (qInvNatPos n)
 
-def qNegZero : qNeg qZero ≡ qZero ∈ El Q ≔ ⋆
+def qNegZero : qNeg qZero ≡ qZero ∈ El Q using (integer.intNeg.eq, integer.intZero.eq, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.ratNeg.eq, rational.ratOfInt.eq, rational.ratZero.eq, rationalQ.qNeg.eq, rationalQ.qZero.eq, rationalQ.qcls.eq) ≔ ⋆
 
 -- −(bound) ≤ 0 ≤ bound
 def leQNegBoundZero : (m : ℕ) (n : ℕ) →

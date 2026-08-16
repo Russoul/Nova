@@ -8,7 +8,7 @@ def * : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) Z (n ih. x + ih) y
 
 def plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ ≔ λn. ⋆
 def plusSucId : (n : ℕ) (m : ℕ) → n + S m ≡ S (n + m) ∈ ℕ ≔ λn. λm. ⋆
-def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ ≔ λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
+def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ using (nat.plusZeroId) ≔ λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
 def sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ ≔ λn. λm. ℕ-elim (k. S n + k ≡ S (n + k) ∈ ℕ) ⋆ (k ih. ⋆) m
 def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ using (sucPlus, zeroPlusId) ≔ λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ ℕ) ⋆ (k ih. ⋆) m
 def plusAssoc : (n : ℕ) (m : ℕ) (k : ℕ) → n + m + k ≡ n + (m + k) ∈ ℕ ≔
@@ -39,7 +39,8 @@ def sucInj : (n : ℕ) (m : ℕ) → (S n ≡ S m ∈ ℕ) → n ≡ m ∈ ℕ �
 -- CANCELLATION: (· + k) is injective, i.e. a common right summand
 -- cancels. Induction on the cancelled summand — each step peels one
 -- successor off both sides (n + S j ≜ S (n + j)) and hands it to sucInj
-def plusCancel : (n : ℕ) (m : ℕ) (k : ℕ) → (n + k ≡ m + k ∈ ℕ) → n ≡ m ∈ ℕ ≔
+def plusCancel : (n : ℕ) (m : ℕ) (k : ℕ) → (n + k ≡ m + k ∈ ℕ) → n ≡ m ∈ ℕ
+  using (nat.plusSucId) ≔
   λn. λm. λk. ℕ-elim (j. (n + j ≡ m + j ∈ ℕ) → n ≡ m ∈ ℕ)
     (λh. ⋆)
     (j ih. λh. ih (sucInj (n + j) (m + j) h))
@@ -47,7 +48,7 @@ def plusCancel : (n : ℕ) (m : ℕ) (k : ℕ) → (n + k ≡ m + k ∈ ℕ) →
 
 def multZeroId : (n : ℕ) → n * Z ≡ Z ∈ ℕ ≔ λn. ⋆
 def multSucId : (n : ℕ) (m : ℕ) → n * S m ≡ n + n * m ∈ ℕ ≔ λn. λm. ⋆
-def zeroMult : (n : ℕ) → Z * n ≡ Z ∈ ℕ using (zeroPlusId) ≔ λn. ℕ-elim (k. Z * k ≡ Z ∈ ℕ) ⋆ (k ih. ⋆) n
+def zeroMult : (n : ℕ) → Z * n ≡ Z ∈ ℕ using (nat.multZeroId, zeroPlusId) ≔ λn. ℕ-elim (k. Z * k ≡ Z ∈ ℕ) ⋆ (k ih. ⋆) n
 def sucMult : (n : ℕ) (m : ℕ) → S n * m ≡ m + n * m ∈ ℕ using (plusCongR, sucPlus, swapLeft) ≔
   λn. λm. ℕ-elim (k. S n * k ≡ k + n * k ∈ ℕ) ⋆ (k ih. ⋆) m
 def multComm : (n : ℕ) (m : ℕ) → m * n ≡ n * m ∈ ℕ using (sucMult, zeroMult) ≔

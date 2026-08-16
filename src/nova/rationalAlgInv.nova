@@ -53,7 +53,7 @@ def invRepWDAt : (p : El Rat) (p' : El Rat) (h : Prf (RatR p p'))
   (v' : ((e : El NZ) ⨯ Prf (nzToInt e ≡ num p' ∈ El Int))
           ⊎ Prf (num p' ≡ intZero ∈ El Int)) →
   intMul (num (invRepAt p v)) (dInt (invRepAt p' v'))
-    ≡ intMul (num (invRepAt p' v')) (dInt (invRepAt p v)) ∈ El Int using (intMulOneR, intMulZeroL) ≔
+    ≡ intMul (num (invRepAt p' v')) (dInt (invRepAt p v)) ∈ El Int using (intMulOneR, intMulZeroL, integer.Int.eq, integerMul.intMul.eq, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.nzToInt.eq, rationalAlgInv.invRepAt.eq, rationalQ.RatR.eq, rationalQ.dInt.eq) ≔
   λp. λp'. λh. λv. λv'.
     ⊎-elim (w. (intMul (num (invRepAt p w)) (dInt (invRepAt p' v'))
                   ≡ intMul (num (invRepAt p' v')) (dInt (invRepAt p w)) ∈ El Int))
@@ -126,7 +126,7 @@ def invRepWDAt : (p : El Rat) (p' : El Rat) (h : Prf (RatR p p'))
 
 def invRepWD : (p : El Rat) (p' : El Rat) (h : Prf (RatR p p')) →
   intMul (num (invRep p)) (dInt (invRep p'))
-    ≡ intMul (num (invRep p')) (dInt (invRep p)) ∈ El Int ≔
+    ≡ intMul (num (invRep p')) (dInt (invRep p)) ∈ El Int using (intNonZero.nzOfInt.eq, integerMul.intMul.eq, rational.num.eq, rationalAlgInv.invRep.eq, rationalAlgInv.invRepAt.eq, rationalQ.dInt.eq) ≔
   λp. λp'. λh. invRepWDAt p p' h (nzOfInt (num p)) (nzOfInt (num p'))
 
 -- ===== the inverse on ℚ =====
@@ -134,10 +134,11 @@ def invRepWD : (p : El Rat) (p' : El Rat) (h : Prf (RatR p p')) →
 def qInv : El Q → El Q using (invRepWD) ≔
   λu. quot-elim (w. El Q) (p. class (invRep p)) u
 
-def qInvCls : (p : El Rat) → qInv (qcls p) ≡ qcls (invRep p) ∈ El Q ≔ λp. ⋆
+def qInvCls : (p : El Rat) → qInv (qcls p) ≡ qcls (invRep p) ∈ El Q
+  using (rationalAlgInv.invRep.eq, rationalAlgInv.qInv.eq, rationalQ.qcls.eq) ≔ λp. ⋆
 
 -- junk at zero, by construction
-def qInvZero : qInv qZero ≡ qZero ∈ El Q ≔ ⋆
+def qInvZero : qInv qZero ≡ qZero ∈ El Q using (eqInt.classNormPairEq.eq, eqInt.intCanon.eq, eqInt.intCanonClass.eq, equality.sym.eq, equality.trans.eq, intNonZero.nzOfInt.eq, intNonZero.nzOfIntAt.eq, intNonZero.nzOfPairD.eq, integer.Int.eq, integer.intZero.eq, integerMul.classPairEta.eq, integerNormalize.normPair.eq, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.nzOne.eq, rational.nzPos.eq, rational.nzToInt.eq, rational.ratOfInt.eq, rational.ratZero.eq, rationalAlgInv.invRep.eq, rationalAlgInv.invRepAt.eq, rationalAlgInv.qInv.eq, rationalInv.intCanonProdZero.eq, rationalInv.normProdZero.eq, rationalQ.dInt.eq, rationalQ.qZero.eq, rationalQ.qcls.eq) ≔ ⋆
 
 -- ===== correctness =====
 
@@ -145,7 +146,8 @@ def qInvZero : qInv qZero ≡ qZero ∈ El Q ≔ ⋆
 -- (n·D)/(d·e), and cross-multiplying against 1/1 leaves n·D ≡ D·n
 def invRepRel : (p : El Rat) (e : El NZ) (he : Prf (nzToInt e ≡ num p ∈ El Int)) →
   intMul (num (ratMul p (mkRat (dInt p) e))) (dInt ratOne)
-    ≡ intMul (num ratOne) (dInt (ratMul p (mkRat (dInt p) e))) ∈ El Int ≔
+    ≡ intMul (num ratOne) (dInt (ratMul p (mkRat (dInt p) e))) ∈ El Int
+  using (integer.intOne.eq, integerMul.intMul.eq, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzOne.eq, rational.nzPos.eq, rational.nzToInt.eq, rational.ratOfInt.eq, rational.ratOne.eq, rationalQ.dInt.eq, rationalQ.ratMul.eq) ≔
   λp. λe. λhe.
     trans Int
       (intMul (num (ratMul p (mkRat (dInt p) e))) (dInt ratOne))
@@ -172,7 +174,7 @@ def invRepRel : (p : El Rat) (e : El NZ) (he : Prf (nzToInt e ≡ num p ∈ El I
 def invRepCorrectAt : (p : El Rat) (hnz : Prf (¬ (num p ≡ intZero ∈ El Int)))
   (v : ((e : El NZ) ⨯ Prf (nzToInt e ≡ num p ∈ El Int))
          ⊎ Prf (num p ≡ intZero ∈ El Int)) →
-  class (ratMul p (invRepAt p v)) ≡ qOne ∈ El Q using (intMulZeroR, rational.nzMulOneR) ≔
+  class (ratMul p (invRepAt p v)) ≡ qOne ∈ El Q using (intMulZeroR, integer.Int.eq, integer.intOne.eq, integerMul.intMul.eq, rational.mkRat.eq, rational.num.eq, rational.nzMulOneR, rational.ratOfInt.eq, rational.ratOne.eq, rationalAlgInv.invRepAt.eq, rationalQ.RatR.eq, rationalQ.dInt.eq, rationalQ.qOne.eq, rationalQ.qcls.eq, rationalQ.ratMul.eq) ≔
   λp. λhnz. λv.
     ⊎-elim (w. (class (ratMul p (invRepAt p w)) ≡ qOne ∈ El Q))
       (ex. clsEqOfRel (ratMul p (mkRat (dInt p) (ex .π₁))) ratOne
@@ -182,7 +184,7 @@ def invRepCorrectAt : (p : El Rat) (hnz : Prf (¬ (num p ≡ intZero ∈ El Int)
       v
 
 def qMulInvR : (u : El Q) (h : Prf (¬ (u ≡ qZero ∈ El Q))) →
-  qMul u (qInv u) ≡ qOne ∈ El Q ≔
+  qMul u (qInv u) ≡ qOne ∈ El Q using (eqInt.intCanon.eq, eqInt.intCanonClass.eq, intNonZero.nzOfInt.eq, intNonZero.nzOfIntAt.eq, integerMul.intMul.eq, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.ratZero.eq, rationalAlgInv.invRep.eq, rationalAlgInv.invRepAt.eq, rationalAlgInv.qInv.eq, rationalInv.intCanonProdZero.eq, rationalQ.dInt.eq, rationalQ.qMul.eq, rationalQ.ratMul.eq) ≔
   λu.
     quot-elim (w. Prf (¬ (w ≡ qZero ∈ El Q)) → (qMul w (qInv w) ≡ qOne ∈ El Q))
       (p. λh. invRepCorrectAt p (numNonZero p h) (nzOfInt (num p)))
@@ -196,7 +198,8 @@ def qInvExistsD : (u : El Q) (h : Prf (¬ (u ≡ qZero ∈ El Q))) →
   λu. λh. (qInv u , qMulInvR u h)
 
 -- and it computes: (⅓)⁻¹ = 3
-def qInvThird : qInv (qcls third) ≡ qcls (mkRat (class (S (S (S Z)) , Z)) (nzPos Z)) ∈ El Q ≔ ⋆
+def qInvThird : qInv (qcls third) ≡ qcls (mkRat (class (S (S (S Z)) , Z)) (nzPos Z)) ∈ El Q
+  using (eqInt.classNormPairEq.eq, eqInt.intCanon.eq, eqInt.intCanonClass.eq, equality.sym.eq, equality.trans.eq, intNonZero.nzOfInt.eq, intNonZero.nzOfIntAt.eq, intNonZero.nzOfPairD.eq, integer.Int.eq, integer.intOne.eq, integer.intZero.eq, integerMul.classPairEta.eq, integerNormalize.normPair.eq, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.nzPos.eq, rational.nzToInt.eq, rational.ratOfInt.eq, rational.ratZero.eq, rational.third.eq, rationalAlgInv.invRep.eq, rationalAlgInv.invRepAt.eq, rationalAlgInv.qInv.eq, rationalInv.intCanonProdZero.eq, rationalInv.normProdZero.eq, rationalQ.dInt.eq, rationalQ.qcls.eq) ≔ ⋆
 
 -- ===== the inverse type is a proposition =====
 --

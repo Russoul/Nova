@@ -45,7 +45,7 @@ def qFloorRep : El Rat → ℕ ≔
 -- chain step may not do (B-1/B-13).
 def crossAbs : (p : El Rat) (p' : El Rat) → Prf (RatR p p') →
   intMag (num p) * S (nzMag (den p'))
-    ≡ intMag (num p') * S (nzMag (den p)) ∈ ℕ ≔
+    ≡ intMag (num p') * S (nzMag (den p)) ∈ ℕ using (integer.Int.eq, integerMul.intMul.eq, rational.den.eq, rational.num.eq, rational.nzToInt.eq, rationalQ.RatR.eq, rationalQ.dInt.eq) ≔
   λp. λp'. λh.
     trans ℕ (intMag (num p) * S (nzMag (den p')))
             (intMag (intMul (num p) (dInt p')))
@@ -76,7 +76,8 @@ def crossAbs : (p : El Rat) (p' : El Rat) → Prf (RatR p p') →
 -- shape the descent's well-definedness goal actually has
 def qFloorWD : (N : El Int) (d : El NZ) (N' : El Int) (d' : El NZ)
   (h : Prf (intMul N (nzToInt d') ≡ intMul N' (nzToInt d) ∈ El Int)) →
-  divN (intMag N) (nzMag d) ≡ divN (intMag N') (nzMag d') ∈ ℕ ≔
+  divN (intMag N) (nzMag d) ≡ divN (intMag N') (nzMag d') ∈ ℕ
+  using (intAbs.intMag.eq, intAbs.nzMag.eq, integer.Int.eq, integerMul.intMul.eq, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.nzToInt.eq, rationalQ.RatR.eq, rationalQ.dInt.eq) ≔
   λN. λd. λN'. λd'. λh.
     divNUnique (intMag N) (nzMag d) (intMag N') (nzMag d')
       (crossAbs (mkRat N d) (mkRat N' d') h)
@@ -87,7 +88,8 @@ def qFloor : El Q → ℕ using (qFloorWD) ≔
 def qNatBound : El Q → ℕ ≔ λu. S (qFloor u)
 
 def qNatBoundCls : (p : El Rat) →
-  qNatBound (qcls p) ≡ S (divN (intMag (num p)) (nzMag (den p))) ∈ ℕ ≔
+  qNatBound (qcls p) ≡ S (divN (intMag (num p)) (nzMag (den p))) ∈ ℕ
+  using (intAbs.intMag.eq, intAbs.magPair.eq, intAbs.nzMag.eq, natDiv.divN.eq, natDiv.dmAux.eq, ratCeil.qFloor.eq, ratCeil.qNatBound.eq, rational.den.eq, rational.num.eq, rationalQ.qcls.eq) ≔
   λp. ⋆
 
 -- ½ and 2/4 are the same rational, and get the same bound: 1
@@ -99,7 +101,8 @@ def qNatBoundQuarters :
 
 -- multiplying by a positive integer preserves the sign
 def intSgnMulPos : (z : El Int) (k : ℕ) →
-  intSgn (intMul z (nzToInt (nzPos k))) ≡ intSgn z ∈ El Sign ≔
+  intSgn (intMul z (nzToInt (nzPos k))) ≡ intSgn z ∈ El Sign
+  using (rational.nzMul.eq, rational.nzNeg.eq, rational.nzPos.eq, rationalOrder.nzSgn.eq, rationalOrder.sNeg.eq, rationalOrder.sPos.eq) ≔
   λz. λk.
     ⊎-elim (w. intSgn (intMul z (nzToInt (nzPos k))) ≡ intSgn z ∈ El Sign)
       (e.
@@ -147,13 +150,14 @@ def intSgnMulPos : (z : El Int) (k : ℕ) →
       (nzOfInt z)
 
 def sgnQFracPos : (N : El Int) (b : ℕ) →
-  sgnQ (qcls (mkRat N (nzPos b))) ≡ intSgn N ∈ El Sign ≔
+  sgnQ (qcls (mkRat N (nzPos b))) ≡ intSgn N ∈ El Sign using (eqInt.intCanon.eq, eqInt.intCanonClass.eq, intNonZero.nzOfInt.eq, intNonZero.nzOfIntAt.eq, integerMul.intMul.eq, rational.denInt.eq, rational.mkRat.eq, rational.num.eq, rational.nzPos.eq, rational.nzToInt.eq, rationalInv.intCanonProdZero.eq, rationalOrder.intSgn.eq, rationalOrder.nzSgn.eq, rationalOrder.ratSgn.eq, rationalOrder.sNeg.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qcls.eq) ≔
   λN. λb. intSgnMulPos N b
 
 -- ===== a nonnegative integer is its own magnitude =====
 
 def intOfNatMagNonNeg : (z : El Int) →
-  El (NonNegS (intSgn z)) → intOfNat (intMag z) ≡ z ∈ El Int ≔
+  El (NonNegS (intSgn z)) → intOfNat (intMag z) ≡ z ∈ El Int
+  using (intAbs.nzMag.eq, intOrder.intOfNat.eq, intOrder.intOfNatZero, integer.intZero.eq, ratHalf.nzPosInt, rational.nzNeg.eq, rational.nzPos.eq, rational.nzToInt.eq) ≔
   λz. λnn.
     ⊎-elim (w. intOfNat (intMag z) ≡ z ∈ El Int)
       (e.
@@ -194,7 +198,7 @@ def intOfNatMagNonNeg : (z : El Int) →
 def qDiffNatFrac : (m : ℕ) (b : ℕ) (K : ℕ) →
   qAdd (qOfNat K) (qNeg (qcls (mkRat (intOfNat m) (nzPos b))))
     ≡ qcls (mkRat (class (S b * K , m)) (nzPos b)) ∈ El Q
-  using (zeroPlusId, plusComm) ≔
+  using (intOrder.intOfNat.eq, integer.intNeg.eq, integerAdd.intAdd.eq, plusComm, ratNat.qOfNat.eq, rational.den.eq, rational.intScale.eq, rational.intScaleN.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzNeg.eq, rational.nzOne.eq, rational.nzPos.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, rationalQ.qcls.eq, zeroPlusId) ≔
   λm. λb. λK.
     trans Q (qAdd (qOfNat K) (qNeg (qcls (mkRat (intOfNat m) (nzPos b)))))
             (qcls (mkRat (intAdd (intScale (nzPos b) (intOfNat K))
@@ -242,7 +246,7 @@ def leQFracOfNat : (m : ℕ) (b : ℕ) (K : ℕ) →
 
 -- ===== the bound really bounds =====
 
-def leQZeroNat : (K : ℕ) → El (LeQ qZero (qOfNat K)) ≔
+def leQZeroNat : (K : ℕ) → El (LeQ qZero (qOfNat K)) using (ratNat.qOfNatZero) ≔
   λK.
     transport Q (λw. LeQ w (qOfNat K)) (qOfNat Z) qZero ⋆
       (leQOfNat Z K (leZero K))
@@ -251,7 +255,7 @@ def leQZeroNat : (K : ℕ) → El (LeQ qZero (qOfNat K)) ≔
 -- division estimate, negative ones are below zero and so below it too
 def leQBoundPos : (M : El Int) (b : ℕ) →
   El (LeQ (qcls (mkRat M (nzPos b)))
-          (qOfNat (qNatBound (qcls (mkRat M (nzPos b)))))) ≔
+          (qOfNat (qNatBound (qcls (mkRat M (nzPos b)))))) using (id.Id.eq, intAbs.intMag.eq, intAbs.magPair.eq, intAbs.nzMag.eq, intOrder.intOfNat.eq, integer.intNeg.eq, integerAdd.intAdd.eq, integerMul.intMul.eq, natDiv.divN.eq, natDiv.dmAux.eq, natDiv.natCase.eq, ratCeil.qFloor.eq, ratCeil.qNatBound.eq, ratNat.qOfNat.eq, rational.den.eq, rational.denInt.eq, rational.intScale.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzNeg.eq, rational.nzOne.eq, rational.nzPos.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalOrder.Sign.eq, rationalOrder.intSgn.eq, rationalOrder.ratSgn.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnFlip.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, rationalQ.qcls.eq) ≔
   λM. λb.
     ⊎-elim (w. El (LeQ (qcls (mkRat M (nzPos b)))
                        (qOfNat (S (divN (intMag M) b)))))
@@ -354,7 +358,8 @@ def leQBoundAt : (N : El Int) (d : El NZ) →
 
 -- squashed first, so the descent is free; then unsquashed, because ≤
 -- is decidable
-def leQBoundSq : (u : El Q) → Prf ∥El (LeQ u (qOfNat (qNatBound u)))∥ ≔
+def leQBoundSq : (u : El Q) → Prf ∥El (LeQ u (qOfNat (qNatBound u)))∥
+  using (id.Id.eq, ratCeil.qNatBound.eq, ratNat.qOfNat.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, rationalQ.qcls.eq) ≔
   λu.
     quot-elim (w. Prf ∥El (LeQ w (qOfNat (qNatBound w)))∥)
       (p. ⋆ (transport Rat (λr. LeQ (qcls r) (qOfNat (qNatBound (qcls r))))
@@ -366,7 +371,7 @@ def leQBound : (u : El Q) → El (LeQ u (qOfNat (qNatBound u))) ≔
   λu. leQUnsquash u (qOfNat (qNatBound u)) (leQBoundSq u)
 
 def qNatBoundNeg : (u : El Q) → qNatBound (qNeg u) ≡ qNatBound u ∈ ℕ
-  using (prop.irrel) ≔
+  using (intAbs.intMag.eq, intAbs.magPair.eq, intAbs.nzMag.eq, integer.intNeg.eq, natDiv.divN.eq, natDiv.dmAux.eq, natDiv.natCase.eq, prop.irrel, ratCeil.qFloor.eq, ratCeil.qNatBound.eq, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.ratNeg.eq, rationalQ.qNeg.eq) ≔
   λu.
     quot-elim (w. qNatBound (qNeg w) ≡ qNatBound w ∈ ℕ)
       (p. cong ℕ (λx. ℕ) (λx. S (divN x (nzMag (den p))))

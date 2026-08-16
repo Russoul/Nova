@@ -27,5 +27,7 @@ def normClass : (a : ℕ) (b : ℕ) → class (normPair a b) ≡ class (a , b) �
 def intNormalize : El Int → El Int using (normClass) ≔
   λz. quot-elim (w. El Int) (rep. class (normPair (rep .π₁) (rep .π₂))) z
 
-def intNormalizeTest1 : intNormalize (class (S Z , Z)) ≡ class (S Z , Z) ∈ El Int ≔ ⋆
-def intNormalizeTest2 : intNormalize (class (S Z , S (S Z))) ≡ class (Z , S Z) ∈ El Int ≔ ⋆
+def intNormalizeTest1 : intNormalize (class (S Z , Z)) ≡ class (S Z , Z) ∈ El Int
+  using (integerNormalize.intNormalize.eq, integerNormalize.normPair.eq) ≔ ⋆
+def intNormalizeTest2 : intNormalize (class (S Z , S (S Z))) ≡ class (Z , S Z) ∈ El Int
+  using (integerNormalize.intNormalize.eq, integerNormalize.normPair.eq) ≔ ⋆

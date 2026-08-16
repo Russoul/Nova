@@ -42,7 +42,7 @@ def regularIsProp : (f : El (ℕ → Q)) (p : El (Regular f)) (q : El (Regular f
 -- SIGNATURE does the retyping and the conversion is never demanded
 -- here (D-3: it was discharged once, at an abstract motive).
 def rseqEqAt : (x : El RSeq) (y : El RSeq) →
-  (seqOf x ≡ seqOf y ∈ El (ℕ → Q)) → x ≡ y ∈ El RSeq ≔
+  (seqOf x ≡ seqOf y ∈ El (ℕ → Q)) → x ≡ y ∈ El RSeq using (equality.sym.eq, equality.transport.eq, id.Id.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.Q.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.Regular.eq, real.rBound.eq, realNeg.regOf.eq, realNeg.seqOf.eq) ≔
   λx. λy. λh.
     sigmaEq2 (ℕ → Q) (λf. Regular f) x y h
       (regularIsProp (seqOf x) (regOf x)
