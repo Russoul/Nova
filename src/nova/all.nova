@@ -29,6 +29,7 @@ import ratAbs
 import realAbs
 import ratLt
 import realLt
+import realComplete
 import realGroup
 import realMetric
 import ratMax
