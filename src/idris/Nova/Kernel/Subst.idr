@@ -34,22 +34,49 @@ mutual
   substSubNorm [<] sigma = [<]
   substSubNorm (es :< e) sigma = substSubNorm es sigma :< substElem e sigma
 
+  ||| ↑ᵏ as a Sub: k-fold weakening composition.
+  wkTower : Nat -> Sub
+  wkTower Z = Id
+  wkTower (S n) = Chain (wkTower n) Wk
+
   ||| Γ‖ₙ-style variable resolution against a concrete substitution:
   ||| what (☐ₙ)[σ] computes to.
+  |||
+  ||| Weakening compositions are ACCUMULATED and applied as one shift
+  ||| pass at the end: `under`-towers (σ⁺⁺… = … Chain σ ↑) otherwise
+  ||| cost one full copy of the resolved payload PER TOWER LAYER —
+  ||| x[σ∘↑] ≜ x[σ][↑] applied literally re-traverses the same term k
+  ||| times under k binders. Extensionally identical to the literal
+  ||| equations (x[σ][↑ᵏ] computed in one pass), measured at >50% of
+  ||| all execution on the ℝ corpus before the change.
   export
   substVar : Nat -> Sub -> Elem
-  -- Terminal's codomain is ε, which has no variables, so ☐ₙ can never be
-  -- well-typed there — crash loudly instead of fabricating a result.
-  substVar n     Terminal    = assert_total $ idris_crash "substVar: ill-typed ☐\{show n} against · (empty codomain)"
-  substVar n     Id          = CtxVar n
-  substVar n     Wk          = CtxVar (S n)
-  substVar Z     (Ext sigma t) = t
-  substVar (S n) (Ext sigma t) = substVar n sigma
-  substVar n     (Chain s t) = substElem (substVar n s) t
+  substVar n sigma = go n sigma Z
+   where
+    ||| shift k t = t[↑ᵏ], one traversal (the tower has no Ext
+    ||| payloads, so resolving its variables allocates nothing).
+    shift : Nat -> Elem -> Elem
+    shift Z t = t
+    shift k t = substElem t (wkTower k)
+
+    go : Nat -> Sub -> (pending : Nat) -> Elem
+    -- Terminal's codomain is ε, which has no variables, so ☐ₙ can never be
+    -- well-typed there — crash loudly instead of fabricating a result.
+    go n     Terminal    k = assert_total $ idris_crash "substVar: ill-typed ☐\{show n} against · (empty codomain)"
+    go n     Id          k = CtxVar (n + k)
+    go n     Wk          k = CtxVar (S (n + k))
+    go Z     (Ext sigma t) k = shift k t
+    go (S n) (Ext sigma t) k = go n sigma k
+    go n     (Chain s Wk) k = go n s (S k)
+    go n     (Chain s Id) k = go n s k
+    go n     (Chain s t) k = shift k (substElem (go n s Z) t)
 
   ||| t[σ]
   export
   substElem : Elem -> Sub -> Elem
+  -- x[id] ≜ x, and a term is a pure tree (no pending substitutions),
+  -- so the identity acts as the identity without a traversal
+  substElem t                  Id    = t
   substElem (CtxVar n)         sigma = substVar n sigma
   substElem (ZeroElim t)       sigma = ZeroElim (substElem t sigma)
   substElem OneIntro           sigma = OneIntro
@@ -138,6 +165,8 @@ mutual
   ||| T[σ]
   export
   substTy : Ty -> Sub -> Ty
+  -- A[id] ≜ A, as at substElem
+  substTy t                     Id    = t
   substTy Ty.ZeroTy             sigma = Ty.ZeroTy
   substTy Ty.OneTy              sigma = Ty.OneTy
   substTy Ty.NatTy              sigma = Ty.NatTy
