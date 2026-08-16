@@ -642,6 +642,61 @@ is legal because ⊥ is a proposition, and re-enter the data type through
 Generalisable: **a descent into a decidable data type should be stated
 squashed and unsquashed at the end.**
 
+### B-16. [ℝ] Conversion normalises under discarded projections, and a construction can stop being elaborable
+
+The first place where a Nova development was blocked by COST rather
+than by any missing argument. ℝ's product samples at a depth
+proportional to a bound on the two factors, so `rMul p q` is the pair
+
+```
+(mulSeq p q , mulReg p q)
+```
+
+whose sampling index mentions `seqBound`, which unfolds through
+`qNatBound` → `qFloor` → `divN` → `dmAux`'s fuel recursion, and whose
+second component is a large proof term. Conversion is by
+normalisation, so every type that MENTIONS `rMul p q` pays for all of
+it, even when only the FIRST projection is ever used — `REq x y` reads
+`seqOf x` and `seqOf y` and never touches the witness. Measured, on
+the same file:
+
+| item | types mention | time |
+|---|---|---|
+| `rMulWDStep` (the whole estimate) | `mulSeq` only | ~1 s |
+| `rMulWDInner` | `rMul` | ~31 s |
+| `rMulWDInnerCls` (one class equation more) | `rMul` | ~3.5 min |
+| `rMulComm` via `rseqEq` | `rMul` | >6 min |
+| the `quot-elim` descent | `rMul` | did not finish |
+
+So `realMul` itself is not in the corpus: the mathematics is complete
+(`rMul`, its regularity, and `rMulWDInner` — REq-invariance in the
+second argument, which is the hard estimate), and only the two-line
+descent is missing.
+
+Two independent fixes would unblock it, and both are outside the file:
+
+1. **Do not normalise under a projection whose result is discarded.**
+   `seqOf (f , r)` should reach `f` without touching `r`. A
+   projection-aware whnf step, or hash-consing normal forms, would
+   collapse the table above.
+2. **A rational ceiling with a small normal form.** `divN`'s fuel
+   recursion is what makes `seqBound` expensive; anything with the same
+   specification and a compact normal form would do.
+
+Two smaller lessons that DID work, and are worth keeping:
+
+* **Parameterise the factor, not just the index.** `qMulInvIdx` states
+  its factor as `S c`; using it forces conversion of
+  `qOfNat (S (mulPred p q))` to `qOfNat (seqBound p + seqBound q)` at
+  every occurrence, and the item stops finishing. `qMulInvIdxC` takes
+  the factor as a natural plus the equation `C ≡ S c`, the equation is
+  proved once by `⋆` where every symbol is a variable, and the same
+  item takes 6 s. This is D-3 (keep it abstract) applied for SPEED.
+* **Bisect with a declared stub.** A `def` with no definiens registers
+  as a lemma, so replacing one argument by a stub isolates which
+  argument is expensive without proving anything. That is how the
+  table above was measured.
+
 ## C. Discharge-engine ergonomics
 
 ### C-1. Oriented rewriting means library lemmas need flipped copies
