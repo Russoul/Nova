@@ -1,17 +1,25 @@
 import nat (+, *, plusZeroId, zeroPlusId, plusComm, sucPlus, multComm)
 import natOrder (LeN, leRefl, leZero, leTrans, lePlusMonoR, leMultMonoR)
-import natDiv (divN, modN, divModEq, modLe, divNUnique)
+import natDiv (divN, modN, divModEq, modLe, divNUnique, leDivSuc)
 import integer (Int, intZero, intOne, intNeg)
-import integerMul (intMul)
+import integerMul (intMul, intMulZeroL)
+import integerAdd (intAdd)
 import intOrder (intOfNat)
-import intAbs (intMag, nzMag, intMagNz, intMagMul, intMagOfNat)
-import rational (NZ, nzPos, nzNeg, nzToInt, nzMul, Rat, mkRat, num, den, denInt,
-                 ratNeg)
-import rationalQ (Q, qcls, RatR, dInt, clsEqOfRel, qNeg, qZero)
+import intAbs (intMag, nzMag, intMagNz, intMagMul, intMagOfNat, intMagZero,
+               intMagNeg)
+import rational (NZ, ratEta, nzOne, nzPos, nzNeg, nzToInt, nzMul, nzMulOneL, Rat, mkRat,
+                 num, den, denInt, ratNeg, intScale, intScaleOne)
+import rationalQ (Q, qcls, RatR, dInt, clsEqOfRel, qAdd, qNeg, qZero, qAddZeroL,
+                  qNegNeg,
+                  nzToIntMul)
 import rationalOrder (Sign, sZero, sPos, sNeg, sgnQ, intSgn, intSgnZero, intSgnNz,
-                      nzSgn, NonNegS, LeQ, leQTrans)
-import ratBound (leQNegFlip, nonNegIsProp)
+                      nzSgn, NonNegS, LeQ, leQTrans, intSgnNeg, intSgnPos,
+                      sgnQNegFlip, sgnFlip)
+import ratBound (Bnd, leQNegFlip, nonNegIsProp, nonNegNotNeg, bndIsProp, bndOfBothLe,
+                 leQIsProp, qNegZeroQ)
+import ratAbs (qAbs, bndAbs, sgnQNegOfNeg)
 import ratNat (qOfNat, nonNegSgnOfLe, leQOfNat)
+import ratArch (qPosDenView, PosDenView, leQUnsquash)
 import intNonZero (nzOfInt)
 import equality (trans, sym, cong, transport, transportP)
 import id (Id, idToEq, eqToId)
@@ -86,3 +94,292 @@ def qNatBoundCls : (p : El Rat) →
 def qNatBoundHalf : qNatBound (qcls (mkRat intOne (nzPos (S Z)))) ≡ S Z ∈ ℕ ≔ ⋆
 def qNatBoundQuarters :
   qNatBound (qcls (mkRat (class (S (S Z) , Z)) (nzPos (S (S (S Z)))))) ≡ S Z ∈ ℕ ≔ ⋆
+
+-- ===== the sign of a fraction with positive denominator =====
+
+-- multiplying by a positive integer preserves the sign
+def intSgnMulPos : (z : El Int) (k : ℕ) →
+  intSgn (intMul z (nzToInt (nzPos k))) ≡ intSgn z ∈ El Sign ≔
+  λz. λk.
+    ⊎-elim (w. intSgn (intMul z (nzToInt (nzPos k))) ≡ intSgn z ∈ El Sign)
+      (e.
+        trans Sign (intSgn (intMul z (nzToInt (nzPos k))))
+              (nzSgn (e .π₁)) (intSgn z)
+          (trans Sign (intSgn (intMul z (nzToInt (nzPos k))))
+                 (intSgn (nzToInt (nzMul (e .π₁) (nzPos k))))
+                 (nzSgn (e .π₁))
+             (cong Int (λv. Sign) (λv. intSgn v)
+                (intMul z (nzToInt (nzPos k)))
+                (nzToInt (nzMul (e .π₁) (nzPos k)))
+                (trans Int (intMul z (nzToInt (nzPos k)))
+                       (intMul (nzToInt (e .π₁)) (nzToInt (nzPos k)))
+                       (nzToInt (nzMul (e .π₁) (nzPos k)))
+                   (cong Int (λv. Int) (λv. intMul v (nzToInt (nzPos k)))
+                      z (nzToInt (e .π₁))
+                      (sym Int (nzToInt (e .π₁)) z (e .π₂)))
+                   (sym Int (nzToInt (nzMul (e .π₁) (nzPos k)))
+                            (intMul (nzToInt (e .π₁)) (nzToInt (nzPos k)))
+                      (nzToIntMul (e .π₁) (nzPos k)))))
+             (trans Sign (intSgn (nzToInt (nzMul (e .π₁) (nzPos k))))
+                    (nzSgn (nzMul (e .π₁) (nzPos k))) (nzSgn (e .π₁))
+                (intSgnNz (nzMul (e .π₁) (nzPos k)))
+                (⊎-elim (w. nzSgn (nzMul w (nzPos k)) ≡ nzSgn w ∈ El Sign)
+                   (n. ⋆) (n. ⋆) (e .π₁))))
+          (trans Sign (nzSgn (e .π₁)) (intSgn (nzToInt (e .π₁))) (intSgn z)
+             (sym Sign (intSgn (nzToInt (e .π₁))) (nzSgn (e .π₁))
+                (intSgnNz (e .π₁)))
+             (cong Int (λv. Sign) (λv. intSgn v) (nzToInt (e .π₁)) z (e .π₂))))
+      (hz.
+        trans Sign (intSgn (intMul z (nzToInt (nzPos k)))) sZero (intSgn z)
+          (trans Sign (intSgn (intMul z (nzToInt (nzPos k)))) (intSgn intZero) sZero
+             (cong Int (λv. Sign) (λv. intSgn v)
+                (intMul z (nzToInt (nzPos k))) intZero
+                (trans Int (intMul z (nzToInt (nzPos k)))
+                       (intMul intZero (nzToInt (nzPos k))) intZero
+                   (cong Int (λv. Int) (λv. intMul v (nzToInt (nzPos k)))
+                      z intZero hz)
+                   (intMulZeroL (nzToInt (nzPos k)))))
+             intSgnZero)
+          (sym Sign (intSgn z) sZero
+             (trans Sign (intSgn z) (intSgn intZero) sZero
+                (cong Int (λv. Sign) (λv. intSgn v) z intZero hz)
+                intSgnZero)))
+      (nzOfInt z)
+
+def sgnQFracPos : (N : El Int) (b : ℕ) →
+  sgnQ (qcls (mkRat N (nzPos b))) ≡ intSgn N ∈ El Sign ≔
+  λN. λb. intSgnMulPos N b
+
+-- ===== a nonnegative integer is its own magnitude =====
+
+def intOfNatMagNonNeg : (z : El Int) →
+  El (NonNegS (intSgn z)) → intOfNat (intMag z) ≡ z ∈ El Int ≔
+  λz. λnn.
+    ⊎-elim (w. intOfNat (intMag z) ≡ z ∈ El Int)
+      (e.
+        (⊎-elim (w. Prf (nzToInt w ≡ z ∈ El Int) →
+                    (intOfNat (intMag z) ≡ z ∈ El Int))
+           (n. λhe.
+             trans Int (intOfNat (intMag z)) (nzToInt (nzPos n)) z
+               (trans Int (intOfNat (intMag z)) (intOfNat (S n))
+                      (nzToInt (nzPos n))
+                  (cong ℕ (λu. Int) (λw. intOfNat w) (intMag z) (S n)
+                     (trans ℕ (intMag z) (intMag (nzToInt (nzPos n))) (S n)
+                        (cong Int (λv. ℕ) (λv. intMag v) z (nzToInt (nzPos n))
+                           (sym Int (nzToInt (nzPos n)) z he))
+                        (intMagNz (nzPos n))))
+                  ⋆)
+               he)
+           (n. λhe.
+             𝟘-elim (nonNegNotNeg (intSgn z) nn
+               (eqToId Sign (intSgn z) sNeg
+                  (trans Sign (intSgn z) (intSgn (nzToInt (nzNeg n))) sNeg
+                     (cong Int (λv. Sign) (λv. intSgn v) z (nzToInt (nzNeg n))
+                        (sym Int (nzToInt (nzNeg n)) z he))
+                     (intSgnNeg n)))))
+           (e .π₁)) (e .π₂))
+      (hz.
+        trans Int (intOfNat (intMag z)) intZero z
+          (trans Int (intOfNat (intMag z)) (intOfNat Z) intZero
+             (cong ℕ (λu. Int) (λw. intOfNat w) (intMag z) Z
+                (trans ℕ (intMag z) (intMag intZero) Z
+                   (cong Int (λv. ℕ) (λv. intMag v) z intZero hz)
+                   intMagZero))
+             ⋆)
+          (sym Int z intZero hz))
+      (nzOfInt z)
+
+-- ===== comparing a fraction with a natural =====
+
+def qDiffNatFrac : (m : ℕ) (b : ℕ) (K : ℕ) →
+  qAdd (qOfNat K) (qNeg (qcls (mkRat (intOfNat m) (nzPos b))))
+    ≡ qcls (mkRat (class (S b * K , m)) (nzPos b)) ∈ El Q
+  using (zeroPlusId, plusComm) ≔
+  λm. λb. λK.
+    trans Q (qAdd (qOfNat K) (qNeg (qcls (mkRat (intOfNat m) (nzPos b)))))
+            (qcls (mkRat (intAdd (intScale (nzPos b) (intOfNat K))
+                                 (intNeg (intOfNat m)))
+                         (nzMul nzOne (nzPos b))))
+            (qcls (mkRat (class (S b * K , m)) (nzPos b)))
+      (cong Int (λv. Q)
+         (λv. qcls (mkRat (intAdd (intScale (nzPos b) (intOfNat K)) v)
+                          (nzMul nzOne (nzPos b))))
+         (intScale nzOne (intNeg (intOfNat m))) (intNeg (intOfNat m))
+         (intScaleOne (intNeg (intOfNat m))))
+      (trans Q (qcls (mkRat (intAdd (intScale (nzPos b) (intOfNat K))
+                                    (intNeg (intOfNat m)))
+                            (nzMul nzOne (nzPos b))))
+               (qcls (mkRat (intAdd (intScale (nzPos b) (intOfNat K))
+                                    (intNeg (intOfNat m)))
+                            (nzPos b)))
+               (qcls (mkRat (class (S b * K , m)) (nzPos b)))
+         (cong NZ (λv. Q)
+            (λv. qcls (mkRat (intAdd (intScale (nzPos b) (intOfNat K))
+                                     (intNeg (intOfNat m))) v))
+            (nzMul nzOne (nzPos b)) (nzPos b) (nzMulOneL (nzPos b)))
+         ⋆)
+
+def leQFracOfNat : (m : ℕ) (b : ℕ) (K : ℕ) →
+  El (LeN m (K * S b)) →
+  El (LeQ (qcls (mkRat (intOfNat m) (nzPos b))) (qOfNat K)) ≔
+  λm. λb. λK. λle.
+    transport Sign NonNegS (intSgn (class (S b * K , m)))
+      (sgnQ (qAdd (qOfNat K) (qNeg (qcls (mkRat (intOfNat m) (nzPos b))))))
+      (sym Sign
+         (sgnQ (qAdd (qOfNat K) (qNeg (qcls (mkRat (intOfNat m) (nzPos b))))))
+         (intSgn (class (S b * K , m)))
+         (trans Sign
+            (sgnQ (qAdd (qOfNat K) (qNeg (qcls (mkRat (intOfNat m) (nzPos b))))))
+            (sgnQ (qcls (mkRat (class (S b * K , m)) (nzPos b))))
+            (intSgn (class (S b * K , m)))
+            (cong Q (λw. Sign) (λw. sgnQ w)
+               (qAdd (qOfNat K) (qNeg (qcls (mkRat (intOfNat m) (nzPos b)))))
+               (qcls (mkRat (class (S b * K , m)) (nzPos b)))
+               (qDiffNatFrac m b K))
+            (sgnQFracPos (class (S b * K , m)) b)))
+      (nonNegSgnOfLe m (S b * K)
+         (transport ℕ (λw. LeN m w) (K * S b) (S b * K) (multComm (S b) K) le))
+
+-- ===== the bound really bounds =====
+
+def leQZeroNat : (K : ℕ) → El (LeQ qZero (qOfNat K)) ≔
+  λK.
+    transport Q (λw. LeQ w (qOfNat K)) (qOfNat Z) qZero ⋆
+      (leQOfNat Z K (leZero K))
+
+-- at a positive denominator: nonnegative numerators land on the
+-- division estimate, negative ones are below zero and so below it too
+def leQBoundPos : (M : El Int) (b : ℕ) →
+  El (LeQ (qcls (mkRat M (nzPos b)))
+          (qOfNat (qNatBound (qcls (mkRat M (nzPos b)))))) ≔
+  λM. λb.
+    ⊎-elim (w. El (LeQ (qcls (mkRat M (nzPos b)))
+                       (qOfNat (S (divN (intMag M) b)))))
+      (e.
+        (⊎-elim (w. Prf (nzToInt w ≡ M ∈ El Int) →
+                    El (LeQ (qcls (mkRat M (nzPos b)))
+                            (qOfNat (S (divN (intMag M) b)))))
+           (n. λhe.
+             transport Int
+               (λv. LeQ (qcls (mkRat v (nzPos b)))
+                        (qOfNat (S (divN (intMag M) b))))
+               (intOfNat (intMag M)) M
+               (intOfNatMagNonNeg M
+                  (transport Sign NonNegS (intSgn (nzToInt (nzPos n)))
+                     (intSgn M)
+                     (cong Int (λv. Sign) (λv. intSgn v)
+                        (nzToInt (nzPos n)) M he)
+                     (inj₂ (eqToId Sign (intSgn (nzToInt (nzPos n))) sPos
+                              (intSgnPos n)))))
+               (leQFracOfNat (intMag M) b (S (divN (intMag M) b))
+                  (leDivSuc (intMag M) b)))
+           (n. λhe.
+             leQTrans (qcls (mkRat M (nzPos b))) qZero
+                      (qOfNat (S (divN (intMag M) b)))
+               (inj₂ (eqToId Sign
+                        (sgnQ (qAdd qZero (qNeg (qcls (mkRat M (nzPos b))))))
+                        sPos
+                        (trans Sign
+                           (sgnQ (qAdd qZero (qNeg (qcls (mkRat M (nzPos b))))))
+                           (sgnQ (qNeg (qcls (mkRat M (nzPos b))))) sPos
+                           (cong Q (λw. Sign) (λw. sgnQ w)
+                              (qAdd qZero (qNeg (qcls (mkRat M (nzPos b)))))
+                              (qNeg (qcls (mkRat M (nzPos b))))
+                              (qAddZeroL (qNeg (qcls (mkRat M (nzPos b))))))
+                           (sgnQNegOfNeg (qcls (mkRat M (nzPos b)))
+                              (eqToId Sign (sgnQ (qcls (mkRat M (nzPos b)))) sNeg
+                                 (trans Sign (sgnQ (qcls (mkRat M (nzPos b))))
+                                        (intSgn M) sNeg
+                                    (sgnQFracPos M b)
+                                    (trans Sign (intSgn M)
+                                           (intSgn (nzToInt (nzNeg n))) sNeg
+                                       (cong Int (λv. Sign) (λv. intSgn v)
+                                          M (nzToInt (nzNeg n))
+                                          (sym Int (nzToInt (nzNeg n)) M he))
+                                       (intSgnNeg n)))))))) 
+               (leQZeroNat (S (divN (intMag M) b))))
+           (e .π₁)) (e .π₂))
+      (hz.
+        leQTrans (qcls (mkRat M (nzPos b))) qZero
+                 (qOfNat (S (divN (intMag M) b)))
+          (transport Int
+             (λv. LeQ (qcls (mkRat v (nzPos b))) qZero)
+             intZero M (sym Int M intZero hz)
+             (inj₁ (eqToId Sign
+                      (sgnQ (qAdd qZero (qNeg (qcls (mkRat intZero (nzPos b))))))
+                      sZero
+                      (trans Sign
+                         (sgnQ (qAdd qZero
+                                  (qNeg (qcls (mkRat intZero (nzPos b))))))
+                         (sgnFlip (sgnQ (qcls (mkRat intZero (nzPos b)))))
+                         sZero
+                         (trans Sign
+                            (sgnQ (qAdd qZero
+                                     (qNeg (qcls (mkRat intZero (nzPos b))))))
+                            (sgnQ (qNeg (qcls (mkRat intZero (nzPos b)))))
+                            (sgnFlip (sgnQ (qcls (mkRat intZero (nzPos b)))))
+                            (cong Q (λw. Sign) (λw. sgnQ w)
+                               (qAdd qZero
+                                  (qNeg (qcls (mkRat intZero (nzPos b)))))
+                               (qNeg (qcls (mkRat intZero (nzPos b))))
+                               (qAddZeroL
+                                  (qNeg (qcls (mkRat intZero (nzPos b))))))
+                            (sgnQNegFlip (qcls (mkRat intZero (nzPos b)))))
+                         (trans Sign
+                            (sgnFlip (sgnQ (qcls (mkRat intZero (nzPos b)))))
+                            (sgnFlip sZero) sZero
+                            (cong Sign (λw. Sign) (λw. sgnFlip w)
+                               (sgnQ (qcls (mkRat intZero (nzPos b)))) sZero
+                               (trans Sign
+                                  (sgnQ (qcls (mkRat intZero (nzPos b))))
+                                  (intSgn intZero) sZero
+                                  (sgnQFracPos intZero b)
+                                  intSgnZero))
+                            ⋆)))))
+          (leQZeroNat (S (divN (intMag M) b))))
+      (nzOfInt M)
+
+-- ...at any representative, by normalizing the denominator's sign
+def leQBoundAt : (N : El Int) (d : El NZ) →
+  El (LeQ (qcls (mkRat N d)) (qOfNat (qNatBound (qcls (mkRat N d))))) ≔
+  λN. λd.
+    let v ≔ qPosDenView N d in
+    transport Q (λw. LeQ w (qOfNat (qNatBound w)))
+      (qcls (mkRat (v .π₁) (nzPos (v .π₂ .π₁))))
+      (qcls (mkRat N d))
+      (idToEq Q (qcls (mkRat (v .π₁) (nzPos (v .π₂ .π₁))))
+                (qcls (mkRat N d))
+                (v .π₂ .π₂))
+      (leQBoundPos (v .π₁) (v .π₂ .π₁))
+
+-- squashed first, so the descent is free; then unsquashed, because ≤
+-- is decidable
+def leQBoundSq : (u : El Q) → Prf ∥El (LeQ u (qOfNat (qNatBound u)))∥ ≔
+  λu.
+    quot-elim (w. Prf ∥El (LeQ w (qOfNat (qNatBound w)))∥)
+      (p. ⋆ (transport Rat (λr. LeQ (qcls r) (qOfNat (qNatBound (qcls r))))
+               (mkRat (num p) (den p)) p (ratEta p)
+               (leQBoundAt (num p) (den p))))
+      u
+
+def leQBound : (u : El Q) → El (LeQ u (qOfNat (qNatBound u))) ≔
+  λu. leQUnsquash u (qOfNat (qNatBound u)) (leQBoundSq u)
+
+def qNatBoundNeg : (u : El Q) → qNatBound (qNeg u) ≡ qNatBound u ∈ ℕ
+  using (prop.irrel) ≔
+  λu.
+    quot-elim (w. qNatBound (qNeg w) ≡ qNatBound w ∈ ℕ)
+      (p. cong ℕ (λx. ℕ) (λx. S (divN x (nzMag (den p))))
+             (intMag (intNeg (num p))) (intMag (num p)) (intMagNeg (num p)))
+      u
+
+-- the two-sided bound: −K ≤ u ≤ K
+def bndNatBound : (u : El Q) → El (Bnd (qOfNat (qNatBound u)) u) ≔
+  λu.
+    (transport Q (λw. LeQ (qNeg (qOfNat (qNatBound u))) w)
+       (qNeg (qNeg u)) u (qNegNeg u)
+       (leQNegFlip (qNeg u) (qOfNat (qNatBound u))
+          (transport ℕ (λk. LeQ (qNeg u) (qOfNat k))
+             (qNatBound (qNeg u)) (qNatBound u) (qNatBoundNeg u)
+             (leQBound (qNeg u)))) ,
+     leQBound u)

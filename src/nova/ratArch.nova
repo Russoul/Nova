@@ -14,7 +14,7 @@ import rationalOrder (Sign, sZero, sPos, sNeg, sgnFlip, sgnQ, ratSgn, intSgn,
                       sgnQZero, sgnCases, sgnQNegFlip, qSubNeg, leQTrans,
                       leQAntisym, sZeroNotPos, sZeroNotNeg, sNegNotPos,
                       leQPlusMono, leQPlusMonoL, qNegAdd, qPairSwap)
-import ratBound (Bnd, qSubFlip, leQSelfAdd)
+import ratBound (Bnd, qSubFlip, leQSelfAdd, nonNegNotNeg)
 import ratHalf (dbl, qInvHalf, leQInvDbl, leQZeroInvNat)
 import real (qInvNat, qInvNatPos)
 import prop (⊥, absurdP)
@@ -435,3 +435,22 @@ def leQAddShift : (a : El Q) (b : El Q) (q : El Q) →
       (qAdd q (qNeg (qAdd a (qNeg b)))) (qAdd (qAdd b q) (qNeg a))
       (sym Q (qAdd (qAdd b q) (qNeg a)) (qAdd q (qNeg (qAdd a (qNeg b))))
          (qShiftEq a b q))
+
+-- ===== ≤ is decidable, so its squash is faithful =====
+--
+-- A `quot-elim` landing in `El (LeQ x y)` owes a well-definedness
+-- proof between two order verdicts, and no `using` candidate can
+-- supply it: a subsingleton lemma's type-index is not determined by
+-- the two sides, so matching leaves it unsolved (E-1). Landing in the
+-- SQUASH instead makes the descent free — proof irrelevance closes it
+-- — and this recovers the datum, by deciding and refuting.
+def leQUnsquash : (x : El Q) (y : El Q) →
+  Prf ∥El (LeQ x y)∥ → El (LeQ x y) ≔
+  λx. λy. λh.
+    ⊎-elim (w. El (LeQ x y))
+      (nn. nn)
+      (hneg.
+        leQOfFalse x y
+          (squash-elim h
+             (le. ⋆ (nonNegNotNeg (sgnQ (qAdd y (qNeg x))) le hneg))))
+      (sgnCases (sgnQ (qAdd y (qNeg x))))

@@ -307,3 +307,10 @@ def intMagMul : (x : El Int) (y : El Int) →
                       intMagZero))
                 (zeroMult (intMag y)))))
       (nzOfInt x)
+
+def intMagNeg : (z : El Int) → intMag (intNeg z) ≡ intMag z ∈ ℕ
+  using (prop.irrel) ≔
+  λz.
+    quot-elim (w. intMag (intNeg w) ≡ intMag w ∈ ℕ)
+      (r. plusComm (r .π₁ ∸ r .π₂) (r .π₂ ∸ r .π₁))
+      z
