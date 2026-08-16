@@ -6,8 +6,10 @@ import group (IsGroup)
 -- multiplicative monoid (both codes, so both layer directly),
 -- commutativity of each, distributivity, and the two components the
 -- Ω-world could not put in a code — stated with Id they can be:
---   * nontriviality is a FUNCTION Id F one zero → 𝟘 (an Id-refutation
---     is data, where Prf ⊥ could never yield an element of 𝟘);
+--   * nontriviality is a FUNCTION Id F one zero → 𝟘 — an Id-refutation
+--     is data, and stays inside 𝕌, where an Ω-valued ¬ (one ≡ zero)
+--     could not go (prop.absurd shows a Prf ⊥ can still be turned into
+--     a 𝟘, but only by reflecting an equation, not as a code);
 --   * inverses are an UNSQUASHED Σ-code — "here is the inverse", not
 --     "one exists" — available to any nonzero x, with nonzero-ness
 --     itself an Id-refutation.

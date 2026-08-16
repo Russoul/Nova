@@ -1,3 +1,5 @@
+import equality (transport)
+
 -- Ω, the universe of mere propositions (docs/NovaFoundation.txt).
 --
 -- Propositions are Ω-valued; Prf decodes one to a (realizer-irrelevant)
@@ -67,12 +69,31 @@ def impApply : (p : Ω) (q : Ω) → Prf (p ⊃ q) → Prf p → Prf q ≔
   λp. λq. λh. λx. squash-elim h (f. f x)
 
 -- ⊥ ≜ ∥𝟘∥, so 𝟘-elim cannot consume a Prf ⊥ directly: a refutation
--- has to unsquash first. absurdP names that step. There is deliberately
--- no El A-valued counterpart: el-squash-e-prf reaches only further
--- PROPOSITIONS, so a Prf ⊥ can never produce data — for that one needs
--- a 𝟘 itself, which 𝟘-elim already consumes.
+-- has to unsquash first. absurdP names that step, and it is as far as
+-- ELIMINATING the proof goes — el-squash-e-prf reaches only further
+-- PROPOSITIONS, so there is no El A-valued counterpart of this shape.
 def absurdP : (p : Ω) → Prf ⊥ → Prf p ≔
   λp. λh. squash-elim h (x. 𝟘-elim x)
+
+-- That limit is a limit on the ELIMINATOR, not on ⊥: a Prf ⊥ does
+-- yield data — by going around it. ⊥ proves every proposition and
+-- equations ARE propositions (≡ is Ω-valued), so it proves the false
+-- Z ≡ S Z ∈ ℕ; el-reflect makes that equation JUDGEMENTAL, hence
+-- isZeroCode Z ≐ isZeroCode (S Z), i.e. 𝟙 ≐ 𝟘, and () crosses.
+--
+-- This is not proof relevance sneaking back in: nothing inspects h's
+-- realizer. What leaves Ω is the mere EXISTENCE of a proof, which
+-- el-reflect turns into a judgemental equation, and judgemental
+-- equations act on types. Consistency is untouched — Prf ⊥ is empty,
+-- so absurd is never applied.
+def isZeroCode : ℕ → 𝕌 ≔ λn. ℕ-elim (_. 𝕌) 𝟙 (n ih. 𝟘) n
+def absurd : Prf ⊥ → 𝟘 ≔
+  λh. transport ℕ isZeroCode Z (S Z) (absurdP (Z ≡ S Z ∈ ℕ) h) ()
+
+-- …and hence the El A-valued eliminator the paragraph above says no
+-- ELIMINATION of a Prf ⊥ can give: 𝟘-elim consumes the escaped 𝟘.
+def absurdD : (A : 𝕌) → Prf ⊥ → El A ≔
+  λA. λh. 𝟘-elim (absurd h)
 
 def orInl : (p : Ω) (q : Ω) → Prf p → Prf (p ∨ q) ≔
   λp. λq. λx. ⋆ (λr. λf. λg. f x)

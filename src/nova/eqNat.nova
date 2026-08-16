@@ -1,5 +1,5 @@
 import prelude (constP)
-import prop (⊤, ⊥, ↔, iffIntro, reflectSquash)
+import prop (⊤, ⊥, ↔, iffIntro, reflectSquash, isZeroCode)
 import equality (cong, sym, transport)
 
 -- Observational equality of natural numbers, defined in Ω, and its
@@ -31,9 +31,9 @@ def eqNSound : (n : ℕ) → (m : ℕ) → Prf (EqN n m) → n ≡ m ∈ ℕ usi
       m)
     n
 
--- ℕ has no confusion between Z and S _: transporting the "is-Z" code
--- along a bad Z ≡ S j equation lands a 𝟙-witness in 𝟘
-def isZeroCode : ℕ → 𝕌 ≔ λn. ℕ-elim (_. 𝕌) 𝟙 (n ih. 𝟘) n
+-- ℕ has no confusion between Z and S _: transporting prop.nova's
+-- "is-Z" code along a bad Z ≡ S j equation lands a 𝟙-witness in 𝟘
+-- (prop.absurd is the j ≔ Z instance, composed with absurdP)
 def zNotS : (j : ℕ) → (Z ≡ S j ∈ ℕ) → 𝟘 ≔
   λj. λh. transport ℕ isZeroCode Z (S j) h ()
 
