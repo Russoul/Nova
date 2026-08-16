@@ -1,7 +1,7 @@
 import nat (+, *, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusComm, plusAssoc,
             sucInj, multZeroId, multSucId, zeroMult, sucMult, multComm, multAssoc)
 import natOrder (LeN, leRefl, leOfEq, leZero, leZeroInv, leSucMono, leTrans,
-                 leTotal, leMultMonoR)
+                 leTotal, leMultMonoR, leStep)
 import natMore (∸, pred, plusCancelL, multDistribR, monusZeroR, monusSucR, zeroMonus, sucMonusSuc, plusMonus,
                 monusPlus, monusSelf, monusZeroOfLe, leMonusPlus)
 import eqNat (zNotS)
@@ -395,3 +395,30 @@ def divNUnique : (m : ℕ) (d : ℕ) (m' : ℕ) (d' : ℕ) →
       (le. sym ℕ (divN m' d') (divN m d)
              (divNUniqueLe m' d' m d (sym ℕ (m * S d') (m' * S d) h) le))
       (leTotal (divN m d) (divN m' d'))
+
+-- a is strictly below (a div (b+1) + 1)·(b+1): the remainder is at
+-- most b, so one more divisor overshoots
+def leDivSuc : (m : ℕ) (b : ℕ) → El (LeN m (S (divN m b) * S b)) ≔
+  λm. λb.
+    (S b ∸ modN m b ,
+     eqToId ℕ (m + (S b ∸ modN m b)) (S (divN m b) * S b)
+       (trans ℕ (m + (S b ∸ modN m b))
+                (divN m b * S b + (modN m b + (S b ∸ modN m b)))
+                (S (divN m b) * S b)
+          (trans ℕ (m + (S b ∸ modN m b))
+                   ((divN m b * S b + modN m b) + (S b ∸ modN m b))
+                   (divN m b * S b + (modN m b + (S b ∸ modN m b)))
+             (cong ℕ (λu. ℕ) (λw. w + (S b ∸ modN m b))
+                m (divN m b * S b + modN m b) (divModEq m b))
+             (plusAssoc (divN m b * S b) (modN m b) (S b ∸ modN m b)))
+          (trans ℕ (divN m b * S b + (modN m b + (S b ∸ modN m b)))
+                   (divN m b * S b + S b)
+                   (S (divN m b) * S b)
+             (cong ℕ (λu. ℕ) (λw. divN m b * S b + w)
+                (modN m b + (S b ∸ modN m b)) (S b)
+                (leMonusPlus (modN m b) (S b) (leStep (modN m b) b (modLe m b))))
+             (trans ℕ (divN m b * S b + S b) (S b + divN m b * S b)
+                      (S (divN m b) * S b)
+                (plusComm (S b) (divN m b * S b))
+                (sym ℕ (S (divN m b) * S b) (S b + divN m b * S b)
+                   (sucMult (divN m b) (S b)))))))
