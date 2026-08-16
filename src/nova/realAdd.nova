@@ -8,6 +8,7 @@ import real (qInvNat, qInvNatPos, rBound, leQZeroBound, Regular, RSeq, REq, Real
              constReg, realOfQ, realZero, realOne)
 import realNeg (seqOf, regOf, regBnd, bndReg, reqOf, reqOfPointwise, reqRefl,
                 realEqOfREq, realEqOfPointwise, rBoundSym, rNeg, realNeg, negSeq)
+import realSeq (rseqEq, wdOuterOfComm, realEqOfSeqEq)
 import equality (trans, sym, cong, transport)
 
 -- ADDITION on ℝ. A regular sequence carries its modulus in its type,
@@ -117,33 +118,23 @@ def rAddWDInner : (x : El RSeq) (y : El RSeq) (y' : El RSeq) →
                    (qAdd (seqOf y (dbl n)) (qNeg (seqOf y' (dbl n))))
                    (leQBoundDblDiag n) (u (dbl n)))))
 
--- OUTER: the same, with the common summand on the right
-def rAddWDOuterR : (x : El RSeq) (x' : El RSeq) (c : El RSeq) →
-  Prf (REq x x') → Prf (REq (rAdd x c) (rAdd x' c)) ≔
-  λx. λx'. λc. λh.
-    squash-elim h
-      (u. reqOf (rAdd x c) (rAdd x' c)
-            (λn.
-              bndEq (rBound n n)
-                (qAdd (seqOf x (dbl n)) (qNeg (seqOf x' (dbl n))))
-                (qAdd (qAdd (seqOf x (dbl n)) (seqOf c (dbl n)))
-                      (qNeg (qAdd (seqOf x' (dbl n)) (seqOf c (dbl n)))))
-                (sym Q (qAdd (qAdd (seqOf x (dbl n)) (seqOf c (dbl n)))
-                             (qNeg (qAdd (seqOf x' (dbl n)) (seqOf c (dbl n)))))
-                       (qAdd (seqOf x (dbl n)) (qNeg (seqOf x' (dbl n))))
-                   (qSubPlusCancel (seqOf x' (dbl n)) (seqOf x (dbl n))
-                      (seqOf c (dbl n))))
-                (bndWeaken (rBound (dbl n) (dbl n)) (rBound n n)
-                   (qAdd (seqOf x (dbl n)) (qNeg (seqOf x' (dbl n))))
-                   (leQBoundDblDiag n) (u (dbl n)))))
-
 def rAddWDInnerCls : (x : El RSeq) (y : El RSeq) (y' : El RSeq) (h : Prf (REq y y')) →
   class (rAdd x y) ≡ class (rAdd x y') ∈ El Real ≔
   λx. λy. λy'. λh. realEqOfREq (rAdd x y) (rAdd x y') (rAddWDInner x y y' h)
 
+-- addition on REPRESENTATIVES is commutative on the nose — the two
+-- sequences sample at the same doubled index — which is a statement
+-- about RSeq, hence available only since uip (realSeq.nova)
+def rAddComm : (x : El RSeq) (y : El RSeq) → rAdd x y ≡ rAdd y x ∈ El RSeq ≔
+  λx. λy.
+    rseqEq (rAdd x y) (rAdd y x)
+      (λn. qAddComm (seqOf x (dbl n)) (seqOf y (dbl n)))
+
+-- ...so the OUTER case needs no new arithmetic: commuting turns it
+-- into the inner one with the arguments swapped
 def rAddWDOuterCls : (x : El RSeq) (x' : El RSeq) (c : El RSeq) (h : Prf (REq x x')) →
   class (rAdd x c) ≡ class (rAdd x' c) ∈ El Real ≔
-  λx. λx'. λc. λh. realEqOfREq (rAdd x c) (rAdd x' c) (rAddWDOuterR x x' c h)
+  wdOuterOfComm rAdd rAddComm rAddWDInnerCls
 
 -- ...in the quot-elim shape the elaborator asks for
 def rAddWDOuter : (x : El RSeq) (x' : El RSeq) (h : Prf (REq x x')) (v : El Real) →
@@ -169,8 +160,8 @@ def realAddComm : (u : El Real) (v : El Real) →
   λu. λv.
     quot-elim (w. realAdd w v ≡ realAdd v w ∈ El Real)
       (p. quot-elim (w. realAdd (class p) w ≡ realAdd w (class p) ∈ El Real)
-             (q. realEqOfPointwise (rAdd p q) (rAdd q p)
-                   (λn. qAddComm (seqOf p (dbl n)) (seqOf q (dbl n))))
+             (q. cong RSeq (λw. Real) (λw. class w) (rAdd p q) (rAdd q p)
+                   (rAddComm p q))
              v)
       u
 
@@ -178,7 +169,7 @@ def realAddComm : (u : El Real) (v : El Real) →
 def realAddOfQ : (p : El Q) (q : El Q) →
   realAdd (realOfQ p) (realOfQ q) ≡ realOfQ (qAdd p q) ∈ El Real ≔
   λp. λq.
-    realEqOfPointwise (rAdd ((λn. p) , constReg p) ((λn. q) , constReg q))
+    realEqOfSeqEq (rAdd ((λn. p) , constReg p) ((λn. q) , constReg q))
                       ((λn. qAdd p q) , constReg (qAdd p q))
       (λn. ⋆)
 
@@ -186,7 +177,7 @@ def realAddOfQ : (p : El Q) (q : El Q) →
 def realAddNegR : (u : El Real) → realAdd u (realNeg u) ≡ realZero ∈ El Real ≔
   λu.
     quot-elim (w. realAdd w (realNeg w) ≡ realZero ∈ El Real)
-      (p. realEqOfPointwise (rAdd p (rNeg p)) ((λn. qZero) , constReg qZero)
+      (p. realEqOfSeqEq (rAdd p (rNeg p)) ((λn. qZero) , constReg qZero)
             (λn. qAddNegR (seqOf p (dbl n))))
       u
 

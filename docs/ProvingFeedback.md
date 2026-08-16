@@ -144,7 +144,7 @@ level up. That is why `qInvIsProp` is stated in pair-congruence form
 **Suggested fix:** a second set of combinators quantified over *types*
 rather than codes, or admissible congruence/η at arbitrary types.
 
-### A-7. [ℝ] A Σ-CODE's proof component is data — which is a feature, until you want carrier equality
+### A-7. [ℝ] A Σ-CODE's proof component is data — a feature, and (once UIP landed) not a cost
 
 A Bishop real is a pair `(f , reg)`: a sequence and a witness that it
 is regular. By A-1 a Σ-code cannot carry a `Prf`, so `Regular f` is a
@@ -192,10 +192,12 @@ Consistent with that, no proof in the ℝ development ever inspects a
 regularity witness: `regBnd` passes the pair along and the `Bnd`
 algebra consumes `.π₁`/`.π₂` as opaque verdicts.
 
-**3. What is a genuine cost is the missing UIP.** "Subsingleton in
-everything but name" is the problem: to prove two `RSeq` elements with
-the same sequence equal one needs `Id a x y` to be a subsingleton, and
-I could not derive that. Two routes, both blocked structurally:
+**3. The missing UIP — RESOLVED upstream.**
+
+*Was:* "subsingleton in everything but name" was the problem. To prove
+two `RSeq` elements with the same sequence equal one needs `Id a x y`
+to be a subsingleton, and I could not derive it. Two routes, both
+blocked structurally:
 
 * induction on `p : El (Id a x y)` with motive `λu v w. (w ≡ refl a u ∈ …)`
   does not typecheck — `refl a u : El (Id a u u)` and the motive needs
@@ -205,21 +207,50 @@ I could not derive that. Two routes, both blocked structurally:
   becomes `∥(z : El (Id a u v)) → Prf (w ≡ z)∥` and its `refl` method is
   the original goal again.
 
-So the working constraint stands, and it is the one that shaped the
-development: **no law about ℝ may be proved by an equality in the
-carrier.** `realNeg (realNeg u) ≡ u` cannot go "the sequences agree
-pointwise, hence the pairs are equal, hence the classes are"; it must
-go through the quotient relation (`realEqOfPointwise`) every time. In
-practice this costs nothing — REq is weaker than equality, so the route
-is strictly easier — but it has to be set up as the ONLY route from the
-start, because a development that reaches for carrier equality first
-gets stuck with no diagnosis: the missing step is an irrelevance that
-does not exist.
+So every law about ℝ had to route through the quotient relation REq;
+carrier equality was unavailable.
 
-**Suggested fix:** a uniqueness principle (η) for QIIT eliminators, or
-`Id` shipped with UIP as a lemma in `id.nova`. Either would make
-`Regular f` provably a subsingleton and restore carrier equality as an
-option — without giving up the code-hood that item 1 depends on.
+*Now:* `uip.nova` derives it, and the move is precisely the one both
+routes above were missing — carry the index equation as a BINDER of a
+squashed Π inside the motive,
+
+```
+λu. λv. λw. ∥(k : u ≡ v ∈ El a) → (w ≡ refl a u ∈ El (Id a u v))∥
+```
+
+so that `k` is in scope, and reflected, exactly while the codomain is
+typed. That makes `refl a u` well-typed at `El (Id a u v)` and the
+`refl` method becomes `⋆ (λk. ⋆)`. (In intensional MLTT J cannot prove
+UIP — Hofmann–Streicher; here reflection is what pays.)
+
+Downstream, `realSeq.nova` cashes it in three steps —
+`nonNegIsProp` → `bndIsProp` (both in `ratBound.nova`) →
+`regularIsProp` by dependent funext twice → `rseqEq` — and `RSeq`
+becomes a set whose equality is equality of the underlying sequence.
+
+What that bought, concretely: a binary operation on ℝ owes TWO
+well-definedness proofs, and `rationalQ.nova` gets the outer one free
+for `qAdd` by commuting (`ratAddComm` is an equation in `Rat`, a plain
+Σ-code). One level up that move was unavailable, so `realAdd`,
+`realMax` and `realMin` each carried a transcription of their inner
+proof with the arguments swapped. With `rseqEq` the commutativity of
+each operation is provable ON REPRESENTATIVES, and the outer case
+collapses to one line through a combinator generic in the operation
+(`wdOuterOfComm`) — about 50 lines of duplicated bound arithmetic
+deleted. The pointwise laws (`realAddOfQ`, `realAbsNeg`, …) also stop
+routing through closeness: they are equalities of representatives and
+now say so.
+
+One wrinkle worth recording, because it is B-1 again: `rseqEq` cannot
+simply read `y`'s witness at `Regular (seqOf x)`. The conversion
+`Regular (seqOf y) ≐ Regular (seqOf x)` under a reflected sequence
+equation is one the engine finds and the kernel refuses — the rewrite
+lands inside `qAdd`, i.e. inside a `quot-elim` scrutinee. Even with
+both sequences as bare variables it fails. `transport` moves the
+witness instead: it is the identity function, so nothing is inserted,
+but its SIGNATURE does the retyping, and the conversion is never
+demanded at the call site because it was discharged once, at an
+abstract motive (D-3).
 
 ---
 

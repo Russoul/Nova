@@ -9,6 +9,7 @@ import real (rBound, leQZeroBound, Regular, RSeq, REq, Real, constReg,
 import realNeg (seqOf, regOf, regBnd, bndReg, reqOf, realEqOfREq,
                 realEqOfPointwise, rNeg, realNeg)
 import realAdd (rAdd, realAdd)
+import realSeq (realEqOfSeqEq)
 import realOrder (RLeP, rleOf, LeR, leQSubZero)
 import equality (trans, sym, cong, transport)
 
@@ -56,26 +57,26 @@ def realAbsCls : (x : El RSeq) → realAbs (class x) ≡ class (rAbs x) ∈ El R
 def realAbsNeg : (u : El Real) → realAbs (realNeg u) ≡ realAbs u ∈ El Real ≔
   λu.
     quot-elim (w. realAbs (realNeg w) ≡ realAbs w ∈ El Real)
-      (p. realEqOfPointwise (rAbs (rNeg p)) (rAbs p)
+      (p. realEqOfSeqEq (rAbs (rNeg p)) (rAbs p)
             (λn. qAbsNeg (seqOf p n)))
       u
 
 def realAbsAbs : (u : El Real) → realAbs (realAbs u) ≡ realAbs u ∈ El Real ≔
   λu.
     quot-elim (w. realAbs (realAbs w) ≡ realAbs w ∈ El Real)
-      (p. realEqOfPointwise (rAbs (rAbs p)) (rAbs p)
+      (p. realEqOfSeqEq (rAbs (rAbs p)) (rAbs p)
             (λn. qAbsAbs (seqOf p n)))
       u
 
 def realAbsOfQ : (q : El Q) →
   realAbs (realOfQ q) ≡ realOfQ (qAbs q) ∈ El Real ≔
   λq.
-    realEqOfPointwise (rAbs ((λn. q) , constReg q))
+    realEqOfSeqEq (rAbs ((λn. q) , constReg q))
                       ((λn. qAbs q) , constReg (qAbs q))
       (λn. ⋆)
 
 def realAbsZero : realAbs realZero ≡ realZero ∈ El Real ≔
-  realEqOfPointwise (rAbs ((λn. qZero) , constReg qZero))
+  realEqOfSeqEq (rAbs ((λn. qZero) , constReg qZero))
                     ((λn. qZero) , constReg qZero)
     (λn. ⋆)
 

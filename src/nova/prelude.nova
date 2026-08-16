@@ -12,3 +12,11 @@ def constP : (A : Ω) (B : Ω) (x : Prf A) (y : Prf B) → Prf A ≔ λA. λB. �
 def funext : (A : 𝕌) (B : 𝕌) (f : El (A → B)) (g : El (A → B)) →
              ((x : El A) → f x ≡ g x ∈ El B) → f ≡ g ∈ El (A → B) ≔
   λA. λB. λf. λg. λh. ⋆
+
+-- ...and the dependent version, by the same argument: the pointwise
+-- hypothesis reflects under the binder, ξ and η do the rest
+def funextD : (A : 𝕌) (B : El A → 𝕌)
+              (f : El ((x : A) → B x)) (g : El ((x : A) → B x)) →
+              ((x : El A) → f x ≡ g x ∈ El (B x)) →
+              f ≡ g ∈ El ((x : A) → B x) ≔
+  λA. λB. λf. λg. λh. ⋆

@@ -235,6 +235,11 @@ data [a : 𝕌] [r : El a → El a → Ω]
   `quot-elim` scrutinee fails at replay; the same proof written with
   explicit `trans` goes through, because a lemma application is
   unconstrained by position.
+- A conversion the kernel will not replay can often be side-stepped
+  with `transport`: it is the identity function, so it inserts nothing,
+  but its SIGNATURE does the retyping and the conversion was already
+  discharged once at an abstract motive. This is how `realSeq.rseqEq`
+  reads one sequence's regularity witness at the other's type.
 
 ## Where to look things up
 
@@ -275,6 +280,12 @@ data [a : 𝕌] [r : El a → El a → Ω]
   learned there: an operation that is 1-Lipschitz on ℚ lifts
   POINTWISE; one that is not (+) must sample at doubled indices, and
   any relation that is not must be repaired by `leQOfArch`.
+  `realSeq` is the bridge `uip.nova` opened: order verdicts are unique
+  (`ratBound.leQIsProp`), hence so are regularity witnesses, hence
+  `RSeq` is a SET whose equality is equality of the sequence
+  (`rseqEq`). Use it when you need to reason about representatives —
+  notably `wdOuterOfComm`, which gets a binary operation's outer
+  well-definedness free from its inner one plus commutativity.
 - `python3 tools/render-specs.py` renders the specs to navigable HTML
   (`build/docs/specs.html`); `--check` cross-checks rule names against
   the sources.

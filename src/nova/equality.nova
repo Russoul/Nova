@@ -54,3 +54,23 @@ def cong : (A : 𝕌) (B : El A → 𝕌) (f : (v : El A) → El (B v)) →
 
 def irr : (A : 𝕌) (v : El A) (u : El A) (p : v ≡ u ∈ (El A)) → p ≡ ⋆ ∈ (v ≡ u ∈ (El A))
   ≔ λA. λv. λu. λp. ⋆
+
+-- Σ-η and componentwise equality at a DEPENDENT pair. Both are the
+-- non-dependent versions (eqInt.nova's pairEtaG/pairEq2) with the
+-- second component's type allowed to mention the first: reflecting h1
+-- makes x .π₁ ≐ y .π₁, which is exactly what h2's type needs. Stated
+-- type-generically, as every shape-generic lemma must be (B-3).
+def sigmaEtaG : (A : 𝕌) (B : El A → 𝕌) (p : El ((a : A) ⨯ B a)) →
+  (p .π₁ , p .π₂) ≡ p ∈ El ((a : A) ⨯ B a) ≔
+  λA. λB. λp. ⋆
+
+def sigmaEq2 : (A : 𝕌) (B : El A → 𝕌)
+  (x : El ((a : A) ⨯ B a)) (y : El ((a : A) ⨯ B a)) →
+  (x .π₁ ≡ y .π₁ ∈ El A) → (x .π₂ ≡ y .π₂ ∈ El (B (x .π₁))) →
+  x ≡ y ∈ El ((a : A) ⨯ B a) ≔
+  λA. λB. λx. λy. λh1. λh2.
+    trans ((a : A) ⨯ B a) x (y .π₁ , y .π₂) y
+      (trans ((a : A) ⨯ B a) x (x .π₁ , x .π₂) (y .π₁ , y .π₂)
+        (sym ((a : A) ⨯ B a) (x .π₁, x .π₂) x (sigmaEtaG A B x))
+        ⋆)
+      (sigmaEtaG A B y)

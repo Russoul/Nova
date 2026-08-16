@@ -2,11 +2,12 @@ import rationalQ (Q, qAdd, qNeg, qZero)
 import rationalOrder (LeQ, leQTrans)
 import ratBound (Bnd, bndSubEq)
 import ratMax (qMax, qMin, leQMaxL, leQMaxR, qMaxLub, leQMinL, leQMinR, qMinGlb,
-               bndMaxSub, bndMinSub, leQAddOfBnd, qMinGlbShift)
+               bndMaxSub, bndMinSub, leQAddOfBnd, qMinGlbShift, qMaxComm, qMinComm)
 import ratArch (leQSubShift, leQAddShift)
 import real (rBound, leQZeroBound, Regular, RSeq, REq, Real, constReg,
              realOfQ, realZero)
 import realNeg (seqOf, regOf, regBnd, bndReg, reqOf, realEqOfREq)
+import realSeq (rseqEq, wdOuterOfComm)
 import realOrder (RLeP, rleOf, LeR, leQSubZero)
 import equality (trans, sym, cong, transport)
 
@@ -45,25 +46,19 @@ def rMaxWDInner : (x : El RSeq) (y : El RSeq) (y' : El RSeq) →
                    (leQZeroBound n n) ⋆)
                 (u n)))
 
-def rMaxWDOuterR : (x : El RSeq) (x' : El RSeq) (c : El RSeq) →
-  Prf (REq x x') → Prf (REq (rMax x c) (rMax x' c)) ≔
-  λx. λx'. λc. λh.
-    squash-elim h
-      (u. reqOf (rMax x c) (rMax x' c)
-            (λn.
-              bndMaxSub (rBound n n) (seqOf x n) (seqOf x' n)
-                        (seqOf c n) (seqOf c n)
-                (u n)
-                (bndSubEq (rBound n n) (seqOf c n) (seqOf c n)
-                   (leQZeroBound n n) ⋆)))
-
 def rMaxWDInnerCls : (x : El RSeq) (y : El RSeq) (y' : El RSeq) (h : Prf (REq y y')) →
   class (rMax x y) ≡ class (rMax x y') ∈ El Real ≔
   λx. λy. λy'. λh. realEqOfREq (rMax x y) (rMax x y') (rMaxWDInner x y y' h)
 
+-- max on representatives is commutative on the nose, so the outer
+-- descent is the inner one with the arguments swapped
+def rMaxComm : (x : El RSeq) (y : El RSeq) → rMax x y ≡ rMax y x ∈ El RSeq ≔
+  λx. λy.
+    rseqEq (rMax x y) (rMax y x) (λn. qMaxComm (seqOf x n) (seqOf y n))
+
 def rMaxWDOuterCls : (x : El RSeq) (x' : El RSeq) (c : El RSeq) (h : Prf (REq x x')) →
   class (rMax x c) ≡ class (rMax x' c) ∈ El Real ≔
-  λx. λx'. λc. λh. realEqOfREq (rMax x c) (rMax x' c) (rMaxWDOuterR x x' c h)
+  wdOuterOfComm rMax rMaxComm rMaxWDInnerCls
 
 def rMaxWDOuter : (x : El RSeq) (x' : El RSeq) (h : Prf (REq x x')) (v : El Real) →
   quot-elim (w. El Real) (q. class (rMax x q)) v
@@ -109,25 +104,17 @@ def rMinWDInner : (x : El RSeq) (y : El RSeq) (y' : El RSeq) →
                    (leQZeroBound n n) ⋆)
                 (u n)))
 
-def rMinWDOuterR : (x : El RSeq) (x' : El RSeq) (c : El RSeq) →
-  Prf (REq x x') → Prf (REq (rMin x c) (rMin x' c)) ≔
-  λx. λx'. λc. λh.
-    squash-elim h
-      (u. reqOf (rMin x c) (rMin x' c)
-            (λn.
-              bndMinSub (rBound n n) (seqOf x n) (seqOf x' n)
-                        (seqOf c n) (seqOf c n)
-                (u n)
-                (bndSubEq (rBound n n) (seqOf c n) (seqOf c n)
-                   (leQZeroBound n n) ⋆)))
-
 def rMinWDInnerCls : (x : El RSeq) (y : El RSeq) (y' : El RSeq) (h : Prf (REq y y')) →
   class (rMin x y) ≡ class (rMin x y') ∈ El Real ≔
   λx. λy. λy'. λh. realEqOfREq (rMin x y) (rMin x y') (rMinWDInner x y y' h)
 
+def rMinComm : (x : El RSeq) (y : El RSeq) → rMin x y ≡ rMin y x ∈ El RSeq ≔
+  λx. λy.
+    rseqEq (rMin x y) (rMin y x) (λn. qMinComm (seqOf x n) (seqOf y n))
+
 def rMinWDOuterCls : (x : El RSeq) (x' : El RSeq) (c : El RSeq) (h : Prf (REq x x')) →
   class (rMin x c) ≡ class (rMin x' c) ∈ El Real ≔
-  λx. λx'. λc. λh. realEqOfREq (rMin x c) (rMin x' c) (rMinWDOuterR x x' c h)
+  wdOuterOfComm rMin rMinComm rMinWDInnerCls
 
 def rMinWDOuter : (x : El RSeq) (x' : El RSeq) (h : Prf (REq x x')) (v : El Real) →
   quot-elim (w. El Real) (q. class (rMin x q)) v

@@ -1,0 +1,87 @@
+import rationalQ (Q, qAdd, qNeg)
+import rationalOrder (LeQ)
+import ratBound (Bnd, bndIsProp)
+import real (rBound, Regular, RSeq, REq, Real)
+import realNeg (seqOf, regOf)
+import prelude (funext, funextD)
+import equality (trans, sym, cong, transport, sigmaEq2)
+
+-- RSeq IS A SET, and its equality is equality of the underlying
+-- sequence. This is what `uip` bought: a regularity witness is data
+-- (a Σ-code cannot carry a `Prf`), but it is data with exactly one
+-- inhabitant per f — `bndIsProp` at every index pair, then dependent
+-- funext twice.
+--
+-- Without this the only route from "the sequences agree" to "the reals
+-- agree" was through the quotient relation REq. That route still
+-- exists and is still the cheaper one for most laws; what this module
+-- adds is the ability to reason about the REPRESENTATIVES, which is
+-- what makes an operation's outer well-definedness derivable from its
+-- inner one by commutativity — the `rationalQ.qAddWDOuterCls` idiom,
+-- previously unavailable one level up (see realAdd.nova).
+
+def regularIsProp : (f : El (ℕ → Q)) (p : El (Regular f)) (q : El (Regular f)) →
+  p ≡ q ∈ El (Regular f) ≔
+  λf. λp. λq.
+    funextD ℕ
+      (λm. ((n : ℕ) → (LeQ (qNeg (rBound m n)) (qAdd (f m) (qNeg (f n)))
+                        ⨯ LeQ (qAdd (f m) (qNeg (f n))) (rBound m n))))
+      p q
+      (λm.
+        funextD ℕ
+          (λn. (LeQ (qNeg (rBound m n)) (qAdd (f m) (qNeg (f n)))
+                 ⨯ LeQ (qAdd (f m) (qNeg (f n))) (rBound m n)))
+          (p m) (q m)
+          (λn. bndIsProp (rBound m n) (qAdd (f m) (qNeg (f n))) (p m n) (q m n)))
+
+-- The witness of y has to be READ at Regular (seqOf x), and the
+-- conversion Regular (seqOf y) ≐ Regular (seqOf x) is not one the
+-- kernel will replay: rewriting the sequence lands inside qAdd, i.e.
+-- inside a quot-elim scrutinee (B-1). `transport` moves it instead —
+-- it is the identity function, so nothing is inserted, but its
+-- SIGNATURE does the retyping and the conversion is never demanded
+-- here (D-3: it was discharged once, at an abstract motive).
+def rseqEqAt : (x : El RSeq) (y : El RSeq) →
+  (seqOf x ≡ seqOf y ∈ El (ℕ → Q)) → x ≡ y ∈ El RSeq ≔
+  λx. λy. λh.
+    sigmaEq2 (ℕ → Q) (λf. Regular f) x y h
+      (regularIsProp (seqOf x) (regOf x)
+         (transport (ℕ → Q) (λf. Regular f) (seqOf y) (seqOf x)
+            (sym (ℕ → Q) (seqOf x) (seqOf y) h) (regOf y)))
+
+def rseqEq : (x : El RSeq) (y : El RSeq) →
+  ((n : ℕ) → seqOf x n ≡ seqOf y n ∈ El Q) → x ≡ y ∈ El RSeq ≔
+  λx. λy. λe. rseqEqAt x y (funext ℕ Q (seqOf x) (seqOf y) e)
+
+-- ...and hence equal reals, without going through REq at all
+def realEqOfSeqEq : (x : El RSeq) (y : El RSeq) →
+  ((n : ℕ) → seqOf x n ≡ seqOf y n ∈ El Q) → class x ≡ class y ∈ El Real ≔
+  λx. λy. λe.
+    cong RSeq (λw. Real) (λw. class w) x y (rseqEq x y e)
+
+-- ===== outer well-definedness, for free, from commutativity =====
+--
+-- A binary operation on ℝ descends by a NESTED quot-elim and so owes
+-- two well-definedness proofs. rationalQ.nova gets the outer one free
+-- for `qAdd`, by commuting: `ratAddComm` is an equation in `Rat`, and
+-- Rat is a plain Σ-code. One level up the same move needs `rseqEq`,
+-- because commutativity of an operation on RSeq is an equation whose
+-- two sides carry different regularity witnesses.
+--
+-- Stated once, generically in the operation: realAdd, realMax and
+-- realMin each spend it in one line, in place of a transcription of
+-- their inner proof with the arguments swapped.
+def wdOuterOfComm :
+  (op : El RSeq → El RSeq → El RSeq) →
+  ((a : El RSeq) (b : El RSeq) → op a b ≡ op b a ∈ El RSeq) →
+  ((a : El RSeq) (b : El RSeq) (b' : El RSeq) → Prf (REq b b') →
+     class (op a b) ≡ class (op a b') ∈ El Real) →
+  (x : El RSeq) (x' : El RSeq) (c : El RSeq) → Prf (REq x x') →
+  class (op x c) ≡ class (op x' c) ∈ El Real ≔
+  λop. λcomm. λinner. λx. λx'. λc. λh.
+    trans Real (class (op x c)) (class (op c x)) (class (op x' c))
+      (cong RSeq (λw. Real) (λw. class w) (op x c) (op c x) (comm x c))
+      (trans Real (class (op c x)) (class (op c x')) (class (op x' c))
+         (inner c x x' h)
+         (cong RSeq (λw. Real) (λw. class w) (op c x') (op x' c)
+            (sym RSeq (op x' c) (op c x') (comm x' c))))
