@@ -573,6 +573,75 @@ corpus (E-2's suggested fix, delivered), so this is worth documenting
 rather than avoiding: **when a chain step fails at replay, re-spell
 that one step as `trans` before looking for a different lemma.**
 
+### B-14. [ℝ] The lemma matcher cannot reach a metavariable inside a stuck quot-elim
+
+The sharpest engine limit found so far, and the one that shaped a
+module. A `using` candidate
+
+```
+qFloorWD : (p p' : El Rat) (h : Prf (RatR p p')) →
+             divN (intAbs (num p)) (nzMag (den p))
+           ≡ divN (intAbs (num p')) (nzMag (den p'))
+```
+
+does NOT fire against the goal it is literally the statement of —
+`divN (intAbs (num p)) (nzMag (den p)) ≐ divN (intAbs (num p')) …`,
+with `h` in context. Not a side-condition problem, and not
+decomposition: the goal is reported whole and unchanged.
+
+Bisected by probing the same descent with different methods (a
+DECLARED lemma is enough to test matching without proving anything):
+
+| method | fires? |
+|---|---|
+| `nzMag (den p)` | yes |
+| `divN (nzMag (den p)) (nzMag (den p))` | yes |
+| `divN (nzMag (den p) + nzMag (den p)) (nzMag (den p))` | yes |
+| `intAbs (num p)` | **no** |
+| `divN (intAbs (num p)) (nzMag (den p))` | **no** |
+
+So compound arguments, `+`, and `divN`'s own huge fuel-recursive
+normal form are all fine. What is not is `intAbs`, whose body is
+`intCanon z .π₁ + intCanon z .π₂` — the metavariable ends up inside
+`intCanon`'s `quot-elim` SCRUTINEE, and matching will not descend
+there. (It is the matching-side twin of B-1, which says a rewrite may
+not LAND there.)
+
+Workaround, and it is a good one: compute the same natural without
+`intCanon`. `intAbs.intMag` reads the magnitude straight off a
+difference pair, `magPair r ≔ (r.π₁ ∸ r.π₂) + (r.π₂ ∸ r.π₁)`, whose
+own descent is one monus lemma. With `intMag` in place of `intAbs` the
+identical `using` clause fires on the first try. Both functions compute
+the same natural; only one is visible to the engine.
+
+**Suggested fix:** let matching descend into a stuck eliminator's
+scrutinee. Nothing is unsound about it — the kernel's restriction is
+about where a rewrite may be APPLIED, not about where a pattern may
+look.
+
+### B-15. [ℝ] A subsingleton lemma cannot discharge a descent into data
+
+`quot-elim` into `El (LeQ x y)` owes `verdict ≐ verdict'`, and `LeQ` is
+a subsingleton, so `leQIsProp : (x y : El Q) (p q : El (LeQ x y)) →
+p ≡ q` ought to close it. It never fires, and this time the reason is
+E-1's rule rather than B-14's: the index `x`/`y` appears ONLY in the
+type, so first-order matching on the two sides leaves it unsolved.
+
+The fix is a change of target, not of lemma. Land the descent in the
+SQUASH — proof irrelevance closes that well-definedness for free — and
+recover the datum afterwards, since the order is decidable:
+
+```
+leQUnsquash : (x y : El Q) → Prf ∥El (LeQ x y)∥ → El (LeQ x y)
+```
+
+(decide with `sgnCases`; in the refuted branch open the squash, which
+is legal because ⊥ is a proposition, and re-enter the data type through
+`leQOfFalse`). `ratCeil.leQBound` is proved exactly this way.
+
+Generalisable: **a descent into a decidable data type should be stated
+squashed and unsquashed at the end.**
+
 ## C. Discharge-engine ergonomics
 
 ### C-1. Oriented rewriting means library lemmas need flipped copies
@@ -804,6 +873,32 @@ structure on the nose, while `≤` does not and had to be repaired by
 `leQOfArch`. **Before descending an operation to a quotient, check
 whether it can be assembled from operations that have already
 descended.**
+
+### D-9. [ℝ] What a quotient blocks, and what it does not
+
+Two facts about ℝ needed care about *where* the quotient sits, and the
+distinction is worth stating once.
+
+**Completeness needs representatives.** "Every regular sequence of
+reals converges" cannot be stated for an arbitrary `X : ℕ → El Real`:
+building the limit needs a rational approximation of each `X n`, i.e. a
+choice of representative for each n, i.e. countable choice, and the
+quotient has no section. `realComplete.nova` therefore states it for a
+sequence given WITH representatives (`ℕ → El RSeq`) — which is the
+constructive content anyway, and is what any caller who built the
+sequence actually has.
+
+**Multiplication does NOT need a canonical form.** The PR draft claimed
+it needed lowest terms for ℚ, hence gcd. That was wrong. What the
+product needs is a natural bounding each factor, computed from a
+rational by a function the quotient respects — and the CEILING is such
+a function, needing only Euclidean division (natDiv.nova), not gcd.
+`ratCeil.qNatBound` is that function and `realBound.seqBound` is the
+resulting bound on a regular sequence.
+
+The moral: before declaring a quotient blocks a construction, ask
+which invariant is actually required. "A canonical representative" is
+usually much more than the construction needs.
 
 ---
 
