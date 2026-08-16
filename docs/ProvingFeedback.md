@@ -611,11 +611,15 @@ diagnostic is `Prf (prop.⊥) ≐ 𝟘 type`. The idiom is
 `squash-elim h (t. 𝟘-elim t)`, and it is needed at every refutation.
 **Resolved:** `prop.nova` now has `absurdP : (p : Ω) → Prf ⊥ → Prf p`.
 
-Note there can be no `El A`-valued counterpart: `el-squash-e-prf`
-reaches only further *propositions*, so a `Prf ⊥` can never produce
-data — for that one needs a `𝟘` itself. Refutations that must yield an
-element (a `⊎`-branch, say) have to keep the raw `𝟘` around, as
-`nzOfPairD` does with `zNotS`.
+There is no `El A`-valued counterpart *of that shape*: `el-squash-e-prf`
+reaches only further *propositions*, so no elimination of the proof
+produces data. ⊥ itself is not data-inert, though — `prop.absurd :
+Prf ⊥ → 𝟘` goes around the eliminator (⊥ proves the false equation
+`Z ≡ S Z ∈ ℕ`, `el-reflect` makes it judgemental, `isZeroCode`
+transports `()` from `𝟙` into `𝟘`), and `prop.absurdD : (A : 𝕌) →
+Prf ⊥ → El A` follows by `𝟘-elim`. So a refutation that must yield an
+element can either keep the raw `𝟘` around, as `nzOfPairD` does with
+`zNotS`, or call `absurdD`.
 
 ### F-3. `⋆` does not prove Σ-shaped squashes
 
