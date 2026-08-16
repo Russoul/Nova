@@ -38,7 +38,8 @@ def leQFour : (f : El (ℕ → Q)) (h : El (ℕ → Q)) →
   El (Regular f) → El (Regular h) → (n : ℕ) (k : ℕ) →
   El (LeQ (qAdd (f (dbl (qtr k))) (qNeg (h (dbl (qtr k)))))
           (rBound (qtr k) (qtr k))) →
-  El (LeQ (qAdd (f n) (qNeg (h n))) (qAdd (rBound n n) (qInvNat k))) ≔
+  El (LeQ (qAdd (f n) (qNeg (h n))) (qAdd (rBound n n) (qInvNat k)))
+  using (id.Id.eq, ratHalf.dbl.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.qInvNat.eq, real.rBound.eq, realEq.qtr.eq) ≔
   λf. λh. λhf. λhh. λn. λk. λmid.
     leQTrans (qAdd (f n) (qNeg (h n)))
       (qAdd (rBound n n)
@@ -125,7 +126,7 @@ def rleTrans : (x : El RSeq) (y : El RSeq) (z : El RSeq) →
 
 -- replacing the RIGHT side by a close one
 def rleCongR : (x : El RSeq) (y : El RSeq) (y' : El RSeq) →
-  Prf (REq y y') → Prf (RLeP x y) → Prf (RLeP x y') ≔
+  Prf (REq y y') → Prf (RLeP x y) → Prf (RLeP x y') using (id.Id.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.rBound.eq, realNeg.seqOf.eq) ≔
   λx. λy. λy'. λhe. λhl.
     squash-elim hl
       (u. squash-elim he
@@ -136,7 +137,7 @@ def rleCongR : (x : El RSeq) (y : El RSeq) (y' : El RSeq) →
 
 -- ...and the LEFT
 def rleCongL : (x : El RSeq) (x' : El RSeq) (y : El RSeq) →
-  Prf (REq x x') → Prf (RLeP x y) → Prf (RLeP x' y) ≔
+  Prf (REq x x') → Prf (RLeP x y) → Prf (RLeP x' y) using (id.Id.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.rBound.eq, realNeg.seqOf.eq) ≔
   λx. λx'. λy. λhe. λhl.
     squash-elim hl
       (u. squash-elim he
@@ -176,15 +177,15 @@ def LeR : El Real → El Real → Ω using (rleWDInner, rleWDOuter) ≔
   λu. λv. quot-elim (w. Ω) (x. quot-elim (w. Ω) (y. RLeP x y) v) u
 
 def leRCls : (x : El RSeq) (y : El RSeq) →
-  LeR (class x) (class y) ≡ RLeP x y ∈ Ω ≔ λx. λy. ⋆
+  LeR (class x) (class y) ≡ RLeP x y ∈ Ω using (realOrder.LeR.eq, realOrder.RLeP.eq) ≔ λx. λy. ⋆
 
 -- ===== the order laws =====
 
-def leRRefl : (u : El Real) → Prf (LeR u u) ≔
+def leRRefl : (u : El Real) → Prf (LeR u u) using (realOrder.leRCls) ≔
   λu. quot-elim (w. Prf (LeR w w)) (x. rleRefl x) u
 
 def leRTrans : (u : El Real) (v : El Real) (w : El Real) →
-  Prf (LeR u v) → Prf (LeR v w) → Prf (LeR u w) ≔
+  Prf (LeR u v) → Prf (LeR v w) → Prf (LeR u w) using (realOrder.leRCls, realOrder.rleTrans.eq) ≔
   λu. λv. λw.
     quot-elim (t. Prf (LeR t v) → Prf (LeR v w) → Prf (LeR t w))
       (x. quot-elim (t. Prf (LeR (class x) t) → Prf (LeR t w) →
@@ -209,7 +210,7 @@ def rleAntisym : (x : El RSeq) (y : El RSeq) →
                          (u n) (v n))))
 
 def leRAntisym : (u : El Real) (v : El Real) →
-  Prf (LeR u v) → Prf (LeR v u) → u ≡ v ∈ El Real ≔
+  Prf (LeR u v) → Prf (LeR v u) → u ≡ v ∈ El Real using (realNeg.realEqOfREq.eq, realOrder.leRCls, realOrder.rleAntisym.eq) ≔
   λu. λv.
     quot-elim (t. Prf (LeR t v) → Prf (LeR v t) → (t ≡ v ∈ El Real))
       (x. quot-elim (t. Prf (LeR (class x) t) → Prf (LeR t (class x)) →
@@ -222,7 +223,7 @@ def leRAntisym : (u : El Real) (v : El Real) →
 
 -- a common summand cancels, and the deeper sample only tightens
 def rleAddMono : (x : El RSeq) (y : El RSeq) (c : El RSeq) →
-  Prf (RLeP x y) → Prf (RLeP (rAdd x c) (rAdd y c)) ≔
+  Prf (RLeP x y) → Prf (RLeP (rAdd x c) (rAdd y c)) using (id.Id.eq, ratHalf.dbl.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalOrder.Sign.eq, rationalOrder.ratSgn.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.qInvNat.eq, real.rBound.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realNeg.seqOf.eq) ≔
   λx. λy. λc. λh.
     squash-elim h
       (u. rleOf (rAdd x c) (rAdd y c)
@@ -242,7 +243,7 @@ def rleAddMono : (x : El RSeq) (y : El RSeq) (c : El RSeq) →
                    (u (dbl n)) (leQBoundDblDiag n))))
 
 def leRAddMono : (u : El Real) (v : El Real) (w : El Real) →
-  Prf (LeR u v) → Prf (LeR (realAdd u w) (realAdd v w)) ≔
+  Prf (LeR u v) → Prf (LeR (realAdd u w) (realAdd v w)) using (realAdd.rAdd.eq, realAdd.realAdd.eq, realOrder.LeR.eq, realOrder.RLeP.eq, realOrder.leRCls, realOrder.rleAddMono.eq) ≔
   λu. λv. λw.
     quot-elim (t. Prf (LeR t v) → Prf (LeR (realAdd t w) (realAdd v w)))
       (x. quot-elim (t. Prf (LeR (class x) t) →
@@ -266,7 +267,7 @@ def leQSubZero : (p : El Q) (q : El Q) →
       (leQPlusMono p q (qNeg q) le)
 
 def leROfQ : (p : El Q) (q : El Q) →
-  El (LeQ p q) → Prf (LeR (realOfQ p) (realOfQ q)) ≔
+  El (LeQ p q) → Prf (LeR (realOfQ p) (realOfQ q)) using (id.Id.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.constReg.eq, real.rBound.eq, real.realOfQ.eq, realNeg.seqOf.eq, realOrder.LeR.eq, realOrder.RLeP.eq) ≔
   λp. λq. λle.
     rleOf ((λn. p) , constReg p) ((λn. q) , constReg q)
       (λn. leQTrans (qAdd p (qNeg q)) qZero (rBound n n)
@@ -275,7 +276,7 @@ def leROfQ : (p : El Q) (q : El Q) →
 -- 0 ≤ 1 in ℝ, through ℚ: the sign of 1 computes
 def sgnQOnePos : sgnQ qOne ≡ sPos ∈ El Sign ≔ ⋆
 def leQZeroOne : El (LeQ qZero qOne) ≔ leQZeroOfPos qOne sgnQOnePos
-def leRZeroOne : Prf (LeR realZero realOne) ≔ leROfQ qZero qOne leQZeroOne
+def leRZeroOne : Prf (LeR realZero realOne) using (rationalQ.qOne.eq, rationalQ.qZero.eq, real.realOfQ.eq, real.realOne.eq, real.realZero.eq, realOrder.LeR.eq) ≔ leROfQ qZero qOne leQZeroOne
 
 -- ===== ...and reflects the order =====
 
@@ -284,7 +285,7 @@ def leRZeroOne : Prf (LeR realZero realOne) ≔ leROfQ qZero qOne leQZeroOne
 -- p ≤ q + 1/(k+1) for every k, and leQOfArch closes it. The verdict is
 -- DATA, so the squash is opened only inside the refuted branch (D-6).
 def leQOfLeR : (p : El Q) (q : El Q) →
-  Prf (LeR (realOfQ p) (realOfQ q)) → El (LeQ p q) ≔
+  Prf (LeR (realOfQ p) (realOfQ q)) → El (LeQ p q) using (id.Id.eq, ratHalf.dbl.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.constReg.eq, real.qInvNat.eq, real.rBound.eq, realNeg.seqOf.eq) ≔
   λp. λq. λh.
     ⊎-elim (w. El (LeQ p q))
       (nn. nn)
@@ -317,7 +318,7 @@ def realOfQInj : (p : El Q) (q : El Q) →
 -- ===== negation reverses the order =====
 
 def rleNeg : (x : El RSeq) (y : El RSeq) →
-  Prf (RLeP x y) → Prf (RLeP (rNeg y) (rNeg x)) ≔
+  Prf (RLeP x y) → Prf (RLeP (rNeg y) (rNeg x)) using (id.Id.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalOrder.Sign.eq, rationalOrder.ratSgn.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.qInvNat.eq, real.rBound.eq, realNeg.negSeq.eq, realNeg.rNeg.eq, realNeg.seqOf.eq) ≔
   λx. λy. λh.
     squash-elim h
       (u. rleOf (rNeg y) (rNeg x)
@@ -331,7 +332,7 @@ def rleNeg : (x : El RSeq) (y : El RSeq) →
                 (u n)))
 
 def leRNeg : (u : El Real) (v : El Real) →
-  Prf (LeR u v) → Prf (LeR (realNeg v) (realNeg u)) ≔
+  Prf (LeR u v) → Prf (LeR (realNeg v) (realNeg u)) using (realNeg.rNeg.eq, realNeg.realNeg.eq, realOrder.LeR.eq, realOrder.RLeP.eq, realOrder.leRCls, realOrder.rleNeg.eq) ≔
   λu. λv.
     quot-elim (t. Prf (LeR t v) → Prf (LeR (realNeg v) (realNeg t)))
       (x. quot-elim (t. Prf (LeR (class x) t) →

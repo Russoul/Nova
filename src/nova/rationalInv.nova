@@ -28,7 +28,7 @@ import equality (trans, sym, cong)
 -- (a*b ≡ Z in ℕ says exactly "a is Z or b is Z") rather than a
 -- disjunction, so the case analysis below stays first-order
 def normProdZero : (a : ℕ) (b : ℕ) →
-  normPair a b .π₁ * normPair a b .π₂ ≡ Z ∈ ℕ using (zeroMult) ≔
+  normPair a b .π₁ * normPair a b .π₂ ≡ Z ∈ ℕ using (integerNormalize.normPair.eq, nat.multZeroId, zeroMult) ≔
   λa. ℕ-elim (k. (b : ℕ) → (normPair k b .π₁ * normPair k b .π₂ ≡ Z ∈ ℕ))
         (λb. ⋆)
         (k ih. λb.
@@ -38,7 +38,7 @@ def normProdZero : (a : ℕ) (b : ℕ) →
             b)
         a
 
-def intCanonProdZero : (z : El Int) → intCanon z .π₁ * intCanon z .π₂ ≡ Z ∈ ℕ using (normProdZero) ≔
+def intCanonProdZero : (z : El Int) → intCanon z .π₁ * intCanon z .π₂ ≡ Z ∈ ℕ using (eqInt.intCanon.eq, integerNormalize.normPair.eq, normProdZero) ≔
   λz. quot-elim (w. (intCanon w .π₁ * intCanon w .π₂ ≡ Z ∈ ℕ))
         (p. normProdZero (p .π₁) (p .π₂))
         z
@@ -50,7 +50,7 @@ def intCanonProdZero : (z : El Int) → intCanon z .π₁ * intCanon z .π₂ �
 -- (S,S) case contradicts canonicity
 def nzOfPair : (a : ℕ) (b : ℕ) (hab : Prf (a * b ≡ Z ∈ ℕ))
   (hnz : Prf (¬ (class (a , b) ≡ intZero ∈ El Int))) →
-  Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ class (a , b) ∈ El Int)∥ using (sucPlus, zeroMult) ≔
+  Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ class (a , b) ∈ El Int)∥ using (integer.intZero.eq, rational.nzNeg.eq, rational.nzPos.eq, rational.nzToInt.eq, sucPlus, zeroMult) ≔
   λa.
     ℕ-elim (k. (b : ℕ) → Prf (k * b ≡ Z ∈ ℕ) →
               Prf (¬ (class (k , b) ≡ intZero ∈ El Int)) →
@@ -123,7 +123,7 @@ def intNZView : (z : El Int) (hnz : Prf (¬ (z ≡ intZero ∈ El Int))) →
 -- the easy direction of effectivity (el-quot-eq): a zero numerator
 -- makes the class zero
 def ratZeroOfNumZero : (p : El Rat) (h : Prf (num p ≡ intZero ∈ El Int)) →
-  class p ≡ qZero ∈ El Q using (intMulOneR, intMulZeroL) ≔
+  class p ≡ qZero ∈ El Q using (intMulOneR, intMulZeroL, integer.Int.eq, integer.intOne.eq, integer.intZero.eq, integerMul.intMul.eq, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.nzOne.eq, rational.nzPos.eq, rational.nzToInt.eq, rational.ratOfInt.eq, rational.ratZero.eq, rationalQ.RatR.eq, rationalQ.dInt.eq, rationalQ.qZero.eq, rationalQ.qcls.eq) ≔
   λp. λh.
     clsEqOfRel p ratZero
       (trans Int
@@ -143,7 +143,7 @@ def numNonZero : (p : El Rat) (h : Prf (¬ (class p ≡ qZero ∈ El Q))) →
 -- ===== every non-zero rational is qOfNzq of something =====
 
 def qNonZeroIsNzq : (u : El Q) (h : Prf (¬ (u ≡ qZero ∈ El Q))) →
-  Prf ∥(x : El NZQ) ⨯ Prf (qOfNzq x ≡ u ∈ El Q)∥ ≔
+  Prf ∥(x : El NZQ) ⨯ Prf (qOfNzq x ≡ u ∈ El Q)∥ using (rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.nzToInt.eq, rationalQ.nzqToRat.eq, rationalQ.qOfNzq.eq, rationalQ.qcls.eq) ≔
   λu.
     quot-elim (w. Prf (¬ (w ≡ qZero ∈ El Q)) →
                  Prf ∥(x : El NZQ) ⨯ Prf (qOfNzq x ≡ w ∈ El Q)∥)

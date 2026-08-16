@@ -33,12 +33,12 @@ def idToEqBeta : (a : 𝕌) (x : El a) →
                  idToEq a x x (refl a x) ≡ ⋆ ∈ Prf (x ≡ x ∈ (El a)) ≔
   λa. λx. ⋆
 def eqToIdBeta : (a : 𝕌) (x : El a) →
-                 eqToId a x x ⋆ ≡ refl a x ∈ El (Id a x x) ≔
+                 eqToId a x x ⋆ ≡ refl a x ∈ El (Id a x x) using (id.eqToId.eq, id.refl.eq) ≔
   λa. λx. ⋆
 
 -- equality as DATA in a small type — what the Ω-valued ≡ cannot do
 -- (no 𝕌-code) and Id restores: a subset code by an equation
 def OnlyZ : 𝕌 ≔ (n : ℕ) ⨯ Id ℕ n Z
-def onlyZ : El OnlyZ ≔ Z , refl ℕ Z
+def onlyZ : El OnlyZ using (id.Id.eq) ≔ Z , refl ℕ Z
 def onlyZIsZ : (v : El OnlyZ) → v .π₁ ≡ Z ∈ ℕ ≔
   λv. idToEq ℕ (v .π₁) Z (v .π₂)

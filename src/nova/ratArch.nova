@@ -42,10 +42,11 @@ import id (Id, eqToId, idToEq)
 def qFrac : ℕ → ℕ → El Q ≔ λa. λb. qcls (mkRat (intOfNat a) (nzPos b))
 
 -- 1/(b+1) is 1/(b+1) — the two spellings coincide on the nose
-def qFracOne : (b : ℕ) → qFrac (S Z) b ≡ qInvNat b ∈ El Q ≔ λb. ⋆
+def qFracOne : (b : ℕ) → qFrac (S Z) b ≡ qInvNat b ∈ El Q using (intOrder.intOfNat.eq, integer.intOne.eq, ratArch.qFrac.eq, rational.mkRat.eq, rational.nzPos.eq, rationalQ.qcls.eq, real.qInvNat.eq) ≔ λb. ⋆
 
 -- the sign of a natural is never negative
-def intSgnOfNatNonNeg : (k : ℕ) → El (NonNegS (intSgn (intOfNat k))) ≔
+def intSgnOfNatNonNeg : (k : ℕ) → El (NonNegS (intSgn (intOfNat k)))
+  using (intOrder.intOfNatZero, ratHalf.nzPosInt) ≔
   λk.
     ℕ-elim (j. El (NonNegS (intSgn (intOfNat j))))
       (inj₁ (eqToId Sign (intSgn (intOfNat Z)) sZero intSgnZero))
@@ -55,7 +56,7 @@ def intSgnOfNatNonNeg : (k : ℕ) → El (NonNegS (intSgn (intOfNat k))) ≔
 -- ...so a fraction with a natural numerator over a positive
 -- denominator is never negative: its sign is that of the natural a·(b+1)
 def sgnQFrac : (a : ℕ) (b : ℕ) →
-  sgnQ (qFrac a b) ≡ intSgn (intOfNat (a * S b)) ∈ El Sign ≔
+  sgnQ (qFrac a b) ≡ intSgn (intOfNat (a * S b)) ∈ El Sign using (eqInt.classNormPairEq.eq, eqInt.intCanon.eq, eqInt.intCanonClass.eq, equality.sym.eq, equality.trans.eq, intNonZero.nzOfInt.eq, intNonZero.nzOfIntAt.eq, intNonZero.nzOfPairD.eq, intOrder.intOfNat.eq, integer.Int.eq, integer.intZero.eq, integerMul.classPairEta.eq, integerMul.intMul.eq, integerNormalize.normPair.eq, ratArch.qFrac.eq, rational.denInt.eq, rational.mkRat.eq, rational.num.eq, rational.nzPos.eq, rational.nzToInt.eq, rationalInv.intCanonProdZero.eq, rationalInv.normProdZero.eq, rationalOrder.intSgn.eq, rationalOrder.nzSgn.eq, rationalOrder.ratSgn.eq, rationalOrder.sNeg.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qcls.eq) ≔
   λa. λb.
     cong Int (λv. Sign) (λv. intSgn v)
       (intMul (intOfNat a) (intOfNat (S b))) (intOfNat (a * S b))
@@ -79,7 +80,7 @@ def fracNumEq : (a : ℕ) (b : ℕ) →
 
 def qDiffFracInv : (a : ℕ) (b : ℕ) →
   qAdd (qFrac (S a) b) (qNeg (qInvNat b))
-    ≡ qFrac (S b * a) (b * b + b + b) ∈ El Q ≔
+    ≡ qFrac (S b * a) (b * b + b + b) ∈ El Q using (intOrder.intOfNat.eq, integer.intNeg.eq, integer.intOne.eq, integerAdd.intAdd.eq, ratArch.qFrac.eq, rational.den.eq, rational.intScale.eq, rational.intScaleN.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzPos.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, rationalQ.qcls.eq, real.qInvNat.eq) ≔
   λa. λb.
     cong Int (λv. Q) (λv. qcls (mkRat v (nzPos (b * b + b + b))))
       (intAdd (intScale (nzPos b) (intOfNat (S a)))
@@ -101,7 +102,8 @@ def leQInvFrac : (a : ℕ) (b : ℕ) → El (LeQ (qInvNat b) (qFrac (S a) b)) �
 
 -- N/(−(b+1)) and (−N)/(b+1) are the same rational
 def qNegDen : (N : El Int) (b : ℕ) →
-  qcls (mkRat (intNeg N) (nzPos b)) ≡ qcls (mkRat N (nzNeg b)) ∈ El Q ≔
+  qcls (mkRat (intNeg N) (nzPos b)) ≡ qcls (mkRat N (nzNeg b)) ∈ El Q
+  using (integer.intNeg.eq, rational.mkRat.eq, rational.nzNeg.eq, rational.nzPos.eq, rationalQ.qcls.eq) ≔
   λN. λb.
     clsEqOfRel (mkRat (intNeg N) (nzPos b)) (mkRat N (nzNeg b))
       (intMul (intNeg N) (intNeg (nzToInt (nzPos b)))
@@ -120,7 +122,7 @@ def PosDenView : El Q → 𝕌 ≔
   λu. ((M : Int) ⨯ ((b : ℕ) ⨯ Id Q (qcls (mkRat M (nzPos b))) u))
 
 def qPosDenView : (N : El Int) (d : El NZ) →
-  El (PosDenView (qcls (mkRat N d))) ≔
+  El (PosDenView (qcls (mkRat N d))) using (id.Id.eq, integer.intNeg.eq, rational.mkRat.eq, rational.nzNeg.eq, rational.nzPos.eq, rationalQ.Q.eq, rationalQ.qcls.eq) ≔
   λN. λd.
     ⊎-elim (w. El (PosDenView (qcls (mkRat N w))))
       (b. (N , (b , eqToId Q (qcls (mkRat N (nzPos b)))
@@ -133,7 +135,8 @@ def qPosDenView : (N : El Int) (d : El NZ) →
 
 -- a negative numerator over a positive denominator is negative
 def sgnNegOverPos : (a : ℕ) (b : ℕ) →
-  sgnQ (qcls (mkRat (nzToInt (nzNeg a)) (nzPos b))) ≡ sNeg ∈ El Sign ≔
+  sgnQ (qcls (mkRat (nzToInt (nzNeg a)) (nzPos b))) ≡ sNeg ∈ El Sign
+  using (eqInt.intCanon.eq, eqInt.intCanonClass.eq, intNonZero.nzOfInt.eq, intNonZero.nzOfIntAt.eq, integerMul.intMul.eq, rational.denInt.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzNeg.eq, rational.nzPos.eq, rational.nzToInt.eq, rationalInv.intCanonProdZero.eq, rationalOrder.intSgn.eq, rationalOrder.nzSgn.eq, rationalOrder.ratSgn.eq, rationalOrder.sNeg.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qcls.eq) ≔
   λa. λb.
     trans Sign (intSgn (intMul (nzToInt (nzNeg a)) (nzToInt (nzPos b))))
           (intSgn (nzToInt (nzMul (nzNeg a) (nzPos b)))) sNeg
@@ -147,7 +150,7 @@ def sgnNegOverPos : (a : ℕ) (b : ℕ) →
 
 -- a zero numerator makes the fraction zero
 def sgnZeroOverPos : (b : ℕ) →
-  sgnQ (qcls (mkRat intZero (nzPos b))) ≡ sZero ∈ El Sign ≔
+  sgnQ (qcls (mkRat intZero (nzPos b))) ≡ sZero ∈ El Sign using (eqInt.intCanon.eq, eqInt.intCanonClass.eq, intNonZero.nzOfInt.eq, intNonZero.nzOfIntAt.eq, integer.intZero.eq, integerMul.intMul.eq, rational.denInt.eq, rational.mkRat.eq, rational.num.eq, rational.nzPos.eq, rational.nzToInt.eq, rationalInv.intCanonProdZero.eq, rationalOrder.intSgn.eq, rationalOrder.nzSgn.eq, rationalOrder.ratSgn.eq, rationalOrder.sNeg.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qcls.eq) ≔
   λb.
     trans Sign (intSgn (intMul intZero (nzToInt (nzPos b)))) (intSgn intZero) sZero
       (cong Int (λv. Sign) (λv. intSgn v)
@@ -163,7 +166,7 @@ def ArchWit : El Q → 𝕌 ≔ λu. ((k : ℕ) ⨯ LeQ (qInvNat k) u)
 -- gives the index, zero and negative contradict positivity
 def qArchPos : (M : El Int) (b : ℕ) →
   (sgnQ (qcls (mkRat M (nzPos b))) ≡ sPos ∈ El Sign) →
-  El (ArchWit (qcls (mkRat M (nzPos b)))) ≔
+  El (ArchWit (qcls (mkRat M (nzPos b)))) using (intOrder.intOfNat.eq, ratArch.qFrac.eq, rational.mkRat.eq, rational.nzNeg.eq, rational.nzPos.eq, rational.nzToInt.eq, rationalQ.qcls.eq) ≔
   λM. λb. λhp.
     ⊎-elim (w. El (ArchWit (qcls (mkRat M (nzPos b)))))
       (u.
@@ -219,7 +222,8 @@ def qArchAt : (N : El Int) (d : El NZ) →
 
 -- every positive rational dominates a unit fraction. The witness is
 -- squashed: a bare Σ would ask the class to determine the index
-def qArch : (u : El Q) → (sgnQ u ≡ sPos ∈ El Sign) → Prf ∥El (ArchWit u)∥ ≔
+def qArch : (u : El Q) → (sgnQ u ≡ sPos ∈ El Sign) → Prf ∥El (ArchWit u)∥
+  using (id.Id.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, rationalQ.qcls.eq, real.qInvNat.eq) ≔
   λu.
     quot-elim (w. (sgnQ w ≡ sPos ∈ El Sign) → Prf ∥El (ArchWit w)∥)
       (p. λhp.
@@ -302,7 +306,7 @@ def qInvNatNotZero : (k : ℕ) → (qInvNat k ≡ qZero ∈ El Q) → 𝟘 ≔
 -- those two unit fractions are equal only if the smaller is zero
 def archContra : (a : El Q) (b : El Q) →
   ((k : ℕ) → El (LeQ a (qAdd b (qInvNat k)))) →
-  El (Id Sign (sgnQ (qAdd b (qNeg a))) sNeg) → Prf ⊥ ≔
+  El (Id Sign (sgnQ (qAdd b (qNeg a))) sNeg) → Prf ⊥ using (rationalOrder.sNeg.eq, rationalOrder.sPos.eq, rationalOrder.sgnFlip.eq) ≔
   λa. λb. λhyp. λhneg.
     let hpos : sgnQ (qAdd a (qNeg b)) ≡ sPos ∈ El Sign ≔
       trans Sign (sgnQ (qAdd a (qNeg b))) (sgnFlip (sgnQ (qAdd b (qNeg a)))) sPos

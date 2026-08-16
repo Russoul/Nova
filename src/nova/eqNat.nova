@@ -12,14 +12,14 @@ def EqN : ℕ → ℕ → Ω ≔
         (n ih. λm. ℕ-elim (k. Ω) ⊥ (k ih2. ih k) m)
         n
 
-def eqNRefl : (n : ℕ) → Prf (EqN n n) ≔
+def eqNRefl : (n : ℕ) → Prf (EqN n n) using (eqNat.EqN.eq) ≔
   λn. ℕ-elim (k. Prf (EqN k k)) ⋆ (k ih. ih) n
 
 -- soundness: EqN implies the built-in equality — the Z/S-mismatch
 -- cases are absurd (h squashes to 𝟘, which proves anything, including
 -- an equation), the matching cases fall out of the inductive
 -- hypothesis by congruence on S
-def eqNSound : (n : ℕ) → (m : ℕ) → Prf (EqN n m) → n ≡ m ∈ ℕ using (prop.propext) ≔
+def eqNSound : (n : ℕ) → (m : ℕ) → Prf (EqN n m) → n ≡ m ∈ ℕ using (eqNat.EqN.eq, prop.propext) ≔
   λn. ℕ-elim (k. (m : ℕ) → Prf (EqN k m) → k ≡ m ∈ ℕ)
     (λm. ℕ-elim (j. Prf (EqN Z j) → Z ≡ j ∈ ℕ)
       (constP ∥𝟙∥ (EqN Z Z) ⋆)
@@ -45,7 +45,8 @@ def predEq : (n : ℕ) → (j : ℕ) → (S n ≡ S j ∈ ℕ) → n ≡ j ∈ �
 -- completeness: the built-in equality implies EqN, by double
 -- induction mirroring EqN's own recursion — the Z/S-mismatch cases
 -- are impossible (absurd via zNotS), the matching cases recurse
-def eqNComplete : (n : ℕ) → (m : ℕ) → (n ≡ m ∈ ℕ) → Prf (EqN n m) ≔
+def eqNComplete : (n : ℕ) → (m : ℕ) → (n ≡ m ∈ ℕ) → Prf (EqN n m)
+  using (eqNat.EqN.eq) ≔
   λn. ℕ-elim (k. (m : ℕ) → (k ≡ m ∈ ℕ) → Prf (EqN k m))
     (λm. ℕ-elim (j. (Z ≡ j ∈ ℕ) → Prf (EqN Z j))
       (λh. ⋆)

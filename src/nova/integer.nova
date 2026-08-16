@@ -24,4 +24,4 @@ def intOne : El Int ≔ class (S Z , Z)
 def intNeg : El Int → El Int ≔
   λz. quot-elim (w. El Int) (p. class (p .π₂ , p .π₁)) z
 
-def intNegZero : intNeg intZero ≡ intZero ∈ El Int ≔ ⋆
+def intNegZero : intNeg intZero ≡ intZero ∈ El Int using (integer.intNeg.eq, integer.intZero.eq) ≔ ⋆

@@ -1,3 +1,4 @@
 def vect : ℕ → 𝕌 → 𝕌 ≔ λx. λy. ℕ-elim (n. 𝕌) 𝟙 (n ih. y ⨯ ih) x
-def vectZ : (A : 𝕌) → vect Z A ≡ 𝟙 ∈ 𝕌 ≔ λA. ⋆
-def vectS : (n : ℕ) (A : 𝕌) → vect (S n) A ≡ (A ⨯ vect n A) ∈ 𝕌 ≔ λn. λA. ⋆
+def vectZ : (A : 𝕌) → vect Z A ≡ 𝟙 ∈ 𝕌 using (vectByInd.vect.eq) ≔ λA. ⋆
+def vectS : (n : ℕ) (A : 𝕌) → vect (S n) A ≡ (A ⨯ vect n A) ∈ 𝕌
+  using (vectByInd.vect.eq) ≔ λn. λA. ⋆

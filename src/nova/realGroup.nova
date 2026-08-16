@@ -103,10 +103,12 @@ def realNegAdd : (a : El Real) (b : El Real) →
 def realSub : El Real → El Real → El Real ≔
   λu. λv. realAdd u (realNeg v)
 
-def realSubSelf : (u : El Real) → realSub u u ≡ realZero ∈ El Real ≔
+def realSubSelf : (u : El Real) → realSub u u ≡ realZero ∈ El Real
+  using (realAdd.realAdd.eq, realGroup.realSub.eq, realNeg.realNeg.eq) ≔
   λu. realAddNegR u
 
-def realSubZero : (u : El Real) → realSub u realZero ≡ u ∈ El Real ≔
+def realSubZero : (u : El Real) → realSub u realZero ≡ u ∈ El Real
+  using (real.realZero.eq, realAdd.realAdd.eq, realGroup.realSub.eq, realNeg.realNeg.eq) ≔
   λu.
     trans Real (realSub u realZero) (realAdd u realZero) u
       (cong Real (λw. Real) (λw. realAdd u w) (realNeg realZero) realZero

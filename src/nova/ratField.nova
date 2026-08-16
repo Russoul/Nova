@@ -39,7 +39,7 @@ def ratMulMonoid : El (IsMonoid Q) ≔
 -- relation (which δβ-computes to class (S Z , Z) ≡ class (Z , Z)),
 -- intEffective turns THAT into its ℕ relation (which computes to
 -- S Z ≡ Z), and zNotS transports () across it into 𝟘.
-def qOneNotZeroD : El (Id Q qOne qZero) → 𝟘 ≔
+def qOneNotZeroD : El (Id Q qOne qZero) → 𝟘 using (integer.Int.eq, integer.IntR.eq, integer.intOne.eq, integer.intZero.eq, integerMul.intMul.eq, nat.plusZeroId, nat.zeroPlusId, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.nzOne.eq, rational.nzPos.eq, rational.nzToInt.eq, rational.ratOfInt.eq, rational.ratOne.eq, rational.ratZero.eq, rationalQ.RatR.eq, rationalQ.dInt.eq, rationalQ.qOne.eq, rationalQ.qZero.eq, rationalQ.qcls.eq) ≔
   λp.
     let h ≔ idToEq Q qOne qZero p in
     let r ≔ qEffective ratOne ratZero h in
@@ -51,7 +51,7 @@ def qOneNotZeroD : El (Id Q qOne qZero) → 𝟘 ≔
 -- Its nonzero hypothesis arrives as an Id-refutation k; the Ω-side
 -- negation qMulInvR needs is one bridge away — an Ω-equality would
 -- give an Id (eqToId), k would give 𝟘, and ⋆ witnesses ⊥ from it.
-def ratField : El (IsField Q) ≔
+def ratField : El (IsField Q) using (id.Id.eq, ratField.ratAddGroup.eq, ratField.ratMulMonoid.eq, rationalAlgInv.qInv.eq, rationalQ.Q.eq, rationalQ.qAdd.eq, rationalQ.qMul.eq, rationalQ.qOne.eq, rationalQ.qZero.eq) ≔
   (ratAddGroup , ratMulMonoid ,
    (λx. λy. eqToId Q (qAdd x y) (qAdd y x) (qAddComm x y)) ,
    (λx. λy. eqToId Q (qMul x y) (qMul y x) (qMulComm x y)) ,

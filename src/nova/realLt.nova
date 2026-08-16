@@ -69,7 +69,8 @@ def realAddSwapR : (u : El Real) (q : El Real) (w : El Real) →
      realAdd (realAdd u w) q)
 
 -- 0 ≤ 1/(k+1), lifted
-def leRZeroInv : (k : ℕ) → Prf (LeR realZero (realOfQ (qInvNat k))) ≔
+def leRZeroInv : (k : ℕ) → Prf (LeR realZero (realOfQ (qInvNat k)))
+  using (rationalQ.qZero.eq, real.qInvNat.eq, real.realOfQ.eq, real.realZero.eq, realOrder.LeR.eq) ≔
   λk. leROfQ qZero (qInvNat k) (leQZeroInvNat k)
 
 -- u ≤ u + 1/(k+1)
@@ -119,7 +120,7 @@ def ltRLeTrans : (u : El Real) (v : El Real) (t : El Real) →
                (w .π₂) h2))
 
 -- irreflexivity: strip u from both sides, then read the result off in ℚ
-def ltRIrrefl : (u : El Real) → Prf (LtR u u) → Prf ⊥ ≔
+def ltRIrrefl : (u : El Real) → Prf (LtR u u) → Prf ⊥ using (rationalQ.qZero.eq, real.realOfQ.eq, real.realZero.eq) ≔
   λu. λh.
     squash-elim h
       (w.
@@ -167,7 +168,7 @@ def ltROfQ : (p : El Q) (q : El Q) →
                       (leQPlusMono (qInvNat (w .π₁)) (qAdd q (qNeg p)) p
                          (w .π₂)))))))
 
-def ltRZeroOne : Prf (LtR realZero realOne) ≔
+def ltRZeroOne : Prf (LtR realZero realOne) using (rationalQ.qOne.eq, rationalQ.qZero.eq, real.realOfQ.eq, real.realOne.eq, real.realZero.eq, realLt.LtR.eq) ≔
   ltROfQ qZero qOne (ltQOfSgn qZero qOne ⋆)
 
 -- ===== compatibility with addition =====

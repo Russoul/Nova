@@ -96,7 +96,7 @@ def bndWeaken : (a : El Q) (b : El Q) (u : El Q) →
 
 -- ===== zero =====
 
-def qNegZeroQ : qNeg qZero ≡ qZero ∈ El Q ≔ ⋆
+def qNegZeroQ : qNeg qZero ≡ qZero ∈ El Q using (integer.intNeg.eq, integer.intZero.eq, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.ratNeg.eq, rational.ratOfInt.eq, rational.ratZero.eq, rationalQ.qNeg.eq, rationalQ.qZero.eq, rationalQ.qcls.eq) ≔ ⋆
 
 -- 0 is bounded by every nonnegative b
 def bndZero : (b : El Q) → El (LeQ qZero b) → El (Bnd b qZero) ≔

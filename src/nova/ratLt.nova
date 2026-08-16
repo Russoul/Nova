@@ -44,7 +44,8 @@ def ltQIrrefl : (x : El Q) → El (LtQ x x) → 𝟘 ≔
                sgnQZero))
          (sgnOfLtQ x x h))
 
-def ltQAsym : (x : El Q) (y : El Q) → El (LtQ x y) → El (LtQ y x) → 𝟘 ≔
+def ltQAsym : (x : El Q) (y : El Q) → El (LtQ x y) → El (LtQ y x) → 𝟘
+  using (rationalOrder.sNeg.eq, rationalOrder.sPos.eq, rationalOrder.sgnFlip.eq) ≔
   λx. λy. λh1. λh2.
     sNegNotPos
       (trans Sign sNeg (sgnQ (qAdd x (qNeg y))) sPos
@@ -123,7 +124,7 @@ def ltQLeTrans : (x : El Q) (y : El Q) (z : El Q) →
 -- ===== trichotomy =====
 
 def ltQTrichotomy : (x : El Q) (y : El Q) →
-  El (LtQ x y) ⊎ (El (Id Q x y) ⊎ El (LtQ y x)) ≔
+  El (LtQ x y) ⊎ (El (Id Q x y) ⊎ El (LtQ y x)) using (id.Id.eq, ratLt.LtQ.eq, rationalOrder.Sign.eq, rationalOrder.sNeg.eq, rationalOrder.sPos.eq, rationalOrder.sgnFlip.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq) ≔
   λx. λy.
     ⊎-elim (w. El (LtQ x y) ⊎ (El (Id Q x y) ⊎ El (LtQ y x)))
       (nn.

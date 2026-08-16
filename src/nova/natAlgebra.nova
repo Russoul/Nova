@@ -29,7 +29,7 @@ def natFold : (A : 𝕌) → El (IsNatAlgebra A) → ℕ → El A ≔
 -- EXISTENCE: the fold is a homomorphism into any algebra — both laws
 -- are δβ-computations (ℕ-elim at Z and at S), so each ⋆ is free.
 def natAlgInitial : (A : 𝕌) (a : El (IsNatAlgebra A)) →
-                    El (NatAlgHom ℕ A natAlg a) ≔
+                    El (NatAlgHom ℕ A natAlg a) using (id.Id.eq, natAlgebra.natAlg.eq, natAlgebra.natFold.eq) ≔
   λA. λa.
     (natFold A a ,
      eqToId A (natFold A a Z) (a .π₁) ⋆ ,
@@ -41,7 +41,7 @@ def natAlgInitial : (A : 𝕌) (a : El (IsNatAlgebra A)) →
 -- a's endomap of the induction hypothesis' common value.
 def natAlgHomUnique : (A : 𝕌) (a : El (IsNatAlgebra A))
   (f : El (NatAlgHom ℕ A natAlg a)) (g : El (NatAlgHom ℕ A natAlg a))
-  (n : ℕ) → f .π₁ n ≡ g .π₁ n ∈ El A ≔
+  (n : ℕ) → f .π₁ n ≡ g .π₁ n ∈ El A using (id.Id.eq, natAlgebra.natAlg.eq) ≔
   λA. λa. λf. λg. λn.
     ℕ-elim (k. f .π₁ k ≡ g .π₁ k ∈ El A)
       (let hf ≔ idToEq A (f .π₁ Z) (a .π₁) (f .π₂ .π₁) in

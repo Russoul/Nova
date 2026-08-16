@@ -38,7 +38,7 @@ def intRSymm : (p : ℕ ⨯ ℕ) (q : ℕ ⨯ ℕ) → Prf (IntR p q) → Prf (I
   λp. λq. λh. ⋆
 
 def intRTrans : (p : ℕ ⨯ ℕ) (q : ℕ ⨯ ℕ) (s : ℕ ⨯ ℕ) →
-  Prf (IntR p q) → Prf (IntR q s) → Prf (IntR p s) ≔
+  Prf (IntR p q) → Prf (IntR q s) → Prf (IntR p s) using (integer.IntR.eq) ≔
   λp. λq. λs. λh1. λh2.
     cancelTrans (p .π₁) (p .π₂) (q .π₁) (q .π₂) (s .π₁) (s .π₂) h1 h2
 

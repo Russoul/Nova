@@ -17,13 +17,13 @@ def bapp : (a : 𝕌) → El (Bag a) → El (Bag a) → El (Bag a) using (bswp) 
   λa. λm. λn. BagElim a (λw. Bag a) n (λx. λr. λih. bins a x ih) (λx. λy. λr. λih. ⋆) m
 
 -- 3. a map BETWEEN QIITs: the order-forgetting quotient map L → Bag ℕ
-def toBag : El L → El (Bag ℕ) ≔
+def toBag : El L → El (Bag ℕ) using (qiitCross.Bag.eq, qiitCross.L.eq) ≔
   λt. LElim (λw. Bag ℕ) (bnil ℕ) (λx. λr. λih. bins ℕ x ih) t
 
 -- toBag coequalizes adjacent transpositions (the universal property's
 -- defining triangle, at the generators): by β + the swap lemma
 def toBagSwap : (x : El ℕ) (y : El ℕ) (t : El L) →
-                toBag (lcons x (lcons y t)) ≡ toBag (lcons y (lcons x t)) ∈ El (Bag ℕ) using (bswp) ≔
+                toBag (lcons x (lcons y t)) ≡ toBag (lcons y (lcons x t)) ∈ El (Bag ℕ) using (bswp, qiitCross.L.eq) ≔
   λx. λy. λt. ⋆
 
 -- 4. a QIIT whose signature EMBEDS a previous QIIT's reflection: trees
@@ -39,6 +39,6 @@ def flatten : El P → El (Bag ℕ) ≔
   λp. PElim (λw. Bag ℕ) (λb. b) (λl. λihl. λr. λihr. bapp ℕ ihl ihr) p
 
 -- computation across all three QIITs at once
-def two : El (Bag ℕ) ≔ bins ℕ Z (bins ℕ (S Z) (bnil ℕ))
+def two : El (Bag ℕ) using (qiitCross.Bag.eq) ≔ bins ℕ Z (bins ℕ (S Z) (bnil ℕ))
 def flatTest : flatten (node (leaf (toBag (lcons Z lnil))) (leaf (bins ℕ (S Z) (bnil ℕ))))
-               ≡ two ∈ (El (Bag ℕ)) ≔ ⋆
+               ≡ two ∈ (El (Bag ℕ)) using (qiitCross.Bag.eq, qiitCross.BagElim.eq, qiitCross.L.eq, qiitCross.LElim.eq, qiitCross.P.eq, qiitCross.PElim.eq, qiitCross.bapp.eq, qiitCross.bins.eq, qiitCross.bnil.eq, qiitCross.flatten.eq, qiitCross.lcons.eq, qiitCross.leaf.eq, qiitCross.lnil.eq, qiitCross.node.eq, qiitCross.toBag.eq, qiitCross.two.eq) ≔ ⋆

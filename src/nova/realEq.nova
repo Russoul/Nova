@@ -30,7 +30,7 @@ def reqStep : (x : El RSeq) (y : El RSeq) (z : El RSeq) →
   ((j : ℕ) → El (Bnd (rBound j j) (qAdd (seqOf y j) (qNeg (seqOf z j))))) →
   (n : ℕ) (k : ℕ) →
   El (Bnd (qAdd (rBound n n) (qInvNat k))
-          (qAdd (seqOf x n) (qNeg (seqOf z n)))) ≔
+          (qAdd (seqOf x n) (qNeg (seqOf z n)))) using (id.Id.eq, ratHalf.dbl.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.qInvNat.eq, real.rBound.eq, realEq.qtr.eq) ≔
   λx. λy. λz. λu. λv. λn. λk.
     bndWeaken
       (qAdd (rBound n n)
@@ -81,7 +81,7 @@ def reqStep : (x : El RSeq) (y : El RSeq) (z : El RSeq) →
                (regBnd (seqOf z) (regOf z) (dbl (qtr k)) n))))
 
 def reqTrans : (x : El RSeq) (y : El RSeq) (z : El RSeq) →
-  Prf (REq x y) → Prf (REq y z) → Prf (REq x z) ≔
+  Prf (REq x y) → Prf (REq y z) → Prf (REq x z) using (id.Id.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.rBound.eq, realNeg.seqOf.eq) ≔
   λx. λy. λz. λhxy. λhyz.
     squash-elim hxy
       (u. squash-elim hyz

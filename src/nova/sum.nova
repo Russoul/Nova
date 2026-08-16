@@ -13,14 +13,17 @@ def swap : (a : 𝕌) (b : 𝕌) → El (a ⊎ b) → El (b ⊎ a) ≔
   λa. λb. λt. ⊎-elim (w. El (b ⊎ a)) (x. inj₂ x) (y. inj₁ y) t
 
 -- β on each injection, by computation
-def swapBeta1 : (a : 𝕌) (b : 𝕌) (x : El a) → swap a b (inj₁ x) ≡ inj₂ x ∈ El (b ⊎ a) ≔
+def swapBeta1 : (a : 𝕌) (b : 𝕌) (x : El a) → swap a b (inj₁ x) ≡ inj₂ x ∈ El (b ⊎ a)
+  using (sum.swap.eq) ≔
   λa. λb. λx. ⋆
-def swapBeta2 : (a : 𝕌) (b : 𝕌) (y : El b) → swap a b (inj₂ y) ≡ inj₁ y ∈ El (b ⊎ a) ≔
+def swapBeta2 : (a : 𝕌) (b : 𝕌) (y : El b) → swap a b (inj₂ y) ≡ inj₁ y ∈ El (b ⊎ a)
+  using (sum.swap.eq) ≔
   λa. λb. λy. ⋆
 
 -- swap is an involution: case analysis with an equality motive, both
 -- cases closing by β
-def swapInvol : (a : 𝕌) (b : 𝕌) (t : El (a ⊎ b)) → swap b a (swap a b t) ≡ t ∈ (El a ⊎ El b) ≔
+def swapInvol : (a : 𝕌) (b : 𝕌) (t : El (a ⊎ b)) → swap b a (swap a b t) ≡ t ∈ (El a ⊎ El b)
+  using (sum.swap.eq) ≔
   λa. λb. λt. ⊎-elim (w. swap b a (swap a b w) ≡ w ∈ (El a ⊎ El b)) (x. ⋆) (y. ⋆) t
 
 -- the uniqueness (η) law, propositionally: any map out of a ⊎ b IS
@@ -39,7 +42,8 @@ def toCode : (a : 𝕌) (b : 𝕌) → El a ⊎ El b → El (a ⊎ b) ≔
   λa. λb. λt. ⊎-elim (w. El (a ⊎ b)) (x. inj₁ x) (y. inj₂ y) t
 def fromCode : (a : 𝕌) (b : 𝕌) → El (a ⊎ b) → El a ⊎ El b ≔
   λa. λb. λt. ⊎-elim (w. El a ⊎ El b) (x. inj₁ x) (y. inj₂ y) t
-def toFromId : (a : 𝕌) (b : 𝕌) (t : El (a ⊎ b)) → toCode a b (fromCode a b t) ≡ t ∈ (El a ⊎ El b) ≔
+def toFromId : (a : 𝕌) (b : 𝕌) (t : El (a ⊎ b)) → toCode a b (fromCode a b t) ≡ t ∈ (El a ⊎ El b)
+  using (sum.fromCode.eq, sum.toCode.eq) ≔
   λa. λb. λt. ⊎-elim (w. toCode a b (fromCode a b w) ≡ w ∈ El (a ⊎ b)) (x. ⋆) (y. ⋆) t
 
 -- inj₁ is injective — DERIVABLE, no rule needed: a ⊎-elim retraction
@@ -48,7 +52,7 @@ def toFromId : (a : 𝕌) (b : 𝕌) (t : El (a ⊎ b)) → toCode a b (fromCode
 def outl : (a : 𝕌) (b : 𝕌) → El a → El (a ⊎ b) → El a ≔
   λa. λb. λd. λt. ⊎-elim (w. El a) (x. x) (y. d) t
 def inj1Injective : (a : 𝕌) (b : 𝕌) (x : El a) (x' : El a) →
-    (inj₁ x ≡ inj₁ x' ∈ El (a ⊎ b)) → x ≡ x' ∈ (El a) ≔
+    (inj₁ x ≡ inj₁ x' ∈ El (a ⊎ b)) → x ≡ x' ∈ (El a) using (sum.outl.eq) ≔
   λa. λb. λx. λx'. λh. cong (a ⊎ b) (λw. a) (outl a b x) (inj₁ x) (inj₁ x') h
 
 -- inj₁ and inj₂ are disjoint — also derivable: transport the
@@ -63,5 +67,5 @@ def inj1NotInj2 : (a : 𝕌) (b : 𝕌) (x : El a) (y : El b) →
 def outr : (a : 𝕌) (b : 𝕌) → El b → El (a ⊎ b) → El b ≔
   λa. λb. λd. λt. ⊎-elim (w. El b) (x. d) (y. y) t
 def inj2Injective : (a : 𝕌) (b : 𝕌) (y : El b) (y' : El b) →
-    (inj₂ y ≡ inj₂ y' ∈ El (a ⊎ b)) → y ≡ y' ∈ (El b) ≔
+    (inj₂ y ≡ inj₂ y' ∈ El (a ⊎ b)) → y ≡ y' ∈ (El b) using (sum.outr.eq) ≔
   λa. λb. λy. λy'. λh. cong (a ⊎ b) (λw. b) (outr a b y) (inj₂ y) (inj₂ y') h

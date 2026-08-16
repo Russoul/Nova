@@ -21,7 +21,8 @@ def qlift : (a : 𝕌) (r : El a → El a → Ω) (b : 𝕌)
 def qliftBeta : (a : 𝕌) (r : El a → El a → Ω) (b : 𝕌)
                 (f : El a → El b)
                 (resp : (x : El a) (y : El a) → Prf (r x y) → f x ≡ f y ∈ El b)
-                (x : El a) → qlift a (λy. λz. r y z) b f resp (cls a r x) ≡ f x ∈ El b ≔
+                (x : El a) → qlift a (λy. λz. r y z) b f resp (cls a r x) ≡ f x ∈ El b
+  using (qiitQuot.Q.eq, qiitQuot.QElim.eq, qiitQuot.cls.eq, qiitQuot.qlift.eq) ≔
   λa. λr. λb. λf. λresp. λx. ⋆
 
 -- instance: ℕ quotiented by squashed equality; toNat is one qlift
@@ -30,4 +31,4 @@ def eqN : El ℕ → El ℕ → Ω ≔ λx. λy. (x ≡ y ∈ ℕ)
 def toNat : El (Q ℕ eqN) → ℕ ≔
   λq. qlift ℕ eqN ℕ (λx. x) (λx. λy. λh. ⋆) q
 
-def toNatCls : toNat (cls ℕ eqN (S Z)) ≡ S Z ∈ ℕ ≔ ⋆
+def toNatCls : toNat (cls ℕ eqN (S Z)) ≡ S Z ∈ ℕ using (qiitQuot.Q.eq, qiitQuot.QElim.eq, qiitQuot.cls.eq, qiitQuot.eqN.eq, qiitQuot.qlift.eq, qiitQuot.toNat.eq) ≔ ⋆

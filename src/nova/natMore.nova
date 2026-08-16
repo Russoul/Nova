@@ -46,7 +46,7 @@ def multZeroInv : (j : ℕ) (k : ℕ) → (j * S k ≡ Z ∈ ℕ) → j ≡ Z �
 -- cancellation by S k, under the assumption that the smaller side is
 -- known: the surplus times S k is zero, hence zero
 def multCancelLe : (n : ℕ) (m : ℕ) (k : ℕ) →
-  El (LeN n m) → (n * S k ≡ m * S k ∈ ℕ) → n ≡ m ∈ ℕ ≔
+  El (LeN n m) → (n * S k ≡ m * S k ∈ ℕ) → n ≡ m ∈ ℕ using (nat.plusZeroId) ≔
   λn. λm. λk. λle. λh.
     let e : n + le .π₁ ≡ m ∈ ℕ ≔ idToEq ℕ (n + le .π₁) m (le .π₂) in
     let split : n * S k ≡ n * S k + le .π₁ * S k ∈ ℕ ≔
@@ -86,7 +86,7 @@ def ∸ : ℕ → ℕ → ℕ ≔ λa. λb. ℕ-elim (k. ℕ) a (k ih. pred ih) 
 def monusZeroR : (a : ℕ) → a ∸ Z ≡ a ∈ ℕ ≔ λa. ⋆
 def monusSucR : (a : ℕ) (b : ℕ) → a ∸ S b ≡ pred (a ∸ b) ∈ ℕ ≔ λa. λb. ⋆
 
-def zeroMonus : (b : ℕ) → Z ∸ b ≡ Z ∈ ℕ ≔
+def zeroMonus : (b : ℕ) → Z ∸ b ≡ Z ∈ ℕ using (natMore.monusZeroR) ≔
   λb. ℕ-elim (k. Z ∸ k ≡ Z ∈ ℕ) ⋆ (k ih. ⋆) b
 
 def sucMonusSuc : (a : ℕ) (b : ℕ) → S a ∸ S b ≡ a ∸ b ∈ ℕ ≔
@@ -101,7 +101,7 @@ def monusPlus : (a : ℕ) (b : ℕ) (c : ℕ) →
   a ∸ (b + c) ≡ (a ∸ b) ∸ c ∈ ℕ ≔
   λa. λb. λc. ℕ-elim (k. a ∸ (b + k) ≡ (a ∸ b) ∸ k ∈ ℕ) ⋆ (k ih. ⋆) c
 
-def monusSelf : (a : ℕ) → a ∸ a ≡ Z ∈ ℕ using (sucMonusSuc) ≔
+def monusSelf : (a : ℕ) → a ∸ a ≡ Z ∈ ℕ using (natMore.zeroMonus, sucMonusSuc) ≔
   λa. ℕ-elim (k. k ∸ k ≡ Z ∈ ℕ) ⋆ (k ih. ⋆) a
 
 -- ...so a ≤ b makes a − b vanish
@@ -140,11 +140,11 @@ def natMax : ℕ → ℕ → ℕ ≔ λa. λb. a + (b ∸ a)
 def natMin : ℕ → ℕ → ℕ ≔ λa. λb. a ∸ (a ∸ b)
 
 -- a sits under the max by construction: the witness is the difference
-def leMaxL : (a : ℕ) (b : ℕ) → El (LeN a (natMax a b)) ≔
+def leMaxL : (a : ℕ) (b : ℕ) → El (LeN a (natMax a b)) using (natMore.natMax.eq) ≔
   λa. λb. (b ∸ a , eqToId ℕ (a + (b ∸ a)) (natMax a b) ⋆)
 
 -- and so does b, once the two cases are settled
-def leMaxR : (a : ℕ) (b : ℕ) → El (LeN b (natMax a b)) ≔
+def leMaxR : (a : ℕ) (b : ℕ) → El (LeN b (natMax a b)) using (natMore.natMax.eq) ≔
   λa. λb.
     ⊎-elim (w. El (LeN b (natMax a b)))
       (le.
@@ -167,13 +167,13 @@ def leMaxR : (a : ℕ) (b : ℕ) → El (LeN b (natMax a b)) ≔
               ⋆)))
       (leTotal a b)
 
-def natMaxSelf : (a : ℕ) → natMax a a ≡ a ∈ ℕ ≔
+def natMaxSelf : (a : ℕ) → natMax a a ≡ a ∈ ℕ using (natMore.natMax.eq) ≔
   λa.
     trans ℕ (natMax a a) (a + Z) a
       (cong ℕ (λu. ℕ) (λw. a + w) (a ∸ a) Z (monusSelf a))
       (plusZeroId a)
 
-def natMinSelf : (a : ℕ) → natMin a a ≡ a ∈ ℕ ≔
+def natMinSelf : (a : ℕ) → natMin a a ≡ a ∈ ℕ using (natMore.natMin.eq) ≔
   λa.
     trans ℕ (natMin a a) (a ∸ Z) a
       (cong ℕ (λu. ℕ) (λw. a ∸ w) (a ∸ a) Z (monusSelf a))
@@ -187,7 +187,7 @@ def ^ : ℕ → ℕ → ℕ ≔ λa. λn. ℕ-elim (k. ℕ) (S Z) (k ih. a * ih)
 def expZero : (a : ℕ) → a ^ Z ≡ S Z ∈ ℕ ≔ λa. ⋆
 def expSuc : (a : ℕ) (n : ℕ) → a ^ S n ≡ a * a ^ n ∈ ℕ ≔ λa. λn. ⋆
 
-def oneExp : (n : ℕ) → S Z ^ n ≡ S Z ∈ ℕ using (multComm) ≔
+def oneExp : (n : ℕ) → S Z ^ n ≡ S Z ∈ ℕ using (multComm, natMore.expZero) ≔
   λn. ℕ-elim (k. S Z ^ k ≡ S Z ∈ ℕ) ⋆ (k ih. ⋆) n
 
 def expPlus : (a : ℕ) (m : ℕ) (n : ℕ) →

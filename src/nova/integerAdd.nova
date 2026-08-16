@@ -39,7 +39,8 @@ def intAdd : El Int → El Int → El Int using (intAddWD, intAddWDOuter, plusAs
             zy)
       zx
 
-def intAddTest : intAdd (class (Z , Z)) (class (S Z , S Z)) ≡ class (S Z , S Z) ∈ El Int ≔ ⋆
+def intAddTest : intAdd (class (Z , Z)) (class (S Z , S Z)) ≡ class (S Z , S Z) ∈ El Int
+  using (integerAdd.intAdd.eq) ≔ ⋆
 
 -- ===== the algebra =====
 
