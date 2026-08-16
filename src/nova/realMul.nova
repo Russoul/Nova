@@ -1,0 +1,576 @@
+import nat (+, *, plusZeroId, zeroPlusId, sucPlus, plusComm, sucMult, multComm)
+import integer (Int, intOne)
+import integerMul (intMul, intMulOneL, intMulOneR)
+import intOrder (intOfNat, intOfNatMul)
+import rational (NZ, nzOne, nzPos, nzToInt, nzMul, nzMulOneL, Rat, mkRat)
+import rationalQ (Q, qcls, qAdd, qMul, qNeg, qZero, qOne, qAddComm, qAddAssoc,
+                  qMulComm, qMulCls, qDistribL, qDistribR, clsEqOfRel, RatR,
+                  ratMul)
+import rationalOrder (LeQ, leQRefl, qPairSwap, qSubSplit)
+import ratBound (Bnd, bndAdd, bndEq, bndEqB, bndWeaken, bndVia)
+import ratAbs (bndMul, qNegMulR)
+import ratNat (qOfNat, qOfNatAdd, leQOfNat)
+import ratCeil (qNatBound)
+import ratArch (bndOfArch)
+import real (qInvNat, rBound, leQZeroBound, Regular, RSeq, REq, Real)
+import realNeg (seqOf, regOf, regBnd, bndReg, reqOf)
+import realBound (seqBound, bndSeqBound, seqBoundPos)
+import equality (trans, sym, cong, transport, transportP)
+
+-- MULTIPLICATION on ℝ. Like addition it samples deeper than the index
+-- asked for, but where addition's factor is the constant 2, the
+-- product's is a BOUND on the two factors:
+--
+--   (x ⊗ y)_m ≔ x_{φ m} · y_{φ m},   φ m + 1 = C·(m + 1),  C = A + B
+--
+-- with A, B the naturals realBound.nova computes for the two regular
+-- sequences. The estimate is the classical one,
+--
+--   |x_a y_a − x_b y_b| ≤ |x_a|·|y_a − y_b| + |y_b|·|x_a − x_b|
+--                       ≤ (A + B)·rBound a b
+--
+-- and C·rBound (φ m) (φ n) is rBound m n on the nose — the sampling
+-- depth is chosen to make that an equality, exactly as qInvHalf makes
+-- addition's an equality.
+
+-- ===== the sampling index =====
+
+-- φ with S (φ c m) = (c+1)·(m+1)
+def mulIdx : ℕ → ℕ → ℕ ≔ λc. λm. m + c * S m
+
+def sucMulIdx : (c : ℕ) (m : ℕ) → S (mulIdx c m) ≡ S c * S m ∈ ℕ ≔
+  λc. λm.
+    trans ℕ (S (m + c * S m)) (S m + c * S m) (S c * S m)
+      (sym ℕ (S m + c * S m) (S (m + c * S m)) (sucPlus m (c * S m)))
+      (sym ℕ (S c * S m) (S m + c * S m) (sucMult c (S m)))
+
+-- (c+1) · 1/((c+1)(m+1)) = 1/(m+1) : cross-multiplication is the
+-- successor identity above. Split into the two sides, because a
+-- single nested term at this depth is unreadable and easy to
+-- mis-parenthesise.
+def qMulIdxNum : (c : ℕ) (m : ℕ) →
+  intMul (intMul (intOfNat (S c)) intOne) (nzToInt (nzPos m))
+    ≡ intOfNat (S c * S m) ∈ El Int ≔
+  λc. λm.
+    trans Int (intMul (intMul (intOfNat (S c)) intOne) (nzToInt (nzPos m)))
+              (intMul (intOfNat (S c)) (intOfNat (S m)))
+              (intOfNat (S c * S m))
+      (cong Int (λv. Int) (λv. intMul v (nzToInt (nzPos m)))
+         (intMul (intOfNat (S c)) intOne) (intOfNat (S c))
+         (intMulOneR (intOfNat (S c))))
+      (intOfNatMul (S c) (S m))
+
+def qMulIdxDen : (c : ℕ) (m : ℕ) →
+  intMul intOne (nzToInt (nzMul nzOne (nzPos (mulIdx c m))))
+    ≡ intOfNat (S c * S m) ∈ El Int ≔
+  λc. λm.
+    trans Int (intMul intOne (nzToInt (nzMul nzOne (nzPos (mulIdx c m)))))
+              (intOfNat (S (mulIdx c m)))
+              (intOfNat (S c * S m))
+      (trans Int (intMul intOne (nzToInt (nzMul nzOne (nzPos (mulIdx c m)))))
+                 (nzToInt (nzMul nzOne (nzPos (mulIdx c m))))
+                 (intOfNat (S (mulIdx c m)))
+         (intMulOneL (nzToInt (nzMul nzOne (nzPos (mulIdx c m)))))
+         (cong NZ (λv. Int) (λv. nzToInt v)
+            (nzMul nzOne (nzPos (mulIdx c m))) (nzPos (mulIdx c m))
+            (nzMulOneL (nzPos (mulIdx c m)))))
+      (cong ℕ (λu. Int) (λw. intOfNat w)
+         (S (mulIdx c m)) (S c * S m) (sucMulIdx c m))
+
+def qMulIdxRel : (c : ℕ) (m : ℕ) →
+  Prf (RatR (ratMul (mkRat (intOfNat (S c)) nzOne)
+                    (mkRat intOne (nzPos (mulIdx c m))))
+            (mkRat intOne (nzPos m))) ≔
+  λc. λm.
+    trans Int (intMul (intMul (intOfNat (S c)) intOne) (nzToInt (nzPos m)))
+              (intOfNat (S c * S m))
+              (intMul intOne (nzToInt (nzMul nzOne (nzPos (mulIdx c m)))))
+      (qMulIdxNum c m)
+      (sym Int (intMul intOne (nzToInt (nzMul nzOne (nzPos (mulIdx c m)))))
+               (intOfNat (S c * S m))
+         (qMulIdxDen c m))
+
+def qMulInvIdx : (c : ℕ) (m : ℕ) →
+  qMul (qOfNat (S c)) (qInvNat (mulIdx c m)) ≡ qInvNat m ∈ El Q ≔
+  λc. λm.
+    trans Q (qMul (qOfNat (S c)) (qInvNat (mulIdx c m)))
+            (qcls (ratMul (mkRat (intOfNat (S c)) nzOne)
+                          (mkRat intOne (nzPos (mulIdx c m)))))
+            (qInvNat m)
+      (qMulCls (mkRat (intOfNat (S c)) nzOne)
+               (mkRat intOne (nzPos (mulIdx c m))))
+      (clsEqOfRel (ratMul (mkRat (intOfNat (S c)) nzOne)
+                          (mkRat intOne (nzPos (mulIdx c m))))
+                  (mkRat intOne (nzPos m))
+         (qMulIdxRel c m))
+
+-- the same, with the factor given as a natural and its successor
+-- shape as an explicit equation. Without this the elaborator has to
+-- CONVERT `qOfNat (S (mulPred p q))` to `qOfNat (seqBound p + seqBound q)`
+-- at every use, and those terms unfold through divN's fuel recursion:
+-- the item stops finishing. As an argument the equation is proved once,
+-- generically, where every symbol is a variable.
+def qMulInvIdxC : (C : ℕ) (c : ℕ) (m : ℕ) → (C ≡ S c ∈ ℕ) →
+  qMul (qOfNat C) (qInvNat (mulIdx c m)) ≡ qInvNat m ∈ El Q ≔
+  λC. λc. λm. λh.
+    transportP ℕ
+      (λw. qMul (qOfNat w) (qInvNat (mulIdx c m)) ≡ qInvNat m ∈ El Q)
+      (S c) C (sym ℕ C (S c) h)
+      (qMulInvIdx c m)
+
+
+
+-- ...so the factor turns the deep bound into the shallow one exactly
+def qMulRBoundIdx : (c : ℕ) (m : ℕ) (n : ℕ) →
+  qMul (qOfNat (S c)) (rBound (mulIdx c m) (mulIdx c n)) ≡ rBound m n ∈ El Q ≔
+  λc. λm. λn.
+    trans Q (qMul (qOfNat (S c)) (rBound (mulIdx c m) (mulIdx c n)))
+            (qAdd (qMul (qOfNat (S c)) (qInvNat (mulIdx c m)))
+                  (qMul (qOfNat (S c)) (qInvNat (mulIdx c n))))
+            (rBound m n)
+      (qDistribL (qOfNat (S c)) (qInvNat (mulIdx c m)) (qInvNat (mulIdx c n)))
+      (trans Q (qAdd (qMul (qOfNat (S c)) (qInvNat (mulIdx c m)))
+                     (qMul (qOfNat (S c)) (qInvNat (mulIdx c n))))
+               (qAdd (qInvNat m) (qMul (qOfNat (S c)) (qInvNat (mulIdx c n))))
+               (rBound m n)
+         (cong Q (λw. Q)
+            (λw. qAdd w (qMul (qOfNat (S c)) (qInvNat (mulIdx c n))))
+            (qMul (qOfNat (S c)) (qInvNat (mulIdx c m))) (qInvNat m)
+            (qMulInvIdx c m))
+         (cong Q (λw. Q) (λw. qAdd (qInvNat m) w)
+            (qMul (qOfNat (S c)) (qInvNat (mulIdx c n))) (qInvNat n)
+            (qMulInvIdx c n)))
+
+-- ===== the product-difference identity =====
+
+def qMulSubL : (x : El Q) (y : El Q) (y' : El Q) →
+  qMul x (qAdd y (qNeg y')) ≡ qAdd (qMul x y) (qNeg (qMul x y')) ∈ El Q ≔
+  λx. λy. λy'.
+    trans Q (qMul x (qAdd y (qNeg y')))
+            (qAdd (qMul x y) (qMul x (qNeg y')))
+            (qAdd (qMul x y) (qNeg (qMul x y')))
+      (qDistribL x y (qNeg y'))
+      (cong Q (λw. Q) (λw. qAdd (qMul x y) w)
+         (qMul x (qNeg y')) (qNeg (qMul x y')) (qNegMulR x y'))
+
+def qMulSubR : (y' : El Q) (x : El Q) (x' : El Q) →
+  qMul y' (qAdd x (qNeg x')) ≡ qAdd (qMul x y') (qNeg (qMul x' y')) ∈ El Q ≔
+  λy'. λx. λx'.
+    trans Q (qMul y' (qAdd x (qNeg x')))
+            (qAdd (qMul y' x) (qMul y' (qNeg x')))
+            (qAdd (qMul x y') (qNeg (qMul x' y')))
+      (qDistribL y' x (qNeg x'))
+      (trans Q (qAdd (qMul y' x) (qMul y' (qNeg x')))
+                  (qAdd (qMul x y') (qMul y' (qNeg x')))
+                  (qAdd (qMul x y') (qNeg (qMul x' y')))
+            (cong Q (λw. Q) (λw. qAdd w (qMul y' (qNeg x')))
+               (qMul y' x) (qMul x y') (qMulComm y' x))
+            (cong Q (λw. Q) (λw. qAdd (qMul x y') w)
+               (qMul y' (qNeg x')) (qNeg (qMul x' y'))
+               (trans Q (qMul y' (qNeg x')) (qNeg (qMul y' x'))
+                      (qNeg (qMul x' y'))
+                  (qNegMulR y' x')
+                  (cong Q (λw. Q) (λw. qNeg w) (qMul y' x') (qMul x' y')
+                     (qMulComm y' x')))))
+
+-- x·y − x′·y′ ≡ x·(y − y′) + y′·(x − x′)
+def qMulDiff : (x : El Q) (y : El Q) (x' : El Q) (y' : El Q) →
+  qAdd (qMul x (qAdd y (qNeg y'))) (qMul y' (qAdd x (qNeg x')))
+    ≡ qAdd (qMul x y) (qNeg (qMul x' y')) ∈ El Q ≔
+  λx. λy. λx'. λy'.
+    trans Q (qAdd (qMul x (qAdd y (qNeg y'))) (qMul y' (qAdd x (qNeg x'))))
+            (qAdd (qAdd (qMul x y) (qNeg (qMul x y')))
+                  (qAdd (qMul x y') (qNeg (qMul x' y'))))
+            (qAdd (qMul x y) (qNeg (qMul x' y')))
+      (trans Q (qAdd (qMul x (qAdd y (qNeg y'))) (qMul y' (qAdd x (qNeg x'))))
+               (qAdd (qAdd (qMul x y) (qNeg (qMul x y')))
+                     (qMul y' (qAdd x (qNeg x'))))
+               (qAdd (qAdd (qMul x y) (qNeg (qMul x y')))
+                     (qAdd (qMul x y') (qNeg (qMul x' y'))))
+         (cong Q (λw. Q) (λw. qAdd w (qMul y' (qAdd x (qNeg x'))))
+            (qMul x (qAdd y (qNeg y')))
+            (qAdd (qMul x y) (qNeg (qMul x y')))
+            (qMulSubL x y y'))
+         (cong Q (λw. Q)
+            (λw. qAdd (qAdd (qMul x y) (qNeg (qMul x y'))) w)
+            (qMul y' (qAdd x (qNeg x')))
+            (qAdd (qMul x y') (qNeg (qMul x' y')))
+            (qMulSubR y' x x')))
+      (qSubSplit (qMul x' y') (qMul x y') (qMul x y))
+
+-- ===== the factor and the sequence =====
+
+-- C − 1, written so that S (mulPred p q) IS seqBound p + seqBound q
+def mulPred : El RSeq → El RSeq → ℕ ≔
+  λp. λq. seqBound p + S (qNatBound (seqOf q Z))
+
+def mulSeq : El RSeq → El RSeq → El (ℕ → Q) ≔
+  λp. λq. λm.
+    qMul (seqOf p (mulIdx (mulPred p q) m))
+         (seqOf q (mulIdx (mulPred p q) m))
+
+def qMulSumBound : (A : ℕ) (B : ℕ) (r : El Q) →
+  qAdd (qMul (qOfNat A) r) (qMul (qOfNat B) r)
+    ≡ qMul (qOfNat (A + B)) r ∈ El Q ≔
+  λA. λB. λr.
+    sym Q (qMul (qOfNat (A + B)) r)
+          (qAdd (qMul (qOfNat A) r) (qMul (qOfNat B) r))
+      (trans Q (qMul (qOfNat (A + B)) r)
+               (qMul (qAdd (qOfNat A) (qOfNat B)) r)
+               (qAdd (qMul (qOfNat A) r) (qMul (qOfNat B) r))
+         (cong Q (λw. Q) (λw. qMul w r) (qOfNat (A + B))
+            (qAdd (qOfNat A) (qOfNat B))
+            (sym Q (qAdd (qOfNat A) (qOfNat B)) (qOfNat (A + B))
+               (qOfNatAdd A B)))
+         (qDistribR r (qOfNat A) (qOfNat B)))
+
+-- the estimate, at two arbitrary indices and with EVERYTHING abstract:
+-- |x_a y_a − x_b y_b| ≤ (A + B)·rBound a b. Abstract because `seqBound`
+-- unfolds through divN's fuel recursion, and an item that mentions it
+-- twenty times does not finish elaborating (D-3, for speed).
+def bndMulDiffGen : (f : El (ℕ → Q)) (g : El (ℕ → Q)) (A : ℕ) (B : ℕ)
+  (a : ℕ) (b : ℕ) →
+  El (Bnd (qOfNat A) (f a)) → El (Bnd (qOfNat B) (g b)) →
+  El (Bnd (rBound a b) (qAdd (g a) (qNeg (g b)))) →
+  El (Bnd (rBound a b) (qAdd (f a) (qNeg (f b)))) →
+  El (LeQ qZero (qOfNat A)) → El (LeQ qZero (qOfNat B)) →
+  El (Bnd (qMul (qOfNat (A + B)) (rBound a b))
+          (qAdd (qMul (f a) (g a)) (qNeg (qMul (f b) (g b))))) ≔
+  λf. λg. λA. λB. λa. λb. λhfa. λhgb. λhg. λhf. λhA. λhB.
+    bndEq (qMul (qOfNat (A + B)) (rBound a b))
+          (qAdd (qMul (f a) (qAdd (g a) (qNeg (g b))))
+                (qMul (g b) (qAdd (f a) (qNeg (f b)))))
+          (qAdd (qMul (f a) (g a)) (qNeg (qMul (f b) (g b))))
+      (qMulDiff (f a) (g a) (f b) (g b))
+      (bndEqB (qAdd (qMul (qOfNat A) (rBound a b))
+                    (qMul (qOfNat B) (rBound a b)))
+              (qMul (qOfNat (A + B)) (rBound a b))
+              (qAdd (qMul (f a) (qAdd (g a) (qNeg (g b))))
+                    (qMul (g b) (qAdd (f a) (qNeg (f b)))))
+         (qMulSumBound A B (rBound a b))
+         (bndAdd (qMul (qOfNat A) (rBound a b)) (qMul (qOfNat B) (rBound a b))
+                 (qMul (f a) (qAdd (g a) (qNeg (g b))))
+                 (qMul (g b) (qAdd (f a) (qNeg (f b))))
+            (bndMul (qOfNat A) (rBound a b) (f a) (qAdd (g a) (qNeg (g b)))
+               hA (leQZeroBound a b) hfa hg)
+            (bndMul (qOfNat B) (rBound a b) (g b) (qAdd (f a) (qNeg (f b)))
+               hB (leQZeroBound a b) hgb hf)))
+
+def bndMulDiff : (p : El RSeq) (q : El RSeq) (a : ℕ) (b : ℕ) →
+  El (Bnd (qMul (qOfNat (seqBound p + seqBound q)) (rBound a b))
+          (qAdd (qMul (seqOf p a) (seqOf q a))
+                (qNeg (qMul (seqOf p b) (seqOf q b))))) ≔
+  λp. λq. λa. λb.
+    bndMulDiffGen (seqOf p) (seqOf q) (seqBound p) (seqBound q) a b
+      (bndSeqBound p a) (bndSeqBound q b)
+      (regBnd (seqOf q) (regOf q) a b) (regBnd (seqOf p) (regOf p) a b)
+      (seqBoundPos p) (seqBoundPos q)
+
+-- ...and at the product's own sampling indices the factor cancels
+def mulReg : (p : El RSeq) (q : El RSeq) → El (Regular (mulSeq p q)) ≔
+  λp. λq.
+    bndReg (mulSeq p q)
+      (λm. λn.
+        bndEqB (qMul (qOfNat (seqBound p + seqBound q))
+                     (rBound (mulIdx (mulPred p q) m)
+                             (mulIdx (mulPred p q) n)))
+               (rBound m n)
+               (qAdd (qMul (seqOf p (mulIdx (mulPred p q) m))
+                           (seqOf q (mulIdx (mulPred p q) m)))
+                     (qNeg (qMul (seqOf p (mulIdx (mulPred p q) n))
+                                 (seqOf q (mulIdx (mulPred p q) n)))))
+          (qMulRBoundIdx (mulPred p q) m n)
+          (bndMulDiff p q (mulIdx (mulPred p q) m) (mulIdx (mulPred p q) n)))
+
+def rMul : El RSeq → El RSeq → El RSeq ≔
+  λp. λq. (mulSeq p q , mulReg p q)
+
+-- ===== well-definedness =====
+--
+-- Two representatives of the same real get DIFFERENT sampling depths
+-- (the bound is computed from the representative), so the two products
+-- cannot be compared index by index. The comparison runs through a
+-- third, deeper index j and the slack — everything proportional to
+-- 1/(j+1) — is driven below every 1/(k+1) by ratArch's leQOfArch,
+-- exactly as REq's transitivity was.
+
+-- (a + p) + (r + (s + a)) ≡ (a + a) + (p + (r + s))
+def qRearr5 : (a : El Q) (p : El Q) (r : El Q) (s : El Q) →
+  qAdd (qAdd a p) (qAdd r (qAdd s a))
+    ≡ qAdd (qAdd a a) (qAdd p (qAdd r s)) ∈ El Q ≔
+  λa. λp. λr. λs.
+    (qAdd (qAdd a p) (qAdd r (qAdd s a))
+       ≡⟨ cong Q (λw. Q) (λw. qAdd (qAdd a p) w) (qAdd r (qAdd s a))
+            (qAdd (qAdd r s) a)
+            (sym Q (qAdd (qAdd r s) a) (qAdd r (qAdd s a))
+               (qAddAssoc r s a)) ⟩
+     qAdd (qAdd a p) (qAdd (qAdd r s) a)
+       ≡⟨ cong Q (λw. Q) (λw. qAdd (qAdd a p) w) (qAdd (qAdd r s) a)
+            (qAdd a (qAdd r s)) (qAddComm (qAdd r s) a) ⟩
+     qAdd (qAdd a p) (qAdd a (qAdd r s))
+       ≡⟨ qPairSwap a p a (qAdd r s) ⟩
+     qAdd (qAdd a a) (qAdd p (qAdd r s)))
+
+-- C·t + ((A·t + A·t) + C″·t) ≡ (C + ((A + A) + C″))·t
+def qTailSum : (C : ℕ) (A : ℕ) (D : ℕ) (t : El Q) →
+  qAdd (qMul (qOfNat C) t)
+       (qAdd (qAdd (qMul (qOfNat A) t) (qMul (qOfNat A) t))
+             (qMul (qOfNat D) t))
+    ≡ qMul (qOfNat (C + ((A + A) + D))) t ∈ El Q ≔
+  λC. λA. λD. λt.
+    trans Q
+      (qAdd (qMul (qOfNat C) t)
+            (qAdd (qAdd (qMul (qOfNat A) t) (qMul (qOfNat A) t))
+                  (qMul (qOfNat D) t)))
+      (qAdd (qMul (qOfNat C) t)
+            (qMul (qOfNat ((A + A) + D)) t))
+      (qMul (qOfNat (C + ((A + A) + D))) t)
+      (cong Q (λw. Q) (λw. qAdd (qMul (qOfNat C) t) w)
+         (qAdd (qAdd (qMul (qOfNat A) t) (qMul (qOfNat A) t))
+               (qMul (qOfNat D) t))
+         (qMul (qOfNat ((A + A) + D)) t)
+         (trans Q
+            (qAdd (qAdd (qMul (qOfNat A) t) (qMul (qOfNat A) t))
+                  (qMul (qOfNat D) t))
+            (qAdd (qMul (qOfNat (A + A)) t) (qMul (qOfNat D) t))
+            (qMul (qOfNat ((A + A) + D)) t)
+            (cong Q (λw. Q) (λw. qAdd w (qMul (qOfNat D) t))
+               (qAdd (qMul (qOfNat A) t) (qMul (qOfNat A) t))
+               (qMul (qOfNat (A + A)) t)
+               (qMulSumBound A A t))
+            (qMulSumBound (A + A) D t)))
+      (qMulSumBound C ((A + A) + D) t)
+
+-- the bound arithmetic of the three-leg comparison, stated abstractly:
+-- two of the three factors collapse against the shallow index, and the
+-- rest is one multiple of the deep unit fraction
+def wdBoundEq : (C : ℕ) (A : ℕ) (E : ℕ) (n : ℕ) (a : ℕ) (b : ℕ) (t : ℕ) (k : ℕ) →
+  (qMul (qOfNat C) (qInvNat a) ≡ qInvNat n ∈ El Q) →
+  (qMul (qOfNat E) (qInvNat b) ≡ qInvNat n ∈ El Q) →
+  (qMul (qOfNat (C + ((A + A) + E))) (qInvNat t) ≡ qInvNat k ∈ El Q) →
+  qAdd (qMul (qOfNat C) (rBound a t))
+       (qAdd (qMul (qOfNat A) (rBound t t))
+             (qMul (qOfNat E) (rBound t b)))
+    ≡ qAdd (rBound n n) (qInvNat k) ∈ El Q ≔
+  λC. λA. λE. λn. λa. λb. λt. λk. λh1. λh2. λh3.
+    trans Q
+      (qAdd (qMul (qOfNat C) (rBound a t))
+            (qAdd (qMul (qOfNat A) (rBound t t))
+                  (qMul (qOfNat E) (rBound t b))))
+      (qAdd (qAdd (qInvNat n) (qMul (qOfNat C) (qInvNat t)))
+            (qAdd (qAdd (qMul (qOfNat A) (qInvNat t))
+                        (qMul (qOfNat A) (qInvNat t)))
+                  (qAdd (qMul (qOfNat E) (qInvNat t)) (qInvNat n))))
+      (qAdd (rBound n n) (qInvNat k))
+      (trans Q
+         (qAdd (qMul (qOfNat C) (rBound a t))
+               (qAdd (qMul (qOfNat A) (rBound t t))
+                     (qMul (qOfNat E) (rBound t b))))
+         (qAdd (qAdd (qInvNat n) (qMul (qOfNat C) (qInvNat t)))
+               (qAdd (qMul (qOfNat A) (rBound t t))
+                     (qMul (qOfNat E) (rBound t b))))
+         (qAdd (qAdd (qInvNat n) (qMul (qOfNat C) (qInvNat t)))
+               (qAdd (qAdd (qMul (qOfNat A) (qInvNat t))
+                           (qMul (qOfNat A) (qInvNat t)))
+                     (qAdd (qMul (qOfNat E) (qInvNat t)) (qInvNat n))))
+         (cong Q (λw. Q)
+            (λw. qAdd w (qAdd (qMul (qOfNat A) (rBound t t))
+                              (qMul (qOfNat E) (rBound t b))))
+            (qMul (qOfNat C) (rBound a t))
+            (qAdd (qInvNat n) (qMul (qOfNat C) (qInvNat t)))
+            (trans Q (qMul (qOfNat C) (rBound a t))
+                     (qAdd (qMul (qOfNat C) (qInvNat a))
+                           (qMul (qOfNat C) (qInvNat t)))
+                     (qAdd (qInvNat n) (qMul (qOfNat C) (qInvNat t)))
+               (qDistribL (qOfNat C) (qInvNat a) (qInvNat t))
+               (cong Q (λw. Q) (λw. qAdd w (qMul (qOfNat C) (qInvNat t)))
+                  (qMul (qOfNat C) (qInvNat a)) (qInvNat n) h1)))
+         (trans Q
+            (qAdd (qAdd (qInvNat n) (qMul (qOfNat C) (qInvNat t)))
+                  (qAdd (qMul (qOfNat A) (rBound t t))
+                        (qMul (qOfNat E) (rBound t b))))
+            (qAdd (qAdd (qInvNat n) (qMul (qOfNat C) (qInvNat t)))
+                  (qAdd (qAdd (qMul (qOfNat A) (qInvNat t))
+                              (qMul (qOfNat A) (qInvNat t)))
+                        (qMul (qOfNat E) (rBound t b))))
+            (qAdd (qAdd (qInvNat n) (qMul (qOfNat C) (qInvNat t)))
+                  (qAdd (qAdd (qMul (qOfNat A) (qInvNat t))
+                              (qMul (qOfNat A) (qInvNat t)))
+                        (qAdd (qMul (qOfNat E) (qInvNat t)) (qInvNat n))))
+            (cong Q (λw. Q)
+               (λw. qAdd (qAdd (qInvNat n) (qMul (qOfNat C) (qInvNat t)))
+                         (qAdd w (qMul (qOfNat E) (rBound t b))))
+               (qMul (qOfNat A) (rBound t t))
+               (qAdd (qMul (qOfNat A) (qInvNat t))
+                     (qMul (qOfNat A) (qInvNat t)))
+               (qDistribL (qOfNat A) (qInvNat t) (qInvNat t)))
+            (cong Q (λw. Q)
+               (λw. qAdd (qAdd (qInvNat n) (qMul (qOfNat C) (qInvNat t)))
+                         (qAdd (qAdd (qMul (qOfNat A) (qInvNat t))
+                                     (qMul (qOfNat A) (qInvNat t))) w))
+               (qMul (qOfNat E) (rBound t b))
+               (qAdd (qMul (qOfNat E) (qInvNat t)) (qInvNat n))
+               (trans Q (qMul (qOfNat E) (rBound t b))
+                        (qAdd (qMul (qOfNat E) (qInvNat t))
+                              (qMul (qOfNat E) (qInvNat b)))
+                        (qAdd (qMul (qOfNat E) (qInvNat t)) (qInvNat n))
+                  (qDistribL (qOfNat E) (qInvNat t) (qInvNat b))
+                  (cong Q (λw. Q)
+                     (λw. qAdd (qMul (qOfNat E) (qInvNat t)) w)
+                     (qMul (qOfNat E) (qInvNat b)) (qInvNat n) h2)))))
+      (trans Q
+         (qAdd (qAdd (qInvNat n) (qMul (qOfNat C) (qInvNat t)))
+               (qAdd (qAdd (qMul (qOfNat A) (qInvNat t))
+                           (qMul (qOfNat A) (qInvNat t)))
+                     (qAdd (qMul (qOfNat E) (qInvNat t)) (qInvNat n))))
+         (qAdd (qAdd (qInvNat n) (qInvNat n))
+               (qAdd (qMul (qOfNat C) (qInvNat t))
+                     (qAdd (qAdd (qMul (qOfNat A) (qInvNat t))
+                                 (qMul (qOfNat A) (qInvNat t)))
+                           (qMul (qOfNat E) (qInvNat t)))))
+         (qAdd (rBound n n) (qInvNat k))
+         (qRearr5 (qInvNat n) (qMul (qOfNat C) (qInvNat t))
+                  (qAdd (qMul (qOfNat A) (qInvNat t))
+                        (qMul (qOfNat A) (qInvNat t)))
+                  (qMul (qOfNat E) (qInvNat t)))
+         (cong Q (λw. Q) (λw. qAdd (rBound n n) w)
+            (qAdd (qMul (qOfNat C) (qInvNat t))
+                  (qAdd (qAdd (qMul (qOfNat A) (qInvNat t))
+                              (qMul (qOfNat A) (qInvNat t)))
+                        (qMul (qOfNat E) (qInvNat t))))
+            (qInvNat k)
+            (trans Q
+               (qAdd (qMul (qOfNat C) (qInvNat t))
+                     (qAdd (qAdd (qMul (qOfNat A) (qInvNat t))
+                                 (qMul (qOfNat A) (qInvNat t)))
+                           (qMul (qOfNat E) (qInvNat t))))
+               (qMul (qOfNat (C + ((A + A) + E))) (qInvNat t))
+               (qInvNat k)
+               (qTailSum C A E (qInvNat t))
+               h3)))
+
+-- the deep index: its factor is everything the three legs spend
+def wdIdx : El RSeq → El RSeq → El RSeq → ℕ ≔
+  λp. λq. λq'.
+    (seqBound p + seqBound q) + ((seqBound p + seqBound p) + mulPred p q')
+
+-- The three-leg comparison, abstract in the sequences, their bounds
+-- and every index. Two representatives of the same real get different
+-- sampling depths, so the two products are compared through a third,
+-- deeper index t, and everything proportional to 1/(t+1) is the slack.
+def rMulWDGen : (f : El (ℕ → Q)) (g : El (ℕ → Q)) (g' : El (ℕ → Q))
+  (A : ℕ) (B : ℕ) (B' : ℕ)
+  (hfB : (j : ℕ) → El (Bnd (qOfNat A) (f j)))
+  (hgB : (j : ℕ) → El (Bnd (qOfNat B) (g j)))
+  (hg'B : (j : ℕ) → El (Bnd (qOfNat B') (g' j)))
+  (hfR : (i : ℕ) (j : ℕ) → El (Bnd (rBound i j) (qAdd (f i) (qNeg (f j)))))
+  (hgR : (i : ℕ) (j : ℕ) → El (Bnd (rBound i j) (qAdd (g i) (qNeg (g j)))))
+  (hg'R : (i : ℕ) (j : ℕ) → El (Bnd (rBound i j) (qAdd (g' i) (qNeg (g' j)))))
+  (hq : (j : ℕ) → El (Bnd (rBound j j) (qAdd (g j) (qNeg (g' j)))))
+  (hA : El (LeQ qZero (qOfNat A)))
+  (hB : El (LeQ qZero (qOfNat B)))
+  (hB' : El (LeQ qZero (qOfNat B')))
+  (n : ℕ) (k : ℕ) (a : ℕ) (b : ℕ) (t : ℕ) →
+  (qMul (qOfNat (A + B)) (qInvNat a) ≡ qInvNat n ∈ El Q) →
+  (qMul (qOfNat (A + B')) (qInvNat b) ≡ qInvNat n ∈ El Q) →
+  (qMul (qOfNat ((A + B) + ((A + A) + (A + B')))) (qInvNat t)
+     ≡ qInvNat k ∈ El Q) →
+  El (Bnd (qAdd (rBound n n) (qInvNat k))
+          (qAdd (qMul (f a) (g a)) (qNeg (qMul (f b) (g' b))))) ≔
+  λf. λg. λg'. λA. λB. λB'. λhfB. λhgB. λhg'B. λhfR. λhgR. λhg'R. λhq.
+  λhA. λhB. λhB'. λn. λk. λa. λb. λt. λh1. λh2. λh3.
+    bndEqB (qAdd (qMul (qOfNat (A + B)) (rBound a t))
+                 (qAdd (qMul (qOfNat A) (rBound t t))
+                       (qMul (qOfNat (A + B')) (rBound t b))))
+           (qAdd (rBound n n) (qInvNat k))
+           (qAdd (qMul (f a) (g a)) (qNeg (qMul (f b) (g' b))))
+      (wdBoundEq (A + B) A (A + B') n a b t k h1 h2 h3)
+      (bndVia (qMul (qOfNat (A + B)) (rBound a t))
+              (qAdd (qMul (qOfNat A) (rBound t t))
+                    (qMul (qOfNat (A + B')) (rBound t b)))
+              (qMul (f a) (g a)) (qMul (f t) (g t)) (qMul (f b) (g' b))
+         (bndMulDiffGen f g A B a t (hfB a) (hgB t) (hgR a t) (hfR a t) hA hB)
+         (bndVia (qMul (qOfNat A) (rBound t t))
+                 (qMul (qOfNat (A + B')) (rBound t b))
+                 (qMul (f t) (g t)) (qMul (f t) (g' t)) (qMul (f b) (g' b))
+            (bndEq (qMul (qOfNat A) (rBound t t))
+                   (qMul (f t) (qAdd (g t) (qNeg (g' t))))
+                   (qAdd (qMul (f t) (g t)) (qNeg (qMul (f t) (g' t))))
+               (qMulSubL (f t) (g t) (g' t))
+               (bndMul (qOfNat A) (rBound t t) (f t) (qAdd (g t) (qNeg (g' t)))
+                  hA (leQZeroBound t t) (hfB t) (hq t)))
+            (bndMulDiffGen f g' A B' t b (hfB t) (hg'B b) (hg'R t b) (hfR t b)
+               hA hB')))
+
+-- the two successor identities the factors satisfy, each definitional
+def facEqPair : (p : El RSeq) (q : El RSeq) →
+  seqBound p + seqBound q ≡ S (mulPred p q) ∈ ℕ ≔
+  λp. λq. ⋆
+
+def facEqDeep : (p : El RSeq) (q : El RSeq) (q' : El RSeq) →
+  (seqBound p + seqBound q)
+      + ((seqBound p + seqBound p) + (seqBound p + seqBound q'))
+    ≡ S (wdIdx p q q') ∈ ℕ ≔
+  λp. λq. λq'. ⋆
+
+def rMulWDStep : (p : El RSeq) (q : El RSeq) (q' : El RSeq)
+  (hq : (j : ℕ) → El (Bnd (rBound j j) (qAdd (seqOf q j) (qNeg (seqOf q' j)))))
+  (n : ℕ) (k : ℕ) →
+  El (Bnd (qAdd (rBound n n) (qInvNat k))
+          (qAdd (mulSeq p q n) (qNeg (mulSeq p q' n)))) ≔
+  λp. λq. λq'. λhq. λn. λk.
+    rMulWDGen (seqOf p) (seqOf q) (seqOf q')
+              (seqBound p) (seqBound q) (seqBound q')
+              (bndSeqBound p) (bndSeqBound q) (bndSeqBound q')
+              (regBnd (seqOf p) (regOf p)) (regBnd (seqOf q) (regOf q))
+              (regBnd (seqOf q') (regOf q'))
+              hq
+              (seqBoundPos p) (seqBoundPos q) (seqBoundPos q')
+              n k (mulIdx (mulPred p q) n) (mulIdx (mulPred p q') n)
+              (mulIdx (wdIdx p q q') k)
+              (qMulInvIdxC (seqBound p + seqBound q) (mulPred p q) n
+                 (facEqPair p q))
+              (qMulInvIdxC (seqBound p + seqBound q') (mulPred p q') n
+                 (facEqPair p q'))
+              (qMulInvIdxC ((seqBound p + seqBound q)
+                              + ((seqBound p + seqBound p)
+                                   + (seqBound p + seqBound q')))
+                           (wdIdx p q q') k
+                 (facEqDeep p q q'))
+
+def rMulWDInner : (p : El RSeq) (q : El RSeq) (q' : El RSeq) →
+  Prf (REq q q') → Prf (REq (rMul p q) (rMul p q')) ≔
+  λp. λq. λq'. λh.
+    squash-elim h
+      (u. reqOf (rMul p q) (rMul p q')
+            (λn.
+              bndOfArch (rBound n n)
+                (qAdd (mulSeq p q n) (qNeg (mulSeq p q' n)))
+                (λk. rMulWDStep p q q' u n k)))
+
+-- ===== how far this goes, and why it stops here =====
+--
+-- Everything above is the mathematics of ℝ's product: the sequence,
+-- its regularity, and the well-definedness estimate in full. What is
+-- NOT here is the descent itself —
+--
+--   realMul : El Real → El Real → El Real
+--
+-- and it is blocked by elaboration COST, not by any missing argument.
+-- The reason is worth recording. `rMul p q` is a pair whose second
+-- component is `mulReg p q`, a large proof term, and whose sampling
+-- index mentions `seqBound`, which unfolds through `qNatBound` →
+-- `qFloor` → `divN` → `dmAux`'s fuel recursion. Conversion in Nova is
+-- by normalisation, so every type that MENTIONS `rMul p q` pays for
+-- all of that:
+--
+--   rMulWDStep   (types mention only mulSeq)          ~1 s
+--   rMulWDInner  (types mention rMul)                ~31 s
+--   rMulWDInnerCls (one more class equation)        ~3.5 min
+--   rMulComm via rseqEq                              >6 min
+--   the descent itself                              did not finish
+--
+-- The fix is not in this file: either conversion has to stop
+-- normalising under a projection whose result is discarded, or the
+-- corpus needs a rational ceiling whose normal form is small. Both are
+-- recorded in docs/ProvingFeedback.md.
