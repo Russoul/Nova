@@ -1,0 +1,135 @@
+import nat (+, *, plusZeroId, zeroPlusId, sucPlus, plusComm, plusAssoc)
+import natOrder (LeN, leRefl, leOfEq, leZero, leSucMono)
+import integer (Int, IntR, intZero, intOne, intNeg)
+import integerAdd (intAdd)
+import integerMul (intMul, intMulOneR)
+import intOrder (intOfNat)
+import intEffective (intEffective)
+import rational (NZ, nzOne, nzPos, nzToInt, Rat, mkRat, intScale, intScaleOne)
+import rationalQ (Q, qcls, qAdd, qNeg, qZero, qOne, clsEqOfRel)
+import rationalOrder (Sign, sZero, sPos, sgnQ, intSgn, intSgnZero, NonNegS, LeQ,
+                      intSgnZeroView, intSgnPosView)
+import ratArch (intSgnOfNatNonNeg)
+import equality (trans, sym, cong, transport)
+import id (Id, idToEq, eqToId)
+
+-- ℕ INSIDE ℚ, and the order bridge in BOTH directions. The reflecting
+-- direction is the one that matters: it makes a natural-valued
+-- function of a rational unique once its defining inequalities are
+-- fixed, and that is what will let `qNatBound` descend to the quotient
+-- without any case analysis on pairs of representatives.
+--
+-- Everything reduces to one observation: the difference of two
+-- natural-valued rationals is the integer `class (b , a)`, whose sign
+-- is nonnegative exactly when a ≤ b.
+
+def qOfNat : ℕ → El Q ≔ λk. qcls (mkRat (intOfNat k) nzOne)
+
+def qOfNatZero : qOfNat Z ≡ qZero ∈ El Q ≔ ⋆
+def qOfNatOne : qOfNat (S Z) ≡ qOne ∈ El Q ≔ ⋆
+
+-- ===== the difference of two naturals, in ℤ =====
+
+def natDiffClass : (a : ℕ) (b : ℕ) (k : ℕ) → (a + k ≡ b ∈ ℕ) →
+  intOfNat k ≡ class (b , a) ∈ El Int using (zeroPlusId, plusComm) ≔
+  λa. λb. λk. λh. ⋆
+
+-- effectivity of the ℤ quotient reads the two verdicts back as ℕ facts
+def natEqOfClassZero : (a : ℕ) (b : ℕ) →
+  (class (b , a) ≡ intZero ∈ El Int) → b ≡ a ∈ ℕ ≔
+  λa. λb. λh. intEffective (b , a) (Z , Z) h
+
+def natSucOfClassPos : (a : ℕ) (b : ℕ) (j : ℕ) →
+  (class (S j , Z) ≡ class (b , a) ∈ El Int) → a + S j ≡ b ∈ ℕ ≔
+  λa. λb. λj. λh.
+    trans ℕ (a + S j) (S j + a) b
+      (plusComm (S j) a)
+      (trans ℕ (S j + a) (Z + b) b
+         (intEffective (S j , Z) (b , a) h)
+         (zeroPlusId b))
+
+def nonNegSgnOfLe : (a : ℕ) (b : ℕ) → El (LeN a b) →
+  El (NonNegS (intSgn (class (b , a)))) ≔
+  λa. λb. λle.
+    transport Sign NonNegS (intSgn (intOfNat (le .π₁)))
+      (intSgn (class (b , a)))
+      (cong Int (λv. Sign) (λv. intSgn v) (intOfNat (le .π₁)) (class (b , a))
+         (natDiffClass a b (le .π₁)
+            (idToEq ℕ (a + le .π₁) b (le .π₂))))
+      (intSgnOfNatNonNeg (le .π₁))
+
+def leOfNonNegSgn : (a : ℕ) (b : ℕ) →
+  El (NonNegS (intSgn (class (b , a)))) → El (LeN a b) ≔
+  λa. λb. λnn.
+    ⊎-elim (w. El (LeN a b))
+      (h0.
+        leOfEq a b
+          (sym ℕ b a
+             (natEqOfClassZero a b
+                (intSgnZeroView (class (b , a))
+                   (idToEq Sign (intSgn (class (b , a))) sZero h0)))))
+      (hp.
+        let v ≔ intSgnPosView (class (b , a))
+                  (idToEq Sign (intSgn (class (b , a))) sPos hp) in
+        (S (v .π₁) ,
+         eqToId ℕ (a + S (v .π₁)) b
+           (natSucOfClassPos a b (v .π₁) (v .π₂))))
+      nn
+
+-- ===== the order bridge =====
+
+-- the difference of the two embeddings, computed
+def qOfNatDiffNum : (a : ℕ) (b : ℕ) →
+  intAdd (intScale nzOne (intOfNat b)) (intScale nzOne (intNeg (intOfNat a)))
+    ≡ class (b , a) ∈ El Int using (zeroPlusId, plusComm) ≔
+  λa. λb.
+    trans Int
+      (intAdd (intScale nzOne (intOfNat b)) (intScale nzOne (intNeg (intOfNat a))))
+      (intAdd (intOfNat b) (intNeg (intOfNat a)))
+      (class (b , a))
+      (trans Int
+         (intAdd (intScale nzOne (intOfNat b))
+                 (intScale nzOne (intNeg (intOfNat a))))
+         (intAdd (intOfNat b) (intScale nzOne (intNeg (intOfNat a))))
+         (intAdd (intOfNat b) (intNeg (intOfNat a)))
+         (cong Int (λv. Int)
+            (λv. intAdd v (intScale nzOne (intNeg (intOfNat a))))
+            (intScale nzOne (intOfNat b)) (intOfNat b)
+            (intScaleOne (intOfNat b)))
+         (cong Int (λv. Int) (λv. intAdd (intOfNat b) v)
+            (intScale nzOne (intNeg (intOfNat a))) (intNeg (intOfNat a))
+            (intScaleOne (intNeg (intOfNat a)))))
+      ⋆
+
+def sgnQOfNatDiff : (a : ℕ) (b : ℕ) →
+  sgnQ (qAdd (qOfNat b) (qNeg (qOfNat a))) ≡ intSgn (class (b , a)) ∈ El Sign ≔
+  λa. λb.
+    trans Sign
+      (sgnQ (qAdd (qOfNat b) (qNeg (qOfNat a))))
+      (intSgn (intMul (class (b , a)) intOne))
+      (intSgn (class (b , a)))
+      (cong Int (λv. Sign) (λv. intSgn (intMul v intOne))
+         (intAdd (intScale nzOne (intOfNat b))
+                 (intScale nzOne (intNeg (intOfNat a))))
+         (class (b , a))
+         (qOfNatDiffNum a b))
+      (cong Int (λv. Sign) (λv. intSgn v)
+         (intMul (class (b , a)) intOne) (class (b , a))
+         (intMulOneR (class (b , a))))
+
+def leQOfNat : (a : ℕ) (b : ℕ) → El (LeN a b) → El (LeQ (qOfNat a) (qOfNat b)) ≔
+  λa. λb. λle.
+    transport Sign NonNegS (intSgn (class (b , a)))
+      (sgnQ (qAdd (qOfNat b) (qNeg (qOfNat a))))
+      (sym Sign (sgnQ (qAdd (qOfNat b) (qNeg (qOfNat a))))
+                (intSgn (class (b , a)))
+         (sgnQOfNatDiff a b))
+      (nonNegSgnOfLe a b le)
+
+def leNOfQ : (a : ℕ) (b : ℕ) → El (LeQ (qOfNat a) (qOfNat b)) → El (LeN a b) ≔
+  λa. λb. λh.
+    leOfNonNegSgn a b
+      (transport Sign NonNegS (sgnQ (qAdd (qOfNat b) (qNeg (qOfNat a))))
+         (intSgn (class (b , a)))
+         (sgnQOfNatDiff a b)
+         h)
