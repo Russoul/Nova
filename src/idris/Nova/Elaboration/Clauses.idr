@@ -802,8 +802,13 @@ expandClausal nrng fname ty etaName witness clauses = do
       -- by unfolding the witness
       Right (MkExpansion
                (SDef fname ty w Nothing
-                  :: zipWith3 (\n, t, b => SDef n t b Nothing) lemNames lemTys lemBodies
-                  ++ [SDef etaN eTy (fromMaybe eBodyStar eBodySynth) Nothing])
+                  -- the clause lemmas hold by the definition's own
+                  -- computation: cite its defining equation explicitly
+                  -- (strict mode needs the license; ambient δ subsumes
+                  -- it otherwise), and the uniqueness proof cites the
+                  -- clause lemmas it rewrites by
+                  :: zipWith3 (\n, t, b => SDef n t b (Just [fname ++ ".eq"])) lemNames lemTys lemBodies
+                  ++ [SDef etaN eTy (fromMaybe eBodyStar eBodySynth) (Just (lemNames ++ [fname ++ ".eq"]))])
                "defined \{fname} by clauses via witness (\{joinBy ", " names})")
     Nothing =>
       case (shape, shape >>= shapedRho cols b k) of
@@ -811,8 +816,11 @@ expandClausal nrng fname ty etaName witness clauses = do
           -- THE FRAGMENT: everything synthesized
           Right (MkExpansion
                    (SDef fname ty rho Nothing
-                      :: zipWith3 (\n, t, b => SDef n t b Nothing) lemNames lemTys lemBodies
-                      ++ [SDef etaN eTy (fromMaybe eBodyStar eBodySynth) Nothing])
+                      -- as at the witness tier: clause lemmas cite the
+                      -- defining equation, uniqueness cites the clause
+                      -- lemmas
+                      :: zipWith3 (\n, t, b => SDef n t b (Just [fname ++ ".eq"])) lemNames lemTys lemBodies
+                      ++ [SDef etaN eTy (fromMaybe eBodyStar eBodySynth) (Just (lemNames ++ [fname ++ ".eq"]))])
                    "defined \{fname} by clauses (\{joinBy ", " names})")
         _ =>
           -- DECLARATION TIER: the whole batch demotes to named rigid

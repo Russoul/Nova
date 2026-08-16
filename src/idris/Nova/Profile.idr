@@ -56,6 +56,19 @@ export
 scopedMode : Bool
 scopedMode = unsafePerformIO (map isNothing (getEnv "NOVA_GLOBAL_STORE"))
 
+||| STRICT-CONVERSION SURVEY MODE (NOVA_STRICT_CONV=1): the engine
+||| discharges only modulo α + the computational rules (+ named
+||| whole-equation matching, Prf-irrelevance, and structural
+||| congruence finals) — no δ on equation sides, no η, no hops, no
+||| positional rewriting. Head exposure of TYPES keeps δ, logged per
+||| module (`unf <module>|<name>` labels) as the future per-item
+||| `using`-unfold whitelist survey. Everything that falls outside the
+||| subset surfaces as an obligation — the migration fallout map. A
+||| mode below the trust boundary: the kernel path is unchanged.
+export
+strictConv : Bool
+strictConv = unsafePerformIO (map isJust (getEnv "NOVA_STRICT_CONV"))
+
 ||| Print an audit line to stderr under NOVA_AUDIT=1, returning `x`
 ||| unchanged — the scope-migration survey hook (which discharge sites
 ||| consume which Σ-lemmas), same non-trusted-path discipline as bump.

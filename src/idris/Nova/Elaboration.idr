@@ -163,7 +163,7 @@ record ElabSt where
   modImports : List (String, List String)
   ||| the module being elaborated, and its direct imports
   curImports : List String
-  assumedE : List (Ctx, Elem, Elem, Ty)   -- normalized keys of assumed elem equations
+  assumedE : List (Nat, Ctx, Elem, Elem, Ty)   -- normalized keys of assumed elem equations, size-prefixed (cheap dedup prefilter)
   assumedT : List (Ctx, Ty, Ty)           -- normalized keys of assumed type equations
   ||| display metadata for Σ's constraint entries, in surfacing order
   ||| (invariant: one per SigEq/SigTyEq of `sig`, appended together)
@@ -187,6 +187,12 @@ record ElabSt where
   ||| `⋆ using (…)` site (docs/SearchlessElaboration.md §5.3); Nothing
   ||| = the full store, the historical behavior.
   scope : Maybe (List String)
+  ||| Σ-names of definitions whose UNFOLDING the current item/site has
+  ||| licensed for equation joins, by citing `<name>.eq` in its using
+  ||| clause — the explicit, named form of δ for equational reasoning
+  ||| (the defining-equation lemma family). Consulted only by the
+  ||| strict-conversion mode's join; default mode has δ ambient anyway.
+  eqScope : List String
   ||| SITE-LOCAL candidates, merged into every candidate set while
   ||| set: the reflected link justifications of a calc chain (§5.2).
   ||| Ground, at the site's own context — set transiently, like scope.
@@ -197,7 +203,7 @@ record ElabSt where
   depthOv : Maybe Nat
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] "" [<] Nothing [] Nothing
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] "" [<] Nothing [] [] Nothing
 
 ||| Resolve a surface signature reference: aliases first (own module,
 ||| opened imports), else the name itself (qualified references reach
@@ -261,15 +267,66 @@ withScope sc act = do
   modifySt { scope := old }
   pure r
 
+||| Run an action with the eq-unfold scope set (the `<name>.eq`
+||| citations of a using clause), restoring after — the equation-side
+||| twin of withScope.
+withEqScope : List String -> ElabM a -> ElabM a
+withEqScope [] act = act
+withEqScope ns act = do
+  st <- getSt
+  let old = st.eqScope
+  modifySt { eqScope := ns }
+  r <- act
+  modifySt { eqScope := old }
+  pure r
+
+||| A using-clause name of the form `<def>.eq` cites the DEFINING
+||| EQUATION of `<def>`: it licenses unfolding that definition in the
+||| site's equation joins (strict mode; ambient δ subsumes it
+||| otherwise). Returns the cited definition's Σ-name.
+||| Resolve a using-clause name against Σ, tolerating a module
+||| qualifier that does not apply in the current run shape (a ROOT
+||| file's own entries are bare, an aggregate's are qualified): the
+||| alias/raw resolution first, then progressively stripped leading
+||| segments.
+resolveFlex : ElabSt -> String -> String
+resolveFlex st n = pick (n :: strips n)
+ where
+  strips : String -> List String
+  strips m = case break (== '.') (unpack m) of
+               (_, '.' :: rest) => let r = pack rest in r :: strips r
+               _ => []
+  pick : List String -> String
+  pick [] = resolveSigName st n
+  pick (m :: ms) =
+    let q = resolveSigName st m in
+    case sigLookup q st.sig of
+      Just _ => q
+      Nothing => pick ms
+
+resolveEqName : ElabSt -> String -> Maybe String
+resolveEqName st n = do
+  let True = isSuffixOf ".eq" n
+    | False => Nothing
+  let base = substr 0 (minus (length n) 3) n
+  let q = resolveFlex st base
+  case sigLookup q st.sig of
+    Just (SigDef _ _ _ _) => Just q
+    _ => Nothing
+
 ||| Resolve and validate a `using` clause's names (term- or
 ||| item-level): aliases first, then the name itself; a name that is
 ||| absent from Σ, or present but not an equation lemma of the visible
 ||| store, is a structural error — it could only scope the site to
-||| nothing.
-resolveUsingNames : String -> List String -> ElabM (List String)
+||| nothing. `<def>.eq` names resolve to eq-unfold licenses (snd).
+resolveUsingNames : String -> List String -> ElabM (List String, List String)
 resolveUsingNames site ns = do
   st <- getSt
-  let rs = map (resolveSigName st) ns
+  let (eqNs, lemNs) = partitionEithers (map (\n =>
+        case resolveEqName st n of
+          Just q => Left q
+          Nothing => Right n) ns)
+  let rs = map (resolveFlex st) lemNs
   traverse_ (\x =>
     case sigLookup x st.sig of
       Nothing => throw "\{site}: using: unknown name '\{x}'"
@@ -277,7 +334,12 @@ resolveUsingNames site ns = do
         if any (\c => c.candName == x) st.lemmas
           then pure ()
           else throw "\{site}: using: '\{x}' is not an equation lemma in the visible store") rs
-  pure rs
+  pure (rs, eqNs)
+ where
+  partitionEithers : List (Either a b) -> (List a, List b)
+  partitionEithers [] = ([], [])
+  partitionEithers (Left x :: rest) = mapFst (x ::) (partitionEithers rest)
+  partitionEithers (Right y :: rest) = mapSnd (y ::) (partitionEithers rest)
 
 ||| Run an action with site-local candidates, an EMPTY Σ-scope (a
 ||| chain never consults the global store) and a depth budget sized to
@@ -1014,8 +1076,108 @@ tryCands : List Cand -> (Cand -> Maybe a) -> Maybe a
 tryCands [] f = Nothing
 tryCands (c :: cs) f = f c <|> tryCands cs f
 
-rwNfElemS : Sig -> List Cand -> (side : Bool) -> Elem -> (Elem, List Step)
-rwNfElemS sig cands side e =
+-- ===== whitelisted δ for equation joins (`<def>.eq` citations) =====
+--
+-- unfElem/unfTy replace every SigVar reference to a LICENSED term
+-- definition by its body — recursively (a body may cite another
+-- licensed name; Σ is a DAG, so this terminates) — leaving everything
+-- else as written. The strict join is then compElem/compTy of the
+-- result: α + computation + exactly the cited unfoldings. Type-level
+-- SigVars stay stuck here: type-abbreviation exposure is the
+-- (separate) head-exposure whitelist's domain.
+
+mutual
+  unfSubNorm : Sig -> List String -> SubNorm -> SubNorm
+  unfSubNorm sig unfs [<] = [<]
+  unfSubNorm sig unfs (es :< e) = unfSubNorm sig unfs es :< unfElem sig unfs e
+
+  unfElem : Sig -> List String -> Elem -> Elem
+  unfElem sig unfs e@(CtxVar _)      = e
+  unfElem sig unfs (ZeroElim t)      = ZeroElim (unfElem sig unfs t)
+  unfElem sig unfs OneIntro          = OneIntro
+  unfElem sig unfs NatIntro0         = NatIntro0
+  unfElem sig unfs (NatIntro1 t)     = NatIntro1 (unfElem sig unfs t)
+  unfElem sig unfs (NatElim z s t)   = NatElim (unfElem sig unfs z) (unfElem sig unfs s) (unfElem sig unfs t)
+  unfElem sig unfs (PiIntro f)       = PiIntro (unfElem sig unfs f)
+  unfElem sig unfs (PiApp f e)       = PiApp (unfElem sig unfs f) (unfElem sig unfs e)
+  unfElem sig unfs (Let a b)         = Let (unfElem sig unfs a) (unfElem sig unfs b)
+  unfElem sig unfs (SigmaIntro a b)  = SigmaIntro (unfElem sig unfs a) (unfElem sig unfs b)
+  unfElem sig unfs (SigmaElim1 t)    = SigmaElim1 (unfElem sig unfs t)
+  unfElem sig unfs (SigmaElim2 t)    = SigmaElim2 (unfElem sig unfs t)
+  unfElem sig unfs (Inj1 t)          = Inj1 (unfElem sig unfs t)
+  unfElem sig unfs (Inj2 t)          = Inj2 (unfElem sig unfs t)
+  unfElem sig unfs (SumElim l r t)   = SumElim (unfElem sig unfs l) (unfElem sig unfs r) (unfElem sig unfs t)
+  unfElem sig unfs Elem.ZeroTy       = Elem.ZeroTy
+  unfElem sig unfs Elem.OneTy        = Elem.OneTy
+  unfElem sig unfs Elem.NatTy        = Elem.NatTy
+  unfElem sig unfs (Elem.PiTy a b)   = Elem.PiTy (unfElem sig unfs a) (unfElem sig unfs b)
+  unfElem sig unfs (Elem.SigmaTy a b) = Elem.SigmaTy (unfElem sig unfs a) (unfElem sig unfs b)
+  unfElem sig unfs (Elem.SumTy a b)  = Elem.SumTy (unfElem sig unfs a) (unfElem sig unfs b)
+  unfElem sig unfs (Elem.EqTy l r t) = Elem.EqTy (unfElem sig unfs l) (unfElem sig unfs r) (unfTy sig unfs t)
+  unfElem sig unfs (QuotTy a r)      = QuotTy (unfElem sig unfs a) (unfElem sig unfs r)
+  unfElem sig unfs (SigVar x es) =
+    let es' = unfSubNorm sig unfs es in
+    if elem x unfs
+      then case cachedSigLookup sig x of
+             Just (SigDef _ _ a _) => unfElem sig unfs (substElem a (embed es'))
+             _ => SigVar x es'
+      else SigVar x es'
+  unfElem sig unfs (Class a)         = Class (unfElem sig unfs a)
+  unfElem sig unfs (QuotElim f q)    = QuotElim (unfElem sig unfs f) (unfElem sig unfs q)
+  unfElem sig unfs (Squash t)        = Squash (unfTy sig unfs t)
+  unfElem sig unfs Star              = Star
+  unfElem sig unfs (QSortC sg k es)  = QSortC (unfQSig sig unfs sg) k (unfSubNorm sig unfs es)
+  unfElem sig unfs (QCtor sg k es)   = QCtor (unfQSig sig unfs sg) k (unfSubNorm sig unfs es)
+  unfElem sig unfs (QElim sg k ms fs es w) =
+    QElim (unfQSig sig unfs sg) k (map (unfTy sig unfs) ms) (map (unfElem sig unfs) fs)
+      (unfSubNorm sig unfs es) (unfElem sig unfs w)
+  unfElem sig unfs (Elem.NuTy f)     = Elem.NuTy (unfPoly sig unfs f)
+  unfElem sig unfs (Out t)           = Out (unfElem sig unfs t)
+  unfElem sig unfs (Corec p a f x)   =
+    Corec (unfPoly sig unfs p) (unfElem sig unfs a) (unfElem sig unfs f) (unfElem sig unfs x)
+
+  unfPoly : Sig -> List String -> Poly -> Poly
+  unfPoly sig unfs PHole        = PHole
+  unfPoly sig unfs (PConst a)   = PConst (unfElem sig unfs a)
+  unfPoly sig unfs (PProd f g)  = PProd (unfPoly sig unfs f) (unfPoly sig unfs g)
+  unfPoly sig unfs (PSum f g)   = PSum (unfPoly sig unfs f) (unfPoly sig unfs g)
+  unfPoly sig unfs (PSigma a f) = PSigma (unfElem sig unfs a) (unfPoly sig unfs f)
+  unfPoly sig unfs (PPi a f)    = PPi (unfElem sig unfs a) (unfPoly sig unfs f)
+
+  unfQTm : Sig -> List String -> QTm -> QTm
+  unfQTm sig unfs (QVar i)     = QVar i
+  unfQTm sig unfs (QAppE f e)  = QAppE (unfQTm sig unfs f) (unfElem sig unfs e)
+  unfQTm sig unfs (QAppI f a)  = QAppI (unfQTm sig unfs f) (unfQTm sig unfs a)
+  unfQTm sig unfs (QEqC l r u) = QEqC (unfQTm sig unfs l) (unfQTm sig unfs r) (unfQTm sig unfs u)
+
+  unfQTy : Sig -> List String -> QTy -> QTy
+  unfQTy sig unfs QU           = QU
+  unfQTy sig unfs (QEl t)      = QEl (unfQTm sig unfs t)
+  unfQTy sig unfs (QPiExt a b) = QPiExt (unfTy sig unfs a) (unfQTy sig unfs b)
+  unfQTy sig unfs (QPiInd u b) = QPiInd (unfQTm sig unfs u) (unfQTy sig unfs b)
+
+  unfQSig : Sig -> List String -> QSig -> QSig
+  unfQSig sig unfs = map (unfQTy sig unfs)
+
+  unfTy : Sig -> List String -> Ty -> Ty
+  unfTy sig unfs Ty.ZeroTy        = Ty.ZeroTy
+  unfTy sig unfs Ty.OneTy         = Ty.OneTy
+  unfTy sig unfs Ty.NatTy         = Ty.NatTy
+  unfTy sig unfs Ty.UniverseTy    = Ty.UniverseTy
+  unfTy sig unfs (Ty.PiTy a b)    = Ty.PiTy (unfTy sig unfs a) (unfTy sig unfs b)
+  unfTy sig unfs (Ty.SigmaTy a b) = Ty.SigmaTy (unfTy sig unfs a) (unfTy sig unfs b)
+  unfTy sig unfs (Ty.SumTy a b)   = Ty.SumTy (unfTy sig unfs a) (unfTy sig unfs b)
+  unfTy sig unfs (El e)           = El (unfElem sig unfs e)
+  unfTy sig unfs PropTy           = PropTy
+  unfTy sig unfs (Prf e)          = Prf (unfElem sig unfs e)
+  unfTy sig unfs (Quotient a r)   = Quotient (unfTy sig unfs a) (unfElem sig unfs r)
+  unfTy sig unfs (Ty.SigVar x es) = Ty.SigVar x (unfSubNorm sig unfs es)
+  unfTy sig unfs (QSort sg k es)  = QSort (unfQSig sig unfs sg) k (unfSubNorm sig unfs es)
+  unfTy sig unfs (Ty.NuTy f)      = Ty.NuTy (unfPoly sig unfs f)
+
+rwNfElemS : Sig -> (unfs : List String) -> List Cand -> (side : Bool) -> Elem -> (Elem, List Step)
+rwNfElemS sig unfs cands side e =
+  if strictConv then (compElem (unfElem sig unfs e), []) else
   let start = betaElem sig e in go rwFuel [start] start []
  where
   go : Nat -> List Elem -> Elem -> List Step -> (Elem, List Step)
@@ -1027,8 +1189,9 @@ rwNfElemS sig cands side e =
         if elem t'' seen then (t, acc) else go fuel (t'' :: seen) t'' (acc ++ st)
       Nothing => (t, acc)
 
-rwNfTyS : Sig -> List Cand -> (side : Bool) -> Ty -> (Ty, List Step)
-rwNfTyS sig cands side ty =
+rwNfTyS : Sig -> (unfs : List String) -> List Cand -> (side : Bool) -> Ty -> (Ty, List Step)
+rwNfTyS sig unfs cands side ty =
+  if strictConv then (compTy (unfTy sig unfs ty), []) else
   let start = betaTy sig ty in go rwFuel [start] start []
  where
   go : Nat -> List Ty -> Ty -> List Step -> (Ty, List Step)
@@ -1039,6 +1202,116 @@ rwNfTyS sig cands side ty =
         let t'' = betaTy sig t' in
         if elem t'' seen then (t, acc) else go fuel (t'' :: seen) t'' (acc ++ st)
       Nothing => (t, acc)
+
+-- ===== Strict-conversion survey mode (NOVA_STRICT_CONV=1) =====
+--
+-- Weak-head exposure with LOGGED δ-unfolds: semantics of whnfE/whnfT,
+-- plus a `unf <module>|<name>` profile bump per definition unfolded —
+-- the survey stream for the future per-item `using`-unfold whitelist.
+-- Used (in strict mode) wherever conversion or checking needs a TYPE
+-- head; equation SIDES never δ-expand in strict mode.
+
+mutual
+  exposeE : (pre : String) -> Sig -> Elem -> Elem
+  exposeE pre sig (NatElim z s t) =
+    case exposeE pre sig t of
+      NatIntro0   => exposeE pre sig z
+      NatIntro1 n => exposeE pre sig (substElem s (Ext (Ext Id n) (NatElim z s n)))
+      t'          => NatElim z s t'
+  exposeE pre sig (PiApp f e) =
+    case exposeE pre sig f of
+      PiIntro g => exposeE pre sig (substElem g (Ext Id e))
+      f'        => PiApp f' e
+  exposeE pre sig (Let a b) = exposeE pre sig (substElem b (Ext (Ext Id a) Star))
+  exposeE pre sig (SigmaElim1 t) =
+    case exposeE pre sig t of
+      SigmaIntro a _ => exposeE pre sig a
+      t'             => SigmaElim1 t'
+  exposeE pre sig (SigmaElim2 t) =
+    case exposeE pre sig t of
+      SigmaIntro _ b => exposeE pre sig b
+      t'             => SigmaElim2 t'
+  exposeE pre sig (SumElim l r t) =
+    case exposeE pre sig t of
+      Inj1 a => exposeE pre sig (substElem l (Ext Id a))
+      Inj2 b => exposeE pre sig (substElem r (Ext Id b))
+      t'     => SumElim l r t'
+  exposeE pre sig (SigVar x es) =
+    case cachedSigLookup sig x of
+      Just (SigDef _ _ a _) => bump "unf \{pre}|\{x}" 1 (exposeE pre sig (substElem a (embed es)))
+      _ => SigVar x es
+  exposeE pre sig (QuotElim f q) =
+    case exposeE pre sig q of
+      Class a => exposeE pre sig (substElem f (Ext Id a))
+      q'      => QuotElim f q'
+  exposeE pre sig (Squash t) =
+    case exposeT pre sig t of
+      Prf p => exposeE pre sig p
+      t'    => Squash t'
+  exposeE pre sig (QElim sg k ms fs es w) =
+    case exposeE pre sig w of
+      QCtor sgW c theta =>
+        if sgW == sg
+          then case qElimBetaRhs sg ms fs c theta of
+                 Right rhs => exposeE pre sig rhs
+                 Left _ => QElim sg k ms fs es (QCtor sgW c theta)
+          else QElim sg k ms fs es (QCtor sgW c theta)
+      w' => QElim sg k ms fs es w'
+  exposeE pre sig (Out t) =
+    case exposeE pre sig t of
+      Corec p a f x => exposeE pre sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+      t'            => Out t'
+  exposeE pre sig e = e
+
+  exposeT : (pre : String) -> Sig -> Ty -> Ty
+  exposeT pre sig (El e) =
+    case exposeE pre sig e of
+      Elem.ZeroTy      => Ty.ZeroTy
+      Elem.OneTy       => Ty.OneTy
+      Elem.NatTy       => Ty.NatTy
+      Elem.PiTy a b    => Ty.PiTy (El a) (El b)
+      Elem.SigmaTy a b => Ty.SigmaTy (El a) (El b)
+      Elem.SumTy a b   => Ty.SumTy (El a) (El b)
+      QuotTy a r       => Quotient (El a) r
+      QSortC sg k es   => QSort sg k es
+      Elem.NuTy f      => Ty.NuTy f
+      e'               => El e'
+  exposeT pre sig (Ty.SigVar x es) =
+    case cachedSigLookup sig x of
+      Just (SigTyDef _ _ a) => bump "unf \{pre}|\{x}" 1 (exposeT pre sig (substTy a (embed es)))
+      _ => Ty.SigVar x es
+  exposeT pre sig t = t
+
+||| Strict-gated engine normalizers: δ-free in strict mode, full δβ
+||| otherwise. For the engine's EQUATION-SIDE positions only — checking
+||| machinery keeps betaTy, and type-HEAD positions use exposeT.
+engNfE : ElabSt -> Elem -> Elem
+engNfE st e = if strictConv then compElem e else betaElem st.sig e
+
+engNfT : ElabSt -> Ty -> Ty
+engNfT st t = if strictConv then compTy t else betaTy st.sig t
+
+||| CHECKING-position head exposure: strict mode swaps the full
+||| normalization for the logged whnf-δ exposure — same head, and the
+||| per-module `unf` labels record exactly the names a future
+||| `using`-unfold whitelist would carry.
+exposeHead : ElabSt -> Ty -> Ty
+exposeHead st ty = if strictConv then exposeT st.modPrefix st.sig ty else betaTy st.sig ty
+
+||| Prop-code exposure at checking positions (⋆, squash-elim, chains).
+exposeCode : ElabSt -> Elem -> Elem
+exposeCode st p = if strictConv then exposeE st.modPrefix st.sig p else betaElem st.sig p
+
+||| Leading-Π exposure for telescope peeling (strict mode only —
+||| domains stay as written, each codomain head exposed in turn).
+exposePisT : ElabSt -> Ty -> Ty
+exposePisT st ty = case exposeT st.modPrefix st.sig ty of
+  Ty.PiTy a b => Ty.PiTy a (exposePisT st b)
+  t => t
+
+||| Telescope-peeling normalization: full betaTy outside strict mode.
+peelNf : ElabSt -> Ty -> Ty
+peelNf st ty = if strictConv then exposePisT st ty else betaTy st.sig ty
 
 -- ===== Candidates in scope =====
 
@@ -1142,7 +1415,7 @@ hypCands st rw ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length 
   -- spellings converge by code-squash-prf during normalization)
   eqShape : Ty -> Maybe (Elem, Elem, Ty)
   eqShape (Prf p) =
-    case betaElem st.sig p of
+    case exposeCode st p of
       Elem.EqTy l r t => Just (l, r, t)
       _ => Nothing
   eqShape _ = Nothing
@@ -1150,7 +1423,7 @@ hypCands st rw ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length 
   candAt : Nat -> Maybe Cand
   candAt i = do
     tyI <- ctxLookup ctx i
-    let (ctx', peeled) = peelPis ctx (betaTy st.sig tyI)
+    let (ctx', peeled) = peelPis ctx (peelNf st tyI)
     let k = minus (length ctx') (length ctx)
     case eqShape peeled of
       Just (l, r, t) =>
@@ -1160,11 +1433,11 @@ hypCands st rw ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length 
                         (the (List Nat) (if k == 0 then [] else reverse [0 .. minus k 1]))
               pure (foldl PiApp (CtxVar (i + wk)) args, the (List Sel) [])
         in if k == 0
-             then let (l1, lSteps) = rwNfElemS st.sig lemmaRw True (betaElem st.sig l)
-                      (r1, rSteps) = rwNfElemS st.sig lemmaRw True (betaElem st.sig r)
+             then let (l1, lSteps) = rwNfElemS st.sig st.eqScope lemmaRw True (engNfE st l)
+                      (r1, rSteps) = rwNfElemS st.sig st.eqScope lemmaRw True (engNfE st r)
                   in Just (MkCand "hypothesis" 0 [] l1 r1 mk (toPSteps lSteps) (toPSteps rSteps))
              else Just (MkCand "hypothesis" k (lastEntries k ctx')
-                          (betaElem st.sig l) (betaElem st.sig r) mk [] [])
+                          (engNfE st l) (engNfE st r) mk [] [])
       Nothing => Nothing
 
   -- a GROUND hypothesis whose type is a (nested, non-dependent) Σ of
@@ -1174,8 +1447,8 @@ hypCands st rw ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length 
   -- the shape squash-elim binds when an invariant is a conjunction.
   groundEqCand : Elem -> (Elem, Elem, Ty) -> Cand
   groundEqCand prf (l, r, t) =
-    let (l1, lSteps) = rwNfElemS st.sig lemmaRw True (betaElem st.sig l)
-        (r1, rSteps) = rwNfElemS st.sig lemmaRw True (betaElem st.sig r)
+    let (l1, lSteps) = rwNfElemS st.sig st.eqScope lemmaRw True (engNfE st l)
+        (r1, rSteps) = rwNfElemS st.sig st.eqScope lemmaRw True (engNfE st r)
     in MkCand "hypothesis" 0 [] l1 r1 (\wk, _ => Just (weakenElemN wk prf, [])) (toPSteps lSteps) (toPSteps rSteps)
 
   pairEqs : Nat -> (proj : Elem) -> Ty -> List (Elem, (Elem, Elem, Ty))
@@ -1183,9 +1456,9 @@ hypCands st rw ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length 
     case fuel of
       Z => []
       S fuel' =>
-        case betaTy st.sig ty of
+        case (if strictConv then exposeT st.modPrefix st.sig ty else betaTy st.sig ty) of
           Prf p =>
-            case betaElem st.sig p of
+            case exposeCode st p of
               Elem.EqTy l r t => [(proj, (l, r, t))]
               _ => []
           Ty.SigmaTy a b =>
@@ -1202,7 +1475,7 @@ hypCands st rw ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length 
       Nothing =>
         case ctxLookup ctx i of
           Just tyI =>
-            case betaTy st.sig tyI of
+            case exposeHead st tyI of
               tyB@(Ty.SigmaTy _ _) => map (uncurry groundEqCand) (pairEqs 8 (CtxVar i) tyB)
               _ => []
           Nothing => []
@@ -1253,25 +1526,30 @@ mkCandSet st ctx =
                       (lhp ++ sHops ++ hhp)
 
 rwNfElem : ElabSt -> Ctx -> Elem -> Elem
-rwNfElem st ctx e = fst (rwNfElemS st.sig (mkCandSet st ctx).rw True e)
+rwNfElem st ctx e = fst (rwNfElemS st.sig st.eqScope (mkCandSet st ctx).rw True e)
 
 rwNfTy : ElabSt -> Ctx -> Ty -> Ty
-rwNfTy st ctx ty = fst (rwNfTyS st.sig (mkCandSet st ctx).rw True ty)
+rwNfTy st ctx ty = fst (rwNfTyS st.sig st.eqScope (mkCandSet st ctx).rw True ty)
 
 -- ===== Neutral type inference =====
+
+||| Head exposure for neutral inference: logged whnf-δ in strict mode,
+||| full normalization otherwise.
+neExpose : ElabSt -> Ty -> Ty
+neExpose st ty = if strictConv then exposeT st.modPrefix st.sig ty else betaTy st.sig ty
 
 inferNe : ElabSt -> Ctx -> Elem -> Maybe Ty
 inferNe st ctx (CtxVar i) = ctxLookup ctx i
 inferNe st ctx (PiApp f x) =
-  case betaTy st.sig <$> inferNe st ctx f of
+  case neExpose st <$> inferNe st ctx f of
     Just (Ty.PiTy a b) => Just (substTy b (Ext Id x))
     _ => Nothing
 inferNe st ctx (SigmaElim1 t) =
-  case betaTy st.sig <$> inferNe st ctx t of
+  case neExpose st <$> inferNe st ctx t of
     Just (Ty.SigmaTy a b) => Just a
     _ => Nothing
 inferNe st ctx (SigmaElim2 t) =
-  case betaTy st.sig <$> inferNe st ctx t of
+  case neExpose st <$> inferNe st ctx t of
     Just (Ty.SigmaTy a b) => Just (substTy b (Ext Id (SigmaElim1 t)))
     _ => Nothing
 inferNe st ctx (SigVar x es) =
@@ -1365,14 +1643,14 @@ mutual
     -- the whole replay happens at the exposed type (where positions
     -- the steps land on are structurally determined)
     let t0 = nowNs ()
-        (tyX, tySteps) = rwNfTyS st.sig cs.rw True ty
+        (tyX, tySteps) = rwNfTyS st.sig st.eqScope cs.rw True ty
         bridge = case tySteps of
                    [] => Nothing
                    _ => Just (tyX, MkECert tySteps FBeta)
-        (a', aSteps) = rwNfElemS st.sig cs.rw True a
-        (b', bSteps) = rwNfElemS st.sig cs.rw False b
+        (a', aSteps) = rwNfElemS st.sig st.eqScope cs.rw True a
+        (b', bSteps) = rwNfElemS st.sig st.eqScope cs.rw False b
         base = aSteps ++ bSteps
-        tyN = betaTy st.sig tyX
+        tyN = if strictConv then exposeT st.modPrefix st.sig tyX else betaTy st.sig tyX
         eqFast = bump "rwnf-elem" (nowNs () - t0)
                    (bump "sz-in" (cast (elemSize a + elemSize b))
                      (bump "sz-nf" (cast (elemSize a' + elemSize b'))
@@ -1384,6 +1662,11 @@ mutual
             pure (MkECertF bridge (base ++ rest.steps) rest.final))
         <|> (do rest <- timed "sp-struct" (\_ => spEqStructC dep st cs ctx a' b' tyN) >>= unbridged
                 pure (MkECertF bridge (base ++ rest.steps) rest.final))
+        -- syntactic congruence: one deterministic descent of the two
+        -- sides' common structure, children discharged strictly — the
+        -- certificate-assembly twin of the decompose splitting (allowed
+        -- in strict mode; the banned automation is the rwNf positional
+        -- candidate search, not this)
         <|> (do congSteps <- timed "sp-cong" (\_ => spCongC dep st cs ctx a' b')
                 pure (MkECertF bridge (base ++ congSteps) FBeta))
    where
@@ -1399,7 +1682,9 @@ mutual
   -- (f x ≡ g x) becomes a whole-equation candidate for the body once
   -- the context is extended). Terminates: recursion is on cod.
   spEqStructC dep st cs ctx a b (Ty.PiTy dom cod) =
-    do sub <- spEqElemC dep st (extendCS cs) (ctx :< dom)
+    -- η: outside the strict subset
+    do guard (not strictConv)
+       sub <- spEqElemC dep st (extendCS cs) (ctx :< dom)
                 (betaElem st.sig (PiApp (substElem a Wk) (CtxVar 0)))
                 (betaElem st.sig (PiApp (substElem b Wk) (CtxVar 0)))
                 cod
@@ -1408,13 +1693,14 @@ mutual
   -- branch type (≐-congruence at inj; el-one-prop then closes 𝟙
   -- payloads, which is how a three-valued sign's cases discharge)
   spEqStructC dep st cs ctx (Inj1 x) (Inj1 y) (Ty.SumTy domL _) =
-    do sub <- spEqElemC dep st cs ctx (betaElem st.sig x) (betaElem st.sig y) domL
+    do sub <- spEqElemC dep st cs ctx (engNfE st x) (engNfE st y) domL
        pure (MkECert [] (FInj sub))
   spEqStructC dep st cs ctx (Inj2 x) (Inj2 y) (Ty.SumTy _ domR) =
-    do sub <- spEqElemC dep st cs ctx (betaElem st.sig x) (betaElem st.sig y) domR
+    do sub <- spEqElemC dep st cs ctx (engNfE st x) (engNfE st y) domR
        pure (MkECert [] (FInj sub))
   spEqStructC dep st cs ctx a b (Ty.SigmaTy dom cod) =
-    if isPair a || isPair b
+    -- pair-η: outside the strict subset
+    if not strictConv && (isPair a || isPair b)
       then do c1 <- spEqElemC dep st cs ctx (betaElem st.sig (SigmaElim1 a)) (betaElem st.sig (SigmaElim1 b)) dom
               c2 <- spEqElemC dep st cs ctx (betaElem st.sig (SigmaElim2 a)) (betaElem st.sig (SigmaElim2 b))
                       (substTy cod (Ext Id (SigmaElim1 a)))
@@ -1425,7 +1711,7 @@ mutual
     isPair (SigmaIntro _ _) = True
     isPair _ = False
   spEqStructC dep st cs ctx (Class x) (Class y) (Quotient dom rel) =
-    case betaElem st.sig (substElem rel (Ext (Ext Id x) y)) of
+    case engNfE st (substElem rel (Ext (Ext Id x) y)) of
       Squash Ty.OneTy => Just (MkECert [] (FWitness Nothing))
       Elem.EqTy l r t => do sub <- spEqElemC dep st cs ctx l r t
                             pure (MkECert [] (FWitness (Just sub)))
@@ -1446,8 +1732,8 @@ mutual
     mkImpl : Elem -> Elem -> Maybe (Elem, Skel)
     mkImpl src tgt =
       let ctx' = ctx :< Prf src in
-      case betaElem st.sig (substElem tgt Wk) of
-        Squash sq => case betaTy st.sig sq of
+      case engNfE st (substElem tgt Wk) of
+        Squash sq => case engNfT st sq of
           Ty.OneTy => Just (lam (Nd [PSquashWit OneIntro (Nd [] [])] []))
           _ => Nothing
         Elem.EqTy l r t => do
@@ -1472,7 +1758,7 @@ mutual
       else Nothing
   spCongC dep st cs ctx (PiApp f x) (PiApp g y) =
     if f == g
-      then case betaTy st.sig <$> inferNe st ctx f of
+      then case neExpose st <$> inferNe st ctx f of
              Just (Ty.PiTy dom _) =>
                prefixSteps 1 <$> (spEqElemC dep st cs ctx x y dom >>= flatSteps)
              _ =>
@@ -1552,7 +1838,7 @@ mutual
   spCongC dep st cs ctx (Elem.EqTy l r t) (Elem.EqTy l' r' t') =
     -- code-eq-cong (sides only; a type-component mismatch routes
     -- through propext instead — steps cannot enter a type child here)
-    if betaTy st.sig t == betaTy st.sig t'
+    if engNfT st t == engNfT st t'
       then do
         st2 <- spEqElemC dep st cs ctx l l' t' >>= flatSteps
         st3 <- spEqElemC dep st cs ctx r r' t' >>= flatSteps
@@ -1565,7 +1851,9 @@ mutual
   candMatchC : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Ty -> Maybe ECert
   candMatchC Z _ _ _ _ _ _ = Nothing
   candMatchC (S dep) st cs ctx a b ty =
-    firstJ (map direct cs.all) <|> firstJ (map hop cs.hops)
+    -- hops (automated lemma chaining): outside the strict subset
+    firstJ (map direct cs.all)
+      <|> (if strictConv then Nothing else firstJ (map hop cs.hops))
    where
     firstJ : List (Maybe x) -> Maybe x
     firstJ [] = Nothing
@@ -1582,10 +1870,10 @@ mutual
     hypWitness : Elem -> Elem -> Maybe Elem
     hypWitness lN rN =
       firstJ (map (\i =>
-        case betaTy st.sig <$> ctxLookup ctx i of
-          Just (Prf p) => case betaElem st.sig p of
+        case engNfT st <$> ctxLookup ctx i of
+          Just (Prf p) => case engNfE st p of
             Elem.EqTy hl hr _ =>
-              if (betaElem st.sig hl == lN && betaElem st.sig hr == rN)
+              if (engNfE st hl == lN && engNfE st hr == rN)
                 then Just (CtxVar i)
                 else Nothing
             _ => Nothing
@@ -1595,7 +1883,7 @@ mutual
     hypPrfWitness : Ty -> Maybe Elem
     hypPrfWitness want =
       firstJ (map (\i =>
-        case betaTy st.sig <$> ctxLookup ctx i of
+        case engNfT st <$> ctxLookup ctx i of
           Just h => if h == want then Just (CtxVar i) else Nothing
           Nothing => Nothing) [0 .. minus (length ctx) 1])
 
@@ -1607,15 +1895,16 @@ mutual
         Nothing => do
           tp <- paramTy c p
           sigma <- condSub c.params p bs
-          case betaTy st.sig (substTy tp sigma) of
+          case (if strictConv then exposeT st.modPrefix st.sig (substTy tp sigma)
+                              else betaTy st.sig (substTy tp sigma)) of
             Ty.OneTy => Just OneIntro
             Prf pr =>
-              hypPrfWitness (Prf (betaElem st.sig pr))
-              <|> (case betaElem st.sig pr of
+              hypPrfWitness (Prf (engNfE st pr))
+              <|> (case engNfE st pr of
                      Squash Ty.OneTy => Just Star
                      Elem.EqTy l r _ =>
-                       let lN = betaElem st.sig l
-                           rN = betaElem st.sig r in
+                       let lN = engNfE st l
+                           rN = engNfE st r in
                        hypWitness lN rN
                        <|> (if lN == rN then Just Star else Nothing)
                      _ => Nothing)
@@ -1670,8 +1959,12 @@ mutual
     -- TIER 1, as at spEqElemC
     if timed "tier1" (\_ => compTy tyA == compTy tyB) then Just (MkECert [] FBeta) else
     let t0 = nowNs ()
-        (a, aSteps) = rwNfTyS st.sig cs.rw True tyA
-        (b, bSteps) = rwNfTyS st.sig cs.rw False tyB
+        (a0, aSteps) = rwNfTyS st.sig st.eqScope cs.rw True tyA
+        (b0, bSteps) = rwNfTyS st.sig st.eqScope cs.rw False tyB
+        -- strict: sides get HEAD exposure (logged δ at type heads);
+        -- recursion through go/congFinal re-exposes per level
+        a = if strictConv then exposeT st.modPrefix st.sig a0 else a0
+        b = if strictConv then exposeT st.modPrefix st.sig b0 else b0
         base = bump "rwnf-ty" (nowNs () - t0) (aSteps ++ bSteps) in
     ((\rest => MkECert (base ++ rest) FBeta) <$> go a b)
       <|> congFinal a b base
@@ -1754,8 +2047,9 @@ assumedMatchE : ElabSt -> Ctx -> Elem -> Elem -> Ty -> Bool
 assumedMatchE st ctx a b ty =
   let a' = rwNfElem st ctx a
       b' = rwNfElem st ctx b
-      tyN = betaTy st.sig ty in
-  any (\(c, x, y, t) => c == ctx && t == tyN && ((x == a' && y == b') || (x == b' && y == a')))
+      tyN = engNfT st ty
+      sz = elemSize a' + elemSize b' in
+  any (\(s, c, x, y, t) => s == sz && c == ctx && t == tyN && ((x == a' && y == b') || (x == b' && y == a')))
       st.assumedE
 
 -- ===== Committing conversion (the ↓ judgements) =====
@@ -1990,37 +2284,94 @@ hintNamesC (MkECertF tyEx steps final) =
 ||| to assume, probe the GLOBAL store once. A discharge the kernel
 ||| replays becomes a hint on the obligation — search as feedback,
 ||| never as acceptance (the site stays assumed either way).
+||| Names of Σ term-definitions occurring in a rendered core term (the
+||| core Show is constructor-style, so `SigVar "name"` is scannable) —
+||| a survey-mode convenience feeding the unfold hint.
+scanDefNames : ElabSt -> String -> List String
+scanDefNames st s = nub (filter isDef (go (unpack s)))
+ where
+  isDef : String -> Bool
+  isDef x = case cachedSigLookup st.sig x of
+              Just (SigDef _ _ _ _) => True
+              _ => False
+  go : List Char -> List String
+  go [] = []
+  go cs@(_ :: rest) =
+    if isPrefixOf (unpack "SigVar \"") cs
+      then let cs' = drop 8 cs
+               nm = pack (takeWhile (/= '"') cs')
+           in nm :: go (drop (length nm) cs')
+      else go rest
+
 hintE : ElabSt -> Ctx -> Elem -> Elem -> Ty -> Maybe String
-hintE st ctx a b ty =
-  case st.scope of
-    Nothing => Nothing
-    Just _ =>
-      let stG = { scope := Nothing } st in
-      case spEqElemC spDepth stG (mkCandSet stG ctx) ctx a b ty of
-        Nothing => Nothing
-        Just cert =>
-          case kCheckEqElem stG.sig ctx kernelFuel cert a b ty of
-            Left _ => Nothing
-            Right () =>
-              case nub (hintNamesC cert) of
-                [] => Nothing
-                ns => Just "closes with \{joinBy ", " ns}"
+hintE st ctx a b ty = lemmaHint <|> eqHint
+ where
+  lemmaHint : Maybe String
+  lemmaHint =
+    case st.scope of
+      Nothing => Nothing
+      Just _ =>
+        let stG = { scope := Nothing } st in
+        case spEqElemC spDepth stG (mkCandSet stG ctx) ctx a b ty of
+          Nothing => Nothing
+          Just cert =>
+            case kCheckEqElem stG.sig ctx kernelFuel cert a b ty of
+              Left _ => Nothing
+              Right () =>
+                case nub (hintNamesC cert) of
+                  [] => Nothing
+                  ns => Just "closes with \{joinBy ", " ns}"
+  eqHint : Maybe String
+  eqHint =
+    if not strictConv then Nothing else
+    go 5 (scanDefNames st (show a ++ show b))
+   where
+    go : Nat -> List String -> Maybe String
+    go Z ns = Nothing
+    go (S k) ns =
+      if null ns then Nothing else
+      let a' = compElem (unfElem st.sig ns a)
+          b' = compElem (unfElem st.sig ns b) in
+      if a' == b'
+        then Just "closes by citing \{joinBy ", " (map (++ ".eq") ns)}"
+        else
+          let ns' = nub (ns ++ scanDefNames st (show a' ++ show b')) in
+          if length ns' == length ns then Nothing else go k ns'
 
 hintT : ElabSt -> Ctx -> Ty -> Ty -> Maybe String
-hintT st ctx x y =
-  case st.scope of
-    Nothing => Nothing
-    Just _ =>
-      let stG = { scope := Nothing } st in
-      case spEqTyC spDepth stG (mkCandSet stG ctx) ctx x y of
-        Nothing => Nothing
-        Just cert =>
-          case kCheckEqTy stG.sig ctx kernelFuel cert x y of
-            Left _ => Nothing
-            Right () =>
-              case nub (hintNamesC cert) of
-                [] => Nothing
-                ns => Just "closes with \{joinBy ", " ns}"
+hintT st ctx x y = lemmaHint <|> eqHint
+ where
+  lemmaHint : Maybe String
+  lemmaHint =
+    case st.scope of
+      Nothing => Nothing
+      Just _ =>
+        let stG = { scope := Nothing } st in
+        case spEqTyC spDepth stG (mkCandSet stG ctx) ctx x y of
+          Nothing => Nothing
+          Just cert =>
+            case kCheckEqTy stG.sig ctx kernelFuel cert x y of
+              Left _ => Nothing
+              Right () =>
+                case nub (hintNamesC cert) of
+                  [] => Nothing
+                  ns => Just "closes with \{joinBy ", " ns}"
+  eqHint : Maybe String
+  eqHint =
+    if not strictConv then Nothing else
+    go 5 (scanDefNames st (show x ++ show y))
+   where
+    go : Nat -> List String -> Maybe String
+    go Z ns = Nothing
+    go (S k) ns =
+      if null ns then Nothing else
+      let x' = compTy (unfTy st.sig ns x)
+          y' = compTy (unfTy st.sig ns y) in
+      if x' == y'
+        then Just "closes by citing \{joinBy ", " (map (++ ".eq") ns)}"
+        else
+          let ns' = nub (ns ++ scanDefNames st (show x' ++ show y')) in
+          if length ns' == length ns then Nothing else go k ns'
 
 ||| ASSUME (docs/NovaElaboration.txt, ↓ step 8): append the equation to
 ||| Σ as a constraint entry — sig-eq/sig-ty-eq; the signature is OPEN
@@ -2034,7 +2385,9 @@ assume stmt site comp = do
       if assumedMatchE st ctx a b ty
         then pure ()
         else modifySt $ \s =>
-          { assumedE $= ((ctx, rwNfElem st ctx a, rwNfElem st ctx b, betaTy st.sig ty) ::)
+          let aK = rwNfElem st ctx a
+              bK = rwNfElem st ctx b in
+          { assumedE $= ((elemSize aK + elemSize bK, ctx, aK, bK, engNfT st ty) ::)
           , sig $= (:< SigEq ctx a b ty)
           , oblMeta $= (:< MkOblMeta env site comp (hintOf st)) } s
     StTy ctx env x y => do
@@ -2102,7 +2455,9 @@ mutual
             let t1 = bump "cands" (nowNs () - t0) (nowNs ())
             let cs = bump "candN" (cast (length cs0.all)) cs0
             let tyM = bump "sz-att-in" (cast (elemSize a + elemSize b)) ty
-            let tyM2 = bump "sz-att-nf" (cast (elemSize (betaElem st.sig a) + elemSize (betaElem st.sig b))) tyM
+            -- measurement only — a δβ pass per attempt, skipped in strict mode
+            let tyM2 = if strictConv then tyM
+                         else bump "sz-att-nf" (cast (elemSize (betaElem st.sig a) + elemSize (betaElem st.sig b))) tyM
             let mcert = spEqElemC (fromMaybe spDepth st.depthOv) st cs ctx a b tyM2
             let t2 = bump "engine" (nowNs () - t1) (nowNs ())
             case mcert of
@@ -2177,13 +2532,16 @@ mutual
             -- every definition into them. Structure that only lemma
             -- normalization exposes still decomposes: the final
             -- fallback retries with the rewritten sides.
-            let aB = whnfE st.sig a
-            let bB = whnfE st.sig b
+            -- strict: sides decompose δ-FREE (comp), keeping the
+            -- user's vocabulary; the type still gets head exposure
+            let aB = if strictConv then compElem a else whnfE st.sig a
+            let bB = if strictConv then compElem b else whnfE st.sig b
             let a' = rwNfElem st ctx a
             let b' = rwNfElem st ctx b
             let again = if (aB, bB) == (a', b') then Nothing else Just (a', b')
             n0 <- constraintCountM
-            decompose site2 cur comp' aB bB again (rwNfTy st ctx ty)
+            decompose site2 cur comp' aB bB again
+              (if strictConv then exposeT st.modPrefix st.sig ty else rwNfTy st ctx ty)
             n1 <- constraintCountM
             if n1 == n0
               then do
@@ -2278,7 +2636,8 @@ mutual
           (PiApp f x, PiApp g y, _) =>
             if f == g
               then do st' <- getSt
-                      case betaTy st'.sig <$> inferNe st' ctx f of
+                      case (if strictConv then exposeT st'.modPrefix st'.sig else betaTy st'.sig)
+                             <$> inferNe st' ctx f of
                         Just (Ty.PiTy dom _) => ignore $ convElem ctx env site comp' x y dom
                         _ => assume cur site comp
               else assume cur site comp
@@ -2298,8 +2657,8 @@ mutual
             st <- getSt
             let cur = StTy ctx env tyA tyB
             let comp' = comp <|> Just cur
-            let aB = whnfT st.sig tyA
-            let bB = whnfT st.sig tyB
+            let aB = if strictConv then exposeT st.modPrefix st.sig tyA else whnfT st.sig tyA
+            let bB = if strictConv then exposeT st.modPrefix st.sig tyB else whnfT st.sig tyB
             let aR = rwNfTy st ctx tyA
             let bR = rwNfTy st ctx tyB
             let again = if (aB, bB) == (aR, bR) then Nothing else Just (aR, bR)
@@ -2395,7 +2754,7 @@ exposeCert st ctx ty tyX =
 
 preferPi : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, ECert))
 preferPi st ctx (Ty.PiTy a b) = Just (a, b, Nothing)
-preferPi st ctx ty = case betaTy st.sig ty of
+preferPi st ctx ty = case exposeHead st ty of
                        tyX@(Ty.PiTy a b) => Just (a, b, Just (tyX, MkECert [] FBeta))
                        _ => case rwNfTy st ctx ty of
                               tyX@(Ty.PiTy a b) => (\e => (a, b, Just e)) <$> exposeCert st ctx ty tyX
@@ -2403,7 +2762,7 @@ preferPi st ctx ty = case betaTy st.sig ty of
 
 preferSigma : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, ECert))
 preferSigma st ctx (Ty.SigmaTy a b) = Just (a, b, Nothing)
-preferSigma st ctx ty = case betaTy st.sig ty of
+preferSigma st ctx ty = case exposeHead st ty of
                           tyX@(Ty.SigmaTy a b) => Just (a, b, Just (tyX, MkECert [] FBeta))
                           _ => case rwNfTy st ctx ty of
                                  tyX@(Ty.SigmaTy a b) => (\e => (a, b, Just e)) <$> exposeCert st ctx ty tyX
@@ -2411,7 +2770,7 @@ preferSigma st ctx ty = case betaTy st.sig ty of
 
 preferSum : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, ECert))
 preferSum st ctx (Ty.SumTy a b) = Just (a, b, Nothing)
-preferSum st ctx ty = case betaTy st.sig ty of
+preferSum st ctx ty = case exposeHead st ty of
                         tyX@(Ty.SumTy a b) => Just (a, b, Just (tyX, MkECert [] FBeta))
                         _ => case rwNfTy st ctx ty of
                                tyX@(Ty.SumTy a b) => (\e => (a, b, Just e)) <$> exposeCert st ctx ty tyX
@@ -2431,7 +2790,7 @@ exposeProp st ctx ty p =
 
 preferNu : ElabSt -> Ctx -> Ty -> Maybe (Poly, Maybe (Ty, ECert))
 preferNu st ctx (Ty.NuTy f) = Just (f, Nothing)
-preferNu st ctx ty = case betaTy st.sig ty of
+preferNu st ctx ty = case exposeHead st ty of
                        tyX@(Ty.NuTy f) => Just (f, Just (tyX, MkECert [] FBeta))
                        _ => case rwNfTy st ctx ty of
                               tyX@(Ty.NuTy f) => (\e => (f, Just e)) <$> exposeCert st ctx ty tyX
@@ -2439,7 +2798,7 @@ preferNu st ctx ty = case betaTy st.sig ty of
 
 preferQuot : ElabSt -> Ctx -> Ty -> Maybe (Ty, Elem, Maybe (Ty, ECert))
 preferQuot st ctx (Ty.Quotient a r) = Just (a, r, Nothing)
-preferQuot st ctx ty = case betaTy st.sig ty of
+preferQuot st ctx ty = case exposeHead st ty of
                          tyX@(Ty.Quotient a r) => Just (a, r, Just (tyX, MkECert [] FBeta))
                          _ => case rwNfTy st ctx ty of
                                 tyX@(Ty.Quotient a r) => (\e => (a, r, Just e)) <$> exposeCert st ctx ty tyX
@@ -2447,7 +2806,7 @@ preferQuot st ctx ty = case betaTy st.sig ty of
 
 preferPrf : ElabSt -> Ctx -> Ty -> Maybe (Elem, Maybe (Ty, ECert))
 preferPrf st ctx (Prf p) = Just (p, Nothing)
-preferPrf st ctx ty = case betaTy st.sig ty of
+preferPrf st ctx ty = case exposeHead st ty of
                         tyX@(Prf p) => Just (p, Just (tyX, MkECert [] FBeta))
                         _ => case rwNfTy st ctx ty of
                                tyX@(Prf p) => (\e => (p, Just e)) <$> exposeCert st ctx ty tyX
@@ -2773,7 +3132,7 @@ mutual
       Just (pc, exp) => do
         let pcUse = case pc of
                       Elem.EqTy _ _ _ => pc
-                      _ => betaElem st.sig pc
+                      _ => exposeCode st pc
         case pcUse of
           Elem.EqTy l rhs ety => do
             let fM = case whnfT st.sig ety of
@@ -2819,7 +3178,7 @@ mutual
         -- (checking ⋆ emits its equation into ↓); a squashed 𝟙 is
         -- witnessed outright. Prefer the prop as written for readable
         -- obligation statements; fall back to its normal form.
-        let pN = betaElem st.sig p
+        let pN = exposeCode st p
         let pUse0 = case p of
                       Elem.EqTy _ _ _ => p
                       _ => pN
@@ -2834,7 +3193,7 @@ mutual
             c <- convElem ctx env "\{site}: checking ⋆" Nothing l r t
             pure (Star, withExpose exp (Nd [PReflEq (certOr c)] []))
           Squash sq =>
-            case betaTy st.sig sq of
+            case exposeHead st sq of
               Ty.OneTy => pure (Star, withExpose exp (Nd [PSquashWit OneIntro (Nd [] [])] []))
               _ => throw "\{site}: ⋆ can prove only equality props and 𝟙-shaped squashes automatically (write `⋆ ⟨witness⟩` to supply one directly)"
           _ => throw "\{site}: ⋆ checked against a non-evident proposition\{structuralHint}"
@@ -2846,8 +3205,8 @@ mutual
   -- visible store, is a structural error — it could only scope the
   -- site to nothing.
   checkElem ctx env site (SStarUsing ns) ty = do
-    rs <- resolveUsingNames site ns
-    withScope (Just rs) (checkElem ctx env site SStar ty)
+    (rs, eqs) <- resolveUsingNames site ns
+    withScope (Just rs) (withEqScope eqs (checkElem ctx env site SStar ty))
   -- e-chain (docs/SearchlessElaboration.md §5.2): x ≡⟨ e ⟩ y … at
   -- Prf (l ≡ r ∈ A). Midpoints check at A; each justification INFERS
   -- and must prove an equation, which becomes a site-local ground
@@ -2865,7 +3224,7 @@ mutual
       Just (p, exp) => do
         let pUse = case p of
                      Elem.EqTy _ _ _ => p
-                     _ => betaElem st.sig p
+                     _ => exposeCode st p
         case pUse of
           Elem.EqTy l r tA => do
             (x0', _) <- checkElem ctx env site x0 tA
@@ -2883,11 +3242,11 @@ mutual
     linkCand j = do
       (j', jTy, _) <- inferElem ctx env site j
       st <- getSt
-      case betaTy st.sig jTy of
-        Prf pj => case betaElem st.sig pj of
+      case exposeHead st jTy of
+        Prf pj => case exposeCode st pj of
           Elem.EqTy u v _ =>
             pure (closeCand (MkCand "chain link" 0 []
-                    (betaElem st.sig u) (betaElem st.sig v)
+                    (engNfE st u) (engNfE st v)
                     (\wk, _ => Just (weakenElemN wk j', [])) [] []))
           _ => throw "\{site}: a chain justification must prove an equation"
         _ => throw "\{site}: a chain justification must prove an equation"
@@ -2949,7 +3308,7 @@ mutual
         -- el-squash-i, general form: w proves the squashee directly,
         -- whatever its shape. At an equality prop, any proof will do
         -- (el-prf-prop): w becomes a proof license for the equation.
-        let pB = betaElem st.sig p in
+        let pB = exposeCode st p in
         let (pUse, exp) = the (Elem, Maybe (Ty, ECert)) $ case pB of
               Squash _ => (pB, exp)
               Elem.EqTy _ _ _ => (pB, exp)
@@ -2969,7 +3328,7 @@ mutual
             -- two representatives, whatever the relation's shape.
             -- Anything else keeps the license reading — w proves this
             -- very equation.
-            mcert <- case (betaTy st.sig qty, pl, pr, w) of
+            mcert <- case (exposeHead st qty, pl, pr, w) of
               (Ty.PropTy, _, _, SPair f g) => do
                 let pTy = Prf pl
                 let qTy = Prf pr
@@ -2994,7 +3353,7 @@ mutual
     case preferPrf st ctx eTy of
       Nothing => throw "\{site}: squash-elim scrutinee has non-Prf type\{structuralHint}"
       Just (p, _) =>
-        case betaElem st.sig p of
+        case exposeCode st p of
           Squash a =>
             -- el-squash-e-prf: body proves (Prf q)[↑] under a
             -- hypothetical inhabitant of the raw squashee a; the goal
@@ -3032,13 +3391,13 @@ mutual
 addLemma : String -> Ctx -> Ty -> ElabM ()
 addLemma name delta ty = do
   st <- getSt
-  let (delta', peeled) = peelPis delta (betaTy st.sig ty)
+  let (delta', peeled) = peelPis delta (peelNf st ty)
   -- equality is Ω-valued: a lemma registers when its peeled type is a
   -- Prf whose prop normalizes to an equality (squashed spellings
   -- converge here by code-squash-prf)
   let meq : Maybe (Elem, Elem, Ty) =
         case peeled of
-          Prf p => case betaElem st.sig p of
+          Prf p => case exposeCode st p of
                      Elem.EqTy l r t => Just (l, r, t)
                      _ => Nothing
           _ => Nothing
@@ -3058,8 +3417,8 @@ addLemma name delta ty = do
             peeledArgs <- traverse (\p => lookup p bs)
                             (the (List Nat) (if peeledN == 0 then [] else reverse [0 .. minus peeledN 1]))
             pure (foldl PiApp (SigVar name (cast teleArgs)) peeledArgs, the (List Sel) [])
-          lRes = rwNfElemS st.sig lemmaRw True (betaElem st.sig l)
-          rRes = rwNfElemS st.sig lemmaRw True (betaElem st.sig r)
+          lRes = rwNfElemS st.sig [] lemmaRw True (engNfE st l)
+          rRes = rwNfElemS st.sig [] lemmaRw True (engNfE st r)
           toP : List Step -> List PStep
           toP = map (\s => MkPStep s.path (licProof s.lic) s.sels s.flip)
       in modifySt $ \st' =>
@@ -3196,13 +3555,16 @@ elabItemGo (SDef x ty body muses) = do
   -- NOVA_SCOPED, an unannotated item sees hypotheses and computation
   -- only (the searchless default — SearchlessElaboration.md §5.3);
   -- otherwise the full store (the historical behavior)
-  sc <- case muses of
-          Just ns => map Just (resolveUsingNames "def \{x}" ns)
-          Nothing => pure (if scopedMode then Just [] else Nothing)
+  scEqs <- the (ElabM (Maybe (List String), List String)) $ case muses of
+          Just ns => do
+            (rs, eqs) <- resolveUsingNames "def \{x}" ns
+            pure (Just rs, eqs)
+          Nothing => pure (if scopedMode then Just [] else Nothing, [])
+  let (sc, eqs) = scEqs
   -- items live in the EMPTY context: parameters are Π-binders in the
   -- item's type, references are bare names
-  (ty', tySk) <- withScope sc (elabTy [<] [<] "def \{x}" ty)
-  (body', bodySk) <- withScope sc (checkElem [<] [<] "def \{x}" body ty')
+  (ty', tySk) <- withScope sc (withEqScope eqs (elabTy [<] [<] "def \{x}" ty))
+  (body', bodySk) <- withScope sc (withEqScope eqs (checkElem [<] [<] "def \{x}" body ty'))
   -- clean means the RUN is clean: an earlier item's assumption poisons
   -- everything after it (the kernel Σ cannot contain the earlier item,
   -- so references to it are unresolvable anyway)
@@ -3709,22 +4071,44 @@ elabProgram units = go initSt units []
     -- a fresh visibility table per module: its own imports only, and a
     -- lemma store scoped to its import closure
     case runElabM (enterModule name (map mname imps) >> installImports imps) st of
-      Left err => joinBy "\n" (echoes ++ ["Error: \{err}"])
+      Left err =>
+        if strictConv && not (null rest)
+          -- SURVEY MODE: an import of a dropped module cascades — drop too
+          then go st rest (echoes ++ ["warning: module \{name} DROPPED (strict survey): \{err}"])
+          else joinBy "\n" (echoes ++ ["Error: \{err}"])
       Right (st, ()) =>
         let hdr = if name == "" then [] else ["module \{name}:"] in
         case goItems st items of
-          Left (itemEchoes, err) => joinBy "\n" (echoes ++ hdr ++ itemEchoes ++ ["Error: \{err}"])
+          Left (itemEchoes, err) =>
+            if strictConv && not (null rest)
+              -- SURVEY MODE: a hard failure (automation the strict
+              -- subset removed, mid-checking) drops the module and
+              -- continues — its importers cascade into the same path
+              then go st rest (echoes ++ hdr ++ itemEchoes ++
+                     ["warning: module \{name} DROPPED (strict survey): \{err}"])
+              else joinBy "\n" (echoes ++ hdr ++ itemEchoes ++ ["Error: \{err}"])
           Right (st', itemEchoes) =>
             case rest of
               [] => finish tbl st' (echoes ++ hdr ++ itemEchoes)
               _ =>
                 -- only ACCEPTED modules are importable: a module's
                 -- signature segment must be DEFINITIONAL
-                case openReport tbl st' of
-                  Nothing => go st' rest (echoes ++ hdr ++ itemEchoes)
-                  Just rep => joinBy "\n" (echoes ++ hdr ++ itemEchoes) ++ "\n" ++
-                        rep ++ "\n" ++
-                        "Error: module \{name} has open obligations and cannot be imported"
+                if strictConv
+                  -- SURVEY MODE: continue past the gate so ONE run maps
+                  -- the whole corpus's fallout. COUNT open entries
+                  -- instead of rendering the report — the report renders
+                  -- every accumulated obligation and is quadratic across
+                  -- modules (the root still renders the full report once)
+                  then let opens = \s => length (filter (not . sigEntryIsDef) (toList s))
+                           d = minus (opens st'.sig) (opens st.sig) in
+                       go st' rest (echoes ++ hdr ++ itemEchoes ++
+                         (if d == 0 then []
+                          else ["warning: module \{name}: +\{show d} open entries (strict survey)"]))
+                  else case openReport tbl st' of
+                    Nothing => go st' rest (echoes ++ hdr ++ itemEchoes)
+                    Just rep => joinBy "\n" (echoes ++ hdr ++ itemEchoes) ++ "\n" ++
+                          rep ++ "\n" ++
+                          "Error: module \{name} has open obligations and cannot be imported"
 
 ||| Elaborate a dependency-ordered program to its final kernel Σ,
 ||| requiring the ENTIRE program — root included — to be accepted with
