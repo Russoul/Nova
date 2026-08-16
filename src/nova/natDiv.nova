@@ -1,0 +1,230 @@
+import nat (+, *, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusComm, plusAssoc,
+            sucInj, multZeroId, multSucId, zeroMult, sucMult, multComm)
+import natOrder (LeN, leRefl, leOfEq, leZero, leZeroInv, leSucMono, leTrans)
+import natMore (∸, pred, monusZeroR, monusSucR, zeroMonus, sucMonusSuc, plusMonus,
+                monusPlus, monusSelf, monusZeroOfLe, leMonusPlus)
+import eqNat (zNotS)
+import equality (trans, sym, cong, transport)
+import id (Id, idToEq, eqToId)
+
+-- EUCLIDEAN DIVISION on ℕ, by a successor (so the divisor is never
+-- zero and no side condition is needed). The recursion is on FUEL —
+-- `a ∸ S b` is smaller than `a` but not structurally so — and `a`
+-- itself is always enough fuel.
+--
+-- This is the arithmetic ℚ needs in order to have a CEILING, and the
+-- ceiling is what ℝ needs in order to have multiplication: the product
+-- of two regular sequences must be sampled at a depth proportional to
+-- a bound on both, and a bound has to be a natural, computed from a
+-- rational, by a function — i.e. by something the quotient respects.
+
+-- ===== casing on a natural, with the equation in hand =====
+
+def natCase : (C : 𝕌) → El C → (ℕ → El C) → ℕ → El C ≔
+  λC. λz. λs. λn. ℕ-elim (k. El C) z (m rec. s m) n
+
+-- the eliminator for it: each branch may use the equation that put it
+-- there, which is what lets a division step know a > b. Two copies,
+-- because a motive into Ω and a motive into 𝕌 are different rules and
+-- the division spec needs one of each (the quotient equation is a
+-- Prf, the remainder bound is data).
+def natCaseElimEqD : (C : 𝕌) (P : El C → 𝕌) (z : El C) (s : ℕ → El C) (n : ℕ) →
+  ((n ≡ Z ∈ ℕ) → El (P z)) →
+  ((m : ℕ) → (n ≡ S m ∈ ℕ) → El (P (s m))) →
+  El (P (natCase C z s n)) ≔
+  λC. λP. λz. λs. λn.
+    ℕ-elim (k. ((k ≡ Z ∈ ℕ) → El (P z)) →
+             ((m : ℕ) → (k ≡ S m ∈ ℕ) → El (P (s m))) →
+             El (P (natCase C z s k)))
+      (λh0. λh1. h0 ⋆)
+      (k' rec. λh0. λh1. h1 k' ⋆)
+      n
+
+def natCaseElimEq : (C : 𝕌) (P : El C → Ω) (z : El C) (s : ℕ → El C) (n : ℕ) →
+  ((n ≡ Z ∈ ℕ) → Prf (P z)) →
+  ((m : ℕ) → (n ≡ S m ∈ ℕ) → Prf (P (s m))) →
+  Prf (P (natCase C z s n)) ≔
+  λC. λP. λz. λs. λn.
+    ℕ-elim (k. ((k ≡ Z ∈ ℕ) → Prf (P z)) →
+             ((m : ℕ) → (k ≡ S m ∈ ℕ) → Prf (P (s m))) →
+             Prf (P (natCase C z s k)))
+      (λh0. λh1. h0 ⋆)
+      (k' rec. λh0. λh1. h1 k' ⋆)
+      n
+
+-- ===== comparison, read off monus =====
+
+def leOfMonusZero : (a : ℕ) (b : ℕ) → (a ∸ b ≡ Z ∈ ℕ) → El (LeN a b) ≔
+  λa.
+    ℕ-elim (k. (b : ℕ) → (k ∸ b ≡ Z ∈ ℕ) → El (LeN k b))
+      (λb. λh. leZero b)
+      (a' ih.
+        λb.
+          ℕ-elim (m. (S a' ∸ m ≡ Z ∈ ℕ) → El (LeN (S a') m))
+            (λh. 𝟘-elim (zNotS a' (sym ℕ (S a') Z h)))
+            (b' rec. λh.
+              leSucMono a' b'
+                (ih b'
+                   (trans ℕ (a' ∸ b') (S a' ∸ S b') Z
+                      (sym ℕ (S a' ∸ S b') (a' ∸ b') (sucMonusSuc a' b'))
+                      h)))
+            b)
+      a
+
+def ltOfMonusSuc : (a : ℕ) (b : ℕ) (m : ℕ) →
+  (a ∸ b ≡ S m ∈ ℕ) → El (LeN (S b) a) ≔
+  λa.
+    ℕ-elim (k. (b : ℕ) (m : ℕ) → (k ∸ b ≡ S m ∈ ℕ) → El (LeN (S b) k))
+      (λb. λm. λh.
+        𝟘-elim (zNotS m
+          (trans ℕ Z (Z ∸ b) (S m) (sym ℕ (Z ∸ b) Z (zeroMonus b)) h)))
+      (a' ih.
+        λb.
+          ℕ-elim (w. (m : ℕ) → (S a' ∸ w ≡ S m ∈ ℕ) → El (LeN (S w) (S a')))
+            (λm. λh. leSucMono Z a' (leZero a'))
+            (b' rec. λm. λh.
+              leSucMono (S b') a'
+                (ih b' m
+                   (trans ℕ (a' ∸ b') (S a' ∸ S b') (S m)
+                      (sym ℕ (S a' ∸ S b') (a' ∸ b') (sucMonusSuc a' b'))
+                      h)))
+            b)
+      a
+
+-- ===== the fuel decreases =====
+
+-- if a ≤ S f' and b < a then a − (b+1) ≤ f' : peel the successor off
+-- both sides of (b+1) + (a − (b+1)) + k ≡ S f'
+def fuelStep : (a : ℕ) (b : ℕ) (f' : ℕ) →
+  El (LeN a (S f')) → El (LeN (S b) a) → El (LeN (a ∸ S b) f') ≔
+  λa. λb. λf'. λle. λlt.
+    (b + le .π₁ ,
+     eqToId ℕ ((a ∸ S b) + (b + le .π₁)) f'
+       (sucInj ((a ∸ S b) + (b + le .π₁)) f'
+          (S ((a ∸ S b) + (b + le .π₁))
+              ≡⟨ sym ℕ (S ((a ∸ S b) + b) + le .π₁)
+                       (S ((a ∸ S b) + (b + le .π₁)))
+                   (trans ℕ (S ((a ∸ S b) + b) + le .π₁)
+                          (S (((a ∸ S b) + b) + le .π₁))
+                          (S ((a ∸ S b) + (b + le .π₁)))
+                      (sucPlus ((a ∸ S b) + b) (le .π₁))
+                      (cong ℕ (λu. ℕ) (λw. S w)
+                         (((a ∸ S b) + b) + le .π₁)
+                         ((a ∸ S b) + (b + le .π₁))
+                         (plusAssoc (a ∸ S b) b (le .π₁)))) ⟩
+            S ((a ∸ S b) + b) + le .π₁
+              ≡⟨ cong ℕ (λu. ℕ) (λw. w + le .π₁)
+                   (S ((a ∸ S b) + b)) (S b + (a ∸ S b))
+                   (trans ℕ (S ((a ∸ S b) + b)) (S (b + (a ∸ S b)))
+                          (S b + (a ∸ S b))
+                      (cong ℕ (λu. ℕ) (λw. S w)
+                         ((a ∸ S b) + b) (b + (a ∸ S b))
+                         (plusComm b (a ∸ S b)))
+                      (sym ℕ (S b + (a ∸ S b)) (S (b + (a ∸ S b)))
+                         (sucPlus b (a ∸ S b)))) ⟩
+            (S b + (a ∸ S b)) + le .π₁
+              ≡⟨ cong ℕ (λu. ℕ) (λw. w + le .π₁) (S b + (a ∸ S b)) a
+                   (leMonusPlus (S b) a lt) ⟩
+            a + le .π₁
+              ≡⟨ idToEq ℕ (a + le .π₁) (S f') (le .π₂) ⟩
+            S f')))
+
+-- ===== division =====
+
+-- dmAux f a b = (q , r) with a ≡ q·(b+1) + r and r ≤ b, whenever a ≤ f
+def dmAux : ℕ → ℕ → ℕ → (ℕ ⨯ ℕ) ≔
+  λf.
+    ℕ-elim (k. ℕ → ℕ → (ℕ ⨯ ℕ))
+      (λa. λb. (Z , a))
+      (f' ih. λa. λb.
+        natCase (ℕ ⨯ ℕ) (Z , a)
+          (λm. (S ((ih (a ∸ S b) b) .π₁) , (ih (a ∸ S b) b) .π₂))
+          (a ∸ b))
+      f
+
+def divN : ℕ → ℕ → ℕ ≔ λa. λb. (dmAux a a b) .π₁
+def modN : ℕ → ℕ → ℕ ≔ λa. λb. (dmAux a a b) .π₂
+
+-- ===== the specification =====
+
+def dmAuxEq : (f : ℕ) (a : ℕ) (b : ℕ) → El (LeN a f) →
+  a ≡ (dmAux f a b) .π₁ * S b + (dmAux f a b) .π₂ ∈ ℕ
+  using (zeroMult, zeroPlusId) ≔
+  λf.
+    ℕ-elim (k. (a : ℕ) (b : ℕ) → El (LeN a k) →
+             (a ≡ (dmAux k a b) .π₁ * S b + (dmAux k a b) .π₂ ∈ ℕ))
+      (λa. λb. λle. ⋆)
+      (f' ih. λa. λb. λle.
+        natCaseElimEq (ℕ ⨯ ℕ)
+          (λp. (a ≡ p .π₁ * S b + p .π₂ ∈ ℕ))
+          (Z , a)
+          (λm. (S ((dmAux f' (a ∸ S b) b) .π₁) , (dmAux f' (a ∸ S b) b) .π₂))
+          (a ∸ b)
+          (λh0. ⋆)
+          (λm. λhm.
+            trans ℕ a (S b + (a ∸ S b))
+                  (S ((dmAux f' (a ∸ S b) b) .π₁) * S b
+                     + (dmAux f' (a ∸ S b) b) .π₂)
+              (sym ℕ (S b + (a ∸ S b)) a
+                 (leMonusPlus (S b) a (ltOfMonusSuc a b m hm)))
+              (trans ℕ (S b + (a ∸ S b))
+                     (S b + ((dmAux f' (a ∸ S b) b) .π₁ * S b
+                               + (dmAux f' (a ∸ S b) b) .π₂))
+                     (S ((dmAux f' (a ∸ S b) b) .π₁) * S b
+                        + (dmAux f' (a ∸ S b) b) .π₂)
+                 (cong ℕ (λu. ℕ) (λw. S b + w) (a ∸ S b)
+                    ((dmAux f' (a ∸ S b) b) .π₁ * S b
+                       + (dmAux f' (a ∸ S b) b) .π₂)
+                    (ih (a ∸ S b) b
+                       (fuelStep a b f' le (ltOfMonusSuc a b m hm))))
+                 (trans ℕ (S b + ((dmAux f' (a ∸ S b) b) .π₁ * S b
+                                    + (dmAux f' (a ∸ S b) b) .π₂))
+                        ((S b + (dmAux f' (a ∸ S b) b) .π₁ * S b)
+                           + (dmAux f' (a ∸ S b) b) .π₂)
+                        (S ((dmAux f' (a ∸ S b) b) .π₁) * S b
+                           + (dmAux f' (a ∸ S b) b) .π₂)
+                    (sym ℕ ((S b + (dmAux f' (a ∸ S b) b) .π₁ * S b)
+                              + (dmAux f' (a ∸ S b) b) .π₂)
+                           (S b + ((dmAux f' (a ∸ S b) b) .π₁ * S b
+                                     + (dmAux f' (a ∸ S b) b) .π₂))
+                       (plusAssoc (S b) ((dmAux f' (a ∸ S b) b) .π₁ * S b)
+                                  ((dmAux f' (a ∸ S b) b) .π₂)))
+                    (cong ℕ (λu. ℕ) (λw. w + (dmAux f' (a ∸ S b) b) .π₂)
+                       (S b + (dmAux f' (a ∸ S b) b) .π₁ * S b)
+                       (S ((dmAux f' (a ∸ S b) b) .π₁) * S b)
+                       (sym ℕ (S ((dmAux f' (a ∸ S b) b) .π₁) * S b)
+                              (S b + (dmAux f' (a ∸ S b) b) .π₁ * S b)
+                          (sucMult ((dmAux f' (a ∸ S b) b) .π₁) (S b))))))))
+      f
+
+def dmAuxLe : (f : ℕ) (a : ℕ) (b : ℕ) → El (LeN a f) →
+  El (LeN ((dmAux f a b) .π₂) b) ≔
+  λf.
+    ℕ-elim (k. (a : ℕ) (b : ℕ) → El (LeN a k) →
+             El (LeN ((dmAux k a b) .π₂) b))
+      (λa. λb. λle.
+        transport ℕ (λw. LeN w b) Z a (sym ℕ a Z (leZeroInv a le)) (leZero b))
+      (f' ih. λa. λb. λle.
+        natCaseElimEqD (ℕ ⨯ ℕ)
+          (λp. LeN (p .π₂) b)
+          (Z , a)
+          (λm. (S ((dmAux f' (a ∸ S b) b) .π₁) , (dmAux f' (a ∸ S b) b) .π₂))
+          (a ∸ b)
+          (λh0. leOfMonusZero a b h0)
+          (λm. λhm.
+            ih (a ∸ S b) b (fuelStep a b f' le (ltOfMonusSuc a b m hm))))
+      f
+
+-- ===== division, specified =====
+
+-- a itself is always enough fuel, so the two halves of the Euclidean
+-- specification hold unconditionally
+def divModEq : (a : ℕ) (b : ℕ) → a ≡ divN a b * S b + modN a b ∈ ℕ ≔
+  λa. λb. dmAuxEq a a b (leRefl a)
+
+def modLe : (a : ℕ) (b : ℕ) → El (LeN (modN a b) b) ≔
+  λa. λb. dmAuxLe a a b (leRefl a)
+
+-- and it computes: 7 = 3·2 + 1
+def divTest : divN (S (S (S (S (S (S (S Z))))))) (S Z) ≡ S (S (S Z)) ∈ ℕ ≔ ⋆
+def modTest : modN (S (S (S (S (S (S (S Z))))))) (S Z) ≡ S Z ∈ ℕ ≔ ⋆
