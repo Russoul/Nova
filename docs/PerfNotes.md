@@ -659,3 +659,51 @@ migrated corpus re-adds it — also αβ-cheap once the kernel speaks the
 subset.) The port — αβ compare + whitelisted exposure + named-lemma
 instantiation replacing the step-replay language — remains the single
 remaining performance item.
+
+## The kernel port: the tiered replay
+
+The kernel now speaks the strict subset, with the historical path as
+a fallback rather than the default. Three pieces:
+
+* **ECert carries its licenses** (`unfolds : List String`) — the
+  site's cited `<def>.eq` names, stamped by the elaborator at the
+  attempt boundary. Operator-provenance data, like the body: the
+  kernel never validates the list, because soundness never depends on
+  it — everything the licensed join equates is δβ-equal — it only
+  bounds the fast tier's work to what the source names.
+* **The join normalizer** (`kJoinElem`/`kJoinTy`, kernel-owned, in
+  KM, one fuel per contraction): every computation rule plus
+  unfolding of exactly the licensed term definitions; TYPE heads
+  expose freely (ty-x-β, and El-decoding through a weak-head δ of the
+  code) — the head-exposure discipline, pending per-item type
+  whitelists as surface syntax. Alongside it, `kWhnfE`/`kWhnfT`:
+  fueled weak-head normalization with δ, for head matches.
+* **Tiered replay**: `kEqElem`/`kEqTy` run the whole replay under the
+  join policy first (licenses = the certificate's, unioned with the
+  parent's down final-recursions) and rerun under full δβ from the
+  saved fuel state on any failure. Acceptance only ever grows, so
+  every pre-strict certificate — and all of default mode — keeps
+  working unchanged; a fully migrated corpus lets the fallback (and
+  the δβ side-normalization it keeps alive) be deleted. Item
+  admission's head exposures (`kCheckE`/`kInferE`'s `case (kTy ty)
+  of` matches) switched to weak-head normalization — one site stayed
+  full (el-qiit-intro compares the carried signature structurally,
+  caught by elab-data tests).
+
+Measured, same corpus, 138/138 both modes:
+
+```
+strict all.nova     62s → 16.5s   (kernel replay 55s → 11.3s;
+                                   realLimClose 230s → 113s → 3.8s
+                                   across the session)
+default all.nova    3:17 → 1:39   (whnf exposure + tier-1 catching
+                                   comp-joinable replays)
+```
+
+What remains of the 11.3s: stepped certificates (whole-equation lemma
+steps verify through `stepElem`, whose lemma-statement normalization
+is still full δβ) and joins whose engine/kernel vocabularies diverge
+at corners — both bounded, both shrink as the migration replaces
+δβ-dependent certificates outright. End state on a fully migrated
+corpus: delete the KFull tier, `stepElem`'s δβ internals, and the
+per-call def-nf memo that exists to serve them.

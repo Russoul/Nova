@@ -181,10 +181,18 @@ mutual
     tyEx : Maybe (Ty, ECert)
     steps : List Step
     final : Final
+    ||| The site's cited `<def>.eq` unfold licenses (operator-authored,
+    ||| via the using clause). The FAST replay tier joins the sides
+    ||| under α + the computation rules + exactly these unfoldings —
+    ||| the strict conversion subset. Soundness never depends on the
+    ||| list (everything the licensed join equates is δβ-equal, and the
+    ||| full-δβ tier remains the fallback); it only bounds the fast
+    ||| tier's work to what the source names.
+    unfolds : List String
 
 public export
 MkECert : List Step -> Final -> ECert
-MkECert = MkECertF Nothing
+MkECert steps final = MkECertF Nothing steps final []
 
 -- ===== Fuel monad =====
 
@@ -463,6 +471,295 @@ mutual
       Nothing => kerr "kernel: unknown signature name '\{x}'"
   kTy sig (QSort sg k es) = [| QSort (kQSig sig sg) (pure k) (kSubNorm sig es) |]
   kTy sig (Ty.NuTy f) = [| Ty.NuTy (kPoly sig f) |]
+
+-- ===== The strict-subset fast tier =====
+--
+-- The kernel's side of the αβ-conversion architecture (docs/
+-- PerfNotes.md, "The αβ-conversion survey"): a certificate's cited
+-- `<def>.eq` licenses bound a JOIN normalizer — α + the computation
+-- rules + exactly the licensed term unfoldings, with TYPE heads
+-- exposing freely (the head-exposure discipline; per-item type
+-- whitelists are future surface syntax) — and head matches use fueled
+-- weak-head normalization instead of full normalization. Replay tries
+-- this tier first and falls back to the full-δβ path, so acceptance
+-- only ever grows: everything the licensed join equates is δβ-equal.
+-- The fallback keeps every pre-strict certificate replayable during
+-- the migration; a fully migrated corpus lets it be deleted.
+
+mutual
+  ||| Weak-head normalization WITH δ: contract only at the head, one
+  ||| fuel per contraction, subterms stay as written. Stuck or unknown
+  ||| heads return unchanged — exposure never errors.
+  kWhnfE : Sig -> Elem -> KM Elem
+  kWhnfE sig (NatElim z s t) = do
+    t' <- kWhnfE sig t
+    case t' of
+      NatIntro0 => do burn; kWhnfE sig z
+      NatIntro1 n => do burn; kWhnfE sig (substElem s (Ext (Ext Id n) (NatElim z s n)))
+      _ => pure (NatElim z s t')
+  kWhnfE sig (PiApp f e) = do
+    f' <- kWhnfE sig f
+    case f' of
+      PiIntro g => do burn; kWhnfE sig (substElem g (Ext Id e))
+      _ => pure (PiApp f' e)
+  kWhnfE sig (Let a b) = do burn; kWhnfE sig (substElem b (Ext (Ext Id a) Star))
+  kWhnfE sig (SigmaElim1 t) = do
+    t' <- kWhnfE sig t
+    case t' of
+      SigmaIntro a _ => do burn; kWhnfE sig a
+      _ => pure (SigmaElim1 t')
+  kWhnfE sig (SigmaElim2 t) = do
+    t' <- kWhnfE sig t
+    case t' of
+      SigmaIntro _ b => do burn; kWhnfE sig b
+      _ => pure (SigmaElim2 t')
+  kWhnfE sig (SumElim l r t) = do
+    t' <- kWhnfE sig t
+    case t' of
+      Inj1 a => do burn; kWhnfE sig (substElem l (Ext Id a))
+      Inj2 b => do burn; kWhnfE sig (substElem r (Ext Id b))
+      _ => pure (SumElim l r t')
+  kWhnfE sig (SigVar x es) =
+    kSigLookup sig x >>= \entryX => case entryX of
+      Just (SigDef _ _ a _) => do burn; kWhnfE sig (substElem a (embed es))
+      _ => pure (SigVar x es)
+  kWhnfE sig (QuotElim f q) = do
+    q' <- kWhnfE sig q
+    case q' of
+      Class a => do burn; kWhnfE sig (substElem f (Ext Id a))
+      _ => pure (QuotElim f q')
+  kWhnfE sig (Squash t) = do
+    t' <- kWhnfT sig t
+    case t' of
+      Prf p => do burn; kWhnfE sig p
+      _ => pure (Squash t')
+  kWhnfE sig (QElim sg k ms fs es w) = do
+    w' <- kWhnfE sig w
+    case w' of
+      QCtor sgW c theta =>
+        if sgW == sg
+          then do burn
+                  case qElimBetaRhs sg ms fs c theta of
+                    Right rhs => kWhnfE sig rhs
+                    Left _ => pure (QElim sg k ms fs es (QCtor sgW c theta))
+          else pure (QElim sg k ms fs es (QCtor sgW c theta))
+      _ => pure (QElim sg k ms fs es w')
+  kWhnfE sig (Out t) = do
+    t' <- kWhnfE sig t
+    case t' of
+      Corec p a f x => do burn; kWhnfE sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+      _ => pure (Out t')
+  kWhnfE sig e = pure e
+
+  export
+  kWhnfT : Sig -> Ty -> KM Ty
+  kWhnfT sig (El e) = do
+    e' <- kWhnfE sig e
+    case e' of
+      Elem.ZeroTy => do burn; pure Ty.ZeroTy
+      Elem.OneTy => do burn; pure Ty.OneTy
+      Elem.NatTy => do burn; pure Ty.NatTy
+      Elem.PiTy a b => do burn; pure (Ty.PiTy (El a) (El b))
+      Elem.SigmaTy a b => do burn; pure (Ty.SigmaTy (El a) (El b))
+      Elem.SumTy a b => do burn; pure (Ty.SumTy (El a) (El b))
+      QuotTy a r => do burn; pure (Quotient (El a) r)
+      QSortC sg k es => do burn; pure (QSort sg k es)
+      Elem.NuTy f => do burn; pure (Ty.NuTy f)
+      _ => pure (El e')
+  kWhnfT sig (Ty.SigVar x es) =
+    kSigLookup sig x >>= \entryX => case entryX of
+      Just (SigTyDef _ _ a) => do burn; kWhnfT sig (substTy a (embed es))
+      _ => pure (Ty.SigVar x es)
+  kWhnfT sig t = pure t
+
+mutual
+  kJoinSubNorm : List String -> Sig -> SubNorm -> KM SubNorm
+  kJoinSubNorm u sig [<] = pure [<]
+  kJoinSubNorm u sig (es :< e) = [| kJoinSubNorm u sig es :< kJoinElem u sig e |]
+
+  ||| The licensed-join normal form: every computation rule, plus
+  ||| unfolding of exactly the licensed term definitions. The strict
+  ||| conversion subset's normalizer.
+  kJoinElem : List String -> Sig -> Elem -> KM Elem
+  kJoinElem u sig (CtxVar n) = pure (CtxVar n)
+  kJoinElem u sig (ZeroElim t) = ZeroElim <$> kJoinElem u sig t
+  kJoinElem u sig OneIntro = pure OneIntro
+  kJoinElem u sig NatIntro0 = pure NatIntro0
+  kJoinElem u sig (NatIntro1 t) = NatIntro1 <$> kJoinElem u sig t
+  kJoinElem u sig (NatElim z s t) = do
+    z' <- kJoinElem u sig z
+    s' <- kJoinElem u sig s
+    t' <- kJoinElem u sig t
+    case t' of
+      NatIntro0 => do burn; pure z'
+      NatIntro1 n => do burn; kJoinElem u sig (substElem s' (Ext (Ext Id n) (NatElim z' s' n)))
+      _ => pure (NatElim z' s' t')
+  kJoinElem u sig (PiIntro f) = PiIntro <$> kJoinElem u sig f
+  kJoinElem u sig (PiApp f e) = do
+    e' <- kJoinElem u sig e
+    f' <- kJoinElem u sig f
+    case f' of
+      PiIntro g => do burn; kJoinElem u sig (substElem g (Ext Id e'))
+      _ => pure (PiApp f' e')
+  kJoinElem u sig (Let a b) = do
+    burn
+    kJoinElem u sig (substElem b (Ext (Ext Id a) Star))
+  kJoinElem u sig (SigmaIntro a b) = [| SigmaIntro (kJoinElem u sig a) (kJoinElem u sig b) |]
+  kJoinElem u sig (SigmaElim1 t) = do
+    t' <- kJoinElem u sig t
+    case t' of
+      SigmaIntro a _ => do burn; pure a
+      _ => pure (SigmaElim1 t')
+  kJoinElem u sig (SigmaElim2 t) = do
+    t' <- kJoinElem u sig t
+    case t' of
+      SigmaIntro _ b => do burn; pure b
+      _ => pure (SigmaElim2 t')
+  kJoinElem u sig (Inj1 t) = Inj1 <$> kJoinElem u sig t
+  kJoinElem u sig (Inj2 t) = Inj2 <$> kJoinElem u sig t
+  kJoinElem u sig (SumElim l r t) = do
+    l' <- kJoinElem u sig l
+    r' <- kJoinElem u sig r
+    t' <- kJoinElem u sig t
+    case t' of
+      Inj1 a => do burn; kJoinElem u sig (substElem l' (Ext Id a))
+      Inj2 b => do burn; kJoinElem u sig (substElem r' (Ext Id b))
+      _ => pure (SumElim l' r' t')
+  kJoinElem u sig Elem.ZeroTy = pure Elem.ZeroTy
+  kJoinElem u sig Elem.OneTy = pure Elem.OneTy
+  kJoinElem u sig Elem.NatTy = pure Elem.NatTy
+  kJoinElem u sig (Elem.PiTy a b) = [| Elem.PiTy (kJoinElem u sig a) (kJoinElem u sig b) |]
+  kJoinElem u sig (Elem.SigmaTy a b) = [| Elem.SigmaTy (kJoinElem u sig a) (kJoinElem u sig b) |]
+  kJoinElem u sig (Elem.SumTy a b) = [| Elem.SumTy (kJoinElem u sig a) (kJoinElem u sig b) |]
+  kJoinElem u sig (Elem.EqTy l r t) = [| Elem.EqTy (kJoinElem u sig l) (kJoinElem u sig r) (kJoinTy u sig t) |]
+  kJoinElem u sig (QuotTy a r) = [| QuotTy (kJoinElem u sig a) (kJoinElem u sig r) |]
+  kJoinElem u sig (SigVar x es) = do
+    es' <- kJoinSubNorm u sig es
+    if elem x u
+      then kSigLookup sig x >>= \entryX => case entryX of
+             Just (SigDef _ _ a _) => do
+               burn
+               nfa <- kJoinElem u sig a
+               case es' of
+                 [<] => pure nfa
+                 _ => kJoinElem u sig (substElem nfa (embed es'))
+             _ => pure (SigVar x es')
+      else pure (SigVar x es')
+  kJoinElem u sig (Class a) = Class <$> kJoinElem u sig a
+  kJoinElem u sig (QuotElim f q) = do
+    q' <- kJoinElem u sig q
+    f' <- kJoinElem u sig f
+    case q' of
+      Class a => do burn; kJoinElem u sig (substElem f' (Ext Id a))
+      _ => pure (QuotElim f' q')
+  kJoinElem u sig (Squash t) = do
+    t' <- kJoinTy u sig t
+    case t' of
+      Prf p => do burn; pure p
+      _ => pure (Squash t')
+  kJoinElem u sig Star = pure Star
+  kJoinElem u sig (QSortC sg k es) = [| QSortC (kJoinQSig u sig sg) (pure k) (kJoinSubNorm u sig es) |]
+  kJoinElem u sig (QCtor sg k es) = [| QCtor (kJoinQSig u sig sg) (pure k) (kJoinSubNorm u sig es) |]
+  kJoinElem u sig (QElim sg k ms fs es w) = do
+    sg' <- kJoinQSig u sig sg
+    ms' <- traverse (kJoinTy u sig) ms
+    fs' <- traverse (kJoinElem u sig) fs
+    es' <- kJoinSubNorm u sig es
+    w' <- kJoinElem u sig w
+    case w' of
+      QCtor sgW c theta =>
+        if sgW == sg'
+          then do burn
+                  case qElimBetaRhs sg' ms' fs' c theta of
+                    Right rhs => kJoinElem u sig rhs
+                    Left err => kerr "kernel: \{err}"
+          else pure (QElim sg' k ms' fs' es' w')
+      _ => pure (QElim sg' k ms' fs' es' w')
+  kJoinElem u sig (Elem.NuTy f) = Elem.NuTy <$> kJoinPoly u sig f
+  kJoinElem u sig (Out t) = do
+    t' <- kJoinElem u sig t
+    case t' of
+      Corec p a f x => do burn; kJoinElem u sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+      _ => pure (Out t')
+  kJoinElem u sig (Corec p a f x) =
+    [| Corec (kJoinPoly u sig p) (kJoinElem u sig a) (kJoinElem u sig f) (kJoinElem u sig x) |]
+
+  kJoinPoly : List String -> Sig -> Poly -> KM Poly
+  kJoinPoly u sig PHole = pure PHole
+  kJoinPoly u sig (PConst a) = [| PConst (kJoinElem u sig a) |]
+  kJoinPoly u sig (PProd f g) = [| PProd (kJoinPoly u sig f) (kJoinPoly u sig g) |]
+  kJoinPoly u sig (PSum f g) = [| PSum (kJoinPoly u sig f) (kJoinPoly u sig g) |]
+  kJoinPoly u sig (PSigma a f) = [| PSigma (kJoinElem u sig a) (kJoinPoly u sig f) |]
+  kJoinPoly u sig (PPi a f) = [| PPi (kJoinElem u sig a) (kJoinPoly u sig f) |]
+
+  kJoinQTm : List String -> Sig -> QTm -> KM QTm
+  kJoinQTm u sig (QVar i) = pure (QVar i)
+  kJoinQTm u sig (QAppE f e) = [| QAppE (kJoinQTm u sig f) (kJoinElem u sig e) |]
+  kJoinQTm u sig (QAppI f a) = [| QAppI (kJoinQTm u sig f) (kJoinQTm u sig a) |]
+  kJoinQTm u sig (QEqC l r t) = [| QEqC (kJoinQTm u sig l) (kJoinQTm u sig r) (kJoinQTm u sig t) |]
+
+  kJoinQTy : List String -> Sig -> QTy -> KM QTy
+  kJoinQTy u sig QU = pure QU
+  kJoinQTy u sig (QEl t) = QEl <$> kJoinQTm u sig t
+  kJoinQTy u sig (QPiExt a b) = [| QPiExt (kJoinTy u sig a) (kJoinQTy u sig b) |]
+  kJoinQTy u sig (QPiInd t b) = [| QPiInd (kJoinQTm u sig t) (kJoinQTy u sig b) |]
+
+  kJoinQSig : List String -> Sig -> QSig -> KM QSig
+  kJoinQSig u sig = traverse (kJoinQTy u sig)
+
+  ||| Licensed-join normal form of a TYPE. Type heads expose freely
+  ||| (ty-x-β and El-decoding through weak-head δ of the code) — the
+  ||| head-exposure discipline; ELEMENT positions join under the
+  ||| licenses only.
+  kJoinTy : List String -> Sig -> Ty -> KM Ty
+  kJoinTy u sig Ty.ZeroTy = pure Ty.ZeroTy
+  kJoinTy u sig Ty.OneTy = pure Ty.OneTy
+  kJoinTy u sig Ty.NatTy = pure Ty.NatTy
+  kJoinTy u sig Ty.UniverseTy = pure Ty.UniverseTy
+  kJoinTy u sig (Ty.PiTy a b) = [| Ty.PiTy (kJoinTy u sig a) (kJoinTy u sig b) |]
+  kJoinTy u sig (Ty.SigmaTy a b) = [| Ty.SigmaTy (kJoinTy u sig a) (kJoinTy u sig b) |]
+  kJoinTy u sig (Ty.SumTy a b) = [| Ty.SumTy (kJoinTy u sig a) (kJoinTy u sig b) |]
+  kJoinTy u sig (El e) = do
+    e' <- kJoinElem u sig e
+    w <- kWhnfE sig e'
+    case w of
+      Elem.ZeroTy => do burn; pure Ty.ZeroTy
+      Elem.OneTy => do burn; pure Ty.OneTy
+      Elem.NatTy => do burn; pure Ty.NatTy
+      Elem.PiTy a b => do burn; kJoinTy u sig (Ty.PiTy (El a) (El b))
+      Elem.SigmaTy a b => do burn; kJoinTy u sig (Ty.SigmaTy (El a) (El b))
+      Elem.SumTy a b => do burn; kJoinTy u sig (Ty.SumTy (El a) (El b))
+      QuotTy a r => do burn; kJoinTy u sig (Quotient (El a) r)
+      QSortC sg k es => do burn; [| QSort (kJoinQSig u sig sg) (pure k) (kJoinSubNorm u sig es) |]
+      Elem.NuTy f => do burn; Ty.NuTy <$> kJoinPoly u sig f
+      _ => pure (El e')
+  kJoinTy u sig PropTy = pure PropTy
+  kJoinTy u sig (Prf p) = Prf <$> kJoinElem u sig p
+  kJoinTy u sig (Quotient a r) = [| Quotient (kJoinTy u sig a) (kJoinElem u sig r) |]
+  kJoinTy u sig (Ty.SigVar x es) = do
+    es' <- kJoinSubNorm u sig es
+    kSigLookup sig x >>= \entryX => case entryX of
+      Just (SigTyDef _ _ a) => do burn; kJoinTy u sig (substTy a (embed es'))
+      _ => pure (Ty.SigVar x es')
+  kJoinTy u sig (QSort sg k es) = [| QSort (kJoinQSig u sig sg) (pure k) (kJoinSubNorm u sig es) |]
+  kJoinTy u sig (Ty.NuTy f) = Ty.NuTy <$> kJoinPoly u sig f
+
+||| The replay tier: KFull is the historical full-δβ path; KJoin is
+||| the strict subset bounded by the certificate's licenses.
+public export
+data KPol = KFull | KJoin (List String)
+
+kNfE : KPol -> Sig -> Elem -> KM Elem
+kNfE KFull sig = kElem sig
+kNfE (KJoin u) sig = kJoinElem u sig
+
+kNfT : KPol -> Sig -> Ty -> KM Ty
+kNfT KFull sig = kTy sig
+kNfT (KJoin u) sig = kJoinTy u sig
+
+polLic : KPol -> List String
+polLic KFull = []
+polLic (KJoin u) = u
 
 -- ===== Path rewriting =====
 --
@@ -1550,89 +1847,101 @@ isIntro _ = False
 ||| nose — which licenses the REFLEXIVITY fast path below: same
 ||| acceptance set as running the replay, none of the normalization.
 reflCert : ECert -> Bool
-reflCert (MkECertF Nothing [] FBeta) = True
+reflCert (MkECertF Nothing [] FBeta _) = True
 reflCert _ = False
 
 mutual
   ||| Replay a certificate for the element equation Γ ⊢ l ≐ r : ty.
+  ||| TIERED: the strict-subset join (bounded by the certificate's
+  ||| licenses) first; the historical full-δβ replay as the fallback.
+  ||| Everything the join tier accepts is δβ-equal, so acceptance only
+  ||| grows; the fallback keeps every pre-strict certificate alive.
   export
   kEqElem : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty -> KM ()
-  kEqElem sig ctx cert l r ty =
-    if reflCert cert && l == r then pure () else kEqElemGo sig ctx cert l r ty
+  kEqElem = kEqElemL []
 
-  kEqElemGo : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty -> KM ()
-  kEqElemGo sig ctx cert l r ty = do
+  kEqElemL : (inh : List String) -> Sig -> Ctx -> ECert -> Elem -> Elem -> Ty -> KM ()
+  kEqElemL inh sig ctx cert l r ty =
+    if reflCert cert && l == r then pure () else
+    MkKM $ \st =>
+      case runKMSt (kEqElemGo (KJoin (inh ++ cert.unfolds)) sig ctx cert l r ty) st of
+        Right v => Right v
+        Left _ => runKMSt (kEqElemGo KFull sig ctx cert l r ty) st
+
+  kEqElemGo : KPol -> Sig -> Ctx -> ECert -> Elem -> Elem -> Ty -> KM ()
+  kEqElemGo pol sig ctx cert l r ty = do
     -- resolve the type bridge first: the rest of the replay happens at
     -- the (certified-equal) exposed type
     tyU <- case cert.tyEx of
              Nothing => pure ty
-             Just (tyX, c) => do kEqTy sig ctx c ty tyX; pure tyX
-    l0 <- kElem sig l
-    r0 <- kElem sig r
+             Just (tyX, c) => do kEqTyL (polLic pol) sig ctx c ty tyX; pure tyX
+    l0 <- kNfE pol sig l
+    r0 <- kNfE pol sig r
     (l1, r1) <- goSteps tyU cert.steps l0 r0
     case cert.final of
       FBeta =>
         if l1 == r1 then pure () else kerr "kernel: sides differ after replay"
       FProp => do
-        ty' <- kTy sig tyU
+        -- head exposure suffices for every final's type match below
+        ty' <- kWhnfT sig tyU
         case ty' of
           Ty.OneTy => pure ()
           Ty.ZeroTy => pure ()
           Prf _ => pure ()      -- el-prf-prop: proof irrelevance
           _ => kerr "kernel: Prop final at a non-propositional type"
       FWitness mc => do
-        ty' <- kTy sig tyU
+        ty' <- kWhnfT sig tyU
         case (l1, r1, ty') of
           (Class a, Class b, Ty.Quotient dom rel) => do
-            relInst <- kElem sig (substElem rel (Ext (Ext Id a) b))
+            relInst <- kNfE pol sig (substElem rel (Ext (Ext Id a) b))
             case relInst of
               Squash sq => do
-                sq' <- kTy sig sq
+                sq' <- kWhnfT sig sq
                 case sq' of
                   Ty.OneTy => pure ()
                   _ => kerr "kernel: witness final does not apply"
               Elem.EqTy wl wr wt =>
                 case mc of
-                  Just c => kEqElem sig ctx c wl wr wt
+                  Just c => kEqElemL (polLic pol) sig ctx c wl wr wt
                   Nothing => kerr "kernel: witness final needs a certificate at an equality relation"
               _ => kerr "kernel: witness final at a non-evident relation"
           _ => kerr "kernel: witness final at a non-class equation"
       -- el-quot-eq, faithful: the relation instance is inhabited by
       -- the supplied proof, whatever the relation's shape
       FWitnessPrf w skW => do
-        ty' <- kTy sig tyU
+        ty' <- kWhnfT sig tyU
         case (l1, r1, ty') of
           (Class a, Class b, Ty.Quotient _ rel) => do
-            relInst <- kElem sig (substElem rel (Ext (Ext Id a) b))
+            relInst <- kNfE pol sig (substElem rel (Ext (Ext Id a) b))
             kCheckE sig ctx w (Prf relInst) skW
           _ => kerr "kernel: supplied-witness final at a non-class equation"
       FInj c => do
-        ty' <- kTy sig tyU
+        ty' <- kWhnfT sig tyU
         case (l1, r1, ty') of
-          (Inj1 x, Inj1 y, Ty.SumTy a _) => kEqElem sig ctx c x y a
-          (Inj2 x, Inj2 y, Ty.SumTy _ b) => kEqElem sig ctx c x y b
+          (Inj1 x, Inj1 y, Ty.SumTy a _) => kEqElemL (polLic pol) sig ctx c x y a
+          (Inj2 x, Inj2 y, Ty.SumTy _ b) => kEqElemL (polLic pol) sig ctx c x y b
           _ => kerr "kernel: injection final at a non-matching equation"
       FEtaPi c => do
-        ty' <- kTy sig tyU
+        ty' <- kWhnfT sig tyU
         case ty' of
           Ty.PiTy dom cod =>
-            kEqElem sig (ctx :< dom) c
+            kEqElemL (polLic pol) sig (ctx :< dom) c
               (PiApp (substElem l1 Wk) (CtxVar 0))
               (PiApp (substElem r1 Wk) (CtxVar 0))
               cod
           _ => kerr "kernel: Π-η final at a non-Π type"
       FEtaSigma c1 c2 => do
-        ty' <- kTy sig tyU
+        ty' <- kWhnfT sig tyU
         case ty' of
           Ty.SigmaTy dom cod => do
-            kEqElem sig ctx c1 (SigmaElim1 l1) (SigmaElim1 r1) dom
-            kEqElem sig ctx c2 (SigmaElim2 l1) (SigmaElim2 r1)
+            kEqElemL (polLic pol) sig ctx c1 (SigmaElim1 l1) (SigmaElim1 r1) dom
+            kEqElemL (polLic pol) sig ctx c2 (SigmaElim2 l1) (SigmaElim2 r1)
               (substTy cod (Ext Id (SigmaElim1 l1)))
           _ => kerr "kernel: Σ-η final at a non-Σ type"
       FPropExt s skS t skT => do
         -- code-prop-eq: the sides are prop codes; each direction is an
         -- implication between their decodings
-        ty' <- kTy sig tyU
+        ty' <- kWhnfT sig tyU
         case ty' of
           Ty.PropTy => do
             kCheckE sig ctx s (Ty.PiTy (Prf l1) (substTy (Prf r1) Wk)) skS
@@ -1648,38 +1957,46 @@ mutual
     goSteps tyU [] l' r' = pure (l', r')
     goSteps tyU (s :: rest) l' r' =
       if s.onLhs
-        then do l'' <- stepElem sig ctx s tyU l' >>= kElem sig
+        then do l'' <- stepElem sig ctx s tyU l' >>= kNfE pol sig
                 goSteps tyU rest l'' r'
-        else do r'' <- stepElem sig ctx s tyU r' >>= kElem sig
+        else do r'' <- stepElem sig ctx s tyU r' >>= kNfE pol sig
                 goSteps tyU rest l' r''
 
-  ||| Replay a certificate for the type equation Γ ⊢ A ≐ B.
+  ||| Replay a certificate for the type equation Γ ⊢ A ≐ B (tiered,
+  ||| as at kEqElem).
   export
   kEqTy : Sig -> Ctx -> ECert -> Ty -> Ty -> KM ()
-  kEqTy sig ctx cert a b =
-    if reflCert cert && a == b then pure () else kEqTyGo sig ctx cert a b
+  kEqTy = kEqTyL []
 
-  kEqTyGo : Sig -> Ctx -> ECert -> Ty -> Ty -> KM ()
-  kEqTyGo sig ctx cert a b = do
+  kEqTyL : (inh : List String) -> Sig -> Ctx -> ECert -> Ty -> Ty -> KM ()
+  kEqTyL inh sig ctx cert a b =
+    if reflCert cert && a == b then pure () else
+    MkKM $ \st =>
+      case runKMSt (kEqTyGo (KJoin (inh ++ cert.unfolds)) sig ctx cert a b) st of
+        Right v => Right v
+        Left _ => runKMSt (kEqTyGo KFull sig ctx cert a b) st
+
+  kEqTyGo : KPol -> Sig -> Ctx -> ECert -> Ty -> Ty -> KM ()
+  kEqTyGo pol sig ctx cert a b = do
     case cert.tyEx of
       Nothing => pure ()
       Just _ => kerr "kernel: a type equation cannot carry a type bridge"
-    a0 <- kTy sig a
-    b0 <- kTy sig b
+    a0 <- kNfT pol sig a
+    b0 <- kNfT pol sig b
     (a1, b1) <- goSteps cert.steps a0 b0
     case cert.final of
       FBeta => if a1 == b1 then pure () else kerr "kernel: types differ after replay [\{show a1} VS \{show b1}]"
       -- ty-prf-cong: equal prop codes decode to equal types
       FPrfCong c =>
         case (a1, b1) of
-          (Prf p, Prf q) => kEqElem sig ctx c p q Ty.PropTy
+          (Prf p, Prf q) => kEqElemL (polLic pol) sig ctx c p q Ty.PropTy
           _ => kerr "kernel: Prf-congruence final at non-Prf types"
       -- ty-quot-cong at a reflexive domain: relations equal at Ω
       FQuotCong c =>
         case (a1, b1) of
           (Ty.Quotient d0 r0, Ty.Quotient d1 r1) =>
             if d0 == d1
-              then kEqElem sig (ctx :< d0 :< substTy d0 Wk) c r0 r1 Ty.PropTy
+              then kEqElemL (polLic pol) sig (ctx :< d0 :< substTy d0 Wk) c r0 r1 Ty.PropTy
               else kerr "kernel: quotient-congruence final at unequal domains"
           _ => kerr "kernel: quotient-congruence final at non-quotient types"
       -- ty-pi-cong / ty-sigma-cong: componentwise, codomain under the
@@ -1687,21 +2004,21 @@ mutual
       FPiCong dc cc =>
         case (a1, b1) of
           (Ty.PiTy d0 c0, Ty.PiTy d1 c1) => do
-            kEqTy sig ctx dc d0 d1
-            kEqTy sig (ctx :< d1) cc c0 c1
+            kEqTyL (polLic pol) sig ctx dc d0 d1
+            kEqTyL (polLic pol) sig (ctx :< d1) cc c0 c1
           _ => kerr "kernel: Π-congruence final at non-Π types"
       FSigmaCong dc cc =>
         case (a1, b1) of
           (Ty.SigmaTy d0 c0, Ty.SigmaTy d1 c1) => do
-            kEqTy sig ctx dc d0 d1
-            kEqTy sig (ctx :< d1) cc c0 c1
+            kEqTyL (polLic pol) sig ctx dc d0 d1
+            kEqTyL (polLic pol) sig (ctx :< d1) cc c0 c1
           _ => kerr "kernel: Σ-congruence final at non-Σ types"
       -- ty-sum-cong: componentwise, both components over Γ
       FSumCong lc rc =>
         case (a1, b1) of
           (Ty.SumTy l0 r0, Ty.SumTy l1 r1) => do
-            kEqTy sig ctx lc l0 l1
-            kEqTy sig ctx rc r0 r1
+            kEqTyL (polLic pol) sig ctx lc l0 l1
+            kEqTyL (polLic pol) sig ctx rc r0 r1
           _ => kerr "kernel: ⊎-congruence final at non-⊎ types"
       _ => kerr "kernel: unsupported final for a type equation"
    where
@@ -1709,9 +2026,9 @@ mutual
     goSteps [] a' b' = pure (a', b')
     goSteps (s :: rest) a' b' =
       if s.onLhs
-        then do a'' <- stepTy sig ctx s a' >>= kTy sig
+        then do a'' <- stepTy sig ctx s a' >>= kNfT pol sig
                 goSteps rest a'' b'
-        else do b'' <- stepTy sig ctx s b' >>= kTy sig
+        else do b'' <- stepTy sig ctx s b' >>= kNfT pol sig
                 goSteps rest a' b''
 
   ||| Γ ⊢ e ⇐ A, kernel-side.
@@ -1730,12 +2047,12 @@ mutual
         let ty = tyEff
         case e of
           PiIntro f => do
-            ty' <- kTy sig ty
+            ty' <- kWhnfT sig ty
             case ty' of
               Ty.PiTy a b => kCheckE sig (ctx :< a) f b (skelChild 0 sk)
               _ => kerr "kernel: λ checked at a non-Π type"
           SigmaIntro u v => do
-            ty' <- kTy sig ty
+            ty' <- kWhnfT sig ty
             case ty' of
               Ty.SigmaTy a b => do
                 kCheckE sig ctx u a (skelChild 0 sk)
@@ -1747,10 +2064,10 @@ mutual
             -- squash payloads below
             case takeP pReflEq sk of
               Just (cert, _) => do
-                ty' <- kTy sig ty
+                ty' <- kWhnfT sig ty
                 case ty' of
                   Prf p => do
-                    p' <- kElem sig p
+                    p' <- kWhnfE sig p
                     case p' of
                       Elem.EqTy l r t => kEqElem sig ctx cert l r t
                       _ => kerr "kernel: refl-eq payload at a non-equality prop"
@@ -1762,13 +2079,13 @@ mutual
                -- rule; Foundation, coinductive NOTES)
                case takeP pNuCoind sk of
                 Just ((r, skR, pw, skp, qw, skq), _) => do
-                  ty' <- kTy sig ty
+                  ty' <- kWhnfT sig ty
                   case ty' of
                     Prf pc => do
-                      pc' <- kElem sig pc
+                      pc' <- kWhnfE sig pc
                       case pc' of
                         Elem.EqTy l rhs ety => do
-                          ety' <- kTy sig ety
+                          ety' <- kWhnfT sig ety
                           case ety' of
                             Ty.NuTy f => do
                               let nuT = Ty.NuTy f
@@ -1791,10 +2108,10 @@ mutual
                 -- inhabitant of the squashee) as a payload
                  case takeP pSquashWit sk of
                   Just ((wit, witSk), _) => do
-                    ty' <- kTy sig ty
+                    ty' <- kWhnfT sig ty
                     case ty' of
                       Prf p => do
-                        p' <- kElem sig p
+                        p' <- kWhnfE sig p
                         case p' of
                           Squash sq => kCheckE sig ctx wit sq witSk
                           _ => kerr "kernel: ⋆ checked at Prf of a non-∥∥ code"
@@ -1805,13 +2122,13 @@ mutual
                   Nothing => case takeP pSquashElim sk of
                     Just ((scrut, scrutSk, body, bodySk), _) => do
                       scrutTy <- kInferE sig ctx scrut scrutSk
-                      scrutTy' <- kTy sig scrutTy
+                      scrutTy' <- kWhnfT sig scrutTy
                       case scrutTy' of
                         Prf p => do
-                          p' <- kElem sig p
+                          p' <- kWhnfE sig p
                           case p' of
                             Squash a => do
-                              ty' <- kTy sig ty
+                              ty' <- kWhnfT sig ty
                               case ty' of
                                 Prf _ => kCheckE sig (ctx :< a) body (substTy ty Wk) bodySk
                                 _ => kerr "kernel: squash-elim checked at a non-Prf goal"
@@ -1819,17 +2136,17 @@ mutual
                         _ => kerr "kernel: squash-elim scrutinee has non-Prf type"
                     Nothing => kerr "kernel: ⋆ without its witness or squash-elim annotation"
           Inj1 a => do
-            ty' <- kTy sig ty
+            ty' <- kWhnfT sig ty
             case ty' of
               Ty.SumTy dom _ => kCheckE sig ctx a dom (skelChild 0 sk)
               _ => kerr "kernel: inj₁ checked at a non-⊎ type"
           Inj2 a => do
-            ty' <- kTy sig ty
+            ty' <- kWhnfT sig ty
             case ty' of
               Ty.SumTy _ cod => kCheckE sig ctx a cod (skelChild 0 sk)
               _ => kerr "kernel: inj₂ checked at a non-⊎ type"
           Class a => do
-            ty' <- kTy sig ty
+            ty' <- kWhnfT sig ty
             case ty' of
               Ty.Quotient dom _ => kCheckE sig ctx a dom (skelChild 0 sk)
               _ => kerr "kernel: class checked at a non-quotient type"
@@ -1838,7 +2155,7 @@ mutual
           -- carrier at the reflected observation type, seed at the
           -- carrier
           Corec p aC f x => do
-            ty' <- kTy sig ty
+            ty' <- kWhnfT sig ty
             case ty' of
               Ty.NuTy pT => do
                 p' <- kPoly sig p
@@ -1862,7 +2179,9 @@ mutual
           QCtor sgC c theta => do
             -- el-qiit-intro, SATURATED. The signature is nf(T)'s own —
             -- already validated where T was — and the term's must be
-            -- nf-identical to it.
+            -- nf-identical to it. FULL normalization here: the carried
+            -- signature is compared structurally, so weak-head is not
+            -- enough.
             ty' <- kTy sig ty
             case ty' of
               QSort sgT srt es => do
@@ -1936,25 +2255,25 @@ mutual
           NatIntro0 => pure Ty.NatTy
           NatIntro1 t => do kCheckE sig ctx t Ty.NatTy (skelChild 0 sk); pure Ty.NatTy
           PiApp f a => do
-            fTy <- kInferE sig ctx f (skelChild 0 sk) >>= kTy sig
+            fTy <- kInferE sig ctx f (skelChild 0 sk) >>= kWhnfT sig
             case fTy of
               Ty.PiTy dom cod => do
                 kCheckE sig ctx a dom (skelChild 1 sk)
                 pure (substTy cod (Ext Id a))
               _ => kerr "kernel: applying a non-function"
           SigmaElim1 t => do
-            tTy <- kInferE sig ctx t (skelChild 0 sk) >>= kTy sig
+            tTy <- kInferE sig ctx t (skelChild 0 sk) >>= kWhnfT sig
             case tTy of
               Ty.SigmaTy a _ => pure a
               _ => kerr "kernel: projecting a non-pair"
           SigmaElim2 t => do
-            tTy <- kInferE sig ctx t (skelChild 0 sk) >>= kTy sig
+            tTy <- kInferE sig ctx t (skelChild 0 sk) >>= kWhnfT sig
             case tTy of
               Ty.SigmaTy _ b => pure (substTy b (Ext Id (SigmaElim1 t)))
               _ => kerr "kernel: projecting a non-pair"
           -- el-nu-e: fully inference-driven, no motive payload
           Out t => do
-            tTy <- kInferE sig ctx t (skelChild 0 sk) >>= kTy sig
+            tTy <- kInferE sig ctx t (skelChild 0 sk) >>= kWhnfT sig
             case tTy of
               Ty.NuTy f => pure (El (reflectPoly f (Elem.NuTy f)))
               _ => kerr "kernel: observing a non-ν element"
@@ -1980,7 +2299,7 @@ mutual
             -- scrutinee's ⊎-type is inferred (like quot-elim's)
             case takeP pMotive sk of
               Just ((mot, motSk), _) => do
-                tTy <- kInferE sig ctx t (skelChild 2 sk) >>= kTy sig
+                tTy <- kInferE sig ctx t (skelChild 2 sk) >>= kWhnfT sig
                 case tTy of
                   Ty.SumTy a b => do
                     kCheckTyK sig (ctx :< Ty.SumTy a b) mot motSk
@@ -1994,7 +2313,7 @@ mutual
           QuotElim f q =>
             case (takeP pMotive sk, takeP pWD sk) of
               (Just ((mot, motSk), _), Just (wd, _)) => do
-                qTy <- kInferE sig ctx q (skelChild 1 sk) >>= kTy sig
+                qTy <- kInferE sig ctx q (skelChild 1 sk) >>= kWhnfT sig
                 case qTy of
                   Ty.Quotient a r => do
                     kCheckTyK sig (ctx :< Ty.Quotient a r) mot motSk
