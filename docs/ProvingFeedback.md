@@ -144,24 +144,82 @@ level up. That is why `qInvIsProp` is stated in pair-congruence form
 **Suggested fix:** a second set of combinators quantified over *types*
 rather than codes, or admissible congruence/η at arbitrary types.
 
-### A-7. [ℝ] Proof components of a Σ-CODE are not irrelevant
+### A-7. [ℝ] A Σ-CODE's proof component is data — which is a feature, until you want carrier equality
 
-A Bishop real is a pair `(f , reg)` — a sequence and a proof that it is
-regular. `Regular f` is a 𝕌-code (a Π of a pair of `LeQ`s), *not* a
-`Prf`, because a Σ-code cannot carry a `Prf` (A-1). So two elements of
-`RSeq` with the SAME sequence and different regularity witnesses are
-not judgementally equal, and there is no way to make them so.
+A Bishop real is a pair `(f , reg)`: a sequence and a witness that it
+is regular. By A-1 a Σ-code cannot carry a `Prf`, so `Regular f` is a
+𝕌-code (a Π of a pair of `LeQ`s) and `reg` is DATA. Three separate
+things follow, and an earlier version of this entry ran them together.
 
-Consequence for the whole development: **no law about ℝ may be proved
-by an equality in the carrier.** `realNeg (realNeg u) ≡ u` cannot go
-"the sequences are pointwise equal, hence the pairs are equal, hence
-the classes are"; it must go through the quotient relation
-(`realEqOfPointwise`) every single time. In practice this costs
-nothing — the relation is weaker than equality, so the route is
-strictly easier — but it has to be set up as the *only* route from the
-start. A development that reaches for carrier equality first will get
-stuck with no diagnosis, because the missing step is an irrelevance
-that does not exist.
+**1. It is what makes ℝ a code at all.** `Regular f : 𝕌` is what makes
+`RSeq : 𝕌`, hence `Real : 𝕌`, hence `El Real`, hence every generic
+`(A : 𝕌)` combinator in `equality.nova` applicable to reals. Had the
+witness been a `Prf`, the entire ℝ development would have been large
+(A-6) and would have had to re-declare its own `trans`/`sym`/`cong`.
+This is A-1's trade paying off, not costing.
+
+**2. Here the witness carries no rate — the rate is in the TYPE.**
+It is tempting to read `reg` as the modulus of convergence, and in a
+Cauchy-with-modulus carrier
+
+```
+((f : ℕ → Q) ⨯ (μ : ℕ → ℕ) ⨯ ⟨∀ε ∀m n ≥ μ ε. |f m − f n| ≤ ε⟩)
+```
+
+it would be exactly that: `μ` is load-bearing data, you cannot compute
+with the sequence without it, and *there* the fact that a Σ-code cannot
+erase it is precisely what you want. But `real.nova` uses Bishop's
+REGULAR sequences, whose whole design is to move the modulus into the
+type:
+
+```
+def Regular : El (ℕ → Q) → 𝕌 ≔
+  λf. ((m : ℕ) (n : ℕ) → (LeQ (qNeg (rBound m n)) (f m − f n)
+                          ⨯ LeQ (f m − f n) (rBound m n)))
+```
+
+`rBound m n` is a fixed function of the indices. Every element of
+`RSeq` therefore converges at the SAME rate, by definition, and two
+witnesses for the same `f` certify literally the same inequalities.
+What `reg` actually contains is, per index pair, the sign VERDICT —
+which injection of `NonNegS s ≜ Id Sign s sZero ⊎ Id Sign s sPos` —
+and that is determined by `f`, since `sgnQ` is a function and
+`sZeroNotPos` rules out both branches being inhabited at once. So the
+witness has at most one shape; it is a subsingleton in everything but
+name.
+
+Consistent with that, no proof in the ℝ development ever inspects a
+regularity witness: `regBnd` passes the pair along and the `Bnd`
+algebra consumes `.π₁`/`.π₂` as opaque verdicts.
+
+**3. What is a genuine cost is the missing UIP.** "Subsingleton in
+everything but name" is the problem: to prove two `RSeq` elements with
+the same sequence equal one needs `Id a x y` to be a subsingleton, and
+I could not derive that. Two routes, both blocked structurally:
+
+* induction on `p : El (Id a x y)` with motive `λu v w. (w ≡ refl a u ∈ …)`
+  does not typecheck — `refl a u : El (Id a u u)` and the motive needs
+  it at `El (Id a u v)`, with `u ≐ v` unavailable at generic indices;
+* the "for every `z`" motive has to be an Ω, and Ω is not closed under
+  `→` (`prop.nova` squashes: `p ⊃ q ≜ ∥Prf p → Prf q∥`), so the motive
+  becomes `∥(z : El (Id a u v)) → Prf (w ≡ z)∥` and its `refl` method is
+  the original goal again.
+
+So the working constraint stands, and it is the one that shaped the
+development: **no law about ℝ may be proved by an equality in the
+carrier.** `realNeg (realNeg u) ≡ u` cannot go "the sequences agree
+pointwise, hence the pairs are equal, hence the classes are"; it must
+go through the quotient relation (`realEqOfPointwise`) every time. In
+practice this costs nothing — REq is weaker than equality, so the route
+is strictly easier — but it has to be set up as the ONLY route from the
+start, because a development that reaches for carrier equality first
+gets stuck with no diagnosis: the missing step is an irrelevance that
+does not exist.
+
+**Suggested fix:** a uniqueness principle (η) for QIIT eliminators, or
+`Id` shipped with UIP as a lemma in `id.nova`. Either would make
+`Regular f` provably a subsingleton and restore carrier equality as an
+option — without giving up the code-hood that item 1 depends on.
 
 ---
 
