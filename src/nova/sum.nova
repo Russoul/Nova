@@ -58,3 +58,10 @@ def isLeftCode : (a : 𝕌) (b : 𝕌) → El (a ⊎ b) → 𝕌 ≔
 def inj1NotInj2 : (a : 𝕌) (b : 𝕌) (x : El a) (y : El b) →
     (inj₁ x ≡ inj₂ y ∈ El (a ⊎ b)) → 𝟘 ≔
   λa. λb. λx. λy. λh. transport (a ⊎ b) (isLeftCode a b) (inj₁ x) (inj₂ y) h ()
+
+-- the mirror image of outl/inj1Injective, for the right injection
+def outr : (a : 𝕌) (b : 𝕌) → El b → El (a ⊎ b) → El b ≔
+  λa. λb. λd. λt. ⊎-elim (w. El b) (x. d) (y. y) t
+def inj2Injective : (a : 𝕌) (b : 𝕌) (y : El b) (y' : El b) →
+    (inj₂ y ≡ inj₂ y' ∈ El (a ⊎ b)) → y ≡ y' ∈ (El b) ≔
+  λa. λb. λy. λy'. λh. cong (a ⊎ b) (λw. b) (outr a b y) (inj₂ y) (inj₂ y') h

@@ -109,6 +109,12 @@ def qMinGlb : (u : El Q) (v : El Q) (w : El Q) →
          (qMaxLub (qNeg u) (qNeg v) (qNeg w)
             (leQNegFlip w u h1) (leQNegFlip w v h2)))
 
+def qMinComm : (u : El Q) (v : El Q) → qMin u v ≡ qMin v u ∈ El Q ≔
+  λu. λv.
+    cong Q (λw. Q) (λw. qNeg w)
+      (qMax (qNeg u) (qNeg v)) (qMax (qNeg v) (qNeg u))
+      (qMaxComm (qNeg u) (qNeg v))
+
 -- (−a) − (−c) ≡ c − a : the difference of negations is reversed
 def qNegDiff : (a : El Q) (c : El Q) →
   qAdd (qNeg a) (qNeg (qNeg c)) ≡ qAdd c (qNeg a) ∈ El Q ≔

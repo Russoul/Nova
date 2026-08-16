@@ -1,11 +1,13 @@
 import rationalQ (Q, qAdd, qNeg, qZero, qAddComm, qAddAssoc, qAddZeroL, qAddZeroR,
                   qAddNegL, qAddNegR, qNegNeg)
 import rationalOrder (Sign, sPos, sNeg, sZero, sgnQ, NonNegS, LeQ, leQRefl, leQOfEq, leQTrans,
-                      sZeroNotNeg, sPosNotNeg,
+                      sZeroNotNeg, sPosNotNeg, sZeroNotPos,
                       leQPlusMono, leQPlusMonoL, qNegAdd, qPairSwap, qSubSplit,
                       qSubPlusCancel)
 import equality (trans, sym, cong, transport)
 import id (Id, eqToId, idToEq)
+import uip (uip)
+import eqInt (pairEq2)
 
 -- Two-sided bounds on ℚ, stated WITHOUT an absolute value: `Bnd b u`
 -- says −b ≤ u ≤ b. This is the shape every regularity/closeness
@@ -255,3 +257,46 @@ def nonNegNotNeg : (s : El Sign) → El (NonNegS s) → El (Id Sign s sNeg) → 
                 (sym Sign s sPos (idToEq Sign s sPos hp))
                 (idToEq Sign s sNeg hn)))
       nn
+
+-- ===== order verdicts are unique =====
+--
+-- `LeQ x y` is DATA — a `⊎` of two `Id`s — but it carries no
+-- information: `sgnQ` is a function, so which injection is inhabited
+-- is determined by x and y, and `uip` says the `Id` payload is unique.
+-- So ≤ behaves like a proposition after all, and anything built from
+-- it (a `Bnd`, a regularity witness) inherits that.
+
+def nonNegIsProp : (s : El Sign) (p : El (NonNegS s)) (q : El (NonNegS s)) →
+  p ≡ q ∈ El (NonNegS s) ≔
+  λs. λp. λq.
+    ⊎-elim (w. w ≡ q ∈ El (NonNegS s))
+      (a.
+        ⊎-elim (w. inj₁ a ≡ w ∈ El (NonNegS s))
+          (b. cong (Id Sign s sZero) (λv. NonNegS s) (λw. inj₁ w) a b
+                (uip Sign s sZero a b))
+          (b. 𝟘-elim (sZeroNotPos
+                (trans Sign sZero s sPos
+                   (sym Sign s sZero (idToEq Sign s sZero a))
+                   (idToEq Sign s sPos b))))
+          q)
+      (a.
+        ⊎-elim (w. inj₂ a ≡ w ∈ El (NonNegS s))
+          (b. 𝟘-elim (sZeroNotPos
+                (trans Sign sZero s sPos
+                   (sym Sign s sZero (idToEq Sign s sZero b))
+                   (idToEq Sign s sPos a))))
+          (b. cong (Id Sign s sPos) (λv. NonNegS s) (λw. inj₂ w) a b
+                (uip Sign s sPos a b))
+          q)
+      p
+
+def leQIsProp : (x : El Q) (y : El Q) (p : El (LeQ x y)) (q : El (LeQ x y)) →
+  p ≡ q ∈ El (LeQ x y) ≔
+  λx. λy. nonNegIsProp (sgnQ (qAdd y (qNeg x)))
+
+def bndIsProp : (b : El Q) (u : El Q) (p : El (Bnd b u)) (q : El (Bnd b u)) →
+  p ≡ q ∈ El (Bnd b u) ≔
+  λb. λu. λp. λq.
+    pairEq2 (LeQ (qNeg b) u) (LeQ u b) p q
+      (leQIsProp (qNeg b) u (p .π₁) (q .π₁))
+      (leQIsProp u b (p .π₂) (q .π₂))
