@@ -36,6 +36,8 @@ import ratMax
 import realLattice
 import natMore
 import natDiv
+import ratNat
+import ratCeil
 import intAbs
 import intGroup
 import ratField

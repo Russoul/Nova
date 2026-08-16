@@ -1,0 +1,88 @@
+import nat (+, *, plusZeroId, zeroPlusId, plusComm, sucPlus, multComm)
+import natOrder (LeN, leRefl, leZero, leTrans, lePlusMonoR, leMultMonoR)
+import natDiv (divN, modN, divModEq, modLe, divNUnique)
+import integer (Int, intZero, intOne, intNeg)
+import integerMul (intMul)
+import intOrder (intOfNat)
+import intAbs (intMag, nzMag, intMagNz, intMagMul, intMagOfNat)
+import rational (NZ, nzPos, nzNeg, nzToInt, nzMul, Rat, mkRat, num, den, denInt,
+                 ratNeg)
+import rationalQ (Q, qcls, RatR, dInt, clsEqOfRel, qNeg, qZero)
+import rationalOrder (Sign, sZero, sPos, sNeg, sgnQ, intSgn, intSgnZero, intSgnNz,
+                      nzSgn, NonNegS, LeQ, leQTrans)
+import ratBound (leQNegFlip, nonNegIsProp)
+import ratNat (qOfNat, nonNegSgnOfLe, leQOfNat)
+import intNonZero (nzOfInt)
+import equality (trans, sym, cong, transport, transportP)
+import id (Id, idToEq, eqToId)
+
+-- THE CEILING of a rational, as a natural: `qNatBound u` is
+-- ⌊|u|⌋ + 1, and it is a FUNCTION on ℚ — the first natural-valued one
+-- the corpus has that is not already determined by an integer.
+--
+-- That it descends to the quotient is exactly natDiv's uniqueness of
+-- the Euclidean quotient, transported across the cross-multiplication
+-- by intMag's multiplicativity. No canonical form for ℚ is needed;
+-- lowest terms would need gcd, the ceiling only needs division.
+--
+-- What it is for: ℝ's multiplication samples at a depth proportional
+-- to a bound on both factors, and a bound has to be a natural computed
+-- from a rational by something the quotient respects.
+
+def qFloorRep : El Rat → ℕ ≔
+  λp. divN (intMag (num p)) (nzMag (den p))
+
+-- the cross-multiplication, in magnitudes. Explicit `trans`, not a
+-- chain: every link here rewrites inside intMag's quot-elim, which a
+-- chain step may not do (B-1/B-13).
+def crossAbs : (p : El Rat) (p' : El Rat) → Prf (RatR p p') →
+  intMag (num p) * S (nzMag (den p'))
+    ≡ intMag (num p') * S (nzMag (den p)) ∈ ℕ ≔
+  λp. λp'. λh.
+    trans ℕ (intMag (num p) * S (nzMag (den p')))
+            (intMag (intMul (num p) (dInt p')))
+            (intMag (num p') * S (nzMag (den p)))
+      (sym ℕ (intMag (intMul (num p) (dInt p')))
+             (intMag (num p) * S (nzMag (den p')))
+         (trans ℕ (intMag (intMul (num p) (dInt p')))
+                  (intMag (num p) * intMag (nzToInt (den p')))
+                  (intMag (num p) * S (nzMag (den p')))
+            (intMagMul (num p) (dInt p'))
+            (cong ℕ (λu. ℕ) (λw. intMag (num p) * w)
+               (intMag (nzToInt (den p'))) (S (nzMag (den p')))
+               (intMagNz (den p')))))
+      (trans ℕ (intMag (intMul (num p) (dInt p')))
+               (intMag (intMul (num p') (dInt p)))
+               (intMag (num p') * S (nzMag (den p)))
+         (cong Int (λv. ℕ) (λv. intMag v)
+            (intMul (num p) (dInt p')) (intMul (num p') (dInt p)) h)
+         (trans ℕ (intMag (intMul (num p') (dInt p)))
+                  (intMag (num p') * intMag (nzToInt (den p)))
+                  (intMag (num p') * S (nzMag (den p)))
+            (intMagMul (num p') (dInt p))
+            (cong ℕ (λu. ℕ) (λw. intMag (num p') * w)
+               (intMag (nzToInt (den p))) (S (nzMag (den p)))
+               (intMagNz (den p)))))
+
+-- stated over the COMPONENTS, as eqInt's normPairWD is: that is the
+-- shape the descent's well-definedness goal actually has
+def qFloorWD : (N : El Int) (d : El NZ) (N' : El Int) (d' : El NZ)
+  (h : Prf (intMul N (nzToInt d') ≡ intMul N' (nzToInt d) ∈ El Int)) →
+  divN (intMag N) (nzMag d) ≡ divN (intMag N') (nzMag d') ∈ ℕ ≔
+  λN. λd. λN'. λd'. λh.
+    divNUnique (intMag N) (nzMag d) (intMag N') (nzMag d')
+      (crossAbs (mkRat N d) (mkRat N' d') h)
+
+def qFloor : El Q → ℕ using (qFloorWD) ≔
+  λu. quot-elim (w. ℕ) (p. divN (intMag (p .π₁)) (nzMag (p .π₂))) u
+
+def qNatBound : El Q → ℕ ≔ λu. S (qFloor u)
+
+def qNatBoundCls : (p : El Rat) →
+  qNatBound (qcls p) ≡ S (divN (intMag (num p)) (nzMag (den p))) ∈ ℕ ≔
+  λp. ⋆
+
+-- ½ and 2/4 are the same rational, and get the same bound: 1
+def qNatBoundHalf : qNatBound (qcls (mkRat intOne (nzPos (S Z)))) ≡ S Z ∈ ℕ ≔ ⋆
+def qNatBoundQuarters :
+  qNatBound (qcls (mkRat (class (S (S Z) , Z)) (nzPos (S (S (S Z)))))) ≡ S Z ∈ ℕ ≔ ⋆

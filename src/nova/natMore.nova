@@ -193,3 +193,29 @@ def oneExp : (n : ℕ) → S Z ^ n ≡ S Z ∈ ℕ using (multComm) ≔
 def expPlus : (a : ℕ) (m : ℕ) (n : ℕ) →
   a ^ (m + n) ≡ a ^ m * a ^ n ∈ ℕ using (multAssoc, multComm) ≔
   λa. λm. λn. ℕ-elim (k. a ^ (m + k) ≡ a ^ m * a ^ k ∈ ℕ) ⋆ (k ih. ⋆) n
+
+-- ===== monus and a common summand =====
+
+def monusPlusR : (a : ℕ) (b : ℕ) (k : ℕ) →
+  (a + k) ∸ (b + k) ≡ a ∸ b ∈ ℕ using (sucMonusSuc) ≔
+  λa. λb. λk. ℕ-elim (j. (a + j) ∸ (b + j) ≡ a ∸ b ∈ ℕ) ⋆ (j ih. ⋆) k
+
+def monusPlusL : (k : ℕ) (a : ℕ) (b : ℕ) →
+  (k + a) ∸ (k + b) ≡ a ∸ b ∈ ℕ ≔
+  λk. λa. λb.
+    trans ℕ ((k + a) ∸ (k + b)) ((a + k) ∸ (b + k)) (a ∸ b)
+      (trans ℕ ((k + a) ∸ (k + b)) ((a + k) ∸ (k + b)) ((a + k) ∸ (b + k))
+         (cong ℕ (λu. ℕ) (λw. w ∸ (k + b)) (k + a) (a + k) (plusComm a k))
+         (cong ℕ (λu. ℕ) (λw. (a + k) ∸ w) (k + b) (b + k) (plusComm b k)))
+      (monusPlusR a b k)
+
+-- the difference-pair reading: a + d ≡ b + c makes a − b and c − d
+-- the same truncated difference
+def monusEqOfSum : (a : ℕ) (b : ℕ) (c : ℕ) (d : ℕ) →
+  (a + d ≡ b + c ∈ ℕ) → a ∸ b ≡ c ∸ d ∈ ℕ ≔
+  λa. λb. λc. λd. λh.
+    trans ℕ (a ∸ b) ((a + d) ∸ (b + d)) (c ∸ d)
+      (sym ℕ ((a + d) ∸ (b + d)) (a ∸ b) (monusPlusR a b d))
+      (trans ℕ ((a + d) ∸ (b + d)) ((b + c) ∸ (b + d)) (c ∸ d)
+         (cong ℕ (λu. ℕ) (λw. w ∸ (b + d)) (a + d) (b + c) h)
+         (monusPlusL b c d))
