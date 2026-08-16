@@ -52,5 +52,6 @@ import stream
 import streamEq
 import streamBisim
 import sum
+import uip
 import vectByInd
 import vectByIndAppend
