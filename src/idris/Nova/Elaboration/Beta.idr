@@ -174,7 +174,14 @@ mutual
   betaElem sig (SigVar x es) =
     let es' = betaSubNorm sig es
     in case cachedSigLookup sig x of
-         Just (SigDef _ _ a _) => betaElem sig (substElem (nfMemo betaElemNf x (betaElem sig a)) (embed es'))
+         -- empty spine: the substitution is the identity, so the cached
+         -- form IS the answer — skip the copy and the re-traversal
+         -- (same shortcut the kernel's kElem has)
+         Just (SigDef _ _ a _) =>
+           let nfa = nfMemo betaElemNf x (betaElem sig a) in
+           case es' of
+             [<] => nfa
+             _   => betaElem sig (substElem nfa (embed es'))
          -- el-sig-decl: a declaration reference is stuck (no -beta)
          Just (SigDecl _ _ _)  => SigVar x es'
          Just _                => assert_total $ idris_crash "betaElem: signature identifier '\{x}' is not a term entry"
@@ -282,7 +289,12 @@ mutual
   betaTy sig (Ty.SigVar x es) =
     let es' = betaSubNorm sig es
     in case cachedSigLookup sig x of
-         Just (SigTyDef _ _ a) => betaTy sig (substTy (nfMemo betaTyNf x (betaTy sig a)) (embed es'))
+         -- empty spine: identity substitution — see betaElem's SigVar case
+         Just (SigTyDef _ _ a) =>
+           let nfa = nfMemo betaTyNf x (betaTy sig a) in
+           case es' of
+             [<] => nfa
+             _   => betaTy sig (substTy nfa (embed es'))
          -- ty-sig-decl: a declaration reference is stuck (no -beta)
          Just (SigTyDecl _ _)  => Ty.SigVar x es'
          Just _                => assert_total $ idris_crash "betaTy: signature identifier '\{x}' is not a type entry"
