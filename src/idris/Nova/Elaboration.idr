@@ -1617,13 +1617,13 @@ prefixSteps i = map ({ path $= (i ::) })
 ||| Steps of a certificate that is pure steps + beta (flattenable into
 ||| a parent at a path); Nothing when the final is type-directed.
 flatSteps : ECert -> Maybe (List Step)
-flatSteps (MkECertF Nothing steps FBeta) = Just steps
+flatSteps (MkECertF Nothing steps FBeta _) = Just steps
 flatSteps _ = Nothing
 
 ||| ... and with no proofs needed at all (safe under binders, where a
 ||| Γ-level proof reference would go out of scope).
 stepFree : ECert -> Bool
-stepFree (MkECertF Nothing [] FBeta) = True
+stepFree (MkECertF Nothing [] FBeta _) = True
 stepFree _ = False
 
 mutual
@@ -1656,22 +1656,22 @@ mutual
                      (bump "sz-nf" (cast (elemSize a' + elemSize b'))
                        (a' == b'))) in
     if eqFast
-      then Just (MkECertF bridge base FBeta)
+      then Just (MkECertF bridge base FBeta [])
       else
         (do rest <- timed "sp-match" (\_ => candMatchC dep st cs ctx a' b' tyN) >>= unbridged
-            pure (MkECertF bridge (base ++ rest.steps) rest.final))
+            pure (MkECertF bridge (base ++ rest.steps) rest.final []))
         <|> (do rest <- timed "sp-struct" (\_ => spEqStructC dep st cs ctx a' b' tyN) >>= unbridged
-                pure (MkECertF bridge (base ++ rest.steps) rest.final))
+                pure (MkECertF bridge (base ++ rest.steps) rest.final []))
         -- syntactic congruence: one deterministic descent of the two
         -- sides' common structure, children discharged strictly — the
         -- certificate-assembly twin of the decompose splitting (allowed
         -- in strict mode; the banned automation is the rwNf positional
         -- candidate search, not this)
         <|> (do congSteps <- timed "sp-cong" (\_ => spCongC dep st cs ctx a' b')
-                pure (MkECertF bridge (base ++ congSteps) FBeta))
+                pure (MkECertF bridge (base ++ congSteps) FBeta []))
    where
     unbridged : ECert -> Maybe ECert
-    unbridged c@(MkECertF Nothing _ _) = Just c
+    unbridged c@(MkECertF Nothing _ _ _) = Just c
     unbridged _ = Nothing
 
   spEqStructC : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Ty -> Maybe ECert
@@ -1861,7 +1861,7 @@ mutual
     firstJ (Nothing :: rest) = firstJ rest
 
     noBridge : ECert -> Maybe ECert
-    noBridge c@(MkECertF Nothing _ _) = Just c
+    noBridge c@(MkECertF Nothing _ _ _) = Just c
     noBridge _ = Nothing
 
     paramTy : Cand -> Nat -> Maybe Ty
@@ -2251,7 +2251,7 @@ declView st = mapMaybe view (toList st.sig)
 ||| elements (hypothesis proofs are CtxVar-headed and contribute
 ||| nothing), nested certificates included. Display only.
 hintNamesC : ECert -> List String
-hintNamesC (MkECertF tyEx steps final) =
+hintNamesC (MkECertF tyEx steps final _) =
   (case tyEx of
      Nothing => []
      Just (_, c) => hintNamesC c)
@@ -2458,7 +2458,7 @@ mutual
             -- measurement only — a δβ pass per attempt, skipped in strict mode
             let tyM2 = if strictConv then tyM
                          else bump "sz-att-nf" (cast (elemSize (betaElem st.sig a) + elemSize (betaElem st.sig b))) tyM
-            let mcert = spEqElemC (fromMaybe spDepth st.depthOv) st cs ctx a b tyM2
+            let mcert = map ({ unfolds := st.eqScope }) (spEqElemC (fromMaybe spDepth st.depthOv) st cs ctx a b tyM2)
             let t2 = bump "engine" (nowNs () - t1) (nowNs ())
             case mcert of
               Nothing => pure (Left site)
@@ -2478,8 +2478,8 @@ mutual
                     -- by plain δβ must not be lost to an overzealous
                     -- rewrite (this rescue lived in the removed
                     -- item-end deletion pass; it belongs at the site)
-                    case kCheckEqElem st.sig ctx kernelFuel (MkECert [] FBeta) a b ty of
-                      Right () => pure (Right (MkECert [] FBeta))
+                    case kCheckEqElem st.sig ctx kernelFuel (MkECertF Nothing [] FBeta st.eqScope) a b ty of
+                      Right () => pure (Right (MkECertF Nothing [] FBeta st.eqScope))
                       Left _ => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
 
   attemptT : Ctx -> String -> Ty -> Ty -> ElabM (Either String ECert)
@@ -2500,7 +2500,7 @@ mutual
             let t0 = nowNs ()
             let cs = mkCandSet st ctx
             let t1 = bump "cands" (nowNs () - t0) (nowNs ())
-            let mcert = spEqTyC (fromMaybe spDepth st.depthOv) st cs ctx tyA tyB
+            let mcert = map ({ unfolds := st.eqScope }) (spEqTyC (fromMaybe spDepth st.depthOv) st cs ctx tyA tyB)
             let t2 = bump "engine" (nowNs () - t1) (nowNs ())
             case mcert of
               Nothing => pure (Left site)
@@ -2513,8 +2513,8 @@ mutual
                                    else audit "AUDIT ty | \{st.modPrefix} | \{site} | \{joinBy ", " names}" cert))
                   Left kerrMsg =>
                     -- bare-beta rescue, as at attemptE
-                    case kCheckEqTy st.sig ctx kernelFuel (MkECert [] FBeta) tyA tyB of
-                      Right () => pure (Right (MkECert [] FBeta))
+                    case kCheckEqTy st.sig ctx kernelFuel (MkECertF Nothing [] FBeta st.eqScope) tyA tyB of
+                      Right () => pure (Right (MkECertF Nothing [] FBeta st.eqScope))
                       Left _ => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
 
   ||| Γ ⊢ a ≐ b : A ↓ — always succeeds; assumes what it cannot discharge.
@@ -2747,7 +2747,7 @@ exposeCert st ctx ty tyX =
   -- binder, say) must not poison the item.
   timed "expose" $ \_ =>
     let cs = mkCandSet st ctx in
-    do c <- spEqTyC spDepth st cs ctx ty tyX
+    do c <- map ({ unfolds := st.eqScope }) (spEqTyC spDepth st cs ctx ty tyX)
        case kCheckEqTy st.sig ctx kernelFuel c ty tyX of
          Right () => Just (tyX, c)
          Left _ => Nothing
@@ -3344,7 +3344,7 @@ mutual
               Just cert => pure (Star, withExpose exp (Nd [PReflEq cert] []))
               Nothing => do
                 (w', _) <- checkElem ctx env site w (Prf pN)
-                let cert = MkECert [MkStep True [] (LProof w') [] False] FBeta
+                let cert = MkECertF Nothing [MkStep True [] (LProof w') [] False] FBeta st.eqScope
                 pure (Star, withExpose exp (Nd [PReflEq cert] []))
           _ => throw "\{site}: ⋆ checked against Prf of a non-∥∥ code\{structuralHint}"
   checkElem ctx env site (SSquashElim e xn body) ty = do
