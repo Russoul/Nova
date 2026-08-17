@@ -15,7 +15,7 @@ def plus : ℕ → ℕ → ℕ
 
 -- the generated clause lemmas are ordinary accepted lemmas: an
 -- induction cites plusZ/plusS silently, through E's lemma source
-def plusZr : (n : ℕ) → plus n Z ≡ n ∈ ℕ using (definingEq.plusZ) ≔ λn. ℕ-elim (x. plus x Z ≡ x ∈ ℕ) ⋆ (k ih. ⋆) n
+def plusZr : (n : ℕ) → plus n Z ≡ n ∈ ℕ using (definingEq.plusZ, plus.eq) ≔ λn. ℕ-elim (x. plus x Z ≡ x ∈ ℕ) ⋆ (k ih. ⋆) n
 
 -- the uniqueness lemma is the recursor's universal property: any
 -- candidate satisfying the clauses IS plus — here a hand-written

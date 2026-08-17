@@ -27,15 +27,15 @@ def iterate : (a : 𝕌) → (El a → El a) → El a → El (stream a) ≔
   λa. λf. λx. corec (s : a. (s , f s)) x
 
 -- β-lemmas: one el-nu-beta step each (plus pairing/projections)
-def hdCons : (a : 𝕌) (x : El a) (s : El (stream a)) → hd a (cons a x s) ≡ x ∈ El a ≔
+def hdCons : (a : 𝕌) (x : El a) (s : El (stream a)) → hd a (cons a x s) ≡ x ∈ El a using (cons.eq, hd.eq, hyp.rw, stream.eq) ≔
   λa. λx. λs. ⋆
-def hdIterate : (a : 𝕌) (f : El a → El a) (x : El a) → hd a (iterate a f x) ≡ x ∈ El a ≔
+def hdIterate : (a : 𝕌) (f : El a → El a) (x : El a) → hd a (iterate a f x) ≡ x ∈ El a using (hd.eq, hyp.rw, iterate.eq) ≔
   λa. λf. λx. ⋆
 
 -- two observation steps: the tail of an iterate is the iterate of the
 -- image — hd ∘ tl commutes with one application of f
 def hdTlIterate : (a : 𝕌) (f : El a → El a) (x : El a) →
-    hd a (tl a (iterate a f x)) ≡ f x ∈ El a ≔
+    hd a (tl a (iterate a f x)) ≡ f x ∈ El a using (hd.eq, hyp.rw, iterate.eq, tl.eq) ≔
   λa. λf. λx. ⋆
 
 -- the head under one cons-then-tail: reaches the stored tail's head
@@ -51,8 +51,8 @@ def czero : El conat ≔ corec (s : 𝟙. inj₁ s) ()
 def cinf : El conat ≔ corec (s : 𝟙. inj₂ s) ()
 
 -- observation shapes, by computation (el-nu-beta + el-sum-beta)
-def outZero : out czero ≡ inj₁ () ∈ 𝟙 ⊎ El conat ≔ ⋆
-def outInf : out cinf ≡ inj₂ cinf ∈ 𝟙 ⊎ El conat ≔ ⋆
+def outZero : out czero ≡ inj₁ () ∈ 𝟙 ⊎ El conat using (conat.eq, czero.eq, hyp.rw) ≔ ⋆
+def outInf : out cinf ≡ inj₂ cinf ∈ 𝟙 ⊎ El conat using (cinf.eq, conat.eq, hyp.rw) ≔ ⋆
 
 -- csucc: emit inj₂ of the stored conat, continuing by observation
 def csucc : El conat → El conat ≔
@@ -61,7 +61,7 @@ def csucc : El conat → El conat ≔
 -- a successor always observes as inj₂ — one β step, the payload
 -- irrelevant to the shape (⊎-elim at an equality motive would refute
 -- inj₁; here the equation is between the injections themselves)
-def outSuccInf : out (csucc cinf) ≡ inj₂ (csucc cinf) ∈ 𝟙 ⊎ El conat ≔ ⋆
+def outSuccInf : out (csucc cinf) ≡ inj₂ (csucc cinf) ∈ 𝟙 ⊎ El conat using (cinf.eq, conat.eq, csucc.eq, hyp.rw) ≔ ⋆
 
 -- map over streams: relabel every element, by corecursion on the
 -- source stream itself
@@ -71,10 +71,10 @@ def mapS : (a : 𝕌) (b : 𝕌) → (El a → El b) → El (stream a) → El (s
 -- map commutes with the observations — the finite-depth shadow of
 -- the (η-needing) map-fusion laws, closed by pure computation
 def hdMap : (a : 𝕌) (b : 𝕌) (f : El a → El b) (t : El (stream a)) →
-    hd b (mapS a b f t) ≡ f (hd a t) ∈ El b ≔
+    hd b (mapS a b f t) ≡ f (hd a t) ∈ El b using (hd.eq, hyp.rw, mapS.eq, stream.eq) ≔
   λa. λb. λf. λt. ⋆
 def hdTlMap : (a : 𝕌) (b : 𝕌) (f : El a → El b) (t : El (stream a)) →
-    hd b (tl b (mapS a b f t)) ≡ f (hd a (tl a t)) ∈ El b ≔
+    hd b (tl b (mapS a b f t)) ≡ f (hd a (tl a t)) ∈ El b using (hd.eq, hyp.rw, mapS.eq, stream.eq, tl.eq) ≔
   λa. λb. λf. λt. ⋆
 
 -- With coinduction dischargeable (el-nu-coind; `coind`), the
@@ -82,7 +82,7 @@ def hdTlMap : (a : 𝕌) (b : 𝕌) (f : El a → El b) (t : El (stream a)) →
 -- stream — by coinduction with a GRAPH invariant: u is v's image
 -- under the one-step machine, for SOME v.
 def tlCons : (a : 𝕌) (x : El a) (s : El (stream a)) →
-    tl a (cons a x s) ≡ s ∈ El (stream a) ≔
+    tl a (cons a x s) ≡ s ∈ El (stream a) using (hyp.rw) ≔
   λa. λx. λs.
     coind (u v. ∥(w : El (stream a)) ⨯
                   ((u ≡ corec (p : a ⨯ stream a. ((p .π₁) , out (p .π₂))) (out w) ∈ El (stream a)) ⨯
@@ -96,7 +96,7 @@ def tlCons : (a : 𝕌) (x : El a) (s : El (stream a)) →
 -- is stuck at the generic observations, un-stuck by the invariant's
 -- variable-definition equations, and collapses definitionally on the
 -- inj₂/inj₂ diagonal.
-def infSucc : cinf ≡ csucc cinf ∈ El conat ≔
+def infSucc : cinf ≡ csucc cinf ∈ El conat using (hyp.rw, cinf.eq, csucc.eq) ≔
   coind (x y. ∥(x ≡ cinf ∈ El conat) ⨯ (y ≡ csucc cinf ∈ El conat)∥)
         (⋆ (⋆ , ⋆))
         (x y h. squash-elim h (w. ⋆ (⋆ , ⋆)))

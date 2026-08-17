@@ -74,7 +74,7 @@ def mapIdBisim : (a : 𝕌) (s : El (stream a)) →
 -- laws as the one-step closure. This is the theorem that upgrades
 -- every observational result below it to a judgemental equation.
 def bisimReflect : (a : 𝕌) (s : El (stream a)) (t : El (stream a)) →
-    Prf (bisim a s t) → Prf (s ≡ t ∈ El (stream a)) ≔
+    Prf (bisim a s t) → Prf (s ≡ t ∈ El (stream a)) using (hyp.rw, stream.hd.eq, stream.stream.eq) ≔
   λa. λs. λt. λh.
     coind (x y. bisim a x y) h
           (x y hb. ⋆ (bisimHd a x y hb , bisimTl a x y hb))

@@ -16,5 +16,5 @@ def plusQsl : (a : El N) (b : El N) → plusQ (s a) b ≡ s (plusQ a b) ∈ (El 
 -- induction: plusQ a z ≡ a, by NElimP at the equality PROP motive
 -- (equality is Ω-valued: the prop-flavored eliminator carries Ω-valued
 -- motives and, by proof irrelevance, needs no coherence arguments)
-def plusQzr : (a : El N) → plusQ a z ≡ a ∈ (El N) using (qiitNat.N.eq, qiitNat.NElim.eq, qiitNat.plusQ.eq, qiitNat.s.eq, qiitNat.z.eq) ≔
+def plusQzr : (a : El N) → plusQ a z ≡ a ∈ (El N) using (hyp.rw, qiitNat.N.eq, qiitNat.NElim.eq, qiitNat.plusQ.eq, qiitNat.s.eq, qiitNat.z.eq) ≔
   λa. NElimP (λn. (plusQ n z ≡ n ∈ El N)) ⋆ (λn. λih. ⋆) a

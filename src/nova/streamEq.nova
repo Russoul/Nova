@@ -55,5 +55,5 @@ def mapFuseObsEq : (a : 𝕌) (b : 𝕌) (c : 𝕌) (f : El a → El b) (g : El 
 
 -- the tail of an iterate is the iterate of the image, observationally
 def iterShiftObsEq : (a : 𝕌) (f : El a → El a) (x : El a) →
-    Prf (obsEq a (tl a (iterate a f x)) (iterate a f (f x))) ≔
+    Prf (obsEq a (tl a (iterate a f x)) (iterate a f (f x))) using (hyp.rw, stream.iterate.eq, stream.stream.eq, stream.tl.eq) ≔
   λa. λf. λx. ⋆ (λn. ⋆)

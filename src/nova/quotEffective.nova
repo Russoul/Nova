@@ -84,7 +84,7 @@ def natEq : El ℕ → El ℕ → Ω ≔ λx. λy. (x ≡ y ∈ El ℕ)
 
 def natEqEffective : (a : El ℕ) (b : El ℕ) →
   Prf (class a ≡ class b ∈ El (ℕ / (u v. natEq u v))) → Prf (a ≡ b ∈ El ℕ)
-  using (quotEffective.natEq.eq) ≔
+  using (hyp.rw, quotEffective.natEq.eq) ≔
   effectiveAtEquiv ℕ natEq (λx. ⋆) (λx. λy. λz. λh1. λh2. ⋆) (λx. λy. λh. ⋆)
 
 -- and the refutation, kept as evidence: at the successor graph — not an

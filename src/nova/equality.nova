@@ -13,7 +13,7 @@ def sym : (A : 𝕌) (a : El A) (b : El A) → (a ≡ b ∈ El A) →
 def trans : (A : 𝕌) (a : El A) (b : El A) (c : El A) →
             (a ≡ b ∈ El A) → (b ≡ c ∈ El A) →
             a ≡ c ∈ El A ≔
-  λA. λa. λb. λc. λab. λbc. ⋆
+  λA. λa. λb. λc. λab. λbc. (a ≡⟨ ab ⟩ b ≡⟨ bc ⟩ c)
 
 -- coercion along a universe equation: the element itself, at the
 -- other type (El A ≐ El B by reflection)
@@ -61,13 +61,13 @@ def irr : (A : 𝕌) (v : El A) (u : El A) (p : v ≡ u ∈ (El A)) → p ≡ �
 -- makes x .π₁ ≐ y .π₁, which is exactly what h2's type needs. Stated
 -- type-generically, as every shape-generic lemma must be (B-3).
 def sigmaEtaG : (A : 𝕌) (B : El A → 𝕌) (p : El ((a : A) ⨯ B a)) →
-  (p .π₁ , p .π₂) ≡ p ∈ El ((a : A) ⨯ B a) ≔
+  (p .π₁ , p .π₂) ≡ p ∈ El ((a : A) ⨯ B a) using (sigma.eta) ≔
   λA. λB. λp. ⋆
 
 def sigmaEq2 : (A : 𝕌) (B : El A → 𝕌)
   (x : El ((a : A) ⨯ B a)) (y : El ((a : A) ⨯ B a)) →
   (x .π₁ ≡ y .π₁ ∈ El A) → (x .π₂ ≡ y .π₂ ∈ El (B (x .π₁))) →
-  x ≡ y ∈ El ((a : A) ⨯ B a) ≔
+  x ≡ y ∈ El ((a : A) ⨯ B a) using (sigma.eta, hyp.rw) ≔
   λA. λB. λx. λy. λh1. λh2.
     trans ((a : A) ⨯ B a) x (y .π₁ , y .π₂) y
       (trans ((a : A) ⨯ B a) x (x .π₁ , x .π₂) (y .π₁ , y .π₂)

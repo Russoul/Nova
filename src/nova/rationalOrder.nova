@@ -402,7 +402,7 @@ def leQOfEq : (x : El Q) (y : El Q) → (x ≡ y ∈ El Q) → El (LeQ x y) ≔
                sgnQZero))
 
 -- every sign is nonneg or negative — the DECISION, as data
-def sgnCases : (s : El Sign) → El (NonNegS s) ⊎ El (Id Sign s sNeg) ≔
+def sgnCases : (s : El Sign) → El (NonNegS s) ⊎ El (Id Sign s sNeg) using (Sign.eq, sNeg.eq, sPos.eq, sZero.eq) ≔
   λs.
     ⊎-elim (w. El (NonNegS w) ⊎ El (Id Sign w sNeg))
       (u. inj₁ (inj₁ (eqToId Sign (inj₁ u) sZero ⋆)))

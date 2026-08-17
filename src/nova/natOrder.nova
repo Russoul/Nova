@@ -26,7 +26,7 @@ def leZero : (a : ℕ) → El (LeN Z a) ≔
 def leSucSelf : (a : ℕ) → El (LeN a (S a)) using (nat.+.eq) ≔
   λa. (S Z , eqToId ℕ (a + S Z) (S a) ⋆)
 
-def leStep : (a : ℕ) (b : ℕ) → El (LeN a b) → El (LeN a (S b)) ≔
+def leStep : (a : ℕ) (b : ℕ) → El (LeN a b) → El (LeN a (S b)) using (+.eq, LeN.eq, id.idToEq.eq) ≔
   λa. λb. λle.
     (S (le .π₁) ,
      eqToId ℕ (a + S (le .π₁)) (S b)

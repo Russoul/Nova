@@ -167,7 +167,7 @@ def pairEtaG : (A : 𝕌) (B : 𝕌) (p : El (A ⨯ B)) → (p .π₁ , p .π₂
 -- pairEtaG: a ℕ ⨯ ℕ-specific version matches (first-order, type-blind)
 -- at pairs of any type, and the kernel then rejects the certificate
 def pairEq2 : (A : 𝕌) (B : 𝕌) (x : El (A ⨯ B)) (y : El (A ⨯ B)) →
-  (x .π₁ ≡ y .π₁ ∈ El A) → (x .π₂ ≡ y .π₂ ∈ El B) → x ≡ y ∈ El (A ⨯ B) ≔
+  (x .π₁ ≡ y .π₁ ∈ El A) → (x .π₂ ≡ y .π₂ ∈ El B) → x ≡ y ∈ El (A ⨯ B) using (hyp.rw) ≔
   λA. λB. λx. λy. λh1. λh2.
     trans (A ⨯ B) x (y .π₁ , y .π₂) y
       (trans (A ⨯ B) x (x .π₁ , x .π₂) (y .π₁ , y .π₂)
