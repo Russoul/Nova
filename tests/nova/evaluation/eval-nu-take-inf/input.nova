@@ -1,11 +1,11 @@
 -- take from an INFINITE colist: the naturals as an always-cons
 -- colist; three observations, no padding path taken
 def clist : 𝕌 ≔ ν (K 𝟙 ⊎ (K ℕ ⨯ 𝕏))
-def cnil : El clist ≔ corec (s : 𝟙. inj₁ s) ()
-def cnats : El clist ≔ corec (s : ℕ. inj₂ (s , S s)) Z
+def cnil : El clist using (clist.unfold) ≔ corec (s : 𝟙. inj₁ s) ()
+def cnats : El clist using (clist.unfold) ≔ corec (s : ℕ. inj₂ (s , S s)) Z
 def vecc : ℕ → 𝕌 ≔ λn. ℕ-elim (m. 𝕌) 𝟙 (m ih. ℕ ⨯ ih) n
-def take : (n : ℕ) → El clist → El (vecc n) ≔
+def take : (n : ℕ) → El clist → El (vecc n) using (clist.unfold, vecc.unfold, vecc.eq) ≔
   λn. ℕ-elim (m. El clist → El (vecc m)) (λt. ())
         (m ih. λt. ⊎-elim (w. El (vecc (S m))) (u. (Z , ih cnil)) (q. ((q .π₁) , ih (q .π₂))) (out t))
         n
-def val : El (vecc (S (S (S Z)))) ≔ take (S (S (S Z))) cnats
+def val : El (vecc (S (S (S Z)))) using (vecc.unfold) ≔ take (S (S (S Z))) cnats

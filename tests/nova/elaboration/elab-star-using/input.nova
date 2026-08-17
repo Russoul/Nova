@@ -2,19 +2,25 @@
 -- are the site's whole candidate store (SearchlessElaboration.md §5.3)
 infixl 6 +
 def + : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
-def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ ≔ λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
-def sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ ≔
+def plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ using (+.eq) ≔ λn. ⋆
+def plusSucId : (n : ℕ) (m : ℕ) → n + S m ≡ S (n + m) ∈ ℕ using (+.eq) ≔ λn. λm. ⋆
+def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ using (+.eq, plusZeroId) ≔ λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
+def sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ using (+.eq) ≔
   λn. λm. ℕ-elim (k. S n + k ≡ S (n + k) ∈ ℕ) ⋆ (k ih. ⋆) m
-def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ using (sucPlus, zeroPlusId) ≔
-  λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ ℕ) ⋆ (k ih. ⋆) m
-def plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ ≔ λn. ⋆
+def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ ≔
+  λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ ℕ)
+    (Z + n ≡⟨ zeroPlusId n ⟩ n ≡⟨ plusZeroId n ⟩ n + Z)
+    (k ih.
+      (S k + n ≡⟨ sucPlus k n ⟩ S (k + n) ≡⟨ ih ⟩ S (n + k) ≡⟨ plusSucId n k ⟩ n + S k))
+    m
 
 -- single name: closes only through plusComm (permutative, so it can
 -- only fire by whole-equation match)
 def scopedGood : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ ≔ λa. λb. ⋆ using plusComm
--- list form
+-- list form; the .rw citation licenses plusZeroId as a rewrite rule
 def scopedList : (a : ℕ) (b : ℕ) → (a + b) + Z ≡ b + a ∈ ℕ ≔
-  λa. λb. ⋆ using (plusComm, plusZeroId)
--- hypotheses are always in scope, whatever the using names
+  λa. λb. ⋆ using (plusComm, plusZeroId.rw)
+-- hypotheses are always in scope for whole-equation matching; the
+-- hyp.rw license lets them act as rewrite rules too
 def scopedHyp : (a : ℕ) (b : ℕ) (c : ℕ) → (a ≡ b ∈ ℕ) → a + c ≡ b + c ∈ ℕ ≔
-  λa. λb. λc. λh. ⋆ using plusZeroId
+  λa. λb. λc. λh. ⋆ using hyp.rw

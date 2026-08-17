@@ -8,5 +8,5 @@ data ( Bag : U
 
 -- "first element or zero": ins x _ ↦ x ignores the tail's image, so
 -- swapping changes the result — the coherence ⋆ cannot discharge
-def headOr0 : El Bag → ℕ ≔
+def headOr0 : El Bag → ℕ using (Bag.eq) ≔
   λm. BagElim (λb. ℕ) Z (λx. λr. λih. x) (λx. λy. λr. λih. ⋆) m

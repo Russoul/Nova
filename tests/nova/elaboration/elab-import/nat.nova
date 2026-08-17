@@ -1,4 +1,4 @@
 def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
-def plusZeroId : (n : ℕ) → plus n Z ≡ n ∈ ℕ ≔ λn. ⋆
-def zeroPlusId : (n : ℕ) → plus Z n ≡ n ∈ ℕ ≔
+def plusZeroId : (n : ℕ) → plus n Z ≡ n ∈ ℕ using (nat.plus.eq) ≔ λn. ⋆
+def zeroPlusId : (n : ℕ) → plus Z n ≡ n ∈ ℕ using (nat.plus.eq) ≔
   λn. ℕ-elim (k. plus Z k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n

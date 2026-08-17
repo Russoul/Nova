@@ -13,11 +13,8 @@ import System.File
 usage : String
 usage = unlines
   [ "Usage:"
-  , "  nova elab <surface-file>   [--strict]"
+  , "  nova elab <surface-file>"
   , "  nova run <surface-file> <name>"
-  , ""
-  , "--strict: strict-conversion mode (equivalent to launching with"
-  , "NOVA_STRICT_CONV=1). nova-lsp is always strict."
   , ""
   , "elab: elaborates a .nova surface file (see docs/NovaElaboration.txt):"
   , "items are checked in order against the kernel's signature; the"
@@ -31,11 +28,7 @@ usage = unlines
 
 main : IO ()
 main = do
-  rawArgs <- getArgs
-  -- `--strict` anywhere on the command line = strict-conversion mode
-  -- (equivalent to launching with NOVA_STRICT_CONV=1)
-  when (elem "--strict" rawArgs) (setStrictConv True)
-  let args = filter (/= "--strict") rawArgs
+  args <- getArgs
   case args of
     (_ :: "elab" :: surfaceFile :: []) => do
       output <- elabPath surfaceFile

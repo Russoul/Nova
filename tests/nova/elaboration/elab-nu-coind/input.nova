@@ -1,13 +1,13 @@
 def stream : 𝕌 → 𝕌 ≔ λa. ν (K a ⨯ 𝕏)
-def zerosA : El (stream ℕ) ≔ corec (s : 𝟙. (Z , s)) ()
-def zerosB : El (stream ℕ) ≔ corec (s : ℕ. (Z , s)) Z
+def zerosA : El (stream ℕ) using (stream.unfold) ≔ corec (s : 𝟙. (Z , s)) ()
+def zerosB : El (stream ℕ) using (stream.unfold) ≔ corec (s : ℕ. (Z , s)) Z
 
 -- pipeline smoke: coinduction with equality itself as the invariant
-def triv : zerosB ≡ zerosB ∈ El (stream ℕ) ≔
+def triv : zerosB ≡ zerosB ∈ El (stream ℕ) using (hyp.rw, stream.unfold) ≔
   coind (x y. x ≡ y ∈ El (stream ℕ)) ⋆ (x y h. ⋆ ((⋆ , ⋆)))
 
 -- the real thing: two different carriers, same behavior
-def zerosEq : zerosA ≡ zerosB ∈ El (stream ℕ) ≔
+def zerosEq : zerosA ≡ zerosB ∈ El (stream ℕ) using (hyp.rw, stream.unfold, zerosA.eq, zerosB.eq, stream.eq) ≔
   coind (x y. ∥(x ≡ zerosA ∈ El (stream ℕ)) ⨯ (y ≡ zerosB ∈ El (stream ℕ))∥)
         (⋆ ((⋆ , ⋆)))
         (x y h. squash-elim h (w. ⋆ ((⋆ , ⋆ ((⋆ , ⋆))))))

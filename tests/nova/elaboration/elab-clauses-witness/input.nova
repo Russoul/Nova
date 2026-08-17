@@ -2,4 +2,4 @@ def pred : ℕ → ℕ ≔ λn. ℕ-elim (x. ℕ) Z (k ih. k) n
   | pred Z ≔ Z
   | pred (S m) ≔ m
 
-def usePredS : (m : ℕ) → pred (S m) ≡ m ∈ ℕ ≔ λm. ⋆
+def usePredS : (m : ℕ) → pred (S m) ≡ m ∈ ℕ using (predS) ≔ λm. ⋆

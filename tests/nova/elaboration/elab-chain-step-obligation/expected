@@ -1,11 +1,11 @@
 defined +
+defined plusZeroId
+defined plusSucId
 defined zeroPlusId
 defined sucPlus
 defined plusComm
-defined plusZeroId
 defined chainBad [+1 obligation]
 open obligations (1):
-  [1] (a : ℕ) (b : ℕ) ⊢ a ≐ b : ℕ
+  [1] (a : ℕ) (b : ℕ) ⊢ a + b ≐ b + a : ℕ
       at: def chainBad: chain, step 2
-      from composite: (a : ℕ) (b : ℕ) ⊢ a + b ≐ b + a : ℕ
-      hint: composite closes with plusComm
+      hint: closes with plusComm

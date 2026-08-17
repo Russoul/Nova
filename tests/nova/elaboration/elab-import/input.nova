@@ -4,4 +4,4 @@ import nat (plus, zeroPlusId)
 -- store discharges the local ⋆
 def two : ℕ ≔ plus (S Z) (S Z)
 def useQualified : (n : ℕ) → nat.plus n Z ≡ n ∈ ℕ ≔ λn. nat.plusZeroId n
-def needsLemma : (n : ℕ) → plus Z n ≡ n ∈ ℕ using (zeroPlusId) ≔ λn. ⋆
+def needsLemma : (n : ℕ) → plus Z n ≡ n ∈ ℕ using (zeroPlusId, zeroPlusId.rw) ≔ λn. ⋆

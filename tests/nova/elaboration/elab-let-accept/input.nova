@@ -11,8 +11,8 @@ def letApp : ℕ ≔ (let f ≔ (λx. S x : ℕ → ℕ) in f) Z
 
 -- transparency: the ⋆ is stated at the ABBREVIATION m, the goal at
 -- its unfolding — both hops walk through the let's own hypothesis
-def letShared : (n : ℕ) → plus (plus n n) Z ≡ plus n n ∈ ℕ ≔
+def letShared : (n : ℕ) → plus (plus n n) Z ≡ plus n n ∈ ℕ using (plus.eq) ≔
   λn. let m ≔ plus n n in (⋆ : plus m Z ≡ m ∈ ℕ)
 
 -- the outside view: a let equals its unfolding by β
-def letUnfolds : letNested ≡ plus (plus (S Z) (S Z)) (plus (S Z) (S Z)) ∈ ℕ ≔ ⋆
+def letUnfolds : letNested ≡ plus (plus (S Z) (S Z)) (plus (S Z) (S Z)) ∈ ℕ using (letNested.eq, plus.eq) ≔ ⋆

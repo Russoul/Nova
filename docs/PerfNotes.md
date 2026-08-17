@@ -849,3 +849,54 @@ elaborator performs — equation sides AND type heads — is now named
 in the source. The kernel's own exposure (kWhnfT/kJoinTy) remains
 free pending the KFull deletion, where the certificate's license set
 is the natural carrier.
+
+## Retiring default mode
+
+Strict conversion is no longer a mode: it is the elaborator. The
+`strictConv` toggle (env var, `--strict` flag, the LSP's hard-coded
+setter) is deleted from Profile/Application/LSP, and every
+`if strictConv () …` branch point in the elaborator collapsed to its
+strict arm — 31 sites. With them went the whole ambient-δβ engine:
+`betaElem`/`betaTy` and their def-nf memos are deleted from Beta.idr
+(the file now holds only the δ-free `comp*` normaliser and the
+Σ-entry index), `whnfE`/`whnfT` likewise, and `rwNfElemS/TyS` lost
+their unlicensed full-candidate rewrite loops. The few engine
+positions that still consumed δβ terms (licensed η children, the
+coind ν-head) now go through the join normalizers and exposure.
+
+The kernel lost its fallback tier: `KPol`/`KFull`/`KJoin` are gone,
+`kEqElem`/`kEqTy` replay ONCE, in the licensed join bounded by the
+certificate's citation set (plus inherited licenses) — no whole-replay
+retry against the historical full-δβ path, no "[join tier: …]" error
+chaining. The per-component δβ rescues (positional type check,
+subterm match, FBeta final) are NOT a fallback tier and stay: removing
+them was tried and breaks the corpus (they absorb exactly the
+vocabulary gaps a citation set cannot name — lemma statements and type
+indices outside it), and they widen only one positional comparison
+under δβ ⊆ ≐, never the equation. Full `kElem`/`kTy` also remain for
+their non-tier consumers: reflection harvesting, the QCtor structural
+signature compare, the no-certificate conversion fallback, and those
+rescues. Kernel-side head exposure (`kWhnf*`) stays license-free:
+the licenses bound the UNTRUSTED search; the trusted replay may use
+any sound rule, and its cost is bounded by the certificate shape.
+
+The test corpus was the real migration: 32 fixtures authored against
+default mode. Most repaired mechanically by citing what the hints
+name (two sweep rounds: `hint: closes by citing …`, the `.unfold`
+notes, statement-name `.eq` heuristics); the rest are instructive
+about what the strict subset means at authoring time. The ⋆-proved
+`plusComm` preambles became the corpus's chain proofs — hop-then-match
+across vocabularies does not fire, chains are the idiom. A permutative
+chain link at a FIRST spine argument needs explicit routing (congruence
+descent covers second arguments; elab-chain's `mulComm2` now commutes
+the sum between multComm links). Hypothesis REWRITING is `hyp.rw`,
+always-on hypothesis use is whole-equation matching only. Coinduction
+closures cite their machinery (`hyp.rw` + the carriers' `.eq`/`.unfold`).
+Two reject goldens re-baselined for the un-chained error message; the
+scope-family goldens re-baselined for the new preambles (obligations
+now surface whole with their `hint: closes with plusComm` remedy,
+rather than decomposed).
+
+End state: one mode. all.nova Accepted in ~14s, 138/138 tests,
+71/71 elaborations in both store modes; ~600 lines of dual-path
+machinery gone.
