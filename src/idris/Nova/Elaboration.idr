@@ -1195,7 +1195,7 @@ mutual
 
 rwNfElemS : Sig -> (unfs : List String) -> List Cand -> (side : Bool) -> Elem -> (Elem, List Step)
 rwNfElemS sig unfs cands side e =
-  if strictConv
+  if strictConv ()
     then
       -- the strict join — plus, under a cited `hyp.rw` license, the
       -- rewrite loop RESTRICTED to the site's own hypotheses and chain
@@ -1229,7 +1229,7 @@ rwNfElemS sig unfs cands side e =
 
 rwNfTyS : Sig -> (unfs : List String) -> List Cand -> (side : Bool) -> Ty -> (Ty, List Step)
 rwNfTyS sig unfs cands side ty =
-  if strictConv
+  if strictConv ()
     then
       let start = compTy (unfTy sig unfs ty) in
       if elem "hyp.rw" unfs || any (isPrefixOf "rw:") unfs
@@ -1341,27 +1341,27 @@ mutual
 ||| otherwise. For the engine's EQUATION-SIDE positions only — checking
 ||| machinery keeps betaTy, and type-HEAD positions use exposeT.
 engNfE : ElabSt -> Elem -> Elem
-engNfE st e = if strictConv then compElem e else betaElem st.sig e
+engNfE st e = if strictConv () then compElem e else betaElem st.sig e
 
 ||| The engine's JOIN normal form at the current site: comp plus the
 ||| site's licensed unfoldings in strict mode, full δβ otherwise —
 ||| for positions that must stay in the join vocabulary (hop residues).
 engJoinE : ElabSt -> Elem -> Elem
-engJoinE st e = if strictConv then compElem (unfElem st.sig st.eqScope e) else betaElem st.sig e
+engJoinE st e = if strictConv () then compElem (unfElem st.sig st.eqScope e) else betaElem st.sig e
 
 engNfT : ElabSt -> Ty -> Ty
-engNfT st t = if strictConv then compTy t else betaTy st.sig t
+engNfT st t = if strictConv () then compTy t else betaTy st.sig t
 
 ||| CHECKING-position head exposure: strict mode swaps the full
 ||| normalization for the logged whnf-δ exposure — same head, and the
 ||| per-module `unf` labels record exactly the names a future
 ||| `using`-unfold whitelist would carry.
 exposeHead : ElabSt -> Ty -> Ty
-exposeHead st ty = if strictConv then exposeT st.modPrefix st.sig ty else betaTy st.sig ty
+exposeHead st ty = if strictConv () then exposeT st.modPrefix st.sig ty else betaTy st.sig ty
 
 ||| Prop-code exposure at checking positions (⋆, squash-elim, chains).
 exposeCode : ElabSt -> Elem -> Elem
-exposeCode st p = if strictConv then exposeE st.modPrefix st.sig p else betaElem st.sig p
+exposeCode st p = if strictConv () then exposeE st.modPrefix st.sig p else betaElem st.sig p
 
 ||| Leading-Π exposure for telescope peeling (strict mode only —
 ||| domains stay as written, each codomain head exposed in turn).
@@ -1372,7 +1372,7 @@ exposePisT st ty = case exposeT st.modPrefix st.sig ty of
 
 ||| Telescope-peeling normalization: full betaTy outside strict mode.
 peelNf : ElabSt -> Ty -> Ty
-peelNf st ty = if strictConv then exposePisT st ty else betaTy st.sig ty
+peelNf st ty = if strictConv () then exposePisT st ty else betaTy st.sig ty
 
 -- ===== Candidates in scope =====
 
@@ -1517,7 +1517,7 @@ hypCands st rw ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length 
     case fuel of
       Z => []
       S fuel' =>
-        case (if strictConv then exposeT st.modPrefix st.sig ty else betaTy st.sig ty) of
+        case (if strictConv () then exposeT st.modPrefix st.sig ty else betaTy st.sig ty) of
           Prf p =>
             case exposeCode st p of
               Elem.EqTy l r t => [(proj, (l, r, t))]
@@ -1582,13 +1582,13 @@ mkCandSet st ctx =
       sHopsStrict = filter (\c => elem ("rw:" ++ c.candName) st.eqScope) sHops
       hypLicensed = elem "hyp.rw" st.eqScope
   in case (st.localCands, hypCands st sRw ctx) of
-       ([], []) => MkCandSet sCs sRw (if strictConv then sHopsStrict else sHops)
+       ([], []) => MkCandSet sCs sRw (if strictConv () then sHopsStrict else sHops)
        (ls, hs) =>
          let (lcs, lsh, lre, lhp) = sigCandParts ls
              (hcs, hsh, hre, hhp) = sigCandParts hs
          in MkCandSet (lcs ++ sCs ++ hcs)
                       (lsh ++ lre ++ sShrink ++ hsh ++ sRest ++ hre)
-                      (if strictConv
+                      (if strictConv ()
                          then lhp ++ sHopsStrict ++ (if hypLicensed then hhp else [])
                          else lhp ++ sHops ++ hhp)
 
@@ -1603,7 +1603,7 @@ rwNfTy st ctx ty = fst (rwNfTyS st.sig st.eqScope (mkCandSet st ctx).rw True ty)
 ||| Head exposure for neutral inference: logged whnf-δ in strict mode,
 ||| full normalization otherwise.
 neExpose : ElabSt -> Ty -> Ty
-neExpose st ty = if strictConv then exposeT st.modPrefix st.sig ty else betaTy st.sig ty
+neExpose st ty = if strictConv () then exposeT st.modPrefix st.sig ty else betaTy st.sig ty
 
 inferNe : ElabSt -> Ctx -> Elem -> Maybe Ty
 inferNe st ctx (CtxVar i) = ctxLookup ctx i
@@ -1717,7 +1717,7 @@ mutual
         (a', aSteps) = rwNfElemS st.sig st.eqScope cs.rw True a
         (b', bSteps) = rwNfElemS st.sig st.eqScope cs.rw False b
         base = aSteps ++ bSteps
-        tyN = if strictConv then exposeT st.modPrefix st.sig tyX else betaTy st.sig tyX
+        tyN = if strictConv () then exposeT st.modPrefix st.sig tyX else betaTy st.sig tyX
         eqFast = bump "rwnf-elem" (nowNs () - t0)
                    (bump "sz-in" (cast (elemSize a + elemSize b))
                      (bump "sz-nf" (cast (elemSize a' + elemSize b'))
@@ -1750,7 +1750,7 @@ mutual
   -- the context is extended). Terminates: recursion is on cod.
   spEqStructC dep st cs ctx a b (Ty.PiTy dom cod) =
     -- η: outside the strict subset unless the site cites `pi.eta`
-    do guard (not strictConv || elem "pi.eta" st.eqScope)
+    do guard (not (strictConv ()) || elem "pi.eta" st.eqScope)
        sub <- spEqElemC dep st (extendCS cs) (ctx :< dom)
                 (betaElem st.sig (PiApp (substElem a Wk) (CtxVar 0)))
                 (betaElem st.sig (PiApp (substElem b Wk) (CtxVar 0)))
@@ -1767,7 +1767,7 @@ mutual
        pure (MkECert [] (FInj sub))
   spEqStructC dep st cs ctx a b (Ty.SigmaTy dom cod) =
     -- pair-η: outside the strict subset unless the site cites `sigma.eta`
-    if (not strictConv || elem "sigma.eta" st.eqScope) && (isPair a || isPair b)
+    if (not (strictConv ()) || elem "sigma.eta" st.eqScope) && (isPair a || isPair b)
       then do c1 <- spEqElemC dep st cs ctx (betaElem st.sig (SigmaElim1 a)) (betaElem st.sig (SigmaElim1 b)) dom
               c2 <- spEqElemC dep st cs ctx (betaElem st.sig (SigmaElim2 a)) (betaElem st.sig (SigmaElim2 b))
                       (substTy cod (Ext Id (SigmaElim1 a)))
@@ -1964,7 +1964,7 @@ mutual
         Nothing => do
           tp <- paramTy c p
           sigma <- condSub c.params p bs
-          case (if strictConv then exposeT st.modPrefix st.sig (substTy tp sigma)
+          case (if strictConv () then exposeT st.modPrefix st.sig (substTy tp sigma)
                               else betaTy st.sig (substTy tp sigma)) of
             Ty.OneTy => Just OneIntro
             Prf pr =>
@@ -2032,8 +2032,8 @@ mutual
         (b0, bSteps) = rwNfTyS st.sig st.eqScope cs.rw False tyB
         -- strict: sides get HEAD exposure (logged δ at type heads);
         -- recursion through go/congFinal re-exposes per level
-        a = if strictConv then exposeT st.modPrefix st.sig a0 else a0
-        b = if strictConv then exposeT st.modPrefix st.sig b0 else b0
+        a = if strictConv () then exposeT st.modPrefix st.sig a0 else a0
+        b = if strictConv () then exposeT st.modPrefix st.sig b0 else b0
         base = bump "rwnf-ty" (nowNs () - t0) (aSteps ++ bSteps) in
     ((\rest => MkECert (base ++ rest) FBeta) <$> go a b)
       <|> congFinal a b base
@@ -2442,7 +2442,7 @@ hintE st ctx a b ty = lemmaHint <|> eqHint
                   ns => Just "closes with \{joinBy ", " ns}"
   eqHint : Maybe String
   eqHint =
-    if not strictConv then Nothing else
+    if not (strictConv ()) then Nothing else
     go 5 (defNamesOf st (refsE b (refsE a [<])))
    where
     go : Nat -> List String -> Maybe String
@@ -2477,7 +2477,7 @@ hintT st ctx x y = lemmaHint <|> eqHint
                   ns => Just "closes with \{joinBy ", " ns}"
   eqHint : Maybe String
   eqHint =
-    if not strictConv then Nothing else
+    if not (strictConv ()) then Nothing else
     go 5 (defNamesOf st (refsT y (refsT x [<])))
    where
     go : Nat -> List String -> Maybe String
@@ -2575,7 +2575,7 @@ mutual
             let cs = bump "candN" (cast (length cs0.all)) cs0
             let tyM = bump "sz-att-in" (cast (elemSize a + elemSize b)) ty
             -- measurement only — a δβ pass per attempt, skipped in strict mode
-            let tyM2 = if strictConv then tyM
+            let tyM2 = if strictConv () then tyM
                          else bump "sz-att-nf" (cast (elemSize (betaElem st.sig a) + elemSize (betaElem st.sig b))) tyM
             let mcert = map ({ unfolds := st.eqScope }) (spEqElemC (fromMaybe spDepth st.depthOv) st cs ctx a b tyM2)
             let t2 = bump "engine" (nowNs () - t1) (nowNs ())
@@ -2653,14 +2653,14 @@ mutual
             -- fallback retries with the rewritten sides.
             -- strict: sides decompose δ-FREE (comp), keeping the
             -- user's vocabulary; the type still gets head exposure
-            let aB = if strictConv then compElem a else whnfE st.sig a
-            let bB = if strictConv then compElem b else whnfE st.sig b
+            let aB = if strictConv () then compElem a else whnfE st.sig a
+            let bB = if strictConv () then compElem b else whnfE st.sig b
             let a' = rwNfElem st ctx a
             let b' = rwNfElem st ctx b
             let again = if (aB, bB) == (a', b') then Nothing else Just (a', b')
             n0 <- constraintCountM
             decompose site2 cur comp' aB bB again
-              (if strictConv then exposeT st.modPrefix st.sig ty else rwNfTy st ctx ty)
+              (if strictConv () then exposeT st.modPrefix st.sig ty else rwNfTy st ctx ty)
             n1 <- constraintCountM
             if n1 == n0
               then do
@@ -2755,7 +2755,7 @@ mutual
           (PiApp f x, PiApp g y, _) =>
             if f == g
               then do st' <- getSt
-                      case (if strictConv then exposeT st'.modPrefix st'.sig else betaTy st'.sig)
+                      case (if strictConv () then exposeT st'.modPrefix st'.sig else betaTy st'.sig)
                              <$> inferNe st' ctx f of
                         Just (Ty.PiTy dom _) => ignore $ convElem ctx env site comp' x y dom
                         _ => assume cur site comp
@@ -2776,8 +2776,8 @@ mutual
             st <- getSt
             let cur = StTy ctx env tyA tyB
             let comp' = comp <|> Just cur
-            let aB = if strictConv then exposeT st.modPrefix st.sig tyA else whnfT st.sig tyA
-            let bB = if strictConv then exposeT st.modPrefix st.sig tyB else whnfT st.sig tyB
+            let aB = if strictConv () then exposeT st.modPrefix st.sig tyA else whnfT st.sig tyA
+            let bB = if strictConv () then exposeT st.modPrefix st.sig tyB else whnfT st.sig tyB
             let aR = rwNfTy st ctx tyA
             let bR = rwNfTy st ctx tyB
             let again = if (aB, bB) == (aR, bR) then Nothing else Just (aR, bR)
@@ -4191,7 +4191,7 @@ elabProgram units = go initSt units []
     -- lemma store scoped to its import closure
     case runElabM (enterModule name (map mname imps) >> installImports imps) st of
       Left err =>
-        if strictConv && not (null rest)
+        if strictConv () && not (null rest)
           -- SURVEY MODE: an import of a dropped module cascades — drop too
           then go st rest (echoes ++ ["warning: module \{name} DROPPED (strict survey): \{err}"])
           else joinBy "\n" (echoes ++ ["Error: \{err}"])
@@ -4199,7 +4199,7 @@ elabProgram units = go initSt units []
         let hdr = if name == "" then [] else ["module \{name}:"] in
         case goItems st items of
           Left (itemEchoes, err) =>
-            if strictConv && not (null rest)
+            if strictConv () && not (null rest)
               -- SURVEY MODE: a hard failure (automation the strict
               -- subset removed, mid-checking) drops the module and
               -- continues — its importers cascade into the same path
@@ -4212,7 +4212,7 @@ elabProgram units = go initSt units []
               _ =>
                 -- only ACCEPTED modules are importable: a module's
                 -- signature segment must be DEFINITIONAL
-                if strictConv
+                if strictConv ()
                   -- SURVEY MODE: continue past the gate so ONE run maps
                   -- the whole corpus's fallout. COUNT open entries
                   -- instead of rendering the report — the report renders
