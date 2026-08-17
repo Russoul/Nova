@@ -28,12 +28,12 @@ def normSound : (a : ℕ) → (b : ℕ) →
       a
 
 -- at the quotient, normalization is invisible
-def normClass : (a : ℕ) (b : ℕ) → class (normPair a b) ≡ class (a , b) ∈ El Int using (normSound) ≔ λa. λb. ⋆
+def normClass : (a : ℕ) (b : ℕ) → class (normPair a b) ≡ class (a , b) ∈ El Int using (integer.Int.unfold, normSound) ≔ λa. λb. ⋆
 
-def intNormalize : El Int → El Int using (hyp.rw, normClass, normClass.rw) ≔
+def intNormalize : El Int → El Int using (hyp.rw, integer.Int.unfold, normClass, normClass.rw) ≔
   λz. quot-elim (w. El Int) (rep. class (normPair (rep .π₁) (rep .π₂))) z
 
 def intNormalizeTest1 : intNormalize (class (S Z , Z)) ≡ class (S Z , Z) ∈ El Int
-  using (integerNormalize.intNormalize.eq, integerNormalize.normPair.eq) ≔ ⋆
+  using (integer.Int.unfold, integerNormalize.intNormalize.eq, integerNormalize.normPair.eq) ≔ ⋆
 def intNormalizeTest2 : intNormalize (class (S Z , S (S Z))) ≡ class (Z , S Z) ∈ El Int
-  using (integerNormalize.intNormalize.eq, integerNormalize.normPair.eq) ≔ ⋆
+  using (integer.Int.unfold, integerNormalize.intNormalize.eq, integerNormalize.normPair.eq) ≔ ⋆

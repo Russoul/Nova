@@ -41,7 +41,7 @@ def classEqOfClosure : (A : 𝕌) (r : El A → El A → Ω) (a : El A) (b : El 
 -- instances — propositional extensionality, both implications from r⁺'s
 -- own transitivity and symmetry. Nothing about r is assumed
 def clsRelWd : (A : 𝕌) (r : El A → El A → Ω) (a : El A) (x : El A) (y : El A) →
-  Prf (r x y) → rClosure A r a x ≡ rClosure A r a y ∈ Ω using (prop.rClosure.eq) ≔
+  Prf (r x y) → rClosure A r a x ≡ rClosure A r a y ∈ Ω using (prop.rClosure.eq, prop.rClosure.unfold) ≔
   λA. λr. λa. λx. λy. λh.
     propExt (rClosure A r a x) (∥(z:El A → El A → Ω) → ((v:El A) → (w:El A) → Prf (r v w) → Prf (z v w)) → ((v:El A) → Prf (z v v)) → ((v:El A) → (w:El A) → (u:El A) → Prf (z v w) → Prf (z w u) → Prf (z v u)) → ((v:El A) → (w:El A) → Prf (z v w) → Prf (z w v)) → Prf (z a y)∥)
       (λk. rClosureTrans A r a x y k (rClosureContains A r x y h))
@@ -57,12 +57,12 @@ def clsRel : (A : 𝕌) (r : El A → El A → Ω) (a : El A) → El (A / (u v. 
 -- on both ends, congruence in between
 def effective : (A : 𝕌) (r : El A → El A → Ω) (a : El A) (b : El A) →
   Prf (class a ≡ class b ∈ El (A / (u v. r u v))) → Prf (rClosure A r a b)
-  using (prop.rClosure.eq, quotEffective.clsRel.eq) ≔
+  using (prop.rClosure.eq, prop.rClosure.unfold, quotEffective.clsRel.eq) ≔
   λA. λr. λa. λb. λh. transportP (A / (v x. r v x)) (clsRel A r a) (class a) (class b) h (rClosureRefl A r a)
 
 -- the characterization: quotient equality is exactly r⁺
 def classEqIff : (A : 𝕌) (r : El A → El A → Ω) (a : El A) (b : El A) →
-  Prf ((class a ≡ class b ∈ El (A / (u v. r u v))) ↔ rClosure A r a b) ≔
+  Prf ((class a ≡ class b ∈ El (A / (u v. r u v))) ↔ rClosure A r a b) using (prop.↔.unfold, prop.∧.unfold) ≔
   λA. λr. λa. λb. iffIntro (class a ≡ class b ∈ (El A / (v x. r v x))) (rClosure A r a b) (effective A r a b) (classEqOfClosure A r a b)
 
 -- COROLLARY: at an equivalence relation, effectivity on the nose — r
@@ -84,7 +84,7 @@ def natEq : El ℕ → El ℕ → Ω ≔ λx. λy. (x ≡ y ∈ El ℕ)
 
 def natEqEffective : (a : El ℕ) (b : El ℕ) →
   Prf (class a ≡ class b ∈ El (ℕ / (u v. natEq u v))) → Prf (a ≡ b ∈ El ℕ)
-  using (hyp.rw, quotEffective.natEq.eq) ≔
+  using (hyp.rw, quotEffective.natEq.eq, quotEffective.natEq.unfold) ≔
   effectiveAtEquiv ℕ natEq (λx. ⋆) (λx. λy. λz. λh1. λh2. ⋆) (λx. λy. λh. ⋆)
 
 -- and the refutation, kept as evidence: at the successor graph — not an
@@ -95,8 +95,8 @@ def natEqEffective : (a : El ℕ) (b : El ℕ) →
 -- sgHop2 goes through sgHop1 as a rewrite candidate, so the hops must
 -- be named — drop sgHop1 and sgHop2 stops elaborating)
 def SG : 𝕌 ≔ ℕ / (n m. (S n ≡ m ∈ ℕ))
-def sgHop1 : class Z ≡ class (S Z) ∈ El SG ≔ ⋆
-def sgMid : class (S Z) ≡ class (S (S Z)) ∈ El SG ≔ ⋆
-def sgHop2 : class Z ≡ class (S (S Z)) ∈ El SG using (sgHop1, sgMid) ≔
+def sgHop1 : class Z ≡ class (S Z) ∈ El SG using (quotEffective.SG.unfold) ≔ ⋆
+def sgMid : class (S Z) ≡ class (S (S Z)) ∈ El SG using (quotEffective.SG.unfold) ≔ ⋆
+def sgHop2 : class Z ≡ class (S (S Z)) ∈ El SG using (quotEffective.SG.unfold, sgHop1, sgMid) ≔
   trans SG (class Z) (class (S Z)) (class (S (S Z))) sgHop1 sgMid
-def sgBack : class (S Z) ≡ class Z ∈ El SG using (sgHop1) ≔ ⋆
+def sgBack : class (S Z) ≡ class Z ∈ El SG using (quotEffective.SG.unfold, sgHop1) ≔ ⋆

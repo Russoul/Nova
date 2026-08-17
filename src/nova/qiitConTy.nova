@@ -9,12 +9,12 @@ data ( Con : U
      ; arr : (gamma : El Con) → El (Ty gamma) → El (Ty gamma) → El (Ty gamma) )
 
 -- a context: nil ▷ unit ▷ (unit → unit)
-def g1 : El Con ≔ ext nil (unit nil)
-def g2 : El Con ≔ ext g1 (arr g1 (unit g1) (unit g1))
+def g1 : El Con using (qiitConTy.Con.unfold) ≔ ext nil (unit nil)
+def g2 : El Con using (qiitConTy.Con.unfold) ≔ ext g1 (arr g1 (unit g1) (unit g1))
 
 -- mutual elimination: the LENGTH of a context and the SIZE of a type,
 -- one elimination problem (both motives, all four methods)
-def clen : El Con → ℕ ≔
+def clen : El Con → ℕ using (qiitConTy.Con.unfold) ≔
   λg. ConElim (λw. ℕ) (λg. λw. ℕ)
         Z
         (λg. λihg. λA. λihA. S ihg)
@@ -25,7 +25,7 @@ def clen : El Con → ℕ ≔
 def clenG2 : clen g2 ≡ S (S Z) ∈ ℕ using (qiitConTy.ConElim.eq, qiitConTy.arr.eq, qiitConTy.clen.eq, qiitConTy.ext.eq, qiitConTy.g1.eq, qiitConTy.g2.eq, qiitConTy.nil.eq, qiitConTy.unit.eq) ≔ ⋆
 
 -- the same elimination problem read at the Ty motive: type size
-def tsize : (g : El Con) → El (Ty g) → ℕ ≔
+def tsize : (g : El Con) → El (Ty g) → ℕ using (qiitConTy.Con.unfold, qiitConTy.Ty.unfold) ≔
   λg. λt. TyElim (λw. ℕ) (λg. λw. ℕ)
         Z
         (λg. λihg. λA. λihA. S ihg)
@@ -34,4 +34,4 @@ def tsize : (g : El Con) → El (Ty g) → ℕ ≔
         g t
 
 def tsizeArr : tsize g1 (arr g1 (unit g1) (unit g1)) ≡ S (S Z) ∈ ℕ
-  using (qiitConTy.TyElim.eq, qiitConTy.arr.eq, qiitConTy.ext.eq, qiitConTy.g1.eq, qiitConTy.nil.eq, qiitConTy.tsize.eq, qiitConTy.unit.eq) ≔ ⋆
+  using (qiitConTy.Con.unfold, qiitConTy.Ty.unfold, qiitConTy.TyElim.eq, qiitConTy.arr.eq, qiitConTy.ext.eq, qiitConTy.g1.eq, qiitConTy.nil.eq, qiitConTy.tsize.eq, qiitConTy.unit.eq) ≔ ⋆

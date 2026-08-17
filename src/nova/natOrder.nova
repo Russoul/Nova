@@ -13,20 +13,20 @@ def LeN : ℕ → ℕ → 𝕌 ≔ λa. λb. ((k : ℕ) ⨯ Id ℕ (a + k) b)
 
 -- ===== basics =====
 
-def leRefl : (a : ℕ) → El (LeN a a) ≔
+def leRefl : (a : ℕ) → El (LeN a a) using (natOrder.LeN.unfold) ≔
   λa. (Z , eqToId ℕ (a + Z) a (plusZeroId a))
 
-def leOfEq : (a : ℕ) (b : ℕ) → (a ≡ b ∈ ℕ) → El (LeN a b) ≔
+def leOfEq : (a : ℕ) (b : ℕ) → (a ≡ b ∈ ℕ) → El (LeN a b) using (natOrder.LeN.unfold) ≔
   λa. λb. λh. (Z , eqToId ℕ (a + Z) b (trans ℕ (a + Z) a b (plusZeroId a) h))
 
-def leZero : (a : ℕ) → El (LeN Z a) ≔
+def leZero : (a : ℕ) → El (LeN Z a) using (natOrder.LeN.unfold) ≔
   λa. (a , eqToId ℕ (Z + a) a (zeroPlusId a))
 
 -- a + S Z unwinds to S a by computation alone
-def leSucSelf : (a : ℕ) → El (LeN a (S a)) using (nat.+.eq) ≔
+def leSucSelf : (a : ℕ) → El (LeN a (S a)) using (nat.+.eq, natOrder.LeN.unfold) ≔
   λa. (S Z , eqToId ℕ (a + S Z) (S a) ⋆)
 
-def leStep : (a : ℕ) (b : ℕ) → El (LeN a b) → El (LeN a (S b)) using (+.eq, LeN.eq, id.idToEq.eq) ≔
+def leStep : (a : ℕ) (b : ℕ) → El (LeN a b) → El (LeN a (S b)) using (+.eq, LeN.eq, id.Id.unfold, id.idToEq.eq, natOrder.LeN.unfold) ≔
   λa. λb. λle.
     (S (le .π₁) ,
      eqToId ℕ (a + S (le .π₁)) (S b)
@@ -35,7 +35,7 @@ def leStep : (a : ℕ) (b : ℕ) → El (LeN a b) → El (LeN a (S b)) using (+.
 -- ===== transitivity, antisymmetry =====
 
 def leTrans : (a : ℕ) (b : ℕ) (c : ℕ) →
-              El (LeN a b) → El (LeN b c) → El (LeN a c) ≔
+              El (LeN a b) → El (LeN b c) → El (LeN a c) using (id.Id.unfold, natOrder.LeN.unfold) ≔
   λa. λb. λc. λl1. λl2.
     (l1 .π₁ + l2 .π₁ ,
      eqToId ℕ (a + (l1 .π₁ + l2 .π₁)) c
@@ -62,13 +62,13 @@ def sumZeroR : (x : ℕ) (y : ℕ) → (x + y ≡ Z ∈ ℕ) → y ≡ Z ∈ ℕ
 def sumZeroL : (x : ℕ) (y : ℕ) → (x + y ≡ Z ∈ ℕ) → x ≡ Z ∈ ℕ ≔
   λx. λy. λh. sumZeroR y x (trans ℕ (y + x) (x + y) Z (plusComm x y) h)
 
-def leZeroInv : (a : ℕ) → El (LeN a Z) → a ≡ Z ∈ ℕ ≔
+def leZeroInv : (a : ℕ) → El (LeN a Z) → a ≡ Z ∈ ℕ using (natOrder.LeN.unfold) ≔
   λa. λle.
     sumZeroL a (le .π₁)
       (trans ℕ (a + le .π₁) Z Z (idToEq ℕ (a + le .π₁) Z (le .π₂)) ⋆)
 
 def leAntisym : (a : ℕ) (b : ℕ) →
-                El (LeN a b) → El (LeN b a) → a ≡ b ∈ ℕ ≔
+                El (LeN a b) → El (LeN b a) → a ≡ b ∈ ℕ using (id.Id.unfold, natOrder.LeN.unfold) ≔
   λa. λb. λl1. λl2.
     let h1 ≔ idToEq ℕ (a + l1 .π₁) b (l1 .π₂) in
     let h2 ≔ idToEq ℕ (b + l2 .π₁) a (l2 .π₂) in
@@ -99,7 +99,7 @@ def leAntisym : (a : ℕ) (b : ℕ) →
 
 -- ===== monotonicity =====
 
-def leSucMono : (a : ℕ) (b : ℕ) → El (LeN a b) → El (LeN (S a) (S b)) ≔
+def leSucMono : (a : ℕ) (b : ℕ) → El (LeN a b) → El (LeN (S a) (S b)) using (id.Id.unfold, natOrder.LeN.unfold) ≔
   λa. λb. λle.
     (le .π₁ ,
      eqToId ℕ (S a + le .π₁) (S b)
@@ -110,7 +110,7 @@ def leSucMono : (a : ℕ) (b : ℕ) → El (LeN a b) → El (LeN (S a) (S b)) �
           ≡⟨ cong ℕ (λu. ℕ) (λu. S u) (a + le .π₁) b h ⟩
         S b)))
 
-def leSucInv : (a : ℕ) (b : ℕ) → El (LeN (S a) (S b)) → El (LeN a b) ≔
+def leSucInv : (a : ℕ) (b : ℕ) → El (LeN (S a) (S b)) → El (LeN a b) using (id.Id.unfold, natOrder.LeN.unfold) ≔
   λa. λb. λle.
     (le .π₁ ,
      eqToId ℕ (a + le .π₁) b
@@ -123,7 +123,7 @@ def leSucInv : (a : ℕ) (b : ℕ) → El (LeN (S a) (S b)) → El (LeN a b) ≔
            S b))))
 
 def lePlusMonoR : (a : ℕ) (b : ℕ) (c : ℕ) →
-                  El (LeN a b) → El (LeN (a + c) (b + c)) ≔
+                  El (LeN a b) → El (LeN (a + c) (b + c)) using (id.Id.unfold, natOrder.LeN.unfold) ≔
   λa. λb. λc. λle.
     (le .π₁ ,
      eqToId ℕ (a + c + le .π₁) (b + c)
@@ -139,7 +139,7 @@ def lePlusMonoR : (a : ℕ) (b : ℕ) (c : ℕ) →
         b + c)))
 
 def lePlusMonoL : (a : ℕ) (b : ℕ) (c : ℕ) →
-                  El (LeN a b) → El (LeN (c + a) (c + b)) ≔
+                  El (LeN a b) → El (LeN (c + a) (c + b)) using (natOrder.LeN.unfold) ≔
   λa. λb. λc. λle.
     leTrans (c + a) (a + c) (c + b)
       (leOfEq (c + a) (a + c) (plusComm a c))
@@ -148,7 +148,7 @@ def lePlusMonoL : (a : ℕ) (b : ℕ) (c : ℕ) →
         (leOfEq (b + c) (c + b) (plusComm c b)))
 
 def leMultMonoR : (a : ℕ) (b : ℕ) (c : ℕ) →
-                  El (LeN a b) → El (LeN (a * c) (b * c)) ≔
+                  El (LeN a b) → El (LeN (a * c) (b * c)) using (id.Id.unfold, natOrder.LeN.unfold) ≔
   λa. λb. λc. λle.
     (le .π₁ * c ,
      eqToId ℕ (a * c + le .π₁ * c) (b * c)

@@ -31,7 +31,7 @@ import equality (trans, sym, cong, transport)
 -- the doubled bound halves: 2·(1/(2m+2) + 1/(2n+2)) = 1/(m+1) + 1/(n+1)
 def rBoundHalf : (m : ℕ) (n : ℕ) →
   qAdd (rBound (dbl m) (dbl n)) (rBound (dbl m) (dbl n)) ≡ rBound m n ∈ El Q
-  using (real.rBound.eq) ≔
+  using (rationalQ.Q.unfold, real.rBound.eq) ≔
   λm. λn.
     (qAdd (rBound (dbl m) (dbl n)) (rBound (dbl m) (dbl n))
        ≡⟨ qPairSwap (qInvNat (dbl m)) (qInvNat (dbl n))
@@ -48,14 +48,14 @@ def rBoundHalf : (m : ℕ) (n : ℕ) →
 
 -- sampling the LEFT index deeper only shrinks the bound
 def leQBoundDblL : (m : ℕ) (n : ℕ) →
-  El (LeQ (rBound (dbl m) n) (rBound m n)) using (id.Id.eq, ratHalf.dbl.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.qInvNat.eq, real.rBound.eq) ≔
+  El (LeQ (rBound (dbl m) n) (rBound m n)) using (id.Id.eq, ratHalf.dbl.eq, rationalOrder.LeQ.unfold, rationalOrder.NonNegS.unfold, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.qInvNat.eq, real.rBound.eq) ≔
   λm. λn.
     leQAdd (qInvNat (dbl m)) (qInvNat m) (qInvNat n) (qInvNat n)
       (leQInvDbl m) (leQRefl (qInvNat n))
 
 -- the diagonal doubled bound IS the halved unit fraction, and it sits
 -- under the diagonal bound at the original index
-def leQBoundDblDiag : (n : ℕ) → El (LeQ (rBound (dbl n) (dbl n)) (rBound n n)) ≔
+def leQBoundDblDiag : (n : ℕ) → El (LeQ (rBound (dbl n) (dbl n)) (rBound n n)) using (rationalOrder.LeQ.unfold, rationalOrder.NonNegS.unfold) ≔
   λn.
     transport Q (λw. LeQ (rBound (dbl n) (dbl n)) w)
       (qAdd (rBound (dbl n) (dbl n)) (rBound (dbl n) (dbl n))) (rBound n n)
@@ -65,12 +65,12 @@ def leQBoundDblDiag : (n : ℕ) → El (LeQ (rBound (dbl n) (dbl n)) (rBound n n
 
 -- ===== the operation on representatives =====
 
-def addSeq : El (ℕ → Q) → El (ℕ → Q) → El (ℕ → Q) ≔
+def addSeq : El (ℕ → Q) → El (ℕ → Q) → El (ℕ → Q) using (rationalQ.Q.unfold) ≔
   λf. λg. λn. qAdd (f (dbl n)) (g (dbl n))
 
 def addReg : (f : El (ℕ → Q)) (g : El (ℕ → Q)) →
   El (Regular f) → El (Regular g) → El (Regular (addSeq f g))
-  using (id.Id.eq, ratHalf.dbl.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.rBound.eq, realAdd.addSeq.eq) ≔
+  using (id.Id.eq, ratBound.Bnd.unfold, ratHalf.dbl.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.Q.unfold, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.Regular.unfold, real.rBound.eq, realAdd.addSeq.eq) ≔
   λf. λg. λhf. λhg.
     bndReg (addSeq f g)
       (λm. λn.
@@ -91,7 +91,7 @@ def addReg : (f : El (ℕ → Q)) (g : El (ℕ → Q)) →
                 (regBnd f hf (dbl m) (dbl n))
                 (regBnd g hg (dbl m) (dbl n)))))
 
-def rAdd : El RSeq → El RSeq → El RSeq ≔
+def rAdd : El RSeq → El RSeq → El RSeq using (real.RSeq.unfold) ≔
   λx. λy.
     (addSeq (seqOf x) (seqOf y) ,
      addReg (seqOf x) (seqOf y) (regOf x) (regOf y))
@@ -102,7 +102,7 @@ def rAdd : El RSeq → El RSeq → El RSeq ≔
 -- close — the common left summand cancels out of the difference, and
 -- the deeper sample only tightens the bound
 def rAddWDInner : (x : El RSeq) (y : El RSeq) (y' : El RSeq) →
-  Prf (REq y y') → Prf (REq (rAdd x y) (rAdd x y')) using (id.Id.eq, ratHalf.dbl.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalOrder.Sign.eq, rationalOrder.ratSgn.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.qInvNat.eq, real.rBound.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realNeg.seqOf.eq) ≔
+  Prf (REq y y') → Prf (REq (rAdd x y) (rAdd x y')) using (id.Id.eq, ratBound.Bnd.unfold, ratHalf.dbl.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalOrder.Sign.eq, rationalOrder.ratSgn.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.REq.unfold, real.RSeq.unfold, real.Regular.unfold, real.qInvNat.eq, real.rBound.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realNeg.seqOf.eq) ≔
   λx. λy. λy'. λh.
     squash-elim h
       (u. reqOf (rAdd x y) (rAdd x y')
@@ -121,14 +121,14 @@ def rAddWDInner : (x : El RSeq) (y : El RSeq) (y' : El RSeq) →
                    (leQBoundDblDiag n) (u (dbl n)))))
 
 def rAddWDInnerCls : (x : El RSeq) (y : El RSeq) (y' : El RSeq) (h : Prf (REq y y')) →
-  class (rAdd x y) ≡ class (rAdd x y') ∈ El Real ≔
+  class (rAdd x y) ≡ class (rAdd x y') ∈ El Real using (real.Real.unfold) ≔
   λx. λy. λy'. λh. realEqOfREq (rAdd x y) (rAdd x y') (rAddWDInner x y y' h)
 
 -- addition on REPRESENTATIVES is commutative on the nose — the two
 -- sequences sample at the same doubled index — which is a statement
 -- about RSeq, hence available only since uip (realSeq.nova)
 def rAddComm : (x : El RSeq) (y : El RSeq) → rAdd x y ≡ rAdd y x ∈ El RSeq
-  using (ratHalf.dbl.eq, rational.ratAdd.eq, rationalQ.qAdd.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realNeg.seqOf.eq) ≔
+  using (ratHalf.dbl.eq, rational.ratAdd.eq, rationalQ.qAdd.eq, real.RSeq.unfold, real.Regular.unfold, realAdd.addSeq.eq, realAdd.rAdd.eq, realNeg.seqOf.eq) ≔
   λx. λy.
     rseqEq (rAdd x y) (rAdd y x)
       (λn. qAddComm (seqOf x (dbl n)) (seqOf y (dbl n)))
@@ -136,30 +136,30 @@ def rAddComm : (x : El RSeq) (y : El RSeq) → rAdd x y ≡ rAdd y x ∈ El RSeq
 -- ...so the OUTER case needs no new arithmetic: commuting turns it
 -- into the inner one with the arguments swapped
 def rAddWDOuterCls : (x : El RSeq) (x' : El RSeq) (c : El RSeq) (h : Prf (REq x x')) →
-  class (rAdd x c) ≡ class (rAdd x' c) ∈ El Real ≔
+  class (rAdd x c) ≡ class (rAdd x' c) ∈ El Real using (real.Real.unfold) ≔
   wdOuterOfComm rAdd rAddComm rAddWDInnerCls
 
 -- ...in the quot-elim shape the elaborator asks for
 def rAddWDOuter : (x : El RSeq) (x' : El RSeq) (h : Prf (REq x x')) (v : El Real) →
   quot-elim (w. El Real) (q. class (rAdd x q)) v
     ≡ quot-elim (w. El Real) (q. class (rAdd x' q)) v ∈ El Real
-  using (rAddWDInnerCls) ≔
+  using (rAddWDInnerCls, real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold) ≔
   λx. λx'. λh. λv.
     quot-elim (w. quot-elim (z. El Real) (q. class (rAdd x q)) w
                     ≡ quot-elim (z. El Real) (q. class (rAdd x' q)) w ∈ El Real)
       (c. rAddWDOuterCls x x' c h)
       v
 
-def realAdd : El Real → El Real → El Real using (rAddWDInnerCls, rAddWDOuter) ≔
+def realAdd : El Real → El Real → El Real using (rAddWDInnerCls, rAddWDOuter, real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold) ≔
   λu. λv. quot-elim (w. El Real) (p. quot-elim (w. El Real) (q. class (rAdd p q)) v) u
 
 def realAddCls : (x : El RSeq) (y : El RSeq) →
-  realAdd (class x) (class y) ≡ class (rAdd x y) ∈ El Real using (realAdd.rAdd.eq, realAdd.realAdd.eq) ≔ λx. λy. ⋆
+  realAdd (class x) (class y) ≡ class (rAdd x y) ∈ El Real using (real.RSeq.unfold, real.Real.unfold, real.Regular.unfold, realAdd.rAdd.eq, realAdd.realAdd.eq) ≔ λx. λy. ⋆
 
 -- ===== the laws that hold pointwise =====
 
 def realAddComm : (u : El Real) (v : El Real) →
-  realAdd u v ≡ realAdd v u ∈ El Real using (realAdd.realAddCls) ≔
+  realAdd u v ≡ realAdd v u ∈ El Real using (real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold, realAdd.realAddCls) ≔
   λu. λv.
     quot-elim (w. realAdd w v ≡ realAdd v w ∈ El Real)
       (p. quot-elim (w. realAdd (class p) w ≡ realAdd w (class p) ∈ El Real)
@@ -171,7 +171,7 @@ def realAddComm : (u : El Real) (v : El Real) →
 -- ℚ embeds as a homomorphism: a constant sequence samples to itself
 def realAddOfQ : (p : El Q) (q : El Q) →
   realAdd (realOfQ p) (realOfQ q) ≡ realOfQ (qAdd p q) ∈ El Real
-  using (rational.ratAdd.eq, rationalQ.qAdd.eq, real.constReg.eq, real.realOfQ.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realAdd.realAdd.eq, realNeg.seqOf.eq) ≔
+  using (rational.ratAdd.eq, rationalQ.Q.unfold, rationalQ.qAdd.eq, real.RSeq.unfold, real.constReg.eq, real.realOfQ.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realAdd.realAdd.eq, realNeg.seqOf.eq) ≔
   λp. λq.
     realEqOfSeqEq (rAdd ((λn. p) , constReg p) ((λn. q) , constReg q))
                       ((λn. qAdd p q) , constReg (qAdd p q))
@@ -179,7 +179,7 @@ def realAddOfQ : (p : El Q) (q : El Q) →
 
 -- u + (−u) = 0 : the sampled difference cancels on the nose
 def realAddNegR : (u : El Real) → realAdd u (realNeg u) ≡ realZero ∈ El Real
-  using (equality.sym.eq, equality.transport.eq, ratHalf.dbl.eq, rational.ratAdd.eq, rational.ratNeg.eq, rational.ratZero.eq, rationalOrder.LeQ.eq, rationalQ.Q.eq, rationalQ.qAdd.eq, rationalQ.qAddNegR.eq, rationalQ.qNeg.eq, rationalQ.qZero.eq, rationalQ.qcls.eq, real.constReg.eq, real.leQNegBoundZero.eq, real.leQZeroBound.eq, real.rBound.eq, real.realOfQ.eq, real.realZero.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realAdd.realAdd.eq, realNeg.negSeq.eq, realNeg.rNeg.eq, realNeg.realNeg.eq, realNeg.seqOf.eq) ≔
+  using (equality.sym.eq, equality.transport.eq, ratHalf.dbl.eq, rational.ratAdd.eq, rational.ratNeg.eq, rational.ratZero.eq, rationalOrder.LeQ.eq, rationalQ.Q.eq, rationalQ.qAdd.eq, rationalQ.qAddNegR.eq, rationalQ.qNeg.eq, rationalQ.qZero.eq, rationalQ.qcls.eq, real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold, real.constReg.eq, real.leQNegBoundZero.eq, real.leQZeroBound.eq, real.rBound.eq, real.realOfQ.eq, real.realZero.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realAdd.realAdd.eq, realNeg.negSeq.eq, realNeg.rNeg.eq, realNeg.realNeg.eq, realNeg.seqOf.eq) ≔
   λu.
     quot-elim (w. realAdd w (realNeg w) ≡ realZero ∈ El Real)
       (p. realEqOfSeqEq (rAdd p (rNeg p)) ((λn. qZero) , constReg qZero)
@@ -196,7 +196,7 @@ def realAddNegL : (u : El Real) → realAdd (realNeg u) u ≡ realZero ∈ El Re
 
 -- x + 0 = x : the left summand is sampled deeper, and 1/(2n+2) ≤ 1/(n+1)
 def realAddZeroR : (u : El Real) → realAdd u realZero ≡ u ∈ El Real
-  using (equality.sym.eq, equality.transport.eq, id.Id.eq, ratHalf.dbl.eq, rational.ratAdd.eq, rational.ratNeg.eq, rational.ratZero.eq, rationalOrder.LeQ.eq, rationalOrder.Sign.eq, rationalOrder.ratSgn.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.Q.eq, rationalQ.qAdd.eq, rationalQ.qAddNegR.eq, rationalQ.qNeg.eq, rationalQ.qZero.eq, rationalQ.qcls.eq, real.constReg.eq, real.leQNegBoundZero.eq, real.leQZeroBound.eq, real.qInvNat.eq, real.rBound.eq, real.realOfQ.eq, real.realZero.eq, realAdd.addReg.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realAdd.realAdd.eq, realNeg.regOf.eq, realNeg.seqOf.eq) ≔
+  using (equality.sym.eq, equality.transport.eq, id.Id.eq, ratBound.Bnd.unfold, ratHalf.dbl.eq, rational.ratAdd.eq, rational.ratNeg.eq, rational.ratZero.eq, rationalOrder.LeQ.eq, rationalOrder.Sign.eq, rationalOrder.ratSgn.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.Q.eq, rationalQ.qAdd.eq, rationalQ.qAddNegR.eq, rationalQ.qNeg.eq, rationalQ.qZero.eq, rationalQ.qcls.eq, real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold, real.constReg.eq, real.leQNegBoundZero.eq, real.leQZeroBound.eq, real.qInvNat.eq, real.rBound.eq, real.realOfQ.eq, real.realZero.eq, realAdd.addReg.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realAdd.realAdd.eq, realNeg.regOf.eq, realNeg.seqOf.eq) ≔
   λu.
     quot-elim (w. realAdd w realZero ≡ w ∈ El Real)
       (p. realEqOfREq (rAdd p ((λn. qZero) , constReg qZero)) p
@@ -225,7 +225,7 @@ def realAddZeroL : (u : El Real) → realAdd realZero u ≡ u ∈ El Real ≔
 -- drops out, which is the whole content of associativity here
 def qMidCancel : (a : El Q) (b : El Q) (c : El Q) (a' : El Q) (c' : El Q) →
   qAdd (qAdd (qAdd a b) c) (qNeg (qAdd a' (qAdd b c')))
-    ≡ qAdd (qAdd a (qNeg a')) (qAdd c (qNeg c')) ∈ El Q ≔
+    ≡ qAdd (qAdd a (qNeg a')) (qAdd c (qNeg c')) ∈ El Q using (rationalQ.Q.unfold) ≔
   λa. λb. λc. λa'. λc'.
     (qAdd (qAdd (qAdd a b) c) (qNeg (qAdd a' (qAdd b c')))
        ≡⟨ cong Q (λw. Q) (λw. qAdd (qAdd (qAdd a b) c) (qNeg w))
@@ -247,7 +247,7 @@ def qMidCancel : (a : El Q) (b : El Q) (c : El Q) (a' : El Q) (c' : El Q) →
 -- gaps, whose bounds add back to 1/(2n+2) + 1/(n+1) ≤ 2/(n+1)
 def realAddAssoc : (u : El Real) (v : El Real) (w : El Real) →
   realAdd (realAdd u v) w ≡ realAdd u (realAdd v w) ∈ El Real
-  using (id.Id.eq, ratHalf.dbl.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalOrder.Sign.eq, rationalOrder.ratSgn.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.qInvNat.eq, real.rBound.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realAdd.realAdd.eq, realNeg.seqOf.eq) ≔
+  using (id.Id.eq, ratBound.Bnd.unfold, ratHalf.dbl.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalOrder.Sign.eq, rationalOrder.ratSgn.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold, real.qInvNat.eq, real.rBound.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realAdd.realAdd.eq, realNeg.seqOf.eq) ≔
   λu. λv. λw.
     quot-elim (t. realAdd (realAdd t v) w ≡ realAdd t (realAdd v w) ∈ El Real)
       (x. quot-elim (t. realAdd (realAdd (class x) t) w

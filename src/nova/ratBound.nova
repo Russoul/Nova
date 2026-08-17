@@ -22,7 +22,7 @@ import eqInt (pairEq2)
 -- ===== order lemmas the bound algebra needs =====
 
 -- negation reverses ≤ : the two differences are the same rational
-def leQNegFlip : (x : El Q) (y : El Q) → El (LeQ x y) → El (LeQ (qNeg y) (qNeg x)) ≔
+def leQNegFlip : (x : El Q) (y : El Q) → El (LeQ x y) → El (LeQ (qNeg y) (qNeg x)) using (rationalOrder.LeQ.unfold, rationalOrder.NonNegS.unfold, rationalQ.Q.unfold) ≔
   λx. λy. λh.
     transport Q (λw. NonNegS (sgnQ w))
       (qAdd y (qNeg x)) (qAdd (qNeg x) (qNeg (qNeg y)))
@@ -36,7 +36,7 @@ def leQNegFlip : (x : El Q) (y : El Q) → El (LeQ x y) → El (LeQ (qNeg y) (qN
 
 -- ...and back: (−y) ≤ (−x) gives x ≤ y, by flipping once more
 def leQNegFlipBack : (x : El Q) (y : El Q) →
-  El (LeQ (qNeg y) (qNeg x)) → El (LeQ x y) ≔
+  El (LeQ (qNeg y) (qNeg x)) → El (LeQ x y) using (rationalOrder.LeQ.unfold, rationalOrder.NonNegS.unfold) ≔
   λx. λy. λh.
     transport Q (λw. LeQ w y) (qNeg (qNeg x)) x (qNegNeg x)
       (transport Q (λw. LeQ (qNeg (qNeg x)) w) (qNeg (qNeg y)) y (qNegNeg y)
@@ -44,7 +44,7 @@ def leQNegFlipBack : (x : El Q) (y : El Q) →
 
 -- ≤ adds in BOTH arguments — two monotonicity steps and a hop
 def leQAdd : (x : El Q) (y : El Q) (z : El Q) (w : El Q) →
-  El (LeQ x y) → El (LeQ z w) → El (LeQ (qAdd x z) (qAdd y w)) ≔
+  El (LeQ x y) → El (LeQ z w) → El (LeQ (qAdd x z) (qAdd y w)) using (rationalOrder.LeQ.unfold, rationalOrder.NonNegS.unfold) ≔
   λx. λy. λz. λw. λh1. λh2.
     leQTrans (qAdd x z) (qAdd y z) (qAdd y w)
       (leQPlusMono x y z h1)
@@ -54,14 +54,14 @@ def leQAdd : (x : El Q) (y : El Q) (z : El Q) (w : El Q) →
 
 def Bnd : El Q → El Q → 𝕌 ≔ λb. λu. (LeQ (qNeg b) u ⨯ LeQ u b)
 
-def bndLo : (b : El Q) (u : El Q) → El (Bnd b u) → El (LeQ (qNeg b) u) ≔
+def bndLo : (b : El Q) (u : El Q) → El (Bnd b u) → El (LeQ (qNeg b) u) using (ratBound.Bnd.unfold, rationalOrder.LeQ.unfold, rationalOrder.NonNegS.unfold) ≔
   λb. λu. λh. h .π₁
-def bndHi : (b : El Q) (u : El Q) → El (Bnd b u) → El (LeQ u b) ≔
+def bndHi : (b : El Q) (u : El Q) → El (Bnd b u) → El (LeQ u b) using (ratBound.Bnd.unfold, rationalOrder.LeQ.unfold, rationalOrder.NonNegS.unfold) ≔
   λb. λu. λh. h .π₂
 
 -- the triangle inequality, in two-sided form
 def bndAdd : (a : El Q) (b : El Q) (u : El Q) (v : El Q) →
-  El (Bnd a u) → El (Bnd b v) → El (Bnd (qAdd a b) (qAdd u v)) ≔
+  El (Bnd a u) → El (Bnd b v) → El (Bnd (qAdd a b) (qAdd u v)) using (ratBound.Bnd.unfold) ≔
   λa. λb. λu. λv. λhu. λhv.
     (transport Q (λw. LeQ w (qAdd u v))
        (qAdd (qNeg a) (qNeg b)) (qNeg (qAdd a b))
@@ -71,7 +71,7 @@ def bndAdd : (a : El Q) (b : El Q) (u : El Q) (v : El Q) →
 
 -- a bound on u bounds −u, with the same b
 def bndNeg : (b : El Q) (u : El Q) →
-  El (Bnd b u) → El (Bnd b (qNeg u)) ≔
+  El (Bnd b u) → El (Bnd b (qNeg u)) using (ratBound.Bnd.unfold) ≔
   λb. λu. λh.
     (leQNegFlip u b (h .π₂) ,
      transport Q (λw. LeQ (qNeg u) w) (qNeg (qNeg b)) b (qNegNeg b)
@@ -79,27 +79,27 @@ def bndNeg : (b : El Q) (u : El Q) →
 
 -- a bound transports along an equality of the bounded rational
 def bndEq : (b : El Q) (u : El Q) (v : El Q) →
-  (u ≡ v ∈ El Q) → El (Bnd b u) → El (Bnd b v) ≔
+  (u ≡ v ∈ El Q) → El (Bnd b u) → El (Bnd b v) using (ratBound.Bnd.unfold) ≔
   λb. λu. λv. λe. λh. transport Q (λw. Bnd b w) u v e h
 
 -- ...and along an equality of the bound
 def bndEqB : (a : El Q) (b : El Q) (u : El Q) →
-  (a ≡ b ∈ El Q) → El (Bnd a u) → El (Bnd b u) ≔
+  (a ≡ b ∈ El Q) → El (Bnd a u) → El (Bnd b u) using (ratBound.Bnd.unfold) ≔
   λa. λb. λu. λe. λh. transport Q (λw. Bnd w u) a b e h
 
 -- a bound weakens to any larger bound
 def bndWeaken : (a : El Q) (b : El Q) (u : El Q) →
-  El (LeQ a b) → El (Bnd a u) → El (Bnd b u) ≔
+  El (LeQ a b) → El (Bnd a u) → El (Bnd b u) using (ratBound.Bnd.unfold) ≔
   λa. λb. λu. λle. λh.
     (leQTrans (qNeg b) (qNeg a) u (leQNegFlip a b le) (h .π₁) ,
      leQTrans u a b (h .π₂) le)
 
 -- ===== zero =====
 
-def qNegZeroQ : qNeg qZero ≡ qZero ∈ El Q using (integer.intNeg.eq, integer.intZero.eq, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.ratNeg.eq, rational.ratOfInt.eq, rational.ratZero.eq, rationalQ.qNeg.eq, rationalQ.qZero.eq, rationalQ.qcls.eq) ≔ ⋆
+def qNegZeroQ : qNeg qZero ≡ qZero ∈ El Q using (integer.intNeg.eq, integer.intZero.eq, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.ratNeg.eq, rational.ratOfInt.eq, rational.ratZero.eq, rationalQ.Q.unfold, rationalQ.qNeg.eq, rationalQ.qZero.eq, rationalQ.qcls.eq) ≔ ⋆
 
 -- 0 is bounded by every nonnegative b
-def bndZero : (b : El Q) → El (LeQ qZero b) → El (Bnd b qZero) ≔
+def bndZero : (b : El Q) → El (LeQ qZero b) → El (Bnd b qZero) using (ratBound.Bnd.unfold) ≔
   λb. λle.
     (transport Q (λw. LeQ (qNeg b) w) (qNeg qZero) qZero qNegZeroQ
        (leQNegFlip qZero b le) ,
@@ -107,7 +107,7 @@ def bndZero : (b : El Q) → El (LeQ qZero b) → El (Bnd b qZero) ≔
 
 -- a difference of EQUAL rationals is bounded by every nonnegative b
 def bndSubEq : (b : El Q) (u : El Q) (v : El Q) →
-  El (LeQ qZero b) → (u ≡ v ∈ El Q) → El (Bnd b (qAdd u (qNeg v))) ≔
+  El (LeQ qZero b) → (u ≡ v ∈ El Q) → El (Bnd b (qAdd u (qNeg v))) using (ratBound.Bnd.unfold) ≔
   λb. λu. λv. λle. λe.
     bndEq b qZero (qAdd u (qNeg v))
       (sym Q (qAdd u (qNeg v)) qZero
@@ -127,7 +127,7 @@ def qSubVia : (u : El Q) (v : El Q) (w : El Q) →
 -- the triangle inequality for differences, through a midpoint
 def bndVia : (a : El Q) (b : El Q) (u : El Q) (v : El Q) (w : El Q) →
   El (Bnd a (qAdd u (qNeg v))) → El (Bnd b (qAdd v (qNeg w))) →
-  El (Bnd (qAdd a b) (qAdd u (qNeg w))) ≔
+  El (Bnd (qAdd a b) (qAdd u (qNeg w))) using (ratBound.Bnd.unfold) ≔
   λa. λb. λu. λv. λw. λh1. λh2.
     bndEq (qAdd a b) (qAdd (qAdd u (qNeg v)) (qAdd v (qNeg w)))
       (qAdd u (qNeg w)) (qSubVia u v w)
@@ -135,7 +135,7 @@ def bndVia : (a : El Q) (b : El Q) (u : El Q) (v : El Q) (w : El Q) →
 
 -- −(u − v) ≡ v − u, so a bound on one difference bounds the other
 def qSubFlip : (u : El Q) (v : El Q) →
-  qNeg (qAdd u (qNeg v)) ≡ qAdd v (qNeg u) ∈ El Q ≔
+  qNeg (qAdd u (qNeg v)) ≡ qAdd v (qNeg u) ∈ El Q using (rationalQ.Q.unfold) ≔
   λu. λv.
     (qNeg (qAdd u (qNeg v))
        ≡⟨ qNegAdd u (qNeg v) ⟩
@@ -146,7 +146,7 @@ def qSubFlip : (u : El Q) (v : El Q) →
      qAdd v (qNeg u))
 
 def bndSubSym : (b : El Q) (u : El Q) (v : El Q) →
-  El (Bnd b (qAdd u (qNeg v))) → El (Bnd b (qAdd v (qNeg u))) ≔
+  El (Bnd b (qAdd u (qNeg v))) → El (Bnd b (qAdd v (qNeg u))) using (ratBound.Bnd.unfold) ≔
   λb. λu. λv. λh.
     bndEq b (qNeg (qAdd u (qNeg v))) (qAdd v (qNeg u)) (qSubFlip u v)
       (bndNeg b (qAdd u (qNeg v)) h)
@@ -158,7 +158,7 @@ def bndSubSym : (b : El Q) (u : El Q) (v : El Q) →
 -- difference of SUMS, which is every well-definedness goal for +.
 def qSubAdd : (a : El Q) (b : El Q) (c : El Q) (d : El Q) →
   qAdd (qAdd a (qNeg b)) (qAdd c (qNeg d))
-    ≡ qAdd (qAdd a c) (qNeg (qAdd b d)) ∈ El Q ≔
+    ≡ qAdd (qAdd a c) (qNeg (qAdd b d)) ∈ El Q using (rationalQ.Q.unfold) ≔
   λa. λb. λc. λd.
     (qAdd (qAdd a (qNeg b)) (qAdd c (qNeg d))
        ≡⟨ qPairSwap a (qNeg b) c (qNeg d) ⟩
@@ -171,7 +171,7 @@ def qSubAdd : (a : El Q) (b : El Q) (c : El Q) (d : El Q) →
 -- a common LEFT summand cancels from a difference (rationalOrder has
 -- the right-summand version)
 def qSubPlusCancelL : (x : El Q) (y : El Q) (w : El Q) →
-  qAdd (qAdd w y) (qNeg (qAdd w x)) ≡ qAdd y (qNeg x) ∈ El Q ≔
+  qAdd (qAdd w y) (qNeg (qAdd w x)) ≡ qAdd y (qNeg x) ∈ El Q using (rationalQ.Q.unfold) ≔
   λx. λy. λw.
     (qAdd (qAdd w y) (qNeg (qAdd w x))
        ≡⟨ cong Q (λv. Q) (λv. qAdd v (qNeg (qAdd w x))) (qAdd w y) (qAdd y w)
@@ -193,7 +193,7 @@ def qSubZeroR : (u : El Q) → qAdd u (qNeg qZero) ≡ u ∈ El Q ≔
       (qAddZeroR u)
 
 -- 0 ≤ u whenever u's sign is nonnegative
-def leQZeroOfNonNeg : (u : El Q) → El (NonNegS (sgnQ u)) → El (LeQ qZero u) ≔
+def leQZeroOfNonNeg : (u : El Q) → El (NonNegS (sgnQ u)) → El (LeQ qZero u) using (rationalOrder.LeQ.unfold, rationalOrder.NonNegS.unfold, rationalQ.Q.unfold) ≔
   λu. λh.
     transport Sign NonNegS (sgnQ u) (sgnQ (qAdd u (qNeg qZero)))
       (sym Sign (sgnQ (qAdd u (qNeg qZero))) (sgnQ u)
@@ -201,7 +201,7 @@ def leQZeroOfNonNeg : (u : El Q) → El (NonNegS (sgnQ u)) → El (LeQ qZero u) 
       h
 
 -- 0 ≤ u whenever u's sign is positive: the difference u − 0 is u
-def leQZeroOfPos : (u : El Q) → (sgnQ u ≡ sPos ∈ El Sign) → El (LeQ qZero u) ≔
+def leQZeroOfPos : (u : El Q) → (sgnQ u ≡ sPos ∈ El Sign) → El (LeQ qZero u) using (rationalOrder.LeQ.unfold, rationalOrder.NonNegS.unfold) ≔
   λu. λh.
     inj₂ (eqToId Sign (sgnQ (qAdd u (qNeg qZero))) sPos
       (trans Sign (sgnQ (qAdd u (qNeg qZero))) (sgnQ u) sPos
@@ -211,13 +211,13 @@ def leQZeroOfPos : (u : El Q) → (sgnQ u ≡ sPos ∈ El Sign) → El (LeQ qZer
 -- ===== growing a bound by a nonnegative amount =====
 
 def leQSelfAdd : (a : El Q) (b : El Q) →
-  El (LeQ qZero b) → El (LeQ a (qAdd a b)) ≔
+  El (LeQ qZero b) → El (LeQ a (qAdd a b)) using (rationalOrder.LeQ.unfold, rationalOrder.NonNegS.unfold) ≔
   λa. λb. λle.
     transport Q (λw. LeQ w (qAdd a b)) (qAdd a qZero) a (qAddZeroR a)
       (leQPlusMonoL qZero b a le)
 
 def leQSelfAddL : (a : El Q) (b : El Q) →
-  El (LeQ qZero b) → El (LeQ a (qAdd b a)) ≔
+  El (LeQ qZero b) → El (LeQ a (qAdd b a)) using (rationalOrder.LeQ.unfold, rationalOrder.NonNegS.unfold) ≔
   λa. λb. λle.
     transport Q (λw. LeQ a w) (qAdd a b) (qAdd b a) (qAddComm a b)
       (leQSelfAdd a b le)
@@ -226,7 +226,7 @@ def leQSelfAddL : (a : El Q) (b : El Q) →
 -- midpoint and the two upper bounds add
 def leQVia : (a : El Q) (b : El Q) (u : El Q) (v : El Q) (w : El Q) →
   El (LeQ (qAdd u (qNeg v)) a) → El (LeQ (qAdd v (qNeg w)) b) →
-  El (LeQ (qAdd u (qNeg w)) (qAdd a b)) ≔
+  El (LeQ (qAdd u (qNeg w)) (qAdd a b)) using (rationalOrder.LeQ.unfold, rationalOrder.NonNegS.unfold) ≔
   λa. λb. λu. λv. λw. λh1. λh2.
     transport Q (λz. LeQ z (qAdd a b))
       (qAdd (qAdd u (qNeg v)) (qAdd v (qNeg w))) (qAdd u (qNeg w))
@@ -236,7 +236,7 @@ def leQVia : (a : El Q) (b : El Q) (u : El Q) (v : El Q) (w : El Q) →
 -- an upper bound on the reversed difference is a lower bound on it
 def bndOfBothLe : (b : El Q) (u : El Q) (v : El Q) →
   El (LeQ (qAdd u (qNeg v)) b) → El (LeQ (qAdd v (qNeg u)) b) →
-  El (Bnd b (qAdd u (qNeg v))) ≔
+  El (Bnd b (qAdd u (qNeg v))) using (ratBound.Bnd.unfold) ≔
   λb. λu. λv. λh1. λh2.
     (transport Q (λw. LeQ (qNeg b) w) (qNeg (qAdd v (qNeg u)))
        (qAdd u (qNeg v)) (qSubFlip v u)
@@ -245,7 +245,7 @@ def bndOfBothLe : (b : El Q) (u : El Q) (v : El Q) →
 
 -- a nonnegative sign is not the negative one — the refutation every
 -- decision branch needs
-def nonNegNotNeg : (s : El Sign) → El (NonNegS s) → El (Id Sign s sNeg) → 𝟘 ≔
+def nonNegNotNeg : (s : El Sign) → El (NonNegS s) → El (Id Sign s sNeg) → 𝟘 using (rationalOrder.NonNegS.unfold) ≔
   λs. λnn. λhn.
     ⊎-elim (w. 𝟘)
       (h0. sZeroNotNeg
@@ -267,7 +267,7 @@ def nonNegNotNeg : (s : El Sign) → El (NonNegS s) → El (Id Sign s sNeg) → 
 -- it (a `Bnd`, a regularity witness) inherits that.
 
 def nonNegIsProp : (s : El Sign) (p : El (NonNegS s)) (q : El (NonNegS s)) →
-  p ≡ q ∈ El (NonNegS s) ≔
+  p ≡ q ∈ El (NonNegS s) using (id.Id.unfold, rationalOrder.NonNegS.unfold, rationalOrder.Sign.unfold) ≔
   λs. λp. λq.
     ⊎-elim (w. w ≡ q ∈ El (NonNegS s))
       (a.
@@ -291,11 +291,11 @@ def nonNegIsProp : (s : El Sign) (p : El (NonNegS s)) (q : El (NonNegS s)) →
       p
 
 def leQIsProp : (x : El Q) (y : El Q) (p : El (LeQ x y)) (q : El (LeQ x y)) →
-  p ≡ q ∈ El (LeQ x y) ≔
+  p ≡ q ∈ El (LeQ x y) using (rationalOrder.LeQ.unfold, rationalOrder.NonNegS.unfold, rationalQ.Q.unfold) ≔
   λx. λy. nonNegIsProp (sgnQ (qAdd y (qNeg x)))
 
 def bndIsProp : (b : El Q) (u : El Q) (p : El (Bnd b u)) (q : El (Bnd b u)) →
-  p ≡ q ∈ El (Bnd b u) ≔
+  p ≡ q ∈ El (Bnd b u) using (ratBound.Bnd.unfold, rationalOrder.LeQ.unfold, rationalOrder.NonNegS.unfold, rationalQ.Q.unfold) ≔
   λb. λu. λp. λq.
     pairEq2 (LeQ (qNeg b) u) (LeQ u b) p q
       (leQIsProp (qNeg b) u (p .π₁) (q .π₁))

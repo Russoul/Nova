@@ -56,7 +56,7 @@ def natCaseElimEq : (C : 𝕌) (P : El C → Ω) (z : El C) (s : ℕ → El C) (
 -- ===== comparison, read off monus =====
 
 def leOfMonusZero : (a : ℕ) (b : ℕ) → (a ∸ b ≡ Z ∈ ℕ) → El (LeN a b)
-  using (natMore.monusZeroR) ≔
+  using (natMore.monusZeroR, natOrder.LeN.unfold) ≔
   λa.
     ℕ-elim (k. (b : ℕ) → (k ∸ b ≡ Z ∈ ℕ) → El (LeN k b))
       (λb. λh. leZero b)
@@ -74,7 +74,7 @@ def leOfMonusZero : (a : ℕ) (b : ℕ) → (a ∸ b ≡ Z ∈ ℕ) → El (LeN 
       a
 
 def ltOfMonusSuc : (a : ℕ) (b : ℕ) (m : ℕ) →
-  (a ∸ b ≡ S m ∈ ℕ) → El (LeN (S b) a) ≔
+  (a ∸ b ≡ S m ∈ ℕ) → El (LeN (S b) a) using (natOrder.LeN.unfold) ≔
   λa.
     ℕ-elim (k. (b : ℕ) (m : ℕ) → (k ∸ b ≡ S m ∈ ℕ) → El (LeN (S b) k))
       (λb. λm. λh.
@@ -98,7 +98,7 @@ def ltOfMonusSuc : (a : ℕ) (b : ℕ) (m : ℕ) →
 -- if a ≤ S f' and b < a then a − (b+1) ≤ f' : peel the successor off
 -- both sides of (b+1) + (a − (b+1)) + k ≡ S f'
 def fuelStep : (a : ℕ) (b : ℕ) (f' : ℕ) →
-  El (LeN a (S f')) → El (LeN (S b) a) → El (LeN (a ∸ S b) f') ≔
+  El (LeN a (S f')) → El (LeN (S b) a) → El (LeN (a ∸ S b) f') using (id.Id.unfold, natOrder.LeN.unfold) ≔
   λa. λb. λf'. λle. λlt.
     (b + le .π₁ ,
      eqToId ℕ ((a ∸ S b) + (b + le .π₁)) f'
@@ -151,7 +151,7 @@ def modN : ℕ → ℕ → ℕ ≔ λa. λb. (dmAux a a b) .π₂
 
 def dmAuxEq : (f : ℕ) (a : ℕ) (b : ℕ) → El (LeN a f) →
   a ≡ (dmAux f a b) .π₁ * S b + (dmAux f a b) .π₂ ∈ ℕ
-  using (hyp.rw, natDiv.dmAux.eq, natDiv.natCase.eq, zeroMult, zeroMult.rw, zeroPlusId, zeroPlusId.rw) ≔
+  using (hyp.rw, id.Id.unfold, natDiv.dmAux.eq, natDiv.natCase.eq, natOrder.LeN.unfold, zeroMult, zeroMult.rw, zeroPlusId, zeroPlusId.rw) ≔
   λf.
     ℕ-elim (k. (a : ℕ) (b : ℕ) → El (LeN a k) →
              (a ≡ (dmAux k a b) .π₁ * S b + (dmAux k a b) .π₂ ∈ ℕ))
@@ -200,7 +200,7 @@ def dmAuxEq : (f : ℕ) (a : ℕ) (b : ℕ) → El (LeN a f) →
       f
 
 def dmAuxLe : (f : ℕ) (a : ℕ) (b : ℕ) → El (LeN a f) →
-  El (LeN ((dmAux f a b) .π₂) b) using (id.Id.eq, natDiv.dmAux.eq, natDiv.natCase.eq) ≔
+  El (LeN ((dmAux f a b) .π₂) b) using (id.Id.eq, id.Id.unfold, natDiv.dmAux.eq, natDiv.natCase.eq, natOrder.LeN.unfold) ≔
   λf.
     ℕ-elim (k. (a : ℕ) (b : ℕ) → El (LeN a k) →
              El (LeN ((dmAux k a b) .π₂) b))
@@ -225,7 +225,7 @@ def divModEq : (a : ℕ) (b : ℕ) → a ≡ divN a b * S b + modN a b ∈ ℕ
   using (natDiv.divN.eq, natDiv.dmAux.eq, natDiv.modN.eq) ≔
   λa. λb. dmAuxEq a a b (leRefl a)
 
-def modLe : (a : ℕ) (b : ℕ) → El (LeN (modN a b) b) using (id.Id.eq, natDiv.dmAux.eq, natDiv.modN.eq) ≔
+def modLe : (a : ℕ) (b : ℕ) → El (LeN (modN a b) b) using (id.Id.eq, natDiv.dmAux.eq, natDiv.modN.eq, natOrder.LeN.unfold) ≔
   λa. λb. dmAuxLe a a b (leRefl a)
 
 -- and it computes: 7 = 3·2 + 1
@@ -235,7 +235,7 @@ def modTest : modN (S (S (S (S (S (S (S Z))))))) (S Z) ≡ S Z ∈ ℕ using (na
 -- ===== uniqueness of the quotient =====
 
 -- no natural is below its own successor's floor
-def leSucNotSelf : (a : ℕ) → El (LeN (S a) a) → 𝟘 using (nat.plusSucId) ≔
+def leSucNotSelf : (a : ℕ) → El (LeN (S a) a) → 𝟘 using (id.Id.unfold, nat.plusSucId, natOrder.LeN.unfold) ≔
   λa. λle.
     zNotS (le .π₁)
       (sym ℕ (S (le .π₁)) Z
@@ -251,7 +251,7 @@ def leSucNotSelf : (a : ℕ) → El (LeN (S a) a) → 𝟘 using (nat.plusSucId)
 
 -- d·(d'+1) is strictly below (d+1)·(d'+1)
 def ltProdSuc : (d : ℕ) (d' : ℕ) →
-  El (LeN (S (d * S d')) (S d * S d')) using (nat.plusSucId) ≔
+  El (LeN (S (d * S d')) (S d * S d')) using (nat.plusSucId, natOrder.LeN.unfold) ≔
   λd. λd'.
     (d' ,
      eqToId ℕ (S (d * S d') + d') (S d * S d')
@@ -313,7 +313,7 @@ def divCancel : (q : ℕ) (r : ℕ) (k : ℕ) (r' : ℕ) (d : ℕ) (d' : ℕ) �
 def divKZero : (r : ℕ) (d : ℕ) (r' : ℕ) (d' : ℕ) (k : ℕ) →
   El (LeN r d) →
   (r * S d' ≡ k * (S d' * S d) + r' * S d ∈ ℕ) →
-  k ≡ Z ∈ ℕ ≔
+  k ≡ Z ∈ ℕ using (natOrder.LeN.unfold) ≔
   λr. λd. λr'. λd'. λk.
     ℕ-elim (w. El (LeN r d) →
              (r * S d' ≡ w * (S d' * S d) + r' * S d ∈ ℕ) → (w ≡ Z ∈ ℕ))
@@ -356,7 +356,7 @@ def divKZero : (r : ℕ) (d : ℕ) (r' : ℕ) (d' : ℕ) (k : ℕ) →
 def divNUniqueLe : (m : ℕ) (d : ℕ) (m' : ℕ) (d' : ℕ) →
   (m * S d' ≡ m' * S d ∈ ℕ) →
   El (LeN (divN m d) (divN m' d')) →
-  divN m d ≡ divN m' d' ∈ ℕ ≔
+  divN m d ≡ divN m' d' ∈ ℕ using (natOrder.LeN.unfold) ≔
   λm. λd. λm'. λd'. λh. λle.
     trans ℕ (divN m d) (divN m d + le .π₁) (divN m' d')
       (sym ℕ (divN m d + le .π₁) (divN m d)
@@ -400,7 +400,7 @@ def divNUnique : (m : ℕ) (d : ℕ) (m' : ℕ) (d' : ℕ) →
 
 -- a is strictly below (a div (b+1) + 1)·(b+1): the remainder is at
 -- most b, so one more divisor overshoots
-def leDivSuc : (m : ℕ) (b : ℕ) → El (LeN m (S (divN m b) * S b)) ≔
+def leDivSuc : (m : ℕ) (b : ℕ) → El (LeN m (S (divN m b) * S b)) using (natOrder.LeN.unfold) ≔
   λm. λb.
     (S b ∸ modN m b ,
      eqToId ℕ (m + (S b ∸ modN m b)) (S (divN m b) * S b)

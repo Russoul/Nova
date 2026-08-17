@@ -21,7 +21,7 @@ import equality (trans, sym, cong, transport, sigmaEq2)
 -- previously unavailable one level up (see realAdd.nova).
 
 def regularIsProp : (f : El (ℕ → Q)) (p : El (Regular f)) (q : El (Regular f)) →
-  p ≡ q ∈ El (Regular f) ≔
+  p ≡ q ∈ El (Regular f) using (ratBound.Bnd.unfold, rationalQ.Q.unfold, real.Regular.unfold) ≔
   λf. λp. λq.
     funextD ℕ
       (λm. ((n : ℕ) → (LeQ (qNeg (rBound m n)) (qAdd (f m) (qNeg (f n)))
@@ -42,7 +42,7 @@ def regularIsProp : (f : El (ℕ → Q)) (p : El (Regular f)) (q : El (Regular f
 -- SIGNATURE does the retyping and the conversion is never demanded
 -- here (D-3: it was discharged once, at an abstract motive).
 def rseqEqAt : (x : El RSeq) (y : El RSeq) →
-  (seqOf x ≡ seqOf y ∈ El (ℕ → Q)) → x ≡ y ∈ El RSeq using (equality.sym.eq, equality.transport.eq, id.Id.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.Q.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.Regular.eq, real.rBound.eq, realNeg.regOf.eq, realNeg.seqOf.eq) ≔
+  (seqOf x ≡ seqOf y ∈ El (ℕ → Q)) → x ≡ y ∈ El RSeq using (equality.sym.eq, equality.transport.eq, id.Id.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.Q.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.RSeq.unfold, real.Regular.eq, real.Regular.unfold, real.rBound.eq, realNeg.regOf.eq, realNeg.seqOf.eq) ≔
   λx. λy. λh.
     sigmaEq2 (ℕ → Q) (λf. Regular f) x y h
       (regularIsProp (seqOf x) (regOf x)
@@ -55,7 +55,7 @@ def rseqEq : (x : El RSeq) (y : El RSeq) →
 
 -- ...and hence equal reals, without going through REq at all
 def realEqOfSeqEq : (x : El RSeq) (y : El RSeq) →
-  ((n : ℕ) → seqOf x n ≡ seqOf y n ∈ El Q) → class x ≡ class y ∈ El Real ≔
+  ((n : ℕ) → seqOf x n ≡ seqOf y n ∈ El Q) → class x ≡ class y ∈ El Real using (real.Real.unfold) ≔
   λx. λy. λe.
     cong RSeq (λw. Real) (λw. class w) x y (rseqEq x y e)
 
@@ -77,7 +77,7 @@ def wdOuterOfComm :
   ((a : El RSeq) (b : El RSeq) (b' : El RSeq) → Prf (REq b b') →
      class (op a b) ≡ class (op a b') ∈ El Real) →
   (x : El RSeq) (x' : El RSeq) (c : El RSeq) → Prf (REq x x') →
-  class (op x c) ≡ class (op x' c) ∈ El Real ≔
+  class (op x c) ≡ class (op x' c) ∈ El Real using (real.Real.unfold) ≔
   λop. λcomm. λinner. λx. λx'. λc. λh.
     trans Real (class (op x c)) (class (op c x)) (class (op x' c))
       (cong RSeq (λw. Real) (λw. class w) (op x c) (op c x) (comm x c))

@@ -17,7 +17,7 @@ import field (IsField)
 -- (ℚ, +, -, 0) is a group and (ℚ, *, 1) a monoid — the two layers of
 -- the field structure, each law an existing rationalQ lemma across
 -- the Id bridge.
-def ratAddGroup : El (IsGroup Q) ≔
+def ratAddGroup : El (IsGroup Q) using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔
   ((qAdd , qZero ,
     (λx. λy. λz. eqToId Q (qAdd (qAdd x y) z) (qAdd x (qAdd y z)) (qAddAssoc x y z)) ,
     (λx. eqToId Q (qAdd qZero x) x (qAddZeroL x)) ,
@@ -26,7 +26,7 @@ def ratAddGroup : El (IsGroup Q) ≔
    (λx. eqToId Q (qAdd (qNeg x) x) qZero (qAddNegL x)) ,
    λx. eqToId Q (qAdd x (qNeg x)) qZero (qAddNegR x))
 
-def ratMulMonoid : El (IsMonoid Q) ≔
+def ratMulMonoid : El (IsMonoid Q) using (monoid.IsMonoid.unfold) ≔
   (qMul , qOne ,
    (λx. λy. λz. eqToId Q (qMul (qMul x y) z) (qMul x (qMul y z)) (qMulAssoc x y z)) ,
    (λx. eqToId Q (qMul qOne x) x (qMulOneL x)) ,
@@ -39,7 +39,7 @@ def ratMulMonoid : El (IsMonoid Q) ≔
 -- relation (which δβ-computes to class (S Z , Z) ≡ class (Z , Z)),
 -- intEffective turns THAT into its ℕ relation (which computes to
 -- S Z ≡ Z), and zNotS transports () across it into 𝟘.
-def qOneNotZeroD : El (Id Q qOne qZero) → 𝟘 using (integer.Int.eq, integer.IntR.eq, integer.intOne.eq, integer.intZero.eq, integerMul.intMul.eq, nat.*.eq, nat.+.eq, nat.plusZeroId, nat.zeroPlusId, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.nzOne.eq, rational.nzPos.eq, rational.nzToInt.eq, rational.ratOfInt.eq, rational.ratOne.eq, rational.ratZero.eq, rationalQ.RatR.eq, rationalQ.dInt.eq, rationalQ.qOne.eq, rationalQ.qZero.eq, rationalQ.qcls.eq) ≔
+def qOneNotZeroD : El (Id Q qOne qZero) → 𝟘 using (id.Id.unfold, integer.Int.eq, integer.IntR.eq, integer.IntR.unfold, integer.intOne.eq, integer.intZero.eq, integerMul.intMul.eq, nat.*.eq, nat.+.eq, nat.plusZeroId, nat.zeroPlusId, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.nzOne.eq, rational.nzPos.eq, rational.nzToInt.eq, rational.ratOfInt.eq, rational.ratOne.eq, rational.ratZero.eq, rationalQ.RatR.eq, rationalQ.RatR.unfold, rationalQ.dInt.eq, rationalQ.qOne.eq, rationalQ.qZero.eq, rationalQ.qcls.eq) ≔
   λp.
     let h ≔ idToEq Q qOne qZero p in
     let r ≔ qEffective ratOne ratZero h in
@@ -51,7 +51,7 @@ def qOneNotZeroD : El (Id Q qOne qZero) → 𝟘 using (integer.Int.eq, integer.
 -- Its nonzero hypothesis arrives as an Id-refutation k; the Ω-side
 -- negation qMulInvR needs is one bridge away — an Ω-equality would
 -- give an Id (eqToId), k would give 𝟘, and ⋆ witnesses ⊥ from it.
-def ratField : El (IsField Q) using (id.Id.eq, ratField.ratAddGroup.eq, ratField.ratMulMonoid.eq, rationalAlgInv.qInv.eq, rationalQ.Q.eq, rationalQ.qAdd.eq, rationalQ.qMul.eq, rationalQ.qOne.eq, rationalQ.qZero.eq) ≔
+def ratField : El (IsField Q) using (field.IsField.unfold, id.Id.eq, prop.⊥.unfold, ratField.ratAddGroup.eq, ratField.ratMulMonoid.eq, rationalAlgInv.qInv.eq, rationalQ.Q.eq, rationalQ.Q.unfold, rationalQ.qAdd.eq, rationalQ.qMul.eq, rationalQ.qOne.eq, rationalQ.qZero.eq) ≔
   (ratAddGroup , ratMulMonoid ,
    (λx. λy. eqToId Q (qAdd x y) (qAdd y x) (qAddComm x y)) ,
    (λx. λy. eqToId Q (qMul x y) (qMul y x) (qMulComm x y)) ,

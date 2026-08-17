@@ -23,20 +23,20 @@ def bisim : (a : 𝕌) → El (stream a) → El (stream a) → Ω ≔
 
 -- UNFOLD, head half: bisimilar streams agree at the head
 def bisimHd : (a : 𝕌) (s : El (stream a)) (t : El (stream a)) →
-    Prf (bisim a s t) → Prf (hd a s ≡ hd a t ∈ El a) ≔
+    Prf (bisim a s t) → Prf (hd a s ≡ hd a t ∈ El a) using (streamBisim.bisim.unfold) ≔
   λa. λs. λt. λh. squash-elim h (w. ((w .π₂ .π₁) s t (w .π₂ .π₂)) .π₁)
 
 -- UNFOLD, tail half: bisimilarity is preserved by observation —
 -- the SAME invariant relates the tails
 def bisimTl : (a : 𝕌) (s : El (stream a)) (t : El (stream a)) →
-    Prf (bisim a s t) → Prf (bisim a (tl a s) (tl a t)) ≔
+    Prf (bisim a s t) → Prf (bisim a (tl a s) (tl a t)) using (streamBisim.bisim.unfold) ≔
   λa. λs. λt. λh.
     squash-elim h (w.
       ⋆ (w .π₁ , ((w .π₂ .π₁) , ((w .π₂ .π₁) s t (w .π₂ .π₂)) .π₂)))
 
 -- a DIRECT corecursive proof: reflexivity, with judgemental equality
 -- itself as the invariant — heads by cong at hd, tails by cong at tl
-def bisimRefl : (a : 𝕌) (s : El (stream a)) → Prf (bisim a s s) ≔
+def bisimRefl : (a : 𝕌) (s : El (stream a)) → Prf (bisim a s s) using (streamBisim.bisim.unfold) ≔
   λa. λs.
     ⋆ ((λx. λy. (x ≡ y ∈ El (stream a))) ,
        ((λx. λy. λp. (cong (stream a) (λv. a) (λv. hd a v) x y p ,
@@ -47,7 +47,7 @@ def bisimRefl : (a : 𝕌) (s : El (stream a)) → Prf (bisim a s s) ≔
 -- heads are observation 0, and shifting the index moves under one
 -- tail (nth n (tl x) ≐ nth (S n) x, judgementally)
 def obsEqBisim : (a : 𝕌) (s : El (stream a)) (t : El (stream a)) →
-    Prf (obsEq a s t) → Prf (bisim a s t) using (streamEq.nth.eq, stream.hd.eq, stream.tl.eq, streamEq.tlN.eq) ≔
+    Prf (obsEq a s t) → Prf (bisim a s t) using (stream.hd.eq, stream.stream.unfold, stream.tl.eq, streamBisim.bisim.unfold, streamEq.nth.eq, streamEq.obsEq.unfold, streamEq.tlN.eq) ≔
   λa. λs. λt. λh.
     ⋆ ((λx. λy. obsEq a x y) ,
        ((λx. λy. λp. (squash-elim p (w. w Z) ,
@@ -56,7 +56,7 @@ def obsEqBisim : (a : 𝕌) (s : El (stream a)) (t : El (stream a)) →
 
 -- bisim ⊃ obsEq: unfold n times, by ℕ-induction over the depth
 def bisimObsEq : (a : 𝕌) (s : El (stream a)) (t : El (stream a)) →
-    Prf (bisim a s t) → Prf (obsEq a s t) using (streamEq.nth.eq, stream.hd.eq, stream.tl.eq, streamEq.tlN.eq) ≔
+    Prf (bisim a s t) → Prf (obsEq a s t) using (stream.hd.eq, stream.stream.unfold, stream.tl.eq, streamBisim.bisim.unfold, streamEq.nth.eq, streamEq.obsEq.unfold, streamEq.tlN.eq) ≔
   λa. λs. λt. λh.
     ⋆ (λn. (ℕ-elim (m. (x : El (stream a)) → (y : El (stream a)) →
                 Prf (bisim a x y) → Prf (nth a m x ≡ nth a m y ∈ El a))
@@ -66,7 +66,7 @@ def bisimObsEq : (a : 𝕌) (s : El (stream a)) (t : El (stream a)) →
 
 -- interop corollary: map-identity, now in the corecursive spelling
 def mapIdBisim : (a : 𝕌) (s : El (stream a)) →
-    Prf (bisim a (mapS a a (λx. x) s) s) ≔
+    Prf (bisim a (mapS a a (λx. x) s) s) using (streamBisim.bisim.unfold) ≔
   λa. λs. obsEqBisim a (mapS a a (λx. x) s) s (mapIdObsEq a s)
 
 -- THE REFLECTION: bisimilarity implies equality — el-nu-coind's
@@ -74,7 +74,7 @@ def mapIdBisim : (a : 𝕌) (s : El (stream a)) →
 -- laws as the one-step closure. This is the theorem that upgrades
 -- every observational result below it to a judgemental equation.
 def bisimReflect : (a : 𝕌) (s : El (stream a)) (t : El (stream a)) →
-    Prf (bisim a s t) → Prf (s ≡ t ∈ El (stream a)) using (hyp.rw, stream.hd.eq, stream.stream.eq, bisim.eq, stream.tl.eq) ≔
+    Prf (bisim a s t) → Prf (s ≡ t ∈ El (stream a)) using (bisim.eq, hyp.rw, stream.hd.eq, stream.stream.eq, stream.stream.unfold, stream.tl.eq, streamBisim.bisim.unfold) ≔
   λa. λs. λt. λh.
     coind (x y. bisim a x y) h
           (x y hb. ⋆ (bisimHd a x y hb , bisimTl a x y hb))

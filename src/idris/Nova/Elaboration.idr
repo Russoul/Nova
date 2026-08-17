@@ -177,6 +177,9 @@ record ElabSt where
   ||| dotted name of the module being elaborated; "" = the root file,
   ||| whose entries stay unqualified
   modPrefix : String
+  ||| the item currently elaborating (surface name; "" between items) —
+  ||| exposure-survey attribution
+  curItem : String
   ||| surface-name → Σ-name aliases: the module's own entries plus the
   ||| opened names of its imports (last entry wins; locals were already
   ||| resolved by the parser and never reach this table)
@@ -203,7 +206,7 @@ record ElabSt where
   depthOv : Maybe Nat
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] "" [<] Nothing [] [] Nothing
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] "" "" [<] Nothing [] [] Nothing
 
 ||| Resolve a surface signature reference: aliases first (own module,
 ||| opened imports), else the name itself (qualified references reach
@@ -317,6 +320,20 @@ resolveRwName st n = do
     then Just q
     else Nothing
 
+||| `<def>.unfold` licenses HEAD EXPOSURE of the named definition
+||| (term or type) at this site — the type-exposure whitelist. An
+||| `.eq` citation subsumes it for its definition.
+resolveExpName : ElabSt -> String -> Maybe String
+resolveExpName st n = do
+  let True = isSuffixOf ".unfold" n
+    | False => Nothing
+  let base = substr 0 (minus (length n) 7) n
+  let q = resolveFlex st base
+  case sigLookup q st.sig of
+    Just (SigDef _ _ _ _) => Just q
+    Just (SigTyDef _ _ _) => Just q
+    _ => Nothing
+
 resolveEqName : ElabSt -> String -> Maybe String
 resolveEqName st n = do
   let True = isSuffixOf ".eq" n
@@ -341,10 +358,13 @@ resolveUsingNames site ns = do
   -- rw: marker) and the ordinary lemma scope
   let sorted = map (\n =>
         if n == "pi.eta" || n == "sigma.eta" || n == "hyp.rw" then ([n], the (List String) []) else
-        case resolveRwName st n of
-          Just q => (["rw:" ++ q], [q])
+        case resolveExpName st n of
+          Just q => (["exp:" ++ q], the (List String) [])
           Nothing =>
-            case resolveEqName st n of
+           case resolveRwName st n of
+            Just q => (["rw:" ++ q], [q])
+            Nothing =>
+             case resolveEqName st n of
               Just q => ([q], the (List String) [])
               Nothing => (the (List String) [], [n])) ns
   let eqNs = concatMap fst sorted
@@ -1266,61 +1286,74 @@ rwNfTyS sig unfs cands side ty =
 -- Used (in strict mode) wherever conversion or checking needs a TYPE
 -- head; equation SIDES never δ-expand in strict mode.
 
+||| May head exposure unfold `x` at this site? Outside strict mode:
+||| always. In strict mode: under an `<x>.unfold` (or subsuming
+||| `<x>.eq`) citation — or with NOVA_EXPOSE_OPEN=1, the survey escape
+||| hatch that logs what a whitelist would need without enforcing one.
+expOK : ElabSt -> String -> Bool
+expOK st x =
+  not (strictConv ()) || surveyMode
+    || elem "exp:*" st.eqScope
+    || elem x st.eqScope || elem ("exp:" ++ x) st.eqScope
+
 mutual
-  exposeE : (pre : String) -> Sig -> Elem -> Elem
-  exposeE pre sig (NatElim z s t) =
-    case exposeE pre sig t of
-      NatIntro0   => exposeE pre sig z
-      NatIntro1 n => exposeE pre sig (substElem s (Ext (Ext Id n) (NatElim z s n)))
+  exposeE : ElabSt -> Elem -> Elem
+  exposeE st (NatElim z s t) =
+    case exposeE st t of
+      NatIntro0   => exposeE st z
+      NatIntro1 n => exposeE st (substElem s (Ext (Ext Id n) (NatElim z s n)))
       t'          => NatElim z s t'
-  exposeE pre sig (PiApp f e) =
-    case exposeE pre sig f of
-      PiIntro g => exposeE pre sig (substElem g (Ext Id e))
+  exposeE st (PiApp f e) =
+    case exposeE st f of
+      PiIntro g => exposeE st (substElem g (Ext Id e))
       f'        => PiApp f' e
-  exposeE pre sig (Let a b) = exposeE pre sig (substElem b (Ext (Ext Id a) Star))
-  exposeE pre sig (SigmaElim1 t) =
-    case exposeE pre sig t of
-      SigmaIntro a _ => exposeE pre sig a
+  exposeE st (Let a b) = exposeE st (substElem b (Ext (Ext Id a) Star))
+  exposeE st (SigmaElim1 t) =
+    case exposeE st t of
+      SigmaIntro a _ => exposeE st a
       t'             => SigmaElim1 t'
-  exposeE pre sig (SigmaElim2 t) =
-    case exposeE pre sig t of
-      SigmaIntro _ b => exposeE pre sig b
+  exposeE st (SigmaElim2 t) =
+    case exposeE st t of
+      SigmaIntro _ b => exposeE st b
       t'             => SigmaElim2 t'
-  exposeE pre sig (SumElim l r t) =
-    case exposeE pre sig t of
-      Inj1 a => exposeE pre sig (substElem l (Ext Id a))
-      Inj2 b => exposeE pre sig (substElem r (Ext Id b))
+  exposeE st (SumElim l r t) =
+    case exposeE st t of
+      Inj1 a => exposeE st (substElem l (Ext Id a))
+      Inj2 b => exposeE st (substElem r (Ext Id b))
       t'     => SumElim l r t'
-  exposeE pre sig (SigVar x es) =
-    case cachedSigLookup sig x of
-      Just (SigDef _ _ a _) => bump "unf \{pre}|\{x}" 1 (exposeE pre sig (substElem a (embed es)))
+  exposeE st (SigVar x es) =
+    if not (expOK st x) then bump "expblock \{st.modPrefix}:\{st.curItem}|\{x}" 1
+                               (noteBlocked x
+                                 (audit "EXPOSE-BLOCKED \{st.modPrefix}:\{st.curItem} \{x} — cite \{x}.unfold" (SigVar x es))) else
+    case cachedSigLookup st.sig x of
+      Just (SigDef _ _ a _) => bump "unf \{st.modPrefix}:\{st.curItem}|\{x}" 1 (exposeE st (substElem a (embed es)))
       _ => SigVar x es
-  exposeE pre sig (QuotElim f q) =
-    case exposeE pre sig q of
-      Class a => exposeE pre sig (substElem f (Ext Id a))
+  exposeE st (QuotElim f q) =
+    case exposeE st q of
+      Class a => exposeE st (substElem f (Ext Id a))
       q'      => QuotElim f q'
-  exposeE pre sig (Squash t) =
-    case exposeT pre sig t of
-      Prf p => exposeE pre sig p
+  exposeE st (Squash t) =
+    case exposeT st t of
+      Prf p => exposeE st p
       t'    => Squash t'
-  exposeE pre sig (QElim sg k ms fs es w) =
-    case exposeE pre sig w of
+  exposeE st (QElim sg k ms fs es w) =
+    case exposeE st w of
       QCtor sgW c theta =>
         if sgW == sg
           then case qElimBetaRhs sg ms fs c theta of
-                 Right rhs => exposeE pre sig rhs
+                 Right rhs => exposeE st rhs
                  Left _ => QElim sg k ms fs es (QCtor sgW c theta)
           else QElim sg k ms fs es (QCtor sgW c theta)
       w' => QElim sg k ms fs es w'
-  exposeE pre sig (Out t) =
-    case exposeE pre sig t of
-      Corec p a f x => exposeE pre sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+  exposeE st (Out t) =
+    case exposeE st t of
+      Corec p a f x => exposeE st (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
       t'            => Out t'
-  exposeE pre sig e = e
+  exposeE st e = e
 
-  exposeT : (pre : String) -> Sig -> Ty -> Ty
-  exposeT pre sig (El e) =
-    case exposeE pre sig e of
+  exposeT : ElabSt -> Ty -> Ty
+  exposeT st (El e) =
+    case exposeE st e of
       Elem.ZeroTy      => Ty.ZeroTy
       Elem.OneTy       => Ty.OneTy
       Elem.NatTy       => Ty.NatTy
@@ -1331,11 +1364,14 @@ mutual
       QSortC sg k es   => QSort sg k es
       Elem.NuTy f      => Ty.NuTy f
       e'               => El e'
-  exposeT pre sig (Ty.SigVar x es) =
-    case cachedSigLookup sig x of
-      Just (SigTyDef _ _ a) => bump "unf \{pre}|\{x}" 1 (exposeT pre sig (substTy a (embed es)))
+  exposeT st (Ty.SigVar x es) =
+    if not (expOK st x) then bump "expblock \{st.modPrefix}:\{st.curItem}|\{x}" 1
+                               (noteBlocked x
+                                 (audit "EXPOSE-BLOCKED \{st.modPrefix}:\{st.curItem} \{x} — cite \{x}.unfold" (Ty.SigVar x es))) else
+    case cachedSigLookup st.sig x of
+      Just (SigTyDef _ _ a) => bump "unf \{st.modPrefix}:\{st.curItem}|\{x}" 1 (exposeT st (substTy a (embed es)))
       _ => Ty.SigVar x es
-  exposeT pre sig t = t
+  exposeT st t = t
 
 ||| Strict-gated engine normalizers: δ-free in strict mode, full δβ
 ||| otherwise. For the engine's EQUATION-SIDE positions only — checking
@@ -1352,21 +1388,31 @@ engJoinE st e = if strictConv () then compElem (unfElem st.sig st.eqScope e) els
 engNfT : ElabSt -> Ty -> Ty
 engNfT st t = if strictConv () then compTy t else betaTy st.sig t
 
+||| Blocked head exposures as an obligation hint (peeked, not drained —
+||| an item's obligations share the notes).
+blockedHint : () -> Maybe String
+blockedHint () =
+  case peekBlocked () of
+    [] => Nothing
+    ns => Just ("head exposure blocked for " ++ joinBy ", " ns
+                ++ " — cite " ++ joinBy ", " (map (++ ".unfold") ns))
+
+
 ||| CHECKING-position head exposure: strict mode swaps the full
 ||| normalization for the logged whnf-δ exposure — same head, and the
 ||| per-module `unf` labels record exactly the names a future
 ||| `using`-unfold whitelist would carry.
 exposeHead : ElabSt -> Ty -> Ty
-exposeHead st ty = if strictConv () then exposeT st.modPrefix st.sig ty else betaTy st.sig ty
+exposeHead st ty = if strictConv () then exposeT st ty else betaTy st.sig ty
 
 ||| Prop-code exposure at checking positions (⋆, squash-elim, chains).
 exposeCode : ElabSt -> Elem -> Elem
-exposeCode st p = if strictConv () then exposeE st.modPrefix st.sig p else betaElem st.sig p
+exposeCode st p = if strictConv () then exposeE st p else betaElem st.sig p
 
 ||| Leading-Π exposure for telescope peeling (strict mode only —
 ||| domains stay as written, each codomain head exposed in turn).
 exposePisT : ElabSt -> Ty -> Ty
-exposePisT st ty = case exposeT st.modPrefix st.sig ty of
+exposePisT st ty = case exposeT st ty of
   Ty.PiTy a b => Ty.PiTy a (exposePisT st b)
   t => t
 
@@ -1517,7 +1563,7 @@ hypCands st rw ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length 
     case fuel of
       Z => []
       S fuel' =>
-        case (if strictConv () then exposeT st.modPrefix st.sig ty else betaTy st.sig ty) of
+        case (if strictConv () then exposeT st ty else betaTy st.sig ty) of
           Prf p =>
             case exposeCode st p of
               Elem.EqTy l r t => [(proj, (l, r, t))]
@@ -1603,7 +1649,7 @@ rwNfTy st ctx ty = fst (rwNfTyS st.sig st.eqScope (mkCandSet st ctx).rw True ty)
 ||| Head exposure for neutral inference: logged whnf-δ in strict mode,
 ||| full normalization otherwise.
 neExpose : ElabSt -> Ty -> Ty
-neExpose st ty = if strictConv () then exposeT st.modPrefix st.sig ty else betaTy st.sig ty
+neExpose st ty = if strictConv () then exposeT st ty else betaTy st.sig ty
 
 inferNe : ElabSt -> Ctx -> Elem -> Maybe Ty
 inferNe st ctx (CtxVar i) = ctxLookup ctx i
@@ -1717,7 +1763,7 @@ mutual
         (a', aSteps) = rwNfElemS st.sig st.eqScope cs.rw True a
         (b', bSteps) = rwNfElemS st.sig st.eqScope cs.rw False b
         base = aSteps ++ bSteps
-        tyN = if strictConv () then exposeT st.modPrefix st.sig tyX else betaTy st.sig tyX
+        tyN = if strictConv () then exposeT st tyX else betaTy st.sig tyX
         eqFast = bump "rwnf-elem" (nowNs () - t0)
                    (bump "sz-in" (cast (elemSize a + elemSize b))
                      (bump "sz-nf" (cast (elemSize a' + elemSize b'))
@@ -1964,7 +2010,7 @@ mutual
         Nothing => do
           tp <- paramTy c p
           sigma <- condSub c.params p bs
-          case (if strictConv () then exposeT st.modPrefix st.sig (substTy tp sigma)
+          case (if strictConv () then exposeT st (substTy tp sigma)
                               else betaTy st.sig (substTy tp sigma)) of
             Ty.OneTy => Just OneIntro
             Prf pr =>
@@ -2032,8 +2078,8 @@ mutual
         (b0, bSteps) = rwNfTyS st.sig st.eqScope cs.rw False tyB
         -- strict: sides get HEAD exposure (logged δ at type heads);
         -- recursion through go/congFinal re-exposes per level
-        a = if strictConv () then exposeT st.modPrefix st.sig a0 else a0
-        b = if strictConv () then exposeT st.modPrefix st.sig b0 else b0
+        a = if strictConv () then exposeT st a0 else a0
+        b = if strictConv () then exposeT st b0 else b0
         base = bump "rwnf-ty" (nowNs () - t0) (aSteps ++ bSteps) in
     ((\rest => MkECert (base ++ rest) FBeta) <$> go a b)
       <|> congFinal a b base
@@ -2508,7 +2554,7 @@ assume stmt site comp = do
               bK = rwNfElem st ctx b in
           { assumedE $= ((elemSize aK + elemSize bK, ctx, aK, bK, engNfT st ty) ::)
           , sig $= (:< SigEq ctx a b ty)
-          , oblMeta $= (:< MkOblMeta env site comp (hintOf st)) } s
+          , oblMeta $= (:< MkOblMeta env site comp (hintOf st <|> blockedHint ())) } s
     StTy ctx env x y => do
       let x' = rwNfTy st ctx x
           y' = rwNfTy st ctx y
@@ -2517,7 +2563,7 @@ assume stmt site comp = do
         else modifySt $ \s =>
           { assumedT $= ((ctx, x', y') ::)
           , sig $= (:< SigTyEq ctx x y)
-          , oblMeta $= (:< MkOblMeta env site comp (hintOf st)) } s
+          , oblMeta $= (:< MkOblMeta env site comp (hintOf st <|> blockedHint ())) } s
  where
   hintFor : ElabSt -> Stmt -> Maybe String
   hintFor st (StElem ctx _ a b ty) = hintE st ctx a b ty
@@ -2660,7 +2706,7 @@ mutual
             let again = if (aB, bB) == (a', b') then Nothing else Just (a', b')
             n0 <- constraintCountM
             decompose site2 cur comp' aB bB again
-              (if strictConv () then exposeT st.modPrefix st.sig ty else rwNfTy st ctx ty)
+              (if strictConv () then exposeT st ty else rwNfTy st ctx ty)
             n1 <- constraintCountM
             if n1 == n0
               then do
@@ -2755,7 +2801,7 @@ mutual
           (PiApp f x, PiApp g y, _) =>
             if f == g
               then do st' <- getSt
-                      case (if strictConv () then exposeT st'.modPrefix st'.sig else betaTy st'.sig)
+                      case (if strictConv () then exposeT st' else betaTy st'.sig)
                              <$> inferNe st' ctx f of
                         Just (Ty.PiTy dom _) => ignore $ convElem ctx env site comp' x y dom
                         _ => assume cur site comp
@@ -2776,8 +2822,8 @@ mutual
             st <- getSt
             let cur = StTy ctx env tyA tyB
             let comp' = comp <|> Just cur
-            let aB = if strictConv () then exposeT st.modPrefix st.sig tyA else whnfT st.sig tyA
-            let bB = if strictConv () then exposeT st.modPrefix st.sig tyB else whnfT st.sig tyB
+            let aB = if strictConv () then exposeT st tyA else whnfT st.sig tyA
+            let bB = if strictConv () then exposeT st tyB else whnfT st.sig tyB
             let aR = rwNfTy st ctx tyA
             let bR = rwNfTy st ctx tyB
             let again = if (aB, bB) == (aR, bR) then Nothing else Just (aR, bR)
@@ -2839,8 +2885,20 @@ mutual
 
 -- ===== Bidirectional elaboration =====
 
-structuralHint : String
-structuralHint = " (ascribe the term: `(t : T)`)"
+structuralHint : () -> String
+structuralHint () = " (ascribe the term: `(t : T)`)"
+
+||| Annotate an item-level error with any head exposures the strict
+||| whitelist blocked during the item — drained HERE, after every
+||| discharge attempt has run, so ordering games inside the item
+||| cannot hide them.
+export
+withBlockedHint : String -> String
+withBlockedHint err =
+  case drainBlocked () of
+    [] => err
+    ns => err ++ "\n  note: head exposure blocked for " ++ joinBy ", " ns
+              ++ " — cite " ++ joinBy ", " (map (++ ".unfold") ns)
 
 ||| Attach a payload to a skeleton node.
 addPayload : Payload -> Skel -> Skel
@@ -3052,19 +3110,19 @@ mutual
       Just (a, b, _) => do
         (e', eSk) <- checkElem ctx env site e a
         pure (PiApp f' e', substTy b (Ext Id e'), Nd [] [fSk, eSk])
-      Nothing => throw "\{site}: cannot apply a term of non-Π type\{structuralHint}"
+      Nothing => throw "\{site}: cannot apply a term of non-Π type\{structuralHint ()}"
   inferElem ctx env site (SProj1 t) = do
     (t', tTy, tSk) <- inferElem ctx env site t
     st <- getSt
     case preferSigma st ctx tTy of
       Just (a, b, _) => pure (SigmaElim1 t', a, Nd [] [tSk])
-      Nothing => throw "\{site}: cannot project from a term of non-⨯ type\{structuralHint}"
+      Nothing => throw "\{site}: cannot project from a term of non-⨯ type\{structuralHint ()}"
   inferElem ctx env site (SProj2 t) = do
     (t', tTy, tSk) <- inferElem ctx env site t
     st <- getSt
     case preferSigma st ctx tTy of
       Just (a, b, _) => pure (SigmaElim2 t', substTy b (Ext Id (SigmaElim1 t')), Nd [] [tSk])
-      Nothing => throw "\{site}: cannot project from a term of non-⨯ type\{structuralHint}"
+      Nothing => throw "\{site}: cannot project from a term of non-⨯ type\{structuralHint ()}"
   inferElem ctx env site (SAnn t ty) = do
     (ty', tySk) <- elabTy ctx env site ty
     (t', tSk) <- checkElem ctx env site t ty'
@@ -3106,7 +3164,7 @@ mutual
                        (substTy motTy (Ext Wk (Inj2 (CtxVar 0))))
         pure (SumElim l' r' t', substTy motTy (Ext Id t'),
               Nd [PMotive motTy motSk] [lSk, rSk, tSk])
-      Nothing => throw "\{site}: ⊎-elim scrutinee has non-⊎ type\{structuralHint}"
+      Nothing => throw "\{site}: ⊎-elim scrutinee has non-⊎ type\{structuralHint ()}"
   inferElem ctx env site (SQuotElim (zn, zr) mot (an, ar) f q) = do
     (q', qTy, qSk) <- inferElem ctx env site q
     st <- getSt
@@ -3127,7 +3185,7 @@ mutual
           (substTy motTy (Ext wk3 (Class (CtxVar 2))))
         pure (QuotElim f' q', substTy motTy (Ext Id q'),
               Nd [PMotive motTy motSk, PWD (certOr wd)] [fSk, qSk])
-      Nothing => throw "\{site}: quot-elim scrutinee has non-quotient type\{structuralHint}"
+      Nothing => throw "\{site}: quot-elim scrutinee has non-quotient type\{structuralHint ()}"
   inferElem ctx env site SZeroC = pure (Elem.ZeroTy, Ty.UniverseTy, Nd [] [])
   inferElem ctx env site SOneC = pure (Elem.OneTy, Ty.UniverseTy, Nd [] [])
   inferElem ctx env site SNatC = pure (Elem.NatTy, Ty.UniverseTy, Nd [] [])
@@ -3153,15 +3211,15 @@ mutual
     (t', tSk) <- elabTy ctx env site t
     pure (Squash t', Ty.PropTy, Nd [] [tSk])
   inferElem ctx env site SStar =
-    throw "\{site}: cannot infer the type of ⋆\{structuralHint}"
+    throw "\{site}: cannot infer the type of ⋆\{structuralHint ()}"
   inferElem ctx env site (SStarWit _) =
-    throw "\{site}: cannot infer the type of ⋆ ⟨witness⟩\{structuralHint}"
+    throw "\{site}: cannot infer the type of ⋆ ⟨witness⟩\{structuralHint ()}"
   inferElem ctx env site (SStarUsing _) =
-    throw "\{site}: cannot infer the type of ⋆ using (…)\{structuralHint}"
+    throw "\{site}: cannot infer the type of ⋆ using (…)\{structuralHint ()}"
   inferElem ctx env site (SChain _ _) =
-    throw "\{site}: cannot infer the type of a chain (its equality comes from the expected Prf type)\{structuralHint}"
+    throw "\{site}: cannot infer the type of a chain (its equality comes from the expected Prf type)\{structuralHint ()}"
   inferElem ctx env site (SSquashElim _ _ _) =
-    throw "\{site}: cannot infer the type of squash-elim\{structuralHint}"
+    throw "\{site}: cannot infer the type of squash-elim\{structuralHint ()}"
   inferElem ctx env site (SEqC l r t) = do
     -- e-eq: the equality PROP — the ambient is a TYPE (large types
     -- included); there is no 𝕌-code for equality
@@ -3180,23 +3238,23 @@ mutual
     st <- getSt
     case preferNu st ctx tTy of
       Just (p, _) => pure (Out t', El (reflectPoly p (Elem.NuTy p)), Nd [] [tSk])
-      Nothing => throw "\{site}: out scrutinee has non-ν type\{structuralHint}"
+      Nothing => throw "\{site}: out scrutinee has non-ν type\{structuralHint ()}"
   inferElem ctx env site (SCorec _ _ _ _) =
-    throw "\{site}: cannot infer the type of corec (the polynomial comes from the expected ν-type)\{structuralHint}"
+    throw "\{site}: cannot infer the type of corec (the polynomial comes from the expected ν-type)\{structuralHint ()}"
   inferElem ctx env site (SCoind _ _ _ _ _ _ _ _) =
-    throw "\{site}: cannot infer the type of coind (the equation comes from the expected Prf type)\{structuralHint}"
+    throw "\{site}: cannot infer the type of coind (the equation comes from the expected Prf type)\{structuralHint ()}"
   inferElem ctx env site (SInj1 _) =
-    throw "\{site}: cannot infer the type of inj₁ (the other summand is undetermined)\{structuralHint}"
+    throw "\{site}: cannot infer the type of inj₁ (the other summand is undetermined)\{structuralHint ()}"
   inferElem ctx env site (SInj2 _) =
-    throw "\{site}: cannot infer the type of inj₂ (the other summand is undetermined)\{structuralHint}"
+    throw "\{site}: cannot infer the type of inj₂ (the other summand is undetermined)\{structuralHint ()}"
   inferElem ctx env site (SLam _ _) =
-    throw "\{site}: cannot infer the type of a λ\{structuralHint}"
+    throw "\{site}: cannot infer the type of a λ\{structuralHint ()}"
   inferElem ctx env site (SPair _ _) =
-    throw "\{site}: cannot infer the type of a pair\{structuralHint}"
+    throw "\{site}: cannot infer the type of a pair\{structuralHint ()}"
   inferElem ctx env site (SClass _) =
-    throw "\{site}: cannot infer the type of class\{structuralHint}"
+    throw "\{site}: cannot infer the type of class\{structuralHint ()}"
   inferElem ctx env site (SZeroElim _) =
-    throw "\{site}: cannot infer the type of 𝟘-elim\{structuralHint}"
+    throw "\{site}: cannot infer the type of 𝟘-elim\{structuralHint ()}"
 
   export
   checkElem : Ctx -> NameEnv -> String -> SElem -> Ty -> ElabM (Elem, Skel)
@@ -3207,7 +3265,7 @@ mutual
         recordBinder xr ctx env x a
         (t', tSk) <- checkElem (ctx :< a) (env :< x) site t b
         pure (PiIntro t', withExpose exp (Nd [] [tSk]))
-      Nothing => throw "\{site}: λ checked against a non-Π type\{structuralHint}"
+      Nothing => throw "\{site}: λ checked against a non-Π type\{structuralHint ()}"
   checkElem ctx env site (SPair u v) ty = do
     st <- getSt
     case preferSigma st ctx ty of
@@ -3215,21 +3273,21 @@ mutual
         (u', uSk) <- checkElem ctx env site u a
         (v', vSk) <- checkElem ctx env site v (substTy b (Ext Id u'))
         pure (SigmaIntro u' v', withExpose exp (Nd [] [uSk, vSk]))
-      Nothing => throw "\{site}: pair checked against a non-⨯ type\{structuralHint}"
+      Nothing => throw "\{site}: pair checked against a non-⨯ type\{structuralHint ()}"
   checkElem ctx env site (SInj1 a) ty = do
     st <- getSt
     case preferSum st ctx ty of
       Just (dom, _, exp) => do
         (a', aSk) <- checkElem ctx env site a dom
         pure (Inj1 a', withExpose exp (Nd [] [aSk]))
-      Nothing => throw "\{site}: inj₁ checked against a non-⊎ type\{structuralHint}"
+      Nothing => throw "\{site}: inj₁ checked against a non-⊎ type\{structuralHint ()}"
   checkElem ctx env site (SInj2 b) ty = do
     st <- getSt
     case preferSum st ctx ty of
       Just (_, cod, exp) => do
         (b', bSk) <- checkElem ctx env site b cod
         pure (Inj2 b', withExpose exp (Nd [] [bSk]))
-      Nothing => throw "\{site}: inj₂ checked against a non-⊎ type\{structuralHint}"
+      Nothing => throw "\{site}: inj₂ checked against a non-⊎ type\{structuralHint ()}"
   checkElem ctx env site (SCorec (xn, xr) a f u) ty = do
     -- e-corec: checking-only, like λ and class
     st <- getSt
@@ -3241,13 +3299,13 @@ mutual
                        (substTy (El (reflectPoly p a')) Wk)
         (u', uSk) <- checkElem ctx env site u (El a')
         pure (Corec p a' f' u', withExpose exp (Nd [] [aSk, fSk, uSk]))
-      Nothing => throw "\{site}: corec checked against a non-ν type\{structuralHint}"
+      Nothing => throw "\{site}: corec checked against a non-ν type\{structuralHint ()}"
   checkElem ctx env site (SCoind (xn, xr) (yn, yr) rS pS (mxn, mxr) (myn, myr) (mhn, mhr) qS) ty = do
     -- e-coind: el-nu-coind's surface form, at Prf (l ≡ r ∈ El (ν F)) —
     -- invariant, endpoint proof, one-step closure at the relator
     st <- getSt
     case preferPrf st ctx ty of
-      Nothing => throw "\{site}: coind checked against a non-Prf type\{structuralHint}"
+      Nothing => throw "\{site}: coind checked against a non-Prf type\{structuralHint ()}"
       Just (pc, exp) => do
         let pcUse = case pc of
                       Elem.EqTy _ _ _ => pc
@@ -3260,7 +3318,7 @@ mutual
                               Ty.NuTy f => Just f
                               _ => Nothing
             case fM of
-              Nothing => throw "\{site}: coind at an equation over a non-ν type\{structuralHint}"
+              Nothing => throw "\{site}: coind at an equation over a non-ν type\{structuralHint ()}"
               Just f => do
                 let nuT = Ty.NuTy f
                 recordBinder xr ctx env xn nuT
@@ -3277,21 +3335,21 @@ mutual
                 (q', skq) <- checkElem ctx3 (env :< mxn :< myn :< mhn) site qS
                                (Prf (liftPoly f3 r3 (Out (CtxVar 2)) (Out (CtxVar 1))))
                 pure (Star, withExpose exp (Nd [PNuCoind r' skR p' skp q' skq] []))
-          _ => throw "\{site}: coind checked against a non-equality proposition\{structuralHint}"
+          _ => throw "\{site}: coind checked against a non-equality proposition\{structuralHint ()}"
   checkElem ctx env site (SClass a) ty = do
     st <- getSt
     case preferQuot st ctx ty of
       Just (dom, rel, exp) => do
         (a', aSk) <- checkElem ctx env site a dom
         pure (Class a', withExpose exp (Nd [] [aSk]))
-      Nothing => throw "\{site}: class checked against a non-quotient type\{structuralHint}"
+      Nothing => throw "\{site}: class checked against a non-quotient type\{structuralHint ()}"
   checkElem ctx env site (SZeroElim t) ty = do
     (t', tSk) <- checkElem ctx env site t Ty.ZeroTy
     pure (ZeroElim t', Nd [] [tSk])
   checkElem ctx env site SStar ty = do
     st <- getSt
     case preferPrf st ctx ty of
-      Nothing => throw "\{site}: ⋆ checked against a non-Prf type\{structuralHint}"
+      Nothing => throw "\{site}: ⋆ checked against a non-Prf type\{structuralHint ()}"
       Just (p, exp) => do
         -- el-eq-i / el-squash-i: an equality prop is THE payment rule
         -- (checking ⋆ emits its equation into ↓); a squashed 𝟙 is
@@ -3315,7 +3373,7 @@ mutual
             case exposeHead st sq of
               Ty.OneTy => pure (Star, withExpose exp (Nd [PSquashWit OneIntro (Nd [] [])] []))
               _ => throw "\{site}: ⋆ can prove only equality props and 𝟙-shaped squashes automatically (write `⋆ ⟨witness⟩` to supply one directly)"
-          _ => throw "\{site}: ⋆ checked against a non-evident proposition\{structuralHint}"
+          _ => throw "\{site}: ⋆ checked against a non-evident proposition\{structuralHint ()}"
   -- ⋆ using (…): the SStar rule verbatim, under a discharge scope —
   -- only the named lemmas (plus hypotheses) participate, so the site
   -- is deterministic and module-local (SearchlessElaboration.md §5.3).
@@ -3339,7 +3397,7 @@ mutual
   checkElem ctx env site (SChain x0 links) ty = do
     st <- getSt
     case preferPrf st ctx ty of
-      Nothing => throw "\{site}: a chain proves an equality — checked against a non-Prf type\{structuralHint}"
+      Nothing => throw "\{site}: a chain proves an equality — checked against a non-Prf type\{structuralHint ()}"
       Just (p, exp) => do
         let pUse = case p of
                      Elem.EqTy _ _ _ => p
@@ -3352,7 +3410,7 @@ mutual
             adjCerts <- adjacencies tA 1 x0' (zip cands mids)
             cert <- composite tA l r cands adjCerts
             pure (Star, withExpose exp (Nd [PReflEq (certOr cert)] []))
-          _ => throw "\{site}: chain checked against a non-equality proposition\{structuralHint}"
+          _ => throw "\{site}: chain checked against a non-equality proposition\{structuralHint ()}"
    where
     ||| a link justification, inferred and reflected into a ground
     ||| candidate (closed under component decomposition, like a
@@ -3422,7 +3480,7 @@ mutual
   checkElem ctx env site (SStarWit w) ty = do
     st <- getSt
     case preferPrf st ctx ty of
-      Nothing => throw "\{site}: ⋆ checked against a non-Prf type\{structuralHint}"
+      Nothing => throw "\{site}: ⋆ checked against a non-Prf type\{structuralHint ()}"
       Just (p, exp) =>
         -- el-squash-i, general form: w proves the squashee directly,
         -- whatever its shape. At an equality prop, any proof will do
@@ -3465,12 +3523,12 @@ mutual
                 (w', _) <- checkElem ctx env site w (Prf pN)
                 let cert = MkECertF Nothing [MkStep True [] (LProof w') [] False] FBeta st.eqScope
                 pure (Star, withExpose exp (Nd [PReflEq cert] []))
-          _ => throw "\{site}: ⋆ checked against Prf of a non-∥∥ code\{structuralHint}"
+          _ => throw "\{site}: ⋆ checked against Prf of a non-∥∥ code\{structuralHint ()}"
   checkElem ctx env site (SSquashElim e xn body) ty = do
     st <- getSt
     (e', eTy, eSk) <- inferElem ctx env site e
     case preferPrf st ctx eTy of
-      Nothing => throw "\{site}: squash-elim scrutinee has non-Prf type\{structuralHint}"
+      Nothing => throw "\{site}: squash-elim scrutinee has non-Prf type\{structuralHint ()}"
       Just (p, _) =>
         case exposeCode st p of
           Squash a =>
@@ -3478,12 +3536,12 @@ mutual
             -- hypothetical inhabitant of the raw squashee a; the goal
             -- must itself be Prf q — no elimination into arbitrary types
             case preferPrf st ctx ty of
-              Nothing => throw "\{site}: squash-elim checked against a non-Prf goal (el-squash-e-prf reaches only further propositions)\{structuralHint}"
+              Nothing => throw "\{site}: squash-elim checked against a non-Prf goal (el-squash-e-prf reaches only further propositions)\{structuralHint ()}"
               Just (q, exp) => do
                 recordBinder (snd xn) ctx env (fst xn) a
                 (body', bodySk) <- checkElem (ctx :< a) (env :< fst xn) site body (substTy (Prf q) Wk)
                 pure (Star, withExpose exp (Nd [PSquashElim e' eSk body' bodySk] []))
-          _ => throw "\{site}: squash-elim scrutinee checked against Prf of a non-∥∥ code\{structuralHint}"
+          _ => throw "\{site}: squash-elim scrutinee checked against Prf of a non-∥∥ code\{structuralHint ()}"
   checkElem ctx env site (SLet (x, xr) e b) ty = do
     -- e-let-check: let PROPAGATES the ambient mode to its body (a
     -- checking-only body form works under a let without ascription).
@@ -3508,7 +3566,7 @@ mutual
 ||| context (telescope + peeled Πs) is parametric, so the lemma
 ||| applies in any context.
 addLemma : String -> Ctx -> Ty -> ElabM ()
-addLemma name delta ty = do
+addLemma name delta ty = withEqScope ["exp:*"] $ do
   st <- getSt
   let (delta', peeled) = peelPis delta (peelNf st ty)
   -- equality is Ω-valued: a lemma registers when its peeled type is a
@@ -3658,6 +3716,7 @@ elabItemGo : SItem -> ElabM String
 export
 elabItem : SItem -> ElabM String
 elabItem item = withScope (if scopedMode then Just [] else Nothing) $ do
+  modifySt { curItem := clearBlocked (itemName item) }
   pre <- getSt
   timedM "item \{pre.modPrefix}.\{itemName item}" (elabItemGo item)
 
@@ -4178,7 +4237,7 @@ elabProgram units = go initSt units []
   goItems st [] = Right (st, [])
   goItems st ((_, item) :: rest) =
     case runElabM (elabItem item) st of
-      Left err => Left ([], err)
+      Left err => Left ([], withBlockedHint err)
       Right (st', echo) =>
         case goItems st' rest of
           Left (echoes, err) => Left (echo :: echoes, err)
@@ -4191,7 +4250,7 @@ elabProgram units = go initSt units []
     -- lemma store scoped to its import closure
     case runElabM (enterModule name (map mname imps) >> installImports imps) st of
       Left err =>
-        if strictConv () && not (null rest)
+        if strictConv () && surveyMode && not (null rest)
           -- SURVEY MODE: an import of a dropped module cascades — drop too
           then go st rest (echoes ++ ["warning: module \{name} DROPPED (strict survey): \{err}"])
           else joinBy "\n" (echoes ++ ["Error: \{err}"])
@@ -4199,7 +4258,7 @@ elabProgram units = go initSt units []
         let hdr = if name == "" then [] else ["module \{name}:"] in
         case goItems st items of
           Left (itemEchoes, err) =>
-            if strictConv () && not (null rest)
+            if strictConv () && surveyMode && not (null rest)
               -- SURVEY MODE: a hard failure (automation the strict
               -- subset removed, mid-checking) drops the module and
               -- continues — its importers cascade into the same path
@@ -4212,7 +4271,7 @@ elabProgram units = go initSt units []
               _ =>
                 -- only ACCEPTED modules are importable: a module's
                 -- signature segment must be DEFINITIONAL
-                if strictConv ()
+                if strictConv () && surveyMode
                   -- SURVEY MODE: continue past the gate so ONE run maps
                   -- the whole corpus's fallout. COUNT open entries
                   -- instead of rendering the report — the report renders
@@ -4328,7 +4387,7 @@ elabProgramReport units = go initSt units [] [] []
   goItems tbl mname st [] = Right (st, ([], []))
   goItems tbl mname st ((rng, item) :: rest) =
     case runElabM (elabItem item) st of
-      Left err => Left (([], []), rng, err)
+      Left err => Left (([], []), rng, withBlockedHint err)
       Right (st', _) =>
         let tagged = map (\o => (mname, rng, o)) (newObls st st')
             -- a declaration diagnostic lands on the declaring item

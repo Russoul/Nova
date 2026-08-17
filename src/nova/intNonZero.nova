@@ -24,7 +24,7 @@ import equality (trans, sym, cong)
 
 def nzOfPairD : (a : ℕ) (b : ℕ) (hab : Prf (a * b ≡ Z ∈ ℕ)) →
   ((e : El NZ) ⨯ Prf (nzToInt e ≡ class (a , b) ∈ El Int))
-    ⊎ Prf (class (a , b) ≡ intZero ∈ El Int) using (integer.intZero.eq, rational.nzNeg.eq, rational.nzPos.eq, rational.nzToInt.eq, sucPlus, zeroMult) ≔
+    ⊎ Prf (class (a , b) ≡ intZero ∈ El Int) using (integer.Int.unfold, integer.intZero.eq, rational.nzNeg.eq, rational.nzPos.eq, rational.nzToInt.eq, sucPlus, zeroMult) ≔
   λa.
     ℕ-elim (k. (b : ℕ) → Prf (k * b ≡ Z ∈ ℕ) →
               (((e : El NZ) ⨯ Prf (nzToInt e ≡ class (k , b) ∈ El Int))
@@ -55,7 +55,7 @@ def nzOfPairD : (a : ℕ) (b : ℕ) (hab : Prf (a * b ≡ Z ∈ ℕ)) →
 def nzOfIntAt : (z : El Int) (p : ℕ ⨯ ℕ)
   (hz : Prf (class p ≡ z ∈ El Int))
   (hab : Prf (p .π₁ * p .π₂ ≡ Z ∈ ℕ)) →
-  ((e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int)) ⊎ Prf (z ≡ intZero ∈ El Int) using (classPairEta) ≔
+  ((e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int)) ⊎ Prf (z ≡ intZero ∈ El Int) using (classPairEta, integer.Int.unfold) ≔
   λz. λp. λhz. λhab.
     ⊎-elim (w. (((e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int))
                   ⊎ Prf (z ≡ intZero ∈ El Int)))
@@ -80,14 +80,14 @@ def nzOfInt : (z : El Int) →
 -- was through a computing observational equality (eqInt.nova's EqZ);
 -- now the class equation hands IntR back directly.
 def intNeqOfNotRel : (p : ℕ ⨯ ℕ) (q : ℕ ⨯ ℕ) (k : Prf (IntR p q) → 𝟘) →
-  Prf (¬ (class p ≡ class q ∈ El Int)) ≔
+  Prf (¬ (class p ≡ class q ∈ El Int)) using (integer.Int.unfold, prop.¬.unfold, prop.⊃.unfold, prop.⊥.unfold) ≔
   λp. λq. λk.
     notIntro (class p ≡ class q ∈ El Int) (λh. ⋆ (k (intEffective p q h)))
 
 -- IntR (S n , Z) (Z , Z) reduces to S n ≡ Z, and IntR (Z , S n) (Z , Z)
 -- to Z ≡ S n — both refuted by eqNat.nova's zNotS
 def nzToIntNonZero : (e : El NZ) → Prf (¬ (nzToInt e ≡ intZero ∈ El Int))
-  using (integer.IntR.eq, integer.intZero.eq, nat.plusZeroId, nat.zeroPlusId, rational.nzToInt.eq) ≔
+  using (integer.IntR.eq, integer.IntR.unfold, integer.intZero.eq, nat.plusZeroId, nat.zeroPlusId, prop.¬.unfold, prop.⊃.unfold, rational.NZ.unfold, rational.nzToInt.eq) ≔
   λe. ⊎-elim (w. Prf (¬ (nzToInt w ≡ intZero ∈ El Int)))
     (n. intNeqOfNotRel (S n , Z) (Z , Z) (λr. zNotS n (sym ℕ (S n) Z r)))
     (n. intNeqOfNotRel (Z , S n) (Z , Z) (λr. zNotS n r))

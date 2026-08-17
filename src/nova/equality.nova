@@ -34,23 +34,25 @@ def transportP : (A : 𝕌) (P : El A → Ω) (a : El A) (b : El A) →
                  (a ≡ b ∈ El A) → Prf (P a) → Prf (P b) ≔
   λA. λP. λa. λb. λh. λp. p
 
--- transport of an equality proof: an a-indexed equation, moved to b.
--- Not a bare ⋆ — the discharge engine rewrites hypotheses one way
--- only, and this needs composition (f b ← f a ≐ g a → g b). That
--- composition is exactly transport at an equality-prop motive.
-def transportEq : (A : 𝕌) (B : 𝕌) (f : El A → El B) (g : El A → El B) →
-                  (a : El A) (b : El A) → (a ≡ b ∈ (El A)) →
-                  (f a ≡ g a ∈ (El B)) →
-                  f b ≡ g b ∈ (El B) ≔
-  λA. λB. λf. λg. λa. λb. λh. λe.
-    transportP A (λx. (f x ≡ g x ∈ (El B))) a b h e
-
 -- dependent congruence: in an extensional theory it is one ⋆, since
 -- reflecting the hypothesis makes the sides and their types equal
 def cong : (A : 𝕌) (B : El A → 𝕌) (f : (v : El A) → El (B v)) →
            (v : El A) (w : El A) → (v ≡ w ∈ (El A)) →
            f v ≡ f w ∈ (El (B v)) ≔
   λA. λB. λf. λv. λw. λh. ⋆
+
+def appCong : (A : 𝕌) (B : El A → 𝕌) (f0 : (x : El A) → El (B x)) (f1 : (x : El A) → El (B x)) →
+                  (a0 : El A) (a1 : El A) →
+                  (f0 ≡ f1 ∈ (x : El A) → El (B x)) →
+                  (a0 ≡ a1 ∈ El A) →
+                  f0 a0 ≡ f1 a1 ∈ El (B a1) ≔
+  λA. λB. λf0. λf1. λa0. λa1. λf. λa.
+  (f0 a0
+     ≡⟨ a ⟩
+   f0 a1
+     ≡⟨ cong ((x : A) → B x) (λ_. B a1) (λg. g a1) f0 f1 f ⟩
+   f1 a1)
+
 
 def irr : (A : 𝕌) (v : El A) (u : El A) (p : v ≡ u ∈ (El A)) → p ≡ ⋆ ∈ (v ≡ u ∈ (El A))
   ≔ λA. λv. λu. λp. ⋆

@@ -46,7 +46,7 @@ def multZeroInv : (j : ℕ) (k : ℕ) → (j * S k ≡ Z ∈ ℕ) → j ≡ Z �
 -- cancellation by S k, under the assumption that the smaller side is
 -- known: the surplus times S k is zero, hence zero
 def multCancelLe : (n : ℕ) (m : ℕ) (k : ℕ) →
-  El (LeN n m) → (n * S k ≡ m * S k ∈ ℕ) → n ≡ m ∈ ℕ using (nat.plusZeroId) ≔
+  El (LeN n m) → (n * S k ≡ m * S k ∈ ℕ) → n ≡ m ∈ ℕ using (id.Id.unfold, nat.plusZeroId, natOrder.LeN.unfold) ≔
   λn. λm. λk. λle. λh.
     let e : n + le .π₁ ≡ m ∈ ℕ ≔ idToEq ℕ (n + le .π₁) m (le .π₂) in
     let split : n * S k ≡ n * S k + le .π₁ * S k ∈ ℕ ≔
@@ -105,7 +105,7 @@ def monusSelf : (a : ℕ) → a ∸ a ≡ Z ∈ ℕ using (hyp.rw, natMore.zeroM
   λa. ℕ-elim (k. k ∸ k ≡ Z ∈ ℕ) ⋆ (k ih. ⋆) a
 
 -- ...so a ≤ b makes a − b vanish
-def monusZeroOfLe : (a : ℕ) (b : ℕ) → El (LeN a b) → a ∸ b ≡ Z ∈ ℕ ≔
+def monusZeroOfLe : (a : ℕ) (b : ℕ) → El (LeN a b) → a ∸ b ≡ Z ∈ ℕ using (id.Id.unfold, natOrder.LeN.unfold) ≔
   λa. λb. λle.
     (a ∸ b
        ≡⟨ cong ℕ (λu. ℕ) (λw. a ∸ w) b (a + le .π₁)
@@ -119,7 +119,7 @@ def monusZeroOfLe : (a : ℕ) (b : ℕ) → El (LeN a b) → a ∸ b ≡ Z ∈ �
      Z)
 
 -- ...and a ≤ b makes the difference add back
-def leMonusPlus : (a : ℕ) (b : ℕ) → El (LeN a b) → a + (b ∸ a) ≡ b ∈ ℕ ≔
+def leMonusPlus : (a : ℕ) (b : ℕ) → El (LeN a b) → a + (b ∸ a) ≡ b ∈ ℕ using (id.Id.unfold, natOrder.LeN.unfold) ≔
   λa. λb. λle.
     let e : a + le .π₁ ≡ b ∈ ℕ ≔ idToEq ℕ (a + le .π₁) b (le .π₂) in
     (a + (b ∸ a)
@@ -140,11 +140,11 @@ def natMax : ℕ → ℕ → ℕ ≔ λa. λb. a + (b ∸ a)
 def natMin : ℕ → ℕ → ℕ ≔ λa. λb. a ∸ (a ∸ b)
 
 -- a sits under the max by construction: the witness is the difference
-def leMaxL : (a : ℕ) (b : ℕ) → El (LeN a (natMax a b)) using (natMore.natMax.eq) ≔
+def leMaxL : (a : ℕ) (b : ℕ) → El (LeN a (natMax a b)) using (natMore.natMax.eq, natOrder.LeN.unfold) ≔
   λa. λb. (b ∸ a , eqToId ℕ (a + (b ∸ a)) (natMax a b) ⋆)
 
 -- and so does b, once the two cases are settled
-def leMaxR : (a : ℕ) (b : ℕ) → El (LeN b (natMax a b)) using (natMore.natMax.eq) ≔
+def leMaxR : (a : ℕ) (b : ℕ) → El (LeN b (natMax a b)) using (id.Id.unfold, natMore.natMax.eq, natOrder.LeN.unfold) ≔
   λa. λb.
     ⊎-elim (w. El (LeN b (natMax a b)))
       (le.

@@ -57,7 +57,7 @@ def qInvQuarter : (j : ℕ) →
 -- (a+b) + ((a+b) + (b+b)) ≡ (a+a) + ((b+b) + (b+b)) : both are 2a + 4b
 def qSum6 : (a : El Q) (b : El Q) →
   qAdd (qAdd a b) (qAdd (qAdd a b) (qAdd b b))
-    ≡ qAdd (qAdd a a) (qAdd (qAdd b b) (qAdd b b)) ∈ El Q ≔
+    ≡ qAdd (qAdd a a) (qAdd (qAdd b b) (qAdd b b)) ∈ El Q using (rationalQ.Q.unfold) ≔
   λa. λb.
     (qAdd (qAdd a b) (qAdd (qAdd a b) (qAdd b b))
        ≡⟨ sym Q (qAdd (qAdd (qAdd a b) (qAdd a b)) (qAdd b b))
@@ -76,7 +76,7 @@ def leQQuarterSum : (m : ℕ) (n : ℕ) →
   El (LeQ (qAdd (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
                 (qAdd (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))
                       (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))))
-          (rBound m n)) using (id.Id.eq, ratHalf.dbl.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.qInvNat.eq, real.rBound.eq, realEq.qtr.eq) ≔
+          (rBound m n)) using (id.Id.eq, ratHalf.dbl.eq, rationalOrder.LeQ.unfold, rationalOrder.NonNegS.unfold, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.qInvNat.eq, real.rBound.eq, realEq.qtr.eq) ≔
   λm. λn.
     transport Q
       (λw. LeQ (qAdd (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
@@ -129,14 +129,14 @@ def RegSeqR : El (ℕ → RSeq) → 𝕌 ≔
 
 -- ===== the limit =====
 
-def limSeq : El (ℕ → RSeq) → El (ℕ → Q) ≔
+def limSeq : El (ℕ → RSeq) → El (ℕ → Q) using (rationalQ.Q.unfold) ≔
   λx. λj. seqOf (x (qtr j)) (qtr j)
 
 -- |L m − L n| ≤ |x_qm(qm) − x_qm(qn)| + |x_qm(qn) − x_qn(qn)|
 --             ≤ (αm + αn)            + ((αm + αn) + (αn + αn))
 --             = 2αm + 4αn  ≤  4αm + 4αn  =  rBound m n
 def limReg : (x : El (ℕ → RSeq)) → El (RegSeqR x) →
-  El (Regular (limSeq x)) using (id.Id.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.qInvNat.eq, real.rBound.eq, realComplete.limSeq.eq, realEq.qtr.eq, realNeg.seqOf.eq) ≔
+  El (Regular (limSeq x)) using (id.Id.eq, ratBound.Bnd.unfold, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.RSeq.unfold, real.Regular.unfold, real.qInvNat.eq, real.rBound.eq, realComplete.RegSeqR.unfold, realComplete.limSeq.eq, realEq.qtr.eq, realNeg.seqOf.eq) ≔
   λx. λh.
     bndReg (limSeq x)
       (λm. λn.
@@ -164,10 +164,10 @@ def limReg : (x : El (ℕ → RSeq)) → El (RegSeqR x) →
                         (qtr m) (qtr n))
                 (h (qtr m) (qtr n) (qtr n)))))
 
-def rLim : (x : El (ℕ → RSeq)) → El (RegSeqR x) → El RSeq ≔
+def rLim : (x : El (ℕ → RSeq)) → El (RegSeqR x) → El RSeq using (real.RSeq.unfold) ≔
   λx. λh. (limSeq x , limReg x h)
 
-def realLim : (x : El (ℕ → RSeq)) → El (RegSeqR x) → El Real ≔
+def realLim : (x : El (ℕ → RSeq)) → El (RegSeqR x) → El Real using (real.Real.unfold) ≔
   λx. λh. class (rLim x h)
 
 -- ===== convergence =====
@@ -176,7 +176,7 @@ def realLim : (x : El (ℕ → RSeq)) → El (RegSeqR x) → El Real ≔
 -- b + g + 4a, with the four quarter-fractions collected on the right
 def qSum7 : (b : El Q) (g : El Q) (a : El Q) →
   qAdd (qAdd b a) (qAdd (qAdd g a) (qAdd a a))
-    ≡ qAdd g (qAdd b (qAdd (qAdd a a) (qAdd a a))) ∈ El Q ≔
+    ≡ qAdd g (qAdd b (qAdd (qAdd a a) (qAdd a a))) ∈ El Q using (rationalQ.Q.unfold) ≔
   λb. λg. λa.
     (qAdd (qAdd b a) (qAdd (qAdd g a) (qAdd a a))
        ≡⟨ sym Q (qAdd (qAdd (qAdd b a) (qAdd g a)) (qAdd a a))
@@ -201,7 +201,7 @@ def qSum7 : (b : El Q) (g : El Q) (a : El Q) →
 -- — an equality, not a weakening: quarter depth is exactly enough
 def limClose : (x : El (ℕ → RSeq)) (h : El (RegSeqR x)) (n : ℕ) (j : ℕ) →
   El (Bnd (qAdd (qInvNat n) (rBound j j))
-          (qAdd (seqOf (x n) j) (qNeg (limSeq x j)))) using (id.Id.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.qInvNat.eq, real.rBound.eq, realComplete.limSeq.eq, realEq.qtr.eq, realNeg.seqOf.eq) ≔
+          (qAdd (seqOf (x n) j) (qNeg (limSeq x j)))) using (id.Id.eq, ratBound.Bnd.unfold, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.RSeq.unfold, real.qInvNat.eq, real.rBound.eq, realComplete.RegSeqR.unfold, realComplete.limSeq.eq, realEq.qtr.eq, realNeg.seqOf.eq) ≔
   λx. λh. λn. λj.
     bndEqB
       (qAdd (rBound j (qtr j))
@@ -236,7 +236,7 @@ def limClose : (x : El (ℕ → RSeq)) (h : El (RegSeqR x)) (n : ℕ) (j : ℕ) 
 -- is exactly 1/(j+1) and so sits under rBound j j.
 def realLimClose : (x : El (ℕ → RSeq)) (h : El (RegSeqR x)) (n : ℕ) →
   Prf (LeR (realDist (class (x n)) (realLim x h)) (realOfQ (qInvNat n)))
-  using (equality.sym.eq, equality.transport.eq, id.Id.eq, integer.intOne.eq, ratAbs.bndAbsSub.eq, ratAbs.qAbs.eq, ratBound.bndEqB.eq, ratBound.bndVia.eq, ratBound.bndWeaken.eq, ratHalf.dbl.eq, rational.mkRat.eq, rational.nzPos.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalOrder.LeQ.eq, rationalOrder.NonNegS.eq, rationalOrder.Sign.eq, rationalOrder.ratSgn.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnCases.eq, rationalOrder.sgnQ.eq, rationalQ.Q.eq, rationalQ.qAdd.eq, rationalQ.qAddNegR.eq, rationalQ.qNeg.eq, rationalQ.qZero.eq, rationalQ.qcls.eq, real.constReg.eq, real.leQNegBoundZero.eq, real.leQZeroBound.eq, real.qInvNat.eq, real.rBound.eq, real.realOfQ.eq, realAbs.absReg.eq, realAbs.absSeq.eq, realAbs.rAbs.eq, realAbs.realAbs.eq, realAdd.addReg.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realAdd.realAdd.eq, realComplete.leQQuarterSum.eq, realComplete.limReg.eq, realComplete.limSeq.eq, realComplete.qSum6.eq, realComplete.rLim.eq, realComplete.realLim.eq, realEq.qtr.eq, realGroup.realSub.eq, realMetric.realDist.eq, realNeg.bndReg.eq, realNeg.negReg.eq, realNeg.negSeq.eq, realNeg.rNeg.eq, realNeg.realNeg.eq, realNeg.regBnd.eq, realNeg.regOf.eq, realNeg.seqOf.eq, realOrder.LeR.eq, realOrder.RLeP.eq) ≔
+  using (equality.sym.eq, equality.transport.eq, id.Id.eq, integer.intOne.eq, ratAbs.bndAbsSub.eq, ratAbs.qAbs.eq, ratBound.Bnd.unfold, ratBound.bndEqB.eq, ratBound.bndVia.eq, ratBound.bndWeaken.eq, ratHalf.dbl.eq, rational.mkRat.eq, rational.nzPos.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalOrder.LeQ.eq, rationalOrder.NonNegS.eq, rationalOrder.Sign.eq, rationalOrder.ratSgn.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnCases.eq, rationalOrder.sgnQ.eq, rationalQ.Q.eq, rationalQ.qAdd.eq, rationalQ.qAddNegR.eq, rationalQ.qNeg.eq, rationalQ.qZero.eq, rationalQ.qcls.eq, real.RSeq.unfold, real.Real.unfold, real.constReg.eq, real.leQNegBoundZero.eq, real.leQZeroBound.eq, real.qInvNat.eq, real.rBound.eq, real.realOfQ.eq, real.realOfQ.unfold, realAbs.absReg.eq, realAbs.absSeq.eq, realAbs.rAbs.eq, realAbs.realAbs.eq, realAbs.realAbs.unfold, realAdd.addReg.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realAdd.realAdd.eq, realAdd.realAdd.unfold, realComplete.RegSeqR.unfold, realComplete.leQQuarterSum.eq, realComplete.limReg.eq, realComplete.limSeq.eq, realComplete.qSum6.eq, realComplete.rLim.eq, realComplete.realLim.eq, realComplete.realLim.unfold, realEq.qtr.eq, realGroup.realSub.eq, realGroup.realSub.unfold, realMetric.realDist.eq, realMetric.realDist.unfold, realNeg.bndReg.eq, realNeg.negReg.eq, realNeg.negSeq.eq, realNeg.rNeg.eq, realNeg.realNeg.eq, realNeg.realNeg.unfold, realNeg.regBnd.eq, realNeg.regOf.eq, realNeg.seqOf.eq, realOrder.LeR.eq, realOrder.LeR.unfold, realOrder.RLeP.eq, realOrder.RLeP.unfold) ≔
   λx. λh. λn.
     rleOf (rAbs (rAdd (x n) (rNeg (rLim x h))))
           ((λk. qInvNat n) , constReg (qInvNat n))
@@ -257,7 +257,7 @@ def realLimClose : (x : El (ℕ → RSeq)) (h : El (RegSeqR x)) (n : ℕ) →
 -- RegSeqR makes the reals themselves 1/(m+1) + 1/(n+1)-close
 def regSeqRSound : (x : El (ℕ → RSeq)) (h : El (RegSeqR x)) (m : ℕ) (n : ℕ) →
   Prf (LeR (realDist (class (x m)) (class (x n))) (realOfQ (rBound m n)))
-  using (equality.sym.eq, equality.transport.eq, id.Id.eq, integer.intOne.eq, ratAbs.bndAbsSub.eq, ratAbs.qAbs.eq, ratHalf.dbl.eq, rational.mkRat.eq, rational.nzPos.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalOrder.LeQ.eq, rationalOrder.NonNegS.eq, rationalOrder.Sign.eq, rationalOrder.ratSgn.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnCases.eq, rationalOrder.sgnQ.eq, rationalQ.Q.eq, rationalQ.qAdd.eq, rationalQ.qAddNegR.eq, rationalQ.qNeg.eq, rationalQ.qZero.eq, rationalQ.qcls.eq, real.constReg.eq, real.leQNegBoundZero.eq, real.leQZeroBound.eq, real.qInvNat.eq, real.rBound.eq, real.realOfQ.eq, realAbs.absReg.eq, realAbs.absSeq.eq, realAbs.rAbs.eq, realAbs.realAbs.eq, realAdd.addReg.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realAdd.realAdd.eq, realGroup.realSub.eq, realMetric.realDist.eq, realNeg.bndReg.eq, realNeg.negReg.eq, realNeg.negSeq.eq, realNeg.rNeg.eq, realNeg.realNeg.eq, realNeg.regBnd.eq, realNeg.regOf.eq, realNeg.seqOf.eq, realOrder.LeR.eq, realOrder.RLeP.eq) ≔
+  using (equality.sym.eq, equality.transport.eq, id.Id.eq, integer.intOne.eq, ratAbs.bndAbsSub.eq, ratAbs.qAbs.eq, ratBound.Bnd.unfold, ratHalf.dbl.eq, rational.mkRat.eq, rational.nzPos.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalOrder.LeQ.eq, rationalOrder.NonNegS.eq, rationalOrder.Sign.eq, rationalOrder.ratSgn.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnCases.eq, rationalOrder.sgnQ.eq, rationalQ.Q.eq, rationalQ.qAdd.eq, rationalQ.qAddNegR.eq, rationalQ.qNeg.eq, rationalQ.qZero.eq, rationalQ.qcls.eq, real.RSeq.unfold, real.Real.unfold, real.constReg.eq, real.leQNegBoundZero.eq, real.leQZeroBound.eq, real.qInvNat.eq, real.rBound.eq, real.realOfQ.eq, real.realOfQ.unfold, realAbs.absReg.eq, realAbs.absSeq.eq, realAbs.rAbs.eq, realAbs.realAbs.eq, realAbs.realAbs.unfold, realAdd.addReg.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realAdd.realAdd.eq, realAdd.realAdd.unfold, realComplete.RegSeqR.unfold, realGroup.realSub.eq, realGroup.realSub.unfold, realMetric.realDist.eq, realMetric.realDist.unfold, realNeg.bndReg.eq, realNeg.negReg.eq, realNeg.negSeq.eq, realNeg.rNeg.eq, realNeg.realNeg.eq, realNeg.realNeg.unfold, realNeg.regBnd.eq, realNeg.regOf.eq, realNeg.seqOf.eq, realOrder.LeR.eq, realOrder.LeR.unfold, realOrder.RLeP.eq, realOrder.RLeP.unfold) ≔
   λx. λh. λm. λn.
     rleOf (rAbs (rAdd (x m) (rNeg (x n))))
           ((λk. rBound m n) , constReg (rBound m n))

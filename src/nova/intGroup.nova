@@ -10,7 +10,7 @@ import group (IsGroup)
 -- existing corpus lemma across the Id bridge — the unit laws live in
 -- rational.nova, the inverse laws in integerMul.nova, imported from
 -- where they are), then the inverse operation and its two laws.
-def intAddGroup : El (IsGroup Int) ≔
+def intAddGroup : El (IsGroup Int) using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔
   ((intAdd , intZero ,
     (λx. λy. λz. eqToId Int (intAdd (intAdd x y) z) (intAdd x (intAdd y z))
                   (intAddAssoc x y z)) ,
@@ -21,4 +21,4 @@ def intAddGroup : El (IsGroup Int) ≔
    λx. eqToId Int (intAdd x (intNeg x)) intZero (intAddNegR x))
 
 -- the underlying monoid is the group's first component
-def intAddMonoid : El (IsMonoid Int) ≔ intAddGroup .π₁
+def intAddMonoid : El (IsMonoid Int) using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔ intAddGroup .π₁
