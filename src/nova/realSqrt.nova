@@ -1,0 +1,476 @@
+import nat (+, *)
+import natOrder (LeN)
+import natSqrt (isqrt, isqrtLtOfLt, sqSumStrict)
+import rationalQ (Q, qAdd, qMul, qNeg, qZero, qOne, qAddComm, qAddAssoc,
+                  qMulComm, qMulAssoc, qMulOneL, qMulOneR, qDistribR)
+import rationalOrder (LeQ, leQTrans, leQOfEq, leQMulMono, leQPlusMonoL)
+import ratBound (Bnd, bndOfBothLe, bndSubSym, leQSelfAddL, leQAdd)
+import ratHalf (dbl, qInvHalf, leQZeroInvNat)
+import ratArch (leQSubShift)
+import ratMax (leQAddOfBnd)
+import ratAbs (leQZeroMul)
+import ratNat (qOfNat, qOfNatAdd, qOfNatMul, leQOfNat)
+import ratCeil (leQZeroNat)
+import ratSqrt (qPos, bndPos, sqNat, qSqrtAt, qMulInvNat, qInvNatMulIdx,
+                leQSqrtStep, qMulSwap3, qMulLeftComm)
+import real (qInvNat, rBound, leQZeroBound, Regular, RSeq, REq, Real)
+import realNeg (seqOf, regOf, regBnd, bndReg, reqOf, rBoundSym, realEqOfREq)
+import realMul (mulIdx)
+import equality (trans, sym, cong, transport)
+
+-- THE SQUARE ROOT of a real, on representatives.
+--
+--   (√p)_k ≔ qSqrtAt (p_{φ k}) (D k),   D k = 2k+1,  φ k = mulIdx (D k) (D k)
+--
+-- so the approximation depth is DOUBLE the index and the sampling
+-- depth is its SQUARE. Both are forced, and exactly:
+--
+--   * 1/(D k + 1) = 1/(2(k+1)), so two of them make 1/(k+1) — qInvHalf.
+--     The comparison lemma spends one such term on each side, and
+--     rBound m n has exactly two to give.
+--   * (φ k + 1) = (D k + 1)², so the gap between two samples of p,
+--     scaled by (D m + 1)²(D n + 1)², is EXACTLY the natural
+--     (D n + 1)² + (D m + 1)². That is the T fed to isqrt, and
+--     isqrt T + 1 ≤ (D n + 1) + (D m + 1) by sqSumStrict, which is
+--     precisely what the remaining budget allows.
+--
+-- The quadratic sampling is not slack: √ is not Lipschitz, its modulus
+-- is √, and squaring the depth is what pays for it.
+
+def sqrtDepth : ℕ → ℕ ≔ λk. dbl k
+
+def sqrtIdx : ℕ → ℕ ≔ λk. mulIdx (dbl k) (dbl k)
+
+def sqrtSeq : El RSeq → El (ℕ → Q) ≔
+  λp. λk. qSqrtAt (seqOf p (sqrtIdx k)) (sqrtDepth k)
+
+def sqrtT : ℕ → ℕ → ℕ ≔
+  λm. λn. sqNat (sqrtDepth n) + sqNat (sqrtDepth m)
+
+-- ===== the scaling is exact =====
+
+def qMulSq : (x : El Q) (y : El Q) →
+  qMul (qMul x y) (qMul x y) ≡ qMul (qMul x x) (qMul y y) ∈ El Q ≔
+  λx. λy.
+    (qMul (qMul x y) (qMul x y)
+       ≡⟨ qMulAssoc x y (qMul x y) ⟩
+     qMul x (qMul y (qMul x y))
+       ≡⟨ cong Q (λw. Q) (λw. qMul x w) (qMul y (qMul x y)) (qMul x (qMul y y))
+            (qMulLeftComm y x y) ⟩
+     qMul x (qMul x (qMul y y))
+       ≡⟨ sym Q (qMul (qMul x x) (qMul y y)) (qMul x (qMul x (qMul y y)))
+            (qMulAssoc x x (qMul y y)) ⟩
+     qMul (qMul x x) (qMul y y))
+
+def invNatOne : (a : ℕ) → qMul (qInvNat a) (qOfNat (S a)) ≡ qOne ∈ El Q ≔
+  λa.
+    trans Q (qMul (qInvNat a) (qOfNat (S a)))
+            (qMul (qOfNat (S a)) (qInvNat a)) qOne
+      (qMulComm (qInvNat a) (qOfNat (S a)))
+      (qMulInvNat a)
+
+def qOfNatSq : (a : ℕ) →
+  qOfNat (sqNat a) ≡ qMul (qOfNat (S a)) (qOfNat (S a)) ∈ El Q
+  using (ratSqrt.sqNat.eq) ≔
+  λa.
+    sym Q (qMul (qOfNat (S a)) (qOfNat (S a))) (qOfNat (S a * S a))
+      (qOfNatMul (S a) (S a))
+
+-- 1/(D+1)² · (D+1)² is one
+def invSqCancel : (a : ℕ) →
+  qMul (qInvNat (mulIdx a a)) (qOfNat (sqNat a)) ≡ qOne ∈ El Q ≔
+  λa.
+    (qMul (qInvNat (mulIdx a a)) (qOfNat (sqNat a))
+       ≡⟨ cong Q (λw. Q) (λw. qMul w (qOfNat (sqNat a)))
+            (qInvNat (mulIdx a a)) (qMul (qInvNat a) (qInvNat a))
+            (qInvNatMulIdx a a) ⟩
+     qMul (qMul (qInvNat a) (qInvNat a)) (qOfNat (sqNat a))
+       ≡⟨ cong Q (λw. Q) (λw. qMul (qMul (qInvNat a) (qInvNat a)) w)
+            (qOfNat (sqNat a)) (qMul (qOfNat (S a)) (qOfNat (S a)))
+            (qOfNatSq a) ⟩
+     qMul (qMul (qInvNat a) (qInvNat a)) (qMul (qOfNat (S a)) (qOfNat (S a)))
+       ≡⟨ sym Q (qMul (qMul (qInvNat a) (qOfNat (S a)))
+                      (qMul (qInvNat a) (qOfNat (S a))))
+                (qMul (qMul (qInvNat a) (qInvNat a))
+                      (qMul (qOfNat (S a)) (qOfNat (S a))))
+            (qMulSq (qInvNat a) (qOfNat (S a))) ⟩
+     qMul (qMul (qInvNat a) (qOfNat (S a))) (qMul (qInvNat a) (qOfNat (S a)))
+       ≡⟨ cong Q (λw. Q) (λw. qMul w (qMul (qInvNat a) (qOfNat (S a))))
+            (qMul (qInvNat a) (qOfNat (S a))) qOne (invNatOne a) ⟩
+     qMul qOne (qMul (qInvNat a) (qOfNat (S a)))
+       ≡⟨ qMulOneL (qMul (qInvNat a) (qOfNat (S a))) ⟩
+     qMul (qInvNat a) (qOfNat (S a))
+       ≡⟨ invNatOne a ⟩
+     qOne)
+
+-- the gap between two samples, scaled, is exactly the natural T
+def scaleEq : (a : ℕ) (b : ℕ) →
+  qMul (qMul (rBound (mulIdx a a) (mulIdx b b)) (qOfNat (sqNat a)))
+       (qOfNat (sqNat b))
+    ≡ qOfNat (sqNat b + sqNat a) ∈ El Q ≔
+  λa. λb.
+    (qMul (qMul (qAdd (qInvNat (mulIdx a a)) (qInvNat (mulIdx b b)))
+                (qOfNat (sqNat a)))
+          (qOfNat (sqNat b))
+       ≡⟨ cong Q (λw. Q) (λw. qMul w (qOfNat (sqNat b)))
+            (qMul (qAdd (qInvNat (mulIdx a a)) (qInvNat (mulIdx b b)))
+                  (qOfNat (sqNat a)))
+            (qAdd (qMul (qInvNat (mulIdx a a)) (qOfNat (sqNat a)))
+                  (qMul (qInvNat (mulIdx b b)) (qOfNat (sqNat a))))
+            (qDistribR (qOfNat (sqNat a)) (qInvNat (mulIdx a a))
+                       (qInvNat (mulIdx b b))) ⟩
+     qMul (qAdd (qMul (qInvNat (mulIdx a a)) (qOfNat (sqNat a)))
+                (qMul (qInvNat (mulIdx b b)) (qOfNat (sqNat a))))
+          (qOfNat (sqNat b))
+       ≡⟨ qDistribR (qOfNat (sqNat b))
+            (qMul (qInvNat (mulIdx a a)) (qOfNat (sqNat a)))
+            (qMul (qInvNat (mulIdx b b)) (qOfNat (sqNat a))) ⟩
+     qAdd (qMul (qMul (qInvNat (mulIdx a a)) (qOfNat (sqNat a)))
+                (qOfNat (sqNat b)))
+          (qMul (qMul (qInvNat (mulIdx b b)) (qOfNat (sqNat a)))
+                (qOfNat (sqNat b)))
+       ≡⟨ cong Q (λw. Q)
+            (λw. qAdd (qMul w (qOfNat (sqNat b)))
+                      (qMul (qMul (qInvNat (mulIdx b b)) (qOfNat (sqNat a)))
+                            (qOfNat (sqNat b))))
+            (qMul (qInvNat (mulIdx a a)) (qOfNat (sqNat a))) qOne
+            (invSqCancel a) ⟩
+     qAdd (qMul qOne (qOfNat (sqNat b)))
+          (qMul (qMul (qInvNat (mulIdx b b)) (qOfNat (sqNat a)))
+                (qOfNat (sqNat b)))
+       ≡⟨ cong Q (λw. Q)
+            (λw. qAdd w (qMul (qMul (qInvNat (mulIdx b b)) (qOfNat (sqNat a)))
+                              (qOfNat (sqNat b))))
+            (qMul qOne (qOfNat (sqNat b))) (qOfNat (sqNat b))
+            (qMulOneL (qOfNat (sqNat b))) ⟩
+     qAdd (qOfNat (sqNat b))
+          (qMul (qMul (qInvNat (mulIdx b b)) (qOfNat (sqNat a)))
+                (qOfNat (sqNat b)))
+       ≡⟨ cong Q (λw. Q) (λw. qAdd (qOfNat (sqNat b)) w)
+            (qMul (qMul (qInvNat (mulIdx b b)) (qOfNat (sqNat a)))
+                  (qOfNat (sqNat b)))
+            (qMul (qMul (qInvNat (mulIdx b b)) (qOfNat (sqNat b)))
+                  (qOfNat (sqNat a)))
+            (qMulSwap3 (qInvNat (mulIdx b b)) (qOfNat (sqNat a))
+                       (qOfNat (sqNat b))) ⟩
+     qAdd (qOfNat (sqNat b))
+          (qMul (qMul (qInvNat (mulIdx b b)) (qOfNat (sqNat b)))
+                (qOfNat (sqNat a)))
+       ≡⟨ cong Q (λw. Q) (λw. qAdd (qOfNat (sqNat b)) (qMul w (qOfNat (sqNat a))))
+            (qMul (qInvNat (mulIdx b b)) (qOfNat (sqNat b))) qOne
+            (invSqCancel b) ⟩
+     qAdd (qOfNat (sqNat b)) (qMul qOne (qOfNat (sqNat a)))
+       ≡⟨ cong Q (λw. Q) (λw. qAdd (qOfNat (sqNat b)) w)
+            (qMul qOne (qOfNat (sqNat a))) (qOfNat (sqNat a))
+            (qMulOneL (qOfNat (sqNat a))) ⟩
+     qAdd (qOfNat (sqNat b)) (qOfNat (sqNat a))
+       ≡⟨ qOfNatAdd (sqNat b) (sqNat a) ⟩
+     qOfNat (sqNat b + sqNat a))
+
+-- ===== the slack fits =====
+
+def cancelMid : (D : ℕ) (e : El Q) →
+  qMul (qOfNat (S D)) (qMul e (qInvNat D)) ≡ e ∈ El Q ≔
+  λD. λe.
+    (qMul (qOfNat (S D)) (qMul e (qInvNat D))
+       ≡⟨ qMulLeftComm (qOfNat (S D)) e (qInvNat D) ⟩
+     qMul e (qMul (qOfNat (S D)) (qInvNat D))
+       ≡⟨ cong Q (λw. Q) (λw. qMul e w) (qMul (qOfNat (S D)) (qInvNat D)) qOne
+            (qMulInvNat D) ⟩
+     qMul e qOne
+       ≡⟨ qMulOneR e ⟩
+     e)
+
+-- ((Dn+1) + (Dm+1))·(1/(Dm+1)·1/(Dn+1)) is 1/(Dm+1) + 1/(Dn+1)
+def slackEq : (Dm : ℕ) (Dn : ℕ) →
+  qMul (qOfNat (S Dn + S Dm)) (qMul (qInvNat Dm) (qInvNat Dn))
+    ≡ qAdd (qInvNat Dm) (qInvNat Dn) ∈ El Q ≔
+  λDm. λDn.
+    (qMul (qOfNat (S Dn + S Dm)) (qMul (qInvNat Dm) (qInvNat Dn))
+       ≡⟨ cong Q (λw. Q) (λw. qMul w (qMul (qInvNat Dm) (qInvNat Dn)))
+            (qOfNat (S Dn + S Dm))
+            (qAdd (qOfNat (S Dn)) (qOfNat (S Dm)))
+            (sym Q (qAdd (qOfNat (S Dn)) (qOfNat (S Dm)))
+                   (qOfNat (S Dn + S Dm)) (qOfNatAdd (S Dn) (S Dm))) ⟩
+     qMul (qAdd (qOfNat (S Dn)) (qOfNat (S Dm)))
+          (qMul (qInvNat Dm) (qInvNat Dn))
+       ≡⟨ qDistribR (qMul (qInvNat Dm) (qInvNat Dn))
+            (qOfNat (S Dn)) (qOfNat (S Dm)) ⟩
+     qAdd (qMul (qOfNat (S Dn)) (qMul (qInvNat Dm) (qInvNat Dn)))
+          (qMul (qOfNat (S Dm)) (qMul (qInvNat Dm) (qInvNat Dn)))
+       ≡⟨ cong Q (λw. Q)
+            (λw. qAdd w (qMul (qOfNat (S Dm))
+                              (qMul (qInvNat Dm) (qInvNat Dn))))
+            (qMul (qOfNat (S Dn)) (qMul (qInvNat Dm) (qInvNat Dn)))
+            (qInvNat Dm)
+            (cancelMid Dn (qInvNat Dm)) ⟩
+     qAdd (qInvNat Dm) (qMul (qOfNat (S Dm))
+                             (qMul (qInvNat Dm) (qInvNat Dn)))
+       ≡⟨ cong Q (λw. Q) (λw. qAdd (qInvNat Dm) (qMul (qOfNat (S Dm)) w))
+            (qMul (qInvNat Dm) (qInvNat Dn))
+            (qMul (qInvNat Dn) (qInvNat Dm))
+            (qMulComm (qInvNat Dm) (qInvNat Dn)) ⟩
+     qAdd (qInvNat Dm) (qMul (qOfNat (S Dm))
+                             (qMul (qInvNat Dn) (qInvNat Dm)))
+       ≡⟨ cong Q (λw. Q) (λw. qAdd (qInvNat Dm) w)
+            (qMul (qOfNat (S Dm)) (qMul (qInvNat Dn) (qInvNat Dm)))
+            (qInvNat Dn)
+            (cancelMid Dm (qInvNat Dn)) ⟩
+     qAdd (qInvNat Dm) (qInvNat Dn))
+
+def sqrtSlack : (m : ℕ) (n : ℕ) →
+  El (LeQ (qMul (qOfNat (S (isqrt (sqrtT m n))))
+                (qMul (qInvNat (sqrtDepth m)) (qInvNat (sqrtDepth n))))
+          (qAdd (qInvNat (sqrtDepth m)) (qInvNat (sqrtDepth n)))) using (ratSqrt.sqNat.eq, sqrtT.eq) ≔
+  λm. λn.
+    transport Q
+      (λw. LeQ (qMul (qOfNat (S (isqrt (sqrtT m n))))
+                     (qMul (qInvNat (sqrtDepth m)) (qInvNat (sqrtDepth n)))) w)
+      (qMul (qOfNat (S (sqrtDepth n) + S (sqrtDepth m)))
+            (qMul (qInvNat (sqrtDepth m)) (qInvNat (sqrtDepth n))))
+      (qAdd (qInvNat (sqrtDepth m)) (qInvNat (sqrtDepth n)))
+      (slackEq (sqrtDepth m) (sqrtDepth n))
+      (leQMulMono (qOfNat (S (isqrt (sqrtT m n))))
+                  (qOfNat (S (sqrtDepth n) + S (sqrtDepth m)))
+                  (qMul (qInvNat (sqrtDepth m)) (qInvNat (sqrtDepth n)))
+         (leQOfNat (S (isqrt (sqrtT m n)))
+                   (S (sqrtDepth n) + S (sqrtDepth m))
+            (isqrtLtOfLt (sqrtT m n) (S (sqrtDepth n) + S (sqrtDepth m))
+               (sqSumStrict (sqrtDepth n) (sqrtDepth m))))
+         (leQZeroMul (qInvNat (sqrtDepth m)) (qInvNat (sqrtDepth n))
+            (leQZeroInvNat (sqrtDepth m)) (leQZeroInvNat (sqrtDepth n))))
+
+-- y + (x + y) ≤ (x + x) + (y + y), for nonnegative x
+def slackFits : (x : El Q) (y : El Q) → El (LeQ qZero x) →
+  El (LeQ (qAdd y (qAdd x y)) (qAdd (qAdd x x) (qAdd y y))) ≔
+  λx. λy. λhx.
+    transport Q (λw. LeQ w (qAdd (qAdd x x) (qAdd y y)))
+      (qAdd x (qAdd y y)) (qAdd y (qAdd x y))
+      (sym Q (qAdd y (qAdd x y)) (qAdd x (qAdd y y))
+         (trans Q (qAdd y (qAdd x y)) (qAdd (qAdd y x) y) (qAdd x (qAdd y y))
+            (sym Q (qAdd (qAdd y x) y) (qAdd y (qAdd x y)) (qAddAssoc y x y))
+            (trans Q (qAdd (qAdd y x) y) (qAdd (qAdd x y) y)
+                     (qAdd x (qAdd y y))
+               (cong Q (λw. Q) (λw. qAdd w y) (qAdd y x) (qAdd x y)
+                  (qAddComm y x))
+               (qAddAssoc x y y))))
+      (transport Q (λw. LeQ (qAdd x (qAdd y y)) w)
+         (qAdd x (qAdd x (qAdd y y))) (qAdd (qAdd x x) (qAdd y y))
+         (sym Q (qAdd (qAdd x x) (qAdd y y)) (qAdd x (qAdd x (qAdd y y)))
+            (qAddAssoc x x (qAdd y y)))
+         (leQSelfAddL (qAdd x (qAdd y y)) x hx))
+
+-- ===== regularity =====
+
+def rBoundHalves : (m : ℕ) (n : ℕ) →
+  qAdd (qAdd (qInvNat (sqrtDepth m)) (qInvNat (sqrtDepth m)))
+       (qAdd (qInvNat (sqrtDepth n)) (qInvNat (sqrtDepth n)))
+    ≡ rBound m n ∈ El Q
+  using (real.rBound.eq, sqrtDepth.eq) ≔
+  λm. λn.
+    trans Q (qAdd (qAdd (qInvNat (dbl m)) (qInvNat (dbl m)))
+                  (qAdd (qInvNat (dbl n)) (qInvNat (dbl n))))
+            (qAdd (qInvNat m) (qAdd (qInvNat (dbl n)) (qInvNat (dbl n))))
+            (qAdd (qInvNat m) (qInvNat n))
+      (cong Q (λw. Q) (λw. qAdd w (qAdd (qInvNat (dbl n)) (qInvNat (dbl n))))
+         (qAdd (qInvNat (dbl m)) (qInvNat (dbl m))) (qInvNat m) (qInvHalf m))
+      (cong Q (λw. Q) (λw. qAdd (qInvNat m) w)
+         (qAdd (qInvNat (dbl n)) (qInvNat (dbl n))) (qInvNat n) (qInvHalf n))
+
+def sqrtDir : (p : El RSeq) (m : ℕ) (n : ℕ) →
+  El (LeQ (sqrtSeq p m) (qAdd (sqrtSeq p n) (rBound m n))) using (sqrtDepth.eq, sqrtIdx.eq, sqrtSeq.eq, sqrtT.eq) ≔
+  λp. λm. λn.
+    leQTrans (sqrtSeq p m)
+             (qAdd (qAdd (sqrtSeq p n) (qInvNat (sqrtDepth n)))
+                   (qMul (qOfNat (S (isqrt (sqrtT m n))))
+                         (qMul (qInvNat (sqrtDepth m))
+                               (qInvNat (sqrtDepth n)))))
+             (qAdd (sqrtSeq p n) (rBound m n))
+      (leQSqrtStep (seqOf p (sqrtIdx m)) (seqOf p (sqrtIdx n))
+                   (sqrtDepth m) (sqrtDepth n) (sqrtT m n)
+                   (rBound (sqrtIdx m) (sqrtIdx n))
+         (leQAddOfBnd (rBound (sqrtIdx m) (sqrtIdx n))
+                      (qPos (seqOf p (sqrtIdx m)))
+                      (qPos (seqOf p (sqrtIdx n)))
+            (bndPos (rBound (sqrtIdx m) (sqrtIdx n))
+                    (seqOf p (sqrtIdx m)) (seqOf p (sqrtIdx n))
+               (leQZeroBound (sqrtIdx m) (sqrtIdx n))
+               (regBnd (seqOf p) (regOf p) (sqrtIdx m) (sqrtIdx n))))
+         (leQOfEq (qMul (qMul (rBound (sqrtIdx m) (sqrtIdx n))
+                              (qOfNat (sqNat (sqrtDepth m))))
+                        (qOfNat (sqNat (sqrtDepth n))))
+                  (qOfNat (sqrtT m n))
+            (scaleEq (sqrtDepth m) (sqrtDepth n))))
+      (leQTrans (qAdd (qAdd (sqrtSeq p n) (qInvNat (sqrtDepth n)))
+                      (qMul (qOfNat (S (isqrt (sqrtT m n))))
+                            (qMul (qInvNat (sqrtDepth m))
+                                  (qInvNat (sqrtDepth n)))))
+                (qAdd (qAdd (sqrtSeq p n) (qInvNat (sqrtDepth n)))
+                      (qAdd (qInvNat (sqrtDepth m)) (qInvNat (sqrtDepth n))))
+                (qAdd (sqrtSeq p n) (rBound m n))
+         (leQPlusMonoL (qMul (qOfNat (S (isqrt (sqrtT m n))))
+                             (qMul (qInvNat (sqrtDepth m))
+                                   (qInvNat (sqrtDepth n))))
+                       (qAdd (qInvNat (sqrtDepth m)) (qInvNat (sqrtDepth n)))
+                       (qAdd (sqrtSeq p n) (qInvNat (sqrtDepth n)))
+            (sqrtSlack m n))
+         (transport Q
+            (λw. LeQ w (qAdd (sqrtSeq p n) (rBound m n)))
+            (qAdd (sqrtSeq p n)
+                  (qAdd (qInvNat (sqrtDepth n))
+                        (qAdd (qInvNat (sqrtDepth m))
+                              (qInvNat (sqrtDepth n)))))
+            (qAdd (qAdd (sqrtSeq p n) (qInvNat (sqrtDepth n)))
+                  (qAdd (qInvNat (sqrtDepth m)) (qInvNat (sqrtDepth n))))
+            (sym Q (qAdd (qAdd (sqrtSeq p n) (qInvNat (sqrtDepth n)))
+                         (qAdd (qInvNat (sqrtDepth m))
+                               (qInvNat (sqrtDepth n))))
+                   (qAdd (sqrtSeq p n)
+                         (qAdd (qInvNat (sqrtDepth n))
+                               (qAdd (qInvNat (sqrtDepth m))
+                                     (qInvNat (sqrtDepth n)))))
+               (qAddAssoc (sqrtSeq p n) (qInvNat (sqrtDepth n))
+                          (qAdd (qInvNat (sqrtDepth m))
+                                (qInvNat (sqrtDepth n)))))
+            (leQPlusMonoL (qAdd (qInvNat (sqrtDepth n))
+                                (qAdd (qInvNat (sqrtDepth m))
+                                      (qInvNat (sqrtDepth n))))
+                          (rBound m n)
+                          (sqrtSeq p n)
+               (transport Q
+                  (λw. LeQ (qAdd (qInvNat (sqrtDepth n))
+                                 (qAdd (qInvNat (sqrtDepth m))
+                                       (qInvNat (sqrtDepth n)))) w)
+                  (qAdd (qAdd (qInvNat (sqrtDepth m))
+                              (qInvNat (sqrtDepth m)))
+                        (qAdd (qInvNat (sqrtDepth n))
+                              (qInvNat (sqrtDepth n))))
+                  (rBound m n)
+                  (rBoundHalves m n)
+                  (slackFits (qInvNat (sqrtDepth m)) (qInvNat (sqrtDepth n))
+                     (leQZeroInvNat (sqrtDepth m)))))))
+
+def sqrtDirWD : (p : El RSeq) (p' : El RSeq) (n : ℕ) →
+  ((j : ℕ) → El (Bnd (rBound j j) (qAdd (seqOf p j) (qNeg (seqOf p' j))))) →
+  El (LeQ (sqrtSeq p n) (qAdd (sqrtSeq p' n) (rBound n n)))
+  using (sqrtDepth.eq, sqrtIdx.eq, sqrtSeq.eq, sqrtT.eq) ≔
+  λp. λp'. λn. λhq.
+    leQTrans (sqrtSeq p n)
+             (qAdd (qAdd (sqrtSeq p' n) (qInvNat (sqrtDepth n)))
+                   (qMul (qOfNat (S (isqrt (sqrtT n n))))
+                         (qMul (qInvNat (sqrtDepth n))
+                               (qInvNat (sqrtDepth n)))))
+             (qAdd (sqrtSeq p' n) (rBound n n))
+      (leQSqrtStep (seqOf p (sqrtIdx n)) (seqOf p' (sqrtIdx n))
+                   (sqrtDepth n) (sqrtDepth n) (sqrtT n n)
+                   (rBound (sqrtIdx n) (sqrtIdx n))
+         (leQAddOfBnd (rBound (sqrtIdx n) (sqrtIdx n))
+                      (qPos (seqOf p (sqrtIdx n)))
+                      (qPos (seqOf p' (sqrtIdx n)))
+            (bndPos (rBound (sqrtIdx n) (sqrtIdx n))
+                    (seqOf p (sqrtIdx n)) (seqOf p' (sqrtIdx n))
+               (leQZeroBound (sqrtIdx n) (sqrtIdx n))
+               (hq (sqrtIdx n))))
+         (leQOfEq (qMul (qMul (rBound (sqrtIdx n) (sqrtIdx n))
+                              (qOfNat (sqNat (sqrtDepth n))))
+                        (qOfNat (sqNat (sqrtDepth n))))
+                  (qOfNat (sqrtT n n))
+            (scaleEq (sqrtDepth n) (sqrtDepth n))))
+      (leQTrans (qAdd (qAdd (sqrtSeq p' n) (qInvNat (sqrtDepth n)))
+                      (qMul (qOfNat (S (isqrt (sqrtT n n))))
+                            (qMul (qInvNat (sqrtDepth n))
+                                  (qInvNat (sqrtDepth n)))))
+                (qAdd (qAdd (sqrtSeq p' n) (qInvNat (sqrtDepth n)))
+                      (qAdd (qInvNat (sqrtDepth n)) (qInvNat (sqrtDepth n))))
+                (qAdd (sqrtSeq p' n) (rBound n n))
+         (leQPlusMonoL (qMul (qOfNat (S (isqrt (sqrtT n n))))
+                             (qMul (qInvNat (sqrtDepth n))
+                                   (qInvNat (sqrtDepth n))))
+                       (qAdd (qInvNat (sqrtDepth n)) (qInvNat (sqrtDepth n)))
+                       (qAdd (sqrtSeq p' n) (qInvNat (sqrtDepth n)))
+            (sqrtSlack n n))
+         (transport Q
+            (λw. LeQ w (qAdd (sqrtSeq p' n) (rBound n n)))
+            (qAdd (sqrtSeq p' n)
+                  (qAdd (qInvNat (sqrtDepth n))
+                        (qAdd (qInvNat (sqrtDepth n))
+                              (qInvNat (sqrtDepth n)))))
+            (qAdd (qAdd (sqrtSeq p' n) (qInvNat (sqrtDepth n)))
+                  (qAdd (qInvNat (sqrtDepth n)) (qInvNat (sqrtDepth n))))
+            (sym Q (qAdd (qAdd (sqrtSeq p' n) (qInvNat (sqrtDepth n)))
+                         (qAdd (qInvNat (sqrtDepth n))
+                               (qInvNat (sqrtDepth n))))
+                   (qAdd (sqrtSeq p' n)
+                         (qAdd (qInvNat (sqrtDepth n))
+                               (qAdd (qInvNat (sqrtDepth n))
+                                     (qInvNat (sqrtDepth n)))))
+               (qAddAssoc (sqrtSeq p' n) (qInvNat (sqrtDepth n))
+                          (qAdd (qInvNat (sqrtDepth n))
+                                (qInvNat (sqrtDepth n)))))
+            (leQPlusMonoL (qAdd (qInvNat (sqrtDepth n))
+                                (qAdd (qInvNat (sqrtDepth n))
+                                      (qInvNat (sqrtDepth n))))
+                          (rBound n n)
+                          (sqrtSeq p' n)
+               (transport Q
+                  (λw. LeQ (qAdd (qInvNat (sqrtDepth n))
+                                 (qAdd (qInvNat (sqrtDepth n))
+                                       (qInvNat (sqrtDepth n)))) w)
+                  (qAdd (qAdd (qInvNat (sqrtDepth n))
+                              (qInvNat (sqrtDepth n)))
+                        (qAdd (qInvNat (sqrtDepth n))
+                              (qInvNat (sqrtDepth n))))
+                  (rBound n n)
+                  (rBoundHalves n n)
+                  (slackFits (qInvNat (sqrtDepth n)) (qInvNat (sqrtDepth n))
+                     (leQZeroInvNat (sqrtDepth n)))))))
+
+
+def sqrtRegAt : (p : El RSeq) (m : ℕ) (n : ℕ) →
+  El (Bnd (rBound m n) (qAdd (sqrtSeq p m) (qNeg (sqrtSeq p n)))) ≔
+  λp. λm. λn.
+    bndOfBothLe (rBound m n) (sqrtSeq p m) (sqrtSeq p n)
+      (leQSubShift (sqrtSeq p m) (sqrtSeq p n) (rBound m n) (sqrtDir p m n))
+      (transport Q (λw. LeQ (qAdd (sqrtSeq p n) (qNeg (sqrtSeq p m))) w)
+         (rBound n m) (rBound m n) (rBoundSym n m)
+         (leQSubShift (sqrtSeq p n) (sqrtSeq p m) (rBound n m)
+            (sqrtDir p n m)))
+
+def sqrtReg : (p : El RSeq) → El (Regular (sqrtSeq p)) ≔
+  λp. bndReg (sqrtSeq p) (sqrtRegAt p)
+
+def rSqrt : El RSeq → El RSeq using (real.RSeq.unfold) ≔ λp. (sqrtSeq p , sqrtReg p)
+
+-- ===== well-definedness, and the descent =====
+--
+-- One unary quot-elim: √ takes one argument, so unlike the product
+-- there is no outer/inner split and no commutativity to spend. The
+-- estimate is the SAME comparison lemma at m = n, against the other
+-- representative — sqrtDirWD is sqrtDir with the second sample taken
+-- from p' and the gap supplied by REq instead of by regularity.
+
+def rSqrtWD : (p : El RSeq) (p' : El RSeq) →
+  Prf (REq p p') → Prf (REq (rSqrt p) (rSqrt p')) using (rSqrt.eq, ratBound.Bnd.unfold, real.REq.unfold, real.RSeq.unfold, real.Regular.unfold, realNeg.seqOf.eq) ≔
+  λp. λp'. λh.
+    squash-elim h
+      (u. reqOf (rSqrt p) (rSqrt p')
+            (λn.
+              bndOfBothLe (rBound n n) (sqrtSeq p n) (sqrtSeq p' n)
+                (leQSubShift (sqrtSeq p n) (sqrtSeq p' n) (rBound n n)
+                   (sqrtDirWD p p' n u))
+                (leQSubShift (sqrtSeq p' n) (sqrtSeq p n) (rBound n n)
+                   (sqrtDirWD p' p n
+                      (λj. bndSubSym (rBound j j) (seqOf p j) (seqOf p' j)
+                             (u j))))))
+
+def rSqrtWDCls : (p : El RSeq) (p' : El RSeq) (h : Prf (REq p p')) →
+  class (rSqrt p) ≡ class (rSqrt p') ∈ El Real using (real.REq.unfold, real.RSeq.unfold, real.Real.unfold) ≔
+  λp. λp'. λh. realEqOfREq (rSqrt p) (rSqrt p') (rSqrtWD p p' h)
+
+-- ===== the square root on ℝ =====
+
+def realSqrt : El Real → El Real using (rSqrtWDCls, real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold) ≔
+  λx. quot-elim (w. El Real) (p. class (rSqrt p)) x
+
+def realSqrtCls : (p : El RSeq) →
+  realSqrt (class p) ≡ class (rSqrt p) ∈ El Real using (real.RSeq.unfold, real.Real.unfold, real.Regular.unfold, realSqrt.rSqrt.eq, realSqrt.realSqrt.eq) ≔ λp. ⋆
