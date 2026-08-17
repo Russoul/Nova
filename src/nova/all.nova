@@ -43,6 +43,7 @@ import natDiv
 import natSqrt
 import ratNat
 import ratCeil
+import ratFloor
 import intAbs
 import intGroup
 import ratField

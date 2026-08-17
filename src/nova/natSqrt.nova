@@ -1,9 +1,10 @@
-import nat (+, *, plusZeroId, sucPlus, plusSucId, multComm, sucMult)
-import natOrder (LeN, leRefl, leOfEq, leZero, leZeroInv, leTrans, leSucMono,
-                 leSucInv, leTotal, leMultMonoR)
-import natMore (∸)
+import nat (+, *, plusZeroId, plusAssoc, plusComm, sucPlus, plusSucId,
+            multComm, multDistrib, sucMult)
+import natOrder (LeN, leRefl, leOfEq, leZero, leZeroInv, leTrans, leSucSelf,
+                 leSucMono, leSucInv, leTotal, leMultMonoR, lePlusMonoL)
+import natMore (∸, multDistribR)
 import natDiv (natCase, natCaseElimEqD, leOfMonusZero, ltOfMonusSuc,
-                leSucNotSelf)
+                leSucNotSelf, ltProdSuc)
 import equality (trans, sym, cong, transport)
 import id (Id, idToEq, eqToId)
 
@@ -141,3 +142,94 @@ def isqrtUpper : (m : ℕ) → El (LeN (S m) (S (isqrt m) * S (isqrt m))) ≔
                      (leSelfSquare (isqrt m)) h))))
       (h. h)
       (natCompare (S (isqrt m) * S (isqrt m)) m)
+
+-- ===== squares reflect the order =====
+--
+-- This is the fact ℝ's square root actually runs on. Comparing two
+-- rational approximants r_m and r_n means comparing K_m/(D_m+1) with
+-- (K_n+1)/(D_n+1), and cross-multiplying turns that into a comparison
+-- of NATURALS — where "x² ≤ y² implies x ≤ y" is available (below)
+-- and its ℚ counterpart is not: ℚ has no strict multiplication
+-- monotonicity in the corpus, and getting it would mean sign
+-- multiplicativity or division. At ℕ, natCompare settles it.
+
+def ltSqSuc : (y : ℕ) → El (LeN (S (y * y)) (S y * S y)) ≔
+  λy.
+    leTrans (S (y * y)) (S (y * S y)) (S y * S y)
+      (leSucMono (y * y) (y * S y)
+         (leMultMono y y y (S y) (leRefl y) (leSucSelf y)))
+      (ltProdSuc y y)
+
+def leOfSqLe : (x : ℕ) (y : ℕ) → El (LeN (x * x) (y * y)) → El (LeN x y) ≔
+  λx. λy. λh.
+    ⊎-elim (w. El (LeN x y))
+      (le. le)
+      (lt. 𝟘-elim
+             (leSucNotSelf (y * y)
+                (leTrans (S (y * y)) (x * x) (y * y)
+                   (leTrans (S (y * y)) (S y * S y) (x * x)
+                      (ltSqSuc y) (leSquare (S y) x lt))
+                   h)))
+      (natCompare x y)
+
+-- ===== a square that overshoots by T overshoots by isqrt T =====
+
+def plus4Swap : (a : ℕ) (b : ℕ) (p : ℕ) (q : ℕ) →
+  (a + b) + (p + q) ≡ (a + p) + (q + b) ∈ ℕ ≔
+  λa. λb. λp. λq.
+    ((a + b) + (p + q)
+       ≡⟨ plusAssoc a b (p + q) ⟩
+     a + (b + (p + q))
+       ≡⟨ cong ℕ (λw. ℕ) (λw. a + w) (b + (p + q)) ((b + p) + q)
+            (sym ℕ ((b + p) + q) (b + (p + q)) (plusAssoc b p q)) ⟩
+     a + ((b + p) + q)
+       ≡⟨ cong ℕ (λw. ℕ) (λw. a + (w + q)) (b + p) (p + b) (plusComm p b) ⟩
+     a + ((p + b) + q)
+       ≡⟨ cong ℕ (λw. ℕ) (λw. a + w) ((p + b) + q) (p + (b + q))
+            (plusAssoc p b q) ⟩
+     a + (p + (b + q))
+       ≡⟨ cong ℕ (λw. ℕ) (λw. a + (p + w)) (b + q) (q + b) (plusComm q b) ⟩
+     a + (p + (q + b))
+       ≡⟨ sym ℕ ((a + p) + (q + b)) (a + (p + (q + b))) (plusAssoc a p (q + b)) ⟩
+     (a + p) + (q + b))
+
+def sqExpand : (y : ℕ) (c : ℕ) →
+  (y + c) * (y + c) ≡ (y * y + y * c) + (y * c + c * c) ∈ ℕ ≔
+  λy. λc.
+    ((y + c) * (y + c)
+       ≡⟨ multDistribR (y + c) y c ⟩
+     y * (y + c) + c * (y + c)
+       ≡⟨ cong ℕ (λw. ℕ) (λw. w + c * (y + c)) (y * (y + c)) (y * y + y * c)
+            (multDistrib y y c) ⟩
+     (y * y + y * c) + c * (y + c)
+       ≡⟨ cong ℕ (λw. ℕ) (λw. (y * y + y * c) + w) (c * (y + c)) (c * y + c * c)
+            (multDistrib c y c) ⟩
+     (y * y + y * c) + (c * y + c * c)
+       ≡⟨ cong ℕ (λw. ℕ) (λw. (y * y + y * c) + (w + c * c)) (c * y) (y * c)
+            (multComm y c) ⟩
+     (y * y + y * c) + (y * c + c * c))
+
+def sqSumLe : (y : ℕ) (c : ℕ) → El (LeN (y * y + c * c) ((y + c) * (y + c))) using (natOrder.LeN.unfold) ≔
+  λy. λc.
+    (y * c + y * c ,
+     eqToId ℕ ((y * y + c * c) + (y * c + y * c)) ((y + c) * (y + c))
+       (trans ℕ ((y * y + c * c) + (y * c + y * c))
+                ((y * y + y * c) + (y * c + c * c))
+                ((y + c) * (y + c))
+          (plus4Swap (y * y) (c * c) (y * c) (y * c))
+          (sym ℕ ((y + c) * (y + c)) ((y * y + y * c) + (y * c + c * c))
+             (sqExpand y c))))
+
+def sqrtStepN : (x : ℕ) (y : ℕ) (T : ℕ) →
+  El (LeN (x * x) (y * y + T)) → El (LeN x (y + S (isqrt T))) ≔
+  λx. λy. λT. λh.
+    leOfSqLe x (y + S (isqrt T))
+      (leTrans (x * x) (y * y + T) ((y + S (isqrt T)) * (y + S (isqrt T)))
+         h
+         (leTrans (y * y + T)
+                  (y * y + S (isqrt T) * S (isqrt T))
+                  ((y + S (isqrt T)) * (y + S (isqrt T)))
+            (lePlusMonoL T (S (isqrt T) * S (isqrt T)) (y * y)
+               (leTrans T (S T) (S (isqrt T) * S (isqrt T))
+                  (leSucSelf T) (isqrtUpper T)))
+            (sqSumLe y (S (isqrt T)))))
