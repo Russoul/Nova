@@ -304,6 +304,19 @@ resolveFlex st n = pick (n :: strips n)
       Just _ => q
       Nothing => pick ms
 
+||| `<lemma>.rw` cites a store lemma as a REWRITE rule for the site's
+||| discharges — the named form of the removed store rewriting, one
+||| rule at a time.
+resolveRwName : ElabSt -> String -> Maybe String
+resolveRwName st n = do
+  let True = isSuffixOf ".rw" n
+    | False => Nothing
+  let base = substr 0 (minus (length n) 3) n
+  let q = resolveFlex st base
+  if any (\c => c.candName == q) st.lemmas
+    then Just q
+    else Nothing
+
 resolveEqName : ElabSt -> String -> Maybe String
 resolveEqName st n = do
   let True = isSuffixOf ".eq" n
@@ -322,10 +335,20 @@ resolveEqName st n = do
 resolveUsingNames : String -> List String -> ElabM (List String, List String)
 resolveUsingNames site ns = do
   st <- getSt
-  let (eqNs, lemNs) = partitionEithers (map (\n =>
-        case resolveEqName st n of
-          Just q => Left q
-          Nothing => Right n) ns)
+  -- builtin licenses (`pi.eta`/`sigma.eta`/`hyp.rw`) and `<def>.eq`
+  -- unfold licenses go to the eq-scope; `<lemma>.rw` cites a store
+  -- lemma as a rewrite rule — it enters BOTH the eq-scope (as an
+  -- rw: marker) and the ordinary lemma scope
+  let sorted = map (\n =>
+        if n == "pi.eta" || n == "sigma.eta" || n == "hyp.rw" then ([n], the (List String) []) else
+        case resolveRwName st n of
+          Just q => (["rw:" ++ q], [q])
+          Nothing =>
+            case resolveEqName st n of
+              Just q => ([q], the (List String) [])
+              Nothing => (the (List String) [], [n])) ns
+  let eqNs = concatMap fst sorted
+  let lemNs = concatMap snd sorted
   let rs = map (resolveFlex st) lemNs
   traverse_ (\x =>
     case sigLookup x st.sig of
@@ -335,11 +358,6 @@ resolveUsingNames site ns = do
           then pure ()
           else throw "\{site}: using: '\{x}' is not an equation lemma in the visible store") rs
   pure (rs, eqNs)
- where
-  partitionEithers : List (Either a b) -> (List a, List b)
-  partitionEithers [] = ([], [])
-  partitionEithers (Left x :: rest) = mapFst (x ::) (partitionEithers rest)
-  partitionEithers (Right y :: rest) = mapSnd (y ::) (partitionEithers rest)
 
 ||| Run an action with site-local candidates, an EMPTY Σ-scope (a
 ||| chain never consults the global store) and a depth budget sized to
@@ -1177,9 +1195,29 @@ mutual
 
 rwNfElemS : Sig -> (unfs : List String) -> List Cand -> (side : Bool) -> Elem -> (Elem, List Step)
 rwNfElemS sig unfs cands side e =
-  if strictConv then (compElem (unfElem sig unfs e), []) else
+  if strictConv
+    then
+      -- the strict join — plus, under a cited `hyp.rw` license, the
+      -- rewrite loop RESTRICTED to the site's own hypotheses and chain
+      -- links (local, bounded by the context; never the Σ store)
+      let start = compElem (unfElem sig unfs e) in
+      if elem "hyp.rw" unfs || any (isPrefixOf "rw:") unfs
+        then goS rwFuel [start] start []
+        else (start, [])
+    else
   let start = betaElem sig e in go rwFuel [start] start []
  where
+  hypCs : List Cand
+  hypCs = filter (\c => (elem "hyp.rw" unfs && (c.candName == "hypothesis" || c.candName == "chain link"))
+                      || elem ("rw:" ++ c.candName) unfs) cands
+  goS : Nat -> List Elem -> Elem -> List Step -> (Elem, List Step)
+  goS Z seen t acc = (t, acc)
+  goS (S fuel) seen t acc =
+    case tryCands hypCs (\c => rewriteElemS side c [] 0 t) of
+      Just (t', st) =>
+        let t'' = compElem (unfElem sig unfs t') in
+        if elem t'' seen then (t, acc) else goS fuel (t'' :: seen) t'' (acc ++ st)
+      Nothing => (t, acc)
   go : Nat -> List Elem -> Elem -> List Step -> (Elem, List Step)
   go Z seen t acc = (t, acc)
   go (S fuel) seen t acc =
@@ -1191,9 +1229,26 @@ rwNfElemS sig unfs cands side e =
 
 rwNfTyS : Sig -> (unfs : List String) -> List Cand -> (side : Bool) -> Ty -> (Ty, List Step)
 rwNfTyS sig unfs cands side ty =
-  if strictConv then (compTy (unfTy sig unfs ty), []) else
+  if strictConv
+    then
+      let start = compTy (unfTy sig unfs ty) in
+      if elem "hyp.rw" unfs || any (isPrefixOf "rw:") unfs
+        then goS rwFuel [start] start []
+        else (start, [])
+    else
   let start = betaTy sig ty in go rwFuel [start] start []
  where
+  hypCs : List Cand
+  hypCs = filter (\c => (elem "hyp.rw" unfs && (c.candName == "hypothesis" || c.candName == "chain link"))
+                      || elem ("rw:" ++ c.candName) unfs) cands
+  goS : Nat -> List Ty -> Ty -> List Step -> (Ty, List Step)
+  goS Z seen t acc = (t, acc)
+  goS (S fuel) seen t acc =
+    case tryCands hypCs (\c => rewriteTyS side c [] 0 t) of
+      Just (t', st) =>
+        let t'' = compTy (unfTy sig unfs t') in
+        if elem t'' seen then (t, acc) else goS fuel (t'' :: seen) t'' (acc ++ st)
+      Nothing => (t, acc)
   go : Nat -> List Ty -> Ty -> List Step -> (Ty, List Step)
   go Z seen t acc = (t, acc)
   go (S fuel) seen t acc =
@@ -1517,13 +1572,14 @@ mkCandSet st ctx =
   -- SHRINK hypothesis outranks a size-preserving link in the merged
   -- blocks, so the blocks must not be merged).
   in case (st.localCands, hypCands st sRw ctx) of
-       ([], []) => MkCandSet sCs sRw sHops
+       ([], []) => MkCandSet sCs sRw (if strictConv then [] else sHops)
        (ls, hs) =>
          let (lcs, lsh, lre, lhp) = sigCandParts ls
              (hcs, hsh, hre, hhp) = sigCandParts hs
          in MkCandSet (lcs ++ sCs ++ hcs)
                       (lsh ++ lre ++ sShrink ++ hsh ++ sRest ++ hre)
-                      (lhp ++ sHops ++ hhp)
+                      -- strict mode: chain-link hops only (see candMatchC)
+                      (if strictConv then lhp else lhp ++ sHops ++ hhp)
 
 rwNfElem : ElabSt -> Ctx -> Elem -> Elem
 rwNfElem st ctx e = fst (rwNfElemS st.sig st.eqScope (mkCandSet st ctx).rw True e)
@@ -1682,8 +1738,8 @@ mutual
   -- (f x ≡ g x) becomes a whole-equation candidate for the body once
   -- the context is extended). Terminates: recursion is on cod.
   spEqStructC dep st cs ctx a b (Ty.PiTy dom cod) =
-    -- η: outside the strict subset
-    do guard (not strictConv)
+    -- η: outside the strict subset unless the site cites `pi.eta`
+    do guard (not strictConv || elem "pi.eta" st.eqScope)
        sub <- spEqElemC dep st (extendCS cs) (ctx :< dom)
                 (betaElem st.sig (PiApp (substElem a Wk) (CtxVar 0)))
                 (betaElem st.sig (PiApp (substElem b Wk) (CtxVar 0)))
@@ -1699,8 +1755,8 @@ mutual
     do sub <- spEqElemC dep st cs ctx (engNfE st x) (engNfE st y) domR
        pure (MkECert [] (FInj sub))
   spEqStructC dep st cs ctx a b (Ty.SigmaTy dom cod) =
-    -- pair-η: outside the strict subset
-    if not strictConv && (isPair a || isPair b)
+    -- pair-η: outside the strict subset unless the site cites `sigma.eta`
+    if (not strictConv || elem "sigma.eta" st.eqScope) && (isPair a || isPair b)
       then do c1 <- spEqElemC dep st cs ctx (betaElem st.sig (SigmaElim1 a)) (betaElem st.sig (SigmaElim1 b)) dom
               c2 <- spEqElemC dep st cs ctx (betaElem st.sig (SigmaElim2 a)) (betaElem st.sig (SigmaElim2 b))
                       (substTy cod (Ext Id (SigmaElim1 a)))
@@ -1851,9 +1907,11 @@ mutual
   candMatchC : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Ty -> Maybe ECert
   candMatchC Z _ _ _ _ _ _ = Nothing
   candMatchC (S dep) st cs ctx a b ty =
-    -- hops (automated lemma chaining): outside the strict subset
+    -- hops: in strict mode, only CHAIN LINKS hop (mkCandSet filters) —
+    -- walking the operator's own listed adjacencies is the chain's
+    -- explicit trans semantics, not search
     firstJ (map direct cs.all)
-      <|> (if strictConv then Nothing else firstJ (map hop cs.hops))
+      <|> firstJ (map hop cs.hops)
    where
     firstJ : List (Maybe x) -> Maybe x
     firstJ [] = Nothing
@@ -2833,10 +2891,10 @@ preferSum st ctx ty = case exposeHead st ty of
 exposeProp : ElabSt -> Ctx -> Ty -> Elem -> (Elem, Maybe (Ty, ECert))
 exposeProp st ctx ty p =
   let pR = rwNfElem st ctx p in
-  if pR == p then (p, Nothing)
+  if pR == p then audit "EXPOSEPROP no-rewrite (eqScope \{show st.eqScope})" (p, Nothing)
   else case exposeCert st ctx ty (Prf pR) of
          Just e2 => (pR, Just e2)
-         Nothing => (p, Nothing)
+         Nothing => audit "EXPOSEPROP bridge-fail" (p, Nothing)
 
 preferNu : ElabSt -> Ctx -> Ty -> Maybe (Poly, Maybe (Ty, ECert))
 preferNu st ctx (Ty.NuTy f) = Just (f, Nothing)
@@ -3340,10 +3398,10 @@ mutual
           let stitched = map (map stitchOne . flatSteps) (catMaybes adjCerts)
           case traverse id stitched of
             Just segs =>
-              let cert = MkECert (concat segs) FBeta in
+              let cert = MkECertF Nothing (concat segs) FBeta st.eqScope in
               case kCheckEqElem st.sig ctx kernelFuel cert l r tA of
                 Right () => pure (Just cert)
-                Left _ => fallback
+                Left kerr => audit "CHAIN-COMPOSITE-FAIL \{site}: \{kerr}" fallback
             Nothing => fallback
      where
       fallback : ElabM (Maybe ECert)

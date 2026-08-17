@@ -932,23 +932,23 @@ mutual
         pure (substTy ty (embed es))
       _ => kerr "kernel: bad signature reference in proof"
   inferP sig ctx (PiApp f e) = do
-    fTy <- inferP sig ctx f >>= kTy sig
+    fTy <- inferP sig ctx f >>= kWhnfT sig
     case fTy of
       Ty.PiTy a b => do checkP sig ctx e a; pure (substTy b (Ext Id e))
       _ => kerr "kernel: proof applies a non-function"
   inferP sig ctx (SigmaElim1 t) = do
-    tTy <- inferP sig ctx t >>= kTy sig
+    tTy <- inferP sig ctx t >>= kWhnfT sig
     case tTy of
       Ty.SigmaTy a _ => pure a
       _ => kerr "kernel: proof projects a non-pair"
   inferP sig ctx (SigmaElim2 t) = do
-    tTy <- inferP sig ctx t >>= kTy sig
+    tTy <- inferP sig ctx t >>= kWhnfT sig
     case tTy of
       Ty.SigmaTy _ b => pure (substTy b (Ext Id (SigmaElim1 t)))
       _ => kerr "kernel: proof projects a non-pair"
   -- el-nu-e: fully inference-driven, like the projections
   inferP sig ctx (Out t) = do
-    tTy <- inferP sig ctx t >>= kTy sig
+    tTy <- inferP sig ctx t >>= kWhnfT sig
     case tTy of
       Ty.NuTy f => pure (El (reflectPoly f (Elem.NuTy f)))
       _ => kerr "kernel: proof observes a non-ν element"
@@ -1108,7 +1108,7 @@ mutual
   -- ⊎-elim with a CONSTANT motive (approximation A1): the el-sum-e
   -- instance whose motive is T[↑]; the scrutinee's ⊎-type is inferred
   checkP sig ctx (SumElim l r t) ty = do
-    tTy <- inferP sig ctx t >>= kTy sig
+    tTy <- inferP sig ctx t >>= kWhnfT sig
     case tTy of
       Ty.SumTy a b => do
         checkP sig (ctx :< a) l (substTy ty Wk)
@@ -1882,7 +1882,9 @@ mutual
     MkKM $ \st =>
       case runKMSt (kEqElemGo (KJoin (inh ++ cert.unfolds)) sig ctx cert l r ty) st of
         Right v => Right v
-        Left _ => runKMSt (kEqElemGo KFull sig ctx cert l r ty) st
+        Left e1 => case runKMSt (kEqElemGo KFull sig ctx cert l r ty) st of
+                     Right v => Right v
+                     Left e2 => Left (e2 ++ " [join tier: " ++ e1 ++ "]")
 
   kEqElemGo : KPol -> Sig -> Ctx -> ECert -> Elem -> Elem -> Ty -> KM ()
   kEqElemGo pol sig ctx cert l r ty = do
@@ -1974,13 +1976,18 @@ mutual
       FSigmaCong _ _ => kerr "kernel: Σ-congruence final on an element equation"
       FSumCong _ _ => kerr "kernel: ⊎-congruence final on an element equation"
    where
+    annot : String -> KM a -> KM a
+    annot tag (MkKM f) = MkKM $ \st => case f st of
+      Left e => Left (e ++ " @" ++ tag)
+      Right v => Right v
+
     goSteps : Ty -> List Step -> Elem -> Elem -> KM (Elem, Elem)
     goSteps tyU [] l' r' = pure (l', r')
     goSteps tyU (s :: rest) l' r' =
       if s.onLhs
-        then do l'' <- stepElem pol sig ctx s tyU l' >>= kNfE pol sig
+        then do l'' <- annot "step \{show (length rest)}" (stepElem pol sig ctx s tyU l') >>= kNfE pol sig
                 goSteps tyU rest l'' r'
-        else do r'' <- stepElem pol sig ctx s tyU r' >>= kNfE pol sig
+        else do r'' <- annot "step \{show (length rest)}" (stepElem pol sig ctx s tyU r') >>= kNfE pol sig
                 goSteps tyU rest l' r''
 
   ||| Replay a certificate for the type equation Γ ⊢ A ≐ B (tiered,

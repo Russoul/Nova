@@ -306,7 +306,7 @@ def qInvNatNotZero : (k : ℕ) → (qInvNat k ≡ qZero ∈ El Q) → 𝟘 ≔
 -- those two unit fractions are equal only if the smaller is zero
 def archContra : (a : El Q) (b : El Q) →
   ((k : ℕ) → El (LeQ a (qAdd b (qInvNat k)))) →
-  El (Id Sign (sgnQ (qAdd b (qNeg a))) sNeg) → Prf ⊥ using (rationalOrder.sNeg.eq, rationalOrder.sPos.eq, rationalOrder.sgnFlip.eq) ≔
+  El (Id Sign (sgnQ (qAdd b (qNeg a))) sNeg) → Prf ⊥ using (equality.cong.eq, equality.trans.eq, hyp.rw, id.Id.eq, id.idToEq.eq, rationalOrder.LeQ.eq, rationalOrder.Sign.eq, rationalOrder.sNeg.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnFlip.eq, rationalOrder.sgnQ.eq, rationalQ.Q.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.qInvNat.eq, sgnQSubFlip.eq) ≔
   λa. λb. λhyp. λhneg.
     let hpos : sgnQ (qAdd a (qNeg b)) ≡ sPos ∈ El Sign ≔
       trans Sign (sgnQ (qAdd a (qNeg b))) (sgnFlip (sgnQ (qAdd b (qNeg a)))) sPos

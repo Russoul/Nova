@@ -1,7 +1,7 @@
 import nat (+, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusAssoc)
 import vectByInd (vect)
 
-def vappend : (n : ℕ) → (A : 𝕌) → (m : ℕ) → El (vect n A) → El (vect m A) → El (vect (n + m) A) using (sucPlus, zeroPlusId) ≔
+def vappend : (n : ℕ) → (A : 𝕌) → (m : ℕ) → El (vect n A) → El (vect m A) → El (vect (n + m) A) using (sucPlus.rw, zeroPlusId.rw, vect.eq) ≔
   λn. λA. λm.
     ℕ-elim (k. El (vect k A) → El (vect m A) → El (vect (k + m) A))
       (λv. λw. w)

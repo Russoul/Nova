@@ -185,7 +185,7 @@ def qAddWDInner : (p : El Rat) (q : El Rat) (q' : El Rat) (h : Prf (RatR q q')) 
     intMul (num (ratAdd p q')) (dInt (ratAdd p q))
 
 -- el-quot-eq: a proof of the relation gives equal classes
-def clsEqOfRel : (p : El Rat) (q : El Rat) → Prf (RatR p q) → class p ≡ class q ∈ El Q ≔
+def clsEqOfRel : (p : El Rat) (q : El Rat) → Prf (RatR p q) → class p ≡ class q ∈ El Q using (Q.eq, RatR.eq, rational.Rat.eq) ≔
   λp. λq. λh. ⋆
 
 def qAddWDInnerCls : (p : El Rat) (q : El Rat) (q' : El Rat) (h : Prf (RatR q q')) →

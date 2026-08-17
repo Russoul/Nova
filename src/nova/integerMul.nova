@@ -42,7 +42,7 @@ def swap4b : (p : ℕ) (q : ℕ) (r : ℕ) (s : ℕ) → (p + q) + (r + s) ≡ p
 -- congruence of + in each argument: with h reflected the two sides
 -- are judgemental, so each is one ⋆ (and unlike a rewrite step, a
 -- lemma application is unconstrained by the position it lands in)
-def plusCongL : (x : ℕ) (y : ℕ) (z : ℕ) → (x ≡ y ∈ ℕ) → x + z ≡ y + z ∈ ℕ ≔
+def plusCongL : (x : ℕ) (y : ℕ) (z : ℕ) → (x ≡ y ∈ ℕ) → x + z ≡ y + z ∈ ℕ using (hyp.rw) ≔
   λx. λy. λz. λh. ⋆
 def plusCongR : (x : ℕ) (y : ℕ) (z : ℕ) → (y ≡ z ∈ ℕ) → x + y ≡ x + z ∈ ℕ ≔
   λx. λy. λz. λh. ⋆
@@ -67,7 +67,7 @@ def collectL : (x : ℕ) (y : ℕ) (z : ℕ) (u : ℕ) (v : ℕ) →
 -- sym, no cong wrappers, no repeated midpoints)
 def assocRep : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ) →
   (a1 * b1 + a2 * b2) * c1 + (a1 * b2 + a2 * b1) * c2
-    ≡ a1 * (b1 * c1 + b2 * c2) + a2 * (b1 * c2 + b2 * c1) ∈ ℕ ≔
+    ≡ a1 * (b1 * c1 + b2 * c2) + a2 * (b1 * c2 + b2 * c1) ∈ ℕ using (hyp.rw) ≔
   λa1. λa2. λb1. λb2. λc1. λc2.
     (a1 * b1 + a2 * b2) * c1 + (a1 * b2 + a2 * b1) * c2
       ≡⟨ distribBackR (a1 * b1) (a2 * b2) c1 ⟩
@@ -111,7 +111,7 @@ def sum4DistribR : (x1 : ℕ) (x2 : ℕ) (y1 : ℕ) (y2 : ℕ) (c1 : ℕ) (c2 : 
 -- interchanged, and h makes t ≐ t′.
 def intMulWD : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ)
   (h : Prf (b1 + c2 ≡ b2 + c1 ∈ ℕ)) →
-  (a1 * b1 + a2 * b2) + (a1 * c2 + a2 * c1) ≡ a1 * b2 + a2 * b1 + (a1 * c1 + a2 * c2) ∈ ℕ using (distribBack, distribBackR, sum4Distrib, plusAssoc) ≔
+  (a1 * b1 + a2 * b2) + (a1 * c2 + a2 * c1) ≡ a1 * b2 + a2 * b1 + (a1 * c1 + a2 * c2) ∈ ℕ using (distribBack, distribBackR, hyp.rw, plusAssoc, sum4Distrib) ≔
   λa1. λa2. λb1. λb2. λc1. λc2. λh.
     trans ℕ (a1 * b1 + a2 * b2 + (a1 * c2 + a2 * c1)) (a1 * (b1 + c2) + a2 * (b2 + c1)) (a1 * b2 + a2 * b1 + (a1 * c1 + a2 * c2))
       (sum4Distrib a1 a2 b1 b2 c1 c2)
@@ -120,7 +120,7 @@ def intMulWD : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ)
 -- outer: x varies; the same regrouping, by the right factor
 def intMulWDRep : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : ℕ)
   (h : Prf (a1 + b2 ≡ a2 + b1 ∈ ℕ)) →
-  (a1 * c1 + a2 * c2) + (b1 * c2 + b2 * c1) ≡ a1 * c2 + a2 * c1 + (b1 * c1 + b2 * c2) ∈ ℕ using (distribBack, plusAssoc, plusComm, sum4DistribR) ≔
+  (a1 * c1 + a2 * c2) + (b1 * c2 + b2 * c1) ≡ a1 * c2 + a2 * c1 + (b1 * c1 + b2 * c2) ∈ ℕ using (distribBack, hyp.rw, plusAssoc, plusComm, sum4DistribR) ≔
   λa1. λa2. λb1. λb2. λc1. λc2. λh.
     trans ℕ (a1 * c1 + a2 * c2 + (b1 * c2 + b2 * c1)) ((a1 + b2) * c1 + (a2 + b1) * c2) (a2 * c1 + a1 * c2 + (b2 * c2 + b1 * c1))
       (sum4DistribR a1 a2 b1 b2 c1 c2)
@@ -176,7 +176,7 @@ def oneMult : (m : ℕ) → S Z * m ≡ m ∈ ℕ using (multComm) ≔ λm. ⋆
 -- class (u₁,u₂) ≡ class (v₁,v₂) from the two component equations:
 -- reflection makes the components judgemental, so this is one ⋆
 def classCong2 : (u1 : ℕ) (u2 : ℕ) (v1 : ℕ) (v2 : ℕ) →
-  (u1 ≡ v1 ∈ ℕ) → (u2 ≡ v2 ∈ ℕ) → class (u1 , u2) ≡ class (v1 , v2) ∈ El Int ≔
+  (u1 ≡ v1 ∈ ℕ) → (u2 ≡ v2 ∈ ℕ) → class (u1 , u2) ≡ class (v1 , v2) ∈ El Int using (hyp.rw) ≔
   λu1. λu2. λv1. λv2. λh1. λh2. ⋆
 
 -- multiplication by 1 on the LEFT does not compute (nat.nova's * is
@@ -242,11 +242,11 @@ def intMulDistribL : (x : El Int) (y : El Int) (z : El Int) →
 -- congruence in both arguments, for building chains: reflection makes
 -- the hypotheses judgemental, so each is one ⋆
 def intAddCong2 : (x : El Int) (y : El Int) (u : El Int) (v : El Int) →
-  (x ≡ u ∈ El Int) → (y ≡ v ∈ El Int) → intAdd x y ≡ intAdd u v ∈ El Int ≔
+  (x ≡ u ∈ El Int) → (y ≡ v ∈ El Int) → intAdd x y ≡ intAdd u v ∈ El Int using (hyp.rw) ≔
   λx. λy. λu. λv. λh1. λh2. ⋆
 
 def intMulCong2 : (x : El Int) (y : El Int) (u : El Int) (v : El Int) →
-  (x ≡ u ∈ El Int) → (y ≡ v ∈ El Int) → intMul x y ≡ intMul u v ∈ El Int ≔
+  (x ≡ u ∈ El Int) → (y ≡ v ∈ El Int) → intMul x y ≡ intMul u v ∈ El Int using (hyp.rw) ≔
   λx. λy. λu. λv. λh1. λh2. ⋆
 
 -- distributivity on the right, from the left law by commuting thrice

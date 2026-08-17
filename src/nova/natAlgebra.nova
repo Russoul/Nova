@@ -41,7 +41,7 @@ def natAlgInitial : (A : 𝕌) (a : El (IsNatAlgebra A)) →
 -- a's endomap of the induction hypothesis' common value.
 def natAlgHomUnique : (A : 𝕌) (a : El (IsNatAlgebra A))
   (f : El (NatAlgHom ℕ A natAlg a)) (g : El (NatAlgHom ℕ A natAlg a))
-  (n : ℕ) → f .π₁ n ≡ g .π₁ n ∈ El A using (id.Id.eq, natAlgebra.natAlg.eq) ≔
+  (n : ℕ) → f .π₁ n ≡ g .π₁ n ∈ El A using (hyp.rw, id.Id.eq, natAlgebra.natAlg.eq) ≔
   λA. λa. λf. λg. λn.
     ℕ-elim (k. f .π₁ k ≡ g .π₁ k ∈ El A)
       (let hf ≔ idToEq A (f .π₁ Z) (a .π₁) (f .π₂ .π₁) in

@@ -2,4 +2,4 @@ defined triv
 defined boom [+1 obligation]
 open obligations (1):
   [1] ⊢ Z ≐ S Z : ℕ
-      at: def boom: checking ⋆ [replay failed: kernel: proof argument type mismatch]
+      at: def boom: checking ⋆ [replay failed: kernel: proof argument type mismatch @step 0 [join tier: kernel: proof argument type mismatch @step 0]]
