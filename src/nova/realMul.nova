@@ -1,4 +1,5 @@
-import nat (+, *, plusZeroId, zeroPlusId, sucPlus, plusComm, sucMult, multComm)
+import nat (+, *, plusZeroId, zeroPlusId, sucPlus, plusSucId, plusComm, sucMult,
+            multComm)
 import integer (Int, intOne)
 import integerMul (intMul, intMulOneL, intMulOneR)
 import intOrder (intOfNat, intOfNatMul)
@@ -12,8 +13,10 @@ import ratAbs (bndMul, qNegMulR)
 import ratNat (qOfNat, qOfNatAdd, leQOfNat)
 import ratCeil (qNatBound)
 import ratArch (bndOfArch)
-import real (qInvNat, rBound, leQZeroBound, Regular, RSeq, REq, Real)
-import realNeg (seqOf, regOf, regBnd, bndReg, reqOf)
+import real (qInvNat, rBound, leQZeroBound, Regular, RSeq, REq, Real,
+             constReg, realOfQ)
+import realNeg (seqOf, regOf, regBnd, bndReg, reqOf, realEqOfREq)
+import realSeq (rseqEq, wdOuterOfComm, realEqOfSeqEq)
 import realBound (seqBound, bndSeqBound, seqBoundPos)
 import equality (trans, sym, cong, transport, transportP)
 
@@ -548,29 +551,124 @@ def rMulWDInner : (p : El RSeq) (q : El RSeq) (q' : El RSeq) →
                 (qAdd (mulSeq p q n) (qNeg (mulSeq p q' n)))
                 (λk. rMulWDStep p q q' u n k)))
 
--- ===== how far this goes, and why it stops here =====
+-- ===== the descent =====
 --
--- Everything above is the mathematics of ℝ's product: the sequence,
--- its regularity, and the well-definedness estimate in full. What is
--- NOT here is the descent itself —
+-- Under the strict engine this is the ordinary quot-elim descent, the
+-- same shape realAdd uses, and the whole module elaborates in ~2 s.
+-- It was NOT ordinary under the old engine. There, every type
+-- mentioning `rMul p q` normalised both mulReg's proof term and
+-- seqBound's unfolding through divN's fuel recursion, and these items
+-- cost 3.5 minutes (rMulWDInnerCls), >6 minutes (rMulComm) and, for
+-- the descent itself, more than ten — the module shipped without them.
+-- Naming the δ is what made them cheap: with the unfolds licensed
+-- rather than ambient, conversion only walks what is cited. B-16 in
+-- docs/ProvingFeedback.md has the before/after.
 --
---   realMul : El Real → El Real → El Real
+-- One item still had to be reshaped rather than licensed: rMulComm's
+-- pointwise step goes through `mulSeqCommAt`, abstract in both
+-- sequences and both depths. Written inline it is 8.5 s even under the
+-- strict engine, because the cong motive puts the two ceilings in the
+-- conversion; abstracted, it is free and the call site cites three
+-- unfolds. D-3 still earns its keep.
+
+def rMulWDInnerCls : (p : El RSeq) (q : El RSeq) (q' : El RSeq)
+  (h : Prf (REq q q')) →
+  class (rMul p q) ≡ class (rMul p q') ∈ El Real using (real.REq.unfold, real.RSeq.unfold, real.Real.unfold) ≔
+  λp. λq. λq'. λh. realEqOfREq (rMul p q) (rMul p q') (rMulWDInner p q q' h)
+
+-- ===== the sampling depth is symmetric =====
 --
--- and it is blocked by elaboration COST, not by any missing argument.
--- The reason is worth recording. `rMul p q` is a pair whose second
--- component is `mulReg p q`, a large proof term, and whose sampling
--- index mentions `seqBound`, which unfolds through `qNatBound` →
--- `qFloor` → `divN` → `dmAux`'s fuel recursion. Conversion in Nova is
--- by normalisation, so every type that MENTIONS `rMul p q` pays for
--- all of that:
---
---   rMulWDStep   (types mention only mulSeq)          ~1 s
---   rMulWDInner  (types mention rMul)                ~31 s
---   rMulWDInnerCls (one more class equation)        ~3.5 min
---   rMulComm via rseqEq                              >6 min
---   the descent itself                              did not finish
---
--- The fix is not in this file: either conversion has to stop
--- normalising under a projection whose result is discarded, or the
--- corpus needs a rational ceiling whose normal form is small. Both are
--- recorded in docs/ProvingFeedback.md.
+-- `mulPred p q` is seqBound p + S (qNatBound (seqOf q Z)) and seqBound
+-- is S (S (qNatBound ·)), so both depths are a + b + 3 — but only up
+-- to plusComm, not on the nose. Proved once at two naturals, so the
+-- ceilings never have to be looked at.
+def ssAddComm : (a : ℕ) (b : ℕ) → S (S a) + S b ≡ S (S b) + S a ∈ ℕ ≔
+  λa. λb.
+    (S (S a) + S b
+       ≡⟨ sucPlus (S a) (S b) ⟩
+     S (S a + S b)
+       ≡⟨ cong ℕ (λw. ℕ) (λw. S w) (S a + S b) (S (a + S b)) (sucPlus a (S b)) ⟩
+     S (S (a + S b))
+       ≡⟨ cong ℕ (λw. ℕ) (λw. S (S w)) (a + S b) (S (a + b)) (plusSucId a b) ⟩
+     S (S (S (a + b)))
+       ≡⟨ cong ℕ (λw. ℕ) (λw. S (S (S w))) (a + b) (b + a) (plusComm b a) ⟩
+     S (S (S (b + a)))
+       ≡⟨ sym ℕ (S (S (b + S a))) (S (S (S (b + a))))
+            (cong ℕ (λw. ℕ) (λw. S (S w)) (b + S a) (S (b + a)) (plusSucId b a)) ⟩
+     S (S (b + S a))
+       ≡⟨ sym ℕ (S (S b + S a)) (S (S (b + S a)))
+            (cong ℕ (λw. ℕ) (λw. S w) (S b + S a) (S (b + S a)) (sucPlus b (S a))) ⟩
+     S (S b + S a)
+       ≡⟨ sym ℕ (S (S b) + S a) (S (S b + S a)) (sucPlus (S b) (S a)) ⟩
+     S (S b) + S a)
+
+def mulPredComm : (p : El RSeq) (q : El RSeq) →
+  mulPred p q ≡ mulPred q p ∈ ℕ using (realBound.seqBound.eq, realMul.mulPred.eq) ≔
+  λp. λq. ssAddComm (qNatBound (seqOf p Z)) (qNatBound (seqOf q Z))
+
+-- the pointwise step, at abstract sequences and abstract depths: the
+-- two products differ by qMulComm and by the depth, and the depth
+-- difference is an argument. Keeping it abstract is what keeps the
+-- ceilings out of the conversion (D-3).
+def mulSeqCommAt : (f : El (ℕ → Q)) (g : El (ℕ → Q)) (c : ℕ) (d : ℕ) (n : ℕ) →
+  (c ≡ d ∈ ℕ) →
+  qMul (f (mulIdx c n)) (g (mulIdx c n))
+    ≡ qMul (g (mulIdx d n)) (f (mulIdx d n)) ∈ El Q ≔
+  λf. λg. λc. λd. λn. λh.
+    (qMul (f (mulIdx c n)) (g (mulIdx c n))
+       ≡⟨ qMulComm (f (mulIdx c n)) (g (mulIdx c n)) ⟩
+     qMul (g (mulIdx c n)) (f (mulIdx c n))
+       ≡⟨ cong ℕ (λw. Q) (λw. qMul (g (mulIdx w n)) (f (mulIdx w n))) c d h ⟩
+     qMul (g (mulIdx d n)) (f (mulIdx d n)))
+
+-- ...and hence the product itself commutes ON REPRESENTATIVES: the two
+-- sequences are pointwise equal, which rseqEq lifts to RSeq because
+-- RSeq is a set
+def rMulComm : (x : El RSeq) (y : El RSeq) →
+  rMul x y ≡ rMul y x ∈ El RSeq using (realMul.mulSeq.eq, realMul.rMul.eq, realNeg.seqOf.eq) ≔
+  λx. λy.
+    rseqEq (rMul x y) (rMul y x)
+      (λn. mulSeqCommAt (seqOf x) (seqOf y) (mulPred x y) (mulPred y x) n
+             (mulPredComm x y))
+
+-- outer well-definedness, spent in one line against commutativity
+def rMulWDOuterCls : (x : El RSeq) (x' : El RSeq) (c : El RSeq)
+  (h : Prf (REq x x')) →
+  class (rMul x c) ≡ class (rMul x' c) ∈ El Real using (real.REq.unfold, real.RSeq.unfold, real.Real.unfold) ≔
+  wdOuterOfComm rMul rMulComm rMulWDInnerCls
+
+def rMulWDOuter : (x : El RSeq) (x' : El RSeq) (h : Prf (REq x x')) (v : El Real) →
+  quot-elim (w. El Real) (q. class (rMul x q)) v
+    ≡ quot-elim (w. El Real) (q. class (rMul x' q)) v ∈ El Real using (rMulWDInnerCls, real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold) ≔
+  λx. λx'. λh. λv.
+    quot-elim (w. quot-elim (z. El Real) (q. class (rMul x q)) w
+                    ≡ quot-elim (z. El Real) (q. class (rMul x' q)) w ∈ El Real)
+      (c. rMulWDOuterCls x x' c h)
+      v
+
+-- ===== multiplication on ℝ =====
+
+def realMul : El Real → El Real → El Real using (rMulWDInnerCls, rMulWDOuter, real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold) ≔
+  λu. λv. quot-elim (w. El Real) (p. quot-elim (w. El Real) (q. class (rMul p q)) v) u
+
+def realMulCls : (x : El RSeq) (y : El RSeq) →
+  realMul (class x) (class y) ≡ class (rMul x y) ∈ El Real using (real.RSeq.unfold, real.Real.unfold, real.Regular.unfold, realMul.rMul.eq, realMul.realMul.eq) ≔ λx. λy. ⋆
+
+def realMulComm : (u : El Real) (v : El Real) →
+  realMul u v ≡ realMul v u ∈ El Real using (real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold, realMul.realMul.eq) ≔
+  λu. λv.
+    quot-elim (w. realMul w v ≡ realMul v w ∈ El Real)
+      (p. quot-elim (w. realMul (class p) w ≡ realMul w (class p) ∈ El Real)
+            (q. cong RSeq (λw. Real) (λw. class w) (rMul p q) (rMul q p)
+                  (rMulComm p q))
+            v)
+      u
+
+-- the embedding of ℚ is a homomorphism: both products are the constant
+-- sequence at a·b, at every sampling depth
+def realMulOfQ : (a : El Q) (b : El Q) →
+  realMul (realOfQ a) (realOfQ b) ≡ realOfQ (qMul a b) ∈ El Real using (rationalQ.Q.unfold, real.RSeq.unfold, real.Real.unfold, real.constReg.eq, real.realOfQ.eq, realMul.mulSeq.eq, realMul.rMul.eq, realMul.realMul.eq, realNeg.seqOf.eq) ≔
+  λa. λb.
+    realEqOfSeqEq (rMul ((λn. a) , constReg a) ((λn. b) , constReg b))
+                  ((λn. qMul a b) , constReg (qMul a b))
+      (λn. ⋆)
