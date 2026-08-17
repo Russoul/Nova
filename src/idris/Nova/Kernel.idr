@@ -1604,7 +1604,15 @@ goE pol sig ctx lic@(le, re, ltyN) [] b mexp u = do
   -- unlicensed unfold (a lemma statement or type index outside the
   -- cited set) stay verifiable. Sound: δβ is a sub-relation of ≐, and
   -- the rescue widens only this one positional comparison, never the
-  -- equation being replayed.
+  -- equation being replayed. DELIBERATELY full δβ, not
+  -- license-bounded: bounding by names reachable from the compared
+  -- terms is vacuous (that IS full δβ), and the principled bound —
+  -- the transitive closure of cited items' acceptance-time license
+  -- sets — needs Σ to record those sets and is not known to cover
+  -- what the rescues absorb (type indices reach positions no
+  -- citation names). Decision 2026-08: keep full δβ here; revisit
+  -- together with kWhnf* exposure if the kernel ever goes
+  -- fully license-bounded (docs/PerfNotes.md).
   tyOk <- if expN == weakenTyN b ltyN
             then pure True
             else do e1 <- kTy sig expN

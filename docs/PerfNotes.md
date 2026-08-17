@@ -900,3 +900,26 @@ rather than decomposed).
 End state: one mode. all.nova Accepted in ~14s, 138/138 tests,
 71/71 elaborations in both store modes; ~600 lines of dual-path
 machinery gone.
+
+### Decision: the rescues stay full δβ (2026-08-17)
+
+Considered license-bounding the three per-component rescues and
+decided against, for now. The design space: (a) bounding by names
+reachable from the two compared terms is VACUOUS — full δβ only ever
+unfolds what occurs, so that bound is a rename; (b) widening the
+certificate's license set globally is DANGEROUS — licenses feed the
+join normalizers everywhere, and importing a cited lemma's statement
+vocabulary would shift the goal's own normal forms (the poison rule);
+(c) the principled variant — rescue under the transitive closure of
+the cited items' acceptance-time license sets, applied only inside
+the three point comparisons — is coherent but needs Σ to record
+acceptance-time license sets (it doesn't), and it is not established
+that the closure covers what the rescues actually absorb: a type
+index at a rewrite position comes from the goal's type, which no
+citation may name. The rescues are sound (δβ ⊆ ≐), rare, and
+component-local, so the buy would be cost-predictability of the
+trusted path, not soundness or speed. Revisit together with the
+license-free kWhnf* exposure if the kernel is ever made fully
+license-bounded; first step then: instrument the rescue sites to log
+the vocabulary diff across the corpus and check it against the
+citation closure.
