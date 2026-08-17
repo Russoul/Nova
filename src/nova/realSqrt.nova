@@ -1,21 +1,24 @@
 import nat (+, *)
 import natOrder (LeN)
 import natSqrt (isqrt, isqrtLtOfLt, sqSumStrict)
-import rationalQ (Q, qAdd, qMul, qNeg, qZero, qOne, qAddComm, qAddAssoc,
+import rationalQ (Q, qAdd, qMul, qNeg, qZero, qOne, qMulZeroL, qAddComm, qAddAssoc,
                   qMulComm, qMulAssoc, qMulOneL, qMulOneR, qDistribR)
 import rationalOrder (LeQ, leQTrans, leQOfEq, leQMulMono, leQPlusMonoL)
 import ratBound (Bnd, bndOfBothLe, bndSubSym, leQSelfAddL, leQAdd)
 import ratHalf (dbl, qInvHalf, leQZeroInvNat)
 import ratArch (leQSubShift)
-import ratMax (leQAddOfBnd)
+import ratMax (leQAddOfBnd, qMax, qMaxSelf)
 import ratAbs (leQZeroMul)
-import ratNat (qOfNat, qOfNatAdd, qOfNatMul, leQOfNat)
-import ratCeil (leQZeroNat)
+import ratNat (qOfNat, qOfNatAdd, qOfNatMul, qOfNatZero, leQOfNat)
+import ratCeil (leQZeroNat, qFloor)
 import ratSqrt (qPos, bndPos, sqNat, qSqrtAt, qMulInvNat, qInvNatMulIdx,
                 leQSqrtStep, qMulSwap3, qMulLeftComm)
-import real (qInvNat, rBound, leQZeroBound, Regular, RSeq, REq, Real)
+import natSqrt (isqrtAux)
+import real (qInvNat, rBound, leQZeroBound, Regular, RSeq, REq, Real,
+             constReg, realZero)
 import realNeg (seqOf, regOf, regBnd, bndReg, reqOf, rBoundSym, realEqOfREq)
 import realMul (mulIdx)
+import realSeq (rseqEq)
 import equality (trans, sym, cong, transport)
 
 -- THE SQUARE ROOT of a real, on representatives.
@@ -474,3 +477,60 @@ def realSqrt : El Real → El Real using (rSqrtWDCls, real.REq.unfold, real.RSeq
 
 def realSqrtCls : (p : El RSeq) →
   realSqrt (class p) ≡ class (rSqrt p) ∈ El Real using (real.RSeq.unfold, real.Real.unfold, real.Regular.unfold, realSqrt.rSqrt.eq, realSqrt.realSqrt.eq) ≔ λp. ⋆
+
+-- ===== it computes: √0 = 0 =====
+--
+-- A smoke test with teeth: it forces the whole stack — qMax, the
+-- scaling, qFloor's quot-elim, isqrt's search — to actually reduce.
+
+def qFloorZero : qFloor qZero ≡ Z ∈ ℕ
+  using (intAbs.intMag.eq, intAbs.magPair.eq, intAbs.nzMag.eq, integer.intZero.eq, nat.+.eq, natDiv.divN.eq, natDiv.dmAux.eq, natDiv.natCase.eq, natMore.∸.eq, ratCeil.qFloor.eq, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.nzOne.eq, rational.nzPos.eq, rational.ratOfInt.eq, rational.ratZero.eq, rationalQ.qZero.eq, rationalQ.qcls.eq) ≔ ⋆
+
+def isqrtZero : isqrt Z ≡ Z ∈ ℕ
+  using (natSqrt.isqrt.eq, natSqrt.isqrtAux.eq) ≔ ⋆
+
+def qSqrtAtZero : (D : ℕ) → qSqrtAt qZero D ≡ qZero ∈ El Q
+  using (ratSqrt.qSqrtAt.eq, ratSqrt.qSqrtNum.eq, ratSqrt.qFl.eq,
+         ratSqrt.qScaled.eq, ratSqrt.qPos.eq) ≔
+  λD.
+    trans Q (qMul (qOfNat (isqrt (qFloor (qMul (qMax qZero qZero)
+                                               (qOfNat (sqNat D))))))
+                  (qInvNat D))
+            (qMul (qOfNat Z) (qInvNat D))
+            qZero
+      (cong ℕ (λw. Q) (λw. qMul (qOfNat w) (qInvNat D))
+         (isqrt (qFloor (qMul (qMax qZero qZero) (qOfNat (sqNat D))))) Z
+         (trans ℕ (isqrt (qFloor (qMul (qMax qZero qZero)
+                                       (qOfNat (sqNat D)))))
+                  (isqrt Z) Z
+            (cong ℕ (λw. ℕ) (λw. isqrt w)
+               (qFloor (qMul (qMax qZero qZero) (qOfNat (sqNat D)))) Z
+               (trans ℕ (qFloor (qMul (qMax qZero qZero) (qOfNat (sqNat D))))
+                        (qFloor qZero) Z
+                  (cong Q (λw. ℕ) (λw. qFloor w)
+                     (qMul (qMax qZero qZero) (qOfNat (sqNat D))) qZero
+                     (trans Q (qMul (qMax qZero qZero) (qOfNat (sqNat D)))
+                              (qMul qZero (qOfNat (sqNat D))) qZero
+                        (cong Q (λw. Q) (λw. qMul w (qOfNat (sqNat D)))
+                           (qMax qZero qZero) qZero (qMaxSelf qZero))
+                        (qMulZeroL (qOfNat (sqNat D)))))
+                  qFloorZero))
+            isqrtZero))
+      (trans Q (qMul (qOfNat Z) (qInvNat D)) (qMul qZero (qInvNat D)) qZero
+         (cong Q (λw. Q) (λw. qMul w (qInvNat D)) (qOfNat Z) qZero qOfNatZero)
+         (qMulZeroL (qInvNat D)))
+
+def rSqrtZero : rSqrt ((λn. qZero) , constReg qZero)
+  ≡ ((λn. qZero) , constReg qZero) ∈ El RSeq
+  using (real.RSeq.unfold, realNeg.seqOf.eq, realSqrt.rSqrt.eq, realSqrt.sqrtSeq.eq) ≔
+  rseqEq (rSqrt ((λn. qZero) , constReg qZero))
+         ((λn. qZero) , constReg qZero)
+    (λn. qSqrtAtZero (sqrtDepth n))
+
+def realSqrtZero : realSqrt realZero ≡ realZero ∈ El Real
+  using (real.Real.unfold, real.RSeq.unfold, real.Regular.unfold,
+         real.realZero.eq, real.realOfQ.eq, realSqrt.realSqrt.eq) ≔
+  cong RSeq (λw. Real) (λw. class w)
+    (rSqrt ((λn. qZero) , constReg qZero))
+    ((λn. qZero) , constReg qZero)
+    rSqrtZero
