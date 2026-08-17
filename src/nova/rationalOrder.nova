@@ -219,7 +219,8 @@ def sgnQ : El Q → El Sign using (ratSgnWD) ≔
 
 def sgnQCls : (p : El Rat) → sgnQ (qcls p) ≡ ratSgn p ∈ El Sign
   using (rationalOrder.ratSgn.eq, rationalOrder.sgnQ.eq, rationalQ.qcls.eq) ≔ λp. ⋆
-def sgnQZero : sgnQ qZero ≡ sZero ∈ El Sign ≔ ⋆
+def sgnQZero : sgnQ qZero ≡ sZero ∈ El Sign
+  using (sgnQCls.rw, intSgnZero.rw, intMulZeroL.rw, rational.denInt.eq, rational.mkRat.eq, rational.num.eq, rational.ratOfInt.eq, rational.ratZero.eq, rationalOrder.ratSgn.eq, rationalQ.qZero.eq) ≔ ⋆
 
 -- ===== negation and the sign flip =====
 
@@ -567,21 +568,27 @@ def intSgnPosAdd : (a : El Int) (b : El Int) →
                (sym Int (nzToInt (nzPos (vb .π₁))) b (vb .π₂)))))
       ⋆
 
+-- ratSgn, spelled in the nzToInt∘den vocabulary the shuffling lemmas
+-- speak (denInt is its definitional alias)
+def ratSgnIs : (p : El Rat) →
+  ratSgn p ≡ intSgn (intMul (num p) (nzToInt (den p))) ∈ El Sign
+  using (rational.den.eq, rational.denInt.eq, rationalOrder.ratSgn.eq) ≔ λp. ⋆
+
 -- the two cross terms of a fraction sum, scaled by the common
 -- denominator, carry their fraction's sign: shuffle to
 -- (num·den)·(den'·den') and drop the square
 def ratCrossPosL : (p : El Rat) (q : El Rat) →
   (ratSgn p ≡ sPos ∈ El Sign) →
   intSgn (intMul (intScale (den q) (num p)) (nzToInt (nzMul (den p) (den q))))
-    ≡ sPos ∈ El Sign using (integerMul.intMul.eq, rational.den.eq, rational.denInt.eq, rational.num.eq, rational.nzToInt.eq, rationalOrder.intSgn.eq, rationalOrder.ratSgn.eq) ≔
+    ≡ sPos ∈ El Sign using (ratSgnIs.rw) ≔
   λp. λq. λhp.
     trans Sign
       (intSgn (intMul (intScale (den q) (num p)) (nzToInt (nzMul (den p) (den q)))))
-      (intSgn (intMul (intMul (num p) (denInt p)) (intMul (denInt q) (denInt q))))
+      (intSgn (intMul (intMul (num p) (nzToInt (den p))) (intMul (nzToInt (den q)) (nzToInt (den q)))))
       sPos
       (cong Int (λv. Sign) (λv. intSgn v)
          (intMul (intScale (den q) (num p)) (nzToInt (nzMul (den p) (den q))))
-         (intMul (intMul (num p) (denInt p)) (intMul (denInt q) (denInt q)))
+         (intMul (intMul (num p) (nzToInt (den p))) (intMul (nzToInt (den q)) (nzToInt (den q))))
          ((intMul (intScale (den q) (num p)) (nzToInt (nzMul (den p) (den q)))
              ≡⟨ cong Int (λv. Int) (λv. intMul v (nzToInt (nzMul (den p) (den q))))
                   (intScale (den q) (num p)) (intMul (nzToInt (den q)) (num p))
@@ -604,24 +611,24 @@ def ratCrossPosL : (p : El Rat) (q : El Rat) →
            intMul (intMul (num p) (nzToInt (den p)))
                   (intMul (nzToInt (den q)) (nzToInt (den q))))))
       (trans Sign
-         (intSgn (intMul (intMul (num p) (denInt p)) (intMul (denInt q) (denInt q))))
-         (intSgn (intMul (num p) (denInt p)))
+         (intSgn (intMul (intMul (num p) (nzToInt (den p))) (intMul (nzToInt (den q)) (nzToInt (den q)))))
+         (intSgn (intMul (num p) (nzToInt (den p))))
          sPos
-         (intSgnMulSq (intMul (num p) (denInt p)) (den q))
+         (intSgnMulSq (intMul (num p) (nzToInt (den p))) (den q))
          hp)
 
 def ratCrossPosR : (p : El Rat) (q : El Rat) →
   (ratSgn q ≡ sPos ∈ El Sign) →
   intSgn (intMul (intScale (den p) (num q)) (nzToInt (nzMul (den p) (den q))))
-    ≡ sPos ∈ El Sign using (integerMul.intMul.eq, rational.den.eq, rational.denInt.eq, rational.num.eq, rational.nzToInt.eq, rationalOrder.intSgn.eq, rationalOrder.ratSgn.eq) ≔
+    ≡ sPos ∈ El Sign using (ratSgnIs.rw) ≔
   λp. λq. λhq.
     trans Sign
       (intSgn (intMul (intScale (den p) (num q)) (nzToInt (nzMul (den p) (den q)))))
-      (intSgn (intMul (intMul (num q) (denInt q)) (intMul (denInt p) (denInt p))))
+      (intSgn (intMul (intMul (num q) (nzToInt (den q))) (intMul (nzToInt (den p)) (nzToInt (den p)))))
       sPos
       (cong Int (λv. Sign) (λv. intSgn v)
          (intMul (intScale (den p) (num q)) (nzToInt (nzMul (den p) (den q))))
-         (intMul (intMul (num q) (denInt q)) (intMul (denInt p) (denInt p)))
+         (intMul (intMul (num q) (nzToInt (den q))) (intMul (nzToInt (den p)) (nzToInt (den p))))
          ((intMul (intScale (den p) (num q)) (nzToInt (nzMul (den p) (den q)))
              ≡⟨ cong Int (λv. Int) (λv. intMul v (nzToInt (nzMul (den p) (den q))))
                   (intScale (den p) (num q)) (intMul (nzToInt (den p)) (num q))
@@ -644,10 +651,10 @@ def ratCrossPosR : (p : El Rat) (q : El Rat) →
            intMul (intMul (num q) (nzToInt (den q)))
                   (intMul (nzToInt (den p)) (nzToInt (den p))))))
       (trans Sign
-         (intSgn (intMul (intMul (num q) (denInt q)) (intMul (denInt p) (denInt p))))
-         (intSgn (intMul (num q) (denInt q)))
+         (intSgn (intMul (intMul (num q) (nzToInt (den q))) (intMul (nzToInt (den p)) (nzToInt (den p)))))
+         (intSgn (intMul (num q) (nzToInt (den q))))
          sPos
-         (intSgnMulSq (intMul (num q) (denInt q)) (den p))
+         (intSgnMulSq (intMul (num q) (nzToInt (den q))) (den p))
          hq)
 
 -- positive fractions add to a positive fraction
@@ -875,18 +882,25 @@ def leQPlusMonoL : (x : El Q) (y : El Q) (w : El Q) →
       (transport Q (λv. LeQ (qAdd x w) v) (qAdd y w) (qAdd w y) (qAddComm y w)
          (leQPlusMono x y w le))
 
+-- the sign of a product, spelled on the components
+def ratSgnMulIs : (p : El Rat) (q : El Rat) →
+  ratSgn (ratMul p q)
+    ≡ intSgn (intMul (intMul (num p) (num q)) (nzToInt (nzMul (den p) (den q))))
+    ∈ El Sign
+  using (rational.den.eq, rational.denInt.eq, rational.mkRat.eq, rational.num.eq, rationalOrder.ratSgn.eq, rationalQ.ratMul.eq) ≔ λp. λq. ⋆
+
 -- positive fractions multiply to a positive fraction: interchange
 -- num·num · den·den into (num·den)·(num·den)
 def ratMulPos : (p : El Rat) (q : El Rat) →
   (ratSgn p ≡ sPos ∈ El Sign) → (ratSgn q ≡ sPos ∈ El Sign) →
-  ratSgn (ratMul p q) ≡ sPos ∈ El Sign using (intNonZero.nzOfInt.eq, integerMul.intMul.eq, rational.den.eq, rational.denInt.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzNeg.eq, rational.nzPos.eq, rational.nzToInt.eq, rationalOrder.intSgn.eq, rationalOrder.nzSgn.eq, rationalOrder.ratSgn.eq, rationalOrder.sZero.eq, rationalQ.ratMul.eq) ≔
+  ratSgn (ratMul p q) ≡ sPos ∈ El Sign using (ratSgnIs.rw, ratSgnMulIs) ≔
   λp. λq. λhp. λhq.
     trans Sign (ratSgn (ratMul p q))
-          (intSgn (intMul (intMul (num p) (denInt p)) (intMul (num q) (denInt q))))
+          (intSgn (intMul (intMul (num p) (nzToInt (den p))) (intMul (num q) (nzToInt (den q)))))
           sPos
       (cong Int (λv. Sign) (λv. intSgn v)
          (intMul (intMul (num p) (num q)) (nzToInt (nzMul (den p) (den q))))
-         (intMul (intMul (num p) (denInt p)) (intMul (num q) (denInt q)))
+         (intMul (intMul (num p) (nzToInt (den p))) (intMul (num q) (nzToInt (den q))))
          ((intMul (intMul (num p) (num q)) (nzToInt (nzMul (den p) (den q)))
              ≡⟨ cong Int (λv. Int) (λv. intMul (intMul (num p) (num q)) v)
                   (nzToInt (nzMul (den p) (den q)))
@@ -896,7 +910,7 @@ def ratMulPos : (p : El Rat) (q : El Rat) →
              ≡⟨ mulPairSwap (num p) (num q) (nzToInt (den p)) (nzToInt (den q)) ⟩
            intMul (intMul (num p) (nzToInt (den p)))
                   (intMul (num q) (nzToInt (den q))))))
-      (intSgnPosMul (intMul (num p) (denInt p)) (intMul (num q) (denInt q)) hp hq)
+      (intSgnPosMul (intMul (num p) (nzToInt (den p))) (intMul (num q) (nzToInt (den q))) hp hq)
 
 def sgnQMulPos : (u : El Q) (v : El Q) →
   (sgnQ u ≡ sPos ∈ El Sign) → (sgnQ v ≡ sPos ∈ El Sign) →

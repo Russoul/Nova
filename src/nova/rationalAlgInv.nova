@@ -131,7 +131,11 @@ def invRepWD : (p : El Rat) (p' : El Rat) (h : Prf (RatR p p')) →
 
 -- ===== the inverse on ℚ =====
 
-def qInv : El Q → El Q using (invRepWD) ≔
+def invRepWDCls : (p : El Rat) (p' : El Rat) (h : Prf (RatR p p')) →
+  class (invRep p) ≡ class (invRep p') ∈ El Q using (rationalQ.RatR.eq) ≔
+  λp. λp'. λh. clsEqOfRel (invRep p) (invRep p') (invRepWD p p' h)
+
+def qInv : El Q → El Q using (invRepWDCls) ≔
   λu. quot-elim (w. El Q) (p. class (invRep p)) u
 
 def qInvCls : (p : El Rat) → qInv (qcls p) ≡ qcls (invRep p) ∈ El Q
@@ -184,7 +188,7 @@ def invRepCorrectAt : (p : El Rat) (hnz : Prf (¬ (num p ≡ intZero ∈ El Int)
       v
 
 def qMulInvR : (u : El Q) (h : Prf (¬ (u ≡ qZero ∈ El Q))) →
-  qMul u (qInv u) ≡ qOne ∈ El Q using (eqInt.intCanon.eq, eqInt.intCanonClass.eq, intNonZero.nzOfInt.eq, intNonZero.nzOfIntAt.eq, integerMul.intMul.eq, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.ratZero.eq, rationalAlgInv.invRep.eq, rationalAlgInv.invRepAt.eq, rationalAlgInv.qInv.eq, rationalInv.intCanonProdZero.eq, rationalQ.dInt.eq, rationalQ.qMul.eq, rationalQ.ratMul.eq) ≔
+  qMul u (qInv u) ≡ qOne ∈ El Q using (pi.eta, eqInt.intCanon.eq, eqInt.intCanonClass.eq, intNonZero.nzOfInt.eq, intNonZero.nzOfIntAt.eq, integerMul.intMul.eq, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.ratZero.eq, rationalAlgInv.invRep.eq, rationalAlgInv.invRepAt.eq, rationalAlgInv.qInv.eq, rationalInv.intCanonProdZero.eq, rationalQ.dInt.eq, rationalQ.qMul.eq, rationalQ.ratMul.eq) ≔
   λu.
     quot-elim (w. Prf (¬ (w ≡ qZero ∈ El Q)) → (qMul w (qInv w) ≡ qOne ∈ El Q))
       (p. λh. invRepCorrectAt p (numNonZero p h) (nzOfInt (num p)))
@@ -235,7 +239,8 @@ def qInvUniqueVal : (u : El Q) (v : El Q) (v' : El Q)
 def invPairCong : (u : El Q) (a : El Q) (a' : El Q)
   (b : Prf (qMul u a ≡ qOne ∈ El Q)) (b' : Prf (qMul u a' ≡ qOne ∈ El Q))
   (h : Prf (a ≡ a' ∈ El Q)) →
-  (a , b) ≡ (a' , b') ∈ ((v : El Q) ⨯ Prf (qMul u v ≡ qOne ∈ El Q)) ≔
+  (a , b) ≡ (a' , b') ∈ ((v : El Q) ⨯ Prf (qMul u v ≡ qOne ∈ El Q))
+  using (hyp.rw, sigma.eta) ≔
   λu. λa. λa'. λb. λb'. λh. ⋆
 
 -- so any two inverse-witnesses are equal, given as pairs

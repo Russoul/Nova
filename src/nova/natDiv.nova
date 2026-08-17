@@ -151,7 +151,7 @@ def modN : ℕ → ℕ → ℕ ≔ λa. λb. (dmAux a a b) .π₂
 
 def dmAuxEq : (f : ℕ) (a : ℕ) (b : ℕ) → El (LeN a f) →
   a ≡ (dmAux f a b) .π₁ * S b + (dmAux f a b) .π₂ ∈ ℕ
-  using (natDiv.dmAux.eq, natDiv.natCase.eq, zeroMult, zeroPlusId) ≔
+  using (hyp.rw, natDiv.dmAux.eq, natDiv.natCase.eq, zeroMult, zeroMult.rw, zeroPlusId, zeroPlusId.rw) ≔
   λf.
     ℕ-elim (k. (a : ℕ) (b : ℕ) → El (LeN a k) →
              (a ≡ (dmAux k a b) .π₁ * S b + (dmAux k a b) .π₂ ∈ ℕ))

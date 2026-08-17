@@ -86,14 +86,14 @@ def ∸ : ℕ → ℕ → ℕ ≔ λa. λb. ℕ-elim (k. ℕ) a (k ih. pred ih) 
 def monusZeroR : (a : ℕ) → a ∸ Z ≡ a ∈ ℕ using (natMore.∸.eq) ≔ λa. ⋆
 def monusSucR : (a : ℕ) (b : ℕ) → a ∸ S b ≡ pred (a ∸ b) ∈ ℕ using (natMore.pred.eq, natMore.∸.eq) ≔ λa. λb. ⋆
 
-def zeroMonus : (b : ℕ) → Z ∸ b ≡ Z ∈ ℕ using (natMore.monusZeroR) ≔
+def zeroMonus : (b : ℕ) → Z ∸ b ≡ Z ∈ ℕ using (hyp.rw, natMore.monusZeroR, natMore.monusZeroR.rw, natMore.monusSucR, natMore.monusSucR.rw, natMore.pred.eq) ≔
   λb. ℕ-elim (k. Z ∸ k ≡ Z ∈ ℕ) ⋆ (k ih. ⋆) b
 
 def sucMonusSuc : (a : ℕ) (b : ℕ) → S a ∸ S b ≡ a ∸ b ∈ ℕ using (natMore.pred.eq, natMore.∸.eq) ≔
   λa. λb. ℕ-elim (k. S a ∸ S k ≡ a ∸ k ∈ ℕ) ⋆ (k ih. ⋆) b
 
 -- (a + b) − b is a, on the nose
-def plusMonus : (a : ℕ) (b : ℕ) → (a + b) ∸ b ≡ a ∈ ℕ using (nat.+.eq, natMore.∸.eq, sucMonusSuc) ≔
+def plusMonus : (a : ℕ) (b : ℕ) → (a + b) ∸ b ≡ a ∈ ℕ using (hyp.rw, plusZeroId, plusZeroId.rw, plusSucId, plusSucId.rw, natMore.monusZeroR, natMore.monusZeroR.rw, sucMonusSuc, sucMonusSuc.rw) ≔
   λa. λb. ℕ-elim (k. (a + k) ∸ k ≡ a ∈ ℕ) ⋆ (k ih. ⋆) b
 
 -- subtracting a sum is subtracting twice
@@ -101,7 +101,7 @@ def monusPlus : (a : ℕ) (b : ℕ) (c : ℕ) →
   a ∸ (b + c) ≡ (a ∸ b) ∸ c ∈ ℕ using (nat.+.eq, natMore.∸.eq) ≔
   λa. λb. λc. ℕ-elim (k. a ∸ (b + k) ≡ (a ∸ b) ∸ k ∈ ℕ) ⋆ (k ih. ⋆) c
 
-def monusSelf : (a : ℕ) → a ∸ a ≡ Z ∈ ℕ using (natMore.zeroMonus, sucMonusSuc) ≔
+def monusSelf : (a : ℕ) → a ∸ a ≡ Z ∈ ℕ using (hyp.rw, natMore.zeroMonus, natMore.zeroMonus.rw, sucMonusSuc, sucMonusSuc.rw) ≔
   λa. ℕ-elim (k. k ∸ k ≡ Z ∈ ℕ) ⋆ (k ih. ⋆) a
 
 -- ...so a ≤ b makes a − b vanish
@@ -187,17 +187,41 @@ def ^ : ℕ → ℕ → ℕ ≔ λa. λn. ℕ-elim (k. ℕ) (S Z) (k ih. a * ih)
 def expZero : (a : ℕ) → a ^ Z ≡ S Z ∈ ℕ using (natMore.^.eq) ≔ λa. ⋆
 def expSuc : (a : ℕ) (n : ℕ) → a ^ S n ≡ a * a ^ n ∈ ℕ using (nat.*.eq, natMore.^.eq) ≔ λa. λn. ⋆
 
-def oneExp : (n : ℕ) → S Z ^ n ≡ S Z ∈ ℕ using (multComm, natMore.expZero) ≔
+def oneExp : (n : ℕ) → S Z ^ n ≡ S Z ∈ ℕ using (hyp.rw, natMore.expZero, natMore.expZero.rw, natMore.expSuc, natMore.expSuc.rw, multSucId, multSucId.rw, multZeroId, multZeroId.rw, plusZeroId, plusZeroId.rw) ≔
   λn. ℕ-elim (k. S Z ^ k ≡ S Z ∈ ℕ) ⋆ (k ih. ⋆) n
 
+-- x * (y * z) ≡ y * (x * z): the left-swap under associativity,
+-- stated in the exact shape expPlus's step case needs
+def multLeftComm : (x : ℕ) (y : ℕ) (z : ℕ) → x * (y * z) ≡ y * (x * z) ∈ ℕ ≔
+  λx. λy. λz.
+    (x * (y * z)
+       ≡⟨ multAssoc x y z ⟩
+     x * y * z
+       ≡⟨ cong ℕ (λu. ℕ) (λw. w * z) (x * y) (y * x) (multComm y x) ⟩
+     y * x * z
+       ≡⟨ multAssoc y x z ⟩
+     y * (x * z))
+
 def expPlus : (a : ℕ) (m : ℕ) (n : ℕ) →
-  a ^ (m + n) ≡ a ^ m * a ^ n ∈ ℕ using (multAssoc, multComm, nat.*.eq, nat.+.eq, natMore.^.eq) ≔
-  λa. λm. λn. ℕ-elim (k. a ^ (m + k) ≡ a ^ m * a ^ k ∈ ℕ) ⋆ (k ih. ⋆) n
+  a ^ (m + n) ≡ a ^ m * a ^ n ∈ ℕ using (hyp.rw, plusZeroId, plusZeroId.rw, natMore.expZero, natMore.expZero.rw, multSucId, multSucId.rw, multZeroId, multZeroId.rw) ≔
+  λa. λm. λn. ℕ-elim (k. a ^ (m + k) ≡ a ^ m * a ^ k ∈ ℕ) ⋆
+    (k ih.
+      (a ^ (m + S k)
+         ≡⟨ plusSucId m k ⟩
+       a ^ S (m + k)
+         ≡⟨ expSuc a (m + k) ⟩
+       a * a ^ (m + k)
+         ≡⟨ ih ⟩
+       a * (a ^ m * a ^ k)
+         ≡⟨ multLeftComm a (a ^ m) (a ^ k) ⟩
+       a ^ m * (a * a ^ k)
+         ≡⟨ expSuc a k ⟩
+       a ^ m * a ^ S k)) n
 
 -- ===== monus and a common summand =====
 
 def monusPlusR : (a : ℕ) (b : ℕ) (k : ℕ) →
-  (a + k) ∸ (b + k) ≡ a ∸ b ∈ ℕ using (nat.+.eq, natMore.∸.eq, sucMonusSuc) ≔
+  (a + k) ∸ (b + k) ≡ a ∸ b ∈ ℕ using (hyp.rw, plusZeroId, plusZeroId.rw, plusSucId, plusSucId.rw, sucMonusSuc, sucMonusSuc.rw) ≔
   λa. λb. λk. ℕ-elim (j. (a + j) ∸ (b + j) ≡ a ∸ b ∈ ℕ) ⋆ (j ih. ⋆) k
 
 def monusPlusL : (k : ℕ) (a : ℕ) (b : ℕ) →

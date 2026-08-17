@@ -163,7 +163,8 @@ def qAbsOfNonNeg : (u : El Q) → El (LeQ qZero u) → qAbs u ≡ u ∈ El Q ≔
 def qAbsAbs : (u : El Q) → qAbs (qAbs u) ≡ qAbs u ∈ El Q ≔
   λu. qAbsOfNonNeg (qAbs u) (leQZeroAbs u)
 
-def qAbsZero : qAbs qZero ≡ qZero ∈ El Q ≔ ⋆
+def qAbsZero : qAbs qZero ≡ qZero ∈ El Q ≔
+  qAbsOfNonNeg qZero (leQRefl qZero)
 
 -- ===== |·| is multiplicative =====
 --

@@ -47,7 +47,7 @@ def bisimRefl : (a : 𝕌) (s : El (stream a)) → Prf (bisim a s s) ≔
 -- heads are observation 0, and shifting the index moves under one
 -- tail (nth n (tl x) ≐ nth (S n) x, judgementally)
 def obsEqBisim : (a : 𝕌) (s : El (stream a)) (t : El (stream a)) →
-    Prf (obsEq a s t) → Prf (bisim a s t) ≔
+    Prf (obsEq a s t) → Prf (bisim a s t) using (streamEq.nth.eq, stream.hd.eq, stream.tl.eq, streamEq.tlN.eq) ≔
   λa. λs. λt. λh.
     ⋆ ((λx. λy. obsEq a x y) ,
        ((λx. λy. λp. (squash-elim p (w. w Z) ,
@@ -56,7 +56,7 @@ def obsEqBisim : (a : 𝕌) (s : El (stream a)) (t : El (stream a)) →
 
 -- bisim ⊃ obsEq: unfold n times, by ℕ-induction over the depth
 def bisimObsEq : (a : 𝕌) (s : El (stream a)) (t : El (stream a)) →
-    Prf (bisim a s t) → Prf (obsEq a s t) ≔
+    Prf (bisim a s t) → Prf (obsEq a s t) using (streamEq.nth.eq, stream.hd.eq, stream.tl.eq, streamEq.tlN.eq) ≔
   λa. λs. λt. λh.
     ⋆ (λn. (ℕ-elim (m. (x : El (stream a)) → (y : El (stream a)) →
                 Prf (bisim a x y) → Prf (nth a m x ≡ nth a m y ∈ El a))
@@ -74,7 +74,7 @@ def mapIdBisim : (a : 𝕌) (s : El (stream a)) →
 -- laws as the one-step closure. This is the theorem that upgrades
 -- every observational result below it to a judgemental equation.
 def bisimReflect : (a : 𝕌) (s : El (stream a)) (t : El (stream a)) →
-    Prf (bisim a s t) → Prf (s ≡ t ∈ El (stream a)) using (hyp.rw, stream.hd.eq, stream.stream.eq) ≔
+    Prf (bisim a s t) → Prf (s ≡ t ∈ El (stream a)) using (hyp.rw, stream.hd.eq, stream.stream.eq, bisim.eq, stream.tl.eq) ≔
   λa. λs. λt. λh.
     coind (x y. bisim a x y) h
           (x y hb. ⋆ (bisimHd a x y hb , bisimTl a x y hb))

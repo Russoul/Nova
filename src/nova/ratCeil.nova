@@ -82,7 +82,15 @@ def qFloorWD : (N : El Int) (d : El NZ) (N' : El Int) (d' : El NZ)
     divNUnique (intMag N) (nzMag d) (intMag N') (nzMag d')
       (crossAbs (mkRat N d) (mkRat N' d') h)
 
-def qFloor : El Q → ℕ using (qFloorWD) ≔
+-- the same fact, restated over whole representatives: this is the
+-- vocabulary the quot-elim well-definedness goal is phrased in
+def qFloorRepWD : (p : El Rat) (p' : El Rat) → Prf (RatR p p') →
+  divN (intMag (p .π₁)) (nzMag (p .π₂))
+    ≡ divN (intMag (p' .π₁)) (nzMag (p' .π₂)) ∈ ℕ
+  using (rationalQ.RatR.eq, rationalQ.dInt.eq, rational.num.eq, rational.den.eq) ≔
+  λp. λp'. λh. qFloorWD (p .π₁) (p .π₂) (p' .π₁) (p' .π₂) h
+
+def qFloor : El Q → ℕ using (qFloorRepWD, rationalQ.RatR.eq, rationalQ.dInt.eq, rational.num.eq, rational.den.eq) ≔
   λu. quot-elim (w. ℕ) (p. divN (intMag (p .π₁)) (nzMag (p .π₂))) u
 
 def qNatBound : El Q → ℕ ≔ λu. S (qFloor u)
@@ -93,9 +101,11 @@ def qNatBoundCls : (p : El Rat) →
   λp. ⋆
 
 -- ½ and 2/4 are the same rational, and get the same bound: 1
-def qNatBoundHalf : qNatBound (qcls (mkRat intOne (nzPos (S Z)))) ≡ S Z ∈ ℕ ≔ ⋆
+def qNatBoundHalf : qNatBound (qcls (mkRat intOne (nzPos (S Z)))) ≡ S Z ∈ ℕ
+  using (intAbs.intMag.eq, intAbs.magPair.eq, intAbs.nzMag.eq, integer.intOne.eq, nat.+.eq, natDiv.divN.eq, natDiv.dmAux.eq, natDiv.natCase.eq, natMore.∸.eq, natMore.pred.eq, ratCeil.qFloor.eq, ratCeil.qNatBound.eq, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.nzPos.eq, rationalQ.qcls.eq) ≔ ⋆
 def qNatBoundQuarters :
-  qNatBound (qcls (mkRat (class (S (S Z) , Z)) (nzPos (S (S (S Z)))))) ≡ S Z ∈ ℕ ≔ ⋆
+  qNatBound (qcls (mkRat (class (S (S Z) , Z)) (nzPos (S (S (S Z)))))) ≡ S Z ∈ ℕ
+  using (intAbs.intMag.eq, intAbs.magPair.eq, intAbs.nzMag.eq, nat.+.eq, natDiv.divN.eq, natDiv.dmAux.eq, natDiv.natCase.eq, natMore.∸.eq, natMore.pred.eq, ratCeil.qFloor.eq, ratCeil.qNatBound.eq, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.nzPos.eq, rationalQ.qcls.eq) ≔ ⋆
 
 -- ===== the sign of a fraction with positive denominator =====
 
@@ -198,7 +208,7 @@ def intOfNatMagNonNeg : (z : El Int) →
 def qDiffNatFrac : (m : ℕ) (b : ℕ) (K : ℕ) →
   qAdd (qOfNat K) (qNeg (qcls (mkRat (intOfNat m) (nzPos b))))
     ≡ qcls (mkRat (class (S b * K , m)) (nzPos b)) ∈ El Q
-  using (intOrder.intOfNat.eq, integer.intNeg.eq, integerAdd.intAdd.eq, plusComm, ratNat.qOfNat.eq, rational.den.eq, rational.intScale.eq, rational.intScaleN.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzNeg.eq, rational.nzOne.eq, rational.nzPos.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, rationalQ.qcls.eq, zeroPlusId) ≔
+  using (intOrder.intOfNat.eq, integer.intNeg.eq, integerAdd.intAdd.eq, nat.multZeroId.rw, plusComm, plusZeroId.rw, ratNat.qOfNat.eq, rational.den.eq, rational.intScale.eq, rational.intScaleN.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzNeg.eq, rational.nzOne.eq, rational.nzPos.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, rationalQ.qcls.eq, zeroPlusId.rw) ≔
   λm. λb. λK.
     trans Q (qAdd (qOfNat K) (qNeg (qcls (mkRat (intOfNat m) (nzPos b)))))
             (qcls (mkRat (intAdd (intScale (nzPos b) (intOfNat K))

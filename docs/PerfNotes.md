@@ -752,3 +752,59 @@ default all.nova        6:07        1:24
 strict  all.nova          —         12.4s  (169 obligations to migrate)
 realLimClose (item)     230s        ~4s
 ```
+
+## The migration completes: zero obligations under strict conversion
+
+The remaining 132 obligations were migrated by hand and by six
+parallel agents working module-disjoint groups with the license
+toolkit. The recurring patterns, for the record:
+
+* **The poison rule governs everything.** A `<def>.eq` license
+  unfolds the def in the GOAL sides only — cited lemmas and chain
+  links keep it folded — so each item must speak one consistent
+  vocabulary: either license the unfold and match nothing folded
+  through it, or keep it folded and rewrite with folded-vocabulary
+  `.rw` rules. Several fixes were license REMOVALS.
+* Old calc chains whose steps rewrote inside quot-elim scrutinees
+  became explicit trans/sym compositions with identical midpoints
+  (the kernel positions lemma applications freely; path-addressed
+  steps it does not).
+* Chain adjacencies discharge against their own link with congruence
+  descent and both orientations, so links are bare inner-lemma
+  applications or `ih` — no sym/cong wrappers.
+* First-argument congruence of a binary operator is outside the
+  engine (app-cong at unequal heads is not valid in general);
+  explicit `cong` or a helper lemma covers it.
+* QIIT equation-constructor lemmas store raw-constructor sides;
+  goals keep the surface constructors folded — licensing the
+  constructors' `.eq` unfolds reconnects them.
+* Quot-elim well-definedness goals arrive phrased over whole
+  representatives or over the REPRESENTED relation; a helper lemma
+  restating the existing componentwise fact in the site's exact
+  shape closes them by whole-equation match with condition-filling.
+* Coinductive observation proofs = `hyp.rw` (the unpacked invariant
+  equations) + `.eq` of the corecursive machines, so `out (machine)`
+  computes.
+* Engine fixes landed along the way: hop residues in the join
+  vocabulary, license-gated hypothesis/Σ-lemma hops, weak-head
+  exposure in the proof-element inferencer, and the `pi.eta`/
+  `sigma.eta`/`hyp.rw`/`<lemma>.rw` license family.
+
+End state, this commit:
+
+```
+strict all.nova     Accepted, ZERO obligations, 13.1s wall
+                    (elaborate 11.3s: kernel replay 4.9s + item
+                     admission 4.8s + engine 0.6s; parse 1.9s;
+                     realLimClose 6.8s of it — the transitional
+                     kernel's δβ fallbacks, deletable with KFull)
+default all.nova    Accepted, 1:19
+tests               138/138 both modes
+```
+
+Session arc for the corpus: 6:07 (default, at the campaign's start)
+→ 1:24 default / 12.4s strict with 169 obligations → **13.1s strict
+with zero obligations**. The strict subset is now self-sufficient
+over the whole corpus; retiring default mode — and with it the KFull
+replay tier, `stepElem`'s δβ internals, and the def-nf memo — is a
+decision, not a migration.

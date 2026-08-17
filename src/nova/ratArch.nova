@@ -75,7 +75,7 @@ def nonNegSgnFrac : (a : ℕ) (b : ℕ) → El (NonNegS (sgnQ (qFrac a b))) ≔
 def fracNumEq : (a : ℕ) (b : ℕ) →
   intAdd (intScale (nzPos b) (intOfNat (S a))) (intScale (nzPos b) (intNeg intOne))
     ≡ intOfNat (S b * a) ∈ El Int
-  using (multZeroId, zeroPlusId, plusZeroId, multSucId) ≔
+  using (multZeroId.rw, zeroPlusId.rw, plusZeroId.rw, multSucId.rw, integer.Int.eq, integer.IntR.eq, integer.intNeg.eq, integer.intOne.eq, integerAdd.intAdd.eq, intOrder.intOfNat.eq, rational.intScale.eq, rational.intScaleN.eq, rational.nzPos.eq) ≔
   λa. λb. ⋆
 
 def qDiffFracInv : (a : ℕ) (b : ℕ) →
@@ -100,22 +100,29 @@ def leQInvFrac : (a : ℕ) (b : ℕ) → El (LeQ (qInvNat b) (qFrac (S a) b)) �
 
 -- ===== normalizing the denominator's sign =====
 
+-- the cross-multiplication behind qNegDen, in folded vocabulary
+def negDenCross : (N : El Int) (b : ℕ) →
+  intMul (intNeg N) (intNeg (nzToInt (nzPos b)))
+    ≡ intMul N (nzToInt (nzPos b)) ∈ El Int ≔
+  λN. λb.
+    (intMul (intNeg N) (intNeg (nzToInt (nzPos b)))
+       ≡⟨ intMulNegL N (intNeg (nzToInt (nzPos b))) ⟩
+     intNeg (intMul N (intNeg (nzToInt (nzPos b))))
+       ≡⟨ cong Int (λv. Int) (λv. intNeg v)
+            (intMul N (intNeg (nzToInt (nzPos b))))
+            (intNeg (intMul N (nzToInt (nzPos b))))
+            (intMulNegR N (nzToInt (nzPos b))) ⟩
+     intNeg (intNeg (intMul N (nzToInt (nzPos b))))
+       ≡⟨ intNegNeg (intMul N (nzToInt (nzPos b))) ⟩
+     intMul N (nzToInt (nzPos b)))
+
 -- N/(−(b+1)) and (−N)/(b+1) are the same rational
 def qNegDen : (N : El Int) (b : ℕ) →
   qcls (mkRat (intNeg N) (nzPos b)) ≡ qcls (mkRat N (nzNeg b)) ∈ El Q
-  using (integer.intNeg.eq, rational.mkRat.eq, rational.nzNeg.eq, rational.nzPos.eq, rationalQ.qcls.eq) ≔
+  using (integer.intNeg.eq, rational.den.eq, rational.mkRat.eq, rational.num.eq, rational.nzNeg.eq, rational.nzPos.eq, rational.nzToInt.eq, rationalQ.RatR.eq, rationalQ.dInt.eq, rationalQ.qcls.eq) ≔
   λN. λb.
     clsEqOfRel (mkRat (intNeg N) (nzPos b)) (mkRat N (nzNeg b))
-      (intMul (intNeg N) (intNeg (nzToInt (nzPos b)))
-         ≡⟨ intMulNegL N (intNeg (nzToInt (nzPos b))) ⟩
-       intNeg (intMul N (intNeg (nzToInt (nzPos b))))
-         ≡⟨ cong Int (λv. Int) (λv. intNeg v)
-              (intMul N (intNeg (nzToInt (nzPos b))))
-              (intNeg (intMul N (nzToInt (nzPos b))))
-              (intMulNegR N (nzToInt (nzPos b))) ⟩
-       intNeg (intNeg (intMul N (nzToInt (nzPos b))))
-         ≡⟨ intNegNeg (intMul N (nzToInt (nzPos b))) ⟩
-       intMul N (nzToInt (nzPos b)))
+      (negDenCross N b)
 
 -- every rational has a representative with a POSITIVE denominator
 def PosDenView : El Q → 𝕌 ≔
@@ -317,18 +324,17 @@ def archContra : (a : El Q) (b : El Q) →
            ⋆) in
     squash-elim (qArch (qAdd a (qNeg b)) hpos)
       (w.
-        let k ≔ w .π₁ in
-        let hup : qInvNat k ≡ qInvNat (dbl k) ∈ El Q ≔
-          leQAntisym (qInvNat k) (qInvNat (dbl k))
-            (leQTrans (qInvNat k) (qAdd a (qNeg b)) (qInvNat (dbl k))
+        let hup : qInvNat (w .π₁) ≡ qInvNat (dbl (w .π₁)) ∈ El Q ≔
+          leQAntisym (qInvNat (w .π₁)) (qInvNat (dbl (w .π₁)))
+            (leQTrans (qInvNat (w .π₁)) (qAdd a (qNeg b)) (qInvNat (dbl (w .π₁)))
                (w .π₂)
-               (leQSubShift a b (qInvNat (dbl k)) (hyp (dbl k))))
-            (leQInvDbl k) in
-        ⋆ (qInvNatNotZero (dbl k)
-             (qAddSelfCancel (qInvNat (dbl k))
-                (trans Q (qAdd (qInvNat (dbl k)) (qInvNat (dbl k)))
-                       (qInvNat k) (qInvNat (dbl k))
-                   (qInvHalf k) hup))))
+               (leQSubShift a b (qInvNat (dbl (w .π₁))) (hyp (dbl (w .π₁)))))
+            (leQInvDbl (w .π₁)) in
+        ⋆ (qInvNatNotZero (dbl (w .π₁))
+             (qAddSelfCancel (qInvNat (dbl (w .π₁)))
+                (trans Q (qAdd (qInvNat (dbl (w .π₁))) (qInvNat (dbl (w .π₁))))
+                       (qInvNat (w .π₁)) (qInvNat (dbl (w .π₁)))
+                   (qInvHalf (w .π₁)) hup))))
 
 -- ...so "a ≤ b + 1/(k+1) for every k" collapses to "a ≤ b"
 def leQOfArch : (a : El Q) (b : El Q) →

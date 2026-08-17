@@ -30,7 +30,7 @@ def intOfNatPlus : (a : ℕ) (b : ℕ) →
   intAdd (intOfNat a) (intOfNat b) ≡ intOfNat (a + b) ∈ El Int
   using (intOrder.intOfNat.eq, integerAdd.intAdd.eq, nat.+.eq) ≔ λa. λb. ⋆
 def intOfNatInjZ : (k : ℕ) → (intOfNat k ≡ intZero ∈ El Int) → k ≡ Z ∈ ℕ
-  using (intOrder.intOfNat.eq, integer.intZero.eq) ≔
+  using (hyp.rw, intOrder.intOfNat.eq, integer.intZero.eq, nat.plusZeroId, nat.plusZeroId.rw) ≔
   λk. λh. let r ≔ intEffective (k , Z) (Z , Z) h in ⋆
 
 -- x + ofNat (a + b) ≡ (x + ofNat a) + ofNat b, hypothesis-free
@@ -264,8 +264,21 @@ def leZOfNat : (a : ℕ) (b : ℕ) → El (LeN a b) →
 -- (ProvingFeedback D-3): instantiated at intCanon's projections the
 -- engine would match against the δ-UNFOLDED canon — a bare quot-elim
 -- that proof-spine inference cannot type.
+-- the represented relation behind clsOfRelGe's class equation, as its
+-- own lemma: k + b ≡ Z + a from b + k ≡ a
+def sumSwapZL : (a : ℕ) (b : ℕ) (k : ℕ) → (b + k ≡ a ∈ ℕ) →
+  k + b ≡ Z + a ∈ ℕ ≔
+  λa. λb. λk. λh.
+    (k + b
+       ≡⟨ plusComm b k ⟩
+     b + k
+       ≡⟨ h ⟩
+     a
+       ≡⟨ zeroPlusId a ⟩
+     Z + a)
+
 def clsOfRelGe : (a : ℕ) (b : ℕ) (k : ℕ) → (b + k ≡ a ∈ ℕ) →
-  class (k , Z) ≡ class (a , b) ∈ El Int using (plusComm, zeroPlusId) ≔
+  class (k , Z) ≡ class (a , b) ∈ El Int using (plusComm, zeroPlusId, sumSwapZL) ≔
   λa. λb. λk. λh. ⋆
 
 def clsOfRelLe : (a : ℕ) (b : ℕ) (k : ℕ) → (a + k ≡ b ∈ ℕ) →
@@ -276,7 +289,7 @@ def intNegClass : (p : ℕ ⨯ ℕ) →
   intNeg (class p) ≡ class (p .π₂ , p .π₁) ∈ El Int using (integer.intNeg.eq) ≔ λp. ⋆
 
 def leZTotal : (x : El Int) (y : El Int) →
-               El (LeZ x y) ⊎ El (LeZ y x) using (integerMul.intAddCong2) ≔
+               El (LeZ x y) ⊎ El (LeZ y x) using (integerMul.intAddCong2, intOrder.intOfNat.eq) ≔
   λx. λy.
     let d ≔ intAdd y (intNeg x) in
     let hd ≔ intCanonClass d in
@@ -318,7 +331,8 @@ def leZTotal : (x : El Int) (y : El Int) →
 
 -- intOfNat is multiplicative (Z·b needs one zeroMult rewrite)
 def intOfNatMul : (a : ℕ) (b : ℕ) →
-  intMul (intOfNat a) (intOfNat b) ≡ intOfNat (a * b) ∈ El Int using (zeroMult) ≔
+  intMul (intOfNat a) (intOfNat b) ≡ intOfNat (a * b) ∈ El Int
+  using (intOrder.intOfNat.eq, integerMul.intMul.eq, integer.Int.eq, zeroMult, zeroMult.rw, nat.multZeroId, nat.multZeroId.rw, nat.plusZeroId, nat.plusZeroId.rw, zeroPlusId, zeroPlusId.rw) ≔
   λa. λb. ⋆
 
 -- right distributivity, from the left one by commutativity

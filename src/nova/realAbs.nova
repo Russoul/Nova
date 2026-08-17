@@ -79,7 +79,7 @@ def realAbsOfQ : (q : El Q) →
                       ((λn. qAbs q) , constReg (qAbs q))
       (λn. ⋆)
 
-def realAbsZero : realAbs realZero ≡ realZero ∈ El Real using (equality.sym.eq, equality.transport.eq, rational.ratZero.eq, rationalOrder.LeQ.eq, rationalQ.Q.eq, rationalQ.qAdd.eq, rationalQ.qAddNegR.eq, rationalQ.qNeg.eq, rationalQ.qZero.eq, rationalQ.qcls.eq, real.constReg.eq, real.leQNegBoundZero.eq, real.leQZeroBound.eq, real.rBound.eq, real.realOfQ.eq, real.realZero.eq, realAbs.absReg.eq, realAbs.absSeq.eq, realAbs.rAbs.eq, realAbs.realAbs.eq, realNeg.regOf.eq, realNeg.seqOf.eq) ≔
+def realAbsZero : realAbs realZero ≡ realZero ∈ El Real using (qAbsZero, equality.sym.eq, equality.transport.eq, rationalOrder.LeQ.eq, rationalQ.Q.eq, rationalQ.qAdd.eq, rationalQ.qAddNegR.eq, rationalQ.qNeg.eq, real.constReg.eq, real.leQNegBoundZero.eq, real.leQZeroBound.eq, real.rBound.eq, real.realOfQ.eq, real.realZero.eq, realAbs.absReg.eq, realAbs.absSeq.eq, realAbs.rAbs.eq, realAbs.realAbs.eq, realNeg.regOf.eq, realNeg.seqOf.eq) ≔
   realEqOfSeqEq (rAbs ((λn. qZero) , constReg qZero))
                     ((λn. qZero) , constReg qZero)
     (λn. ⋆)
