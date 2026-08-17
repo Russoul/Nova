@@ -81,6 +81,16 @@ export
 setStrictConv : Bool -> IO ()
 setStrictConv b = writeIORef strictConvRef b
 
+||| NOVA_SURVEY=1: migration-survey mode. Strict elaboration (a) does
+||| not enforce the type-exposure whitelist — it only LOGS what each
+||| item's whitelist would need (`unf <module>:<item>|<name>` labels) —
+||| and (b) continues past obligation-laden or failing modules so one
+||| run maps a whole corpus. Without it, strict mode enforces the
+||| whitelist and uses the same hard module gate as default mode.
+export
+surveyMode : Bool
+surveyMode = unsafePerformIO (map isJust (getEnv "NOVA_SURVEY"))
+
 ||| Print an audit line to stderr under NOVA_AUDIT=1, returning `x`
 ||| unchanged — the scope-migration survey hook (which discharge sites
 ||| consume which Σ-lemmas), same non-trusted-path discipline as bump.
@@ -90,6 +100,49 @@ audit line x = unsafePerformIO $ do
   Just _ <- getEnv "NOVA_AUDIT"
     | Nothing => pure x
   _ <- fPutStrLn stderr line
+  pure x
+
+||| Blocked-exposure names at the CURRENT site, so error hints can
+||| name the missing `.unfold` citations. Same below-trust discipline
+||| as `slots`; drained by the hint reader.
+export
+blockedExposures : IORef (List String)
+blockedExposures = unsafePerformIO $ do
+  -- distinct do-block ON PURPOSE: the Chez backend deduplicates
+  -- syntactically identical nullary CAFs (see the nfCaches incident),
+  -- and a bare `newIORef []` here would SHARE `slots`' ref
+  r <- newIORef (the (List String) [])
+  writeIORef r (the (List String) [])
+  pure r
+
+||| Record a blocked exposure, returning `x` unchanged.
+export
+noteBlocked : String -> (x : a) -> a
+noteBlocked n x = unsafePerformIO $ do
+  ns <- readIORef blockedExposures
+  when (not (elem n ns)) (writeIORef blockedExposures (n :: ns))
+  pure x
+
+||| Drain the blocked-exposure names (call at an error site).
+export
+drainBlocked : () -> List String
+drainBlocked () = unsafePerformIO $ do
+  ns <- readIORef blockedExposures
+  writeIORef blockedExposures (the (List String) [])
+  pure (reverse ns)
+
+||| Read the blocked-exposure set without clearing (obligation hints —
+||| several obligations in one item share the notes).
+export
+peekBlocked : () -> List String
+peekBlocked () = unsafePerformIO (map reverse (readIORef blockedExposures))
+
+||| Clear the blocked-exposure set, returning `x` unchanged — called
+||| at item start so one item's notes never annotate another's error.
+export
+clearBlocked : (x : a) -> a
+clearBlocked x = unsafePerformIO $ do
+  writeIORef blockedExposures (the (List String) [])
   pure x
 
 ||| Printed only under NOVA_PROFILE=1, so ordinary runs are unchanged.

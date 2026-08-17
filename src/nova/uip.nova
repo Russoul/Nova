@@ -10,7 +10,7 @@ import equality (sym, trans)
 -- canonicity: under the index equation (always derivable from the
 -- proof itself, by idToEq), every proof of Id a x y IS refl.
 def idCanon : (a : 𝕌) (x : El a) (y : El a) (p : El (Id a x y)) (h : x ≡ y ∈ El a) →
-              p ≡ refl a x ∈ El (Id a x y) using (hyp.rw, id.Id.eq, id.refl.eq) ≔
+              p ≡ refl a x ∈ El (Id a x y) using (hyp.rw, id.Id.eq, id.Id.unfold, id.refl.eq) ≔
   λa. λx. λy. λp. λh.
     squash-elim
       (IdElimP a
@@ -21,7 +21,7 @@ def idCanon : (a : 𝕌) (x : El a) (y : El a) (p : El (Id a x y)) (h : x ≡ y 
 
 -- uniqueness of identity proofs: both are refl, by canonicity.
 def uip : (a : 𝕌) (x : El a) (y : El a) (p : El (Id a x y)) (q : El (Id a x y)) →
-          p ≡ q ∈ El (Id a x y) using (hyp.rw, id.Id.eq, id.idToEq.eq) ≔
+          p ≡ q ∈ El (Id a x y) using (hyp.rw, id.Id.eq, id.Id.unfold, id.idToEq.eq) ≔
   λa. λx. λy. λp. λq.
     let h ≔ idToEq a x y p in
     trans (Id a x y) p (refl a x) q

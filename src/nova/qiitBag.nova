@@ -10,12 +10,12 @@ data [a : 𝕌] ( Bag : U
 -- the imposed equation, GENERICALLY, via the store (the generated swp
 -- lemma discharges the ⋆ at every carrier at once)
 def swapG : (a : 𝕌) (x : El a) (y : El a) (m : El (Bag a)) →
-            ins a x (ins a y m) ≡ ins a y (ins a x m) ∈ (El (Bag a)) using (swp, qiitBag.ins.eq) ≔
+            ins a x (ins a y m) ≡ ins a y (ins a x m) ∈ (El (Bag a)) using (qiitBag.Bag.unfold, qiitBag.ins.eq, swp) ≔
   λa. λx. λy. λm. ⋆
 
 -- size, defined once for every carrier — the method is
 -- order-insensitive, so the coherence argument is ⋆
-def size : (a : 𝕌) → El (Bag a) → ℕ ≔
+def size : (a : 𝕌) → El (Bag a) → ℕ using (qiitBag.Bag.unfold) ≔
   λa. λm. BagElim a (λb. ℕ) Z (λx. λr. λih. S ih) (λx. λy. λr. λih. ⋆) m
 
 -- instances: applications of the generic definitions

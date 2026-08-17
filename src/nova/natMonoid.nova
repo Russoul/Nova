@@ -6,7 +6,7 @@ import monoid (IsMonoid)
 -- law is an existing nat.nova ≡-lemma carried across the Id bridge by
 -- eqToId, with both sides spelled so the component types meet the
 -- expected ones exactly.
-def natAddMonoid : El (IsMonoid ℕ) ≔
+def natAddMonoid : El (IsMonoid ℕ) using (monoid.IsMonoid.unfold) ≔
   ((+) , Z ,
    (λx. λy. λz. eqToId ℕ (x + y + z) (x + (y + z)) (plusAssoc x y z)) ,
    (λx. eqToId ℕ (Z + x) x (zeroPlusId x)) ,
@@ -20,7 +20,7 @@ def oneMultL : (n : ℕ) → S Z * n ≡ n ∈ ℕ using (*.eq, hyp.rw, nat.mult
   λn. ℕ-elim (k. S Z * k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
 
 -- (ℕ, *, 1) is a monoid.
-def natMulMonoid : El (IsMonoid ℕ) ≔
+def natMulMonoid : El (IsMonoid ℕ) using (monoid.IsMonoid.unfold) ≔
   ((*) , S Z ,
    (λx. λy. λz. eqToId ℕ (x * y * z) (x * (y * z)) (multAssoc x y z)) ,
    (λx. eqToId ℕ (S Z * x) x (oneMultL x)) ,

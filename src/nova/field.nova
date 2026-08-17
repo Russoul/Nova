@@ -13,7 +13,7 @@ import group (IsGroup)
 --   * inverses are an UNSQUASHED Σ-code — "here is the inverse", not
 --     "one exists" — available to any nonzero x, with nonzero-ness
 --     itself an Id-refutation.
-def IsField : 𝕌 → 𝕌 ≔ λF.
+def IsField : 𝕌 → 𝕌 using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔ λF.
   (g : IsGroup F)
   (mm : IsMonoid F) ⨯
   (let add ≔ g .π₁ .π₁ in

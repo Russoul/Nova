@@ -5,7 +5,7 @@ import monoid (IsMonoid)
 -- a code, so it layers directly — the underlying monoid of a group g
 -- is just g .π₁) plus an inverse operation and its laws. The lets
 -- name the monoid's projections so the laws read as written math.
-def IsGroup : 𝕌 → 𝕌 ≔ λG.
+def IsGroup : 𝕌 → 𝕌 using (monoid.IsMonoid.unfold) ≔ λG.
   (m : IsMonoid G)
   (inv : G → G) ⨯
   (let op ≔ m .π₁ in

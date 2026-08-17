@@ -808,3 +808,44 @@ with zero obligations**. The strict subset is now self-sufficient
 over the whole corpus; retiring default mode — and with it the KFull
 replay tier, `stepElem`'s δβ internals, and the def-nf memo — is a
 decision, not a migration.
+
+## The type-exposure whitelist
+
+The last ambient δ is gone from the authoring surface: head exposure
+is now per-item whitelisted in strict mode. A using-clause citation
+`<def>.unfold` licenses exposing that definition's head (term or type
+defs both); an `.eq` citation subsumes it for its definition; lemma
+REGISTRATION exposes its own statement under an internal wildcard
+(the statement was just checked under the item's licenses). The
+survey behaviors — exposure logged-not-enforced, and the
+drop-and-continue module gate — moved behind NOVA_SURVEY=1; without
+it, strict mode enforces the whitelist and uses the same hard module
+gate as default mode. (That gating change was forced by a bug this
+work uncovered: the first "Accepted" enforcement run had silently
+DROPPED 22 modules through the always-on survey bypass — a 2.3s
+corpus mirage. The honest number is below.)
+
+Migration was one survey run + one sweep: NOVA_SURVEY harvest of the
+per-item `unf <module>:<item>|<name>` labels (1,661 entries), 754
+items gained their `.unfold` citations, zero misses. Blocked
+exposures surface as guidance: item errors gain
+"note: head exposure blocked for X — cite X.unfold", and obligations
+carry the same as a hint — in the CLI and, since the LSP is
+hard-strict, as editor diagnostics.
+
+Two backend traps bit again and are worth their tariff: a nullary
+`structuralHint` reading mutable state was CAF-pre-evaluated (the
+nowNs discipline applies — but the real fix was attaching the note
+at the ITEM-level error surface, after all discharge attempts, since
+a caught-and-rethrown message can be built before the exposure that
+should annotate it); and `blockedExposures`' allocation had to be
+made syntactically unique to dodge the Chez CAF dedup (the nfCaches
+incident, again).
+
+End state: strict all.nova Accepted with the whitelist ENFORCED and
+the hard gate, 14.5s (enforcement is cost-neutral against 13-14s
+unenforced); default 1:19; 138/138 both modes. Every δ the
+elaborator performs — equation sides AND type heads — is now named
+in the source. The kernel's own exposure (kWhnfT/kJoinTy) remains
+free pending the KFull deletion, where the certificate's license set
+is the natural carrier.
