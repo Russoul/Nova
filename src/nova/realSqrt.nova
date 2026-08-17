@@ -19,6 +19,7 @@ import real (qInvNat, rBound, leQZeroBound, Regular, RSeq, REq, Real,
 import realNeg (seqOf, regOf, regBnd, bndReg, reqOf, rBoundSym, realEqOfREq)
 import realMul (mulIdx)
 import realSeq (rseqEq)
+import realOrder (LeR)
 import equality (trans, sym, cong, transport)
 
 -- THE SQUARE ROOT of a real, on representatives.
@@ -471,12 +472,42 @@ def rSqrtWDCls : (p : El RSeq) (p' : El RSeq) (h : Prf (REq p p')) →
   λp. λp'. λh. realEqOfREq (rSqrt p) (rSqrt p') (rSqrtWD p p' h)
 
 -- ===== the square root on ℝ =====
+--
+-- The descent is total, because the ℚ approximant is — it works on
+-- the positive part. But √ is NOT a total function on ℝ and the
+-- interface should not pretend otherwise, so the exported realSqrt
+-- demands a proof of 0 ≤ x. The proof is never eliminated (it could
+-- not be — LeR is Ω-valued, B-15); it is taken and discarded, which
+-- is how a proof-irrelevant predicate carves out a domain.
+--
+-- What the gate does and does not buy:
+--
+--   * `realSqrt (realNeg realOne)` is ill-typed. The extension by
+--     truncation is no longer reachable through the API, and √ of a
+--     negative is not a theorem of this development.
+--   * It does NOT remove the truncation from the ℚ layer, and cannot.
+--     A representative of a NONNEGATIVE real satisfies only
+--     p_n ≥ −rBound n n, so individual samples of a perfectly good
+--     nonnegative real are genuinely negative, and the floor estimate
+--     needs them clamped. Only STRICT positivity with an explicit
+--     modulus would make the samples provably positive — sample at
+--     depth ≥ 4(k+1) from x ≥ 1/(k+1), then leQUnsquash to turn that
+--     into the ℚ-level datum the estimate wants. That is a different
+--     function with a different type, and it is not this one.
 
-def realSqrt : El Real → El Real using (rSqrtWDCls, real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold) ≔
+def sqrtTrunc : El Real → El Real
+  using (rSqrtWDCls, real.REq.unfold, real.RSeq.unfold, real.Real.unfold,
+         real.Regular.unfold) ≔
   λx. quot-elim (w. El Real) (p. class (rSqrt p)) x
 
-def realSqrtCls : (p : El RSeq) →
-  realSqrt (class p) ≡ class (rSqrt p) ∈ El Real using (real.RSeq.unfold, real.Real.unfold, real.Regular.unfold, realSqrt.rSqrt.eq, realSqrt.realSqrt.eq) ≔ λp. ⋆
+def realSqrt : (x : El Real) → Prf (LeR realZero x) → El Real ≔
+  λx. λh. sqrtTrunc x
+
+def realSqrtCls : (p : El RSeq) (h : Prf (LeR realZero (class p))) →
+  realSqrt (class p) h ≡ class (rSqrt p) ∈ El Real
+  using (real.Real.unfold, real.RSeq.unfold, real.Regular.unfold,
+         realSqrt.rSqrt.eq, realSqrt.sqrtTrunc.eq, realSqrt.realSqrt.eq) ≔
+  λp. λh. ⋆
 
 -- ===== it computes: √0 = 0 =====
 --
@@ -527,10 +558,13 @@ def rSqrtZero : rSqrt ((λn. qZero) , constReg qZero)
          ((λn. qZero) , constReg qZero)
     (λn. qSqrtAtZero (sqrtDepth n))
 
-def realSqrtZero : realSqrt realZero ≡ realZero ∈ El Real
+def realSqrtZero : (h : Prf (LeR realZero realZero)) →
+  realSqrt realZero h ≡ realZero ∈ El Real
   using (real.Real.unfold, real.RSeq.unfold, real.Regular.unfold,
-         real.realZero.eq, real.realOfQ.eq, realSqrt.realSqrt.eq) ≔
-  cong RSeq (λw. Real) (λw. class w)
+         real.realZero.eq, real.realOfQ.eq, realSqrt.realSqrt.eq,
+         realSqrt.sqrtTrunc.eq) ≔
+  λh.
+    cong RSeq (λw. Real) (λw. class w)
     (rSqrt ((λn. qZero) , constReg qZero))
     ((λn. qZero) , constReg qZero)
     rSqrtZero

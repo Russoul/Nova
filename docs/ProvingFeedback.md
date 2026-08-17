@@ -254,6 +254,45 @@ abstract motive (D-3).
 
 ---
 
+### A-9. [ℝ] A Prf argument restricts a domain; it does not reach the proofs below
+
+B-15 says a squashed witness cannot be eliminated into data, and it is
+easy to over-read that as "a partial function cannot be typed". It can.
+A definition may TAKE a `Prf` it never eliminates and still return
+data — verified, and it is how a proof-irrelevant predicate carves out
+a domain:
+
+```
+def realSqrt : (x : El Real) → Prf (LeR realZero x) → El Real ≔
+  λx. λh. sqrtTrunc x
+```
+
+`realSqrt (realNeg realOne)` is then unformable — the obligation is
+`Prf (LeR 0 (−1)) → El Real ≐ El Real`, which nothing closes — while
+the underlying construction stays total. Proof irrelevance is what
+makes this a function rather than a family: the value cannot depend on
+which witness was passed.
+
+What the gate does NOT do is worth stating, because it is the thing
+one expects it to do. **It hands nothing to the layer below.** ℝ's
+square root needs, at the ℚ level, that the sampled value be
+nonnegative, and
+
+  a representative of a NONNEGATIVE real satisfies only
+  `p_n ≥ −rBound n n`
+
+so individual samples of a perfectly good nonnegative real are
+genuinely negative. `0 ≤ x` in the ℝ-level type is not a fact about
+any sample. The ℚ layer still has to clamp.
+
+The only hypothesis that would reach down is STRICT positivity with an
+explicit modulus: from `x ≥ 1/(k+1)`, sampling at depth ≥ 4(k+1) makes
+`p_j ≥ 1/(2(k+1))`, and since ≤ on ℚ is decidable, `leQUnsquash` turns
+that Prf-level fact into the `El (LeQ qZero (p_j))` the estimate
+consumes. That is a real escape from B-15 — decidability, not
+elimination — and it is the route to take when a construction must
+actually USE positivity rather than merely be restricted by it.
+
 ## B. Engine / kernel mismatches
 
 The dominant time sink. In all of these the discharge engine finds a
