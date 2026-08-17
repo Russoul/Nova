@@ -30,7 +30,7 @@ def leQInvOne : (k : ℕ) → El (LeQ (qInvNat k) (qOfNat (S Z)))
          (leSucMono Z k (leZero k)))
 
 def leQBoundTwo : (n : ℕ) → El (LeQ (rBound n Z) (qOfNat (S (S Z))))
-  using (id.Id.eq, ratNat.qOfNat.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.qInvNat.eq, real.rBound.eq) ≔
+  using (id.Id.eq, nat.+.eq, ratNat.qOfNat.eq, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.qInvNat.eq, real.rBound.eq) ≔
   λn.
     transport Q (λw. LeQ (rBound n Z) w)
       (qAdd (qOfNat (S Z)) (qOfNat (S Z))) (qOfNat (S (S Z)))
@@ -60,7 +60,7 @@ def qAddSubCancelL : (a : El Q) (b : El Q) →
 def seqBound : El RSeq → ℕ ≔ λp. S (S (qNatBound (seqOf p Z)))
 
 def bndSeqBound : (p : El RSeq) (n : ℕ) →
-  El (Bnd (qOfNat (seqBound p)) (seqOf p n)) using (ratCeil.qNatBound.eq, realBound.seqBound.eq, realNeg.seqOf.eq) ≔
+  El (Bnd (qOfNat (seqBound p)) (seqOf p n)) using (nat.+.eq, ratCeil.qNatBound.eq, realBound.seqBound.eq, realNeg.seqOf.eq) ≔
   λp. λn.
     bndWeaken (qAdd (qOfNat (qNatBound (seqOf p Z))) (rBound n Z))
               (qOfNat (seqBound p))

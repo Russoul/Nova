@@ -83,22 +83,22 @@ def pred : ℕ → ℕ ≔ λn. ℕ-elim (k. ℕ) Z (k ih. k) n
 infixl 6 ∸
 def ∸ : ℕ → ℕ → ℕ ≔ λa. λb. ℕ-elim (k. ℕ) a (k ih. pred ih) b
 
-def monusZeroR : (a : ℕ) → a ∸ Z ≡ a ∈ ℕ ≔ λa. ⋆
-def monusSucR : (a : ℕ) (b : ℕ) → a ∸ S b ≡ pred (a ∸ b) ∈ ℕ ≔ λa. λb. ⋆
+def monusZeroR : (a : ℕ) → a ∸ Z ≡ a ∈ ℕ using (natMore.∸.eq) ≔ λa. ⋆
+def monusSucR : (a : ℕ) (b : ℕ) → a ∸ S b ≡ pred (a ∸ b) ∈ ℕ using (natMore.pred.eq, natMore.∸.eq) ≔ λa. λb. ⋆
 
 def zeroMonus : (b : ℕ) → Z ∸ b ≡ Z ∈ ℕ using (natMore.monusZeroR) ≔
   λb. ℕ-elim (k. Z ∸ k ≡ Z ∈ ℕ) ⋆ (k ih. ⋆) b
 
-def sucMonusSuc : (a : ℕ) (b : ℕ) → S a ∸ S b ≡ a ∸ b ∈ ℕ ≔
+def sucMonusSuc : (a : ℕ) (b : ℕ) → S a ∸ S b ≡ a ∸ b ∈ ℕ using (natMore.pred.eq, natMore.∸.eq) ≔
   λa. λb. ℕ-elim (k. S a ∸ S k ≡ a ∸ k ∈ ℕ) ⋆ (k ih. ⋆) b
 
 -- (a + b) − b is a, on the nose
-def plusMonus : (a : ℕ) (b : ℕ) → (a + b) ∸ b ≡ a ∈ ℕ using (sucMonusSuc) ≔
+def plusMonus : (a : ℕ) (b : ℕ) → (a + b) ∸ b ≡ a ∈ ℕ using (nat.+.eq, natMore.∸.eq, sucMonusSuc) ≔
   λa. λb. ℕ-elim (k. (a + k) ∸ k ≡ a ∈ ℕ) ⋆ (k ih. ⋆) b
 
 -- subtracting a sum is subtracting twice
 def monusPlus : (a : ℕ) (b : ℕ) (c : ℕ) →
-  a ∸ (b + c) ≡ (a ∸ b) ∸ c ∈ ℕ ≔
+  a ∸ (b + c) ≡ (a ∸ b) ∸ c ∈ ℕ using (nat.+.eq, natMore.∸.eq) ≔
   λa. λb. λc. ℕ-elim (k. a ∸ (b + k) ≡ (a ∸ b) ∸ k ∈ ℕ) ⋆ (k ih. ⋆) c
 
 def monusSelf : (a : ℕ) → a ∸ a ≡ Z ∈ ℕ using (natMore.zeroMonus, sucMonusSuc) ≔
@@ -184,20 +184,20 @@ def natMinSelf : (a : ℕ) → natMin a a ≡ a ∈ ℕ using (natMore.natMin.eq
 infixr 8 ^
 def ^ : ℕ → ℕ → ℕ ≔ λa. λn. ℕ-elim (k. ℕ) (S Z) (k ih. a * ih) n
 
-def expZero : (a : ℕ) → a ^ Z ≡ S Z ∈ ℕ ≔ λa. ⋆
-def expSuc : (a : ℕ) (n : ℕ) → a ^ S n ≡ a * a ^ n ∈ ℕ ≔ λa. λn. ⋆
+def expZero : (a : ℕ) → a ^ Z ≡ S Z ∈ ℕ using (natMore.^.eq) ≔ λa. ⋆
+def expSuc : (a : ℕ) (n : ℕ) → a ^ S n ≡ a * a ^ n ∈ ℕ using (nat.*.eq, natMore.^.eq) ≔ λa. λn. ⋆
 
 def oneExp : (n : ℕ) → S Z ^ n ≡ S Z ∈ ℕ using (multComm, natMore.expZero) ≔
   λn. ℕ-elim (k. S Z ^ k ≡ S Z ∈ ℕ) ⋆ (k ih. ⋆) n
 
 def expPlus : (a : ℕ) (m : ℕ) (n : ℕ) →
-  a ^ (m + n) ≡ a ^ m * a ^ n ∈ ℕ using (multAssoc, multComm) ≔
+  a ^ (m + n) ≡ a ^ m * a ^ n ∈ ℕ using (multAssoc, multComm, nat.*.eq, nat.+.eq, natMore.^.eq) ≔
   λa. λm. λn. ℕ-elim (k. a ^ (m + k) ≡ a ^ m * a ^ k ∈ ℕ) ⋆ (k ih. ⋆) n
 
 -- ===== monus and a common summand =====
 
 def monusPlusR : (a : ℕ) (b : ℕ) (k : ℕ) →
-  (a + k) ∸ (b + k) ≡ a ∸ b ∈ ℕ using (sucMonusSuc) ≔
+  (a + k) ∸ (b + k) ≡ a ∸ b ∈ ℕ using (nat.+.eq, natMore.∸.eq, sucMonusSuc) ≔
   λa. λb. λk. ℕ-elim (j. (a + j) ∸ (b + j) ≡ a ∸ b ∈ ℕ) ⋆ (j ih. ⋆) k
 
 def monusPlusL : (k : ℕ) (a : ℕ) (b : ℕ) →

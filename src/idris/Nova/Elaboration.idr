@@ -2280,29 +2280,79 @@ hintNamesC (MkECertF tyEx steps final _) =
   fromFinal (FSumCong c1 c2) = hintNamesC c1 ++ hintNamesC c2
   fromFinal _ = []
 
-||| §5.4 (docs/SearchlessElaboration.md): when a SCOPED site is about
-||| to assume, probe the GLOBAL store once. A discharge the kernel
-||| replays becomes a hint on the obligation — search as feedback,
-||| never as acceptance (the site stays assumed either way).
-||| Names of Σ term-definitions occurring in a rendered core term (the
-||| core Show is constructor-style, so `SigVar "name"` is scannable) —
-||| a survey-mode convenience feeding the unfold hint.
-scanDefNames : ElabSt -> String -> List String
-scanDefNames st s = nub (filter isDef (go (unpack s)))
+mutual
+  ||| Signature references of a term, accumulated — the unfold hint's
+  ||| candidate pool (one traversal, no rendering).
+  refsE : Elem -> SnocList String -> SnocList String
+  refsE (CtxVar _) acc = acc
+  refsE (ZeroElim t) acc = refsE t acc
+  refsE OneIntro acc = acc
+  refsE NatIntro0 acc = acc
+  refsE (NatIntro1 t) acc = refsE t acc
+  refsE (NatElim z s t) acc = refsE t (refsE s (refsE z acc))
+  refsE (PiIntro f) acc = refsE f acc
+  refsE (PiApp f e) acc = refsE e (refsE f acc)
+  refsE (Let a b) acc = refsE b (refsE a acc)
+  refsE (SigmaIntro a b) acc = refsE b (refsE a acc)
+  refsE (SigmaElim1 t) acc = refsE t acc
+  refsE (SigmaElim2 t) acc = refsE t acc
+  refsE (Inj1 t) acc = refsE t acc
+  refsE (Inj2 t) acc = refsE t acc
+  refsE (SumElim l r t) acc = refsE t (refsE r (refsE l acc))
+  refsE Elem.ZeroTy acc = acc
+  refsE Elem.OneTy acc = acc
+  refsE Elem.NatTy acc = acc
+  refsE (Elem.PiTy a b) acc = refsE b (refsE a acc)
+  refsE (Elem.SigmaTy a b) acc = refsE b (refsE a acc)
+  refsE (Elem.SumTy a b) acc = refsE b (refsE a acc)
+  refsE (Elem.EqTy l r t) acc = refsT t (refsE r (refsE l acc))
+  refsE (QuotTy a r) acc = refsE r (refsE a acc)
+  refsE (SigVar x es) acc = foldl (\a, e => refsE e a) (acc :< x) es
+  refsE (Class a) acc = refsE a acc
+  refsE (QuotElim f q) acc = refsE q (refsE f acc)
+  refsE (Squash t) acc = refsT t acc
+  refsE Star acc = acc
+  refsE (QSortC _ _ es) acc = foldl (\a, e => refsE e a) acc es
+  refsE (QCtor _ _ es) acc = foldl (\a, e => refsE e a) acc es
+  refsE (QElim _ _ ms fs es w) acc =
+    refsE w (foldl (\a, e => refsE e a)
+              (foldl (\a, e => refsE e a)
+                (foldl (\a, t => refsT t a) acc ms) fs) es)
+  refsE (Elem.NuTy _) acc = acc
+  refsE (Out t) acc = refsE t acc
+  refsE (Corec _ a f x) acc = refsE x (refsE f (refsE a acc))
+
+  refsT : Ty -> SnocList String -> SnocList String
+  refsT Ty.ZeroTy acc = acc
+  refsT Ty.OneTy acc = acc
+  refsT Ty.NatTy acc = acc
+  refsT Ty.UniverseTy acc = acc
+  refsT (Ty.PiTy a b) acc = refsT b (refsT a acc)
+  refsT (Ty.SigmaTy a b) acc = refsT b (refsT a acc)
+  refsT (Ty.SumTy a b) acc = refsT b (refsT a acc)
+  refsT (El e) acc = refsE e acc
+  refsT PropTy acc = acc
+  refsT (Prf p) acc = refsE p acc
+  refsT (Quotient a r) acc = refsE r (refsT a acc)
+  refsT (Ty.SigVar x es) acc = foldl (\a, e => refsE e a) (acc :< x) es
+  refsT (QSort _ _ es) acc = foldl (\a, e => refsE e a) acc es
+  refsT (Ty.NuTy _) acc = acc
+
+||| The term-definition names among a collected reference pool.
+defNamesOf : ElabSt -> SnocList String -> List String
+defNamesOf st acc = nub (filter isDef (toList acc))
  where
   isDef : String -> Bool
   isDef x = case cachedSigLookup st.sig x of
               Just (SigDef _ _ _ _) => True
               _ => False
-  go : List Char -> List String
-  go [] = []
-  go cs@(_ :: rest) =
-    if isPrefixOf (unpack "SigVar \"") cs
-      then let cs' = drop 8 cs
-               nm = pack (takeWhile (/= '"') cs')
-           in nm :: go (drop (length nm) cs')
-      else go rest
 
+||| §5.4 (docs/SearchlessElaboration.md): when a SCOPED site is about
+||| to assume, probe the GLOBAL store once. A discharge the kernel
+||| replays becomes a hint on the obligation — search as feedback,
+||| never as acceptance (the site stays assumed either way). In strict
+||| mode a second stream reports the `<def>.eq` citations that would
+||| close the equation.
 hintE : ElabSt -> Ctx -> Elem -> Elem -> Ty -> Maybe String
 hintE st ctx a b ty = lemmaHint <|> eqHint
  where
@@ -2324,7 +2374,7 @@ hintE st ctx a b ty = lemmaHint <|> eqHint
   eqHint : Maybe String
   eqHint =
     if not strictConv then Nothing else
-    go 5 (scanDefNames st (show a ++ show b))
+    go 5 (defNamesOf st (refsE b (refsE a [<])))
    where
     go : Nat -> List String -> Maybe String
     go Z ns = Nothing
@@ -2335,7 +2385,7 @@ hintE st ctx a b ty = lemmaHint <|> eqHint
       if a' == b'
         then Just "closes by citing \{joinBy ", " (map (++ ".eq") ns)}"
         else
-          let ns' = nub (ns ++ scanDefNames st (show a' ++ show b')) in
+          let ns' = nub (ns ++ defNamesOf st (refsE b' (refsE a' [<]))) in
           if length ns' == length ns then Nothing else go k ns'
 
 hintT : ElabSt -> Ctx -> Ty -> Ty -> Maybe String
@@ -2359,7 +2409,7 @@ hintT st ctx x y = lemmaHint <|> eqHint
   eqHint : Maybe String
   eqHint =
     if not strictConv then Nothing else
-    go 5 (scanDefNames st (show x ++ show y))
+    go 5 (defNamesOf st (refsT y (refsT x [<])))
    where
     go : Nat -> List String -> Maybe String
     go Z ns = Nothing
@@ -2370,7 +2420,7 @@ hintT st ctx x y = lemmaHint <|> eqHint
       if x' == y'
         then Just "closes by citing \{joinBy ", " (map (++ ".eq") ns)}"
         else
-          let ns' = nub (ns ++ scanDefNames st (show x' ++ show y')) in
+          let ns' = nub (ns ++ defNamesOf st (refsT y' (refsT x' [<]))) in
           if length ns' == length ns then Nothing else go k ns'
 
 ||| ASSUME (docs/NovaElaboration.txt, ↓ step 8): append the equation to

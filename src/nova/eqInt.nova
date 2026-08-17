@@ -108,11 +108,11 @@ def normPairZR : (n : ℕ) → normPair n Z ≡ (n , Z) ∈ El (ℕ ⨯ ℕ)
 
 -- normPair c (b + c) ≡ (Z , b): the successors cancel pairwise
 def normPairLeftZ : (b : ℕ) (c : ℕ) → normPair c (b + c) ≡ (Z , b) ∈ El (ℕ ⨯ ℕ)
-  using (integerNormalize.normPair.eq, nat.plusZeroId) ≔
+  using (integerNormalize.normPair.eq, nat.+.eq, nat.plusZeroId) ≔
   λb. λc. ℕ-elim (k. normPair k (b + k) ≡ (Z , b) ∈ El (ℕ ⨯ ℕ)) ⋆ (k ih. ⋆) c
 
 -- normPair (n + d) d ≡ (n , Z)
-def normPairRightZ : (n : ℕ) (d : ℕ) → normPair (n + d) d ≡ (n , Z) ∈ El (ℕ ⨯ ℕ) using (integerNormalize.normPair.eq, normPairZR) ≔
+def normPairRightZ : (n : ℕ) (d : ℕ) → normPair (n + d) d ≡ (n , Z) ∈ El (ℕ ⨯ ℕ) using (integerNormalize.normPair.eq, nat.+.eq, normPairZR) ≔
   λn. λd. ℕ-elim (k. normPair (n + k) k ≡ (n , Z) ∈ El (ℕ ⨯ ℕ)) (normPairZR n) (k ih. ⋆) d
 
 def normPairWD : (a : ℕ) (b : ℕ) (c : ℕ) (d : ℕ) (h : Prf (a + d ≡ b + c ∈ ℕ)) →
@@ -219,11 +219,11 @@ def eqZIff : (z1 : El Int) (z2 : El Int) → Prf (EqZ z1 z2 ↔ (z1 ≡ z2 ∈ E
 def NeqZ : El Int → El Int → Ω ≔ λz1. λz2. ¬ (EqZ z1 z2)
 
 def neqZSound : (z1 : El Int) (z2 : El Int) →
-  Prf (NeqZ z1 z2) → Prf (¬ (z1 ≡ z2 ∈ El Int)) ≔
+  Prf (NeqZ z1 z2) → Prf (¬ (z1 ≡ z2 ∈ El Int)) using (eqInt.EqZ.eq, eqInt.NeqZ.eq, eqInt.intCanon.eq, eqNat.EqN.eq, integer.Int.eq, nat.+.eq, prop.¬.eq, prop.∧.eq, prop.⊃.eq, prop.⊥.eq) ≔
   λz1. λz2. λh. impIntro (z1 ≡ z2 ∈ El Int) ∥𝟘∥ (λe. impApply (EqZ z1 z2) ⊥ h (eqZCompleteP z1 z2 e))
 
 def neqZComplete : (z1 : El Int) (z2 : El Int) →
-  Prf (¬ (z1 ≡ z2 ∈ El Int)) → Prf (NeqZ z1 z2) ≔
+  Prf (¬ (z1 ≡ z2 ∈ El Int)) → Prf (NeqZ z1 z2) using (eqInt.EqZ.eq, eqInt.NeqZ.eq, eqInt.intCanon.eq, eqNat.EqN.eq, integer.Int.eq, integerNormalize.normPair.eq, prop.¬.eq, prop.∧.eq, prop.⊃.eq, prop.⊤.eq, prop.⊥.eq) ≔
   λz1. λz2. λh. impIntro (EqZ z1 z2) ∥𝟘∥ (λe. impApply (z1 ≡ z2 ∈ El Int) ⊥ h (eqZSoundP z1 z2 e))
 
 def neqZIff : (z1 : El Int) (z2 : El Int) →
@@ -235,11 +235,11 @@ def neqZIff : (z1 : El Int) (z2 : El Int) →
 -- EqZ intOne intZero REDUCES: the canonical representatives are
 -- (S Z, Z) and (Z, Z), so it is EqN (S Z) Z ∧ EqN Z Z, i.e. ⊥ ∧ ⊤.
 -- Its first projection is already the absurdity.
-def eqZOneZero : Prf (NeqZ intOne intZero) using (eqInt.EqZ.eq, eqInt.intCanon.eq, eqNat.EqN.eq, integer.intOne.eq, integer.intZero.eq, integerNormalize.normPair.eq) ≔ impIntro (EqZ intOne intZero) ⊥ (λh. andFst ⊥ (EqN (intCanon intOne .π₂) (intCanon intZero .π₂)) h)
+def eqZOneZero : Prf (NeqZ intOne intZero) using (eqInt.EqZ.eq, eqInt.NeqZ.eq, eqInt.intCanon.eq, eqNat.EqN.eq, integer.intOne.eq, integer.intZero.eq, integerNormalize.normPair.eq, prop.¬.eq, prop.∧.eq, prop.⊃.eq, prop.⊥.eq) ≔ impIntro (EqZ intOne intZero) ⊥ (λh. andFst ⊥ (EqN (intCanon intOne .π₂) (intCanon intZero .π₂)) h)
 
 def intOneNotZero : Prf (¬ (intOne ≡ intZero ∈ El Int)) ≔
   neqZSound intOne intZero eqZOneZero
 
 -- and a positive computation: 2 = 2 even spelled differently
-def eqZTwo : Prf (EqZ (class (S (S Z) , Z)) (class (S (S (S Z)) , S Z))) ≔
+def eqZTwo : Prf (EqZ (class (S (S Z) , Z)) (class (S (S (S Z)) , S Z))) using (eqInt.EqZ.eq, eqInt.intCanon.eq, eqNat.EqN.eq, integerNormalize.normPair.eq, prop.∧.eq, prop.⊤.eq, prop.⊥.eq) ≔
   andIntro ∥𝟙∥ ∥𝟙∥ ⋆ ⋆

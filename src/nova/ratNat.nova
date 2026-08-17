@@ -104,7 +104,7 @@ def qOfNatDiffNum : (a : ℕ) (b : ℕ) →
 
 def sgnQOfNatDiff : (a : ℕ) (b : ℕ) →
   sgnQ (qAdd (qOfNat b) (qNeg (qOfNat a))) ≡ intSgn (class (b , a)) ∈ El Sign
-  using (eqInt.classNormPairEq.eq, eqInt.intCanon.eq, eqInt.intCanonClass.eq, equality.sym.eq, equality.trans.eq, intNonZero.nzOfInt.eq, intNonZero.nzOfIntAt.eq, intNonZero.nzOfPairD.eq, intOrder.intOfNat.eq, integer.Int.eq, integer.intNeg.eq, integer.intOne.eq, integer.intZero.eq, integerAdd.intAdd.eq, integerMul.classPairEta.eq, integerMul.intMul.eq, integerNormalize.normPair.eq, ratNat.qOfNat.eq, rational.den.eq, rational.denInt.eq, rational.intScale.eq, rational.intScaleN.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzOne.eq, rational.nzPos.eq, rational.nzToInt.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalInv.intCanonProdZero.eq, rationalInv.normProdZero.eq, rationalOrder.intSgn.eq, rationalOrder.nzSgn.eq, rationalOrder.ratSgn.eq, rationalOrder.sNeg.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, rationalQ.qcls.eq) ≔
+  using (eqInt.classNormPairEq.eq, eqInt.intCanon.eq, eqInt.intCanonClass.eq, equality.sym.eq, equality.trans.eq, intNonZero.nzOfInt.eq, intNonZero.nzOfIntAt.eq, intNonZero.nzOfPairD.eq, intOrder.intOfNat.eq, integer.Int.eq, integer.intNeg.eq, integer.intOne.eq, integer.intZero.eq, integerAdd.intAdd.eq, integerMul.classPairEta.eq, integerMul.intMul.eq, integerNormalize.normPair.eq, nat.*.eq, nat.+.eq, ratNat.qOfNat.eq, rational.den.eq, rational.denInt.eq, rational.intScale.eq, rational.intScaleN.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzOne.eq, rational.nzPos.eq, rational.nzToInt.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalInv.intCanonProdZero.eq, rationalInv.normProdZero.eq, rationalOrder.intSgn.eq, rationalOrder.nzSgn.eq, rationalOrder.ratSgn.eq, rationalOrder.sNeg.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, rationalQ.qcls.eq) ≔
   λa. λb.
     trans Sign
       (sgnQ (qAdd (qOfNat b) (qNeg (qOfNat a))))
@@ -138,7 +138,7 @@ def leNOfQ : (a : ℕ) (b : ℕ) → El (LeQ (qOfNat a) (qOfNat b)) → El (LeN 
 
 -- the embedding is additive
 def qOfNatAdd : (a : ℕ) (b : ℕ) →
-  qAdd (qOfNat a) (qOfNat b) ≡ qOfNat (a + b) ∈ El Q using (intOrder.intOfNat.eq, integer.intNeg.eq, integerAdd.intAdd.eq, ratNat.qOfNat.eq, rational.den.eq, rational.intScale.eq, rational.intScaleN.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzOne.eq, rational.nzPos.eq, rational.ratAdd.eq, rationalQ.qAdd.eq, rationalQ.qcls.eq) ≔
+  qAdd (qOfNat a) (qOfNat b) ≡ qOfNat (a + b) ∈ El Q using (intOrder.intOfNat.eq, integer.intNeg.eq, integerAdd.intAdd.eq, nat.*.eq, nat.+.eq, ratNat.qOfNat.eq, rational.den.eq, rational.intScale.eq, rational.intScaleN.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzOne.eq, rational.nzPos.eq, rational.ratAdd.eq, rationalQ.qAdd.eq, rationalQ.qcls.eq) ≔
   λa. λb.
     trans Q (qAdd (qOfNat a) (qOfNat b))
             (qcls (mkRat (intAdd (intOfNat a) (intOfNat b)) nzOne))

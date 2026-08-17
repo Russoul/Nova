@@ -29,5 +29,5 @@ def letShared : (n : ℕ) → (n + n) + Z ≡ n + n ∈ ℕ using (nat.plusCongL
   λn. let m ≔ n + n in (⋆ : m + Z ≡ m ∈ ℕ)
 
 -- the outside view: a let-expression is judgementally its unfolding
-def fourUnfolds : four ≡ S (S (S (S Z))) ∈ ℕ using (letExpr.four.eq) ≔ ⋆
+def fourUnfolds : four ≡ S (S (S (S Z))) ∈ ℕ using (letExpr.four.eq, nat.+.eq) ≔ ⋆
 def threeUnfolds : three ≡ S (S (S Z)) ∈ ℕ using (letExpr.three.eq) ≔ ⋆

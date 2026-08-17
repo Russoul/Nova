@@ -1325,12 +1325,12 @@ applySel sig ctx (l, r, _) sel = do
 ||| validated by the descent's positional type check, which compares
 ||| the licensed type (embedding 𝒮 syntactically) against the rewrite
 ||| site's own. Components and orientation apply to both.
-licensed : Sig -> Ctx -> Step -> KM (Elem, Elem, Ty)
-licensed sig ctx step = do
+licensed : KPol -> Sig -> Ctx -> Step -> KM (Elem, Elem, Ty)
+licensed pol sig ctx step = do
   (l, r, t) <- base step.lic
   (l', r', t') <- foldlM (applySel sig ctx) (l, r, t) step.sels
-  lN <- kElem sig l'
-  rN <- kElem sig r'
+  lN <- kNfE pol sig l'
+  rN <- kNfE pol sig r'
   pure (if step.flip then (rN, lN, t') else (lN, rN, t'))
  where
   -- equality is Ω-valued: the one license pathway is a Prf whose prop
@@ -1338,7 +1338,7 @@ licensed sig ctx step = do
   -- code-squash-prf during nf)
   exposeEq : Ty -> KM (Elem, Elem, Ty)
   exposeEq (Prf p) = do
-    p' <- kElem sig p
+    p' <- kWhnfE sig p
     case p' of
       Elem.EqTy l r t => pure (l, r, t)
       _ => kerr "kernel: step proof is not an equality"
@@ -1346,7 +1346,7 @@ licensed sig ctx step = do
 
   base : StepLic -> KM (Elem, Elem, Ty)
   base (LProof p) = do
-    pty <- inferP sig ctx p >>= kTy sig
+    pty <- inferP sig ctx p >>= kWhnfT sig
     exposeEq pty
   base (LPath sg k theta) = do
     sg' <- kQSig sig sg
@@ -1428,7 +1428,7 @@ mutual
   childTyE sig ctx pexp (PiIntro _) i =
     case (pexp, i) of
       (Just pe, 0) => do
-        t <- kTy sig pe
+        t <- kWhnfT sig pe
         case t of
           Ty.PiTy _ b => pure (Just b)
           _ => pure Nothing
@@ -1439,7 +1439,7 @@ mutual
         mf <- inferNeK sig ctx f
         case mf of
           Just fTy => do
-            t <- kTy sig fTy
+            t <- kWhnfT sig fTy
             case t of
               Ty.PiTy a _ => pure (Just a)
               _ => pure Nothing
@@ -1448,12 +1448,12 @@ mutual
   childTyE sig ctx pexp (SigmaIntro u _) i =
     case (pexp, i) of
       (Just pe, 0) => do
-        t <- kTy sig pe
+        t <- kWhnfT sig pe
         case t of
           Ty.SigmaTy a _ => pure (Just a)
           _ => pure Nothing
       (Just pe, 1) => do
-        t <- kTy sig pe
+        t <- kWhnfT sig pe
         case t of
           Ty.SigmaTy _ b => pure (Just (substTy b (Ext Id u)))
           _ => pure Nothing
@@ -1465,7 +1465,7 @@ mutual
   childTyE sig ctx pexp (Inj1 _) i =
     case (pexp, i) of
       (Just pe, 0) => do
-        t <- kTy sig pe
+        t <- kWhnfT sig pe
         case t of
           Ty.SumTy a _ => pure (Just a)
           _ => pure Nothing
@@ -1473,7 +1473,7 @@ mutual
   childTyE sig ctx pexp (Inj2 _) i =
     case (pexp, i) of
       (Just pe, 0) => do
-        t <- kTy sig pe
+        t <- kWhnfT sig pe
         case t of
           Ty.SumTy _ b => pure (Just b)
           _ => pure Nothing
@@ -1512,7 +1512,7 @@ mutual
   childTyE sig ctx pexp (Class _) i =
     case (pexp, i) of
       (Just pe, 0) => do
-        t <- kTy sig pe
+        t <- kWhnfT sig pe
         case t of
           Ty.Quotient dom _ => pure (Just dom)
           _ => pure Nothing
@@ -1557,7 +1557,7 @@ mutual
     mf <- inferNeK sig ctx f
     case mf of
       Just fTy => do
-        t <- kTy sig fTy
+        t <- kWhnfT sig fTy
         case t of
           Ty.PiTy _ b => pure (Just (substTy b (Ext Id e)))
           _ => pure Nothing
@@ -1566,7 +1566,7 @@ mutual
     mt <- inferNeK sig ctx t
     case mt of
       Just tTy => do
-        t' <- kTy sig tTy
+        t' <- kWhnfT sig tTy
         case t' of
           Ty.SigmaTy a _ => pure (Just a)
           _ => pure Nothing
@@ -1575,7 +1575,7 @@ mutual
     mt <- inferNeK sig ctx t
     case mt of
       Just tTy => do
-        t' <- kTy sig tTy
+        t' <- kWhnfT sig tTy
         case t' of
           Ty.NuTy f => pure (Just (El (reflectPoly f (Elem.NuTy f))))
           _ => pure Nothing
@@ -1590,14 +1590,14 @@ mutual
 ||| Typed descent through TYPE positions (declared ahead: goE needs it
 ||| to cross a ∥-∥ into its squashee): every element child's type is
 ||| structurally determined. Defined after goE below.
-goTy : Sig -> Ctx -> (Elem, Elem, Ty) -> List Nat -> Nat -> Ty -> KM Ty
+goTy : KPol -> Sig -> Ctx -> (Elem, Elem, Ty) -> List Nat -> Nat -> Ty -> KM Ty
 
 ||| Typed descent: rewrite at the path, checking the licensed type
 ||| against each position's expected type.
-goE : Sig -> Ctx -> (Elem, Elem, Ty) -> List Nat -> Nat -> Maybe Ty -> Elem -> KM Elem
-goE sig ctx lic@(le, re, ltyN) [] b mexp u = do
+goE : KPol -> Sig -> Ctx -> (Elem, Elem, Ty) -> List Nat -> Nat -> Maybe Ty -> Elem -> KM Elem
+goE pol sig ctx lic@(le, re, ltyN) [] b mexp u = do
   expN <- case mexp of
-    Just expTy => kTy sig expTy
+    Just expTy => kNfT pol sig expTy
     Nothing =>
       -- the NEUTRAL-SUBTERM rule (spec §6): at a type-undetermined
       -- rewrite point, the subterm's own ⇒ᴺ-type serves in the
@@ -1613,21 +1613,37 @@ goE sig ctx lic@(le, re, ltyN) [] b mexp u = do
         then do
           mu <- inferNeK sig ctx u
           case mu of
-            Just uTy => kTy sig uTy
+            Just uTy => kNfT pol sig uTy
             Nothing => kerr "kernel: step at a type-undetermined position [not inferable: \{show u}]"
         else kerr "kernel: step at a type-undetermined position [b=\{show b}, at \{show u}]"
-  if expN /= weakenTyN b ltyN
+  -- join-syntactic first; on mismatch, a PER-COMPONENT δβ conversion
+  -- rescue — δβ-equal type/subterm pairs whose difference needs an
+  -- unlicensed unfold (a lemma statement or type index outside the
+  -- cited set) stay verifiable without failing the whole replay back
+  -- to the full tier. Under KFull the inputs are already δβ-normal,
+  -- so the rescue is the identity check and behavior is unchanged.
+  tyOk <- if expN == weakenTyN b ltyN
+            then pure True
+            else do e1 <- kTy sig expN
+                    e2 <- kTy sig (weakenTyN b ltyN)
+                    pure (e1 == e2)
+  if not tyOk
     then kerr "kernel: step type does not match the position"
     else if u == weakenN b le
       then pure (weakenN b re)
-      else kerr "kernel: step does not match the subterm"
-goE sig ctx lic (i :: p) b mexp u = do
+      else do
+        u' <- kElem sig u
+        le' <- kElem sig (weakenN b le)
+        if u' == le'
+          then pure (weakenN b re)
+          else kerr "kernel: step does not match the subterm"
+goE pol sig ctx lic (i :: p) b mexp u = do
   childTy <- childTyE sig ctx mexp u i
   let goQSpine : SubNorm -> (SubNorm -> Elem) -> KM Elem
       goQSpine es re =
         case subNormAt i es of
           Just e => do
-            e' <- goE sig ctx lic p b childTy e
+            e' <- goE pol sig ctx lic p b childTy e
             case subNormSet i e' es of
               Just es' => pure (re es')
               Nothing => kerr "kernel: bad path"
@@ -1635,95 +1651,95 @@ goE sig ctx lic (i :: p) b mexp u = do
   case Just () of
     _ =>
       case (u, i) of
-        (ZeroElim t', 0) => ZeroElim <$> goE sig ctx lic p b childTy t'
-        (NatIntro1 t', 0) => NatIntro1 <$> goE sig ctx lic p b childTy t'
-        (NatElim z st t', 0) => (\z' => NatElim z' st t') <$> goE sig ctx lic p b childTy z
-        (NatElim z st t', 1) => (\s' => NatElim z s' t') <$> goE sig ctx lic p (2 + b) childTy st
-        (NatElim z st t', 2) => (\t'' => NatElim z st t'') <$> goE sig ctx lic p b childTy t'
-        (PiIntro f, 0) => PiIntro <$> goE sig ctx lic p (1 + b) childTy f
-        (PiApp f e, 0) => (\f' => PiApp f' e) <$> goE sig ctx lic p b childTy f
-        (PiApp f e, 1) => PiApp f <$> goE sig ctx lic p b childTy e
-        (SigmaElim1 t', 0) => SigmaElim1 <$> goE sig ctx lic p b childTy t'
-        (SigmaElim2 t', 0) => SigmaElim2 <$> goE sig ctx lic p b childTy t'
-        (Inj1 t', 0) => Inj1 <$> goE sig ctx lic p b childTy t'
-        (Inj2 t', 0) => Inj2 <$> goE sig ctx lic p b childTy t'
-        (SumElim l r t', 0) => (\l' => SumElim l' r t') <$> goE sig ctx lic p (1 + b) childTy l
-        (SumElim l r t', 1) => (\r' => SumElim l r' t') <$> goE sig ctx lic p (1 + b) childTy r
-        (SumElim l r t', 2) => SumElim l r <$> goE sig ctx lic p b childTy t'
-        (SigmaIntro x y, 0) => (\x' => SigmaIntro x' y) <$> goE sig ctx lic p b childTy x
-        (SigmaIntro x y, 1) => SigmaIntro x <$> goE sig ctx lic p b childTy y
-        (Elem.PiTy a c, 0) => (\a' => Elem.PiTy a' c) <$> goE sig ctx lic p b childTy a
-        (Elem.PiTy a c, 1) => Elem.PiTy a <$> goE sig ctx lic p (1 + b) childTy c
-        (Elem.SigmaTy a c, 0) => (\a' => Elem.SigmaTy a' c) <$> goE sig ctx lic p b childTy a
-        (Elem.SigmaTy a c, 1) => Elem.SigmaTy a <$> goE sig ctx lic p (1 + b) childTy c
-        (Elem.SumTy a c, 0) => (\a' => Elem.SumTy a' c) <$> goE sig ctx lic p b childTy a
-        (Elem.SumTy a c, 1) => Elem.SumTy a <$> goE sig ctx lic p b childTy c
-        (Elem.EqTy l r t', 0) => (\l' => Elem.EqTy l' r t') <$> goE sig ctx lic p b childTy l
-        (Elem.EqTy l r t', 1) => (\r' => Elem.EqTy l r' t') <$> goE sig ctx lic p b childTy r
-        (Elem.EqTy l r t', 2) => Elem.EqTy l r <$> goTy sig ctx lic p b t'
-        (QuotTy a r, 0) => (\a' => QuotTy a' r) <$> goE sig ctx lic p b childTy a
-        (QuotTy a r, 1) => QuotTy a <$> goE sig ctx lic p (2 + b) childTy r
+        (ZeroElim t', 0) => ZeroElim <$> goE pol sig ctx lic p b childTy t'
+        (NatIntro1 t', 0) => NatIntro1 <$> goE pol sig ctx lic p b childTy t'
+        (NatElim z st t', 0) => (\z' => NatElim z' st t') <$> goE pol sig ctx lic p b childTy z
+        (NatElim z st t', 1) => (\s' => NatElim z s' t') <$> goE pol sig ctx lic p (2 + b) childTy st
+        (NatElim z st t', 2) => (\t'' => NatElim z st t'') <$> goE pol sig ctx lic p b childTy t'
+        (PiIntro f, 0) => PiIntro <$> goE pol sig ctx lic p (1 + b) childTy f
+        (PiApp f e, 0) => (\f' => PiApp f' e) <$> goE pol sig ctx lic p b childTy f
+        (PiApp f e, 1) => PiApp f <$> goE pol sig ctx lic p b childTy e
+        (SigmaElim1 t', 0) => SigmaElim1 <$> goE pol sig ctx lic p b childTy t'
+        (SigmaElim2 t', 0) => SigmaElim2 <$> goE pol sig ctx lic p b childTy t'
+        (Inj1 t', 0) => Inj1 <$> goE pol sig ctx lic p b childTy t'
+        (Inj2 t', 0) => Inj2 <$> goE pol sig ctx lic p b childTy t'
+        (SumElim l r t', 0) => (\l' => SumElim l' r t') <$> goE pol sig ctx lic p (1 + b) childTy l
+        (SumElim l r t', 1) => (\r' => SumElim l r' t') <$> goE pol sig ctx lic p (1 + b) childTy r
+        (SumElim l r t', 2) => SumElim l r <$> goE pol sig ctx lic p b childTy t'
+        (SigmaIntro x y, 0) => (\x' => SigmaIntro x' y) <$> goE pol sig ctx lic p b childTy x
+        (SigmaIntro x y, 1) => SigmaIntro x <$> goE pol sig ctx lic p b childTy y
+        (Elem.PiTy a c, 0) => (\a' => Elem.PiTy a' c) <$> goE pol sig ctx lic p b childTy a
+        (Elem.PiTy a c, 1) => Elem.PiTy a <$> goE pol sig ctx lic p (1 + b) childTy c
+        (Elem.SigmaTy a c, 0) => (\a' => Elem.SigmaTy a' c) <$> goE pol sig ctx lic p b childTy a
+        (Elem.SigmaTy a c, 1) => Elem.SigmaTy a <$> goE pol sig ctx lic p (1 + b) childTy c
+        (Elem.SumTy a c, 0) => (\a' => Elem.SumTy a' c) <$> goE pol sig ctx lic p b childTy a
+        (Elem.SumTy a c, 1) => Elem.SumTy a <$> goE pol sig ctx lic p b childTy c
+        (Elem.EqTy l r t', 0) => (\l' => Elem.EqTy l' r t') <$> goE pol sig ctx lic p b childTy l
+        (Elem.EqTy l r t', 1) => (\r' => Elem.EqTy l r' t') <$> goE pol sig ctx lic p b childTy r
+        (Elem.EqTy l r t', 2) => Elem.EqTy l r <$> goTy pol sig ctx lic p b t'
+        (QuotTy a r, 0) => (\a' => QuotTy a' r) <$> goE pol sig ctx lic p b childTy a
+        (QuotTy a r, 1) => QuotTy a <$> goE pol sig ctx lic p (2 + b) childTy r
         (SigVar x es, _) =>
           case subNormAt i es of
             Just e => do
-              e' <- goE sig ctx lic p b childTy e
+              e' <- goE pol sig ctx lic p b childTy e
               case subNormSet i e' es of
                 Just es' => pure (SigVar x es')
                 Nothing => kerr "kernel: bad path"
             Nothing => kerr "kernel: bad path"
-        (Class a, 0) => Class <$> goE sig ctx lic p b childTy a
-        (Out t', 0) => Out <$> goE sig ctx lic p b childTy t'
-        (Corec pf a f x, 0) => (\a' => Corec pf a' f x) <$> goE sig ctx lic p b childTy a
-        (Corec pf a f x, 1) => (\f' => Corec pf a f' x) <$> goE sig ctx lic p (1 + b) childTy f
-        (Corec pf a f x, 2) => Corec pf a f <$> goE sig ctx lic p b childTy x
-        (QuotElim f q, 0) => (\f' => QuotElim f' q) <$> goE sig ctx lic p (1 + b) childTy f
-        (QuotElim f q, 1) => QuotElim f <$> goE sig ctx lic p b childTy q
-        (Squash t, 0) => Squash <$> goTy sig ctx lic p b t
+        (Class a, 0) => Class <$> goE pol sig ctx lic p b childTy a
+        (Out t', 0) => Out <$> goE pol sig ctx lic p b childTy t'
+        (Corec pf a f x, 0) => (\a' => Corec pf a' f x) <$> goE pol sig ctx lic p b childTy a
+        (Corec pf a f x, 1) => (\f' => Corec pf a f' x) <$> goE pol sig ctx lic p (1 + b) childTy f
+        (Corec pf a f x, 2) => Corec pf a f <$> goE pol sig ctx lic p b childTy x
+        (QuotElim f q, 0) => (\f' => QuotElim f' q) <$> goE pol sig ctx lic p (1 + b) childTy f
+        (QuotElim f q, 1) => QuotElim f <$> goE pol sig ctx lic p b childTy q
+        (Squash t, 0) => Squash <$> goTy pol sig ctx lic p b t
         (QSortC sg k es, _) => goQSpine es (\es' => QSortC sg k es')
         (QCtor sg k es, _) => goQSpine es (\es' => QCtor sg k es')
         (QElim sg k ms fs es w, _) =>
           if i == length (toList es)
-            then (\w' => QElim sg k ms fs es w') <$> goE sig ctx lic p b childTy w
+            then (\w' => QElim sg k ms fs es w') <$> goE pol sig ctx lic p b childTy w
             else goQSpine es (\es' => QElim sg k ms fs es' w)
         _ => kerr "kernel: bad or type-undetermined path"
 
 ||| Apply one step to an element known (by the replay invariant) to be
 ||| well-typed at tyRoot: descend the path computing expected types,
 ||| verify the licensed equation's type in situ, rewrite.
-stepElem : Sig -> Ctx -> Step -> Ty -> Elem -> KM Elem
-stepElem sig ctx step tyRoot t = do
-  (le, re, lty) <- licensed sig ctx step
-  ltyN <- kTy sig lty
-  goE sig ctx (le, re, ltyN) step.path 0 (Just tyRoot) t
+stepElem : KPol -> Sig -> Ctx -> Step -> Ty -> Elem -> KM Elem
+stepElem pol sig ctx step tyRoot t = do
+  (le, re, lty) <- licensed pol sig ctx step
+  ltyN <- kNfT pol sig lty
+  goE pol sig ctx (le, re, ltyN) step.path 0 (Just tyRoot) t
 
-goTy sig ctx lic [] b u = kerr "kernel: type-path must end at an element"
-goTy sig ctx lic (i :: p) b (Ty.PiTy a c) =
+goTy pol sig ctx lic [] b u = kerr "kernel: type-path must end at an element"
+goTy pol sig ctx lic (i :: p) b (Ty.PiTy a c) =
   case i of
-    0 => (\a' => Ty.PiTy a' c) <$> goTy sig ctx lic p b a
-    1 => Ty.PiTy a <$> goTy sig ctx lic p (1 + b) c
+    0 => (\a' => Ty.PiTy a' c) <$> goTy pol sig ctx lic p b a
+    1 => Ty.PiTy a <$> goTy pol sig ctx lic p (1 + b) c
     _ => kerr "kernel: bad path"
-goTy sig ctx lic (i :: p) b (Ty.SigmaTy a c) =
+goTy pol sig ctx lic (i :: p) b (Ty.SigmaTy a c) =
   case i of
-    0 => (\a' => Ty.SigmaTy a' c) <$> goTy sig ctx lic p b a
-    1 => Ty.SigmaTy a <$> goTy sig ctx lic p (1 + b) c
+    0 => (\a' => Ty.SigmaTy a' c) <$> goTy pol sig ctx lic p b a
+    1 => Ty.SigmaTy a <$> goTy pol sig ctx lic p (1 + b) c
     _ => kerr "kernel: bad path"
-goTy sig ctx lic (i :: p) b (Ty.SumTy a c) =
+goTy pol sig ctx lic (i :: p) b (Ty.SumTy a c) =
   case i of
-    0 => (\a' => Ty.SumTy a' c) <$> goTy sig ctx lic p b a
-    1 => Ty.SumTy a <$> goTy sig ctx lic p b c
+    0 => (\a' => Ty.SumTy a' c) <$> goTy pol sig ctx lic p b a
+    1 => Ty.SumTy a <$> goTy pol sig ctx lic p b c
     _ => kerr "kernel: bad path"
-goTy sig ctx lic (i :: p) b (El e) =
-  if i == 0 then El <$> goE sig ctx lic p b (Just Ty.UniverseTy) e
+goTy pol sig ctx lic (i :: p) b (El e) =
+  if i == 0 then El <$> goE pol sig ctx lic p b (Just Ty.UniverseTy) e
   else kerr "kernel: bad path"
-goTy sig ctx lic (i :: p) b (Prf e) =
-  if i == 0 then Prf <$> goE sig ctx lic p b (Just Ty.PropTy) e
+goTy pol sig ctx lic (i :: p) b (Prf e) =
+  if i == 0 then Prf <$> goE pol sig ctx lic p b (Just Ty.PropTy) e
   else kerr "kernel: bad path"
-goTy sig ctx lic (i :: p) b (Quotient a r) =
+goTy pol sig ctx lic (i :: p) b (Quotient a r) =
   case i of
-    0 => (\a' => Quotient a' r) <$> goTy sig ctx lic p b a
-    1 => Quotient a <$> goE sig ctx lic p (2 + b) (Just Ty.PropTy) r
+    0 => (\a' => Quotient a' r) <$> goTy pol sig ctx lic p b a
+    1 => Quotient a <$> goE pol sig ctx lic p (2 + b) (Just Ty.PropTy) r
     _ => kerr "kernel: bad path"
-goTy sig ctx lic (i :: p) b (QSort sg k es) =
+goTy pol sig ctx lic (i :: p) b (QSort sg k es) =
   case qEntry sg k of
     Nothing => kerr "kernel: bad path"
     Just entry =>
@@ -1732,31 +1748,31 @@ goTy sig ctx lic (i :: p) b (QSort sg k es) =
         Right (tel, _, _) =>
           case (subNormAt i es, telInst tel i (toList es)) of
             (Just e, Just ety) => do
-              e' <- goE sig ctx lic p b (Just ety) e
+              e' <- goE pol sig ctx lic p b (Just ety) e
               case subNormSet i e' es of
                 Just es' => pure (QSort sg k es')
                 Nothing => kerr "kernel: bad path"
             _ => kerr "kernel: bad path"
-goTy sig ctx lic (i :: p) b (Ty.SigVar x es) =
+goTy pol sig ctx lic (i :: p) b (Ty.SigVar x es) =
   kSigLookup sig x >>= \entryX => case entryX of
     Just (SigTyDef delta _ _) =>
       case (subNormAt i es, getAt i (toList delta)) of
         (Just e, Just entryTy) => do
-          e' <- goE sig ctx lic p b (Just (substTy entryTy (embed (cast (take i (toList es)))))) e
+          e' <- goE pol sig ctx lic p b (Just (substTy entryTy (embed (cast (take i (toList es)))))) e
           case subNormSet i e' es of
             Just es' => pure (Ty.SigVar x es')
             Nothing => kerr "kernel: bad path"
         _ => kerr "kernel: bad path"
     _ => kerr "kernel: bad path"
-goTy sig ctx lic _ _ _ = kerr "kernel: bad path"
+goTy pol sig ctx lic _ _ _ = kerr "kernel: bad path"
 
 ||| Steps inside types: type positions have no element type; every
 ||| element child's type is structurally determined.
-stepTy : Sig -> Ctx -> Step -> Ty -> KM Ty
-stepTy sig ctx step t = do
-  (le, re, lty) <- licensed sig ctx step
-  ltyN <- kTy sig lty
-  goTy sig ctx (le, re, ltyN) step.path 0 t
+stepTy : KPol -> Sig -> Ctx -> Step -> Ty -> KM Ty
+stepTy pol sig ctx step t = do
+  (le, re, lty) <- licensed pol sig ctx step
+  ltyN <- kNfT pol sig lty
+  goTy pol sig ctx (le, re, ltyN) step.path 0 t
 
 -- ===== Item-level checking over annotation skeletons =====
 --
@@ -1880,7 +1896,12 @@ mutual
     (l1, r1) <- goSteps tyU cert.steps l0 r0
     case cert.final of
       FBeta =>
-        if l1 == r1 then pure () else kerr "kernel: sides differ after replay"
+        if l1 == r1 then pure () else do
+          -- δβ rescue, as at the step checks: the replacement may have
+          -- introduced vocabulary outside the cited set
+          l2 <- kElem sig l1
+          r2 <- kElem sig r1
+          if l2 == r2 then pure () else kerr "kernel: sides differ after replay"
       FProp => do
         -- head exposure suffices for every final's type match below
         ty' <- kWhnfT sig tyU
@@ -1957,9 +1978,9 @@ mutual
     goSteps tyU [] l' r' = pure (l', r')
     goSteps tyU (s :: rest) l' r' =
       if s.onLhs
-        then do l'' <- stepElem sig ctx s tyU l' >>= kNfE pol sig
+        then do l'' <- stepElem pol sig ctx s tyU l' >>= kNfE pol sig
                 goSteps tyU rest l'' r'
-        else do r'' <- stepElem sig ctx s tyU r' >>= kNfE pol sig
+        else do r'' <- stepElem pol sig ctx s tyU r' >>= kNfE pol sig
                 goSteps tyU rest l' r''
 
   ||| Replay a certificate for the type equation Γ ⊢ A ≐ B (tiered,
@@ -2026,9 +2047,9 @@ mutual
     goSteps [] a' b' = pure (a', b')
     goSteps (s :: rest) a' b' =
       if s.onLhs
-        then do a'' <- stepTy sig ctx s a' >>= kNfT pol sig
+        then do a'' <- stepTy pol sig ctx s a' >>= kNfT pol sig
                 goSteps rest a'' b'
-        else do b'' <- stepTy sig ctx s b' >>= kNfT pol sig
+        else do b'' <- stepTy pol sig ctx s b' >>= kNfT pol sig
                 goSteps rest a' b''
 
   ||| Γ ⊢ e ⇐ A, kernel-side.

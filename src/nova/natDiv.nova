@@ -229,8 +229,8 @@ def modLe : (a : ℕ) (b : ℕ) → El (LeN (modN a b) b) using (id.Id.eq, natDi
   λa. λb. dmAuxLe a a b (leRefl a)
 
 -- and it computes: 7 = 3·2 + 1
-def divTest : divN (S (S (S (S (S (S (S Z))))))) (S Z) ≡ S (S (S Z)) ∈ ℕ ≔ ⋆
-def modTest : modN (S (S (S (S (S (S (S Z))))))) (S Z) ≡ S Z ∈ ℕ ≔ ⋆
+def divTest : divN (S (S (S (S (S (S (S Z))))))) (S Z) ≡ S (S (S Z)) ∈ ℕ using (natDiv.divN.eq, natDiv.dmAux.eq, natDiv.natCase.eq, natMore.pred.eq, natMore.∸.eq) ≔ ⋆
+def modTest : modN (S (S (S (S (S (S (S Z))))))) (S Z) ≡ S Z ∈ ℕ using (natDiv.dmAux.eq, natDiv.modN.eq, natDiv.natCase.eq, natMore.pred.eq, natMore.∸.eq) ≔ ⋆
 
 -- ===== uniqueness of the quotient =====
 

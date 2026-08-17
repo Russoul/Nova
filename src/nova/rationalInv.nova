@@ -50,7 +50,7 @@ def intCanonProdZero : (z : El Int) → intCanon z .π₁ * intCanon z .π₂ �
 -- (S,S) case contradicts canonicity
 def nzOfPair : (a : ℕ) (b : ℕ) (hab : Prf (a * b ≡ Z ∈ ℕ))
   (hnz : Prf (¬ (class (a , b) ≡ intZero ∈ El Int))) →
-  Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ class (a , b) ∈ El Int)∥ using (integer.intZero.eq, rational.nzNeg.eq, rational.nzPos.eq, rational.nzToInt.eq, sucPlus, zeroMult) ≔
+  Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ class (a , b) ∈ El Int)∥ using (integer.Int.eq, integer.intZero.eq, prop.¬.eq, prop.⊃.eq, prop.⊥.eq, rational.nzNeg.eq, rational.nzPos.eq, rational.nzToInt.eq, sucPlus, zeroMult) ≔
   λa.
     ℕ-elim (k. (b : ℕ) → Prf (k * b ≡ Z ∈ ℕ) →
               Prf (¬ (class (k , b) ≡ intZero ∈ El Int)) →
