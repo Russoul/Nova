@@ -1,0 +1,188 @@
+import nat (+, *, plusZeroId, zeroPlusId, plusComm, multZeroId, multSucId)
+import natOrder (LeN)
+import natSqrt (isqrt, isqrtLe, isqrtUpper)
+import integer (Int, intOne)
+import integerMul (intMul, intMulOneL)
+import rational (NZ, nzOne, nzPos, nzMul, Rat, mkRat)
+import rationalQ (Q, qcls, qAdd, qMul, qNeg, qZero, qOne, qAddZeroR, qMulCls, ratMul)
+import rationalOrder (LeQ, leQTrans, leQMulMono)
+import ratBound (Bnd, bndEq, bndZero, qNegZeroQ)
+import ratMax (qMax, leQMaxR, bndMaxSub)
+import ratAbs (leQZeroMul)
+import ratNat (qOfNat, leQOfNat, leNOfQ, qOfNatMul)
+import ratCeil (qFloor, qNatBound, leQBound, leQZeroNat)
+import ratFloor (leQFloor)
+import real (qInvNat, rBound)
+import realMul (mulIdx, qMulInvIdx)
+import equality (trans, sym, cong, transport, transportP)
+
+-- THE RATIONAL APPROXIMANT to √u, and the four facts about it that
+-- everything downstream uses.
+--
+--   qSqrtAt u D  ≔  isqrt ⌊u⁺·(D+1)²⌋ / (D+1)
+--
+-- Written on the POSITIVE PART u⁺ = max u 0, so it is total: no
+-- hypothesis is needed to form it, and on nonnegative u it is what it
+-- should be. That matters because a positivity witness on ℝ lives in
+-- a squash and cannot be eliminated into data (B-15) — a square root
+-- that demanded one could not be defined at all.
+--
+-- The interface is deliberately small. Downstream never unfolds
+-- qSqrtAt; it uses
+--
+--   leQFlBelow : ⌊w⌋ ≤ w                  (ratFloor)
+--   leQFlAbove : w ≤ ⌊w⌋ + 1              (ratCeil)
+--   isqrtLe    : K² ≤ ⌊w⌋                 (natSqrt)
+--   isqrtUpper : ⌊w⌋ < (K+1)²             (natSqrt)
+--
+-- and the two bridges below that turn a ℕ comparison into a ℚ one.
+
+-- ===== the positive part =====
+
+def qPos : El Q → El Q ≔ λu. qMax u qZero
+
+def leQZeroPos : (u : El Q) → El (LeQ qZero (qPos u)) using (qPos.eq) ≔
+  λu. leQMaxR u qZero
+
+-- |u⁺ − v⁺| ≤ |u − v| : truncation at zero is nonexpansive, so the
+-- positive parts of a regular sequence are still regular
+def qZeroSubZero : qAdd qZero (qNeg qZero) ≡ qZero ∈ El Q ≔
+  trans Q (qAdd qZero (qNeg qZero)) (qAdd qZero qZero) qZero
+    (cong Q (λw. Q) (λw. qAdd qZero w) (qNeg qZero) qZero qNegZeroQ)
+    (qAddZeroR qZero)
+
+def bndPos : (b : El Q) (u : El Q) (v : El Q) → El (LeQ qZero b) →
+  El (Bnd b (qAdd u (qNeg v))) →
+  El (Bnd b (qAdd (qPos u) (qNeg (qPos v)))) using (qPos.eq) ≔
+  λb. λu. λv. λhb. λh.
+    bndMaxSub b u v qZero qZero h
+      (bndEq b qZero (qAdd qZero (qNeg qZero))
+         (sym Q (qAdd qZero (qNeg qZero)) qZero qZeroSubZero)
+         (bndZero b hb))
+
+-- ===== the approximant =====
+
+def sqNat : ℕ → ℕ ≔ λD. S D * S D
+
+def qScaled : El Q → ℕ → El Q ≔
+  λu. λD. qMul (qPos u) (qOfNat (sqNat D))
+
+def leQZeroScaled : (u : El Q) (D : ℕ) → El (LeQ qZero (qScaled u D)) using (qScaled.eq) ≔
+  λu. λD.
+    leQZeroMul (qPos u) (qOfNat (sqNat D)) (leQZeroPos u) (leQZeroNat (sqNat D))
+
+-- ⌊u⁺·(D+1)²⌋, the natural the root is taken of
+def qFl : El Q → ℕ → ℕ ≔ λu. λD. qFloor (qScaled u D)
+
+def qSqrtNum : El Q → ℕ → ℕ ≔ λu. λD. isqrt (qFl u D)
+
+def qSqrtAt : El Q → ℕ → El Q ≔
+  λu. λD. qMul (qOfNat (qSqrtNum u D)) (qInvNat D)
+
+-- ===== the four facts =====
+
+def leQFlBelow : (u : El Q) (D : ℕ) →
+  El (LeQ (qOfNat (qFl u D)) (qScaled u D)) using (qFl.eq) ≔
+  λu. λD. leQFloor (qScaled u D) (leQZeroScaled u D)
+
+def leQFlAbove : (u : El Q) (D : ℕ) →
+  El (LeQ (qScaled u D) (qOfNat (S (qFl u D)))) using (qFl.eq, qScaled.eq, ratCeil.qNatBound.eq) ≔
+  λu. λD. leQBound (qScaled u D)
+
+def sqrtNumLe : (u : El Q) (D : ℕ) →
+  El (LeN (qSqrtNum u D * qSqrtNum u D) (qFl u D)) using (qSqrtNum.eq) ≔
+  λu. λD. isqrtLe (qFl u D)
+
+def sqrtNumUpper : (u : El Q) (D : ℕ) →
+  El (LeN (S (qFl u D)) (S (qSqrtNum u D) * S (qSqrtNum u D))) using (qSqrtNum.eq) ≔
+  λu. λD. isqrtUpper (qFl u D)
+
+-- ===== the two bridges =====
+
+-- (D+1)·(1/(D+1)) is one, on the nose
+def qMulInvNat : (D : ℕ) →
+  qMul (qOfNat (S D)) (qInvNat D) ≡ qOne ∈ El Q using (integer.intOne.eq, rational.mkRat.eq, rational.nzOne.eq, rational.nzPos.eq, rational.ratOfInt.eq, rational.ratOne.eq, rationalQ.qOne.eq, rationalQ.qcls.eq, real.qInvNat.eq, realMul.mulIdx.eq) ≔
+  λD.
+    transportP ℕ (λw. qMul (qOfNat (S D)) (qInvNat w) ≡ qOne ∈ El Q)
+      (mulIdx D Z) D
+      (trans ℕ (mulIdx D Z) (Z + D) D
+         (cong ℕ (λw. ℕ) (λw. Z + w) (D * S Z) D
+            (trans ℕ (D * S Z) (D + D * Z) D
+               (multSucId D Z)
+               (trans ℕ (D + D * Z) (D + Z) D
+                  (cong ℕ (λw. ℕ) (λw. D + w) (D * Z) Z (multZeroId D))
+                  (plusZeroId D))))
+         (zeroPlusId D))
+      (transportP Q (λw. qMul (qOfNat (S D)) (qInvNat (mulIdx D Z)) ≡ w ∈ El Q)
+         (qInvNat Z) qOne ⋆
+         (qMulInvIdx D Z))
+
+-- 1/((c+1)(m+1)) is 1/(c+1) times 1/(m+1). nzMul on two positive
+-- denominators lands on c*m + c + m, which is mulIdx c m written the
+-- other way round
+def mulIdxNz : (c : ℕ) (m : ℕ) → c * m + c + m ≡ mulIdx c m ∈ ℕ
+  using (realMul.mulIdx.eq) ≔
+  λc. λm.
+    ((c * m + c) + m
+       ≡⟨ plusComm m (c * m + c) ⟩
+     m + (c * m + c)
+       ≡⟨ cong ℕ (λw. ℕ) (λw. m + w) (c * m + c) (c + c * m)
+            (plusComm c (c * m)) ⟩
+     m + (c + c * m)
+       ≡⟨ cong ℕ (λw. ℕ) (λw. m + w) (c + c * m) (c * S m)
+            (sym ℕ (c * S m) (c + c * m) (multSucId c m)) ⟩
+     m + c * S m)
+
+def nzPosMul : (c : ℕ) (m : ℕ) →
+  nzMul (nzPos c) (nzPos m) ≡ nzPos (mulIdx c m) ∈ El NZ using (rational.nzMul.eq, rational.nzPos.eq) ≔
+  λc. λm.
+    cong ℕ (λw. NZ) (λw. nzPos w) (c * m + c + m) (mulIdx c m) (mulIdxNz c m)
+
+def ratMulInv : (c : ℕ) (m : ℕ) →
+  ratMul (mkRat intOne (nzPos c)) (mkRat intOne (nzPos m))
+    ≡ mkRat (intMul intOne intOne) (nzMul (nzPos c) (nzPos m)) ∈ El Rat
+  using (rationalQ.ratMul.eq, rational.mkRat.eq, rational.num.eq,
+         rational.den.eq) ≔
+  λc. λm. ⋆
+
+def qInvNatCls : (k : ℕ) → qInvNat k ≡ qcls (mkRat intOne (nzPos k)) ∈ El Q
+  using (real.qInvNat.eq) ≔ λk. ⋆
+
+def qInvNatMulIdx : (c : ℕ) (m : ℕ) →
+  qInvNat (mulIdx c m) ≡ qMul (qInvNat c) (qInvNat m) ∈ El Q ≔
+  λc. λm.
+    (qInvNat (mulIdx c m)
+       ≡⟨ qInvNatCls (mulIdx c m) ⟩
+     qcls (mkRat intOne (nzPos (mulIdx c m)))
+       ≡⟨ cong NZ (λw. Q) (λw. qcls (mkRat intOne w))
+            (nzPos (mulIdx c m)) (nzMul (nzPos c) (nzPos m))
+            (sym NZ (nzMul (nzPos c) (nzPos m)) (nzPos (mulIdx c m))
+               (nzPosMul c m)) ⟩
+     qcls (mkRat intOne (nzMul (nzPos c) (nzPos m)))
+       ≡⟨ cong Int (λw. Q) (λw. qcls (mkRat w (nzMul (nzPos c) (nzPos m))))
+            intOne (intMul intOne intOne)
+            (sym Int (intMul intOne intOne) intOne (intMulOneL intOne)) ⟩
+     qcls (mkRat (intMul intOne intOne) (nzMul (nzPos c) (nzPos m)))
+       ≡⟨ cong Rat (λw. Q) (λw. qcls w)
+            (mkRat (intMul intOne intOne) (nzMul (nzPos c) (nzPos m)))
+            (ratMul (mkRat intOne (nzPos c)) (mkRat intOne (nzPos m)))
+            (sym Rat (ratMul (mkRat intOne (nzPos c)) (mkRat intOne (nzPos m)))
+                     (mkRat (intMul intOne intOne)
+                            (nzMul (nzPos c) (nzPos m)))
+               (ratMulInv c m)) ⟩
+     qcls (ratMul (mkRat intOne (nzPos c)) (mkRat intOne (nzPos m)))
+       ≡⟨ sym Q (qMul (qcls (mkRat intOne (nzPos c)))
+                      (qcls (mkRat intOne (nzPos m))))
+            (qcls (ratMul (mkRat intOne (nzPos c)) (mkRat intOne (nzPos m))))
+            (qMulCls (mkRat intOne (nzPos c)) (mkRat intOne (nzPos m))) ⟩
+     qMul (qcls (mkRat intOne (nzPos c))) (qcls (mkRat intOne (nzPos m)))
+       ≡⟨ cong Q (λw. Q) (λw. qMul w (qcls (mkRat intOne (nzPos m))))
+            (qcls (mkRat intOne (nzPos c))) (qInvNat c)
+            (sym Q (qInvNat c) (qcls (mkRat intOne (nzPos c)))
+               (qInvNatCls c)) ⟩
+     qMul (qInvNat c) (qcls (mkRat intOne (nzPos m)))
+       ≡⟨ cong Q (λw. Q) (λw. qMul (qInvNat c) w)
+            (qcls (mkRat intOne (nzPos m))) (qInvNat m)
+            (sym Q (qInvNat m) (qcls (mkRat intOne (nzPos m)))
+               (qInvNatCls m)) ⟩
+     qMul (qInvNat c) (qInvNat m))
