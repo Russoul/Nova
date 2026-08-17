@@ -4,6 +4,7 @@ import Data.List
 import Data.String
 
 import Nova.Elaboration.Loader
+import Nova.Profile
 import System
 import System.File
 
@@ -12,8 +13,11 @@ import System.File
 usage : String
 usage = unlines
   [ "Usage:"
-  , "  nova elab <surface-file>"
+  , "  nova elab <surface-file>   [--strict]"
   , "  nova run <surface-file> <name>"
+  , ""
+  , "--strict (any command, also nova-lsp): strict-conversion mode —"
+  , "equivalent to launching with NOVA_STRICT_CONV=1."
   , ""
   , "elab: elaborates a .nova surface file (see docs/NovaElaboration.txt):"
   , "items are checked in order against the kernel's signature; the"
@@ -27,7 +31,11 @@ usage = unlines
 
 main : IO ()
 main = do
-  args <- getArgs
+  rawArgs <- getArgs
+  -- `--strict` anywhere on the command line = strict-conversion mode
+  -- (equivalent to launching with NOVA_STRICT_CONV=1)
+  when (elem "--strict" rawArgs) (setStrictConv True)
+  let args = filter (/= "--strict") rawArgs
   case args of
     (_ :: "elab" :: surfaceFile :: []) => do
       output <- elabPath surfaceFile

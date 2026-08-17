@@ -13,7 +13,10 @@ import Nova.LSP.ProcessMessage
 import Nova.LSP.Ref
 import Nova.LSP.Response
 
+import System
 import System.File
+
+import Nova.Profile
 
 data Header = ContentLength Int | ContentType String | StartContent
 
@@ -108,5 +111,9 @@ runServer = handleMessage >> runServer
 
 main : IO ()
 main = do
+  -- `--strict` (or launching with NOVA_STRICT_CONV=1) puts every
+  -- elaboration this server runs into strict-conversion mode
+  args <- getArgs
+  when (elem "--strict" args) (setStrictConv True)
   l <- newRef LSPConf defaultConfig
   runServer

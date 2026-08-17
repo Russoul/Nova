@@ -65,9 +65,21 @@ scopedMode = unsafePerformIO (map isNothing (getEnv "NOVA_GLOBAL_STORE"))
 ||| `using`-unfold whitelist survey. Everything that falls outside the
 ||| subset surfaces as an obligation — the migration fallout map. A
 ||| mode below the trust boundary: the kernel path is unchanged.
+strictConvRef : IORef Bool
+strictConvRef = unsafePerformIO $ do
+  e <- getEnv "NOVA_STRICT_CONV"
+  newIORef (isJust e)
+
+||| The () argument defeats CAF pre-evaluation (the nowNs discipline),
+||| so a `--strict` flag processed in main (setStrictConv) is honored
+||| even though the environment was already read at load.
 export
-strictConv : Bool
-strictConv = unsafePerformIO (map isJust (getEnv "NOVA_STRICT_CONV"))
+strictConv : () -> Bool
+strictConv () = unsafePerformIO (readIORef strictConvRef)
+
+export
+setStrictConv : Bool -> IO ()
+setStrictConv b = writeIORef strictConvRef b
 
 ||| Print an audit line to stderr under NOVA_AUDIT=1, returning `x`
 ||| unchanged — the scope-migration survey hook (which discharge sites
