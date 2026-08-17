@@ -1,0 +1,27 @@
+import monoid (IsMonoid)
+import group (IsGroup)
+import id (Id)
+
+-- COMMUTATIVE RINGS, in the same style as monoid.nova and group.nova:
+-- a Σ-code whose components are the operations followed by their
+-- laws, stated with `Id` because a code cannot carry a `Prf`.
+--
+-- The additive part is reused wholesale — an IsGroup, whose operation
+-- is reached as `add .π₁ .π₁` and whose unit is `add .π₁ .π₂ .π₁`.
+-- Commutativity of addition is NOT part of IsGroup, so it is listed
+-- here; everything else additive comes for free.
+
+def IsCommRing : 𝕌 → 𝕌
+  using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔ λR.
+  (add : IsGroup R)
+  (mul : R → R → R)
+  (one : R)
+  (mulAssoc : (x : R) (y : R) (z : R) →
+                Id R (mul (mul x y) z) (mul x (mul y z)))
+  (mulComm : (x : R) (y : R) → Id R (mul x y) (mul y x))
+  (mulOne : (x : R) → Id R (mul x one) x)
+  (addComm : (x : R) (y : R) →
+               Id R (add .π₁ .π₁ x y) (add .π₁ .π₁ y x)) ⨯
+  ((x : R) (y : R) (z : R) →
+     Id R (mul x (add .π₁ .π₁ y z))
+          (add .π₁ .π₁ (mul x y) (mul x z)))
