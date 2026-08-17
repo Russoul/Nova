@@ -668,20 +668,44 @@ the same file:
 | `rMulComm` via `rseqEq` | `rMul` | >6 min |
 | the `quot-elim` descent | `rMul` | did not finish |
 
-So `realMul` itself is not in the corpus: the mathematics is complete
+So `realMul` shipped WITHOUT the descent: the mathematics was complete
 (`rMul`, its regularity, and `rMulWDInner` — REq-invariance in the
-second argument, which is the hard estimate), and only the two-line
-descent is missing.
+second argument, which is the hard estimate) and only the two-line
+`quot-elim` was missing.
 
-Two independent fixes would unblock it, and both are outside the file:
+**RESOLVED by strict conversion.** The prediction above was that the
+fix lay outside the file, in how conversion walks terms. That is what
+happened, though not in either of the two forms guessed at the time:
+the licensed subset does not need a projection-aware whnf step or a
+cheaper ceiling, because with δ named rather than ambient, conversion
+only ever walks what the site cites — and none of these sites has any
+reason to cite `ratCeil.qFloor.eq`. The same file, unchanged except
+for the descent being added back:
 
-1. **Do not normalise under a projection whose result is discarded.**
-   `seqOf (f , r)` should reach `f` without touching `r`. A
-   projection-aware whnf step, or hash-consing normal forms, would
-   collapse the table above.
-2. **A rational ceiling with a small normal form.** `divN`'s fuel
-   recursion is what makes `seqBound` expensive; anything with the same
-   specification and a compact normal form would do.
+| item | before | after |
+|---|---|---|
+| `rMulWDInnerCls` | ~3.5 min | free |
+| `rMulComm` | >6 min | free |
+| `rMulWDOuter`, `realMul`, `realMulComm`, `realMulOfQ` | did not finish | free |
+| whole module | 33 s (without the descent) | **2.2 s** (with it) |
+
+The descent needed no new mathematics and no proof-term edits — the
+block was transcribed from `realAdd`'s and closed by following the
+elaborator's `hint:` lines, four rounds, plus one argument-order slip
+of my own (`plusComm b a`, not `plusComm a b`).
+
+The general lesson generalises past this file: **a cost wall under an
+automatic conversion is not evidence that the construction is too big.**
+It can be evidence that the engine is walking terms nobody asked it to
+walk. Before restructuring mathematics to fit a performance budget,
+find out WHICH unfolds are being paid for.
+
+One item still had to be reshaped rather than licensed, and it is the
+same lesson as the two below: `rMulComm`'s pointwise step costs 8.5 s
+written inline even under the strict engine, because the `cong` motive
+puts both ceilings in the conversion. Routed through `mulSeqCommAt` —
+abstract in both sequences and both depths, with the depth equality an
+argument — it is free, and the call site cites exactly three unfolds.
 
 Two smaller lessons that DID work, and are worth keeping:
 
@@ -696,6 +720,10 @@ Two smaller lessons that DID work, and are worth keeping:
   as a lemma, so replacing one argument by a stub isolates which
   argument is expensive without proving anything. That is how the
   table above was measured.
+* **`using` clauses are a profiler.** Post-strict-engine, truncating
+  the file and timing, then adding or REMOVING one license, says
+  exactly what a conversion is costing. That is how `rMulComm` was
+  found to be 8.5 s of the module's 10.4 s.
 
 ## C. Discharge-engine ergonomics
 
