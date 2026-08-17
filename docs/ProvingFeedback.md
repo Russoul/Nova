@@ -254,7 +254,7 @@ abstract motive (D-3).
 
 ---
 
-### A-9. [ℝ] A Prf argument restricts a domain; it does not reach the proofs below
+### A-8. [ℝ] A Prf argument restricts a domain; it does not reach the proofs below
 
 B-15 says a squashed witness cannot be eliminated into data, and it is
 easy to over-read that as "a partial function cannot be typed". It can.
