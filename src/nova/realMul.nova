@@ -227,6 +227,50 @@ def qMulSumBound : (A : ℕ) (B : ℕ) (r : El Q) →
                (qOfNatAdd A B)))
          (qDistribR r (qOfNat A) (qOfNat B)))
 
+-- PRODUCTS OF CLOSE, BOUNDED RATIONALS ARE CLOSE. Everything the ring
+-- laws need about multiplication factors through this one estimate:
+-- if |x| ≤ A, |y'| ≤ B, and both |y − y'| and |x − x'| are under d,
+-- then |xy − x'y'| is under (A + B)·d. The modulus d is arbitrary —
+-- it is rBound a b for regularity, but the ring laws need it to be a
+-- multiple of rBound m m instead.
+-- ...with the two differences allowed DIFFERENT moduli and the two
+-- bounds arbitrary rationals. Associativity needs both: the bound on
+-- the left factor is a product of two ceilings, and the left
+-- difference is itself a product-difference, so it carries a bigger
+-- modulus than the right one.
+def bndMulSubQ : (x : El Q) (y : El Q) (x' : El Q) (y' : El Q)
+  (a : El Q) (b : El Q) (d : El Q) (e : El Q) →
+  El (Bnd a x) → El (Bnd b y') →
+  El (Bnd d (qAdd y (qNeg y'))) → El (Bnd e (qAdd x (qNeg x'))) →
+  El (LeQ qZero a) → El (LeQ qZero b) →
+  El (LeQ qZero d) → El (LeQ qZero e) →
+  El (Bnd (qAdd (qMul a d) (qMul b e))
+          (qAdd (qMul x y) (qNeg (qMul x' y')))) ≔
+  λx. λy. λx'. λy'. λa. λb. λd. λe. λhx. λhy'. λhd. λhe. λha. λhb. λhd0. λhe0.
+    bndEq (qAdd (qMul a d) (qMul b e))
+          (qAdd (qMul x (qAdd y (qNeg y'))) (qMul y' (qAdd x (qNeg x'))))
+          (qAdd (qMul x y) (qNeg (qMul x' y')))
+      (qMulDiff x y x' y')
+      (bndAdd (qMul a d) (qMul b e)
+              (qMul x (qAdd y (qNeg y'))) (qMul y' (qAdd x (qNeg x')))
+         (bndMul a d x (qAdd y (qNeg y')) ha hd0 hx hd)
+         (bndMul b e y' (qAdd x (qNeg x')) hb he0 hy' he))
+
+def bndMulSub : (x : El Q) (y : El Q) (x' : El Q) (y' : El Q)
+  (A : ℕ) (B : ℕ) (d : El Q) →
+  El (Bnd (qOfNat A) x) → El (Bnd (qOfNat B) y') →
+  El (Bnd d (qAdd y (qNeg y'))) → El (Bnd d (qAdd x (qNeg x'))) →
+  El (LeQ qZero (qOfNat A)) → El (LeQ qZero (qOfNat B)) → El (LeQ qZero d) →
+  El (Bnd (qMul (qOfNat (A + B)) d)
+          (qAdd (qMul x y) (qNeg (qMul x' y')))) ≔
+  λx. λy. λx'. λy'. λA. λB. λd. λhx. λhy'. λhg. λhf. λhA. λhB. λhd.
+    bndEqB (qAdd (qMul (qOfNat A) d) (qMul (qOfNat B) d))
+           (qMul (qOfNat (A + B)) d)
+           (qAdd (qMul x y) (qNeg (qMul x' y')))
+      (qMulSumBound A B d)
+      (bndMulSubQ x y x' y' (qOfNat A) (qOfNat B) d d
+         hx hy' hg hf hA hB hd hd)
+
 -- the estimate, at two arbitrary indices and with EVERYTHING abstract:
 -- |x_a y_a − x_b y_b| ≤ (A + B)·rBound a b. Abstract because `seqBound`
 -- unfolds through divN's fuel recursion, and an item that mentions it
@@ -240,24 +284,8 @@ def bndMulDiffGen : (f : El (ℕ → Q)) (g : El (ℕ → Q)) (A : ℕ) (B : ℕ
   El (Bnd (qMul (qOfNat (A + B)) (rBound a b))
           (qAdd (qMul (f a) (g a)) (qNeg (qMul (f b) (g b))))) ≔
   λf. λg. λA. λB. λa. λb. λhfa. λhgb. λhg. λhf. λhA. λhB.
-    bndEq (qMul (qOfNat (A + B)) (rBound a b))
-          (qAdd (qMul (f a) (qAdd (g a) (qNeg (g b))))
-                (qMul (g b) (qAdd (f a) (qNeg (f b)))))
-          (qAdd (qMul (f a) (g a)) (qNeg (qMul (f b) (g b))))
-      (qMulDiff (f a) (g a) (f b) (g b))
-      (bndEqB (qAdd (qMul (qOfNat A) (rBound a b))
-                    (qMul (qOfNat B) (rBound a b)))
-              (qMul (qOfNat (A + B)) (rBound a b))
-              (qAdd (qMul (f a) (qAdd (g a) (qNeg (g b))))
-                    (qMul (g b) (qAdd (f a) (qNeg (f b)))))
-         (qMulSumBound A B (rBound a b))
-         (bndAdd (qMul (qOfNat A) (rBound a b)) (qMul (qOfNat B) (rBound a b))
-                 (qMul (f a) (qAdd (g a) (qNeg (g b))))
-                 (qMul (g b) (qAdd (f a) (qNeg (f b))))
-            (bndMul (qOfNat A) (rBound a b) (f a) (qAdd (g a) (qNeg (g b)))
-               hA (leQZeroBound a b) hfa hg)
-            (bndMul (qOfNat B) (rBound a b) (g b) (qAdd (f a) (qNeg (f b)))
-               hB (leQZeroBound a b) hgb hf)))
+    bndMulSub (f a) (g a) (f b) (g b) A B (rBound a b)
+      hfa hgb hg hf hA hB (leQZeroBound a b)
 
 def bndMulDiff : (p : El RSeq) (q : El RSeq) (a : ℕ) (b : ℕ) →
   El (Bnd (qMul (qOfNat (seqBound p + seqBound q)) (rBound a b))

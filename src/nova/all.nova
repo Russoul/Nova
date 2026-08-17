@@ -32,6 +32,8 @@ import realLt
 import realComplete
 import realBound
 import realMul
+import ring
+import realRing
 import realGroup
 import realMetric
 import ratMax

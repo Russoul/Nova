@@ -725,6 +725,55 @@ Two smaller lessons that DID work, and are worth keeping:
   exactly what a conversion is costing. That is how `rMulComm` was
   found to be 8.5 s of the module's 10.4 s.
 
+### B-17. [ℝ] Licenses are not monotone: adding a hinted `.eq` can UNDO a proof
+
+Building ℝ's ring laws under the strict engine, the single most
+expensive mistake was assuming that citing more is never worse. It is
+often worse, and the failure is silent — the item stops closing and the
+report blames the chain step, not the license.
+
+`twoKTwo` is a five-step chain whose links are `qAddComm`,
+`qMulSucNat` and a `cong`. Following the elaborator's `closes by
+citing` hints added `nat.+.eq`, `ratNat.qOfNat.eq` and
+`rationalQ.qMul.eq`; with those in place **every one of the five steps
+failed**, each reported as a bare conversion obligation `LHS ≐ RHS`
+with no mention of the link. Deleting all three closed the item
+instantly. The cause is the poison rule: those `.eq`s unfold the goal
+into elim-vocabulary while the store lemmas are held in
+SigVar-vocabulary, so nothing matches any more.
+
+Two practical consequences:
+
+* **A license-adding loop must be able to REVERT.** Add one license,
+  re-run, and keep it only if the obligation count strictly drops.
+  Adding everything a hint names and moving on produced items with
+  fifteen licenses that did not close; the same items close with one.
+  The hint lists what a route COULD use, not what this proof needs.
+  Measured on realRing.nova after the fact: a pass that removes each
+  license and keeps the removal whenever the file still elaborates
+  took **48** of them out, leaving the module accepted and no slower.
+  Nearly half the citations the eager loop added were doing nothing.
+* **When a chain step reports `LHS ≐ RHS` and the link's statement is
+  literally `LHS ≡ RHS`, suspect the `using` clause, not the link.**
+  That signature — the obligation being exactly the lemma you supplied
+  — means the link was not applied, and the usual reason is that the
+  goal has been unfolded out from under it.
+
+### B-18. [ℝ] Abbreviations cost licenses, so the shallow spelling wins
+
+`dbl K` is `S (K + K)`, and seeing through it requires citing
+`ratHalf.dbl.eq`. But that same citation unfolds `dbl` everywhere in
+the goal, which is enough to stop `qMulSucNat` from matching one step
+later (B-17). Writing `S (K + K)` in the statement instead needs no
+license at all, and the deep index `mulIdx (S (K + K)) l` is the same
+term the abbreviation would have produced.
+
+Related, and worth knowing before writing any ℕ arithmetic: **`+`
+recurses on its SECOND argument.** So `c + S Z` reduces to `S c` on the
+nose while `S Z + c` does not, and `n + Z ≐ n` is definitional while
+`Z + n ≡ n` is a lemma (`zeroPlusId`). Choosing the reducing order
+turned `qOfNatSuc` from an open obligation into `⋆`.
+
 ## C. Discharge-engine ergonomics
 
 ### C-1. Oriented rewriting means library lemmas need flipped copies
@@ -782,6 +831,47 @@ and normalised, so `a₂ * b₂` appears as
 must reconstruct the intended statement before writing the lemma.
 
 ---
+
+### C-5. [ℝ] Pay the Archimedean argument once, in a criterion
+
+The shape that made ℝ's ring laws tractable, and the one to reach for
+whenever a law compares two quotient representatives sampled at
+different depths.
+
+Every ring law on Bishop reals has the same difficulty: the two sides
+sample at depths computed from their own factors, so the honest
+pointwise estimate carries a constant built from those factors' bounds
+— `(A + B) + (A + C)` for distributivity, `A·B + C·(A + B)` for
+associativity — and REq demands the constant 2. Removing the slack
+needs the Archimedean principle, and doing that inside each law means
+writing the same three-leg chain-through-a-deep-index every time.
+
+Instead, state the criterion once:
+
+```
+reqOfClose : (u v : El RSeq) (K : ℕ) →
+  ((n : ℕ) → El (Bnd (qMul (qOfNat K) (rBound n n))
+                     (qAdd (seqOf u n) (qNeg (seqOf v n))))) →
+  Prf (REq u v)
+```
+
+"within K·rBound n n at every index, for ANY constant K" — and each
+law becomes a pointwise estimate with no limit argument at all.
+
+What makes it cheap is that the slack closes EXACTLY rather than by an
+inequality. Chaining through a deep index N gives
+`rBound n n + (2K + 2)/(N + 1)`, and at `N = mulIdx (S (K+K)) l` the
+factor `S (S (K+K))` is 2K + 2, so `qMulInvIdx` turns that second
+summand into `1/(l + 1)` on the nose. No comparison between fractions
+is needed anywhere in the criterion, which matters because general
+monotonicity of `n ↦ 1/(n+1)` is NOT in the corpus and is awkward to
+prove — while the exact-factor identity was already there.
+
+The same trick covers the deepenings the laws actually use: every
+index that occurs is `mulIdx c ·` or `dbl ·`, and both have exact
+factor identities (`qMulInvIdx`, `qInvHalf`), so `1/(φ m + 1) ≤
+1/(m + 1)` follows from "multiplying a nonnegative by S c ≥ 1 only
+grows it" rather than from any inequality between denominators.
 
 ## D. What the workarounds look like (worked examples)
 

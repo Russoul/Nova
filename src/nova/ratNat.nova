@@ -3,10 +3,12 @@ import natOrder (LeN, leRefl, leOfEq, leZero, leSucMono)
 import integer (Int, IntR, intZero, intOne, intNeg)
 import integerAdd (intAdd)
 import integerMul (intMul, intMulOneR)
-import intOrder (intOfNat, intOfNatPlus)
+import intOrder (intOfNat, intOfNatPlus, intOfNatMul)
 import intEffective (intEffective)
-import rational (NZ, nzOne, nzPos, nzToInt, Rat, mkRat, intScale, intScaleOne)
-import rationalQ (Q, qcls, qAdd, qNeg, qZero, qOne, clsEqOfRel)
+import rational (NZ, nzOne, nzMul, nzMulOneL, nzPos, nzToInt, Rat, mkRat,
+                 intScale, intScaleOne)
+import rationalQ (Q, qcls, qAdd, qMul, qNeg, qZero, qOne, clsEqOfRel, ratMul,
+                  qMulCls)
 import rationalOrder (Sign, sZero, sPos, sgnQ, intSgn, intSgnZero, NonNegS, LeQ,
                       intSgnZeroView, intSgnPosView)
 import ratArch (intSgnOfNatNonNeg)
@@ -163,3 +165,31 @@ def qOfNatAdd : (a : ℕ) (b : ℕ) →
       (cong Int (λv. Q) (λv. qcls (mkRat v nzOne))
          (intAdd (intOfNat a) (intOfNat b)) (intOfNat (a + b))
          (intOfNatPlus a b))
+
+-- ...and the same for the product. Both denominators are 1, so ratMul
+-- is just intMul on the numerators once nzMul nzOne nzOne collapses.
+def ratMulUnit : (x : El Int) (y : El Int) →
+  ratMul (mkRat x nzOne) (mkRat y nzOne)
+    ≡ mkRat (intMul x y) (nzMul nzOne nzOne) ∈ El Rat
+  using (rationalQ.ratMul.eq, rational.mkRat.eq, rational.num.eq,
+         rational.den.eq) ≔
+  λx. λy. ⋆
+
+def qOfNatMul : (a : ℕ) (b : ℕ) →
+  qMul (qOfNat a) (qOfNat b) ≡ qOfNat (a * b) ∈ El Q using (ratNat.qOfNat.eq) ≔
+  λa. λb.
+    (qMul (qOfNat a) (qOfNat b)
+       ≡⟨ qMulCls (mkRat (intOfNat a) nzOne) (mkRat (intOfNat b) nzOne) ⟩
+     qcls (ratMul (mkRat (intOfNat a) nzOne) (mkRat (intOfNat b) nzOne))
+       ≡⟨ cong Rat (λv. Q) (λv. qcls v)
+            (ratMul (mkRat (intOfNat a) nzOne) (mkRat (intOfNat b) nzOne))
+            (mkRat (intMul (intOfNat a) (intOfNat b)) (nzMul nzOne nzOne))
+            (ratMulUnit (intOfNat a) (intOfNat b)) ⟩
+     qcls (mkRat (intMul (intOfNat a) (intOfNat b)) (nzMul nzOne nzOne))
+       ≡⟨ cong Int (λv. Q) (λv. qcls (mkRat v (nzMul nzOne nzOne)))
+            (intMul (intOfNat a) (intOfNat b)) (intOfNat (a * b))
+            (intOfNatMul a b) ⟩
+     qcls (mkRat (intOfNat (a * b)) (nzMul nzOne nzOne))
+       ≡⟨ cong NZ (λv. Q) (λv. qcls (mkRat (intOfNat (a * b)) v))
+            (nzMul nzOne nzOne) nzOne (nzMulOneL nzOne) ⟩
+     qcls (mkRat (intOfNat (a * b)) nzOne))

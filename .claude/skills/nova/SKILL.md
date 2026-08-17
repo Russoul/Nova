@@ -235,6 +235,21 @@ data [a : 𝕌] [r : El a → El a → Ω]
   `quot-elim` scrutinee fails at replay; the same proof written with
   explicit `trans` goes through, because a lemma application is
   unconstrained by position.
+- **Licenses are not monotone.** Citing more `.eq` can UNDO a proof:
+  the `.eq` unfolds the GOAL into elim-vocabulary while store lemmas
+  are held in SigVar-vocabulary, so links stop matching. Symptom: a
+  chain step reports a bare `LHS ≐ RHS` obligation that IS, literally,
+  the statement of the link you supplied. Suspect the `using` clause,
+  not the link. When automating "add what the hint names", add ONE at
+  a time and revert any that does not strictly reduce the obligation
+  count — hints list what a route could use, not what this proof needs.
+- Prefer the spelling that needs no license. `dbl K` costs
+  `ratHalf.dbl.eq` (which then poisons the next step); `S (K + K)` is
+  the same term and costs nothing.
+- `+` recurses on its SECOND argument: `c + S Z` reduces to `S c` and
+  `n + Z ≐ n` is definitional, but `S Z + c` is stuck and `Z + n ≡ n`
+  is the lemma `zeroPlusId`. Pick the reducing order when you get to
+  choose.
 - A conversion the kernel will not replay can often be side-stepped
   with `transport`: it is the identity function, so it inserts nothing,
   but its SIGNATURE does the retyping and the conversion was already
