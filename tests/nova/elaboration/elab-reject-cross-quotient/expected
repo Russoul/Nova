@@ -2,5 +2,5 @@ defined q1eq
 defined q2bad [+1 obligation]
 open obligations (1):
   [1] ⊢ Z ≐ S Z : ℕ
-      at: def q2bad: checking ⋆ [replay failed: kernel: step type does not match the position @step 0 [join tier: kernel: step type does not match the position @step 0]]
+      at: def q2bad: checking ⋆ [replay failed: kernel: step type does not match the position @step 0]
       from composite: ⊢ class Z ≐ class (S Z) : ℕ / (n x. n ≡ x ∈ ℕ)

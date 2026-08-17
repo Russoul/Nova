@@ -11,5 +11,5 @@ data ( V : El ℕ → U
      ; vnil : El (V Z)
      ; vcons : (n : El ℕ) → El (V n) → El (V (S n)) )
 
-def two : El (V (S (S Z))) ≔ vcons (S Z) (vcons Z vnil)
-def q1 : (x : El ℕ) → El (Q ℕ (λv. λw. ∥𝟙∥)) ≔ λx. cls ℕ (λv. λw. ∥𝟙∥) x
+def two : El (V (S (S Z))) using (V.eq) ≔ vcons (S Z) (vcons Z vnil)
+def q1 : (x : El ℕ) → El (Q ℕ (λv. λw. ∥𝟙∥)) using (Q.eq) ≔ λx. cls ℕ (λv. λw. ∥𝟙∥) x

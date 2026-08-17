@@ -5,4 +5,4 @@
 def vect : ℕ → 𝕌 → 𝕌
 def vectS : (n : ℕ) (A : 𝕌) → vect (S n) A ≡ (A ⨯ vect n A) ∈ 𝕌
 def two : 𝕌 ≔ vect (S (S Z)) ℕ
-def twoIsPair : two ≡ (ℕ ⨯ vect (S Z) ℕ) ∈ 𝕌 using (vectS) ≔ ⋆
+def twoIsPair : two ≡ (ℕ ⨯ vect (S Z) ℕ) ∈ 𝕌 using (two.eq, vectS) ≔ ⋆

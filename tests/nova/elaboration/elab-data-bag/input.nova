@@ -6,14 +6,14 @@ data ( Bag : U
      ; swp : (x : El ℕ) (y : El ℕ) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )
 
 -- the imposed equation: as the generated lemma, and via the store
-def swap12 : ins Z (ins (S Z) nil) ≡ ins (S Z) (ins Z nil) ∈ El Bag ≔
+def swap12 : ins Z (ins (S Z) nil) ≡ ins (S Z) (ins Z nil) ∈ El Bag using (Bag.eq, ins.eq, nil.eq) ≔
   swp Z (S Z) nil
 
-def swap12' : ins Z (ins (S Z) nil) ≡ ins (S Z) (ins Z nil) ∈ El Bag using (swap12) ≔ ⋆
+def swap12' : ins Z (ins (S Z) nil) ≡ ins (S Z) (ins Z nil) ∈ El Bag using (Bag.eq, swap12) ≔ ⋆
 
 -- eliminate: the size of a bag — the method is order-insensitive, so
 -- the COHERENCE argument is ⋆ (β makes both sides S (S ih))
-def size : El Bag → ℕ ≔
+def size : El Bag → ℕ using (Bag.eq) ≔
   λm. BagElim (λb. ℕ) Z (λx. λr. λih. S ih) (λx. λy. λr. λih. ⋆) m
 
-def sizeTwo : size (ins Z (ins (S Z) nil)) ≡ S (S Z) ∈ ℕ ≔ ⋆
+def sizeTwo : size (ins Z (ins (S Z) nil)) ≡ S (S Z) ∈ ℕ using (Bag.eq, BagElim.eq, ins.eq, nil.eq, size.eq) ≔ ⋆

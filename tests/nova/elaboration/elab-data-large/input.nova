@@ -4,4 +4,4 @@
 -- (code-qiit's smallness prevents the type-in-type retract).
 data ( W : U
      ; mkW : (f : 𝕌 → 𝟙) → El W )
-def wit : W ≔ mkW (λu. ())
+def wit : W using (W.unfold) ≔ mkW (λu. ())

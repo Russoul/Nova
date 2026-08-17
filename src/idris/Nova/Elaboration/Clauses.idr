@@ -804,7 +804,7 @@ expandClausal nrng fname ty etaName witness clauses = do
                (SDef fname ty w Nothing
                   -- the clause lemmas hold by the definition's own
                   -- computation: cite its defining equation explicitly
-                  -- (strict mode needs the license; ambient δ subsumes
+                  -- (the join needs the license to unfold the definition
                   -- it otherwise), and the uniqueness proof cites the
                   -- clause lemmas it rewrites by
                   :: zipWith3 (\n, t, b => SDef n t b (Just [fname ++ ".eq"])) lemNames lemTys lemBodies

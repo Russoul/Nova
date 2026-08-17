@@ -6,30 +6,66 @@ infixl 6 +
 infixl 7 *
 def + : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
 def * : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) Z (n ih. x + ih) y
-def plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ ≔ λn. ⋆
-def plusSucId : (n : ℕ) (m : ℕ) → n + S m ≡ S (n + m) ∈ ℕ ≔ λn. λm. ⋆
-def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ ≔ λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
-def sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ ≔
+def plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ using (+.eq) ≔ λn. ⋆
+def plusSucId : (n : ℕ) (m : ℕ) → n + S m ≡ S (n + m) ∈ ℕ using (+.eq) ≔ λn. λm. ⋆
+def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ using (+.eq, plusZeroId) ≔ λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
+def sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ using (+.eq) ≔
   λn. λm. ℕ-elim (k. S n + k ≡ S (n + k) ∈ ℕ) ⋆ (k ih. ⋆) m
-def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ using (sucPlus, zeroPlusId) ≔
-  λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ ℕ) ⋆ (k ih. ⋆) m
-def plusAssoc : (n : ℕ) (m : ℕ) (k : ℕ) → n + m + k ≡ n + (m + k) ∈ ℕ ≔
+def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ ≔
+  λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ ℕ)
+    (Z + n ≡⟨ zeroPlusId n ⟩ n ≡⟨ plusZeroId n ⟩ n + Z)
+    (k ih.
+      (S k + n ≡⟨ sucPlus k n ⟩ S (k + n) ≡⟨ ih ⟩ S (n + k) ≡⟨ plusSucId n k ⟩ n + S k))
+    m
+def plusAssoc : (n : ℕ) (m : ℕ) (k : ℕ) → n + m + k ≡ n + (m + k) ∈ ℕ using (+.eq) ≔
   λn. λm. λk. ℕ-elim (j. n + m + j ≡ n + (m + j) ∈ ℕ) ⋆ (j ih. ⋆) k
 def swapLeft : (a : ℕ) (b : ℕ) (c : ℕ) → a + (b + c) ≡ b + (a + c) ∈ ℕ using (plusComm) ≔
-  λa. λb. λc. ℕ-elim (k. a + (b + k) ≡ b + (a + k) ∈ ℕ) ⋆ (k ih. ⋆) c
-def multZeroId : (n : ℕ) → n * Z ≡ Z ∈ ℕ ≔ λn. ⋆
-def multSucId : (n : ℕ) (m : ℕ) → n * S m ≡ n + n * m ∈ ℕ ≔ λn. λm. ⋆
-def zeroMult : (n : ℕ) → Z * n ≡ Z ∈ ℕ ≔ λn. ℕ-elim (k. Z * k ≡ Z ∈ ℕ) ⋆ (k ih. ⋆) n
-def sucMult : (n : ℕ) (m : ℕ) → S n * m ≡ m + n * m ∈ ℕ using (swapLeft, sucPlus) ≔
-  λn. λm. ℕ-elim (k. S n * k ≡ k + n * k ∈ ℕ) ⋆ (k ih. ⋆) m
-def multComm : (n : ℕ) (m : ℕ) → m * n ≡ n * m ∈ ℕ using (multZeroId, multSucId, sucMult, zeroMult) ≔
-  λn. λm. ℕ-elim (k. k * n ≡ n * k ∈ ℕ) ⋆ (k ih. ⋆) m
+  λa. λb. λc. ℕ-elim (k. a + (b + k) ≡ b + (a + k) ∈ ℕ)
+    (a + (b + Z) ≡⟨ plusZeroId b ⟩ a + b ≡⟨ plusComm b a ⟩ b + a ≡⟨ plusZeroId a ⟩ b + (a + Z))
+    (k ih. ⋆ using (+.eq)) c
+def multZeroId : (n : ℕ) → n * Z ≡ Z ∈ ℕ using (*.eq) ≔ λn. ⋆
+def multSucId : (n : ℕ) (m : ℕ) → n * S m ≡ n + n * m ∈ ℕ using (*.eq, +.eq) ≔ λn. λm. ⋆
+def zeroMult : (n : ℕ) → Z * n ≡ Z ∈ ℕ using (multZeroId) ≔
+  λn. ℕ-elim (k. Z * k ≡ Z ∈ ℕ) ⋆
+    (k ih. (Z * S k ≡⟨ multSucId Z k ⟩ Z + Z * k ≡⟨ ih ⟩ Z + Z ≡⟨ zeroPlusId Z ⟩ Z))
+    n
+def sucMult : (n : ℕ) (m : ℕ) → S n * m ≡ m + n * m ∈ ℕ ≔
+  λn. λm. ℕ-elim (k. S n * k ≡ k + n * k ∈ ℕ)
+    (S n * Z ≡⟨ multZeroId (S n) ⟩ Z ≡⟨ multZeroId n ⟩ n * Z ≡⟨ zeroPlusId (n * Z) ⟩ Z + n * Z)
+    (k ih.
+      (S n * S k
+         ≡⟨ multSucId (S n) k ⟩
+       S n + S n * k
+         ≡⟨ ih ⟩
+       S n + (k + n * k)
+         ≡⟨ swapLeft (S n) k (n * k) ⟩
+       k + (S n + n * k)
+         ≡⟨ sucPlus n (n * k) ⟩
+       k + S (n + n * k)
+         ≡⟨ plusSucId k (n + n * k) ⟩
+       S (k + (n + n * k))
+         ≡⟨ sucPlus k (n + n * k) ⟩
+       S k + (n + n * k)
+         ≡⟨ multSucId n k ⟩
+       S k + n * S k))
+    m
+def multComm : (n : ℕ) (m : ℕ) → m * n ≡ n * m ∈ ℕ ≔
+  λn. λm. ℕ-elim (k. k * n ≡ n * k ∈ ℕ)
+    (Z * n ≡⟨ zeroMult n ⟩ Z ≡⟨ multZeroId n ⟩ n * Z)
+    (k ih.
+      (S k * n ≡⟨ sucMult k n ⟩ n + k * n ≡⟨ ih ⟩ n + n * k ≡⟨ multSucId n k ⟩ n * S k))
+    m
 
--- each link is a SUB-equation, applied at an inner position and (for
--- the second) in the flipped orientation — no cong, no sym
+-- each multComm link is a SUB-equation applied at an inner position
+-- (the second summand — the strict engine's congruence descent covers
+-- second arguments; a first-argument rewrite would need explicit
+-- cong), the plusComm links whole-side permutative matches in both
+-- orientations — no cong, no sym
 def mulComm2 : (u1 : ℕ) (u2 : ℕ) (v1 : ℕ) (v2 : ℕ) →
   u1 * v1 + u2 * v2 ≡ v1 * u1 + v2 * u2 ∈ ℕ ≔
   λu1. λu2. λv1. λv2.
     u1 * v1 + u2 * v2
-      ≡⟨ multComm v1 u1 ⟩ v1 * u1 + u2 * v2
-      ≡⟨ multComm u2 v2 ⟩ v1 * u1 + v2 * u2
+      ≡⟨ multComm v2 u2 ⟩ u1 * v1 + v2 * u2
+      ≡⟨ plusComm (v2 * u2) (u1 * v1) ⟩ v2 * u2 + u1 * v1
+      ≡⟨ multComm v1 u1 ⟩ v2 * u2 + v1 * u1
+      ≡⟨ plusComm (v1 * u1) (v2 * u2) ⟩ v1 * u1 + v2 * u2

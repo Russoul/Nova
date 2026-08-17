@@ -1,8 +1,9 @@
 defined +
+defined plusZeroId
+defined plusSucId
 defined zeroPlusId
 defined sucPlus
 defined plusComm
-defined plusZeroId
 defined scopedGood
 defined scopedList
 defined scopedHyp

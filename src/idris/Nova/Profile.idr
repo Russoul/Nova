@@ -56,37 +56,12 @@ export
 scopedMode : Bool
 scopedMode = unsafePerformIO (map isNothing (getEnv "NOVA_GLOBAL_STORE"))
 
-||| STRICT-CONVERSION SURVEY MODE (NOVA_STRICT_CONV=1): the engine
-||| discharges only modulo α + the computational rules (+ named
-||| whole-equation matching, Prf-irrelevance, and structural
-||| congruence finals) — no δ on equation sides, no η, no hops, no
-||| positional rewriting. Head exposure of TYPES keeps δ, logged per
-||| module (`unf <module>|<name>` labels) as the future per-item
-||| `using`-unfold whitelist survey. Everything that falls outside the
-||| subset surfaces as an obligation — the migration fallout map. A
-||| mode below the trust boundary: the kernel path is unchanged.
-strictConvRef : IORef Bool
-strictConvRef = unsafePerformIO $ do
-  e <- getEnv "NOVA_STRICT_CONV"
-  newIORef (isJust e)
-
-||| The () argument defeats CAF pre-evaluation (the nowNs discipline),
-||| so a `--strict` flag processed in main (setStrictConv) is honored
-||| even though the environment was already read at load.
-export
-strictConv : () -> Bool
-strictConv () = unsafePerformIO (readIORef strictConvRef)
-
-export
-setStrictConv : Bool -> IO ()
-setStrictConv b = writeIORef strictConvRef b
-
-||| NOVA_SURVEY=1: migration-survey mode. Strict elaboration (a) does
-||| not enforce the type-exposure whitelist — it only LOGS what each
+||| NOVA_SURVEY=1: migration-survey mode. Elaboration (a) does not
+||| enforce the type-exposure whitelist — it only LOGS what each
 ||| item's whitelist would need (`unf <module>:<item>|<name>` labels) —
 ||| and (b) continues past obligation-laden or failing modules so one
-||| run maps a whole corpus. Without it, strict mode enforces the
-||| whitelist and uses the same hard module gate as default mode.
+||| run maps a whole corpus. Without it, the whitelist is enforced and
+||| a failing module hard-gates the run.
 export
 surveyMode : Bool
 surveyMode = unsafePerformIO (map isJust (getEnv "NOVA_SURVEY"))
