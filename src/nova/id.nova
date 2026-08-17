@@ -17,7 +17,7 @@ def idToEq : (a : 𝕌) (x : El a) (y : El a) → El (Id a x y) → x ≡ y ∈ 
 
 -- introduction: with x ≐ y reflected from the hypothesis, refl a x
 -- already inhabits Id a x y (index congruence)
-def eqToId : (a : 𝕌) (x : El a) (y : El a) → (x ≡ y ∈ El a) → El (Id a x y) ≔
+def eqToId : (a : 𝕌) (x : El a) (y : El a) → (x ≡ y ∈ El a) → El (Id a x y) using (hyp.rw, id.Id.eq) ≔
   λa. λx. λy. λh. refl a x
 
 -- the bridge, packaged: Id and ≡ are the same proposition up to iff

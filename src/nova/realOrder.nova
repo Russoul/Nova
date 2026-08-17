@@ -274,7 +274,8 @@ def leROfQ : (p : El Q) (q : El Q) →
              (leQSubZero p q le) (leQZeroBound n n))
 
 -- 0 ≤ 1 in ℝ, through ℚ: the sign of 1 computes
-def sgnQOnePos : sgnQ qOne ≡ sPos ∈ El Sign ≔ ⋆
+def sgnQOnePos : sgnQ qOne ≡ sPos ∈ El Sign
+  using (eqInt.classNormPairEq.eq, eqInt.intCanon.eq, eqInt.intCanonClass.eq, equality.sym.eq, equality.trans.eq, intNonZero.nzOfInt.eq, intNonZero.nzOfIntAt.eq, intNonZero.nzOfPairD.eq, integer.Int.eq, integer.intOne.eq, integer.intZero.eq, integerMul.classPairEta.eq, integerMul.intMul.eq, integerNormalize.normPair.eq, nat.*.eq, nat.+.eq, rational.den.eq, rational.denInt.eq, rational.mkRat.eq, rational.num.eq, rational.nzOne.eq, rational.nzPos.eq, rational.nzToInt.eq, rational.ratOfInt.eq, rational.ratOne.eq, rationalInv.intCanonProdZero.eq, rationalInv.normProdZero.eq, rationalOrder.intSgn.eq, rationalOrder.nzSgn.eq, rationalOrder.ratSgn.eq, rationalOrder.sNeg.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qOne.eq, rationalQ.qcls.eq) ≔ ⋆
 def leQZeroOne : El (LeQ qZero qOne) ≔ leQZeroOfPos qOne sgnQOnePos
 def leRZeroOne : Prf (LeR realZero realOne) using (rationalQ.qOne.eq, rationalQ.qZero.eq, real.realOfQ.eq, real.realOne.eq, real.realZero.eq, realOrder.LeR.eq) ≔ leROfQ qZero qOne leQZeroOne
 

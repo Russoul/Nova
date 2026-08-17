@@ -96,5 +96,7 @@ def natEqEffective : (a : El ℕ) (b : El ℕ) →
 -- be named — drop sgHop1 and sgHop2 stops elaborating)
 def SG : 𝕌 ≔ ℕ / (n m. (S n ≡ m ∈ ℕ))
 def sgHop1 : class Z ≡ class (S Z) ∈ El SG ≔ ⋆
-def sgHop2 : class Z ≡ class (S (S Z)) ∈ El SG using (sgHop1) ≔ ⋆
+def sgMid : class (S Z) ≡ class (S (S Z)) ∈ El SG ≔ ⋆
+def sgHop2 : class Z ≡ class (S (S Z)) ∈ El SG using (sgHop1, sgMid) ≔
+  trans SG (class Z) (class (S Z)) (class (S (S Z))) sgHop1 sgMid
 def sgBack : class (S Z) ≡ class Z ∈ El SG using (sgHop1) ≔ ⋆

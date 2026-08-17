@@ -50,7 +50,13 @@ def natAlgHomUnique : (A : 𝕌) (a : El (IsNatAlgebra A))
       (k ih.
        let hf ≔ idToEq A (f .π₁ (S k)) (a .π₂ (f .π₁ k)) (f .π₂ .π₂ k) in
        let hg ≔ idToEq A (g .π₁ (S k)) (a .π₂ (g .π₁ k)) (g .π₂ .π₂ k) in
-       ⋆)
+       (f .π₁ (S k)
+          ≡⟨ hf ⟩
+        a .π₂ (f .π₁ k)
+          ≡⟨ ih ⟩
+        a .π₂ (g .π₁ k)
+          ≡⟨ hg ⟩
+        g .π₁ (S k)))
       n
 
 -- and at FUNCTION level, one funext away.

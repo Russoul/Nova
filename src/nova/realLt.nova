@@ -168,7 +168,7 @@ def ltROfQ : (p : El Q) (q : El Q) →
                       (leQPlusMono (qInvNat (w .π₁)) (qAdd q (qNeg p)) p
                          (w .π₂)))))))
 
-def ltRZeroOne : Prf (LtR realZero realOne) using (rationalQ.qOne.eq, rationalQ.qZero.eq, real.realOfQ.eq, real.realOne.eq, real.realZero.eq, realLt.LtR.eq) ≔
+def ltRZeroOne : Prf (LtR realZero realOne) using (ratBound.qNegZeroQ.rw, rationalQ.qAddZeroR.rw, realOrder.sgnQOnePos, real.realOfQ.eq, real.realOne.eq, real.realZero.eq, realLt.LtR.eq) ≔
   ltROfQ qZero qOne (ltQOfSgn qZero qOne ⋆)
 
 -- ===== compatibility with addition =====

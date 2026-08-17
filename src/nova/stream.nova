@@ -40,7 +40,7 @@ def hdTlIterate : (a : 𝕌) (f : El a → El a) (x : El a) →
 
 -- the head under one cons-then-tail: reaches the stored tail's head
 def hdTlCons : (a : 𝕌) (x : El a) (s : El (stream a)) →
-    hd a (tl a (cons a x s)) ≡ hd a s ∈ El a ≔
+    hd a (tl a (cons a x s)) ≡ hd a s ∈ El a using (hd.eq, tl.eq, cons.eq) ≔
   λa. λx. λs. ⋆
 
 -- Conaturals: ν (K 𝟙 ⊎ 𝕏) — zero observes as inj₁, a successor as
@@ -82,7 +82,7 @@ def hdTlMap : (a : 𝕌) (b : 𝕌) (f : El a → El b) (t : El (stream a)) →
 -- stream — by coinduction with a GRAPH invariant: u is v's image
 -- under the one-step machine, for SOME v.
 def tlCons : (a : 𝕌) (x : El a) (s : El (stream a)) →
-    tl a (cons a x s) ≡ s ∈ El (stream a) using (hyp.rw) ≔
+    tl a (cons a x s) ≡ s ∈ El (stream a) using (hyp.rw, tl.eq, cons.eq, stream.eq) ≔
   λa. λx. λs.
     coind (u v. ∥(w : El (stream a)) ⨯
                   ((u ≡ corec (p : a ⨯ stream a. ((p .π₁) , out (p .π₂))) (out w) ∈ El (stream a)) ⨯

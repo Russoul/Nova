@@ -160,7 +160,7 @@ def intCanonZero : intCanon intZero ≡ (Z , Z) ∈ El (ℕ ⨯ ℕ) using (eqIn
 
 -- Σ-η, generically (a ℕ ⨯ ℕ-specific version would be matched by the
 -- engine at pairs of OTHER types and rejected by the kernel)
-def pairEtaG : (A : 𝕌) (B : 𝕌) (p : El (A ⨯ B)) → (p .π₁ , p .π₂) ≡ p ∈ El (A ⨯ B) ≔
+def pairEtaG : (A : 𝕌) (B : 𝕌) (p : El (A ⨯ B)) → (p .π₁ , p .π₂) ≡ p ∈ El (A ⨯ B) using (sigma.eta) ≔
   λA. λB. λp. ⋆
 
 -- componentwise pair equality — GENERIC for the same reason as

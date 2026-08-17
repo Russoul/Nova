@@ -33,11 +33,14 @@ def distribBackR : (m : ℕ) (k : ℕ) (n : ℕ) → m * n + k * n ≡ (m + k) *
         (multComm (m + k) n))
 
 -- the two exchanges of a four-term sum
-def swap4 : (p : ℕ) (q : ℕ) (r : ℕ) (s : ℕ) → (p + q) + (r + s) ≡ p + r + (q + s) ∈ ℕ using (plusAssoc, swapLeft, nat.swapMid) ≔
+def swap4 : (p : ℕ) (q : ℕ) (r : ℕ) (s : ℕ) → (p + q) + (r + s) ≡ p + r + (q + s) ∈ ℕ using (hyp.rw, nat.swapMid, nat.swapMid.rw, plusAssoc, plusAssoc.rw, swapLeft, swapLeft.rw) ≔
   λp. λq. λr. λs. ⋆
 
 def swap4b : (p : ℕ) (q : ℕ) (r : ℕ) (s : ℕ) → (p + q) + (r + s) ≡ p + s + (q + r) ∈ ℕ using (integerAdd.intAddCross, swap4, plusAssoc) ≔
-  λp. λq. λr. λs. ⋆
+  λp. λq. λr. λs.
+    (p + q + (r + s)
+      ≡⟨ plusComm s r ⟩ p + q + (s + r)
+      ≡⟨ swap4 p q s r ⟩ p + s + (q + r))
 
 -- congruence of + in each argument: with h reflected the two sides
 -- are judgemental, so each is one ⋆ (and unlike a rewrite step, a
@@ -122,9 +125,9 @@ def intMulWDRep : (a1 : ℕ) (a2 : ℕ) (b1 : ℕ) (b2 : ℕ) (c1 : ℕ) (c2 : �
   (h : Prf (a1 + b2 ≡ a2 + b1 ∈ ℕ)) →
   (a1 * c1 + a2 * c2) + (b1 * c2 + b2 * c1) ≡ a1 * c2 + a2 * c1 + (b1 * c1 + b2 * c2) ∈ ℕ using (distribBack, hyp.rw, plusAssoc, plusComm, sum4DistribR) ≔
   λa1. λa2. λb1. λb2. λc1. λc2. λh.
-    trans ℕ (a1 * c1 + a2 * c2 + (b1 * c2 + b2 * c1)) ((a1 + b2) * c1 + (a2 + b1) * c2) (a2 * c1 + a1 * c2 + (b2 * c2 + b1 * c1))
+    trans ℕ (a1 * c1 + a2 * c2 + (b1 * c2 + b2 * c1)) ((a1 + b2) * c1 + (a2 + b1) * c2) (a1 * c2 + a2 * c1 + (b1 * c1 + b2 * c2))
       (sum4DistribR a1 a2 b1 b2 c1 c2)
-      (sym ℕ (a2 * c1 + a1 * c2 + (b2 * c2 + b1 * c1)) ((a2 + b1) * c1 + (a1 + b2) * c2) (sum4DistribR a2 a1 b2 b1 c1 c2))
+      (sym ℕ (a1 * c2 + a2 * c1 + (b1 * c1 + b2 * c2)) ((a1 + b2) * c2 + (a2 + b1) * c1) (sum4DistribR a1 a2 b1 b2 c2 c1))
 
 -- the outer well-definedness, in the quot-elim shape the elaborator
 -- actually asks for (integerAdd.nova's intAddWDOuter, one level up):
@@ -165,13 +168,14 @@ def intMulTest2 : intMul (class (Z , S (S Z))) (class (S (S (S Z)) , Z))
 -- would happily fire a ℕ ⨯ ℕ-specific version at a pair of ANY type,
 -- and the kernel then rejects the certificate — so the lemma has to
 -- be true at the type it gets used at.
-def pairEta : (A : 𝕌) (B : 𝕌) (p : El (A ⨯ B)) → (p .π₁ , p .π₂) ≡ p ∈ El (A ⨯ B) ≔
+def pairEta : (A : 𝕌) (B : 𝕌) (p : El (A ⨯ B)) → (p .π₁ , p .π₂) ≡ p ∈ El (A ⨯ B) using (sigma.eta) ≔
   λA. λB. λp. ⋆
 
 def classPairEta : (p : ℕ ⨯ ℕ) → class (p .π₁ , p .π₂) ≡ class p ∈ El Int ≔
   λp. cong (ℕ ⨯ ℕ) (λu. Int) (λr. class r) (p .π₁, p .π₂) p (pairEta ℕ ℕ p)
 
-def oneMult : (m : ℕ) → S Z * m ≡ m ∈ ℕ using (multComm) ≔ λm. ⋆
+def oneMult : (m : ℕ) → S Z * m ≡ m ∈ ℕ using (multComm) ≔
+  λm. (S Z * m ≡⟨ sucMult Z m ⟩ m + Z * m ≡⟨ zeroMult m ⟩ m + Z ≡⟨ plusZeroId m ⟩ m)
 
 -- class (u₁,u₂) ≡ class (v₁,v₂) from the two component equations:
 -- reflection makes the components judgemental, so this is one ⋆
@@ -182,14 +186,14 @@ def classCong2 : (u1 : ℕ) (u2 : ℕ) (v1 : ℕ) (v2 : ℕ) →
 -- multiplication by 1 on the LEFT does not compute (nat.nova's * is
 -- recursive in its SECOND argument), so oneMult/zeroMult have to fire
 -- before Σ-η can close it; on the right it is all β (intMulOneR)
-def intMulOneL : (z : El Int) → intMul intOne z ≡ z ∈ El Int using (classPairEta, oneMult, zeroMult) ≔
+def intMulOneL : (z : El Int) → intMul intOne z ≡ z ∈ El Int using (classPairEta, integerMul.intMul.eq, integer.intOne.eq, oneMult, oneMult.rw, zeroMult, zeroMult.rw, plusZeroId, plusZeroId.rw) ≔
   λz. quot-elim (w. intMul intOne w ≡ w ∈ El Int)
         (p. trans Int (class (p .π₁, p .π₂)) (class (p .π₁ , p .π₂)) (class p) ⋆ (classPairEta p)) z
 
-def intMulOneR : (z : El Int) → intMul z intOne ≡ z ∈ El Int using (classPairEta, zeroPlusId) ≔
+def intMulOneR : (z : El Int) → intMul z intOne ≡ z ∈ El Int using (classPairEta, integerMul.intMul.eq, integer.intOne.eq, multSucId, multSucId.rw, multZeroId, multZeroId.rw, plusZeroId, plusZeroId.rw, zeroPlusId, zeroPlusId.rw) ≔
   λz. quot-elim (w. intMul w intOne ≡ w ∈ El Int) (p. classPairEta p) z
 
-def intMulZeroL : (z : El Int) → intMul intZero z ≡ intZero ∈ El Int using (distribBack, zeroMult) ≔
+def intMulZeroL : (z : El Int) → intMul intZero z ≡ intZero ∈ El Int using (distribBack, distribBack.rw, hyp.rw, intMul.eq, integer.Int.eq, integer.intZero.eq, zeroMult, zeroMult.rw) ≔
   λz. quot-elim (w. intMul intZero w ≡ intZero ∈ El Int) (p. ⋆) z
 
 def intMulZeroR : (z : El Int) → intMul z intZero ≡ intZero ∈ El Int
@@ -230,7 +234,7 @@ def intMulAssoc : (x : El Int) (y : El Int) (z : El Int) →
     x
 
 def intMulDistribL : (x : El Int) (y : El Int) (z : El Int) →
-  intMul x (intAdd y z) ≡ intAdd (intMul x y) (intMul x z) ∈ El Int using (sum4Distrib, plusAssoc) ≔
+  intMul x (intAdd y z) ≡ intAdd (intMul x y) (intMul x z) ∈ El Int using (hyp.rw, intMul.eq, integer.Int.eq, integerAdd.intAdd.eq, plusAssoc, plusAssoc.rw, sum4Distrib, sum4Distrib.rw) ≔
   λx. λy. λz. quot-elim (v. intMul v (intAdd y z) ≡ intAdd (intMul v y) (intMul v z) ∈ El Int)
     (a. quot-elim (w. intMul (class a) (intAdd w z) ≡ intAdd (intMul (class a) w) (intMul (class a) z) ∈ El Int)
           (b. quot-elim (w. intMul (class a) (intAdd (class b) w)
@@ -265,10 +269,10 @@ def intNegNeg : (z : El Int) → intNeg (intNeg z) ≡ z ∈ El Int using (class
   λz. quot-elim (w. intNeg (intNeg w) ≡ w ∈ El Int) (p. classPairEta p) z
 
 -- z + (−z) = 0: on representatives the relation is p₁+p₂ ≡ p₂+p₁
-def intAddNegR : (z : El Int) → intAdd z (intNeg z) ≡ intZero ∈ El Int using (integer.zeroEq, plusComm) ≔
+def intAddNegR : (z : El Int) → intAdd z (intNeg z) ≡ intZero ∈ El Int using (integer.zeroEq, integerAdd.intAdd.eq, integer.intNeg.eq, integer.intZero.eq, plusComm, plusZeroId, plusZeroId.rw) ≔
   λz. quot-elim (w. intAdd w (intNeg w) ≡ intZero ∈ El Int) (p. ⋆) z
 
-def intAddNegL : (z : El Int) → intAdd (intNeg z) z ≡ intZero ∈ El Int using (integer.zeroEq, plusComm) ≔
+def intAddNegL : (z : El Int) → intAdd (intNeg z) z ≡ intZero ∈ El Int using (integer.zeroEq, integerAdd.intAdd.eq, integer.intNeg.eq, integer.intZero.eq, plusComm, plusZeroId, plusZeroId.rw) ≔
   λz. quot-elim (w. intAdd (intNeg w) w ≡ intZero ∈ El Int) (p. ⋆) z
 
 -- (−x)·y = −(x·y): the two representatives differ by plusComm in each

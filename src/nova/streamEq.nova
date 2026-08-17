@@ -28,7 +28,7 @@ def obsEqRefl : (a : 𝕌) (s : El (stream a)) → Prf (obsEq a s s) ≔
 -- map commutes with EVERY observation, by ℕ-induction — the step is
 -- judgemental: tl (mapS f s) ≐ mapS f (tl s) is one el-nu-beta
 def nthMap : (a : 𝕌) (b : 𝕌) (f : El a → El b) (n : ℕ) (s : El (stream a)) →
-    nth b n (mapS a b f s) ≡ f (nth a n s) ∈ El b ≔
+    nth b n (mapS a b f s) ≡ f (nth a n s) ∈ El b using (nth.eq, stream.mapS.eq, stream.hd.eq, tlN.eq, stream.stream.eq, stream.tl.eq) ≔
   λa. λb. λf. λn.
     ℕ-elim (m. (s : El (stream a)) → nth b m (mapS a b f s) ≡ f (nth a m s) ∈ El b)
       (λs. ⋆)
@@ -45,7 +45,7 @@ def mapIdObsEq : (a : 𝕌) (s : El (stream a)) → Prf (obsEq a (mapS a a (λx.
 -- the composite
 def mapFuseObsEq : (a : 𝕌) (b : 𝕌) (c : 𝕌) (f : El a → El b) (g : El b → El c)
     (s : El (stream a)) →
-    Prf (obsEq c (mapS b c g (mapS a b f s)) (mapS a c (λx. g (f x)) s)) ≔
+    Prf (obsEq c (mapS b c g (mapS a b f s)) (mapS a c (λx. g (f x)) s)) using (nth.eq, stream.mapS.eq, stream.hd.eq, tlN.eq, stream.stream.eq, stream.tl.eq) ≔
   λa. λb. λc. λf. λg. λs.
     ⋆ (λn. (ℕ-elim (m. (t : El (stream a)) →
               nth c m (mapS b c g (mapS a b f t)) ≡ nth c m (mapS a c (λx. g (f x)) t) ∈ El c)

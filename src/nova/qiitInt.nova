@@ -9,9 +9,9 @@ data ( I : U
 
 -- negation by elimination: the coherences are the OTHER equation each
 -- time (⟦suc (pred i)⟧ β-reduces to pred (suc ih), closed by predsuc)
-def neg : El I → El I using (predsuc, sucpred) ≔
+def neg : El I → El I using (predsuc, sucpred, qiitInt.pred.eq, qiitInt.suc.eq) ≔
   λi. IElim (λw. I) zero (λx. λih. pred ih) (λx. λih. suc ih)
         (λx. λih. ⋆) (λx. λih. ⋆) i
 
-def negSucPred : neg (suc (pred zero)) ≡ zero ∈ (El I) using (predsuc) ≔ ⋆
+def negSucPred : neg (suc (pred zero)) ≡ zero ∈ (El I) using (predsuc, qiitInt.I.eq, qiitInt.IElim.eq, qiitInt.neg.eq, qiitInt.pred.eq, qiitInt.suc.eq, qiitInt.zero.eq) ≔ ⋆
 def negPred : neg (pred zero) ≡ suc zero ∈ (El I) using (qiitInt.I.eq, qiitInt.IElim.eq, qiitInt.neg.eq, qiitInt.pred.eq, qiitInt.suc.eq, qiitInt.zero.eq) ≔ ⋆

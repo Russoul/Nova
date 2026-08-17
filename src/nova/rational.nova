@@ -44,10 +44,10 @@ def nzMul : El NZ → El NZ → El NZ ≔
     (m. ⊎-elim (v. El NZ) (k. nzNeg (m * k + m + k)) (k. nzPos (m * k + m + k)) y)
     x
 
-def nzMulOneL : (y : El NZ) → nzMul nzOne y ≡ y ∈ El NZ using (zeroMult, zeroPlusId) ≔
+def nzMulOneL : (y : El NZ) → nzMul nzOne y ≡ y ∈ El NZ using (nzMul.eq, nzOne.eq, nzPos.eq, nzNeg.eq, zeroMult, zeroMult.rw, zeroPlusId, zeroPlusId.rw, plusZeroId.rw) ≔
   λy. ⊎-elim (w. nzMul nzOne w ≡ w ∈ El NZ) (k. ⋆) (k. ⋆) y
 
-def nzMulOneR : (x : El NZ) → nzMul x nzOne ≡ x ∈ El NZ using (zeroPlusId) ≔
+def nzMulOneR : (x : El NZ) → nzMul x nzOne ≡ x ∈ El NZ using (nzMul.eq, nzOne.eq, nzPos.eq, nzNeg.eq, multZeroId.rw, zeroPlusId, zeroPlusId.rw, plusZeroId.rw) ≔
   λx. ⊎-elim (w. nzMul w nzOne ≡ w ∈ El NZ) (m. ⋆) (m. ⋆) x
 
 -- ===== nat lemmas, in the orientation the engine can use =====
@@ -63,7 +63,8 @@ def distribBack : (n : ℕ) (m : ℕ) (k : ℕ) → n * m + n * k ≡ n * (m + k
 
 def sucMultBack : (n : ℕ) (m : ℕ) → m + n * m ≡ S n * m ∈ ℕ using (sucMult) ≔ λn. λm. ⋆
 
-def oneMult : (m : ℕ) → S Z * m ≡ m ∈ ℕ using (multComm) ≔ λm. ⋆
+def oneMult : (m : ℕ) → S Z * m ≡ m ∈ ℕ using (multComm) ≔
+  λm. (S Z * m ≡⟨ sucMult Z m ⟩ m + Z * m ≡⟨ zeroMult m ⟩ m + Z ≡⟨ plusZeroId m ⟩ m)
 
 -- ===== scaling an integer by a non-zero integer =====
 --
@@ -74,25 +75,25 @@ def oneMult : (m : ℕ) → S Z * m ≡ m ∈ ℕ using (multComm) ≔ λm. ⋆
 -- to scale by a nat and negate: n · (a, b) ≔ (n*a, n*b), whose
 -- well-definedness is one application of distributivity.
 
-def intAddZeroL : (z : El Int) → intAdd intZero z ≡ z ∈ El Int using (plusComm, zeroPlusId) ≔
+def intAddZeroL : (z : El Int) → intAdd intZero z ≡ z ∈ El Int using (hyp.rw, integer.Int.eq, integer.intZero.eq, integerAdd.intAdd.eq, plusComm, plusComm.rw, zeroPlusId, zeroPlusId.rw) ≔
   λz. quot-elim (w. intAdd intZero w ≡ w ∈ El Int) (p. ⋆) z
 
-def intAddZeroR : (z : El Int) → intAdd z intZero ≡ z ∈ El Int using (plusComm) ≔
+def intAddZeroR : (z : El Int) → intAdd z intZero ≡ z ∈ El Int using (hyp.rw, integer.Int.eq, integer.intZero.eq, integerAdd.intAdd.eq, plusComm, plusComm.rw, plusZeroId, plusZeroId.rw, zeroPlusId, zeroPlusId.rw) ≔
   λz. quot-elim (w. intAdd w intZero ≡ w ∈ El Int) (p. ⋆) z
 
-def intScaleN : ℕ → El Int → El Int using (distribBack) ≔
+def intScaleN : ℕ → El Int → El Int using (distribBack, distribBack.rw, hyp.rw) ≔
   λn. λz. quot-elim (w. El Int) (p. class (n * p .π₁ , n * p .π₂)) z
 
 def intScaleNZero : (n : ℕ) → intScaleN n intZero ≡ intZero ∈ El Int
   using (integer.intZero.eq, rational.intScaleN.eq) ≔ λn. ⋆
 
-def intScaleNOne : (z : El Int) → intScaleN (S Z) z ≡ z ∈ El Int using (plusComm, oneMult) ≔
+def intScaleNOne : (z : El Int) → intScaleN (S Z) z ≡ z ∈ El Int using (hyp.rw, intScaleN.eq, integer.Int.eq, oneMult, oneMult.rw, plusComm, plusComm.rw) ≔
   λz. quot-elim (w. intScaleN (S Z) w ≡ w ∈ El Int) (p. ⋆) z
 
 -- scaling by n+1 really is n+1 iterated additions — the definition by
 -- representatives agrees with the recursive one
 def intScaleNSuc : (n : ℕ) (z : El Int) →
-  intScaleN (S n) z ≡ intAdd z (intScaleN n z) ∈ El Int using (sucMultBack) ≔
+  intScaleN (S n) z ≡ intAdd z (intScaleN n z) ∈ El Int using (hyp.rw, intScaleN.eq, integer.Int.eq, integerAdd.intAdd.eq, sucMultBack, sucMultBack.rw) ≔
   λn. λz. quot-elim (w. intScaleN (S n) w ≡ intAdd w (intScaleN n w) ∈ El Int) (p. ⋆) z
 
 def intScale : El NZ → El Int → El Int ≔
@@ -101,7 +102,7 @@ def intScale : El NZ → El Int → El Int ≔
     (n. intNeg (intScaleN (S n) z))
     d
 
-def intScaleOne : (z : El Int) → intScale nzOne z ≡ z ∈ El Int using (intScaleNOne) ≔ λz. ⋆
+def intScaleOne : (z : El Int) → intScale nzOne z ≡ z ∈ El Int using (intScaleNOne, intScale.eq, nzOne.eq, nzPos.eq) ≔ λz. ⋆
 
 def intScaleZero : (d : El NZ) → intScale d intZero ≡ intZero ∈ El Int
   using (integer.intNeg.eq, integer.intZero.eq, rational.intScale.eq, rational.intScaleN.eq) ≔
@@ -162,8 +163,20 @@ def ratAddTest : ratAdd half half ≡ mkRat (class (S (S (S (S Z))) , Z)) (nzPos
 -- ⅓ + (−⅓) = 0/(−9): numerator cancels, denominator keeps its sign
 def third : El Rat ≔ mkRat intOne (nzPos (S (S Z)))
 def negThird : El Rat ≔ mkRat intOne (nzNeg (S (S Z)))
+
+-- the numerator's cancellation, at the root where the quotient join is
+-- available (under the test's pair it is a component position, which
+-- the strict engine reaches only by whole-equation match)
+def threeCancel : class (S (S (S Z)) , S (S (S Z))) ≡ intZero ∈ El Int
+  using (integer.intZero.eq) ≔ ⋆
+
 def ratAddTest2 : ratAdd third negThird ≡ mkRat intZero (nzNeg (S (S (S (S (S (S (S (S Z)))))))))
-  ∈ El Rat using (integer.zeroEq) ≔ ⋆
+  ∈ El Rat using (threeCancel, integer.intNeg.eq, integer.intOne.eq, integerAdd.intAdd.eq, nat.*.eq, nat.+.eq, rational.den.eq, rational.third.eq, rational.negThird.eq, rational.intScale.eq, rational.intScaleN.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzPos.eq, rational.nzNeg.eq, rational.ratAdd.eq) ≔
+  trans Rat (ratAdd third negThird)
+    (mkRat (class (S (S (S Z)) , S (S (S Z)))) (nzNeg (S (S (S (S (S (S (S (S Z))))))))))
+    (mkRat intZero (nzNeg (S (S (S (S (S (S (S (S Z))))))))))
+    ⋆
+    (cong Int (λu. Rat) (λx. mkRat x (nzNeg (S (S (S (S (S (S (S (S Z)))))))))) (class (S (S (S Z)) , S (S (S Z)))) intZero threeCancel)
 
 -- ===== 0/1 is a unit =====
 
@@ -184,7 +197,7 @@ def ratAddZeroRNum : (q : El Rat) →
 -- Σ-η, as a step of its own: el-sigma-eta is judgemental in the
 -- theory but the kernel's normal forms do not contract (t.π₁ , t.π₂),
 -- so the last hop has to be named
-def ratEta : (q : El Rat) → mkRat (num q) (den q) ≡ q ∈ El Rat ≔ λq. ⋆
+def ratEta : (q : El Rat) → mkRat (num q) (den q) ≡ q ∈ El Rat using (sigma.eta, mkRat.eq, num.eq, den.eq) ≔ λq. ⋆
 
 -- and then the pair, one component at a time
 def ratAddZeroL : (q : El Rat) → ratAdd ratZero q ≡ q ∈ El Rat using (integer.intNeg.eq, integer.intZero.eq, integerAdd.intAdd.eq, nzMulOneL, ratEta, rational.Rat.eq, rational.den.eq, rational.intScale.eq, rational.intScaleN.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzNeg.eq, rational.nzOne.eq, rational.nzPos.eq, rational.ratAdd.eq, rational.ratOfInt.eq, rational.ratZero.eq) ≔
@@ -204,7 +217,7 @@ def ratAddZeroR : (q : El Rat) → ratAdd q ratZero ≡ q ∈ El Rat using (inte
 -- ===== commutativity =====
 
 -- (x + m) + k ≡ (x + k) + m: the addends the cross-sum needs swapped
-def plusSwapRight : (x : ℕ) (m : ℕ) (k : ℕ) → x + m + k ≡ x + k + m ∈ ℕ using (plusAssoc, plusComm, swapLeft) ≔
+def plusSwapRight : (x : ℕ) (m : ℕ) (k : ℕ) → x + m + k ≡ x + k + m ∈ ℕ using (hyp.rw, plusAssoc, plusAssoc.rw, plusComm, plusComm.rw, swapLeft, swapLeft.rw) ≔
   λx. λm. λk. ⋆
 
 -- the magnitude arithmetic of nzMul is symmetric: multComm on the

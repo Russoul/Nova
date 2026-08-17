@@ -8,9 +8,15 @@ def normPair : ℕ → ℕ → ℕ ⨯ ℕ ≔
         (n ih. λb. ℕ-elim (k. ℕ ⨯ ℕ) (S n , Z) (m ihb. ih m) b)
         a
 
+-- the three defining equations of normPair, in folded vocabulary, so
+-- they can fire as rewrite rules without unfolding normPair in goals
+def normPairZero : (b : ℕ) → normPair Z b ≡ (Z , b) ∈ ℕ ⨯ ℕ using (integerNormalize.normPair.eq) ≔ λb. ⋆
+def normPairSucZero : (n : ℕ) → normPair (S n) Z ≡ (S n , Z) ∈ ℕ ⨯ ℕ using (integerNormalize.normPair.eq) ≔ λn. ⋆
+def normPairSucSuc : (n : ℕ) (m : ℕ) → normPair (S n) (S m) ≡ normPair n m ∈ ℕ ⨯ ℕ using (integerNormalize.normPair.eq) ≔ λn. λm. ⋆
+
 -- normPair a b is R-related to (a, b)
 def normSound : (a : ℕ) → (b : ℕ) →
-  (normPair a b) .π₁ + b ≡ (normPair a b) .π₂ + a ∈ ℕ using (zeroPlusId) ≔
+  (normPair a b) .π₁ + b ≡ (normPair a b) .π₂ + a ∈ ℕ using (hyp.rw, normPairZero, normPairZero.rw, normPairSucZero, normPairSucZero.rw, normPairSucSuc, normPairSucSuc.rw, plusSucId, plusSucId.rw, plusZeroId, plusZeroId.rw, zeroPlusId, zeroPlusId.rw) ≔
   λa.
     ℕ-elim (k. (b : ℕ) → (normPair k b) .π₁ + b ≡ (normPair k b) .π₂ + k ∈ ℕ)
       (λb. ⋆)
@@ -24,7 +30,7 @@ def normSound : (a : ℕ) → (b : ℕ) →
 -- at the quotient, normalization is invisible
 def normClass : (a : ℕ) (b : ℕ) → class (normPair a b) ≡ class (a , b) ∈ El Int using (normSound) ≔ λa. λb. ⋆
 
-def intNormalize : El Int → El Int using (normClass) ≔
+def intNormalize : El Int → El Int using (hyp.rw, normClass, normClass.rw) ≔
   λz. quot-elim (w. El Int) (rep. class (normPair (rep .π₁) (rep .π₂))) z
 
 def intNormalizeTest1 : intNormalize (class (S Z , Z)) ≡ class (S Z , Z) ∈ El Int

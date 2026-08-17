@@ -30,7 +30,8 @@ import equality (trans, sym, cong, transport)
 
 -- the doubled bound halves: 2·(1/(2m+2) + 1/(2n+2)) = 1/(m+1) + 1/(n+1)
 def rBoundHalf : (m : ℕ) (n : ℕ) →
-  qAdd (rBound (dbl m) (dbl n)) (rBound (dbl m) (dbl n)) ≡ rBound m n ∈ El Q ≔
+  qAdd (rBound (dbl m) (dbl n)) (rBound (dbl m) (dbl n)) ≡ rBound m n ∈ El Q
+  using (real.rBound.eq) ≔
   λm. λn.
     (qAdd (rBound (dbl m) (dbl n)) (rBound (dbl m) (dbl n))
        ≡⟨ qPairSwap (qInvNat (dbl m)) (qInvNat (dbl n))

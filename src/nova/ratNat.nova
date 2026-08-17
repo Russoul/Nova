@@ -30,8 +30,14 @@ def qOfNatOne : qOfNat (S Z) ≡ qOne ∈ El Q using (intOrder.intOfNat.eq, inte
 
 -- ===== the difference of two naturals, in ℤ =====
 
+-- the flipped reading of the hypothesis, as its own lemma: the engine
+-- cannot commute a FIRST argument, so state the exact relation shape
+def natDiffRel : (a : ℕ) (b : ℕ) (k : ℕ) → (a + k ≡ b ∈ ℕ) →
+  k + a ≡ b ∈ ℕ ≔
+  λa. λb. λk. λh. trans ℕ (k + a) (a + k) b (plusComm a k) h
+
 def natDiffClass : (a : ℕ) (b : ℕ) (k : ℕ) → (a + k ≡ b ∈ ℕ) →
-  intOfNat k ≡ class (b , a) ∈ El Int using (zeroPlusId, plusComm) ≔
+  intOfNat k ≡ class (b , a) ∈ El Int using (zeroPlusId.rw, natDiffRel, intOrder.intOfNat.eq) ≔
   λa. λb. λk. λh. ⋆
 
 -- effectivity of the ℤ quotient reads the two verdicts back as ℕ facts
@@ -82,7 +88,7 @@ def leOfNonNegSgn : (a : ℕ) (b : ℕ) →
 -- the difference of the two embeddings, computed
 def qOfNatDiffNum : (a : ℕ) (b : ℕ) →
   intAdd (intScale nzOne (intOfNat b)) (intScale nzOne (intNeg (intOfNat a)))
-    ≡ class (b , a) ∈ El Int using (zeroPlusId, plusComm) ≔
+    ≡ class (b , a) ∈ El Int using (zeroPlusId.rw, plusZeroId.rw, plusComm, intOrder.intOfNat.eq, integer.intNeg.eq, integerAdd.intAdd.eq) ≔
   λa. λb.
     trans Int
       (intAdd (intScale nzOne (intOfNat b)) (intScale nzOne (intNeg (intOfNat a))))
