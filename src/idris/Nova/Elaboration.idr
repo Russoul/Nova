@@ -1343,6 +1343,12 @@ mutual
 engNfE : ElabSt -> Elem -> Elem
 engNfE st e = if strictConv then compElem e else betaElem st.sig e
 
+||| The engine's JOIN normal form at the current site: comp plus the
+||| site's licensed unfoldings in strict mode, full δβ otherwise —
+||| for positions that must stay in the join vocabulary (hop residues).
+engJoinE : ElabSt -> Elem -> Elem
+engJoinE st e = if strictConv then compElem (unfElem st.sig st.eqScope e) else betaElem st.sig e
+
 engNfT : ElabSt -> Ty -> Ty
 engNfT st t = if strictConv then compTy t else betaTy st.sig t
 
@@ -1571,15 +1577,20 @@ mkCandSet st ctx =
   -- a + k ≐ b leaves the link a + k ≡ b nothing to match, and a
   -- SHRINK hypothesis outranks a size-preserving link in the merged
   -- blocks, so the blocks must not be merged).
+      -- strict mode: hops for chain links always; for hypotheses under
+      -- a hyp.rw license; for Σ-lemmas under their <lemma>.rw license
+      sHopsStrict = filter (\c => elem ("rw:" ++ c.candName) st.eqScope) sHops
+      hypLicensed = elem "hyp.rw" st.eqScope
   in case (st.localCands, hypCands st sRw ctx) of
-       ([], []) => MkCandSet sCs sRw (if strictConv then [] else sHops)
+       ([], []) => MkCandSet sCs sRw (if strictConv then sHopsStrict else sHops)
        (ls, hs) =>
          let (lcs, lsh, lre, lhp) = sigCandParts ls
              (hcs, hsh, hre, hhp) = sigCandParts hs
          in MkCandSet (lcs ++ sCs ++ hcs)
                       (lsh ++ lre ++ sShrink ++ hsh ++ sRest ++ hre)
-                      -- strict mode: chain-link hops only (see candMatchC)
-                      (if strictConv then lhp else lhp ++ sHops ++ hhp)
+                      (if strictConv
+                         then lhp ++ sHopsStrict ++ (if hypLicensed then hhp else [])
+                         else lhp ++ sHops ++ hhp)
 
 rwNfElem : ElabSt -> Ctx -> Elem -> Elem
 rwNfElem st ctx e = fst (rwNfElemS st.sig st.eqScope (mkCandSet st ctx).rw True e)
@@ -1998,14 +2009,14 @@ mutual
           full <- complete c bs
           steps <- materialize c full True []
           sigma <- instSub c.params 0 full
-          let a' = betaElem st.sig (substElem c.rhs sigma)
+          let a' = engJoinE st (substElem c.rhs sigma)
           rest <- spEqElemC dep st cs ctx a' b ty >>= noBridge
           pure (MkECert (steps ++ rest.steps) rest.final))
       <|> (do bs <- matchElemP c.params 0 0 c.lhs b []
               full <- complete c bs
               steps <- materialize c full False []
               sigma <- instSub c.params 0 full
-              let b' = betaElem st.sig (substElem c.rhs sigma)
+              let b' = engJoinE st (substElem c.rhs sigma)
               rest <- spEqElemC dep st cs ctx a b' ty >>= noBridge
               pure (MkECert (steps ++ rest.steps) rest.final))
 

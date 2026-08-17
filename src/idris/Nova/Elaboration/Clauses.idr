@@ -808,7 +808,7 @@ expandClausal nrng fname ty etaName witness clauses = do
                   -- it otherwise), and the uniqueness proof cites the
                   -- clause lemmas it rewrites by
                   :: zipWith3 (\n, t, b => SDef n t b (Just [fname ++ ".eq"])) lemNames lemTys lemBodies
-                  ++ [SDef etaN eTy (fromMaybe eBodyStar eBodySynth) (Just (lemNames ++ [fname ++ ".eq"]))])
+                  ++ [SDef etaN eTy (fromMaybe eBodyStar eBodySynth) (Just (lemNames ++ map (++ ".rw") lemNames ++ [fname ++ ".eq", "hyp.rw"]))])
                "defined \{fname} by clauses via witness (\{joinBy ", " names})")
     Nothing =>
       case (shape, shape >>= shapedRho cols b k) of
@@ -820,7 +820,7 @@ expandClausal nrng fname ty etaName witness clauses = do
                       -- defining equation, uniqueness cites the clause
                       -- lemmas
                       :: zipWith3 (\n, t, b => SDef n t b (Just [fname ++ ".eq"])) lemNames lemTys lemBodies
-                      ++ [SDef etaN eTy (fromMaybe eBodyStar eBodySynth) (Just (lemNames ++ [fname ++ ".eq"]))])
+                      ++ [SDef etaN eTy (fromMaybe eBodyStar eBodySynth) (Just (lemNames ++ map (++ ".rw") lemNames ++ [fname ++ ".eq", "hyp.rw"]))])
                    "defined \{fname} by clauses (\{joinBy ", " names})")
         _ =>
           -- DECLARATION TIER: the whole batch demotes to named rigid
