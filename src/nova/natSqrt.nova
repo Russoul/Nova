@@ -1,5 +1,5 @@
 import nat (+, *, plusZeroId, plusAssoc, plusComm, sucPlus, plusSucId,
-            multComm, multDistrib, sucMult)
+            multComm, multDistrib, multSucId, sucMult)
 import natOrder (LeN, leRefl, leOfEq, leZero, leZeroInv, leTrans, leSucSelf,
                  leSucMono, leSucInv, leTotal, leMultMonoR, lePlusMonoL)
 import natMore (∸, multDistribR)
@@ -233,3 +233,92 @@ def sqrtStepN : (x : ℕ) (y : ℕ) (T : ℕ) →
                (leTrans T (S T) (S (isqrt T) * S (isqrt T))
                   (leSucSelf T) (isqrtUpper T)))
             (sqSumLe y (S (isqrt T)))))
+
+-- ===== isqrt is strictly under any c whose square overshoots =====
+
+def isqrtLtOfLt : (T : ℕ) (c : ℕ) →
+  El (LeN (S T) (c * c)) → El (LeN (S (isqrt T)) c) ≔
+  λT. λc. λh.
+    ⊎-elim (w. El (LeN (S (isqrt T)) c))
+      (le. 𝟘-elim
+             (leSucNotSelf T
+                (leTrans (S T) (c * c) T h
+                   (leTrans (c * c) (isqrt T * isqrt T) T
+                      (leSquare c (isqrt T) le) (isqrtLe T)))))
+      (lt. lt)
+      (natCompare c (isqrt T))
+
+-- ...and a sum of two POSITIVE squares is strictly under the square of
+-- the sum, which is what makes isqrt of the error term fit
+def plus4Mid : (a : ℕ) (p : ℕ) (q : ℕ) (b : ℕ) →
+  (a + p) + (q + b) ≡ (a + b) + (p + q) ∈ ℕ ≔
+  λa. λp. λq. λb.
+    ((a + p) + (q + b)
+       ≡⟨ plusAssoc a p (q + b) ⟩
+     a + (p + (q + b))
+       ≡⟨ cong ℕ (λw. ℕ) (λw. a + w) (p + (q + b)) ((p + q) + b)
+            (sym ℕ ((p + q) + b) (p + (q + b)) (plusAssoc p q b)) ⟩
+     a + ((p + q) + b)
+       ≡⟨ cong ℕ (λw. ℕ) (λw. a + w) ((p + q) + b) (b + (p + q))
+            (plusComm b (p + q)) ⟩
+     a + (b + (p + q))
+       ≡⟨ sym ℕ ((a + b) + (p + q)) (a + (b + (p + q))) (plusAssoc a b (p + q)) ⟩
+     (a + b) + (p + q))
+
+def sucMultSuc : (x : ℕ) (y : ℕ) → S x * S y ≡ S (x + S x * y) ∈ ℕ ≔
+  λx. λy.
+    (S x * S y
+       ≡⟨ multSucId (S x) y ⟩
+     S x + S x * y
+       ≡⟨ sucPlus x (S x * y) ⟩
+     S (x + S x * y))
+
+def sqSumStrict : (x : ℕ) (y : ℕ) →
+  El (LeN (S (S x * S x + S y * S y)) ((S x + S y) * (S x + S y))) using (natOrder.LeN.unfold) ≔
+  λx. λy.
+    ((x + S x * y) + S (x + S x * y) ,
+     eqToId ℕ
+       (S (S x * S x + S y * S y) + ((x + S x * y) + S (x + S x * y)))
+       ((S x + S y) * (S x + S y))
+       (trans ℕ
+          (S (S x * S x + S y * S y) + ((x + S x * y) + S (x + S x * y)))
+          ((S x * S x + S y * S y) + (S x * S y + S x * S y))
+          ((S x + S y) * (S x + S y))
+          (trans ℕ
+             (S (S x * S x + S y * S y) + ((x + S x * y) + S (x + S x * y)))
+             (S ((S x * S x + S y * S y) + ((x + S x * y) + S (x + S x * y))))
+             ((S x * S x + S y * S y) + (S x * S y + S x * S y))
+             (sucPlus (S x * S x + S y * S y)
+                      ((x + S x * y) + S (x + S x * y)))
+             (trans ℕ
+                (S ((S x * S x + S y * S y) + ((x + S x * y) + S (x + S x * y))))
+                ((S x * S x + S y * S y) + S ((x + S x * y) + S (x + S x * y)))
+                ((S x * S x + S y * S y) + (S x * S y + S x * S y))
+                (sym ℕ ((S x * S x + S y * S y)
+                          + S ((x + S x * y) + S (x + S x * y)))
+                       (S ((S x * S x + S y * S y)
+                             + ((x + S x * y) + S (x + S x * y))))
+                   (plusSucId (S x * S x + S y * S y)
+                              ((x + S x * y) + S (x + S x * y))))
+                (cong ℕ (λw. ℕ) (λw. (S x * S x + S y * S y) + w)
+                   (S ((x + S x * y) + S (x + S x * y)))
+                   (S x * S y + S x * S y)
+                   (trans ℕ (S ((x + S x * y) + S (x + S x * y)))
+                            (S (x + S x * y) + S (x + S x * y))
+                            (S x * S y + S x * S y)
+                      (sym ℕ (S (x + S x * y) + S (x + S x * y))
+                             (S ((x + S x * y) + S (x + S x * y)))
+                         (sucPlus (x + S x * y) (S (x + S x * y))))
+                      (cong ℕ (λw. ℕ) (λw. w + w) (S (x + S x * y)) (S x * S y)
+                         (sym ℕ (S x * S y) (S (x + S x * y))
+                            (sucMultSuc x y)))))))
+          (trans ℕ
+             ((S x * S x + S y * S y) + (S x * S y + S x * S y))
+             ((S x * S x + S x * S y) + (S x * S y + S y * S y))
+             ((S x + S y) * (S x + S y))
+             (sym ℕ ((S x * S x + S x * S y) + (S x * S y + S y * S y))
+                    ((S x * S x + S y * S y) + (S x * S y + S x * S y))
+                (plus4Mid (S x * S x) (S x * S y) (S x * S y) (S y * S y)))
+             (sym ℕ ((S x + S y) * (S x + S y))
+                    ((S x * S x + S x * S y) + (S x * S y + S y * S y))
+                (sqExpand (S x) (S y))))))
