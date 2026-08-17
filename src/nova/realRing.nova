@@ -7,7 +7,7 @@ import rationalOrder (LeQ, leQPlusMono, leQPlusMonoL, leQTrans, qSubSplit,
 import ratBound (Bnd, bndAdd, bndEq, bndEqB, bndWeaken, bndVia, leQAdd,
                  leQSelfAdd, leQSelfAddL)
 import ratAbs (bndMul, leQZeroMul)
-import ratNat (qOfNat, qOfNatAdd, qOfNatMul, qOfNatOne)
+import ratNat (qOfNat, qOfNatAdd, qOfNatMul, qOfNatOne, qOfNatSuc, qMulSucNat)
 import ratCeil (leQZeroNat)
 import ratArch (bndOfArch)
 import ratHalf (dbl, leQZeroInvNat, leQInvDbl)
@@ -69,36 +69,6 @@ def realMulZeroL : (u : El Real) → realMul realZero u ≡ realZero ∈ El Real
       (realMulZeroR u)
 
 -- ===== the deepening inequality =====
-
--- S c as a rational is c + 1. Written c + S Z, not S Z + c: `+`
--- recurses on its SECOND argument, so c + S Z reduces to S c on the
--- nose and the other order would owe zeroPlusId.
-def addOneNat : (c : ℕ) → c + S Z ≡ S c ∈ ℕ using (nat.+.eq) ≔ λc. ⋆
-
-def qOfNatSuc : (c : ℕ) → qOfNat (S c) ≡ qAdd (qOfNat c) qOne ∈ El Q ≔
-  λc.
-    (qOfNat (S c)
-       ≡⟨ cong ℕ (λw. Q) (λw. qOfNat w) (S c) (c + S Z)
-            (sym ℕ (c + S Z) (S c) (addOneNat c)) ⟩
-     qOfNat (c + S Z)
-       ≡⟨ sym Q (qAdd (qOfNat c) (qOfNat (S Z))) (qOfNat (c + S Z))
-            (qOfNatAdd c (S Z)) ⟩
-     qAdd (qOfNat c) (qOfNat (S Z))
-       ≡⟨ cong Q (λw. Q) (λw. qAdd (qOfNat c) w) (qOfNat (S Z)) qOne qOfNatOne ⟩
-     qAdd (qOfNat c) qOne)
-
-def qMulSucNat : (c : ℕ) (x : El Q) →
-  qMul (qOfNat (S c)) x ≡ qAdd (qMul (qOfNat c) x) x ∈ El Q ≔
-  λc. λx.
-    (qMul (qOfNat (S c)) x
-       ≡⟨ cong Q (λw. Q) (λw. qMul w x) (qOfNat (S c)) (qAdd (qOfNat c) qOne)
-            (qOfNatSuc c) ⟩
-     qMul (qAdd (qOfNat c) qOne) x
-       ≡⟨ qDistribR x (qOfNat c) qOne ⟩
-     qAdd (qMul (qOfNat c) x) (qMul qOne x)
-       ≡⟨ cong Q (λw. Q) (λw. qAdd (qMul (qOfNat c) x) w) (qMul qOne x) x
-            (qMulOneL x) ⟩
-     qAdd (qMul (qOfNat c) x) x)
 
 -- multiplying a nonnegative by S c ≥ 1 only grows it
 def leQSelfMulNat : (c : ℕ) (x : El Q) → El (LeQ qZero x) →
