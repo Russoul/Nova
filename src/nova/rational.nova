@@ -117,7 +117,7 @@ def intScaleZero : (d : El NZ) → intScale d intZero ≡ intZero ∈ El Int
 -- Callers compose with trans rather than ask the engine to rewrite
 -- these in place.
 def intAddScaleZeroL : (d : El NZ) (y : El Int) →
-  intAdd (intScale d intZero) y ≡ y ∈ El Int using (intAddZeroL, integer.Int.eq, integer.intNeg.eq, integer.intZero.eq, integerAdd.intAdd.eq, rational.intScale.eq, rational.intScaleN.eq) ≔
+  intAdd (intScale d intZero) y ≡ y ∈ El Int using (intAddZeroL, integer.Int.eq, integer.intNeg.eq, integer.intZero.eq, integerAdd.intAdd.eq, nat.*.eq, nat.+.eq, rational.intScale.eq, rational.intScaleN.eq) ≔
   λd. λy. ⊎-elim (w. intAdd (intScale w intZero) y ≡ y ∈ El Int)
         (n. intAddZeroL y) (n. intAddZeroL y) d
 
@@ -128,7 +128,7 @@ def intAddScaleZeroR : (d : El NZ) (y : El Int) →
 
 -- scaling by d agrees with multiplying by d's image in Int
 def intScaleToInt : (d : El NZ) → intScale d (class (S Z , Z)) ≡ nzToInt d ∈ El Int
-  using (integer.intNeg.eq, rational.intScale.eq, rational.intScaleN.eq, rational.nzToInt.eq) ≔
+  using (integer.intNeg.eq, nat.*.eq, nat.+.eq, rational.intScale.eq, rational.intScaleN.eq, rational.nzToInt.eq) ≔
   λd. ⊎-elim (w. intScale w (class (S Z , Z)) ≡ nzToInt w ∈ El Int) (n. ⋆) (n. ⋆) d
 
 -- ===== the rationals =====
@@ -157,7 +157,7 @@ def ratAdd : El Rat → El Rat → El Rat ≔
 -- ½ + ½ = 4/4, unreduced, as the raw representation demands
 def half : El Rat ≔ mkRat intOne (nzPos (S Z))
 def ratAddTest : ratAdd half half ≡ mkRat (class (S (S (S (S Z))) , Z)) (nzPos (S (S (S Z)))) ∈ El Rat
-  using (integer.intOne.eq, integerAdd.intAdd.eq, rational.den.eq, rational.half.eq, rational.intScale.eq, rational.intScaleN.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzPos.eq, rational.ratAdd.eq) ≔ ⋆
+  using (integer.intOne.eq, integerAdd.intAdd.eq, nat.*.eq, nat.+.eq, rational.den.eq, rational.half.eq, rational.intScale.eq, rational.intScaleN.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzPos.eq, rational.ratAdd.eq) ≔ ⋆
 
 -- ⅓ + (−⅓) = 0/(−9): numerator cancels, denominator keeps its sign
 def third : El Rat ≔ mkRat intOne (nzPos (S (S Z)))

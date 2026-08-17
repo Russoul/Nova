@@ -107,11 +107,11 @@ def orElim : (p : Ω) (q : Ω) (c : Ω) → Prf (p ∨ q) → (Prf p → Prf c) 
 infixr 2 ↔
 def ↔ : Ω → Ω → Ω ≔ λp. λq. (p ⊃ q) ∧ (q ⊃ p)
 
-def iffIntro : (p : Ω) (q : Ω) → (Prf p → Prf q) → (Prf q → Prf p) → Prf (p ↔ q) ≔
+def iffIntro : (p : Ω) (q : Ω) → (Prf p → Prf q) → (Prf q → Prf p) → Prf (p ↔ q) using (prop.↔.eq, prop.∧.eq, prop.⊃.eq) ≔
   λp. λq. λf. λg. andIntro (p ⊃ q) (q ⊃ p) (impIntro p q f) (impIntro q p g)
-def iffLeft : (p : Ω) (q : Ω) → Prf (p ↔ q) → Prf p → Prf q ≔
+def iffLeft : (p : Ω) (q : Ω) → Prf (p ↔ q) → Prf p → Prf q using (prop.↔.eq, prop.∧.eq, prop.⊃.eq) ≔
   λp. λq. λh. impApply p q (andFst (p ⊃ q) (q ⊃ p) h)
-def iffRight : (p : Ω) (q : Ω) → Prf (p ↔ q) → Prf q → Prf p ≔
+def iffRight : (p : Ω) (q : Ω) → Prf (p ↔ q) → Prf q → Prf p using (prop.↔.eq, prop.∧.eq, prop.⊃.eq) ≔
   λp. λq. λh. impApply q p (andSnd (p ⊃ q) (q ⊃ p) h)
 
 -- code-prop-eq against ↔: iff-equal propositions are EQUAL codes, so
@@ -123,7 +123,7 @@ def propExtOfIff : (p : Ω) (q : Ω) → Prf (p ↔ q) → p ≡ q ∈ Ω ≔
 -- lemma, rather than a literal code-prop-eq equality — code-prop-eq's
 -- automatic search is still 𝟙-/≡-shaped only; only el-squash-i/
 -- el-squash-e-prf were generalized).
-def curry : (p : Ω) (q : Ω) (c : Ω) → Prf ((p ∧ q) ⊃ c) → Prf (p ⊃ q ⊃ c) ≔
+def curry : (p : Ω) (q : Ω) (c : Ω) → Prf ((p ∧ q) ⊃ c) → Prf (p ⊃ q ⊃ c) using (prop.⊃.eq) ≔
   λp. λq. λc. λh. impIntro p (∥Prf q → Prf c∥) (λx. impIntro q c (λy. impApply (p ∧ q) c h (andIntro p q x y)))
 def uncurry : (p : Ω) (q : Ω) (c : Ω) → Prf (p ⊃ q ⊃ c) → Prf ((p ∧ q) ⊃ c) ≔
   λp. λq. λc. λh. impIntro (p ∧ q) c (λpq. impApply q c (impApply p (q ⊃ c) h (andFst p q pq)) (andSnd p q pq))
@@ -134,7 +134,7 @@ def uncurry : (p : Ω) (q : Ω) (c : Ω) → Prf (p ⊃ q ⊃ c) → Prf ((p ∧
 -- of the restricted eliminators (elimination reaches only equations
 -- and further props, never arbitrary types, yet this chains three
 -- levels of squash-elim/⋆ and still lands exactly on Prf ⊥).
-def notNotLem : (p : Ω) → Prf (¬ (¬ (p ∨ ¬ p))) ≔
+def notNotLem : (p : Ω) → Prf (¬ (¬ (p ∨ ¬ p))) using (prop.¬.eq, prop.∨.eq, prop.⊃.eq, prop.⊥.eq) ≔
   λp. impIntro (¬ (p ∨ (¬ p))) ⊥ (λk.
     impApply (p ∨ (p ⊃ ⊥)) ⊥ k
       (orInr p (p ⊃ ⊥) (impIntro p ⊥ (λhp.

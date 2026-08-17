@@ -657,7 +657,7 @@ def qMulOneL : (u : El Q) → qMul qOne u ≡ u ∈ El Q using (qMulOneR) ≔
 -- ⅓ · ½ = ⅙
 def qMulTest : qMul (qcls third) (qcls half)
   ≡ qcls (mkRat intOne (nzPos (S (S (S (S (S Z))))))) ∈ El Q
-  using (integer.intOne.eq, integerMul.intMul.eq, rational.den.eq, rational.half.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzPos.eq, rational.third.eq, rationalQ.qMul.eq, rationalQ.qcls.eq, rationalQ.ratMul.eq) ≔ ⋆
+  using (integer.intOne.eq, integerMul.intMul.eq, nat.*.eq, nat.+.eq, rational.den.eq, rational.half.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzPos.eq, rational.third.eq, rationalQ.qMul.eq, rationalQ.qcls.eq, rationalQ.ratMul.eq) ≔ ⋆
 
 -- ===== distributivity =====
 --

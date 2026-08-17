@@ -221,7 +221,7 @@ def magPairWD : (r : ℕ ⨯ ℕ) (r' : ℕ ⨯ ℕ) (h : Prf (IntR r r')) →
 def intMag : El Int → ℕ using (magPairWD) ≔
   λz. quot-elim (w. ℕ) (r. magPair r) z
 
-def intMagZero : intMag intZero ≡ Z ∈ ℕ ≔ ⋆
+def intMagZero : intMag intZero ≡ Z ∈ ℕ using (intAbs.intMag.eq, intAbs.magPair.eq, integer.intZero.eq, nat.+.eq, natMore.∸.eq) ≔ ⋆
 def intMagOfNat : (n : ℕ) → intMag (intOfNat n) ≡ n ∈ ℕ
   using (zeroMonus, plusZeroId) ≔ λn. ⋆
 

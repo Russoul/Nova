@@ -707,3 +707,48 @@ at corners — both bounded, both shrink as the migration replaces
 δβ-dependent certificates outright. End state on a fully migrated
 corpus: delete the KFull tier, `stepElem`'s δβ internals, and the
 per-call def-nf memo that exists to serve them.
+
+## Closing the tier: per-component rescues, operator citations
+
+Instrumenting the fallback rate (temporary khit/kfall counters,
+reverted) localized the residual kernel time precisely: type replays
+hit the join tier at 99.4%, while HALF the element replays fell back
+— 331 of 342 were stepped certificates failing the step machinery's
+SYNTACTIC checks (position type vs lemma type, subterm vs lemma lhs
+instance, and then the final compare) on pairs that are δβ-equal but
+join-unequal: a lemma statement or type index mentions a definition
+outside the cited set. The whole-replay fallback then re-ran full δβ
+from scratch.
+
+Fix: the step machinery went policy-aware (`licensed`/`goE`/`goTy`/
+`stepElem`/`stepTy` normalize under the replay's tier; shape
+exposures by weak-head normalization), and its three equality checks
+try join-syntactic first with a PER-COMPONENT δβ conversion rescue on
+mismatch — localized to the offending pair instead of failing the
+tier. Under KFull the inputs are already δβ-normal, so the rescue is
+an identity check and historic behavior is unchanged. Result:
+fallbacks 342 → 3, strict corpus 16.5s → 12.4s (kernel replay 11.3s
+→ ~7.5s — now mostly the rescues themselves and the survey's hint
+machinery, both of which vanish with the migration), and three more
+edge certificates accepted (acceptance is monotone). The unfold-hint
+name pool also moved off rendered-string scanning onto a syntactic
+collector (`refsE`/`refsT`).
+
+Using-list names then became general dotted paths whose segments are
+identifiers OR operator tokens (`nat.+.eq` parses; `.` is not in the
+operator alphabet, so the tokens separate cleanly), unblocking the
+operator-named defining-equation citations. One more sweep round:
+**235 → 169 obligations, with ZERO hints remaining** — every
+mechanically-closable site is closed. The residue (113 ⋆-goals, 22
+conversions/chain steps; rationalQ 27, integerMul 18, rationalOrder/
+nat 14 each) is genuine trans/cong chain-writing — the operator's or
+a future tactic's job — plus the four hypothesis-rewriting modules.
+
+Where the corpus stands, end of campaign, 138/138 both modes:
+
+```
+                    session start   now
+default all.nova        6:07        1:24
+strict  all.nova          —         12.4s  (169 obligations to migrate)
+realLimClose (item)     230s        ~4s
+```

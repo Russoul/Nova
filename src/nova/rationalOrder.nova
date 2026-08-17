@@ -548,7 +548,7 @@ def intSgnPosMul : (a : El Int) (b : El Int) →
 -- forms, whose sum computes to another one
 def intSgnPosAdd : (a : El Int) (b : El Int) →
   (intSgn a ≡ sPos ∈ El Sign) → (intSgn b ≡ sPos ∈ El Sign) →
-  intSgn (intAdd a b) ≡ sPos ∈ El Sign using (eqInt.classNormPairEq.eq, eqInt.intCanon.eq, eqInt.intCanonClass.eq, equality.sym.eq, equality.trans.eq, intNonZero.nzOfInt.eq, intNonZero.nzOfIntAt.eq, intNonZero.nzOfPairD.eq, integer.Int.eq, integer.intZero.eq, integerAdd.intAdd.eq, integerMul.classPairEta.eq, integerNormalize.normPair.eq, rational.nzPos.eq, rational.nzToInt.eq, rationalInv.intCanonProdZero.eq, rationalInv.normProdZero.eq, rationalOrder.intSgn.eq, rationalOrder.nzSgn.eq, rationalOrder.sNeg.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq) ≔
+  intSgn (intAdd a b) ≡ sPos ∈ El Sign using (eqInt.classNormPairEq.eq, eqInt.intCanon.eq, eqInt.intCanonClass.eq, equality.sym.eq, equality.trans.eq, intNonZero.nzOfInt.eq, intNonZero.nzOfIntAt.eq, intNonZero.nzOfPairD.eq, integer.Int.eq, integer.intZero.eq, integerAdd.intAdd.eq, integerMul.classPairEta.eq, integerNormalize.normPair.eq, nat.+.eq, rational.nzPos.eq, rational.nzToInt.eq, rationalInv.intCanonProdZero.eq, rationalInv.normProdZero.eq, rationalOrder.intSgn.eq, rationalOrder.nzSgn.eq, rationalOrder.sNeg.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq) ≔
   λa. λb. λha. λhb.
     let va ≔ intSgnPosView a ha in
     let vb ≔ intSgnPosView b hb in

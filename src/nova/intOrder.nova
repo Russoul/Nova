@@ -28,7 +28,7 @@ def LeZ : El Int → El Int → 𝕌 ≔
 def intOfNatZero : intOfNat Z ≡ intZero ∈ El Int using (intOrder.intOfNat.eq, integer.intZero.eq) ≔ ⋆
 def intOfNatPlus : (a : ℕ) (b : ℕ) →
   intAdd (intOfNat a) (intOfNat b) ≡ intOfNat (a + b) ∈ El Int
-  using (intOrder.intOfNat.eq, integerAdd.intAdd.eq) ≔ λa. λb. ⋆
+  using (intOrder.intOfNat.eq, integerAdd.intAdd.eq, nat.+.eq) ≔ λa. λb. ⋆
 def intOfNatInjZ : (k : ℕ) → (intOfNat k ≡ intZero ∈ El Int) → k ≡ Z ∈ ℕ
   using (intOrder.intOfNat.eq, integer.intZero.eq) ≔
   λk. λh. let r ≔ intEffective (k , Z) (Z , Z) h in ⋆

@@ -95,7 +95,7 @@ def unitAddDen : (d : El NZ) →
 -- 1/(2n+2) + 1/(2n+2) ~ 1/(n+1): cross-multiply and use intDblSquare
 def halfRel : (n : ℕ) →
   Prf (RatR (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) (unitRat n))
-  using (integer.intOne.eq, integerAdd.intAdd.eq, integerMul.intMul.eq, ratHalf.dbl.eq, ratHalf.intDblSquare, ratHalf.unitRat.eq, rational.den.eq, rational.intScale.eq, rational.intScaleN.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzPos.eq, rational.nzToInt.eq, rational.ratAdd.eq, rationalQ.dInt.eq) ≔
+  using (integer.intOne.eq, integerAdd.intAdd.eq, integerMul.intMul.eq, nat.*.eq, nat.+.eq, ratHalf.dbl.eq, ratHalf.intDblSquare, ratHalf.unitRat.eq, rational.den.eq, rational.intScale.eq, rational.intScaleN.eq, rational.mkRat.eq, rational.num.eq, rational.nzMul.eq, rational.nzPos.eq, rational.nzToInt.eq, rational.ratAdd.eq, rationalQ.dInt.eq) ≔
   λn.
     (intMul (num (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))) (nzToInt (nzPos n))
        ≡⟨ cong Int (λw. Int) (λw. intMul w (nzToInt (nzPos n)))

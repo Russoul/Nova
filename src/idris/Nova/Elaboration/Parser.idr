@@ -158,11 +158,15 @@ parseOpRef = do
   pure (joinBy "." (pre ++ [op]))
 
 ||| A lemma reference for a `using` clause (term-level `⋆ using` and
-||| item-level `def … using`): a (possibly qualified) identifier, or a
-||| bare operator token (no infix context here, so no mention form
-||| needed).
+||| item-level `def … using`): a dotted path whose segments are
+||| identifiers or bare operator tokens (no infix context here, so no
+||| mention form needed) — M.x, M.+, +.eq and nat.+.eq all name
+||| entries (the .eq suffix cites a defining equation).
 usingName : Rule String
-usingName = parseDottedName <|> parseOpName
+usingName = do
+  n <- parseName <|> parseOpName
+  rest <- many (do kwc '.'; parseName <|> parseOpName)
+  pure (joinBy "." (n :: rest))
 
 export
 parseUsingNames : Rule (List String)

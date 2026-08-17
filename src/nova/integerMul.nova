@@ -154,9 +154,9 @@ def intMul : El Int → El Int → El Int using (distribBackR, intMulWDOuter, in
 
 -- 2 · 3 = 6 and (−2) · 3 = −6
 def intMulTest1 : intMul (class (S (S Z) , Z)) (class (S (S (S Z)) , Z))
-  ≡ class (S (S (S (S (S (S Z))))) , Z) ∈ El Int using (integerMul.intMul.eq) ≔ ⋆
+  ≡ class (S (S (S (S (S (S Z))))) , Z) ∈ El Int using (integerMul.intMul.eq, nat.*.eq, nat.+.eq) ≔ ⋆
 def intMulTest2 : intMul (class (Z , S (S Z))) (class (S (S (S Z)) , Z))
-  ≡ class (Z , S (S (S (S (S (S Z)))))) ∈ El Int using (integerMul.intMul.eq) ≔ ⋆
+  ≡ class (Z , S (S (S (S (S (S Z)))))) ∈ El Int using (integerMul.intMul.eq, nat.*.eq, nat.+.eq) ≔ ⋆
 
 
 -- ===== the ring laws =====

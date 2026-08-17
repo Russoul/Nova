@@ -23,7 +23,7 @@ def leZero : (a : ℕ) → El (LeN Z a) ≔
   λa. (a , eqToId ℕ (Z + a) a (zeroPlusId a))
 
 -- a + S Z unwinds to S a by computation alone
-def leSucSelf : (a : ℕ) → El (LeN a (S a)) ≔
+def leSucSelf : (a : ℕ) → El (LeN a (S a)) using (nat.+.eq) ≔
   λa. (S Z , eqToId ℕ (a + S Z) (S a) ⋆)
 
 def leStep : (a : ℕ) (b : ℕ) → El (LeN a b) → El (LeN a (S b)) ≔
