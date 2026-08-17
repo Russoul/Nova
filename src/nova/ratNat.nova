@@ -8,7 +8,7 @@ import intEffective (intEffective)
 import rational (NZ, nzOne, nzMul, nzMulOneL, nzPos, nzToInt, Rat, mkRat,
                  intScale, intScaleOne)
 import rationalQ (Q, qcls, qAdd, qMul, qNeg, qZero, qOne, clsEqOfRel, ratMul,
-                  qMulCls)
+                  qMulCls, qDistribR, qMulOneL)
 import rationalOrder (Sign, sZero, sPos, sgnQ, intSgn, intSgnZero, NonNegS, LeQ,
                       intSgnZeroView, intSgnPosView)
 import ratArch (intSgnOfNatNonNeg)
@@ -193,3 +193,33 @@ def qOfNatMul : (a : ℕ) (b : ℕ) →
        ≡⟨ cong NZ (λv. Q) (λv. qcls (mkRat (intOfNat (a * b)) v))
             (nzMul nzOne nzOne) nzOne (nzMulOneL nzOne) ⟩
      qcls (mkRat (intOfNat (a * b)) nzOne))
+
+-- S c as a rational is c + 1. Written c + S Z, not S Z + c: `+`
+-- recurses on its SECOND argument, so c + S Z reduces to S c on the
+-- nose and the other order would owe zeroPlusId.
+def addOneNat : (c : ℕ) → c + S Z ≡ S c ∈ ℕ using (nat.+.eq) ≔ λc. ⋆
+
+def qOfNatSuc : (c : ℕ) → qOfNat (S c) ≡ qAdd (qOfNat c) qOne ∈ El Q ≔
+  λc.
+    (qOfNat (S c)
+       ≡⟨ cong ℕ (λw. Q) (λw. qOfNat w) (S c) (c + S Z)
+            (sym ℕ (c + S Z) (S c) (addOneNat c)) ⟩
+     qOfNat (c + S Z)
+       ≡⟨ sym Q (qAdd (qOfNat c) (qOfNat (S Z))) (qOfNat (c + S Z))
+            (qOfNatAdd c (S Z)) ⟩
+     qAdd (qOfNat c) (qOfNat (S Z))
+       ≡⟨ cong Q (λw. Q) (λw. qAdd (qOfNat c) w) (qOfNat (S Z)) qOne qOfNatOne ⟩
+     qAdd (qOfNat c) qOne)
+
+def qMulSucNat : (c : ℕ) (x : El Q) →
+  qMul (qOfNat (S c)) x ≡ qAdd (qMul (qOfNat c) x) x ∈ El Q ≔
+  λc. λx.
+    (qMul (qOfNat (S c)) x
+       ≡⟨ cong Q (λw. Q) (λw. qMul w x) (qOfNat (S c)) (qAdd (qOfNat c) qOne)
+            (qOfNatSuc c) ⟩
+     qMul (qAdd (qOfNat c) qOne) x
+       ≡⟨ qDistribR x (qOfNat c) qOne ⟩
+     qAdd (qMul (qOfNat c) x) (qMul qOne x)
+       ≡⟨ cong Q (λw. Q) (λw. qAdd (qMul (qOfNat c) x) w) (qMul qOne x) x
+            (qMulOneL x) ⟩
+     qAdd (qMul (qOfNat c) x) x)
