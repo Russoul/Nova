@@ -111,9 +111,9 @@ runServer = handleMessage >> runServer
 
 main : IO ()
 main = do
-  -- `--strict` (or launching with NOVA_STRICT_CONV=1) puts every
-  -- elaboration this server runs into strict-conversion mode
-  args <- getArgs
-  when (elem "--strict" args) (setStrictConv True)
+  -- the LSP always elaborates under STRICT CONVERSION: the editor is
+  -- the migration/authoring surface, and its diagnostics must be the
+  -- strict subset's obligations — no mode to configure
+  setStrictConv True
   l <- newRef LSPConf defaultConfig
   runServer
