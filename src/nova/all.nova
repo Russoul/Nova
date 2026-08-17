@@ -32,6 +32,7 @@ import realLt
 import realComplete
 import realBound
 import realMul
+import ratSqrt
 import ring
 import realRing
 import realGroup
