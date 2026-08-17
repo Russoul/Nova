@@ -87,7 +87,7 @@ def absurdP : (p : Ω) → Prf ⊥ → Prf p using (prop.⊥.unfold) ≔
 -- equations act on types. Consistency is untouched — Prf ⊥ is empty,
 -- so absurd is never applied.
 def isZeroCode : ℕ → 𝕌 ≔ λn. ℕ-elim (_. 𝕌) 𝟙 (n ih. 𝟘) n
-def absurd : Prf ⊥ → 𝟘 ≔
+def absurd : Prf ⊥ → 𝟘 using (prop.isZeroCode.eq) ≔
   λh. transport ℕ isZeroCode Z (S Z) (absurdP (Z ≡ S Z ∈ ℕ) h) ()
 
 -- …and hence the El A-valued eliminator the paragraph above says no
