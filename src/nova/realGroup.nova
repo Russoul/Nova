@@ -27,7 +27,7 @@ def realAddGroup : El (IsGroup Real) using (group.IsGroup.unfold, monoid.IsMonoi
 -- ===== rearrangement =====
 
 def realLeftSwap : (b : El Real) (c : El Real) (d : El Real) →
-  realAdd b (realAdd c d) ≡ realAdd c (realAdd b d) ∈ El Real using (real.Real.unfold) ≔
+  realAdd b (realAdd c d) ≡ realAdd c (realAdd b d) ∈ El Real ≔
   λb. λc. λd.
     (realAdd b (realAdd c d)
        ≡⟨ sym Real (realAdd (realAdd b c) d) (realAdd b (realAdd c d))
@@ -41,7 +41,7 @@ def realLeftSwap : (b : El Real) (c : El Real) (d : El Real) →
 
 def realPairSwap : (a : El Real) (b : El Real) (c : El Real) (d : El Real) →
   realAdd (realAdd a b) (realAdd c d)
-    ≡ realAdd (realAdd a c) (realAdd b d) ∈ El Real using (real.Real.unfold) ≔
+    ≡ realAdd (realAdd a c) (realAdd b d) ∈ El Real ≔
   λa. λb. λc. λd.
     (realAdd (realAdd a b) (realAdd c d)
        ≡⟨ realAddAssoc a b (realAdd c d) ⟩
@@ -57,7 +57,7 @@ def realPairSwap : (a : El Real) (b : El Real) (c : El Real) (d : El Real) →
 -- ===== inverses =====
 
 def realNegPlusCancel : (u : El Real) (v : El Real) →
-  realAdd (realNeg u) (realAdd u v) ≡ v ∈ El Real using (real.Real.unfold) ≔
+  realAdd (realNeg u) (realAdd u v) ≡ v ∈ El Real ≔
   λu. λv.
     (realAdd (realNeg u) (realAdd u v)
        ≡⟨ sym Real (realAdd (realAdd (realNeg u) u) v)
@@ -83,7 +83,7 @@ def realNegUnique : (u : El Real) (v : El Real) →
          (realAddZeroR (realNeg u)))
 
 def realNegAdd : (a : El Real) (b : El Real) →
-  realNeg (realAdd a b) ≡ realAdd (realNeg a) (realNeg b) ∈ El Real using (real.Real.unfold) ≔
+  realNeg (realAdd a b) ≡ realAdd (realNeg a) (realNeg b) ∈ El Real ≔
   λa. λb.
     sym Real (realAdd (realNeg a) (realNeg b)) (realNeg (realAdd a b))
       (realNegUnique (realAdd a b) (realAdd (realNeg a) (realNeg b))
@@ -117,7 +117,7 @@ def realSubZero : (u : El Real) → realSub u realZero ≡ u ∈ El Real
 
 -- (u − v) + (v − w) ≡ u − w : the three-term split
 def realSubVia : (u : El Real) (v : El Real) (w : El Real) →
-  realAdd (realSub u v) (realSub v w) ≡ realSub u w ∈ El Real using (real.Real.unfold) ≔
+  realAdd (realSub u v) (realSub v w) ≡ realSub u w ∈ El Real ≔
   λu. λv. λw.
     (realAdd (realAdd u (realNeg v)) (realAdd v (realNeg w))
        ≡⟨ realAddAssoc u (realNeg v) (realAdd v (realNeg w)) ⟩
@@ -129,7 +129,7 @@ def realSubVia : (u : El Real) (v : El Real) (w : El Real) →
 
 -- −(u − v) ≡ v − u
 def realNegSub : (u : El Real) (v : El Real) →
-  realNeg (realSub u v) ≡ realSub v u ∈ El Real using (real.Real.unfold) ≔
+  realNeg (realSub u v) ≡ realSub v u ∈ El Real ≔
   λu. λv.
     (realNeg (realAdd u (realNeg v))
        ≡⟨ realNegAdd u (realNeg v) ⟩
@@ -142,7 +142,7 @@ def realNegSub : (u : El Real) (v : El Real) →
 
 -- (u − v) + v ≡ u, and hence a zero difference is an equality
 def realSubPlusCancel : (u : El Real) (v : El Real) →
-  realAdd (realSub u v) v ≡ u ∈ El Real using (real.Real.unfold) ≔
+  realAdd (realSub u v) v ≡ u ∈ El Real ≔
   λu. λv.
     (realAdd (realAdd u (realNeg v)) v
        ≡⟨ realAddAssoc u (realNeg v) v ⟩

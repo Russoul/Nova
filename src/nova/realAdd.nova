@@ -9,7 +9,7 @@ import real (qInvNat, qInvNatPos, rBound, leQZeroBound, Regular, RSeq, REq, Real
 import realNeg (seqOf, regOf, regBnd, bndReg, reqOf, reqOfPointwise, reqRefl,
                 realEqOfREq, realEqOfPointwise, rBoundSym, rNeg, realNeg, negSeq)
 import realSeq (rseqEq, wdOuterOfComm, realEqOfSeqEq)
-import equality (trans, sym, cong, transport)
+import equality (trans, sym, cong, transport, transportP)
 
 -- ADDITION on ℝ. A regular sequence carries its modulus in its type,
 -- so a pointwise sum is NOT regular — its differences are bounded by
@@ -101,6 +101,20 @@ def rAdd : El RSeq → El RSeq → El RSeq using (real.RSeq.unfold) ≔
 -- INNER: replacing the right summand by a close one leaves the sums
 -- close — the common left summand cancels out of the difference, and
 -- the deeper sample only tightens the bound
+-- THE BRIDGE for the element side of a sum. reqOf's argument type
+-- mentions seqOf of the whole rAdd, so supplying it directly makes the
+-- kernel walk rAdd → addSeq → seqOf at every use. Done once here, at
+-- abstract p, q and r, callers hand over a statement in which no
+-- construction appears.
+def reqOfRAdd : (p : El RSeq) (q : El RSeq) (r : El RSeq) →
+  ((n : ℕ) → El (Bnd (rBound n n)
+                     (qAdd (qAdd (seqOf p (dbl n)) (seqOf q (dbl n)))
+                           (qNeg (seqOf r n))))) →
+  Prf (REq (rAdd p q) r)
+  using (real.RSeq.unfold, real.Regular.unfold, real.REq.unfold,
+         realAdd.rAdd.eq, realAdd.addSeq.eq, realNeg.seqOf.eq) ≔
+  λp. λq. λr. λf. reqOf (rAdd p q) r f
+
 def rAddWDInner : (x : El RSeq) (y : El RSeq) (y' : El RSeq) →
   Prf (REq y y') → Prf (REq (rAdd x y) (rAdd x y')) using (id.Id.eq, ratBound.Bnd.unfold, ratHalf.dbl.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalOrder.Sign.eq, rationalOrder.ratSgn.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.REq.unfold, real.RSeq.unfold, real.Regular.unfold, real.qInvNat.eq, real.rBound.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realNeg.seqOf.eq) ≔
   λx. λy. λy'. λh.
@@ -196,24 +210,33 @@ def realAddNegL : (u : El Real) → realAdd (realNeg u) u ≡ realZero ∈ El Re
 
 -- x + 0 = x : the left summand is sampled deeper, and 1/(2n+2) ≤ 1/(n+1)
 def realAddZeroR : (u : El Real) → realAdd u realZero ≡ u ∈ El Real
-  using (equality.sym.eq, equality.transport.eq, id.Id.eq, ratBound.Bnd.unfold, ratHalf.dbl.eq, rational.ratAdd.eq, rational.ratNeg.eq, rational.ratZero.eq, rationalOrder.LeQ.eq, rationalOrder.Sign.eq, rationalOrder.ratSgn.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.Q.eq, rationalQ.qAdd.eq, rationalQ.qAddNegR.eq, rationalQ.qNeg.eq, rationalQ.qZero.eq, rationalQ.qcls.eq, real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold, real.constReg.eq, real.leQNegBoundZero.eq, real.leQZeroBound.eq, real.qInvNat.eq, real.rBound.eq, real.realOfQ.eq, real.realZero.eq, realAdd.addReg.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realAdd.realAdd.eq, realNeg.regOf.eq, realNeg.seqOf.eq) ≔
+  using (real.Real.unfold, real.RSeq.unfold, real.Regular.unfold,
+         real.realZero.eq, real.realOfQ.eq, realNeg.seqOf.eq) ≔
   λu.
     quot-elim (w. realAdd w realZero ≡ w ∈ El Real)
-      (p. realEqOfREq (rAdd p ((λn. qZero) , constReg qZero)) p
-            (reqOf (rAdd p ((λn. qZero) , constReg qZero)) p
-               (λn.
-                 bndEq (rBound n n)
-                   (qAdd (seqOf p (dbl n)) (qNeg (seqOf p n)))
-                   (qAdd (qAdd (seqOf p (dbl n)) qZero) (qNeg (seqOf p n)))
-                   (cong Q (λw. Q) (λw. qAdd w (qNeg (seqOf p n)))
-                      (seqOf p (dbl n)) (qAdd (seqOf p (dbl n)) qZero)
-                      (sym Q (qAdd (seqOf p (dbl n)) qZero) (seqOf p (dbl n))
-                         (qAddZeroR (seqOf p (dbl n)))))
-                   (bndWeaken (rBound (dbl n) n) (rBound n n)
-                      (qAdd (seqOf p (dbl n)) (qNeg (seqOf p n)))
-                      (leQBoundDblL n n)
-                      (regBnd (seqOf p) (regOf p) (dbl n) n)))))
+      (p.
+        transportP Real (λv. v ≡ class p ∈ El Real)
+          (class (rAdd p ((λn. qZero) , constReg qZero)))
+          (realAdd (class p) realZero)
+          (sym Real (realAdd (class p) realZero)
+                    (class (rAdd p ((λn. qZero) , constReg qZero)))
+             (realAddCls p ((λn. qZero) , constReg qZero)))
+          (realEqOfREq (rAdd p ((λn. qZero) , constReg qZero)) p
+             (reqOfRAdd p ((λn. qZero) , constReg qZero) p
+                (λn.
+                  bndEq (rBound n n)
+                    (qAdd (seqOf p (dbl n)) (qNeg (seqOf p n)))
+                    (qAdd (qAdd (seqOf p (dbl n)) qZero) (qNeg (seqOf p n)))
+                    (cong Q (λw. Q) (λw. qAdd w (qNeg (seqOf p n)))
+                       (seqOf p (dbl n)) (qAdd (seqOf p (dbl n)) qZero)
+                       (sym Q (qAdd (seqOf p (dbl n)) qZero) (seqOf p (dbl n))
+                          (qAddZeroR (seqOf p (dbl n)))))
+                    (bndWeaken (rBound (dbl n) n) (rBound n n)
+                       (qAdd (seqOf p (dbl n)) (qNeg (seqOf p n)))
+                       (leQBoundDblL n n)
+                       (regBnd (seqOf p) (regOf p) (dbl n) n))))))
       u
+
 
 def realAddZeroL : (u : El Real) → realAdd realZero u ≡ u ∈ El Real ≔
   λu.
