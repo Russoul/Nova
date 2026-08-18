@@ -55,7 +55,7 @@ def sgUnit : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
 def sgOp : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
   Prf (IsSubgroup G g N) →
   (x : El G) (y : El G) → Prf (N x) → Prf (N y) → Prf (N (gop G g x y))
-  using (IsSubgroup.eq, closedOp.eq, closedOp.unfold) ≔
+  using (IsSubgroup.eq, closedOp.unfold) ≔
   λG. λg. λN. λh. λx. λy. λhx. λhy.
     squash-elim
       (andFst (closedOp G g N) (closedInv G g N)
@@ -65,7 +65,7 @@ def sgOp : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
 def sgInv : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
   Prf (IsSubgroup G g N) →
   (x : El G) → Prf (N x) → Prf (N (ginv G g x))
-  using (IsSubgroup.eq, closedInv.eq, closedInv.unfold) ≔
+  using (IsSubgroup.eq, closedInv.unfold) ≔
   λG. λg. λN. λh. λx. λhx.
     squash-elim
       (andSnd (closedOp G g N) (closedInv G g N)
@@ -93,7 +93,7 @@ def nmConj : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
   Prf (IsNormal G g N) →
   (x : El G) (n : El G) →
     Prf (N n) → Prf (N (gop G g x (gop G g n (ginv G g x))))
-  using (IsNormal.eq, IsNormal.unfold) ≔
+  using (IsNormal.unfold) ≔
   λG. λg. λN. λh. λx. λn. λhn. squash-elim h (u. u x n hn)
 
 -- conjugation by the INVERSE, the shape the quotient's inverse descent
