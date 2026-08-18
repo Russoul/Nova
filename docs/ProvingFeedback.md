@@ -12,7 +12,9 @@ Sources so far: the ℤ → Rat → ℚ development
 equality/disequality of ℤ (`eqInt.nova`), and the constructive reals
 (`ratBound.nova`, `ratHalf.nova`, `ratArch.nova`, `realNeg.nova`,
 `realAdd.nova`, `realEq.nova`, `realOrder.nova`) — items tagged **[ℝ]**
-below come from the last of these.
+below come from the last of these — and quotient algebra over an
+ABSTRACT carrier (`groupTheory.nova`, `subgroup.nova`,
+`quotGroup.nova`), tagged **[G]**.
 
 ---
 
@@ -903,6 +905,116 @@ Two things fall out of this that are worth having anyway:
 * Constancy for the bracket then reads exactly as the two theorems one
   wants: representative-invariance (`rSqrtWDK`) composed with
   modulus-invariance (`rSqrtConstK`).
+
+### B-21. [G] A candidate binds its parameters from its two SIDES; a parameter that lives only in the type can never be bound
+
+The quotient group G/N descends by a nested `quot-elim`, and its
+well-definedness lemma was stated the way `realMul.rMulWDInnerCls`
+states its own:
+
+```
+def qMulWDInnerCls : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
+  Prf (IsNormal G g N) → (a : El G) (b : El G) (b' : El G) →
+  Prf (cosetRel G g N b b') →
+  class (gop G g a b) ≡ class (gop G g a b') ∈ El (QGroup G g N) ≔ …
+```
+
+It elaborates, it is cited at the descent, and the descent's obligation
+comes back UNCHANGED, with no hint. The obligation IS the lemma.
+
+The reason is structural. `Cand` has `lhs`, `rhs` and `paramTys` — and
+no type slot; `direct` matches `c.lhs` against one side and `c.rhs`
+against the other, and `complete` then has to produce a witness for
+every parameter the match left unbound. `condElem` can produce one only
+for a 𝟙-, ≡- or Prf-typed parameter (the last by looking for a
+hypothesis of that type in Γ). Here `N : El G → Ω` occurs in the
+equation's TYPE and in the types of the two Prf parameters, but in
+neither side — so it is unbound, un-completable, and the whole
+candidate is silently unusable.
+
+`realMul` never hits this because `Real` is closed: `rMul`'s lemma has
+no parameter that fails to appear in `class (rMul p q)`.
+
+The fix is to name the class map with all of the quotient's parameters
+and use it in the lemma's two sides:
+
+```
+def qcls : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
+  El G → El (QGroup G g N) using (QGroup.unfold) ≔ λG. λg. λN. λa. class a
+```
+
+`qcls G g N (gop G g a b) ≡ qcls G g N (gop G g a b')` binds N, and the
+same proof then discharges the descent. Nothing else changed.
+
+Note the mirror image, which bites immediately afterwards: a
+`quot-elim` substitutes the BARE `class a` for its method binder, so
+the lemmas saying what the descended operation DOES on classes
+(`qMulCls`, `qInvCls`) must be stated with bare `class` — there the
+parameters are already bound, because `qMul G g N nn` carries them. A
+development over an abstract carrier needs BOTH spellings, for opposite
+reasons.
+
+**Rule of thumb.** Before citing a lemma at an obligation, check that
+every one of its parameters occurs in one of the two sides, or is
+Prf-typed with a matching hypothesis in scope. A parameter visible only
+in the type is not a parameter the engine can find.
+
+### B-22. [G] Store lemmas do not rewrite unless the site cites `<lemma>.rw`
+
+The corpus had no use of the `.rw` license before quotGroup.nova, and
+it is easy to conclude from that — and from SKILL's "REWRITING:
+oriented, size-decreasing instances are used as left-to-right rules at
+any subterm" — that citing a lemma makes it a rewrite rule. It does
+not. `rwNfElemS` runs at all only when the site's eq-scope contains
+`hyp.rw` or some `rw:<name>`, and then uses only the candidates so
+marked. A plain citation buys WHOLE-EQUATION match and hops, nothing
+more.
+
+Most of the time that is enough, because `spCongC` descends through
+common structure and the whole-equation match then fires at the leaves.
+That is why the entire group-theory layer here — three cancellation
+shapes, uniqueness of inverses, the anti-homomorphism law,
+cancellation — needs no `.rw` at all. It stops being enough when the
+redex is nested under a DIFFERENT head:
+
+```
+qMul … (qMul … (class a) (class b)) (class c) ≐ class (gop … (gop … a b) c)
+```
+
+Congruence cannot descend (the heads differ), and whole-equation match
+cannot see the inner `qMul`. `using (qMulCls.rw)` closes it; `using
+(qMulCls)` does not.
+
+The two related things to know:
+
+* `<lemma>.rw` enters BOTH the eq-scope (as an `rw:` marker) and the
+  ordinary lemma scope, so it subsumes the plain citation.
+* Once ANY `.rw` is cited, `rwNfElem` runs on every goal in the item.
+  It is still scoped to the marked candidates, but B-17's warning
+  applies with full force: a `.rw` that rewrites a side into a shape no
+  other cited lemma matches will undo a proof that worked without it.
+  Add one at a time.
+
+### B-23. [G] Class-congruence accepts only step-free evidence
+
+Given `X ≐ Y` by a lemma, `class X ≐ class Y` does NOT follow
+automatically. `spCongC`'s class case runs the component comparison and
+then throws the result away unless it is `stepFree` — pure computation
+— because the component's type is not recoverable at that point, so a
+certificate mentioning it could not be replayed. The witness route
+(`spEqStructC`) is tried first but only fires for an `∥𝟙∥`- or
+`≡`-shaped relation, which a subgroup membership is not.
+
+So every law of G/N ends with an explicit
+
+```
+cong G (λw. QGroup G g N) (λw. class w) X Y (theLemmaAboutXY)
+```
+
+rather than a `⋆`. This is the same shape as `realSeq.realEqOfSeqEq`
+and it is not a workaround — naming the congruence is how a class
+equation is proved from a representative equation. Worth knowing before
+writing the ⋆ and reading a bare `class X ≐ class Y` obligation.
 
 ## C. Discharge-engine ergonomics
 

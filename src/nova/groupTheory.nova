@@ -123,6 +123,18 @@ def gCancelOuter : (G : 𝕌) (g : El (IsGroup G)) (a : El G) (b : El G) →
        ≡⟨ gUnitR G g b ⟩
      b)
 
+def gCancelOuterInv : (G : 𝕌) (g : El (IsGroup G)) (a : El G) (b : El G) →
+  gop G g (gop G g b (ginv G g a)) a ≡ b ∈ El G ≔
+  λG. λg. λa. λb.
+    (gop G g (gop G g b (ginv G g a)) a
+       ≡⟨ gAssoc G g b (ginv G g a) a ⟩
+     gop G g b (gop G g (ginv G g a) a)
+       ≡⟨ cong G (λw. G) (λw. gop G g b w)
+            (gop G g (ginv G g a) a) (ge G g) (gInvL G g a) ⟩
+     gop G g b (ge G g)
+       ≡⟨ gUnitR G g b ⟩
+     b)
+
 -- ===== uniqueness of inverses, and its three corollaries =====
 
 def gInvUniq : (G : 𝕌) (g : El (IsGroup G)) (x : El G) (y : El G) →
