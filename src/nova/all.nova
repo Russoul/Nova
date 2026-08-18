@@ -15,6 +15,7 @@ import subgroup
 import quotGroup
 import groupHom
 import groupIso
+import intQuot
 import field
 import natMonoid
 import natAlgebra
