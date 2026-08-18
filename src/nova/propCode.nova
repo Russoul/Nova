@@ -1,0 +1,65 @@
+import prop (⊤, ⊥, ¬, ⊃, impIntro, impApply, absurdP, propExt)
+import eqNat (zNotS)
+import id (Id, idToEq, eqToId)
+import equality (transportP, sym)
+
+-- PROPOSITIONS REFLECTED INTO CODES.
+--
+-- Ω has deliberately NO code in 𝕌 (NovaFoundation: "no code for Ω or
+-- for Prf p in 𝕌"), and that prohibition is load-bearing — it is what
+-- blocks Reynolds/Cantor, keeping A → Ω large so no type contains its
+-- own powerset. But the prohibition is on Ω ITSELF, not on individual
+-- propositions: a 𝕌-code inhabited exactly when a given r holds is
+-- DERIVABLE from the Ω-valued quotient slot, and this module derives
+-- it.
+--
+--   prfC r ≜ Id (ℕ / (x y. r)) (class Z) (class (S Z))
+--
+-- Quotienting ℕ by "everything is related, provided r" collapses it to
+-- a point exactly when r holds, so Z and S Z become equal exactly
+-- then. Intro is el-quot-eq with the witness SUPPLIED (⋆ h — the
+-- relation is a bare variable, so no automatic route exists: B-10).
+-- Elim is effectivity, run along n ↦ ¬(n ≡ Z) ⊃ r.
+--
+-- What this buys and what it does not. It buys Σ-CODES that mention
+-- propositions, which is what a bracketed existential needs: the
+-- payload of "x is positive with modulus k" is
+-- ((k : ℕ) ⨯ prfC (…k…)), a code, so it can be quotiented. It does
+-- NOT buy data out of a proof: eliminating prfC returns Prf r and
+-- nothing more, because quotient elements cannot store a proposition
+-- — coherence forces such eliminators constant. Data that depends on
+-- r must be recovered some other way, e.g. by DECIDABILITY
+-- (ratArch.leQUnsquash is the instance this development uses).
+
+def prfC : Ω → 𝕌 ≔ λr. Id (ℕ / (x y. r)) (class Z) (class (S Z))
+
+def prfIntro : (r : Ω) → Prf r → El (prfC r) using (prfC.eq) ≔
+  λr. λh.
+    eqToId (ℕ / (x y. r)) (class Z) (class (S Z)) (⋆ h)
+
+-- assuming r, everything implies r, so all the fibres agree
+def impConst : (r : Ω) (p : Ω) (q : Ω) → Prf r → (p ⊃ r) ≡ (q ⊃ r) ∈ Ω ≔
+  λr. λp. λq. λh.
+    propExt (p ⊃ r) (q ⊃ r)
+      (λu. impIntro q r (λv. h))
+      (λu. impIntro p r (λv. h))
+
+-- effectivity, along  n ↦ ¬(n ≡ Z) ⊃ r
+def effMap : (r : Ω) → El (ℕ / (x y. r)) → Ω using (impConst) ≔
+  λr. λv. quot-elim (z. Ω) (n. (¬ (n ≡ Z ∈ ℕ) ⊃ r)) v
+
+def effZero : (r : Ω) → Prf (effMap r (class Z)) using (effMap.eq, prop.¬.eq) ≔
+  λr. impIntro (¬ (Z ≡ Z ∈ ℕ)) r
+        (λh. absurdP r (impApply (Z ≡ Z ∈ ℕ) ⊥ h ⋆))
+
+def notSZ : Prf (¬ (S Z ≡ Z ∈ ℕ)) using (prop.¬.eq) ≔
+  impIntro (S Z ≡ Z ∈ ℕ) ⊥ (λh. 𝟘-elim (zNotS Z (sym ℕ (S Z) Z h)))
+
+def prfElim : (r : Ω) → El (prfC r) → Prf r using (effMap.eq, prfC.eq) ≔
+  λr. λw.
+    impApply (¬ (S Z ≡ Z ∈ ℕ)) r
+      (transportP (ℕ / (x y. r)) (λv. effMap r v) (class Z) (class (S Z))
+         (idToEq (ℕ / (x y. r)) (class Z) (class (S Z)) w)
+         (effZero r))
+      notSZ
+

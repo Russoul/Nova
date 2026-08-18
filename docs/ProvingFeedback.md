@@ -774,6 +774,70 @@ nose while `S Z + c` does not, and `n + Z ≐ n` is definitional while
 `Z + n ≡ n` is a lemma (`zeroPlusId`). Choosing the reducing order
 turned `qOfNatSuc` from an open obligation into `⋆`.
 
+### B-19. [ℝ] `a ≡ b ∈ T → U` parses as an equation AT a function type
+
+Cost an hour, and the error never mentions the arrow. Writing a
+hypothesis that is an equation,
+
+```
+def f : (p : El RSeq) (q : El RSeq) →
+  class p ≡ class q ∈ El Real → Prf (REq p q) ≔ …
+```
+
+the `∈` swallows everything to its right: the ascription becomes
+`El Real → Prf (REq p q)`, so the definition's type is a single
+equation at a FUNCTION type and takes no third argument. What the
+elaborator then reports is whatever the body's first term hits —
+here `class p` checked against a Π, i.e.
+
+  `class checked against a non-quotient type`
+
+with no hint that a parenthesis is missing. Adding `real.Real.unfold`,
+`real.REq.unfold` and every other plausible license changes nothing,
+because nothing is wrong with the quotient.
+
+**Parenthesise every equation used as a hypothesis**:
+`(class p ≡ class q ∈ El Real) → Prf (REq p q)`. The same trap in
+return position is already known (SKILL: "equality-typed motives and
+λ-bodies need parentheses"); this is the argument-position form, and
+it is worse because the reported error names a term the author did not
+write down.
+
+### B-20. [ℝ] A dependent motive over a witness type is a rewrite the kernel will not replay
+
+Bracketing ℝ's positivity, the natural descent is a quot-elim on x
+with motive `z. El (PosR z) → El Real`. It elaborates, and then the
+well-definedness obligation is
+
+  `El (PosPayload (class p)) ≐ El (PosPayload (class p'))`
+
+— a TYPE equation, provable only by rewriting `class p` to `class p'`
+underneath `prfC (LeR … (class p))`, which is a quotient inside a
+quotient. Every attempt reports `replay failed: kernel: bad path` or
+`bad or type-undetermined path` (B-1 again, at the level of types).
+
+The fix is to stop transporting the witness: put the REPRESENTATIVE
+inside the payload,
+
+```
+PosPayload x ≔ ((p : RSeq) ⨯ (k : ℕ) ⨯ prfC (…) ⨯ Id Real (class p) x)
+```
+
+so the descent is ONE brElim and there is no dependent motive at all.
+The payload's `Id Real (class p) x` component is what ties it to x,
+and it costs nothing at use sites because it is what the caller
+already has.
+
+Two things fall out of this that are worth having anyway:
+
+* **ℝ's quotient is effective**, and cheaply: `reqOfClassEq` transports
+  `reqRefl p` along the class equation through a motive built by
+  quot-elim into Ω, well-defined by `reqTrans`/`reqSym`. Any quotient
+  by an equivalence relation admits the same three-line argument.
+* Constancy for the bracket then reads exactly as the two theorems one
+  wants: representative-invariance (`rSqrtWDK`) composed with
+  modulus-invariance (`rSqrtConstK`).
+
 ## C. Discharge-engine ergonomics
 
 ### C-1. Oriented rewriting means library lemmas need flipped copies
