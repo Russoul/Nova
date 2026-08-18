@@ -254,6 +254,42 @@ abstract motive (D-3).
 
 ---
 
+### A-8. [ℝ] Two witnesses, because two operations want different things
+
+ℝ ends up with two data-carrying hypotheses, both bracketed, and the
+difference is not bookkeeping:
+
+```
+PosR x     ≜ Br ((p : RSeq) ⨯ (k : ℕ) ⨯ prfC (x ≥ 1/(k+1)) ⨯ Id Real (class p) x)
+NonNegR x  ≜ Br ((p : RSeq) ⨯ ((n : ℕ) → LeQ qZero (seqOf p n)) ⨯ Id Real (class p) x)
+```
+
+`PosR` carries a MODULUS — a rate of separation from zero. `NonNegR`
+carries a NONNEGATIVE PRESENTATION — a representative that is
+pointwise ≥ 0. Which one an operation needs is decided by its
+domain, and it is easy to reach for the wrong one:
+
+* **0 has no modulus, and that is not an accident.** `qInvNat k` is
+  strictly positive for every k, so `PosR realZero` is uninhabited —
+  not unproved, uninhabited. A modulus answers "how far from 0 is x,
+  at worst?", and 0 is not separated from itself. Any operation whose
+  domain is CLOSED at 0 cannot use PosR.
+* **√ never needed a modulus.** It needs its SAMPLES nonnegative.
+  Strict positivity is one way to arrange that — deepen the sample by
+  the modulus until p_j ≥ 1/(2(k+1)) — but a nonnegative presentation
+  says it directly, covers 0, and is simpler: the deepening
+  disappears, and with it five supporting lemmas.
+* **Division will need PosR**, because 1/x genuinely requires
+  separation: the modulus is what says how deep to sample before the
+  reciprocal is defined at all. There 0 is correctly outside the
+  domain, so nothing is lost.
+
+The clamp survives in exactly one place — `nonNegMk`, which builds a
+NonNegR witness from `x ≥ 0` and any representative by taking
+max(·, 0). That is the honest content of "a nonnegative real has a
+nonnegative presentation", and it is a theorem, not a definition
+buried inside √.
+
 ## B. Engine / kernel mismatches
 
 The dominant time sink. In all of these the discharge engine finds a
