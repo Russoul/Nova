@@ -37,7 +37,7 @@ def ge : (G : 𝕌) (g : El (IsGroup G)) → El G
   λG. λg. g .π₁ .π₂ .π₁
 
 def ginv : (G : 𝕌) (g : El (IsGroup G)) → El G → El G
-  using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔
+  using (group.IsGroup.unfold) ≔
   λG. λg. g .π₂ .π₁
 
 -- ===== the five laws, as ≡-equations =====
@@ -61,12 +61,12 @@ def gUnitR : (G : 𝕌) (g : El (IsGroup G)) (x : El G) →
 
 def gInvL : (G : 𝕌) (g : El (IsGroup G)) (x : El G) →
   gop G g (ginv G g x) x ≡ ge G g ∈ El G
-  using (group.IsGroup.unfold, monoid.IsMonoid.unfold, gop.eq, ge.eq, ginv.eq) ≔
+  using (group.IsGroup.unfold, gop.eq, ge.eq, ginv.eq) ≔
   λG. λg. λx. idToEq G (gop G g (ginv G g x) x) (ge G g) (g .π₂ .π₂ .π₁ x)
 
 def gInvR : (G : 𝕌) (g : El (IsGroup G)) (x : El G) →
   gop G g x (ginv G g x) ≡ ge G g ∈ El G
-  using (group.IsGroup.unfold, monoid.IsMonoid.unfold, gop.eq, ge.eq, ginv.eq) ≔
+  using (group.IsGroup.unfold, gop.eq, ge.eq, ginv.eq) ≔
   λG. λg. λx. idToEq G (gop G g x (ginv G g x)) (ge G g) (g .π₂ .π₂ .π₂ x)
 
 -- ===== cancellation of an adjacent inverse =====
