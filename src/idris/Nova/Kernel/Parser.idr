@@ -338,8 +338,8 @@ mutual
 -- dump.
 export
 showParseErr : Show tok => ParsingError tok st -> String
-showParseErr (Error msg _ commitBounds errorBounds leftover) =
-  "PARSING ERROR: " ++ msg ++ " " ++ show @{RangeOrPosition} errorBounds
+showParseErr (Error expected _ commitBounds errorBounds leftover) =
+  "PARSING ERROR: " ++ showExpected expected ++ " " ++ show @{RangeOrPosition} errorBounds
   ++ "\n" ++ show @{Commit} commitBounds
   ++ "\n" ++ show @{Leftover} leftover
 
