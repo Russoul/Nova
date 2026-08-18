@@ -1,0 +1,431 @@
+import id (Id, eqToId)
+import monoid (IsMonoid)
+import group (IsGroup)
+import groupTheory (gop, ge, ginv, gAssoc, gUnitL, gUnitR, gInvL, gInvR,
+                    gCancelInner, gCancelInnerInv, gCancelOuter, gCancelOuterInv,
+                    gInvUniq, gInvInv, gInvUnit, gOpInv, gCancelL, gCancelR)
+import subgroup (IsSubgroup, IsNormal, sgUnit, sgOp, sgInv, nmConj, nmConjInv,
+                 cosetRel, cosetRefl, cosetSymm, cosetTrans, cosetFlip, cosetSplice)
+import quotEffective (classEqOfRel, effectiveAtEquiv)
+import equality (transportP, sym, trans, cong)
+
+-- THE QUOTIENT GROUP G/N — carrier and operation.
+--
+-- The carrier is the plain quotient of G by the coset relation. What
+-- takes work is the OPERATION, and this module is where the corpus's
+-- quotient machinery is finally exercised on a NON-COMMUTATIVE
+-- structure.
+--
+-- A binary operation on a quotient descends by a NESTED quot-elim and
+-- so owes TWO well-definedness proofs: an inner one (the second
+-- argument moves) and an outer one (the first argument moves). Every
+-- other instance in this corpus — realAdd, realMul, realLattice,
+-- realSeq, rationalQ — discharges the outer one by COMMUTING, through
+-- realSeq.wdOuterOfComm or its ℚ-level twin: prove the inner case,
+-- then swap. A group has no commutativity to swap with, so both halves
+-- are proved here directly, and the two turn out to be genuinely
+-- different statements:
+--
+--   INNER   b ~ b' ⟹ a·b ~ a·b'   is   (a·b)·(a·b')⁻¹ = a·(b·b'⁻¹)·a⁻¹,
+--           the hypothesis CONJUGATED by a. It holds exactly because N
+--           is NORMAL, and this is the only place normality is used.
+--
+--   OUTER   a ~ a' ⟹ a·b ~ a'·b   is   (a·b)·(a'·b)⁻¹ = a·a'⁻¹,
+--           the hypothesis UNCHANGED — b and b⁻¹ annihilate in the
+--           middle. It needs no normality at all, and would hold for
+--           any subgroup.
+--
+-- So the half the rest of the corpus gets for free is here the half
+-- that is free for a different reason, and the half that looks routine
+-- is the one carrying the mathematical content. Commuting had been
+-- hiding the asymmetry, not exploiting it.
+
+def QGroup : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) → 𝕌 ≔
+  λG. λg. λN. G / (x y. cosetRel G g N x y)
+
+-- The class map, NAMED. It is `class` and nothing else, and one could
+-- write `class` everywhere instead — except in the well-definedness
+-- lemmas below, where the name is load-bearing.
+--
+-- A discharge candidate binds its parameters by matching its two
+-- SIDES; the equation's type is not matched (there is no type slot on
+-- a candidate). A lemma stated as
+--
+--   class (gop G g a b) ≡ class (gop G g a b') ∈ El (QGroup G g N)
+--
+-- therefore binds G, g, a, b, b' — and never N, which occurs only in
+-- the type. An unbound parameter that is not ≡-, 𝟙- or Prf-typed
+-- cannot be completed, so the candidate is unusable and the descent's
+-- well-definedness obligation is reported with no hint. Routing the
+-- two sides through `qcls G g N` puts N back where the matcher can
+-- see it, and the same lemma then fires.
+--
+-- The mirror image holds one step later: a quot-elim substitutes the
+-- BARE `class a` for its method binder, so the lemmas that say what
+-- the descended operations DO on classes (qMulCls, qInvCls) have to be
+-- stated with bare `class`. Both spellings are needed, for opposite
+-- reasons.
+def qcls : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
+  El G → El (QGroup G g N) using (QGroup.unfold) ≔
+  λG. λg. λN. λa. class a
+
+-- EFFECTIVITY. quotEffective.nova's point is that class equality gives
+-- back the equivalence CLOSURE of the relation, not the relation —
+-- unless the relation already is an equivalence. subgroup.nova proved
+-- that the coset relation is one, so here effectivity holds on the
+-- nose and the quotient's equality IS "differ by an element of N".
+def qclsEq : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
+  Prf (IsSubgroup G g N) → (a : El G) (b : El G) →
+  Prf (cosetRel G g N a b) → qcls G g N a ≡ qcls G g N b ∈ El (QGroup G g N)
+  using (QGroup.unfold, qcls.eq) ≔
+  λG. λg. λN. λs. λa. λb. λh.
+    classEqOfRel G (cosetRel G g N) a b h
+
+def qclsEffective : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
+  Prf (IsSubgroup G g N) → (a : El G) (b : El G) →
+  Prf (qcls G g N a ≡ qcls G g N b ∈ El (QGroup G g N)) →
+  Prf (cosetRel G g N a b)
+  using (QGroup.unfold, qcls.eq) ≔
+  λG. λg. λN. λs.
+    effectiveAtEquiv G (cosetRel G g N)
+      (cosetRefl G g N s) (cosetTrans G g N s) (cosetSymm G g N s)
+
+-- ===== the algebra behind the two halves =====
+
+-- INNER:  (a·b)·(a·b')⁻¹  =  a · ((b·b'⁻¹) · a⁻¹)
+def qMulInnerAlg : (G : 𝕌) (g : El (IsGroup G)) (a : El G) (b : El G) (b' : El G) →
+  gop G g a (gop G g (gop G g b (ginv G g b')) (ginv G g a))
+    ≡ gop G g (gop G g a b) (ginv G g (gop G g a b')) ∈ El G ≔
+  λG. λg. λa. λb. λb'.
+    (gop G g a (gop G g (gop G g b (ginv G g b')) (ginv G g a))
+       ≡⟨ cong G (λw. G) (λw. gop G g a w)
+            (gop G g (gop G g b (ginv G g b')) (ginv G g a))
+            (gop G g b (gop G g (ginv G g b') (ginv G g a)))
+            (gAssoc G g b (ginv G g b') (ginv G g a)) ⟩
+     gop G g a (gop G g b (gop G g (ginv G g b') (ginv G g a)))
+       ≡⟨ sym G (gop G g (gop G g a b) (gop G g (ginv G g b') (ginv G g a)))
+                (gop G g a (gop G g b (gop G g (ginv G g b') (ginv G g a))))
+                (gAssoc G g a b (gop G g (ginv G g b') (ginv G g a))) ⟩
+     gop G g (gop G g a b) (gop G g (ginv G g b') (ginv G g a))
+       ≡⟨ cong G (λw. G) (λw. gop G g (gop G g a b) w)
+            (gop G g (ginv G g b') (ginv G g a)) (ginv G g (gop G g a b'))
+            (sym G (ginv G g (gop G g a b'))
+                   (gop G g (ginv G g b') (ginv G g a))
+                   (gOpInv G g a b')) ⟩
+     gop G g (gop G g a b) (ginv G g (gop G g a b')))
+
+-- OUTER:  (a·b)·(a'·b)⁻¹  =  a·a'⁻¹
+def qMulOuterAlg : (G : 𝕌) (g : El (IsGroup G)) (a : El G) (a' : El G) (b : El G) →
+  gop G g (gop G g a b) (ginv G g (gop G g a' b))
+    ≡ gop G g a (ginv G g a') ∈ El G ≔
+  λG. λg. λa. λa'. λb.
+    (gop G g (gop G g a b) (ginv G g (gop G g a' b))
+       ≡⟨ cong G (λw. G) (λw. gop G g (gop G g a b) w)
+            (ginv G g (gop G g a' b))
+            (gop G g (ginv G g b) (ginv G g a'))
+            (gOpInv G g a' b) ⟩
+     gop G g (gop G g a b) (gop G g (ginv G g b) (ginv G g a'))
+       ≡⟨ gAssoc G g a b (gop G g (ginv G g b) (ginv G g a')) ⟩
+     gop G g a (gop G g b (gop G g (ginv G g b) (ginv G g a')))
+       ≡⟨ cong G (λw. G) (λw. gop G g a w)
+            (gop G g b (gop G g (ginv G g b) (ginv G g a'))) (ginv G g a')
+            (gCancelInner G g b (ginv G g a')) ⟩
+     gop G g a (ginv G g a'))
+
+-- ===== the two well-definedness proofs, at relation level =====
+
+def qMulWDInner : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
+  Prf (IsNormal G g N) → (a : El G) (b : El G) (b' : El G) →
+  Prf (cosetRel G g N b b') → Prf (cosetRel G g N (gop G g a b) (gop G g a b'))
+  using (cosetRel.eq) ≔
+  λG. λg. λN. λnn. λa. λb. λb'. λh.
+    transportP G N
+      (gop G g a (gop G g (gop G g b (ginv G g b')) (ginv G g a)))
+      (gop G g (gop G g a b) (ginv G g (gop G g a b')))
+      (qMulInnerAlg G g a b b')
+      (nmConj G g N nn a (gop G g b (ginv G g b')) h)
+
+def qMulWDOuter : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
+  (a : El G) (a' : El G) (b : El G) →
+  Prf (cosetRel G g N a a') → Prf (cosetRel G g N (gop G g a b) (gop G g a' b))
+  using (cosetRel.eq) ≔
+  λG. λg. λN. λa. λa'. λb. λh.
+    transportP G N
+      (gop G g a (ginv G g a'))
+      (gop G g (gop G g a b) (ginv G g (gop G g a' b)))
+      (sym G (gop G g (gop G g a b) (ginv G g (gop G g a' b)))
+             (gop G g a (ginv G g a'))
+             (qMulOuterAlg G g a a' b))
+      h
+
+-- ===== the same two, at class level =====
+
+def qMulWDInnerCls : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
+  Prf (IsNormal G g N) → (a : El G) (b : El G) (b' : El G) →
+  Prf (cosetRel G g N b b') →
+  qcls G g N (gop G g a b) ≡ qcls G g N (gop G g a b') ∈ El (QGroup G g N)
+  using (QGroup.unfold, qcls.eq) ≔
+  λG. λg. λN. λnn. λa. λb. λb'. λh.
+    classEqOfRel G (cosetRel G g N) (gop G g a b) (gop G g a b')
+      (qMulWDInner G g N nn a b b' h)
+
+def qMulWDOuterCls : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
+  (a : El G) (a' : El G) (b : El G) →
+  Prf (cosetRel G g N a a') →
+  qcls G g N (gop G g a b) ≡ qcls G g N (gop G g a' b) ∈ El (QGroup G g N)
+  using (QGroup.unfold, qcls.eq) ≔
+  λG. λg. λN. λa. λa'. λb. λh.
+    classEqOfRel G (cosetRel G g N) (gop G g a b) (gop G g a' b)
+      (qMulWDOuter G g N a a' b h)
+
+-- the outer half as the descent itself asks for it: the two inner
+-- eliminations agree on every element of the quotient. Where realMul
+-- writes `wdOuterOfComm rMul rMulComm rMulWDInnerCls`, this is the
+-- honest version — a quot-elim at an ≡-motive whose method is the
+-- class-level outer proof
+def qMulWDOuterElim : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
+  Prf (IsNormal G g N) →
+  (x : El G) (x' : El G) → Prf (cosetRel G g N x x') → (v : El (QGroup G g N)) →
+  quot-elim (w. El (QGroup G g N)) (q. qcls G g N (gop G g x q)) v
+    ≡ quot-elim (w. El (QGroup G g N)) (q. qcls G g N (gop G g x' q)) v
+    ∈ El (QGroup G g N)
+  using (QGroup.unfold, qMulWDInnerCls, qMulWDOuterCls) ≔
+  λG. λg. λN. λnn. λx. λx'. λh. λv.
+    quot-elim
+      (w. quot-elim (z. El (QGroup G g N)) (q. qcls G g N (gop G g x q)) w
+            ≡ quot-elim (z. El (QGroup G g N)) (q. qcls G g N (gop G g x' q)) w
+            ∈ El (QGroup G g N))
+      (c. qMulWDOuterCls G g N x x' c h)
+      v
+
+-- ===== the descended operation =====
+
+def qMul : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
+  Prf (IsNormal G g N) →
+  El (QGroup G g N) → El (QGroup G g N) → El (QGroup G g N)
+  using (QGroup.unfold, qMulWDInnerCls, qMulWDOuterElim) ≔
+  λG. λg. λN. λnn. λu. λv.
+    quot-elim (w. El (QGroup G g N))
+      (p. quot-elim (w. El (QGroup G g N)) (q. qcls G g N (gop G g p q)) v) u
+
+-- β on classes. Stated with the BARE `class`, not with qcls: a
+-- quot-elim substitutes `class a` for its method binder, so this is
+-- the spelling every goal below is actually in. (The well-definedness
+-- lemmas above must go the other way — see the note at qcls.)
+def qMulCls : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
+  (nn : Prf (IsNormal G g N)) → (a : El G) (b : El G) →
+  qMul G g N nn (class a) (class b) ≡ class (gop G g a b) ∈ El (QGroup G g N)
+  using (QGroup.unfold, qcls.eq, qMul.eq) ≔
+  λG. λg. λN. λnn. λa. λb. ⋆
+
+-- ===== the inverse descends =====
+--
+-- The relation-level statement is  a ~ a' ⟹ a⁻¹ ~ a'⁻¹,  i.e.
+-- a·a'⁻¹ ∈ N ⟹ a⁻¹·a' ∈ N. Read the second as the FIRST turned round
+-- (a'·a⁻¹ ∈ N, by symmetry of the coset relation) and then conjugated
+-- by a⁻¹: normality again, in nmConjInv's inverse-side spelling.
+
+def qInvAlg : (G : 𝕌) (g : El (IsGroup G)) (a : El G) (a' : El G) →
+  gop G g (ginv G g a) (gop G g (gop G g a' (ginv G g a)) a)
+    ≡ gop G g (ginv G g a) (ginv G g (ginv G g a')) ∈ El G ≔
+  λG. λg. λa. λa'.
+    (gop G g (ginv G g a) (gop G g (gop G g a' (ginv G g a)) a)
+       ≡⟨ cong G (λw. G) (λw. gop G g (ginv G g a) w)
+            (gop G g (gop G g a' (ginv G g a)) a) a'
+            (gCancelOuterInv G g a a') ⟩
+     gop G g (ginv G g a) a'
+       ≡⟨ cong G (λw. G) (λw. gop G g (ginv G g a) w)
+            a' (ginv G g (ginv G g a'))
+            (sym G (ginv G g (ginv G g a')) a' (gInvInv G g a')) ⟩
+     gop G g (ginv G g a) (ginv G g (ginv G g a')))
+
+def qInvWD : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
+  Prf (IsSubgroup G g N) → Prf (IsNormal G g N) →
+  (a : El G) (a' : El G) → Prf (cosetRel G g N a a') →
+  Prf (cosetRel G g N (ginv G g a) (ginv G g a'))
+  using (cosetRel.eq) ≔
+  λG. λg. λN. λs. λnn. λa. λa'. λh.
+    transportP G N
+      (gop G g (ginv G g a) (gop G g (gop G g a' (ginv G g a)) a))
+      (gop G g (ginv G g a) (ginv G g (ginv G g a')))
+      (qInvAlg G g a a')
+      (nmConjInv G g N nn a (gop G g a' (ginv G g a))
+        (cosetSymm G g N s a a' h))
+
+def qInvWDCls : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
+  Prf (IsSubgroup G g N) → Prf (IsNormal G g N) →
+  (a : El G) (a' : El G) → Prf (cosetRel G g N a a') →
+  qcls G g N (ginv G g a) ≡ qcls G g N (ginv G g a') ∈ El (QGroup G g N)
+  using (QGroup.unfold, qcls.eq) ≔
+  λG. λg. λN. λs. λnn. λa. λa'. λh.
+    classEqOfRel G (cosetRel G g N) (ginv G g a) (ginv G g a')
+      (qInvWD G g N s nn a a' h)
+
+def qInv : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
+  Prf (IsSubgroup G g N) → Prf (IsNormal G g N) →
+  El (QGroup G g N) → El (QGroup G g N)
+  using (QGroup.unfold, qInvWDCls) ≔
+  λG. λg. λN. λs. λnn. λu.
+    quot-elim (w. El (QGroup G g N)) (a. qcls G g N (ginv G g a)) u
+
+def qInvCls : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω)
+  (s : Prf (IsSubgroup G g N)) (nn : Prf (IsNormal G g N)) (a : El G) →
+  qInv G g N s nn (class a) ≡ class (ginv G g a) ∈ El (QGroup G g N)
+  using (QGroup.unfold, qcls.eq, qInv.eq) ≔
+  λG. λg. λN. λs. λnn. λa. ⋆
+
+def qUnit : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) → El (QGroup G g N)
+  using (QGroup.unfold) ≔
+  λG. λg. λN. class (ge G g)
+
+-- ===== the group laws, each a descent into an Ω-valued motive =====
+--
+-- These are the corpus's first uses of the `<lemma>.rw` license. The
+-- discharge engine does NOT rewrite with store lemmas by default: a
+-- cited lemma is available for WHOLE-EQUATION match and for hops, and
+-- rwNfElem only runs at all when the site cites `hyp.rw` or some
+-- `<lemma>.rw`. Everything in groupTheory.nova and subgroup.nova gets
+-- by on whole-equation match plus congruence descent, which is why no
+-- .rw appears before this point. Here it is unavoidable: the base case
+-- of every law has qMul applied to two classes NESTED inside another
+-- qMul, and only a rewrite reaches the inner one. `qMulCls.rw` does
+-- exactly that and nothing else.
+--
+-- The last step of each base case is an explicit `cong` rather than a
+-- ⋆. Class-congruence in the engine (spCongC) accepts only STEP-FREE
+-- evidence — pure computation — because the component's type is not
+-- known there, so `class X ≐ class Y` never closes by a lemma about
+-- X and Y. Naming the congruence is the whole fix, and it is the same
+-- move groupTheory.nova needed against gAssoc.
+--
+-- Every law below is an EQUATION, hence Ω-valued, hence its quot-elim
+-- owes no well-definedness proof at all: proof irrelevance closes the
+-- coherence outright (el-prf-prop). That is the whole difference
+-- between milestone 2 and this one — descending DATA costs two honest
+-- proofs, descending a PROPOSITION costs nothing, and the corpus's
+-- Ω/𝕌 split is what makes the second half free.
+
+def qAssoc : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω)
+  (nn : Prf (IsNormal G g N)) (u : El (QGroup G g N)) (v : El (QGroup G g N))
+  (w : El (QGroup G g N)) →
+  qMul G g N nn (qMul G g N nn u v) w ≡ qMul G g N nn u (qMul G g N nn v w)
+    ∈ El (QGroup G g N)
+  using (QGroup.unfold, qMulCls.rw, gAssoc) ≔
+  λG. λg. λN. λnn. λu. λv. λw.
+    quot-elim
+      (uu. (qMul G g N nn (qMul G g N nn uu v) w
+              ≡ qMul G g N nn uu (qMul G g N nn v w) ∈ El (QGroup G g N)))
+      (a. quot-elim
+            (vv. (qMul G g N nn (qMul G g N nn (class a) vv) w
+                    ≡ qMul G g N nn (class a) (qMul G g N nn vv w)
+                    ∈ El (QGroup G g N)))
+            (b. quot-elim
+                  (ww. (qMul G g N nn (qMul G g N nn (class a) (class b)) ww
+                          ≡ qMul G g N nn (class a) (qMul G g N nn (class b) ww)
+                          ∈ El (QGroup G g N)))
+                  (c. trans (QGroup G g N)
+                        (qMul G g N nn (qMul G g N nn (class a) (class b)) (class c))
+                        (class (gop G g (gop G g a b) c))
+                        (qMul G g N nn (class a) (qMul G g N nn (class b) (class c)))
+                        ⋆
+                        (trans (QGroup G g N)
+                           (class (gop G g (gop G g a b) c))
+                           (class (gop G g a (gop G g b c)))
+                           (qMul G g N nn (class a) (qMul G g N nn (class b) (class c)))
+                           (cong G (λw. QGroup G g N) (λw. class w)
+                              (gop G g (gop G g a b) c) (gop G g a (gop G g b c))
+                              (gAssoc G g a b c))
+                           ⋆))
+                  w)
+            v)
+      u
+
+def qUnitL : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω)
+  (nn : Prf (IsNormal G g N)) (u : El (QGroup G g N)) →
+  qMul G g N nn (qUnit G g N) u ≡ u ∈ El (QGroup G g N)
+  using (QGroup.unfold, qUnit.eq, qMulCls.rw, gUnitL) ≔
+  λG. λg. λN. λnn. λu.
+    quot-elim (uu. (qMul G g N nn (qUnit G g N) uu ≡ uu ∈ El (QGroup G g N)))
+      (a. trans (QGroup G g N)
+            (qMul G g N nn (qUnit G g N) (class a))
+            (class (gop G g (ge G g) a))
+            (class a)
+            ⋆
+            (cong G (λw. QGroup G g N) (λw. class w)
+               (gop G g (ge G g) a) a (gUnitL G g a)))
+      u
+
+def qUnitR : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω)
+  (nn : Prf (IsNormal G g N)) (u : El (QGroup G g N)) →
+  qMul G g N nn u (qUnit G g N) ≡ u ∈ El (QGroup G g N)
+  using (QGroup.unfold, qUnit.eq, qMulCls.rw, gUnitR) ≔
+  λG. λg. λN. λnn. λu.
+    quot-elim (uu. (qMul G g N nn uu (qUnit G g N) ≡ uu ∈ El (QGroup G g N)))
+      (a. trans (QGroup G g N)
+            (qMul G g N nn (class a) (qUnit G g N))
+            (class (gop G g a (ge G g)))
+            (class a)
+            ⋆
+            (cong G (λw. QGroup G g N) (λw. class w)
+               (gop G g a (ge G g)) a (gUnitR G g a)))
+      u
+
+def qInvLaw : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω)
+  (s : Prf (IsSubgroup G g N)) (nn : Prf (IsNormal G g N)) (u : El (QGroup G g N)) →
+  qMul G g N nn (qInv G g N s nn u) u ≡ qUnit G g N ∈ El (QGroup G g N)
+  using (QGroup.unfold, qUnit.eq, qInvCls.rw, qMulCls.rw, gInvL) ≔
+  λG. λg. λN. λs. λnn. λu.
+    quot-elim
+      (uu. (qMul G g N nn (qInv G g N s nn uu) uu ≡ qUnit G g N ∈ El (QGroup G g N)))
+      (a. trans (QGroup G g N)
+            (qMul G g N nn (qInv G g N s nn (class a)) (class a))
+            (class (gop G g (ginv G g a) a))
+            (qUnit G g N)
+            ⋆
+            (cong G (λw. QGroup G g N) (λw. class w)
+               (gop G g (ginv G g a) a) (ge G g) (gInvL G g a)))
+      u
+
+def qInvLawR : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω)
+  (s : Prf (IsSubgroup G g N)) (nn : Prf (IsNormal G g N)) (u : El (QGroup G g N)) →
+  qMul G g N nn u (qInv G g N s nn u) ≡ qUnit G g N ∈ El (QGroup G g N)
+  using (QGroup.unfold, qUnit.eq, qInvCls.rw, qMulCls.rw, gInvR) ≔
+  λG. λg. λN. λs. λnn. λu.
+    quot-elim
+      (uu. (qMul G g N nn uu (qInv G g N s nn uu) ≡ qUnit G g N ∈ El (QGroup G g N)))
+      (a. trans (QGroup G g N)
+            (qMul G g N nn (class a) (qInv G g N s nn (class a)))
+            (class (gop G g a (ginv G g a)))
+            (qUnit G g N)
+            ⋆
+            (cong G (λw. QGroup G g N) (λw. class w)
+               (gop G g a (ginv G g a)) (ge G g) (gInvR G g a)))
+      u
+
+-- ===== G/N is a group =====
+
+def qIsGroup : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
+  Prf (IsSubgroup G g N) → Prf (IsNormal G g N) →
+  El (IsGroup (QGroup G g N))
+  using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔
+  λG. λg. λN. λs. λnn.
+    ((qMul G g N nn , qUnit G g N ,
+      (λx. λy. λz.
+         eqToId (QGroup G g N)
+           (qMul G g N nn (qMul G g N nn x y) z)
+           (qMul G g N nn x (qMul G g N nn y z))
+           (qAssoc G g N nn x y z)) ,
+      (λx. eqToId (QGroup G g N) (qMul G g N nn (qUnit G g N) x) x
+             (qUnitL G g N nn x)) ,
+      λx. eqToId (QGroup G g N) (qMul G g N nn x (qUnit G g N)) x
+            (qUnitR G g N nn x)) ,
+     qInv G g N s nn ,
+     (λx. eqToId (QGroup G g N) (qMul G g N nn (qInv G g N s nn x) x) (qUnit G g N)
+            (qInvLaw G g N s nn x)) ,
+     λx. eqToId (QGroup G g N) (qMul G g N nn x (qInv G g N s nn x)) (qUnit G g N)
+           (qInvLawR G g N s nn x))
+
+def qMonoid : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
+  Prf (IsSubgroup G g N) → Prf (IsNormal G g N) → El (IsMonoid (QGroup G g N))
+  using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔
+  λG. λg. λN. λs. λnn. qIsGroup G g N s nn .π₁
