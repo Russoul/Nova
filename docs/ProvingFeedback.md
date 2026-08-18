@@ -1347,6 +1347,60 @@ The moral: before declaring a quotient blocks a construction, ask
 which invariant is actually required. "A canonical representative" is
 usually much more than the construction needs.
 
+### D-10. [G] Define the image with the BRACKET, and let the theorem be the constancy obligation
+
+The first isomorphism theorem, G/ker p ≅ im p, is where the choice of
+truncation stops being a matter of taste.
+
+Written with the Ω-squash,
+
+```
+im p ≜ ((y : El H) ⨯ ∥(x : El G) ⨯ Id H (p x) y∥)
+```
+
+the theorem is NOT PROVABLE, and nothing in the corpus can rescue it.
+The forward map G/ker p → im p is an ordinary descent, but the inverse
+has to produce a preimage; `squash-elim` (el-squash-e-prf) reaches only
+further PROPOSITIONS, and the inverse lands in DATA. That is not a Nova
+limitation — it is the constructive content of the statement, and B-15
+is the same wall met from the other side.
+
+bracket.nova's Br is the other truncation: `Br a ≜ a / (x y. ∥𝟙∥)`, a
+𝕌-CODE whose `class` retains its representative, so `brElim` lands in
+an arbitrary type at the price of a constancy proof. With
+
+```
+Im p ≜ ((y : H) ⨯ Br ((x : G) ⨯ Id H (p x) y))
+```
+
+the inverse is writable, and — this is the part worth having — the
+constancy obligation brElim charges is EXACTLY
+
+  any two preimages of the same y are congruent modulo ker p,
+
+which is the mathematical content of the theorem. Two lines:
+p (x·x'⁻¹) = p x · (p x')⁻¹ = y · y⁻¹ = e. `groupIso.fromImConst` is
+that proof and the whole inverse map is four lines around it.
+
+So the truncation choice moves the theorem's content from a place
+where it CANNOT be discharged (inside a squash, at definition time) to
+a place where it is a two-line calculation (at the one point of use).
+The Ω-version does not state something weaker — `bracket.brSquashEq`
+proves the two say exactly the same thing — it states the same thing
+with the evidence thrown away.
+
+Two smaller consequences worth reusing:
+
+* Br is a DEFINITIONAL subsingleton (`brIsProp` concludes ≐), so an
+  element of `Im p` is determined by its H-component: `imEq` is one
+  `sigmaEq2` with `brIsProp` as its second argument, and after that
+  EVERY law of the image reduces to the corresponding law of H. The
+  group structure on the image cost fifteen lines.
+* Every constancy proof needed to push the group operations through the
+  bracket (`imOpBr`, `imInvBr`) is again `brIsProp`: the target is
+  itself a bracket, so nothing is owed. Only the map OUT of the bracket
+  — the one that leaves the modality — ever pays.
+
 ---
 
 ## E. Elaborator ergonomics
