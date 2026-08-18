@@ -10,6 +10,8 @@
 import definingEq
 import monoid
 import group
+import groupTheory
+import subgroup
 import field
 import natMonoid
 import natAlgebra
