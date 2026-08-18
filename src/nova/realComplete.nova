@@ -11,9 +11,9 @@ import realAdd (rAdd, leQBoundDblDiag)
 import realAbs (rAbs)
 import realOrder (RLeP, rleOf, LeR)
 import realGroup (realSub)
-import realMetric (realDist)
+import realMetric (realDist, realDistCls, rleOfAbsSub)
 import realEq (qtr)
-import equality (trans, sym, cong, transport)
+import equality (trans, sym, cong, transport, transportP)
 
 -- COMPLETENESS: a regular sequence of reals converges, and the limit
 -- is the DIAGONAL of the representatives, sampled at quarter depth:
@@ -236,40 +236,52 @@ def limClose : (x : El (ℕ → RSeq)) (h : El (RegSeqR x)) (n : ℕ) (j : ℕ) 
 -- is exactly 1/(j+1) and so sits under rBound j j.
 def realLimClose : (x : El (ℕ → RSeq)) (h : El (RegSeqR x)) (n : ℕ) →
   Prf (LeR (realDist (class (x n)) (realLim x h)) (realOfQ (qInvNat n)))
-  using (equality.sym.eq, equality.transport.eq, id.Id.eq, integer.intOne.eq, ratAbs.bndAbsSub.eq, ratAbs.qAbs.eq, ratBound.Bnd.unfold, ratBound.bndEqB.eq, ratBound.bndVia.eq, ratBound.bndWeaken.eq, ratHalf.dbl.eq, rational.mkRat.eq, rational.nzPos.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalOrder.LeQ.eq, rationalOrder.NonNegS.eq, rationalOrder.Sign.eq, rationalOrder.ratSgn.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnCases.eq, rationalOrder.sgnQ.eq, rationalQ.Q.eq, rationalQ.qAdd.eq, rationalQ.qAddNegR.eq, rationalQ.qNeg.eq, rationalQ.qZero.eq, rationalQ.qcls.eq, real.RSeq.unfold, real.Real.unfold, real.constReg.eq, real.leQNegBoundZero.eq, real.leQZeroBound.eq, real.qInvNat.eq, real.rBound.eq, real.realOfQ.eq, real.realOfQ.unfold, realAbs.absReg.eq, realAbs.absSeq.eq, realAbs.rAbs.eq, realAbs.realAbs.eq, realAbs.realAbs.unfold, realAdd.addReg.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realAdd.realAdd.eq, realAdd.realAdd.unfold, realComplete.RegSeqR.unfold, realComplete.leQQuarterSum.eq, realComplete.limReg.eq, realComplete.limSeq.eq, realComplete.qSum6.eq, realComplete.rLim.eq, realComplete.realLim.eq, realComplete.realLim.unfold, realEq.qtr.eq, realGroup.realSub.eq, realGroup.realSub.unfold, realMetric.realDist.eq, realMetric.realDist.unfold, realNeg.bndReg.eq, realNeg.negReg.eq, realNeg.negSeq.eq, realNeg.rNeg.eq, realNeg.realNeg.eq, realNeg.realNeg.unfold, realNeg.regBnd.eq, realNeg.regOf.eq, realNeg.seqOf.eq, realOrder.LeR.eq, realOrder.LeR.unfold, realOrder.RLeP.eq, realOrder.RLeP.unfold) ≔
+  using (real.Real.unfold, real.RSeq.unfold, real.Regular.unfold,
+         real.realOfQ.eq, realComplete.realLim.eq, realComplete.rLim.eq,
+         realNeg.seqOf.eq, realOrder.LeR.eq) ≔
   λx. λh. λn.
-    rleOf (rAbs (rAdd (x n) (rNeg (rLim x h))))
-          ((λk. qInvNat n) , constReg (qInvNat n))
-      (λj.
-        leQSubShift
-          (qAbs (qAdd (seqOf (x n) (dbl j)) (qNeg (limSeq x (dbl j)))))
-          (qInvNat n) (rBound j j)
-          (absLeOfBnd (qAdd (qInvNat n) (rBound j j))
-             (qAdd (seqOf (x n) (dbl j)) (qNeg (limSeq x (dbl j))))
+    transportP Real (λv. LeR v (realOfQ (qInvNat n)))
+      (class (rAbs (rAdd (x n) (rNeg (rLim x h)))))
+      (realDist (class (x n)) (realLim x h))
+      (sym Real (realDist (class (x n)) (realLim x h))
+                (class (rAbs (rAdd (x n) (rNeg (rLim x h)))))
+         (realDistCls (x n) (rLim x h)))
+      (rleOfAbsSub (x n) (rLim x h) (qInvNat n)
+        (λj.
+          absLeOfBnd (qAdd (qInvNat n) (rBound j j))
+             (qAdd (seqOf (x n) (dbl j)) (qNeg (seqOf (rLim x h) (dbl j))))
              (bndWeaken (qAdd (qInvNat n) (rBound (dbl j) (dbl j)))
                         (qAdd (qInvNat n) (rBound j j))
-                        (qAdd (seqOf (x n) (dbl j)) (qNeg (limSeq x (dbl j))))
-                (leQPlusMonoL (rBound (dbl j) (dbl j)) (rBound j j) (qInvNat n)
+                        (qAdd (seqOf (x n) (dbl j))
+                              (qNeg (seqOf (rLim x h) (dbl j))))
+                (leQPlusMonoL (rBound (dbl j) (dbl j)) (rBound j j)
+                              (qInvNat n)
                    (leQBoundDblDiag j))
                 (limClose x h n (dbl j)))))
 
 -- ...and the hypothesis really does say what it should: a pointwise
--- RegSeqR makes the reals themselves 1/(m+1) + 1/(n+1)-close
+-- RegSeqR makes the reals themselves 1/(m+1) + 1/(n+1)-close)
+
 def regSeqRSound : (x : El (ℕ → RSeq)) (h : El (RegSeqR x)) (m : ℕ) (n : ℕ) →
   Prf (LeR (realDist (class (x m)) (class (x n))) (realOfQ (rBound m n)))
-  using (equality.sym.eq, equality.transport.eq, id.Id.eq, integer.intOne.eq, ratAbs.bndAbsSub.eq, ratAbs.qAbs.eq, ratBound.Bnd.unfold, ratHalf.dbl.eq, rational.mkRat.eq, rational.nzPos.eq, rational.ratAdd.eq, rational.ratNeg.eq, rationalOrder.LeQ.eq, rationalOrder.NonNegS.eq, rationalOrder.Sign.eq, rationalOrder.ratSgn.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnCases.eq, rationalOrder.sgnQ.eq, rationalQ.Q.eq, rationalQ.qAdd.eq, rationalQ.qAddNegR.eq, rationalQ.qNeg.eq, rationalQ.qZero.eq, rationalQ.qcls.eq, real.RSeq.unfold, real.Real.unfold, real.constReg.eq, real.leQNegBoundZero.eq, real.leQZeroBound.eq, real.qInvNat.eq, real.rBound.eq, real.realOfQ.eq, real.realOfQ.unfold, realAbs.absReg.eq, realAbs.absSeq.eq, realAbs.rAbs.eq, realAbs.realAbs.eq, realAbs.realAbs.unfold, realAdd.addReg.eq, realAdd.addSeq.eq, realAdd.rAdd.eq, realAdd.realAdd.eq, realAdd.realAdd.unfold, realComplete.RegSeqR.unfold, realGroup.realSub.eq, realGroup.realSub.unfold, realMetric.realDist.eq, realMetric.realDist.unfold, realNeg.bndReg.eq, realNeg.negReg.eq, realNeg.negSeq.eq, realNeg.rNeg.eq, realNeg.realNeg.eq, realNeg.realNeg.unfold, realNeg.regBnd.eq, realNeg.regOf.eq, realNeg.seqOf.eq, realOrder.LeR.eq, realOrder.LeR.unfold, realOrder.RLeP.eq, realOrder.RLeP.unfold) ≔
+  using (real.Real.unfold, real.RSeq.unfold, real.Regular.unfold,
+         real.realOfQ.eq, realOrder.LeR.eq, realComplete.RegSeqR.unfold) ≔
   λx. λh. λm. λn.
-    rleOf (rAbs (rAdd (x m) (rNeg (x n))))
-          ((λk. rBound m n) , constReg (rBound m n))
-      (λj.
-        leQSubShift
-          (qAbs (qAdd (seqOf (x m) (dbl j)) (qNeg (seqOf (x n) (dbl j)))))
-          (rBound m n) (rBound j j)
-          (absLeOfBnd (qAdd (rBound m n) (rBound j j))
+    transportP Real (λv. LeR v (realOfQ (rBound m n)))
+      (class (rAbs (rAdd (x m) (rNeg (x n)))))
+      (realDist (class (x m)) (class (x n)))
+      (sym Real (realDist (class (x m)) (class (x n)))
+                (class (rAbs (rAdd (x m) (rNeg (x n)))))
+         (realDistCls (x m) (x n)))
+      (rleOfAbsSub (x m) (x n) (rBound m n)
+        (λj.
+          absLeOfBnd (qAdd (rBound m n) (rBound j j))
              (qAdd (seqOf (x m) (dbl j)) (qNeg (seqOf (x n) (dbl j))))
              (bndWeaken (qAdd (rBound m n) (rBound (dbl j) (dbl j)))
                         (qAdd (rBound m n) (rBound j j))
-                        (qAdd (seqOf (x m) (dbl j)) (qNeg (seqOf (x n) (dbl j))))
-                (leQPlusMonoL (rBound (dbl j) (dbl j)) (rBound j j) (rBound m n)
+                        (qAdd (seqOf (x m) (dbl j))
+                              (qNeg (seqOf (x n) (dbl j))))
+                (leQPlusMonoL (rBound (dbl j) (dbl j)) (rBound j j)
+                              (rBound m n)
                    (leQBoundDblDiag j))
                 (h m n (dbl j)))))
