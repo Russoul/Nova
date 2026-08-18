@@ -1,11 +1,14 @@
 import rationalQ (Q, qAdd, qNeg, qZero)
 import rationalOrder (LeQ, leQTrans)
+import ratHalf (dbl)
 import ratAbs (qAbs, bndAbs)
 import ratBound (Bnd)
-import real (rBound, leQZeroBound, RSeq, Real, realOfQ, realZero, realOne)
-import realNeg (seqOf, rNeg, realNeg, realNegZero)
-import realAdd (realAdd)
-import realAbs (rAbs, realAbs, realAbsNeg, realAbsZero, leRZeroAbs,
+import ratArch (leQSubShift)
+import real (rBound, leQZeroBound, RSeq, Real, constReg, realOfQ, realZero,
+             realOne)
+import realNeg (seqOf, rNeg, realNeg, realNegZero, realNegCls)
+import realAdd (rAdd, realAdd, realAddCls)
+import realAbs (rAbs, realAbs, realAbsCls, realAbsNeg, realAbsZero, leRZeroAbs,
                 leRAbsTriangle)
 import realOrder (RLeP, rleOf, LeR, leRAntisym, leRTrans, leQSubZero)
 import realGroup (realSub, realSubSelf, realSubVia, realNegSub, realSubZeroInv)
@@ -62,6 +65,56 @@ def realAbsZeroInv : (u : El Real) →
 -- ===== the distance =====
 
 def realDist : El Real → El Real → El Real using (real.Real.unfold) ≔ λu. λv. realAbs (realSub u v)
+
+-- THE BRIDGE. d on classes IS the representative-level |p − q|, and
+-- naming it once is what keeps its users cheap.
+--
+-- Without this, a proof that states its goal at the ℝ level while
+-- working at the representative level asks the kernel to see through
+-- realDist → realSub → realAdd/realNeg → rAdd/rNeg → addSeq/negSeq →
+-- qAdd/qNeg → mkRat → … inside a SINGLE type conversion, and the
+-- licensed join has to redo that at every use. Here each layer is one
+-- named lemma — realNegCls, realAddCls, realAbsCls — so the deep walk
+-- happens once, at a statement small enough to be cheap.
+def realDistCls : (p : El RSeq) (q : El RSeq) →
+  realDist (class p) (class q) ≡ class (rAbs (rAdd p (rNeg q))) ∈ El Real
+  using (realMetric.realDist.eq, realGroup.realSub.eq, real.Real.unfold,
+         real.RSeq.unfold, real.Regular.unfold) ≔
+  λp. λq.
+    trans Real (realAbs (realAdd (class p) (realNeg (class q))))
+               (realAbs (realAdd (class p) (class (rNeg q))))
+               (class (rAbs (rAdd p (rNeg q))))
+      (cong Real (λw. Real) (λw. realAbs (realAdd (class p) w))
+         (realNeg (class q)) (class (rNeg q)) (realNegCls q))
+      (trans Real (realAbs (realAdd (class p) (class (rNeg q))))
+                  (realAbs (class (rAdd p (rNeg q))))
+                  (class (rAbs (rAdd p (rNeg q))))
+         (cong Real (λw. Real) (λw. realAbs w)
+            (realAdd (class p) (class (rNeg q))) (class (rAdd p (rNeg q)))
+            (realAddCls p (rNeg q)))
+         (realAbsCls (rAdd p (rNeg q))))
+
+-- THE SECOND BRIDGE, for the element side. rleOf's argument type
+-- mentions seqOf of the whole |p − q| construction, so supplying it
+-- directly makes the kernel walk rAbs → rAdd/rNeg → absSeq/addSeq/
+-- negSeq → seqOf at every use. Here that walk happens once, with p, q
+-- and the bound ABSTRACT (D-3), and callers hand over a statement in
+-- which no construction appears at all.
+def rleOfAbsSub : (p : El RSeq) (q : El RSeq) (b : El Q) →
+  ((j : ℕ) →
+     El (LeQ (qAbs (qAdd (seqOf p (dbl j)) (qNeg (seqOf q (dbl j)))))
+             (qAdd b (rBound j j)))) →
+  Prf (RLeP (rAbs (rAdd p (rNeg q))) ((λk. b) , constReg b))
+  using (real.RSeq.unfold, real.Regular.unfold, realAbs.rAbs.eq,
+         realAbs.absSeq.eq, realAdd.rAdd.eq, realAdd.addSeq.eq,
+         realNeg.rNeg.eq, realNeg.negSeq.eq, realNeg.seqOf.eq,
+         realOrder.RLeP.eq) ≔
+  λp. λq. λb. λf.
+    rleOf (rAbs (rAdd p (rNeg q))) ((λk. b) , constReg b)
+      (λj.
+        leQSubShift
+          (qAbs (qAdd (seqOf p (dbl j)) (qNeg (seqOf q (dbl j)))))
+          b (rBound j j) (f j))
 
 def realDistSelf : (u : El Real) → realDist u u ≡ realZero ∈ El Real
   using (real.Real.unfold, realAbs.realAbs.eq, realGroup.realSub.eq, realMetric.realDist.eq) ≔
