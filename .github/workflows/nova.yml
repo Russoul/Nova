@@ -46,7 +46,14 @@ jobs:
       # collection, the custom dependencies), ~/.config/pack the global
       # config, ~/.local/bin/pack the launcher (already on the runner's
       # PATH). A hit skips the whole Idris2 bootstrap. Keyed on
-      # pack.toml: changing any pin rebuilds.
+      # pack.toml, so changing a pin misses — but restore-keys then
+      # falls back to the most recent toolchain we built, and pack
+      # fetches just the dependency whose pin moved. That fallback is
+      # what keeps a one-line pin change off the cold path: micropack
+      # resolves the WHOLE package collection, ~238 third-party repos,
+      # and any one of them being unreachable fails the build (observed:
+      # codeberg.org 504s taking down a run that only repinned
+      # just-a-parser).
       - name: Cache pack and toolchain
         id: pack-cache
         uses: actions/cache@v4
@@ -56,13 +63,27 @@ jobs:
             /home/runner/.config/pack
             /home/runner/.local/bin/pack
           key: pack-${{ runner.os }}-${{ hashFiles('pack.toml') }}
+          restore-keys: |
+            pack-${{ runner.os }}-
 
+      # `cache-hit` is true only on an EXACT key match, so it cannot
+      # gate this step: a restore-keys fallback must skip the bootstrap
+      # too. Test for the launcher the cache actually restores instead.
       - name: Install pack
-        if: steps.pack-cache.outputs.cache-hit != 'true'
         run: |
+          if [ -x "$HOME/.local/bin/pack" ]; then
+            echo "pack toolchain restored from cache; skipping bootstrap"
+            exit 0
+          fi
           git clone --depth=1 https://github.com/stefan-hoeck/idris2-pack
           cd idris2-pack
-          make micropack SCHEME=chezscheme
+          for attempt in 1 2 3; do
+            if make micropack SCHEME=chezscheme; then exit 0; fi
+            echo "micropack attempt $attempt failed; third-party package"
+            echo "hosts are fetched here, so retry before giving up"
+            sleep 30
+          done
+          exit 1
 
       - name: Build Nova
         run: pack build nova.ipkg
