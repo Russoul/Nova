@@ -1,14 +1,19 @@
 import prop (⊤, propExt)
-import rationalQ (Q, qAdd, qMul, qNeg, qZero, qOne, qAddAssoc, qAddZeroR,
-                  qAddNegL, qAddNegR, qMulComm, qMulOneL, qDistribR)
+import rationalQ (Q, qAdd, qMul, qNeg, qZero, qOne, qAddAssoc, qAddZeroL,
+                  qAddZeroR, qAddNegL, qAddNegR, qMulComm, qMulOneL, qNegNeg, qDistribR)
 import rationalOrder (LeQ, leQTrans, leQMulMono, leQPlusMono)
-import ratArch (leQSubShift, leQUnsquash)
+import ratBound (Bnd, bndEq, bndZero, bndOfBothLe, leQSelfAdd, leQNegFlip,
+                 qNegZeroQ)
+import ratMax (qMax, qMaxLub, leQMaxL, leQMaxR, bndMaxSub)
+import ratArch (leQSubShift, leQAddShift, leQUnsquash)
 import ratHalf (dbl, qInvHalf, leQZeroInvNat)
 import ratNat (qOfNat, qOfNatOne, leQOfNat)
 import ratSqrt (qMulInvNat, qInvNatMulIdx)
 import natOrder (LeN, leZero, leSucMono)
-import real (Real, RSeq, REq, qInvNat, rBound, realOfQ, realZero, constReg)
-import realNeg (seqOf, reqRefl, reqSym, realEqOfREq)
+import real (Real, RSeq, REq, Regular, qInvNat, rBound, leQZeroBound, realOfQ,
+             realZero, constReg)
+import realNeg (seqOf, regOf, regBnd, bndReg, reqOf, reqRefl, reqSym,
+                realEqOfREq)
 import realOrder (LeR, leRCls)
 import realEq (reqTrans)
 import realLt (LtR, ltROf)
@@ -215,3 +220,121 @@ def posSampleNN : (p : El RSeq) (k : ℕ) →
                             (qInvNat k)
                      (u (mulIdx (dbl k) i))
                      (leQRBoundDeep k i)))))
+
+-- ===== NONNEGATIVITY, as a nonnegative PRESENTATION =====
+--
+-- √ does not need separation from zero; it needs its SAMPLES to be
+-- nonnegative. Strict positivity is one way to arrange that (sample
+-- deep enough and PosR's modulus makes p_j ≥ 1/(2(k+1))), but not the
+-- only way, and not the best: it excludes 0, which is in √'s domain.
+--
+-- A real is nonnegative exactly when it has a representative that is
+-- POINTWISE nonnegative, and that presentation is pure data — LeQ and
+-- Id are codes. Bracketed, it is the witness √ actually wants.
+--
+-- The clamp lives here, in nonNegMk, and nowhere else: given x ≥ 0 and
+-- any representative, max(·,0) is regular, pointwise nonnegative, and
+-- REq to the original precisely because x ≥ 0 gives p_n ≥ −rBound n n.
+
+def NonNegPayload : El Real → 𝕌
+  using (real.Real.unfold, real.RSeq.unfold, real.Regular.unfold) ≔
+  λx. ((p : RSeq) ⨯ (((n : ℕ) → LeQ qZero (seqOf p n)) ⨯ Id Real (class p) x))
+
+def NonNegR : El Real → 𝕌 ≔ λx. Br (NonNegPayload x)
+
+def nnRep : (x : El Real) → El (NonNegPayload x) → El RSeq
+  using (NonNegPayload.unfold) ≔ λx. λd. d .π₁
+
+def nnAt : (x : El Real) (d : El (NonNegPayload x)) (n : ℕ) →
+  El (LeQ qZero (seqOf (nnRep x d) n))
+  using (NonNegPayload.unfold, nnRep.eq) ≔ λx. λd. λn. d .π₂ .π₁ n
+
+def nnRepEq : (x : El Real) (d : El (NonNegPayload x)) →
+  class (nnRep x d) ≡ x ∈ El Real
+  using (NonNegPayload.unfold, nnRep.eq, real.Real.unfold, real.RSeq.unfold,
+         real.Regular.unfold) ≔
+  λx. λd. idToEq Real (class (d .π₁)) x (d .π₂ .π₂)
+
+-- ===== the clamp =====
+
+def bndClamp : (b : El Q) (u : El Q) →
+  El (LeQ qZero b) → El (LeQ (qNeg b) u) →
+  El (Bnd b (qAdd (qMax u qZero) (qNeg u))) ≔
+  λb. λu. λhb. λhu.
+    bndOfBothLe b (qMax u qZero) u
+      (leQSubShift (qMax u qZero) u b
+         (qMaxLub u qZero (qAdd u b)
+            (leQSelfAdd u b hb)
+            (transport Q (λw. LeQ w (qAdd u b)) (qAdd (qNeg b) b) qZero
+               (qAddNegL b)
+               (leQPlusMono (qNeg b) u b hu))))
+      (leQSubShift u (qMax u qZero) b
+         (leQTrans u (qMax u qZero) (qAdd (qMax u qZero) b)
+            (leQMaxL u qZero)
+            (leQSelfAdd (qMax u qZero) b hb)))
+
+def bndZeroSub : (b : El Q) → El (LeQ qZero b) →
+  El (Bnd b (qAdd qZero (qNeg qZero))) ≔
+  λb. λhb.
+    bndEq b qZero (qAdd qZero (qNeg qZero))
+      (sym Q (qAdd qZero (qNeg qZero)) qZero
+         (trans Q (qAdd qZero (qNeg qZero)) (qAdd qZero qZero) qZero
+            (cong Q (λw. Q) (λw. qAdd qZero w) (qNeg qZero) qZero qNegZeroQ)
+            (qAddZeroR qZero)))
+      (bndZero b hb)
+
+def clampSeq : El RSeq → El (ℕ → Q) ≔ λp. λn. qMax (seqOf p n) qZero
+
+def clampReg : (p : El RSeq) → El (Regular (clampSeq p))
+  using (clampSeq.eq) ≔
+  λp.
+    bndReg (clampSeq p)
+      (λm. λn.
+        bndMaxSub (rBound m n) (seqOf p m) (seqOf p n) qZero qZero
+          (regBnd (seqOf p) (regOf p) m n)
+          (bndZeroSub (rBound m n) (leQZeroBound m n)))
+
+def clampRSeq : El RSeq → El RSeq using (real.RSeq.unfold) ≔
+  λp. (clampSeq p , clampReg p)
+
+def clampNN : (p : El RSeq) (n : ℕ) → El (LeQ qZero (seqOf (clampRSeq p) n))
+  using (real.RSeq.unfold, clampRSeq.eq, clampSeq.eq, realNeg.seqOf.eq) ≔
+  λp. λn. leQMaxR (seqOf p n) qZero
+
+-- the clamp changes nothing, precisely because x ≥ 0
+def clampREq : (p : El RSeq) → Prf (LeR realZero (class p)) →
+  Prf (REq (clampRSeq p) p)
+  using (real.Real.unfold, real.RSeq.unfold, real.Regular.unfold,
+         real.REq.unfold, real.realZero.eq, real.realOfQ.eq, real.constReg.eq,
+         realOrder.LeR.eq, realOrder.RLeP.eq, realNeg.seqOf.eq,
+         clampRSeq.eq, clampSeq.eq) ≔
+  λp. λh.
+    squash-elim h
+      (u. reqOf (clampRSeq p) p
+            (λn.
+              bndClamp (rBound n n) (seqOf p n) (leQZeroBound n n)
+                (transport Q (λw. LeQ (qNeg (rBound n n)) w)
+                   (qNeg (qNeg (seqOf p n))) (seqOf p n)
+                   (qNegNeg (seqOf p n))
+                   (leQNegFlip (qNeg (seqOf p n)) (rBound n n)
+                      (transport Q (λw. LeQ w (rBound n n))
+                         (qAdd qZero (qNeg (seqOf p n)))
+                         (qNeg (seqOf p n))
+                         (qAddZeroL (qNeg (seqOf p n)))
+                         (u n))))))
+
+def nonNegMk : (x : El Real) (p : El RSeq) →
+  (class p ≡ x ∈ El Real) → Prf (LeR realZero x) → El (NonNegR x)
+  using (NonNegPayload.unfold, NonNegR.eq, real.Real.unfold, real.RSeq.unfold,
+         real.Regular.unfold) ≔
+  λx. λp. λe. λh.
+    br (NonNegPayload x)
+      (clampRSeq p ,
+       (clampNN p ,
+        eqToId Real (class (clampRSeq p)) x
+          (trans Real (class (clampRSeq p)) (class p) x
+             (realEqOfREq (clampRSeq p) p
+                (clampREq p
+                   (transportP Real (λv. LeR realZero v) x (class p)
+                      (sym Real (class p) x e) h)))
+             e)))
