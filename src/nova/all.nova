@@ -33,6 +33,7 @@ import realComplete
 import realBound
 import realMul
 import ratSqrt
+import realPos
 import realSqrt
 import ring
 import realRing
@@ -83,5 +84,7 @@ import streamEq
 import streamBisim
 import sum
 import uip
+import bracket
+import propCode
 import vectByInd
 import vectByIndAppend
