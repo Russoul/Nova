@@ -290,6 +290,36 @@ max(·, 0). That is the honest content of "a nonnegative real has a
 nonnegative presentation", and it is a theorem, not a definition
 buried inside √.
 
+### A-9. [ℝ] The reciprocal's order theory has a circle in it, and the way out is a sign case split
+
+rationalAlgInv gives `qInv` and exactly one equation, `qMulInvR`:
+u·u⁻¹ = 1 for u ≠ 0. It says nothing about ORDER, and 1/x's entire
+convergence estimate is about order. Supplying the missing half runs
+straight into a circle:
+
+* cancelling by a positive c (from `x·c ≤ y·c` conclude `x ≤ y`) is
+  proved by multiplying through by c⁻¹, which needs `0 ≤ c⁻¹`;
+* the usual proof of `0 ≤ c⁻¹` cancels c.
+
+The way out is not to prove either from the other but to get
+`0 ≤ c⁻¹` from a SIGN CASE SPLIT: `sgnCases` on `sgnQ (qInv c)` gives
+either nonnegative (done) or negative, and in the negative case
+c · c⁻¹ is a nonnegative times a nonpositive, hence ≤ 0 — while it IS
+1, and 0 ≤ 1, so 1 = 0 and the signs collide (`sZeroNotPos`). No
+cancellation is used. Everything else — cancellation, antitonicity
+(`c ≤ u` implies `u⁻¹ ≤ c⁻¹`, by cancelling twice), and the bound
+`u⁻¹ ≤ M` from `c ≤ u` and `c·M = 1` — follows in order.
+
+The identity that does the actual work is
+
+  1/a − 1/b = (b − a)·(1/a)·(1/b)
+
+which is why the estimate is a `bndMul` twice: the factor (b − a)
+carries the closeness and the two reciprocals carry the bound. It is
+the exact analogue of `qMulDiff` for the product, and like it, it is
+what lets the whole ℝ-level estimate be assembled from Bnd algebra
+with no case analysis.
+
 ## B. Engine / kernel mismatches
 
 The dominant time sink. In all of these the discharge engine finds a

@@ -32,9 +32,11 @@ import realLt
 import realComplete
 import realBound
 import realMul
+import ratInv
 import ratSqrt
 import realPos
 import realSqrt
+import realRecip
 import ring
 import realRing
 import realGroup
