@@ -959,6 +959,38 @@ every one of its parameters occurs in one of the two sides, or is
 Prf-typed with a matching hypothesis in scope. A parameter visible only
 in the type is not a parameter the engine can find.
 
+### B-21b. [G] A calc chain sees an EMPTY Σ-scope; the same proof as `trans` goes through
+
+Known for the quot-elim-scrutinee case (SKILL). It is more general than
+that: `withLocal` runs each chain with site-local candidates and an
+empty Σ-scope, so a chain step whose justification needs a CONVERSION
+licensed by the item's `using` clause fails, while the identical proof
+written with `equality.trans` succeeds.
+
+The symptom is B-17's, and misleading in the same way: both steps of
+
+```
+def qProjLaw … using (quotGroup.qcls.eq) ≔
+  (qcls G g N (gop G g x y)
+     ≡⟨ sym … (qMulCls G g N nn x y) ⟩
+   qMul G g N nn (qcls G g N x) (qcls G g N y)
+     ≡⟨ sym … (qopIsQMul G g N s nn …) ⟩
+   gop (QGroup G g N) (qIsGroup G g N s nn) …)
+```
+
+came back as obligations that were, verbatim, the links supplied —
+`hint: closes with quotGroup.qMulCls`, `hint: closes with qopIsQMul`.
+The `qcls.eq` license the endpoints need to line up with qMulCls's
+`class` spelling is simply not in scope inside the chain.
+
+Written as one `trans` with the same two `sym`s as arguments, it is
+accepted unchanged. **A chain link needing anything but the endpoints
+as written is a chain that should be a `trans`.**
+
+Greek letters, incidentally, are not identifier characters: `(φ : …)`
+is a parse error several tokens later ("Expected symbol: ≡ OR … @" at
+the NEXT binder). Use `phi`.
+
 ### B-22. [G] Store lemmas do not rewrite unless the site cites `<lemma>.rw`
 
 The corpus had no use of the `.rw` license before quotGroup.nova, and

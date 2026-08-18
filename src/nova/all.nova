@@ -13,6 +13,7 @@ import group
 import groupTheory
 import subgroup
 import quotGroup
+import groupHom
 import field
 import natMonoid
 import natAlgebra

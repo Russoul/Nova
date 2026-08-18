@@ -429,3 +429,53 @@ def qMonoid : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
   Prf (IsSubgroup G g N) → Prf (IsNormal G g N) → El (IsMonoid (QGroup G g N))
   using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔
   λG. λg. λN. λs. λnn. qIsGroup G g N s nn .π₁
+
+-- ===== the quotient's universal property, at FUNCTION level =====
+--
+-- Before any homomorphism: a map out of G/N is exactly a map out of G
+-- that is constant on cosets. This is bracket.nova's brElim with a
+-- non-trivial relation in place of ∥𝟙∥, and it is stated here because
+-- it is where the constancy proof is CHEAPEST to discharge — `c` is a
+-- context hypothesis of the very shape the quot-elim's well-definedness
+-- goal has, so the engine finds it without any of B-21's parameter
+-- bookkeeping. Every later factorisation goes through this one and
+-- never writes a quot-elim of its own.
+
+def qFactor : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) (H : 𝕌)
+  (k : El G → El H)
+  (c : (a : El G) (a' : El G) → Prf (cosetRel G g N a a') → k a ≡ k a' ∈ El H)
+  (u : El (QGroup G g N)) → El H
+  using (QGroup.unfold) ≔
+  λG. λg. λN. λH. λk. λc. λu. quot-elim (w. El H) (a. k a) u
+
+def qFactorCls : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) (H : 𝕌)
+  (k : El G → El H)
+  (c : (a : El G) (a' : El G) → Prf (cosetRel G g N a a') → k a ≡ k a' ∈ El H)
+  (a : El G) →
+  qFactor G g N H k c (class a) ≡ k a ∈ El H
+  using (QGroup.unfold, qFactor.eq) ≔
+  λG. λg. λN. λH. λk. λc. λa. ⋆
+
+-- UNIQUENESS: qFactor is the ONLY map agreeing with k on classes.
+-- Stated as an η-rule, exactly as bracket.brEta is: any phi out of the
+-- quotient is recovered from its own restriction along the class map.
+def qFactorEta : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) (H : 𝕌)
+  (phi : El (QGroup G g N) → El H)
+  (c : (a : El G) (a' : El G) → Prf (cosetRel G g N a a') →
+         phi (class a) ≡ phi (class a') ∈ El H)
+  (u : El (QGroup G g N)) →
+  qFactor G g N H (λa. phi (class a)) c u ≡ phi u ∈ El H
+  using (QGroup.unfold, qFactor.eq) ≔
+  λG. λg. λN. λH. λphi. λc. λu.
+    quot-elim (w. (qFactor G g N H (λa. phi (class a)) c w ≡ phi w ∈ El H))
+      (a. ⋆) u
+
+-- and the form uniqueness is usually wanted in: two maps out of G/N
+-- that agree on every class are equal
+def qFactorUnique : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) (H : 𝕌)
+  (phi : El (QGroup G g N) → El H) (psi : El (QGroup G g N) → El H) →
+  ((a : El G) → phi (class a) ≡ psi (class a) ∈ El H) →
+  (u : El (QGroup G g N)) → phi u ≡ psi u ∈ El H
+  using (QGroup.unfold) ≔
+  λG. λg. λN. λH. λphi. λpsi. λe. λu.
+    quot-elim (w. (phi w ≡ psi w ∈ El H)) (a. e a) u
