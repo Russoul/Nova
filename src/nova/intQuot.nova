@@ -1,7 +1,8 @@
 import id (Id, idToEq, eqToId)
 import integer (Int, intZero, intOne, intNeg, intNegZero)
 import integerAdd (intAdd, intAddComm, intAddAssoc)
-import integerMul (intMul, intMulZeroR, intMulOneR, intMulDistribL, intMulNegR)
+import integerMul (intMul, intMulZeroR, intMulOneR, intMulDistribL, intMulNegR,
+                   intMulAssoc, intMulComm)
 import rational (intAddZeroL, intAddZeroR)
 import intGroup (intAddGroup, intAddMonoid)
 import monoid (IsMonoid)
@@ -11,6 +12,11 @@ import subgroup (IsSubgroup, IsNormal, sgIntro, sgUnit, sgOp, sgInv,
                  abelianNormal, cosetRel)
 import quotGroup (QGroup, qcls, qclsEq, qclsEffective, qMul, qMulCls, qInv,
                   qUnit, qIsGroup)
+import ring (IsCommRing)
+import ringTheory (raddGroup, rmul, rone)
+import ideal (IsIdeal, idIntro, idSub, idScale, idNormal)
+import intRing (intCommRing)
+import quotRing (QRing, qrCls, qrMul, qrOne, qrAdd, qrAddGroup, qrIsCommRing)
 import equality (transportP, sym, trans, cong)
 
 -- ℤ/nℤ — the abstract machinery, run on a real group.
@@ -164,3 +170,56 @@ def intModSelf : (n : El Int) →
       (cong Int (λw. IntMod n) (λw. intModCls n w) n (intMul n intOne)
          (sym Int (intMul n intOne) n (intMulOneR n)))
       (intModMulZero n intOne)
+
+-- ===== ...and ℤ/nℤ is a RING =====
+--
+-- nℤ is not just a subgroup: it is an IDEAL, because a·(n·k) = n·(a·k).
+-- One bridge (raddGroup Int intCommRing is intAddGroup, by β) and one
+-- closure proof, and quotRing.nova supplies the rest.
+
+def intRaddGroup : raddGroup Int intCommRing ≡ intAddGroup ∈ El (IsGroup Int)
+  using (ringTheory.raddGroup.eq, intRing.intCommRing.eq) ≔ ⋆
+
+def intRmul : (x : El Int) (y : El Int) →
+  rmul Int intCommRing x y ≡ intMul x y ∈ El Int
+  using (ringTheory.rmul.eq, intRing.intCommRing.eq) ≔
+  λx. λy. ⋆
+
+-- a·(n·k) = n·(a·k): one associativity and one commutation
+def nZScaleAlg : (n : El Int) (a : El Int) (k : El Int) →
+  intMul a (intMul n k) ≡ intMul n (intMul a k) ∈ El Int ≔
+  λn. λa. λk.
+    (intMul a (intMul n k)
+       ≡⟨ sym Int (intMul (intMul a n) k) (intMul a (intMul n k))
+            (intMulAssoc a n k) ⟩
+     intMul (intMul a n) k
+       ≡⟨ cong Int (λw. Int) (λw. intMul w k) (intMul a n) (intMul n a)
+            (intMulComm a n) ⟩
+     intMul (intMul n a) k
+       ≡⟨ intMulAssoc n a k ⟩
+     intMul n (intMul a k))
+
+def nZScale : (n : El Int) (a : El Int) (x : El Int) →
+  Prf (nZ n x) → Prf (nZ n (rmul Int intCommRing a x))
+  using (nZ.eq, nZfib.unfold) ≔
+  λn. λa. λx. λhx.
+    squash-elim hx (u.
+      nZIntro n (rmul Int intCommRing a x) (intMul a (u .π₁))
+        (intMul n (intMul a (u .π₁))
+           ≡⟨ sym Int (intMul a (intMul n (u .π₁))) (intMul n (intMul a (u .π₁)))
+                (nZScaleAlg n a (u .π₁)) ⟩
+         intMul a (intMul n (u .π₁))
+           ≡⟨ cong Int (λw. Int) (λw. intMul a w) (intMul n (u .π₁)) x
+                (idToEq Int (intMul n (u .π₁)) x (u .π₂)) ⟩
+         intMul a x
+           ≡⟨ sym Int (rmul Int intCommRing a x) (intMul a x) (intRmul a x) ⟩
+         rmul Int intCommRing a x))
+
+def nZIsIdeal : (n : El Int) → Prf (IsIdeal Int intCommRing (nZ n))
+  using (intRaddGroup.rw) ≔
+  λn. idIntro Int intCommRing (nZ n) (nZIsSubgroup n) (nZScale n)
+
+-- ℤ/nℤ, as a commutative ring
+def intModRing : (n : El Int) → El (IsCommRing (IntMod n))
+  using (IntMod.eq, quotRing.QRing.eq, ringTheory.raddGroup.eq, intRing.intCommRing.eq) ≔
+  λn. qrIsCommRing Int intCommRing (nZ n) (nZIsIdeal n)

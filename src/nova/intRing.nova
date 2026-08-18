@@ -1,0 +1,30 @@
+import integer (Int, intZero, intOne, intNeg)
+import integerAdd (intAdd, intAddComm)
+import integerMul (intMul, intMulAssoc, intMulComm, intMulOneR, intMulDistribL)
+import intGroup (intAddGroup)
+import id (Id, eqToId)
+import monoid (IsMonoid)
+import group (IsGroup)
+import ring (IsCommRing)
+
+-- (ℤ, +, ·, 0, 1) is a commutative ring. The additive component is
+-- intGroup.intAddGroup wholesale — IsCommRing takes an IsGroup, so
+-- nothing additive is restated — and each remaining law is an existing
+-- integerMul.nova lemma across the Id bridge, exactly as
+-- realRing.realCommRing assembles ℝ's.
+--
+-- A gap worth closing on its own: ℤ had a group but no ring, and every
+-- ring-level statement about ℤ had to be made in terms of intMul
+-- directly.
+def intCommRing : El (IsCommRing Int)
+  using (intGroup.intAddGroup.eq, ring.IsCommRing.unfold) ≔
+  (intAddGroup , intMul , intOne ,
+   (λx. λy. λz.
+      eqToId Int (intMul (intMul x y) z) (intMul x (intMul y z))
+        (intMulAssoc x y z)) ,
+   (λx. λy. eqToId Int (intMul x y) (intMul y x) (intMulComm x y)) ,
+   (λx. eqToId Int (intMul x intOne) x (intMulOneR x)) ,
+   (λx. λy. eqToId Int (intAdd x y) (intAdd y x) (intAddComm x y)) ,
+   λx. λy. λz.
+     eqToId Int (intMul x (intAdd y z)) (intAdd (intMul x y) (intMul x z))
+       (intMulDistribL x y z))
