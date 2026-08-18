@@ -56,14 +56,23 @@ Every accepted `def` whose type is an equation (possibly under Π-binders)
 enters the lemma store E and becomes a discharge candidate for
 EVERYTHING BELOW it. The engine applies candidates in three ways:
 
-- REWRITING: oriented, size-decreasing/non-permutative instances are
-  used as left-to-right rules at any subterm, to a fixpoint.
 - WHOLE-EQUATION MATCH: the goal (or its flip) matches a candidate's
   sides under one consistent first-order instantiation; unbound
   parameters must carry ≡ (or 𝟙 / Prf) types whose instances discharge
   as side conditions. This is how PERMUTATIVE lemmas (commutativity,
-  exchange) and hypothesis-conditional lemmas fire — they never rewrite
-  (they would oscillate).
+  exchange) and hypothesis-conditional lemmas fire. **A parameter that
+  occurs in NEITHER side can never be bound** — a candidate carries no
+  type slot, so a lemma whose parameter appears only in the equation's
+  type is unusable and its goal comes back verbatim, unhinted (B-21).
+- CONGRUENCE DESCENT: one deterministic descent through the two sides'
+  common structure, each child discharged by the above. Together with
+  whole-equation match this covers most goals, which is why the
+  group/ring modules cite no rewrite at all.
+- REWRITING, only if licensed: oriented, size-decreasing/non-permutative
+  candidates are used as left-to-right rules at any subterm — but ONLY
+  when the site cites `hyp.rw` or `<lemma>.rw`. A plain citation does
+  NOT make a lemma a rewrite rule (B-22). Reach for `.rw` when the redex
+  sits under a different head, where congruence cannot descend.
 - TRANSITIVITY HOPS: a candidate may rewrite one side wholesale, with a
   small depth budget.
 
@@ -235,6 +244,17 @@ data [a : 𝕌] [r : El a → El a → Ω]
   `quot-elim` scrutinee fails at replay; the same proof written with
   explicit `trans` goes through, because a lemma application is
   unconstrained by position.
+- `class X ≐ class Y` does NOT follow from `X ≐ Y` by a lemma:
+  class-congruence accepts only STEP-FREE evidence (the component's type
+  is not recoverable there). Name the congruence —
+  `cong A (λw. Q) (λw. class w) X Y h` — as `realSeq.realEqOfSeqEq` does.
+- A calc chain runs with an EMPTY Σ-scope, so a link needing a
+  conversion licensed by the item's `using` clause fails — with the same
+  symptom as the next bullet, an obligation that IS the link supplied.
+  The identical proof written as one `equality.trans` goes through: a
+  lemma application is unconstrained by position or scope.
+- Greek letters are not identifier characters. `(φ : T)` is a parse
+  error reported at the FOLLOWING binder. Use `phi`.
 - **Licenses are not monotone.** Citing more `.eq` can UNDO a proof:
   the `.eq` unfolds the GOAL into elim-vocabulary while store lemmas
   are held in SigVar-vocabulary, so links stop matching. Symptom: a
