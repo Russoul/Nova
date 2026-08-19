@@ -1,0 +1,9 @@
+argument-recovery survey (docs/NovaPerfectSurface.txt, phase 3 — oracle ceiling):
+  defs with use sites: 2  binder positions: 6
+  implicitizable positions: 4  (defs with at least one: 2)
+  argument occurrences: 10  elidable: 7
+
+per def (position set, sites, elidable occurrences):
+  sym2  arity 4  implicit [0, 1, 2]  sites 2  elides 6
+  id2  arity 2  implicit [0]  sites 1  elides 1
+

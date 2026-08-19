@@ -20,6 +20,7 @@ modules = Nova.Kernel.Syntax
         , Nova.Elaboration.Parser
         , Nova.Elaboration.Loader
         , Nova.Distill
+        , Nova.Recovery
 
         , Nova.LSP.TestClient
 
