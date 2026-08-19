@@ -393,3 +393,20 @@ reverting under the intersection policy. Remaining levers: per-site
 {…} overrides (though at link sites the override braces would wrap
 the very arguments being kept — questionable ink), and the budget
 instrumentation of the oracle.
+
+COMMENT PRESERVATION: implemented — the in-place-rewrite blocker
+falls. Comments never reach the AST (the lexer strips them), but
+their ranges ride in ModUnit.mtokens and the source text is now
+retained (ModUnit.msrc), so the distiller re-slices and RE-ATTACHES
+them: each comment goes to the first body entry (fixities carry
+ranges now too) whose span it precedes or falls inside — an
+intra-item comment hoists ABOVE its item, since a rendered item has
+no stable interior positions — comments before the first entry form
+the file header (printed above the imports; a comment between
+import lines floats up there too), and comments after the last
+entry the epilogue. Attachment is idempotent by construction:
+re-parsing distilled output finds every comment immediately before
+its entry. Both `nova distill` and `nova implicitize` output now
+carries the full commentary; the corpus round-trips byte-idempotent
+with comments in place. (The corpus has only `--` line comments; a
+block-comment continuation line would be defensively re-prefixed.)

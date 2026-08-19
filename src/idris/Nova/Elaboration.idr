@@ -4498,6 +4498,10 @@ record ModUnit where
   ||| interleaved, exactly as written. The DISTILL printer's input
   ||| (docs/NovaPerfectSurface.txt); elaboration never reads it
   mbody : List SBodyEntry
+  ||| the module's SOURCE TEXT — comments never reach the AST (the
+  ||| lexer strips them), so the distiller re-slices them from here by
+  ||| the ranges mtokens records; elaboration never reads it
+  msrc : String
 
 oblReport : FixTable -> List Obligation -> String
 oblReport tbl os =
@@ -4613,7 +4617,7 @@ elabProgram units = go initSt units []
 
   go : ElabSt -> List ModUnit -> List String -> String
   go st [] echoes = joinBy "\n" (echoes ++ ["Error: empty program"])
-  go st (MkModUnit name imps tbl items _ _ :: rest) echoes = do
+  go st (MkModUnit name imps tbl items _ _ _ :: rest) echoes = do
     -- a fresh visibility table per module: its own imports only, and a
     -- lemma store scoped to its import closure
     case runElabM (enterModule name (map mname imps) >> installImports imps) st of
@@ -4679,7 +4683,7 @@ elabProgramSt st0 units = go st0 units
 
   go : ElabSt -> List ModUnit -> Either String ElabSt
   go st [] = Left "empty program"
-  go st (MkModUnit name imps tbl items _ _ :: rest) =
+  go st (MkModUnit name imps tbl items _ _ _ :: rest) =
     let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
     case runElabM (installImports imps) st of
       Left err => Left err
@@ -4716,7 +4720,7 @@ elabProgramSig units = go initSt units
 
   go : ElabSt -> List ModUnit -> Either String Sig
   go st [] = Left "empty program"
-  go st (MkModUnit name imps tbl items _ _ :: rest) =
+  go st (MkModUnit name imps tbl items _ _ _ :: rest) =
     let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
     case runElabM (installImports imps) st of
       Left err => Left err
@@ -4737,7 +4741,7 @@ elabFile : String -> String
 elabFile content =
   case runSurfaceParser (parseSFile []) content of
     Left (_, err) => "Parse error: \{err}"
-    Right (toks, ([], decls, items, body)) => elabProgram [MkModUnit "" [] decls items toks body]
+    Right (toks, ([], decls, items, body)) => elabProgram [MkModUnit "" [] decls items toks body content]
     Right (_, (_, _, _, _)) => "Error: this entry point resolves no imports (use the module-aware loader)"
 
 ||| Structured, range-aware counterpart to `elabProgram` for LSP
@@ -4806,7 +4810,7 @@ elabProgramReport units = go initSt units [] [] []
 
   go : ElabSt -> List ModUnit -> List (String, Maybe Range, Obligation) -> List (String, Maybe Range, String) -> List (String, Maybe Range, String) -> ElabReport
   go st [] obls hs errs = MkElabReport obls hs [] errs
-  go st (MkModUnit name imps tbl items _ _ :: rest) obls hs errs =
+  go st (MkModUnit name imps tbl items _ _ _ :: rest) obls hs errs =
     let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
     case runElabM (installImports imps) st of
       Left err => MkElabReport obls hs (binderInfos tbl st) (errs ++ [(name, Nothing, err)])
