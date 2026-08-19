@@ -211,9 +211,15 @@ record ElabSt where
   ||| application spines. Metadata only — nothing of it reaches the
   ||| core or the kernel.
   impls : List (String, List Nat)
+  ||| the implicitize TRIAL (Phase 3c): when on, every {t}-override at
+  ||| an implicit position also runs the hypothetical elided recovery
+  ||| and records whether it would reproduce the written value
+  ||| α-exactly — the measurement the implicitize distiller folds
+  impTrialOn : Bool
+  impTrial : SnocList (String, Nat, Bool)
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] "" "" [<] Nothing [] [] Nothing []
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] "" "" [<] Nothing [] [] Nothing [] False [<]
 
 ||| Resolve a surface signature reference: aliases first (own module,
 ||| opened imports), else the name itself (qualified references reach
@@ -3615,7 +3621,7 @@ mutual
                   Just c => matchTy (substTy tailTy (prefixSub patArgs)) c
     -- phase 1: walk the written spine left to right, solving from
     -- inference-form arguments as they elaborate
-    (sols, revArgs, revSks, pending) <- walk doms slots sols0 [] [] []
+    (sols, revArgs, revSks, pending, srcs) <- walk st.impTrialOn doms slots sols0 [] [] [] []
     -- resolve every inserted hole; unsolved is a structural error
     finalArgs <- traverse (\(pos, arg) =>
                     if hasHolesE arg
@@ -3626,6 +3632,49 @@ mutual
                   (zip (map fst slots) (reverse revArgs))
     -- pending switch conversions, at the FINAL instantiations
     sks <- patchPending doms finalArgs (reverse revSks) pending
+    -- the implicitize TRIAL (docs/NovaPerfectSurface.txt, Phase 3c):
+    -- for every {t}-override at an implicit position, replay the
+    -- HYPOTHETICAL elided recovery — implicit positions as holes,
+    -- sources exactly what elision would have (the expected type
+    -- with throwaway holes at explicit positions; then the inferred
+    -- types of explicit inference-form arguments, in walk order) —
+    -- and record whether it reproduces the written value α-exactly.
+    -- A site whose every written argument sits at an implicit
+    -- position records failure outright (elided it would be a BARE
+    -- reference, not an application), as does a site where an
+    -- intro-form argument meets a hole-bearing hypothetical domain
+    -- (real elision errors there before any later source can fire).
+    when st.impTrialOn $ do
+      let impOvers = mapMaybe (\(pos, mt) => case mt of
+                                 Just _ => if pos `elem` imps then Just pos else Nothing
+                                 Nothing => Nothing) slots
+      case impOvers of
+        [] => pure ()
+        _ => do
+          -- a position is elidable only if the elided spine still
+          -- WRITES something after it: an implicit position past the
+          -- last surviving explicit argument would be TRAILING, and
+          -- trailing implicits are not inserted (the elided site
+          -- would be a partial application — a different erasure)
+          let expPoss = mapMaybe (\(pos, mt) => case mt of
+                          Just _ => if pos `elem` imps then Nothing else Just pos
+                          Nothing => Nothing) slots
+          let notTrailing = \pos => (not (null leftover)) ||
+                                    any (\p => p > pos) expPoss
+          let hypPat = map (\(i, _) => if i `elem` imps then holeE i
+                                                        else holeE (throwaway + i)) slots
+          let hyp0 = case mexp of
+                       Nothing => []
+                       Just c => matchTy (substTy tailTy (prefixSub hypPat)) c
+          let srcsX = filter (\(p, _) => not (p `elem` imps)) (pending ++ srcs)
+          let (hypSols, stuck) = trialSolve doms imps srcsX finalArgs 0 m hyp0 [] False
+          traverse_ (\pos =>
+              let ok = notTrailing pos && not stuck &&
+                       (case (lookup pos hypSols, getAt pos finalArgs) of
+                          (Just v, Just w) => show v == show w
+                          _ => False)
+              in modifySt $ { impTrial $= (:< (q, pos, ok)) })
+            impOvers
     let core = foldl PiApp (SigVar q [<]) finalArgs
     let coreTy = substTy tailTy (prefixSub finalArgs)
     let sk = foldl (\acc, s => Nd [] [acc, s]) (Nd [] []) sks
@@ -3635,9 +3684,9 @@ mutual
     throwaway = 1000000
 
     matchTy : Ty -> Ty -> Sols
-    matchTy pat g = case mTy pat g [] of
+    matchTy pat g = case mTy 0 pat g [] of
       Just s => s
-      Nothing => fromMaybe [] (mTy (compTy pat) (compTy g) [])
+      Nothing => fromMaybe [] (mTy 0 (compTy pat) (compTy g) [])
 
     ||| Assign telescope positions to written spine items: an implicit
     ||| position takes an override if one is next, else a HOLE (no item
@@ -3669,14 +3718,37 @@ mutual
     ||| domain still carries holes must INFER, its type feeding the
     ||| matcher, its domain conversion deferred to the final
     ||| instantiation.
-    walk : List Ty -> List (Nat, Maybe SElem) -> Sols ->
-           List Elem -> List Skel -> List (Nat, Ty) ->
-           ElabM (Sols, List Elem, List Skel, List (Nat, Ty))
-    walk doms [] sols revArgs revSks pending = pure (sols, revArgs, revSks, pending)
-    walk doms ((pos, mt) :: rest) sols revArgs revSks pending = case mt of
+    ||| Is the surface argument an INFERENCE form (its type known
+    ||| without the domain)? Mirrors the mode inventory; erased-proof
+    ||| forms and intros carry nothing.
+    sInferForm : SElem -> Bool
+    sInferForm e = case e of
+      SLam _ _ => False
+      SLet _ _ _ => False
+      SPair _ _ => False
+      SInj1 _ => False
+      SInj2 _ => False
+      SClass _ => False
+      SStar => False
+      SStarWit _ => False
+      SStarUsing _ => False
+      SChain _ _ => False
+      SCoind _ _ _ _ _ _ _ _ => False
+      SSquashElim _ _ _ => False
+      SCorec _ _ _ _ => False
+      SZeroElim _ => False
+      SImpArg _ => False
+      _ => True
+
+    walk : (trialOn : Bool) -> List Ty -> List (Nat, Maybe SElem) -> Sols ->
+           List Elem -> List Skel -> List (Nat, Ty) -> List (Nat, Ty) ->
+           ElabM (Sols, List Elem, List Skel, List (Nat, Ty), List (Nat, Ty))
+    walk trialOn doms [] sols revArgs revSks pending srcs =
+      pure (sols, revArgs, revSks, pending, srcs)
+    walk trialOn doms ((pos, mt) :: rest) sols revArgs revSks pending srcs = case mt of
       Nothing =>
         let arg = fromMaybe (holeE pos) (lookup pos sols) in
-        walk doms rest sols (arg :: revArgs) (Nd [] [] :: revSks) pending
+        walk trialOn doms rest sols (arg :: revArgs) (Nd [] [] :: revSks) pending srcs
       Just surfE => do
         dInst <- case getAt pos doms of
                    Just d => pure (substTy d (prefixSub (reverse revArgs)))
@@ -3684,13 +3756,53 @@ mutual
         if hasHolesT dInst
           then do
             (e', eTy, eSk) <- inferElem ctx env site surfE
-            let sols2 = case mTy dInst eTy sols of
+            let sols2 = case mTy 0 dInst eTy sols of
                           Just s => s
-                          Nothing => fromMaybe sols (mTy (compTy dInst) (compTy eTy) sols)
-            walk doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending)
-          else do
-            (e', eSk) <- checkElem ctx env site surfE dInst
-            walk doms rest sols (e' :: revArgs) (eSk :: revSks) pending
+                          Nothing => fromMaybe sols (mTy 0 (compTy dInst) (compTy eTy) sols)
+            walk trialOn doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending) srcs
+          else if trialOn && sInferForm surfE
+            then do
+              -- the trial needs the argument's inferred type; for an
+              -- inference form this route is EXACTLY what checkElem's
+              -- e-switch fallback does internally — same conversion,
+              -- same certificate placement
+              (e', eTy, eSk) <- inferElem ctx env site surfE
+              c <- convTy ctx env "\{site}: inferred vs expected type" Nothing eTy dInst
+              let eSk' = addPayload (PSwitch (certOr c)) eSk
+              walk trialOn doms rest sols (e' :: revArgs) (eSk' :: revSks) pending ((pos, eTy) :: srcs)
+            else do
+              (e', eSk) <- checkElem ctx env site surfE dInst
+              walk trialOn doms rest sols (e' :: revArgs) (eSk :: revSks) pending srcs
+
+    ||| The hypothetical elided solve, replaying `walk`'s discipline
+    ||| over the recorded sources: at an implicit position the entry
+    ||| is its hole or solution-so-far; at an explicit position the
+    ||| real core argument; a hole-bearing hypothetical domain
+    ||| consumes its position's recorded source, or — when the
+    ||| argument was an intro form, with no inferred type — STICKS
+    ||| (real elision errors there).
+    trialSolve : List Ty -> List Nat -> List (Nat, Ty) -> List Elem ->
+                 (pos, m : Nat) -> Sols -> List Elem -> Bool -> (Sols, Bool)
+    trialSolve doms imps srcsX finalArgs pos m sols hypRev stuck =
+      if pos >= m then (sols, stuck) else
+        let entry = if pos `elem` imps
+                      then fromMaybe (holeE pos) (lookup pos sols)
+                      else fromMaybe (holeE pos) (getAt pos finalArgs)
+        in if pos `elem` imps
+             then trialSolve doms imps srcsX finalArgs (S pos) m sols (entry :: hypRev) stuck
+             else
+               let dHyp = case getAt pos doms of
+                            Just d => substTy d (prefixSub (reverse hypRev))
+                            Nothing => Ty.NatTy
+               in if hasHolesT dHyp
+                    then case lookup pos srcsX of
+                      Just eTy =>
+                        let sols' = case mTy 0 dHyp eTy sols of
+                                      Just s => s
+                                      Nothing => fromMaybe sols (mTy 0 (compTy dHyp) (compTy eTy) sols)
+                        in trialSolve doms imps srcsX finalArgs (S pos) m sols' (entry :: hypRev) stuck
+                      Nothing => trialSolve doms imps srcsX finalArgs (S pos) m sols (entry :: hypRev) True
+                    else trialSolve doms imps srcsX finalArgs (S pos) m sols (entry :: hypRev) stuck
 
     mapAt : Nat -> (Skel -> Skel) -> List Skel -> List Skel
     mapAt _ _ [] = []
@@ -3706,6 +3818,8 @@ mutual
       dFinal <- case getAt pos doms of
                   Just d => pure (substTy d (prefixSub (take pos finalArgs)))
                   Nothing => throw "\{site}: internal — pending position out of range"
+      when (hasHolesT dFinal) $ throw "\{site}: INTERNAL imp-leak dFinal pos=\{show pos} q=\{q}"
+      when (hasHolesT eTy) $ throw "\{site}: INTERNAL imp-leak eTy pos=\{show pos} q=\{q}"
       c <- convTy ctx env "\{site}: implicit-spine argument type" Nothing dFinal eTy
       patchPending doms finalArgs (mapAt pos (addPayload (PSwitch (certOr c))) sks) more
 
@@ -4484,6 +4598,46 @@ elabProgram units = go initSt units []
 ||| never a provisional signature built on assumed equations. Same fold
 ||| as elabProgram/elabProgramReport, shaped for that different
 ||| consumer instead of a display report.
+||| elabProgramSig generalized: run from a SEEDED state (the
+||| implicitize trial sets impTrialOn) and return the full final
+||| state (kernel Σ, trial records) — same acceptance discipline.
+export
+elabProgramSt : ElabSt -> List ModUnit -> Either String ElabSt
+elabProgramSt st0 units = go st0 units
+ where
+  goItems : ElabSt -> List (Maybe Range, SItem) -> Either String ElabSt
+  goItems st [] = Right st
+  goItems st ((_, item) :: rest) =
+    case runElabM (elabItem item) st of
+      Left err => Left err
+      Right (st', _) => goItems st' rest
+
+  go : ElabSt -> List ModUnit -> Either String ElabSt
+  go st [] = Left "empty program"
+  go st (MkModUnit name imps tbl items _ _ :: rest) =
+    let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
+    case runElabM (installImports imps) st of
+      Left err => Left err
+      Right (st, ()) =>
+        case goItems st items of
+          Left err => Left err
+          Right st' =>
+            case openReport tbl st' of
+              Just rep => Left (rep ++ "\nmodule \{name} has open obligations")
+              Nothing  => case rest of
+                            [] => Right st'
+                            _  => go st' rest
+
+||| Run the program with the implicitize TRIAL on (Phase 3c): on full
+||| acceptance, the kernel Σ and the trial records — per
+||| {t}-override at an implicit position, whether the hypothetical
+||| elided recovery reproduces the written value α-exactly.
+export
+elabProgramTrial : List ModUnit -> Either String (Sig, List (String, Nat, Bool))
+elabProgramTrial units =
+  map (\st => (st.kernelSig, toList st.impTrial))
+      (elabProgramSt ({ impTrialOn := True } initSt) units)
+
 export
 elabProgramSig : List ModUnit -> Either String Sig
 elabProgramSig units = go initSt units

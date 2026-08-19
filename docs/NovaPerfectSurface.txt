@@ -304,8 +304,48 @@ baseline). The distiller round-trips implicit-using files at the
 identity tier unchanged (goldens: elab-implicit-accept/-reject,
 distill-implicit; nested recovery — sym2 (sym2 h) — included).
 
-Phase 3c (next): the IMPLICITIZE distiller mode — rewrite a corpus
-def's type to mark its survey-approved positions implicit and elide
-the arguments at every use site (with {…} overrides where the real
-recovery fails), verified per item by re-elaboration and final-Σ
-α-comparison; plus the budget instrumentation of the oracle.
+Phase 3c: implemented — the IMPLICITIZE distiller mode
+(`nova implicitize <file> <out-dir>`, Nova.Implicitize), the first
+mode where the AST check legitimately relaxes and the Σ-gate takes
+over. Pipeline: survey the accepted Σ for candidates; transform to
+the OVERRIDE FORM ({}-binders + every candidate argument wrapped as
+a {t} override — semantically identical), whose elaboration runs the
+TRIAL hook: at every override, the hypothetical elided recovery
+replays with exactly elision's sources and records whether it
+reproduces the written value α-EXACTLY (a position past the last
+surviving explicit argument records failure — trailing implicits
+are not inserted, so the elided site would be a partial
+application); fold by INTERSECTION (v1: a position survives iff
+every site recovered it — the final corpus carries no overrides);
+drop-transform and verify: re-parse identity, elaboration accepted,
+kernel Σ entrywise α-identical to the original run's. The Σ-gate is
+ITERATED: nested elisions can cascade recovered SPELLINGS in ways
+the per-site trial cannot exhibit (a convertible-but-different
+inner spelling shifts the outer inferred types), so an α-drift is
+attributed by a parallel tree diff to the nearest def-headed spines
+whose arguments differ, those defs revert, and the stage re-runs to
+the gate's fixpoint.
+
+Two defects the pipeline itself caught and fixed, recorded: the
+matcher originally bound holes to ground subterms found UNDER
+BINDERS without strengthening — bindings escaped their scope
+over-indexed; the matcher now tracks binder depth and STRENGTHENS
+every captured binding (failing when it mentions a crossed binder),
+which also makes survey, trial, and real recovery scope-agree. And
+the trailing-implicit divergence above.
+
+Measured on the corpus (94 modules): 262 defs implicitized, 654
+binder positions, 2,163 argument occurrences elided; 1,245 ceiling
+positions rejected by the exact trial (the survey ceiling is
+generous — real inferred types differ from instantiated domains up
+to computation) and one def reverted by the α-gate
+(ratBound.bndVia). The implicitized corpus elaborates in ~7.0s
+against the explicit corpus's ~6.3s — recovery pays ~0.7s for the
+2,163 recovered arguments, proportional, no cliffs.
+
+Phase 3d (deferred, the yield refinements): per-site {…} OVERRIDES
+at failing sites instead of whole-position reverts (the
+intersection policy is brutal for high-traffic lemmas — one bad
+site among sym's 289 reverts it); recovery matching modulo the
+site's LICENSED join (today syntactic + δ-free comp only); and the
+budget instrumentation of the oracle.

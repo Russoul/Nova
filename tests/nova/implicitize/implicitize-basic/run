@@ -1,0 +1,5 @@
+#!/bin/sh
+rm -rf out
+"$1" implicitize input.nova out
+cat out/input.nova
+rm -rf out
