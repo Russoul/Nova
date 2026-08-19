@@ -273,3 +273,39 @@ a guarantee. VERDICT: the measured case for the surface form is
 made; Phase 3b (the {x : A} binder syntax, per-def implicitness
 metadata, elaborator-side recovery at application spines, printer
 elision under the round-trip contract) proceeds.
+
+Phase 3b: implemented — the surface form and the elaborator-side
+recovery. GRAMMAR: {x y : A} binder groups in item types (Π-only;
+STyImpPi — elaborates exactly as STyPi, the core stays bare), and
+{t} override arguments in application spines (NB `{-` opens a
+comment: an override starting with an operator token needs the
+space, { -x }). METADATA: implicit positions of the leading
+Π-telescope are recorded per Σ-name at item acceptance
+(ElabSt.impls) — like fixities, derived from the file, invisible to
+kernel and theory. ELABORATION (elabImpSpine): at a spine headed by
+an implicit-bearing def, implicit positions up to the last written
+argument are inserted and solved by the Phase-3a oracle in ONE
+deterministic pass — the expected type first (matched against the
+instantiated telescope tail; this is what lets a λ argument's domain
+arrive solved), then the inferred types of explicit inference-form
+arguments left to right; matching is syntactic, then both sides
+under the δ-free computational normalizer, with the mixed-El case
+(a bare hole under El binds to code(B) of a decoded rigid type);
+solved domains check normally, hole-bearing domains take the
+infer-then-convert route whose ↓ emits the ordinary certificate or
+obligation. An unsolved position is a structural error naming the
+{…} remedy. Trailing implicits are NOT inserted (a bare reference
+stays the plain function — v1; the corpus survey measured zero
+sites needing more). The anti-hole requirements hold by
+construction: spine-local, no Σ mutation, no metavariable ever
+reaches ↓, no postponement; an implicit-free run pays one boolean
+per application node (corpus wall time unchanged, 6.3s vs the 6.7s
+baseline). The distiller round-trips implicit-using files at the
+identity tier unchanged (goldens: elab-implicit-accept/-reject,
+distill-implicit; nested recovery — sym2 (sym2 h) — included).
+
+Phase 3c (next): the IMPLICITIZE distiller mode — rewrite a corpus
+def's type to mark its survey-approved positions implicit and elide
+the arguments at every use site (with {…} overrides where the real
+recovery fails), verified per item by re-elaboration and final-Σ
+α-comparison; plus the budget instrumentation of the oracle.

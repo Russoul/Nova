@@ -212,12 +212,16 @@ sigRef tbl x =
            else "(\{x})"
     else x
 
+isOverride : SElem -> Bool
+isOverride (SImpArg _) = True
+isOverride _ = False
+
 ||| The infix view of an application node: `l op r` for a bare
 ||| operator head whose fixity is in scope (such an operator is
 ||| infix-only, so this is the one legal layout).
 infixView : FixTable -> SElem -> Maybe (String, Assoc, Nat, SElem, SElem)
 infixView tbl (SApp (SApp (SSig _ op) l) r) =
-  if isOpName op && bareName op
+  if isOpName op && bareName op && not (isOverride l) && not (isOverride r)
     then case lookup op tbl of
            Just (a, p) => Just (op, a, p, l, r)
            Nothing => Nothing
@@ -274,6 +278,7 @@ mutual
     SSquashElim _ _ _ => CPrefix
     SStarWit _ => CPrefix
     SStarUsing _ => CPrefix
+    SImpArg _ => CAtom
     _ => CAtom
 
   ||| Does the node's parse extend to the end of the enclosing
@@ -385,6 +390,7 @@ mutual
     SOneC => txt "𝟙"
     SNatC => txt "ℕ"
     SAnn t ty => dparen (pe tbl LPair True t <-> txt " : " <-> pt tbl TTop True ty)
+    SImpArg t => txt "{" <-> pe tbl LPair True t <-> txt "}"
 
   concatDoc : List Doc -> Doc
   concatDoc = foldr DCat DNil
@@ -404,17 +410,18 @@ mutual
   ||| Coalesce a telescope run into groups of shift-equal domains —
   ||| `(x y : A)` — undoing the parser's weakening desugar exactly
   ||| (the range-insensitive Show is the comparator, so a hand-written
-  ||| `(x : A) (y : A)` with the right indices groups too).
-  coalesceTys : List (String, STy) -> List (List String, STy)
+  ||| `(x : A) (y : A)` with the right indices groups too). Groups
+  ||| never mix implicit and explicit binders.
+  coalesceTys : List (Bool, String, STy) -> List (Bool, List String, STy)
   coalesceTys [] = []
-  coalesceTys ((x, a) :: rest) = go [x] a a rest
+  coalesceTys ((imp, x, a) :: rest) = go [x] a a rest
    where
-    go : List String -> STy -> STy -> List (String, STy) -> List (List String, STy)
-    go names first prev ((y, b) :: more) =
-      if show b == show (shiftTy 0 prev)
+    go : List String -> STy -> STy -> List (Bool, String, STy) -> List (Bool, List String, STy)
+    go names first prev ((imp', y, b) :: more) =
+      if imp' == imp && show b == show (shiftTy 0 prev)
         then go (names ++ [y]) first b more
-        else (names, first) :: coalesceTys ((y, b) :: more)
-    go names first prev [] = [(names, first)]
+        else (imp, names, first) :: coalesceTys ((imp', y, b) :: more)
+    go names first prev [] = [(imp, names, first)]
 
   coalesceElems : List (String, SElem) -> List (List String, SElem)
   coalesceElems [] = []
@@ -430,26 +437,32 @@ mutual
   ||| Compact a run of consecutively NAMED Π-binders into binder
   ||| groups — `(x y : A) (z : B) → C` — the corpus idiom; the
   ||| grouped and arrow-chained spellings parse to the same AST.
-  tyPiRun : FixTable -> List (String, STy) -> STy -> Doc
+  ||| Π-runs collect implicit binders too ({x : A} — always named;
+  ||| a wildcard EXPLICIT binder ends the run as the name-dropped
+  ||| arrow form).
+  tyPiRun : FixTable -> List (Bool, String, STy) -> STy -> Doc
   tyPiRun tbl acc (STyPi x a b) =
     if x /= wildcard
-      then tyPiRun tbl (acc ++ [(x, a)]) b
+      then tyPiRun tbl (acc ++ [(False, x, a)]) b
       else tyRunEnd tbl "→" acc (STyPi x a b)
+  tyPiRun tbl acc (STyImpPi x a b) = tyPiRun tbl (acc ++ [(True, x, a)]) b
   tyPiRun tbl acc cod = tyRunEnd tbl "→" acc cod
 
-  tySigmaRun : FixTable -> List (String, STy) -> STy -> Doc
+  tySigmaRun : FixTable -> List (Bool, String, STy) -> STy -> Doc
   tySigmaRun tbl acc (STySigma x a b) =
     if x /= wildcard
-      then tySigmaRun tbl (acc ++ [(x, a)]) b
+      then tySigmaRun tbl (acc ++ [(False, x, a)]) b
       else tyRunEnd tbl "⨯" acc (STySigma x a b)
   tySigmaRun tbl acc cod = tyRunEnd tbl "⨯" acc cod
 
-  tyRunEnd : FixTable -> (arrow : String) -> List (String, STy) -> STy -> Doc
+  tyRunEnd : FixTable -> (arrow : String) -> List (Bool, String, STy) -> STy -> Doc
   tyRunEnd tbl arrow acc cod =
     -- ONE group over the whole telescope: a long telescope breaks at
     -- its binder seams (all of them, uniformly indented), which also
     -- localizes every domain-internal fits scan to its own binder
-    let groups = map (\(ns, a) => dparen (txt (joinBy " " ns) <-> txt " : " <-> pt tbl TTop True a))
+    let groups = map (\(imp, ns, a) =>
+                       let inner = txt (joinBy " " ns) <-> txt " : " <-> pt tbl TTop True a in
+                       if imp then txt "{" <-> inner <-> txt "}" else dparen inner)
                      (coalesceTys acc)
     in DGroup (concatDoc (intersperse (DNest 2 DLine) groups) <->
                DNest 2 (DLine <-> txt "\{arrow} " <-> pt tbl TTop True cod))
@@ -480,6 +493,7 @@ mutual
   classT ty = case ty of
     STyEq _ _ _ => CTTop
     STyPi _ _ _ => CTArrow
+    STyImpPi _ _ _ => CTArrow
     STySigma _ _ _ => CTArrow
     STyQuot _ _ _ _ => CTArrow
     STySum _ _ => CTSum
@@ -507,11 +521,12 @@ mutual
     STyPi x a b =>
       if x == wildcard
         then pt tbl TSum False a <-> DGroup (DNest 2 (DLine <-> txt "→ " <-> pt tbl TTop True b))
-        else tyPiRun tbl [(x, a)] b
+        else tyPiRun tbl [(False, x, a)] b
+    STyImpPi x a b => tyPiRun tbl [(True, x, a)] b
     STySigma x a b =>
       if x == wildcard
         then pt tbl TSum False a <-> DGroup (DNest 2 (DLine <-> txt "⨯ " <-> pt tbl TTop True b))
-        else tySigmaRun tbl [(x, a)] b
+        else tySigmaRun tbl [(False, x, a)] b
     STyQuot a (x, _) (y, _) r =>
       pt tbl TSum False a <-> txt " / (\{x} \{y}. " <-> pe tbl LNoComma True r <-> txt ")"
     STySum a b => pt tbl TEl False a <-> txt " ⊎ " <-> pt tbl TSum False b

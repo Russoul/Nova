@@ -1,0 +1,2 @@
+defined id2
+Error: def bad: cannot infer the type of a λ (ascribe the term: `(t : T)`)

@@ -44,12 +44,15 @@ import Nova.Kernel.Subst
 
 -- ===== Holes =====
 
+export
 holeName : Nat -> String
 holeName i = "?" ++ show i
 
+export
 holeE : Nat -> Elem
 holeE i = SigVar (holeName i) [<]
 
+export
 holeView : String -> Maybe Nat
 holeView nm = case unpack nm of
   ('?' :: ds) => parsePositive (pack ds)
@@ -62,6 +65,7 @@ holeView nm = case unpack nm of
 -- shapes only arise under an inconsistent candidate set. α-comparison
 -- of core is structural (nameless), done here via Show.
 
+public export
 Sols : Type
 Sols = List (Nat, Elem)
 
@@ -72,6 +76,7 @@ mutual
   ||| `applied` — the pattern sits in the function position of an
   ||| application: a hole here would be a flexible head, rejected by
   ||| the rigidity discipline.
+  export
   mElem : (applied : Bool) -> (pat : Elem) -> (ground : Elem) -> Sols -> Maybe Sols
   mElem app (SigVar nm [<]) g sols =
     case holeView nm of
@@ -187,6 +192,22 @@ mutual
   mSub (xs :< x) (ys :< y) sols = mSub xs ys sols >>= mElem False x y
   mSub _ _ _ = Nothing
 
+  ||| The 𝕌-code of a type in the image of El-decoding — the mixed-El
+  ||| case of the ↓ loop, oracle-side: a bare hole under El may bind
+  ||| to code(B) when B decodes (ty-el-nat, ty-el-pi, …).
+  codeOfTy : Ty -> Maybe Elem
+  codeOfTy Ty.ZeroTy = Just Elem.ZeroTy
+  codeOfTy Ty.OneTy = Just Elem.OneTy
+  codeOfTy Ty.NatTy = Just Elem.NatTy
+  codeOfTy (Ty.PiTy a b) = [| Elem.PiTy (codeOfTy a) (codeOfTy b) |]
+  codeOfTy (Ty.SigmaTy a b) = [| Elem.SigmaTy (codeOfTy a) (codeOfTy b) |]
+  codeOfTy (Ty.SumTy a b) = [| Elem.SumTy (codeOfTy a) (codeOfTy b) |]
+  codeOfTy (Quotient a r) = map (\c => QuotTy c r) (codeOfTy a)
+  codeOfTy (El t) = Just t
+  codeOfTy (Ty.NuTy p) = Just (Elem.NuTy p)
+  codeOfTy _ = Nothing
+
+  export
   mTy : Ty -> Ty -> Sols -> Maybe Sols
   mTy Ty.ZeroTy g sols = case g of Ty.ZeroTy => Just sols; _ => Nothing
   mTy Ty.OneTy g sols = case g of Ty.OneTy => Just sols; _ => Nothing
@@ -199,7 +220,17 @@ mutual
     case g of Ty.SigmaTy a' b' => mTy a a' sols >>= mTy b b'; _ => Nothing
   mTy (Ty.SumTy a b) g sols =
     case g of Ty.SumTy a' b' => mTy a a' sols >>= mTy b b'; _ => Nothing
-  mTy (El t) g sols = case g of El t' => mElem False t t' sols; _ => Nothing
+  mTy (El t) g sols = case g of
+    El t' => mElem False t t' sols
+    -- a bare hole under El against a DECODED rigid type binds to its
+    -- code (the matching-up-to-El-decoding of the ↓ loop's step 7)
+    _ => case t of
+      SigVar nm [<] => case holeView nm of
+        Just _ => case codeOfTy g of
+          Just c => mElem False t c sols
+          Nothing => Nothing
+        Nothing => Nothing
+      _ => Nothing
   mTy (Prf t) g sols = case g of Prf t' => mElem False t t' sols; _ => Nothing
   mTy (Quotient a r) g sols =
     case g of Quotient a' r' => mTy a a' sols >>= mElem False r r'; _ => Nothing
@@ -230,11 +261,13 @@ mutual
 
 ||| Peel the syntactic Π-telescope of a CLOSED Σ-type: the domains (as
 ||| written, each under its predecessors) and the residual type.
+export
 teleOf : Ty -> (List Ty, Ty)
 teleOf (Ty.PiTy a b) = let (ds, r) = teleOf b in (a :: ds, r)
 teleOf ty = ([], ty)
 
 ||| The substitution [t₀, …, tₖ₋₁] into a closed telescope prefix.
+export
 prefixSub : List Elem -> Sub
 prefixSub = foldl Ext Terminal
 
@@ -466,3 +499,86 @@ surveyReport sig =
                "  sites \{show s.dsSites}  elides \{show s.dsElidable}" ++
                (if s.dsShortArity > 0 then "  (short-arity blocked: \{show s.dsShortArity})" else ""))
         sorted
+
+-- ===== Hole detection (for the elaborator's spine recovery) =====
+
+mutual
+  export
+  hasHolesE : Elem -> Bool
+  hasHolesE e = case e of
+    SigVar nm sp => isJust (holeView nm) || any hasHolesE (toList sp)
+    CtxVar _ => False
+    ZeroElim t => hasHolesE t
+    OneIntro => False
+    NatIntro0 => False
+    NatIntro1 t => hasHolesE t
+    NatElim z s t => hasHolesE z || hasHolesE s || hasHolesE t
+    PiIntro b => hasHolesE b
+    PiApp f a => hasHolesE f || hasHolesE a
+    Let d b => hasHolesE d || hasHolesE b
+    SigmaIntro u v => hasHolesE u || hasHolesE v
+    SigmaElim1 t => hasHolesE t
+    SigmaElim2 t => hasHolesE t
+    Inj1 t => hasHolesE t
+    Inj2 t => hasHolesE t
+    SumElim l r t => hasHolesE l || hasHolesE r || hasHolesE t
+    ZeroTy => False
+    OneTy => False
+    NatTy => False
+    PiTy a b => hasHolesE a || hasHolesE b
+    SigmaTy a b => hasHolesE a || hasHolesE b
+    SumTy a b => hasHolesE a || hasHolesE b
+    EqTy l r ty => hasHolesE l || hasHolesE r || hasHolesT ty
+    QuotTy a r => hasHolesE a || hasHolesE r
+    Class t => hasHolesE t
+    QuotElim f q => hasHolesE f || hasHolesE q
+    Squash ty => hasHolesT ty
+    Star => False
+    QSortC _ _ sp => any hasHolesE (toList sp)
+    QCtor _ _ sp => any hasHolesE (toList sp)
+    QElim _ _ mots mths sp w =>
+      any hasHolesT mots || any hasHolesE mths || any hasHolesE (toList sp) || hasHolesE w
+    NuTy p => hasHolesP p
+    Out t => hasHolesE t
+    Corec p a f x => hasHolesP p || hasHolesE a || hasHolesE f || hasHolesE x
+
+  export
+  hasHolesT : Ty -> Bool
+  hasHolesT ty = case ty of
+    Ty.PiTy a b => hasHolesT a || hasHolesT b
+    Ty.SigmaTy a b => hasHolesT a || hasHolesT b
+    Ty.SumTy a b => hasHolesT a || hasHolesT b
+    El t => hasHolesE t
+    Prf t => hasHolesE t
+    Quotient a r => hasHolesT a || hasHolesE r
+    Ty.SigVar nm sp => isJust (holeView nm) || any hasHolesE (toList sp)
+    QSort _ _ sp => any hasHolesE (toList sp)
+    Ty.NuTy p => hasHolesP p
+    _ => False
+
+  export
+  hasHolesP : Poly -> Bool
+  hasHolesP p = case p of
+    PHole => False
+    PConst a => hasHolesE a
+    PProd f g => hasHolesP f || hasHolesP g
+    PSum f g => hasHolesP f || hasHolesP g
+    PSigma a f => hasHolesE a || hasHolesP f
+    PPi a f => hasHolesE a || hasHolesP f
+
+||| Substitute solved holes into a term (unsolved holes stay).
+export
+plugE : Sols -> Elem -> Elem
+plugE sols e = case e of
+  SigVar nm [<] => case holeView nm of
+    Just i => fromMaybe e (lookup i sols)
+    Nothing => e
+  _ => e
+
+||| Rebuild a Π-tail: the unconsumed domains (as written, each under
+||| its predecessors) closed over the residual — the type of a
+||| partial application, before instantiation.
+export
+rebuildTail : List Ty -> Ty -> Ty
+rebuildTail [] r = r
+rebuildTail (d :: ds) r = Ty.PiTy d (rebuildTail ds r)

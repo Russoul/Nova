@@ -34,6 +34,14 @@ mutual
     STySig : String -> STy
     ||| (x:T) → U
     STyPi : (name : String) -> STy -> STy -> STy
+    ||| {x:T} → U — an IMPLICIT Π-binder (docs/NovaPerfectSurface.txt,
+    ||| Phase 3): elaborates exactly as STyPi (the core is bare — no
+    ||| implicitness reaches the theory), but a def whose type carries
+    ||| leading-telescope implicit binders has those argument positions
+    ||| INSERTED at application sites, recovered by the rigid
+    ||| first-order oracle; `f {t}` overrides the next implicit
+    ||| position explicitly
+    STyImpPi : (name : String) -> STy -> STy -> STy
     ||| (x:T) ⨯ U
     STySigma : (name : String) -> STy -> STy -> STy
     ||| T ⊎ U — non-dependent, no binder
@@ -164,6 +172,10 @@ mutual
     SChain : SElem -> List (SElem, SElem) -> SElem
     ||| (t : T) — ascription; the lever into inference mode
     SAnn : SElem -> STy -> SElem
+    ||| {t} — an explicit override for the next IMPLICIT binder
+    ||| position of the applied definition; legal only as an
+    ||| application argument (elaboration rejects it anywhere else)
+    SImpArg : SElem -> SElem
 
 -- ===== Weakening =====
 --
@@ -222,6 +234,7 @@ mutual
   shiftElem c (SChain h links) =
     SChain (shiftElem c h) (map (\(j, m) => (shiftElem c j, shiftElem c m)) links)
   shiftElem c (SAnn t ty) = SAnn (shiftElem c t) (shiftTy c ty)
+  shiftElem c (SImpArg t) = SImpArg (shiftElem c t)
 
   public export
   covering
@@ -232,6 +245,7 @@ mutual
   shiftTy c STyUniv = STyUniv
   shiftTy c t@(STySig _) = t
   shiftTy c (STyPi x a b) = STyPi x (shiftTy c a) (shiftTy (S c) b)
+  shiftTy c (STyImpPi x a b) = STyImpPi x (shiftTy c a) (shiftTy (S c) b)
   shiftTy c (STySigma x a b) = STySigma x (shiftTy c a) (shiftTy (S c) b)
   shiftTy c (STySum a b) = STySum (shiftTy c a) (shiftTy c b)
   shiftTy c (STyQuot a x y r) = STyQuot (shiftTy c a) x y (shiftElem (S (S c)) r)
@@ -427,6 +441,7 @@ mutual
     show STyUniv = "𝕌"
     show (STySig x) = "\{x}"
     show (STyPi x a b) = "Pi \{x} (\{show a}) (\{show b})"
+    show (STyImpPi x a b) = "ImpPi \{x} (\{show a}) (\{show b})"
     show (STySigma x a b) = "Sigma \{x} (\{show a}) (\{show b})"
     show (STySum a b) = "Sum (\{show a}) (\{show b})"
     show (STyQuot a x y r) = "Quot (\{show a}) \{fst x} \{fst y} (\{show r})"
@@ -481,6 +496,7 @@ mutual
       "\{show x}" ++ concat (map (\(j, y) => " ≡⟨ \{show j} ⟩ \{show y}") ls)
     show (SSquashElim e x body) = "SquashElim (\{show e}) \{fst x} (\{show body})"
     show (SAnn t ty) = "Ann (\{show t}) (\{show ty})"
+    show (SImpArg t) = "Imp (\{show t})"
 
   public export
   covering

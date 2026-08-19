@@ -42,6 +42,7 @@ import Data.String
 
 import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
+import Nova.Recovery
 import Nova.Elaboration.Beta
 import Nova.Kernel.QIIT
 import Nova.Kernel.Parser
@@ -204,9 +205,15 @@ record ElabSt where
   ||| chain needs one hop per link, so its composite discharge runs at
   ||| depth links + spDepth instead of the fixed spDepth
   depthOv : Maybe Nat
+  ||| Σ-name → the IMPLICIT positions of its leading Π-telescope
+  ||| (docs/NovaPerfectSurface.txt, Phase 3): the {x : A} binders of
+  ||| the def's surface type, recorded at acceptance, consulted at
+  ||| application spines. Metadata only — nothing of it reaches the
+  ||| core or the kernel.
+  impls : List (String, List Nat)
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] "" "" [<] Nothing [] [] Nothing
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] "" "" [<] Nothing [] [] Nothing []
 
 ||| Resolve a surface signature reference: aliases first (own module,
 ||| opened imports), else the name itself (qualified references reach
@@ -3008,6 +3015,12 @@ mutual
     (a', aSk) <- elabTy ctx env site a
     (b', bSk) <- elabTy (ctx :< a') (env :< x) site b
     pure (Ty.PiTy a' b', Nd [] [aSk, bSk])
+  -- an implicit binder elaborates exactly as an explicit one: the
+  -- core is bare, implicitness is per-def METADATA (ElabSt.impls)
+  elabTy ctx env site (STyImpPi x a b) = do
+    (a', aSk) <- elabTy ctx env site a
+    (b', bSk) <- elabTy (ctx :< a') (env :< x) site b
+    pure (Ty.PiTy a' b', Nd [] [aSk, bSk])
   elabTy ctx env site (STySigma x a b) = do
     (a', aSk) <- elabTy ctx env site a
     (b', bSk) <- elabTy (ctx :< a') (env :< x) site b
@@ -3068,14 +3081,20 @@ mutual
   inferElem ctx env site (SSuc t) = do
     (t', tSk) <- checkElem ctx env site t Ty.NatTy
     pure (NatIntro1 t', Ty.NatTy, Nd [] [tSk])
-  inferElem ctx env site (SApp f e) = do
-    (f', fTy, fSk) <- inferElem ctx env site f
+  inferElem ctx env site sapp@(SApp f e) = do
     st <- getSt
-    case preferPi st ctx fTy of
-      Just (a, b, _) => do
-        (e', eSk) <- checkElem ctx env site e a
-        pure (PiApp f' e', substTy b (Ext Id e'), Nd [] [fSk, eSk])
-      Nothing => throw "\{site}: cannot apply a term of non-Π type\{structuralHint ()}"
+    case impSpineOf st sapp of
+      Just (q, x0, mrng, items) => elabImpSpine ctx env site Nothing q x0 mrng items
+      Nothing => do
+        (f', fTy, fSk) <- inferElem ctx env site f
+        st <- getSt
+        case preferPi st ctx fTy of
+          Just (a, b, _) => do
+            (e', eSk) <- checkElem ctx env site e a
+            pure (PiApp f' e', substTy b (Ext Id e'), Nd [] [fSk, eSk])
+          Nothing => throw "\{site}: cannot apply a term of non-Π type\{structuralHint ()}"
+  inferElem ctx env site (SImpArg _) =
+    throw "\{site}: a {…} override is only legal at an implicit binder position of an applied definition"
   inferElem ctx env site (SProj1 t) = do
     (t', tTy, tSk) <- inferElem ctx env site t
     st <- getSt
@@ -3519,10 +3538,191 @@ mutual
     (b', bSk) <- checkElem (ctx :< eTy :< hyp) (env :< x :< wildcard) site b
                    (substTy (substTy ty Wk) Wk)
     pure (Let e' b', Nd [] [eSk, bSk])
+  -- an implicit-headed spine in CHECKING position: the expected type
+  -- is the recovery oracle's FIRST source (it must run before any
+  -- argument whose domain mentions an unsolved implicit — a λ
+  -- argument cannot infer); the ordinary e-switch conversion still
+  -- closes the site
+  checkElem ctx env site sapp@(SApp _ _) ty = do
+    st <- getSt
+    case impSpineOf st sapp of
+      Just (q, x0, mrng, items) => do
+        (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) q x0 mrng items
+        c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
+        pure (t', addPayload (PSwitch (certOr c)) tSk)
+      Nothing => do
+        (t', inferred, tSk) <- inferElem ctx env site sapp
+        c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
+        pure (t', addPayload (PSwitch (certOr c)) tSk)
   checkElem ctx env site t ty = do
     (t', inferred, tSk) <- inferElem ctx env site t
     c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
     pure (t', addPayload (PSwitch (certOr c)) tSk)
+
+  ||| The implicit-spine view: the whole application chain, when its
+  ||| head is a signature reference whose def carries implicit binder
+  ||| positions. Guarded by `null st.impls` first, so an implicit-free
+  ||| run pays one boolean per application node.
+  impSpineOf : ElabSt -> SElem -> Maybe (String, String, Maybe Range, List SElem)
+  impSpineOf st e =
+    if null st.impls then Nothing else
+      let (h, items) = surfSpine e [] in
+      case h of
+        SSig mrng x0 =>
+          let q = resolveSigName st x0 in
+          case lookup q st.impls of
+            Just (_ :: _) => Just (q, x0, mrng, items)
+            _ => Nothing
+        _ => Nothing
+   where
+    surfSpine : SElem -> List SElem -> (SElem, List SElem)
+    surfSpine (SApp f a) acc = surfSpine f (a :: acc)
+    surfSpine h acc = (h, acc)
+
+  ||| Elaborate an application spine of an implicit-binder definition
+  ||| (docs/NovaPerfectSurface.txt, Phase 3): implicit positions up to
+  ||| the last written argument are INSERTED and solved by the rigid
+  ||| first-order oracle — sources are the expected type (when given)
+  ||| and the inferred types of explicit inference-form arguments —
+  ||| in ONE deterministic pass: no metavariable ever reaches a
+  ||| conversion site, no state survives the spine, Σ is never
+  ||| touched. An unsolved position is a STRUCTURAL error naming the
+  ||| remedy ({…}). Matching is syntactic first, then both sides
+  ||| under the δ-free computational normalizer — never the store.
+  elabImpSpine : Ctx -> NameEnv -> String -> Maybe Ty ->
+                 (q : String) -> (x0 : String) -> Maybe Range -> List SElem ->
+                 ElabM (Elem, Ty, Skel)
+  elabImpSpine ctx env site mexp q x0 mrng items = do
+    st <- getSt
+    defTy <- case cachedSigLookup st.sig q of
+      Just (SigDef [<] _ _ ty) => pure ty
+      Just (SigDecl [<] _ ty) => pure ty
+      Just _ => throw "\{site}: '\{q}' is not usable as a term here"
+      Nothing => throw "\{site}: unknown name '\{q}'"
+    recordBinder mrng ctx env x0 defTy
+    let imps = fromMaybe [] (lookup q st.impls)
+    let (doms, res) = teleOf defTy
+    (slots, leftover) <- assign imps 0 doms items
+    let m = length slots
+    let tailTy = rebuildTail (drop m doms) res
+    -- source 1: the expected type (throwaway holes stand at written
+    -- positions — their bindings are discarded by position)
+    let patArgs = map (\(i, mt) => case mt of
+                                     Nothing => holeE i
+                                     Just _ => holeE (throwaway + i)) slots
+    let sols0 = case mexp of
+                  Nothing => []
+                  Just c => matchTy (substTy tailTy (prefixSub patArgs)) c
+    -- phase 1: walk the written spine left to right, solving from
+    -- inference-form arguments as they elaborate
+    (sols, revArgs, revSks, pending) <- walk doms slots sols0 [] [] []
+    -- resolve every inserted hole; unsolved is a structural error
+    finalArgs <- traverse (\(pos, arg) =>
+                    if hasHolesE arg
+                      then case lookup pos sols of
+                        Just v => pure v
+                        Nothing => throw "\{site}: cannot infer implicit argument #\{show pos} of '\{q}' — supply it with {…}"
+                      else pure arg)
+                  (zip (map fst slots) (reverse revArgs))
+    -- pending switch conversions, at the FINAL instantiations
+    sks <- patchPending doms finalArgs (reverse revSks) pending
+    let core = foldl PiApp (SigVar q [<]) finalArgs
+    let coreTy = substTy tailTy (prefixSub finalArgs)
+    let sk = foldl (\acc, s => Nd [] [acc, s]) (Nd [] []) sks
+    continueApp (core, coreTy, sk) leftover
+   where
+    throwaway : Nat
+    throwaway = 1000000
+
+    matchTy : Ty -> Ty -> Sols
+    matchTy pat g = case mTy pat g [] of
+      Just s => s
+      Nothing => fromMaybe [] (mTy (compTy pat) (compTy g) [])
+
+    ||| Assign telescope positions to written spine items: an implicit
+    ||| position takes an override if one is next, else a HOLE (no item
+    ||| consumed); an explicit position takes the next non-override
+    ||| item. Insertion stops with the written items (trailing
+    ||| implicits are not inserted); items beyond the syntactic
+    ||| telescope are LEFTOVER, applied generically after.
+    assign : List Nat -> Nat -> List Ty -> List SElem ->
+             ElabM (List (Nat, Maybe SElem), List SElem)
+    assign imps pos _ [] = pure ([], [])
+    assign imps pos [] rest = pure ([], rest)
+    assign imps pos (d :: ds) (it :: rest) =
+      if pos `elem` imps
+        then case it of
+          SImpArg t => do
+            (more, left) <- assign imps (S pos) ds rest
+            pure ((pos, Just t) :: more, left)
+          _ => do
+            (more, left) <- assign imps (S pos) ds (it :: rest)
+            pure ((pos, Nothing) :: more, left)
+        else case it of
+          SImpArg _ => throw "\{site}: {…} override at an explicit binder position of '\{q}'"
+          _ => do
+            (more, left) <- assign imps (S pos) ds rest
+            pure ((pos, Just it) :: more, left)
+
+    ||| One pass over the slots: elaborated core arguments accumulate
+    ||| (holes as placeholders until solved); a written argument whose
+    ||| domain still carries holes must INFER, its type feeding the
+    ||| matcher, its domain conversion deferred to the final
+    ||| instantiation.
+    walk : List Ty -> List (Nat, Maybe SElem) -> Sols ->
+           List Elem -> List Skel -> List (Nat, Ty) ->
+           ElabM (Sols, List Elem, List Skel, List (Nat, Ty))
+    walk doms [] sols revArgs revSks pending = pure (sols, revArgs, revSks, pending)
+    walk doms ((pos, mt) :: rest) sols revArgs revSks pending = case mt of
+      Nothing =>
+        let arg = fromMaybe (holeE pos) (lookup pos sols) in
+        walk doms rest sols (arg :: revArgs) (Nd [] [] :: revSks) pending
+      Just surfE => do
+        dInst <- case getAt pos doms of
+                   Just d => pure (substTy d (prefixSub (reverse revArgs)))
+                   Nothing => throw "\{site}: internal — slot beyond the telescope"
+        if hasHolesT dInst
+          then do
+            (e', eTy, eSk) <- inferElem ctx env site surfE
+            let sols2 = case mTy dInst eTy sols of
+                          Just s => s
+                          Nothing => fromMaybe sols (mTy (compTy dInst) (compTy eTy) sols)
+            walk doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending)
+          else do
+            (e', eSk) <- checkElem ctx env site surfE dInst
+            walk doms rest sols (e' :: revArgs) (eSk :: revSks) pending
+
+    mapAt : Nat -> (Skel -> Skel) -> List Skel -> List Skel
+    mapAt _ _ [] = []
+    mapAt Z f (x :: xs) = f x :: xs
+    mapAt (S n) f (x :: xs) = x :: mapAt n f xs
+
+    ||| Emit the deferred domain conversions (the ordinary ↓ of
+    ||| e-switch, certificate in the argument's skeleton payload), at
+    ||| domains instantiated with the FINAL argument list.
+    patchPending : List Ty -> List Elem -> List Skel -> List (Nat, Ty) -> ElabM (List Skel)
+    patchPending doms finalArgs sks [] = pure sks
+    patchPending doms finalArgs sks ((pos, eTy) :: more) = do
+      dFinal <- case getAt pos doms of
+                  Just d => pure (substTy d (prefixSub (take pos finalArgs)))
+                  Nothing => throw "\{site}: internal — pending position out of range"
+      c <- convTy ctx env "\{site}: implicit-spine argument type" Nothing dFinal eTy
+      patchPending doms finalArgs (mapAt pos (addPayload (PSwitch (certOr c))) sks) more
+
+
+    ||| Apply leftover items past the syntactic telescope through the
+    ||| generic application rule (overrides are illegal there).
+    continueApp : (Elem, Ty, Skel) -> List SElem -> ElabM (Elem, Ty, Skel)
+    continueApp acc [] = pure acc
+    continueApp (f', fTy, fSk) (it :: rest) = case it of
+      SImpArg _ => throw "\{site}: {…} override beyond the Π-telescope of '\{q}'"
+      _ => do
+        st <- getSt
+        case preferPi st ctx fTy of
+          Just (a, b, _) => do
+            (e', eSk) <- checkElem ctx env site it a
+            continueApp (PiApp f' e', substTy b (Ext Id e'), Nd [] [fSk, eSk]) rest
+          Nothing => throw "\{site}: cannot apply a term of non-Π type\{structuralHint ()}"
 
 -- ===== Items =====
 
@@ -3671,6 +3871,24 @@ opensSuffix (ob, hb) = do
   plural 1 = ""
   plural _ = "s"
 
+||| The IMPLICIT positions of an item type's leading Π-telescope: the
+||| {x : A} binders (docs/NovaPerfectSurface.txt, Phase 3). Positions
+||| index the syntactic telescope, matching the core teleOf 1:1 (both
+||| e-ty-pi cases are structural).
+impPositions : STy -> List Nat
+impPositions = go 0
+ where
+  go : Nat -> STy -> List Nat
+  go i (STyPi _ _ b) = go (S i) b
+  go i (STyImpPi _ _ b) = i :: go (S i) b
+  go i _ = []
+
+||| Register an accepted item's implicit positions, if any.
+registerImps : String -> STy -> ElabM ()
+registerImps q ty = case impPositions ty of
+  [] => pure ()
+  ps => modifySt $ { impls $= ((q, ps) ::) }
+
 ||| One-shot elaboration of an item (the body of elabItem below).
 elabItemGo : SItem -> ElabM String
 
@@ -3717,6 +3935,7 @@ elabItemGo (SDef x ty body muses) = do
     (after == 0)
   modifySt $ { sig $= (:< SigDef [<] q body' ty'), vis $= (:< (x, q)) }
   addLemma q [<] ty'
+  registerImps q ty
   suffix <- opensSuffix census
   pure "defined \{x}\{suffix}"
 elabItemGo (SDeclDef nrng x ty) = do
@@ -3739,6 +3958,7 @@ elabItemGo (SDeclDef nrng x ty) = do
   -- the equation judgementally available — that is what an abstract
   -- interface's equational axioms are FOR
   addLemma q [<] ty'
+  registerImps q ty
   suffix <- opensSuffix census
   pure "declared \{x}\{suffix}"
 elabItemGo (STypeDef x ty) = do

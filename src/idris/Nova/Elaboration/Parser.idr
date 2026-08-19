@@ -225,8 +225,14 @@ mutual
         -- so lemma statements read as written
         (do (env', groups) <- parseBinderGroups tbl env
             sp
-            (do kw "→"; sp; b <- parseSTy tbl env'; pure (foldGroups STyPi groups b))
-              <|> (do kw "⨯"; sp; b <- parseSTy tbl env'; pure (foldGroups STySigma groups b)))
+            (do kw "→"; sp; b <- parseSTy tbl env'
+                pure (foldr (\(imp, x, t), acc =>
+                              if imp then STyImpPi x t acc else STyPi x t acc) b groups))
+              <|> (do kw "⨯"; sp
+                      guard "implicit binders are Π-only ({x : T} ⨯ … is not a type)"
+                            (all (\(imp, _, _) => not imp) groups)
+                      b <- parseSTy tbl env'
+                      pure (foldr (\(_, x, t), acc => STySigma x t acc) b groups)))
     <|> (do a <- parseSTySum tbl env
             (do sp; kw "→"; sp; b <- parseSTy tbl (env :< wildcard); pure (STyPi wildcard a b))
               <|> (do sp; kw "⨯"; sp; b <- parseSTy tbl (env :< wildcard); pure (STySigma wildcard a b))
@@ -241,27 +247,30 @@ mutual
     (do sp; kw "⊎"; sp; b <- parseSTySum tbl env; pure (STySum a b))
       <|> pure a
 
-  -- one or more (x:T) groups, each scoping over the ones after it. A
-  -- group may bind SEVERAL names at one written domain — (x y : T) —
-  -- none scoping over the domain: each name past the first takes the
-  -- domain WEAKENED by its predecessors (Nova.Elaboration.Surface,
-  -- shiftTy), so the sugar is index arithmetic, not re-parsing
-  parseBinderGroups : FixTable -> NameEnv -> Rule (NameEnv, List (String, STy))
+  -- one or more (x:T) / {x:T} groups, each scoping over the ones
+  -- after it — braces mark IMPLICIT binders (STyImpPi,
+  -- docs/NovaPerfectSurface.txt Phase 3). A group may bind SEVERAL
+  -- names at one written domain — (x y : T) — none scoping over the
+  -- domain: each name past the first takes the domain WEAKENED by
+  -- its predecessors (Nova.Elaboration.Surface, shiftTy), so the
+  -- sugar is index arithmetic, not re-parsing
+  parseBinderGroups : FixTable -> NameEnv -> Rule (NameEnv, List (Bool, String, STy))
   parseBinderGroups tbl env = do
-    kwc '('; sp; x <- parseName
+    (imp, close) <- (kwc '(' $> (False, ')')) <|> (kwc '{' $> (True, '}'))
+    sp; x <- parseName
     xs <- many (do space; parseName)
     sp; kwc ':'; sp
-    a <- parseSTy tbl env; sp; kwc ')'
+    a <- parseSTy tbl env; sp; kwc close
     let names = x :: xs
     let env1 = env <>< names
     rest <- optional (do sp; parseBinderGroups tbl env1)
     case rest of
-      Nothing => pure (env1, groupTys names a)
-      Just (env', groups) => pure (env', groupTys names a ++ groups)
+      Nothing => pure (env1, groupTys imp names a)
+      Just (env', groups) => pure (env', groupTys imp names a ++ groups)
    where
-    groupTys : List String -> STy -> List (String, STy)
-    groupTys [] _ = []
-    groupTys (n :: ns) a = (n, a) :: groupTys ns (shiftTy 0 a)
+    groupTys : Bool -> List String -> STy -> List (Bool, String, STy)
+    groupTys _ [] _ = []
+    groupTys imp (n :: ns) a = (imp, n, a) :: groupTys imp ns (shiftTy 0 a)
 
   -- (x y. r)  or bare r as sugar for (_ _. r) — r is an Ω-valued ELEMENT
   parseQuotRel : FixTable -> NameEnv -> Rule (SName, SName, SElem)
@@ -526,6 +535,12 @@ mutual
     cont e =
           (do sp; kw ".π₁"; cont (SProj1 e))
       <|> (do sp; kw ".π₂"; cont (SProj2 e))
+      -- {t} — an implicit-position override argument
+      -- (docs/NovaPerfectSurface.txt, Phase 3); NB `{-` opens a
+      -- comment at the lexer, so an override starting with an
+      -- operator needs a space: { -x } — the Haskell convention
+      <|> (do sp; kwc '{'; sp; t <- parseSElem tbl env; sp; kwc '}'
+              cont (SApp e (SImpArg t)))
       <|> (do sp; e' <- parseSElemAtom tbl env; cont (SApp e e'))
       <|> pure e
 
