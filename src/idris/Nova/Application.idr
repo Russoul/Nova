@@ -5,6 +5,7 @@ import Data.String
 
 import Nova.Distill
 import Nova.Elaboration.Loader
+import Nova.Implicitize
 import Nova.Kernel.Syntax
 import Nova.Profile
 import Nova.Recovery
@@ -38,6 +39,13 @@ usage = unlines
   , "per definition, which application arguments the phase-3 recovery"
   , "oracle could reconstruct if elided (docs/NovaPerfectSurface.txt,"
   , "the sugar tiers) — the measured basis for implicit binders."
+  , ""
+  , "implicitize: rewrites the file's module closure into <out-dir>"
+  , "with survey-approved binder positions made implicit ({x : A})"
+  , "and the arguments at those positions elided at every use site —"
+  , "each elision verified by a per-site recovery trial, the whole"
+  , "result verified by re-elaboration with an α-identical kernel Σ"
+  , "(docs/NovaPerfectSurface.txt, Phase 3c)."
   ]
 
 main : IO ()
@@ -63,4 +71,9 @@ main = do
       case result of
         Left err  => do putStrLn "Error: \{err}"; exitFailure
         Right sig => putStrLn (surveyReport sig)
+    (_ :: "implicitize" :: surfaceFile :: outDir :: []) => do
+      result <- implicitizePath surfaceFile outDir
+      case result of
+        Left err  => do putStrLn "Error: \{err}"; exitFailure
+        Right msg => putStrLn msg
     _ => die usage

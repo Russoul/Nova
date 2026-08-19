@@ -13,6 +13,7 @@ import Nova.Kernel.Parser
 import Nova.Kernel
 import Nova.Kernel.Dormant.Tests
 import Nova.Distill
+import Nova.Implicitize
 import Nova.Recovery
 import Nova.Elaboration.Named
 import Nova.Elaboration
@@ -47,6 +48,7 @@ pools = sequence
   , testsInDir "tests/nova/evaluation" "Nova Evaluation"
   , testsInDir "tests/nova/distill" "Nova Distill"
   , testsInDir "tests/nova/survey" "Nova Survey"
+  , testsInDir "tests/nova/implicitize" "Nova Implicitize"
   , testsInDir "tests/nova-lsp" "Nova LSP"
   ]
 
@@ -72,6 +74,12 @@ main = do
       case result of
         Left err  => putStrLn "Error: \{err}"
         Right sig => putStrLn (surveyReport sig)
+    -- Nova.Application's `implicitize` command, for its goldens
+    (_ :: "implicitize" :: file :: outDir :: []) => do
+      result <- implicitizePath file outDir
+      case result of
+        Left err  => putStrLn "Error: \{err}"
+        Right msg => putStrLn msg
     -- Nova.Application's `distill` command, for the distill goldens
     (_ :: "distill" :: file :: outDir :: []) => do
       result <- distillPath file outDir

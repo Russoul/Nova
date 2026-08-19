@@ -775,6 +775,7 @@ verifyUnit orig re =
                   "  original:  \{show i}\n" ++
                   "  reparsed:  \{show j}"
 
+export
 verifyUnits : List ModUnit -> List ModUnit -> Maybe String
 verifyUnits [] [] = Nothing
 verifyUnits (u :: us) (v :: vs) =
@@ -785,6 +786,7 @@ verifyUnits us vs = Just "module count differs after distill (\{show (length us)
 
 -- ===== IO driver =====
 
+export
 baseName : String -> String
 baseName path =
   case reverse (forget (split (== '/') path)) of
@@ -822,6 +824,7 @@ unitPath : (outDir : String) -> (rootBase : String) -> ModUnit -> String
 unitPath outDir rootBase u =
   if u.mname == "" then outDir ++ "/" ++ rootBase else modPath outDir u.mname
 
+export
 writeUnits : (outDir : String) -> (rootBase : String) -> List ModUnit -> IO (Either String ())
 writeUnits outDir rootBase [] = pure (Right ())
 writeUnits outDir rootBase (u :: us) = do
