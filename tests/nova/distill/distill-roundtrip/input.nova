@@ -34,3 +34,7 @@ def letTest : ℕ ≔ let k : ℕ ≔ S Z in k + k
 def mention : ℕ → ℕ ≔ (+) Z
 def asc : ℕ ≔ (Z : ℕ)
 def qq : ℕ / (a b. ∥𝟙∥) ≔ class Z
+def two : ℕ ≔ S (S Z)
+def five : ℕ ≔ 5
+def addPair : (a b : ℕ) → ℕ ≔ λa. λb. a + b
+def addPair' : (a : ℕ) (b : ℕ) → a + b ≡ addPair a b ∈ ℕ using (addPair.eq) ≔ λa. λb. ⋆

@@ -116,6 +116,25 @@ parseName = do
                               name /= "data" && name /= "let" && name /= "in")
     pure name
 
+||| A decimal numeral — sugar for an S-tower over Z (a maximal digit
+||| run; identifiers cannot start with a digit, so no ambiguity).
+parseNumeral : Rule Nat
+parseNumeral = do
+  (r, ds) <- bounds (do d <- digit; ds <- many digit; pure (d :: ds))
+  emit r Number
+  pure (foldl (\acc, d => acc * 10 + d) 0 ds)
+ where
+  digit : Rule Nat
+  digit = terminal "decimal digit" $ \tok => case tok of
+    Symbol ch => if ch >= '0' && ch <= '9'
+                   then Just (cast (ord ch - ord '0'))
+                   else Nothing
+    _ => Nothing
+
+sucTower : Nat -> SElem
+sucTower Z = SZeroN
+sucTower (S k) = SSuc (sucTower k)
+
 ||| A name with its span — binder positions record it so the LSP can
 ||| ascribe the elaborated type to the occurrence.
 parseNameR : Rule SName
@@ -222,15 +241,27 @@ mutual
     (do sp; kw "⊎"; sp; b <- parseSTySum tbl env; pure (STySum a b))
       <|> pure a
 
-  -- one or more (x:T) groups, each scoping over the ones after it
+  -- one or more (x:T) groups, each scoping over the ones after it. A
+  -- group may bind SEVERAL names at one written domain — (x y : T) —
+  -- none scoping over the domain: each name past the first takes the
+  -- domain WEAKENED by its predecessors (Nova.Elaboration.Surface,
+  -- shiftTy), so the sugar is index arithmetic, not re-parsing
   parseBinderGroups : FixTable -> NameEnv -> Rule (NameEnv, List (String, STy))
   parseBinderGroups tbl env = do
-    kwc '('; sp; x <- parseName; sp; kwc ':'; sp
+    kwc '('; sp; x <- parseName
+    xs <- many (do space; parseName)
+    sp; kwc ':'; sp
     a <- parseSTy tbl env; sp; kwc ')'
-    rest <- optional (do sp; parseBinderGroups tbl (env :< x))
+    let names = x :: xs
+    let env1 = env <>< names
+    rest <- optional (do sp; parseBinderGroups tbl env1)
     case rest of
-      Nothing => pure (env :< x, [(x, a)])
-      Just (env', groups) => pure (env', (x, a) :: groups)
+      Nothing => pure (env1, groupTys names a)
+      Just (env', groups) => pure (env', groupTys names a ++ groups)
+   where
+    groupTys : List String -> STy -> List (String, STy)
+    groupTys [] _ = []
+    groupTys (n :: ns) a = (n, a) :: groupTys ns (shiftTy 0 a)
 
   -- (x y. r)  or bare r as sugar for (_ _. r) — r is an Ω-valued ELEMENT
   parseQuotRel : FixTable -> NameEnv -> Rule (SName, SName, SElem)
@@ -368,14 +399,24 @@ mutual
                     cont (SApp (SApp (SSig rng op) l) r) minP)
         <|> pure l
 
+  -- multi-name groups as at the type level (shiftElem for the
+  -- weakened copies)
   parseBinderGroupsC : FixTable -> NameEnv -> Rule (NameEnv, List (String, SElem))
   parseBinderGroupsC tbl env = do
-    kwc '('; sp; x <- parseName; sp; kwc ':'; sp
+    kwc '('; sp; x <- parseName
+    xs <- many (do space; parseName)
+    sp; kwc ':'; sp
     a <- parseSElem tbl env; sp; kwc ')'
-    rest <- optional (do sp; parseBinderGroupsC tbl (env :< x))
+    let names = x :: xs
+    let env1 = env <>< names
+    rest <- optional (do sp; parseBinderGroupsC tbl env1)
     case rest of
-      Nothing => pure (env :< x, [(x, a)])
-      Just (env', groups) => pure (env', (x, a) :: groups)
+      Nothing => pure (env1, groupElems names a)
+      Just (env', groups) => pure (env', groupElems names a ++ groups)
+   where
+    groupElems : List String -> SElem -> List (String, SElem)
+    groupElems [] _ = []
+    groupElems (n :: ns) a = (n, a) :: groupElems ns (shiftElem 0 a)
 
   parseQuotRelC : FixTable -> NameEnv -> Rule (SName, SName, SElem)
   parseQuotRelC tbl env =
@@ -512,6 +553,7 @@ mutual
                     pure (SAnn e ty))
                   <|> (do kwc ')'; pure e))
     <|> (kw "Z"    $> SZeroN)
+    <|> (sucTower <$> parseNumeral)
     <|> (kw "⋆"    $> SStar)
     <|> (do kw "∥"; sp; t <- parseSTy tbl env; sp; kw "∥"; pure (SSquash t))
     <|> (kw "𝟘"   $> SZeroC)
@@ -695,8 +737,13 @@ mutual
   parsePatAtom : Rule SPat
   parsePatAtom =
         (kw "Z" $> SPZero)
+    <|> (patTower <$> parseNumeral)
     <|> (do kwc '('; sp; p <- parsePat; sp; kwc ')'; pure p)
     <|> (do x <- parseNameR; pure (SPVar x))
+   where
+    patTower : Nat -> SPat
+    patTower Z = SPZero
+    patTower (S k) = SPSuc (patTower k)
 
 ||| The binder telescope a clause's patterns spell: one slot per
 ||| variable in order of first appearance; a wildcard is always a

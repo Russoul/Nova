@@ -165,6 +165,92 @@ mutual
     ||| (t : T) — ascription; the lever into inference mode
     SAnn : SElem -> STy -> SElem
 
+-- ===== Weakening =====
+--
+-- Shift every variable index ≥ the cutoff up by one. This is how a
+-- multi-name binder group desugars — `(x y : A) → B` binds y at the
+-- SAME written domain, which sits one binder deeper, so its indices
+-- shift (the group's names never scope over each other's domains) —
+-- and how the printer recognizes a groupable telescope (the domains
+-- are shift-equal). Binder arities mirror the parser's environment
+-- pushes exactly (a let pushes TWO slots: the value and the unfolding
+-- hypothesis).
+
+mutual
+  public export
+  covering
+  shiftElem : (c : Nat) -> SElem -> SElem
+  shiftElem c (SVar r x i) = SVar r x (if i >= c then S i else i)
+  shiftElem c e@(SSig _ _) = e
+  shiftElem c SUnitI = SUnitI
+  shiftElem c SZeroN = SZeroN
+  shiftElem c (SSuc t) = SSuc (shiftElem c t)
+  shiftElem c (SLam x b) = SLam x (shiftElem (S c) b)
+  shiftElem c (SLet x d b) = SLet x (shiftElem c d) (shiftElem (S (S c)) b)
+  shiftElem c (SApp f a) = SApp (shiftElem c f) (shiftElem c a)
+  shiftElem c (SPair a b) = SPair (shiftElem c a) (shiftElem c b)
+  shiftElem c (SProj1 t) = SProj1 (shiftElem c t)
+  shiftElem c (SProj2 t) = SProj2 (shiftElem c t)
+  shiftElem c SZeroC = SZeroC
+  shiftElem c SOneC = SOneC
+  shiftElem c SNatC = SNatC
+  shiftElem c (SPiC x a b) = SPiC x (shiftElem c a) (shiftElem (S c) b)
+  shiftElem c (SSigmaC x a b) = SSigmaC x (shiftElem c a) (shiftElem (S c) b)
+  shiftElem c (SSumC a b) = SSumC (shiftElem c a) (shiftElem c b)
+  shiftElem c (SQuotC a x y r) = SQuotC (shiftElem c a) x y (shiftElem (S (S c)) r)
+  shiftElem c (SEqC l r t) = SEqC (shiftElem c l) (shiftElem c r) (shiftTy c t)
+  shiftElem c (SZeroElim t) = SZeroElim (shiftElem c t)
+  shiftElem c (SNatElim n mot z n2 ih s t) =
+    SNatElim n (shiftTy (S c) mot) (shiftElem c z) n2 ih (shiftElem (S (S c)) s) (shiftElem c t)
+  shiftElem c (SInj1 t) = SInj1 (shiftElem c t)
+  shiftElem c (SInj2 t) = SInj2 (shiftElem c t)
+  shiftElem c (SSumElim z mot a l b r t) =
+    SSumElim z (shiftTy (S c) mot) a (shiftElem (S c) l) b (shiftElem (S c) r) (shiftElem c t)
+  shiftElem c (SClass t) = SClass (shiftElem c t)
+  shiftElem c (SQuotElim z mot a f q) =
+    SQuotElim z (shiftTy (S c) mot) a (shiftElem (S c) f) (shiftElem c q)
+  shiftElem c (SNuC f) = SNuC (shiftPoly c f)
+  shiftElem c (SOut t) = SOut (shiftElem c t)
+  shiftElem c (SCorec x a f u) = SCorec x (shiftElem c a) (shiftElem (S c) f) (shiftElem c u)
+  shiftElem c (SCoind nx ny r pw mx my mh q) =
+    SCoind nx ny (shiftElem (S (S c)) r) (shiftElem c pw) mx my mh (shiftElem (S (S (S c))) q)
+  shiftElem c (SSquash t) = SSquash (shiftTy c t)
+  shiftElem c SStar = SStar
+  shiftElem c (SStarWit e) = SStarWit (shiftElem c e)
+  shiftElem c e@(SStarUsing _) = e
+  shiftElem c (SSquashElim e x b) = SSquashElim (shiftElem c e) x (shiftElem (S c) b)
+  shiftElem c (SChain h links) =
+    SChain (shiftElem c h) (map (\(j, m) => (shiftElem c j, shiftElem c m)) links)
+  shiftElem c (SAnn t ty) = SAnn (shiftElem c t) (shiftTy c ty)
+
+  public export
+  covering
+  shiftTy : (c : Nat) -> STy -> STy
+  shiftTy c STyZero = STyZero
+  shiftTy c STyOne = STyOne
+  shiftTy c STyNat = STyNat
+  shiftTy c STyUniv = STyUniv
+  shiftTy c t@(STySig _) = t
+  shiftTy c (STyPi x a b) = STyPi x (shiftTy c a) (shiftTy (S c) b)
+  shiftTy c (STySigma x a b) = STySigma x (shiftTy c a) (shiftTy (S c) b)
+  shiftTy c (STySum a b) = STySum (shiftTy c a) (shiftTy c b)
+  shiftTy c (STyQuot a x y r) = STyQuot (shiftTy c a) x y (shiftElem (S (S c)) r)
+  shiftTy c (STyEq l r t) = STyEq (shiftElem c l) (shiftElem c r) (shiftTy c t)
+  shiftTy c (STyEl e) = STyEl (shiftElem c e)
+  shiftTy c STyProp = STyProp
+  shiftTy c (STyPrf e) = STyPrf (shiftElem c e)
+  shiftTy c (STyNu f) = STyNu (shiftPoly c f)
+
+  public export
+  covering
+  shiftPoly : (c : Nat) -> SPoly -> SPoly
+  shiftPoly c SPHole = SPHole
+  shiftPoly c (SPConst e) = SPConst (shiftElem c e)
+  shiftPoly c (SPProd f g) = SPProd (shiftPoly c f) (shiftPoly c g)
+  shiftPoly c (SPSum f g) = SPSum (shiftPoly c f) (shiftPoly c g)
+  shiftPoly c (SPSigma x a f) = SPSigma x (shiftElem c a) (shiftPoly (S c) f)
+  shiftPoly c (SPPi x a f) = SPPi x (shiftElem c a) (shiftPoly (S c) f)
+
 -- ===== Operators are names =====
 --
 -- An operator token (+, *, ⊕, ...) IS a Σ-name: `def + : ... ≔ ...`
