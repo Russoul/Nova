@@ -218,3 +218,27 @@ round-trip verifier), the `nova distill` CLI command, ModUnit's
 retained interleaved body (Loader/Parser), distill goldens under
 tests/nova/distill, and check-distill.sh (the corpus round-trip
 gate).
+
+Phase 2: implemented — the bijective tier. NUMERALS: a decimal
+literal is surface sugar for a ground S-tower (elements and clause
+patterns; the printer emits numerals for values ≥ 2, keeping Z and
+S Z structural — the corpus idiom). MULTI-NAME BINDER GROUPS:
+(x y : A) → B binds each name past the first at the WRITTEN domain
+weakened by its predecessors (Surface.shiftTy/shiftElem — index
+arithmetic, no re-parsing; the group's names never scope over each
+other's domains), at the type and 𝕌-code levels; the printer
+coalesces shift-equal telescope runs back, so hand-split and grouped
+spellings print identically. One deliberate grammar shift: an
+element-level `(x y : T) → u` previously read as an ascribed
+application domain; the binder-group reading now wins (the corpus
+and test suite contain no such spelling). LAYOUT: a small
+Wadler/Oppen Doc engine (group = try flat, else break; hard breaks
+force enclosing groups) at width 100, with the item laid out
+seam-first — type, using clause and body each against the width
+alone, so a long body never forces breaks inside the type (the
+greedy engine's cross-seam pollution), application spines break
+one-argument-per-line at uniform indent, telescopes at binder
+seams, chains at links, using lists at commas. All Phase-2 sugar is
+AST-bijective, so the identity-tier verification (AST equality +
+identical elaboration) is unchanged and stays green over the whole
+corpus, byte-idempotent on a second pass.
