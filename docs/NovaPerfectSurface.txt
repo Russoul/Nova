@@ -343,9 +343,29 @@ to computation) and one def reverted by the α-gate
 against the explicit corpus's ~6.3s — recovery pays ~0.7s for the
 2,163 recovered arguments, proportional, no cliffs.
 
-Phase 3d (deferred, the yield refinements): per-site {…} OVERRIDES
-at failing sites instead of whole-position reverts (the
-intersection policy is brutal for high-traffic lemmas — one bad
-site among sym's 289 reverts it); recovery matching modulo the
-site's LICENSED join (today syntactic + δ-free comp only); and the
+Phase 3d, first slice: LICENSED-JOIN MATCHING — recovery's third
+matching tier (after syntactic and δ-free comp): both sides
+normalized by the site's licensed join, comp ∘ unfold[cited]
+(engJoin's own vocabulary), captured bindings still α-verified
+downstream, so value-spelling drift keeps getting rejected while
+definitional SCAFFOLDING the site itself licensed is seen through.
+Measured effect: small (+7 positions, +13 occurrences) — and the
+verdict census the same slice added explains why. Of 10,206
+override verdicts on the corpus:
+
+  5,460 elidable · 4,229 TRAILING · 65 stuck-at-intro
+  · 133 unsolved · 319 spelling-drift
+
+Matching failures (unsolved + drift + stuck ≈ 5%) were never the
+wall. The dominant blocker (41%) is the TRAILING rule: all-implicit
+lemma shapes — qMulComm {a b}, leQZeroBound {n m} — whose every
+argument recovers from the expected type, but whose fully-elided
+form would be a bare reference, which v1 never inserts. The yield
+lever is therefore TRAILING-IMPLICIT INSERTION (a checking-position
+bare reference or short spine inserting its implicit run, solved
+from the expected type), an elaboration-semantics extension with a
+real design question — a bare implicit-bearing reference passed AS A
+FUNCTION in checking position must stay uninserted — recorded here
+for decision, not silently built. Remaining smaller levers:
+per-site {…} overrides at the ~500 failing-site verdicts, and the
 budget instrumentation of the oracle.

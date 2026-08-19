@@ -216,7 +216,10 @@ record ElabSt where
   ||| and records whether it would reproduce the written value
   ||| α-exactly — the measurement the implicitize distiller folds
   impTrialOn : Bool
-  impTrial : SnocList (String, Nat, Bool)
+  ||| verdicts: 0 = elidable; 1 = trailing; 2 = stuck at an
+  ||| intro-form argument; 3 = unsolved (no source matched); 4 =
+  ||| solved but α-differs from the written value (spelling drift)
+  impTrial : SnocList (String, Nat, Nat)
 
 initSt : ElabSt
 initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] "" "" [<] Nothing [] [] Nothing [] False [<]
@@ -3607,6 +3610,12 @@ mutual
       Nothing => throw "\{site}: unknown name '\{q}'"
     recordBinder mrng ctx env x0 defTy
     let imps = fromMaybe [] (lookup q st.impls)
+    -- the site's LICENSED JOIN (comp ∘ unfold[cited]) — recovery's
+    -- third matching tier (docs/NovaPerfectSurface.txt, Phase 3d):
+    -- sees through definitional scaffolding the site itself licensed;
+    -- captured bindings are still α-verified downstream, so value
+    -- spelling drift keeps getting rejected
+    let jn = \t => compTy (unfTy st.sig st.eqScope t)
     let (doms, res) = teleOf defTy
     (slots, leftover) <- assign imps 0 doms items
     let m = length slots
@@ -3618,10 +3627,10 @@ mutual
                                      Just _ => holeE (throwaway + i)) slots
     let sols0 = case mexp of
                   Nothing => []
-                  Just c => matchTy (substTy tailTy (prefixSub patArgs)) c
+                  Just c => matchTy jn (substTy tailTy (prefixSub patArgs)) c
     -- phase 1: walk the written spine left to right, solving from
     -- inference-form arguments as they elaborate
-    (sols, revArgs, revSks, pending, srcs) <- walk st.impTrialOn doms slots sols0 [] [] [] []
+    (sols, revArgs, revSks, pending, srcs) <- walk jn st.impTrialOn doms slots sols0 [] [] [] []
     -- resolve every inserted hole; unsolved is a structural error
     finalArgs <- traverse (\(pos, arg) =>
                     if hasHolesE arg
@@ -3665,15 +3674,16 @@ mutual
                                                         else holeE (throwaway + i)) slots
           let hyp0 = case mexp of
                        Nothing => []
-                       Just c => matchTy (substTy tailTy (prefixSub hypPat)) c
+                       Just c => matchTy jn (substTy tailTy (prefixSub hypPat)) c
           let srcsX = filter (\(p, _) => not (p `elem` imps)) (pending ++ srcs)
-          let (hypSols, stuck) = trialSolve doms imps srcsX finalArgs 0 m hyp0 [] False
+          let (hypSols, stuck) = trialSolve jn doms imps srcsX finalArgs 0 m hyp0 [] False
           traverse_ (\pos =>
-              let ok = notTrailing pos && not stuck &&
-                       (case (lookup pos hypSols, getAt pos finalArgs) of
-                          (Just v, Just w) => show v == show w
-                          _ => False)
-              in modifySt $ { impTrial $= (:< (q, pos, ok)) })
+              let verdict = if not (notTrailing pos) then 1
+                            else if stuck then 2
+                            else case (lookup pos hypSols, getAt pos finalArgs) of
+                              (Just v, Just w) => if show v == show w then 0 else 4
+                              _ => 3
+              in modifySt $ { impTrial $= (:< (q, pos, verdict)) })
             impOvers
     let core = foldl PiApp (SigVar q [<]) finalArgs
     let coreTy = substTy tailTy (prefixSub finalArgs)
@@ -3683,10 +3693,12 @@ mutual
     throwaway : Nat
     throwaway = 1000000
 
-    matchTy : Ty -> Ty -> Sols
-    matchTy pat g = case mTy 0 pat g [] of
+    matchTy : (jn : Ty -> Ty) -> Ty -> Ty -> Sols
+    matchTy jn pat g = case mTy 0 pat g [] of
       Just s => s
-      Nothing => fromMaybe [] (mTy 0 (compTy pat) (compTy g) [])
+      Nothing => case mTy 0 (compTy pat) (compTy g) [] of
+        Just s => s
+        Nothing => fromMaybe [] (mTy 0 (jn pat) (jn g) [])
 
     ||| Assign telescope positions to written spine items: an implicit
     ||| position takes an override if one is next, else a HOLE (no item
@@ -3740,15 +3752,15 @@ mutual
       SImpArg _ => False
       _ => True
 
-    walk : (trialOn : Bool) -> List Ty -> List (Nat, Maybe SElem) -> Sols ->
+    walk : (jn : Ty -> Ty) -> (trialOn : Bool) -> List Ty -> List (Nat, Maybe SElem) -> Sols ->
            List Elem -> List Skel -> List (Nat, Ty) -> List (Nat, Ty) ->
            ElabM (Sols, List Elem, List Skel, List (Nat, Ty), List (Nat, Ty))
-    walk trialOn doms [] sols revArgs revSks pending srcs =
+    walk jn trialOn doms [] sols revArgs revSks pending srcs =
       pure (sols, revArgs, revSks, pending, srcs)
-    walk trialOn doms ((pos, mt) :: rest) sols revArgs revSks pending srcs = case mt of
+    walk jn trialOn doms ((pos, mt) :: rest) sols revArgs revSks pending srcs = case mt of
       Nothing =>
         let arg = fromMaybe (holeE pos) (lookup pos sols) in
-        walk trialOn doms rest sols (arg :: revArgs) (Nd [] [] :: revSks) pending srcs
+        walk jn trialOn doms rest sols (arg :: revArgs) (Nd [] [] :: revSks) pending srcs
       Just surfE => do
         dInst <- case getAt pos doms of
                    Just d => pure (substTy d (prefixSub (reverse revArgs)))
@@ -3758,8 +3770,10 @@ mutual
             (e', eTy, eSk) <- inferElem ctx env site surfE
             let sols2 = case mTy 0 dInst eTy sols of
                           Just s => s
-                          Nothing => fromMaybe sols (mTy 0 (compTy dInst) (compTy eTy) sols)
-            walk trialOn doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending) srcs
+                          Nothing => case mTy 0 (compTy dInst) (compTy eTy) sols of
+                            Just s => s
+                            Nothing => fromMaybe sols (mTy 0 (jn dInst) (jn eTy) sols)
+            walk jn trialOn doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending) srcs
           else if trialOn && sInferForm surfE
             then do
               -- the trial needs the argument's inferred type; for an
@@ -3769,10 +3783,10 @@ mutual
               (e', eTy, eSk) <- inferElem ctx env site surfE
               c <- convTy ctx env "\{site}: inferred vs expected type" Nothing eTy dInst
               let eSk' = addPayload (PSwitch (certOr c)) eSk
-              walk trialOn doms rest sols (e' :: revArgs) (eSk' :: revSks) pending ((pos, eTy) :: srcs)
+              walk jn trialOn doms rest sols (e' :: revArgs) (eSk' :: revSks) pending ((pos, eTy) :: srcs)
             else do
               (e', eSk) <- checkElem ctx env site surfE dInst
-              walk trialOn doms rest sols (e' :: revArgs) (eSk :: revSks) pending srcs
+              walk jn trialOn doms rest sols (e' :: revArgs) (eSk :: revSks) pending srcs
 
     ||| The hypothetical elided solve, replaying `walk`'s discipline
     ||| over the recorded sources: at an implicit position the entry
@@ -3781,15 +3795,15 @@ mutual
     ||| consumes its position's recorded source, or — when the
     ||| argument was an intro form, with no inferred type — STICKS
     ||| (real elision errors there).
-    trialSolve : List Ty -> List Nat -> List (Nat, Ty) -> List Elem ->
+    trialSolve : (jn : Ty -> Ty) -> List Ty -> List Nat -> List (Nat, Ty) -> List Elem ->
                  (pos, m : Nat) -> Sols -> List Elem -> Bool -> (Sols, Bool)
-    trialSolve doms imps srcsX finalArgs pos m sols hypRev stuck =
+    trialSolve jn doms imps srcsX finalArgs pos m sols hypRev stuck =
       if pos >= m then (sols, stuck) else
         let entry = if pos `elem` imps
                       then fromMaybe (holeE pos) (lookup pos sols)
                       else fromMaybe (holeE pos) (getAt pos finalArgs)
         in if pos `elem` imps
-             then trialSolve doms imps srcsX finalArgs (S pos) m sols (entry :: hypRev) stuck
+             then trialSolve jn doms imps srcsX finalArgs (S pos) m sols (entry :: hypRev) stuck
              else
                let dHyp = case getAt pos doms of
                             Just d => substTy d (prefixSub (reverse hypRev))
@@ -3799,10 +3813,12 @@ mutual
                       Just eTy =>
                         let sols' = case mTy 0 dHyp eTy sols of
                                       Just s => s
-                                      Nothing => fromMaybe sols (mTy 0 (compTy dHyp) (compTy eTy) sols)
-                        in trialSolve doms imps srcsX finalArgs (S pos) m sols' (entry :: hypRev) stuck
-                      Nothing => trialSolve doms imps srcsX finalArgs (S pos) m sols (entry :: hypRev) True
-                    else trialSolve doms imps srcsX finalArgs (S pos) m sols (entry :: hypRev) stuck
+                                      Nothing => case mTy 0 (compTy dHyp) (compTy eTy) sols of
+                                        Just s => s
+                                        Nothing => fromMaybe sols (mTy 0 (jn dHyp) (jn eTy) sols)
+                        in trialSolve jn doms imps srcsX finalArgs (S pos) m sols' (entry :: hypRev) stuck
+                      Nothing => trialSolve jn doms imps srcsX finalArgs (S pos) m sols (entry :: hypRev) True
+                    else trialSolve jn doms imps srcsX finalArgs (S pos) m sols (entry :: hypRev) stuck
 
     mapAt : Nat -> (Skel -> Skel) -> List Skel -> List Skel
     mapAt _ _ [] = []
@@ -4633,7 +4649,7 @@ elabProgramSt st0 units = go st0 units
 ||| {t}-override at an implicit position, whether the hypothetical
 ||| elided recovery reproduces the written value α-exactly.
 export
-elabProgramTrial : List ModUnit -> Either String (Sig, List (String, Nat, Bool))
+elabProgramTrial : List ModUnit -> Either String (Sig, List (String, Nat, Nat))
 elabProgramTrial units =
   map (\st => (st.kernelSig, toList st.impTrial))
       (elabProgramSt ({ impTrialOn := True } initSt) units)
