@@ -151,6 +151,15 @@ elabPath rootPath = do
   dumpProfile
   pure out2
 
+||| Load and elaborate to the accepted kernel Σ (requiring full
+||| acceptance): the survey commands' entry point.
+export
+sigPath : String -> IO (Either String Sig)
+sigPath rootPath = do
+  Right units <- loadProgram rootPath
+    | Left err => pure (Left err.lmsg)
+  pure (elabProgramSig units)
+
 ||| Load, elaborate (requiring full acceptance — Nova.Compute assumes
 ||| closed, well-typed input), and compute the normal form of a named
 ||| top-level definition: the `run` command's body. A term definition

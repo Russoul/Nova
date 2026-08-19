@@ -242,3 +242,34 @@ seams, chains at links, using lists at commas. All Phase-2 sugar is
 AST-bijective, so the identity-tier verification (AST equality +
 identical elaboration) is unchanged and stays green over the whole
 corpus, byte-idempotent on a second pass.
+
+Phase 3a: implemented — the recovery ORACLE (Nova.Recovery) and the
+corpus SURVEY over it (`nova survey <file>`), per the oracle-first
+sequencing above. The oracle is the simultaneous rigid first-order
+matcher: holes solve only at subterm slots (never in an applied-head
+position — no higher-order unification), sources are the spine's
+expected type (when the bidirectional mode knows it — tracked by a
+purely syntactic ⇐/⇒ walk over the erasures) and the types of later
+explicit INFERENCE-form arguments; per def, the implicitizable set is
+the fixpoint of "recoverable at every site". Measured on the corpus
+(94 modules, 2026-08):
+
+  1,901 of 3,577 binder positions implicitizable (53%); 760 of 1,131
+  used defs gain at least one; 7,672 of 54,748 argument occurrences
+  elidable. Zero positions blocked by partial application. Top
+  yields are the ergonomic pain points: equality.sym {A a b} (867
+  occurrences), id.eqToId, groupTheory.gop {G} (the group WITNESS
+  correctly stays explicit — data, not index), vectByIndAppend
+  .vappend {n m a}.
+
+Two-sided caveat, recorded: per-site the numbers are a CEILING
+(ground instantiations stand in for the inferred types the real
+recoverer will match — a real inferred type can differ up to
+computation), while the SITE COUNT is an UNDERCOUNT (spines inside
+erased proofs — chain justifications, ⋆-witnesses — do not survive
+into Σ, and those are lemma-application-heavy). The verify pass of
+Phase 3b (elide-then-check at print time) replaces the ceiling with
+a guarantee. VERDICT: the measured case for the surface form is
+made; Phase 3b (the {x : A} binder syntax, per-def implicitness
+metadata, elaborator-side recovery at application spines, printer
+elision under the round-trip contract) proceeds.

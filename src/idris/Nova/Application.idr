@@ -5,7 +5,9 @@ import Data.String
 
 import Nova.Distill
 import Nova.Elaboration.Loader
+import Nova.Kernel.Syntax
 import Nova.Profile
+import Nova.Recovery
 import System
 import System.File
 
@@ -31,6 +33,11 @@ usage = unlines
   , "into <out-dir> and verifies the round trip — re-parsed ASTs"
   , "structurally identical, re-elaboration identical"
   , "(docs/NovaPerfectSurface.txt). The input must be accepted."
+  , ""
+  , "survey: elaborates the file (requiring acceptance) and reports,"
+  , "per definition, which application arguments the phase-3 recovery"
+  , "oracle could reconstruct if elided (docs/NovaPerfectSurface.txt,"
+  , "the sugar tiers) — the measured basis for implicit binders."
   ]
 
 main : IO ()
@@ -51,4 +58,9 @@ main = do
       case result of
         Left err  => do putStrLn "Error: \{err}"; exitFailure
         Right msg => putStrLn msg
+    (_ :: "survey" :: surfaceFile :: []) => do
+      result <- sigPath surfaceFile
+      case result of
+        Left err  => do putStrLn "Error: \{err}"; exitFailure
+        Right sig => putStrLn (surveyReport sig)
     _ => die usage

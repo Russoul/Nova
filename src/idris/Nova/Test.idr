@@ -13,6 +13,7 @@ import Nova.Kernel.Parser
 import Nova.Kernel
 import Nova.Kernel.Dormant.Tests
 import Nova.Distill
+import Nova.Recovery
 import Nova.Elaboration.Named
 import Nova.Elaboration
 import Nova.Elaboration.Loader
@@ -45,6 +46,7 @@ pools = sequence
   , testsInDir "tests/nova/elaboration" "Nova Elaboration"
   , testsInDir "tests/nova/evaluation" "Nova Evaluation"
   , testsInDir "tests/nova/distill" "Nova Distill"
+  , testsInDir "tests/nova/survey" "Nova Survey"
   , testsInDir "tests/nova-lsp" "Nova LSP"
   ]
 
@@ -64,6 +66,12 @@ main = do
       case result of
         Left err  => putStrLn "Error: \{err}"
         Right val => putStrLn val
+    -- Nova.Application's `survey` command, for the survey goldens
+    (_ :: "survey" :: file :: []) => do
+      result <- sigPath file
+      case result of
+        Left err  => putStrLn "Error: \{err}"
+        Right sig => putStrLn (surveyReport sig)
     -- Nova.Application's `distill` command, for the distill goldens
     (_ :: "distill" :: file :: outDir :: []) => do
       result <- distillPath file outDir
