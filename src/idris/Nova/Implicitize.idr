@@ -343,12 +343,12 @@ defItemNames = concatMap (\u => mapMaybe (\(_, it) => case it of
 
 ||| Fold the trial records: a position survives iff it has records
 ||| and every one is ok.
-foldTrial : List (String, List Nat) -> List (String, Nat, Bool) -> List (String, List Nat)
+foldTrial : List (String, List Nat) -> List (String, Nat, Nat) -> List (String, List Nat)
 foldTrial cands trial =
   mapMaybe (\(q, poss) =>
       let keep = filter (\p =>
                     let recs = filter (\(q', p', _) => q' == q && p' == p) trial
-                    in not (null recs) && all (\(_, _, ok) => ok) recs) poss
+                    in not (null recs) && all (\(_, _, v) => v == 0) recs) poss
       in case keep of
            [] => Nothing
            _ => Just (q, keep)) cands
@@ -387,11 +387,14 @@ implicitizePath rootPath outDir = do
         | Just err => pure (Left err)
       let nDefs = length final
       let nPoss = sum (map (length . snd) final)
-      let dropped = length (filter (\(q, p, ok) => ok && maybe False (elem p) (lookup q final))
+      let dropped = length (filter (\(q, p, v) => v == 0 && maybe False (elem p) (lookup q final))
                             trial)
+      let why = \v => length (filter (\(_, _, v') => v' == v) trial)
       let trialReverts = minus (sum (map (length . snd) cands0))
                                (sum (map (length . snd) trialCands))
-      pure (Right ("implicitized \{show nDefs} defs (\{show nPoss} binder positions; " ++
+      pure (Right ("trial verdicts: \{show (why 0)} elidable, \{show (why 1)} trailing, " ++
+                   "\{show (why 2)} stuck-at-intro, \{show (why 3)} unsolved, \{show (why 4)} spelling-drift\n" ++
+                   "implicitized \{show nDefs} defs (\{show nPoss} binder positions; " ++
                    "\{show trialReverts} positions reverted by the trial" ++
                    (case culpritLog of
                       [] => ""
