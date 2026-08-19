@@ -832,22 +832,22 @@ parseFixity = do
 ||| diagnostics to anchor at the right item without threading Range
 ||| through STy/SElem themselves.
 export
-parseSFile : FixTable -> Rule (List SImport, FixTable, List (Maybe Range, SItem))
+parseSFile : FixTable -> Rule (List SImport, FixTable, List (Maybe Range, SItem), List SBodyEntry)
 parseSFile tbl0 = do
   sp
   imports <- many (do i <- parseSImport; sp; pure i)
-  (decls, items) <- go tbl0
-  pure (imports, decls, items)
+  (decls, items, body) <- go tbl0
+  pure (imports, decls, items, body)
  where
-  go : FixTable -> Rule (FixTable, List (Maybe Range, SItem))
+  go : FixTable -> Rule (FixTable, List (Maybe Range, SItem), List SBodyEntry)
   go tbl =
         (do f <- parseFixity; sp
-            (decls, items) <- go (f :: tbl)
-            pure (f :: decls, items))
+            (decls, items, body) <- go (f :: tbl)
+            pure (f :: decls, items, Left f :: body))
     <|> (do (r, i) <- bounds (parseSItem tbl); sp
-            (decls, items) <- go tbl
-            pure (decls, (r, i) :: items))
-    <|> pure ([], [])
+            (decls, items, body) <- go tbl
+            pure (decls, (r, i) :: items, Right (r, i) :: body))
+    <|> pure ([], [], [])
 
 ||| Pass 1 of the loader's two-stage parse: just the import header
 ||| (the dependencies' fixity tables are needed before the body can be

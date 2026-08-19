@@ -1,0 +1,5 @@
+Error: input is not accepted; distill only transforms accepted programs:
+defined bad [+1 obligation]
+open obligations (1):
+  [1] ⊢ Z ≐ S Z : ℕ
+      at: def bad: checking ⋆

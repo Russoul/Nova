@@ -1,0 +1,4 @@
+#!/bin/sh
+rm -rf out
+"$1" distill input.nova out
+rm -rf out
