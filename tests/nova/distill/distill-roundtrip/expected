@@ -1,5 +1,8 @@
 distilled 1 modules (20 items) to out
 round-trip OK: ASTs identical, elaboration identical.
+-- distill golden: identity-tier round trip over one file exercising
+-- fixity interleaving, operator items, chains, ⋆ using, clausal and
+-- data items, mention form, wildcard binders, annotated let, pairs
 infixl 6 +
 def + : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
 def plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ using (+.eq) ≔ λn. ⋆

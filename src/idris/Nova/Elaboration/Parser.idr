@@ -906,9 +906,9 @@ parseSFile tbl0 = do
  where
   go : FixTable -> Rule (FixTable, List (Maybe Range, SItem), List SBodyEntry)
   go tbl =
-        (do f <- parseFixity; sp
+        (do (r, f) <- bounds parseFixity; sp
             (decls, items, body) <- go (f :: tbl)
-            pure (f :: decls, items, Left f :: body))
+            pure (f :: decls, items, Left (r, f) :: body))
     <|> (do (r, i) <- bounds (parseSItem tbl); sp
             (decls, items, body) <- go tbl
             pure (decls, (r, i) :: items, Right (r, i) :: body))

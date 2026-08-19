@@ -110,7 +110,7 @@ mutual
           let Right (toks, imps, decls, items, body) = parseModule "module \{mname} (\{path})" path tbl0 content
             | Left err => pure (Left err)
           pure (Right (mname :: done', (mname, decls) :: fixs',
-                       acc' ++ [MkModUnit mname imps (decls ++ tbl0) items toks body]))
+                       acc' ++ [MkModUnit mname imps (decls ++ tbl0) items toks body content]))
 
   loadMany : (rootDir : String) -> (visiting : List String) -> (done : List String)
            -> (fixs : FixMap) -> (acc : List ModUnit) -> List String
@@ -135,7 +135,7 @@ loadProgram rootPath = do
   let tbl0 = importTable fixs hdr
   let Right (toks, imps, decls, items, body) = parseModule rootPath rootPath tbl0 content
     | Left err => pure (Left err)
-  pure (Right (deps ++ [MkModUnit "" imps (decls ++ tbl0) items toks body]))
+  pure (Right (deps ++ [MkModUnit "" imps (decls ++ tbl0) items toks body content]))
 
 ||| Load and elaborate: the `elab` command's body.
 export

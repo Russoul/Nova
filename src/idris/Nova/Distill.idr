@@ -35,10 +35,12 @@ import Data.Maybe
 import Data.String
 import Data.SnocList
 
+import Me.Russoul.Text.Position
 import Me.Russoul.Text.Range
 
 import Nova.Elaboration
 import Nova.Elaboration.Surface
+import Nova.Kernel.Parser
 import Nova.Elaboration.Named
 import Nova.Elaboration.Parser
 import Nova.Elaboration.Loader
@@ -738,13 +740,68 @@ renderImport : SImport -> String
 renderImport (MkSImport m []) = "import \{m}"
 renderImport (MkSImport m os) = "import \{m} (\{joinBy ", " os})"
 
-||| Render a whole module: imports, then the body in source order.
+-- ===== Comments =====
+--
+-- Comments never reach the AST (the lexer strips them), but their
+-- ranges ride in mtokens and the source text in msrc, so the
+-- distiller re-slices and RE-ATTACHES them: each comment goes to the
+-- first body entry whose span it precedes or falls inside (an
+-- intra-item comment hoists ABOVE its item — the rendered item has no
+-- stable interior positions), comments before the first entry form
+-- the file header (printed above the imports), and comments after
+-- the last entry the epilogue. Attachment is idempotent: re-parsing
+-- distilled output finds every comment immediately before its entry.
+
+||| The module's comments, sliced from the retained source:
+||| (start line, text). Only `--` line comments exist in practice; a
+||| slice not comment-shaped (a block-comment continuation line) is
+||| defensively prefixed.
+unitComments : ModUnit -> List (Int, String)
+unitComments u =
+  let ls = lines u.msrc
+  in sortBy (\a, b => compare (fst a) (fst b)) $
+     mapMaybe (\(r, k) => case k of
+                 Comment => Just (r.start.line, sliceAt ls r)
+                 _ => Nothing) (toList u.mtokens)
+ where
+  asComment : String -> String
+  asComment str = if isPrefixOf "--" str then str else "-- " ++ str
+
+  sliceAt : List String -> Range -> String
+  sliceAt ls r = case getAt (cast r.start.line) ls of
+    Just l => asComment (pack (drop (cast r.start.column) (unpack l)))
+    Nothing => "--"
+
+entrySpan : SBodyEntry -> Maybe (Int, Int)
+entrySpan (Left (mr, _)) = map (\r => (r.start.line, r.end.line)) mr
+entrySpan (Right (mr, _)) = map (\r => (r.start.line, r.end.line)) mr
+
+||| Render a whole module: header comments, imports, then the body in
+||| source order with each comment re-attached before its entry.
 export
 renderUnit : ModUnit -> String
 renderUnit u =
-  let imps = map renderImport u.mimports
-      body = map (either renderFixity (renderItemStr u.mfix . snd)) u.mbody
-  in joinBy "\n" (imps ++ (case imps of [] => []; _ => [""]) ++ body) ++ "\n"
+  let comments = unitComments u
+      firstStart = head' (mapMaybe (map fst . entrySpan) u.mbody)
+      (header, rest) = partition (\(l, _) => maybe True (\fs => l < fs) firstStart) comments
+      imps = map renderImport u.mimports
+      (chunks, leftover) = attach rest u.mbody
+  in joinBy "\n" (map snd header ++
+                  imps ++ (case imps of [] => []; _ => [""]) ++
+                  chunks ++ map snd leftover) ++ "\n"
+ where
+  render1 : SBodyEntry -> String
+  render1 (Left (_, f)) = renderFixity f
+  render1 (Right (_, it)) = renderItemStr u.mfix it
+
+  attach : List (Int, String) -> List SBodyEntry -> (List String, List (Int, String))
+  attach cs [] = ([], cs)
+  attach cs (e :: es) =
+    let (mine, later) = case entrySpan e of
+                          Just (_, end) => partition (\(l, _) => l <= end) cs
+                          Nothing => ([], cs)
+        (moreChunks, left) = attach later es
+    in (map snd mine ++ [render1 e] ++ moreChunks, left)
 
 -- ===== Round-trip verification =====
 
@@ -762,7 +819,7 @@ verifyUnit orig re =
     then Just "module order mismatch: '\{orig.mname}' vs '\{re.mname}'"
   else if map show orig.mimports /= map show re.mimports
     then Just "module \{orig.mname}: imports differ after distill"
-  else if map fixShow (lefts orig.mbody) /= map fixShow (lefts re.mbody)
+  else if map (fixShow . snd) (lefts orig.mbody) /= map (fixShow . snd) (lefts re.mbody)
     then Just "module \{orig.mname}: fixity declarations differ after distill"
   else go (map snd (rights orig.mbody)) (map snd (rights re.mbody))
  where

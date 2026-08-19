@@ -425,7 +425,7 @@ SFixity = (String, Assoc, Nat)
 ||| (docs/NovaPerfectSurface.txt, Phase 1).
 public export
 SBodyEntry : Type
-SBodyEntry = Either SFixity (Maybe Range, SItem)
+SBodyEntry = Either (Maybe Range, SFixity) (Maybe Range, SItem)
 
 export
 itemName : SItem -> String
