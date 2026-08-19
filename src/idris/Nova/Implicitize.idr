@@ -103,11 +103,12 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
         case lookup (resolve x) cands of
           Just poss =>
             let idxd = zip [0 .. minus (length args) 1] args
-                keepers = filter (\(i, _) => not (i `elem` poss)) idxd
-            in case (mode, keepers) of
-                 (MWrap, _) => foldl SApp hd (map (mk MWrap poss) idxd)
-                 (MDrop, []) => foldl SApp hd (map (mk MWrap poss) idxd)
-                 (MDrop, _) => foldl SApp hd (mapMaybe (mkDrop poss) idxd)
+            in case mode of
+                 MWrap => foldl SApp hd (map (mk MWrap poss) idxd)
+                 -- a fully-elided site is legal: checking-position
+                 -- insertion covers it (the trial verdicts guarantee
+                 -- every surviving position was insertable)
+                 MDrop => foldl SApp hd (mapMaybe (mkDrop poss) idxd)
           Nothing => foldl SApp hd args
       _ => foldl SApp hd args
    where
@@ -122,9 +123,20 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
     xfE e = case e of
       SApp _ _ =>
         let (hd, args) = spine e []
-        in xfSpine (xfE hd) (map xfE args)
+            hd' = case hd of
+                    SSig _ _ => hd   -- spine heads are never marker-wrapped
+                    _ => xfE hd
+        in xfSpine hd' (map xfE args)
       SVar _ _ _ => e
-      SSig _ _ => e
+      -- a standalone reference of an implicitized def is FUNCTION
+      -- PASSING (the original corpus is fully explicit, so a bare
+      -- reference always denotes the function): mark it {} so
+      -- checking-position insertion stays off and the erasure is
+      -- unchanged
+      SSig _ x =>
+        case lookup (resolve x) cands of
+          Just poss => if 0 `elem` poss then SNoIns e else e
+          Nothing => e
       SUnitI => e
       SZeroN => e
       SSuc t => SSuc (xfE t)
@@ -160,6 +172,7 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
       SChain h links => SChain (xfE h) (map (\(j, m) => (xfE j, xfE m)) links)
       SAnn t ty => SAnn (xfE t) (xfT ty)
       SImpArg t => SImpArg (xfE t)
+      SNoIns t => SNoIns (xfE t)
      where
       spine : SElem -> List SElem -> (SElem, List SElem)
       spine (SApp f a) acc = spine f (a :: acc)
