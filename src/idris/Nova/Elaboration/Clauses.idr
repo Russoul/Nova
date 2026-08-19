@@ -101,6 +101,7 @@ mutual
     SChain (mapRefsE f g d x)
            (map (\(j, y) => (mapRefsE f g d j, mapRefsE f g d y)) ls)
   mapRefsE f g d (SAnn e ty) = SAnn (mapRefsE f g d e) (mapRefsTy f g d ty)
+  mapRefsE f g d (SImpArg e) = SImpArg (mapRefsE f g d e)
 
   mapRefsTy : (onVar : Nat -> Maybe Range -> String -> Nat -> SElem) ->
               (onSig : Nat -> Maybe Range -> String -> SElem) ->
@@ -111,6 +112,7 @@ mutual
   mapRefsTy f g d STyUniv = STyUniv
   mapRefsTy f g d (STySig x) = STySig x
   mapRefsTy f g d (STyPi x a b) = STyPi x (mapRefsTy f g d a) (mapRefsTy f g (S d) b)
+  mapRefsTy f g d (STyImpPi x a b) = STyImpPi x (mapRefsTy f g d a) (mapRefsTy f g (S d) b)
   mapRefsTy f g d (STySigma x a b) = STySigma x (mapRefsTy f g d a) (mapRefsTy f g (S d) b)
   mapRefsTy f g d (STySum a b) = STySum (mapRefsTy f g d a) (mapRefsTy f g d b)
   mapRefsTy f g d (STyQuot a x y r) = STyQuot (mapRefsTy f g d a) x y (mapRefsE f g (S (S d)) r)
@@ -205,6 +207,7 @@ mutual
   occursE f (SChain x ls) =
     occursE f x || any (\(j, y) => occursE f j || occursE f y) ls
   occursE f (SAnn e ty) = occursE f e || occursTy f ty
+  occursE f (SImpArg e) = occursE f e
 
   occursTy : String -> STy -> Bool
   occursTy f STyZero = False
@@ -213,6 +216,7 @@ mutual
   occursTy f STyUniv = False
   occursTy f (STySig x) = x == f
   occursTy f (STyPi _ a b) = occursTy f a || occursTy f b
+  occursTy f (STyImpPi _ a b) = occursTy f a || occursTy f b
   occursTy f (STySigma _ a b) = occursTy f a || occursTy f b
   occursTy f (STySum a b) = occursTy f a || occursTy f b
   occursTy f (STyQuot a _ _ r) = occursTy f a || occursE f r
@@ -335,6 +339,7 @@ mutual
     do e' <- rwE f mk lead d e; body' <- rwE f mk lead (S d) body
        pure (SSquashElim e' x body')
   rwE f mk lead d (SAnn e ty) = [| SAnn (rwE f mk lead d e) (rwTy f mk lead d ty) |]
+  rwE f mk lead d (SImpArg e) = [| SImpArg (rwE f mk lead d e) |]
 
   rwTy : (f : String) -> (mk : Nat) -> (lead : List Nat) -> Nat -> STy -> Maybe STy
   rwTy f mk lead d STyZero = Just STyZero
@@ -343,6 +348,7 @@ mutual
   rwTy f mk lead d STyUniv = Just STyUniv
   rwTy f mk lead d (STySig x) = if x == f then Nothing else Just (STySig x)
   rwTy f mk lead d (STyPi x a b) = [| STyPi (pure x) (rwTy f mk lead d a) (rwTy f mk lead (S d) b) |]
+  rwTy f mk lead d (STyImpPi x a b) = [| STyImpPi (pure x) (rwTy f mk lead d a) (rwTy f mk lead (S d) b) |]
   rwTy f mk lead d (STySigma x a b) = [| STySigma (pure x) (rwTy f mk lead d a) (rwTy f mk lead (S d) b) |]
   rwTy f mk lead d (STySum a b) = [| STySum (rwTy f mk lead d a) (rwTy f mk lead d b) |]
   rwTy f mk lead d (STyQuot a x y r) =

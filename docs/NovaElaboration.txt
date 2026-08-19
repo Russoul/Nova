@@ -192,6 +192,13 @@ T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
 # (each group scopes over the ones after it; likewise for ⨯), and the
 # codomain is full T{≥0}, so a lemma statement needs no parentheses:
 #     (n : ℕ) (m : ℕ) → plus n m ≡ plus m n ∈ ℕ
+# A group may bind several names at one written domain — (x y : T) —
+# and a BRACE group {x : T} marks an IMPLICIT Π-binder: inserted at
+# application spines and recovered by rigid first-order matching,
+# with `f {t}` as the explicit override. Implicitness is per-def
+# metadata, never core syntax. The full design — recovery sources,
+# the one-pass discipline, the anti-hole performance requirements —
+# is docs/NovaPerfectSurface.txt (Phases 3a/3b).
 
 # Elements. Two departures from the derivation surface syntax:
 #   1. Ascription `(t : T)` is first-class. It is the user's lever for
