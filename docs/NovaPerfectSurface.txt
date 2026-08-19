@@ -361,11 +361,35 @@ wall. The dominant blocker (41%) is the TRAILING rule: all-implicit
 lemma shapes — qMulComm {a b}, leQZeroBound {n m} — whose every
 argument recovers from the expected type, but whose fully-elided
 form would be a bare reference, which v1 never inserts. The yield
-lever is therefore TRAILING-IMPLICIT INSERTION (a checking-position
-bare reference or short spine inserting its implicit run, solved
-from the expected type), an elaboration-semantics extension with a
-real design question — a bare implicit-bearing reference passed AS A
-FUNCTION in checking position must stay uninserted — recorded here
-for decision, not silently built. Remaining smaller levers:
-per-site {…} overrides at the ~500 failing-site verdicts, and the
-budget instrumentation of the oracle.
+lever is therefore TRAILING-IMPLICIT INSERTION.
+
+Phase 3d, second slice: TRAILING INSERTION with the NO-INSERT
+MARKER (the decided design). In CHECKING position, a reference or
+spine of an implicit-binder def INSERTS its trailing implicit run —
+written arguments consume positions as before; when they run out,
+consecutive implicit positions insert as holes, stopping at the
+first explicit position — solved from the expected type like every
+hole. Inference positions never insert (a bare reference stays the
+plain function). The FUNCTION-PASSING form is the marker `f {}`
+(empty braces: zero implicits, give me the function), suppressing
+insertion at that reference; the implicitize transformer emits it
+automatically at every bare reference of an implicitized def (the
+original corpus is fully explicit, so a bare reference always
+denotes the function) — 2 markers over the whole corpus. The trial's
+trailing verdict relaxes accordingly: a trailing position is
+elidable when the site is checked (the consumed positions past the
+last explicit are all implicit by construction, so insertion reaches
+it).
+
+Measured: verdicts moved to 7,610 elidable / 1,976 trailing / 65
+stuck / 166 unsolved / 389 drift, and the corpus yield to 414 defs,
+1,003 binder positions, 2,826 argument occurrences elided — all
+gates green, implicitized corpus at ~6.7s. The residual trailing
+verdicts are INFERENCE-position sites — dominantly CALC-CHAIN LINKS,
+whose justifications are deliberately type-undetermined (e-chain:
+the link may prove a sub-equation), so insertion is impossible there
+by design; commutativity-style lemmas used as links therefore keep
+reverting under the intersection policy. Remaining levers: per-site
+{…} overrides (though at link sites the override braces would wrap
+the very arguments being kept — questionable ink), and the budget
+instrumentation of the oracle.

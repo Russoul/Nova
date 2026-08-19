@@ -6,4 +6,9 @@ defined constF
 defined sym2
 defined flip2
 defined flipFlip
+defined allImp
+defined useAllImp
+defined useIns
+defined takeFn
+defined passFn
 Accepted.

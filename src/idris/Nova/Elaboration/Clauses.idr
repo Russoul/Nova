@@ -102,6 +102,7 @@ mutual
            (map (\(j, y) => (mapRefsE f g d j, mapRefsE f g d y)) ls)
   mapRefsE f g d (SAnn e ty) = SAnn (mapRefsE f g d e) (mapRefsTy f g d ty)
   mapRefsE f g d (SImpArg e) = SImpArg (mapRefsE f g d e)
+  mapRefsE f g d (SNoIns e) = SNoIns (mapRefsE f g d e)
 
   mapRefsTy : (onVar : Nat -> Maybe Range -> String -> Nat -> SElem) ->
               (onSig : Nat -> Maybe Range -> String -> SElem) ->
@@ -208,6 +209,7 @@ mutual
     occursE f x || any (\(j, y) => occursE f j || occursE f y) ls
   occursE f (SAnn e ty) = occursE f e || occursTy f ty
   occursE f (SImpArg e) = occursE f e
+  occursE f (SNoIns e) = occursE f e
 
   occursTy : String -> STy -> Bool
   occursTy f STyZero = False
@@ -340,6 +342,7 @@ mutual
        pure (SSquashElim e' x body')
   rwE f mk lead d (SAnn e ty) = [| SAnn (rwE f mk lead d e) (rwTy f mk lead d ty) |]
   rwE f mk lead d (SImpArg e) = [| SImpArg (rwE f mk lead d e) |]
+  rwE f mk lead d (SNoIns e) = [| SNoIns (rwE f mk lead d e) |]
 
   rwTy : (f : String) -> (mk : Nat) -> (lead : List Nat) -> Nat -> STy -> Maybe STy
   rwTy f mk lead d STyZero = Just STyZero

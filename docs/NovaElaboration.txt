@@ -194,8 +194,10 @@ T{0} ::= t{≥2} ≡ t{≥2} ∈ T{≥1}
 #     (n : ℕ) (m : ℕ) → plus n m ≡ plus m n ∈ ℕ
 # A group may bind several names at one written domain — (x y : T) —
 # and a BRACE group {x : T} marks an IMPLICIT Π-binder: inserted at
-# application spines and recovered by rigid first-order matching,
-# with `f {t}` as the explicit override. Implicitness is per-def
+# application spines (in checking position, trailing implicits
+# insert too — `f {}` is the NO-INSERT marker for passing the bare
+# function) and recovered by rigid first-order matching, with
+# `f {t}` as the explicit override. Implicitness is per-def
 # metadata, never core syntax. The full design — recovery sources,
 # the one-pass discipline, the anti-hole performance requirements —
 # is docs/NovaPerfectSurface.txt (Phases 3a/3b).

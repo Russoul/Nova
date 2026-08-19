@@ -279,6 +279,7 @@ mutual
     SStarWit _ => CPrefix
     SStarUsing _ => CPrefix
     SImpArg _ => CAtom
+    SNoIns _ => CApp
     _ => CAtom
 
   ||| Does the node's parse extend to the end of the enclosing
@@ -391,6 +392,7 @@ mutual
     SNatC => txt "ℕ"
     SAnn t ty => dparen (pe tbl LPair True t <-> txt " : " <-> pt tbl TTop True ty)
     SImpArg t => txt "{" <-> pe tbl LPair True t <-> txt "}"
+    SNoIns t => pe tbl LApp False t <-> txt " {}"
 
   concatDoc : List Doc -> Doc
   concatDoc = foldr DCat DNil

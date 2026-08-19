@@ -3093,7 +3093,7 @@ mutual
   inferElem ctx env site sapp@(SApp f e) = do
     st <- getSt
     case impSpineOf st sapp of
-      Just (q, x0, mrng, items) => elabImpSpine ctx env site Nothing q x0 mrng items
+      Just (q, x0, mrng, items) => elabImpSpine ctx env site Nothing False q x0 mrng items
       Nothing => do
         (f', fTy, fSk) <- inferElem ctx env site f
         st <- getSt
@@ -3104,6 +3104,7 @@ mutual
           Nothing => throw "\{site}: cannot apply a term of non-Π type\{structuralHint ()}"
   inferElem ctx env site (SImpArg _) =
     throw "\{site}: a {…} override is only legal at an implicit binder position of an applied definition"
+  inferElem ctx env site (SNoIns e) = inferElem ctx env site e
   inferElem ctx env site (SProj1 t) = do
     (t', tTy, tSk) <- inferElem ctx env site t
     st <- getSt
@@ -3550,17 +3551,52 @@ mutual
   -- an implicit-headed spine in CHECKING position: the expected type
   -- is the recovery oracle's FIRST source (it must run before any
   -- argument whose domain mentions an unsolved implicit — a λ
-  -- argument cannot infer); the ordinary e-switch conversion still
+  -- argument cannot infer); trailing implicits INSERT here (the
+  -- expected type solves them; `f {}` suppresses — the
+  -- function-passing form); the ordinary e-switch conversion still
   -- closes the site
   checkElem ctx env site sapp@(SApp _ _) ty = do
     st <- getSt
     case impSpineOf st sapp of
       Just (q, x0, mrng, items) => do
-        (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) q x0 mrng items
+        (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) True q x0 mrng items
         c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
         pure (t', addPayload (PSwitch (certOr c)) tSk)
       Nothing => do
         (t', inferred, tSk) <- inferElem ctx env site sapp
+        c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
+        pure (t', addPayload (PSwitch (certOr c)) tSk)
+  -- a BARE reference of an implicit-binder def in checking position
+  -- inserts its leading implicit run, solved from the expected type
+  checkElem ctx env site sref@(SSig mrng x0) ty = do
+    st <- getSt
+    case impSpineOf st (SApp sref SUnitI) of   -- reuse the head test
+      Just (q, _, _, _) =>
+        if maybe False (\ps => 0 `elem` ps) (lookup q st.impls)
+          then do
+            (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) True q x0 mrng []
+            c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
+            pure (t', addPayload (PSwitch (certOr c)) tSk)
+          else do
+            (t', inferred, tSk) <- inferElem ctx env site sref
+            c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
+            pure (t', addPayload (PSwitch (certOr c)) tSk)
+      Nothing => do
+        (t', inferred, tSk) <- inferElem ctx env site sref
+        c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
+        pure (t', addPayload (PSwitch (certOr c)) tSk)
+  -- {} — the NO-INSERT marker: elaborate the wrapped reference/spine
+  -- without trailing insertion (implicit positions BETWEEN written
+  -- arguments still recover as usual)
+  checkElem ctx env site (SNoIns e) ty = do
+    st <- getSt
+    case impSpineOf st e of
+      Just (q, x0, mrng, items) => do
+        (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) False q x0 mrng items
+        c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
+        pure (t', addPayload (PSwitch (certOr c)) tSk)
+      Nothing => do
+        (t', inferred, tSk) <- inferElem ctx env site e
         c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
         pure (t', addPayload (PSwitch (certOr c)) tSk)
   checkElem ctx env site t ty = do
@@ -3598,10 +3634,10 @@ mutual
   ||| touched. An unsolved position is a STRUCTURAL error naming the
   ||| remedy ({…}). Matching is syntactic first, then both sides
   ||| under the δ-free computational normalizer — never the store.
-  elabImpSpine : Ctx -> NameEnv -> String -> Maybe Ty ->
+  elabImpSpine : Ctx -> NameEnv -> String -> Maybe Ty -> (insertTrailing : Bool) ->
                  (q : String) -> (x0 : String) -> Maybe Range -> List SElem ->
                  ElabM (Elem, Ty, Skel)
-  elabImpSpine ctx env site mexp q x0 mrng items = do
+  elabImpSpine ctx env site mexp insertTrailing q x0 mrng items = do
     st <- getSt
     defTy <- case cachedSigLookup st.sig q of
       Just (SigDef [<] _ _ ty) => pure ty
@@ -3636,7 +3672,7 @@ mutual
                     if hasHolesE arg
                       then case lookup pos sols of
                         Just v => pure v
-                        Nothing => throw "\{site}: cannot infer implicit argument #\{show pos} of '\{q}' — supply it with {…}"
+                        Nothing => throw "\{site}: cannot infer implicit argument #\{show pos} of '\{q}' — supply it with {…}, or pass the bare function with \{q} {}"
                       else pure arg)
                   (zip (map fst slots) (reverse revArgs))
     -- pending switch conversions, at the FINAL instantiations
@@ -3668,7 +3704,11 @@ mutual
           let expPoss = mapMaybe (\(pos, mt) => case mt of
                           Just _ => if pos `elem` imps then Nothing else Just pos
                           Nothing => Nothing) slots
-          let notTrailing = \pos => (not (null leftover)) ||
+          -- a trailing position is fine when the site is CHECKED:
+          -- insertion reaches it (the consumed positions past the
+          -- last explicit are all implicit by construction)
+          let notTrailing = \pos => isJust mexp ||
+                                    (not (null leftover)) ||
                                     any (\p => p > pos) expPoss
           let hypPat = map (\(i, _) => if i `elem` imps then holeE i
                                                         else holeE (throwaway + i)) slots
@@ -3708,8 +3748,17 @@ mutual
     ||| telescope are LEFTOVER, applied generically after.
     assign : List Nat -> Nat -> List Ty -> List SElem ->
              ElabM (List (Nat, Maybe SElem), List SElem)
-    assign imps pos _ [] = pure ([], [])
+    assign imps pos (d :: ds) [] =
+      -- written items exhausted: INSERT the trailing implicit run
+      -- (checking position, unmarked — the expected type is the
+      -- solver), stopping at the first explicit position
+      if insertTrailing && (pos `elem` imps)
+        then do
+          (more, left) <- assign imps (S pos) ds []
+          pure ((pos, Nothing) :: more, left)
+        else pure ([], [])
     assign imps pos [] rest = pure ([], rest)
+    assign imps pos [] [] = pure ([], [])
     assign imps pos (d :: ds) (it :: rest) =
       if pos `elem` imps
         then case it of

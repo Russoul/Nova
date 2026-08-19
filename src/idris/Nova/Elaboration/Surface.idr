@@ -176,6 +176,12 @@ mutual
     ||| position of the applied definition; legal only as an
     ||| application argument (elaboration rejects it anywhere else)
     SImpArg : SElem -> SElem
+    ||| f {} — the NO-INSERT marker: suppress trailing-implicit
+    ||| insertion at this reference/spine (the function-passing form:
+    ||| a checking-position reference of an implicit-binder def
+    ||| otherwise inserts its implicit run and solves it from the
+    ||| expected type — docs/NovaPerfectSurface.txt, Phase 3d)
+    SNoIns : SElem -> SElem
 
 -- ===== Weakening =====
 --
@@ -235,6 +241,7 @@ mutual
     SChain (shiftElem c h) (map (\(j, m) => (shiftElem c j, shiftElem c m)) links)
   shiftElem c (SAnn t ty) = SAnn (shiftElem c t) (shiftTy c ty)
   shiftElem c (SImpArg t) = SImpArg (shiftElem c t)
+  shiftElem c (SNoIns t) = SNoIns (shiftElem c t)
 
   public export
   covering
@@ -497,6 +504,7 @@ mutual
     show (SSquashElim e x body) = "SquashElim (\{show e}) \{fst x} (\{show body})"
     show (SAnn t ty) = "Ann (\{show t}) (\{show ty})"
     show (SImpArg t) = "Imp (\{show t})"
+    show (SNoIns t) = "NoIns (\{show t})"
 
   public export
   covering

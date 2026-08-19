@@ -535,12 +535,15 @@ mutual
     cont e =
           (do sp; kw ".π₁"; cont (SProj1 e))
       <|> (do sp; kw ".π₂"; cont (SProj2 e))
-      -- {t} — an implicit-position override argument
-      -- (docs/NovaPerfectSurface.txt, Phase 3); NB `{-` opens a
+      -- {t} — an implicit-position override argument — and {} — the
+      -- NO-INSERT marker, suppressing trailing-implicit insertion
+      -- (docs/NovaPerfectSurface.txt, Phases 3b/3d); NB `{-` opens a
       -- comment at the lexer, so an override starting with an
       -- operator needs a space: { -x } — the Haskell convention
-      <|> (do sp; kwc '{'; sp; t <- parseSElem tbl env; sp; kwc '}'
-              cont (SApp e (SImpArg t)))
+      <|> (do sp; kwc '{'; sp
+              (do kwc '}'; cont (SNoIns e))
+                <|> (do t <- parseSElem tbl env; sp; kwc '}'
+                        cont (SApp e (SImpArg t))))
       <|> (do sp; e' <- parseSElemAtom tbl env; cont (SApp e e'))
       <|> pure e
 
