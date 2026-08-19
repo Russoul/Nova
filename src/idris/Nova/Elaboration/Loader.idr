@@ -77,11 +77,11 @@ parseHeader label path content =
     Right (_, r) => Right r
 
 parseModule : (label : String) -> (path : String) -> FixTable -> String
-            -> Either LoadErr (SnocList (Range, TokenKind), List SImport, FixTable, List (Maybe Range, SItem))
+            -> Either LoadErr (SnocList (Range, TokenKind), List SImport, FixTable, List (Maybe Range, SItem), List SBodyEntry)
 parseModule label path tbl content =
   case runSurfaceParser (parseSFile tbl) content of
     Left (rng, err) => Left (MkLoadErr (Just path) rng "parse error in \{label}: \{err}")
-    Right (toks, (imps, tbl', items)) => Right (toks, imps, tbl', items)
+    Right (toks, (imps, tbl', items, body)) => Right (toks, imps, tbl', items, body)
 
 mutual
   ||| Resolve module `mname` and (transitively, first) its imports into
@@ -107,10 +107,10 @@ mutual
           Right (done', fixs', acc') <- loadMany rootDir (mname :: visiting) done fixs acc (map (\i => i.mname) hdr)
             | Left err => pure (Left err)
           let tbl0 = importTable fixs' hdr
-          let Right (toks, imps, decls, items) = parseModule "module \{mname} (\{path})" path tbl0 content
+          let Right (toks, imps, decls, items, body) = parseModule "module \{mname} (\{path})" path tbl0 content
             | Left err => pure (Left err)
           pure (Right (mname :: done', (mname, decls) :: fixs',
-                       acc' ++ [MkModUnit mname imps (decls ++ tbl0) items toks]))
+                       acc' ++ [MkModUnit mname imps (decls ++ tbl0) items toks body]))
 
   loadMany : (rootDir : String) -> (visiting : List String) -> (done : List String)
            -> (fixs : FixMap) -> (acc : List ModUnit) -> List String
@@ -133,9 +133,9 @@ loadProgram rootPath = do
   Right (_, fixs, deps) <- loadMany (dirOf rootPath) [] [] [] [] (map (\i => i.mname) hdr)
     | Left err => pure (Left err)
   let tbl0 = importTable fixs hdr
-  let Right (toks, imps, decls, items) = parseModule rootPath rootPath tbl0 content
+  let Right (toks, imps, decls, items, body) = parseModule rootPath rootPath tbl0 content
     | Left err => pure (Left err)
-  pure (Right (deps ++ [MkModUnit "" imps (decls ++ tbl0) items toks]))
+  pure (Right (deps ++ [MkModUnit "" imps (decls ++ tbl0) items toks body]))
 
 ||| Load and elaborate: the `elab` command's body.
 export

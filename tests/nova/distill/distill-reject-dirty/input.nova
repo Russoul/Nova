@@ -1,0 +1,3 @@
+-- distill refuses inputs that are not accepted: the obligation below
+-- stands, so the distiller must not transform the file
+def bad : Z ≡ S Z ∈ ℕ ≔ ⋆

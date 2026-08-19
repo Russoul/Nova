@@ -22,6 +22,7 @@ modules = Nova.Profile
         , Nova.Elaboration.Parser
         , Nova.Elaboration.Loader
         , Nova.Kernel.Parser
+        , Nova.Distill
         , Nova.Application
 
         , Solver.CommutativeMonoid

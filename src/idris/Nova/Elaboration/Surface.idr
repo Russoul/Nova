@@ -305,6 +305,21 @@ data SItem : Type where
                 (etaName : Maybe String) -> (witness : Maybe SElem) ->
                 List SClause -> SItem
 
+||| One fixity declaration as written: (operator, associativity, level).
+public export
+SFixity : Type
+SFixity = (String, Assoc, Nat)
+
+||| A file-body entry in source order: a fixity declaration or an item
+||| (with its item-level source range). Fixities take effect for the
+||| rest of the file, so faithful re-printing must preserve the
+||| interleaving — a hoisted fixity could re-classify an earlier
+||| prefix use of its operator as infix-only
+||| (docs/NovaPerfectSurface.txt, Phase 1).
+public export
+SBodyEntry : Type
+SBodyEntry = Either SFixity (Maybe Range, SItem)
+
 export
 itemName : SItem -> String
 itemName (SDef n _ _ _) = n

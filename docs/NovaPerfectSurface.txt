@@ -1,0 +1,220 @@
+////////// NovaPerfectSurface.txt — the perfect (elaborator, printer) pairing //////////
+
+////////// Purpose //////////
+
+This file specifies the PERFECT SURFACE programme: a pretty-printer of
+elaborated artifacts whose output is readable to a human, elides
+everything a specified recovery procedure can reconstruct, and — the
+hard constraint — RE-ELABORATES to equivalent foundation terms,
+certificates and skeletons, so the kernel re-checks it. The printer
+and the elaborator extensions it presupposes are ONE design (the
+pairing), built in lock-step; this file is their contract.
+
+Position among the docs: docs/NovaElaboration.txt owns the surface
+syntax and the elaborator; docs/NovaPipeline.txt owns the trust story.
+Nothing here moves the trust boundary — printer and recovery oracles
+are UNTRUSTED, and a defect in either is at worst a file that fails
+structurally or re-elaborates to obligations, never a wrong
+acceptance (the kernel gate is untouched).
+
+////////// The governing principle //////////
+
+  AN ELISION IS LEGAL IFF THE RECOVERY PROCEDURE, RUN ON THE ELIDED
+  FORM, PROVABLY REPRODUCES WHAT WAS ELIDED — AND THE PRINTER CHECKS
+  THAT AT PRINT TIME BY RUNNING THE ACTUAL RECOVERY CODE.
+
+The printer and the elaborator therefore share one implementation of
+every inference step (the RECOVERY ORACLES): the elaborator runs an
+oracle forward at an elided site; the printer runs the same oracle at
+print time and elides only what it verifiably recovers. Round-trip
+correctness is by construction, per node — never a property of two
+implementations kept in sync. The same rule scales to every sugar
+tier: from an elided index up to an item macro, A SUGAR IS ADMISSIBLE
+IFF ITS EXPANSION REPRODUCES THE ORIGINAL (checked by re-expansion or
+re-elaboration, then comparison).
+
+////////// The round-trip contract //////////
+
+For an accepted item (its Σ-prefix, type A, annotated tree τ):
+
+  elaborate(print(τ)) succeeds in the same Σ-prefix, its erasure is
+  α-IDENTICAL to erasure(τ), at A, and the kernel accepts the result.
+
+α-identity (core is nameless, so α-identity is structural equality),
+not mere convertibility: it is decidable and cheap, it makes printing
+idempotent (print ∘ elaborate ∘ print = print), it keeps golden tests
+trivial, and it forbids the printer from silently drifting terms
+(η-contraction, folding a goal into an abbreviation — the ProvingFeedback
+B-18 hazard — or converting between a calc chain and a trans spine —
+the B-21b hazard: the two are NOT interchangeable, since chains run
+with an empty Σ-scope). Skeletons and certificates may differ freely
+across the round trip — they are regenerated each run, and the kernel
+verdict is the equalizer.
+
+Whole-file form (what the implementation actually checks): distilling
+a module closure and re-elaborating it must (a) re-parse to
+structurally identical indexed surface ASTs while the sugar tier is
+the identity, and later, when sugar diverges the ASTs, (b) produce a
+final Σ whose entries are α-identical to the original run's, with the
+run accepted. The elaborator is deterministic, so (a) implies (b) at
+the identity tier; the harness keeps both checks so the contract
+survives the tier where (a) stops holding.
+
+Two printer MODES over one engine:
+
+  * DISTILL — the contract above holds. For: rewriting files into
+    perfect surface, printing generated items, printing obligations as
+    prependable lemmas.
+  * DISPLAY — readability may win over invertibility (η-contraction,
+    lemma-dependent elision, ellipsis, short ambiguous names,
+    certificate→calc-chain rendering). For: reports, hovers, docs.
+    Never fed back to the elaborator.
+
+////////// The printer's input //////////
+
+Not the erasure. The erasure has strictly less information than the
+surface needs (bare core has no motives; ⋆-payloads — squash
+witnesses, coind invariants, propext implications — live in the
+skeleton; the using clause determines whether discharge re-succeeds).
+The DISTILL printer's input is the ANNOTATED TREE — core plus
+skeleton — together with the item's discharge-scope data (using
+clause, site-local scopes) and display names. Equivalent formulation,
+and the implementation's Phase-1 shape: the elaborated (indexed)
+surface tree IS an annotation-carrying spelling of the core term —
+docs/NovaElaboration.txt: "the distance between surface and core is
+annotations, never names" — so retaining it retains the annotated
+tree.
+
+////////// Performance constraints (non-negotiable) //////////
+
+Elaboration performance is a design input, not an afterthought. The
+strict-conversion architecture's cost model — CONSISTENT AND
+PROPORTIONAL TO WHAT IS WRITTEN, every δ named in the source
+(docs/PerfNotes.md, "The αβ-conversion survey" onward) — extends to
+the pairing:
+
+  1. RECOVERY IS LICENSE-BOUNDED. Every oracle (argument recovery,
+     motive check, overload resolution, ∈-recovery) compares under
+     α + the computation rules + exactly the enclosing item's cited
+     licenses — never the lemma store, never ambient δ. If recovering
+     an elided piece would need a lemma or an uncited unfold, it is
+     printed explicitly. (Also the determinism guarantee: which term
+     a file denotes never depends on anything but the file.)
+
+  2. THE ANTI-HOLE REQUIREMENTS. The removed hole machinery's
+     post-mortem (PerfNotes "The cost of a hole"; the four mechanisms)
+     is a requirements list on the recovery oracles:
+       * no attempt tax — elided arguments are solved SPINE-LOCALLY,
+         during the bidirectional walk, before and outside every ↓;
+         a metavariable never reaches a conversion site;
+       * no cache demolition — solutions live in the spine frame; no
+         metacontext survives it; Σ is never mutated;
+       * no tier starvation — recovery succeeds at the spine or is an
+         immediate structural error ("cannot infer this argument —
+         spell it"); no stuck references ever enter terms;
+       * no kernel involvement — recovered arguments are ordinary
+         core terms; the core stays bare; implicitness is per-def
+         metadata (like fixities), invisible to kernel and theory.
+     Plus: rigid first-order matching only — no higher-order
+     unification, no postponement, no backtracking, one deterministic
+     pass.
+
+  3. THE BUDGET GATE. DISTILL refuses an elision whose recovery
+     exceeds a fixed budget (a deterministic step count, not wall
+     clock). The corpus wall time is a tracked number of the golden
+     fixture: a distilled corpus must re-elaborate within a stated
+     tolerance of the explicit one. The deblank episode (a ~45×
+     invisible cost cliff, found only by measurement) must be
+     impossible by construction: elision is granted per-site by
+     verified measurement, never by hope.
+
+////////// Citations are semantic //////////
+
+Under strict conversion the using clause is part of an item's meaning,
+non-monotonically in both directions (ProvingFeedback B-17: adding a
+hinted .eq can UNDO a proof; B-22: license kinds differ — a plain
+citation buys whole-equation match and hops, .rw activates rewriting
+item-wide). Consequences:
+
+  * the printer reproduces citation sets EXACTLY by default, license
+    kinds included;
+  * citation MINIMIZATION is a distiller feature, implemented as the
+    measured pass ProvingFeedback records (remove one, re-elaborate,
+    keep the removal iff the item still closes), one at a time, per
+    kind — never a blind sweep;
+  * elision recoverability is computed under the item's citation set,
+    and the round-trip check runs under the same set.
+
+////////// The sugar tiers (the phased plan) //////////
+
+Each tier lands as a vertical slice — oracle, printer rule, elaborator
+rule (grammar + elaboration), round-trip goldens — with the oracle
+first, exercised by a printer SURVEY (report-only counts over the
+corpus: what would elide, what fails recovery, worst budget) before
+any surface form is committed. The strict elaborator's hot path is
+touched only in a slice whose survey has made the case.
+
+  Phase 1 (this phase) — IDENTITY TIER + HARNESS. A distill printer
+    whose output is today's surface, from the retained indexed surface
+    AST; the round-trip harness (print → parse → AST-compare →
+    re-elaborate → accept, over the corpus); `nova distill`; goldens.
+    No elaborator changes beyond retention plumbing.
+  Phase 2 — BIJECTIVE TIER. Numerals, binder-group compaction
+    ((x y : A) →), layout. Touches the parser; zero inference risk.
+  Phase 3 — IMPLICIT BINDERS + SPINE RECOVERY. {x : A} in def types,
+    f {x ≔ t} named overrides, _ for ad-hoc elision of explicit
+    binders; implicitness as per-def surface metadata; the spine-local
+    rigid first-order oracle under constraints 1–3 above.
+  Phase 4 — REMAINING ORACLES, in value order: ∈-elision in equality
+    props; motive elision (constant-motive and abstract-the-scrutinee
+    checks, checking position only); type-directed operator
+    disambiguation (print bare iff resolution in the file's import
+    environment uniquely recovers the same Σ name).
+  Phase 5 — ITEM LEVEL + DISPLAY DIVIDENDS. Clausal-def/data
+    recognition by re-expansion + comparison; citation minimization;
+    certificate→chain DISPLAY rendering; reports/LSP onto the shared
+    engine.
+
+////////// Phase 1, precisely //////////
+
+Scope: the identity sugar tier. The printer consumes ModUnits — the
+loader's parsed modules, whose items are the indexed surface ASTs the
+elaborator consumed — and renders today's surface grammar back, with
+faithful precedence, fixity-aware infix layout, binder names as
+retained, and the file's import/fixity/item interleaving preserved
+(fixities interleave with items in corpus files and take effect for
+the rest of the file; hoisting one could re-classify an earlier
+prefix use of the operator).
+
+The `nova distill <root> <outDir>` command:
+  1. loads the root's module closure, elaborates it, requires
+     acceptance (a distiller only transforms accepted inputs);
+  2. renders every module of the closure into outDir (module paths
+     mirrored; the root keeps its basename);
+  3. reloads from outDir and verifies, per module: imports, fixity
+     declarations, and items re-parse STRUCTURALLY IDENTICAL (the
+     range-insensitive Show instances are the comparator);
+  4. re-elaborates the distilled closure and requires output
+     IDENTICAL to step 1's (determinism makes string equality the
+     strongest cheap check);
+  5. reports counts; any mismatch names the module and item.
+
+Verification layering, and which check survives which phase: step 3
+(AST equality) is the identity-tier contract and will be RELAXED per
+sugar tier as printing legitimately diverges from the source spelling
+(numerals, grouped binders, elisions); step 4 (accepted, identical
+elaboration) is the contract that never relaxes — at later tiers it
+tightens into Σ-entry α-comparison against the original run.
+
+Out of scope for Phase 1, deliberately: layout beauty beyond
+readable one-item-per-line output (a proper layout engine arrives
+with Phase 2, where it matters); printing obligations through the new
+engine; any elision.
+
+////////// Status //////////
+
+Phase 1: implemented — Nova.Distill (the renderer and the module
+round-trip verifier), the `nova distill` CLI command, ModUnit's
+retained interleaved body (Loader/Parser), distill goldens under
+tests/nova/distill, and check-distill.sh (the corpus round-trip
+gate).
