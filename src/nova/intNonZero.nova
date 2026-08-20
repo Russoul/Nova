@@ -36,7 +36,6 @@ def nzOfPairD : (a b : ℕ)
     (k ih. λb. ℕ-elim
       (λhab. inj₁ (nzPos k, ⋆))
       (j ihb. λhab. 𝟘-elim (zNotS
-        _
         (trans _ _ _ (sym _ _ hab) (trans _ _ _ (multSucId (S k) j) (sucPlus k (S k * j))))))
       b)
     a
@@ -78,7 +77,7 @@ def nzToIntNonZero : (e : El NZ) → Prf (¬ (nzToInt e ≡ intZero))
     prop.⊃.unfold,
     rational.NZ.unfold,
     rational.nzToInt.eq) ≔
-  λe. ⊎-elim (n. intNeqOfNotRel (λr. zNotS _ (sym (S n) Z r))) (n. intNeqOfNotRel (λr. zNotS n r)) e
+  λe. ⊎-elim (n. intNeqOfNotRel (λr. zNotS (sym (S n) Z r))) (n. intNeqOfNotRel (λr. zNotS {n} r)) e
 
 -- ===== ℤ has no zero divisors =====
 --

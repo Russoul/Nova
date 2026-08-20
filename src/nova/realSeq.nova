@@ -59,10 +59,7 @@ def rseqEqAt : {x y : El RSeq} → (seqOf x ≡ seqOf y) → x ≡ y
     realNeg.regOf.eq,
     realNeg.seqOf.eq) ≔
   λx. λy. λh. sigmaEq2
-    (ℕ → Q)
     (λf. Regular f)
-    _
-    _
     h
     (regularIsProp _ (regOf x) (transport (λf. Regular f) (sym _ _ h) (regOf y)))
 

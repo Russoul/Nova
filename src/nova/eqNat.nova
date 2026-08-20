@@ -26,13 +26,13 @@ def eqNSound : {n m : ℕ} → Prf (EqN n m) → n ≡ m
 -- ℕ has no confusion between Z and S _: transporting prop.nova's
 -- "is-Z" code along a bad Z ≡ S j equation lands a 𝟙-witness in 𝟘
 -- (prop.absurd is the j ≔ Z instance, composed with absurdP)
-def zNotS : (j : ℕ) → (Z ≡ S j) → 𝟘 using (prop.isZeroCode.unfold) ≔
+def zNotS : {j : ℕ} → (Z ≡ S j) → 𝟘 using (prop.isZeroCode.unfold) ≔
   λj. λh. transport isZeroCode h ()
 
 -- S is injective: predecessor congruence recovers n ≡ j from S n ≡ S j
 def pred : ℕ → ℕ ≔ λn. ℕ-elim Z (n ih. n) n
 
-def predEq : (n j : ℕ) → (S n ≡ S j) → n ≡ j ≔ λn. λj. λh. cong (λ_. ℕ) pred h
+def predEq : {n j : ℕ} → (S n ≡ S j) → n ≡ j ≔ λn. λj. λh. cong (λ_. ℕ) pred h
 
 -- completeness: the built-in equality implies EqN, by double
 -- induction mirroring EqN's own recursion — the Z/S-mismatch cases
@@ -40,18 +40,18 @@ def predEq : (n j : ℕ) → (S n ≡ S j) → n ≡ j ≔ λn. λj. λh. cong (
 def eqNComplete : {n m : ℕ} → (n ≡ m) → Prf (EqN n m)
   using (eqNat.EqN.eq, eqNat.EqN.unfold, prop.⊤.unfold) ≔
   λn. ℕ-elim
-    (λm. ℕ-elim (λh. ⋆) (j ih2. λh. 𝟘-elim (zNotS _ h)) m)
-    (n ih. λm. ℕ-elim (λh. 𝟘-elim (zNotS _ (sym _ _ h))) (j ih2. λh. ih j (predEq j n h)) m)
+    (λm. ℕ-elim (λh. ⋆) (j ih2. λh. 𝟘-elim (zNotS h)) m)
+    (n ih. λm. ℕ-elim (λh. 𝟘-elim (zNotS (sym _ _ h))) (j ih2. λh. ih j (predEq {j} {n} h)) m)
     n
 
 -- the logical equivalence, packaged with prop.nova's ↔ against the
 -- squashed built-in equality (Ω is impredicative, ≡ ∈ ℕ is not, so
 -- ∥-∥ is the bridge)
-def eqNSoundP : (n m : ℕ) → Prf (EqN n m) → Prf (n ≡ m) ≔ λn. λm. λh. ⋆ (eqNSound h)
+def eqNSoundP : {n m : ℕ} → Prf (EqN n m) → Prf (n ≡ m) ≔ λn. λm. λh. ⋆ (eqNSound h)
 
 -- ∥Prf p∥ ≜ p (code-squash-prf): h already proves the equation
-def eqNCompleteP : (n m : ℕ) → Prf (n ≡ m) → Prf (EqN n m) using (eqNat.EqN.unfold) ≔
+def eqNCompleteP : {n m : ℕ} → Prf (n ≡ m) → Prf (EqN n m) using (eqNat.EqN.unfold) ≔
   λn. λm. λh. eqNComplete h
 
 def eqNIff : (n m : ℕ) → Prf (EqN n m ↔ (n ≡ m)) using (prop.↔.unfold, prop.∧.unfold) ≔
-  λn. λm. iffIntro _ (eqNSoundP n m) (eqNCompleteP n m)
+  λn. λm. iffIntro _ eqNSoundP eqNCompleteP

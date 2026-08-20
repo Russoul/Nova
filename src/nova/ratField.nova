@@ -84,7 +84,7 @@ def qOneNotZeroD : El (Id _ qOne qZero) → 𝟘
     _
     _
     _
-    p in let r ≔ qEffective ratOne ratZero h in let e ≔ intEffective _ _ r in zNotS _ (sym _ _ e)
+    p in let r ≔ qEffective ratOne ratZero h in let e ≔ intEffective _ _ r in zNotS (sym _ _ e)
 
 -- ℚ is a field. The inverse component is UNSQUASHED: qInv is an
 -- honest operation (rationalAlgInv), so the witness is (qInv x, law).

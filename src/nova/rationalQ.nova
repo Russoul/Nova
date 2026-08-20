@@ -470,8 +470,8 @@ def magAssoc : {m k l : ℕ}
   → (m * k + m + k) * l + (m * k + m + k) + l ≡ m * (k * l + k + l) + m + (k * l + k + l)
   using (plusAssoc, nat.sucPlus, zeroPlusId) ≔
   λm. λk. λl. predEq
-    (Z + ((m * k + m + k) * l + (m * k + m + k) + l))
-    (Z + (m * (k * l + k + l) + m + (k * l + k + l)))
+    {Z + ((m * k + m + k) * l + (m * k + m + k) + l)}
+    {Z + (m * (k * l + k + l) + m + (k * l + k + l))}
     (trans
       (S ((m * k + m + k) * l + (m * k + m + k) + l))
       _

@@ -78,17 +78,17 @@ def eqIComplete : {z1 z2 : El Int} → (z1 ≡ z2) → Prf (EqI z1 z2)
 
 -- the logical equivalence, packaged with prop.nova's ↔ against the
 -- squashed built-in equality
-def eqISoundP : (z1 z2 : El Int) → Prf (EqI z1 z2) → Prf (z1 ≡ z2) using (intNormalizeId) ≔
+def eqISoundP : {z1 z2 : El Int} → Prf (EqI z1 z2) → Prf (z1 ≡ z2) using (intNormalizeId) ≔
   λz1. λz2. λh. eqISound h
 
 -- ∥Prf p∥ ≜ p (code-squash-prf): h already proves the equation
-def eqICompleteP : (z1 z2 : El Int) → Prf (z1 ≡ z2) → Prf (EqI z1 z2)
+def eqICompleteP : {z1 z2 : El Int} → Prf (z1 ≡ z2) → Prf (EqI z1 z2)
   using (eqInt.EqI.unfold, intNormalizeId) ≔
   λz1. λz2. λh. eqIComplete h
 
-def eqIIff : (z1 z2 : El Int) → Prf (EqI z1 z2 ↔ (z1 ≡ z2))
+def eqIIff : {z1 z2 : El Int} → Prf (EqI z1 z2 ↔ (z1 ≡ z2))
   using (intNormalizeId, prop.↔.unfold, prop.∧.unfold) ≔
-  λz1. λz2. iffIntro _ (eqISoundP z1 z2) (eqICompleteP z1 z2)
+  λz1. λz2. iffIntro _ eqISoundP eqICompleteP
 
 -- ===== observational equality, the computing one =====
 --
@@ -161,7 +161,7 @@ def normPairWD : (a b c d : ℕ) (h : Prf (a + d ≡ b + c)) → normPair a b �
         b'
         c
         d
-        (predEq _ _ (trans _ _ _ (sym _ _ (sucPlus a' d)) (trans _ _ _ h (sucPlus b' c)))))
+        (predEq (trans _ _ _ (sym _ _ (sucPlus a' d)) (trans _ _ _ h (sucPlus b' c)))))
       b)
     a
 
@@ -188,7 +188,7 @@ def intCanonZero : intCanon intZero ≡ (Z, Z) ∈ El (ℕ ⨯ ℕ)
 
 -- Σ-η, generically (a ℕ ⨯ ℕ-specific version would be matched by the
 -- engine at pairs of OTHER types and rejected by the kernel)
-def pairEtaG : (A B : 𝕌) (p : El (A ⨯ B)) → (p .π₁, p .π₂) ≡ p using (sigma.eta) ≔ λA. λB. λp. ⋆
+def pairEtaG : {A B : 𝕌} (p : El (A ⨯ B)) → (p .π₁, p .π₂) ≡ p using (sigma.eta) ≔ λA. λB. λp. ⋆
 
 -- componentwise pair equality — GENERIC for the same reason as
 -- pairEtaG: a ℕ ⨯ ℕ-specific version matches (first-order, type-blind)
@@ -199,8 +199,8 @@ def pairEq2 : {A B : 𝕌} {x y : El (A ⨯ B)} → (x .π₁ ≡ y .π₁) → 
     _
     _
     _
-    (trans _ _ (y .π₁, y .π₂) (sym _ _ (pairEtaG _ _ x)) ⋆)
-    (pairEtaG _ _ y)
+    (trans _ _ (y .π₁, y .π₂) (sym _ _ (pairEtaG x)) ⋆)
+    (pairEtaG y)
 
 -- ===== EqZ: equality that computes =====
 def EqZ : El Int → El Int → Ω ≔
@@ -262,19 +262,19 @@ def eqZComplete : {z1 z2 : El Int} → (z1 ≡ z2) → Prf (EqZ z1 z2)
     (eqNComplete (cong (λu. ℕ) (λz. intCanon z .π₁) h))
     (eqNComplete (cong (λu. ℕ) (λz. intCanon z .π₂) h))
 
-def eqZSoundP : (z1 z2 : El Int) → Prf (EqZ z1 z2) → Prf (z1 ≡ z2) ≔ λz1. λz2. λh. eqZSound h
+def eqZSoundP : {z1 z2 : El Int} → Prf (EqZ z1 z2) → Prf (z1 ≡ z2) ≔ λz1. λz2. λh. eqZSound h
 
-def eqZCompleteP : (z1 z2 : El Int) → Prf (z1 ≡ z2) → Prf (EqZ z1 z2)
+def eqZCompleteP : {z1 z2 : El Int} → Prf (z1 ≡ z2) → Prf (EqZ z1 z2)
   using (eqInt.EqZ.unfold, prop.∧.unfold) ≔
   λz1. λz2. λh. eqZComplete h
 
 def eqZIff : (z1 z2 : El Int) → Prf (EqZ z1 z2 ↔ (z1 ≡ z2)) using (prop.↔.unfold, prop.∧.unfold) ≔
-  λz1. λz2. iffIntro _ (eqZSoundP z1 z2) (eqZCompleteP z1 z2)
+  λz1. λz2. iffIntro _ eqZSoundP eqZCompleteP
 
 -- ===== NeqZ: disequality that computes =====
 def NeqZ : El Int → El Int → Ω ≔ λz1. λz2. ¬ (EqZ z1 z2)
 
-def neqZSound : (z1 z2 : El Int) → Prf (NeqZ z1 z2) → Prf (¬ (z1 ≡ z2))
+def neqZSound : {z1 z2 : El Int} → Prf (NeqZ z1 z2) → Prf (¬ (z1 ≡ z2))
   using (eqInt.EqZ.eq,
     eqInt.NeqZ.eq,
     eqInt.NeqZ.unfold,
@@ -289,9 +289,9 @@ def neqZSound : (z1 z2 : El Int) → Prf (NeqZ z1 z2) → Prf (¬ (z1 ≡ z2))
     prop.⊃.eq,
     prop.⊃.unfold,
     prop.⊥.eq) ≔
-  λz1. λz2. λh. impIntro (z1 ≡ z2) ∥𝟘∥ (λe. impApply (EqZ z1 z2) ⊥ h (eqZCompleteP _ _ e))
+  λz1. λz2. λh. impIntro (z1 ≡ z2) ∥𝟘∥ (λe. impApply (EqZ z1 z2) ⊥ h (eqZCompleteP e))
 
-def neqZComplete : (z1 z2 : El Int) → Prf (¬ (z1 ≡ z2)) → Prf (NeqZ z1 z2)
+def neqZComplete : {z1 z2 : El Int} → Prf (¬ (z1 ≡ z2)) → Prf (NeqZ z1 z2)
   using (eqInt.EqZ.eq,
     eqInt.EqZ.unfold,
     eqInt.NeqZ.eq,
@@ -309,11 +309,11 @@ def neqZComplete : (z1 z2 : El Int) → Prf (¬ (z1 ≡ z2)) → Prf (NeqZ z1 z2
     prop.⊃.unfold,
     prop.⊤.eq,
     prop.⊥.eq) ≔
-  λz1. λz2. λh. impIntro (EqZ z1 z2) ∥𝟘∥ (λe. impApply (z1 ≡ z2) ⊥ h (eqZSoundP _ _ e))
+  λz1. λz2. λh. impIntro (EqZ z1 z2) ∥𝟘∥ (λe. impApply (z1 ≡ z2) ⊥ h (eqZSoundP e))
 
 def neqZIff : (z1 z2 : El Int) → Prf (NeqZ z1 z2 ↔ ¬ (z1 ≡ z2))
   using (prop.↔.unfold, prop.∧.unfold) ≔
-  λz1. λz2. iffIntro _ (neqZSound z1 z2) (neqZComplete z1 z2)
+  λz1. λz2. iffIntro _ neqZSound neqZComplete
 
 -- ===== the payoff: an actual disequality =====
 --
@@ -343,7 +343,7 @@ def eqZOneZero : Prf (NeqZ intOne intZero)
     (λh. andFst ⊥ (EqN (intCanon intOne .π₂) (intCanon intZero .π₂)) h)
 
 def intOneNotZero : Prf (¬ (intOne ≡ intZero)) using (prop.¬.unfold, prop.⊃.unfold) ≔
-  neqZSound _ _ eqZOneZero
+  neqZSound eqZOneZero
 
 -- and a positive computation: 2 = 2 even spelled differently
 def eqZTwo : Prf (EqZ (class (2, Z)) (class (3, S Z)))

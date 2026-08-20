@@ -453,7 +453,7 @@ def sqrtNNConst : (x : El Real) (d d' : El (NonNegPayload x)) → sqrtFromNN _ d
       (reqOfClassEq (trans _ _ _ (nnRepEq _ d) (sym _ _ (nnRepEq _ d')))))
 
 def realSqrt : (x : El Real) → El (NonNegR x) → El Real using (NonNegR.eq) ≔
-  λx. λw. brElim _ (sqrtFromNN x) (sqrtNNConst x) w
+  λx. λw. brElim (sqrtFromNN x) (sqrtNNConst x) w
 
 def realSqrtRep : {x : El Real}
   {d : El (NonNegPayload x)}
