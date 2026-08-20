@@ -181,7 +181,7 @@ SYMBOLS (4):
   useCst (kind 12) [L6:1-L6:54]
   useTrans (kind 12) [L8:1-L9:47]
 DEFINITION(_ _ n u): null
-HOVER(_ _ n u): [L6:47-L6:48] ```nova ⏎ _ : 𝕌 ≔ ℕ ⏎ ```
+HOVER(_ _ n u): [L6:47-L6:48] ```nova ⏎ _ : 𝕌 ≔ ℕ ⏎ -- solved from the expected type ⏎ ```
 DIAGNOSTICS FOR FIXTURE (0):
 SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
 SERVER EXIT CODE: 0
@@ -367,8 +367,195 @@ SYMBOLS (4):
   trans3 (kind 12) [L3:1-L4:48]
   useCst (kind 12) [L6:1-L6:54]
   useTrans (kind 12) [L8:1-L9:47]
-DEFINITION(_ p q): null
-HOVER(_ p q): [L9:42-L9:43] ```nova ⏎ _ : El A ≔ c ⏎ ```
+DEFINITION(_ n u): null
+HOVER(_ n u): [L6:49-L6:50] ```nova ⏎ _ : 𝕌 ≔ 𝟙 ⏎ -- solved from the type of u ⏎ ```
+DIAGNOSTICS FOR FIXTURE (0):
+SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
+SERVER EXIT CODE: 0
+LEGEND: ["keyword", "variable", "operator", "number", "comment"]
+CAPS: hover=true definition=true documentSymbol=true
+DIAGNOSTICS (0):
+TOKENS (173):
+  L1:1+3 keyword
+  L1:5+3 variable
+  L1:9+1 keyword
+  L1:11+1 keyword
+  L1:12+1 variable
+  L1:14+1 variable
+  L1:16+1 keyword
+  L1:18+1 keyword
+  L1:19+1 keyword
+  L1:21+1 keyword
+  L1:23+2 keyword
+  L1:26+1 variable
+  L1:28+1 keyword
+  L1:30+2 keyword
+  L1:33+1 variable
+  L1:35+1 keyword
+  L1:37+2 keyword
+  L1:40+1 variable
+  L1:42+1 keyword
+  L1:44+1 keyword
+  L1:45+1 variable
+  L1:46+1 keyword
+  L1:48+1 keyword
+  L1:49+1 variable
+  L1:50+1 keyword
+  L1:52+1 keyword
+  L1:53+1 variable
+  L1:54+1 keyword
+  L1:56+1 keyword
+  L1:57+1 variable
+  L1:58+1 keyword
+  L1:60+1 variable
+  L3:1+3 keyword
+  L3:5+6 variable
+  L3:12+1 keyword
+  L3:14+1 keyword
+  L3:15+1 variable
+  L3:17+1 keyword
+  L3:19+1 keyword
+  L3:20+1 keyword
+  L3:22+1 keyword
+  L3:23+1 variable
+  L3:25+1 variable
+  L3:27+1 variable
+  L3:29+1 keyword
+  L3:31+2 keyword
+  L3:34+1 variable
+  L3:35+1 keyword
+  L3:37+1 keyword
+  L3:39+1 keyword
+  L3:40+1 variable
+  L3:42+1 keyword
+  L3:44+1 variable
+  L3:45+1 keyword
+  L3:47+1 keyword
+  L3:49+1 keyword
+  L3:50+1 variable
+  L3:52+1 keyword
+  L3:54+1 variable
+  L3:55+1 keyword
+  L3:57+1 keyword
+  L3:59+1 variable
+  L3:61+1 keyword
+  L3:63+1 variable
+  L4:3+1 keyword
+  L4:5+1 keyword
+  L4:6+1 variable
+  L4:7+1 keyword
+  L4:9+1 keyword
+  L4:10+1 variable
+  L4:11+1 keyword
+  L4:13+1 keyword
+  L4:14+1 variable
+  L4:15+1 keyword
+  L4:17+1 keyword
+  L4:18+1 variable
+  L4:19+1 keyword
+  L4:21+1 keyword
+  L4:22+1 variable
+  L4:23+1 keyword
+  L4:25+1 keyword
+  L4:26+1 variable
+  L4:27+1 keyword
+  L4:29+1 variable
+  L4:31+2 keyword
+  L4:34+1 variable
+  L4:36+1 keyword
+  L4:38+1 variable
+  L4:40+2 keyword
+  L4:43+1 variable
+  L4:45+1 keyword
+  L4:47+1 variable
+  L6:1+3 keyword
+  L6:5+6 variable
+  L6:12+1 keyword
+  L6:14+2 keyword
+  L6:17+1 keyword
+  L6:19+1 keyword
+  L6:21+2 keyword
+  L6:24+1 keyword
+  L6:26+1 keyword
+  L6:28+2 keyword
+  L6:31+1 keyword
+  L6:33+1 keyword
+  L6:35+1 keyword
+  L6:36+1 variable
+  L6:37+1 keyword
+  L6:39+1 keyword
+  L6:40+1 variable
+  L6:41+1 keyword
+  L6:43+3 variable
+  L6:47+1 variable
+  L6:49+1 variable
+  L6:51+1 variable
+  L6:53+1 variable
+  L8:1+3 keyword
+  L8:5+8 variable
+  L8:14+1 keyword
+  L8:16+1 keyword
+  L8:17+1 variable
+  L8:19+1 keyword
+  L8:21+1 keyword
+  L8:22+1 keyword
+  L8:24+1 keyword
+  L8:25+1 variable
+  L8:27+1 variable
+  L8:29+1 variable
+  L8:31+1 keyword
+  L8:33+2 keyword
+  L8:36+1 variable
+  L8:37+1 keyword
+  L8:39+1 keyword
+  L8:41+1 keyword
+  L8:42+1 variable
+  L8:44+1 keyword
+  L8:46+1 variable
+  L8:47+1 keyword
+  L8:49+1 keyword
+  L8:51+1 keyword
+  L8:52+1 variable
+  L8:54+1 keyword
+  L8:56+1 variable
+  L8:57+1 keyword
+  L8:59+1 keyword
+  L8:61+1 variable
+  L8:63+1 keyword
+  L8:65+1 variable
+  L9:3+1 keyword
+  L9:5+1 keyword
+  L9:6+1 variable
+  L9:7+1 keyword
+  L9:9+1 keyword
+  L9:10+1 variable
+  L9:11+1 keyword
+  L9:13+1 keyword
+  L9:14+1 variable
+  L9:15+1 keyword
+  L9:17+1 keyword
+  L9:18+1 variable
+  L9:19+1 keyword
+  L9:21+1 keyword
+  L9:22+1 variable
+  L9:23+1 keyword
+  L9:25+1 keyword
+  L9:26+1 variable
+  L9:27+1 keyword
+  L9:29+6 variable
+  L9:36+1 variable
+  L9:38+1 variable
+  L9:40+1 variable
+  L9:42+1 variable
+  L9:44+1 variable
+  L9:46+1 variable
+SYMBOLS (4):
+  cst (kind 12) [L1:1-L1:61]
+  trans3 (kind 12) [L3:1-L4:48]
+  useCst (kind 12) [L6:1-L6:54]
+  useTrans (kind 12) [L8:1-L9:47]
+DEFINITION(_ _ p q): null
+HOVER(_ _ p q): [L9:40-L9:41] ```nova ⏎ _ : El A ≔ b ⏎ -- solved from the type of p ⏎ ```
 DIAGNOSTICS FOR FIXTURE (0):
 SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
 SERVER EXIT CODE: 0
