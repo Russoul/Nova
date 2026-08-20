@@ -107,6 +107,40 @@ kindName legend kind = fromMaybe "?\{show kind}" (nth (cast kind) legend)
 
 ||| (line, startChar, length, kindName), decoded from LSP's relative
 ||| delta encoding.
+-- ===== UTF-16 column conversion =====
+-- LSP `character` offsets and semantic-token deltas are UTF-16 code
+-- units; this client works in codepoints (unpack). Implemented
+-- INDEPENDENTLY of the server's Nova.LSP.Encoding on purpose: sharing
+-- the conversion would let a bug there cancel out here, and this
+-- client exists to catch exactly that class of wire bug.
+
+||| codepoint column -> UTF-16 units, within the given line
+cpToU16 : String -> Int -> Int
+cpToU16 line col = go (unpack line) col 0
+ where
+  go : List Char -> Int -> Int -> Int
+  go [] _ acc = acc
+  go (c :: cs) k acc =
+    if k <= 0 then acc
+    else go cs (k - 1) (acc + (if ord c > 0xFFFF then 2 else 1))
+
+||| UTF-16 units -> codepoint column, within the given line
+u16ToCp : String -> Int -> Int
+u16ToCp line u = go (unpack line) u 0
+ where
+  go : List Char -> Int -> Int -> Int
+  go [] _ acc = acc
+  go (c :: cs) k acc =
+    let w = if ord c > 0xFFFF then 2 else 1 in
+    if k < w then acc else go cs (k - w) (acc + 1)
+
+||| an LSP character offset -> codepoint column, via the line index;
+||| a line we do not have (another file's range) stays raw
+cpColAt : List String -> Int -> Int -> Int
+cpColAt lns line ch = case drop (cast line) lns of
+  (l :: _) => u16ToCp l ch
+  [] => ch
+
 decodeTokens : List String -> List Int -> List (Int, Int, Int, String)
 decodeTokens legend = go 0 0
  where
@@ -119,19 +153,21 @@ decodeTokens legend = go 0 0
         in (line', col', len, kindName legend kind) :: go line' col' rest
       _ => []
 
-renderToken : (Int, Int, Int, String) -> String
-renderToken (line, col, len, kind) =
-  "  L\{show (line + 1)}:\{show (col + 1)}+\{show len} \{kind}"
+renderToken : (lns : List String) -> (Int, Int, Int, String) -> String
+renderToken lns (line, col, len, kind) =
+  let cs = cpColAt lns line col
+      ce = cpColAt lns line (col + len)
+  in "  L\{show (line + 1)}:\{show (cs + 1)}+\{show (ce - cs)} \{kind}"
 
-renderDiagnostic : JSON -> String
-renderDiagnostic d =
+renderDiagnostic : (lns : List String) -> JSON -> String
+renderDiagnostic lns d =
   let range = fromMaybe "?" (do
                 r <- getField "range" d
                 sl <- getPath ["start", "line"] r >>= asInt
                 sc <- getPath ["start", "character"] r >>= asInt
                 el <- getPath ["end", "line"] r >>= asInt
                 ec <- getPath ["end", "character"] r >>= asInt
-                pure "L\{show (sl + 1)}:\{show (sc + 1)}-L\{show (el + 1)}:\{show (ec + 1)}")
+                pure "L\{show (sl + 1)}:\{show (cpColAt lns sl sc + 1)}-L\{show (el + 1)}:\{show (cpColAt lns el ec + 1)}")
       sev = case getField "severity" d >>= asInt of
               Just 1 => "error"
               Just 2 => "warning"
@@ -141,20 +177,20 @@ renderDiagnostic d =
       msg = fromMaybe "?" (getField "message" d >>= asString)
   in "  [\{range}] (\{sev}) \{msg}"
 
-renderRange : JSON -> String
-renderRange r =
+renderRange : (lns : List String) -> JSON -> String
+renderRange lns r =
   fromMaybe "?" (do
     sl <- getPath ["start", "line"] r >>= asInt
     sc <- getPath ["start", "character"] r >>= asInt
     el <- getPath ["end", "line"] r >>= asInt
     ec <- getPath ["end", "character"] r >>= asInt
-    pure "L\{show (sl + 1)}:\{show (sc + 1)}-L\{show (el + 1)}:\{show (ec + 1)}")
+    pure "L\{show (sl + 1)}:\{show (cpColAt lns sl sc + 1)}-L\{show (el + 1)}:\{show (cpColAt lns el ec + 1)}")
 
-renderSymbol : JSON -> String
-renderSymbol s =
+renderSymbol : (lns : List String) -> JSON -> String
+renderSymbol lns s =
   let name = fromMaybe "?" (getField "name" s >>= asString)
       kind = fromMaybe (-1) (getField "kind" s >>= asInt)
-      rng  = fromMaybe "?" (map renderRange (getField "range" s))
+      rng  = fromMaybe "?" (map (renderRange lns) (getField "range" s))
   in "  \{name} (kind \{show kind}) [\{rng}]"
 
 -- ===== finding a search word's position, for the definition test =====
@@ -199,31 +235,33 @@ dirname path =
 ||| file as the one we opened (a real absolute path would break golden
 ||| tests across checkouts, so it's never printed) or another file
 ||| (named by basename only), plus the target range.
-renderDefinition : String -> JSON -> String
-renderDefinition fixtureUri JNull = "null"
-renderDefinition fixtureUri result =
+renderDefinition : (lns : List String) -> String -> JSON -> String
+renderDefinition lns fixtureUri JNull = "null"
+renderDefinition lns fixtureUri result =
   fromMaybe "?" (do
     uri <- getField "uri" result >>= asString
     rng <- getField "range" result
     let label = if uri == fixtureUri then "SAME FILE" else "OTHER FILE: \{basename uri}"
-    pure "\{label} [\{renderRange rng}]")
+    -- another file's content is not at hand, so its columns print raw
+    let rlns = if uri == fixtureUri then lns else []
+    pure "\{label} [\{renderRange rlns rng}]")
 
 ||| Normalized hover result: the markdown value flattened to one line
 ||| (newlines shown as ⏎) plus the answer range.
-renderHover : JSON -> String
-renderHover JNull = "null"
-renderHover result =
+renderHover : (lns : List String) -> JSON -> String
+renderHover lns JNull = "null"
+renderHover lns result =
   fromMaybe "?" (do
     value <- getPath ["contents", "value"] result >>= asString
     let flat = fastConcat (map (\c => if c == '\n' then " ⏎ " else cast c) (unpack value))
-    let rng = maybe "?" renderRange (getField "range" result)
+    let rng = maybe "?" (renderRange lns) (getField "range" result)
     pure "[\{rng}] \{flat}")
 
 ||| Read until a NON-notification message arrives, rendering any
 ||| publishDiagnostics notifications passed on the way (cross-file
 ||| diagnostics arrive interleaved with response traffic).
-readDraining : File -> (fixtureUri : String) -> (normalise : String -> String) -> IO (Maybe JSON)
-readDraining h fixtureUri normalise = do
+readDraining : File -> (fixtureUri : String) -> (lns : List String) -> (normalise : String -> String) -> IO (Maybe JSON)
+readDraining h fixtureUri lns normalise = do
   Just msg <- readMessage h
     | Nothing => pure Nothing
   case getField "method" msg of
@@ -232,8 +270,8 @@ readDraining h fixtureUri normalise = do
       let label = if uri == fixtureUri then "FIXTURE" else basename uri
       let diags = fromMaybe [] (getPath ["params", "diagnostics"] msg >>= asArray)
       putStrLn "DIAGNOSTICS FOR \{label} (\{show (length diags)}):"
-      traverse_ (putStrLn . normalise . renderDiagnostic) diags
-      readDraining h fixtureUri normalise
+      traverse_ (putStrLn . normalise . renderDiagnostic (if uri == fixtureUri then lns else [])) diags
+      readDraining h fixtureUri lns normalise
     _ => pure (Just msg)
 
 ||| Replace every occurrence of `needle` (non-empty) in `hay`.
@@ -260,6 +298,7 @@ runLspTest : (lspBinPath : String) -> (fixtureAbsPath : String) -> (word : Strin
 runLspTest lspBinPath fixtureAbsPath word = do
   Right content <- readFile fixtureAbsPath
     | Left err => dieMsg "cannot read fixture \{fixtureAbsPath}: \{show err}"
+  let lns = lines content
   Right proc <- popen2 lspBinPath
     | Left err => dieMsg "cannot spawn \{lspBinPath}: \{show err}"
 
@@ -302,10 +341,10 @@ runLspTest lspBinPath fixtureAbsPath word = do
   -- absolute paths in messages (a parse error names its file) would
   -- break golden portability across checkouts
   let normalise = replaceAll fixtureAbsPath "FIXTURE" . replaceAll (dirname fixtureAbsPath) "DIR"
-  traverse_ (putStrLn . normalise . renderDiagnostic) diags
+  traverse_ (putStrLn . normalise . renderDiagnostic lns) diags
 
   writeMessage proc.input (req 2 "textDocument/semanticTokens/full" (JObject [("textDocument", JObject [("uri", JString uri)])]))
-  Just toksResp <- readDraining proc.output uri normalise
+  Just toksResp <- readDraining proc.output uri lns normalise
     | Nothing => dieMsg "no response to semanticTokens/full"
   let rawToks = fromMaybe [] (do
                   arr <- getPath ["result", "data"] toksResp
@@ -313,34 +352,40 @@ runLspTest lspBinPath fixtureAbsPath word = do
                   traverse asInt xs)
   let toks = decodeTokens legend rawToks
   putStrLn "TOKENS (\{show (length toks)}):"
-  traverse_ (putStrLn . renderToken) toks
+  traverse_ (putStrLn . renderToken lns) toks
 
   writeMessage proc.input (req 3 "textDocument/documentSymbol" (JObject [("textDocument", JObject [("uri", JString uri)])]))
-  Just symResp <- readDraining proc.output uri normalise
+  Just symResp <- readDraining proc.output uri lns normalise
     | Nothing => dieMsg "no response to documentSymbol"
   let syms = fromMaybe [] (getPath ["result"] symResp >>= asArray)
   putStrLn "SYMBOLS (\{show (length syms)}):"
-  traverse_ (putStrLn . renderSymbol) syms
+  traverse_ (putStrLn . renderSymbol lns) syms
 
   let Just (wline, wcol) = findWordPosition word content
     | Nothing => dieMsg "word '\{word}' not found in fixture"
+  -- the cursor goes over the wire in UTF-16 units, like every LSP
+  -- `character` — a fixture line with a supplementary-plane char
+  -- (𝕌 is one) skews every later column otherwise
+  let wch = case drop (cast wline) lns of
+              (l :: _) => cpToU16 l wcol
+              [] => wcol
   writeMessage proc.input (req 4 "textDocument/definition" (JObject
     [ ("textDocument", JObject [("uri", JString uri)])
-    , ("position", JObject [("line", JNumber (cast wline)), ("character", JNumber (cast wcol))])
+    , ("position", JObject [("line", JNumber (cast wline)), ("character", JNumber (cast wch))])
     ]))
-  Just defResp <- readDraining proc.output uri normalise
+  Just defResp <- readDraining proc.output uri lns normalise
     | Nothing => dieMsg "no response to definition"
   let defResult = fromMaybe JNull (getField "result" defResp)
-  putStrLn "DEFINITION(\{word}): \{renderDefinition uri defResult}"
+  putStrLn "DEFINITION(\{word}): \{renderDefinition lns uri defResult}"
 
   writeMessage proc.input (req 5 "textDocument/hover" (JObject
     [ ("textDocument", JObject [("uri", JString uri)])
-    , ("position", JObject [("line", JNumber (cast wline)), ("character", JNumber (cast wcol))])
+    , ("position", JObject [("line", JNumber (cast wline)), ("character", JNumber (cast wch))])
     ]))
-  Just hovResp <- readDraining proc.output uri normalise
+  Just hovResp <- readDraining proc.output uri lns normalise
     | Nothing => dieMsg "no response to hover"
   let hovResult = fromMaybe JNull (getField "result" hovResp)
-  putStrLn "HOVER(\{word}): \{renderHover hovResult}"
+  putStrLn "HOVER(\{word}): \{renderHover lns hovResult}"
 
   -- a save reloads the document (fresh diagnostics for it and any
   -- cross-file targets, drained here) and — when the reload SUCCEEDS
@@ -354,7 +399,7 @@ runLspTest lspBinPath fixtureAbsPath word = do
   writeMessage proc.input (notif "textDocument/didSave" (JObject
     [ ("textDocument", JObject [("uri", JString uri)]) ]))
   writeMessage proc.input (req 7 "textDocument/documentSymbol" (JObject [("textDocument", JObject [("uri", JString uri)])]))
-  Just afterSave <- readDraining proc.output uri normalise
+  Just afterSave <- readDraining proc.output uri lns normalise
     | Nothing => dieMsg "no message after didSave"
   case getField "method" afterSave >>= asString of
     Just m => do
@@ -364,11 +409,11 @@ runLspTest lspBinPath fixtureAbsPath word = do
       case getField "id" afterSave of
         Just idJ => writeMessage proc.input (JObject [("jsonrpc", JString "2.0"), ("id", idJ), ("result", JNull)])
         Nothing => pure ()
-      ignore $ readDraining proc.output uri normalise
+      ignore $ readDraining proc.output uri lns normalise
     Nothing => putStrLn "SERVER REQUEST AFTER DIDSAVE: none"
 
   writeMessage proc.input (req 6 "shutdown" JNull)
-  Just _ <- readDraining proc.output uri normalise
+  Just _ <- readDraining proc.output uri lns normalise
     | Nothing => dieMsg "no response to shutdown"
   writeMessage proc.input (notif "exit" JNull)
 
