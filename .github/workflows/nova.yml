@@ -91,6 +91,12 @@ jobs:
       - name: Run tests
         run: ./test.sh
 
+      # src/nova is kept in CANONICAL DISTILL FORM
+      # (docs/NovaPerfectSurface.txt): distilling the corpus must
+      # reproduce it byte for byte
+      - name: Check canonical distill form
+        run: ./check-distill.sh
+
       - name: Build nova-docs
         run: pack build nova-docs.ipkg
 

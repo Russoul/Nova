@@ -1,3 +1,8 @@
+-- (ℤ, +, -, 0) is a group: the monoid component first (every law an
+-- existing corpus lemma across the Id bridge — the unit laws live in
+-- rational.nova, the inverse laws in integerMul.nova, imported from
+-- where they are), then the inverse operation and its two laws.
+
 import integer (Int, intZero, intNeg)
 import integerAdd (intAdd, intAddAssoc)
 import integerMul (intAddNegL, intAddNegR)
@@ -6,19 +11,32 @@ import id (eqToId)
 import monoid (IsMonoid)
 import group (IsGroup)
 
--- (ℤ, +, -, 0) is a group: the monoid component first (every law an
--- existing corpus lemma across the Id bridge — the unit laws live in
--- rational.nova, the inverse laws in integerMul.nova, imported from
--- where they are), then the inverse operation and its two laws.
 def intAddGroup : El (IsGroup Int) using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔
-  ((intAdd , intZero ,
-    (λx. λy. λz. eqToId Int (intAdd (intAdd x y) z) (intAdd x (intAdd y z))
-                  (intAddAssoc x y z)) ,
-    (λx. eqToId Int (intAdd intZero x) x (intAddZeroL x)) ,
-    λx. eqToId Int (intAdd x intZero) x (intAddZeroR x)) ,
-   intNeg ,
-   (λx. eqToId Int (intAdd (intNeg x) x) intZero (intAddNegL x)) ,
-   λx. eqToId Int (intAdd x (intNeg x)) intZero (intAddNegR x))
+  (intAdd,
+    intZero,
+      (λx. λy. λz. eqToId
+        (intAdd (intAdd x y) z)
+        (intAdd x (intAdd y z))
+        (intAddAssoc
+          x
+          y
+          z)),
+        (λx. eqToId
+          (intAdd intZero x)
+          x
+          (intAddZeroL
+            x)),
+          λx. eqToId
+            (intAdd x intZero)
+            x
+            (intAddZeroR
+              x)),
+    intNeg,
+      (λx. eqToId
+        (intAdd (intNeg x) x)
+        intZero
+        (intAddNegL x)), λx. eqToId (intAdd x (intNeg x)) intZero (intAddNegR x)
 
 -- the underlying monoid is the group's first component
-def intAddMonoid : El (IsMonoid Int) using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔ intAddGroup .π₁
+def intAddMonoid : El (IsMonoid Int) using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔
+  intAddGroup .π₁

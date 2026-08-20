@@ -1,30 +1,3 @@
-import nat (+, *)
-import rationalQ (Q, qAdd, qMul, qNeg, qZero, qOne, qAddComm, qAddAssoc,
-                  qMulComm, qMulAssoc, qMulZeroR, qMulOneR, qMulOneL,
-                  qDistribL, qDistribR)
-import rationalOrder (LeQ, leQPlusMono, leQPlusMonoL, leQTrans, qSubSplit,
-                      qPairSwap, qNegAdd)
-import ratBound (Bnd, bndAdd, bndEq, bndEqB, bndWeaken, bndVia, leQAdd,
-                 leQSelfAdd, leQSelfAddL)
-import ratAbs (bndMul, leQZeroMul)
-import ratNat (qOfNat, qOfNatAdd, qOfNatMul, qOfNatOne, qOfNatSuc, qMulSucNat)
-import ratCeil (leQZeroNat)
-import ratArch (bndOfArch)
-import ratHalf (dbl, leQZeroInvNat, leQInvDbl)
-import real (qInvNat, rBound, leQZeroBound, Regular, RSeq, REq, Real, constReg,
-             realOfQ, realZero, realOne)
-import realNeg (seqOf, regOf, regBnd, bndReg, reqOf, realEqOfREq,
-                realEqOfPointwise, realNeg)
-import realSeq (rseqEq, realEqOfSeqEq)
-import realMul (mulIdx, mulPred, mulSeq, rMul, qMulInvIdx, qRearr5, bndMulSub,
-                qMulSumBound, bndMulSubQ, realMul, realMulCls, realMulComm)
-import realAdd (rAdd, realAdd, realAddCls, realAddComm, realAddNegR)
-import realGroup (realAddGroup, realNegUnique)
-import ring (IsCommRing)
-import id (eqToId)
-import realBound (seqBound, bndSeqBound, seqBoundPos)
-import equality (trans, sym, cong, transport)
-
 -- THE RING LAWS for ℝ, on top of realMul.nova's product.
 --
 -- The two unit laws split cleanly. `u · 0 = 0` is POINTWISE: whatever
@@ -40,99 +13,121 @@ import equality (trans, sym, cong, transport)
 -- turns 1/(φ m + 1) into 1/(m + 1) exactly (qMulInvIdx). Multiplying a
 -- nonnegative by S c ≥ 1 only grows it, so the inequality follows
 -- without any new arithmetic on fractions.
-
 -- ===== the two constant representatives =====
 
-def rZero : El RSeq using (real.RSeq.unfold) ≔ ((λn. qZero) , constReg qZero)
-def rOne : El RSeq using (real.RSeq.unfold) ≔ ((λn. qOne) , constReg qOne)
+import nat (+, *)
+import rationalQ (Q, qAdd, qMul, qNeg, qZero, qOne, qAddComm, qAddAssoc, qMulComm, qMulAssoc, qMulZeroR, qMulOneR, qMulOneL, qDistribL, qDistribR)
+import rationalOrder (LeQ, leQPlusMono, leQPlusMonoL, leQTrans, qSubSplit, qPairSwap, qNegAdd)
+import ratBound (Bnd, bndAdd, bndEq, bndEqB, bndWeaken, bndVia, leQAdd, leQSelfAdd, leQSelfAddL)
+import ratAbs (bndMul, leQZeroMul)
+import ratNat (qOfNat, qOfNatAdd, qOfNatMul, qOfNatOne, qOfNatSuc, qMulSucNat)
+import ratCeil (leQZeroNat)
+import ratArch (bndOfArch)
+import ratHalf (dbl, leQZeroInvNat, leQInvDbl)
+import real (qInvNat, rBound, leQZeroBound, Regular, RSeq, REq, Real, constReg, realOfQ, realZero, realOne)
+import realNeg (seqOf, regOf, regBnd, bndReg, reqOf, realEqOfREq, realEqOfPointwise, realNeg)
+import realSeq (rseqEq, realEqOfSeqEq)
+import realMul (mulIdx, mulPred, mulSeq, rMul, qMulInvIdx, qRearr5, bndMulSub, qMulSumBound, bndMulSubQ, realMul, realMulCls, realMulComm)
+import realAdd (rAdd, realAdd, realAddCls, realAddComm, realAddNegR)
+import realGroup (realAddGroup, realNegUnique)
+import ring (IsCommRing)
+import id (eqToId)
+import realBound (seqBound, bndSeqBound, seqBoundPos)
+import equality (trans, sym, cong, transport)
+
+def rZero : El RSeq using (real.RSeq.unfold) ≔ (λn. qZero), constReg
+
+def rOne : El RSeq using (real.RSeq.unfold) ≔ (λn. qOne), constReg
 
 -- ===== u · 0 = 0, pointwise =====
+def rMulZeroR : {p : El RSeq} → rMul p rZero ≡ rZero ∈ El RSeq
+  using (rZero.eq, realMul.mulSeq.eq, realMul.rMul.eq, realNeg.seqOf.eq) ≔
+  λp. rseqEq (λn. qMulZeroR (seqOf p (mulIdx (mulPred p rZero) n)))
 
-def rMulZeroR : (p : El RSeq) → rMul p rZero ≡ rZero ∈ El RSeq using (rZero.eq, realMul.mulSeq.eq, realMul.rMul.eq, realNeg.seqOf.eq) ≔
-  λp.
-    rseqEq (rMul p rZero) rZero
-      (λn. qMulZeroR (seqOf p (mulIdx (mulPred p rZero) n)))
+def realMulZeroR : {u : El Real} → realMul u realZero ≡ realZero ∈ El Real
+  using (rZero.eq, real.Real.unfold, real.realOfQ.eq, real.realZero.eq) ≔
+  λu. quot-elim (w. realMul w realZero ≡ realZero ∈ El Real)
+    (p. trans
+      Real
+      (realMul (class p) realZero)
+      (class (rMul p rZero))
+      realZero
+      (realMulCls rZero)
+      (cong RSeq (λw. Real) (λw. class w) (rMul p rZero) rZero rMulZeroR))
+    u
 
-def realMulZeroR : (u : El Real) → realMul u realZero ≡ realZero ∈ El Real using (rZero.eq, real.Real.unfold, real.realOfQ.eq, real.realZero.eq) ≔
-  λu.
-    quot-elim (w. realMul w realZero ≡ realZero ∈ El Real)
-      (p. trans Real (realMul (class p) realZero) (class (rMul p rZero)) realZero
-            (realMulCls p rZero)
-            (cong RSeq (λw. Real) (λw. class w) (rMul p rZero) rZero
-               (rMulZeroR p)))
-      u
-
-def realMulZeroL : (u : El Real) → realMul realZero u ≡ realZero ∈ El Real ≔
-  λu.
-    trans Real (realMul realZero u) (realMul u realZero) realZero
-      (realMulComm realZero u)
-      (realMulZeroR u)
+def realMulZeroL : {u : El Real} → realMul realZero u ≡ realZero ∈ El Real ≔
+  λu. trans
+    Real
+    (realMul realZero u)
+    (realMul u realZero)
+    realZero
+    (realMulComm realZero u)
+    realMulZeroR
 
 -- ===== the deepening inequality =====
-
 -- multiplying a nonnegative by S c ≥ 1 only grows it
-def leQSelfMulNat : (c : ℕ) (x : El Q) → El (LeQ qZero x) →
-  El (LeQ x (qMul (qOfNat (S c)) x)) ≔
-  λc. λx. λhx.
-    transport Q (λw. LeQ x w) (qAdd (qMul (qOfNat c) x) x)
-      (qMul (qOfNat (S c)) x)
-      (sym Q (qMul (qOfNat (S c)) x) (qAdd (qMul (qOfNat c) x) x)
-         (qMulSucNat c x))
-      (leQSelfAddL x (qMul (qOfNat c) x)
-         (leQZeroMul (qOfNat c) x (leQZeroNat c) hx))
+def leQSelfMulNat : {c : ℕ} {x : El Q} → El (LeQ qZero x) → El (LeQ x (qMul (qOfNat (S c)) x)) ≔
+  λc. λx. λhx. transport
+    Q
+    (λw. LeQ x w)
+    (qAdd (qMul (qOfNat c) x) x)
+    (qMul (qOfNat (S c)) x)
+    (sym Q (qMul (qOfNat (S c)) x) (qAdd (qMul (qOfNat c) x) x) (qMulSucNat c x))
+    (leQSelfAddL (leQZeroMul (leQZeroNat c) hx))
 
 -- ...so sampling deeper gives a smaller harmonic bound. The EQUATION
 -- qMulInvIdx is what makes this free: the factor is exact, so the
 -- inequality is just "times S c is not smaller".
-def leQInvIdx : (c : ℕ) (m : ℕ) →
-  El (LeQ (qInvNat (mulIdx c m)) (qInvNat m)) ≔
-  λc. λm.
-    transport Q (λw. LeQ (qInvNat (mulIdx c m)) w)
-      (qMul (qOfNat (S c)) (qInvNat (mulIdx c m))) (qInvNat m)
-      (qMulInvIdx c m)
-      (leQSelfMulNat c (qInvNat (mulIdx c m)) (leQZeroInvNat (mulIdx c m)))
+def leQInvIdx : (c m : ℕ) → El (LeQ (qInvNat (mulIdx c m)) (qInvNat m)) ≔
+  λc. λm. transport
+    Q
+    (λw. LeQ (qInvNat (mulIdx c m)) w)
+    (qMul (qOfNat (S c)) (qInvNat (mulIdx c m)))
+    (qInvNat m)
+    qMulInvIdx
+    (leQSelfMulNat (leQZeroInvNat (mulIdx c m)))
 
-def leQRBoundIdx : (c : ℕ) (m : ℕ) →
-  El (LeQ (rBound (mulIdx c m) m) (rBound m m)) using (real.rBound.eq) ≔
-  λc. λm.
-    leQPlusMono (qInvNat (mulIdx c m)) (qInvNat m) (qInvNat m) (leQInvIdx c m)
+def leQRBoundIdx : (c m : ℕ) → El (LeQ (rBound (mulIdx c m) m) (rBound m m))
+  using (real.rBound.eq) ≔
+  λc. λm. leQPlusMono (qInvNat m) (leQInvIdx c m)
 
 -- ===== u · 1 = u =====
-
 -- the product's value at the deep index IS the original's, since the
 -- second factor is 1 at every index
-def mulOneAt : (x : El Q) (y : El Q) →
-  qAdd x (qNeg y) ≡ qAdd (qMul x qOne) (qNeg y) ∈ El Q ≔
-  λx. λy.
-    cong Q (λw. Q) (λw. qAdd w (qNeg y)) x (qMul x qOne)
-      (sym Q (qMul x qOne) x (qMulOneR x))
+def mulOneAt : (x y : El Q) → qAdd x (qNeg y) ≡ qAdd (qMul x qOne) (qNeg y) ∈ El Q ≔
+  λx. λy. cong Q (λw. Q) (λw. qAdd w (qNeg y)) x (qMul x qOne) (sym Q (qMul x qOne) x (qMulOneR x))
 
-def rMulOneWD : (p : El RSeq) → Prf (REq (rMul p rOne) p) using (rOne.eq, realMul.mulSeq.eq, realMul.rMul.eq, realNeg.seqOf.eq) ≔
-  λp.
-    reqOf (rMul p rOne) p
-      (λn.
-        bndWeaken (rBound (mulIdx (mulPred p rOne) n) n) (rBound n n)
-          (qAdd (mulSeq p rOne n) (qNeg (seqOf p n)))
-          (leQRBoundIdx (mulPred p rOne) n)
-          (bndEq (rBound (mulIdx (mulPred p rOne) n) n)
-                 (qAdd (seqOf p (mulIdx (mulPred p rOne) n)) (qNeg (seqOf p n)))
-                 (qAdd (mulSeq p rOne n) (qNeg (seqOf p n)))
-             (mulOneAt (seqOf p (mulIdx (mulPred p rOne) n)) (seqOf p n))
-             (regBnd (seqOf p) (regOf p) (mulIdx (mulPred p rOne) n) n)))
+def rMulOneWD : (p : El RSeq) → Prf (REq (rMul p rOne) p)
+  using (rOne.eq, realMul.mulSeq.eq, realMul.rMul.eq, realNeg.seqOf.eq) ≔
+  λp. reqOf
+    (rMul p rOne)
+    p
+    (λn. bndWeaken
+      (rBound (mulIdx (mulPred p rOne) n) n)
+      (rBound n n)
+      (qAdd (mulSeq p rOne n) (qNeg (seqOf p n)))
+      (leQRBoundIdx (mulPred p rOne) n)
+      (bndEq
+        (qAdd (seqOf p (mulIdx (mulPred p rOne) n)) (qNeg (seqOf p n)))
+        (qAdd (mulSeq p rOne n) (qNeg (seqOf p n)))
+        (mulOneAt (seqOf p (mulIdx (mulPred p rOne) n)) (seqOf p n))
+        (regBnd (seqOf p) (regOf p) (mulIdx (mulPred p rOne) n) n)))
 
-def realMulOneR : (u : El Real) → realMul u realOne ≡ u ∈ El Real using (rOne.eq, real.Real.unfold, real.realOfQ.eq, real.realOne.eq) ≔
-  λu.
-    quot-elim (w. realMul w realOne ≡ w ∈ El Real)
-      (p. trans Real (realMul (class p) realOne) (class (rMul p rOne)) (class p)
-            (realMulCls p rOne)
-            (realEqOfREq (rMul p rOne) p (rMulOneWD p)))
-      u
+def realMulOneR : (u : El Real) → realMul u realOne ≡ u ∈ El Real
+  using (rOne.eq, real.Real.unfold, real.realOfQ.eq, real.realOne.eq) ≔
+  λu. quot-elim (w. realMul w realOne ≡ w ∈ El Real)
+    (p. trans
+      Real
+      (realMul (class p) realOne)
+      (class (rMul p rOne))
+      (class p)
+      (realMulCls rOne)
+      (realEqOfREq (rMul p rOne) p (rMulOneWD p)))
+    u
 
 def realMulOneL : (u : El Real) → realMul realOne u ≡ u ∈ El Real ≔
-  λu.
-    trans Real (realMul realOne u) (realMul u realOne) u
-      (realMulComm realOne u)
-      (realMulOneR u)
+  λu. trans Real (realMul realOne u) (realMul u realOne) u (realMulComm realOne u) (realMulOneR u)
 
 -- ===== the closeness criterion =====
 --
@@ -156,105 +151,160 @@ def realMulOneL : (u : El Real) → realMul realOne u ≡ u ∈ El Real ≔
 -- qMulSucNat still matches (the poison rule).
 -- No inequality between fractions is needed anywhere — only that one
 -- equation.
-
-def kkY : (K : ℕ) (y : El Q) →
-  qMul (qOfNat (K + K)) y ≡ qMul (qOfNat K) (qAdd y y) ∈ El Q ≔
-  λK. λy.
-    (qMul (qOfNat (K + K)) y
-       ≡⟨ cong Q (λv. Q) (λv. qMul v y) (qOfNat (K + K))
-            (qAdd (qOfNat K) (qOfNat K))
-            (sym Q (qAdd (qOfNat K) (qOfNat K)) (qOfNat (K + K))
-               (qOfNatAdd K K)) ⟩
-     qMul (qAdd (qOfNat K) (qOfNat K)) y
-       ≡⟨ qDistribR y (qOfNat K) (qOfNat K) ⟩
-     qAdd (qMul (qOfNat K) y) (qMul (qOfNat K) y)
-       ≡⟨ sym Q (qMul (qOfNat K) (qAdd y y))
-            (qAdd (qMul (qOfNat K) y) (qMul (qOfNat K) y))
-            (qDistribL (qOfNat K) y y) ⟩
-     qMul (qOfNat K) (qAdd y y))
+def kkY : (K : ℕ) (y : El Q) → qMul (qOfNat (K + K)) y ≡ qMul (qOfNat K) (qAdd y y) ∈ El Q ≔
+  λK. λy. qMul (qOfNat (K + K)) y
+      ≡⟨ cong
+        Q
+        (λv. Q)
+        (λv. qMul v y)
+        (qOfNat (K + K))
+        (qAdd (qOfNat K) (qOfNat K))
+        (sym
+          Q
+          (qAdd (qOfNat K) (qOfNat K))
+          (qOfNat (K + K))
+          (qOfNatAdd K K)) ⟩ qMul (qAdd (qOfNat K) (qOfNat K)) y
+      ≡⟨ qDistribR y (qOfNat K) (qOfNat K) ⟩ qAdd (qMul (qOfNat K) y) (qMul (qOfNat K) y)
+      ≡⟨ sym
+        Q
+        (qMul (qOfNat K) (qAdd y y))
+        (qAdd (qMul (qOfNat K) y) (qMul (qOfNat K) y))
+        (qDistribL (qOfNat K) y y) ⟩ qMul (qOfNat K) (qAdd y y)
 
 -- y + (K·(y + y) + y) is (2K + 2)·y
-def twoKTwo : (K : ℕ) (y : El Q) →
-  qAdd y (qAdd (qMul (qOfNat K) (qAdd y y)) y)
-    ≡ qMul (qOfNat (S (S (K + K)))) y ∈ El Q ≔
-  λK. λy.
-    (qAdd y (qAdd (qMul (qOfNat K) (qAdd y y)) y)
-       ≡⟨ qAddComm y (qAdd (qMul (qOfNat K) (qAdd y y)) y) ⟩
-     qAdd (qAdd (qMul (qOfNat K) (qAdd y y)) y) y
-       ≡⟨ cong Q (λv. Q) (λv. qAdd (qAdd v y) y)
-            (qMul (qOfNat K) (qAdd y y)) (qMul (qOfNat (K + K)) y)
-            (sym Q (qMul (qOfNat (K + K)) y) (qMul (qOfNat K) (qAdd y y))
-               (kkY K y)) ⟩
-     qAdd (qAdd (qMul (qOfNat (K + K)) y) y) y
-       ≡⟨ cong Q (λv. Q) (λv. qAdd v y)
-            (qAdd (qMul (qOfNat (K + K)) y) y) (qMul (qOfNat (S (K + K))) y)
-            (sym Q (qMul (qOfNat (S (K + K))) y)
-                   (qAdd (qMul (qOfNat (K + K)) y) y)
-               (qMulSucNat (K + K) y)) ⟩
-     qAdd (qMul (qOfNat (S (K + K))) y) y
-       ≡⟨ sym Q (qMul (qOfNat (S (S (K + K)))) y)
-            (qAdd (qMul (qOfNat (S (K + K))) y) y)
-            (qMulSucNat (S (K + K)) y) ⟩
-     qMul (qOfNat (S (S (K + K)))) y)
+def twoKTwo : (K : ℕ)
+  (y : El Q)
+  → qAdd y (qAdd (qMul (qOfNat K) (qAdd y y)) y) ≡ qMul (qOfNat (S (S (K + K)))) y ∈ El Q ≔
+  λK. λy. qAdd y (qAdd (qMul (qOfNat K) (qAdd y y)) y)
+      ≡⟨ qAddComm
+        y
+        (qAdd (qMul (qOfNat K) (qAdd y y)) y) ⟩ qAdd (qAdd (qMul (qOfNat K) (qAdd y y)) y) y
+      ≡⟨ cong
+        Q
+        (λv. Q)
+        (λv. qAdd (qAdd v y) y)
+        (qMul (qOfNat K) (qAdd y y))
+        (qMul (qOfNat (K + K)) y)
+        (sym
+          Q
+          (qMul (qOfNat (K + K)) y)
+          (qMul (qOfNat K) (qAdd y y))
+          (kkY K y)) ⟩ qAdd (qAdd (qMul (qOfNat (K + K)) y) y) y
+      ≡⟨ cong
+        Q
+        (λv. Q)
+        (λv. qAdd v y)
+        (qAdd (qMul (qOfNat (K + K)) y) y)
+        (qMul (qOfNat (S (K + K))) y)
+        (sym
+          Q
+          (qMul (qOfNat (S (K + K))) y)
+          (qAdd (qMul (qOfNat (K + K)) y) y)
+          (qMulSucNat (K + K) y)) ⟩ qAdd (qMul (qOfNat (S (K + K))) y) y
+      ≡⟨ sym
+        Q
+        (qMul (qOfNat (S (S (K + K)))) y)
+        (qAdd (qMul (qOfNat (S (K + K))) y) y)
+        (qMulSucNat (S (K + K)) y) ⟩ qMul (qOfNat (S (S (K + K)))) y
 
 -- (x + y) + (K·(y + y) + (y + x)) ≡ (x + x) + w, given w = (2K + 2)·y.
 -- The factor equation is an ARGUMENT: at the call site w is 1/(l + 1)
 -- and the equation is qMulInvIdx, so the deep index never has to be
 -- looked at (B-16).
-def closeBoundEq : (x : El Q) (y : El Q) (K : ℕ) (w : El Q) →
-  (qMul (qOfNat (S (S (K + K)))) y ≡ w ∈ El Q) →
-  qAdd (qAdd x y) (qAdd (qMul (qOfNat K) (qAdd y y)) (qAdd y x))
-    ≡ qAdd (qAdd x x) w ∈ El Q ≔
-  λx. λy. λK. λw. λhw.
-    (qAdd (qAdd x y) (qAdd (qMul (qOfNat K) (qAdd y y)) (qAdd y x))
-       ≡⟨ qRearr5 x y (qMul (qOfNat K) (qAdd y y)) y ⟩
-     qAdd (qAdd x x) (qAdd y (qAdd (qMul (qOfNat K) (qAdd y y)) y))
-       ≡⟨ cong Q (λv. Q) (λv. qAdd (qAdd x x) v)
-            (qAdd y (qAdd (qMul (qOfNat K) (qAdd y y)) y))
-            (qMul (qOfNat (S (S (K + K)))) y)
-            (twoKTwo K y) ⟩
-     qAdd (qAdd x x) (qMul (qOfNat (S (S (K + K)))) y)
-       ≡⟨ cong Q (λv. Q) (λv. qAdd (qAdd x x) v)
-            (qMul (qOfNat (S (S (K + K)))) y) w hw ⟩
-     qAdd (qAdd x x) w)
+def closeBoundEq : (x : El Q)
+  {y : El Q}
+  {K : ℕ}
+  {w : El Q}
+  → (qMul
+    (qOfNat (S (S (K + K))))
+    y ≡ w ∈ El Q)
+    → qAdd (qAdd x y) (qAdd (qMul (qOfNat K) (qAdd y y)) (qAdd y x)) ≡ qAdd (qAdd x x) w ∈ El Q ≔
+  λx. λy. λK. λw. λhw. qAdd (qAdd x y) (qAdd (qMul (qOfNat K) (qAdd y y)) (qAdd y x))
+      ≡⟨ qRearr5
+        x
+        y
+        (qMul (qOfNat K) (qAdd y y))
+        y ⟩ qAdd (qAdd x x) (qAdd y (qAdd (qMul (qOfNat K) (qAdd y y)) y))
+      ≡⟨ cong
+        Q
+        (λv. Q)
+        (λv. qAdd (qAdd x x) v)
+        (qAdd y (qAdd (qMul (qOfNat K) (qAdd y y)) y))
+        (qMul (qOfNat (S (S (K + K)))) y)
+        (twoKTwo K y) ⟩ qAdd (qAdd x x) (qMul (qOfNat (S (S (K + K)))) y)
+      ≡⟨ cong
+        Q
+        (λv. Q)
+        (λv. qAdd (qAdd x x) v)
+        (qMul (qOfNat (S (S (K + K)))) y)
+        w
+        hw ⟩ qAdd (qAdd x x) w
 
 -- the three-leg chain, abstract in the sequences and the deep index
-def closeStepGen : (f : El (ℕ → Q)) (g : El (ℕ → Q)) (K : ℕ) (n : ℕ) (N : ℕ)
-  (w : El Q) →
-  El (Bnd (rBound n N) (qAdd (f n) (qNeg (f N)))) →
-  El (Bnd (qMul (qOfNat K) (rBound N N)) (qAdd (f N) (qNeg (g N)))) →
-  El (Bnd (rBound N n) (qAdd (g N) (qNeg (g n)))) →
-  (qMul (qOfNat (S (S (K + K)))) (qInvNat N) ≡ w ∈ El Q) →
-  El (Bnd (qAdd (rBound n n) w) (qAdd (f n) (qNeg (g n)))) using (real.rBound.eq) ≔
-  λf. λg. λK. λn. λN. λw. λh1. λh2. λh3. λhw.
-    bndEqB (qAdd (rBound n N)
-                 (qAdd (qMul (qOfNat K) (rBound N N)) (rBound N n)))
-           (qAdd (rBound n n) w)
-           (qAdd (f n) (qNeg (g n)))
-      (closeBoundEq (qInvNat n) (qInvNat N) K w hw)
-      (bndVia (rBound n N)
-              (qAdd (qMul (qOfNat K) (rBound N N)) (rBound N n))
-              (f n) (f N) (g n)
-         h1
-         (bndVia (qMul (qOfNat K) (rBound N N)) (rBound N n)
-                 (f N) (g N) (g n)
-            h2 h3))
+def closeStepGen : (f g : El (ℕ → Q))
+  (K n N : ℕ)
+  (w : El Q)
+  → El (Bnd
+    (rBound n N)
+    (qAdd
+      (f n)
+      (qNeg
+        (f
+          N))))
+    → El (Bnd
+      (qMul (qOfNat K) (rBound N N))
+      (qAdd
+        (f N)
+        (qNeg
+          (g
+            N))))
+      → El (Bnd
+        (rBound N n)
+        (qAdd
+          (g N)
+          (qNeg
+            (g
+              n))))
+        → (qMul
+          (qOfNat (S (S (K + K))))
+          (qInvNat N) ≡ w ∈ El Q) → El (Bnd (qAdd (rBound n n) w) (qAdd (f n) (qNeg (g n))))
+  using (real.rBound.eq) ≔
+  λf. λg. λK. λn. λN. λw. λh1. λh2. λh3. λhw. bndEqB
+    (qAdd (rBound n N) (qAdd (qMul (qOfNat K) (rBound N N)) (rBound N n)))
+    (qAdd (rBound n n) w)
+    (qAdd (f n) (qNeg (g n)))
+    (closeBoundEq (qInvNat n) hw)
+    (bndVia
+      (rBound n N)
+      (qAdd (qMul (qOfNat K) (rBound N N)) (rBound N n))
+      (f n)
+      (f N)
+      (g n)
+      h1
+      (bndVia (qMul (qOfNat K) (rBound N N)) (rBound N n) (f N) (g N) (g n) h2 h3))
 
-def reqOfClose : (u : El RSeq) (v : El RSeq) (K : ℕ) →
-  ((n : ℕ) → El (Bnd (qMul (qOfNat K) (rBound n n))
-                     (qAdd (seqOf u n) (qNeg (seqOf v n))))) →
-  Prf (REq u v) ≔
-  λu. λv. λK. λh.
-    reqOf u v
-      (λn.
-        bndOfArch (rBound n n) (qAdd (seqOf u n) (qNeg (seqOf v n)))
-          (λl.
-            closeStepGen (seqOf u) (seqOf v) K n (mulIdx (S (K + K)) l)
-              (qInvNat l)
-              (regBnd (seqOf u) (regOf u) n (mulIdx (S (K + K)) l))
-              (h (mulIdx (S (K + K)) l))
-              (regBnd (seqOf v) (regOf v) (mulIdx (S (K + K)) l) n)
-              (qMulInvIdx (S (K + K)) l)))
+def reqOfClose : {u v : El RSeq}
+  (K : ℕ)
+  → ((n : ℕ)
+    → El (Bnd
+      (qMul (qOfNat K) (rBound n n))
+      (qAdd (seqOf u n) (qNeg (seqOf v n))))) → Prf (REq u v) ≔
+  λu. λv. λK. λh. reqOf
+    u
+    v
+    (λn. bndOfArch
+      (qAdd (seqOf u n) (qNeg (seqOf v n)))
+      (λl. closeStepGen
+        (seqOf u)
+        (seqOf v)
+        K
+        n
+        (mulIdx (S (K + K)) l)
+        (qInvNat l)
+        (regBnd (seqOf u) (regOf u) n (mulIdx (S (K + K)) l))
+        (h (mulIdx (S (K + K)) l))
+        (regBnd (seqOf v) (regOf v) (mulIdx (S (K + K)) l) n)
+        qMulInvIdx))
 
 -- ===== distributivity =====
 --
@@ -269,134 +319,241 @@ def reqOfClose : (u : El RSeq) (v : El RSeq) (K : ℕ) →
 -- bndMulSub at the COMMON modulus rBound m m, and add. The constant
 -- that comes out is (A + B) + (A + C), which is exactly what
 -- reqOfClose is willing to absorb.
-
-def qSubPair : (a : El Q) (b : El Q) (c : El Q) (d : El Q) →
-  qAdd (qAdd a (qNeg c)) (qAdd b (qNeg d))
-    ≡ qAdd (qAdd a b) (qNeg (qAdd c d)) ∈ El Q ≔
-  λa. λb. λc. λd.
-    (qAdd (qAdd a (qNeg c)) (qAdd b (qNeg d))
-       ≡⟨ qPairSwap a (qNeg c) b (qNeg d) ⟩
-     qAdd (qAdd a b) (qAdd (qNeg c) (qNeg d))
-       ≡⟨ cong Q (λv. Q) (λv. qAdd (qAdd a b) v)
-            (qAdd (qNeg c) (qNeg d)) (qNeg (qAdd c d))
-            (sym Q (qNeg (qAdd c d)) (qAdd (qNeg c) (qNeg d)) (qNegAdd c d)) ⟩
-     qAdd (qAdd a b) (qNeg (qAdd c d)))
+def qSubPair : (a b c d : El Q)
+  → qAdd (qAdd a (qNeg c)) (qAdd b (qNeg d)) ≡ qAdd (qAdd a b) (qNeg (qAdd c d)) ∈ El Q ≔
+  λa. λb. λc. λd. qAdd (qAdd a (qNeg c)) (qAdd b (qNeg d))
+      ≡⟨ qPairSwap a (qNeg c) b (qNeg d) ⟩ qAdd (qAdd a b) (qAdd (qNeg c) (qNeg d))
+      ≡⟨ cong
+        Q
+        (λv. Q)
+        (λv. qAdd (qAdd a b) v)
+        (qAdd (qNeg c) (qNeg d))
+        (qNeg (qAdd c d))
+        (sym
+          Q
+          (qNeg (qAdd c d))
+          (qAdd (qNeg c) (qNeg d))
+          (qNegAdd c d)) ⟩ qAdd (qAdd a b) (qNeg (qAdd c d))
 
 -- two samples of one regular sequence, both at least as deep as m,
 -- differ by at most rBound m m
-def bndDeep : (f : El (ℕ → Q)) →
-  ((a : ℕ) (b : ℕ) → El (Bnd (rBound a b) (qAdd (f a) (qNeg (f b))))) →
-  (a : ℕ) (b : ℕ) (m : ℕ) →
-  El (LeQ (qInvNat a) (qInvNat m)) → El (LeQ (qInvNat b) (qInvNat m)) →
-  El (Bnd (rBound m m) (qAdd (f a) (qNeg (f b)))) using (real.rBound.eq) ≔
-  λf. λhf. λa. λb. λm. λha. λhb.
-    bndWeaken (rBound a b) (rBound m m) (qAdd (f a) (qNeg (f b)))
-      (leQAdd (qInvNat a) (qInvNat m) (qInvNat b) (qInvNat m) ha hb)
-      (hf a b)
+def bndDeep : (f : El (ℕ → Q))
+  → ((a b : ℕ)
+    → El (Bnd
+      (rBound a b)
+      (qAdd
+        (f a)
+        (qNeg
+          (f
+            b)))))
+    → (a b m : ℕ)
+      → El (LeQ
+        (qInvNat a)
+        (qInvNat
+          m)) → El (LeQ (qInvNat b) (qInvNat m)) → El (Bnd (rBound m m) (qAdd (f a) (qNeg (f b))))
+  using (real.rBound.eq) ≔
+  λf. λhf. λa. λb. λm. λha. λhb. bndWeaken
+    (rBound a b)
+    (rBound m m)
+    (qAdd (f a) (qNeg (f b)))
+    (leQAdd (qInvNat a) (qInvNat m) (qInvNat b) (qInvNat m) ha hb)
+    (hf a b)
 
-def distribStepGen : (f : El (ℕ → Q)) (g : El (ℕ → Q)) (h : El (ℕ → Q))
-  (A : ℕ) (B : ℕ) (C : ℕ) (m : ℕ) (i : ℕ) (t : ℕ) (j : ℕ) (k : ℕ) →
-  ((a : ℕ) → El (Bnd (qOfNat A) (f a))) →
-  ((a : ℕ) → El (Bnd (qOfNat B) (g a))) →
-  ((a : ℕ) → El (Bnd (qOfNat C) (h a))) →
-  ((a : ℕ) (b : ℕ) → El (Bnd (rBound a b) (qAdd (f a) (qNeg (f b))))) →
-  ((a : ℕ) (b : ℕ) → El (Bnd (rBound a b) (qAdd (g a) (qNeg (g b))))) →
-  ((a : ℕ) (b : ℕ) → El (Bnd (rBound a b) (qAdd (h a) (qNeg (h b))))) →
-  El (LeQ (qInvNat i) (qInvNat m)) → El (LeQ (qInvNat t) (qInvNat m)) →
-  El (LeQ (qInvNat j) (qInvNat m)) → El (LeQ (qInvNat k) (qInvNat m)) →
-  El (LeQ qZero (qOfNat A)) → El (LeQ qZero (qOfNat B)) →
-  El (LeQ qZero (qOfNat C)) →
-  El (Bnd (qMul (qOfNat ((A + B) + (A + C))) (rBound m m))
-          (qAdd (qMul (f i) (qAdd (g t) (h t)))
-                (qNeg (qAdd (qMul (f j) (g j)) (qMul (f k) (h k)))))) ≔
-  λf. λg. λh. λA. λB. λC. λm. λi. λt. λj. λk.
-  λhfB. λhgB. λhhB. λhfR. λhgR. λhhR. λdi. λdt. λdj. λdk. λhA. λhB. λhC.
-    bndEq (qMul (qOfNat ((A + B) + (A + C))) (rBound m m))
-          (qAdd (qAdd (qMul (f i) (g t)) (qNeg (qMul (f j) (g j))))
-                (qAdd (qMul (f i) (h t)) (qNeg (qMul (f k) (h k)))))
-          (qAdd (qMul (f i) (qAdd (g t) (h t)))
-                (qNeg (qAdd (qMul (f j) (g j)) (qMul (f k) (h k)))))
-      ((qAdd (qAdd (qMul (f i) (g t)) (qNeg (qMul (f j) (g j))))
-             (qAdd (qMul (f i) (h t)) (qNeg (qMul (f k) (h k))))
-          ≡⟨ qSubPair (qMul (f i) (g t)) (qMul (f i) (h t))
-                      (qMul (f j) (g j)) (qMul (f k) (h k)) ⟩
-        qAdd (qAdd (qMul (f i) (g t)) (qMul (f i) (h t)))
-             (qNeg (qAdd (qMul (f j) (g j)) (qMul (f k) (h k))))
-          ≡⟨ cong Q (λv. Q)
-               (λv. qAdd v (qNeg (qAdd (qMul (f j) (g j)) (qMul (f k) (h k)))))
-               (qAdd (qMul (f i) (g t)) (qMul (f i) (h t)))
-               (qMul (f i) (qAdd (g t) (h t)))
-               (sym Q (qMul (f i) (qAdd (g t) (h t)))
-                      (qAdd (qMul (f i) (g t)) (qMul (f i) (h t)))
-                  (qDistribL (f i) (g t) (h t))) ⟩
-        qAdd (qMul (f i) (qAdd (g t) (h t)))
-             (qNeg (qAdd (qMul (f j) (g j)) (qMul (f k) (h k))))))
-      (bndEqB (qAdd (qMul (qOfNat (A + B)) (rBound m m))
-                    (qMul (qOfNat (A + C)) (rBound m m)))
-              (qMul (qOfNat ((A + B) + (A + C))) (rBound m m))
-              (qAdd (qAdd (qMul (f i) (g t)) (qNeg (qMul (f j) (g j))))
-                    (qAdd (qMul (f i) (h t)) (qNeg (qMul (f k) (h k)))))
-         (qMulSumBound (A + B) (A + C) (rBound m m))
-         (bndAdd (qMul (qOfNat (A + B)) (rBound m m))
-                 (qMul (qOfNat (A + C)) (rBound m m))
-                 (qAdd (qMul (f i) (g t)) (qNeg (qMul (f j) (g j))))
-                 (qAdd (qMul (f i) (h t)) (qNeg (qMul (f k) (h k))))
-            (bndMulSub (f i) (g t) (f j) (g j) A B (rBound m m)
-               (hfB i) (hgB j)
-               (bndDeep g hgR t j m dt dj)
-               (bndDeep f hfR i j m di dj)
-               hA hB (leQZeroBound m m))
-            (bndMulSub (f i) (h t) (f k) (h k) A C (rBound m m)
-               (hfB i) (hhB k)
-               (bndDeep h hhR t k m dt dk)
-               (bndDeep f hfR i k m di dk)
-               hA hC (leQZeroBound m m))))
+def distribStepGen : (f g h : El (ℕ → Q))
+  (A B C m i t j k : ℕ)
+  → ((a : ℕ)
+    → El (Bnd
+      (qOfNat A)
+      (f
+        a)))
+    → ((a : ℕ)
+      → El (Bnd
+        (qOfNat B)
+        (g
+          a)))
+      → ((a : ℕ)
+        → El (Bnd
+          (qOfNat C)
+          (h
+            a)))
+        → ((a b : ℕ)
+          → El (Bnd
+            (rBound a b)
+            (qAdd
+              (f a)
+              (qNeg
+                (f
+                  b)))))
+          → ((a b : ℕ)
+            → El (Bnd
+              (rBound a b)
+              (qAdd
+                (g a)
+                (qNeg
+                  (g
+                    b)))))
+            → ((a b : ℕ)
+              → El (Bnd
+                (rBound a b)
+                (qAdd
+                  (h a)
+                  (qNeg
+                    (h
+                      b)))))
+              → El (LeQ
+                (qInvNat i)
+                (qInvNat
+                  m))
+                → El (LeQ
+                  (qInvNat t)
+                  (qInvNat
+                    m))
+                  → El (LeQ
+                    (qInvNat j)
+                    (qInvNat
+                      m))
+                    → El (LeQ
+                      (qInvNat k)
+                      (qInvNat
+                        m))
+                      → El (LeQ
+                        qZero
+                        (qOfNat
+                          A))
+                        → El (LeQ
+                          qZero
+                          (qOfNat
+                            B))
+                          → El (LeQ
+                            qZero
+                            (qOfNat
+                              C))
+                            → El (Bnd
+                              (qMul (qOfNat (A + B + (A + C))) (rBound m m))
+                              (qAdd
+                                (qMul (f i) (qAdd (g t) (h t)))
+                                (qNeg (qAdd (qMul (f j) (g j)) (qMul (f k) (h k)))))) ≔
+  λf. λg. λh. λA. λB. λC. λm. λi. λt. λj. λk. λhfB. λhgB. λhhB. λhfR. λhgR. λhhR. λdi. λdt. λdj. λdk. λhA. λhB. λhC. bndEq
+    (qAdd
+      (qAdd (qMul (f i) (g t)) (qNeg (qMul (f j) (g j))))
+      (qAdd (qMul (f i) (h t)) (qNeg (qMul (f k) (h k)))))
+    (qAdd (qMul (f i) (qAdd (g t) (h t))) (qNeg (qAdd (qMul (f j) (g j)) (qMul (f k) (h k)))))
+    (qAdd
+      (qAdd (qMul (f i) (g t)) (qNeg (qMul (f j) (g j))))
+      (qAdd (qMul (f i) (h t)) (qNeg (qMul (f k) (h k))))
+        ≡⟨ qSubPair
+          (qMul (f i) (g t))
+          (qMul (f i) (h t))
+          (qMul (f j) (g j))
+          (qMul
+            (f k)
+            (h
+              k)) ⟩ qAdd
+          (qAdd (qMul (f i) (g t)) (qMul (f i) (h t)))
+          (qNeg (qAdd (qMul (f j) (g j)) (qMul (f k) (h k))))
+        ≡⟨ cong
+          Q
+          (λv. Q)
+          (λv. qAdd v (qNeg (qAdd (qMul (f j) (g j)) (qMul (f k) (h k)))))
+          (qAdd (qMul (f i) (g t)) (qMul (f i) (h t)))
+          (qMul (f i) (qAdd (g t) (h t)))
+          (sym
+            Q
+            (qMul (f i) (qAdd (g t) (h t)))
+            (qAdd (qMul (f i) (g t)) (qMul (f i) (h t)))
+            (qDistribL
+              (f i)
+              (g t)
+              (h
+                t))) ⟩ qAdd
+          (qMul (f i) (qAdd (g t) (h t)))
+          (qNeg (qAdd (qMul (f j) (g j)) (qMul (f k) (h k)))))
+    (bndEqB
+      (qAdd (qMul (qOfNat (A + B)) (rBound m m)) (qMul (qOfNat (A + C)) (rBound m m)))
+      (qMul (qOfNat (A + B + (A + C))) (rBound m m))
+      (qAdd
+        (qAdd (qMul (f i) (g t)) (qNeg (qMul (f j) (g j))))
+        (qAdd (qMul (f i) (h t)) (qNeg (qMul (f k) (h k)))))
+      (qMulSumBound (A + B) (A + C) (rBound m m))
+      (bndAdd
+        (bndMulSub
+          (hfB i)
+          (hgB j)
+          (bndDeep g hgR t j m dt dj)
+          (bndDeep f hfR i j m di dj)
+          hA
+          hB
+          (leQZeroBound m m))
+        (bndMulSub
+          (hfB i)
+          (hhB k)
+          (bndDeep h hhR t k m dt dk)
+          (bndDeep f hfR i k m di dk)
+          hA
+          hC
+          (leQZeroBound m m))))
 
-def rDistrib : (p : El RSeq) (q : El RSeq) (r : El RSeq) →
-  Prf (REq (rMul p (rAdd q r)) (rAdd (rMul p q) (rMul p r))) using (realAdd.addSeq.eq, realAdd.rAdd.eq, realMul.mulSeq.eq, realMul.rMul.eq, realNeg.seqOf.eq) ≔
-  λp. λq. λr.
-    reqOfClose (rMul p (rAdd q r)) (rAdd (rMul p q) (rMul p r))
-      ((seqBound p + seqBound q) + (seqBound p + seqBound r))
-      (λm.
-        distribStepGen (seqOf p) (seqOf q) (seqOf r)
-          (seqBound p) (seqBound q) (seqBound r) m
-          (mulIdx (mulPred p (rAdd q r)) m)
-          (dbl (mulIdx (mulPred p (rAdd q r)) m))
-          (mulIdx (mulPred p q) (dbl m))
-          (mulIdx (mulPred p r) (dbl m))
-          (bndSeqBound p) (bndSeqBound q) (bndSeqBound r)
-          (regBnd (seqOf p) (regOf p)) (regBnd (seqOf q) (regOf q))
-          (regBnd (seqOf r) (regOf r))
-          (leQInvIdx (mulPred p (rAdd q r)) m)
-          (leQTrans (qInvNat (dbl (mulIdx (mulPred p (rAdd q r)) m)))
-                    (qInvNat (mulIdx (mulPred p (rAdd q r)) m)) (qInvNat m)
-             (leQInvDbl (mulIdx (mulPred p (rAdd q r)) m))
-             (leQInvIdx (mulPred p (rAdd q r)) m))
-          (leQTrans (qInvNat (mulIdx (mulPred p q) (dbl m))) (qInvNat (dbl m))
-                    (qInvNat m)
-             (leQInvIdx (mulPred p q) (dbl m)) (leQInvDbl m))
-          (leQTrans (qInvNat (mulIdx (mulPred p r) (dbl m))) (qInvNat (dbl m))
-                    (qInvNat m)
-             (leQInvIdx (mulPred p r) (dbl m)) (leQInvDbl m))
-          (seqBoundPos p) (seqBoundPos q) (seqBoundPos r))
+def rDistrib : (p q r : El RSeq) → Prf (REq (rMul p (rAdd q r)) (rAdd (rMul p q) (rMul p r)))
+  using (realAdd.addSeq.eq, realAdd.rAdd.eq, realMul.mulSeq.eq, realMul.rMul.eq, realNeg.seqOf.eq) ≔
+  λp. λq. λr. reqOfClose
+    (seqBound p + seqBound q + (seqBound p + seqBound r))
+    (λm. distribStepGen
+      (seqOf p)
+      (seqOf q)
+      (seqOf r)
+      (seqBound p)
+      (seqBound q)
+      (seqBound r)
+      m
+      (mulIdx (mulPred p (rAdd q r)) m)
+      (dbl (mulIdx (mulPred p (rAdd q r)) m))
+      (mulIdx (mulPred p q) (dbl m))
+      (mulIdx (mulPred p r) (dbl m))
+      (bndSeqBound p)
+      (bndSeqBound q)
+      (bndSeqBound r)
+      (regBnd (seqOf p) (regOf p))
+      (regBnd (seqOf q) (regOf q))
+      (regBnd (seqOf r) (regOf r))
+      (leQInvIdx (mulPred p (rAdd q r)) m)
+      (leQTrans
+        (qInvNat (dbl (mulIdx (mulPred p (rAdd q r)) m)))
+        (qInvNat (mulIdx (mulPred p (rAdd q r)) m))
+        (qInvNat m)
+        (leQInvDbl (mulIdx (mulPred p (rAdd q r)) m))
+        (leQInvIdx (mulPred p (rAdd q r)) m))
+      (leQTrans
+        (qInvNat (mulIdx (mulPred p q) (dbl m)))
+        (qInvNat (dbl m))
+        (qInvNat m)
+        (leQInvIdx (mulPred p q) (dbl m))
+        (leQInvDbl m))
+      (leQTrans
+        (qInvNat (mulIdx (mulPred p r) (dbl m)))
+        (qInvNat (dbl m))
+        (qInvNat m)
+        (leQInvIdx (mulPred p r) (dbl m))
+        (leQInvDbl m))
+      seqBoundPos
+      seqBoundPos
+      seqBoundPos)
 
-def realDistribL : (u : El Real) (v : El Real) (w : El Real) →
-  realMul u (realAdd v w) ≡ realAdd (realMul u v) (realMul u w) ∈ El Real using (real.Real.unfold, realAdd.realAdd.eq, realMul.realMul.eq) ≔
-  λu. λv. λw.
-    quot-elim
-      (z. realMul z (realAdd v w) ≡ realAdd (realMul z v) (realMul z w) ∈ El Real)
-      (p. quot-elim
-            (z. realMul (class p) (realAdd z w)
-                  ≡ realAdd (realMul (class p) z) (realMul (class p) w) ∈ El Real)
-            (q. quot-elim
-                  (z. realMul (class p) (realAdd (class q) z)
-                        ≡ realAdd (realMul (class p) (class q))
-                                  (realMul (class p) z) ∈ El Real)
-                  (r. realEqOfREq (rMul p (rAdd q r)) (rAdd (rMul p q) (rMul p r))
-                        (rDistrib p q r))
-                  w)
-            v)
-      u
+def realDistribL : (u v w : El Real)
+  → realMul u (realAdd v w) ≡ realAdd (realMul u v) (realMul u w) ∈ El Real
+  using (real.Real.unfold, realAdd.realAdd.eq, realMul.realMul.eq) ≔
+  λu. λv. λw. quot-elim (z. realMul z (realAdd v w) ≡ realAdd (realMul z v) (realMul z w) ∈ El Real)
+    (p. quot-elim (z. realMul
+      (class p)
+      (realAdd z w) ≡ realAdd (realMul (class p) z) (realMul (class p) w) ∈ El Real)
+      (q. quot-elim (z. realMul
+        (class p)
+        (realAdd
+          (class q)
+          z) ≡ realAdd (realMul (class p) (class q)) (realMul (class p) z) ∈ El Real)
+        (r. realEqOfREq (rMul p (rAdd q r)) (rAdd (rMul p q) (rMul p r)) (rDistrib p q r))
+        w)
+      v)
+    u
 
 -- ===== associativity =====
 --
@@ -415,225 +572,354 @@ def realDistribL : (u : El Real) (v : El Real) (w : El Real) →
 -- so the outer estimate needs the two moduli to differ — bndMulSubQ.
 -- The constant that falls out is A·B + C·(A + B), a natural, which is
 -- all reqOfClose asks for.
-
-def leQZeroAdd : (u : El Q) (v : El Q) →
-  El (LeQ qZero u) → El (LeQ qZero v) → El (LeQ qZero (qAdd u v)) ≔
-  λu. λv. λhu. λhv. leQTrans qZero u (qAdd u v) hu (leQSelfAdd u v hv)
+def leQZeroAdd : {u v : El Q} → El (LeQ qZero u) → El (LeQ qZero v) → El (LeQ qZero (qAdd u v)) ≔
+  λu. λv. λhu. λhv. leQTrans qZero u (qAdd u v) hu (leQSelfAdd u hv)
 
 -- α·β + γ·(α + β), as a rational, is the natural A·B + C·(A + B)
-def kappaEq : (A : ℕ) (B : ℕ) (C : ℕ) →
-  qAdd (qMul (qOfNat A) (qOfNat B))
-       (qMul (qOfNat C) (qAdd (qOfNat A) (qOfNat B)))
-    ≡ qOfNat (A * B + C * (A + B)) ∈ El Q ≔
-  λA. λB. λC.
-    (qAdd (qMul (qOfNat A) (qOfNat B))
-          (qMul (qOfNat C) (qAdd (qOfNat A) (qOfNat B)))
-       ≡⟨ cong Q (λv. Q)
-            (λv. qAdd (qMul (qOfNat A) (qOfNat B)) (qMul (qOfNat C) v))
-            (qAdd (qOfNat A) (qOfNat B)) (qOfNat (A + B)) (qOfNatAdd A B) ⟩
-     qAdd (qMul (qOfNat A) (qOfNat B)) (qMul (qOfNat C) (qOfNat (A + B)))
-       ≡⟨ cong Q (λv. Q)
-            (λv. qAdd v (qMul (qOfNat C) (qOfNat (A + B))))
-            (qMul (qOfNat A) (qOfNat B)) (qOfNat (A * B)) (qOfNatMul A B) ⟩
-     qAdd (qOfNat (A * B)) (qMul (qOfNat C) (qOfNat (A + B)))
-       ≡⟨ cong Q (λv. Q) (λv. qAdd (qOfNat (A * B)) v)
-            (qMul (qOfNat C) (qOfNat (A + B))) (qOfNat (C * (A + B)))
-            (qOfNatMul C (A + B)) ⟩
-     qAdd (qOfNat (A * B)) (qOfNat (C * (A + B)))
-       ≡⟨ qOfNatAdd (A * B) (C * (A + B)) ⟩
-     qOfNat (A * B + C * (A + B)))
+def kappaEq : (A B C : ℕ)
+  → qAdd
+    (qMul (qOfNat A) (qOfNat B))
+    (qMul (qOfNat C) (qAdd (qOfNat A) (qOfNat B))) ≡ qOfNat (A * B + C * (A + B)) ∈ El Q ≔
+  λA. λB. λC. qAdd (qMul (qOfNat A) (qOfNat B)) (qMul (qOfNat C) (qAdd (qOfNat A) (qOfNat B)))
+      ≡⟨ cong
+        Q
+        (λv. Q)
+        (λv. qAdd (qMul (qOfNat A) (qOfNat B)) (qMul (qOfNat C) v))
+        (qAdd (qOfNat A) (qOfNat B))
+        (qOfNat (A + B))
+        (qOfNatAdd A B) ⟩ qAdd (qMul (qOfNat A) (qOfNat B)) (qMul (qOfNat C) (qOfNat (A + B)))
+      ≡⟨ cong
+        Q
+        (λv. Q)
+        (λv. qAdd v (qMul (qOfNat C) (qOfNat (A + B))))
+        (qMul (qOfNat A) (qOfNat B))
+        (qOfNat (A * B))
+        (qOfNatMul A B) ⟩ qAdd (qOfNat (A * B)) (qMul (qOfNat C) (qOfNat (A + B)))
+      ≡⟨ cong
+        Q
+        (λv. Q)
+        (λv. qAdd (qOfNat (A * B)) v)
+        (qMul (qOfNat C) (qOfNat (A + B)))
+        (qOfNat (C * (A + B)))
+        (qOfNatMul C (A + B)) ⟩ qAdd (qOfNat (A * B)) (qOfNat (C * (A + B)))
+      ≡⟨ qOfNatAdd (A * B) (C * (A + B)) ⟩ qOfNat (A * B + C * (A + B))
 
 -- (αβ)d + γ(αd + βd) ≡ κ·d, with κ = αβ + γ(α + β) given as an
 -- argument (the factor, parameterised — B-16 again)
-def assocBoundEq : (al : El Q) (be : El Q) (ga : El Q) (d : El Q) (kp : El Q) →
-  (qAdd (qMul al be) (qMul ga (qAdd al be)) ≡ kp ∈ El Q) →
-  qAdd (qMul (qMul al be) d) (qMul ga (qAdd (qMul al d) (qMul be d)))
-    ≡ qMul kp d ∈ El Q ≔
-  λal. λbe. λga. λd. λkp. λhk.
-    (qAdd (qMul (qMul al be) d) (qMul ga (qAdd (qMul al d) (qMul be d)))
-       ≡⟨ cong Q (λv. Q) (λv. qAdd (qMul (qMul al be) d) (qMul ga v))
-            (qAdd (qMul al d) (qMul be d)) (qMul (qAdd al be) d)
-            (sym Q (qMul (qAdd al be) d) (qAdd (qMul al d) (qMul be d))
-               (qDistribR d al be)) ⟩
-     qAdd (qMul (qMul al be) d) (qMul ga (qMul (qAdd al be) d))
-       ≡⟨ cong Q (λv. Q) (λv. qAdd (qMul (qMul al be) d) v)
-            (qMul ga (qMul (qAdd al be) d)) (qMul (qMul ga (qAdd al be)) d)
-            (sym Q (qMul (qMul ga (qAdd al be)) d)
-                   (qMul ga (qMul (qAdd al be) d))
-               (qMulAssoc ga (qAdd al be) d)) ⟩
-     qAdd (qMul (qMul al be) d) (qMul (qMul ga (qAdd al be)) d)
-       ≡⟨ sym Q (qMul (qAdd (qMul al be) (qMul ga (qAdd al be))) d)
-            (qAdd (qMul (qMul al be) d) (qMul (qMul ga (qAdd al be)) d))
-            (qDistribR d (qMul al be) (qMul ga (qAdd al be))) ⟩
-     qMul (qAdd (qMul al be) (qMul ga (qAdd al be))) d
-       ≡⟨ cong Q (λv. Q) (λv. qMul v d)
-            (qAdd (qMul al be) (qMul ga (qAdd al be))) kp hk ⟩
-     qMul kp d)
+def assocBoundEq : {al be ga : El Q}
+  (d : El Q)
+  {kp : El Q}
+  → (qAdd
+    (qMul al be)
+    (qMul
+      ga
+      (qAdd
+        al
+        be)) ≡ kp ∈ El Q)
+    → qAdd (qMul (qMul al be) d) (qMul ga (qAdd (qMul al d) (qMul be d))) ≡ qMul kp d ∈ El Q ≔
+  λal. λbe. λga. λd. λkp. λhk. qAdd (qMul (qMul al be) d) (qMul ga (qAdd (qMul al d) (qMul be d)))
+      ≡⟨ cong
+        Q
+        (λv. Q)
+        (λv. qAdd (qMul (qMul al be) d) (qMul ga v))
+        (qAdd (qMul al d) (qMul be d))
+        (qMul (qAdd al be) d)
+        (sym
+          Q
+          (qMul (qAdd al be) d)
+          (qAdd (qMul al d) (qMul be d))
+          (qDistribR d al be)) ⟩ qAdd (qMul (qMul al be) d) (qMul ga (qMul (qAdd al be) d))
+      ≡⟨ cong
+        Q
+        (λv. Q)
+        (λv. qAdd (qMul (qMul al be) d) v)
+        (qMul ga (qMul (qAdd al be) d))
+        (qMul (qMul ga (qAdd al be)) d)
+        (sym
+          Q
+          (qMul (qMul ga (qAdd al be)) d)
+          (qMul ga (qMul (qAdd al be) d))
+          (qMulAssoc
+            ga
+            (qAdd al be)
+            d)) ⟩ qAdd (qMul (qMul al be) d) (qMul (qMul ga (qAdd al be)) d)
+      ≡⟨ sym
+        Q
+        (qMul (qAdd (qMul al be) (qMul ga (qAdd al be))) d)
+        (qAdd (qMul (qMul al be) d) (qMul (qMul ga (qAdd al be)) d))
+        (qDistribR
+          d
+          (qMul al be)
+          (qMul ga (qAdd al be))) ⟩ qMul (qAdd (qMul al be) (qMul ga (qAdd al be))) d
+      ≡⟨ cong Q (λv. Q) (λv. qMul v d) (qAdd (qMul al be) (qMul ga (qAdd al be))) kp hk ⟩ qMul kp d
 
-def assocStepGen : (f : El (ℕ → Q)) (g : El (ℕ → Q)) (h : El (ℕ → Q))
-  (A : ℕ) (B : ℕ) (C : ℕ) (m : ℕ) (a : ℕ) (i : ℕ) (j : ℕ) (b : ℕ) →
-  ((z : ℕ) → El (Bnd (qOfNat A) (f z))) →
-  ((z : ℕ) → El (Bnd (qOfNat B) (g z))) →
-  ((z : ℕ) → El (Bnd (qOfNat C) (h z))) →
-  ((z : ℕ) (w : ℕ) → El (Bnd (rBound z w) (qAdd (f z) (qNeg (f w))))) →
-  ((z : ℕ) (w : ℕ) → El (Bnd (rBound z w) (qAdd (g z) (qNeg (g w))))) →
-  ((z : ℕ) (w : ℕ) → El (Bnd (rBound z w) (qAdd (h z) (qNeg (h w))))) →
-  El (LeQ (qInvNat a) (qInvNat m)) → El (LeQ (qInvNat i) (qInvNat m)) →
-  El (LeQ (qInvNat j) (qInvNat m)) → El (LeQ (qInvNat b) (qInvNat m)) →
-  El (LeQ qZero (qOfNat A)) → El (LeQ qZero (qOfNat B)) →
-  El (LeQ qZero (qOfNat C)) →
-  El (Bnd (qMul (qOfNat (A * B + C * (A + B))) (rBound m m))
-          (qAdd (qMul (qMul (f a) (g a)) (h i))
-                (qNeg (qMul (f j) (qMul (g b) (h b)))))) ≔
-  λf. λg. λh. λA. λB. λC. λm. λa. λi. λj. λb.
-  λhfB. λhgB. λhhB. λhfR. λhgR. λhhR. λda. λdi. λdj. λdb. λhA. λhB. λhC.
-    bndEq (qMul (qOfNat (A * B + C * (A + B))) (rBound m m))
-          (qAdd (qMul (qMul (f a) (g a)) (h i))
-                (qNeg (qMul (qMul (f j) (g b)) (h b))))
-          (qAdd (qMul (qMul (f a) (g a)) (h i))
-                (qNeg (qMul (f j) (qMul (g b) (h b)))))
-      (cong Q (λv. Q)
-         (λv. qAdd (qMul (qMul (f a) (g a)) (h i)) (qNeg v))
-         (qMul (qMul (f j) (g b)) (h b)) (qMul (f j) (qMul (g b) (h b)))
-         (qMulAssoc (f j) (g b) (h b)))
-      (bndEqB (qAdd (qMul (qMul (qOfNat A) (qOfNat B)) (rBound m m))
-                    (qMul (qOfNat C)
-                          (qAdd (qMul (qOfNat A) (rBound m m))
-                                (qMul (qOfNat B) (rBound m m)))))
-              (qMul (qOfNat (A * B + C * (A + B))) (rBound m m))
-              (qAdd (qMul (qMul (f a) (g a)) (h i))
-                    (qNeg (qMul (qMul (f j) (g b)) (h b))))
-         (assocBoundEq (qOfNat A) (qOfNat B) (qOfNat C) (rBound m m)
-            (qOfNat (A * B + C * (A + B))) (kappaEq A B C))
-         (bndMulSubQ (qMul (f a) (g a)) (h i) (qMul (f j) (g b)) (h b)
-            (qMul (qOfNat A) (qOfNat B)) (qOfNat C) (rBound m m)
-            (qAdd (qMul (qOfNat A) (rBound m m))
-                  (qMul (qOfNat B) (rBound m m)))
-            (bndMul (qOfNat A) (qOfNat B) (f a) (g a) hA hB (hfB a) (hgB a))
-            (hhB b)
-            (bndDeep h hhR i b m di db)
-            (bndMulSubQ (f a) (g a) (f j) (g b) (qOfNat A) (qOfNat B)
-               (rBound m m) (rBound m m)
-               (hfB a) (hgB b)
-               (bndDeep g hgR a b m da db)
-               (bndDeep f hfR a j m da dj)
-               hA hB (leQZeroBound m m) (leQZeroBound m m))
-            (leQZeroMul (qOfNat A) (qOfNat B) hA hB)
-            hC
-            (leQZeroBound m m)
-            (leQZeroAdd (qMul (qOfNat A) (rBound m m))
-                        (qMul (qOfNat B) (rBound m m))
-               (leQZeroMul (qOfNat A) (rBound m m) hA (leQZeroBound m m))
-               (leQZeroMul (qOfNat B) (rBound m m) hB (leQZeroBound m m)))))
+def assocStepGen : (f g h : El (ℕ → Q))
+  (A B C m a i j b : ℕ)
+  → ((z : ℕ)
+    → El (Bnd
+      (qOfNat A)
+      (f
+        z)))
+    → ((z : ℕ)
+      → El (Bnd
+        (qOfNat B)
+        (g
+          z)))
+      → ((z : ℕ)
+        → El (Bnd
+          (qOfNat C)
+          (h
+            z)))
+        → ((z w : ℕ)
+          → El (Bnd
+            (rBound z w)
+            (qAdd
+              (f z)
+              (qNeg
+                (f
+                  w)))))
+          → ((z w : ℕ)
+            → El (Bnd
+              (rBound z w)
+              (qAdd
+                (g z)
+                (qNeg
+                  (g
+                    w)))))
+            → ((z w : ℕ)
+              → El (Bnd
+                (rBound z w)
+                (qAdd
+                  (h z)
+                  (qNeg
+                    (h
+                      w)))))
+              → El (LeQ
+                (qInvNat a)
+                (qInvNat
+                  m))
+                → El (LeQ
+                  (qInvNat i)
+                  (qInvNat
+                    m))
+                  → El (LeQ
+                    (qInvNat j)
+                    (qInvNat
+                      m))
+                    → El (LeQ
+                      (qInvNat b)
+                      (qInvNat
+                        m))
+                      → El (LeQ
+                        qZero
+                        (qOfNat
+                          A))
+                        → El (LeQ
+                          qZero
+                          (qOfNat
+                            B))
+                          → El (LeQ
+                            qZero
+                            (qOfNat
+                              C))
+                            → El (Bnd
+                              (qMul (qOfNat (A * B + C * (A + B))) (rBound m m))
+                              (qAdd
+                                (qMul (qMul (f a) (g a)) (h i))
+                                (qNeg (qMul (f j) (qMul (g b) (h b)))))) ≔
+  λf. λg. λh. λA. λB. λC. λm. λa. λi. λj. λb. λhfB. λhgB. λhhB. λhfR. λhgR. λhhR. λda. λdi. λdj. λdb. λhA. λhB. λhC. bndEq
+    (qAdd (qMul (qMul (f a) (g a)) (h i)) (qNeg (qMul (qMul (f j) (g b)) (h b))))
+    (qAdd (qMul (qMul (f a) (g a)) (h i)) (qNeg (qMul (f j) (qMul (g b) (h b)))))
+    (cong
+      Q
+      (λv. Q)
+      (λv. qAdd (qMul (qMul (f a) (g a)) (h i)) (qNeg v))
+      (qMul (qMul (f j) (g b)) (h b))
+      (qMul (f j) (qMul (g b) (h b)))
+      (qMulAssoc (f j) (g b) (h b)))
+    (bndEqB
+      (qAdd
+        (qMul (qMul (qOfNat A) (qOfNat B)) (rBound m m))
+        (qMul (qOfNat C) (qAdd (qMul (qOfNat A) (rBound m m)) (qMul (qOfNat B) (rBound m m)))))
+      (qMul (qOfNat (A * B + C * (A + B))) (rBound m m))
+      (qAdd (qMul (qMul (f a) (g a)) (h i)) (qNeg (qMul (qMul (f j) (g b)) (h b))))
+      (assocBoundEq (rBound m m) (kappaEq A B C))
+      (bndMulSubQ
+        (bndMul hA hB (hfB a) (hgB a))
+        (hhB b)
+        (bndDeep h hhR i b m di db)
+        (bndMulSubQ
+          (hfB a)
+          (hgB b)
+          (bndDeep g hgR a b m da db)
+          (bndDeep f hfR a j m da dj)
+          hA
+          hB
+          (leQZeroBound m m)
+          (leQZeroBound m m))
+        (leQZeroMul hA hB)
+        hC
+        (leQZeroBound m m)
+        (leQZeroAdd (leQZeroMul hA (leQZeroBound m m)) (leQZeroMul hB (leQZeroBound m m)))))
 
-def rAssoc : (p : El RSeq) (q : El RSeq) (r : El RSeq) →
-  Prf (REq (rMul (rMul p q) r) (rMul p (rMul q r))) using (realMul.mulSeq.eq, realMul.rMul.eq, realNeg.seqOf.eq) ≔
-  λp. λq. λr.
-    reqOfClose (rMul (rMul p q) r) (rMul p (rMul q r))
-      (seqBound p * seqBound q + seqBound r * (seqBound p + seqBound q))
-      (λm.
-        assocStepGen (seqOf p) (seqOf q) (seqOf r)
-          (seqBound p) (seqBound q) (seqBound r) m
-          (mulIdx (mulPred p q) (mulIdx (mulPred (rMul p q) r) m))
-          (mulIdx (mulPred (rMul p q) r) m)
-          (mulIdx (mulPred p (rMul q r)) m)
-          (mulIdx (mulPred q r) (mulIdx (mulPred p (rMul q r)) m))
-          (bndSeqBound p) (bndSeqBound q) (bndSeqBound r)
-          (regBnd (seqOf p) (regOf p)) (regBnd (seqOf q) (regOf q))
-          (regBnd (seqOf r) (regOf r))
-          (leQTrans (qInvNat (mulIdx (mulPred p q)
-                                     (mulIdx (mulPred (rMul p q) r) m)))
-                    (qInvNat (mulIdx (mulPred (rMul p q) r) m)) (qInvNat m)
-             (leQInvIdx (mulPred p q) (mulIdx (mulPred (rMul p q) r) m))
-             (leQInvIdx (mulPred (rMul p q) r) m))
-          (leQInvIdx (mulPred (rMul p q) r) m)
-          (leQInvIdx (mulPred p (rMul q r)) m)
-          (leQTrans (qInvNat (mulIdx (mulPred q r)
-                                     (mulIdx (mulPred p (rMul q r)) m)))
-                    (qInvNat (mulIdx (mulPred p (rMul q r)) m)) (qInvNat m)
-             (leQInvIdx (mulPred q r) (mulIdx (mulPred p (rMul q r)) m))
-             (leQInvIdx (mulPred p (rMul q r)) m))
-          (seqBoundPos p) (seqBoundPos q) (seqBoundPos r))
+def rAssoc : (p q r : El RSeq) → Prf (REq (rMul (rMul p q) r) (rMul p (rMul q r)))
+  using (realMul.mulSeq.eq, realMul.rMul.eq, realNeg.seqOf.eq) ≔
+  λp. λq. λr. reqOfClose
+    (seqBound p * seqBound q + seqBound r * (seqBound p + seqBound q))
+    (λm. assocStepGen
+      (seqOf p)
+      (seqOf q)
+      (seqOf r)
+      (seqBound p)
+      (seqBound q)
+      (seqBound r)
+      m
+      (mulIdx (mulPred p q) (mulIdx (mulPred (rMul p q) r) m))
+      (mulIdx (mulPred (rMul p q) r) m)
+      (mulIdx (mulPred p (rMul q r)) m)
+      (mulIdx (mulPred q r) (mulIdx (mulPred p (rMul q r)) m))
+      (bndSeqBound p)
+      (bndSeqBound q)
+      (bndSeqBound r)
+      (regBnd (seqOf p) (regOf p))
+      (regBnd (seqOf q) (regOf q))
+      (regBnd (seqOf r) (regOf r))
+      (leQTrans
+        (qInvNat (mulIdx (mulPred p q) (mulIdx (mulPred (rMul p q) r) m)))
+        (qInvNat (mulIdx (mulPred (rMul p q) r) m))
+        (qInvNat m)
+        (leQInvIdx (mulPred p q) (mulIdx (mulPred (rMul p q) r) m))
+        (leQInvIdx (mulPred (rMul p q) r) m))
+      (leQInvIdx (mulPred (rMul p q) r) m)
+      (leQInvIdx (mulPred p (rMul q r)) m)
+      (leQTrans
+        (qInvNat (mulIdx (mulPred q r) (mulIdx (mulPred p (rMul q r)) m)))
+        (qInvNat (mulIdx (mulPred p (rMul q r)) m))
+        (qInvNat m)
+        (leQInvIdx (mulPred q r) (mulIdx (mulPred p (rMul q r)) m))
+        (leQInvIdx (mulPred p (rMul q r)) m))
+      seqBoundPos
+      seqBoundPos
+      seqBoundPos)
 
-def realMulAssoc : (u : El Real) (v : El Real) (w : El Real) →
-  realMul (realMul u v) w ≡ realMul u (realMul v w) ∈ El Real using (real.Real.unfold, realMul.realMul.eq) ≔
-  λu. λv. λw.
-    quot-elim
-      (z. realMul (realMul z v) w ≡ realMul z (realMul v w) ∈ El Real)
-      (p. quot-elim
-            (z. realMul (realMul (class p) z) w
-                  ≡ realMul (class p) (realMul z w) ∈ El Real)
-            (q. quot-elim
-                  (z. realMul (realMul (class p) (class q)) z
-                        ≡ realMul (class p) (realMul (class q) z) ∈ El Real)
-                  (r. realEqOfREq (rMul (rMul p q) r) (rMul p (rMul q r))
-                        (rAssoc p q r))
-                  w)
-            v)
-      u
+def realMulAssoc : (u v w : El Real) → realMul (realMul u v) w ≡ realMul u (realMul v w) ∈ El Real
+  using (real.Real.unfold, realMul.realMul.eq) ≔
+  λu. λv. λw. quot-elim (z. realMul (realMul z v) w ≡ realMul z (realMul v w) ∈ El Real)
+    (p. quot-elim (z. realMul (realMul (class p) z) w ≡ realMul (class p) (realMul z w) ∈ El Real)
+      (q. quot-elim (z. realMul
+        (realMul (class p) (class q))
+        z ≡ realMul (class p) (realMul (class q) z) ∈ El Real)
+        (r. realEqOfREq (rMul (rMul p q) r) (rMul p (rMul q r)) (rAssoc p q r))
+        w)
+      v)
+    u
 
 -- ===== the remaining laws, and the structure =====
-
 -- right distributivity, by commuting into the left one
-def realDistribR : (u : El Real) (v : El Real) (w : El Real) →
-  realMul (realAdd v w) u ≡ realAdd (realMul v u) (realMul w u) ∈ El Real ≔
-  λu. λv. λw.
-    trans Real (realMul (realAdd v w) u) (realMul u (realAdd v w))
-               (realAdd (realMul v u) (realMul w u))
-      (realMulComm (realAdd v w) u)
-      (trans Real (realMul u (realAdd v w))
-                  (realAdd (realMul u v) (realMul u w))
-                  (realAdd (realMul v u) (realMul w u))
-         (realDistribL u v w)
-         (trans Real (realAdd (realMul u v) (realMul u w))
-                     (realAdd (realMul v u) (realMul u w))
-                     (realAdd (realMul v u) (realMul w u))
-            (cong Real (λz. Real) (λz. realAdd z (realMul u w))
-               (realMul u v) (realMul v u) (realMulComm u v))
-            (cong Real (λz. Real) (λz. realAdd (realMul v u) z)
-               (realMul u w) (realMul w u) (realMulComm u w))))
+def realDistribR : (u v w : El Real)
+  → realMul (realAdd v w) u ≡ realAdd (realMul v u) (realMul w u) ∈ El Real ≔
+  λu. λv. λw. trans
+    Real
+    (realMul (realAdd v w) u)
+    (realMul u (realAdd v w))
+    (realAdd (realMul v u) (realMul w u))
+    (realMulComm (realAdd v w) u)
+    (trans
+      Real
+      (realMul u (realAdd v w))
+      (realAdd (realMul u v) (realMul u w))
+      (realAdd (realMul v u) (realMul w u))
+      (realDistribL u v w)
+      (trans
+        Real
+        (realAdd (realMul u v) (realMul u w))
+        (realAdd (realMul v u) (realMul u w))
+        (realAdd (realMul v u) (realMul w u))
+        (cong
+          Real
+          (λz. Real)
+          (λz. realAdd z (realMul u w))
+          (realMul u v)
+          (realMul v u)
+          (realMulComm u v))
+        (cong
+          Real
+          (λz. Real)
+          (λz. realAdd (realMul v u) z)
+          (realMul u w)
+          (realMul w u)
+          (realMulComm u w))))
 
 -- (−u)·v = −(u·v), a RING consequence: (−u)·v is an additive inverse
 -- of u·v, and inverses are unique. No estimate, no representatives.
-def realMulNeg : (u : El Real) (v : El Real) →
-  realMul (realNeg u) v ≡ realNeg (realMul u v) ∈ El Real ≔
-  λu. λv.
-    realNegUnique (realMul u v) (realMul (realNeg u) v)
-      (trans Real (realAdd (realMul u v) (realMul (realNeg u) v))
-                  (realMul (realAdd u (realNeg u)) v)
-                  realZero
-         (sym Real (realMul (realAdd u (realNeg u)) v)
-                   (realAdd (realMul u v) (realMul (realNeg u) v))
-            (realDistribR v u (realNeg u)))
-         (trans Real (realMul (realAdd u (realNeg u)) v)
-                     (realMul realZero v) realZero
-            (cong Real (λz. Real) (λz. realMul z v)
-               (realAdd u (realNeg u)) realZero (realAddNegR u))
-            (realMulZeroL v)))
+def realMulNeg : {u v : El Real} → realMul (realNeg u) v ≡ realNeg (realMul u v) ∈ El Real ≔
+  λu. λv. realNegUnique
+    (realMul u v)
+    (realMul (realNeg u) v)
+    (trans
+      Real
+      (realAdd (realMul u v) (realMul (realNeg u) v))
+      (realMul (realAdd u (realNeg u)) v)
+      realZero
+      (sym
+        Real
+        (realMul (realAdd u (realNeg u)) v)
+        (realAdd (realMul u v) (realMul (realNeg u) v))
+        (realDistribR v u (realNeg u)))
+      (trans
+        Real
+        (realMul (realAdd u (realNeg u)) v)
+        (realMul realZero v)
+        realZero
+        (cong Real (λz. Real) (λz. realMul z v) (realAdd u (realNeg u)) realZero (realAddNegR u))
+        realMulZeroL))
 
-def realMulNegR : (u : El Real) (v : El Real) →
-  realMul u (realNeg v) ≡ realNeg (realMul u v) ∈ El Real ≔
-  λu. λv.
-    trans Real (realMul u (realNeg v)) (realMul (realNeg v) u)
-               (realNeg (realMul u v))
-      (realMulComm u (realNeg v))
-      (trans Real (realMul (realNeg v) u) (realNeg (realMul v u))
-                  (realNeg (realMul u v))
-         (realMulNeg v u)
-         (cong Real (λz. Real) (λz. realNeg z) (realMul v u) (realMul u v)
-            (realMulComm v u)))
+def realMulNegR : (u v : El Real) → realMul u (realNeg v) ≡ realNeg (realMul u v) ∈ El Real ≔
+  λu. λv. trans
+    Real
+    (realMul u (realNeg v))
+    (realMul (realNeg v) u)
+    (realNeg (realMul u v))
+    (realMulComm u (realNeg v))
+    (trans
+      Real
+      (realMul (realNeg v) u)
+      (realNeg (realMul v u))
+      (realNeg (realMul u v))
+      realMulNeg
+      (cong Real (λz. Real) (λz. realNeg z) (realMul v u) (realMul u v) (realMulComm v u)))
 
 -- ...so ℝ is a commutative ring, and the laws above are exactly its
 -- components
 def realCommRing : El (IsCommRing Real) using (realGroup.realAddGroup.eq, ring.IsCommRing.unfold) ≔
-  (realAddGroup , realMul , realOne ,
-   (λx. λy. λz.
-      eqToId Real (realMul (realMul x y) z) (realMul x (realMul y z))
-        (realMulAssoc x y z)) ,
-   (λx. λy. eqToId Real (realMul x y) (realMul y x) (realMulComm x y)) ,
-   (λx. eqToId Real (realMul x realOne) x (realMulOneR x)) ,
-   (λx. λy. eqToId Real (realAdd x y) (realAdd y x) (realAddComm x y)) ,
-   λx. λy. λz.
-     eqToId Real (realMul x (realAdd y z))
-                 (realAdd (realMul x y) (realMul x z))
-       (realDistribL x y z))
+  realAddGroup,
+    realMul,
+      realOne,
+        (λx. λy. λz. eqToId
+          (realMul (realMul x y) z)
+          (realMul x (realMul y z))
+          (realMulAssoc
+            x
+            y
+            z)),
+          (λx. λy. eqToId
+            (realMul x y)
+            (realMul y x)
+            (realMulComm
+              x
+              y)),
+            (λx. eqToId
+              (realMul x realOne)
+              x
+              (realMulOneR
+                x)),
+              (λx. λy. eqToId
+                (realAdd x y)
+                (realAdd y x)
+                (realAddComm
+                  x
+                  y)),
+                λx. λy. λz. eqToId
+                  (realMul x (realAdd y z))
+                  (realAdd (realMul x y) (realMul x z))
+                  (realDistribL x y z)

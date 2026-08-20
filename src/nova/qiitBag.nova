@@ -2,15 +2,19 @@
 -- worked example, over its ambient Γ = [a : 𝕌]): points quotiented by
 -- the swap equation. Every generated def abstracts over the carrier,
 -- and so does everything defined below — instances are applications.
+
 data [a : 𝕌] ( Bag : U
-             ; nil : El Bag
-             ; ins : El a → El Bag → El Bag
-             ; swp : (x : El a) (y : El a) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )
+     ; nil : El Bag
+     ; ins : El a → El Bag → El Bag
+     ; swp : (x : El a) (y : El a) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )
 
 -- the imposed equation, GENERICALLY, via the store (the generated swp
 -- lemma discharges the ⋆ at every carrier at once)
-def swapG : (a : 𝕌) (x : El a) (y : El a) (m : El (Bag a)) →
-            ins a x (ins a y m) ≡ ins a y (ins a x m) ∈ (El (Bag a)) using (qiitBag.Bag.unfold, qiitBag.ins.eq, swp) ≔
+def swapG : {a : 𝕌}
+  {x y : El a}
+  {m : El (Bag a)}
+  → ins a x (ins a y m) ≡ ins a y (ins a x m) ∈ El (Bag a)
+  using (qiitBag.Bag.unfold, qiitBag.ins.eq, swp) ≔
   λa. λx. λy. λm. ⋆
 
 -- size, defined once for every carrier — the method is
@@ -19,10 +23,14 @@ def size : (a : 𝕌) → El (Bag a) → ℕ using (qiitBag.Bag.unfold) ≔
   λa. λm. BagElim a (λb. ℕ) Z (λx. λr. λih. S ih) (λx. λy. λr. λih. ⋆) m
 
 -- instances: applications of the generic definitions
-def swapN : ins ℕ Z (ins ℕ (S Z) (nil ℕ)) ≡ ins ℕ (S Z) (ins ℕ Z (nil ℕ)) ∈ (El (Bag ℕ))
+def swapN : ins ℕ Z (ins ℕ (S Z) (nil ℕ)) ≡ ins ℕ (S Z) (ins ℕ Z (nil ℕ)) ∈ El (Bag ℕ)
   using (qiitBag.Bag.eq) ≔
-  swapG ℕ Z (S Z) (nil ℕ)
+  swapG
 
-def sizeTwoN : size ℕ (ins ℕ Z (ins ℕ (S Z) (nil ℕ))) ≡ S (S Z) ∈ ℕ
-  using (qiitBag.Bag.eq, qiitBag.BagElim.eq, qiitBag.ins.eq, qiitBag.nil.eq, qiitBag.size.eq) ≔ ⋆
-def sizeOneU : size 𝟙 (ins 𝟙 () (nil 𝟙)) ≡ S Z ∈ ℕ using (qiitBag.Bag.eq, qiitBag.BagElim.eq, qiitBag.ins.eq, qiitBag.nil.eq, qiitBag.size.eq) ≔ ⋆
+def sizeTwoN : size ℕ (ins ℕ Z (ins ℕ (S Z) (nil ℕ))) ≡ 2 ∈ ℕ
+  using (qiitBag.Bag.eq, qiitBag.BagElim.eq, qiitBag.ins.eq, qiitBag.nil.eq, qiitBag.size.eq) ≔
+  ⋆
+
+def sizeOneU : size 𝟙 (ins 𝟙 () (nil 𝟙)) ≡ S Z ∈ ℕ
+  using (qiitBag.Bag.eq, qiitBag.BagElim.eq, qiitBag.ins.eq, qiitBag.nil.eq, qiitBag.size.eq) ≔
+  ⋆

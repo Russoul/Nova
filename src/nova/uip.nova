@@ -4,26 +4,31 @@
 -- well-typed under a reflected index equation — the motive carries
 -- that equation INSIDE a squashed Π, so its binder is in scope (and
 -- reflected) exactly while the codomain is typed.
+-- canonicity: under the index equation (always derivable from the
+-- proof itself, by idToEq), every proof of Id a x y IS refl.
+
 import id (Id, refl, IdElimP, idToEq)
 import equality (sym, trans)
 
--- canonicity: under the index equation (always derivable from the
--- proof itself, by idToEq), every proof of Id a x y IS refl.
-def idCanon : (a : 𝕌) (x : El a) (y : El a) (p : El (Id a x y)) (h : x ≡ y ∈ El a) →
-              p ≡ refl a x ∈ El (Id a x y) using (hyp.rw, id.Id.eq, id.Id.unfold, id.refl.eq) ≔
-  λa. λx. λy. λp. λh.
-    squash-elim
-      (IdElimP a
-        (λu. λv. λw. ∥(k : u ≡ v ∈ El a) → (w ≡ refl a u ∈ El (Id a u v))∥)
-        (λu. ⋆ (λk. ⋆))
-        x y p)
-      (f. f h)
+def idCanon : {a : 𝕌}
+  {x y : El a}
+  (p : El (Id a x y))
+  (h : x ≡ y ∈ El a)
+  → p ≡ refl a x ∈ El (Id a x y)
+  using (hyp.rw, id.Id.eq, id.Id.unfold, id.refl.eq) ≔
+  λa. λx. λy. λp. λh. squash-elim (IdElimP
+    a
+    (λu. λv. λw. ∥(k : u ≡ v ∈ El a) → w ≡ refl a u ∈ El (Id a u v)∥)
+    (λu. ⋆ (λk. ⋆))
+    x
+    y
+    p) (f. f h)
 
 -- uniqueness of identity proofs: both are refl, by canonicity.
-def uip : (a : 𝕌) (x : El a) (y : El a) (p : El (Id a x y)) (q : El (Id a x y)) →
-          p ≡ q ∈ El (Id a x y) using (hyp.rw, id.Id.eq, id.Id.unfold, id.idToEq.eq) ≔
-  λa. λx. λy. λp. λq.
-    let h ≔ idToEq a x y p in
-    trans (Id a x y) p (refl a x) q
-      (idCanon a x y p h)
-      (sym (Id a x y) q (refl a x) (idCanon a x y q h))
+def uip : {a : 𝕌} {x y : El a} {p q : El (Id a x y)} → p ≡ q ∈ El (Id a x y)
+  using (hyp.rw, id.Id.eq, id.Id.unfold, id.idToEq.eq) ≔
+  λa. λx. λy. λp. λq. let h ≔ idToEq
+    a
+    x
+    y
+    p in trans (Id a x y) p (refl a x) q (idCanon p h) (sym (Id a x y) q (refl a x) (idCanon q h))

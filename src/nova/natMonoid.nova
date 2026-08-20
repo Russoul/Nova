@@ -1,27 +1,47 @@
-import nat (+, *, plusAssoc, zeroPlusId, plusZeroId, multAssoc, sucPlus)
-import id (eqToId)
-import monoid (IsMonoid)
-
 -- (ℕ, +, 0) is a monoid: the operations are data components, and each
 -- law is an existing nat.nova ≡-lemma carried across the Id bridge by
 -- eqToId, with both sides spelled so the component types meet the
 -- expected ones exactly.
+
+import nat (+, *, plusAssoc, zeroPlusId, plusZeroId, multAssoc, sucPlus)
+import id (eqToId)
+import monoid (IsMonoid)
+
 def natAddMonoid : El (IsMonoid ℕ) using (monoid.IsMonoid.unfold) ≔
-  ((+) , Z ,
-   (λx. λy. λz. eqToId ℕ (x + y + z) (x + (y + z)) (plusAssoc x y z)) ,
-   (λx. eqToId ℕ (Z + x) x (zeroPlusId x)) ,
-   λx. eqToId ℕ (x + Z) x (plusZeroId x))
+  (+),
+    Z,
+      (λx. λy. λz. eqToId
+        (x + y + z)
+        (x + (y + z))
+        (plusAssoc
+          x
+          y
+          z)), (λx. eqToId (Z + x) x (zeroPlusId x)), λx. eqToId (x + Z) x (plusZeroId x)
 
 -- The unit laws for * at S Z. On the right the whole statement is a
 -- δβ-computation (n * S Z unwinds through * and + to n); on the left
 -- the elimination is stuck on n, so it is an induction.
 def multOneR : (n : ℕ) → n * S Z ≡ n ∈ ℕ using (nat.*.eq, nat.+.eq) ≔ λn. ⋆
-def oneMultL : (n : ℕ) → S Z * n ≡ n ∈ ℕ using (*.eq, hyp.rw, nat.multZeroId, nat.multZeroId.rw, sucPlus, sucPlus.rw, zeroPlusId, zeroPlusId.rw) ≔
+
+def oneMultL : (n : ℕ) → S Z * n ≡ n ∈ ℕ
+  using (*.eq,
+    hyp.rw,
+    nat.multZeroId,
+    nat.multZeroId.rw,
+    sucPlus,
+    sucPlus.rw,
+    zeroPlusId,
+    zeroPlusId.rw) ≔
   λn. ℕ-elim (k. S Z * k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
 
 -- (ℕ, *, 1) is a monoid.
 def natMulMonoid : El (IsMonoid ℕ) using (monoid.IsMonoid.unfold) ≔
-  ((*) , S Z ,
-   (λx. λy. λz. eqToId ℕ (x * y * z) (x * (y * z)) (multAssoc x y z)) ,
-   (λx. eqToId ℕ (S Z * x) x (oneMultL x)) ,
-   λx. eqToId ℕ (x * S Z) x (multOneR x))
+  (*),
+    S Z,
+      (λx. λy. λz. eqToId
+        (x * y * z)
+        (x * (y * z))
+        (multAssoc
+          x
+          y
+          z)), (λx. eqToId (S Z * x) x (oneMultL x)), λx. eqToId (x * S Z) x (multOneR x)

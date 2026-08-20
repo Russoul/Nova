@@ -2,8 +2,8 @@
 -- IDENTITY note): the signature for A / R over its full ambient
 -- Γ = [a : 𝕌][r : El a → El a → Ω] — an arbitrary carrier and an
 -- arbitrary Ω-valued relation, cls x ≡ cls y imposed under Prf (r x y).
-data [a : 𝕌] [r : El a → El a → Ω]
-     ( Q : U
+
+data [a : 𝕌] [r : El a → El a → Ω] ( Q : U
      ; cls : El a → El Q
      ; qeq : (x : El a) (y : El a) → Prf (r x y) → cls x ≡ cls y ∈ El Q )
 
@@ -11,24 +11,36 @@ data [a : 𝕌] [r : El a → El a → Ω]
 -- function on the carrier plus a respect proof — quot-elim's f/f⁼ at
 -- full generality. Coherences are hypotheses, so the coherence
 -- argument IS the caller's respect proof, passed straight through.
-def qlift : (a : 𝕌) (r : El a → El a → Ω) (b : 𝕌)
-            (f : El a → El b)
-            (resp : (x : El a) (y : El a) → Prf (r x y) → f x ≡ f y ∈ (El b))
-            → El (Q a r) → El b using (qiitQuot.Q.unfold) ≔
-  λa. λr. λb. λf. λresp. λq.
-    QElim a r (λw. b) (λx. f x) (λx. λy. λh. resp x y h) q
+def qlift : (a : 𝕌)
+  (r : El a → El a → Ω)
+  {b : 𝕌}
+  (f : El a → El b)
+  (resp : (x y : El a) → Prf (r x y) → f x ≡ f y ∈ El b)
+  → El (Q a r) → El b
+  using (qiitQuot.Q.unfold) ≔
+  λa. λr. λb. λf. λresp. λq. QElim a r (λw. b) (λx. f x) (λx. λy. λh. resp x y h) q
 
-def qliftBeta : (a : 𝕌) (r : El a → El a → Ω) (b : 𝕌)
-                (f : El a → El b)
-                (resp : (x : El a) (y : El a) → Prf (r x y) → f x ≡ f y ∈ El b)
-                (x : El a) → qlift a (λy. λz. r y z) b f resp (cls a r x) ≡ f x ∈ El b
+def qliftBeta : (a : 𝕌)
+  (r : El a → El a → Ω)
+  (b : 𝕌)
+  (f : El a → El b)
+  (resp : (x y : El a) → Prf (r x y) → f x ≡ f y ∈ El b)
+  (x : El a)
+  → qlift a (λy. λz. r y z) f resp (cls a r x) ≡ f x ∈ El b
   using (qiitQuot.Q.eq, qiitQuot.QElim.eq, qiitQuot.cls.eq, qiitQuot.qlift.eq) ≔
   λa. λr. λb. λf. λresp. λx. ⋆
 
 -- instance: ℕ quotiented by squashed equality; toNat is one qlift
-def eqN : El ℕ → El ℕ → Ω ≔ λx. λy. (x ≡ y ∈ ℕ)
+def eqN : El ℕ → El ℕ → Ω ≔ λx. λy. x ≡ y ∈ ℕ
 
 def toNat : El (Q ℕ eqN) → ℕ using (qiitQuot.Q.unfold, qiitQuot.eqN.unfold) ≔
-  λq. qlift ℕ eqN ℕ (λx. x) (λx. λy. λh. ⋆) q
+  λq. qlift ℕ eqN (λx. x) (λx. λy. λh. ⋆) q
 
-def toNatCls : toNat (cls ℕ eqN (S Z)) ≡ S Z ∈ ℕ using (qiitQuot.Q.eq, qiitQuot.QElim.eq, qiitQuot.cls.eq, qiitQuot.eqN.eq, qiitQuot.qlift.eq, qiitQuot.toNat.eq) ≔ ⋆
+def toNatCls : toNat (cls ℕ eqN (S Z)) ≡ S Z ∈ ℕ
+  using (qiitQuot.Q.eq,
+    qiitQuot.QElim.eq,
+    qiitQuot.cls.eq,
+    qiitQuot.eqN.eq,
+    qiitQuot.qlift.eq,
+    qiitQuot.toNat.eq) ≔
+  ⋆

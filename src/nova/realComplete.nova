@@ -1,20 +1,3 @@
-import rationalQ (Q, qAdd, qNeg, qZero, qAddComm, qAddAssoc)
-import rationalOrder (LeQ, leQRefl, leQTrans, qPairSwap, leQPlusMono, leQPlusMonoL)
-import ratBound (Bnd, bndAdd, bndVia, bndEq, bndEqB, bndWeaken, leQAdd, leQSelfAdd)
-import ratHalf (dbl, qInvHalf, leQZeroInvNat, leQInvDbl)
-import ratAbs (qAbs, absLeOfBnd)
-import ratArch (leQSubShift)
-import real (qInvNat, rBound, leQZeroBound, Regular, RSeq, REq, Real, realOfQ,
-             constReg)
-import realNeg (seqOf, regOf, regBnd, bndReg, reqOf, realEqOfREq, rNeg)
-import realAdd (rAdd, leQBoundDblDiag)
-import realAbs (rAbs)
-import realOrder (RLeP, rleOf, LeR)
-import realGroup (realSub)
-import realMetric (realDist, realDistCls, rleOfAbsSub)
-import realEq (qtr)
-import equality (trans, sym, cong, transport, transportP)
-
 -- COMPLETENESS: a regular sequence of reals converges, and the limit
 -- is the DIAGONAL of the representatives, sampled at quarter depth:
 --
@@ -36,252 +19,347 @@ import equality (trans, sym, cong, transport, transportP)
 -- Phrasing it for an arbitrary `X : ℕ → El Real` would need a choice
 -- of representative for each X n, i.e. countable choice, which is not
 -- derivable here — the quotient has no section.
-
 -- ===== four quarter-fractions make one =====
 
-def qInvQuarter : (j : ℕ) →
-  qAdd (qAdd (qInvNat (qtr j)) (qInvNat (qtr j)))
-       (qAdd (qInvNat (qtr j)) (qInvNat (qtr j))) ≡ qInvNat j ∈ El Q
+import rationalQ (Q, qAdd, qNeg, qZero, qAddComm, qAddAssoc)
+import rationalOrder (LeQ, leQRefl, leQTrans, qPairSwap, leQPlusMono, leQPlusMonoL)
+import ratBound (Bnd, bndAdd, bndVia, bndEq, bndEqB, bndWeaken, leQAdd, leQSelfAdd)
+import ratHalf (dbl, qInvHalf, leQZeroInvNat, leQInvDbl)
+import ratAbs (qAbs, absLeOfBnd)
+import ratArch (leQSubShift)
+import real (qInvNat, rBound, leQZeroBound, Regular, RSeq, REq, Real, realOfQ, constReg)
+import realNeg (seqOf, regOf, regBnd, bndReg, reqOf, realEqOfREq, rNeg)
+import realAdd (rAdd, leQBoundDblDiag)
+import realAbs (rAbs)
+import realOrder (RLeP, rleOf, LeR)
+import realGroup (realSub)
+import realMetric (realDist, realDistCls, rleOfAbsSub)
+import realEq (qtr)
+import equality (trans, sym, cong, transport, transportP)
+
+def qInvQuarter : {j : ℕ}
+  → qAdd
+    (qAdd (qInvNat (qtr j)) (qInvNat (qtr j)))
+    (qAdd (qInvNat (qtr j)) (qInvNat (qtr j))) ≡ qInvNat j ∈ El Q
   using (ratHalf.dbl.eq, rationalQ.qAdd.eq, real.qInvNat.eq, realEq.qtr.eq) ≔
-  λj.
-    trans Q
-      (qAdd (qAdd (qInvNat (qtr j)) (qInvNat (qtr j)))
-            (qAdd (qInvNat (qtr j)) (qInvNat (qtr j))))
-      (qAdd (qInvNat (dbl j)) (qInvNat (dbl j)))
-      (qInvNat j)
-      (cong Q (λw. Q) (λw. qAdd w w)
-         (qAdd (qInvNat (qtr j)) (qInvNat (qtr j))) (qInvNat (dbl j))
-         (qInvHalf (dbl j)))
-      (qInvHalf j)
+  λj. trans
+    Q
+    (qAdd (qAdd (qInvNat (qtr j)) (qInvNat (qtr j))) (qAdd (qInvNat (qtr j)) (qInvNat (qtr j))))
+    (qAdd (qInvNat (dbl j)) (qInvNat (dbl j)))
+    (qInvNat j)
+    (cong
+      Q
+      (λw. Q)
+      (λw. qAdd w w)
+      (qAdd (qInvNat (qtr j)) (qInvNat (qtr j)))
+      (qInvNat (dbl j))
+      (qInvHalf (dbl j)))
+    (qInvHalf j)
 
 -- (a+b) + ((a+b) + (b+b)) ≡ (a+a) + ((b+b) + (b+b)) : both are 2a + 4b
-def qSum6 : (a : El Q) (b : El Q) →
-  qAdd (qAdd a b) (qAdd (qAdd a b) (qAdd b b))
-    ≡ qAdd (qAdd a a) (qAdd (qAdd b b) (qAdd b b)) ∈ El Q using (rationalQ.Q.unfold) ≔
-  λa. λb.
-    (qAdd (qAdd a b) (qAdd (qAdd a b) (qAdd b b))
-       ≡⟨ sym Q (qAdd (qAdd (qAdd a b) (qAdd a b)) (qAdd b b))
-                (qAdd (qAdd a b) (qAdd (qAdd a b) (qAdd b b)))
-            (qAddAssoc (qAdd a b) (qAdd a b) (qAdd b b)) ⟩
-     qAdd (qAdd (qAdd a b) (qAdd a b)) (qAdd b b)
-       ≡⟨ cong Q (λw. Q) (λw. qAdd w (qAdd b b))
-            (qAdd (qAdd a b) (qAdd a b)) (qAdd (qAdd a a) (qAdd b b))
-            (qPairSwap a b a b) ⟩
-     qAdd (qAdd (qAdd a a) (qAdd b b)) (qAdd b b)
-       ≡⟨ qAddAssoc (qAdd a a) (qAdd b b) (qAdd b b) ⟩
-     qAdd (qAdd a a) (qAdd (qAdd b b) (qAdd b b)))
+def qSum6 : (a b : El Q)
+  → qAdd
+    (qAdd a b)
+    (qAdd (qAdd a b) (qAdd b b)) ≡ qAdd (qAdd a a) (qAdd (qAdd b b) (qAdd b b)) ∈ El Q
+  using (rationalQ.Q.unfold) ≔
+  λa. λb. qAdd (qAdd a b) (qAdd (qAdd a b) (qAdd b b))
+      ≡⟨ sym
+        Q
+        (qAdd (qAdd (qAdd a b) (qAdd a b)) (qAdd b b))
+        (qAdd (qAdd a b) (qAdd (qAdd a b) (qAdd b b)))
+        (qAddAssoc (qAdd a b) (qAdd a b) (qAdd b b)) ⟩ qAdd (qAdd (qAdd a b) (qAdd a b)) (qAdd b b)
+      ≡⟨ cong
+        Q
+        (λw. Q)
+        (λw. qAdd w (qAdd b b))
+        (qAdd (qAdd a b) (qAdd a b))
+        (qAdd (qAdd a a) (qAdd b b))
+        (qPairSwap a b a b) ⟩ qAdd (qAdd (qAdd a a) (qAdd b b)) (qAdd b b)
+      ≡⟨ qAddAssoc (qAdd a a) (qAdd b b) (qAdd b b) ⟩ qAdd (qAdd a a) (qAdd (qAdd b b) (qAdd b b))
 
 -- 2a + 4b sits under 4a + 4b, i.e. under rBound m n
-def leQQuarterSum : (m : ℕ) (n : ℕ) →
-  El (LeQ (qAdd (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
-                (qAdd (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))
-                      (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))))
-          (rBound m n)) using (id.Id.eq, ratHalf.dbl.eq, rationalOrder.LeQ.unfold, rationalOrder.NonNegS.unfold, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.qInvNat.eq, real.rBound.eq, realEq.qtr.eq) ≔
-  λm. λn.
-    transport Q
-      (λw. LeQ (qAdd (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
-                     (qAdd (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))
-                           (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))))
-               (qAdd w (qInvNat n)))
-      (qAdd (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
+def leQQuarterSum : (m n : ℕ)
+  → El (LeQ
+    (qAdd
+      (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
+      (qAdd (qAdd (qInvNat (qtr n)) (qInvNat (qtr n))) (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))))
+    (rBound m n))
+  using (id.Id.eq,
+    ratHalf.dbl.eq,
+    rationalOrder.LeQ.unfold,
+    rationalOrder.NonNegS.unfold,
+    rationalOrder.Sign.eq,
+    rationalOrder.sPos.eq,
+    rationalOrder.sZero.eq,
+    rationalOrder.sgnQ.eq,
+    rationalQ.qAdd.eq,
+    rationalQ.qNeg.eq,
+    real.qInvNat.eq,
+    real.rBound.eq,
+    realEq.qtr.eq) ≔
+  λm. λn. transport
+    Q
+    (λw. LeQ
+      (qAdd
+        (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
+        (qAdd
+          (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))
+          (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))))
+      (qAdd w (qInvNat n)))
+    (qAdd (qAdd (qInvNat (qtr m)) (qInvNat (qtr m))) (qAdd (qInvNat (qtr m)) (qInvNat (qtr m))))
+    (qInvNat m)
+    qInvQuarter
+    (transport
+      Q
+      (λw. LeQ
+        (qAdd
+          (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
+          (qAdd
+            (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))
+            (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))))
+        (qAdd
+          (qAdd
+            (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
             (qAdd (qInvNat (qtr m)) (qInvNat (qtr m))))
-      (qInvNat m)
-      (qInvQuarter m)
-      (transport Q
-         (λw. LeQ (qAdd (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
-                        (qAdd (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))
-                              (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))))
-                  (qAdd (qAdd (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
-                              (qAdd (qInvNat (qtr m)) (qInvNat (qtr m))))
-                        w))
-         (qAdd (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))
-               (qAdd (qInvNat (qtr n)) (qInvNat (qtr n))))
-         (qInvNat n)
-         (qInvQuarter n)
-         (leQAdd (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
-                 (qAdd (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
-                       (qAdd (qInvNat (qtr m)) (qInvNat (qtr m))))
-                 (qAdd (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))
-                       (qAdd (qInvNat (qtr n)) (qInvNat (qtr n))))
-                 (qAdd (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))
-                       (qAdd (qInvNat (qtr n)) (qInvNat (qtr n))))
-            (leQSelfAdd (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
-                        (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
-               (transport Q
-                  (λw. LeQ qZero w)
-                  (qInvNat (dbl m))
-                  (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
-                  (sym Q (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
-                         (qInvNat (dbl m)) (qInvHalf (dbl m)))
-                  (leQZeroInvNat (dbl m))))
-            (leQRefl (qAdd (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))
-                           (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))))))
+          w))
+      (qAdd (qAdd (qInvNat (qtr n)) (qInvNat (qtr n))) (qAdd (qInvNat (qtr n)) (qInvNat (qtr n))))
+      (qInvNat n)
+      qInvQuarter
+      (leQAdd
+        (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
+        (qAdd (qAdd (qInvNat (qtr m)) (qInvNat (qtr m))) (qAdd (qInvNat (qtr m)) (qInvNat (qtr m))))
+        (qAdd (qAdd (qInvNat (qtr n)) (qInvNat (qtr n))) (qAdd (qInvNat (qtr n)) (qInvNat (qtr n))))
+        (qAdd (qAdd (qInvNat (qtr n)) (qInvNat (qtr n))) (qAdd (qInvNat (qtr n)) (qInvNat (qtr n))))
+        (leQSelfAdd
+          (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
+          (transport
+            Q
+            (λw. LeQ qZero w)
+            (qInvNat (dbl m))
+            (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
+            (sym Q (qAdd (qInvNat (qtr m)) (qInvNat (qtr m))) (qInvNat (dbl m)) (qInvHalf (dbl m)))
+            (leQZeroInvNat (dbl m))))
+        (leQRefl
+          (qAdd
+            (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))
+            (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))))))
 
 -- ===== the hypothesis =====
-
 -- a regular sequence OF REALS, read off the representatives: at every
 -- index j the two representatives are within the reals' separation
 -- plus the two moduli
 def RegSeqR : El (ℕ → RSeq) → 𝕌 ≔
-  λx. ((m : ℕ) (n : ℕ) (j : ℕ) →
-        Bnd (qAdd (rBound m n) (rBound j j))
-            (qAdd (seqOf (x m) j) (qNeg (seqOf (x n) j))))
+  λx. (m n j : ℕ)
+    → Bnd (qAdd (rBound m n) (rBound j j)) (qAdd (seqOf (x m) j) (qNeg (seqOf (x n) j)))
 
 -- ===== the limit =====
-
 def limSeq : El (ℕ → RSeq) → El (ℕ → Q) using (rationalQ.Q.unfold) ≔
   λx. λj. seqOf (x (qtr j)) (qtr j)
 
 -- |L m − L n| ≤ |x_qm(qm) − x_qm(qn)| + |x_qm(qn) − x_qn(qn)|
 --             ≤ (αm + αn)            + ((αm + αn) + (αn + αn))
 --             = 2αm + 4αn  ≤  4αm + 4αn  =  rBound m n
-def limReg : (x : El (ℕ → RSeq)) → El (RegSeqR x) →
-  El (Regular (limSeq x)) using (id.Id.eq, ratBound.Bnd.unfold, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.RSeq.unfold, real.Regular.unfold, real.qInvNat.eq, real.rBound.eq, realComplete.RegSeqR.unfold, realComplete.limSeq.eq, realEq.qtr.eq, realNeg.seqOf.eq) ≔
-  λx. λh.
-    bndReg (limSeq x)
-      (λm. λn.
-        bndWeaken
-          (qAdd (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
-                (qAdd (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))
-                      (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))))
-          (rBound m n)
-          (qAdd (limSeq x m) (qNeg (limSeq x n)))
-          (leQQuarterSum m n)
-          (bndEqB
-             (qAdd (rBound (qtr m) (qtr n))
-                   (qAdd (rBound (qtr m) (qtr n)) (rBound (qtr n) (qtr n))))
-             (qAdd (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
-                   (qAdd (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))
-                         (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))))
-             (qAdd (limSeq x m) (qNeg (limSeq x n)))
-             (qSum6 (qInvNat (qtr m)) (qInvNat (qtr n)))
-             (bndVia (rBound (qtr m) (qtr n))
-                     (qAdd (rBound (qtr m) (qtr n)) (rBound (qtr n) (qtr n)))
-                     (seqOf (x (qtr m)) (qtr m))
-                     (seqOf (x (qtr m)) (qtr n))
-                     (seqOf (x (qtr n)) (qtr n))
-                (regBnd (seqOf (x (qtr m))) (regOf (x (qtr m)))
-                        (qtr m) (qtr n))
-                (h (qtr m) (qtr n) (qtr n)))))
+def limReg : {x : El (ℕ → RSeq)} → El (RegSeqR x) → El (Regular (limSeq x))
+  using (id.Id.eq,
+    ratBound.Bnd.unfold,
+    rationalOrder.Sign.eq,
+    rationalOrder.sPos.eq,
+    rationalOrder.sZero.eq,
+    rationalOrder.sgnQ.eq,
+    rationalQ.qAdd.eq,
+    rationalQ.qNeg.eq,
+    real.RSeq.unfold,
+    real.Regular.unfold,
+    real.qInvNat.eq,
+    real.rBound.eq,
+    realComplete.RegSeqR.unfold,
+    realComplete.limSeq.eq,
+    realEq.qtr.eq,
+    realNeg.seqOf.eq) ≔
+  λx. λh. bndReg
+    (λm. λn. bndWeaken
+      (qAdd
+        (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
+        (qAdd
+          (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))
+          (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))))
+      (rBound m n)
+      (qAdd (limSeq x m) (qNeg (limSeq x n)))
+      (leQQuarterSum m n)
+      (bndEqB
+        (qAdd (rBound (qtr m) (qtr n)) (qAdd (rBound (qtr m) (qtr n)) (rBound (qtr n) (qtr n))))
+        (qAdd
+          (qAdd (qInvNat (qtr m)) (qInvNat (qtr m)))
+          (qAdd
+            (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))
+            (qAdd (qInvNat (qtr n)) (qInvNat (qtr n)))))
+        (qAdd (limSeq x m) (qNeg (limSeq x n)))
+        (qSum6 (qInvNat (qtr m)) (qInvNat (qtr n)))
+        (bndVia
+          (rBound (qtr m) (qtr n))
+          (qAdd (rBound (qtr m) (qtr n)) (rBound (qtr n) (qtr n)))
+          (seqOf (x (qtr m)) (qtr m))
+          (seqOf (x (qtr m)) (qtr n))
+          (seqOf (x (qtr n)) (qtr n))
+          (regBnd (seqOf (x (qtr m))) (regOf (x (qtr m))) (qtr m) (qtr n))
+          (h (qtr m) (qtr n) (qtr n)))))
 
 def rLim : (x : El (ℕ → RSeq)) → El (RegSeqR x) → El RSeq using (real.RSeq.unfold) ≔
-  λx. λh. (limSeq x , limReg x h)
+  λx. λh. limSeq x, limReg h
 
 def realLim : (x : El (ℕ → RSeq)) → El (RegSeqR x) → El Real using (real.Real.unfold) ≔
   λx. λh. class (rLim x h)
 
 -- ===== convergence =====
-
 -- (b+a) + ((g+a) + (a+a)) ≡ g + (b + ((a+a)+(a+a))) : both are
 -- b + g + 4a, with the four quarter-fractions collected on the right
-def qSum7 : (b : El Q) (g : El Q) (a : El Q) →
-  qAdd (qAdd b a) (qAdd (qAdd g a) (qAdd a a))
-    ≡ qAdd g (qAdd b (qAdd (qAdd a a) (qAdd a a))) ∈ El Q using (rationalQ.Q.unfold) ≔
-  λb. λg. λa.
-    (qAdd (qAdd b a) (qAdd (qAdd g a) (qAdd a a))
-       ≡⟨ sym Q (qAdd (qAdd (qAdd b a) (qAdd g a)) (qAdd a a))
-                (qAdd (qAdd b a) (qAdd (qAdd g a) (qAdd a a)))
-            (qAddAssoc (qAdd b a) (qAdd g a) (qAdd a a)) ⟩
-     qAdd (qAdd (qAdd b a) (qAdd g a)) (qAdd a a)
-       ≡⟨ cong Q (λw. Q) (λw. qAdd w (qAdd a a))
-            (qAdd (qAdd b a) (qAdd g a)) (qAdd (qAdd b g) (qAdd a a))
-            (qPairSwap b a g a) ⟩
-     qAdd (qAdd (qAdd b g) (qAdd a a)) (qAdd a a)
-       ≡⟨ qAddAssoc (qAdd b g) (qAdd a a) (qAdd a a) ⟩
-     qAdd (qAdd b g) (qAdd (qAdd a a) (qAdd a a))
-       ≡⟨ cong Q (λw. Q) (λw. qAdd w (qAdd (qAdd a a) (qAdd a a)))
-            (qAdd b g) (qAdd g b) (qAddComm b g) ⟩
-     qAdd (qAdd g b) (qAdd (qAdd a a) (qAdd a a))
-       ≡⟨ qAddAssoc g b (qAdd (qAdd a a) (qAdd a a)) ⟩
-     qAdd g (qAdd b (qAdd (qAdd a a) (qAdd a a))))
+def qSum7 : (b g a : El Q)
+  → qAdd
+    (qAdd b a)
+    (qAdd (qAdd g a) (qAdd a a)) ≡ qAdd g (qAdd b (qAdd (qAdd a a) (qAdd a a))) ∈ El Q
+  using (rationalQ.Q.unfold) ≔
+  λb. λg. λa. qAdd (qAdd b a) (qAdd (qAdd g a) (qAdd a a))
+      ≡⟨ sym
+        Q
+        (qAdd (qAdd (qAdd b a) (qAdd g a)) (qAdd a a))
+        (qAdd (qAdd b a) (qAdd (qAdd g a) (qAdd a a)))
+        (qAddAssoc (qAdd b a) (qAdd g a) (qAdd a a)) ⟩ qAdd (qAdd (qAdd b a) (qAdd g a)) (qAdd a a)
+      ≡⟨ cong
+        Q
+        (λw. Q)
+        (λw. qAdd w (qAdd a a))
+        (qAdd (qAdd b a) (qAdd g a))
+        (qAdd (qAdd b g) (qAdd a a))
+        (qPairSwap b a g a) ⟩ qAdd (qAdd (qAdd b g) (qAdd a a)) (qAdd a a)
+      ≡⟨ qAddAssoc (qAdd b g) (qAdd a a) (qAdd a a) ⟩ qAdd (qAdd b g) (qAdd (qAdd a a) (qAdd a a))
+      ≡⟨ cong
+        Q
+        (λw. Q)
+        (λw. qAdd w (qAdd (qAdd a a) (qAdd a a)))
+        (qAdd b g)
+        (qAdd g b)
+        (qAddComm b g) ⟩ qAdd (qAdd g b) (qAdd (qAdd a a) (qAdd a a))
+      ≡⟨ qAddAssoc g b (qAdd (qAdd a a) (qAdd a a)) ⟩ qAdd g (qAdd b (qAdd (qAdd a a) (qAdd a a)))
 
 -- |x_n(j) − L(j)| ≤ |x_n(j) − x_n(qj)| + |x_n(qj) − x_qj(qj)|
 --                ≤ (β + α)            + ((γ + α) + (α + α))
 --                = β + γ + 4α  =  γ + 2β  =  1/(n+1) + 2/(j+1)
 -- — an equality, not a weakening: quarter depth is exactly enough
-def limClose : (x : El (ℕ → RSeq)) (h : El (RegSeqR x)) (n : ℕ) (j : ℕ) →
-  El (Bnd (qAdd (qInvNat n) (rBound j j))
-          (qAdd (seqOf (x n) j) (qNeg (limSeq x j)))) using (id.Id.eq, ratBound.Bnd.unfold, rationalOrder.Sign.eq, rationalOrder.sPos.eq, rationalOrder.sZero.eq, rationalOrder.sgnQ.eq, rationalQ.qAdd.eq, rationalQ.qNeg.eq, real.RSeq.unfold, real.qInvNat.eq, real.rBound.eq, realComplete.RegSeqR.unfold, realComplete.limSeq.eq, realEq.qtr.eq, realNeg.seqOf.eq) ≔
-  λx. λh. λn. λj.
-    bndEqB
-      (qAdd (rBound j (qtr j))
-            (qAdd (rBound n (qtr j)) (rBound (qtr j) (qtr j))))
+def limClose : (x : El (ℕ → RSeq))
+  (h : El (RegSeqR x))
+  (n j : ℕ)
+  → El (Bnd (qAdd (qInvNat n) (rBound j j)) (qAdd (seqOf (x n) j) (qNeg (limSeq x j))))
+  using (id.Id.eq,
+    ratBound.Bnd.unfold,
+    rationalOrder.Sign.eq,
+    rationalOrder.sPos.eq,
+    rationalOrder.sZero.eq,
+    rationalOrder.sgnQ.eq,
+    rationalQ.qAdd.eq,
+    rationalQ.qNeg.eq,
+    real.RSeq.unfold,
+    real.qInvNat.eq,
+    real.rBound.eq,
+    realComplete.RegSeqR.unfold,
+    realComplete.limSeq.eq,
+    realEq.qtr.eq,
+    realNeg.seqOf.eq) ≔
+  λx. λh. λn. λj. bndEqB
+    (qAdd (rBound j (qtr j)) (qAdd (rBound n (qtr j)) (rBound (qtr j) (qtr j))))
+    (qAdd (qInvNat n) (rBound j j))
+    (qAdd (seqOf (x n) j) (qNeg (limSeq x j)))
+    (trans
+      Q
+      (qAdd (rBound j (qtr j)) (qAdd (rBound n (qtr j)) (rBound (qtr j) (qtr j))))
+      (qAdd
+        (qInvNat n)
+        (qAdd
+          (qInvNat j)
+          (qAdd
+            (qAdd (qInvNat (qtr j)) (qInvNat (qtr j)))
+            (qAdd (qInvNat (qtr j)) (qInvNat (qtr j))))))
       (qAdd (qInvNat n) (rBound j j))
-      (qAdd (seqOf (x n) j) (qNeg (limSeq x j)))
-      (trans Q
-         (qAdd (rBound j (qtr j))
-               (qAdd (rBound n (qtr j)) (rBound (qtr j) (qtr j))))
-         (qAdd (qInvNat n)
-               (qAdd (qInvNat j)
-                     (qAdd (qAdd (qInvNat (qtr j)) (qInvNat (qtr j)))
-                           (qAdd (qInvNat (qtr j)) (qInvNat (qtr j))))))
-         (qAdd (qInvNat n) (rBound j j))
-         (qSum7 (qInvNat j) (qInvNat n) (qInvNat (qtr j)))
-         (cong Q (λw. Q) (λw. qAdd (qInvNat n) (qAdd (qInvNat j) w))
-            (qAdd (qAdd (qInvNat (qtr j)) (qInvNat (qtr j)))
-                  (qAdd (qInvNat (qtr j)) (qInvNat (qtr j))))
-            (qInvNat j)
-            (qInvQuarter j)))
-      (bndVia (rBound j (qtr j))
-              (qAdd (rBound n (qtr j)) (rBound (qtr j) (qtr j)))
-              (seqOf (x n) j) (seqOf (x n) (qtr j))
-              (seqOf (x (qtr j)) (qtr j))
-         (regBnd (seqOf (x n)) (regOf (x n)) j (qtr j))
-         (h n (qtr j) (qtr j)))
+      (qSum7 (qInvNat j) (qInvNat n) (qInvNat (qtr j)))
+      (cong
+        Q
+        (λw. Q)
+        (λw. qAdd (qInvNat n) (qAdd (qInvNat j) w))
+        (qAdd (qAdd (qInvNat (qtr j)) (qInvNat (qtr j))) (qAdd (qInvNat (qtr j)) (qInvNat (qtr j))))
+        (qInvNat j)
+        qInvQuarter))
+    (bndVia
+      (rBound j (qtr j))
+      (qAdd (rBound n (qtr j)) (rBound (qtr j) (qtr j)))
+      (seqOf (x n) j)
+      (seqOf (x n) (qtr j))
+      (seqOf (x (qtr j)) (qtr j))
+      (regBnd (seqOf (x n)) (regOf (x n)) j (qtr j))
+      (h n (qtr j) (qtr j)))
 
 -- ===== the theorem, at the level of ℝ =====
-
 -- d(X n, L) ≤ 1/(n+1). The pointwise estimate is taken at the doubled
 -- index the distance samples at, where the modulus rBound (2j+1)(2j+1)
 -- is exactly 1/(j+1) and so sits under rBound j j.
-def realLimClose : (x : El (ℕ → RSeq)) (h : El (RegSeqR x)) (n : ℕ) →
-  Prf (LeR (realDist (class (x n)) (realLim x h)) (realOfQ (qInvNat n)))
-  using (real.Real.unfold, real.RSeq.unfold, real.Regular.unfold,
-         real.realOfQ.eq, realComplete.realLim.eq, realComplete.rLim.eq,
-         realNeg.seqOf.eq, realOrder.LeR.eq) ≔
-  λx. λh. λn.
-    transportP Real (λv. LeR v (realOfQ (qInvNat n)))
-      (class (rAbs (rAdd (x n) (rNeg (rLim x h)))))
+def realLimClose : (x : El (ℕ → RSeq))
+  (h : El (RegSeqR x))
+  (n : ℕ)
+  → Prf (LeR (realDist (class (x n)) (realLim x h)) (realOfQ (qInvNat n)))
+  using (real.Real.unfold,
+    real.RSeq.unfold,
+    real.Regular.unfold,
+    real.realOfQ.eq,
+    realComplete.realLim.eq,
+    realComplete.rLim.eq,
+    realNeg.seqOf.eq,
+    realOrder.LeR.eq) ≔
+  λx. λh. λn. transportP
+    Real
+    (λv. LeR v (realOfQ (qInvNat n)))
+    (class (rAbs (rAdd (x n) (rNeg (rLim x h)))))
+    (realDist (class (x n)) (realLim x h))
+    (sym
+      Real
       (realDist (class (x n)) (realLim x h))
-      (sym Real (realDist (class (x n)) (realLim x h))
-                (class (rAbs (rAdd (x n) (rNeg (rLim x h)))))
-         (realDistCls (x n) (rLim x h)))
-      (rleOfAbsSub (x n) (rLim x h) (qInvNat n)
-        (λj.
-          absLeOfBnd (qAdd (qInvNat n) (rBound j j))
-             (qAdd (seqOf (x n) (dbl j)) (qNeg (seqOf (rLim x h) (dbl j))))
-             (bndWeaken (qAdd (qInvNat n) (rBound (dbl j) (dbl j)))
-                        (qAdd (qInvNat n) (rBound j j))
-                        (qAdd (seqOf (x n) (dbl j))
-                              (qNeg (seqOf (rLim x h) (dbl j))))
-                (leQPlusMonoL (rBound (dbl j) (dbl j)) (rBound j j)
-                              (qInvNat n)
-                   (leQBoundDblDiag j))
-                (limClose x h n (dbl j)))))
+      (class (rAbs (rAdd (x n) (rNeg (rLim x h)))))
+      (realDistCls (x n) (rLim x h)))
+    (rleOfAbsSub
+      (rLim x h)
+      (λj. absLeOfBnd
+        (bndWeaken
+          (qAdd (qInvNat n) (rBound (dbl j) (dbl j)))
+          (qAdd (qInvNat n) (rBound j j))
+          (qAdd (seqOf (x n) (dbl j)) (qNeg (seqOf (rLim x h) (dbl j))))
+          (leQPlusMonoL (rBound (dbl j) (dbl j)) (rBound j j) (qInvNat n) (leQBoundDblDiag j))
+          (limClose x h n (dbl j)))))
 
 -- ...and the hypothesis really does say what it should: a pointwise
 -- RegSeqR makes the reals themselves 1/(m+1) + 1/(n+1)-close)
-
-def regSeqRSound : (x : El (ℕ → RSeq)) (h : El (RegSeqR x)) (m : ℕ) (n : ℕ) →
-  Prf (LeR (realDist (class (x m)) (class (x n))) (realOfQ (rBound m n)))
-  using (real.Real.unfold, real.RSeq.unfold, real.Regular.unfold,
-         real.realOfQ.eq, realOrder.LeR.eq, realComplete.RegSeqR.unfold) ≔
-  λx. λh. λm. λn.
-    transportP Real (λv. LeR v (realOfQ (rBound m n)))
-      (class (rAbs (rAdd (x m) (rNeg (x n)))))
+def regSeqRSound : (x : El (ℕ → RSeq))
+  (h : El (RegSeqR x))
+  (m n : ℕ)
+  → Prf (LeR (realDist (class (x m)) (class (x n))) (realOfQ (rBound m n)))
+  using (real.Real.unfold,
+    real.RSeq.unfold,
+    real.Regular.unfold,
+    real.realOfQ.eq,
+    realOrder.LeR.eq,
+    realComplete.RegSeqR.unfold) ≔
+  λx. λh. λm. λn. transportP
+    Real
+    (λv. LeR v (realOfQ (rBound m n)))
+    (class (rAbs (rAdd (x m) (rNeg (x n)))))
+    (realDist (class (x m)) (class (x n)))
+    (sym
+      Real
       (realDist (class (x m)) (class (x n)))
-      (sym Real (realDist (class (x m)) (class (x n)))
-                (class (rAbs (rAdd (x m) (rNeg (x n)))))
-         (realDistCls (x m) (x n)))
-      (rleOfAbsSub (x m) (x n) (rBound m n)
-        (λj.
-          absLeOfBnd (qAdd (rBound m n) (rBound j j))
-             (qAdd (seqOf (x m) (dbl j)) (qNeg (seqOf (x n) (dbl j))))
-             (bndWeaken (qAdd (rBound m n) (rBound (dbl j) (dbl j)))
-                        (qAdd (rBound m n) (rBound j j))
-                        (qAdd (seqOf (x m) (dbl j))
-                              (qNeg (seqOf (x n) (dbl j))))
-                (leQPlusMonoL (rBound (dbl j) (dbl j)) (rBound j j)
-                              (rBound m n)
-                   (leQBoundDblDiag j))
-                (h m n (dbl j)))))
+      (class (rAbs (rAdd (x m) (rNeg (x n)))))
+      (realDistCls (x m) (x n)))
+    (rleOfAbsSub
+      (x n)
+      (λj. absLeOfBnd
+        (bndWeaken
+          (qAdd (rBound m n) (rBound (dbl j) (dbl j)))
+          (qAdd (rBound m n) (rBound j j))
+          (qAdd (seqOf (x m) (dbl j)) (qNeg (seqOf (x n) (dbl j))))
+          (leQPlusMonoL (rBound (dbl j) (dbl j)) (rBound j j) (rBound m n) (leQBoundDblDiag j))
+          (h m n (dbl j)))))

@@ -1,5 +1,6 @@
 -- Integers as a QIIT with RECURSIVE EQUALITY CONSTRAINTS: suc/pred
 -- are mutually inverse, imposed as equations with INDUCTIVE binders.
+
 data ( I : U
      ; zero : El I
      ; suc : El I → El I
@@ -10,8 +11,23 @@ data ( I : U
 -- negation by elimination: the coherences are the OTHER equation each
 -- time (⟦suc (pred i)⟧ β-reduces to pred (suc ih), closed by predsuc)
 def neg : El I → El I using (predsuc, qiitInt.I.unfold, qiitInt.pred.eq, qiitInt.suc.eq, sucpred) ≔
-  λi. IElim (λw. I) zero (λx. λih. pred ih) (λx. λih. suc ih)
-        (λx. λih. ⋆) (λx. λih. ⋆) i
+  λi. IElim (λw. I) zero (λx. λih. pred ih) (λx. λih. suc ih) (λx. λih. ⋆) (λx. λih. ⋆) i
 
-def negSucPred : neg (suc (pred zero)) ≡ zero ∈ (El I) using (predsuc, qiitInt.I.eq, qiitInt.IElim.eq, qiitInt.neg.eq, qiitInt.pred.eq, qiitInt.suc.eq, qiitInt.zero.eq) ≔ ⋆
-def negPred : neg (pred zero) ≡ suc zero ∈ (El I) using (qiitInt.I.eq, qiitInt.IElim.eq, qiitInt.neg.eq, qiitInt.pred.eq, qiitInt.suc.eq, qiitInt.zero.eq) ≔ ⋆
+def negSucPred : neg (suc (pred zero)) ≡ zero ∈ El I
+  using (predsuc,
+    qiitInt.I.eq,
+    qiitInt.IElim.eq,
+    qiitInt.neg.eq,
+    qiitInt.pred.eq,
+    qiitInt.suc.eq,
+    qiitInt.zero.eq) ≔
+  ⋆
+
+def negPred : neg (pred zero) ≡ suc zero ∈ El I
+  using (qiitInt.I.eq,
+    qiitInt.IElim.eq,
+    qiitInt.neg.eq,
+    qiitInt.pred.eq,
+    qiitInt.suc.eq,
+    qiitInt.zero.eq) ≔
+  ⋆

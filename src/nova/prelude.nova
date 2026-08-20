@@ -2,21 +2,22 @@ def id : (A : 𝕌) (x : El A) → El A ≔ λA. λx. x
 
 def idP : (A : Ω) (x : Prf A) → Prf A ≔ λA. λx. x
 
-def const : (A : 𝕌) (B : 𝕌) (x : El A) (y : El B) → El A ≔ λA. λB. λx. λy. x
+def const : (A B : 𝕌) (x : El A) (y : El B) → El A ≔ λA. λB. λx. λy. x
 
-def constP : (A : Ω) (B : Ω) (x : Prf A) (y : Prf B) → Prf A ≔ λA. λB. λx. λy. x
+def constP : (A B : Ω) (x : Prf A) (y : Prf B) → Prf A ≔ λA. λB. λx. λy. x
 
 -- Function extensionality — a theorem here, not an axiom: reflect the
 -- pointwise hypothesis under the binder and the sides are equal by
 -- ξ and η (funext-via-reflection, NovaFoundation's ν SUBSUMPTION note).
-def funext : (A : 𝕌) (B : 𝕌) (f : El (A → B)) (g : El (A → B)) →
-             ((x : El A) → f x ≡ g x ∈ El B) → f ≡ g ∈ El (A → B) using (pi.eta) ≔
+def funext : (A B : 𝕌) (f g : El (A → B)) → ((x : El A) → f x ≡ g x ∈ El B) → f ≡ g ∈ El (A → B)
+  using (pi.eta) ≔
   λA. λB. λf. λg. λh. ⋆
 
 -- ...and the dependent version, by the same argument: the pointwise
 -- hypothesis reflects under the binder, ξ and η do the rest
-def funextD : (A : 𝕌) (B : El A → 𝕌)
-              (f : El ((x : A) → B x)) (g : El ((x : A) → B x)) →
-              ((x : El A) → f x ≡ g x ∈ El (B x)) →
-              f ≡ g ∈ El ((x : A) → B x) using (pi.eta) ≔
+def funextD : (A : 𝕌)
+  (B : El A → 𝕌)
+  (f g : El ((x : A) → B x))
+  → ((x : El A) → f x ≡ g x ∈ El (B x)) → f ≡ g ∈ El ((x : A) → B x)
+  using (pi.eta) ≔
   λA. λB. λf. λg. λh. ⋆

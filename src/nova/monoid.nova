@@ -1,5 +1,3 @@
-import id (Id)
-
 -- Monoid STRUCTURE on a small carrier, as a 𝕌-family: IsMonoid M is a
 -- CODE packaging the operation, the unit and the laws, so it can sit
 -- inside other codes (IsGroup and IsField layer it directly) and be
@@ -12,10 +10,12 @@ import id (Id)
 -- Law orientations follow the corpus's conventions (plusAssoc,
 -- zeroPlusId, plusZeroId): assoc reassociates to the right, units
 -- cancel toward the bare element.
-def IsMonoid : 𝕌 → 𝕌 ≔ λM.
-  (op : M → M → M)
-  (e : M)
-  (assoc : (x : M) (y : M) (z : M) →
-             Id M (op (op x y) z) (op x (op y z)))
-  (unitL : (x : M) → Id M (op e x) x) ⨯
-  ((x : M) → Id M (op x e) x)
+
+import id (Id)
+
+def IsMonoid : 𝕌 → 𝕌 ≔
+  λM. (op : M → M → M)
+    (e : M)
+    (assoc : (x y z : M) → Id M (op (op x y) z) (op x (op y z)))
+    (unitL : (x : M) → Id M (op e x) x)
+    ⨯ (x : M) → Id M (op x e) x

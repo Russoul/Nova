@@ -2,27 +2,41 @@
 -- carrier (external index arity over the ambient [a : 𝕌]), with
 -- dependent elimination at an indexed motive — and the functions at
 -- the same generality.
+
 data [a : 𝕌] ( V : El ℕ → U
-             ; vnil : El (V Z)
-             ; vcons : (n : El ℕ) → El a → El (V n) → El (V (S n)) )
+     ; vnil : El (V Z)
+     ; vcons : (n : El ℕ) → El a → El (V n) → El (V (S n)) )
 
 -- the GENERIC FOLD: one dependent elimination for every carrier and
 -- every result code
-def vfold : (a : 𝕌) (b : 𝕌) (z : El b) (c : El a → El b → El b)
-            (n : El ℕ) → El (V a n) → El b using (qiitVec.V.eq, qiitVec.V.unfold) ≔
-  λa. λb. λz. λc. λn. λv.
-    VElim a (λm. λw. b) z (λm. λx. λxs. λih. c x ih) n v
+def vfold : (a : 𝕌) {b : 𝕌} (z : El b) (c : El a → El b → El b) (n : El ℕ) → El (V a n) → El b
+  using (qiitVec.V.eq, qiitVec.V.unfold) ≔
+  λa. λb. λz. λc. λn. λv. VElim a (λm. λw. b) z (λm. λx. λxs. λih. c x ih) n v
 
 -- generic length and an instance-level sum, both folds
-def vlen : (a : 𝕌) (n : El ℕ) → El (V a n) → ℕ ≔
-  λa. λn. λv. vfold a ℕ Z (λx. λih. S ih) n v
+def vlen : (a : 𝕌) (n : El ℕ) → El (V a n) → ℕ ≔ λa. λn. λv. vfold a Z (λx. λih. S ih) n v
 
 def plusV : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) y (n ih. S ih) x
 
-def vsum : (n : El ℕ) → El (V ℕ n) → ℕ ≔
-  λn. λv. vfold ℕ ℕ Z (λx. λih. plusV x ih) n v
+def vsum : (n : El ℕ) → El (V ℕ n) → ℕ ≔ λn. λv. vfold ℕ Z (λx. λih. plusV x ih) n v
 
-def single : El (V ℕ (S Z)) using (qiitVec.V.eq, qiitVec.V.unfold) ≔ vcons ℕ Z (S (S (S Z))) (vnil ℕ)
+def single : El (V ℕ (S Z)) using (qiitVec.V.eq, qiitVec.V.unfold) ≔ vcons ℕ Z 3 (vnil ℕ)
 
-def vsumSingle : vsum (S Z) single ≡ S (S (S Z)) ∈ ℕ using (qiitVec.VElim.eq, qiitVec.plusV.eq, qiitVec.single.eq, qiitVec.vcons.eq, qiitVec.vfold.eq, qiitVec.vnil.eq, qiitVec.vsum.eq) ≔ ⋆
-def vlenSingle : vlen ℕ (S Z) single ≡ S Z ∈ ℕ using (qiitVec.VElim.eq, qiitVec.single.eq, qiitVec.vcons.eq, qiitVec.vfold.eq, qiitVec.vlen.eq, qiitVec.vnil.eq) ≔ ⋆
+def vsumSingle : vsum (S Z) single ≡ 3 ∈ ℕ
+  using (qiitVec.VElim.eq,
+    qiitVec.plusV.eq,
+    qiitVec.single.eq,
+    qiitVec.vcons.eq,
+    qiitVec.vfold.eq,
+    qiitVec.vnil.eq,
+    qiitVec.vsum.eq) ≔
+  ⋆
+
+def vlenSingle : vlen ℕ (S Z) single ≡ S Z ∈ ℕ
+  using (qiitVec.VElim.eq,
+    qiitVec.single.eq,
+    qiitVec.vcons.eq,
+    qiitVec.vfold.eq,
+    qiitVec.vlen.eq,
+    qiitVec.vnil.eq) ≔
+  ⋆

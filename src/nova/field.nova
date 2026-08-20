@@ -1,7 +1,3 @@
-import id (Id)
-import monoid (IsMonoid)
-import group (IsGroup)
-
 -- Field structure on a small carrier: an additive group and a
 -- multiplicative monoid (both codes, so both layer directly),
 -- commutativity of each, distributivity, and the two components the
@@ -13,19 +9,41 @@ import group (IsGroup)
 --   * inverses are an UNSQUASHED Σ-code — "here is the inverse", not
 --     "one exists" — available to any nonzero x, with nonzero-ness
 --     itself an Id-refutation.
-def IsField : 𝕌 → 𝕌 using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔ λF.
-  (g : IsGroup F)
-  (mm : IsMonoid F) ⨯
-  (let add ≔ g .π₁ .π₁ in
-   let zero ≔ g .π₁ .π₂ .π₁ in
-   let mul ≔ mm .π₁ in
-   let one ≔ mm .π₂ .π₁ in
-   ((x : F) (y : F) → Id F (add x y) (add y x))
-   ⨯ ((x : F) (y : F) → Id F (mul x y) (mul y x))
-   ⨯ ((x : F) (y : F) (z : F) →
-        Id F (mul x (add y z)) (add (mul x y) (mul x z)))
-   ⨯ ((x : F) (y : F) (z : F) →
-        Id F (mul (add y z) x) (add (mul y x) (mul z x)))
-   ⨯ ((p : Id F one zero) → 𝟘)
-   ⨯ ((x : F) (k : (p : Id F x zero) → 𝟘) →
-        (y : F) ⨯ Id F (mul x y) one))
+
+import id (Id)
+import monoid (IsMonoid)
+import group (IsGroup)
+
+def IsField : 𝕌 → 𝕌 using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔
+  λF. (g : IsGroup F)
+    (mm : IsMonoid F)
+    ⨯ let add ≔ g .π₁ .π₁ in let zero ≔ g .π₁ .π₂ .π₁ in let mul ≔ mm .π₁ in let one ≔ mm .π₂ .π₁ in ((x y : F)
+      → Id
+        F
+        (add x y)
+        (add
+          y
+          x)) ⨯ ((x y : F)
+      → Id
+        F
+        (mul x y)
+        (mul
+          y
+          x)) ⨯ ((x y z : F)
+      → Id
+        F
+        (mul x (add y z))
+        (add
+          (mul x y)
+          (mul
+            x
+            z))) ⨯ ((x y z : F)
+      → Id
+        F
+        (mul (add y z) x)
+        (add
+          (mul y x)
+          (mul
+            z
+            x))) ⨯ ((p : Id F one zero)
+      → 𝟘) ⨯ (x : F) (k : (p : Id F x zero) → 𝟘) → (y : F) ⨯ Id F (mul x y) one
