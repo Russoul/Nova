@@ -226,9 +226,16 @@ record ElabSt where
   ||| elision map
   svSugarOn : Bool
   svSugar : SnocList (String, Range, Bool)
+  ||| surface names visible with TWO OR MORE distinct Σ targets — the
+  ||| OVERLOADED names (docs/NovaPerfectSurface.txt, Phase 4:
+  ||| operator overloading). A reference to one resolves
+  ||| TYPE-DIRECTEDLY at the site: the unique candidate whose spine
+  ||| elaborates with zero new obligations wins; none or several is a
+  ||| structural error naming the qualification remedy.
+  dupNames : List String
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] "" "" [<] Nothing [] [] Nothing [] False [<] False [<]
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] "" "" [<] Nothing [] [] Nothing [] False [<] False [<] []
 
 ||| Is the surface term an INFERENCE form — its type known without an
 ||| expected type? Mirrors the mode inventory
@@ -263,6 +270,18 @@ resolveSigName st x = go st.vis
   go : SnocList (String, String) -> String
   go [<] = x
   go (rest :< (a, full)) = if a == x then full else go rest
+
+||| EVERY distinct Σ target the surface name is visible as, newest
+||| first ([x] itself when unaliased) — the overload candidate set.
+resolveSigAll : ElabSt -> String -> List String
+resolveSigAll st x =
+  case nub (go st.vis) of
+    [] => [x]
+    qs => qs
+ where
+  go : SnocList (String, String) -> List String
+  go [<] = []
+  go (rest :< (a, full)) = if a == x then full :: go rest else go rest
 
 -- ===== Elaboration monad =====
 
@@ -310,6 +329,16 @@ putSt st = modifySt (const st)
 
 throw : Err -> ElabM a
 throw e = MkElabM $ \_ => Left e
+
+||| Install a visibility alias, tracking OVERLOADS: a name gaining a
+||| second distinct target joins dupNames.
+addVis : (String, String) -> ElabM ()
+addVis (a, q) = do
+  st <- getSt
+  let others = nub [full | (a', full) <- toList st.vis, a' == a, full /= q]
+  let ds' = if not (null others) && not (a `elem` st.dupNames)
+              then a :: st.dupNames else st.dupNames
+  modifySt $ { vis $= (:< (a, q)), dupNames := ds' }
 
 ||| Run an action with the discharge scope set (docs/
 ||| SearchlessElaboration.md §5.3), restoring the previous scope after.
@@ -3119,6 +3148,8 @@ mutual
       Nothing => throw "\{site}: variable index out of bounds"
   inferElem ctx env site (SSig mrng x0) = do
     st <- getSt
+    let True = not (x0 `elem` st.dupNames)
+      | False => throw "\{site}: '\{x0}' is overloaded (\{joinBy ", " (resolveSigAll st x0)}) and nothing here selects one — qualify it"
     let x = resolveSigName st x0
     -- cachedSigLookup: positive-only name index; the unknown-name
     -- error path below always re-scans (negatives are never cached)
@@ -3139,16 +3170,19 @@ mutual
     pure (NatIntro1 t', Ty.NatTy, Nd [] [tSk])
   inferElem ctx env site sapp@(SApp f e) = do
     st <- getSt
-    case impSpineOf st sapp of
-      Just (q, x0, mrng, items) => elabImpSpine ctx env site Nothing False q x0 mrng items
-      Nothing => do
-        (f', fTy, fSk) <- inferElem ctx env site f
-        st <- getSt
-        case preferPi st ctx fTy of
-          Just (a, b, _) => do
-            (e', eSk) <- checkElem ctx env site e a
-            pure (PiApp f' e', substTy b (Ext Id e'), Nd [] [fSk, eSk])
-          Nothing => throw "\{site}: cannot apply a term of non-Π type\{structuralHint ()}"
+    case overloadOf st sapp of
+      Just (x0, mrng, items, cands) =>
+        resolveOverload ctx env site Nothing x0 mrng items cands
+      Nothing => case impSpineOf st sapp of
+        Just (q, x0, mrng, items) => elabImpSpine ctx env site Nothing False q x0 mrng items
+        Nothing => do
+          (f', fTy, fSk) <- inferElem ctx env site f
+          st <- getSt
+          case preferPi st ctx fTy of
+            Just (a, b, _) => do
+              (e', eSk) <- checkElem ctx env site e a
+              pure (PiApp f' e', substTy b (Ext Id e'), Nd [] [fSk, eSk])
+            Nothing => throw "\{site}: cannot apply a term of non-Π type\{structuralHint ()}"
   inferElem ctx env site (SImpArg _) =
     throw "\{site}: a {…} override is only legal at an implicit binder position of an applied definition"
   inferElem ctx env site (SNoIns e) = inferElem ctx env site e
@@ -3615,20 +3649,30 @@ mutual
   -- closes the site
   checkElem ctx env site sapp@(SApp _ _) ty = do
     st <- getSt
-    case impSpineOf st sapp of
-      Just (q, x0, mrng, items) => do
-        (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) True q x0 mrng items
+    case overloadOf st sapp of
+      Just (x0, mrng, items, cands) => do
+        (t', inferred, tSk) <- resolveOverload ctx env site (Just ty) x0 mrng items cands
         c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
         pure (t', addPayload (PSwitch (certOr c)) tSk)
-      Nothing => do
-        (t', inferred, tSk) <- inferElem ctx env site sapp
-        c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
-        pure (t', addPayload (PSwitch (certOr c)) tSk)
+      Nothing => case impSpineOf st sapp of
+        Just (q, x0, mrng, items) => do
+          (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) True q x0 mrng items
+          c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
+          pure (t', addPayload (PSwitch (certOr c)) tSk)
+        Nothing => do
+          (t', inferred, tSk) <- inferElem ctx env site sapp
+          c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
+          pure (t', addPayload (PSwitch (certOr c)) tSk)
   -- a BARE reference of an implicit-binder def in checking position
   -- inserts its leading implicit run, solved from the expected type
   checkElem ctx env site sref@(SSig mrng x0) ty = do
     st <- getSt
-    case impSpineOf st (SApp sref SUnitI) of   -- reuse the head test
+    if x0 `elem` st.dupNames
+      then do
+        (t', inferred, tSk) <- resolveOverload ctx env site (Just ty) x0 mrng [] (resolveSigAll st x0)
+        c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
+        pure (t', addPayload (PSwitch (certOr c)) tSk)
+      else case impSpineOf st (SApp sref SUnitI) of   -- reuse the head test
       Just (q, _, _, _) =>
         if maybe False (\ps => 0 `elem` ps) (lookup q st.impls)
           then do
@@ -3798,6 +3842,63 @@ mutual
     scrutOf (SumElim _ _ t) = Just t
     scrutOf (QuotElim _ q) = Just q
     scrutOf _ = Nothing
+
+  ||| The OVERLOAD view: the whole application chain, when its head
+  ||| is a surface name visible with several distinct Σ targets.
+  ||| Guarded by `null st.dupNames` first — a run without overloads
+  ||| pays one comparison per application node.
+  overloadOf : ElabSt -> SElem -> Maybe (String, Maybe Range, List SElem, List String)
+  overloadOf st e =
+    if null st.dupNames then Nothing else
+      case e of
+        SApp _ _ =>
+          let (h, items) = surfSpine e [] in
+          case h of
+            SSig mrng x0 =>
+              if x0 `elem` st.dupNames
+                then Just (x0, mrng, items, resolveSigAll st x0)
+                else Nothing
+            _ => Nothing
+        _ => Nothing
+   where
+    surfSpine : SElem -> List SElem -> (SElem, List SElem)
+    surfSpine (SApp f a) acc = surfSpine f (a :: acc)
+    surfSpine h acc = (h, acc)
+
+  ||| TYPE-DIRECTED overload resolution (docs/NovaPerfectSurface.txt,
+  ||| Phase 4): probe each candidate — the whole spine, isolated and
+  ||| state-discarded — and demand that the winner elaborate with
+  ||| ZERO NEW OBLIGATIONS (the ↓ judgements never fail, so plain
+  ||| success cannot discriminate: a wrong candidate would simply
+  ||| assume absurd equations). Exactly one clean fit commits and
+  ||| re-elaborates for real; none or several is a structural error
+  ||| whose remedy is qualification (the mention form (M.op), or
+  ||| opening only one candidate).
+  resolveOverload : Ctx -> NameEnv -> String -> Maybe Ty -> (x0 : String) ->
+                    Maybe Range -> List SElem -> List String -> ElabM (Elem, Ty, Skel)
+  resolveOverload ctx env site mexp x0 mrng items cands0 = do
+    let cands = nub cands0
+    verdicts <- traverse (\q => map (\v => (q, v)) (probeFit q)) cands
+    let fits = map fst (filter (\(_, v) => v == Just 0) verdicts)
+    case fits of
+      [q] => run q
+      [] => throw ("\{site}: no visible '\{x0}' fits here without assumptions " ++
+                   "(candidates: \{joinBy ", " cands}) — qualify one, e.g. the mention form")
+      qs => throw ("\{site}: '\{x0}' is ambiguous here — \{joinBy ", " qs} all fit; " ++
+                   "qualify one, e.g. the mention form")
+   where
+    run : String -> ElabM (Elem, Ty, Skel)
+    run q = elabImpSpine ctx env site mexp (isJust mexp) q x0 mrng items
+
+    probeFit : String -> ElabM (Maybe Nat)
+    probeFit q = probeM $ do
+      before <- oblCount
+      (_, ty', _) <- run q
+      case mexp of
+        Just c => ignore (convTy ctx env "\{site}: overload fit" Nothing ty' c)
+        Nothing => pure ()
+      after <- oblCount
+      pure (minus after before)
 
   ||| The implicit-spine view: the whole application chain, when its
   ||| head is a signature reference whose def carries implicit binder
@@ -4156,7 +4257,8 @@ emitCoreDef site x ty tySk body bodySk = do
   kernelAccept "\{site} \{x}"
     (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] ty tySk body bodySk))
     (after == 0)
-  modifySt $ { sig $= (:< SigDef [<] q body ty), vis $= (:< (x, q)) }
+  modifySt $ { sig $= (:< SigDef [<] q body ty) }
+  addVis (x, q)
   addLemma q [<] ty
 
 emitCoreTyDef : String -> String -> Ty -> Skel -> ElabM ()
@@ -4170,7 +4272,8 @@ emitCoreTyDef site x ty tySk = do
   kernelAccept "\{site} \{x}"
     (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty tySk))
     (after == 0)
-  modifySt $ { sig $= (:< SigTyDef [<] q ty), vis $= (:< (x, q)) }
+  modifySt $ { sig $= (:< SigTyDef [<] q ty) }
+  addVis (x, q)
 
 wrapLams : Nat -> Elem -> Elem
 wrapLams Z e = e
@@ -4285,7 +4388,8 @@ elabItemGo (SDef x ty body muses) = do
   kernelAccept "def \{x}"
     (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] ty' tySk body' bodySk))
     (after == 0)
-  modifySt $ { sig $= (:< SigDef [<] q body' ty'), vis $= (:< (x, q)) }
+  modifySt $ { sig $= (:< SigDef [<] q body' ty') }
+  addVis (x, q)
   addLemma q [<] ty'
   registerImps q ty
   suffix <- opensSuffix census
@@ -4303,8 +4407,8 @@ elabItemGo (SDeclDef nrng x ty) = do
     Nothing => pure ()
   (ty', tySk) <- elabTy [<] [<] "def \{x}" ty
   modifySt $ { sig $= (:< SigDecl [<] q ty')
-             , declMeta $= (:< MkDeclMeta q [<] "def \{x}" nrng)
-             , vis $= (:< (x, q)) }
+             , declMeta $= (:< MkDeclMeta q [<] "def \{x}" nrng) }
+  addVis (x, q)
   -- a DECLARED equation is a lemma like any accepted one: its stuck
   -- reference is a proof element (el-sig-decl), so el-reflect makes
   -- the equation judgementally available — that is what an abstract
@@ -4325,7 +4429,8 @@ elabItemGo (STypeDef x ty) = do
   kernelAccept "type \{x}"
     (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty' tySk))
     (after == 0)
-  modifySt $ { sig $= (:< SigTyDef [<] q ty'), vis $= (:< (x, q)) }
+  modifySt $ { sig $= (:< SigTyDef [<] q ty') }
+  addVis (x, q)
   suffix <- opensSuffix census
   pure "defined type \{x}\{suffix}"
 elabItemGo (SData params decls) = do
@@ -4741,7 +4846,7 @@ enterModule name imps = do
   let closure = modClosure archivedI imps
   let visible = concatMap (\(_, ls) => ls) (filter (\(m, _) => m `elem` closure) archived)
   let (cs, sh, re, hp) = sigCandParts visible
-  putSt $ { modPrefix := name, vis := [<]
+  putSt $ { modPrefix := name, vis := [<], dupNames := []
           , lemmas := visible, ownLemmas := []
           , modLemmas := archived, modImports := archivedI
           , curImports := imps
@@ -4760,7 +4865,7 @@ installImports (MkSImport m opens :: rest) = do
     st <- getSt
     let q = "\{m}.\{o}"
     case sigLookup q st.sig of
-      Just _ => do modifySt $ { vis $= (:< (o, q)) }; go os
+      Just _ => do addVis (o, q); go os
       Nothing => throw "import \{m}: it defines no '\{o}'"
 
 ||| Elaborate a dependency-ordered list of modules (the loader's

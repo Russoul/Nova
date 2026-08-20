@@ -56,6 +56,21 @@ importTable fm = concatMap
            Nothing => []
            Just tbl => filter (\(op, _) => op `elem` i.opens) tbl)
 
+||| Overloaded operators must AGREE on fixity: the parse is shared,
+||| only the elaborator's type-directed resolution distinguishes the
+||| candidates (docs/NovaPerfectSurface.txt, Phase 4).
+fixityConflict : FixTable -> Maybe String
+fixityConflict tbl = go tbl
+ where
+  go : FixTable -> Maybe String
+  go [] = Nothing
+  go ((op, a, p) :: rest) =
+    case lookup op rest of
+      Just (a', p') =>
+        if a == a' && p == p' then go rest
+        else Just "conflicting fixities for '\{op}' among the opened imports — overloads must agree on associativity and precedence"
+      Nothing => go rest
+
 ||| A load failure, structured for the LSP: the failing file and the
 ||| error's span within it, when known (parse errors) — the message
 ||| carries the full rendered text either way, so CLI output is
@@ -107,6 +122,8 @@ mutual
           Right (done', fixs', acc') <- loadMany rootDir (mname :: visiting) done fixs acc (map (\i => i.mname) hdr)
             | Left err => pure (Left err)
           let tbl0 = importTable fixs' hdr
+          let Nothing = fixityConflict tbl0
+            | Just msg => pure (Left (MkLoadErr (Just path) Nothing "module \{mname}: \{msg}"))
           let Right (toks, imps, decls, items, body) = parseModule "module \{mname} (\{path})" path tbl0 content
             | Left err => pure (Left err)
           pure (Right (mname :: done', (mname, decls) :: fixs',
@@ -133,6 +150,8 @@ loadProgram rootPath = do
   Right (_, fixs, deps) <- loadMany (dirOf rootPath) [] [] [] [] (map (\i => i.mname) hdr)
     | Left err => pure (Left err)
   let tbl0 = importTable fixs hdr
+  let Nothing = fixityConflict tbl0
+    | Just msg => pure (Left (MkLoadErr (Just rootPath) Nothing msg))
   let Right (toks, imps, decls, items, body) = parseModule rootPath rootPath tbl0 content
     | Left err => pure (Left err)
   pure (Right (deps ++ [MkModUnit "" imps (decls ++ tbl0) items toks body content]))
