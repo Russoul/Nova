@@ -12,8 +12,8 @@
 -- leQTripleInv — and bndOfArch then removes the slack entirely.
 -- the quarter index: 1/(qtr k + 1) is 1/(4k+4)
 
-import rationalQ (Q, qAdd, qNeg, qAddComm)
-import rationalOrder (LeQ, leQPlusMonoL)
+import rationalQ (Q, +, qNeg, qAddComm)
+import rationalOrder (≤, leQPlusMonoL)
 import ratBound (Bnd, bndVia, bndEq, bndEqB, bndWeaken)
 import ratHalf (dbl, qInvHalf)
 import ratArch (bndOfArch, qFourSum, leQTripleInv)
@@ -29,32 +29,33 @@ def reqStep : (x y z : El RSeq)
   → ((j : ℕ)
     → El (Bnd
       (rBound j j)
-      (qAdd
-        (seqOf x j)
-        (qNeg
+      (seqOf
+        x
+        j
+        + qNeg
           (seqOf
             y
-            j)))))
+            j))))
     → ((j : ℕ)
       → El (Bnd
         (rBound j j)
-        (qAdd
-          (seqOf y j)
-          (qNeg
+        (seqOf
+          y
+          j
+          + qNeg
             (seqOf
               z
-              j)))))
-      → (n k : ℕ) → El (Bnd (qAdd (rBound n n) (qInvNat k)) (qAdd (seqOf x n) (qNeg (seqOf z n))))
+              j)))) → (n k : ℕ) → El (Bnd (rBound n n + qInvNat k) (seqOf x n + qNeg (seqOf z n)))
   using (id.Id.eq,
     ratBound.Bnd.unfold,
     ratHalf.dbl.eq,
-    rationalOrder.LeQ.unfold,
+    rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold,
     rationalOrder.Sign.eq,
     rationalOrder.sPos.eq,
     rationalOrder.sZero.eq,
     rationalOrder.sgnQ.eq,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qNeg.eq,
     real.RSeq.unfold,
     real.Regular.unfold,
@@ -62,36 +63,34 @@ def reqStep : (x y z : El RSeq)
     real.rBound.eq,
     realEq.qtr.eq) ≔
   λx. λy. λz. λu. λv. λn. λk. bndWeaken
-    (qAdd (rBound n n) (qAdd (qInvNat (qtr k)) (qAdd (qInvNat (qtr k)) (qInvNat (qtr k)))))
-    (qAdd (rBound n n) (qInvNat k))
-    (qAdd (seqOf x n) (qNeg (seqOf z n)))
+    (rBound n n + (qInvNat (qtr k) + (qInvNat (qtr k) + qInvNat (qtr k))))
+    (rBound n n + qInvNat k)
+    (seqOf x n + qNeg (seqOf z n))
     (leQPlusMonoL
-      (qAdd (qInvNat (qtr k)) (qAdd (qInvNat (qtr k)) (qInvNat (qtr k))))
+      (qInvNat (qtr k) + (qInvNat (qtr k) + qInvNat (qtr k)))
       (qInvNat k)
       (rBound n n)
       (leQTripleInv k))
     (bndEqB
-      (qAdd
-        (qAdd (qInvNat n) (qInvNat n))
-        (qAdd (qAdd (qInvNat (dbl (qtr k))) (qInvNat (dbl (qtr k)))) (rBound (qtr k) (qtr k))))
-      (qAdd (rBound n n) (qAdd (qInvNat (qtr k)) (qAdd (qInvNat (qtr k)) (qInvNat (qtr k)))))
-      (qAdd (seqOf x n) (qNeg (seqOf z n)))
+      (qInvNat
+        n + qInvNat n + (qInvNat (dbl (qtr k)) + qInvNat (dbl (qtr k)) + rBound (qtr k) (qtr k)))
+      (rBound n n + (qInvNat (qtr k) + (qInvNat (qtr k) + qInvNat (qtr k))))
+      (seqOf x n + qNeg (seqOf z n))
       (cong
         Q
         (λw. Q)
-        (λw. qAdd (rBound n n) (qAdd w (rBound (qtr k) (qtr k))))
-        (qAdd (qInvNat (dbl (qtr k))) (qInvNat (dbl (qtr k))))
+        (λw. rBound n n + (w + rBound (qtr k) (qtr k)))
+        (qInvNat (dbl (qtr k)) + qInvNat (dbl (qtr k)))
         (qInvNat (qtr k))
         (qInvHalf (qtr k)))
       (bndEqB
-        (qAdd (qAdd (rBound n (dbl (qtr k))) (rBound (qtr k) (qtr k))) (rBound (dbl (qtr k)) n))
-        (qAdd
-          (qAdd (qInvNat n) (qInvNat n))
-          (qAdd (qAdd (qInvNat (dbl (qtr k))) (qInvNat (dbl (qtr k)))) (rBound (qtr k) (qtr k))))
-        (qAdd (seqOf x n) (qNeg (seqOf z n)))
+        (rBound n (dbl (qtr k)) + rBound (qtr k) (qtr k) + rBound (dbl (qtr k)) n)
+        (qInvNat
+          n + qInvNat n + (qInvNat (dbl (qtr k)) + qInvNat (dbl (qtr k)) + rBound (qtr k) (qtr k)))
+        (seqOf x n + qNeg (seqOf z n))
         (qFourSum (qInvNat n) (qInvNat (dbl (qtr k))) (rBound (qtr k) (qtr k)))
         (bndVia
-          (qAdd (rBound n (dbl (qtr k))) (rBound (qtr k) (qtr k)))
+          (rBound n (dbl (qtr k)) + rBound (qtr k) (qtr k))
           (rBound (dbl (qtr k)) n)
           (seqOf x n)
           (seqOf z (dbl (qtr k)))
@@ -104,9 +103,9 @@ def reqStep : (x y z : El RSeq)
             (seqOf z (dbl (qtr k)))
             (regBnd (seqOf x) (regOf x) n (dbl (qtr k)))
             (bndEqB
-              (qAdd (rBound (dbl (qtr k)) (dbl (qtr k))) (rBound (dbl (qtr k)) (dbl (qtr k))))
+              (rBound (dbl (qtr k)) (dbl (qtr k)) + rBound (dbl (qtr k)) (dbl (qtr k)))
               (rBound (qtr k) (qtr k))
-              (qAdd (seqOf x (dbl (qtr k))) (qNeg (seqOf z (dbl (qtr k)))))
+              (seqOf x (dbl (qtr k)) + qNeg (seqOf z (dbl (qtr k))))
               (rBoundHalf (qtr k) (qtr k))
               (bndVia
                 (rBound (dbl (qtr k)) (dbl (qtr k)))
@@ -128,7 +127,7 @@ def reqTrans : {x : El RSeq}
     rationalOrder.sPos.eq,
     rationalOrder.sZero.eq,
     rationalOrder.sgnQ.eq,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qNeg.eq,
     real.REq.unfold,
     real.RSeq.unfold,
@@ -138,7 +137,7 @@ def reqTrans : {x : El RSeq}
   λx. λy. λz. λhxy. λhyz. squash-elim hxy (u. squash-elim hyz (v. reqOf
     x
     z
-    (λn. bndOfArch (qAdd (seqOf x n) (qNeg (seqOf z n))) (λk. reqStep x y z u v n k))))
+    (λn. bndOfArch (seqOf x n + qNeg (seqOf z n)) (λk. reqStep x y z u v n k))))
 
 -- ...so REq-related representatives name the same real, and the
 -- quotient is by an honest equivalence

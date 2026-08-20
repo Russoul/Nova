@@ -17,12 +17,12 @@
 import nat (+, *, zeroMult, multSucId, sucPlus, plusZeroId, zeroPlusId, plusComm, plusAssoc)
 import integer (Int, intZero, intOne)
 import integerNormalize (normPair)
-import integerMul (intMul, intMulOneR, intMulZeroL, classPairEta)
+import integerMul (*, intMulOneR, intMulZeroL, classPairEta)
 import eqNat (zNotS)
 import eqInt (intCanon, intCanonClass, pairEtaG)
 import prop (¬, ⊥, impIntro, impApply, absurdP)
 import rational (NZ, nzPos, nzNeg, nzToInt, Rat, mkRat, num, den, ratEta, ratZero)
-import rationalQ (Q, qcls, qZero, qOne, qMul, qMulInv, NZQ, qOfNzq, nzqInv, clsEqOfRel, dInt)
+import rationalQ (Q, qcls, qZero, qOne, *, qMulInv, NZQ, qOfNzq, nzqInv, clsEqOfRel, dInt)
 import equality (trans, sym, cong)
 
 def normProdZero : {a b : ℕ} → normPair a b .π₁ * normPair a b .π₂ ≡ Z
@@ -149,7 +149,7 @@ def ratZeroOfNumZero : (p : El Rat) (h : Prf (num p ≡ intZero)) → class p �
     integer.Int.unfold,
     integer.intOne.eq,
     integer.intZero.eq,
-    integerMul.intMul.eq,
+    integerMul.*.eq,
     rational.NZ.unfold,
     rational.Rat.unfold,
     rational.den.eq,
@@ -170,11 +170,11 @@ def ratZeroOfNumZero : (p : El Rat) (h : Prf (num p ≡ intZero)) → class p �
     ratZero
     (trans
       Int
-      (intMul (num p) (dInt ratZero))
+      (num p * dInt ratZero)
       intZero
-      (intMul (num ratZero) (dInt p))
-      (trans Int (intMul (num p) (dInt ratZero)) (num p) intZero (intMulOneR (num p)) h)
-      (sym Int (intMul intZero (dInt p)) intZero (intMulZeroL (dInt p))))
+      (num ratZero * dInt p)
+      (trans Int (num p * dInt ratZero) (num p) intZero (intMulOneR (num p)) h)
+      (sym Int (intZero * dInt p) intZero (intMulZeroL (dInt p))))
 
 def numNonZero : {p : El Rat} (h : Prf (¬ (class p ≡ qZero))) → Prf (¬ (num p ≡ intZero))
   using (prop.¬.unfold, prop.⊃.unfold, rationalQ.Q.unfold) ≔
@@ -213,19 +213,19 @@ def qNonZeroIsNzq : {u : El Q} (h : Prf (¬ (u ≡ qZero))) → Prf ∥(x : El N
     u
 
 -- ===== the theorem =====
-def qInvExists : {u : El Q} (h : Prf (¬ (u ≡ qZero))) → Prf ∥(v : El Q) ⨯ Prf (qMul u v ≡ qOne)∥ ≔
+def qInvExists : {u : El Q} (h : Prf (¬ (u ≡ qZero))) → Prf ∥(v : El Q) ⨯ Prf (u * v ≡ qOne)∥ ≔
   λu. λh. squash-elim (qNonZeroIsNzq
     h) (w. ⋆ (qOfNzq
     (nzqInv
       (w .π₁)),
     trans
       Q
-      (qMul u (qOfNzq (nzqInv (w .π₁))))
-      (qMul (qOfNzq (w .π₁)) (qOfNzq (nzqInv (w .π₁))))
+      (u * qOfNzq (nzqInv (w .π₁)))
+      (qOfNzq (w .π₁) * qOfNzq (nzqInv (w .π₁)))
       qOne
       (sym
         Q
-        (qMul (qOfNzq (w .π₁)) (qOfNzq (nzqInv (w .π₁))))
-        (qMul u (qOfNzq (nzqInv (w .π₁))))
-        (cong Q (λv. Q) (λx. qMul x (qOfNzq (nzqInv (w .π₁)))) (qOfNzq (w .π₁)) u (w .π₂)))
+        (qOfNzq (w .π₁) * qOfNzq (nzqInv (w .π₁)))
+        (u * qOfNzq (nzqInv (w .π₁)))
+        (cong Q (λv. Q) (λx. x * qOfNzq (nzqInv (w .π₁))) (qOfNzq (w .π₁)) u (w .π₂)))
       qMulInv))

@@ -6,7 +6,7 @@
 -- ===== distributivity on the right =====
 
 import nat (+, *, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusComm, plusAssoc, plusCancel, sucInj, multZeroId, multSucId, zeroMult, sucMult, multComm, multDistrib, multAssoc)
-import natOrder (LeN, leRefl, leTrans, leTotal, sumZeroL, sumZeroR, leAntisym)
+import natOrder (≤, leRefl, leTrans, leTotal, sumZeroL, sumZeroR, leAntisym)
 import equality (trans, sym, cong)
 import id (Id, idToEq, eqToId)
 
@@ -40,8 +40,8 @@ def multZeroInv : (j k : ℕ) → (j * S k ≡ Z) → j ≡ Z ≔
 
 -- cancellation by S k, under the assumption that the smaller side is
 -- known: the surplus times S k is zero, hence zero
-def multCancelLe : {n m : ℕ} (k : ℕ) → El (LeN n m) → (n * S k ≡ m * S k) → n ≡ m
-  using (id.Id.unfold, nat.plusZeroId, natOrder.LeN.unfold) ≔
+def multCancelLe : {n m : ℕ} (k : ℕ) → El (n ≤ m) → (n * S k ≡ m * S k) → n ≡ m
+  using (id.Id.unfold, nat.plusZeroId, natOrder.≤.unfold) ≔
   λn. λm. λk. λle. λh. let e : n
     + le .π₁ ≡ m ≔ idToEq
     ℕ
@@ -139,7 +139,7 @@ def monusSelf : {a : ℕ} → a ∸ a ≡ Z
   λa. ℕ-elim ⋆ (k ih. ⋆) a
 
 -- ...so a ≤ b makes a − b vanish
-def monusZeroOfLe : (a b : ℕ) → El (LeN a b) → a ∸ b ≡ Z using (id.Id.unfold, natOrder.LeN.unfold) ≔
+def monusZeroOfLe : (a b : ℕ) → El (a ≤ b) → a ∸ b ≡ Z using (id.Id.unfold, natOrder.≤.unfold) ≔
   λa. λb. λle. a ∸ b
       ≡⟨ cong
         ℕ
@@ -153,8 +153,7 @@ def monusZeroOfLe : (a b : ℕ) → El (LeN a b) → a ∸ b ≡ Z using (id.Id.
       ≡⟨ zeroMonus (le .π₁) ⟩ Z
 
 -- ...and a ≤ b makes the difference add back
-def leMonusPlus : {a b : ℕ} → El (LeN a b) → a + (b ∸ a) ≡ b
-  using (id.Id.unfold, natOrder.LeN.unfold) ≔
+def leMonusPlus : {a b : ℕ} → El (a ≤ b) → a + (b ∸ a) ≡ b using (id.Id.unfold, natOrder.≤.unfold) ≔
   λa. λb. λle. let e : a
     + le .π₁ ≡ b ≔ idToEq
     ℕ
@@ -184,14 +183,14 @@ def natMax : ℕ → ℕ → ℕ ≔ λa. λb. a + (b ∸ a)
 def natMin : ℕ → ℕ → ℕ ≔ λa. λb. a ∸ (a ∸ b)
 
 -- a sits under the max by construction: the witness is the difference
-def leMaxL : (a b : ℕ) → El (LeN a (natMax a b)) using (natMore.natMax.eq, natOrder.LeN.unfold) ≔
+def leMaxL : (a b : ℕ) → El (a ≤ natMax a b) using (natMore.natMax.eq, natOrder.≤.unfold) ≔
   λa. λb. b ∸ a, eqToId (a + (b ∸ a)) (natMax a b) ⋆
 
 -- and so does b, once the two cases are settled
 -- a ≤ b : the max IS b
 -- b ≤ a : the max is a, and b ≤ a
-def leMaxR : (a b : ℕ) → El (LeN b (natMax a b))
-  using (id.Id.unfold, natMore.natMax.eq, natOrder.LeN.unfold) ≔
+def leMaxR : (a b : ℕ) → El (b ≤ natMax a b)
+  using (id.Id.unfold, natMore.natMax.eq, natOrder.≤.unfold) ≔
   λa. λb. ⊎-elim
     (le. Z,
       eqToId

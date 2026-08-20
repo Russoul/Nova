@@ -7,19 +7,19 @@
 -- `Regular f` unfolds to a Π of the same pair Bnd is: the two bridges
 -- below are the identity, and exist only to name the shape
 
-import rationalQ (Q, qAdd, qNeg, qZero, qOne, qAddComm, qNegNeg)
-import rationalOrder (LeQ)
+import rationalQ (Q, +, qNeg, qZero, qOne, qAddComm, qNegNeg)
+import rationalOrder (≤)
 import ratBound (Bnd, bndAdd, bndNeg, bndEq, bndEqB, bndZero, bndSubEq, bndSubSym, bndVia, bndWeaken, leQAdd, leQNegFlip)
 import real (qInvNat, rBound, rBoundPos, leQZeroBound, leQNegBoundZero, Regular, RSeq, REq, Real, constReg, realOfQ, realZero, realOne)
 import equality (trans, sym, cong, transport)
 
 def regBnd : (f : El (ℕ → Q))
-  → El (Regular f) → (m n : ℕ) → El (Bnd (rBound m n) (qAdd (f m) (qNeg (f n))))
+  → El (Regular f) → (m n : ℕ) → El (Bnd (rBound m n) (f m + qNeg (f n)))
   using (ratBound.Bnd.unfold, rationalQ.Q.unfold, real.Regular.unfold) ≔
   λf. λh. λm. λn. h m n
 
 def bndReg : {f : El (ℕ → Q)}
-  → ((m n : ℕ) → El (Bnd (rBound m n) (qAdd (f m) (qNeg (f n))))) → El (Regular f)
+  → ((m n : ℕ) → El (Bnd (rBound m n) (f m + qNeg (f n)))) → El (Regular f)
   using (ratBound.Bnd.unfold, rationalQ.Q.unfold, real.Regular.unfold) ≔
   λf. λh. λm. λn. h m n
 
@@ -31,7 +31,7 @@ def regOf : (x : El RSeq) → El (Regular (seqOf x))
     rationalOrder.sPos.eq,
     rationalOrder.sZero.eq,
     rationalOrder.sgnQ.eq,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qNeg.eq,
     real.RSeq.unfold,
     real.Regular.unfold,
@@ -42,14 +42,14 @@ def regOf : (x : El RSeq) → El (Regular (seqOf x))
 -- REq is a squashed pointwise bound; intro takes the witness, elim is
 -- squash-elim (the target below is always a Prf, so this is legal)
 def reqOf : (x y : El RSeq)
-  → ((n : ℕ) → El (Bnd (rBound n n) (qAdd (seqOf x n) (qNeg (seqOf y n))))) → Prf (REq x y)
+  → ((n : ℕ) → El (Bnd (rBound n n) (seqOf x n + qNeg (seqOf y n)))) → Prf (REq x y)
   using (id.Id.eq,
     ratBound.Bnd.unfold,
     rationalOrder.Sign.eq,
     rationalOrder.sPos.eq,
     rationalOrder.sZero.eq,
     rationalOrder.sgnQ.eq,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qNeg.eq,
     real.REq.unfold,
     real.RSeq.unfold,
@@ -60,7 +60,7 @@ def reqOf : (x y : El RSeq)
 
 -- ===== the bound is symmetric and nonnegative =====
 def rBoundSym : (m n : ℕ) → rBound m n ≡ rBound n m
-  using (rationalQ.qAdd.eq, real.qInvNat.eq, real.rBound.eq) ≔
+  using (rationalQ.+.eq, real.qInvNat.eq, real.rBound.eq) ≔
   λm. λn. qAddComm (qInvNat m) (qInvNat n)
 
 -- ===== reflexivity and symmetry of REq =====
@@ -79,7 +79,7 @@ def reqSym : {x y : El RSeq} → Prf (REq x y) → Prf (REq y x)
     rationalOrder.sPos.eq,
     rationalOrder.sZero.eq,
     rationalOrder.sgnQ.eq,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qNeg.eq,
     real.REq.unfold,
     real.RSeq.unfold,
@@ -107,11 +107,10 @@ def negSeq : El (ℕ → Q) → El (ℕ → Q) using (rationalQ.Q.unfold) ≔ λ
 
 -- (−u) − (−v) ≡ v − u : the difference of the negations is the
 -- difference reversed
-def qNegSub : (u v : El Q) → qAdd (qNeg u) (qNeg (qNeg v)) ≡ qAdd v (qNeg u)
-  using (rationalQ.Q.unfold) ≔
-  λu. λv. qAdd (qNeg u) (qNeg (qNeg v))
-      ≡⟨ cong Q (λw. Q) (λw. qAdd (qNeg u) w) (qNeg (qNeg v)) v (qNegNeg v) ⟩ qAdd (qNeg u) v
-      ≡⟨ qAddComm (qNeg u) v ⟩ qAdd v (qNeg u)
+def qNegSub : (u v : El Q) → qNeg u + qNeg (qNeg v) ≡ v + qNeg u using (rationalQ.Q.unfold) ≔
+  λu. λv. qNeg u + qNeg (qNeg v)
+      ≡⟨ cong Q (λw. Q) (λw. qNeg u + w) (qNeg (qNeg v)) v (qNegNeg v) ⟩ qNeg u + v
+      ≡⟨ qAddComm (qNeg u) v ⟩ v + qNeg u
 
 -- the negated sequence is regular: its (m,n) difference is the
 -- original's (n,m) difference, and rBound is symmetric
@@ -123,21 +122,17 @@ def negReg : {f : El (ℕ → Q)} → El (Regular f) → El (Regular (negSeq f))
     rationalOrder.sZero.eq,
     rationalOrder.sgnQ.eq,
     rationalQ.Q.unfold,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qNeg.eq,
     real.Regular.unfold,
     real.rBound.eq,
     realNeg.negSeq.eq) ≔
   λf. λh. bndReg
     (λm. λn. bndEq
-      (qAdd (f n) (qNeg (f m)))
-      (qAdd (qNeg (f m)) (qNeg (qNeg (f n))))
-      (sym
-        Q
-        (qAdd (qNeg (f m)) (qNeg (qNeg (f n))))
-        (qAdd (f n) (qNeg (f m)))
-        (qNegSub (f m) (f n)))
-      (bndEqB (rBound n m) (rBound m n) (qAdd (f n) (qNeg (f m))) (rBoundSym n m) (regBnd f h n m)))
+      (f n + qNeg (f m))
+      (qNeg (f m) + qNeg (qNeg (f n)))
+      (sym Q (qNeg (f m) + qNeg (qNeg (f n))) (f n + qNeg (f m)) (qNegSub (f m) (f n)))
+      (bndEqB (rBound n m) (rBound m n) (f n + qNeg (f m)) (rBoundSym n m) (regBnd f h n m)))
 
 def rNeg : El RSeq → El RSeq using (real.RSeq.unfold) ≔ λx. negSeq (seqOf x), negReg (regOf x)
 
@@ -147,14 +142,14 @@ def rNegWD : {x y : El RSeq} → Prf (REq x y) → Prf (REq (rNeg x) (rNeg y))
     ratBound.Bnd.unfold,
     rational.ratAdd.eq,
     rational.ratNeg.eq,
-    rationalOrder.LeQ.eq,
+    rationalOrder.≤.eq,
     rationalOrder.NonNegS.unfold,
     rationalOrder.Sign.eq,
     rationalOrder.ratSgn.eq,
     rationalOrder.sPos.eq,
     rationalOrder.sZero.eq,
     rationalOrder.sgnQ.eq,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qNeg.eq,
     real.REq.unfold,
     real.RSeq.unfold,
@@ -168,12 +163,12 @@ def rNegWD : {x y : El RSeq} → Prf (REq x y) → Prf (REq (rNeg x) (rNeg y))
     (rNeg x)
     (rNeg y)
     (λn. bndEq
-      (qAdd (seqOf y n) (qNeg (seqOf x n)))
-      (qAdd (qNeg (seqOf x n)) (qNeg (qNeg (seqOf y n))))
+      (seqOf y n + qNeg (seqOf x n))
+      (qNeg (seqOf x n) + qNeg (qNeg (seqOf y n)))
       (sym
         Q
-        (qAdd (qNeg (seqOf x n)) (qNeg (qNeg (seqOf y n))))
-        (qAdd (seqOf y n) (qNeg (seqOf x n)))
+        (qNeg (seqOf x n) + qNeg (qNeg (seqOf y n)))
+        (seqOf y n + qNeg (seqOf x n))
         (qNegSub (seqOf x n) (seqOf y n)))
       (bndSubSym (rBound n n) (seqOf x n) (seqOf y n) (u n))))
 
@@ -235,9 +230,9 @@ def realNegZero : realNeg realZero ≡ realZero
     rational.ratNeg.eq,
     rational.ratOfInt.eq,
     rational.ratZero.eq,
-    rationalOrder.LeQ.eq,
+    rationalOrder.≤.eq,
     rationalQ.Q.eq,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qAddNegR.eq,
     rationalQ.qNeg.eq,
     rationalQ.qZero.eq,

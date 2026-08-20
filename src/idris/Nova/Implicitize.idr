@@ -51,16 +51,20 @@ import Nova.Distill
 
 import System.File
 
+import Nova.Elaboration.Beta
+
 %default covering
 
 -- ===== Per-module name resolution =====
 
+export
 qualify : (mname : String) -> String -> String
 qualify "" x = x
 qualify m x = "\{m}.\{x}"
 
 ||| surface name → Σ name: the module's own items shadow its opened
 ||| imports; a name matching neither is already a Σ path.
+export
 unitResolver : ModUnit -> (String -> String)
 unitResolver u =
   let own = mapMaybe (\(_, it) => case it of
@@ -357,6 +361,7 @@ implicitizePath rootPath outDir = do
   let cands0 = filter (\(q, _) => q `elem` defNames) (implicitizables sigOrig)
   -- the trial, on the override form
   let wrapUnits = map (xfUnit cands0 MWrap) units
+  () <- clearSigEntryIx
   let Right (_, trial) = elabProgramTrial wrapUnits
     | Left err => pure (Left ("override form failed to elaborate (transformer defect):\n" ++ err))
   let trialCands = foldTrial cands0 trial
@@ -374,6 +379,7 @@ implicitizePath rootPath outDir = do
         | Left err => pure (Left ("implicitized output failed to load: " ++ err.lmsg))
       let Nothing = verifyUnits dropUnits units'
         | Just err => pure (Left err)
+      () <- clearSigEntryIx
       let Right sigNew = elabProgramSig units'
         | Left err => pure (Left ("implicitized corpus failed to elaborate after write:\n" ++ err))
       let Nothing = sigCompare sigOrig sigNew

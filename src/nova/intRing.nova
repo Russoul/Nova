@@ -9,8 +9,8 @@
 -- directly.
 
 import integer (Int, intZero, intOne, intNeg)
-import integerAdd (intAdd, intAddComm)
-import integerMul (intMul, intMulAssoc, intMulComm, intMulOneR, intMulDistribL)
+import integerAdd (+, intAddComm)
+import integerMul (*, intMulAssoc, intMulComm, intMulOneR, intMulDistribL)
 import intGroup (intAddGroup)
 import id (Id, eqToId)
 import monoid (IsMonoid)
@@ -19,33 +19,29 @@ import ring (IsCommRing)
 
 def intCommRing : El (IsCommRing Int) using (intGroup.intAddGroup.eq, ring.IsCommRing.unfold) ≔
   intAddGroup,
-    intMul,
+    (*),
       intOne,
         (λx. λy. λz. eqToId
-          (intMul (intMul x y) z)
-          (intMul x (intMul y z))
+          (x * y * z)
+          (x * (y * z))
           (intMulAssoc
             x
             y
             z)),
           (λx. λy. eqToId
-            (intMul x y)
-            (intMul y x)
+            (x * y)
+            (y * x)
             (intMulComm
               x
               y)),
             (λx. eqToId
-              (intMul x intOne)
+              (x * intOne)
               x
               (intMulOneR
                 x)),
               (λx. λy. eqToId
-                (intAdd x y)
-                (intAdd y x)
+                (x + y)
+                (y + x)
                 (intAddComm
                   x
-                  y)),
-                λx. λy. λz. eqToId
-                  (intMul x (intAdd y z))
-                  (intAdd (intMul x y) (intMul x z))
-                  (intMulDistribL x y z)
+                  y)), λx. λy. λz. eqToId (x * (y + z)) (x * y + x * z) (intMulDistribL x y z)

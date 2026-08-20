@@ -15,12 +15,12 @@
 
 import nat (+, *, sucPlus, plusSucId)
 import integer (Int, intOne)
-import integerAdd (intAdd)
-import integerMul (intMul, intMulOneL, intMulDistribL, intMulDistribR)
+import integerAdd (+)
+import integerMul (*, intMulOneL, intMulDistribL, intMulDistribR)
 import intOrder (intOfNat, intOfNatPlus)
 import rational (NZ, nzPos, nzMul, nzToInt, Rat, mkRat, num, den, ratAdd, intScale, intScaleToInt)
-import rationalQ (Q, qcls, qAdd, qZero, qAddCls, RatR, dInt, clsEqOfRel, nzToIntMul)
-import rationalOrder (LeQ)
+import rationalQ (Q, qcls, +, qZero, qAddCls, RatR, dInt, clsEqOfRel, nzToIntMul)
+import rationalOrder (≤)
 import ratBound (leQSelfAdd, leQZeroOfPos)
 import real (qInvNat, qInvNatPos)
 import equality (trans, sym, cong, transport)
@@ -29,19 +29,15 @@ def dbl : ℕ → ℕ ≔ λn. S (n + n)
 
 -- ===== the Int identity behind it =====
 -- 4g² two ways: distribute right, then collect left
-def intDblSquare : (g : El Int)
-  → intMul (intAdd (intAdd g g) (intAdd g g)) g ≡ intMul (intAdd g g) (intAdd g g)
+def intDblSquare : (g : El Int) → (g + g + (g + g)) * g ≡ (g + g) * (g + g)
   using (integer.Int.unfold) ≔
-  λg. intMul (intAdd (intAdd g g) (intAdd g g)) g
-      ≡⟨ intMulDistribR
-        (intAdd g g)
-        (intAdd g g)
-        g ⟩ intAdd (intMul (intAdd g g) g) (intMul (intAdd g g) g)
+  λg. (g + g + (g + g)) * g
+      ≡⟨ intMulDistribR (g + g) (g + g) g ⟩ (g + g) * g + (g + g) * g
       ≡⟨ sym
         Int
-        (intMul (intAdd g g) (intAdd g g))
-        (intAdd (intMul (intAdd g g) g) (intMul (intAdd g g) g))
-        (intMulDistribL (intAdd g g) g g) ⟩ intMul (intAdd g g) (intAdd g g)
+        ((g + g) * (g + g))
+        ((g + g) * g + (g + g) * g)
+        (intMulDistribL (g + g) g g) ⟩ (g + g) * (g + g)
 
 -- ===== pushing the doubled index through nzToInt =====
 def nzPosInt : (k : ℕ) → nzToInt (nzPos k) ≡ intOfNat (S k)
@@ -53,27 +49,27 @@ def sucDbl : (n : ℕ) → S (dbl n) ≡ S n + S n using (sucPlus.rw, plusSucId.
   λn. ⋆
 
 -- the doubled denominator IS the original one, doubled in Int
-def nzPosDbl : (n : ℕ) → nzToInt (nzPos (dbl n)) ≡ intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n))
+def nzPosDbl : (n : ℕ) → nzToInt (nzPos (dbl n)) ≡ nzToInt (nzPos n) + nzToInt (nzPos n)
   using (integer.Int.unfold) ≔
   λn. nzToInt (nzPos (dbl n))
       ≡⟨ nzPosInt (dbl n) ⟩ intOfNat (S (dbl n))
       ≡⟨ cong ℕ (λw. Int) (λw. intOfNat w) (S (dbl n)) (S n + S n) (sucDbl n) ⟩ intOfNat (S n + S n)
       ≡⟨ sym
         Int
-        (intAdd (intOfNat (S n)) (intOfNat (S n)))
+        (intOfNat (S n) + intOfNat (S n))
         (intOfNat (S n + S n))
-        (intOfNatPlus (S n) (S n)) ⟩ intAdd (intOfNat (S n)) (intOfNat (S n))
+        (intOfNatPlus (S n) (S n)) ⟩ intOfNat (S n) + intOfNat (S n)
       ≡⟨ sym
         Int
-        (intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n)))
-        (intAdd (intOfNat (S n)) (intOfNat (S n)))
+        (nzToInt (nzPos n) + nzToInt (nzPos n))
+        (intOfNat (S n) + intOfNat (S n))
         (cong
           Int
           (λw. Int)
-          (λw. intAdd w w)
+          (λw. w + w)
           (nzToInt (nzPos n))
           (intOfNat (S n))
-          (nzPosInt n)) ⟩ intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n))
+          (nzPosInt n)) ⟩ nzToInt (nzPos n) + nzToInt (nzPos n)
 
 -- ===== the cross-multiplication =====
 -- the unit fraction at index k, as a raw fraction
@@ -86,10 +82,10 @@ def scaleOne : {d : El NZ} → intScale d intOne ≡ nzToInt d
 
 -- the numerator of 1/d + 1/d is d + d
 def unitAddNum : {d : El NZ}
-  → num (ratAdd (mkRat intOne d) (mkRat intOne d)) ≡ intAdd (nzToInt d) (nzToInt d)
+  → num (ratAdd (mkRat intOne d) (mkRat intOne d)) ≡ nzToInt d + nzToInt d
   using (integer.intNeg.eq,
     integer.intOne.eq,
-    integerAdd.intAdd.eq,
+    integerAdd.+.eq,
     rational.NZ.unfold,
     rational.den.eq,
     rational.intScale.eq,
@@ -97,13 +93,13 @@ def unitAddNum : {d : El NZ}
     rational.mkRat.eq,
     rational.num.eq,
     rational.ratAdd.eq) ≔
-  λd. cong Int (λw. Int) (λw. intAdd w w) (intScale d intOne) (nzToInt d) scaleOne
+  λd. cong Int (λw. Int) (λw. w + w) (intScale d intOne) (nzToInt d) scaleOne
 
 -- ...and its denominator is d·d
 def unitAddDen : {d : El NZ}
-  → dInt (ratAdd (mkRat intOne d) (mkRat intOne d)) ≡ intMul (nzToInt d) (nzToInt d)
+  → dInt (ratAdd (mkRat intOne d) (mkRat intOne d)) ≡ nzToInt d * nzToInt d
   using (integer.intOne.eq,
-    integerAdd.intAdd.eq,
+    integerAdd.+.eq,
     rational.NZ.unfold,
     rational.den.eq,
     rational.intScale.eq,
@@ -132,94 +128,86 @@ def unitDen : (k : ℕ) → dInt (unitRat k) ≡ nzToInt (nzPos k)
 
 -- unitAddNum/unitAddDen, respelled at unitRat
 def unitAddNumU : (k : ℕ)
-  → num (ratAdd (unitRat k) (unitRat k)) ≡ intAdd (nzToInt (nzPos k)) (nzToInt (nzPos k))
+  → num (ratAdd (unitRat k) (unitRat k)) ≡ nzToInt (nzPos k) + nzToInt (nzPos k)
   using (ratHalf.unitRat.eq) ≔
   λk. unitAddNum
 
 def unitAddDenU : (k : ℕ)
-  → dInt (ratAdd (unitRat k) (unitRat k)) ≡ intMul (nzToInt (nzPos k)) (nzToInt (nzPos k))
+  → dInt (ratAdd (unitRat k) (unitRat k)) ≡ nzToInt (nzPos k) * nzToInt (nzPos k)
   using (ratHalf.unitRat.eq) ≔
   λk. unitAddDen
 
 -- the cross-multiplication itself, as one chain in folded vocabulary
 def halfCross : {n : ℕ}
-  → intMul
-    (num (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
-    (dInt
-      (unitRat n)) ≡ intMul (num (unitRat n)) (dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
+  → num
+    (ratAdd
+      (unitRat (dbl n))
+      (unitRat
+        (dbl
+          n)))
+    * dInt (unitRat n) ≡ num (unitRat n) * dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))
   using (integer.Int.unfold) ≔
-  λn. intMul (num (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))) (dInt (unitRat n))
+  λn. num (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) * dInt (unitRat n)
       ≡⟨ cong
         Int
         (λw. Int)
-        (λw. intMul (num (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))) w)
+        (λw. num (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) * w)
         (dInt (unitRat n))
         (nzToInt (nzPos n))
-        (unitDen n) ⟩ intMul (num (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))) (nzToInt (nzPos n))
+        (unitDen n) ⟩ num (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) * nzToInt (nzPos n)
       ≡⟨ cong
         Int
         (λw. Int)
-        (λw. intMul w (nzToInt (nzPos n)))
+        (λw. w * nzToInt (nzPos n))
         (num (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
-        (intAdd (nzToInt (nzPos (dbl n))) (nzToInt (nzPos (dbl n))))
+        (nzToInt (nzPos (dbl n)) + nzToInt (nzPos (dbl n)))
         (unitAddNumU
-          (dbl
-            n)) ⟩ intMul
-        (intAdd (nzToInt (nzPos (dbl n))) (nzToInt (nzPos (dbl n))))
-        (nzToInt (nzPos n))
+          (dbl n)) ⟩ (nzToInt (nzPos (dbl n)) + nzToInt (nzPos (dbl n))) * nzToInt (nzPos n)
       ≡⟨ cong
         Int
         (λw. Int)
-        (λw. intMul (intAdd w w) (nzToInt (nzPos n)))
+        (λw. (w + w) * nzToInt (nzPos n))
         (nzToInt (nzPos (dbl n)))
-        (intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n)))
+        (nzToInt (nzPos n) + nzToInt (nzPos n))
         (nzPosDbl
-          n) ⟩ intMul
-        (intAdd
-          (intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n)))
-          (intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n))))
-        (nzToInt (nzPos n))
+          n) ⟩ (nzToInt
+        (nzPos n) + nzToInt (nzPos n) + (nzToInt (nzPos n) + nzToInt (nzPos n))) * nzToInt (nzPos n)
       ≡⟨ intDblSquare
         (nzToInt
           (nzPos
-            n)) ⟩ intMul
-        (intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n)))
-        (intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n)))
+            n)) ⟩ (nzToInt (nzPos n) + nzToInt (nzPos n)) * (nzToInt (nzPos n) + nzToInt (nzPos n))
       ≡⟨ sym
         Int
-        (intMul (nzToInt (nzPos (dbl n))) (nzToInt (nzPos (dbl n))))
-        (intMul
-          (intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n)))
-          (intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n))))
+        (nzToInt (nzPos (dbl n)) * nzToInt (nzPos (dbl n)))
+        ((nzToInt (nzPos n) + nzToInt (nzPos n)) * (nzToInt (nzPos n) + nzToInt (nzPos n)))
         (cong
           Int
           (λw. Int)
-          (λw. intMul w w)
+          (λw. w * w)
           (nzToInt (nzPos (dbl n)))
-          (intAdd (nzToInt (nzPos n)) (nzToInt (nzPos n)))
-          (nzPosDbl n)) ⟩ intMul (nzToInt (nzPos (dbl n))) (nzToInt (nzPos (dbl n)))
+          (nzToInt (nzPos n) + nzToInt (nzPos n))
+          (nzPosDbl n)) ⟩ nzToInt (nzPos (dbl n)) * nzToInt (nzPos (dbl n))
       ≡⟨ sym
         Int
         (dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
-        (intMul (nzToInt (nzPos (dbl n))) (nzToInt (nzPos (dbl n))))
+        (nzToInt (nzPos (dbl n)) * nzToInt (nzPos (dbl n)))
         (unitAddDenU (dbl n)) ⟩ dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))
       ≡⟨ sym
         Int
-        (intMul intOne (dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))))
+        (intOne * dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
         (dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
         (intMulOneL
           (dInt
             (ratAdd
               (unitRat (dbl n))
-              (unitRat
-                (dbl n))))) ⟩ intMul intOne (dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
+              (unitRat (dbl n))))) ⟩ intOne * dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))
       ≡⟨ cong
         Int
         (λw. Int)
-        (λw. intMul w (dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))))
+        (λw. w * dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
         (num (unitRat n))
         intOne
-        (unitNum n) ⟩ intMul (num (unitRat n)) (dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
+        (unitNum n) ⟩ num (unitRat n) * dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))
 
 -- 1/(2n+2) + 1/(2n+2) ~ 1/(n+1): the relation is halfCross, decoded
 def halfRel : (n : ℕ) → Prf (RatR (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) (unitRat n))
@@ -227,37 +215,37 @@ def halfRel : (n : ℕ) → Prf (RatR (ratAdd (unitRat (dbl n)) (unitRat (dbl n)
   λn. halfCross
 
 -- ===== the halving law =====
-def qInvHalf : (n : ℕ) → qAdd (qInvNat (dbl n)) (qInvNat (dbl n)) ≡ qInvNat n
+def qInvHalf : (n : ℕ) → qInvNat (dbl n) + qInvNat (dbl n) ≡ qInvNat n
   using (integer.intOne.eq,
     ratHalf.dbl.eq,
     ratHalf.unitRat.eq,
     rational.mkRat.eq,
     rational.nzPos.eq,
     rational.ratAdd.eq,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qcls.eq,
     real.qInvNat.eq) ≔
   λn. trans
     Q
-    (qAdd (qInvNat (dbl n)) (qInvNat (dbl n)))
+    (qInvNat (dbl n) + qInvNat (dbl n))
     (qcls (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
     (qInvNat n)
     (qAddCls (unitRat (dbl n)) (unitRat (dbl n)))
     (clsEqOfRel (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) (unitRat n) (halfRel n))
 
 -- ===== the halved bound, as an inequality =====
-def leQZeroInvNat : (n : ℕ) → El (LeQ qZero (qInvNat n))
-  using (rationalOrder.LeQ.unfold, rationalOrder.NonNegS.unfold) ≔
+def leQZeroInvNat : (n : ℕ) → El (qZero ≤ qInvNat n)
+  using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λn. leQZeroOfPos (qInvNat n) (qInvNatPos n)
 
 -- 1/(2n+2) ≤ 1/(n+1): the halved bound is at most the original,
 -- because the other half is nonnegative
-def leQInvDbl : (n : ℕ) → El (LeQ (qInvNat (dbl n)) (qInvNat n))
-  using (rationalOrder.LeQ.unfold, rationalOrder.NonNegS.unfold) ≔
+def leQInvDbl : (n : ℕ) → El (qInvNat (dbl n) ≤ qInvNat n)
+  using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λn. transport
     Q
-    (λw. LeQ (qInvNat (dbl n)) w)
-    (qAdd (qInvNat (dbl n)) (qInvNat (dbl n)))
+    (λw. qInvNat (dbl n) ≤ w)
+    (qInvNat (dbl n) + qInvNat (dbl n))
     (qInvNat n)
     (qInvHalf n)
     (leQSelfAdd (qInvNat (dbl n)) (leQZeroInvNat (dbl n)))

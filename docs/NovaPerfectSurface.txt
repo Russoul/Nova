@@ -434,11 +434,40 @@ distinguishes) — a conflict is a load error. Deterministic and
 file-determined throughout: candidates come from the file's imports,
 the fit criterion from the site's own scoped conversion. A run
 without overloads pays one list-membership test per application
-node (dupNames is empty). The corpus migration — renaming the
-arithmetic families (intAdd, qAdd, realAdd, …) to per-module
-operator names so `+` stands for any of ℕ/ℤ/ℚ/ℝ — is the designed
-next step (an AST-level rename transformer, verified by the Σ-gate
-modulo the renaming). GRAMMAR: the ∈-annotation of an equality (type and
+node (dupNames is empty). THE CORPUS OPERATORIZATION (2026-08-20): done, via the general
+`nova rename <root> <out-dir> old=new …` tool (Nova.Rename): an
+AST-level Σ-rename across the closure — definition headers,
+references (bare stays bare, qualified stays qualified),
+using-citations (renamed citations come out fully qualified),
+import opens — verified by acceptance plus kernel-Σ α-comparison
+MODULO THE RENAMING (renameSig applies the map to entry names and
+every SigVar). Renamed: intAdd/qAdd/realAdd → `+` (infixl 6),
+intMul/qMul/realMul → `*` (infixl 7), realSub → `-` (infixl 6),
+LeN/LeZ/LeQ/LeR → `≤` (infixl 4), LtQ/LtR → `<` (infixl 4) — one
+token per concept across ℕ/ℤ/ℚ/ℝ, resolved per site. The corpus
+now reads `(u v : El Q) → u + v ≡ v + u` and
+`El (x ≤ y) → El (y ≤ z) → El (x ≤ z)`.
+
+Performance of resolution, measured and fixed to the cost model
+(the operatorized corpus elaborates at ~7.8s against the ~7s
+un-overloaded baseline; the naive version was 75s):
+
+  * arguments PRE-ELABORATE ONCE per site; candidates are tried on
+    types alone and the winner reuses the work (probing whole
+    argument subtrees per candidate is exponential in nesting);
+  * STAGE-1 QUICK FILTER: argument types match candidate domains
+    under α/comp/licensed-join (the matcher — no engine machinery);
+    a unique survivor commits directly, and the real run's own
+    conversions still verify it. Conversion probes remain as
+    STAGE 2 for ties or an empty filter;
+  * probes set ElabSt.probing: the assume path skips the
+    whole-store hint probe and (on clean runs) the dedup-key
+    rewrite normalization — discarded state is pure counting;
+  * multi-run drivers clear the global name index between runs
+    (clearSigEntryIx): a rename reuses names with changed content,
+    and a stale positive entry would leak the old spelling into the
+    new run — the one cross-run staleness the caches' "Σ only
+    extends" assumption did not cover. GRAMMAR: the ∈-annotation of an equality (type and
 Ω-element forms) and the inline motive of ℕ-elim/⊎-elim/quot-elim
 are OPTIONAL. ELABORATION: an ∈-less equality infers its LEFT side
 for the domain (right as fallback when the left is an intro form —

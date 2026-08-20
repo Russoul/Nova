@@ -4,8 +4,8 @@
 -- the lattice characterisation (least upper bound / greatest lower
 -- bound) with no case analysis beyond the two the definitions make.
 
-import rationalQ (Q, qAdd, qNeg, qZero, qAddComm, qNegNeg)
-import rationalOrder (Sign, sZero, sPos, sNeg, sgnFlip, sgnQ, sgnQNegFlip, sgnCases, NonNegS, LeQ, leQRefl, leQTrans, leQPlusMono, leQAntisym, qSubNeg, qPlusNegCancelR)
+import rationalQ (Q, +, qNeg, qZero, qAddComm, qNegNeg)
+import rationalOrder (Sign, sZero, sPos, sNeg, sgnFlip, sgnQ, sgnQNegFlip, sgnCases, NonNegS, ≤, leQRefl, leQTrans, leQPlusMono, leQAntisym, qSubNeg, qPlusNegCancelR)
 import ratBound (Bnd, bndNeg, bndEq, bndSubSym, bndOfBothLe, leQNegFlip, qSubFlip)
 import ratAbs (sgnQNegOfNeg, leQSubOfLeAdd)
 import ratArch (leQSubShift, leQAddShift)
@@ -13,13 +13,13 @@ import equality (trans, sym, cong, transport)
 import id (Id, eqToId, idToEq)
 
 def qMax : El Q → El Q → El Q using (rationalQ.Q.unfold) ≔
-  λu. λv. ⊎-elim (nn. v) (hn. u) (sgnCases (sgnQ (qAdd v (qNeg u))))
+  λu. λv. ⊎-elim (nn. v) (hn. u) (sgnCases (sgnQ (v + qNeg u)))
 
 -- ===== the lattice characterisation =====
-def leQMaxL : (u v : El Q) → El (LeQ u (qMax u v))
+def leQMaxL : (u v : El Q) → El (u ≤ qMax u v)
   using (id.Id.eq,
     ratMax.qMax.eq,
-    rationalOrder.LeQ.unfold,
+    rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold,
     rationalOrder.Sign.eq,
     rationalOrder.sPos.eq,
@@ -27,19 +27,19 @@ def leQMaxL : (u v : El Q) → El (LeQ u (qMax u v))
     rationalOrder.sgnCases.eq,
     rationalOrder.sgnQ.eq,
     rationalQ.Q.unfold,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qNeg.eq) ≔
-  λu. λv. ⊎-elim (w. El (LeQ u (⊎-elim (nn. v) (hn. u) w)))
+  λu. λv. ⊎-elim (w. El (u ≤ ⊎-elim (nn. v) (hn. u) w))
     (nn. nn)
     (hn. leQRefl u)
-    (sgnCases (sgnQ (qAdd v (qNeg u))))
+    (sgnCases (sgnQ (v + qNeg u)))
 
 -- v < u : the flipped difference is positive, and u − v IS the
 -- negation of v − u
-def leQMaxR : (u v : El Q) → El (LeQ v (qMax u v))
+def leQMaxR : (u v : El Q) → El (v ≤ qMax u v)
   using (id.Id.eq,
     ratMax.qMax.eq,
-    rationalOrder.LeQ.unfold,
+    rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold,
     rationalOrder.Sign.eq,
     rationalOrder.sPos.eq,
@@ -47,26 +47,26 @@ def leQMaxR : (u v : El Q) → El (LeQ v (qMax u v))
     rationalOrder.sgnCases.eq,
     rationalOrder.sgnQ.eq,
     rationalQ.Q.unfold,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qNeg.eq) ≔
-  λu. λv. ⊎-elim (w. El (LeQ v (⊎-elim (nn. v) (hn. u) w)))
+  λu. λv. ⊎-elim (w. El (v ≤ ⊎-elim (nn. v) (hn. u) w))
     (nn. leQRefl v)
     (hn. inj₂ (eqToId
-      (sgnQ (qAdd u (qNeg v)))
+      (sgnQ (u + qNeg v))
       sPos
       (trans
         Sign
-        (sgnQ (qAdd u (qNeg v)))
-        (sgnQ (qNeg (qAdd v (qNeg u))))
+        (sgnQ (u + qNeg v))
+        (sgnQ (qNeg (v + qNeg u)))
         sPos
-        (cong Q (λw. Sign) (λw. sgnQ w) (qAdd u (qNeg v)) (qNeg (qAdd v (qNeg u))) qSubNeg)
+        (cong Q (λw. Sign) (λw. sgnQ w) (u + qNeg v) (qNeg (v + qNeg u)) qSubNeg)
         (sgnQNegOfNeg hn))))
-    (sgnCases (sgnQ (qAdd v (qNeg u))))
+    (sgnCases (sgnQ (v + qNeg u)))
 
-def qMaxLub : {u v w : El Q} → El (LeQ u w) → El (LeQ v w) → El (LeQ (qMax u v) w)
+def qMaxLub : {u v w : El Q} → El (u ≤ w) → El (v ≤ w) → El (qMax u v ≤ w)
   using (id.Id.eq,
     ratMax.qMax.eq,
-    rationalOrder.LeQ.unfold,
+    rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold,
     rationalOrder.Sign.eq,
     rationalOrder.sPos.eq,
@@ -74,25 +74,21 @@ def qMaxLub : {u v w : El Q} → El (LeQ u w) → El (LeQ v w) → El (LeQ (qMax
     rationalOrder.sgnCases.eq,
     rationalOrder.sgnQ.eq,
     rationalQ.Q.unfold,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qNeg.eq) ≔
-  λu. λv. λw. λh1. λh2. ⊎-elim (t. El (LeQ (⊎-elim (nn. v) (hn. u) t) w))
+  λu. λv. λw. λh1. λh2. ⊎-elim (t. El (⊎-elim (nn. v) (hn. u) t ≤ w))
     (nn. h2)
     (hn. h1)
-    (sgnCases (sgnQ (qAdd v (qNeg u))))
+    (sgnCases (sgnQ (v + qNeg u)))
 
 -- ===== Lipschitz =====
 -- a two-sided bound on a difference is a pair of shifted ≤'s
-def leQAddOfBnd : {b u v : El Q} → El (Bnd b (qAdd u (qNeg v))) → El (LeQ u (qAdd v b))
-  using (ratBound.Bnd.unfold, rationalOrder.LeQ.unfold, rationalOrder.NonNegS.unfold) ≔
+def leQAddOfBnd : {b u v : El Q} → El (Bnd b (u + qNeg v)) → El (u ≤ v + b)
+  using (ratBound.Bnd.unfold, rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λb. λu. λv. λh. leQAddShift u (h .π₂)
 
 def bndMaxSub : (b a c a' c' : El Q)
-  → El (Bnd
-    b
-    (qAdd
-      a
-      (qNeg c))) → El (Bnd b (qAdd a' (qNeg c'))) → El (Bnd b (qAdd (qMax a a') (qNeg (qMax c c'))))
+  → El (Bnd b (a + qNeg c)) → El (Bnd b (a' + qNeg c')) → El (Bnd b (qMax a a' + qNeg (qMax c c')))
   using (ratBound.Bnd.unfold) ≔
   λb. λa. λc. λa'. λc'. λh1. λh2. bndOfBothLe
     (qMax a a')
@@ -101,27 +97,22 @@ def bndMaxSub : (b a c a' c' : El Q)
       (qMax a a')
       (qMax c c')
       (qMaxLub
-        (leQTrans a (qAdd c b) (qAdd (qMax c c') b) (leQAddOfBnd h1) (leQPlusMono b (leQMaxL c c')))
-        (leQTrans
-          a'
-          (qAdd c' b)
-          (qAdd (qMax c c') b)
-          (leQAddOfBnd h2)
-          (leQPlusMono b (leQMaxR c c')))))
+        (leQTrans a (c + b) (qMax c c' + b) (leQAddOfBnd h1) (leQPlusMono b (leQMaxL c c')))
+        (leQTrans a' (c' + b) (qMax c c' + b) (leQAddOfBnd h2) (leQPlusMono b (leQMaxR c c')))))
     (leQSubShift
       (qMax c c')
       (qMax a a')
       (qMaxLub
         (leQTrans
           c
-          (qAdd a b)
-          (qAdd (qMax a a') b)
+          (a + b)
+          (qMax a a' + b)
           (leQAddOfBnd (bndSubSym b a c h1))
           (leQPlusMono b (leQMaxL a a')))
         (leQTrans
           c'
-          (qAdd a' b)
-          (qAdd (qMax a a') b)
+          (a' + b)
+          (qMax a a' + b)
           (leQAddOfBnd (bndSubSym b a' c' h2))
           (leQPlusMono b (leQMaxR a a')))))
 
@@ -134,64 +125,64 @@ def qMaxComm : (u v : El Q) → qMax u v ≡ qMax v u ≔
 -- ===== the dual =====
 def qMin : El Q → El Q → El Q using (rationalQ.Q.unfold) ≔ λu. λv. qNeg (qMax (qNeg u) (qNeg v))
 
-def leQMinL : (u v : El Q) → El (LeQ (qMin u v) u)
+def leQMinL : (u v : El Q) → El (qMin u v ≤ u)
   using (id.Id.eq,
     ratMax.qMax.eq,
     ratMax.qMin.eq,
-    rationalOrder.LeQ.unfold,
+    rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold,
     rationalOrder.Sign.eq,
     rationalOrder.sPos.eq,
     rationalOrder.sZero.eq,
     rationalOrder.sgnQ.eq,
     rationalQ.Q.unfold,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qNeg.eq) ≔
   λu. λv. transport
     Q
-    (λw. LeQ (qMin u v) w)
+    (λw. qMin u v ≤ w)
     (qNeg (qNeg u))
     u
     (qNegNeg u)
     (leQNegFlip (qNeg u) (qMax (qNeg u) (qNeg v)) (leQMaxL (qNeg u) (qNeg v)))
 
-def leQMinR : (u v : El Q) → El (LeQ (qMin u v) v)
+def leQMinR : (u v : El Q) → El (qMin u v ≤ v)
   using (id.Id.eq,
     ratMax.qMax.eq,
     ratMax.qMin.eq,
-    rationalOrder.LeQ.unfold,
+    rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold,
     rationalOrder.Sign.eq,
     rationalOrder.sPos.eq,
     rationalOrder.sZero.eq,
     rationalOrder.sgnQ.eq,
     rationalQ.Q.unfold,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qNeg.eq) ≔
   λu. λv. transport
     Q
-    (λw. LeQ (qMin u v) w)
+    (λw. qMin u v ≤ w)
     (qNeg (qNeg v))
     v
     (qNegNeg v)
     (leQNegFlip (qNeg v) (qMax (qNeg u) (qNeg v)) (leQMaxR (qNeg u) (qNeg v)))
 
-def qMinGlb : {u v w : El Q} → El (LeQ w u) → El (LeQ w v) → El (LeQ w (qMin u v))
+def qMinGlb : {u v w : El Q} → El (w ≤ u) → El (w ≤ v) → El (w ≤ qMin u v)
   using (id.Id.eq,
     ratMax.qMax.eq,
     ratMax.qMin.eq,
-    rationalOrder.LeQ.unfold,
+    rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold,
     rationalOrder.Sign.eq,
     rationalOrder.sPos.eq,
     rationalOrder.sZero.eq,
     rationalOrder.sgnQ.eq,
     rationalQ.Q.unfold,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qNeg.eq) ≔
   λu. λv. λw. λh1. λh2. transport
     Q
-    (λt. LeQ t (qMin u v))
+    (λt. t ≤ qMin u v)
     (qNeg (qNeg w))
     w
     (qNegNeg w)
@@ -208,47 +199,43 @@ def qMinComm : (u v : El Q) → qMin u v ≡ qMin v u
     (qMaxComm (qNeg u) (qNeg v))
 
 -- (−a) − (−c) ≡ c − a : the difference of negations is reversed
-def qNegDiff : (a c : El Q) → qAdd (qNeg a) (qNeg (qNeg c)) ≡ qAdd c (qNeg a) ≔
+def qNegDiff : (a c : El Q) → qNeg a + qNeg (qNeg c) ≡ c + qNeg a ≔
   λa. λc. trans
     Q
-    (qAdd (qNeg a) (qNeg (qNeg c)))
-    (qAdd (qNeg a) c)
-    (qAdd c (qNeg a))
-    (cong Q (λw. Q) (λw. qAdd (qNeg a) w) (qNeg (qNeg c)) c (qNegNeg c))
+    (qNeg a + qNeg (qNeg c))
+    (qNeg a + c)
+    (c + qNeg a)
+    (cong Q (λw. Q) (λw. qNeg a + w) (qNeg (qNeg c)) c (qNegNeg c))
     (qAddComm (qNeg a) c)
 
 -- min is 1-Lipschitz because max is: the negations cancel
 def bndMinSub : (b a c a' c' : El Q)
-  → El (Bnd
-    b
-    (qAdd
-      a
-      (qNeg c))) → El (Bnd b (qAdd a' (qNeg c'))) → El (Bnd b (qAdd (qMin a a') (qNeg (qMin c c'))))
+  → El (Bnd b (a + qNeg c)) → El (Bnd b (a' + qNeg c')) → El (Bnd b (qMin a a' + qNeg (qMin c c')))
   using (ratBound.Bnd.unfold,
     ratMax.qMax.eq,
     ratMax.qMin.eq,
-    rationalOrder.LeQ.unfold,
+    rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold,
     rationalQ.Q.unfold,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qNeg.eq) ≔
   λb. λa. λc. λa'. λc'. λh1. λh2. bndEq
-    (qNeg (qAdd (qMax (qNeg a) (qNeg a')) (qNeg (qMax (qNeg c) (qNeg c')))))
-    (qAdd (qMin a a') (qNeg (qMin c c')))
+    (qNeg (qMax (qNeg a) (qNeg a') + qNeg (qMax (qNeg c) (qNeg c'))))
+    (qMin a a' + qNeg (qMin c c'))
     (trans
       Q
-      (qNeg (qAdd (qMax (qNeg a) (qNeg a')) (qNeg (qMax (qNeg c) (qNeg c')))))
-      (qAdd (qMax (qNeg c) (qNeg c')) (qNeg (qMax (qNeg a) (qNeg a'))))
-      (qAdd (qNeg (qMax (qNeg a) (qNeg a'))) (qNeg (qNeg (qMax (qNeg c) (qNeg c')))))
+      (qNeg (qMax (qNeg a) (qNeg a') + qNeg (qMax (qNeg c) (qNeg c'))))
+      (qMax (qNeg c) (qNeg c') + qNeg (qMax (qNeg a) (qNeg a')))
+      (qNeg (qMax (qNeg a) (qNeg a')) + qNeg (qNeg (qMax (qNeg c) (qNeg c'))))
       (qSubFlip (qMax (qNeg a) (qNeg a')) (qMax (qNeg c) (qNeg c')))
       (sym
         Q
-        (qAdd (qNeg (qMax (qNeg a) (qNeg a'))) (qNeg (qNeg (qMax (qNeg c) (qNeg c')))))
-        (qAdd (qMax (qNeg c) (qNeg c')) (qNeg (qMax (qNeg a) (qNeg a'))))
+        (qNeg (qMax (qNeg a) (qNeg a')) + qNeg (qNeg (qMax (qNeg c) (qNeg c'))))
+        (qMax (qNeg c) (qNeg c') + qNeg (qMax (qNeg a) (qNeg a')))
         (qNegDiff (qMax (qNeg a) (qNeg a')) (qMax (qNeg c) (qNeg c')))))
     (bndNeg
       b
-      (qAdd (qMax (qNeg a) (qNeg a')) (qNeg (qMax (qNeg c) (qNeg c'))))
+      (qMax (qNeg a) (qNeg a') + qNeg (qMax (qNeg c) (qNeg c')))
       (bndMaxSub
         b
         (qNeg a)
@@ -256,26 +243,25 @@ def bndMinSub : (b a c a' c' : El Q)
         (qNeg a')
         (qNeg c')
         (bndEq
-          (qAdd c (qNeg a))
-          (qAdd (qNeg a) (qNeg (qNeg c)))
-          (sym Q (qAdd (qNeg a) (qNeg (qNeg c))) (qAdd c (qNeg a)) (qNegDiff a c))
+          (c + qNeg a)
+          (qNeg a + qNeg (qNeg c))
+          (sym Q (qNeg a + qNeg (qNeg c)) (c + qNeg a) (qNegDiff a c))
           (bndSubSym b a c h1))
         (bndEq
-          (qAdd c' (qNeg a'))
-          (qAdd (qNeg a') (qNeg (qNeg c')))
-          (sym Q (qAdd (qNeg a') (qNeg (qNeg c'))) (qAdd c' (qNeg a')) (qNegDiff a' c'))
+          (c' + qNeg a')
+          (qNeg a' + qNeg (qNeg c'))
+          (sym Q (qNeg a' + qNeg (qNeg c')) (c' + qNeg a') (qNegDiff a' c'))
           (bndSubSym b a' c' h2))))
 
 -- a shifted greatest-lower-bound: w ≤ a + r and w ≤ b + r give
 -- w ≤ min a b + r. (The max side needs no such lemma — qMaxLub's
 -- target is already an upper bound.)
-def qMinGlbShift : (a b w r : El Q)
-  → El (LeQ w (qAdd a r)) → El (LeQ w (qAdd b r)) → El (LeQ w (qAdd (qMin a b) r))
-  using (rationalOrder.LeQ.unfold, rationalOrder.NonNegS.unfold) ≔
+def qMinGlbShift : (a b w r : El Q) → El (w ≤ a + r) → El (w ≤ b + r) → El (w ≤ qMin a b + r)
+  using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λa. λb. λw. λr. λh1. λh2. transport
     Q
-    (λt. LeQ t (qAdd (qMin a b) r))
-    (qAdd (qAdd w (qNeg r)) r)
+    (λt. t ≤ qMin a b + r)
+    (w + qNeg r + r)
     w
     (qPlusNegCancelR w r)
     (leQPlusMono r (qMinGlb (leQSubOfLeAdd h1) (leQSubOfLeAdd h2)))

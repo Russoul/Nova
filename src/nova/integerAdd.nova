@@ -64,12 +64,12 @@ def intAddWDOuter : (a b : ℕ ⨯ ℕ)
     (c. ⋆)
     zy
 
-def intAdd : El Int → El Int → El Int
-  using (intAddWD, intAddWDOuter, integer.Int.unfold, plusAssoc) ≔
+infixl 6 +
+def + : El Int → El Int → El Int using (intAddWD, intAddWDOuter, integer.Int.unfold, plusAssoc) ≔
   λzx. λzy. quot-elim (a. quot-elim (b. class (a .π₁ + b .π₁, a .π₂ + b .π₂)) zy) zx
 
-def intAddTest : intAdd (class (Z, Z)) (class (S Z, S Z)) ≡ class (S Z, S Z)
-  using (integer.Int.unfold, integerAdd.intAdd.eq) ≔
+def intAddTest : class (Z, Z) + class (S Z, S Z) ≡ class (S Z, S Z)
+  using (integer.Int.unfold, integerAdd.+.eq) ≔
   ⋆
 
 -- ===== the algebra =====
@@ -83,10 +83,10 @@ def crossComm : (x y z w : ℕ) → x + y + (z + w) ≡ w + z + (y + x) ≔
 
 -- commutativity: two quotient eliminations at ≡-motives reduce to the
 -- representative-level cross-sum permutation
-def intAddComm : (x y : El Int) → intAdd x y ≡ intAdd y x
+def intAddComm : (x y : El Int) → x + y ≡ y + x
   using (crossComm,
     integer.Int.unfold,
-    integerAdd.intAdd.eq,
+    integerAdd.+.eq,
     nat.swapMid,
     plusAssoc,
     plusComm,
@@ -95,6 +95,6 @@ def intAddComm : (x y : El Int) → intAdd x y ≡ intAdd y x
 
 -- associativity: three eliminations; the representatives reassociate
 -- by plusAssoc and close by commutativity of the cross sum
-def intAddAssoc : (x y z : El Int) → intAdd (intAdd x y) z ≡ intAdd x (intAdd y z)
-  using (hyp.rw, intAdd.eq, integer.Int.eq, integer.Int.unfold, plusAssoc, plusAssoc.rw) ≔
+def intAddAssoc : (x y z : El Int) → x + y + z ≡ x + (y + z)
+  using (hyp.rw, integerAdd.+.eq, integer.Int.eq, integer.Int.unfold, plusAssoc, plusAssoc.rw) ≔
   λx. λy. λz. quot-elim (a. quot-elim (b. quot-elim (c. ⋆) z) y) x

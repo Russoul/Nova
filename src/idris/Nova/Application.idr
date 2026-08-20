@@ -1,6 +1,8 @@
 module Nova.Application
 
 import Data.List
+import Data.List1
+import Data.Maybe
 import Data.String
 
 import Nova.Distill
@@ -9,6 +11,7 @@ import Nova.Implicitize
 import Nova.Kernel.Syntax
 import Nova.Profile
 import Nova.Recovery
+import Nova.Rename
 import System
 import System.File
 
@@ -71,6 +74,14 @@ main = do
       case result of
         Left err  => do putStrLn "Error: \{err}"; exitFailure
         Right sig => putStrLn (surveyReport sig)
+    (_ :: "rename" :: surfaceFile :: outDir :: pairs@(_ :: _)) => do
+      let rm = mapMaybe (\p => case forget (split (== '=') p) of
+                                  [old, new] => Just (old, new)
+                                  _ => Nothing) pairs
+      result <- renamePath surfaceFile outDir rm
+      case result of
+        Left err  => do putStrLn "Error: \{err}"; exitFailure
+        Right msg => putStrLn msg
     (_ :: "implicitize" :: surfaceFile :: outDir :: []) => do
       result <- implicitizePath surfaceFile outDir
       case result of

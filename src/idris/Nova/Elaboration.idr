@@ -226,6 +226,11 @@ record ElabSt where
   ||| elision map
   svSugarOn : Bool
   svSugar : SnocList (String, Range, Bool)
+  ||| inside an overload PROBE: state is discarded and the verdict is
+  ||| the obligation delta alone, so the expensive per-assume work —
+  ||| the whole-store hint probe, rewrite normalization of the keys —
+  ||| is skipped
+  probing : Bool
   ||| surface names visible with TWO OR MORE distinct Σ targets — the
   ||| OVERLOADED names (docs/NovaPerfectSurface.txt, Phase 4:
   ||| operator overloading). A reference to one resolves
@@ -235,7 +240,7 @@ record ElabSt where
   dupNames : List String
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] "" "" [<] Nothing [] [] Nothing [] False [<] False [<] []
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] "" "" [<] Nothing [] [] Nothing [] False [<] False [<] False []
 
 ||| Is the surface term an INFERENCE form — its type known without an
 ||| expected type? Mirrors the mode inventory
@@ -259,6 +264,11 @@ sInferForm e = case e of
   SCorec _ _ _ _ => False
   SZeroElim _ => False
   SImpArg _ => False
+  -- a motive-less eliminator is CHECKING-ONLY (Phase 4): its motive
+  -- comes from the expected type
+  SNatElim Nothing _ _ _ _ _ => False
+  SSumElim Nothing _ _ _ _ _ => False
+  SQuotElim Nothing _ _ _ => False
   _ => True
 
 ||| Resolve a surface signature reference: aliases first (own module,
@@ -298,7 +308,7 @@ runElabM (MkElabM f) = f
 ||| and a failure becomes Nothing — the sugar trial's probe (an extra
 ||| inference whose effects must not leak into the run).
 probeM : ElabM a -> ElabM (Maybe a)
-probeM act = MkElabM $ \st => case runElabM act st of
+probeM act = MkElabM $ \st => case runElabM act ({ probing := True } st) of
   Left _ => Right (st, Nothing)
   Right (_, x) => Right (st, Just x)
 
@@ -2598,25 +2608,37 @@ hintT st ctx x y = lemmaHint <|> eqHint
 assume : Stmt -> String -> Maybe Stmt -> ElabM ()
 assume stmt site comp = do
   st <- getSt
+  -- inside an overload PROBE with no standing assumptions (the clean
+  -- run's invariant), the record is pure counting: state is
+  -- discarded, dedup cannot fire on empty lists, and neither the
+  -- rewrite-normalized keys nor the hint are ever read — skip them
+  let cheap = st.probing && null st.assumedE && null st.assumedT
   case stmt of
     StElem ctx env a b ty => do
-      if assumedMatchE st ctx a b ty
+      if cheap
+        then modifySt $ { sig $= (:< SigEq ctx a b ty)
+                        , oblMeta $= (:< MkOblMeta env site comp Nothing) }
+        else if assumedMatchE st ctx a b ty
         then pure ()
         else modifySt $ \s =>
           let aK = rwNfElem st ctx a
               bK = rwNfElem st ctx b in
           { assumedE $= ((elemSize aK + elemSize bK, ctx, aK, bK, engNfT st ty) ::)
           , sig $= (:< SigEq ctx a b ty)
-          , oblMeta $= (:< MkOblMeta env site comp (hintOf st <|> blockedHint ())) } s
+          , oblMeta $= (:< MkOblMeta env site comp (if st.probing then Nothing else hintOf st <|> blockedHint ())) } s
     StTy ctx env x y => do
-      let x' = rwNfTy st ctx x
-          y' = rwNfTy st ctx y
-      if any (\(c, u, v) => c == ctx && ((u == x' && v == y') || (u == y' && v == x'))) st.assumedT
+      if cheap
+        then modifySt $ { sig $= (:< SigTyEq ctx x y)
+                        , oblMeta $= (:< MkOblMeta env site comp Nothing) }
+        else do
+       let x' = rwNfTy st ctx x
+       let y' = rwNfTy st ctx y
+       if any (\(c, u, v) => c == ctx && ((u == x' && v == y') || (u == y' && v == x'))) st.assumedT
         then pure ()
         else modifySt $ \s =>
           { assumedT $= ((ctx, x', y') ::)
           , sig $= (:< SigTyEq ctx x y)
-          , oblMeta $= (:< MkOblMeta env site comp (hintOf st <|> blockedHint ())) } s
+          , oblMeta $= (:< MkOblMeta env site comp (if st.probing then Nothing else hintOf st <|> blockedHint ())) } s
  where
   hintFor : ElabSt -> Stmt -> Maybe String
   hintFor st (StElem ctx _ a b ty) = hintE st ctx a b ty
@@ -3877,23 +3899,76 @@ mutual
   resolveOverload : Ctx -> NameEnv -> String -> Maybe Ty -> (x0 : String) ->
                     Maybe Range -> List SElem -> List String -> ElabM (Elem, Ty, Skel)
   resolveOverload ctx env site mexp x0 mrng items cands0 = do
+    -- pre-elaborate the INFERENCE-FORM arguments once — candidates
+    -- are then tried on TYPES alone and the winner reuses the work,
+    -- so nested overloaded spines stay LINEAR (probing whole
+    -- argument subtrees per candidate would be exponential in
+    -- nesting depth). Intro-form arguments and overrides defer to
+    -- the winner (their elaboration needs its domains).
+    pres <- traverse (\it => case it of
+              SImpArg _ => pure Nothing
+              _ => if sInferForm it
+                     then map Just (inferElem ctx env site it)
+                     else pure Nothing) items
     let cands = nub cands0
-    verdicts <- traverse (\q => map (\v => (q, v)) (probeFit q)) cands
-    let fits = map fst (filter (\(_, v) => v == Just 0) verdicts)
-    case fits of
-      [q] => run q
-      [] => throw ("\{site}: no visible '\{x0}' fits here without assumptions " ++
-                   "(candidates: \{joinBy ", " cands}) — qualify one, e.g. the mention form")
-      qs => throw ("\{site}: '\{x0}' is ambiguous here — \{joinBy ", " qs} all fit; " ++
-                   "qualify one, e.g. the mention form")
+    -- STAGE 1, the quick filter: match the pre-elaborated argument
+    -- types against each candidate's domains (α, δ-free comp, the
+    -- site's licensed join — the matcher, no engine machinery). A
+    -- unique survivor commits directly — the real run's own
+    -- conversions still verify it. STAGE 2 (ties, or an empty
+    -- filter): the obligation-free conversion probes.
+    st <- getSt
+    let jn = \t => compTy (unfTy st.sig st.eqScope t)
+    let quick = filter (quickFit st jn pres) cands
+    case quick of
+      [q] => run pres q
+      survivors => do
+        let pool = case survivors of
+                     [] => cands
+                     _ => survivors
+        verdicts <- traverse (\q => map (\v => (q, v)) (probeFit pres q)) pool
+        let fits = map fst (filter (\(_, v) => v == Just 0) verdicts)
+        case fits of
+          [q] => run pres q
+          [] => throw ("\{site}: no visible '\{x0}' fits here without assumptions " ++
+                       "(candidates: \{joinBy ", " cands}) — qualify one, e.g. the mention form")
+          qs => throw ("\{site}: '\{x0}' is ambiguous here — \{joinBy ", " qs} all fit; " ++
+                       "qualify one, e.g. the mention form")
    where
-    run : String -> ElabM (Elem, Ty, Skel)
-    run q = elabImpSpine ctx env site mexp (isJust mexp) q x0 mrng items
+    matches3 : (Ty -> Ty) -> Ty -> Ty -> Bool
+    matches3 jn pat g =
+      isJust (mTy 0 pat g []) ||
+      isJust (mTy 0 (compTy pat) (compTy g) []) ||
+      isJust (mTy 0 (jn pat) (jn g) [])
 
-    probeFit : String -> ElabM (Maybe Nat)
-    probeFit q = probeM $ do
+    argsMatch : (Ty -> Ty) -> List Ty -> List (Maybe (Elem, Ty, Skel)) -> Bool
+    argsMatch jn doms pres = go 0 doms pres
+     where
+      go : Nat -> List Ty -> List (Maybe (Elem, Ty, Skel)) -> Bool
+      go i _ [] = True
+      go i [] _ = True
+      go i (d :: ds) (p :: ps) =
+        let pat = substTy d (prefixSub (map (\k => holeE (2000000 + k)) [0 .. i]))
+            ok = case p of
+                   Nothing => True
+                   Just (_, ty, _) => matches3 jn pat ty
+        in ok && go (S i) ds ps
+
+    quickFit : ElabSt -> (Ty -> Ty) -> List (Maybe (Elem, Ty, Skel)) -> String -> Bool
+    quickFit st jn pres q =
+      case cachedSigLookup st.sig q of
+        Just (SigDef [<] _ _ ty) => argsMatch jn (fst (teleOf ty)) pres
+        Just (SigDecl [<] _ ty) => argsMatch jn (fst (teleOf ty)) pres
+        _ => True   -- let the conversion probes judge the unusual
+
+
+    run : List (Maybe (Elem, Ty, Skel)) -> String -> ElabM (Elem, Ty, Skel)
+    run pres q = elabImpSpineP pres ctx env site mexp (isJust mexp) q x0 mrng items
+
+    probeFit : List (Maybe (Elem, Ty, Skel)) -> String -> ElabM (Maybe Nat)
+    probeFit pres q = probeM $ do
       before <- oblCount
-      (_, ty', _) <- run q
+      (_, ty', _) <- run pres q
       case mexp of
         Just c => ignore (convTy ctx env "\{site}: overload fit" Nothing ty' c)
         Nothing => pure ()
@@ -3933,7 +4008,17 @@ mutual
   elabImpSpine : Ctx -> NameEnv -> String -> Maybe Ty -> (insertTrailing : Bool) ->
                  (q : String) -> (x0 : String) -> Maybe Range -> List SElem ->
                  ElabM (Elem, Ty, Skel)
-  elabImpSpine ctx env site mexp insertTrailing q x0 mrng items = do
+  elabImpSpine = elabImpSpineP []
+
+  ||| elabImpSpine with PRE-ELABORATED arguments (overload
+  ||| resolution): `pres` aligns with the written items — a Just is
+  ||| an argument already elaborated once at the site, consumed by
+  ||| the walk instead of re-elaborating.
+  elabImpSpineP : List (Maybe (Elem, Ty, Skel)) ->
+                 Ctx -> NameEnv -> String -> Maybe Ty -> (insertTrailing : Bool) ->
+                 (q : String) -> (x0 : String) -> Maybe Range -> List SElem ->
+                 ElabM (Elem, Ty, Skel)
+  elabImpSpineP presIn ctx env site mexp insertTrailing q x0 mrng items = do
     st <- getSt
     defTy <- case cachedSigLookup st.sig q of
       Just (SigDef [<] _ _ ty) => pure ty
@@ -3962,7 +4047,7 @@ mutual
                   Just c => matchTy jn (substTy tailTy (prefixSub patArgs)) c
     -- phase 1: walk the written spine left to right, solving from
     -- inference-form arguments as they elaborate
-    (sols, revArgs, revSks, pending, srcs) <- walk jn st.impTrialOn doms slots sols0 [] [] [] []
+    (sols, revArgs, revSks, pending, srcs) <- walk presIn jn st.impTrialOn doms slots sols0 [] [] [] []
     -- resolve every inserted hole; unsolved is a structural error
     finalArgs <- traverse (\(pos, arg) =>
                     if hasHolesE arg
@@ -4075,41 +4160,60 @@ mutual
     ||| domain still carries holes must INFER, its type feeding the
     ||| matcher, its domain conversion deferred to the final
     ||| instantiation.
-    walk : (jn : Ty -> Ty) -> (trialOn : Bool) -> List Ty -> List (Nat, Maybe SElem) -> Sols ->
+    walk : List (Maybe (Elem, Ty, Skel)) ->
+           (jn : Ty -> Ty) -> (trialOn : Bool) -> List Ty -> List (Nat, Maybe SElem) -> Sols ->
            List Elem -> List Skel -> List (Nat, Ty) -> List (Nat, Ty) ->
            ElabM (Sols, List Elem, List Skel, List (Nat, Ty), List (Nat, Ty))
-    walk jn trialOn doms [] sols revArgs revSks pending srcs =
+    walk pres jn trialOn doms [] sols revArgs revSks pending srcs =
       pure (sols, revArgs, revSks, pending, srcs)
-    walk jn trialOn doms ((pos, mt) :: rest) sols revArgs revSks pending srcs = case mt of
+    walk pres jn trialOn doms ((pos, mt) :: rest) sols revArgs revSks pending srcs = case mt of
       Nothing =>
         let arg = fromMaybe (holeE pos) (lookup pos sols) in
-        walk jn trialOn doms rest sols (arg :: revArgs) (Nd [] [] :: revSks) pending srcs
+        walk pres jn trialOn doms rest sols (arg :: revArgs) (Nd [] [] :: revSks) pending srcs
       Just surfE => do
+        let (pre, pres') = the (Maybe (Elem, Ty, Skel), List (Maybe (Elem, Ty, Skel))) $
+                             case pres of
+                               (p :: ps) => (p, ps)
+                               [] => (Nothing, [])
         dInst <- case getAt pos doms of
                    Just d => pure (substTy d (prefixSub (reverse revArgs)))
                    Nothing => throw "\{site}: internal — slot beyond the telescope"
-        if hasHolesT dInst
-          then do
-            (e', eTy, eSk) <- inferElem ctx env site surfE
-            let sols2 = case mTy 0 dInst eTy sols of
-                          Just s => s
-                          Nothing => case mTy 0 (compTy dInst) (compTy eTy) sols of
-                            Just s => s
-                            Nothing => fromMaybe sols (mTy 0 (jn dInst) (jn eTy) sols)
-            walk jn trialOn doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending) srcs
-          else if trialOn && sInferForm surfE
-            then do
-              -- the trial needs the argument's inferred type; for an
-              -- inference form this route is EXACTLY what checkElem's
-              -- e-switch fallback does internally — same conversion,
-              -- same certificate placement
-              (e', eTy, eSk) <- inferElem ctx env site surfE
-              c <- convTy ctx env "\{site}: inferred vs expected type" Nothing eTy dInst
-              let eSk' = addPayload (PSwitch (certOr c)) eSk
-              walk jn trialOn doms rest sols (e' :: revArgs) (eSk' :: revSks) pending ((pos, eTy) :: srcs)
-            else do
-              (e', eSk) <- checkElem ctx env site surfE dInst
-              walk jn trialOn doms rest sols (e' :: revArgs) (eSk :: revSks) pending srcs
+        case pre of
+          -- a PRE-ELABORATED argument (overload resolution): use its
+          -- inferred type, defer the domain conversion like the
+          -- hole-bearing route (the domain may still carry holes)
+          Just (e', eTy, eSk) => do
+            let sols2 = if hasHolesT dInst
+                          then case mTy 0 dInst eTy sols of
+                                 Just s => s
+                                 Nothing => case mTy 0 (compTy dInst) (compTy eTy) sols of
+                                   Just s => s
+                                   Nothing => fromMaybe sols (mTy 0 (jn dInst) (jn eTy) sols)
+                          else sols
+            walk pres' jn trialOn doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending) srcs
+          Nothing =>
+            if hasHolesT dInst
+              then do
+                (e', eTy, eSk) <- inferElem ctx env site surfE
+                let sols2 = case mTy 0 dInst eTy sols of
+                              Just s => s
+                              Nothing => case mTy 0 (compTy dInst) (compTy eTy) sols of
+                                Just s => s
+                                Nothing => fromMaybe sols (mTy 0 (jn dInst) (jn eTy) sols)
+                walk pres' jn trialOn doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending) srcs
+              else if trialOn && sInferForm surfE
+                then do
+                  -- the trial needs the argument's inferred type; for an
+                  -- inference form this route is EXACTLY what checkElem's
+                  -- e-switch fallback does internally — same conversion,
+                  -- same certificate placement
+                  (e', eTy, eSk) <- inferElem ctx env site surfE
+                  c <- convTy ctx env "\{site}: inferred vs expected type" Nothing eTy dInst
+                  let eSk' = addPayload (PSwitch (certOr c)) eSk
+                  walk pres' jn trialOn doms rest sols (e' :: revArgs) (eSk' :: revSks) pending ((pos, eTy) :: srcs)
+                else do
+                  (e', eSk) <- checkElem ctx env site surfE dInst
+                  walk pres' jn trialOn doms rest sols (e' :: revArgs) (eSk :: revSks) pending srcs
 
     ||| The hypothetical elided solve, replaying `walk`'s discipline
     ||| over the recorded sources: at an implicit position the entry
