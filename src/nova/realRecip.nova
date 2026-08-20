@@ -491,7 +491,7 @@ def recipPayloadConst : (x : El Real)
       (reqOfClassEq (trans _ _ _ (posRepEq _ d) (sym _ _ (posRepEq _ d')))))
 
 def realRecip : (x : El Real) → El (PosR x) → El Real using (PosR.eq) ≔
-  λx. λw. brElim _ (recipFromPayload x) (recipPayloadConst x) w
+  λx. λw. brElim (recipFromPayload x) (recipPayloadConst x) w
 
 def realRecipRep : (x : El Real)
   (d : El (PosPayload x))

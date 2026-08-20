@@ -50,7 +50,7 @@ def leTrans : (a b c : ℕ) → El (a ≤ b) → El (b ≤ c) → El (a ≤ c)
 
 -- a summand of zero is zero (both sides)
 def sumZeroR : (x y : ℕ) → (x + y ≡ Z) → y ≡ Z using (nat.plusSucId) ≔
-  λx. λy. ℕ-elim (λh. ⋆) (j ih. λh. 𝟘-elim (zNotS (x + j) (sym (x + S j) _ h))) y
+  λx. λy. ℕ-elim (λh. ⋆) (j ih. λh. 𝟘-elim (zNotS {x + j} (sym (x + S j) _ h))) y
 
 def sumZeroL : (x y : ℕ) → (x + y ≡ Z) → x ≡ Z ≔
   λx. λy. λh. sumZeroR _ _ (trans _ _ _ (plusComm x y) h)

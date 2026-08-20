@@ -62,7 +62,6 @@ def nzOfPair : (a b : ℕ)
     (k ih. λb. ℕ-elim
       (λhab. λhnz. ⋆ (nzPos k, ⋆))
       (j ihb. λhab. λhnz. 𝟘-elim (zNotS
-        _
         (trans _ _ _ (sym _ _ hab) (trans _ _ _ (multSucId (S k) j) (sucPlus k (S k * j))))))
       b)
     a

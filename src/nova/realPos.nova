@@ -98,7 +98,6 @@ def posBoundRep : (x : El Real)
 def posToLt : (x : El Real) → El (PosR x) → Prf (realZero < x)
   using (PosPayload.unfold, PosR.eq, posK.eq) ≔
   λx. λw. squash-elim (brToSquash
-    _
     w) (d. ltROf
     _
     _

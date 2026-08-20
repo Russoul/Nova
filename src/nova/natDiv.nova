@@ -48,14 +48,14 @@ def leOfMonusZero : {a b : ℕ} → (a ∸ b ≡ Z) → El (a ≤ b)
   λa. ℕ-elim
     (λb. λh. leZero _)
     (a' ih. λb. ℕ-elim
-      (λh. 𝟘-elim (zNotS _ (sym (S a') Z h)))
+      (λh. 𝟘-elim (zNotS (sym (S a') Z h)))
       (b' rec. λh. leSucMono (ih b' (trans _ _ _ (sym _ _ (sucMonusSuc a' b')) h)))
       b)
     a
 
 def ltOfMonusSuc : {a b : ℕ} (m : ℕ) → (a ∸ b ≡ S m) → El (S b ≤ a) using (natOrder.≤.unfold) ≔
   λa. ℕ-elim
-    (λb. λm. λh. 𝟘-elim (zNotS _ (trans _ _ _ (sym _ _ (zeroMonus b)) h)))
+    (λb. λm. λh. 𝟘-elim (zNotS (trans _ _ _ (sym _ _ (zeroMonus b)) h)))
     (a' ih. λb. ℕ-elim
       (λm. λh. leSucMono (leZero a'))
       (b' rec. λm. λh. leSucMono (ih b' m (trans _ _ _ (sym _ _ (sucMonusSuc a' b')) h)))
@@ -192,7 +192,6 @@ def modTest : modN 7 (S Z) ≡ S Z
 def leSucNotSelf : (a : ℕ) → El (S a ≤ a) → 𝟘
   using (id.Id.unfold, nat.plusSucId, natOrder.≤.unfold) ≔
   λa. λle. zNotS
-    _
     (sym
       _
       _
