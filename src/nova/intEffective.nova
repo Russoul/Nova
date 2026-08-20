@@ -21,7 +21,7 @@ def cancelStep : {a b c d e f : ℕ}
   λa. λb. λc. λd. λe. λf. λh1. λh2. trans
     _
     _
-    (a + d + (c + f))
+    _
     _
     swapMid
     (trans
@@ -36,7 +36,7 @@ def cancelStep : {a b c d e f : ℕ}
         _
         _
         (plusCongR (b + c) h2)
-        (trans ℕ (b + c + (d + e)) (b + e + (d + c)) _ swapMid (plusCongR (b + e) (plusComm c d)))))
+        (trans _ (b + c + (d + e)) _ _ swapMid (plusCongR (b + e) (plusComm c d)))))
 
 def cancelTrans : {a b : ℕ} (c d : ℕ) {e f : ℕ} → (a + d ≡ b + c) → (c + f ≡ d + e) → a + f ≡ b + e
   using (nat.plusAssoc) ≔

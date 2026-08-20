@@ -148,11 +148,8 @@ def normPairWD : (a b c d : ℕ) (h : Prf (a + d ≡ b + c)) → normPair a b �
         _
         (sym _ _ _ (normPairLeftZ b c))
         (cong
-          _
           (λu. ℕ ⨯ ℕ)
           (λx. normPair c x)
-          _
-          _
           (sym _ _ _ (trans _ _ _ _ (sym _ _ _ (zeroPlusId d)) h)))))
     (a' ih. λb. ℕ-elim
       (λc. λd. λh. trans
@@ -167,7 +164,7 @@ def normPairWD : (a b c d : ℕ) (h : Prf (a + d ≡ b + c)) → normPair a b �
           _
           _
           (sym _ _ _ (normPairRightZ (S a') d))
-          (cong _ (λu. ℕ ⨯ ℕ) (λx. normPair x d) _ _ (trans _ _ _ _ h (zeroPlusId c)))))
+          (cong (λu. ℕ ⨯ ℕ) (λx. normPair x d) (trans _ _ _ _ h (zeroPlusId c)))))
       (b' ihb. λc. λd. λh. ih
         b'
         c
@@ -247,11 +244,8 @@ def eqZSound : {z1 z2 : El Int} → Prf (EqZ z1 z2) → z1 ≡ z2
       _
       _
       (cong
-        _
         (λu. Int)
         (λr. class r)
-        _
-        _
         (pairEq2
           (eqNSound
             (andFst
@@ -275,8 +269,8 @@ def eqZComplete : {z1 z2 : El Int} → (z1 ≡ z2) → Prf (EqZ z1 z2)
   λz1. λz2. λh. andIntro
     _
     _
-    (eqNComplete (cong _ (λu. ℕ) (λz. intCanon z .π₁) _ _ h))
-    (eqNComplete (cong _ (λu. ℕ) (λz. intCanon z .π₂) _ _ h))
+    (eqNComplete (cong (λu. ℕ) (λz. intCanon z .π₁) h))
+    (eqNComplete (cong (λu. ℕ) (λz. intCanon z .π₂) h))
 
 def eqZSoundP : (z1 z2 : El Int) → Prf (EqZ z1 z2) → Prf (z1 ≡ z2) ≔ λz1. λz2. λh. eqZSound h
 

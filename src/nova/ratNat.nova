@@ -82,9 +82,9 @@ def nonNegSgnOfLe : {a b : ℕ} → El (a ≤ b) → El (NonNegS (intSgn (class 
   λa. λb. λle. transport
     _
     NonNegS
-    (intSgn (intOfNat (le .π₁)))
     _
-    (cong _ (λv. Sign) (λv. intSgn v) _ _ (natDiffClass (idToEq _ _ _ (le .π₂))))
+    _
+    (cong (λv. Sign) (λv. intSgn v) (natDiffClass (idToEq _ _ _ (le .π₂))))
     intSgnOfNatNonNeg
 
 def leOfNonNegSgn : {a b : ℕ} → El (NonNegS (intSgn (class (b, a)))) → El (a ≤ b)
@@ -123,18 +123,16 @@ def qOfNatDiffNum : {a b : ℕ}
       _
       (intOfNat b + intNeg (intOfNat a))
       (cong
-        Int
         (λv. Int)
         (λv. v + intScale nzOne (intNeg (intOfNat a)))
-        (intScale nzOne (intOfNat b))
-        (intOfNat b)
+        {intScale nzOne (intOfNat b)}
+        {intOfNat b}
         intScaleOne)
       (cong
-        Int
         (λv. Int)
         (λv. intOfNat b + v)
-        (intScale nzOne (intNeg (intOfNat a)))
-        (intNeg (intOfNat a))
+        {intScale nzOne (intNeg (intOfNat a))}
+        {intNeg (intOfNat a)}
         intScaleOne))
     ⋆
 
@@ -190,13 +188,12 @@ def sgnQOfNatDiff : (a b : ℕ) → sgnQ (qOfNat b + qNeg (qOfNat a)) ≡ intSgn
     (intSgn (class (b, a) * intOne))
     _
     (cong
-      Int
       (λv. Sign)
       (λv. intSgn (v * intOne))
-      (intScale nzOne (intOfNat b) + intScale nzOne (intNeg (intOfNat a)))
-      (class (b, a))
+      {intScale nzOne (intOfNat b) + intScale nzOne (intNeg (intOfNat a))}
+      {class (b, a)}
       qOfNatDiffNum)
-    (cong _ (λv. Sign) (λv. intSgn v) _ _ (intMulOneR (class (b, a))))
+    (cong (λv. Sign) (λv. intSgn v) (intMulOneR (class (b, a))))
 
 def leQOfNat : {a b : ℕ} → El (a ≤ b) → El (qOfNat a ≤ qOfNat b)
   using (id.Id.unfold,
@@ -243,20 +240,18 @@ def qOfNatAdd : (a b : ℕ) → qOfNat a + qOfNat b ≡ qOfNat (a + b)
       (qcls (mkRat (intOfNat a + intScale nzOne (intOfNat b)) nzOne))
       _
       (cong
-        Int
         (λv. Q)
         (λv. qcls (mkRat (v + intScale nzOne (intOfNat b)) nzOne))
-        (intScale nzOne (intOfNat a))
-        (intOfNat a)
+        {intScale nzOne (intOfNat a)}
+        {intOfNat a}
         intScaleOne)
       (cong
-        Int
         (λv. Q)
         (λv. qcls (mkRat (intOfNat a + v) nzOne))
-        (intScale nzOne (intOfNat b))
-        (intOfNat b)
+        {intScale nzOne (intOfNat b)}
+        {intOfNat b}
         intScaleOne))
-    (cong _ (λv. Q) (λv. qcls (mkRat v nzOne)) _ _ (intOfNatPlus a b))
+    (cong (λv. Q) (λv. qcls (mkRat v nzOne)) (intOfNatPlus a b))
 
 -- ...and the same for the product. Both denominators are 1, so ratMul
 -- is just intMul on the numerators once nzMul nzOne nzOne collapses.
@@ -273,27 +268,20 @@ def qOfNatMul : (a b : ℕ) → qOfNat a * qOfNat b ≡ qOfNat (a * b) using (ra
           (intOfNat b)
           nzOne) ⟩ qcls (ratMul (mkRat (intOfNat a) nzOne) (mkRat (intOfNat b) nzOne))
       ≡⟨ cong
-        _
         (λv. Q)
         (λv. qcls v)
-        _
-        _
         (ratMulUnit
           (intOfNat a)
           (intOfNat b)) ⟩ qcls (mkRat (intOfNat a * intOfNat b) (nzMul nzOne nzOne))
       ≡⟨ cong
-        _
         (λv. Q)
         (λv. qcls (mkRat v (nzMul nzOne nzOne)))
-        _
-        _
         (intOfNatMul a b) ⟩ qcls (mkRat (intOfNat (a * b)) (nzMul nzOne nzOne))
       ≡⟨ cong
-        NZ
         (λv. Q)
         (λv. qcls (mkRat (intOfNat (a * b)) v))
-        (nzMul nzOne nzOne)
-        nzOne
+        {nzMul nzOne nzOne}
+        {nzOne}
         nzMulOneL ⟩ qcls (mkRat (intOfNat (a * b)) nzOne)
 
 -- S c as a rational is c + 1. Written c + S Z, not S Z + c: `+`
@@ -303,12 +291,12 @@ def addOneNat : (c : ℕ) → c + S Z ≡ S c using (nat.+.eq) ≔ λc. ⋆
 
 def qOfNatSuc : (c : ℕ) → qOfNat (S c) ≡ qOfNat c + qOne ≔
   λc. qOfNat (S c)
-      ≡⟨ cong _ (λw. Q) (λw. qOfNat w) _ _ (sym _ _ _ (addOneNat c)) ⟩ qOfNat (c + S Z)
+      ≡⟨ cong (λw. Q) (λw. qOfNat w) (sym _ _ _ (addOneNat c)) ⟩ qOfNat (c + S Z)
       ≡⟨ sym _ _ _ (qOfNatAdd c (S Z)) ⟩ qOfNat c + qOfNat (S Z)
-      ≡⟨ cong _ (λw. Q) (λw. qOfNat c + w) _ _ qOfNatOne ⟩ qOfNat c + qOne
+      ≡⟨ cong (λw. Q) (λw. qOfNat c + w) qOfNatOne ⟩ qOfNat c + qOne
 
 def qMulSucNat : (c : ℕ) (x : El Q) → qOfNat (S c) * x ≡ qOfNat c * x + x ≔
   λc. λx. qOfNat (S c) * x
-      ≡⟨ cong _ (λw. Q) (λw. w * x) _ _ (qOfNatSuc c) ⟩ (qOfNat c + qOne) * x
+      ≡⟨ cong (λw. Q) (λw. w * x) (qOfNatSuc c) ⟩ (qOfNat c + qOne) * x
       ≡⟨ qDistribR x (qOfNat c) qOne ⟩ qOfNat c * x + qOne * x
-      ≡⟨ cong _ (λw. Q) (λw. qOfNat c * x + w) _ _ (qMulOneL x) ⟩ qOfNat c * x + x
+      ≡⟨ cong (λw. Q) (λw. qOfNat c * x + w) (qMulOneL x) ⟩ qOfNat c * x + x

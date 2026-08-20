@@ -600,6 +600,31 @@ remaining in the domain under the final joint entries. Corpus
 wave: +817 blanks — `cong _ (λ_. ℕ) pred _ _ h` corpus-wide —
 Σ-α-gated, byte-idempotent, ~9.6s plain elaboration (unchanged).
 
+BARE-REFERENCE DEFERRAL AND CONG'S IMPLICITIZATION (2026-08-21):
+deferral widened by one clause — a bare reference to an
+implicit-binder def at a holey domain is NEVER a usable source (its
+inference-mode type is the UN-INSERTED Π; checking would insert),
+so it defers exactly like an intro, and checks later with its
+insertion intact. That freed the expected type's comp-tier matching
+to bind equality endpoints through β-redex motives ((λw. …) ?v
+reduces against the concrete side): +319 blanks. With the blank
+census then showing cong's A recoverable at every one of 597 sites
+and v/w at 499 of them, cong became the first arithmetic-scale
+IMPLICIT-BINDER migration since Phase 3c:
+
+  cong : {A : 𝕌} (B : El A → 𝕌) (f : (v : El A) → El (B v))
+         {v w : El A} → (v ≡ w) → f v ≡ f w
+
+Sites read `cong (λw. G) (λw. gop G g w b) (gInvR _ g a)`; the 98
+sites in inference positions (chain links, spine arguments), where
+v/w recover only from the written endpoints themselves, carry
+`{v} {w}` overrides — `cong (λu. ℕ) (λw. a + w) {a ∸ a} {Z}
+monusSelf` — the override form doing exactly the job it was built
+for in Phase 3c. A is elided even there: the override values'
+types source it. Σ unchanged (implicitness is surface-only; the
+kernel Π is the same), ~9.8s plain elaboration, canonical form
+re-established and enforced.
+
 THE IN-PLACE REWRITE (2026-08-20): src/nova is now the implicitized,
 CANONICAL-DISTILL-FORM corpus — 414 defs with {}-binders, 2,826
 argument occurrences elided, comments preserved, items

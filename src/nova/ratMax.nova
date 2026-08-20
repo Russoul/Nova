@@ -59,7 +59,7 @@ def leQMaxR : (u v : El Q) → El (v ≤ qMax u v)
         _
         _
         sPos
-        (cong Q (λw. Sign) (λw. sgnQ w) (u + qNeg v) (qNeg (v + qNeg u)) qSubNeg)
+        (cong (λw. Sign) (λw. sgnQ w) {u + qNeg v} {qNeg (v + qNeg u)} qSubNeg)
         (sgnQNegOfNeg hn))))
     (sgnCases (sgnQ (v + qNeg u)))
 
@@ -180,11 +180,11 @@ def qMinGlb : {u v w : El Q} → El (w ≤ u) → El (w ≤ v) → El (w ≤ qMi
 
 def qMinComm : (u v : El Q) → qMin u v ≡ qMin v u
   using (ratMax.qMax.eq, ratMax.qMin.eq, rationalQ.Q.unfold, rationalQ.qNeg.eq) ≔
-  λu. λv. cong _ (λw. Q) (λw. qNeg w) _ _ (qMaxComm (qNeg u) (qNeg v))
+  λu. λv. cong (λw. Q) (λw. qNeg w) (qMaxComm (qNeg u) (qNeg v))
 
 -- (−a) − (−c) ≡ c − a : the difference of negations is reversed
 def qNegDiff : (a c : El Q) → qNeg a + qNeg (qNeg c) ≡ c + qNeg a ≔
-  λa. λc. trans _ _ _ _ (cong _ (λw. Q) (λw. qNeg a + w) _ _ (qNegNeg c)) (qAddComm (qNeg a) c)
+  λa. λc. trans _ _ _ _ (cong (λw. Q) (λw. qNeg a + w) (qNegNeg c)) (qAddComm (qNeg a) c)
 
 -- min is 1-Lipschitz because max is: the negations cancel
 def bndMinSub : (b a c a' c' : El Q)

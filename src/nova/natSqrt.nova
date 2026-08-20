@@ -132,29 +132,20 @@ def leOfSqLe : {x y : ℕ} → El (x * x ≤ y * y) → El (x ≤ y) ≔
 def plus4Swap : {a b p q : ℕ} → a + b + (p + q) ≡ a + p + (q + b) ≔
   λa. λb. λp. λq. a + b + (p + q)
       ≡⟨ plusAssoc a b (p + q) ⟩ a + (b + (p + q))
-      ≡⟨ cong _ (λw. ℕ) (λw. a + w) _ _ (sym _ _ _ (plusAssoc b p q)) ⟩ a + (b + p + q)
-      ≡⟨ cong _ (λw. ℕ) (λw. a + (w + q)) _ _ (plusComm p b) ⟩ a + (p + b + q)
-      ≡⟨ cong _ (λw. ℕ) (λw. a + w) _ _ (plusAssoc p b q) ⟩ a + (p + (b + q))
-      ≡⟨ cong _ (λw. ℕ) (λw. a + (p + w)) _ _ (plusComm q b) ⟩ a + (p + (q + b))
+      ≡⟨ cong (λw. ℕ) (λw. a + w) (sym _ _ _ (plusAssoc b p q)) ⟩ a + (b + p + q)
+      ≡⟨ cong (λw. ℕ) (λw. a + (w + q)) (plusComm p b) ⟩ a + (p + b + q)
+      ≡⟨ cong (λw. ℕ) (λw. a + w) (plusAssoc p b q) ⟩ a + (p + (b + q))
+      ≡⟨ cong (λw. ℕ) (λw. a + (p + w)) (plusComm q b) ⟩ a + (p + (q + b))
       ≡⟨ sym _ _ _ (plusAssoc a p (q + b)) ⟩ a + p + (q + b)
 
 def sqExpand : (y c : ℕ) → (y + c) * (y + c) ≡ y * y + y * c + (y * c + c * c) ≔
   λy. λc. (y + c) * (y + c)
       ≡⟨ multDistribR (y + c) y c ⟩ y * (y + c) + c * (y + c)
-      ≡⟨ cong _ (λw. ℕ) (λw. w + c * (y + c)) _ _ (multDistrib y y c) ⟩ y * y + y * c + c * (y + c)
+      ≡⟨ cong (λw. ℕ) (λw. w + c * (y + c)) (multDistrib y y c) ⟩ y * y + y * c + c * (y + c)
+      ≡⟨ cong (λw. ℕ) (λw. y * y + y * c + w) (multDistrib c y c) ⟩ y * y + y * c + (c * y + c * c)
       ≡⟨ cong
-        _
-        (λw. ℕ)
-        (λw. y * y + y * c + w)
-        _
-        _
-        (multDistrib c y c) ⟩ y * y + y * c + (c * y + c * c)
-      ≡⟨ cong
-        _
         (λw. ℕ)
         (λw. y * y + y * c + (w + c * c))
-        _
-        _
         (multComm y c) ⟩ y * y + y * c + (y * c + c * c)
 
 def sqSumLe : (y c : ℕ) → El (y * y + c * c ≤ (y + c) * (y + c)) using (natOrder.≤.unfold) ≔
@@ -162,16 +153,7 @@ def sqSumLe : (y c : ℕ) → El (y * y + c * c ≤ (y + c) * (y + c)) using (na
     * c
     + y
       * c,
-    eqToId
-      _
-      _
-      (trans
-        ℕ
-        (y * y + c * c + (y * c + y * c))
-        (y * y + y * c + (y * c + c * c))
-        _
-        plus4Swap
-        (sym _ _ _ (sqExpand y c)))
+    eqToId _ _ (trans _ (y * y + c * c + (y * c + y * c)) _ _ plus4Swap (sym _ _ _ (sqExpand y c)))
 
 def sqrtStepN : {x y T : ℕ} → El (x * x ≤ y * y + T) → El (x ≤ y + S (isqrt T)) ≔
   λx. λy. λT. λh. leOfSqLe
@@ -199,8 +181,8 @@ def isqrtLtOfLt : (T : ℕ) {c : ℕ} → El (S T ≤ c * c) → El (S (isqrt T)
 def plus4Mid : (a p q b : ℕ) → a + p + (q + b) ≡ a + b + (p + q) ≔
   λa. λp. λq. λb. a + p + (q + b)
       ≡⟨ plusAssoc a p (q + b) ⟩ a + (p + (q + b))
-      ≡⟨ cong _ (λw. ℕ) (λw. a + w) _ _ (sym _ _ _ (plusAssoc p q b)) ⟩ a + (p + q + b)
-      ≡⟨ cong _ (λw. ℕ) (λw. a + w) _ _ (plusComm b (p + q)) ⟩ a + (b + (p + q))
+      ≡⟨ cong (λw. ℕ) (λw. a + w) (sym _ _ _ (plusAssoc p q b)) ⟩ a + (p + q + b)
+      ≡⟨ cong (λw. ℕ) (λw. a + w) (plusComm b (p + q)) ⟩ a + (b + (p + q))
       ≡⟨ sym _ _ _ (plusAssoc a b (p + q)) ⟩ a + b + (p + q)
 
 def sucMultSuc : (x y : ℕ) → S x * S y ≡ S (x + S x * y) ≔
@@ -235,18 +217,15 @@ def sqSumStrict : (x y : ℕ) → El (S (S x * S x + S y * S y) ≤ (S x + S y) 
             _
             (sym _ _ _ (plusSucId (S x * S x + S y * S y) (x + S x * y + S (x + S x * y))))
             (cong
-              _
               (λw. ℕ)
               (λw. S x * S x + S y * S y + w)
-              _
-              _
               (trans
                 _
                 _
                 _
                 _
                 (sym _ _ _ (sucPlus (x + S x * y) (S (x + S x * y))))
-                (cong _ (λw. ℕ) (λw. w + w) _ _ (sym _ _ _ (sucMultSuc x y)))))))
+                (cong (λw. ℕ) (λw. w + w) (sym _ _ _ (sucMultSuc x y)))))))
         (trans
           _
           _

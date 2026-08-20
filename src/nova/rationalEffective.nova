@@ -126,9 +126,9 @@ def ratRTrans : (p q r : El Rat) → Prf (RatR p q) → Prf (RatR q r) → Prf (
     _
     _
     (trans
-      Int
+      _
       (num p * dInt r * dInt q)
-      (num p * dInt q * dInt r)
+      _
       _
       mulSwapRight
       (trans
@@ -138,15 +138,15 @@ def ratRTrans : (p q r : El Rat) → Prf (RatR p q) → Prf (RatR q r) → Prf (
         _
         (mulCongL (num p * dInt q) (num q * dInt p) (dInt r) h1)
         (trans
-          Int
+          _
           (num q * dInt p * dInt r)
-          (num q * dInt r * dInt p)
+          _
           _
           mulSwapRight
           (trans
-            Int
             _
-            (num r * dInt q * dInt p)
+            _
+            _
             (num r * dInt p * dInt q)
             (mulCongL (num q * dInt r) (num r * dInt q) (dInt p) h2)
             mulSwapRight))))
@@ -269,4 +269,4 @@ def qInvertibleIffNonZero : (u : El Q) → Prf (¬ (u ≡ qZero) ↔ ∥(v : El 
           _
           _
           (sym _ (class (class (S Z, Z), inj₁ Z)) (class (class (S Z, Z), inj₁ Z)) (w .π₂))
-          (trans Q _ (qZero * w .π₁) qZero (cong _ (λt. Q) (λx. x * w .π₁) _ _ e) qMulZeroL)))))
+          (trans _ _ _ qZero (cong (λt. Q) (λx. x * w .π₁) e) qMulZeroL)))))

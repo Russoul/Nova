@@ -51,8 +51,4 @@ def notSZ : Prf (¬ (S Z ≡ Z)) using (prop.¬.eq) ≔
   impIntro (S Z ≡ Z) ⊥ (λh. 𝟘-elim (zNotS _ (sym _ _ _ h)))
 
 def prfElim : (r : Ω) → El (prfC r) → Prf r using (effMap.eq, prfC.eq) ≔
-  λr. λw. impApply
-    _
-    _
-    (transportP (ℕ / (x y. r)) (λv. effMap _ v) (class Z) _ (idToEq _ _ _ w) effZero)
-    notSZ
+  λr. λw. impApply _ _ (transportP _ (λv. effMap _ v) _ _ (idToEq _ _ _ w) effZero) notSZ

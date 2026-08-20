@@ -32,7 +32,7 @@ def zNotS : (j : ℕ) → (Z ≡ S j) → 𝟘 using (prop.isZeroCode.unfold) �
 -- S is injective: predecessor congruence recovers n ≡ j from S n ≡ S j
 def pred : ℕ → ℕ ≔ λn. ℕ-elim Z (n ih. n) n
 
-def predEq : (n j : ℕ) → (S n ≡ S j) → n ≡ j ≔ λn. λj. λh. cong _ (λ_. ℕ) pred _ _ h
+def predEq : (n j : ℕ) → (S n ≡ S j) → n ≡ j ≔ λn. λj. λh. cong (λ_. ℕ) pred h
 
 -- completeness: the built-in equality implies EqN, by double
 -- induction mirroring EqN's own recursion — the Z/S-mismatch cases

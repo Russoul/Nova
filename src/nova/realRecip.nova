@@ -55,7 +55,7 @@ def recipLoM : (k : ℕ) → recipLo k * recipM k ≡ qOne using (recipLo.eq, re
   λk. trans
     _
     (qInvNat (dbl k) * qOfNat (S (dbl k)))
-    (qOfNat (S (dbl k)) * qInvNat (dbl k))
+    _
     _
     (qMulComm (qInvNat (dbl k)) (qOfNat (S (dbl k))))
     qMulInvNat
@@ -70,7 +70,7 @@ def recipMSq : (k : ℕ) → recipM k * recipM k ≡ qOfNat (S (recipC k)) using
     _
     (qOfNat (S (mulIdx (dbl k) (dbl k))))
     (qOfNatMul (S (dbl k)) (S (dbl k)))
-    (cong _ (λw. Q) (λw. qOfNat w) _ _ (sym _ _ _ (sucMulIdx (dbl k) (dbl k))))
+    (cong (λw. Q) (λw. qOfNat w) (sym _ _ _ (sucMulIdx (dbl k) (dbl k))))
 
 -- ===== the scaling, exactly =====
 def leQMulMonoL : {x y c : El Q} → El (x ≤ y) → El (qZero ≤ c) → El (c * x ≤ c * y) ≔
@@ -96,18 +96,16 @@ def rBoundRecipEq : (k m n : ℕ)
       _
       (qInvNat (recipC k) * qInvNat m + qInvNat (recipC k) * qInvNat n)
       (cong
-        Q
         (λw. Q)
         (λw. w + qInvNat (mulIdx (recipC k) n))
-        (qInvNat (mulIdx (recipC k) m))
-        (qInvNat (recipC k) * qInvNat m)
+        {qInvNat (mulIdx (recipC k) m)}
+        {qInvNat (recipC k) * qInvNat m}
         qInvNatMulIdx)
       (cong
-        Q
         (λw. Q)
         (λw. qInvNat (recipC k) * qInvNat m + w)
-        (qInvNat (mulIdx (recipC k) n))
-        (qInvNat (recipC k) * qInvNat n)
+        {qInvNat (mulIdx (recipC k) n)}
+        {qInvNat (recipC k) * qInvNat n}
         qInvNatMulIdx))
     (sym _ _ _ (qDistribL (qInvNat (recipC k)) (qInvNat m) (qInvNat n)))
 
@@ -115,37 +113,28 @@ def recipScaleEq : (k m n : ℕ)
   → rBound (recipIdx k m) (recipIdx k n) * recipM k * recipM k ≡ rBound m n ≔
   λk. λm. λn. rBound (recipIdx k m) (recipIdx k n) * recipM k * recipM k
       ≡⟨ cong
-        _
         (λw. Q)
         (λw. w * recipM k * recipM k)
-        _
-        _
         (rBoundRecipEq k m n) ⟩ qInvNat (recipC k) * rBound m n * recipM k * recipM k
       ≡⟨ qMulAssoc
         (qInvNat (recipC k) * rBound m n)
         (recipM k)
         (recipM k) ⟩ qInvNat (recipC k) * rBound m n * (recipM k * recipM k)
       ≡⟨ cong
-        _
         (λw. Q)
         (λw. qInvNat (recipC k) * rBound m n * w)
-        _
-        _
         (recipMSq k) ⟩ qInvNat (recipC k) * rBound m n * qOfNat (S (recipC k))
       ≡⟨ qMulSwap3
         (qInvNat (recipC k))
         (rBound m n)
         (qOfNat (S (recipC k))) ⟩ qInvNat (recipC k) * qOfNat (S (recipC k)) * rBound m n
       ≡⟨ cong
-        _
         (λw. Q)
         (λw. w * rBound m n)
-        _
-        _
         (trans
-          Q
           _
-          (qOfNat (S (recipC k)) * qInvNat (recipC k))
+          _
+          _
           qOne
           (qMulComm (qInvNat (recipC k)) (qOfNat (S (recipC k))))
           qMulInvNat) ⟩ qOne * rBound m n
@@ -155,7 +144,7 @@ def recipScaleEq : (k m n : ℕ)
 def sqSumRearr : (A N : El Q) → A * A * (N + N) ≡ (A + A) * (A * N) ≔
   λA. λN. A * A * (N + N)
       ≡⟨ qDistribL (A * A) N N ⟩ A * A * N + A * A * N
-      ≡⟨ cong _ (λw. Q) (λw. w + w) _ _ (qMulAssoc A A N) ⟩ A * (A * N) + A * (A * N)
+      ≡⟨ cong (λw. Q) (λw. w + w) (qMulAssoc A A N) ⟩ A * (A * N) + A * (A * N)
       ≡⟨ sym _ _ _ (qDistribR (A * N) A A) ⟩ (A + A) * (A * N)
 
 def rBoundSelfEq : (n : ℕ) → rBound n n ≡ qInvNat n + qInvNat n using (real.rBound.eq) ≔ λn. ⋆
@@ -169,28 +158,19 @@ def rBoundRecipSelf : (k n : ℕ)
   λk. λn. rBound (recipIdx k n) (recipIdx k n)
       ≡⟨ rBoundRecipEq k n n ⟩ qInvNat (recipC k) * rBound n n
       ≡⟨ cong
-        _
         (λw. Q)
         (λw. qInvNat (recipC k) * w)
-        _
-        _
         (rBoundSelfEq n) ⟩ qInvNat (recipC k) * (qInvNat n + qInvNat n)
       ≡⟨ cong
-        _
         (λw. Q)
         (λw. w * (qInvNat n + qInvNat n))
-        _
-        _
         (recipCInv k) ⟩ qInvNat (dbl k) * qInvNat (dbl k) * (qInvNat n + qInvNat n)
       ≡⟨ sqSumRearr
         (qInvNat (dbl k))
         (qInvNat n) ⟩ (qInvNat (dbl k) + qInvNat (dbl k)) * (qInvNat (dbl k) * qInvNat n)
       ≡⟨ cong
-        _
         (λw. Q)
         (λw. w * (qInvNat (dbl k) * qInvNat n))
-        _
-        _
         (qInvHalf k) ⟩ qInvNat k * (qInvNat (dbl k) * qInvNat n)
 
 def leQRBoundRecip : (k n : ℕ) → El (rBound (recipIdx k n) (recipIdx k n) ≤ recipLo k)
@@ -234,7 +214,7 @@ def halfSubEq : (A : El Q) → A + A + qNeg A ≡ A ≔
     _
     _
     (qAddAssoc A A (qNeg A))
-    (trans _ _ _ A (cong _ (λw. Q) (λw. A + w) _ _ (qAddNegR A)) (qAddZeroR A))
+    (trans _ _ _ A (cong (λw. Q) (λw. A + w) (qAddNegR A)) (qAddZeroR A))
 
 def posSampleLo : {p : El RSeq}
   {k : ℕ}
@@ -394,23 +374,14 @@ def recipBoundEq : (k k' : ℕ)
   → (R + R) * recipM k * recipM k' ≡ qOfNat (recipK k k') * R ≔
   λk. λk'. λR. (R + R) * recipM k * recipM k'
       ≡⟨ qMulAssoc (R + R) (recipM k) (recipM k') ⟩ (R + R) * (recipM k * recipM k')
-      ≡⟨ cong
-        _
-        (λw. Q)
-        (λw. (R + R) * w)
-        _
-        _
-        (recipMM k k') ⟩ (R + R) * qOfNat (S (dbl k) * S (dbl k'))
+      ≡⟨ cong (λw. Q) (λw. (R + R) * w) (recipMM k k') ⟩ (R + R) * qOfNat (S (dbl k) * S (dbl k'))
       ≡⟨ qDistribR
         (qOfNat (S (dbl k) * S (dbl k')))
         R
         R ⟩ R * qOfNat (S (dbl k) * S (dbl k')) + R * qOfNat (S (dbl k) * S (dbl k'))
       ≡⟨ cong
-        _
         (λw. Q)
         (λw. w + w)
-        _
-        _
         (qMulComm
           R
           (qOfNat
@@ -430,7 +401,7 @@ def recipBoundEq : (k k' : ℕ)
               k)
               * S (dbl
                 k')))) ⟩ (qOfNat (S (dbl k) * S (dbl k')) + qOfNat (S (dbl k) * S (dbl k'))) * R
-      ≡⟨ cong _ (λw. Q) (λw. w * R) _ _ (recipKEq k k') ⟩ qOfNat (recipK k k') * R
+      ≡⟨ cong (λw. Q) (λw. w * R) (recipKEq k k') ⟩ qOfNat (recipK k k') * R
 
 def recipCloseAt : (p p' : El RSeq)
   (k k' n : ℕ)

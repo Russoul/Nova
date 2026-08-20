@@ -183,8 +183,8 @@ def qNonZeroIsNzq : {u : El Q} (h : Prf (¬ (u ≡ qZero))) → Prf ∥(x : El N
         (class (mkRat (nzToInt (w .π₁)) (den p)))
         (class (mkRat (num p) (den p)))
         _
-        (cong _ (λv. Q) (λx. class (mkRat x (den p))) (nzToInt (w .π₁)) (p .π₁) (w .π₂))
-        (cong Rat (λv. Q) (λt. class t) (mkRat (num p) (den p)) p ratEta))))
+        (cong (λv. Q) (λx. class (mkRat x (den p))) {nzToInt (w .π₁)} {p .π₁} (w .π₂))
+        (cong (λv. Q) (λt. class t) {mkRat (num p) (den p)} {p} ratEta))))
     u
 
 -- ===== the theorem =====
@@ -196,11 +196,11 @@ def qInvExists : {u : El Q} (h : Prf (¬ (u ≡ qZero))) → Prf ∥(v : El Q) �
     trans
       _
       _
-      (qOfNzq (w .π₁) * qOfNzq (nzqInv (w .π₁)))
+      _
       _
       (sym
         _
         _
         (u * qOfNzq (nzqInv (w .π₁)))
-        (cong _ (λv. Q) (λx. x * qOfNzq (nzqInv (w .π₁))) _ _ (w .π₂)))
+        (cong (λv. Q) (λx. x * qOfNzq (nzqInv (w .π₁))) (w .π₂)))
       qMulInv))

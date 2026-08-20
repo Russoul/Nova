@@ -448,8 +448,8 @@ def leQOfLeR : {p : El Q} (q : El Q) → Prf (realOfQ p ≤ realOfQ q) → El (p
 -- so ℚ ↪ ℝ is an order EMBEDDING, and in particular injective
 def realOfQInj : (p q : El Q) → (realOfQ p ≡ realOfQ q) → p ≡ q ≔
   λp. λq. λe. leQAntisym
-    (leQOfLeR _ (transportP Real (λw. realOfQ p ≤ w) (realOfQ p) _ e leRRefl))
-    (leQOfLeR _ (transportP Real (λw. w ≤ realOfQ p) (realOfQ p) _ e leRRefl))
+    (leQOfLeR _ (transportP _ (λw. realOfQ p ≤ w) _ _ e leRRefl))
+    (leQOfLeR _ (transportP _ (λw. w ≤ realOfQ p) _ _ e leRRefl))
 
 -- ===== negation reverses the order =====
 def rleNeg : {x y : El RSeq} → Prf (RLeP x y) → Prf (RLeP (rNeg y) (rNeg x))

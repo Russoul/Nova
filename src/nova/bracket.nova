@@ -47,7 +47,7 @@ def brIsProp : (a : 𝕌) (u v : El (Br a)) → u ≡ v using (Br.unfold) ≔
 -- with no hypothesis at all: the coherence brElim asks for is free
 -- whenever the function already factors through the bracket.
 def brOutConst : (a b : 𝕌) (g : El (Br a) → El b) (x y : El a) → g (br x) ≡ g (br y) ≔
-  λa. λb. λg. λx. λy. cong _ (λw. b) g _ _ (brIsProp _ (br x) (br y))
+  λa. λb. λg. λx. λy. cong (λw. b) g (brIsProp _ (br x) (br y))
 
 -- η / uniqueness: brElim is the ONLY map agreeing with g on classes.
 def brEta : (a b : 𝕌)

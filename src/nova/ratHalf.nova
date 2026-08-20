@@ -49,13 +49,13 @@ def nzPosDbl : (n : ℕ) → nzToInt (nzPos (dbl n)) ≡ nzToInt (nzPos n) + nzT
   using (integer.Int.unfold) ≔
   λn. nzToInt (nzPos (dbl n))
       ≡⟨ nzPosInt (dbl n) ⟩ intOfNat (S (dbl n))
-      ≡⟨ cong _ (λw. Int) (λw. intOfNat w) _ _ (sucDbl n) ⟩ intOfNat (S n + S n)
+      ≡⟨ cong (λw. Int) (λw. intOfNat w) (sucDbl n) ⟩ intOfNat (S n + S n)
       ≡⟨ sym _ _ _ (intOfNatPlus (S n) (S n)) ⟩ intOfNat (S n) + intOfNat (S n)
       ≡⟨ sym
         _
         _
         (intOfNat (S n) + intOfNat (S n))
-        (cong _ (λw. Int) (λw. w + w) _ _ (nzPosInt n)) ⟩ nzToInt (nzPos n) + nzToInt (nzPos n)
+        (cong (λw. Int) (λw. w + w) (nzPosInt n)) ⟩ nzToInt (nzPos n) + nzToInt (nzPos n)
 
 -- ===== the cross-multiplication =====
 -- the unit fraction at index k, as a raw fraction
@@ -79,7 +79,7 @@ def unitAddNum : {d : El NZ}
     rational.mkRat.eq,
     rational.num.eq,
     rational.ratAdd.eq) ≔
-  λd. cong Int (λw. Int) (λw. w + w) (intScale d intOne) (nzToInt d) scaleOne
+  λd. cong (λw. Int) (λw. w + w) {intScale d intOne} {nzToInt d} scaleOne
 
 -- ...and its denominator is d·d
 def unitAddDen : {d : El NZ}
@@ -135,26 +135,17 @@ def halfCross : {n : ℕ}
   using (integer.Int.unfold) ≔
   λn. num (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) * dInt (unitRat n)
       ≡⟨ cong
-        _
         (λw. Int)
         (λw. num (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) * w)
-        _
-        _
         (unitDen n) ⟩ num (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) * nzToInt (nzPos n)
       ≡⟨ cong
-        _
         (λw. Int)
         (λw. w * nzToInt (nzPos n))
-        _
-        _
         (unitAddNumU
           (dbl n)) ⟩ (nzToInt (nzPos (dbl n)) + nzToInt (nzPos (dbl n))) * nzToInt (nzPos n)
       ≡⟨ cong
-        _
         (λw. Int)
         (λw. (w + w) * nzToInt (nzPos n))
-        _
-        _
         (nzPosDbl
           n) ⟩ (nzToInt
         (nzPos n) + nzToInt (nzPos n) + (nzToInt (nzPos n) + nzToInt (nzPos n))) * nzToInt (nzPos n)
@@ -167,11 +158,8 @@ def halfCross : {n : ℕ}
         _
         ((nzToInt (nzPos n) + nzToInt (nzPos n)) * (nzToInt (nzPos n) + nzToInt (nzPos n)))
         (cong
-          _
           (λw. Int)
           (λw. w * w)
-          _
-          _
           (nzPosDbl n)) ⟩ nzToInt (nzPos (dbl n)) * nzToInt (nzPos (dbl n))
       ≡⟨ sym _ _ _ (unitAddDenU (dbl n)) ⟩ dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))
       ≡⟨ sym
@@ -184,11 +172,8 @@ def halfCross : {n : ℕ}
               (unitRat (dbl n))
               (unitRat (dbl n))))) ⟩ intOne * dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))
       ≡⟨ cong
-        _
         (λw. Int)
         (λw. w * dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
-        _
-        _
         (unitNum n) ⟩ num (unitRat n) * dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))
 
 -- 1/(2n+2) + 1/(2n+2) ~ 1/(n+1): the relation is halfCross, decoded

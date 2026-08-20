@@ -28,7 +28,7 @@ def transportP : (A : 𝕌) (P : El A → Ω) (a b : El A) → (a ≡ b) → Prf
 
 -- dependent congruence: in an extensional theory it is one ⋆, since
 -- reflecting the hypothesis makes the sides and their types equal
-def cong : (A : 𝕌) (B : El A → 𝕌) (f : (v : El A) → El (B v)) (v w : El A) → (v ≡ w) → f v ≡ f w ≔
+def cong : {A : 𝕌} (B : El A → 𝕌) (f : (v : El A) → El (B v)) {v w : El A} → (v ≡ w) → f v ≡ f w ≔
   λA. λB. λf. λv. λw. λh. ⋆
 
 def appCong : (A : 𝕌)
@@ -36,9 +36,7 @@ def appCong : (A : 𝕌)
   (f0 f1 : (x : El A) → El (B x))
   (a0 a1 : El A)
   → (f0 ≡ f1) → (a0 ≡ a1) → f0 a0 ≡ f1 a1 ∈ El (B a1) ≔
-  λA. λB. λf0. λf1. λa0. λa1. λf. λa. f0 a0
-      ≡⟨ a ⟩ f0 a1
-      ≡⟨ cong _ (λ_. B a1) (λg. g a1) _ _ f ⟩ f1 a1
+  λA. λB. λf0. λf1. λa0. λa1. λf. λa. f0 a0 ≡⟨ a ⟩ f0 a1 ≡⟨ cong (λ_. B a1) (λg. g a1) f ⟩ f1 a1
 
 def irr : (A : 𝕌) (v u : El A) (p : v ≡ u) → p ≡ (⋆) ≔ λA. λv. λu. λp. ⋆
 

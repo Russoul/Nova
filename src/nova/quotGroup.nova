@@ -109,11 +109,8 @@ def qMulInnerAlg : {G : 𝕌}
       (ginv _ g a)) ≡ gop _ g (gop _ g a b) (ginv _ g (gop _ g a b')) ≔
   λG. λg. λa. λb. λb'. gop _ g a (gop _ g (gop _ g b (ginv _ g b')) (ginv _ g a))
       ≡⟨ cong
-        _
         (λw. G)
         (λw. gop G g a w)
-        _
-        _
         (gAssoc
           _
           g
@@ -135,11 +132,8 @@ def qMulInnerAlg : {G : 𝕌}
             (ginv _ g b')
             (ginv _ g a))) ⟩ gop _ g (gop _ g a b) (gop _ g (ginv _ g b') (ginv _ g a))
       ≡⟨ cong
-        _
         (λw. G)
         (λw. gop G g (gop _ g a b) w)
-        _
-        _
         (sym _ _ _ (gOpInv _ g a b')) ⟩ gop _ g (gop _ g a b) (ginv _ g (gop _ g a b'))
 
 -- OUTER:  (a·b)·(a'·b)⁻¹  =  a·a'⁻¹
@@ -149,11 +143,8 @@ def qMulOuterAlg : (G : 𝕌)
   → gop _ g (gop _ g a b) (ginv _ g (gop _ g a' b)) ≡ gop _ g a (ginv _ g a') ≔
   λG. λg. λa. λa'. λb. gop _ g (gop _ g a b) (ginv _ g (gop _ g a' b))
       ≡⟨ cong
-        _
         (λw. G)
         (λw. gop G g (gop _ g a b) w)
-        _
-        _
         (gOpInv _ g a' b) ⟩ gop _ g (gop _ g a b) (gop _ g (ginv _ g b) (ginv _ g a'))
       ≡⟨ gAssoc
         _
@@ -165,13 +156,7 @@ def qMulOuterAlg : (G : 𝕌)
           g
           (ginv _ g b)
           (ginv _ g a')) ⟩ gop _ g a (gop _ g b (gop _ g (ginv _ g b) (ginv _ g a')))
-      ≡⟨ cong
-        _
-        (λw. G)
-        (λw. gop G g a w)
-        _
-        _
-        (gCancelInner _ g b (ginv _ g a')) ⟩ gop _ g a (ginv _ g a')
+      ≡⟨ cong (λw. G) (λw. gop G g a w) (gCancelInner _ g b (ginv _ g a')) ⟩ gop _ g a (ginv _ g a')
 
 -- ===== the two well-definedness proofs, at relation level =====
 def qMulWDInner : {G : 𝕌}
@@ -185,9 +170,9 @@ def qMulWDInner : {G : 𝕌}
       → Prf (cosetRel _ g N b b') → Prf (cosetRel _ g N (gop _ g a b) (gop _ g a b'))
   using (cosetRel.eq) ≔
   λG. λg. λN. λnn. λa. λb. λb'. λh. transportP
-    G
+    _
     N
-    (gop _ g a (gop _ g (gop _ g b (ginv _ g b')) (ginv _ g a)))
+    _
     (gop _ g (gop _ g a b) (ginv _ g (gop _ g a b')))
     qMulInnerAlg
     (nmConj _ _ _ nn a (gop _ g b (ginv _ g b')) h)
@@ -298,18 +283,12 @@ def qInvAlg : {G : 𝕌}
     (gop _ g (gop _ g a' (ginv _ g a)) a) ≡ gop _ g (ginv _ g a) (ginv _ g (ginv _ g a')) ≔
   λG. λg. λa. λa'. gop _ g (ginv _ g a) (gop _ g (gop _ g a' (ginv _ g a)) a)
       ≡⟨ cong
-        _
         (λw. G)
         (λw. gop G g (ginv _ g a) w)
-        _
-        _
         (gCancelOuterInv _ g a a') ⟩ gop _ g (ginv _ g a) a'
       ≡⟨ cong
-        _
         (λw. G)
         (λw. gop G g (ginv _ g a) w)
-        _
-        _
         (sym _ _ _ (gInvInv _ g a')) ⟩ gop _ g (ginv _ g a) (ginv _ g (ginv _ g a'))
 
 def qInvWD : {G : 𝕌}
@@ -326,9 +305,9 @@ def qInvWD : {G : 𝕌}
       → {a a' : El G} → Prf (cosetRel _ g N a a') → Prf (cosetRel _ g N (ginv _ g a) (ginv _ g a'))
   using (cosetRel.eq) ≔
   λG. λg. λN. λs. λnn. λa. λa'. λh. transportP
-    G
+    _
     N
-    (gop _ g (ginv _ g a) (gop _ g (gop _ g a' (ginv _ g a)) a))
+    _
     (gop _ g (ginv _ g a) (ginv _ g (ginv _ g a')))
     qInvAlg
     (nmConjInv _ _ _ nn a (gop _ g a' (ginv _ g a)) (cosetSymm _ _ _ s _ _ h))
@@ -416,7 +395,7 @@ def qAssoc : (G : 𝕌)
             _
             _
             (qMul _ _ _ nn (class a) (qMul _ _ _ nn (class b) (class c)))
-            (cong _ (λw. QGroup _ g N) (λw. class w) _ _ (gAssoc _ g a b c))
+            (cong (λw. QGroup _ g N) (λw. class w) (gAssoc _ g a b c))
             ⋆))
         w)
       v)
@@ -430,7 +409,7 @@ def qUnitL : (G : 𝕌)
   → qMul _ _ _ nn (qUnit _ g N) u ≡ u
   using (QGroup.unfold, qUnit.eq, qMulCls.rw) ≔
   λG. λg. λN. λnn. λu. quot-elim
-    (a. trans _ _ _ _ ⋆ (cong _ (λw. QGroup _ g N) (λw. class w) _ _ (gUnitL _ g a)))
+    (a. trans _ _ _ _ ⋆ (cong (λw. QGroup _ g N) (λw. class w) (gUnitL _ g a)))
     u
 
 def qUnitR : (G : 𝕌)
@@ -441,7 +420,7 @@ def qUnitR : (G : 𝕌)
   → qMul _ _ _ nn u (qUnit _ g N) ≡ u
   using (QGroup.unfold, qUnit.eq, qMulCls.rw) ≔
   λG. λg. λN. λnn. λu. quot-elim
-    (a. trans _ _ _ _ ⋆ (cong _ (λw. QGroup _ g N) (λw. class w) _ _ (gUnitR _ g a)))
+    (a. trans _ _ _ _ ⋆ (cong (λw. QGroup _ g N) (λw. class w) (gUnitR _ g a)))
     u
 
 def qInvLaw : (G : 𝕌)
@@ -453,7 +432,7 @@ def qInvLaw : (G : 𝕌)
   → qMul _ _ _ nn (qInv _ _ _ s nn u) u ≡ qUnit _ _ _
   using (QGroup.unfold, qUnit.eq, qInvCls.rw, qMulCls.rw) ≔
   λG. λg. λN. λs. λnn. λu. quot-elim
-    (a. trans _ _ _ _ ⋆ (cong _ (λw. QGroup _ g N) (λw. class w) _ _ (gInvL _ g a)))
+    (a. trans _ _ _ _ ⋆ (cong (λw. QGroup _ g N) (λw. class w) (gInvL _ g a)))
     u
 
 def qInvLawR : (G : 𝕌)
@@ -465,7 +444,7 @@ def qInvLawR : (G : 𝕌)
   → qMul _ _ _ nn u (qInv _ _ _ s nn u) ≡ qUnit _ _ _
   using (QGroup.unfold, qUnit.eq, qInvCls.rw, qMulCls.rw) ≔
   λG. λg. λN. λs. λnn. λu. quot-elim
-    (a. trans _ _ _ _ ⋆ (cong _ (λw. QGroup _ g N) (λw. class w) _ _ (gInvR _ g a)))
+    (a. trans _ _ _ _ ⋆ (cong (λw. QGroup _ g N) (λw. class w) (gInvR _ g a)))
     u
 
 -- ===== G/N is a group =====

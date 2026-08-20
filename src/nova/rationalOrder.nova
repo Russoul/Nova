@@ -144,7 +144,7 @@ def intSgnMulSq : (z : El Int) (e : El NZ) → intSgn (z * (nzToInt e * nzToInt 
       _
       _
       _
-      (cong _ (λv. Sign) (λv. intSgn (v * (nzToInt e * nzToInt e))) _ _ (sym _ _ _ (u .π₂)))
+      (cong (λv. Sign) (λv. intSgn (v * (nzToInt e * nzToInt e))) (sym _ _ _ (u .π₂)))
       (trans
         _
         _
@@ -155,27 +155,15 @@ def intSgnMulSq : (z : El Int) (e : El NZ) → intSgn (z * (nzToInt e * nzToInt 
           _
           _
           (intSgn (nzToInt (nzMul (u .π₁) (nzMul e e))))
-          (cong _ (λv. Sign) (λv. intSgn (nzToInt (u .π₁) * v)) _ _ (sym _ _ _ (nzToIntMul e e)))
-          (cong _ (λv. Sign) (λv. intSgn v) _ _ (sym _ _ _ (nzToIntMul (u .π₁) (nzMul e e)))))
+          (cong (λv. Sign) (λv. intSgn (nzToInt (u .π₁) * v)) (sym _ _ _ (nzToIntMul e e)))
+          (cong (λv. Sign) (λv. intSgn v) (sym _ _ _ (nzToIntMul (u .π₁) (nzMul e e)))))
         (trans
           _
           _
           _
           _
-          (trans
-            Sign
-            _
-            (nzSgn (nzMul (u .π₁) (nzMul e e)))
-            (nzSgn (u .π₁))
-            (intSgnNz (nzMul (u .π₁) (nzMul e e)))
-            nzSgnMulSq)
-          (trans
-            _
-            _
-            _
-            _
-            (sym _ _ _ (intSgnNz (u .π₁)))
-            (cong _ (λv. Sign) (λv. intSgn v) _ _ (u .π₂))))))
+          (trans _ _ _ (nzSgn (u .π₁)) (intSgnNz (nzMul (u .π₁) (nzMul e e))) nzSgnMulSq)
+          (trans _ _ _ _ (sym _ _ _ (intSgnNz (u .π₁))) (cong (λv. Sign) (λv. intSgn v) (u .π₂))))))
     (hz. trans
       _
       _
@@ -186,37 +174,37 @@ def intSgnMulSq : (z : El Int) (e : El NZ) → intSgn (z * (nzToInt e * nzToInt 
         _
         _
         sZero
-        (cong _ (λv. Sign) (λv. intSgn (v * (nzToInt e * nzToInt e))) _ _ hz)
+        (cong (λv. Sign) (λv. intSgn (v * (nzToInt e * nzToInt e))) hz)
         (trans
           _
           _
           _
           sZero
-          (cong _ (λv. Sign) (λv. intSgn v) _ _ (intMulZeroL (nzToInt e * nzToInt e)))
+          (cong (λv. Sign) (λv. intSgn v) (intMulZeroL (nzToInt e * nzToInt e)))
           intSgnZero))
-      (sym _ _ _ (trans _ _ _ sZero (cong _ (λv. Sign) (λv. intSgn v) _ _ hz) intSgnZero)))
+      (sym _ _ _ (trans _ _ _ sZero (cong (λv. Sign) (λv. intSgn v) hz) intSgnZero)))
     (nzOfInt z)
 
 -- ===== interchange, hypothesis-free =====
 def mulLeftSwap : (b c d : El Int) → b * (c * d) ≡ c * (b * d) using (integer.Int.unfold) ≔
   λb. λc. λd. b * (c * d)
       ≡⟨ sym _ _ _ (intMulAssoc b c d) ⟩ b * c * d
-      ≡⟨ cong _ (λv. Int) (λv. v * d) _ _ (intMulComm b c) ⟩ c * b * d
+      ≡⟨ cong (λv. Int) (λv. v * d) (intMulComm b c) ⟩ c * b * d
       ≡⟨ intMulAssoc c b d ⟩ c * (b * d)
 
 def mulPairSwap : (a b c d : El Int) → a * b * (c * d) ≡ a * c * (b * d)
   using (integer.Int.unfold) ≔
   λa. λb. λc. λd. a * b * (c * d)
       ≡⟨ intMulAssoc a b (c * d) ⟩ a * (b * (c * d))
-      ≡⟨ cong _ (λv. Int) (λv. a * v) _ _ (mulLeftSwap b c d) ⟩ a * (c * (b * d))
+      ≡⟨ cong (λv. Int) (λv. a * v) (mulLeftSwap b c d) ⟩ a * (c * (b * d))
       ≡⟨ sym _ _ _ (intMulAssoc a c (b * d)) ⟩ a * c * (b * d)
 
 def mulPairSwapR : (a b c d : El Int) → a * b * (c * d) ≡ a * d * (c * b)
   using (integer.Int.unfold) ≔
   λa. λb. λc. λd. a * b * (c * d)
-      ≡⟨ cong _ (λv. Int) (λv. a * b * v) _ _ (intMulComm c d) ⟩ a * b * (d * c)
+      ≡⟨ cong (λv. Int) (λv. a * b * v) (intMulComm c d) ⟩ a * b * (d * c)
       ≡⟨ mulPairSwap a b d c ⟩ a * d * (b * c)
-      ≡⟨ cong _ (λv. Int) (λv. a * d * v) _ _ (intMulComm b c) ⟩ a * d * (c * b)
+      ≡⟨ cong (λv. Int) (λv. a * d * v) (intMulComm b c) ⟩ a * d * (c * b)
 
 -- ===== the sign of a fraction, and its well-definedness =====
 def ratSgn : El Rat → El Sign using (rationalOrder.Sign.unfold) ≔ λp. intSgn (num p * denInt p)
@@ -254,31 +242,24 @@ def ratSgnWD : (p q : El Rat) → Prf (RatR p q) → ratSgn p ≡ ratSgn q
       _
       _
       (intSgn (num q * denInt q))
-      (cong _ (λv. Sign) (λv. intSgn v) _ _ (mulPairSwap (num p) (denInt p) (denInt q) (denInt q)))
+      (cong (λv. Sign) (λv. intSgn v) (mulPairSwap (num p) (denInt p) (denInt q) (denInt q)))
       (trans
         _
         _
         _
         (intSgn (num q * denInt q))
         (cong
-          _
           (λv. Sign)
           (λv. intSgn (v * (denInt p * denInt q)))
-          (num p * denInt q)
-          (num q * denInt p)
+          {num p * denInt q}
+          {num q * denInt p}
           h)
         (trans
           _
           _
           _
           (intSgn (num q * denInt q))
-          (cong
-            _
-            (λv. Sign)
-            (λv. intSgn v)
-            _
-            _
-            (mulPairSwapR (num q) (denInt p) (denInt p) (denInt q)))
+          (cong (λv. Sign) (λv. intSgn v) (mulPairSwapR (num q) (denInt p) (denInt p) (denInt q)))
           (intSgnMulSq (num q * denInt q) (den p)))))
 
 -- the sign of a rational: quot-elim, well-defined by ratSgnWD
@@ -370,11 +351,11 @@ def intSgnNegFlip : (z : El Int) → intSgn (intNeg z) ≡ sgnFlip (intSgn z)
       _
       _
       _
-      (cong _ (λv. Sign) (λv. intSgn (intNeg v)) _ _ (sym _ _ _ (u .π₂)))
+      (cong (λv. Sign) (λv. intSgn (intNeg v)) (sym _ _ _ (u .π₂)))
       (trans
-        Sign
+        _
         (intSgn (intNeg (nzToInt (u .π₁))))
-        (sgnFlip (nzSgn (u .π₁)))
+        _
         _
         intSgnNegNz
         (trans
@@ -382,8 +363,8 @@ def intSgnNegFlip : (z : El Int) → intSgn (intNeg z) ≡ sgnFlip (intSgn z)
           _
           _
           (sgnFlip (intSgn z))
-          (cong _ (λv. Sign) (λv. sgnFlip v) _ _ (sym _ _ _ (intSgnNz (u .π₁))))
-          (cong _ (λv. Sign) (λv. sgnFlip (intSgn v)) _ _ (u .π₂)))))
+          (cong (λv. Sign) (λv. sgnFlip v) (sym _ _ _ (intSgnNz (u .π₁))))
+          (cong (λv. Sign) (λv. sgnFlip (intSgn v)) (u .π₂)))))
     (hz. trans
       _
       _
@@ -394,8 +375,8 @@ def intSgnNegFlip : (z : El Int) → intSgn (intNeg z) ≡ sgnFlip (intSgn z)
         _
         _
         sZero
-        (cong _ (λv. Sign) (λv. intSgn (intNeg v)) _ _ hz)
-        (trans _ _ _ sZero (cong _ (λv. Sign) (λv. intSgn v) _ _ intNegZero) intSgnZero))
+        (cong (λv. Sign) (λv. intSgn (intNeg v)) hz)
+        (trans _ _ _ sZero (cong (λv. Sign) (λv. intSgn v) intNegZero) intSgnZero))
       (sym
         _
         _
@@ -406,12 +387,9 @@ def intSgnNegFlip : (z : El Int) → intSgn (intNeg z) ≡ sgnFlip (intSgn z)
           _
           sZero
           (cong
-            _
             (λv. Sign)
             (λv. sgnFlip v)
-            _
-            _
-            (trans _ _ _ sZero (cong _ (λv. Sign) (λv. intSgn v) _ _ hz) intSgnZero))
+            (trans _ _ _ sZero (cong (λv. Sign) (λv. intSgn v) hz) intSgnZero))
           ⋆)))
     (nzOfInt z)
 
@@ -419,21 +397,21 @@ def intSgnNegFlip : (z : El Int) → intSgn (intNeg z) ≡ sgnFlip (intSgn z)
 def qLeftSwap : (b c d : El Q) → b + (c + d) ≡ c + (b + d) using (rationalQ.Q.unfold) ≔
   λb. λc. λd. b + (c + d)
       ≡⟨ sym _ _ _ (qAddAssoc b c d) ⟩ b + c + d
-      ≡⟨ cong _ (λv. Q) (λv. v + d) _ _ (qAddComm b c) ⟩ c + b + d
+      ≡⟨ cong (λv. Q) (λv. v + d) (qAddComm b c) ⟩ c + b + d
       ≡⟨ qAddAssoc c b d ⟩ c + (b + d)
 
 def qPairSwap : (a b c d : El Q) → a + b + (c + d) ≡ a + c + (b + d) using (rationalQ.Q.unfold) ≔
   λa. λb. λc. λd. a + b + (c + d)
       ≡⟨ qAddAssoc a b (c + d) ⟩ a + (b + (c + d))
-      ≡⟨ cong _ (λv. Q) (λv. a + v) _ _ (qLeftSwap b c d) ⟩ a + (c + (b + d))
+      ≡⟨ cong (λv. Q) (λv. a + v) (qLeftSwap b c d) ⟩ a + (c + (b + d))
       ≡⟨ sym _ _ _ (qAddAssoc a c (b + d)) ⟩ a + c + (b + d)
 
 -- −u + (u + v) ≡ v, then inverse uniqueness, then −(a+b) ≡ (−a)+(−b)
 def qNegPlusCancel : (u v : El Q) → qNeg u + (u + v) ≡ v using (rationalQ.Q.unfold) ≔
   λu. λv. qNeg u + (u + v)
       ≡⟨ sym _ _ _ (qAddAssoc (qNeg u) u v) ⟩ qNeg u + u + v
-      ≡⟨ cong _ (λw. Q) (λw. w + v) _ _ (qAddComm (qNeg u) u) ⟩ u + qNeg u + v
-      ≡⟨ cong _ (λw. Q) (λw. w + v) _ _ (qAddNegR u) ⟩ qZero + v
+      ≡⟨ cong (λw. Q) (λw. w + v) (qAddComm (qNeg u) u) ⟩ u + qNeg u + v
+      ≡⟨ cong (λw. Q) (λw. w + v) (qAddNegR u) ⟩ qZero + v
       ≡⟨ qAddZeroL v ⟩ v
 
 def qNegUnique : {u v : El Q} → (u + v ≡ qZero) → v ≡ qNeg u ≔
@@ -448,7 +426,7 @@ def qNegUnique : {u v : El Q} → (u + v ≡ qZero) → v ≡ qNeg u ≔
       _
       _
       (qNeg u)
-      (cong _ (λw. Q) (λw. qNeg u + w) _ _ h)
+      (cong (λw. Q) (λw. qNeg u + w) h)
       (trans _ _ _ _ (qAddComm (qNeg u) qZero) (qAddZeroL (qNeg u))))
 
 def qNegAdd : (a b : El Q) → qNeg (a + b) ≡ qNeg a + qNeg b ≔
@@ -468,7 +446,7 @@ def qNegAdd : (a b : El Q) → qNeg (a + b) ≡ qNeg a + qNeg b ≔
           _
           _
           qZero
-          (cong _ (λw. Q) (λw. w + (b + qNeg b)) _ _ (qAddNegR a))
+          (cong (λw. Q) (λw. w + (b + qNeg b)) (qAddNegR a))
           (trans _ _ _ _ (qAddZeroL (b + qNeg b)) (qAddNegR b)))))
 
 def qSubNeg : {x y : El Q} → x + qNeg y ≡ qNeg (y + qNeg x) ≔
@@ -482,13 +460,7 @@ def qSubNeg : {x y : El Q} → x + qNeg y ≡ qNeg (y + qNeg x) ≔
       _
       _
       (qNegAdd y (qNeg x))
-      (trans
-        _
-        _
-        _
-        (x + qNeg y)
-        (cong _ (λw. Q) (λw. qNeg y + w) _ _ (qNegNeg x))
-        (qAddComm (qNeg y) x)))
+      (trans _ _ _ (x + qNeg y) (cong (λw. Q) (λw. qNeg y + w) (qNegNeg x)) (qAddComm (qNeg y) x)))
 
 -- the flip, lifted to ℚ (representative abstract: D-3)
 def sgnQNegFlip : {u : El Q} → sgnQ (qNeg u) ≡ sgnFlip (sgnQ u)
@@ -532,11 +504,10 @@ def sgnQNegFlip : {u : El Q} → sgnQ (qNeg u) ≡ sgnFlip (sgnQ u)
         _
         ⋆
         (cong
-          Int
           (λv. Sign)
           (λv. intSgn v)
-          (intNeg (num p) * denInt p)
-          (intNeg (num p * denInt p))
+          {intNeg (num p) * denInt p}
+          {intNeg (num p * denInt p)}
           intMulNegL))
       (intSgnNegFlip (num p * denInt p)))
     u
@@ -548,10 +519,7 @@ infixl 4 ≤
 def ≤ : El Q → El Q → 𝕌 ≔ λx. λy. NonNegS (sgnQ (y + qNeg x))
 
 def leQRefl : (x : El Q) → El (x ≤ x) using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
-  λx. inj₁ (eqToId
-    _
-    _
-    (trans _ _ _ sZero (cong _ (λu. Sign) (λu. sgnQ u) _ _ (qAddNegR x)) sgnQZero))
+  λx. inj₁ (eqToId _ _ (trans _ _ _ sZero (cong (λu. Sign) (λu. sgnQ u) (qAddNegR x)) sgnQZero))
 
 def leQOfEq : (x y : El Q) → (x ≡ y) → El (x ≤ y)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
@@ -564,12 +532,9 @@ def leQOfEq : (x y : El Q) → (x ≡ y) → El (x ≤ y)
       _
       sZero
       (cong
-        _
         (λu. Sign)
         (λu. sgnQ u)
-        _
-        _
-        (trans _ _ _ qZero (cong _ (λu. Q) (λu. y + qNeg u) _ _ h) (qAddNegR y)))
+        (trans _ _ _ qZero (cong (λu. Q) (λu. y + qNeg u) h) (qAddNegR y)))
       sgnQZero))
 
 -- every sign is nonneg or negative — the DECISION, as data
@@ -606,13 +571,13 @@ def leQTotal : (x y : El Q) → El (x ≤ y) ⊎ El (y ≤ x)
         _
         _
         (trans
-          Sign
           _
-          (sgnQ (qNeg (y + qNeg x)))
+          _
+          _
           (sgnFlip (sgnQ (y + qNeg x)))
-          (cong Q (λu. Sign) (λu. sgnQ u) (x + qNeg y) (qNeg (y + qNeg x)) qSubNeg)
+          (cong (λu. Sign) (λu. sgnQ u) {x + qNeg y} {qNeg (y + qNeg x)} qSubNeg)
           sgnQNegFlip)
-        (trans _ _ _ sPos (cong _ (λu. Sign) (λu. sgnFlip u) _ _ (idToEq _ _ _ hneg)) ⋆)))))
+        (trans _ _ _ sPos (cong (λu. Sign) (λu. sgnFlip u) (idToEq _ _ _ hneg)) ⋆)))))
     (sgnCases (sgnQ (y + qNeg x)))
 
 -- ===== sign discrimination (transport along a discriminating family) =====
@@ -655,11 +620,11 @@ def intSgnPosView : (z : El Int) → (intSgn z ≡ sPos) → (k : ℕ) ⨯ Prf (
             _
             _
             (trans
-              Sign
               _
-              (intSgn (nzToInt (nzNeg k)))
+              _
+              _
               sNeg
-              (cong _ (λv. Sign) (λv. intSgn v) _ _ (sym _ (nzToInt (nzNeg k)) _ he))
+              (cong (λv. Sign) (λv. intSgn v) (sym _ (nzToInt (nzNeg k)) _ he))
               intSgnNeg))
           h)))
       (u .π₁))
@@ -670,7 +635,7 @@ def intSgnPosView : (z : El Int) → (intSgn z ≡ sPos) → (k : ℕ) ⨯ Prf (
         _
         _
         _
-        (sym _ _ _ (trans _ _ _ sZero (cong _ (λv. Sign) (λv. intSgn v) _ _ hz) intSgnZero))
+        (sym _ _ _ (trans _ _ _ sZero (cong (λv. Sign) (λv. intSgn v) hz) intSgnZero))
         h)))
     (nzOfInt z)
 
@@ -690,7 +655,7 @@ def intSgnZeroView : (z : El Int) → (intSgn z ≡ sZero) → z ≡ intZero
             _
             _
             sPos
-            (cong _ (λv. Sign) (λv. intSgn v) _ _ (sym _ (nzToInt (nzPos k)) _ he))
+            (cong (λv. Sign) (λv. intSgn v) (sym _ (nzToInt (nzPos k)) _ he))
             (intSgnPos k)))))
       (k. λhe. 𝟘-elim (sZeroNotNeg
         (trans
@@ -700,11 +665,11 @@ def intSgnZeroView : (z : El Int) → (intSgn z ≡ sZero) → z ≡ intZero
           _
           (sym _ _ _ h)
           (trans
-            Sign
             _
-            (intSgn (nzToInt (nzNeg k)))
+            _
+            _
             sNeg
-            (cong _ (λv. Sign) (λv. intSgn v) _ _ (sym _ (nzToInt (nzNeg k)) _ he))
+            (cong (λv. Sign) (λv. intSgn v) (sym _ (nzToInt (nzNeg k)) _ he))
             intSgnNeg))))
       (u .π₁))
       (u .π₂))
@@ -731,30 +696,21 @@ def intSgnPosMul : {a b : El Int} → (intSgn a ≡ sPos) → (intSgn b ≡ sPos
     _
     _
     (cong
-      _
       (λv. Sign)
       (λv. intSgn v)
-      _
-      _
       (trans
         _
         _
         _
         (nzToInt (nzPos (va .π₁)) * nzToInt (nzPos (vb .π₁)))
-        (cong _ (λv. Int) (λv. v * b) _ _ (sym _ _ _ (va .π₂)))
-        (cong _ (λv. Int) (λv. nzToInt (nzPos (va .π₁)) * v) _ _ (sym _ _ _ (vb .π₂)))))
+        (cong (λv. Int) (λv. v * b) (sym _ _ _ (va .π₂)))
+        (cong (λv. Int) (λv. nzToInt (nzPos (va .π₁)) * v) (sym _ _ _ (vb .π₂)))))
     (trans
       _
       _
       _
       sPos
-      (cong
-        _
-        (λv. Sign)
-        (λv. intSgn v)
-        _
-        _
-        (sym _ _ _ (nzToIntMul (nzPos (va .π₁)) (nzPos (vb .π₁)))))
+      (cong (λv. Sign) (λv. intSgn v) (sym _ _ _ (nzToIntMul (nzPos (va .π₁)) (nzPos (vb .π₁)))))
       (trans _ _ _ sPos (intSgnNz (nzMul (nzPos (va .π₁)) (nzPos (vb .π₁)))) ⋆))
 
 -- positives add to a positive: both views land on class (S j , Z)
@@ -795,18 +751,15 @@ def intSgnPosAdd : {a b : El Int} → (intSgn a ≡ sPos) → (intSgn b ≡ sPos
     _
     _
     (cong
-      _
       (λv. Sign)
       (λv. intSgn v)
-      _
-      _
       (trans
         _
         _
         _
         (nzToInt (nzPos (va .π₁)) + nzToInt (nzPos (vb .π₁)))
-        (cong _ (λv. Int) (λv. v + b) _ _ (sym _ _ _ (va .π₂)))
-        (cong _ (λv. Int) (λv. nzToInt (nzPos (va .π₁)) + v) _ _ (sym _ _ _ (vb .π₂)))))
+        (cong (λv. Int) (λv. v + b) (sym _ _ _ (va .π₂)))
+        (cong (λv. Int) (λv. nzToInt (nzPos (va .π₁)) + v) (sym _ _ _ (vb .π₂)))))
     ⋆
 
 -- ratSgn, spelled in the nzToInt∘den vocabulary the shuffling lemmas
@@ -838,36 +791,26 @@ def ratCrossPosL : {p : El Rat}
     _
     _
     (cong
-      _
       (λv. Sign)
       (λv. intSgn v)
-      (intScale (den q) (num p) * nzToInt (nzMul (den p) (den q)))
-      (num p * nzToInt (den p) * (nzToInt (den q) * nzToInt (den q)))
+      {intScale (den q) (num p) * nzToInt (nzMul (den p) (den q))}
+      {num p * nzToInt (den p) * (nzToInt (den q) * nzToInt (den q))}
       (intScale (den q) (num p) * nzToInt (nzMul (den p) (den q))
           ≡⟨ cong
-            _
             (λv. Int)
             (λv. v * nzToInt (nzMul (den p) (den q)))
-            _
-            _
             (intScaleIsMul
               (den q)
               (num p)) ⟩ nzToInt (den q) * num p * nzToInt (nzMul (den p) (den q))
           ≡⟨ cong
-            _
             (λv. Int)
             (λv. nzToInt (den q) * num p * v)
-            _
-            _
             (nzToIntMul
               (den p)
               (den q)) ⟩ nzToInt (den q) * num p * (nzToInt (den p) * nzToInt (den q))
           ≡⟨ cong
-            _
             (λv. Int)
             (λv. v * (nzToInt (den p) * nzToInt (den q)))
-            _
-            _
             (intMulComm
               (nzToInt (den q))
               (num p)) ⟩ num p * nzToInt (den q) * (nzToInt (den p) * nzToInt (den q))
@@ -892,36 +835,26 @@ def ratCrossPosR : (p : El Rat)
     _
     _
     (cong
-      _
       (λv. Sign)
       (λv. intSgn v)
-      (intScale (den p) (num q) * nzToInt (nzMul (den p) (den q)))
-      (num q * nzToInt (den q) * (nzToInt (den p) * nzToInt (den p)))
+      {intScale (den p) (num q) * nzToInt (nzMul (den p) (den q))}
+      {num q * nzToInt (den q) * (nzToInt (den p) * nzToInt (den p))}
       (intScale (den p) (num q) * nzToInt (nzMul (den p) (den q))
           ≡⟨ cong
-            _
             (λv. Int)
             (λv. v * nzToInt (nzMul (den p) (den q)))
-            _
-            _
             (intScaleIsMul
               (den p)
               (num q)) ⟩ nzToInt (den p) * num q * nzToInt (nzMul (den p) (den q))
           ≡⟨ cong
-            _
             (λv. Int)
             (λv. nzToInt (den p) * num q * v)
-            _
-            _
             (nzToIntMul
               (den p)
               (den q)) ⟩ nzToInt (den p) * num q * (nzToInt (den p) * nzToInt (den q))
           ≡⟨ cong
-            _
             (λv. Int)
             (λv. v * (nzToInt (den p) * nzToInt (den q)))
-            _
-            _
             (intMulComm
               (nzToInt (den p))
               (num q)) ⟩ num q * nzToInt (den p) * (nzToInt (den p) * nzToInt (den q))
@@ -968,11 +901,8 @@ def ratAddPos : {p q : El Rat} → (ratSgn p ≡ sPos) → (ratSgn q ≡ sPos) �
           (nzMul (den p) (den q)) + intScale (den p) (num q) * nzToInt (nzMul (den p) (den q))))
     _
     (cong
-      _
       (λv. Sign)
       (λv. intSgn v)
-      _
-      _
       (intMulDistribR
         (intScale (den q) (num p))
         (intScale (den p) (num q))
@@ -1070,13 +1000,13 @@ def sgnQZeroView : (u : El Q) → (sgnQ u ≡ sZero) → u ≡ qZero
 def qSubSplit : (x y z : El Q) → z + qNeg y + (y + qNeg x) ≡ z + qNeg x using (rationalQ.Q.unfold) ≔
   λx. λy. λz. z + qNeg y + (y + qNeg x)
       ≡⟨ qAddAssoc z (qNeg y) (y + qNeg x) ⟩ z + (qNeg y + (y + qNeg x))
-      ≡⟨ cong _ (λw. Q) (λw. z + w) _ _ (qNegPlusCancel y (qNeg x)) ⟩ z + qNeg x
+      ≡⟨ cong (λw. Q) (λw. z + w) (qNegPlusCancel y (qNeg x)) ⟩ z + qNeg x
 
 -- (a − b) + b ≡ a, hypothesis-free
 def qPlusNegCancelR : (a b : El Q) → a + qNeg b + b ≡ a using (rationalQ.Q.unfold) ≔
   λa. λb. a + qNeg b + b
       ≡⟨ qAddAssoc a (qNeg b) b ⟩ a + (qNeg b + b)
-      ≡⟨ cong _ (λw. Q) (λw. a + w) _ _ (qAddNegL b) ⟩ a + qZero
+      ≡⟨ cong (λw. Q) (λw. a + w) (qAddNegL b) ⟩ a + qZero
       ≡⟨ qAddZeroR a ⟩ a
 
 -- a zero difference names an equality
@@ -1087,7 +1017,7 @@ def qDiffZero : {a b : El Q} → (a + qNeg b ≡ qZero) → a ≡ b ≔
     _
     _
     (sym _ _ _ (qPlusNegCancelR a b))
-    (trans _ _ _ b (cong _ (λw. Q) (λw. w + b) _ _ h) (qAddZeroL b))
+    (trans _ _ _ b (cong (λw. Q) (λw. w + b) h) (qAddZeroL b))
 
 -- ===== transitivity and antisymmetry =====
 def leQTrans : (x y z : El Q) → El (x ≤ y) → El (y ≤ z) → El (x ≤ z)
@@ -1102,11 +1032,8 @@ def leQTrans : (x y z : El Q) → El (x ≤ y) → El (y ≤ z) → El (x ≤ z)
       + (y
         + qNeg
           x)) ≔ cong
-    _
     (λw. Sign)
     (λw. sgnQ w)
-    _
-    _
     (sym
       _
       _
@@ -1134,17 +1061,14 @@ def leQTrans : (x y z : El Q) → El (x ≤ y) → El (y ≤ z) → El (x ≤ z)
       _
       comb
       (cong
-        _
         (λw. Sign)
         (λw. sgnQ w)
-        _
-        _
         (trans
           _
           _
           _
           (z + qNeg y)
-          (cong _ (λw. Q) (λw. z + qNeg y + w) _ _ e0)
+          (cong (λw. Q) (λw. z + qNeg y + w) e0)
           (qAddZeroR (z + qNeg y)))) in transport _ NonNegS _ _ (sym _ _ _ eq) l2)
     (h1p. ⊎-elim
       (h20. let e0 ≔ sgnQZeroView
@@ -1166,17 +1090,14 @@ def leQTrans : (x y z : El Q) → El (x ≤ y) → El (y ≤ z) → El (x ≤ z)
         _
         comb
         (cong
-          _
           (λw. Sign)
           (λw. sgnQ w)
-          _
-          _
           (trans
             _
             _
             _
             (y + qNeg x)
-            (cong _ (λw. Q) (λw. w + (y + qNeg x)) _ _ e0)
+            (cong (λw. Q) (λw. w + (y + qNeg x)) e0)
             (qAddZeroL (y + qNeg x)))) in transport _ NonNegS _ _ (sym _ _ _ eq) (inj₂ h1p))
       (h2p. inj₂ (eqToId
         _
@@ -1204,9 +1125,9 @@ def leQAntisym : {x y : El Q} → El (x ≤ y) → El (y ≤ x) → x ≡ y
           x)) ≔ trans
     _
     _
-    (sgnQ (qNeg (y + qNeg x)))
     _
-    (cong Q (λw. Sign) (λw. sgnQ w) (x + qNeg y) (qNeg (y + qNeg x)) qSubNeg)
+    _
+    (cong (λw. Sign) (λw. sgnQ w) {x + qNeg y} {qNeg (y + qNeg x)} qSubNeg)
     sgnQNegFlip in ⊎-elim
     (h10. sym _ _ _ (qDiffZero (sgnQZeroView _ (idToEq _ _ _ h10))))
     (h1p. let en : sgnQ
@@ -1223,7 +1144,7 @@ def leQAntisym : {x y : El Q} → El (x ≤ y) → El (y ≤ x) → x ≡ y
         _
         _
         sNeg
-        (cong _ (λw. Sign) (λw. sgnFlip w) _ _ (idToEq _ _ _ h1p))
+        (cong (λw. Sign) (λw. sgnFlip w) (idToEq _ _ _ h1p))
         ⋆) in ⊎-elim
       (h20. 𝟘-elim (sZeroNotNeg (trans _ _ _ _ (sym _ _ _ (idToEq _ _ _ h20)) en)))
       (h2p. 𝟘-elim (sPosNotNeg (trans _ _ _ _ (sym _ _ _ (idToEq _ _ _ h2p)) en)))
@@ -1234,9 +1155,9 @@ def leQAntisym : {x y : El Q} → El (x ≤ y) → El (y ≤ x) → x ≡ y
 -- (y + w) − (x + w) ≡ y − x, hypothesis-free
 def qSubPlusCancel : (x y w : El Q) → y + w + qNeg (x + w) ≡ y + qNeg x using (rationalQ.Q.unfold) ≔
   λx. λy. λw. y + w + qNeg (x + w)
-      ≡⟨ cong _ (λv. Q) (λv. y + w + v) _ _ (qNegAdd x w) ⟩ y + w + (qNeg x + qNeg w)
+      ≡⟨ cong (λv. Q) (λv. y + w + v) (qNegAdd x w) ⟩ y + w + (qNeg x + qNeg w)
       ≡⟨ qPairSwap y w (qNeg x) (qNeg w) ⟩ y + qNeg x + (w + qNeg w)
-      ≡⟨ cong _ (λv. Q) (λv. y + qNeg x + v) _ _ (qAddNegR w) ⟩ y + qNeg x + qZero
+      ≡⟨ cong (λv. Q) (λv. y + qNeg x + v) (qAddNegR w) ⟩ y + qNeg x + qZero
       ≡⟨ qAddZeroR (y + qNeg x) ⟩ y + qNeg x
 
 -- monotonicity of + : one transport along the cancelled difference
@@ -1247,7 +1168,7 @@ def leQPlusMono : {x y : El Q} (w : El Q) → El (x ≤ y) → El (x + w ≤ y +
     NonNegS
     _
     _
-    (sym _ _ (sgnQ (y + qNeg x)) (cong _ (λv. Sign) (λv. sgnQ v) _ _ (qSubPlusCancel x y w)))
+    (sym _ _ (sgnQ (y + qNeg x)) (cong (λv. Sign) (λv. sgnQ v) (qSubPlusCancel x y w)))
     le
 
 def leQPlusMonoL : (x y w : El Q) → El (x ≤ y) → El (w + x ≤ w + y)
@@ -1290,18 +1211,14 @@ def ratMulPos : {p q : El Rat} → (ratSgn p ≡ sPos) → (ratSgn q ≡ sPos) �
     (intSgn (num p * nzToInt (den p) * (num q * nzToInt (den q))))
     _
     (cong
-      _
       (λv. Sign)
       (λv. intSgn v)
-      (num p * num q * nzToInt (nzMul (den p) (den q)))
-      (num p * nzToInt (den p) * (num q * nzToInt (den q)))
+      {num p * num q * nzToInt (nzMul (den p) (den q))}
+      {num p * nzToInt (den p) * (num q * nzToInt (den q))}
       (num p * num q * nzToInt (nzMul (den p) (den q))
           ≡⟨ cong
-            _
             (λv. Int)
             (λv. num p * num q * v)
-            _
-            _
             (nzToIntMul (den p) (den q)) ⟩ num p * num q * (nzToInt (den p) * nzToInt (den q))
           ≡⟨ mulPairSwap
             (num p)
@@ -1345,14 +1262,14 @@ def qNegMulL : (x c : El Q) → qNeg x * c ≡ qNeg (x * c) ≔
       _
       _
       (sym _ _ _ (qDistribR c x (qNeg x)))
-      (trans Q _ (qZero * c) qZero (cong _ (λv. Q) (λv. v * c) _ _ (qAddNegR x)) qMulZeroL))
+      (trans _ _ _ qZero (cong (λv. Q) (λv. v * c) (qAddNegR x)) qMulZeroL))
 
 -- (y − x)·c ≡ y·c − x·c, hypothesis-free
 def qSubDistribR : (x y c : El Q) → (y + qNeg x) * c ≡ y * c + qNeg (x * c)
   using (rationalQ.Q.unfold) ≔
   λx. λy. λc. (y + qNeg x) * c
       ≡⟨ qDistribR c y (qNeg x) ⟩ y * c + qNeg x * c
-      ≡⟨ cong _ (λv. Q) (λv. y * c + v) _ _ (qNegMulL x c) ⟩ y * c + qNeg (x * c)
+      ≡⟨ cong (λv. Q) (λv. y * c + v) (qNegMulL x c) ⟩ y * c + qNeg (x * c)
 
 -- monotonicity of · by a NONNEGATIVE scalar: case the scalar's sign —
 -- a zero scalar collapses both sides, a positive one cases the
@@ -1385,11 +1302,8 @@ def leQMulMono : (x y : El Q) {c : El Q} → El (x ≤ y) → El (qZero ≤ c) �
       + qNeg
         x)
       * c) ≔ cong
-    _
     (λv. Sign)
     (λv. sgnQ v)
-    _
-    _
     (sym
       _
       _
@@ -1402,17 +1316,14 @@ def leQMulMono : (x y : El Q) {c : El Q} → El (x ≤ y) → El (qZero ≤ c) �
       + qNeg
         qZero) ≡ sgnQ
     c ≔ cong
-    _
     (λv. Sign)
     (λv. sgnQ v)
-    _
-    _
     (trans
       _
       _
       _
       c
-      (cong _ (λv. Q) (λv. c + v) (qNeg qZero) qZero ⋆)
+      (cong (λv. Q) (λv. c + v) {qNeg qZero} {qZero} ⋆)
       (qAddZeroR
         c)) in ⊎-elim
     (hc0. let c0 : c ≡ qZero ≔ sgnQZeroView
@@ -1442,18 +1353,15 @@ def leQMulMono : (x y : El Q) {c : El Q} → El (x ≤ y) → El (qZero ≤ c) �
           _
           sZero
           (cong
-            _
             (λv. Sign)
             (λv. sgnQ v)
-            _
-            _
             (trans
               _
               _
               _
               qZero
-              (cong _ (λv. Q) (λv. (y + qNeg x) * v) _ _ c0)
-              (trans Q _ (qZero * (y + qNeg x)) qZero (qMulComm (y + qNeg x) qZero) qMulZeroL)))
+              (cong (λv. Q) (λv. (y + qNeg x) * v) c0)
+              (trans _ _ _ qZero (qMulComm (y + qNeg x) qZero) qMulZeroL)))
           sgnQZero))))
     (hcp. let hcs : sgnQ
       c ≡ sPos ≔ trans
@@ -1490,12 +1398,9 @@ def leQMulMono : (x y : El Q) {c : El Q} → El (x ≤ y) → El (qZero ≤ c) �
             _
             sZero
             (cong
-              _
               (λv. Sign)
               (λv. sgnQ v)
-              _
-              _
-              (trans Q _ (qZero * c) qZero (cong _ (λv. Q) (λv. v * c) _ _ d0) qMulZeroL))
+              (trans _ _ _ qZero (cong (λv. Q) (λv. v * c) d0) qMulZeroL))
             sgnQZero))))
       (hdp. inj₂ (eqToId _ _ (trans _ _ _ _ dEq (sgnQMulPos (idToEq _ _ _ hdp) hcs))))
       le)

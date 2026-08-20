@@ -101,22 +101,16 @@ def qrMulWDOuter : {R : 𝕌}
             a
             a') ⟩ gop _ (raddGroup r) (rmul _ r b a) (ginv _ (raddGroup r) (rmul _ r b a'))
         ≡⟨ cong
-          _
           (λw. R)
           (λw. gop R (raddGroup r) w (ginv _ (raddGroup r) (rmul _ r b a')))
-          _
-          _
           (rMulComm
             _
             r
             b
             a) ⟩ gop _ (raddGroup r) (rmul _ r a b) (ginv _ (raddGroup r) (rmul _ r b a'))
         ≡⟨ cong
-          _
           (λw. R)
           (λw. gop R (raddGroup r) (rmul _ r a b) (ginv _ (raddGroup r) w))
-          _
-          _
           (rMulComm
             _
             r
@@ -273,11 +267,10 @@ def qrMulAssoc : (R : 𝕌)
             _
             (qrMul _ _ _ id (class a) (qrMul _ _ _ id (class b) (class c)))
             (cong
-              R
               (λz. QRing _ r I)
               (λz. class z)
-              (rmul _ r (rmul _ r a b) c)
-              (rmul _ r a (rmul _ r b c))
+              {rmul _ r (rmul _ r a b) c}
+              {rmul _ r a (rmul _ r b c)}
               rMulAssoc)
             ⋆))
         w)
@@ -304,7 +297,7 @@ def qrMulComm : (R : 𝕌)
           _
           _
           (qrMul _ _ _ id (class b) (class a))
-          (cong _ (λz. QRing _ r I) (λz. class z) _ _ (rMulComm _ r a b))
+          (cong (λz. QRing _ r I) (λz. class z) (rMulComm _ r a b))
           ⋆))
       v)
     u
@@ -314,10 +307,10 @@ def qrMulOne : (R : 𝕌)
   (I : El R → Ω)
   (id : Prf (IsIdeal _ r I))
   (u : El (QRing _ r I))
-  → qrMul R r I id u qrOne ≡ u
+  → qrMul _ _ _ id u qrOne ≡ u
   using (QRing.eq, quotGroup.QGroup.unfold, qrOne.eq, qrMulCls.rw) ≔
   λR. λr. λI. λid. λu. quot-elim
-    (a. trans _ _ _ _ ⋆ (cong R (λz. QRing _ r I) (λz. class z) (rmul _ r a (rone r)) a rMulOne))
+    (a. trans _ _ _ _ ⋆ (cong (λz. QRing _ r I) (λz. class z) {rmul _ r a (rone r)} {a} rMulOne))
     u
 
 def qrAddComm : {R : 𝕌}
@@ -340,7 +333,7 @@ def qrAddComm : {R : 𝕌}
           _
           _
           (qrAdd id (class b) (class a))
-          (cong _ (λz. QRing _ r I) (λz. class z) _ _ (rAddComm _ r a b))
+          (cong (λz. QRing _ r I) (λz. class z) (rAddComm _ r a b))
           ⋆))
       v)
     u
@@ -366,7 +359,7 @@ def qrDistribL : {R : 𝕌}
             _
             _
             (qrAdd id (qrMul _ _ _ id (class a) (class b)) (qrMul _ _ _ id (class a) (class c)))
-            (cong _ (λz. QRing _ r I) (λz. class z) _ _ (rDistribL _ r a b c))
+            (cong (λz. QRing _ r I) (λz. class z) (rDistribL _ r a b c))
             ⋆))
         w)
       v)
@@ -426,9 +419,9 @@ def qrIsCommRing : {R : 𝕌}
                   _
                   (qrGop _ _ _ id x y)
                   (trans
-                    (QRing _ r I)
+                    _
                     (qrAdd id x y)
-                    (qrAdd id y x)
+                    _
                     _
                     qrAddComm
                     (sym
@@ -450,11 +443,11 @@ def qrIsCommRing : {R : 𝕌}
                     _
                     _
                     (gop _ (qrAddGroup id) (qrMul _ _ _ id x y) (qrMul _ _ _ id x z))
-                    (cong _ (λz2. QRing _ r I) (λz2. qrMul _ _ _ id x z2) _ _ (qrGop _ _ _ id y z))
+                    (cong (λz2. QRing _ r I) (λz2. qrMul _ _ _ id x z2) (qrGop _ _ _ id y z))
                     (trans
-                      (QRing _ r I)
+                      _
                       (qrMul _ _ _ id x (qrAdd id y z))
-                      (qrAdd id (qrMul _ _ _ id x y) (qrMul _ _ _ id x z))
+                      _
                       _
                       qrDistribL
                       (sym _ _ _ (qrGop _ _ _ id (qrMul _ _ _ id x y) (qrMul _ _ _ id x z)))))

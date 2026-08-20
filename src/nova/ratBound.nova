@@ -26,7 +26,7 @@ def leQNegFlip : (x y : El Q) → El (x ≤ y) → El (qNeg y ≤ qNeg x)
     (qNeg x + qNeg (qNeg y))
     (y + qNeg x
         ≡⟨ qAddComm y (qNeg x) ⟩ qNeg x + y
-        ≡⟨ cong _ (λw. Q) (λw. qNeg x + w) _ _ (sym _ _ _ (qNegNeg y)) ⟩ qNeg x + qNeg (qNeg y))
+        ≡⟨ cong (λw. Q) (λw. qNeg x + w) (sym _ _ _ (qNegNeg y)) ⟩ qNeg x + qNeg (qNeg y))
     h
 
 -- ...and back: (−y) ≤ (−x) gives x ≤ y, by flipping once more
@@ -114,7 +114,7 @@ def bndSubEq : (b u v : El Q) → El (qZero ≤ b) → (u ≡ v) → El (Bnd b (
   λb. λu. λv. λle. λe. bndEq
     _
     _
-    (sym _ _ _ (trans _ _ _ qZero (cong _ (λw. Q) (λw. w + qNeg v) _ _ e) (qAddNegR v)))
+    (sym _ _ _ (trans _ _ _ qZero (cong (λw. Q) (λw. w + qNeg v) e) (qAddNegR v)))
     (bndZero _ le)
 
 -- ===== reassociating a difference =====
@@ -132,7 +132,7 @@ def bndVia : (a b u v w : El Q)
 def qSubFlip : (u v : El Q) → qNeg (u + qNeg v) ≡ v + qNeg u using (rationalQ.Q.unfold) ≔
   λu. λv. qNeg (u + qNeg v)
       ≡⟨ qNegAdd u (qNeg v) ⟩ qNeg u + qNeg (qNeg v)
-      ≡⟨ cong _ (λz. Q) (λz. qNeg u + z) _ _ (qNegNeg v) ⟩ qNeg u + v
+      ≡⟨ cong (λz. Q) (λz. qNeg u + z) (qNegNeg v) ⟩ qNeg u + v
       ≡⟨ qAddComm (qNeg u) v ⟩ v + qNeg u
 
 def bndSubSym : (b u v : El Q) → El (Bnd b (u + qNeg v)) → El (Bnd b (v + qNeg u))
@@ -147,21 +147,21 @@ def qSubAdd : (a b c d : El Q) → a + qNeg b + (c + qNeg d) ≡ a + c + qNeg (b
   using (rationalQ.Q.unfold) ≔
   λa. λb. λc. λd. a + qNeg b + (c + qNeg d)
       ≡⟨ qPairSwap a (qNeg b) c (qNeg d) ⟩ a + c + (qNeg b + qNeg d)
-      ≡⟨ cong _ (λw. Q) (λw. a + c + w) _ _ (sym _ _ _ (qNegAdd b d)) ⟩ a + c + qNeg (b + d)
+      ≡⟨ cong (λw. Q) (λw. a + c + w) (sym _ _ _ (qNegAdd b d)) ⟩ a + c + qNeg (b + d)
 
 -- a common LEFT summand cancels from a difference (rationalOrder has
 -- the right-summand version)
 def qSubPlusCancelL : (x y w : El Q) → w + y + qNeg (w + x) ≡ y + qNeg x
   using (rationalQ.Q.unfold) ≔
   λx. λy. λw. w + y + qNeg (w + x)
-      ≡⟨ cong _ (λv. Q) (λv. v + qNeg (w + x)) _ _ (qAddComm w y) ⟩ y + w + qNeg (w + x)
-      ≡⟨ cong _ (λv. Q) (λv. y + w + qNeg v) _ _ (qAddComm w x) ⟩ y + w + qNeg (x + w)
+      ≡⟨ cong (λv. Q) (λv. v + qNeg (w + x)) (qAddComm w y) ⟩ y + w + qNeg (w + x)
+      ≡⟨ cong (λv. Q) (λv. y + w + qNeg v) (qAddComm w x) ⟩ y + w + qNeg (x + w)
       ≡⟨ qSubPlusCancel x y w ⟩ y + qNeg x
 
 -- ===== nonnegativity from a positive sign =====
 -- u − 0 is u : the one rewriting step every 0 ≤ u proof needs
 def qSubZeroR : {u : El Q} → u + qNeg qZero ≡ u ≔
-  λu. trans _ _ _ _ (cong _ (λv. Q) (λv. u + v) _ _ qNegZeroQ) (qAddZeroR u)
+  λu. trans _ _ _ _ (cong (λv. Q) (λv. u + v) qNegZeroQ) (qAddZeroR u)
 
 -- 0 ≤ u whenever u's sign is nonnegative
 def leQZeroOfNonNeg : (u : El Q) → El (NonNegS (sgnQ u)) → El (qZero ≤ u)
@@ -171,7 +171,7 @@ def leQZeroOfNonNeg : (u : El Q) → El (NonNegS (sgnQ u)) → El (qZero ≤ u)
     NonNegS
     _
     _
-    (sym _ _ (sgnQ u) (cong Q (λv. Sign) (λv. sgnQ v) (u + qNeg qZero) u qSubZeroR))
+    (sym _ _ (sgnQ u) (cong (λv. Sign) (λv. sgnQ v) {u + qNeg qZero} {u} qSubZeroR))
     h
 
 -- 0 ≤ u whenever u's sign is positive: the difference u − 0 is u
@@ -180,7 +180,7 @@ def leQZeroOfPos : (u : El Q) → (sgnQ u ≡ sPos) → El (qZero ≤ u)
   λu. λh. inj₂ (eqToId
     _
     _
-    (trans _ _ _ sPos (cong Q (λv. Sign) (λv. sgnQ v) (u + qNeg qZero) u qSubZeroR) h))
+    (trans _ _ _ sPos (cong (λv. Sign) (λv. sgnQ v) {u + qNeg qZero} {u} qSubZeroR) h))
 
 -- ===== growing a bound by a nonnegative amount =====
 def leQSelfAdd : (a : El Q) {b : El Q} → El (qZero ≤ b) → El (a ≤ a + b)
@@ -233,12 +233,12 @@ def nonNegIsProp : (s : El Sign) (p q : El (NonNegS s)) → p ≡ q
   using (id.Id.unfold, rationalOrder.NonNegS.unfold, rationalOrder.Sign.unfold) ≔
   λs. λp. λq. ⊎-elim
     (a. ⊎-elim
-      (b. cong (Id _ s sZero) (λv. NonNegS s) (λw. inj₁ w) a b uip)
+      (b. cong (λv. NonNegS s) (λw. inj₁ w) {a} {b} uip)
       (b. 𝟘-elim (sZeroNotPos (trans _ _ _ _ (sym _ _ _ (idToEq _ _ _ a)) (idToEq _ _ _ b))))
       q)
     (a. ⊎-elim
       (b. 𝟘-elim (sZeroNotPos (trans _ _ _ _ (sym _ _ _ (idToEq _ _ _ b)) (idToEq _ _ _ a))))
-      (b. cong (Id _ s sPos) (λv. NonNegS s) (λw. inj₂ w) a b uip)
+      (b. cong (λv. NonNegS s) (λw. inj₂ w) {a} {b} uip)
       q)
     p
 

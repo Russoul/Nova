@@ -54,7 +54,7 @@ def outl : (a b : 𝕌) → El a → El (a ⊎ b) → El a ≔ λa. λb. λd. λ
 
 def inj1Injective : (a b : 𝕌) (x x' : El a) → (inj₁ x ≡ inj₁ x' ∈ El (a ⊎ b)) → x ≡ x'
   using (sum.outl.eq) ≔
-  λa. λb. λx. λx'. λh. cong _ (λw. a) (outl _ b x) _ _ h
+  λa. λb. λx. λx'. λh. cong (λw. a) (outl _ b x) h
 
 -- inj₁ and inj₂ are disjoint — also derivable: transport the
 -- "is-left" code along the bad equation and land a 𝟙-witness in 𝟘
@@ -69,4 +69,4 @@ def outr : (a b : 𝕌) → El b → El (a ⊎ b) → El b ≔ λa. λb. λd. λ
 
 def inj2Injective : (a b : 𝕌) (y y' : El b) → (inj₂ y ≡ inj₂ y' ∈ El (a ⊎ b)) → y ≡ y'
   using (sum.outr.eq) ≔
-  λa. λb. λy. λy'. λh. cong _ (λw. b) (outr a _ y) _ _ h
+  λa. λb. λy. λy'. λh. cong (λw. b) (outr a _ y) h

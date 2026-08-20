@@ -30,9 +30,9 @@ def distribBackR : (m k n : ℕ) → m * n + k * n ≡ (m + k) * n using (distri
       _
       _
       (n * m + n * k)
-      (cong _ (λu. ℕ) (λw. w + k * n) _ _ (multComm n m))
-      (cong _ (λu. ℕ) (λw. n * m + w) _ _ (multComm n k)))
-    (trans ℕ (n * m + n * k) (n * (m + k)) _ distribBack (multComm (m + k) n))
+      (cong (λu. ℕ) (λw. w + k * n) (multComm n m))
+      (cong (λu. ℕ) (λw. n * m + w) (multComm n k)))
+    (trans _ (n * m + n * k) _ _ distribBack (multComm (m + k) n))
 
 -- the two exchanges of a four-term sum
 def swap4 : (p q r s : ℕ) → p + q + (r + s) ≡ p + r + (q + s)
@@ -59,7 +59,7 @@ def collectL : (x y z u v : ℕ) → x * y * z + x * u * v ≡ x * (y * z + u * 
   λx. λy. λz. λu. λv. trans
     _
     _
-    (x * (y * z) + x * (u * v))
+    _
     _
     (trans
       ℕ
@@ -117,14 +117,8 @@ def sum4Distrib : (a1 a2 b1 b2 c1 c2 : ℕ)
       _
       _
       (a1 * (b1 + c2) + a2 * (b2 + c1))
-      (cong
-        ℕ
-        (λu. ℕ)
-        (λw. w + (a2 * b2 + a2 * c1))
-        (a1 * b1 + a1 * c2)
-        (a1 * (b1 + c2))
-        distribBack)
-      (cong ℕ (λu. ℕ) (λw. a1 * (b1 + c2) + w) (a2 * b2 + a2 * c1) (a2 * (b2 + c1)) distribBack))
+      (cong (λu. ℕ) (λw. w + (a2 * b2 + a2 * c1)) {a1 * b1 + a1 * c2} {a1 * (b1 + c2)} distribBack)
+      (cong (λu. ℕ) (λw. a1 * (b1 + c2) + w) {a2 * b2 + a2 * c1} {a2 * (b2 + c1)} distribBack))
 
 -- and by the RIGHT factor: the shape of the OUTER well-definedness goal
 def sum4DistribR : (x1 x2 y1 y2 c1 c2 : ℕ)
@@ -133,7 +127,7 @@ def sum4DistribR : (x1 x2 y1 y2 c1 c2 : ℕ)
   λx1. λx2. λy1. λy2. λc1. λc2. trans
     _
     _
-    (x1 * c1 + y2 * c1 + (x2 * c2 + y1 * c2))
+    _
     _
     swap4b
     (trans
@@ -141,8 +135,8 @@ def sum4DistribR : (x1 x2 y1 y2 c1 c2 : ℕ)
       _
       _
       ((x1 + y2) * c1 + (x2 + y1) * c2)
-      (cong _ (λu. ℕ) (λw. w + (x2 * c2 + y1 * c2)) _ _ (distribBackR x1 y2 c1))
-      (cong _ (λu. ℕ) (λw. (x1 + y2) * c1 + w) _ _ (distribBackR x2 y1 c2)))
+      (cong (λu. ℕ) (λw. w + (x2 * c2 + y1 * c2)) (distribBackR x1 y2 c1))
+      (cong (λu. ℕ) (λw. (x1 + y2) * c1 + w) (distribBackR x2 y1 c2)))
 
 -- ===== the two well-definedness lemmas =====
 -- inner: y varies. Both sides regroup to a₁·t + a₂·t′ with t and t′
@@ -229,7 +223,7 @@ def pairEta : (A B : 𝕌) (p : El (A ⨯ B)) → (p .π₁, p .π₂) ≡ p usi
 
 def classPairEta : (p : ℕ ⨯ ℕ) → class (p .π₁, p .π₂) ≡ class p ∈ El Int
   using (integer.Int.unfold) ≔
-  λp. cong _ (λu. Int) (λr. class r) _ _ (pairEta _ _ p)
+  λp. cong (λu. Int) (λr. class r) (pairEta _ _ p)
 
 def oneMult : (m : ℕ) → S Z * m ≡ m using (multComm) ≔
   λm. S Z * m ≡⟨ sucMult Z m ⟩ m + Z * m ≡⟨ zeroMult m ⟩ m + Z ≡⟨ plusZeroId m ⟩ m
@@ -296,8 +290,8 @@ def mulComm2 : (u1 u2 v1 v2 : ℕ) → u1 * v1 + u2 * v2 ≡ v1 * u1 + v2 * u2 �
     _
     _
     _
-    (cong _ (λw. ℕ) (λw. w + u2 * v2) _ _ (multComm v1 u1))
-    (cong _ (λw. ℕ) (λw. v1 * u1 + w) _ _ (multComm v2 u2))
+    (cong (λw. ℕ) (λw. w + u2 * v2) (multComm v1 u1))
+    (cong (λw. ℕ) (λw. v1 * u1 + w) (multComm v2 u2))
 
 def intMulComm : (x y : El Int) → x * y ≡ y * x
   using (integer.Int.unfold, integerMul.*.eq, plusAssoc) ≔
@@ -406,4 +400,4 @@ def intMulNegR : (x y : El Int) → x * intNeg y ≡ intNeg (x * y) using (intMu
     _
     _
     (intMulComm x (intNeg y))
-    (trans _ _ _ _ (intMulNegL y x) (cong _ (λu. Int) intNeg _ _ (intMulComm y x)))
+    (trans _ _ _ _ (intMulNegL y x) (cong (λu. Int) intNeg (intMulComm y x)))
