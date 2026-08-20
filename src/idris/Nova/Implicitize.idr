@@ -40,6 +40,7 @@ import Data.Maybe
 import Data.String
 import Data.SnocList
 
+import Me.Russoul.Text.Position
 import Me.Russoul.Text.Range
 
 import Nova.Elaboration
@@ -85,7 +86,15 @@ unitResolver u =
 ||| a bare reference is not an application (defensive: the trial fold
 ||| already reverts such positions).
 public export
-data IMode = MWrap | MDrop
+data IMode : Type where
+  MWrap : IMode
+  MDrop : IMode
+  ||| the TARGETED-migration form (docs/NovaPerfectSurface.txt): at a
+  ||| candidate position, a site in the drop set loses its argument
+  ||| (recovery is per-site verified), any other site KEEPS it as a
+  ||| {t} override — the graceful middle the intersection policy
+  ||| lacks. Keys are (head range, position), per module.
+  MDropSited : List (Range, Nat) -> IMode
 
 ||| Mark the candidate positions of a leading Π-telescope implicit.
 impTy : List Nat -> STy -> STy
@@ -103,24 +112,43 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
   xfSpine : SElem -> List SElem -> SElem
   xfSpine hd args =
     case hd of
-      SSig _ x =>
+      SSig mrng x =>
         case lookup (resolve x) cands of
           Just poss =>
             let idxd = zip [0 .. minus (length args) 1] args
             in case mode of
-                 MWrap => foldl SApp hd (map (mk MWrap poss) idxd)
+                 MWrap => foldl SApp hd (mapMaybe (mkWrap poss) idxd)
                  -- a fully-elided site is legal: checking-position
                  -- insertion covers it (the trial verdicts guarantee
                  -- every surviving position was insertable)
                  MDrop => foldl SApp hd (mapMaybe (mkDrop poss) idxd)
+                 MDropSited drops => foldl SApp hd (mapMaybe (mkSited poss drops mrng) idxd)
           Nothing => foldl SApp hd args
       _ => foldl SApp hd args
    where
-    mk : IMode -> List Nat -> (Nat, SElem) -> SElem
-    mk _ poss (i, a) = if i `elem` poss then SImpArg a else a
+    -- a BLANK at a candidate position is already per-site elided —
+    -- in every mode it simply disappears (an implicit position
+    -- inserts the same hole the blank stood for)
+    mkWrap : List Nat -> (Nat, SElem) -> Maybe SElem
+    mkWrap poss (i, a) =
+      if i `elem` poss
+        then case a of
+               SBlank _ => Nothing
+               _ => Just (SImpArg a)
+        else Just a
 
     mkDrop : List Nat -> (Nat, SElem) -> Maybe SElem
     mkDrop poss (i, a) = if i `elem` poss then Nothing else Just a
+
+    mkSited : List Nat -> List (Range, Nat) -> Maybe Range -> (Nat, SElem) -> Maybe SElem
+    mkSited poss drops mrng (i, a) =
+      if not (i `elem` poss) then Just a
+      else case a of
+        SBlank _ => Nothing
+        _ => case mrng of
+          Just r => if any (\(r', p) => p == i && show r' == show r) drops
+                      then Nothing else Just (SImpArg a)
+          Nothing => Just (SImpArg a)
 
   mutual
     xfE : SElem -> SElem
@@ -243,6 +271,7 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
       (map (\c => { crhs $= xfE } c) cls)
 
 ||| Transform a whole module.
+export
 xfUnit : List (String, List Nat) -> IMode -> ModUnit -> ModUnit
 xfUnit cands mode u =
   let resolve = unitResolver u
@@ -341,12 +370,12 @@ defItemNames = concatMap (\u => mapMaybe (\(_, it) => case it of
 
 ||| Fold the trial records: a position survives iff it has records
 ||| and every one is ok.
-foldTrial : List (String, List Nat) -> List (String, Nat, Nat) -> List (String, List Nat)
+foldTrial : List (String, List Nat) -> List (String, Nat, Nat, Maybe (String, Range)) -> List (String, List Nat)
 foldTrial cands trial =
   mapMaybe (\(q, poss) =>
       let keep = filter (\p =>
-                    let recs = filter (\(q', p', _) => q' == q && p' == p) trial
-                    in not (null recs) && all (\(_, _, v) => v == 0) recs) poss
+                    let recs = filter (\(q', p', _, _) => q' == q && p' == p) trial
+                    in not (null recs) && all (\(_, _, v, _) => v == 0) recs) poss
       in case keep of
            [] => Nothing
            _ => Just (q, keep)) cands
@@ -387,9 +416,9 @@ implicitizePath rootPath outDir = do
         | Just err => pure (Left err)
       let nDefs = length final
       let nPoss = sum (map (length . snd) final)
-      let dropped = length (filter (\(q, p, v) => v == 0 && maybe False (elem p) (lookup q final))
+      let dropped = length (filter (\(q, p, v, _) => v == 0 && maybe False (elem p) (lookup q final))
                             trial)
-      let why = \v => length (filter (\(_, _, v') => v' == v) trial)
+      let why = \v => length (filter (\(_, _, v', _) => v' == v) trial)
       let trialReverts = minus (sum (map (length . snd) cands0))
                                (sum (map (length . snd) trialCands))
       pure (Right ("trial verdicts: \{show (why 0)} elidable, \{show (why 1)} trailing, " ++
@@ -420,3 +449,388 @@ implicitizePath rootPath outDir = do
                 fixpoint units sigOrig fuel
                          (filter (\(q, _) => not (q `elem` culprits)) cands)
                          (log ++ culprits)
+
+-- ===== The TARGETED pipeline: census, then migrate one def =====
+--
+-- The cong migration, as a tool (docs/NovaPerfectSurface.txt): pick a
+-- def and a set of its explicit binder positions; the CENSUS reports,
+-- per position, how many sites recover the argument (the Phase-3c
+-- override trial, site-keyed) and how many would need a {t} override;
+-- MIGRATE then makes the positions implicit, drops the argument at
+-- every site whose verdict is positive (or that already wrote a
+-- blank), keeps a {t} override everywhere else, and iterates the
+-- Σ-α-gate to its fixpoint, reverting drops inside drifted defs.
+
+||| every spine headed by `q`, anywhere in a unit: (head range, args)
+sitesOfUnit : (resolve : String -> String) -> (q : String) -> ModUnit -> List (Maybe Range, List SElem)
+sitesOfUnit resolve q u = concatMap (\(_, it) => goItem it) u.mitems
+ where
+  mutual
+    goE : SElem -> List (Maybe Range, List SElem)
+    goE e = case e of
+      SApp _ _ =>
+        let (hd, args) = spine e []
+            own = case hd of
+                    SSig mrng x => if resolve x == q then [(mrng, args)] else []
+                    _ => goE hd
+        in own ++ concatMap goE args
+      SVar _ _ _ => []
+      SSig _ _ => []
+      SUnitI => []
+      SZeroN => []
+      SSuc t => goE t
+      SLam _ b => goE b
+      SLet _ d b => goE d ++ goE b
+      SPair a b => goE a ++ goE b
+      SProj1 t => goE t
+      SProj2 t => goE t
+      SZeroC => []
+      SOneC => []
+      SNatC => []
+      SPiC _ a b => goE a ++ goE b
+      SSigmaC _ a b => goE a ++ goE b
+      SSumC a b => goE a ++ goE b
+      SQuotC a _ _ r => goE a ++ goE r
+      SEqC _ l r t => goE l ++ goE r ++ concatMap goT (toList t)
+      SZeroElim t => goE t
+      SNatElim mot z _ _ st t => concatMap (goT . snd) (toList mot) ++ goE z ++ goE st ++ goE t
+      SInj1 t => goE t
+      SInj2 t => goE t
+      SSumElim mot _ l _ r t => concatMap (goT . snd) (toList mot) ++ goE l ++ goE r ++ goE t
+      SClass t => goE t
+      SQuotElim mot _ f qq => concatMap (goT . snd) (toList mot) ++ goE f ++ goE qq
+      SNuC f => goP f
+      SOut t => goE t
+      SCorec _ a f uu => goE a ++ goE f ++ goE uu
+      SCoind _ _ r pw _ _ _ w => goE r ++ goE pw ++ goE w
+      SSquash t => goT t
+      SStar _ => []
+      SStarWit w => goE w
+      SStarUsing _ _ => []
+      SSquashElim sc _ b => goE sc ++ goE b
+      SChain h links => goE h ++ concatMap (\(j, m) => goE j ++ goE m) links
+      SAnn t ty => goE t ++ goT ty
+      SImpArg t => goE t
+      SNoIns t => goE t
+      SBlank _ => []
+     where
+      spine : SElem -> List SElem -> (SElem, List SElem)
+      spine (SApp f a) acc = spine f (a :: acc)
+      spine h acc = (h, acc)
+
+    goT : STy -> List (Maybe Range, List SElem)
+    goT ty = case ty of
+      STyPi _ a b => goT a ++ goT b
+      STyImpPi _ a b => goT a ++ goT b
+      STySigma _ a b => goT a ++ goT b
+      STySum a b => goT a ++ goT b
+      STyQuot a _ _ r => goT a ++ goE r
+      STyEq _ l r t => goE l ++ goE r ++ concatMap goT (toList t)
+      STyEl t => goE t
+      STyPrf t => goE t
+      STyNu f => goP f
+      _ => []
+
+    goP : SPoly -> List (Maybe Range, List SElem)
+    goP pl = case pl of
+      SPHole => []
+      SPConst a => goE a
+      SPProd f g => goP f ++ goP g
+      SPSum f g => goP f ++ goP g
+      SPSigma _ a f => goE a ++ goP f
+      SPPi _ a f => goE a ++ goP f
+
+  goItem : SItem -> List (Maybe Range, List SElem)
+  goItem (SDef _ ty body _) = goT ty ++ goE body
+  goItem (SDeclDef _ _ ty) = goT ty
+  goItem (STypeDef _ ty) = goT ty
+  goItem (SData params ds) = concatMap (goT . snd) params
+  goItem (SClausalDef _ _ ty _ wit cls) =
+    goT ty ++ concatMap goE wit ++ concatMap (\c => goE c.crhs) cls
+
+||| find a def by bare or qualified name: (qualified, surface type)
+findDef : List ModUnit -> String -> Either String (String, STy)
+findDef units name =
+  case concatMap (\u => mapMaybe (\(_, it) => case it of
+         SDef x ty _ _ => hit u x ty
+         SDeclDef _ x ty => hit u x ty
+         _ => Nothing) u.mitems) units of
+    [one] => Right one
+    [] => Left "unknown def '\{name}'"
+    many => Left "'\{name}' is ambiguous: \{joinBy ", " (map fst many)} — qualify it"
+ where
+  hit : ModUnit -> String -> STy -> Maybe (String, STy)
+  hit u x ty =
+    let q = qualify u.mname x in
+    if q == name || x == name then Just (q, ty) else Nothing
+
+||| the def's leading Π binders: (position, implicit?)
+leadingBinders : STy -> List (Nat, Bool)
+leadingBinders = go 0
+ where
+  go : Nat -> STy -> List (Nat, Bool)
+  go i (STyPi _ _ b) = (i, False) :: go (S i) b
+  go i (STyImpPi _ _ b) = (i, True) :: go (S i) b
+  go i _ = []
+
+||| run the override-form trial for the given candidates; returns the
+||| trial records (site-keyed)
+runTrial : List ModUnit -> List (String, List Nat) ->
+           IO (Either String (List (String, Nat, Nat, Maybe (String, Range))))
+runTrial units cands = do
+  let wrapUnits = map (xfUnit cands MWrap) units
+  () <- clearSigEntryIx
+  case elabProgramTrial wrapUnits of
+    Left err => pure (Left ("override form failed to elaborate (transformer defect):\n" ++ err))
+    Right (_, trial) => pure (Right trial)
+
+||| is the site-position verdicted blankable? (svBlank keys are item
+||| indices among consumed items; for a FULLY-EXPLICIT def these are
+||| the telescope positions)
+verdicted : List (String, Range, Nat) -> String -> Maybe Range -> Nat -> Bool
+verdicted bl mn mrng p = case mrng of
+  Just r => any (\(mn2, r2, p2) => mn2 == mn && p2 == p && show r2 == show r) bl
+  Nothing => False
+
+||| The CENSUS, on the SUGAR PASS alone (no transformation): per named
+||| def and explicit leading position — applied sites, already-blank,
+||| blankable (the emission trial's verdicts), and the rest, which a
+||| migration would keep as {…} overrides.
+export
+censusPath : (rootPath : String) -> List String -> IO (Either String String)
+censusPath rootPath names = do
+  Right units <- loadProgram rootPath
+    | Left err => pure (Left err.lmsg)
+  let Right (_, _, blanks, _) = elabProgramSugar units
+    | Left err => pure (Left ("input is not accepted; census needs an accepted program:\n" ++ err))
+  case the (Either String (List (String, STy))) (traverse (findDef units) names) of
+    Left err => pure (Left err)
+    Right defs => pure (Right (joinBy "\n" (concatMap (report units blanks) defs)))
+ where
+  report : List ModUnit -> List (String, Range, Nat) -> (String, STy) -> List String
+  report units bl (q, ty) =
+    let poss = map fst (filter (not . snd) (leadingBinders ty))
+        sites = concatMap (\u => map (\(mr, args) => (u.mname, mr, args)) (sitesOfUnit (unitResolver u) q u)) units in
+    ("\{q}: \{show (length sites)} sites" ::
+     map (\p =>
+       let covered = filter (\(_, _, args) => length args > p) sites
+           blanksN = filter (\(_, _, args) => case getAt p args of
+                              Just (SBlank _) => True
+                              _ => False) covered
+           elid = filter (\(mn, mr, args) =>
+                    (case getAt p args of
+                       Just (SBlank _) => False
+                       _ => True) && verdicted bl mn mr p) covered
+           needOv = minus (length covered) (length blanksN + length elid)
+       in "  #\{show p}: \{show (length covered)} applied, " ++
+          "\{show (length blanksN)} already blank, \{show (length elid)} blankable, " ++
+          "\{show needOv} need {…}")
+       poss)
+
+||| TARGETED migration: make the given explicit positions of one def
+||| implicit; per-site, drop the argument (verdict-positive or already
+||| blank) or keep it as a {t} override; α-gate to a fixpoint.
+export
+migrateDefPath : (rootPath : String) -> (outDir : String) ->
+                 (name : String) -> List Nat -> IO (Either String String)
+migrateDefPath rootPath outDir name poss = do
+  Right units <- loadProgram rootPath
+    | Left err => pure (Left err.lmsg)
+  let Right sigOrig = elabProgramSig units
+    | Left err => pure (Left ("input is not accepted; migrate needs an accepted program:\n" ++ err))
+  case findDef units name of
+    Left err => pure (Left err)
+    Right (q, sty) => do
+      let lead = leadingBinders sty
+      let bad = filter (\p => lookup p lead /= Just False) poss
+      let True = null bad
+        | False => pure (Left "positions \{show bad} of '\{q}' are not explicit leading Π binders")
+      let cands = [(q, poss)]
+      -- the SUGAR PASS supplies per-site verdicts (no wrap needed):
+      -- an argument is droppable when it is already a blank or the
+      -- emission trial proves it blankable
+      let Right (_, _, blanks, risks) = elabProgramSugar units
+        | Left err => pure (Left ("sugar pass failed (input was accepted?):\n" ++ err))
+      let sites = concatMap (\u => map (\(mr, args) => (u.mname, mr, args)) (sitesOfUnit (unitResolver u) q u)) units
+      -- per-site plan with PREFIX CLOSURE: {t} overrides fill a run
+      -- of consecutive implicit positions in order, so an override
+      -- can stand at position p only if every chosen position before
+      -- it IN THE SAME RUN also writes an override — droppable
+      -- written arguments are forced back to overrides where needed,
+      -- and a blank before an override in a run is INEXPRESSIBLE
+      -- a blank whose implicit-mode solve would differ (join-tier
+      -- capture) cannot convert: collect those as blockers up front
+      let risky = filter (\(mn, r, pp) => pp `elem` poss)
+                    (filter (\(mn, r, _) => any (\(mn2, mr2, args) =>
+                        mn == mn2 && maybe False (\r2 => show r2 == show r) mr2) sites) risks)
+      let True = null risky
+        | False => pure (Left ("migration blocked: these blanks solve DIFFERENTLY as implicits (join-tier capture) — spell them first:\n  " ++
+                               joinBy "\n  " (map (\(mn, r, pp) => "\{mn} L\{show r.start.line} position \{show pp}") risky)))
+      let plans = map (planSite blanks poss) sites
+      let blocked = mapMaybe (\pl => case pl of
+                                        Left site => Just site
+                                        Right _ => Nothing) plans
+      let True = null blocked
+        | False => pure (Left ("migration blocked: a blank precedes a {…} override inside one implicit run at:\n  " ++
+                               joinBy "\n  " blocked ++
+                               "\nspell those blanks (or choose different positions) first"))
+      let drop0 = concat (mapMaybe (\pl => case pl of
+                                              Right ks => Just ks
+                                              Left _ => Nothing) plans)
+      let nSitesTotal = length sites
+      () <- clearSigEntryIx
+      let Right (dropSet, reverts) = fixLoop units sigOrig cands 10 drop0 []
+        | Left err => pure (Left err)
+      let finalUnits = map (\u => xfUnit cands (MDropSited (unitKeys u.mname dropSet)) u) units
+      Right () <- writeUnits outDir (baseName rootPath) finalUnits
+        | Left err => pure (Left err)
+      Right units2 <- loadProgram (outDir ++ "/" ++ baseName rootPath)
+        | Left err => pure (Left ("migrated output failed to load: " ++ err.lmsg))
+      let Nothing = verifyUnits finalUnits units2
+        | Just err => pure (Left err)
+      () <- clearSigEntryIx
+      let Right sigNew = elabProgramSig units2
+        | Left err => pure (Left ("migrated corpus failed to elaborate after write:\n" ++ err))
+      let Nothing = sigCompare sigOrig sigNew
+        | Just err => pure (Left err)
+      pure (Right ("migrated '\{q}': positions \{show poss} now implicit (\{show nSitesTotal} sites)\n" ++
+                   "\{show (length dropSet)} written arguments dropped (per-site verified), " ++
+                   "\{show (minus (length drop0) (length dropSet))} α-gate-reverted to overrides" ++
+                   (case reverts of
+                      [] => ""
+                      cs => " (in \{joinBy ", " (nub cs)})") ++ "\n" ++
+                   "verified: re-parse identical, elaboration accepted, kernel Σ α-identical."))
+ where
+  ||| the chosen positions grouped into runs of CONSECUTIVE telescope
+  ||| positions (an unchosen position in between stays explicit and
+  ||| re-anchors override pairing)
+  runsOf : List Nat -> List (List Nat)
+  runsOf [] = []
+  runsOf (p :: ps) = go [p] ps
+   where
+    go : List Nat -> List Nat -> List (List Nat)
+    go acc [] = [reverse acc]
+    go acc@(prev :: _) (x :: xs) =
+      if x == S prev then go (x :: acc) xs else reverse acc :: go [x] xs
+    go [] _ = []
+
+  isBlankAt : List SElem -> Nat -> Bool
+  isBlankAt args p = case getAt p args of
+    Just (SBlank _) => True
+    _ => False
+
+  ||| a run's plan: droppable positions after the last forced
+  ||| override; written args only in the keys
+  planRun : List (String, Range, Nat) -> String -> Maybe Range -> List SElem ->
+            List Nat -> Either String (List Nat)
+  planRun bl mn mrng args run =
+    let droppable = \p => isBlankAt args p || verdicted bl mn mrng p
+        ovs = filter (\p => not (droppable p)) run
+    in case ovs of
+         [] => Right (filter (\p => not (isBlankAt args p)) run)
+         _ =>
+           let m = foldl max 0 ovs
+               mustWrite = filter (\p => p <= m) run
+               blockers = filter (isBlankAt args) mustWrite
+           in case blockers of
+                [] => Right (filter (\p => p > m && not (isBlankAt args p)) run)
+                (b :: _) => Left "blank at position \{show b} precedes an override at position \{show m}"
+
+  ||| one site's plan: Left = blocked (blank precedes an override in
+  ||| a run), Right = this site's DROP keys (written args only —
+  ||| blanks drop in the transform unconditionally)
+  planSite : List (String, Range, Nat) -> List Nat ->
+             (String, Maybe Range, List SElem) -> Either String (List (String, Range, Nat))
+  planSite bl poss (mn, mrng, args) =
+    let inRange = filter (\p => length args > p) poss
+        runs = runsOf inRange
+        perRun = map (planRun bl mn mrng args) runs
+    in case (the (Maybe String) (head' (mapMaybe blockOf perRun)), mrng) of
+         (Just why, Just r) => Left "\{mn} L\{show r.start.line}: \{why}"
+         (Just why, Nothing) => Left "\{mn}: \{why}"
+         (Nothing, Just r) => Right (map (\p => (mn, r, p)) (concatMap keysOf perRun))
+         (Nothing, Nothing) => Right []
+   where
+    blockOf : Either String (List Nat) -> Maybe String
+    blockOf (Left why) = Just why
+    blockOf (Right _) = Nothing
+
+    keysOf : Either String (List Nat) -> List Nat
+    keysOf (Right ds) = ds
+    keysOf (Left _) = []
+
+  unitKeys : String -> List (String, Range, Nat) -> List (Range, Nat)
+  unitKeys mn ds = mapMaybe (\(mn', r, p) => if mn' == mn then Just (r, p) else Nothing) ds
+
+  ||| item spans per module, for α-gate culprit reversion
+  spanOf : List ModUnit -> String -> Maybe (String, Int, Int)
+  spanOf units cq = head' (concatMap (\u => mapMaybe (\(mr, it) =>
+      if qualify u.mname (itemName it) == cq
+        then map (\r => (u.mname, r.start.line, r.end.line)) mr
+        else Nothing) u.mitems) units)
+
+  ||| the drifted Σ entry's name, from sigCompare's message: the line
+  ||| "  original: def NAME : …" (or type/decl/tydecl)
+  entryNameOfMsg : String -> Maybe String
+  entryNameOfMsg msg =
+    case filter (isInfixOf "original: ") (lines msg) of
+      (l :: _) => case words (snd (break (== ':') l)) of
+                    (_ :: _ :: nm :: _) => Just nm
+                    _ => Nothing
+      _ => Nothing
+
+  ||| the failing def's bare name, when the error carries one — the
+  ||| revert unit for elaboration failures (a drop set is verified
+  ||| against the ACTUAL mixed form: the per-override trial replays
+  ||| the all-holes hypothetical, and a mix of drops and kept
+  ||| overrides is a different joint solve)
+  defNameOfErr : String -> Maybe String
+  defNameOfErr err =
+    if isPrefixOf "def " err
+      then case break (== ':') (pack (drop 4 (unpack err))) of
+             (nm, rest) => if rest == "" then Nothing else Just nm
+      else Nothing
+
+  spansOfBare : List ModUnit -> String -> List (String, Int, Int)
+  spansOfBare units bare = concatMap (\u => mapMaybe (\(mr, it) =>
+      if itemName it == bare
+        then map (\r => (u.mname, r.start.line, r.end.line)) mr
+        else Nothing) u.mitems) units
+
+  revertIn : List ModUnit -> List String -> List (String, Range, Nat) -> List (String, Range, Nat)
+  revertIn units bares ds =
+    let spans = concatMap (spansOfBare units) bares in
+    filter (\(mn, r, _) =>
+      not (any (\(mn2, sl, el) => mn == mn2 && r.start.line >= sl && r.start.line <= el) spans)) ds
+
+  fixLoop : List ModUnit -> Sig -> List (String, List Nat) -> Nat ->
+            List (String, Range, Nat) -> List String ->
+            Either String (List (String, Range, Nat), List String)
+  fixLoop units sigOrig cands Z ds log = Left "migrate: α-gate fixpoint did not converge in 10 rounds"
+  fixLoop units sigOrig cands (S fuel) ds log =
+    let dropUnits = map (\u => xfUnit cands (MDropSited (unitKeys u.mname ds)) u) units in
+    case elabProgramSig dropUnits of
+      Left err =>
+        case defNameOfErr err of
+          Nothing => Left ("migrated corpus failed to elaborate:\n" ++ err)
+          Just bare =>
+            let ds2 = revertIn units [bare] ds in
+            if length ds2 == length ds
+              then Left ("migrated corpus failed to elaborate (no revertible drops):\n" ++ err)
+              else fixLoop units sigOrig cands fuel ds2 (log ++ [bare])
+      Right sigNew =>
+        case sigCompare sigOrig sigNew of
+          Nothing => Right (ds, log)
+          Just msg =>
+            -- the DRIFTED ENTRY (from the gate's own message) is the
+            -- def CONTAINING the drifted site — driftCulprits names
+            -- the head of the drifted spine instead, which for a
+            -- targeted migration is just the migrated def itself
+            case entryNameOfMsg msg of
+              Nothing => Left ("migrate: unattributable α-drift\n" ++ msg)
+              Just qn =>
+                let bare = List1.last (split (== '.') qn)
+                    ds2 = revertIn units [bare] ds
+                in if length ds2 == length ds
+                     then Left ("migrate: α-drift with no revertible drops in '\{qn}'\n" ++ msg)
+                     else fixLoop units sigOrig cands fuel ds2 (log ++ [qn])

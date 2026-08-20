@@ -68,4 +68,4 @@ def idScaleR : (R : 𝕌)
   (r : El (IsCommRing R))
   (I : El R → Ω)
   → Prf (IsIdeal _ r I) → (a x : El R) → Prf (I x) → Prf (I (rmul _ r x a)) ≔
-  λR. λr. λI. λh. λa. λx. λhx. transportP _ I _ _ (rMulComm _ r a x) (idScale _ _ _ h a x hx)
+  λR. λr. λI. λh. λa. λx. λhx. transportP I (rMulComm _ r a x) (idScale _ _ _ h a x hx)

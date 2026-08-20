@@ -43,11 +43,10 @@ def qInvNatPos : (n : ℕ) → sgnQ (qInvNat n) ≡ sPos
     real.qInvNat.eq) ≔
   λn. trans
     _
-    _
     (intSgn (nzToInt (nzMul nzOne (nzPos n))))
     _
-    (cong (λv. Sign) (λv. intSgn v) (sym _ _ _ (nzToIntMul nzOne (nzPos n))))
-    (trans _ _ _ sPos (intSgnNz (nzMul nzOne (nzPos n))) ⋆)
+    (cong (λv. Sign) (λv. intSgn v) (sym _ _ (nzToIntMul nzOne (nzPos n))))
+    (trans _ _ sPos (intSgnNz (nzMul nzOne (nzPos n))) ⋆)
 
 -- the regularity bound 1/(m+1) + 1/(n+1), positive
 def rBound : ℕ → ℕ → El Q using (rationalQ.Q.unfold) ≔ λm. λn. qInvNat m + qInvNat n
@@ -80,12 +79,11 @@ def leQNegBoundZero : {m n : ℕ} → El (qNeg (rBound m n) ≤ qZero)
     (trans
       _
       _
-      _
       sPos
       (cong
         (λv. Sign)
         (λv. sgnQ v)
-        (trans _ _ _ _ (rationalQ.qAddZeroL (qNeg (qNeg (rBound m n)))) (qNegNeg (rBound m n))))
+        (trans _ _ _ (rationalQ.qAddZeroL (qNeg (qNeg (rBound m n)))) (qNegNeg (rBound m n))))
       rBoundPos))
 
 def leQZeroBound : (m n : ℕ) → El (qZero ≤ rBound m n)
@@ -96,13 +94,11 @@ def leQZeroBound : (m n : ℕ) → El (qZero ≤ rBound m n)
     (trans
       _
       _
-      _
       sPos
       (cong
         (λv. Sign)
         (λv. sgnQ v)
         (trans
-          _
           _
           _
           (rBound m n)
@@ -130,13 +126,9 @@ def Real : 𝕌 ≔ RSeq / (x y. REq x y)
 -- zero-bounds transport along q − q ≡ 0
 def constReg : {q : El Q} → El (Regular (λn. q)) using (real.Regular.unfold) ≔
   λq. λm. λn. transport
-    _
     (λw. qNeg (rBound m n) ≤ w)
-    _
-    _
-    (sym _ _ _ (qAddNegR q))
-    leQNegBoundZero,
-    transport _ (λw. w ≤ rBound m n) _ _ (sym _ _ _ (qAddNegR q)) (leQZeroBound m n)
+    (sym _ _ (qAddNegR q))
+    leQNegBoundZero, transport (λw. w ≤ rBound m n) (sym _ _ (qAddNegR q)) (leQZeroBound m n)
 
 def realOfQ : El Q → El Real using (real.RSeq.unfold, real.Real.unfold) ≔
   λq. class ((λn. q), constReg)

@@ -39,21 +39,18 @@ def intMulCancel : (x y d : El Int) (h : Prf (x * d ≡ y * d)) (hd : Prf (¬ (d
   λx. λy. λd. λh. λhd. sym
     _
     _
-    _
     (trans
       _
       _
       _
-      _
-      (sym _ _ _ (intAddZeroL y))
+      (sym _ _ (intAddZeroL y))
       (trans
-        Int
+        {Int}
         (intZero + y)
         (x + intNeg y + y)
         _
         (addCongL
           (sym
-            _
             _
             _
             (intNoZeroDiv
@@ -62,18 +59,16 @@ def intMulCancel : (x y d : El Int) (h : Prf (x * d ≡ y * d)) (hd : Prf (¬ (d
                 _
                 _
                 _
-                _
                 (intMulDistribR x (intNeg y) d)
-                (trans _ _ _ _ (intAddCong2 _ _ _ _ h (intMulNegL y d)) (intAddNegR (y * d))))
+                (trans _ _ _ (intAddCong2 _ _ _ _ h (intMulNegL y d)) (intAddNegR (y * d))))
               hd)))
         (trans
           _
           _
           _
-          _
           (intAddAssoc x (intNeg y) y)
           (trans
-            Int
+            {Int}
             (x + (intNeg y + y))
             (x + intZero)
             _
@@ -103,7 +98,7 @@ def ratRSymm : (p q : El Rat) → Prf (RatR p q) → Prf (RatR q p)
     rationalQ.RatR.eq,
     rationalQ.RatR.unfold,
     rationalQ.dInt.eq) ≔
-  λp. λq. λh. sym _ (num p * dInt q) (num q * dInt p) h
+  λp. λq. λh. sym {Int} (num p * dInt q) (num q * dInt p) h
 
 -- multiply the goal through by the middle denominator, walk it across
 -- the two hypotheses, and cancel — the middle denominator is non-zero
@@ -126,7 +121,6 @@ def ratRTrans : (p q r : El Rat) → Prf (RatR p q) → Prf (RatR q r) → Prf (
     _
     _
     (trans
-      _
       (num p * dInt r * dInt q)
       _
       _
@@ -135,16 +129,13 @@ def ratRTrans : (p q r : El Rat) → Prf (RatR p q) → Prf (RatR q r) → Prf (
         _
         _
         _
-        _
         (mulCongL (num p * dInt q) (num q * dInt p) (dInt r) h1)
         (trans
-          _
           (num q * dInt p * dInt r)
           _
           _
           mulSwapRight
           (trans
-            _
             _
             _
             (num r * dInt p * dInt q)
@@ -188,12 +179,10 @@ def numZeroOfRatZero : (p : El Rat) (h : Prf (class p ≡ qZero)) → num p ≡ 
     rationalQ.qcls.eq) ≔
   λp. λh. trans
     _
-    _
     (num p * dInt ratZero)
     _
-    (sym _ _ _ (intMulOneR (num p)))
+    (sym _ _ (intMulOneR (num p)))
     (trans
-      _
       (num p * dInt ratZero)
       (num ratZero * dInt p)
       intZero
@@ -227,7 +216,7 @@ def qNonZeroIffNzq : (u : El Q) → Prf (¬ (u ≡ qZero) ↔ ∥(x : El NZQ) �
     (λh. qNonZeroIsNzq h)
     (λh. squash-elim h (w. notIntro
       (u ≡ qZero)
-      (λe. notApply _ (qOfNzqNonZero (w .π₁)) (trans _ _ _ _ (w .π₂) e))))
+      (λe. notApply _ (qOfNzqNonZero (w .π₁)) (trans _ _ _ (w .π₂) e))))
 
 -- ===== the field axiom, classically =====
 -- 1 ≠ 0: nzToInt nzOne IS intOne, and the image of an NZ misses zero
@@ -264,9 +253,8 @@ def qInvertibleIffNonZero : (u : El Q) → Prf (¬ (u ≡ qZero) ↔ ∥(v : El 
         _
         qOneNotZero
         (trans
-          _
           qOne
           _
           _
-          (sym _ (class (class (S Z, Z), inj₁ Z)) (class (class (S Z, Z), inj₁ Z)) (w .π₂))
-          (trans _ _ _ qZero (cong (λt. Q) (λx. x * w .π₁) e) qMulZeroL)))))
+          (sym (class (class (S Z, Z), inj₁ Z)) (class (class (S Z, Z), inj₁ Z)) (w .π₂))
+          (trans _ _ qZero (cong (λt. Q) (λx. x * w .π₁) e) qMulZeroL)))))

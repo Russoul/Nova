@@ -44,7 +44,6 @@ def qInvQuarter : {j : ℕ}
     _
     _
     _
-    _
     (cong
       (λw. Q)
       (λw. w + w)
@@ -57,7 +56,7 @@ def qInvQuarter : {j : ℕ}
 def qSum6 : (a b : El Q) → a + b + (a + b + (b + b)) ≡ a + a + (b + b + (b + b))
   using (rationalQ.Q.unfold) ≔
   λa. λb. a + b + (a + b + (b + b))
-      ≡⟨ sym _ _ _ (qAddAssoc (a + b) (a + b) (b + b)) ⟩ a + b + (a + b) + (b + b)
+      ≡⟨ sym _ _ (qAddAssoc (a + b) (a + b) (b + b)) ⟩ a + b + (a + b) + (b + b)
       ≡⟨ cong (λw. Q) (λw. w + (b + b)) (qPairSwap a b a b) ⟩ a + a + (b + b) + (b + b)
       ≡⟨ qAddAssoc (a + a) (b + b) (b + b) ⟩ a + a + (b + b + (b + b))
 
@@ -83,7 +82,6 @@ def leQQuarterSum : (m n : ℕ)
     real.rBound.eq,
     realEq.qtr.eq) ≔
   λm. λn. transport
-    _
     (λw. qInvNat
       (qtr
         m)
@@ -91,11 +89,10 @@ def leQQuarterSum : (m n : ℕ)
         (qtr
           m)
       + (qInvNat (qtr n) + qInvNat (qtr n) + (qInvNat (qtr n) + qInvNat (qtr n))) ≤ w + qInvNat n)
-    (qInvNat (qtr m) + qInvNat (qtr m) + (qInvNat (qtr m) + qInvNat (qtr m)))
-    (qInvNat m)
+    {qInvNat (qtr m) + qInvNat (qtr m) + (qInvNat (qtr m) + qInvNat (qtr m))}
+    {qInvNat m}
     qInvQuarter
     (transport
-      _
       (λw. qInvNat
         (qtr
           m)
@@ -114,8 +111,8 @@ def leQQuarterSum : (m n : ℕ)
             + qInvNat
               (qtr
                 n))) ≤ qInvNat (qtr m) + qInvNat (qtr m) + (qInvNat (qtr m) + qInvNat (qtr m)) + w)
-      (qInvNat (qtr n) + qInvNat (qtr n) + (qInvNat (qtr n) + qInvNat (qtr n)))
-      (qInvNat n)
+      {qInvNat (qtr n) + qInvNat (qtr n) + (qInvNat (qtr n) + qInvNat (qtr n))}
+      {qInvNat n}
       qInvQuarter
       (leQAdd
         _
@@ -125,11 +122,8 @@ def leQQuarterSum : (m n : ℕ)
         (leQSelfAdd
           (qInvNat (qtr m) + qInvNat (qtr m))
           (transport
-            _
             (λw. qZero ≤ w)
-            _
-            _
-            (sym _ (qInvNat (qtr m) + qInvNat (qtr m)) (qInvNat (dbl m)) (qInvHalf (dbl m)))
+            (sym (qInvNat (qtr m) + qInvNat (qtr m)) (qInvNat (dbl m)) (qInvHalf (dbl m)))
             (leQZeroInvNat (dbl m))))
         (leQRefl (qInvNat (qtr n) + qInvNat (qtr n) + (qInvNat (qtr n) + qInvNat (qtr n))))))
 
@@ -200,7 +194,7 @@ def realLim : (x : El (ℕ → RSeq)) → El (RegSeqR x) → El Real using (real
 def qSum7 : (b g a : El Q) → b + a + (g + a + (a + a)) ≡ g + (b + (a + a + (a + a)))
   using (rationalQ.Q.unfold) ≔
   λb. λg. λa. b + a + (g + a + (a + a))
-      ≡⟨ sym _ _ _ (qAddAssoc (b + a) (g + a) (a + a)) ⟩ b + a + (g + a) + (a + a)
+      ≡⟨ sym _ _ (qAddAssoc (b + a) (g + a) (a + a)) ⟩ b + a + (g + a) + (a + a)
       ≡⟨ cong (λw. Q) (λw. w + (a + a)) (qPairSwap b a g a) ⟩ b + g + (a + a) + (a + a)
       ≡⟨ qAddAssoc (b + g) (a + a) (a + a) ⟩ b + g + (a + a + (a + a))
       ≡⟨ cong (λw. Q) (λw. w + (a + a + (a + a))) (qAddComm b g) ⟩ g + b + (a + a + (a + a))
@@ -234,7 +228,6 @@ def limClose : (x : El (ℕ → RSeq))
     _
     _
     (trans
-      _
       (rBound j (qtr j) + (rBound n (qtr j) + rBound (qtr j) (qtr j)))
       (qInvNat
         n + (qInvNat j + (qInvNat (qtr j) + qInvNat (qtr j) + (qInvNat (qtr j) + qInvNat (qtr j)))))
@@ -265,12 +258,10 @@ def realLimClose : (x : El (ℕ → RSeq))
     realNeg.seqOf.eq,
     realOrder.≤.eq) ≔
   λx. λh. λn. transportP
-    Real
+    {Real}
     (λv. v ≤ realOfQ (qInvNat n))
-    (class (rAbs (rAdd (x n) (rNeg (rLim _ h)))))
-    _
+    {class (rAbs (rAdd (x n) (rNeg (rLim _ h))))}
     (sym
-      _
       (realDist (class (x n)) (realLim _ h))
       (class (rAbs (rAdd (x n) (rNeg (rLim _ h)))))
       (realDistCls (x n) (rLim _ h)))
@@ -297,11 +288,10 @@ def regSeqRSound : (x : El (ℕ → RSeq))
     realOrder.≤.eq,
     realComplete.RegSeqR.unfold) ≔
   λx. λh. λm. λn. transportP
-    Real
+    {Real}
     (λv. v ≤ realOfQ (rBound m n))
-    (class (rAbs (rAdd (x m) (rNeg (x n)))))
-    _
-    (sym _ _ _ (realDistCls (x m) (x n)))
+    {class (rAbs (rAdd (x m) (rNeg (x n))))}
+    (sym _ _ (realDistCls (x m) (x n)))
     (rleOfAbsSub
       (x n)
       (λj. absLeOfBnd

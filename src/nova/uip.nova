@@ -27,4 +27,4 @@ def uip : {a : 𝕌} {x y : El a} {p q : El (Id _ x y)} → p ≡ q
     _
     _
     _
-    p in trans _ _ (refl a x) _ (idCanon p h) (sym _ _ (refl a x) (idCanon q h))
+    p in trans _ (refl a x) _ (idCanon p h) (sym _ (refl a x) (idCanon q h))

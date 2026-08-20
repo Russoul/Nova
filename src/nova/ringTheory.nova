@@ -89,7 +89,6 @@ def rMulZero : (R : 𝕌)
         ≡⟨ sym
           _
           _
-          _
           (rDistribL
             _
             r
@@ -103,7 +102,6 @@ def rMulZero : (R : 𝕌)
           (λw. rmul R r x w)
           (gUnitL _ (raddGroup r) (ge (raddGroup r))) ⟩ rmul _ r x (ge (raddGroup r))
         ≡⟨ sym
-          _
           _
           _
           (gUnitR
@@ -125,7 +123,6 @@ def rMulNeg : (R : 𝕌)
   λR. λr. λx. λy. sym
     _
     _
-    _
     (gInvUniq
       _
       (raddGroup r)
@@ -133,7 +130,6 @@ def rMulNeg : (R : 𝕌)
       (rmul _ r x (ginv _ (raddGroup r) y))
       (gop _ (raddGroup r) (rmul _ r x y) (rmul _ r x (ginv _ (raddGroup r) y))
           ≡⟨ sym
-            _
             _
             _
             (rDistribL
@@ -170,14 +166,12 @@ def rMulSub : (R : 𝕌)
         (sym
           _
           _
-          _
           (rMulNeg
             _
             r
             x
             y')) ⟩ gop _ (raddGroup r) (rmul _ r x y) (rmul _ r x (ginv _ (raddGroup r) y'))
       ≡⟨ sym
-        _
         _
         _
         (rDistribL

@@ -39,7 +39,7 @@ def intGinv : (x : El Int) → ginv _ intAddGroup x ≡ intNeg x
 
 -- ℤ is abelian, in the group-theoretic vocabulary
 def intGopComm : (x y : El Int) → gop _ intAddGroup x y ≡ gop _ intAddGroup y x ≔
-  λx. λy. trans _ _ _ _ (intGop x y) (trans _ _ _ _ (intAddComm x y) (sym _ _ _ (intGop y x)))
+  λx. λy. trans _ _ _ (intGop x y) (trans _ _ _ (intAddComm x y) (sym _ _ (intGop y x)))
 
 -- ===== nℤ =====
 --
@@ -57,7 +57,7 @@ def nZIntro : (n x k : El Int) → (n * k ≡ x) → Prf (nZ n x) using (nZ.eq, 
 
 -- 0 = n · 0
 def nZUnit : (n : El Int) → Prf (nZ n (ge intAddGroup)) ≔
-  λn. nZIntro _ _ _ (trans _ (n * intZero) _ _ intMulZeroR (sym _ _ _ intGe))
+  λn. nZIntro _ _ _ (trans (n * intZero) _ _ intMulZeroR (sym _ _ intGe))
 
 -- n·k₁ + n·k₂ = n·(k₁+k₂)
 def nZOp : (n x y : El Int) → Prf (nZ n x) → Prf (nZ n y) → Prf (nZ n (gop _ intAddGroup x y))
@@ -70,7 +70,7 @@ def nZOp : (n x y : El Int) → Prf (nZ n x) → Prf (nZ n y) → Prf (nZ n (gop
         ≡⟨ intMulDistribL n (u .π₁) (v .π₁) ⟩ n * u .π₁ + n * v .π₁
         ≡⟨ cong (λw. Int) (λw. w + n * v .π₁) (idToEq _ _ _ (u .π₂)) ⟩ x + n * v .π₁
         ≡⟨ cong (λw. Int) (λw. x + w) (idToEq _ _ _ (v .π₂)) ⟩ x + y
-        ≡⟨ sym _ _ _ (intGop x y) ⟩ gop _ intAddGroup x y)))
+        ≡⟨ sym _ _ (intGop x y) ⟩ gop _ intAddGroup x y)))
 
 -- n·(−k) = −(n·k)
 def nZInv : (n x : El Int) → Prf (nZ n x) → Prf (nZ n (ginv _ intAddGroup x))
@@ -82,7 +82,7 @@ def nZInv : (n x : El Int) → Prf (nZ n x) → Prf (nZ n (ginv _ intAddGroup x)
     (n * intNeg (u .π₁)
         ≡⟨ intMulNegR n (u .π₁) ⟩ intNeg (n * u .π₁)
         ≡⟨ cong (λw. Int) (λw. intNeg w) (idToEq _ _ _ (u .π₂)) ⟩ intNeg x
-        ≡⟨ sym _ _ _ (intGinv x) ⟩ ginv _ intAddGroup x))
+        ≡⟨ sym _ _ (intGinv x) ⟩ ginv _ intAddGroup x))
 
 def nZIsSubgroup : (n : El Int) → Prf (IsSubgroup _ intAddGroup (nZ n)) ≔
   λn. sgIntro (nZUnit n) (nZOp n) (nZInv n)
@@ -112,17 +112,15 @@ def intModMulZero : {n k : El Int} → intModCls (n * k) ≡ intModCls intZero �
       (gop _ intAddGroup (n * k) (ginv _ intAddGroup intZero))
       k
       (n * k
-          ≡⟨ sym _ _ _ (intAddZeroR (n * k)) ⟩ n * k + intZero
+          ≡⟨ sym _ _ (intAddZeroR (n * k)) ⟩ n * k + intZero
           ≡⟨ cong
             (λw. Int)
             (λw. n * k + w)
             (sym
               _
               _
-              _
-              (trans _ _ _ _ (intGinv intZero) intNegZero)) ⟩ n * k + ginv _ intAddGroup intZero
+              (trans _ _ _ (intGinv intZero) intNegZero)) ⟩ n * k + ginv _ intAddGroup intZero
           ≡⟨ sym
-            _
             _
             _
             (intGop
@@ -134,7 +132,7 @@ def intModMulZero : {n k : El Int} → intModCls (n * k) ≡ intModCls intZero �
 
 -- the instance in the smallest concrete case: n is zero in ℤ/nℤ
 def intModSelf : (n : El Int) → intModCls n ≡ intModCls intZero ∈ El (IntMod n) ≔
-  λn. trans _ _ _ _ (cong (λw. IntMod n) (λw. intModCls w) (sym _ _ _ (intMulOneR n))) intModMulZero
+  λn. trans _ _ _ (cong (λw. IntMod n) (λw. intModCls w) (sym _ _ (intMulOneR n))) intModMulZero
 
 -- ===== ...and ℤ/nℤ is a RING =====
 --
@@ -152,7 +150,7 @@ def intRmul : (x y : El Int) → rmul _ intCommRing x y ≡ x * y
 -- a·(n·k) = n·(a·k): one associativity and one commutation
 def nZScaleAlg : (n a k : El Int) → a * (n * k) ≡ n * (a * k) ≔
   λn. λa. λk. a * (n * k)
-      ≡⟨ sym _ _ _ (intMulAssoc a n k) ⟩ a * n * k
+      ≡⟨ sym _ _ (intMulAssoc a n k) ⟩ a * n * k
       ≡⟨ cong (λw. Int) (λw. w * k) (intMulComm a n) ⟩ n * a * k
       ≡⟨ intMulAssoc n a k ⟩ n * (a * k)
 
@@ -163,9 +161,9 @@ def nZScale : (n a x : El Int) → Prf (nZ n x) → Prf (nZ n (rmul _ intCommRin
     _
     (a * u .π₁)
     (n * (a * u .π₁)
-        ≡⟨ sym _ _ _ (nZScaleAlg n a (u .π₁)) ⟩ a * (n * u .π₁)
+        ≡⟨ sym _ _ (nZScaleAlg n a (u .π₁)) ⟩ a * (n * u .π₁)
         ≡⟨ cong (λw. Int) (λw. a * w) (idToEq _ _ _ (u .π₂)) ⟩ a * x
-        ≡⟨ sym _ _ _ (intRmul a x) ⟩ rmul _ intCommRing a x))
+        ≡⟨ sym _ _ (intRmul a x) ⟩ rmul _ intCommRing a x))
 
 def nZIsIdeal : (n : El Int) → Prf (IsIdeal _ intCommRing (nZ n)) using (intRaddGroup.rw) ≔
   λn. idIntro (nZIsSubgroup n) (nZScale n)

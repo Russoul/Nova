@@ -76,13 +76,13 @@ def qMulSq : (x y : El Q) → x * y * (x * y) ≡ x * x * (y * y) ≔
   λx. λy. x * y * (x * y)
       ≡⟨ qMulAssoc x y (x * y) ⟩ x * (y * (x * y))
       ≡⟨ cong (λw. Q) (λw. x * w) (qMulLeftComm y x y) ⟩ x * (x * (y * y))
-      ≡⟨ sym _ _ _ (qMulAssoc x x (y * y)) ⟩ x * x * (y * y)
+      ≡⟨ sym _ _ (qMulAssoc x x (y * y)) ⟩ x * x * (y * y)
 
 def invNatOne : (a : ℕ) → qInvNat a * qOfNat (S a) ≡ qOne ≔
-  λa. trans _ _ _ _ (qMulComm (qInvNat a) (qOfNat (S a))) qMulInvNat
+  λa. trans _ _ _ (qMulComm (qInvNat a) (qOfNat (S a))) qMulInvNat
 
 def qOfNatSq : (a : ℕ) → qOfNat (sqNat a) ≡ qOfNat (S a) * qOfNat (S a) using (ratSqrt.sqNat.eq) ≔
-  λa. sym _ _ (qOfNat (S a * S a)) (qOfNatMul (S a) (S a))
+  λa. sym _ (qOfNat (S a * S a)) (qOfNatMul (S a) (S a))
 
 -- 1/(D+1)² · (D+1)² is one
 def invSqCancel : (a : ℕ) → qInvNat (mulIdx a a) * qOfNat (sqNat a) ≡ qOne ≔
@@ -98,7 +98,6 @@ def invSqCancel : (a : ℕ) → qInvNat (mulIdx a a) * qOfNat (sqNat a) ≡ qOne
         (λw. qInvNat a * qInvNat a * w)
         (qOfNatSq a) ⟩ qInvNat a * qInvNat a * (qOfNat (S a) * qOfNat (S a))
       ≡⟨ sym
-        _
         _
         _
         (qMulSq (qInvNat a) (qOfNat (S a))) ⟩ qInvNat a * qOfNat (S a) * (qInvNat a * qOfNat (S a))
@@ -191,7 +190,6 @@ def slackEq : {Dm Dn : ℕ}
         (sym
           _
           _
-          _
           (qOfNatAdd (S Dn) (S Dm))) ⟩ (qOfNat (S Dn) + qOfNat (S Dm)) * (qInvNat Dm * qInvNat Dn)
       ≡⟨ qDistribR
         (qInvNat Dm * qInvNat Dn)
@@ -221,10 +219,9 @@ def sqrtSlack : (m n : ℕ)
       (sqrtDepth m) * qInvNat (sqrtDepth n)) ≤ qInvNat (sqrtDepth m) + qInvNat (sqrtDepth n))
   using (ratSqrt.sqNat.eq, sqrtT.eq) ≔
   λm. λn. transport
-    _
     (λw. qOfNat (S (isqrt (sqrtT m n))) * (qInvNat (sqrtDepth m) * qInvNat (sqrtDepth n)) ≤ w)
-    (qOfNat (S (sqrtDepth n) + S (sqrtDepth m)) * (qInvNat (sqrtDepth m) * qInvNat (sqrtDepth n)))
-    (qInvNat (sqrtDepth m) + qInvNat (sqrtDepth n))
+    {qOfNat (S (sqrtDepth n) + S (sqrtDepth m)) * (qInvNat (sqrtDepth m) * qInvNat (sqrtDepth n))}
+    {qInvNat (sqrtDepth m) + qInvNat (sqrtDepth n)}
     slackEq
     (leQMulMono
       _
@@ -235,27 +232,21 @@ def sqrtSlack : (m n : ℕ)
 -- y + (x + y) ≤ (x + x) + (y + y), for nonnegative x
 def slackFits : {x y : El Q} → El (qZero ≤ x) → El (y + (x + y) ≤ x + x + (y + y)) ≔
   λx. λy. λhx. transport
-    _
     (λw. w ≤ x + x + (y + y))
-    _
-    _
     (sym
-      _
       _
       _
       (trans
         _
         _
         _
-        _
-        (sym _ _ _ (qAddAssoc y x y))
-        (trans _ _ _ (x + (y + y)) (cong (λw. Q) (λw. w + y) (qAddComm y x)) (qAddAssoc x y y))))
+        (sym _ _ (qAddAssoc y x y))
+        (trans _ _ (x + (y + y)) (cong (λw. Q) (λw. w + y) (qAddComm y x)) (qAddAssoc x y y))))
     (transport
-      Q
+      {Q}
       (λw. x + (y + y) ≤ w)
-      (x + (x + (y + y)))
-      _
-      (sym _ _ _ (qAddAssoc x x (y + y)))
+      {x + (x + (y + y))}
+      (sym _ _ (qAddAssoc x x (y + y)))
       (leQSelfAddL hx))
 
 -- ===== regularity =====
@@ -265,7 +256,6 @@ def rBoundHalves : {m n : ℕ}
       m) + qInvNat (sqrtDepth m) + (qInvNat (sqrtDepth n) + qInvNat (sqrtDepth n)) ≡ rBound m n
   using (real.rBound.eq, sqrtDepth.eq) ≔
   λm. λn. trans
-    _
     (qInvNat (dbl m) + qInvNat (dbl m) + (qInvNat (dbl n) + qInvNat (dbl n)))
     _
     (qInvNat m + qInvNat n)
@@ -344,12 +334,8 @@ def sqrtDirGen : {p : El RSeq}
         (qSqrtAt (seqOf p' b) (sqrtDepth n) + qInvNat (sqrtDepth n))
         (sqrtSlack m n))
       (transport
-        _
         (λw. w ≤ qSqrtAt (seqOf p' b) (sqrtDepth n) + rBound m n)
-        _
-        _
         (sym
-          _
           _
           _
           (qAddAssoc
@@ -361,12 +347,12 @@ def sqrtDirGen : {p : El RSeq}
           _
           (qSqrtAt (seqOf p' b) (sqrtDepth n))
           (transport
-            Q
+            {Q}
             (λw. qInvNat (sqrtDepth n) + (qInvNat (sqrtDepth m) + qInvNat (sqrtDepth n)) ≤ w)
-            (qInvNat
+            {qInvNat
               (sqrtDepth
-                m) + qInvNat (sqrtDepth m) + (qInvNat (sqrtDepth n) + qInvNat (sqrtDepth n)))
-            (rBound m n)
+                m) + qInvNat (sqrtDepth m) + (qInvNat (sqrtDepth n) + qInvNat (sqrtDepth n))}
+            {rBound m n}
             rBoundHalves
             (slackFits (leQZeroInvNat (sqrtDepth m)))))))
 
@@ -391,10 +377,7 @@ def sqrtRegAtNN : (p : El RSeq)
         (leQRefl (qInvNat (sqrtIdx n)))
         (regBnd _ (regOf p) (sqrtIdx m) (sqrtIdx n))))
     (transport
-      _
       (λw. sqrtSeqNN p n + qNeg (sqrtSeqNN p m) ≤ w)
-      _
-      _
       (rBoundSym n m)
       (leQSubShift
         (sqrtSeqNN p n)
@@ -467,7 +450,7 @@ def sqrtNNConst : (x : El Real) (d d' : El (NonNegPayload x)) → sqrtFromNN _ d
     (rSqrtWDNN
       (nnAt _ d)
       (nnAt _ d')
-      (reqOfClassEq (trans _ _ _ _ (nnRepEq _ d) (sym _ _ _ (nnRepEq _ d')))))
+      (reqOfClassEq (trans _ _ _ (nnRepEq _ d) (sym _ _ (nnRepEq _ d')))))
 
 def realSqrt : (x : El Real) → El (NonNegR x) → El Real using (NonNegR.eq) ≔
   λx. λw. brElim _ (sqrtFromNN x) (sqrtNNConst x) w
@@ -518,7 +501,6 @@ def isqrtZero : isqrt Z ≡ Z using (natSqrt.isqrt.eq, natSqrt.isqrtAux.eq) ≔ 
 def qSqrtAtZero : {D : ℕ} → qSqrtAt qZero D ≡ qZero
   using (ratSqrt.qSqrtAt.eq, ratSqrt.qSqrtNum.eq, ratSqrt.qFl.eq, ratSqrt.qScaled.eq) ≔
   λD. trans
-    _
     (qOfNat (isqrt (qFloor (qZero * qOfNat (sqNat D)))) * qInvNat D)
     _
     _
@@ -528,7 +510,6 @@ def qSqrtAtZero : {D : ℕ} → qSqrtAt qZero D ≡ qZero
       (trans
         _
         _
-        _
         Z
         (cong
           (λw. ℕ)
@@ -536,12 +517,11 @@ def qSqrtAtZero : {D : ℕ} → qSqrtAt qZero D ≡ qZero
           (trans
             _
             _
-            _
             Z
             (cong (λw. ℕ) (λw. qFloor w) {qZero * qOfNat (sqNat D)} {qZero} qMulZeroL)
             qFloorZero))
         isqrtZero))
-    (trans _ _ _ qZero (cong (λw. Q) (λw. w * qInvNat D) qOfNatZero) qMulZeroL)
+    (trans _ _ qZero (cong (λw. Q) (λw. w * qInvNat D) qOfNatZero) qMulZeroL)
 
 def zeroRep : El RSeq using (real.RSeq.unfold) ≔ (λn. qZero), constReg
 
@@ -571,13 +551,11 @@ def realSqrtZero : (w : El (NonNegR realZero)) → realSqrt _ w ≡ realZero
     bracket.br.eq) ≔
   λw. quot-elim
     (d. trans
-      _
       (realSqrt _ (br d))
       _
       _
       realSqrtRep
       (trans
-        _
         _
         _
         _
@@ -587,6 +565,6 @@ def realSqrtZero : (w : El (NonNegR realZero)) → realSqrt _ w ≡ realZero
           (rSqrtWDNN
             (nnAt _ d)
             zeroNN
-            (reqOfClassEq (trans _ _ _ _ (nnRepEq _ d) (sym _ _ _ clsZeroRep)))))
-        (trans Real _ _ _ (cong (λw. Real) (λw. class w) rSqrtZeroSeq) clsZeroRep)))
+            (reqOfClassEq (trans _ _ _ (nnRepEq _ d) (sym _ _ clsZeroRep)))))
+        (trans {Real} _ _ _ (cong (λw. Real) (λw. class w) rSqrtZeroSeq) clsZeroRep)))
     w

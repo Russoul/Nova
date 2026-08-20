@@ -102,10 +102,7 @@ def nmConjInv : (G : 𝕌)
   (N : El G → Ω)
   → Prf (IsNormal _ g N) → (x n : El G) → Prf (N n) → Prf (N (gop _ g (ginv _ g x) (gop _ g n x))) ≔
   λG. λg. λN. λh. λx. λn. λhn. transportP
-    _
     N
-    _
-    _
     (cong (λw. G) (λw. gop G g (ginv _ g x) (gop _ g n w)) (gInvInv _ g x))
     (nmConj _ _ _ h (ginv _ g x) n hn)
 
@@ -123,7 +120,7 @@ def abelianConj : {G : 𝕌}
 def abelianNormal : {G : 𝕌}
   {g : El (IsGroup G)}
   → ((x y : El G) → gop _ g x y ≡ gop _ g y x) → {N : El G → Ω} → Prf (IsNormal _ g N) ≔
-  λG. λg. λcomm. λN. nmIntro (λx. λn. λhn. transportP _ N _ _ (sym _ _ _ (abelianConj comm x n)) hn)
+  λG. λg. λcomm. λN. nmIntro (λx. λn. λhn. transportP N (sym _ _ (abelianConj comm x n)) hn)
 
 -- ===== the coset relation =====
 --
@@ -140,7 +137,7 @@ def cosetRefl : (G : 𝕌)
   (N : El G → Ω)
   → Prf (IsSubgroup _ g N) → (x : El G) → Prf (cosetRel _ g N x x)
   using (cosetRel.eq) ≔
-  λG. λg. λN. λs. λx. transportP _ N _ _ (sym _ _ _ (gInvR _ g x)) (sgUnit _ _ _ s)
+  λG. λg. λN. λs. λx. transportP N (sym _ _ (gInvR _ g x)) (sgUnit _ _ _ s)
 
 -- (x · y⁻¹)⁻¹ = y · x⁻¹ — the algebra behind symmetry
 def cosetFlip : {G : 𝕌}
@@ -157,10 +154,9 @@ def cosetSymm : (G : 𝕌)
   → Prf (IsSubgroup _ g N) → (x y : El G) → Prf (cosetRel _ g N x y) → Prf (cosetRel _ g N y x)
   using (cosetRel.eq) ≔
   λG. λg. λN. λs. λx. λy. λh. transportP
-    _
     N
-    _
-    (gop _ g y (ginv _ g x))
+    {ginv _ g (gop _ g x (ginv _ g y))}
+    {gop _ g y (ginv _ g x)}
     cosetFlip
     (sgInv _ _ _ s (gop _ g x (ginv _ g y)) h)
 
@@ -192,9 +188,8 @@ def cosetTrans : (G : 𝕌)
       → Prf (cosetRel _ g N x y) → Prf (cosetRel _ g N y z) → Prf (cosetRel _ g N x z)
   using (cosetRel.eq) ≔
   λG. λg. λN. λs. λx. λy. λz. λhxy. λhyz. transportP
-    _
     N
-    _
-    (gop _ g x (ginv _ g z))
+    {gop _ g (gop _ g x (ginv _ g y)) (gop _ g y (ginv _ g z))}
+    {gop _ g x (ginv _ g z)}
     cosetSplice
     (sgOp _ _ _ s (gop _ g x (ginv _ g y)) (gop _ g y (ginv _ g z)) hxy hyz)

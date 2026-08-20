@@ -1127,7 +1127,7 @@ blankFix Z us n = (us, n)
 blankFix (S fuel) us n =
   case elabProgramSugar us of
     Left _ => (us, n)
-    Right (_, vs, bs) =>
+    Right (_, vs, bs, _) =>
       let fresh = filter (\(_, _, v) => v) vs in
       if null bs && null fresh
         then (us, n)
@@ -1144,7 +1144,7 @@ distillPath rootPath outDir = do
   -- the acceptance run doubles as the SUGAR TRIAL: per written
   -- ∈-annotation and motive, would the elided form recover it
   -- α-exactly? (docs/NovaPerfectSurface.txt, Phase 4)
-  let Right (sigOrig, verdicts, blanks) = elabProgramSugar units
+  let Right (sigOrig, verdicts, blanks, _) = elabProgramSugar units
     | Left err => pure (Left ("input is not accepted; distill only transforms accepted programs:\n" ++ err))
   let False = normDir (dirOf rootPath) == normDir outDir
     | True => pure (Left "output directory equals the source directory; refusing to overwrite sources")

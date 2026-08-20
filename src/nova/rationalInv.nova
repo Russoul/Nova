@@ -63,7 +63,7 @@ def nzOfPair : (a b : ℕ)
       (λhab. λhnz. ⋆ (nzPos k, ⋆))
       (j ihb. λhab. λhnz. 𝟘-elim (zNotS
         _
-        (trans _ _ _ _ (sym _ _ _ hab) (trans _ _ _ _ (multSucId (S k) j) (sucPlus k (S k * j))))))
+        (trans _ _ _ (sym _ _ hab) (trans _ _ _ (multSucId (S k) j) (sucPlus k (S k * j))))))
       b)
     a
 
@@ -106,9 +106,8 @@ def intNZViewAt : {z : El Int}
           _
           _
           _
-          _
-          (sym _ _ _ (trans _ _ _ _ (classPairEta p) hz))
-          e)))) (w. ⋆ (w .π₁, trans _ _ _ _ (w .π₂) (trans _ _ _ _ (classPairEta p) hz)))
+          (sym _ _ (trans _ _ _ (classPairEta p) hz))
+          e)))) (w. ⋆ (w .π₁, trans _ _ _ (w .π₂) (trans _ _ _ (classPairEta p) hz)))
 
 def intNZView : (z : El Int) (hnz : Prf (¬ (z ≡ intZero))) → Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ z)∥
   using (intCanonProdZero) ≔
@@ -146,10 +145,9 @@ def ratZeroOfNumZero : (p : El Rat) (h : Prf (num p ≡ intZero)) → class p �
     (trans
       _
       _
-      _
       (num ratZero * dInt p)
-      (trans _ (num p * dInt ratZero) _ _ (intMulOneR (num p)) h)
-      (sym _ _ _ (intMulZeroL (dInt p))))
+      (trans (num p * dInt ratZero) _ _ (intMulOneR (num p)) h)
+      (sym _ _ (intMulZeroL (dInt p))))
 
 def numNonZero : {p : El Rat} (h : Prf (¬ (class p ≡ qZero))) → Prf (¬ (num p ≡ intZero))
   using (prop.¬.unfold, prop.⊃.unfold, rationalQ.Q.unfold) ≔
@@ -179,7 +177,6 @@ def qNonZeroIsNzq : {u : El Q} (h : Prf (¬ (u ≡ qZero))) → Prf ∥(x : El N
       den
         p),
       trans
-        _
         (class (mkRat (nzToInt (w .π₁)) (den p)))
         (class (mkRat (num p) (den p)))
         _
@@ -197,10 +194,5 @@ def qInvExists : {u : El Q} (h : Prf (¬ (u ≡ qZero))) → Prf ∥(v : El Q) �
       _
       _
       _
-      _
-      (sym
-        _
-        _
-        (u * qOfNzq (nzqInv (w .π₁)))
-        (cong (λv. Q) (λx. x * qOfNzq (nzqInv (w .π₁))) (w .π₂)))
+      (sym _ (u * qOfNzq (nzqInv (w .π₁))) (cong (λv. Q) (λx. x * qOfNzq (nzqInv (w .π₁))) (w .π₂)))
       qMulInv))

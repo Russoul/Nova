@@ -95,7 +95,7 @@ def absurdP : (p : Ω) → Prf ⊥ → Prf p using (prop.⊥.unfold) ≔ λp. λ
 def isZeroCode : ℕ → 𝕌 ≔ λn. ℕ-elim 𝟙 (n ih. 𝟘) n
 
 def absurd : Prf ⊥ → 𝟘 using (prop.isZeroCode.eq) ≔
-  λh. transport _ isZeroCode _ _ (absurdP (Z ≡ S Z) h) ()
+  λh. transport isZeroCode (absurdP (Z ≡ S Z) h) ()
 
 -- …and hence the El A-valued eliminator the paragraph above says no
 -- ELIMINATION of a Prf ⊥ can give: 𝟘-elim consumes the escaped 𝟘.

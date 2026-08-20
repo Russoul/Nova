@@ -64,7 +64,7 @@ def rseqEqAt : {x y : El RSeq} → (seqOf x ≡ seqOf y) → x ≡ y
     _
     _
     h
-    (regularIsProp _ (regOf x) (transport _ (λf. Regular f) _ _ (sym _ _ _ h) (regOf y)))
+    (regularIsProp _ (regOf x) (transport (λf. Regular f) (sym _ _ h) (regOf y)))
 
 def rseqEq : {x y : El RSeq} → ((n : ℕ) → seqOf x n ≡ seqOf y n) → x ≡ y ≔
   λx. λy. λe. rseqEqAt (funext _ _ (seqOf x) (seqOf y) e)
@@ -109,6 +109,5 @@ def wdOuterOfComm : (op : El RSeq → El RSeq → El RSeq)
     _
     _
     _
-    _
     (cong (λw. Real) (λw. class w) (comm x c))
-    (trans _ _ _ _ (inner c x x' h) (cong (λw. Real) (λw. class w) (sym _ _ _ (comm x' c))))
+    (trans _ _ _ (inner c x x' h) (cong (λw. Real) (λw. class w) (sym _ _ (comm x' c))))

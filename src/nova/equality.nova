@@ -5,9 +5,9 @@
 
 def refl : (A : 𝕌) (a : El A) → a ≡ a ≔ λA. λa. ⋆
 
-def sym : (A : 𝕌) (a b : El A) → (a ≡ b) → b ≡ a ≔ λA. λa. λb. λh. ⋆
+def sym : {A : 𝕌} (a b : El A) → (a ≡ b) → b ≡ a ≔ λA. λa. λb. λh. ⋆
 
-def trans : (A : 𝕌) (a b c : El A) → (a ≡ b) → (b ≡ c) → a ≡ c ≔
+def trans : {A : 𝕌} (a b c : El A) → (a ≡ b) → (b ≡ c) → a ≡ c ≔
   λA. λa. λb. λc. λab. λbc. a ≡⟨ ab ⟩ b ≡⟨ bc ⟩ c
 
 -- coercion along a universe equation: the element itself, at the
@@ -16,14 +16,14 @@ def coe : (A B : 𝕌) → (A ≡ B) → El A → El B ≔ λA. λB. λh. λa. a
 
 -- transport along an equation in the base: again the element itself
 -- (P a ≐ P b by congruence over the reflected hypothesis)
-def transport : (A : 𝕌) (P : El A → 𝕌) (a b : El A) → (a ≡ b) → El (P a) → El (P b) ≔
+def transport : {A : 𝕌} (P : El A → 𝕌) {a b : El A} → (a ≡ b) → El (P a) → El (P b) ≔
   λA. λP. λa. λb. λh. λp. p
 
 -- transport at a PROP motive: equality is Ω-valued, so prop-indexed
 -- facts move along an equation the same way elements do — the proof
 -- itself, at the other instance (Prf (P a) ≐ Prf (P b) by congruence
 -- over the reflected hypothesis)
-def transportP : (A : 𝕌) (P : El A → Ω) (a b : El A) → (a ≡ b) → Prf (P a) → Prf (P b) ≔
+def transportP : {A : 𝕌} (P : El A → Ω) {a b : El A} → (a ≡ b) → Prf (P a) → Prf (P b) ≔
   λA. λP. λa. λb. λh. λp. p
 
 -- dependent congruence: in an extensional theory it is one ⋆, since
@@ -58,6 +58,5 @@ def sigmaEq2 : (A : 𝕌)
     _
     _
     _
-    _
-    (trans _ _ _ (y .π₁, y .π₂) (sym _ _ _ (sigmaEtaG _ B x)) ⋆)
+    (trans _ _ (y .π₁, y .π₂) (sym _ _ (sigmaEtaG _ B x)) ⋆)
     (sigmaEtaG _ B y)

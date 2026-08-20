@@ -67,9 +67,8 @@ def eqISound : {z1 z2 : El Int} → Prf (EqI z1 z2) → z1 ≡ z2
     _
     _
     _
-    _
-    (sym _ _ _ (intNormalizeId z1))
-    (trans _ (intNormalize z1) _ _ h (intNormalizeId z2))
+    (sym _ _ (intNormalizeId z1))
+    (trans (intNormalize z1) _ _ h (intNormalizeId z2))
 
 -- completeness: z1 ≡ z2 reflects, so intNormalize z1 and intNormalize
 -- z2 are the same term — the evident-≡-shape squashee bare ⋆ handles
@@ -139,21 +138,15 @@ def normPairWD : (a b c d : ℕ) (h : Prf (a + d ≡ b + c)) → normPair a b �
       _
       _
       _
-      _
       ⋆
       (trans
         _
         _
         _
-        _
-        (sym _ _ _ (normPairLeftZ b c))
-        (cong
-          (λu. ℕ ⨯ ℕ)
-          (λx. normPair c x)
-          (sym _ _ _ (trans _ _ _ _ (sym _ _ _ (zeroPlusId d)) h)))))
+        (sym _ _ (normPairLeftZ b c))
+        (cong (λu. ℕ ⨯ ℕ) (λx. normPair c x) (sym _ _ (trans _ _ _ (sym _ _ (zeroPlusId d)) h)))))
     (a' ih. λb. ℕ-elim
       (λc. λd. λh. trans
-        _
         _
         _
         _
@@ -162,14 +155,13 @@ def normPairWD : (a b c d : ℕ) (h : Prf (a + d ≡ b + c)) → normPair a b �
           _
           _
           _
-          _
-          (sym _ _ _ (normPairRightZ (S a') d))
-          (cong (λu. ℕ ⨯ ℕ) (λx. normPair x d) (trans _ _ _ _ h (zeroPlusId c)))))
+          (sym _ _ (normPairRightZ (S a') d))
+          (cong (λu. ℕ ⨯ ℕ) (λx. normPair x d) (trans _ _ _ h (zeroPlusId c)))))
       (b' ihb. λc. λd. λh. ih
         b'
         c
         d
-        (predEq _ _ (trans _ _ _ _ (sym _ _ _ (sucPlus a' d)) (trans _ _ _ _ h (sucPlus b' c)))))
+        (predEq _ _ (trans _ _ _ (sym _ _ (sucPlus a' d)) (trans _ _ _ h (sucPlus b' c)))))
       b)
     a
 
@@ -207,8 +199,7 @@ def pairEq2 : {A B : 𝕌} {x y : El (A ⨯ B)} → (x .π₁ ≡ y .π₁) → 
     _
     _
     _
-    _
-    (trans _ _ _ (y .π₁, y .π₂) (sym _ _ _ (pairEtaG _ _ x)) ⋆)
+    (trans _ _ (y .π₁, y .π₂) (sym _ _ (pairEtaG _ _ x)) ⋆)
     (pairEtaG _ _ y)
 
 -- ===== EqZ: equality that computes =====
@@ -236,10 +227,9 @@ def eqZSound : {z1 z2 : El Int} → Prf (EqZ z1 z2) → z1 ≡ z2
     _
     _
     _
-    _
-    (sym _ _ _ (intCanonClass z1))
+    (sym _ _ (intCanonClass z1))
     (trans
-      Int
+      {Int}
       _
       _
       _

@@ -79,7 +79,7 @@ def gCancelInner : (G : 𝕌)
   (a b : El G)
   → gop _ g a (gop _ g (ginv _ g a) b) ≡ b ≔
   λG. λg. λa. λb. gop _ g a (gop _ g (ginv _ g a) b)
-      ≡⟨ sym _ _ _ (gAssoc _ g a (ginv _ g a) b) ⟩ gop _ g (gop _ g a (ginv _ g a)) b
+      ≡⟨ sym _ _ (gAssoc _ g a (ginv _ g a) b) ⟩ gop _ g (gop _ g a (ginv _ g a)) b
       ≡⟨ cong (λw. G) (λw. gop G g w b) (gInvR _ g a) ⟩ gop _ g (ge g) b
       ≡⟨ gUnitL _ g b ⟩ b
 
@@ -88,7 +88,7 @@ def gCancelInnerInv : (G : 𝕌)
   (a b : El G)
   → gop _ g (ginv _ g a) (gop _ g a b) ≡ b ≔
   λG. λg. λa. λb. gop _ g (ginv _ g a) (gop _ g a b)
-      ≡⟨ sym _ _ _ (gAssoc _ g (ginv _ g a) a b) ⟩ gop _ g (gop _ g (ginv _ g a) a) b
+      ≡⟨ sym _ _ (gAssoc _ g (ginv _ g a) a b) ⟩ gop _ g (gop _ g (ginv _ g a) a) b
       ≡⟨ cong (λw. G) (λw. gop G g w b) (gInvL _ g a) ⟩ gop _ g (ge g) b
       ≡⟨ gUnitL _ g b ⟩ b
 
@@ -113,11 +113,8 @@ def gCancelOuterInv : (G : 𝕌)
 -- ===== uniqueness of inverses, and its three corollaries =====
 def gInvUniq : (G : 𝕌) (g : El (IsGroup G)) (x y : El G) → (gop _ g x y ≡ ge g) → ginv _ g x ≡ y ≔
   λG. λg. λx. λy. λh. ginv _ g x
-      ≡⟨ sym _ _ _ (gUnitR _ g (ginv _ g x)) ⟩ gop _ g (ginv _ g x) (ge g)
-      ≡⟨ cong
-        (λw. G)
-        (λw. gop G g (ginv _ g x) w)
-        (sym _ _ _ h) ⟩ gop _ g (ginv _ g x) (gop _ g x y)
+      ≡⟨ sym _ _ (gUnitR _ g (ginv _ g x)) ⟩ gop _ g (ginv _ g x) (ge g)
+      ≡⟨ cong (λw. G) (λw. gop G g (ginv _ g x) w) (sym _ _ h) ⟩ gop _ g (ginv _ g x) (gop _ g x y)
       ≡⟨ gCancelInnerInv _ g x y ⟩ y
 
 def gInvInv : (G : 𝕌) (g : El (IsGroup G)) (x : El G) → ginv _ g (ginv _ g x) ≡ x ≔
@@ -160,7 +157,7 @@ def gEqOfOpInvUnit : {G : 𝕌}
   {x y : El G}
   → (gop _ g x (ginv _ g y) ≡ ge g) → x ≡ y ≔
   λG. λg. λx. λy. λh. x
-      ≡⟨ sym _ _ _ (gInvInv _ g x) ⟩ ginv _ g (ginv _ g x)
+      ≡⟨ sym _ _ (gInvInv _ g x) ⟩ ginv _ g (ginv _ g x)
       ≡⟨ cong (λw. G) (λw. ginv G g w) (gInvUniq _ _ _ _ h) ⟩ ginv _ g (ginv _ g y)
       ≡⟨ gInvInv _ g y ⟩ y
 
@@ -171,12 +168,12 @@ def gCancelL : {G : 𝕌}
   {y z : El G}
   → (gop _ g x y ≡ gop _ g x z) → y ≡ z ≔
   λG. λg. λx. λy. λz. λh. y
-      ≡⟨ sym _ _ _ (gCancelInnerInv _ g x y) ⟩ gop _ g (ginv _ g x) (gop _ g x y)
+      ≡⟨ sym _ _ (gCancelInnerInv _ g x y) ⟩ gop _ g (ginv _ g x) (gop _ g x y)
       ≡⟨ cong (λw. G) (λw. gop G g (ginv _ g x) w) h ⟩ gop _ g (ginv _ g x) (gop _ g x z)
       ≡⟨ gCancelInnerInv _ g x z ⟩ z
 
 def gCancelR : (G : 𝕌) (g : El (IsGroup G)) (x y z : El G) → (gop _ g y x ≡ gop _ g z x) → y ≡ z ≔
   λG. λg. λx. λy. λz. λh. y
-      ≡⟨ sym _ _ _ (gCancelOuter _ g x y) ⟩ gop _ g (gop _ g y x) (ginv _ g x)
+      ≡⟨ sym _ _ (gCancelOuter _ g x y) ⟩ gop _ g (gop _ g y x) (ginv _ g x)
       ≡⟨ cong (λw. G) (λw. gop G g w (ginv _ g x)) h ⟩ gop _ g (gop _ g z x) (ginv _ g x)
       ≡⟨ gCancelOuter _ g x z ⟩ z

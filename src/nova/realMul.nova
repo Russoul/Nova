@@ -38,13 +38,7 @@ def mulIdx : ℕ → ℕ → ℕ ≔ λc. λm. m + c * S m
 
 def sucMulIdx : (c m : ℕ) → S (mulIdx c m) ≡ S c * S m
   using (nat.*.eq, nat.+.eq, realMul.mulIdx.eq) ≔
-  λc. λm. trans
-    _
-    (S (m + c * S m))
-    _
-    _
-    (sym _ _ _ (sucPlus m (c * S m)))
-    (sym _ _ _ (sucMult c (S m)))
+  λc. λm. trans (S (m + c * S m)) _ _ (sym _ _ (sucPlus m (c * S m))) (sym _ _ (sucMult c (S m)))
 
 -- (c+1) · 1/((c+1)(m+1)) = 1/(m+1) : cross-multiplication is the
 -- successor identity above. Split into the two sides, because a
@@ -53,7 +47,6 @@ def sucMulIdx : (c m : ℕ) → S (mulIdx c m) ≡ S c * S m
 def qMulIdxNum : {c m : ℕ} → intOfNat (S c) * intOne * nzToInt (nzPos m) ≡ intOfNat (S c * S m)
   using (ratHalf.nzPosInt) ≔
   λc. λm. trans
-    _
     _
     (intOfNat (S c) * intOfNat (S m))
     _
@@ -67,9 +60,7 @@ def qMulIdxDen : (c m : ℕ)
     _
     _
     _
-    _
     (trans
-      _
       _
       _
       (intOfNat (S (mulIdx c m)))
@@ -105,12 +96,12 @@ def qMulIdxRel : (c m : ℕ)
     rationalQ.ratMul.eq,
     realMul.mulIdx.eq) ≔
   λc. λm. trans
-    _
+    {Int}
     (intOfNat (S c) * intOne * nzToInt (nzPos m))
     _
     _
     qMulIdxNum
-    (sym _ _ _ (qMulIdxDen c m))
+    (sym _ _ (qMulIdxDen c m))
 
 def qMulInvIdx : {c m : ℕ} → qOfNat (S c) * qInvNat (mulIdx c m) ≡ qInvNat m
   using (intOrder.intOfNat.eq,
@@ -126,7 +117,6 @@ def qMulInvIdx : {c m : ℕ} → qOfNat (S c) * qInvNat (mulIdx c m) ≡ qInvNat
     realMul.mulIdx.eq) ≔
   λc. λm. trans
     _
-    _
     (qcls (ratMul (mkRat (intOfNat (S c)) nzOne) (mkRat intOne (nzPos (mulIdx c m)))))
     _
     (qMulCls (mkRat (intOfNat (S c)) nzOne) (mkRat intOne (nzPos (mulIdx c m))))
@@ -140,11 +130,8 @@ def qMulInvIdx : {c m : ℕ} → qOfNat (S c) * qInvNat (mulIdx c m) ≡ qInvNat
 -- generically, where every symbol is a variable.
 def qMulInvIdxC : {C c m : ℕ} → (C ≡ S c) → qOfNat C * qInvNat (mulIdx c m) ≡ qInvNat m ≔
   λC. λc. λm. λh. transportP
-    _
     (λw. qOfNat w * qInvNat (mulIdx c m) ≡ qInvNat m)
-    _
-    _
-    (sym _ _ _ h)
+    (sym _ _ h)
     qMulInvIdx
 
 -- ...so the factor turns the deep bound into the shallow one exactly
@@ -152,12 +139,10 @@ def qMulRBoundIdx : (c m n : ℕ) → qOfNat (S c) * rBound (mulIdx c m) (mulIdx
   using (rationalQ.+.eq, real.qInvNat.eq, real.rBound.eq, realMul.mulIdx.eq) ≔
   λc. λm. λn. trans
     _
-    _
     (qOfNat (S c) * qInvNat (mulIdx c m) + qOfNat (S c) * qInvNat (mulIdx c n))
     _
     (qDistribL (qOfNat (S c)) (qInvNat (mulIdx c m)) (qInvNat (mulIdx c n)))
     (trans
-      _
       _
       _
       (rBound m n)
@@ -176,17 +161,10 @@ def qMulRBoundIdx : (c m n : ℕ) → qOfNat (S c) * rBound (mulIdx c m) (mulIdx
 
 -- ===== the product-difference identity =====
 def qMulSubL : (x y y' : El Q) → x * (y + qNeg y') ≡ x * y + qNeg (x * y') ≔
-  λx. λy. λy'. trans
-    _
-    _
-    _
-    _
-    (qDistribL x y (qNeg y'))
-    (cong (λw. Q) (λw. x * y + w) (qNegMulR x y'))
+  λx. λy. λy'. trans _ _ _ (qDistribL x y (qNeg y')) (cong (λw. Q) (λw. x * y + w) (qNegMulR x y'))
 
 def qMulSubR : {y' x x' : El Q} → y' * (x + qNeg x') ≡ x * y' + qNeg (x' * y') ≔
   λy'. λx. λx'. trans
-    _
     _
     _
     _
@@ -194,13 +172,12 @@ def qMulSubR : {y' x x' : El Q} → y' * (x + qNeg x') ≡ x * y' + qNeg (x' * y
     (trans
       _
       _
-      _
       (x * y' + qNeg (x' * y'))
       (cong (λw. Q) (λw. w + y' * qNeg x') (qMulComm y' x))
       (cong
         (λw. Q)
         (λw. x * y' + w)
-        (trans _ _ _ _ (qNegMulR y' x') (cong (λw. Q) (λw. qNeg w) (qMulComm y' x')))))
+        (trans _ _ _ (qNegMulR y' x') (cong (λw. Q) (λw. qNeg w) (qMulComm y' x')))))
 
 -- x·y − x′·y′ ≡ x·(y − y′) + y′·(x − x′)
 def qMulDiff : (x y x' y' : El Q)
@@ -209,9 +186,7 @@ def qMulDiff : (x y x' y' : El Q)
     _
     _
     _
-    _
     (trans
-      _
       _
       _
       (x * y + qNeg (x * y') + (x * y' + qNeg (x' * y')))
@@ -235,13 +210,11 @@ def qMulSumBound : (A B : ℕ) (r : El Q) → qOfNat A * r + qOfNat B * r ≡ qO
   λA. λB. λr. sym
     _
     _
-    _
     (trans
       _
       _
-      _
       (qOfNat A * r + qOfNat B * r)
-      (cong (λw. Q) (λw. w * r) (sym _ _ _ (qOfNatAdd A B)))
+      (cong (λw. Q) (λw. w * r) (sym _ _ (qOfNatAdd A B)))
       (qDistribR r (qOfNat A) (qOfNat B)))
 
 -- PRODUCTS OF CLOSE, BOUNDED RATIONALS ARE CLOSE. Everything the ring
@@ -420,7 +393,7 @@ def rMul : El RSeq → El RSeq → El RSeq using (real.RSeq.unfold) ≔ λp. λq
 -- (a + p) + (r + (s + a)) ≡ (a + a) + (p + (r + s))
 def qRearr5 : (a p r s : El Q) → a + p + (r + (s + a)) ≡ a + a + (p + (r + s)) ≔
   λa. λp. λr. λs. a + p + (r + (s + a))
-      ≡⟨ cong (λw. Q) (λw. a + p + w) (sym _ _ _ (qAddAssoc r s a)) ⟩ a + p + (r + s + a)
+      ≡⟨ cong (λw. Q) (λw. a + p + w) (sym _ _ (qAddAssoc r s a)) ⟩ a + p + (r + s + a)
       ≡⟨ cong (λw. Q) (λw. a + p + w) (qAddComm (r + s) a) ⟩ a + p + (a + (r + s))
       ≡⟨ qPairSwap a p a (r + s) ⟩ a + a + (p + (r + s))
 
@@ -432,12 +405,10 @@ def qTailSum : {C A D : ℕ}
     _
     _
     _
-    _
     (cong
       (λw. Q)
       (λw. qOfNat C * t + w)
       (trans
-        _
         _
         _
         (qOfNat (A + A + D) * t)
@@ -474,9 +445,7 @@ def wdBoundEq : {C A E n a b t k : ℕ}
     _
     _
     _
-    _
     (trans
-      _
       _
       _
       (qInvNat
@@ -489,14 +458,12 @@ def wdBoundEq : {C A E n a b t k : ℕ}
         (λw. Q)
         (λw. w + (qOfNat A * rBound t t + qOfNat E * rBound t b))
         (trans
-          _
           (qOfNat C * rBound a t)
           (qOfNat C * qInvNat a + qOfNat C * qInvNat t)
           _
           (qDistribL (qOfNat C) (qInvNat a) (qInvNat t))
           (cong (λw. Q) (λw. w + qOfNat C * qInvNat t) h1)))
       (trans
-        _
         _
         _
         (qInvNat
@@ -516,14 +483,12 @@ def wdBoundEq : {C A E n a b t k : ℕ}
           (λw. Q)
           (λw. qInvNat n + qOfNat C * qInvNat t + (qOfNat A * qInvNat t + qOfNat A * qInvNat t + w))
           (trans
-            _
             (qOfNat E * rBound t b)
             (qOfNat E * qInvNat t + qOfNat E * qInvNat b)
             _
             (qDistribL (qOfNat E) (qInvNat t) (qInvNat b))
             (cong (λw. Q) (λw. qOfNat E * qInvNat t + w) h2)))))
     (trans
-      _
       _
       _
       (rBound n n + qInvNat k)
@@ -536,7 +501,6 @@ def wdBoundEq : {C A E n a b t k : ℕ}
         (λw. Q)
         (λw. rBound n n + w)
         (trans
-          _
           (qOfNat
             C * qInvNat t + (qOfNat A * qInvNat t + qOfNat A * qInvNat t + qOfNat E * qInvNat t))
           _
@@ -712,9 +676,9 @@ def ssAddComm : {a b : ℕ} → S (S a) + S b ≡ S (S b) + S a ≔
       ≡⟨ cong (λw. ℕ) (λw. S w) (sucPlus a (S b)) ⟩ S (S (a + S b))
       ≡⟨ cong (λw. ℕ) (λw. S (S w)) (plusSucId a b) ⟩ S (S (S (a + b)))
       ≡⟨ cong (λw. ℕ) (λw. S (S (S w))) (plusComm b a) ⟩ S (S (S (b + a)))
-      ≡⟨ sym _ _ (S (S (S (b + a)))) (cong (λw. ℕ) (λw. S (S w)) (plusSucId b a)) ⟩ S (S (b + S a))
-      ≡⟨ sym _ _ (S (S (b + S a))) (cong (λw. ℕ) (λw. S w) (sucPlus b (S a))) ⟩ S (S b + S a)
-      ≡⟨ sym _ _ _ (sucPlus (S b) (S a)) ⟩ S (S b) + S a
+      ≡⟨ sym _ (S (S (S (b + a)))) (cong (λw. ℕ) (λw. S (S w)) (plusSucId b a)) ⟩ S (S (b + S a))
+      ≡⟨ sym _ (S (S (b + S a))) (cong (λw. ℕ) (λw. S w) (sucPlus b (S a))) ⟩ S (S b + S a)
+      ≡⟨ sym _ _ (sucPlus (S b) (S a)) ⟩ S (S b) + S a
 
 def mulPredComm : {p q : El RSeq} → mulPred p q ≡ mulPred q p
   using (realBound.seqBound.eq, realMul.mulPred.eq) ≔
