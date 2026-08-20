@@ -22,7 +22,7 @@ def natAlg : El (IsNatAlgebra ℕ) using (natAlgebra.IsNatAlgebra.unfold) ≔ Z,
 
 -- The fold: iterate the algebra's endomap from its point.
 def natFold : (A : 𝕌) → El (IsNatAlgebra A) → ℕ → El A using (natAlgebra.IsNatAlgebra.unfold) ≔
-  λA. λa. λn. ℕ-elim (k. El A) (a .π₁) (k ih. a .π₂ ih) n
+  λA. λa. λn. ℕ-elim (a .π₁) (k ih. a .π₂ ih) n
 
 -- EXISTENCE: the fold is a homomorphism into any algebra — both laws
 -- are δβ-computations (ℕ-elim at Z and at S), so each ⋆ is free.
@@ -44,14 +44,14 @@ def natAlgHomUnique : (A : 𝕌)
   (a : El (IsNatAlgebra A))
   (f g : El (NatAlgHom ℕ A natAlg a))
   (n : ℕ)
-  → f .π₁ n ≡ g .π₁ n ∈ El A
+  → f .π₁ n ≡ g .π₁ n
   using (hyp.rw,
     id.Id.eq,
     id.Id.unfold,
     natAlgebra.IsNatAlgebra.unfold,
     natAlgebra.NatAlgHom.unfold,
     natAlgebra.natAlg.eq) ≔
-  λA. λa. λf. λg. λn. ℕ-elim (k. f .π₁ k ≡ g .π₁ k ∈ El A)
+  λA. λa. λf. λg. λn. ℕ-elim
     (let hf ≔ idToEq
       A
       (f .π₁ Z)
@@ -74,6 +74,6 @@ def natAlgHomUnique : (A : 𝕌)
 def natAlgHomUniqueFun : (A : 𝕌)
   (a : El (IsNatAlgebra A))
   (f g : El (NatAlgHom ℕ A natAlg a))
-  → f .π₁ ≡ g .π₁ ∈ El (ℕ → A)
+  → f .π₁ ≡ g .π₁
   using (natAlgebra.NatAlgHom.unfold) ≔
   λA. λa. λf. λg. funext ℕ A (f .π₁) (g .π₁) (natAlgHomUnique A a f g)

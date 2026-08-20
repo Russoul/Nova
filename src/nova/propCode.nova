@@ -37,22 +37,22 @@ def prfIntro : {r : Ω} → Prf r → El (prfC r) using (prfC.eq) ≔
   λr. λh. eqToId (class Z) (class (S Z)) (⋆ h)
 
 -- assuming r, everything implies r, so all the fibres agree
-def impConst : (r p q : Ω) → Prf r → p ⊃ r ≡ q ⊃ r ∈ Ω ≔
+def impConst : (r p q : Ω) → Prf r → p ⊃ r ≡ q ⊃ r ≔
   λr. λp. λq. λh. propExt (q ⊃ r) (λu. impIntro q r (λv. h)) (λu. impIntro p r (λv. h))
 
 -- effectivity, along  n ↦ ¬(n ≡ Z) ⊃ r
 def effMap : (r : Ω) → El (ℕ / (x y. r)) → Ω using (impConst) ≔
-  λr. λv. quot-elim (z. Ω) (n. ¬ (n ≡ Z ∈ ℕ) ⊃ r) v
+  λr. λv. quot-elim (n. ¬ (n ≡ Z ∈ ℕ) ⊃ r) v
 
 def effZero : {r : Ω} → Prf (effMap r (class Z)) using (effMap.eq, prop.¬.eq) ≔
-  λr. impIntro (¬ (Z ≡ Z ∈ ℕ)) r (λh. absurdP r (impApply (Z ≡ Z ∈ ℕ) ⊥ h ⋆))
+  λr. impIntro (¬ (Z ≡ Z)) r (λh. absurdP r (impApply (Z ≡ Z) ⊥ h ⋆))
 
-def notSZ : Prf (¬ (S Z ≡ Z ∈ ℕ)) using (prop.¬.eq) ≔
-  impIntro (S Z ≡ Z ∈ ℕ) ⊥ (λh. 𝟘-elim (zNotS Z (sym ℕ (S Z) Z h)))
+def notSZ : Prf (¬ (S Z ≡ Z)) using (prop.¬.eq) ≔
+  impIntro (S Z ≡ Z) ⊥ (λh. 𝟘-elim (zNotS Z (sym ℕ (S Z) Z h)))
 
 def prfElim : (r : Ω) → El (prfC r) → Prf r using (effMap.eq, prfC.eq) ≔
   λr. λw. impApply
-    (¬ (S Z ≡ Z ∈ ℕ))
+    (¬ (S Z ≡ Z))
     r
     (transportP
       (ℕ / (x y. r))

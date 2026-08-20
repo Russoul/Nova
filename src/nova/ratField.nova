@@ -148,4 +148,4 @@ def ratField : El (IsField Q)
                   eqToId
                     (qMul x (qInv x))
                     qOne
-                    (qMulInvR (notIntro (x ≡ qZero ∈ El Q) (λe. ⋆ (k (eqToId x qZero e)))))
+                    (qMulInvR (notIntro (x ≡ qZero) (λe. ⋆ (k (eqToId x qZero e)))))

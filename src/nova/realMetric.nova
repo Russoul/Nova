@@ -51,7 +51,7 @@ def leRAbsSelf : {u : El Real} → Prf (LeR u (realAbs u))
     realOrder.LeR.eq,
     realOrder.LeR.unfold,
     realOrder.RLeP.eq) ≔
-  λu. quot-elim (w. Prf (LeR w (realAbs w)))
+  λu. quot-elim
     (x. rleOf
       x
       (rAbs x)
@@ -97,7 +97,7 @@ def leRNegAbsSelf : {u : El Real} → Prf (LeR (realNeg (realAbs u)) u)
     realOrder.LeR.eq,
     realOrder.LeR.unfold,
     realOrder.RLeP.eq) ≔
-  λu. quot-elim (w. Prf (LeR (realNeg (realAbs w)) w))
+  λu. quot-elim
     (x. rleOf
       (rNeg (rAbs x))
       x
@@ -110,7 +110,7 @@ def leRNegAbsSelf : {u : El Real} → Prf (LeR (realNeg (realAbs u)) u)
     u
 
 -- ...so a vanishing absolute value names zero
-def realAbsZeroInv : (u : El Real) → (realAbs u ≡ realZero ∈ El Real) → u ≡ realZero ∈ El Real ≔
+def realAbsZeroInv : (u : El Real) → (realAbs u ≡ realZero) → u ≡ realZero ≔
   λu. λh. leRAntisym
     (transportP Real (λw. LeR u w) (realAbs u) realZero h leRAbsSelf)
     (transportP
@@ -140,8 +140,7 @@ def realDist : El Real → El Real → El Real using (real.Real.unfold) ≔ λu.
 -- licensed join has to redo that at every use. Here each layer is one
 -- named lemma — realNegCls, realAddCls, realAbsCls — so the deep walk
 -- happens once, at a statement small enough to be cheap.
-def realDistCls : (p q : El RSeq)
-  → realDist (class p) (class q) ≡ class (rAbs (rAdd p (rNeg q))) ∈ El Real
+def realDistCls : (p q : El RSeq) → realDist (class p) (class q) ≡ class (rAbs (rAdd p (rNeg q)))
   using (realMetric.realDist.eq,
     realGroup.realSub.eq,
     real.Real.unfold,
@@ -201,7 +200,7 @@ def rleOfAbsSub : {p : El RSeq}
     ((λk. b), constReg)
     (λj. leQSubShift (qAbs (qAdd (seqOf p (dbl j)) (qNeg (seqOf q (dbl j))))) b (f j))
 
-def realDistSelf : (u : El Real) → realDist u u ≡ realZero ∈ El Real
+def realDistSelf : (u : El Real) → realDist u u ≡ realZero
   using (real.Real.unfold, realAbs.realAbs.eq, realGroup.realSub.eq, realMetric.realDist.eq) ≔
   λu. trans
     Real
@@ -211,7 +210,7 @@ def realDistSelf : (u : El Real) → realDist u u ≡ realZero ∈ El Real
     (cong Real (λw. Real) (λw. realAbs w) (realSub u u) realZero realSubSelf)
     realAbsZero
 
-def realDistSym : (u v : El Real) → realDist u v ≡ realDist v u ∈ El Real
+def realDistSym : (u v : El Real) → realDist u v ≡ realDist v u
   using (real.Real.unfold, realAbs.realAbs.eq, realGroup.realSub.eq, realMetric.realDist.eq) ≔
   λu. λv. trans
     Real
@@ -238,7 +237,7 @@ def leRZeroDist : (u v : El Real) → Prf (LeR realZero (realDist u v))
   λu. λv. leRZeroAbs (realSub u v)
 
 -- identity of indiscernibles, via realAbsZeroInv and the group law
-def realDistZeroInv : (u v : El Real) → (realDist u v ≡ realZero ∈ El Real) → u ≡ v ∈ El Real
+def realDistZeroInv : (u v : El Real) → (realDist u v ≡ realZero) → u ≡ v
   using (real.Real.unfold, realAbs.realAbs.eq, realGroup.realSub.eq, realMetric.realDist.eq) ≔
   λu. λv. λh. realSubZeroInv (realAbsZeroInv (realSub u v) h)
 

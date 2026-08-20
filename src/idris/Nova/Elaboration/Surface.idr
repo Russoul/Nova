@@ -48,8 +48,11 @@ mutual
     STySum : STy -> STy -> STy
     ||| T / (x y. r) — r is an Ω-valued element
     STyQuot : STy -> (nx, ny : SName) -> SElem -> STy
-    ||| t ≡ t ∈ T
-    STyEq : SElem -> SElem -> STy -> STy
+    ||| t ≡ t (∈ T)? — the ∈-annotation is OPTIONAL
+    ||| (docs/NovaPerfectSurface.txt, Phase 4): when absent, the
+    ||| domain is recovered by INFERRING a side (left first); the
+    ||| range keys the distiller's elision trial
+    STyEq : Maybe Range -> SElem -> SElem -> Maybe STy -> STy
     ||| El t
     STyEl : SElem -> STy
     ||| Ω
@@ -111,21 +114,26 @@ mutual
     SSumC : SElem -> SElem -> SElem
     ||| t / (x y. r)  (code)
     SQuotC : SElem -> (nx, ny : SName) -> SElem -> SElem
-    ||| t ≡ t ∈ T — the equality PROP (an Ω-element; the ∈-slot
-    ||| embeds a TYPE, like ∥-∥)
-    SEqC : SElem -> SElem -> STy -> SElem
+    ||| t ≡ t (∈ T)? — the equality PROP (an Ω-element; the ∈-slot
+    ||| embeds a TYPE, like ∥-∥); the ∈-annotation is optional, as at
+    ||| the type level
+    SEqC : Maybe Range -> SElem -> SElem -> Maybe STy -> SElem
     SZeroElim : SElem -> SElem
-    ||| ℕ-elim (n. T) z (n ih. s) t — motive-first
-    SNatElim : (n : SName) -> STy -> SElem -> (n2, ih : SName) -> SElem -> SElem -> SElem
+    ||| ℕ-elim (n. T)? z (n ih. s) t — motive-first; the motive is
+    ||| OPTIONAL in checking position (docs/NovaPerfectSurface.txt,
+    ||| Phase 4): when absent it is recovered by abstracting the
+    ||| scrutinee in the expected type
+    SNatElim : Maybe (SName, STy) -> SElem -> (n2, ih : SName) -> SElem -> SElem -> SElem
     ||| inj₁ t / inj₂ t — sum introductions
     SInj1 : SElem -> SElem
     SInj2 : SElem -> SElem
-    ||| ⊎-elim (z. T) (a. l) (b. r) t — motive, left case, right
-    ||| case, scrutinee
-    SSumElim : (z : SName) -> STy -> (a : SName) -> SElem -> (b : SName) -> SElem -> SElem -> SElem
+    ||| ⊎-elim (z. T)? (a. l) (b. r) t — motive, left case, right
+    ||| case, scrutinee; motive optional in checking position
+    SSumElim : Maybe (SName, STy) -> (a : SName) -> SElem -> (b : SName) -> SElem -> SElem -> SElem
     SClass : SElem -> SElem
-    ||| quot-elim (z. T) (a. f) q — motive-first
-    SQuotElim : (z : SName) -> STy -> (a : SName) -> SElem -> SElem -> SElem
+    ||| quot-elim (z. T)? (a. f) q — motive-first; motive optional in
+    ||| checking position
+    SQuotElim : Maybe (SName, STy) -> (a : SName) -> SElem -> SElem -> SElem
     ||| ν F — the ν CODE (infers at 𝕌)
     SNuC : SPoly -> SElem
     ||| out t — the coinductive observation (infers, like the
@@ -216,17 +224,17 @@ mutual
   shiftElem c (SSigmaC x a b) = SSigmaC x (shiftElem c a) (shiftElem (S c) b)
   shiftElem c (SSumC a b) = SSumC (shiftElem c a) (shiftElem c b)
   shiftElem c (SQuotC a x y r) = SQuotC (shiftElem c a) x y (shiftElem (S (S c)) r)
-  shiftElem c (SEqC l r t) = SEqC (shiftElem c l) (shiftElem c r) (shiftTy c t)
+  shiftElem c (SEqC rng l r t) = SEqC rng (shiftElem c l) (shiftElem c r) (map (shiftTy c) t)
   shiftElem c (SZeroElim t) = SZeroElim (shiftElem c t)
-  shiftElem c (SNatElim n mot z n2 ih s t) =
-    SNatElim n (shiftTy (S c) mot) (shiftElem c z) n2 ih (shiftElem (S (S c)) s) (shiftElem c t)
+  shiftElem c (SNatElim mot z n2 ih s t) =
+    SNatElim (map (\(n, m) => (n, shiftTy (S c) m)) mot) (shiftElem c z) n2 ih (shiftElem (S (S c)) s) (shiftElem c t)
   shiftElem c (SInj1 t) = SInj1 (shiftElem c t)
   shiftElem c (SInj2 t) = SInj2 (shiftElem c t)
-  shiftElem c (SSumElim z mot a l b r t) =
-    SSumElim z (shiftTy (S c) mot) a (shiftElem (S c) l) b (shiftElem (S c) r) (shiftElem c t)
+  shiftElem c (SSumElim mot a l b r t) =
+    SSumElim (map (\(z, m) => (z, shiftTy (S c) m)) mot) a (shiftElem (S c) l) b (shiftElem (S c) r) (shiftElem c t)
   shiftElem c (SClass t) = SClass (shiftElem c t)
-  shiftElem c (SQuotElim z mot a f q) =
-    SQuotElim z (shiftTy (S c) mot) a (shiftElem (S c) f) (shiftElem c q)
+  shiftElem c (SQuotElim mot a f q) =
+    SQuotElim (map (\(z, m) => (z, shiftTy (S c) m)) mot) a (shiftElem (S c) f) (shiftElem c q)
   shiftElem c (SNuC f) = SNuC (shiftPoly c f)
   shiftElem c (SOut t) = SOut (shiftElem c t)
   shiftElem c (SCorec x a f u) = SCorec x (shiftElem c a) (shiftElem (S c) f) (shiftElem c u)
@@ -256,7 +264,7 @@ mutual
   shiftTy c (STySigma x a b) = STySigma x (shiftTy c a) (shiftTy (S c) b)
   shiftTy c (STySum a b) = STySum (shiftTy c a) (shiftTy c b)
   shiftTy c (STyQuot a x y r) = STyQuot (shiftTy c a) x y (shiftElem (S (S c)) r)
-  shiftTy c (STyEq l r t) = STyEq (shiftElem c l) (shiftElem c r) (shiftTy c t)
+  shiftTy c (STyEq rng l r t) = STyEq rng (shiftElem c l) (shiftElem c r) (map (shiftTy c) t)
   shiftTy c (STyEl e) = STyEl (shiftElem c e)
   shiftTy c STyProp = STyProp
   shiftTy c (STyPrf e) = STyPrf (shiftElem c e)
@@ -452,7 +460,7 @@ mutual
     show (STySigma x a b) = "Sigma \{x} (\{show a}) (\{show b})"
     show (STySum a b) = "Sum (\{show a}) (\{show b})"
     show (STyQuot a x y r) = "Quot (\{show a}) \{fst x} \{fst y} (\{show r})"
-    show (STyEq l r t) = "Eq (\{show l}) (\{show r}) (\{show t})"
+    show (STyEq _ l r t) = "Eq (\{show l}) (\{show r}) (\{maybe "_" show t})"
     show (STyEl e) = "El (\{show e})"
     show (STyNu f) = "Nu (\{show f})"
     show STyProp = "Ω"
@@ -478,17 +486,17 @@ mutual
     show (SSigmaC x a b) = "SigmaC \{x} (\{show a}) (\{show b})"
     show (SSumC a b) = "SumC (\{show a}) (\{show b})"
     show (SQuotC a x y r) = "QuotC (\{show a}) \{fst x} \{fst y} (\{show r})"
-    show (SEqC l r t) = "EqC (\{show l}) (\{show r}) (\{show t})"
+    show (SEqC _ l r t) = "EqC (\{show l}) (\{show r}) (\{maybe "_" show t})"
     show (SZeroElim t) = "ZeroElim (\{show t})"
-    show (SNatElim n mot z n2 ih s t) =
-      "NatElim \{fst n} (\{show mot}) (\{show z}) \{fst n2} \{fst ih} (\{show s}) (\{show t})"
+    show (SNatElim mot z n2 ih s t) =
+      "NatElim \{maybe "_" (fst . fst) mot} (\{maybe "_" (show . snd) mot}) (\{show z}) \{fst n2} \{fst ih} (\{show s}) (\{show t})"
     show (SInj1 t) = "Inj1 (\{show t})"
     show (SInj2 t) = "Inj2 (\{show t})"
-    show (SSumElim z mot a l b r t) =
-      "SumElim \{fst z} (\{show mot}) \{fst a} (\{show l}) \{fst b} (\{show r}) (\{show t})"
+    show (SSumElim mot a l b r t) =
+      "SumElim \{maybe "_" (fst . fst) mot} (\{maybe "_" (show . snd) mot}) \{fst a} (\{show l}) \{fst b} (\{show r}) (\{show t})"
     show (SClass t) = "Class (\{show t})"
-    show (SQuotElim z mot a f q) =
-      "QuotElim \{fst z} (\{show mot}) \{fst a} (\{show f}) (\{show q})"
+    show (SQuotElim mot a f q) =
+      "QuotElim \{maybe "_" (fst . fst) mot} (\{maybe "_" (show . snd) mot}) \{fst a} (\{show f}) (\{show q})"
     show (SNuC f) = "NuC (\{show f})"
     show (SOut e) = "Out (\{show e})"
     show (SCorec x a f u) =

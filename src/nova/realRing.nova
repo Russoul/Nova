@@ -40,13 +40,13 @@ def rZero : El RSeq using (real.RSeq.unfold) ≔ (λn. qZero), constReg
 def rOne : El RSeq using (real.RSeq.unfold) ≔ (λn. qOne), constReg
 
 -- ===== u · 0 = 0, pointwise =====
-def rMulZeroR : {p : El RSeq} → rMul p rZero ≡ rZero ∈ El RSeq
+def rMulZeroR : {p : El RSeq} → rMul p rZero ≡ rZero
   using (rZero.eq, realMul.mulSeq.eq, realMul.rMul.eq, realNeg.seqOf.eq) ≔
   λp. rseqEq (λn. qMulZeroR (seqOf p (mulIdx (mulPred p rZero) n)))
 
-def realMulZeroR : {u : El Real} → realMul u realZero ≡ realZero ∈ El Real
+def realMulZeroR : {u : El Real} → realMul u realZero ≡ realZero
   using (rZero.eq, real.Real.unfold, real.realOfQ.eq, real.realZero.eq) ≔
-  λu. quot-elim (w. realMul w realZero ≡ realZero ∈ El Real)
+  λu. quot-elim
     (p. trans
       Real
       (realMul (class p) realZero)
@@ -56,7 +56,7 @@ def realMulZeroR : {u : El Real} → realMul u realZero ≡ realZero ∈ El Real
       (cong RSeq (λw. Real) (λw. class w) (rMul p rZero) rZero rMulZeroR))
     u
 
-def realMulZeroL : {u : El Real} → realMul realZero u ≡ realZero ∈ El Real ≔
+def realMulZeroL : {u : El Real} → realMul realZero u ≡ realZero ≔
   λu. trans
     Real
     (realMul realZero u)
@@ -95,7 +95,7 @@ def leQRBoundIdx : (c m : ℕ) → El (LeQ (rBound (mulIdx c m) m) (rBound m m))
 -- ===== u · 1 = u =====
 -- the product's value at the deep index IS the original's, since the
 -- second factor is 1 at every index
-def mulOneAt : (x y : El Q) → qAdd x (qNeg y) ≡ qAdd (qMul x qOne) (qNeg y) ∈ El Q ≔
+def mulOneAt : (x y : El Q) → qAdd x (qNeg y) ≡ qAdd (qMul x qOne) (qNeg y) ≔
   λx. λy. cong Q (λw. Q) (λw. qAdd w (qNeg y)) x (qMul x qOne) (sym Q (qMul x qOne) x (qMulOneR x))
 
 def rMulOneWD : (p : El RSeq) → Prf (REq (rMul p rOne) p)
@@ -114,9 +114,9 @@ def rMulOneWD : (p : El RSeq) → Prf (REq (rMul p rOne) p)
         (mulOneAt (seqOf p (mulIdx (mulPred p rOne) n)) (seqOf p n))
         (regBnd (seqOf p) (regOf p) (mulIdx (mulPred p rOne) n) n)))
 
-def realMulOneR : (u : El Real) → realMul u realOne ≡ u ∈ El Real
+def realMulOneR : (u : El Real) → realMul u realOne ≡ u
   using (rOne.eq, real.Real.unfold, real.realOfQ.eq, real.realOne.eq) ≔
-  λu. quot-elim (w. realMul w realOne ≡ w ∈ El Real)
+  λu. quot-elim
     (p. trans
       Real
       (realMul (class p) realOne)
@@ -126,7 +126,7 @@ def realMulOneR : (u : El Real) → realMul u realOne ≡ u ∈ El Real
       (realEqOfREq (rMul p rOne) p (rMulOneWD p)))
     u
 
-def realMulOneL : (u : El Real) → realMul realOne u ≡ u ∈ El Real ≔
+def realMulOneL : (u : El Real) → realMul realOne u ≡ u ≔
   λu. trans Real (realMul realOne u) (realMul u realOne) u (realMulComm realOne u) (realMulOneR u)
 
 -- ===== the closeness criterion =====
@@ -151,7 +151,7 @@ def realMulOneL : (u : El Real) → realMul realOne u ≡ u ∈ El Real ≔
 -- qMulSucNat still matches (the poison rule).
 -- No inequality between fractions is needed anywhere — only that one
 -- equation.
-def kkY : (K : ℕ) (y : El Q) → qMul (qOfNat (K + K)) y ≡ qMul (qOfNat K) (qAdd y y) ∈ El Q ≔
+def kkY : (K : ℕ) (y : El Q) → qMul (qOfNat (K + K)) y ≡ qMul (qOfNat K) (qAdd y y) ≔
   λK. λy. qMul (qOfNat (K + K)) y
       ≡⟨ cong
         Q
@@ -174,7 +174,7 @@ def kkY : (K : ℕ) (y : El Q) → qMul (qOfNat (K + K)) y ≡ qMul (qOfNat K) (
 -- y + (K·(y + y) + y) is (2K + 2)·y
 def twoKTwo : (K : ℕ)
   (y : El Q)
-  → qAdd y (qAdd (qMul (qOfNat K) (qAdd y y)) y) ≡ qMul (qOfNat (S (S (K + K)))) y ∈ El Q ≔
+  → qAdd y (qAdd (qMul (qOfNat K) (qAdd y y)) y) ≡ qMul (qOfNat (S (S (K + K)))) y ≔
   λK. λy. qAdd y (qAdd (qMul (qOfNat K) (qAdd y y)) y)
       ≡⟨ qAddComm
         y
@@ -217,8 +217,7 @@ def closeBoundEq : (x : El Q)
   {w : El Q}
   → (qMul
     (qOfNat (S (S (K + K))))
-    y ≡ w ∈ El Q)
-    → qAdd (qAdd x y) (qAdd (qMul (qOfNat K) (qAdd y y)) (qAdd y x)) ≡ qAdd (qAdd x x) w ∈ El Q ≔
+    y ≡ w) → qAdd (qAdd x y) (qAdd (qMul (qOfNat K) (qAdd y y)) (qAdd y x)) ≡ qAdd (qAdd x x) w ≔
   λx. λy. λK. λw. λhw. qAdd (qAdd x y) (qAdd (qMul (qOfNat K) (qAdd y y)) (qAdd y x))
       ≡⟨ qRearr5
         x
@@ -267,7 +266,7 @@ def closeStepGen : (f g : El (ℕ → Q))
               n))))
         → (qMul
           (qOfNat (S (S (K + K))))
-          (qInvNat N) ≡ w ∈ El Q) → El (Bnd (qAdd (rBound n n) w) (qAdd (f n) (qNeg (g n))))
+          (qInvNat N) ≡ w) → El (Bnd (qAdd (rBound n n) w) (qAdd (f n) (qNeg (g n))))
   using (real.rBound.eq) ≔
   λf. λg. λK. λn. λN. λw. λh1. λh2. λh3. λhw. bndEqB
     (qAdd (rBound n N) (qAdd (qMul (qOfNat K) (rBound N N)) (rBound N n)))
@@ -320,7 +319,7 @@ def reqOfClose : {u v : El RSeq}
 -- that comes out is (A + B) + (A + C), which is exactly what
 -- reqOfClose is willing to absorb.
 def qSubPair : (a b c d : El Q)
-  → qAdd (qAdd a (qNeg c)) (qAdd b (qNeg d)) ≡ qAdd (qAdd a b) (qNeg (qAdd c d)) ∈ El Q ≔
+  → qAdd (qAdd a (qNeg c)) (qAdd b (qNeg d)) ≡ qAdd (qAdd a b) (qNeg (qAdd c d)) ≔
   λa. λb. λc. λd. qAdd (qAdd a (qNeg c)) (qAdd b (qNeg d))
       ≡⟨ qPairSwap a (qNeg c) b (qNeg d) ⟩ qAdd (qAdd a b) (qAdd (qNeg c) (qNeg d))
       ≡⟨ cong
@@ -538,18 +537,11 @@ def rDistrib : (p q r : El RSeq) → Prf (REq (rMul p (rAdd q r)) (rAdd (rMul p 
       seqBoundPos
       seqBoundPos)
 
-def realDistribL : (u v w : El Real)
-  → realMul u (realAdd v w) ≡ realAdd (realMul u v) (realMul u w) ∈ El Real
+def realDistribL : (u v w : El Real) → realMul u (realAdd v w) ≡ realAdd (realMul u v) (realMul u w)
   using (real.Real.unfold, realAdd.realAdd.eq, realMul.realMul.eq) ≔
-  λu. λv. λw. quot-elim (z. realMul z (realAdd v w) ≡ realAdd (realMul z v) (realMul z w) ∈ El Real)
-    (p. quot-elim (z. realMul
-      (class p)
-      (realAdd z w) ≡ realAdd (realMul (class p) z) (realMul (class p) w) ∈ El Real)
-      (q. quot-elim (z. realMul
-        (class p)
-        (realAdd
-          (class q)
-          z) ≡ realAdd (realMul (class p) (class q)) (realMul (class p) z) ∈ El Real)
+  λu. λv. λw. quot-elim
+    (p. quot-elim
+      (q. quot-elim
         (r. realEqOfREq (rMul p (rAdd q r)) (rAdd (rMul p q) (rMul p r)) (rDistrib p q r))
         w)
       v)
@@ -579,7 +571,7 @@ def leQZeroAdd : {u v : El Q} → El (LeQ qZero u) → El (LeQ qZero v) → El (
 def kappaEq : (A B C : ℕ)
   → qAdd
     (qMul (qOfNat A) (qOfNat B))
-    (qMul (qOfNat C) (qAdd (qOfNat A) (qOfNat B))) ≡ qOfNat (A * B + C * (A + B)) ∈ El Q ≔
+    (qMul (qOfNat C) (qAdd (qOfNat A) (qOfNat B))) ≡ qOfNat (A * B + C * (A + B)) ≔
   λA. λB. λC. qAdd (qMul (qOfNat A) (qOfNat B)) (qMul (qOfNat C) (qAdd (qOfNat A) (qOfNat B)))
       ≡⟨ cong
         Q
@@ -615,8 +607,8 @@ def assocBoundEq : {al be ga : El Q}
       ga
       (qAdd
         al
-        be)) ≡ kp ∈ El Q)
-    → qAdd (qMul (qMul al be) d) (qMul ga (qAdd (qMul al d) (qMul be d))) ≡ qMul kp d ∈ El Q ≔
+        be)) ≡ kp)
+    → qAdd (qMul (qMul al be) d) (qMul ga (qAdd (qMul al d) (qMul be d))) ≡ qMul kp d ≔
   λal. λbe. λga. λd. λkp. λhk. qAdd (qMul (qMul al be) d) (qMul ga (qAdd (qMul al d) (qMul be d)))
       ≡⟨ cong
         Q
@@ -802,22 +794,18 @@ def rAssoc : (p q r : El RSeq) → Prf (REq (rMul (rMul p q) r) (rMul p (rMul q 
       seqBoundPos
       seqBoundPos)
 
-def realMulAssoc : (u v w : El Real) → realMul (realMul u v) w ≡ realMul u (realMul v w) ∈ El Real
+def realMulAssoc : (u v w : El Real) → realMul (realMul u v) w ≡ realMul u (realMul v w)
   using (real.Real.unfold, realMul.realMul.eq) ≔
-  λu. λv. λw. quot-elim (z. realMul (realMul z v) w ≡ realMul z (realMul v w) ∈ El Real)
-    (p. quot-elim (z. realMul (realMul (class p) z) w ≡ realMul (class p) (realMul z w) ∈ El Real)
-      (q. quot-elim (z. realMul
-        (realMul (class p) (class q))
-        z ≡ realMul (class p) (realMul (class q) z) ∈ El Real)
-        (r. realEqOfREq (rMul (rMul p q) r) (rMul p (rMul q r)) (rAssoc p q r))
-        w)
+  λu. λv. λw. quot-elim
+    (p. quot-elim
+      (q. quot-elim (r. realEqOfREq (rMul (rMul p q) r) (rMul p (rMul q r)) (rAssoc p q r)) w)
       v)
     u
 
 -- ===== the remaining laws, and the structure =====
 -- right distributivity, by commuting into the left one
 def realDistribR : (u v w : El Real)
-  → realMul (realAdd v w) u ≡ realAdd (realMul v u) (realMul w u) ∈ El Real ≔
+  → realMul (realAdd v w) u ≡ realAdd (realMul v u) (realMul w u) ≔
   λu. λv. λw. trans
     Real
     (realMul (realAdd v w) u)
@@ -852,7 +840,7 @@ def realDistribR : (u v w : El Real)
 
 -- (−u)·v = −(u·v), a RING consequence: (−u)·v is an additive inverse
 -- of u·v, and inverses are unique. No estimate, no representatives.
-def realMulNeg : {u v : El Real} → realMul (realNeg u) v ≡ realNeg (realMul u v) ∈ El Real ≔
+def realMulNeg : {u v : El Real} → realMul (realNeg u) v ≡ realNeg (realMul u v) ≔
   λu. λv. realNegUnique
     (realMul u v)
     (realMul (realNeg u) v)
@@ -874,7 +862,7 @@ def realMulNeg : {u v : El Real} → realMul (realNeg u) v ≡ realNeg (realMul 
         (cong Real (λz. Real) (λz. realMul z v) (realAdd u (realNeg u)) realZero (realAddNegR u))
         realMulZeroL))
 
-def realMulNegR : (u v : El Real) → realMul u (realNeg v) ≡ realNeg (realMul u v) ∈ El Real ≔
+def realMulNegR : (u v : El Real) → realMul u (realNeg v) ≡ realNeg (realMul u v) ≔
   λu. λv. trans
     Real
     (realMul u (realNeg v))

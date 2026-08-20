@@ -11,14 +11,14 @@
 import stream (stream, hd, tl, mapS, iterate)
 
 def tlN : {a : 𝕌} → ℕ → El (stream a) → El (stream a) using (stream.stream.unfold) ≔
-  λa. λn. ℕ-elim (m. El (stream a) → El (stream a)) (λs. s) (m ih. λs. ih (tl s)) n
+  λa. λn. ℕ-elim (λs. s) (m ih. λs. ih (tl s)) n
 
 -- the n-th observation
 def nth : {a : 𝕌} → ℕ → El (stream a) → El a ≔ λa. λn. λs. hd a (tlN n s)
 
 -- observational equality, in Ω
 def obsEq : (a : 𝕌) → El (stream a) → El (stream a) → Ω ≔
-  λa. λs. λt. ∥(n : ℕ) → Prf (nth n s ≡ nth n t ∈ El a)∥
+  λa. λs. λt. ∥(n : ℕ) → Prf (nth n s ≡ nth n t)∥
 
 -- reflexivity: every observation is ≐-reflexive
 def obsEqRefl : (a : 𝕌) (s : El (stream a)) → Prf (obsEq a s s) using (streamEq.obsEq.unfold) ≔
@@ -30,7 +30,7 @@ def nthMap : (a b : 𝕌)
   (f : El a → El b)
   (n : ℕ)
   (s : El (stream a))
-  → nth n (mapS a b f s) ≡ f (nth n s) ∈ El b
+  → nth n (mapS a b f s) ≡ f (nth n s)
   using (nth.eq,
     stream.hd.eq,
     stream.mapS.eq,
@@ -38,10 +38,7 @@ def nthMap : (a b : 𝕌)
     stream.stream.unfold,
     stream.tl.eq,
     tlN.eq) ≔
-  λa. λb. λf. λn. ℕ-elim (m. (s : El (stream a)) → nth m (mapS a b f s) ≡ f (nth m s) ∈ El b)
-    (λs. ⋆)
-    (m ih. λs. ih (tl s))
-    n
+  λa. λb. λf. λn. ℕ-elim (λs. ⋆) (m ih. λs. ih (tl s)) n
 
 -- mapping the identity is observationally the identity — the
 -- η-needing `mapS id s ≡ s` weakened to its observational shadow,
@@ -66,7 +63,7 @@ def mapFuseObsEq : (a b c : 𝕌)
     streamEq.obsEq.unfold,
     tlN.eq) ≔
   λa. λb. λc. λf. λg. λs. ⋆ (λn. (ℕ-elim (m. (t : El (stream a))
-    → nth m (mapS b c g (mapS a b f t)) ≡ nth m (mapS a c (λx. g (f x)) t) ∈ El c)
+    → nth m (mapS b c g (mapS a b f t)) ≡ nth m (mapS a c (λx. g (f x)) t))
     (λt. ⋆)
     (m ih. λt. ih (tl t))
     n)

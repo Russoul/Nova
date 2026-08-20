@@ -69,19 +69,19 @@ mutual
   mapRefsE f g d (SSigmaC x a b) = SSigmaC x (mapRefsE f g d a) (mapRefsE f g (S d) b)
   mapRefsE f g d (SSumC a b) = SSumC (mapRefsE f g d a) (mapRefsE f g d b)
   mapRefsE f g d (SQuotC a x y r) = SQuotC (mapRefsE f g d a) x y (mapRefsE f g (S (S d)) r)
-  mapRefsE f g d (SEqC l r t) = SEqC (mapRefsE f g d l) (mapRefsE f g d r) (mapRefsTy f g d t)
+  mapRefsE f g d (SEqC rng l r t) = SEqC rng (mapRefsE f g d l) (mapRefsE f g d r) (map (mapRefsTy f g d) t)
   mapRefsE f g d (SZeroElim t) = SZeroElim (mapRefsE f g d t)
-  mapRefsE f g d (SNatElim n mot z n2 ih s t) =
-    SNatElim n (mapRefsTy f g (S d) mot) (mapRefsE f g d z) n2 ih
+  mapRefsE f g d (SNatElim mot z n2 ih s t) =
+    SNatElim (map (\(n, m) => (n, mapRefsTy f g (S d) m)) mot) (mapRefsE f g d z) n2 ih
              (mapRefsE f g (S (S d)) s) (mapRefsE f g d t)
   mapRefsE f g d (SInj1 t) = SInj1 (mapRefsE f g d t)
   mapRefsE f g d (SInj2 t) = SInj2 (mapRefsE f g d t)
-  mapRefsE f g d (SSumElim z mot a l b r t) =
-    SSumElim z (mapRefsTy f g (S d) mot) a (mapRefsE f g (S d) l) b
+  mapRefsE f g d (SSumElim mot a l b r t) =
+    SSumElim (map (\(z, m) => (z, mapRefsTy f g (S d) m)) mot) a (mapRefsE f g (S d) l) b
              (mapRefsE f g (S d) r) (mapRefsE f g d t)
   mapRefsE f g d (SClass t) = SClass (mapRefsE f g d t)
-  mapRefsE f g d (SQuotElim z mot a h q) =
-    SQuotElim z (mapRefsTy f g (S d) mot) a (mapRefsE f g (S d) h) (mapRefsE f g d q)
+  mapRefsE f g d (SQuotElim mot a h q) =
+    SQuotElim (map (\(z, m) => (z, mapRefsTy f g (S d) m)) mot) a (mapRefsE f g (S d) h) (mapRefsE f g d q)
   mapRefsE f g d (SNuC p) = SNuC (mapRefsP f g d p)
   mapRefsE f g d (SOut e) = SOut (mapRefsE f g d e)
   mapRefsE f g d (SCorec x a h u) =
@@ -117,7 +117,7 @@ mutual
   mapRefsTy f g d (STySigma x a b) = STySigma x (mapRefsTy f g d a) (mapRefsTy f g (S d) b)
   mapRefsTy f g d (STySum a b) = STySum (mapRefsTy f g d a) (mapRefsTy f g d b)
   mapRefsTy f g d (STyQuot a x y r) = STyQuot (mapRefsTy f g d a) x y (mapRefsE f g (S (S d)) r)
-  mapRefsTy f g d (STyEq l r t) = STyEq (mapRefsE f g d l) (mapRefsE f g d r) (mapRefsTy f g d t)
+  mapRefsTy f g d (STyEq rng l r t) = STyEq rng (mapRefsE f g d l) (mapRefsE f g d r) (map (mapRefsTy f g d) t)
   mapRefsTy f g d (STyEl e) = STyEl (mapRefsE f g d e)
   mapRefsTy f g d STyProp = STyProp
   mapRefsTy f g d (STyPrf e) = STyPrf (mapRefsE f g d e)
@@ -186,16 +186,16 @@ mutual
   occursE f (SSigmaC _ a b) = occursE f a || occursE f b
   occursE f (SSumC a b) = occursE f a || occursE f b
   occursE f (SQuotC a _ _ r) = occursE f a || occursE f r
-  occursE f (SEqC l r t) = occursE f l || occursE f r || occursTy f t
+  occursE f (SEqC _ l r t) = occursE f l || occursE f r || maybe False (occursTy f) t
   occursE f (SZeroElim t) = occursE f t
-  occursE f (SNatElim _ mot z _ _ s t) =
-    occursTy f mot || occursE f z || occursE f s || occursE f t
+  occursE f (SNatElim mot z _ _ s t) =
+    maybe False (occursTy f . snd) mot || occursE f z || occursE f s || occursE f t
   occursE f (SInj1 t) = occursE f t
   occursE f (SInj2 t) = occursE f t
-  occursE f (SSumElim _ mot _ l _ r t) =
-    occursTy f mot || occursE f l || occursE f r || occursE f t
+  occursE f (SSumElim mot _ l _ r t) =
+    maybe False (occursTy f . snd) mot || occursE f l || occursE f r || occursE f t
   occursE f (SClass t) = occursE f t
-  occursE f (SQuotElim _ mot _ g q) = occursTy f mot || occursE f g || occursE f q
+  occursE f (SQuotElim mot _ g q) = maybe False (occursTy f . snd) mot || occursE f g || occursE f q
   occursE f (SNuC p) = occursP f p
   occursE f (SOut e) = occursE f e
   occursE f (SCorec _ a g u) = occursE f a || occursE f g || occursE f u
@@ -222,7 +222,7 @@ mutual
   occursTy f (STySigma _ a b) = occursTy f a || occursTy f b
   occursTy f (STySum a b) = occursTy f a || occursTy f b
   occursTy f (STyQuot a _ _ r) = occursTy f a || occursE f r
-  occursTy f (STyEq l r t) = occursE f l || occursE f r || occursTy f t
+  occursTy f (STyEq _ l r t) = occursE f l || occursE f r || maybe False (occursTy f) t
   occursTy f (STyEl e) = occursE f e
   occursTy f STyProp = False
   occursTy f (STyPrf e) = occursE f e
@@ -295,29 +295,32 @@ mutual
   rwE f mk lead d (SSumC a b) = [| SSumC (rwE f mk lead d a) (rwE f mk lead d b) |]
   rwE f mk lead d (SQuotC a x y r) =
     do a' <- rwE f mk lead d a; r' <- rwE f mk lead (S (S d)) r; pure (SQuotC a' x y r')
-  rwE f mk lead d (SEqC l r t) =
-    [| SEqC (rwE f mk lead d l) (rwE f mk lead d r) (rwTy f mk lead d t) |]
+  rwE f mk lead d (SEqC rng l r t) =
+    do l' <- rwE f mk lead d l
+       r' <- rwE f mk lead d r
+       t' <- traverse (rwTy f mk lead d) t
+       pure (SEqC rng l' r' t')
   rwE f mk lead d (SZeroElim t) = SZeroElim <$> rwE f mk lead d t
-  rwE f mk lead d (SNatElim n mot z n2 ih s t) = do
-    mot' <- rwTy f mk lead (S d) mot
+  rwE f mk lead d (SNatElim mot z n2 ih s t) = do
+    mot' <- traverse (\(n, m) => map (\m' => (n, m')) (rwTy f mk lead (S d) m)) mot
     z' <- rwE f mk lead d z
     s' <- rwE f mk lead (S (S d)) s
     t' <- rwE f mk lead d t
-    pure (SNatElim n mot' z' n2 ih s' t')
+    pure (SNatElim mot' z' n2 ih s' t')
   rwE f mk lead d (SInj1 t) = SInj1 <$> rwE f mk lead d t
   rwE f mk lead d (SInj2 t) = SInj2 <$> rwE f mk lead d t
-  rwE f mk lead d (SSumElim z mot a l b r t) = do
-    mot' <- rwTy f mk lead (S d) mot
+  rwE f mk lead d (SSumElim mot a l b r t) = do
+    mot' <- traverse (\(z, m) => map (\m' => (z, m')) (rwTy f mk lead (S d) m)) mot
     l' <- rwE f mk lead (S d) l
     r' <- rwE f mk lead (S d) r
     t' <- rwE f mk lead d t
-    pure (SSumElim z mot' a l' b r' t')
+    pure (SSumElim mot' a l' b r' t')
   rwE f mk lead d (SClass t) = SClass <$> rwE f mk lead d t
-  rwE f mk lead d (SQuotElim z mot a g q) = do
-    mot' <- rwTy f mk lead (S d) mot
+  rwE f mk lead d (SQuotElim mot a g q) = do
+    mot' <- traverse (\(z, m) => map (\m' => (z, m')) (rwTy f mk lead (S d) m)) mot
     g' <- rwE f mk lead (S d) g
     q' <- rwE f mk lead d q
-    pure (SQuotElim z mot' a g' q')
+    pure (SQuotElim mot' a g' q')
   rwE f mk lead d (SNuC p) = SNuC <$> rwP f mk lead d p
   rwE f mk lead d (SOut e) = SOut <$> rwE f mk lead d e
   rwE f mk lead d (SCorec x a g u) =
@@ -356,8 +359,11 @@ mutual
   rwTy f mk lead d (STySum a b) = [| STySum (rwTy f mk lead d a) (rwTy f mk lead d b) |]
   rwTy f mk lead d (STyQuot a x y r) =
     do a' <- rwTy f mk lead d a; r' <- rwE f mk lead (S (S d)) r; pure (STyQuot a' x y r')
-  rwTy f mk lead d (STyEq l r t) =
-    [| STyEq (rwE f mk lead d l) (rwE f mk lead d r) (rwTy f mk lead d t) |]
+  rwTy f mk lead d (STyEq rng l r t) =
+    do l' <- rwE f mk lead d l
+       r' <- rwE f mk lead d r
+       t' <- traverse (rwTy f mk lead d) t
+       pure (STyEq rng l' r' t')
   rwTy f mk lead d (STyEl e) = STyEl <$> rwE f mk lead d e
   rwTy f mk lead d STyProp = Just STyProp
   rwTy f mk lead d (STyPrf e) = STyPrf <$> rwE f mk lead d e
@@ -621,7 +627,7 @@ rhoNat fname cols b j k zc sc mvar = do
   let mot = motChain (drop j cols) (shiftTy (S kj) 1 b)
   let xname = colBinder cols (minus j 1)
   pure (leadLams cols j
-         (SNatElim xname mot zBody mvar ("ih", Nothing) sBody' (SVar Nothing (fst xname) 0)))
+         (SNatElim (Just (xname, mot)) zBody mvar ("ih", Nothing) sBody' (SVar Nothing (fst xname) 0)))
  where
   -- clause context [x₁…x_{j−1}, m, trailing] (size k, marker at k) to
   -- case context [x₁…x_j (λ), m, ih, trailing]
@@ -651,7 +657,7 @@ rhoSum fname cols b j k lc avar rc bvar = do
   let mot = motChain (drop j cols) (shiftTy (S kj) 1 b)
   let xname = colBinder cols (minus j 1)
   pure (leadLams cols j
-         (SSumElim xname mot avar lBody bvar rBody (SVar Nothing (fst xname) 0)))
+         (SSumElim (Just (xname, mot)) avar lBody bvar rBody (SVar Nothing (fst xname) 0)))
 
 ||| The no-split witness: λ-abstraction alone.
 rhoNone : (fname : String) -> SClause -> Maybe SElem
@@ -676,8 +682,8 @@ etaType fname ty cols b lemNames lemTys =
                         [0 .. minus m 1] (zip lemNames lemTys))
       colBinds = the (List (SName, STy)) (map (\(x, a) => ((x, Nothing), a)) cols)
       args = map (\i => SVar Nothing (colName i) (minus k i)) [1 .. k]
-      concl = STyEq (spine (SVar Nothing "g" (k + m)) args)
-                    (spine (SSig Nothing fname) args) b
+      concl = STyEq Nothing (spine (SVar Nothing "g" (k + m)) args)
+                    (spine (SSig Nothing fname) args) (Just b)
   in STyPi "g" ty (wrapSPis hyps (wrapSPis colBinds concl))
  where
   colName : Nat -> String
@@ -707,16 +713,16 @@ etaBodyElim fname cols b j k m lemNames isNat v1 v2 =
                     (if i < j then (minus k i) + 1
                      else if i == j then kj
                      else minus k i)) [1 .. k]
-      concl = STyEq (spine (SVar Nothing "g" (m + k + 1)) args)
+      concl = STyEq Nothing (spine (SVar Nothing "g" (m + k + 1)) args)
                     (spine (SSig Nothing fname) args)
-                    (shiftTy (S kj) 1 b)
+                    (Just (shiftTy (S kj) 1 b))
       mot = motChain trailing concl
       trailLams = wrapSLams (map (\(x, _) => (x, Nothing)) trailing) SStar
       xname = colBinder cols (minus j 1)
       scrut = SVar Nothing (fst xname) 0
       elim = if isNat
-               then SNatElim xname mot trailLams v1 ("ih", Nothing) trailLams scrut
-               else SSumElim xname mot v1 trailLams v2 trailLams scrut
+               then SNatElim (Just (xname, mot)) trailLams v1 ("ih", Nothing) trailLams scrut
+               else SSumElim (Just (xname, mot)) v1 trailLams v2 trailLams scrut
   in SLam ("g", Nothing)
        (wrapSLams (map (\n => (n, Nothing)) lemNames)
          (leadLams cols j elim))
@@ -850,7 +856,7 @@ expandClausal nrng fname ty etaName witness clauses = do
     let bigL = length cd.ctele
         lhs = spine (SSig Nothing fname) cd.cargs
         bC = remapFreeTy (\d => maybe SUnitI (patTerm bigL) (nth d (reverse cd.csks))) b
-    in wrapSPis cd.ctele (STyEq lhs clause.crhs bC)
+    in wrapSPis cd.ctele (STyEq Nothing lhs clause.crhs (Just bC))
 
   shapedRho : List (String, STy) -> STy -> Nat -> Shape -> Maybe SElem
   shapedRho cols b k (ShNone c) = rhoNone fname c

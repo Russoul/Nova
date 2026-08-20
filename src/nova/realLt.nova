@@ -35,7 +35,7 @@ def ltROf : (u v : El Real) (k : ℕ) → Prf (LeR (realAdd u (realOfQ (qInvNat 
   λu. λv. λk. λh. ⋆ (k, h)
 
 -- ===== ℝ group algebra the proofs need =====
-def realAddNegCancel : (u q : El Real) → realAdd (realAdd u q) (realNeg u) ≡ q ∈ El Real
+def realAddNegCancel : (u q : El Real) → realAdd (realAdd u q) (realNeg u) ≡ q
   using (real.Real.unfold) ≔
   λu. λq. realAdd (realAdd u q) (realNeg u)
       ≡⟨ cong
@@ -55,7 +55,7 @@ def realAddNegCancel : (u q : El Real) → realAdd (realAdd u q) (realNeg u) ≡
         (realAddNegR u) ⟩ realAdd q realZero
       ≡⟨ realAddZeroR q ⟩ q
 
-def realAddSwapR : (u q w : El Real) → realAdd (realAdd u q) w ≡ realAdd (realAdd u w) q ∈ El Real
+def realAddSwapR : (u q w : El Real) → realAdd (realAdd u q) w ≡ realAdd (realAdd u w) q
   using (real.Real.unfold) ≔
   λu. λq. λw. realAdd (realAdd u q) w
       ≡⟨ realAddAssoc u q w ⟩ realAdd u (realAdd q w)

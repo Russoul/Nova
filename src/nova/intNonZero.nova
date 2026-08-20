@@ -22,8 +22,8 @@ import rationalInv (nzOfPair, notIntro, notApply, intCanonProdZero)
 import equality (trans, sym, cong)
 
 def nzOfPairD : (a b : ℕ)
-  (hab : Prf (a * b ≡ Z ∈ ℕ))
-  → ((e : El NZ) ⨯ Prf (nzToInt e ≡ class (a, b) ∈ El Int)) ⊎ Prf (class (a, b) ≡ intZero ∈ El Int)
+  (hab : Prf (a * b ≡ Z))
+  → ((e : El NZ) ⨯ Prf (nzToInt e ≡ class (a, b))) ⊎ Prf (class (a, b) ≡ intZero)
   using (integer.Int.unfold,
     integer.intZero.eq,
     rational.nzNeg.eq,
@@ -31,22 +31,9 @@ def nzOfPairD : (a b : ℕ)
     rational.nzToInt.eq,
     sucPlus,
     zeroMult) ≔
-  λa. ℕ-elim (k. (b : ℕ)
-    → Prf (k
-      * b ≡ Z ∈ ℕ)
-      → ((e : El NZ)
-        ⨯ Prf (nzToInt e ≡ class (k, b) ∈ El Int)) ⊎ Prf (class (k, b) ≡ intZero ∈ El Int))
-    (λb. ℕ-elim (j. Prf (Z
-      * j ≡ Z ∈ ℕ)
-      → ((e : El NZ)
-        ⨯ Prf (nzToInt e ≡ class (Z, j) ∈ El Int)) ⊎ Prf (class (Z, j) ≡ intZero ∈ El Int))
-      (λhab. inj₂ ⋆)
-      (j ihb. λhab. inj₁ (nzNeg j, ⋆))
-      b)
-    (k ih. λb. ℕ-elim (j. Prf (S k
-      * j ≡ Z ∈ ℕ)
-      → ((e : El NZ)
-        ⨯ Prf (nzToInt e ≡ class (S k, j) ∈ El Int)) ⊎ Prf (class (S k, j) ≡ intZero ∈ El Int))
+  λa. ℕ-elim
+    (λb. ℕ-elim (λhab. inj₂ ⋆) (j ihb. λhab. inj₁ (nzNeg j, ⋆)) b)
+    (k ih. λb. ℕ-elim
       (λhab. inj₁ (nzPos k, ⋆))
       (j ihb. λhab. 𝟘-elim (zNotS
         (k + S k * j)
@@ -69,12 +56,11 @@ def nzOfPairD : (a b : ℕ)
 -- kept abstract in p, as always (docs/ProvingFeedback.md D-3)
 def nzOfIntAt : {z : El Int}
   (p : ℕ ⨯ ℕ)
-  (hz : Prf (class p ≡ z ∈ El Int))
-  (hab : Prf (p .π₁ * p .π₂ ≡ Z ∈ ℕ))
-  → ((e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int)) ⊎ Prf (z ≡ intZero ∈ El Int)
+  (hz : Prf (class p ≡ z))
+  (hab : Prf (p .π₁ * p .π₂ ≡ Z))
+  → ((e : El NZ) ⨯ Prf (nzToInt e ≡ z)) ⊎ Prf (z ≡ intZero)
   using (classPairEta, integer.Int.unfold) ≔
-  λz. λp. λhz. λhab. ⊎-elim (w. ((e : El NZ)
-    ⨯ Prf (nzToInt e ≡ z ∈ El Int)) ⊎ Prf (z ≡ intZero ∈ El Int))
+  λz. λp. λhz. λhab. ⊎-elim
     (u. inj₁ (u .π₁,
       trans
         Int
@@ -96,8 +82,7 @@ def nzOfIntAt : {z : El Int}
       u))
     (nzOfPairD (p .π₁) (p .π₂) hab)
 
-def nzOfInt : (z : El Int)
-  → ((e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int)) ⊎ Prf (z ≡ intZero ∈ El Int)
+def nzOfInt : (z : El Int) → ((e : El NZ) ⨯ Prf (nzToInt e ≡ z)) ⊎ Prf (z ≡ intZero)
   using (intCanonClass) ≔
   λz. nzOfIntAt (intCanon z) (intCanonClass z) (intCanonProdZero z)
 
@@ -112,7 +97,7 @@ def intNeqOfNotRel : {p q : ℕ ⨯ ℕ} (k : Prf (IntR p q) → 𝟘) → Prf (
 
 -- IntR (S n , Z) (Z , Z) reduces to S n ≡ Z, and IntR (Z , S n) (Z , Z)
 -- to Z ≡ S n — both refuted by eqNat.nova's zNotS
-def nzToIntNonZero : (e : El NZ) → Prf (¬ (nzToInt e ≡ intZero ∈ El Int))
+def nzToIntNonZero : (e : El NZ) → Prf (¬ (nzToInt e ≡ intZero))
   using (integer.IntR.eq,
     integer.IntR.unfold,
     integer.intZero.eq,
@@ -122,7 +107,7 @@ def nzToIntNonZero : (e : El NZ) → Prf (¬ (nzToInt e ≡ intZero ∈ El Int))
     prop.⊃.unfold,
     rational.NZ.unfold,
     rational.nzToInt.eq) ≔
-  λe. ⊎-elim (w. Prf (¬ (nzToInt w ≡ intZero ∈ El Int)))
+  λe. ⊎-elim
     (n. intNeqOfNotRel (λr. zNotS n (sym ℕ (S n) Z r)))
     (n. intNeqOfNotRel (λr. zNotS n r))
     e
@@ -133,15 +118,15 @@ def nzToIntNonZero : (e : El NZ) → Prf (¬ (nzToInt e ≡ intZero ∈ El Int))
 -- whether x is zero, so the argument is a case split, not a refutation.
 def intNoZeroDiv : {x : El Int}
   (y : El Int)
-  (hxy : Prf (intMul x y ≡ intZero ∈ El Int))
-  (hy : Prf (¬ (y ≡ intZero ∈ El Int)))
-  → x ≡ intZero ∈ El Int ≔
-  λx. λy. λhxy. λhy. ⊎-elim (w. x ≡ intZero ∈ El Int)
-    (ex. ⊎-elim (w. x ≡ intZero ∈ El Int)
+  (hxy : Prf (intMul x y ≡ intZero))
+  (hy : Prf (¬ (y ≡ intZero)))
+  → x ≡ intZero ≔
+  λx. λy. λhxy. λhy. ⊎-elim
+    (ex. ⊎-elim
       (ey. absurdP
-        (x ≡ intZero ∈ El Int)
+        (x ≡ intZero)
         (notApply
-          (nzToInt (nzMul (ex .π₁) (ey .π₁)) ≡ intZero ∈ El Int)
+          (nzToInt (nzMul (ex .π₁) (ey .π₁)) ≡ intZero)
           (nzToIntNonZero (nzMul (ex .π₁) (ey .π₁)))
           (trans
             Int
@@ -156,7 +141,7 @@ def intNoZeroDiv : {x : El Int}
               (nzToIntMul (ex .π₁) (ey .π₁))
               (intMulCong2 (nzToInt (ex .π₁)) (nzToInt (ey .π₁)) x y (ex .π₂) (ey .π₂)))
             hxy)))
-      (ey. absurdP (x ≡ intZero ∈ El Int) (notApply (y ≡ intZero ∈ El Int) hy ey))
+      (ey. absurdP (x ≡ intZero) (notApply (y ≡ intZero) hy ey))
       (nzOfInt y))
     (ex. ex)
     (nzOfInt x)

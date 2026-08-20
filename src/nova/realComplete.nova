@@ -40,7 +40,7 @@ import equality (trans, sym, cong, transport, transportP)
 def qInvQuarter : {j : ℕ}
   → qAdd
     (qAdd (qInvNat (qtr j)) (qInvNat (qtr j)))
-    (qAdd (qInvNat (qtr j)) (qInvNat (qtr j))) ≡ qInvNat j ∈ El Q
+    (qAdd (qInvNat (qtr j)) (qInvNat (qtr j))) ≡ qInvNat j
   using (ratHalf.dbl.eq, rationalQ.qAdd.eq, real.qInvNat.eq, realEq.qtr.eq) ≔
   λj. trans
     Q
@@ -58,9 +58,7 @@ def qInvQuarter : {j : ℕ}
 
 -- (a+b) + ((a+b) + (b+b)) ≡ (a+a) + ((b+b) + (b+b)) : both are 2a + 4b
 def qSum6 : (a b : El Q)
-  → qAdd
-    (qAdd a b)
-    (qAdd (qAdd a b) (qAdd b b)) ≡ qAdd (qAdd a a) (qAdd (qAdd b b) (qAdd b b)) ∈ El Q
+  → qAdd (qAdd a b) (qAdd (qAdd a b) (qAdd b b)) ≡ qAdd (qAdd a a) (qAdd (qAdd b b) (qAdd b b))
   using (rationalQ.Q.unfold) ≔
   λa. λb. qAdd (qAdd a b) (qAdd (qAdd a b) (qAdd b b))
       ≡⟨ sym
@@ -214,9 +212,7 @@ def realLim : (x : El (ℕ → RSeq)) → El (RegSeqR x) → El Real using (real
 -- (b+a) + ((g+a) + (a+a)) ≡ g + (b + ((a+a)+(a+a))) : both are
 -- b + g + 4a, with the four quarter-fractions collected on the right
 def qSum7 : (b g a : El Q)
-  → qAdd
-    (qAdd b a)
-    (qAdd (qAdd g a) (qAdd a a)) ≡ qAdd g (qAdd b (qAdd (qAdd a a) (qAdd a a))) ∈ El Q
+  → qAdd (qAdd b a) (qAdd (qAdd g a) (qAdd a a)) ≡ qAdd g (qAdd b (qAdd (qAdd a a) (qAdd a a)))
   using (rationalQ.Q.unfold) ≔
   λb. λg. λa. qAdd (qAdd b a) (qAdd (qAdd g a) (qAdd a a))
       ≡⟨ sym

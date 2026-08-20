@@ -16,7 +16,7 @@ import equality (trans)
 import quotEffective (effectiveAtEquiv)
 
 def cancelStep : {a b c d e f : ℕ}
-  → (a + d ≡ b + c ∈ ℕ) → (c + f ≡ d + e ∈ ℕ) → a + f + (c + d) ≡ b + e + (c + d) ∈ ℕ
+  → (a + d ≡ b + c) → (c + f ≡ d + e) → a + f + (c + d) ≡ b + e + (c + d)
   using (nat.plusAssoc) ≔
   λa. λb. λc. λd. λe. λf. λh1. λh2. trans
     ℕ
@@ -44,10 +44,7 @@ def cancelStep : {a b c d e f : ℕ}
           swapMid
           (plusCongR (b + e) (plusComm c d)))))
 
-def cancelTrans : {a b : ℕ}
-  (c d : ℕ)
-  {e f : ℕ}
-  → (a + d ≡ b + c ∈ ℕ) → (c + f ≡ d + e ∈ ℕ) → a + f ≡ b + e ∈ ℕ
+def cancelTrans : {a b : ℕ} (c d : ℕ) {e f : ℕ} → (a + d ≡ b + c) → (c + f ≡ d + e) → a + f ≡ b + e
   using (nat.plusAssoc) ≔
   λa. λb. λc. λd. λe. λf. λh1. λh2. plusCancel (a + f) (b + e) (c + d) (cancelStep h1 h2)
 

@@ -22,10 +22,10 @@ def three : ℕ ≔ (let f : ℕ → ℕ ≔ λx. S x in f) 2
 -- ABBREVIATION m while the goal is stated at its unfolding — both
 -- gaps close through the let's own hypothesis (m ≡ n + n), not by β
 -- (m is a variable, not a redex)
-def letShared : (n : ℕ) → n + n + Z ≡ n + n ∈ ℕ using (nat.plusCongL, nat.plusZeroId) ≔
-  λn. let m ≔ n + n in (⋆ : m + Z ≡ m ∈ ℕ)
+def letShared : (n : ℕ) → n + n + Z ≡ n + n using (nat.plusCongL, nat.plusZeroId) ≔
+  λn. let m ≔ n + n in (⋆ : m + Z ≡ m)
 
 -- the outside view: a let-expression is judgementally its unfolding
-def fourUnfolds : four ≡ 4 ∈ ℕ using (letExpr.four.eq, nat.+.eq) ≔ ⋆
+def fourUnfolds : four ≡ 4 using (letExpr.four.eq, nat.+.eq) ≔ ⋆
 
-def threeUnfolds : three ≡ 3 ∈ ℕ using (letExpr.three.eq) ≔ ⋆
+def threeUnfolds : three ≡ 3 using (letExpr.three.eq) ≔ ⋆

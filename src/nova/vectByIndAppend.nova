@@ -3,10 +3,7 @@ import vectByInd (vect)
 
 def vappend : (n : ℕ) {A : 𝕌} (m : ℕ) → El (vect n A) → El (vect m A) → El (vect (n + m) A)
   using (nat.+.unfold, sucPlus.rw, vect.eq, vectByInd.vect.unfold, zeroPlusId.rw) ≔
-  λn. λA. λm. ℕ-elim (k. El (vect k A) → El (vect m A) → El (vect (k + m) A))
-    (λv. λw. w)
-    (k ih. λv. λw. v .π₁, ih (v .π₂) w)
-    n
+  λn. λA. λm. ℕ-elim (λv. λw. w) (k ih. λv. λw. v .π₁, ih (v .π₂) w) n
 
 -- This equation holds by direct computation
 def vappendZ : (A : 𝕌)
@@ -29,7 +26,7 @@ def vappendS : (n : ℕ)
   (m : ℕ)
   (v : El (vect (S n) A))
   (w : El (vect m A))
-  → vappend (S n) m v w ≡ (v .π₁, vappend n m (v .π₂) w) ∈ El (vect (S n + m) A)
+  → vappend (S n) m v w ≡ (v .π₁, vappend n m (v .π₂) w)
   using (hyp.rw,
     nat.+.unfold,
     sucPlus,
@@ -89,11 +86,7 @@ def vappendAssoc : (n : ℕ)
   (v : El (vect m A))
   (w : El (vect k A))
   (u : El (vect n A))
-  → vappend
-    (n + m)
-    k
-    (vappend n m u v)
-    w ≡ vappend n (m + k) u (vappend m k v w) ∈ El (vect (n + m + k) A)
+  → vappend (n + m) k (vappend n m u v) w ≡ vappend n (m + k) u (vappend m k v w)
   using (hyp.rw,
     nat.+.unfold,
     plusAssoc,

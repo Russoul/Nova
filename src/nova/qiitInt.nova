@@ -13,7 +13,7 @@ data ( I : U
 def neg : El I → El I using (predsuc, qiitInt.I.unfold, qiitInt.pred.eq, qiitInt.suc.eq, sucpred) ≔
   λi. IElim (λw. I) zero (λx. λih. pred ih) (λx. λih. suc ih) (λx. λih. ⋆) (λx. λih. ⋆) i
 
-def negSucPred : neg (suc (pred zero)) ≡ zero ∈ El I
+def negSucPred : neg (suc (pred zero)) ≡ zero
   using (predsuc,
     qiitInt.I.eq,
     qiitInt.IElim.eq,
@@ -23,7 +23,7 @@ def negSucPred : neg (suc (pred zero)) ≡ zero ∈ El I
     qiitInt.zero.eq) ≔
   ⋆
 
-def negPred : neg (pred zero) ≡ suc zero ∈ El I
+def negPred : neg (pred zero) ≡ suc zero
   using (qiitInt.I.eq,
     qiitInt.IElim.eq,
     qiitInt.neg.eq,

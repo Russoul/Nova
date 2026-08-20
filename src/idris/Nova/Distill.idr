@@ -41,6 +41,7 @@ import Me.Russoul.Text.Range
 import Nova.Elaboration
 import Nova.Elaboration.Surface
 import Nova.Kernel.Parser
+import Nova.Kernel.Syntax
 import Nova.Elaboration.Named
 import Nova.Elaboration.Parser
 import Nova.Elaboration.Loader
@@ -255,7 +256,7 @@ mutual
     SPiC _ _ _ => CNoComma
     SSigmaC _ _ _ => CNoComma
     SQuotC _ _ _ _ => CNoComma
-    SEqC _ _ _ => CNoComma
+    SEqC _ _ _ _ => CNoComma
     SChain _ _ => CNoComma
     SSumC _ _ => CSumC
     SApp f a => case infixView tbl e of
@@ -267,12 +268,12 @@ mutual
       Just _ => CAtom
       Nothing => CPrefix
     SZeroElim _ => CPrefix
-    SNatElim _ _ _ _ _ _ _ => CPrefix
+    SNatElim _ _ _ _ _ _ => CPrefix
     SInj1 _ => CPrefix
     SInj2 _ => CPrefix
-    SSumElim _ _ _ _ _ _ _ => CPrefix
+    SSumElim _ _ _ _ _ _ => CPrefix
     SClass _ => CPrefix
-    SQuotElim _ _ _ _ _ => CPrefix
+    SQuotElim _ _ _ _ => CPrefix
     SNuC _ => CPrefix
     SOut _ => CPrefix
     SCorec _ _ _ _ => CPrefix
@@ -339,18 +340,18 @@ mutual
     SClass t => txt "class " <-> pe tbl LAtom False t
     SOut t => txt "out " <-> pe tbl LAtom False t
     SNuC f => txt "ν " <-> pp tbl PAtom f
-    SNatElim (n, _) mot z (n2, _) (ih, _) s t =>
-      DGroup (txt "ℕ-elim (\{n}. " <-> pt tbl TTop True mot <-> txt ")" <->
+    SNatElim mot z (n2, _) (ih, _) s t =>
+      DGroup (txt "ℕ-elim" <-> motDoc tbl mot <->
               DNest 2 (DLine <-> pe tbl LAtom False z <->
                        DLine <-> txt "(\{n2} \{ih}. " <-> pe tbl LPair True s <-> txt ")" <->
                        DLine <-> pe tbl LAtom False t))
-    SSumElim (z, _) mot (a, _) l (b, _) r t =>
-      DGroup (txt "⊎-elim (\{z}. " <-> pt tbl TTop True mot <-> txt ")" <->
+    SSumElim mot (a, _) l (b, _) r t =>
+      DGroup (txt "⊎-elim" <-> motDoc tbl mot <->
               DNest 2 (DLine <-> txt "(\{a}. " <-> pe tbl LPair True l <-> txt ")" <->
                        DLine <-> txt "(\{b}. " <-> pe tbl LPair True r <-> txt ")" <->
                        DLine <-> pe tbl LAtom False t))
-    SQuotElim (z, _) mot (a, _) f q =>
-      DGroup (txt "quot-elim (\{z}. " <-> pt tbl TTop True mot <-> txt ")" <->
+    SQuotElim mot (a, _) f q =>
+      DGroup (txt "quot-elim" <-> motDoc tbl mot <->
               DNest 2 (DLine <-> txt "(\{a}. " <-> pe tbl LPair True f <-> txt ")" <->
                        DLine <-> pe tbl LAtom False q))
     SCorec (x, _) a f u =>
@@ -369,9 +370,11 @@ mutual
       DGroup (pe tbl LSumC False h <->
               concatDoc (map (\(j, m) => DNest 4 (DLine <-> txt "≡⟨ " <-> pe tbl LPair True j <->
                                                   txt " ⟩ " <-> pe tbl LSumC False m)) links))
-    SEqC l r ty =>
-      pe tbl LSumC False l <-> txt " ≡ " <-> pe tbl LSumC False r <->
-      txt " ∈ " <-> pt tbl TEl False ty
+    SEqC _ l r mty =>
+      pe tbl LSumC False l <-> txt " ≡ " <-> eqSide tbl mty r <->
+      (case mty of
+         Just ty => txt " ∈ " <-> pt tbl TEl False ty
+         Nothing => DNil)
     SSumC a b => pe tbl LOp0 False a <-> txt " ⊎ " <-> pe tbl LSumC tr b
     SPiC x a b =>
       if x == wildcard
@@ -493,9 +496,26 @@ mutual
     in DGroup (concatDoc (intersperse (DNest 2 DLine) groups) <->
                DNest 2 (DLine <-> txt "\{arrow} " <-> pe tbl LNoComma tr cod))
 
+  ||| The RIGHT side of an equality: in the ∈-less form a bare ⋆
+  ||| parenthesizes — `… ≡ ⋆ using (…)` would otherwise reparse as
+  ||| the ⋆-using proof form.
+  eqSide : FixTable -> Maybe STy -> SElem -> Doc
+  eqSide tbl Nothing SStar = txt "(⋆)"
+  eqSide tbl _ r = pe tbl LSumC False r
+
+  eqSideT : FixTable -> Maybe STy -> SElem -> Doc
+  eqSideT tbl Nothing SStar = txt "(⋆)"
+  eqSideT tbl _ r = pe tbl LOp0 False r
+
+  ||| A written motive group, trailing space included; nothing when
+  ||| elided.
+  motDoc : FixTable -> Maybe (SName, STy) -> Doc
+  motDoc tbl Nothing = DNil
+  motDoc tbl (Just ((z, _), mot)) = txt " (\{z}. " <-> pt tbl TTop True mot <-> txt ")"
+
   classT : STy -> TCls
   classT ty = case ty of
-    STyEq _ _ _ => CTTop
+    STyEq _ _ _ _ => CTTop
     STyPi _ _ _ => CTArrow
     STyImpPi _ _ _ => CTArrow
     STySigma _ _ _ => CTArrow
@@ -519,9 +539,11 @@ mutual
 
   ptRaw : FixTable -> STy -> Doc
   ptRaw tbl ty = case ty of
-    STyEq l r t =>
-      pe tbl LOp0 False l <-> txt " ≡ " <-> pe tbl LOp0 False r <->
-      txt " ∈ " <-> pt tbl TArrow True t
+    STyEq _ l r mt =>
+      pe tbl LOp0 False l <-> txt " ≡ " <-> eqSideT tbl mt r <->
+      (case mt of
+         Just t => txt " ∈ " <-> pt tbl TArrow True t
+         Nothing => DNil)
     STyPi x a b =>
       if x == wildcard
         then pt tbl TSum False a <-> DGroup (DNest 2 (DLine <-> txt "→ " <-> pt tbl TTop True b))
@@ -817,6 +839,167 @@ renderUnit u =
            let (blocks, left) = attach later [] es
            in (joinBy "\n" pending' :: blocks, left)
 
+-- ===== Sugar elision (Phase 4) =====
+--
+-- The distiller's emission of the ∈- and motive-elisions: sites whose
+-- trial verdict is positive (the elided form provably recovers the
+-- written annotation α-exactly) drop the annotation; everything else
+-- stays written. Verdicts are keyed by (module, source range), so
+-- already-elided files no-op (their sites record no verdicts).
+
+parameters (ok : Range -> Bool)
+  mutual
+    esE : SElem -> SElem
+    esE e = case e of
+      SVar _ _ _ => e
+      SSig _ _ => e
+      SUnitI => e
+      SZeroN => e
+      SSuc t => SSuc (esE t)
+      SLam x b => SLam x (esE b)
+      SLet x d b => SLet x (esE d) (esE b)
+      SApp f a => SApp (esE f) (esE a)
+      SPair a b => SPair (esE a) (esE b)
+      SProj1 t => SProj1 (esE t)
+      SProj2 t => SProj2 (esE t)
+      SZeroC => e
+      SOneC => e
+      SNatC => e
+      SPiC x a b => SPiC x (esE a) (esE b)
+      SSigmaC x a b => SSigmaC x (esE a) (esE b)
+      SSumC a b => SSumC (esE a) (esE b)
+      SQuotC a x y r => SQuotC (esE a) x y (esE r)
+      SEqC rng l r t =>
+        if maybe False ok rng
+          then let (l', r') = elideSides l r in SEqC rng l' r' Nothing
+          else SEqC rng (esE l) (esE r) (map esT t)
+      SZeroElim t => SZeroElim (esE t)
+      SNatElim mot z n2 ih st t =>
+        SNatElim (esMot mot) (esE z) n2 ih (esE st) (esE t)
+      SInj1 t => SInj1 (esE t)
+      SInj2 t => SInj2 (esE t)
+      SSumElim mot a l b r t =>
+        SSumElim (esMot mot) a (esE l) b (esE r) (esE t)
+      SClass t => SClass (esE t)
+      SQuotElim mot a f q => SQuotElim (esMot mot) a (esE f) (esE q)
+      SNuC f => SNuC (esP f)
+      SOut t => SOut (esE t)
+      SCorec x a f u => SCorec x (esE a) (esE f) (esE u)
+      SCoind nx ny r pw mx my mh w => SCoind nx ny (esE r) (esE pw) mx my mh (esE w)
+      SSquash t => SSquash (esT t)
+      SStar => e
+      SStarWit w => SStarWit (esE w)
+      SStarUsing _ => e
+      SSquashElim sc x b => SSquashElim (esE sc) x (esE b)
+      SChain h links => SChain (esE h) (map (\(j, m) => (esE j, esE m)) links)
+      SAnn t ty => SAnn (esE t) (esT ty)
+      SImpArg t => SImpArg (esE t)
+      SNoIns t => SNoIns (esE t)
+
+    ||| An ∈-elided equality INFERS one side (left first — mirror
+    ||| elabEqSides); that side's ROOT motive must stay written even
+    ||| when its own verdict allows elision, or the side stops being
+    ||| inferable — the one cross-sugar interaction.
+    elideSides : SElem -> SElem -> (SElem, SElem)
+    elideSides l r =
+      if sInferForm l
+        then (keepRootMotive l, esE r)
+        else (esE l, keepRootMotive r)
+
+    keepRootMotive : SElem -> SElem
+    keepRootMotive e = case e of
+      SNatElim (Just (n, m)) z n2 ih st t =>
+        SNatElim (Just (n, esT m)) (esE z) n2 ih (esE st) (esE t)
+      SSumElim (Just (z, m)) a lb b rb t =>
+        SSumElim (Just (z, esT m)) a (esE lb) b (esE rb) (esE t)
+      SQuotElim (Just (z, m)) a f q =>
+        SQuotElim (Just (z, esT m)) a (esE f) (esE q)
+      _ => esE e
+
+    esMot : Maybe (SName, STy) -> Maybe (SName, STy)
+    esMot Nothing = Nothing
+    esMot (Just ((z, mr), mot)) =
+      if maybe False ok mr then Nothing else Just ((z, mr), esT mot)
+
+    esT : STy -> STy
+    esT ty = case ty of
+      STyPi x a b => STyPi x (esT a) (esT b)
+      STyImpPi x a b => STyImpPi x (esT a) (esT b)
+      STySigma x a b => STySigma x (esT a) (esT b)
+      STySum a b => STySum (esT a) (esT b)
+      STyQuot a x y r => STyQuot (esT a) x y (esE r)
+      STyEq rng l r t =>
+        if maybe False ok rng
+          then let (l', r') = elideSides l r in STyEq rng l' r' Nothing
+          else STyEq rng (esE l) (esE r) (map esT t)
+      STyEl t => STyEl (esE t)
+      STyPrf t => STyPrf (esE t)
+      STyNu f => STyNu (esP f)
+      _ => ty
+
+    esP : SPoly -> SPoly
+    esP pl = case pl of
+      SPHole => pl
+      SPConst a => SPConst (esE a)
+      SPProd f g => SPProd (esP f) (esP g)
+      SPSum f g => SPSum (esP f) (esP g)
+      SPSigma x a f => SPSigma x (esE a) (esP f)
+      SPPi x a f => SPPi x (esE a) (esP f)
+
+  esQDecl : SQDecl -> SQDecl
+  esQDecl (MkSQDecl n bs res) =
+    MkSQDecl n (map (\(x, d) => (x, case d of
+                                     Left t => Left (esT t)
+                                     Right qt => Right (esQTm qt))) bs)
+      (case res of
+         SQResU => SQResU
+         SQResEl t => SQResEl (esQTm t)
+         SQResEq l r u => SQResEq (esQTm l) (esQTm r) (esQTm u))
+   where
+    esQTm : SQTm -> SQTm
+    esQTm (SQVar n i) = SQVar n i
+    esQTm (SQAppE f e) = SQAppE (esQTm f) (esE e)
+    esQTm (SQAppI f a) = SQAppI (esQTm f) (esQTm a)
+
+  esItem : SItem -> SItem
+  esItem (SDef x ty body mu) = SDef x (esT ty) (esE body) mu
+  esItem (SDeclDef r x ty) = SDeclDef r x (esT ty)
+  esItem (STypeDef x ty) = STypeDef x (esT ty)
+  esItem (SData params ds) = SData (map (\(x, t) => (x, esT t)) params) (map esQDecl ds)
+  esItem (SClausalDef r x ty eta wit cls) =
+    SClausalDef r x (esT ty) eta (map esE wit) (map ({ crhs $= esE }) cls)
+
+||| Apply the verdict map to one module.
+elideSugar : List (String, Range, Bool) -> ModUnit -> ModUnit
+elideSugar verdicts u =
+  let ok = \r => any (\(m, r', v) => v && m == u.mname && show r' == show r) verdicts
+      body' = map (map (\(r, it) => (r, esItem ok it))) u.mbody
+  in { mbody := body', mitems := mapMaybe (\e => case e of
+                                             Right ri => Just ri
+                                             Left _ => Nothing) body' } u
+
+||| Entrywise α-comparison of two kernel Σs (core is nameless, so
+||| structural equality is α-equality; Show on components is the
+||| comparator).
+export
+sigCompare : Sig -> Sig -> Maybe String
+sigCompare a b = go (toList a) (toList b)
+ where
+  showEntry : SigEntry -> String
+  showEntry (SigDef ctx n body ty) = "def \{n} : \{show ty} ≔ \{show body} [\{show ctx}]"
+  showEntry (SigTyDef ctx n ty) = "type \{n} ≔ \{show ty} [\{show ctx}]"
+  showEntry (SigDecl ctx n ty) = "decl \{n} : \{show ty} [\{show ctx}]"
+  showEntry (SigTyDecl ctx n) = "tydecl \{n} [\{show ctx}]"
+  showEntry (SigEq ctx l r ty) = "eq \{show l} ≐ \{show r} : \{show ty} [\{show ctx}]"
+  showEntry (SigTyEq ctx x y) = "tyeq \{show x} ≐ \{show y} [\{show ctx}]"
+
+  go : List SigEntry -> List SigEntry -> Maybe String
+  go [] [] = Nothing
+  go (x :: xs) (y :: ys) =
+    if showEntry x == showEntry y then go xs ys
+    else Just ("Σ entry differs after distill:\n  original: \{showEntry x}\n  new:      \{showEntry y}")
+  go _ _ = Just "Σ length differs after distill"
+
 -- ===== Round-trip verification =====
 
 fixShow : SFixity -> String
@@ -920,19 +1103,25 @@ distillPath : (rootPath : String) -> (outDir : String) -> IO (Either String Stri
 distillPath rootPath outDir = do
   Right units <- loadProgram rootPath
     | Left err => pure (Left err.lmsg)
-  let out1 = elabProgram units
-  let True = isSuffixOf "Accepted." out1
-    | False => pure (Left ("input is not accepted; distill only transforms accepted programs:\n" ++ out1))
+  -- the acceptance run doubles as the SUGAR TRIAL: per written
+  -- ∈-annotation and motive, would the elided form recover it
+  -- α-exactly? (docs/NovaPerfectSurface.txt, Phase 4)
+  let Right (sigOrig, verdicts) = elabProgramSugar units
+    | Left err => pure (Left ("input is not accepted; distill only transforms accepted programs:\n" ++ err))
   let False = normDir (dirOf rootPath) == normDir outDir
     | True => pure (Left "output directory equals the source directory; refusing to overwrite sources")
-  Right () <- writeUnits outDir (baseName rootPath) units
+  let elided = map (elideSugar verdicts) units
+  Right () <- writeUnits outDir (baseName rootPath) elided
     | Left err => pure (Left err)
   Right units' <- loadProgram (outDir ++ "/" ++ baseName rootPath)
     | Left err => pure (Left ("distilled output failed to load: " ++ err.lmsg))
-  let Nothing = verifyUnits units units'
+  let Nothing = verifyUnits elided units'
     | Just err => pure (Left err)
-  let out2 = elabProgram units'
-  let True = out1 == out2
-    | False => pure (Left ("distilled elaboration differs from the original run:\n" ++ out2))
+  let Right sigNew = elabProgramSig units'
+    | Left err => pure (Left ("distilled output failed to elaborate:\n" ++ err))
+  let Nothing = sigCompare sigOrig sigNew
+    | Just err => pure (Left err)
+  let nElided = length (filter (\(_, _, v) => v) verdicts)
   pure (Right ("distilled \{show (length units)} modules (\{show (countItems units)} items) to \{outDir}\n" ++
-               "round-trip OK: ASTs identical, elaboration identical."))
+               "elided \{show nElided} of \{show (length verdicts)} ∈-annotations and motives\n" ++
+               "round-trip OK: ASTs identical, kernel Σ α-identical."))

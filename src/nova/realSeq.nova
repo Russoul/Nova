@@ -20,7 +20,7 @@ import realNeg (seqOf, regOf)
 import prelude (funext, funextD)
 import equality (trans, sym, cong, transport, sigmaEq2)
 
-def regularIsProp : (f : El (ℕ → Q)) (p q : El (Regular f)) → p ≡ q ∈ El (Regular f)
+def regularIsProp : (f : El (ℕ → Q)) (p q : El (Regular f)) → p ≡ q
   using (ratBound.Bnd.unfold, rationalQ.Q.unfold, real.Regular.unfold) ≔
   λf. λp. λq. funextD
     ℕ
@@ -46,7 +46,7 @@ def regularIsProp : (f : El (ℕ → Q)) (p q : El (Regular f)) → p ≡ q ∈ 
 -- it is the identity function, so nothing is inserted, but its
 -- SIGNATURE does the retyping and the conversion is never demanded
 -- here (D-3: it was discharged once, at an abstract motive).
-def rseqEqAt : {x y : El RSeq} → (seqOf x ≡ seqOf y ∈ El (ℕ → Q)) → x ≡ y ∈ El RSeq
+def rseqEqAt : {x y : El RSeq} → (seqOf x ≡ seqOf y) → x ≡ y
   using (equality.sym.eq,
     equality.transport.eq,
     id.Id.eq,
@@ -80,12 +80,12 @@ def rseqEqAt : {x y : El RSeq} → (seqOf x ≡ seqOf y ∈ El (ℕ → Q)) → 
         (sym (ℕ → Q) (seqOf x) (seqOf y) h)
         (regOf y)))
 
-def rseqEq : {x y : El RSeq} → ((n : ℕ) → seqOf x n ≡ seqOf y n ∈ El Q) → x ≡ y ∈ El RSeq ≔
+def rseqEq : {x y : El RSeq} → ((n : ℕ) → seqOf x n ≡ seqOf y n) → x ≡ y ≔
   λx. λy. λe. rseqEqAt (funext ℕ Q (seqOf x) (seqOf y) e)
 
 -- ...and hence equal reals, without going through REq at all
 def realEqOfSeqEq : (x y : El RSeq)
-  → ((n : ℕ) → seqOf x n ≡ seqOf y n ∈ El Q) → class x ≡ class y ∈ El Real
+  → ((n : ℕ) → seqOf x n ≡ seqOf y n) → class x ≡ class y ∈ El Real
   using (real.Real.unfold) ≔
   λx. λy. λe. cong RSeq (λw. Real) (λw. class w) x y (rseqEq e)
 
@@ -107,7 +107,7 @@ def wdOuterOfComm : (op : El RSeq → El RSeq → El RSeq)
       a
       b ≡ op
       b
-      a ∈ El RSeq)
+      a)
     → ((a b b' : El RSeq)
       → Prf (REq
         b

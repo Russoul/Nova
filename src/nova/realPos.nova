@@ -47,12 +47,12 @@ import propCode (prfC, prfIntro, prfElim)
 import id (Id, idToEq, eqToId)
 import equality (trans, sym, cong, transport, transportP)
 
-def reqCongR : (p y y' : El RSeq) → Prf (REq y y') → REq p y ≡ REq p y' ∈ Ω ≔
+def reqCongR : (p y y' : El RSeq) → Prf (REq y y') → REq p y ≡ REq p y' ≔
   λp. λy. λy'. λh. propExt (REq p y') (λa. reqTrans y a h) (λa. reqTrans y' a (reqSym h))
 
 def reqAt : El RSeq → El Real → Ω
   using (real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold, reqCongR) ≔
-  λp. λz. quot-elim (w. Ω) (y. REq p y) z
+  λp. λz. quot-elim (y. REq p y) z
 
 def reqOfClassEq : {p p' : El RSeq} → (class p ≡ class p' ∈ El Real) → Prf (REq p p')
   using (real.RSeq.unfold, real.Real.unfold, real.Regular.unfold, real.REq.unfold, reqAt.eq) ≔
@@ -71,7 +71,7 @@ def PosR : El Real → 𝕌 ≔ λx. Br (PosPayload x)
 def posMk : (x : El Real)
   (p : El RSeq)
   (k : ℕ)
-  → (class p ≡ x ∈ El Real) → Prf (LeR (realOfQ (qInvNat k)) x) → El (PosR x)
+  → (class p ≡ x) → Prf (LeR (realOfQ (qInvNat k)) x) → El (PosR x)
   using (PosPayload.unfold, PosR.eq, real.Real.unfold, real.RSeq.unfold, real.Regular.unfold) ≔
   λx. λp. λk. λe. λh. br (p, k, prfIntro h, eqToId (class p) x e)
 
@@ -83,7 +83,7 @@ def posBound : {x : El Real} {d : El (PosPayload x)} → Prf (LeR (realOfQ (qInv
   using (PosPayload.unfold, posK.eq) ≔
   λx. λd. prfElim (LeR (realOfQ (qInvNat (d .π₂ .π₁))) x) (d .π₂ .π₂ .π₁)
 
-def posRepEq : (x : El Real) (d : El (PosPayload x)) → class (posRep x d) ≡ x ∈ El Real
+def posRepEq : (x : El Real) (d : El (PosPayload x)) → class (posRep x d) ≡ x
   using (PosPayload.unfold, posRep.eq, real.Real.unfold, real.RSeq.unfold, real.Regular.unfold) ≔
   λx. λd. idToEq Real (class (d .π₁)) x (d .π₂ .π₂ .π₂)
 
@@ -180,7 +180,7 @@ def leQOneInv : (i : ℕ) → El (LeQ (qInvNat i) qOne) ≔
 -- at a sample of the form mulIdx (dbl k) i the harmonic bound is
 -- 1/(k+1) times 1/(i+1) — exactly, so it sits under 1/(k+1)
 def rBoundDeepEq : (k i : ℕ)
-  → rBound (mulIdx (dbl k) i) (mulIdx (dbl k) i) ≡ qMul (qInvNat k) (qInvNat i) ∈ El Q
+  → rBound (mulIdx (dbl k) i) (mulIdx (dbl k) i) ≡ qMul (qInvNat k) (qInvNat i)
   using (real.rBound.eq) ≔
   λk. λi. trans
     Q
@@ -292,7 +292,7 @@ def nnAt : (x : El Real) (d : El (NonNegPayload x)) (n : ℕ) → El (LeQ qZero 
   using (NonNegPayload.unfold, nnRep.eq) ≔
   λx. λd. λn. d .π₂ .π₁ n
 
-def nnRepEq : (x : El Real) (d : El (NonNegPayload x)) → class (nnRep x d) ≡ x ∈ El Real
+def nnRepEq : (x : El Real) (d : El (NonNegPayload x)) → class (nnRep x d) ≡ x
   using (NonNegPayload.unfold, nnRep.eq, real.Real.unfold, real.RSeq.unfold, real.Regular.unfold) ≔
   λx. λd. idToEq Real (class (d .π₁)) x (d .π₂ .π₂)
 
@@ -398,9 +398,7 @@ def clampREq : {p : El RSeq} → Prf (LeR realZero (class p)) → Prf (REq (clam
             (qAddZeroL (qNeg (seqOf p n)))
             (u n))))))
 
-def nonNegMk : (x : El Real)
-  (p : El RSeq)
-  → (class p ≡ x ∈ El Real) → Prf (LeR realZero x) → El (NonNegR x)
+def nonNegMk : (x : El Real) (p : El RSeq) → (class p ≡ x) → Prf (LeR realZero x) → El (NonNegR x)
   using (NonNegPayload.unfold,
     NonNegR.eq,
     real.Real.unfold,

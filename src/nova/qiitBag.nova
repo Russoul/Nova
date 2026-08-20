@@ -27,10 +27,10 @@ def swapN : ins ℕ Z (ins ℕ (S Z) (nil ℕ)) ≡ ins ℕ (S Z) (ins ℕ Z (ni
   using (qiitBag.Bag.eq) ≔
   swapG
 
-def sizeTwoN : size ℕ (ins ℕ Z (ins ℕ (S Z) (nil ℕ))) ≡ 2 ∈ ℕ
+def sizeTwoN : size ℕ (ins ℕ Z (ins ℕ (S Z) (nil ℕ))) ≡ 2
   using (qiitBag.Bag.eq, qiitBag.BagElim.eq, qiitBag.ins.eq, qiitBag.nil.eq, qiitBag.size.eq) ≔
   ⋆
 
-def sizeOneU : size 𝟙 (ins 𝟙 () (nil 𝟙)) ≡ S Z ∈ ℕ
+def sizeOneU : size 𝟙 (ins 𝟙 () (nil 𝟙)) ≡ S Z
   using (qiitBag.Bag.eq, qiitBag.BagElim.eq, qiitBag.ins.eq, qiitBag.nil.eq, qiitBag.size.eq) ≔
   ⋆

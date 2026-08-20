@@ -190,20 +190,18 @@ def rleCongL : (x : El RSeq) {x' y : El RSeq} → Prf (REq x x') → Prf (RLeP x
     (λj. leQVia (seqOf x j) (bndSubSym (rBound j j) (seqOf x j) (seqOf x' j) (v j) .π₂) (u j))))
 
 -- ===== descent to ℝ =====
-def rleWDInner : (x y y' : El RSeq) (h : Prf (REq y y')) → RLeP x y ≡ RLeP x y' ∈ Ω ≔
+def rleWDInner : (x y y' : El RSeq) (h : Prf (REq y y')) → RLeP x y ≡ RLeP x y' ≔
   λx. λy. λy'. λh. propExt (RLeP x y') (λp. rleCongR y h p) (λp. rleCongR y' (reqSym h) p)
 
-def rleWDOuterCls : {x x' c : El RSeq} (h : Prf (REq x x')) → RLeP x c ≡ RLeP x' c ∈ Ω ≔
+def rleWDOuterCls : {x x' c : El RSeq} (h : Prf (REq x x')) → RLeP x c ≡ RLeP x' c ≔
   λx. λx'. λc. λh. propExt (RLeP x' c) (λp. rleCongL x h p) (λp. rleCongL x' (reqSym h) p)
 
 def rleWDOuter : (x x' : El RSeq)
   (h : Prf (REq x x'))
   (v : El Real)
-  → quot-elim (w. Ω) (y. RLeP x y) v ≡ quot-elim (w. Ω) (y. RLeP x' y) v ∈ Ω
+  → quot-elim (w. Ω) (y. RLeP x y) v ≡ quot-elim (y. RLeP x' y) v
   using (real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold, rleWDInner) ≔
-  λx. λx'. λh. λv. quot-elim (w. quot-elim (z. Ω)
-    (y. RLeP x y)
-    w ≡ quot-elim (z. Ω) (y. RLeP x' y) w ∈ Ω)
+  λx. λx'. λh. λv. quot-elim (w. quot-elim (z. Ω) (y. RLeP x y) w ≡ quot-elim (y. RLeP x' y) w)
     (c. rleWDOuterCls h)
     v
 
@@ -214,9 +212,9 @@ def LeR : El Real → El Real → Ω
     real.Regular.unfold,
     rleWDInner,
     rleWDOuter) ≔
-  λu. λv. quot-elim (w. Ω) (x. quot-elim (w. Ω) (y. RLeP x y) v) u
+  λu. λv. quot-elim (x. quot-elim (y. RLeP x y) v) u
 
-def leRCls : (x y : El RSeq) → LeR (class x) (class y) ≡ RLeP x y ∈ Ω
+def leRCls : (x y : El RSeq) → LeR (class x) (class y) ≡ RLeP x y
   using (real.RSeq.unfold,
     real.Real.unfold,
     real.Regular.unfold,
@@ -232,7 +230,7 @@ def leRRefl : {u : El Real} → Prf (LeR u u)
     real.Regular.unfold,
     realOrder.LeR.unfold,
     realOrder.leRCls) ≔
-  λu. quot-elim (w. Prf (LeR w w)) (x. rleRefl x) u
+  λu. quot-elim (x. rleRefl x) u
 
 def leRTrans : (u v w : El Real) → Prf (LeR u v) → Prf (LeR v w) → Prf (LeR u w)
   using (real.REq.unfold,
@@ -243,15 +241,7 @@ def leRTrans : (u v w : El Real) → Prf (LeR u v) → Prf (LeR v w) → Prf (Le
     realOrder.RLeP.unfold,
     realOrder.leRCls,
     realOrder.rleTrans.eq) ≔
-  λu. λv. λw. quot-elim (t. Prf (LeR t v) → Prf (LeR v w) → Prf (LeR t w))
-    (x. quot-elim (t. Prf (LeR (class x) t) → Prf (LeR t w) → Prf (LeR (class x) w))
-      (y. quot-elim (t. Prf (LeR
-        (class x)
-        (class y)) → Prf (LeR (class y) t) → Prf (LeR (class x) t))
-        (z. λp. λq. rleTrans x y z p q)
-        w)
-      v)
-    u
+  λu. λv. λw. quot-elim (x. quot-elim (y. quot-elim (z. λp. λq. rleTrans x y z p q) w) v) u
 
 -- antisymmetry: two one-sided bounds make a two-sided one, which is
 -- exactly REq — so the two reals are equal
@@ -262,7 +252,7 @@ def rleAntisym : (x y : El RSeq) → Prf (RLeP x y) → Prf (RLeP y x) → Prf (
     y
     (λn. bndOfBothLe (seqOf x n) (seqOf y n) (u n) (v n))))
 
-def leRAntisym : {u v : El Real} → Prf (LeR u v) → Prf (LeR v u) → u ≡ v ∈ El Real
+def leRAntisym : {u v : El Real} → Prf (LeR u v) → Prf (LeR v u) → u ≡ v
   using (real.REq.unfold,
     real.RSeq.unfold,
     real.Real.unfold,
@@ -272,11 +262,7 @@ def leRAntisym : {u v : El Real} → Prf (LeR u v) → Prf (LeR v u) → u ≡ v
     realOrder.RLeP.unfold,
     realOrder.leRCls,
     realOrder.rleAntisym.eq) ≔
-  λu. λv. quot-elim (t. Prf (LeR t v) → Prf (LeR v t) → t ≡ v ∈ El Real)
-    (x. quot-elim (t. Prf (LeR (class x) t) → Prf (LeR t (class x)) → class x ≡ t ∈ El Real)
-      (y. λp. λq. realEqOfREq x y (rleAntisym x y p q))
-      v)
-    u
+  λu. λv. quot-elim (x. quot-elim (y. λp. λq. realEqOfREq x y (rleAntisym x y p q)) v) u
 
 -- ===== compatibility =====
 -- a common summand cancels, and the deeper sample only tightens
@@ -340,15 +326,7 @@ def leRAddMono : {u v w : El Real} → Prf (LeR u v) → Prf (LeR (realAdd u w) 
     realOrder.RLeP.unfold,
     realOrder.leRCls,
     realOrder.rleAddMono.eq) ≔
-  λu. λv. λw. quot-elim (t. Prf (LeR t v) → Prf (LeR (realAdd t w) (realAdd v w)))
-    (x. quot-elim (t. Prf (LeR (class x) t) → Prf (LeR (realAdd (class x) w) (realAdd t w)))
-      (y. quot-elim (t. Prf (LeR
-        (class x)
-        (class y)) → Prf (LeR (realAdd (class x) t) (realAdd (class y) t)))
-        (z. λp. rleAddMono p)
-        w)
-      v)
-    u
+  λu. λv. λw. quot-elim (x. quot-elim (y. quot-elim (z. λp. rleAddMono p) w) v) u
 
 -- ===== ℚ embeds order-preservingly =====
 -- p ≤ q in ℚ gives p − q ≤ 0
@@ -389,7 +367,7 @@ def leROfQ : (p q : El Q) → El (LeQ p q) → Prf (LeR (realOfQ p) (realOfQ q))
     (λn. leQTrans (qAdd p (qNeg q)) qZero (rBound n n) (leQSubZero le) (leQZeroBound n n))
 
 -- 0 ≤ 1 in ℝ, through ℚ: the sign of 1 computes
-def sgnQOnePos : sgnQ qOne ≡ sPos ∈ El Sign
+def sgnQOnePos : sgnQ qOne ≡ sPos
   using (eqInt.classNormPairEq.eq,
     eqInt.intCanon.eq,
     eqInt.intCanonClass.eq,
@@ -473,7 +451,7 @@ def leQOfLeR : {p : El Q} (q : El Q) → Prf (LeR (realOfQ p) (realOfQ q)) → E
     realNeg.seqOf.eq,
     realOrder.LeR.unfold,
     realOrder.RLeP.unfold) ≔
-  λp. λq. λh. ⊎-elim (w. El (LeQ p q))
+  λp. λq. λh. ⊎-elim
     (nn. nn)
     (hneg. leQOfFalse
       (squash-elim h (u. ⋆ (nonNegNotNeg
@@ -494,7 +472,7 @@ def leQOfLeR : {p : El Q} (q : El Q) → Prf (LeR (realOfQ p) (realOfQ q)) → E
     (sgnCases (sgnQ (qAdd q (qNeg p))))
 
 -- so ℚ ↪ ℝ is an order EMBEDDING, and in particular injective
-def realOfQInj : (p q : El Q) → (realOfQ p ≡ realOfQ q ∈ El Real) → p ≡ q ∈ El Q ≔
+def realOfQInj : (p q : El Q) → (realOfQ p ≡ realOfQ q) → p ≡ q ≔
   λp. λq. λe. leQAntisym
     (leQOfLeR q (transportP Real (λw. LeR (realOfQ p) w) (realOfQ p) (realOfQ q) e leRRefl))
     (leQOfLeR p (transportP Real (λw. LeR w (realOfQ p)) (realOfQ p) (realOfQ q) e leRRefl))
@@ -550,8 +528,4 @@ def leRNeg : (u v : El Real) → Prf (LeR u v) → Prf (LeR (realNeg v) (realNeg
     realOrder.RLeP.unfold,
     realOrder.leRCls,
     realOrder.rleNeg.eq) ≔
-  λu. λv. quot-elim (t. Prf (LeR t v) → Prf (LeR (realNeg v) (realNeg t)))
-    (x. quot-elim (t. Prf (LeR (class x) t) → Prf (LeR (realNeg t) (realNeg (class x))))
-      (y. λp. rleNeg p)
-      v)
-    u
+  λu. λv. quot-elim (x. quot-elim (y. λp. rleNeg p) v) u

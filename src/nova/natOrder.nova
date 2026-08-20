@@ -15,7 +15,7 @@ def LeN : ℕ → ℕ → 𝕌 ≔ λa. λb. (k : ℕ) ⨯ Id ℕ (a + k) b
 def leRefl : (a : ℕ) → El (LeN a a) using (natOrder.LeN.unfold) ≔
   λa. Z, eqToId (a + Z) a (plusZeroId a)
 
-def leOfEq : {a b : ℕ} → (a ≡ b ∈ ℕ) → El (LeN a b) using (natOrder.LeN.unfold) ≔
+def leOfEq : {a b : ℕ} → (a ≡ b) → El (LeN a b) using (natOrder.LeN.unfold) ≔
   λa. λb. λh. Z, eqToId (a + Z) b (trans ℕ (a + Z) a b (plusZeroId a) h)
 
 def leZero : (a : ℕ) → El (LeN Z a) using (natOrder.LeN.unfold) ≔
@@ -56,19 +56,16 @@ def leTrans : (a b c : ℕ) → El (LeN a b) → El (LeN b c) → El (LeN a c)
           ≡⟨ h2 ⟩ c)
 
 -- a summand of zero is zero (both sides)
-def sumZeroR : (x y : ℕ) → (x + y ≡ Z ∈ ℕ) → y ≡ Z ∈ ℕ using (nat.plusSucId) ≔
-  λx. λy. ℕ-elim (j. (x + j ≡ Z ∈ ℕ) → j ≡ Z ∈ ℕ)
-    (λh. ⋆)
-    (j ih. λh. 𝟘-elim (zNotS (x + j) (sym ℕ (x + S j) Z h)))
-    y
+def sumZeroR : (x y : ℕ) → (x + y ≡ Z) → y ≡ Z using (nat.plusSucId) ≔
+  λx. λy. ℕ-elim (λh. ⋆) (j ih. λh. 𝟘-elim (zNotS (x + j) (sym ℕ (x + S j) Z h))) y
 
-def sumZeroL : (x y : ℕ) → (x + y ≡ Z ∈ ℕ) → x ≡ Z ∈ ℕ ≔
+def sumZeroL : (x y : ℕ) → (x + y ≡ Z) → x ≡ Z ≔
   λx. λy. λh. sumZeroR y x (trans ℕ (y + x) (x + y) Z (plusComm x y) h)
 
-def leZeroInv : {a : ℕ} → El (LeN a Z) → a ≡ Z ∈ ℕ using (natOrder.LeN.unfold) ≔
+def leZeroInv : {a : ℕ} → El (LeN a Z) → a ≡ Z using (natOrder.LeN.unfold) ≔
   λa. λle. sumZeroL a (le .π₁) (trans ℕ (a + le .π₁) Z Z (idToEq ℕ (a + le .π₁) Z (le .π₂)) ⋆)
 
-def leAntisym : (a b : ℕ) → El (LeN a b) → El (LeN b a) → a ≡ b ∈ ℕ
+def leAntisym : (a b : ℕ) → El (LeN a b) → El (LeN b a) → a ≡ b
   using (id.Id.unfold, natOrder.LeN.unfold) ≔
   λa. λb. λl1. λl2. let h1 ≔ idToEq
     ℕ
@@ -80,7 +77,7 @@ def leAntisym : (a b : ℕ) → El (LeN a b) → El (LeN b a) → a ≡ b ∈ �
     a
     (l2 .π₂) in let loop : a
     + (l1 .π₁
-      + l2 .π₁) ≡ a ∈ ℕ ≔ a + (l1 .π₁ + l2 .π₁)
+      + l2 .π₁) ≡ a ≔ a + (l1 .π₁ + l2 .π₁)
       ≡⟨ sym
         ℕ
         (a + l1 .π₁ + l2 .π₁)
@@ -189,13 +186,10 @@ def leMultMonoR : {a b : ℕ} (c : ℕ) → El (LeN a b) → El (LeN (a * c) (b 
 
 -- ===== totality: the DECISION, as data =====
 def leTotal : (a b : ℕ) → El (LeN a b) ⊎ El (LeN b a) ≔
-  λa. ℕ-elim (j. (b : ℕ) → El (LeN j b) ⊎ El (LeN b j))
+  λa. ℕ-elim
     (λb. inj₁ (leZero b))
-    (j ih. λb. ℕ-elim (i. El (LeN (S j) i) ⊎ El (LeN i (S j)))
+    (j ih. λb. ℕ-elim
       (inj₂ (leZero (S j)))
-      (i ih2. ⊎-elim (w. El (LeN (S j) (S i)) ⊎ El (LeN (S i) (S j)))
-        (u. inj₁ (leSucMono u))
-        (u. inj₂ (leSucMono u))
-        (ih i))
+      (i ih2. ⊎-elim (u. inj₁ (leSucMono u)) (u. inj₂ (leSucMono u)) (ih i))
       b)
     a

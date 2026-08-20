@@ -127,11 +127,7 @@ def nmConjInv : (G : 𝕌)
 def abelianConj : {G : 𝕌}
   {g : El (IsGroup G)}
   → ((x y : El G)
-    → gop
-      G
-      g
-      x
-      y ≡ gop G g y x ∈ El G) → (x n : El G) → gop G g x (gop G g n (ginv G g x)) ≡ n ∈ El G ≔
+    → gop G g x y ≡ gop G g y x) → (x n : El G) → gop G g x (gop G g n (ginv G g x)) ≡ n ≔
   λG. λg. λcomm. λx. λn. gop G g x (gop G g n (ginv G g x))
       ≡⟨ cong
         G
@@ -144,7 +140,7 @@ def abelianConj : {G : 𝕌}
 
 def abelianNormal : {G : 𝕌}
   {g : El (IsGroup G)}
-  → ((x y : El G) → gop G g x y ≡ gop G g y x ∈ El G) → {N : El G → Ω} → Prf (IsNormal G g N) ≔
+  → ((x y : El G) → gop G g x y ≡ gop G g y x) → {N : El G → Ω} → Prf (IsNormal G g N) ≔
   λG. λg. λcomm. λN. nmIntro
     (λx. λn. λhn. transportP
       G
@@ -181,7 +177,7 @@ def cosetRefl : (G : 𝕌)
 def cosetFlip : {G : 𝕌}
   {g : El (IsGroup G)}
   {x y : El G}
-  → ginv G g (gop G g x (ginv G g y)) ≡ gop G g y (ginv G g x) ∈ El G ≔
+  → ginv G g (gop G g x (ginv G g y)) ≡ gop G g y (ginv G g x) ≔
   λG. λg. λx. λy. ginv G g (gop G g x (ginv G g y))
       ≡⟨ gOpInv G g x (ginv G g y) ⟩ gop G g (ginv G g (ginv G g y)) (ginv G g x)
       ≡⟨ cong
@@ -209,7 +205,7 @@ def cosetSymm : (G : 𝕌)
 def cosetSplice : {G : 𝕌}
   {g : El (IsGroup G)}
   {x y z : El G}
-  → gop G g (gop G g x (ginv G g y)) (gop G g y (ginv G g z)) ≡ gop G g x (ginv G g z) ∈ El G ≔
+  → gop G g (gop G g x (ginv G g y)) (gop G g y (ginv G g z)) ≡ gop G g x (ginv G g z) ≔
   λG. λg. λx. λy. λz. gop G g (gop G g x (ginv G g y)) (gop G g y (ginv G g z))
       ≡⟨ gAssoc
         G

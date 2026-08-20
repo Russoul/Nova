@@ -12,11 +12,11 @@ import id (Id, eqToId, idToEq)
 
 def LtQ : El Q → El Q → 𝕌 ≔ λx. λy. Id Sign (sgnQ (qAdd y (qNeg x))) sPos
 
-def ltQOfSgn : (x y : El Q) → (sgnQ (qAdd y (qNeg x)) ≡ sPos ∈ El Sign) → El (LtQ x y)
+def ltQOfSgn : (x y : El Q) → (sgnQ (qAdd y (qNeg x)) ≡ sPos) → El (LtQ x y)
   using (id.Id.unfold, ratLt.LtQ.unfold, rationalQ.Q.unfold) ≔
   λx. λy. λh. eqToId (sgnQ (qAdd y (qNeg x))) sPos h
 
-def sgnOfLtQ : {x y : El Q} → El (LtQ x y) → sgnQ (qAdd y (qNeg x)) ≡ sPos ∈ El Sign
+def sgnOfLtQ : {x y : El Q} → El (LtQ x y) → sgnQ (qAdd y (qNeg x)) ≡ sPos
   using (id.Id.unfold, ratLt.LtQ.unfold, rationalQ.Q.unfold) ≔
   λx. λy. λh. idToEq Sign (sgnQ (qAdd y (qNeg x))) sPos h
 
@@ -91,9 +91,9 @@ def ltQAsym : (x y : El Q) → El (LtQ x y) → El (LtQ y x) → 𝟘
 -- ===== transitivity, in all four mixed forms =====
 -- a positive plus a NONNEGATIVE is positive: the zero case collapses
 def sgnQAddPosNonNeg : {a b : El Q}
-  → (sgnQ a ≡ sPos ∈ El Sign) → El (NonNegS (sgnQ b)) → sgnQ (qAdd a b) ≡ sPos ∈ El Sign
+  → (sgnQ a ≡ sPos) → El (NonNegS (sgnQ b)) → sgnQ (qAdd a b) ≡ sPos
   using (rationalOrder.NonNegS.unfold) ≔
-  λa. λb. λha. λhb. ⊎-elim (w. sgnQ (qAdd a b) ≡ sPos ∈ El Sign)
+  λa. λb. λha. λhb. ⊎-elim
     (h0. trans
       Sign
       (sgnQ (qAdd a b))
@@ -201,8 +201,8 @@ def ltQTrichotomy : (x y : El Q) → El (LtQ x y) ⊎ El (Id Q x y) ⊎ El (LtQ 
     rationalQ.Q.unfold,
     rationalQ.qAdd.eq,
     rationalQ.qNeg.eq) ≔
-  λx. λy. ⊎-elim (w. El (LtQ x y) ⊎ El (Id Q x y) ⊎ El (LtQ y x))
-    (nn. ⊎-elim (w. El (LtQ x y) ⊎ El (Id Q x y) ⊎ El (LtQ y x))
+  λx. λy. ⊎-elim
+    (nn. ⊎-elim
       (h0. inj₂ (inj₁ (eqToId
         x
         y

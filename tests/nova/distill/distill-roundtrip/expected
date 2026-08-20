@@ -1,30 +1,29 @@
 distilled 1 modules (20 items) to out
-round-trip OK: ASTs identical, elaboration identical.
+elided 16 of 16 ∈-annotations and motives
+round-trip OK: ASTs identical, kernel Σ α-identical.
 -- distill golden: identity-tier round trip over one file exercising
 -- fixity interleaving, operator items, chains, ⋆ using, clausal and
 -- data items, mention form, wildcard binders, annotated let, pairs
 
 infixl 6 +
-def + : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
+def + : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim x (n ih. S ih) y
 
-def plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ using (+.eq) ≔ λn. ⋆
+def plusZeroId : (n : ℕ) → n + Z ≡ n using (+.eq) ≔ λn. ⋆
 
-def plusSucId : (n m : ℕ) → n + S m ≡ S (n + m) ∈ ℕ using (+.eq) ≔ λn. λm. ⋆
+def plusSucId : (n m : ℕ) → n + S m ≡ S (n + m) using (+.eq) ≔ λn. λm. ⋆
 
-def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ using (+.eq, plusZeroId) ≔
-  λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
+def zeroPlusId : (n : ℕ) → Z + n ≡ n using (+.eq, plusZeroId) ≔ λn. ℕ-elim ⋆ (k ih. ⋆) n
 
-def sucPlus : (n m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ using (+.eq) ≔
-  λn. λm. ℕ-elim (k. S n + k ≡ S (n + k) ∈ ℕ) ⋆ (k ih. ⋆) m
+def sucPlus : (n m : ℕ) → S n + m ≡ S (n + m) using (+.eq) ≔ λn. λm. ℕ-elim ⋆ (k ih. ⋆) m
 
-def plusComm : (n m : ℕ) → m + n ≡ n + m ∈ ℕ ≔
-  λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ ℕ)
+def plusComm : (n m : ℕ) → m + n ≡ n + m ≔
+  λn. λm. ℕ-elim
     (Z + n ≡⟨ zeroPlusId n ⟩ n ≡⟨ plusZeroId n ⟩ n + Z)
     (k ih. S k + n ≡⟨ sucPlus k n ⟩ S (k + n) ≡⟨ ih ⟩ S (n + k) ≡⟨ plusSucId n k ⟩ n + S k)
     m
 
-def swapLeft : (a b c : ℕ) → a + (b + c) ≡ b + (a + c) ∈ ℕ using (plusComm) ≔
-  λa. λb. λc. ℕ-elim (k. a + (b + k) ≡ b + (a + k) ∈ ℕ)
+def swapLeft : (a b c : ℕ) → a + (b + c) ≡ b + (a + c) using (plusComm) ≔
+  λa. λb. λc. ℕ-elim
     (a + (b + Z) ≡⟨ plusZeroId b ⟩ a + b ≡⟨ plusComm b a ⟩ b + a ≡⟨ plusZeroId a ⟩ b + (a + Z))
     (k ih. ⋆ using (+.eq))
     c
@@ -61,4 +60,4 @@ def five : ℕ ≔ 5
 
 def addPair : (a b : ℕ) → ℕ ≔ λa. λb. a + b
 
-def addPair' : (a b : ℕ) → a + b ≡ addPair a b ∈ ℕ using (addPair.eq) ≔ λa. λb. ⋆
+def addPair' : (a b : ℕ) → a + b ≡ addPair a b using (addPair.eq) ≔ λa. λb. ⋆

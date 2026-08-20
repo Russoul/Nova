@@ -76,9 +76,9 @@ def rAbsWDCls : (x y : El RSeq) (h : Prf (REq x y)) → class (rAbs x) ≡ class
 
 def realAbs : El Real → El Real
   using (rAbsWDCls, real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold) ≔
-  λu. quot-elim (w. El Real) (p. class (rAbs p)) u
+  λu. quot-elim (p. class (rAbs p)) u
 
-def realAbsCls : {x : El RSeq} → realAbs (class x) ≡ class (rAbs x) ∈ El Real
+def realAbsCls : {x : El RSeq} → realAbs (class x) ≡ class (rAbs x)
   using (real.RSeq.unfold,
     real.Real.unfold,
     real.Regular.unfold,
@@ -87,7 +87,7 @@ def realAbsCls : {x : El RSeq} → realAbs (class x) ≡ class (rAbs x) ∈ El R
   λx. ⋆
 
 -- ===== the laws =====
-def realAbsNeg : (u : El Real) → realAbs (realNeg u) ≡ realAbs u ∈ El Real
+def realAbsNeg : (u : El Real) → realAbs (realNeg u) ≡ realAbs u
   using (ratAbs.qAbs.eq,
     rational.ratNeg.eq,
     rationalOrder.sgnCases.eq,
@@ -105,11 +105,9 @@ def realAbsNeg : (u : El Real) → realAbs (realNeg u) ≡ realAbs u ∈ El Real
     realNeg.rNeg.eq,
     realNeg.realNeg.eq,
     realNeg.seqOf.eq) ≔
-  λu. quot-elim (w. realAbs (realNeg w) ≡ realAbs w ∈ El Real)
-    (p. realEqOfSeqEq (rAbs (rNeg p)) (rAbs p) (λn. qAbsNeg (seqOf p n)))
-    u
+  λu. quot-elim (p. realEqOfSeqEq (rAbs (rNeg p)) (rAbs p) (λn. qAbsNeg (seqOf p n))) u
 
-def realAbsAbs : (u : El Real) → realAbs (realAbs u) ≡ realAbs u ∈ El Real
+def realAbsAbs : (u : El Real) → realAbs (realAbs u) ≡ realAbs u
   using (ratAbs.qAbs.eq,
     rationalOrder.sgnCases.eq,
     rationalOrder.sgnQ.eq,
@@ -122,11 +120,9 @@ def realAbsAbs : (u : El Real) → realAbs (realAbs u) ≡ realAbs u ∈ El Real
     realAbs.rAbs.eq,
     realAbs.realAbs.eq,
     realNeg.seqOf.eq) ≔
-  λu. quot-elim (w. realAbs (realAbs w) ≡ realAbs w ∈ El Real)
-    (p. realEqOfSeqEq (rAbs (rAbs p)) (rAbs p) (λn. qAbsAbs (seqOf p n)))
-    u
+  λu. quot-elim (p. realEqOfSeqEq (rAbs (rAbs p)) (rAbs p) (λn. qAbsAbs (seqOf p n))) u
 
-def realAbsOfQ : (q : El Q) → realAbs (realOfQ q) ≡ realOfQ (qAbs q) ∈ El Real
+def realAbsOfQ : (q : El Q) → realAbs (realOfQ q) ≡ realOfQ (qAbs q)
   using (ratAbs.qAbs.eq,
     rationalOrder.sgnCases.eq,
     rationalOrder.sgnQ.eq,
@@ -141,7 +137,7 @@ def realAbsOfQ : (q : El Q) → realAbs (realOfQ q) ≡ realOfQ (qAbs q) ∈ El 
     realNeg.seqOf.eq) ≔
   λq. realEqOfSeqEq (rAbs ((λn. q), constReg)) ((λn. qAbs q), constReg) (λn. ⋆)
 
-def realAbsZero : realAbs realZero ≡ realZero ∈ El Real
+def realAbsZero : realAbs realZero ≡ realZero
   using (equality.sym.eq,
     equality.transport.eq,
     qAbsZero,
@@ -237,7 +233,7 @@ def leRZeroAbs : (u : El Real) → Prf (LeR realZero (realAbs u))
     realOrder.LeR.eq,
     realOrder.LeR.unfold,
     realOrder.RLeP.eq) ≔
-  λu. quot-elim (w. Prf (LeR realZero (realAbs w))) (x. rleZeroAbs) u
+  λu. quot-elim (x. rleZeroAbs) u
 
 -- |x + y| ≤ |x| + |y| : both sides sample at the SAME doubled index,
 -- so this is ℚ's triangle inequality, pointwise
@@ -294,10 +290,4 @@ def leRAbsTriangle : {u v : El Real}
     realOrder.LeR.eq,
     realOrder.LeR.unfold,
     realOrder.RLeP.eq) ≔
-  λu. λv. quot-elim (t. Prf (LeR (realAbs (realAdd t v)) (realAdd (realAbs t) (realAbs v))))
-    (x. quot-elim (t. Prf (LeR
-      (realAbs (realAdd (class x) t))
-      (realAdd (realAbs (class x)) (realAbs t))))
-      (y. rleAbsTriangle)
-      v)
-    u
+  λu. λv. quot-elim (x. quot-elim (y. rleAbsTriangle) v) u
