@@ -1,0 +1,7 @@
+#!/bin/sh
+# hovering a blank shows what the oracle recovered, in the language's
+# own def shape: `_ : <domain> ≔ <value>`. The first hover's content
+# carries a supplementary-plane 𝕌 — the surrogate-pair path
+DIR="$(cd "$(dirname "$0")" && pwd)"
+"$1" lsp "$NOVA_LSP_BIN" "$DIR/fixture.nova" "_ _ n u"
+"$1" lsp "$NOVA_LSP_BIN" "$DIR/fixture.nova" "_ p q"

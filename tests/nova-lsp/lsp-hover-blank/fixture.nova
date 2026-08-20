@@ -1,0 +1,9 @@
+def cst : (A B : 𝕌) → El A → El B → El A ≔ λA. λB. λa. λb. a
+
+def trans3 : (A : 𝕌) (x y z : El A) → (x ≡ y) → (y ≡ z) → x ≡ z
+  ≔ λA. λx. λy. λz. λp. λq. x ≡⟨ p ⟩ y ≡⟨ q ⟩ z
+
+def useCst : El ℕ → El 𝟙 → El ℕ ≔ λn. λu. cst _ _ n u
+
+def useTrans : (A : 𝕌) (a b c : El A) → (a ≡ b) → (b ≡ c) → a ≡ c
+  ≔ λA. λa. λb. λc. λp. λq. trans3 _ _ _ _ p q

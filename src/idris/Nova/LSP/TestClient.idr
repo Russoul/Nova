@@ -56,13 +56,47 @@ readHeaderLen h = do
     Just StartContent => pure Nothing
     Nothing => pure Nothing
 
+||| Contrib's JSON parser mangles surrogate-PAIR escapes: each \uXXXX
+||| decodes alone, and a lone surrogate is not a character. The server
+||| (lsp-lib) escapes EVERY wide character, so supplementary-plane
+||| content arrives exclusively as pairs — decode those to literal
+||| characters before parsing, leaving BMP escapes (which the parser
+||| handles) untouched. An escaped backslash never fuses with a
+||| following 'u'.
+decodeSurrogatePairs : String -> String
+decodeSurrogatePairs = pack . go . unpack
+ where
+  hexD : Char -> Maybe Int
+  hexD c =
+    if isDigit c then Just (ord c - ord '0')
+    else if c >= 'a' && c <= 'f' then Just (10 + ord c - ord 'a')
+    else if c >= 'A' && c <= 'F' then Just (10 + ord c - ord 'A')
+    else Nothing
+
+  hex4 : Char -> Char -> Char -> Char -> Maybe Int
+  hex4 a b c d = do
+    a' <- hexD a; b' <- hexD b; c' <- hexD c; d' <- hexD d
+    pure (((a' * 16 + b') * 16 + c') * 16 + d')
+
+  go : List Char -> List Char
+  go ('\\' :: '\\' :: rest) = '\\' :: '\\' :: go rest
+  go ('\\' :: 'u' :: a :: b :: c :: d :: '\\' :: 'u' :: e :: f :: g :: i :: rest) =
+    case (hex4 a b c d, hex4 e f g i) of
+      (Just hi, Just lo) =>
+        if hi >= 0xD800 && hi <= 0xDBFF && lo >= 0xDC00 && lo <= 0xDFFF
+          then chr (0x10000 + (hi - 0xD800) * 0x400 + (lo - 0xDC00)) :: go rest
+          else '\\' :: 'u' :: go (a :: b :: c :: d :: '\\' :: 'u' :: e :: f :: g :: i :: rest)
+      _ => '\\' :: 'u' :: go (a :: b :: c :: d :: '\\' :: 'u' :: e :: f :: g :: i :: rest)
+  go (c :: rest) = c :: go rest
+  go [] = []
+
 readMessage : File -> IO (Maybe JSON)
 readMessage h = do
   Just l <- readHeaderLen h
     | Nothing => pure Nothing
   Right body <- fGetChars h l
     | Left _ => pure Nothing
-  pure (parse body)
+  pure (parse (decodeSurrogatePairs body))
 
 dieMsg : String -> IO a
 dieMsg msg = putStrLn ("ERROR: " ++ msg) >> exitWith (ExitFailure 1)

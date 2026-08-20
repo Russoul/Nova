@@ -175,6 +175,10 @@ record ElabSt where
   ||| binder occurrences with their elaborated types (module, span,
   ||| binding context/env, name, type) — LSP hover ascription
   binderTypes : SnocList (String, Range, Ctx, NameEnv, String, Ty)
+  ||| solved BLANK occurrences (docs/NovaPerfectSurface.txt, the
+  ||| blank tier): the value the spine oracle recovered at a written
+  ||| `_`, with its instantiated domain — the LSP hover for blanks
+  blankVals : SnocList (String, Range, NameEnv, Elem, Ty)
   ||| dotted name of the module being elaborated; "" = the root file,
   ||| whose entries stay unqualified
   modPrefix : String
@@ -251,7 +255,7 @@ record ElabSt where
   dupNames : List String
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] "" "" [<] Nothing [] [] Nothing [] False [<] False [<] [<] False False []
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [<] Nothing [] [] Nothing [] False [<] False [<] [<] False False []
 
 ||| Is the surface term an INFERENCE form — its type known without an
 ||| expected type? Mirrors the mode inventory
@@ -4122,6 +4126,16 @@ mutual
                           _ => throw "\{site}: cannot infer implicit argument #\{show pos} of '\{q}' — supply it with {…}, or pass the bare function with \{q} {}"
                       else pure arg)
                   (zip slots (reverse revArgs))
+    -- solved blanks feed the LSP hover: the recovered value at the
+    -- written `_`, ascribed with its instantiated domain
+    traverse_ (\(pos, mt) => case mt of
+        Just (SBlank (Just brng)) =>
+          case (getAt pos finalArgs, getAt pos doms) of
+            (Just v, Just d) =>
+              modifySt $ { blankVals $= (:< (st.modPrefix, brng, env, v,
+                             substTy d (prefixSub (take pos finalArgs)))) }
+            _ => pure ()
+        _ => pure ()) slots
     -- pending switch conversions, at the FINAL instantiations
     sks <- patchPending doms finalArgs (reverse revSks) pending
     -- the implicitize TRIAL (docs/NovaPerfectSurface.txt, Phase 3c):
@@ -5368,6 +5382,11 @@ binderInfos : FixTable -> ElabSt -> List (Range, String)
 binderInfos tbl st =
   [ (r, "\{x} : \{prettyTyN tbl env (displayTy st ty)}")
   | (m, r, ctx, env, x, ty) <- toList st.binderTypes, m == "" ]
+  ++
+  -- blanks ascribe in the language's own def shape: domain, then
+  -- the value the oracle recovered
+  [ (r, "_ : \{prettyTyN tbl env (displayTy st ty)} ≔ \{prettyElemN tbl env (displayElem st v)}")
+  | (m, r, env, v, ty) <- toList st.blankVals, m == "" ]
 
 public export
 record ElabReport where
