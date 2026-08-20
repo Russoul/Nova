@@ -126,9 +126,9 @@ parameters (rm : RenameMap, resolve : String -> String)
       SCorec x a f u => SCorec x (rnE a) (rnE f) (rnE u)
       SCoind nx ny r pw mx my mh w => SCoind nx ny (rnE r) (rnE pw) mx my mh (rnE w)
       SSquash t => SSquash (rnT t)
-      SStar => e
+      SStar _ => e
       SStarWit w => SStarWit (rnE w)
-      SStarUsing ns => SStarUsing (map citeName ns)
+      SStarUsing r ns => SStarUsing r (map citeName ns)
       SSquashElim sc x b => SSquashElim (rnE sc) x (rnE b)
       SChain h links => SChain (rnE h) (map (\(j, m) => (rnE j, rnE m)) links)
       SAnn t ty => SAnn (rnE t) (rnT ty)

@@ -154,7 +154,10 @@ mutual
     SSquash : STy -> SElem
     ||| ⋆ — the canonical proof of a true proposition (evident 𝟙-/
     ||| ≡-shaped squashees only; the witness is auto-synthesized)
-    SStar : SElem
+    ||| the range (when source-written) feeds the LSP hover: a ⋆
+    ||| ascribed with the proposition it proved. Show ignores it, like
+    ||| every other carried range
+    SStar : Maybe Range -> SElem
     ||| ⋆ e — el-squash-i with an explicit witness: e proves the
     ||| squashee directly, for squashees of any shape
     SStarWit : SElem -> SElem
@@ -164,7 +167,7 @@ mutual
     ||| site depends on nothing else in the store — deterministic and
     ||| module-local (docs/SearchlessElaboration.md §5.3). Names are
     ||| surface spellings, resolved against Σ at elaboration time.
-    SStarUsing : List String -> SElem
+    SStarUsing : Maybe Range -> List String -> SElem
     ||| squash-elim e (x. body) — el-squash-e-prf: eliminate a proof of
     ||| a squashed proposition into a further proposition, via a
     ||| hypothetical inhabitant x of the raw squashee
@@ -248,9 +251,9 @@ mutual
   shiftElem c (SCoind nx ny r pw mx my mh q) =
     SCoind nx ny (shiftElem (S (S c)) r) (shiftElem c pw) mx my mh (shiftElem (S (S (S c))) q)
   shiftElem c (SSquash t) = SSquash (shiftTy c t)
-  shiftElem c SStar = SStar
+  shiftElem c e@(SStar _) = e
   shiftElem c (SStarWit e) = SStarWit (shiftElem c e)
-  shiftElem c e@(SStarUsing _) = e
+  shiftElem c e@(SStarUsing _ _) = e
   shiftElem c (SSquashElim e x b) = SSquashElim (shiftElem c e) x (shiftElem (S c) b)
   shiftElem c (SChain h links) =
     SChain (shiftElem c h) (map (\(j, m) => (shiftElem c j, shiftElem c m)) links)
@@ -512,9 +515,9 @@ mutual
     show (SCoind nx ny r pw mx my mh q) =
       "Coind \{fst nx} \{fst ny} (\{show r}) (\{show pw}) \{fst mx} \{fst my} \{fst mh} (\{show q})"
     show (SSquash t) = "Squash (\{show t})"
-    show SStar = "⋆"
+    show (SStar _) = "⋆"
     show (SStarWit e) = "⋆ (\{show e})"
-    show (SStarUsing ns) = "⋆ using (\{joinBy ", " ns})"
+    show (SStarUsing _ ns) = "⋆ using (\{joinBy ", " ns})"
     show (SChain x ls) =
       "\{show x}" ++ concat (map (\(j, y) => " ≡⟨ \{show j} ⟩ \{show y}") ls)
     show (SSquashElim e x body) = "SquashElim (\{show e}) \{fst x} (\{show body})"

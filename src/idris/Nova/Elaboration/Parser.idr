@@ -540,17 +540,17 @@ mutual
             kwc '('; sp; x <- parseNameR; sp; kwc '.'; sp
             body <- parseSElem tbl (env :< fst x); sp; kwc ')'
             pure (SSquashElim e x body))
-    <|> (do kw "⋆"
+    <|> (do (r, _) <- bounds (kw "⋆")
             -- `using` is a CONTEXTUAL keyword: recognized only here,
             -- immediately after ⋆ (a witness genuinely named `using`
             -- is written parenthesized: ⋆ (using))
             u <- optional (do space; kw "using"; space; parseUsingNames)
             case u of
-              Just ns => pure (SStarUsing ns)
+              Just ns => pure (SStarUsing r ns)
               Nothing => do
                 w <- optional (do space; parseSElemAtom tbl env)
                 pure (case w of
-                        Nothing => SStar
+                        Nothing => SStar r
                         Just e  => SStarWit e))
     <|> parseSElemApp tbl env
 
@@ -601,7 +601,7 @@ mutual
                   <|> (do kwc ')'; pure e))
     <|> (kw "Z"    $> SZeroN)
     <|> (sucTower <$> parseNumeral)
-    <|> (kw "⋆"    $> SStar)
+    <|> (do (r, _) <- bounds (kw "⋆"); pure (SStar r))
     <|> (do kw "∥"; sp; t <- parseSTy tbl env; sp; kw "∥"; pure (SSquash t))
     <|> (kw "𝟘"   $> SZeroC)
     <|> (kw "𝟙"   $> SOneC)

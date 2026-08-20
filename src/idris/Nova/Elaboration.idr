@@ -266,9 +266,9 @@ sInferForm e = case e of
   SInj1 _ => False
   SInj2 _ => False
   SClass _ => False
-  SStar => False
+  SStar _ => False
   SStarWit _ => False
-  SStarUsing _ => False
+  SStarUsing _ _ => False
   SChain _ _ => False
   SCoind _ _ _ _ _ _ _ _ => False
   SSquashElim _ _ _ => False
@@ -3336,11 +3336,11 @@ mutual
   inferElem ctx env site (SSquash t) = do
     (t', tSk) <- elabTy ctx env site t
     pure (Squash t', Ty.PropTy, Nd [] [tSk])
-  inferElem ctx env site SStar =
+  inferElem ctx env site (SStar _) =
     throw "\{site}: cannot infer the type of ⋆\{structuralHint ()}"
   inferElem ctx env site (SStarWit _) =
     throw "\{site}: cannot infer the type of ⋆ ⟨witness⟩\{structuralHint ()}"
-  inferElem ctx env site (SStarUsing _) =
+  inferElem ctx env site (SStarUsing _ _) =
     throw "\{site}: cannot infer the type of ⋆ using (…)\{structuralHint ()}"
   inferElem ctx env site (SChain _ _) =
     throw "\{site}: cannot infer the type of a chain (its equality comes from the expected Prf type)\{structuralHint ()}"
@@ -3477,7 +3477,11 @@ mutual
   checkElem ctx env site (SZeroElim t) ty = do
     (t', tSk) <- checkElem ctx env site t Ty.ZeroTy
     pure (ZeroElim t', Nd [] [tSk])
-  checkElem ctx env site SStar ty = do
+  checkElem ctx env site (SStar mrng) ty = do
+    -- the LSP hover for a ⋆: ascribe the PROVED PROPOSITION — the
+    -- expected type at the site, display-resugared by the same
+    -- table that ascribes binders
+    recordBinder mrng ctx env "⋆" ty
     st <- getSt
     case preferPrf st ctx ty of
       Nothing => throw "\{site}: ⋆ checked against a non-Prf type\{structuralHint ()}"
@@ -3512,9 +3516,9 @@ mutual
   -- that is absent, or present but not an equation lemma of the
   -- visible store, is a structural error — it could only scope the
   -- site to nothing.
-  checkElem ctx env site (SStarUsing ns) ty = do
+  checkElem ctx env site (SStarUsing mrng ns) ty = do
     (rs, eqs) <- resolveUsingNames site ns
-    withScope (Just rs) (withEqScope eqs (checkElem ctx env site SStar ty))
+    withScope (Just rs) (withEqScope eqs (checkElem ctx env site (SStar mrng) ty))
   -- e-chain (docs/SearchlessElaboration.md §5.2): x ≡⟨ e ⟩ y … at
   -- Prf (l ≡ r ∈ A). Midpoints check at A; each justification INFERS
   -- and must prove an equation, which becomes a site-local ground
