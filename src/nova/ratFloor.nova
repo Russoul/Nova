@@ -29,7 +29,7 @@ import ratArch (PosDenView, qPosDenView, leQUnsquash)
 import equality (trans, sym, cong, transport)
 import id (Id, idToEq, eqToId)
 
-def qSubFlip : (x y : El Q) → qAdd x (qNeg y) ≡ qNeg (qAdd y (qNeg x)) ∈ El Q ≔
+def qSubFlip : (x y : El Q) → qAdd x (qNeg y) ≡ qNeg (qAdd y (qNeg x)) ≔
   λx. λy. qAdd x (qNeg y)
       ≡⟨ qAddComm x (qNeg y) ⟩ qAdd (qNeg y) x
       ≡⟨ cong
@@ -47,7 +47,7 @@ def qSubFlip : (x y : El Q) → qAdd x (qNeg y) ≡ qNeg (qAdd y (qNeg x)) ∈ E
 
 def qNegFrac : (N : El Int)
   (b : ℕ)
-  → qNeg (qcls (mkRat N (nzPos b))) ≡ qcls (mkRat (intNeg N) (nzPos b)) ∈ El Q
+  → qNeg (qcls (mkRat N (nzPos b))) ≡ qcls (mkRat (intNeg N) (nzPos b))
   using (integer.Int.unfold,
     integer.intNeg.eq,
     rational.Rat.unfold,
@@ -61,7 +61,7 @@ def qNegFrac : (N : El Int)
     rationalQ.qcls.eq) ≔
   λN. λb. ⋆
 
-def intNegPair : (a b : ℕ) → intNeg (class (a, b)) ≡ class (b, a) ∈ El Int
+def intNegPair : (a b : ℕ) → intNeg (class (a, b)) ≡ class (b, a)
   using (integer.Int.unfold, integer.intNeg.eq) ≔
   λa. λb. ⋆
 
@@ -70,7 +70,7 @@ def intNegPair : (a b : ℕ) → intNeg (class (a, b)) ≡ class (b, a) ∈ El I
 def qDiffFracNat : {m b K : ℕ}
   → qAdd
     (qcls (mkRat (intOfNat m) (nzPos b)))
-    (qNeg (qOfNat K)) ≡ qcls (mkRat (class (m, S b * K)) (nzPos b)) ∈ El Q
+    (qNeg (qOfNat K)) ≡ qcls (mkRat (class (m, S b * K)) (nzPos b))
   using (rationalQ.Q.unfold, rational.Rat.unfold, integer.Int.unfold) ≔
   λm. λb. λK. qAdd (qcls (mkRat (intOfNat m) (nzPos b))) (qNeg (qOfNat K))
       ≡⟨ qSubFlip
@@ -136,7 +136,7 @@ def leQFloorPos : {M : El Int}
     rationalQ.Q.unfold) ≔
   λM. λb. ⊎-elim (w. El (LeQ
     (qOfNat (divN (intMag M) b))
-    (⊎-elim (v. El Q) (nn. qcls (mkRat M (nzPos b))) (hn. qNeg (qcls (mkRat M (nzPos b)))) w)))
+    (⊎-elim (nn. qcls (mkRat M (nzPos b))) (hn. qNeg (qcls (mkRat M (nzPos b)))) w)))
     (nn. transport
       Int
       (λv. LeQ (qOfNat (divN (intMag M) b)) (qcls (mkRat v (nzPos b))))
@@ -219,7 +219,7 @@ def leQFloorAt : (N : El Int)
 -- ===== ...and on the quotient =====
 def leQFloorAbsSq : (u : El Q) → Prf ∥El (LeQ (qOfNat (qFloor u)) (qAbs u))∥
   using (integer.Int.unfold, rational.Rat.unfold, rationalQ.Q.unfold, rationalQ.qcls.eq) ≔
-  λu. quot-elim (w. Prf ∥El (LeQ (qOfNat (qFloor w)) (qAbs w))∥)
+  λu. quot-elim
     (p. ⋆ (transport
       Rat
       (λr. LeQ (qOfNat (qFloor (qcls r))) (qAbs (qcls r)))

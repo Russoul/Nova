@@ -22,7 +22,7 @@ def ker : (G : 𝕌)
   (h : El (IsGroup H))
   (p : El (Hom G g H h))
   → El G → Ω ≔
-  λG. λg. λH. λh. λp. λx. homAp G g H h p x ≡ ge h ∈ El H
+  λG. λg. λH. λh. λp. λx. homAp G g H h p x ≡ ge h
 
 def kerOp : (G : 𝕌)
   (g : El (IsGroup G))
@@ -188,7 +188,7 @@ def imEq : (G : 𝕌)
   (h : El (IsGroup H))
   (p : El (Hom G g H h))
   (u v : El (Im G g H h p))
-  → (u .π₁ ≡ v .π₁ ∈ El H) → u ≡ v ∈ El (Im G g H h p)
+  → (u .π₁ ≡ v .π₁) → u ≡ v
   using (Im.unfold) ≔
   λG. λg. λH. λh. λp. λu. λv. λe. sigmaEq2
     H
@@ -470,7 +470,7 @@ def kerKills : (G : 𝕌)
   (h : El (IsGroup H))
   (p : El (Hom G g H h))
   (x : El G)
-  → Prf (ker G g H h p x) → homAp G g H h p x ≡ ge h ∈ El H
+  → Prf (ker G g H h p x) → homAp G g H h p x ≡ ge h
   using (ker.eq) ≔
   λG. λg. λH. λh. λp. λx. λk. k
 
@@ -480,12 +480,7 @@ def toImConst : (G : 𝕌)
   (h : El (IsGroup H))
   (p : El (Hom G g H h))
   (a a' : El G)
-  → Prf (cosetRel
-    G
-    g
-    (ker G g H h p)
-    a
-    a') → imIn G g H h p a ≡ imIn G g H h p a' ∈ El (Im G g H h p)
+  → Prf (cosetRel G g (ker G g H h p) a a') → imIn G g H h p a ≡ imIn G g H h p a'
   using (imIn.eq) ≔
   λG. λg. λH. λh. λp. λa. λa'. λr. imEq
     G
@@ -511,7 +506,7 @@ def toImCls : (G : 𝕌)
   (h : El (IsGroup H))
   (p : El (Hom G g H h))
   (a : El G)
-  → toImMap G g H h p (class a) ≡ imIn G g H h p a ∈ El (Im G g H h p)
+  → toImMap G g H h p (class a) ≡ imIn G g H h p a
   using (quotGroup.QGroup.unfold, toImMap.eq) ≔
   λG. λg. λH. λh. λp. λa. qFactorCls
     G
@@ -528,13 +523,7 @@ def imInOp : (G : 𝕌)
   (h : El (IsGroup H))
   (p : El (Hom G g H h))
   (a b : El G)
-  → imIn
-    G
-    g
-    H
-    h
-    p
-    (gop G g a b) ≡ imOp G g H h p (imIn G g H h p a) (imIn G g H h p b) ∈ El (Im G g H h p)
+  → imIn G g H h p (gop G g a b) ≡ imOp G g H h p (imIn G g H h p a) (imIn G g H h p b)
   using (imIn.eq, imOp.eq) ≔
   λG. λg. λH. λh. λp. λa. λb. imEq
     G
@@ -564,41 +553,10 @@ def toImLawQ : {G : 𝕌}
       (ker G g H h p)
       (kerIsNormal G g H h p)
       u
-      v) ≡ imOp G g H h p (toImMap G g H h p u) (toImMap G g H h p v) ∈ El (Im G g H h p)
+      v) ≡ imOp G g H h p (toImMap G g H h p u) (toImMap G g H h p v)
   using (quotGroup.QGroup.unfold) ≔
-  λG. λg. λH. λh. λp. λu. λv. quot-elim (uu. toImMap
-    G
-    g
-    H
-    h
-    p
-    (qMul
-      G
-      g
-      (ker G g H h p)
-      (kerIsNormal G g H h p)
-      uu
-      v) ≡ imOp G g H h p (toImMap G g H h p uu) (toImMap G g H h p v) ∈ El (Im G g H h p))
-    (a. quot-elim (vv. toImMap
-      G
-      g
-      H
-      h
-      p
-      (qMul
-        G
-        g
-        (ker G g H h p)
-        (kerIsNormal G g H h p)
-        (class a)
-        vv) ≡ imOp
-      G
-      g
-      H
-      h
-      p
-      (toImMap G g H h p (class a))
-      (toImMap G g H h p vv) ∈ El (Im G g H h p))
+  λG. λg. λH. λh. λp. λu. λv. quot-elim
+    (a. quot-elim
       (b. toImMap G g H h p (qMul G g (ker G g H h p) (kerIsNormal G g H h p) (class a) (class b))
           ≡⟨ cong
             (QGroup G g (ker G g H h p))
@@ -658,7 +616,7 @@ def imopIsImOp : (G : 𝕌)
   (h : El (IsGroup H))
   (p : El (Hom G g H h))
   (u v : El (Im G g H h p))
-  → gop (Im G g H h p) (imIsGroup G g H h p) u v ≡ imOp G g H h p u v ∈ El (Im G g H h p)
+  → gop (Im G g H h p) (imIsGroup G g H h p) u v ≡ imOp G g H h p u v
   using (groupTheory.gop.eq, imIsGroup.eq) ≔
   λG. λg. λH. λh. λp. λu. λv. ⋆
 
@@ -678,11 +636,7 @@ def toImLaw : (G : 𝕌)
       (QGroup G g (ker G g H h p))
       (qIsGroup G g (ker G g H h p) (kerIsSubgroup G g H h p) (kerIsNormal G g H h p))
       u
-      v) ≡ gop
-    (Im G g H h p)
-    (imIsGroup G g H h p)
-    (toImMap G g H h p u)
-    (toImMap G g H h p v) ∈ El (Im G g H h p) ≔
+      v) ≡ gop (Im G g H h p) (imIsGroup G g H h p) (toImMap G g H h p u) (toImMap G g H h p v) ≔
   λG. λg. λH. λh. λp. λu. λv. trans
     (Im G g H h p)
     (toImMap
@@ -754,11 +708,7 @@ def fromImConst : (G : 𝕌)
   (p : El (Hom G g H h))
   (y : El H)
   (f f' : El (imFib G g H h p y))
-  → qcls
-    G
-    g
-    (ker G g H h p)
-    (f .π₁) ≡ qcls G g (ker G g H h p) (f' .π₁) ∈ El (QGroup G g (ker G g H h p))
+  → qcls G g (ker G g H h p) (f .π₁) ≡ qcls G g (ker G g H h p) (f' .π₁)
   using (ker.eq, subgroup.cosetRel.eq, imFib.unfold) ≔
   λG. λg. λH. λh. λp. λy. λf. λf'. qclsEq
     (kerIsSubgroup G g H h p)
@@ -825,7 +775,7 @@ def fromImIn : {G : 𝕌}
   {h : El (IsGroup H)}
   {p : El (Hom G g H h)}
   {a : El G}
-  → fromIm (imIn G g H h p a) ≡ qcls G g (ker G g H h p) a ∈ El (QGroup G g (ker G g H h p))
+  → fromIm (imIn G g H h p a) ≡ qcls G g (ker G g H h p) a
   using (imIn.eq, fromIm.eq, fromImAt.eq, bracket.br.eq, bracket.brElim.eq) ≔
   λG. λg. λH. λh. λp. λa. ⋆
 
@@ -835,10 +785,9 @@ def fromImToIm : (G : 𝕌)
   (h : El (IsGroup H))
   (p : El (Hom G g H h))
   (u : El (QGroup G g (ker G g H h p)))
-  → fromIm (toImMap G g H h p u) ≡ u ∈ El (QGroup G g (ker G g H h p))
+  → fromIm (toImMap G g H h p u) ≡ u
   using (quotGroup.QGroup.unfold, quotGroup.qcls.eq) ≔
-  λG. λg. λH. λh. λp. λu. quot-elim (uu. fromIm
-    (toImMap G g H h p uu) ≡ uu ∈ El (QGroup G g (ker G g H h p)))
+  λG. λg. λH. λh. λp. λu. quot-elim
     (a. trans
       (QGroup G g (ker G g H h p))
       (fromIm (toImMap G g H h p (class a)))
@@ -864,7 +813,7 @@ def toImFromImFst : (G : 𝕌)
   (p : El (Hom G g H h))
   (y : El H)
   (w : El (Br (imFib G g H h p y)))
-  → toImMap G g H h p (fromImAt y w) .π₁ ≡ y ∈ El H
+  → toImMap G g H h p (fromImAt y w) .π₁ ≡ y
   using (Im.unfold,
     imFib.unfold,
     imIn.eq,
@@ -872,7 +821,7 @@ def toImFromImFst : (G : 𝕌)
     bracket.Br.unfold,
     bracket.brElim.eq,
     quotGroup.qcls.eq) ≔
-  λG. λg. λH. λh. λp. λy. λw. quot-elim (v. toImMap G g H h p (fromImAt y v) .π₁ ≡ y ∈ El H)
+  λG. λg. λH. λh. λp. λy. λw. quot-elim
     (f. trans
       H
       (toImMap G g H h p (fromImAt y (class f)) .π₁)
@@ -894,7 +843,7 @@ def toImFromIm : (G : 𝕌)
   (h : El (IsGroup H))
   (p : El (Hom G g H h))
   (z : El (Im G g H h p))
-  → toImMap G g H h p (fromIm z) ≡ z ∈ El (Im G g H h p)
+  → toImMap G g H h p (fromIm z) ≡ z
   using (Im.unfold, fromIm.eq) ≔
   λG. λg. λH. λh. λp. λz. imEq
     G
@@ -933,7 +882,7 @@ def imIncLaw : (G : 𝕌)
       (Im G g H h p)
       (imIsGroup G g H h p)
       u
-      v) ≡ gop H h (imIncFun G g H h p u) (imIncFun G g H h p v) ∈ El H
+      v) ≡ gop H h (imIncFun G g H h p u) (imIncFun G g H h p v)
   using (imIncFun.eq, imOp.eq) ≔
   λG. λg. λH. λh. λp. λu. λv. trans
     H
@@ -963,7 +912,7 @@ def imIncAp : (G : 𝕌)
   (h : El (IsGroup H))
   (p : El (Hom G g H h))
   (u : El (Im G g H h p))
-  → homAp (Im G g H h p) (imIsGroup G g H h p) H h imInc u ≡ imIncFun G g H h p u ∈ El H
+  → homAp (Im G g H h p) (imIsGroup G g H h p) H h imInc u ≡ imIncFun G g H h p u
   using (imInc.eq) ≔
   λG. λg. λH. λh. λp. λu. homIntroAp
     (Im G g H h p)
@@ -986,7 +935,7 @@ def toImAp : {G : 𝕌}
     (Im G g H h p)
     (imIsGroup G g H h p)
     toIm
-    u ≡ toImMap G g H h p u ∈ El (Im G g H h p)
+    u ≡ toImMap G g H h p u
   using (toIm.eq) ≔
   λG. λg. λH. λh. λp. λu. homIntroAp
     (QGroup G g (ker G g H h p))
@@ -1016,7 +965,7 @@ def toImOfProj : {G : 𝕌}
       (QGroup G g (ker G g H h p))
       (qIsGroup G g (ker G g H h p) (kerIsSubgroup G g H h p) (kerIsNormal G g H h p))
       qProj
-      a) ≡ imIn G g H h p a ∈ El (Im G g H h p)
+      a) ≡ imIn G g H h p a
   using (quotGroup.qcls.eq) ≔
   λG. λg. λH. λh. λp. λa. trans
     (Im G g H h p)
@@ -1099,7 +1048,7 @@ def firstIsoFactors : (G : 𝕌)
         (QGroup G g (ker G g H h p))
         (qIsGroup G g (ker G g H h p) (kerIsSubgroup G g H h p) (kerIsNormal G g H h p))
         qProj
-        a)) ≡ homAp G g H h p a ∈ El H
+        a)) ≡ homAp G g H h p a
   using (imIn.eq, imIncFun.eq) ≔
   λG. λg. λH. λh. λp. λa. trans
     H

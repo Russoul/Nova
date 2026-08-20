@@ -15,15 +15,14 @@ def plus : ℕ → ℕ → ℕ
 
 -- the generated clause lemmas are ordinary accepted lemmas: an
 -- induction cites plusZ/plusS silently, through E's lemma source
-def plusZr : (n : ℕ) → plus n Z ≡ n ∈ ℕ using (definingEq.plusZ, plus.eq) ≔
-  λn. ℕ-elim (x. plus x Z ≡ x ∈ ℕ) ⋆ (k ih. ⋆) n
+def plusZr : (n : ℕ) → plus n Z ≡ n using (definingEq.plusZ, plus.eq) ≔ λn. ℕ-elim ⋆ (k ih. ⋆) n
 
 -- the uniqueness lemma is the recursor's universal property: any
 -- candidate satisfying the clauses IS plus — here a hand-written
 -- eliminator, its clause hypotheses paid by computation
-def plusByHand : ℕ → ℕ → ℕ ≔ λm. λn. ℕ-elim (x. ℕ) n (k ih. S ih) m
+def plusByHand : ℕ → ℕ → ℕ ≔ λm. λn. ℕ-elim n (k ih. S ih) m
 
-def byHandIsPlus : (m n : ℕ) → plusByHand m n ≡ plus m n ∈ ℕ using (definingEq.plusByHand.eq) ≔
+def byHandIsPlus : (m n : ℕ) → plusByHand m n ≡ plus m n using (definingEq.plusByHand.eq) ≔
   λm. λn. plusEta plusByHand (λx. ⋆) (λk. λx. ⋆) m n
 
 -- recursion at a CHANGED trailing argument is in the fragment: the
@@ -53,7 +52,7 @@ def ⊞ : ℕ → ℕ → ℕ [oplusEta]
 -- paid with ⋆ (here by computation), uniqueness still synthesized —
 -- the eta proof rewrites by the clause lemmas, never by unfolding
 -- the witness
-def pred : ℕ → ℕ ≔ λn. ℕ-elim (x. ℕ) Z (k ih. k) n
+def pred : ℕ → ℕ ≔ λn. ℕ-elim Z (k ih. k) n
   | pred Z ≔ Z
   | pred (S m) ≔ m
 

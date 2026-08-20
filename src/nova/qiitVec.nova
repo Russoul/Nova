@@ -16,13 +16,13 @@ def vfold : (a : 𝕌) {b : 𝕌} (z : El b) (c : El a → El b → El b) (n : E
 -- generic length and an instance-level sum, both folds
 def vlen : (a : 𝕌) (n : El ℕ) → El (V a n) → ℕ ≔ λa. λn. λv. vfold a Z (λx. λih. S ih) n v
 
-def plusV : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) y (n ih. S ih) x
+def plusV : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim y (n ih. S ih) x
 
 def vsum : (n : El ℕ) → El (V ℕ n) → ℕ ≔ λn. λv. vfold ℕ Z (λx. λih. plusV x ih) n v
 
 def single : El (V ℕ (S Z)) using (qiitVec.V.eq, qiitVec.V.unfold) ≔ vcons ℕ Z 3 (vnil ℕ)
 
-def vsumSingle : vsum (S Z) single ≡ 3 ∈ ℕ
+def vsumSingle : vsum (S Z) single ≡ 3
   using (qiitVec.VElim.eq,
     qiitVec.plusV.eq,
     qiitVec.single.eq,
@@ -32,7 +32,7 @@ def vsumSingle : vsum (S Z) single ≡ 3 ∈ ℕ
     qiitVec.vsum.eq) ≔
   ⋆
 
-def vlenSingle : vlen ℕ (S Z) single ≡ S Z ∈ ℕ
+def vlenSingle : vlen ℕ (S Z) single ≡ S Z
   using (qiitVec.VElim.eq,
     qiitVec.single.eq,
     qiitVec.vcons.eq,

@@ -10,8 +10,7 @@
 
 import equality (cong, transport)
 
-def swap : {a b : 𝕌} → El (a ⊎ b) → El (b ⊎ a) ≔
-  λa. λb. λt. ⊎-elim (w. El (b ⊎ a)) (x. inj₂ x) (y. inj₁ y) t
+def swap : {a b : 𝕌} → El (a ⊎ b) → El (b ⊎ a) ≔ λa. λb. λt. ⊎-elim (x. inj₂ x) (y. inj₁ y) t
 
 -- β on each injection, by computation
 def swapBeta1 : (a b : 𝕌) (x : El a) → swap (inj₁ x) ≡ inj₂ x ∈ El (b ⊎ a) using (sum.swap.eq) ≔
@@ -23,7 +22,7 @@ def swapBeta2 : (a b : 𝕌) (y : El b) → swap (inj₂ y) ≡ inj₁ y ∈ El 
 -- swap is an involution: case analysis with an equality motive, both
 -- cases closing by β
 def swapInvol : (a b : 𝕌) (t : El (a ⊎ b)) → swap (swap t) ≡ t ∈ El a ⊎ El b using (sum.swap.eq) ≔
-  λa. λb. λt. ⊎-elim (w. swap (swap w) ≡ w ∈ El a ⊎ El b) (x. ⋆) (y. ⋆) t
+  λa. λb. λt. ⊎-elim (x. ⋆) (y. ⋆) t
 
 -- the uniqueness (η) law, propositionally: any map out of a ⊎ b IS
 -- the eliminator over its own injection images (el-sum-eta's content,
@@ -31,8 +30,8 @@ def swapInvol : (a b : 𝕌) (t : El (a ⊎ b)) → swap (swap t) ≡ t ∈ El a
 def sumEta : (a b c : 𝕌)
   (f : El (a ⊎ b) → El c)
   (t : El (a ⊎ b))
-  → ⊎-elim (w. El c) (x. f (inj₁ x)) (y. f (inj₂ y)) t ≡ f t ∈ El c ≔
-  λa. λb. λc. λf. λt. ⊎-elim (w. ⊎-elim (v. El c) (x. f (inj₁ x)) (y. f (inj₂ y)) w ≡ f w ∈ El c)
+  → ⊎-elim (w. El c) (x. f (inj₁ x)) (y. f (inj₂ y)) t ≡ f t ≔
+  λa. λb. λc. λf. λt. ⊎-elim (w. ⊎-elim (v. El c) (x. f (inj₁ x)) (y. f (inj₂ y)) w ≡ f w)
     (x. ⋆)
     (y. ⋆)
     t
@@ -40,36 +39,34 @@ def sumEta : (a b c : 𝕌)
 -- the ⊎ TYPE former and its code agree: El (a ⊎ b) ≐ El a ⊎ El b
 -- (ty-el-sum), so the conversions between them are the identity
 -- case analysis
-def toCode : {a b : 𝕌} → El a ⊎ El b → El (a ⊎ b) ≔
-  λa. λb. λt. ⊎-elim (w. El (a ⊎ b)) (x. inj₁ x) (y. inj₂ y) t
+def toCode : {a b : 𝕌} → El a ⊎ El b → El (a ⊎ b) ≔ λa. λb. λt. ⊎-elim (x. inj₁ x) (y. inj₂ y) t
 
-def fromCode : {a b : 𝕌} → El (a ⊎ b) → El a ⊎ El b ≔
-  λa. λb. λt. ⊎-elim (w. El a ⊎ El b) (x. inj₁ x) (y. inj₂ y) t
+def fromCode : {a b : 𝕌} → El (a ⊎ b) → El a ⊎ El b ≔ λa. λb. λt. ⊎-elim (x. inj₁ x) (y. inj₂ y) t
 
 def toFromId : (a b : 𝕌) (t : El (a ⊎ b)) → toCode (fromCode t) ≡ t ∈ El a ⊎ El b
   using (sum.fromCode.eq, sum.toCode.eq) ≔
-  λa. λb. λt. ⊎-elim (w. toCode (fromCode w) ≡ w ∈ El (a ⊎ b)) (x. ⋆) (y. ⋆) t
+  λa. λb. λt. ⊎-elim (w. toCode (fromCode w) ≡ w) (x. ⋆) (y. ⋆) t
 
 -- inj₁ is injective — DERIVABLE, no rule needed: a ⊎-elim retraction
 -- at constant motive El a whose right case returns a fixed default
 -- (the compared element itself serves), then congruence
-def outl : (a b : 𝕌) → El a → El (a ⊎ b) → El a ≔ λa. λb. λd. λt. ⊎-elim (w. El a) (x. x) (y. d) t
+def outl : (a b : 𝕌) → El a → El (a ⊎ b) → El a ≔ λa. λb. λd. λt. ⊎-elim (x. x) (y. d) t
 
-def inj1Injective : (a b : 𝕌) (x x' : El a) → (inj₁ x ≡ inj₁ x' ∈ El (a ⊎ b)) → x ≡ x' ∈ El a
+def inj1Injective : (a b : 𝕌) (x x' : El a) → (inj₁ x ≡ inj₁ x' ∈ El (a ⊎ b)) → x ≡ x'
   using (sum.outl.eq) ≔
   λa. λb. λx. λx'. λh. cong (a ⊎ b) (λw. a) (outl a b x) (inj₁ x) (inj₁ x') h
 
 -- inj₁ and inj₂ are disjoint — also derivable: transport the
 -- "is-left" code along the bad equation and land a 𝟙-witness in 𝟘
-def isLeftCode : (a b : 𝕌) → El (a ⊎ b) → 𝕌 ≔ λa. λb. λt. ⊎-elim (w. 𝕌) (x. 𝟙) (y. 𝟘) t
+def isLeftCode : (a b : 𝕌) → El (a ⊎ b) → 𝕌 ≔ λa. λb. λt. ⊎-elim (x. 𝟙) (y. 𝟘) t
 
 def inj1NotInj2 : (a b : 𝕌) (x : El a) (y : El b) → (inj₁ x ≡ inj₂ y ∈ El (a ⊎ b)) → 𝟘
   using (sum.isLeftCode.unfold) ≔
   λa. λb. λx. λy. λh. transport (a ⊎ b) (isLeftCode a b) (inj₁ x) (inj₂ y) h ()
 
 -- the mirror image of outl/inj1Injective, for the right injection
-def outr : (a b : 𝕌) → El b → El (a ⊎ b) → El b ≔ λa. λb. λd. λt. ⊎-elim (w. El b) (x. d) (y. y) t
+def outr : (a b : 𝕌) → El b → El (a ⊎ b) → El b ≔ λa. λb. λd. λt. ⊎-elim (x. d) (y. y) t
 
-def inj2Injective : (a b : 𝕌) (y y' : El b) → (inj₂ y ≡ inj₂ y' ∈ El (a ⊎ b)) → y ≡ y' ∈ El b
+def inj2Injective : (a b : 𝕌) (y y' : El b) → (inj₂ y ≡ inj₂ y' ∈ El (a ⊎ b)) → y ≡ y'
   using (sum.outr.eq) ≔
   λa. λb. λy. λy'. λh. cong (a ⊎ b) (λw. b) (outr a b y) (inj₂ y) (inj₂ y') h

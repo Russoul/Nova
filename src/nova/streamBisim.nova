@@ -17,10 +17,10 @@ import streamEq (tlN, nth, obsEq, obsEqRefl, nthMap, mapIdObsEq, mapFuseObsEq)
 def bisim : (a : 𝕌) → El (stream a) → El (stream a) → Ω ≔
   λa. λs. λt. ∥(r : El (stream a) → El (stream a) → Ω)
     ⨯ ((x y : El (stream a))
-      → Prf (r x y) → Prf (hd a x ≡ hd a y ∈ El a) ⨯ Prf (r (tl x) (tl y))) ⨯ Prf (r s t)∥
+      → Prf (r x y) → Prf (hd a x ≡ hd a y) ⨯ Prf (r (tl x) (tl y))) ⨯ Prf (r s t)∥
 
 -- UNFOLD, head half: bisimilar streams agree at the head
-def bisimHd : (a : 𝕌) (s t : El (stream a)) → Prf (bisim a s t) → Prf (hd a s ≡ hd a t ∈ El a)
+def bisimHd : (a : 𝕌) (s t : El (stream a)) → Prf (bisim a s t) → Prf (hd a s ≡ hd a t)
   using (streamBisim.bisim.unfold) ≔
   λa. λs. λt. λh. squash-elim h (w. w .π₂ .π₁ s t (w .π₂ .π₂) .π₁)
 
@@ -33,8 +33,7 @@ def bisimTl : (a : 𝕌) (s t : El (stream a)) → Prf (bisim a s t) → Prf (bi
 -- a DIRECT corecursive proof: reflexivity, with judgemental equality
 -- itself as the invariant — heads by cong at hd, tails by cong at tl
 def bisimRefl : (a : 𝕌) (s : El (stream a)) → Prf (bisim a s s) using (streamBisim.bisim.unfold) ≔
-  λa. λs. ⋆ ((λx. λy. x ≡ y ∈ El (stream
-    a)),
+  λa. λs. ⋆ ((λx. λy. x ≡ y),
     (λx. λy. λp. cong
       (stream a)
       (λv. a)
@@ -69,7 +68,7 @@ def bisimObsEq : (a : 𝕌) (s t : El (stream a)) → Prf (bisim a s t) → Prf 
     streamEq.obsEq.unfold,
     streamEq.tlN.eq) ≔
   λa. λs. λt. λh. ⋆ (λn. (ℕ-elim (m. (x y : El (stream a))
-    → Prf (bisim a x y) → Prf (nth m x ≡ nth m y ∈ El a))
+    → Prf (bisim a x y) → Prf (nth m x ≡ nth m y))
     (λx. λy. λg. bisimHd a x y g)
     (m ih. λx. λy. λg. ih (tl x) (tl y) (bisimTl a x y g))
     n)
@@ -86,7 +85,7 @@ def mapIdBisim : (a : 𝕌) (s : El (stream a)) → Prf (bisim a (mapS a a (λx.
 -- surface form, with bisim ITSELF as the invariant and the unfold
 -- laws as the one-step closure. This is the theorem that upgrades
 -- every observational result below it to a judgemental equation.
-def bisimReflect : {a : 𝕌} {s t : El (stream a)} → Prf (bisim a s t) → Prf (s ≡ t ∈ El (stream a))
+def bisimReflect : {a : 𝕌} {s t : El (stream a)} → Prf (bisim a s t) → Prf (s ≡ t)
   using (bisim.eq,
     hyp.rw,
     stream.hd.eq,
@@ -96,16 +95,16 @@ def bisimReflect : {a : 𝕌} {s t : El (stream a)} → Prf (bisim a s t) → Pr
     streamBisim.bisim.unfold) ≔
   λa. λs. λt. λh. coind (x y. bisim a x y) h (x y hb. ⋆ (bisimHd a x y hb, bisimTl a x y hb))
 
-def obsEqReflect : {a : 𝕌} {s t : El (stream a)} → Prf (obsEq a s t) → Prf (s ≡ t ∈ El (stream a)) ≔
+def obsEqReflect : {a : 𝕌} {s t : El (stream a)} → Prf (obsEq a s t) → Prf (s ≡ t) ≔
   λa. λs. λt. λh. bisimReflect (obsEqBisim h)
 
 -- the η-needing equalities, now judgemental theorems
-def mapIdEq : (a : 𝕌) (s : El (stream a)) → mapS a a (λx. x) s ≡ s ∈ El (stream a) ≔
+def mapIdEq : (a : 𝕌) (s : El (stream a)) → mapS a a (λx. x) s ≡ s ≔
   λa. λs. bisimReflect (mapIdBisim a s)
 
 def mapFuseEq : (a b c : 𝕌)
   (f : El a → El b)
   (g : El b → El c)
   (s : El (stream a))
-  → mapS b c g (mapS a b f s) ≡ mapS a c (λx. g (f x)) s ∈ El (stream c) ≔
+  → mapS b c g (mapS a b f s) ≡ mapS a c (λx. g (f x)) s ≔
   λa. λb. λc. λf. λg. λs. obsEqReflect (mapFuseObsEq a b c f g s)

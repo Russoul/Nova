@@ -10,7 +10,7 @@ import natOrder (LeN, leRefl, leTrans, leTotal, sumZeroL, sumZeroR, leAntisym)
 import equality (trans, sym, cong)
 import id (Id, idToEq, eqToId)
 
-def multDistribR : (n m k : ℕ) → (m + k) * n ≡ m * n + k * n ∈ ℕ ≔
+def multDistribR : (n m k : ℕ) → (m + k) * n ≡ m * n + k * n ≔
   λn. λm. λk. (m + k) * n
       ≡⟨ multComm (m + k) n ⟩ n * (m + k)
       ≡⟨ multDistrib n m k ⟩ n * m + n * k
@@ -18,7 +18,7 @@ def multDistribR : (n m k : ℕ) → (m + k) * n ≡ m * n + k * n ∈ ℕ ≔
       ≡⟨ cong ℕ (λu. ℕ) (λw. m * n + w) (n * k) (k * n) (multComm k n) ⟩ m * n + k * n
 
 -- ===== cancellation =====
-def plusCancelL : (k n m : ℕ) → (k + n ≡ k + m ∈ ℕ) → n ≡ m ∈ ℕ ≔
+def plusCancelL : (k n m : ℕ) → (k + n ≡ k + m) → n ≡ m ≔
   λk. λn. λm. λh. plusCancel
     n
     m
@@ -32,7 +32,7 @@ def plusCancelL : (k n m : ℕ) → (k + n ≡ k + m ∈ ℕ) → n ≡ m ∈ �
       (trans ℕ (k + n) (k + m) (m + k) h (plusComm m k)))
 
 -- a product with a SUCCESSOR is zero only if the other factor is
-def multZeroInv : (j k : ℕ) → (j * S k ≡ Z ∈ ℕ) → j ≡ Z ∈ ℕ ≔
+def multZeroInv : (j k : ℕ) → (j * S k ≡ Z) → j ≡ Z ≔
   λj. λk. λh. sumZeroL
     j
     (j * k)
@@ -40,10 +40,10 @@ def multZeroInv : (j k : ℕ) → (j * S k ≡ Z ∈ ℕ) → j ≡ Z ∈ ℕ �
 
 -- cancellation by S k, under the assumption that the smaller side is
 -- known: the surplus times S k is zero, hence zero
-def multCancelLe : {n m : ℕ} (k : ℕ) → El (LeN n m) → (n * S k ≡ m * S k ∈ ℕ) → n ≡ m ∈ ℕ
+def multCancelLe : {n m : ℕ} (k : ℕ) → El (LeN n m) → (n * S k ≡ m * S k) → n ≡ m
   using (id.Id.unfold, nat.plusZeroId, natOrder.LeN.unfold) ≔
   λn. λm. λk. λle. λh. let e : n
-    + le .π₁ ≡ m ∈ ℕ ≔ idToEq
+    + le .π₁ ≡ m ≔ idToEq
     ℕ
     (n + le .π₁)
     m
@@ -51,7 +51,7 @@ def multCancelLe : {n m : ℕ} (k : ℕ) → El (LeN n m) → (n * S k ≡ m * S
     * S k ≡ n
     * S k
     + le .π₁
-      * S k ∈ ℕ ≔ trans
+      * S k ≔ trans
     ℕ
     (n * S k)
     (m * S k)
@@ -89,37 +89,36 @@ def multCancelLe : {n m : ℕ} (k : ℕ) → El (LeN n m) → (n * S k ≡ m * S
       (trans ℕ (n + le .π₁) (n + Z) n (cong ℕ (λu. ℕ) (λw. n + w) (le .π₁) Z jz) (plusZeroId n)))
     e
 
-def multCancelR : (n m k : ℕ) → (n * S k ≡ m * S k ∈ ℕ) → n ≡ m ∈ ℕ ≔
-  λn. λm. λk. λh. ⊎-elim (w. n ≡ m ∈ ℕ)
+def multCancelR : (n m k : ℕ) → (n * S k ≡ m * S k) → n ≡ m ≔
+  λn. λm. λk. λh. ⊎-elim
     (le. multCancelLe k le h)
     (le. sym ℕ m n (multCancelLe k le (sym ℕ (n * S k) (m * S k) h)))
     (leTotal n m)
 
 -- ===== truncated subtraction =====
-def pred : ℕ → ℕ ≔ λn. ℕ-elim (k. ℕ) Z (k ih. k) n
+def pred : ℕ → ℕ ≔ λn. ℕ-elim Z (k ih. k) n
 
 infixl 6 ∸
-def ∸ : ℕ → ℕ → ℕ ≔ λa. λb. ℕ-elim (k. ℕ) a (k ih. pred ih) b
+def ∸ : ℕ → ℕ → ℕ ≔ λa. λb. ℕ-elim a (k ih. pred ih) b
 
-def monusZeroR : {a : ℕ} → a ∸ Z ≡ a ∈ ℕ using (natMore.∸.eq) ≔ λa. ⋆
+def monusZeroR : {a : ℕ} → a ∸ Z ≡ a using (natMore.∸.eq) ≔ λa. ⋆
 
-def monusSucR : (a b : ℕ) → a ∸ S b ≡ pred (a ∸ b) ∈ ℕ using (natMore.pred.eq, natMore.∸.eq) ≔
-  λa. λb. ⋆
+def monusSucR : (a b : ℕ) → a ∸ S b ≡ pred (a ∸ b) using (natMore.pred.eq, natMore.∸.eq) ≔ λa. λb. ⋆
 
-def zeroMonus : (b : ℕ) → Z ∸ b ≡ Z ∈ ℕ
+def zeroMonus : (b : ℕ) → Z ∸ b ≡ Z
   using (hyp.rw,
     natMore.monusZeroR,
     natMore.monusZeroR.rw,
     natMore.monusSucR,
     natMore.monusSucR.rw,
     natMore.pred.eq) ≔
-  λb. ℕ-elim (k. Z ∸ k ≡ Z ∈ ℕ) ⋆ (k ih. ⋆) b
+  λb. ℕ-elim ⋆ (k ih. ⋆) b
 
-def sucMonusSuc : (a b : ℕ) → S a ∸ S b ≡ a ∸ b ∈ ℕ using (natMore.pred.eq, natMore.∸.eq) ≔
-  λa. λb. ℕ-elim (k. S a ∸ S k ≡ a ∸ k ∈ ℕ) ⋆ (k ih. ⋆) b
+def sucMonusSuc : (a b : ℕ) → S a ∸ S b ≡ a ∸ b using (natMore.pred.eq, natMore.∸.eq) ≔
+  λa. λb. ℕ-elim ⋆ (k ih. ⋆) b
 
 -- (a + b) − b is a, on the nose
-def plusMonus : (a b : ℕ) → a + b ∸ b ≡ a ∈ ℕ
+def plusMonus : (a b : ℕ) → a + b ∸ b ≡ a
   using (hyp.rw,
     plusZeroId,
     plusZeroId.rw,
@@ -129,19 +128,18 @@ def plusMonus : (a b : ℕ) → a + b ∸ b ≡ a ∈ ℕ
     natMore.monusZeroR.rw,
     sucMonusSuc,
     sucMonusSuc.rw) ≔
-  λa. λb. ℕ-elim (k. a + k ∸ k ≡ a ∈ ℕ) ⋆ (k ih. ⋆) b
+  λa. λb. ℕ-elim ⋆ (k ih. ⋆) b
 
 -- subtracting a sum is subtracting twice
-def monusPlus : (a b c : ℕ) → a ∸ (b + c) ≡ a ∸ b ∸ c ∈ ℕ using (nat.+.eq, natMore.∸.eq) ≔
-  λa. λb. λc. ℕ-elim (k. a ∸ (b + k) ≡ a ∸ b ∸ k ∈ ℕ) ⋆ (k ih. ⋆) c
+def monusPlus : (a b c : ℕ) → a ∸ (b + c) ≡ a ∸ b ∸ c using (nat.+.eq, natMore.∸.eq) ≔
+  λa. λb. λc. ℕ-elim ⋆ (k ih. ⋆) c
 
-def monusSelf : {a : ℕ} → a ∸ a ≡ Z ∈ ℕ
+def monusSelf : {a : ℕ} → a ∸ a ≡ Z
   using (hyp.rw, natMore.zeroMonus, natMore.zeroMonus.rw, sucMonusSuc, sucMonusSuc.rw) ≔
-  λa. ℕ-elim (k. k ∸ k ≡ Z ∈ ℕ) ⋆ (k ih. ⋆) a
+  λa. ℕ-elim ⋆ (k ih. ⋆) a
 
 -- ...so a ≤ b makes a − b vanish
-def monusZeroOfLe : (a b : ℕ) → El (LeN a b) → a ∸ b ≡ Z ∈ ℕ
-  using (id.Id.unfold, natOrder.LeN.unfold) ≔
+def monusZeroOfLe : (a b : ℕ) → El (LeN a b) → a ∸ b ≡ Z using (id.Id.unfold, natOrder.LeN.unfold) ≔
   λa. λb. λle. a ∸ b
       ≡⟨ cong
         ℕ
@@ -155,10 +153,10 @@ def monusZeroOfLe : (a b : ℕ) → El (LeN a b) → a ∸ b ≡ Z ∈ ℕ
       ≡⟨ zeroMonus (le .π₁) ⟩ Z
 
 -- ...and a ≤ b makes the difference add back
-def leMonusPlus : {a b : ℕ} → El (LeN a b) → a + (b ∸ a) ≡ b ∈ ℕ
+def leMonusPlus : {a b : ℕ} → El (LeN a b) → a + (b ∸ a) ≡ b
   using (id.Id.unfold, natOrder.LeN.unfold) ≔
   λa. λb. λle. let e : a
-    + le .π₁ ≡ b ∈ ℕ ≔ idToEq
+    + le .π₁ ≡ b ≔ idToEq
     ℕ
     (a + le .π₁)
     b
@@ -194,7 +192,7 @@ def leMaxL : (a b : ℕ) → El (LeN a (natMax a b)) using (natMore.natMax.eq, n
 -- b ≤ a : the max is a, and b ≤ a
 def leMaxR : (a b : ℕ) → El (LeN b (natMax a b))
   using (id.Id.unfold, natMore.natMax.eq, natOrder.LeN.unfold) ≔
-  λa. λb. ⊎-elim (w. El (LeN b (natMax a b)))
+  λa. λb. ⊎-elim
     (le. Z,
       eqToId
         (b + Z)
@@ -221,21 +219,21 @@ def leMaxR : (a b : ℕ) → El (LeN b (natMax a b))
           ⋆))
     (leTotal a b)
 
-def natMaxSelf : (a : ℕ) → natMax a a ≡ a ∈ ℕ using (natMore.natMax.eq) ≔
+def natMaxSelf : (a : ℕ) → natMax a a ≡ a using (natMore.natMax.eq) ≔
   λa. trans ℕ (natMax a a) (a + Z) a (cong ℕ (λu. ℕ) (λw. a + w) (a ∸ a) Z monusSelf) (plusZeroId a)
 
-def natMinSelf : (a : ℕ) → natMin a a ≡ a ∈ ℕ using (natMore.natMin.eq) ≔
+def natMinSelf : (a : ℕ) → natMin a a ≡ a using (natMore.natMin.eq) ≔
   λa. trans ℕ (natMin a a) (a ∸ Z) a (cong ℕ (λu. ℕ) (λw. a ∸ w) (a ∸ a) Z monusSelf) monusZeroR
 
 -- ===== exponentiation =====
 infixr 8 ^
-def ^ : ℕ → ℕ → ℕ ≔ λa. λn. ℕ-elim (k. ℕ) (S Z) (k ih. a * ih) n
+def ^ : ℕ → ℕ → ℕ ≔ λa. λn. ℕ-elim (S Z) (k ih. a * ih) n
 
-def expZero : (a : ℕ) → a ^ Z ≡ S Z ∈ ℕ using (natMore.^.eq) ≔ λa. ⋆
+def expZero : (a : ℕ) → a ^ Z ≡ S Z using (natMore.^.eq) ≔ λa. ⋆
 
-def expSuc : (a n : ℕ) → a ^ S n ≡ a * a ^ n ∈ ℕ using (nat.*.eq, natMore.^.eq) ≔ λa. λn. ⋆
+def expSuc : (a n : ℕ) → a ^ S n ≡ a * a ^ n using (nat.*.eq, natMore.^.eq) ≔ λa. λn. ⋆
 
-def oneExp : (n : ℕ) → S Z ^ n ≡ S Z ∈ ℕ
+def oneExp : (n : ℕ) → S Z ^ n ≡ S Z
   using (hyp.rw,
     natMore.expZero,
     natMore.expZero.rw,
@@ -247,17 +245,17 @@ def oneExp : (n : ℕ) → S Z ^ n ≡ S Z ∈ ℕ
     multZeroId.rw,
     plusZeroId,
     plusZeroId.rw) ≔
-  λn. ℕ-elim (k. S Z ^ k ≡ S Z ∈ ℕ) ⋆ (k ih. ⋆) n
+  λn. ℕ-elim ⋆ (k ih. ⋆) n
 
 -- x * (y * z) ≡ y * (x * z): the left-swap under associativity,
 -- stated in the exact shape expPlus's step case needs
-def multLeftComm : (x y z : ℕ) → x * (y * z) ≡ y * (x * z) ∈ ℕ ≔
+def multLeftComm : (x y z : ℕ) → x * (y * z) ≡ y * (x * z) ≔
   λx. λy. λz. x * (y * z)
       ≡⟨ multAssoc x y z ⟩ x * y * z
       ≡⟨ cong ℕ (λu. ℕ) (λw. w * z) (x * y) (y * x) (multComm y x) ⟩ y * x * z
       ≡⟨ multAssoc y x z ⟩ y * (x * z)
 
-def expPlus : (a m n : ℕ) → a ^ (m + n) ≡ a ^ m * a ^ n ∈ ℕ
+def expPlus : (a m n : ℕ) → a ^ (m + n) ≡ a ^ m * a ^ n
   using (hyp.rw,
     plusZeroId,
     plusZeroId.rw,
@@ -267,7 +265,7 @@ def expPlus : (a m n : ℕ) → a ^ (m + n) ≡ a ^ m * a ^ n ∈ ℕ
     multSucId.rw,
     multZeroId,
     multZeroId.rw) ≔
-  λa. λm. λn. ℕ-elim (k. a ^ (m + k) ≡ a ^ m * a ^ k ∈ ℕ)
+  λa. λm. λn. ℕ-elim
     ⋆
     (k ih. a ^ (m + S k)
         ≡⟨ plusSucId m k ⟩ a ^ S (m + k)
@@ -278,11 +276,11 @@ def expPlus : (a m n : ℕ) → a ^ (m + n) ≡ a ^ m * a ^ n ∈ ℕ
     n
 
 -- ===== monus and a common summand =====
-def monusPlusR : (a b k : ℕ) → a + k ∸ (b + k) ≡ a ∸ b ∈ ℕ
+def monusPlusR : (a b k : ℕ) → a + k ∸ (b + k) ≡ a ∸ b
   using (hyp.rw, plusZeroId, plusZeroId.rw, plusSucId, plusSucId.rw, sucMonusSuc, sucMonusSuc.rw) ≔
-  λa. λb. λk. ℕ-elim (j. a + j ∸ (b + j) ≡ a ∸ b ∈ ℕ) ⋆ (j ih. ⋆) k
+  λa. λb. λk. ℕ-elim ⋆ (j ih. ⋆) k
 
-def monusPlusL : {k a b : ℕ} → k + a ∸ (k + b) ≡ a ∸ b ∈ ℕ ≔
+def monusPlusL : {k a b : ℕ} → k + a ∸ (k + b) ≡ a ∸ b ≔
   λk. λa. λb. trans
     ℕ
     (k + a ∸ (k + b))
@@ -299,7 +297,7 @@ def monusPlusL : {k a b : ℕ} → k + a ∸ (k + b) ≡ a ∸ b ∈ ℕ ≔
 
 -- the difference-pair reading: a + d ≡ b + c makes a − b and c − d
 -- the same truncated difference
-def monusEqOfSum : {a b c d : ℕ} → (a + d ≡ b + c ∈ ℕ) → a ∸ b ≡ c ∸ d ∈ ℕ ≔
+def monusEqOfSum : {a b c d : ℕ} → (a + d ≡ b + c) → a ∸ b ≡ c ∸ d ≔
   λa. λb. λc. λd. λh. trans
     ℕ
     (a ∸ b)

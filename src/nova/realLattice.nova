@@ -82,7 +82,7 @@ def rMaxWDInnerCls : (x y y' : El RSeq)
 
 -- max on representatives is commutative on the nose, so the outer
 -- descent is the inner one with the arguments swapped
-def rMaxComm : (x y : El RSeq) → rMax x y ≡ rMax y x ∈ El RSeq
+def rMaxComm : (x y : El RSeq) → rMax x y ≡ rMax y x
   using (ratMax.qMax.eq,
     rationalOrder.sgnCases.eq,
     rationalOrder.sgnQ.eq,
@@ -104,13 +104,11 @@ def rMaxWDOuterCls : {x x' c : El RSeq}
 def rMaxWDOuter : (x x' : El RSeq)
   (h : Prf (REq x x'))
   (v : El Real)
-  → quot-elim (w. El Real)
-    (q. class (rMax x q))
-    v ≡ quot-elim (w. El Real) (q. class (rMax x' q)) v ∈ El Real
+  → quot-elim (w. El Real) (q. class (rMax x q)) v ≡ quot-elim (q. class (rMax x' q)) v
   using (rMaxWDInnerCls, real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold) ≔
   λx. λx'. λh. λv. quot-elim (w. quot-elim (z. El Real)
     (q. class (rMax x q))
-    w ≡ quot-elim (z. El Real) (q. class (rMax x' q)) w ∈ El Real)
+    w ≡ quot-elim (q. class (rMax x' q)) w)
     (c. rMaxWDOuterCls h)
     v
 
@@ -121,9 +119,9 @@ def realMax : El Real → El Real → El Real
     real.RSeq.unfold,
     real.Real.unfold,
     real.Regular.unfold) ≔
-  λu. λv. quot-elim (w. El Real) (p. quot-elim (w. El Real) (q. class (rMax p q)) v) u
+  λu. λv. quot-elim (p. quot-elim (q. class (rMax p q)) v) u
 
-def realMaxCls : (x y : El RSeq) → realMax (class x) (class y) ≡ class (rMax x y) ∈ El Real
+def realMaxCls : (x y : El RSeq) → realMax (class x) (class y) ≡ class (rMax x y)
   using (real.RSeq.unfold,
     real.Real.unfold,
     real.Regular.unfold,
@@ -197,7 +195,7 @@ def rMinWDInnerCls : (x y y' : El RSeq)
   using (real.Real.unfold) ≔
   λx. λy. λy'. λh. realEqOfREq (rMin x y) (rMin x y') (rMinWDInner x h)
 
-def rMinComm : (x y : El RSeq) → rMin x y ≡ rMin y x ∈ El RSeq
+def rMinComm : (x y : El RSeq) → rMin x y ≡ rMin y x
   using (ratMax.qMax.eq,
     ratMax.qMin.eq,
     rationalQ.qNeg.eq,
@@ -217,13 +215,11 @@ def rMinWDOuterCls : {x x' c : El RSeq}
 def rMinWDOuter : (x x' : El RSeq)
   (h : Prf (REq x x'))
   (v : El Real)
-  → quot-elim (w. El Real)
-    (q. class (rMin x q))
-    v ≡ quot-elim (w. El Real) (q. class (rMin x' q)) v ∈ El Real
+  → quot-elim (w. El Real) (q. class (rMin x q)) v ≡ quot-elim (q. class (rMin x' q)) v
   using (rMinWDInnerCls, real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold) ≔
   λx. λx'. λh. λv. quot-elim (w. quot-elim (z. El Real)
     (q. class (rMin x q))
-    w ≡ quot-elim (z. El Real) (q. class (rMin x' q)) w ∈ El Real)
+    w ≡ quot-elim (q. class (rMin x' q)) w)
     (c. rMinWDOuterCls h)
     v
 
@@ -234,9 +230,9 @@ def realMin : El Real → El Real → El Real
     real.RSeq.unfold,
     real.Real.unfold,
     real.Regular.unfold) ≔
-  λu. λv. quot-elim (w. El Real) (p. quot-elim (w. El Real) (q. class (rMin p q)) v) u
+  λu. λv. quot-elim (p. quot-elim (q. class (rMin p q)) v) u
 
-def realMinCls : (x y : El RSeq) → realMin (class x) (class y) ≡ class (rMin x y) ∈ El Real
+def realMinCls : (x y : El RSeq) → realMin (class x) (class y) ≡ class (rMin x y)
   using (real.RSeq.unfold,
     real.Real.unfold,
     real.Regular.unfold,
@@ -457,9 +453,7 @@ def leRMaxL : (u v : El Real) → Prf (LeR u (realMax u v))
     realOrder.LeR.eq,
     realOrder.LeR.unfold,
     realOrder.RLeP.eq) ≔
-  λu. λv. quot-elim (t. Prf (LeR t (realMax t v)))
-    (x. quot-elim (t. Prf (LeR (class x) (realMax (class x) t))) (y. rleMaxL) v)
-    u
+  λu. λv. quot-elim (x. quot-elim (y. rleMaxL) v) u
 
 def leRMaxR : (u v : El Real) → Prf (LeR v (realMax u v))
   using (real.REq.unfold,
@@ -471,9 +465,7 @@ def leRMaxR : (u v : El Real) → Prf (LeR v (realMax u v))
     realOrder.LeR.eq,
     realOrder.LeR.unfold,
     realOrder.RLeP.eq) ≔
-  λu. λv. quot-elim (t. Prf (LeR v (realMax t v)))
-    (x. quot-elim (t. Prf (LeR t (realMax (class x) t))) (y. rleMaxR) v)
-    u
+  λu. λv. quot-elim (x. quot-elim (y. rleMaxR) v) u
 
 def leRMinL : (u v : El Real) → Prf (LeR (realMin u v) u)
   using (real.REq.unfold,
@@ -486,9 +478,7 @@ def leRMinL : (u v : El Real) → Prf (LeR (realMin u v) u)
     realOrder.LeR.eq,
     realOrder.LeR.unfold,
     realOrder.RLeP.eq) ≔
-  λu. λv. quot-elim (t. Prf (LeR (realMin t v) t))
-    (x. quot-elim (t. Prf (LeR (realMin (class x) t) (class x))) (y. rleMinL) v)
-    u
+  λu. λv. quot-elim (x. quot-elim (y. rleMinL) v) u
 
 def leRMinR : (u v : El Real) → Prf (LeR (realMin u v) v)
   using (real.REq.unfold,
@@ -501,9 +491,7 @@ def leRMinR : (u v : El Real) → Prf (LeR (realMin u v) v)
     realOrder.LeR.eq,
     realOrder.LeR.unfold,
     realOrder.RLeP.eq) ≔
-  λu. λv. quot-elim (t. Prf (LeR (realMin t v) v))
-    (x. quot-elim (t. Prf (LeR (realMin (class x) t) t)) (y. rleMinR) v)
-    u
+  λu. λv. quot-elim (x. quot-elim (y. rleMinR) v) u
 
 def leRMaxLub : (u v w : El Real) → Prf (LeR u w) → Prf (LeR v w) → Prf (LeR (realMax u v) w)
   using (real.REq.unfold,
@@ -519,15 +507,7 @@ def leRMaxLub : (u v w : El Real) → Prf (LeR u w) → Prf (LeR v w) → Prf (L
     realOrder.RLeP.eq,
     realOrder.RLeP.unfold,
     realOrder.leRCls) ≔
-  λu. λv. λw. quot-elim (t. Prf (LeR t w) → Prf (LeR v w) → Prf (LeR (realMax t v) w))
-    (x. quot-elim (t. Prf (LeR (class x) w) → Prf (LeR t w) → Prf (LeR (realMax (class x) t) w))
-      (y. quot-elim (t. Prf (LeR
-        (class x)
-        t) → Prf (LeR (class y) t) → Prf (LeR (realMax (class x) (class y)) t))
-        (z. λp. λq. rMaxLub p q)
-        w)
-      v)
-    u
+  λu. λv. λw. quot-elim (x. quot-elim (y. quot-elim (z. λp. λq. rMaxLub p q) w) v) u
 
 def leRMinGlb : (u v w : El Real) → Prf (LeR w u) → Prf (LeR w v) → Prf (LeR w (realMin u v))
   using (real.REq.unfold,
@@ -542,12 +522,4 @@ def leRMinGlb : (u v w : El Real) → Prf (LeR w u) → Prf (LeR w v) → Prf (L
     realOrder.RLeP.eq,
     realOrder.RLeP.unfold,
     realOrder.leRCls) ≔
-  λu. λv. λw. quot-elim (t. Prf (LeR w t) → Prf (LeR w v) → Prf (LeR w (realMin t v)))
-    (x. quot-elim (t. Prf (LeR w (class x)) → Prf (LeR w t) → Prf (LeR w (realMin (class x) t)))
-      (y. quot-elim (t. Prf (LeR
-        t
-        (class x)) → Prf (LeR t (class y)) → Prf (LeR t (realMin (class x) (class y))))
-        (z. λp. λq. rMinGlb p q)
-        w)
-      v)
-    u
+  λu. λv. λw. quot-elim (x. quot-elim (y. quot-elim (z. λp. λq. rMinGlb p q) w) v) u

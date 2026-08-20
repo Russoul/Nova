@@ -27,18 +27,18 @@ import intRing (intCommRing)
 import quotRing (QRing, qrCls, qrMul, qrOne, qrAdd, qrAddGroup, qrIsCommRing)
 import equality (transportP, sym, trans, cong)
 
-def intGop : (x y : El Int) → gop Int intAddGroup x y ≡ intAdd x y ∈ El Int
+def intGop : (x y : El Int) → gop Int intAddGroup x y ≡ intAdd x y
   using (groupTheory.gop.eq, intGroup.intAddGroup.eq) ≔
   λx. λy. ⋆
 
-def intGe : ge intAddGroup ≡ intZero ∈ El Int using (groupTheory.ge.eq, intGroup.intAddGroup.eq) ≔ ⋆
+def intGe : ge intAddGroup ≡ intZero using (groupTheory.ge.eq, intGroup.intAddGroup.eq) ≔ ⋆
 
-def intGinv : (x : El Int) → ginv Int intAddGroup x ≡ intNeg x ∈ El Int
+def intGinv : (x : El Int) → ginv Int intAddGroup x ≡ intNeg x
   using (groupTheory.ginv.eq, intGroup.intAddGroup.eq) ≔
   λx. ⋆
 
 -- ℤ is abelian, in the group-theoretic vocabulary
-def intGopComm : (x y : El Int) → gop Int intAddGroup x y ≡ gop Int intAddGroup y x ∈ El Int ≔
+def intGopComm : (x y : El Int) → gop Int intAddGroup x y ≡ gop Int intAddGroup y x ≔
   λx. λy. trans
     Int
     (gop Int intAddGroup x y)
@@ -64,8 +64,7 @@ def nZfib : El Int → El Int → 𝕌 ≔ λn. λx. (k : Int) ⨯ Id Int (intMu
 
 def nZ : El Int → El Int → Ω ≔ λn. λx. ∥El (nZfib n x)∥
 
-def nZIntro : (n x k : El Int) → (intMul n k ≡ x ∈ El Int) → Prf (nZ n x)
-  using (nZ.eq, nZfib.unfold) ≔
+def nZIntro : (n x k : El Int) → (intMul n k ≡ x) → Prf (nZ n x) using (nZ.eq, nZfib.unfold) ≔
   λn. λx. λk. λe. ⋆ (k, eqToId (intMul n k) x e)
 
 -- 0 = n · 0
@@ -207,16 +206,16 @@ def intModSelf : (n : El Int) → intModCls n ≡ intModCls intZero ∈ El (IntM
 -- nℤ is not just a subgroup: it is an IDEAL, because a·(n·k) = n·(a·k).
 -- One bridge (raddGroup Int intCommRing is intAddGroup, by β) and one
 -- closure proof, and quotRing.nova supplies the rest.
-def intRaddGroup : raddGroup intCommRing ≡ intAddGroup ∈ El (IsGroup Int)
+def intRaddGroup : raddGroup intCommRing ≡ intAddGroup
   using (ringTheory.raddGroup.eq, intRing.intCommRing.eq) ≔
   ⋆
 
-def intRmul : (x y : El Int) → rmul Int intCommRing x y ≡ intMul x y ∈ El Int
+def intRmul : (x y : El Int) → rmul Int intCommRing x y ≡ intMul x y
   using (ringTheory.rmul.eq, intRing.intCommRing.eq) ≔
   λx. λy. ⋆
 
 -- a·(n·k) = n·(a·k): one associativity and one commutation
-def nZScaleAlg : (n a k : El Int) → intMul a (intMul n k) ≡ intMul n (intMul a k) ∈ El Int ≔
+def nZScaleAlg : (n a k : El Int) → intMul a (intMul n k) ≡ intMul n (intMul a k) ≔
   λn. λa. λk. intMul a (intMul n k)
       ≡⟨ sym
         Int

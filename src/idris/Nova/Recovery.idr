@@ -690,3 +690,154 @@ export
 rebuildTail : List Ty -> Ty -> Ty
 rebuildTail [] r = r
 rebuildTail (d :: ds) r = Ty.PiTy d (rebuildTail ds r)
+
+-- ===== Scrutinee abstraction (motive recovery, Phase 4) =====
+--
+-- abs c scrut e: the body of the recovered motive — every occurrence
+-- of the scrutinee (weakened by the local binder depth) becomes the
+-- motive's bound variable, every other free variable shifts up by
+-- one. Deterministic: replace-all, outermost-first. The recovered
+-- motive for expected type C is `absT 0 scrut C` (one binder), and
+-- instantiating it back at the scrutinee reproduces C exactly, so
+-- the elided form's switch conversion is α-trivial.
+
+wkN : Nat -> Sub
+wkN Z = Id
+wkN (S n) = Chain (wkN n) Wk
+
+mutual
+  export
+  absE : (c : Nat) -> (scrut : Elem) -> Elem -> Elem
+  absE c sc e =
+    if show e == show (substElem sc (wkN c)) then CtxVar c else case e of
+      CtxVar i => if i >= c then CtxVar (S i) else CtxVar i
+      SigVar nm sp => SigVar nm (map (absE c sc) sp)
+      ZeroElim t => ZeroElim (absE c sc t)
+      OneIntro => e
+      NatIntro0 => e
+      NatIntro1 t => NatIntro1 (absE c sc t)
+      NatElim z s t => NatElim (absE c sc z) (absE (c + 2) sc s) (absE c sc t)
+      PiIntro b => PiIntro (absE (S c) sc b)
+      PiApp f a => PiApp (absE c sc f) (absE c sc a)
+      Let d b => Let (absE c sc d) (absE (c + 2) sc b)
+      SigmaIntro u v => SigmaIntro (absE c sc u) (absE c sc v)
+      SigmaElim1 t => SigmaElim1 (absE c sc t)
+      SigmaElim2 t => SigmaElim2 (absE c sc t)
+      Inj1 t => Inj1 (absE c sc t)
+      Inj2 t => Inj2 (absE c sc t)
+      SumElim l r t => SumElim (absE (S c) sc l) (absE (S c) sc r) (absE c sc t)
+      ZeroTy => e
+      OneTy => e
+      NatTy => e
+      PiTy a b => PiTy (absE c sc a) (absE (S c) sc b)
+      SigmaTy a b => SigmaTy (absE c sc a) (absE (S c) sc b)
+      SumTy a b => SumTy (absE c sc a) (absE c sc b)
+      EqTy l r ty => EqTy (absE c sc l) (absE c sc r) (absT c sc ty)
+      QuotTy a r => QuotTy (absE c sc a) (absE (c + 2) sc r)
+      Class t => Class (absE c sc t)
+      QuotElim f q => QuotElim (absE (S c) sc f) (absE c sc q)
+      Squash ty => Squash (absT c sc ty)
+      Star => e
+      QSortC sig k sp => QSortC sig k (map (absE c sc) sp)
+      QCtor sig k sp => QCtor sig k (map (absE c sc) sp)
+      QElim sig k mots mths sp w =>
+        QElim sig k (map (absT c sc) mots) (map (absE c sc) mths)
+              (map (absE c sc) sp) (absE c sc w)
+      NuTy p => NuTy (absP c sc p)
+      Out t => Out (absE c sc t)
+      Corec p a f x => Corec (absP c sc p) (absE c sc a) (absE (S c) sc f) (absE c sc x)
+
+  export
+  absT : (c : Nat) -> (scrut : Elem) -> Ty -> Ty
+  absT c sc ty = case ty of
+    Ty.PiTy a b => Ty.PiTy (absT c sc a) (absT (S c) sc b)
+    Ty.SigmaTy a b => Ty.SigmaTy (absT c sc a) (absT (S c) sc b)
+    Ty.SumTy a b => Ty.SumTy (absT c sc a) (absT c sc b)
+    El t => El (absE c sc t)
+    Prf t => Prf (absE c sc t)
+    Quotient a r => Quotient (absT c sc a) (absE (c + 2) sc r)
+    Ty.SigVar nm sp => Ty.SigVar nm (map (absE c sc) sp)
+    QSort sig k sp => QSort sig k (map (absE c sc) sp)
+    Ty.NuTy p => Ty.NuTy (absP c sc p)
+    _ => ty
+
+  absP : (c : Nat) -> (scrut : Elem) -> Poly -> Poly
+  absP c sc p = case p of
+    PHole => p
+    PConst a => PConst (absE c sc a)
+    PProd f g => PProd (absP c sc f) (absP c sc g)
+    PSum f g => PSum (absP c sc f) (absP c sc g)
+    PSigma a f => PSigma (absE c sc a) (absP (S c) sc f)
+    PPi a f => PPi (absE c sc a) (absP (S c) sc f)
+
+-- ===== Skeleton-freedom =====
+--
+-- A SYNTHESIZED annotation (a recovered motive, an inferred ≡-domain)
+-- ships with an empty skeleton, so it may not contain STUCK
+-- ELIMINATORS — bare core ℕ-elim/⊎-elim/quot-elim need kernel
+-- payloads (motives, well-definedness) an empty skeleton cannot
+-- carry. (QElim and Corec carry their annotations inline in core and
+-- are fine.) Elision verdicts and the elided rules both require this.
+
+mutual
+  export
+  skelFreeE : Elem -> Bool
+  skelFreeE e = case e of
+    NatElim _ _ _ => False
+    SumElim _ _ _ => False
+    QuotElim _ _ => False
+    CtxVar _ => True
+    SigVar _ sp => all skelFreeE (toList sp)
+    ZeroElim t => skelFreeE t
+    OneIntro => True
+    NatIntro0 => True
+    NatIntro1 t => skelFreeE t
+    PiIntro b => skelFreeE b
+    PiApp f a => skelFreeE f && skelFreeE a
+    Let d b => skelFreeE d && skelFreeE b
+    SigmaIntro u v => skelFreeE u && skelFreeE v
+    SigmaElim1 t => skelFreeE t
+    SigmaElim2 t => skelFreeE t
+    Inj1 t => skelFreeE t
+    Inj2 t => skelFreeE t
+    ZeroTy => True
+    OneTy => True
+    NatTy => True
+    PiTy a b => skelFreeE a && skelFreeE b
+    SigmaTy a b => skelFreeE a && skelFreeE b
+    SumTy a b => skelFreeE a && skelFreeE b
+    EqTy l r ty => skelFreeE l && skelFreeE r && skelFreeT ty
+    QuotTy a r => skelFreeE a && skelFreeE r
+    Class t => skelFreeE t
+    Squash ty => skelFreeT ty
+    Star => True
+    QSortC _ _ sp => all skelFreeE (toList sp)
+    QCtor _ _ sp => all skelFreeE (toList sp)
+    QElim _ _ mots mths sp w =>
+      all skelFreeT mots && all skelFreeE mths && all skelFreeE (toList sp) && skelFreeE w
+    NuTy p => skelFreeP p
+    Out t => skelFreeE t
+    Corec p a f x => skelFreeP p && skelFreeE a && skelFreeE f && skelFreeE x
+
+  export
+  skelFreeT : Ty -> Bool
+  skelFreeT ty = case ty of
+    Ty.PiTy a b => skelFreeT a && skelFreeT b
+    Ty.SigmaTy a b => skelFreeT a && skelFreeT b
+    Ty.SumTy a b => skelFreeT a && skelFreeT b
+    El t => skelFreeE t
+    Prf t => skelFreeE t
+    Quotient a r => skelFreeT a && skelFreeE r
+    Ty.SigVar _ sp => all skelFreeE (toList sp)
+    QSort _ _ sp => all skelFreeE (toList sp)
+    Ty.NuTy p => skelFreeP p
+    _ => True
+
+  skelFreeP : Poly -> Bool
+  skelFreeP p = case p of
+    PHole => True
+    PConst a => skelFreeE a
+    PProd f g => skelFreeP f && skelFreeP g
+    PSum f g => skelFreeP f && skelFreeP g
+    PSigma a f => skelFreeE a && skelFreeP f
+    PPi a f => skelFreeE a && skelFreeP f

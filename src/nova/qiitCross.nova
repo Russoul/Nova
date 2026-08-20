@@ -24,9 +24,7 @@ def toBag : El L → El (Bag ℕ)
 
 -- toBag coequalizes adjacent transpositions (the universal property's
 -- defining triangle, at the generators): by β + the swap lemma
-def toBagSwap : (x y : El ℕ)
-  (t : El L)
-  → toBag (lcons x (lcons y t)) ≡ toBag (lcons y (lcons x t)) ∈ El (Bag ℕ)
+def toBagSwap : (x y : El ℕ) (t : El L) → toBag (lcons x (lcons y t)) ≡ toBag (lcons y (lcons x t))
   using (bswp,
     qiitCross.Bag.unfold,
     qiitCross.L.eq,
@@ -53,8 +51,7 @@ def flatten : El P → El (Bag ℕ) using (qiitCross.Bag.unfold, qiitCross.P.unf
 def two : El (Bag ℕ) using (qiitCross.Bag.eq, qiitCross.Bag.unfold) ≔
   bins ℕ Z (bins ℕ (S Z) (bnil ℕ))
 
-def flatTest : flatten
-  (node (leaf (toBag (lcons Z lnil))) (leaf (bins ℕ (S Z) (bnil ℕ)))) ≡ two ∈ El (Bag ℕ)
+def flatTest : flatten (node (leaf (toBag (lcons Z lnil))) (leaf (bins ℕ (S Z) (bnil ℕ)))) ≡ two
   using (qiitCross.Bag.eq,
     qiitCross.BagElim.eq,
     qiitCross.L.eq,

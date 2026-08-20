@@ -48,7 +48,7 @@ def classEqOfClosure : (A : 𝕌)
 def clsRelWd : (A : 𝕌)
   (r : El A → El A → Ω)
   (a x y : El A)
-  → Prf (r x y) → rClosure A r a x ≡ rClosure A r a y ∈ Ω
+  → Prf (r x y) → rClosure A r a x ≡ rClosure A r a y
   using (prop.rClosure.eq, prop.rClosure.unfold) ≔
   λA. λr. λa. λx. λy. λh. propExt
     ∥(z : El A → El A → Ω)
@@ -76,7 +76,7 @@ def clsRelWd : (A : 𝕌)
 -- the descent itself: quot-elim at the CONSTANT MOTIVE Ω. clsRelWd
 -- above discharges its well-definedness obligation
 def clsRel : (A : 𝕌) (r : El A → El A → Ω) (a : El A) → El (A / (u v. r u v)) → Ω using (clsRelWd) ≔
-  λA. λr. λa. λq. quot-elim (_. Ω) (x. rClosure A r a x) q
+  λA. λr. λa. λq. quot-elim (x. rClosure A r a x) q
 
 -- ⟹ : EFFECTIVITY. clsRel a (class a) ≜ r⁺ a a holds by reflexivity of
 -- the closure, and the class equation transports it to b — el-quot-beta
@@ -146,10 +146,10 @@ def effectiveAtEquiv : (A : 𝕌)
 -- an instance of the corollary: ℕ by its own equality. The three
 -- equivalence premises are each one ⋆ — reflection makes them
 -- judgemental
-def natEq : El ℕ → El ℕ → Ω ≔ λx. λy. x ≡ y ∈ El ℕ
+def natEq : El ℕ → El ℕ → Ω ≔ λx. λy. x ≡ y
 
 def natEqEffective : (a b : El ℕ)
-  → Prf (class a ≡ class b ∈ El (ℕ / (u v. natEq u v))) → Prf (a ≡ b ∈ El ℕ)
+  → Prf (class a ≡ class b ∈ El (ℕ / (u v. natEq u v))) → Prf (a ≡ b)
   using (hyp.rw, quotEffective.natEq.eq, quotEffective.natEq.unfold) ≔
   effectiveAtEquiv ℕ natEq (λx. ⋆) (λx. λy. λz. λh1. λh2. ⋆) (λx. λy. λh. ⋆)
 
@@ -160,7 +160,7 @@ def natEqEffective : (a b : El ℕ)
 -- Prf (S Z ≡ S (S Z) ∈ ℕ) and collapse ℕ. (Chaining is not automatic:
 -- sgHop2 goes through sgHop1 as a rewrite candidate, so the hops must
 -- be named — drop sgHop1 and sgHop2 stops elaborating)
-def SG : 𝕌 ≔ ℕ / (n m. S n ≡ m ∈ ℕ)
+def SG : 𝕌 ≔ ℕ / (n m. S n ≡ m)
 
 def sgHop1 : class Z ≡ class (S Z) ∈ El SG using (quotEffective.SG.unfold) ≔ ⋆
 

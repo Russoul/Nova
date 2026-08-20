@@ -411,6 +411,42 @@ carries the full commentary; the corpus round-trips byte-idempotent
 with comments in place. (The corpus has only `--` line comments; a
 block-comment continuation line would be defensively re-prefixed.)
 
+Phase 4: implemented — ∈-ELISION and MOTIVE ELISION (the
+operator-overload oracle is EMPTY on this corpus: every operator
+token has exactly one fixity — recorded, skipped until a collision
+exists). GRAMMAR: the ∈-annotation of an equality (type and
+Ω-element forms) and the inline motive of ℕ-elim/⊎-elim/quot-elim
+are OPTIONAL. ELABORATION: an ∈-less equality infers its LEFT side
+for the domain (right as fallback when the left is an intro form —
+a deterministic rule, not a search; both intro is a structural
+error naming the ∈ remedy); a motive-less eliminator is
+checking-only — the motive is recovered by ABSTRACTING the
+scrutinee in the expected type (Recovery.absT), so instantiating it
+back reproduces the expected type and the switch is α-trivial. Both
+recoveries are subject to SKELETON-FREEDOM: a synthesized
+annotation ships with an empty skeleton, so it may not contain
+stuck eliminators (bare core ℕ-elim/⊎-elim/quot-elim need kernel
+payloads an empty skeleton cannot carry) — the verdicts require it
+and the elided rules error early on it. EMISSION: the distiller's
+acceptance run doubles as the SUGAR TRIAL (per written annotation:
+would the elided form recover it α-exactly?), the transform elides
+the positive verdicts, and the round trip verifies against the
+kernel Σ (α-identical) — the AST check compares against the
+TRANSFORMED trees. One cross-sugar interaction, handled: an
+∈-elided equality INFERS one side, so that side's ROOT motive stays
+written even when its own verdict allows elision. Two parser
+consequences: `using` is now a reserved identifier (an ∈-less
+equality's right side is an application chain that would otherwise
+swallow a following using-clause), and a bare ⋆ right side of an
+∈-less equality prints parenthesized (`… ≡ ⋆ using (…)` would
+reparse as the ⋆-using proof form).
+
+Measured, and REWRITTEN IN PLACE: 1,783 of 1,937 written
+∈-annotations and motives elided across the corpus (92%) — the
+equational library now reads `(n : ℕ) → Z + n ≡ n` with induction
+proofs `ℕ-elim ⋆ (k ih. ⋆) n` — verified by the Σ-α-gate,
+byte-idempotent, canonical form re-established and enforced.
+
 THE IN-PLACE REWRITE (2026-08-20): src/nova is now the implicitized,
 CANONICAL-DISTILL-FORM corpus — 414 defs with {}-binders, 2,826
 argument occurrences elided, comments preserved, items

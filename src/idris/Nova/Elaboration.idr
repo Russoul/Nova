@@ -220,9 +220,39 @@ record ElabSt where
   ||| intro-form argument; 3 = unsolved (no source matched); 4 =
   ||| solved but α-differs from the written value (spelling drift)
   impTrial : SnocList (String, Nat, Nat)
+  ||| the Phase-4 SUGAR TRIAL: at every written ∈-annotation and
+  ||| inline motive, record whether the elided form would recover it
+  ||| α-exactly — (module, site range, verdict); the distiller's
+  ||| elision map
+  svSugarOn : Bool
+  svSugar : SnocList (String, Range, Bool)
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] "" "" [<] Nothing [] [] Nothing [] False [<]
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] "" "" [<] Nothing [] [] Nothing [] False [<] False [<]
+
+||| Is the surface term an INFERENCE form — its type known without an
+||| expected type? Mirrors the mode inventory
+||| (docs/NovaElaboration.txt); erased-proof forms and intros carry
+||| nothing.
+export
+sInferForm : SElem -> Bool
+sInferForm e = case e of
+  SLam _ _ => False
+  SLet _ _ _ => False
+  SPair _ _ => False
+  SInj1 _ => False
+  SInj2 _ => False
+  SClass _ => False
+  SStar => False
+  SStarWit _ => False
+  SStarUsing _ => False
+  SChain _ _ => False
+  SCoind _ _ _ _ _ _ _ _ => False
+  SSquashElim _ _ _ => False
+  SCorec _ _ _ _ => False
+  SZeroElim _ => False
+  SImpArg _ => False
+  _ => True
 
 ||| Resolve a surface signature reference: aliases first (own module,
 ||| opened imports), else the name itself (qualified references reach
@@ -244,6 +274,15 @@ data ElabM : Type -> Type where
 
 runElabM : ElabM a -> ElabSt -> Either Err (ElabSt, a)
 runElabM (MkElabM f) = f
+
+||| Run an action for its RESULT only: state is restored afterwards
+||| and a failure becomes Nothing — the sugar trial's probe (an extra
+||| inference whose effects must not leak into the run).
+probeM : ElabM a -> ElabM (Maybe a)
+probeM act = MkElabM $ \st => case runElabM act st of
+  Left _ => Right (st, Nothing)
+  Right (_, x) => Right (st, Just x)
+
 
 Functor ElabM where
   map f (MkElabM g) = MkElabM $ \st => map (mapSnd f) (g st)
@@ -3048,13 +3087,21 @@ mutual
     -- e-ty-nu
     (f', fSks) <- elabPoly ctx env site f
     pure (Ty.NuTy f', Nd [] fSks)
-  elabTy ctx env site (STyEq l r t) = do
+  elabTy ctx env site (STyEq rng l r (Just t)) = do
     -- e-ty-eq: the surface ≡-TYPE elaborates to Prf of the equality
     -- prop (equality is Ω-valued)
     (t', tSk) <- elabTy ctx env site t
     (l', lSk) <- checkElem ctx env site l t'
     (r', rSk) <- checkElem ctx env site r t'
+    -- the ∈-elision trial (docs/NovaPerfectSurface.txt, Phase 4):
+    -- would the elided form recover t' α-exactly by inferring a side?
+    sugarTrial rng (eqElideVerdict ctx env site l r t')
     pure (Prf (Elem.EqTy l' r' t'), Nd [] [Nd [] [lSk, rSk, tSk]])
+  elabTy ctx env site (STyEq rng l r Nothing) = do
+    -- the ELIDED ≡-type: the domain is the inferred type of a side,
+    -- LEFT first (a deterministic rule, not a search)
+    (l', r', t', lSk, rSk) <- elabEqSides ctx env site l r
+    pure (Prf (Elem.EqTy l' r' t'), Nd [] [Nd [] [lSk, rSk, Nd [] []]])
   elabTy ctx env site (STyEl e) = do
     (e', eSk) <- checkElem ctx env site e Ty.UniverseTy
     pure (El e', Nd [] [eSk])
@@ -3132,7 +3179,13 @@ mutual
     let hyp = Prf (Elem.EqTy (CtxVar 0) (substElem e' Wk) (substTy eTy Wk))
     (b', bTy, bSk) <- inferElem (ctx :< eTy :< hyp) (env :< x :< wildcard) site b
     pure (Let e' b', substTy bTy (Ext (Ext Id e') Star), Nd [] [eSk, bSk])
-  inferElem ctx env site (SNatElim (n, nr) mot z (n2, n2r) (ih, ihr) s t) = do
+  inferElem ctx env site (SNatElim Nothing _ _ _ _ _) =
+    throw "\{site}: ℕ-elim without a motive infers nothing — write (n. T), or use it in checking position"
+  inferElem ctx env site (SSumElim Nothing _ _ _ _ _) =
+    throw "\{site}: ⊎-elim without a motive infers nothing — write (z. T), or use it in checking position"
+  inferElem ctx env site (SQuotElim Nothing _ _ _) =
+    throw "\{site}: quot-elim without a motive infers nothing — write (z. T), or use it in checking position"
+  inferElem ctx env site (SNatElim (Just ((n, nr), mot)) z (n2, n2r) (ih, ihr) s t) = do
     recordBinder nr ctx env n Ty.NatTy
     (motTy, motSk) <- elabTy (ctx :< Ty.NatTy) (env :< n) site mot
     (z', zSk) <- checkElem ctx env site z (substTy motTy (Ext Id NatIntro0))
@@ -3143,7 +3196,7 @@ mutual
     (t', tSk) <- checkElem ctx env site t Ty.NatTy
     pure (NatElim z' s' t', substTy motTy (Ext Id t'),
           Nd [PMotive motTy motSk] [zSk, sSk, tSk])
-  inferElem ctx env site (SSumElim (zn, zr) mot (an, ar) l (bn, br) r t) = do
+  inferElem ctx env site (SSumElim (Just ((zn, zr), mot)) (an, ar) l (bn, br) r t) = do
     (t', tTy, tSk) <- inferElem ctx env site t
     st <- getSt
     case preferSum st ctx tTy of
@@ -3159,7 +3212,7 @@ mutual
         pure (SumElim l' r' t', substTy motTy (Ext Id t'),
               Nd [PMotive motTy motSk] [lSk, rSk, tSk])
       Nothing => throw "\{site}: ⊎-elim scrutinee has non-⊎ type\{structuralHint ()}"
-  inferElem ctx env site (SQuotElim (zn, zr) mot (an, ar) f q) = do
+  inferElem ctx env site (SQuotElim (Just ((zn, zr), mot)) (an, ar) f q) = do
     (q', qTy, qSk) <- inferElem ctx env site q
     st <- getSt
     case preferQuot st ctx qTy of
@@ -3214,13 +3267,18 @@ mutual
     throw "\{site}: cannot infer the type of a chain (its equality comes from the expected Prf type)\{structuralHint ()}"
   inferElem ctx env site (SSquashElim _ _ _) =
     throw "\{site}: cannot infer the type of squash-elim\{structuralHint ()}"
-  inferElem ctx env site (SEqC l r t) = do
+  inferElem ctx env site (SEqC rng l r (Just t)) = do
     -- e-eq: the equality PROP — the ambient is a TYPE (large types
     -- included); there is no 𝕌-code for equality
     (t', tSk) <- elabTy ctx env site t
     (l', lSk) <- checkElem ctx env site l t'
     (r', rSk) <- checkElem ctx env site r t'
+    sugarTrial rng (eqElideVerdict ctx env site l r t')
     pure (Elem.EqTy l' r' t', Ty.PropTy, Nd [] [lSk, rSk, tSk])
+  inferElem ctx env site (SEqC rng l r Nothing) = do
+    -- the elided equality prop: domain inferred from a side
+    (l', r', t', lSk, rSk) <- elabEqSides ctx env site l r
+    pure (Elem.EqTy l' r' t', Ty.PropTy, Nd [] [lSk, rSk, Nd [] []])
   inferElem ctx env site (SNuC f) = do
     -- e-code-nu
     (f', fSks) <- elabPoly ctx env site f
@@ -3599,10 +3657,147 @@ mutual
         (t', inferred, tSk) <- inferElem ctx env site e
         c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
         pure (t', addPayload (PSwitch (certOr c)) tSk)
+  -- ELIDED-MOTIVE eliminators (docs/NovaPerfectSurface.txt, Phase
+  -- 4): checking-only — the motive is recovered by ABSTRACTING the
+  -- scrutinee in the expected type (absT), so instantiating it back
+  -- at the scrutinee reproduces the expected type exactly and the
+  -- switch is α-trivial
+  checkElem ctx env site (SNatElim Nothing z (n2, n2r) (ih, ihr) s t) cTy = do
+    (t', tSk) <- checkElem ctx env site t Ty.NatTy
+    let motTy = absT 0 t' cTy
+    unless (skelFreeT motTy) $
+      throw "\{site}: the recovered motive contains a stuck eliminator — write the motive: (n. T)"
+    (z', zSk) <- checkElem ctx env site z (substTy motTy (Ext Id NatIntro0))
+    recordBinder n2r ctx env n2 Ty.NatTy
+    recordBinder ihr (ctx :< Ty.NatTy) (env :< n2) ih motTy
+    (s', sSk) <- checkElem (ctx :< Ty.NatTy :< motTy) (env :< n2 :< ih) site s
+                   (substTy motTy (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk))
+    c <- convTy ctx env "\{site}: inferred vs expected type" Nothing (substTy motTy (Ext Id t')) cTy
+    pure (NatElim z' s' t',
+          addPayload (PSwitch (certOr c)) (Nd [PMotive motTy (Nd [] [])] [zSk, sSk, tSk]))
+  checkElem ctx env site (SSumElim Nothing (an, ar) l (bn, br) r t) cTy = do
+    (t', tTy, tSk) <- inferElem ctx env site t
+    st <- getSt
+    case preferSum st ctx tTy of
+      Just (a, b, _) => do
+        let motTy = absT 0 t' cTy
+        unless (skelFreeT motTy) $
+          throw "\{site}: the recovered motive contains a stuck eliminator — write the motive: (z. T)"
+        recordBinder ar ctx env an a
+        (l', lSk) <- checkElem (ctx :< a) (env :< an) site l
+                       (substTy motTy (Ext Wk (Inj1 (CtxVar 0))))
+        recordBinder br ctx env bn b
+        (r', rSk) <- checkElem (ctx :< b) (env :< bn) site r
+                       (substTy motTy (Ext Wk (Inj2 (CtxVar 0))))
+        c <- convTy ctx env "\{site}: inferred vs expected type" Nothing (substTy motTy (Ext Id t')) cTy
+        pure (SumElim l' r' t',
+              addPayload (PSwitch (certOr c)) (Nd [PMotive motTy (Nd [] [])] [lSk, rSk, tSk]))
+      Nothing => throw "\{site}: ⊎-elim scrutinee has non-⊎ type\{structuralHint ()}"
+  checkElem ctx env site (SQuotElim Nothing (an, ar) f q) cTy = do
+    (q', qTy, qSk) <- inferElem ctx env site q
+    st <- getSt
+    case preferQuot st ctx qTy of
+      Just (a, rel, _) => do
+        let motTy = absT 0 q' cTy
+        unless (skelFreeT motTy) $
+          throw "\{site}: the recovered motive contains a stuck eliminator — write the motive: (z. T)"
+        recordBinder ar ctx env an a
+        (f', fSk) <- checkElem (ctx :< a) (env :< an) site f
+                       (substTy motTy (Ext Wk (Class (CtxVar 0))))
+        let wk3 = Chain Wk (Chain Wk Wk)
+        wd <- convElem (ctx :< a :< substTy a Wk :< Prf rel) (env :< an :< (an ++ "'") :< "h")
+          "\{site}: well-definedness of quot-elim case" Nothing
+          (substElem f' (Ext wk3 (CtxVar 2)))
+          (substElem f' (Ext wk3 (CtxVar 1)))
+          (substTy motTy (Ext wk3 (Class (CtxVar 2))))
+        c <- convTy ctx env "\{site}: inferred vs expected type" Nothing (substTy motTy (Ext Id q')) cTy
+        pure (QuotElim f' q',
+              addPayload (PSwitch (certOr c)) (Nd [PMotive motTy (Nd [] []), PWD (certOr wd)] [fSk, qSk]))
+      Nothing => throw "\{site}: quot-elim scrutinee has non-quotient type\{structuralHint ()}"
   checkElem ctx env site t ty = do
     (t', inferred, tSk) <- inferElem ctx env site t
+    motiveTrial ctx env site t t' tSk ty
     c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
     pure (t', addPayload (PSwitch (certOr c)) tSk)
+
+  ||| Record the sugar trial's verdict at a ranged site (Phase 4).
+  sugarTrial : Maybe Range -> ElabM Bool -> ElabM ()
+  sugarTrial mrng verdict = do
+    st <- getSt
+    when st.svSugarOn $ case mrng of
+      Nothing => pure ()
+      Just rng => do
+        v <- verdict
+        modifySt $ { svSugar $= (:< (st.modPrefix, rng, v)) }
+
+  ||| Would the elided ≡ recover the written domain α-exactly?
+  ||| Mirrors elabEqSides exactly: the left side first.
+  eqElideVerdict : Ctx -> NameEnv -> String -> SElem -> SElem -> Ty -> ElabM Bool
+  eqElideVerdict ctx env site l r t' =
+    if sInferForm l
+      then do res <- probeM (inferElem ctx env site l)
+              pure (case res of
+                      Just (_, lTy, _) => show lTy == show t' && skelFreeT lTy
+                      Nothing => False)
+      else if sInferForm r
+        then do res <- probeM (inferElem ctx env site r)
+                pure (case res of
+                        Just (_, rTy, _) => show rTy == show t' && skelFreeT rTy
+                        Nothing => False)
+        else pure False
+
+  ||| The elided ≡'s sides: the domain is the inferred type of the
+  ||| LEFT side (right as fallback when the left is an intro form) —
+  ||| a deterministic rule, not a search. Both sides intro is a
+  ||| structural error whose remedy is the ∈-annotation.
+  elabEqSides : Ctx -> NameEnv -> String -> SElem -> SElem -> ElabM (Elem, Elem, Ty, Skel, Skel)
+  elabEqSides ctx env site l r =
+    if sInferForm l
+      then do
+        (l', t', lSk) <- inferElem ctx env site l
+        unless (skelFreeT t') $
+          throw "\{site}: the inferred equality domain contains a stuck eliminator — annotate it: l ≡ r ∈ T"
+        (r', rSk) <- checkElem ctx env site r t'
+        pure (l', r', t', lSk, rSk)
+      else if sInferForm r
+        then do
+          (r', t', rSk) <- inferElem ctx env site r
+          unless (skelFreeT t') $
+            throw "\{site}: the inferred equality domain contains a stuck eliminator — annotate it: l ≡ r ∈ T"
+          (l', lSk) <- checkElem ctx env site l t'
+          pure (l', r', t', lSk, rSk)
+        else throw "\{site}: cannot infer the equality's domain — annotate it: l ≡ r ∈ T"
+
+  ||| The MOTIVE trial: at a checking-position eliminator with a
+  ||| written motive, record whether abstracting the scrutinee in the
+  ||| expected type reproduces it α-exactly.
+  motiveTrial : Ctx -> NameEnv -> String -> SElem -> Elem -> Skel -> Ty -> ElabM ()
+  motiveTrial ctx env site surf core sk cTy = do
+    st <- getSt
+    when st.svSugarOn $ case (motRangeOf surf, motPayload sk, scrutOf core) of
+      (Just rng, Just motTy, Just scrut) =>
+        modifySt $ { svSugar $= (:< (st.modPrefix, rng,
+                                     show (absT 0 scrut cTy) == show motTy
+                                       && skelFreeT motTy)) }
+      _ => pure ()
+   where
+    motRangeOf : SElem -> Maybe Range
+    motRangeOf (SNatElim (Just ((_, mr), _)) _ _ _ _ _) = mr
+    motRangeOf (SSumElim (Just ((_, mr), _)) _ _ _ _ _) = mr
+    motRangeOf (SQuotElim (Just ((_, mr), _)) _ _ _) = mr
+    motRangeOf _ = Nothing
+
+    motPayload : Skel -> Maybe Ty
+    motPayload (Nd ps _) =
+      head' (mapMaybe (\pl => case pl of
+                         PMotive m _ => Just m
+                         _ => Nothing) ps)
+
+    scrutOf : Elem -> Maybe Elem
+    scrutOf (NatElim _ _ t) = Just t
+    scrutOf (SumElim _ _ t) = Just t
+    scrutOf (QuotElim _ q) = Just q
+    scrutOf _ = Nothing
 
   ||| The implicit-spine view: the whole application chain, when its
   ||| head is a signature reference whose def carries implicit binder
@@ -3779,28 +3974,6 @@ mutual
     ||| domain still carries holes must INFER, its type feeding the
     ||| matcher, its domain conversion deferred to the final
     ||| instantiation.
-    ||| Is the surface argument an INFERENCE form (its type known
-    ||| without the domain)? Mirrors the mode inventory; erased-proof
-    ||| forms and intros carry nothing.
-    sInferForm : SElem -> Bool
-    sInferForm e = case e of
-      SLam _ _ => False
-      SLet _ _ _ => False
-      SPair _ _ => False
-      SInj1 _ => False
-      SInj2 _ => False
-      SClass _ => False
-      SStar => False
-      SStarWit _ => False
-      SStarUsing _ => False
-      SChain _ _ => False
-      SCoind _ _ _ _ _ _ _ _ => False
-      SSquashElim _ _ _ => False
-      SCorec _ _ _ _ => False
-      SZeroElim _ => False
-      SImpArg _ => False
-      _ => True
-
     walk : (jn : Ty -> Ty) -> (trialOn : Bool) -> List Ty -> List (Nat, Maybe SElem) -> Sols ->
            List Elem -> List Skel -> List (Nat, Ty) -> List (Nat, Ty) ->
            ElabM (Sols, List Elem, List Skel, List (Nat, Ty), List (Nat, Ty))
@@ -4706,6 +4879,15 @@ elabProgramTrial : List ModUnit -> Either String (Sig, List (String, Nat, Nat))
 elabProgramTrial units =
   map (\st => (st.kernelSig, toList st.impTrial))
       (elabProgramSt ({ impTrialOn := True } initSt) units)
+
+||| Run the program with the Phase-4 SUGAR TRIAL on: on full
+||| acceptance, the kernel Σ and the per-site elision verdicts —
+||| (module, range of the ∈-annotation or motive binder, elidable).
+export
+elabProgramSugar : List ModUnit -> Either String (Sig, List (String, Range, Bool))
+elabProgramSugar units =
+  map (\st => (st.kernelSig, toList st.svSugar))
+      (elabProgramSt ({ svSugarOn := True } initSt) units)
 
 export
 elabProgramSig : List ModUnit -> Either String Sig

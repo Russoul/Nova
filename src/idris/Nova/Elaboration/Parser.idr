@@ -109,11 +109,15 @@ parseName = do
     -- no error at all).
     -- let/in are reserved for the same reason as S/class: both are
     -- syntactically valid identifiers, and a binder named `in` would
-    -- misparse every let-body boundary after it
+    -- misparse every let-body boundary after it. `using` joined them
+    -- with the elided ≡ (docs/NovaPerfectSurface.txt, Phase 4): an
+    -- ∈-less equality's right side is an application chain, which
+    -- would otherwise swallow a following using-clause
     guard "Reserved keyword" (name /= "def" && name /= "type" && name /= "El" && name /= "Prf" &&
                               name /= "import" && name /= "infixl" && name /= "infixr" &&
                               name /= "S" && name /= "Z" && name /= "class" &&
-                              name /= "data" && name /= "let" && name /= "in")
+                              name /= "data" && name /= "let" && name /= "in" &&
+                              name /= "using")
     pure name
 
 ||| A decimal numeral — sugar for an S-tower over Z (a maximal digit
@@ -208,12 +212,13 @@ mutual
   export
   parseSTy : FixTable -> NameEnv -> Rule STy
   parseSTy tbl env =
-        (do e0 <- parseSElemOp tbl env; sp
-            kw "≡"; sp
-            e1 <- parseSElemOp tbl env; sp
-            kw "∈"; sp
-            a  <- parseSTyArrow tbl env
-            pure (STyEq e0 e1 a))
+        (do (r, (e0, e1, ma)) <- bounds (do
+              e0 <- parseSElemOp tbl env; sp
+              kw "≡"; sp
+              e1 <- parseSElemOp tbl env
+              ma <- optional (do sp; kw "∈"; sp; parseSTyArrow tbl env)
+              pure (e0, e1, ma))
+            pure (STyEq r e0 e1 ma))
     <|> parseSTyArrow tbl env
 
   -- T{1}: named binder forms and the sugared right-assoc infixes.
@@ -356,10 +361,12 @@ mutual
               -- prop by its very next character (backtracking)
               <|> (do sp; links <- parseChainLinks tbl env
                       pure (SChain e links))
-              <|> (do sp; kw "≡"; sp
-                      e1 <- parseSElemSumC tbl env; sp; kw "∈"; sp
-                      t2 <- parseSTyEl tbl env
-                      pure (SEqC e e1 t2))
+              <|> (do (r, (e1, mt2)) <- bounds (do
+                        sp; kw "≡"; sp
+                        e1 <- parseSElemSumC tbl env
+                        mt2 <- optional (do sp; kw "∈"; sp; parseSTyEl tbl env)
+                        pure (e1, mt2))
+                      pure (SEqC r e e1 mt2))
               <|> pure e)
 
   -- links of a calc chain: ≡⟨ justification ⟩ midpoint, one or more
@@ -463,16 +470,25 @@ mutual
             pure (SLet x (maybe e (SAnn e) manno) b))
     <|> (do kw "𝟘-elim"; space; e <- parseSElemAtom tbl env; pure (SZeroElim e))
     <|> (do kw "ℕ-elim"; space
-            kwc '('; sp; n <- parseNameR; sp; kwc '.'; sp
-            mot <- parseSTy tbl (env :< fst n); sp; kwc ')'; sp
+            -- the motive group is safely optional here: z is an ATOM,
+            -- and no valid element atom has the (name. …) shape
+            mmot <- optional (do
+              kwc '('; sp; n <- parseNameR; sp; kwc '.'; sp
+              mot <- parseSTy tbl (env :< fst n); sp; kwc ')'; sp
+              pure (n, mot))
             z <- parseSElemAtom tbl env; sp
             kwc '('; sp; n2 <- parseNameR; space; ih <- parseNameR
             sp; kwc '.'; sp; s <- parseSElem tbl (env :< fst n2 :< fst ih); sp; kwc ')'; sp
             t <- parseSElemAtom tbl env
-            pure (SNatElim n mot z n2 ih s t))
+            pure (SNatElim mmot z n2 ih s t))
     <|> (do kw "S"; space; e <- parseSElemAtom tbl env; pure (SSuc e))
     <|> (do kw "inj₁"; space; e <- parseSElemAtom tbl env; pure (SInj1 e))
     <|> (do kw "inj₂"; space; e <- parseSElemAtom tbl env; pure (SInj2 e))
+        -- ⊎-elim with an explicit motive, then the motive-less form
+        -- (checking-only): a case group (x. ELEM) whose body is a
+        -- bare name also parses as a motive group (z. TYPE), so the
+        -- three-group spelling is tried first and the two-group
+        -- spelling is the fallback
     <|> (do kw "⊎-elim"; space
             kwc '('; sp; z <- parseNameR; sp; kwc '.'; sp
             mot <- parseSTy tbl (env :< fst z); sp; kwc ')'; sp
@@ -481,7 +497,14 @@ mutual
             kwc '('; sp; b <- parseNameR; sp; kwc '.'; sp
             r <- parseSElem tbl (env :< fst b); sp; kwc ')'; sp
             t <- parseSElemAtom tbl env
-            pure (SSumElim z mot a l b r t))
+            pure (SSumElim (Just (z, mot)) a l b r t))
+    <|> (do kw "⊎-elim"; space
+            kwc '('; sp; a <- parseNameR; sp; kwc '.'; sp
+            l <- parseSElem tbl (env :< fst a); sp; kwc ')'; sp
+            kwc '('; sp; b <- parseNameR; sp; kwc '.'; sp
+            r <- parseSElem tbl (env :< fst b); sp; kwc ')'; sp
+            t <- parseSElemAtom tbl env
+            pure (SSumElim Nothing a l b r t))
     <|> (do kw "class"; space; e <- parseSElemAtom tbl env; pure (SClass e))
     <|> (do kw "ν"; space; f <- parseSPolyAtom tbl env; pure (SNuC f))
     <|> (do kw "out"; space; e <- parseSElemAtom tbl env; pure (SOut e))
@@ -499,13 +522,19 @@ mutual
             sp; kwc '.'; sp
             q <- parseSElem tbl (env :< fst mx :< fst my :< fst mh); sp; kwc ')'
             pure (SCoind x y r pw mx my mh q))
+        -- quot-elim likewise: with-motive first, motive-less fallback
     <|> (do kw "quot-elim"; space
             kwc '('; sp; z <- parseNameR; sp; kwc '.'; sp
             mot <- parseSTy tbl (env :< fst z); sp; kwc ')'; sp
             kwc '('; sp; a <- parseNameR; sp; kwc '.'; sp
             f <- parseSElem tbl (env :< fst a); sp; kwc ')'; sp
             q <- parseSElemAtom tbl env
-            pure (SQuotElim z mot a f q))
+            pure (SQuotElim (Just (z, mot)) a f q))
+    <|> (do kw "quot-elim"; space
+            kwc '('; sp; a <- parseNameR; sp; kwc '.'; sp
+            f <- parseSElem tbl (env :< fst a); sp; kwc ')'; sp
+            q <- parseSElemAtom tbl env
+            pure (SQuotElim Nothing a f q))
     <|> (do kw "squash-elim"; space
             e <- parseSElemAtom tbl env; sp
             kwc '('; sp; x <- parseNameR; sp; kwc '.'; sp

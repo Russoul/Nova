@@ -152,14 +152,14 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
       SSigmaC x a b => SSigmaC x (xfE a) (xfE b)
       SSumC a b => SSumC (xfE a) (xfE b)
       SQuotC a x y r => SQuotC (xfE a) x y (xfE r)
-      SEqC l r t => SEqC (xfE l) (xfE r) (xfT t)
+      SEqC rng l r t => SEqC rng (xfE l) (xfE r) (map xfT t)
       SZeroElim t => SZeroElim (xfE t)
-      SNatElim n mot z n2 ih s t => SNatElim n (xfT mot) (xfE z) n2 ih (xfE s) (xfE t)
+      SNatElim mot z n2 ih s t => SNatElim (map (\(n, m) => (n, xfT m)) mot) (xfE z) n2 ih (xfE s) (xfE t)
       SInj1 t => SInj1 (xfE t)
       SInj2 t => SInj2 (xfE t)
-      SSumElim z mot a l b r t => SSumElim z (xfT mot) a (xfE l) b (xfE r) (xfE t)
+      SSumElim mot a l b r t => SSumElim (map (\(z, m) => (z, xfT m)) mot) a (xfE l) b (xfE r) (xfE t)
       SClass t => SClass (xfE t)
-      SQuotElim z mot a f qq => SQuotElim z (xfT mot) a (xfE f) (xfE qq)
+      SQuotElim mot a f qq => SQuotElim (map (\(z, m) => (z, xfT m)) mot) a (xfE f) (xfE qq)
       SNuC f => SNuC (xfP f)
       SOut t => SOut (xfE t)
       SCorec x a f u => SCorec x (xfE a) (xfE f) (xfE u)
@@ -185,7 +185,7 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
       STySigma x a b => STySigma x (xfT a) (xfT b)
       STySum a b => STySum (xfT a) (xfT b)
       STyQuot a x y r => STyQuot (xfT a) x y (xfE r)
-      STyEq l r t => STyEq (xfE l) (xfE r) (xfT t)
+      STyEq rng l r t => STyEq rng (xfE l) (xfE r) (map xfT t)
       STyEl t => STyEl (xfE t)
       STyPrf t => STyPrf (xfE t)
       STyNu f => STyNu (xfP f)
@@ -327,26 +327,6 @@ driftCulprits a b = nub (go (toList a) (toList b))
   go (SigTyDef _ _ ty :: xs) (SigTyDef _ _ ty' :: ys) = dhT ty ty' ++ go xs ys
   go (_ :: xs) (_ :: ys) = go xs ys
   go _ _ = []
-
-||| Entrywise α-comparison of two kernel Σs (core is nameless, so
-||| structural equality is α-equality; Show is the comparator).
-sigCompare : Sig -> Sig -> Maybe String
-sigCompare a b = go (toList a) (toList b)
- where
-  showEntry : SigEntry -> String
-  showEntry (SigDef ctx n body ty) = "def \{n} : \{show ty} ≔ \{show body} [\{show ctx}]"
-  showEntry (SigTyDef ctx n ty) = "type \{n} ≔ \{show ty} [\{show ctx}]"
-  showEntry (SigDecl ctx n ty) = "decl \{n} : \{show ty} [\{show ctx}]"
-  showEntry (SigTyDecl ctx n) = "tydecl \{n} [\{show ctx}]"
-  showEntry (SigEq ctx l r ty) = "eq \{show l} ≐ \{show r} : \{show ty} [\{show ctx}]"
-  showEntry (SigTyEq ctx x y) = "tyeq \{show x} ≐ \{show y} [\{show ctx}]"
-
-  go : List SigEntry -> List SigEntry -> Maybe String
-  go [] [] = Nothing
-  go (x :: xs) (y :: ys) =
-    if showEntry x == showEntry y then go xs ys
-    else Just ("Σ entry differs after implicitize:\n  original: \{showEntry x}\n  new:      \{showEntry y}")
-  go _ _ = Just "Σ length differs after implicitize"
 
 defItemNames : List ModUnit -> List String
 defItemNames = concatMap (\u => mapMaybe (\(_, it) => case it of

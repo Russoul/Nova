@@ -25,25 +25,22 @@ import rational (NZ, nzPos, nzNeg, nzToInt, Rat, mkRat, num, den, ratEta, ratZer
 import rationalQ (Q, qcls, qZero, qOne, qMul, qMulInv, NZQ, qOfNzq, nzqInv, clsEqOfRel, dInt)
 import equality (trans, sym, cong)
 
-def normProdZero : {a b : ℕ} → normPair a b .π₁ * normPair a b .π₂ ≡ Z ∈ ℕ
+def normProdZero : {a b : ℕ} → normPair a b .π₁ * normPair a b .π₂ ≡ Z
   using (integerNormalize.normPair.eq, nat.multZeroId, zeroMult) ≔
-  λa. ℕ-elim (k. (b : ℕ) → normPair k b .π₁ * normPair k b .π₂ ≡ Z ∈ ℕ)
-    (λb. ⋆)
-    (k ih. λb. ℕ-elim (j. normPair (S k) j .π₁ * normPair (S k) j .π₂ ≡ Z ∈ ℕ) ⋆ (j ihb. ih j) b)
-    a
+  λa. ℕ-elim (λb. ⋆) (k ih. λb. ℕ-elim ⋆ (j ihb. ih j) b) a
 
-def intCanonProdZero : (z : El Int) → intCanon z .π₁ * intCanon z .π₂ ≡ Z ∈ ℕ
+def intCanonProdZero : (z : El Int) → intCanon z .π₁ * intCanon z .π₂ ≡ Z
   using (eqInt.intCanon.eq, integer.Int.unfold, integerNormalize.normPair.eq, normProdZero) ≔
-  λz. quot-elim (w. intCanon w .π₁ * intCanon w .π₂ ≡ Z ∈ ℕ) (p. normProdZero) z
+  λz. quot-elim (p. normProdZero) z
 
 -- ===== a non-zero integer is the image of an NZ =====
 -- on a pair with one component Z, non-zeroness leaves exactly the two
 -- productive cases; the (Z,Z) case contradicts the hypothesis and the
 -- (S,S) case contradicts canonicity
 def nzOfPair : (a b : ℕ)
-  (hab : Prf (a * b ≡ Z ∈ ℕ))
-  (hnz : Prf (¬ (class (a, b) ≡ intZero ∈ El Int)))
-  → Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ class (a, b) ∈ El Int)∥
+  (hab : Prf (a * b ≡ Z))
+  (hnz : Prf (¬ (class (a, b) ≡ intZero)))
+  → Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ class (a, b))∥
   using (integer.Int.eq,
     integer.Int.unfold,
     integer.intZero.eq,
@@ -57,27 +54,14 @@ def nzOfPair : (a b : ℕ)
     rational.nzToInt.eq,
     sucPlus,
     zeroMult) ≔
-  λa. ℕ-elim (k. (b : ℕ)
-    → Prf (k
-      * b ≡ Z ∈ ℕ)
-      → Prf (¬
-        (class (k,
-          b) ≡ intZero ∈ El Int)) → Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ class (k, b) ∈ El Int)∥)
-    (λb. ℕ-elim (j. Prf (Z
-      * j ≡ Z ∈ ℕ)
-      → Prf (¬
-        (class (Z,
-          j) ≡ intZero ∈ El Int)) → Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ class (Z, j) ∈ El Int)∥)
+  λa. ℕ-elim
+    (λb. ℕ-elim
       (λhab. λhnz. absurdP
-        ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ class (Z, Z) ∈ El Int)∥
-        (impApply (class (Z, Z) ≡ intZero ∈ El Int) ⊥ hnz ⋆))
+        ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ class (Z, Z))∥
+        (impApply (class (Z, Z) ≡ intZero) ⊥ hnz ⋆))
       (j ihb. λhab. λhnz. ⋆ (nzNeg j, ⋆))
       b)
-    (k ih. λb. ℕ-elim (j. Prf (S k
-      * j ≡ Z ∈ ℕ)
-      → Prf (¬
-        (class (S k,
-          j) ≡ intZero ∈ El Int)) → Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ class (S k, j) ∈ El Int)∥)
+    (k ih. λb. ℕ-elim
       (λhab. λhnz. ⋆ (nzPos k, ⋆))
       (j ihb. λhab. λhnz. 𝟘-elim (zNotS
         (k + S k * j)
@@ -118,19 +102,19 @@ def notApply : (p : Ω) → Prf (¬ p) → Prf p → Prf ⊥
 -- ⇒ᴺ-inferable).
 def intNZViewAt : {z : El Int}
   (p : ℕ ⨯ ℕ)
-  (hz : Prf (class p ≡ z ∈ El Int))
-  (hab : Prf (p .π₁ * p .π₂ ≡ Z ∈ ℕ))
-  (hnz : Prf (¬ (z ≡ intZero ∈ El Int)))
-  → Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int)∥
+  (hz : Prf (class p ≡ z))
+  (hab : Prf (p .π₁ * p .π₂ ≡ Z))
+  (hnz : Prf (¬ (z ≡ intZero)))
+  → Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ z)∥
   using (classPairEta, integer.Int.unfold) ≔
   λz. λp. λhz. λhab. λhnz. squash-elim (nzOfPair
     (p .π₁)
     (p .π₂)
     hab
     (notIntro
-      (class (p .π₁, p .π₂) ≡ intZero ∈ El Int)
+      (class (p .π₁, p .π₂) ≡ intZero)
       (λe. notApply
-        (z ≡ intZero ∈ El Int)
+        (z ≡ intZero)
         hnz
         (trans
           Int
@@ -151,16 +135,14 @@ def intNZViewAt : {z : El Int}
       (w .π₂)
       (trans Int (class (p .π₁, p .π₂)) (class p) z (classPairEta p) hz)))
 
-def intNZView : (z : El Int)
-  (hnz : Prf (¬ (z ≡ intZero ∈ El Int)))
-  → Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int)∥
+def intNZView : (z : El Int) (hnz : Prf (¬ (z ≡ intZero))) → Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ z)∥
   using (intCanonProdZero) ≔
   λz. λhnz. intNZViewAt (intCanon z) (intCanonClass z) (intCanonProdZero z) hnz
 
 -- ===== transferring non-zeroness to the numerator =====
 -- the easy direction of effectivity (el-quot-eq): a zero numerator
 -- makes the class zero
-def ratZeroOfNumZero : (p : El Rat) (h : Prf (num p ≡ intZero ∈ El Int)) → class p ≡ qZero ∈ El Q
+def ratZeroOfNumZero : (p : El Rat) (h : Prf (num p ≡ intZero)) → class p ≡ qZero
   using (intMulOneR,
     intMulZeroL,
     integer.Int.eq,
@@ -194,18 +176,12 @@ def ratZeroOfNumZero : (p : El Rat) (h : Prf (num p ≡ intZero ∈ El Int)) →
       (trans Int (intMul (num p) (dInt ratZero)) (num p) intZero (intMulOneR (num p)) h)
       (sym Int (intMul intZero (dInt p)) intZero (intMulZeroL (dInt p))))
 
-def numNonZero : {p : El Rat}
-  (h : Prf (¬ (class p ≡ qZero ∈ El Q)))
-  → Prf (¬ (num p ≡ intZero ∈ El Int))
+def numNonZero : {p : El Rat} (h : Prf (¬ (class p ≡ qZero))) → Prf (¬ (num p ≡ intZero))
   using (prop.¬.unfold, prop.⊃.unfold, rationalQ.Q.unfold) ≔
-  λp. λh. notIntro
-    (num p ≡ intZero ∈ El Int)
-    (λe. notApply (class p ≡ qZero ∈ El Q) h (ratZeroOfNumZero p e))
+  λp. λh. notIntro (num p ≡ intZero) (λe. notApply (class p ≡ qZero) h (ratZeroOfNumZero p e))
 
 -- ===== every non-zero rational is qOfNzq of something =====
-def qNonZeroIsNzq : {u : El Q}
-  (h : Prf (¬ (u ≡ qZero ∈ El Q)))
-  → Prf ∥(x : El NZQ) ⨯ Prf (qOfNzq x ≡ u ∈ El Q)∥
+def qNonZeroIsNzq : {u : El Q} (h : Prf (¬ (u ≡ qZero))) → Prf ∥(x : El NZQ) ⨯ Prf (qOfNzq x ≡ u)∥
   using (integer.Int.unfold,
     prop.¬.unfold,
     prop.⊃.unfold,
@@ -220,7 +196,7 @@ def qNonZeroIsNzq : {u : El Q}
     rationalQ.nzqToRat.eq,
     rationalQ.qOfNzq.eq,
     rationalQ.qcls.eq) ≔
-  λu. quot-elim (w. Prf (¬ (w ≡ qZero ∈ El Q)) → Prf ∥(x : El NZQ) ⨯ Prf (qOfNzq x ≡ w ∈ El Q)∥)
+  λu. quot-elim
     (p. λh. squash-elim (intNZView
       (num p)
       (numNonZero
@@ -237,9 +213,7 @@ def qNonZeroIsNzq : {u : El Q}
     u
 
 -- ===== the theorem =====
-def qInvExists : {u : El Q}
-  (h : Prf (¬ (u ≡ qZero ∈ El Q)))
-  → Prf ∥(v : El Q) ⨯ Prf (qMul u v ≡ qOne ∈ El Q)∥ ≔
+def qInvExists : {u : El Q} (h : Prf (¬ (u ≡ qZero))) → Prf ∥(v : El Q) ⨯ Prf (qMul u v ≡ qOne)∥ ≔
   λu. λh. squash-elim (qNonZeroIsNzq
     h) (w. ⋆ (qOfNzq
     (nzqInv

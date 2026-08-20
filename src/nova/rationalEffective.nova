@@ -24,20 +24,20 @@ import rationalInv (notIntro, notApply, numNonZero, ratZeroOfNumZero, qNonZeroIs
 import quotEffective (effectiveAtEquiv)
 import equality (trans, sym, cong)
 
-def addCongL : {x y z : El Int} → (x ≡ y ∈ El Int) → intAdd x z ≡ intAdd y z ∈ El Int
+def addCongL : {x y z : El Int} → (x ≡ y) → intAdd x z ≡ intAdd y z
   using (integer.Int.unfold, integerMul.intAddCong2) ≔
   λx. λy. λz. λh. ⋆
 
-def addCongR : {x y z : El Int} → (y ≡ z ∈ El Int) → intAdd x y ≡ intAdd x z ∈ El Int
+def addCongR : {x y z : El Int} → (y ≡ z) → intAdd x y ≡ intAdd x z
   using (integer.Int.unfold, integerMul.intAddCong2) ≔
   λx. λy. λz. λh. ⋆
 
 -- x·d ≡ y·d with d ≠ 0 gives x ≡ y: the difference times d is zero,
 -- so the difference is zero
 def intMulCancel : (x y d : El Int)
-  (h : Prf (intMul x d ≡ intMul y d ∈ El Int))
-  (hd : Prf (¬ (d ≡ intZero ∈ El Int)))
-  → x ≡ y ∈ El Int
+  (h : Prf (intMul x d ≡ intMul y d))
+  (hd : Prf (¬ (d ≡ intZero)))
+  → x ≡ y
   using (intAddNegL, intMulNegL, intAddZeroL, intAddZeroR) ≔
   λx. λy. λd. λh. λhd. sym
     Int
@@ -100,7 +100,7 @@ def intMulCancel : (x y d : El Int)
 -- (a·b)·c ≡ (a·c)·b, the one rearrangement transitivity needs — a
 -- calc chain: only tier-0/½ conversion is implicit, every step a
 -- named link, no holes
-def mulSwapRight : {a b c : El Int} → intMul (intMul a b) c ≡ intMul (intMul a c) b ∈ El Int
+def mulSwapRight : {a b c : El Int} → intMul (intMul a b) c ≡ intMul (intMul a c) b
   using (integer.Int.unfold) ≔
   λa. λb. λc. intMul (intMul a b) c
       ≡⟨ intMulAssoc a b c ⟩ intMul a (intMul b c)
@@ -179,7 +179,7 @@ def qEffective : (p q : El Rat) → Prf (class p ≡ class q ∈ El Q) → Prf (
 
 -- the converse of rationalInv.nova's ratZeroOfNumZero, which needed
 -- effectivity and so could not be stated until now
-def numZeroOfRatZero : (p : El Rat) (h : Prf (class p ≡ qZero ∈ El Q)) → num p ≡ intZero ∈ El Int
+def numZeroOfRatZero : (p : El Rat) (h : Prf (class p ≡ qZero)) → num p ≡ intZero
   using (intMulOneR,
     intMulZeroL,
     integer.Int.eq,
@@ -216,12 +216,12 @@ def numZeroOfRatZero : (p : El Rat) (h : Prf (class p ≡ qZero ∈ El Q)) → n
       (qEffective p ratZero h)
       (intMulZeroL (dInt p)))
 
-def numZeroIff : (p : El Rat) → Prf ((class p ≡ qZero ∈ El Q) ↔ (num p ≡ intZero ∈ El Int))
+def numZeroIff : (p : El Rat) → Prf ((class p ≡ qZero) ↔ (num p ≡ intZero))
   using (prop.↔.unfold, prop.∧.unfold, rationalQ.Q.unfold) ≔
-  λp. iffIntro (class p ≡ qZero ∈ El Q) (numZeroOfRatZero p) (ratZeroOfNumZero p)
+  λp. iffIntro (class p ≡ qZero) (numZeroOfRatZero p) (ratZeroOfNumZero p)
 
 -- ===== the image of NZQ is exactly the non-zero rationals =====
-def qOfNzqNonZero : (x : El NZQ) → Prf (¬ (qOfNzq x ≡ qZero ∈ El Q))
+def qOfNzqNonZero : (x : El NZQ) → Prf (¬ (qOfNzq x ≡ qZero))
   using (prop.¬.unfold,
     prop.⊃.unfold,
     rational.NZ.unfold,
@@ -233,30 +233,29 @@ def qOfNzqNonZero : (x : El NZQ) → Prf (¬ (qOfNzq x ≡ qZero ∈ El Q))
     rationalQ.qOfNzq.eq,
     rationalQ.qcls.eq) ≔
   λx. notIntro
-    (qOfNzq x ≡ qZero ∈ El Q)
+    (qOfNzq x ≡ qZero)
     (λh. notApply
-      (nzToInt (x .π₁) ≡ intZero ∈ El Int)
+      (nzToInt (x .π₁) ≡ intZero)
       (nzToIntNonZero (x .π₁))
       (numZeroOfRatZero (nzqToRat x) h))
 
 -- so "non-zero" and "of the form qOfNzq x" coincide — the classical
 -- description of ℚ's units, with the structural one
-def qNonZeroIffNzq : (u : El Q)
-  → Prf (¬ (u ≡ qZero ∈ El Q) ↔ ∥(x : El NZQ) ⨯ Prf (qOfNzq x ≡ u ∈ El Q)∥)
+def qNonZeroIffNzq : (u : El Q) → Prf (¬ (u ≡ qZero) ↔ ∥(x : El NZQ) ⨯ Prf (qOfNzq x ≡ u)∥)
   using (prop.↔.unfold, prop.∧.unfold) ≔
   λu. iffIntro
-    (¬ (u ≡ qZero ∈ El Q))
+    (¬ (u ≡ qZero))
     (λh. qNonZeroIsNzq h)
     (λh. squash-elim h (w. notIntro
-      (u ≡ qZero ∈ El Q)
+      (u ≡ qZero)
       (λe. notApply
-        (qOfNzq (w .π₁) ≡ qZero ∈ El Q)
+        (qOfNzq (w .π₁) ≡ qZero)
         (qOfNzqNonZero (w .π₁))
         (trans Q (qOfNzq (w .π₁)) u qZero (w .π₂) e))))
 
 -- ===== the field axiom, classically =====
 -- 1 ≠ 0: nzToInt nzOne IS intOne, and the image of an NZ misses zero
-def qOneNotZero : Prf (¬ (qOne ≡ qZero ∈ El Q))
+def qOneNotZero : Prf (¬ (qOne ≡ qZero))
   using (integer.intOne.eq,
     prop.¬.unfold,
     prop.⊃.unfold,
@@ -270,13 +269,12 @@ def qOneNotZero : Prf (¬ (qOne ≡ qZero ∈ El Q))
     rationalQ.qOne.eq,
     rationalQ.qcls.eq) ≔
   notIntro
-    (qOne ≡ qZero ∈ El Q)
-    (λh. notApply (intOne ≡ intZero ∈ El Int) (nzToIntNonZero nzOne) (numZeroOfRatZero ratOne h))
+    (qOne ≡ qZero)
+    (λh. notApply (intOne ≡ intZero) (nzToIntNonZero nzOne) (numZeroOfRatZero ratOne h))
 
 -- INVERTIBLE ⟺ NON-ZERO. Forwards is the inverse theorem; backwards,
 -- a zero u would make 1 = u·v = 0·v = 0
-def qInvertibleIffNonZero : (u : El Q)
-  → Prf (¬ (u ≡ qZero ∈ El Q) ↔ ∥(v : El Q) ⨯ Prf (qMul u v ≡ qOne ∈ El Q)∥)
+def qInvertibleIffNonZero : (u : El Q) → Prf (¬ (u ≡ qZero) ↔ ∥(v : El Q) ⨯ Prf (qMul u v ≡ qOne)∥)
   using (integer.Int.unfold,
     prop.↔.unfold,
     prop.∧.unfold,
@@ -284,12 +282,12 @@ def qInvertibleIffNonZero : (u : El Q)
     rational.Rat.unfold,
     rationalQ.Q.unfold) ≔
   λu. iffIntro
-    (¬ (u ≡ qZero ∈ El Q))
+    (¬ (u ≡ qZero))
     (λh. qInvExists h)
     (λh. squash-elim h (w. notIntro
-      (u ≡ qZero ∈ El Q)
+      (u ≡ qZero)
       (λe. notApply
-        (qOne ≡ qZero ∈ El Q)
+        (qOne ≡ qZero)
         qOneNotZero
         (trans
           Q

@@ -4,6 +4,5 @@
 
 def collapse : class Z ≡ class (S Z) ∈ ℕ / (n m. ∥𝟙∥) ≔ ⋆
 
-def collapseElim : (q : ℕ / (n m. ∥𝟙∥))
-  → quot-elim (x. ℕ) (a. Z) (class Z : ℕ / (n m. ∥𝟙∥)) ≡ Z ∈ ℕ ≔
+def collapseElim : (q : ℕ / (n m. ∥𝟙∥)) → quot-elim (x. ℕ) (a. Z) (class Z : ℕ / (n m. ∥𝟙∥)) ≡ Z ≔
   λq. ⋆

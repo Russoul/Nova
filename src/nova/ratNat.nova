@@ -24,7 +24,7 @@ import id (Id, idToEq, eqToId)
 
 def qOfNat : ℕ → El Q using (rationalQ.Q.unfold) ≔ λk. qcls (mkRat (intOfNat k) nzOne)
 
-def qOfNatZero : qOfNat Z ≡ qZero ∈ El Q
+def qOfNatZero : qOfNat Z ≡ qZero
   using (intOrder.intOfNat.eq,
     integer.intZero.eq,
     ratNat.qOfNat.eq,
@@ -38,7 +38,7 @@ def qOfNatZero : qOfNat Z ≡ qZero ∈ El Q
     rationalQ.qcls.eq) ≔
   ⋆
 
-def qOfNatOne : qOfNat (S Z) ≡ qOne ∈ El Q
+def qOfNatOne : qOfNat (S Z) ≡ qOne
   using (intOrder.intOfNat.eq,
     integer.intOne.eq,
     ratNat.qOfNat.eq,
@@ -55,19 +55,19 @@ def qOfNatOne : qOfNat (S Z) ≡ qOne ∈ El Q
 -- ===== the difference of two naturals, in ℤ =====
 -- the flipped reading of the hypothesis, as its own lemma: the engine
 -- cannot commute a FIRST argument, so state the exact relation shape
-def natDiffRel : (a b k : ℕ) → (a + k ≡ b ∈ ℕ) → k + a ≡ b ∈ ℕ ≔
+def natDiffRel : (a b k : ℕ) → (a + k ≡ b) → k + a ≡ b ≔
   λa. λb. λk. λh. trans ℕ (k + a) (a + k) b (plusComm a k) h
 
-def natDiffClass : {a b k : ℕ} → (a + k ≡ b ∈ ℕ) → intOfNat k ≡ class (b, a) ∈ El Int
+def natDiffClass : {a b k : ℕ} → (a + k ≡ b) → intOfNat k ≡ class (b, a)
   using (intOrder.intOfNat.eq, integer.Int.unfold, natDiffRel, zeroPlusId.rw) ≔
   λa. λb. λk. λh. ⋆
 
 -- effectivity of the ℤ quotient reads the two verdicts back as ℕ facts
-def natEqOfClassZero : {a b : ℕ} → (class (b, a) ≡ intZero ∈ El Int) → b ≡ a ∈ ℕ
+def natEqOfClassZero : {a b : ℕ} → (class (b, a) ≡ intZero) → b ≡ a
   using (integer.Int.unfold, integer.IntR.eq, integer.intZero.eq, nat.plusZeroId) ≔
   λa. λb. λh. intEffective (b, a) (Z, Z) h
 
-def natSucOfClassPos : {a b j : ℕ} → (class (S j, Z) ≡ class (b, a) ∈ El Int) → a + S j ≡ b ∈ ℕ
+def natSucOfClassPos : {a b j : ℕ} → (class (S j, Z) ≡ class (b, a) ∈ El Int) → a + S j ≡ b
   using (integer.Int.unfold, integer.IntR.eq) ≔
   λa. λb. λj. λh. trans
     ℕ
@@ -100,7 +100,7 @@ def leOfNonNegSgn : {a b : ℕ} → El (NonNegS (intSgn (class (b, a)))) → El 
     rational.nzPos.eq,
     rational.nzToInt.eq,
     rationalOrder.NonNegS.unfold) ≔
-  λa. λb. λnn. ⊎-elim (w. El (LeN a b))
+  λa. λb. λnn. ⊎-elim
     (h0. leOfEq
       (sym
         ℕ
@@ -120,9 +120,7 @@ def leOfNonNegSgn : {a b : ℕ} → El (NonNegS (intSgn (class (b, a)))) → El 
 -- ===== the order bridge =====
 -- the difference of the two embeddings, computed
 def qOfNatDiffNum : {a b : ℕ}
-  → intAdd
-    (intScale nzOne (intOfNat b))
-    (intScale nzOne (intNeg (intOfNat a))) ≡ class (b, a) ∈ El Int
+  → intAdd (intScale nzOne (intOfNat b)) (intScale nzOne (intNeg (intOfNat a))) ≡ class (b, a)
   using (intOrder.intOfNat.eq,
     integer.Int.unfold,
     integer.intNeg.eq,
@@ -156,8 +154,7 @@ def qOfNatDiffNum : {a b : ℕ}
         intScaleOne))
     ⋆
 
-def sgnQOfNatDiff : (a b : ℕ)
-  → sgnQ (qAdd (qOfNat b) (qNeg (qOfNat a))) ≡ intSgn (class (b, a)) ∈ El Sign
+def sgnQOfNatDiff : (a b : ℕ) → sgnQ (qAdd (qOfNat b) (qNeg (qOfNat a))) ≡ intSgn (class (b, a))
   using (eqInt.classNormPairEq.eq,
     eqInt.intCanon.eq,
     eqInt.intCanonClass.eq,
@@ -256,7 +253,7 @@ def leNOfQ : {a b : ℕ} → El (LeQ (qOfNat a) (qOfNat b)) → El (LeN a b)
       h)
 
 -- the embedding is additive
-def qOfNatAdd : (a b : ℕ) → qAdd (qOfNat a) (qOfNat b) ≡ qOfNat (a + b) ∈ El Q
+def qOfNatAdd : (a b : ℕ) → qAdd (qOfNat a) (qOfNat b) ≡ qOfNat (a + b)
   using (intOrder.intOfNat.eq,
     integer.intNeg.eq,
     integerAdd.intAdd.eq,
@@ -309,12 +306,11 @@ def qOfNatAdd : (a b : ℕ) → qAdd (qOfNat a) (qOfNat b) ≡ qOfNat (a + b) �
 -- ...and the same for the product. Both denominators are 1, so ratMul
 -- is just intMul on the numerators once nzMul nzOne nzOne collapses.
 def ratMulUnit : (x y : El Int)
-  → ratMul (mkRat x nzOne) (mkRat y nzOne) ≡ mkRat (intMul x y) (nzMul nzOne nzOne) ∈ El Rat
+  → ratMul (mkRat x nzOne) (mkRat y nzOne) ≡ mkRat (intMul x y) (nzMul nzOne nzOne)
   using (rationalQ.ratMul.eq, rational.mkRat.eq, rational.num.eq, rational.den.eq) ≔
   λx. λy. ⋆
 
-def qOfNatMul : (a b : ℕ) → qMul (qOfNat a) (qOfNat b) ≡ qOfNat (a * b) ∈ El Q
-  using (ratNat.qOfNat.eq) ≔
+def qOfNatMul : (a b : ℕ) → qMul (qOfNat a) (qOfNat b) ≡ qOfNat (a * b) using (ratNat.qOfNat.eq) ≔
   λa. λb. qMul (qOfNat a) (qOfNat b)
       ≡⟨ qMulCls
         (mkRat (intOfNat a) nzOne)
@@ -348,9 +344,9 @@ def qOfNatMul : (a b : ℕ) → qMul (qOfNat a) (qOfNat b) ≡ qOfNat (a * b) �
 -- S c as a rational is c + 1. Written c + S Z, not S Z + c: `+`
 -- recurses on its SECOND argument, so c + S Z reduces to S c on the
 -- nose and the other order would owe zeroPlusId.
-def addOneNat : (c : ℕ) → c + S Z ≡ S c ∈ ℕ using (nat.+.eq) ≔ λc. ⋆
+def addOneNat : (c : ℕ) → c + S Z ≡ S c using (nat.+.eq) ≔ λc. ⋆
 
-def qOfNatSuc : (c : ℕ) → qOfNat (S c) ≡ qAdd (qOfNat c) qOne ∈ El Q ≔
+def qOfNatSuc : (c : ℕ) → qOfNat (S c) ≡ qAdd (qOfNat c) qOne ≔
   λc. qOfNat (S c)
       ≡⟨ cong
         ℕ
@@ -366,7 +362,7 @@ def qOfNatSuc : (c : ℕ) → qOfNat (S c) ≡ qAdd (qOfNat c) qOne ∈ El Q ≔
         (qOfNatAdd c (S Z)) ⟩ qAdd (qOfNat c) (qOfNat (S Z))
       ≡⟨ cong Q (λw. Q) (λw. qAdd (qOfNat c) w) (qOfNat (S Z)) qOne qOfNatOne ⟩ qAdd (qOfNat c) qOne
 
-def qMulSucNat : (c : ℕ) (x : El Q) → qMul (qOfNat (S c)) x ≡ qAdd (qMul (qOfNat c) x) x ∈ El Q ≔
+def qMulSucNat : (c : ℕ) (x : El Q) → qMul (qOfNat (S c)) x ≡ qAdd (qMul (qOfNat c) x) x ≔
   λc. λx. qMul (qOfNat (S c)) x
       ≡⟨ cong
         Q

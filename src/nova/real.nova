@@ -16,7 +16,7 @@ import id (Id, eqToId)
 
 def qInvNat : ℕ → El Q using (rationalQ.Q.unfold) ≔ λn. qcls (mkRat intOne (nzPos n))
 
-def qInvNatPos : (n : ℕ) → sgnQ (qInvNat n) ≡ sPos ∈ El Sign
+def qInvNatPos : (n : ℕ) → sgnQ (qInvNat n) ≡ sPos
   using (eqInt.intCanon.eq,
     eqInt.intCanonClass.eq,
     intNonZero.nzOfInt.eq,
@@ -68,11 +68,11 @@ def qInvNatPos : (n : ℕ) → sgnQ (qInvNat n) ≡ sPos ∈ El Sign
 -- the regularity bound 1/(m+1) + 1/(n+1), positive
 def rBound : ℕ → ℕ → El Q using (rationalQ.Q.unfold) ≔ λm. λn. qAdd (qInvNat m) (qInvNat n)
 
-def rBoundPos : {m n : ℕ} → sgnQ (rBound m n) ≡ sPos ∈ El Sign
+def rBoundPos : {m n : ℕ} → sgnQ (rBound m n) ≡ sPos
   using (rationalQ.qAdd.eq, real.qInvNat.eq, real.rBound.eq) ≔
   λm. λn. sgnQAddPos (qInvNat m) (qInvNat n) (qInvNatPos m) (qInvNatPos n)
 
-def qNegZero : qNeg qZero ≡ qZero ∈ El Q
+def qNegZero : qNeg qZero ≡ qZero
   using (integer.intNeg.eq,
     integer.intZero.eq,
     rational.den.eq,

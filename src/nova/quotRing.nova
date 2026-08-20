@@ -190,11 +190,11 @@ def qrMulWDOuterElim : (R : 𝕌)
         → (v : El (QRing R r I))
           → quot-elim (w. El (QRing R r I))
             (q. qrCls (rmul R r x q))
-            v ≡ quot-elim (w. El (QRing R r I)) (q. qrCls (rmul R r x' q)) v ∈ El (QRing R r I)
+            v ≡ quot-elim (q. qrCls (rmul R r x' q)) v
   using (QRing.eq, quotGroup.QGroup.unfold, qrMulWDInnerCls) ≔
   λR. λr. λI. λid. λx. λx'. λh. λv. quot-elim (w. quot-elim (z. El (QRing R r I))
     (q. qrCls (rmul R r x q))
-    w ≡ quot-elim (z. El (QRing R r I)) (q. qrCls (rmul R r x' q)) w ∈ El (QRing R r I))
+    w ≡ quot-elim (q. qrCls (rmul R r x' q)) w)
     (c. qrMulWDOuterCls id h)
     v
 
@@ -203,16 +203,14 @@ def qrMul : (R : 𝕌)
   (I : El R → Ω)
   → Prf (IsIdeal R r I) → El (QRing R r I) → El (QRing R r I) → El (QRing R r I)
   using (QRing.eq, quotGroup.QGroup.unfold, qrMulWDInnerCls, qrMulWDOuterElim) ≔
-  λR. λr. λI. λid. λu. λv. quot-elim (w. El (QRing R r I))
-    (p. quot-elim (w. El (QRing R r I)) (q. qrCls (rmul R r p q)) v)
-    u
+  λR. λr. λI. λid. λu. λv. quot-elim (p. quot-elim (q. qrCls (rmul R r p q)) v) u
 
 def qrMulCls : (R : 𝕌)
   (r : El (IsCommRing R))
   (I : El R → Ω)
   (id : Prf (IsIdeal R r I))
   (a b : El R)
-  → qrMul R r I id (class a) (class b) ≡ class (rmul R r a b) ∈ El (QRing R r I)
+  → qrMul R r I id (class a) (class b) ≡ class (rmul R r a b)
   using (QRing.eq, qrCls.eq, quotGroup.QGroup.unfold, quotGroup.qcls.eq, qrMul.eq) ≔
   λR. λr. λI. λid. λa. λb. ⋆
 
@@ -243,7 +241,7 @@ def qrGop : (R : 𝕌)
   (I : El R → Ω)
   (id : Prf (IsIdeal R r I))
   (u v : El (QRing R r I))
-  → gop (QRing R r I) (qrAddGroup id) u v ≡ qrAdd id u v ∈ El (QRing R r I)
+  → gop (QRing R r I) (qrAddGroup id) u v ≡ qrAdd id u v
   using (qrAddGroup.eq, qrAdd.eq, groupTheory.gop.eq, quotGroup.qIsGroup.eq) ≔
   λR. λr. λI. λid. λu. λv. ⋆
 
@@ -262,29 +260,11 @@ def qrMulAssoc : (R : 𝕌)
   (I : El R → Ω)
   (id : Prf (IsIdeal R r I))
   (u v w : El (QRing R r I))
-  → qrMul R r I id (qrMul R r I id u v) w ≡ qrMul R r I id u (qrMul R r I id v w) ∈ El (QRing R r I)
+  → qrMul R r I id (qrMul R r I id u v) w ≡ qrMul R r I id u (qrMul R r I id v w)
   using (QRing.eq, quotGroup.QGroup.unfold, qrMulCls.rw) ≔
-  λR. λr. λI. λid. λu. λv. λw. quot-elim (uu. qrMul
-    R
-    r
-    I
-    id
-    (qrMul R r I id uu v)
-    w ≡ qrMul R r I id uu (qrMul R r I id v w) ∈ El (QRing R r I))
-    (a. quot-elim (vv. qrMul
-      R
-      r
-      I
-      id
-      (qrMul R r I id (class a) vv)
-      w ≡ qrMul R r I id (class a) (qrMul R r I id vv w) ∈ El (QRing R r I))
-      (b. quot-elim (ww. qrMul
-        R
-        r
-        I
-        id
-        (qrMul R r I id (class a) (class b))
-        ww ≡ qrMul R r I id (class a) (qrMul R r I id (class b) ww) ∈ El (QRing R r I))
+  λR. λr. λI. λid. λu. λv. λw. quot-elim
+    (a. quot-elim
+      (b. quot-elim
         (c. trans
           (QRing R r I)
           (qrMul R r I id (qrMul R r I id (class a) (class b)) (class c))
@@ -313,16 +293,10 @@ def qrMulComm : (R : 𝕌)
   (I : El R → Ω)
   (id : Prf (IsIdeal R r I))
   (u v : El (QRing R r I))
-  → qrMul R r I id u v ≡ qrMul R r I id v u ∈ El (QRing R r I)
+  → qrMul R r I id u v ≡ qrMul R r I id v u
   using (QRing.eq, quotGroup.QGroup.unfold, qrMulCls.rw) ≔
-  λR. λr. λI. λid. λu. λv. quot-elim (uu. qrMul
-    R
-    r
-    I
-    id
-    uu
-    v ≡ qrMul R r I id v uu ∈ El (QRing R r I))
-    (a. quot-elim (vv. qrMul R r I id (class a) vv ≡ qrMul R r I id vv (class a) ∈ El (QRing R r I))
+  λR. λr. λI. λid. λu. λv. quot-elim
+    (a. quot-elim
       (b. trans
         (QRing R r I)
         (qrMul R r I id (class a) (class b))
@@ -344,9 +318,9 @@ def qrMulOne : (R : 𝕌)
   (I : El R → Ω)
   (id : Prf (IsIdeal R r I))
   (u : El (QRing R r I))
-  → qrMul R r I id u qrOne ≡ u ∈ El (QRing R r I)
+  → qrMul R r I id u qrOne ≡ u
   using (QRing.eq, quotGroup.QGroup.unfold, qrOne.eq, qrMulCls.rw) ≔
-  λR. λr. λI. λid. λu. quot-elim (uu. qrMul R r I id uu qrOne ≡ uu ∈ El (QRing R r I))
+  λR. λr. λI. λid. λu. quot-elim
     (a. trans
       (QRing R r I)
       (qrMul R r I id (class a) qrOne)
@@ -361,10 +335,10 @@ def qrAddComm : {R : 𝕌}
   {I : El R → Ω}
   {id : Prf (IsIdeal R r I)}
   {u v : El (QRing R r I)}
-  → qrAdd id u v ≡ qrAdd id v u ∈ El (QRing R r I)
+  → qrAdd id u v ≡ qrAdd id v u
   using (QRing.eq, quotGroup.QGroup.unfold, qrAddCls.rw) ≔
-  λR. λr. λI. λid. λu. λv. quot-elim (uu. qrAdd id uu v ≡ qrAdd id v uu ∈ El (QRing R r I))
-    (a. quot-elim (vv. qrAdd id (class a) vv ≡ qrAdd id vv (class a) ∈ El (QRing R r I))
+  λR. λr. λI. λid. λu. λv. quot-elim
+    (a. quot-elim
       (b. trans
         (QRing R r I)
         (qrAdd id (class a) (class b))
@@ -392,44 +366,11 @@ def qrDistribL : {R : 𝕌}
   {I : El R → Ω}
   {id : Prf (IsIdeal R r I)}
   {u v w : El (QRing R r I)}
-  → qrMul
-    R
-    r
-    I
-    id
-    u
-    (qrAdd id v w) ≡ qrAdd id (qrMul R r I id u v) (qrMul R r I id u w) ∈ El (QRing R r I)
+  → qrMul R r I id u (qrAdd id v w) ≡ qrAdd id (qrMul R r I id u v) (qrMul R r I id u w)
   using (QRing.eq, quotGroup.QGroup.unfold, qrMulCls.rw, qrAddCls.rw) ≔
-  λR. λr. λI. λid. λu. λv. λw. quot-elim (uu. qrMul
-    R
-    r
-    I
-    id
-    uu
-    (qrAdd id v w) ≡ qrAdd id (qrMul R r I id uu v) (qrMul R r I id uu w) ∈ El (QRing R r I))
-    (a. quot-elim (vv. qrMul
-      R
-      r
-      I
-      id
-      (class a)
-      (qrAdd
-        id
-        vv
-        w) ≡ qrAdd id (qrMul R r I id (class a) vv) (qrMul R r I id (class a) w) ∈ El (QRing R r I))
-      (b. quot-elim (ww. qrMul
-        R
-        r
-        I
-        id
-        (class a)
-        (qrAdd
-          id
-          (class b)
-          ww) ≡ qrAdd
-        id
-        (qrMul R r I id (class a) (class b))
-        (qrMul R r I id (class a) ww) ∈ El (QRing R r I))
+  λR. λr. λI. λid. λu. λv. λw. quot-elim
+    (a. quot-elim
+      (b. quot-elim
         (c. trans
           (QRing R r I)
           (qrMul R r I id (class a) (qrAdd id (class b) (class c)))

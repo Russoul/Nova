@@ -72,7 +72,7 @@ def sqrtIdx : ℕ → ℕ ≔ λk. mulIdx (dbl k) (dbl k)
 def sqrtT : ℕ → ℕ → ℕ ≔ λm. λn. sqNat (sqrtDepth n) + sqNat (sqrtDepth m)
 
 -- ===== the scaling is exact =====
-def qMulSq : (x y : El Q) → qMul (qMul x y) (qMul x y) ≡ qMul (qMul x x) (qMul y y) ∈ El Q ≔
+def qMulSq : (x y : El Q) → qMul (qMul x y) (qMul x y) ≡ qMul (qMul x x) (qMul y y) ≔
   λx. λy. qMul (qMul x y) (qMul x y)
       ≡⟨ qMulAssoc x y (qMul x y) ⟩ qMul x (qMul y (qMul x y))
       ≡⟨ cong
@@ -88,7 +88,7 @@ def qMulSq : (x y : El Q) → qMul (qMul x y) (qMul x y) ≡ qMul (qMul x x) (qM
         (qMul x (qMul x (qMul y y)))
         (qMulAssoc x x (qMul y y)) ⟩ qMul (qMul x x) (qMul y y)
 
-def invNatOne : (a : ℕ) → qMul (qInvNat a) (qOfNat (S a)) ≡ qOne ∈ El Q ≔
+def invNatOne : (a : ℕ) → qMul (qInvNat a) (qOfNat (S a)) ≡ qOne ≔
   λa. trans
     Q
     (qMul (qInvNat a) (qOfNat (S a)))
@@ -97,12 +97,12 @@ def invNatOne : (a : ℕ) → qMul (qInvNat a) (qOfNat (S a)) ≡ qOne ∈ El Q 
     (qMulComm (qInvNat a) (qOfNat (S a)))
     qMulInvNat
 
-def qOfNatSq : (a : ℕ) → qOfNat (sqNat a) ≡ qMul (qOfNat (S a)) (qOfNat (S a)) ∈ El Q
+def qOfNatSq : (a : ℕ) → qOfNat (sqNat a) ≡ qMul (qOfNat (S a)) (qOfNat (S a))
   using (ratSqrt.sqNat.eq) ≔
   λa. sym Q (qMul (qOfNat (S a)) (qOfNat (S a))) (qOfNat (S a * S a)) (qOfNatMul (S a) (S a))
 
 -- 1/(D+1)² · (D+1)² is one
-def invSqCancel : (a : ℕ) → qMul (qInvNat (mulIdx a a)) (qOfNat (sqNat a)) ≡ qOne ∈ El Q ≔
+def invSqCancel : (a : ℕ) → qMul (qInvNat (mulIdx a a)) (qOfNat (sqNat a)) ≡ qOne ≔
   λa. qMul (qInvNat (mulIdx a a)) (qOfNat (sqNat a))
       ≡⟨ cong
         Q
@@ -139,7 +139,7 @@ def invSqCancel : (a : ℕ) → qMul (qInvNat (mulIdx a a)) (qOfNat (sqNat a)) �
 def scaleEq : (a b : ℕ)
   → qMul
     (qMul (rBound (mulIdx a a) (mulIdx b b)) (qOfNat (sqNat a)))
-    (qOfNat (sqNat b)) ≡ qOfNat (sqNat b + sqNat a) ∈ El Q ≔
+    (qOfNat (sqNat b)) ≡ qOfNat (sqNat b + sqNat a) ≔
   λa. λb. qMul
     (qMul (qAdd (qInvNat (mulIdx a a)) (qInvNat (mulIdx b b))) (qOfNat (sqNat a)))
     (qOfNat (sqNat b))
@@ -227,7 +227,7 @@ def scaleEq : (a b : ℕ)
       ≡⟨ qOfNatAdd (sqNat b) (sqNat a) ⟩ qOfNat (sqNat b + sqNat a)
 
 -- ===== the slack fits =====
-def cancelMid : (D : ℕ) (e : El Q) → qMul (qOfNat (S D)) (qMul e (qInvNat D)) ≡ e ∈ El Q ≔
+def cancelMid : (D : ℕ) (e : El Q) → qMul (qOfNat (S D)) (qMul e (qInvNat D)) ≡ e ≔
   λD. λe. qMul (qOfNat (S D)) (qMul e (qInvNat D))
       ≡⟨ qMulLeftComm (qOfNat (S D)) e (qInvNat D) ⟩ qMul e (qMul (qOfNat (S D)) (qInvNat D))
       ≡⟨ cong
@@ -241,9 +241,7 @@ def cancelMid : (D : ℕ) (e : El Q) → qMul (qOfNat (S D)) (qMul e (qInvNat D)
 
 -- ((Dn+1) + (Dm+1))·(1/(Dm+1)·1/(Dn+1)) is 1/(Dm+1) + 1/(Dn+1)
 def slackEq : {Dm Dn : ℕ}
-  → qMul
-    (qOfNat (S Dn + S Dm))
-    (qMul (qInvNat Dm) (qInvNat Dn)) ≡ qAdd (qInvNat Dm) (qInvNat Dn) ∈ El Q ≔
+  → qMul (qOfNat (S Dn + S Dm)) (qMul (qInvNat Dm) (qInvNat Dn)) ≡ qAdd (qInvNat Dm) (qInvNat Dn) ≔
   λDm. λDn. qMul (qOfNat (S Dn + S Dm)) (qMul (qInvNat Dm) (qInvNat Dn))
       ≡⟨ cong
         Q
@@ -349,7 +347,7 @@ def slackFits : {x y : El Q}
 def rBoundHalves : {m n : ℕ}
   → qAdd
     (qAdd (qInvNat (sqrtDepth m)) (qInvNat (sqrtDepth m)))
-    (qAdd (qInvNat (sqrtDepth n)) (qInvNat (sqrtDepth n))) ≡ rBound m n ∈ El Q
+    (qAdd (qInvNat (sqrtDepth n)) (qInvNat (sqrtDepth n))) ≡ rBound m n
   using (real.rBound.eq, sqrtDepth.eq) ≔
   λm. λn. trans
     Q
@@ -584,9 +582,7 @@ def sqrtFromNN : (x : El Real) → El (NonNegPayload x) → El Real
   using (real.Real.unfold, real.RSeq.unfold, real.Regular.unfold) ≔
   λx. λd. class (rSqrtNN (nnRep x d) (nnAt x d))
 
-def sqrtNNConst : (x : El Real)
-  (d d' : El (NonNegPayload x))
-  → sqrtFromNN x d ≡ sqrtFromNN x d' ∈ El Real
+def sqrtNNConst : (x : El Real) (d d' : El (NonNegPayload x)) → sqrtFromNN x d ≡ sqrtFromNN x d'
   using (real.Real.unfold, real.RSeq.unfold, real.Regular.unfold, sqrtFromNN.eq) ≔
   λx. λd. λd'. realEqOfREq
     (rSqrtNN (nnRep x d) (nnAt x d))
@@ -608,7 +604,7 @@ def realSqrt : (x : El Real) → El (NonNegR x) → El Real using (NonNegR.eq) �
 
 def realSqrtRep : {x : El Real}
   {d : El (NonNegPayload x)}
-  → realSqrt x (br d) ≡ class (rSqrtNN (nnRep x d) (nnAt x d)) ∈ El Real
+  → realSqrt x (br d) ≡ class (rSqrtNN (nnRep x d) (nnAt x d))
   using (real.Real.unfold,
     real.RSeq.unfold,
     real.Regular.unfold,
@@ -625,7 +621,7 @@ def realSqrtRep : {x : El Real}
 -- presentation (the zero sequence) even though it has no modulus.
 -- Stated for an ARBITRARY witness — brIsProp makes them all equal, so
 -- there is nothing to choose.
-def qFloorZero : qFloor qZero ≡ Z ∈ ℕ
+def qFloorZero : qFloor qZero ≡ Z
   using (ratCeil.qFloor.eq,
     rationalQ.qZero.eq,
     rationalQ.qcls.eq,
@@ -647,9 +643,9 @@ def qFloorZero : qFloor qZero ≡ Z ∈ ℕ
     nat.+.eq) ≔
   ⋆
 
-def isqrtZero : isqrt Z ≡ Z ∈ ℕ using (natSqrt.isqrt.eq, natSqrt.isqrtAux.eq) ≔ ⋆
+def isqrtZero : isqrt Z ≡ Z using (natSqrt.isqrt.eq, natSqrt.isqrtAux.eq) ≔ ⋆
 
-def qSqrtAtZero : {D : ℕ} → qSqrtAt qZero D ≡ qZero ∈ El Q
+def qSqrtAtZero : {D : ℕ} → qSqrtAt qZero D ≡ qZero
   using (ratSqrt.qSqrtAt.eq, ratSqrt.qSqrtNum.eq, ratSqrt.qFl.eq, ratSqrt.qScaled.eq) ≔
   λD. trans
     Q
@@ -695,11 +691,11 @@ def zeroNN : (n : ℕ) → El (LeQ qZero (seqOf zeroRep n))
   using (real.RSeq.unfold, zeroRep.eq, realNeg.seqOf.eq) ≔
   λn. leQRefl qZero
 
-def rSqrtZeroSeq : rSqrtNN zeroRep zeroNN ≡ zeroRep ∈ El RSeq
+def rSqrtZeroSeq : rSqrtNN zeroRep zeroNN ≡ zeroRep
   using (real.RSeq.unfold, rSqrtNN.eq, sqrtSeqNN.eq, zeroRep.eq, realNeg.seqOf.eq) ≔
   rseqEq (λn. qSqrtAtZero)
 
-def clsZeroRep : class zeroRep ≡ realZero ∈ El Real
+def clsZeroRep : class zeroRep ≡ realZero
   using (real.Real.unfold,
     real.RSeq.unfold,
     real.Regular.unfold,
@@ -708,14 +704,14 @@ def clsZeroRep : class zeroRep ≡ realZero ∈ El Real
     zeroRep.eq) ≔
   ⋆
 
-def realSqrtZero : (w : El (NonNegR realZero)) → realSqrt realZero w ≡ realZero ∈ El Real
+def realSqrtZero : (w : El (NonNegR realZero)) → realSqrt realZero w ≡ realZero
   using (real.Real.unfold,
     real.RSeq.unfold,
     real.Regular.unfold,
     NonNegR.eq,
     bracket.Br.unfold,
     bracket.br.eq) ≔
-  λw. quot-elim (z. realSqrt realZero z ≡ realZero ∈ El Real)
+  λw. quot-elim
     (d. trans
       Real
       (realSqrt realZero (br d))

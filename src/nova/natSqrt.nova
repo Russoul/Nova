@@ -26,7 +26,7 @@ import id (Id, idToEq, eqToId)
 
 def leSplit : {b a : ℕ} → El (LeN b a) → El (LeN a b) ⊎ El (LeN (S b) a)
   using (natOrder.LeN.unfold) ≔
-  λb. λa. λh. (ℕ-elim (k. (b + k ≡ a ∈ ℕ) → El (LeN a b) ⊎ El (LeN (S b) a))
+  λb. λa. λh. (ℕ-elim (k. (b + k ≡ a) → El (LeN a b) ⊎ El (LeN (S b) a))
     (λe. inj₁ (leOfEq (sym ℕ b a (trans ℕ b (b + Z) a (sym ℕ (b + Z) b (plusZeroId b)) e))))
     (j rec. λe. inj₂ (j,
       eqToId
@@ -49,7 +49,7 @@ def leSplit : {b a : ℕ} → El (LeN b a) → El (LeN a b) ⊎ El (LeN (S b) a)
     (idToEq ℕ (b + h .π₁) a (h .π₂))
 
 def natCompare : (a b : ℕ) → El (LeN a b) ⊎ El (LeN (S b) a) ≔
-  λa. λb. ⊎-elim (w. El (LeN a b) ⊎ El (LeN (S b) a)) (h. inj₁ h) (h. leSplit h) (leTotal a b)
+  λa. λb. ⊎-elim (h. inj₁ h) (h. leSplit h) (leTotal a b)
 
 -- ===== squares are monotone =====
 def leMultMono : {a b c d : ℕ} → El (LeN a b) → El (LeN c d) → El (LeN (a * c) (b * d))
@@ -76,15 +76,14 @@ def leSelfSquare : (j : ℕ) → El (LeN (S j) (S j * S j)) using (natOrder.LeN.
     * S j, eqToId (S j + j * S j) (S j * S j) (sym ℕ (S j * S j) (S j + j * S j) (sucMult j (S j)))
 
 -- ===== the search =====
-def isqrtAux : ℕ → ℕ → ℕ ≔
-  λm. λf. ℕ-elim (w. ℕ) Z (f' ih. natCase (S f') (λw. ih) (S f' * S f' ∸ m)) f
+def isqrtAux : ℕ → ℕ → ℕ ≔ λm. λf. ℕ-elim Z (f' ih. natCase (S f') (λw. ih) (S f' * S f' ∸ m)) f
 
 def isqrt : ℕ → ℕ ≔ λm. isqrtAux m m
 
 -- ===== it is a lower approximant =====
 def isqrtAuxLe : {m f : ℕ} → El (LeN (isqrtAux m f * isqrtAux m f) m)
   using (isqrtAux.eq, nat.*.eq) ≔
-  λm. λf. ℕ-elim (f. El (LeN (isqrtAux m f * isqrtAux m f) m))
+  λm. λf. ℕ-elim
     (leZero m)
     (f' ih. natCaseElimEqD
       ℕ
@@ -99,7 +98,7 @@ def isqrtAuxLe : {m f : ℕ} → El (LeN (isqrtAux m f * isqrtAux m f) m)
 -- ===== ...and the largest one =====
 def isqrtAuxMax : {m f k : ℕ} → El (LeN (k * k) m) → El (LeN k f) → El (LeN k (isqrtAux m f))
   using (isqrtAux.eq) ≔
-  λm. λf. ℕ-elim (f. (k : ℕ) → El (LeN (k * k) m) → El (LeN k f) → El (LeN k (isqrtAux m f)))
+  λm. λf. ℕ-elim
     (λk. λhk. λhf. hf)
     (f' ih. λk. λhk. λhf. natCaseElimEqD
       ℕ
@@ -130,7 +129,7 @@ def isqrtMax : {m k : ℕ} → El (LeN (k * k) m) → El (LeN k m) → El (LeN k
 -- the upper bound: if S (isqrt m) squared still fit under m, isqrt m
 -- would have found it, and would be at least its own successor
 def isqrtUpper : (m : ℕ) → El (LeN (S m) (S (isqrt m) * S (isqrt m))) ≔
-  λm. ⊎-elim (w. El (LeN (S m) (S (isqrt m) * S (isqrt m))))
+  λm. ⊎-elim
     (h. 𝟘-elim (leSucNotSelf
       (isqrt m)
       (isqrtMax
@@ -157,7 +156,7 @@ def ltSqSuc : (y : ℕ) → El (LeN (S (y * y)) (S y * S y)) ≔
     (ltProdSuc y y)
 
 def leOfSqLe : {x y : ℕ} → El (LeN (x * x) (y * y)) → El (LeN x y) ≔
-  λx. λy. λh. ⊎-elim (w. El (LeN x y))
+  λx. λy. λh. ⊎-elim
     (le. le)
     (lt. 𝟘-elim (leSucNotSelf
       (y * y)
@@ -170,7 +169,7 @@ def leOfSqLe : {x y : ℕ} → El (LeN (x * x) (y * y)) → El (LeN x y) ≔
     (natCompare x y)
 
 -- ===== a square that overshoots by T overshoots by isqrt T =====
-def plus4Swap : {a b p q : ℕ} → a + b + (p + q) ≡ a + p + (q + b) ∈ ℕ ≔
+def plus4Swap : {a b p q : ℕ} → a + b + (p + q) ≡ a + p + (q + b) ≔
   λa. λb. λp. λq. a + b + (p + q)
       ≡⟨ plusAssoc a b (p + q) ⟩ a + (b + (p + q))
       ≡⟨ cong
@@ -185,7 +184,7 @@ def plus4Swap : {a b p q : ℕ} → a + b + (p + q) ≡ a + p + (q + b) ∈ ℕ 
       ≡⟨ cong ℕ (λw. ℕ) (λw. a + (p + w)) (b + q) (q + b) (plusComm q b) ⟩ a + (p + (q + b))
       ≡⟨ sym ℕ (a + p + (q + b)) (a + (p + (q + b))) (plusAssoc a p (q + b)) ⟩ a + p + (q + b)
 
-def sqExpand : (y c : ℕ) → (y + c) * (y + c) ≡ y * y + y * c + (y * c + c * c) ∈ ℕ ≔
+def sqExpand : (y c : ℕ) → (y + c) * (y + c) ≡ y * y + y * c + (y * c + c * c) ≔
   λy. λc. (y + c) * (y + c)
       ≡⟨ multDistribR (y + c) y c ⟩ y * (y + c) + c * (y + c)
       ≡⟨ cong
@@ -244,7 +243,7 @@ def sqrtStepN : {x y T : ℕ} → El (LeN (x * x) (y * y + T)) → El (LeN x (y 
 
 -- ===== isqrt is strictly under any c whose square overshoots =====
 def isqrtLtOfLt : (T : ℕ) {c : ℕ} → El (LeN (S T) (c * c)) → El (LeN (S (isqrt T)) c) ≔
-  λT. λc. λh. ⊎-elim (w. El (LeN (S (isqrt T)) c))
+  λT. λc. λh. ⊎-elim
     (le. 𝟘-elim (leSucNotSelf
       T
       (leTrans
@@ -258,7 +257,7 @@ def isqrtLtOfLt : (T : ℕ) {c : ℕ} → El (LeN (S T) (c * c)) → El (LeN (S 
 
 -- ...and a sum of two POSITIVE squares is strictly under the square of
 -- the sum, which is what makes isqrt of the error term fit
-def plus4Mid : (a p q b : ℕ) → a + p + (q + b) ≡ a + b + (p + q) ∈ ℕ ≔
+def plus4Mid : (a p q b : ℕ) → a + p + (q + b) ≡ a + b + (p + q) ≔
   λa. λp. λq. λb. a + p + (q + b)
       ≡⟨ plusAssoc a p (q + b) ⟩ a + (p + (q + b))
       ≡⟨ cong
@@ -277,7 +276,7 @@ def plus4Mid : (a p q b : ℕ) → a + p + (q + b) ≡ a + b + (p + q) ∈ ℕ �
         (plusComm b (p + q)) ⟩ a + (b + (p + q))
       ≡⟨ sym ℕ (a + b + (p + q)) (a + (b + (p + q))) (plusAssoc a b (p + q)) ⟩ a + b + (p + q)
 
-def sucMultSuc : (x y : ℕ) → S x * S y ≡ S (x + S x * y) ∈ ℕ ≔
+def sucMultSuc : (x y : ℕ) → S x * S y ≡ S (x + S x * y) ≔
   λx. λy. S x * S y ≡⟨ multSucId (S x) y ⟩ S x + S x * y ≡⟨ sucPlus x (S x * y) ⟩ S (x + S x * y)
 
 def sqSumStrict : (x y : ℕ) → El (LeN (S (S x * S x + S y * S y)) ((S x + S y) * (S x + S y)))

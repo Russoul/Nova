@@ -13,7 +13,7 @@ import equality (trans, sym, cong, transport)
 import id (Id, eqToId, idToEq)
 
 def qMax : El Q → El Q → El Q using (rationalQ.Q.unfold) ≔
-  λu. λv. ⊎-elim (w. El Q) (nn. v) (hn. u) (sgnCases (sgnQ (qAdd v (qNeg u))))
+  λu. λv. ⊎-elim (nn. v) (hn. u) (sgnCases (sgnQ (qAdd v (qNeg u))))
 
 -- ===== the lattice characterisation =====
 def leQMaxL : (u v : El Q) → El (LeQ u (qMax u v))
@@ -29,7 +29,7 @@ def leQMaxL : (u v : El Q) → El (LeQ u (qMax u v))
     rationalQ.Q.unfold,
     rationalQ.qAdd.eq,
     rationalQ.qNeg.eq) ≔
-  λu. λv. ⊎-elim (w. El (LeQ u (⊎-elim (t. El Q) (nn. v) (hn. u) w)))
+  λu. λv. ⊎-elim (w. El (LeQ u (⊎-elim (nn. v) (hn. u) w)))
     (nn. nn)
     (hn. leQRefl u)
     (sgnCases (sgnQ (qAdd v (qNeg u))))
@@ -49,7 +49,7 @@ def leQMaxR : (u v : El Q) → El (LeQ v (qMax u v))
     rationalQ.Q.unfold,
     rationalQ.qAdd.eq,
     rationalQ.qNeg.eq) ≔
-  λu. λv. ⊎-elim (w. El (LeQ v (⊎-elim (t. El Q) (nn. v) (hn. u) w)))
+  λu. λv. ⊎-elim (w. El (LeQ v (⊎-elim (nn. v) (hn. u) w)))
     (nn. leQRefl v)
     (hn. inj₂ (eqToId
       (sgnQ (qAdd u (qNeg v)))
@@ -76,7 +76,7 @@ def qMaxLub : {u v w : El Q} → El (LeQ u w) → El (LeQ v w) → El (LeQ (qMax
     rationalQ.Q.unfold,
     rationalQ.qAdd.eq,
     rationalQ.qNeg.eq) ≔
-  λu. λv. λw. λh1. λh2. ⊎-elim (t. El (LeQ (⊎-elim (s. El Q) (nn. v) (hn. u) t) w))
+  λu. λv. λw. λh1. λh2. ⊎-elim (t. El (LeQ (⊎-elim (nn. v) (hn. u) t) w))
     (nn. h2)
     (hn. h1)
     (sgnCases (sgnQ (qAdd v (qNeg u))))
@@ -125,10 +125,10 @@ def bndMaxSub : (b a c a' c' : El Q)
           (leQAddOfBnd (bndSubSym b a' c' h2))
           (leQPlusMono b (leQMaxR a a')))))
 
-def qMaxSelf : (u : El Q) → qMax u u ≡ u ∈ El Q ≔
+def qMaxSelf : (u : El Q) → qMax u u ≡ u ≔
   λu. leQAntisym (qMaxLub (leQRefl u) (leQRefl u)) (leQMaxL u u)
 
-def qMaxComm : (u v : El Q) → qMax u v ≡ qMax v u ∈ El Q ≔
+def qMaxComm : (u v : El Q) → qMax u v ≡ qMax v u ≔
   λu. λv. leQAntisym (qMaxLub (leQMaxR v u) (leQMaxL v u)) (qMaxLub (leQMaxR u v) (leQMaxL u v))
 
 -- ===== the dual =====
@@ -197,7 +197,7 @@ def qMinGlb : {u v w : El Q} → El (LeQ w u) → El (LeQ w v) → El (LeQ w (qM
     (qNegNeg w)
     (leQNegFlip (qMax (qNeg u) (qNeg v)) (qNeg w) (qMaxLub (leQNegFlip w u h1) (leQNegFlip w v h2)))
 
-def qMinComm : (u v : El Q) → qMin u v ≡ qMin v u ∈ El Q
+def qMinComm : (u v : El Q) → qMin u v ≡ qMin v u
   using (ratMax.qMax.eq, ratMax.qMin.eq, rationalQ.Q.unfold, rationalQ.qNeg.eq) ≔
   λu. λv. cong
     Q
@@ -208,7 +208,7 @@ def qMinComm : (u v : El Q) → qMin u v ≡ qMin v u ∈ El Q
     (qMaxComm (qNeg u) (qNeg v))
 
 -- (−a) − (−c) ≡ c − a : the difference of negations is reversed
-def qNegDiff : (a c : El Q) → qAdd (qNeg a) (qNeg (qNeg c)) ≡ qAdd c (qNeg a) ∈ El Q ≔
+def qNegDiff : (a c : El Q) → qAdd (qNeg a) (qNeg (qNeg c)) ≡ qAdd c (qNeg a) ≔
   λa. λc. trans
     Q
     (qAdd (qNeg a) (qNeg (qNeg c)))

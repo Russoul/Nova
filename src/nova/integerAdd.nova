@@ -9,8 +9,8 @@ import integer (Int)
 import equality (cong)
 
 def intAddWD : (a1 a2 b1 b2 c1 c2 : ℕ)
-  (h : Prf (b1 + c2 ≡ b2 + c1 ∈ ℕ))
-  → a1 + b1 + (a2 + c2) ≡ a2 + b2 + (a1 + c1) ∈ ℕ
+  (h : Prf (b1 + c2 ≡ b2 + c1))
+  → a1 + b1 + (a2 + c2) ≡ a2 + b2 + (a1 + c1)
   using (hyp.rw,
     plusAssoc,
     plusAssoc.rw,
@@ -22,15 +22,12 @@ def intAddWD : (a1 a2 b1 b2 c1 c2 : ℕ)
     swapLeft.rw,
     zeroPlusId,
     zeroPlusId.rw) ≔
-  λa1. λa2. λb1. λb2. λc1. λc2. λh. ℕ-elim (k. a1 + b1 + (k + c2) ≡ k + b2 + (a1 + c1) ∈ ℕ)
-    ⋆
-    (k ih. ⋆)
-    a2
+  λa1. λa2. λb1. λb2. λc1. λc2. λh. ℕ-elim ⋆ (k ih. ⋆) a2
 
 -- cross-sum well-definedness in the OUTER argument, conditional on h
 def intAddCross : (a1 a2 b1 b2 c1 c2 : ℕ)
-  (h : Prf (a1 + b2 ≡ a2 + b1 ∈ ℕ))
-  → a1 + c1 + (b2 + c2) ≡ a2 + c2 + (b1 + c1) ∈ ℕ
+  (h : Prf (a1 + b2 ≡ a2 + b1))
+  → a1 + c1 + (b2 + c2) ≡ a2 + c2 + (b1 + c1)
   using (hyp.rw,
     plusAssoc,
     plusComm,
@@ -40,7 +37,7 @@ def intAddCross : (a1 a2 b1 b2 c1 c2 : ℕ)
     sucPlus,
     sucPlus.rw,
     swapLeft) ≔
-  λa1. λa2. λb1. λb2. λc1. λc2. λh. ℕ-elim (k. a1 + c1 + (b2 + k) ≡ a2 + k + (b1 + c1) ∈ ℕ)
+  λa1. λa2. λb1. λb2. λc1. λc2. λh. ℕ-elim
     (a1 + c1 + (b2 + Z)
         ≡⟨ plusZeroId b2 ⟩ a1 + c1 + b2
         ≡⟨ plusAssoc a1 c1 b2 ⟩ a1 + (c1 + b2)
@@ -55,32 +52,30 @@ def intAddCross : (a1 a2 b1 b2 c1 c2 : ℕ)
 -- the same, one level up: the inner elimination is well-defined in the
 -- OUTER argument — proven by quotient elimination with an ≡-motive
 def intAddWDOuter : (a b : ℕ ⨯ ℕ)
-  (h : Prf (a .π₁ + b .π₂ ≡ a .π₂ + b .π₁ ∈ ℕ))
+  (h : Prf (a .π₁ + b .π₂ ≡ a .π₂ + b .π₁))
   (zy : El Int)
   → quot-elim (z. El Int)
     (x. class (a .π₁ + x .π₁, a .π₂ + x .π₂))
-    zy ≡ quot-elim (z. El Int) (x. class (b .π₁ + x .π₁, b .π₂ + x .π₂)) zy ∈ El Int
+    zy ≡ quot-elim (x. class (b .π₁ + x .π₁, b .π₂ + x .π₂)) zy
   using (intAddCross, intAddWD, integer.Int.unfold, plusAssoc) ≔
   λa. λb. λh. λzy. quot-elim (q. quot-elim (z. El Int)
     (x. class (a .π₁ + x .π₁, a .π₂ + x .π₂))
-    q ≡ quot-elim (z. El Int) (x. class (b .π₁ + x .π₁, b .π₂ + x .π₂)) q ∈ El Int)
+    q ≡ quot-elim (x. class (b .π₁ + x .π₁, b .π₂ + x .π₂)) q)
     (c. ⋆)
     zy
 
 def intAdd : El Int → El Int → El Int
   using (intAddWD, intAddWDOuter, integer.Int.unfold, plusAssoc) ≔
-  λzx. λzy. quot-elim (z. El Int)
-    (a. quot-elim (z. El Int) (b. class (a .π₁ + b .π₁, a .π₂ + b .π₂)) zy)
-    zx
+  λzx. λzy. quot-elim (a. quot-elim (b. class (a .π₁ + b .π₁, a .π₂ + b .π₂)) zy) zx
 
-def intAddTest : intAdd (class (Z, Z)) (class (S Z, S Z)) ≡ class (S Z, S Z) ∈ El Int
+def intAddTest : intAdd (class (Z, Z)) (class (S Z, S Z)) ≡ class (S Z, S Z)
   using (integer.Int.unfold, integerAdd.intAdd.eq) ≔
   ⋆
 
 -- ===== the algebra =====
 -- the cross-sum permutation in exactly the shape the commutativity
 -- join's quotient condition takes
-def crossComm : (x y z w : ℕ) → x + y + (z + w) ≡ w + z + (y + x) ∈ ℕ ≔
+def crossComm : (x y z w : ℕ) → x + y + (z + w) ≡ w + z + (y + x) ≔
   λx. λy. λz. λw. x + y + (z + w)
       ≡⟨ cong ℕ (λu. ℕ) (λu. u + (z + w)) (x + y) (y + x) (plusComm y x) ⟩ y + x + (z + w)
       ≡⟨ plusComm w z ⟩ y + x + (w + z)
@@ -88,7 +83,7 @@ def crossComm : (x y z w : ℕ) → x + y + (z + w) ≡ w + z + (y + x) ∈ ℕ 
 
 -- commutativity: two quotient eliminations at ≡-motives reduce to the
 -- representative-level cross-sum permutation
-def intAddComm : (x y : El Int) → intAdd x y ≡ intAdd y x ∈ El Int
+def intAddComm : (x y : El Int) → intAdd x y ≡ intAdd y x
   using (crossComm,
     integer.Int.unfold,
     integerAdd.intAdd.eq,
@@ -96,20 +91,10 @@ def intAddComm : (x y : El Int) → intAdd x y ≡ intAdd y x ∈ El Int
     plusAssoc,
     plusComm,
     swapLeft) ≔
-  λx. λy. quot-elim (q. intAdd q y ≡ intAdd y q ∈ El Int)
-    (a. quot-elim (q. intAdd (class a) q ≡ intAdd q (class a) ∈ El Int) (b. ⋆) y)
-    x
+  λx. λy. quot-elim (a. quot-elim (b. ⋆) y) x
 
 -- associativity: three eliminations; the representatives reassociate
 -- by plusAssoc and close by commutativity of the cross sum
-def intAddAssoc : (x y z : El Int) → intAdd (intAdd x y) z ≡ intAdd x (intAdd y z) ∈ El Int
+def intAddAssoc : (x y z : El Int) → intAdd (intAdd x y) z ≡ intAdd x (intAdd y z)
   using (hyp.rw, intAdd.eq, integer.Int.eq, integer.Int.unfold, plusAssoc, plusAssoc.rw) ≔
-  λx. λy. λz. quot-elim (q. intAdd (intAdd q y) z ≡ intAdd q (intAdd y z) ∈ El Int)
-    (a. quot-elim (q. intAdd (intAdd (class a) q) z ≡ intAdd (class a) (intAdd q z) ∈ El Int)
-      (b. quot-elim (q. intAdd
-        (intAdd (class a) (class b))
-        q ≡ intAdd (class a) (intAdd (class b) q) ∈ El Int)
-        (c. ⋆)
-        z)
-      y)
-    x
+  λx. λy. λz. quot-elim (a. quot-elim (b. quot-elim (c. ⋆) z) y) x

@@ -73,7 +73,7 @@ def sqrtNumUpper : (u : El Q) (D : ℕ) → El (LeN (S (qFl u D)) (S (qSqrtNum u
 
 -- ===== the two bridges =====
 -- (D+1)·(1/(D+1)) is one, on the nose
-def qMulInvNat : {D : ℕ} → qMul (qOfNat (S D)) (qInvNat D) ≡ qOne ∈ El Q
+def qMulInvNat : {D : ℕ} → qMul (qOfNat (S D)) (qInvNat D) ≡ qOne
   using (integer.intOne.eq,
     rational.mkRat.eq,
     rational.nzOne.eq,
@@ -86,7 +86,7 @@ def qMulInvNat : {D : ℕ} → qMul (qOfNat (S D)) (qInvNat D) ≡ qOne ∈ El Q
     realMul.mulIdx.eq) ≔
   λD. transportP
     ℕ
-    (λw. qMul (qOfNat (S D)) (qInvNat w) ≡ qOne ∈ El Q)
+    (λw. qMul (qOfNat (S D)) (qInvNat w) ≡ qOne)
     (mulIdx D Z)
     D
     (trans
@@ -116,7 +116,7 @@ def qMulInvNat : {D : ℕ} → qMul (qOfNat (S D)) (qInvNat D) ≡ qOne ∈ El Q
       (zeroPlusId D))
     (transportP
       Q
-      (λw. qMul (qOfNat (S D)) (qInvNat (mulIdx D Z)) ≡ w ∈ El Q)
+      (λw. qMul (qOfNat (S D)) (qInvNat (mulIdx D Z)) ≡ w)
       (qInvNat Z)
       qOne
       ⋆
@@ -125,7 +125,7 @@ def qMulInvNat : {D : ℕ} → qMul (qOfNat (S D)) (qInvNat D) ≡ qOne ∈ El Q
 -- 1/((c+1)(m+1)) is 1/(c+1) times 1/(m+1). nzMul on two positive
 -- denominators lands on c*m + c + m, which is mulIdx c m written the
 -- other way round
-def mulIdxNz : {c m : ℕ} → c * m + c + m ≡ mulIdx c m ∈ ℕ using (realMul.mulIdx.eq) ≔
+def mulIdxNz : {c m : ℕ} → c * m + c + m ≡ mulIdx c m using (realMul.mulIdx.eq) ≔
   λc. λm. c * m + c + m
       ≡⟨ plusComm m (c * m + c) ⟩ m + (c * m + c)
       ≡⟨ cong ℕ (λw. ℕ) (λw. m + w) (c * m + c) (c + c * m) (plusComm c (c * m)) ⟩ m + (c + c * m)
@@ -137,22 +137,20 @@ def mulIdxNz : {c m : ℕ} → c * m + c + m ≡ mulIdx c m ∈ ℕ using (realM
         (c * S m)
         (sym ℕ (c * S m) (c + c * m) (multSucId c m)) ⟩ m + c * S m
 
-def nzPosMul : (c m : ℕ) → nzMul (nzPos c) (nzPos m) ≡ nzPos (mulIdx c m) ∈ El NZ
+def nzPosMul : (c m : ℕ) → nzMul (nzPos c) (nzPos m) ≡ nzPos (mulIdx c m)
   using (rational.nzMul.eq, rational.nzPos.eq) ≔
   λc. λm. cong ℕ (λw. NZ) (λw. nzPos w) (c * m + c + m) (mulIdx c m) mulIdxNz
 
 def ratMulInv : (c m : ℕ)
   → ratMul
     (mkRat intOne (nzPos c))
-    (mkRat intOne (nzPos m)) ≡ mkRat (intMul intOne intOne) (nzMul (nzPos c) (nzPos m)) ∈ El Rat
+    (mkRat intOne (nzPos m)) ≡ mkRat (intMul intOne intOne) (nzMul (nzPos c) (nzPos m))
   using (rationalQ.ratMul.eq, rational.mkRat.eq, rational.num.eq, rational.den.eq) ≔
   λc. λm. ⋆
 
-def qInvNatCls : (k : ℕ) → qInvNat k ≡ qcls (mkRat intOne (nzPos k)) ∈ El Q
-  using (real.qInvNat.eq) ≔
-  λk. ⋆
+def qInvNatCls : (k : ℕ) → qInvNat k ≡ qcls (mkRat intOne (nzPos k)) using (real.qInvNat.eq) ≔ λk. ⋆
 
-def qInvNatMulIdx : {c m : ℕ} → qInvNat (mulIdx c m) ≡ qMul (qInvNat c) (qInvNat m) ∈ El Q ≔
+def qInvNatMulIdx : {c m : ℕ} → qInvNat (mulIdx c m) ≡ qMul (qInvNat c) (qInvNat m) ≔
   λc. λm. qInvNat (mulIdx c m)
       ≡⟨ qInvNatCls (mulIdx c m) ⟩ qcls (mkRat intOne (nzPos (mulIdx c m)))
       ≡⟨ cong
@@ -231,14 +229,14 @@ def qInvNatMulIdx : {c m : ℕ} → qInvNat (mulIdx c m) ≡ qMul (qInvNat c) (q
 --
 -- from u⁺ ≤ v⁺ + d and d·(Dm+1)²(Dn+1)² ≤ T. Everything in it is a
 -- chain of ≤; no strict order and no division appear.
-def qMulSwap3 : (x y z : El Q) → qMul (qMul x y) z ≡ qMul (qMul x z) y ∈ El Q ≔
+def qMulSwap3 : (x y z : El Q) → qMul (qMul x y) z ≡ qMul (qMul x z) y ≔
   λx. λy. λz. qMul (qMul x y) z
       ≡⟨ qMulAssoc x y z ⟩ qMul x (qMul y z)
       ≡⟨ cong Q (λw. Q) (λw. qMul x w) (qMul y z) (qMul z y) (qMulComm y z) ⟩ qMul x (qMul z y)
       ≡⟨ sym Q (qMul (qMul x z) y) (qMul x (qMul z y)) (qMulAssoc x z y) ⟩ qMul (qMul x z) y
 
 def qDistrib3 : (x y z w : El Q)
-  → qMul (qMul (qAdd x y) z) w ≡ qAdd (qMul (qMul x z) w) (qMul (qMul y z) w) ∈ El Q ≔
+  → qMul (qMul (qAdd x y) z) w ≡ qAdd (qMul (qMul x z) w) (qMul (qMul y z) w) ≔
   λx. λy. λz. λw. qMul (qMul (qAdd x y) z) w
       ≡⟨ cong
         Q
@@ -249,8 +247,7 @@ def qDistrib3 : (x y z w : El Q)
         (qDistribR z x y) ⟩ qMul (qAdd (qMul x z) (qMul y z)) w
       ≡⟨ qDistribR w (qMul x z) (qMul y z) ⟩ qAdd (qMul (qMul x z) w) (qMul (qMul y z) w)
 
-def qNatSumEq : (a b T : ℕ)
-  → qAdd (qMul (qOfNat a) (qOfNat b)) (qOfNat T) ≡ qOfNat (a * b + T) ∈ El Q ≔
+def qNatSumEq : (a b T : ℕ) → qAdd (qMul (qOfNat a) (qOfNat b)) (qOfNat T) ≡ qOfNat (a * b + T) ≔
   λa. λb. λT. qAdd (qMul (qOfNat a) (qOfNat b)) (qOfNat T)
       ≡⟨ cong
         Q
@@ -345,7 +342,7 @@ def flCompare : {u v : El Q}
 
 -- ===== ...and back to a comparison of approximants =====
 -- (a·b)² = a²·b², so cross-multiplying commutes with squaring
-def mulSq : (a b : ℕ) → a * b * (a * b) ≡ a * a * (b * b) ∈ ℕ ≔
+def mulSq : (a b : ℕ) → a * b * (a * b) ≡ a * a * (b * b) ≔
   λa. λb. a * b * (a * b)
       ≡⟨ multAssoc a b (a * b) ⟩ a * (b * (a * b))
       ≡⟨ cong
@@ -409,7 +406,7 @@ def sqrtCompareN : {u v : El Q}
               (leMultMonoR (sqNat Dm) (sqrtNumUpper v Dn)))))))
 
 -- ===== ...and back to a comparison of approximants =====
-def qMulLeftComm : (x y z : El Q) → qMul x (qMul y z) ≡ qMul y (qMul x z) ∈ El Q ≔
+def qMulLeftComm : (x y z : El Q) → qMul x (qMul y z) ≡ qMul y (qMul x z) ≔
   λx. λy. λz. qMul x (qMul y z)
       ≡⟨ sym Q (qMul (qMul x y) z) (qMul x (qMul y z)) (qMulAssoc x y z) ⟩ qMul (qMul x y) z
       ≡⟨ cong Q (λw. Q) (λw. qMul w z) (qMul x y) (qMul y x) (qMulComm x y) ⟩ qMul (qMul y x) z
@@ -419,7 +416,7 @@ def qMulLeftComm : (x y z : El Q) → qMul x (qMul y z) ≡ qMul y (qMul x z) �
 def cancelDen : {A : El Q}
   {D : ℕ}
   {e : El Q}
-  → qMul (qMul A (qOfNat (S D))) (qMul e (qInvNat D)) ≡ qMul A e ∈ El Q ≔
+  → qMul (qMul A (qOfNat (S D))) (qMul e (qInvNat D)) ≡ qMul A e ≔
   λA. λD. λe. qMul (qMul A (qOfNat (S D))) (qMul e (qInvNat D))
       ≡⟨ qMulAssoc
         A

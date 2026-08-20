@@ -5,47 +5,45 @@
 import equality (sym, cong, trans)
 
 infixl 6 +
-def + : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
+def + : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim x (n ih. S ih) y
 
 infixl 7 *
-def * : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) Z (n ih. x + ih) y
+def * : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim Z (n ih. x + ih) y
 
-def plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ using (nat.+.eq) ≔ λn. ⋆
+def plusZeroId : (n : ℕ) → n + Z ≡ n using (nat.+.eq) ≔ λn. ⋆
 
-def plusSucId : (n m : ℕ) → n + S m ≡ S (n + m) ∈ ℕ using (nat.+.eq) ≔ λn. λm. ⋆
+def plusSucId : (n m : ℕ) → n + S m ≡ S (n + m) using (nat.+.eq) ≔ λn. λm. ⋆
 
-def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ using (+.eq, nat.plusZeroId) ≔
-  λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
+def zeroPlusId : (n : ℕ) → Z + n ≡ n using (+.eq, nat.plusZeroId) ≔ λn. ℕ-elim ⋆ (k ih. ⋆) n
 
-def sucPlus : (n m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ using (nat.+.eq) ≔
-  λn. λm. ℕ-elim (k. S n + k ≡ S (n + k) ∈ ℕ) ⋆ (k ih. ⋆) m
+def sucPlus : (n m : ℕ) → S n + m ≡ S (n + m) using (nat.+.eq) ≔ λn. λm. ℕ-elim ⋆ (k ih. ⋆) m
 
-def plusComm : (n m : ℕ) → m + n ≡ n + m ∈ ℕ ≔
-  λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ ℕ)
+def plusComm : (n m : ℕ) → m + n ≡ n + m ≔
+  λn. λm. ℕ-elim
     (Z + n ≡⟨ zeroPlusId n ⟩ n ≡⟨ plusZeroId n ⟩ n + Z)
     (k ih. S k + n ≡⟨ sucPlus k n ⟩ S (k + n) ≡⟨ ih ⟩ S (n + k) ≡⟨ plusSucId n k ⟩ n + S k)
     m
 
-def plusAssoc : (n m k : ℕ) → n + m + k ≡ n + (m + k) ∈ ℕ using (nat.+.eq) ≔
-  λn. λm. λk. ℕ-elim (j. n + m + j ≡ n + (m + j) ∈ ℕ) ⋆ (j ih. ⋆) k
+def plusAssoc : (n m k : ℕ) → n + m + k ≡ n + (m + k) using (nat.+.eq) ≔
+  λn. λm. λk. ℕ-elim ⋆ (j ih. ⋆) k
 
 -- a + (b + c) ≡ b + (a + c) — permutative, used by whole-equation match
-def swapLeft : (a b c : ℕ) → a + (b + c) ≡ b + (a + c) ∈ ℕ using (plusComm) ≔
-  λa. λb. λc. ℕ-elim (k. a + (b + k) ≡ b + (a + k) ∈ ℕ)
+def swapLeft : (a b c : ℕ) → a + (b + c) ≡ b + (a + c) using (plusComm) ≔
+  λa. λb. λc. ℕ-elim
     (a + (b + Z) ≡⟨ plusZeroId b ⟩ a + b ≡⟨ plusComm b a ⟩ b + a ≡⟨ plusZeroId a ⟩ b + (a + Z))
     (k ih. ⋆ using (nat.+.eq))
     c
 
 -- congruence in each summand — one ⋆ each: reflecting the hypothesis
 -- makes the two sides the same term
-def plusCongL : {a b : ℕ} (c : ℕ) → (a ≡ b ∈ ℕ) → a + c ≡ b + c ∈ ℕ ≔
+def plusCongL : {a b : ℕ} (c : ℕ) → (a ≡ b) → a + c ≡ b + c ≔
   λa. λb. λc. λh. cong ℕ (λu. ℕ) (λu. u + c) a b h
 
-def plusCongR : (a : ℕ) {b c : ℕ} → (b ≡ c ∈ ℕ) → a + b ≡ a + c ∈ ℕ ≔ λa. λb. λc. λh. ⋆
+def plusCongR : (a : ℕ) {b c : ℕ} → (b ≡ c) → a + b ≡ a + c ≔ λa. λb. λc. λh. ⋆
 
 -- (x+y)+(z+w) ≡ (x+w)+(z+y) — the inner summands swap. Discharged by
 -- whole-equation matching against plusAssoc/plusComm/swapLeft above
-def swapMid : {x y z w : ℕ} → x + y + (z + w) ≡ x + w + (z + y) ∈ ℕ ≔
+def swapMid : {x y z w : ℕ} → x + y + (z + w) ≡ x + w + (z + y) ≔
   λx. λy. λz. λw. x + y + (z + w)
       ≡⟨ plusAssoc x y (z + w) ⟩ x + (y + (z + w))
       ≡⟨ swapLeft y z w ⟩ x + (z + (y + w))
@@ -56,29 +54,23 @@ def swapMid : {x y z w : ℕ} → x + y + (z + w) ≡ x + w + (z + y) ∈ ℕ �
 -- S is injective — the kernel's suc selector, named. Bare ⋆: reflecting
 -- the hypothesis gives S n ≐ S m, whose suc-component the selector
 -- reads off (docs/NovaKernel.txt §5)
-def sucInj : (n m : ℕ) → (S n ≡ S m ∈ ℕ) → n ≡ m ∈ ℕ ≔ λn. λm. λh. ⋆
+def sucInj : (n m : ℕ) → (S n ≡ S m) → n ≡ m ≔ λn. λm. λh. ⋆
 
 -- CANCELLATION: (· + k) is injective, i.e. a common right summand
 -- cancels. Induction on the cancelled summand — each step peels one
 -- successor off both sides (n + S j ≜ S (n + j)) and hands it to sucInj
-def plusCancel : (n m k : ℕ) → (n + k ≡ m + k ∈ ℕ) → n ≡ m ∈ ℕ using (+.eq, nat.plusSucId) ≔
-  λn. λm. λk. ℕ-elim (j. (n + j ≡ m + j ∈ ℕ) → n ≡ m ∈ ℕ)
-    (λh. ⋆)
-    (j ih. λh. ih (sucInj (n + j) (m + j) h))
-    k
+def plusCancel : (n m k : ℕ) → (n + k ≡ m + k) → n ≡ m using (+.eq, nat.plusSucId) ≔
+  λn. λm. λk. ℕ-elim (λh. ⋆) (j ih. λh. ih (sucInj (n + j) (m + j) h)) k
 
-def multZeroId : (n : ℕ) → n * Z ≡ Z ∈ ℕ using (nat.*.eq) ≔ λn. ⋆
+def multZeroId : (n : ℕ) → n * Z ≡ Z using (nat.*.eq) ≔ λn. ⋆
 
-def multSucId : (n m : ℕ) → n * S m ≡ n + n * m ∈ ℕ using (nat.*.eq, nat.+.eq) ≔ λn. λm. ⋆
+def multSucId : (n m : ℕ) → n * S m ≡ n + n * m using (nat.*.eq, nat.+.eq) ≔ λn. λm. ⋆
 
-def zeroMult : (n : ℕ) → Z * n ≡ Z ∈ ℕ using (nat.multZeroId) ≔
-  λn. ℕ-elim (k. Z * k ≡ Z ∈ ℕ)
-    ⋆
-    (k ih. Z * S k ≡⟨ multSucId Z k ⟩ Z + Z * k ≡⟨ ih ⟩ Z + Z ≡⟨ zeroPlusId Z ⟩ Z)
-    n
+def zeroMult : (n : ℕ) → Z * n ≡ Z using (nat.multZeroId) ≔
+  λn. ℕ-elim ⋆ (k ih. Z * S k ≡⟨ multSucId Z k ⟩ Z + Z * k ≡⟨ ih ⟩ Z + Z ≡⟨ zeroPlusId Z ⟩ Z) n
 
-def sucMult : (n m : ℕ) → S n * m ≡ m + n * m ∈ ℕ ≔
-  λn. λm. ℕ-elim (k. S n * k ≡ k + n * k ∈ ℕ)
+def sucMult : (n m : ℕ) → S n * m ≡ m + n * m ≔
+  λn. λm. ℕ-elim
     (S n * Z ≡⟨ multZeroId (S n) ⟩ Z ≡⟨ multZeroId n ⟩ n * Z ≡⟨ zeroPlusId (n * Z) ⟩ Z + n * Z)
     (k ih. S n * S k
         ≡⟨ multSucId (S n) k ⟩ S n + S n * k
@@ -90,14 +82,14 @@ def sucMult : (n m : ℕ) → S n * m ≡ m + n * m ∈ ℕ ≔
         ≡⟨ multSucId n k ⟩ S k + n * S k)
     m
 
-def multComm : (n m : ℕ) → m * n ≡ n * m ∈ ℕ ≔
-  λn. λm. ℕ-elim (k. k * n ≡ n * k ∈ ℕ)
+def multComm : (n m : ℕ) → m * n ≡ n * m ≔
+  λn. λm. ℕ-elim
     (Z * n ≡⟨ zeroMult n ⟩ Z ≡⟨ multZeroId n ⟩ n * Z)
     (k ih. S k * n ≡⟨ sucMult k n ⟩ n + k * n ≡⟨ ih ⟩ n + n * k ≡⟨ multSucId n k ⟩ n * S k)
     m
 
-def multDistrib : (n m k : ℕ) → n * (m + k) ≡ n * m + n * k ∈ ℕ ≔
-  λn. λm. λk. ℕ-elim (j. n * (m + j) ≡ n * m + n * j ∈ ℕ)
+def multDistrib : (n m k : ℕ) → n * (m + k) ≡ n * m + n * k ≔
+  λn. λm. λk. ℕ-elim
     (n * (m + Z)
         ≡⟨ plusZeroId m ⟩ n * m
         ≡⟨ plusZeroId (n * m) ⟩ n * m + Z
@@ -110,8 +102,8 @@ def multDistrib : (n m k : ℕ) → n * (m + k) ≡ n * m + n * k ∈ ℕ ≔
         ≡⟨ multSucId n j ⟩ n * m + n * S j)
     k
 
-def multAssoc : (n m k : ℕ) → n * m * k ≡ n * (m * k) ∈ ℕ ≔
-  λn. λm. λk. ℕ-elim (j. n * m * j ≡ n * (m * j) ∈ ℕ)
+def multAssoc : (n m k : ℕ) → n * m * k ≡ n * (m * k) ≔
+  λn. λm. λk. ℕ-elim
     (n * m * Z ≡⟨ multZeroId (n * m) ⟩ Z ≡⟨ multZeroId n ⟩ n * Z ≡⟨ multZeroId m ⟩ n * (m * Z))
     (j ih. n * m * S j
         ≡⟨ multSucId (n * m) j ⟩ n * m + n * m * j

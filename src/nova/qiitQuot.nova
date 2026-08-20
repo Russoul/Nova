@@ -15,7 +15,7 @@ def qlift : (a : 𝕌)
   (r : El a → El a → Ω)
   {b : 𝕌}
   (f : El a → El b)
-  (resp : (x y : El a) → Prf (r x y) → f x ≡ f y ∈ El b)
+  (resp : (x y : El a) → Prf (r x y) → f x ≡ f y)
   → El (Q a r) → El b
   using (qiitQuot.Q.unfold) ≔
   λa. λr. λb. λf. λresp. λq. QElim a r (λw. b) (λx. f x) (λx. λy. λh. resp x y h) q
@@ -24,9 +24,9 @@ def qliftBeta : (a : 𝕌)
   (r : El a → El a → Ω)
   (b : 𝕌)
   (f : El a → El b)
-  (resp : (x y : El a) → Prf (r x y) → f x ≡ f y ∈ El b)
+  (resp : (x y : El a) → Prf (r x y) → f x ≡ f y)
   (x : El a)
-  → qlift a (λy. λz. r y z) f resp (cls a r x) ≡ f x ∈ El b
+  → qlift a (λy. λz. r y z) f resp (cls a r x) ≡ f x
   using (qiitQuot.Q.eq, qiitQuot.QElim.eq, qiitQuot.cls.eq, qiitQuot.qlift.eq) ≔
   λa. λr. λb. λf. λresp. λx. ⋆
 
@@ -36,7 +36,7 @@ def eqN : El ℕ → El ℕ → Ω ≔ λx. λy. x ≡ y ∈ ℕ
 def toNat : El (Q ℕ eqN) → ℕ using (qiitQuot.Q.unfold, qiitQuot.eqN.unfold) ≔
   λq. qlift ℕ eqN (λx. x) (λx. λy. λh. ⋆) q
 
-def toNatCls : toNat (cls ℕ eqN (S Z)) ≡ S Z ∈ ℕ
+def toNatCls : toNat (cls ℕ eqN (S Z)) ≡ S Z
   using (qiitQuot.Q.eq,
     qiitQuot.QElim.eq,
     qiitQuot.cls.eq,
