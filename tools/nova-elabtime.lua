@@ -14,7 +14,9 @@
 -- or, with options:
 --
 --   require("nova-elabtime").setup({
---     virtual_text = true,     -- ⌛ at the end of the first line
+--     virtual_text = true,     -- ⌛ at the end of the cursor's line
+--                              -- (first line when the cursor is in
+--                              -- another file)
 --     hl = "Comment",          -- highlight group for the virtual text
 --     notify = false,          -- also vim.notify each report
 --   })
@@ -50,7 +52,13 @@ function M.setup(opts)
 
     vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
     if opts.virtual_text ~= false then
-      vim.api.nvim_buf_set_extmark(bufnr, ns, 0, 0, {
+      -- at the cursor's line when the cursor is still in the file
+      -- that was type checked; the first line otherwise
+      local line = 0
+      if vim.api.nvim_get_current_buf() == bufnr then
+        line = vim.api.nvim_win_get_cursor(0)[1] - 1
+      end
+      vim.api.nvim_buf_set_extmark(bufnr, ns, line, 0, {
         virt_text = { { label, opts.hl or "Comment" } },
         virt_text_pos = "eol",
       })
