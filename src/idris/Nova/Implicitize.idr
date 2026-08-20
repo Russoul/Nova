@@ -169,9 +169,9 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
       SCorec x a f u => SCorec x (xfE a) (xfE f) (xfE u)
       SCoind nx ny r pw mx my mh w => SCoind nx ny (xfE r) (xfE pw) mx my mh (xfE w)
       SSquash t => SSquash (xfT t)
-      SStar => e
+      SStar _ => e
       SStarWit w => SStarWit (xfE w)
-      SStarUsing ns => e
+      SStarUsing _ _ => e
       SSquashElim s x b => SSquashElim (xfE s) x (xfE b)
       SChain h links => SChain (xfE h) (map (\(j, m) => (xfE j, xfE m)) links)
       SAnn t ty => SAnn (xfE t) (xfT ty)

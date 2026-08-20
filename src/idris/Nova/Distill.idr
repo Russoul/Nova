@@ -282,7 +282,7 @@ mutual
     SCoind _ _ _ _ _ _ _ _ => CPrefix
     SSquashElim _ _ _ => CPrefix
     SStarWit _ => CPrefix
-    SStarUsing _ => CPrefix
+    SStarUsing _ _ => CPrefix
     SImpArg _ => CAtom
     SNoIns _ => CApp
     _ => CAtom
@@ -367,7 +367,7 @@ mutual
       txt "squash-elim " <-> pe tbl LAtom False s <-> txt " (\{x}. " <->
       pe tbl LPair True b <-> txt ")"
     SStarWit w => txt "⋆ " <-> pe tbl LAtom False w
-    SStarUsing ns => txt "⋆ using (" <-> usingNames ns <-> txt ")"
+    SStarUsing _ ns => txt "⋆ using (" <-> usingNames ns <-> txt ")"
     SChain h links =>
       DGroup (pe tbl LSumC False h <->
               concatDoc (map (\(j, m) => DNest 4 (DLine <-> txt "≡⟨ " <-> pe tbl LPair True j <->
@@ -392,7 +392,7 @@ mutual
     SSig _ x => txt (sigRef tbl x)
     SUnitI => txt "()"
     SZeroN => txt "Z"
-    SStar => txt "⋆"
+    SStar _ => txt "⋆"
     SSquash ty => txt "∥" <-> pt tbl TTop True ty <-> txt "∥"
     SZeroC => txt "𝟘"
     SOneC => txt "𝟙"
@@ -503,11 +503,11 @@ mutual
   ||| parenthesizes — `… ≡ ⋆ using (…)` would otherwise reparse as
   ||| the ⋆-using proof form.
   eqSide : FixTable -> Maybe STy -> SElem -> Doc
-  eqSide tbl Nothing SStar = txt "(⋆)"
+  eqSide tbl Nothing (SStar _) = txt "(⋆)"
   eqSide tbl _ r = pe tbl LSumC False r
 
   eqSideT : FixTable -> Maybe STy -> SElem -> Doc
-  eqSideT tbl Nothing SStar = txt "(⋆)"
+  eqSideT tbl Nothing (SStar _) = txt "(⋆)"
   eqSideT tbl _ r = pe tbl LOp0 False r
 
   ||| A written motive group, trailing space included; nothing when
@@ -899,9 +899,9 @@ parameters (ok : Range -> Bool, blankAt : Range -> Nat -> Bool)
       SCorec x a f u => SCorec x (esE a) (esE f) (esE u)
       SCoind nx ny r pw mx my mh w => SCoind nx ny (esE r) (esE pw) mx my mh (esE w)
       SSquash t => SSquash (esT t)
-      SStar => e
+      SStar _ => e
       SStarWit w => SStarWit (esE w)
-      SStarUsing _ => e
+      SStarUsing _ _ => e
       SSquashElim sc x b => SSquashElim (esE sc) x (esE b)
       SChain h links => SChain (esE h) (map (\(j, m) => (esE j, esE m)) links)
       SAnn t ty => SAnn (esE t) (esT ty)

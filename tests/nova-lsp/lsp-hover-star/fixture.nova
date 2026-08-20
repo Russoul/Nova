@@ -1,0 +1,5 @@
+def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
+
+def plusZeroId : (n : ℕ) → plus n Z ≡ n using (plus.eq) ≔ λn. ⋆
+
+def sZero : plus (S Z) Z ≡ S Z ≔ ⋆ using (plusZeroId, plus.eq)

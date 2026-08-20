@@ -90,10 +90,10 @@ mutual
     SCoind nx ny (mapRefsE f g (S (S d)) r) (mapRefsE f g d pw) mx my mh
            (mapRefsE f g (S (S (S d))) q)
   mapRefsE f g d (SSquash t) = SSquash (mapRefsTy f g d t)
-  mapRefsE f g d SStar = SStar
+  mapRefsE f g d e@(SStar _) = e
   -- using-names are Σ references outside the term grammar (never the
   -- item's own recursive occurrence), so they pass through unchanged
-  mapRefsE f g d (SStarUsing ns) = SStarUsing ns
+  mapRefsE f g d e@(SStarUsing _ _) = e
   mapRefsE f g d (SStarWit e) = SStarWit (mapRefsE f g d e)
   mapRefsE f g d (SSquashElim e x body) =
     SSquashElim (mapRefsE f g d e) x (mapRefsE f g (S d) body)
@@ -202,8 +202,8 @@ mutual
   occursE f (SCorec _ a g u) = occursE f a || occursE f g || occursE f u
   occursE f (SCoind _ _ r pw _ _ _ q) = occursE f r || occursE f pw || occursE f q
   occursE f (SSquash t) = occursTy f t
-  occursE f SStar = False
-  occursE f (SStarUsing _) = False
+  occursE f (SStar _) = False
+  occursE f (SStarUsing _ _) = False
   occursE f (SStarWit e) = occursE f e
   occursE f (SSquashElim e _ body) = occursE f e || occursE f body
   occursE f (SChain x ls) =
@@ -333,8 +333,8 @@ mutual
        q' <- rwE f mk lead (S (S (S d))) q
        pure (SCoind nx ny r' pw' mx my mh q')
   rwE f mk lead d (SSquash t) = SSquash <$> rwTy f mk lead d t
-  rwE f mk lead d SStar = Just SStar
-  rwE f mk lead d (SStarUsing ns) = Just (SStarUsing ns)
+  rwE f mk lead d e@(SStar _) = Just e
+  rwE f mk lead d e@(SStarUsing _ _) = Just e
   rwE f mk lead d (SStarWit e) = SStarWit <$> rwE f mk lead d e
   rwE f mk lead d (SChain x ls) =
     do x' <- rwE f mk lead d x
@@ -703,7 +703,7 @@ etaBodyStar : (m, k : Nat) -> (lemNames : List String) ->
 etaBodyStar m k lemNames cols =
   SLam ("g", Nothing)
     (wrapSLams (map (\n => (n, Nothing)) lemNames)
-      (wrapSLams (map (\(x, _) => (x, Nothing)) cols) SStar))
+      (wrapSLams (map (\(x, _) => (x, Nothing)) cols) (SStar Nothing)))
 
 etaBodyElim : (fname : String) -> (cols : List (String, STy)) -> (b : STy) ->
               (j, k, m : Nat) -> (lemNames : List String) ->
@@ -720,7 +720,7 @@ etaBodyElim fname cols b j k m lemNames isNat v1 v2 =
                     (spine (SSig Nothing fname) args)
                     (Just (shiftTy (S kj) 1 b))
       mot = motChain trailing concl
-      trailLams = wrapSLams (map (\(x, _) => (x, Nothing)) trailing) SStar
+      trailLams = wrapSLams (map (\(x, _) => (x, Nothing)) trailing) (SStar Nothing)
       xname = colBinder cols (minus j 1)
       scrut = SVar Nothing (fst xname) 0
       elim = if isNat
@@ -804,7 +804,7 @@ expandClausal nrng fname ty etaName witness clauses = do
   -- per-clause telescopes and lemma statements
   cds <- traverse (buildClauseData cols) clauses
   let lemTys = zipWith (mkLemTy cols b k) clauses cds
-  let lemBodies = map (\cd => wrapSLams (map fst cd.ctele) SStar) cds
+  let lemBodies = map (\cd => wrapSLams (map fst cd.ctele) (SStar Nothing)) cds
   let m = length clauses
   let eTy = etaType fname ty cols b lemNames lemTys
   let shape = analyzeShape cols clauses
