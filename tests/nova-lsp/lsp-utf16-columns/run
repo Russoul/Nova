@@ -1,0 +1,6 @@
+#!/bin/sh
+# 𝕌 is a supplementary-plane char (2 UTF-16 units): every cursor and
+# every printed column after it exercises the client's UTF-16 <->
+# codepoint conversion
+DIR="$(cd "$(dirname "$0")" && pwd)"
+"$1" lsp "$NOVA_LSP_BIN" "$DIR/fixture.nova" "⋆"
