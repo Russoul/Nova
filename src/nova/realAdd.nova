@@ -33,13 +33,10 @@ def rBoundHalf : (m n : ℕ) → rBound (dbl m) (dbl n) + rBound (dbl m) (dbl n)
         (qInvNat (dbl m))
         (qInvNat (dbl n)) ⟩ qInvNat (dbl m) + qInvNat (dbl m) + (qInvNat (dbl n) + qInvNat (dbl n))
       ≡⟨ cong
-        _
         (λw. Q)
         (λw. w + (qInvNat (dbl n) + qInvNat (dbl n)))
-        _
-        _
         (qInvHalf m) ⟩ qInvNat m + (qInvNat (dbl n) + qInvNat (dbl n))
-      ≡⟨ cong _ (λw. Q) (λw. qInvNat m + w) _ _ (qInvHalf n) ⟩ rBound m n
+      ≡⟨ cong (λw. Q) (λw. qInvNat m + w) (qInvHalf n) ⟩ rBound m n
 
 -- sampling the LEFT index deeper only shrinks the bound
 def leQBoundDblL : (m n : ℕ) → El (rBound (dbl m) n ≤ rBound m n)
@@ -216,7 +213,7 @@ def realAddComm : (u v : El Real) → u + v ≡ v + u
     real.Regular.unfold,
     realAdd.realAddCls) ≔
   λu. λv. quot-elim
-    (p. quot-elim (q. cong RSeq (λw. Real) (λw. class w) (rAdd p q) (rAdd q p) rAddComm) v)
+    (p. quot-elim (q. cong (λw. Real) (λw. class w) {rAdd p q} {rAdd q p} rAddComm) v)
     u
 
 -- ℚ embeds as a homomorphism: a constant sequence samples to itself
@@ -301,13 +298,7 @@ def realAddZeroR : (u : El Real) → u + realZero ≡ u
           (λn. bndEq
             _
             (seqOf p (dbl n) + qZero + qNeg (seqOf p n))
-            (cong
-              _
-              (λw. Q)
-              (λw. w + qNeg (seqOf p n))
-              _
-              _
-              (sym _ _ _ (qAddZeroR (seqOf p (dbl n)))))
+            (cong (λw. Q) (λw. w + qNeg (seqOf p n)) (sym _ _ _ (qAddZeroR (seqOf p (dbl n)))))
             (bndWeaken _ _ _ (leQBoundDblL n n) (regBnd _ (regOf p) (dbl n) n))))))
     u
 
@@ -321,20 +312,11 @@ def qMidCancel : (a b c a' c' : El Q)
   using (rationalQ.Q.unfold) ≔
   λa. λb. λc. λa'. λc'. a + b + c + qNeg (a' + (b + c'))
       ≡⟨ cong
-        _
         (λw. Q)
         (λw. a + b + c + qNeg w)
-        _
-        _
         (sym _ _ _ (qAddAssoc a' b c')) ⟩ a + b + c + qNeg (a' + b + c')
       ≡⟨ sym _ _ _ (qSubAdd (a + b) (a' + b) c c') ⟩ a + b + qNeg (a' + b) + (c + qNeg c')
-      ≡⟨ cong
-        _
-        (λw. Q)
-        (λw. w + (c + qNeg c'))
-        _
-        _
-        (qSubPlusCancel a' a b) ⟩ a + qNeg a' + (c + qNeg c')
+      ≡⟨ cong (λw. Q) (λw. w + (c + qNeg c')) (qSubPlusCancel a' a b) ⟩ a + qNeg a' + (c + qNeg c')
 
 -- associativity: the two bracketings sample x and z at different
 -- depths and y at the same one, so the difference is two regularity

@@ -36,10 +36,10 @@ def sgnQNegOfNeg : {u : El Q} → El (Id _ (sgnQ u) sNeg) → sgnQ (qNeg u) ≡ 
   λu. λhn. trans
     _
     _
-    (sgnFlip (sgnQ u))
+    _
     _
     sgnQNegFlip
-    (trans _ _ _ sPos (cong _ (λw. Sign) (λw. sgnFlip w) _ _ (idToEq _ _ _ hn)) ⋆)
+    (trans _ _ _ sPos (cong (λw. Sign) (λw. sgnFlip w) (idToEq _ _ _ hn)) ⋆)
 
 def bndAbs : (u : El Q) → El (Bnd (qAbs u) u)
   using (id.Id.eq,
@@ -139,14 +139,14 @@ def qAbsTriangle : (u v : El Q) → El (qAbs (u + v) ≤ qAbs u + qAbs v)
 def qAddSubCancel : {a b : El Q} → a + b + qNeg b ≡ a using (rationalQ.Q.unfold) ≔
   λa. λb. a + b + qNeg b
       ≡⟨ qAddAssoc a b (qNeg b) ⟩ a + (b + qNeg b)
-      ≡⟨ cong _ (λw. Q) (λw. a + w) _ _ (qAddNegR b) ⟩ a + qZero
+      ≡⟨ cong (λw. Q) (λw. a + w) (qAddNegR b) ⟩ a + qZero
       ≡⟨ qAddZeroR a ⟩ a
 
 -- a ≤ b + c gives a − c ≤ b
 def leQSubOfLeAdd : {a b c : El Q} → El (a ≤ b + c) → El (a + qNeg c ≤ b)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λa. λb. λc. λle. transport
-    Q
+    _
     (λw. a + qNeg c ≤ w)
     (b + c + qNeg c)
     b
@@ -190,7 +190,7 @@ def bndAbsSub : (b u v : El Q) → El (Bnd b (u + qNeg v)) → El (Bnd b (qAbs u
           _
           _
           (sym _ _ _ (qAbsNeg (v + qNeg u)))
-          (cong _ (λw. Q) (λw. qAbs w) _ _ (ratBound.qSubFlip v u)))
+          (cong (λw. Q) (λw. qAbs w) (ratBound.qSubFlip v u)))
         (qAbsSubLe v u)))
 
 -- ===== a nonnegative rational is its own absolute value =====
@@ -211,14 +211,14 @@ def qAbsZero : qAbs qZero ≡ qZero ≔ qAbsOfNonNeg (leQRefl qZero)
 -- case analysis then happens once, on the two factors, and never on
 -- the product.
 def qAbsEqOfNonNeg : {z : El Q} (w : El Q) → El (qZero ≤ w) → (w ≡ z) → qAbs z ≡ w ≔
-  λz. λw. λnn. λe. trans _ _ _ _ (cong _ (λt. Q) (λt. qAbs t) _ _ (sym _ _ _ e)) (qAbsOfNonNeg nn)
+  λz. λw. λnn. λe. trans _ _ _ _ (cong (λt. Q) (λt. qAbs t) (sym _ _ _ e)) (qAbsOfNonNeg nn)
 
 def qAbsEqOfNonNegNeg : {z : El Q} (w : El Q) → El (qZero ≤ w) → (w ≡ qNeg z) → qAbs z ≡ w ≔
   λz. λw. λnn. λe. trans _ _ _ _ (sym _ _ _ (qAbsNeg z)) (qAbsEqOfNonNeg _ nn e)
 
 def leQZeroMul : {a b : El Q} → El (qZero ≤ a) → El (qZero ≤ b) → El (qZero ≤ a * b)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
-  λa. λb. λha. λhb. transport Q (λw. w ≤ a * b) (qZero * b) qZero qMulZeroL (leQMulMono _ _ ha hb)
+  λa. λb. λha. λhb. transport _ (λw. w ≤ a * b) (qZero * b) qZero qMulZeroL (leQMulMono _ _ ha hb)
 
 def qNegMulR : (x c : El Q) → x * qNeg c ≡ qNeg (x * c) ≔
   λx. λc. trans
@@ -227,7 +227,7 @@ def qNegMulR : (x c : El Q) → x * qNeg c ≡ qNeg (x * c) ≔
     _
     _
     (trans _ _ _ _ (qMulComm x (qNeg c)) (qNegMulL c x))
-    (cong _ (λw. Q) (λw. qNeg w) _ _ (qMulComm c x))
+    (cong (λw. Q) (λw. qNeg w) (qMulComm c x))
 
 def qAbsMul : (u v : El Q) → qAbs (u * v) ≡ qAbs u * qAbs v
   using (id.Id.unfold,
@@ -259,7 +259,7 @@ def qAbsMul : (u v : El Q) → qAbs (u * v) ≡ qAbs u * qAbs v
           _
           _
           _
-          (trans _ _ _ _ (qNegMulL u (qNeg v)) (cong _ (λw. Q) (λw. qNeg w) _ _ (qNegMulR u v)))
+          (trans _ _ _ _ (qNegMulL u (qNeg v)) (cong (λw. Q) (λw. qNeg w) (qNegMulR u v)))
           (qNegNeg (u * v))))
       (sgnCases (sgnQ v)))
     (sgnCases (sgnQ u))

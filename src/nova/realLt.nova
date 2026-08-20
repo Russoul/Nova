@@ -38,15 +38,15 @@ def ltROf : (u v : El Real) (k : ℕ) → Prf (u + realOfQ (qInvNat k) ≤ v) �
 -- ===== ℝ group algebra the proofs need =====
 def realAddNegCancel : (u q : El Real) → u + q + realNeg u ≡ q using (real.Real.unfold) ≔
   λu. λq. u + q + realNeg u
-      ≡⟨ cong _ (λw. Real) (λw. w + realNeg u) _ _ (realAddComm u q) ⟩ q + u + realNeg u
+      ≡⟨ cong (λw. Real) (λw. w + realNeg u) (realAddComm u q) ⟩ q + u + realNeg u
       ≡⟨ realAddAssoc q u (realNeg u) ⟩ q + (u + realNeg u)
-      ≡⟨ cong _ (λw. Real) (λw. q + w) _ _ (realAddNegR u) ⟩ q + realZero
+      ≡⟨ cong (λw. Real) (λw. q + w) (realAddNegR u) ⟩ q + realZero
       ≡⟨ realAddZeroR q ⟩ q
 
 def realAddSwapR : (u q w : El Real) → u + q + w ≡ u + w + q using (real.Real.unfold) ≔
   λu. λq. λw. u + q + w
       ≡⟨ realAddAssoc u q w ⟩ u + (q + w)
-      ≡⟨ cong _ (λv. Real) (λv. u + v) _ _ (realAddComm q w) ⟩ u + (w + q)
+      ≡⟨ cong (λv. Real) (λv. u + v) (realAddComm q w) ⟩ u + (w + q)
       ≡⟨ sym _ _ _ (realAddAssoc u w q) ⟩ u + w + q
 
 -- 0 ≤ 1/(k+1), lifted

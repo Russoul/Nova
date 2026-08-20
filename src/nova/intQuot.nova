@@ -57,7 +57,7 @@ def nZIntro : (n x k : El Int) → (n * k ≡ x) → Prf (nZ n x) using (nZ.eq, 
 
 -- 0 = n · 0
 def nZUnit : (n : El Int) → Prf (nZ n (ge intAddGroup)) ≔
-  λn. nZIntro _ _ _ (trans Int (n * intZero) intZero _ intMulZeroR (sym _ _ _ intGe))
+  λn. nZIntro _ _ _ (trans _ (n * intZero) _ _ intMulZeroR (sym _ _ _ intGe))
 
 -- n·k₁ + n·k₂ = n·(k₁+k₂)
 def nZOp : (n x y : El Int) → Prf (nZ n x) → Prf (nZ n y) → Prf (nZ n (gop _ intAddGroup x y))
@@ -68,8 +68,8 @@ def nZOp : (n x y : El Int) → Prf (nZ n x) → Prf (nZ n y) → Prf (nZ n (gop
     (u .π₁ + v .π₁)
     (n * (u .π₁ + v .π₁)
         ≡⟨ intMulDistribL n (u .π₁) (v .π₁) ⟩ n * u .π₁ + n * v .π₁
-        ≡⟨ cong _ (λw. Int) (λw. w + n * v .π₁) _ _ (idToEq _ _ _ (u .π₂)) ⟩ x + n * v .π₁
-        ≡⟨ cong _ (λw. Int) (λw. x + w) _ _ (idToEq _ _ _ (v .π₂)) ⟩ x + y
+        ≡⟨ cong (λw. Int) (λw. w + n * v .π₁) (idToEq _ _ _ (u .π₂)) ⟩ x + n * v .π₁
+        ≡⟨ cong (λw. Int) (λw. x + w) (idToEq _ _ _ (v .π₂)) ⟩ x + y
         ≡⟨ sym _ _ _ (intGop x y) ⟩ gop _ intAddGroup x y)))
 
 -- n·(−k) = −(n·k)
@@ -81,7 +81,7 @@ def nZInv : (n x : El Int) → Prf (nZ n x) → Prf (nZ n (ginv _ intAddGroup x)
     (intNeg (u .π₁))
     (n * intNeg (u .π₁)
         ≡⟨ intMulNegR n (u .π₁) ⟩ intNeg (n * u .π₁)
-        ≡⟨ cong _ (λw. Int) (λw. intNeg w) _ _ (idToEq _ _ _ (u .π₂)) ⟩ intNeg x
+        ≡⟨ cong (λw. Int) (λw. intNeg w) (idToEq _ _ _ (u .π₂)) ⟩ intNeg x
         ≡⟨ sym _ _ _ (intGinv x) ⟩ ginv _ intAddGroup x))
 
 def nZIsSubgroup : (n : El Int) → Prf (IsSubgroup _ intAddGroup (nZ n)) ≔
@@ -94,7 +94,7 @@ def nZIsNormal : {n : El Int} → Prf (IsNormal _ intAddGroup (nZ n)) ≔ λn. a
 def IntMod : El Int → 𝕌 ≔ λn. QGroup _ intAddGroup (nZ n)
 
 def intModGroup : (n : El Int) → El (IsGroup (IntMod n)) using (IntMod.eq) ≔
-  λn. qIsGroup Int intAddGroup (nZ n) (nZIsSubgroup n) nZIsNormal
+  λn. qIsGroup _ _ _ (nZIsSubgroup n) nZIsNormal
 
 def intModCls : {n : El Int} → El Int → El (IntMod n) using (IntMod.eq) ≔
   λn. qcls _ intAddGroup (nZ n)
@@ -114,11 +114,8 @@ def intModMulZero : {n k : El Int} → intModCls (n * k) ≡ intModCls intZero �
       (n * k
           ≡⟨ sym _ _ _ (intAddZeroR (n * k)) ⟩ n * k + intZero
           ≡⟨ cong
-            _
             (λw. Int)
             (λw. n * k + w)
-            _
-            _
             (sym
               _
               _
@@ -137,13 +134,7 @@ def intModMulZero : {n k : El Int} → intModCls (n * k) ≡ intModCls intZero �
 
 -- the instance in the smallest concrete case: n is zero in ℤ/nℤ
 def intModSelf : (n : El Int) → intModCls n ≡ intModCls intZero ∈ El (IntMod n) ≔
-  λn. trans
-    _
-    _
-    (intModCls (n * intOne))
-    _
-    (cong _ (λw. IntMod n) (λw. intModCls w) _ _ (sym _ _ _ (intMulOneR n)))
-    intModMulZero
+  λn. trans _ _ _ _ (cong (λw. IntMod n) (λw. intModCls w) (sym _ _ _ (intMulOneR n))) intModMulZero
 
 -- ===== ...and ℤ/nℤ is a RING =====
 --
@@ -162,7 +153,7 @@ def intRmul : (x y : El Int) → rmul _ intCommRing x y ≡ x * y
 def nZScaleAlg : (n a k : El Int) → a * (n * k) ≡ n * (a * k) ≔
   λn. λa. λk. a * (n * k)
       ≡⟨ sym _ _ _ (intMulAssoc a n k) ⟩ a * n * k
-      ≡⟨ cong _ (λw. Int) (λw. w * k) _ _ (intMulComm a n) ⟩ n * a * k
+      ≡⟨ cong (λw. Int) (λw. w * k) (intMulComm a n) ⟩ n * a * k
       ≡⟨ intMulAssoc n a k ⟩ n * (a * k)
 
 def nZScale : (n a x : El Int) → Prf (nZ n x) → Prf (nZ n (rmul _ intCommRing a x))
@@ -173,7 +164,7 @@ def nZScale : (n a x : El Int) → Prf (nZ n x) → Prf (nZ n (rmul _ intCommRin
     (a * u .π₁)
     (n * (a * u .π₁)
         ≡⟨ sym _ _ _ (nZScaleAlg n a (u .π₁)) ⟩ a * (n * u .π₁)
-        ≡⟨ cong _ (λw. Int) (λw. a * w) _ _ (idToEq _ _ _ (u .π₂)) ⟩ a * x
+        ≡⟨ cong (λw. Int) (λw. a * w) (idToEq _ _ _ (u .π₂)) ⟩ a * x
         ≡⟨ sym _ _ _ (intRmul a x) ⟩ rmul _ intCommRing a x))
 
 def nZIsIdeal : (n : El Int) → Prf (IsIdeal _ intCommRing (nZ n)) using (intRaddGroup.rw) ≔

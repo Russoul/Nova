@@ -73,7 +73,7 @@ def rseqEq : {x y : El RSeq} → ((n : ℕ) → seqOf x n ≡ seqOf y n) → x �
 def realEqOfSeqEq : (x y : El RSeq)
   → ((n : ℕ) → seqOf x n ≡ seqOf y n) → class x ≡ class y ∈ El Real
   using (real.Real.unfold) ≔
-  λx. λy. λe. cong _ (λw. Real) (λw. class w) _ _ (rseqEq e)
+  λx. λy. λe. cong (λw. Real) (λw. class w) (rseqEq e)
 
 -- ===== outer well-definedness, for free, from commutativity =====
 --
@@ -110,5 +110,5 @@ def wdOuterOfComm : (op : El RSeq → El RSeq → El RSeq)
     _
     _
     _
-    (cong _ (λw. Real) (λw. class w) _ _ (comm x c))
-    (trans _ _ _ _ (inner c x x' h) (cong _ (λw. Real) (λw. class w) _ _ (sym _ _ _ (comm x' c))))
+    (cong (λw. Real) (λw. class w) (comm x c))
+    (trans _ _ _ _ (inner c x x' h) (cong (λw. Real) (λw. class w) (sym _ _ _ (comm x' c))))

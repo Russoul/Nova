@@ -109,7 +109,7 @@ def negSeq : El (ℕ → Q) → El (ℕ → Q) using (rationalQ.Q.unfold) ≔ λ
 -- difference reversed
 def qNegSub : (u v : El Q) → qNeg u + qNeg (qNeg v) ≡ v + qNeg u using (rationalQ.Q.unfold) ≔
   λu. λv. qNeg u + qNeg (qNeg v)
-      ≡⟨ cong _ (λw. Q) (λw. qNeg u + w) _ _ (qNegNeg v) ⟩ qNeg u + v
+      ≡⟨ cong (λw. Q) (λw. qNeg u + w) (qNegNeg v) ⟩ qNeg u + v
       ≡⟨ qAddComm (qNeg u) v ⟩ v + qNeg u
 
 -- the negated sequence is regular: its (m,n) difference is the

@@ -56,7 +56,7 @@ def reqAt : El RSeq → El Real → Ω
 
 def reqOfClassEq : {p p' : El RSeq} → (class p ≡ class p' ∈ El Real) → Prf (REq p p')
   using (real.RSeq.unfold, real.Real.unfold, real.Regular.unfold, real.REq.unfold, reqAt.eq) ≔
-  λp. λp'. λe. transportP Real (λz. reqAt p z) (class p) _ e reqRefl
+  λp. λp'. λe. transportP _ (λz. reqAt p z) _ _ e reqRefl
 
 -- THE WITNESS. It carries a representative as well as the modulus.
 -- Not decoration: without it the descent needs a quot-elim on x whose
@@ -93,9 +93,9 @@ def posBoundRep : (x : El Real)
   → Prf (realOfQ (qInvNat (posK _ d)) ≤ class (posRep _ d))
   using (real.Real.unfold, real.RSeq.unfold, real.Regular.unfold) ≔
   λx. λd. transportP
-    Real
+    _
     (λv. realOfQ (qInvNat (posK _ d)) ≤ v)
-    x
+    _
     _
     (sym _ _ _ (posRepEq _ d))
     posBound
@@ -110,9 +110,9 @@ def posToLt : (x : El Real) → El (PosR x) → Prf (realZero < x)
     _
     _
     (transportP
-      Real
+      _
       (λv. v ≤ x)
-      (realOfQ (qInvNat (posK x d)))
+      _
       _
       (sym _ _ _ (realAddZeroL (realOfQ (qInvNat (posK x d)))))
       posBound))
@@ -139,7 +139,7 @@ def leQZeroOfSubLe : (a u : El Q) → El (a + qNeg u ≤ a) → El (qZero ≤ u)
           _
           _
           (qAddAssoc a (qNeg u) u)
-          (trans _ _ _ a (cong _ (λw. Q) (λw. a + w) _ _ (qAddNegL u)) (qAddZeroR a)))
+          (trans _ _ _ a (cong (λw. Q) (λw. a + w) (qAddNegL u)) (qAddZeroR a)))
         (leQPlusMono u h)))
 
 def leQOneInv : (i : ℕ) → El (qInvNat i ≤ qOne) ≔
@@ -150,7 +150,7 @@ def leQOneInv : (i : ℕ) → El (qInvNat i ≤ qOne) ≔
     _
     (qMulOneL (qInvNat i))
     (transport
-      Q
+      _
       (λw. qOne * qInvNat i ≤ w)
       (qOfNat (S i) * qInvNat i)
       qOne
@@ -171,11 +171,10 @@ def rBoundDeepEq : (k i : ℕ) → rBound (mulIdx (dbl k) i) (mulIdx (dbl k) i) 
     _
     _
     (cong
-      Q
       (λw. Q)
       (λw. w + w)
-      (qInvNat (mulIdx (dbl k) i))
-      (qInvNat (dbl k) * qInvNat i)
+      {qInvNat (mulIdx (dbl k) i)}
+      {qInvNat (dbl k) * qInvNat i}
       qInvNatMulIdx)
     (trans
       _
@@ -183,7 +182,7 @@ def rBoundDeepEq : (k i : ℕ) → rBound (mulIdx (dbl k) i) (mulIdx (dbl k) i) 
       _
       _
       (sym _ _ _ (qDistribR (qInvNat i) (qInvNat (dbl k)) (qInvNat (dbl k))))
-      (cong _ (λw. Q) (λw. w * qInvNat i) _ _ (qInvHalf k)))
+      (cong (λw. Q) (λw. w * qInvNat i) (qInvHalf k)))
 
 def leQRBoundDeep : (k i : ℕ) → El (rBound (mulIdx (dbl k) i) (mulIdx (dbl k) i) ≤ qInvNat k) ≔
   λk. λi. transport
@@ -278,7 +277,7 @@ def bndZeroSub : {b : El Q} → El (qZero ≤ b) → El (Bnd b (qZero + qNeg qZe
   λb. λhb. bndEq
     _
     _
-    (sym _ _ _ (trans _ _ _ qZero (cong _ (λw. Q) (λw. qZero + w) _ _ qNegZeroQ) (qAddZeroR qZero)))
+    (sym _ _ _ (trans _ _ _ qZero (cong (λw. Q) (λw. qZero + w) qNegZeroQ) (qAddZeroR qZero)))
     (bndZero _ hb)
 
 def clampSeq : El RSeq → El (ℕ → Q) ≔ λp. λn. qMax (seqOf p n) qZero

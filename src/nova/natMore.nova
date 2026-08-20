@@ -14,8 +14,8 @@ def multDistribR : (n m k : ℕ) → (m + k) * n ≡ m * n + k * n ≔
   λn. λm. λk. (m + k) * n
       ≡⟨ multComm (m + k) n ⟩ n * (m + k)
       ≡⟨ multDistrib n m k ⟩ n * m + n * k
-      ≡⟨ cong _ (λu. ℕ) (λw. w + n * k) _ _ (multComm m n) ⟩ m * n + n * k
-      ≡⟨ cong _ (λu. ℕ) (λw. m * n + w) _ _ (multComm k n) ⟩ m * n + k * n
+      ≡⟨ cong (λu. ℕ) (λw. w + n * k) (multComm m n) ⟩ m * n + n * k
+      ≡⟨ cong (λu. ℕ) (λw. m * n + w) (multComm k n) ⟩ m * n + k * n
 
 -- ===== cancellation =====
 def plusCancelL : (k n m : ℕ) → (k + n ≡ k + m) → n ≡ m ≔
@@ -49,7 +49,7 @@ def multCancelLe : {n m : ℕ} (k : ℕ) → El (n ≤ m) → (n * S k ≡ m * S
       _
       _
       (n * S k + le .π₁ * S k)
-      (cong _ (λu. ℕ) (λw. w * S k) _ _ (sym _ _ _ e))
+      (cong (λu. ℕ) (λw. w * S k) (sym _ _ _ e))
       (multDistribR
         (S k)
         n
@@ -69,7 +69,7 @@ def multCancelLe : {n m : ℕ} (k : ℕ) → El (n ≤ m) → (n * S k ≡ m * S
     _
     _
     _
-    (sym _ _ _ (trans _ _ _ n (cong _ (λu. ℕ) (λw. n + w) _ _ jz) (plusZeroId n)))
+    (sym _ _ _ (trans _ _ _ n (cong (λu. ℕ) (λw. n + w) jz) (plusZeroId n)))
     e
 
 def multCancelR : (n m k : ℕ) → (n * S k ≡ m * S k) → n ≡ m ≔
@@ -124,9 +124,9 @@ def monusSelf : {a : ℕ} → a ∸ a ≡ Z
 -- ...so a ≤ b makes a − b vanish
 def monusZeroOfLe : (a b : ℕ) → El (a ≤ b) → a ∸ b ≡ Z using (id.Id.unfold, natOrder.≤.unfold) ≔
   λa. λb. λle. a ∸ b
-      ≡⟨ cong _ (λu. ℕ) (λw. a ∸ w) _ _ (sym _ _ _ (idToEq _ _ _ (le .π₂))) ⟩ a ∸ (a + le .π₁)
+      ≡⟨ cong (λu. ℕ) (λw. a ∸ w) (sym _ _ _ (idToEq _ _ _ (le .π₂))) ⟩ a ∸ (a + le .π₁)
       ≡⟨ monusPlus a a (le .π₁) ⟩ a ∸ a ∸ le .π₁
-      ≡⟨ cong ℕ (λu. ℕ) (λw. w ∸ le .π₁) (a ∸ a) Z monusSelf ⟩ Z ∸ le .π₁
+      ≡⟨ cong (λu. ℕ) (λw. w ∸ le .π₁) {a ∸ a} {Z} monusSelf ⟩ Z ∸ le .π₁
       ≡⟨ zeroMonus (le .π₁) ⟩ Z
 
 -- ...and a ≤ b makes the difference add back
@@ -137,9 +137,9 @@ def leMonusPlus : {a b : ℕ} → El (a ≤ b) → a + (b ∸ a) ≡ b using (id
     _
     _
     (le .π₂) in a + (b ∸ a)
-      ≡⟨ cong _ (λu. ℕ) (λw. a + (w ∸ a)) _ _ (sym _ _ _ e) ⟩ a + (a + le .π₁ ∸ a)
-      ≡⟨ cong _ (λu. ℕ) (λw. a + (w ∸ a)) _ _ (plusComm (le .π₁) a) ⟩ a + (le .π₁ + a ∸ a)
-      ≡⟨ cong _ (λu. ℕ) (λw. a + w) _ _ (plusMonus (le .π₁) a) ⟩ a + le .π₁
+      ≡⟨ cong (λu. ℕ) (λw. a + (w ∸ a)) (sym _ _ _ e) ⟩ a + (a + le .π₁ ∸ a)
+      ≡⟨ cong (λu. ℕ) (λw. a + (w ∸ a)) (plusComm (le .π₁) a) ⟩ a + (le .π₁ + a ∸ a)
+      ≡⟨ cong (λu. ℕ) (λw. a + w) (plusMonus (le .π₁) a) ⟩ a + le .π₁
       ≡⟨ e ⟩ b
 
 -- ===== max and min =====
@@ -175,15 +175,15 @@ def leMaxR : (a b : ℕ) → El (b ≤ natMax a b)
             _
             _
             (sym _ _ _ (plusAssoc b (le .π₁) (b ∸ a)))
-            (cong _ (λu. ℕ) (λw. w + (b ∸ a)) _ _ (idToEq _ _ _ (le .π₂))))
+            (cong (λu. ℕ) (λw. w + (b ∸ a)) (idToEq _ _ _ (le .π₂))))
           ⋆))
     (leTotal a b)
 
 def natMaxSelf : (a : ℕ) → natMax a a ≡ a using (natMore.natMax.eq) ≔
-  λa. trans _ _ _ _ (cong ℕ (λu. ℕ) (λw. a + w) (a ∸ a) Z monusSelf) (plusZeroId a)
+  λa. trans _ _ _ _ (cong (λu. ℕ) (λw. a + w) {a ∸ a} {Z} monusSelf) (plusZeroId a)
 
 def natMinSelf : (a : ℕ) → natMin a a ≡ a using (natMore.natMin.eq) ≔
-  λa. trans _ _ (a ∸ Z) _ (cong ℕ (λu. ℕ) (λw. a ∸ w) (a ∸ a) Z monusSelf) monusZeroR
+  λa. trans _ _ _ _ (cong (λu. ℕ) (λw. a ∸ w) {a ∸ a} {Z} monusSelf) monusZeroR
 
 -- ===== exponentiation =====
 infixr 8 ^
@@ -212,7 +212,7 @@ def oneExp : (n : ℕ) → S Z ^ n ≡ S Z
 def multLeftComm : (x y z : ℕ) → x * (y * z) ≡ y * (x * z) ≔
   λx. λy. λz. x * (y * z)
       ≡⟨ multAssoc x y z ⟩ x * y * z
-      ≡⟨ cong _ (λu. ℕ) (λw. w * z) _ _ (multComm y x) ⟩ y * x * z
+      ≡⟨ cong (λu. ℕ) (λw. w * z) (multComm y x) ⟩ y * x * z
       ≡⟨ multAssoc y x z ⟩ y * (x * z)
 
 def expPlus : (a m n : ℕ) → a ^ (m + n) ≡ a ^ m * a ^ n
@@ -251,8 +251,8 @@ def monusPlusL : {k a b : ℕ} → k + a ∸ (k + b) ≡ a ∸ b ≔
       _
       _
       (a + k ∸ (b + k))
-      (cong _ (λu. ℕ) (λw. w ∸ (k + b)) _ _ (plusComm a k))
-      (cong _ (λu. ℕ) (λw. a + k ∸ w) _ _ (plusComm b k)))
+      (cong (λu. ℕ) (λw. w ∸ (k + b)) (plusComm a k))
+      (cong (λu. ℕ) (λw. a + k ∸ w) (plusComm b k)))
     (monusPlusR a b k)
 
 -- the difference-pair reading: a + d ≡ b + c makes a − b and c − d
@@ -264,4 +264,4 @@ def monusEqOfSum : {a b c d : ℕ} → (a + d ≡ b + c) → a ∸ b ≡ c ∸ d
     _
     _
     (sym _ _ _ (monusPlusR a b d))
-    (trans ℕ _ (b + c ∸ (b + d)) (c ∸ d) (cong _ (λu. ℕ) (λw. w ∸ (b + d)) _ _ h) monusPlusL)
+    (trans _ _ _ (c ∸ d) (cong (λu. ℕ) (λw. w ∸ (b + d)) h) monusPlusL)

@@ -69,18 +69,12 @@ def rDistribR : (R : 𝕌)
       ≡⟨ rMulComm _ r (gop _ (raddGroup r) y z) x ⟩ rmul _ r x (gop _ (raddGroup r) y z)
       ≡⟨ rDistribL _ r x y z ⟩ gop _ (raddGroup r) (rmul _ r x y) (rmul _ r x z)
       ≡⟨ cong
-        _
         (λw. R)
         (λw. gop R (raddGroup r) w (rmul _ r x z))
-        _
-        _
         (rMulComm _ r x y) ⟩ gop _ (raddGroup r) (rmul _ r y x) (rmul _ r x z)
       ≡⟨ cong
-        _
         (λw. R)
         (λw. gop R (raddGroup r) (rmul _ r y x) w)
-        _
-        _
         (rMulComm _ r x z) ⟩ gop _ (raddGroup r) (rmul _ r y x) (rmul _ r z x)
 
 -- x · 0 = 0, by cancellation from x·0 = x·(0+0) = x·0 + x·0
@@ -105,11 +99,8 @@ def rMulZero : (R : 𝕌)
               (raddGroup
                 r))) ⟩ rmul _ r x (gop _ (raddGroup r) (ge (raddGroup r)) (ge (raddGroup r)))
         ≡⟨ cong
-          _
           (λw. R)
           (λw. rmul R r x w)
-          _
-          _
           (gUnitL _ (raddGroup r) (ge (raddGroup r))) ⟩ rmul _ r x (ge (raddGroup r))
         ≡⟨ sym
           _
@@ -155,11 +146,8 @@ def rMulNeg : (R : 𝕌)
                 (raddGroup r)
                 y)) ⟩ rmul _ r x (gop _ (raddGroup r) y (ginv _ (raddGroup r) y))
           ≡⟨ cong
-            _
             (λw. R)
             (λw. rmul R r x w)
-            _
-            _
             (gInvR _ (raddGroup r) y) ⟩ rmul _ r x (ge (raddGroup r))
           ≡⟨ rMulZero _ r x ⟩ ge (raddGroup r)))
 
@@ -177,11 +165,8 @@ def rMulSub : (R : 𝕌)
       (rmul _ r x y')) ≡ rmul _ r x (gop _ (raddGroup r) y (ginv _ (raddGroup r) y')) ≔
   λR. λr. λx. λy. λy'. gop _ (raddGroup r) (rmul _ r x y) (ginv _ (raddGroup r) (rmul _ r x y'))
       ≡⟨ cong
-        _
         (λw. R)
         (λw. gop R (raddGroup r) (rmul _ r x y) w)
-        _
-        _
         (sym
           _
           _

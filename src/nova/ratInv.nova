@@ -53,7 +53,7 @@ def qNeZeroOfPos : {u : El Q} → (sgnQ u ≡ sPos) → Prf (¬ (u ≡ qZero)) u
         _
         _
         _
-        (sym _ _ _ (trans _ _ _ sZero (cong _ (λw. Sign) (λw. sgnQ w) _ _ hz) sgnQZeroEq))
+        (sym _ _ _ (trans _ _ _ sZero (cong (λw. Sign) (λw. sgnQ w) hz) sgnQZeroEq))
         hp)))
 
 def qMulInvPos : {c : El Q} → (sgnQ c ≡ sPos) → c * qInv c ≡ qOne ≔
@@ -118,11 +118,8 @@ def leQZeroInv : {c : El Q} → (sgnQ c ≡ sPos) → El (qZero ≤ qInv c)
             _
             sZero
             (cong
-              _
               (λw. Sign)
               (λw. sgnQ w)
-              _
-              _
               (leQAntisym
                 (transport
                   _
@@ -144,7 +141,7 @@ def cancelR : {z c : El Q} → (sgnQ c ≡ sPos) → z * c * qInv c ≡ z ≔
     _
     _
     (qMulAssoc z c (qInv c))
-    (trans _ _ _ z (cong _ (λw. Q) (λw. z * w) _ _ (qMulInvPos hp)) (qMulOneR z))
+    (trans _ _ _ z (cong (λw. Q) (λw. z * w) (qMulInvPos hp)) (qMulOneR z))
 
 def leQMulCancel : {x y : El Q} (c : El Q) → (sgnQ c ≡ sPos) → El (x * c ≤ y * c) → El (x ≤ y) ≔
   λx. λy. λc. λhp. λh. transport
@@ -178,9 +175,9 @@ def qAddSubCancel : {c u : El Q} → c + (u + qNeg c) ≡ u ≔
         _
         _
         (u + (c + qNeg c))
-        (cong _ (λw. Q) (λw. w + qNeg c) _ _ (qAddComm c u))
+        (cong (λw. Q) (λw. w + qNeg c) (qAddComm c u))
         (qAddAssoc u c (qNeg c))))
-    (trans _ _ _ u (cong _ (λw. Q) (λw. u + w) _ _ (qAddNegR c)) (qAddZeroR u))
+    (trans _ _ _ u (cong (λw. Q) (λw. u + w) (qAddNegR c)) (qAddZeroR u))
 
 -- anything above a positive is positive
 def sgnQPosOfLe : (c : El Q) {u : El Q} → (sgnQ c ≡ sPos) → El (c ≤ u) → sgnQ u ≡ sPos
@@ -228,11 +225,8 @@ def leQInvAnti : {c u : El Q} → (sgnQ c ≡ sPos) → El (c ≤ u) → El (qIn
                 _
                 c
                 (cong
-                  _
                   (λw. Q)
                   (λw. w * c)
-                  _
-                  _
                   (trans _ _ _ _ (qMulComm (qInv u) u) (qMulInvPos (sgnQPosOfLe _ hp h))))
                 (qMulOneL c))))
           (transport _ (λw. c ≤ w) _ _ (sym _ _ _ (qMulOneL u)) h))))
@@ -263,7 +257,7 @@ def negMulL : {x y : El Q} → qNeg x * y ≡ qNeg (x * y) ≔
     _
     _
     (qMulComm (qNeg x) y)
-    (trans _ _ _ _ (qNegMulR y x) (cong _ (λw. Q) (λw. qNeg w) _ _ (qMulComm y x)))
+    (trans _ _ _ _ (qNegMulR y x) (cong (λw. Q) (λw. qNeg w) (qMulComm y x)))
 
 def invFirst : (a b : El Q) → (sgnQ b ≡ sPos) → b * qInv a * qInv b ≡ qInv a ≔
   λa. λb. λhb. trans
@@ -272,7 +266,7 @@ def invFirst : (a b : El Q) → (sgnQ b ≡ sPos) → b * qInv a * qInv b ≡ qI
     _
     _
     (qMulSwap3 b (qInv a) (qInv b))
-    (trans _ _ _ (qInv a) (cong _ (λw. Q) (λw. w * qInv a) _ _ (qMulInvPos hb)) (qMulOneL (qInv a)))
+    (trans _ _ _ (qInv a) (cong (λw. Q) (λw. w * qInv a) (qMulInvPos hb)) (qMulOneL (qInv a)))
 
 def invSecond : (a b : El Q) → (sgnQ a ≡ sPos) → qNeg a * qInv a * qInv b ≡ qNeg (qInv b) ≔
   λa. λb. λha. trans
@@ -281,45 +275,24 @@ def invSecond : (a b : El Q) → (sgnQ a ≡ sPos) → qNeg a * qInv a * qInv b 
     _
     _
     (cong
-      _
       (λw. Q)
       (λw. w * qInv b)
-      _
-      _
-      (trans
-        Q
-        (qNeg a * qInv a)
-        (qNeg (a * qInv a))
-        _
-        negMulL
-        (cong _ (λw. Q) (λw. qNeg w) _ _ (qMulInvPos ha))))
-    (trans
-      Q
-      (qNeg qOne * qInv b)
-      (qNeg (qOne * qInv b))
-      _
-      negMulL
-      (cong _ (λw. Q) (λw. qNeg w) _ _ (qMulOneL (qInv b))))
+      (trans _ (qNeg a * qInv a) _ _ negMulL (cong (λw. Q) (λw. qNeg w) (qMulInvPos ha))))
+    (trans _ (qNeg qOne * qInv b) _ _ negMulL (cong (λw. Q) (λw. qNeg w) (qMulOneL (qInv b))))
 
 def qInvDiff : {a b : El Q}
   → (sgnQ a ≡ sPos) → (sgnQ b ≡ sPos) → (b + qNeg a) * qInv a * qInv b ≡ qInv a + qNeg (qInv b) ≔
   λa. λb. λha. λhb. (b + qNeg a) * qInv a * qInv b
       ≡⟨ cong
-        _
         (λw. Q)
         (λw. w * qInv b)
-        _
-        _
         (qDistribR (qInv a) b (qNeg a)) ⟩ (b * qInv a + qNeg a * qInv a) * qInv b
       ≡⟨ qDistribR
         (qInv b)
         (b * qInv a)
         (qNeg a * qInv a) ⟩ b * qInv a * qInv b + qNeg a * qInv a * qInv b
       ≡⟨ cong
-        _
         (λw. Q)
         (λw. w + qNeg a * qInv a * qInv b)
-        _
-        _
         (invFirst a _ hb) ⟩ qInv a + qNeg a * qInv a * qInv b
-      ≡⟨ cong _ (λw. Q) (λw. qInv a + w) _ _ (invSecond _ b ha) ⟩ qInv a + qNeg (qInv b)
+      ≡⟨ cong (λw. Q) (λw. qInv a + w) (invSecond _ b ha) ⟩ qInv a + qNeg (qInv b)

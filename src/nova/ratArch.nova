@@ -87,17 +87,11 @@ def sgnQFrac : (a b : ℕ) → sgnQ (qFrac a b) ≡ intSgn (intOfNat (a * S b))
     rationalOrder.sZero.eq,
     rationalOrder.sgnQ.eq,
     rationalQ.qcls.eq) ≔
-  λa. λb. cong _ (λv. Sign) (λv. intSgn v) _ _ (intOfNatMul a (S b))
+  λa. λb. cong (λv. Sign) (λv. intSgn v) (intOfNatMul a (S b))
 
 def nonNegSgnFrac : {a b : ℕ} → El (NonNegS (sgnQ (qFrac a b)))
   using (rationalOrder.NonNegS.unfold) ≔
-  λa. λb. transport
-    _
-    NonNegS
-    (intSgn (intOfNat (a * S b)))
-    _
-    (sym _ _ _ (sgnQFrac a b))
-    intSgnOfNatNonNeg
+  λa. λb. transport _ NonNegS _ _ (sym _ _ _ (sgnQFrac a b)) intSgnOfNatNonNeg
 
 -- ===== 1/(b+1) ≤ (a+1)/(b+1) =====
 -- the difference is ((b+1)·a) / (b+1)²: the denominators are literally
@@ -139,22 +133,15 @@ def qDiffFracInv : (a b : ℕ) → qFrac (S a) b + qNeg (qInvNat b) ≡ qFrac (S
     rationalQ.qcls.eq,
     real.qInvNat.eq) ≔
   λa. λb. cong
-    Int
     (λv. Q)
     (λv. qcls (mkRat v (nzPos (b * b + b + b))))
-    (intScale (nzPos b) (intOfNat (S a)) + intScale (nzPos b) (intNeg intOne))
-    (intOfNat (S b * a))
+    {intScale (nzPos b) (intOfNat (S a)) + intScale (nzPos b) (intNeg intOne)}
+    {intOfNat (S b * a)}
     fracNumEq
 
 def leQInvFrac : {a b : ℕ} → El (qInvNat b ≤ qFrac (S a) b)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
-  λa. λb. transport
-    Q
-    (λw. NonNegS (sgnQ w))
-    (qFrac (S b * a) (b * b + b + b))
-    _
-    (sym _ _ _ (qDiffFracInv a b))
-    nonNegSgnFrac
+  λa. λb. transport _ (λw. NonNegS (sgnQ w)) _ _ (sym _ _ _ (qDiffFracInv a b)) nonNegSgnFrac
 
 -- ===== normalizing the denominator's sign =====
 -- the cross-multiplication behind qNegDen, in folded vocabulary
@@ -165,11 +152,8 @@ def negDenCross : (N : El Int)
   λN. λb. intNeg N * intNeg (nzToInt (nzPos b))
       ≡⟨ intMulNegL N (intNeg (nzToInt (nzPos b))) ⟩ intNeg (N * intNeg (nzToInt (nzPos b)))
       ≡⟨ cong
-        _
         (λv. Int)
         (λv. intNeg v)
-        _
-        _
         (intMulNegR N (nzToInt (nzPos b))) ⟩ intNeg (intNeg (N * nzToInt (nzPos b)))
       ≡⟨ intNegNeg (N * nzToInt (nzPos b)) ⟩ N * nzToInt (nzPos b)
 
@@ -234,9 +218,9 @@ def sgnNegOverPos : {a b : ℕ} → sgnQ (qcls (mkRat (nzToInt (nzNeg a)) (nzPos
   λa. λb. trans
     _
     (intSgn (nzToInt (nzNeg a) * nzToInt (nzPos b)))
-    (intSgn (nzToInt (nzMul (nzNeg a) (nzPos b))))
     _
-    (cong _ (λv. Sign) (λv. intSgn v) _ _ (sym _ _ _ (nzToIntMul (nzNeg a) (nzPos b))))
+    _
+    (cong (λv. Sign) (λv. intSgn v) (sym _ _ _ (nzToIntMul (nzNeg a) (nzPos b))))
     intSgnNeg
 
 -- a zero numerator makes the fraction zero
@@ -266,7 +250,7 @@ def sgnZeroOverPos : {b : ℕ} → sgnQ (qcls (mkRat intZero (nzPos b))) ≡ sZe
     (intSgn (intZero * nzToInt (nzPos b)))
     _
     _
-    (cong _ (λv. Sign) (λv. intSgn v) _ _ (intMulZeroL (nzToInt (nzPos b))))
+    (cong (λv. Sign) (λv. intSgn v) (intMulZeroL (nzToInt (nzPos b))))
     intSgnZero
 
 -- ===== the theorem =====
@@ -291,11 +275,11 @@ def qArchPos : {M : El Int}
     (u. (⊎-elim (w. Prf (nzToInt w ≡ M) → El (ArchWit (qcls (mkRat M (nzPos b)))))
       (a. λhe. b,
         transport
-          Q
+          _
           (λv. qInvNat b ≤ v)
           (qFrac (S a) b)
           (qcls (mkRat M (nzPos b)))
-          (cong _ (λv. Q) (λv. qcls (mkRat v (nzPos b))) (nzToInt (nzPos a)) _ he)
+          (cong (λv. Q) (λv. qcls (mkRat v (nzPos b))) {nzToInt (nzPos a)} he)
           leQInvFrac)
       (a. λhe. 𝟘-elim (sNegNotPos
         (trans
@@ -308,16 +292,13 @@ def qArchPos : {M : El Int}
             _
             _
             (trans
-              Sign
               _
-              (sgnQ (qcls (mkRat (nzToInt (nzNeg a)) (nzPos b))))
+              _
+              _
               sNeg
               (cong
-                _
                 (λv. Sign)
                 (λv. sgnQ (qcls (mkRat v (nzPos b))))
-                _
-                _
                 (sym _ (nzToInt (nzNeg a)) _ he))
               sgnNegOverPos))
           hp)))
@@ -334,11 +315,11 @@ def qArchPos : {M : El Int}
           _
           _
           (trans
-            Sign
             _
-            (sgnQ (qcls (mkRat intZero (nzPos b))))
+            _
+            _
             sZero
-            (cong _ (λv. Sign) (λv. sgnQ (qcls (mkRat v (nzPos b)))) _ _ hz)
+            (cong (λv. Sign) (λv. sgnQ (qcls (mkRat v (nzPos b)))) hz)
             sgnZeroOverPos))
         hp)))
     (nzOfInt M)
@@ -367,7 +348,7 @@ def qArchAt : (N : El Int)
     _
     _
     e
-    (qArchPos (trans _ _ _ sPos (cong _ (λw. Sign) (λw. sgnQ w) _ _ e) hp))
+    (qArchPos (trans _ _ _ sPos (cong (λw. Sign) (λw. sgnQ w) e) hp))
 
 -- every positive rational dominates a unit fraction. The witness is
 -- squashed: a bare Σ would ask the class to determine the index
@@ -390,7 +371,7 @@ def qArch : (u : El Q) → (sgnQ u ≡ sPos) → Prf ∥El (ArchWit u)∥
     real.qInvNat.eq) ≔
   λu. quot-elim
     (p. λhp. ⋆ (transport
-      Rat
+      _
       (λr. ArchWit (qcls r))
       (mkRat (num p) (den p))
       p
@@ -403,7 +384,7 @@ def qArch : (u : El Q) → (sgnQ u ≡ sPos) → Prf ∥El (ArchWit u)∥
           _
           _
           sPos
-          (cong Rat (λr. Sign) (λr. sgnQ (qcls r)) (mkRat (num p) (den p)) p ratEta)
+          (cong (λr. Sign) (λr. sgnQ (qcls r)) {mkRat (num p) (den p)} {p} ratEta)
           hp))))
     u
 
@@ -420,17 +401,17 @@ def sgnQSubFlip : {x y : El Q} → sgnQ (x + qNeg y) ≡ sgnFlip (sgnQ (y + qNeg
   λx. λy. trans
     _
     _
-    (sgnQ (qNeg (y + qNeg x)))
     _
-    (cong Q (λw. Sign) (λw. sgnQ w) (x + qNeg y) (qNeg (y + qNeg x)) qSubNeg)
+    _
+    (cong (λw. Sign) (λw. sgnQ w) {x + qNeg y} {qNeg (y + qNeg x)} qSubNeg)
     sgnQNegFlip
 
 -- (b + q) − a ≡ q − (a − b): moving a subtraction across the ≤
 def qShiftEq : (a b q : El Q) → b + q + qNeg a ≡ q + qNeg (a + qNeg b) using (rationalQ.Q.unfold) ≔
   λa. λb. λq. b + q + qNeg a
-      ≡⟨ cong _ (λw. Q) (λw. w + qNeg a) _ _ (qAddComm b q) ⟩ q + b + qNeg a
+      ≡⟨ cong (λw. Q) (λw. w + qNeg a) (qAddComm b q) ⟩ q + b + qNeg a
       ≡⟨ qAddAssoc q b (qNeg a) ⟩ q + (b + qNeg a)
-      ≡⟨ cong _ (λw. Q) (λw. q + w) _ _ (sym _ _ _ (qSubFlip a b)) ⟩ q + qNeg (a + qNeg b)
+      ≡⟨ cong (λw. Q) (λw. q + w) (sym _ _ _ (qSubFlip a b)) ⟩ q + qNeg (a + qNeg b)
 
 def leQSubShift : (a b : El Q) {q : El Q} → El (a ≤ b + q) → El (a + qNeg b ≤ q)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold, rationalQ.Q.unfold) ≔
@@ -453,8 +434,8 @@ def qAddSelfCancel : (h : El Q) → (h + h ≡ h) → h ≡ qZero ≔
         _
         _
         (qAddAssoc h h (qNeg h))
-        (trans _ _ _ h (cong _ (λw. Q) (λw. h + w) _ _ (qAddNegR h)) (qAddZeroR h))))
-    (trans _ _ _ qZero (cong _ (λw. Q) (λw. w + qNeg h) _ _ e) (qAddNegR h))
+        (trans _ _ _ h (cong (λw. Q) (λw. h + w) (qAddNegR h)) (qAddZeroR h))))
+    (trans _ _ _ qZero (cong (λw. Q) (λw. w + qNeg h) e) (qAddNegR h))
 
 -- no unit fraction is zero
 def qInvNatNotZero : (k : ℕ) → (qInvNat k ≡ qZero) → 𝟘 ≔
@@ -464,7 +445,7 @@ def qInvNatNotZero : (k : ℕ) → (qInvNat k ≡ qZero) → 𝟘 ≔
       _
       _
       _
-      (sym _ _ _ (trans _ _ _ sZero (cong _ (λw. Sign) (λw. sgnQ w) _ _ e) sgnQZero))
+      (sym _ _ _ (trans _ _ _ sZero (cong (λw. Sign) (λw. sgnQ w) e) sgnQZero))
       (qInvNatPos k))
 
 -- a < b would give an index k with 1/(k+1) ≤ a − b ≤ 1/(2k+2), and
@@ -500,7 +481,7 @@ def archContra : (a b : El Q)
         b) ≡ sPos ≔ trans
     _
     _
-    (sgnFlip (sgnQ (b + qNeg a)))
+    _
     _
     sgnQSubFlip
     (trans
@@ -508,7 +489,7 @@ def archContra : (a b : El Q)
       _
       _
       sPos
-      (cong _ (λw. Sign) (λw. sgnFlip w) _ _ (idToEq _ _ _ hneg))
+      (cong (λw. Sign) (λw. sgnFlip w) (idToEq _ _ _ hneg))
       ⋆) in squash-elim (qArch
     _
     hpos) (w. let hup : qInvNat
@@ -531,9 +512,9 @@ def leQOfArch : (a b : El Q) → ((k : ℕ) → El (a ≤ b + qInvNat k)) → El
 -- −(b + h) + h ≡ −b : the ε moves back out of a negated bound
 def qNegAddCancel : {b h : El Q} → qNeg (b + h) + h ≡ qNeg b using (rationalQ.Q.unfold) ≔
   λb. λh. qNeg (b + h) + h
-      ≡⟨ cong _ (λw. Q) (λw. w + h) _ _ (qNegAdd b h) ⟩ qNeg b + qNeg h + h
+      ≡⟨ cong (λw. Q) (λw. w + h) (qNegAdd b h) ⟩ qNeg b + qNeg h + h
       ≡⟨ qAddAssoc (qNeg b) (qNeg h) h ⟩ qNeg b + (qNeg h + h)
-      ≡⟨ cong _ (λw. Q) (λw. qNeg b + w) _ _ (qAddNegL h) ⟩ qNeg b + qZero
+      ≡⟨ cong (λw. Q) (λw. qNeg b + w) (qAddNegL h) ⟩ qNeg b + qZero
       ≡⟨ qAddZeroR (qNeg b) ⟩ qNeg b
 
 -- a bound that holds with EVERY slack 1/(k+1) holds without slack.
@@ -545,7 +526,7 @@ def bndOfArch : {b : El Q} (d : El Q) → ((k : ℕ) → El (Bnd (b + qInvNat k)
     _
     _
     (λk. transport
-      Q
+      _
       (λw. w ≤ d + qInvNat k)
       (qNeg (b + qInvNat k) + qInvNat k)
       (qNeg b)
@@ -559,20 +540,17 @@ def qFourSum : (a b y : El Q) → a + b + y + (b + a) ≡ a + a + (b + b + y)
   using (rationalQ.Q.unfold) ≔
   λa. λb. λy. a + b + y + (b + a)
       ≡⟨ qAddAssoc (a + b) y (b + a) ⟩ a + b + (y + (b + a))
-      ≡⟨ cong _ (λw. Q) (λw. a + b + w) _ _ (qAddComm y (b + a)) ⟩ a + b + (b + a + y)
+      ≡⟨ cong (λw. Q) (λw. a + b + w) (qAddComm y (b + a)) ⟩ a + b + (b + a + y)
       ≡⟨ sym _ _ _ (qAddAssoc (a + b) (b + a) y) ⟩ a + b + (b + a) + y
       ≡⟨ cong
-        _
         (λw. Q)
         (λw. w + y)
-        _
-        _
         (trans
           _
           _
           _
           (a + a + (b + b))
-          (cong _ (λw. Q) (λw. a + b + w) _ _ (qAddComm b a))
+          (cong (λw. Q) (λw. a + b + w) (qAddComm b a))
           (qPairSwap a b a b)) ⟩ a + a + (b + b) + y
       ≡⟨ qAddAssoc (a + a) (b + b) y ⟩ a + a + (b + b + y)
 
@@ -596,7 +574,7 @@ def leQTripleInv : (k : ℕ)
     (λw. qInvNat (dbl (dbl k)) + (qInvNat (dbl (dbl k)) + qInvNat (dbl (dbl k))) ≤ w)
     _
     _
-    (trans _ _ _ (qInvNat k) (cong _ (λw. Q) (λw. w + w) _ _ (qInvHalf (dbl k))) (qInvHalf k))
+    (trans _ _ _ (qInvNat k) (cong (λw. Q) (λw. w + w) (qInvHalf (dbl k))) (qInvHalf k))
     (leQTripleQuad (leQZeroInvNat (dbl (dbl k))))
 
 -- the converse of leQSubShift: a bound on the difference is a shifted ≤

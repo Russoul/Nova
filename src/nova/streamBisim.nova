@@ -34,7 +34,7 @@ def bisimTl : (a : 𝕌) (s t : El (stream a)) → Prf (bisim _ s t) → Prf (bi
 -- itself as the invariant — heads by cong at hd, tails by cong at tl
 def bisimRefl : (a : 𝕌) (s : El (stream a)) → Prf (bisim _ s s) using (streamBisim.bisim.unfold) ≔
   λa. λs. ⋆ ((λx. λy. x ≡ y),
-    (λx. λy. λp. cong _ (λv. a) (λv. hd a v) _ _ p, cong _ (λv. stream a) (λv. tl v) _ _ p), ⋆)
+    (λx. λy. λp. cong (λv. a) (λv. hd a v) p, cong (λv. stream a) (λv. tl v) p), ⋆)
 
 -- obsEq ⊃ bisim: the ℕ-indexed relation is ITSELF a bisimulation —
 -- heads are observation 0, and shifting the index moves under one

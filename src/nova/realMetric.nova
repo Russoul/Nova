@@ -112,13 +112,13 @@ def leRNegAbsSelf : {u : El Real} → Prf (realNeg (realAbs u) ≤ u)
 -- ...so a vanishing absolute value names zero
 def realAbsZeroInv : (u : El Real) → (realAbs u ≡ realZero) → u ≡ realZero ≔
   λu. λh. leRAntisym
-    (transportP Real (λw. u ≤ w) (realAbs u) _ h leRAbsSelf)
+    (transportP _ (λw. u ≤ w) _ _ h leRAbsSelf)
     (transportP
-      Real
-      (λw. w ≤ u)
-      (realNeg (realAbs u))
       _
-      (trans _ _ _ realZero (cong _ (λw. Real) (λw. realNeg w) _ _ h) realNegZero)
+      (λw. w ≤ u)
+      _
+      _
+      (trans _ _ _ realZero (cong (λw. Real) (λw. realNeg w) h) realNegZero)
       leRNegAbsSelf)
 
 -- ===== the distance =====
@@ -145,19 +145,13 @@ def realDistCls : (p q : El RSeq) → realDist (class p) (class q) ≡ class (rA
     (realAbs (class p + realNeg (class q)))
     _
     _
-    (cong
-      Real
-      (λw. Real)
-      (λw. realAbs (class p + w))
-      (realNeg (class q))
-      (class (rNeg q))
-      realNegCls)
+    (cong (λw. Real) (λw. realAbs (class p + w)) {realNeg (class q)} {class (rNeg q)} realNegCls)
     (trans
-      Real
+      _
       _
       (realAbs (class (rAdd p (rNeg q))))
       (class (rAbs (rAdd p (rNeg q))))
-      (cong _ (λw. Real) (λw. realAbs w) _ _ (realAddCls p (rNeg q)))
+      (cong (λw. Real) (λw. realAbs w) (realAddCls p (rNeg q)))
       realAbsCls)
 
 -- THE SECOND BRIDGE, for the element side. rleOf's argument type
@@ -201,7 +195,7 @@ def realDistSelf : (u : El Real) → realDist u u ≡ realZero
     _
     (realAbs realZero)
     _
-    (cong Real (λw. Real) (λw. realAbs w) (u - u) realZero realSubSelf)
+    (cong (λw. Real) (λw. realAbs w) {u - u} {realZero} realSubSelf)
     realAbsZero
 
 def realDistSym : (u v : El Real) → realDist u v ≡ realDist v u
@@ -212,7 +206,7 @@ def realDistSym : (u v : El Real) → realDist u v ≡ realDist v u
     (realAbs (realNeg (u - v)))
     _
     (sym _ _ _ (realAbsNeg (u - v)))
-    (cong Real (λw. Real) (λw. realAbs w) (realNeg (u - v)) (v - u) realNegSub)
+    (cong (λw. Real) (λw. realAbs w) {realNeg (u - v)} {v - u} realNegSub)
 
 def leRZeroDist : (u v : El Real) → Prf (realZero ≤ realDist u v)
   using (real.Real.unfold,
@@ -248,9 +242,9 @@ def realDistTriangle : (u v w : El Real) → Prf (realDist u w ≤ realDist u v 
     realMetric.realDist.unfold,
     realOrder.≤.unfold) ≔
   λu. λv. λw. transportP
-    Real
+    _
     (λt. t ≤ realAbs (u - v) + realAbs (v - w))
     (realAbs (u - v + (v - w)))
     (realDist u w)
-    (cong Real (λt. Real) (λt. realAbs t) (u - v + (v - w)) (u - w) realSubVia)
+    (cong (λt. Real) (λt. realAbs t) {u - v + (v - w)} {u - w} realSubVia)
     leRAbsTriangle

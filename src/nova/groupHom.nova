@@ -82,7 +82,7 @@ def homUnit : (G : 𝕌)
     (homAp _ _ _ _ p (ge g))
     (gop _ h (homAp _ _ _ _ p (ge g)) (homAp _ _ _ _ p (ge g))
         ≡⟨ sym _ _ _ (homLaw _ _ _ _ p (ge g) (ge g)) ⟩ homAp _ _ _ _ p (gop _ g (ge g) (ge g))
-        ≡⟨ cong _ (λw. H) (λw. homAp _ _ H _ p w) _ _ (gUnitL _ g (ge g)) ⟩ homAp _ _ _ _ p (ge g)
+        ≡⟨ cong (λw. H) (λw. homAp _ _ H _ p w) (gUnitL _ g (ge g)) ⟩ homAp _ _ _ _ p (ge g)
         ≡⟨ sym
           _
           _
@@ -107,7 +107,7 @@ def homInv : (G : 𝕌)
       (homAp _ _ _ _ p (ginv _ g x))
       (gop _ h (homAp _ _ _ _ p x) (homAp _ _ _ _ p (ginv _ g x))
           ≡⟨ sym _ _ _ (homLaw _ _ _ _ p x (ginv _ g x)) ⟩ homAp _ _ _ _ p (gop _ g x (ginv _ g x))
-          ≡⟨ cong _ (λw. H) (λw. homAp _ _ H _ p w) _ _ (gInvR _ g x) ⟩ homAp _ _ _ _ p (ge g)
+          ≡⟨ cong (λw. H) (λw. homAp _ _ H _ p w) (gInvR _ g x) ⟩ homAp _ _ _ _ p (ge g)
           ≡⟨ homUnit _ _ _ _ p ⟩ ge h))
 
 -- and the product of an element with the inverse of another, which is
@@ -135,11 +135,8 @@ def homOpInv : (G : 𝕌)
         x
         (ginv _ g y) ⟩ gop _ h (homAp _ _ _ _ p x) (homAp _ _ _ _ p (ginv _ g y))
       ≡⟨ cong
-        _
         (λw. H)
         (λw. gop H h (homAp _ _ _ _ p x) w)
-        _
-        _
         (homInv _ _ _ _ p y) ⟩ gop _ h (homAp _ _ _ _ p x) (ginv _ h (homAp _ _ _ _ p y))
 
 -- ===== bridges: the quotient group's operations, as G/N knows them =====
@@ -213,7 +210,7 @@ def qProjAp : {G : 𝕌}
   {s : Prf (IsSubgroup _ g N)}
   {nn : Prf (IsNormal _ g N)}
   {a : El G}
-  → homAp G g (QGroup _ g N) (qIsGroup _ _ _ s nn) qProj a ≡ qcls _ _ _ a
+  → homAp _ g _ (qIsGroup _ _ _ s nn) qProj a ≡ qcls _ _ _ a
   using (qProj.eq) ≔
   λG. λg. λN. λs. λnn. λa. homIntroAp _ _ _ _ (qcls _ g N) (qProjLaw _ _ _ s nn) a
 
@@ -301,20 +298,14 @@ def homQuotLawQ : {G : 𝕌}
     (a. quot-elim
       (b. homQuotMap _ _ _ _ _ p kills (qMul _ _ _ nn (class a) (class b))
           ≡⟨ cong
-            _
             (λw. H)
             (λw. homQuotMap _ _ H _ _ p kills w)
-            _
-            _
             (qMulCls _ _ _ nn a b) ⟩ homQuotMap _ _ _ _ N _ kills (class (gop _ g a b))
           ≡⟨ homQuotMapCls _ _ _ _ N _ kills (gop _ g a b) ⟩ homAp _ _ _ _ p (gop _ g a b)
           ≡⟨ homLaw _ _ _ _ p a b ⟩ gop _ h (homAp _ _ _ _ p a) (homAp _ _ _ _ p b)
           ≡⟨ cong
-            _
             (λw. H)
             (λw. gop H h w (homAp _ _ _ _ p b))
-            _
-            _
             (sym
               _
               _
@@ -329,11 +320,8 @@ def homQuotLawQ : {G : 𝕌}
                 kills
                 a)) ⟩ gop _ h (homQuotMap _ _ _ _ N _ kills (class a)) (homAp _ _ _ _ p b)
           ≡⟨ cong
-            _
             (λw. H)
             (λw. gop H h (homQuotMap _ _ _ _ N _ kills (class a)) w)
-            _
-            _
             (sym
               _
               _
@@ -380,9 +368,9 @@ def homQuotLaw : (G : 𝕌)
   λG. λg. λH. λh. λN. λs. λnn. λp. λkills. λu. λv. trans
     _
     _
-    (homQuotMap _ _ _ _ _ p kills (qMul _ _ _ nn u v))
     _
-    (cong _ (λw. H) (λw. homQuotMap _ _ H _ _ p kills w) _ _ (qopIsQMul _ _ _ s nn u v))
+    _
+    (cong (λw. H) (λw. homQuotMap _ _ H _ _ p kills w) (qopIsQMul _ _ _ s nn u v))
     homQuotLawQ
 
 -- EXISTENCE: the factored map, as a homomorphism out of G/N

@@ -4176,7 +4176,7 @@ mutual
                        Nothing => []
                        Just c => matchTy jn (substTy tailTy (prefixSub hypPat)) c
           let srcsX = filter (\(p, _) => not (p `elem` imps)) (pending ++ srcs)
-          let (hypSols, hypDefs, eagerStuck) = trialSolve jn doms imps (introPossOf slots) srcsX finalArgs 0 m hyp0 [] []
+          let (hypSols, hypDefs, eagerStuck) = trialSolve jn doms imps (deferPossOf st slots) srcsX finalArgs 0 m hyp0 [] []
           let stuck = eagerStuck || trialStuck doms slots imps hypSols finalArgs hypDefs
           traverse_ (\pos =>
               let verdict = if not (notTrailing pos) then 1
@@ -4230,6 +4230,28 @@ mutual
         Just s => s
         Nothing => filter (\(k, _) => not (k `elem` blankPoss))
                           (fromMaybe [] (mTy 0 (jn pat) (jn g) []))
+
+    ||| A bare reference to an implicit-binder def is NEVER a usable
+    ||| source at a holey domain: its inference-mode type is the
+    ||| UN-INSERTED Π (checking would have inserted the implicit run),
+    ||| so the matcher would bind from a core the checked run does not
+    ||| have. Like an intro form, it defers — and checks later, at a
+    ||| hole-free domain, with its insertion intact.
+    bareImplicitRef : ElabSt -> SElem -> Bool
+    bareImplicitRef st (SSig _ x0) = case lookup (resolveSigName st x0) st.impls of
+      Just (_ :: _) => True
+      _ => False
+    bareImplicitRef st _ = False
+
+    ||| the written positions the walk DEFERS: intro forms, and bare
+    ||| implicit-headed references (blank slots are holes, not
+    ||| written arguments)
+    deferPossOf : ElabSt -> List (Nat, Maybe SElem) -> List Nat
+    deferPossOf st slots = mapMaybe (\(pos, mt) => case mt of
+        Just (SBlank _) => Nothing
+        Just se => if sInferForm se && not (bareImplicitRef st se)
+                     then Nothing else Just pos
+        Nothing => Nothing) slots
 
     ||| Assign telescope positions to written spine items: an implicit
     ||| position takes an override if one is next, else a HOLE (no item
@@ -4317,26 +4339,27 @@ mutual
             walk pres' jn trialOn doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending) srcs attrs2 defers
           Nothing =>
             if hasHolesT dInst
-              then if sInferForm surfE
-                then do
-                  (e', eTy, eSk) <- asArg (inferElem ctx env site surfE)
-                  let sols2 = case mTy 0 dInst eTy sols of
-                                Just s => s
-                                Nothing => case mTy 0 (compTy dInst) (compTy eTy) sols of
+              then do
+                st2 <- getSt
+                if sInferForm surfE && not (bareImplicitRef st2 surfE)
+                  then do
+                    (e', eTy, eSk) <- asArg (inferElem ctx env site surfE)
+                    let sols2 = case mTy 0 dInst eTy sols of
                                   Just s => s
-                                  Nothing => fromMaybe sols (mTy 0 (jn dInst) (jn eTy) sols)
-                  let attrs2 = attrs ++ map (\(k, _) => (k, pos))
-                                 (filter (\(k, _) => isNothing (lookup k sols)) sols2)
-                  walk pres' jn trialOn doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending) srcs attrs2 defers
-                else
-                  -- DEFER an intro form at a still-holey domain: it
-                  -- carries nothing as a source (no type to mine), so
-                  -- its checking waits for the joint solve to fill
-                  -- the domain — resolved in position order after the
-                  -- walk (cong's first argument: the λ at B blocks
-                  -- until the proof's type binds A, which arrives
-                  -- later in the spine)
-                  walk pres' jn trialOn doms rest sols (holeE pos :: revArgs) (Nd [] [] :: revSks) pending srcs attrs ((pos, surfE) :: defers)
+                                  Nothing => case mTy 0 (compTy dInst) (compTy eTy) sols of
+                                    Just s => s
+                                    Nothing => fromMaybe sols (mTy 0 (jn dInst) (jn eTy) sols)
+                    let attrs2 = attrs ++ map (\(k, _) => (k, pos))
+                                   (filter (\(k, _) => isNothing (lookup k sols)) sols2)
+                    walk pres' jn trialOn doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending) srcs attrs2 defers
+                  else
+                    -- DEFER an intro form, or a bare implicit-headed
+                    -- reference, at a still-holey domain: neither is
+                    -- a usable source (no type to mine / the
+                    -- un-inserted Π), so checking waits for the joint
+                    -- solve to fill the domain — resolved in position
+                    -- order after the walk
+                    walk pres' jn trialOn doms rest sols (holeE pos :: revArgs) (Nd [] [] :: revSks) pending srcs attrs ((pos, surfE) :: defers)
               else if trialOn && sInferForm surfE
                 then do
                   -- the trials need the argument's INFERRED type as a
@@ -4449,14 +4472,6 @@ mutual
                           else (sols, defs, True)
                     else trialSolve jn doms imps introPoss srcsX finalArgs (S pos) m sols (entry :: hypRev) defs
 
-    ||| the written positions holding INTRO forms — the only ones the
-    ||| walk defers (blank slots are holes, not written arguments)
-    introPossOf : List (Nat, Maybe SElem) -> List Nat
-    introPossOf slots = mapMaybe (\(pos, mt) => case mt of
-        Just (SBlank _) => Nothing
-        Just se => if sInferForm se then Nothing else Just pos
-        Nothing => Nothing) slots
-
     ||| The deferral end-check, the trial's mirror of resolveArgs: a
     ||| deferred position sticks exactly when its domain, instantiated
     ||| with the FINAL joint entries, still carries holes.
@@ -4476,7 +4491,7 @@ mutual
                  List (Nat, Maybe SElem) -> List Skel -> List Elem -> List (Nat, Ty) -> ElabM ()
     blankTrial jn rng imps doms tailTy m slots sks finalArgs sources = do
       st <- getSt
-      let final = iter st.inArg (S (length cands)) []
+      let final = iter (deferPossOf st slots) st.inArg (S (length cands)) []
       traverse_ (\p => modifySt $ { svBlank $= (:< (st.modPrefix, rng, itemIdx p)) }) final
      where
       ||| the current hole set: inserted implicits plus written blanks
@@ -4521,19 +4536,19 @@ mutual
       itemIdx : Nat -> Nat
       itemIdx p = length (filter (\(pos, mt) => pos < p && isJust mt) slots)
 
-      solve : Maybe Ty -> List Nat -> (Sols, Bool)
-      solve mc hs =
+      solve : List Nat -> Maybe Ty -> List Nat -> (Sols, Bool)
+      solve dps mc hs =
         let hypPat = map (\(i, _) => if i `elem` hs then holeE i else holeE (throwaway + i)) slots
             hyp0 = the Sols $ case mc of
                      Nothing => []
                      Just c => matchTySplit jn (filter (\hp => not (hp `elem` imps)) hs)
                                  (substTy tailTy (prefixSub hypPat)) c
             srcsX = filter (\(sp, _) => not (sp `elem` hs)) sources
-            (solsF, defs, eagerStuck) = trialSolve jn doms hs (introPossOf slots) srcsX finalArgs 0 m hyp0 [] []
+            (solsF, defs, eagerStuck) = trialSolve jn doms hs dps srcsX finalArgs 0 m hyp0 [] []
         in (solsF, eagerStuck || trialStuck doms slots hs solsF finalArgs defs)
 
-      okAt : Maybe Ty -> List Nat -> Bool
-      okAt mc hs = let (hypSols, stuck) = solve mc hs in
+      okAt : List Nat -> Maybe Ty -> List Nat -> Bool
+      okAt dps mc hs = let (hypSols, stuck) = solve dps mc hs in
         not stuck && all (\hp => case (lookup hp hypSols, getAt hp finalArgs) of
                                   (Just v, Just w) => show v == show w
                                   _ => False) hs
@@ -4545,20 +4560,20 @@ mutual
       ||| extra bindings). Everywhere else (def bodies, signature
       ||| types, eliminator branches, let bindings) the mode is
       ||| fixed and the actual mode alone decides.
-      ok : Bool -> List Nat -> Bool
-      ok flip hs = okAt mexp hs && (case (flip, mexp) of
-                                      (True, Just _) => okAt Nothing hs
-                                      _ => True)
+      ok : List Nat -> Bool -> List Nat -> Bool
+      ok dps flip hs = okAt dps mexp hs && (case (flip, mexp) of
+                                              (True, Just _) => okAt dps Nothing hs
+                                              _ => True)
 
-      step : Bool -> List Nat -> Nat -> List Nat
-      step flip b p = if p `elem` b then b
-                      else if ok flip (holes0 ++ b ++ [p]) then b ++ [p] else b
+      step : List Nat -> Bool -> List Nat -> Nat -> List Nat
+      step dps flip b p = if p `elem` b then b
+                          else if ok dps flip (holes0 ++ b ++ [p]) then b ++ [p] else b
 
-      iter : Bool -> Nat -> List Nat -> List Nat
-      iter flip Z b = b
-      iter flip (S fuel) b =
-        let b' = foldl (step flip) b cands in
-        if length b' == length b then b else iter flip fuel b'
+      iter : List Nat -> Bool -> Nat -> List Nat -> List Nat
+      iter dps flip Z b = b
+      iter dps flip (S fuel) b =
+        let b' = foldl (step dps flip) b cands in
+        if length b' == length b then b else iter dps flip fuel b'
 
     mapAt : Nat -> (Skel -> Skel) -> List Skel -> List Skel
     mapAt _ _ [] = []
