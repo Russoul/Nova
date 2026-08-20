@@ -3227,7 +3227,7 @@ mutual
       Just (x0, mrng, items, cands) =>
         resolveOverload ctx env site Nothing x0 mrng items cands
       Nothing => case impSpineOf st sapp of
-        Just (q, x0, mrng, items) => elabImpSpine ctx env site Nothing False q x0 mrng items
+        Just (noIns, q, x0, mrng, items) => elabImpSpine ctx env site Nothing False noIns q x0 mrng items
         Nothing => do
           (f', fTy, fSk) <- inferElem ctx env site f
           st <- getSt
@@ -3714,8 +3714,8 @@ mutual
         c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
         pure (t', addPayload (PSwitch (certOr c)) tSk)
       Nothing => case impSpineOf st sapp of
-        Just (q, x0, mrng, items) => do
-          (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) True q x0 mrng items
+        Just (noIns, q, x0, mrng, items) => do
+          (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) (not noIns) noIns q x0 mrng items
           c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
           pure (t', addPayload (PSwitch (certOr c)) tSk)
         Nothing => do
@@ -3732,10 +3732,10 @@ mutual
         c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
         pure (t', addPayload (PSwitch (certOr c)) tSk)
       else case impSpineOf st (SApp sref SUnitI) of   -- reuse the head test
-      Just (q, _, _, _) =>
+      Just (_, q, _, _, _) =>
         if maybe False (\ps => 0 `elem` ps) (lookup q st.impls)
           then do
-            (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) True q x0 mrng []
+            (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) True False q x0 mrng []
             c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
             pure (t', addPayload (PSwitch (certOr c)) tSk)
           else do
@@ -3752,8 +3752,8 @@ mutual
   checkElem ctx env site (SNoIns e) ty = do
     st <- getSt
     case impSpineOf st e of
-      Just (q, x0, mrng, items) => do
-        (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) False q x0 mrng items
+      Just (_, q, x0, mrng, items) => do
+        (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) False False q x0 mrng items
         c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
         pure (t', addPayload (PSwitch (certOr c)) tSk)
       Nothing => do
@@ -4000,7 +4000,7 @@ mutual
 
 
     run : List (Maybe (Elem, Ty, Skel)) -> String -> ElabM (Elem, Ty, Skel)
-    run pres q = elabImpSpineP pres ctx env site mexp (isJust mexp) q x0 mrng items
+    run pres q = elabImpSpineP pres ctx env site mexp (isJust mexp) False q x0 mrng items
 
     probeFit : List (Maybe (Elem, Ty, Skel)) -> String -> ElabM (Maybe Nat)
     probeFit pres q = probeM $ do
@@ -4016,14 +4016,14 @@ mutual
   ||| head is a signature reference whose def carries implicit binder
   ||| positions. Guarded by `null st.impls` first, so an implicit-free
   ||| run pays one boolean per application node.
-  impSpineOf : ElabSt -> SElem -> Maybe (String, String, Maybe Range, List SElem)
+  impSpineOf : ElabSt -> SElem -> Maybe (Bool, String, String, Maybe Range, List SElem)
   impSpineOf st e =
     let (h, items) = surfSpine e [] in
     case h of
       SSig mrng x0 =>
         let q = resolveSigName st x0 in
         case lookup q st.impls of
-          Just (_ :: _) => Just (q, x0, mrng, items)
+          Just (_ :: _) => Just (False, q, x0, mrng, items)
           -- a BLANK routes the spine here even without implicit
           -- binders — `_` is solved by the same oracle, from the
           -- same telescope. So does EVERY Σ-headed spine during the
@@ -4036,8 +4036,18 @@ mutual
           -- to the surface-level PiApp form is conversion, not α) —
           -- those spines stay on the generic rule, blankless
           _ => if (any isBlankArg items || st.svSugarOn) && ordinaryHead st q
-                 then Just (q, x0, mrng, items)
+                 then Just (False, q, x0, mrng, items)
                  else Nothing
+      -- an APPLIED no-insert head — `f {} a b …` — is POSITIONAL
+      -- application over the FULL telescope: insertion is off, every
+      -- position is explicit, and a blank may stand at any of them,
+      -- solved by the same oracle (the manual-implicitization form:
+      -- homAp {} _ g _ (qIsGroup …) qProj a)
+      SNoIns (SSig mrng x0) =>
+        let q = resolveSigName st x0 in
+        if (any isBlankArg items || st.svSugarOn) && ordinaryHead st q
+          then Just (True, q, x0, mrng, items)
+          else Nothing
       _ => Nothing
    where
     isBlankArg : SElem -> Bool
@@ -4071,6 +4081,7 @@ mutual
   ||| remedy ({…}). Matching is syntactic first, then both sides
   ||| under the δ-free computational normalizer — never the store.
   elabImpSpine : Ctx -> NameEnv -> String -> Maybe Ty -> (insertTrailing : Bool) ->
+                 (noIns : Bool) ->
                  (q : String) -> (x0 : String) -> Maybe Range -> List SElem ->
                  ElabM (Elem, Ty, Skel)
   elabImpSpine = elabImpSpineP []
@@ -4081,9 +4092,10 @@ mutual
   ||| the walk instead of re-elaborating.
   elabImpSpineP : List (Maybe (Elem, Ty, Skel)) ->
                  Ctx -> NameEnv -> String -> Maybe Ty -> (insertTrailing : Bool) ->
+                 (noIns : Bool) ->
                  (q : String) -> (x0 : String) -> Maybe Range -> List SElem ->
                  ElabM (Elem, Ty, Skel)
-  elabImpSpineP presIn ctx env site mexp insertTrailing q x0 mrng items = do
+  elabImpSpineP presIn ctx env site mexp insertTrailing noIns q x0 mrng items = do
     st <- getSt
     defTy <- case cachedSigLookup st.sig q of
       Just (SigDef [<] _ _ ty) => pure ty
@@ -4091,7 +4103,7 @@ mutual
       Just _ => throw "\{site}: '\{q}' is not usable as a term here"
       Nothing => throw "\{site}: unknown name '\{q}'"
     recordBinder mrng ctx env x0 defTy
-    let imps = fromMaybe [] (lookup q st.impls)
+    let imps = if noIns then [] else fromMaybe [] (lookup q st.impls)
     -- the site's LICENSED JOIN (comp ∘ unfold[cited]) — recovery's
     -- third matching tier (docs/NovaPerfectSurface.txt, Phase 3d):
     -- sees through definitional scaffolding the site itself licensed;
