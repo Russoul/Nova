@@ -225,7 +225,7 @@ record ElabSt where
   ||| verdicts: 0 = elidable; 1 = trailing; 2 = stuck at an
   ||| intro-form argument; 3 = unsolved (no source matched); 4 =
   ||| solved but α-differs from the written value (spelling drift)
-  impTrial : SnocList (String, Nat, Nat)
+  impTrial : SnocList (String, Nat, Nat, Maybe (String, Range))
   ||| the Phase-4 SUGAR TRIAL: at every written ∈-annotation and
   ||| inline motive, record whether the elided form would recover it
   ||| α-exactly — (module, site range, verdict); the distiller's
@@ -238,6 +238,10 @@ record ElabSt where
   ||| arguments), the whole set verified as ONE joint hypothetical
   ||| solve, closed to a fixpoint for byte-idempotence
   svBlank : SnocList (String, Range, Nat)
+  ||| blanks whose implicit-mode solve would DIFFER (suppressed
+  ||| join-tier binding α-differs from the solution) — per-site
+  ||| blockers for a blank → implicit migration
+  svBlankRisk : SnocList (String, Range, Nat)
   ||| inside an overload PROBE: state is discarded and the verdict is
   ||| the obligation delta alone, so the expensive per-assume work —
   ||| the whole-store hint probe, rewrite normalization of the keys —
@@ -257,7 +261,7 @@ record ElabSt where
   dupNames : List String
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [<] Nothing [] [] Nothing [] False [<] False [<] [<] False False []
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [<] Nothing [] [] Nothing [] False [<] False [<] [<] [<] False False []
 
 ||| Is the surface term an INFERENCE form — its type known without an
 ||| expected type? Mirrors the mode inventory
@@ -4112,14 +4116,28 @@ mutual
     let blankPoss = mapMaybe (\(pos, mt) => case mt of
                        Just (SBlank _) => Just pos
                        _ => Nothing) slots
-    let sols0 = case mexp of
-                  Nothing => []
+    let (sols0, jnSup) = the (Sols, Sols) $ case mexp of
+                  Nothing => ([], [])
                   Just c => matchTySplit jn blankPoss (substTy tailTy (prefixSub patArgs)) c
     -- phase 1: walk the written spine left to right, solving from
     -- inference-form arguments as they elaborate
     (sols, revArgs, revSks, pending, srcs, attrs, defers) <- walk presIn jn ((st.impTrialOn || st.svSugarOn) && not st.probing) doms slots sols0 [] [] [] [] [] []
     -- resolve every inserted hole; unsolved is a structural error
     (finalArgs, dPatches) <- resolveArgs sols defers doms (zip slots (reverse revArgs)) [] []
+    -- a blank whose SUPPRESSED join binding α-differs from its
+    -- final solution would solve differently as an implicit — the
+    -- migration's per-site blocker signal
+    when (st.svSugarOn && not st.probing) $ case mrng of
+      Nothing => pure ()
+      Just rng =>
+        traverse_ (\(pos, mt) => case mt of
+            Just (SBlank _) =>
+              case (lookup pos jnSup, getAt pos finalArgs) of
+                (Just jv, Just fv) =>
+                  when (show jv /= show fv) $
+                    modifySt $ { svBlankRisk $= (:< (st.modPrefix, rng, pos)) }
+                _ => pure ()
+            _ => pure ()) slots
     -- solved blanks feed the LSP hover: the recovered value at the
     -- written `_`, ascribed with its instantiated domain and the
     -- source that bound it — an argument's inferred type (by the
@@ -4184,7 +4202,8 @@ mutual
                             else case (lookup pos hypSols, getAt pos finalArgs) of
                               (Just v, Just w) => if show v == show w then 0 else 4
                               _ => 3
-              in modifySt $ { impTrial $= (:< (q, pos, verdict)) })
+              in modifySt $ { impTrial $= (:< (q, pos, verdict,
+                                                 map (\r => (st.modPrefix, r)) mrng)) })
             impOvers
     -- the BLANK-EMISSION trial (docs/NovaPerfectSurface.txt): which
     -- written EXPLICIT arguments could the distiller replace with
@@ -4219,17 +4238,22 @@ mutual
     ||| The expected-type match, tier-aware per hole kind: a
     ||| licensed-join capture carries the JOIN's spelling — unfolded,
     ||| possibly stuck-eliminator-bearing — safe for IMPLICIT holes
-    ||| (index-like values, historically verified) but not for BLANKS
-    ||| (value-like, solved by the plain run with no verdict to catch
-    ||| drift). Join-tier bindings for blank holes are dropped; those
-    ||| blanks fall to the argument sources, the corpus-proven path.
-    matchTySplit : (jn : Ty -> Ty) -> List Nat -> Ty -> Ty -> Sols
+    ||| (historically verified; some corpus sites NEED it) but not
+    ||| for BLANKS (value-like, no verdict to catch drift). Join-tier
+    ||| bindings for blank holes are dropped — and returned
+    ||| SEPARATELY: a blank whose suppressed join binding α-differs
+    ||| from its final solution would solve DIFFERENTLY as an
+    ||| implicit, which the targeted implicitize migration must know
+    ||| (such a site blocks a blank → implicit conversion).
+    matchTySplit : (jn : Ty -> Ty) -> List Nat -> Ty -> Ty -> (Sols, Sols)
     matchTySplit jn blankPoss pat g = case mTy 0 pat g [] of
-      Just s => s
+      Just s => (s, [])
       Nothing => case mTy 0 (compTy pat) (compTy g) [] of
-        Just s => s
-        Nothing => filter (\(k, _) => not (k `elem` blankPoss))
-                          (fromMaybe [] (mTy 0 (jn pat) (jn g) []))
+        Just s => (s, [])
+        Nothing =>
+          let full = fromMaybe [] (mTy 0 (jn pat) (jn g) [])
+          in (filter (\(k, _) => not (k `elem` blankPoss)) full,
+              filter (\(k, _) => k `elem` blankPoss) full)
 
     ||| A bare reference to an implicit-binder def is NEVER a usable
     ||| source at a holey domain: its inference-mode type is the
@@ -4541,8 +4565,8 @@ mutual
         let hypPat = map (\(i, _) => if i `elem` hs then holeE i else holeE (throwaway + i)) slots
             hyp0 = the Sols $ case mc of
                      Nothing => []
-                     Just c => matchTySplit jn (filter (\hp => not (hp `elem` imps)) hs)
-                                 (substTy tailTy (prefixSub hypPat)) c
+                     Just c => fst (matchTySplit jn (filter (\hp => not (hp `elem` imps)) hs)
+                                      (substTy tailTy (prefixSub hypPat)) c)
             srcsX = filter (\(sp, _) => not (sp `elem` hs)) sources
             (solsF, defs, eagerStuck) = trialSolve jn doms hs dps srcsX finalArgs 0 m hyp0 [] []
         in (solsF, eagerStuck || trialStuck doms slots hs solsF finalArgs defs)
@@ -5418,7 +5442,7 @@ elabProgramSt st0 units = go st0 units
 ||| {t}-override at an implicit position, whether the hypothetical
 ||| elided recovery reproduces the written value α-exactly.
 export
-elabProgramTrial : List ModUnit -> Either String (Sig, List (String, Nat, Nat))
+elabProgramTrial : List ModUnit -> Either String (Sig, List (String, Nat, Nat, Maybe (String, Range)))
 elabProgramTrial units =
   map (\st => (st.kernelSig, toList st.impTrial))
       (elabProgramSt ({ impTrialOn := True } initSt) units)
@@ -5427,9 +5451,9 @@ elabProgramTrial units =
 ||| acceptance, the kernel Σ and the per-site elision verdicts —
 ||| (module, range of the ∈-annotation or motive binder, elidable).
 export
-elabProgramSugar : List ModUnit -> Either String (Sig, List (String, Range, Bool), List (String, Range, Nat))
+elabProgramSugar : List ModUnit -> Either String (Sig, List (String, Range, Bool), List (String, Range, Nat), List (String, Range, Nat))
 elabProgramSugar units =
-  map (\st => (st.kernelSig, toList st.svSugar, toList st.svBlank))
+  map (\st => (st.kernelSig, toList st.svSugar, toList st.svBlank, toList st.svBlankRisk))
       (elabProgramSt ({ svSugarOn := True } initSt) units)
 
 export

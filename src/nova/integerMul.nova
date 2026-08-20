@@ -24,15 +24,13 @@ def distribBackR : (m k n : ℕ) → m * n + k * n ≡ (m + k) * n using (distri
     _
     _
     _
-    _
     (trans
-      _
       _
       _
       (n * m + n * k)
       (cong (λu. ℕ) (λw. w + k * n) (multComm n m))
       (cong (λu. ℕ) (λw. n * m + w) (multComm n k)))
-    (trans _ (n * m + n * k) _ _ distribBack (multComm (m + k) n))
+    (trans (n * m + n * k) _ _ distribBack (multComm (m + k) n))
 
 -- the two exchanges of a four-term sum
 def swap4 : (p q r s : ℕ) → p + q + (r + s) ≡ p + r + (q + s)
@@ -60,9 +58,8 @@ def collectL : (x y z u v : ℕ) → x * y * z + x * u * v ≡ x * (y * z + u * 
     _
     _
     _
-    _
     (trans
-      ℕ
+      {ℕ}
       (x * y * z + x * u * v)
       (x * (y * z) + x * u * v)
       (x * (y * z) + x * (u * v))
@@ -110,10 +107,8 @@ def sum4Distrib : (a1 a2 b1 b2 c1 c2 : ℕ)
     _
     _
     _
-    _
     (swap4 (a1 * b1) (a2 * b2) (a1 * c2) (a2 * c1))
     (trans
-      _
       _
       _
       (a1 * (b1 + c2) + a2 * (b2 + c1))
@@ -128,10 +123,8 @@ def sum4DistribR : (x1 x2 y1 y2 c1 c2 : ℕ)
     _
     _
     _
-    _
     swap4b
     (trans
-      _
       _
       _
       ((x1 + y2) * c1 + (x2 + y1) * c2)
@@ -149,9 +142,8 @@ def intMulWD : (a1 a2 b1 b2 c1 c2 : ℕ)
     _
     _
     _
-    _
     (sum4Distrib a1 a2 b1 b2 c1 c2)
-    (sym _ _ _ (sum4Distrib a1 a2 b2 b1 c2 c1))
+    (sym _ _ (sum4Distrib a1 a2 b2 b1 c2 c1))
 
 -- outer: x varies; the same regrouping, by the right factor
 def intMulWDRep : (a1 a2 b1 b2 c1 c2 : ℕ)
@@ -162,9 +154,8 @@ def intMulWDRep : (a1 a2 b1 b2 c1 c2 : ℕ)
     _
     _
     _
-    _
     (sum4DistribR a1 a2 b1 b2 c1 c2)
-    (sym _ _ _ (sum4DistribR a1 a2 b1 b2 c2 c1))
+    (sym _ _ (sum4DistribR a1 a2 b1 b2 c2 c1))
 
 -- the outer well-definedness, in the quot-elim shape the elaborator
 -- actually asks for (integerAdd.nova's intAddWDOuter, one level up):
@@ -249,7 +240,7 @@ def intMulOneL : (z : El Int) → intOne * z ≡ z
     plusZeroId.rw,
     zeroMult,
     zeroMult.rw) ≔
-  λz. quot-elim (p. trans _ (class (p .π₁, p .π₂)) _ _ ⋆ (classPairEta p)) z
+  λz. quot-elim (p. trans (class (p .π₁, p .π₂)) _ _ ⋆ (classPairEta p)) z
 
 def intMulOneR : (z : El Int) → z * intOne ≡ z
   using (classPairEta,
@@ -289,7 +280,6 @@ def mulComm2 : (u1 u2 v1 v2 : ℕ) → u1 * v1 + u2 * v2 ≡ v1 * u1 + v2 * u2 �
     _
     _
     _
-    _
     (cong (λw. ℕ) (λw. w + u2 * v2) (multComm v1 u1))
     (cong (λw. ℕ) (λw. v1 * u1 + w) (multComm v2 u2))
 
@@ -300,7 +290,6 @@ def intMulComm : (x y : El Int) → x * y ≡ y * x
       (b. classCong2
         (mulComm2 (a .π₁) (a .π₂) (b .π₁) (b .π₂))
         (trans
-          _
           _
           _
           _
@@ -349,8 +338,7 @@ def intMulDistribR : (x y z : El Int) → (x + y) * z ≡ x * z + y * z ≔
     _
     _
     _
-    _
-    (trans _ _ _ _ (intMulComm (x + y) z) (intMulDistribL z x y))
+    (trans _ _ _ (intMulComm (x + y) z) (intMulDistribL z x y))
     (intAddCong2 _ _ _ _ (intMulComm z x) (intMulComm z y))
 
 -- ===== negation =====
@@ -398,6 +386,5 @@ def intMulNegR : (x y : El Int) → x * intNeg y ≡ intNeg (x * y) using (intMu
     _
     _
     _
-    _
     (intMulComm x (intNeg y))
-    (trans _ _ _ _ (intMulNegL y x) (cong (λu. Int) intNeg (intMulComm y x)))
+    (trans _ _ _ (intMulNegL y x) (cong (λu. Int) intNeg (intMulComm y x)))

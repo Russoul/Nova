@@ -37,7 +37,7 @@ def nzOfPairD : (a b : ℕ)
       (λhab. inj₁ (nzPos k, ⋆))
       (j ihb. λhab. 𝟘-elim (zNotS
         _
-        (trans _ _ _ _ (sym _ _ _ hab) (trans _ _ _ _ (multSucId (S k) j) (sucPlus k (S k * j))))))
+        (trans _ _ _ (sym _ _ hab) (trans _ _ _ (multSucId (S k) j) (sucPlus k (S k * j))))))
       b)
     a
 
@@ -49,8 +49,8 @@ def nzOfIntAt : {z : El Int}
   → ((e : El NZ) ⨯ Prf (nzToInt e ≡ z)) ⊎ Prf (z ≡ intZero)
   using (classPairEta, integer.Int.unfold) ≔
   λz. λp. λhz. λhab. ⊎-elim
-    (u. inj₁ (u .π₁, trans _ _ _ _ (u .π₂) (trans _ _ _ _ (classPairEta p) hz)))
-    (u. inj₂ (trans _ _ _ _ (sym _ _ _ (trans _ _ _ _ (classPairEta p) hz)) u))
+    (u. inj₁ (u .π₁, trans _ _ _ (u .π₂) (trans _ _ _ (classPairEta p) hz)))
+    (u. inj₂ (trans _ _ _ (sym _ _ (trans _ _ _ (classPairEta p) hz)) u))
     (nzOfPairD _ _ hab)
 
 def nzOfInt : (z : El Int) → ((e : El NZ) ⨯ Prf (nzToInt e ≡ z)) ⊎ Prf (z ≡ intZero)
@@ -78,10 +78,7 @@ def nzToIntNonZero : (e : El NZ) → Prf (¬ (nzToInt e ≡ intZero))
     prop.⊃.unfold,
     rational.NZ.unfold,
     rational.nzToInt.eq) ≔
-  λe. ⊎-elim
-    (n. intNeqOfNotRel (λr. zNotS _ (sym _ (S n) Z r)))
-    (n. intNeqOfNotRel (λr. zNotS n r))
-    e
+  λe. ⊎-elim (n. intNeqOfNotRel (λr. zNotS _ (sym (S n) Z r))) (n. intNeqOfNotRel (λr. zNotS n r)) e
 
 -- ===== ℤ has no zero divisors =====
 --
@@ -103,8 +100,7 @@ def intNoZeroDiv : {x : El Int}
             _
             _
             _
-            _
-            (trans _ _ _ _ (nzToIntMul (ex .π₁) (ey .π₁)) (intMulCong2 _ _ _ _ (ex .π₂) (ey .π₂)))
+            (trans _ _ _ (nzToIntMul (ex .π₁) (ey .π₁)) (intMulCong2 _ _ _ _ (ex .π₂) (ey .π₂)))
             hxy)))
       (ey. absurdP _ (notApply _ hy ey))
       (nzOfInt y))

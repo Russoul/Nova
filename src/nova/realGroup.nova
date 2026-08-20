@@ -42,7 +42,7 @@ def realAddGroup : El (IsGroup Real) using (group.IsGroup.unfold, monoid.IsMonoi
 -- ===== rearrangement =====
 def realLeftSwap : (b c d : El Real) → b + (c + d) ≡ c + (b + d) ≔
   λb. λc. λd. b + (c + d)
-      ≡⟨ sym _ _ _ (realAddAssoc b c d) ⟩ b + c + d
+      ≡⟨ sym _ _ (realAddAssoc b c d) ⟩ b + c + d
       ≡⟨ cong (λv. Real) (λv. v + d) (realAddComm b c) ⟩ c + b + d
       ≡⟨ realAddAssoc c b d ⟩ c + (b + d)
 
@@ -50,12 +50,12 @@ def realPairSwap : (a b c d : El Real) → a + b + (c + d) ≡ a + c + (b + d) �
   λa. λb. λc. λd. a + b + (c + d)
       ≡⟨ realAddAssoc a b (c + d) ⟩ a + (b + (c + d))
       ≡⟨ cong (λv. Real) (λv. a + v) (realLeftSwap b c d) ⟩ a + (c + (b + d))
-      ≡⟨ sym _ _ _ (realAddAssoc a c (b + d)) ⟩ a + c + (b + d)
+      ≡⟨ sym _ _ (realAddAssoc a c (b + d)) ⟩ a + c + (b + d)
 
 -- ===== inverses =====
 def realNegPlusCancel : (u v : El Real) → realNeg u + (u + v) ≡ v ≔
   λu. λv. realNeg u + (u + v)
-      ≡⟨ sym _ _ _ (realAddAssoc (realNeg u) u v) ⟩ realNeg u + u + v
+      ≡⟨ sym _ _ (realAddAssoc (realNeg u) u v) ⟩ realNeg u + u + v
       ≡⟨ cong (λw. Real) (λw. w + v) (realAddNegL u) ⟩ realZero + v
       ≡⟨ realAddZeroL v ⟩ v
 
@@ -66,13 +66,11 @@ def realNegUnique : (u v : El Real) → (u + v ≡ realZero) → v ≡ realNeg u
     _
     _
     _
-    _
-    (sym _ _ _ (realNegPlusCancel u v))
-    (trans _ _ _ (realNeg u) (cong (λw. Real) (λw. realNeg u + w) h) (realAddZeroR (realNeg u)))
+    (sym _ _ (realNegPlusCancel u v))
+    (trans _ _ (realNeg u) (cong (λw. Real) (λw. realNeg u + w) h) (realAddZeroR (realNeg u)))
 
 def realNegAdd : (a b : El Real) → realNeg (a + b) ≡ realNeg a + realNeg b ≔
   λa. λb. sym
-    _
     _
     _
     (realNegUnique
@@ -94,7 +92,7 @@ def realSubSelf : {u : El Real} → u - u ≡ realZero
 
 def realSubZero : (u : El Real) → u - realZero ≡ u
   using (real.Real.unfold, real.realZero.eq, realAdd.+.eq, realGroup.-.eq, realNeg.realNeg.eq) ≔
-  λu. trans _ _ (u + realZero) _ (cong (λw. Real) (λw. u + w) realNeg.realNegZero) (realAddZeroR u)
+  λu. trans _ (u + realZero) _ (cong (λw. Real) (λw. u + w) realNeg.realNegZero) (realAddZeroR u)
 
 -- (u − v) + (v − w) ≡ u − w : the three-term split
 def realSubVia : {u v w : El Real} → u - v + (v - w) ≡ u - w ≔
@@ -121,6 +119,5 @@ def realSubZeroInv : {u v : El Real} → (u - v ≡ realZero) → u ≡ v ≔
     _
     _
     _
-    _
-    (sym _ _ _ (realSubPlusCancel u v))
-    (trans _ _ _ v (cong (λw. Real) (λw. w + v) h) (realAddZeroL v))
+    (sym _ _ (realSubPlusCancel u v))
+    (trans _ _ v (cong (λw. Real) (λw. w + v) h) (realAddZeroL v))

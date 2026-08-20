@@ -49,7 +49,6 @@ def realMulZeroR : {u : El Real} → u * realZero ≡ realZero
   λu. quot-elim
     (p. trans
       _
-      _
       (class (rMul p rZero))
       _
       (realMulCls rZero)
@@ -57,17 +56,16 @@ def realMulZeroR : {u : El Real} → u * realZero ≡ realZero
     u
 
 def realMulZeroL : {u : El Real} → realZero * u ≡ realZero ≔
-  λu. trans _ _ _ _ (realMulComm realZero u) realMulZeroR
+  λu. trans _ _ _ (realMulComm realZero u) realMulZeroR
 
 -- ===== the deepening inequality =====
 -- multiplying a nonnegative by S c ≥ 1 only grows it
 def leQSelfMulNat : {c : ℕ} {x : El Q} → El (qZero ≤ x) → El (x ≤ qOfNat (S c) * x) ≔
   λc. λx. λhx. transport
-    Q
+    {Q}
     (λw. x ≤ w)
-    (qOfNat c * x + x)
-    _
-    (sym _ _ _ (qMulSucNat c x))
+    {qOfNat c * x + x}
+    (sym _ _ (qMulSucNat c x))
     (leQSelfAddL (leQZeroMul (leQZeroNat c) hx))
 
 -- ...so sampling deeper gives a smaller harmonic bound. The EQUATION
@@ -75,10 +73,10 @@ def leQSelfMulNat : {c : ℕ} {x : El Q} → El (qZero ≤ x) → El (x ≤ qOfN
 -- inequality is just "times S c is not smaller".
 def leQInvIdx : (c m : ℕ) → El (qInvNat (mulIdx c m) ≤ qInvNat m) ≔
   λc. λm. transport
-    Q
+    {Q}
     (λw. qInvNat (mulIdx c m) ≤ w)
-    (qOfNat (S c) * qInvNat (mulIdx c m))
-    (qInvNat m)
+    {qOfNat (S c) * qInvNat (mulIdx c m)}
+    {qInvNat m}
     qMulInvIdx
     (leQSelfMulNat (leQZeroInvNat (mulIdx c m)))
 
@@ -89,7 +87,7 @@ def leQRBoundIdx : (c m : ℕ) → El (rBound (mulIdx c m) m ≤ rBound m m) usi
 -- the product's value at the deep index IS the original's, since the
 -- second factor is 1 at every index
 def mulOneAt : (x y : El Q) → x + qNeg y ≡ x * qOne + qNeg y ≔
-  λx. λy. cong (λw. Q) (λw. w + qNeg y) (sym _ _ _ (qMulOneR x))
+  λx. λy. cong (λw. Q) (λw. w + qNeg y) (sym _ _ (qMulOneR x))
 
 def rMulOneWD : (p : El RSeq) → Prf (REq (rMul p rOne) p)
   using (rOne.eq, realMul.mulSeq.eq, realMul.rMul.eq, realNeg.seqOf.eq) ≔
@@ -110,11 +108,11 @@ def rMulOneWD : (p : El RSeq) → Prf (REq (rMul p rOne) p)
 def realMulOneR : (u : El Real) → u * realOne ≡ u
   using (rOne.eq, real.Real.unfold, real.realOfQ.eq, real.realOne.eq) ≔
   λu. quot-elim
-    (p. trans _ _ (class (rMul p rOne)) _ (realMulCls rOne) (realEqOfREq _ _ (rMulOneWD p)))
+    (p. trans _ (class (rMul p rOne)) _ (realMulCls rOne) (realEqOfREq _ _ (rMulOneWD p)))
     u
 
 def realMulOneL : (u : El Real) → realOne * u ≡ u ≔
-  λu. trans _ _ _ _ (realMulComm realOne u) (realMulOneR u)
+  λu. trans _ _ _ (realMulComm realOne u) (realMulOneR u)
 
 -- ===== the closeness criterion =====
 --
@@ -140,17 +138,17 @@ def realMulOneL : (u : El Real) → realOne * u ≡ u ≔
 -- equation.
 def kkY : (K : ℕ) (y : El Q) → qOfNat (K + K) * y ≡ qOfNat K * (y + y) ≔
   λK. λy. qOfNat (K + K) * y
-      ≡⟨ cong (λv. Q) (λv. v * y) (sym _ _ _ (qOfNatAdd K K)) ⟩ (qOfNat K + qOfNat K) * y
+      ≡⟨ cong (λv. Q) (λv. v * y) (sym _ _ (qOfNatAdd K K)) ⟩ (qOfNat K + qOfNat K) * y
       ≡⟨ qDistribR y (qOfNat K) (qOfNat K) ⟩ qOfNat K * y + qOfNat K * y
-      ≡⟨ sym _ _ _ (qDistribL (qOfNat K) y y) ⟩ qOfNat K * (y + y)
+      ≡⟨ sym _ _ (qDistribL (qOfNat K) y y) ⟩ qOfNat K * (y + y)
 
 -- y + (K·(y + y) + y) is (2K + 2)·y
 def twoKTwo : (K : ℕ) (y : El Q) → y + (qOfNat K * (y + y) + y) ≡ qOfNat (S (S (K + K))) * y ≔
   λK. λy. y + (qOfNat K * (y + y) + y)
       ≡⟨ qAddComm y (qOfNat K * (y + y) + y) ⟩ qOfNat K * (y + y) + y + y
-      ≡⟨ cong (λv. Q) (λv. v + y + y) (sym _ _ _ (kkY K y)) ⟩ qOfNat (K + K) * y + y + y
-      ≡⟨ cong (λv. Q) (λv. v + y) (sym _ _ _ (qMulSucNat (K + K) y)) ⟩ qOfNat (S (K + K)) * y + y
-      ≡⟨ sym _ _ _ (qMulSucNat (S (K + K)) y) ⟩ qOfNat (S (S (K + K))) * y
+      ≡⟨ cong (λv. Q) (λv. v + y + y) (sym _ _ (kkY K y)) ⟩ qOfNat (K + K) * y + y + y
+      ≡⟨ cong (λv. Q) (λv. v + y) (sym _ _ (qMulSucNat (K + K) y)) ⟩ qOfNat (S (K + K)) * y + y
+      ≡⟨ sym _ _ (qMulSucNat (S (K + K)) y) ⟩ qOfNat (S (S (K + K))) * y
 
 -- (x + y) + (K·(y + y) + (y + x)) ≡ (x + x) + w, given w = (2K + 2)·y.
 -- The factor equation is an ARGUMENT: at the call site w is 1/(l + 1)
@@ -236,7 +234,7 @@ def reqOfClose : {u v : El RSeq}
 def qSubPair : (a b c d : El Q) → a + qNeg c + (b + qNeg d) ≡ a + b + qNeg (c + d) ≔
   λa. λb. λc. λd. a + qNeg c + (b + qNeg d)
       ≡⟨ qPairSwap a (qNeg c) b (qNeg d) ⟩ a + b + (qNeg c + qNeg d)
-      ≡⟨ cong (λv. Q) (λv. a + b + v) (sym _ _ _ (qNegAdd c d)) ⟩ a + b + qNeg (c + d)
+      ≡⟨ cong (λv. Q) (λv. a + b + v) (sym _ _ (qNegAdd c d)) ⟩ a + b + qNeg (c + d)
 
 -- two samples of one regular sequence, both at least as deep as m,
 -- differ by at most rBound m m
@@ -337,7 +335,6 @@ def distribStepGen : (f g h : El (ℕ → Q))
           (λv. Q)
           (λv. v + qNeg (f j * g j + f k * h k))
           (sym
-            _
             _
             _
             (qDistribL (f i) (g t) (h t))) ⟩ f i * (g t + h t) + qNeg (f j * g j + f k * h k))
@@ -451,12 +448,12 @@ def assocBoundEq : {al be ga : El Q}
       ≡⟨ cong
         (λv. Q)
         (λv. al * be * d + ga * v)
-        (sym _ _ _ (qDistribR d al be)) ⟩ al * be * d + ga * ((al + be) * d)
+        (sym _ _ (qDistribR d al be)) ⟩ al * be * d + ga * ((al + be) * d)
       ≡⟨ cong
         (λv. Q)
         (λv. al * be * d + v)
-        (sym _ _ _ (qMulAssoc ga (al + be) d)) ⟩ al * be * d + ga * (al + be) * d
-      ≡⟨ sym _ _ _ (qDistribR d (al * be) (ga * (al + be))) ⟩ (al * be + ga * (al + be)) * d
+        (sym _ _ (qMulAssoc ga (al + be) d)) ⟩ al * be * d + ga * (al + be) * d
+      ≡⟨ sym _ _ (qDistribR d (al * be) (ga * (al + be))) ⟩ (al * be + ga * (al + be)) * d
       ≡⟨ cong (λv. Q) (λv. v * d) hk ⟩ kp * d
 
 def assocStepGen : (f g h : El (ℕ → Q))
@@ -606,16 +603,13 @@ def realDistribR : (u v w : El Real) → (v + w) * u ≡ v * u + w * u ≔
     _
     _
     _
-    _
     (realMulComm (v + w) u)
     (trans
       _
       _
       _
-      _
       (realDistribL u v w)
       (trans
-        _
         _
         _
         (v * u + w * u)
@@ -632,18 +626,16 @@ def realMulNeg : {u v : El Real} → realNeg u * v ≡ realNeg (u * v) ≔
       _
       _
       _
-      _
-      (sym _ _ _ (realDistribR v u (realNeg u)))
-      (trans _ _ _ realZero (cong (λz. Real) (λz. z * v) (realAddNegR u)) realMulZeroL))
+      (sym _ _ (realDistribR v u (realNeg u)))
+      (trans _ _ realZero (cong (λz. Real) (λz. z * v) (realAddNegR u)) realMulZeroL))
 
 def realMulNegR : (u v : El Real) → u * realNeg v ≡ realNeg (u * v) ≔
   λu. λv. trans
     _
     _
     _
-    _
     (realMulComm u (realNeg v))
-    (trans _ (realNeg v * u) _ _ realMulNeg (cong (λz. Real) (λz. realNeg z) (realMulComm v u)))
+    (trans (realNeg v * u) _ _ realMulNeg (cong (λz. Real) (λz. realNeg z) (realMulComm v u)))
 
 -- ...so ℝ is a commutative ring, and the laws above are exactly its
 -- components

@@ -625,6 +625,48 @@ types source it. Σ unchanged (implicitness is surface-only; the
 kernel Π is the same), ~9.8s plain elaboration, canonical form
 re-established and enforced.
 
+THE TARGETED PIPELINE AS A TOOL (2026-08-21): `nova census <file>
+<def…>` and `nova implicitize <file> <out-dir> <def> <pos…>`. The
+census runs the SUGAR PASS alone and reports, per explicit leading
+position: applied sites, already-blank, blankable (the emission
+trial's verdicts), and the remainder a migration would keep as
+{…} overrides. MIGRATE makes the positions implicit, drops every
+per-site-verified argument, keeps the rest as overrides, and
+iterates the Σ-α-gate — reverting drops inside the DRIFTED ENTRY
+(the def containing the site; driftCulprits names the drifted
+spine's head instead, useless for a single-candidate migration)
+and re-running until α-identical. Replaying the cong migration
+through the tool reproduces the hand-made corpus BYTE-IDENTICALLY.
+
+Three surface truths the tool had to learn:
+
+  * {t} OVERRIDES ARE POSITIONAL within a run of consecutive
+    implicit positions — an override after an elided position in
+    the same run is INEXPRESSIBLE. The plan prefix-closes each
+    run (droppable written arguments are forced back to overrides)
+    and BLOCKS when a blank precedes a needed override, naming the
+    sites to spell first.
+  * a blank → implicit conversion is NOT automatically
+    Σ-preserving: implicit holes take the expected type's
+    LICENSED-JOIN captures (some corpus sites need them — the
+    uniform restriction breaks fromImIn) while blanks are
+    tier-split-protected. matchTySplit now returns the SUPPRESSED
+    join bindings, and a blank whose suppressed binding α-differs
+    from its solution is reported as a per-site migration blocker
+    (svBlankRisk) — ratRSymm's `Int` recovering as its quotient
+    unfolding was the discovering case.
+  * the blocked-site workflow is exactly the LSP blank hover: the
+    hover names the solved value and its source, the user spells
+    it, the migration proceeds.
+
+Migrated so far, tool-verified, per the census: cong {A}{v}{w}
+(597 sites), sym {A} (410), trans {A} (620), transport {A}{a}{b}
+(154), transportP {A}{a}{b} (40) — nine hand-spelled blocker sites
+across the corpus, each located by the tool and valued by the
+hover. Proof positions everywhere stay explicit (the census shows
+them 100% override — correctly hopeless). ~10.1s plain
+elaboration, canonical form enforced.
+
 THE IN-PLACE REWRITE (2026-08-20): src/nova is now the implicitized,
 CANONICAL-DISTILL-FORM corpus — 414 defs with {}-binders, 2,826
 argument occurrences elided, comments preserved, items

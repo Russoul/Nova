@@ -279,18 +279,18 @@ def ratAddTest2 : ratAdd third negThird ≡ mkRat intZero (nzNeg 8)
     rational.ratAdd.eq,
     rational.third.eq,
     threeCancel) ≔
-  trans _ _ _ _ ⋆ (cong (λu. Rat) (λx. mkRat x (nzNeg 8)) threeCancel)
+  trans _ _ _ ⋆ (cong (λu. Rat) (λx. mkRat x (nzNeg 8)) threeCancel)
 
 -- ===== 0/1 is a unit =====
 -- componentwise first: the numerator collapses by the scaled-zero
 -- unit followed by intScaleOne, the denominator by nzMulOne
 def ratAddZeroLNum : {q : El Rat} → intScale (den q) intZero + intScale nzOne (num q) ≡ num q
   using (intScaleNOne) ≔
-  λq. trans _ _ (intScale nzOne (num q)) _ intAddScaleZeroL intScaleOne
+  λq. trans _ (intScale nzOne (num q)) _ intAddScaleZeroL intScaleOne
 
 def ratAddZeroRNum : {q : El Rat} → intScale nzOne (num q) + intScale (den q) intZero ≡ num q
   using (intScaleNOne) ≔
-  λq. trans _ _ (intScale nzOne (num q)) _ intAddScaleZeroR intScaleOne
+  λq. trans _ (intScale nzOne (num q)) _ intAddScaleZeroR intScaleOne
 
 -- Σ-η, as a step of its own: el-sigma-eta is judgemental in the
 -- theory but the kernel's normal forms do not contract (t.π₁ , t.π₂),
@@ -332,9 +332,7 @@ def ratAddZeroL : {q : El Rat} → ratAdd ratZero q ≡ q
     _
     _
     _
-    _
     (trans
-      _
       (ratAdd ratZero q)
       _
       (q .π₁, q .π₂)
@@ -373,9 +371,7 @@ def ratAddZeroR : {q : El Rat} → ratAdd q ratZero ≡ q
     _
     _
     _
-    _
     (trans
-      _
       (ratAdd q ratZero)
       _
       (q .π₁, q .π₂)
@@ -397,7 +393,7 @@ def plusSwapRight : {x m k : ℕ} → x + m + k ≡ x + k + m
 -- the magnitude arithmetic of nzMul is symmetric: multComm on the
 -- product, then the swap above on the two summands
 def mulPlusComm : {m k : ℕ} → m * k + m + k ≡ k * m + k + m using (plusAssoc) ≔
-  λm. λk. trans _ _ _ _ (cong (λu. ℕ) (λw. w + m + k) (multComm k m)) plusSwapRight
+  λm. λk. trans _ _ _ (cong (λu. ℕ) (λw. w + m + k) (multComm k m)) plusSwapRight
 
 def nzMulComm : {x y : El NZ} → nzMul x y ≡ nzMul y x
   using (plusAssoc, rational.NZ.unfold, rational.nzMul.eq, rational.nzNeg.eq, rational.nzPos.eq) ≔
@@ -427,7 +423,6 @@ def ratAddComm : (p q : El Rat) → ratAdd p q ≡ ratAdd q p
     rational.nzMul.eq,
     rational.ratAdd.eq) ≔
   λp. λq. trans
-    _
     _
     (mkRat (intScale (den p) (num q) + intScale (den q) (num p)) (nzMul (den p) (den q)))
     _

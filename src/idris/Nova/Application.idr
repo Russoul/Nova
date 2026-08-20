@@ -43,6 +43,17 @@ usage = unlines
   , "oracle could reconstruct if elided (docs/NovaPerfectSurface.txt,"
   , "the sugar tiers) — the measured basis for implicit binders."
   , ""
+  , "implicitize <file> <out-dir> <def> <pos...>: TARGETED migration —"
+  , "the named def's given explicit binder positions become implicit;"
+  , "each use site drops the argument (per-site recovery verified by"
+  , "the override trial) or keeps it as a {t} override; the result is"
+  , "Σ-α-gated to a fixpoint (docs/NovaPerfectSurface.txt)."
+  , ""
+  , "census <file> <def...>: per named def and explicit binder"
+  , "position, how many sites recover the argument (elidable), how"
+  , "many already write a blank, and how many would need a {…}"
+  , "override — the measured basis for a targeted migration."
+  , ""
   , "implicitize: rewrites the file's module closure into <out-dir>"
   , "with survey-approved binder positions made implicit ({x : A})"
   , "and the arguments at those positions elided at every use site —"
@@ -84,6 +95,17 @@ main = do
         Right msg => putStrLn msg
     (_ :: "implicitize" :: surfaceFile :: outDir :: []) => do
       result <- implicitizePath surfaceFile outDir
+      case result of
+        Left err  => do putStrLn "Error: \{err}"; exitFailure
+        Right msg => putStrLn msg
+    -- targeted migration: one def, chosen explicit positions
+    (_ :: "implicitize" :: surfaceFile :: outDir :: name :: poss@(_ :: _)) => do
+      result <- migrateDefPath surfaceFile outDir name (mapMaybe parsePositive poss)
+      case result of
+        Left err  => do putStrLn "Error: \{err}"; exitFailure
+        Right msg => putStrLn msg
+    (_ :: "census" :: surfaceFile :: names@(_ :: _)) => do
+      result <- censusPath surfaceFile names
       case result of
         Left err  => do putStrLn "Error: \{err}"; exitFailure
         Right msg => putStrLn msg

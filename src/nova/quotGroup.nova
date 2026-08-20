@@ -120,7 +120,6 @@ def qMulInnerAlg : {G : 𝕌}
       ≡⟨ sym
         _
         _
-        _
         (gAssoc
           _
           g
@@ -134,7 +133,7 @@ def qMulInnerAlg : {G : 𝕌}
       ≡⟨ cong
         (λw. G)
         (λw. gop G g (gop _ g a b) w)
-        (sym _ _ _ (gOpInv _ g a b')) ⟩ gop _ g (gop _ g a b) (ginv _ g (gop _ g a b'))
+        (sym _ _ (gOpInv _ g a b')) ⟩ gop _ g (gop _ g a b) (ginv _ g (gop _ g a b'))
 
 -- OUTER:  (a·b)·(a'·b)⁻¹  =  a·a'⁻¹
 def qMulOuterAlg : (G : 𝕌)
@@ -170,10 +169,9 @@ def qMulWDInner : {G : 𝕌}
       → Prf (cosetRel _ g N b b') → Prf (cosetRel _ g N (gop _ g a b) (gop _ g a b'))
   using (cosetRel.eq) ≔
   λG. λg. λN. λnn. λa. λb. λb'. λh. transportP
-    _
     N
-    _
-    (gop _ g (gop _ g a b) (ginv _ g (gop _ g a b')))
+    {gop _ g a (gop _ g (gop _ g b (ginv _ g b')) (ginv _ g a))}
+    {gop _ g (gop _ g a b) (ginv _ g (gop _ g a b'))}
     qMulInnerAlg
     (nmConj _ _ _ nn a (gop _ g b (ginv _ g b')) h)
 
@@ -183,7 +181,7 @@ def qMulWDOuter : {G : 𝕌}
   {a a' b : El G}
   → Prf (cosetRel _ g N a a') → Prf (cosetRel _ g N (gop _ g a b) (gop _ g a' b))
   using (cosetRel.eq) ≔
-  λG. λg. λN. λa. λa'. λb. λh. transportP _ N _ _ (sym _ _ _ (qMulOuterAlg _ g a a' b)) h
+  λG. λg. λN. λa. λa'. λb. λh. transportP N (sym _ _ (qMulOuterAlg _ g a a' b)) h
 
 -- ===== the same two, at class level =====
 def qMulWDInnerCls : (G : 𝕌)
@@ -289,7 +287,7 @@ def qInvAlg : {G : 𝕌}
       ≡⟨ cong
         (λw. G)
         (λw. gop G g (ginv _ g a) w)
-        (sym _ _ _ (gInvInv _ g a')) ⟩ gop _ g (ginv _ g a) (ginv _ g (ginv _ g a'))
+        (sym _ _ (gInvInv _ g a')) ⟩ gop _ g (ginv _ g a) (ginv _ g (ginv _ g a'))
 
 def qInvWD : {G : 𝕌}
   {g : El (IsGroup G)}
@@ -305,10 +303,9 @@ def qInvWD : {G : 𝕌}
       → {a a' : El G} → Prf (cosetRel _ g N a a') → Prf (cosetRel _ g N (ginv _ g a) (ginv _ g a'))
   using (cosetRel.eq) ≔
   λG. λg. λN. λs. λnn. λa. λa'. λh. transportP
-    _
     N
-    _
-    (gop _ g (ginv _ g a) (ginv _ g (ginv _ g a')))
+    {gop _ g (ginv _ g a) (gop _ g (gop _ g a' (ginv _ g a)) a)}
+    {gop _ g (ginv _ g a) (ginv _ g (ginv _ g a'))}
     qInvAlg
     (nmConjInv _ _ _ nn a (gop _ g a' (ginv _ g a)) (cosetSymm _ _ _ s _ _ h))
 
@@ -388,10 +385,8 @@ def qAssoc : (G : 𝕌)
           _
           _
           _
-          _
           ⋆
           (trans
-            _
             _
             _
             (qMul _ _ _ nn (class a) (qMul _ _ _ nn (class b) (class c)))
@@ -409,7 +404,7 @@ def qUnitL : (G : 𝕌)
   → qMul _ _ _ nn (qUnit _ g N) u ≡ u
   using (QGroup.unfold, qUnit.eq, qMulCls.rw) ≔
   λG. λg. λN. λnn. λu. quot-elim
-    (a. trans _ _ _ _ ⋆ (cong (λw. QGroup _ g N) (λw. class w) (gUnitL _ g a)))
+    (a. trans _ _ _ ⋆ (cong (λw. QGroup _ g N) (λw. class w) (gUnitL _ g a)))
     u
 
 def qUnitR : (G : 𝕌)
@@ -420,7 +415,7 @@ def qUnitR : (G : 𝕌)
   → qMul _ _ _ nn u (qUnit _ g N) ≡ u
   using (QGroup.unfold, qUnit.eq, qMulCls.rw) ≔
   λG. λg. λN. λnn. λu. quot-elim
-    (a. trans _ _ _ _ ⋆ (cong (λw. QGroup _ g N) (λw. class w) (gUnitR _ g a)))
+    (a. trans _ _ _ ⋆ (cong (λw. QGroup _ g N) (λw. class w) (gUnitR _ g a)))
     u
 
 def qInvLaw : (G : 𝕌)
@@ -432,7 +427,7 @@ def qInvLaw : (G : 𝕌)
   → qMul _ _ _ nn (qInv _ _ _ s nn u) u ≡ qUnit _ _ _
   using (QGroup.unfold, qUnit.eq, qInvCls.rw, qMulCls.rw) ≔
   λG. λg. λN. λs. λnn. λu. quot-elim
-    (a. trans _ _ _ _ ⋆ (cong (λw. QGroup _ g N) (λw. class w) (gInvL _ g a)))
+    (a. trans _ _ _ ⋆ (cong (λw. QGroup _ g N) (λw. class w) (gInvL _ g a)))
     u
 
 def qInvLawR : (G : 𝕌)
@@ -444,7 +439,7 @@ def qInvLawR : (G : 𝕌)
   → qMul _ _ _ nn u (qInv _ _ _ s nn u) ≡ qUnit _ _ _
   using (QGroup.unfold, qUnit.eq, qInvCls.rw, qMulCls.rw) ≔
   λG. λg. λN. λs. λnn. λu. quot-elim
-    (a. trans _ _ _ _ ⋆ (cong (λw. QGroup _ g N) (λw. class w) (gInvR _ g a)))
+    (a. trans _ _ _ ⋆ (cong (λw. QGroup _ g N) (λw. class w) (gInvR _ g a)))
     u
 
 -- ===== G/N is a group =====

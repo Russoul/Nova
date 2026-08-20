@@ -41,8 +41,7 @@ def leQInvOne : (k : ℕ) → El (qInvNat k ≤ qOfNat (S Z))
     rationalQ.qNeg.eq,
     rationalQ.qcls.eq,
     real.qInvNat.eq) ≔
-  λk. leQFracOfNat
-    (transport _ (λw. S Z ≤ w) _ _ (sym _ _ _ (oneMult (S k))) (leSucMono (leZero k)))
+  λk. leQFracOfNat (transport (λw. S Z ≤ w) (sym _ _ (oneMult (S k))) (leSucMono (leZero k)))
 
 def leQBoundTwo : (n : ℕ) → El (rBound n Z ≤ qOfNat 2)
   using (id.Id.eq,
@@ -59,10 +58,9 @@ def leQBoundTwo : (n : ℕ) → El (rBound n Z ≤ qOfNat 2)
     real.qInvNat.eq,
     real.rBound.eq) ≔
   λn. transport
-    _
     (λw. rBound n Z ≤ w)
-    (qOfNat (S Z) + qOfNat (S Z))
-    (qOfNat 2)
+    {qOfNat (S Z) + qOfNat (S Z)}
+    {qOfNat 2}
     (qOfNatAdd (S Z) (S Z))
     (leQAdd _ _ _ _ (leQInvOne n) (leQInvOne Z))
 
@@ -70,7 +68,7 @@ def leQBoundTwo : (n : ℕ) → El (rBound n Z ≤ qOfNat 2)
 def qAddSubCancelL : (a b : El Q) → a + (b + qNeg a) ≡ b using (rationalQ.Q.unfold) ≔
   λa. λb. a + (b + qNeg a)
       ≡⟨ cong (λw. Q) (λw. a + w) (qAddComm b (qNeg a)) ⟩ a + (qNeg a + b)
-      ≡⟨ sym _ _ _ (qAddAssoc a (qNeg a) b) ⟩ a + qNeg a + b
+      ≡⟨ sym _ _ (qAddAssoc a (qNeg a) b) ⟩ a + qNeg a + b
       ≡⟨ cong (λw. Q) (λw. w + b) (qAddNegR a) ⟩ qZero + b
       ≡⟨ qAddZeroL b ⟩ b
 
@@ -90,10 +88,9 @@ def bndSeqBound : (p : El RSeq) (n : ℕ) → El (Bnd (qOfNat (seqBound p)) (seq
     _
     _
     (transport
-      _
       (λw. qOfNat (qNatBound (seqOf p Z)) + rBound n Z ≤ w)
-      (qOfNat (qNatBound (seqOf p Z)) + qOfNat 2)
-      (qOfNat (seqBound p))
+      {qOfNat (qNatBound (seqOf p Z)) + qOfNat 2}
+      {qOfNat (seqBound p)}
       (qOfNatAdd (qNatBound (seqOf p Z)) 2)
       (leQAdd _ _ _ _ (leQRefl (qOfNat (qNatBound (seqOf p Z)))) (leQBoundTwo n)))
     (bndEq
@@ -111,4 +108,4 @@ def seqBoundPos : {p : El RSeq} → El (qZero ≤ qOfNat (seqBound p))
     rationalQ.Q.unfold,
     real.RSeq.unfold,
     real.Regular.unfold) ≔
-  λp. transport _ (λw. w ≤ qOfNat (seqBound p)) (qOfNat Z) qZero ⋆ (leQOfNat (leZero (seqBound p)))
+  λp. transport (λw. w ≤ qOfNat (seqBound p)) {qOfNat Z} {qZero} ⋆ (leQOfNat (leZero (seqBound p)))

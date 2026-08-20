@@ -47,7 +47,7 @@ def realAddSwapR : (u q w : El Real) → u + q + w ≡ u + w + q using (real.Rea
   λu. λq. λw. u + q + w
       ≡⟨ realAddAssoc u q w ⟩ u + (q + w)
       ≡⟨ cong (λv. Real) (λv. u + v) (realAddComm q w) ⟩ u + (w + q)
-      ≡⟨ sym _ _ _ (realAddAssoc u w q) ⟩ u + w + q
+      ≡⟨ sym _ _ (realAddAssoc u w q) ⟩ u + w + q
 
 -- 0 ≤ 1/(k+1), lifted
 def leRZeroInv : (k : ℕ) → Prf (realZero ≤ realOfQ (qInvNat k))
@@ -66,16 +66,12 @@ def leRZeroInv : (k : ℕ) → Prf (realZero ≤ realOfQ (qInvNat k))
 def leRSelfInv : (u : El Real) (k : ℕ) → Prf (u ≤ u + realOfQ (qInvNat k))
   using (realOrder.≤.unfold) ≔
   λu. λk. transportP
-    _
     (λw. w ≤ u + realOfQ (qInvNat k))
-    _
-    _
     (realAdd.realAddZeroL u)
     (transportP
-      Real
+      {Real}
       (λw. realZero + u ≤ w)
-      (realOfQ (qInvNat k) + u)
-      _
+      {realOfQ (qInvNat k) + u}
       (realAddComm (realOfQ (qInvNat k)) u)
       (leRAddMono (leRZeroInv k)))
 
@@ -120,16 +116,12 @@ def ltRIrrefl : (u : El Real) → Prf (u < u) → Prf ⊥
       (leQOfLeR
         qZero
         (transportP
-          _
           (λt. t ≤ realZero)
-          _
-          _
           (realAddNegCancel u (realOfQ (qInvNat (w .π₁))))
           (transportP
-            Real
+            {Real}
             (λt. u + realOfQ (qInvNat (w .π₁)) + realNeg u ≤ t)
-            (u + realNeg u)
-            _
+            {u + realNeg u}
             (realAddNegR u)
             (leRAddMono (w .π₂)))))
       (leQZeroInvNat (w .π₁)))))
@@ -147,25 +139,16 @@ def ltROfQ : {p q : El Q} → El (p < q) → Prf (realOfQ p < realOfQ q)
     _
     _
     (transportP
-      _
       (λt. t ≤ realOfQ q)
-      _
-      _
-      (sym _ _ _ (realAddOfQ p (qInvNat (w .π₁))))
+      (sym _ _ (realAddOfQ p (qInvNat (w .π₁))))
       (leROfQ
         _
         _
         (transport
-          _
           (λt. t ≤ q)
-          _
-          _
           (qAddComm (qInvNat (w .π₁)) p)
           (transport
-            _
             (λt. qInvNat (w .π₁) + p ≤ t)
-            _
-            _
             (qPlusNegCancelR q p)
             (leQPlusMono p (w .π₂)))))))
 
@@ -188,9 +171,8 @@ def ltRAddMono : (u v t : El Real) → Prf (u < v) → Prf (u + t < v + t) using
     _
     _
     (transportP
-      Real
+      {Real}
       (λs. s ≤ v + t)
-      (u + realOfQ (qInvNat (w .π₁)) + t)
-      _
+      {u + realOfQ (qInvNat (w .π₁)) + t}
       (realAddSwapR u (realOfQ (qInvNat (w .π₁))) t)
       (leRAddMono (w .π₂))))

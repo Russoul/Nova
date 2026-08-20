@@ -16,7 +16,7 @@ def ≤ : ℕ → ℕ → 𝕌 ≔ λa. λb. (k : ℕ) ⨯ Id _ (a + k) b
 def leRefl : (a : ℕ) → El (a ≤ a) using (natOrder.≤.unfold) ≔ λa. Z, eqToId _ _ (plusZeroId a)
 
 def leOfEq : {a b : ℕ} → (a ≡ b) → El (a ≤ b) using (natOrder.≤.unfold) ≔
-  λa. λb. λh. Z, eqToId _ _ (trans _ _ _ _ (plusZeroId a) h)
+  λa. λb. λh. Z, eqToId _ _ (trans _ _ _ (plusZeroId a) h)
 
 def leZero : (a : ℕ) → El (Z ≤ a) using (natOrder.≤.unfold) ≔ λa. a, eqToId _ _ (zeroPlusId a)
 
@@ -44,19 +44,19 @@ def leTrans : (a b c : ℕ) → El (a ≤ b) → El (b ≤ c) → El (a ≤ c)
         _
         _
         (l2 .π₂) in a + (l1 .π₁ + l2 .π₁)
-          ≡⟨ sym _ _ _ (plusAssoc a (l1 .π₁) (l2 .π₁)) ⟩ a + l1 .π₁ + l2 .π₁
+          ≡⟨ sym _ _ (plusAssoc a (l1 .π₁) (l2 .π₁)) ⟩ a + l1 .π₁ + l2 .π₁
           ≡⟨ plusCongL (l2 .π₁) h1 ⟩ b + l2 .π₁
           ≡⟨ h2 ⟩ c)
 
 -- a summand of zero is zero (both sides)
 def sumZeroR : (x y : ℕ) → (x + y ≡ Z) → y ≡ Z using (nat.plusSucId) ≔
-  λx. λy. ℕ-elim (λh. ⋆) (j ih. λh. 𝟘-elim (zNotS (x + j) (sym _ (x + S j) _ h))) y
+  λx. λy. ℕ-elim (λh. ⋆) (j ih. λh. 𝟘-elim (zNotS (x + j) (sym (x + S j) _ h))) y
 
 def sumZeroL : (x y : ℕ) → (x + y ≡ Z) → x ≡ Z ≔
-  λx. λy. λh. sumZeroR _ _ (trans _ _ _ _ (plusComm x y) h)
+  λx. λy. λh. sumZeroR _ _ (trans _ _ _ (plusComm x y) h)
 
 def leZeroInv : {a : ℕ} → El (a ≤ Z) → a ≡ Z using (natOrder.≤.unfold) ≔
-  λa. λle. sumZeroL _ _ (trans _ _ _ Z (idToEq _ _ _ (le .π₂)) ⋆)
+  λa. λle. sumZeroL _ _ (trans _ _ Z (idToEq _ _ _ (le .π₂)) ⋆)
 
 def leAntisym : (a b : ℕ) → El (a ≤ b) → El (b ≤ a) → a ≡ b
   using (id.Id.unfold, natOrder.≤.unfold) ≔
@@ -71,7 +71,7 @@ def leAntisym : (a b : ℕ) → El (a ≤ b) → El (b ≤ a) → a ≡ b
     (l2 .π₂) in let loop : a
     + (l1 .π₁
       + l2 .π₁) ≡ a ≔ a + (l1 .π₁ + l2 .π₁)
-      ≡⟨ sym _ _ _ (plusAssoc a (l1 .π₁) (l2 .π₁)) ⟩ a + l1 .π₁ + l2 .π₁
+      ≡⟨ sym _ _ (plusAssoc a (l1 .π₁) (l2 .π₁)) ⟩ a + l1 .π₁ + l2 .π₁
       ≡⟨ plusCongL (l2 .π₁) h1 ⟩ b + l2 .π₁
       ≡⟨ h2 ⟩ a in let kz ≔ plusCancel
     (l1 .π₁ + l2 .π₁)
@@ -83,16 +83,12 @@ def leAntisym : (a b : ℕ) → El (a ≤ b) → El (b ≤ a) → a ≡ b
         ≡⟨ sym
           _
           _
-          _
           (zeroPlusId
             a) ⟩ Z
           + a) in let k1z ≔ sumZeroL
     _
     _
-    kz in a
-      ≡⟨ sym _ _ _ (plusZeroId a) ⟩ a + Z
-      ≡⟨ plusCongR a (sym _ _ _ k1z) ⟩ a + l1 .π₁
-      ≡⟨ h1 ⟩ b
+    kz in a ≡⟨ sym _ _ (plusZeroId a) ⟩ a + Z ≡⟨ plusCongR a (sym _ _ k1z) ⟩ a + l1 .π₁ ≡⟨ h1 ⟩ b
 
 -- ===== monotonicity =====
 def leSucMono : {a b : ℕ} → El (a ≤ b) → El (S a ≤ S b) using (id.Id.unfold, natOrder.≤.unfold) ≔
@@ -120,7 +116,7 @@ def leSucInv : (a b : ℕ) → El (S a ≤ S b) → El (a ≤ b) using (id.Id.un
           _
           _
           _
-          (le .π₂) in S (a + le .π₁) ≡⟨ sym _ _ _ (sucPlus a (le .π₁)) ⟩ S a + le .π₁ ≡⟨ h ⟩ S b))
+          (le .π₂) in S (a + le .π₁) ≡⟨ sym _ _ (sucPlus a (le .π₁)) ⟩ S a + le .π₁ ≡⟨ h ⟩ S b))
 
 def lePlusMonoR : {a : ℕ} (b c : ℕ) → El (a ≤ b) → El (a + c ≤ b + c)
   using (id.Id.unfold, natOrder.≤.unfold) ≔
@@ -135,7 +131,7 @@ def lePlusMonoR : {a : ℕ} (b c : ℕ) → El (a ≤ b) → El (a + c ≤ b + c
         (le .π₂) in a + c + le .π₁
           ≡⟨ plusAssoc a c (le .π₁) ⟩ a + (c + le .π₁)
           ≡⟨ plusCongR a (plusComm (le .π₁) c) ⟩ a + (le .π₁ + c)
-          ≡⟨ sym _ _ _ (plusAssoc a (le .π₁) c) ⟩ a + le .π₁ + c
+          ≡⟨ sym _ _ (plusAssoc a (le .π₁) c) ⟩ a + le .π₁ + c
           ≡⟨ plusCongL c h ⟩ b + c)
 
 def lePlusMonoL : {a b : ℕ} (c : ℕ) → El (a ≤ b) → El (c + a ≤ c + b) using (natOrder.≤.unfold) ≔
@@ -160,7 +156,7 @@ def leMultMonoR : {a b : ℕ} (c : ℕ) → El (a ≤ b) → El (a * c ≤ b * c
         (le .π₂) in a * c + le .π₁ * c
           ≡⟨ plusCongL (le .π₁ * c) (multComm c a) ⟩ c * a + le .π₁ * c
           ≡⟨ plusCongR (c * a) (multComm c (le .π₁)) ⟩ c * a + c * le .π₁
-          ≡⟨ sym _ _ _ (multDistrib c a (le .π₁)) ⟩ c * (a + le .π₁)
+          ≡⟨ sym _ _ (multDistrib c a (le .π₁)) ⟩ c * (a + le .π₁)
           ≡⟨ multComm (a + le .π₁) c ⟩ (a + le .π₁) * c
           ≡⟨ cong (λu. ℕ) (λu. u * c) h ⟩ b * c)
 

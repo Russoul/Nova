@@ -32,8 +32,8 @@ import id (Id, idToEq, eqToId)
 def qSubFlip : (x y : El Q) → x + qNeg y ≡ qNeg (y + qNeg x) ≔
   λx. λy. x + qNeg y
       ≡⟨ qAddComm x (qNeg y) ⟩ qNeg y + x
-      ≡⟨ cong (λv. Q) (λv. qNeg y + v) (sym _ _ _ (qNegNeg x)) ⟩ qNeg y + qNeg (qNeg x)
-      ≡⟨ sym _ _ _ (qNegAdd y (qNeg x)) ⟩ qNeg (y + qNeg x)
+      ≡⟨ cong (λv. Q) (λv. qNeg y + v) (sym _ _ (qNegNeg x)) ⟩ qNeg y + qNeg (qNeg x)
+      ≡⟨ sym _ _ (qNegAdd y (qNeg x)) ⟩ qNeg (y + qNeg x)
 
 def qNegFrac : (N : El Int)
   (b : ℕ)
@@ -81,16 +81,11 @@ def leQNatOfFrac : {m b K : ℕ}
   → El (K * S b ≤ m) → El (qOfNat K ≤ qcls (mkRat (intOfNat m) (nzPos b)))
   using (integer.Int.unfold, rational.Rat.unfold, rationalOrder.≤.eq, rationalQ.Q.unfold) ≔
   λm. λb. λK. λle. transport
-    _
     NonNegS
-    _
-    _
     (sym
       _
       _
-      _
       (trans
-        _
         _
         _
         (intSgn (class (m, S b * K)))
@@ -101,11 +96,11 @@ def leQNatOfFrac : {m b K : ℕ}
           {qcls (mkRat (class (m, S b * K)) (nzPos b))}
           qDiffFracNat)
         sgnQFracPos))
-    (nonNegSgnOfLe (transport _ (λw. w ≤ m) _ _ (multComm (S b) K) le))
+    (nonNegSgnOfLe (transport (λw. w ≤ m) (multComm (S b) K) le))
 
 -- ===== the quotient really is under the dividend =====
 def divMulLe : (a b : ℕ) → El (divN a b * S b ≤ a) using (natOrder.≤.unfold) ≔
-  λa. λb. modN a b, eqToId _ _ (sym _ _ _ (divModEq a b))
+  λa. λb. modN a b, eqToId _ _ (sym _ _ (divModEq a b))
 
 -- ===== at a representative =====
 def leQFloorPos : {M : El Int}
@@ -121,49 +116,30 @@ def leQFloorPos : {M : El Int}
       (intMag M)
       b) ≤ ⊎-elim (nn. qcls (mkRat M (nzPos b))) (hn. qNeg (qcls (mkRat M (nzPos b)))) w))
     (nn. transport
-      _
       (λv. qOfNat (divN (intMag M) b) ≤ qcls (mkRat v (nzPos b)))
-      _
-      _
-      (intOfNatMagNonNeg (transport _ NonNegS _ (intSgn M) sgnQFracPos nn))
+      (intOfNatMagNonNeg
+        (transport NonNegS {sgnQ (qcls (mkRat M (nzPos b)))} {intSgn M} sgnQFracPos nn))
       (leQNatOfFrac (divMulLe (intMag M) b)))
     (hn. transport
-      _
       (λw. qOfNat (divN (intMag M) b) ≤ w)
-      _
-      _
-      (sym _ _ _ (qNegFrac M b))
+      (sym _ _ (qNegFrac M b))
       (transport
-        _
         (λk. qOfNat (divN k b) ≤ qcls (mkRat (intNeg M) (nzPos b)))
-        (intMag (intNeg M))
-        (intMag M)
+        {intMag (intNeg M)}
+        {intMag M}
         intMagNeg
         (transport
-          _
           (λv. qOfNat (divN (intMag (intNeg M)) b) ≤ qcls (mkRat v (nzPos b)))
-          _
-          _
           (intOfNatMagNonNeg
             (transport
-              _
               NonNegS
-              _
-              (intSgn (intNeg M))
+              {sgnQ (qcls (mkRat (intNeg M) (nzPos b)))}
+              {intSgn (intNeg M)}
               sgnQFracPos
               (transport
-                _
                 NonNegS
-                _
-                _
                 (cong (λw. Sign) (λw. sgnQ w) (qNegFrac M b))
-                (transport
-                  _
-                  NonNegS
-                  _
-                  _
-                  (sym _ _ _ (sgnQNegOfNeg hn))
-                  (inj₂ (eqToId sPos sPos ⋆))))))
+                (transport NonNegS (sym _ _ (sgnQNegOfNeg hn)) (inj₂ (eqToId sPos sPos ⋆))))))
           (leQNatOfFrac (divMulLe (intMag (intNeg M)) b)))))
     (sgnCases (sgnQ (qcls (mkRat M (nzPos b)))))
 
@@ -184,17 +160,16 @@ def leQFloorAt : (N : El Int)
     rationalQ.qcls.eq) ≔
   λN. λd. let v ≔ qPosDenView
     N
-    d in transport _ (λw. qOfNat (qFloor w) ≤ qAbs w) _ _ (idToEq _ _ _ (v .π₂ .π₂)) leQFloorPos
+    d in transport (λw. qOfNat (qFloor w) ≤ qAbs w) (idToEq _ _ _ (v .π₂ .π₂)) leQFloorPos
 
 -- ===== ...and on the quotient =====
 def leQFloorAbsSq : (u : El Q) → Prf ∥El (qOfNat (qFloor u) ≤ qAbs u)∥
   using (integer.Int.unfold, rational.Rat.unfold, rationalQ.Q.unfold, rationalQ.qcls.eq) ≔
   λu. quot-elim
     (p. ⋆ (transport
-      _
       (λr. qOfNat (qFloor (qcls r)) ≤ qAbs (qcls r))
-      (mkRat (num p) (den p))
-      p
+      {mkRat (num p) (den p)}
+      {p}
       ratEta
       (leQFloorAt (num p) (den p))))
     u
@@ -202,4 +177,4 @@ def leQFloorAbsSq : (u : El Q) → Prf ∥El (qOfNat (qFloor u) ≤ qAbs u)∥
 def leQFloorAbs : {u : El Q} → El (qOfNat (qFloor u) ≤ qAbs u) ≔ λu. leQUnsquash _ (leQFloorAbsSq u)
 
 def leQFloor : {u : El Q} → El (qZero ≤ u) → El (qOfNat (qFloor u) ≤ u) ≔
-  λu. λnn. transport _ (λw. qOfNat (qFloor u) ≤ w) _ _ (qAbsOfNonNeg nn) leQFloorAbs
+  λu. λnn. transport (λw. qOfNat (qFloor u) ≤ w) (qAbsOfNonNeg nn) leQFloorAbs

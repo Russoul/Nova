@@ -131,7 +131,7 @@ def negReg : {f : El (ℕ → Q)} → El (Regular f) → El (Regular (negSeq f))
     (λm. λn. bndEq
       _
       (qNeg (f m) + qNeg (qNeg (f n)))
-      (sym _ _ _ (qNegSub (f m) (f n)))
+      (sym _ _ (qNegSub (f m) (f n)))
       (bndEqB _ _ _ (rBoundSym n m) (regBnd _ h n m)))
 
 def rNeg : El RSeq → El RSeq using (real.RSeq.unfold) ≔ λx. negSeq (seqOf x), negReg (regOf x)
@@ -165,7 +165,7 @@ def rNegWD : {x y : El RSeq} → Prf (REq x y) → Prf (REq (rNeg x) (rNeg y))
     (λn. bndEq
       _
       (qNeg (seqOf x n) + qNeg (qNeg (seqOf y n)))
-      (sym _ _ _ (qNegSub (seqOf x n) (seqOf y n)))
+      (sym _ _ (qNegSub (seqOf x n) (seqOf y n)))
       (bndSubSym (rBound n n) (seqOf x n) (seqOf y n) (u n))))
 
 def rNegWDCls : (x y : El RSeq) (h : Prf (REq x y)) → class (rNeg x) ≡ class (rNeg y) ∈ El Real

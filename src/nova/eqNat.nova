@@ -27,7 +27,7 @@ def eqNSound : {n m : ℕ} → Prf (EqN n m) → n ≡ m
 -- "is-Z" code along a bad Z ≡ S j equation lands a 𝟙-witness in 𝟘
 -- (prop.absurd is the j ≔ Z instance, composed with absurdP)
 def zNotS : (j : ℕ) → (Z ≡ S j) → 𝟘 using (prop.isZeroCode.unfold) ≔
-  λj. λh. transport _ isZeroCode _ _ h ()
+  λj. λh. transport isZeroCode h ()
 
 -- S is injective: predecessor congruence recovers n ≡ j from S n ≡ S j
 def pred : ℕ → ℕ ≔ λn. ℕ-elim Z (n ih. n) n
@@ -41,7 +41,7 @@ def eqNComplete : {n m : ℕ} → (n ≡ m) → Prf (EqN n m)
   using (eqNat.EqN.eq, eqNat.EqN.unfold, prop.⊤.unfold) ≔
   λn. ℕ-elim
     (λm. ℕ-elim (λh. ⋆) (j ih2. λh. 𝟘-elim (zNotS _ h)) m)
-    (n ih. λm. ℕ-elim (λh. 𝟘-elim (zNotS _ (sym _ _ _ h))) (j ih2. λh. ih j (predEq j n h)) m)
+    (n ih. λm. ℕ-elim (λh. 𝟘-elim (zNotS _ (sym _ _ h))) (j ih2. λh. ih j (predEq j n h)) m)
     n
 
 -- the logical equivalence, packaged with prop.nova's ↔ against the

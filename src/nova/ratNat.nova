@@ -56,7 +56,7 @@ def qOfNatOne : qOfNat (S Z) ≡ qOne
 -- the flipped reading of the hypothesis, as its own lemma: the engine
 -- cannot commute a FIRST argument, so state the exact relation shape
 def natDiffRel : (a b k : ℕ) → (a + k ≡ b) → k + a ≡ b ≔
-  λa. λb. λk. λh. trans _ _ _ _ (plusComm a k) h
+  λa. λb. λk. λh. trans _ _ _ (plusComm a k) h
 
 def natDiffClass : {a b k : ℕ} → (a + k ≡ b) → intOfNat k ≡ class (b, a)
   using (intOrder.intOfNat.eq, integer.Int.unfold, natDiffRel, zeroPlusId.rw) ≔
@@ -69,21 +69,12 @@ def natEqOfClassZero : {a b : ℕ} → (class (b, a) ≡ intZero) → b ≡ a
 
 def natSucOfClassPos : {a b j : ℕ} → (class (S j, Z) ≡ class (b, a) ∈ El Int) → a + S j ≡ b
   using (integer.Int.unfold, integer.IntR.eq) ≔
-  λa. λb. λj. λh. trans
-    _
-    _
-    _
-    _
-    (plusComm (S j) a)
-    (trans _ _ _ _ (intEffective _ _ h) (zeroPlusId b))
+  λa. λb. λj. λh. trans _ _ _ (plusComm (S j) a) (trans _ _ _ (intEffective _ _ h) (zeroPlusId b))
 
 def nonNegSgnOfLe : {a b : ℕ} → El (a ≤ b) → El (NonNegS (intSgn (class (b, a))))
   using (integer.Int.unfold, natOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λa. λb. λle. transport
-    _
     NonNegS
-    _
-    _
     (cong (λv. Sign) (λv. intSgn v) (natDiffClass (idToEq _ _ _ (le .π₂))))
     intSgnOfNatNonNeg
 
@@ -95,7 +86,7 @@ def leOfNonNegSgn : {a b : ℕ} → El (NonNegS (intSgn (class (b, a)))) → El 
     rational.nzToInt.eq,
     rationalOrder.NonNegS.unfold) ≔
   λa. λb. λnn. ⊎-elim
-    (h0. leOfEq (sym _ _ _ (natEqOfClassZero (intSgnZeroView _ (idToEq _ _ _ h0)))))
+    (h0. leOfEq (sym _ _ (natEqOfClassZero (intSgnZeroView _ (idToEq _ _ _ h0)))))
     (hp. let v ≔ intSgnPosView
       _
       (idToEq _ _ _ hp) in S (v .π₁), eqToId _ _ (natSucOfClassPos (v .π₂)))
@@ -116,9 +107,7 @@ def qOfNatDiffNum : {a b : ℕ}
     _
     _
     _
-    _
     (trans
-      _
       _
       _
       (intOfNat b + intNeg (intOfNat a))
@@ -184,7 +173,6 @@ def sgnQOfNatDiff : (a b : ℕ) → sgnQ (qOfNat b + qNeg (qOfNat a)) ≡ intSgn
     rationalQ.qcls.eq) ≔
   λa. λb. trans
     _
-    _
     (intSgn (class (b, a) * intOne))
     _
     (cong
@@ -201,14 +189,14 @@ def leQOfNat : {a b : ℕ} → El (a ≤ b) → El (qOfNat a ≤ qOfNat b)
     natOrder.≤.unfold,
     rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold) ≔
-  λa. λb. λle. transport _ NonNegS _ _ (sym _ _ _ (sgnQOfNatDiff a b)) (nonNegSgnOfLe le)
+  λa. λb. λle. transport NonNegS (sym _ _ (sgnQOfNatDiff a b)) (nonNegSgnOfLe le)
 
 def leNOfQ : {a b : ℕ} → El (qOfNat a ≤ qOfNat b) → El (a ≤ b)
   using (integer.Int.unfold,
     natOrder.≤.unfold,
     rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold) ≔
-  λa. λb. λh. leOfNonNegSgn (transport _ NonNegS _ _ (sgnQOfNatDiff a b) h)
+  λa. λb. λh. leOfNonNegSgn (transport NonNegS (sgnQOfNatDiff a b) h)
 
 -- the embedding is additive
 def qOfNatAdd : (a b : ℕ) → qOfNat a + qOfNat b ≡ qOfNat (a + b)
@@ -233,9 +221,7 @@ def qOfNatAdd : (a b : ℕ) → qOfNat a + qOfNat b ≡ qOfNat (a + b)
     _
     _
     _
-    _
     (trans
-      _
       (qOfNat a + qOfNat b)
       (qcls (mkRat (intOfNat a + intScale nzOne (intOfNat b)) nzOne))
       _
@@ -291,8 +277,8 @@ def addOneNat : (c : ℕ) → c + S Z ≡ S c using (nat.+.eq) ≔ λc. ⋆
 
 def qOfNatSuc : (c : ℕ) → qOfNat (S c) ≡ qOfNat c + qOne ≔
   λc. qOfNat (S c)
-      ≡⟨ cong (λw. Q) (λw. qOfNat w) (sym _ _ _ (addOneNat c)) ⟩ qOfNat (c + S Z)
-      ≡⟨ sym _ _ _ (qOfNatAdd c (S Z)) ⟩ qOfNat c + qOfNat (S Z)
+      ≡⟨ cong (λw. Q) (λw. qOfNat w) (sym _ _ (addOneNat c)) ⟩ qOfNat (c + S Z)
+      ≡⟨ sym _ _ (qOfNatAdd c (S Z)) ⟩ qOfNat c + qOfNat (S Z)
       ≡⟨ cong (λw. Q) (λw. qOfNat c + w) qOfNatOne ⟩ qOfNat c + qOne
 
 def qMulSucNat : (c : ℕ) (x : El Q) → qOfNat (S c) * x ≡ qOfNat c * x + x ≔

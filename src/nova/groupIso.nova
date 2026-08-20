@@ -515,7 +515,6 @@ def toImLawQ : {G : 𝕌}
             (sym
               _
               _
-              _
               (toImCls
                 _
                 _
@@ -527,7 +526,6 @@ def toImLawQ : {G : 𝕌}
             (λw. Im _ _ _ _ p)
             (λw. imOp _ _ _ _ _ (toImMap _ _ _ _ p (class a)) w)
             (sym
-              _
               _
               _
               (toImCls
@@ -571,18 +569,16 @@ def toImLaw : (G : 𝕌)
     _
     _
     _
-    _
     (cong
       (λw. Im _ _ _ _ p)
       (λw. toImMap _ _ _ _ _ w)
       (qopIsQMul _ _ _ (kerIsSubgroup _ _ _ _ p) (kerIsNormal _ _ _ _ p) u v))
     (trans
-      _
       (toImMap _ _ _ _ _ (qMul _ _ _ (kerIsNormal _ _ _ _ p) u v))
       _
       _
       toImLawQ
-      (sym _ _ _ (imopIsImOp _ _ _ _ _ (toImMap _ _ _ _ _ u) (toImMap _ _ _ _ _ v))))
+      (sym _ _ (imopIsImOp _ _ _ _ _ (toImMap _ _ _ _ _ u) (toImMap _ _ _ _ _ v))))
 
 def toIm : {G : 𝕌}
   {g : El (IsGroup G)}
@@ -691,7 +687,6 @@ def fromImToIm : (G : 𝕌)
       _
       _
       _
-      _
       (cong (λw. QGroup _ g (ker _ _ _ _ p)) (λw. fromIm w) (toImCls _ _ _ _ p a))
       fromImIn)
     u
@@ -716,7 +711,6 @@ def toImFromImFst : (G : 𝕌)
     quotGroup.qcls.eq) ≔
   λG. λg. λH. λh. λp. λy. λw. quot-elim
     (f. trans
-      _
       _
       (homAp _ _ _ _ p (f .π₁))
       _
@@ -765,7 +759,6 @@ def imIncLaw : (G : 𝕌)
     (gop _ (imIsGroup _ _ _ _ p) u v) ≡ gop _ h (imIncFun _ _ _ _ _ u) (imIncFun _ _ _ _ _ v)
   using (imIncFun.eq, imOp.eq) ≔
   λG. λg. λH. λh. λp. λu. λv. trans
-    _
     _
     _
     _
@@ -831,7 +824,6 @@ def toImOfProj : {G : 𝕌}
     _
     _
     _
-    _
     (cong
       (λw. Im _ _ _ _ p)
       (λw. homAp
@@ -845,7 +837,6 @@ def toImOfProj : {G : 𝕌}
       {qcls _ g (ker _ _ _ _ p) a}
       qProjAp)
     (trans
-      _
       (homAp
         _
         (qIsGroup _ _ _ (kerIsSubgroup _ _ _ _ p) (kerIsNormal _ _ _ _ p))
@@ -886,7 +877,6 @@ def firstIsoFactors : (G : 𝕌)
         a)) ≡ homAp _ _ _ _ p a
   using (imIn.eq, imIncFun.eq) ≔
   λG. λg. λH. λh. λp. λa. trans
-    _
     _
     _
     _

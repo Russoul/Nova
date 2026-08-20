@@ -85,12 +85,8 @@ def qMulInvNat : {D : ℕ} → qOfNat (S D) * qInvNat D ≡ qOne
     real.qInvNat.eq,
     realMul.mulIdx.eq) ≔
   λD. transportP
-    _
     (λw. qOfNat (S D) * qInvNat w ≡ qOne)
-    _
-    _
     (trans
-      _
       (mulIdx D Z)
       _
       _
@@ -101,11 +97,10 @@ def qMulInvNat : {D : ℕ} → qOfNat (S D) * qInvNat D ≡ qOne
           _
           _
           _
-          _
           (multSucId D Z)
-          (trans _ _ _ D (cong (λw. ℕ) (λw. D + w) (multZeroId D)) (plusZeroId D))))
+          (trans _ _ D (cong (λw. ℕ) (λw. D + w) (multZeroId D)) (plusZeroId D))))
       (zeroPlusId D))
-    (transportP _ (λw. qOfNat (S D) * qInvNat (mulIdx D Z) ≡ w) (qInvNat Z) qOne ⋆ qMulInvIdx)
+    (transportP (λw. qOfNat (S D) * qInvNat (mulIdx D Z) ≡ w) {qInvNat Z} {qOne} ⋆ qMulInvIdx)
 
 -- 1/((c+1)(m+1)) is 1/(c+1) times 1/(m+1). nzMul on two positive
 -- denominators lands on c*m + c + m, which is mulIdx c m written the
@@ -114,7 +109,7 @@ def mulIdxNz : {c m : ℕ} → c * m + c + m ≡ mulIdx c m using (realMul.mulId
   λc. λm. c * m + c + m
       ≡⟨ plusComm m (c * m + c) ⟩ m + (c * m + c)
       ≡⟨ cong (λw. ℕ) (λw. m + w) (plusComm c (c * m)) ⟩ m + (c + c * m)
-      ≡⟨ cong (λw. ℕ) (λw. m + w) (sym _ _ _ (multSucId c m)) ⟩ m + c * S m
+      ≡⟨ cong (λw. ℕ) (λw. m + w) (sym _ _ (multSucId c m)) ⟩ m + c * S m
 
 def nzPosMul : (c m : ℕ) → nzMul (nzPos c) (nzPos m) ≡ nzPos (mulIdx c m)
   using (rational.nzMul.eq, rational.nzPos.eq) ≔
@@ -135,21 +130,16 @@ def qInvNatMulIdx : {c m : ℕ} → qInvNat (mulIdx c m) ≡ qInvNat c * qInvNat
       ≡⟨ cong
         (λw. Q)
         (λw. qcls (mkRat intOne w))
-        (sym _ _ _ (nzPosMul c m)) ⟩ qcls (mkRat intOne (nzMul (nzPos c) (nzPos m)))
+        (sym _ _ (nzPosMul c m)) ⟩ qcls (mkRat intOne (nzMul (nzPos c) (nzPos m)))
       ≡⟨ cong
         (λw. Q)
         (λw. qcls (mkRat w (nzMul (nzPos c) (nzPos m))))
-        (sym _ _ _ (intMulOneL intOne)) ⟩ qcls (mkRat (intOne * intOne) (nzMul (nzPos c) (nzPos m)))
+        (sym _ _ (intMulOneL intOne)) ⟩ qcls (mkRat (intOne * intOne) (nzMul (nzPos c) (nzPos m)))
       ≡⟨ cong
         (λw. Q)
         (λw. qcls w)
-        (sym
-          _
-          _
-          _
-          (ratMulInv c m)) ⟩ qcls (ratMul (mkRat intOne (nzPos c)) (mkRat intOne (nzPos m)))
+        (sym _ _ (ratMulInv c m)) ⟩ qcls (ratMul (mkRat intOne (nzPos c)) (mkRat intOne (nzPos m)))
       ≡⟨ sym
-        _
         _
         _
         (qMulCls
@@ -158,8 +148,8 @@ def qInvNatMulIdx : {c m : ℕ} → qInvNat (mulIdx c m) ≡ qInvNat c * qInvNat
       ≡⟨ cong
         (λw. Q)
         (λw. w * qcls (mkRat intOne (nzPos m)))
-        (sym _ _ _ (qInvNatCls c)) ⟩ qInvNat c * qcls (mkRat intOne (nzPos m))
-      ≡⟨ cong (λw. Q) (λw. qInvNat c * w) (sym _ _ _ (qInvNatCls m)) ⟩ qInvNat c * qInvNat m
+        (sym _ _ (qInvNatCls c)) ⟩ qInvNat c * qcls (mkRat intOne (nzPos m))
+      ≡⟨ cong (λw. Q) (λw. qInvNat c * w) (sym _ _ (qInvNatCls m)) ⟩ qInvNat c * qInvNat m
 
 -- ===== comparing two approximants =====
 --
@@ -176,7 +166,7 @@ def qMulSwap3 : (x y z : El Q) → x * y * z ≡ x * z * y ≔
   λx. λy. λz. x * y * z
       ≡⟨ qMulAssoc x y z ⟩ x * (y * z)
       ≡⟨ cong (λw. Q) (λw. x * w) (qMulComm y z) ⟩ x * (z * y)
-      ≡⟨ sym _ _ _ (qMulAssoc x z y) ⟩ x * z * y
+      ≡⟨ sym _ _ (qMulAssoc x z y) ⟩ x * z * y
 
 def qDistrib3 : (x y z w : El Q) → (x + y) * z * w ≡ x * z * w + y * z * w ≔
   λx. λy. λz. λw. (x + y) * z * w
@@ -204,16 +194,10 @@ def flCompare : {u v : El Q}
   using (qScaled.eq) ≔
   λu. λv. λDm. λDn. λT. λd. λnnu. λh1. λh2. leNOfQ
     (transport
-      _
       (λw. w ≤ qOfNat (S (qFl v Dn) * sqNat Dm + T))
-      _
-      _
       (qOfNatMul (qFl u Dm) (sqNat Dn))
       (transport
-        _
         (λw. qOfNat (qFl u Dm) * qOfNat (sqNat Dn) ≤ w)
-        _
-        _
         (qNatSumEq (S (qFl v Dn)) (sqNat Dm) T)
         (leQTrans
           _
@@ -226,22 +210,16 @@ def flCompare : {u v : El Q}
             _
             (leQMulMono _ _ (leQMulMono _ _ h1 (leQZeroNat (sqNat Dm))) (leQZeroNat (sqNat Dn)))
             (transport
-              _
               (λw. w ≤ qOfNat (S (qFl v Dn)) * qOfNat (sqNat Dm) + qOfNat T)
-              _
-              _
-              (sym _ _ _ (qDistrib3 v d (qOfNat (sqNat Dm)) (qOfNat (sqNat Dn))))
+              (sym _ _ (qDistrib3 v d (qOfNat (sqNat Dm)) (qOfNat (sqNat Dn))))
               (leQAdd
                 _
                 _
                 _
                 _
                 (transport
-                  _
                   (λw. w ≤ qOfNat (S (qFl v Dn)) * qOfNat (sqNat Dm))
-                  _
-                  _
-                  (sym _ _ _ (qMulSwap3 v (qOfNat (sqNat Dm)) (qOfNat (sqNat Dn))))
+                  (sym _ _ (qMulSwap3 v (qOfNat (sqNat Dm)) (qOfNat (sqNat Dn))))
                   (leQMulMono (v * qOfNat (sqNat Dn)) _ (leQFlAbove v Dn) (leQZeroNat (sqNat Dm))))
                 h2))))))
 
@@ -251,7 +229,7 @@ def mulSq : (a b : ℕ) → a * b * (a * b) ≡ a * a * (b * b) ≔
   λa. λb. a * b * (a * b)
       ≡⟨ multAssoc a b (a * b) ⟩ a * (b * (a * b))
       ≡⟨ cong (λw. ℕ) (λw. a * w) (multLeftComm b a b) ⟩ a * (a * (b * b))
-      ≡⟨ sym _ _ _ (multAssoc a a (b * b)) ⟩ a * a * (b * b)
+      ≡⟨ sym _ _ (multAssoc a a (b * b)) ⟩ a * a * (b * b)
 
 def sqrtCompareN : {u v : El Q}
   {Dm Dn T : ℕ}
@@ -271,17 +249,11 @@ def sqrtCompareN : {u v : El Q}
   using (sqNat.eq) ≔
   λu. λv. λDm. λDn. λT. λd. λnnu. λh1. λh2. sqrtStepN
     (transport
-      _
       (λw. w ≤ S (qSqrtNum v Dn) * S Dm * (S (qSqrtNum v Dn) * S Dm) + T)
-      _
-      _
-      (sym _ _ _ (mulSq (qSqrtNum u Dm) (S Dn)))
+      (sym _ _ (mulSq (qSqrtNum u Dm) (S Dn)))
       (transport
-        _
         (λw. qSqrtNum u Dm * qSqrtNum u Dm * (S Dn * S Dn) ≤ w + T)
-        _
-        _
-        (sym _ _ _ (mulSq (S (qSqrtNum v Dn)) (S Dm)))
+        (sym _ _ (mulSq (S (qSqrtNum v Dn)) (S Dm)))
         (leTrans
           (qSqrtNum u Dm * qSqrtNum u Dm * (S Dn * S Dn))
           (qFl u Dm * sqNat Dn)
@@ -300,7 +272,7 @@ def sqrtCompareN : {u v : El Q}
 -- ===== ...and back to a comparison of approximants =====
 def qMulLeftComm : (x y z : El Q) → x * (y * z) ≡ y * (x * z) ≔
   λx. λy. λz. x * (y * z)
-      ≡⟨ sym _ _ _ (qMulAssoc x y z) ⟩ x * y * z
+      ≡⟨ sym _ _ (qMulAssoc x y z) ⟩ x * y * z
       ≡⟨ cong (λw. Q) (λw. w * z) (qMulComm x y) ⟩ y * x * z
       ≡⟨ qMulAssoc y x z ⟩ y * (x * z)
 
@@ -330,48 +302,32 @@ def crossToQ : {a b e Dm Dn : ℕ}
       + e)
     → El (qOfNat a * qInvNat Dm ≤ qOfNat b * qInvNat Dn + qOfNat e * (qInvNat Dm * qInvNat Dn)) ≔
   λa. λb. λe. λDm. λDn. λle. transport
-    _
     (λw. w ≤ qOfNat b * qInvNat Dn + qOfNat e * (qInvNat Dm * qInvNat Dn))
-    (qOfNat a * qOfNat (S Dn) * (qInvNat Dm * qInvNat Dn))
-    (qOfNat a * qInvNat Dm)
+    {qOfNat a * qOfNat (S Dn) * (qInvNat Dm * qInvNat Dn)}
+    {qOfNat a * qInvNat Dm}
     cancelDen
     (transport
-      Q
+      {Q}
       (λw. qOfNat a * qOfNat (S Dn) * (qInvNat Dm * qInvNat Dn) ≤ w)
-      _
-      _
       (cong
         (λw. Q)
         (λw. w + qOfNat e * (qInvNat Dm * qInvNat Dn))
         (trans
           _
           _
-          _
           (qOfNat b * qInvNat Dn)
           (cong (λw. Q) (λw. qOfNat b * qOfNat (S Dm) * w) (qMulComm (qInvNat Dm) (qInvNat Dn)))
           cancelDen))
       (transport
-        _
         (λw. qOfNat a * qOfNat (S Dn) * (qInvNat Dm * qInvNat Dn) ≤ w)
-        _
-        _
         (qDistribR (qInvNat Dm * qInvNat Dn) (qOfNat b * qOfNat (S Dm)) (qOfNat e))
         (leQMulMono
           _
           _
           (transport
-            _
             (λw. w ≤ qOfNat b * qOfNat (S Dm) + qOfNat e)
-            _
-            _
-            (sym _ _ _ (qOfNatMul a (S Dn)))
-            (transport
-              _
-              (λw. qOfNat (a * S Dn) ≤ w)
-              _
-              _
-              (sym _ _ _ (qNatSumEq b (S Dm) e))
-              (leQOfNat le)))
+            (sym _ _ (qOfNatMul a (S Dn)))
+            (transport (λw. qOfNat (a * S Dn) ≤ w) (sym _ _ (qNatSumEq b (S Dm) e)) (leQOfNat le)))
           (leQZeroMul (leQZeroInvNat Dm) (leQZeroInvNat Dn)))))
 
 -- ===== THE comparison, in ℚ =====
@@ -403,9 +359,8 @@ def leQSqrtStep : {u v : El Q}
           Dm ≤ qSqrtAt v Dn + qInvNat Dn + qOfNat (S (isqrt T)) * (qInvNat Dm * qInvNat Dn))
   using (qSqrtAt.eq) ≔
   λu. λv. λDm. λDn. λT. λd. λnnu. λh1. λh2. transport
-    _
     (λw. qSqrtAt u Dm ≤ w + qOfNat (S (isqrt T)) * (qInvNat Dm * qInvNat Dn))
-    _
-    (qSqrtAt v Dn + qInvNat Dn)
+    {qOfNat (S (qSqrtNum v Dn)) * qInvNat Dn}
+    {qSqrtAt v Dn + qInvNat Dn}
     (qMulSucNat (qSqrtNum v Dn) (qInvNat Dn))
     (crossToQ (sqrtCompareN _ nnu h1 h2))

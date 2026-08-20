@@ -59,10 +59,7 @@ def leQBoundDblL : (m n : ℕ) → El (rBound (dbl m) n ≤ rBound m n)
 def leQBoundDblDiag : (n : ℕ) → El (rBound (dbl n) (dbl n) ≤ rBound n n)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λn. transport
-    _
     (λw. rBound (dbl n) (dbl n) ≤ w)
-    _
-    _
     (rBoundHalf n n)
     (leQSelfAdd (rBound (dbl n) (dbl n)) (leQZeroBound (dbl n) (dbl n)))
 
@@ -148,7 +145,7 @@ def rAddWDInner : (x : El RSeq) {y y' : El RSeq} → Prf (REq y y') → Prf (REq
     (λn. bndEq
       _
       (seqOf x (dbl n) + seqOf y (dbl n) + qNeg (seqOf x (dbl n) + seqOf y' (dbl n)))
-      (sym _ _ _ (qSubPlusCancelL (seqOf y' (dbl n)) (seqOf y (dbl n)) (seqOf x (dbl n))))
+      (sym _ _ (qSubPlusCancelL (seqOf y' (dbl n)) (seqOf y (dbl n)) (seqOf x (dbl n))))
       (bndWeaken _ _ (seqOf y (dbl n) + qNeg (seqOf y' (dbl n))) (leQBoundDblDiag n) (u (dbl n)))))
 
 def rAddWDInnerCls : (x y y' : El RSeq)
@@ -270,7 +267,7 @@ def realAddNegR : (u : El Real) → u + realNeg u ≡ realZero
     u
 
 def realAddNegL : (u : El Real) → realNeg u + u ≡ realZero ≔
-  λu. trans _ _ _ _ (realAddComm (realNeg u) u) (realAddNegR u)
+  λu. trans _ _ _ (realAddComm (realNeg u) u) (realAddNegR u)
 
 -- ===== the laws that are index shifts =====
 -- x + 0 = x : the left summand is sampled deeper, and 1/(2n+2) ≤ 1/(n+1)
@@ -283,11 +280,8 @@ def realAddZeroR : (u : El Real) → u + realZero ≡ u
     realNeg.seqOf.eq) ≔
   λu. quot-elim
     (p. transportP
-      _
       (λv. v ≡ class p)
-      _
-      _
-      (sym _ (class p + realZero) _ (realAddCls p ((λn. qZero), constReg)))
+      (sym (class p + realZero) _ (realAddCls p ((λn. qZero), constReg)))
       (realEqOfREq
         _
         _
@@ -298,12 +292,12 @@ def realAddZeroR : (u : El Real) → u + realZero ≡ u
           (λn. bndEq
             _
             (seqOf p (dbl n) + qZero + qNeg (seqOf p n))
-            (cong (λw. Q) (λw. w + qNeg (seqOf p n)) (sym _ _ _ (qAddZeroR (seqOf p (dbl n)))))
+            (cong (λw. Q) (λw. w + qNeg (seqOf p n)) (sym _ _ (qAddZeroR (seqOf p (dbl n)))))
             (bndWeaken _ _ _ (leQBoundDblL n n) (regBnd _ (regOf p) (dbl n) n))))))
     u
 
 def realAddZeroL : (u : El Real) → realZero + u ≡ u ≔
-  λu. trans _ _ _ _ (realAddComm realZero u) (realAddZeroR u)
+  λu. trans _ _ _ (realAddComm realZero u) (realAddZeroR u)
 
 -- ((a+b)+c) − (a′+(b+c′)) ≡ (a−a′) + (c−c′): the shared middle term
 -- drops out, which is the whole content of associativity here
@@ -314,8 +308,8 @@ def qMidCancel : (a b c a' c' : El Q)
       ≡⟨ cong
         (λw. Q)
         (λw. a + b + c + qNeg w)
-        (sym _ _ _ (qAddAssoc a' b c')) ⟩ a + b + c + qNeg (a' + b + c')
-      ≡⟨ sym _ _ _ (qSubAdd (a + b) (a' + b) c c') ⟩ a + b + qNeg (a' + b) + (c + qNeg c')
+        (sym _ _ (qAddAssoc a' b c')) ⟩ a + b + c + qNeg (a' + b + c')
+      ≡⟨ sym _ _ (qSubAdd (a + b) (a' + b) c c') ⟩ a + b + qNeg (a' + b) + (c + qNeg c')
       ≡⟨ cong (λw. Q) (λw. w + (c + qNeg c')) (qSubPlusCancel a' a b) ⟩ a + qNeg a' + (c + qNeg c')
 
 -- associativity: the two bracketings sample x and z at different
@@ -370,7 +364,6 @@ def realAddAssoc : (u v w : El Real) → u + v + w ≡ u + (v + w)
                   (dbl
                     n) + qNeg (seqOf x (dbl n) + (seqOf y (dbl (dbl n)) + seqOf z (dbl (dbl n)))))
               (sym
-                _
                 _
                 _
                 (qMidCancel

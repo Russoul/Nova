@@ -33,7 +33,7 @@ def intDblSquare : (g : El Int) → (g + g + (g + g)) * g ≡ (g + g) * (g + g)
   using (integer.Int.unfold) ≔
   λg. (g + g + (g + g)) * g
       ≡⟨ intMulDistribR (g + g) (g + g) g ⟩ (g + g) * g + (g + g) * g
-      ≡⟨ sym _ _ _ (intMulDistribL (g + g) g g) ⟩ (g + g) * (g + g)
+      ≡⟨ sym _ _ (intMulDistribL (g + g) g g) ⟩ (g + g) * (g + g)
 
 -- ===== pushing the doubled index through nzToInt =====
 def nzPosInt : (k : ℕ) → nzToInt (nzPos k) ≡ intOfNat (S k)
@@ -50,9 +50,8 @@ def nzPosDbl : (n : ℕ) → nzToInt (nzPos (dbl n)) ≡ nzToInt (nzPos n) + nzT
   λn. nzToInt (nzPos (dbl n))
       ≡⟨ nzPosInt (dbl n) ⟩ intOfNat (S (dbl n))
       ≡⟨ cong (λw. Int) (λw. intOfNat w) (sucDbl n) ⟩ intOfNat (S n + S n)
-      ≡⟨ sym _ _ _ (intOfNatPlus (S n) (S n)) ⟩ intOfNat (S n) + intOfNat (S n)
+      ≡⟨ sym _ _ (intOfNatPlus (S n) (S n)) ⟩ intOfNat (S n) + intOfNat (S n)
       ≡⟨ sym
-        _
         _
         (intOfNat (S n) + intOfNat (S n))
         (cong (λw. Int) (λw. w + w) (nzPosInt n)) ⟩ nzToInt (nzPos n) + nzToInt (nzPos n)
@@ -155,15 +154,13 @@ def halfCross : {n : ℕ}
             n)) ⟩ (nzToInt (nzPos n) + nzToInt (nzPos n)) * (nzToInt (nzPos n) + nzToInt (nzPos n))
       ≡⟨ sym
         _
-        _
         ((nzToInt (nzPos n) + nzToInt (nzPos n)) * (nzToInt (nzPos n) + nzToInt (nzPos n)))
         (cong
           (λw. Int)
           (λw. w * w)
           (nzPosDbl n)) ⟩ nzToInt (nzPos (dbl n)) * nzToInt (nzPos (dbl n))
-      ≡⟨ sym _ _ _ (unitAddDenU (dbl n)) ⟩ dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))
+      ≡⟨ sym _ _ (unitAddDenU (dbl n)) ⟩ dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))
       ≡⟨ sym
-        _
         _
         _
         (intMulOneL
@@ -194,7 +191,6 @@ def qInvHalf : (n : ℕ) → qInvNat (dbl n) + qInvNat (dbl n) ≡ qInvNat n
     real.qInvNat.eq) ≔
   λn. trans
     _
-    _
     (qcls (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
     _
     (qAddCls (unitRat (dbl n)) (unitRat (dbl n)))
@@ -210,9 +206,6 @@ def leQZeroInvNat : (n : ℕ) → El (qZero ≤ qInvNat n)
 def leQInvDbl : (n : ℕ) → El (qInvNat (dbl n) ≤ qInvNat n)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λn. transport
-    _
     (λw. qInvNat (dbl n) ≤ w)
-    _
-    _
     (qInvHalf n)
     (leQSelfAdd (qInvNat (dbl n)) (leQZeroInvNat (dbl n)))

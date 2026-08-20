@@ -42,8 +42,7 @@ def ltQIrrefl : (x : El Q) → El (x < x) → 𝟘 ≔
       _
       _
       _
-      _
-      (sym _ _ _ (trans _ _ _ sZero (cong (λw. Sign) (λw. sgnQ w) (qAddNegR x)) sgnQZero))
+      (sym _ _ (trans _ _ sZero (cong (λw. Sign) (λw. sgnQ w) (qAddNegR x)) sgnQZero))
       (sgnOfLtQ h))
 
 def ltQAsym : (x y : El Q) → El (x < y) → El (y < x) → 𝟘
@@ -59,18 +58,15 @@ def ltQAsym : (x y : El Q) → El (x < y) → El (y < x) → 𝟘
       _
       _
       _
-      _
       (sym
         _
         _
-        _
         (trans
-          _
           (sgnQ (x + qNeg y))
           _
           _
           sgnQSubFlip
-          (trans _ _ _ sNeg (cong (λw. Sign) (λw. sgnFlip w) (sgnOfLtQ h1)) ⋆)))
+          (trans _ _ sNeg (cong (λw. Sign) (λw. sgnFlip w) (sgnOfLtQ h1)) ⋆)))
       (sgnOfLtQ h2))
 
 -- ===== transitivity, in all four mixed forms =====
@@ -82,11 +78,10 @@ def sgnQAddPosNonNeg : {a b : El Q} → (sgnQ a ≡ sPos) → El (NonNegS (sgnQ 
       _
       _
       _
-      _
       (cong
         (λw. Sign)
         (λw. sgnQ w)
-        (trans _ _ _ a (cong (λw. Q) (λw. a + w) (sgnQZeroView _ (idToEq _ _ _ h0))) (qAddZeroR a)))
+        (trans _ _ a (cong (λw. Q) (λw. a + w) (sgnQZeroView _ (idToEq _ _ _ h0))) (qAddZeroR a)))
       ha)
     (hp. sgnQAddPos _ _ ha (idToEq _ _ _ hp))
     hb
@@ -99,9 +94,8 @@ def ltQTrans : (x y z : El Q) → El (x < y) → El (y < z) → El (x < z)
     (trans
       _
       _
-      _
       sPos
-      (cong (λw. Sign) (λw. sgnQ w) (sym _ _ _ (qSubSplit x y z)))
+      (cong (λw. Sign) (λw. sgnQ w) (sym _ _ (qSubSplit x y z)))
       (sgnQAddPos _ _ (sgnOfLtQ h2) (sgnOfLtQ h1)))
 
 def leQLtTrans : (x y z : El Q) → El (x ≤ y) → El (y < z) → El (x < z)
@@ -114,11 +108,11 @@ def leQLtTrans : (x y z : El Q) → El (x ≤ y) → El (y < z) → El (x < z)
     _
     _
     (trans
-      Sign
+      {Sign}
       _
       (sgnQ (z + qNeg y + (y + qNeg x)))
       sPos
-      (cong (λw. Sign) (λw. sgnQ w) (sym _ _ _ (qSubSplit x y z)))
+      (cong (λw. Sign) (λw. sgnQ w) (sym _ _ (qSubSplit x y z)))
       (sgnQAddPosNonNeg (sgnOfLtQ h2) h1))
 
 def ltQLeTrans : (x y z : El Q) → El (x < y) → El (y ≤ z) → El (x < z)
@@ -131,14 +125,14 @@ def ltQLeTrans : (x y z : El Q) → El (x < y) → El (y ≤ z) → El (x < z)
     _
     _
     (trans
-      Sign
+      {Sign}
       _
       (sgnQ (y + qNeg x + (z + qNeg y)))
       sPos
       (cong
         (λw. Sign)
         (λw. sgnQ w)
-        (trans _ _ _ _ (sym _ _ _ (qSubSplit x y z)) (qAddComm (z + qNeg y) (y + qNeg x))))
+        (trans _ _ _ (sym _ _ (qSubSplit x y z)) (qAddComm (z + qNeg y) (y + qNeg x))))
       (sgnQAddPosNonNeg (sgnOfLtQ h1) h2))
 
 -- ===== trichotomy =====
@@ -157,38 +151,31 @@ def ltQTrichotomy : (x y : El Q) → El (x < y) ⊎ El (Id _ x y) ⊎ El (y < x)
     rationalQ.qNeg.eq) ≔
   λx. λy. ⊎-elim
     (nn. ⊎-elim
-      (h0. inj₂ (inj₁ (eqToId _ _ (sym _ _ _ (qDiffZero (sgnQZeroView _ (idToEq _ _ _ h0)))))))
+      (h0. inj₂ (inj₁ (eqToId _ _ (sym _ _ (qDiffZero (sgnQZeroView _ (idToEq _ _ _ h0)))))))
       (hp. inj₁ hp)
       nn)
     (hneg. inj₂ (inj₂ (ltQOfSgn
       _
       _
       (trans
-        _
         (sgnQ (x + qNeg y))
         _
         _
         sgnQSubFlip
-        (trans _ _ _ sPos (cong (λw. Sign) (λw. sgnFlip w) (idToEq _ _ _ hneg)) ⋆)))))
+        (trans _ _ sPos (cong (λw. Sign) (λw. sgnFlip w) (idToEq _ _ _ hneg)) ⋆)))))
     (sgnCases (sgnQ (y + qNeg x)))
 
 -- ===== compatibility with addition =====
 def ltQPlusMono : (x y w : El Q) → El (x < y) → El (x + w < y + w)
   using (id.Id.unfold, ratLt.<.unfold, rationalQ.Q.unfold) ≔
   λx. λy. λw. λh. transport
-    _
     (λs. Id _ s sPos)
-    _
-    _
-    (sym _ _ (sgnQ (y + qNeg x)) (cong (λv. Sign) (λv. sgnQ v) (qSubPlusCancel x y w)))
+    (sym _ (sgnQ (y + qNeg x)) (cong (λv. Sign) (λv. sgnQ v) (qSubPlusCancel x y w)))
     h
 
 def ltQPlusMonoL : (x y w : El Q) → El (x < y) → El (w + x < w + y)
   using (id.Id.unfold, ratLt.<.unfold, rationalQ.Q.unfold) ≔
   λx. λy. λw. λh. transport
-    _
     (λs. Id _ s sPos)
-    _
-    _
-    (sym _ _ (sgnQ (y + qNeg x)) (cong (λv. Sign) (λv. sgnQ v) (qSubPlusCancelL x y w)))
+    (sym _ (sgnQ (y + qNeg x)) (cong (λv. Sign) (λv. sgnQ v) (qSubPlusCancelL x y w)))
     h
