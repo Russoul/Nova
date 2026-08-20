@@ -118,7 +118,7 @@ def realAbsZeroInv : (u : El Real) → (realAbs u ≡ realZero) → u ≡ realZe
       (λw. w ≤ u)
       (realNeg (realAbs u))
       _
-      (trans _ _ _ realZero (cong Real (λw. Real) (λw. realNeg w) _ _ h) realNegZero)
+      (trans _ _ _ realZero (cong _ (λw. Real) (λw. realNeg w) _ _ h) realNegZero)
       leRNegAbsSelf)
 
 -- ===== the distance =====
@@ -157,7 +157,7 @@ def realDistCls : (p q : El RSeq) → realDist (class p) (class q) ≡ class (rA
       _
       (realAbs (class (rAdd p (rNeg q))))
       (class (rAbs (rAdd p (rNeg q))))
-      (cong Real (λw. Real) (λw. realAbs w) _ _ (realAddCls p (rNeg q)))
+      (cong _ (λw. Real) (λw. realAbs w) _ _ (realAddCls p (rNeg q)))
       realAbsCls)
 
 -- THE SECOND BRIDGE, for the element side. rleOf's argument type

@@ -56,7 +56,7 @@ def sumZeroL : (x y : ℕ) → (x + y ≡ Z) → x ≡ Z ≔
   λx. λy. λh. sumZeroR _ _ (trans _ _ _ _ (plusComm x y) h)
 
 def leZeroInv : {a : ℕ} → El (a ≤ Z) → a ≡ Z using (natOrder.≤.unfold) ≔
-  λa. λle. sumZeroL _ _ (trans ℕ _ Z Z (idToEq _ _ _ (le .π₂)) ⋆)
+  λa. λle. sumZeroL _ _ (trans _ _ _ Z (idToEq _ _ _ (le .π₂)) ⋆)
 
 def leAntisym : (a b : ℕ) → El (a ≤ b) → El (b ≤ a) → a ≡ b
   using (id.Id.unfold, natOrder.≤.unfold) ≔
@@ -106,7 +106,7 @@ def leSucMono : {a b : ℕ} → El (a ≤ b) → El (S a ≤ S b) using (id.Id.u
         _
         (le .π₂) in S a + le .π₁
           ≡⟨ sucPlus a (le .π₁) ⟩ S (a + le .π₁)
-          ≡⟨ cong ℕ (λu. ℕ) (λu. S u) _ _ h ⟩ S b)
+          ≡⟨ cong _ (λu. ℕ) (λu. S u) _ _ h ⟩ S b)
 
 def leSucInv : (a b : ℕ) → El (S a ≤ S b) → El (a ≤ b) using (id.Id.unfold, natOrder.≤.unfold) ≔
   λa. λb. λle. le .π₁,
@@ -162,7 +162,7 @@ def leMultMonoR : {a b : ℕ} (c : ℕ) → El (a ≤ b) → El (a * c ≤ b * c
           ≡⟨ plusCongR (c * a) (multComm c (le .π₁)) ⟩ c * a + c * le .π₁
           ≡⟨ sym _ _ _ (multDistrib c a (le .π₁)) ⟩ c * (a + le .π₁)
           ≡⟨ multComm (a + le .π₁) c ⟩ (a + le .π₁) * c
-          ≡⟨ cong ℕ (λu. ℕ) (λu. u * c) _ _ h ⟩ b * c)
+          ≡⟨ cong _ (λu. ℕ) (λu. u * c) _ _ h ⟩ b * c)
 
 -- ===== totality: the DECISION, as data =====
 def leTotal : (a b : ℕ) → El (a ≤ b) ⊎ El (b ≤ a) ≔

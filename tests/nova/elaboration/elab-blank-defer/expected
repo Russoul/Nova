@@ -1,0 +1,4 @@
+defined cong2
+defined double
+defined useCong
+Error: def bad: cannot infer the blank at argument #0 of 'cong2' — spell the argument

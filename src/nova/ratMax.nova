@@ -129,7 +129,7 @@ def leQMinL : (u v : El Q) → El (qMin u v ≤ u)
     rationalQ.+.eq,
     rationalQ.qNeg.eq) ≔
   λu. λv. transport
-    Q
+    _
     (λw. qMin u v ≤ w)
     _
     _
@@ -150,7 +150,7 @@ def leQMinR : (u v : El Q) → El (qMin u v ≤ v)
     rationalQ.+.eq,
     rationalQ.qNeg.eq) ≔
   λu. λv. transport
-    Q
+    _
     (λw. qMin u v ≤ w)
     _
     _
@@ -171,7 +171,7 @@ def qMinGlb : {u v w : El Q} → El (w ≤ u) → El (w ≤ v) → El (w ≤ qMi
     rationalQ.+.eq,
     rationalQ.qNeg.eq) ≔
   λu. λv. λw. λh1. λh2. transport
-    Q
+    _
     (λt. t ≤ qMin u v)
     _
     _
@@ -180,11 +180,11 @@ def qMinGlb : {u v w : El Q} → El (w ≤ u) → El (w ≤ v) → El (w ≤ qMi
 
 def qMinComm : (u v : El Q) → qMin u v ≡ qMin v u
   using (ratMax.qMax.eq, ratMax.qMin.eq, rationalQ.Q.unfold, rationalQ.qNeg.eq) ≔
-  λu. λv. cong Q (λw. Q) (λw. qNeg w) _ _ (qMaxComm (qNeg u) (qNeg v))
+  λu. λv. cong _ (λw. Q) (λw. qNeg w) _ _ (qMaxComm (qNeg u) (qNeg v))
 
 -- (−a) − (−c) ≡ c − a : the difference of negations is reversed
 def qNegDiff : (a c : El Q) → qNeg a + qNeg (qNeg c) ≡ c + qNeg a ≔
-  λa. λc. trans _ _ _ _ (cong Q (λw. Q) (λw. qNeg a + w) _ _ (qNegNeg c)) (qAddComm (qNeg a) c)
+  λa. λc. trans _ _ _ _ (cong _ (λw. Q) (λw. qNeg a + w) _ _ (qNegNeg c)) (qAddComm (qNeg a) c)
 
 -- min is 1-Lipschitz because max is: the negations cancel
 def bndMinSub : (b a c a' c' : El Q)
@@ -225,7 +225,7 @@ def bndMinSub : (b a c a' c' : El Q)
 def qMinGlbShift : (a b w r : El Q) → El (w ≤ a + r) → El (w ≤ b + r) → El (w ≤ qMin a b + r)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λa. λb. λw. λr. λh1. λh2. transport
-    Q
+    _
     (λt. t ≤ qMin a b + r)
     _
     _

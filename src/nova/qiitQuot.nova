@@ -26,7 +26,7 @@ def qliftBeta : (a : 𝕌)
   (f : El a → El b)
   (resp : (x y : El a) → Prf (r x y) → f x ≡ f y)
   (x : El a)
-  → qlift a (λy. λz. r y z) f resp (cls a r x) ≡ f x
+  → qlift _ (λy. λz. r y z) f resp (cls a r x) ≡ f x
   using (qiitQuot.Q.eq, qiitQuot.QElim.eq, qiitQuot.cls.eq, qiitQuot.qlift.eq) ≔
   λa. λr. λb. λf. λresp. λx. ⋆
 
@@ -34,7 +34,7 @@ def qliftBeta : (a : 𝕌)
 def eqN : El ℕ → El ℕ → Ω ≔ λx. λy. x ≡ y ∈ ℕ
 
 def toNat : El (Q _ eqN) → ℕ using (qiitQuot.Q.unfold, qiitQuot.eqN.unfold) ≔
-  λq. qlift ℕ eqN (λx. x) (λx. λy. λh. ⋆) q
+  λq. qlift _ _ (λx. x) (λx. λy. λh. ⋆) q
 
 def toNatCls : toNat (cls ℕ eqN (S Z)) ≡ S Z
   using (qiitQuot.Q.eq,

@@ -46,7 +46,7 @@ def qInvQuarter : {j : ℕ}
     _
     _
     (cong
-      Q
+      _
       (λw. Q)
       (λw. w + w)
       (qInvNat (qtr j) + qInvNat (qtr j))
@@ -59,7 +59,7 @@ def qSum6 : (a b : El Q) → a + b + (a + b + (b + b)) ≡ a + a + (b + b + (b +
   using (rationalQ.Q.unfold) ≔
   λa. λb. a + b + (a + b + (b + b))
       ≡⟨ sym _ _ _ (qAddAssoc (a + b) (a + b) (b + b)) ⟩ a + b + (a + b) + (b + b)
-      ≡⟨ cong Q (λw. Q) (λw. w + (b + b)) _ _ (qPairSwap a b a b) ⟩ a + a + (b + b) + (b + b)
+      ≡⟨ cong _ (λw. Q) (λw. w + (b + b)) _ _ (qPairSwap a b a b) ⟩ a + a + (b + b) + (b + b)
       ≡⟨ qAddAssoc (a + a) (b + b) (b + b) ⟩ a + a + (b + b + (b + b))
 
 -- 2a + 4b sits under 4a + 4b, i.e. under rBound m n
@@ -126,7 +126,7 @@ def leQQuarterSum : (m n : ℕ)
         (leQSelfAdd
           (qInvNat (qtr m) + qInvNat (qtr m))
           (transport
-            Q
+            _
             (λw. qZero ≤ w)
             _
             _
@@ -202,9 +202,9 @@ def qSum7 : (b g a : El Q) → b + a + (g + a + (a + a)) ≡ g + (b + (a + a + (
   using (rationalQ.Q.unfold) ≔
   λb. λg. λa. b + a + (g + a + (a + a))
       ≡⟨ sym _ _ _ (qAddAssoc (b + a) (g + a) (a + a)) ⟩ b + a + (g + a) + (a + a)
-      ≡⟨ cong Q (λw. Q) (λw. w + (a + a)) _ _ (qPairSwap b a g a) ⟩ b + g + (a + a) + (a + a)
+      ≡⟨ cong _ (λw. Q) (λw. w + (a + a)) _ _ (qPairSwap b a g a) ⟩ b + g + (a + a) + (a + a)
       ≡⟨ qAddAssoc (b + g) (a + a) (a + a) ⟩ b + g + (a + a + (a + a))
-      ≡⟨ cong Q (λw. Q) (λw. w + (a + a + (a + a))) _ _ (qAddComm b g) ⟩ g + b + (a + a + (a + a))
+      ≡⟨ cong _ (λw. Q) (λw. w + (a + a + (a + a))) _ _ (qAddComm b g) ⟩ g + b + (a + a + (a + a))
       ≡⟨ qAddAssoc g b (a + a + (a + a)) ⟩ g + (b + (a + a + (a + a)))
 
 -- |x_n(j) − L(j)| ≤ |x_n(j) − x_n(qj)| + |x_n(qj) − x_qj(qj)|
@@ -272,7 +272,7 @@ def realLimClose : (x : El (ℕ → RSeq))
     (class (rAbs (rAdd (x n) (rNeg (rLim _ h)))))
     _
     (sym
-      Real
+      _
       (realDist (class (x n)) (realLim _ h))
       (class (rAbs (rAdd (x n) (rNeg (rLim _ h)))))
       (realDistCls (x n) (rLim _ h)))

@@ -42,7 +42,7 @@ def leQInvOne : (k : ℕ) → El (qInvNat k ≤ qOfNat (S Z))
     rationalQ.qcls.eq,
     real.qInvNat.eq) ≔
   λk. leQFracOfNat
-    (transport ℕ (λw. S Z ≤ w) _ _ (sym _ _ _ (oneMult (S k))) (leSucMono (leZero k)))
+    (transport _ (λw. S Z ≤ w) _ _ (sym _ _ _ (oneMult (S k))) (leSucMono (leZero k)))
 
 def leQBoundTwo : (n : ℕ) → El (rBound n Z ≤ qOfNat 2)
   using (id.Id.eq,
@@ -59,7 +59,7 @@ def leQBoundTwo : (n : ℕ) → El (rBound n Z ≤ qOfNat 2)
     real.qInvNat.eq,
     real.rBound.eq) ≔
   λn. transport
-    Q
+    _
     (λw. rBound n Z ≤ w)
     (qOfNat (S Z) + qOfNat (S Z))
     (qOfNat 2)
@@ -69,9 +69,9 @@ def leQBoundTwo : (n : ℕ) → El (rBound n Z ≤ qOfNat 2)
 -- ===== a + (b − a) ≡ b =====
 def qAddSubCancelL : (a b : El Q) → a + (b + qNeg a) ≡ b using (rationalQ.Q.unfold) ≔
   λa. λb. a + (b + qNeg a)
-      ≡⟨ cong Q (λw. Q) (λw. a + w) _ _ (qAddComm b (qNeg a)) ⟩ a + (qNeg a + b)
+      ≡⟨ cong _ (λw. Q) (λw. a + w) _ _ (qAddComm b (qNeg a)) ⟩ a + (qNeg a + b)
       ≡⟨ sym _ _ _ (qAddAssoc a (qNeg a) b) ⟩ a + qNeg a + b
-      ≡⟨ cong Q (λw. Q) (λw. w + b) _ _ (qAddNegR a) ⟩ qZero + b
+      ≡⟨ cong _ (λw. Q) (λw. w + b) _ _ (qAddNegR a) ⟩ qZero + b
       ≡⟨ qAddZeroL b ⟩ b
 
 -- ===== the bound =====
@@ -90,7 +90,7 @@ def bndSeqBound : (p : El RSeq) (n : ℕ) → El (Bnd (qOfNat (seqBound p)) (seq
     _
     _
     (transport
-      Q
+      _
       (λw. qOfNat (qNatBound (seqOf p Z)) + rBound n Z ≤ w)
       (qOfNat (qNatBound (seqOf p Z)) + qOfNat 2)
       (qOfNat (seqBound p))
@@ -111,4 +111,4 @@ def seqBoundPos : {p : El RSeq} → El (qZero ≤ qOfNat (seqBound p))
     rationalQ.Q.unfold,
     real.RSeq.unfold,
     real.Regular.unfold) ≔
-  λp. transport Q (λw. w ≤ qOfNat (seqBound p)) (qOfNat Z) qZero ⋆ (leQOfNat (leZero (seqBound p)))
+  λp. transport _ (λw. w ≤ qOfNat (seqBound p)) (qOfNat Z) qZero ⋆ (leQOfNat (leZero (seqBound p)))

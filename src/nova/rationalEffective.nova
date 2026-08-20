@@ -268,5 +268,5 @@ def qInvertibleIffNonZero : (u : El Q) → Prf (¬ (u ≡ qZero) ↔ ∥(v : El 
           qOne
           _
           _
-          (sym Q (class (class (S Z, Z), inj₁ Z)) (class (class (S Z, Z), inj₁ Z)) (w .π₂))
-          (trans Q _ (qZero * w .π₁) qZero (cong Q (λt. Q) (λx. x * w .π₁) _ _ e) qMulZeroL)))))
+          (sym _ (class (class (S Z, Z), inj₁ Z)) (class (class (S Z, Z), inj₁ Z)) (w .π₂))
+          (trans Q _ (qZero * w .π₁) qZero (cong _ (λt. Q) (λx. x * w .π₁) _ _ e) qMulZeroL)))))

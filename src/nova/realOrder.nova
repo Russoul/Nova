@@ -64,13 +64,13 @@ def leQFour : (f h : El (ℕ → Q))
     _
     _
     (transport
-      Q
+      _
       (λw. f n + qNeg (h n) ≤ rBound n n + (w + rBound (qtr k) (qtr k)))
       _
       _
       (qInvHalf (qtr k))
       (transport
-        Q
+        _
         (λw. f n + qNeg (h n) ≤ w)
         (rBound n (dbl (qtr k)) + rBound (qtr k) (qtr k) + rBound (dbl (qtr k)) n)
         (qInvNat
@@ -113,7 +113,7 @@ def rleOfDouble : (x z : El RSeq)
         n
         k
         (transport
-          Q
+          _
           (λw. seqOf x (dbl (qtr k)) + qNeg (seqOf z (dbl (qtr k))) ≤ w)
           _
           _
@@ -125,7 +125,7 @@ def rleRefl : (x : El RSeq) → Prf (RLeP x x) using (realOrder.RLeP.unfold) ≔
   λx. rleOf
     _
     _
-    (λn. transport Q (λw. w ≤ rBound n n) _ _ (sym _ _ _ (qAddNegR (seqOf x n))) (leQZeroBound n n))
+    (λn. transport _ (λw. w ≤ rBound n n) _ _ (sym _ _ _ (qAddNegR (seqOf x n))) (leQZeroBound n n))
 
 def rleTrans : (x y z : El RSeq) → Prf (RLeP x y) → Prf (RLeP y z) → Prf (RLeP x z)
   using (realOrder.RLeP.unfold) ≔
@@ -286,7 +286,7 @@ def rleAddMono : {x y c : El RSeq} → Prf (RLeP x y) → Prf (RLeP (rAdd x c) (
     _
     _
     (λn. transport
-      Q
+      _
       (λw. w ≤ rBound n n)
       _
       _
@@ -313,7 +313,7 @@ def leRAddMono : {u v w : El Real} → Prf (u ≤ v) → Prf (u + w ≤ v + w)
 -- p ≤ q in ℚ gives p − q ≤ 0
 def leQSubZero : {p q : El Q} → El (p ≤ q) → El (p + qNeg q ≤ qZero)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
-  λp. λq. λle. transport Q (λw. p + qNeg q ≤ w) _ _ (qAddNegR q) (leQPlusMono (qNeg q) le)
+  λp. λq. λle. transport _ (λw. p + qNeg q ≤ w) _ _ (qAddNegR q) (leQPlusMono (qNeg q) le)
 
 def leROfQ : (p q : El Q) → El (p ≤ q) → Prf (realOfQ p ≤ realOfQ q)
   using (id.Id.eq,
@@ -436,7 +436,7 @@ def leQOfLeR : {p : El Q} (q : El Q) → Prf (realOfQ p ≤ realOfQ q) → El (p
           (λk. leQAddShift
             _
             (transport
-              Q
+              _
               (λw. p + qNeg q ≤ w)
               (rBound (dbl k) (dbl k))
               (qInvNat k)
@@ -476,7 +476,7 @@ def rleNeg : {x y : El RSeq} → Prf (RLeP x y) → Prf (RLeP (rNeg y) (rNeg x))
   λx. λy. λh. squash-elim h (u. rleOf
     _
     _
-    (λn. transport Q (λw. w ≤ rBound n n) _ _ (sym _ _ _ (qNegSub (seqOf y n) (seqOf x n))) (u n)))
+    (λn. transport _ (λw. w ≤ rBound n n) _ _ (sym _ _ _ (qNegSub (seqOf y n) (seqOf x n))) (u n)))
 
 def leRNeg : (u v : El Real) → Prf (u ≤ v) → Prf (realNeg v ≤ realNeg u)
   using (real.REq.unfold,

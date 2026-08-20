@@ -89,7 +89,7 @@ def leQRBoundIdx : (c m : ℕ) → El (rBound (mulIdx c m) m ≤ rBound m m) usi
 -- the product's value at the deep index IS the original's, since the
 -- second factor is 1 at every index
 def mulOneAt : (x y : El Q) → x + qNeg y ≡ x * qOne + qNeg y ≔
-  λx. λy. cong Q (λw. Q) (λw. w + qNeg y) _ _ (sym _ _ _ (qMulOneR x))
+  λx. λy. cong _ (λw. Q) (λw. w + qNeg y) _ _ (sym _ _ _ (qMulOneR x))
 
 def rMulOneWD : (p : El RSeq) → Prf (REq (rMul p rOne) p)
   using (rOne.eq, realMul.mulSeq.eq, realMul.rMul.eq, realNeg.seqOf.eq) ≔
@@ -140,7 +140,7 @@ def realMulOneL : (u : El Real) → realOne * u ≡ u ≔
 -- equation.
 def kkY : (K : ℕ) (y : El Q) → qOfNat (K + K) * y ≡ qOfNat K * (y + y) ≔
   λK. λy. qOfNat (K + K) * y
-      ≡⟨ cong Q (λv. Q) (λv. v * y) _ _ (sym _ _ _ (qOfNatAdd K K)) ⟩ (qOfNat K + qOfNat K) * y
+      ≡⟨ cong _ (λv. Q) (λv. v * y) _ _ (sym _ _ _ (qOfNatAdd K K)) ⟩ (qOfNat K + qOfNat K) * y
       ≡⟨ qDistribR y (qOfNat K) (qOfNat K) ⟩ qOfNat K * y + qOfNat K * y
       ≡⟨ sym _ _ _ (qDistribL (qOfNat K) y y) ⟩ qOfNat K * (y + y)
 
@@ -148,9 +148,9 @@ def kkY : (K : ℕ) (y : El Q) → qOfNat (K + K) * y ≡ qOfNat K * (y + y) ≔
 def twoKTwo : (K : ℕ) (y : El Q) → y + (qOfNat K * (y + y) + y) ≡ qOfNat (S (S (K + K))) * y ≔
   λK. λy. y + (qOfNat K * (y + y) + y)
       ≡⟨ qAddComm y (qOfNat K * (y + y) + y) ⟩ qOfNat K * (y + y) + y + y
-      ≡⟨ cong Q (λv. Q) (λv. v + y + y) _ _ (sym _ _ _ (kkY K y)) ⟩ qOfNat (K + K) * y + y + y
+      ≡⟨ cong _ (λv. Q) (λv. v + y + y) _ _ (sym _ _ _ (kkY K y)) ⟩ qOfNat (K + K) * y + y + y
       ≡⟨ cong
-        Q
+        _
         (λv. Q)
         (λv. v + y)
         _
@@ -169,8 +169,8 @@ def closeBoundEq : (x : El Q)
   → (qOfNat (S (S (K + K))) * y ≡ w) → x + y + (qOfNat K * (y + y) + (y + x)) ≡ x + x + w ≔
   λx. λy. λK. λw. λhw. x + y + (qOfNat K * (y + y) + (y + x))
       ≡⟨ qRearr5 x y (qOfNat K * (y + y)) y ⟩ x + x + (y + (qOfNat K * (y + y) + y))
-      ≡⟨ cong Q (λv. Q) (λv. x + x + v) _ _ (twoKTwo K y) ⟩ x + x + qOfNat (S (S (K + K))) * y
-      ≡⟨ cong Q (λv. Q) (λv. x + x + v) _ _ hw ⟩ x + x + w
+      ≡⟨ cong _ (λv. Q) (λv. x + x + v) _ _ (twoKTwo K y) ⟩ x + x + qOfNat (S (S (K + K))) * y
+      ≡⟨ cong _ (λv. Q) (λv. x + x + v) _ _ hw ⟩ x + x + w
 
 -- the three-leg chain, abstract in the sequences and the deep index
 def closeStepGen : (f g : El (ℕ → Q))
@@ -242,7 +242,7 @@ def reqOfClose : {u v : El RSeq}
 def qSubPair : (a b c d : El Q) → a + qNeg c + (b + qNeg d) ≡ a + b + qNeg (c + d) ≔
   λa. λb. λc. λd. a + qNeg c + (b + qNeg d)
       ≡⟨ qPairSwap a (qNeg c) b (qNeg d) ⟩ a + b + (qNeg c + qNeg d)
-      ≡⟨ cong Q (λv. Q) (λv. a + b + v) _ _ (sym _ _ _ (qNegAdd c d)) ⟩ a + b + qNeg (c + d)
+      ≡⟨ cong _ (λv. Q) (λv. a + b + v) _ _ (sym _ _ _ (qNegAdd c d)) ⟩ a + b + qNeg (c + d)
 
 -- two samples of one regular sequence, both at least as deep as m,
 -- differ by at most rBound m m
@@ -331,7 +331,7 @@ def distribStepGen : (f g h : El (ℕ → Q))
                               (qOfNat (A + B + (A + C)) * rBound m m)
                               (f i * (g t + h t) + qNeg (f j * g j + f k * h k))) ≔
   λf. λg. λh. λA. λB. λC. λm. λi. λt. λj. λk. λhfB. λhgB. λhhB. λhfR. λhgR. λhhR. λdi. λdt. λdj. λdk. λhA. λhB. λhC. bndEq
-    (f i * g t + qNeg (f j * g j) + (f i * h t + qNeg (f k * h k)))
+    _
     _
     (f i * g t + qNeg (f j * g j) + (f i * h t + qNeg (f k * h k))
         ≡⟨ qSubPair
@@ -340,7 +340,7 @@ def distribStepGen : (f g h : El (ℕ → Q))
           (f j * g j)
           (f k * h k) ⟩ f i * g t + f i * h t + qNeg (f j * g j + f k * h k)
         ≡⟨ cong
-          Q
+          _
           (λv. Q)
           (λv. v + qNeg (f j * g j + f k * h k))
           _
@@ -437,21 +437,21 @@ def kappaEq : (A B C : ℕ)
   → qOfNat A * qOfNat B + qOfNat C * (qOfNat A + qOfNat B) ≡ qOfNat (A * B + C * (A + B)) ≔
   λA. λB. λC. qOfNat A * qOfNat B + qOfNat C * (qOfNat A + qOfNat B)
       ≡⟨ cong
-        Q
+        _
         (λv. Q)
         (λv. qOfNat A * qOfNat B + qOfNat C * v)
         _
         _
         (qOfNatAdd A B) ⟩ qOfNat A * qOfNat B + qOfNat C * qOfNat (A + B)
       ≡⟨ cong
-        Q
+        _
         (λv. Q)
         (λv. v + qOfNat C * qOfNat (A + B))
         _
         _
         (qOfNatMul A B) ⟩ qOfNat (A * B) + qOfNat C * qOfNat (A + B)
       ≡⟨ cong
-        Q
+        _
         (λv. Q)
         (λv. qOfNat (A * B) + v)
         _
@@ -467,21 +467,21 @@ def assocBoundEq : {al be ga : El Q}
   → (al * be + ga * (al + be) ≡ kp) → al * be * d + ga * (al * d + be * d) ≡ kp * d ≔
   λal. λbe. λga. λd. λkp. λhk. al * be * d + ga * (al * d + be * d)
       ≡⟨ cong
-        Q
+        _
         (λv. Q)
         (λv. al * be * d + ga * v)
         _
         _
         (sym _ _ _ (qDistribR d al be)) ⟩ al * be * d + ga * ((al + be) * d)
       ≡⟨ cong
-        Q
+        _
         (λv. Q)
         (λv. al * be * d + v)
         _
         _
         (sym _ _ _ (qMulAssoc ga (al + be) d)) ⟩ al * be * d + ga * (al + be) * d
       ≡⟨ sym _ _ _ (qDistribR d (al * be) (ga * (al + be))) ⟩ (al * be + ga * (al + be)) * d
-      ≡⟨ cong Q (λv. Q) (λv. v * d) _ _ hk ⟩ kp * d
+      ≡⟨ cong _ (λv. Q) (λv. v * d) _ _ hk ⟩ kp * d
 
 def assocStepGen : (f g h : El (ℕ → Q))
   (A B C m a i j b : ℕ)
@@ -555,7 +555,7 @@ def assocStepGen : (f g h : El (ℕ → Q))
   λf. λg. λh. λA. λB. λC. λm. λa. λi. λj. λb. λhfB. λhgB. λhhB. λhfR. λhgR. λhhR. λda. λdi. λdj. λdb. λhA. λhB. λhC. bndEq
     _
     _
-    (cong Q (λv. Q) (λv. f a * g a * h i + qNeg v) _ _ (qMulAssoc (f j) (g b) (h b)))
+    (cong _ (λv. Q) (λv. f a * g a * h i + qNeg v) _ _ (qMulAssoc (f j) (g b) (h b)))
     (bndEqB
       _
       _
@@ -643,8 +643,8 @@ def realDistribR : (u v w : El Real) → (v + w) * u ≡ v * u + w * u ≔
         _
         _
         (v * u + w * u)
-        (cong Real (λz. Real) (λz. z + u * w) _ _ (realMulComm u v))
-        (cong Real (λz. Real) (λz. v * u + z) _ _ (realMulComm u w))))
+        (cong _ (λz. Real) (λz. z + u * w) _ _ (realMulComm u v))
+        (cong _ (λz. Real) (λz. v * u + z) _ _ (realMulComm u w))))
 
 -- (−u)·v = −(u·v), a RING consequence: (−u)·v is an additive inverse
 -- of u·v, and inverses are unique. No estimate, no representatives.
@@ -663,7 +663,7 @@ def realMulNeg : {u v : El Real} → realNeg u * v ≡ realNeg (u * v) ≔
         _
         (realZero * v)
         realZero
-        (cong Real (λz. Real) (λz. z * v) _ _ (realAddNegR u))
+        (cong _ (λz. Real) (λz. z * v) _ _ (realAddNegR u))
         realMulZeroL))
 
 def realMulNegR : (u v : El Real) → u * realNeg v ≡ realNeg (u * v) ≔
@@ -679,7 +679,7 @@ def realMulNegR : (u v : El Real) → u * realNeg v ≡ realNeg (u * v) ≔
       (realNeg (v * u))
       _
       realMulNeg
-      (cong Real (λz. Real) (λz. realNeg z) _ _ (realMulComm v u)))
+      (cong _ (λz. Real) (λz. realNeg z) _ _ (realMulComm v u)))
 
 -- ...so ℝ is a commutative ring, and the laws above are exactly its
 -- components

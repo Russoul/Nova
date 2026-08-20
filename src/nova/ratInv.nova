@@ -39,7 +39,7 @@ def qInvNatZeroEq : qInvNat Z ≡ qOne
     rational.nzOne.eq) ≔
   ⋆
 
-def sgnQOneEq : sgnQ qOne ≡ sPos ≔ transportP Q (λw. sgnQ w ≡ sPos) _ _ qInvNatZeroEq (qInvNatPos Z)
+def sgnQOneEq : sgnQ qOne ≡ sPos ≔ transportP _ (λw. sgnQ w ≡ sPos) _ _ qInvNatZeroEq (qInvNatPos Z)
 
 def leQZeroOne : El (qZero ≤ qOne) ≔ leQZeroOfPos _ sgnQOneEq
 
@@ -53,7 +53,7 @@ def qNeZeroOfPos : {u : El Q} → (sgnQ u ≡ sPos) → Prf (¬ (u ≡ qZero)) u
         _
         _
         _
-        (sym _ _ _ (trans _ _ _ sZero (cong Q (λw. Sign) (λw. sgnQ w) _ _ hz) sgnQZeroEq))
+        (sym _ _ _ (trans _ _ _ sZero (cong _ (λw. Sign) (λw. sgnQ w) _ _ hz) sgnQZeroEq))
         hp)))
 
 def qMulInvPos : {c : El Q} → (sgnQ c ≡ sPos) → c * qInv c ≡ qOne ≔
@@ -63,9 +63,9 @@ def qMulInvPos : {c : El Q} → (sgnQ c ≡ sPos) → c * qInv c ≡ qOne ≔
 def leQZeroOfNeg : {u : El Q} → El (Id _ (sgnQ u) sNeg) → El (u ≤ qZero)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λu. λhn. transport
-    Q
+    _
     (λw. NonNegS (sgnQ w))
-    (qNeg u)
+    _
     _
     (sym _ _ _ (qAddZeroL (qNeg u)))
     (inj₂ (eqToId _ _ (sgnQNegOfNeg hn)))
@@ -73,19 +73,19 @@ def leQZeroOfNeg : {u : El Q} → El (Id _ (sgnQ u) sNeg) → El (u ≤ qZero)
 -- nonnegative times nonpositive is nonpositive
 def leQMulNonPos : {a b : El Q} → El (qZero ≤ a) → El (b ≤ qZero) → El (a * b ≤ qZero) ≔
   λa. λb. λha. λhb. transport
-    Q
+    _
     (λw. w ≤ qZero)
     _
     _
     (qNegNeg (a * b))
     (transport
-      Q
+      _
       (λw. qNeg w ≤ qZero)
       _
       _
       (qNegMulR a b)
       (transport
-        Q
+        _
         (λw. qNeg (a * qNeg b) ≤ w)
         _
         _
@@ -93,7 +93,7 @@ def leQMulNonPos : {a b : El Q} → El (qZero ≤ a) → El (b ≤ qZero) → El
         (leQNegFlip
           _
           _
-          (leQZeroMul ha (transport Q (λw. w ≤ qNeg b) _ _ qNegZeroQ (leQNegFlip _ _ hb))))))
+          (leQZeroMul ha (transport _ (λw. w ≤ qNeg b) _ _ qNegZeroQ (leQNegFlip _ _ hb))))))
 
 -- THE circle-breaker: the reciprocal of a positive is nonnegative.
 -- If it were negative, c · c⁻¹ would be ≤ 0; but it is 1, and 0 ≤ 1,
@@ -118,14 +118,14 @@ def leQZeroInv : {c : El Q} → (sgnQ c ≡ sPos) → El (qZero ≤ qInv c)
             _
             sZero
             (cong
-              Q
+              _
               (λw. Sign)
               (λw. sgnQ w)
               _
               _
               (leQAntisym
                 (transport
-                  Q
+                  _
                   (λw. w ≤ qZero)
                   _
                   _
@@ -144,7 +144,7 @@ def cancelR : {z c : El Q} → (sgnQ c ≡ sPos) → z * c * qInv c ≡ z ≔
     _
     _
     (qMulAssoc z c (qInv c))
-    (trans _ _ _ z (cong Q (λw. Q) (λw. z * w) _ _ (qMulInvPos hp)) (qMulOneR z))
+    (trans _ _ _ z (cong _ (λw. Q) (λw. z * w) _ _ (qMulInvPos hp)) (qMulOneR z))
 
 def leQMulCancel : {x y : El Q} (c : El Q) → (sgnQ c ≡ sPos) → El (x * c ≤ y * c) → El (x ≤ y) ≔
   λx. λy. λc. λhp. λh. transport
@@ -178,9 +178,9 @@ def qAddSubCancel : {c u : El Q} → c + (u + qNeg c) ≡ u ≔
         _
         _
         (u + (c + qNeg c))
-        (cong Q (λw. Q) (λw. w + qNeg c) _ _ (qAddComm c u))
+        (cong _ (λw. Q) (λw. w + qNeg c) _ _ (qAddComm c u))
         (qAddAssoc u c (qNeg c))))
-    (trans _ _ _ u (cong Q (λw. Q) (λw. u + w) _ _ (qAddNegR c)) (qAddZeroR u))
+    (trans _ _ _ u (cong _ (λw. Q) (λw. u + w) _ _ (qAddNegR c)) (qAddZeroR u))
 
 -- anything above a positive is positive
 def sgnQPosOfLe : (c : El Q) {u : El Q} → (sgnQ c ≡ sPos) → El (c ≤ u) → sgnQ u ≡ sPos
@@ -199,7 +199,7 @@ def leQInvAnti : {c u : El Q} → (sgnQ c ≡ sPos) → El (c ≤ u) → El (qIn
     _
     hp
     (transport
-      Q
+      _
       (λw. qInv u * c ≤ w)
       _
       _
@@ -208,7 +208,7 @@ def leQInvAnti : {c u : El Q} → (sgnQ c ≡ sPos) → El (c ≤ u) → El (qIn
         _
         (sgnQPosOfLe _ hp h)
         (transport
-          Q
+          _
           (λw. w ≤ qOne * u)
           _
           _
@@ -228,21 +228,21 @@ def leQInvAnti : {c u : El Q} → (sgnQ c ≡ sPos) → El (c ≤ u) → El (qIn
                 _
                 c
                 (cong
-                  Q
+                  _
                   (λw. Q)
                   (λw. w * c)
                   _
                   _
                   (trans _ _ _ _ (qMulComm (qInv u) u) (qMulInvPos (sgnQPosOfLe _ hp h))))
                 (qMulOneL c))))
-          (transport Q (λw. c ≤ w) _ _ (sym _ _ _ (qMulOneL u)) h))))
+          (transport _ (λw. c ≤ w) _ _ (sym _ _ _ (qMulOneL u)) h))))
 
 -- ...so a reciprocal is bounded by any M inverse to a lower bound
 def leQInvBound : (c : El Q)
   {u M : El Q}
   → (sgnQ c ≡ sPos) → El (c ≤ u) → (c * M ≡ qOne) → El (qInv u ≤ M) ≔
   λc. λu. λM. λhp. λh. λhm. transport
-    Q
+    _
     (λw. qInv u ≤ w)
     _
     _
@@ -263,7 +263,7 @@ def negMulL : {x y : El Q} → qNeg x * y ≡ qNeg (x * y) ≔
     _
     _
     (qMulComm (qNeg x) y)
-    (trans _ _ _ _ (qNegMulR y x) (cong Q (λw. Q) (λw. qNeg w) _ _ (qMulComm y x)))
+    (trans _ _ _ _ (qNegMulR y x) (cong _ (λw. Q) (λw. qNeg w) _ _ (qMulComm y x)))
 
 def invFirst : (a b : El Q) → (sgnQ b ≡ sPos) → b * qInv a * qInv b ≡ qInv a ≔
   λa. λb. λhb. trans
@@ -272,7 +272,7 @@ def invFirst : (a b : El Q) → (sgnQ b ≡ sPos) → b * qInv a * qInv b ≡ qI
     _
     _
     (qMulSwap3 b (qInv a) (qInv b))
-    (trans _ _ _ (qInv a) (cong Q (λw. Q) (λw. w * qInv a) _ _ (qMulInvPos hb)) (qMulOneL (qInv a)))
+    (trans _ _ _ (qInv a) (cong _ (λw. Q) (λw. w * qInv a) _ _ (qMulInvPos hb)) (qMulOneL (qInv a)))
 
 def invSecond : (a b : El Q) → (sgnQ a ≡ sPos) → qNeg a * qInv a * qInv b ≡ qNeg (qInv b) ≔
   λa. λb. λha. trans
@@ -281,7 +281,7 @@ def invSecond : (a b : El Q) → (sgnQ a ≡ sPos) → qNeg a * qInv a * qInv b 
     _
     _
     (cong
-      Q
+      _
       (λw. Q)
       (λw. w * qInv b)
       _
@@ -292,20 +292,20 @@ def invSecond : (a b : El Q) → (sgnQ a ≡ sPos) → qNeg a * qInv a * qInv b 
         (qNeg (a * qInv a))
         _
         negMulL
-        (cong Q (λw. Q) (λw. qNeg w) _ _ (qMulInvPos ha))))
+        (cong _ (λw. Q) (λw. qNeg w) _ _ (qMulInvPos ha))))
     (trans
       Q
       (qNeg qOne * qInv b)
       (qNeg (qOne * qInv b))
       _
       negMulL
-      (cong Q (λw. Q) (λw. qNeg w) _ _ (qMulOneL (qInv b))))
+      (cong _ (λw. Q) (λw. qNeg w) _ _ (qMulOneL (qInv b))))
 
 def qInvDiff : {a b : El Q}
   → (sgnQ a ≡ sPos) → (sgnQ b ≡ sPos) → (b + qNeg a) * qInv a * qInv b ≡ qInv a + qNeg (qInv b) ≔
   λa. λb. λha. λhb. (b + qNeg a) * qInv a * qInv b
       ≡⟨ cong
-        Q
+        _
         (λw. Q)
         (λw. w * qInv b)
         _
@@ -316,10 +316,10 @@ def qInvDiff : {a b : El Q}
         (b * qInv a)
         (qNeg a * qInv a) ⟩ b * qInv a * qInv b + qNeg a * qInv a * qInv b
       ≡⟨ cong
-        Q
+        _
         (λw. Q)
         (λw. w + qNeg a * qInv a * qInv b)
         _
         _
         (invFirst a _ hb) ⟩ qInv a + qNeg a * qInv a * qInv b
-      ≡⟨ cong Q (λw. Q) (λw. qInv a + w) _ _ (invSecond _ b ha) ⟩ qInv a + qNeg (qInv b)
+      ≡⟨ cong _ (λw. Q) (λw. qInv a + w) _ _ (invSecond _ b ha) ⟩ qInv a + qNeg (qInv b)

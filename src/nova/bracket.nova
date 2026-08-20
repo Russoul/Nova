@@ -47,13 +47,13 @@ def brIsProp : (a : 𝕌) (u v : El (Br a)) → u ≡ v using (Br.unfold) ≔
 -- with no hypothesis at all: the coherence brElim asks for is free
 -- whenever the function already factors through the bracket.
 def brOutConst : (a b : 𝕌) (g : El (Br a) → El b) (x y : El a) → g (br x) ≡ g (br y) ≔
-  λa. λb. λg. λx. λy. cong (Br a) (λw. b) g _ _ (brIsProp _ (br x) (br y))
+  λa. λb. λg. λx. λy. cong _ (λw. b) g _ _ (brIsProp _ (br x) (br y))
 
 -- η / uniqueness: brElim is the ONLY map agreeing with g on classes.
 def brEta : (a b : 𝕌)
   (g : El (Br a) → El b)
   (t : El (Br a))
-  → brElim a (λx. g (br x)) (brOutConst _ _ g) t ≡ g t ∈ El b
+  → brElim _ (λx. g (br x)) (brOutConst _ _ g) t ≡ g t ∈ El b
   using (Br.unfold, br.eq, brElim.eq, brOutConst.eq) ≔
   λa. λb. λg. λt. quot-elim (x. ⋆) t
 
@@ -82,7 +82,7 @@ def brMapBeta : (a b : 𝕌) (f : El a → El b) (x : El a) → brMap _ f (br x)
   λa. λb. λf. λx. ⋆
 
 -- the coherence brElim demands IS brIsProp, verbatim
-def brJoin : {a : 𝕌} (s : El (Br (Br a))) → El (Br a) ≔ λa. λs. brElim (Br a) (λt. t) (brIsProp a) s
+def brJoin : {a : 𝕌} (s : El (Br (Br a))) → El (Br a) ≔ λa. λs. brElim _ (λt. t) (brIsProp a) s
 
 -- idempotence, both round trips
 def brJoinUnit : (a : 𝕌) (t : El (Br a)) → brJoin (br t) ≡ t
@@ -164,7 +164,7 @@ def fibWitnessComputes : fibWitness 2 (br (2, refl ℕ 2)) ≡ 2
 -- are cheap, elimination is the content.
 def brProdIsProp : {a b : 𝕌} (u v : El (Br a ⨯ Br b)) → u ≡ v using (sigma.eta) ≔
   λa. λb. λu. λv. sigmaEq2
-    (Br a)
+    _
     (λw. Br b)
     _
     _
@@ -173,17 +173,17 @@ def brProdIsProp : {a b : 𝕌} (u v : El (Br a ⨯ Br b)) → u ≡ v using (si
 
 def brPairIn : {a b : 𝕌} (t : El (Br (a ⨯ b))) → El (Br a ⨯ Br b) ≔
   λa. λb. λt. brElim
-    (a ⨯ b)
+    _
     (λp. br (p .π₁), br (p .π₂))
     (λp. λq. brProdIsProp (br (p .π₁), br (p .π₂)) (br (q .π₁), br (q .π₂)))
     t
 
 def brPairOutAt : {a b : 𝕌} (x : El a) (v : El (Br b)) → El (Br (a ⨯ b)) ≔
-  λa. λb. λx. λv. brElim b (λy. br (x, y)) (λy. λy'. brIsProp (a ⨯ b) (br (x, y)) (br (x, y'))) v
+  λa. λb. λx. λv. brElim _ (λy. br (x, y)) (λy. λy'. brIsProp (a ⨯ b) (br (x, y)) (br (x, y'))) v
 
 def brPairOut : {a b : 𝕌} (p : El (Br a ⨯ Br b)) → El (Br (a ⨯ b)) ≔
   λa. λb. λp. brElim
-    a
+    _
     (λx. brPairOutAt x (p .π₂))
     (λx. λx'. brIsProp _ (brPairOutAt x (p .π₂)) (brPairOutAt x' (p .π₂)))
     (p .π₁)
