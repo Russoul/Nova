@@ -1,0 +1,5 @@
+-- BOTH candidates fit: ambiguity is a structural error naming the
+-- qualification remedy
+import natp (+)
+import natp2 (+)
+def amb : ℕ ≔ 1 + 2

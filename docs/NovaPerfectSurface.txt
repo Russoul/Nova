@@ -411,10 +411,34 @@ carries the full commentary; the corpus round-trips byte-idempotent
 with comments in place. (The corpus has only `--` line comments; a
 block-comment continuation line would be defensively re-prefixed.)
 
-Phase 4: implemented — ∈-ELISION and MOTIVE ELISION (the
-operator-overload oracle is EMPTY on this corpus: every operator
-token has exactly one fixity — recorded, skipped until a collision
-exists). GRAMMAR: the ∈-annotation of an equality (type and
+Phase 4: implemented — ∈-ELISION, MOTIVE ELISION, and OPERATOR
+OVERLOADING.
+
+OVERLOADING (a language feature, not just printing): several defs
+may share a surface token — each module its own `+` — and opening
+more than one makes the name OVERLOADED (ElabSt.dupNames: a name
+visible with two or more distinct Σ targets). A reference resolves
+TYPE-DIRECTEDLY at the site: every candidate spine is PROBED whole
+(probeM — state-discarded, failure-absorbed), and a candidate FITS
+iff it elaborates with ZERO NEW OBLIGATIONS — the ↓ judgements
+never fail, so plain success cannot discriminate (a wrong candidate
+would simply assume absurd equations). Exactly one clean fit
+commits and re-elaborates for real; none or several is a structural
+error naming the qualification remedy (the mention form (M.op), or
+opening only one candidate). Probing runs through elabImpSpine, so
+overloads compose with implicit binders and trailing insertion; a
+bare overloaded reference resolves in checking position by the
+expected type and errors in inference position. Overloaded tokens
+must AGREE on fixity (the parse is shared; only elaboration
+distinguishes) — a conflict is a load error. Deterministic and
+file-determined throughout: candidates come from the file's imports,
+the fit criterion from the site's own scoped conversion. A run
+without overloads pays one list-membership test per application
+node (dupNames is empty). The corpus migration — renaming the
+arithmetic families (intAdd, qAdd, realAdd, …) to per-module
+operator names so `+` stands for any of ℕ/ℤ/ℚ/ℝ — is the designed
+next step (an AST-level rename transformer, verified by the Σ-gate
+modulo the renaming). GRAMMAR: the ∈-annotation of an equality (type and
 Ω-element forms) and the inline motive of ℕ-elim/⊎-elim/quot-elim
 are OPTIONAL. ELABORATION: an ∈-less equality infers its LEFT side
 for the domain (right as fallback when the left is an intro form —

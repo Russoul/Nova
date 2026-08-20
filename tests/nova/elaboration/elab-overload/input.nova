@@ -1,0 +1,10 @@
+-- type-directed operator overloading (docs/NovaPerfectSurface.txt,
+-- Phase 4): two + in scope, resolved per site by the unique
+-- obligation-free fit; the mention form qualifies explicitly
+import natp (+)
+import unitp (+)
+def useN : ℕ ≔ 1 + 2
+def useU : 𝟙 ≔ () + ()
+def nested : ℕ ≔ (1 + 1) + (2 + 2)
+def viaMention : ℕ ≔ (natp.+) 1 2
+def checkedBare : ℕ → ℕ → ℕ ≔ (+)

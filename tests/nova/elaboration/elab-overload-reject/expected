@@ -1,0 +1,5 @@
+module natp:
+defined +
+module natp2:
+defined +
+Error: def amb: '+' is ambiguous here — natp2.+, natp.+ all fit; qualify one, e.g. the mention form
