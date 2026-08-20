@@ -12,6 +12,7 @@ import Me.Russoul.Text.Range
 import Me.Russoul.Text.Position
 
 import System
+import System.Clock
 import System.File
 
 import Nova.Kernel.Parser
@@ -66,6 +67,7 @@ clearCrossDiags root = do
 loadURI : Ref LSPConf LSPConfiguration => DocumentURI -> Maybe Int -> IO Bool
 loadURI uri version = do
   logI Server "Loading \{show uri}"
+  t0 <- clockTime Monotonic
   let fpath = uri.path
   clearCrossDiags uri
   Right units <- loadProgram fpath
@@ -100,8 +102,21 @@ loadURI uri version = do
                      pure False
   let report = elabProgramReport units
   let index = buildIndex fpath units
+  -- the language is strict, so the report and index are BUILT by
+  -- the lets above — this brackets the real work (parse + load +
+  -- elaborate + report), which is what the user waits for on save
+  t1 <- clockTime Monotonic
+  let dt = timeDifference t1 t0
+  let ms = seconds dt * 1000 + nanoseconds dt `div` 1000000
   setDoc uri (MkDocState source root index report)
   sendDiagnostics uri version (toDiagnostics source root.mfix report)
+  -- AFTER the diagnostics, so clients render the state before its
+  -- timing (and the test client's read order stays deterministic)
+  sendCustomNotification "nova/elabTime" (JObject
+    [ ("uri", toJSON uri)
+    , ("millis", JNumber (cast ms))
+    , ("modules", JNumber (cast (length units)))
+    ])
   pure True
 
 -- ===== guards =====

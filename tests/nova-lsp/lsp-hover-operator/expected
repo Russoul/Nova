@@ -1,6 +1,7 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
 CAPS: hover=true definition=true documentSymbol=true
 DIAGNOSTICS (0):
+ELABTIME: reported
 TOKENS (56):
   L1:1+3 keyword
   L1:5+4 variable
@@ -65,5 +66,6 @@ SYMBOLS (3):
 DEFINITION(⊕ S (S): SAME FILE [L3:1-L3:25]
 HOVER(⊕ S (S): [L4:21-L4:22] ```nova ⏎ ⊕ : ℕ → ℕ → ℕ ⏎ ```
 DIAGNOSTICS FOR FIXTURE (0):
+ELABTIME: reported
 SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
 SERVER EXIT CODE: 0

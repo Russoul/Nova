@@ -2,6 +2,7 @@ LEGEND: ["keyword", "variable", "operator", "number", "comment"]
 CAPS: hover=true definition=true documentSymbol=true
 DIAGNOSTICS (1):
   [L1:1-L1:29] (error) def bad: unknown name 'undefinedThing'
+ELABTIME: reported
 TOKENS (6):
   L1:1+3 keyword
   L1:5+3 variable
@@ -15,5 +16,6 @@ DEFINITION(undefinedThing): null
 HOVER(undefinedThing): null
 DIAGNOSTICS FOR FIXTURE (1):
   [L1:1-L1:29] (error) def bad: unknown name 'undefinedThing'
+ELABTIME: reported
 SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
 SERVER EXIT CODE: 0
