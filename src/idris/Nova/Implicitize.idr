@@ -85,6 +85,24 @@ unitResolver u =
 ||| every argument would disappear keeps them as overrides instead —
 ||| a bare reference is not an application (defensive: the trial fold
 ||| already reverts such positions).
+||| The telescope ↔ surface mapping at a site of a PARTIALLY-IMPLICIT
+||| def: elided implicit positions consume no item and {t} overrides
+||| pair with implicit positions, so the i-th NON-OVERRIDE item
+||| stands at the def's i-th EXPLICIT telescope position. Given the
+||| def's explicit positions (sorted) and a site's items, each entry
+||| is (telescope position, item index in the full list, the item).
+explicitSlots : List Nat -> List SElem -> List (Nat, Nat, SElem)
+explicitSlots eps items = go eps (withIndex 0 items)
+ where
+  withIndex : Nat -> List SElem -> List (Nat, SElem)
+  withIndex i [] = []
+  withIndex i (x :: xs) = (i, x) :: withIndex (S i) xs
+  go : List Nat -> List (Nat, SElem) -> List (Nat, Nat, SElem)
+  go [] _ = []
+  go _ [] = []
+  go (p :: ps) ((j, SImpArg t) :: rest) = go (p :: ps) rest
+  go (p :: ps) ((j, it) :: rest) = (p, j, it) :: go ps rest
+
 public export
 data IMode : Type where
   MWrap : IMode
@@ -93,8 +111,10 @@ data IMode : Type where
   ||| candidate position, a site in the drop set loses its argument
   ||| (recovery is per-site verified), any other site KEEPS it as a
   ||| {t} override — the graceful middle the intersection policy
-  ||| lacks. Keys are (head range, position), per module.
-  MDropSited : List (Range, Nat) -> IMode
+  ||| lacks. Carries the def's PRE-MIGRATION explicit positions (the
+  ||| telescope ↔ surface mapping at partially-implicit sites) and
+  ||| the (head range, telescope position) drop keys, per module.
+  MDropSited : List Nat -> List (Range, Nat) -> IMode
 
 ||| Mark the candidate positions of a leading Π-telescope implicit.
 impTy : List Nat -> STy -> STy
@@ -122,7 +142,7 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
                  -- insertion covers it (the trial verdicts guarantee
                  -- every surviving position was insertable)
                  MDrop => foldl SApp hd (mapMaybe (mkDrop poss) idxd)
-                 MDropSited drops => foldl SApp hd (mapMaybe (mkSited poss drops mrng) idxd)
+                 MDropSited eps drops => foldl SApp hd (mapMaybe (mkSited poss eps drops mrng (explicitSlots eps args)) idxd)
           Nothing => foldl SApp hd args
       _ => foldl SApp hd args
    where
@@ -140,15 +160,20 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
     mkDrop : List Nat -> (Nat, SElem) -> Maybe SElem
     mkDrop poss (i, a) = if i `elem` poss then Nothing else Just a
 
-    mkSited : List Nat -> List (Range, Nat) -> Maybe Range -> (Nat, SElem) -> Maybe SElem
-    mkSited poss drops mrng (i, a) =
-      if not (i `elem` poss) then Just a
-      else case a of
-        SBlank _ => Nothing
-        _ => case mrng of
-          Just r => if any (\(r', p) => p == i && show r' == show r) drops
-                      then Nothing else Just (SImpArg a)
-          Nothing => Just (SImpArg a)
+    mkSited : List Nat -> List Nat -> List (Range, Nat) -> Maybe Range ->
+              List (Nat, Nat, SElem) -> (Nat, SElem) -> Maybe SElem
+    mkSited poss eps drops mrng slots (j, a) =
+      case head' (mapMaybe (\(p2, j2, _) => if j2 == j then Just p2 else Nothing) slots) of
+        -- an override or a leftover past the telescope: keep as is
+        Nothing => Just a
+        Just p2 =>
+          if not (p2 `elem` poss) then Just a
+          else case a of
+            SBlank _ => Nothing
+            _ => case mrng of
+              Just r => if any (\(r2, pp) => pp == p2 && show r2 == show r) drops
+                          then Nothing else Just (SImpArg a)
+              Nothing => Just (SImpArg a)
 
   mutual
     xfE : SElem -> SElem
@@ -584,12 +609,11 @@ runTrial units cands = do
     Left err => pure (Left ("override form failed to elaborate (transformer defect):\n" ++ err))
     Right (_, trial) => pure (Right trial)
 
-||| is the site-position verdicted blankable? (svBlank keys are item
-||| indices among consumed items; for a FULLY-EXPLICIT def these are
-||| the telescope positions)
+||| is the site ITEM verdicted blankable? (svBlank keys are item
+||| indices among the consumed items, in written order)
 verdicted : List (String, Range, Nat) -> String -> Maybe Range -> Nat -> Bool
-verdicted bl mn mrng p = case mrng of
-  Just r => any (\(mn2, r2, p2) => mn2 == mn && p2 == p && show r2 == show r) bl
+verdicted bl mn mrng j = case mrng of
+  Just r => any (\(mn2, r2, j2) => mn2 == mn && j2 == j && show r2 == show r) bl
   Nothing => False
 
 ||| The CENSUS, on the SUGAR PASS alone (no transformation): per named
@@ -613,16 +637,18 @@ censusPath rootPath names = do
         sites = concatMap (\u => map (\(mr, args) => (u.mname, mr, args)) (sitesOfUnit (unitResolver u) q u)) units in
     ("\{q}: \{show (length sites)} sites" ::
      map (\p =>
-       let covered = filter (\(_, _, args) => length args > p) sites
-           blanksN = filter (\(_, _, args) => case getAt p args of
-                              Just (SBlank _) => True
-                              _ => False) covered
-           elid = filter (\(mn, mr, args) =>
-                    (case getAt p args of
-                       Just (SBlank _) => False
-                       _ => True) && verdicted bl mn mr p) covered
-           needOv = minus (length covered) (length blanksN + length elid)
-       in "  #\{show p}: \{show (length covered)} applied, " ++
+       let slotted = mapMaybe (\(mn, mr, args) =>
+                       map (\(_, j, it) => (mn, mr, j, it))
+                           (find (\(p2, _, _) => p2 == p) (explicitSlots poss args))) sites
+           blanksN = filter (\(_, _, _, it) => case it of
+                              SBlank _ => True
+                              _ => False) slotted
+           elid = filter (\(mn, mr, j, it) =>
+                    (case it of
+                       SBlank _ => False
+                       _ => True) && verdicted bl mn mr j) slotted
+           needOv = minus (length slotted) (length blanksN + length elid)
+       in "  #\{show p}: \{show (length slotted)} applied, " ++
           "\{show (length blanksN)} already blank, \{show (length elid)} blankable, " ++
           "\{show needOv} need {…}")
        poss)
@@ -652,12 +678,16 @@ migrateDefPath rootPath outDir name poss = do
       let Right (_, _, blanks, risks) = elabProgramSugar units
         | Left err => pure (Left ("sugar pass failed (input was accepted?):\n" ++ err))
       let sites = concatMap (\u => map (\(mr, args) => (u.mname, mr, args)) (sitesOfUnit (unitResolver u) q u)) units
+      let eps = map fst (filter (not . snd) lead)
+      let imps0 = map fst (filter snd lead)
       -- per-site plan with PREFIX CLOSURE: {t} overrides fill a run
       -- of consecutive implicit positions in order, so an override
-      -- can stand at position p only if every chosen position before
-      -- it IN THE SAME RUN also writes an override — droppable
-      -- written arguments are forced back to overrides where needed,
-      -- and a blank before an override in a run is INEXPRESSIBLE
+      -- can stand at position p only if every position before it IN
+      -- THE SAME POST-MIGRATION RUN also writes an override —
+      -- droppable written arguments are forced back to overrides
+      -- where needed; a blank OR an already-implicit position (whose
+      -- argument is elided — nothing to wrap) before an override is
+      -- INEXPRESSIBLE
       -- a blank whose implicit-mode solve would differ (join-tier
       -- capture) cannot convert: collect those as blockers up front
       let risky = filter (\(mn, r, pp) => pp `elem` poss)
@@ -666,7 +696,7 @@ migrateDefPath rootPath outDir name poss = do
       let True = null risky
         | False => pure (Left ("migration blocked: these blanks solve DIFFERENTLY as implicits (join-tier capture) — spell them first:\n  " ++
                                joinBy "\n  " (map (\(mn, r, pp) => "\{mn} L\{show r.start.line} position \{show pp}") risky)))
-      let plans = map (planSite blanks poss) sites
+      let plans = map (planSite blanks poss eps imps0) sites
       let blocked = mapMaybe (\pl => case pl of
                                         Left site => Just site
                                         Right _ => Nothing) plans
@@ -679,9 +709,9 @@ migrateDefPath rootPath outDir name poss = do
                                               Left _ => Nothing) plans)
       let nSitesTotal = length sites
       () <- clearSigEntryIx
-      let Right (dropSet, reverts) = fixLoop units sigOrig cands 10 drop0 []
+      let Right (dropSet, reverts) = fixLoop units sigOrig cands eps 10 drop0 []
         | Left err => pure (Left err)
-      let finalUnits = map (\u => xfUnit cands (MDropSited (unitKeys u.mname dropSet)) u) units
+      let finalUnits = map (\u => xfUnit cands (MDropSited eps (unitKeys u.mname dropSet)) u) units
       Right () <- writeUnits outDir (baseName rootPath) finalUnits
         | Left err => pure (Left err)
       Right units2 <- loadProgram (outDir ++ "/" ++ baseName rootPath)
@@ -701,9 +731,10 @@ migrateDefPath rootPath outDir name poss = do
                       cs => " (in \{joinBy ", " (nub cs)})") ++ "\n" ++
                    "verified: re-parse identical, elaboration accepted, kernel Σ α-identical."))
  where
-  ||| the chosen positions grouped into runs of CONSECUTIVE telescope
-  ||| positions (an unchosen position in between stays explicit and
-  ||| re-anchors override pairing)
+  ||| the POST-MIGRATION implicit positions (chosen ∪ pre-existing)
+  ||| grouped into runs of CONSECUTIVE telescope positions (a
+  ||| position staying explicit in between re-anchors override
+  ||| pairing)
   runsOf : List Nat -> List (List Nat)
   runsOf [] = []
   runsOf (p :: ps) = go [p] ps
@@ -714,37 +745,46 @@ migrateDefPath rootPath outDir name poss = do
       if x == S prev then go (x :: acc) xs else reverse acc :: go [x] xs
     go [] _ = []
 
-  isBlankAt : List SElem -> Nat -> Bool
-  isBlankAt args p = case getAt p args of
-    Just (SBlank _) => True
-    _ => False
-
-  ||| a run's plan: droppable positions after the last forced
-  ||| override; written args only in the keys
-  planRun : List (String, Range, Nat) -> String -> Maybe Range -> List SElem ->
+  ||| a run's plan over POST-MIGRATION implicit positions. Per
+  ||| position: pre-existing implicit (elided, unoverridable), chosen
+  ||| with a blank item (droppable, unoverridable), chosen written
+  ||| (droppable when verdicted, overridable). An override forces
+  ||| every earlier run position to be written — an unoverridable one
+  ||| there blocks the site.
+  planRun : List (String, Range, Nat) -> String -> Maybe Range ->
+            List (Nat, Nat, SElem) -> List Nat -> List Nat ->
             List Nat -> Either String (List Nat)
-  planRun bl mn mrng args run =
-    let droppable = \p => isBlankAt args p || verdicted bl mn mrng p
-        ovs = filter (\p => not (droppable p)) run
+  planRun bl mn mrng slots poss imps0 run =
+    let itemOf = \p => head' (mapMaybe (\(p2, j, it) => if p2 == p then Just (j, it) else Nothing) slots)
+        isBlankP = \p => case itemOf p of
+                           Just (_, SBlank _) => True
+                           _ => False
+        applied = filter (\p => (p `elem` imps0) || isJust (itemOf p)) run
+        chosenIn = filter (\p => p `elem` poss) applied
+        droppable = \p => isBlankP p ||
+                          (case itemOf p of
+                             Just (j, _) => verdicted bl mn mrng j
+                             Nothing => False)
+        ovs = filter (\p => not (droppable p)) chosenIn
     in case ovs of
-         [] => Right (filter (\p => not (isBlankAt args p)) run)
+         [] => Right (filter (\p => not (isBlankP p)) chosenIn)
          _ =>
            let m = foldl max 0 ovs
-               mustWrite = filter (\p => p <= m) run
-               blockers = filter (isBlankAt args) mustWrite
+               before = filter (\p => p <= m) applied
+               blockers = filter (\p => isBlankP p || ((p `elem` imps0) && p < m)) before
            in case blockers of
-                [] => Right (filter (\p => p > m && not (isBlankAt args p)) run)
-                (b :: _) => Left "blank at position \{show b} precedes an override at position \{show m}"
+                [] => Right (filter (\p => p > m && not (isBlankP p)) chosenIn)
+                (b :: _) => Left "position \{show b} (elided) precedes an override at position \{show m}"
 
-  ||| one site's plan: Left = blocked (blank precedes an override in
-  ||| a run), Right = this site's DROP keys (written args only —
-  ||| blanks drop in the transform unconditionally)
-  planSite : List (String, Range, Nat) -> List Nat ->
+  ||| one site's plan: Left = blocked, Right = this site's DROP keys
+  ||| (telescope positions; written args only — blanks drop in the
+  ||| transform unconditionally)
+  planSite : List (String, Range, Nat) -> List Nat -> List Nat -> List Nat ->
              (String, Maybe Range, List SElem) -> Either String (List (String, Range, Nat))
-  planSite bl poss (mn, mrng, args) =
-    let inRange = filter (\p => length args > p) poss
-        runs = runsOf inRange
-        perRun = map (planRun bl mn mrng args) runs
+  planSite bl poss eps imps0 (mn, mrng, args) =
+    let slots = explicitSlots eps args
+        runs = runsOf (sort (nub (poss ++ imps0)))
+        perRun = map (planRun bl mn mrng slots poss imps0) runs
     in case (the (Maybe String) (head' (mapMaybe blockOf perRun)), mrng) of
          (Just why, Just r) => Left "\{mn} L\{show r.start.line}: \{why}"
          (Just why, Nothing) => Left "\{mn}: \{why}"
@@ -803,12 +843,12 @@ migrateDefPath rootPath outDir name poss = do
     filter (\(mn, r, _) =>
       not (any (\(mn2, sl, el) => mn == mn2 && r.start.line >= sl && r.start.line <= el) spans)) ds
 
-  fixLoop : List ModUnit -> Sig -> List (String, List Nat) -> Nat ->
+  fixLoop : List ModUnit -> Sig -> List (String, List Nat) -> (eps : List Nat) -> Nat ->
             List (String, Range, Nat) -> List String ->
             Either String (List (String, Range, Nat), List String)
-  fixLoop units sigOrig cands Z ds log = Left "migrate: α-gate fixpoint did not converge in 10 rounds"
-  fixLoop units sigOrig cands (S fuel) ds log =
-    let dropUnits = map (\u => xfUnit cands (MDropSited (unitKeys u.mname ds)) u) units in
+  fixLoop units sigOrig cands eps Z ds log = Left "migrate: α-gate fixpoint did not converge in 10 rounds"
+  fixLoop units sigOrig cands eps (S fuel) ds log =
+    let dropUnits = map (\u => xfUnit cands (MDropSited eps (unitKeys u.mname ds)) u) units in
     case elabProgramSig dropUnits of
       Left err =>
         case defNameOfErr err of
@@ -817,7 +857,7 @@ migrateDefPath rootPath outDir name poss = do
             let ds2 = revertIn units [bare] ds in
             if length ds2 == length ds
               then Left ("migrated corpus failed to elaborate (no revertible drops):\n" ++ err)
-              else fixLoop units sigOrig cands fuel ds2 (log ++ [bare])
+              else fixLoop units sigOrig cands eps fuel ds2 (log ++ [bare])
       Right sigNew =>
         case sigCompare sigOrig sigNew of
           Nothing => Right (ds, log)
@@ -833,4 +873,4 @@ migrateDefPath rootPath outDir name poss = do
                     ds2 = revertIn units [bare] ds
                 in if length ds2 == length ds
                      then Left ("migrate: α-drift with no revertible drops in '\{qn}'\n" ++ msg)
-                     else fixLoop units sigOrig cands fuel ds2 (log ++ [qn])
+                     else fixLoop units sigOrig cands eps fuel ds2 (log ++ [qn])
