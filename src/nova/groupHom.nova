@@ -339,14 +339,14 @@ def homQuotFactors : (G : 𝕌)
     (homQuotMapCls N _ kills a)
 
 -- UNIQUENESS: two homomorphisms out of G/N agreeing after π agree
-def homQuotUnique : (G : 𝕌)
-  (g : El (IsGroup G))
-  (H : 𝕌)
-  (h : El (IsGroup H))
-  (N : El G → Ω)
-  (s : Prf (IsSubgroup _ g N))
-  (nn : Prf (IsNormal _ g N))
-  (ph ps : El (Hom (qIsGroup _ _ _ s nn) h))
+def homQuotUnique : {G : 𝕌}
+  {g : El (IsGroup G)}
+  {H : 𝕌}
+  {h : El (IsGroup H)}
+  {N : El G → Ω}
+  {s : Prf (IsSubgroup _ g N)}
+  {nn : Prf (IsNormal _ g N)}
+  {ph ps : El (Hom (qIsGroup _ _ _ s nn) h)}
   → ((a : El G)
     → homAp
       ph
@@ -367,4 +367,4 @@ def homQuotUniqueFun : (G : 𝕌)
     → homAp
       ph
       (qcls _ g N a) ≡ homAp ps (qcls _ g N a)) → homAp ph ≡ homAp ps ∈ El (QGroup _ g N → H) ≔
-  λG. λg. λH. λh. λN. λs. λnn. λph. λps. λe. funext _ _ _ _ (homQuotUnique _ _ _ _ _ _ _ _ _ e)
+  λG. λg. λH. λh. λN. λs. λnn. λph. λps. λe. funext _ _ _ _ (homQuotUnique e)

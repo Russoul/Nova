@@ -658,6 +658,15 @@ Three surface truths the tool had to learn:
   * the blocked-site workflow is exactly the LSP blank hover: the
     hover names the solved value and its source, the user spells
     it, the migration proceeds.
+  * at a PARTIALLY-IMPLICIT def's sites, surface items and
+    telescope positions diverge: elided implicits consume no item
+    and overrides pair with implicit positions, so the i-th
+    NON-OVERRIDE item stands at the i-th EXPLICIT position
+    (explicitSlots — the census read 16 homQuotMap sites as zero
+    before learning this). Runs are computed over the
+    POST-migration implicit set — chosen ∪ pre-existing — and a
+    pre-existing implicit before a needed override blocks the site
+    like a blank does (its argument is elided; nothing to wrap).
 
 Migrated so far, tool-verified, per the census: cong {A}{v}{w}
 (597 sites), sym {A} (410), trans {A} (620), transport {A}{a}{b}
