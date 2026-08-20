@@ -16,6 +16,6 @@ import id (Id)
 def IsMonoid : 𝕌 → 𝕌 ≔
   λM. (op : M → M → M)
     (e : M)
-    (assoc : (x y z : M) → Id M (op (op x y) z) (op x (op y z)))
-    (unitL : (x : M) → Id M (op e x) x)
-    ⨯ (x : M) → Id M (op x e) x
+    (assoc : (x y z : M) → Id _ (op (op x y) z) (op x (op y z)))
+    (unitL : (x : M) → Id _ (op e x) x)
+    ⨯ (x : M) → Id _ (op x e) x

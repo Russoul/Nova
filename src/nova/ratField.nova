@@ -20,20 +20,20 @@ def ratAddGroup : El (IsGroup Q) using (group.IsGroup.unfold, monoid.IsMonoid.un
   ((+),
     qZero,
       (λx. λy. λz. eqToId
-        (x + y + z)
-        (x + (y + z))
+        _
+        _
         (qAddAssoc
           x
           y
           z)),
         (λx. eqToId
-          (qZero + x)
-          x
+          _
+          _
           (qAddZeroL
             x)),
           λx. eqToId
-            (x + qZero)
-            x
+            _
+            _
             (qAddZeroR
               x)),
     qNeg, (λx. eqToId (qNeg x + x) qZero (qAddNegL x)), λx. eqToId (x + qNeg x) qZero (qAddNegR x)
@@ -42,12 +42,9 @@ def ratMulMonoid : El (IsMonoid Q) using (monoid.IsMonoid.unfold) ≔
   (*),
     qOne,
       (λx. λy. λz. eqToId
-        (x * y * z)
-        (x * (y * z))
-        (qMulAssoc
-          x
-          y
-          z)), (λx. eqToId (qOne * x) x (qMulOneL x)), λx. eqToId (x * qOne) x (qMulOneR x)
+        _
+        _
+        (qMulAssoc x y z)), (λx. eqToId _ _ (qMulOneL x)), λx. eqToId _ _ (qMulOneR x)
 
 -- Nontriviality at the DATA level: an element of 𝟘 from Id Q 1 0.
 -- Prf ⊥ could never produce one — the route is the effectivity chain
@@ -56,7 +53,7 @@ def ratMulMonoid : El (IsMonoid Q) using (monoid.IsMonoid.unfold) ≔
 -- relation (which δβ-computes to class (S Z , Z) ≡ class (Z , Z)),
 -- intEffective turns THAT into its ℕ relation (which computes to
 -- S Z ≡ Z), and zNotS transports () across it into 𝟘.
-def qOneNotZeroD : El (Id Q qOne qZero) → 𝟘
+def qOneNotZeroD : El (Id _ qOne qZero) → 𝟘
   using (id.Id.unfold,
     integer.Int.eq,
     integer.IntR.eq,
@@ -84,13 +81,10 @@ def qOneNotZeroD : El (Id Q qOne qZero) → 𝟘
     rationalQ.qZero.eq,
     rationalQ.qcls.eq) ≔
   λp. let h ≔ idToEq
-    Q
-    qOne
-    qZero
-    p in let r ≔ qEffective
-    ratOne
-    ratZero
-    h in let e ≔ intEffective (S Z, Z) (Z, Z) r in zNotS Z (sym ℕ (S Z) Z e)
+    _
+    _
+    _
+    p in let r ≔ qEffective ratOne ratZero h in let e ≔ intEffective _ _ r in zNotS _ (sym _ _ _ e)
 
 -- ℚ is a field. The inverse component is UNSQUASHED: qInv is an
 -- honest operation (rationalAlgInv), so the witness is (qInv x, law).
@@ -144,4 +138,4 @@ def ratField : El (IsField Q)
                   eqToId
                     (x * qInv x)
                     qOne
-                    (qMulInvR (notIntro (x ≡ qZero) (λe. ⋆ (k (eqToId x qZero e)))))
+                    (qMulInvR (notIntro (x ≡ qZero) (λe. ⋆ (k (eqToId _ qZero e)))))

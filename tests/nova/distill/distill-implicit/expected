@@ -1,5 +1,5 @@
 distilled 1 modules (8 items) to out
-elided 6 of 6 ∈-annotations and motives
+elided 6 of 6 ∈-annotations and motives, blanked 0 arguments
 round-trip OK: ASTs identical, kernel Σ α-identical.
 def two : ℕ ≔ 2
 

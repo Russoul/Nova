@@ -33,11 +33,7 @@ def intDblSquare : (g : El Int) → (g + g + (g + g)) * g ≡ (g + g) * (g + g)
   using (integer.Int.unfold) ≔
   λg. (g + g + (g + g)) * g
       ≡⟨ intMulDistribR (g + g) (g + g) g ⟩ (g + g) * g + (g + g) * g
-      ≡⟨ sym
-        Int
-        ((g + g) * (g + g))
-        ((g + g) * g + (g + g) * g)
-        (intMulDistribL (g + g) g g) ⟩ (g + g) * (g + g)
+      ≡⟨ sym _ _ _ (intMulDistribL (g + g) g g) ⟩ (g + g) * (g + g)
 
 -- ===== pushing the doubled index through nzToInt =====
 def nzPosInt : (k : ℕ) → nzToInt (nzPos k) ≡ intOfNat (S k)
@@ -53,23 +49,13 @@ def nzPosDbl : (n : ℕ) → nzToInt (nzPos (dbl n)) ≡ nzToInt (nzPos n) + nzT
   using (integer.Int.unfold) ≔
   λn. nzToInt (nzPos (dbl n))
       ≡⟨ nzPosInt (dbl n) ⟩ intOfNat (S (dbl n))
-      ≡⟨ cong ℕ (λw. Int) (λw. intOfNat w) (S (dbl n)) (S n + S n) (sucDbl n) ⟩ intOfNat (S n + S n)
+      ≡⟨ cong ℕ (λw. Int) (λw. intOfNat w) _ _ (sucDbl n) ⟩ intOfNat (S n + S n)
+      ≡⟨ sym _ _ _ (intOfNatPlus (S n) (S n)) ⟩ intOfNat (S n) + intOfNat (S n)
       ≡⟨ sym
-        Int
+        _
+        _
         (intOfNat (S n) + intOfNat (S n))
-        (intOfNat (S n + S n))
-        (intOfNatPlus (S n) (S n)) ⟩ intOfNat (S n) + intOfNat (S n)
-      ≡⟨ sym
-        Int
-        (nzToInt (nzPos n) + nzToInt (nzPos n))
-        (intOfNat (S n) + intOfNat (S n))
-        (cong
-          Int
-          (λw. Int)
-          (λw. w + w)
-          (nzToInt (nzPos n))
-          (intOfNat (S n))
-          (nzPosInt n)) ⟩ nzToInt (nzPos n) + nzToInt (nzPos n)
+        (cong Int (λw. Int) (λw. w + w) _ _ (nzPosInt n)) ⟩ nzToInt (nzPos n) + nzToInt (nzPos n)
 
 -- ===== the cross-multiplication =====
 -- the unit fraction at index k, as a raw fraction
@@ -152,23 +138,23 @@ def halfCross : {n : ℕ}
         Int
         (λw. Int)
         (λw. num (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) * w)
-        (dInt (unitRat n))
-        (nzToInt (nzPos n))
+        _
+        _
         (unitDen n) ⟩ num (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) * nzToInt (nzPos n)
       ≡⟨ cong
         Int
         (λw. Int)
         (λw. w * nzToInt (nzPos n))
-        (num (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
-        (nzToInt (nzPos (dbl n)) + nzToInt (nzPos (dbl n)))
+        _
+        _
         (unitAddNumU
           (dbl n)) ⟩ (nzToInt (nzPos (dbl n)) + nzToInt (nzPos (dbl n))) * nzToInt (nzPos n)
       ≡⟨ cong
         Int
         (λw. Int)
         (λw. (w + w) * nzToInt (nzPos n))
-        (nzToInt (nzPos (dbl n)))
-        (nzToInt (nzPos n) + nzToInt (nzPos n))
+        _
+        _
         (nzPosDbl
           n) ⟩ (nzToInt
         (nzPos n) + nzToInt (nzPos n) + (nzToInt (nzPos n) + nzToInt (nzPos n))) * nzToInt (nzPos n)
@@ -177,25 +163,21 @@ def halfCross : {n : ℕ}
           (nzPos
             n)) ⟩ (nzToInt (nzPos n) + nzToInt (nzPos n)) * (nzToInt (nzPos n) + nzToInt (nzPos n))
       ≡⟨ sym
-        Int
-        (nzToInt (nzPos (dbl n)) * nzToInt (nzPos (dbl n)))
+        _
+        _
         ((nzToInt (nzPos n) + nzToInt (nzPos n)) * (nzToInt (nzPos n) + nzToInt (nzPos n)))
         (cong
           Int
           (λw. Int)
           (λw. w * w)
-          (nzToInt (nzPos (dbl n)))
-          (nzToInt (nzPos n) + nzToInt (nzPos n))
+          _
+          _
           (nzPosDbl n)) ⟩ nzToInt (nzPos (dbl n)) * nzToInt (nzPos (dbl n))
+      ≡⟨ sym _ _ _ (unitAddDenU (dbl n)) ⟩ dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))
       ≡⟨ sym
-        Int
-        (dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
-        (nzToInt (nzPos (dbl n)) * nzToInt (nzPos (dbl n)))
-        (unitAddDenU (dbl n)) ⟩ dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))
-      ≡⟨ sym
-        Int
-        (intOne * dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
-        (dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
+        _
+        _
+        _
         (intMulOneL
           (dInt
             (ratAdd
@@ -205,8 +187,8 @@ def halfCross : {n : ℕ}
         Int
         (λw. Int)
         (λw. w * dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
-        (num (unitRat n))
-        intOne
+        _
+        _
         (unitNum n) ⟩ num (unitRat n) * dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))
 
 -- 1/(2n+2) + 1/(2n+2) ~ 1/(n+1): the relation is halfCross, decoded
@@ -226,17 +208,17 @@ def qInvHalf : (n : ℕ) → qInvNat (dbl n) + qInvNat (dbl n) ≡ qInvNat n
     rationalQ.qcls.eq,
     real.qInvNat.eq) ≔
   λn. trans
-    Q
+    _
     (qInvNat (dbl n) + qInvNat (dbl n))
     (qcls (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
     (qInvNat n)
     (qAddCls (unitRat (dbl n)) (unitRat (dbl n)))
-    (clsEqOfRel (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) (unitRat n) (halfRel n))
+    (clsEqOfRel _ _ (halfRel n))
 
 -- ===== the halved bound, as an inequality =====
 def leQZeroInvNat : (n : ℕ) → El (qZero ≤ qInvNat n)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
-  λn. leQZeroOfPos (qInvNat n) (qInvNatPos n)
+  λn. leQZeroOfPos _ (qInvNatPos n)
 
 -- 1/(2n+2) ≤ 1/(n+1): the halved bound is at most the original,
 -- because the other half is nonnegative
@@ -245,7 +227,7 @@ def leQInvDbl : (n : ℕ) → El (qInvNat (dbl n) ≤ qInvNat n)
   λn. transport
     Q
     (λw. qInvNat (dbl n) ≤ w)
-    (qInvNat (dbl n) + qInvNat (dbl n))
-    (qInvNat n)
+    _
+    _
     (qInvHalf n)
     (leQSelfAdd (qInvNat (dbl n)) (leQZeroInvNat (dbl n)))

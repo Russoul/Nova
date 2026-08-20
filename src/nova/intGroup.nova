@@ -15,20 +15,20 @@ def intAddGroup : El (IsGroup Int) using (group.IsGroup.unfold, monoid.IsMonoid.
   ((+),
     intZero,
       (λx. λy. λz. eqToId
-        (x + y + z)
-        (x + (y + z))
+        _
+        _
         (intAddAssoc
           x
           y
           z)),
         (λx. eqToId
-          (intZero + x)
-          x
+          _
+          _
           (intAddZeroL
             x)),
           λx. eqToId
-            (x + intZero)
-            x
+            _
+            _
             (intAddZeroR
               x)),
     intNeg,

@@ -1,0 +1,7 @@
+defined propId
+defined use
+defined +
+defined dup
+defined cst
+defined blankInOp
+Accepted.

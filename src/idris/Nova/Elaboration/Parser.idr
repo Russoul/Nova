@@ -608,10 +608,13 @@ mutual
     <|> (kw "ℕ"   $> SNatC)
     <|> (do (r, x) <- bounds parseDottedName
             case unpack x of
-              -- `_`-leading identifiers were HOLES; the machinery is
-              -- removed (PerfNotes "The cost of a hole") ahead of the
-              -- metavariable redesign. Binder wildcards are a separate
-              -- production and unaffected.
+              -- a BARE `_` is a BLANK: a per-site elided argument at
+              -- an explicit Π position (docs/NovaPerfectSurface.txt,
+              -- Phase 4). Other `_`-leading identifiers were HOLES;
+              -- that machinery is removed (PerfNotes "The cost of a
+              -- hole") ahead of the metavariable redesign. Binder
+              -- wildcards are a separate production and unaffected.
+              ['_'] => pure (SBlank r)
               ('_' :: rest) => fail "holes are not supported (spell the term)"
               _ =>
                 case resolveVar env x of

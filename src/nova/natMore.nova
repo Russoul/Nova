@@ -14,29 +14,16 @@ def multDistribR : (n m k : ℕ) → (m + k) * n ≡ m * n + k * n ≔
   λn. λm. λk. (m + k) * n
       ≡⟨ multComm (m + k) n ⟩ n * (m + k)
       ≡⟨ multDistrib n m k ⟩ n * m + n * k
-      ≡⟨ cong ℕ (λu. ℕ) (λw. w + n * k) (n * m) (m * n) (multComm m n) ⟩ m * n + n * k
-      ≡⟨ cong ℕ (λu. ℕ) (λw. m * n + w) (n * k) (k * n) (multComm k n) ⟩ m * n + k * n
+      ≡⟨ cong ℕ (λu. ℕ) (λw. w + n * k) _ _ (multComm m n) ⟩ m * n + n * k
+      ≡⟨ cong ℕ (λu. ℕ) (λw. m * n + w) _ _ (multComm k n) ⟩ m * n + k * n
 
 -- ===== cancellation =====
 def plusCancelL : (k n m : ℕ) → (k + n ≡ k + m) → n ≡ m ≔
-  λk. λn. λm. λh. plusCancel
-    n
-    m
-    k
-    (trans
-      ℕ
-      (n + k)
-      (k + n)
-      (m + k)
-      (plusComm k n)
-      (trans ℕ (k + n) (k + m) (m + k) h (plusComm m k)))
+  λk. λn. λm. λh. plusCancel _ _ _ (trans _ _ _ _ (plusComm k n) (trans _ _ _ _ h (plusComm m k)))
 
 -- a product with a SUCCESSOR is zero only if the other factor is
 def multZeroInv : (j k : ℕ) → (j * S k ≡ Z) → j ≡ Z ≔
-  λj. λk. λh. sumZeroL
-    j
-    (j * k)
-    (trans ℕ (j + j * k) (j * S k) Z (sym ℕ (j * S k) (j + j * k) (multSucId j k)) h)
+  λj. λk. λh. sumZeroL _ _ (trans _ _ _ _ (sym _ _ _ (multSucId j k)) h)
 
 -- cancellation by S k, under the assumption that the smaller side is
 -- known: the surplus times S k is zero, hence zero
@@ -44,55 +31,51 @@ def multCancelLe : {n m : ℕ} (k : ℕ) → El (n ≤ m) → (n * S k ≡ m * S
   using (id.Id.unfold, nat.plusZeroId, natOrder.≤.unfold) ≔
   λn. λm. λk. λle. λh. let e : n
     + le .π₁ ≡ m ≔ idToEq
-    ℕ
-    (n + le .π₁)
-    m
+    _
+    _
+    _
     (le .π₂) in let split : n
     * S k ≡ n
     * S k
     + le .π₁
       * S k ≔ trans
-    ℕ
-    (n * S k)
-    (m * S k)
-    (n * S k + le .π₁ * S k)
+    _
+    _
+    _
+    _
     h
     (trans
-      ℕ
-      (m * S k)
-      ((n + le .π₁) * S k)
+      _
+      _
+      _
       (n * S k + le .π₁ * S k)
-      (cong ℕ (λu. ℕ) (λw. w * S k) m (n + le .π₁) (sym ℕ (n + le .π₁) m e))
+      (cong ℕ (λu. ℕ) (λw. w * S k) _ _ (sym _ _ _ e))
       (multDistribR
         (S k)
         n
         (le .π₁))) in let jz : le .π₁ ≡ Z ∈ ℕ ≔ multZeroInv
-    (le .π₁)
-    k
+    _
+    _
     (sym
-      ℕ
-      Z
-      (le .π₁ * S k)
+      _
+      _
+      _
       (plusCancelL
         (n * S k)
         Z
         (le .π₁ * S k)
         split)) in trans
-    ℕ
-    n
-    (n + le .π₁)
-    m
-    (sym
-      ℕ
-      (n + le .π₁)
-      n
-      (trans ℕ (n + le .π₁) (n + Z) n (cong ℕ (λu. ℕ) (λw. n + w) (le .π₁) Z jz) (plusZeroId n)))
+    _
+    _
+    _
+    _
+    (sym _ _ _ (trans _ _ _ n (cong ℕ (λu. ℕ) (λw. n + w) _ _ jz) (plusZeroId n)))
     e
 
 def multCancelR : (n m k : ℕ) → (n * S k ≡ m * S k) → n ≡ m ≔
   λn. λm. λk. λh. ⊎-elim
-    (le. multCancelLe k le h)
-    (le. sym ℕ m n (multCancelLe k le (sym ℕ (n * S k) (m * S k) h)))
+    (le. multCancelLe _ le h)
+    (le. sym _ _ _ (multCancelLe _ le (sym _ _ _ h)))
     (leTotal n m)
 
 -- ===== truncated subtraction =====
@@ -141,13 +124,7 @@ def monusSelf : {a : ℕ} → a ∸ a ≡ Z
 -- ...so a ≤ b makes a − b vanish
 def monusZeroOfLe : (a b : ℕ) → El (a ≤ b) → a ∸ b ≡ Z using (id.Id.unfold, natOrder.≤.unfold) ≔
   λa. λb. λle. a ∸ b
-      ≡⟨ cong
-        ℕ
-        (λu. ℕ)
-        (λw. a ∸ w)
-        b
-        (a + le .π₁)
-        (sym ℕ (a + le .π₁) b (idToEq ℕ (a + le .π₁) b (le .π₂))) ⟩ a ∸ (a + le .π₁)
+      ≡⟨ cong ℕ (λu. ℕ) (λw. a ∸ w) _ _ (sym _ _ _ (idToEq _ _ _ (le .π₂))) ⟩ a ∸ (a + le .π₁)
       ≡⟨ monusPlus a a (le .π₁) ⟩ a ∸ a ∸ le .π₁
       ≡⟨ cong ℕ (λu. ℕ) (λw. w ∸ le .π₁) (a ∸ a) Z monusSelf ⟩ Z ∸ le .π₁
       ≡⟨ zeroMonus (le .π₁) ⟩ Z
@@ -156,25 +133,13 @@ def monusZeroOfLe : (a b : ℕ) → El (a ≤ b) → a ∸ b ≡ Z using (id.Id.
 def leMonusPlus : {a b : ℕ} → El (a ≤ b) → a + (b ∸ a) ≡ b using (id.Id.unfold, natOrder.≤.unfold) ≔
   λa. λb. λle. let e : a
     + le .π₁ ≡ b ≔ idToEq
-    ℕ
-    (a + le .π₁)
-    b
+    _
+    _
+    _
     (le .π₂) in a + (b ∸ a)
-      ≡⟨ cong
-        ℕ
-        (λu. ℕ)
-        (λw. a + (w ∸ a))
-        b
-        (a + le .π₁)
-        (sym ℕ (a + le .π₁) b e) ⟩ a + (a + le .π₁ ∸ a)
-      ≡⟨ cong
-        ℕ
-        (λu. ℕ)
-        (λw. a + (w ∸ a))
-        (a + le .π₁)
-        (le .π₁ + a)
-        (plusComm (le .π₁) a) ⟩ a + (le .π₁ + a ∸ a)
-      ≡⟨ cong ℕ (λu. ℕ) (λw. a + w) (le .π₁ + a ∸ a) (le .π₁) (plusMonus (le .π₁) a) ⟩ a + le .π₁
+      ≡⟨ cong ℕ (λu. ℕ) (λw. a + (w ∸ a)) _ _ (sym _ _ _ e) ⟩ a + (a + le .π₁ ∸ a)
+      ≡⟨ cong ℕ (λu. ℕ) (λw. a + (w ∸ a)) _ _ (plusComm (le .π₁) a) ⟩ a + (le .π₁ + a ∸ a)
+      ≡⟨ cong ℕ (λu. ℕ) (λw. a + w) _ _ (plusMonus (le .π₁) a) ⟩ a + le .π₁
       ≡⟨ e ⟩ b
 
 -- ===== max and min =====
@@ -192,34 +157,30 @@ def leMaxL : (a b : ℕ) → El (a ≤ natMax a b) using (natMore.natMax.eq, nat
 def leMaxR : (a b : ℕ) → El (b ≤ natMax a b)
   using (id.Id.unfold, natMore.natMax.eq, natOrder.≤.unfold) ≔
   λa. λb. ⊎-elim
-    (le. Z,
-      eqToId
-        (b + Z)
-        (natMax a b)
-        (trans ℕ (b + Z) b (natMax a b) (plusZeroId b) (sym ℕ (natMax a b) b (leMonusPlus le))))
+    (le. Z, eqToId _ _ (trans _ _ _ _ (plusZeroId b) (sym _ (natMax a b) _ (leMonusPlus le))))
     (le. le .π₁
       + (b
         ∸ a),
       eqToId
-        (b + (le .π₁ + (b ∸ a)))
-        (natMax a b)
+        _
+        _
         (trans
           ℕ
-          (b + (le .π₁ + (b ∸ a)))
+          _
           (a + (b ∸ a))
           (natMax a b)
           (trans
-            ℕ
-            (b + (le .π₁ + (b ∸ a)))
-            (b + le .π₁ + (b ∸ a))
-            (a + (b ∸ a))
-            (sym ℕ (b + le .π₁ + (b ∸ a)) (b + (le .π₁ + (b ∸ a))) (plusAssoc b (le .π₁) (b ∸ a)))
-            (cong ℕ (λu. ℕ) (λw. w + (b ∸ a)) (b + le .π₁) a (idToEq ℕ (b + le .π₁) a (le .π₂))))
+            _
+            _
+            _
+            _
+            (sym _ _ _ (plusAssoc b (le .π₁) (b ∸ a)))
+            (cong ℕ (λu. ℕ) (λw. w + (b ∸ a)) _ _ (idToEq _ _ _ (le .π₂))))
           ⋆))
     (leTotal a b)
 
 def natMaxSelf : (a : ℕ) → natMax a a ≡ a using (natMore.natMax.eq) ≔
-  λa. trans ℕ (natMax a a) (a + Z) a (cong ℕ (λu. ℕ) (λw. a + w) (a ∸ a) Z monusSelf) (plusZeroId a)
+  λa. trans _ (natMax a a) _ _ (cong ℕ (λu. ℕ) (λw. a + w) (a ∸ a) Z monusSelf) (plusZeroId a)
 
 def natMinSelf : (a : ℕ) → natMin a a ≡ a using (natMore.natMin.eq) ≔
   λa. trans ℕ (natMin a a) (a ∸ Z) a (cong ℕ (λu. ℕ) (λw. a ∸ w) (a ∸ a) Z monusSelf) monusZeroR
@@ -251,7 +212,7 @@ def oneExp : (n : ℕ) → S Z ^ n ≡ S Z
 def multLeftComm : (x y z : ℕ) → x * (y * z) ≡ y * (x * z) ≔
   λx. λy. λz. x * (y * z)
       ≡⟨ multAssoc x y z ⟩ x * y * z
-      ≡⟨ cong ℕ (λu. ℕ) (λw. w * z) (x * y) (y * x) (multComm y x) ⟩ y * x * z
+      ≡⟨ cong ℕ (λu. ℕ) (λw. w * z) _ _ (multComm y x) ⟩ y * x * z
       ≡⟨ multAssoc y x z ⟩ y * (x * z)
 
 def expPlus : (a m n : ℕ) → a ^ (m + n) ≡ a ^ m * a ^ n
@@ -281,32 +242,26 @@ def monusPlusR : (a b k : ℕ) → a + k ∸ (b + k) ≡ a ∸ b
 
 def monusPlusL : {k a b : ℕ} → k + a ∸ (k + b) ≡ a ∸ b ≔
   λk. λa. λb. trans
-    ℕ
-    (k + a ∸ (k + b))
-    (a + k ∸ (b + k))
-    (a ∸ b)
+    _
+    _
+    _
+    _
     (trans
-      ℕ
-      (k + a ∸ (k + b))
-      (a + k ∸ (k + b))
+      _
+      _
+      _
       (a + k ∸ (b + k))
-      (cong ℕ (λu. ℕ) (λw. w ∸ (k + b)) (k + a) (a + k) (plusComm a k))
-      (cong ℕ (λu. ℕ) (λw. a + k ∸ w) (k + b) (b + k) (plusComm b k)))
+      (cong ℕ (λu. ℕ) (λw. w ∸ (k + b)) _ _ (plusComm a k))
+      (cong ℕ (λu. ℕ) (λw. a + k ∸ w) _ _ (plusComm b k)))
     (monusPlusR a b k)
 
 -- the difference-pair reading: a + d ≡ b + c makes a − b and c − d
 -- the same truncated difference
 def monusEqOfSum : {a b c d : ℕ} → (a + d ≡ b + c) → a ∸ b ≡ c ∸ d ≔
   λa. λb. λc. λd. λh. trans
-    ℕ
-    (a ∸ b)
-    (a + d ∸ (b + d))
-    (c ∸ d)
-    (sym ℕ (a + d ∸ (b + d)) (a ∸ b) (monusPlusR a b d))
-    (trans
-      ℕ
-      (a + d ∸ (b + d))
-      (b + c ∸ (b + d))
-      (c ∸ d)
-      (cong ℕ (λu. ℕ) (λw. w ∸ (b + d)) (a + d) (b + c) h)
-      monusPlusL)
+    _
+    _
+    _
+    _
+    (sym _ _ _ (monusPlusR a b d))
+    (trans ℕ _ (b + c ∸ (b + d)) (c ∸ d) (cong ℕ (λu. ℕ) (λw. w ∸ (b + d)) _ _ h) monusPlusL)

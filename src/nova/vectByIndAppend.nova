@@ -10,7 +10,7 @@ def vappendZ : (A : 𝕌)
   (n : ℕ)
   (v : El (vect Z A))
   (w : El (vect n A))
-  → vappend Z n v w ≡ w ∈ El (vect n A)
+  → vappend _ _ v w ≡ w ∈ El (vect n A)
   using (hyp.rw,
     sucPlus.rw,
     vappend.eq,
@@ -26,7 +26,7 @@ def vappendS : (n : ℕ)
   (m : ℕ)
   (v : El (vect (S n) A))
   (w : El (vect m A))
-  → vappend (S n) m v w ≡ (v .π₁, vappend n m (v .π₂) w)
+  → vappend _ _ v w ≡ (v .π₁, vappend _ _ (v .π₂) w)
   using (hyp.rw,
     nat.+.unfold,
     sucPlus,
@@ -49,14 +49,14 @@ def vappendAssocS : {A : 𝕌}
   → (vappend
     (p + m)
     k
-    (vappend p m (q .π₂) v)
+    (vappend _ _ (q .π₂) v)
     w ≡ vappend
-    p
-    (m + k)
+    _
+    _
     (q .π₂)
     (vappend
-      m
-      k
+      _
+      _
       v
       w) ∈ El (vect
     (p + (m + k))
@@ -64,8 +64,8 @@ def vappendAssocS : {A : 𝕌}
     → vappend
       (S p + m)
       k
-      (vappend (S p) m q v)
-      w ≡ vappend (S p) (m + k) q (vappend m k v w) ∈ El (vect (S p + (m + k)) A)
+      (vappend _ _ q v)
+      w ≡ vappend _ _ q (vappend _ _ v w) ∈ El (vect (S p + (m + k)) A)
   using (hyp.rw,
     nat.+.unfold,
     plusAssoc.rw,
@@ -86,7 +86,7 @@ def vappendAssoc : (n : ℕ)
   (v : El (vect m A))
   (w : El (vect k A))
   (u : El (vect n A))
-  → vappend (n + m) k (vappend n m u v) w ≡ vappend n (m + k) u (vappend m k v w)
+  → vappend _ _ (vappend _ _ u v) w ≡ vappend n (m + k) u (vappend _ _ v w)
   using (hyp.rw,
     nat.+.unfold,
     plusAssoc,
@@ -103,8 +103,8 @@ def vappendAssoc : (n : ℕ)
     → vappend
       (p + m)
       k
-      (vappend p m q v)
-      w ≡ vappend p (m + k) q (vappend m k v w) ∈ El (vect (p + (m + k)) A))
+      (vappend _ _ q v)
+      w ≡ vappend _ _ q (vappend _ _ v w) ∈ El (vect (p + (m + k)) A))
     (λq. ⋆ using (vappend.eq, vect.eq, zeroPlusId.rw, sucPlus.rw, hyp.rw))
     (p ih. λq. vappendAssocS (ih (q .π₂)))
     n)

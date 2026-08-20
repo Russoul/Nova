@@ -1,0 +1,18 @@
+distilled 1 modules (4 items) to out
+elided 0 of 0 ∈-annotations and motives, blanked 6 arguments
+round-trip OK: ASTs identical, kernel Σ α-identical.
+-- distill golden: blank EMISSION — recoverable explicit arguments
+-- print as `_`, verified as one joint per-spine recovery, iterated
+-- to the corpus fixpoint
+
+def trans3 : (A : 𝕌) (x y z : El A) → (x ≡ y) → (y ≡ z) → x ≡ z ≔
+  λA. λx. λy. λz. λp. λq. x ≡⟨ p ⟩ y ≡⟨ q ⟩ z
+
+def useTrans : (A : 𝕌) (a b c : El A) → (a ≡ b) → (b ≡ c) → a ≡ c ≔
+  λA. λa. λb. λc. λp. λq. trans3 _ _ _ _ p q
+
+def cst : (A B : 𝕌) → El A → El B → El A ≔ λA. λB. λa. λb. a
+
+-- both indices recover from the written arguments' inferred types;
+-- the data arguments n and u themselves stay written
+def useCst : El ℕ → El 𝟙 → El ℕ ≔ λn. λu. cst _ _ n u

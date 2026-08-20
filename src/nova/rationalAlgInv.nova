@@ -37,7 +37,7 @@ def invRepAt : (p : El Rat)
   using (rational.Rat.unfold) ≔
   λp. λv. ⊎-elim (u. mkRat (dInt p) (u .π₁)) (u. ratZero) v
 
-def invRep : El Rat → El Rat using (rational.Rat.unfold) ≔ λp. invRepAt p (nzOfInt (num p))
+def invRep : El Rat → El Rat using (rational.Rat.unfold) ≔ λp. invRepAt _ (nzOfInt (num p))
 
 -- ===== well-definedness =====
 -- both numerators non-zero: the goal IS the hypothesis, commuted
@@ -48,7 +48,7 @@ def invRepWDAt : {p p' : El Rat}
   (h : Prf (RatR p p'))
   (v : ((e : El NZ) ⨯ Prf (nzToInt e ≡ num p)) ⊎ Prf (num p ≡ intZero))
   (v' : ((e : El NZ) ⨯ Prf (nzToInt e ≡ num p')) ⊎ Prf (num p' ≡ intZero))
-  → num (invRepAt p v) * dInt (invRepAt p' v') ≡ num (invRepAt p' v') * dInt (invRepAt p v)
+  → num (invRepAt _ v) * dInt (invRepAt _ v') ≡ num (invRepAt _ v') * dInt (invRepAt _ v)
   using (intMulOneR,
     intMulZeroL,
     integer.Int.eq,
@@ -67,34 +67,30 @@ def invRepWDAt : {p p' : El Rat}
   λp. λp'. λh. λv. λv'. ⊎-elim
     (ex. ⊎-elim
       (ey. trans
-        Int
+        _
         (dInt p * nzToInt (ey .π₁))
-        (dInt p * num p')
+        _
         (dInt p' * nzToInt (ex .π₁))
-        (mulCongR (dInt p) (nzToInt (ey .π₁)) (num p') (ey .π₂))
+        (mulCongR (dInt p) _ _ (ey .π₂))
         (trans
-          Int
-          (dInt p * num p')
-          (dInt p' * num p)
-          (dInt p' * nzToInt (ex .π₁))
+          _
+          _
+          _
+          _
           (trans
-            Int
-            (dInt p * num p')
-            (num p' * dInt p)
-            (dInt p' * num p)
+            _
+            _
+            _
+            _
             (intMulComm (dInt p) (num p'))
             (trans
-              Int
-              (num p' * dInt p)
-              (num p * dInt p')
-              (dInt p' * num p)
-              (sym Int (num p * dInt p') (num p' * dInt p) h)
+              _
+              _
+              _
+              _
+              (sym _ (num p * dInt p') (num p' * dInt p) h)
               (intMulComm (num p) (dInt p'))))
-          (mulCongR
-            (dInt p')
-            (num p)
-            (nzToInt (ex .π₁))
-            (sym Int (nzToInt (ex .π₁)) (num p) (ex .π₂)))))
+          (mulCongR (dInt p') _ _ (sym _ _ _ (ex .π₂)))))
       (ey. absurdP
         (num
           (invRepAt
@@ -103,29 +99,23 @@ def invRepWDAt : {p p' : El Rat}
           * dInt
             (invRepAt p' (inj₂ ey)) ≡ num (invRepAt p' (inj₂ ey)) * dInt (invRepAt p (inj₁ ex)))
         (notApply
-          (nzToInt (ex .π₁) ≡ intZero)
+          _
           (nzToIntNonZero (ex .π₁))
           (trans
-            Int
-            (nzToInt (ex .π₁))
-            (num p)
-            intZero
+            _
+            _
+            _
+            _
             (ex .π₂)
             (intNoZeroDiv
-              (dInt p')
+              _
               (trans
-                Int
+                _
                 (num p * dInt p')
-                (num p' * dInt p)
-                intZero
+                _
+                _
                 h
-                (trans
-                  Int
-                  (num p' * dInt p)
-                  (intZero * dInt p)
-                  intZero
-                  (mulCongL (num p') intZero (dInt p) ey)
-                  (intMulZeroL (dInt p))))
+                (trans _ _ _ _ (mulCongL _ _ (dInt p) ey) (intMulZeroL (dInt p))))
               (nzToIntNonZero (den p'))))))
       v')
     (ex. ⊎-elim
@@ -137,29 +127,23 @@ def invRepWDAt : {p p' : El Rat}
           * dInt
             (invRepAt p' (inj₁ ey)) ≡ num (invRepAt p' (inj₁ ey)) * dInt (invRepAt p (inj₂ ex)))
         (notApply
-          (nzToInt (ey .π₁) ≡ intZero)
+          _
           (nzToIntNonZero (ey .π₁))
           (trans
-            Int
-            (nzToInt (ey .π₁))
-            (num p')
-            intZero
+            _
+            _
+            _
+            _
             (ey .π₂)
             (intNoZeroDiv
-              (dInt p)
+              _
               (trans
-                Int
-                (num p' * dInt p)
-                (num p * dInt p')
-                intZero
-                (sym Int (num p * dInt p') (num p' * dInt p) h)
-                (trans
-                  Int
-                  (num p * dInt p')
-                  (intZero * dInt p')
-                  intZero
-                  (mulCongL (num p) intZero (dInt p') ex)
-                  (intMulZeroL (dInt p'))))
+                _
+                _
+                _
+                _
+                (sym _ (num p * dInt p') (num p' * dInt p) h)
+                (trans _ _ _ _ (mulCongL _ _ (dInt p') ex) (intMulZeroL (dInt p'))))
               (nzToIntNonZero (den p))))))
       (ey. ⋆)
       v')
@@ -190,7 +174,7 @@ def invRepWDCls : (p p' : El Rat)
     rationalQ.Q.unfold,
     rationalQ.RatR.eq,
     rationalQ.RatR.unfold) ≔
-  λp. λp'. λh. clsEqOfRel (invRep p) (invRep p') (invRepWD h)
+  λp. λp'. λh. clsEqOfRel _ _ (invRepWD h)
 
 def qInv : El Q → El Q
   using (integer.Int.unfold,
@@ -269,39 +253,29 @@ def invRepRel : {p : El Rat}
     rationalQ.dInt.eq,
     rationalQ.ratMul.eq) ≔
   λp. λe. λhe. trans
-    Int
+    _
     (num (ratMul p (mkRat (dInt p) e)) * dInt ratOne)
     (num p * dInt p)
-    (num ratOne * dInt (ratMul p (mkRat (dInt p) e)))
+    _
     (intMulOneR (num p * dInt p))
     (trans
-      Int
-      (num p * dInt p)
-      (dInt p * nzToInt e)
-      (num ratOne * dInt (ratMul p (mkRat (dInt p) e)))
+      _
+      _
+      _
+      _
+      (trans _ _ _ _ (intMulComm (num p) (dInt p)) (mulCongR (dInt p) _ _ (sym _ _ _ he)))
       (trans
-        Int
-        (num p * dInt p)
-        (dInt p * num p)
-        (dInt p * nzToInt e)
-        (intMulComm (num p) (dInt p))
-        (mulCongR (dInt p) (num p) (nzToInt e) (sym Int (nzToInt e) (num p) he)))
-      (trans
-        Int
+        _
         (dInt p * nzToInt e)
         (dInt (ratMul p (mkRat (dInt p) e)))
         (num ratOne * dInt (ratMul p (mkRat (dInt p) e)))
-        (sym Int (nzToInt (nzMul (den p) e)) (nzToInt (den p) * nzToInt e) (nzToIntMul (den p) e))
-        (sym
-          Int
-          (intOne * dInt (ratMul p (mkRat (dInt p) e)))
-          (dInt (ratMul p (mkRat (dInt p) e)))
-          (intMulOneL (dInt (ratMul p (mkRat (dInt p) e)))))))
+        (sym _ _ _ (nzToIntMul (den p) e))
+        (sym _ _ _ (intMulOneL (dInt (ratMul p (mkRat (dInt p) e)))))))
 
 def invRepCorrectAt : {p : El Rat}
   (hnz : Prf (¬ (num p ≡ intZero)))
   (v : ((e : El NZ) ⨯ Prf (nzToInt e ≡ num p)) ⊎ Prf (num p ≡ intZero))
-  → class (ratMul p (invRepAt p v)) ≡ qOne
+  → class (ratMul p (invRepAt _ v)) ≡ qOne
   using (intMulZeroR,
     integer.Int.eq,
     integer.Int.unfold,
@@ -325,9 +299,7 @@ def invRepCorrectAt : {p : El Rat}
     rationalQ.ratMul.eq) ≔
   λp. λhnz. λv. ⊎-elim
     (ex. clsEqOfRel (ratMul p (mkRat (dInt p) (ex .π₁))) ratOne (invRepRel (ex .π₂)))
-    (ex. absurdP
-      (class (ratMul p (invRepAt p (inj₂ ex))) ≡ qOne)
-      (notApply (num p ≡ intZero) hnz ex))
+    (ex. absurdP (class (ratMul p (invRepAt p (inj₂ ex))) ≡ qOne) (notApply _ hnz ex))
     v
 
 def qMulInvR : {u : El Q} (h : Prf (¬ (u ≡ qZero))) → u * qInv u ≡ qOne
@@ -410,36 +382,30 @@ def qInvUniqueVal : (u : El Q)
   (h' : Prf (u * v' ≡ qOne))
   → v ≡ v' ≔
   λu. λv. λv'. λh. λh'. trans
-    Q
-    v
-    (v * qOne)
-    v'
-    (sym Q (v * qOne) v (qMulOneR v))
+    _
+    _
+    _
+    _
+    (sym _ _ _ (qMulOneR v))
     (trans
-      Q
-      (v * qOne)
-      (v * (u * v'))
+      _
+      _
+      _
       v'
-      (cong Q (λx. Q) (λx. v * x) qOne (u * v') (sym Q (u * v') qOne h'))
+      (cong Q (λx. Q) (λx. v * x) _ _ (sym _ _ _ h'))
       (trans
-        Q
-        (v * (u * v'))
-        (v * u * v')
-        v'
-        (sym Q (v * u * v') (v * (u * v')) (qMulAssoc v u v'))
+        _
+        _
+        _
+        _
+        (sym _ _ _ (qMulAssoc v u v'))
         (trans
-          Q
-          (v * u * v')
-          (u * v * v')
+          _
+          _
+          _
           v'
-          (cong Q (λx. Q) (λx. x * v') (v * u) (u * v) (qMulComm v u))
-          (trans
-            Q
-            (u * v * v')
-            (qOne * v')
-            v'
-            (cong Q (λx. Q) (λx. x * v') (u * v) qOne h)
-            (qMulOneL v')))))
+          (cong Q (λx. Q) (λx. x * v') _ _ (qMulComm v u))
+          (trans _ _ _ v' (cong Q (λx. Q) (λx. x * v') _ _ h) (qMulOneL v')))))
 
 -- packaging: with the two values equal (and the two proofs equal by
 -- proof irrelevance) the pairs are equal. Note trans/sym/cong are
@@ -463,4 +429,4 @@ def qInvWitnessUnique : (u a a' : El Q)
   (b : Prf (u * a ≡ qOne))
   (b' : Prf (u * a' ≡ qOne))
   → (a, b) ≡ (a', b') ∈ (v : El Q) ⨯ Prf (u * v ≡ qOne) ≔
-  λu. λa. λa'. λb. λb'. invPairCong (qInvUniqueVal u b b')
+  λu. λa. λa'. λb. λb'. invPairCong (qInvUniqueVal _ b b')

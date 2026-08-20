@@ -134,6 +134,7 @@ parameters (rm : RenameMap, resolve : String -> String)
       SAnn t ty => SAnn (rnE t) (rnT ty)
       SImpArg t => SImpArg (rnE t)
       SNoIns t => SNoIns (rnE t)
+      SBlank _ => e
 
     rnT : STy -> STy
     rnT ty = case ty of

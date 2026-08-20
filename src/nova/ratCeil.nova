@@ -49,46 +49,34 @@ def crossAbs : (p p' : El Rat)
     rationalQ.RatR.unfold,
     rationalQ.dInt.eq) ≔
   λp. λp'. λh. trans
-    ℕ
-    (intMag (num p) * S (nzMag (den p')))
-    (intMag (num p * dInt p'))
-    (intMag (num p') * S (nzMag (den p)))
+    _
+    _
+    _
+    _
     (sym
-      ℕ
-      (intMag (num p * dInt p'))
-      (intMag (num p) * S (nzMag (den p')))
+      _
+      _
+      _
       (trans
-        ℕ
+        _
         (intMag (num p * dInt p'))
         (intMag (num p) * intMag (nzToInt (den p')))
-        (intMag (num p) * S (nzMag (den p')))
+        _
         (intMagMul (num p) (dInt p'))
-        (cong
-          ℕ
-          (λu. ℕ)
-          (λw. intMag (num p) * w)
-          (intMag (nzToInt (den p')))
-          (S (nzMag (den p')))
-          (intMagNz (den p')))))
+        (cong ℕ (λu. ℕ) (λw. intMag (num p) * w) _ _ (intMagNz (den p')))))
     (trans
-      ℕ
-      (intMag (num p * dInt p'))
-      (intMag (num p' * dInt p))
+      _
+      _
+      _
       (intMag (num p') * S (nzMag (den p)))
       (cong Int (λv. ℕ) (λv. intMag v) (num p * dInt p') (num p' * dInt p) h)
       (trans
-        ℕ
+        _
         (intMag (num p' * dInt p))
         (intMag (num p') * intMag (nzToInt (den p)))
-        (intMag (num p') * S (nzMag (den p)))
+        _
         (intMagMul (num p') (dInt p))
-        (cong
-          ℕ
-          (λu. ℕ)
-          (λw. intMag (num p') * w)
-          (intMag (nzToInt (den p)))
-          (S (nzMag (den p)))
-          (intMagNz (den p)))))
+        (cong ℕ (λu. ℕ) (λw. intMag (num p') * w) _ _ (intMagNz (den p)))))
 
 -- stated over the COMPONENTS, as eqInt's normPairWD is: that is the
 -- shape the descent's well-definedness goal actually has
@@ -214,87 +202,67 @@ def intSgnMulPos : {z : El Int} {k : ℕ} → intSgn (z * nzToInt (nzPos k)) ≡
     rationalOrder.sPos.eq) ≔
   λz. λk. ⊎-elim
     (e. trans
-      Sign
-      (intSgn (z * nzToInt (nzPos k)))
-      (nzSgn (e .π₁))
-      (intSgn z)
+      _
+      _
+      _
+      _
       (trans
-        Sign
-        (intSgn (z * nzToInt (nzPos k)))
-        (intSgn (nzToInt (nzMul (e .π₁) (nzPos k))))
+        _
+        _
+        _
         (nzSgn (e .π₁))
         (cong
           Int
           (λv. Sign)
           (λv. intSgn v)
-          (z * nzToInt (nzPos k))
-          (nzToInt (nzMul (e .π₁) (nzPos k)))
+          _
+          _
           (trans
-            Int
-            (z * nzToInt (nzPos k))
-            (nzToInt (e .π₁) * nzToInt (nzPos k))
+            _
+            _
+            _
             (nzToInt (nzMul (e .π₁) (nzPos k)))
-            (cong
-              Int
-              (λv. Int)
-              (λv. v * nzToInt (nzPos k))
-              z
-              (nzToInt (e .π₁))
-              (sym Int (nzToInt (e .π₁)) z (e .π₂)))
-            (sym
-              Int
-              (nzToInt (nzMul (e .π₁) (nzPos k)))
-              (nzToInt (e .π₁) * nzToInt (nzPos k))
-              (nzToIntMul (e .π₁) (nzPos k)))))
+            (cong Int (λv. Int) (λv. v * nzToInt (nzPos k)) _ _ (sym _ _ _ (e .π₂)))
+            (sym _ _ _ (nzToIntMul (e .π₁) (nzPos k)))))
         (trans
           Sign
-          (intSgn (nzToInt (nzMul (e .π₁) (nzPos k))))
+          _
           (nzSgn (nzMul (e .π₁) (nzPos k)))
           (nzSgn (e .π₁))
           (intSgnNz (nzMul (e .π₁) (nzPos k)))
           (⊎-elim (n. ⋆) (n. ⋆) (e .π₁))))
       (trans
-        Sign
-        (nzSgn (e .π₁))
-        (intSgn (nzToInt (e .π₁)))
-        (intSgn z)
-        (sym Sign (intSgn (nzToInt (e .π₁))) (nzSgn (e .π₁)) (intSgnNz (e .π₁)))
-        (cong Int (λv. Sign) (λv. intSgn v) (nzToInt (e .π₁)) z (e .π₂))))
+        _
+        _
+        _
+        _
+        (sym _ _ _ (intSgnNz (e .π₁)))
+        (cong Int (λv. Sign) (λv. intSgn v) _ _ (e .π₂))))
     (hz. trans
-      Sign
-      (intSgn (z * nzToInt (nzPos k)))
-      sZero
-      (intSgn z)
+      _
+      _
+      _
+      _
       (trans
-        Sign
-        (intSgn (z * nzToInt (nzPos k)))
-        (intSgn intZero)
+        _
+        _
+        _
         sZero
         (cong
           Int
           (λv. Sign)
           (λv. intSgn v)
-          (z * nzToInt (nzPos k))
-          intZero
+          _
+          _
           (trans
-            Int
-            (z * nzToInt (nzPos k))
-            (intZero * nzToInt (nzPos k))
+            _
+            _
+            _
             intZero
-            (cong Int (λv. Int) (λv. v * nzToInt (nzPos k)) z intZero hz)
+            (cong Int (λv. Int) (λv. v * nzToInt (nzPos k)) _ _ hz)
             (intMulZeroL (nzToInt (nzPos k)))))
         intSgnZero)
-      (sym
-        Sign
-        (intSgn z)
-        sZero
-        (trans
-          Sign
-          (intSgn z)
-          (intSgn intZero)
-          sZero
-          (cong Int (λv. Sign) (λv. intSgn v) z intZero hz)
-          intSgnZero)))
+      (sym _ _ _ (trans _ _ _ sZero (cong Int (λv. Sign) (λv. intSgn v) _ _ hz) intSgnZero)))
     (nzOfInt z)
 
 def sgnQFracPos : {N : El Int} {b : ℕ} → sgnQ (qcls (mkRat N (nzPos b))) ≡ intSgn N
@@ -336,82 +304,64 @@ def intOfNatMagNonNeg : {z : El Int} → El (NonNegS (intSgn z)) → intOfNat (i
   λz. λnn. ⊎-elim
     (e. (⊎-elim (w. Prf (nzToInt w ≡ z) → intOfNat (intMag z) ≡ z)
       (n. λhe. trans
-        Int
-        (intOfNat (intMag z))
-        (nzToInt (nzPos n))
+        _
+        _
+        _
         z
         (trans
           Int
-          (intOfNat (intMag z))
+          _
           (intOfNat (S n))
           (nzToInt (nzPos n))
           (cong
             ℕ
             (λu. Int)
             (λw. intOfNat w)
-            (intMag z)
-            (S n)
+            _
+            _
             (trans
-              ℕ
-              (intMag z)
-              (intMag (nzToInt (nzPos n)))
+              _
+              _
+              _
               (S n)
-              (cong
-                Int
-                (λv. ℕ)
-                (λv. intMag v)
-                z
-                (nzToInt (nzPos n))
-                (sym Int (nzToInt (nzPos n)) z he))
+              (cong Int (λv. ℕ) (λv. intMag v) _ _ (sym _ (nzToInt (nzPos n)) _ he))
               (intMagNz (nzPos n))))
           ⋆)
         he)
       (n. λhe. 𝟘-elim (nonNegNotNeg
-        (intSgn z)
+        _
         nn
         (eqToId
-          (intSgn z)
-          sNeg
+          _
+          _
           (trans
             Sign
-            (intSgn z)
+            _
             (intSgn (nzToInt (nzNeg n)))
             sNeg
-            (cong
-              Int
-              (λv. Sign)
-              (λv. intSgn v)
-              z
-              (nzToInt (nzNeg n))
-              (sym Int (nzToInt (nzNeg n)) z he))
+            (cong Int (λv. Sign) (λv. intSgn v) _ _ (sym _ (nzToInt (nzNeg n)) _ he))
             intSgnNeg))))
       (e .π₁))
       (e .π₂))
     (hz. trans
-      Int
-      (intOfNat (intMag z))
-      intZero
-      z
+      _
+      _
+      _
+      _
       (trans
         Int
-        (intOfNat (intMag z))
+        _
         (intOfNat Z)
         intZero
         (cong
           ℕ
           (λu. Int)
           (λw. intOfNat w)
-          (intMag z)
-          Z
-          (trans
-            ℕ
-            (intMag z)
-            (intMag intZero)
-            Z
-            (cong Int (λv. ℕ) (λv. intMag v) z intZero hz)
-            intMagZero))
+          _
+          _
+          (trans _ _ _ Z (cong Int (λv. ℕ) (λv. intMag v) _ _ hz) intMagZero))
         ⋆)
-      (sym Int z intZero hz))
+      (sym _ _ _ hz))
     (nzOfInt z)
 
 -- ===== comparing a fraction with a natural =====
@@ -443,7 +393,7 @@ def qDiffNatFrac : {m b K : ℕ}
     rationalQ.qcls.eq,
     zeroPlusId.rw) ≔
   λm. λb. λK. trans
-    Q
+    _
     (qOfNat K + qNeg (qcls (mkRat (intOfNat m) (nzPos b))))
     (qcls (mkRat (intScale (nzPos b) (intOfNat K) + intNeg (intOfNat m)) (nzMul nzOne (nzPos b))))
     (qcls (mkRat (class (S b * K, m)) (nzPos b)))
@@ -456,7 +406,7 @@ def qDiffNatFrac : {m b K : ℕ}
       intScaleOne)
     (trans
       Q
-      (qcls (mkRat (intScale (nzPos b) (intOfNat K) + intNeg (intOfNat m)) (nzMul nzOne (nzPos b))))
+      _
       (qcls (mkRat (intScale (nzPos b) (intOfNat K) + intNeg (intOfNat m)) (nzPos b)))
       (qcls (mkRat (class (S b * K, m)) (nzPos b)))
       (cong
@@ -476,17 +426,17 @@ def leQFracOfNat : {m b K : ℕ}
     rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold) ≔
   λm. λb. λK. λle. transport
-    Sign
+    _
     NonNegS
     (intSgn (class (S b * K, m)))
-    (sgnQ (qOfNat K + qNeg (qcls (mkRat (intOfNat m) (nzPos b)))))
+    _
     (sym
-      Sign
-      (sgnQ (qOfNat K + qNeg (qcls (mkRat (intOfNat m) (nzPos b)))))
+      _
+      _
       (intSgn (class (S b * K, m)))
       (trans
         Sign
-        (sgnQ (qOfNat K + qNeg (qcls (mkRat (intOfNat m) (nzPos b)))))
+        _
         (sgnQ (qcls (mkRat (class (S b * K, m)) (nzPos b))))
         (intSgn (class (S b * K, m)))
         (cong
@@ -497,7 +447,7 @@ def leQFracOfNat : {m b K : ℕ}
           (qcls (mkRat (class (S b * K, m)) (nzPos b)))
           qDiffNatFrac)
         sgnQFracPos))
-    (nonNegSgnOfLe (transport ℕ (λw. m ≤ w) (K * S b) (S b * K) (multComm (S b) K) le))
+    (nonNegSgnOfLe (transport ℕ (λw. m ≤ w) _ _ (multComm (S b) K) le))
 
 -- ===== the bound really bounds =====
 def leQZeroNat : (K : ℕ) → El (qZero ≤ qOfNat K)
@@ -557,109 +507,97 @@ def leQBoundPos : {M : El Int}
       (n. λhe. transport
         Int
         (λv. qcls (mkRat v (nzPos b)) ≤ qOfNat (S (divN (intMag M) b)))
-        (intOfNat (intMag M))
-        M
+        _
+        _
         (intOfNatMagNonNeg
           (transport
-            Sign
+            _
             NonNegS
             (intSgn (nzToInt (nzPos n)))
-            (intSgn M)
-            (cong Int (λv. Sign) (λv. intSgn v) (nzToInt (nzPos n)) M he)
-            (inj₂ (eqToId (intSgn (nzToInt (nzPos n))) sPos (intSgnPos n)))))
+            _
+            (cong Int (λv. Sign) (λv. intSgn v) (nzToInt (nzPos n)) _ he)
+            (inj₂ (eqToId _ _ (intSgnPos n)))))
         (leQFracOfNat (leDivSuc (intMag M) b)))
       (n. λhe. leQTrans
         (qcls (mkRat M (nzPos b)))
         qZero
-        (qOfNat (S (divN (intMag M) b)))
+        _
         (inj₂ (eqToId
-          (sgnQ (qZero + qNeg (qcls (mkRat M (nzPos b)))))
-          sPos
+          _
+          _
           (trans
-            Sign
-            (sgnQ (qZero + qNeg (qcls (mkRat M (nzPos b)))))
-            (sgnQ (qNeg (qcls (mkRat M (nzPos b)))))
+            _
+            _
+            _
             sPos
-            (cong
-              Q
-              (λw. Sign)
-              (λw. sgnQ w)
-              (qZero + qNeg (qcls (mkRat M (nzPos b))))
-              (qNeg (qcls (mkRat M (nzPos b))))
-              (qAddZeroL (qNeg (qcls (mkRat M (nzPos b))))))
+            (cong Q (λw. Sign) (λw. sgnQ w) _ _ (qAddZeroL (qNeg (qcls (mkRat M (nzPos b))))))
             (sgnQNegOfNeg
               (eqToId
-                (sgnQ (qcls (mkRat M (nzPos b))))
-                sNeg
+                _
+                _
                 (trans
                   Sign
                   (sgnQ (qcls (mkRat M (nzPos b))))
                   (intSgn M)
-                  sNeg
+                  _
                   sgnQFracPos
                   (trans
                     Sign
-                    (intSgn M)
+                    _
                     (intSgn (nzToInt (nzNeg n)))
                     sNeg
-                    (cong
-                      Int
-                      (λv. Sign)
-                      (λv. intSgn v)
-                      M
-                      (nzToInt (nzNeg n))
-                      (sym Int (nzToInt (nzNeg n)) M he))
+                    (cong Int (λv. Sign) (λv. intSgn v) _ _ (sym _ (nzToInt (nzNeg n)) _ he))
                     intSgnNeg)))))))
         (leQZeroNat (S (divN (intMag M) b))))
       (e .π₁))
       (e .π₂))
     (hz. leQTrans
-      (qcls (mkRat M (nzPos b)))
-      qZero
-      (qOfNat (S (divN (intMag M) b)))
+      _
+      _
+      _
       (transport
         Int
         (λv. qcls (mkRat v (nzPos b)) ≤ qZero)
         intZero
-        M
-        (sym Int M intZero hz)
+        _
+        (sym _ _ _ hz)
         (inj₁ (eqToId
-          (sgnQ (qZero + qNeg (qcls (mkRat intZero (nzPos b)))))
-          sZero
+          _
+          _
           (trans
-            Sign
-            (sgnQ (qZero + qNeg (qcls (mkRat intZero (nzPos b)))))
-            (sgnFlip (sgnQ (qcls (mkRat intZero (nzPos b)))))
-            sZero
+            _
+            _
+            _
+            _
             (trans
               Sign
-              (sgnQ (qZero + qNeg (qcls (mkRat intZero (nzPos b)))))
+              _
               (sgnQ (qNeg (qcls (mkRat intZero (nzPos b)))))
               (sgnFlip (sgnQ (qcls (mkRat intZero (nzPos b)))))
               (cong
                 Q
                 (λw. Sign)
                 (λw. sgnQ w)
-                (qZero + qNeg (qcls (mkRat intZero (nzPos b))))
-                (qNeg (qcls (mkRat intZero (nzPos b))))
+                _
+                _
                 (qAddZeroL (qNeg (qcls (mkRat intZero (nzPos b))))))
               sgnQNegFlip)
             (trans
               Sign
-              (sgnFlip (sgnQ (qcls (mkRat intZero (nzPos b)))))
+              _
               (sgnFlip sZero)
               sZero
               (cong
                 Sign
                 (λw. Sign)
                 (λw. sgnFlip w)
-                (sgnQ (qcls (mkRat intZero (nzPos b))))
-                sZero
+                _
+                _
                 (trans
                   Sign
                   (sgnQ (qcls (mkRat intZero (nzPos b))))
                   (intSgn intZero)
-                  sZero
+                  _
                   sgnQFracPos
                   intSgnZero))
               ⋆)))))
@@ -677,8 +615,8 @@ def leQBoundAt : (N : El Int)
     Q
     (λw. w ≤ qOfNat (qNatBound w))
     (qcls (mkRat (v .π₁) (nzPos (v .π₂ .π₁))))
-    (qcls (mkRat N d))
-    (idToEq Q (qcls (mkRat (v .π₁) (nzPos (v .π₂ .π₁)))) (qcls (mkRat N d)) (v .π₂ .π₂))
+    _
+    (idToEq _ _ _ (v .π₂ .π₂))
     leQBoundPos
 
 -- squashed first, so the descent is free; then unsquashed, because ≤
@@ -712,7 +650,7 @@ def leQBoundSq : (u : El Q) → Prf ∥El (u ≤ qOfNat (qNatBound u))∥
 
 def leQBound : (u : El Q) → El (u ≤ qOfNat (qNatBound u))
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
-  λu. leQUnsquash u (leQBoundSq u)
+  λu. leQUnsquash _ (leQBoundSq u)
 
 def qNatBoundNeg : {u : El Q} → qNatBound (qNeg u) ≡ qNatBound u
   using (intAbs.intMag.eq,
@@ -750,12 +688,12 @@ def bndNatBound : (u : El Q) → El (Bnd (qOfNat (qNatBound u)) u) using (ratBou
   λu. transport
     Q
     (λw. qNeg (qOfNat (qNatBound u)) ≤ w)
-    (qNeg (qNeg u))
-    u
+    _
+    _
     (qNegNeg u)
     (leQNegFlip
-      (qNeg u)
-      (qOfNat (qNatBound u))
+      _
+      _
       (transport
         ℕ
         (λk. qNeg u ≤ qOfNat k)

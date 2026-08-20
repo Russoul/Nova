@@ -35,7 +35,7 @@ def maxReg : {f g : El (ℕ → Q)} → El (Regular f) → El (Regular g) → El
     real.rBound.eq,
     realLattice.maxSeq.eq) ≔
   λf. λg. λhf. λhg. bndReg
-    (λm. λn. bndMaxSub (rBound m n) (f m) (f n) (g m) (g n) (regBnd f hf m n) (regBnd g hg m n))
+    (λm. λn. bndMaxSub (rBound m n) _ _ _ _ (regBnd _ hf m n) (regBnd _ hg m n))
 
 def rMax : El RSeq → El RSeq → El RSeq using (real.RSeq.unfold) ≔
   λx. λy. maxSeq (seqOf x) (seqOf y), maxReg (regOf x) (regOf y)
@@ -71,14 +71,14 @@ def rMaxWDInner : (x : El RSeq) {y y' : El RSeq} → Prf (REq y y') → Prf (REq
       (seqOf x n)
       (seqOf y n)
       (seqOf y' n)
-      (bndSubEq (rBound n n) (seqOf x n) (seqOf x n) (leQZeroBound n n) ⋆)
+      (bndSubEq _ (seqOf x n) (seqOf x n) (leQZeroBound n n) ⋆)
       (u n)))
 
 def rMaxWDInnerCls : (x y y' : El RSeq)
   (h : Prf (REq y y'))
   → class (rMax x y) ≡ class (rMax x y') ∈ El Real
   using (real.Real.unfold) ≔
-  λx. λy. λy'. λh. realEqOfREq (rMax x y) (rMax x y') (rMaxWDInner x h)
+  λx. λy. λy'. λh. realEqOfREq _ _ (rMaxWDInner x h)
 
 -- max on representatives is commutative on the nose, so the outer
 -- descent is the inner one with the arguments swapped
@@ -148,7 +148,7 @@ def minReg : {f g : El (ℕ → Q)} → El (Regular f) → El (Regular g) → El
     real.rBound.eq,
     realLattice.minSeq.eq) ≔
   λf. λg. λhf. λhg. bndReg
-    (λm. λn. bndMinSub (rBound m n) (f m) (f n) (g m) (g n) (regBnd f hf m n) (regBnd g hg m n))
+    (λm. λn. bndMinSub (rBound m n) _ _ _ _ (regBnd _ hf m n) (regBnd _ hg m n))
 
 def rMin : El RSeq → El RSeq → El RSeq using (real.RSeq.unfold) ≔
   λx. λy. minSeq (seqOf x) (seqOf y), minReg (regOf x) (regOf y)
@@ -186,14 +186,14 @@ def rMinWDInner : (x : El RSeq) {y y' : El RSeq} → Prf (REq y y') → Prf (REq
       (seqOf x n)
       (seqOf y n)
       (seqOf y' n)
-      (bndSubEq (rBound n n) (seqOf x n) (seqOf x n) (leQZeroBound n n) ⋆)
+      (bndSubEq _ (seqOf x n) (seqOf x n) (leQZeroBound n n) ⋆)
       (u n)))
 
 def rMinWDInnerCls : (x y y' : El RSeq)
   (h : Prf (REq y y'))
   → class (rMin x y) ≡ class (rMin x y') ∈ El Real
   using (real.Real.unfold) ≔
-  λx. λy. λy'. λh. realEqOfREq (rMin x y) (rMin x y') (rMinWDInner x h)
+  λx. λy. λy'. λh. realEqOfREq _ _ (rMinWDInner x h)
 
 def rMinComm : (x y : El RSeq) → rMin x y ≡ rMin y x
   using (ratMax.qMax.eq,
@@ -269,8 +269,8 @@ def rleMaxL : {x y : El RSeq} → Prf (RLeP x (rMax x y))
     (rMax x y)
     (λn. leQTrans
       (seqOf x n + qNeg (qMax (seqOf x n) (seqOf y n)))
-      qZero
-      (rBound n n)
+      _
+      _
       (leQSubZero (leQMaxL (seqOf x n) (seqOf y n)))
       (leQZeroBound n n))
 
@@ -302,8 +302,8 @@ def rleMaxR : {x y : El RSeq} → Prf (RLeP y (rMax x y))
     (rMax x y)
     (λn. leQTrans
       (seqOf y n + qNeg (qMax (seqOf x n) (seqOf y n)))
-      qZero
-      (rBound n n)
+      _
+      _
       (leQSubZero (leQMaxR (seqOf x n) (seqOf y n)))
       (leQZeroBound n n))
 
@@ -336,8 +336,8 @@ def rMaxLub : {x y z : El RSeq} → Prf (RLeP x z) → Prf (RLeP y z) → Prf (R
     z
     (λn. leQSubShift
       (qMax (seqOf x n) (seqOf y n))
-      (seqOf z n)
-      (qMaxLub (leQAddShift (seqOf x n) (u n)) (leQAddShift (seqOf y n) (v n))))))
+      _
+      (qMaxLub (leQAddShift _ (u n)) (leQAddShift _ (v n))))))
 
 def rleMinL : {x y : El RSeq} → Prf (RLeP (rMin x y) x)
   using (id.Id.eq,
@@ -367,8 +367,8 @@ def rleMinL : {x y : El RSeq} → Prf (RLeP (rMin x y) x)
     x
     (λn. leQTrans
       (qMin (seqOf x n) (seqOf y n) + qNeg (seqOf x n))
-      qZero
-      (rBound n n)
+      _
+      _
       (leQSubZero (leQMinL (seqOf x n) (seqOf y n)))
       (leQZeroBound n n))
 
@@ -400,8 +400,8 @@ def rleMinR : {x y : El RSeq} → Prf (RLeP (rMin x y) y)
     y
     (λn. leQTrans
       (qMin (seqOf x n) (seqOf y n) + qNeg (seqOf y n))
-      qZero
-      (rBound n n)
+      _
+      _
       (leQSubZero (leQMinR (seqOf x n) (seqOf y n)))
       (leQZeroBound n n))
 
@@ -432,15 +432,9 @@ def rMinGlb : {x y z : El RSeq} → Prf (RLeP z x) → Prf (RLeP z y) → Prf (R
     z
     (rMin x y)
     (λn. leQSubShift
-      (seqOf z n)
+      _
       (qMin (seqOf x n) (seqOf y n))
-      (qMinGlbShift
-        (seqOf x n)
-        (seqOf y n)
-        (seqOf z n)
-        (rBound n n)
-        (leQAddShift (seqOf z n) (u n))
-        (leQAddShift (seqOf z n) (v n))))))
+      (qMinGlbShift _ _ _ _ (leQAddShift _ (u n)) (leQAddShift _ (v n))))))
 
 -- ===== lifted to ℝ =====
 def leRMaxL : (u v : El Real) → Prf (u ≤ realMax u v)

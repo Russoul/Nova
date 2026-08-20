@@ -22,21 +22,21 @@ def intCommRing : El (IsCommRing Int) using (intGroup.intAddGroup.eq, ring.IsCom
     (*),
       intOne,
         (λx. λy. λz. eqToId
-          (x * y * z)
-          (x * (y * z))
+          _
+          _
           (intMulAssoc
             x
             y
             z)),
           (λx. λy. eqToId
-            (x * y)
-            (y * x)
+            _
+            _
             (intMulComm
               x
               y)),
             (λx. eqToId
-              (x * intOne)
-              x
+              _
+              _
               (intMulOneR
                 x)),
               (λx. λy. eqToId

@@ -34,7 +34,7 @@ def brBeta : (a b : 𝕌)
   (f : El a → El b)
   (c : (x y : El a) → f x ≡ f y)
   (x : El a)
-  → brElim a f c (br x) ≡ f x
+  → brElim _ f c (br x) ≡ f x
   using (Br.unfold, br.eq, brElim.eq) ≔
   λa. λb. λf. λc. λx. ⋆
 
@@ -47,13 +47,13 @@ def brIsProp : (a : 𝕌) (u v : El (Br a)) → u ≡ v using (Br.unfold) ≔
 -- with no hypothesis at all: the coherence brElim asks for is free
 -- whenever the function already factors through the bracket.
 def brOutConst : (a b : 𝕌) (g : El (Br a) → El b) (x y : El a) → g (br x) ≡ g (br y) ≔
-  λa. λb. λg. λx. λy. cong (Br a) (λw. b) g (br x) (br y) (brIsProp a (br x) (br y))
+  λa. λb. λg. λx. λy. cong (Br a) (λw. b) g _ _ (brIsProp _ (br x) (br y))
 
 -- η / uniqueness: brElim is the ONLY map agreeing with g on classes.
 def brEta : (a b : 𝕌)
   (g : El (Br a) → El b)
   (t : El (Br a))
-  → brElim a (λx. g (br x)) (brOutConst a b g) t ≡ g t ∈ El b
+  → brElim a (λx. g (br x)) (brOutConst _ _ g) t ≡ g t ∈ El b
   using (Br.unfold, br.eq, brElim.eq, brOutConst.eq) ≔
   λa. λb. λg. λt. quot-elim (x. ⋆) t
 
@@ -77,7 +77,7 @@ def brSquashEq : (a : 𝕌) → ∥El (Br a)∥ ≡ ∥El a∥ using (Br.unfold,
 def brMap : (a : 𝕌) {b : 𝕌} (f : El a → El b) (t : El (Br a)) → El (Br b) using (Br.unfold, br.eq) ≔
   λa. λb. λf. λt. quot-elim (x. br (f x)) t
 
-def brMapBeta : (a b : 𝕌) (f : El a → El b) (x : El a) → brMap a f (br x) ≡ br (f x)
+def brMapBeta : (a b : 𝕌) (f : El a → El b) (x : El a) → brMap _ f (br x) ≡ br (f x)
   using (Br.unfold, br.eq, brMap.eq) ≔
   λa. λb. λf. λx. ⋆
 
@@ -90,7 +90,7 @@ def brJoinUnit : (a : 𝕌) (t : El (Br a)) → brJoin (br t) ≡ t
   λa. λt. ⋆
 
 def brUnitJoin : (a : 𝕌) (s : El (Br (Br a))) → br (brJoin s) ≡ s ≔
-  λa. λs. brIsProp (Br a) (br (brJoin s)) s
+  λa. λs. brIsProp _ (br (brJoin s)) s
 
 -- ---------------------------------------------------------------
 -- The bracket REFLECTS emptiness — by ordinary elimination.
@@ -116,12 +116,12 @@ def brEmpty : El (Br 𝟘) → 𝟘 using (Br.unfold, zeroConst.eq) ≔ λt. quo
 def brDescr : (a : 𝕌) (s : (x y : El a) → x ≡ y) (t : El (Br a)) → El a using (Br.unfold) ≔
   λa. λs. λt. quot-elim (x. x) t
 
-def brDescrBeta : (a : 𝕌) (s : (x y : El a) → x ≡ y) (x : El a) → brDescr a s (br x) ≡ x
+def brDescrBeta : (a : 𝕌) (s : (x y : El a) → x ≡ y) (x : El a) → brDescr _ s (br x) ≡ x
   using (Br.unfold, br.eq, brDescr.eq) ≔
   λa. λs. λx. ⋆
 
-def brDescrEta : (a : 𝕌) (s : (x y : El a) → x ≡ y) (t : El (Br a)) → br (brDescr a s t) ≡ t ≔
-  λa. λs. λt. brIsProp a (br (brDescr a s t)) t
+def brDescrEta : (a : 𝕌) (s : (x y : El a) → x ≡ y) (t : El (Br a)) → br (brDescr _ s t) ≡ t ≔
+  λa. λs. λt. brIsProp _ (br (brDescr _ s t)) t
 
 -- ---------------------------------------------------------------
 -- The payoff, in miniature: a truncated existential whose witness is
@@ -132,29 +132,29 @@ def brDescrEta : (a : 𝕌) (s : (x y : El a) → x ≡ y) (t : El (Br a)) → b
 -- that IS a code. uip makes it a subsingleton, brDescr opens it.
 -- Its Ω twin, Prf ∥El (Fib n)∥, says exactly the same thing
 -- (brSquashEq) and yields nothing.
-def Fib : ℕ → 𝕌 ≔ λn. (m : ℕ) ⨯ Id ℕ m n
+def Fib : ℕ → 𝕌 ≔ λn. (m : ℕ) ⨯ Id _ m n
 
 -- every element of Fib n is (n , refl): reflect the index equation
 -- first, then uip finishes at the reflected type
 def fibCanon : (n : ℕ) (u : El (Fib n)) → u ≡ (n, refl ℕ n)
   using (Fib.unfold, hyp.rw, sigma.eta, id.Id.unfold, id.Id.eq) ≔
   λn. λu. let h ≔ idToEq
-    ℕ
-    (u .π₁)
-    n
-    (u .π₂) in sigmaEq2 ℕ (λm. Id ℕ m n) u (n, refl ℕ n) h (idCanon (u .π₂) h)
+    _
+    _
+    _
+    (u .π₂) in sigmaEq2 ℕ (λm. Id _ m n) _ (n, refl ℕ n) h (idCanon (u .π₂) h)
 
 def fibIsProp : (n : ℕ) (u v : El (Fib n)) → u ≡ v using (Fib.unfold, id.Id.unfold, id.Id.eq) ≔
   λn. λu. λv. trans
     (Fib n)
-    u
+    _
     (n, refl ℕ n)
-    v
-    (fibCanon n u)
-    (sym (Fib n) v (n, refl ℕ n) (fibCanon n v))
+    _
+    (fibCanon _ u)
+    (sym (Fib n) _ (n, refl ℕ n) (fibCanon _ v))
 
 def fibWitness : (n : ℕ) (t : El (Br (Fib n))) → ℕ using (Fib.unfold) ≔
-  λn. λt. brDescr (Fib n) (fibIsProp n) t .π₁
+  λn. λt. brDescr _ (fibIsProp n) t .π₁
 
 -- ⋆ means: this equation holds DEFINITIONALLY. The witness survived
 -- the truncation and the projection reduced to a numeral.
@@ -173,10 +173,10 @@ def brProdIsProp : {a b : 𝕌} (u v : El (Br a ⨯ Br b)) → u ≡ v using (si
   λa. λb. λu. λv. sigmaEq2
     (Br a)
     (λw. Br b)
-    u
-    v
-    (brIsProp a (u .π₁) (v .π₁))
-    (brIsProp b (u .π₂) (v .π₂))
+    _
+    _
+    (brIsProp _ (u .π₁) (v .π₁))
+    (brIsProp _ (u .π₂) (v .π₂))
 
 def brPairIn : {a b : 𝕌} (t : El (Br (a ⨯ b))) → El (Br a ⨯ Br b) ≔
   λa. λb. λt. brElim
@@ -192,11 +192,11 @@ def brPairOut : {a b : 𝕌} (p : El (Br a ⨯ Br b)) → El (Br (a ⨯ b)) ≔
   λa. λb. λp. brElim
     a
     (λx. brPairOutAt x (p .π₂))
-    (λx. λx'. brIsProp (a ⨯ b) (brPairOutAt x (p .π₂)) (brPairOutAt x' (p .π₂)))
+    (λx. λx'. brIsProp _ (brPairOutAt x (p .π₂)) (brPairOutAt x' (p .π₂)))
     (p .π₁)
 
 def brProdIso1 : (a b : 𝕌) (t : El (Br (a ⨯ b))) → brPairOut (brPairIn t) ≡ t ≔
-  λa. λb. λt. brIsProp (a ⨯ b) (brPairOut (brPairIn t)) t
+  λa. λb. λt. brIsProp _ (brPairOut (brPairIn t)) t
 
 def brProdIso2 : (a b : 𝕌) (p : El (Br a ⨯ Br b)) → brPairIn (brPairOut p) ≡ p ≔
   λa. λb. λp. brProdIsProp (brPairIn (brPairOut p)) p

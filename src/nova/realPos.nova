@@ -48,7 +48,7 @@ import id (Id, idToEq, eqToId)
 import equality (trans, sym, cong, transport, transportP)
 
 def reqCongR : (p y y' : El RSeq) → Prf (REq y y') → REq p y ≡ REq p y' ≔
-  λp. λy. λy'. λh. propExt (REq p y') (λa. reqTrans y a h) (λa. reqTrans y' a (reqSym h))
+  λp. λy. λy'. λh. propExt (REq p y') (λa. reqTrans _ a h) (λa. reqTrans _ a (reqSym h))
 
 def reqAt : El RSeq → El Real → Ω
   using (real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold, reqCongR) ≔
@@ -79,46 +79,42 @@ def posRep : (x : El Real) → El (PosPayload x) → El RSeq using (PosPayload.u
 
 def posK : (x : El Real) → El (PosPayload x) → ℕ using (PosPayload.unfold) ≔ λx. λd. d .π₂ .π₁
 
-def posBound : {x : El Real} {d : El (PosPayload x)} → Prf (realOfQ (qInvNat (posK x d)) ≤ x)
+def posBound : {x : El Real} {d : El (PosPayload x)} → Prf (realOfQ (qInvNat (posK _ d)) ≤ x)
   using (PosPayload.unfold, posK.eq) ≔
   λx. λd. prfElim (realOfQ (qInvNat (d .π₂ .π₁)) ≤ x) (d .π₂ .π₂ .π₁)
 
-def posRepEq : (x : El Real) (d : El (PosPayload x)) → class (posRep x d) ≡ x
+def posRepEq : (x : El Real) (d : El (PosPayload x)) → class (posRep _ d) ≡ x
   using (PosPayload.unfold, posRep.eq, real.Real.unfold, real.RSeq.unfold, real.Regular.unfold) ≔
-  λx. λd. idToEq Real (class (d .π₁)) x (d .π₂ .π₂ .π₂)
+  λx. λd. idToEq Real (class (d .π₁)) _ (d .π₂ .π₂ .π₂)
 
 -- the bound, read at the payload's own representative
 def posBoundRep : (x : El Real)
   (d : El (PosPayload x))
-  → Prf (realOfQ (qInvNat (posK x d)) ≤ class (posRep x d))
+  → Prf (realOfQ (qInvNat (posK _ d)) ≤ class (posRep _ d))
   using (real.Real.unfold, real.RSeq.unfold, real.Regular.unfold) ≔
   λx. λd. transportP
     Real
-    (λv. realOfQ (qInvNat (posK x d)) ≤ v)
+    (λv. realOfQ (qInvNat (posK _ d)) ≤ v)
     x
-    (class (posRep x d))
-    (sym Real (class (posRep x d)) x (posRepEq x d))
+    (class (posRep _ d))
+    (sym Real (class (posRep _ d)) _ (posRepEq _ d))
     posBound
 
 -- the bracket implies the squash — one way only
 def posToLt : (x : El Real) → El (PosR x) → Prf (realZero < x)
   using (PosPayload.unfold, PosR.eq, posK.eq) ≔
   λx. λw. squash-elim (brToSquash
-    (PosPayload x)
+    _
     w) (d. ltROf
-    realZero
-    x
-    (posK x d)
+    _
+    _
+    _
     (transportP
       Real
       (λv. v ≤ x)
       (realOfQ (qInvNat (posK x d)))
-      (realZero + realOfQ (qInvNat (posK x d)))
-      (sym
-        Real
-        (realZero + realOfQ (qInvNat (posK x d)))
-        (realOfQ (qInvNat (posK x d)))
-        (realAddZeroL (realOfQ (qInvNat (posK x d)))))
+      _
+      (sym _ _ _ (realAddZeroL (realOfQ (qInvNat (posK x d)))))
       posBound))
 
 -- ===== turning the modulus into a ℚ-level fact, as DATA =====
@@ -126,38 +122,32 @@ def leQZeroOfSubLe : (a u : El Q) → El (a + qNeg u ≤ a) → El (qZero ≤ u)
   λa. λu. λh. transport
     Q
     (λw. w ≤ u)
-    (a + qNeg a)
-    qZero
+    _
+    _
     (qAddNegR a)
     (leQSubShift
-      a
-      a
+      _
+      _
       (transport
         Q
         (λw. w ≤ a + u)
-        (a + qNeg u + u)
-        a
+        _
+        _
         (trans
-          Q
-          (a + qNeg u + u)
-          (a + (qNeg u + u))
-          a
+          _
+          _
+          _
+          _
           (qAddAssoc a (qNeg u) u)
-          (trans
-            Q
-            (a + (qNeg u + u))
-            (a + qZero)
-            a
-            (cong Q (λw. Q) (λw. a + w) (qNeg u + u) qZero (qAddNegL u))
-            (qAddZeroR a)))
+          (trans _ _ _ a (cong Q (λw. Q) (λw. a + w) _ _ (qAddNegL u)) (qAddZeroR a)))
         (leQPlusMono u h)))
 
 def leQOneInv : (i : ℕ) → El (qInvNat i ≤ qOne) ≔
   λi. transport
     Q
     (λw. w ≤ qOne)
-    (qOne * qInvNat i)
-    (qInvNat i)
+    _
+    _
     (qMulOneL (qInvNat i))
     (transport
       Q
@@ -166,15 +156,9 @@ def leQOneInv : (i : ℕ) → El (qInvNat i ≤ qOne) ≔
       qOne
       qMulInvNat
       (leQMulMono
-        qOne
-        (qOfNat (S i))
-        (transport
-          Q
-          (λw. w ≤ qOfNat (S i))
-          (qOfNat (S Z))
-          qOne
-          qOfNatOne
-          (leQOfNat (leSucMono (leZero i))))
+        _
+        _
+        (transport Q (λw. w ≤ qOfNat (S i)) _ _ qOfNatOne (leQOfNat (leSucMono (leZero i))))
         (leQZeroInvNat i)))
 
 -- at a sample of the form mulIdx (dbl k) i the harmonic bound is
@@ -182,10 +166,10 @@ def leQOneInv : (i : ℕ) → El (qInvNat i ≤ qOne) ≔
 def rBoundDeepEq : (k i : ℕ) → rBound (mulIdx (dbl k) i) (mulIdx (dbl k) i) ≡ qInvNat k * qInvNat i
   using (real.rBound.eq) ≔
   λk. λi. trans
-    Q
+    _
     (qInvNat (mulIdx (dbl k) i) + qInvNat (mulIdx (dbl k) i))
-    (qInvNat (dbl k) * qInvNat i + qInvNat (dbl k) * qInvNat i)
-    (qInvNat k * qInvNat i)
+    _
+    _
     (cong
       Q
       (λw. Q)
@@ -194,47 +178,33 @@ def rBoundDeepEq : (k i : ℕ) → rBound (mulIdx (dbl k) i) (mulIdx (dbl k) i) 
       (qInvNat (dbl k) * qInvNat i)
       qInvNatMulIdx)
     (trans
-      Q
-      (qInvNat (dbl k) * qInvNat i + qInvNat (dbl k) * qInvNat i)
-      ((qInvNat (dbl k) + qInvNat (dbl k)) * qInvNat i)
-      (qInvNat k * qInvNat i)
-      (sym
-        Q
-        ((qInvNat (dbl k) + qInvNat (dbl k)) * qInvNat i)
-        (qInvNat (dbl k) * qInvNat i + qInvNat (dbl k) * qInvNat i)
-        (qDistribR (qInvNat i) (qInvNat (dbl k)) (qInvNat (dbl k))))
-      (cong
-        Q
-        (λw. Q)
-        (λw. w * qInvNat i)
-        (qInvNat (dbl k) + qInvNat (dbl k))
-        (qInvNat k)
-        (qInvHalf k)))
+      _
+      _
+      _
+      _
+      (sym _ _ _ (qDistribR (qInvNat i) (qInvNat (dbl k)) (qInvNat (dbl k))))
+      (cong Q (λw. Q) (λw. w * qInvNat i) _ _ (qInvHalf k)))
 
 def leQRBoundDeep : (k i : ℕ) → El (rBound (mulIdx (dbl k) i) (mulIdx (dbl k) i) ≤ qInvNat k) ≔
   λk. λi. transport
     Q
     (λw. w ≤ qInvNat k)
-    (qInvNat k * qInvNat i)
-    (rBound (mulIdx (dbl k) i) (mulIdx (dbl k) i))
-    (sym
-      Q
-      (rBound (mulIdx (dbl k) i) (mulIdx (dbl k) i))
-      (qInvNat k * qInvNat i)
-      (rBoundDeepEq k i))
+    _
+    _
+    (sym _ _ _ (rBoundDeepEq k i))
     (transport
       Q
       (λw. w ≤ qInvNat k)
-      (qInvNat i * qInvNat k)
-      (qInvNat k * qInvNat i)
+      _
+      _
       (qMulComm (qInvNat i) (qInvNat k))
       (transport
         Q
         (λw. qInvNat i * qInvNat k ≤ w)
-        (qOne * qInvNat k)
-        (qInvNat k)
+        _
+        _
         (qMulOneL (qInvNat k))
-        (leQMulMono (qInvNat i) qOne (leQOneInv i) (leQZeroInvNat k))))
+        (leQMulMono _ _ (leQOneInv i) (leQZeroInvNat k))))
 
 -- THE extraction: at every sample of the form mulIdx (dbl k) i the
 -- representative is nonnegative, and that fact is DATA — recovered
@@ -253,12 +223,12 @@ def posSampleNN : (p : El RSeq)
   λp. λk. λh. λi. leQUnsquash
     qZero
     (squash-elim h (u. ⋆ (leQZeroOfSubLe
-      (qInvNat k)
-      (seqOf p (mulIdx (dbl k) i))
+      _
+      _
       (leQTrans
         (qInvNat k + qNeg (seqOf p (mulIdx (dbl k) i)))
-        (rBound (mulIdx (dbl k) i) (mulIdx (dbl k) i))
-        (qInvNat k)
+        _
+        _
         (u (mulIdx (dbl k) i))
         (leQRBoundDeep k i)))))
 
@@ -284,65 +254,37 @@ def NonNegR : El Real → 𝕌 ≔ λx. Br (NonNegPayload x)
 def nnRep : (x : El Real) → El (NonNegPayload x) → El RSeq using (NonNegPayload.unfold) ≔
   λx. λd. d .π₁
 
-def nnAt : (x : El Real) (d : El (NonNegPayload x)) (n : ℕ) → El (qZero ≤ seqOf (nnRep x d) n)
+def nnAt : (x : El Real) (d : El (NonNegPayload x)) (n : ℕ) → El (qZero ≤ seqOf (nnRep _ d) n)
   using (NonNegPayload.unfold, nnRep.eq) ≔
   λx. λd. λn. d .π₂ .π₁ n
 
-def nnRepEq : (x : El Real) (d : El (NonNegPayload x)) → class (nnRep x d) ≡ x
+def nnRepEq : (x : El Real) (d : El (NonNegPayload x)) → class (nnRep _ d) ≡ x
   using (NonNegPayload.unfold, nnRep.eq, real.Real.unfold, real.RSeq.unfold, real.Regular.unfold) ≔
-  λx. λd. idToEq Real (class (d .π₁)) x (d .π₂ .π₂)
+  λx. λd. idToEq Real (class (d .π₁)) _ (d .π₂ .π₂)
 
 -- ===== the clamp =====
 def bndClamp : (b u : El Q)
   → El (qZero ≤ b) → El (qNeg b ≤ u) → El (Bnd b (qMax u qZero + qNeg u)) ≔
   λb. λu. λhb. λhu. bndOfBothLe
-    (qMax u qZero)
-    u
+    _
+    _
     (leQSubShift
-      (qMax u qZero)
-      u
-      (qMaxLub
-        (leQSelfAdd u hb)
-        (transport Q (λw. w ≤ u + b) (qNeg b + b) qZero (qAddNegL b) (leQPlusMono b hu))))
-    (leQSubShift
-      u
-      (qMax u qZero)
-      (leQTrans
-        u
-        (qMax u qZero)
-        (qMax u qZero + b)
-        (leQMaxL u qZero)
-        (leQSelfAdd (qMax u qZero) hb)))
+      _
+      _
+      (qMaxLub (leQSelfAdd u hb) (transport Q (λw. w ≤ u + b) _ _ (qAddNegL b) (leQPlusMono b hu))))
+    (leQSubShift _ _ (leQTrans _ _ _ (leQMaxL u qZero) (leQSelfAdd (qMax u qZero) hb)))
 
 def bndZeroSub : {b : El Q} → El (qZero ≤ b) → El (Bnd b (qZero + qNeg qZero)) ≔
   λb. λhb. bndEq
-    qZero
-    (qZero + qNeg qZero)
-    (sym
-      Q
-      (qZero + qNeg qZero)
-      qZero
-      (trans
-        Q
-        (qZero + qNeg qZero)
-        (qZero + qZero)
-        qZero
-        (cong Q (λw. Q) (λw. qZero + w) (qNeg qZero) qZero qNegZeroQ)
-        (qAddZeroR qZero)))
-    (bndZero b hb)
+    _
+    _
+    (sym _ _ _ (trans _ _ _ qZero (cong Q (λw. Q) (λw. qZero + w) _ _ qNegZeroQ) (qAddZeroR qZero)))
+    (bndZero _ hb)
 
 def clampSeq : El RSeq → El (ℕ → Q) ≔ λp. λn. qMax (seqOf p n) qZero
 
 def clampReg : {p : El RSeq} → El (Regular (clampSeq p)) using (clampSeq.eq) ≔
-  λp. bndReg
-    (λm. λn. bndMaxSub
-      (rBound m n)
-      (seqOf p m)
-      (seqOf p n)
-      qZero
-      qZero
-      (regBnd (seqOf p) (regOf p) m n)
-      (bndZeroSub (leQZeroBound m n)))
+  λp. bndReg (λm. λn. bndMaxSub _ _ _ _ _ (regBnd _ (regOf p) m n) (bndZeroSub (leQZeroBound m n)))
 
 def clampRSeq : El RSeq → El RSeq using (real.RSeq.unfold) ≔ λp. clampSeq p, clampReg
 
@@ -368,25 +310,19 @@ def clampREq : {p : El RSeq} → Prf (realZero ≤ class p) → Prf (REq (clampR
     (clampRSeq p)
     p
     (λn. bndClamp
-      (rBound n n)
+      _
       (seqOf p n)
       (leQZeroBound n n)
       (transport
         Q
         (λw. qNeg (rBound n n) ≤ w)
-        (qNeg (qNeg (seqOf p n)))
-        (seqOf p n)
+        _
+        _
         (qNegNeg (seqOf p n))
         (leQNegFlip
-          (qNeg (seqOf p n))
-          (rBound n n)
-          (transport
-            Q
-            (λw. w ≤ rBound n n)
-            (qZero + qNeg (seqOf p n))
-            (qNeg (seqOf p n))
-            (qAddZeroL (qNeg (seqOf p n)))
-            (u n))))))
+          _
+          _
+          (transport Q (λw. w ≤ rBound n n) _ _ (qAddZeroL (qNeg (seqOf p n))) (u n))))))
 
 def nonNegMk : (x : El Real) (p : El RSeq) → (class p ≡ x) → Prf (realZero ≤ x) → El (NonNegR x)
   using (NonNegPayload.unfold,
@@ -406,10 +342,10 @@ def nonNegMk : (x : El Real) (p : El RSeq) → (class p ≡ x) → Prf (realZero
             Real
             (class (clampRSeq p))
             (class p)
-            x
+            _
             (realEqOfREq
-              (clampRSeq p)
-              p
+              _
+              _
               (clampREq
-                (transportP Real (λv. realZero ≤ v) x (class p) (sym Real (class p) x e) h)))
+                (transportP Real (λv. realZero ≤ v) _ (class p) (sym Real (class p) _ e) h)))
             e))

@@ -22,41 +22,38 @@ import subgroup (IsSubgroup, IsNormal, sgIntro, sgUnit, sgOp, sgInv, abelianNorm
 import equality (transportP, sym, trans, cong)
 
 def closedScale : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) → Ω ≔
-  λR. λr. λI. ∥(a x : El R) → Prf (I x) → Prf (I (rmul R r a x))∥
+  λR. λr. λI. ∥(a x : El R) → Prf (I x) → Prf (I (rmul _ r a x))∥
 
 def IsIdeal : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) → Ω ≔
-  λR. λr. λI. IsSubgroup R (raddGroup r) I ∧ closedScale R r I
+  λR. λr. λI. IsSubgroup _ (raddGroup r) I ∧ closedScale _ r I
 
 def idIntro : {R : 𝕌}
   {r : El (IsCommRing R)}
   {I : El R → Ω}
   → Prf (IsSubgroup
-    R
+    _
     (raddGroup r)
-    I) → ((a x : El R) → Prf (I x) → Prf (I (rmul R r a x))) → Prf (IsIdeal R r I)
+    I) → ((a x : El R) → Prf (I x) → Prf (I (rmul _ r a x))) → Prf (IsIdeal _ r I)
   using (IsIdeal.eq, closedScale.eq) ≔
-  λR. λr. λI. λsub. λsc. andIntro (IsSubgroup R (raddGroup r) I) (closedScale R r I) sub (⋆ sc)
+  λR. λr. λI. λsub. λsc. andIntro _ (closedScale _ r I) sub (⋆ sc)
 
 def idSub : {R : 𝕌}
   {r : El (IsCommRing R)}
   {I : El R → Ω}
-  → Prf (IsIdeal R r I) → Prf (IsSubgroup R (raddGroup r) I)
+  → Prf (IsIdeal _ r I) → Prf (IsSubgroup _ (raddGroup r) I)
   using (IsIdeal.eq) ≔
-  λR. λr. λI. λh. andFst (IsSubgroup R (raddGroup r) I) (closedScale R r I) h
+  λR. λr. λI. λh. andFst _ _ h
 
 def idScale : (R : 𝕌)
   (r : El (IsCommRing R))
   (I : El R → Ω)
-  → Prf (IsIdeal R r I) → (a x : El R) → Prf (I x) → Prf (I (rmul R r a x))
+  → Prf (IsIdeal _ r I) → (a x : El R) → Prf (I x) → Prf (I (rmul _ r a x))
   using (IsIdeal.eq, closedScale.unfold) ≔
-  λR. λr. λI. λh. λa. λx. λhx. squash-elim (andSnd
-    (IsSubgroup R (raddGroup r) I)
-    (closedScale R r I)
-    h) (u. u a x hx)
+  λR. λr. λI. λh. λa. λx. λhx. squash-elim (andSnd _ _ h) (u. u a x hx)
 
 -- an ideal is a normal subgroup of (R , +), because (R , +) is abelian
-def idNormal : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) → Prf (IsNormal R (raddGroup r) I) ≔
-  λR. λr. λI. abelianNormal (rAddComm R r)
+def idNormal : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) → Prf (IsNormal _ (raddGroup r) I) ≔
+  λR. λr. λI. abelianNormal (rAddComm _ r)
 
 -- ===== the two closure facts the descent will want =====
 --
@@ -70,11 +67,5 @@ def idNormal : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) → Prf (IsN
 def idScaleR : (R : 𝕌)
   (r : El (IsCommRing R))
   (I : El R → Ω)
-  → Prf (IsIdeal R r I) → (a x : El R) → Prf (I x) → Prf (I (rmul R r x a)) ≔
-  λR. λr. λI. λh. λa. λx. λhx. transportP
-    R
-    I
-    (rmul R r a x)
-    (rmul R r x a)
-    (rMulComm R r a x)
-    (idScale R r I h a x hx)
+  → Prf (IsIdeal _ r I) → (a x : El R) → Prf (I x) → Prf (I (rmul _ r x a)) ≔
+  λR. λr. λI. λh. λa. λx. λhx. transportP _ I _ _ (rMulComm _ r a x) (idScale _ _ _ h a x hx)

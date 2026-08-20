@@ -177,6 +177,7 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
       SAnn t ty => SAnn (xfE t) (xfT ty)
       SImpArg t => SImpArg (xfE t)
       SNoIns t => SNoIns (xfE t)
+      SBlank _ => e
      where
       spine : SElem -> List SElem -> (SElem, List SElem)
       spine (SApp f a) acc = spine f (a :: acc)

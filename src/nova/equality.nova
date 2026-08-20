@@ -38,7 +38,7 @@ def appCong : (A : 𝕌)
   → (f0 ≡ f1) → (a0 ≡ a1) → f0 a0 ≡ f1 a1 ∈ El (B a1) ≔
   λA. λB. λf0. λf1. λa0. λa1. λf. λa. f0 a0
       ≡⟨ a ⟩ f0 a1
-      ≡⟨ cong ((x : A) → B x) (λ_. B a1) (λg. g a1) f0 f1 f ⟩ f1 a1
+      ≡⟨ cong ((x : A) → B x) (λ_. B a1) (λg. g a1) _ _ f ⟩ f1 a1
 
 def irr : (A : 𝕌) (v u : El A) (p : v ≡ u) → p ≡ (⋆) ≔ λA. λv. λu. λp. ⋆
 
@@ -58,14 +58,14 @@ def sigmaEq2 : (A : 𝕌)
   using (sigma.eta, hyp.rw) ≔
   λA. λB. λx. λy. λh1. λh2. trans
     ((a : A) ⨯ B a)
-    x
+    _
     (y .π₁, y .π₂)
-    y
+    _
     (trans
       ((a : A) ⨯ B a)
-      x
+      _
       (x .π₁, x .π₂)
       (y .π₁, y .π₂)
-      (sym ((a : A) ⨯ B a) (x .π₁, x .π₂) x (sigmaEtaG A B x))
+      (sym ((a : A) ⨯ B a) (x .π₁, x .π₂) _ (sigmaEtaG _ B x))
       ⋆)
-    (sigmaEtaG A B y)
+    (sigmaEtaG _ B y)
