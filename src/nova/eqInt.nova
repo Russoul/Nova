@@ -50,12 +50,6 @@ def intNormalizeId : (z : El Int) → intNormalize z ≡ z
     integerNormalize.normPair.eq) ≔
   λz. quot-elim (p. classNormPairEq) z
 
--- a squashed equality at any 𝕌-code reflects into a judgemental one —
--- prop.nova's reflectSquash generalized (that one is hardcoded to ℕ);
--- Int being a genuine 𝕌-code term (not a `type` item) is what makes
--- this reusable, generic combinator applicable to it at all
-def reflectSquashAt : {A : 𝕌} {a b : El A} (h : Prf (a ≡ b)) → a ≡ b ≔ λA. λa. λb. λh. ⋆
-
 def EqI : El Int → El Int → Ω ≔ λz1. λz2. intNormalize z1 ≡ intNormalize z2
 
 def eqIRefl : (z : El Int) → Prf (EqI z z) using (eqInt.EqI.unfold, intNormalizeId) ≔ λz. ⋆
@@ -75,7 +69,7 @@ def eqISound : {z1 z2 : El Int} → Prf (EqI z1 z2) → z1 ≡ z2
     _
     _
     (sym _ _ _ (intNormalizeId z1))
-    (trans Int (intNormalize z1) (intNormalize z2) _ (reflectSquashAt h) (intNormalizeId z2))
+    (trans _ (intNormalize z1) _ _ h (intNormalizeId z2))
 
 -- completeness: z1 ≡ z2 reflects, so intNormalize z1 and intNormalize
 -- z2 are the same term — the evident-≡-shape squashee bare ⋆ handles
