@@ -22,16 +22,16 @@ import quotGroup (QGroup, qcls, qclsEq, qclsEffective, qMul, qMulCls, qInv, qInv
 import equality (transportP, sym, trans, cong)
 
 def IsHom : (G : 𝕌) (g : El (IsGroup G)) (H : 𝕌) (h : El (IsGroup H)) → El (G → H) → 𝕌 ≔
-  λG. λg. λH. λh. λf. (x y : G) → Id H (f (gop G g x y)) (gop H h (f x) (f y))
+  λG. λg. λH. λh. λf. (x y : G) → Id _ (f (gop _ g x y)) (gop _ h (f x) (f y))
 
 def Hom : (G : 𝕌) (g : El (IsGroup G)) (H : 𝕌) (h : El (IsGroup H)) → 𝕌 ≔
-  λG. λg. λH. λh. (f : G → H) ⨯ IsHom G g H h f
+  λG. λg. λH. λh. (f : G → H) ⨯ IsHom _ g _ h f
 
 def homAp : (G : 𝕌)
   (g : El (IsGroup G))
   (H : 𝕌)
   (h : El (IsGroup H))
-  → El (Hom G g H h) → El G → El H
+  → El (Hom _ g _ h) → El G → El H
   using (Hom.unfold) ≔
   λG. λg. λH. λh. λp. λa. p .π₁ a
 
@@ -40,22 +40,22 @@ def homIntro : {G : 𝕌}
   {H : 𝕌}
   {h : El (IsGroup H)}
   (f : El G → El H)
-  → ((x y : El G) → f (gop G g x y) ≡ gop H h (f x) (f y)) → El (Hom G g H h)
+  → ((x y : El G) → f (gop _ g x y) ≡ gop _ h (f x) (f y)) → El (Hom _ g _ h)
   using (Hom.unfold, IsHom.unfold) ≔
-  λG. λg. λH. λh. λf. λe. f, λx. λy. eqToId (f (gop G g x y)) (gop H h (f x) (f y)) (e x y)
+  λG. λg. λH. λh. λf. λe. f, λx. λy. eqToId _ _ (e x y)
 
 def homLaw : (G : 𝕌)
   (g : El (IsGroup G))
   (H : 𝕌)
   (h : El (IsGroup H))
-  (p : El (Hom G g H h))
+  (p : El (Hom _ g _ h))
   (x y : El G)
-  → homAp G g H h p (gop G g x y) ≡ gop H h (homAp G g H h p x) (homAp G g H h p y)
+  → homAp _ _ _ _ p (gop _ g x y) ≡ gop _ h (homAp _ _ _ _ p x) (homAp _ _ _ _ p y)
   using (Hom.unfold, IsHom.unfold, homAp.eq) ≔
   λG. λg. λH. λh. λp. λx. λy. idToEq
-    H
-    (homAp G g H h p (gop G g x y))
-    (gop H h (homAp G g H h p x) (homAp G g H h p y))
+    _
+    (homAp _ _ _ _ p (gop _ g x y))
+    (gop _ h (homAp _ _ _ _ p x) (homAp _ _ _ _ p y))
     (p .π₂ x y)
 
 def homIntroAp : (G : 𝕌)
@@ -63,9 +63,9 @@ def homIntroAp : (G : 𝕌)
   (H : 𝕌)
   (h : El (IsGroup H))
   (f : El G → El H)
-  (e : (x y : El G) → f (gop G g x y) ≡ gop H h (f x) (f y))
+  (e : (x y : El G) → f (gop _ g x y) ≡ gop _ h (f x) (f y))
   (a : El G)
-  → homAp G g H h (homIntro f e) a ≡ f a
+  → homAp _ _ _ _ (homIntro f e) a ≡ f a
   using (homAp.eq, homIntro.eq) ≔
   λG. λg. λH. λh. λf. λe. λa. ⋆
 
@@ -79,60 +79,40 @@ def homUnit : (G : 𝕌)
   (g : El (IsGroup G))
   (H : 𝕌)
   (h : El (IsGroup H))
-  (p : El (Hom G g H h))
-  → homAp G g H h p (ge g) ≡ ge h ≔
+  (p : El (Hom _ g _ h))
+  → homAp _ _ _ _ p (ge g) ≡ ge h ≔
   λG. λg. λH. λh. λp. gCancelL
     h
-    (homAp G g H h p (ge g))
-    (gop H h (homAp G g H h p (ge g)) (homAp G g H h p (ge g))
+    (homAp _ _ _ _ p (ge g))
+    (gop _ h (homAp _ _ _ _ p (ge g)) (homAp _ _ _ _ p (ge g))
+        ≡⟨ sym _ _ _ (homLaw _ _ _ _ p (ge g) (ge g)) ⟩ homAp _ _ _ _ p (gop _ g (ge g) (ge g))
+        ≡⟨ cong G (λw. H) (λw. homAp _ _ H _ p w) _ _ (gUnitL _ g (ge g)) ⟩ homAp _ _ _ _ p (ge g)
         ≡⟨ sym
-          H
-          (homAp G g H h p (gop G g (ge g) (ge g)))
-          (gop H h (homAp G g H h p (ge g)) (homAp G g H h p (ge g)))
-          (homLaw G g H h p (ge g) (ge g)) ⟩ homAp G g H h p (gop G g (ge g) (ge g))
-        ≡⟨ cong
-          G
-          (λw. H)
-          (λw. homAp G g H h p w)
-          (gop G g (ge g) (ge g))
-          (ge g)
-          (gUnitL G g (ge g)) ⟩ homAp G g H h p (ge g)
-        ≡⟨ sym
-          H
-          (gop H h (homAp G g H h p (ge g)) (ge h))
-          (homAp G g H h p (ge g))
-          (gUnitR H h (homAp G g H h p (ge g))) ⟩ gop H h (homAp G g H h p (ge g)) (ge h))
+          _
+          _
+          _
+          (gUnitR _ h (homAp _ _ _ _ p (ge g))) ⟩ gop _ h (homAp _ _ _ _ p (ge g)) (ge h))
 
 def homInv : (G : 𝕌)
   (g : El (IsGroup G))
   (H : 𝕌)
   (h : El (IsGroup H))
-  (p : El (Hom G g H h))
+  (p : El (Hom _ g _ h))
   (x : El G)
-  → homAp G g H h p (ginv G g x) ≡ ginv H h (homAp G g H h p x) ≔
+  → homAp _ _ _ _ p (ginv _ g x) ≡ ginv _ h (homAp _ _ _ _ p x) ≔
   λG. λg. λH. λh. λp. λx. sym
-    H
-    (ginv H h (homAp G g H h p x))
-    (homAp G g H h p (ginv G g x))
+    _
+    _
+    _
     (gInvUniq
       H
       h
-      (homAp G g H h p x)
-      (homAp G g H h p (ginv G g x))
-      (gop H h (homAp G g H h p x) (homAp G g H h p (ginv G g x))
-          ≡⟨ sym
-            H
-            (homAp G g H h p (gop G g x (ginv G g x)))
-            (gop H h (homAp G g H h p x) (homAp G g H h p (ginv G g x)))
-            (homLaw G g H h p x (ginv G g x)) ⟩ homAp G g H h p (gop G g x (ginv G g x))
-          ≡⟨ cong
-            G
-            (λw. H)
-            (λw. homAp G g H h p w)
-            (gop G g x (ginv G g x))
-            (ge g)
-            (gInvR G g x) ⟩ homAp G g H h p (ge g)
-          ≡⟨ homUnit G g H h p ⟩ ge h))
+      (homAp _ _ _ _ p x)
+      (homAp _ _ _ _ p (ginv _ g x))
+      (gop _ h (homAp _ _ _ _ p x) (homAp _ _ _ _ p (ginv _ g x))
+          ≡⟨ sym _ _ _ (homLaw _ _ _ _ p x (ginv _ g x)) ⟩ homAp _ _ _ _ p (gop _ g x (ginv _ g x))
+          ≡⟨ cong G (λw. H) (λw. homAp _ _ H _ p w) _ _ (gInvR _ g x) ⟩ homAp _ _ _ _ p (ge g)
+          ≡⟨ homUnit _ _ _ _ p ⟩ ge h))
 
 -- and the product of an element with the inverse of another, which is
 -- the shape every coset argument is stated in
@@ -140,31 +120,31 @@ def homOpInv : (G : 𝕌)
   (g : El (IsGroup G))
   (H : 𝕌)
   (h : El (IsGroup H))
-  (p : El (Hom G g H h))
+  (p : El (Hom _ g _ h))
   (x y : El G)
   → homAp
-    G
-    g
-    H
-    h
+    _
+    _
+    _
+    _
     p
-    (gop G g x (ginv G g y)) ≡ gop H h (homAp G g H h p x) (ginv H h (homAp G g H h p y)) ≔
-  λG. λg. λH. λh. λp. λx. λy. homAp G g H h p (gop G g x (ginv G g y))
+    (gop _ g x (ginv _ g y)) ≡ gop _ h (homAp _ _ _ _ p x) (ginv _ h (homAp _ _ _ _ p y)) ≔
+  λG. λg. λH. λh. λp. λx. λy. homAp _ _ _ _ p (gop _ g x (ginv _ g y))
       ≡⟨ homLaw
-        G
-        g
-        H
-        h
+        _
+        _
+        _
+        _
         p
         x
-        (ginv G g y) ⟩ gop H h (homAp G g H h p x) (homAp G g H h p (ginv G g y))
+        (ginv _ g y) ⟩ gop _ h (homAp _ _ _ _ p x) (homAp _ _ _ _ p (ginv _ g y))
       ≡⟨ cong
         H
         (λw. H)
-        (λw. gop H h (homAp G g H h p x) w)
-        (homAp G g H h p (ginv G g y))
-        (ginv H h (homAp G g H h p y))
-        (homInv G g H h p y) ⟩ gop H h (homAp G g H h p x) (ginv H h (homAp G g H h p y))
+        (λw. gop H h (homAp _ _ _ _ p x) w)
+        _
+        _
+        (homInv _ _ _ _ p y) ⟩ gop _ h (homAp _ _ _ _ p x) (ginv _ h (homAp _ _ _ _ p y))
 
 -- ===== bridges: the quotient group's operations, as G/N knows them =====
 --
@@ -176,29 +156,29 @@ def homOpInv : (G : 𝕌)
 def qopIsQMul : (G : 𝕌)
   (g : El (IsGroup G))
   (N : El G → Ω)
-  (s : Prf (IsSubgroup G g N))
-  (nn : Prf (IsNormal G g N))
-  (u v : El (QGroup G g N))
-  → gop (QGroup G g N) (qIsGroup G g N s nn) u v ≡ qMul G g N nn u v
+  (s : Prf (IsSubgroup _ g N))
+  (nn : Prf (IsNormal _ g N))
+  (u v : El (QGroup _ g N))
+  → gop _ (qIsGroup _ _ _ s nn) u v ≡ qMul _ _ _ nn u v
   using (groupTheory.gop.eq, quotGroup.qIsGroup.eq) ≔
   λG. λg. λN. λs. λnn. λu. λv. ⋆
 
 def qeIsQUnit : (G : 𝕌)
   (g : El (IsGroup G))
   (N : El G → Ω)
-  (s : Prf (IsSubgroup G g N))
-  (nn : Prf (IsNormal G g N))
-  → ge (qIsGroup G g N s nn) ≡ qUnit G g N
+  (s : Prf (IsSubgroup _ g N))
+  (nn : Prf (IsNormal _ g N))
+  → ge (qIsGroup _ _ _ s nn) ≡ qUnit _ g N
   using (groupTheory.ge.eq, quotGroup.qIsGroup.eq) ≔
   λG. λg. λN. λs. λnn. ⋆
 
 def qinvIsQInv : (G : 𝕌)
   (g : El (IsGroup G))
   (N : El G → Ω)
-  (s : Prf (IsSubgroup G g N))
-  (nn : Prf (IsNormal G g N))
-  (u : El (QGroup G g N))
-  → ginv (QGroup G g N) (qIsGroup G g N s nn) u ≡ qInv G g N s nn u
+  (s : Prf (IsSubgroup _ g N))
+  (nn : Prf (IsNormal _ g N))
+  (u : El (QGroup _ g N))
+  → ginv _ (qIsGroup _ _ _ s nn) u ≡ qInv _ _ _ s nn u
   using (groupTheory.ginv.eq, quotGroup.qIsGroup.eq) ≔
   λG. λg. λN. λs. λnn. λu. ⋆
 
@@ -206,55 +186,40 @@ def qinvIsQInv : (G : 𝕌)
 def qProjLaw : (G : 𝕌)
   (g : El (IsGroup G))
   (N : El G → Ω)
-  (s : Prf (IsSubgroup G g N))
-  (nn : Prf (IsNormal G g N))
+  (s : Prf (IsSubgroup _ g N))
+  (nn : Prf (IsNormal _ g N))
   (x y : El G)
-  → qcls
-    G
-    g
-    N
-    (gop G g x y) ≡ gop (QGroup G g N) (qIsGroup G g N s nn) (qcls G g N x) (qcls G g N y)
+  → qcls _ g N (gop _ g x y) ≡ gop _ (qIsGroup _ _ _ s nn) (qcls _ g N x) (qcls _ g N y)
   using (quotGroup.qcls.eq) ≔
   λG. λg. λN. λs. λnn. λx. λy. trans
-    (QGroup G g N)
-    (qcls G g N (gop G g x y))
-    (qMul G g N nn (qcls G g N x) (qcls G g N y))
-    (gop (QGroup G g N) (qIsGroup G g N s nn) (qcls G g N x) (qcls G g N y))
+    _
+    _
+    _
+    _
     (sym
-      (QGroup G g N)
-      (qMul G g N nn (qcls G g N x) (qcls G g N y))
-      (qcls G g N (gop G g x y))
-      (qMulCls G g N nn x y))
-    (sym
-      (QGroup G g N)
-      (gop (QGroup G g N) (qIsGroup G g N s nn) (qcls G g N x) (qcls G g N y))
-      (qMul G g N nn (qcls G g N x) (qcls G g N y))
-      (qopIsQMul G g N s nn (qcls G g N x) (qcls G g N y)))
+      _
+      (qMul _ _ _ nn (qcls _ g N x) (qcls _ g N y))
+      (qcls _ g N (gop _ g x y))
+      (qMulCls _ _ _ nn x y))
+    (sym _ _ _ (qopIsQMul _ _ _ s nn (qcls _ g N x) (qcls _ g N y)))
 
 def qProj : {G : 𝕌}
   {g : El (IsGroup G)}
   {N : El G → Ω}
-  {s : Prf (IsSubgroup G g N)}
-  {nn : Prf (IsNormal G g N)}
-  → El (Hom G g (QGroup G g N) (qIsGroup G g N s nn)) ≔
-  λG. λg. λN. λs. λnn. homIntro (qcls G g N) (qProjLaw G g N s nn)
+  {s : Prf (IsSubgroup _ g N)}
+  {nn : Prf (IsNormal _ g N)}
+  → El (Hom _ g _ (qIsGroup _ _ _ s nn)) ≔
+  λG. λg. λN. λs. λnn. homIntro (qcls _ g N) (qProjLaw _ _ _ s nn)
 
 def qProjAp : {G : 𝕌}
   {g : El (IsGroup G)}
   {N : El G → Ω}
-  {s : Prf (IsSubgroup G g N)}
-  {nn : Prf (IsNormal G g N)}
+  {s : Prf (IsSubgroup _ g N)}
+  {nn : Prf (IsNormal _ g N)}
   {a : El G}
-  → homAp G g (QGroup G g N) (qIsGroup G g N s nn) qProj a ≡ qcls G g N a
+  → homAp G g (QGroup _ g N) (qIsGroup _ _ _ s nn) qProj a ≡ qcls _ g N a
   using (qProj.eq) ≔
-  λG. λg. λN. λs. λnn. λa. homIntroAp
-    G
-    g
-    (QGroup G g N)
-    (qIsGroup G g N s nn)
-    (qcls G g N)
-    (qProjLaw G g N s nn)
-    a
+  λG. λg. λN. λs. λnn. λa. homIntroAp _ _ _ _ (qcls _ g N) (qProjLaw _ _ _ s nn) a
 
 -- ===== the universal property of G/N =====
 --
@@ -273,39 +238,29 @@ def homKillConst : (G : 𝕌)
   (H : 𝕌)
   (h : El (IsGroup H))
   (N : El G → Ω)
-  (p : El (Hom G g H h))
-  (kills : (x : El G) → Prf (N x) → homAp G g H h p x ≡ ge h)
+  (p : El (Hom _ g _ h))
+  (kills : (x : El G) → Prf (N x) → homAp _ _ _ _ p x ≡ ge h)
   (a a' : El G)
-  → Prf (cosetRel G g N a a') → homAp G g H h p a ≡ homAp G g H h p a'
+  → Prf (cosetRel _ g N a a') → homAp _ _ _ _ p a ≡ homAp _ _ _ _ p a'
   using (subgroup.cosetRel.eq) ≔
   λG. λg. λH. λh. λN. λp. λkills. λa. λa'. λr. gEqOfOpInvUnit
-    h
-    (trans
-      H
-      (gop H h (homAp G g H h p a) (ginv H h (homAp G g H h p a')))
-      (homAp G g H h p (gop G g a (ginv G g a')))
-      (ge h)
-      (sym
-        H
-        (homAp G g H h p (gop G g a (ginv G g a')))
-        (gop H h (homAp G g H h p a) (ginv H h (homAp G g H h p a')))
-        (homOpInv G g H h p a a'))
-      (kills (gop G g a (ginv G g a')) r))
+    _
+    (trans _ _ _ _ (sym _ _ _ (homOpInv _ _ _ _ p a a')) (kills (gop _ g a (ginv _ g a')) r))
 
 def homQuotMap : (G : 𝕌)
   (g : El (IsGroup G))
   (H : 𝕌)
   (h : El (IsGroup H))
   (N : El G → Ω)
-  (p : El (Hom G g H h))
-  (kills : (x : El G) → Prf (N x) → homAp G g H h p x ≡ ge h)
-  → El (QGroup G g N) → El H ≔
+  (p : El (Hom _ g _ h))
+  (kills : (x : El G) → Prf (N x) → homAp _ _ _ _ p x ≡ ge h)
+  → El (QGroup _ g N) → El H ≔
   λG. λg. λH. λh. λN. λp. λkills. λu. qFactor
-    G
-    g
-    N
-    (homAp G g H h p)
-    (homKillConst G g H h N p kills)
+    _
+    _
+    _
+    (homAp _ _ _ _ p)
+    (homKillConst _ _ _ _ N _ kills)
     u
 
 def homQuotMapCls : (G : 𝕌)
@@ -313,18 +268,18 @@ def homQuotMapCls : (G : 𝕌)
   (H : 𝕌)
   (h : El (IsGroup H))
   (N : El G → Ω)
-  (p : El (Hom G g H h))
-  (kills : (x : El G) → Prf (N x) → homAp G g H h p x ≡ ge h)
+  (p : El (Hom _ g _ h))
+  (kills : (x : El G) → Prf (N x) → homAp _ _ _ _ p x ≡ ge h)
   (a : El G)
-  → homQuotMap G g H h N p kills (class a) ≡ homAp G g H h p a
+  → homQuotMap G g _ _ N _ kills (class a) ≡ homAp _ _ _ _ p a
   using (quotGroup.QGroup.unfold, homQuotMap.eq) ≔
   λG. λg. λH. λh. λN. λp. λkills. λa. qFactorCls
-    G
-    g
-    N
-    H
-    (homAp G g H h p)
-    (homKillConst G g H h N p kills)
+    _
+    _
+    _
+    _
+    (homAp _ _ _ _ p)
+    (homKillConst _ _ _ _ N _ kills)
     a
 
 def homQuotLawQ : {G : 𝕌}
@@ -332,74 +287,74 @@ def homQuotLawQ : {G : 𝕌}
   {H : 𝕌}
   {h : El (IsGroup H)}
   {N : El G → Ω}
-  {nn : Prf (IsNormal G g N)}
-  {p : El (Hom G g H h)}
-  {kills : (x : El G) → Prf (N x) → homAp G g H h p x ≡ ge h}
-  {u v : El (QGroup G g N)}
+  {nn : Prf (IsNormal _ g N)}
+  {p : El (Hom _ g _ h)}
+  {kills : (x : El G) → Prf (N x) → homAp _ _ _ _ p x ≡ ge h}
+  {u v : El (QGroup _ g N)}
   → homQuotMap
-    G
-    g
-    H
-    h
-    N
+    _
+    _
+    _
+    _
+    _
     p
     kills
-    (qMul G g N nn u v) ≡ gop H h (homQuotMap G g H h N p kills u) (homQuotMap G g H h N p kills v)
+    (qMul _ _ _ nn u v) ≡ gop _ h (homQuotMap _ _ _ _ _ p kills u) (homQuotMap _ _ _ _ _ p kills v)
   using (quotGroup.QGroup.unfold) ≔
   λG. λg. λH. λh. λN. λnn. λp. λkills. λu. λv. quot-elim
     (a. quot-elim
-      (b. homQuotMap G g H h N p kills (qMul G g N nn (class a) (class b))
+      (b. homQuotMap _ _ _ _ _ p kills (qMul G g N nn (class a) (class b))
           ≡⟨ cong
-            (QGroup G g N)
+            (QGroup _ g N)
             (λw. H)
-            (λw. homQuotMap G g H h N p kills w)
+            (λw. homQuotMap _ _ H _ _ p kills w)
             (qMul G g N nn (class a) (class b))
-            (class (gop G g a b))
-            (qMulCls G g N nn a b) ⟩ homQuotMap G g H h N p kills (class (gop G g a b))
-          ≡⟨ homQuotMapCls G g H h N p kills (gop G g a b) ⟩ homAp G g H h p (gop G g a b)
-          ≡⟨ homLaw G g H h p a b ⟩ gop H h (homAp G g H h p a) (homAp G g H h p b)
+            (class (gop _ g a b))
+            (qMulCls _ _ _ nn a b) ⟩ homQuotMap G g _ _ N _ kills (class (gop _ g a b))
+          ≡⟨ homQuotMapCls _ _ _ _ N _ kills (gop _ g a b) ⟩ homAp _ _ _ _ p (gop _ g a b)
+          ≡⟨ homLaw _ _ _ _ p a b ⟩ gop _ h (homAp _ _ _ _ p a) (homAp _ _ _ _ p b)
           ≡⟨ cong
             H
             (λw. H)
-            (λw. gop H h w (homAp G g H h p b))
-            (homAp G g H h p a)
-            (homQuotMap G g H h N p kills (class a))
+            (λw. gop H h w (homAp _ _ _ _ p b))
+            _
+            (homQuotMap G g _ _ N _ kills (class a))
             (sym
-              H
-              (homQuotMap G g H h N p kills (class a))
-              (homAp G g H h p a)
+              _
+              (homQuotMap G g _ _ N _ kills (class a))
+              _
               (homQuotMapCls
-                G
-                g
-                H
-                h
+                _
+                _
+                _
+                _
                 N
-                p
+                _
                 kills
-                a)) ⟩ gop H h (homQuotMap G g H h N p kills (class a)) (homAp G g H h p b)
+                a)) ⟩ gop _ h (homQuotMap G g _ _ N _ kills (class a)) (homAp _ _ _ _ p b)
           ≡⟨ cong
             H
             (λw. H)
-            (λw. gop H h (homQuotMap G g H h N p kills (class a)) w)
-            (homAp G g H h p b)
-            (homQuotMap G g H h N p kills (class b))
+            (λw. gop H h (homQuotMap G g _ _ N _ kills (class a)) w)
+            _
+            (homQuotMap G g _ _ N _ kills (class b))
             (sym
-              H
-              (homQuotMap G g H h N p kills (class b))
-              (homAp G g H h p b)
+              _
+              (homQuotMap G g _ _ N _ kills (class b))
+              _
               (homQuotMapCls
-                G
-                g
-                H
-                h
+                _
+                _
+                _
+                _
                 N
-                p
+                _
                 kills
                 b)) ⟩ gop
-            H
+            _
             h
-            (homQuotMap G g H h N p kills (class a))
-            (homQuotMap G g H h N p kills (class b)))
+            (homQuotMap G g _ _ N _ kills (class a))
+            (homQuotMap G g _ _ N _ kills (class b)))
       v)
     u
 
@@ -408,36 +363,36 @@ def homQuotLaw : (G : 𝕌)
   (H : 𝕌)
   (h : El (IsGroup H))
   (N : El G → Ω)
-  (s : Prf (IsSubgroup G g N))
-  (nn : Prf (IsNormal G g N))
-  (p : El (Hom G g H h))
-  (kills : (x : El G) → Prf (N x) → homAp G g H h p x ≡ ge h)
-  (u v : El (QGroup G g N))
+  (s : Prf (IsSubgroup _ g N))
+  (nn : Prf (IsNormal _ g N))
+  (p : El (Hom _ g _ h))
+  (kills : (x : El G) → Prf (N x) → homAp _ _ _ _ p x ≡ ge h)
+  (u v : El (QGroup _ g N))
   → homQuotMap
-    G
-    g
-    H
-    h
-    N
+    _
+    _
+    _
+    _
+    _
     p
     kills
     (gop
-      (QGroup G g N)
-      (qIsGroup G g N s nn)
+      _
+      (qIsGroup _ _ _ s nn)
       u
-      v) ≡ gop H h (homQuotMap G g H h N p kills u) (homQuotMap G g H h N p kills v) ≔
+      v) ≡ gop _ h (homQuotMap _ _ _ _ _ p kills u) (homQuotMap _ _ _ _ _ p kills v) ≔
   λG. λg. λH. λh. λN. λs. λnn. λp. λkills. λu. λv. trans
     H
-    (homQuotMap G g H h N p kills (gop (QGroup G g N) (qIsGroup G g N s nn) u v))
-    (homQuotMap G g H h N p kills (qMul G g N nn u v))
-    (gop H h (homQuotMap G g H h N p kills u) (homQuotMap G g H h N p kills v))
+    _
+    (homQuotMap _ _ _ _ _ p kills (qMul _ _ _ nn u v))
+    (gop _ h (homQuotMap _ _ _ _ _ p kills u) (homQuotMap _ _ _ _ _ p kills v))
     (cong
-      (QGroup G g N)
+      (QGroup _ g N)
       (λw. H)
-      (λw. homQuotMap G g H h N p kills w)
-      (gop (QGroup G g N) (qIsGroup G g N s nn) u v)
-      (qMul G g N nn u v)
-      (qopIsQMul G g N s nn u v))
+      (λw. homQuotMap _ _ H _ _ p kills w)
+      _
+      _
+      (qopIsQMul _ _ _ s nn u v))
     homQuotLawQ
 
 -- EXISTENCE: the factored map, as a homomorphism out of G/N
@@ -446,14 +401,14 @@ def homQuot : {G : 𝕌}
   {H : 𝕌}
   {h : El (IsGroup H)}
   {N : El G → Ω}
-  {s : Prf (IsSubgroup G g N)}
-  {nn : Prf (IsNormal G g N)}
-  (p : El (Hom G g H h))
-  (kills : (x : El G) → Prf (N x) → homAp G g H h p x ≡ ge h)
-  → El (Hom (QGroup G g N) (qIsGroup G g N s nn) H h) ≔
+  {s : Prf (IsSubgroup _ g N)}
+  {nn : Prf (IsNormal _ g N)}
+  (p : El (Hom _ g _ h))
+  (kills : (x : El G) → Prf (N x) → homAp _ _ _ _ p x ≡ ge h)
+  → El (Hom _ (qIsGroup _ _ _ s nn) _ h) ≔
   λG. λg. λH. λh. λN. λs. λnn. λp. λkills. homIntro
-    (homQuotMap G g H h N p kills)
-    (homQuotLaw G g H h N s nn p kills)
+    (homQuotMap _ _ _ _ N _ kills)
+    (homQuotLaw _ _ _ _ _ s nn p kills)
 
 -- ...and it factors p through π, on the nose
 def homQuotFactors : (G : 𝕌)
@@ -461,33 +416,33 @@ def homQuotFactors : (G : 𝕌)
   (H : 𝕌)
   (h : El (IsGroup H))
   (N : El G → Ω)
-  (s : Prf (IsSubgroup G g N))
-  (nn : Prf (IsNormal G g N))
-  (p : El (Hom G g H h))
-  (kills : (x : El G) → Prf (N x) → homAp G g H h p x ≡ ge h)
+  (s : Prf (IsSubgroup _ g N))
+  (nn : Prf (IsNormal _ g N))
+  (p : El (Hom _ g _ h))
+  (kills : (x : El G) → Prf (N x) → homAp _ _ _ _ p x ≡ ge h)
   (a : El G)
   → homAp
-    (QGroup G g N)
-    (qIsGroup G g N s nn)
+    (QGroup _ g N)
+    (qIsGroup _ _ _ s nn)
     H
     h
     (homQuot p kills)
-    (qcls G g N a) ≡ homAp G g H h p a
+    (qcls _ g N a) ≡ homAp _ _ _ _ p a
   using (quotGroup.qcls.eq, homQuot.eq) ≔
   λG. λg. λH. λh. λN. λs. λnn. λp. λkills. λa. trans
-    H
-    (homAp (QGroup G g N) (qIsGroup G g N s nn) H h (homQuot p kills) (qcls G g N a))
-    (homQuotMap G g H h N p kills (qcls G g N a))
-    (homAp G g H h p a)
+    _
+    (homAp (QGroup _ g N) (qIsGroup _ _ _ s nn) H h (homQuot p kills) (qcls _ g N a))
+    (homQuotMap _ _ _ _ _ p kills (qcls _ g N a))
+    _
     (homIntroAp
-      (QGroup G g N)
-      (qIsGroup G g N s nn)
-      H
-      h
-      (homQuotMap G g H h N p kills)
-      (homQuotLaw G g H h N s nn p kills)
-      (qcls G g N a))
-    (homQuotMapCls G g H h N p kills a)
+      _
+      _
+      _
+      _
+      (homQuotMap _ _ _ _ N _ kills)
+      (homQuotLaw _ _ _ _ _ s nn p kills)
+      (qcls _ g N a))
+    (homQuotMapCls _ _ _ _ N _ kills a)
 
 -- UNIQUENESS: two homomorphisms out of G/N agreeing after π agree
 def homQuotUnique : (G : 𝕌)
@@ -495,47 +450,35 @@ def homQuotUnique : (G : 𝕌)
   (H : 𝕌)
   (h : El (IsGroup H))
   (N : El G → Ω)
-  (s : Prf (IsSubgroup G g N))
-  (nn : Prf (IsNormal G g N))
-  (ph ps : El (Hom (QGroup G g N) (qIsGroup G g N s nn) H h))
+  (s : Prf (IsSubgroup _ g N))
+  (nn : Prf (IsNormal _ g N))
+  (ph ps : El (Hom _ (qIsGroup _ _ _ s nn) _ h))
   → ((a : El G)
     → homAp
-      (QGroup G g N)
-      (qIsGroup G g N s nn)
-      H
-      h
+      _
+      _
+      _
+      _
       ph
       (qcls
-        G
+        _
         g
         N
         a) ≡ homAp
-      (QGroup G g N)
-      (qIsGroup G g N s nn)
-      H
-      h
+      _
+      _
+      _
+      _
       ps
-      (qcls
-        G
-        g
-        N
-        a))
-    → (u : El (QGroup G g N))
-      → homAp
-        (QGroup G g N)
-        (qIsGroup G g N s nn)
-        H
-        h
-        ph
-        u ≡ homAp (QGroup G g N) (qIsGroup G g N s nn) H h ps u
+      (qcls _ g N a)) → (u : El (QGroup _ g N)) → homAp _ _ _ _ ph u ≡ homAp _ _ _ _ ps u
   using (quotGroup.qcls.eq) ≔
   λG. λg. λH. λh. λN. λs. λnn. λph. λps. λe. qFactorUnique
-    G
-    g
-    N
-    H
-    (homAp (QGroup G g N) (qIsGroup G g N s nn) H h ph)
-    (homAp (QGroup G g N) (qIsGroup G g N s nn) H h ps)
+    _
+    _
+    _
+    _
+    (homAp _ _ _ _ ph)
+    (homAp _ _ _ _ ps)
     e
 
 -- ...and at FUNCTION level, one funext away (natAlgebra.natAlgHomUniqueFun)
@@ -544,40 +487,30 @@ def homQuotUniqueFun : (G : 𝕌)
   (H : 𝕌)
   (h : El (IsGroup H))
   (N : El G → Ω)
-  (s : Prf (IsSubgroup G g N))
-  (nn : Prf (IsNormal G g N))
-  (ph ps : El (Hom (QGroup G g N) (qIsGroup G g N s nn) H h))
+  (s : Prf (IsSubgroup _ g N))
+  (nn : Prf (IsNormal _ g N))
+  (ph ps : El (Hom _ (qIsGroup _ _ _ s nn) _ h))
   → ((a : El G)
     → homAp
-      (QGroup G g N)
-      (qIsGroup G g N s nn)
-      H
-      h
+      _
+      _
+      _
+      _
       ph
       (qcls
-        G
+        _
         g
         N
         a) ≡ homAp
-      (QGroup G g N)
-      (qIsGroup G g N s nn)
-      H
-      h
+      _
+      _
+      _
+      _
       ps
-      (qcls
-        G
-        g
-        N
-        a))
-    → homAp
-      (QGroup G g N)
-      (qIsGroup G g N s nn)
-      H
-      h
-      ph ≡ homAp (QGroup G g N) (qIsGroup G g N s nn) H h ps ∈ El (QGroup G g N → H) ≔
+      (qcls _ g N a)) → homAp _ _ _ _ ph ≡ homAp _ _ _ _ ps ∈ El (QGroup _ g N → H) ≔
   λG. λg. λH. λh. λN. λs. λnn. λph. λps. λe. funext
-    (QGroup G g N)
-    H
-    (homAp (QGroup G g N) (qIsGroup G g N s nn) H h ph)
-    (homAp (QGroup G g N) (qIsGroup G g N s nn) H h ps)
-    (homQuotUnique G g H h N s nn ph ps e)
+    _
+    _
+    (homAp _ _ _ _ ph)
+    (homAp _ _ _ _ ps)
+    (homQuotUnique _ _ _ _ _ _ _ _ _ e)

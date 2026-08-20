@@ -226,6 +226,12 @@ record ElabSt where
   ||| elision map
   svSugarOn : Bool
   svSugar : SnocList (String, Range, Bool)
+  ||| the BLANK-EMISSION trial (Phase 4): per applied-definition site,
+  ||| which written explicit arguments the distiller may replace with
+  ||| `_` — (module, head range, ITEM index among the consumed
+  ||| arguments), the whole set verified as ONE joint hypothetical
+  ||| solve, closed to a fixpoint for byte-idempotence
+  svBlank : SnocList (String, Range, Nat)
   ||| inside an overload PROBE: state is discarded and the verdict is
   ||| the obligation delta alone, so the expensive per-assume work —
   ||| the whole-store hint probe, rewrite normalization of the keys —
@@ -240,7 +246,7 @@ record ElabSt where
   dupNames : List String
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] "" "" [<] Nothing [] [] Nothing [] False [<] False [<] False []
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] "" "" [<] Nothing [] [] Nothing [] False [<] False [<] [<] False []
 
 ||| Is the surface term an INFERENCE form — its type known without an
 ||| expected type? Mirrors the mode inventory
@@ -264,6 +270,8 @@ sInferForm e = case e of
   SCorec _ _ _ _ => False
   SZeroElim _ => False
   SImpArg _ => False
+  -- a blank carries nothing: its value comes from the spine's solve
+  SBlank _ => False
   -- a motive-less eliminator is CHECKING-ONLY (Phase 4): its motive
   -- comes from the expected type
   SNatElim Nothing _ _ _ _ _ => False
@@ -3207,6 +3215,8 @@ mutual
             Nothing => throw "\{site}: cannot apply a term of non-Π type\{structuralHint ()}"
   inferElem ctx env site (SImpArg _) =
     throw "\{site}: a {…} override is only legal at an implicit binder position of an applied definition"
+  inferElem ctx env site (SBlank _) =
+    throw "\{site}: a blank (_) is only legal at an explicit binder position of an applied definition — spell the term"
   inferElem ctx env site (SNoIns e) = inferElem ctx env site e
   inferElem ctx env site (SProj1 t) = do
     (t', tTy, tSk) <- inferElem ctx env site t
@@ -3981,16 +3991,44 @@ mutual
   ||| run pays one boolean per application node.
   impSpineOf : ElabSt -> SElem -> Maybe (String, String, Maybe Range, List SElem)
   impSpineOf st e =
-    if null st.impls then Nothing else
-      let (h, items) = surfSpine e [] in
-      case h of
-        SSig mrng x0 =>
-          let q = resolveSigName st x0 in
-          case lookup q st.impls of
-            Just (_ :: _) => Just (q, x0, mrng, items)
-            _ => Nothing
-        _ => Nothing
+    let (h, items) = surfSpine e [] in
+    case h of
+      SSig mrng x0 =>
+        let q = resolveSigName st x0 in
+        case lookup q st.impls of
+          Just (_ :: _) => Just (q, x0, mrng, items)
+          -- a BLANK routes the spine here even without implicit
+          -- binders — `_` is solved by the same oracle, from the
+          -- same telescope. So does EVERY Σ-headed spine during the
+          -- sugar pass: the blank-emission trial needs the
+          -- telescope view (the spine elaborator produces the same
+          -- core and the same skeleton shape as the generic rule).
+          -- ORDINARY telescopes only: a QIIT constructor's type
+          -- carries QSort-internal Π-structure that teleOf cannot
+          -- split and the matcher cannot see through (its relation
+          -- to the surface-level PiApp form is conversion, not α) —
+          -- those spines stay on the generic rule, blankless
+          _ => if (any isBlankArg items || st.svSugarOn) && ordinaryHead st q
+                 then Just (q, x0, mrng, items)
+                 else Nothing
+      _ => Nothing
    where
+    isBlankArg : SElem -> Bool
+    isBlankArg (SBlank _) = True
+    isBlankArg _ = False
+
+    isQSort : Ty -> Bool
+    isQSort (QSort _ _ _) = True
+    isQSort _ = False
+
+    ordinaryHead : ElabSt -> String -> Bool
+    ordinaryHead st q = case cachedSigLookup st.sig q of
+      Just (SigDef [<] _ _ ty) => let (doms, res) = teleOf ty in
+                                  not (any isQSort (res :: doms))
+      Just (SigDecl [<] _ ty) => let (doms, res) = teleOf ty in
+                                 not (any isQSort (res :: doms))
+      _ => False
+
     surfSpine : SElem -> List SElem -> (SElem, List SElem)
     surfSpine (SApp f a) acc = surfSpine f (a :: acc)
     surfSpine h acc = (h, acc)
@@ -4047,15 +4085,17 @@ mutual
                   Just c => matchTy jn (substTy tailTy (prefixSub patArgs)) c
     -- phase 1: walk the written spine left to right, solving from
     -- inference-form arguments as they elaborate
-    (sols, revArgs, revSks, pending, srcs) <- walk presIn jn st.impTrialOn doms slots sols0 [] [] [] []
+    (sols, revArgs, revSks, pending, srcs) <- walk presIn jn ((st.impTrialOn || st.svSugarOn) && not st.probing) doms slots sols0 [] [] [] []
     -- resolve every inserted hole; unsolved is a structural error
-    finalArgs <- traverse (\(pos, arg) =>
+    finalArgs <- traverse (\((pos, mt), arg) =>
                     if hasHolesE arg
                       then case lookup pos sols of
                         Just v => pure v
-                        Nothing => throw "\{site}: cannot infer implicit argument #\{show pos} of '\{q}' — supply it with {…}, or pass the bare function with \{q} {}"
+                        Nothing => case mt of
+                          Just (SBlank _) => throw "\{site}: cannot infer the blank at argument #\{show pos} of '\{q}' — spell the argument"
+                          _ => throw "\{site}: cannot infer implicit argument #\{show pos} of '\{q}' — supply it with {…}, or pass the bare function with \{q} {}"
                       else pure arg)
-                  (zip (map fst slots) (reverse revArgs))
+                  (zip slots (reverse revArgs))
     -- pending switch conversions, at the FINAL instantiations
     sks <- patchPending doms finalArgs (reverse revSks) pending
     -- the implicitize TRIAL (docs/NovaPerfectSurface.txt, Phase 3c):
@@ -4106,6 +4146,21 @@ mutual
                               _ => 3
               in modifySt $ { impTrial $= (:< (q, pos, verdict)) })
             impOvers
+    -- the BLANK-EMISSION trial (docs/NovaPerfectSurface.txt): which
+    -- written EXPLICIT arguments could the distiller replace with
+    -- `_`? The hypothetical mirrors re-elaboration of the blanked
+    -- spine — blanked positions join the hole set, their inferred
+    -- types leave the source pool — and the JOINT solve must
+    -- reproduce every hole α-exactly, the implicit insertions
+    -- included (their own sources may be the ones blanked away).
+    -- The set grows greedily left to right, each addition verified
+    -- jointly, then sweeps to a fixpoint: a position stays written
+    -- exactly when it fails against the FINAL set — the same test a
+    -- re-distill of the emitted file runs, so the canonical form is
+    -- byte-idempotent.
+    when (st.svSugarOn && not st.probing) $ case mrng of
+      Just rng => blankTrial jn rng imps doms tailTy m slots sks finalArgs (pending ++ srcs)
+      Nothing => pure ()
     let core = foldl PiApp (SigVar q [<]) finalArgs
     let coreTy = substTy tailTy (prefixSub finalArgs)
     let sk = foldl (\acc, s => Nd [] [acc, s]) (Nd [] []) sks
@@ -4146,6 +4201,10 @@ mutual
           SImpArg t => do
             (more, left) <- assign imps (S pos) ds rest
             pure ((pos, Just t) :: more, left)
+          -- a blank, like any non-override item, DEFERS past the
+          -- implicit position (the hole is inserted; the blank
+          -- stands for the next EXPLICIT position — the only place
+          -- `_` may bind)
           _ => do
             (more, left) <- assign imps (S pos) ds (it :: rest)
             pure ((pos, Nothing) :: more, left)
@@ -4170,6 +4229,13 @@ mutual
       Nothing =>
         let arg = fromMaybe (holeE pos) (lookup pos sols) in
         walk pres jn trialOn doms rest sols (arg :: revArgs) (Nd [] [] :: revSks) pending srcs
+      -- a written BLANK is a hole at its (explicit) position: same
+      -- placeholder, same joint solve, same resolution — an inserted
+      -- implicit that happens to be spelled `_`
+      Just (SBlank _) =>
+        let arg = fromMaybe (holeE pos) (lookup pos sols) in
+        let pres' = the (List (Maybe (Elem, Ty, Skel))) (case pres of { (_ :: ps) => ps; [] => [] }) in
+        walk pres' jn trialOn doms rest sols (arg :: revArgs) (Nd [] [] :: revSks) pending srcs
       Just surfE => do
         let (pre, pres') = the (Maybe (Elem, Ty, Skel), List (Maybe (Elem, Ty, Skel))) $
                              case pres of
@@ -4203,14 +4269,31 @@ mutual
                 walk pres' jn trialOn doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending) srcs
               else if trialOn && sInferForm surfE
                 then do
-                  -- the trial needs the argument's inferred type; for an
-                  -- inference form this route is EXACTLY what checkElem's
-                  -- e-switch fallback does internally — same conversion,
-                  -- same certificate placement
-                  (e', eTy, eSk) <- inferElem ctx env site surfE
-                  c <- convTy ctx env "\{site}: inferred vs expected type" Nothing eTy dInst
-                  let eSk' = addPayload (PSwitch (certOr c)) eSk
-                  walk pres' jn trialOn doms rest sols (e' :: revArgs) (eSk' :: revSks) pending ((pos, eTy) :: srcs)
+                  -- the trials need the argument's INFERRED type as a
+                  -- recovery source, but the argument itself must
+                  -- elaborate exactly as the plain pass does (its own
+                  -- solving may need the checking context — e.g. its
+                  -- trailing implicits come from dInst). So: commit
+                  -- via checkElem, and take the source type from a
+                  -- DISCARDED inference probe — a probe failure just
+                  -- means no source, which is faithful: the elided
+                  -- form's recovery would face the same failure
+                  (e', eSk) <- checkElem ctx env site surfE dInst
+                  mty <- probeM (inferElem ctx env site surfE)
+                  -- the source is admissible only when inference
+                  -- commits the SAME core as checking did: blanking
+                  -- an earlier position flips this argument to
+                  -- inference at re-elaboration, and an argument
+                  -- whose core depends on its checking context
+                  -- (trailing insertion, expectation-solved
+                  -- implicits, overload choice) must block that flip
+                  -- — no source means the hypothetical sticks
+                  let srcs' = case mty of
+                                Just (pe, eTy, _) => if show pe == show e'
+                                                       then (pos, eTy) :: srcs
+                                                       else srcs
+                                Nothing => srcs
+                  walk pres' jn trialOn doms rest sols (e' :: revArgs) (eSk :: revSks) pending srcs'
                 else do
                   (e', eSk) <- checkElem ctx env site surfE dInst
                   walk pres' jn trialOn doms rest sols (e' :: revArgs) (eSk :: revSks) pending srcs
@@ -4247,6 +4330,84 @@ mutual
                       Nothing => trialSolve jn doms imps srcsX finalArgs (S pos) m sols (entry :: hypRev) True
                     else trialSolve jn doms imps srcsX finalArgs (S pos) m sols (entry :: hypRev) stuck
 
+    blankTrial : (Ty -> Ty) -> Range -> List Nat -> List Ty -> Ty -> Nat ->
+                 List (Nat, Maybe SElem) -> List Skel -> List Elem -> List (Nat, Ty) -> ElabM ()
+    blankTrial jn rng imps doms tailTy m slots sks finalArgs sources = do
+      st <- getSt
+      let final = iter (S (length cands)) []
+      traverse_ (\p => modifySt $ { svBlank $= (:< (st.modPrefix, rng, itemIdx p)) }) final
+     where
+      ||| the current hole set: inserted implicits plus written blanks
+      holes0 : List Nat
+      holes0 = mapMaybe (\(pos, mt) => case mt of
+                 Nothing => Just pos
+                 Just (SBlank _) => Just pos
+                 Just _ => Nothing) slots
+
+      ||| Is the payload one the kernel re-derives on its own? A
+      ||| blank slot hands the kernel a BARE skeleton, so the whole
+      ||| committed derivation of a candidate must carry nothing but
+      ||| trivial switches — a licensed conversion (its certificate
+      ||| lives in the skeleton), a motive, an intro-in-inference
+      ||| type: any of those, anywhere inside, and the value is
+      ||| α-recoverable yet kernel-unREcheckable — the uip lesson
+      ||| (refl a x checks at Id a x y only through hyp.rw)
+      payloadBare : Payload -> Bool
+      payloadBare (PSwitch c) = stepFree c
+      payloadBare _ = False
+
+      skelBare : Skel -> Bool
+      skelBare (Nd ps cs) = all payloadBare ps && all skelBare cs
+
+      ||| the candidates: written explicit non-blank positions whose
+      ||| committed skeleton is kernel-rederivable when dropped
+      cands : List Nat
+      cands = mapMaybe (\((pos, mt), sk) => case mt of
+                Just (SBlank _) => Nothing
+                Just _ => if (pos `elem` imps) || not (skelBare sk)
+                            then Nothing else Just pos
+                Nothing => Nothing) (zip slots sks)
+
+      ||| the recorded index is the argument's rank among the CONSUMED
+      ||| items — the count the distiller can reproduce on the surface
+      ||| spine without knowing the telescope
+      itemIdx : Nat -> Nat
+      itemIdx p = length (filter (\(pos, mt) => pos < p && isJust mt) slots)
+
+      solve : Maybe Ty -> List Nat -> (Sols, Bool)
+      solve mc hs =
+        let hypPat = map (\(i, _) => if i `elem` hs then holeE i else holeE (throwaway + i)) slots
+            hyp0 = the Sols $ case mc of
+                     Nothing => []
+                     Just c => matchTy jn (substTy tailTy (prefixSub hypPat)) c
+            srcsX = filter (\(sp, _) => not (sp `elem` hs)) sources
+        in trialSolve jn doms hs srcsX finalArgs 0 m hyp0 [] False
+
+      okAt : Maybe Ty -> List Nat -> Bool
+      okAt mc hs = let (hypSols, stuck) = solve mc hs in
+        not stuck && all (\hp => case (lookup hp hypSols, getAt hp finalArgs) of
+                                  (Just v, Just w) => show v == show w
+                                  _ => False) hs
+
+      ||| a blank must recover in BOTH modes: the spine cannot know
+      ||| whether an enclosing blank will flip it from checking to
+      ||| inference at re-elaboration, so the verdict may not lean on
+      ||| the expected type (nor be broken by its extra bindings)
+      ok : List Nat -> Bool
+      ok hs = okAt mexp hs && (case mexp of
+                                 Nothing => True
+                                 Just _ => okAt Nothing hs)
+
+      step : List Nat -> Nat -> List Nat
+      step b p = if p `elem` b then b
+                 else if ok (holes0 ++ b ++ [p]) then b ++ [p] else b
+
+      iter : Nat -> List Nat -> List Nat
+      iter Z b = b
+      iter (S fuel) b =
+        let b' = foldl step b cands in
+        if length b' == length b then b else iter fuel b'
+
     mapAt : Nat -> (Skel -> Skel) -> List Skel -> List Skel
     mapAt _ _ [] = []
     mapAt Z f (x :: xs) = f x :: xs
@@ -4263,7 +4424,13 @@ mutual
                   Nothing => throw "\{site}: internal — pending position out of range"
       when (hasHolesT dFinal) $ throw "\{site}: INTERNAL imp-leak dFinal pos=\{show pos} q=\{q}"
       when (hasHolesT eTy) $ throw "\{site}: INTERNAL imp-leak eTy pos=\{show pos} q=\{q}"
-      c <- convTy ctx env "\{site}: implicit-spine argument type" Nothing dFinal eTy
+      -- INFERRED ≐ EXPECTED, the e-switch orientation: the kernel
+      -- replays the switch certificate in that direction, and a
+      -- licensed (step-carrying) certificate is direction-sensitive
+      -- (α/comp-closed ones are symmetric, which is why the deferred
+      -- route could pass reversed arguments unnoticed until a blank
+      -- first deferred a hyp.rw-needing conversion)
+      c <- convTy ctx env "\{site}: implicit-spine argument type" Nothing eTy dFinal
       patchPending doms finalArgs (mapAt pos (addPayload (PSwitch (certOr c))) sks) more
 
 
@@ -5093,9 +5260,9 @@ elabProgramTrial units =
 ||| acceptance, the kernel Σ and the per-site elision verdicts —
 ||| (module, range of the ∈-annotation or motive binder, elidable).
 export
-elabProgramSugar : List ModUnit -> Either String (Sig, List (String, Range, Bool))
+elabProgramSugar : List ModUnit -> Either String (Sig, List (String, Range, Bool), List (String, Range, Nat))
 elabProgramSugar units =
-  map (\st => (st.kernelSig, toList st.svSugar))
+  map (\st => (st.kernelSig, toList st.svSugar, toList st.svBlank))
       (elabProgramSt ({ svSugarOn := True } initSt) units)
 
 export

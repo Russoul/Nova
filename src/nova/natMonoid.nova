@@ -11,12 +11,9 @@ def natAddMonoid : El (IsMonoid ℕ) using (monoid.IsMonoid.unfold) ≔
   (+),
     Z,
       (λx. λy. λz. eqToId
-        (x + y + z)
-        (x + (y + z))
-        (plusAssoc
-          x
-          y
-          z)), (λx. eqToId (Z + x) x (zeroPlusId x)), λx. eqToId (x + Z) x (plusZeroId x)
+        _
+        _
+        (plusAssoc x y z)), (λx. eqToId _ _ (zeroPlusId x)), λx. eqToId _ _ (plusZeroId x)
 
 -- The unit laws for * at S Z. On the right the whole statement is a
 -- δβ-computation (n * S Z unwinds through * and + to n); on the left
@@ -39,9 +36,6 @@ def natMulMonoid : El (IsMonoid ℕ) using (monoid.IsMonoid.unfold) ≔
   (*),
     S Z,
       (λx. λy. λz. eqToId
-        (x * y * z)
-        (x * (y * z))
-        (multAssoc
-          x
-          y
-          z)), (λx. eqToId (S Z * x) x (oneMultL x)), λx. eqToId (x * S Z) x (multOneR x)
+        _
+        _
+        (multAssoc x y z)), (λx. eqToId _ _ (oneMultL x)), λx. eqToId _ _ (multOneR x)

@@ -10,21 +10,21 @@
 import id (Id, refl, IdElimP, idToEq)
 import equality (sym, trans)
 
-def idCanon : {a : 𝕌} {x y : El a} (p : El (Id a x y)) (h : x ≡ y) → p ≡ refl a x
+def idCanon : {a : 𝕌} {x y : El a} (p : El (Id _ x y)) (h : x ≡ y) → p ≡ refl a x
   using (hyp.rw, id.Id.eq, id.Id.unfold, id.refl.eq) ≔
   λa. λx. λy. λp. λh. squash-elim (IdElimP
     a
-    (λu. λv. λw. ∥(k : u ≡ v) → w ≡ refl a u ∈ El (Id a u v)∥)
+    (λu. λv. λw. ∥(k : u ≡ v) → w ≡ refl a u ∈ El (Id _ u v)∥)
     (λu. ⋆ (λk. ⋆))
     x
     y
     p) (f. f h)
 
 -- uniqueness of identity proofs: both are refl, by canonicity.
-def uip : {a : 𝕌} {x y : El a} {p q : El (Id a x y)} → p ≡ q
+def uip : {a : 𝕌} {x y : El a} {p q : El (Id _ x y)} → p ≡ q
   using (hyp.rw, id.Id.eq, id.Id.unfold, id.idToEq.eq) ≔
   λa. λx. λy. λp. λq. let h ≔ idToEq
-    a
-    x
-    y
-    p in trans (Id a x y) p (refl a x) q (idCanon p h) (sym (Id a x y) q (refl a x) (idCanon q h))
+    _
+    _
+    _
+    p in trans _ _ (refl a x) _ (idCanon p h) (sym _ _ (refl a x) (idCanon q h))

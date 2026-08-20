@@ -41,29 +41,29 @@ def ginv : (G : 𝕌) (g : El (IsGroup G)) → El G → El G using (group.IsGrou
 def gAssoc : (G : 𝕌)
   (g : El (IsGroup G))
   (x y z : El G)
-  → gop G g (gop G g x y) z ≡ gop G g x (gop G g y z)
+  → gop _ g (gop _ g x y) z ≡ gop _ g x (gop _ g y z)
   using (group.IsGroup.unfold, monoid.IsMonoid.unfold, gop.eq) ≔
   λG. λg. λx. λy. λz. idToEq
-    G
-    (gop G g (gop G g x y) z)
-    (gop G g x (gop G g y z))
+    _
+    (gop _ g (gop _ g x y) z)
+    (gop _ g x (gop _ g y z))
     (g .π₁ .π₂ .π₂ .π₁ x y z)
 
-def gUnitL : (G : 𝕌) (g : El (IsGroup G)) (x : El G) → gop G g (ge g) x ≡ x
+def gUnitL : (G : 𝕌) (g : El (IsGroup G)) (x : El G) → gop _ g (ge g) x ≡ x
   using (group.IsGroup.unfold, monoid.IsMonoid.unfold, gop.eq, ge.eq) ≔
-  λG. λg. λx. idToEq G (gop G g (ge g) x) x (g .π₁ .π₂ .π₂ .π₂ .π₁ x)
+  λG. λg. λx. idToEq _ (gop _ g (ge g) x) _ (g .π₁ .π₂ .π₂ .π₂ .π₁ x)
 
-def gUnitR : (G : 𝕌) (g : El (IsGroup G)) (x : El G) → gop G g x (ge g) ≡ x
+def gUnitR : (G : 𝕌) (g : El (IsGroup G)) (x : El G) → gop _ g x (ge g) ≡ x
   using (group.IsGroup.unfold, monoid.IsMonoid.unfold, gop.eq, ge.eq) ≔
-  λG. λg. λx. idToEq G (gop G g x (ge g)) x (g .π₁ .π₂ .π₂ .π₂ .π₂ x)
+  λG. λg. λx. idToEq _ (gop _ g x (ge g)) _ (g .π₁ .π₂ .π₂ .π₂ .π₂ x)
 
-def gInvL : (G : 𝕌) (g : El (IsGroup G)) (x : El G) → gop G g (ginv G g x) x ≡ ge g
+def gInvL : (G : 𝕌) (g : El (IsGroup G)) (x : El G) → gop _ g (ginv _ g x) x ≡ ge g
   using (group.IsGroup.unfold, gop.eq, ge.eq, ginv.eq) ≔
-  λG. λg. λx. idToEq G (gop G g (ginv G g x) x) (ge g) (g .π₂ .π₂ .π₁ x)
+  λG. λg. λx. idToEq _ (gop _ g (ginv _ g x) x) (ge g) (g .π₂ .π₂ .π₁ x)
 
-def gInvR : (G : 𝕌) (g : El (IsGroup G)) (x : El G) → gop G g x (ginv G g x) ≡ ge g
+def gInvR : (G : 𝕌) (g : El (IsGroup G)) (x : El G) → gop _ g x (ginv _ g x) ≡ ge g
   using (group.IsGroup.unfold, gop.eq, ge.eq, ginv.eq) ≔
-  λG. λg. λx. idToEq G (gop G g x (ginv G g x)) (ge g) (g .π₂ .π₂ .π₂ x)
+  λG. λg. λx. idToEq _ (gop _ g x (ginv _ g x)) (ge g) (g .π₂ .π₂ .π₂ x)
 
 -- ===== cancellation of an adjacent inverse =====
 --
@@ -81,93 +81,57 @@ def gInvR : (G : 𝕌) (g : El (IsGroup G)) (x : El G) → gop G g x (ginv G g x
 def gCancelInner : (G : 𝕌)
   (g : El (IsGroup G))
   (a b : El G)
-  → gop G g a (gop G g (ginv G g a) b) ≡ b ≔
-  λG. λg. λa. λb. gop G g a (gop G g (ginv G g a) b)
-      ≡⟨ sym
-        G
-        (gop G g (gop G g a (ginv G g a)) b)
-        (gop G g a (gop G g (ginv G g a) b))
-        (gAssoc G g a (ginv G g a) b) ⟩ gop G g (gop G g a (ginv G g a)) b
-      ≡⟨ cong
-        G
-        (λw. G)
-        (λw. gop G g w b)
-        (gop G g a (ginv G g a))
-        (ge g)
-        (gInvR G g a) ⟩ gop G g (ge g) b
-      ≡⟨ gUnitL G g b ⟩ b
+  → gop _ g a (gop _ g (ginv _ g a) b) ≡ b ≔
+  λG. λg. λa. λb. gop _ g a (gop _ g (ginv _ g a) b)
+      ≡⟨ sym _ _ _ (gAssoc _ g a (ginv _ g a) b) ⟩ gop _ g (gop _ g a (ginv _ g a)) b
+      ≡⟨ cong G (λw. G) (λw. gop G g w b) _ _ (gInvR _ g a) ⟩ gop _ g (ge g) b
+      ≡⟨ gUnitL _ g b ⟩ b
 
 def gCancelInnerInv : (G : 𝕌)
   (g : El (IsGroup G))
   (a b : El G)
-  → gop G g (ginv G g a) (gop G g a b) ≡ b ≔
-  λG. λg. λa. λb. gop G g (ginv G g a) (gop G g a b)
-      ≡⟨ sym
-        G
-        (gop G g (gop G g (ginv G g a) a) b)
-        (gop G g (ginv G g a) (gop G g a b))
-        (gAssoc G g (ginv G g a) a b) ⟩ gop G g (gop G g (ginv G g a) a) b
-      ≡⟨ cong
-        G
-        (λw. G)
-        (λw. gop G g w b)
-        (gop G g (ginv G g a) a)
-        (ge g)
-        (gInvL G g a) ⟩ gop G g (ge g) b
-      ≡⟨ gUnitL G g b ⟩ b
+  → gop _ g (ginv _ g a) (gop _ g a b) ≡ b ≔
+  λG. λg. λa. λb. gop _ g (ginv _ g a) (gop _ g a b)
+      ≡⟨ sym _ _ _ (gAssoc _ g (ginv _ g a) a b) ⟩ gop _ g (gop _ g (ginv _ g a) a) b
+      ≡⟨ cong G (λw. G) (λw. gop G g w b) _ _ (gInvL _ g a) ⟩ gop _ g (ge g) b
+      ≡⟨ gUnitL _ g b ⟩ b
 
 def gCancelOuter : (G : 𝕌)
   (g : El (IsGroup G))
   (a b : El G)
-  → gop G g (gop G g b a) (ginv G g a) ≡ b ≔
-  λG. λg. λa. λb. gop G g (gop G g b a) (ginv G g a)
-      ≡⟨ gAssoc G g b a (ginv G g a) ⟩ gop G g b (gop G g a (ginv G g a))
-      ≡⟨ cong
-        G
-        (λw. G)
-        (λw. gop G g b w)
-        (gop G g a (ginv G g a))
-        (ge g)
-        (gInvR G g a) ⟩ gop G g b (ge g)
-      ≡⟨ gUnitR G g b ⟩ b
+  → gop _ g (gop _ g b a) (ginv _ g a) ≡ b ≔
+  λG. λg. λa. λb. gop _ g (gop _ g b a) (ginv _ g a)
+      ≡⟨ gAssoc _ g b a (ginv _ g a) ⟩ gop _ g b (gop _ g a (ginv _ g a))
+      ≡⟨ cong G (λw. G) (λw. gop G g b w) _ _ (gInvR _ g a) ⟩ gop _ g b (ge g)
+      ≡⟨ gUnitR _ g b ⟩ b
 
 def gCancelOuterInv : (G : 𝕌)
   (g : El (IsGroup G))
   (a b : El G)
-  → gop G g (gop G g b (ginv G g a)) a ≡ b ≔
-  λG. λg. λa. λb. gop G g (gop G g b (ginv G g a)) a
-      ≡⟨ gAssoc G g b (ginv G g a) a ⟩ gop G g b (gop G g (ginv G g a) a)
-      ≡⟨ cong
-        G
-        (λw. G)
-        (λw. gop G g b w)
-        (gop G g (ginv G g a) a)
-        (ge g)
-        (gInvL G g a) ⟩ gop G g b (ge g)
-      ≡⟨ gUnitR G g b ⟩ b
+  → gop _ g (gop _ g b (ginv _ g a)) a ≡ b ≔
+  λG. λg. λa. λb. gop _ g (gop _ g b (ginv _ g a)) a
+      ≡⟨ gAssoc _ g b (ginv _ g a) a ⟩ gop _ g b (gop _ g (ginv _ g a) a)
+      ≡⟨ cong G (λw. G) (λw. gop G g b w) _ _ (gInvL _ g a) ⟩ gop _ g b (ge g)
+      ≡⟨ gUnitR _ g b ⟩ b
 
 -- ===== uniqueness of inverses, and its three corollaries =====
-def gInvUniq : (G : 𝕌) (g : El (IsGroup G)) (x y : El G) → (gop G g x y ≡ ge g) → ginv G g x ≡ y ≔
-  λG. λg. λx. λy. λh. ginv G g x
-      ≡⟨ sym
-        G
-        (gop G g (ginv G g x) (ge g))
-        (ginv G g x)
-        (gUnitR G g (ginv G g x)) ⟩ gop G g (ginv G g x) (ge g)
+def gInvUniq : (G : 𝕌) (g : El (IsGroup G)) (x y : El G) → (gop _ g x y ≡ ge g) → ginv _ g x ≡ y ≔
+  λG. λg. λx. λy. λh. ginv _ g x
+      ≡⟨ sym _ _ _ (gUnitR _ g (ginv _ g x)) ⟩ gop _ g (ginv _ g x) (ge g)
       ≡⟨ cong
         G
         (λw. G)
-        (λw. gop G g (ginv G g x) w)
-        (ge g)
-        (gop G g x y)
-        (sym G (gop G g x y) (ge g) h) ⟩ gop G g (ginv G g x) (gop G g x y)
-      ≡⟨ gCancelInnerInv G g x y ⟩ y
+        (λw. gop G g (ginv _ g x) w)
+        _
+        _
+        (sym _ _ _ h) ⟩ gop _ g (ginv _ g x) (gop _ g x y)
+      ≡⟨ gCancelInnerInv _ g x y ⟩ y
 
-def gInvInv : (G : 𝕌) (g : El (IsGroup G)) (x : El G) → ginv G g (ginv G g x) ≡ x ≔
-  λG. λg. λx. gInvUniq G g (ginv G g x) x (gInvL G g x)
+def gInvInv : (G : 𝕌) (g : El (IsGroup G)) (x : El G) → ginv _ g (ginv _ g x) ≡ x ≔
+  λG. λg. λx. gInvUniq _ _ _ _ (gInvL _ g x)
 
-def gInvUnit : (G : 𝕌) (g : El (IsGroup G)) → ginv G g (ge g) ≡ ge g ≔
-  λG. λg. gInvUniq G g (ge g) (ge g) (gUnitL G g (ge g))
+def gInvUnit : (G : 𝕌) (g : El (IsGroup G)) → ginv _ g (ge g) ≡ ge g ≔
+  λG. λg. gInvUniq _ _ _ _ (gUnitL _ g (ge g))
 
 -- the anti-homomorphism law: (x·y)⁻¹ = y⁻¹·x⁻¹, from uniqueness plus
 -- the computation (x·y)·(y⁻¹·x⁻¹) = e, which is one re-association and
@@ -175,31 +139,31 @@ def gInvUnit : (G : 𝕌) (g : El (IsGroup G)) → ginv G g (ge g) ≡ ge g ≔
 def gOpInv : (G : 𝕌)
   (g : El (IsGroup G))
   (x y : El G)
-  → ginv G g (gop G g x y) ≡ gop G g (ginv G g y) (ginv G g x) ≔
+  → ginv _ g (gop _ g x y) ≡ gop _ g (ginv _ g y) (ginv _ g x) ≔
   λG. λg. λx. λy. gInvUniq
     G
     g
-    (gop G g x y)
-    (gop G g (ginv G g y) (ginv G g x))
-    (gop G g (gop G g x y) (gop G g (ginv G g y) (ginv G g x))
+    (gop _ g x y)
+    (gop _ g (ginv _ g y) (ginv _ g x))
+    (gop _ g (gop _ g x y) (gop _ g (ginv _ g y) (ginv _ g x))
         ≡⟨ gAssoc
-          G
+          _
           g
           x
           y
           (gop
-            G
+            _
             g
-            (ginv G g y)
-            (ginv G g x)) ⟩ gop G g x (gop G g y (gop G g (ginv G g y) (ginv G g x)))
+            (ginv _ g y)
+            (ginv _ g x)) ⟩ gop _ g x (gop _ g y (gop _ g (ginv _ g y) (ginv _ g x)))
         ≡⟨ cong
           G
           (λw. G)
           (λw. gop G g x w)
-          (gop G g y (gop G g (ginv G g y) (ginv G g x)))
-          (ginv G g x)
-          (gCancelInner G g y (ginv G g x)) ⟩ gop G g x (ginv G g x)
-        ≡⟨ gInvR G g x ⟩ ge g)
+          _
+          _
+          (gCancelInner _ g y (ginv _ g x)) ⟩ gop _ g x (ginv _ g x)
+        ≡⟨ gInvR _ g x ⟩ ge g)
 
 -- x · y⁻¹ = e is the same statement as x = y, and this direction is
 -- the one every quotient argument needs: a coset-relation witness
@@ -207,51 +171,25 @@ def gOpInv : (G : 𝕌)
 def gEqOfOpInvUnit : {G : 𝕌}
   (g : El (IsGroup G))
   {x y : El G}
-  → (gop G g x (ginv G g y) ≡ ge g) → x ≡ y ≔
+  → (gop _ g x (ginv _ g y) ≡ ge g) → x ≡ y ≔
   λG. λg. λx. λy. λh. x
-      ≡⟨ sym G (ginv G g (ginv G g x)) x (gInvInv G g x) ⟩ ginv G g (ginv G g x)
-      ≡⟨ cong
-        G
-        (λw. G)
-        (λw. ginv G g w)
-        (ginv G g x)
-        (ginv G g y)
-        (gInvUniq G g x (ginv G g y) h) ⟩ ginv G g (ginv G g y)
-      ≡⟨ gInvInv G g y ⟩ y
+      ≡⟨ sym _ _ _ (gInvInv _ g x) ⟩ ginv _ g (ginv _ g x)
+      ≡⟨ cong G (λw. G) (λw. ginv G g w) _ _ (gInvUniq _ _ _ _ h) ⟩ ginv _ g (ginv _ g y)
+      ≡⟨ gInvInv _ g y ⟩ y
 
 -- ===== cancellation =====
 def gCancelL : {G : 𝕌}
   (g : El (IsGroup G))
   (x : El G)
   {y z : El G}
-  → (gop G g x y ≡ gop G g x z) → y ≡ z ≔
+  → (gop _ g x y ≡ gop _ g x z) → y ≡ z ≔
   λG. λg. λx. λy. λz. λh. y
-      ≡⟨ sym
-        G
-        (gop G g (ginv G g x) (gop G g x y))
-        y
-        (gCancelInnerInv G g x y) ⟩ gop G g (ginv G g x) (gop G g x y)
-      ≡⟨ cong
-        G
-        (λw. G)
-        (λw. gop G g (ginv G g x) w)
-        (gop G g x y)
-        (gop G g x z)
-        h ⟩ gop G g (ginv G g x) (gop G g x z)
-      ≡⟨ gCancelInnerInv G g x z ⟩ z
+      ≡⟨ sym _ _ _ (gCancelInnerInv _ g x y) ⟩ gop _ g (ginv _ g x) (gop _ g x y)
+      ≡⟨ cong G (λw. G) (λw. gop G g (ginv _ g x) w) _ _ h ⟩ gop _ g (ginv _ g x) (gop _ g x z)
+      ≡⟨ gCancelInnerInv _ g x z ⟩ z
 
-def gCancelR : (G : 𝕌) (g : El (IsGroup G)) (x y z : El G) → (gop G g y x ≡ gop G g z x) → y ≡ z ≔
+def gCancelR : (G : 𝕌) (g : El (IsGroup G)) (x y z : El G) → (gop _ g y x ≡ gop _ g z x) → y ≡ z ≔
   λG. λg. λx. λy. λz. λh. y
-      ≡⟨ sym
-        G
-        (gop G g (gop G g y x) (ginv G g x))
-        y
-        (gCancelOuter G g x y) ⟩ gop G g (gop G g y x) (ginv G g x)
-      ≡⟨ cong
-        G
-        (λw. G)
-        (λw. gop G g w (ginv G g x))
-        (gop G g y x)
-        (gop G g z x)
-        h ⟩ gop G g (gop G g z x) (ginv G g x)
-      ≡⟨ gCancelOuter G g x z ⟩ z
+      ≡⟨ sym _ _ _ (gCancelOuter _ g x y) ⟩ gop _ g (gop _ g y x) (ginv _ g x)
+      ≡⟨ cong G (λw. G) (λw. gop G g w (ginv _ g x)) _ _ h ⟩ gop _ g (gop _ g z x) (ginv _ g x)
+      ≡⟨ gCancelOuter _ g x z ⟩ z

@@ -68,7 +68,7 @@ def rBoundSym : (m n : ℕ) → rBound m n ≡ rBound n m
 -- and zero is bounded by the (nonnegative) rBound
 def reqOfPointwise : {x y : El RSeq} → ((n : ℕ) → seqOf x n ≡ seqOf y n) → Prf (REq x y)
   using (real.REq.unfold) ≔
-  λx. λy. λe. reqOf x y (λn. bndSubEq (rBound n n) (seqOf x n) (seqOf y n) (leQZeroBound n n) (e n))
+  λx. λy. λe. reqOf x y (λn. bndSubEq _ _ _ (leQZeroBound n n) (e n))
 
 def reqRefl : {x : El RSeq} → Prf (REq x x) using (real.REq.unfold) ≔ λx. reqOfPointwise (λn. ⋆)
 
@@ -100,7 +100,7 @@ def realEqOfREq : (x y : El RSeq) → Prf (REq x y) → class x ≡ class y ∈ 
 def realEqOfPointwise : (x y : El RSeq)
   → ((n : ℕ) → seqOf x n ≡ seqOf y n) → class x ≡ class y ∈ El Real
   using (real.Real.unfold) ≔
-  λx. λy. λe. realEqOfREq x y (reqOfPointwise e)
+  λx. λy. λe. realEqOfREq _ _ (reqOfPointwise e)
 
 -- ===== negation =====
 def negSeq : El (ℕ → Q) → El (ℕ → Q) using (rationalQ.Q.unfold) ≔ λf. λn. qNeg (f n)
@@ -109,7 +109,7 @@ def negSeq : El (ℕ → Q) → El (ℕ → Q) using (rationalQ.Q.unfold) ≔ λ
 -- difference reversed
 def qNegSub : (u v : El Q) → qNeg u + qNeg (qNeg v) ≡ v + qNeg u using (rationalQ.Q.unfold) ≔
   λu. λv. qNeg u + qNeg (qNeg v)
-      ≡⟨ cong Q (λw. Q) (λw. qNeg u + w) (qNeg (qNeg v)) v (qNegNeg v) ⟩ qNeg u + v
+      ≡⟨ cong Q (λw. Q) (λw. qNeg u + w) _ _ (qNegNeg v) ⟩ qNeg u + v
       ≡⟨ qAddComm (qNeg u) v ⟩ v + qNeg u
 
 -- the negated sequence is regular: its (m,n) difference is the
@@ -129,10 +129,10 @@ def negReg : {f : El (ℕ → Q)} → El (Regular f) → El (Regular (negSeq f))
     realNeg.negSeq.eq) ≔
   λf. λh. bndReg
     (λm. λn. bndEq
-      (f n + qNeg (f m))
+      _
       (qNeg (f m) + qNeg (qNeg (f n)))
-      (sym Q (qNeg (f m) + qNeg (qNeg (f n))) (f n + qNeg (f m)) (qNegSub (f m) (f n)))
-      (bndEqB (rBound n m) (rBound m n) (f n + qNeg (f m)) (rBoundSym n m) (regBnd f h n m)))
+      (sym _ _ _ (qNegSub (f m) (f n)))
+      (bndEqB _ _ _ (rBoundSym n m) (regBnd _ h n m)))
 
 def rNeg : El RSeq → El RSeq using (real.RSeq.unfold) ≔ λx. negSeq (seqOf x), negReg (regOf x)
 
@@ -163,18 +163,14 @@ def rNegWD : {x y : El RSeq} → Prf (REq x y) → Prf (REq (rNeg x) (rNeg y))
     (rNeg x)
     (rNeg y)
     (λn. bndEq
-      (seqOf y n + qNeg (seqOf x n))
+      _
       (qNeg (seqOf x n) + qNeg (qNeg (seqOf y n)))
-      (sym
-        Q
-        (qNeg (seqOf x n) + qNeg (qNeg (seqOf y n)))
-        (seqOf y n + qNeg (seqOf x n))
-        (qNegSub (seqOf x n) (seqOf y n)))
+      (sym _ _ _ (qNegSub (seqOf x n) (seqOf y n)))
       (bndSubSym (rBound n n) (seqOf x n) (seqOf y n) (u n))))
 
 def rNegWDCls : (x y : El RSeq) (h : Prf (REq x y)) → class (rNeg x) ≡ class (rNeg y) ∈ El Real
   using (real.Real.unfold) ≔
-  λx. λy. λh. realEqOfREq (rNeg x) (rNeg y) (rNegWD h)
+  λx. λy. λh. realEqOfREq _ _ (rNegWD h)
 
 def realNeg : El Real → El Real
   using (rNegWDCls, real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold) ≔

@@ -103,6 +103,7 @@ mutual
   mapRefsE f g d (SAnn e ty) = SAnn (mapRefsE f g d e) (mapRefsTy f g d ty)
   mapRefsE f g d (SImpArg e) = SImpArg (mapRefsE f g d e)
   mapRefsE f g d (SNoIns e) = SNoIns (mapRefsE f g d e)
+  mapRefsE f g d e@(SBlank _) = e
 
   mapRefsTy : (onVar : Nat -> Maybe Range -> String -> Nat -> SElem) ->
               (onSig : Nat -> Maybe Range -> String -> SElem) ->
@@ -210,6 +211,7 @@ mutual
   occursE f (SAnn e ty) = occursE f e || occursTy f ty
   occursE f (SImpArg e) = occursE f e
   occursE f (SNoIns e) = occursE f e
+  occursE f (SBlank _) = False
 
   occursTy : String -> STy -> Bool
   occursTy f STyZero = False
@@ -346,6 +348,7 @@ mutual
   rwE f mk lead d (SAnn e ty) = [| SAnn (rwE f mk lead d e) (rwTy f mk lead d ty) |]
   rwE f mk lead d (SImpArg e) = [| SImpArg (rwE f mk lead d e) |]
   rwE f mk lead d (SNoIns e) = [| SNoIns (rwE f mk lead d e) |]
+  rwE f mk lead d e@(SBlank _) = Just e
 
   rwTy : (f : String) -> (mk : Nat) -> (lead : List Nat) -> Nat -> STy -> Maybe STy
   rwTy f mk lead d STyZero = Just STyZero

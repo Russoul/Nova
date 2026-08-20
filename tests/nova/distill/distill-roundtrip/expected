@@ -1,5 +1,5 @@
 distilled 1 modules (20 items) to out
-elided 16 of 16 ∈-annotations and motives
+elided 16 of 16 ∈-annotations and motives, blanked 0 arguments
 round-trip OK: ASTs identical, kernel Σ α-identical.
 -- distill golden: identity-tier round trip over one file exercising
 -- fixity interleaving, operator items, chains, ⋆ using, clausal and

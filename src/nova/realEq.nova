@@ -63,9 +63,9 @@ def reqStep : (x y z : El RSeq)
     real.rBound.eq,
     realEq.qtr.eq) ≔
   λx. λy. λz. λu. λv. λn. λk. bndWeaken
-    (rBound n n + (qInvNat (qtr k) + (qInvNat (qtr k) + qInvNat (qtr k))))
-    (rBound n n + qInvNat k)
-    (seqOf x n + qNeg (seqOf z n))
+    _
+    _
+    _
     (leQPlusMonoL
       (qInvNat (qtr k) + (qInvNat (qtr k) + qInvNat (qtr k)))
       (qInvNat k)
@@ -75,47 +75,34 @@ def reqStep : (x y z : El RSeq)
       (qInvNat
         n + qInvNat n + (qInvNat (dbl (qtr k)) + qInvNat (dbl (qtr k)) + rBound (qtr k) (qtr k)))
       (rBound n n + (qInvNat (qtr k) + (qInvNat (qtr k) + qInvNat (qtr k))))
-      (seqOf x n + qNeg (seqOf z n))
-      (cong
-        Q
-        (λw. Q)
-        (λw. rBound n n + (w + rBound (qtr k) (qtr k)))
-        (qInvNat (dbl (qtr k)) + qInvNat (dbl (qtr k)))
-        (qInvNat (qtr k))
-        (qInvHalf (qtr k)))
+      _
+      (cong Q (λw. Q) (λw. rBound n n + (w + rBound (qtr k) (qtr k))) _ _ (qInvHalf (qtr k)))
       (bndEqB
         (rBound n (dbl (qtr k)) + rBound (qtr k) (qtr k) + rBound (dbl (qtr k)) n)
         (qInvNat
           n + qInvNat n + (qInvNat (dbl (qtr k)) + qInvNat (dbl (qtr k)) + rBound (qtr k) (qtr k)))
-        (seqOf x n + qNeg (seqOf z n))
+        _
         (qFourSum (qInvNat n) (qInvNat (dbl (qtr k))) (rBound (qtr k) (qtr k)))
         (bndVia
-          (rBound n (dbl (qtr k)) + rBound (qtr k) (qtr k))
-          (rBound (dbl (qtr k)) n)
-          (seqOf x n)
-          (seqOf z (dbl (qtr k)))
-          (seqOf z n)
+          _
+          _
+          _
+          _
+          _
           (bndVia
-            (rBound n (dbl (qtr k)))
-            (rBound (qtr k) (qtr k))
-            (seqOf x n)
-            (seqOf x (dbl (qtr k)))
-            (seqOf z (dbl (qtr k)))
-            (regBnd (seqOf x) (regOf x) n (dbl (qtr k)))
+            _
+            _
+            _
+            _
+            _
+            (regBnd _ (regOf x) n (dbl (qtr k)))
             (bndEqB
-              (rBound (dbl (qtr k)) (dbl (qtr k)) + rBound (dbl (qtr k)) (dbl (qtr k)))
-              (rBound (qtr k) (qtr k))
-              (seqOf x (dbl (qtr k)) + qNeg (seqOf z (dbl (qtr k))))
+              _
+              _
+              _
               (rBoundHalf (qtr k) (qtr k))
-              (bndVia
-                (rBound (dbl (qtr k)) (dbl (qtr k)))
-                (rBound (dbl (qtr k)) (dbl (qtr k)))
-                (seqOf x (dbl (qtr k)))
-                (seqOf y (dbl (qtr k)))
-                (seqOf z (dbl (qtr k)))
-                (u (dbl (qtr k)))
-                (v (dbl (qtr k))))))
-          (regBnd (seqOf z) (regOf z) (dbl (qtr k)) n))))
+              (bndVia _ _ _ _ _ (u (dbl (qtr k))) (v (dbl (qtr k))))))
+          (regBnd _ (regOf z) (dbl (qtr k)) n))))
 
 def reqTrans : {x : El RSeq}
   (y : El RSeq)
@@ -143,4 +130,4 @@ def reqTrans : {x : El RSeq}
 -- quotient is by an honest equivalence
 def realEqTrans : (x y z : El RSeq) → Prf (REq x y) → Prf (REq y z) → class x ≡ class z ∈ El Real
   using (real.Real.unfold) ≔
-  λx. λy. λz. λh1. λh2. realEqOfREq x z (reqTrans y h1 h2)
+  λx. λy. λz. λh1. λh2. realEqOfREq _ _ (reqTrans _ h1 h2)

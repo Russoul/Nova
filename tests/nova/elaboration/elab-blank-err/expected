@@ -1,0 +1,2 @@
+defined cst
+Error: def bad: cannot infer the blank at argument #1 of 'cst' — spell the argument

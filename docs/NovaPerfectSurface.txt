@@ -500,6 +500,48 @@ equational library now reads `(n : ℕ) → Z + n ≡ n` with induction
 proofs `ℕ-elim ⋆ (k ih. ⋆) n` — verified by the Σ-α-gate,
 byte-idempotent, canonical form re-established and enforced.
 
+THE BLANK TIER (2026-08-20): a bare `_` at an explicit Π position
+of an applied ordinary definition is a per-site elided argument —
+in elaboration it IS a hole at its position, entering the same
+joint spine solve as the inserted implicits (same placeholder, same
+sources, same resolution; unsolved is a structural error). A blank
+defers past implicit positions (those are elided by default — {t}
+overrides them) and is refused in constructor/eliminator spines,
+whose QSort-internal telescopes the matcher cannot see through.
+Emission: the sugar pass routes every Σ-headed ordinary spine
+through the spine elaborator and runs the BLANK TRIAL per site —
+the candidate set grows greedily left to right, each addition
+verified as ONE JOINT hypothetical solve that must reproduce every
+hole α-exactly (the implicit insertions included, since their
+sources may be the ones blanked away), in EVERY MODE the site might
+face: with the expected type and without it (an enclosing blank
+flips an argument spine from checking to inference at
+re-elaboration, and the spine cannot know). Three further gates,
+each learned from a corpus counterexample: (i) ELIGIBILITY — a
+candidate's committed skeleton must be kernel-rederivable when
+dropped to bare (payloads at most trivial switches): a value can be
+α-recoverable yet carry a licensed conversion whose certificate
+lives in the skeleton (uip's `refl a x` at `Id a x y`, closed only
+by hyp.rw) — blanking it would lose the certificate; (ii) SOURCE
+ADMISSIBILITY — a checked argument's inferred type feeds the trial
+only when inference commits the SAME core as checking did (a probe,
+discarded), since a mode flip must not change the argument
+(trailing insertion, expectation-solved implicits); (iii) the
+FIXPOINT — emission re-verdicts the emitted corpus until a round
+adds nothing (mode flips unlock positions monotonically, so the
+iteration converges), making the canonical form byte-idempotent.
+The emission surfaced one LATENT ELABORATOR BUG: the deferred
+domain conversion (patchPending) passed convTy its arguments in
+(expected, inferred) order — reversed against the e-switch
+convention the kernel replays; every earlier deferred conversion
+was α/comp-symmetric, so orientation first mattered when a blank
+deferred a hyp.rw-needing conversion. Measured, and REWRITTEN IN
+PLACE: 10,566 argument occurrences blanked across the corpus
+(against 2,826 implicit-position elisions), Σ-α-gated,
+byte-idempotent, canonical form re-established and enforced; the
+blanked corpus elaborates at ~9.1s (the price of 10,566 oracle
+solves in the plain pass, against ~7.8s spelled).
+
 THE IN-PLACE REWRITE (2026-08-20): src/nova is now the implicitized,
 CANONICAL-DISTILL-FORM corpus — 414 defs with {}-binders, 2,826
 argument occurrences elided, comments preserved, items

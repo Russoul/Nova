@@ -400,6 +400,7 @@ mutual
     SAnn t ty => dparen (pe tbl LPair True t <-> txt " : " <-> pt tbl TTop True ty)
     SImpArg t => txt "{" <-> pe tbl LPair True t <-> txt "}"
     SNoIns t => pe tbl LApp False t <-> txt " {}"
+    SBlank _ => txt "_"
 
   concatDoc : List Doc -> Doc
   concatDoc = foldr DCat DNil
@@ -849,7 +850,7 @@ renderUnit u =
 -- stays written. Verdicts are keyed by (module, source range), so
 -- already-elided files no-op (their sites record no verdicts).
 
-parameters (ok : Range -> Bool)
+parameters (ok : Range -> Bool, blankAt : Range -> Nat -> Bool)
   mutual
     esE : SElem -> SElem
     esE e = case e of
@@ -860,7 +861,16 @@ parameters (ok : Range -> Bool)
       SSuc t => SSuc (esE t)
       SLam x b => SLam x (esE b)
       SLet x d b => SLet x (esE d) (esE b)
-      SApp f a => SApp (esE f) (esE a)
+      -- BLANK emission: on a Σ-headed spine, arguments at the trial's
+      -- recorded item indices print as `_` (the whole set was
+      -- verified as one joint recovery, so the emitted spine
+      -- re-elaborates to the same core)
+      SApp f a =>
+        let (h, items) = surfSpine e [] in
+        case h of
+          SSig (Just rng) _ =>
+            foldl SApp h (blankItems rng 0 items)
+          _ => SApp (esE f) (esE a)
       SPair a b => SPair (esE a) (esE b)
       SProj1 t => SProj1 (esE t)
       SProj2 t => SProj2 (esE t)
@@ -897,6 +907,16 @@ parameters (ok : Range -> Bool)
       SAnn t ty => SAnn (esE t) (esT ty)
       SImpArg t => SImpArg (esE t)
       SNoIns t => SNoIns (esE t)
+      SBlank _ => e
+
+    surfSpine : SElem -> List SElem -> (SElem, List SElem)
+    surfSpine (SApp f a) acc = surfSpine f (a :: acc)
+    surfSpine h acc = (h, acc)
+
+    blankItems : Range -> Nat -> List SElem -> List SElem
+    blankItems rng i [] = []
+    blankItems rng i (it :: rest) =
+      (if blankAt rng i then SBlank Nothing else esE it) :: blankItems rng (S i) rest
 
     ||| An ∈-elided equality INFERS one side (left first — mirror
     ||| elabEqSides); that side's ROOT motive must stay written even
@@ -972,10 +992,11 @@ parameters (ok : Range -> Bool)
     SClausalDef r x (esT ty) eta (map esE wit) (map ({ crhs $= esE }) cls)
 
 ||| Apply the verdict map to one module.
-elideSugar : List (String, Range, Bool) -> ModUnit -> ModUnit
-elideSugar verdicts u =
+elideSugar : List (String, Range, Bool) -> List (String, Range, Nat) -> ModUnit -> ModUnit
+elideSugar verdicts blanks u =
   let ok = \r => any (\(m, r', v) => v && m == u.mname && show r' == show r) verdicts
-      body' = map (map (\(r, it) => (r, esItem ok it))) u.mbody
+      blankAt = \r, i => any (\(m, r', j) => m == u.mname && j == i && show r' == show r) blanks
+      body' = map (map (\(r, it) => (r, esItem ok blankAt it))) u.mbody
   in { mbody := body', mitems := mapMaybe (\e => case e of
                                              Right ri => Just ri
                                              Left _ => Nothing) body' } u
@@ -1097,6 +1118,21 @@ countItems = sum . map (length . mitems)
 
 ||| The `nova distill` command body: load and elaborate the root's
 ||| closure (input must be accepted), render every module into outDir,
+||| Iterate blank emission to its fixpoint: re-run the sugar-trial
+||| elaboration on the emitted modules and apply any newly verdicted
+||| elisions, until a round adds nothing (fuel-capped; the set is
+||| monotone, so the cap is a formality).
+blankFix : Nat -> List ModUnit -> Nat -> (List ModUnit, Nat)
+blankFix Z us n = (us, n)
+blankFix (S fuel) us n =
+  case elabProgramSugar us of
+    Left _ => (us, n)
+    Right (_, vs, bs) =>
+      let fresh = filter (\(_, _, v) => v) vs in
+      if null bs && null fresh
+        then (us, n)
+        else blankFix fuel (map (elideSugar vs bs) us) (n + length bs)
+
 ||| then verify the round trip — re-parsed ASTs structurally identical,
 ||| re-elaboration output identical (docs/NovaPerfectSurface.txt,
 ||| "Phase 1, precisely").
@@ -1108,11 +1144,21 @@ distillPath rootPath outDir = do
   -- the acceptance run doubles as the SUGAR TRIAL: per written
   -- ∈-annotation and motive, would the elided form recover it
   -- α-exactly? (docs/NovaPerfectSurface.txt, Phase 4)
-  let Right (sigOrig, verdicts) = elabProgramSugar units
+  let Right (sigOrig, verdicts, blanks) = elabProgramSugar units
     | Left err => pure (Left ("input is not accepted; distill only transforms accepted programs:\n" ++ err))
   let False = normDir (dirOf rootPath) == normDir outDir
     | True => pure (Left "output directory equals the source directory; refusing to overwrite sources")
-  let elided = map (elideSugar verdicts) units
+  -- blank emission iterates to a FIXPOINT: blanking an argument
+  -- flips the spines inside it from checking to inference at the
+  -- next elaboration, and inference-mode verdicts can unlock
+  -- positions the checked-mode pass could not verify (the verdict
+  -- demands recovery in every mode the site might face, and a flip
+  -- removes the checked mode from that set). The blank set only
+  -- grows — holes are only added, and mode flips only go
+  -- checked → inferred — so the iteration converges; each round's
+  -- emission is re-verdicted by a full sugar-trial elaboration, and
+  -- the final corpus is Σ-gated against the ORIGINAL below.
+  let (elided, nBlanks) = blankFix 16 (map (elideSugar verdicts blanks) units) (length blanks)
   Right () <- writeUnits outDir (baseName rootPath) elided
     | Left err => pure (Left err)
   Right units' <- loadProgram (outDir ++ "/" ++ baseName rootPath)
@@ -1126,5 +1172,5 @@ distillPath rootPath outDir = do
     | Just err => pure (Left err)
   let nElided = length (filter (\(_, _, v) => v) verdicts)
   pure (Right ("distilled \{show (length units)} modules (\{show (countItems units)} items) to \{outDir}\n" ++
-               "elided \{show nElided} of \{show (length verdicts)} ∈-annotations and motives\n" ++
+               "elided \{show nElided} of \{show (length verdicts)} ∈-annotations and motives, blanked \{show nBlanks} arguments\n" ++
                "round-trip OK: ASTs identical, kernel Σ α-identical."))

@@ -64,20 +64,8 @@ def nzOfPair : (a b : ℕ)
     (k ih. λb. ℕ-elim
       (λhab. λhnz. ⋆ (nzPos k, ⋆))
       (j ihb. λhab. λhnz. 𝟘-elim (zNotS
-        (k + S k * j)
-        (trans
-          ℕ
-          Z
-          (S k * S j)
-          (S (k + S k * j))
-          (sym ℕ (S k * S j) Z hab)
-          (trans
-            ℕ
-            (S k * S j)
-            (S k + S k * j)
-            (S (k + S k * j))
-            (multSucId (S k) j)
-            (sucPlus k (S k * j))))))
+        _
+        (trans _ _ _ _ (sym _ _ _ hab) (trans _ _ _ _ (multSucId (S k) j) (sucPlus k (S k * j))))))
       b)
     a
 
@@ -108,36 +96,36 @@ def intNZViewAt : {z : El Int}
   → Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ z)∥
   using (classPairEta, integer.Int.unfold) ≔
   λz. λp. λhz. λhab. λhnz. squash-elim (nzOfPair
-    (p .π₁)
-    (p .π₂)
+    _
+    _
     hab
     (notIntro
       (class (p .π₁, p .π₂) ≡ intZero)
       (λe. notApply
-        (z ≡ intZero)
+        _
         hnz
         (trans
           Int
-          z
+          _
           (class (p .π₁, p .π₂))
-          intZero
+          _
           (sym
             Int
             (class (p .π₁, p .π₂))
-            z
-            (trans Int (class (p .π₁, p .π₂)) (class p) z (classPairEta p) hz))
+            _
+            (trans Int (class (p .π₁, p .π₂)) (class p) _ (classPairEta p) hz))
           e)))) (w. ⋆ (w .π₁,
     trans
       Int
-      (nzToInt (w .π₁))
+      _
       (class (p .π₁, p .π₂))
-      z
+      _
       (w .π₂)
-      (trans Int (class (p .π₁, p .π₂)) (class p) z (classPairEta p) hz)))
+      (trans Int (class (p .π₁, p .π₂)) (class p) _ (classPairEta p) hz)))
 
 def intNZView : (z : El Int) (hnz : Prf (¬ (z ≡ intZero))) → Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ z)∥
   using (intCanonProdZero) ≔
-  λz. λhnz. intNZViewAt (intCanon z) (intCanonClass z) (intCanonProdZero z) hnz
+  λz. λhnz. intNZViewAt _ (intCanonClass z) (intCanonProdZero z) hnz
 
 -- ===== transferring non-zeroness to the numerator =====
 -- the easy direction of effectivity (el-quot-eq): a zero numerator
@@ -166,19 +154,19 @@ def ratZeroOfNumZero : (p : El Rat) (h : Prf (num p ≡ intZero)) → class p �
     rationalQ.qZero.eq,
     rationalQ.qcls.eq) ≔
   λp. λh. clsEqOfRel
-    p
+    _
     ratZero
     (trans
-      Int
-      (num p * dInt ratZero)
-      intZero
+      _
+      _
+      _
       (num ratZero * dInt p)
-      (trans Int (num p * dInt ratZero) (num p) intZero (intMulOneR (num p)) h)
-      (sym Int (intZero * dInt p) intZero (intMulZeroL (dInt p))))
+      (trans _ (num p * dInt ratZero) _ _ (intMulOneR (num p)) h)
+      (sym _ _ _ (intMulZeroL (dInt p))))
 
 def numNonZero : {p : El Rat} (h : Prf (¬ (class p ≡ qZero))) → Prf (¬ (num p ≡ intZero))
   using (prop.¬.unfold, prop.⊃.unfold, rationalQ.Q.unfold) ≔
-  λp. λh. notIntro (num p ≡ intZero) (λe. notApply (class p ≡ qZero) h (ratZeroOfNumZero p e))
+  λp. λh. notIntro (num p ≡ intZero) (λe. notApply (class p ≡ qZero) h (ratZeroOfNumZero _ e))
 
 -- ===== every non-zero rational is qOfNzq of something =====
 def qNonZeroIsNzq : {u : El Q} (h : Prf (¬ (u ≡ qZero))) → Prf ∥(x : El NZQ) ⨯ Prf (qOfNzq x ≡ u)∥
@@ -198,7 +186,7 @@ def qNonZeroIsNzq : {u : El Q} (h : Prf (¬ (u ≡ qZero))) → Prf ∥(x : El N
     rationalQ.qcls.eq) ≔
   λu. quot-elim
     (p. λh. squash-elim (intNZView
-      (num p)
+      _
       (numNonZero
         h)) (w. ⋆ ((w .π₁,
       den
@@ -220,12 +208,12 @@ def qInvExists : {u : El Q} (h : Prf (¬ (u ≡ qZero))) → Prf ∥(v : El Q) �
       (w .π₁)),
     trans
       Q
-      (u * qOfNzq (nzqInv (w .π₁)))
+      _
       (qOfNzq (w .π₁) * qOfNzq (nzqInv (w .π₁)))
       qOne
       (sym
-        Q
-        (qOfNzq (w .π₁) * qOfNzq (nzqInv (w .π₁)))
+        _
+        _
         (u * qOfNzq (nzqInv (w .π₁)))
-        (cong Q (λv. Q) (λx. x * qOfNzq (nzqInv (w .π₁))) (qOfNzq (w .π₁)) u (w .π₂)))
+        (cong Q (λv. Q) (λx. x * qOfNzq (nzqInv (w .π₁))) _ _ (w .π₂)))
       qMulInv))

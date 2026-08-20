@@ -38,7 +38,7 @@ def absReg : {f : El (ℕ → Q)} → El (Regular f) → El (Regular (absSeq f))
     real.Regular.unfold,
     real.rBound.eq,
     realAbs.absSeq.eq) ≔
-  λf. λh. bndReg (λm. λn. bndAbsSub (rBound m n) (f m) (f n) (regBnd f h m n))
+  λf. λh. bndReg (λm. λn. bndAbsSub (rBound m n) _ _ (regBnd _ h m n))
 
 def rAbs : El RSeq → El RSeq using (real.RSeq.unfold) ≔ λx. absSeq (seqOf x), absReg (regOf x)
 
@@ -72,7 +72,7 @@ def rAbsWD : {x y : El RSeq} → Prf (REq x y) → Prf (REq (rAbs x) (rAbs y))
 
 def rAbsWDCls : (x y : El RSeq) (h : Prf (REq x y)) → class (rAbs x) ≡ class (rAbs y) ∈ El Real
   using (real.Real.unfold) ≔
-  λx. λy. λh. realEqOfREq (rAbs x) (rAbs y) (rAbsWD h)
+  λx. λy. λh. realEqOfREq _ _ (rAbsWD h)
 
 def realAbs : El Real → El Real
   using (rAbsWDCls, real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold) ≔
@@ -195,8 +195,8 @@ def rleZeroAbs : {x : El RSeq} → Prf (RLeP ((λn. qZero), constReg) (rAbs x))
     (rAbs x)
     (λn. leQTrans
       (qZero + qNeg (qAbs (seqOf x n)))
-      qZero
-      (rBound n n)
+      _
+      _
       (leQSubZero (leQZeroAbs (seqOf x n)))
       (leQZeroBound n n))
 
@@ -271,8 +271,8 @@ def rleAbsTriangle : {x y : El RSeq} → Prf (RLeP (rAbs (rAdd x y)) (rAdd (rAbs
         (seqOf
           x
           (dbl n) + seqOf y (dbl n)) + qNeg (qAbs (seqOf x (dbl n)) + qAbs (seqOf y (dbl n))))
-      qZero
-      (rBound n n)
+      _
+      _
       (leQSubZero (qAbsTriangle (seqOf x (dbl n)) (seqOf y (dbl n))))
       (leQZeroBound n n))
 

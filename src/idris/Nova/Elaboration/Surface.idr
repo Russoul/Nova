@@ -184,6 +184,13 @@ mutual
     ||| position of the applied definition; legal only as an
     ||| application argument (elaboration rejects it anywhere else)
     SImpArg : SElem -> SElem
+    ||| _ — a BLANK: a per-site elided argument at an EXPLICIT Π
+    ||| position of an applied definition, recovered by the same
+    ||| oracle as an inserted implicit (docs/NovaPerfectSurface.txt,
+    ||| Phase 4). Legal only as a direct application argument; at an
+    ||| implicit position it is a structural error (those are elided
+    ||| by default — {t} overrides them)
+    SBlank : Maybe Range -> SElem
     ||| f {} — the NO-INSERT marker: suppress trailing-implicit
     ||| insertion at this reference/spine (the function-passing form:
     ||| a checking-position reference of an implicit-binder def
@@ -250,6 +257,7 @@ mutual
   shiftElem c (SAnn t ty) = SAnn (shiftElem c t) (shiftTy c ty)
   shiftElem c (SImpArg t) = SImpArg (shiftElem c t)
   shiftElem c (SNoIns t) = SNoIns (shiftElem c t)
+  shiftElem c e@(SBlank _) = e
 
   public export
   covering
@@ -513,6 +521,7 @@ mutual
     show (SAnn t ty) = "Ann (\{show t}) (\{show ty})"
     show (SImpArg t) = "Imp (\{show t})"
     show (SNoIns t) = "NoIns (\{show t})"
+    show (SBlank _) = "_"
 
   public export
   covering

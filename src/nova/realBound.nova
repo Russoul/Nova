@@ -42,13 +42,7 @@ def leQInvOne : (k : ℕ) → El (qInvNat k ≤ qOfNat (S Z))
     rationalQ.qcls.eq,
     real.qInvNat.eq) ≔
   λk. leQFracOfNat
-    (transport
-      ℕ
-      (λw. S Z ≤ w)
-      (S k)
-      (S Z * S k)
-      (sym ℕ (S Z * S k) (S k) (oneMult (S k)))
-      (leSucMono (leZero k)))
+    (transport ℕ (λw. S Z ≤ w) _ _ (sym _ _ _ (oneMult (S k))) (leSucMono (leZero k)))
 
 def leQBoundTwo : (n : ℕ) → El (rBound n Z ≤ qOfNat 2)
   using (id.Id.eq,
@@ -75,15 +69,9 @@ def leQBoundTwo : (n : ℕ) → El (rBound n Z ≤ qOfNat 2)
 -- ===== a + (b − a) ≡ b =====
 def qAddSubCancelL : (a b : El Q) → a + (b + qNeg a) ≡ b using (rationalQ.Q.unfold) ≔
   λa. λb. a + (b + qNeg a)
-      ≡⟨ cong
-        Q
-        (λw. Q)
-        (λw. a + w)
-        (b + qNeg a)
-        (qNeg a + b)
-        (qAddComm b (qNeg a)) ⟩ a + (qNeg a + b)
-      ≡⟨ sym Q (a + qNeg a + b) (a + (qNeg a + b)) (qAddAssoc a (qNeg a) b) ⟩ a + qNeg a + b
-      ≡⟨ cong Q (λw. Q) (λw. w + b) (a + qNeg a) qZero (qAddNegR a) ⟩ qZero + b
+      ≡⟨ cong Q (λw. Q) (λw. a + w) _ _ (qAddComm b (qNeg a)) ⟩ a + (qNeg a + b)
+      ≡⟨ sym _ _ _ (qAddAssoc a (qNeg a) b) ⟩ a + qNeg a + b
+      ≡⟨ cong Q (λw. Q) (λw. w + b) _ _ (qAddNegR a) ⟩ qZero + b
       ≡⟨ qAddZeroL b ⟩ b
 
 -- ===== the bound =====
@@ -98,27 +86,21 @@ def bndSeqBound : (p : El RSeq) (n : ℕ) → El (Bnd (qOfNat (seqBound p)) (seq
     realBound.seqBound.eq,
     realNeg.seqOf.eq) ≔
   λp. λn. bndWeaken
-    (qOfNat (qNatBound (seqOf p Z)) + rBound n Z)
-    (qOfNat (seqBound p))
-    (seqOf p n)
+    _
+    _
+    _
     (transport
       Q
       (λw. qOfNat (qNatBound (seqOf p Z)) + rBound n Z ≤ w)
       (qOfNat (qNatBound (seqOf p Z)) + qOfNat 2)
       (qOfNat (seqBound p))
       (qOfNatAdd (qNatBound (seqOf p Z)) 2)
-      (leQAdd
-        (qOfNat (qNatBound (seqOf p Z)))
-        (qOfNat (qNatBound (seqOf p Z)))
-        (rBound n Z)
-        (qOfNat 2)
-        (leQRefl (qOfNat (qNatBound (seqOf p Z))))
-        (leQBoundTwo n)))
+      (leQAdd _ _ _ _ (leQRefl (qOfNat (qNatBound (seqOf p Z)))) (leQBoundTwo n)))
     (bndEq
-      (seqOf p Z + (seqOf p n + qNeg (seqOf p Z)))
-      (seqOf p n)
+      _
+      _
       (qAddSubCancelL (seqOf p Z) (seqOf p n))
-      (bndAdd (bndNatBound (seqOf p Z)) (regBnd (seqOf p) (regOf p) n Z)))
+      (bndAdd (bndNatBound (seqOf p Z)) (regBnd _ (regOf p) n Z)))
 
 -- the bound is a successor, and in fact at least 2 — which is what
 -- lets the product's sampling index be written without a predecessor

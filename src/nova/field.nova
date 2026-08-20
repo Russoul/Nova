@@ -19,19 +19,19 @@ def IsField : 𝕌 → 𝕌 using (group.IsGroup.unfold, monoid.IsMonoid.unfold)
     (mm : IsMonoid F)
     ⨯ let add ≔ g .π₁ .π₁ in let zero ≔ g .π₁ .π₂ .π₁ in let mul ≔ mm .π₁ in let one ≔ mm .π₂ .π₁ in ((x y : F)
       → Id
-        F
+        _
         (add x y)
         (add
           y
           x)) ⨯ ((x y : F)
       → Id
-        F
+        _
         (mul x y)
         (mul
           y
           x)) ⨯ ((x y z : F)
       → Id
-        F
+        _
         (mul x (add y z))
         (add
           (mul x y)
@@ -39,11 +39,11 @@ def IsField : 𝕌 → 𝕌 using (group.IsGroup.unfold, monoid.IsMonoid.unfold)
             x
             z))) ⨯ ((x y z : F)
       → Id
-        F
+        _
         (mul (add y z) x)
         (add
           (mul y x)
           (mul
             z
-            x))) ⨯ ((p : Id F one zero)
-      → 𝟘) ⨯ (x : F) (k : (p : Id F x zero) → 𝟘) → (y : F) ⨯ Id F (mul x y) one
+            x))) ⨯ ((p : Id _ one zero)
+      → 𝟘) ⨯ (x : F) (k : (p : Id _ x zero) → 𝟘) → (y : F) ⨯ Id _ (mul x y) one

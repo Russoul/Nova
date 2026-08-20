@@ -60,8 +60,16 @@ The elaboration model in one paragraph:
 Token conventions: local identifiers are alphanumeric (a leading
 letter or `_`, then letters/digits/`_`/`'`), but a LEADING `_` is
 RESERVED — rejected in term and type positions (historically hole
-syntax; see HOLES ARE REMOVED under Conversion and discharge); `_`
-alone is the wildcard binder, never resolvable; T{n}/t{n} names the
+syntax; see HOLES ARE REMOVED under Conversion and discharge), with
+ONE exception: a bare `_` in an argument position of an applied
+ordinary definition is a BLANK — a per-site elided explicit
+argument, solved by the implicit-spine oracle exactly as an
+inserted implicit is (docs/NovaPerfectSurface.txt, the blank tier).
+A blank never binds to an implicit position (it defers past
+inserted holes to the next explicit position), never appears in
+constructor/eliminator spines (QSort-internal telescopes), and an
+unsolvable blank is a structural error naming the remedy. `_`
+alone in binder position is the wildcard binder, never resolvable; T{n}/t{n} names the
 type/term grammar at
 precedence level n, and T{>=n} any level at or above it. The
 term/type grammar below is self-contained.
@@ -729,7 +737,11 @@ whnf(C) = Prf p        (e-star's premises, verbatim)
 # non-monotone Σ mutation, and were removed together with the surface
 # forms (`?x`, `_`-leading identifiers; the `_` BINDER wildcard is a
 # separate production and remains). See PerfNotes "The cost of a
-# hole" for the anatomy and Future work for the redesign. One
+# hole" for the anatomy and Future work for the redesign. (The
+# BLANK — a bare `_` argument, see Surface syntax — is not a hole in
+# this sense: it is spine-local, solved in the same deterministic
+# pass as an inserted implicit, touches neither Σ nor ↓, and errors
+# structurally when unsolved.) One
 # consequence worth stating: Σ now only ever EXTENDS during a run, so
 # every name's entry — and every cached normal form — is stable for
 # the run's lifetime.

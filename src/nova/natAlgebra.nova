@@ -15,7 +15,7 @@ def IsNatAlgebra : 𝕌 → 𝕌 ≔ λA. (z : A) ⨯ A → A
 def NatAlgHom : (A B : 𝕌) → El (IsNatAlgebra A) → El (IsNatAlgebra B) → 𝕌
   using (natAlgebra.IsNatAlgebra.unfold) ≔
   λA. λB. λa. λb. (h : A → B)
-    ⨯ Id B (h (a .π₁)) (b .π₁) ⨯ (x : A) → Id B (h (a .π₂ x)) (b .π₂ (h x))
+    ⨯ Id _ (h (a .π₁)) (b .π₁) ⨯ (x : A) → Id _ (h (a .π₂ x)) (b .π₂ (h x))
 
 -- ℕ is an ℕ-algebra (S eta-expanded: constructors are not functions).
 def natAlg : El (IsNatAlgebra ℕ) using (natAlgebra.IsNatAlgebra.unfold) ≔ Z, λn. S n
@@ -26,15 +26,15 @@ def natFold : (A : 𝕌) → El (IsNatAlgebra A) → ℕ → El A using (natAlge
 
 -- EXISTENCE: the fold is a homomorphism into any algebra — both laws
 -- are δβ-computations (ℕ-elim at Z and at S), so each ⋆ is free.
-def natAlgInitial : (A : 𝕌) (a : El (IsNatAlgebra A)) → El (NatAlgHom ℕ A natAlg a)
+def natAlgInitial : (A : 𝕌) (a : El (IsNatAlgebra A)) → El (NatAlgHom _ _ natAlg a)
   using (id.Id.eq,
     natAlgebra.IsNatAlgebra.unfold,
     natAlgebra.NatAlgHom.unfold,
     natAlgebra.natAlg.eq,
     natAlgebra.natFold.eq) ≔
   λA. λa. natFold
-    A
-    a, eqToId (natFold A a Z) (a .π₁) ⋆, λx. eqToId (natFold A a (S x)) (a .π₂ (natFold A a x)) ⋆
+    _
+    a, eqToId (natFold _ a Z) (a .π₁) ⋆, λx. eqToId (natFold _ a (S x)) (a .π₂ (natFold _ a x)) ⋆
 
 -- UNIQUENESS: any two homomorphisms out of ℕ agree on every point, by
 -- induction. Each case let-binds the homs' laws (reflected from Id)
@@ -42,7 +42,7 @@ def natAlgInitial : (A : 𝕌) (a : El (IsNatAlgebra A)) → El (NatAlgHom ℕ A
 -- a's endomap of the induction hypothesis' common value.
 def natAlgHomUnique : (A : 𝕌)
   (a : El (IsNatAlgebra A))
-  (f g : El (NatAlgHom ℕ A natAlg a))
+  (f g : El (NatAlgHom _ _ natAlg a))
   (n : ℕ)
   → f .π₁ n ≡ g .π₁ n
   using (hyp.rw,
@@ -53,17 +53,17 @@ def natAlgHomUnique : (A : 𝕌)
     natAlgebra.natAlg.eq) ≔
   λA. λa. λf. λg. λn. ℕ-elim
     (let hf ≔ idToEq
-      A
+      _
       (f .π₁ Z)
       (a .π₁)
-      (f .π₂ .π₁) in let hg ≔ idToEq A (g .π₁ Z) (a .π₁) (g .π₂ .π₁) in ⋆)
+      (f .π₂ .π₁) in let hg ≔ idToEq _ (g .π₁ Z) (a .π₁) (g .π₂ .π₁) in ⋆)
     (k ih. let hf ≔ idToEq
-      A
+      _
       (f .π₁ (S k))
       (a .π₂ (f .π₁ k))
       (f .π₂ .π₂
         k) in let hg ≔ idToEq
-      A
+      _
       (g .π₁ (S k))
       (a .π₂ (g .π₁ k))
       (g .π₂ .π₂
@@ -73,7 +73,7 @@ def natAlgHomUnique : (A : 𝕌)
 -- and at FUNCTION level, one funext away.
 def natAlgHomUniqueFun : (A : 𝕌)
   (a : El (IsNatAlgebra A))
-  (f g : El (NatAlgHom ℕ A natAlg a))
+  (f g : El (NatAlgHom _ _ natAlg a))
   → f .π₁ ≡ g .π₁
   using (natAlgebra.NatAlgHom.unfold) ≔
-  λA. λa. λf. λg. funext ℕ A (f .π₁) (g .π₁) (natAlgHomUnique A a f g)
+  λA. λa. λf. λg. funext _ _ (f .π₁) (g .π₁) (natAlgHomUnique _ _ f g)

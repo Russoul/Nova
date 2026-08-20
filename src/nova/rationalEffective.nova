@@ -37,52 +37,46 @@ def addCongR : {x y z : El Int} → (y ≡ z) → x + y ≡ x + z
 def intMulCancel : (x y d : El Int) (h : Prf (x * d ≡ y * d)) (hd : Prf (¬ (d ≡ intZero))) → x ≡ y
   using (intAddNegL, intMulNegL, intAddZeroL, intAddZeroR) ≔
   λx. λy. λd. λh. λhd. sym
-    Int
-    y
-    x
+    _
+    _
+    _
     (trans
-      Int
-      y
-      (intZero + y)
-      x
-      (sym Int (intZero + y) y (intAddZeroL y))
+      _
+      _
+      _
+      _
+      (sym _ _ _ (intAddZeroL y))
       (trans
         Int
         (intZero + y)
         (x + intNeg y + y)
-        x
+        _
         (addCongL
           (sym
-            Int
-            (x + intNeg y)
-            intZero
+            _
+            _
+            _
             (intNoZeroDiv
-              d
+              _
               (trans
-                Int
-                ((x + intNeg y) * d)
-                (x * d + intNeg y * d)
-                intZero
+                _
+                _
+                _
+                _
                 (intMulDistribR x (intNeg y) d)
-                (trans
-                  Int
-                  (x * d + intNeg y * d)
-                  (y * d + intNeg (y * d))
-                  intZero
-                  (intAddCong2 (x * d) (intNeg y * d) (y * d) (intNeg (y * d)) h (intMulNegL y d))
-                  (intAddNegR (y * d))))
+                (trans _ _ _ _ (intAddCong2 _ _ _ _ h (intMulNegL y d)) (intAddNegR (y * d))))
               hd)))
         (trans
-          Int
-          (x + intNeg y + y)
-          (x + (intNeg y + y))
-          x
+          _
+          _
+          _
+          _
           (intAddAssoc x (intNeg y) y)
           (trans
             Int
             (x + (intNeg y + y))
             (x + intZero)
-            x
+            _
             (addCongR (intAddNegL y))
             (intAddZeroR x)))))
 
@@ -94,7 +88,7 @@ def intMulCancel : (x y d : El Int) (h : Prf (x * d ≡ y * d)) (hd : Prf (¬ (d
 def mulSwapRight : {a b c : El Int} → a * b * c ≡ a * c * b using (integer.Int.unfold) ≔
   λa. λb. λc. a * b * c
       ≡⟨ intMulAssoc a b c ⟩ a * (b * c)
-      ≡⟨ mulCongR a (b * c) (c * b) (intMulComm b c) ⟩ a * (c * b)
+      ≡⟨ mulCongR a _ _ (intMulComm b c) ⟩ a * (c * b)
       ≡⟨ intMulAssoc a c b ⟩ a * c * b
 
 def ratRRefl : (p : El Rat) → Prf (RatR p p) using (rationalQ.RatR.unfold) ≔ λp. ⋆
@@ -130,28 +124,28 @@ def ratRTrans : (p q r : El Rat) → Prf (RatR p q) → Prf (RatR q r) → Prf (
   λp. λq. λr. λh1. λh2. intMulCancel
     (num p * dInt r)
     (num r * dInt p)
-    (dInt q)
+    _
     (trans
       Int
       (num p * dInt r * dInt q)
       (num p * dInt q * dInt r)
-      (num r * dInt p * dInt q)
+      _
       mulSwapRight
       (trans
-        Int
-        (num p * dInt q * dInt r)
-        (num q * dInt p * dInt r)
-        (num r * dInt p * dInt q)
+        _
+        _
+        _
+        _
         (mulCongL (num p * dInt q) (num q * dInt p) (dInt r) h1)
         (trans
           Int
           (num q * dInt p * dInt r)
           (num q * dInt r * dInt p)
-          (num r * dInt p * dInt q)
+          _
           mulSwapRight
           (trans
             Int
-            (num q * dInt r * dInt p)
+            _
             (num r * dInt q * dInt p)
             (num r * dInt p * dInt q)
             (mulCongL (num q * dInt r) (num r * dInt q) (dInt p) h2)
@@ -165,7 +159,7 @@ def qEffective : (p q : El Rat) → Prf (class p ≡ class q ∈ El Q) → Prf (
     rational.Rat.unfold,
     rationalQ.Q.unfold,
     rationalQ.RatR.unfold) ≔
-  effectiveAtEquiv Rat RatR ratRRefl ratRTrans ratRSymm
+  effectiveAtEquiv _ RatR ratRRefl ratRTrans ratRSymm
 
 -- the converse of rationalInv.nova's ratZeroOfNumZero, which needed
 -- effectivity and so could not be stated until now
@@ -193,17 +187,17 @@ def numZeroOfRatZero : (p : El Rat) (h : Prf (class p ≡ qZero)) → num p ≡ 
     rationalQ.qZero.eq,
     rationalQ.qcls.eq) ≔
   λp. λh. trans
-    Int
+    _
     (num p)
     (num p * dInt ratZero)
-    intZero
-    (sym Int (num p * intOne) (num p) (intMulOneR (num p)))
+    _
+    (sym _ _ _ (intMulOneR (num p)))
     (trans
-      Int
+      _
       (num p * dInt ratZero)
       (num ratZero * dInt p)
       intZero
-      (qEffective p ratZero h)
+      (qEffective _ ratZero h)
       (intMulZeroL (dInt p)))
 
 def numZeroIff : (p : El Rat) → Prf ((class p ≡ qZero) ↔ (num p ≡ intZero))
@@ -224,10 +218,7 @@ def qOfNzqNonZero : (x : El NZQ) → Prf (¬ (qOfNzq x ≡ qZero))
     rationalQ.qcls.eq) ≔
   λx. notIntro
     (qOfNzq x ≡ qZero)
-    (λh. notApply
-      (nzToInt (x .π₁) ≡ intZero)
-      (nzToIntNonZero (x .π₁))
-      (numZeroOfRatZero (nzqToRat x) h))
+    (λh. notApply _ (nzToIntNonZero (x .π₁)) (numZeroOfRatZero (nzqToRat x) h))
 
 -- so "non-zero" and "of the form qOfNzq x" coincide — the classical
 -- description of ℚ's units, with the structural one
@@ -238,10 +229,7 @@ def qNonZeroIffNzq : (u : El Q) → Prf (¬ (u ≡ qZero) ↔ ∥(x : El NZQ) �
     (λh. qNonZeroIsNzq h)
     (λh. squash-elim h (w. notIntro
       (u ≡ qZero)
-      (λe. notApply
-        (qOfNzq (w .π₁) ≡ qZero)
-        (qOfNzqNonZero (w .π₁))
-        (trans Q (qOfNzq (w .π₁)) u qZero (w .π₂) e))))
+      (λe. notApply _ (qOfNzqNonZero (w .π₁)) (trans _ _ _ _ (w .π₂) e))))
 
 -- ===== the field axiom, classically =====
 -- 1 ≠ 0: nzToInt nzOne IS intOne, and the image of an NZ misses zero
@@ -277,18 +265,12 @@ def qInvertibleIffNonZero : (u : El Q) → Prf (¬ (u ≡ qZero) ↔ ∥(v : El 
     (λh. squash-elim h (w. notIntro
       (u ≡ qZero)
       (λe. notApply
-        (qOne ≡ qZero)
+        _
         qOneNotZero
         (trans
-          Q
+          _
           qOne
-          (u * w .π₁)
-          qZero
+          _
+          _
           (sym Q (class (class (S Z, Z), inj₁ Z)) (class (class (S Z, Z), inj₁ Z)) (w .π₂))
-          (trans
-            Q
-            (u * w .π₁)
-            (qZero * w .π₁)
-            qZero
-            (cong Q (λt. Q) (λx. x * w .π₁) u qZero e)
-            qMulZeroL)))))
+          (trans Q _ (qZero * w .π₁) qZero (cong Q (λt. Q) (λx. x * w .π₁) _ _ e) qMulZeroL)))))

@@ -22,31 +22,25 @@ def cancelStep : {a b c d e f : ℕ}
     ℕ
     (a + f + (c + d))
     (a + d + (c + f))
-    (b + e + (c + d))
+    _
     swapMid
     (trans
-      ℕ
-      (a + d + (c + f))
-      (b + c + (c + f))
-      (b + e + (c + d))
+      _
+      _
+      _
+      _
       (plusCongL (c + f) h1)
       (trans
-        ℕ
-        (b + c + (c + f))
-        (b + c + (d + e))
-        (b + e + (c + d))
+        _
+        _
+        _
+        _
         (plusCongR (b + c) h2)
-        (trans
-          ℕ
-          (b + c + (d + e))
-          (b + e + (d + c))
-          (b + e + (c + d))
-          swapMid
-          (plusCongR (b + e) (plusComm c d)))))
+        (trans ℕ (b + c + (d + e)) (b + e + (d + c)) _ swapMid (plusCongR (b + e) (plusComm c d)))))
 
 def cancelTrans : {a b : ℕ} (c d : ℕ) {e f : ℕ} → (a + d ≡ b + c) → (c + f ≡ d + e) → a + f ≡ b + e
   using (nat.plusAssoc) ≔
-  λa. λb. λc. λd. λe. λf. λh1. λh2. plusCancel (a + f) (b + e) (c + d) (cancelStep h1 h2)
+  λa. λb. λc. λd. λe. λf. λh1. λh2. plusCancel _ _ _ (cancelStep h1 h2)
 
 -- IntR is an equivalence. Reflexivity and symmetry are commutativity, so
 -- one ⋆ each; transitivity is cancelTrans at the four components
@@ -61,12 +55,12 @@ def intRSymm : (p q : ℕ ⨯ ℕ) → Prf (IntR p q) → Prf (IntR q p)
 
 def intRTrans : (p q s : ℕ ⨯ ℕ) → Prf (IntR p q) → Prf (IntR q s) → Prf (IntR p s)
   using (integer.IntR.eq, integer.IntR.unfold) ≔
-  λp. λq. λs. λh1. λh2. cancelTrans (q .π₁) (q .π₂) h1 h2
+  λp. λq. λs. λh1. λh2. cancelTrans _ _ h1 h2
 
 -- EFFECTIVITY for Int, on the nose
 def intEffective : (p q : ℕ ⨯ ℕ) → Prf (class p ≡ class q ∈ El Int) → Prf (IntR p q)
   using (integer.Int.unfold, integer.IntR.unfold) ≔
-  effectiveAtEquiv (ℕ ⨯ ℕ) IntR intRRefl intRTrans intRSymm
+  effectiveAtEquiv _ IntR intRRefl intRTrans intRSymm
 
 -- what it is for: the classes of (Z,Z) and (S Z, S Z) are equal
 -- (integer.nova's zeroEq), so their representatives are IntR-related —

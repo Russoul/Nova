@@ -10,4 +10,4 @@ def IsGroup : 𝕌 → 𝕌 using (monoid.IsMonoid.unfold) ≔
   λG. (m : IsMonoid G)
     (inv : G → G)
     ⨯ let op ≔ m .π₁ in let e ≔ m .π₂ .π₁ in ((x : G)
-      → Id G (op (inv x) x) e) ⨯ (x : G) → Id G (op x (inv x)) e
+      → Id _ (op (inv x) x) e) ⨯ (x : G) → Id _ (op x (inv x)) e

@@ -36,20 +36,8 @@ def nzOfPairD : (a b : ℕ)
     (k ih. λb. ℕ-elim
       (λhab. inj₁ (nzPos k, ⋆))
       (j ihb. λhab. 𝟘-elim (zNotS
-        (k + S k * j)
-        (trans
-          ℕ
-          Z
-          (S k * S j)
-          (S (k + S k * j))
-          (sym ℕ (S k * S j) Z hab)
-          (trans
-            ℕ
-            (S k * S j)
-            (S k + S k * j)
-            (S (k + S k * j))
-            (multSucId (S k) j)
-            (sucPlus k (S k * j))))))
+        _
+        (trans _ _ _ _ (sym _ _ _ hab) (trans _ _ _ _ (multSucId (S k) j) (sucPlus k (S k * j))))))
       b)
     a
 
@@ -64,27 +52,27 @@ def nzOfIntAt : {z : El Int}
     (u. inj₁ (u .π₁,
       trans
         Int
-        (nzToInt (u .π₁))
+        _
         (class (p .π₁, p .π₂))
-        z
+        _
         (u .π₂)
-        (trans Int (class (p .π₁, p .π₂)) (class p) z (classPairEta p) hz)))
+        (trans Int (class (p .π₁, p .π₂)) (class p) _ (classPairEta p) hz)))
     (u. inj₂ (trans
       Int
-      z
+      _
       (class (p .π₁, p .π₂))
-      intZero
+      _
       (sym
         Int
         (class (p .π₁, p .π₂))
-        z
-        (trans Int (class (p .π₁, p .π₂)) (class p) z (classPairEta p) hz))
+        _
+        (trans Int (class (p .π₁, p .π₂)) (class p) _ (classPairEta p) hz))
       u))
-    (nzOfPairD (p .π₁) (p .π₂) hab)
+    (nzOfPairD _ _ hab)
 
 def nzOfInt : (z : El Int) → ((e : El NZ) ⨯ Prf (nzToInt e ≡ z)) ⊎ Prf (z ≡ intZero)
   using (intCanonClass) ≔
-  λz. nzOfIntAt (intCanon z) (intCanonClass z) (intCanonProdZero z)
+  λz. nzOfIntAt _ (intCanonClass z) (intCanonProdZero z)
 
 -- ===== the image of NZ misses zero =====
 -- a disequality of CLASSES from a refuted relation: this is what
@@ -93,7 +81,7 @@ def nzOfInt : (z : El Int) → ((e : El NZ) ⨯ Prf (nzToInt e ≡ z)) ⊎ Prf (
 -- now the class equation hands IntR back directly.
 def intNeqOfNotRel : {p q : ℕ ⨯ ℕ} (k : Prf (IntR p q) → 𝟘) → Prf (¬ (class p ≡ class q ∈ El Int))
   using (integer.Int.unfold, prop.¬.unfold, prop.⊃.unfold, prop.⊥.unfold) ≔
-  λp. λq. λk. notIntro (class p ≡ class q ∈ El Int) (λh. ⋆ (k (intEffective p q h)))
+  λp. λq. λk. notIntro (class p ≡ class q ∈ El Int) (λh. ⋆ (k (intEffective _ _ h)))
 
 -- IntR (S n , Z) (Z , Z) reduces to S n ≡ Z, and IntR (Z , S n) (Z , Z)
 -- to Z ≡ S n — both refuted by eqNat.nova's zNotS
@@ -108,7 +96,7 @@ def nzToIntNonZero : (e : El NZ) → Prf (¬ (nzToInt e ≡ intZero))
     rational.NZ.unfold,
     rational.nzToInt.eq) ≔
   λe. ⊎-elim
-    (n. intNeqOfNotRel (λr. zNotS n (sym ℕ (S n) Z r)))
+    (n. intNeqOfNotRel (λr. zNotS _ (sym _ (S n) Z r)))
     (n. intNeqOfNotRel (λr. zNotS n r))
     e
 
@@ -126,22 +114,16 @@ def intNoZeroDiv : {x : El Int}
       (ey. absurdP
         (x ≡ intZero)
         (notApply
-          (nzToInt (nzMul (ex .π₁) (ey .π₁)) ≡ intZero)
+          _
           (nzToIntNonZero (nzMul (ex .π₁) (ey .π₁)))
           (trans
-            Int
-            (nzToInt (nzMul (ex .π₁) (ey .π₁)))
-            (x * y)
-            intZero
-            (trans
-              Int
-              (nzToInt (nzMul (ex .π₁) (ey .π₁)))
-              (nzToInt (ex .π₁) * nzToInt (ey .π₁))
-              (x * y)
-              (nzToIntMul (ex .π₁) (ey .π₁))
-              (intMulCong2 (nzToInt (ex .π₁)) (nzToInt (ey .π₁)) x y (ex .π₂) (ey .π₂)))
+            _
+            _
+            _
+            _
+            (trans _ _ _ _ (nzToIntMul (ex .π₁) (ey .π₁)) (intMulCong2 _ _ _ _ (ex .π₂) (ey .π₂)))
             hxy)))
-      (ey. absurdP (x ≡ intZero) (notApply (y ≡ intZero) hy ey))
+      (ey. absurdP (x ≡ intZero) (notApply _ hy ey))
       (nzOfInt y))
     (ex. ex)
     (nzOfInt x)
