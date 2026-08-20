@@ -410,3 +410,16 @@ its entry. Both `nova distill` and `nova implicitize` output now
 carries the full commentary; the corpus round-trips byte-idempotent
 with comments in place. (The corpus has only `--` line comments; a
 block-comment continuation line would be defensively re-prefixed.)
+
+THE IN-PLACE REWRITE (2026-08-20): src/nova is now the implicitized,
+CANONICAL-DISTILL-FORM corpus — 414 defs with {}-binders, 2,826
+argument occurrences elided, comments preserved, items
+blank-line-block structured (comments and fixities glue to the item
+they precede). Canonical form is ENFORCED: check-distill.sh
+byte-compares a fresh distill of the corpus against the tree (wired
+into CI), so the corpus stays in the format the distiller emits;
+an edit that leaves canonical form is re-normalized by distilling
+over it. The rewrite was verified by the full pipeline (trial,
+Σ-α-gate, acceptance in both store modes, 145/145 goldens) — the
+kernel Σ of the rewritten corpus is entrywise α-identical to the
+explicit corpus's.

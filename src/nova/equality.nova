@@ -3,76 +3,76 @@
 -- the sides — and, for coercion and transport, the types — equal, so
 -- what other theories build from J is judgemental here.
 
-def refl : (A : 𝕌) (a : El A) → a ≡ a ∈ El A ≔
-  λA. λa. ⋆
+def refl : (A : 𝕌) (a : El A) → a ≡ a ∈ El A ≔ λA. λa. ⋆
 
-def sym : (A : 𝕌) (a : El A) (b : El A) → (a ≡ b ∈ El A) →
-          b ≡ a ∈ El A ≔
-  λA. λa. λb. λh. ⋆
+def sym : (A : 𝕌) (a b : El A) → (a ≡ b ∈ El A) → b ≡ a ∈ El A ≔ λA. λa. λb. λh. ⋆
 
-def trans : (A : 𝕌) (a : El A) (b : El A) (c : El A) →
-            (a ≡ b ∈ El A) → (b ≡ c ∈ El A) →
-            a ≡ c ∈ El A ≔
-  λA. λa. λb. λc. λab. λbc. (a ≡⟨ ab ⟩ b ≡⟨ bc ⟩ c)
+def trans : (A : 𝕌) (a b c : El A) → (a ≡ b ∈ El A) → (b ≡ c ∈ El A) → a ≡ c ∈ El A ≔
+  λA. λa. λb. λc. λab. λbc. a ≡⟨ ab ⟩ b ≡⟨ bc ⟩ c
 
 -- coercion along a universe equation: the element itself, at the
 -- other type (El A ≐ El B by reflection)
-def coe : (A : 𝕌) (B : 𝕌) → (A ≡ B ∈ 𝕌) → El A → El B ≔
-  λA. λB. λh. λa. a
+def coe : (A B : 𝕌) → (A ≡ B ∈ 𝕌) → El A → El B ≔ λA. λB. λh. λa. a
 
 -- transport along an equation in the base: again the element itself
 -- (P a ≐ P b by congruence over the reflected hypothesis)
-def transport : (A : 𝕌) (P : El A → 𝕌) (a : El A) (b : El A) →
-                (a ≡ b ∈ El A) → El (P a) → El (P b) ≔
+def transport : (A : 𝕌) (P : El A → 𝕌) (a b : El A) → (a ≡ b ∈ El A) → El (P a) → El (P b) ≔
   λA. λP. λa. λb. λh. λp. p
 
 -- transport at a PROP motive: equality is Ω-valued, so prop-indexed
 -- facts move along an equation the same way elements do — the proof
 -- itself, at the other instance (Prf (P a) ≐ Prf (P b) by congruence
 -- over the reflected hypothesis)
-def transportP : (A : 𝕌) (P : El A → Ω) (a : El A) (b : El A) →
-                 (a ≡ b ∈ El A) → Prf (P a) → Prf (P b) ≔
+def transportP : (A : 𝕌) (P : El A → Ω) (a b : El A) → (a ≡ b ∈ El A) → Prf (P a) → Prf (P b) ≔
   λA. λP. λa. λb. λh. λp. p
 
 -- dependent congruence: in an extensional theory it is one ⋆, since
 -- reflecting the hypothesis makes the sides and their types equal
-def cong : (A : 𝕌) (B : El A → 𝕌) (f : (v : El A) → El (B v)) →
-           (v : El A) (w : El A) → (v ≡ w ∈ (El A)) →
-           f v ≡ f w ∈ (El (B v)) ≔
+def cong : (A : 𝕌)
+  (B : El A → 𝕌)
+  (f : (v : El A) → El (B v))
+  (v w : El A)
+  → (v ≡ w ∈ El A) → f v ≡ f w ∈ El (B v) ≔
   λA. λB. λf. λv. λw. λh. ⋆
 
-def appCong : (A : 𝕌) (B : El A → 𝕌) (f0 : (x : El A) → El (B x)) (f1 : (x : El A) → El (B x)) →
-                  (a0 : El A) (a1 : El A) →
-                  (f0 ≡ f1 ∈ (x : El A) → El (B x)) →
-                  (a0 ≡ a1 ∈ El A) →
-                  f0 a0 ≡ f1 a1 ∈ El (B a1) ≔
-  λA. λB. λf0. λf1. λa0. λa1. λf. λa.
-  (f0 a0
-     ≡⟨ a ⟩
-   f0 a1
-     ≡⟨ cong ((x : A) → B x) (λ_. B a1) (λg. g a1) f0 f1 f ⟩
-   f1 a1)
+def appCong : (A : 𝕌)
+  (B : El A → 𝕌)
+  (f0 f1 : (x : El A) → El (B x))
+  (a0 a1 : El A)
+  → (f0 ≡ f1 ∈ (x : El A) → El (B x)) → (a0 ≡ a1 ∈ El A) → f0 a0 ≡ f1 a1 ∈ El (B a1) ≔
+  λA. λB. λf0. λf1. λa0. λa1. λf. λa. f0 a0
+      ≡⟨ a ⟩ f0 a1
+      ≡⟨ cong ((x : A) → B x) (λ_. B a1) (λg. g a1) f0 f1 f ⟩ f1 a1
 
-
-def irr : (A : 𝕌) (v : El A) (u : El A) (p : v ≡ u ∈ (El A)) → p ≡ ⋆ ∈ (v ≡ u ∈ (El A))
-  ≔ λA. λv. λu. λp. ⋆
+def irr : (A : 𝕌) (v u : El A) (p : v ≡ u ∈ El A) → p ≡ ⋆ ∈ (v ≡ u ∈ El A) ≔ λA. λv. λu. λp. ⋆
 
 -- Σ-η and componentwise equality at a DEPENDENT pair. Both are the
 -- non-dependent versions (eqInt.nova's pairEtaG/pairEq2) with the
 -- second component's type allowed to mention the first: reflecting h1
 -- makes x .π₁ ≐ y .π₁, which is exactly what h2's type needs. Stated
 -- type-generically, as every shape-generic lemma must be (B-3).
-def sigmaEtaG : (A : 𝕌) (B : El A → 𝕌) (p : El ((a : A) ⨯ B a)) →
-  (p .π₁ , p .π₂) ≡ p ∈ El ((a : A) ⨯ B a) using (sigma.eta) ≔
+def sigmaEtaG : (A : 𝕌)
+  (B : El A → 𝕌)
+  (p : El ((a : A) ⨯ B a))
+  → (p .π₁, p .π₂) ≡ p ∈ El ((a : A) ⨯ B a)
+  using (sigma.eta) ≔
   λA. λB. λp. ⋆
 
-def sigmaEq2 : (A : 𝕌) (B : El A → 𝕌)
-  (x : El ((a : A) ⨯ B a)) (y : El ((a : A) ⨯ B a)) →
-  (x .π₁ ≡ y .π₁ ∈ El A) → (x .π₂ ≡ y .π₂ ∈ El (B (x .π₁))) →
-  x ≡ y ∈ El ((a : A) ⨯ B a) using (sigma.eta, hyp.rw) ≔
-  λA. λB. λx. λy. λh1. λh2.
-    trans ((a : A) ⨯ B a) x (y .π₁ , y .π₂) y
-      (trans ((a : A) ⨯ B a) x (x .π₁ , x .π₂) (y .π₁ , y .π₂)
-        (sym ((a : A) ⨯ B a) (x .π₁, x .π₂) x (sigmaEtaG A B x))
-        ⋆)
-      (sigmaEtaG A B y)
+def sigmaEq2 : (A : 𝕌)
+  (B : El A → 𝕌)
+  (x y : El ((a : A) ⨯ B a))
+  → (x .π₁ ≡ y .π₁ ∈ El A) → (x .π₂ ≡ y .π₂ ∈ El (B (x .π₁))) → x ≡ y ∈ El ((a : A) ⨯ B a)
+  using (sigma.eta, hyp.rw) ≔
+  λA. λB. λx. λy. λh1. λh2. trans
+    ((a : A) ⨯ B a)
+    x
+    (y .π₁, y .π₂)
+    y
+    (trans
+      ((a : A) ⨯ B a)
+      x
+      (x .π₁, x .π₂)
+      (y .π₁, y .π₂)
+      (sym ((a : A) ⨯ B a) (x .π₁, x .π₂) x (sigmaEtaG A B x))
+      ⋆)
+    (sigmaEtaG A B y)

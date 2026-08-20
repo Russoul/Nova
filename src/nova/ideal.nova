@@ -1,13 +1,3 @@
-import prop (∧, andIntro, andFst, andSnd)
-import monoid (IsMonoid)
-import group (IsGroup)
-import ring (IsCommRing)
-import groupTheory (gop, ge, ginv)
-import ringTheory (raddGroup, rmul, rone, rMulComm, rAddComm, rMulSub)
-import subgroup (IsSubgroup, IsNormal, sgIntro, sgUnit, sgOp, sgInv,
-                 abelianNormal, cosetRel)
-import equality (transportP, sym, trans, cong)
-
 -- IDEALS.
 --
 -- An ideal is an additive SUBGROUP closed under multiplication by
@@ -22,40 +12,51 @@ import equality (transportP, sym, trans, cong)
 -- well-definedness proof is written. Only the MULTIPLICATION has to
 -- descend, and that is quotRing.nova.
 
+import prop (∧, andIntro, andFst, andSnd)
+import monoid (IsMonoid)
+import group (IsGroup)
+import ring (IsCommRing)
+import groupTheory (gop, ge, ginv)
+import ringTheory (raddGroup, rmul, rone, rMulComm, rAddComm, rMulSub)
+import subgroup (IsSubgroup, IsNormal, sgIntro, sgUnit, sgOp, sgInv, abelianNormal, cosetRel)
+import equality (transportP, sym, trans, cong)
+
 def closedScale : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) → Ω ≔
-  λR. λr. λI.
-    ∥(a : El R) (x : El R) → Prf (I x) → Prf (I (rmul R r a x))∥
+  λR. λr. λI. ∥(a x : El R) → Prf (I x) → Prf (I (rmul R r a x))∥
 
 def IsIdeal : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) → Ω ≔
-  λR. λr. λI. IsSubgroup R (raddGroup R r) I ∧ closedScale R r I
+  λR. λr. λI. IsSubgroup R (raddGroup r) I ∧ closedScale R r I
 
-def idIntro : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) →
-  Prf (IsSubgroup R (raddGroup R r) I) →
-  ((a : El R) (x : El R) → Prf (I x) → Prf (I (rmul R r a x))) →
-  Prf (IsIdeal R r I)
+def idIntro : {R : 𝕌}
+  {r : El (IsCommRing R)}
+  {I : El R → Ω}
+  → Prf (IsSubgroup
+    R
+    (raddGroup r)
+    I) → ((a x : El R) → Prf (I x) → Prf (I (rmul R r a x))) → Prf (IsIdeal R r I)
   using (IsIdeal.eq, closedScale.eq) ≔
-  λR. λr. λI. λsub. λsc.
-    andIntro (IsSubgroup R (raddGroup R r) I) (closedScale R r I) sub (⋆ sc)
+  λR. λr. λI. λsub. λsc. andIntro (IsSubgroup R (raddGroup r) I) (closedScale R r I) sub (⋆ sc)
 
-def idSub : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) →
-  Prf (IsIdeal R r I) → Prf (IsSubgroup R (raddGroup R r) I)
+def idSub : {R : 𝕌}
+  {r : El (IsCommRing R)}
+  {I : El R → Ω}
+  → Prf (IsIdeal R r I) → Prf (IsSubgroup R (raddGroup r) I)
   using (IsIdeal.eq) ≔
-  λR. λr. λI. λh.
-    andFst (IsSubgroup R (raddGroup R r) I) (closedScale R r I) h
+  λR. λr. λI. λh. andFst (IsSubgroup R (raddGroup r) I) (closedScale R r I) h
 
-def idScale : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) →
-  Prf (IsIdeal R r I) →
-  (a : El R) (x : El R) → Prf (I x) → Prf (I (rmul R r a x))
+def idScale : (R : 𝕌)
+  (r : El (IsCommRing R))
+  (I : El R → Ω)
+  → Prf (IsIdeal R r I) → (a x : El R) → Prf (I x) → Prf (I (rmul R r a x))
   using (IsIdeal.eq, closedScale.unfold) ≔
-  λR. λr. λI. λh. λa. λx. λhx.
-    squash-elim
-      (andSnd (IsSubgroup R (raddGroup R r) I) (closedScale R r I) h)
-      (u. u a x hx)
+  λR. λr. λI. λh. λa. λx. λhx. squash-elim (andSnd
+    (IsSubgroup R (raddGroup r) I)
+    (closedScale R r I)
+    h) (u. u a x hx)
 
 -- an ideal is a normal subgroup of (R , +), because (R , +) is abelian
-def idNormal : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) →
-  Prf (IsNormal R (raddGroup R r) I) ≔
-  λR. λr. λI. abelianNormal R (raddGroup R r) (rAddComm R r) I
+def idNormal : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) → Prf (IsNormal R (raddGroup r) I) ≔
+  λR. λr. λI. abelianNormal (rAddComm R r)
 
 -- ===== the two closure facts the descent will want =====
 --
@@ -66,11 +67,14 @@ def idNormal : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) →
 -- use the RIGHT one. The asymmetry quotGroup.nova had to face for the
 -- group operation is here paid for by commutativity — which is exactly
 -- what "commutative ring" buys and what a group does not have.
-
-def idScaleR : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) →
-  Prf (IsIdeal R r I) →
-  (a : El R) (x : El R) → Prf (I x) → Prf (I (rmul R r x a)) ≔
-  λR. λr. λI. λh. λa. λx. λhx.
-    transportP R I (rmul R r a x) (rmul R r x a)
-      (rMulComm R r a x)
-      (idScale R r I h a x hx)
+def idScaleR : (R : 𝕌)
+  (r : El (IsCommRing R))
+  (I : El R → Ω)
+  → Prf (IsIdeal R r I) → (a x : El R) → Prf (I x) → Prf (I (rmul R r x a)) ≔
+  λR. λr. λI. λh. λa. λx. λhx. transportP
+    R
+    I
+    (rmul R r a x)
+    (rmul R r x a)
+    (rMulComm R r a x)
+    (idScale R r I h a x hx)

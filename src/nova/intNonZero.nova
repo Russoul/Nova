@@ -1,3 +1,14 @@
+-- The DATA-valued view of an integer: either an NZ whose image it is,
+-- or a proof that it is zero. This is rationalInv.nova's intNZView with
+-- the squash removed — and removing the squash is exactly what turns
+-- "an inverse exists" into "here is the inverse".
+--
+-- It is definable because intCanon is an honest FUNCTION El Int → ℕ ⨯ ℕ
+-- (its well-definedness was discharged in eqInt.nova), so the case
+-- analysis below is on nats, not on a quotient: no further
+-- well-definedness obligation arises, and nothing has to be erased.
+-- ===== the view =====
+
 import nat (+, *, zeroMult, multSucId, sucPlus, plusComm)
 import integer (Int, IntR, intZero, intOne)
 import integerMul (intMul, intMulCong2, classPairEta)
@@ -10,118 +21,142 @@ import intEffective (intEffective)
 import rationalInv (nzOfPair, notIntro, notApply, intCanonProdZero)
 import equality (trans, sym, cong)
 
--- The DATA-valued view of an integer: either an NZ whose image it is,
--- or a proof that it is zero. This is rationalInv.nova's intNZView with
--- the squash removed — and removing the squash is exactly what turns
--- "an inverse exists" into "here is the inverse".
---
--- It is definable because intCanon is an honest FUNCTION El Int → ℕ ⨯ ℕ
--- (its well-definedness was discharged in eqInt.nova), so the case
--- analysis below is on nats, not on a quotient: no further
--- well-definedness obligation arises, and nothing has to be erased.
-
--- ===== the view =====
-
-def nzOfPairD : (a : ℕ) (b : ℕ) (hab : Prf (a * b ≡ Z ∈ ℕ)) →
-  ((e : El NZ) ⨯ Prf (nzToInt e ≡ class (a , b) ∈ El Int))
-    ⊎ Prf (class (a , b) ≡ intZero ∈ El Int) using (integer.Int.unfold, integer.intZero.eq, rational.nzNeg.eq, rational.nzPos.eq, rational.nzToInt.eq, sucPlus, zeroMult) ≔
-  λa.
-    ℕ-elim (k. (b : ℕ) → Prf (k * b ≡ Z ∈ ℕ) →
-              (((e : El NZ) ⨯ Prf (nzToInt e ≡ class (k , b) ∈ El Int))
-                 ⊎ Prf (class (k , b) ≡ intZero ∈ El Int)))
-      (λb.
-        ℕ-elim (j. Prf (Z * j ≡ Z ∈ ℕ) →
-                  (((e : El NZ) ⨯ Prf (nzToInt e ≡ class (Z , j) ∈ El Int))
-                     ⊎ Prf (class (Z , j) ≡ intZero ∈ El Int)))
-          (λhab. inj₂ ⋆)
-          (j ihb. λhab. inj₁ (nzNeg j , ⋆))
-          b)
-      (k ih. λb.
-        ℕ-elim (j. Prf (S k * j ≡ Z ∈ ℕ) →
-                  (((e : El NZ) ⨯ Prf (nzToInt e ≡ class (S k , j) ∈ El Int))
-                     ⊎ Prf (class (S k , j) ≡ intZero ∈ El Int)))
-          (λhab. inj₁ (nzPos k , ⋆))
-          (j ihb. λhab.
-            𝟘-elim (zNotS (k + S k * j)
-              (trans ℕ Z (S k * S j) (S (k + S k * j))
-                (sym ℕ ((S k) * (S j)) Z hab)
-                (trans ℕ (S k * S j) (S k + S k * j) (S (k + S k * j))
-                  (multSucId (S k) j)
-                  (sucPlus k (S k * j))))))
-          b)
-      a
+def nzOfPairD : (a b : ℕ)
+  (hab : Prf (a * b ≡ Z ∈ ℕ))
+  → ((e : El NZ) ⨯ Prf (nzToInt e ≡ class (a, b) ∈ El Int)) ⊎ Prf (class (a, b) ≡ intZero ∈ El Int)
+  using (integer.Int.unfold,
+    integer.intZero.eq,
+    rational.nzNeg.eq,
+    rational.nzPos.eq,
+    rational.nzToInt.eq,
+    sucPlus,
+    zeroMult) ≔
+  λa. ℕ-elim (k. (b : ℕ)
+    → Prf (k
+      * b ≡ Z ∈ ℕ)
+      → ((e : El NZ)
+        ⨯ Prf (nzToInt e ≡ class (k, b) ∈ El Int)) ⊎ Prf (class (k, b) ≡ intZero ∈ El Int))
+    (λb. ℕ-elim (j. Prf (Z
+      * j ≡ Z ∈ ℕ)
+      → ((e : El NZ)
+        ⨯ Prf (nzToInt e ≡ class (Z, j) ∈ El Int)) ⊎ Prf (class (Z, j) ≡ intZero ∈ El Int))
+      (λhab. inj₂ ⋆)
+      (j ihb. λhab. inj₁ (nzNeg j, ⋆))
+      b)
+    (k ih. λb. ℕ-elim (j. Prf (S k
+      * j ≡ Z ∈ ℕ)
+      → ((e : El NZ)
+        ⨯ Prf (nzToInt e ≡ class (S k, j) ∈ El Int)) ⊎ Prf (class (S k, j) ≡ intZero ∈ El Int))
+      (λhab. inj₁ (nzPos k, ⋆))
+      (j ihb. λhab. 𝟘-elim (zNotS
+        (k + S k * j)
+        (trans
+          ℕ
+          Z
+          (S k * S j)
+          (S (k + S k * j))
+          (sym ℕ (S k * S j) Z hab)
+          (trans
+            ℕ
+            (S k * S j)
+            (S k + S k * j)
+            (S (k + S k * j))
+            (multSucId (S k) j)
+            (sucPlus k (S k * j))))))
+      b)
+    a
 
 -- kept abstract in p, as always (docs/ProvingFeedback.md D-3)
-def nzOfIntAt : (z : El Int) (p : ℕ ⨯ ℕ)
+def nzOfIntAt : {z : El Int}
+  (p : ℕ ⨯ ℕ)
   (hz : Prf (class p ≡ z ∈ El Int))
-  (hab : Prf (p .π₁ * p .π₂ ≡ Z ∈ ℕ)) →
-  ((e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int)) ⊎ Prf (z ≡ intZero ∈ El Int) using (classPairEta, integer.Int.unfold) ≔
-  λz. λp. λhz. λhab.
-    ⊎-elim (w. (((e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int))
-                  ⊎ Prf (z ≡ intZero ∈ El Int)))
-      (u. inj₁ (u .π₁ ,
-                trans Int (nzToInt (u .π₁)) (class (p .π₁ , p .π₂)) z
-                  (u .π₂)
-                  (trans Int (class (p .π₁ , p .π₂)) (class p) z (classPairEta p) hz)))
-      (u. inj₂ (trans Int z (class (p .π₁ , p .π₂)) intZero
-                  (sym Int (class (p .π₁, p .π₂)) z
-                    (trans Int (class (p .π₁ , p .π₂)) (class p) z (classPairEta p) hz))
-                  u))
-      (nzOfPairD (p .π₁) (p .π₂) hab)
+  (hab : Prf (p .π₁ * p .π₂ ≡ Z ∈ ℕ))
+  → ((e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int)) ⊎ Prf (z ≡ intZero ∈ El Int)
+  using (classPairEta, integer.Int.unfold) ≔
+  λz. λp. λhz. λhab. ⊎-elim (w. ((e : El NZ)
+    ⨯ Prf (nzToInt e ≡ z ∈ El Int)) ⊎ Prf (z ≡ intZero ∈ El Int))
+    (u. inj₁ (u .π₁,
+      trans
+        Int
+        (nzToInt (u .π₁))
+        (class (p .π₁, p .π₂))
+        z
+        (u .π₂)
+        (trans Int (class (p .π₁, p .π₂)) (class p) z (classPairEta p) hz)))
+    (u. inj₂ (trans
+      Int
+      z
+      (class (p .π₁, p .π₂))
+      intZero
+      (sym
+        Int
+        (class (p .π₁, p .π₂))
+        z
+        (trans Int (class (p .π₁, p .π₂)) (class p) z (classPairEta p) hz))
+      u))
+    (nzOfPairD (p .π₁) (p .π₂) hab)
 
-def nzOfInt : (z : El Int) →
-  ((e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int)) ⊎ Prf (z ≡ intZero ∈ El Int) using (intCanonClass) ≔
-  λz. nzOfIntAt z (intCanon z) (intCanonClass z) (intCanonProdZero z)
+def nzOfInt : (z : El Int)
+  → ((e : El NZ) ⨯ Prf (nzToInt e ≡ z ∈ El Int)) ⊎ Prf (z ≡ intZero ∈ El Int)
+  using (intCanonClass) ≔
+  λz. nzOfIntAt (intCanon z) (intCanonClass z) (intCanonProdZero z)
 
 -- ===== the image of NZ misses zero =====
-
 -- a disequality of CLASSES from a refuted relation: this is what
 -- effectivity is for. Before intEffective.nova landed the only route
 -- was through a computing observational equality (eqInt.nova's EqZ);
 -- now the class equation hands IntR back directly.
-def intNeqOfNotRel : (p : ℕ ⨯ ℕ) (q : ℕ ⨯ ℕ) (k : Prf (IntR p q) → 𝟘) →
-  Prf (¬ (class p ≡ class q ∈ El Int)) using (integer.Int.unfold, prop.¬.unfold, prop.⊃.unfold, prop.⊥.unfold) ≔
-  λp. λq. λk.
-    notIntro (class p ≡ class q ∈ El Int) (λh. ⋆ (k (intEffective p q h)))
+def intNeqOfNotRel : {p q : ℕ ⨯ ℕ} (k : Prf (IntR p q) → 𝟘) → Prf (¬ (class p ≡ class q ∈ El Int))
+  using (integer.Int.unfold, prop.¬.unfold, prop.⊃.unfold, prop.⊥.unfold) ≔
+  λp. λq. λk. notIntro (class p ≡ class q ∈ El Int) (λh. ⋆ (k (intEffective p q h)))
 
 -- IntR (S n , Z) (Z , Z) reduces to S n ≡ Z, and IntR (Z , S n) (Z , Z)
 -- to Z ≡ S n — both refuted by eqNat.nova's zNotS
 def nzToIntNonZero : (e : El NZ) → Prf (¬ (nzToInt e ≡ intZero ∈ El Int))
-  using (integer.IntR.eq, integer.IntR.unfold, integer.intZero.eq, nat.plusZeroId, nat.zeroPlusId, prop.¬.unfold, prop.⊃.unfold, rational.NZ.unfold, rational.nzToInt.eq) ≔
+  using (integer.IntR.eq,
+    integer.IntR.unfold,
+    integer.intZero.eq,
+    nat.plusZeroId,
+    nat.zeroPlusId,
+    prop.¬.unfold,
+    prop.⊃.unfold,
+    rational.NZ.unfold,
+    rational.nzToInt.eq) ≔
   λe. ⊎-elim (w. Prf (¬ (nzToInt w ≡ intZero ∈ El Int)))
-    (n. intNeqOfNotRel (S n , Z) (Z , Z) (λr. zNotS n (sym ℕ (S n) Z r)))
-    (n. intNeqOfNotRel (Z , S n) (Z , Z) (λr. zNotS n r))
+    (n. intNeqOfNotRel (λr. zNotS n (sym ℕ (S n) Z r)))
+    (n. intNeqOfNotRel (λr. zNotS n r))
     e
 
 -- ===== ℤ has no zero divisors =====
 --
 -- Constructive, and with no double-negation: the view above DECIDES
 -- whether x is zero, so the argument is a case split, not a refutation.
-def intNoZeroDiv : (x : El Int) (y : El Int)
+def intNoZeroDiv : {x : El Int}
+  (y : El Int)
   (hxy : Prf (intMul x y ≡ intZero ∈ El Int))
-  (hy : Prf (¬ (y ≡ intZero ∈ El Int))) →
-  x ≡ intZero ∈ El Int ≔
-  λx. λy. λhxy. λhy.
-    ⊎-elim (w. (x ≡ intZero ∈ El Int))
-      (ex.
-        ⊎-elim (w. (x ≡ intZero ∈ El Int))
-          (ey.
-            absurdP (x ≡ intZero ∈ El Int)
-              (notApply (nzToInt (nzMul (ex .π₁) (ey .π₁)) ≡ intZero ∈ El Int)
-                (nzToIntNonZero (nzMul (ex .π₁) (ey .π₁)))
-                (trans Int
-                  (nzToInt (nzMul (ex .π₁) (ey .π₁)))
-                  (intMul x y)
-                  intZero
-                  (trans Int
-                    (nzToInt (nzMul (ex .π₁) (ey .π₁)))
-                    (intMul (nzToInt (ex .π₁)) (nzToInt (ey .π₁)))
-                    (intMul x y)
-                    (nzToIntMul (ex .π₁) (ey .π₁))
-                    (intMulCong2 (nzToInt (ex .π₁)) (nzToInt (ey .π₁)) x y (ex .π₂) (ey .π₂)))
-                  hxy)))
-          (ey. absurdP (x ≡ intZero ∈ El Int)
-                 (notApply (y ≡ intZero ∈ El Int) hy ey))
-          (nzOfInt y))
-      (ex. ex)
-      (nzOfInt x)
+  (hy : Prf (¬ (y ≡ intZero ∈ El Int)))
+  → x ≡ intZero ∈ El Int ≔
+  λx. λy. λhxy. λhy. ⊎-elim (w. x ≡ intZero ∈ El Int)
+    (ex. ⊎-elim (w. x ≡ intZero ∈ El Int)
+      (ey. absurdP
+        (x ≡ intZero ∈ El Int)
+        (notApply
+          (nzToInt (nzMul (ex .π₁) (ey .π₁)) ≡ intZero ∈ El Int)
+          (nzToIntNonZero (nzMul (ex .π₁) (ey .π₁)))
+          (trans
+            Int
+            (nzToInt (nzMul (ex .π₁) (ey .π₁)))
+            (intMul x y)
+            intZero
+            (trans
+              Int
+              (nzToInt (nzMul (ex .π₁) (ey .π₁)))
+              (intMul (nzToInt (ex .π₁)) (nzToInt (ey .π₁)))
+              (intMul x y)
+              (nzToIntMul (ex .π₁) (ey .π₁))
+              (intMulCong2 (nzToInt (ex .π₁)) (nzToInt (ey .π₁)) x y (ex .π₂) (ey .π₂)))
+            hxy)))
+      (ey. absurdP (x ≡ intZero ∈ El Int) (notApply (y ≡ intZero ∈ El Int) hy ey))
+      (nzOfInt y))
+    (ex. ex)
+    (nzOfInt x)

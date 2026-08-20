@@ -5,8 +5,13 @@ verified: re-parse identical, elaboration accepted, kernel Σ α-identical.
 -- survey golden: sym-style lemma (indices recoverable from the proof
 -- argument), a data-carrying binder that must stay explicit, and a
 -- checking-position use recoverable from the expected type
+
 def id2 : {A : 𝕌} (a : El A) → El A ≔ λA. λa. a
+
 def use : (B : 𝕌) (b : El B) → El B ≔ λB. λb. id2 b
+
 def sym2 : {A : 𝕌} {a b : El A} → (a ≡ b ∈ El A) → b ≡ a ∈ El A ≔ λA. λa. λb. λh. ⋆
+
 def refl2 : (A : 𝕌) (a : El A) → a ≡ a ∈ El A ≔ λA. λa. ⋆
+
 def useSym : (C : 𝕌) (x y : El C) → (x ≡ y ∈ El C) → x ≡ y ∈ El C ≔ λC. λx. λy. λh. sym2 (sym2 h)

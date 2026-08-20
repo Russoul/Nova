@@ -1,16 +1,17 @@
-import prelude (constP)
-import prop (⊤, ⊥, ↔, iffIntro, reflectSquash, isZeroCode)
-import equality (cong, sym, transport)
-
 -- Observational equality of natural numbers, defined in Ω, and its
 -- logical equivalence with the built-in (parametric) equality type
 -- ≡ ∈ ℕ. EqN is the classical double recursion: Z ~ Z and S n ~ S m
 -- reduce further, any Z/S mismatch lands at ⊥.
+
+import prelude (constP)
+import prop (⊤, ⊥, ↔, iffIntro, reflectSquash, isZeroCode)
+import equality (cong, sym, transport)
+
 def EqN : ℕ → ℕ → Ω ≔
   λn. ℕ-elim (k. ℕ → Ω)
-        (λm. ℕ-elim (k. Ω) ⊤ (k ih. ⊥) m)
-        (n ih. λm. ℕ-elim (k. Ω) ⊥ (k ih2. ih k) m)
-        n
+    (λm. ℕ-elim (k. Ω) ⊤ (k ih. ⊥) m)
+    (n ih. λm. ℕ-elim (k. Ω) ⊥ (k ih2. ih k) m)
+    n
 
 def eqNRefl : (n : ℕ) → Prf (EqN n n) using (eqNat.EqN.eq, eqNat.EqN.unfold, prop.⊤.unfold) ≔
   λn. ℕ-elim (k. Prf (EqN k k)) ⋆ (k ih. ih) n
@@ -19,14 +20,15 @@ def eqNRefl : (n : ℕ) → Prf (EqN n n) using (eqNat.EqN.eq, eqNat.EqN.unfold,
 -- cases are absurd (h squashes to 𝟘, which proves anything, including
 -- an equation), the matching cases fall out of the inductive
 -- hypothesis by congruence on S
-def eqNSound : (n : ℕ) → (m : ℕ) → Prf (EqN n m) → n ≡ m ∈ ℕ using (eqNat.EqN.eq, eqNat.EqN.unfold, prop.propext, prop.⊥.unfold) ≔
+def eqNSound : {n m : ℕ} → Prf (EqN n m) → n ≡ m ∈ ℕ
+  using (eqNat.EqN.eq, eqNat.EqN.unfold, prop.propext, prop.⊥.unfold) ≔
   λn. ℕ-elim (k. (m : ℕ) → Prf (EqN k m) → k ≡ m ∈ ℕ)
     (λm. ℕ-elim (j. Prf (EqN Z j) → Z ≡ j ∈ ℕ)
       (constP ∥𝟙∥ (EqN Z Z) ⋆)
-      (j ih2. λh. reflectSquash ℕ Z (S j) (squash-elim h (x. 𝟘-elim x)))
+      (j ih2. λh. reflectSquash (squash-elim h (x. 𝟘-elim x)))
       m)
     (n ih. λm. ℕ-elim (j. Prf (EqN (S n) j) → S n ≡ j ∈ ℕ)
-      (λh. reflectSquash ℕ (S n) Z (squash-elim h (x. 𝟘-elim x)))
+      (λh. reflectSquash (squash-elim h (x. 𝟘-elim x)))
       (j ih2. λh. ih j h)
       m)
     n
@@ -39,19 +41,16 @@ def zNotS : (j : ℕ) → (Z ≡ S j ∈ ℕ) → 𝟘 using (prop.isZeroCode.un
 
 -- S is injective: predecessor congruence recovers n ≡ j from S n ≡ S j
 def pred : ℕ → ℕ ≔ λn. ℕ-elim (_. ℕ) Z (n ih. n) n
-def predEq : (n : ℕ) → (j : ℕ) → (S n ≡ S j ∈ ℕ) → n ≡ j ∈ ℕ ≔
-  λn. λj. λh. cong ℕ (λ_. ℕ) pred (S n) (S j) h
+
+def predEq : (n j : ℕ) → (S n ≡ S j ∈ ℕ) → n ≡ j ∈ ℕ ≔ λn. λj. λh. cong ℕ (λ_. ℕ) pred (S n) (S j) h
 
 -- completeness: the built-in equality implies EqN, by double
 -- induction mirroring EqN's own recursion — the Z/S-mismatch cases
 -- are impossible (absurd via zNotS), the matching cases recurse
-def eqNComplete : (n : ℕ) → (m : ℕ) → (n ≡ m ∈ ℕ) → Prf (EqN n m)
+def eqNComplete : {n m : ℕ} → (n ≡ m ∈ ℕ) → Prf (EqN n m)
   using (eqNat.EqN.eq, eqNat.EqN.unfold, prop.⊤.unfold) ≔
   λn. ℕ-elim (k. (m : ℕ) → (k ≡ m ∈ ℕ) → Prf (EqN k m))
-    (λm. ℕ-elim (j. (Z ≡ j ∈ ℕ) → Prf (EqN Z j))
-      (λh. ⋆)
-      (j ih2. λh. 𝟘-elim (zNotS j h))
-      m)
+    (λm. ℕ-elim (j. (Z ≡ j ∈ ℕ) → Prf (EqN Z j)) (λh. ⋆) (j ih2. λh. 𝟘-elim (zNotS j h)) m)
     (n ih. λm. ℕ-elim (j. (S n ≡ j ∈ ℕ) → Prf (EqN (S n) j))
       (λh. 𝟘-elim (zNotS n (sym ℕ (S n) Z h)))
       (j ih2. λh. ih j (predEq j n h))
@@ -61,12 +60,11 @@ def eqNComplete : (n : ℕ) → (m : ℕ) → (n ≡ m ∈ ℕ) → Prf (EqN n m
 -- the logical equivalence, packaged with prop.nova's ↔ against the
 -- squashed built-in equality (Ω is impredicative, ≡ ∈ ℕ is not, so
 -- ∥-∥ is the bridge)
-def eqNSoundP : (n : ℕ) → (m : ℕ) → Prf (EqN n m) → Prf (n ≡ m ∈ ℕ) ≔
-  λn. λm. λh. ⋆ (eqNSound n m h)
+def eqNSoundP : (n m : ℕ) → Prf (EqN n m) → Prf (n ≡ m ∈ ℕ) ≔ λn. λm. λh. ⋆ (eqNSound h)
 
-def eqNCompleteP : (n : ℕ) → (m : ℕ) → Prf (n ≡ m ∈ ℕ) → Prf (EqN n m) using (eqNat.EqN.unfold) ≔
-  -- ∥Prf p∥ ≜ p (code-squash-prf): h already proves the equation
-  λn. λm. λh. eqNComplete n m h
+-- ∥Prf p∥ ≜ p (code-squash-prf): h already proves the equation
+def eqNCompleteP : (n m : ℕ) → Prf (n ≡ m ∈ ℕ) → Prf (EqN n m) using (eqNat.EqN.unfold) ≔
+  λn. λm. λh. eqNComplete h
 
-def eqNIff : (n : ℕ) → (m : ℕ) → Prf (EqN n m ↔ (n ≡ m ∈ ℕ)) using (prop.↔.unfold, prop.∧.unfold) ≔
-  λn. λm. iffIntro (EqN n m) (n ≡ m ∈ ℕ) (eqNSoundP n m) (eqNCompleteP n m)
+def eqNIff : (n m : ℕ) → Prf (EqN n m ↔ (n ≡ m ∈ ℕ)) using (prop.↔.unfold, prop.∧.unfold) ≔
+  λn. λm. iffIntro (EqN n m) (eqNSoundP n m) (eqNCompleteP n m)

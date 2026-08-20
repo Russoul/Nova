@@ -1,27 +1,32 @@
-import nat (+)
-
 -- Int as a 𝕌-CODE (not a `type` item): a `type` name can only appear in
 -- type position, but a `def ... : 𝕌` name is an ordinary term, usable
 -- wherever a 𝕌-code is expected (e.g. the (A : 𝕌) argument of
 -- equality.nova's generic combinators) — El Int in type position.
-def Int : 𝕌 ≔ (ℕ ⨯ ℕ) / (p q. (p .π₁ + q .π₂ ≡ p .π₂ + q .π₁ ∈ ℕ))
+
+import nat (+)
+
+def Int : 𝕌 ≔ (ℕ ⨯ ℕ) / (p q. p .π₁ + q .π₂ ≡ p .π₂ + q .π₁ ∈ ℕ)
 
 -- Int's own quotient relation, named: the relation slot above written as
 -- an ordinary function, for callers that need to SPEAK about it — a
 -- witness for it gives equal classes (el-quot-eq), and effectivity gives
 -- it back (intEffective.nova)
-def IntR : (ℕ ⨯ ℕ) → (ℕ ⨯ ℕ) → Ω ≔ λp. λq. (p .π₁ + q .π₂ ≡ p .π₂ + q .π₁ ∈ ℕ)
+def IntR : (ℕ ⨯ ℕ) → (ℕ ⨯ ℕ) → Ω ≔ λp. λq. p .π₁ + q .π₂ ≡ p .π₂ + q .π₁ ∈ ℕ
+
 -- 0 = 0: (Z,Z) and (S Z, S Z) are the same integer
-def zeroEq : class (Z , Z) ≡ class (S Z , S Z) ∈ El Int using (integer.Int.unfold) ≔ ⋆
+def zeroEq : class (Z, Z) ≡ class (S Z, S Z) ∈ El Int using (integer.Int.unfold) ≔ ⋆
 
 -- the two constants, here rather than in each caller: they are pure Int
 -- notions, and integerMul.nova, rational.nova and eqInt.nova all need them
-def intZero : El Int using (integer.Int.unfold) ≔ class (Z , Z)
-def intOne : El Int using (integer.Int.unfold) ≔ class (S Z , Z)
+def intZero : El Int using (integer.Int.unfold) ≔ class (Z, Z)
+
+def intOne : El Int using (integer.Int.unfold) ≔ class (S Z, Z)
 
 -- negation swaps the components of a representative; the
 -- well-definedness goal is the defining relation read backwards
 def intNeg : El Int → El Int using (integer.Int.unfold) ≔
-  λz. quot-elim (w. El Int) (p. class (p .π₂ , p .π₁)) z
+  λz. quot-elim (w. El Int) (p. class (p .π₂, p .π₁)) z
 
-def intNegZero : intNeg intZero ≡ intZero ∈ El Int using (integer.Int.unfold, integer.intNeg.eq, integer.intZero.eq) ≔ ⋆
+def intNegZero : intNeg intZero ≡ intZero ∈ El Int
+  using (integer.Int.unfold, integer.intNeg.eq, integer.intZero.eq) ≔
+  ⋆

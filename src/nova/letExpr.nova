@@ -7,27 +7,25 @@
 -- unfolding, no transport, no plumbing. From the outside a let IS its
 -- unfolding (el-let-beta), so lemmas about a let-using definition
 -- compute as if the let were never there.
+-- checking mode, nested lets, an annotated definiens
+-- (`let x : T ≔ e in b` is sugar for `let x ≔ (e : T) in b`)
 
 import nat (+)
 
--- checking mode, nested lets, an annotated definiens
--- (`let x : T ≔ e in b` is sugar for `let x ≔ (e : T) in b`)
-def four : ℕ ≔
-  let one : ℕ ≔ S Z in
-  let two ≔ one + one in
-  two + two
+def four : ℕ ≔ let one : ℕ ≔ S Z in let two ≔ one + one in two + two
 
 -- a let in INFERENCE position (an application head): the body's type
 -- is inferred and the definiens substituted back into it
-def three : ℕ ≔ (let f ≔ (λx. S x : ℕ → ℕ) in f) (S (S Z))
+def three : ℕ ≔ (let f : ℕ → ℕ ≔ λx. S x in f) 2
 
 -- transparency inside the body: the ⋆ pays an equation stated at the
 -- ABBREVIATION m while the goal is stated at its unfolding — both
 -- gaps close through the let's own hypothesis (m ≡ n + n), not by β
 -- (m is a variable, not a redex)
-def letShared : (n : ℕ) → (n + n) + Z ≡ n + n ∈ ℕ using (nat.plusCongL, nat.plusZeroId) ≔
+def letShared : (n : ℕ) → n + n + Z ≡ n + n ∈ ℕ using (nat.plusCongL, nat.plusZeroId) ≔
   λn. let m ≔ n + n in (⋆ : m + Z ≡ m ∈ ℕ)
 
 -- the outside view: a let-expression is judgementally its unfolding
-def fourUnfolds : four ≡ S (S (S (S Z))) ∈ ℕ using (letExpr.four.eq, nat.+.eq) ≔ ⋆
-def threeUnfolds : three ≡ S (S (S Z)) ∈ ℕ using (letExpr.three.eq) ≔ ⋆
+def fourUnfolds : four ≡ 4 ∈ ℕ using (letExpr.four.eq, nat.+.eq) ≔ ⋆
+
+def threeUnfolds : three ≡ 3 ∈ ℕ using (letExpr.three.eq) ≔ ⋆

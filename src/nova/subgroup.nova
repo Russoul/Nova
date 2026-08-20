@@ -1,10 +1,3 @@
-import prop (∧, andIntro, andFst, andSnd)
-import group (IsGroup)
-import groupTheory (gop, ge, ginv, gAssoc, gUnitL, gUnitR, gInvL, gInvR,
-                    gCancelInner, gCancelInnerInv, gCancelOuter,
-                    gInvUniq, gInvInv, gInvUnit, gOpInv, gCancelL, gCancelR)
-import equality (transportP, sym, trans, cong)
-
 -- SUBGROUPS, NORMALITY, and the coset relation.
 --
 -- A subgroup of (G , g) is a PREDICATE N : El G → Ω together with the
@@ -21,12 +14,15 @@ import equality (transportP, sym, trans, cong)
 -- Ω block). A 𝕌-coded subgroup structure would not have been available
 -- — El G → Ω is large — and would have been the wrong thing anyway.
 
-def hasUnit : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) → Ω ≔
-  λG. λg. λN. N (ge G g)
+import prop (∧, andIntro, andFst, andSnd)
+import group (IsGroup)
+import groupTheory (gop, ge, ginv, gAssoc, gUnitL, gUnitR, gInvL, gInvR, gCancelInner, gCancelInnerInv, gCancelOuter, gInvUniq, gInvInv, gInvUnit, gOpInv, gCancelL, gCancelR)
+import equality (transportP, sym, trans, cong)
+
+def hasUnit : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) → Ω ≔ λG. λg. λN. N (ge g)
 
 def closedOp : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) → Ω ≔
-  λG. λg. λN.
-    ∥(x : El G) (y : El G) → Prf (N x) → Prf (N y) → Prf (N (gop G g x y))∥
+  λG. λg. λN. ∥(x y : El G) → Prf (N x) → Prf (N y) → Prf (N (gop G g x y))∥
 
 def closedInv : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) → Ω ≔
   λG. λg. λN. ∥(x : El G) → Prf (N x) → Prf (N (ginv G g x))∥
@@ -35,107 +31,128 @@ def IsSubgroup : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) → Ω ≔
   λG. λg. λN. hasUnit G g N ∧ closedOp G g N ∧ closedInv G g N
 
 -- ===== intro and the three eliminations =====
-
-def sgIntro : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
-  Prf (N (ge G g)) →
-  ((x : El G) (y : El G) → Prf (N x) → Prf (N y) → Prf (N (gop G g x y))) →
-  ((x : El G) → Prf (N x) → Prf (N (ginv G g x))) →
-  Prf (IsSubgroup G g N)
+def sgIntro : {G : 𝕌}
+  {g : El (IsGroup G)}
+  {N : El G → Ω}
+  → Prf (N
+    (ge
+      g))
+    → ((x y : El G)
+      → Prf (N
+        x)
+        → Prf (N
+          y)
+          → Prf (N
+            (gop
+              G
+              g
+              x
+              y))) → ((x : El G) → Prf (N x) → Prf (N (ginv G g x))) → Prf (IsSubgroup G g N)
   using (IsSubgroup.eq, hasUnit.eq, closedOp.eq, closedInv.eq) ≔
-  λG. λg. λN. λu. λo. λi.
-    andIntro (hasUnit G g N) (closedOp G g N ∧ closedInv G g N) u
-      (andIntro (closedOp G g N) (closedInv G g N) (⋆ o) (⋆ i))
+  λG. λg. λN. λu. λo. λi. andIntro
+    (hasUnit G g N)
+    (closedOp G g N ∧ closedInv G g N)
+    u
+    (andIntro (closedOp G g N) (closedInv G g N) (⋆ o) (⋆ i))
 
-def sgUnit : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
-  Prf (IsSubgroup G g N) → Prf (N (ge G g))
+def sgUnit : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) → Prf (IsSubgroup G g N) → Prf (N (ge g))
   using (IsSubgroup.eq, hasUnit.eq) ≔
-  λG. λg. λN. λh.
-    andFst (hasUnit G g N) (closedOp G g N ∧ closedInv G g N) h
+  λG. λg. λN. λh. andFst (hasUnit G g N) (closedOp G g N ∧ closedInv G g N) h
 
-def sgOp : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
-  Prf (IsSubgroup G g N) →
-  (x : El G) (y : El G) → Prf (N x) → Prf (N y) → Prf (N (gop G g x y))
+def sgOp : (G : 𝕌)
+  (g : El (IsGroup G))
+  (N : El G → Ω)
+  → Prf (IsSubgroup G g N) → (x y : El G) → Prf (N x) → Prf (N y) → Prf (N (gop G g x y))
   using (IsSubgroup.eq, closedOp.unfold) ≔
-  λG. λg. λN. λh. λx. λy. λhx. λhy.
-    squash-elim
-      (andFst (closedOp G g N) (closedInv G g N)
-        (andSnd (hasUnit G g N) (closedOp G g N ∧ closedInv G g N) h))
-      (u. u x y hx hy)
+  λG. λg. λN. λh. λx. λy. λhx. λhy. squash-elim (andFst
+    (closedOp G g N)
+    (closedInv G g N)
+    (andSnd (hasUnit G g N) (closedOp G g N ∧ closedInv G g N) h)) (u. u x y hx hy)
 
-def sgInv : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
-  Prf (IsSubgroup G g N) →
-  (x : El G) → Prf (N x) → Prf (N (ginv G g x))
+def sgInv : (G : 𝕌)
+  (g : El (IsGroup G))
+  (N : El G → Ω)
+  → Prf (IsSubgroup G g N) → (x : El G) → Prf (N x) → Prf (N (ginv G g x))
   using (IsSubgroup.eq, closedInv.unfold) ≔
-  λG. λg. λN. λh. λx. λhx.
-    squash-elim
-      (andSnd (closedOp G g N) (closedInv G g N)
-        (andSnd (hasUnit G g N) (closedOp G g N ∧ closedInv G g N) h))
-      (u. u x hx)
+  λG. λg. λN. λh. λx. λhx. squash-elim (andSnd
+    (closedOp G g N)
+    (closedInv G g N)
+    (andSnd (hasUnit G g N) (closedOp G g N ∧ closedInv G g N) h)) (u. u x hx)
 
 -- ===== normality =====
 --
 -- Stated as closure under CONJUGATION, x · n · x⁻¹ ∈ N for every x.
 -- This is the form the quotient's inner well-definedness proof needs
 -- verbatim, and (unlike "xN = Nx") it never mentions a coset.
-
 def IsNormal : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) → Ω ≔
-  λG. λg. λN.
-    ∥(x : El G) (n : El G) →
-       Prf (N n) → Prf (N (gop G g x (gop G g n (ginv G g x))))∥
+  λG. λg. λN. ∥(x n : El G) → Prf (N n) → Prf (N (gop G g x (gop G g n (ginv G g x))))∥
 
-def nmIntro : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
-  ((x : El G) (n : El G) →
-     Prf (N n) → Prf (N (gop G g x (gop G g n (ginv G g x))))) →
-  Prf (IsNormal G g N) using (IsNormal.eq) ≔
+def nmIntro : {G : 𝕌}
+  {g : El (IsGroup G)}
+  {N : El G → Ω}
+  → ((x n : El G) → Prf (N n) → Prf (N (gop G g x (gop G g n (ginv G g x))))) → Prf (IsNormal G g N)
+  using (IsNormal.eq) ≔
   λG. λg. λN. λk. ⋆ k
 
-def nmConj : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
-  Prf (IsNormal G g N) →
-  (x : El G) (n : El G) →
-    Prf (N n) → Prf (N (gop G g x (gop G g n (ginv G g x))))
+def nmConj : (G : 𝕌)
+  (g : El (IsGroup G))
+  (N : El G → Ω)
+  → Prf (IsNormal G g N) → (x n : El G) → Prf (N n) → Prf (N (gop G g x (gop G g n (ginv G g x))))
   using (IsNormal.unfold) ≔
   λG. λg. λN. λh. λx. λn. λhn. squash-elim h (u. u x n hn)
 
 -- conjugation by the INVERSE, the shape the quotient's inverse descent
 -- wants: x⁻¹ · n · x ∈ N. One gInvInv away from nmConj
-def nmConjInv : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
-  Prf (IsNormal G g N) →
-  (x : El G) (n : El G) →
-    Prf (N n) → Prf (N (gop G g (ginv G g x) (gop G g n x))) ≔
-  λG. λg. λN. λh. λx. λn. λhn.
-    transportP G N
-      (gop G g (ginv G g x) (gop G g n (ginv G g (ginv G g x))))
-      (gop G g (ginv G g x) (gop G g n x))
-      (cong G (λw. G) (λw. gop G g (ginv G g x) (gop G g n w))
-         (ginv G g (ginv G g x)) x (gInvInv G g x))
-      (nmConj G g N h (ginv G g x) n hn)
+def nmConjInv : (G : 𝕌)
+  (g : El (IsGroup G))
+  (N : El G → Ω)
+  → Prf (IsNormal G g N) → (x n : El G) → Prf (N n) → Prf (N (gop G g (ginv G g x) (gop G g n x))) ≔
+  λG. λg. λN. λh. λx. λn. λhn. transportP
+    G
+    N
+    (gop G g (ginv G g x) (gop G g n (ginv G g (ginv G g x))))
+    (gop G g (ginv G g x) (gop G g n x))
+    (cong
+      G
+      (λw. G)
+      (λw. gop G g (ginv G g x) (gop G g n w))
+      (ginv G g (ginv G g x))
+      x
+      (gInvInv G g x))
+    (nmConj G g N h (ginv G g x) n hn)
 
 -- In an ABELIAN group conjugation is the identity, so normality is
 -- automatic — the single most common way a normal subgroup arises, and
 -- the reason the corpus's numerical quotients never had to mention it.
-def abelianConj : (G : 𝕌) (g : El (IsGroup G)) →
-  ((x : El G) (y : El G) → gop G g x y ≡ gop G g y x ∈ El G) →
-  (x : El G) (n : El G) →
-  gop G g x (gop G g n (ginv G g x)) ≡ n ∈ El G ≔
-  λG. λg. λcomm. λx. λn.
-    (gop G g x (gop G g n (ginv G g x))
-       ≡⟨ cong G (λw. G) (λw. gop G g x w)
-            (gop G g n (ginv G g x)) (gop G g (ginv G g x) n)
-            (comm n (ginv G g x)) ⟩
-     gop G g x (gop G g (ginv G g x) n)
-       ≡⟨ gCancelInner G g x n ⟩
-     n)
+def abelianConj : {G : 𝕌}
+  {g : El (IsGroup G)}
+  → ((x y : El G)
+    → gop
+      G
+      g
+      x
+      y ≡ gop G g y x ∈ El G) → (x n : El G) → gop G g x (gop G g n (ginv G g x)) ≡ n ∈ El G ≔
+  λG. λg. λcomm. λx. λn. gop G g x (gop G g n (ginv G g x))
+      ≡⟨ cong
+        G
+        (λw. G)
+        (λw. gop G g x w)
+        (gop G g n (ginv G g x))
+        (gop G g (ginv G g x) n)
+        (comm n (ginv G g x)) ⟩ gop G g x (gop G g (ginv G g x) n)
+      ≡⟨ gCancelInner G g x n ⟩ n
 
-def abelianNormal : (G : 𝕌) (g : El (IsGroup G)) →
-  ((x : El G) (y : El G) → gop G g x y ≡ gop G g y x ∈ El G) →
-  (N : El G → Ω) → Prf (IsNormal G g N) ≔
-  λG. λg. λcomm. λN.
-    nmIntro G g N
-      (λx. λn. λhn.
-        transportP G N n (gop G g x (gop G g n (ginv G g x)))
-          (sym G (gop G g x (gop G g n (ginv G g x))) n
-             (abelianConj G g comm x n))
-          hn)
+def abelianNormal : {G : 𝕌}
+  {g : El (IsGroup G)}
+  → ((x y : El G) → gop G g x y ≡ gop G g y x ∈ El G) → {N : El G → Ω} → Prf (IsNormal G g N) ≔
+  λG. λg. λcomm. λN. nmIntro
+    (λx. λn. λhn. transportP
+      G
+      N
+      n
+      (gop G g x (gop G g n (ginv G g x)))
+      (sym G (gop G g x (gop G g n (ginv G g x))) n (abelianConj comm x n))
+      hn)
 
 -- ===== the coset relation =====
 --
@@ -144,61 +161,84 @@ def abelianNormal : (G : 𝕌) (g : El (IsGroup G)) →
 -- Ω-valued by construction, since N is. The three equivalence proofs
 -- need only that N is a SUBGROUP — normality is what makes the group
 -- operation descend, not what makes the relation an equivalence.
-
-def cosetRel : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
-  El G → El G → Ω ≔
+def cosetRel : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) → El G → El G → Ω ≔
   λG. λg. λN. λx. λy. N (gop G g x (ginv G g y))
 
-def cosetRefl : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
-  Prf (IsSubgroup G g N) → (x : El G) → Prf (cosetRel G g N x x)
+def cosetRefl : (G : 𝕌)
+  (g : El (IsGroup G))
+  (N : El G → Ω)
+  → Prf (IsSubgroup G g N) → (x : El G) → Prf (cosetRel G g N x x)
   using (cosetRel.eq) ≔
-  λG. λg. λN. λs. λx.
-    transportP G N (ge G g) (gop G g x (ginv G g x))
-      (sym G (gop G g x (ginv G g x)) (ge G g) (gInvR G g x))
-      (sgUnit G g N s)
+  λG. λg. λN. λs. λx. transportP
+    G
+    N
+    (ge g)
+    (gop G g x (ginv G g x))
+    (sym G (gop G g x (ginv G g x)) (ge g) (gInvR G g x))
+    (sgUnit G g N s)
 
 -- (x · y⁻¹)⁻¹ = y · x⁻¹ — the algebra behind symmetry
-def cosetFlip : (G : 𝕌) (g : El (IsGroup G)) (x : El G) (y : El G) →
-  ginv G g (gop G g x (ginv G g y)) ≡ gop G g y (ginv G g x) ∈ El G ≔
-  λG. λg. λx. λy.
-    (ginv G g (gop G g x (ginv G g y))
-       ≡⟨ gOpInv G g x (ginv G g y) ⟩
-     gop G g (ginv G g (ginv G g y)) (ginv G g x)
-       ≡⟨ cong G (λw. G) (λw. gop G g w (ginv G g x))
-            (ginv G g (ginv G g y)) y (gInvInv G g y) ⟩
-     gop G g y (ginv G g x))
+def cosetFlip : {G : 𝕌}
+  {g : El (IsGroup G)}
+  {x y : El G}
+  → ginv G g (gop G g x (ginv G g y)) ≡ gop G g y (ginv G g x) ∈ El G ≔
+  λG. λg. λx. λy. ginv G g (gop G g x (ginv G g y))
+      ≡⟨ gOpInv G g x (ginv G g y) ⟩ gop G g (ginv G g (ginv G g y)) (ginv G g x)
+      ≡⟨ cong
+        G
+        (λw. G)
+        (λw. gop G g w (ginv G g x))
+        (ginv G g (ginv G g y))
+        y
+        (gInvInv G g y) ⟩ gop G g y (ginv G g x)
 
-def cosetSymm : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
-  Prf (IsSubgroup G g N) → (x : El G) (y : El G) →
-  Prf (cosetRel G g N x y) → Prf (cosetRel G g N y x)
+def cosetSymm : (G : 𝕌)
+  (g : El (IsGroup G))
+  (N : El G → Ω)
+  → Prf (IsSubgroup G g N) → (x y : El G) → Prf (cosetRel G g N x y) → Prf (cosetRel G g N y x)
   using (cosetRel.eq) ≔
-  λG. λg. λN. λs. λx. λy. λh.
-    transportP G N
-      (ginv G g (gop G g x (ginv G g y))) (gop G g y (ginv G g x))
-      (cosetFlip G g x y)
-      (sgInv G g N s (gop G g x (ginv G g y)) h)
+  λG. λg. λN. λs. λx. λy. λh. transportP
+    G
+    N
+    (ginv G g (gop G g x (ginv G g y)))
+    (gop G g y (ginv G g x))
+    cosetFlip
+    (sgInv G g N s (gop G g x (ginv G g y)) h)
 
 -- (x · y⁻¹) · (y · z⁻¹) = x · z⁻¹ — the algebra behind transitivity
-def cosetSplice : (G : 𝕌) (g : El (IsGroup G)) (x : El G) (y : El G) (z : El G) →
-  gop G g (gop G g x (ginv G g y)) (gop G g y (ginv G g z))
-    ≡ gop G g x (ginv G g z) ∈ El G ≔
-  λG. λg. λx. λy. λz.
-    (gop G g (gop G g x (ginv G g y)) (gop G g y (ginv G g z))
-       ≡⟨ gAssoc G g x (ginv G g y) (gop G g y (ginv G g z)) ⟩
-     gop G g x (gop G g (ginv G g y) (gop G g y (ginv G g z)))
-       ≡⟨ cong G (λw. G) (λw. gop G g x w)
-            (gop G g (ginv G g y) (gop G g y (ginv G g z))) (ginv G g z)
-            (gCancelInnerInv G g y (ginv G g z)) ⟩
-     gop G g x (ginv G g z))
+def cosetSplice : {G : 𝕌}
+  {g : El (IsGroup G)}
+  {x y z : El G}
+  → gop G g (gop G g x (ginv G g y)) (gop G g y (ginv G g z)) ≡ gop G g x (ginv G g z) ∈ El G ≔
+  λG. λg. λx. λy. λz. gop G g (gop G g x (ginv G g y)) (gop G g y (ginv G g z))
+      ≡⟨ gAssoc
+        G
+        g
+        x
+        (ginv G g y)
+        (gop G g y (ginv G g z)) ⟩ gop G g x (gop G g (ginv G g y) (gop G g y (ginv G g z)))
+      ≡⟨ cong
+        G
+        (λw. G)
+        (λw. gop G g x w)
+        (gop G g (ginv G g y) (gop G g y (ginv G g z)))
+        (ginv G g z)
+        (gCancelInnerInv G g y (ginv G g z)) ⟩ gop G g x (ginv G g z)
 
-def cosetTrans : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) →
-  Prf (IsSubgroup G g N) → (x : El G) (y : El G) (z : El G) →
-  Prf (cosetRel G g N x y) → Prf (cosetRel G g N y z) →
-  Prf (cosetRel G g N x z)
+def cosetTrans : (G : 𝕌)
+  (g : El (IsGroup G))
+  (N : El G → Ω)
+  → Prf (IsSubgroup
+    G
+    g
+    N)
+    → (x y z : El G)
+      → Prf (cosetRel G g N x y) → Prf (cosetRel G g N y z) → Prf (cosetRel G g N x z)
   using (cosetRel.eq) ≔
-  λG. λg. λN. λs. λx. λy. λz. λhxy. λhyz.
-    transportP G N
-      (gop G g (gop G g x (ginv G g y)) (gop G g y (ginv G g z)))
-      (gop G g x (ginv G g z))
-      (cosetSplice G g x y z)
-      (sgOp G g N s (gop G g x (ginv G g y)) (gop G g y (ginv G g z)) hxy hyz)
+  λG. λg. λN. λs. λx. λy. λz. λhxy. λhyz. transportP
+    G
+    N
+    (gop G g (gop G g x (ginv G g y)) (gop G g y (ginv G g z)))
+    (gop G g x (ginv G g z))
+    cosetSplice
+    (sgOp G g N s (gop G g x (ginv G g y)) (gop G g y (ginv G g z)) hxy hyz)

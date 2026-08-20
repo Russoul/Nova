@@ -1,24 +1,3 @@
-import id (Id, idToEq, eqToId)
-import integer (Int, intZero, intOne, intNeg, intNegZero)
-import integerAdd (intAdd, intAddComm, intAddAssoc)
-import integerMul (intMul, intMulZeroR, intMulOneR, intMulDistribL, intMulNegR,
-                   intMulAssoc, intMulComm)
-import rational (intAddZeroL, intAddZeroR)
-import intGroup (intAddGroup, intAddMonoid)
-import monoid (IsMonoid)
-import group (IsGroup)
-import groupTheory (gop, ge, ginv)
-import subgroup (IsSubgroup, IsNormal, sgIntro, sgUnit, sgOp, sgInv,
-                 abelianNormal, cosetRel)
-import quotGroup (QGroup, qcls, qclsEq, qclsEffective, qMul, qMulCls, qInv,
-                  qUnit, qIsGroup)
-import ring (IsCommRing)
-import ringTheory (raddGroup, rmul, rone)
-import ideal (IsIdeal, idIntro, idSub, idScale, idNormal)
-import intRing (intCommRing)
-import quotRing (QRing, qrCls, qrMul, qrOne, qrAdd, qrAddGroup, qrIsCommRing)
-import equality (transportP, sym, trans, cong)
-
 -- ℤ/nℤ — the abstract machinery, run on a real group.
 --
 -- Everything above this file is stated at an abstract (G , g); this is
@@ -30,27 +9,49 @@ import equality (transportP, sym, trans, cong)
 -- them once means no later item ever normalises through a spine of
 -- .π₁s to find out that gop Int intAddGroup is intAdd.
 
-def intGop : (x : El Int) (y : El Int) →
-  gop Int intAddGroup x y ≡ intAdd x y ∈ El Int
+import id (Id, idToEq, eqToId)
+import integer (Int, intZero, intOne, intNeg, intNegZero)
+import integerAdd (intAdd, intAddComm, intAddAssoc)
+import integerMul (intMul, intMulZeroR, intMulOneR, intMulDistribL, intMulNegR, intMulAssoc, intMulComm)
+import rational (intAddZeroL, intAddZeroR)
+import intGroup (intAddGroup, intAddMonoid)
+import monoid (IsMonoid)
+import group (IsGroup)
+import groupTheory (gop, ge, ginv)
+import subgroup (IsSubgroup, IsNormal, sgIntro, sgUnit, sgOp, sgInv, abelianNormal, cosetRel)
+import quotGroup (QGroup, qcls, qclsEq, qclsEffective, qMul, qMulCls, qInv, qUnit, qIsGroup)
+import ring (IsCommRing)
+import ringTheory (raddGroup, rmul, rone)
+import ideal (IsIdeal, idIntro, idSub, idScale, idNormal)
+import intRing (intCommRing)
+import quotRing (QRing, qrCls, qrMul, qrOne, qrAdd, qrAddGroup, qrIsCommRing)
+import equality (transportP, sym, trans, cong)
+
+def intGop : (x y : El Int) → gop Int intAddGroup x y ≡ intAdd x y ∈ El Int
   using (groupTheory.gop.eq, intGroup.intAddGroup.eq) ≔
   λx. λy. ⋆
 
-def intGe : ge Int intAddGroup ≡ intZero ∈ El Int
-  using (groupTheory.ge.eq, intGroup.intAddGroup.eq) ≔ ⋆
+def intGe : ge intAddGroup ≡ intZero ∈ El Int using (groupTheory.ge.eq, intGroup.intAddGroup.eq) ≔ ⋆
 
 def intGinv : (x : El Int) → ginv Int intAddGroup x ≡ intNeg x ∈ El Int
   using (groupTheory.ginv.eq, intGroup.intAddGroup.eq) ≔
   λx. ⋆
 
 -- ℤ is abelian, in the group-theoretic vocabulary
-def intGopComm : (x : El Int) (y : El Int) →
-  gop Int intAddGroup x y ≡ gop Int intAddGroup y x ∈ El Int ≔
-  λx. λy.
-    trans Int (gop Int intAddGroup x y) (intAdd x y) (gop Int intAddGroup y x)
-      (intGop x y)
-      (trans Int (intAdd x y) (intAdd y x) (gop Int intAddGroup y x)
-         (intAddComm x y)
-         (sym Int (gop Int intAddGroup y x) (intAdd y x) (intGop y x)))
+def intGopComm : (x y : El Int) → gop Int intAddGroup x y ≡ gop Int intAddGroup y x ∈ El Int ≔
+  λx. λy. trans
+    Int
+    (gop Int intAddGroup x y)
+    (intAdd x y)
+    (gop Int intAddGroup y x)
+    (intGop x y)
+    (trans
+      Int
+      (intAdd x y)
+      (intAdd y x)
+      (gop Int intAddGroup y x)
+      (intAddComm x y)
+      (sym Int (gop Int intAddGroup y x) (intAdd y x) (intGop y x)))
 
 -- ===== nℤ =====
 --
@@ -59,167 +60,207 @@ def intGopComm : (x : El Int) (y : El Int) →
 -- nothing below ever needs the multiplier back as data — the three
 -- closure proofs each unpack their hypotheses and repackage a new
 -- witness, which is exactly what el-squash-e-prf allows.
-
-def nZfib : El Int → El Int → 𝕌 ≔
-  λn. λx. ((k : Int) ⨯ Id Int (intMul n k) x)
+def nZfib : El Int → El Int → 𝕌 ≔ λn. λx. (k : Int) ⨯ Id Int (intMul n k) x
 
 def nZ : El Int → El Int → Ω ≔ λn. λx. ∥El (nZfib n x)∥
 
-def nZIntro : (n : El Int) (x : El Int) (k : El Int) →
-  (intMul n k ≡ x ∈ El Int) → Prf (nZ n x)
+def nZIntro : (n x k : El Int) → (intMul n k ≡ x ∈ El Int) → Prf (nZ n x)
   using (nZ.eq, nZfib.unfold) ≔
-  λn. λx. λk. λe. ⋆ (k , eqToId Int (intMul n k) x e)
+  λn. λx. λk. λe. ⋆ (k, eqToId (intMul n k) x e)
 
 -- 0 = n · 0
-def nZUnit : (n : El Int) → Prf (nZ n (ge Int intAddGroup)) ≔
-  λn.
-    nZIntro n (ge Int intAddGroup) intZero
-      (trans Int (intMul n intZero) intZero (ge Int intAddGroup)
-         (intMulZeroR n)
-         (sym Int (ge Int intAddGroup) intZero intGe))
+def nZUnit : (n : El Int) → Prf (nZ n (ge intAddGroup)) ≔
+  λn. nZIntro
+    n
+    (ge intAddGroup)
+    intZero
+    (trans
+      Int
+      (intMul n intZero)
+      intZero
+      (ge intAddGroup)
+      intMulZeroR
+      (sym Int (ge intAddGroup) intZero intGe))
 
 -- n·k₁ + n·k₂ = n·(k₁+k₂)
-def nZOp : (n : El Int) (x : El Int) (y : El Int) →
-  Prf (nZ n x) → Prf (nZ n y) → Prf (nZ n (gop Int intAddGroup x y))
+def nZOp : (n x y : El Int) → Prf (nZ n x) → Prf (nZ n y) → Prf (nZ n (gop Int intAddGroup x y))
   using (nZ.eq, nZfib.unfold) ≔
-  λn. λx. λy. λhx. λhy.
-    squash-elim hx (u.
-      squash-elim hy (v.
-        nZIntro n (gop Int intAddGroup x y) (intAdd (u .π₁) (v .π₁))
-          (intMul n (intAdd (u .π₁) (v .π₁))
-             ≡⟨ intMulDistribL n (u .π₁) (v .π₁) ⟩
-           intAdd (intMul n (u .π₁)) (intMul n (v .π₁))
-             ≡⟨ cong Int (λw. Int) (λw. intAdd w (intMul n (v .π₁)))
-                  (intMul n (u .π₁)) x
-                  (idToEq Int (intMul n (u .π₁)) x (u .π₂)) ⟩
-           intAdd x (intMul n (v .π₁))
-             ≡⟨ cong Int (λw. Int) (λw. intAdd x w)
-                  (intMul n (v .π₁)) y
-                  (idToEq Int (intMul n (v .π₁)) y (v .π₂)) ⟩
-           intAdd x y
-             ≡⟨ sym Int (gop Int intAddGroup x y) (intAdd x y) (intGop x y) ⟩
-           gop Int intAddGroup x y)))
+  λn. λx. λy. λhx. λhy. squash-elim hx (u. squash-elim hy (v. nZIntro
+    n
+    (gop Int intAddGroup x y)
+    (intAdd (u .π₁) (v .π₁))
+    (intMul n (intAdd (u .π₁) (v .π₁))
+        ≡⟨ intMulDistribL n (u .π₁) (v .π₁) ⟩ intAdd (intMul n (u .π₁)) (intMul n (v .π₁))
+        ≡⟨ cong
+          Int
+          (λw. Int)
+          (λw. intAdd w (intMul n (v .π₁)))
+          (intMul n (u .π₁))
+          x
+          (idToEq Int (intMul n (u .π₁)) x (u .π₂)) ⟩ intAdd x (intMul n (v .π₁))
+        ≡⟨ cong
+          Int
+          (λw. Int)
+          (λw. intAdd x w)
+          (intMul n (v .π₁))
+          y
+          (idToEq Int (intMul n (v .π₁)) y (v .π₂)) ⟩ intAdd x y
+        ≡⟨ sym Int (gop Int intAddGroup x y) (intAdd x y) (intGop x y) ⟩ gop Int intAddGroup x y)))
 
 -- n·(−k) = −(n·k)
-def nZInv : (n : El Int) (x : El Int) →
-  Prf (nZ n x) → Prf (nZ n (ginv Int intAddGroup x))
+def nZInv : (n x : El Int) → Prf (nZ n x) → Prf (nZ n (ginv Int intAddGroup x))
   using (nZ.eq, nZfib.unfold) ≔
-  λn. λx. λhx.
-    squash-elim hx (u.
-      nZIntro n (ginv Int intAddGroup x) (intNeg (u .π₁))
-        (intMul n (intNeg (u .π₁))
-           ≡⟨ intMulNegR n (u .π₁) ⟩
-         intNeg (intMul n (u .π₁))
-           ≡⟨ cong Int (λw. Int) (λw. intNeg w)
-                (intMul n (u .π₁)) x
-                (idToEq Int (intMul n (u .π₁)) x (u .π₂)) ⟩
-         intNeg x
-           ≡⟨ sym Int (ginv Int intAddGroup x) (intNeg x) (intGinv x) ⟩
-         ginv Int intAddGroup x))
+  λn. λx. λhx. squash-elim hx (u. nZIntro
+    n
+    (ginv Int intAddGroup x)
+    (intNeg (u .π₁))
+    (intMul n (intNeg (u .π₁))
+        ≡⟨ intMulNegR n (u .π₁) ⟩ intNeg (intMul n (u .π₁))
+        ≡⟨ cong
+          Int
+          (λw. Int)
+          (λw. intNeg w)
+          (intMul n (u .π₁))
+          x
+          (idToEq Int (intMul n (u .π₁)) x (u .π₂)) ⟩ intNeg x
+        ≡⟨ sym Int (ginv Int intAddGroup x) (intNeg x) (intGinv x) ⟩ ginv Int intAddGroup x))
 
 def nZIsSubgroup : (n : El Int) → Prf (IsSubgroup Int intAddGroup (nZ n)) ≔
-  λn. sgIntro Int intAddGroup (nZ n) (nZUnit n) (nZOp n) (nZInv n)
+  λn. sgIntro (nZUnit n) (nZOp n) (nZInv n)
 
 -- ...and normal for free, ℤ being abelian
-def nZIsNormal : (n : El Int) → Prf (IsNormal Int intAddGroup (nZ n)) ≔
-  λn. abelianNormal Int intAddGroup intGopComm (nZ n)
+def nZIsNormal : {n : El Int} → Prf (IsNormal Int intAddGroup (nZ n)) ≔ λn. abelianNormal intGopComm
 
 -- ===== ℤ/nℤ =====
-
 def IntMod : El Int → 𝕌 ≔ λn. QGroup Int intAddGroup (nZ n)
 
-def intModGroup : (n : El Int) → El (IsGroup (IntMod n))
-  using (IntMod.eq) ≔
-  λn. qIsGroup Int intAddGroup (nZ n) (nZIsSubgroup n) (nZIsNormal n)
+def intModGroup : (n : El Int) → El (IsGroup (IntMod n)) using (IntMod.eq) ≔
+  λn. qIsGroup Int intAddGroup (nZ n) (nZIsSubgroup n) nZIsNormal
 
-def intModCls : (n : El Int) → El Int → El (IntMod n) using (IntMod.eq) ≔
+def intModCls : {n : El Int} → El Int → El (IntMod n) using (IntMod.eq) ≔
   λn. qcls Int intAddGroup (nZ n)
 
 -- every multiple of n is zero in ℤ/nℤ — the defining property, at
 -- abstract n and k, with no numeral in sight
-def intModMulZero : (n : El Int) (k : El Int) →
-  intModCls n (intMul n k) ≡ intModCls n intZero ∈ El (IntMod n)
+def intModMulZero : {n k : El Int} → intModCls (intMul n k) ≡ intModCls intZero ∈ El (IntMod n)
   using (intModCls.eq, subgroup.cosetRel.eq) ≔
-  λn. λk.
-    qclsEq Int intAddGroup (nZ n) (nZIsSubgroup n) (intMul n k) intZero
-      (nZIntro n
-        (gop Int intAddGroup (intMul n k) (ginv Int intAddGroup intZero)) k
-        (intMul n k
-           ≡⟨ sym Int (intAdd (intMul n k) intZero) (intMul n k)
-                (intAddZeroR (intMul n k)) ⟩
-         intAdd (intMul n k) intZero
-           ≡⟨ cong Int (λw. Int) (λw. intAdd (intMul n k) w)
-                intZero (ginv Int intAddGroup intZero)
-                (sym Int (ginv Int intAddGroup intZero) intZero
-                   (trans Int (ginv Int intAddGroup intZero) (intNeg intZero) intZero
-                      (intGinv intZero)
-                      intNegZero)) ⟩
-         intAdd (intMul n k) (ginv Int intAddGroup intZero)
-           ≡⟨ sym Int
-                (gop Int intAddGroup (intMul n k) (ginv Int intAddGroup intZero))
-                (intAdd (intMul n k) (ginv Int intAddGroup intZero))
-                (intGop (intMul n k) (ginv Int intAddGroup intZero)) ⟩
-         gop Int intAddGroup (intMul n k) (ginv Int intAddGroup intZero)))
+  λn. λk. qclsEq
+    (nZIsSubgroup n)
+    (intMul n k)
+    intZero
+    (nZIntro
+      n
+      (gop Int intAddGroup (intMul n k) (ginv Int intAddGroup intZero))
+      k
+      (intMul n k
+          ≡⟨ sym
+            Int
+            (intAdd (intMul n k) intZero)
+            (intMul n k)
+            (intAddZeroR (intMul n k)) ⟩ intAdd (intMul n k) intZero
+          ≡⟨ cong
+            Int
+            (λw. Int)
+            (λw. intAdd (intMul n k) w)
+            intZero
+            (ginv Int intAddGroup intZero)
+            (sym
+              Int
+              (ginv Int intAddGroup intZero)
+              intZero
+              (trans
+                Int
+                (ginv Int intAddGroup intZero)
+                (intNeg intZero)
+                intZero
+                (intGinv intZero)
+                intNegZero)) ⟩ intAdd (intMul n k) (ginv Int intAddGroup intZero)
+          ≡⟨ sym
+            Int
+            (gop Int intAddGroup (intMul n k) (ginv Int intAddGroup intZero))
+            (intAdd (intMul n k) (ginv Int intAddGroup intZero))
+            (intGop
+              (intMul n k)
+              (ginv
+                Int
+                intAddGroup
+                intZero)) ⟩ gop Int intAddGroup (intMul n k) (ginv Int intAddGroup intZero)))
 
 -- the instance in the smallest concrete case: n is zero in ℤ/nℤ
-def intModSelf : (n : El Int) →
-  intModCls n n ≡ intModCls n intZero ∈ El (IntMod n) ≔
-  λn.
-    trans (IntMod n) (intModCls n n) (intModCls n (intMul n intOne))
-      (intModCls n intZero)
-      (cong Int (λw. IntMod n) (λw. intModCls n w) n (intMul n intOne)
-         (sym Int (intMul n intOne) n (intMulOneR n)))
-      (intModMulZero n intOne)
+def intModSelf : (n : El Int) → intModCls n ≡ intModCls intZero ∈ El (IntMod n) ≔
+  λn. trans
+    (IntMod n)
+    (intModCls n)
+    (intModCls (intMul n intOne))
+    (intModCls intZero)
+    (cong
+      Int
+      (λw. IntMod n)
+      (λw. intModCls w)
+      n
+      (intMul n intOne)
+      (sym Int (intMul n intOne) n (intMulOneR n)))
+    intModMulZero
 
 -- ===== ...and ℤ/nℤ is a RING =====
 --
 -- nℤ is not just a subgroup: it is an IDEAL, because a·(n·k) = n·(a·k).
 -- One bridge (raddGroup Int intCommRing is intAddGroup, by β) and one
 -- closure proof, and quotRing.nova supplies the rest.
+def intRaddGroup : raddGroup intCommRing ≡ intAddGroup ∈ El (IsGroup Int)
+  using (ringTheory.raddGroup.eq, intRing.intCommRing.eq) ≔
+  ⋆
 
-def intRaddGroup : raddGroup Int intCommRing ≡ intAddGroup ∈ El (IsGroup Int)
-  using (ringTheory.raddGroup.eq, intRing.intCommRing.eq) ≔ ⋆
-
-def intRmul : (x : El Int) (y : El Int) →
-  rmul Int intCommRing x y ≡ intMul x y ∈ El Int
+def intRmul : (x y : El Int) → rmul Int intCommRing x y ≡ intMul x y ∈ El Int
   using (ringTheory.rmul.eq, intRing.intCommRing.eq) ≔
   λx. λy. ⋆
 
 -- a·(n·k) = n·(a·k): one associativity and one commutation
-def nZScaleAlg : (n : El Int) (a : El Int) (k : El Int) →
-  intMul a (intMul n k) ≡ intMul n (intMul a k) ∈ El Int ≔
-  λn. λa. λk.
-    (intMul a (intMul n k)
-       ≡⟨ sym Int (intMul (intMul a n) k) (intMul a (intMul n k))
-            (intMulAssoc a n k) ⟩
-     intMul (intMul a n) k
-       ≡⟨ cong Int (λw. Int) (λw. intMul w k) (intMul a n) (intMul n a)
-            (intMulComm a n) ⟩
-     intMul (intMul n a) k
-       ≡⟨ intMulAssoc n a k ⟩
-     intMul n (intMul a k))
+def nZScaleAlg : (n a k : El Int) → intMul a (intMul n k) ≡ intMul n (intMul a k) ∈ El Int ≔
+  λn. λa. λk. intMul a (intMul n k)
+      ≡⟨ sym
+        Int
+        (intMul (intMul a n) k)
+        (intMul a (intMul n k))
+        (intMulAssoc a n k) ⟩ intMul (intMul a n) k
+      ≡⟨ cong
+        Int
+        (λw. Int)
+        (λw. intMul w k)
+        (intMul a n)
+        (intMul n a)
+        (intMulComm a n) ⟩ intMul (intMul n a) k
+      ≡⟨ intMulAssoc n a k ⟩ intMul n (intMul a k)
 
-def nZScale : (n : El Int) (a : El Int) (x : El Int) →
-  Prf (nZ n x) → Prf (nZ n (rmul Int intCommRing a x))
+def nZScale : (n a x : El Int) → Prf (nZ n x) → Prf (nZ n (rmul Int intCommRing a x))
   using (nZ.eq, nZfib.unfold) ≔
-  λn. λa. λx. λhx.
-    squash-elim hx (u.
-      nZIntro n (rmul Int intCommRing a x) (intMul a (u .π₁))
-        (intMul n (intMul a (u .π₁))
-           ≡⟨ sym Int (intMul a (intMul n (u .π₁))) (intMul n (intMul a (u .π₁)))
-                (nZScaleAlg n a (u .π₁)) ⟩
-         intMul a (intMul n (u .π₁))
-           ≡⟨ cong Int (λw. Int) (λw. intMul a w) (intMul n (u .π₁)) x
-                (idToEq Int (intMul n (u .π₁)) x (u .π₂)) ⟩
-         intMul a x
-           ≡⟨ sym Int (rmul Int intCommRing a x) (intMul a x) (intRmul a x) ⟩
-         rmul Int intCommRing a x))
+  λn. λa. λx. λhx. squash-elim hx (u. nZIntro
+    n
+    (rmul Int intCommRing a x)
+    (intMul a (u .π₁))
+    (intMul n (intMul a (u .π₁))
+        ≡⟨ sym
+          Int
+          (intMul a (intMul n (u .π₁)))
+          (intMul n (intMul a (u .π₁)))
+          (nZScaleAlg n a (u .π₁)) ⟩ intMul a (intMul n (u .π₁))
+        ≡⟨ cong
+          Int
+          (λw. Int)
+          (λw. intMul a w)
+          (intMul n (u .π₁))
+          x
+          (idToEq Int (intMul n (u .π₁)) x (u .π₂)) ⟩ intMul a x
+        ≡⟨ sym
+          Int
+          (rmul Int intCommRing a x)
+          (intMul a x)
+          (intRmul a x) ⟩ rmul Int intCommRing a x))
 
-def nZIsIdeal : (n : El Int) → Prf (IsIdeal Int intCommRing (nZ n))
-  using (intRaddGroup.rw) ≔
-  λn. idIntro Int intCommRing (nZ n) (nZIsSubgroup n) (nZScale n)
+def nZIsIdeal : (n : El Int) → Prf (IsIdeal Int intCommRing (nZ n)) using (intRaddGroup.rw) ≔
+  λn. idIntro (nZIsSubgroup n) (nZScale n)
 
 -- ℤ/nℤ, as a commutative ring
 def intModRing : (n : El Int) → El (IsCommRing (IntMod n))
   using (IntMod.eq, quotRing.QRing.eq, ringTheory.raddGroup.eq, intRing.intCommRing.eq) ≔
-  λn. qrIsCommRing Int intCommRing (nZ n) (nZIsIdeal n)
+  λn. qrIsCommRing (nZIsIdeal n)

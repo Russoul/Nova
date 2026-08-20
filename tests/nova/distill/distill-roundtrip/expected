@@ -3,42 +3,62 @@ round-trip OK: ASTs identical, elaboration identical.
 -- distill golden: identity-tier round trip over one file exercising
 -- fixity interleaving, operator items, chains, ⋆ using, clausal and
 -- data items, mention form, wildcard binders, annotated let, pairs
+
 infixl 6 +
 def + : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
+
 def plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ using (+.eq) ≔ λn. ⋆
+
 def plusSucId : (n m : ℕ) → n + S m ≡ S (n + m) ∈ ℕ using (+.eq) ≔ λn. λm. ⋆
+
 def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ using (+.eq, plusZeroId) ≔
   λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
+
 def sucPlus : (n m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ using (+.eq) ≔
   λn. λm. ℕ-elim (k. S n + k ≡ S (n + k) ∈ ℕ) ⋆ (k ih. ⋆) m
+
 def plusComm : (n m : ℕ) → m + n ≡ n + m ∈ ℕ ≔
   λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ ℕ)
     (Z + n ≡⟨ zeroPlusId n ⟩ n ≡⟨ plusZeroId n ⟩ n + Z)
     (k ih. S k + n ≡⟨ sucPlus k n ⟩ S (k + n) ≡⟨ ih ⟩ S (n + k) ≡⟨ plusSucId n k ⟩ n + S k)
     m
+
 def swapLeft : (a b c : ℕ) → a + (b + c) ≡ b + (a + c) ∈ ℕ using (plusComm) ≔
   λa. λb. λc. ℕ-elim (k. a + (b + k) ≡ b + (a + k) ∈ ℕ)
     (a + (b + Z) ≡⟨ plusZeroId b ⟩ a + b ≡⟨ plusComm b a ⟩ b + a ≡⟨ plusZeroId a ⟩ b + (a + Z))
     (k ih. ⋆ using (+.eq))
     c
+
 def double : ℕ → ℕ
   | double n ≔ n + n
+
 infixl 6 ⊞
 def ⊞ : ℕ → ℕ → ℕ [oplusEta]
   | Z ⊞ n ≔ n [oplusZ]
   | S m ⊞ n ≔ S (m ⊞ n) [oplusS]
+
 data ( Bag : U
      ; nil : El Bag
      ; ins : (x : El ℕ) (m : El Bag) → El Bag
      ; swp : (x : El ℕ) (y : El ℕ) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )
+
 def size : El Bag → ℕ using (Bag.eq) ≔
   λm. BagElim (λb. ℕ) Z (λx. λr. λih. S ih) (λx. λy. λr. λih. ⋆) m
+
 def pairFn : (ℕ → ℕ) ⨯ ℕ ≔ (λx. x), Z
+
 def letTest : ℕ ≔ let k : ℕ ≔ S Z in k + k
+
 def mention : ℕ → ℕ ≔ (+) Z
+
 def asc : ℕ ≔ (Z : ℕ)
+
 def qq : ℕ / (a b. ∥𝟙∥) ≔ class Z
+
 def two : ℕ ≔ 2
+
 def five : ℕ ≔ 5
+
 def addPair : (a b : ℕ) → ℕ ≔ λa. λb. a + b
+
 def addPair' : (a b : ℕ) → a + b ≡ addPair a b ∈ ℕ using (addPair.eq) ≔ λa. λb. ⋆

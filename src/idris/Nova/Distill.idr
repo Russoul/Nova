@@ -785,23 +785,37 @@ renderUnit u =
       firstStart = head' (mapMaybe (map fst . entrySpan) u.mbody)
       (header, rest) = partition (\(l, _) => maybe True (\fs => l < fs) firstStart) comments
       imps = map renderImport u.mimports
-      (chunks, leftover) = attach rest u.mbody
-  in joinBy "\n" (map snd header ++
-                  imps ++ (case imps of [] => []; _ => [""]) ++
-                  chunks ++ map snd leftover) ++ "\n"
+      (blocks, leftover) = attach rest [] u.mbody
+      headerBlock = case map snd header of
+                      [] => []
+                      hs => [joinBy "\n" hs]
+      impBlock = case imps of
+                   [] => []
+                   _ => [joinBy "\n" imps]
+      lastBlock = case map snd leftover of
+                    [] => []
+                    ls => [joinBy "\n" ls]
+  in joinBy "\n\n" (headerBlock ++ impBlock ++ blocks ++ lastBlock) ++ "\n"
  where
   render1 : SBodyEntry -> String
   render1 (Left (_, f)) = renderFixity f
   render1 (Right (_, it)) = renderItemStr u.mfix it
 
-  attach : List (Int, String) -> List SBodyEntry -> (List String, List (Int, String))
-  attach cs [] = ([], cs)
-  attach cs (e :: es) =
+  ||| Fold the body into BLOCKS, one per item, blank-line separated:
+  ||| a comment glues to the entry it precedes (or sits inside), a
+  ||| fixity line glues to the item that follows it.
+  attach : List (Int, String) -> List String -> List SBodyEntry -> (List String, List (Int, String))
+  attach cs pending [] = (case pending of [] => []; _ => [joinBy "\n" pending], cs)
+  attach cs pending (e :: es) =
     let (mine, later) = case entrySpan e of
                           Just (_, end) => partition (\(l, _) => l <= end) cs
                           Nothing => ([], cs)
-        (moreChunks, left) = attach later es
-    in (map snd mine ++ [render1 e] ++ moreChunks, left)
+        pending' = pending ++ map snd mine ++ [render1 e]
+    in case e of
+         Left _ => attach later pending' es
+         Right _ =>
+           let (blocks, left) = attach later [] es
+           in (joinBy "\n" pending' :: blocks, left)
 
 -- ===== Round-trip verification =====
 

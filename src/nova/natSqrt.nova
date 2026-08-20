@@ -1,13 +1,3 @@
-import nat (+, *, plusZeroId, plusAssoc, plusComm, sucPlus, plusSucId,
-            multComm, multDistrib, multSucId, sucMult)
-import natOrder (LeN, leRefl, leOfEq, leZero, leZeroInv, leTrans, leSucSelf,
-                 leSucMono, leSucInv, leTotal, leMultMonoR, lePlusMonoL)
-import natMore (∸, multDistribR)
-import natDiv (natCase, natCaseElimEqD, leOfMonusZero, ltOfMonusSuc,
-                leSucNotSelf, ltProdSuc)
-import equality (trans, sym, cong, transport)
-import id (Id, idToEq, eqToId)
-
 -- THE INTEGER SQUARE ROOT, and the two facts that pin it down:
 --
 --   isqrt m * isqrt m ≤ m        (it is a lower approximant)
@@ -23,125 +13,131 @@ import id (Id, idToEq, eqToId)
 -- monus is a FUNCTION, so the branch taken is unambiguous even when
 -- the two sides are equal — using leTotal here would be wrong, since
 -- at k² = m both disjuncts hold and the wrong one loses the answer.
-
 -- ===== strict comparison =====
-
 -- a ≤ b splits into "b ≤ a is an equality" and "b < a", by casing on
 -- the witness LeN carries
-def leSplit : (b : ℕ) (a : ℕ) → El (LeN b a) →
-  El (LeN a b) ⊎ El (LeN (S b) a) using (natOrder.LeN.unfold) ≔
-  λb. λa. λh.
-    (ℕ-elim (k. (b + k ≡ a ∈ ℕ) → El (LeN a b) ⊎ El (LeN (S b) a))
-      (λe. inj₁ (leOfEq a b
-                   (sym ℕ b a
-                      (trans ℕ b (b + Z) a
-                         (sym ℕ (b + Z) b (plusZeroId b)) e))))
-      (j rec. λe.
-        inj₂ (j , eqToId ℕ (S b + j) a
-                    (trans ℕ (S b + j) (b + S j) a
-                       (trans ℕ (S b + j) (S (b + j)) (b + S j)
-                          (sucPlus b j)
-                          (sym ℕ (b + S j) (S (b + j)) (plusSucId b j)))
-                       e)))
-      (h .π₁))
-      (idToEq ℕ (b + h .π₁) a (h .π₂))
 
-def natCompare : (a : ℕ) (b : ℕ) → El (LeN a b) ⊎ El (LeN (S b) a) ≔
-  λa. λb.
-    ⊎-elim (w. El (LeN a b) ⊎ El (LeN (S b) a))
-      (h. inj₁ h)
-      (h. leSplit b a h)
-      (leTotal a b)
+import nat (+, *, plusZeroId, plusAssoc, plusComm, sucPlus, plusSucId, multComm, multDistrib, multSucId, sucMult)
+import natOrder (LeN, leRefl, leOfEq, leZero, leZeroInv, leTrans, leSucSelf, leSucMono, leSucInv, leTotal, leMultMonoR, lePlusMonoL)
+import natMore (∸, multDistribR)
+import natDiv (natCase, natCaseElimEqD, leOfMonusZero, ltOfMonusSuc, leSucNotSelf, ltProdSuc)
+import equality (trans, sym, cong, transport)
+import id (Id, idToEq, eqToId)
+
+def leSplit : {b a : ℕ} → El (LeN b a) → El (LeN a b) ⊎ El (LeN (S b) a)
+  using (natOrder.LeN.unfold) ≔
+  λb. λa. λh. (ℕ-elim (k. (b + k ≡ a ∈ ℕ) → El (LeN a b) ⊎ El (LeN (S b) a))
+    (λe. inj₁ (leOfEq (sym ℕ b a (trans ℕ b (b + Z) a (sym ℕ (b + Z) b (plusZeroId b)) e))))
+    (j rec. λe. inj₂ (j,
+      eqToId
+        (S b + j)
+        a
+        (trans
+          ℕ
+          (S b + j)
+          (b + S j)
+          a
+          (trans
+            ℕ
+            (S b + j)
+            (S (b + j))
+            (b + S j)
+            (sucPlus b j)
+            (sym ℕ (b + S j) (S (b + j)) (plusSucId b j)))
+          e)))
+    (h .π₁))
+    (idToEq ℕ (b + h .π₁) a (h .π₂))
+
+def natCompare : (a b : ℕ) → El (LeN a b) ⊎ El (LeN (S b) a) ≔
+  λa. λb. ⊎-elim (w. El (LeN a b) ⊎ El (LeN (S b) a)) (h. inj₁ h) (h. leSplit h) (leTotal a b)
 
 -- ===== squares are monotone =====
+def leMultMono : {a b c d : ℕ} → El (LeN a b) → El (LeN c d) → El (LeN (a * c) (b * d))
+  using (natOrder.LeN.unfold) ≔
+  λa. λb. λc. λd. λh1. λh2. leTrans
+    (a * c)
+    (b * c)
+    (b * d)
+    (leMultMonoR c h1)
+    (transport
+      ℕ
+      (λw. LeN (b * c) w)
+      (d * b)
+      (b * d)
+      (multComm b d)
+      (transport ℕ (λw. LeN w (d * b)) (c * b) (b * c) (multComm b c) (leMultMonoR b h2)))
 
-def leMultMono : (a : ℕ) (b : ℕ) (c : ℕ) (d : ℕ) →
-  El (LeN a b) → El (LeN c d) → El (LeN (a * c) (b * d)) using (natOrder.LeN.unfold) ≔
-  λa. λb. λc. λd. λh1. λh2.
-    leTrans (a * c) (b * c) (b * d)
-      (leMultMonoR a b c h1)
-      (transport ℕ (λw. LeN (b * c) w) (d * b) (b * d) (multComm b d)
-         (transport ℕ (λw. LeN w (d * b)) (c * b) (b * c) (multComm b c)
-            (leMultMonoR c d b h2)))
-
-def leSquare : (a : ℕ) (b : ℕ) → El (LeN a b) → El (LeN (a * a) (b * b)) ≔
-  λa. λb. λh. leMultMono a b a b h h
+def leSquare : {a b : ℕ} → El (LeN a b) → El (LeN (a * a) (b * b)) ≔ λa. λb. λh. leMultMono h h
 
 -- a positive number is at most its own square, which is why searching
 -- up to m is enough
 def leSelfSquare : (j : ℕ) → El (LeN (S j) (S j * S j)) using (natOrder.LeN.unfold) ≔
-  λj.
-    (j * S j ,
-     eqToId ℕ (S j + j * S j) (S j * S j)
-       (sym ℕ (S j * S j) (S j + j * S j) (sucMult j (S j))))
+  λj. j
+    * S j, eqToId (S j + j * S j) (S j * S j) (sym ℕ (S j * S j) (S j + j * S j) (sucMult j (S j)))
 
 -- ===== the search =====
-
 def isqrtAux : ℕ → ℕ → ℕ ≔
-  λm. λf.
-    ℕ-elim (w. ℕ) Z
-      (f' ih. natCase ℕ (S f') (λw. ih) (S f' * S f' ∸ m))
-      f
+  λm. λf. ℕ-elim (w. ℕ) Z (f' ih. natCase (S f') (λw. ih) (S f' * S f' ∸ m)) f
 
 def isqrt : ℕ → ℕ ≔ λm. isqrtAux m m
 
 -- ===== it is a lower approximant =====
-
-def isqrtAuxLe : (m : ℕ) (f : ℕ) →
-  El (LeN (isqrtAux m f * isqrtAux m f) m) using (isqrtAux.eq, nat.*.eq) ≔
-  λm. λf.
-    ℕ-elim (f. El (LeN (isqrtAux m f * isqrtAux m f) m))
-      (leZero m)
-      (f' ih.
-        natCaseElimEqD ℕ (λr. LeN (r * r) m) (S f') (λw. isqrtAux m f')
-          (S f' * S f' ∸ m)
-          (λe. leOfMonusZero (S f' * S f') m e)
-          (λj. λe. ih))
-      f
+def isqrtAuxLe : {m f : ℕ} → El (LeN (isqrtAux m f * isqrtAux m f) m)
+  using (isqrtAux.eq, nat.*.eq) ≔
+  λm. λf. ℕ-elim (f. El (LeN (isqrtAux m f * isqrtAux m f) m))
+    (leZero m)
+    (f' ih. natCaseElimEqD
+      ℕ
+      (λr. LeN (r * r) m)
+      (S f')
+      (λw. isqrtAux m f')
+      (S f' * S f' ∸ m)
+      (λe. leOfMonusZero e)
+      (λj. λe. ih))
+    f
 
 -- ===== ...and the largest one =====
+def isqrtAuxMax : {m f k : ℕ} → El (LeN (k * k) m) → El (LeN k f) → El (LeN k (isqrtAux m f))
+  using (isqrtAux.eq) ≔
+  λm. λf. ℕ-elim (f. (k : ℕ) → El (LeN (k * k) m) → El (LeN k f) → El (LeN k (isqrtAux m f)))
+    (λk. λhk. λhf. hf)
+    (f' ih. λk. λhk. λhf. natCaseElimEqD
+      ℕ
+      (λr. LeN k r)
+      (S f')
+      (λw. isqrtAux m f')
+      (S f' * S f' ∸ m)
+      (λe. hf)
+      (λj. λe. ⊎-elim (w. El (LeN k (isqrtAux m f')))
+        (h. ih k hk h)
+        (h. 𝟘-elim (leSucNotSelf
+          m
+          (leTrans
+            (S m)
+            (S f' * S f')
+            m
+            (ltOfMonusSuc j e)
+            (leTrans (S f' * S f') (k * k) m (leSquare h) hk))))
+        (natCompare k f')))
+    f
 
-def isqrtAuxMax : (m : ℕ) (f : ℕ) (k : ℕ) →
-  El (LeN (k * k) m) → El (LeN k f) → El (LeN k (isqrtAux m f)) using (isqrtAux.eq) ≔
-  λm. λf.
-    ℕ-elim (f. (k : ℕ) → El (LeN (k * k) m) → El (LeN k f) →
-                 El (LeN k (isqrtAux m f)))
-      (λk. λhk. λhf. hf)
-      (f' ih. λk. λhk. λhf.
-        natCaseElimEqD ℕ (λr. LeN k r) (S f') (λw. isqrtAux m f')
-          (S f' * S f' ∸ m)
-          (λe. hf)
-          (λj. λe.
-            ⊎-elim (w. El (LeN k (isqrtAux m f')))
-              (h. ih k hk h)
-              (h. 𝟘-elim
-                    (leSucNotSelf m
-                       (leTrans (S m) (S f' * S f') m
-                          (ltOfMonusSuc (S f' * S f') m j e)
-                          (leTrans (S f' * S f') (k * k) m
-                             (leSquare (S f') k h) hk))))
-              (natCompare k f')))
-      f
+def isqrtLe : (m : ℕ) → El (LeN (isqrt m * isqrt m) m) using (isqrt.eq) ≔ λm. isqrtAuxLe
 
-def isqrtLe : (m : ℕ) → El (LeN (isqrt m * isqrt m) m) using (isqrt.eq) ≔
-  λm. isqrtAuxLe m m
-
-def isqrtMax : (m : ℕ) (k : ℕ) →
-  El (LeN (k * k) m) → El (LeN k m) → El (LeN k (isqrt m)) using (isqrt.eq) ≔
-  λm. λk. λh1. λh2. isqrtAuxMax m m k h1 h2
+def isqrtMax : {m k : ℕ} → El (LeN (k * k) m) → El (LeN k m) → El (LeN k (isqrt m))
+  using (isqrt.eq) ≔
+  λm. λk. λh1. λh2. isqrtAuxMax h1 h2
 
 -- the upper bound: if S (isqrt m) squared still fit under m, isqrt m
 -- would have found it, and would be at least its own successor
 def isqrtUpper : (m : ℕ) → El (LeN (S m) (S (isqrt m) * S (isqrt m))) ≔
-  λm.
-    ⊎-elim (w. El (LeN (S m) (S (isqrt m) * S (isqrt m))))
-      (h. 𝟘-elim
-            (leSucNotSelf (isqrt m)
-               (isqrtMax m (S (isqrt m)) h
-                  (leTrans (S (isqrt m)) (S (isqrt m) * S (isqrt m)) m
-                     (leSelfSquare (isqrt m)) h))))
-      (h. h)
-      (natCompare (S (isqrt m) * S (isqrt m)) m)
+  λm. ⊎-elim (w. El (LeN (S m) (S (isqrt m) * S (isqrt m))))
+    (h. 𝟘-elim (leSucNotSelf
+      (isqrt m)
+      (isqrtMax
+        h
+        (leTrans (S (isqrt m)) (S (isqrt m) * S (isqrt m)) m (leSelfSquare (isqrt m)) h))))
+    (h. h)
+    (natCompare (S (isqrt m) * S (isqrt m)) m)
 
 -- ===== squares reflect the order =====
 --
@@ -152,173 +148,205 @@ def isqrtUpper : (m : ℕ) → El (LeN (S m) (S (isqrt m) * S (isqrt m))) ≔
 -- and its ℚ counterpart is not: ℚ has no strict multiplication
 -- monotonicity in the corpus, and getting it would mean sign
 -- multiplicativity or division. At ℕ, natCompare settles it.
-
 def ltSqSuc : (y : ℕ) → El (LeN (S (y * y)) (S y * S y)) ≔
-  λy.
-    leTrans (S (y * y)) (S (y * S y)) (S y * S y)
-      (leSucMono (y * y) (y * S y)
-         (leMultMono y y y (S y) (leRefl y) (leSucSelf y)))
-      (ltProdSuc y y)
+  λy. leTrans
+    (S (y * y))
+    (S (y * S y))
+    (S y * S y)
+    (leSucMono (leMultMono (leRefl y) (leSucSelf y)))
+    (ltProdSuc y y)
 
-def leOfSqLe : (x : ℕ) (y : ℕ) → El (LeN (x * x) (y * y)) → El (LeN x y) ≔
-  λx. λy. λh.
-    ⊎-elim (w. El (LeN x y))
-      (le. le)
-      (lt. 𝟘-elim
-             (leSucNotSelf (y * y)
-                (leTrans (S (y * y)) (x * x) (y * y)
-                   (leTrans (S (y * y)) (S y * S y) (x * x)
-                      (ltSqSuc y) (leSquare (S y) x lt))
-                   h)))
-      (natCompare x y)
+def leOfSqLe : {x y : ℕ} → El (LeN (x * x) (y * y)) → El (LeN x y) ≔
+  λx. λy. λh. ⊎-elim (w. El (LeN x y))
+    (le. le)
+    (lt. 𝟘-elim (leSucNotSelf
+      (y * y)
+      (leTrans
+        (S (y * y))
+        (x * x)
+        (y * y)
+        (leTrans (S (y * y)) (S y * S y) (x * x) (ltSqSuc y) (leSquare lt))
+        h)))
+    (natCompare x y)
 
 -- ===== a square that overshoots by T overshoots by isqrt T =====
+def plus4Swap : {a b p q : ℕ} → a + b + (p + q) ≡ a + p + (q + b) ∈ ℕ ≔
+  λa. λb. λp. λq. a + b + (p + q)
+      ≡⟨ plusAssoc a b (p + q) ⟩ a + (b + (p + q))
+      ≡⟨ cong
+        ℕ
+        (λw. ℕ)
+        (λw. a + w)
+        (b + (p + q))
+        (b + p + q)
+        (sym ℕ (b + p + q) (b + (p + q)) (plusAssoc b p q)) ⟩ a + (b + p + q)
+      ≡⟨ cong ℕ (λw. ℕ) (λw. a + (w + q)) (b + p) (p + b) (plusComm p b) ⟩ a + (p + b + q)
+      ≡⟨ cong ℕ (λw. ℕ) (λw. a + w) (p + b + q) (p + (b + q)) (plusAssoc p b q) ⟩ a + (p + (b + q))
+      ≡⟨ cong ℕ (λw. ℕ) (λw. a + (p + w)) (b + q) (q + b) (plusComm q b) ⟩ a + (p + (q + b))
+      ≡⟨ sym ℕ (a + p + (q + b)) (a + (p + (q + b))) (plusAssoc a p (q + b)) ⟩ a + p + (q + b)
 
-def plus4Swap : (a : ℕ) (b : ℕ) (p : ℕ) (q : ℕ) →
-  (a + b) + (p + q) ≡ (a + p) + (q + b) ∈ ℕ ≔
-  λa. λb. λp. λq.
-    ((a + b) + (p + q)
-       ≡⟨ plusAssoc a b (p + q) ⟩
-     a + (b + (p + q))
-       ≡⟨ cong ℕ (λw. ℕ) (λw. a + w) (b + (p + q)) ((b + p) + q)
-            (sym ℕ ((b + p) + q) (b + (p + q)) (plusAssoc b p q)) ⟩
-     a + ((b + p) + q)
-       ≡⟨ cong ℕ (λw. ℕ) (λw. a + (w + q)) (b + p) (p + b) (plusComm p b) ⟩
-     a + ((p + b) + q)
-       ≡⟨ cong ℕ (λw. ℕ) (λw. a + w) ((p + b) + q) (p + (b + q))
-            (plusAssoc p b q) ⟩
-     a + (p + (b + q))
-       ≡⟨ cong ℕ (λw. ℕ) (λw. a + (p + w)) (b + q) (q + b) (plusComm q b) ⟩
-     a + (p + (q + b))
-       ≡⟨ sym ℕ ((a + p) + (q + b)) (a + (p + (q + b))) (plusAssoc a p (q + b)) ⟩
-     (a + p) + (q + b))
+def sqExpand : (y c : ℕ) → (y + c) * (y + c) ≡ y * y + y * c + (y * c + c * c) ∈ ℕ ≔
+  λy. λc. (y + c) * (y + c)
+      ≡⟨ multDistribR (y + c) y c ⟩ y * (y + c) + c * (y + c)
+      ≡⟨ cong
+        ℕ
+        (λw. ℕ)
+        (λw. w + c * (y + c))
+        (y * (y + c))
+        (y * y + y * c)
+        (multDistrib y y c) ⟩ y * y + y * c + c * (y + c)
+      ≡⟨ cong
+        ℕ
+        (λw. ℕ)
+        (λw. y * y + y * c + w)
+        (c * (y + c))
+        (c * y + c * c)
+        (multDistrib c y c) ⟩ y * y + y * c + (c * y + c * c)
+      ≡⟨ cong
+        ℕ
+        (λw. ℕ)
+        (λw. y * y + y * c + (w + c * c))
+        (c * y)
+        (y * c)
+        (multComm y c) ⟩ y * y + y * c + (y * c + c * c)
 
-def sqExpand : (y : ℕ) (c : ℕ) →
-  (y + c) * (y + c) ≡ (y * y + y * c) + (y * c + c * c) ∈ ℕ ≔
-  λy. λc.
-    ((y + c) * (y + c)
-       ≡⟨ multDistribR (y + c) y c ⟩
-     y * (y + c) + c * (y + c)
-       ≡⟨ cong ℕ (λw. ℕ) (λw. w + c * (y + c)) (y * (y + c)) (y * y + y * c)
-            (multDistrib y y c) ⟩
-     (y * y + y * c) + c * (y + c)
-       ≡⟨ cong ℕ (λw. ℕ) (λw. (y * y + y * c) + w) (c * (y + c)) (c * y + c * c)
-            (multDistrib c y c) ⟩
-     (y * y + y * c) + (c * y + c * c)
-       ≡⟨ cong ℕ (λw. ℕ) (λw. (y * y + y * c) + (w + c * c)) (c * y) (y * c)
-            (multComm y c) ⟩
-     (y * y + y * c) + (y * c + c * c))
+def sqSumLe : (y c : ℕ) → El (LeN (y * y + c * c) ((y + c) * (y + c))) using (natOrder.LeN.unfold) ≔
+  λy. λc. y
+    * c
+    + y
+      * c,
+    eqToId
+      (y * y + c * c + (y * c + y * c))
+      ((y + c) * (y + c))
+      (trans
+        ℕ
+        (y * y + c * c + (y * c + y * c))
+        (y * y + y * c + (y * c + c * c))
+        ((y + c) * (y + c))
+        plus4Swap
+        (sym ℕ ((y + c) * (y + c)) (y * y + y * c + (y * c + c * c)) (sqExpand y c)))
 
-def sqSumLe : (y : ℕ) (c : ℕ) → El (LeN (y * y + c * c) ((y + c) * (y + c))) using (natOrder.LeN.unfold) ≔
-  λy. λc.
-    (y * c + y * c ,
-     eqToId ℕ ((y * y + c * c) + (y * c + y * c)) ((y + c) * (y + c))
-       (trans ℕ ((y * y + c * c) + (y * c + y * c))
-                ((y * y + y * c) + (y * c + c * c))
-                ((y + c) * (y + c))
-          (plus4Swap (y * y) (c * c) (y * c) (y * c))
-          (sym ℕ ((y + c) * (y + c)) ((y * y + y * c) + (y * c + c * c))
-             (sqExpand y c))))
-
-def sqrtStepN : (x : ℕ) (y : ℕ) (T : ℕ) →
-  El (LeN (x * x) (y * y + T)) → El (LeN x (y + S (isqrt T))) ≔
-  λx. λy. λT. λh.
-    leOfSqLe x (y + S (isqrt T))
-      (leTrans (x * x) (y * y + T) ((y + S (isqrt T)) * (y + S (isqrt T)))
-         h
-         (leTrans (y * y + T)
-                  (y * y + S (isqrt T) * S (isqrt T))
-                  ((y + S (isqrt T)) * (y + S (isqrt T)))
-            (lePlusMonoL T (S (isqrt T) * S (isqrt T)) (y * y)
-               (leTrans T (S T) (S (isqrt T) * S (isqrt T))
-                  (leSucSelf T) (isqrtUpper T)))
-            (sqSumLe y (S (isqrt T)))))
+def sqrtStepN : {x y T : ℕ} → El (LeN (x * x) (y * y + T)) → El (LeN x (y + S (isqrt T))) ≔
+  λx. λy. λT. λh. leOfSqLe
+    (leTrans
+      (x * x)
+      (y * y + T)
+      ((y + S (isqrt T)) * (y + S (isqrt T)))
+      h
+      (leTrans
+        (y * y + T)
+        (y * y + S (isqrt T) * S (isqrt T))
+        ((y + S (isqrt T)) * (y + S (isqrt T)))
+        (lePlusMonoL
+          (y * y)
+          (leTrans T (S T) (S (isqrt T) * S (isqrt T)) (leSucSelf T) (isqrtUpper T)))
+        (sqSumLe y (S (isqrt T)))))
 
 -- ===== isqrt is strictly under any c whose square overshoots =====
-
-def isqrtLtOfLt : (T : ℕ) (c : ℕ) →
-  El (LeN (S T) (c * c)) → El (LeN (S (isqrt T)) c) ≔
-  λT. λc. λh.
-    ⊎-elim (w. El (LeN (S (isqrt T)) c))
-      (le. 𝟘-elim
-             (leSucNotSelf T
-                (leTrans (S T) (c * c) T h
-                   (leTrans (c * c) (isqrt T * isqrt T) T
-                      (leSquare c (isqrt T) le) (isqrtLe T)))))
-      (lt. lt)
-      (natCompare c (isqrt T))
+def isqrtLtOfLt : (T : ℕ) {c : ℕ} → El (LeN (S T) (c * c)) → El (LeN (S (isqrt T)) c) ≔
+  λT. λc. λh. ⊎-elim (w. El (LeN (S (isqrt T)) c))
+    (le. 𝟘-elim (leSucNotSelf
+      T
+      (leTrans
+        (S T)
+        (c * c)
+        T
+        h
+        (leTrans (c * c) (isqrt T * isqrt T) T (leSquare le) (isqrtLe T)))))
+    (lt. lt)
+    (natCompare c (isqrt T))
 
 -- ...and a sum of two POSITIVE squares is strictly under the square of
 -- the sum, which is what makes isqrt of the error term fit
-def plus4Mid : (a : ℕ) (p : ℕ) (q : ℕ) (b : ℕ) →
-  (a + p) + (q + b) ≡ (a + b) + (p + q) ∈ ℕ ≔
-  λa. λp. λq. λb.
-    ((a + p) + (q + b)
-       ≡⟨ plusAssoc a p (q + b) ⟩
-     a + (p + (q + b))
-       ≡⟨ cong ℕ (λw. ℕ) (λw. a + w) (p + (q + b)) ((p + q) + b)
-            (sym ℕ ((p + q) + b) (p + (q + b)) (plusAssoc p q b)) ⟩
-     a + ((p + q) + b)
-       ≡⟨ cong ℕ (λw. ℕ) (λw. a + w) ((p + q) + b) (b + (p + q))
-            (plusComm b (p + q)) ⟩
-     a + (b + (p + q))
-       ≡⟨ sym ℕ ((a + b) + (p + q)) (a + (b + (p + q))) (plusAssoc a b (p + q)) ⟩
-     (a + b) + (p + q))
+def plus4Mid : (a p q b : ℕ) → a + p + (q + b) ≡ a + b + (p + q) ∈ ℕ ≔
+  λa. λp. λq. λb. a + p + (q + b)
+      ≡⟨ plusAssoc a p (q + b) ⟩ a + (p + (q + b))
+      ≡⟨ cong
+        ℕ
+        (λw. ℕ)
+        (λw. a + w)
+        (p + (q + b))
+        (p + q + b)
+        (sym ℕ (p + q + b) (p + (q + b)) (plusAssoc p q b)) ⟩ a + (p + q + b)
+      ≡⟨ cong
+        ℕ
+        (λw. ℕ)
+        (λw. a + w)
+        (p + q + b)
+        (b + (p + q))
+        (plusComm b (p + q)) ⟩ a + (b + (p + q))
+      ≡⟨ sym ℕ (a + b + (p + q)) (a + (b + (p + q))) (plusAssoc a b (p + q)) ⟩ a + b + (p + q)
 
-def sucMultSuc : (x : ℕ) (y : ℕ) → S x * S y ≡ S (x + S x * y) ∈ ℕ ≔
-  λx. λy.
-    (S x * S y
-       ≡⟨ multSucId (S x) y ⟩
-     S x + S x * y
-       ≡⟨ sucPlus x (S x * y) ⟩
-     S (x + S x * y))
+def sucMultSuc : (x y : ℕ) → S x * S y ≡ S (x + S x * y) ∈ ℕ ≔
+  λx. λy. S x * S y ≡⟨ multSucId (S x) y ⟩ S x + S x * y ≡⟨ sucPlus x (S x * y) ⟩ S (x + S x * y)
 
-def sqSumStrict : (x : ℕ) (y : ℕ) →
-  El (LeN (S (S x * S x + S y * S y)) ((S x + S y) * (S x + S y))) using (natOrder.LeN.unfold) ≔
-  λx. λy.
-    ((x + S x * y) + S (x + S x * y) ,
-     eqToId ℕ
-       (S (S x * S x + S y * S y) + ((x + S x * y) + S (x + S x * y)))
-       ((S x + S y) * (S x + S y))
-       (trans ℕ
-          (S (S x * S x + S y * S y) + ((x + S x * y) + S (x + S x * y)))
-          ((S x * S x + S y * S y) + (S x * S y + S x * S y))
+def sqSumStrict : (x y : ℕ) → El (LeN (S (S x * S x + S y * S y)) ((S x + S y) * (S x + S y)))
+  using (natOrder.LeN.unfold) ≔
+  λx. λy. x
+    + S x
+      * y
+    + S (x
+      + S x
+        * y),
+    eqToId
+      (S (S x * S x + S y * S y) + (x + S x * y + S (x + S x * y)))
+      ((S x + S y) * (S x + S y))
+      (trans
+        ℕ
+        (S (S x * S x + S y * S y) + (x + S x * y + S (x + S x * y)))
+        (S x * S x + S y * S y + (S x * S y + S x * S y))
+        ((S x + S y) * (S x + S y))
+        (trans
+          ℕ
+          (S (S x * S x + S y * S y) + (x + S x * y + S (x + S x * y)))
+          (S (S x * S x + S y * S y + (x + S x * y + S (x + S x * y))))
+          (S x * S x + S y * S y + (S x * S y + S x * S y))
+          (sucPlus (S x * S x + S y * S y) (x + S x * y + S (x + S x * y)))
+          (trans
+            ℕ
+            (S (S x * S x + S y * S y + (x + S x * y + S (x + S x * y))))
+            (S x * S x + S y * S y + S (x + S x * y + S (x + S x * y)))
+            (S x * S x + S y * S y + (S x * S y + S x * S y))
+            (sym
+              ℕ
+              (S x * S x + S y * S y + S (x + S x * y + S (x + S x * y)))
+              (S (S x * S x + S y * S y + (x + S x * y + S (x + S x * y))))
+              (plusSucId (S x * S x + S y * S y) (x + S x * y + S (x + S x * y))))
+            (cong
+              ℕ
+              (λw. ℕ)
+              (λw. S x * S x + S y * S y + w)
+              (S (x + S x * y + S (x + S x * y)))
+              (S x * S y + S x * S y)
+              (trans
+                ℕ
+                (S (x + S x * y + S (x + S x * y)))
+                (S (x + S x * y) + S (x + S x * y))
+                (S x * S y + S x * S y)
+                (sym
+                  ℕ
+                  (S (x + S x * y) + S (x + S x * y))
+                  (S (x + S x * y + S (x + S x * y)))
+                  (sucPlus (x + S x * y) (S (x + S x * y))))
+                (cong
+                  ℕ
+                  (λw. ℕ)
+                  (λw. w + w)
+                  (S (x + S x * y))
+                  (S x * S y)
+                  (sym ℕ (S x * S y) (S (x + S x * y)) (sucMultSuc x y)))))))
+        (trans
+          ℕ
+          (S x * S x + S y * S y + (S x * S y + S x * S y))
+          (S x * S x + S x * S y + (S x * S y + S y * S y))
           ((S x + S y) * (S x + S y))
-          (trans ℕ
-             (S (S x * S x + S y * S y) + ((x + S x * y) + S (x + S x * y)))
-             (S ((S x * S x + S y * S y) + ((x + S x * y) + S (x + S x * y))))
-             ((S x * S x + S y * S y) + (S x * S y + S x * S y))
-             (sucPlus (S x * S x + S y * S y)
-                      ((x + S x * y) + S (x + S x * y)))
-             (trans ℕ
-                (S ((S x * S x + S y * S y) + ((x + S x * y) + S (x + S x * y))))
-                ((S x * S x + S y * S y) + S ((x + S x * y) + S (x + S x * y)))
-                ((S x * S x + S y * S y) + (S x * S y + S x * S y))
-                (sym ℕ ((S x * S x + S y * S y)
-                          + S ((x + S x * y) + S (x + S x * y)))
-                       (S ((S x * S x + S y * S y)
-                             + ((x + S x * y) + S (x + S x * y))))
-                   (plusSucId (S x * S x + S y * S y)
-                              ((x + S x * y) + S (x + S x * y))))
-                (cong ℕ (λw. ℕ) (λw. (S x * S x + S y * S y) + w)
-                   (S ((x + S x * y) + S (x + S x * y)))
-                   (S x * S y + S x * S y)
-                   (trans ℕ (S ((x + S x * y) + S (x + S x * y)))
-                            (S (x + S x * y) + S (x + S x * y))
-                            (S x * S y + S x * S y)
-                      (sym ℕ (S (x + S x * y) + S (x + S x * y))
-                             (S ((x + S x * y) + S (x + S x * y)))
-                         (sucPlus (x + S x * y) (S (x + S x * y))))
-                      (cong ℕ (λw. ℕ) (λw. w + w) (S (x + S x * y)) (S x * S y)
-                         (sym ℕ (S x * S y) (S (x + S x * y))
-                            (sucMultSuc x y)))))))
-          (trans ℕ
-             ((S x * S x + S y * S y) + (S x * S y + S x * S y))
-             ((S x * S x + S x * S y) + (S x * S y + S y * S y))
-             ((S x + S y) * (S x + S y))
-             (sym ℕ ((S x * S x + S x * S y) + (S x * S y + S y * S y))
-                    ((S x * S x + S y * S y) + (S x * S y + S x * S y))
-                (plus4Mid (S x * S x) (S x * S y) (S x * S y) (S y * S y)))
-             (sym ℕ ((S x + S y) * (S x + S y))
-                    ((S x * S x + S x * S y) + (S x * S y + S y * S y))
-                (sqExpand (S x) (S y))))))
+          (sym
+            ℕ
+            (S x * S x + S x * S y + (S x * S y + S y * S y))
+            (S x * S x + S y * S y + (S x * S y + S x * S y))
+            (plus4Mid (S x * S x) (S x * S y) (S x * S y) (S y * S y)))
+          (sym
+            ℕ
+            ((S x + S y) * (S x + S y))
+            (S x * S x + S x * S y + (S x * S y + S y * S y))
+            (sqExpand (S x) (S y)))))
