@@ -77,8 +77,8 @@ def qDiffFracNat : {m b K : ℕ}
         Int
         (λv. Q)
         (λv. qcls (mkRat v (nzPos b)))
-        (intNeg (class (S b * K, m)))
-        (class (m, S b * K))
+        _
+        _
         (intNegPair (S b * K) m) ⟩ qcls (mkRat (class (m, S b * K)) (nzPos b))
 
 def leQNatOfFrac : {m b K : ℕ}
@@ -87,12 +87,12 @@ def leQNatOfFrac : {m b K : ℕ}
   λm. λb. λK. λle. transport
     _
     NonNegS
-    (intSgn (class (m, S b * K)))
+    _
     _
     (sym
       _
       _
-      (intSgn (class (m, S b * K)))
+      _
       (trans
         Sign
         _

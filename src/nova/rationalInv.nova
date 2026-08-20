@@ -56,9 +56,7 @@ def nzOfPair : (a b : ℕ)
     zeroMult) ≔
   λa. ℕ-elim
     (λb. ℕ-elim
-      (λhab. λhnz. absurdP
-        ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ class (Z, Z))∥
-        (impApply (class (Z, Z) ≡ intZero) ⊥ hnz ⋆))
+      (λhab. λhnz. absurdP _ (impApply (class (Z, Z) ≡ intZero) ⊥ hnz ⋆))
       (j ihb. λhab. λhnz. ⋆ (nzNeg j, ⋆))
       b)
     (k ih. λb. ℕ-elim
@@ -105,23 +103,12 @@ def intNZViewAt : {z : El Int}
         _
         hnz
         (trans
-          Int
           _
-          (class (p .π₁, p .π₂))
           _
-          (sym
-            Int
-            (class (p .π₁, p .π₂))
-            _
-            (trans Int (class (p .π₁, p .π₂)) (class p) _ (classPairEta p) hz))
-          e)))) (w. ⋆ (w .π₁,
-    trans
-      Int
-      _
-      (class (p .π₁, p .π₂))
-      _
-      (w .π₂)
-      (trans Int (class (p .π₁, p .π₂)) (class p) _ (classPairEta p) hz)))
+          _
+          _
+          (sym _ _ _ (trans _ _ _ _ (classPairEta p) hz))
+          e)))) (w. ⋆ (w .π₁, trans _ _ _ _ (w .π₂) (trans _ _ _ _ (classPairEta p) hz)))
 
 def intNZView : (z : El Int) (hnz : Prf (¬ (z ≡ intZero))) → Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ z)∥
   using (intCanonProdZero) ≔
@@ -166,7 +153,7 @@ def ratZeroOfNumZero : (p : El Rat) (h : Prf (num p ≡ intZero)) → class p �
 
 def numNonZero : {p : El Rat} (h : Prf (¬ (class p ≡ qZero))) → Prf (¬ (num p ≡ intZero))
   using (prop.¬.unfold, prop.⊃.unfold, rationalQ.Q.unfold) ≔
-  λp. λh. notIntro (num p ≡ intZero) (λe. notApply (class p ≡ qZero) h (ratZeroOfNumZero _ e))
+  λp. λh. notIntro _ (λe. notApply _ h (ratZeroOfNumZero _ e))
 
 -- ===== every non-zero rational is qOfNzq of something =====
 def qNonZeroIsNzq : {u : El Q} (h : Prf (¬ (u ≡ qZero))) → Prf ∥(x : El NZQ) ⨯ Prf (qOfNzq x ≡ u)∥
@@ -192,10 +179,10 @@ def qNonZeroIsNzq : {u : El Q} (h : Prf (¬ (u ≡ qZero))) → Prf ∥(x : El N
       den
         p),
       trans
-        Q
+        _
         (class (mkRat (nzToInt (w .π₁)) (den p)))
         (class (mkRat (num p) (den p)))
-        (class p)
+        _
         (cong Int (λv. Q) (λx. class (mkRat x (den p))) (nzToInt (w .π₁)) (p .π₁) (w .π₂))
         (cong Rat (λv. Q) (λt. class t) (mkRat (num p) (den p)) p ratEta))))
     u
@@ -207,10 +194,10 @@ def qInvExists : {u : El Q} (h : Prf (¬ (u ≡ qZero))) → Prf ∥(v : El Q) �
     (nzqInv
       (w .π₁)),
     trans
-      Q
+      _
       _
       (qOfNzq (w .π₁) * qOfNzq (nzqInv (w .π₁)))
-      qOne
+      _
       (sym
         _
         _

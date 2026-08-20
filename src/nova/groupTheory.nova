@@ -43,27 +43,23 @@ def gAssoc : (G : 𝕌)
   (x y z : El G)
   → gop _ g (gop _ g x y) z ≡ gop _ g x (gop _ g y z)
   using (group.IsGroup.unfold, monoid.IsMonoid.unfold, gop.eq) ≔
-  λG. λg. λx. λy. λz. idToEq
-    _
-    (gop _ g (gop _ g x y) z)
-    (gop _ g x (gop _ g y z))
-    (g .π₁ .π₂ .π₂ .π₁ x y z)
+  λG. λg. λx. λy. λz. idToEq _ _ _ (g .π₁ .π₂ .π₂ .π₁ x y z)
 
 def gUnitL : (G : 𝕌) (g : El (IsGroup G)) (x : El G) → gop _ g (ge g) x ≡ x
   using (group.IsGroup.unfold, monoid.IsMonoid.unfold, gop.eq, ge.eq) ≔
-  λG. λg. λx. idToEq _ (gop _ g (ge g) x) _ (g .π₁ .π₂ .π₂ .π₂ .π₁ x)
+  λG. λg. λx. idToEq _ _ _ (g .π₁ .π₂ .π₂ .π₂ .π₁ x)
 
 def gUnitR : (G : 𝕌) (g : El (IsGroup G)) (x : El G) → gop _ g x (ge g) ≡ x
   using (group.IsGroup.unfold, monoid.IsMonoid.unfold, gop.eq, ge.eq) ≔
-  λG. λg. λx. idToEq _ (gop _ g x (ge g)) _ (g .π₁ .π₂ .π₂ .π₂ .π₂ x)
+  λG. λg. λx. idToEq _ _ _ (g .π₁ .π₂ .π₂ .π₂ .π₂ x)
 
 def gInvL : (G : 𝕌) (g : El (IsGroup G)) (x : El G) → gop _ g (ginv _ g x) x ≡ ge g
   using (group.IsGroup.unfold, gop.eq, ge.eq, ginv.eq) ≔
-  λG. λg. λx. idToEq _ (gop _ g (ginv _ g x) x) (ge g) (g .π₂ .π₂ .π₁ x)
+  λG. λg. λx. idToEq _ _ _ (g .π₂ .π₂ .π₁ x)
 
 def gInvR : (G : 𝕌) (g : El (IsGroup G)) (x : El G) → gop _ g x (ginv _ g x) ≡ ge g
   using (group.IsGroup.unfold, gop.eq, ge.eq, ginv.eq) ≔
-  λG. λg. λx. idToEq _ (gop _ g x (ginv _ g x)) (ge g) (g .π₂ .π₂ .π₂ x)
+  λG. λg. λx. idToEq _ _ _ (g .π₂ .π₂ .π₂ x)
 
 -- ===== cancellation of an adjacent inverse =====
 --
@@ -141,10 +137,10 @@ def gOpInv : (G : 𝕌)
   (x y : El G)
   → ginv _ g (gop _ g x y) ≡ gop _ g (ginv _ g y) (ginv _ g x) ≔
   λG. λg. λx. λy. gInvUniq
-    G
-    g
-    (gop _ g x y)
-    (gop _ g (ginv _ g y) (ginv _ g x))
+    _
+    _
+    _
+    _
     (gop _ g (gop _ g x y) (gop _ g (ginv _ g y) (ginv _ g x))
         ≡⟨ gAssoc
           _

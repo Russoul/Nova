@@ -218,13 +218,7 @@ def ratAddNumMul : (p q : El Rat) → num (ratAdd p q) ≡ dInt q * num p + dInt
     rational.nzToInt.eq,
     rational.ratAdd.eq,
     rationalQ.dInt.eq) ≔
-  λp. λq. intAddCong2
-    (intScale (den q) (num p))
-    (intScale (den p) (num q))
-    (nzToInt (den q) * num p)
-    (nzToInt (den p) * num q)
-    (intScaleIsMul (den q) (num p))
-    (intScaleIsMul (den p) (num q))
+  λp. λq. intAddCong2 _ _ _ _ (intScaleIsMul (den q) (num p)) (intScaleIsMul (den p) (num q))
 
 def ratAddDenMul : (p q : El Rat) → dInt (ratAdd p q) ≡ dInt p * dInt q
   using (integer.Int.unfold,
@@ -298,7 +292,7 @@ def qAddWDInnerCls : {p q q' : El Rat}
     rationalQ.RatR.eq,
     rationalQ.RatR.unfold,
     rationalQ.dInt.eq) ≔
-  λp. λq. λq'. λh. clsEqOfRel (ratAdd p q) (ratAdd p q') (qAddWDInner p h)
+  λp. λq. λq'. λh. clsEqOfRel _ _ (qAddWDInner p h)
 
 -- the OUTER case needs no new arithmetic: ratAddComm turns it into
 -- the inner one with the arguments swapped
@@ -307,16 +301,16 @@ def qAddWDOuterCls : {p p' c : El Rat}
   → class (ratAdd p c) ≡ class (ratAdd p' c) ∈ El Q
   using (rationalQ.Q.unfold) ≔
   λp. λp'. λc. λh. trans
-    Q
-    (class (ratAdd p c))
-    (class (ratAdd c p))
-    (class (ratAdd p' c))
+    _
+    _
+    _
+    _
     (cong Rat (λu. Q) (λr. class r) _ _ (ratAddComm p c))
     (trans
       Q
       (class (ratAdd c p))
       (class (ratAdd c p'))
-      (class (ratAdd p' c))
+      _
       (qAddWDInnerCls h)
       (cong Rat (λu. Q) (λr. class r) _ _ (sym _ _ _ (ratAddComm p' c))))
 
@@ -670,8 +664,8 @@ def ratAddNumMulR : (p q r : El Rat)
 
 def ratAddAssocNum : {p q r : El Rat} → num (ratAdd (ratAdd p q) r) ≡ num (ratAdd p (ratAdd q r)) ≔
   λp. λq. λr. trans
-    Int
-    (num (ratAdd (ratAdd p q) r))
+    _
+    _
     (dInt r * (dInt q * num p + dInt p * num q) + dInt p * dInt q * num r)
     _
     ratAddNumMulL
@@ -704,9 +698,9 @@ def ratAddAssoc : {p q r : El Rat} → ratAdd (ratAdd p q) r ≡ ratAdd p (ratAd
   using (integer.Int.unfold, rational.NZ.unfold, rational.Rat.unfold, rational.ratEta) ≔
   λp. λq. λr. trans
     _
-    (ratAdd (ratAdd p q) r)
+    _
     (mkRat (num (ratAdd p (ratAdd q r))) (den (ratAdd (ratAdd p q) r)))
-    (ratAdd p (ratAdd q r))
+    _
     (cong
       Int
       (λu. Rat)
@@ -797,7 +791,7 @@ def ratNegWD : {p p' : El Rat}
     rationalQ.dInt.eq) ≔
   λp. λp'. λh. trans
     _
-    (num (ratNeg p) * dInt (ratNeg p'))
+    _
     (intNeg (num p * dInt p'))
     _
     (intMulNegL (num p) (dInt p'))
@@ -824,7 +818,7 @@ def ratNegWDCls : (p p' : El Rat)
     rationalQ.RatR.eq,
     rationalQ.RatR.unfold,
     rationalQ.dInt.eq) ≔
-  λp. λp'. λh. clsEqOfRel (ratNeg p) (ratNeg p') (ratNegWD h)
+  λp. λp'. λh. clsEqOfRel _ _ (ratNegWD h)
 
 def qNeg : El Q → El Q
   using (integer.Int.unfold,
@@ -864,7 +858,7 @@ def ratAddNegNum : (p : El Rat) → num (ratAdd p (ratNeg p)) ≡ intZero
     rationalQ.dInt.eq) ≔
   λp. trans
     _
-    (num (ratAdd p (ratNeg p)))
+    _
     (dInt p * num p + dInt p * intNeg (num p))
     _
     (ratAddNumMul p (ratNeg p))
@@ -909,7 +903,7 @@ def ratAddNegRel : (p : El Rat)
     _
     _
     _
-    (num ratZero * dInt (ratAdd p (ratNeg p)))
+    _
     (trans _ _ _ _ (mulCongL _ _ (dInt ratZero) (ratAddNegNum p)) (intMulZeroL (dInt ratZero)))
     (sym _ _ _ (intMulZeroL (dInt (ratAdd p (ratNeg p)))))
 
@@ -1017,9 +1011,9 @@ def ratMulComm : (p q : El Rat) → ratMul p q ≡ ratMul q p
     rationalQ.ratMul.eq) ≔
   λp. λq. trans
     _
-    (ratMul p q)
+    _
     (mkRat (num q * num p) (nzMul (den p) (den q)))
-    (ratMul q p)
+    _
     (cong Int (λu. Rat) (λx. mkRat x (nzMul (den p) (den q))) _ _ (intMulComm (num p) (num q)))
     (cong
       NZ
@@ -1042,9 +1036,9 @@ def ratMulAssoc : {p q r : El Rat} → ratMul (ratMul p q) r ≡ ratMul p (ratMu
     rationalQ.ratMul.eq) ≔
   λp. λq. λr. trans
     _
-    (ratMul (ratMul p q) r)
+    _
     (mkRat (num p * (num q * num r)) (nzMul (nzMul (den p) (den q)) (den r)))
-    (ratMul p (ratMul q r))
+    _
     (cong
       Int
       (λu. Rat)
@@ -1080,10 +1074,10 @@ def ratMulOneR : {p : El Rat} → ratMul p ratOne ≡ p
     rational.ratOne.eq,
     rationalQ.ratMul.eq) ≔
   λp. trans
-    Rat
+    _
     _
     (mkRat (num p) (den p))
-    p
+    _
     (trans
       _
       (ratMul p ratOne)
@@ -1122,7 +1116,7 @@ def qMulWDInner : (p : El Rat)
     rationalQ.ratMul.eq) ≔
   λp. λq. λq'. λh. trans
     _
-    (num (ratMul p q) * dInt (ratMul p q'))
+    _
     (num p * num q * (dInt p * dInt q'))
     _
     (mulCongR (num p * num q) (dInt (ratMul p q')) (dInt p * dInt q') (nzToIntMul (den p) (den q')))
@@ -1168,23 +1162,23 @@ def qMulWDInnerCls : {p q q' : El Rat}
     rationalQ.RatR.unfold,
     rationalQ.dInt.eq,
     rationalQ.ratMul.eq) ≔
-  λp. λq. λq'. λh. clsEqOfRel (ratMul p q) (ratMul p q') (qMulWDInner p h)
+  λp. λq. λq'. λh. clsEqOfRel _ _ (qMulWDInner p h)
 
 def qMulWDOuterCls : {p p' c : El Rat}
   (h : Prf (RatR p p'))
   → class (ratMul p c) ≡ class (ratMul p' c) ∈ El Q
   using (rationalQ.Q.unfold) ≔
   λp. λp'. λc. λh. trans
-    Q
-    (class (ratMul p c))
-    (class (ratMul c p))
-    (class (ratMul p' c))
+    _
+    _
+    _
+    _
     (cong Rat (λu. Q) (λr. class r) _ _ (ratMulComm p c))
     (trans
       Q
       (class (ratMul c p))
       (class (ratMul c p'))
-      (class (ratMul p' c))
+      _
       (qMulWDInnerCls h)
       (cong Rat (λu. Q) (λr. class r) _ _ (sym _ _ _ (ratMulComm p' c))))
 
@@ -1339,7 +1333,7 @@ def dIntMul3 : (p q r : El Rat) → dInt (ratMul p (ratAdd q r)) ≡ dInt p * (d
     rationalQ.ratMul.eq) ≔
   λp. λq. λr. trans
     _
-    (dInt (ratMul p (ratAdd q r)))
+    _
     (dInt p * dInt (ratAdd q r))
     _
     (nzToIntMul (den p) (nzMul (den q) (den r)))
@@ -1565,7 +1559,7 @@ def ratMulZeroRel : (p : El Rat)
     _
     _
     _
-    (num ratZero * dInt (ratMul ratZero p))
+    _
     (trans
       _
       _
@@ -1601,7 +1595,7 @@ def qMulZeroL : {u : El Q} → qZero * u ≡ qZero
   λu. quot-elim (p. clsEqOfRel (ratMul ratZero p) ratZero (ratMulZeroRel p)) u
 
 def qMulZeroR : (u : El Q) → u * qZero ≡ qZero using (qMulZeroL) ≔
-  λu. trans Q _ (qZero * u) qZero (qMulComm u qZero) qMulZeroL
+  λu. trans _ _ (qZero * u) _ (qMulComm u qZero) qMulZeroL
 
 -- Reciprocals. A rational has an inverse exactly when its NUMERATOR is
 -- non-zero, and — as with denominators — that cannot be carried as a
@@ -1651,7 +1645,7 @@ def nzqInvRel : (x : El NZQ)
     rationalQ.ratMul.eq) ≔
   λx. trans
     _
-    (num (ratMul (nzqToRat x) (nzqToRat (nzqInv x))) * dInt ratOne)
+    _
     (nzToInt (x .π₁) * nzToInt (x .π₂))
     _
     (intMulOneR (nzToInt (x .π₁) * nzToInt (x .π₂)))
@@ -1694,13 +1688,7 @@ def qMulInv : {x : El NZQ} → qOfNzq x * qOfNzq (nzqInv x) ≡ qOne
   λx. clsEqOfRel (ratMul (nzqToRat x) (nzqToRat (nzqInv x))) ratOne (nzqInvRel x)
 
 def qMulInvL : (x : El NZQ) → qOfNzq (nzqInv x) * qOfNzq x ≡ qOne ≔
-  λx. trans
-    Q
-    _
-    (qOfNzq x * qOfNzq (nzqInv x))
-    qOne
-    (qMulComm (qOfNzq (nzqInv x)) (qOfNzq x))
-    qMulInv
+  λx. trans _ _ (qOfNzq x * qOfNzq (nzqInv x)) _ (qMulComm (qOfNzq (nzqInv x)) (qOfNzq x)) qMulInv
 
 -- ⅓ as a non-zero rational, and 3 = (⅓)⁻¹
 def nzqThird : El NZQ using (rationalQ.NZQ.unfold) ≔ nzPos Z, nzPos 2

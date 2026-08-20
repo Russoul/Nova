@@ -101,7 +101,7 @@ def intPlusNegDiff : (x y : El Int) → y + intNeg (y + intNeg x) ≡ x using (i
 -- ===== the order =====
 def leZRefl : (x : El Int) → El (x ≤ x)
   using (intOrder.≤.unfold, intOrder.intOfNatZero, integer.Int.unfold) ≔
-  λx. Z, eqToId (x + intOfNat Z) x (intAddZeroR x)
+  λx. Z, eqToId _ _ (intAddZeroR x)
 
 def leZOfEq : {x y : El Int} → (x ≡ y) → El (x ≤ y)
   using (intOrder.≤.unfold, intOrder.intOfNatZero, integer.Int.unfold) ≔
@@ -141,8 +141,8 @@ def leZAntisym : (x y : El Int) → El (x ≤ y) → El (y ≤ x) → x ≡ y us
     + intOfNat
       (l1 .π₁
         + l2 .π₁) ≡ x ≔ trans
-    Int
-    (x + intOfNat (l1 .π₁ + l2 .π₁))
+    _
+    _
     (x + intOfNat (l1 .π₁) + intOfNat (l2 .π₁))
     _
     intOfNatSplit
@@ -319,7 +319,7 @@ def leZTotal : (x y : El Int) → El (x ≤ y) ⊎ El (y ≤ x)
           _
           _
           y
-          (cong Int (λu. Int) (λu. x + u) _ _ (trans Int _ (class (intCanon d)) _ e1 hd))
+          (cong Int (λu. Int) (λu. x + u) _ _ (trans _ _ _ _ e1 hd))
           (intPlusDiff x y))))
     (nn. let ha ≔ idToEq
       _
@@ -331,9 +331,9 @@ def leZTotal : (x y : El Int) → El (x ≤ y) ⊎ El (y ≤ x)
         d)) ≔ intOfNat (nn .π₁)
         ≡⟨ clsOfRelLe _ _ _ ha ⟩ class (intCanon d .π₂, intCanon d .π₁)
         ≡⟨ sym
-          Int
-          (intNeg (class (intCanon d)))
-          (class (intCanon d .π₂, intCanon d .π₁))
+          _
+          _
+          _
           (intNegClass
             (intCanon
               d)) ⟩ intNeg
@@ -353,13 +353,7 @@ def leZTotal : (x y : El Int) → El (x ≤ y) ⊎ El (y ≤ x)
             (λu. y + u)
             _
             _
-            (trans
-              _
-              _
-              (intNeg (class (intCanon d)))
-              _
-              e2
-              (cong Int (λu. Int) (λu. intNeg u) (class (intCanon d)) _ hd)))
+            (trans _ _ _ _ e2 (cong Int (λu. Int) (λu. intNeg u) _ _ hd)))
           (intPlusNegDiff x y))))
     (leTotal (intCanon d .π₂) (intCanon d .π₁))
 

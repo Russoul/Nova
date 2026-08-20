@@ -79,7 +79,7 @@ def qMulSq : (x y : El Q) → x * y * (x * y) ≡ x * x * (y * y) ≔
       ≡⟨ sym _ _ _ (qMulAssoc x x (y * y)) ⟩ x * x * (y * y)
 
 def invNatOne : (a : ℕ) → qInvNat a * qOfNat (S a) ≡ qOne ≔
-  λa. trans Q _ (qOfNat (S a) * qInvNat a) qOne (qMulComm (qInvNat a) (qOfNat (S a))) qMulInvNat
+  λa. trans _ _ (qOfNat (S a) * qInvNat a) _ (qMulComm (qInvNat a) (qOfNat (S a))) qMulInvNat
 
 def qOfNatSq : (a : ℕ) → qOfNat (sqNat a) ≡ qOfNat (S a) * qOfNat (S a) using (ratSqrt.sqNat.eq) ≔
   λa. sym _ _ (qOfNat (S a * S a)) (qOfNatMul (S a) (S a))
@@ -371,7 +371,7 @@ def sqrtDirGen : {p : El RSeq}
           (leQMulMono
             (rBound a b)
             (rBound (sqrtIdx m) (sqrtIdx n))
-            (leQAdd _ (qInvNat (sqrtIdx m)) _ (qInvNat (sqrtIdx n)) da db)
+            (leQAdd _ _ _ _ da db)
             (leQZeroNat (sqNat (sqrtDepth m))))
           (leQZeroNat (sqNat (sqrtDepth n))))
         (leQOfEq
@@ -472,8 +472,8 @@ def rSqrtWDNN : {p p' : El RSeq}
     rSqrtNN.eq,
     sqrtSeqNN.eq) ≔
   λp. λp'. λnn. λnn'. λh. squash-elim h (u. reqOf
-    (rSqrtNN _ nn)
-    (rSqrtNN _ nn')
+    _
+    _
     (λn. bndOfBothLe
       (sqrtSeqNN p n)
       (sqrtSeqNN p' n)
@@ -513,14 +513,7 @@ def sqrtNNConst : (x : El Real) (d d' : El (NonNegPayload x)) → sqrtFromNN _ d
     (rSqrtWDNN
       (nnAt _ d)
       (nnAt _ d')
-      (reqOfClassEq
-        (trans
-          Real
-          (class (nnRep _ d))
-          _
-          (class (nnRep _ d'))
-          (nnRepEq _ d)
-          (sym Real (class (nnRep _ d')) _ (nnRepEq _ d')))))
+      (reqOfClassEq (trans _ _ _ _ (nnRepEq _ d) (sym _ _ _ (nnRepEq _ d')))))
 
 def realSqrt : (x : El Real) → El (NonNegR x) → El Real using (NonNegR.eq) ≔
   λx. λw. brElim _ (sqrtFromNN x) (sqrtNNConst x) w
@@ -636,15 +629,15 @@ def realSqrtZero : (w : El (NonNegR realZero)) → realSqrt _ w ≡ realZero
     bracket.br.eq) ≔
   λw. quot-elim
     (d. trans
-      Real
+      _
       (realSqrt _ (br d))
       (class (rSqrtNN _ (nnAt _ d)))
       _
       realSqrtRep
       (trans
-        Real
-        (class (rSqrtNN _ (nnAt _ d)))
-        (class (rSqrtNN _ zeroNN))
+        _
+        _
+        _
         _
         (realEqOfREq
           _
@@ -652,19 +645,6 @@ def realSqrtZero : (w : El (NonNegR realZero)) → realSqrt _ w ≡ realZero
           (rSqrtWDNN
             (nnAt _ d)
             zeroNN
-            (reqOfClassEq
-              (trans
-                Real
-                (class (nnRep _ d))
-                _
-                (class zeroRep)
-                (nnRepEq _ d)
-                (sym Real (class zeroRep) _ clsZeroRep)))))
-        (trans
-          Real
-          (class (rSqrtNN _ zeroNN))
-          (class zeroRep)
-          _
-          (cong RSeq (λw. Real) (λw. class w) _ _ rSqrtZeroSeq)
-          clsZeroRep)))
+            (reqOfClassEq (trans _ _ _ _ (nnRepEq _ d) (sym _ _ _ clsZeroRep)))))
+        (trans Real _ _ _ (cong RSeq (λw. Real) (λw. class w) _ _ rSqrtZeroSeq) clsZeroRep)))
     w

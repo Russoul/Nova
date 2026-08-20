@@ -68,7 +68,7 @@ def rBoundSym : (m n : ℕ) → rBound m n ≡ rBound n m
 -- and zero is bounded by the (nonnegative) rBound
 def reqOfPointwise : {x y : El RSeq} → ((n : ℕ) → seqOf x n ≡ seqOf y n) → Prf (REq x y)
   using (real.REq.unfold) ≔
-  λx. λy. λe. reqOf x y (λn. bndSubEq _ _ _ (leQZeroBound n n) (e n))
+  λx. λy. λe. reqOf _ _ (λn. bndSubEq _ _ _ (leQZeroBound n n) (e n))
 
 def reqRefl : {x : El RSeq} → Prf (REq x x) using (real.REq.unfold) ≔ λx. reqOfPointwise (λn. ⋆)
 
@@ -87,8 +87,8 @@ def reqSym : {x y : El RSeq} → Prf (REq x y) → Prf (REq y x)
     real.rBound.eq,
     realNeg.seqOf.eq) ≔
   λx. λy. λh. squash-elim h (u. reqOf
-    y
-    x
+    _
+    _
     (λn. bndSubSym (rBound n n) (seqOf x n) (seqOf y n) (u n)))
 
 -- classes are equal as soon as the representatives are close
@@ -160,8 +160,8 @@ def rNegWD : {x y : El RSeq} → Prf (REq x y) → Prf (REq (rNeg x) (rNeg y))
     realNeg.rNeg.eq,
     realNeg.seqOf.eq) ≔
   λx. λy. λh. squash-elim h (u. reqOf
-    (rNeg x)
-    (rNeg y)
+    _
+    _
     (λn. bndEq
       _
       (qNeg (seqOf x n) + qNeg (qNeg (seqOf y n)))

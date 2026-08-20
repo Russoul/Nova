@@ -108,7 +108,7 @@ def realSubZero : (u : El Real) → u - realZero ≡ u
   using (real.Real.unfold, real.realZero.eq, realAdd.+.eq, realGroup.-.eq, realNeg.realNeg.eq) ≔
   λu. trans
     _
-    (u - realZero)
+    _
     (u + realZero)
     _
     (cong Real (λw. Real) (λw. u + w) _ _ realNeg.realNegZero)

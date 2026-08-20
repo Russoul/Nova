@@ -51,7 +51,7 @@ def sgIntro : {G : 𝕌}
   using (IsSubgroup.eq, hasUnit.eq, closedOp.eq, closedInv.eq) ≔
   λG. λg. λN. λu. λo. λi. andIntro
     (hasUnit _ g N)
-    (closedOp _ g N ∧ closedInv _ g N)
+    _
     u
     (andIntro (closedOp _ g N) (closedInv _ g N) (⋆ o) (⋆ i))
 

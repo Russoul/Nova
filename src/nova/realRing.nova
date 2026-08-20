@@ -48,16 +48,16 @@ def realMulZeroR : {u : El Real} → u * realZero ≡ realZero
   using (rZero.eq, real.Real.unfold, real.realOfQ.eq, real.realZero.eq) ≔
   λu. quot-elim
     (p. trans
-      Real
-      (class p * realZero)
+      _
+      _
       (class (rMul p rZero))
-      realZero
+      _
       (realMulCls rZero)
       (cong RSeq (λw. Real) (λw. class w) (rMul p rZero) rZero rMulZeroR))
     u
 
 def realMulZeroL : {u : El Real} → realZero * u ≡ realZero ≔
-  λu. trans Real _ (u * realZero) realZero (realMulComm realZero u) realMulZeroR
+  λu. trans _ _ (u * realZero) _ (realMulComm realZero u) realMulZeroR
 
 -- ===== the deepening inequality =====
 -- multiplying a nonnegative by S c ≥ 1 only grows it
@@ -94,8 +94,8 @@ def mulOneAt : (x y : El Q) → x + qNeg y ≡ x * qOne + qNeg y ≔
 def rMulOneWD : (p : El RSeq) → Prf (REq (rMul p rOne) p)
   using (rOne.eq, realMul.mulSeq.eq, realMul.rMul.eq, realNeg.seqOf.eq) ≔
   λp. reqOf
-    (rMul p rOne)
-    p
+    _
+    _
     (λn. bndWeaken
       _
       _
@@ -110,13 +110,7 @@ def rMulOneWD : (p : El RSeq) → Prf (REq (rMul p rOne) p)
 def realMulOneR : (u : El Real) → u * realOne ≡ u
   using (rOne.eq, real.Real.unfold, real.realOfQ.eq, real.realOne.eq) ≔
   λu. quot-elim
-    (p. trans
-      Real
-      (class p * realOne)
-      (class (rMul p rOne))
-      (class p)
-      (realMulCls rOne)
-      (realEqOfREq _ _ (rMulOneWD p)))
+    (p. trans _ _ (class (rMul p rOne)) _ (realMulCls rOne) (realEqOfREq _ _ (rMulOneWD p)))
     u
 
 def realMulOneL : (u : El Real) → realOne * u ≡ u ≔
@@ -207,7 +201,7 @@ def closeStepGen : (f g : El (ℕ → Q))
   using (real.rBound.eq) ≔
   λf. λg. λK. λn. λN. λw. λh1. λh2. λh3. λhw. bndEqB
     (rBound n N + (qOfNat K * rBound N N + rBound N n))
-    (rBound n n + w)
+    _
     _
     (closeBoundEq (qInvNat n) hw)
     (bndVia _ _ _ _ _ h1 (bndVia _ _ _ _ _ h2 h3))
@@ -216,8 +210,8 @@ def reqOfClose : {u v : El RSeq}
   (K : ℕ)
   → ((n : ℕ) → El (Bnd (qOfNat K * rBound n n) (seqOf u n + qNeg (seqOf v n)))) → Prf (REq u v) ≔
   λu. λv. λK. λh. reqOf
-    u
-    v
+    _
+    _
     (λn. bndOfArch
       (seqOf u n + qNeg (seqOf v n))
       (λl. closeStepGen
@@ -265,12 +259,7 @@ def bndDeep : (f : El (ℕ → Q))
       → El (qInvNat
         a ≤ qInvNat m) → El (qInvNat b ≤ qInvNat m) → El (Bnd (rBound m m) (f a + qNeg (f b)))
   using (real.rBound.eq) ≔
-  λf. λhf. λa. λb. λm. λha. λhb. bndWeaken
-    (rBound a b)
-    (rBound m m)
-    _
-    (leQAdd _ _ _ _ ha hb)
-    (hf a b)
+  λf. λhf. λa. λb. λm. λha. λhb. bndWeaken (rBound a b) _ _ (leQAdd _ _ _ _ ha hb) (hf a b)
 
 def distribStepGen : (f g h : El (ℕ → Q))
   (A B C m i t j k : ℕ)
@@ -343,7 +332,7 @@ def distribStepGen : (f g h : El (ℕ → Q))
                               (f i * (g t + h t) + qNeg (f j * g j + f k * h k))) ≔
   λf. λg. λh. λA. λB. λC. λm. λi. λt. λj. λk. λhfB. λhgB. λhhB. λhfR. λhgR. λhhR. λdi. λdt. λdj. λdk. λhA. λhB. λhC. bndEq
     (f i * g t + qNeg (f j * g j) + (f i * h t + qNeg (f k * h k)))
-    (f i * (g t + h t) + qNeg (f j * g j + f k * h k))
+    _
     (f i * g t + qNeg (f j * g j) + (f i * h t + qNeg (f k * h k))
         ≡⟨ qSubPair
           (f i * g t)

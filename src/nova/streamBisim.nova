@@ -106,5 +106,5 @@ def mapFuseEq : (a b c : 𝕌)
   (f : El a → El b)
   (g : El b → El c)
   (s : El (stream a))
-  → mapS _ _ g (mapS _ _ f s) ≡ mapS a c (λx. g (f x)) s ≔
+  → mapS _ _ g (mapS _ _ f s) ≡ mapS a _ (λx. g (f x)) s ≔
   λa. λb. λc. λf. λg. λs. obsEqReflect (mapFuseObsEq _ _ _ f g s)

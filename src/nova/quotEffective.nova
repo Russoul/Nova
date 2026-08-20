@@ -38,8 +38,8 @@ def classEqOfClosure : (A : 𝕌)
     (λx. λy. class x ≡ class y ∈ El (A / (u v. r u v)))
     (λx. λy. λh. classEqOfRel _ r _ _ h)
     (λx. ⋆)
-    (λx. λy. λz. λh1. λh2. trans (A / (v w. r v w)) (class x) (class y) (class z) h1 h2)
-    (λx. λy. λh. sym (A / (v z. r v z)) (class x) (class y) h)
+    (λx. λy. λz. λh1. λh2. trans _ _ _ _ h1 h2)
+    (λx. λy. λh. sym _ _ _ h)
 
 -- r⁺ a ⋅ respects r, so it factors through the class map. The
 -- well-definedness goal is an Ω-EQUATION between two closure
@@ -86,13 +86,7 @@ def effective : (A : 𝕌)
   (a b : El A)
   → Prf (class a ≡ class b ∈ El (A / (u v. r u v))) → Prf (rClosure _ r a b)
   using (prop.rClosure.eq, prop.rClosure.unfold, quotEffective.clsRel.eq) ≔
-  λA. λr. λa. λb. λh. transportP
-    (A / (v x. r v x))
-    (clsRel _ r a)
-    (class a)
-    (class b)
-    h
-    (rClosureRefl _ r a)
+  λA. λr. λa. λb. λh. transportP _ (clsRel _ r a) _ _ h (rClosureRefl _ r a)
 
 -- the characterization: quotient equality is exactly r⁺
 def classEqIff : (A : 𝕌)
@@ -167,6 +161,6 @@ def sgHop1 : class Z ≡ class (S Z) ∈ El SG using (quotEffective.SG.unfold) �
 def sgMid : class (S Z) ≡ class 2 ∈ El SG using (quotEffective.SG.unfold) ≔ ⋆
 
 def sgHop2 : class Z ≡ class 2 ∈ El SG using (quotEffective.SG.unfold, sgHop1, sgMid) ≔
-  trans SG (class Z) (class (S Z)) (class 2) sgHop1 sgMid
+  trans _ _ _ _ sgHop1 sgMid
 
 def sgBack : class (S Z) ≡ class Z ∈ El SG using (quotEffective.SG.unfold, sgHop1) ≔ ⋆

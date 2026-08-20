@@ -53,10 +53,10 @@ def recipLoPos : (k : ℕ) → sgnQ (recipLo k) ≡ sPos using (recipLo.eq) ≔ 
 
 def recipLoM : (k : ℕ) → recipLo k * recipM k ≡ qOne using (recipLo.eq, recipM.eq) ≔
   λk. trans
-    Q
+    _
     (qInvNat (dbl k) * qOfNat (S (dbl k)))
     (qOfNat (S (dbl k)) * qInvNat (dbl k))
-    qOne
+    _
     (qMulComm (qInvNat (dbl k)) (qOfNat (S (dbl k))))
     qMulInvNat
 
@@ -521,7 +521,7 @@ def recipWDGen : {p p' : El RSeq}
           (rBound (recipIdx k n) (recipIdx k n))
           (rBound n n)
           _
-          (leQAdd (qInvNat (recipIdx k n)) _ (qInvNat (recipIdx k n)) _ (deepR k n) (deepR k n))
+          (leQAdd _ _ _ _ (deepR k n) (deepR k n))
           (bndSubSym
             (rBound (recipIdx k n) (recipIdx k n))
             (seqOf p (recipIdx k n))
@@ -545,14 +545,7 @@ def recipPayloadConst : (x : El Real)
       _
       (posBoundRep _ d)
       (posBoundRep _ d')
-      (reqOfClassEq
-        (trans
-          Real
-          (class (posRep _ d))
-          _
-          (class (posRep _ d'))
-          (posRepEq _ d)
-          (sym Real (class (posRep _ d')) _ (posRepEq _ d')))))
+      (reqOfClassEq (trans _ _ _ _ (posRepEq _ d) (sym _ _ _ (posRepEq _ d')))))
 
 def realRecip : (x : El Real) → El (PosR x) → El Real using (PosR.eq) ≔
   λx. λw. brElim _ (recipFromPayload x) (recipPayloadConst x) w

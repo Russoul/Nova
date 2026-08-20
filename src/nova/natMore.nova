@@ -149,7 +149,7 @@ def natMin : ℕ → ℕ → ℕ ≔ λa. λb. a ∸ (a ∸ b)
 
 -- a sits under the max by construction: the witness is the difference
 def leMaxL : (a b : ℕ) → El (a ≤ natMax a b) using (natMore.natMax.eq, natOrder.≤.unfold) ≔
-  λa. λb. b ∸ a, eqToId (a + (b ∸ a)) (natMax a b) ⋆
+  λa. λb. b ∸ a, eqToId _ _ ⋆
 
 -- and so does b, once the two cases are settled
 -- a ≤ b : the max IS b
@@ -180,10 +180,10 @@ def leMaxR : (a b : ℕ) → El (b ≤ natMax a b)
     (leTotal a b)
 
 def natMaxSelf : (a : ℕ) → natMax a a ≡ a using (natMore.natMax.eq) ≔
-  λa. trans _ (natMax a a) _ _ (cong ℕ (λu. ℕ) (λw. a + w) (a ∸ a) Z monusSelf) (plusZeroId a)
+  λa. trans _ _ _ _ (cong ℕ (λu. ℕ) (λw. a + w) (a ∸ a) Z monusSelf) (plusZeroId a)
 
 def natMinSelf : (a : ℕ) → natMin a a ≡ a using (natMore.natMin.eq) ≔
-  λa. trans ℕ (natMin a a) (a ∸ Z) a (cong ℕ (λu. ℕ) (λw. a ∸ w) (a ∸ a) Z monusSelf) monusZeroR
+  λa. trans _ _ (a ∸ Z) _ (cong ℕ (λu. ℕ) (λw. a ∸ w) (a ∸ a) Z monusSelf) monusZeroR
 
 -- ===== exponentiation =====
 infixr 8 ^

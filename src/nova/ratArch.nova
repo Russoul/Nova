@@ -52,10 +52,7 @@ def intSgnOfNatNonNeg : {k : ℕ} → El (NonNegS (intSgn (intOfNat k)))
     ratHalf.nzPosInt,
     rationalOrder.NonNegS.unfold,
     rationalOrder.Sign.unfold) ≔
-  λk. ℕ-elim
-    (inj₁ (eqToId (intSgn (intOfNat Z)) sZero intSgnZero))
-    (j ih. inj₂ (eqToId (intSgn (intOfNat (S j))) sPos (intSgnPos j)))
-    k
+  λk. ℕ-elim (inj₁ (eqToId _ _ intSgnZero)) (j ih. inj₂ (eqToId _ _ (intSgnPos j))) k
 
 -- ...so a fraction with a natural numerator over a positive
 -- denominator is never negative: its sign is that of the natural a·(b+1)
@@ -206,7 +203,7 @@ def qPosDenView : (N : El Int) (d : El NZ) → El (PosDenView (qcls (mkRat N d))
     rationalQ.Q.eq,
     rationalQ.qcls.eq) ≔
   λN. λd. ⊎-elim
-    (b. N, b, eqToId (qcls (mkRat N (nzPos b))) (qcls (mkRat N (nzPos b))) ⋆)
+    (b. N, b, eqToId _ (qcls (mkRat N (nzPos b))) ⋆)
     (b. intNeg N, b, eqToId _ (qcls (mkRat N (nzNeg b))) (qNegDen N b))
     d
 
@@ -235,10 +232,10 @@ def sgnNegOverPos : {a b : ℕ} → sgnQ (qcls (mkRat (nzToInt (nzNeg a)) (nzPos
     rationalOrder.sgnQ.eq,
     rationalQ.qcls.eq) ≔
   λa. λb. trans
-    Sign
+    _
     (intSgn (nzToInt (nzNeg a) * nzToInt (nzPos b)))
     (intSgn (nzToInt (nzMul (nzNeg a) (nzPos b))))
-    sNeg
+    _
     (cong Int (λv. Sign) (λv. intSgn v) _ _ (sym _ _ _ (nzToIntMul (nzNeg a) (nzPos b))))
     intSgnNeg
 
@@ -421,10 +418,10 @@ def leQOfFalse : {x y : El Q} → Prf ⊥ → El (x ≤ y)
 -- named)
 def sgnQSubFlip : {x y : El Q} → sgnQ (x + qNeg y) ≡ sgnFlip (sgnQ (y + qNeg x)) ≔
   λx. λy. trans
-    Sign
+    _
     _
     (sgnQ (qNeg (y + qNeg x)))
-    (sgnFlip (sgnQ (y + qNeg x)))
+    _
     (cong Q (λw. Sign) (λw. sgnQ w) (x + qNeg y) (qNeg (y + qNeg x)) qSubNeg)
     sgnQNegFlip
 
@@ -501,8 +498,8 @@ def archContra : (a b : El Q)
     (a
       + qNeg
         b) ≡ sPos ≔ trans
-    Sign
-    (sgnQ (a + qNeg b))
+    _
+    _
     (sgnFlip (sgnQ (b + qNeg a)))
     _
     sgnQSubFlip
@@ -545,15 +542,15 @@ def qNegAddCancel : {b h : El Q} → qNeg (b + h) + h ≡ qNeg b using (rational
 def bndOfArch : {b : El Q} (d : El Q) → ((k : ℕ) → El (Bnd (b + qInvNat k) d)) → El (Bnd b d)
   using (ratBound.Bnd.unfold) ≔
   λb. λd. λh. leQOfArch
-    (qNeg b)
-    d
+    _
+    _
     (λk. transport
       Q
       (λw. w ≤ d + qInvNat k)
       (qNeg (b + qInvNat k) + qInvNat k)
       (qNeg b)
       qNegAddCancel
-      (leQPlusMono (qInvNat k) (h k .π₁))), leQOfArch d b (λk. h k .π₂)
+      (leQPlusMono (qInvNat k) (h k .π₁))), leQOfArch _ _ (λk. h k .π₂)
 
 -- ===== the four-leg sum a triangle chain produces =====
 -- ((a+b) + y) + (b+a) ≡ (a+a) + ((b+b) + y): the two outer indices

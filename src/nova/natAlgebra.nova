@@ -32,9 +32,7 @@ def natAlgInitial : (A : 𝕌) (a : El (IsNatAlgebra A)) → El (NatAlgHom _ _ n
     natAlgebra.NatAlgHom.unfold,
     natAlgebra.natAlg.eq,
     natAlgebra.natFold.eq) ≔
-  λA. λa. natFold
-    _
-    a, eqToId (natFold _ a Z) (a .π₁) ⋆, λx. eqToId (natFold _ a (S x)) (a .π₂ (natFold _ a x)) ⋆
+  λA. λa. natFold _ a, eqToId (natFold _ a Z) _ ⋆, λx. eqToId (natFold _ a (S x)) _ ⋆
 
 -- UNIQUENESS: any two homomorphisms out of ℕ agree on every point, by
 -- induction. Each case let-binds the homs' laws (reflected from Id)
@@ -76,4 +74,4 @@ def natAlgHomUniqueFun : (A : 𝕌)
   (f g : El (NatAlgHom _ _ natAlg a))
   → f .π₁ ≡ g .π₁
   using (natAlgebra.NatAlgHom.unfold) ≔
-  λA. λa. λf. λg. funext _ _ (f .π₁) (g .π₁) (natAlgHomUnique _ _ f g)
+  λA. λa. λf. λg. funext _ _ _ _ (natAlgHomUnique _ _ f g)

@@ -46,7 +46,7 @@ def natCaseElimEq : (C : 𝕌)
 def leOfMonusZero : {a b : ℕ} → (a ∸ b ≡ Z) → El (a ≤ b)
   using (natMore.monusZeroR, natOrder.≤.unfold) ≔
   λa. ℕ-elim
-    (λb. λh. leZero b)
+    (λb. λh. leZero _)
     (a' ih. λb. ℕ-elim
       (λh. 𝟘-elim (zNotS _ (sym _ (S a') Z h)))
       (b' rec. λh. leSucMono (ih b' (trans _ _ _ _ (sym _ _ _ (sucMonusSuc a' b')) h)))

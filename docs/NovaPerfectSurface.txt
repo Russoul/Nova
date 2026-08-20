@@ -542,6 +542,37 @@ byte-idempotent, canonical form re-established and enforced; the
 blanked corpus elaborates at ~9.1s (the price of 10,566 oracle
 solves in the plain pass, against ~7.8s spelled).
 
+THE SECOND BLANK WAVE (2026-08-20): a hand-blanked edit exposed
+three over-conservative gates, each now refined — +653 blanks:
+
+  * PAIRS WERE INELIGIBLE: an intro checked against an El-code
+    carries a PExpose payload; a TRIVIAL exposure (the code head
+    opened by computation alone) is kernel-rederivable and now
+    passes eligibility — licensed exposure still keeps its
+    skeleton. This also unblocked the type arguments whose
+    singleton trials stuck on the pair (the joint {type, pair} set
+    is what recovery needs, and the pair could not join it);
+  * MODE-FLIP IS A SPINE-ARGUMENT PHENOMENON: only a site inside a
+    spine argument (ElabSt.inArg, set transitively by the walk) can
+    flip from checking to inference when an enclosing position is
+    blanked. Def bodies, signature types, eliminator branches and
+    let bindings have a FIXED mode, and their verdicts now demand
+    recovery in the actual mode alone;
+  * BLANKS NOW SOLVE FROM THE EXPECTED TYPE in the plain walk (they
+    were throwaway holes in the sols0 pattern — a latent
+    trial/walk mismatch that both-modes verdicts had masked) — but
+    TIER-SPLIT: α- and comp-tier captures only. A licensed-join
+    capture carries the join's spelling — unfolded, possibly
+    stuck-eliminator-bearing — safe for implicit holes
+    (index-like, historically verified) but not for value-like
+    blanks with no verdict to catch the drift; join-tier blank
+    bindings are dropped and those blanks fall to the argument
+    sources, the corpus-proven path.
+
+The corpus now also blankets the equational spines that motivated
+the wave (`trans _ _ _ _ (sym _ _ _ …)` with pair endpoints
+blanked); ~9.8s plain elaboration, Σ-α-gated, byte-idempotent.
+
 THE IN-PLACE REWRITE (2026-08-20): src/nova is now the implicitized,
 CANONICAL-DISTILL-FORM corpus — 414 defs with {}-binders, 2,826
 argument occurrences elided, comments preserved, items

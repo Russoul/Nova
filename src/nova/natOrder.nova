@@ -21,12 +21,11 @@ def leOfEq : {a b : ℕ} → (a ≡ b) → El (a ≤ b) using (natOrder.≤.unfo
 def leZero : (a : ℕ) → El (Z ≤ a) using (natOrder.≤.unfold) ≔ λa. a, eqToId _ _ (zeroPlusId a)
 
 -- a + S Z unwinds to S a by computation alone
-def leSucSelf : (a : ℕ) → El (a ≤ S a) using (nat.+.eq, natOrder.≤.unfold) ≔
-  λa. S Z, eqToId (a + S Z) (S a) ⋆
+def leSucSelf : (a : ℕ) → El (a ≤ S a) using (nat.+.eq, natOrder.≤.unfold) ≔ λa. S Z, eqToId _ _ ⋆
 
 def leStep : {a b : ℕ} → El (a ≤ b) → El (a ≤ S b)
   using (+.eq, natOrder.≤.eq, id.Id.unfold, id.idToEq.eq, natOrder.≤.unfold) ≔
-  λa. λb. λle. S (le .π₁), eqToId (a + S (le .π₁)) (S b) (let h ≔ idToEq _ _ _ (le .π₂) in ⋆)
+  λa. λb. λle. S (le .π₁), eqToId _ _ (let h ≔ idToEq _ _ _ (le .π₂) in ⋆)
 
 -- ===== transitivity, antisymmetry =====
 def leTrans : (a b c : ℕ) → El (a ≤ b) → El (b ≤ c) → El (a ≤ c)
@@ -34,8 +33,8 @@ def leTrans : (a b c : ℕ) → El (a ≤ b) → El (b ≤ c) → El (a ≤ c)
   λa. λb. λc. λl1. λl2. l1 .π₁
     + l2 .π₁,
     eqToId
-      (a + (l1 .π₁ + l2 .π₁))
-      c
+      _
+      _
       (let h1 ≔ idToEq
         _
         _
@@ -99,8 +98,8 @@ def leAntisym : (a b : ℕ) → El (a ≤ b) → El (b ≤ a) → a ≡ b
 def leSucMono : {a b : ℕ} → El (a ≤ b) → El (S a ≤ S b) using (id.Id.unfold, natOrder.≤.unfold) ≔
   λa. λb. λle. le .π₁,
     eqToId
-      (S a + le .π₁)
-      (S b)
+      _
+      _
       (let h ≔ idToEq
         _
         _
@@ -127,8 +126,8 @@ def lePlusMonoR : {a : ℕ} (b c : ℕ) → El (a ≤ b) → El (a + c ≤ b + c
   using (id.Id.unfold, natOrder.≤.unfold) ≔
   λa. λb. λc. λle. le .π₁,
     eqToId
-      (a + c + le .π₁)
-      (b + c)
+      _
+      _
       (let h ≔ idToEq
         _
         _
@@ -152,8 +151,8 @@ def leMultMonoR : {a b : ℕ} (c : ℕ) → El (a ≤ b) → El (a * c ≤ b * c
   λa. λb. λc. λle. le .π₁
     * c,
     eqToId
-      (a * c + le .π₁ * c)
-      (b * c)
+      _
+      _
       (let h ≔ idToEq
         _
         _
@@ -168,9 +167,9 @@ def leMultMonoR : {a b : ℕ} (c : ℕ) → El (a ≤ b) → El (a * c ≤ b * c
 -- ===== totality: the DECISION, as data =====
 def leTotal : (a b : ℕ) → El (a ≤ b) ⊎ El (b ≤ a) ≔
   λa. ℕ-elim
-    (λb. inj₁ (leZero b))
+    (λb. inj₁ (leZero _))
     (j ih. λb. ℕ-elim
-      (inj₂ (leZero (S j)))
+      (inj₂ (leZero _))
       (i ih2. ⊎-elim (u. inj₁ (leSucMono u)) (u. inj₂ (leSucMono u)) (ih i))
       b)
     a

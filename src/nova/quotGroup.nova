@@ -74,7 +74,7 @@ def qcls : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) → El G → El (QG
 def qclsEq : {G : 𝕌}
   {g : El (IsGroup G)}
   {N : El G → Ω}
-  → Prf (IsSubgroup _ g N) → (a b : El G) → Prf (cosetRel _ g N a b) → qcls _ g N a ≡ qcls _ g N b
+  → Prf (IsSubgroup _ g N) → (a b : El G) → Prf (cosetRel _ g N a b) → qcls _ g N a ≡ qcls _ _ _ b
   using (qcls.eq) ≔
   λG. λg. λN. λs. λa. λb. λh. classEqOfRel _ (cosetRel _ g N) _ _ h
 
@@ -84,7 +84,7 @@ def qclsEffective : (G : 𝕌)
   → Prf (IsSubgroup
     _
     g
-    N) → (a b : El G) → Prf (qcls _ g N a ≡ qcls _ g N b) → Prf (cosetRel _ g N a b)
+    N) → (a b : El G) → Prf (qcls _ g N a ≡ qcls _ _ _ b) → Prf (cosetRel _ g N a b)
   using (qcls.eq) ≔
   λG. λg. λN. λs. effectiveAtEquiv
     _
@@ -209,7 +209,7 @@ def qMulWDInnerCls : (G : 𝕌)
     g
     N)
     → (a b b' : El G)
-      → Prf (cosetRel _ g N b b') → qcls _ g N (gop _ g a b) ≡ qcls _ g N (gop _ g a b')
+      → Prf (cosetRel _ g N b b') → qcls _ g N (gop _ g a b) ≡ qcls _ _ _ (gop _ g a b')
   using (qcls.eq) ≔
   λG. λg. λN. λnn. λa. λb. λb'. λh. classEqOfRel
     _
@@ -222,7 +222,7 @@ def qMulWDOuterCls : {G : 𝕌}
   {g : El (IsGroup G)}
   {N : El G → Ω}
   {a a' b : El G}
-  → Prf (cosetRel _ g N a a') → qcls _ g N (gop _ g a b) ≡ qcls _ g N (gop _ g a' b)
+  → Prf (cosetRel _ g N a a') → qcls _ g N (gop _ g a b) ≡ qcls _ _ _ (gop _ g a' b)
   using (qcls.eq) ≔
   λG. λg. λN. λa. λa'. λb. λh. classEqOfRel
     _
@@ -252,12 +252,12 @@ def qMulWDOuterElim : (G : 𝕌)
         x')
         → (v : El (QGroup _ g N))
           → quot-elim (w. El (QGroup _ g N))
-            (q. qcls _ g N (gop _ g x q))
-            v ≡ quot-elim (q. qcls _ g N (gop _ g x' q)) v
+            (q. qcls _ _ _ (gop _ g x q))
+            v ≡ quot-elim (q. qcls _ _ _ (gop _ g x' q)) v
   using (QGroup.unfold, qMulWDInnerCls) ≔
   λG. λg. λN. λnn. λx. λx'. λh. λv. quot-elim (w. quot-elim (z. El (QGroup _ g N))
-    (q. qcls _ g N (gop _ g x q))
-    w ≡ quot-elim (q. qcls _ g N (gop _ g x' q)) w)
+    (q. qcls _ _ _ (gop _ g x q))
+    w ≡ quot-elim (q. qcls _ _ _ (gop _ g x' q)) w)
     (c. qMulWDOuterCls h)
     v
 
@@ -267,7 +267,7 @@ def qMul : (G : 𝕌)
   (N : El G → Ω)
   → Prf (IsNormal _ g N) → El (QGroup _ g N) → El (QGroup _ g N) → El (QGroup _ g N)
   using (QGroup.unfold, qMulWDInnerCls, qMulWDOuterElim) ≔
-  λG. λg. λN. λnn. λu. λv. quot-elim (p. quot-elim (q. qcls _ g N (gop _ g p q)) v) u
+  λG. λg. λN. λnn. λu. λv. quot-elim (p. quot-elim (q. qcls _ _ _ (gop _ g p q)) v) u
 
 -- β on classes. Stated with the BARE `class`, not with qcls: a
 -- quot-elim substitutes `class a` for its method binder, so this is
@@ -345,7 +345,7 @@ def qInvWDCls : (G : 𝕌)
       g
       N)
       → (a a' : El G)
-        → Prf (cosetRel _ g N a a') → qcls _ g N (ginv _ g a) ≡ qcls _ g N (ginv _ g a')
+        → Prf (cosetRel _ g N a a') → qcls _ g N (ginv _ g a) ≡ qcls _ _ _ (ginv _ g a')
   using (qcls.eq) ≔
   λG. λg. λN. λs. λnn. λa. λa'. λh. classEqOfRel _ (cosetRel _ g N) _ _ (qInvWD s nn h)
 
@@ -354,7 +354,7 @@ def qInv : (G : 𝕌)
   (N : El G → Ω)
   → Prf (IsSubgroup _ g N) → Prf (IsNormal _ g N) → El (QGroup _ g N) → El (QGroup _ g N)
   using (QGroup.unfold, qInvWDCls) ≔
-  λG. λg. λN. λs. λnn. λu. quot-elim (a. qcls _ g N (ginv _ g a)) u
+  λG. λg. λN. λs. λnn. λu. quot-elim (a. qcls _ _ _ (ginv _ g a)) u
 
 def qInvCls : (G : 𝕌)
   (g : El (IsGroup G))
@@ -406,14 +406,14 @@ def qAssoc : (G : 𝕌)
     (a. quot-elim
       (b. quot-elim
         (c. trans
-          (QGroup _ g N)
-          (qMul G g N nn (qMul G g N nn (class a) (class b)) (class c))
+          _
+          _
           (class (gop _ g (gop _ g a b) c))
-          (qMul G g N nn (class a) (qMul G g N nn (class b) (class c)))
+          _
           ⋆
           (trans
             (QGroup _ g N)
-            (class (gop _ g (gop _ g a b) c))
+            _
             (class (gop _ g a (gop _ g b c)))
             (qMul G g N nn (class a) (qMul G g N nn (class b) (class c)))
             (cong G (λw. QGroup _ g N) (λw. class w) _ _ (gAssoc _ g a b c))
@@ -431,10 +431,10 @@ def qUnitL : (G : 𝕌)
   using (QGroup.unfold, qUnit.eq, qMulCls.rw) ≔
   λG. λg. λN. λnn. λu. quot-elim
     (a. trans
-      (QGroup _ g N)
-      (qMul G g N nn (qUnit _ g N) (class a))
+      _
+      _
       (class (gop _ g (ge g) a))
-      (class a)
+      _
       ⋆
       (cong G (λw. QGroup _ g N) (λw. class w) _ _ (gUnitL _ g a)))
     u
@@ -448,10 +448,10 @@ def qUnitR : (G : 𝕌)
   using (QGroup.unfold, qUnit.eq, qMulCls.rw) ≔
   λG. λg. λN. λnn. λu. quot-elim
     (a. trans
-      (QGroup _ g N)
-      (qMul G g N nn (class a) (qUnit _ g N))
+      _
+      _
       (class (gop _ g a (ge g)))
-      (class a)
+      _
       ⋆
       (cong G (λw. QGroup _ g N) (λw. class w) _ _ (gUnitR _ g a)))
     u
@@ -462,14 +462,14 @@ def qInvLaw : (G : 𝕌)
   (s : Prf (IsSubgroup _ g N))
   (nn : Prf (IsNormal _ g N))
   (u : El (QGroup _ g N))
-  → qMul _ _ _ nn (qInv _ _ _ s nn u) u ≡ qUnit _ g N
+  → qMul _ _ _ nn (qInv _ _ _ s nn u) u ≡ qUnit _ _ _
   using (QGroup.unfold, qUnit.eq, qInvCls.rw, qMulCls.rw) ≔
   λG. λg. λN. λs. λnn. λu. quot-elim
     (a. trans
-      (QGroup _ g N)
-      (qMul G g N nn (qInv G g N s nn (class a)) (class a))
+      _
+      _
       (class (gop _ g (ginv _ g a) a))
-      (qUnit _ g N)
+      _
       ⋆
       (cong G (λw. QGroup _ g N) (λw. class w) _ _ (gInvL _ g a)))
     u
@@ -480,14 +480,14 @@ def qInvLawR : (G : 𝕌)
   (s : Prf (IsSubgroup _ g N))
   (nn : Prf (IsNormal _ g N))
   (u : El (QGroup _ g N))
-  → qMul _ _ _ nn u (qInv _ _ _ s nn u) ≡ qUnit _ g N
+  → qMul _ _ _ nn u (qInv _ _ _ s nn u) ≡ qUnit _ _ _
   using (QGroup.unfold, qUnit.eq, qInvCls.rw, qMulCls.rw) ≔
   λG. λg. λN. λs. λnn. λu. quot-elim
     (a. trans
-      (QGroup _ g N)
-      (qMul G g N nn (class a) (qInv G g N s nn (class a)))
+      _
+      _
       (class (gop _ g a (ginv _ g a)))
-      (qUnit _ g N)
+      _
       ⋆
       (cong G (λw. QGroup _ g N) (λw. class w) _ _ (gInvR _ g a)))
     u
@@ -505,8 +505,8 @@ def qIsGroup : (G : 𝕌)
     nn,
     qUnit
       _
-      g
-      N,
+      _
+      _,
       (λx. λy. λz. eqToId
         _
         _
@@ -603,7 +603,7 @@ def qFactorEta : (G : 𝕌)
   (phi : El (QGroup _ g N) → El H)
   (c : (a a' : El G) → Prf (cosetRel _ g N a a') → phi (class a) ≡ phi (class a'))
   (u : El (QGroup _ g N))
-  → qFactor G g N (λa. phi (class a)) c u ≡ phi u ∈ El H
+  → qFactor G _ _ (λa. phi (class a)) c u ≡ phi u ∈ El H
   using (QGroup.unfold, qFactor.eq) ≔
   λG. λg. λN. λH. λphi. λc. λu. quot-elim (a. ⋆) u
 

@@ -237,6 +237,11 @@ record ElabSt where
   ||| the whole-store hint probe, rewrite normalization of the keys —
   ||| is skipped
   probing : Bool
+  ||| inside the elaboration of a SPINE ARGUMENT (transitively): only
+  ||| such sites can FLIP from checking to inference when an
+  ||| enclosing position is blanked, so only their blank verdicts
+  ||| must hold in both modes
+  inArg : Bool
   ||| surface names visible with TWO OR MORE distinct Σ targets — the
   ||| OVERLOADED names (docs/NovaPerfectSurface.txt, Phase 4:
   ||| operator overloading). A reference to one resolves
@@ -246,7 +251,7 @@ record ElabSt where
   dupNames : List String
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] "" "" [<] Nothing [] [] Nothing [] False [<] False [<] [<] False []
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] "" "" [<] Nothing [] [] Nothing [] False [<] False [<] [<] False False []
 
 ||| Is the surface term an INFERENCE form — its type known without an
 ||| expected type? Mirrors the mode inventory
@@ -319,6 +324,14 @@ probeM : ElabM a -> ElabM (Maybe a)
 probeM act = MkElabM $ \st => case runElabM act ({ probing := True } st) of
   Left _ => Right (st, Nothing)
   Right (_, x) => Right (st, Just x)
+
+||| Run an action as the elaboration of a SPINE ARGUMENT: the flag
+||| marks every site inside as mode-flippable (blank verdicts there
+||| must hold with and without the expected type), restored after.
+asArg : ElabM a -> ElabM a
+asArg act = MkElabM $ \st => case runElabM act ({ inArg := True } st) of
+  Left e => Left e
+  Right (st2, x) => Right ({ inArg := st.inArg } st2, x)
 
 
 Functor ElabM where
@@ -3918,7 +3931,7 @@ mutual
     pres <- traverse (\it => case it of
               SImpArg _ => pure Nothing
               _ => if sInferForm it
-                     then map Just (inferElem ctx env site it)
+                     then map Just (asArg (inferElem ctx env site it))
                      else pure Nothing) items
     let cands = nub cands0
     -- STAGE 1, the quick filter: match the pre-elaborated argument
@@ -4079,10 +4092,19 @@ mutual
     -- positions — their bindings are discarded by position)
     let patArgs = map (\(i, mt) => case mt of
                                      Nothing => holeE i
+                                     -- a written BLANK is a hole here too: its
+                                     -- binding from the expected type must
+                                     -- SURVIVE (throwaway holes are for written
+                                     -- arguments, whose bindings are discarded
+                                     -- by position)
+                                     Just (SBlank _) => holeE i
                                      Just _ => holeE (throwaway + i)) slots
+    let blankPoss = mapMaybe (\(pos, mt) => case mt of
+                       Just (SBlank _) => Just pos
+                       _ => Nothing) slots
     let sols0 = case mexp of
                   Nothing => []
-                  Just c => matchTy jn (substTy tailTy (prefixSub patArgs)) c
+                  Just c => matchTySplit jn blankPoss (substTy tailTy (prefixSub patArgs)) c
     -- phase 1: walk the written spine left to right, solving from
     -- inference-form arguments as they elaborate
     (sols, revArgs, revSks, pending, srcs) <- walk presIn jn ((st.impTrialOn || st.svSugarOn) && not st.probing) doms slots sols0 [] [] [] []
@@ -4176,6 +4198,21 @@ mutual
         Just s => s
         Nothing => fromMaybe [] (mTy 0 (jn pat) (jn g) [])
 
+    ||| The expected-type match, tier-aware per hole kind: a
+    ||| licensed-join capture carries the JOIN's spelling — unfolded,
+    ||| possibly stuck-eliminator-bearing — safe for IMPLICIT holes
+    ||| (index-like values, historically verified) but not for BLANKS
+    ||| (value-like, solved by the plain run with no verdict to catch
+    ||| drift). Join-tier bindings for blank holes are dropped; those
+    ||| blanks fall to the argument sources, the corpus-proven path.
+    matchTySplit : (jn : Ty -> Ty) -> List Nat -> Ty -> Ty -> Sols
+    matchTySplit jn blankPoss pat g = case mTy 0 pat g [] of
+      Just s => s
+      Nothing => case mTy 0 (compTy pat) (compTy g) [] of
+        Just s => s
+        Nothing => filter (\(k, _) => not (k `elem` blankPoss))
+                          (fromMaybe [] (mTy 0 (jn pat) (jn g) []))
+
     ||| Assign telescope positions to written spine items: an implicit
     ||| position takes an override if one is next, else a HOLE (no item
     ||| consumed); an explicit position takes the next non-override
@@ -4260,7 +4297,7 @@ mutual
           Nothing =>
             if hasHolesT dInst
               then do
-                (e', eTy, eSk) <- inferElem ctx env site surfE
+                (e', eTy, eSk) <- asArg (inferElem ctx env site surfE)
                 let sols2 = case mTy 0 dInst eTy sols of
                               Just s => s
                               Nothing => case mTy 0 (compTy dInst) (compTy eTy) sols of
@@ -4278,8 +4315,8 @@ mutual
                   -- DISCARDED inference probe — a probe failure just
                   -- means no source, which is faithful: the elided
                   -- form's recovery would face the same failure
-                  (e', eSk) <- checkElem ctx env site surfE dInst
-                  mty <- probeM (inferElem ctx env site surfE)
+                  (e', eSk) <- asArg (checkElem ctx env site surfE dInst)
+                  mty <- probeM (asArg (inferElem ctx env site surfE))
                   -- the source is admissible only when inference
                   -- commits the SAME core as checking did: blanking
                   -- an earlier position flips this argument to
@@ -4295,7 +4332,7 @@ mutual
                                 Nothing => srcs
                   walk pres' jn trialOn doms rest sols (e' :: revArgs) (eSk :: revSks) pending srcs'
                 else do
-                  (e', eSk) <- checkElem ctx env site surfE dInst
+                  (e', eSk) <- asArg (checkElem ctx env site surfE dInst)
                   walk pres' jn trialOn doms rest sols (e' :: revArgs) (eSk :: revSks) pending srcs
 
     ||| The hypothetical elided solve, replaying `walk`'s discipline
@@ -4334,7 +4371,7 @@ mutual
                  List (Nat, Maybe SElem) -> List Skel -> List Elem -> List (Nat, Ty) -> ElabM ()
     blankTrial jn rng imps doms tailTy m slots sks finalArgs sources = do
       st <- getSt
-      let final = iter (S (length cands)) []
+      let final = iter st.inArg (S (length cands)) []
       traverse_ (\p => modifySt $ { svBlank $= (:< (st.modPrefix, rng, itemIdx p)) }) final
      where
       ||| the current hole set: inserted implicits plus written blanks
@@ -4354,6 +4391,11 @@ mutual
       ||| (refl a x checks at Id a x y only through hyp.rw)
       payloadBare : Payload -> Bool
       payloadBare (PSwitch c) = stepFree c
+      -- a TRIVIAL exposure (El-code head opened by computation
+      -- alone) is re-derived by the kernel bare — it is licensed
+      -- exposure (a lemma-rewritten head) that must keep its
+      -- skeleton
+      payloadBare (PExpose _ c) = stepFree c
       payloadBare _ = False
 
       skelBare : Skel -> Bool
@@ -4379,7 +4421,8 @@ mutual
         let hypPat = map (\(i, _) => if i `elem` hs then holeE i else holeE (throwaway + i)) slots
             hyp0 = the Sols $ case mc of
                      Nothing => []
-                     Just c => matchTy jn (substTy tailTy (prefixSub hypPat)) c
+                     Just c => matchTySplit jn (filter (\hp => not (hp `elem` imps)) hs)
+                                 (substTy tailTy (prefixSub hypPat)) c
             srcsX = filter (\(sp, _) => not (sp `elem` hs)) sources
         in trialSolve jn doms hs srcsX finalArgs 0 m hyp0 [] False
 
@@ -4389,24 +4432,27 @@ mutual
                                   (Just v, Just w) => show v == show w
                                   _ => False) hs
 
-      ||| a blank must recover in BOTH modes: the spine cannot know
-      ||| whether an enclosing blank will flip it from checking to
-      ||| inference at re-elaboration, so the verdict may not lean on
-      ||| the expected type (nor be broken by its extra bindings)
-      ok : List Nat -> Bool
-      ok hs = okAt mexp hs && (case mexp of
-                                 Nothing => True
-                                 Just _ => okAt Nothing hs)
+      ||| a blank at a FLIPPABLE site — a spine argument, whose
+      ||| checking context an enclosing blank can take away at
+      ||| re-elaboration — must recover in BOTH modes, so its verdict
+      ||| may not lean on the expected type (nor be broken by its
+      ||| extra bindings). Everywhere else (def bodies, signature
+      ||| types, eliminator branches, let bindings) the mode is
+      ||| fixed and the actual mode alone decides.
+      ok : Bool -> List Nat -> Bool
+      ok flip hs = okAt mexp hs && (case (flip, mexp) of
+                                      (True, Just _) => okAt Nothing hs
+                                      _ => True)
 
-      step : List Nat -> Nat -> List Nat
-      step b p = if p `elem` b then b
-                 else if ok (holes0 ++ b ++ [p]) then b ++ [p] else b
+      step : Bool -> List Nat -> Nat -> List Nat
+      step flip b p = if p `elem` b then b
+                      else if ok flip (holes0 ++ b ++ [p]) then b ++ [p] else b
 
-      iter : Nat -> List Nat -> List Nat
-      iter Z b = b
-      iter (S fuel) b =
-        let b' = foldl step b cands in
-        if length b' == length b then b else iter fuel b'
+      iter : Bool -> Nat -> List Nat -> List Nat
+      iter flip Z b = b
+      iter flip (S fuel) b =
+        let b' = foldl (step flip) b cands in
+        if length b' == length b then b else iter flip fuel b'
 
     mapAt : Nat -> (Skel -> Skel) -> List Skel -> List Skel
     mapAt _ _ [] = []
@@ -4444,7 +4490,7 @@ mutual
         st <- getSt
         case preferPi st ctx fTy of
           Just (a, b, _) => do
-            (e', eSk) <- checkElem ctx env site it a
+            (e', eSk) <- asArg (checkElem ctx env site it a)
             continueApp (PiApp f' e', substTy b (Ext Id e'), Nd [] [fSk, eSk]) rest
           Nothing => throw "\{site}: cannot apply a term of non-Π type\{structuralHint ()}"
 

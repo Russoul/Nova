@@ -19,8 +19,8 @@ def cancelStep : {a b c d e f : ℕ}
   → (a + d ≡ b + c) → (c + f ≡ d + e) → a + f + (c + d) ≡ b + e + (c + d)
   using (nat.plusAssoc) ≔
   λa. λb. λc. λd. λe. λf. λh1. λh2. trans
-    ℕ
-    (a + f + (c + d))
+    _
+    _
     (a + d + (c + f))
     _
     swapMid
@@ -67,4 +67,4 @@ def intEffective : (p q : ℕ ⨯ ℕ) → Prf (class p ≡ class q ∈ El Int) 
 -- read back off the class equation, with no representative in sight
 def zeroRel : Prf (IntR (Z, Z) (S Z, S Z))
   using (integer.Int.unfold, integer.IntR.unfold, integer.zeroEq) ≔
-  intEffective (Z, Z) (S Z, S Z) ⋆
+  intEffective _ _ ⋆

@@ -103,7 +103,7 @@ def ratRSymm : (p q : El Rat) → Prf (RatR p q) → Prf (RatR q p)
     rationalQ.RatR.eq,
     rationalQ.RatR.unfold,
     rationalQ.dInt.eq) ≔
-  λp. λq. λh. sym Int (num p * dInt q) (num q * dInt p) h
+  λp. λq. λh. sym _ (num p * dInt q) (num q * dInt p) h
 
 -- multiply the goal through by the middle denominator, walk it across
 -- the two hypotheses, and cancel — the middle denominator is non-zero
@@ -122,8 +122,8 @@ def ratRTrans : (p q r : El Rat) → Prf (RatR p q) → Prf (RatR q r) → Prf (
     rationalQ.RatR.unfold,
     rationalQ.dInt.eq) ≔
   λp. λq. λr. λh1. λh2. intMulCancel
-    (num p * dInt r)
-    (num r * dInt p)
+    _
+    _
     _
     (trans
       Int
@@ -188,7 +188,7 @@ def numZeroOfRatZero : (p : El Rat) (h : Prf (class p ≡ qZero)) → num p ≡ 
     rationalQ.qcls.eq) ≔
   λp. λh. trans
     _
-    (num p)
+    _
     (num p * dInt ratZero)
     _
     (sym _ _ _ (intMulOneR (num p)))
@@ -202,7 +202,7 @@ def numZeroOfRatZero : (p : El Rat) (h : Prf (class p ≡ qZero)) → num p ≡ 
 
 def numZeroIff : (p : El Rat) → Prf ((class p ≡ qZero) ↔ (num p ≡ intZero))
   using (prop.↔.unfold, prop.∧.unfold, rationalQ.Q.unfold) ≔
-  λp. iffIntro (class p ≡ qZero) (numZeroOfRatZero p) (ratZeroOfNumZero p)
+  λp. iffIntro _ (numZeroOfRatZero p) (ratZeroOfNumZero p)
 
 -- ===== the image of NZQ is exactly the non-zero rationals =====
 def qOfNzqNonZero : (x : El NZQ) → Prf (¬ (qOfNzq x ≡ qZero))
@@ -216,16 +216,14 @@ def qOfNzqNonZero : (x : El NZQ) → Prf (¬ (qOfNzq x ≡ qZero))
     rationalQ.nzqToRat.eq,
     rationalQ.qOfNzq.eq,
     rationalQ.qcls.eq) ≔
-  λx. notIntro
-    (qOfNzq x ≡ qZero)
-    (λh. notApply _ (nzToIntNonZero (x .π₁)) (numZeroOfRatZero (nzqToRat x) h))
+  λx. notIntro _ (λh. notApply _ (nzToIntNonZero (x .π₁)) (numZeroOfRatZero (nzqToRat x) h))
 
 -- so "non-zero" and "of the form qOfNzq x" coincide — the classical
 -- description of ℚ's units, with the structural one
 def qNonZeroIffNzq : (u : El Q) → Prf (¬ (u ≡ qZero) ↔ ∥(x : El NZQ) ⨯ Prf (qOfNzq x ≡ u)∥)
   using (prop.↔.unfold, prop.∧.unfold) ≔
   λu. iffIntro
-    (¬ (u ≡ qZero))
+    _
     (λh. qNonZeroIsNzq h)
     (λh. squash-elim h (w. notIntro
       (u ≡ qZero)
@@ -246,9 +244,7 @@ def qOneNotZero : Prf (¬ (qOne ≡ qZero))
     rational.ratOne.eq,
     rationalQ.qOne.eq,
     rationalQ.qcls.eq) ≔
-  notIntro
-    (qOne ≡ qZero)
-    (λh. notApply (intOne ≡ intZero) (nzToIntNonZero nzOne) (numZeroOfRatZero ratOne h))
+  notIntro _ (λh. notApply (intOne ≡ intZero) (nzToIntNonZero nzOne) (numZeroOfRatZero ratOne h))
 
 -- INVERTIBLE ⟺ NON-ZERO. Forwards is the inverse theorem; backwards,
 -- a zero u would make 1 = u·v = 0·v = 0
@@ -260,7 +256,7 @@ def qInvertibleIffNonZero : (u : El Q) → Prf (¬ (u ≡ qZero) ↔ ∥(v : El 
     rational.Rat.unfold,
     rationalQ.Q.unfold) ≔
   λu. iffIntro
-    (¬ (u ≡ qZero))
+    _
     (λh. qInvExists h)
     (λh. squash-elim h (w. notIntro
       (u ≡ qZero)

@@ -31,7 +31,7 @@ def leQMaxL : (u v : El Q) → El (u ≤ qMax u v)
     rationalQ.qNeg.eq) ≔
   λu. λv. ⊎-elim (w. El (u ≤ ⊎-elim (nn. v) (hn. u) w))
     (nn. nn)
-    (hn. leQRefl u)
+    (hn. leQRefl _)
     (sgnCases (sgnQ (v + qNeg u)))
 
 -- v < u : the flipped difference is positive, and u − v IS the
@@ -50,7 +50,7 @@ def leQMaxR : (u v : El Q) → El (v ≤ qMax u v)
     rationalQ.+.eq,
     rationalQ.qNeg.eq) ≔
   λu. λv. ⊎-elim (w. El (v ≤ ⊎-elim (nn. v) (hn. u) w))
-    (nn. leQRefl v)
+    (nn. leQRefl _)
     (hn. inj₂ (eqToId
       (sgnQ (u + qNeg v))
       _
@@ -184,13 +184,7 @@ def qMinComm : (u v : El Q) → qMin u v ≡ qMin v u
 
 -- (−a) − (−c) ≡ c − a : the difference of negations is reversed
 def qNegDiff : (a c : El Q) → qNeg a + qNeg (qNeg c) ≡ c + qNeg a ≔
-  λa. λc. trans
-    _
-    _
-    _
-    (c + qNeg a)
-    (cong Q (λw. Q) (λw. qNeg a + w) _ _ (qNegNeg c))
-    (qAddComm (qNeg a) c)
+  λa. λc. trans _ _ _ _ (cong Q (λw. Q) (λw. qNeg a + w) _ _ (qNegNeg c)) (qAddComm (qNeg a) c)
 
 -- min is 1-Lipschitz because max is: the negations cancel
 def bndMinSub : (b a c a' c' : El Q)
@@ -205,7 +199,7 @@ def bndMinSub : (b a c a' c' : El Q)
     rationalQ.qNeg.eq) ≔
   λb. λa. λc. λa'. λc'. λh1. λh2. bndEq
     (qNeg (qMax (qNeg a) (qNeg a') + qNeg (qMax (qNeg c) (qNeg c'))))
-    (qMin a a' + qNeg (qMin c c'))
+    _
     (trans
       _
       _

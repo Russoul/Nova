@@ -63,8 +63,8 @@ def nZUnit : (n : El Int) → Prf (nZ n (ge intAddGroup)) ≔
 def nZOp : (n x y : El Int) → Prf (nZ n x) → Prf (nZ n y) → Prf (nZ n (gop _ intAddGroup x y))
   using (nZ.eq, nZfib.unfold) ≔
   λn. λx. λy. λhx. λhy. squash-elim hx (u. squash-elim hy (v. nZIntro
-    n
-    (gop _ intAddGroup x y)
+    _
+    _
     (u .π₁ + v .π₁)
     (n * (u .π₁ + v .π₁)
         ≡⟨ intMulDistribL n (u .π₁) (v .π₁) ⟩ n * u .π₁ + n * v .π₁
@@ -76,8 +76,8 @@ def nZOp : (n x y : El Int) → Prf (nZ n x) → Prf (nZ n y) → Prf (nZ n (gop
 def nZInv : (n x : El Int) → Prf (nZ n x) → Prf (nZ n (ginv _ intAddGroup x))
   using (nZ.eq, nZfib.unfold) ≔
   λn. λx. λhx. squash-elim hx (u. nZIntro
-    n
-    (ginv _ intAddGroup x)
+    _
+    _
     (intNeg (u .π₁))
     (n * intNeg (u .π₁)
         ≡⟨ intMulNegR n (u .π₁) ⟩ intNeg (n * u .π₁)
@@ -138,10 +138,10 @@ def intModMulZero : {n k : El Int} → intModCls (n * k) ≡ intModCls intZero �
 -- the instance in the smallest concrete case: n is zero in ℤ/nℤ
 def intModSelf : (n : El Int) → intModCls n ≡ intModCls intZero ∈ El (IntMod n) ≔
   λn. trans
-    (IntMod n)
+    _
     _
     (intModCls (n * intOne))
-    (intModCls intZero)
+    _
     (cong Int (λw. IntMod n) (λw. intModCls w) _ _ (sym _ _ _ (intMulOneR n)))
     intModMulZero
 
@@ -168,8 +168,8 @@ def nZScaleAlg : (n a k : El Int) → a * (n * k) ≡ n * (a * k) ≔
 def nZScale : (n a x : El Int) → Prf (nZ n x) → Prf (nZ n (rmul _ intCommRing a x))
   using (nZ.eq, nZfib.unfold) ≔
   λn. λa. λx. λhx. squash-elim hx (u. nZIntro
-    n
-    (rmul _ intCommRing a x)
+    _
+    _
     (a * u .π₁)
     (n * (a * u .π₁)
         ≡⟨ sym _ _ _ (nZScaleAlg n a (u .π₁)) ⟩ a * (n * u .π₁)

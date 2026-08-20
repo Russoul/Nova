@@ -24,16 +24,13 @@ def eqToId : {a : 𝕌} (x y : El a) → (x ≡ y) → El (Id _ x y) using (hyp.
 -- the bridge, packaged: Id and ≡ are the same proposition up to iff
 def idIffEq : (a : 𝕌) (x y : El a) → Prf (∥El (Id _ x y)∥ ↔ (x ≡ y))
   using (id.Id.unfold, prop.↔.unfold, prop.∧.unfold) ≔
-  λa. λx. λy. iffIntro
-    ∥El (Id _ x y)∥
-    (λh. squash-elim h (p. idToEq _ x y p))
-    (λh. ⋆ (eqToId _ _ h))
+  λa. λx. λy. iffIntro _ (λh. squash-elim h (p. idToEq _ x y p)) (λh. ⋆ (eqToId _ _ h))
 
 -- round trips compute: β at refl on one side, index congruence on the
 -- other
 def idToEqBeta : (a : 𝕌) (x : El a) → idToEq _ x x (refl a x) ≡ (⋆) using (id.Id.unfold) ≔ λa. λx. ⋆
 
-def eqToIdBeta : (a : 𝕌) (x : El a) → eqToId x x ⋆ ≡ refl a x ∈ El (Id _ x x)
+def eqToIdBeta : (a : 𝕌) (x : El a) → eqToId _ _ ⋆ ≡ refl a x ∈ El (Id _ x x)
   using (id.Id.unfold, id.eqToId.eq, id.refl.eq) ≔
   λa. λx. ⋆
 

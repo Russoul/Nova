@@ -44,7 +44,7 @@ def qInvQuarter : {j : ℕ}
     _
     _
     _
-    (qInvNat j)
+    _
     (cong
       Q
       (λw. Q)
@@ -233,7 +233,7 @@ def limClose : (x : El (ℕ → RSeq))
   λx. λh. λn. λj. bndEqB
     _
     _
-    (seqOf (x n) j + qNeg (limSeq x j))
+    _
     (trans
       _
       (rBound j (qtr j) + (rBound n (qtr j) + rBound (qtr j) (qtr j)))
@@ -270,7 +270,7 @@ def realLimClose : (x : El (ℕ → RSeq))
     Real
     (λv. v ≤ realOfQ (qInvNat n))
     (class (rAbs (rAdd (x n) (rNeg (rLim _ h)))))
-    (realDist (class (x n)) (realLim _ h))
+    _
     (sym
       Real
       (realDist (class (x n)) (realLim _ h))
@@ -302,12 +302,8 @@ def regSeqRSound : (x : El (ℕ → RSeq))
     Real
     (λv. v ≤ realOfQ (rBound m n))
     (class (rAbs (rAdd (x m) (rNeg (x n)))))
-    (realDist (class (x m)) (class (x n)))
-    (sym
-      Real
-      (realDist (class (x m)) (class (x n)))
-      (class (rAbs (rAdd (x m) (rNeg (x n)))))
-      (realDistCls (x m) (x n)))
+    _
+    (sym _ _ _ (realDistCls (x m) (x n)))
     (rleOfAbsSub
       (x n)
       (λj. absLeOfBnd
