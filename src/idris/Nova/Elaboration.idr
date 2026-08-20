@@ -177,8 +177,10 @@ record ElabSt where
   binderTypes : SnocList (String, Range, Ctx, NameEnv, String, Ty)
   ||| solved BLANK occurrences (docs/NovaPerfectSurface.txt, the
   ||| blank tier): the value the spine oracle recovered at a written
-  ||| `_`, with its instantiated domain — the LSP hover for blanks
-  blankVals : SnocList (String, Range, NameEnv, Elem, Ty)
+  ||| `_`, with its instantiated domain and the SOURCE that bound it
+  ||| (Nothing — the expected type; Just a — the type of argument a)
+  ||| — the LSP hover for blanks
+  blankVals : SnocList (String, Range, NameEnv, Elem, Ty, Maybe Elem)
   ||| dotted name of the module being elaborated; "" = the root file,
   ||| whose entries stay unqualified
   modPrefix : String
@@ -4115,7 +4117,7 @@ mutual
                   Just c => matchTySplit jn blankPoss (substTy tailTy (prefixSub patArgs)) c
     -- phase 1: walk the written spine left to right, solving from
     -- inference-form arguments as they elaborate
-    (sols, revArgs, revSks, pending, srcs) <- walk presIn jn ((st.impTrialOn || st.svSugarOn) && not st.probing) doms slots sols0 [] [] [] []
+    (sols, revArgs, revSks, pending, srcs, attrs) <- walk presIn jn ((st.impTrialOn || st.svSugarOn) && not st.probing) doms slots sols0 [] [] [] [] []
     -- resolve every inserted hole; unsolved is a structural error
     finalArgs <- traverse (\((pos, mt), arg) =>
                     if hasHolesE arg
@@ -4127,13 +4129,17 @@ mutual
                       else pure arg)
                   (zip slots (reverse revArgs))
     -- solved blanks feed the LSP hover: the recovered value at the
-    -- written `_`, ascribed with its instantiated domain
+    -- written `_`, ascribed with its instantiated domain and the
+    -- source that bound it — an argument's inferred type (by the
+    -- walk's attribution) or, failing that, the expected type
+    -- (sols0's bindings are the only other entry point)
     traverse_ (\(pos, mt) => case mt of
         Just (SBlank (Just brng)) =>
           case (getAt pos finalArgs, getAt pos doms) of
             (Just v, Just d) =>
+              let msrc = the (Maybe Elem) (lookup pos attrs >>= \apos => getAt apos finalArgs) in
               modifySt $ { blankVals $= (:< (st.modPrefix, brng, env, v,
-                             substTy d (prefixSub (take pos finalArgs)))) }
+                             substTy d (prefixSub (take pos finalArgs)), msrc)) }
             _ => pure ()
         _ => pure ()) slots
     -- pending switch conversions, at the FINAL instantiations
@@ -4276,21 +4282,21 @@ mutual
     ||| instantiation.
     walk : List (Maybe (Elem, Ty, Skel)) ->
            (jn : Ty -> Ty) -> (trialOn : Bool) -> List Ty -> List (Nat, Maybe SElem) -> Sols ->
-           List Elem -> List Skel -> List (Nat, Ty) -> List (Nat, Ty) ->
-           ElabM (Sols, List Elem, List Skel, List (Nat, Ty), List (Nat, Ty))
-    walk pres jn trialOn doms [] sols revArgs revSks pending srcs =
-      pure (sols, revArgs, revSks, pending, srcs)
-    walk pres jn trialOn doms ((pos, mt) :: rest) sols revArgs revSks pending srcs = case mt of
+           List Elem -> List Skel -> List (Nat, Ty) -> List (Nat, Ty) -> List (Nat, Nat) ->
+           ElabM (Sols, List Elem, List Skel, List (Nat, Ty), List (Nat, Ty), List (Nat, Nat))
+    walk pres jn trialOn doms [] sols revArgs revSks pending srcs attrs =
+      pure (sols, revArgs, revSks, pending, srcs, attrs)
+    walk pres jn trialOn doms ((pos, mt) :: rest) sols revArgs revSks pending srcs attrs = case mt of
       Nothing =>
         let arg = fromMaybe (holeE pos) (lookup pos sols) in
-        walk pres jn trialOn doms rest sols (arg :: revArgs) (Nd [] [] :: revSks) pending srcs
+        walk pres jn trialOn doms rest sols (arg :: revArgs) (Nd [] [] :: revSks) pending srcs attrs
       -- a written BLANK is a hole at its (explicit) position: same
       -- placeholder, same joint solve, same resolution — an inserted
       -- implicit that happens to be spelled `_`
       Just (SBlank _) =>
         let arg = fromMaybe (holeE pos) (lookup pos sols) in
         let pres' = the (List (Maybe (Elem, Ty, Skel))) (case pres of { (_ :: ps) => ps; [] => [] }) in
-        walk pres' jn trialOn doms rest sols (arg :: revArgs) (Nd [] [] :: revSks) pending srcs
+        walk pres' jn trialOn doms rest sols (arg :: revArgs) (Nd [] [] :: revSks) pending srcs attrs
       Just surfE => do
         let (pre, pres') = the (Maybe (Elem, Ty, Skel), List (Maybe (Elem, Ty, Skel))) $
                              case pres of
@@ -4311,7 +4317,9 @@ mutual
                                    Just s => s
                                    Nothing => fromMaybe sols (mTy 0 (jn dInst) (jn eTy) sols)
                           else sols
-            walk pres' jn trialOn doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending) srcs
+            let attrs2 = attrs ++ map (\(k, _) => (k, pos))
+                           (filter (\(k, _) => isNothing (lookup k sols)) sols2)
+            walk pres' jn trialOn doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending) srcs attrs2
           Nothing =>
             if hasHolesT dInst
               then do
@@ -4321,7 +4329,9 @@ mutual
                               Nothing => case mTy 0 (compTy dInst) (compTy eTy) sols of
                                 Just s => s
                                 Nothing => fromMaybe sols (mTy 0 (jn dInst) (jn eTy) sols)
-                walk pres' jn trialOn doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending) srcs
+                let attrs2 = attrs ++ map (\(k, _) => (k, pos))
+                               (filter (\(k, _) => isNothing (lookup k sols)) sols2)
+                walk pres' jn trialOn doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending) srcs attrs2
               else if trialOn && sInferForm surfE
                 then do
                   -- the trials need the argument's INFERRED type as a
@@ -4348,10 +4358,10 @@ mutual
                                                        then (pos, eTy) :: srcs
                                                        else srcs
                                 Nothing => srcs
-                  walk pres' jn trialOn doms rest sols (e' :: revArgs) (eSk :: revSks) pending srcs'
+                  walk pres' jn trialOn doms rest sols (e' :: revArgs) (eSk :: revSks) pending srcs' attrs
                 else do
                   (e', eSk) <- asArg (checkElem ctx env site surfE dInst)
-                  walk pres' jn trialOn doms rest sols (e' :: revArgs) (eSk :: revSks) pending srcs
+                  walk pres' jn trialOn doms rest sols (e' :: revArgs) (eSk :: revSks) pending srcs attrs
 
     ||| The hypothetical elided solve, replaying `walk`'s discipline
     ||| over the recorded sources: at an implicit position the entry
@@ -5383,10 +5393,14 @@ binderInfos tbl st =
   [ (r, "\{x} : \{prettyTyN tbl env (displayTy st ty)}")
   | (m, r, ctx, env, x, ty) <- toList st.binderTypes, m == "" ]
   ++
-  -- blanks ascribe in the language's own def shape: domain, then
-  -- the value the oracle recovered
-  [ (r, "_ : \{prettyTyN tbl env (displayTy st ty)} ≔ \{prettyElemN tbl env (displayElem st v)}")
-  | (m, r, env, v, ty) <- toList st.blankVals, m == "" ]
+  -- blanks ascribe in the language's own def shape — domain, then
+  -- the value the oracle recovered — with the binding source as a
+  -- comment line
+  [ (r, "_ : \{prettyTyN tbl env (displayTy st ty)} ≔ \{prettyElemN tbl env (displayElem st v)}"
+        ++ "\n-- " ++ (case msrc of
+              Nothing => "solved from the expected type"
+              Just sv => "solved from the type of \{prettyElemN tbl env (displayElem st sv)}"))
+  | (m, r, env, v, ty, msrc) <- toList st.blankVals, m == "" ]
 
 public export
 record ElabReport where
