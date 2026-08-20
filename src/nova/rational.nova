@@ -280,35 +280,23 @@ def ratAddTest2 : ratAdd third negThird ≡ mkRat intZero (nzNeg 8)
     rational.third.eq,
     threeCancel) ≔
   trans
-    Rat
-    (ratAdd third negThird)
+    _
+    _
     (mkRat (class (3, 3)) (nzNeg 8))
     _
     ⋆
-    (cong Int (λu. Rat) (λx. mkRat x (nzNeg 8)) (class (3, 3)) _ threeCancel)
+    (cong Int (λu. Rat) (λx. mkRat x (nzNeg 8)) _ _ threeCancel)
 
 -- ===== 0/1 is a unit =====
 -- componentwise first: the numerator collapses by the scaled-zero
 -- unit followed by intScaleOne, the denominator by nzMulOne
 def ratAddZeroLNum : {q : El Rat} → intScale (den q) intZero + intScale nzOne (num q) ≡ num q
   using (intScaleNOne) ≔
-  λq. trans
-    Int
-    (intScale (den q) intZero + intScale nzOne (num q))
-    (intScale nzOne (num q))
-    (num q)
-    intAddScaleZeroL
-    intScaleOne
+  λq. trans _ _ (intScale nzOne (num q)) _ intAddScaleZeroL intScaleOne
 
 def ratAddZeroRNum : {q : El Rat} → intScale nzOne (num q) + intScale (den q) intZero ≡ num q
   using (intScaleNOne) ≔
-  λq. trans
-    Int
-    (intScale nzOne (num q) + intScale (den q) intZero)
-    (intScale nzOne (num q))
-    (num q)
-    intAddScaleZeroR
-    intScaleOne
+  λq. trans _ _ (intScale nzOne (num q)) _ intAddScaleZeroR intScaleOne
 
 -- Σ-η, as a step of its own: el-sigma-eta is judgemental in the
 -- theory but the kernel's normal forms do not contract (t.π₁ , t.π₂),
@@ -347,10 +335,10 @@ def ratAddZeroL : {q : El Rat} → ratAdd ratZero q ≡ q
     rational.ratOfInt.eq,
     rational.ratZero.eq) ≔
   λq. trans
-    Rat
+    _
     _
     (q .π₁, q .π₂)
-    q
+    _
     (trans
       Rat
       (ratAdd ratZero q)
@@ -389,10 +377,10 @@ def ratAddZeroR : {q : El Rat} → ratAdd q ratZero ≡ q
     rational.ratOfInt.eq,
     rational.ratZero.eq) ≔
   λq. trans
-    Rat
+    _
     _
     (q .π₁, q .π₂)
-    q
+    _
     (trans
       Rat
       (ratAdd q ratZero)
@@ -418,10 +406,10 @@ def plusSwapRight : {x m k : ℕ} → x + m + k ≡ x + k + m
 -- product, then the swap above on the two summands
 def mulPlusComm : {m k : ℕ} → m * k + m + k ≡ k * m + k + m using (plusAssoc) ≔
   λm. λk. trans
-    ℕ
+    _
     _
     (k * m + m + k)
-    (k * m + k + m)
+    _
     (cong ℕ (λu. ℕ) (λw. w + m + k) _ _ (multComm k m))
     plusSwapRight
 
@@ -454,9 +442,9 @@ def ratAddComm : (p q : El Rat) → ratAdd p q ≡ ratAdd q p
     rational.ratAdd.eq) ≔
   λp. λq. trans
     _
-    (ratAdd p q)
+    _
     (mkRat (intScale (den p) (num q) + intScale (den q) (num p)) (nzMul (den p) (den q)))
-    (ratAdd q p)
+    _
     (cong
       Int
       (λu. Rat)

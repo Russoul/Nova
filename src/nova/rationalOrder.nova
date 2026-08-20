@@ -143,7 +143,7 @@ def intSgnMulSq : (z : El Int) (e : El NZ) → intSgn (z * (nzToInt e * nzToInt 
       _
       _
       _
-      (intSgn z)
+      _
       (cong Int (λv. Sign) (λv. intSgn (v * (nzToInt e * nzToInt e))) _ _ (sym _ _ _ (u .π₂)))
       (trans
         _
@@ -375,7 +375,7 @@ def intSgnNegFlip : (z : El Int) → intSgn (intNeg z) ≡ sgnFlip (intSgn z)
       _
       _
       _
-      (sgnFlip (intSgn z))
+      _
       (cong Int (λv. Sign) (λv. intSgn (intNeg v)) _ _ (sym _ _ _ (u .π₂)))
       (trans
         Sign
@@ -528,9 +528,9 @@ def sgnQNegFlip : {u : El Q} → sgnQ (qNeg u) ≡ sgnFlip (sgnQ u)
   λu. quot-elim
     (p. trans
       _
-      (sgnQ (qNeg (class p)))
       _
-      (sgnFlip (sgnQ (class p)))
+      _
+      _
       (trans
         Sign
         (sgnQ (qNeg (class p)))
@@ -587,11 +587,8 @@ def sgnCases : (s : El Sign) → El (NonNegS s) ⊎ El (Id _ s sNeg)
     sPos.eq,
     sZero.eq) ≔
   λs. ⊎-elim
-    (u. inj₁ (inj₁ (eqToId (inj₁ u) sZero ⋆)))
-    (v. ⊎-elim
-      (u. inj₁ (inj₂ (eqToId (inj₂ (inj₁ u)) sPos ⋆)))
-      (u. inj₂ (eqToId (inj₂ (inj₂ u)) sNeg ⋆))
-      v)
+    (u. inj₁ (inj₁ (eqToId _ _ ⋆)))
+    (v. ⊎-elim (u. inj₁ (inj₂ (eqToId _ _ ⋆))) (u. inj₂ (eqToId _ _ ⋆)) v)
     s
 
 -- totality: decide the difference's sign; a negative difference flips
@@ -744,7 +741,7 @@ def intSgnPosMul : {a b : El Int} → (intSgn a ≡ sPos) → (intSgn b ≡ sPos
     _
     _
     _
-    sPos
+    _
     (cong
       Int
       (λv. Sign)
@@ -811,10 +808,10 @@ def intSgnPosAdd : {a b : El Int} → (intSgn a ≡ sPos) → (intSgn b ≡ sPos
     ha in let vb ≔ intSgnPosView
     _
     hb in trans
-    Sign
+    _
     _
     (intSgn (nzToInt (nzPos (va .π₁)) + nzToInt (nzPos (vb .π₁))))
-    sPos
+    _
     (cong
       Int
       (λv. Sign)
@@ -857,7 +854,7 @@ def ratCrossPosL : {p : El Rat}
     _
     _
     _
-    sPos
+    _
     (cong
       Int
       (λv. Sign)
@@ -911,7 +908,7 @@ def ratCrossPosR : (p : El Rat)
     _
     _
     _
-    sPos
+    _
     (cong
       Int
       (λv. Sign)
@@ -979,7 +976,7 @@ def ratAddPos : {p q : El Rat} → (ratSgn p ≡ sPos) → (ratSgn q ≡ sPos) �
     rationalOrder.sZero.eq) ≔
   λp. λq. λhp. λhq. trans
     _
-    (ratSgn (ratAdd p q))
+    _
     (intSgn
       (intScale
         (den q)
@@ -1225,10 +1222,10 @@ def leQAntisym : {x y : El Q} → El (x ≤ y) → El (y ≤ x) → x ≡ y
       (y
         + qNeg
           x)) ≔ trans
-    Sign
+    _
     _
     (sgnQ (qNeg (y + qNeg x)))
-    (sgnFlip (sgnQ (y + qNeg x)))
+    _
     (cong Q (λw. Sign) (λw. sgnQ w) (x + qNeg y) (qNeg (y + qNeg x)) qSubNeg)
     sgnQNegFlip in ⊎-elim
     (h10. sym _ _ _ (qDiffZero (sgnQZeroView _ (idToEq _ _ _ h10))))
@@ -1308,10 +1305,10 @@ def ratMulPos : {p q : El Rat} → (ratSgn p ≡ sPos) → (ratSgn q ≡ sPos) �
     rational.Rat.unfold,
     rationalOrder.Sign.unfold) ≔
   λp. λq. λhp. λhq. trans
-    Sign
-    (ratSgn (ratMul p q))
+    _
+    _
     (intSgn (num p * nzToInt (den p) * (num q * nzToInt (den q))))
-    sPos
+    _
     (cong
       Int
       (λv. Sign)

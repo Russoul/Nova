@@ -54,7 +54,7 @@ def qMulIdxNum : {c m : ℕ} → intOfNat (S c) * intOne * nzToInt (nzPos m) ≡
   using (ratHalf.nzPosInt) ≔
   λc. λm. trans
     _
-    (intOfNat (S c) * intOne * nzToInt (nzPos m))
+    _
     (intOfNat (S c) * intOfNat (S m))
     _
     (cong Int (λv. Int) (λv. v * nzToInt (nzPos m)) _ _ (intMulOneR (intOfNat (S c))))
@@ -109,7 +109,7 @@ def qMulIdxRel : (c m : ℕ)
     Int
     (intOfNat (S c) * intOne * nzToInt (nzPos m))
     (intOfNat (S c * S m))
-    (intOne * nzToInt (nzMul nzOne (nzPos (mulIdx c m))))
+    _
     qMulIdxNum
     (sym _ _ _ (qMulIdxDen c m))
 
@@ -127,9 +127,9 @@ def qMulInvIdx : {c m : ℕ} → qOfNat (S c) * qInvNat (mulIdx c m) ≡ qInvNat
     realMul.mulIdx.eq) ≔
   λc. λm. trans
     _
-    (qOfNat (S c) * qInvNat (mulIdx c m))
+    _
     (qcls (ratMul (mkRat (intOfNat (S c)) nzOne) (mkRat intOne (nzPos (mulIdx c m)))))
-    (qInvNat m)
+    _
     (qMulCls (mkRat (intOfNat (S c)) nzOne) (mkRat intOne (nzPos (mulIdx c m))))
     (clsEqOfRel _ _ (qMulIdxRel c m))
 
@@ -153,7 +153,7 @@ def qMulRBoundIdx : (c m n : ℕ) → qOfNat (S c) * rBound (mulIdx c m) (mulIdx
   using (rationalQ.+.eq, real.qInvNat.eq, real.rBound.eq, realMul.mulIdx.eq) ≔
   λc. λm. λn. trans
     _
-    (qOfNat (S c) * rBound (mulIdx c m) (mulIdx c n))
+    _
     (qOfNat (S c) * qInvNat (mulIdx c m) + qOfNat (S c) * qInvNat (mulIdx c n))
     _
     (qDistribL (qOfNat (S c)) (qInvNat (mulIdx c m)) (qInvNat (mulIdx c n)))
@@ -439,7 +439,7 @@ def qTailSum : {C A D : ℕ}
     _
     _
     _
-    (qOfNat (C + (A + A + D)) * t)
+    _
     (cong
       Q
       (λw. Q)
@@ -691,8 +691,8 @@ def rMulWDInner : (p : El RSeq) {q q' : El RSeq} → Prf (REq q q') → Prf (REq
     realMul.rMul.eq,
     realNeg.seqOf.eq) ≔
   λp. λq. λq'. λh. squash-elim h (u. reqOf
-    (rMul p q)
-    (rMul p q')
+    _
+    _
     (λn. bndOfArch (mulSeq p q n + qNeg (mulSeq p q' n)) (λk. rMulWDStep p _ _ u n k)))
 
 -- ===== the descent =====

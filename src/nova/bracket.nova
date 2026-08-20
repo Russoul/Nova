@@ -69,7 +69,7 @@ def brSurj : (a : 𝕌) (t : El (Br a)) → Prf ∥(x : El a) ⨯ br x ≡ t∥ 
 def brToSquash : (a : 𝕌) → El (Br a) → Prf ∥El a∥ using (Br.unfold) ≔ λa. λt. quot-elim (x. ⋆ x) t
 
 def brSquashEq : (a : 𝕌) → ∥El (Br a)∥ ≡ ∥El a∥ using (Br.unfold, br.eq, brToSquash.eq) ≔
-  λa. propExt ∥El a∥ (λh. squash-elim h (t. brToSquash a t)) (λh. squash-elim h (x. ⋆ (br x)))
+  λa. propExt _ (λh. squash-elim h (t. brToSquash a t)) (λh. squash-elim h (x. ⋆ (br x)))
 
 -- ---------------------------------------------------------------
 -- [-] is an idempotent monad on 𝕌: unit br, multiplication brJoin,
@@ -89,8 +89,7 @@ def brJoinUnit : (a : 𝕌) (t : El (Br a)) → brJoin (br t) ≡ t
   using (Br.unfold, br.eq, brJoin.eq, brElim.eq) ≔
   λa. λt. ⋆
 
-def brUnitJoin : (a : 𝕌) (s : El (Br (Br a))) → br (brJoin s) ≡ s ≔
-  λa. λs. brIsProp _ (br (brJoin s)) s
+def brUnitJoin : (a : 𝕌) (s : El (Br (Br a))) → br (brJoin s) ≡ s ≔ λa. λs. brIsProp _ _ _
 
 -- ---------------------------------------------------------------
 -- The bracket REFLECTS emptiness — by ordinary elimination.
@@ -121,7 +120,7 @@ def brDescrBeta : (a : 𝕌) (s : (x y : El a) → x ≡ y) (x : El a) → brDes
   λa. λs. λx. ⋆
 
 def brDescrEta : (a : 𝕌) (s : (x y : El a) → x ≡ y) (t : El (Br a)) → br (brDescr _ s t) ≡ t ≔
-  λa. λs. λt. brIsProp _ (br (brDescr _ s t)) t
+  λa. λs. λt. brIsProp _ _ _
 
 -- ---------------------------------------------------------------
 -- The payoff, in miniature: a truncated existential whose witness is
@@ -145,13 +144,7 @@ def fibCanon : (n : ℕ) (u : El (Fib n)) → u ≡ (n, refl ℕ n)
     (u .π₂) in sigmaEq2 ℕ (λm. Id _ m n) _ (n, refl ℕ n) h (idCanon (u .π₂) h)
 
 def fibIsProp : (n : ℕ) (u v : El (Fib n)) → u ≡ v using (Fib.unfold, id.Id.unfold, id.Id.eq) ≔
-  λn. λu. λv. trans
-    (Fib n)
-    _
-    (n, refl ℕ n)
-    _
-    (fibCanon _ u)
-    (sym (Fib n) _ (n, refl ℕ n) (fibCanon _ v))
+  λn. λu. λv. trans _ _ _ _ (fibCanon _ u) (sym _ _ _ (fibCanon _ v))
 
 def fibWitness : (n : ℕ) (t : El (Br (Fib n))) → ℕ using (Fib.unfold) ≔
   λn. λt. brDescr _ (fibIsProp n) t .π₁
@@ -196,7 +189,7 @@ def brPairOut : {a b : 𝕌} (p : El (Br a ⨯ Br b)) → El (Br (a ⨯ b)) ≔
     (p .π₁)
 
 def brProdIso1 : (a b : 𝕌) (t : El (Br (a ⨯ b))) → brPairOut (brPairIn t) ≡ t ≔
-  λa. λb. λt. brIsProp _ (brPairOut (brPairIn t)) t
+  λa. λb. λt. brIsProp _ _ _
 
 def brProdIso2 : (a b : 𝕌) (p : El (Br a ⨯ Br b)) → brPairIn (brPairOut p) ≡ p ≔
-  λa. λb. λp. brProdIsProp (brPairIn (brPairOut p)) p
+  λa. λb. λp. brProdIsProp _ _

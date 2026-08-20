@@ -60,7 +60,7 @@ def sucInj : (n m : ℕ) → (S n ≡ S m) → n ≡ m ≔ λn. λm. λh. ⋆
 -- cancels. Induction on the cancelled summand — each step peels one
 -- successor off both sides (n + S j ≜ S (n + j)) and hands it to sucInj
 def plusCancel : (n m k : ℕ) → (n + k ≡ m + k) → n ≡ m using (+.eq, nat.plusSucId) ≔
-  λn. λm. λk. ℕ-elim (λh. ⋆) (j ih. λh. ih (sucInj (n + j) (m + j) h)) k
+  λn. λm. λk. ℕ-elim (λh. ⋆) (j ih. λh. ih (sucInj _ _ h)) k
 
 def multZeroId : (n : ℕ) → n * Z ≡ Z using (nat.*.eq) ≔ λn. ⋆
 

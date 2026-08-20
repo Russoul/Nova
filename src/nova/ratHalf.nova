@@ -209,9 +209,9 @@ def qInvHalf : (n : ℕ) → qInvNat (dbl n) + qInvNat (dbl n) ≡ qInvNat n
     real.qInvNat.eq) ≔
   λn. trans
     _
-    (qInvNat (dbl n) + qInvNat (dbl n))
+    _
     (qcls (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
-    (qInvNat n)
+    _
     (qAddCls (unitRat (dbl n)) (unitRat (dbl n)))
     (clsEqOfRel _ _ (halfRel n))
 

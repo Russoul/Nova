@@ -49,25 +49,8 @@ def nzOfIntAt : {z : El Int}
   → ((e : El NZ) ⨯ Prf (nzToInt e ≡ z)) ⊎ Prf (z ≡ intZero)
   using (classPairEta, integer.Int.unfold) ≔
   λz. λp. λhz. λhab. ⊎-elim
-    (u. inj₁ (u .π₁,
-      trans
-        Int
-        _
-        (class (p .π₁, p .π₂))
-        _
-        (u .π₂)
-        (trans Int (class (p .π₁, p .π₂)) (class p) _ (classPairEta p) hz)))
-    (u. inj₂ (trans
-      Int
-      _
-      (class (p .π₁, p .π₂))
-      _
-      (sym
-        Int
-        (class (p .π₁, p .π₂))
-        _
-        (trans Int (class (p .π₁, p .π₂)) (class p) _ (classPairEta p) hz))
-      u))
+    (u. inj₁ (u .π₁, trans _ _ _ _ (u .π₂) (trans _ _ _ _ (classPairEta p) hz)))
+    (u. inj₂ (trans _ _ _ _ (sym _ _ _ (trans _ _ _ _ (classPairEta p) hz)) u))
     (nzOfPairD _ _ hab)
 
 def nzOfInt : (z : El Int) → ((e : El NZ) ⨯ Prf (nzToInt e ≡ z)) ⊎ Prf (z ≡ intZero)
@@ -81,7 +64,7 @@ def nzOfInt : (z : El Int) → ((e : El NZ) ⨯ Prf (nzToInt e ≡ z)) ⊎ Prf (
 -- now the class equation hands IntR back directly.
 def intNeqOfNotRel : {p q : ℕ ⨯ ℕ} (k : Prf (IntR p q) → 𝟘) → Prf (¬ (class p ≡ class q ∈ El Int))
   using (integer.Int.unfold, prop.¬.unfold, prop.⊃.unfold, prop.⊥.unfold) ≔
-  λp. λq. λk. notIntro (class p ≡ class q ∈ El Int) (λh. ⋆ (k (intEffective _ _ h)))
+  λp. λq. λk. notIntro _ (λh. ⋆ (k (intEffective _ _ h)))
 
 -- IntR (S n , Z) (Z , Z) reduces to S n ≡ Z, and IntR (Z , S n) (Z , Z)
 -- to Z ≡ S n — both refuted by eqNat.nova's zNotS
@@ -112,7 +95,7 @@ def intNoZeroDiv : {x : El Int}
   λx. λy. λhxy. λhy. ⊎-elim
     (ex. ⊎-elim
       (ey. absurdP
-        (x ≡ intZero)
+        _
         (notApply
           _
           (nzToIntNonZero (nzMul (ex .π₁) (ey .π₁)))
@@ -123,7 +106,7 @@ def intNoZeroDiv : {x : El Int}
             _
             (trans _ _ _ _ (nzToIntMul (ex .π₁) (ey .π₁)) (intMulCong2 _ _ _ _ (ex .π₂) (ey .π₂)))
             hxy)))
-      (ey. absurdP (x ≡ intZero) (notApply _ hy ey))
+      (ey. absurdP _ (notApply _ hy ey))
       (nzOfInt y))
     (ex. ex)
     (nzOfInt x)

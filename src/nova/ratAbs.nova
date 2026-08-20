@@ -34,8 +34,8 @@ def sgnQNegOfNeg : {u : El Q} → El (Id _ (sgnQ u) sNeg) → sgnQ (qNeg u) ≡ 
     rationalOrder.sgnFlip.eq,
     rationalQ.Q.unfold) ≔
   λu. λhn. trans
-    Sign
-    (sgnQ (qNeg u))
+    _
+    _
     (sgnFlip (sgnQ u))
     _
     sgnQNegFlip
@@ -65,7 +65,7 @@ def bndAbs : (u : El Q) → El (Bnd (qAbs u) u)
       _
       _
       (bndZero _ (leQZeroOfNonNeg _ nn) .π₁)
-      (leQZeroOfNonNeg _ nn), leQRefl u)
+      (leQZeroOfNonNeg _ nn), leQRefl _)
     (hn. transport
       Q
       (λw. w ≤ u)
@@ -201,7 +201,7 @@ def bndAbsSub : (b u v : El Q) → El (Bnd b (u + qNeg v)) → El (Bnd b (qAbs u
 
 -- ===== a nonnegative rational is its own absolute value =====
 def bndSelfOfNonNeg : {u : El Q} → El (qZero ≤ u) → El (Bnd u u) using (ratBound.Bnd.unfold) ≔
-  λu. λnn. leQTrans _ _ _ (bndZero _ nn .π₁) nn, leQRefl u
+  λu. λnn. leQTrans _ _ _ (bndZero _ nn .π₁) nn, leQRefl _
 
 def qAbsOfNonNeg : {u : El Q} → El (qZero ≤ u) → qAbs u ≡ u using (ratBound.Bnd.unfold) ≔
   λu. λnn. leQAntisym (absLeOfBnd (bndSelfOfNonNeg nn)) (bndAbs u .π₂)
@@ -217,7 +217,7 @@ def qAbsZero : qAbs qZero ≡ qZero ≔ qAbsOfNonNeg (leQRefl qZero)
 -- case analysis then happens once, on the two factors, and never on
 -- the product.
 def qAbsEqOfNonNeg : {z : El Q} (w : El Q) → El (qZero ≤ w) → (w ≡ z) → qAbs z ≡ w ≔
-  λz. λw. λnn. λe. trans _ _ _ w (cong Q (λt. Q) (λt. qAbs t) _ _ (sym _ _ _ e)) (qAbsOfNonNeg nn)
+  λz. λw. λnn. λe. trans _ _ _ _ (cong Q (λt. Q) (λt. qAbs t) _ _ (sym _ _ _ e)) (qAbsOfNonNeg nn)
 
 def qAbsEqOfNonNegNeg : {z : El Q} (w : El Q) → El (qZero ≤ w) → (w ≡ qNeg z) → qAbs z ≡ w ≔
   λz. λw. λnn. λe. trans _ _ _ _ (sym _ _ _ (qAbsNeg z)) (qAbsEqOfNonNeg _ nn e)

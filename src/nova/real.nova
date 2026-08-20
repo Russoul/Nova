@@ -43,7 +43,7 @@ def qInvNatPos : (n : ℕ) → sgnQ (qInvNat n) ≡ sPos
     real.qInvNat.eq) ≔
   λn. trans
     _
-    (sgnQ (qInvNat n))
+    _
     (intSgn (nzToInt (nzMul nzOne (nzPos n))))
     _
     (cong Int (λv. Sign) (λv. intSgn v) _ _ (sym _ _ _ (nzToIntMul nzOne (nzPos n))))
@@ -54,7 +54,7 @@ def rBound : ℕ → ℕ → El Q using (rationalQ.Q.unfold) ≔ λm. λn. qInvN
 
 def rBoundPos : {m n : ℕ} → sgnQ (rBound m n) ≡ sPos
   using (rationalQ.+.eq, real.qInvNat.eq, real.rBound.eq) ≔
-  λm. λn. sgnQAddPos (qInvNat m) (qInvNat n) (qInvNatPos m) (qInvNatPos n)
+  λm. λn. sgnQAddPos _ _ (qInvNatPos m) (qInvNatPos n)
 
 def qNegZero : qNeg qZero ≡ qZero
   using (integer.intNeg.eq,

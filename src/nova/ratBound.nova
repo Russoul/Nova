@@ -120,7 +120,7 @@ def bndSubEq : (b u v : El Q) → El (qZero ≤ b) → (u ≡ v) → El (Bnd b (
 -- ===== reassociating a difference =====
 -- (u − w) ≡ (u − v) + (v − w): the standard three-term split, so a
 -- bound on a difference follows from bounds on the two legs
-def qSubVia : (u v w : El Q) → u + qNeg v + (v + qNeg w) ≡ u + qNeg w ≔ λu. λv. λw. qSubSplit w v u
+def qSubVia : (u v w : El Q) → u + qNeg v + (v + qNeg w) ≡ u + qNeg w ≔ λu. λv. λw. qSubSplit _ _ _
 
 -- the triangle inequality for differences, through a midpoint
 def bndVia : (a b u v w : El Q)
@@ -161,7 +161,7 @@ def qSubPlusCancelL : (x y w : El Q) → w + y + qNeg (w + x) ≡ y + qNeg x
 -- ===== nonnegativity from a positive sign =====
 -- u − 0 is u : the one rewriting step every 0 ≤ u proof needs
 def qSubZeroR : {u : El Q} → u + qNeg qZero ≡ u ≔
-  λu. trans _ _ _ u (cong Q (λv. Q) (λv. u + v) _ _ qNegZeroQ) (qAddZeroR u)
+  λu. trans _ _ _ _ (cong Q (λv. Q) (λv. u + v) _ _ qNegZeroQ) (qAddZeroR u)
 
 -- 0 ≤ u whenever u's sign is nonnegative
 def leQZeroOfNonNeg : (u : El Q) → El (NonNegS (sgnQ u)) → El (qZero ≤ u)

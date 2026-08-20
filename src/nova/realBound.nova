@@ -64,7 +64,7 @@ def leQBoundTwo : (n : ℕ) → El (rBound n Z ≤ qOfNat 2)
     (qOfNat (S Z) + qOfNat (S Z))
     (qOfNat 2)
     (qOfNatAdd (S Z) (S Z))
-    (leQAdd (qInvNat n) (qOfNat (S Z)) (qInvNat Z) (qOfNat (S Z)) (leQInvOne n) (leQInvOne Z))
+    (leQAdd _ _ _ _ (leQInvOne n) (leQInvOne Z))
 
 -- ===== a + (b − a) ≡ b =====
 def qAddSubCancelL : (a b : El Q) → a + (b + qNeg a) ≡ b using (rationalQ.Q.unfold) ≔

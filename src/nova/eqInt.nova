@@ -142,17 +142,17 @@ def normPairWD : (a b c d : ℕ) (h : Prf (a + d ≡ b + c)) → normPair a b �
     zeroPlusId) ≔
   λa. ℕ-elim
     (λb. λc. λd. λh. trans
-      (ℕ ⨯ ℕ)
-      (normPair Z b)
+      _
+      _
       (Z, b)
       _
       ⋆
       (trans
-        (ℕ ⨯ ℕ)
-        (Z, b)
         _
         _
-        (sym (ℕ ⨯ ℕ) _ (Z, b) (normPairLeftZ b c))
+        _
+        _
+        (sym _ _ _ (normPairLeftZ b c))
         (cong
           ℕ
           (λu. ℕ ⨯ ℕ)
@@ -162,17 +162,17 @@ def normPairWD : (a b c d : ℕ) (h : Prf (a + d ≡ b + c)) → normPair a b �
           (sym _ _ _ (trans _ _ _ _ (sym _ _ _ (zeroPlusId d)) h)))))
     (a' ih. λb. ℕ-elim
       (λc. λd. λh. trans
-        (ℕ ⨯ ℕ)
-        (normPair (S a') Z)
+        _
+        _
         (S a', Z)
         _
         ⋆
         (trans
-          (ℕ ⨯ ℕ)
-          (S a', Z)
           _
           _
-          (sym (ℕ ⨯ ℕ) _ (S a', Z) (normPairRightZ (S a') d))
+          _
+          _
+          (sym _ _ _ (normPairRightZ (S a') d))
           (cong ℕ (λu. ℕ ⨯ ℕ) (λx. normPair x d) _ _ (trans _ _ _ _ h (zeroPlusId c)))))
       (b' ihb. λc. λd. λh. ih
         b'
@@ -213,17 +213,11 @@ def pairEtaG : (A B : 𝕌) (p : El (A ⨯ B)) → (p .π₁, p .π₂) ≡ p us
 def pairEq2 : {A B : 𝕌} {x y : El (A ⨯ B)} → (x .π₁ ≡ y .π₁) → (x .π₂ ≡ y .π₂) → x ≡ y
   using (hyp.rw) ≔
   λA. λB. λx. λy. λh1. λh2. trans
-    (A ⨯ B)
     _
-    (y .π₁, y .π₂)
     _
-    (trans
-      (A ⨯ B)
-      _
-      (x .π₁, x .π₂)
-      (y .π₁, y .π₂)
-      (sym (A ⨯ B) (x .π₁, x .π₂) _ (pairEtaG _ _ x))
-      ⋆)
+    _
+    _
+    (trans (A ⨯ B) _ (x .π₁, x .π₂) (y .π₁, y .π₂) (sym _ _ _ (pairEtaG _ _ x)) ⋆)
     (pairEtaG _ _ y)
 
 -- ===== EqZ: equality that computes =====
@@ -237,11 +231,7 @@ def eqZRefl : (z : El Int) → Prf (EqZ z z)
     eqNat.EqN.eq,
     integer.Int.unfold,
     prop.∧.unfold) ≔
-  λz. andIntro
-    (EqN (intCanon z .π₁) (intCanon z .π₁))
-    (EqN (intCanon z .π₂) (intCanon z .π₂))
-    (eqNRefl (intCanon z .π₁))
-    (eqNRefl (intCanon z .π₂))
+  λz. andIntro _ _ (eqNRefl (intCanon z .π₁)) (eqNRefl (intCanon z .π₂))
 
 def eqZSound : {z1 z2 : El Int} → Prf (EqZ z1 z2) → z1 ≡ z2
   using (eqInt.EqZ.eq,
@@ -252,15 +242,15 @@ def eqZSound : {z1 z2 : El Int} → Prf (EqZ z1 z2) → z1 ≡ z2
     integer.Int.unfold,
     prop.∧.unfold) ≔
   λz1. λz2. λh. trans
-    Int
     _
-    (class (intCanon z1))
     _
-    (sym Int (class (intCanon z1)) _ (intCanonClass z1))
+    _
+    _
+    (sym _ _ _ (intCanonClass z1))
     (trans
       Int
-      (class (intCanon z1))
-      (class (intCanon z2))
+      _
+      _
       _
       (cong
         (ℕ ⨯ ℕ)
@@ -289,8 +279,8 @@ def eqZComplete : {z1 z2 : El Int} → (z1 ≡ z2) → Prf (EqZ z1 z2)
     integer.Int.unfold,
     prop.∧.unfold) ≔
   λz1. λz2. λh. andIntro
-    (EqN (intCanon z1 .π₁) (intCanon z2 .π₁))
-    (EqN (intCanon z1 .π₂) (intCanon z2 .π₂))
+    _
+    _
     (eqNComplete (cong Int (λu. ℕ) (λz. intCanon z .π₁) _ _ h))
     (eqNComplete (cong Int (λu. ℕ) (λz. intCanon z .π₂) _ _ h))
 

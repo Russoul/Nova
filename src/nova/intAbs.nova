@@ -43,7 +43,7 @@ def intAbsOfNat : {n : ℕ} → intAbs (intOfNat n) ≡ n
   using (eqInt.intCanon.eq, intAbs.intAbs.eq, intOrder.intOfNat.eq, integerNormalize.normPair.eq) ≔
   λn. trans
     _
-    (intAbs (intOfNat n))
+    _
     _
     _
     (cong (ℕ ⨯ ℕ) (λu. ℕ) (λp. p .π₁ + p .π₂) (normPair n Z) (n, Z) normPairZR)
@@ -54,14 +54,14 @@ def intAbsOfNat : {n : ℕ} → intAbs (intOfNat n) ≡ n
 def intAbsZeroInv : (z : El Int) → (intAbs z ≡ Z) → z ≡ intZero
   using (eqInt.intCanon.eq, intAbs.intAbs.eq, integer.Int.unfold, integer.intZero.eq) ≔
   λz. λh. trans
-    Int
     _
-    (class (intCanon z))
     _
-    (sym Int (class (intCanon z)) _ (intCanonClass z))
+    _
+    _
+    (sym _ _ _ (intCanonClass z))
     (trans
       Int
-      (class (intCanon z))
+      _
       (class (Z, Z))
       intZero
       (cong
@@ -86,7 +86,7 @@ def normPairSum : {a b : ℕ}
       _
       _
       _
-      (normPair Z b .π₁ + normPair Z b .π₂)
+      _
       (cong (ℕ ⨯ ℕ) (λu. ℕ) (λp. p .π₁ + p .π₂) (normPair b Z) (b, Z) normPairZR)
       (trans _ _ _ _ (plusZeroId b) (sym _ _ _ (zeroPlusId b))))
     (n ih. λb. ℕ-elim ⋆ (m ihb. ih m) b)
@@ -117,7 +117,7 @@ def intAbsNz : (f : El NZ) → intAbs (nzToInt f) ≡ S (nzMag f)
   λf. ⊎-elim
     (n. intAbsOfNat)
     (n. trans
-      ℕ
+      _
       (intAbs (intNeg (intOfNat (S n))))
       (intAbs (intOfNat (S n)))
       (S n)
@@ -294,9 +294,9 @@ def magPairWD : (r r' : ℕ ⨯ ℕ) (h : Prf (IntR r r')) → magPair r ≡ mag
   using (intAbs.magPair.eq, integer.IntR.eq, integer.IntR.unfold) ≔
   λr. λr'. λh. trans
     _
-    (magPair r)
     _
-    (magPair r')
+    _
+    _
     (cong ℕ (λu. ℕ) (λw. w + (r .π₂ ∸ r .π₁)) _ _ (monusEqOfSum h))
     (cong ℕ (λu. ℕ) (λw. r' .π₁ ∸ r' .π₂ + w) _ _ (monusEqOfSum (sym _ _ _ h)))
 
@@ -307,9 +307,9 @@ def magPairWDRep : (r r' : ℕ ⨯ ℕ) → (r .π₁ + r' .π₂ ≡ r .π₂ +
   using (intAbs.magPair.eq) ≔
   λr. λr'. λh. trans
     _
-    (magPair r)
     _
-    (magPair r')
+    _
+    _
     (cong ℕ (λu. ℕ) (λw. w + (r .π₂ ∸ r .π₁)) _ _ (monusEqOfSum h))
     (cong ℕ (λu. ℕ) (λw. r' .π₁ ∸ r' .π₂ + w) _ _ (monusEqOfSum (sym _ _ _ h)))
 

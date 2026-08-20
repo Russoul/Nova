@@ -116,7 +116,7 @@ def ↔ : Ω → Ω → Ω ≔ λp. λq. (p ⊃ q) ∧ (q ⊃ p)
 
 def iffIntro : (p : Ω) {q : Ω} → (Prf p → Prf q) → (Prf q → Prf p) → Prf (p ↔ q)
   using (prop.↔.eq, prop.↔.unfold, prop.∧.eq, prop.∧.unfold, prop.⊃.eq) ≔
-  λp. λq. λf. λg. andIntro (p ⊃ q) (q ⊃ p) (impIntro _ _ f) (impIntro _ _ g)
+  λp. λq. λf. λg. andIntro _ _ (impIntro _ _ f) (impIntro _ _ g)
 
 def iffLeft : (p q : Ω) → Prf (p ↔ q) → Prf p → Prf q
   using (prop.↔.eq, prop.↔.unfold, prop.∧.eq, prop.∧.unfold, prop.⊃.eq) ≔
@@ -137,15 +137,12 @@ def propExtOfIff : (p q : Ω) → Prf (p ↔ q) → p ≡ q ≔
 -- el-squash-e-prf were generalized).
 def curry : (p q c : Ω) → Prf (p ∧ q ⊃ c) → Prf (p ⊃ q ⊃ c) using (prop.⊃.eq, prop.⊃.unfold) ≔
   λp. λq. λc. λh. impIntro
-    p
+    _
     ∥Prf q → Prf c∥
     (λx. impIntro q c (λy. impApply _ _ h (andIntro _ _ x y)))
 
 def uncurry : (p q c : Ω) → Prf (p ⊃ q ⊃ c) → Prf (p ∧ q ⊃ c) using (prop.⊃.unfold) ≔
-  λp. λq. λc. λh. impIntro
-    (p ∧ q)
-    c
-    (λpq. impApply _ _ (impApply _ _ h (andFst _ _ pq)) (andSnd _ _ pq))
+  λp. λq. λc. λh. impIntro _ _ (λpq. impApply _ _ (impApply _ _ h (andFst _ _ pq)) (andSnd _ _ pq))
 
 -- Weak/intuitionistic excluded middle: ¬¬(p ∨ ¬p) holds constructively
 -- for every proposition, no case split needed — a genuine stress test

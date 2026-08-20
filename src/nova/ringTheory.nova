@@ -36,41 +36,29 @@ def rMulAssoc : {R : 𝕌}
   {x y z : El R}
   → rmul _ r (rmul _ r x y) z ≡ rmul _ r x (rmul _ r y z)
   using (ring.IsCommRing.unfold, rmul.eq) ≔
-  λR. λr. λx. λy. λz. idToEq
-    _
-    (rmul _ r (rmul _ r x y) z)
-    (rmul _ r x (rmul _ r y z))
-    (r .π₂ .π₂ .π₂ .π₁ x y z)
+  λR. λr. λx. λy. λz. idToEq _ _ _ (r .π₂ .π₂ .π₂ .π₁ x y z)
 
 def rMulComm : (R : 𝕌) (r : El (IsCommRing R)) (x y : El R) → rmul _ r x y ≡ rmul _ r y x
   using (ring.IsCommRing.unfold, rmul.eq) ≔
-  λR. λr. λx. λy. idToEq _ (rmul _ r x y) (rmul _ r y x) (r .π₂ .π₂ .π₂ .π₂ .π₁ x y)
+  λR. λr. λx. λy. idToEq _ _ _ (r .π₂ .π₂ .π₂ .π₂ .π₁ x y)
 
 def rMulOne : {R : 𝕌} {r : El (IsCommRing R)} {x : El R} → rmul _ r x (rone r) ≡ x
   using (ring.IsCommRing.unfold, rmul.eq, rone.eq) ≔
-  λR. λr. λx. idToEq _ (rmul _ r x (rone r)) _ (r .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ x)
+  λR. λr. λx. idToEq _ _ _ (r .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ x)
 
 def rAddComm : (R : 𝕌)
   (r : El (IsCommRing R))
   (x y : El R)
   → gop _ (raddGroup r) x y ≡ gop _ (raddGroup r) y x
   using (ring.IsCommRing.unfold, groupTheory.gop.eq, raddGroup.eq) ≔
-  λR. λr. λx. λy. idToEq
-    _
-    (gop _ (raddGroup r) x y)
-    (gop _ (raddGroup r) y x)
-    (r .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ x y)
+  λR. λr. λx. λy. idToEq _ _ _ (r .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ x y)
 
 def rDistribL : (R : 𝕌)
   (r : El (IsCommRing R))
   (x y z : El R)
   → rmul _ r x (gop _ (raddGroup r) y z) ≡ gop _ (raddGroup r) (rmul _ r x y) (rmul _ r x z)
   using (ring.IsCommRing.unfold, groupTheory.gop.eq, raddGroup.eq, rmul.eq) ≔
-  λR. λr. λx. λy. λz. idToEq
-    _
-    (rmul _ r x (gop _ (raddGroup r) y z))
-    (gop _ (raddGroup r) (rmul _ r x y) (rmul _ r x z))
-    (r .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ x y z)
+  λR. λr. λx. λy. λz. idToEq _ _ _ (r .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ x y z)
 
 -- ===== the derived interaction laws =====
 def rDistribR : (R : 𝕌)

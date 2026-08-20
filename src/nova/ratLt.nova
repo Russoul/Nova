@@ -19,7 +19,7 @@ def ltQOfSgn : (x y : El Q) → (sgnQ (y + qNeg x) ≡ sPos) → El (x < y)
 
 def sgnOfLtQ : {x y : El Q} → El (x < y) → sgnQ (y + qNeg x) ≡ sPos
   using (id.Id.unfold, ratLt.<.unfold, rationalQ.Q.unfold) ≔
-  λx. λy. λh. idToEq _ (sgnQ (y + qNeg x)) sPos h
+  λx. λy. λh. idToEq _ _ _ h
 
 -- strict implies non-strict, on the nose: a positive sign IS a
 -- nonnegative one
@@ -88,7 +88,7 @@ def sgnQAddPosNonNeg : {a b : El Q} → (sgnQ a ≡ sPos) → El (NonNegS (sgnQ 
       _
       _
       _
-      sPos
+      _
       (cong
         Q
         (λw. Sign)

@@ -38,7 +38,7 @@ def prfIntro : {r : Ω} → Prf r → El (prfC r) using (prfC.eq) ≔
 
 -- assuming r, everything implies r, so all the fibres agree
 def impConst : (r p q : Ω) → Prf r → p ⊃ r ≡ q ⊃ r ≔
-  λr. λp. λq. λh. propExt (q ⊃ r) (λu. impIntro q r (λv. h)) (λu. impIntro p r (λv. h))
+  λr. λp. λq. λh. propExt _ (λu. impIntro q r (λv. h)) (λu. impIntro p r (λv. h))
 
 -- effectivity, along  n ↦ ¬(n ≡ Z) ⊃ r
 def effMap : (r : Ω) → El (ℕ / (x y. r)) → Ω using (impConst) ≔
@@ -54,11 +54,5 @@ def prfElim : (r : Ω) → El (prfC r) → Prf r using (effMap.eq, prfC.eq) ≔
   λr. λw. impApply
     _
     _
-    (transportP
-      (ℕ / (x y. r))
-      (λv. effMap _ v)
-      (class Z)
-      (class (S Z))
-      (idToEq (ℕ / (x y. r)) (class Z) (class (S Z)) w)
-      effZero)
+    (transportP (ℕ / (x y. r)) (λv. effMap _ v) (class Z) _ (idToEq _ _ _ w) effZero)
     notSZ

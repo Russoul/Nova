@@ -60,7 +60,7 @@ def leRZeroInv : (k : ℕ) → Prf (realZero ≤ realOfQ (qInvNat k))
     realOrder.≤.eq,
     realOrder.≤.unfold,
     realOrder.RLeP.unfold) ≔
-  λk. leROfQ qZero (qInvNat k) (leQZeroInvNat k)
+  λk. leROfQ _ _ (leQZeroInvNat k)
 
 -- u ≤ u + 1/(k+1)
 def leRSelfInv : (u : El Real) (k : ℕ) → Prf (u ≤ u + realOfQ (qInvNat k))

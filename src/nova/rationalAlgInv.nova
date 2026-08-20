@@ -92,12 +92,7 @@ def invRepWDAt : {p p' : El Rat}
               (intMulComm (num p) (dInt p'))))
           (mulCongR (dInt p') _ _ (sym _ _ _ (ex .π₂)))))
       (ey. absurdP
-        (num
-          (invRepAt
-            p
-            (inj₁ ex))
-          * dInt
-            (invRepAt p' (inj₂ ey)) ≡ num (invRepAt p' (inj₂ ey)) * dInt (invRepAt p (inj₁ ex)))
+        _
         (notApply
           _
           (nzToIntNonZero (ex .π₁))
@@ -120,12 +115,7 @@ def invRepWDAt : {p p' : El Rat}
       v')
     (ex. ⊎-elim
       (ey. absurdP
-        (num
-          (invRepAt
-            p
-            (inj₂ ex))
-          * dInt
-            (invRepAt p' (inj₁ ey)) ≡ num (invRepAt p' (inj₁ ey)) * dInt (invRepAt p (inj₂ ex)))
+        _
         (notApply
           _
           (nzToIntNonZero (ey .π₁))
@@ -254,7 +244,7 @@ def invRepRel : {p : El Rat}
     rationalQ.ratMul.eq) ≔
   λp. λe. λhe. trans
     _
-    (num (ratMul p (mkRat (dInt p) e)) * dInt ratOne)
+    _
     (num p * dInt p)
     _
     (intMulOneR (num p * dInt p))
@@ -299,7 +289,7 @@ def invRepCorrectAt : {p : El Rat}
     rationalQ.ratMul.eq) ≔
   λp. λhnz. λv. ⊎-elim
     (ex. clsEqOfRel (ratMul p (mkRat (dInt p) (ex .π₁))) ratOne (invRepRel (ex .π₂)))
-    (ex. absurdP (class (ratMul p (invRepAt p (inj₂ ex))) ≡ qOne) (notApply _ hnz ex))
+    (ex. absurdP _ (notApply _ hnz ex))
     v
 
 def qMulInvR : {u : El Q} (h : Prf (¬ (u ≡ qZero))) → u * qInv u ≡ qOne

@@ -141,10 +141,10 @@ def realDistCls : (p q : El RSeq) → realDist (class p) (class q) ≡ class (rA
     real.RSeq.unfold,
     real.Regular.unfold) ≔
   λp. λq. trans
-    Real
+    _
     (realAbs (class p + realNeg (class q)))
-    (realAbs (class p + class (rNeg q)))
-    (class (rAbs (rAdd p (rNeg q))))
+    _
+    _
     (cong
       Real
       (λw. Real)
@@ -154,16 +154,10 @@ def realDistCls : (p q : El RSeq) → realDist (class p) (class q) ≡ class (rA
       realNegCls)
     (trans
       Real
-      (realAbs (class p + class (rNeg q)))
+      _
       (realAbs (class (rAdd p (rNeg q))))
       (class (rAbs (rAdd p (rNeg q))))
-      (cong
-        Real
-        (λw. Real)
-        (λw. realAbs w)
-        (class p + class (rNeg q))
-        (class (rAdd p (rNeg q)))
-        (realAddCls p (rNeg q)))
+      (cong Real (λw. Real) (λw. realAbs w) _ _ (realAddCls p (rNeg q)))
       realAbsCls)
 
 -- THE SECOND BRIDGE, for the element side. rleOf's argument type
@@ -196,15 +190,15 @@ def rleOfAbsSub : {p : El RSeq}
     realNeg.seqOf.eq,
     realOrder.RLeP.eq) ≔
   λp. λq. λb. λf. rleOf
-    (rAbs (rAdd p (rNeg q)))
-    ((λk. b), constReg)
+    _
+    _
     (λj. leQSubShift (qAbs (seqOf p (dbl j) + qNeg (seqOf q (dbl j)))) b (f j))
 
 def realDistSelf : (u : El Real) → realDist u u ≡ realZero
   using (real.Real.unfold, realAbs.realAbs.eq, realGroup.-.eq, realMetric.realDist.eq) ≔
   λu. trans
     _
-    (realDist u u)
+    _
     (realAbs realZero)
     _
     (cong Real (λw. Real) (λw. realAbs w) (u - u) realZero realSubSelf)
@@ -214,9 +208,9 @@ def realDistSym : (u v : El Real) → realDist u v ≡ realDist v u
   using (real.Real.unfold, realAbs.realAbs.eq, realGroup.-.eq, realMetric.realDist.eq) ≔
   λu. λv. trans
     _
-    (realDist u v)
+    _
     (realAbs (realNeg (u - v)))
-    (realDist v u)
+    _
     (sym _ _ _ (realAbsNeg (u - v)))
     (cong Real (λw. Real) (λw. realAbs w) (realNeg (u - v)) (v - u) realNegSub)
 

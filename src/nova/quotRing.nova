@@ -262,14 +262,14 @@ def qrMulAssoc : (R : 𝕌)
     (a. quot-elim
       (b. quot-elim
         (c. trans
-          (QRing _ r I)
-          (qrMul R r I id (qrMul R r I id (class a) (class b)) (class c))
+          _
+          _
           (class (rmul _ r (rmul _ r a b) c))
-          (qrMul R r I id (class a) (qrMul R r I id (class b) (class c)))
+          _
           ⋆
           (trans
             (QRing _ r I)
-            (class (rmul _ r (rmul _ r a b) c))
+            _
             (class (rmul _ r a (rmul _ r b c)))
             (qrMul R r I id (class a) (qrMul R r I id (class b) (class c)))
             (cong
@@ -294,14 +294,14 @@ def qrMulComm : (R : 𝕌)
   λR. λr. λI. λid. λu. λv. quot-elim
     (a. quot-elim
       (b. trans
-        (QRing _ r I)
-        (qrMul R r I id (class a) (class b))
+        _
+        _
         (class (rmul _ r a b))
-        (qrMul R r I id (class b) (class a))
+        _
         ⋆
         (trans
           (QRing _ r I)
-          (class (rmul _ r a b))
+          _
           (class (rmul _ r b a))
           (qrMul R r I id (class b) (class a))
           (cong R (λz. QRing _ r I) (λz. class z) _ _ (rMulComm _ r a b))
@@ -318,10 +318,10 @@ def qrMulOne : (R : 𝕌)
   using (QRing.eq, quotGroup.QGroup.unfold, qrOne.eq, qrMulCls.rw) ≔
   λR. λr. λI. λid. λu. quot-elim
     (a. trans
-      (QRing _ r I)
-      (qrMul R r I id (class a) qrOne)
+      _
+      _
       (class (rmul _ r a (rone r)))
-      (class a)
+      _
       ⋆
       (cong R (λz. QRing _ r I) (λz. class z) (rmul _ r a (rone r)) a rMulOne))
     u
@@ -336,14 +336,14 @@ def qrAddComm : {R : 𝕌}
   λR. λr. λI. λid. λu. λv. quot-elim
     (a. quot-elim
       (b. trans
-        (QRing _ r I)
-        (qrAdd id (class a) (class b))
+        _
+        _
         (class (gop _ (raddGroup r) a b))
-        (qrAdd id (class b) (class a))
+        _
         ⋆
         (trans
           (QRing _ r I)
-          (class (gop _ (raddGroup r) a b))
+          _
           (class (gop _ (raddGroup r) b a))
           (qrAdd id (class b) (class a))
           (cong R (λz. QRing _ r I) (λz. class z) _ _ (rAddComm _ r a b))
@@ -362,14 +362,14 @@ def qrDistribL : {R : 𝕌}
     (a. quot-elim
       (b. quot-elim
         (c. trans
-          (QRing _ r I)
-          (qrMul R r I id (class a) (qrAdd id (class b) (class c)))
+          _
+          _
           (class (rmul _ r a (gop _ (raddGroup r) b c)))
-          (qrAdd id (qrMul R r I id (class a) (class b)) (qrMul R r I id (class a) (class c)))
+          _
           ⋆
           (trans
             (QRing _ r I)
-            (class (rmul _ r a (gop _ (raddGroup r) b c)))
+            _
             (class (gop _ (raddGroup r) (rmul _ r a b) (rmul _ r a c)))
             (qrAdd id (qrMul R r I id (class a) (class b)) (qrMul R r I id (class a) (class c)))
             (cong R (λz. QRing _ r I) (λz. class z) _ _ (rDistribL _ r a b c))

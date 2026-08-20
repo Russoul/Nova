@@ -55,13 +55,7 @@ def leQBoundDblL : (m n : ℕ) → El (rBound (dbl m) n ≤ rBound m n)
     rationalQ.qNeg.eq,
     real.qInvNat.eq,
     real.rBound.eq) ≔
-  λm. λn. leQAdd
-    (qInvNat (dbl m))
-    (qInvNat m)
-    (qInvNat n)
-    (qInvNat n)
-    (leQInvDbl m)
-    (leQRefl (qInvNat n))
+  λm. λn. leQAdd _ _ _ _ (leQInvDbl m) (leQRefl (qInvNat n))
 
 -- the diagonal doubled bound IS the halved unit fraction, and it sits
 -- under the diagonal bound at the original index
@@ -128,7 +122,7 @@ def reqOfRAdd : (p q r : El RSeq)
     realAdd.rAdd.eq,
     realAdd.addSeq.eq,
     realNeg.seqOf.eq) ≔
-  λp. λq. λr. λf. reqOf (rAdd p q) _ f
+  λp. λq. λr. λf. reqOf _ _ f
 
 def rAddWDInner : (x : El RSeq) {y y' : El RSeq} → Prf (REq y y') → Prf (REq (rAdd x y) (rAdd x y'))
   using (id.Id.eq,
@@ -152,8 +146,8 @@ def rAddWDInner : (x : El RSeq) {y y' : El RSeq} → Prf (REq y y') → Prf (REq
     realAdd.rAdd.eq,
     realNeg.seqOf.eq) ≔
   λx. λy. λy'. λh. squash-elim h (u. reqOf
-    (rAdd x y)
-    (rAdd x y')
+    _
+    _
     (λn. bndEq
       _
       (seqOf x (dbl n) + seqOf y (dbl n) + qNeg (seqOf x (dbl n) + seqOf y' (dbl n)))
@@ -294,15 +288,11 @@ def realAddZeroR : (u : El Real) → u + realZero ≡ u
     (p. transportP
       Real
       (λv. v ≡ class p)
-      (class (rAdd p ((λn. qZero), constReg)))
-      (class p + realZero)
-      (sym
-        Real
-        (class p + realZero)
-        (class (rAdd p ((λn. qZero), constReg)))
-        (realAddCls p ((λn. qZero), constReg)))
+      _
+      _
+      (sym _ (class p + realZero) _ (realAddCls p ((λn. qZero), constReg)))
       (realEqOfREq
-        (rAdd p ((λn. qZero), constReg))
+        _
         _
         (reqOfRAdd
           p
@@ -376,8 +366,8 @@ def realAddAssoc : (u v w : El Real) → u + v + w ≡ u + (v + w)
     (x. quot-elim
       (y. quot-elim
         (z. realEqOfREq
-          (rAdd (rAdd x y) z)
-          (rAdd x (rAdd y z))
+          _
+          _
           (reqOf
             (rAdd (rAdd x y) z)
             (rAdd x (rAdd y z))

@@ -19,7 +19,7 @@ def eqNRefl : (n : ℕ) → Prf (EqN n n) using (eqNat.EqN.eq, eqNat.EqN.unfold,
 def eqNSound : {n m : ℕ} → Prf (EqN n m) → n ≡ m
   using (eqNat.EqN.eq, eqNat.EqN.unfold, prop.propext, prop.⊥.unfold) ≔
   λn. ℕ-elim
-    (λm. ℕ-elim (constP ∥𝟙∥ (EqN Z Z) ⋆) (j ih2. λh. reflectSquash (squash-elim h (x. 𝟘-elim x))) m)
+    (λm. ℕ-elim (constP ∥𝟙∥ _ ⋆) (j ih2. λh. reflectSquash (squash-elim h (x. 𝟘-elim x))) m)
     (n ih. λm. ℕ-elim (λh. reflectSquash (squash-elim h (x. 𝟘-elim x))) (j ih2. λh. ih j h) m)
     n
 

@@ -279,7 +279,7 @@ def invSecond : (a b : El Q) → (sgnQ a ≡ sPos) → qNeg a * qInv a * qInv b 
     _
     _
     _
-    (qNeg (qInv b))
+    _
     (cong
       Q
       (λw. Q)

@@ -57,15 +57,9 @@ def sigmaEq2 : (A : 𝕌)
   → (x .π₁ ≡ y .π₁) → (x .π₂ ≡ y .π₂) → x ≡ y
   using (sigma.eta, hyp.rw) ≔
   λA. λB. λx. λy. λh1. λh2. trans
-    ((a : A) ⨯ B a)
     _
-    (y .π₁, y .π₂)
     _
-    (trans
-      ((a : A) ⨯ B a)
-      _
-      (x .π₁, x .π₂)
-      (y .π₁, y .π₂)
-      (sym ((a : A) ⨯ B a) (x .π₁, x .π₂) _ (sigmaEtaG _ B x))
-      ⋆)
+    _
+    _
+    (trans ((a : A) ⨯ B a) _ (x .π₁, x .π₂) (y .π₁, y .π₂) (sym _ _ _ (sigmaEtaG _ B x)) ⋆)
     (sigmaEtaG _ B y)

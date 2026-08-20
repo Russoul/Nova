@@ -106,15 +106,15 @@ def wdOuterOfComm : (op : El RSeq → El RSeq → El RSeq)
       → (x x' c : El RSeq) → Prf (REq x x') → class (op x c) ≡ class (op x' c) ∈ El Real
   using (real.Real.unfold) ≔
   λop. λcomm. λinner. λx. λx'. λc. λh. trans
-    Real
-    (class (op x c))
-    (class (op c x))
-    (class (op x' c))
+    _
+    _
+    _
+    _
     (cong RSeq (λw. Real) (λw. class w) _ _ (comm x c))
     (trans
-      Real
-      (class (op c x))
-      (class (op c x'))
-      (class (op x' c))
+      _
+      _
+      _
+      _
       (inner c x x' h)
       (cong RSeq (λw. Real) (λw. class w) _ _ (sym _ _ _ (comm x' c))))

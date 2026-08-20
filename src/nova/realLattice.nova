@@ -34,8 +34,7 @@ def maxReg : {f g : El (ℕ → Q)} → El (Regular f) → El (Regular g) → El
     real.Regular.unfold,
     real.rBound.eq,
     realLattice.maxSeq.eq) ≔
-  λf. λg. λhf. λhg. bndReg
-    (λm. λn. bndMaxSub (rBound m n) _ _ _ _ (regBnd _ hf m n) (regBnd _ hg m n))
+  λf. λg. λhf. λhg. bndReg (λm. λn. bndMaxSub _ _ _ _ _ (regBnd _ hf m n) (regBnd _ hg m n))
 
 def rMax : El RSeq → El RSeq → El RSeq using (real.RSeq.unfold) ≔
   λx. λy. maxSeq (seqOf x) (seqOf y), maxReg (regOf x) (regOf y)
@@ -63,12 +62,12 @@ def rMaxWDInner : (x : El RSeq) {y y' : El RSeq} → Prf (REq y y') → Prf (REq
     realLattice.rMax.eq,
     realNeg.seqOf.eq) ≔
   λx. λy. λy'. λh. squash-elim h (u. reqOf
-    (rMax x y)
-    (rMax x y')
+    _
+    _
     (λn. bndMaxSub
-      (rBound n n)
-      (seqOf x n)
-      (seqOf x n)
+      _
+      _
+      _
       (seqOf y n)
       (seqOf y' n)
       (bndSubEq _ (seqOf x n) (seqOf x n) (leQZeroBound n n) ⋆)
@@ -147,8 +146,7 @@ def minReg : {f g : El (ℕ → Q)} → El (Regular f) → El (Regular g) → El
     real.Regular.unfold,
     real.rBound.eq,
     realLattice.minSeq.eq) ≔
-  λf. λg. λhf. λhg. bndReg
-    (λm. λn. bndMinSub (rBound m n) _ _ _ _ (regBnd _ hf m n) (regBnd _ hg m n))
+  λf. λg. λhf. λhg. bndReg (λm. λn. bndMinSub _ _ _ _ _ (regBnd _ hf m n) (regBnd _ hg m n))
 
 def rMin : El RSeq → El RSeq → El RSeq using (real.RSeq.unfold) ≔
   λx. λy. minSeq (seqOf x) (seqOf y), minReg (regOf x) (regOf y)
@@ -178,12 +176,12 @@ def rMinWDInner : (x : El RSeq) {y y' : El RSeq} → Prf (REq y y') → Prf (REq
     realLattice.rMin.eq,
     realNeg.seqOf.eq) ≔
   λx. λy. λy'. λh. squash-elim h (u. reqOf
-    (rMin x y)
-    (rMin x y')
+    _
+    _
     (λn. bndMinSub
-      (rBound n n)
-      (seqOf x n)
-      (seqOf x n)
+      _
+      _
+      _
       (seqOf y n)
       (seqOf y' n)
       (bndSubEq _ (seqOf x n) (seqOf x n) (leQZeroBound n n) ⋆)
@@ -265,8 +263,8 @@ def rleMaxL : {x y : El RSeq} → Prf (RLeP x (rMax x y))
     realNeg.seqOf.eq,
     realOrder.RLeP.unfold) ≔
   λx. λy. rleOf
-    x
-    (rMax x y)
+    _
+    _
     (λn. leQTrans
       (seqOf x n + qNeg (qMax (seqOf x n) (seqOf y n)))
       _
@@ -298,8 +296,8 @@ def rleMaxR : {x y : El RSeq} → Prf (RLeP y (rMax x y))
     realNeg.seqOf.eq,
     realOrder.RLeP.unfold) ≔
   λx. λy. rleOf
-    y
-    (rMax x y)
+    _
+    _
     (λn. leQTrans
       (seqOf y n + qNeg (qMax (seqOf x n) (seqOf y n)))
       _
@@ -332,8 +330,8 @@ def rMaxLub : {x y z : El RSeq} → Prf (RLeP x z) → Prf (RLeP y z) → Prf (R
     realNeg.seqOf.eq,
     realOrder.RLeP.unfold) ≔
   λx. λy. λz. λh1. λh2. squash-elim h1 (u. squash-elim h2 (v. rleOf
-    (rMax x y)
-    z
+    _
+    _
     (λn. leQSubShift
       (qMax (seqOf x n) (seqOf y n))
       _
@@ -363,8 +361,8 @@ def rleMinL : {x y : El RSeq} → Prf (RLeP (rMin x y) x)
     realNeg.seqOf.eq,
     realOrder.RLeP.unfold) ≔
   λx. λy. rleOf
-    (rMin x y)
-    x
+    _
+    _
     (λn. leQTrans
       (qMin (seqOf x n) (seqOf y n) + qNeg (seqOf x n))
       _
@@ -396,8 +394,8 @@ def rleMinR : {x y : El RSeq} → Prf (RLeP (rMin x y) y)
     realNeg.seqOf.eq,
     realOrder.RLeP.unfold) ≔
   λx. λy. rleOf
-    (rMin x y)
-    y
+    _
+    _
     (λn. leQTrans
       (qMin (seqOf x n) (seqOf y n) + qNeg (seqOf y n))
       _
@@ -429,8 +427,8 @@ def rMinGlb : {x y z : El RSeq} → Prf (RLeP z x) → Prf (RLeP z y) → Prf (R
     realNeg.seqOf.eq,
     realOrder.RLeP.unfold) ≔
   λx. λy. λz. λh1. λh2. squash-elim h1 (u. squash-elim h2 (v. rleOf
-    z
-    (rMin x y)
+    _
+    _
     (λn. leQSubShift
       _
       (qMin (seqOf x n) (seqOf y n))

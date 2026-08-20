@@ -100,8 +100,8 @@ def rleOfDouble : (x z : El RSeq)
   → ((j : ℕ) → El (seqOf x j + qNeg (seqOf z j) ≤ rBound j j + rBound j j)) → Prf (RLeP x z)
   using (realOrder.RLeP.unfold) ≔
   λx. λz. λd. rleOf
-    x
-    z
+    _
+    _
     (λn. leQOfArch
       (seqOf x n + qNeg (seqOf z n))
       (rBound n n)
@@ -123,15 +123,15 @@ def rleOfDouble : (x z : El RSeq)
 -- ===== reflexivity, transitivity, invariance =====
 def rleRefl : (x : El RSeq) → Prf (RLeP x x) using (realOrder.RLeP.unfold) ≔
   λx. rleOf
-    x
-    x
+    _
+    _
     (λn. transport Q (λw. w ≤ rBound n n) _ _ (sym _ _ _ (qAddNegR (seqOf x n))) (leQZeroBound n n))
 
 def rleTrans : (x y z : El RSeq) → Prf (RLeP x y) → Prf (RLeP y z) → Prf (RLeP x z)
   using (realOrder.RLeP.unfold) ≔
   λx. λy. λz. λh1. λh2. squash-elim h1 (u. squash-elim h2 (v. rleOfDouble
-    x
-    z
+    _
+    _
     (λj. leQVia _ (u j) (v j))))
 
 -- replacing the RIGHT side by a close one
@@ -155,8 +155,8 @@ def rleCongR : {x : El RSeq}
     realNeg.seqOf.eq,
     realOrder.RLeP.unfold) ≔
   λx. λy. λy'. λhe. λhl. squash-elim hl (u. squash-elim he (v. rleOfDouble
-    x
-    y'
+    _
+    _
     (λj. leQVia (seqOf y j) (u j) (v j .π₂))))
 
 -- ...and the LEFT
@@ -178,16 +178,16 @@ def rleCongL : (x : El RSeq) {x' y : El RSeq} → Prf (REq x x') → Prf (RLeP x
     realNeg.seqOf.eq,
     realOrder.RLeP.unfold) ≔
   λx. λx'. λy. λhe. λhl. squash-elim hl (u. squash-elim he (v. rleOfDouble
-    x'
-    y
+    _
+    _
     (λj. leQVia _ (bndSubSym (rBound j j) (seqOf x j) (seqOf x' j) (v j) .π₂) (u j))))
 
 -- ===== descent to ℝ =====
 def rleWDInner : (x y y' : El RSeq) (h : Prf (REq y y')) → RLeP x y ≡ RLeP x y' ≔
-  λx. λy. λy'. λh. propExt (RLeP x y') (λp. rleCongR _ h p) (λp. rleCongR _ (reqSym h) p)
+  λx. λy. λy'. λh. propExt _ (λp. rleCongR _ h p) (λp. rleCongR _ (reqSym h) p)
 
 def rleWDOuterCls : {x x' c : El RSeq} (h : Prf (REq x x')) → RLeP x c ≡ RLeP x' c ≔
-  λx. λx'. λc. λh. propExt (RLeP x' c) (λp. rleCongL _ h p) (λp. rleCongL _ (reqSym h) p)
+  λx. λx'. λc. λh. propExt _ (λp. rleCongL _ h p) (λp. rleCongL _ (reqSym h) p)
 
 def rleWDOuter : (x x' : El RSeq)
   (h : Prf (REq x x'))
@@ -242,8 +242,8 @@ def leRTrans : (u v w : El Real) → Prf (u ≤ v) → Prf (v ≤ w) → Prf (u 
 def rleAntisym : (x y : El RSeq) → Prf (RLeP x y) → Prf (RLeP y x) → Prf (REq x y)
   using (real.REq.unfold, realOrder.RLeP.unfold) ≔
   λx. λy. λh1. λh2. squash-elim h1 (u. squash-elim h2 (v. reqOf
-    x
-    y
+    _
+    _
     (λn. bndOfBothLe _ _ (u n) (v n))))
 
 def leRAntisym : {u v : El Real} → Prf (u ≤ v) → Prf (v ≤ u) → u ≡ v
@@ -283,8 +283,8 @@ def rleAddMono : {x y c : El RSeq} → Prf (RLeP x y) → Prf (RLeP (rAdd x c) (
     realNeg.seqOf.eq,
     realOrder.RLeP.unfold) ≔
   λx. λy. λc. λh. squash-elim h (u. rleOf
-    (rAdd x c)
-    (rAdd y c)
+    _
+    _
     (λn. transport
       Q
       (λw. w ≤ rBound n n)
@@ -397,7 +397,7 @@ def leRZeroOne : Prf (realZero ≤ realOne)
     realOrder.≤.eq,
     realOrder.≤.unfold,
     realOrder.RLeP.unfold) ≔
-  leROfQ qZero qOne leQZeroOne
+  leROfQ _ _ leQZeroOne
 
 -- ===== ...and reflects the order =====
 -- The converse direction needs the Archimedean principle: a constant
@@ -474,8 +474,8 @@ def rleNeg : {x y : El RSeq} → Prf (RLeP x y) → Prf (RLeP (rNeg y) (rNeg x))
     realNeg.seqOf.eq,
     realOrder.RLeP.unfold) ≔
   λx. λy. λh. squash-elim h (u. rleOf
-    (rNeg y)
-    (rNeg x)
+    _
+    _
     (λn. transport Q (λw. w ≤ rBound n n) _ _ (sym _ _ _ (qNegSub (seqOf y n) (seqOf x n))) (u n)))
 
 def leRNeg : (u v : El Real) → Prf (u ≤ v) → Prf (realNeg v ≤ realNeg u)

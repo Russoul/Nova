@@ -122,8 +122,8 @@ def reqTrans : {x : El RSeq}
     real.rBound.eq,
     realNeg.seqOf.eq) ≔
   λx. λy. λz. λhxy. λhyz. squash-elim hxy (u. squash-elim hyz (v. reqOf
-    x
-    z
+    _
+    _
     (λn. bndOfArch (seqOf x n + qNeg (seqOf z n)) (λk. reqStep x y z u v n k))))
 
 -- ...so REq-related representatives name the same real, and the
