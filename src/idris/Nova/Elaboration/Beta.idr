@@ -42,6 +42,15 @@ sigEntryIx = unsafePerformIO $ do
   writeIORef ix (the (SortedMap String SigEntry) empty)
   pure ix
 
+||| Clear the name index BETWEEN program runs in one process: the
+||| positive-only cache assumes a name's entry is stable, which holds
+||| within a run (Σ only extends) but not across runs over DIFFERENT
+||| programs — a rename reuses names with changed content, and a stale
+||| entry would leak the old spelling into the new run's conversions.
+export
+clearSigEntryIx : IO ()
+clearSigEntryIx = writeIORef sigEntryIx empty
+
 export
 cachedSigLookup : Sig -> String -> Maybe SigEntry
 cachedSigLookup sig x = unsafePerformIO $ do

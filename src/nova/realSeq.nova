@@ -12,8 +12,8 @@
 -- inner one by commutativity — the `rationalQ.qAddWDOuterCls` idiom,
 -- previously unavailable one level up (see realAdd.nova).
 
-import rationalQ (Q, qAdd, qNeg)
-import rationalOrder (LeQ)
+import rationalQ (Q, +, qNeg)
+import rationalOrder (≤)
 import ratBound (Bnd, bndIsProp)
 import real (rBound, Regular, RSeq, REq, Real)
 import realNeg (seqOf, regOf)
@@ -24,20 +24,15 @@ def regularIsProp : (f : El (ℕ → Q)) (p q : El (Regular f)) → p ≡ q
   using (ratBound.Bnd.unfold, rationalQ.Q.unfold, real.Regular.unfold) ≔
   λf. λp. λq. funextD
     ℕ
-    (λm. (n : ℕ)
-      → LeQ
-        (qNeg (rBound m n))
-        (qAdd (f m) (qNeg (f n))) ⨯ LeQ (qAdd (f m) (qNeg (f n))) (rBound m n))
+    (λm. (n : ℕ) → qNeg (rBound m n) ≤ f m + qNeg (f n) ⨯ f m + qNeg (f n) ≤ rBound m n)
     p
     q
     (λm. funextD
       ℕ
-      (λn. LeQ
-        (qNeg (rBound m n))
-        (qAdd (f m) (qNeg (f n))) ⨯ LeQ (qAdd (f m) (qNeg (f n))) (rBound m n))
+      (λn. qNeg (rBound m n) ≤ f m + qNeg (f n) ⨯ f m + qNeg (f n) ≤ rBound m n)
       (p m)
       (q m)
-      (λn. bndIsProp (rBound m n) (qAdd (f m) (qNeg (f n))) (p m n) (q m n)))
+      (λn. bndIsProp (rBound m n) (f m + qNeg (f n)) (p m n) (q m n)))
 
 -- The witness of y has to be READ at Regular (seqOf x), and the
 -- conversion Regular (seqOf y) ≐ Regular (seqOf x) is not one the
@@ -55,7 +50,7 @@ def rseqEqAt : {x y : El RSeq} → (seqOf x ≡ seqOf y) → x ≡ y
     rationalOrder.sZero.eq,
     rationalOrder.sgnQ.eq,
     rationalQ.Q.eq,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qNeg.eq,
     real.RSeq.unfold,
     real.Regular.eq,

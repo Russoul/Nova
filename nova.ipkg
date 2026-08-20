@@ -25,6 +25,7 @@ modules = Nova.Profile
         , Nova.Distill
         , Nova.Recovery
         , Nova.Implicitize
+        , Nova.Rename
         , Nova.Application
 
         , Solver.CommutativeMonoid

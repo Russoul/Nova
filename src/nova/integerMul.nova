@@ -12,7 +12,7 @@
 
 import nat (+, *, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusComm, plusAssoc, swapLeft, multZeroId, multSucId, zeroMult, sucMult, multComm, multDistrib, multAssoc)
 import integer (Int, intZero, intOne, intNeg)
-import integerAdd (intAdd, intAddComm, intAddAssoc)
+import integerAdd (+, intAddComm, intAddAssoc)
 import equality (trans, cong, sym)
 
 def distribBack : {n m k : ℕ} → n * m + n * k ≡ n * (m + k) using (multDistrib) ≔ λn. λm. λk. ⋆
@@ -219,7 +219,8 @@ def intMulWDOuter : (a b : ℕ ⨯ ℕ)
     zy
 
 -- ===== multiplication =====
-def intMul : El Int → El Int → El Int
+infixl 7 *
+def * : El Int → El Int → El Int
   using (distribBackR,
     intMulWDOuter,
     integer.Int.unfold,
@@ -231,12 +232,12 @@ def intMul : El Int → El Int → El Int
     x
 
 -- 2 · 3 = 6 and (−2) · 3 = −6
-def intMulTest1 : intMul (class (2, Z)) (class (3, Z)) ≡ class (6, Z)
-  using (integer.Int.unfold, integerMul.intMul.eq, nat.*.eq, nat.+.eq) ≔
+def intMulTest1 : class (2, Z) * class (3, Z) ≡ class (6, Z)
+  using (integer.Int.unfold, integerMul.*.eq, nat.*.eq, nat.+.eq) ≔
   ⋆
 
-def intMulTest2 : intMul (class (Z, 2)) (class (3, Z)) ≡ class (Z, 6)
-  using (integer.Int.unfold, integerMul.intMul.eq, nat.*.eq, nat.+.eq) ≔
+def intMulTest2 : class (Z, 2) * class (3, Z) ≡ class (Z, 6)
+  using (integer.Int.unfold, integerMul.*.eq, nat.*.eq, nat.+.eq) ≔
   ⋆
 
 -- ===== the ring laws =====
@@ -263,11 +264,11 @@ def classCong2 : {u1 u2 v1 v2 : ℕ}
 -- multiplication by 1 on the LEFT does not compute (nat.nova's * is
 -- recursive in its SECOND argument), so oneMult/zeroMult have to fire
 -- before Σ-η can close it; on the right it is all β (intMulOneR)
-def intMulOneL : (z : El Int) → intMul intOne z ≡ z
+def intMulOneL : (z : El Int) → intOne * z ≡ z
   using (classPairEta,
     integer.Int.unfold,
     integer.intOne.eq,
-    integerMul.intMul.eq,
+    integerMul.*.eq,
     oneMult,
     oneMult.rw,
     plusZeroId,
@@ -278,11 +279,11 @@ def intMulOneL : (z : El Int) → intMul intOne z ≡ z
     (p. trans Int (class (p .π₁, p .π₂)) (class (p .π₁, p .π₂)) (class p) ⋆ (classPairEta p))
     z
 
-def intMulOneR : (z : El Int) → intMul z intOne ≡ z
+def intMulOneR : (z : El Int) → z * intOne ≡ z
   using (classPairEta,
     integer.Int.unfold,
     integer.intOne.eq,
-    integerMul.intMul.eq,
+    integerMul.*.eq,
     multSucId,
     multSucId.rw,
     multZeroId,
@@ -293,11 +294,11 @@ def intMulOneR : (z : El Int) → intMul z intOne ≡ z
     zeroPlusId.rw) ≔
   λz. quot-elim (p. classPairEta p) z
 
-def intMulZeroL : (z : El Int) → intMul intZero z ≡ intZero
+def intMulZeroL : (z : El Int) → intZero * z ≡ intZero
   using (distribBack,
     distribBack.rw,
     hyp.rw,
-    intMul.eq,
+    integerMul.*.eq,
     integer.Int.eq,
     integer.Int.unfold,
     integer.intZero.eq,
@@ -305,8 +306,8 @@ def intMulZeroL : (z : El Int) → intMul intZero z ≡ intZero
     zeroMult.rw) ≔
   λz. quot-elim (p. ⋆) z
 
-def intMulZeroR : {z : El Int} → intMul z intZero ≡ intZero
-  using (integer.Int.unfold, integer.intZero.eq, integerMul.intMul.eq) ≔
+def intMulZeroR : {z : El Int} → z * intZero ≡ intZero
+  using (integer.Int.unfold, integer.intZero.eq, integerMul.*.eq) ≔
   λz. quot-elim (p. ⋆) z
 
 -- u₁v₁ + u₂v₂ ≡ v₁u₁ + v₂u₂: multComm is permutative, so it never
@@ -320,8 +321,8 @@ def mulComm2 : (u1 u2 v1 v2 : ℕ) → u1 * v1 + u2 * v2 ≡ v1 * u1 + v2 * u2 �
     (cong ℕ (λw. ℕ) (λw. w + u2 * v2) (u1 * v1) (v1 * u1) (multComm v1 u1))
     (cong ℕ (λw. ℕ) (λw. v1 * u1 + w) (u2 * v2) (v2 * u2) (multComm v2 u2))
 
-def intMulComm : (x y : El Int) → intMul x y ≡ intMul y x
-  using (integer.Int.unfold, integerMul.intMul.eq, plusAssoc) ≔
+def intMulComm : (x y : El Int) → x * y ≡ y * x
+  using (integer.Int.unfold, integerMul.*.eq, plusAssoc) ≔
   λx. λy. quot-elim
     (a. quot-elim
       (b. classCong2
@@ -336,8 +337,8 @@ def intMulComm : (x y : El Int) → intMul x y ≡ intMul y x
       y)
     x
 
-def intMulAssoc : (x y z : El Int) → intMul (intMul x y) z ≡ intMul x (intMul y z)
-  using (assocRep, integer.Int.unfold, integerMul.intMul.eq) ≔
+def intMulAssoc : (x y z : El Int) → x * y * z ≡ x * (y * z)
+  using (assocRep, integer.Int.unfold, integerMul.*.eq) ≔
   λx. λy. λz. quot-elim
     (a. quot-elim
       (b. quot-elim
@@ -348,12 +349,12 @@ def intMulAssoc : (x y z : El Int) → intMul (intMul x y) z ≡ intMul x (intMu
       y)
     x
 
-def intMulDistribL : (x y z : El Int) → intMul x (intAdd y z) ≡ intAdd (intMul x y) (intMul x z)
+def intMulDistribL : (x y z : El Int) → x * (y + z) ≡ x * y + x * z
   using (hyp.rw,
-    intMul.eq,
+    integerMul.*.eq,
     integer.Int.eq,
     integer.Int.unfold,
-    integerAdd.intAdd.eq,
+    integerAdd.+.eq,
     plusAssoc,
     plusAssoc.rw,
     sum4Distrib,
@@ -362,35 +363,29 @@ def intMulDistribL : (x y z : El Int) → intMul x (intAdd y z) ≡ intAdd (intM
 
 -- congruence in both arguments, for building chains: reflection makes
 -- the hypotheses judgemental, so each is one ⋆
-def intAddCong2 : (x y u v : El Int) → (x ≡ u) → (y ≡ v) → intAdd x y ≡ intAdd u v
+def intAddCong2 : (x y u v : El Int) → (x ≡ u) → (y ≡ v) → x + y ≡ u + v
   using (hyp.rw, integer.Int.unfold) ≔
   λx. λy. λu. λv. λh1. λh2. ⋆
 
-def intMulCong2 : (x y u v : El Int) → (x ≡ u) → (y ≡ v) → intMul x y ≡ intMul u v
+def intMulCong2 : (x y u v : El Int) → (x ≡ u) → (y ≡ v) → x * y ≡ u * v
   using (hyp.rw, integer.Int.unfold) ≔
   λx. λy. λu. λv. λh1. λh2. ⋆
 
 -- distributivity on the right, from the left law by commuting thrice
-def intMulDistribR : (x y z : El Int) → intMul (intAdd x y) z ≡ intAdd (intMul x z) (intMul y z) ≔
+def intMulDistribR : (x y z : El Int) → (x + y) * z ≡ x * z + y * z ≔
   λx. λy. λz. trans
     Int
-    (intMul (intAdd x y) z)
-    (intAdd (intMul z x) (intMul z y))
-    (intAdd (intMul x z) (intMul y z))
+    ((x + y) * z)
+    (z * x + z * y)
+    (x * z + y * z)
     (trans
       Int
-      (intMul (intAdd x y) z)
-      (intMul z (intAdd x y))
-      (intAdd (intMul z x) (intMul z y))
-      (intMulComm (intAdd x y) z)
+      ((x + y) * z)
+      (z * (x + y))
+      (z * x + z * y)
+      (intMulComm (x + y) z)
       (intMulDistribL z x y))
-    (intAddCong2
-      (intMul z x)
-      (intMul z y)
-      (intMul x z)
-      (intMul y z)
-      (intMulComm z x)
-      (intMulComm z y))
+    (intAddCong2 (z * x) (z * y) (x * z) (y * z) (intMulComm z x) (intMulComm z y))
 
 -- ===== negation =====
 def intNegNeg : (z : El Int) → intNeg (intNeg z) ≡ z
@@ -398,23 +393,23 @@ def intNegNeg : (z : El Int) → intNeg (intNeg z) ≡ z
   λz. quot-elim (p. classPairEta p) z
 
 -- z + (−z) = 0: on representatives the relation is p₁+p₂ ≡ p₂+p₁
-def intAddNegR : (z : El Int) → intAdd z (intNeg z) ≡ intZero
+def intAddNegR : (z : El Int) → z + intNeg z ≡ intZero
   using (integer.Int.unfold,
     integer.intNeg.eq,
     integer.intZero.eq,
     integer.zeroEq,
-    integerAdd.intAdd.eq,
+    integerAdd.+.eq,
     plusComm,
     plusZeroId,
     plusZeroId.rw) ≔
   λz. quot-elim (p. ⋆) z
 
-def intAddNegL : (z : El Int) → intAdd (intNeg z) z ≡ intZero
+def intAddNegL : (z : El Int) → intNeg z + z ≡ intZero
   using (integer.Int.unfold,
     integer.intNeg.eq,
     integer.intZero.eq,
     integer.zeroEq,
-    integerAdd.intAdd.eq,
+    integerAdd.+.eq,
     plusComm,
     plusZeroId,
     plusZeroId.rw) ≔
@@ -422,8 +417,8 @@ def intAddNegL : (z : El Int) → intAdd (intNeg z) z ≡ intZero
 
 -- (−x)·y = −(x·y): the two representatives differ by plusComm in each
 -- component
-def intMulNegL : (x y : El Int) → intMul (intNeg x) y ≡ intNeg (intMul x y)
-  using (integer.Int.unfold, integer.intNeg.eq, integerMul.intMul.eq) ≔
+def intMulNegL : (x y : El Int) → intNeg x * y ≡ intNeg (x * y)
+  using (integer.Int.unfold, integer.intNeg.eq, integerMul.*.eq) ≔
   λx. λy. quot-elim
     (a. quot-elim
       (b. classCong2
@@ -432,17 +427,17 @@ def intMulNegL : (x y : El Int) → intMul (intNeg x) y ≡ intNeg (intMul x y)
       y)
     x
 
-def intMulNegR : (x y : El Int) → intMul x (intNeg y) ≡ intNeg (intMul x y) using (intMulNegL) ≔
+def intMulNegR : (x y : El Int) → x * intNeg y ≡ intNeg (x * y) using (intMulNegL) ≔
   λx. λy. trans
     Int
-    (intMul x (intNeg y))
-    (intMul (intNeg y) x)
-    (intNeg (intMul x y))
+    (x * intNeg y)
+    (intNeg y * x)
+    (intNeg (x * y))
     (intMulComm x (intNeg y))
     (trans
       Int
-      (intMul (intNeg y) x)
-      (intNeg (intMul y x))
-      (intNeg (intMul x y))
+      (intNeg y * x)
+      (intNeg (y * x))
+      (intNeg (x * y))
       (intMulNegL y x)
-      (cong Int (λu. Int) intNeg (intMul y x) (intMul x y) (intMulComm y x)))
+      (cong Int (λu. Int) intNeg (y * x) (x * y) (intMulComm y x)))

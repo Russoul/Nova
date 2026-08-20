@@ -6,7 +6,7 @@ import nat (+, *)
 import eqNat (zNotS)
 import equality (sym)
 import rational (ratZero, ratOne)
-import rationalQ (Q, qAdd, qMul, qNeg, qZero, qOne, qAddAssoc, qAddComm, qAddZeroL, qAddZeroR, qAddNegL, qAddNegR, qMulAssoc, qMulComm, qMulOneL, qMulOneR, qDistribL, qDistribR)
+import rationalQ (Q, +, *, qNeg, qZero, qOne, qAddAssoc, qAddComm, qAddZeroL, qAddZeroR, qAddNegL, qAddNegR, qMulAssoc, qMulComm, qMulOneL, qMulOneR, qDistribL, qDistribR)
 import rationalInv (notIntro)
 import rationalAlgInv (qInv, qMulInvR)
 import intEffective (intEffective)
@@ -17,41 +17,37 @@ import group (IsGroup)
 import field (IsField)
 
 def ratAddGroup : El (IsGroup Q) using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔
-  (qAdd,
+  ((+),
     qZero,
       (λx. λy. λz. eqToId
-        (qAdd (qAdd x y) z)
-        (qAdd x (qAdd y z))
+        (x + y + z)
+        (x + (y + z))
         (qAddAssoc
           x
           y
           z)),
         (λx. eqToId
-          (qAdd qZero x)
+          (qZero + x)
           x
           (qAddZeroL
             x)),
           λx. eqToId
-            (qAdd x qZero)
+            (x + qZero)
             x
             (qAddZeroR
               x)),
-    qNeg,
-      (λx. eqToId
-        (qAdd (qNeg x) x)
-        qZero
-        (qAddNegL x)), λx. eqToId (qAdd x (qNeg x)) qZero (qAddNegR x)
+    qNeg, (λx. eqToId (qNeg x + x) qZero (qAddNegL x)), λx. eqToId (x + qNeg x) qZero (qAddNegR x)
 
 def ratMulMonoid : El (IsMonoid Q) using (monoid.IsMonoid.unfold) ≔
-  qMul,
+  (*),
     qOne,
       (λx. λy. λz. eqToId
-        (qMul (qMul x y) z)
-        (qMul x (qMul y z))
+        (x * y * z)
+        (x * (y * z))
         (qMulAssoc
           x
           y
-          z)), (λx. eqToId (qMul qOne x) x (qMulOneL x)), λx. eqToId (qMul x qOne) x (qMulOneR x)
+          z)), (λx. eqToId (qOne * x) x (qMulOneL x)), λx. eqToId (x * qOne) x (qMulOneR x)
 
 -- Nontriviality at the DATA level: an element of 𝟘 from Id Q 1 0.
 -- Prf ⊥ could never produce one — the route is the effectivity chain
@@ -67,7 +63,7 @@ def qOneNotZeroD : El (Id Q qOne qZero) → 𝟘
     integer.IntR.unfold,
     integer.intOne.eq,
     integer.intZero.eq,
-    integerMul.intMul.eq,
+    integerMul.*.eq,
     nat.*.eq,
     nat.+.eq,
     nat.plusZeroId,
@@ -110,34 +106,34 @@ def ratField : El (IsField Q)
     rationalAlgInv.qInv.eq,
     rationalQ.Q.eq,
     rationalQ.Q.unfold,
-    rationalQ.qAdd.eq,
-    rationalQ.qMul.eq,
+    rationalQ.+.eq,
+    rationalQ.*.eq,
     rationalQ.qOne.eq,
     rationalQ.qZero.eq) ≔
   ratAddGroup,
     ratMulMonoid,
       (λx. λy. eqToId
-        (qAdd x y)
-        (qAdd y x)
+        (x + y)
+        (y + x)
         (qAddComm
           x
           y)),
         (λx. λy. eqToId
-          (qMul x y)
-          (qMul y x)
+          (x * y)
+          (y * x)
           (qMulComm
             x
             y)),
           (λx. λy. λz. eqToId
-            (qMul x (qAdd y z))
-            (qAdd (qMul x y) (qMul x z))
+            (x * (y + z))
+            (x * y + x * z)
             (qDistribL
               x
               y
               z)),
             (λx. λy. λz. eqToId
-              (qMul (qAdd y z) x)
-              (qAdd (qMul y x) (qMul z x))
+              ((y + z) * x)
+              (y * x + z * x)
               (qDistribR
                 x
                 y
@@ -146,6 +142,6 @@ def ratField : El (IsField Q)
                 λx. λk. qInv
                   x,
                   eqToId
-                    (qMul x (qInv x))
+                    (x * qInv x)
                     qOne
                     (qMulInvR (notIntro (x ≡ qZero) (λe. ⋆ (k (eqToId x qZero e)))))

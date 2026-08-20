@@ -10,16 +10,16 @@
 -- sample at the SAME doubled index, so the ℚ-level inequality is all
 -- that is needed.
 
-import rationalQ (Q, qAdd, qNeg, qZero, qOne)
-import rationalOrder (LeQ, leQTrans)
+import rationalQ (Q, +, qNeg, qZero, qOne)
+import rationalOrder (≤, leQTrans)
 import ratBound (Bnd)
 import ratAbs (qAbs, qAbsNeg, qAbsAbs, qAbsZero, qAbsTriangle, leQZeroAbs, bndAbsSub, qAbsOfNonNeg)
 import ratHalf (dbl)
 import real (rBound, leQZeroBound, Regular, RSeq, REq, Real, constReg, realOfQ, realZero, realOne)
 import realNeg (seqOf, regOf, regBnd, bndReg, reqOf, realEqOfREq, realEqOfPointwise, rNeg, realNeg)
-import realAdd (rAdd, realAdd)
+import realAdd (rAdd, +)
 import realSeq (realEqOfSeqEq)
-import realOrder (RLeP, rleOf, LeR, leQSubZero)
+import realOrder (RLeP, rleOf, ≤, leQSubZero)
 import equality (trans, sym, cong, transport)
 
 def absSeq : El (ℕ → Q) → El (ℕ → Q) using (rationalQ.Q.unfold) ≔ λf. λn. qAbs (f n)
@@ -33,7 +33,7 @@ def absReg : {f : El (ℕ → Q)} → El (Regular f) → El (Regular (absSeq f))
     rationalOrder.sZero.eq,
     rationalOrder.sgnQ.eq,
     rationalQ.Q.unfold,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qNeg.eq,
     real.Regular.unfold,
     real.rBound.eq,
@@ -48,14 +48,14 @@ def rAbsWD : {x y : El RSeq} → Prf (REq x y) → Prf (REq (rAbs x) (rAbs y))
     ratBound.Bnd.eq,
     rational.ratAdd.eq,
     rational.ratNeg.eq,
-    rationalOrder.LeQ.eq,
+    rationalOrder.≤.eq,
     rationalOrder.Sign.eq,
     rationalOrder.ratSgn.eq,
     rationalOrder.sPos.eq,
     rationalOrder.sZero.eq,
     rationalOrder.sgnCases.eq,
     rationalOrder.sgnQ.eq,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qNeg.eq,
     real.REq.unfold,
     real.RSeq.unfold,
@@ -141,9 +141,9 @@ def realAbsZero : realAbs realZero ≡ realZero
   using (equality.sym.eq,
     equality.transport.eq,
     qAbsZero,
-    rationalOrder.LeQ.eq,
+    rationalOrder.≤.eq,
     rationalQ.Q.eq,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qAddNegR.eq,
     rationalQ.qNeg.eq,
     real.RSeq.unfold,
@@ -169,7 +169,7 @@ def rleZeroAbs : {x : El RSeq} → Prf (RLeP ((λn. qZero), constReg) (rAbs x))
     rational.ratAdd.eq,
     rational.ratNeg.eq,
     rational.ratZero.eq,
-    rationalOrder.LeQ.unfold,
+    rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold,
     rationalOrder.Sign.eq,
     rationalOrder.ratSgn.eq,
@@ -177,7 +177,7 @@ def rleZeroAbs : {x : El RSeq} → Prf (RLeP ((λn. qZero), constReg) (rAbs x))
     rationalOrder.sZero.eq,
     rationalOrder.sgnCases.eq,
     rationalOrder.sgnQ.eq,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qNeg.eq,
     rationalQ.qZero.eq,
     rationalQ.qcls.eq,
@@ -194,19 +194,19 @@ def rleZeroAbs : {x : El RSeq} → Prf (RLeP ((λn. qZero), constReg) (rAbs x))
     ((λn. qZero), constReg)
     (rAbs x)
     (λn. leQTrans
-      (qAdd qZero (qNeg (qAbs (seqOf x n))))
+      (qZero + qNeg (qAbs (seqOf x n)))
       qZero
       (rBound n n)
       (leQSubZero (leQZeroAbs (seqOf x n)))
       (leQZeroBound n n))
 
-def leRZeroAbs : (u : El Real) → Prf (LeR realZero (realAbs u))
+def leRZeroAbs : (u : El Real) → Prf (realZero ≤ realAbs u)
   using (equality.sym.eq,
     equality.transport.eq,
     rational.ratZero.eq,
-    rationalOrder.LeQ.eq,
+    rationalOrder.≤.eq,
     rationalQ.Q.eq,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qAddNegR.eq,
     rationalQ.qNeg.eq,
     rationalQ.qZero.eq,
@@ -230,8 +230,8 @@ def leRZeroAbs : (u : El Real) → Prf (LeR realZero (realAbs u))
     realAbs.realAbs.unfold,
     realNeg.regOf.eq,
     realNeg.seqOf.eq,
-    realOrder.LeR.eq,
-    realOrder.LeR.unfold,
+    realOrder.≤.eq,
+    realOrder.≤.unfold,
     realOrder.RLeP.eq) ≔
   λu. quot-elim (x. rleZeroAbs) u
 
@@ -243,7 +243,7 @@ def rleAbsTriangle : {x y : El RSeq} → Prf (RLeP (rAbs (rAdd x y)) (rAdd (rAbs
     ratHalf.dbl.eq,
     rational.ratAdd.eq,
     rational.ratNeg.eq,
-    rationalOrder.LeQ.unfold,
+    rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold,
     rationalOrder.Sign.eq,
     rationalOrder.ratSgn.eq,
@@ -251,7 +251,7 @@ def rleAbsTriangle : {x y : El RSeq} → Prf (RLeP (rAbs (rAdd x y)) (rAdd (rAbs
     rationalOrder.sZero.eq,
     rationalOrder.sgnCases.eq,
     rationalOrder.sgnQ.eq,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qNeg.eq,
     real.RSeq.unfold,
     real.Regular.unfold,
@@ -267,16 +267,16 @@ def rleAbsTriangle : {x y : El RSeq} → Prf (RLeP (rAbs (rAdd x y)) (rAdd (rAbs
     (rAbs (rAdd x y))
     (rAdd (rAbs x) (rAbs y))
     (λn. leQTrans
-      (qAdd
-        (qAbs (qAdd (seqOf x (dbl n)) (seqOf y (dbl n))))
-        (qNeg (qAdd (qAbs (seqOf x (dbl n))) (qAbs (seqOf y (dbl n))))))
+      (qAbs
+        (seqOf
+          x
+          (dbl n) + seqOf y (dbl n)) + qNeg (qAbs (seqOf x (dbl n)) + qAbs (seqOf y (dbl n))))
       qZero
       (rBound n n)
       (leQSubZero (qAbsTriangle (seqOf x (dbl n)) (seqOf y (dbl n))))
       (leQZeroBound n n))
 
-def leRAbsTriangle : {u v : El Real}
-  → Prf (LeR (realAbs (realAdd u v)) (realAdd (realAbs u) (realAbs v)))
+def leRAbsTriangle : {u v : El Real} → Prf (realAbs (u + v) ≤ realAbs u + realAbs v)
   using (real.REq.unfold,
     real.RSeq.unfold,
     real.Real.unfold,
@@ -285,9 +285,9 @@ def leRAbsTriangle : {u v : El Real}
     realAbs.realAbs.eq,
     realAbs.realAbs.unfold,
     realAdd.rAdd.eq,
-    realAdd.realAdd.eq,
-    realAdd.realAdd.unfold,
-    realOrder.LeR.eq,
-    realOrder.LeR.unfold,
+    realAdd.+.eq,
+    realAdd.+.unfold,
+    realOrder.≤.eq,
+    realOrder.≤.unfold,
     realOrder.RLeP.eq) ≔
   λu. λv. quot-elim (x. quot-elim (y. rleAbsTriangle) v) u

@@ -21,13 +21,13 @@
 -- ===== the approximant =====
 
 import nat (+, *, plusZeroId, zeroPlusId, plusComm, multZeroId, multSucId, multAssoc)
-import natOrder (LeN, leTrans, leMultMonoR, lePlusMonoR)
+import natOrder (≤, leTrans, leMultMonoR, lePlusMonoR)
 import natSqrt (isqrt, isqrtLe, isqrtUpper, sqrtStepN)
 import integer (Int, intOne)
-import integerMul (intMul, intMulOneL)
+import integerMul (*, intMulOneL)
 import rational (NZ, nzOne, nzPos, nzMul, Rat, mkRat)
-import rationalQ (Q, qcls, qAdd, qMul, qNeg, qZero, qOne, qAddZeroR, qMulCls, ratMul, qMulAssoc, qMulComm, qMulOneR, qDistribR)
-import rationalOrder (LeQ, leQTrans, leQMulMono)
+import rationalQ (Q, qcls, +, *, qNeg, qZero, qOne, qAddZeroR, qMulCls, ratMul, qMulAssoc, qMulComm, qMulOneR, qDistribR)
+import rationalOrder (≤, leQTrans, leQMulMono)
 import ratBound (Bnd, leQAdd)
 import natMore (multLeftComm)
 import ratHalf (leQZeroInvNat)
@@ -41,9 +41,9 @@ import equality (trans, sym, cong, transport, transportP)
 
 def sqNat : ℕ → ℕ ≔ λD. S D * S D
 
-def qScaled : El Q → ℕ → El Q ≔ λu. λD. qMul u (qOfNat (sqNat D))
+def qScaled : El Q → ℕ → El Q ≔ λu. λD. u * qOfNat (sqNat D)
 
-def leQZeroScaled : {u : El Q} (D : ℕ) → El (LeQ qZero u) → El (LeQ qZero (qScaled u D))
+def leQZeroScaled : {u : El Q} (D : ℕ) → El (qZero ≤ u) → El (qZero ≤ qScaled u D)
   using (qScaled.eq) ≔
   λu. λD. λnn. leQZeroMul nn (leQZeroNat (sqNat D))
 
@@ -52,28 +52,28 @@ def qFl : El Q → ℕ → ℕ ≔ λu. λD. qFloor (qScaled u D)
 
 def qSqrtNum : El Q → ℕ → ℕ ≔ λu. λD. isqrt (qFl u D)
 
-def qSqrtAt : El Q → ℕ → El Q ≔ λu. λD. qMul (qOfNat (qSqrtNum u D)) (qInvNat D)
+def qSqrtAt : El Q → ℕ → El Q ≔ λu. λD. qOfNat (qSqrtNum u D) * qInvNat D
 
 -- ===== the four facts =====
-def leQFlBelow : {u : El Q} (D : ℕ) → El (LeQ qZero u) → El (LeQ (qOfNat (qFl u D)) (qScaled u D))
+def leQFlBelow : {u : El Q} (D : ℕ) → El (qZero ≤ u) → El (qOfNat (qFl u D) ≤ qScaled u D)
   using (qFl.eq) ≔
   λu. λD. λnn. leQFloor (leQZeroScaled D nn)
 
-def leQFlAbove : (u : El Q) (D : ℕ) → El (LeQ (qScaled u D) (qOfNat (S (qFl u D))))
+def leQFlAbove : (u : El Q) (D : ℕ) → El (qScaled u D ≤ qOfNat (S (qFl u D)))
   using (qFl.eq, qScaled.eq, ratCeil.qNatBound.eq) ≔
   λu. λD. leQBound (qScaled u D)
 
-def sqrtNumLe : (u : El Q) (D : ℕ) → El (LeN (qSqrtNum u D * qSqrtNum u D) (qFl u D))
+def sqrtNumLe : (u : El Q) (D : ℕ) → El (qSqrtNum u D * qSqrtNum u D ≤ qFl u D)
   using (qSqrtNum.eq) ≔
   λu. λD. isqrtLe (qFl u D)
 
-def sqrtNumUpper : (u : El Q) (D : ℕ) → El (LeN (S (qFl u D)) (S (qSqrtNum u D) * S (qSqrtNum u D)))
+def sqrtNumUpper : (u : El Q) (D : ℕ) → El (S (qFl u D) ≤ S (qSqrtNum u D) * S (qSqrtNum u D))
   using (qSqrtNum.eq) ≔
   λu. λD. isqrtUpper (qFl u D)
 
 -- ===== the two bridges =====
 -- (D+1)·(1/(D+1)) is one, on the nose
-def qMulInvNat : {D : ℕ} → qMul (qOfNat (S D)) (qInvNat D) ≡ qOne
+def qMulInvNat : {D : ℕ} → qOfNat (S D) * qInvNat D ≡ qOne
   using (integer.intOne.eq,
     rational.mkRat.eq,
     rational.nzOne.eq,
@@ -86,7 +86,7 @@ def qMulInvNat : {D : ℕ} → qMul (qOfNat (S D)) (qInvNat D) ≡ qOne
     realMul.mulIdx.eq) ≔
   λD. transportP
     ℕ
-    (λw. qMul (qOfNat (S D)) (qInvNat w) ≡ qOne)
+    (λw. qOfNat (S D) * qInvNat w ≡ qOne)
     (mulIdx D Z)
     D
     (trans
@@ -114,13 +114,7 @@ def qMulInvNat : {D : ℕ} → qMul (qOfNat (S D)) (qInvNat D) ≡ qOne
             (cong ℕ (λw. ℕ) (λw. D + w) (D * Z) Z (multZeroId D))
             (plusZeroId D))))
       (zeroPlusId D))
-    (transportP
-      Q
-      (λw. qMul (qOfNat (S D)) (qInvNat (mulIdx D Z)) ≡ w)
-      (qInvNat Z)
-      qOne
-      ⋆
-      qMulInvIdx)
+    (transportP Q (λw. qOfNat (S D) * qInvNat (mulIdx D Z) ≡ w) (qInvNat Z) qOne ⋆ qMulInvIdx)
 
 -- 1/((c+1)(m+1)) is 1/(c+1) times 1/(m+1). nzMul on two positive
 -- denominators lands on c*m + c + m, which is mulIdx c m written the
@@ -144,13 +138,13 @@ def nzPosMul : (c m : ℕ) → nzMul (nzPos c) (nzPos m) ≡ nzPos (mulIdx c m)
 def ratMulInv : (c m : ℕ)
   → ratMul
     (mkRat intOne (nzPos c))
-    (mkRat intOne (nzPos m)) ≡ mkRat (intMul intOne intOne) (nzMul (nzPos c) (nzPos m))
+    (mkRat intOne (nzPos m)) ≡ mkRat (intOne * intOne) (nzMul (nzPos c) (nzPos m))
   using (rationalQ.ratMul.eq, rational.mkRat.eq, rational.num.eq, rational.den.eq) ≔
   λc. λm. ⋆
 
 def qInvNatCls : (k : ℕ) → qInvNat k ≡ qcls (mkRat intOne (nzPos k)) using (real.qInvNat.eq) ≔ λk. ⋆
 
-def qInvNatMulIdx : {c m : ℕ} → qInvNat (mulIdx c m) ≡ qMul (qInvNat c) (qInvNat m) ≔
+def qInvNatMulIdx : {c m : ℕ} → qInvNat (mulIdx c m) ≡ qInvNat c * qInvNat m ≔
   λc. λm. qInvNat (mulIdx c m)
       ≡⟨ qInvNatCls (mulIdx c m) ⟩ qcls (mkRat intOne (nzPos (mulIdx c m)))
       ≡⟨ cong
@@ -169,54 +163,48 @@ def qInvNatMulIdx : {c m : ℕ} → qInvNat (mulIdx c m) ≡ qMul (qInvNat c) (q
         (λw. Q)
         (λw. qcls (mkRat w (nzMul (nzPos c) (nzPos m))))
         intOne
-        (intMul intOne intOne)
+        (intOne * intOne)
         (sym
           Int
-          (intMul intOne intOne)
+          (intOne * intOne)
           intOne
-          (intMulOneL intOne)) ⟩ qcls (mkRat (intMul intOne intOne) (nzMul (nzPos c) (nzPos m)))
+          (intMulOneL intOne)) ⟩ qcls (mkRat (intOne * intOne) (nzMul (nzPos c) (nzPos m)))
       ≡⟨ cong
         Rat
         (λw. Q)
         (λw. qcls w)
-        (mkRat (intMul intOne intOne) (nzMul (nzPos c) (nzPos m)))
+        (mkRat (intOne * intOne) (nzMul (nzPos c) (nzPos m)))
         (ratMul (mkRat intOne (nzPos c)) (mkRat intOne (nzPos m)))
         (sym
           Rat
           (ratMul (mkRat intOne (nzPos c)) (mkRat intOne (nzPos m)))
-          (mkRat (intMul intOne intOne) (nzMul (nzPos c) (nzPos m)))
+          (mkRat (intOne * intOne) (nzMul (nzPos c) (nzPos m)))
           (ratMulInv c m)) ⟩ qcls (ratMul (mkRat intOne (nzPos c)) (mkRat intOne (nzPos m)))
       ≡⟨ sym
         Q
-        (qMul (qcls (mkRat intOne (nzPos c))) (qcls (mkRat intOne (nzPos m))))
+        (qcls (mkRat intOne (nzPos c)) * qcls (mkRat intOne (nzPos m)))
         (qcls (ratMul (mkRat intOne (nzPos c)) (mkRat intOne (nzPos m))))
         (qMulCls
           (mkRat intOne (nzPos c))
-          (mkRat
-            intOne
-            (nzPos m))) ⟩ qMul (qcls (mkRat intOne (nzPos c))) (qcls (mkRat intOne (nzPos m)))
+          (mkRat intOne (nzPos m))) ⟩ qcls (mkRat intOne (nzPos c)) * qcls (mkRat intOne (nzPos m))
       ≡⟨ cong
         Q
         (λw. Q)
-        (λw. qMul w (qcls (mkRat intOne (nzPos m))))
+        (λw. w * qcls (mkRat intOne (nzPos m)))
         (qcls (mkRat intOne (nzPos c)))
         (qInvNat c)
         (sym
           Q
           (qInvNat c)
           (qcls (mkRat intOne (nzPos c)))
-          (qInvNatCls c)) ⟩ qMul (qInvNat c) (qcls (mkRat intOne (nzPos m)))
+          (qInvNatCls c)) ⟩ qInvNat c * qcls (mkRat intOne (nzPos m))
       ≡⟨ cong
         Q
         (λw. Q)
-        (λw. qMul (qInvNat c) w)
+        (λw. qInvNat c * w)
         (qcls (mkRat intOne (nzPos m)))
         (qInvNat m)
-        (sym
-          Q
-          (qInvNat m)
-          (qcls (mkRat intOne (nzPos m)))
-          (qInvNatCls m)) ⟩ qMul (qInvNat c) (qInvNat m)
+        (sym Q (qInvNat m) (qcls (mkRat intOne (nzPos m))) (qInvNatCls m)) ⟩ qInvNat c * qInvNat m
 
 -- ===== comparing two approximants =====
 --
@@ -229,112 +217,109 @@ def qInvNatMulIdx : {c m : ℕ} → qInvNat (mulIdx c m) ≡ qMul (qInvNat c) (q
 --
 -- from u⁺ ≤ v⁺ + d and d·(Dm+1)²(Dn+1)² ≤ T. Everything in it is a
 -- chain of ≤; no strict order and no division appear.
-def qMulSwap3 : (x y z : El Q) → qMul (qMul x y) z ≡ qMul (qMul x z) y ≔
-  λx. λy. λz. qMul (qMul x y) z
-      ≡⟨ qMulAssoc x y z ⟩ qMul x (qMul y z)
-      ≡⟨ cong Q (λw. Q) (λw. qMul x w) (qMul y z) (qMul z y) (qMulComm y z) ⟩ qMul x (qMul z y)
-      ≡⟨ sym Q (qMul (qMul x z) y) (qMul x (qMul z y)) (qMulAssoc x z y) ⟩ qMul (qMul x z) y
+def qMulSwap3 : (x y z : El Q) → x * y * z ≡ x * z * y ≔
+  λx. λy. λz. x * y * z
+      ≡⟨ qMulAssoc x y z ⟩ x * (y * z)
+      ≡⟨ cong Q (λw. Q) (λw. x * w) (y * z) (z * y) (qMulComm y z) ⟩ x * (z * y)
+      ≡⟨ sym Q (x * z * y) (x * (z * y)) (qMulAssoc x z y) ⟩ x * z * y
 
-def qDistrib3 : (x y z w : El Q)
-  → qMul (qMul (qAdd x y) z) w ≡ qAdd (qMul (qMul x z) w) (qMul (qMul y z) w) ≔
-  λx. λy. λz. λw. qMul (qMul (qAdd x y) z) w
+def qDistrib3 : (x y z w : El Q) → (x + y) * z * w ≡ x * z * w + y * z * w ≔
+  λx. λy. λz. λw. (x + y) * z * w
       ≡⟨ cong
         Q
         (λt. Q)
-        (λt. qMul t w)
-        (qMul (qAdd x y) z)
-        (qAdd (qMul x z) (qMul y z))
-        (qDistribR z x y) ⟩ qMul (qAdd (qMul x z) (qMul y z)) w
-      ≡⟨ qDistribR w (qMul x z) (qMul y z) ⟩ qAdd (qMul (qMul x z) w) (qMul (qMul y z) w)
+        (λt. t * w)
+        ((x + y) * z)
+        (x * z + y * z)
+        (qDistribR z x y) ⟩ (x * z + y * z) * w
+      ≡⟨ qDistribR w (x * z) (y * z) ⟩ x * z * w + y * z * w
 
-def qNatSumEq : (a b T : ℕ) → qAdd (qMul (qOfNat a) (qOfNat b)) (qOfNat T) ≡ qOfNat (a * b + T) ≔
-  λa. λb. λT. qAdd (qMul (qOfNat a) (qOfNat b)) (qOfNat T)
+def qNatSumEq : (a b T : ℕ) → qOfNat a * qOfNat b + qOfNat T ≡ qOfNat (a * b + T) ≔
+  λa. λb. λT. qOfNat a * qOfNat b + qOfNat T
       ≡⟨ cong
         Q
         (λw. Q)
-        (λw. qAdd w (qOfNat T))
-        (qMul (qOfNat a) (qOfNat b))
+        (λw. w + qOfNat T)
+        (qOfNat a * qOfNat b)
         (qOfNat (a * b))
-        (qOfNatMul a b) ⟩ qAdd (qOfNat (a * b)) (qOfNat T)
+        (qOfNatMul a b) ⟩ qOfNat (a * b) + qOfNat T
       ≡⟨ qOfNatAdd (a * b) T ⟩ qOfNat (a * b + T)
 
 def flCompare : {u v : El Q}
   {Dm Dn T : ℕ}
   (d : El Q)
-  → El (LeQ
-    qZero
-    u)
-    → El (LeQ
-      u
-      (qAdd
-        v
-        d))
-      → El (LeQ
-        (qMul (qMul d (qOfNat (sqNat Dm))) (qOfNat (sqNat Dn)))
-        (qOfNat T)) → El (LeN (qFl u Dm * sqNat Dn) (S (qFl v Dn) * sqNat Dm + T))
+  → El (qZero
+    ≤ u)
+    → El (u
+      ≤ v
+        + d)
+      → El (d
+        * qOfNat
+          (sqNat
+            Dm)
+        * qOfNat (sqNat Dn) ≤ qOfNat T) → El (qFl u Dm * sqNat Dn ≤ S (qFl v Dn) * sqNat Dm + T)
   using (qScaled.eq) ≔
   λu. λv. λDm. λDn. λT. λd. λnnu. λh1. λh2. leNOfQ
     (transport
       Q
-      (λw. LeQ w (qOfNat (S (qFl v Dn) * sqNat Dm + T)))
-      (qMul (qOfNat (qFl u Dm)) (qOfNat (sqNat Dn)))
+      (λw. w ≤ qOfNat (S (qFl v Dn) * sqNat Dm + T))
+      (qOfNat (qFl u Dm) * qOfNat (sqNat Dn))
       (qOfNat (qFl u Dm * sqNat Dn))
       (qOfNatMul (qFl u Dm) (sqNat Dn))
       (transport
         Q
-        (λw. LeQ (qMul (qOfNat (qFl u Dm)) (qOfNat (sqNat Dn))) w)
-        (qAdd (qMul (qOfNat (S (qFl v Dn))) (qOfNat (sqNat Dm))) (qOfNat T))
+        (λw. qOfNat (qFl u Dm) * qOfNat (sqNat Dn) ≤ w)
+        (qOfNat (S (qFl v Dn)) * qOfNat (sqNat Dm) + qOfNat T)
         (qOfNat (S (qFl v Dn) * sqNat Dm + T))
         (qNatSumEq (S (qFl v Dn)) (sqNat Dm) T)
         (leQTrans
-          (qMul (qOfNat (qFl u Dm)) (qOfNat (sqNat Dn)))
-          (qMul (qMul u (qOfNat (sqNat Dm))) (qOfNat (sqNat Dn)))
-          (qAdd (qMul (qOfNat (S (qFl v Dn))) (qOfNat (sqNat Dm))) (qOfNat T))
+          (qOfNat (qFl u Dm) * qOfNat (sqNat Dn))
+          (u * qOfNat (sqNat Dm) * qOfNat (sqNat Dn))
+          (qOfNat (S (qFl v Dn)) * qOfNat (sqNat Dm) + qOfNat T)
           (leQMulMono
             (qOfNat (qFl u Dm))
-            (qMul u (qOfNat (sqNat Dm)))
+            (u * qOfNat (sqNat Dm))
             (leQFlBelow Dm nnu)
             (leQZeroNat (sqNat Dn)))
           (leQTrans
-            (qMul (qMul u (qOfNat (sqNat Dm))) (qOfNat (sqNat Dn)))
-            (qMul (qMul (qAdd v d) (qOfNat (sqNat Dm))) (qOfNat (sqNat Dn)))
-            (qAdd (qMul (qOfNat (S (qFl v Dn))) (qOfNat (sqNat Dm))) (qOfNat T))
+            (u * qOfNat (sqNat Dm) * qOfNat (sqNat Dn))
+            ((v + d) * qOfNat (sqNat Dm) * qOfNat (sqNat Dn))
+            (qOfNat (S (qFl v Dn)) * qOfNat (sqNat Dm) + qOfNat T)
             (leQMulMono
-              (qMul u (qOfNat (sqNat Dm)))
-              (qMul (qAdd v d) (qOfNat (sqNat Dm)))
-              (leQMulMono u (qAdd v d) h1 (leQZeroNat (sqNat Dm)))
+              (u * qOfNat (sqNat Dm))
+              ((v + d) * qOfNat (sqNat Dm))
+              (leQMulMono u (v + d) h1 (leQZeroNat (sqNat Dm)))
               (leQZeroNat (sqNat Dn)))
             (transport
               Q
-              (λw. LeQ w (qAdd (qMul (qOfNat (S (qFl v Dn))) (qOfNat (sqNat Dm))) (qOfNat T)))
-              (qAdd
-                (qMul (qMul v (qOfNat (sqNat Dm))) (qOfNat (sqNat Dn)))
-                (qMul (qMul d (qOfNat (sqNat Dm))) (qOfNat (sqNat Dn))))
-              (qMul (qMul (qAdd v d) (qOfNat (sqNat Dm))) (qOfNat (sqNat Dn)))
+              (λw. w ≤ qOfNat (S (qFl v Dn)) * qOfNat (sqNat Dm) + qOfNat T)
+              (v
+                * qOfNat (sqNat Dm) * qOfNat (sqNat Dn) + d * qOfNat (sqNat Dm) * qOfNat (sqNat Dn))
+              ((v + d) * qOfNat (sqNat Dm) * qOfNat (sqNat Dn))
               (sym
                 Q
-                (qMul (qMul (qAdd v d) (qOfNat (sqNat Dm))) (qOfNat (sqNat Dn)))
-                (qAdd
-                  (qMul (qMul v (qOfNat (sqNat Dm))) (qOfNat (sqNat Dn)))
-                  (qMul (qMul d (qOfNat (sqNat Dm))) (qOfNat (sqNat Dn))))
+                ((v + d) * qOfNat (sqNat Dm) * qOfNat (sqNat Dn))
+                (v
+                  * qOfNat
+                    (sqNat Dm) * qOfNat (sqNat Dn) + d * qOfNat (sqNat Dm) * qOfNat (sqNat Dn))
                 (qDistrib3 v d (qOfNat (sqNat Dm)) (qOfNat (sqNat Dn))))
               (leQAdd
-                (qMul (qMul v (qOfNat (sqNat Dm))) (qOfNat (sqNat Dn)))
-                (qMul (qOfNat (S (qFl v Dn))) (qOfNat (sqNat Dm)))
-                (qMul (qMul d (qOfNat (sqNat Dm))) (qOfNat (sqNat Dn)))
+                (v * qOfNat (sqNat Dm) * qOfNat (sqNat Dn))
+                (qOfNat (S (qFl v Dn)) * qOfNat (sqNat Dm))
+                (d * qOfNat (sqNat Dm) * qOfNat (sqNat Dn))
                 (qOfNat T)
                 (transport
                   Q
-                  (λw. LeQ w (qMul (qOfNat (S (qFl v Dn))) (qOfNat (sqNat Dm))))
-                  (qMul (qMul v (qOfNat (sqNat Dn))) (qOfNat (sqNat Dm)))
-                  (qMul (qMul v (qOfNat (sqNat Dm))) (qOfNat (sqNat Dn)))
+                  (λw. w ≤ qOfNat (S (qFl v Dn)) * qOfNat (sqNat Dm))
+                  (v * qOfNat (sqNat Dn) * qOfNat (sqNat Dm))
+                  (v * qOfNat (sqNat Dm) * qOfNat (sqNat Dn))
                   (sym
                     Q
-                    (qMul (qMul v (qOfNat (sqNat Dm))) (qOfNat (sqNat Dn)))
-                    (qMul (qMul v (qOfNat (sqNat Dn))) (qOfNat (sqNat Dm)))
+                    (v * qOfNat (sqNat Dm) * qOfNat (sqNat Dn))
+                    (v * qOfNat (sqNat Dn) * qOfNat (sqNat Dm))
                     (qMulSwap3 v (qOfNat (sqNat Dm)) (qOfNat (sqNat Dn))))
                   (leQMulMono
-                    (qMul v (qOfNat (sqNat Dn)))
+                    (v * qOfNat (sqNat Dn))
                     (qOfNat (S (qFl v Dn)))
                     (leQFlAbove v Dn)
                     (leQZeroNat (sqNat Dm))))
@@ -357,22 +342,23 @@ def mulSq : (a b : ℕ) → a * b * (a * b) ≡ a * a * (b * b) ≔
 def sqrtCompareN : {u v : El Q}
   {Dm Dn T : ℕ}
   (d : El Q)
-  → El (LeQ
-    qZero
-    u)
-    → El (LeQ
-      u
-      (qAdd
-        v
-        d))
-      → El (LeQ
-        (qMul (qMul d (qOfNat (sqNat Dm))) (qOfNat (sqNat Dn)))
-        (qOfNat T)) → El (LeN (qSqrtNum u Dm * S Dn) (S (qSqrtNum v Dn) * S Dm + S (isqrt T)))
+  → El (qZero
+    ≤ u)
+    → El (u
+      ≤ v
+        + d)
+      → El (d
+        * qOfNat
+          (sqNat
+            Dm)
+        * qOfNat
+          (sqNat
+            Dn) ≤ qOfNat T) → El (qSqrtNum u Dm * S Dn ≤ S (qSqrtNum v Dn) * S Dm + S (isqrt T))
   using (sqNat.eq) ≔
   λu. λv. λDm. λDn. λT. λd. λnnu. λh1. λh2. sqrtStepN
     (transport
       ℕ
-      (λw. LeN w (S (qSqrtNum v Dn) * S Dm * (S (qSqrtNum v Dn) * S Dm) + T))
+      (λw. w ≤ S (qSqrtNum v Dn) * S Dm * (S (qSqrtNum v Dn) * S Dm) + T)
       (qSqrtNum u Dm * qSqrtNum u Dm * (S Dn * S Dn))
       (qSqrtNum u Dm * S Dn * (qSqrtNum u Dm * S Dn))
       (sym
@@ -382,7 +368,7 @@ def sqrtCompareN : {u v : El Q}
         (mulSq (qSqrtNum u Dm) (S Dn)))
       (transport
         ℕ
-        (λw. LeN (qSqrtNum u Dm * qSqrtNum u Dm * (S Dn * S Dn)) (w + T))
+        (λw. qSqrtNum u Dm * qSqrtNum u Dm * (S Dn * S Dn) ≤ w + T)
         (S (qSqrtNum v Dn) * S (qSqrtNum v Dn) * (S Dm * S Dm))
         (S (qSqrtNum v Dn) * S Dm * (S (qSqrtNum v Dn) * S Dm))
         (sym
@@ -406,111 +392,95 @@ def sqrtCompareN : {u v : El Q}
               (leMultMonoR (sqNat Dm) (sqrtNumUpper v Dn)))))))
 
 -- ===== ...and back to a comparison of approximants =====
-def qMulLeftComm : (x y z : El Q) → qMul x (qMul y z) ≡ qMul y (qMul x z) ≔
-  λx. λy. λz. qMul x (qMul y z)
-      ≡⟨ sym Q (qMul (qMul x y) z) (qMul x (qMul y z)) (qMulAssoc x y z) ⟩ qMul (qMul x y) z
-      ≡⟨ cong Q (λw. Q) (λw. qMul w z) (qMul x y) (qMul y x) (qMulComm x y) ⟩ qMul (qMul y x) z
-      ≡⟨ qMulAssoc y x z ⟩ qMul y (qMul x z)
+def qMulLeftComm : (x y z : El Q) → x * (y * z) ≡ y * (x * z) ≔
+  λx. λy. λz. x * (y * z)
+      ≡⟨ sym Q (x * y * z) (x * (y * z)) (qMulAssoc x y z) ⟩ x * y * z
+      ≡⟨ cong Q (λw. Q) (λw. w * z) (x * y) (y * x) (qMulComm x y) ⟩ y * x * z
+      ≡⟨ qMulAssoc y x z ⟩ y * (x * z)
 
 -- the denominator cancels its own numeral, exactly
-def cancelDen : {A : El Q}
-  {D : ℕ}
-  {e : El Q}
-  → qMul (qMul A (qOfNat (S D))) (qMul e (qInvNat D)) ≡ qMul A e ≔
-  λA. λD. λe. qMul (qMul A (qOfNat (S D))) (qMul e (qInvNat D))
-      ≡⟨ qMulAssoc
-        A
-        (qOfNat (S D))
-        (qMul e (qInvNat D)) ⟩ qMul A (qMul (qOfNat (S D)) (qMul e (qInvNat D)))
+def cancelDen : {A : El Q} {D : ℕ} {e : El Q} → A * qOfNat (S D) * (e * qInvNat D) ≡ A * e ≔
+  λA. λD. λe. A * qOfNat (S D) * (e * qInvNat D)
+      ≡⟨ qMulAssoc A (qOfNat (S D)) (e * qInvNat D) ⟩ A * (qOfNat (S D) * (e * qInvNat D))
       ≡⟨ cong
         Q
         (λw. Q)
-        (λw. qMul A w)
-        (qMul (qOfNat (S D)) (qMul e (qInvNat D)))
-        (qMul e (qMul (qOfNat (S D)) (qInvNat D)))
-        (qMulLeftComm
-          (qOfNat (S D))
-          e
-          (qInvNat D)) ⟩ qMul A (qMul e (qMul (qOfNat (S D)) (qInvNat D)))
+        (λw. A * w)
+        (qOfNat (S D) * (e * qInvNat D))
+        (e * (qOfNat (S D) * qInvNat D))
+        (qMulLeftComm (qOfNat (S D)) e (qInvNat D)) ⟩ A * (e * (qOfNat (S D) * qInvNat D))
       ≡⟨ cong
         Q
         (λw. Q)
-        (λw. qMul A (qMul e w))
-        (qMul (qOfNat (S D)) (qInvNat D))
+        (λw. A * (e * w))
+        (qOfNat (S D) * qInvNat D)
         qOne
-        qMulInvNat ⟩ qMul A (qMul e qOne)
-      ≡⟨ cong Q (λw. Q) (λw. qMul A w) (qMul e qOne) e (qMulOneR e) ⟩ qMul A e
+        qMulInvNat ⟩ A * (e * qOne)
+      ≡⟨ cong Q (λw. Q) (λw. A * w) (e * qOne) e (qMulOneR e) ⟩ A * e
 
 -- a ℕ inequality between cross-multiplied numerators IS a ℚ
 -- inequality between the fractions
 def crossToQ : {a b e Dm Dn : ℕ}
-  → El (LeN
-    (a * S Dn)
-    (b
+  → El (a
+    * S Dn
+    ≤ b
       * S Dm
-      + e))
-    → El (LeQ
-      (qMul (qOfNat a) (qInvNat Dm))
-      (qAdd (qMul (qOfNat b) (qInvNat Dn)) (qMul (qOfNat e) (qMul (qInvNat Dm) (qInvNat Dn))))) ≔
+      + e)
+    → El (qOfNat a * qInvNat Dm ≤ qOfNat b * qInvNat Dn + qOfNat e * (qInvNat Dm * qInvNat Dn)) ≔
   λa. λb. λe. λDm. λDn. λle. transport
     Q
-    (λw. LeQ
-      w
-      (qAdd (qMul (qOfNat b) (qInvNat Dn)) (qMul (qOfNat e) (qMul (qInvNat Dm) (qInvNat Dn)))))
-    (qMul (qMul (qOfNat a) (qOfNat (S Dn))) (qMul (qInvNat Dm) (qInvNat Dn)))
-    (qMul (qOfNat a) (qInvNat Dm))
+    (λw. w ≤ qOfNat b * qInvNat Dn + qOfNat e * (qInvNat Dm * qInvNat Dn))
+    (qOfNat a * qOfNat (S Dn) * (qInvNat Dm * qInvNat Dn))
+    (qOfNat a * qInvNat Dm)
     cancelDen
     (transport
       Q
-      (λw. LeQ (qMul (qMul (qOfNat a) (qOfNat (S Dn))) (qMul (qInvNat Dm) (qInvNat Dn))) w)
-      (qAdd
-        (qMul (qMul (qOfNat b) (qOfNat (S Dm))) (qMul (qInvNat Dm) (qInvNat Dn)))
-        (qMul (qOfNat e) (qMul (qInvNat Dm) (qInvNat Dn))))
-      (qAdd (qMul (qOfNat b) (qInvNat Dn)) (qMul (qOfNat e) (qMul (qInvNat Dm) (qInvNat Dn))))
+      (λw. qOfNat a * qOfNat (S Dn) * (qInvNat Dm * qInvNat Dn) ≤ w)
+      (qOfNat b * qOfNat (S Dm) * (qInvNat Dm * qInvNat Dn) + qOfNat e * (qInvNat Dm * qInvNat Dn))
+      (qOfNat b * qInvNat Dn + qOfNat e * (qInvNat Dm * qInvNat Dn))
       (cong
         Q
         (λw. Q)
-        (λw. qAdd w (qMul (qOfNat e) (qMul (qInvNat Dm) (qInvNat Dn))))
-        (qMul (qMul (qOfNat b) (qOfNat (S Dm))) (qMul (qInvNat Dm) (qInvNat Dn)))
-        (qMul (qOfNat b) (qInvNat Dn))
+        (λw. w + qOfNat e * (qInvNat Dm * qInvNat Dn))
+        (qOfNat b * qOfNat (S Dm) * (qInvNat Dm * qInvNat Dn))
+        (qOfNat b * qInvNat Dn)
         (trans
           Q
-          (qMul (qMul (qOfNat b) (qOfNat (S Dm))) (qMul (qInvNat Dm) (qInvNat Dn)))
-          (qMul (qMul (qOfNat b) (qOfNat (S Dm))) (qMul (qInvNat Dn) (qInvNat Dm)))
-          (qMul (qOfNat b) (qInvNat Dn))
+          (qOfNat b * qOfNat (S Dm) * (qInvNat Dm * qInvNat Dn))
+          (qOfNat b * qOfNat (S Dm) * (qInvNat Dn * qInvNat Dm))
+          (qOfNat b * qInvNat Dn)
           (cong
             Q
             (λw. Q)
-            (λw. qMul (qMul (qOfNat b) (qOfNat (S Dm))) w)
-            (qMul (qInvNat Dm) (qInvNat Dn))
-            (qMul (qInvNat Dn) (qInvNat Dm))
+            (λw. qOfNat b * qOfNat (S Dm) * w)
+            (qInvNat Dm * qInvNat Dn)
+            (qInvNat Dn * qInvNat Dm)
             (qMulComm (qInvNat Dm) (qInvNat Dn)))
           cancelDen))
       (transport
         Q
-        (λw. LeQ (qMul (qMul (qOfNat a) (qOfNat (S Dn))) (qMul (qInvNat Dm) (qInvNat Dn))) w)
-        (qMul (qAdd (qMul (qOfNat b) (qOfNat (S Dm))) (qOfNat e)) (qMul (qInvNat Dm) (qInvNat Dn)))
-        (qAdd
-          (qMul (qMul (qOfNat b) (qOfNat (S Dm))) (qMul (qInvNat Dm) (qInvNat Dn)))
-          (qMul (qOfNat e) (qMul (qInvNat Dm) (qInvNat Dn))))
-        (qDistribR (qMul (qInvNat Dm) (qInvNat Dn)) (qMul (qOfNat b) (qOfNat (S Dm))) (qOfNat e))
+        (λw. qOfNat a * qOfNat (S Dn) * (qInvNat Dm * qInvNat Dn) ≤ w)
+        ((qOfNat b * qOfNat (S Dm) + qOfNat e) * (qInvNat Dm * qInvNat Dn))
+        (qOfNat
+          b * qOfNat (S Dm) * (qInvNat Dm * qInvNat Dn) + qOfNat e * (qInvNat Dm * qInvNat Dn))
+        (qDistribR (qInvNat Dm * qInvNat Dn) (qOfNat b * qOfNat (S Dm)) (qOfNat e))
         (leQMulMono
-          (qMul (qOfNat a) (qOfNat (S Dn)))
-          (qAdd (qMul (qOfNat b) (qOfNat (S Dm))) (qOfNat e))
+          (qOfNat a * qOfNat (S Dn))
+          (qOfNat b * qOfNat (S Dm) + qOfNat e)
           (transport
             Q
-            (λw. LeQ w (qAdd (qMul (qOfNat b) (qOfNat (S Dm))) (qOfNat e)))
+            (λw. w ≤ qOfNat b * qOfNat (S Dm) + qOfNat e)
             (qOfNat (a * S Dn))
-            (qMul (qOfNat a) (qOfNat (S Dn)))
-            (sym Q (qMul (qOfNat a) (qOfNat (S Dn))) (qOfNat (a * S Dn)) (qOfNatMul a (S Dn)))
+            (qOfNat a * qOfNat (S Dn))
+            (sym Q (qOfNat a * qOfNat (S Dn)) (qOfNat (a * S Dn)) (qOfNatMul a (S Dn)))
             (transport
               Q
-              (λw. LeQ (qOfNat (a * S Dn)) w)
+              (λw. qOfNat (a * S Dn) ≤ w)
               (qOfNat (b * S Dm + e))
-              (qAdd (qMul (qOfNat b) (qOfNat (S Dm))) (qOfNat e))
+              (qOfNat b * qOfNat (S Dm) + qOfNat e)
               (sym
                 Q
-                (qAdd (qMul (qOfNat b) (qOfNat (S Dm))) (qOfNat e))
+                (qOfNat b * qOfNat (S Dm) + qOfNat e)
                 (qOfNat (b * S Dm + e))
                 (qNatSumEq b (S Dm) e))
               (leQOfNat le)))
@@ -526,28 +496,28 @@ def crossToQ : {a b e Dm Dn : ℕ}
 def leQSqrtStep : {u v : El Q}
   {Dm Dn T : ℕ}
   (d : El Q)
-  → El (LeQ
-    qZero
-    u)
-    → El (LeQ
-      u
-      (qAdd
-        v
-        d))
-      → El (LeQ
-        (qMul (qMul d (qOfNat (sqNat Dm))) (qOfNat (sqNat Dn)))
-        (qOfNat
-          T))
-        → El (LeQ
-          (qSqrtAt u Dm)
-          (qAdd
-            (qAdd (qSqrtAt v Dn) (qInvNat Dn))
-            (qMul (qOfNat (S (isqrt T))) (qMul (qInvNat Dm) (qInvNat Dn)))))
+  → El (qZero
+    ≤ u)
+    → El (u
+      ≤ v
+        + d)
+      → El (d
+        * qOfNat
+          (sqNat
+            Dm)
+        * qOfNat
+          (sqNat
+            Dn)
+        ≤ qOfNat
+          T)
+        → El (qSqrtAt
+          u
+          Dm ≤ qSqrtAt v Dn + qInvNat Dn + qOfNat (S (isqrt T)) * (qInvNat Dm * qInvNat Dn))
   using (qSqrtAt.eq) ≔
   λu. λv. λDm. λDn. λT. λd. λnnu. λh1. λh2. transport
     Q
-    (λw. LeQ (qSqrtAt u Dm) (qAdd w (qMul (qOfNat (S (isqrt T))) (qMul (qInvNat Dm) (qInvNat Dn)))))
-    (qMul (qOfNat (S (qSqrtNum v Dn))) (qInvNat Dn))
-    (qAdd (qSqrtAt v Dn) (qInvNat Dn))
+    (λw. qSqrtAt u Dm ≤ w + qOfNat (S (isqrt T)) * (qInvNat Dm * qInvNat Dn))
+    (qOfNat (S (qSqrtNum v Dn)) * qInvNat Dn)
+    (qSqrtAt v Dn + qInvNat Dn)
     (qMulSucNat (qSqrtNum v Dn) (qInvNat Dn))
     (crossToQ (sqrtCompareN d nnu h1 h2))

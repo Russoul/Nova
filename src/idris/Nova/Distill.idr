@@ -50,6 +50,8 @@ import Nova.Profile
 import System.Directory
 import System.File
 
+import Nova.Elaboration.Beta
+
 %default covering
 
 -- ===== The layout engine =====
@@ -1117,6 +1119,7 @@ distillPath rootPath outDir = do
     | Left err => pure (Left ("distilled output failed to load: " ++ err.lmsg))
   let Nothing = verifyUnits elided units'
     | Just err => pure (Left err)
+  () <- clearSigEntryIx
   let Right sigNew = elabProgramSig units'
     | Left err => pure (Left ("distilled output failed to elaborate:\n" ++ err))
   let Nothing = sigCompare sigOrig sigNew

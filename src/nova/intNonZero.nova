@@ -11,7 +11,7 @@
 
 import nat (+, *, zeroMult, multSucId, sucPlus, plusComm)
 import integer (Int, IntR, intZero, intOne)
-import integerMul (intMul, intMulCong2, classPairEta)
+import integerMul (*, intMulCong2, classPairEta)
 import eqNat (zNotS)
 import eqInt (intCanon, intCanonClass)
 import prop (¬, ⊥, absurdP)
@@ -118,7 +118,7 @@ def nzToIntNonZero : (e : El NZ) → Prf (¬ (nzToInt e ≡ intZero))
 -- whether x is zero, so the argument is a case split, not a refutation.
 def intNoZeroDiv : {x : El Int}
   (y : El Int)
-  (hxy : Prf (intMul x y ≡ intZero))
+  (hxy : Prf (x * y ≡ intZero))
   (hy : Prf (¬ (y ≡ intZero)))
   → x ≡ intZero ≔
   λx. λy. λhxy. λhy. ⊎-elim
@@ -131,13 +131,13 @@ def intNoZeroDiv : {x : El Int}
           (trans
             Int
             (nzToInt (nzMul (ex .π₁) (ey .π₁)))
-            (intMul x y)
+            (x * y)
             intZero
             (trans
               Int
               (nzToInt (nzMul (ex .π₁) (ey .π₁)))
-              (intMul (nzToInt (ex .π₁)) (nzToInt (ey .π₁)))
-              (intMul x y)
+              (nzToInt (ex .π₁) * nzToInt (ey .π₁))
+              (x * y)
               (nzToIntMul (ex .π₁) (ey .π₁))
               (intMulCong2 (nzToInt (ex .π₁)) (nzToInt (ey .π₁)) x y (ex .π₂) (ey .π₂)))
             hxy)))

@@ -3,61 +3,62 @@
 -- statement about that one sign, so every proof below is a chain in
 -- `Sign` — no representative is ever opened.
 
-import rationalQ (Q, qAdd, qNeg, qZero, qAddComm, qAddZeroR, qAddNegR, qNegNeg)
-import rationalOrder (Sign, sZero, sPos, sNeg, sgnFlip, sgnQ, sgnQZero, sgnCases, sgnQAddPos, sgnQZeroView, sgnQNegFlip, NonNegS, LeQ, leQTrans, qSubSplit, qDiffZero, qSubPlusCancel, sZeroNotPos, sNegNotPos, sPosNotNeg, qSubNeg)
+import rationalQ (Q, +, qNeg, qZero, qAddComm, qAddZeroR, qAddNegR, qNegNeg)
+import rationalOrder (Sign, sZero, sPos, sNeg, sgnFlip, sgnQ, sgnQZero, sgnCases, sgnQAddPos, sgnQZeroView, sgnQNegFlip, NonNegS, ≤, leQTrans, qSubSplit, qDiffZero, qSubPlusCancel, sZeroNotPos, sNegNotPos, sPosNotNeg, qSubNeg)
 import ratBound (leQZeroOfPos, qSubPlusCancelL)
 import ratArch (sgnQSubFlip)
 import equality (trans, sym, cong, transport)
 import id (Id, eqToId, idToEq)
 
-def LtQ : El Q → El Q → 𝕌 ≔ λx. λy. Id Sign (sgnQ (qAdd y (qNeg x))) sPos
+infixl 4 <
+def < : El Q → El Q → 𝕌 ≔ λx. λy. Id Sign (sgnQ (y + qNeg x)) sPos
 
-def ltQOfSgn : (x y : El Q) → (sgnQ (qAdd y (qNeg x)) ≡ sPos) → El (LtQ x y)
-  using (id.Id.unfold, ratLt.LtQ.unfold, rationalQ.Q.unfold) ≔
-  λx. λy. λh. eqToId (sgnQ (qAdd y (qNeg x))) sPos h
+def ltQOfSgn : (x y : El Q) → (sgnQ (y + qNeg x) ≡ sPos) → El (x < y)
+  using (id.Id.unfold, ratLt.<.unfold, rationalQ.Q.unfold) ≔
+  λx. λy. λh. eqToId (sgnQ (y + qNeg x)) sPos h
 
-def sgnOfLtQ : {x y : El Q} → El (LtQ x y) → sgnQ (qAdd y (qNeg x)) ≡ sPos
-  using (id.Id.unfold, ratLt.LtQ.unfold, rationalQ.Q.unfold) ≔
-  λx. λy. λh. idToEq Sign (sgnQ (qAdd y (qNeg x))) sPos h
+def sgnOfLtQ : {x y : El Q} → El (x < y) → sgnQ (y + qNeg x) ≡ sPos
+  using (id.Id.unfold, ratLt.<.unfold, rationalQ.Q.unfold) ≔
+  λx. λy. λh. idToEq Sign (sgnQ (y + qNeg x)) sPos h
 
 -- strict implies non-strict, on the nose: a positive sign IS a
 -- nonnegative one
-def leQOfLtQ : {x y : El Q} → El (LtQ x y) → El (LeQ x y)
+def leQOfLtQ : {x y : El Q} → El (x < y) → El (x ≤ y)
   using (id.Id.unfold,
-    ratLt.LtQ.unfold,
-    rationalOrder.LeQ.unfold,
+    ratLt.<.unfold,
+    rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold,
     rationalQ.Q.unfold) ≔
   λx. λy. λh. inj₂ h
 
-def ltQZero : (u : El Q) → El (LtQ qZero u) → El (LeQ qZero u)
-  using (rationalOrder.LeQ.unfold, rationalOrder.NonNegS.unfold) ≔
+def ltQZero : (u : El Q) → El (qZero < u) → El (qZero ≤ u)
+  using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λu. λh. leQOfLtQ h
 
 -- ===== irreflexivity and asymmetry =====
-def ltQIrrefl : (x : El Q) → El (LtQ x x) → 𝟘 ≔
+def ltQIrrefl : (x : El Q) → El (x < x) → 𝟘 ≔
   λx. λh. sZeroNotPos
     (trans
       Sign
       sZero
-      (sgnQ (qAdd x (qNeg x)))
+      (sgnQ (x + qNeg x))
       sPos
       (sym
         Sign
-        (sgnQ (qAdd x (qNeg x)))
+        (sgnQ (x + qNeg x))
         sZero
         (trans
           Sign
-          (sgnQ (qAdd x (qNeg x)))
+          (sgnQ (x + qNeg x))
           (sgnQ qZero)
           sZero
-          (cong Q (λw. Sign) (λw. sgnQ w) (qAdd x (qNeg x)) qZero (qAddNegR x))
+          (cong Q (λw. Sign) (λw. sgnQ w) (x + qNeg x) qZero (qAddNegR x))
           sgnQZero))
       (sgnOfLtQ h))
 
-def ltQAsym : (x y : El Q) → El (LtQ x y) → El (LtQ y x) → 𝟘
+def ltQAsym : (x y : El Q) → El (x < y) → El (y < x) → 𝟘
   using (id.Id.unfold,
-    ratLt.LtQ.unfold,
+    ratLt.<.unfold,
     rationalOrder.Sign.unfold,
     rationalOrder.sNeg.eq,
     rationalOrder.sPos.eq,
@@ -67,78 +68,77 @@ def ltQAsym : (x y : El Q) → El (LtQ x y) → El (LtQ y x) → 𝟘
     (trans
       Sign
       sNeg
-      (sgnQ (qAdd x (qNeg y)))
+      (sgnQ (x + qNeg y))
       sPos
       (sym
         Sign
-        (sgnQ (qAdd x (qNeg y)))
+        (sgnQ (x + qNeg y))
         sNeg
         (trans
           Sign
-          (sgnQ (qAdd x (qNeg y)))
-          (sgnFlip (sgnQ (qAdd y (qNeg x))))
+          (sgnQ (x + qNeg y))
+          (sgnFlip (sgnQ (y + qNeg x)))
           sNeg
           sgnQSubFlip
           (trans
             Sign
-            (sgnFlip (sgnQ (qAdd y (qNeg x))))
+            (sgnFlip (sgnQ (y + qNeg x)))
             (sgnFlip sPos)
             sNeg
-            (cong Sign (λw. Sign) (λw. sgnFlip w) (sgnQ (qAdd y (qNeg x))) sPos (sgnOfLtQ h1))
+            (cong Sign (λw. Sign) (λw. sgnFlip w) (sgnQ (y + qNeg x)) sPos (sgnOfLtQ h1))
             ⋆)))
       (sgnOfLtQ h2))
 
 -- ===== transitivity, in all four mixed forms =====
 -- a positive plus a NONNEGATIVE is positive: the zero case collapses
-def sgnQAddPosNonNeg : {a b : El Q}
-  → (sgnQ a ≡ sPos) → El (NonNegS (sgnQ b)) → sgnQ (qAdd a b) ≡ sPos
+def sgnQAddPosNonNeg : {a b : El Q} → (sgnQ a ≡ sPos) → El (NonNegS (sgnQ b)) → sgnQ (a + b) ≡ sPos
   using (rationalOrder.NonNegS.unfold) ≔
   λa. λb. λha. λhb. ⊎-elim
     (h0. trans
       Sign
-      (sgnQ (qAdd a b))
+      (sgnQ (a + b))
       (sgnQ a)
       sPos
       (cong
         Q
         (λw. Sign)
         (λw. sgnQ w)
-        (qAdd a b)
+        (a + b)
         a
         (trans
           Q
-          (qAdd a b)
-          (qAdd a qZero)
+          (a + b)
+          (a + qZero)
           a
-          (cong Q (λw. Q) (λw. qAdd a w) b qZero (sgnQZeroView b (idToEq Sign (sgnQ b) sZero h0)))
+          (cong Q (λw. Q) (λw. a + w) b qZero (sgnQZeroView b (idToEq Sign (sgnQ b) sZero h0)))
           (qAddZeroR a)))
       ha)
     (hp. sgnQAddPos a b ha (idToEq Sign (sgnQ b) sPos hp))
     hb
 
-def ltQTrans : (x y z : El Q) → El (LtQ x y) → El (LtQ y z) → El (LtQ x z)
-  using (id.Id.unfold, ratLt.LtQ.unfold) ≔
+def ltQTrans : (x y z : El Q) → El (x < y) → El (y < z) → El (x < z)
+  using (id.Id.unfold, ratLt.<.unfold) ≔
   λx. λy. λz. λh1. λh2. ltQOfSgn
     x
     z
     (trans
       Sign
-      (sgnQ (qAdd z (qNeg x)))
-      (sgnQ (qAdd (qAdd z (qNeg y)) (qAdd y (qNeg x))))
+      (sgnQ (z + qNeg x))
+      (sgnQ (z + qNeg y + (y + qNeg x)))
       sPos
       (cong
         Q
         (λw. Sign)
         (λw. sgnQ w)
-        (qAdd z (qNeg x))
-        (qAdd (qAdd z (qNeg y)) (qAdd y (qNeg x)))
-        (sym Q (qAdd (qAdd z (qNeg y)) (qAdd y (qNeg x))) (qAdd z (qNeg x)) (qSubSplit x y z)))
-      (sgnQAddPos (qAdd z (qNeg y)) (qAdd y (qNeg x)) (sgnOfLtQ h2) (sgnOfLtQ h1)))
+        (z + qNeg x)
+        (z + qNeg y + (y + qNeg x))
+        (sym Q (z + qNeg y + (y + qNeg x)) (z + qNeg x) (qSubSplit x y z)))
+      (sgnQAddPos (z + qNeg y) (y + qNeg x) (sgnOfLtQ h2) (sgnOfLtQ h1)))
 
-def leQLtTrans : (x y z : El Q) → El (LeQ x y) → El (LtQ y z) → El (LtQ x z)
+def leQLtTrans : (x y z : El Q) → El (x ≤ y) → El (y < z) → El (x < z)
   using (id.Id.unfold,
-    ratLt.LtQ.unfold,
-    rationalOrder.LeQ.unfold,
+    ratLt.<.unfold,
+    rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold,
     rationalQ.Q.unfold) ≔
   λx. λy. λz. λh1. λh2. ltQOfSgn
@@ -146,22 +146,22 @@ def leQLtTrans : (x y z : El Q) → El (LeQ x y) → El (LtQ y z) → El (LtQ x 
     z
     (trans
       Sign
-      (sgnQ (qAdd z (qNeg x)))
-      (sgnQ (qAdd (qAdd z (qNeg y)) (qAdd y (qNeg x))))
+      (sgnQ (z + qNeg x))
+      (sgnQ (z + qNeg y + (y + qNeg x)))
       sPos
       (cong
         Q
         (λw. Sign)
         (λw. sgnQ w)
-        (qAdd z (qNeg x))
-        (qAdd (qAdd z (qNeg y)) (qAdd y (qNeg x)))
-        (sym Q (qAdd (qAdd z (qNeg y)) (qAdd y (qNeg x))) (qAdd z (qNeg x)) (qSubSplit x y z)))
+        (z + qNeg x)
+        (z + qNeg y + (y + qNeg x))
+        (sym Q (z + qNeg y + (y + qNeg x)) (z + qNeg x) (qSubSplit x y z)))
       (sgnQAddPosNonNeg (sgnOfLtQ h2) h1))
 
-def ltQLeTrans : (x y z : El Q) → El (LtQ x y) → El (LeQ y z) → El (LtQ x z)
+def ltQLeTrans : (x y z : El Q) → El (x < y) → El (y ≤ z) → El (x < z)
   using (id.Id.unfold,
-    ratLt.LtQ.unfold,
-    rationalOrder.LeQ.unfold,
+    ratLt.<.unfold,
+    rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold,
     rationalQ.Q.unfold) ≔
   λx. λy. λz. λh1. λh2. ltQOfSgn
@@ -169,29 +169,29 @@ def ltQLeTrans : (x y z : El Q) → El (LtQ x y) → El (LeQ y z) → El (LtQ x 
     z
     (trans
       Sign
-      (sgnQ (qAdd z (qNeg x)))
-      (sgnQ (qAdd (qAdd y (qNeg x)) (qAdd z (qNeg y))))
+      (sgnQ (z + qNeg x))
+      (sgnQ (y + qNeg x + (z + qNeg y)))
       sPos
       (cong
         Q
         (λw. Sign)
         (λw. sgnQ w)
-        (qAdd z (qNeg x))
-        (qAdd (qAdd y (qNeg x)) (qAdd z (qNeg y)))
+        (z + qNeg x)
+        (y + qNeg x + (z + qNeg y))
         (trans
           Q
-          (qAdd z (qNeg x))
-          (qAdd (qAdd z (qNeg y)) (qAdd y (qNeg x)))
-          (qAdd (qAdd y (qNeg x)) (qAdd z (qNeg y)))
-          (sym Q (qAdd (qAdd z (qNeg y)) (qAdd y (qNeg x))) (qAdd z (qNeg x)) (qSubSplit x y z))
-          (qAddComm (qAdd z (qNeg y)) (qAdd y (qNeg x)))))
+          (z + qNeg x)
+          (z + qNeg y + (y + qNeg x))
+          (y + qNeg x + (z + qNeg y))
+          (sym Q (z + qNeg y + (y + qNeg x)) (z + qNeg x) (qSubSplit x y z))
+          (qAddComm (z + qNeg y) (y + qNeg x))))
       (sgnQAddPosNonNeg (sgnOfLtQ h1) h2))
 
 -- ===== trichotomy =====
-def ltQTrichotomy : (x y : El Q) → El (LtQ x y) ⊎ El (Id Q x y) ⊎ El (LtQ y x)
+def ltQTrichotomy : (x y : El Q) → El (x < y) ⊎ El (Id Q x y) ⊎ El (y < x)
   using (id.Id.eq,
     id.Id.unfold,
-    ratLt.LtQ.eq,
+    ratLt.<.eq,
     rationalOrder.NonNegS.unfold,
     rationalOrder.Sign.eq,
     rationalOrder.sNeg.eq,
@@ -199,7 +199,7 @@ def ltQTrichotomy : (x y : El Q) → El (LtQ x y) ⊎ El (Id Q x y) ⊎ El (LtQ 
     rationalOrder.sgnFlip.eq,
     rationalOrder.sgnQ.eq,
     rationalQ.Q.unfold,
-    rationalQ.qAdd.eq,
+    rationalQ.+.eq,
     rationalQ.qNeg.eq) ≔
   λx. λy. ⊎-elim
     (nn. ⊎-elim
@@ -210,8 +210,7 @@ def ltQTrichotomy : (x y : El Q) → El (LtQ x y) ⊎ El (Id Q x y) ⊎ El (LtQ 
           Q
           y
           x
-          (qDiffZero
-            (sgnQZeroView (qAdd y (qNeg x)) (idToEq Sign (sgnQ (qAdd y (qNeg x))) sZero h0)))))))
+          (qDiffZero (sgnQZeroView (y + qNeg x) (idToEq Sign (sgnQ (y + qNeg x)) sZero h0)))))))
       (hp. inj₁ hp)
       nn)
     (hneg. inj₂ (inj₂ (ltQOfSgn
@@ -219,62 +218,50 @@ def ltQTrichotomy : (x y : El Q) → El (LtQ x y) ⊎ El (Id Q x y) ⊎ El (LtQ 
       x
       (trans
         Sign
-        (sgnQ (qAdd x (qNeg y)))
-        (sgnFlip (sgnQ (qAdd y (qNeg x))))
+        (sgnQ (x + qNeg y))
+        (sgnFlip (sgnQ (y + qNeg x)))
         sPos
         sgnQSubFlip
         (trans
           Sign
-          (sgnFlip (sgnQ (qAdd y (qNeg x))))
+          (sgnFlip (sgnQ (y + qNeg x)))
           (sgnFlip sNeg)
           sPos
           (cong
             Sign
             (λw. Sign)
             (λw. sgnFlip w)
-            (sgnQ (qAdd y (qNeg x)))
+            (sgnQ (y + qNeg x))
             sNeg
-            (idToEq Sign (sgnQ (qAdd y (qNeg x))) sNeg hneg))
+            (idToEq Sign (sgnQ (y + qNeg x)) sNeg hneg))
           ⋆)))))
-    (sgnCases (sgnQ (qAdd y (qNeg x))))
+    (sgnCases (sgnQ (y + qNeg x)))
 
 -- ===== compatibility with addition =====
-def ltQPlusMono : (x y w : El Q) → El (LtQ x y) → El (LtQ (qAdd x w) (qAdd y w))
-  using (id.Id.unfold, ratLt.LtQ.unfold, rationalQ.Q.unfold) ≔
+def ltQPlusMono : (x y w : El Q) → El (x < y) → El (x + w < y + w)
+  using (id.Id.unfold, ratLt.<.unfold, rationalQ.Q.unfold) ≔
   λx. λy. λw. λh. transport
     Sign
     (λs. Id Sign s sPos)
-    (sgnQ (qAdd y (qNeg x)))
-    (sgnQ (qAdd (qAdd y w) (qNeg (qAdd x w))))
+    (sgnQ (y + qNeg x))
+    (sgnQ (y + w + qNeg (x + w)))
     (sym
       Sign
-      (sgnQ (qAdd (qAdd y w) (qNeg (qAdd x w))))
-      (sgnQ (qAdd y (qNeg x)))
-      (cong
-        Q
-        (λv. Sign)
-        (λv. sgnQ v)
-        (qAdd (qAdd y w) (qNeg (qAdd x w)))
-        (qAdd y (qNeg x))
-        (qSubPlusCancel x y w)))
+      (sgnQ (y + w + qNeg (x + w)))
+      (sgnQ (y + qNeg x))
+      (cong Q (λv. Sign) (λv. sgnQ v) (y + w + qNeg (x + w)) (y + qNeg x) (qSubPlusCancel x y w)))
     h
 
-def ltQPlusMonoL : (x y w : El Q) → El (LtQ x y) → El (LtQ (qAdd w x) (qAdd w y))
-  using (id.Id.unfold, ratLt.LtQ.unfold, rationalQ.Q.unfold) ≔
+def ltQPlusMonoL : (x y w : El Q) → El (x < y) → El (w + x < w + y)
+  using (id.Id.unfold, ratLt.<.unfold, rationalQ.Q.unfold) ≔
   λx. λy. λw. λh. transport
     Sign
     (λs. Id Sign s sPos)
-    (sgnQ (qAdd y (qNeg x)))
-    (sgnQ (qAdd (qAdd w y) (qNeg (qAdd w x))))
+    (sgnQ (y + qNeg x))
+    (sgnQ (w + y + qNeg (w + x)))
     (sym
       Sign
-      (sgnQ (qAdd (qAdd w y) (qNeg (qAdd w x))))
-      (sgnQ (qAdd y (qNeg x)))
-      (cong
-        Q
-        (λv. Sign)
-        (λv. sgnQ v)
-        (qAdd (qAdd w y) (qNeg (qAdd w x)))
-        (qAdd y (qNeg x))
-        (qSubPlusCancelL x y w)))
+      (sgnQ (w + y + qNeg (w + x)))
+      (sgnQ (y + qNeg x))
+      (cong Q (λv. Sign) (λv. sgnQ v) (w + y + qNeg (w + x)) (y + qNeg x) (qSubPlusCancelL x y w)))
     h
