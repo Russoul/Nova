@@ -87,14 +87,14 @@ def fuelStep : {a b f' : ℕ} → El (a ≤ S f') → El (S b ≤ a) → El (a �
                 _
                 (sucPlus (a ∸ S b + b) (le .π₁))
                 (cong
-                  ℕ
+                  _
                   (λu. ℕ)
                   (λw. S w)
                   _
                   _
                   (plusAssoc (a ∸ S b) b (le .π₁)))) ⟩ S (a ∸ S b + b) + le .π₁
             ≡⟨ cong
-              ℕ
+              _
               (λu. ℕ)
               (λw. w + le .π₁)
               _
@@ -104,9 +104,9 @@ def fuelStep : {a b f' : ℕ} → El (a ≤ S f') → El (S b ≤ a) → El (a �
                 _
                 _
                 (S b + (a ∸ S b))
-                (cong ℕ (λu. ℕ) (λw. S w) _ _ (plusComm b (a ∸ S b)))
+                (cong _ (λu. ℕ) (λw. S w) _ _ (plusComm b (a ∸ S b)))
                 (sym _ _ _ (sucPlus b (a ∸ S b)))) ⟩ S b + (a ∸ S b) + le .π₁
-            ≡⟨ cong ℕ (λu. ℕ) (λw. w + le .π₁) _ _ (leMonusPlus lt) ⟩ a + le .π₁
+            ≡⟨ cong _ (λu. ℕ) (λw. w + le .π₁) _ _ (leMonusPlus lt) ⟩ a + le .π₁
             ≡⟨ idToEq _ _ _ (le .π₂) ⟩ S f'))
 
 -- ===== division =====
@@ -152,7 +152,7 @@ def dmAuxEq : {f a b : ℕ} → El (a ≤ f) → a ≡ dmAux f a b .π₁ * S b 
           _
           _
           (S (dmAux f' (a ∸ S b) b .π₁) * S b + dmAux f' (a ∸ S b) b .π₂)
-          (cong ℕ (λu. ℕ) (λw. S b + w) _ _ (ih (a ∸ S b) b (fuelStep le (ltOfMonusSuc _ hm))))
+          (cong _ (λu. ℕ) (λw. S b + w) _ _ (ih (a ∸ S b) b (fuelStep le (ltOfMonusSuc _ hm))))
           (trans
             _
             _
@@ -164,7 +164,7 @@ def dmAuxEq : {f a b : ℕ} → El (a ≤ f) → a ≡ dmAux f a b .π₁ * S b 
               _
               (plusAssoc (S b) (dmAux f' (a ∸ S b) b .π₁ * S b) (dmAux f' (a ∸ S b) b .π₂)))
             (cong
-              ℕ
+              _
               (λu. ℕ)
               (λw. w + dmAux f' (a ∸ S b) b .π₂)
               _
@@ -175,7 +175,7 @@ def dmAuxEq : {f a b : ℕ} → El (a ≤ f) → a ≡ dmAux f a b .π₁ * S b 
 def dmAuxLe : {f a b : ℕ} → El (a ≤ f) → El (dmAux f a b .π₂ ≤ b)
   using (id.Id.eq, id.Id.unfold, natDiv.dmAux.eq, natDiv.natCase.eq, natOrder.≤.unfold) ≔
   λf. ℕ-elim
-    (λa. λb. λle. transport ℕ (λw. w ≤ b) _ _ (sym _ _ _ (leZeroInv le)) (leZero b))
+    (λa. λb. λle. transport _ (λw. w ≤ b) _ _ (sym _ _ _ (leZeroInv le)) (leZero b))
     (f' ih. λa. λb. λle. natCaseElimEqD
       (ℕ ⨯ ℕ)
       (λp. p .π₂ ≤ b)
@@ -230,7 +230,7 @@ def leSucNotSelf : (a : ℕ) → El (S a ≤ a) → 𝟘
             _
             _
             _
-            (sym _ _ _ (trans ℕ _ (S (a + le .π₁)) (a + S (le .π₁)) (sucPlus a (le .π₁)) ⋆))
+            (sym _ _ _ (trans _ _ _ (a + S (le .π₁)) (sucPlus a (le .π₁)) ⋆))
             (idToEq _ _ _ (le .π₂)))
           (sym _ _ _ (plusZeroId a)))))
 
@@ -246,7 +246,7 @@ def ltProdSuc : (d d' : ℕ) → El (S (d * S d') ≤ S d * S d')
         _
         _
         _
-        (trans ℕ _ (S (d * S d' + d')) (d * S d' + S d') (sucPlus (d * S d') d') ⋆)
+        (trans _ _ _ (d * S d' + S d') (sucPlus (d * S d') d') ⋆)
         (trans _ _ _ _ (plusComm (S d') (d * S d')) (sym _ _ _ (sucMult d (S d')))))
 
 -- the two quotients' common part cancels, leaving the remainders
@@ -274,7 +274,7 @@ def divCancel : (q : ℕ)
           _
           (multDistribR (S d') (q * S d) r)
           (cong
-            ℕ
+            _
             (λu. ℕ)
             (λw. w + r * S d')
             _
@@ -285,7 +285,7 @@ def divCancel : (q : ℕ)
               _
               _
               (multAssoc q (S d) (S d'))
-              (cong ℕ (λu. ℕ) (λw. q * w) _ _ (multComm (S d') (S d)))))))
+              (cong _ (λu. ℕ) (λw. q * w) _ _ (multComm (S d') (S d)))))))
       (trans
         _
         _
@@ -304,7 +304,7 @@ def divCancel : (q : ℕ)
             _
             (q * (S d' * S d) + (k * (S d' * S d) + r' * S d))
             (cong
-              ℕ
+              _
               (λu. ℕ)
               (λw. w + r' * S d)
               _
@@ -329,7 +329,7 @@ def divKZero : (r d r' d' : ℕ)
         (ltProdSuc d d')
         (leTrans
           (S d * S d')
-          (r * S d')
+          _
           _
           (k'
             * (S d'
@@ -354,7 +354,7 @@ def divKZero : (r d r' d' : ℕ)
                     _
                     _
                     (S d * S d' + (k' * (S d' * S d) + r' * S d))
-                    (cong ℕ (λu. ℕ) (λw. w + r' * S d) _ _ (sucMult k' (S d' * S d)))
+                    (cong _ (λu. ℕ) (λw. w + r' * S d) _ _ (sucMult k' (S d' * S d)))
                     (trans
                       _
                       _
@@ -362,7 +362,7 @@ def divKZero : (r d r' d' : ℕ)
                       _
                       (plusAssoc (S d' * S d) (k' * (S d' * S d)) (r' * S d))
                       (cong
-                        ℕ
+                        _
                         (λu. ℕ)
                         (λw. w + (k' * (S d' * S d) + r' * S d))
                         _
@@ -390,7 +390,7 @@ def divNUniqueLe : {m d m' d' : ℕ}
         _
         (divN m d)
         (cong
-          ℕ
+          _
           (λu. ℕ)
           (λw. divN m d + w)
           _
@@ -413,10 +413,10 @@ def divNUniqueLe : {m d m' d' : ℕ}
                   _
                   _
                   (m' * S d)
-                  (cong ℕ (λu. ℕ) (λw. w * S d') _ _ (sym _ _ _ (divModEq m d)))
+                  (cong _ (λu. ℕ) (λw. w * S d') _ _ (sym _ _ _ (divModEq m d)))
                   h)
                 (cong
-                  ℕ
+                  _
                   (λu. ℕ)
                   (λw. w * S d)
                   _
@@ -428,7 +428,7 @@ def divNUniqueLe : {m d m' d' : ℕ}
                     _
                     (divModEq m' d')
                     (cong
-                      ℕ
+                      _
                       (λu. ℕ)
                       (λw. w * S d' + modN m' d')
                       _
@@ -463,12 +463,12 @@ def leDivSuc : (m b : ℕ) → El (m ≤ S (divN m b) * S b) using (natOrder.≤
           _
           _
           (divN m b * S b + (modN m b + (S b ∸ modN m b)))
-          (cong ℕ (λu. ℕ) (λw. w + (S b ∸ modN m b)) _ _ (divModEq m b))
+          (cong _ (λu. ℕ) (λw. w + (S b ∸ modN m b)) _ _ (divModEq m b))
           (plusAssoc (divN m b * S b) (modN m b) (S b ∸ modN m b)))
         (trans
           _
           _
           _
           (S (divN m b) * S b)
-          (cong ℕ (λu. ℕ) (λw. divN m b * S b + w) _ _ (leMonusPlus (leStep (modLe m b))))
+          (cong _ (λu. ℕ) (λw. divN m b * S b + w) _ _ (leMonusPlus (leStep (modLe m b))))
           (trans _ _ _ _ (plusComm (S b) (divN m b * S b)) (sym _ _ _ (sucMult (divN m b) (S b))))))

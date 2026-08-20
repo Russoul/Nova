@@ -1,2 +1,2 @@
 defined id2
-Error: def bad: cannot infer the type of a λ (ascribe the term: `(t : T)`)
+Error: def bad: cannot infer implicit argument #0 of 'id2' — supply it with {…}, or pass the bare function with id2 {}

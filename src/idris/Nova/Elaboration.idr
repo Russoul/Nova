@@ -4117,17 +4117,9 @@ mutual
                   Just c => matchTySplit jn blankPoss (substTy tailTy (prefixSub patArgs)) c
     -- phase 1: walk the written spine left to right, solving from
     -- inference-form arguments as they elaborate
-    (sols, revArgs, revSks, pending, srcs, attrs) <- walk presIn jn ((st.impTrialOn || st.svSugarOn) && not st.probing) doms slots sols0 [] [] [] [] []
+    (sols, revArgs, revSks, pending, srcs, attrs, defers) <- walk presIn jn ((st.impTrialOn || st.svSugarOn) && not st.probing) doms slots sols0 [] [] [] [] [] []
     -- resolve every inserted hole; unsolved is a structural error
-    finalArgs <- traverse (\((pos, mt), arg) =>
-                    if hasHolesE arg
-                      then case lookup pos sols of
-                        Just v => pure v
-                        Nothing => case mt of
-                          Just (SBlank _) => throw "\{site}: cannot infer the blank at argument #\{show pos} of '\{q}' — spell the argument"
-                          _ => throw "\{site}: cannot infer implicit argument #\{show pos} of '\{q}' — supply it with {…}, or pass the bare function with \{q} {}"
-                      else pure arg)
-                  (zip slots (reverse revArgs))
+    (finalArgs, dPatches) <- resolveArgs sols defers doms (zip slots (reverse revArgs)) [] []
     -- solved blanks feed the LSP hover: the recovered value at the
     -- written `_`, ascribed with its instantiated domain and the
     -- source that bound it — an argument's inferred type (by the
@@ -4143,7 +4135,8 @@ mutual
             _ => pure ()
         _ => pure ()) slots
     -- pending switch conversions, at the FINAL instantiations
-    sks <- patchPending doms finalArgs (reverse revSks) pending
+    sks0 <- patchPending doms finalArgs (reverse revSks) pending
+    let sks = foldl (\ss, (dpos, dsk) => mapAt dpos (const dsk) ss) sks0 dPatches
     -- the implicitize TRIAL (docs/NovaPerfectSurface.txt, Phase 3c):
     -- for every {t}-override at an implicit position, replay the
     -- HYPOTHETICAL elided recovery — implicit positions as holes,
@@ -4183,7 +4176,8 @@ mutual
                        Nothing => []
                        Just c => matchTy jn (substTy tailTy (prefixSub hypPat)) c
           let srcsX = filter (\(p, _) => not (p `elem` imps)) (pending ++ srcs)
-          let (hypSols, stuck) = trialSolve jn doms imps srcsX finalArgs 0 m hyp0 [] False
+          let (hypSols, hypDefs, eagerStuck) = trialSolve jn doms imps (introPossOf slots) srcsX finalArgs 0 m hyp0 [] []
+          let stuck = eagerStuck || trialStuck doms slots imps hypSols finalArgs hypDefs
           traverse_ (\pos =>
               let verdict = if not (notTrailing pos) then 1
                             else if stuck then 2
@@ -4283,20 +4277,21 @@ mutual
     walk : List (Maybe (Elem, Ty, Skel)) ->
            (jn : Ty -> Ty) -> (trialOn : Bool) -> List Ty -> List (Nat, Maybe SElem) -> Sols ->
            List Elem -> List Skel -> List (Nat, Ty) -> List (Nat, Ty) -> List (Nat, Nat) ->
-           ElabM (Sols, List Elem, List Skel, List (Nat, Ty), List (Nat, Ty), List (Nat, Nat))
-    walk pres jn trialOn doms [] sols revArgs revSks pending srcs attrs =
-      pure (sols, revArgs, revSks, pending, srcs, attrs)
-    walk pres jn trialOn doms ((pos, mt) :: rest) sols revArgs revSks pending srcs attrs = case mt of
+           List (Nat, SElem) ->
+           ElabM (Sols, List Elem, List Skel, List (Nat, Ty), List (Nat, Ty), List (Nat, Nat), List (Nat, SElem))
+    walk pres jn trialOn doms [] sols revArgs revSks pending srcs attrs defers =
+      pure (sols, revArgs, revSks, pending, srcs, attrs, defers)
+    walk pres jn trialOn doms ((pos, mt) :: rest) sols revArgs revSks pending srcs attrs defers = case mt of
       Nothing =>
         let arg = fromMaybe (holeE pos) (lookup pos sols) in
-        walk pres jn trialOn doms rest sols (arg :: revArgs) (Nd [] [] :: revSks) pending srcs attrs
+        walk pres jn trialOn doms rest sols (arg :: revArgs) (Nd [] [] :: revSks) pending srcs attrs defers
       -- a written BLANK is a hole at its (explicit) position: same
       -- placeholder, same joint solve, same resolution — an inserted
       -- implicit that happens to be spelled `_`
       Just (SBlank _) =>
         let arg = fromMaybe (holeE pos) (lookup pos sols) in
         let pres' = the (List (Maybe (Elem, Ty, Skel))) (case pres of { (_ :: ps) => ps; [] => [] }) in
-        walk pres' jn trialOn doms rest sols (arg :: revArgs) (Nd [] [] :: revSks) pending srcs attrs
+        walk pres' jn trialOn doms rest sols (arg :: revArgs) (Nd [] [] :: revSks) pending srcs attrs defers
       Just surfE => do
         let (pre, pres') = the (Maybe (Elem, Ty, Skel), List (Maybe (Elem, Ty, Skel))) $
                              case pres of
@@ -4319,19 +4314,29 @@ mutual
                           else sols
             let attrs2 = attrs ++ map (\(k, _) => (k, pos))
                            (filter (\(k, _) => isNothing (lookup k sols)) sols2)
-            walk pres' jn trialOn doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending) srcs attrs2
+            walk pres' jn trialOn doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending) srcs attrs2 defers
           Nothing =>
             if hasHolesT dInst
-              then do
-                (e', eTy, eSk) <- asArg (inferElem ctx env site surfE)
-                let sols2 = case mTy 0 dInst eTy sols of
-                              Just s => s
-                              Nothing => case mTy 0 (compTy dInst) (compTy eTy) sols of
+              then if sInferForm surfE
+                then do
+                  (e', eTy, eSk) <- asArg (inferElem ctx env site surfE)
+                  let sols2 = case mTy 0 dInst eTy sols of
                                 Just s => s
-                                Nothing => fromMaybe sols (mTy 0 (jn dInst) (jn eTy) sols)
-                let attrs2 = attrs ++ map (\(k, _) => (k, pos))
-                               (filter (\(k, _) => isNothing (lookup k sols)) sols2)
-                walk pres' jn trialOn doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending) srcs attrs2
+                                Nothing => case mTy 0 (compTy dInst) (compTy eTy) sols of
+                                  Just s => s
+                                  Nothing => fromMaybe sols (mTy 0 (jn dInst) (jn eTy) sols)
+                  let attrs2 = attrs ++ map (\(k, _) => (k, pos))
+                                 (filter (\(k, _) => isNothing (lookup k sols)) sols2)
+                  walk pres' jn trialOn doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending) srcs attrs2 defers
+                else
+                  -- DEFER an intro form at a still-holey domain: it
+                  -- carries nothing as a source (no type to mine), so
+                  -- its checking waits for the joint solve to fill
+                  -- the domain — resolved in position order after the
+                  -- walk (cong's first argument: the λ at B blocks
+                  -- until the proof's type binds A, which arrives
+                  -- later in the spine)
+                  walk pres' jn trialOn doms rest sols (holeE pos :: revArgs) (Nd [] [] :: revSks) pending srcs attrs ((pos, surfE) :: defers)
               else if trialOn && sInferForm surfE
                 then do
                   -- the trials need the argument's INFERRED type as a
@@ -4358,10 +4363,41 @@ mutual
                                                        then (pos, eTy) :: srcs
                                                        else srcs
                                 Nothing => srcs
-                  walk pres' jn trialOn doms rest sols (e' :: revArgs) (eSk :: revSks) pending srcs' attrs
+                  walk pres' jn trialOn doms rest sols (e' :: revArgs) (eSk :: revSks) pending srcs' attrs defers
                 else do
                   (e', eSk) <- asArg (checkElem ctx env site surfE dInst)
-                  walk pres' jn trialOn doms rest sols (e' :: revArgs) (eSk :: revSks) pending srcs attrs
+                  walk pres' jn trialOn doms rest sols (e' :: revArgs) (eSk :: revSks) pending srcs attrs defers
+
+    ||| Resolve the walked slots to the final argument list, in
+    ||| position order: a hole takes its joint solution (a structural
+    ||| error names the remedy when there is none); a DEFERRED intro
+    ||| form checks NOW, at its domain instantiated with everything
+    ||| already resolved — hole-free by construction or the argument
+    ||| must be spelled. Deferred skeletons replace their placeholders
+    ||| by position.
+    resolveArgs : Sols -> List (Nat, SElem) -> List Ty ->
+                  List ((Nat, Maybe SElem), Elem) -> List Elem -> List (Nat, Skel) ->
+                  ElabM (List Elem, List (Nat, Skel))
+    resolveArgs sols defers doms [] acc patches = pure (reverse acc, patches)
+    resolveArgs sols defers doms (((pos, mt), arg) :: rest) acc patches =
+      case lookup pos defers of
+        Just surfE => do
+          d <- case getAt pos doms of
+                 Just d => pure d
+                 Nothing => throw "\{site}: internal — deferred slot beyond the telescope"
+          let dFinal = substTy d (prefixSub (reverse acc))
+          when (hasHolesT dFinal) $
+            throw "\{site}: argument #\{show pos} of '\{q}' has an undetermined domain — a blank it depends on found no source; spell the blank"
+          (e', eSk) <- asArg (checkElem ctx env site surfE dFinal)
+          resolveArgs sols defers doms rest (e' :: acc) ((pos, eSk) :: patches)
+        Nothing =>
+          if hasHolesE arg
+            then case lookup pos sols of
+              Just v => resolveArgs sols defers doms rest (v :: acc) patches
+              Nothing => case mt of
+                Just (SBlank _) => throw "\{site}: cannot infer the blank at argument #\{show pos} of '\{q}' — spell the argument"
+                _ => throw "\{site}: cannot infer implicit argument #\{show pos} of '\{q}' — supply it with {…}, or pass the bare function with \{q} {}"
+            else resolveArgs sols defers doms rest (arg :: acc) patches
 
     ||| The hypothetical elided solve, replaying `walk`'s discipline
     ||| over the recorded sources: at an implicit position the entry
@@ -4370,15 +4406,16 @@ mutual
     ||| consumes its position's recorded source, or — when the
     ||| argument was an intro form, with no inferred type — STICKS
     ||| (real elision errors there).
-    trialSolve : (jn : Ty -> Ty) -> List Ty -> List Nat -> List (Nat, Ty) -> List Elem ->
-                 (pos, m : Nat) -> Sols -> List Elem -> Bool -> (Sols, Bool)
-    trialSolve jn doms imps srcsX finalArgs pos m sols hypRev stuck =
-      if pos >= m then (sols, stuck) else
+    trialSolve : (jn : Ty -> Ty) -> List Ty -> List Nat -> (introPoss : List Nat) ->
+                 List (Nat, Ty) -> List Elem ->
+                 (pos, m : Nat) -> Sols -> List Elem -> List Nat -> (Sols, List Nat, Bool)
+    trialSolve jn doms imps introPoss srcsX finalArgs pos m sols hypRev defs =
+      if pos >= m then (sols, defs, False) else
         let entry = if pos `elem` imps
                       then fromMaybe (holeE pos) (lookup pos sols)
                       else fromMaybe (holeE pos) (getAt pos finalArgs)
         in if pos `elem` imps
-             then trialSolve jn doms imps srcsX finalArgs (S pos) m sols (entry :: hypRev) stuck
+             then trialSolve jn doms imps introPoss srcsX finalArgs (S pos) m sols (entry :: hypRev) defs
              else
                let dHyp = case getAt pos doms of
                             Just d => substTy d (prefixSub (reverse hypRev))
@@ -4391,9 +4428,49 @@ mutual
                                       Nothing => case mTy 0 (compTy dHyp) (compTy eTy) sols of
                                         Just s => s
                                         Nothing => fromMaybe sols (mTy 0 (jn dHyp) (jn eTy) sols)
-                        in trialSolve jn doms imps srcsX finalArgs (S pos) m sols' (entry :: hypRev) stuck
-                      Nothing => trialSolve jn doms imps srcsX finalArgs (S pos) m sols (entry :: hypRev) True
-                    else trialSolve jn doms imps srcsX finalArgs (S pos) m sols (entry :: hypRev) stuck
+                        in trialSolve jn doms imps introPoss srcsX finalArgs (S pos) m sols' (entry :: hypRev) defs
+                      Nothing =>
+                        if pos `elem` introPoss
+                          -- an INTRO form mirrors the walk's deferral —
+                          -- INCLUDING its placeholder: the real walk
+                          -- pushes a hole for a deferred slot, so later
+                          -- domains must see the hole here too (the
+                          -- value would let comp-tier matches fire that
+                          -- re-elaboration never sees). Whether it
+                          -- sticks is an END-state question (trialStuck)
+                          then trialSolve jn doms imps introPoss srcsX finalArgs (S pos) m sols (holeE pos :: hypRev) (pos :: defs)
+                          -- an INFERENCE form at a holey domain INFERS
+                          -- at re-elaboration — and without an
+                          -- ADMISSIBLE source its inferred core is not
+                          -- the checked one (trailing insertion,
+                          -- expectation-solved implicits, overload
+                          -- choice): the flip would change the
+                          -- argument, so the set is rejected outright
+                          else (sols, defs, True)
+                    else trialSolve jn doms imps introPoss srcsX finalArgs (S pos) m sols (entry :: hypRev) defs
+
+    ||| the written positions holding INTRO forms — the only ones the
+    ||| walk defers (blank slots are holes, not written arguments)
+    introPossOf : List (Nat, Maybe SElem) -> List Nat
+    introPossOf slots = mapMaybe (\(pos, mt) => case mt of
+        Just (SBlank _) => Nothing
+        Just se => if sInferForm se then Nothing else Just pos
+        Nothing => Nothing) slots
+
+    ||| The deferral end-check, the trial's mirror of resolveArgs: a
+    ||| deferred position sticks exactly when its domain, instantiated
+    ||| with the FINAL joint entries, still carries holes.
+    trialStuck : List Ty -> List (Nat, Maybe SElem) -> List Nat -> Sols -> List Elem -> List Nat -> Bool
+    trialStuck doms slots hs solsF finalArgs defs =
+      case defs of
+        [] => False
+        _ =>
+          let es = map (\(i, _) => if i `elem` hs
+                                     then fromMaybe (holeE i) (lookup i solsF)
+                                     else fromMaybe (holeE i) (getAt i finalArgs)) slots
+          in any (\dp => case getAt dp doms of
+                           Just d => hasHolesT (substTy d (prefixSub (take dp es)))
+                           Nothing => True) defs
 
     blankTrial : (Ty -> Ty) -> Range -> List Nat -> List Ty -> Ty -> Nat ->
                  List (Nat, Maybe SElem) -> List Skel -> List Elem -> List (Nat, Ty) -> ElabM ()
@@ -4452,7 +4529,8 @@ mutual
                      Just c => matchTySplit jn (filter (\hp => not (hp `elem` imps)) hs)
                                  (substTy tailTy (prefixSub hypPat)) c
             srcsX = filter (\(sp, _) => not (sp `elem` hs)) sources
-        in trialSolve jn doms hs srcsX finalArgs 0 m hyp0 [] False
+            (solsF, defs, eagerStuck) = trialSolve jn doms hs (introPossOf slots) srcsX finalArgs 0 m hyp0 [] []
+        in (solsF, eagerStuck || trialStuck doms slots hs solsF finalArgs defs)
 
       okAt : Maybe Ty -> List Nat -> Bool
       okAt mc hs = let (hypSols, stuck) = solve mc hs in

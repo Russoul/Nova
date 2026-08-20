@@ -33,7 +33,7 @@ def classEqOfClosure : (A : 𝕌)
   (a b : El A)
   → Prf (rClosure _ r a b) → Prf (class a ≡ class b ∈ El (A / (u v. r u v))) ≔
   λA. λr. rClosureLeast
-    A
+    _
     r
     (λx. λy. class x ≡ class y ∈ El (A / (u v. r u v)))
     (λx. λy. λh. classEqOfRel _ r _ _ h)
@@ -126,8 +126,8 @@ def effectiveAtEquiv : (A : 𝕌)
             y
             x)) → (a b : El A) → Prf (class a ≡ class b ∈ El (A / (u v. r u v))) → Prf (r a b) ≔
   λA. λr. λrRefl. λrTrans. λrSymm. λa. λb. λh. rClosureLeast
-    A
-    r
+    _
+    _
     r
     (λx. λy. λk. k)
     rRefl
@@ -145,7 +145,7 @@ def natEq : El ℕ → El ℕ → Ω ≔ λx. λy. x ≡ y
 def natEqEffective : (a b : El ℕ)
   → Prf (class a ≡ class b ∈ El (ℕ / (u v. natEq u v))) → Prf (a ≡ b)
   using (hyp.rw, quotEffective.natEq.eq, quotEffective.natEq.unfold) ≔
-  effectiveAtEquiv ℕ natEq (λx. ⋆) (λx. λy. λz. λh1. λh2. ⋆) (λx. λy. λh. ⋆)
+  effectiveAtEquiv _ natEq (λx. ⋆) (λx. λy. λz. λh1. λh2. ⋆) (λx. λy. λh. ⋆)
 
 -- and the refutation, kept as evidence: at the successor graph — not an
 -- equivalence — the one-hop equation holds by el-quot-eq, the two-hop

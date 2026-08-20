@@ -1,0 +1,20 @@
+-- deferred intro-form arguments: a λ (or pair) at a still-holey
+-- domain waits for the joint solve — cong's first argument is
+-- recoverable even though the dependent λ at B precedes the
+-- type-determining proof in the spine
+
+def cong2 : (A : 𝕌)
+  (B : El A → 𝕌)
+  (f : (x : El A) → El (B x))
+  (a b : El A) → (a ≡ b) → f a ≡ f b ∈ El (B b)
+  using (hyp.rw) ≔ λA. λB. λf. λa. λb. λh. ⋆
+
+def double : ℕ → ℕ ≔ λn. ℕ-elim Z (k ih. S (S ih)) n
+
+def useCong : (n m : ℕ) → (n ≡ m) → double n ≡ double m
+  ≔ λn. λm. λh. cong2 _ (λu. ℕ) (λx. double x) _ _ h
+
+-- and the failure mode: every argument is an intro (the ⋆ defers
+-- too), so nothing ever binds A — the unsolvability is reported at
+-- the blank, not blamed on the λ
+def bad : (n : ℕ) → double n ≡ double n ≔ λn. cong2 _ (λu. ℕ) (λx. double x) _ _ ⋆

@@ -30,8 +30,8 @@ def distribBackR : (m k n : ℕ) → m * n + k * n ≡ (m + k) * n using (distri
       _
       _
       (n * m + n * k)
-      (cong ℕ (λu. ℕ) (λw. w + k * n) _ _ (multComm n m))
-      (cong ℕ (λu. ℕ) (λw. n * m + w) _ _ (multComm n k)))
+      (cong _ (λu. ℕ) (λw. w + k * n) _ _ (multComm n m))
+      (cong _ (λu. ℕ) (λw. n * m + w) _ _ (multComm n k)))
     (trans ℕ (n * m + n * k) (n * (m + k)) _ distribBack (multComm (m + k) n))
 
 -- the two exchanges of a four-term sum
@@ -141,8 +141,8 @@ def sum4DistribR : (x1 x2 y1 y2 c1 c2 : ℕ)
       _
       _
       ((x1 + y2) * c1 + (x2 + y1) * c2)
-      (cong ℕ (λu. ℕ) (λw. w + (x2 * c2 + y1 * c2)) _ _ (distribBackR x1 y2 c1))
-      (cong ℕ (λu. ℕ) (λw. (x1 + y2) * c1 + w) _ _ (distribBackR x2 y1 c2)))
+      (cong _ (λu. ℕ) (λw. w + (x2 * c2 + y1 * c2)) _ _ (distribBackR x1 y2 c1))
+      (cong _ (λu. ℕ) (λw. (x1 + y2) * c1 + w) _ _ (distribBackR x2 y1 c2)))
 
 -- ===== the two well-definedness lemmas =====
 -- inner: y varies. Both sides regroup to a₁·t + a₂·t′ with t and t′
@@ -229,7 +229,7 @@ def pairEta : (A B : 𝕌) (p : El (A ⨯ B)) → (p .π₁, p .π₂) ≡ p usi
 
 def classPairEta : (p : ℕ ⨯ ℕ) → class (p .π₁, p .π₂) ≡ class p ∈ El Int
   using (integer.Int.unfold) ≔
-  λp. cong (ℕ ⨯ ℕ) (λu. Int) (λr. class r) _ _ (pairEta _ _ p)
+  λp. cong _ (λu. Int) (λr. class r) _ _ (pairEta _ _ p)
 
 def oneMult : (m : ℕ) → S Z * m ≡ m using (multComm) ≔
   λm. S Z * m ≡⟨ sucMult Z m ⟩ m + Z * m ≡⟨ zeroMult m ⟩ m + Z ≡⟨ plusZeroId m ⟩ m
@@ -255,7 +255,7 @@ def intMulOneL : (z : El Int) → intOne * z ≡ z
     plusZeroId.rw,
     zeroMult,
     zeroMult.rw) ≔
-  λz. quot-elim (p. trans _ (class (p .π₁, p .π₂)) (class (p .π₁, p .π₂)) _ ⋆ (classPairEta p)) z
+  λz. quot-elim (p. trans _ (class (p .π₁, p .π₂)) _ _ ⋆ (classPairEta p)) z
 
 def intMulOneR : (z : El Int) → z * intOne ≡ z
   using (classPairEta,
@@ -296,8 +296,8 @@ def mulComm2 : (u1 u2 v1 v2 : ℕ) → u1 * v1 + u2 * v2 ≡ v1 * u1 + v2 * u2 �
     _
     _
     _
-    (cong ℕ (λw. ℕ) (λw. w + u2 * v2) _ _ (multComm v1 u1))
-    (cong ℕ (λw. ℕ) (λw. v1 * u1 + w) _ _ (multComm v2 u2))
+    (cong _ (λw. ℕ) (λw. w + u2 * v2) _ _ (multComm v1 u1))
+    (cong _ (λw. ℕ) (λw. v1 * u1 + w) _ _ (multComm v2 u2))
 
 def intMulComm : (x y : El Int) → x * y ≡ y * x
   using (integer.Int.unfold, integerMul.*.eq, plusAssoc) ≔
@@ -406,4 +406,4 @@ def intMulNegR : (x y : El Int) → x * intNeg y ≡ intNeg (x * y) using (intMu
     _
     _
     (intMulComm x (intNeg y))
-    (trans _ _ _ _ (intMulNegL y x) (cong Int (λu. Int) intNeg _ _ (intMulComm y x)))
+    (trans _ _ _ _ (intMulNegL y x) (cong _ (λu. Int) intNeg _ _ (intMulComm y x)))

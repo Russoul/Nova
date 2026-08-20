@@ -305,14 +305,14 @@ def qAddWDOuterCls : {p p' c : El Rat}
     _
     _
     _
-    (cong Rat (λu. Q) (λr. class r) _ _ (ratAddComm p c))
+    (cong _ (λu. Q) (λr. class r) _ _ (ratAddComm p c))
     (trans
       Q
       (class (ratAdd c p))
       (class (ratAdd c p'))
       _
       (qAddWDInnerCls h)
-      (cong Rat (λu. Q) (λr. class r) _ _ (sym _ _ _ (ratAddComm p' c))))
+      (cong _ (λu. Q) (λr. class r) _ _ (sym _ _ _ (ratAddComm p' c))))
 
 -- ...in the quot-elim shape the elaborator asks for
 def qAddWDOuter : (p p' : El Rat)
@@ -425,7 +425,7 @@ def qAddComm : (u v : El Q) → u + v ≡ v + u
     rationalQ.Q.unfold,
     rationalQ.RatR.unfold,
     rationalQ.+.eq) ≔
-  λu. λv. quot-elim (p. quot-elim (q. cong Rat (λx. Q) (λr. class r) _ _ (ratAddComm p q)) v) u
+  λu. λv. quot-elim (p. quot-elim (q. cong _ (λx. Q) (λr. class r) _ _ (ratAddComm p q)) v) u
 
 def qAddZeroL : (u : El Q) → qZero + u ≡ u
   using (integer.Int.unfold,
@@ -499,14 +499,14 @@ def magAssoc : {m k l : ℕ}
           _
           _
           (S m * (S k * S l))
-          (cong ℕ (λu. ℕ) (λw. w * S l) _ _ (sym _ _ _ (sucMulSuc m k)))
+          (cong _ (λu. ℕ) (λw. w * S l) _ _ (sym _ _ _ (sucMulSuc m k)))
           (multAssoc (S m) (S k) (S l)))
         (trans
           _
           _
           _
           (S (m * (k * l + k + l) + m + (k * l + k + l)))
-          (cong ℕ (λu. ℕ) (λw. S m * w) _ _ (sucMulSuc k l))
+          (cong _ (λu. ℕ) (λw. S m * w) _ _ (sucMulSuc k l))
           (sucMulSuc m (k * l + k + l)))))
 
 -- eight sign cases, one magnitude law
@@ -800,7 +800,7 @@ def ratNegWD : {p p' : El Rat}
       _
       _
       (num (ratNeg p') * dInt (ratNeg p))
-      (cong Int (λu. Int) intNeg (num p * dInt p') (num p' * dInt p) h)
+      (cong _ (λu. Int) intNeg (num p * dInt p') (num p' * dInt p) h)
       (sym _ _ _ (intMulNegL (num p') (dInt p))))
 
 def ratNegWDCls : (p p' : El Rat)
@@ -950,7 +950,7 @@ def qNegNeg : (u : El Q) → qNeg (qNeg u) ≡ u
     rationalQ.qNeg.eq) ≔
   λu. quot-elim
     (p. cong
-      Rat
+      _
       (λx. Q)
       (λt. class t)
       _
@@ -960,7 +960,7 @@ def qNegNeg : (u : El Q) → qNeg (qNeg u) ≡ u
         _
         (mkRat (num p) (den p))
         p
-        (cong Int (λu2. Rat) (λx. mkRat x (den p)) _ _ (intNegNeg (num p)))
+        (cong _ (λu2. Rat) (λx. mkRat x (den p)) _ _ (intNegNeg (num p)))
         ratEta))
     u
 
@@ -1014,7 +1014,7 @@ def ratMulComm : (p q : El Rat) → ratMul p q ≡ ratMul q p
     _
     (mkRat (num q * num p) (nzMul (den p) (den q)))
     _
-    (cong Int (λu. Rat) (λx. mkRat x (nzMul (den p) (den q))) _ _ (intMulComm (num p) (num q)))
+    (cong _ (λu. Rat) (λx. mkRat x (nzMul (den p) (den q))) _ _ (intMulComm (num p) (num q)))
     (cong
       NZ
       (λu. Rat)
@@ -1040,14 +1040,14 @@ def ratMulAssoc : {p q r : El Rat} → ratMul (ratMul p q) r ≡ ratMul p (ratMu
     (mkRat (num p * (num q * num r)) (nzMul (nzMul (den p) (den q)) (den r)))
     _
     (cong
-      Int
+      _
       (λu. Rat)
       (λx. mkRat x (nzMul (nzMul (den p) (den q)) (den r)))
       _
       _
       (intMulAssoc (num p) (num q) (num r)))
     (cong
-      NZ
+      _
       (λu. Rat)
       (λd. mkRat (num p * (num q * num r)) d)
       _
@@ -1083,7 +1083,7 @@ def ratMulOneR : {p : El Rat} → ratMul p ratOne ≡ p
       (ratMul p ratOne)
       (mkRat (num p) (nzMul (den p) nzOne))
       _
-      (cong Int (λu. Rat) (λx. mkRat x (nzMul (den p) nzOne)) _ _ (intMulOneR (num p)))
+      (cong _ (λu. Rat) (λx. mkRat x (nzMul (den p) nzOne)) _ _ (intMulOneR (num p)))
       (cong NZ (λu. Rat) (λd. mkRat (num p) d) (nzMul (den p) nzOne) (den p) nzMulOneR))
     ratEta
 
@@ -1173,14 +1173,14 @@ def qMulWDOuterCls : {p p' c : El Rat}
     _
     _
     _
-    (cong Rat (λu. Q) (λr. class r) _ _ (ratMulComm p c))
+    (cong _ (λu. Q) (λr. class r) _ _ (ratMulComm p c))
     (trans
       Q
       (class (ratMul c p))
       (class (ratMul c p'))
       _
       (qMulWDInnerCls h)
-      (cong Rat (λu. Q) (λr. class r) _ _ (sym _ _ _ (ratMulComm p' c))))
+      (cong _ (λu. Q) (λr. class r) _ _ (sym _ _ _ (ratMulComm p' c))))
 
 def qMulWDOuter : (p p' : El Rat)
   (h : Prf (RatR p p'))
@@ -1227,7 +1227,7 @@ def qMulComm : (u v : El Q) → u * v ≡ v * u
     rationalQ.RatR.unfold,
     rationalQ.*.eq,
     rationalQ.ratMul.eq) ≔
-  λu. λv. quot-elim (p. quot-elim (q. cong Rat (λx. Q) (λt. class t) _ _ (ratMulComm p q)) v) u
+  λu. λv. quot-elim (p. quot-elim (q. cong _ (λx. Q) (λt. class t) _ _ (ratMulComm p q)) v) u
 
 def qMulAssoc : (u v w : El Q) → u * v * w ≡ u * (v * w)
   using (intMulAssoc,
@@ -1532,8 +1532,8 @@ def qDistribR : (u v w : El Q) → (v + w) * u ≡ v * u + w * u ≔
         _
         _
         (v * u + w * u)
-        (cong Q (λx. Q) (λx. x + u * w) _ _ (qMulComm u v))
-        (cong Q (λx. Q) (λx. v * u + x) _ _ (qMulComm u w))))
+        (cong _ (λx. Q) (λx. x + u * w) _ _ (qMulComm u v))
+        (cong _ (λx. Q) (λx. v * u + x) _ _ (qMulComm u w))))
 
 -- ===== zero and reciprocals =====
 -- 0 · u = 0. On Rat this is 0/d, which only the quotient identifies

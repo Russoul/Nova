@@ -279,13 +279,7 @@ def ratAddTest2 : ratAdd third negThird ≡ mkRat intZero (nzNeg 8)
     rational.ratAdd.eq,
     rational.third.eq,
     threeCancel) ≔
-  trans
-    _
-    _
-    (mkRat (class (3, 3)) (nzNeg 8))
-    _
-    ⋆
-    (cong Int (λu. Rat) (λx. mkRat x (nzNeg 8)) _ _ threeCancel)
+  trans _ _ _ _ ⋆ (cong _ (λu. Rat) (λx. mkRat x (nzNeg 8)) _ _ threeCancel)
 
 -- ===== 0/1 is a unit =====
 -- componentwise first: the numerator collapses by the scaled-zero
@@ -340,7 +334,7 @@ def ratAddZeroL : {q : El Rat} → ratAdd ratZero q ≡ q
     (q .π₁, q .π₂)
     _
     (trans
-      Rat
+      _
       (ratAdd ratZero q)
       (mkRat (num q) (nzMul nzOne (den q)))
       (q .π₁, q .π₂)
@@ -382,7 +376,7 @@ def ratAddZeroR : {q : El Rat} → ratAdd q ratZero ≡ q
     (q .π₁, q .π₂)
     _
     (trans
-      Rat
+      _
       (ratAdd q ratZero)
       (mkRat (num q) (nzMul (den q) nzOne))
       (q .π₁, q .π₂)
@@ -410,7 +404,7 @@ def mulPlusComm : {m k : ℕ} → m * k + m + k ≡ k * m + k + m using (plusAss
     _
     (k * m + m + k)
     _
-    (cong ℕ (λu. ℕ) (λw. w + m + k) _ _ (multComm k m))
+    (cong _ (λu. ℕ) (λw. w + m + k) _ _ (multComm k m))
     plusSwapRight
 
 def nzMulComm : {x y : El NZ} → nzMul x y ≡ nzMul y x
@@ -446,7 +440,7 @@ def ratAddComm : (p q : El Rat) → ratAdd p q ≡ ratAdd q p
     (mkRat (intScale (den p) (num q) + intScale (den q) (num p)) (nzMul (den p) (den q)))
     _
     (cong
-      Int
+      _
       (λu. Rat)
       (λx. mkRat x (nzMul (den p) (den q)))
       _

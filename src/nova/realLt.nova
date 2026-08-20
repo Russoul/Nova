@@ -38,15 +38,15 @@ def ltROf : (u v : El Real) (k : ℕ) → Prf (u + realOfQ (qInvNat k) ≤ v) �
 -- ===== ℝ group algebra the proofs need =====
 def realAddNegCancel : (u q : El Real) → u + q + realNeg u ≡ q using (real.Real.unfold) ≔
   λu. λq. u + q + realNeg u
-      ≡⟨ cong Real (λw. Real) (λw. w + realNeg u) _ _ (realAddComm u q) ⟩ q + u + realNeg u
+      ≡⟨ cong _ (λw. Real) (λw. w + realNeg u) _ _ (realAddComm u q) ⟩ q + u + realNeg u
       ≡⟨ realAddAssoc q u (realNeg u) ⟩ q + (u + realNeg u)
-      ≡⟨ cong Real (λw. Real) (λw. q + w) _ _ (realAddNegR u) ⟩ q + realZero
+      ≡⟨ cong _ (λw. Real) (λw. q + w) _ _ (realAddNegR u) ⟩ q + realZero
       ≡⟨ realAddZeroR q ⟩ q
 
 def realAddSwapR : (u q w : El Real) → u + q + w ≡ u + w + q using (real.Real.unfold) ≔
   λu. λq. λw. u + q + w
       ≡⟨ realAddAssoc u q w ⟩ u + (q + w)
-      ≡⟨ cong Real (λv. Real) (λv. u + v) _ _ (realAddComm q w) ⟩ u + (w + q)
+      ≡⟨ cong _ (λv. Real) (λv. u + v) _ _ (realAddComm q w) ⟩ u + (w + q)
       ≡⟨ sym _ _ _ (realAddAssoc u w q) ⟩ u + w + q
 
 -- 0 ≤ 1/(k+1), lifted
@@ -66,7 +66,7 @@ def leRZeroInv : (k : ℕ) → Prf (realZero ≤ realOfQ (qInvNat k))
 def leRSelfInv : (u : El Real) (k : ℕ) → Prf (u ≤ u + realOfQ (qInvNat k))
   using (realOrder.≤.unfold) ≔
   λu. λk. transportP
-    Real
+    _
     (λw. w ≤ u + realOfQ (qInvNat k))
     _
     _
@@ -120,7 +120,7 @@ def ltRIrrefl : (u : El Real) → Prf (u < u) → Prf ⊥
       (leQOfLeR
         qZero
         (transportP
-          Real
+          _
           (λt. t ≤ realZero)
           _
           _
@@ -147,7 +147,7 @@ def ltROfQ : {p q : El Q} → El (p < q) → Prf (realOfQ p < realOfQ q)
     _
     _
     (transportP
-      Real
+      _
       (λt. t ≤ realOfQ q)
       _
       _
@@ -156,13 +156,13 @@ def ltROfQ : {p q : El Q} → El (p < q) → Prf (realOfQ p < realOfQ q)
         _
         _
         (transport
-          Q
+          _
           (λt. t ≤ q)
           _
           _
           (qAddComm (qInvNat (w .π₁)) p)
           (transport
-            Q
+            _
             (λt. qInvNat (w .π₁) + p ≤ t)
             _
             _

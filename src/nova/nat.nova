@@ -37,7 +37,7 @@ def swapLeft : (a b c : ℕ) → a + (b + c) ≡ b + (a + c) using (plusComm) �
 -- congruence in each summand — one ⋆ each: reflecting the hypothesis
 -- makes the two sides the same term
 def plusCongL : {a b : ℕ} (c : ℕ) → (a ≡ b) → a + c ≡ b + c ≔
-  λa. λb. λc. λh. cong ℕ (λu. ℕ) (λu. u + c) _ _ h
+  λa. λb. λc. λh. cong _ (λu. ℕ) (λu. u + c) _ _ h
 
 def plusCongR : (a : ℕ) {b c : ℕ} → (b ≡ c) → a + b ≡ a + c ≔ λa. λb. λc. λh. ⋆
 

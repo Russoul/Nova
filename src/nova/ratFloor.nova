@@ -32,7 +32,7 @@ import id (Id, idToEq, eqToId)
 def qSubFlip : (x y : El Q) → x + qNeg y ≡ qNeg (y + qNeg x) ≔
   λx. λy. x + qNeg y
       ≡⟨ qAddComm x (qNeg y) ⟩ qNeg y + x
-      ≡⟨ cong Q (λv. Q) (λv. qNeg y + v) _ _ (sym _ _ _ (qNegNeg x)) ⟩ qNeg y + qNeg (qNeg x)
+      ≡⟨ cong _ (λv. Q) (λv. qNeg y + v) _ _ (sym _ _ _ (qNegNeg x)) ⟩ qNeg y + qNeg (qNeg x)
       ≡⟨ sym _ _ _ (qNegAdd y (qNeg x)) ⟩ qNeg (y + qNeg x)
 
 def qNegFrac : (N : El Int)
@@ -74,7 +74,7 @@ def qDiffFracNat : {m b K : ℕ}
         qDiffNatFrac ⟩ qNeg (qcls (mkRat (class (S b * K, m)) (nzPos b)))
       ≡⟨ qNegFrac (class (S b * K, m)) b ⟩ qcls (mkRat (intNeg (class (S b * K, m))) (nzPos b))
       ≡⟨ cong
-        Int
+        _
         (λv. Q)
         (λv. qcls (mkRat v (nzPos b)))
         _
@@ -106,7 +106,7 @@ def leQNatOfFrac : {m b K : ℕ}
           (qcls (mkRat (class (m, S b * K)) (nzPos b)))
           qDiffFracNat)
         sgnQFracPos))
-    (nonNegSgnOfLe (transport ℕ (λw. w ≤ m) _ _ (multComm (S b) K) le))
+    (nonNegSgnOfLe (transport _ (λw. w ≤ m) _ _ (multComm (S b) K) le))
 
 -- ===== the quotient really is under the dividend =====
 def divMulLe : (a b : ℕ) → El (divN a b * S b ≤ a) using (natOrder.≤.unfold) ≔
@@ -126,7 +126,7 @@ def leQFloorPos : {M : El Int}
       (intMag M)
       b) ≤ ⊎-elim (nn. qcls (mkRat M (nzPos b))) (hn. qNeg (qcls (mkRat M (nzPos b)))) w))
     (nn. transport
-      Int
+      _
       (λv. qOfNat (divN (intMag M) b) ≤ qcls (mkRat v (nzPos b)))
       _
       _
@@ -134,7 +134,7 @@ def leQFloorPos : {M : El Int}
         (transport Sign NonNegS (sgnQ (qcls (mkRat M (nzPos b)))) (intSgn M) sgnQFracPos nn))
       (leQNatOfFrac (divMulLe (intMag M) b)))
     (hn. transport
-      Q
+      _
       (λw. qOfNat (divN (intMag M) b) ≤ w)
       _
       _
@@ -146,7 +146,7 @@ def leQFloorPos : {M : El Int}
         (intMag M)
         intMagNeg
         (transport
-          Int
+          _
           (λv. qOfNat (divN (intMag (intNeg M)) b) ≤ qcls (mkRat v (nzPos b)))
           _
           _
@@ -162,11 +162,11 @@ def leQFloorPos : {M : El Int}
                 NonNegS
                 _
                 _
-                (cong Q (λw. Sign) (λw. sgnQ w) _ _ (qNegFrac M b))
+                (cong _ (λw. Sign) (λw. sgnQ w) _ _ (qNegFrac M b))
                 (transport
                   _
                   NonNegS
-                  sPos
+                  _
                   _
                   (sym _ _ _ (sgnQNegOfNeg hn))
                   (inj₂ (eqToId sPos sPos ⋆))))))

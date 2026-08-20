@@ -34,13 +34,7 @@ def bisimTl : (a : 𝕌) (s t : El (stream a)) → Prf (bisim _ s t) → Prf (bi
 -- itself as the invariant — heads by cong at hd, tails by cong at tl
 def bisimRefl : (a : 𝕌) (s : El (stream a)) → Prf (bisim _ s s) using (streamBisim.bisim.unfold) ≔
   λa. λs. ⋆ ((λx. λy. x ≡ y),
-    (λx. λy. λp. cong
-      (stream a)
-      (λv. a)
-      (λv. hd a v)
-      _
-      _
-      p, cong (stream a) (λv. stream a) (λv. tl v) _ _ p), ⋆)
+    (λx. λy. λp. cong _ (λv. a) (λv. hd a v) _ _ p, cong _ (λv. stream a) (λv. tl v) _ _ p), ⋆)
 
 -- obsEq ⊃ bisim: the ℕ-indexed relation is ITSELF a bisimulation —
 -- heads are observation 0, and shifting the index moves under one
@@ -77,7 +71,7 @@ def bisimObsEq : (a : 𝕌) (s t : El (stream a)) → Prf (bisim _ s t) → Prf 
     h)
 
 -- interop corollary: map-identity, now in the corecursive spelling
-def mapIdBisim : (a : 𝕌) (s : El (stream a)) → Prf (bisim _ (mapS a a (λx. x) s) s)
+def mapIdBisim : (a : 𝕌) (s : El (stream a)) → Prf (bisim _ (mapS _ a (λx. x) s) s)
   using (streamBisim.bisim.unfold) ≔
   λa. λs. obsEqBisim (mapIdObsEq _ s)
 
@@ -99,12 +93,12 @@ def obsEqReflect : {a : 𝕌} {s t : El (stream a)} → Prf (obsEq _ s t) → Pr
   λa. λs. λt. λh. bisimReflect (obsEqBisim h)
 
 -- the η-needing equalities, now judgemental theorems
-def mapIdEq : (a : 𝕌) (s : El (stream a)) → mapS a a (λx. x) s ≡ s ≔
+def mapIdEq : (a : 𝕌) (s : El (stream a)) → mapS _ a (λx. x) s ≡ s ≔
   λa. λs. bisimReflect (mapIdBisim _ s)
 
 def mapFuseEq : (a b c : 𝕌)
   (f : El a → El b)
   (g : El b → El c)
   (s : El (stream a))
-  → mapS _ _ g (mapS _ _ f s) ≡ mapS a _ (λx. g (f x)) s ≔
+  → mapS _ _ g (mapS _ _ f s) ≡ mapS _ _ (λx. g (f x)) s ≔
   λa. λb. λc. λf. λg. λs. obsEqReflect (mapFuseObsEq _ _ _ f g s)

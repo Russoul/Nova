@@ -49,13 +49,13 @@ def nzPosDbl : (n : ℕ) → nzToInt (nzPos (dbl n)) ≡ nzToInt (nzPos n) + nzT
   using (integer.Int.unfold) ≔
   λn. nzToInt (nzPos (dbl n))
       ≡⟨ nzPosInt (dbl n) ⟩ intOfNat (S (dbl n))
-      ≡⟨ cong ℕ (λw. Int) (λw. intOfNat w) _ _ (sucDbl n) ⟩ intOfNat (S n + S n)
+      ≡⟨ cong _ (λw. Int) (λw. intOfNat w) _ _ (sucDbl n) ⟩ intOfNat (S n + S n)
       ≡⟨ sym _ _ _ (intOfNatPlus (S n) (S n)) ⟩ intOfNat (S n) + intOfNat (S n)
       ≡⟨ sym
         _
         _
         (intOfNat (S n) + intOfNat (S n))
-        (cong Int (λw. Int) (λw. w + w) _ _ (nzPosInt n)) ⟩ nzToInt (nzPos n) + nzToInt (nzPos n)
+        (cong _ (λw. Int) (λw. w + w) _ _ (nzPosInt n)) ⟩ nzToInt (nzPos n) + nzToInt (nzPos n)
 
 -- ===== the cross-multiplication =====
 -- the unit fraction at index k, as a raw fraction
@@ -135,14 +135,14 @@ def halfCross : {n : ℕ}
   using (integer.Int.unfold) ≔
   λn. num (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) * dInt (unitRat n)
       ≡⟨ cong
-        Int
+        _
         (λw. Int)
         (λw. num (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) * w)
         _
         _
         (unitDen n) ⟩ num (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) * nzToInt (nzPos n)
       ≡⟨ cong
-        Int
+        _
         (λw. Int)
         (λw. w * nzToInt (nzPos n))
         _
@@ -150,7 +150,7 @@ def halfCross : {n : ℕ}
         (unitAddNumU
           (dbl n)) ⟩ (nzToInt (nzPos (dbl n)) + nzToInt (nzPos (dbl n))) * nzToInt (nzPos n)
       ≡⟨ cong
-        Int
+        _
         (λw. Int)
         (λw. (w + w) * nzToInt (nzPos n))
         _
@@ -167,7 +167,7 @@ def halfCross : {n : ℕ}
         _
         ((nzToInt (nzPos n) + nzToInt (nzPos n)) * (nzToInt (nzPos n) + nzToInt (nzPos n)))
         (cong
-          Int
+          _
           (λw. Int)
           (λw. w * w)
           _
@@ -184,7 +184,7 @@ def halfCross : {n : ℕ}
               (unitRat (dbl n))
               (unitRat (dbl n))))) ⟩ intOne * dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))
       ≡⟨ cong
-        Int
+        _
         (λw. Int)
         (λw. w * dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n))))
         _
@@ -225,7 +225,7 @@ def leQZeroInvNat : (n : ℕ) → El (qZero ≤ qInvNat n)
 def leQInvDbl : (n : ℕ) → El (qInvNat (dbl n) ≤ qInvNat n)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λn. transport
-    Q
+    _
     (λw. qInvNat (dbl n) ≤ w)
     _
     _

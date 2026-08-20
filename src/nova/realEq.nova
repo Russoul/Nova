@@ -76,7 +76,7 @@ def reqStep : (x y z : El RSeq)
         n + qInvNat n + (qInvNat (dbl (qtr k)) + qInvNat (dbl (qtr k)) + rBound (qtr k) (qtr k)))
       (rBound n n + (qInvNat (qtr k) + (qInvNat (qtr k) + qInvNat (qtr k))))
       _
-      (cong Q (λw. Q) (λw. rBound n n + (w + rBound (qtr k) (qtr k))) _ _ (qInvHalf (qtr k)))
+      (cong _ (λw. Q) (λw. rBound n n + (w + rBound (qtr k) (qtr k))) _ _ (qInvHalf (qtr k)))
       (bndEqB
         (rBound n (dbl (qtr k)) + rBound (qtr k) (qtr k) + rBound (dbl (qtr k)) n)
         (qInvNat

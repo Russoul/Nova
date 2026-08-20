@@ -33,13 +33,13 @@ def rBoundHalf : (m n : ℕ) → rBound (dbl m) (dbl n) + rBound (dbl m) (dbl n)
         (qInvNat (dbl m))
         (qInvNat (dbl n)) ⟩ qInvNat (dbl m) + qInvNat (dbl m) + (qInvNat (dbl n) + qInvNat (dbl n))
       ≡⟨ cong
-        Q
+        _
         (λw. Q)
         (λw. w + (qInvNat (dbl n) + qInvNat (dbl n)))
         _
         _
         (qInvHalf m) ⟩ qInvNat m + (qInvNat (dbl n) + qInvNat (dbl n))
-      ≡⟨ cong Q (λw. Q) (λw. qInvNat m + w) _ _ (qInvHalf n) ⟩ rBound m n
+      ≡⟨ cong _ (λw. Q) (λw. qInvNat m + w) _ _ (qInvHalf n) ⟩ rBound m n
 
 -- sampling the LEFT index deeper only shrinks the bound
 def leQBoundDblL : (m n : ℕ) → El (rBound (dbl m) n ≤ rBound m n)
@@ -62,7 +62,7 @@ def leQBoundDblL : (m n : ℕ) → El (rBound (dbl m) n ≤ rBound m n)
 def leQBoundDblDiag : (n : ℕ) → El (rBound (dbl n) (dbl n) ≤ rBound n n)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λn. transport
-    Q
+    _
     (λw. rBound (dbl n) (dbl n) ≤ w)
     _
     _
@@ -286,7 +286,7 @@ def realAddZeroR : (u : El Real) → u + realZero ≡ u
     realNeg.seqOf.eq) ≔
   λu. quot-elim
     (p. transportP
-      Real
+      _
       (λv. v ≡ class p)
       _
       _
@@ -302,7 +302,7 @@ def realAddZeroR : (u : El Real) → u + realZero ≡ u
             _
             (seqOf p (dbl n) + qZero + qNeg (seqOf p n))
             (cong
-              Q
+              _
               (λw. Q)
               (λw. w + qNeg (seqOf p n))
               _
@@ -321,7 +321,7 @@ def qMidCancel : (a b c a' c' : El Q)
   using (rationalQ.Q.unfold) ≔
   λa. λb. λc. λa'. λc'. a + b + c + qNeg (a' + (b + c'))
       ≡⟨ cong
-        Q
+        _
         (λw. Q)
         (λw. a + b + c + qNeg w)
         _
@@ -329,7 +329,7 @@ def qMidCancel : (a b c a' c' : El Q)
         (sym _ _ _ (qAddAssoc a' b c')) ⟩ a + b + c + qNeg (a' + b + c')
       ≡⟨ sym _ _ _ (qSubAdd (a + b) (a' + b) c c') ⟩ a + b + qNeg (a' + b) + (c + qNeg c')
       ≡⟨ cong
-        Q
+        _
         (λw. Q)
         (λw. w + (c + qNeg c'))
         _

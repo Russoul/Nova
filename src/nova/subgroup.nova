@@ -106,7 +106,7 @@ def nmConjInv : (G : 𝕌)
     N
     _
     _
-    (cong G (λw. G) (λw. gop G g (ginv _ g x) (gop _ g n w)) _ _ (gInvInv _ g x))
+    (cong _ (λw. G) (λw. gop G g (ginv _ g x) (gop _ g n w)) _ _ (gInvInv _ g x))
     (nmConj _ _ _ h (ginv _ g x) n hn)
 
 -- In an ABELIAN group conjugation is the identity, so normality is
@@ -118,7 +118,7 @@ def abelianConj : {G : 𝕌}
     → gop _ g x y ≡ gop _ g y x) → (x n : El G) → gop _ g x (gop _ g n (ginv _ g x)) ≡ n ≔
   λG. λg. λcomm. λx. λn. gop _ g x (gop _ g n (ginv _ g x))
       ≡⟨ cong
-        G
+        _
         (λw. G)
         (λw. gop G g x w)
         _
@@ -155,7 +155,7 @@ def cosetFlip : {G : 𝕌}
   → ginv _ g (gop _ g x (ginv _ g y)) ≡ gop _ g y (ginv _ g x) ≔
   λG. λg. λx. λy. ginv _ g (gop _ g x (ginv _ g y))
       ≡⟨ gOpInv _ g x (ginv _ g y) ⟩ gop _ g (ginv _ g (ginv _ g y)) (ginv _ g x)
-      ≡⟨ cong G (λw. G) (λw. gop G g w (ginv _ g x)) _ _ (gInvInv _ g y) ⟩ gop _ g y (ginv _ g x)
+      ≡⟨ cong _ (λw. G) (λw. gop G g w (ginv _ g x)) _ _ (gInvInv _ g y) ⟩ gop _ g y (ginv _ g x)
 
 def cosetSymm : (G : 𝕌)
   (g : El (IsGroup G))
@@ -183,7 +183,7 @@ def cosetSplice : {G : 𝕌}
         (ginv _ g y)
         (gop _ g y (ginv _ g z)) ⟩ gop _ g x (gop _ g (ginv _ g y) (gop _ g y (ginv _ g z)))
       ≡⟨ cong
-        G
+        _
         (λw. G)
         (λw. gop G g x w)
         _

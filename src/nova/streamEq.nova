@@ -43,9 +43,9 @@ def nthMap : (a b : 𝕌)
 -- mapping the identity is observationally the identity — the
 -- η-needing `mapS id s ≡ s` weakened to its observational shadow,
 -- where it is PROVABLE
-def mapIdObsEq : (a : 𝕌) (s : El (stream a)) → Prf (obsEq _ (mapS a a (λx. x) s) s)
+def mapIdObsEq : (a : 𝕌) (s : El (stream a)) → Prf (obsEq _ (mapS _ a (λx. x) s) s)
   using (streamEq.obsEq.unfold) ≔
-  λa. λs. ⋆ (λn. nthMap a a (λx. x) n s)
+  λa. λs. ⋆ (λn. nthMap _ a (λx. x) n s)
 
 -- likewise map fusion, observationally: composing maps is mapping
 -- the composite
@@ -53,7 +53,7 @@ def mapFuseObsEq : (a b c : 𝕌)
   (f : El a → El b)
   (g : El b → El c)
   (s : El (stream a))
-  → Prf (obsEq _ (mapS _ _ g (mapS _ _ f s)) (mapS a c (λx. g (f x)) s))
+  → Prf (obsEq _ (mapS _ _ g (mapS _ _ f s)) (mapS _ c (λx. g (f x)) s))
   using (nth.eq,
     stream.hd.eq,
     stream.mapS.eq,
@@ -63,7 +63,7 @@ def mapFuseObsEq : (a b c : 𝕌)
     streamEq.obsEq.unfold,
     tlN.eq) ≔
   λa. λb. λc. λf. λg. λs. ⋆ (λn. (ℕ-elim (m. (t : El (stream a))
-    → nth m (mapS _ _ g (mapS _ _ f t)) ≡ nth m (mapS a c (λx. g (f x)) t))
+    → nth m (mapS _ _ g (mapS _ _ f t)) ≡ nth m (mapS _ c (λx. g (f x)) t))
     (λt. ⋆)
     (m ih. λt. ih (tl t))
     n)

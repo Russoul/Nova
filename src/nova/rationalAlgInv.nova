@@ -382,7 +382,7 @@ def qInvUniqueVal : (u : El Q)
       _
       _
       v'
-      (cong Q (λx. Q) (λx. v * x) _ _ (sym _ _ _ h'))
+      (cong _ (λx. Q) (λx. v * x) _ _ (sym _ _ _ h'))
       (trans
         _
         _
@@ -394,8 +394,8 @@ def qInvUniqueVal : (u : El Q)
           _
           _
           v'
-          (cong Q (λx. Q) (λx. x * v') _ _ (qMulComm v u))
-          (trans _ _ _ v' (cong Q (λx. Q) (λx. x * v') _ _ h) (qMulOneL v')))))
+          (cong _ (λx. Q) (λx. x * v') _ _ (qMulComm v u))
+          (trans _ _ _ v' (cong _ (λx. Q) (λx. x * v') _ _ h) (qMulOneL v')))))
 
 -- packaging: with the two values equal (and the two proofs equal by
 -- proof irrelevance) the pairs are equal. Note trans/sym/cong are
