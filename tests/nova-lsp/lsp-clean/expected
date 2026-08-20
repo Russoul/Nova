@@ -1,6 +1,7 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
 CAPS: hover=true definition=true documentSymbol=true
 DIAGNOSTICS (0):
+ELABTIME: reported
 TOKENS (11):
   L1:1+3 keyword
   L1:5+2 variable
@@ -18,5 +19,6 @@ SYMBOLS (1):
 DEFINITION(id): SAME FILE [L1:1-L1:23]
 HOVER(id): null
 DIAGNOSTICS FOR FIXTURE (0):
+ELABTIME: reported
 SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
 SERVER EXIT CODE: 0

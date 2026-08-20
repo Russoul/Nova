@@ -1,6 +1,7 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
 CAPS: hover=true definition=true documentSymbol=true
 DIAGNOSTICS (0):
+ELABTIME: reported
 TOKENS (173):
   L1:1+3 keyword
   L1:5+3 variable
@@ -183,11 +184,13 @@ SYMBOLS (4):
 DEFINITION(_ _ n u): null
 HOVER(_ _ n u): [L6:47-L6:48] ```nova ⏎ _ : 𝕌 ≔ ℕ ⏎ -- solved from the expected type ⏎ ```
 DIAGNOSTICS FOR FIXTURE (0):
+ELABTIME: reported
 SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
 SERVER EXIT CODE: 0
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
 CAPS: hover=true definition=true documentSymbol=true
 DIAGNOSTICS (0):
+ELABTIME: reported
 TOKENS (173):
   L1:1+3 keyword
   L1:5+3 variable
@@ -370,11 +373,13 @@ SYMBOLS (4):
 DEFINITION(_ n u): null
 HOVER(_ n u): [L6:49-L6:50] ```nova ⏎ _ : 𝕌 ≔ 𝟙 ⏎ -- solved from the type of u ⏎ ```
 DIAGNOSTICS FOR FIXTURE (0):
+ELABTIME: reported
 SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
 SERVER EXIT CODE: 0
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
 CAPS: hover=true definition=true documentSymbol=true
 DIAGNOSTICS (0):
+ELABTIME: reported
 TOKENS (173):
   L1:1+3 keyword
   L1:5+3 variable
@@ -557,5 +562,6 @@ SYMBOLS (4):
 DEFINITION(_ _ p q): null
 HOVER(_ _ p q): [L9:40-L9:41] ```nova ⏎ _ : El A ≔ b ⏎ -- solved from the type of p ⏎ ```
 DIAGNOSTICS FOR FIXTURE (0):
+ELABTIME: reported
 SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
 SERVER EXIT CODE: 0

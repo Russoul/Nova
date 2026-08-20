@@ -306,6 +306,13 @@ readDraining h fixtureUri lns normalise = do
       putStrLn "DIAGNOSTICS FOR \{label} (\{show (length diags)}):"
       traverse_ (putStrLn . normalise . renderDiagnostic (if uri == fixtureUri then lns else [])) diags
       readDraining h fixtureUri lns normalise
+    -- the timing notification: nondeterministic value, so the golden
+    -- pins only its presence and shape
+    Just (JString "nova/elabTime") => do
+      let ok = isJust (getPath ["params", "millis"] msg >>= asInt)
+             && isJust (getPath ["params", "modules"] msg >>= asInt)
+      putStrLn ("ELABTIME: " ++ (if ok then "reported" else "malformed"))
+      readDraining h fixtureUri lns normalise
     _ => pure (Just msg)
 
 ||| Replace every occurrence of `needle` (non-empty) in `hay`.

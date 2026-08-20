@@ -43,6 +43,13 @@ export
 serverNotInitialized : ResponseError
 serverNotInitialized = MkResponseError ServerNotInitialized "" JNull
 
+||| A notification OUTSIDE lsp-lib's Method universe — a server
+||| extension (e.g. nova/elabTime). Clients opt in by installing a
+||| handler for the method name; per LSP, others ignore unknown
+||| notifications.
+export
+sendCustomNotification : Ref LSPConf LSPConfiguration => String -> JSON -> IO ()
+
 writeResponse : Ref LSPConf LSPConfiguration => JSON -> IO ()
 writeResponse msg = do
   let body = stringify msg
@@ -51,6 +58,14 @@ writeResponse msg = do
   Right () <- fPutStr outputHandle (hdr ++ body)
     | Left err => log Error Server "Can't write response in writeResponse, reason: \{show err}"
   fflush outputHandle
+
+sendCustomNotification method params = do
+  writeResponse (JObject
+    [ ("jsonrpc", JString "2.0")
+    , ("method", JString method)
+    , ("params", params)
+    ])
+  logI Channel "Sent custom notification \{method}"
 
 ||| Sends a new notification from the server to the client.
 export
