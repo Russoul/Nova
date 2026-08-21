@@ -762,6 +762,28 @@ short of soundness. The non-dependent case needs no tier at all:
 pairext's {B} is a bare hole — use pairext at A ⨯ B, pairextD at
 (a : A) ⨯ B a, overriding {B} at inference positions.
 
+CAPTURE-TYPING SOURCES (2026-08-21): the principled mechanism the
+constant tier approximated. A solved hole's value is a bare,
+skeleton-free core, so its type INFERS (kInferBare — kernel
+inference, absent for intro forms), and final instantiation will
+demand that type convert with the hole's instantiated domain: the
+pair (declared domain, inferred type) is a REAL equation of the
+site, not a guess. After the pattern pass, each such pair joins the
+source list as (Just pos, inferred type) — the pass already knows
+how to match a position's instantiated domain — and the pass
+re-runs for still-unsolved keys, to a fixpoint bounded by the
+unsolved count. The Σ-typed case is the payoff: matching
+(a : ?A) ⨯ ?B a against the value's actual Σ-type puts ?B a under
+the Σ's own binder, where the Miller tier solves it UNIQUELY —
+pairextD's {B} from the pair's type, DEPENDENT OR NOT (the probe
+that killed the constant tier now solves B ≔ λm. Id ℕ m n
+correctly, and its residual obligation is byte-identical to the
+hand-annotated spelling's — inference reproduces exactly what the
+user would have written). Strictly additive: round 0 is the prior
+engine verbatim; derived rounds only fill holes it left unsolved.
+The kernel Σ used for inference may lag obligation-bearing items —
+absence just skips the source. ~10.2s plain elaboration, unchanged.
+
 THE IN-PLACE REWRITE (2026-08-20): src/nova is now the implicitized,
 CANONICAL-DISTILL-FORM corpus — 414 defs with {}-binders, 2,826
 argument occurrences elided, comments preserved, items

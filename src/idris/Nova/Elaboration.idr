@@ -4164,12 +4164,24 @@ mutual
     -- join cannot disturb an existing solution
     let jnX = \t => compTy (unfTy st.sig
                      (st.eqScope ++ mapMaybe expName st.eqScope) t)
+    let argsNow = reverse revArgs
+    let passSrcs = (case mexp of
+                      Nothing => []
+                      Just c => [(Nothing, c)]) ++
+                   map (\(sp, t) => (Just sp, t)) (pending ++ srcs)
     let sols = if null unsolvedKs then sols
-               else patternPass jnX doms tailTy (reverse revArgs) unsolvedKs
-                      ((case mexp of
-                          Nothing => []
-                          Just c => [(Nothing, c)]) ++
-                       map (\(sp, t) => (Just sp, t)) (pending ++ srcs)) sols
+               else patternPass jnX doms tailTy argsNow unsolvedKs passSrcs sols
+    -- CAPTURE-TYPING sources, to a fixpoint: a solved hole's value
+    -- is a bare inferable core, and final instantiation will demand
+    -- its type CONVERT with the hole's instantiated domain — so the
+    -- pair (declared domain, inferred type) is a real equation of
+    -- the site, matched like any source. At a Σ-typed hole the
+    -- second component sits under the Σ's own binder, where the
+    -- Miller tier solves it UNIQUELY — pairextD's {B} from the
+    -- pair's actual type, dependent or not; the constant tier this
+    -- replaces guessed from an instance and was withdrawn
+    let sols = solveDerived st.kernelSig ctx jnX doms tailTy argsNow passSrcs
+                 (S (length unsolvedKs)) unsolvedKs sols
     (finalArgs, dPatches) <- resolveArgs sols defers doms (zip slots (reverse revArgs)) [] []
     -- a blank whose SUPPRESSED join binding α-differs from its
     -- final solution would solve differently as an implicit — the
@@ -4507,6 +4519,27 @@ mutual
                            Just s2 => sols ++ filter (\(k2, _) =>
                                         (k2 `elem` ks) && isNothing (lookup k2 sols)) s2
              in patternPass jn doms tailT argsNow ks more sols2
+
+    ||| the capture-typing fixpoint: each round derives (Just pos,
+    ||| inferred type of pos's solution) sources from every solved
+    ||| hole whose value the kernel can infer (against the kernel Σ,
+    ||| which may lag on obligation-bearing items — absence just
+    ||| skips the source), and re-runs the pass for the still-
+    ||| unsolved keys. Productive rounds solve at least one hole, so
+    ||| the round count is bounded by the unsolved-key count.
+    solveDerived : Sig -> Ctx -> (jn : Ty -> Ty) -> List Ty -> Ty -> List Elem ->
+                   List (Maybe Nat, Ty) -> Nat -> List Nat -> Sols -> Sols
+    solveDerived ksig kctx jn doms tailT argsNow passSrcs Z ks sols = sols
+    solveDerived ksig kctx jn doms tailT argsNow passSrcs (S n) ks sols =
+      let un = filter (\pos => isNothing (lookup pos sols)) ks in
+      if null un then sols else
+      let dsrcs = mapMaybe (\(pos, v) =>
+                    if pos < length doms
+                      then map (\t => (Just pos, t)) (kInferBare ksig kernelFuel kctx v)
+                      else Nothing) sols
+          sols2 = patternPass jn doms tailT argsNow un (passSrcs ++ dsrcs) sols
+      in if length sols2 == length sols then sols
+         else solveDerived ksig kctx jn doms tailT argsNow passSrcs n ks sols2
 
     ||| Resolve the walked slots to the final argument list, in
     ||| position order: a hole takes its joint solution (a structural
