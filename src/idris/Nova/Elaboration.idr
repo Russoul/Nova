@@ -174,7 +174,7 @@ record ElabSt where
   declMeta : SnocList DeclMeta
   ||| binder occurrences with their elaborated types (module, span,
   ||| binding context/env, name, type) — LSP hover ascription
-  binderTypes : SnocList (String, Range, Ctx, NameEnv, String, Ty)
+  binderTypes : SnocList (String, Range, Ctx, NameEnv, String, Ty, List Nat)
   ||| solved BLANK occurrences (docs/NovaPerfectSurface.txt, the
   ||| blank tier): the value the spine oracle recovered at a written
   ||| `_`, with its instantiated domain and the SOURCE that bound it
@@ -2273,13 +2273,19 @@ constraintCountM = do
   st <- getSt
   pure (length (toList st.oblMeta))
 
-||| Record a binder occurrence's elaborated type (nothing without a
-||| span — core-built or wildcard binders).
-recordBinder : Maybe Range -> Ctx -> NameEnv -> String -> Ty -> ElabM ()
-recordBinder Nothing _ _ _ _ = pure ()
-recordBinder (Just r) ctx env x ty = do
+||| Record a binder occurrence's elaborated type, with the referent's
+||| IMPLICIT binder positions when it is a signature reference (the
+||| hover braces those — the kernel type itself carries no
+||| implicitness). Nothing without a span — core-built or wildcard
+||| binders.
+recordBinderImps : Maybe Range -> Ctx -> NameEnv -> String -> Ty -> List Nat -> ElabM ()
+recordBinderImps Nothing _ _ _ _ _ = pure ()
+recordBinderImps (Just r) ctx env x ty imps = do
   st <- getSt
-  modifySt $ { binderTypes $= (:< (st.modPrefix, r, ctx, env, x, ty)) }
+  modifySt $ { binderTypes $= (:< (st.modPrefix, r, ctx, env, x, ty, imps)) }
+
+recordBinder : Maybe Range -> Ctx -> NameEnv -> String -> Ty -> ElabM ()
+recordBinder mrng ctx env x ty = recordBinderImps mrng ctx env x ty []
 
 ||| The number of OPEN entries so far — constraints AND declarations:
 ||| either makes Σ non-definitional, so either dirties the run.
@@ -3208,11 +3214,11 @@ mutual
     -- error path below always re-scans (negatives are never cached)
     case cachedSigLookup st.sig x of
       Just (SigDef [<] _ _ ty) => do
-        recordBinder mrng ctx env x0 ty
+        recordBinderImps mrng ctx env x0 ty (fromMaybe [] (lookup x st.impls))
         pure (SigVar x [<], ty, Nd [] [])
       Just (SigDef _ _ _ _) => throw "\{site}: '\{x}' has a non-empty declaration context"
       Just (SigDecl [<] _ ty) => do
-        recordBinder mrng ctx env x0 ty
+        recordBinderImps mrng ctx env x0 ty (fromMaybe [] (lookup x st.impls))
         pure (SigVar x [<], ty, Nd [] [])
       Just _ => throw "\{site}: '\{x}' is not usable as a term here"
       Nothing => throw "\{site}: unknown name '\{x}'"
@@ -4102,8 +4108,8 @@ mutual
       Just (SigDecl [<] _ ty) => pure ty
       Just _ => throw "\{site}: '\{q}' is not usable as a term here"
       Nothing => throw "\{site}: unknown name '\{q}'"
-    recordBinder mrng ctx env x0 defTy
     let imps = if noIns then [] else fromMaybe [] (lookup q st.impls)
+    recordBinderImps mrng ctx env x0 defTy imps
     -- the site's LICENSED JOIN (comp ∘ unfold[cited]) — recovery's
     -- third matching tier (docs/NovaPerfectSurface.txt, Phase 3d):
     -- sees through definitional scaffolding the site itself licensed;
@@ -5517,10 +5523,32 @@ elabFile content =
 ||| imported file, don't paint this range in MY document".
 ||| The LSP binder table: the ROOT module's binder occurrences,
 ||| rendered display-normalized.
+||| the leading Π prefix with the referent's implicit positions
+||| BRACED — the kernel type has no implicitness, so the hover
+||| reintroduces the surface's, binder by binder up to the last
+||| implicit, then hands the tail to the ordinary printer
+prettyTyImpsN : FixTable -> NameEnv -> List Nat -> Ty -> String
+prettyTyImpsN tbl env imps ty = go 0 env ty
+ where
+  lastImp : Nat
+  lastImp = foldl max 0 imps
+
+  go : Nat -> NameEnv -> Ty -> String
+  go i env t = case t of
+    Ty.PiTy a b =>
+      if i > lastImp then prettyTyN tbl env t
+      else let x = freshForTy a env
+               brL = the String (if i `elem` imps then "{" else "(")
+               brR = the String (if i `elem` imps then "}" else ")")
+           in brL ++ x ++ ":" ++ prettyTyN tbl env a ++ brR ++ " → " ++ go (S i) (env :< x) b
+    _ => prettyTyN tbl env t
+
 binderInfos : FixTable -> ElabSt -> List (Range, String)
 binderInfos tbl st =
-  [ (r, "\{x} : \{prettyTyN tbl env (displayTy st ty)}")
-  | (m, r, ctx, env, x, ty) <- toList st.binderTypes, m == "" ]
+  [ (r, "\{x} : " ++ (case imps of
+                        [] => prettyTyN tbl env (displayTy st ty)
+                        _ => prettyTyImpsN tbl env imps (displayTy st ty)))
+  | (m, r, ctx, env, x, ty, imps) <- toList st.binderTypes, m == "" ]
   ++
   -- blanks ascribe in the language's own def shape — domain, then
   -- the value the oracle recovered — with the binding source as a
