@@ -2726,6 +2726,17 @@ kTele sig ctx ((ty, sk) :: rest) = do
   kCheckTyK sig ctx ty sk
   kTele sig (ctx :< ty) rest
 
+||| Infer the type of a BARE (skeleton-free) core — recovery's
+||| capture-typing source. Nothing when the core is an intro form
+||| (not inferable) or fails to type against this Σ; the caller
+||| treats absence as "no derived equation", never as an error.
+export
+kInferBare : Sig -> Nat -> Ctx -> Elem -> Maybe Ty
+kInferBare sig fuel ctx e =
+  case runKM (kInferE sig ctx e (Nd [] [])) fuel of
+    Right (t, _) => Just t
+    Left _ => Nothing
+
 ||| Check a definition item from the kernel's own Σ; return the entry
 ||| to extend it with.
 export
