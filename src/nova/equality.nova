@@ -40,32 +40,16 @@ def appCong : {A : 𝕌}
 
 def irr : {A : 𝕌} {v u : El A} (p : v ≡ u) → p ≡ (⋆) ≔ λA. λv. λu. λp. ⋆
 
--- Σ-η, generically (a ℕ ⨯ ℕ-specific version would be matched by the
--- engine at pairs of OTHER types and rejected by the kernel)
-def pairEta : {A B : 𝕌} (p : El (A ⨯ B)) → (p .π₁, p .π₂) ≡ p using (sigma.eta) ≔ λA. λB. λp. ⋆
-
--- componentwise pair equality — GENERIC for the same reason as
--- pairEtaG: a ℕ ⨯ ℕ-specific version matches (first-order, type-blind)
--- at pairs of any type, and the kernel then rejects the certificate
-def pairext : {A B : 𝕌} {x y : El (A ⨯ B)} → (x .π₁ ≡ y .π₁) → (x .π₂ ≡ y .π₂) → x ≡ y
-  using (hyp.rw) ≔
-  λA. λB. λx. λy. λh1. λh2. trans
-    _
-    _
-    _
-    (trans _ _ (y .π₁, y .π₂) (sym _ _ (pairEta x)) ⋆)
-    (pairEta y)
-
 -- Σ-η and componentwise equality at a DEPENDENT pair. Both are the
 -- non-dependent versions (eqInt.nova's pairEtaG/pairEq2) with the
 -- second component's type allowed to mention the first: reflecting h1
 -- makes x .π₁ ≐ y .π₁, which is exactly what h2's type needs. Stated
 -- type-generically, as every shape-generic lemma must be (B-3).
-def pairEtaD : {A : 𝕌} {B : El A → 𝕌} (p : El ((a : A) ⨯ B a)) → (p .π₁, p .π₂) ≡ p
+def paireta : {A : 𝕌} {B : El A → 𝕌} (p : El ((a : A) ⨯ B a)) → (p .π₁, p .π₂) ≡ p
   using (sigma.eta) ≔
   λA. λB. λp. ⋆
 
-def pairextD : {A : 𝕌}
+def pairext : {A : 𝕌}
   {B : El A → 𝕌}
   {x y : El ((a : A) ⨯ B a)}
   → (x .π₁ ≡ y .π₁) → (x .π₂ ≡ y .π₂) → x ≡ y
@@ -74,5 +58,5 @@ def pairextD : {A : 𝕌}
     _
     _
     _
-    (trans _ _ (y .π₁, y .π₂) (sym _ _ (pairEtaD x)) ⋆)
-    (pairEtaD y)
+    (trans _ _ (y .π₁, y .π₂) (sym _ _ (paireta x)) ⋆)
+    (paireta y)

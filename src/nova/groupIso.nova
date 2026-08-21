@@ -14,7 +14,7 @@ import groupTheory (gop, ge, ginv, gAssoc, gUnitL, gUnitR, gInvL, gInvR, gCancel
 import subgroup (IsSubgroup, IsNormal, sgIntro, sgUnit, sgOp, sgInv, nmIntro, nmConj, nmConjInv, cosetRel, cosetRefl, cosetSymm, cosetTrans)
 import quotGroup (QGroup, qcls, qclsEq, qclsEffective, qMul, qMulCls, qInv, qInvCls, qUnit, qIsGroup, qFactor, qFactorCls, qFactorUnique)
 import groupHom (IsHom, Hom, homAp, homIntro, homLaw, homIntroAp, homUnit, homInv, homOpInv, qopIsQMul, qeIsQUnit, qinvIsQInv, qProj, qProjAp, homKillConst, homQuotMap, homQuotMapCls, homQuot, homQuotFactors, homQuotUnique)
-import equality (transportP, transport, sym, trans, cong, pairextD)
+import equality (transportP, transport, sym, trans, cong, pairext)
 
 def ker : (G : 𝕌) (g : El (IsGroup G)) (H : 𝕌) (h : El (IsGroup H)) (p : El (Hom g h)) → El G → Ω ≔
   λG. λg. λH. λh. λp. λx. homAp p x ≡ ge h
@@ -31,7 +31,7 @@ def kerOp : (G : 𝕌)
       ≡⟨ homLaw p x y ⟩ gop _ h (homAp p x) (homAp p y)
       ≡⟨ cong (λw. H) (λw. gop _ h w (homAp p y)) hx ⟩ gop _ h (ge h) (homAp p y)
       ≡⟨ cong (λw. H) (λw. gop _ h (ge h) w) hy ⟩ gop _ h (ge h) (ge h)
-      ≡⟨ gUnitL _ h (ge h) ⟩ ge h
+      ≡⟨ gUnitL h (ge h) ⟩ ge h
 
 def kerInv : (G : 𝕌)
   (g : El (IsGroup G))
@@ -39,19 +39,19 @@ def kerInv : (G : 𝕌)
   (h : El (IsGroup H))
   (p : El (Hom g h))
   (x : El G)
-  → Prf (ker _ _ _ _ p x) → Prf (ker _ _ _ _ p (ginv _ g x))
+  → Prf (ker _ _ _ _ p x) → Prf (ker _ _ _ _ p (ginv g x))
   using (ker.eq) ≔
-  λG. λg. λH. λh. λp. λx. λhx. homAp p (ginv _ g x)
-      ≡⟨ homInv p x ⟩ ginv _ h (homAp p x)
-      ≡⟨ cong (λw. H) (λw. ginv _ h w) hx ⟩ ginv _ h (ge h)
-      ≡⟨ gInvUnit _ h ⟩ ge h
+  λG. λg. λH. λh. λp. λx. λhx. homAp p (ginv g x)
+      ≡⟨ homInv p x ⟩ ginv h (homAp p x)
+      ≡⟨ cong (λw. H) (λw. ginv h w) hx ⟩ ginv h (ge h)
+      ≡⟨ gInvUnit h ⟩ ge h
 
 def kerIsSubgroup : (G : 𝕌)
   (g : El (IsGroup G))
   (H : 𝕌)
   (h : El (IsGroup H))
   (p : El (Hom g h))
-  → Prf (IsSubgroup _ g (ker _ _ _ _ p))
+  → Prf (IsSubgroup g (ker _ _ _ _ p))
   using (ker.eq) ≔
   λG. λg. λH. λh. λp. sgIntro (homUnit p) (kerOp _ _ _ _ p) (kerInv _ _ _ _ p)
 
@@ -62,34 +62,28 @@ def kerIsNormal : (G : 𝕌)
   (H : 𝕌)
   (h : El (IsGroup H))
   (p : El (Hom g h))
-  → Prf (IsNormal _ g (ker _ _ _ _ p))
+  → Prf (IsNormal g (ker _ _ _ _ p))
   using (ker.eq) ≔
   λG. λg. λH. λh. λp. nmIntro
-    (λx. λn. λhn. homAp p (gop _ g x (gop _ g n (ginv _ g x)))
-        ≡⟨ homLaw
-          p
-          x
-          (gop _ g n (ginv _ g x)) ⟩ gop _ h (homAp p x) (homAp p (gop _ g n (ginv _ g x)))
+    (λx. λn. λhn. homAp p (gop _ g x (gop _ g n (ginv g x)))
+        ≡⟨ homLaw p x (gop _ g n (ginv g x)) ⟩ gop _ h (homAp p x) (homAp p (gop _ g n (ginv g x)))
         ≡⟨ cong
           (λw. H)
           (λw. gop _ h (homAp p x) w)
-          (homLaw
-            p
-            n
-            (ginv _ g x)) ⟩ gop _ h (homAp p x) (gop _ h (homAp p n) (homAp p (ginv _ g x)))
+          (homLaw p n (ginv g x)) ⟩ gop _ h (homAp p x) (gop _ h (homAp p n) (homAp p (ginv g x)))
         ≡⟨ cong
           (λw. H)
-          (λw. gop _ h (homAp p x) (gop _ h w (homAp p (ginv _ g x))))
-          hn ⟩ gop _ h (homAp p x) (gop _ h (ge h) (homAp p (ginv _ g x)))
+          (λw. gop _ h (homAp p x) (gop _ h w (homAp p (ginv g x))))
+          hn ⟩ gop _ h (homAp p x) (gop _ h (ge h) (homAp p (ginv g x)))
         ≡⟨ cong
           (λw. H)
           (λw. gop _ h (homAp p x) w)
-          (gUnitL _ h (homAp p (ginv _ g x))) ⟩ gop _ h (homAp p x) (homAp p (ginv _ g x))
+          (gUnitL h (homAp p (ginv g x))) ⟩ gop _ h (homAp p x) (homAp p (ginv g x))
         ≡⟨ cong
           (λw. H)
           (λw. gop _ h (homAp p x) w)
-          (homInv p x) ⟩ gop _ h (homAp p x) (ginv _ h (homAp p x))
-        ≡⟨ gInvR _ h (homAp p x) ⟩ ge h)
+          (homInv p x) ⟩ gop _ h (homAp p x) (ginv h (homAp p x))
+        ≡⟨ gInvR h (homAp p x) ⟩ ge h)
 
 -- ===== the image, with the BRACKET =====
 --
@@ -139,7 +133,7 @@ def imEq : (G : 𝕌)
   (u v : El (Im _ _ _ _ p))
   → (u .π₁ ≡ v .π₁) → u ≡ v
   using (Im.unfold) ≔
-  λG. λg. λH. λh. λp. λu. λv. λe. pairextD e (brIsProp (u .π₂) (v .π₂))
+  λG. λg. λH. λh. λp. λu. λv. λe. pairext e (brIsProp (u .π₂) (v .π₂))
 
 def imIn : (G : 𝕌)
   (g : El (IsGroup G))
@@ -185,18 +179,17 @@ def imFibInv : {G : 𝕌}
   {p : El (Hom g h)}
   {y : El H}
   (f : El (imFib _ _ _ _ p y))
-  → El (imFib _ _ _ _ p (ginv _ h y))
+  → El (imFib _ _ _ _ p (ginv h y))
   using (imFib.unfold) ≔
   λG. λg. λH. λh. λp. λy. λf. ginv
-    _
     g
     (f .π₁),
     eqToId
       _
       _
-      (homAp p (ginv _ g (f .π₁))
-          ≡⟨ homInv p (f .π₁) ⟩ ginv _ h (homAp p (f .π₁))
-          ≡⟨ cong (λw. H) (λw. ginv _ h w) (idToEq _ _ _ (f .π₂)) ⟩ ginv _ h y)
+      (homAp p (ginv g (f .π₁))
+          ≡⟨ homInv p (f .π₁) ⟩ ginv h (homAp p (f .π₁))
+          ≡⟨ cong (λw. H) (λw. ginv h w) (idToEq _ _ _ (f .π₂)) ⟩ ginv h y)
 
 -- ...and the same, one bracket up. Every constancy proof here is
 -- brIsProp: the target is itself a bracket, so nothing is owed
@@ -235,7 +228,7 @@ def imInvBr : {G : 𝕌}
   {p : El (Hom g h)}
   {y : El H}
   (w : El (Br (imFib _ _ _ _ p y)))
-  → El (Br (imFib _ _ _ _ p (ginv _ h y))) ≔
+  → El (Br (imFib _ _ _ _ p (ginv h y))) ≔
   λG. λg. λH. λh. λp. λy. λw. brElim
     (λf. br (imFibInv f))
     (λf. λf'. brIsProp (br (imFibInv f)) (br (imFibInv f')))
@@ -267,7 +260,7 @@ def imInv : (G : 𝕌)
   (p : El (Hom g h))
   → El (Im _ _ _ _ p) → El (Im _ _ _ _ p)
   using (Im.unfold) ≔
-  λG. λg. λH. λh. λp. λu. ginv _ h (u .π₁), imInvBr (u .π₂)
+  λG. λg. λH. λh. λp. λu. ginv h (u .π₁), imInvBr (u .π₂)
 
 def imIsGroup : (G : 𝕌)
   (g : El (IsGroup G))
@@ -300,7 +293,6 @@ def imIsGroup : (G : 𝕌)
           (imOp _ _ _ _ _ (imOp _ _ _ _ _ x y) z)
           (imOp _ _ _ _ _ x (imOp _ _ _ _ _ y z))
           (gAssoc
-            _
             h
             (x .π₁)
             (y .π₁)
@@ -317,7 +309,6 @@ def imIsGroup : (G : 𝕌)
             (imOp _ _ _ _ _ (imUnit _ _ _ _ p) x)
             _
             (gUnitL
-              _
               h
               (x .π₁)))),
           λx. eqToId
@@ -332,7 +323,6 @@ def imIsGroup : (G : 𝕌)
               (imOp _ _ _ _ _ x (imUnit _ _ _ _ p))
               _
               (gUnitR
-                _
                 h
                 (x .π₁)))),
     imInv
@@ -353,7 +343,6 @@ def imIsGroup : (G : 𝕌)
           (imOp _ _ _ _ _ (imInv _ _ _ _ _ x) x)
           (imUnit _ _ _ _ p)
           (gInvL
-            _
             h
             (x .π₁)))),
         λx. eqToId
@@ -367,7 +356,7 @@ def imIsGroup : (G : 𝕌)
             _
             (imOp _ _ _ _ _ x (imInv _ _ _ _ _ x))
             (imUnit _ _ _ _ p)
-            (gInvR _ h (x .π₁)))
+            (gInvR h (x .π₁)))
 
 -- ===== G/ker p  →  im p =====
 --
@@ -391,7 +380,7 @@ def toImConst : (G : 𝕌)
   (h : El (IsGroup H))
   (p : El (Hom g h))
   (a a' : El G)
-  → Prf (cosetRel _ g (ker _ _ _ _ p) a a') → imIn _ _ _ _ p a ≡ imIn _ _ _ _ _ a'
+  → Prf (cosetRel g (ker _ _ _ _ p) a a') → imIn _ _ _ _ p a ≡ imIn _ _ _ _ _ a'
   using (imIn.eq) ≔
   λG. λg. λH. λh. λp. λa. λa'. λr. imEq _ _ _ _ _ _ _ (homKillConst _ p (kerKills _ _ _ _ p) _ _ r)
 
@@ -554,23 +543,20 @@ def fromImConst : (G : 𝕌)
   (p : El (Hom g h))
   (y : El H)
   (f f' : El (imFib _ _ _ _ p y))
-  → qcls _ g (ker _ _ _ _ p) (f .π₁) ≡ qcls _ _ _ (f' .π₁)
+  → qcls g (ker _ _ _ _ p) (f .π₁) ≡ qcls _ _ (f' .π₁)
   using (ker.eq, subgroup.cosetRel.eq, imFib.unfold) ≔
   λG. λg. λH. λh. λp. λy. λf. λf'. qclsEq
     (kerIsSubgroup _ _ _ _ p)
     _
     _
-    (homAp p (gop _ g (f .π₁) (ginv _ g (f' .π₁)))
-        ≡⟨ homOpInv p (f .π₁) (f' .π₁) ⟩ gop _ h (homAp p (f .π₁)) (ginv _ h (homAp p (f' .π₁)))
+    (homAp p (gop _ g (f .π₁) (ginv g (f' .π₁)))
+        ≡⟨ homOpInv p (f .π₁) (f' .π₁) ⟩ gop _ h (homAp p (f .π₁)) (ginv h (homAp p (f' .π₁)))
         ≡⟨ cong
           (λw. H)
-          (λw. gop _ h w (ginv _ h (homAp p (f' .π₁))))
-          (idToEq _ _ _ (f .π₂)) ⟩ gop _ h y (ginv _ h (homAp p (f' .π₁)))
-        ≡⟨ cong
-          (λw. H)
-          (λw. gop _ h y (ginv _ h w))
-          (idToEq _ _ _ (f' .π₂)) ⟩ gop _ h y (ginv _ h y)
-        ≡⟨ gInvR _ h y ⟩ ge h)
+          (λw. gop _ h w (ginv h (homAp p (f' .π₁))))
+          (idToEq _ _ _ (f .π₂)) ⟩ gop _ h y (ginv h (homAp p (f' .π₁)))
+        ≡⟨ cong (λw. H) (λw. gop _ h y (ginv h w)) (idToEq _ _ _ (f' .π₂)) ⟩ gop _ h y (ginv h y)
+        ≡⟨ gInvR h y ⟩ ge h)
 
 def fromImAt : {G : 𝕌}
   {g : El (IsGroup G)}
@@ -582,7 +568,7 @@ def fromImAt : {G : 𝕌}
   → El (QGroup _ g (ker _ _ _ _ p))
   using (imFib.unfold) ≔
   λG. λg. λH. λh. λp. λy. λw. brElim
-    (λf. qcls _ g (ker _ _ _ _ p) (f .π₁))
+    (λf. qcls g (ker _ _ _ _ p) (f .π₁))
     (fromImConst _ _ _ _ p y)
     w
 
@@ -603,7 +589,7 @@ def fromImIn : {G : 𝕌}
   {h : El (IsGroup H)}
   {p : El (Hom g h)}
   {a : El G}
-  → fromIm (imIn _ _ _ _ p a) ≡ qcls _ _ _ a
+  → fromIm (imIn _ _ _ _ p a) ≡ qcls _ _ a
   using (imIn.eq, fromIm.eq, fromImAt.eq, bracket.br.eq, bracket.brElim.eq) ≔
   λG. λg. λH. λh. λp. λa. ⋆
 
@@ -767,7 +753,7 @@ def toImOfProj : {G : 𝕌}
         toIm
         w)
       {homAp {} _ g _ (qIsGroup _ _ _ (kerIsSubgroup _ _ _ _ p) (kerIsNormal _ _ _ _ p)) qProj a}
-      {qcls _ g (ker _ _ _ _ p) a}
+      {qcls g (ker _ _ _ _ p) a}
       qProjAp)
     (trans
       (homAp {}
@@ -776,8 +762,8 @@ def toImOfProj : {G : 𝕌}
         _
         (imIsGroup _ _ _ _ p)
         toIm
-        (qcls _ g (ker _ _ _ _ p) a))
-      (toImMap _ _ _ _ _ (qcls _ g (ker _ _ _ _ p) a))
+        (qcls g (ker _ _ _ _ p) a))
+      (toImMap _ _ _ _ _ (qcls g (ker _ _ _ _ p) a))
       _
       toImAp
       (toImCls _ _ _ _ p a))

@@ -12,7 +12,7 @@
 
 import rationalQ (Q, +, qNeg, qZero, qAddComm, qAddAssoc, qAddZeroL, qAddZeroR, qAddNegL, qAddNegR, qNegNeg)
 import rationalOrder (Sign, sPos, sNeg, sZero, sgnQ, NonNegS, ≤, leQRefl, leQOfEq, leQTrans, sZeroNotNeg, sPosNotNeg, sZeroNotPos, leQPlusMono, leQPlusMonoL, qNegAdd, qPairSwap, qSubSplit, qSubPlusCancel)
-import equality (trans, sym, cong, transport, pairextD)
+import equality (trans, sym, cong, transport, pairext)
 import id (Id, eqToId, idToEq)
 import uip (uip)
 
@@ -234,4 +234,4 @@ def bndIsProp : (b u : El Q) (p q : El (Bnd b u)) → p ≡ q
     rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold,
     rationalQ.Q.unfold) ≔
-  λb. λu. λp. λq. pairextD (leQIsProp _ _ (p .π₁) (q .π₁)) (leQIsProp _ _ (p .π₂) (q .π₂))
+  λb. λu. λp. λq. pairext (leQIsProp _ _ (p .π₁) (q .π₁)) (leQIsProp _ _ (p .π₂) (q .π₂))

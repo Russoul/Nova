@@ -20,7 +20,7 @@
 import nat (+, zeroPlusId, sucPlus)
 import integer (Int, IntR, intZero, intOne, toInt)
 import integerNormalize (normPair, normSound, intNormalize)
-import equality (sym, trans, cong, pairext, pairextD)
+import equality (sym, trans, cong, pairext)
 import prop (↔, iffIntro, ∧, ¬, ⊥, andIntro, andFst, andSnd, impIntro, impApply)
 import eqNat (EqN, eqNRefl, eqNSound, eqNComplete, predEq)
 

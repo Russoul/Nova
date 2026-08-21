@@ -19,7 +19,7 @@
 import prop (rClosure, rClosureContains, rClosureRefl, rClosureSymm, rClosureTrans, rClosureLeast, propExt, ↔, iffIntro)
 import equality (transportP, sym, trans)
 
-def classEqOfRel : (A : 𝕌)
+def classEqOfRel : {A : 𝕌}
   (r : El A → El A → Ω)
   (x y : El A)
   → Prf (r x y) → class x ≡ class y ∈ El (A / (u v. r u v)) ≔
@@ -35,7 +35,7 @@ def classEqOfClosure : {A : 𝕌}
   λA. λr. rClosureLeast
     r
     (λx. λy. class x ≡ class y ∈ El (A / (u v. r u v)))
-    (λx. λy. λh. classEqOfRel _ r _ _ h)
+    (λx. λy. λh. classEqOfRel r _ _ h)
     (λx. ⋆)
     (λx. λy. λz. λh1. λh2. trans _ _ _ h1 h2)
     (λx. λy. λh. sym _ _ h)

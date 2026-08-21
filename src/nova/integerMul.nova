@@ -13,7 +13,7 @@
 import nat (+, *, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusComm, plusAssoc, swapLeft, multZeroId, multSucId, zeroMult, sucMult, multComm, multDistrib, multAssoc)
 import integer (Int, intZero, intOne, intNeg)
 import integerAdd (+, intAddComm, intAddAssoc)
-import equality (trans, cong, sym, pairEtaD)
+import equality (trans, cong, sym, paireta)
 
 def distribBack : {n m k : ℕ} → n * m + n * k ≡ n * (m + k) using (multDistrib) ≔ λn. λm. λk. ⋆
 
@@ -208,7 +208,7 @@ def intMulTest2 : class (Z, 2) * class (3, Z) ≡ class (Z, 6)
 -- ===== the ring laws =====
 def classPairEta : (p : ℕ ⨯ ℕ) → class (p .π₁, p .π₂) ≡ class p ∈ El Int
   using (integer.Int.unfold) ≔
-  λp. cong (λu. Int) (λr. class r) (pairEtaD p)
+  λp. cong (λu. Int) (λr. class r) (paireta p)
 
 def oneMult : (m : ℕ) → S Z * m ≡ m using (multComm) ≔
   λm. S Z * m ≡⟨ sucMult Z m ⟩ m + Z * m ≡⟨ zeroMult m ⟩ m + Z ≡⟨ plusZeroId m ⟩ m
