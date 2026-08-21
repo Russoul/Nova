@@ -100,12 +100,11 @@ def rMulZero : (R : 𝕌)
         ≡⟨ cong
           (λw. R)
           (λw. rmul _ r x w)
-          (gUnitL _ (raddGroup r) (ge (raddGroup r))) ⟩ rmul _ r x (ge (raddGroup r))
+          (gUnitL (raddGroup r) (ge (raddGroup r))) ⟩ rmul _ r x (ge (raddGroup r))
         ≡⟨ sym
           _
           _
           (gUnitR
-            _
             (raddGroup r)
             (rmul
               _
@@ -119,16 +118,12 @@ def rMulZero : (R : 𝕌)
 def rMulNeg : (R : 𝕌)
   (r : El (IsCommRing R))
   (x y : El R)
-  → rmul _ r x (ginv _ (raddGroup r) y) ≡ ginv _ (raddGroup r) (rmul _ r x y) ≔
+  → rmul _ r x (ginv (raddGroup r) y) ≡ ginv (raddGroup r) (rmul _ r x y) ≔
   λR. λr. λx. λy. sym
     _
     _
     (gInvUniq
-      _
-      (raddGroup r)
-      (rmul _ r x y)
-      (rmul _ r x (ginv _ (raddGroup r) y))
-      (gop _ (raddGroup r) (rmul _ r x y) (rmul _ r x (ginv _ (raddGroup r) y))
+      (gop _ (raddGroup r) (rmul _ r x y) (rmul _ r x (ginv (raddGroup r) y))
           ≡⟨ sym
             _
             _
@@ -137,14 +132,8 @@ def rMulNeg : (R : 𝕌)
               r
               x
               y
-              (ginv
-                _
-                (raddGroup r)
-                y)) ⟩ rmul _ r x (gop _ (raddGroup r) y (ginv _ (raddGroup r) y))
-          ≡⟨ cong
-            (λw. R)
-            (λw. rmul _ r x w)
-            (gInvR _ (raddGroup r) y) ⟩ rmul _ r x (ge (raddGroup r))
+              (ginv (raddGroup r) y)) ⟩ rmul _ r x (gop _ (raddGroup r) y (ginv (raddGroup r) y))
+          ≡⟨ cong (λw. R) (λw. rmul _ r x w) (gInvR (raddGroup r) y) ⟩ rmul _ r x (ge (raddGroup r))
           ≡⟨ rMulZero _ r x ⟩ ge (raddGroup r)))
 
 -- x·y − x·y' = x·(y − y'): the shape every ideal argument is in
@@ -156,10 +145,9 @@ def rMulSub : (R : 𝕌)
     (raddGroup r)
     (rmul _ r x y)
     (ginv
-      _
       (raddGroup r)
-      (rmul _ r x y')) ≡ rmul _ r x (gop _ (raddGroup r) y (ginv _ (raddGroup r) y')) ≔
-  λR. λr. λx. λy. λy'. gop _ (raddGroup r) (rmul _ r x y) (ginv _ (raddGroup r) (rmul _ r x y'))
+      (rmul _ r x y')) ≡ rmul _ r x (gop _ (raddGroup r) y (ginv (raddGroup r) y')) ≔
+  λR. λr. λx. λy. λy'. gop _ (raddGroup r) (rmul _ r x y) (ginv (raddGroup r) (rmul _ r x y'))
       ≡⟨ cong
         (λw. R)
         (λw. gop _ (raddGroup r) (rmul _ r x y) w)
@@ -170,7 +158,7 @@ def rMulSub : (R : 𝕌)
             _
             r
             x
-            y')) ⟩ gop _ (raddGroup r) (rmul _ r x y) (rmul _ r x (ginv _ (raddGroup r) y'))
+            y')) ⟩ gop _ (raddGroup r) (rmul _ r x y) (rmul _ r x (ginv (raddGroup r) y'))
       ≡⟨ sym
         _
         _
@@ -179,4 +167,4 @@ def rMulSub : (R : 𝕌)
           r
           x
           y
-          (ginv _ (raddGroup r) y')) ⟩ rmul _ r x (gop _ (raddGroup r) y (ginv _ (raddGroup r) y'))
+          (ginv (raddGroup r) y')) ⟩ rmul _ r x (gop _ (raddGroup r) y (ginv (raddGroup r) y'))

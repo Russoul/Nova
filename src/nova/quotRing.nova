@@ -38,7 +38,7 @@ def QRing : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) → 𝕌 ≔
 
 def qrCls : {R : 𝕌} {r : El (IsCommRing R)} {I : El R → Ω} → El R → El (QRing _ r I)
   using (QRing.eq) ≔
-  λR. λr. λI. qcls _ (raddGroup r) I
+  λR. λr. λI. qcls (raddGroup r) I
 
 -- ===== the two well-definedness proofs =====
 def qrMulWDInner : {R : 𝕌}
@@ -50,16 +50,15 @@ def qrMulWDInner : {R : 𝕌}
     I)
     → {a b b' : El R}
       → Prf (cosetRel
-        _
         (raddGroup r)
         I
         b
-        b') → Prf (cosetRel _ (raddGroup r) I (rmul _ r a b) (rmul _ r a b'))
+        b') → Prf (cosetRel (raddGroup r) I (rmul _ r a b) (rmul _ r a b'))
   using (subgroup.cosetRel.eq) ≔
   λR. λr. λI. λid. λa. λb. λb'. λh. transportP
     I
     (sym _ _ (rMulSub _ r a b b'))
-    (idScale _ _ _ id a (gop _ (raddGroup r) b (ginv _ (raddGroup r) b')) h)
+    (idScale _ _ _ id a (gop _ (raddGroup r) b (ginv (raddGroup r) b')) h)
 
 def qrMulWDOuter : {R : 𝕌}
   {r : El (IsCommRing R)}
@@ -70,22 +69,21 @@ def qrMulWDOuter : {R : 𝕌}
     I)
     → {a a' b : El R}
       → Prf (cosetRel
-        _
         (raddGroup r)
         I
         a
-        a') → Prf (cosetRel _ (raddGroup r) I (rmul _ r a b) (rmul _ r a' b))
+        a') → Prf (cosetRel (raddGroup r) I (rmul _ r a b) (rmul _ r a' b))
   using (subgroup.cosetRel.eq) ≔
   λR. λr. λI. λid. λa. λa'. λb. λh. transportP
     I
-    {rmul _ r (gop _ (raddGroup r) a (ginv _ (raddGroup r) a')) b}
-    {gop _ (raddGroup r) (rmul _ r a b) (ginv _ (raddGroup r) (rmul _ r a' b))}
-    (rmul _ r (gop _ (raddGroup r) a (ginv _ (raddGroup r) a')) b
+    {rmul _ r (gop _ (raddGroup r) a (ginv (raddGroup r) a')) b}
+    {gop _ (raddGroup r) (rmul _ r a b) (ginv (raddGroup r) (rmul _ r a' b))}
+    (rmul _ r (gop _ (raddGroup r) a (ginv (raddGroup r) a')) b
         ≡⟨ rMulComm
           _
           r
-          (gop _ (raddGroup r) a (ginv _ (raddGroup r) a'))
-          b ⟩ rmul _ r b (gop _ (raddGroup r) a (ginv _ (raddGroup r) a'))
+          (gop _ (raddGroup r) a (ginv (raddGroup r) a'))
+          b ⟩ rmul _ r b (gop _ (raddGroup r) a (ginv (raddGroup r) a'))
         ≡⟨ sym
           _
           _
@@ -94,24 +92,24 @@ def qrMulWDOuter : {R : 𝕌}
             r
             b
             a
-            a') ⟩ gop _ (raddGroup r) (rmul _ r b a) (ginv _ (raddGroup r) (rmul _ r b a'))
+            a') ⟩ gop _ (raddGroup r) (rmul _ r b a) (ginv (raddGroup r) (rmul _ r b a'))
         ≡⟨ cong
           (λw. R)
-          (λw. gop _ (raddGroup r) w (ginv _ (raddGroup r) (rmul _ r b a')))
+          (λw. gop _ (raddGroup r) w (ginv (raddGroup r) (rmul _ r b a')))
           (rMulComm
             _
             r
             b
-            a) ⟩ gop _ (raddGroup r) (rmul _ r a b) (ginv _ (raddGroup r) (rmul _ r b a'))
+            a) ⟩ gop _ (raddGroup r) (rmul _ r a b) (ginv (raddGroup r) (rmul _ r b a'))
         ≡⟨ cong
           (λw. R)
-          (λw. gop _ (raddGroup r) (rmul _ r a b) (ginv _ (raddGroup r) w))
+          (λw. gop _ (raddGroup r) (rmul _ r a b) (ginv (raddGroup r) w))
           (rMulComm
             _
             r
             b
-            a') ⟩ gop _ (raddGroup r) (rmul _ r a b) (ginv _ (raddGroup r) (rmul _ r a' b)))
-    (idScaleR _ _ _ id b (gop _ (raddGroup r) a (ginv _ (raddGroup r) a')) h)
+            a') ⟩ gop _ (raddGroup r) (rmul _ r a b) (ginv (raddGroup r) (rmul _ r a' b)))
+    (idScaleR _ _ _ id b (gop _ (raddGroup r) a (ginv (raddGroup r) a')) h)
 
 -- ===== the descent, in qrCls vocabulary (B-21) =====
 def qrMulWDInnerCls : (R : 𝕌)
@@ -123,15 +121,13 @@ def qrMulWDInnerCls : (R : 𝕌)
     I)
     → (a b b' : El R)
       → Prf (cosetRel
-        _
         (raddGroup r)
         I
         b
         b') → qrCls (rmul _ r a b) ≡ qrCls (rmul _ r a b') ∈ El (QRing _ r I)
   using (qrCls.eq, quotGroup.qcls.eq) ≔
   λR. λr. λI. λid. λa. λb. λb'. λh. classEqOfRel
-    _
-    (cosetRel _ (raddGroup r) I)
+    (cosetRel (raddGroup r) I)
     (rmul _ r a b)
     (rmul _ r a b')
     (qrMulWDInner id h)
@@ -145,15 +141,13 @@ def qrMulWDOuterCls : {R : 𝕌}
     I)
     → {a a' b : El R}
       → Prf (cosetRel
-        _
         (raddGroup r)
         I
         a
         a') → qrCls (rmul _ r a b) ≡ qrCls (rmul _ r a' b) ∈ El (QRing _ r I)
   using (qrCls.eq, quotGroup.qcls.eq) ≔
   λR. λr. λI. λid. λa. λa'. λb. λh. classEqOfRel
-    _
-    (cosetRel _ (raddGroup r) I)
+    (cosetRel (raddGroup r) I)
     (rmul _ r a b)
     (rmul _ r a' b)
     (qrMulWDOuter id h)
@@ -167,7 +161,6 @@ def qrMulWDOuterElim : (R : 𝕌)
     I)
     → (x x' : El R)
       → Prf (cosetRel
-        _
         (raddGroup r)
         I
         x

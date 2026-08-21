@@ -16,7 +16,7 @@
 -- one — Quot.sound is not judgemental.)
 
 import prop (propExt)
-import equality (cong, sym, trans, pairextD)
+import equality (cong, sym, trans, pairext)
 import id (Id, refl, idToEq)
 import uip (uip, idCanon)
 
@@ -141,7 +141,7 @@ def fibCanon : {n : ℕ} (u : El (Fib n)) → u ≡ (n, refl ℕ n)
     _
     _
     _
-    (u .π₂) in pairextD {ℕ} {λm. Id _ m n} {_} {n, refl ℕ n} h (idCanon (u .π₂) h)
+    (u .π₂) in pairext {ℕ} {λm. Id _ m n} {_} {n, refl ℕ n} h (idCanon (u .π₂) h)
 
 def fibIsProp : (n : ℕ) (u v : El (Fib n)) → u ≡ v using (Fib.unfold, id.Id.unfold, id.Id.eq) ≔
   λn. λu. λv. trans _ _ _ (fibCanon u) (sym _ _ (fibCanon v))
@@ -163,7 +163,7 @@ def fibWitnessComputes : fibWitness 2 (br (2, refl ℕ 2)) ≡ 2
 -- That is the shape of every proof about this modality: propositions
 -- are cheap, elimination is the content.
 def brProdIsProp : {a b : 𝕌} (u v : El (Br a ⨯ Br b)) → u ≡ v using (sigma.eta) ≔
-  λa. λb. λu. λv. pairextD (brIsProp (u .π₁) (v .π₁)) (brIsProp (u .π₂) (v .π₂))
+  λa. λb. λu. λv. pairext (brIsProp (u .π₁) (v .π₁)) (brIsProp (u .π₂) (v .π₂))
 
 def brPairIn : {a b : 𝕌} (t : El (Br (a ⨯ b))) → El (Br a ⨯ Br b) ≔
   λa. λb. λt. brElim

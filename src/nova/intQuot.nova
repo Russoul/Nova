@@ -33,7 +33,7 @@ def intGop : (x y : El Int) → gop _ intAddGroup x y ≡ x + y
 
 def intGe : ge intAddGroup ≡ intZero using (groupTheory.ge.eq, intGroup.intAddGroup.eq) ≔ ⋆
 
-def intGinv : (x : El Int) → ginv _ intAddGroup x ≡ intNeg x
+def intGinv : (x : El Int) → ginv intAddGroup x ≡ intNeg x
   using (groupTheory.ginv.eq, intGroup.intAddGroup.eq) ≔
   λx. ⋆
 
@@ -73,7 +73,7 @@ def nZOp : (n x y : El Int) → Prf (nZ n x) → Prf (nZ n y) → Prf (nZ n (gop
         ≡⟨ sym _ _ (intGop x y) ⟩ gop _ intAddGroup x y)))
 
 -- n·(−k) = −(n·k)
-def nZInv : (n x : El Int) → Prf (nZ n x) → Prf (nZ n (ginv _ intAddGroup x))
+def nZInv : (n x : El Int) → Prf (nZ n x) → Prf (nZ n (ginv intAddGroup x))
   using (nZ.eq, nZfib.unfold) ≔
   λn. λx. λhx. squash-elim hx (u. nZIntro
     _
@@ -82,13 +82,13 @@ def nZInv : (n x : El Int) → Prf (nZ n x) → Prf (nZ n (ginv _ intAddGroup x)
     (n * intNeg (u .π₁)
         ≡⟨ intMulNegR n (u .π₁) ⟩ intNeg (n * u .π₁)
         ≡⟨ cong (λw. Int) (λw. intNeg w) (idToEq _ _ _ (u .π₂)) ⟩ intNeg x
-        ≡⟨ sym _ _ (intGinv x) ⟩ ginv _ intAddGroup x))
+        ≡⟨ sym _ _ (intGinv x) ⟩ ginv intAddGroup x))
 
-def nZIsSubgroup : (n : El Int) → Prf (IsSubgroup _ intAddGroup (nZ n)) ≔
+def nZIsSubgroup : (n : El Int) → Prf (IsSubgroup intAddGroup (nZ n)) ≔
   λn. sgIntro (nZUnit n) (nZOp n) (nZInv n)
 
 -- ...and normal for free, ℤ being abelian
-def nZIsNormal : {n : El Int} → Prf (IsNormal _ intAddGroup (nZ n)) ≔ λn. abelianNormal intGopComm
+def nZIsNormal : {n : El Int} → Prf (IsNormal intAddGroup (nZ n)) ≔ λn. abelianNormal intGopComm
 
 -- ===== ℤ/nℤ =====
 def IntMod : El Int → 𝕌 ≔ λn. QGroup _ intAddGroup (nZ n)
@@ -97,7 +97,7 @@ def intModGroup : (n : El Int) → El (IsGroup (IntMod n)) using (IntMod.eq) ≔
   λn. qIsGroup _ _ _ (nZIsSubgroup n) nZIsNormal
 
 def intModCls : {n : El Int} → El Int → El (IntMod n) using (IntMod.eq) ≔
-  λn. qcls _ intAddGroup (nZ n)
+  λn. qcls intAddGroup (nZ n)
 
 -- every multiple of n is zero in ℤ/nℤ — the defining property, at
 -- abstract n and k, with no numeral in sight
@@ -109,26 +109,20 @@ def intModMulZero : {n k : El Int} → intModCls (n * k) ≡ intModCls intZero �
     intZero
     (nZIntro
       n
-      (gop _ intAddGroup (n * k) (ginv _ intAddGroup intZero))
+      (gop _ intAddGroup (n * k) (ginv intAddGroup intZero))
       k
       (n * k
           ≡⟨ sym _ _ (intAddZeroR (n * k)) ⟩ n * k + intZero
           ≡⟨ cong
             (λw. Int)
             (λw. n * k + w)
-            (sym
-              _
-              _
-              (trans _ _ _ (intGinv intZero) intNegZero)) ⟩ n * k + ginv _ intAddGroup intZero
+            (sym _ _ (trans _ _ _ (intGinv intZero) intNegZero)) ⟩ n * k + ginv intAddGroup intZero
           ≡⟨ sym
             _
             _
             (intGop
               (n * k)
-              (ginv
-                _
-                intAddGroup
-                intZero)) ⟩ gop _ intAddGroup (n * k) (ginv _ intAddGroup intZero)))
+              (ginv intAddGroup intZero)) ⟩ gop _ intAddGroup (n * k) (ginv intAddGroup intZero)))
 
 -- the instance in the smallest concrete case: n is zero in ℤ/nℤ
 def intModSelf : (n : El Int) → intModCls n ≡ intModCls intZero ∈ El (IntMod n) ≔

@@ -18,7 +18,7 @@ import ratBound (Bnd, bndIsProp)
 import real (rBound, Regular, RSeq, REq, Real)
 import realNeg (seqOf, regOf)
 import prelude (funext)
-import equality (trans, sym, cong, transport, pairextD)
+import equality (trans, sym, cong, transport, pairext)
 
 def regularIsProp : (f : El (ℕ → Q)) (p q : El (Regular f)) → p ≡ q
   using (rationalQ.Q.unfold, real.Regular.unfold) ≔
@@ -48,7 +48,7 @@ def rseqEqAt : {x y : El RSeq} → (seqOf x ≡ seqOf y) → x ≡ y
     real.rBound.eq,
     realNeg.regOf.eq,
     realNeg.seqOf.eq) ≔
-  λx. λy. λh. pairextD {}
+  λx. λy. λh. pairext {}
     _
     Regular
     _

@@ -25,13 +25,12 @@ def closedScale : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) → Ω �
   λR. λr. λI. ∥(a x : El R) → Prf (I x) → Prf (I (rmul _ r a x))∥
 
 def IsIdeal : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) → Ω ≔
-  λR. λr. λI. IsSubgroup _ (raddGroup r) I ∧ closedScale _ r I
+  λR. λr. λI. IsSubgroup (raddGroup r) I ∧ closedScale _ r I
 
 def idIntro : {R : 𝕌}
   {r : El (IsCommRing R)}
   {I : El R → Ω}
   → Prf (IsSubgroup
-    _
     (raddGroup r)
     I) → ((a x : El R) → Prf (I x) → Prf (I (rmul _ r a x))) → Prf (IsIdeal _ r I)
   using (IsIdeal.eq, closedScale.eq) ≔
@@ -40,7 +39,7 @@ def idIntro : {R : 𝕌}
 def idSub : {R : 𝕌}
   {r : El (IsCommRing R)}
   {I : El R → Ω}
-  → Prf (IsIdeal _ r I) → Prf (IsSubgroup _ (raddGroup r) I)
+  → Prf (IsIdeal _ r I) → Prf (IsSubgroup (raddGroup r) I)
   using (IsIdeal.eq) ≔
   λR. λr. λI. λh. andFst h
 
@@ -52,7 +51,7 @@ def idScale : (R : 𝕌)
   λR. λr. λI. λh. λa. λx. λhx. squash-elim (andSnd h) (u. u a x hx)
 
 -- an ideal is a normal subgroup of (R , +), because (R , +) is abelian
-def idNormal : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) → Prf (IsNormal _ (raddGroup r) I) ≔
+def idNormal : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) → Prf (IsNormal (raddGroup r) I) ≔
   λR. λr. λI. abelianNormal (rAddComm _ r)
 
 -- ===== the two closure facts the descent will want =====

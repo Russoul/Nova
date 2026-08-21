@@ -14,7 +14,7 @@ import integerAdd (+, intAddComm, intAddAssoc)
 import integerMul (*, intMulComm, intMulAssoc, intMulOneL, intMulOneR, intMulZeroL, intMulZeroR, intMulDistribL, intMulDistribR, intAddCong2, intMulCong2, classCong2, oneMult, intNegNeg, intAddNegR, intMulNegL)
 import rational (NZ, nzPos, nzNeg, nzOne, nzMul, nzMulComm, nzMulOneL, nzMulOneR, nzToInt, intScale, intScaleOne, Rat, mkRat, num, den, denInt, ratAdd, ratAddComm, ratAddZeroL, ratAddZeroR, ratNeg, ratZero, ratOne, ratEta, half, third)
 import eqNat (predEq)
-import equality (trans, cong, sym, pairEta)
+import equality (trans, cong, sym, paireta)
 
 def intScaleIsMul : (d : El NZ) (z : El Int) → intScale d z ≡ nzToInt d * z
   using (integer.Int.eq,
@@ -1502,7 +1502,7 @@ def nzqInv : El NZQ → El NZQ using (rationalQ.NZQ.unfold) ≔ λx. x .π₂, x
 
 def nzqInvInv : (x : El NZQ) → nzqInv (nzqInv x) ≡ x
   using (rational.NZ.unfold, rationalQ.NZQ.unfold, rationalQ.nzqInv.eq) ≔
-  λx. pairEta x
+  λx. paireta x
 
 -- x · x⁻¹ = 1: the product is (N·D)/(d·n), and cross-multiplying
 -- against 1/1 leaves exactly N·D ≡ D·N
