@@ -8,6 +8,7 @@
 -- out of reach here — everything observational is provable now.
 -- n-fold tail, unfolding head-first: tlN (S n) s ≐ tlN n (tl s)
 
+import prelude (id, ∘)
 import stream (stream, hd, tl, map, iterate)
 
 def tlN : {a : 𝕌} → ℕ → El (stream a) → El (stream a) using (stream.stream.unfold) ≔
@@ -39,9 +40,9 @@ def nthMap : {a b : 𝕌} (f : El a → El b) (n : ℕ) (s : El (stream a)) → 
 -- mapping the identity is observationally the identity — the
 -- η-needing `map id s ≡ s` weakened to its observational shadow,
 -- where it is PROVABLE
-def mapIdObsEq : {a : 𝕌} (s : El (stream a)) → Prf (obsEq (map {} _ a (λx. x) s) s)
-  using (streamEq.obsEq.unfold) ≔
-  λa. λs. ⋆ (λn. nthMap {} _ a (λx. x) n s)
+def mapIdObsEq : {a : 𝕌} (s : El (stream a)) → Prf (obsEq (map (id {a}) s) s)
+  using (streamEq.obsEq.unfold, prelude.id.eq) ≔
+  λa. λs. ⋆ (λn. nthMap (id {a}) n s)
 
 -- likewise map fusion, observationally: composing maps is mapping
 -- the composite
@@ -49,17 +50,18 @@ def mapFuseObsEq : {a b c : 𝕌}
   (f : El a → El b)
   (g : El b → El c)
   (s : El (stream a))
-  → Prf (obsEq (map g (map f s)) (map {} _ c (λx. g (f x)) s))
+  → Prf (obsEq (map g (map f s)) (map (g ∘ f) s))
   using (nth.eq,
     stream.hd.eq,
     stream.map.eq,
+    prelude.∘.eq,
     stream.stream.eq,
     stream.stream.unfold,
     stream.tl.eq,
     streamEq.obsEq.unfold,
     tlN.eq) ≔
   λa. λb. λc. λf. λg. λs. ⋆ (λn. (ℕ-elim (m. (t : El (stream a))
-    → nth m (map g (map f t)) ≡ nth m (map {} _ c (λx. g (f x)) t))
+    → nth m (map g (map f t)) ≡ nth m (map (g ∘ f) t))
     (λt. ⋆)
     (m ih. λt. ih (tl t))
     n)

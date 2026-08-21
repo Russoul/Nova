@@ -1,4 +1,8 @@
-def id : (A : 𝕌) (x : El A) → El A ≔ λA. λx. x
+def id : {A : 𝕌} (x : El A) → El A ≔ λA. λx. x
+
+infixr 1 ∘
+def ∘ : {A B C : 𝕌} (g : El B → El C) (f : El A → El B) → El A → El C ≔
+  λA. λB. λC. λg. λf. λx. g (f x)
 
 def idP : (A : Ω) (x : Prf A) → Prf A ≔ λA. λx. x
 

@@ -92,6 +92,7 @@ import quottyuniv
 import rationalAlgInv
 import rationalEffective
 import stream
+import conat
 import streamEq
 import streamBisim
 import sum
