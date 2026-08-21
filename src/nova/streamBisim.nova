@@ -10,6 +10,7 @@
 -- (reflexivity via the equality invariant), and equivalence with the
 -- ℕ-indexed obsEq.
 
+import prelude (id, ∘)
 import equality (cong)
 import stream (stream, hd, tl, map)
 import streamEq (tlN, nth, obsEq, obsEqRefl, nthMap, mapIdObsEq, mapFuseObsEq)
@@ -70,8 +71,8 @@ def bisimObsEq : {a : 𝕌} {s t : El (stream a)} → Prf (bisim s t) → Prf (o
     h)
 
 -- interop corollary: map-identity, now in the corecursive spelling
-def mapIdBisim : {a : 𝕌} (s : El (stream a)) → Prf (bisim (map {} _ a (λx. x) s) s)
-  using (streamBisim.bisim.unfold) ≔
+def mapIdBisim : {a : 𝕌} (s : El (stream a)) → Prf (bisim (map (id {a}) s) s)
+  using (streamBisim.bisim.unfold, prelude.id.eq) ≔
   λa. λs. obsEqBisim (mapIdObsEq s)
 
 -- THE REFLECTION: bisimilarity implies equality — el-nu-coind's
@@ -92,12 +93,12 @@ def obsEqReflect : {a : 𝕌} {s t : El (stream a)} → Prf (obsEq s t) → Prf 
   λa. λs. λt. λh. bisimReflect (obsEqBisim h)
 
 -- the η-needing equalities, now judgemental theorems
-def mapIdEq : (a : 𝕌) (s : El (stream a)) → map {} _ a (λx. x) s ≡ s ≔
+def mapIdEq : (a : 𝕌) (s : El (stream a)) → map (id {a}) s ≡ s using (prelude.id.eq) ≔
   λa. λs. bisimReflect (mapIdBisim s)
 
 def mapFuseEq : (a b c : 𝕌)
   (f : El a → El b)
   (g : El b → El c)
   (s : El (stream a))
-  → map g (map f s) ≡ map (λx. g (f x)) s ≔
+  → map g (map f s) ≡ map (g ∘ f) s ≔
   λa. λb. λc. λf. λg. λs. obsEqReflect (mapFuseObsEq f g s)
