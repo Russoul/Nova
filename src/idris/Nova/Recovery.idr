@@ -39,6 +39,7 @@ import Data.String
 
 import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
+import Nova.Elaboration.Beta
 
 %default covering
 
@@ -300,7 +301,13 @@ mutual
         if app then Nothing else
           case strengthenE 0 k g of
             Nothing => Nothing
-            Just g' =>
+            Just g0 =>
+              -- captures are COMP-NORMALIZED: a substituted domain
+              -- can carry β-redexes ((λv. Int) w, from a
+              -- pattern-solved dependency), and a redex core is not
+              -- kernel-inferable — no surviving capture ever carried
+              -- one, so normalizing is strictly additive
+              let g' = compElem g0 in
               -- the bare-skeleton law, unconditionally: a hole
               -- solution ships with an empty skeleton, so an
               -- eliminator-bearing capture could never survive the
@@ -346,8 +353,8 @@ mutual
         -- captured body containing stuck eliminators (their motives
         -- and coherences live in skeletons the kernel would need)
         -- must reject — same law as Phase 4's synthesized annotations
-        if allDistinct vars && all (< k) vars && skelFreeE g
-          then case absPat k vars g of
+        if allDistinct vars && all (< k) vars && skelFreeE (compElem g)
+          then case absPat k vars (compElem g) of
                  Nothing => Nothing
                  Just sol => case lookup i sols of
                    Just prev => if sameE prev sol then Just sols else Nothing

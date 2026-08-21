@@ -728,6 +728,40 @@ hover. Proof positions everywhere stay explicit (the census shows
 them 100% override — correctly hopeless). ~10.1s plain
 elaboration, canonical form enforced.
 
+CAPTURES ARE COMP-NORMALIZED (2026-08-21): a substituted domain can
+carry β-redexes — a pattern-solved dependency lands a λ in function
+position, El ((λv. Int) (intCanon z2)) — and an α-tier capture took
+the redex spelling verbatim; the kernel then rejects the core at an
+inference position ("term not inferable"). Every hole capture now
+passes through compElem at binding time, in the ordinary case and
+before pattern abstraction. Strictly additive by the skeleton-law
+argument: a redex-bearing capture never survived the kernel, so no
+committed solution changes. This is what lets eqZSound's inner
+trans infer {Int} once cong's motive pattern-solves as λv. Int —
+the chain toInt/intCanonToInt with ONE citation, zero overrides.
+
+THE CONSTANT SOLUTION, TRIED AND WITHDRAWN (2026-08-21, the third
+withdrawn design): ?B t̄ = g solved as λ̄_. g when Miller does not
+apply (pairextD's {B} occurs only as ?B (x .π₁) — a projection, not
+a bound variable, outside the unique-solution fragment). Hardened
+twice — constants ran as a strictly-second sweep so a guess could
+never preempt a Miller solution, then Huet-style occurs-pruning
+refused grounds mentioning an applied argument — and still killed
+by a probe: at a genuinely dependent pair in an inference position
+the ground mentions v .π₁ while the applied argument is u .π₁,
+equal only PROPOSITIONALLY (via the first proof), so the pruning
+cannot see the dependency it hides. The falsifier lives in x and
+y's TYPES, which the matcher never visits: the wrong guess
+surfaces not as an error but as UNPROVABLE OBLIGATIONS with
+misleading hints — a trap in the discharge workflow, strictly
+worse than "cannot infer". The lesson, recorded for any future
+non-unique tier: a GUESSED solution is only admissible with
+post-verification against every occurrence of the hole (an
+obligation-free probe re-elaboration); syntactic guards asymptote
+short of soundness. The non-dependent case needs no tier at all:
+pairext's {B} is a bare hole — use pairext at A ⨯ B, pairextD at
+(a : A) ⨯ B a, overriding {B} at inference positions.
+
 THE IN-PLACE REWRITE (2026-08-20): src/nova is now the implicitized,
 CANONICAL-DISTILL-FORM corpus — 414 defs with {}-binders, 2,826
 argument occurrences elided, comments preserved, items
