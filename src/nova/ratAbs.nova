@@ -53,12 +53,7 @@ def bndAbs : (u : El Q) → El (Bnd (qAbs u) u)
     rationalQ.+.eq,
     rationalQ.qNeg.eq) ≔
   λu. ⊎-elim (w. El (Bnd (⊎-elim (nn. u) (hn. qNeg u) w) u))
-    (nn. leQTrans
-      (qNeg u)
-      _
-      _
-      (bndZero _ (leQZeroOfNonNeg _ nn) .π₁)
-      (leQZeroOfNonNeg _ nn), leQRefl _)
+    (nn. leQTrans _ _ _ (bndZero _ (leQZeroOfNonNeg _ nn) .π₁) (leQZeroOfNonNeg _ nn), leQRefl _)
     (hn. transport
       (λw. w ≤ u)
       (sym _ _ (qNegNeg u))
@@ -67,7 +62,7 @@ def bndAbs : (u : El Q) → El (Bnd (qAbs u) u)
       leQTrans
         _
         _
-        (qNeg u)
+        _
         (transport (λw. w ≤ qZero) (qNegNeg u) (bndZero _ (leQZeroOfPos _ (sgnQNegOfNeg hn)) .π₁))
         (leQZeroOfPos _ (sgnQNegOfNeg hn)))
     (sgnCases (sgnQ u))
@@ -111,8 +106,8 @@ def leQZeroAbs : (u : El Q) → El (qZero ≤ qAbs u)
     rationalQ.qNeg.eq,
     rationalQ.qZero.eq) ≔
   λu. ⊎-elim (w. El (qZero ≤ ⊎-elim (nn. u) (hn. qNeg u) w))
-    (nn. leQZeroOfNonNeg u nn)
-    (hn. leQZeroOfPos (qNeg u) (sgnQNegOfNeg hn))
+    (nn. leQZeroOfNonNeg _ nn)
+    (hn. leQZeroOfPos _ (sgnQNegOfNeg hn))
     (sgnCases (sgnQ u))
 
 def qAbsNeg : (u : El Q) → qAbs (qNeg u) ≡ qAbs u ≔
@@ -221,19 +216,19 @@ def qAbsMul : (u v : El Q) → qAbs (u * v) ≡ qAbs u * qAbs v
     rationalQ.qNeg.eq) ≔
   λu. λv. ⊎-elim (w. qAbs (u * v) ≡ ⊎-elim (nn. u) (hn. qNeg u) w * qAbs v)
     (nu. ⊎-elim (w. qAbs (u * v) ≡ u * ⊎-elim (nn. v) (hn. qNeg v) w)
-      (nv. qAbsEqOfNonNeg (u * v) (leQZeroMul (leQZeroOfNonNeg _ nu) (leQZeroOfNonNeg _ nv)) ⋆)
+      (nv. qAbsEqOfNonNeg _ (leQZeroMul (leQZeroOfNonNeg _ nu) (leQZeroOfNonNeg _ nv)) ⋆)
       (hv. qAbsEqOfNonNegNeg
-        (u * qNeg v)
+        _
         (leQZeroMul (leQZeroOfNonNeg _ nu) (leQZeroOfPos _ (sgnQNegOfNeg hv)))
         (qNegMulR u v))
       (sgnCases (sgnQ v)))
     (hu. ⊎-elim (w. qAbs (u * v) ≡ qNeg u * ⊎-elim (nn. v) (hn. qNeg v) w)
       (nv. qAbsEqOfNonNegNeg
-        (qNeg u * v)
+        _
         (leQZeroMul (leQZeroOfPos _ (sgnQNegOfNeg hu)) (leQZeroOfNonNeg _ nv))
         (qNegMulL u v))
       (hv. qAbsEqOfNonNeg
-        (qNeg u * qNeg v)
+        _
         (leQZeroMul (leQZeroOfPos _ (sgnQNegOfNeg hu)) (leQZeroOfPos _ (sgnQNegOfNeg hv)))
         (trans
           _

@@ -173,7 +173,7 @@ def sgnQOfNatDiff : (a b : ℕ) → sgnQ (qOfNat b + qNeg (qOfNat a)) ≡ intSgn
     rationalQ.qcls.eq) ≔
   λa. λb. trans
     _
-    (intSgn (class (b, a) * intOne))
+    _
     _
     (cong
       (λv. Sign)
@@ -223,7 +223,7 @@ def qOfNatAdd : (a b : ℕ) → qOfNat a + qOfNat b ≡ qOfNat (a + b)
     _
     (trans
       (qOfNat a + qOfNat b)
-      (qcls (mkRat (intOfNat a + intScale nzOne (intOfNat b)) nzOne))
+      _
       _
       (cong
         (λv. Q)

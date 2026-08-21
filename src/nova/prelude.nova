@@ -4,20 +4,20 @@ infixr 1 ∘
 def ∘ : {A B C : 𝕌} (g : El B → El C) (f : El A → El B) → El A → El C ≔
   λA. λB. λC. λg. λf. λx. g (f x)
 
-def idP : (A : Ω) (x : Prf A) → Prf A ≔ λA. λx. x
+def idP : {A : Ω} (x : Prf A) → Prf A ≔ λA. λx. x
 
-def const : (A B : 𝕌) (x : El A) (y : El B) → El A ≔ λA. λB. λx. λy. x
+def const : {A B : 𝕌} (x : El A) (y : El B) → El A ≔ λA. λB. λx. λy. x
 
-def constP : (A B : Ω) (x : Prf A) (y : Prf B) → Prf A ≔ λA. λB. λx. λy. x
+def constP : {A B : Ω} (x : Prf A) (y : Prf B) → Prf A ≔ λA. λB. λx. λy. x
 
 -- Function extensionality — a theorem here, not an axiom: reflect the
 -- pointwise hypothesis under the binder and the sides are equal by
 -- ξ and η (funext-via-reflection, NovaFoundation's ν SUBSUMPTION note).
-def funext : (A B : 𝕌) (f g : El (A → B)) → ((x : El A) → f x ≡ g x) → f ≡ g using (pi.eta) ≔
+def funext : {A B : 𝕌} {f g : El (A → B)} → ((x : El A) → f x ≡ g x) → f ≡ g using (pi.eta) ≔
   λA. λB. λf. λg. λh. ⋆
 
 -- ...and the dependent version, by the same argument: the pointwise
 -- hypothesis reflects under the binder, ξ and η do the rest
-def funextD : (A : 𝕌) (B : El A → 𝕌) (f g : El ((x : A) → B x)) → ((x : El A) → f x ≡ g x) → f ≡ g
+def funextD : {A : 𝕌} {B : El A → 𝕌} {f g : El ((x : A) → B x)} → ((x : El A) → f x ≡ g x) → f ≡ g
   using (pi.eta) ≔
   λA. λB. λf. λg. λh. ⋆

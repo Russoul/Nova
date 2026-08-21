@@ -236,7 +236,7 @@ def invRepRel : {p : El Rat}
     rationalQ.ratMul.eq) ≔
   λp. λe. λhe. trans
     _
-    (num p * dInt p)
+    _
     _
     (intMulOneR (num p * dInt p))
     (trans

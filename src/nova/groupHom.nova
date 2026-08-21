@@ -367,4 +367,4 @@ def homQuotUniqueFun : (G : 𝕌)
     → homAp
       ph
       (qcls _ g N a) ≡ homAp ps (qcls _ g N a)) → homAp ph ≡ homAp ps ∈ El (QGroup _ g N → H) ≔
-  λG. λg. λH. λh. λN. λs. λnn. λph. λps. λe. funext _ _ _ _ (homQuotUnique e)
+  λG. λg. λH. λh. λN. λs. λnn. λph. λps. λe. funext (homQuotUnique e)

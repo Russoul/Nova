@@ -840,13 +840,7 @@ def ratAddPos : {p q : El Rat} → (ratSgn p ≡ sPos) → (ratSgn q ≡ sPos) �
     rationalOrder.sZero.eq) ≔
   λp. λq. λhp. λhq. trans
     _
-    (intSgn
-      (intScale
-        (den q)
-        (num
-          p)
-        * nzToInt
-          (nzMul (den p) (den q)) + intScale (den p) (num q) * nzToInt (nzMul (den p) (den q))))
+    _
     _
     (cong
       (λv. Sign)

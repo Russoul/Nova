@@ -52,7 +52,7 @@ def leQMaxR : (u v : El Q) → El (v ≤ qMax u v)
   λu. λv. ⊎-elim (w. El (v ≤ ⊎-elim (nn. v) (hn. u) w))
     (nn. leQRefl _)
     (hn. inj₂ (eqToId
-      (sgnQ (u + qNeg v))
+      _
       _
       (trans
         _
@@ -182,12 +182,12 @@ def bndMinSub : (b a c a' c' : El Q)
     rationalQ.+.eq,
     rationalQ.qNeg.eq) ≔
   λb. λa. λc. λa'. λc'. λh1. λh2. bndEq
-    (qNeg (qMax (qNeg a) (qNeg a') + qNeg (qMax (qNeg c) (qNeg c'))))
+    _
     _
     (trans
       _
       _
-      (qNeg (qMax (qNeg a) (qNeg a')) + qNeg (qNeg (qMax (qNeg c) (qNeg c'))))
+      _
       (qSubFlip (qMax (qNeg a) (qNeg a')) (qMax (qNeg c) (qNeg c')))
       (sym _ _ (qNegDiff (qMax (qNeg a) (qNeg a')) (qMax (qNeg c) (qNeg c')))))
     (bndNeg
