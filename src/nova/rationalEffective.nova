@@ -150,7 +150,7 @@ def qEffective : (p q : El Rat) → Prf (class p ≡ class q ∈ El Q) → Prf (
     rational.Rat.unfold,
     rationalQ.Q.unfold,
     rationalQ.RatR.unfold) ≔
-  effectiveAtEquiv _ RatR ratRRefl ratRTrans ratRSymm
+  effectiveAtEquiv RatR ratRRefl ratRTrans ratRSymm
 
 -- the converse of rationalInv.nova's ratZeroOfNumZero, which needed
 -- effectivity and so could not be stated until now
@@ -191,7 +191,7 @@ def numZeroOfRatZero : (p : El Rat) (h : Prf (class p ≡ qZero)) → num p ≡ 
 
 def numZeroIff : (p : El Rat) → Prf ((class p ≡ qZero) ↔ (num p ≡ intZero))
   using (prop.↔.unfold, prop.∧.unfold, rationalQ.Q.unfold) ≔
-  λp. iffIntro _ (numZeroOfRatZero p) (ratZeroOfNumZero p)
+  λp. iffIntro (numZeroOfRatZero p) (ratZeroOfNumZero p)
 
 -- ===== the image of NZQ is exactly the non-zero rationals =====
 def qOfNzqNonZero : (x : El NZQ) → Prf (¬ (qOfNzq x ≡ qZero))
@@ -212,7 +212,6 @@ def qOfNzqNonZero : (x : El NZQ) → Prf (¬ (qOfNzq x ≡ qZero))
 def qNonZeroIffNzq : (u : El Q) → Prf (¬ (u ≡ qZero) ↔ ∥(x : El NZQ) ⨯ Prf (qOfNzq x ≡ u)∥)
   using (prop.↔.unfold, prop.∧.unfold) ≔
   λu. iffIntro
-    _
     (λh. qNonZeroIsNzq h)
     (λh. squash-elim h (w. notIntro
       (u ≡ qZero)
@@ -245,7 +244,6 @@ def qInvertibleIffNonZero : (u : El Q) → Prf (¬ (u ≡ qZero) ↔ ∥(v : El 
     rational.Rat.unfold,
     rationalQ.Q.unfold) ≔
   λu. iffIntro
-    _
     (λh. qInvExists h)
     (λh. squash-elim h (w. notIntro
       (u ≡ qZero)

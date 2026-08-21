@@ -11,10 +11,10 @@
 import nat (+, *, plusZeroId, zeroPlusId, plusComm, plusAssoc, sucPlus, multZeroId, multSucId, zeroMult, sucMult, multComm, multDistrib, multAssoc)
 import integer (Int, intZero, intOne, intNeg)
 import integerAdd (+, intAddComm, intAddAssoc)
-import integerMul (*, intMulComm, intMulAssoc, intMulOneL, intMulOneR, intMulZeroL, intMulZeroR, intMulDistribL, intMulDistribR, intAddCong2, intMulCong2, classCong2, oneMult, intNegNeg, intAddNegR, intMulNegL, pairEta)
+import integerMul (*, intMulComm, intMulAssoc, intMulOneL, intMulOneR, intMulZeroL, intMulZeroR, intMulDistribL, intMulDistribR, intAddCong2, intMulCong2, classCong2, oneMult, intNegNeg, intAddNegR, intMulNegL)
 import rational (NZ, nzPos, nzNeg, nzOne, nzMul, nzMulComm, nzMulOneL, nzMulOneR, nzToInt, intScale, intScaleOne, Rat, mkRat, num, den, denInt, ratAdd, ratAddComm, ratAddZeroL, ratAddZeroR, ratNeg, ratZero, ratOne, ratEta, half, third)
 import eqNat (predEq)
-import equality (trans, cong, sym)
+import equality (trans, cong, sym, pairEta)
 
 def intScaleIsMul : (d : El NZ) (z : El Int) → intScale d z ≡ nzToInt d * z
   using (integer.Int.eq,
@@ -484,15 +484,10 @@ def magAssoc : {m k l : ℕ}
         (trans
           _
           _
-          (S m * (S k * S l))
+          _
           (cong (λu. ℕ) (λw. w * S l) (sym _ _ (sucMulSuc m k)))
           (multAssoc (S m) (S k) (S l)))
-        (trans
-          _
-          _
-          (S (m * (k * l + k + l) + m + (k * l + k + l)))
-          (cong (λu. ℕ) (λw. S m * w) (sucMulSuc k l))
-          (sucMulSuc m (k * l + k + l)))))
+        (trans _ _ _ (cong (λu. ℕ) (λw. S m * w) (sucMulSuc k l)) (sucMulSuc m (k * l + k + l)))))
 
 -- eight sign cases, one magnitude law
 def nzMulAssoc : (x y z : El NZ) → nzMul (nzMul x y) z ≡ nzMul x (nzMul y z)
@@ -1426,7 +1421,7 @@ def qDistribR : (u v w : El Q) → (v + w) * u ≡ v * u + w * u ≔
       (trans
         _
         _
-        (v * u + w * u)
+        _
         (cong (λx. Q) (λx. x + u * w) (qMulComm u v))
         (cong (λx. Q) (λx. v * u + x) (qMulComm u w))))
 
@@ -1507,7 +1502,7 @@ def nzqInv : El NZQ → El NZQ using (rationalQ.NZQ.unfold) ≔ λx. x .π₂, x
 
 def nzqInvInv : (x : El NZQ) → nzqInv (nzqInv x) ≡ x
   using (rational.NZ.unfold, rationalQ.NZQ.unfold, rationalQ.nzqInv.eq) ≔
-  λx. pairEta NZ NZ x
+  λx. pairEta x
 
 -- x · x⁻¹ = 1: the product is (N·D)/(d·n), and cross-multiplying
 -- against 1/1 leaves exactly N·D ≡ D·N

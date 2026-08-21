@@ -35,21 +35,21 @@ def idIntro : {R : 𝕌}
     (raddGroup r)
     I) → ((a x : El R) → Prf (I x) → Prf (I (rmul _ r a x))) → Prf (IsIdeal _ r I)
   using (IsIdeal.eq, closedScale.eq) ≔
-  λR. λr. λI. λsub. λsc. andIntro _ (closedScale _ r I) sub (⋆ sc)
+  λR. λr. λI. λsub. λsc. andIntro sub (⋆ sc)
 
 def idSub : {R : 𝕌}
   {r : El (IsCommRing R)}
   {I : El R → Ω}
   → Prf (IsIdeal _ r I) → Prf (IsSubgroup _ (raddGroup r) I)
   using (IsIdeal.eq) ≔
-  λR. λr. λI. λh. andFst _ _ h
+  λR. λr. λI. λh. andFst h
 
 def idScale : (R : 𝕌)
   (r : El (IsCommRing R))
   (I : El R → Ω)
   → Prf (IsIdeal _ r I) → (a x : El R) → Prf (I x) → Prf (I (rmul _ r a x))
   using (IsIdeal.eq, closedScale.unfold) ≔
-  λR. λr. λI. λh. λa. λx. λhx. squash-elim (andSnd _ _ h) (u. u a x hx)
+  λR. λr. λI. λh. λa. λx. λhx. squash-elim (andSnd h) (u. u a x hx)
 
 -- an ideal is a normal subgroup of (R , +), because (R , +) is abelian
 def idNormal : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) → Prf (IsNormal _ (raddGroup r) I) ≔

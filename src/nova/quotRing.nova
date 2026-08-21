@@ -97,7 +97,7 @@ def qrMulWDOuter : {R : 𝕌}
             a') ⟩ gop _ (raddGroup r) (rmul _ r b a) (ginv _ (raddGroup r) (rmul _ r b a'))
         ≡⟨ cong
           (λw. R)
-          (λw. gop R (raddGroup r) w (ginv _ (raddGroup r) (rmul _ r b a')))
+          (λw. gop _ (raddGroup r) w (ginv _ (raddGroup r) (rmul _ r b a')))
           (rMulComm
             _
             r
@@ -105,7 +105,7 @@ def qrMulWDOuter : {R : 𝕌}
             a) ⟩ gop _ (raddGroup r) (rmul _ r a b) (ginv _ (raddGroup r) (rmul _ r b a'))
         ≡⟨ cong
           (λw. R)
-          (λw. gop R (raddGroup r) (rmul _ r a b) (ginv _ (raddGroup r) w))
+          (λw. gop _ (raddGroup r) (rmul _ r a b) (ginv _ (raddGroup r) w))
           (rMulComm
             _
             r
@@ -425,7 +425,7 @@ def qrIsCommRing : {R : 𝕌}
                   (trans
                     _
                     _
-                    (gop _ (qrAddGroup id) (qrMul _ _ _ id x y) (qrMul _ _ _ id x z))
+                    _
                     (cong (λz2. QRing _ r I) (λz2. qrMul _ _ _ id x z2) (qrGop _ _ _ id y z))
                     (trans
                       (qrMul _ _ _ id x (qrAdd id y z))

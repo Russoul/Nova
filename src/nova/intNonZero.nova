@@ -63,7 +63,7 @@ def nzOfInt : (z : El Int) → ((e : El NZ) ⨯ Prf (nzToInt e ≡ z)) ⊎ Prf (
 -- now the class equation hands IntR back directly.
 def intNeqOfNotRel : {p q : ℕ ⨯ ℕ} (k : Prf (IntR p q) → 𝟘) → Prf (¬ (class p ≡ class q ∈ El Int))
   using (integer.Int.unfold, prop.¬.unfold, prop.⊃.unfold, prop.⊥.unfold) ≔
-  λp. λq. λk. notIntro _ (λh. ⋆ (k (intEffective _ _ h)))
+  λp. λq. λk. notIntro _ (λh. ⋆ (k (intEffective h)))
 
 -- IntR (S n , Z) (Z , Z) reduces to S n ≡ Z, and IntR (Z , S n) (Z , Z)
 -- to Z ≡ S n — both refuted by eqNat.nova's zNotS

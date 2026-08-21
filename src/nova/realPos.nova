@@ -48,7 +48,7 @@ import id (Id, idToEq, eqToId)
 import equality (trans, sym, cong, transport, transportP)
 
 def reqCongR : (p y y' : El RSeq) → Prf (REq y y') → REq p y ≡ REq p y' ≔
-  λp. λy. λy'. λh. propExt _ (λa. reqTrans _ a h) (λa. reqTrans _ a (reqSym h))
+  λp. λy. λy'. λh. propExt (λa. reqTrans _ a h) (λa. reqTrans _ a (reqSym h))
 
 def reqAt : El RSeq → El Real → Ω
   using (real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold, reqCongR) ≔
@@ -119,7 +119,7 @@ def leQZeroOfSubLe : (a u : El Q) → El (a + qNeg u ≤ a) → El (qZero ≤ u)
           _
           _
           (qAddAssoc a (qNeg u) u)
-          (trans _ _ a (cong (λw. Q) (λw. a + w) (qAddNegL u)) (qAddZeroR a)))
+          (trans _ _ _ (cong (λw. Q) (λw. a + w) (qAddNegL u)) (qAddZeroR a)))
         (leQPlusMono u h)))
 
 def leQOneInv : (i : ℕ) → El (qInvNat i ≤ qOne) ≔
@@ -242,7 +242,7 @@ def bndZeroSub : {b : El Q} → El (qZero ≤ b) → El (Bnd b (qZero + qNeg qZe
   λb. λhb. bndEq
     _
     _
-    (sym _ _ (trans _ _ qZero (cong (λw. Q) (λw. qZero + w) qNegZeroQ) (qAddZeroR qZero)))
+    (sym _ _ (trans _ _ _ (cong (λw. Q) (λw. qZero + w) qNegZeroQ) (qAddZeroR qZero)))
     (bndZero _ hb)
 
 def clampSeq : El RSeq → El (ℕ → Q) ≔ λp. λn. qMax (seqOf p n) qZero

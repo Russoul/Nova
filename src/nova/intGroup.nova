@@ -29,13 +29,7 @@ def intAddGroup : El (IsGroup Int) using (group.IsGroup.unfold, monoid.IsMonoid.
           λx. eqToId
             _
             _
-            (intAddZeroR
-              x)),
-    intNeg,
-      (λx. eqToId
-        (intNeg x + x)
-        intZero
-        (intAddNegL x)), λx. eqToId (x + intNeg x) intZero (intAddNegR x)
+            (intAddZeroR x)), intNeg, (λx. eqToId _ _ (intAddNegL x)), λx. eqToId _ _ (intAddNegR x)
 
 -- the underlying monoid is the group's first component
 def intAddMonoid : El (IsMonoid Int) using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔

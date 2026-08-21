@@ -18,7 +18,7 @@ import intNonZero (nzOfInt)
 import rational (NZ, nzPos, nzNeg, nzToInt, nzMul)
 import rationalQ (nzToIntMul, sucMulSuc)
 import eqInt (intCanon, intCanonClass, normPairZR)
-import equality (trans, sym, cong, transportP)
+import equality (trans, sym, cong, transportP, pairextD)
 
 def intAbs : El Int → ℕ ≔ λz. intCanon z .π₁ + intCanon z .π₂
 
@@ -62,7 +62,7 @@ def intAbsZeroInv : (z : El Int) → (intAbs z ≡ Z) → z ≡ intZero
         (λp. class p)
         {intCanon z}
         {Z, Z}
-        (eqInt.pairEq2
+        (pairextD
           (sumZeroL (intCanon z .π₁) (intCanon z .π₂) h)
           (sumZeroR (intCanon z .π₁) (intCanon z .π₂) h)))
       ⋆)
@@ -141,12 +141,7 @@ def intAbsMulNz : {e f : El NZ}
     _
     _
     _
-    (trans
-      _
-      _
-      (S (nzMag (nzMul e f)))
-      (cong (λv. ℕ) (λv. intAbs v) (sym _ _ (nzToIntMul e f)))
-      (intAbsNz (nzMul e f)))
+    (trans _ _ _ (cong (λv. ℕ) (λv. intAbs v) (sym _ _ (nzToIntMul e f))) (intAbsNz (nzMul e f)))
     (trans
       _
       _
@@ -154,7 +149,7 @@ def intAbsMulNz : {e f : El NZ}
       (trans
         _
         _
-        (S (nzMag e) * S (nzMag f))
+        _
         (cong
           (λu. ℕ)
           (λw. S w)
@@ -165,7 +160,7 @@ def intAbsMulNz : {e f : El NZ}
       (trans
         _
         _
-        (intAbs (nzToInt e) * intAbs (nzToInt f))
+        _
         (cong (λu. ℕ) (λw. w * S (nzMag f)) (sym _ _ (intAbsNz e)))
         (cong (λu. ℕ) (λw. intAbs (nzToInt e) * w) (sym _ _ (intAbsNz f)))))
 
@@ -189,7 +184,7 @@ def intAbsMul : (x y : El Int) → intAbs (x * y) ≡ intAbs x * intAbs y
         (trans
           _
           _
-          Z
+          _
           (cong
             (λv. ℕ)
             (λv. intAbs v)
@@ -201,11 +196,11 @@ def intAbsMul : (x y : El Int) → intAbs (x * y) ≡ intAbs x * intAbs y
           (trans
             _
             _
-            Z
+            _
             (cong
               (λu. ℕ)
               (λw. intAbs x * w)
-              (trans _ _ Z (cong (λv. ℕ) (λv. intAbs v) hy) intAbsZero))
+              (trans _ _ _ (cong (λv. ℕ) (λv. intAbs v) hy) intAbsZero))
             (multZeroId (intAbs x)))))
       (nzOfInt y))
     (hx. trans
@@ -215,11 +210,8 @@ def intAbsMul : (x y : El Int) → intAbs (x * y) ≡ intAbs x * intAbs y
       (trans
         _
         _
-        Z
-        (cong
-          (λv. ℕ)
-          (λv. intAbs v)
-          (trans _ _ intZero (cong (λv. Int) (λv. v * y) hx) (intMulZeroL y)))
+        _
+        (cong (λv. ℕ) (λv. intAbs v) (trans _ _ _ (cong (λv. Int) (λv. v * y) hx) (intMulZeroL y)))
         intAbsZero)
       (sym
         _
@@ -227,11 +219,11 @@ def intAbsMul : (x y : El Int) → intAbs (x * y) ≡ intAbs x * intAbs y
         (trans
           _
           _
-          Z
+          _
           (cong
             (λu. ℕ)
             (λw. w * intAbs y)
-            (trans _ _ Z (cong (λv. ℕ) (λv. intAbs v) hx) intAbsZero))
+            (trans _ _ _ (cong (λv. ℕ) (λv. intAbs v) hx) intAbsZero))
           (zeroMult (intAbs y)))))
     (nzOfInt x)
 
@@ -309,12 +301,7 @@ def intMagMulNz : {e f : El NZ}
     _
     _
     _
-    (trans
-      _
-      _
-      (S (nzMag (nzMul e f)))
-      (cong (λv. ℕ) (λv. intMag v) (sym _ _ (nzToIntMul e f)))
-      (intMagNz (nzMul e f)))
+    (trans _ _ _ (cong (λv. ℕ) (λv. intMag v) (sym _ _ (nzToIntMul e f))) (intMagNz (nzMul e f)))
     (trans
       _
       _
@@ -322,7 +309,7 @@ def intMagMulNz : {e f : El NZ}
       (trans
         _
         _
-        (S (nzMag e) * S (nzMag f))
+        _
         (cong
           (λu. ℕ)
           (λw. S w)
@@ -333,7 +320,7 @@ def intMagMulNz : {e f : El NZ}
       (trans
         _
         _
-        (intMag (nzToInt e) * intMag (nzToInt f))
+        _
         (cong (λu. ℕ) (λw. w * S (nzMag f)) (sym _ _ (intMagNz e)))
         (cong (λu. ℕ) (λw. intMag (nzToInt e) * w) (sym _ _ (intMagNz f)))))
 
@@ -357,7 +344,7 @@ def intMagMul : (x y : El Int) → intMag (x * y) ≡ intMag x * intMag y
         (trans
           _
           _
-          Z
+          _
           (cong
             (λv. ℕ)
             (λv. intMag v)
@@ -369,11 +356,11 @@ def intMagMul : (x y : El Int) → intMag (x * y) ≡ intMag x * intMag y
           (trans
             _
             _
-            Z
+            _
             (cong
               (λu. ℕ)
               (λw. intMag x * w)
-              (trans _ _ Z (cong (λv. ℕ) (λv. intMag v) hy) intMagZero))
+              (trans _ _ _ (cong (λv. ℕ) (λv. intMag v) hy) intMagZero))
             (multZeroId (intMag x)))))
       (nzOfInt y))
     (hx. trans
@@ -383,11 +370,8 @@ def intMagMul : (x y : El Int) → intMag (x * y) ≡ intMag x * intMag y
       (trans
         _
         _
-        Z
-        (cong
-          (λv. ℕ)
-          (λv. intMag v)
-          (trans _ _ intZero (cong (λv. Int) (λv. v * y) hx) (intMulZeroL y)))
+        _
+        (cong (λv. ℕ) (λv. intMag v) (trans _ _ _ (cong (λv. Int) (λv. v * y) hx) (intMulZeroL y)))
         intMagZero)
       (sym
         _
@@ -395,11 +379,11 @@ def intMagMul : (x y : El Int) → intMag (x * y) ≡ intMag x * intMag y
         (trans
           _
           _
-          Z
+          _
           (cong
             (λu. ℕ)
             (λw. w * intMag y)
-            (trans _ _ Z (cong (λv. ℕ) (λv. intMag v) hx) intMagZero))
+            (trans _ _ _ (cong (λv. ℕ) (λv. intMag v) hx) intMagZero))
           (zeroMult (intMag y)))))
     (nzOfInt x)
 

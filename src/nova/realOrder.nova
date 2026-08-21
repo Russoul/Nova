@@ -177,10 +177,10 @@ def rleCongL : (x : El RSeq) {x' y : El RSeq} → Prf (REq x x') → Prf (RLeP x
 
 -- ===== descent to ℝ =====
 def rleWDInner : (x y y' : El RSeq) (h : Prf (REq y y')) → RLeP x y ≡ RLeP x y' ≔
-  λx. λy. λy'. λh. propExt _ (λp. rleCongR _ h p) (λp. rleCongR _ (reqSym h) p)
+  λx. λy. λy'. λh. propExt (λp. rleCongR _ h p) (λp. rleCongR _ (reqSym h) p)
 
 def rleWDOuterCls : {x x' c : El RSeq} (h : Prf (REq x x')) → RLeP x c ≡ RLeP x' c ≔
-  λx. λx'. λc. λh. propExt _ (λp. rleCongL _ h p) (λp. rleCongL _ (reqSym h) p)
+  λx. λx'. λc. λh. propExt (λp. rleCongL _ h p) (λp. rleCongL _ (reqSym h) p)
 
 def rleWDOuter : (x x' : El RSeq)
   (h : Prf (REq x x'))

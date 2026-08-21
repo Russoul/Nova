@@ -102,7 +102,7 @@ def leQZeroBound : (m n : ℕ) → El (qZero ≤ rBound m n)
         (trans
           _
           _
-          (rBound m n)
+          _
           (cong (λv. Q) (λv. rBound m n + v) qNegZero)
           (rationalQ.qAddZeroR (rBound m n))))
       rBoundPos))

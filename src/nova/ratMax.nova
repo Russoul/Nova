@@ -57,7 +57,7 @@ def leQMaxR : (u v : El Q) → El (v ≤ qMax u v)
       (trans
         _
         _
-        sPos
+        _
         (cong (λw. Sign) (λw. sgnQ w) {u + qNeg v} {qNeg (v + qNeg u)} qSubNeg)
         (sgnQNegOfNeg hn))))
     (sgnCases (sgnQ (v + qNeg u)))

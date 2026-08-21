@@ -13,7 +13,7 @@
 import nat (+, *, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusComm, plusAssoc, swapLeft, multZeroId, multSucId, zeroMult, sucMult, multComm, multDistrib, multAssoc)
 import integer (Int, intZero, intOne, intNeg)
 import integerAdd (+, intAddComm, intAddAssoc)
-import equality (trans, cong, sym)
+import equality (trans, cong, sym, pairEtaD)
 
 def distribBack : {n m k : ℕ} → n * m + n * k ≡ n * (m + k) using (multDistrib) ≔ λn. λm. λk. ⋆
 
@@ -27,7 +27,7 @@ def distribBackR : (m k n : ℕ) → m * n + k * n ≡ (m + k) * n using (distri
     (trans
       _
       _
-      (n * m + n * k)
+      _
       (cong (λu. ℕ) (λw. w + k * n) (multComm n m))
       (cong (λu. ℕ) (λw. n * m + w) (multComm n k)))
     (trans (n * m + n * k) _ _ distribBack (multComm (m + k) n))
@@ -111,7 +111,7 @@ def sum4Distrib : (a1 a2 b1 b2 c1 c2 : ℕ)
     (trans
       _
       _
-      (a1 * (b1 + c2) + a2 * (b2 + c1))
+      _
       (cong (λu. ℕ) (λw. w + (a2 * b2 + a2 * c1)) {a1 * b1 + a1 * c2} {a1 * (b1 + c2)} distribBack)
       (cong (λu. ℕ) (λw. a1 * (b1 + c2) + w) {a2 * b2 + a2 * c1} {a2 * (b2 + c1)} distribBack))
 
@@ -127,7 +127,7 @@ def sum4DistribR : (x1 x2 y1 y2 c1 c2 : ℕ)
     (trans
       _
       _
-      ((x1 + y2) * c1 + (x2 + y1) * c2)
+      _
       (cong (λu. ℕ) (λw. w + (x2 * c2 + y1 * c2)) (distribBackR x1 y2 c1))
       (cong (λu. ℕ) (λw. (x1 + y2) * c1 + w) (distribBackR x2 y1 c2)))
 
@@ -206,15 +206,9 @@ def intMulTest2 : class (Z, 2) * class (3, Z) ≡ class (Z, 6)
   ⋆
 
 -- ===== the ring laws =====
--- Σ-η. Stated GENERICALLY: the engine's matching is first-order and
--- would happily fire a ℕ ⨯ ℕ-specific version at a pair of ANY type,
--- and the kernel then rejects the certificate — so the lemma has to
--- be true at the type it gets used at.
-def pairEta : (A B : 𝕌) (p : El (A ⨯ B)) → (p .π₁, p .π₂) ≡ p using (sigma.eta) ≔ λA. λB. λp. ⋆
-
 def classPairEta : (p : ℕ ⨯ ℕ) → class (p .π₁, p .π₂) ≡ class p ∈ El Int
   using (integer.Int.unfold) ≔
-  λp. cong (λu. Int) (λr. class r) (pairEta _ _ p)
+  λp. cong (λu. Int) (λr. class r) (pairEtaD p)
 
 def oneMult : (m : ℕ) → S Z * m ≡ m using (multComm) ≔
   λm. S Z * m ≡⟨ sucMult Z m ⟩ m + Z * m ≡⟨ zeroMult m ⟩ m + Z ≡⟨ plusZeroId m ⟩ m

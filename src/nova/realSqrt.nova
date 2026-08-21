@@ -241,7 +241,7 @@ def slackFits : {x y : El Q} → El (qZero ≤ x) → El (y + (x + y) ≤ x + x 
         _
         _
         (sym _ _ (qAddAssoc y x y))
-        (trans _ _ (x + (y + y)) (cong (λw. Q) (λw. w + y) (qAddComm y x)) (qAddAssoc x y y))))
+        (trans _ _ _ (cong (λw. Q) (λw. w + y) (qAddComm y x)) (qAddAssoc x y y))))
     (transport
       {Q}
       (λw. x + (y + y) ≤ w)
@@ -510,14 +510,14 @@ def qSqrtAtZero : {D : ℕ} → qSqrtAt qZero D ≡ qZero
       (trans
         _
         _
-        Z
+        _
         (cong
           (λw. ℕ)
           (λw. isqrt w)
           (trans
             _
             _
-            Z
+            _
             (cong (λw. ℕ) (λw. qFloor w) {qZero * qOfNat (sqNat D)} {qZero} qMulZeroL)
             qFloorZero))
         isqrtZero))

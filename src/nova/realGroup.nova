@@ -32,12 +32,7 @@ def realAddGroup : El (IsGroup Real) using (group.IsGroup.unfold, monoid.IsMonoi
             _
             _
             (realAddZeroR
-              x)),
-    realNeg,
-      (λx. eqToId
-        (realNeg x + x)
-        realZero
-        (realAddNegL x)), λx. eqToId (x + realNeg x) realZero (realAddNegR x)
+              x)), realNeg, (λx. eqToId _ _ (realAddNegL x)), λx. eqToId _ _ (realAddNegR x)
 
 -- ===== rearrangement =====
 def realLeftSwap : (b c d : El Real) → b + (c + d) ≡ c + (b + d) ≔
@@ -67,7 +62,7 @@ def realNegUnique : (u v : El Real) → (u + v ≡ realZero) → v ≡ realNeg u
     _
     _
     (sym _ _ (realNegPlusCancel u v))
-    (trans _ _ (realNeg u) (cong (λw. Real) (λw. realNeg u + w) h) (realAddZeroR (realNeg u)))
+    (trans _ _ _ (cong (λw. Real) (λw. realNeg u + w) h) (realAddZeroR (realNeg u)))
 
 def realNegAdd : (a b : El Real) → realNeg (a + b) ≡ realNeg a + realNeg b ≔
   λa. λb. sym
@@ -120,4 +115,4 @@ def realSubZeroInv : {u v : El Real} → (u - v ≡ realZero) → u ≡ v ≔
     _
     _
     (sym _ _ (realSubPlusCancel u v))
-    (trans _ _ v (cong (λw. Real) (λw. w + v) h) (realAddZeroL v))
+    (trans _ _ _ (cong (λw. Real) (λw. w + v) h) (realAddZeroL v))

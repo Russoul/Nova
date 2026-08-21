@@ -24,7 +24,7 @@ def propext : ∥𝟙∥ ≡ (Z ≡ Z) ≔ ⋆
 -- the two implications are supplied, as `⋆ ⟨f , g⟩` (e-star-propext).
 -- Automatic discharge reaches only the 𝟙-/≡-shaped cases above, and
 -- no search can replace this one — the implications carry content.
-def propExt : {p : Ω} (q : Ω) → (Prf p → Prf q) → (Prf q → Prf p) → p ≡ q ≔ λp. λq. λf. λg. ⋆ (f, g)
+def propExt : {p q : Ω} → (Prf p → Prf q) → (Prf q → Prf p) → p ≡ q ≔ λp. λq. λf. λg. ⋆ (f, g)
 
 -- squashed reflection: a squashed equality reflects into a judgemental
 -- equality (el-squash-e-eq + el-reflect).
@@ -58,21 +58,21 @@ def ¬ : Ω → Ω ≔ λp. p ⊃ ⊥
 infixr 4 ∨
 def ∨ : Ω → Ω → Ω ≔ λp. λq. ∥(r : Ω) → (Prf p → Prf r) → (Prf q → Prf r) → Prf r∥
 
-def andIntro : (p q : Ω) → Prf p → Prf q → Prf (p ∧ q) using (prop.∧.unfold) ≔
+def andIntro : {p q : Ω} → Prf p → Prf q → Prf (p ∧ q) using (prop.∧.unfold) ≔
   λp. λq. λx. λy. ⋆ (x, y)
 
-def andFst : (p q : Ω) → Prf (p ∧ q) → Prf p using (prop.∧.unfold) ≔
+def andFst : {p q : Ω} → Prf (p ∧ q) → Prf p using (prop.∧.unfold) ≔
   λp. λq. λh. squash-elim h (u. u .π₁)
 
-def andSnd : (p q : Ω) → Prf (p ∧ q) → Prf q using (prop.∧.unfold) ≔
+def andSnd : {p q : Ω} → Prf (p ∧ q) → Prf q using (prop.∧.unfold) ≔
   λp. λq. λh. squash-elim h (u. u .π₂)
 
-def andElim : (p q x : Ω) → Prf (p ∧ q) → (Prf p → Prf q → Prf x) → Prf x using (prop.∧.unfold) ≔
+def andElim : {p q x : Ω} → Prf (p ∧ q) → (Prf p → Prf q → Prf x) → Prf x using (prop.∧.unfold) ≔
   λp. λq. λx. λi. λf. squash-elim i (u. f (u .π₁) (u .π₂))
 
-def impIntro : (p q : Ω) → (Prf p → Prf q) → Prf (p ⊃ q) using (prop.⊃.unfold) ≔ λp. λq. λf. ⋆ f
+def impIntro : {p q : Ω} → (Prf p → Prf q) → Prf (p ⊃ q) using (prop.⊃.unfold) ≔ λp. λq. λf. ⋆ f
 
-def impApply : (p q : Ω) → Prf (p ⊃ q) → Prf p → Prf q using (prop.⊃.unfold) ≔
+def impApply : {p q : Ω} → Prf (p ⊃ q) → Prf p → Prf q using (prop.⊃.unfold) ≔
   λp. λq. λh. λx. squash-elim h (f. f x)
 
 -- ⊥ ≜ ∥𝟘∥, so 𝟘-elim cannot consume a Prf ⊥ directly: a refutation
@@ -114,47 +114,36 @@ def orElim : (p q c : Ω) → Prf (p ∨ q) → (Prf p → Prf c) → (Prf q →
 infixr 2 ↔
 def ↔ : Ω → Ω → Ω ≔ λp. λq. (p ⊃ q) ∧ (q ⊃ p)
 
-def iffIntro : (p : Ω) {q : Ω} → (Prf p → Prf q) → (Prf q → Prf p) → Prf (p ↔ q)
-  using (prop.↔.eq, prop.↔.unfold, prop.∧.eq, prop.∧.unfold, prop.⊃.eq) ≔
-  λp. λq. λf. λg. andIntro _ _ (impIntro _ _ f) (impIntro _ _ g)
+def iffIntro : {p q : Ω} → (Prf p → Prf q) → (Prf q → Prf p) → Prf (p ↔ q) using (prop.↔.eq) ≔
+  λp. λq. λf. λg. andIntro (impIntro f) (impIntro g)
 
-def iffLeft : (p q : Ω) → Prf (p ↔ q) → Prf p → Prf q
-  using (prop.↔.eq, prop.↔.unfold, prop.∧.eq, prop.∧.unfold, prop.⊃.eq) ≔
-  λp. λq. λh. impApply _ _ (andFst (p ⊃ q) (q ⊃ p) h)
+def iffLeft : {p q : Ω} → Prf (p ↔ q) → Prf p → Prf q using (prop.↔.eq) ≔
+  λp. λq. λh. impApply (andFst h)
 
-def iffRight : (p q : Ω) → Prf (p ↔ q) → Prf q → Prf p
-  using (prop.↔.eq, prop.↔.unfold, prop.∧.eq, prop.∧.unfold, prop.⊃.eq) ≔
-  λp. λq. λh. impApply _ _ (andSnd (p ⊃ q) (q ⊃ p) h)
+def iffRight : {p q : Ω} → Prf (p ↔ q) → Prf q → Prf p using (prop.↔.eq) ≔
+  λp. λq. λh. impApply (andSnd h)
 
 -- code-prop-eq against ↔: iff-equal propositions are EQUAL codes, so
 -- one can be rewritten to the other anywhere a prop is expected
-def propExtOfIff : (p q : Ω) → Prf (p ↔ q) → p ≡ q ≔
-  λp. λq. λh. propExt _ (iffLeft _ _ h) (iffRight _ _ h)
+def propExtOfIff : {p q : Ω} → Prf (p ↔ q) → p ≡ q ≔ λp. λq. λh. propExt (iffLeft h) (iffRight h)
 
 -- Curry/uncurry as a logical equivalence (each direction its own
 -- lemma, rather than a literal code-prop-eq equality — code-prop-eq's
 -- automatic search is still 𝟙-/≡-shaped only; only el-squash-i/
 -- el-squash-e-prf were generalized).
-def curry : (p q c : Ω) → Prf (p ∧ q ⊃ c) → Prf (p ⊃ q ⊃ c) using (prop.⊃.eq, prop.⊃.unfold) ≔
-  λp. λq. λc. λh. impIntro
-    _
-    ∥Prf q → Prf c∥
-    (λx. impIntro q c (λy. impApply _ _ h (andIntro _ _ x y)))
+def curry : {p q c : Ω} → Prf (p ∧ q ⊃ c) → Prf (p ⊃ q ⊃ c) using (prop.⊃.eq, prop.⊃.unfold) ≔
+  λp. λq. λc. λh. impIntro (λx. impIntro (λy. impApply h (andIntro x y)))
 
-def uncurry : (p q c : Ω) → Prf (p ⊃ q ⊃ c) → Prf (p ∧ q ⊃ c) using (prop.⊃.unfold) ≔
-  λp. λq. λc. λh. impIntro _ _ (λpq. impApply _ _ (impApply _ _ h (andFst _ _ pq)) (andSnd _ _ pq))
+def uncurry : {p q c : Ω} → Prf (p ⊃ q ⊃ c) → Prf (p ∧ q ⊃ c) using (prop.⊃.unfold) ≔
+  λp. λq. λc. λh. impIntro (λpq. impApply (impApply h (andFst pq)) (andSnd pq))
 
 -- Weak/intuitionistic excluded middle: ¬¬(p ∨ ¬p) holds constructively
 -- for every proposition, no case split needed — a genuine stress test
 -- of the restricted eliminators (elimination reaches only equations
 -- and further props, never arbitrary types, yet this chains three
 -- levels of squash-elim/⋆ and still lands exactly on Prf ⊥).
-def notNotLem : (p : Ω) → Prf (¬ (¬ (p ∨ ¬ p)))
-  using (prop.¬.eq, prop.¬.unfold, prop.∨.eq, prop.⊃.eq, prop.⊃.unfold, prop.⊥.eq) ≔
-  λp. impIntro
-    (¬ (p ∨ ¬ p))
-    ⊥
-    (λk. impApply (p ∨ (p ⊃ ⊥)) ⊥ k (orInr (impIntro p ⊥ (λhp. impApply (p ∨ ¬ p) ⊥ k (orInl hp)))))
+def notNotLem : (p : Ω) → Prf (¬ (¬ (p ∨ ¬ p))) using (prop.¬.eq) ≔
+  λp. impIntro (λk. impApply k (orInr (impIntro (λhp. impApply k (orInl hp)))))
 
 -- Impredicative equivalence closure (the Ω section's flagship payoff
 -- note: "least relations by intersection — e.g. an equivalence closure
@@ -162,7 +151,7 @@ def notNotLem : (p : Ω) → Prf (¬ (¬ (p ∨ ¬ p)))
 -- Ω-valued relations containing r — with no inductive machinery").
 -- rClosure r is the intersection of every equivalence relation
 -- containing r, picked out by a single impredicative Π over Ω itself.
-def rClosure : (A : 𝕌) → (El A → El A → Ω) → El A → El A → Ω ≔
+def rClosure : {A : 𝕌} → (El A → El A → Ω) → El A → El A → Ω ≔
   λA. λr. λa. λb. ∥(R : El A → El A → Ω)
     → ((x y : El A)
       → Prf (r
@@ -182,23 +171,23 @@ def rClosure : (A : 𝕌) → (El A → El A → Ω) → El A → El A → Ω �
             → Prf (R y z) → Prf (R x z)) → ((x y : El A) → Prf (R x y) → Prf (R y x)) → Prf (R a b)∥
 
 -- containment: instantiate the universal at the caller's own R
-def rClosureContains : (A : 𝕌)
+def rClosureContains : {A : 𝕌}
   (r : El A → El A → Ω)
   (a b : El A)
-  → Prf (r a b) → Prf (rClosure _ r a b)
+  → Prf (r a b) → Prf (rClosure r a b)
   using (prop.rClosure.unfold) ≔
   λA. λr. λa. λb. λh. ⋆ (λR. λcont. λrefl. λtrans. λsymm. cont a b h)
 
 -- reflexivity, symmetry, transitivity: rClosure r is itself an
 -- equivalence relation, again by instantiating the universal
-def rClosureRefl : (A : 𝕌) (r : El A → El A → Ω) (a : El A) → Prf (rClosure _ r a a)
+def rClosureRefl : {A : 𝕌} (r : El A → El A → Ω) (a : El A) → Prf (rClosure r a a)
   using (prop.rClosure.unfold) ≔
   λA. λr. λa. ⋆ (λR. λcont. λrefl. λtrans. λsymm. refl a)
 
 def rClosureSymm : {A : 𝕌}
   {r : El A → El A → Ω}
   {a b : El A}
-  → Prf (rClosure _ r a b) → Prf (rClosure _ r b a)
+  → Prf (rClosure r a b) → Prf (rClosure r b a)
   using (prop.rClosure.unfold) ≔
   λA. λr. λa. λb. λh. squash-elim h (u. ⋆ (λR. λcont. λrefl. λtrans. λsymm. symm
     a
@@ -207,22 +196,20 @@ def rClosureSymm : {A : 𝕌}
 
 def rClosureTrans : {A : 𝕌}
   {r : El A → El A → Ω}
-  {a : El A}
-  (b : El A)
-  {c : El A}
-  → Prf (rClosure _ r a b) → Prf (rClosure _ r b c) → Prf (rClosure _ r a c)
+  {a b c : El A}
+  → Prf (rClosure r a b) → Prf (rClosure r b c) → Prf (rClosure r a c)
   using (prop.rClosure.unfold) ≔
   λA. λr. λa. λb. λc. λhab. λhbc. squash-elim hab (uab. squash-elim hbc (ubc. ⋆ (λR. λcont. λrefl. λtrans. λsymm. trans
     a
     b
     c
-    (uab (λx. λy. R x y) cont refl trans symm)
-    (ubc (λx. λy. R x y) cont refl trans symm))))
+    (uab R cont refl trans symm)
+    (ubc R cont refl trans symm))))
 
 -- least-ness: rClosure r implies membership in ANY equivalence
 -- relation containing r — unsquash the hypothesis and apply its
 -- universal directly at the caller's Q, no induction, no recursion
-def rClosureLeast : (A : 𝕌)
+def rClosureLeast : {A : 𝕌}
   (r Q : El A → El A → Ω)
   → ((x y : El A)
     → Prf (r
@@ -246,7 +233,7 @@ def rClosureLeast : (A : 𝕌)
               x
               z))
         → ((x y : El A)
-          → Prf (Q x y) → Prf (Q y x)) → (a b : El A) → Prf (rClosure _ r a b) → Prf (Q a b)
+          → Prf (Q x y) → Prf (Q y x)) → (a b : El A) → Prf (rClosure r a b) → Prf (Q a b)
   using (prop.rClosure.unfold) ≔
   λA. λr. λQ. λcontQ. λreflQ. λtransQ. λsymmQ. λa. λb. λh. squash-elim h (u. u
     (λx. λy. Q x y)

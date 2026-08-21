@@ -42,7 +42,7 @@ def ltQIrrefl : (x : El Q) → El (x < x) → 𝟘 ≔
       _
       _
       _
-      (sym _ _ (trans _ _ sZero (cong (λw. Sign) (λw. sgnQ w) (qAddNegR x)) sgnQZero))
+      (sym _ _ (trans _ _ _ (cong (λw. Sign) (λw. sgnQ w) (qAddNegR x)) sgnQZero))
       (sgnOfLtQ h))
 
 def ltQAsym : (x y : El Q) → El (x < y) → El (y < x) → 𝟘
@@ -81,7 +81,7 @@ def sgnQAddPosNonNeg : {a b : El Q} → (sgnQ a ≡ sPos) → El (NonNegS (sgnQ 
       (cong
         (λw. Sign)
         (λw. sgnQ w)
-        (trans _ _ a (cong (λw. Q) (λw. a + w) (sgnQZeroView _ (idToEq _ _ _ h0))) (qAddZeroR a)))
+        (trans _ _ _ (cong (λw. Q) (λw. a + w) (sgnQZeroView _ (idToEq _ _ _ h0))) (qAddZeroR a)))
       ha)
     (hp. sgnQAddPos _ _ ha (idToEq _ _ _ hp))
     hb
@@ -94,7 +94,7 @@ def ltQTrans : (x y z : El Q) → El (x < y) → El (y < z) → El (x < z)
     (trans
       _
       _
-      sPos
+      _
       (cong (λw. Sign) (λw. sgnQ w) (sym _ _ (qSubSplit x y z)))
       (sgnQAddPos _ _ (sgnOfLtQ h2) (sgnOfLtQ h1)))
 
@@ -170,12 +170,12 @@ def ltQPlusMono : (x y w : El Q) → El (x < y) → El (x + w < y + w)
   using (id.Id.unfold, ratLt.<.unfold, rationalQ.Q.unfold) ≔
   λx. λy. λw. λh. transport
     (λs. Id _ s sPos)
-    (sym _ (sgnQ (y + qNeg x)) (cong (λv. Sign) (λv. sgnQ v) (qSubPlusCancel x y w)))
+    (sym _ _ (cong (λv. Sign) (λv. sgnQ v) (qSubPlusCancel x y w)))
     h
 
 def ltQPlusMonoL : (x y w : El Q) → El (x < y) → El (w + x < w + y)
   using (id.Id.unfold, ratLt.<.unfold, rationalQ.Q.unfold) ≔
   λx. λy. λw. λh. transport
     (λs. Id _ s sPos)
-    (sym _ (sgnQ (y + qNeg x)) (cong (λv. Sign) (λv. sgnQ v) (qSubPlusCancelL x y w)))
+    (sym _ _ (cong (λv. Sign) (λv. sgnQ v) (qSubPlusCancelL x y w)))
     h

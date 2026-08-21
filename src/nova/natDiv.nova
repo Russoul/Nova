@@ -94,7 +94,7 @@ def fuelStep : {a b f' : ℕ} → El (a ≤ S f') → El (S b ≤ a) → El (a �
               (trans
                 _
                 _
-                (S b + (a ∸ S b))
+                _
                 (cong (λu. ℕ) (λw. S w) (plusComm b (a ∸ S b)))
                 (sym _ _ (sucPlus b (a ∸ S b)))) ⟩ S b + (a ∸ S b) + le .π₁
             ≡⟨ cong (λu. ℕ) (λw. w + le .π₁) (leMonusPlus lt) ⟩ a + le .π₁
@@ -140,7 +140,7 @@ def dmAuxEq : {f a b : ℕ} → El (a ≤ f) → a ≡ dmAux f a b .π₁ * S b 
         (trans
           _
           _
-          (S (dmAux f' (a ∸ S b) b .π₁) * S b + dmAux f' (a ∸ S b) b .π₂)
+          _
           (cong (λu. ℕ) (λw. S b + w) (ih (a ∸ S b) b (fuelStep le (ltOfMonusSuc _ hm))))
           (trans
             _
@@ -268,7 +268,7 @@ def divCancel : (q : ℕ)
           (trans
             _
             _
-            (q * (S d' * S d) + (k * (S d' * S d) + r' * S d))
+            _
             (cong
               (λu. ℕ)
               (λw. w + r' * S d)
@@ -313,7 +313,7 @@ def divKZero : (r d r' d' : ℕ)
                   (trans
                     _
                     _
-                    (S d * S d' + (k' * (S d' * S d) + r' * S d))
+                    _
                     (cong (λu. ℕ) (λw. w + r' * S d) (sucMult k' (S d' * S d)))
                     (trans
                       _
@@ -341,7 +341,7 @@ def divNUniqueLe : {m d m' d' : ℕ}
       (trans
         _
         _
-        (divN m d)
+        _
         (cong
           (λu. ℕ)
           (λw. divN m d + w)
@@ -357,7 +357,7 @@ def divNUniqueLe : {m d m' d' : ℕ}
                 _
                 _
                 _
-                (trans _ _ (m' * S d) (cong (λu. ℕ) (λw. w * S d') (sym _ _ (divModEq m d))) h)
+                (trans _ _ _ (cong (λu. ℕ) (λw. w * S d') (sym _ _ (divModEq m d))) h)
                 (cong
                   (λu. ℕ)
                   (λw. w * S d)
@@ -396,12 +396,12 @@ def leDivSuc : (m b : ℕ) → El (m ≤ S (divN m b) * S b) using (natOrder.≤
         (trans
           _
           _
-          (divN m b * S b + (modN m b + (S b ∸ modN m b)))
+          _
           (cong (λu. ℕ) (λw. w + (S b ∸ modN m b)) (divModEq m b))
           (plusAssoc (divN m b * S b) (modN m b) (S b ∸ modN m b)))
         (trans
           _
           _
-          (S (divN m b) * S b)
+          _
           (cong (λu. ℕ) (λw. divN m b * S b + w) (leMonusPlus (leStep (modLe m b))))
           (trans _ _ _ (plusComm (S b) (divN m b * S b)) (sym _ _ (sucMult (divN m b) (S b))))))

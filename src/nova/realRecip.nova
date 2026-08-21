@@ -87,7 +87,7 @@ def rBoundRecipEq : (k m n : ℕ)
     (trans
       _
       _
-      (qInvNat (recipC k) * qInvNat m + qInvNat (recipC k) * qInvNat n)
+      _
       (cong
         (λw. Q)
         (λw. w + qInvNat (mulIdx (recipC k) n))
@@ -196,7 +196,7 @@ def halfSubEq : (A : El Q) → A + A + qNeg A ≡ A ≔
     _
     _
     (qAddAssoc A A (qNeg A))
-    (trans _ _ A (cong (λw. Q) (λw. A + w) (qAddNegR A)) (qAddZeroR A))
+    (trans _ _ _ (cong (λw. Q) (λw. A + w) (qAddNegR A)) (qAddZeroR A))
 
 def posSampleLo : {p : El RSeq}
   {k : ℕ}

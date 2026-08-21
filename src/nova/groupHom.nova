@@ -114,7 +114,7 @@ def homOpInv : {G : 𝕌}
       ≡⟨ homLaw p x (ginv _ g y) ⟩ gop _ h (homAp p x) (homAp p (ginv _ g y))
       ≡⟨ cong
         (λw. H)
-        (λw. gop H h (homAp p x) w)
+        (λw. gop _ h (homAp p x) w)
         (homInv p y) ⟩ gop _ h (homAp p x) (ginv _ h (homAp p y))
 
 -- ===== bridges: the quotient group's operations, as G/N knows them =====
@@ -264,14 +264,14 @@ def homQuotLawQ : {G : 𝕌}
           ≡⟨ homLaw p a b ⟩ gop _ h (homAp p a) (homAp p b)
           ≡⟨ cong
             (λw. H)
-            (λw. gop H h w (homAp p b))
+            (λw. gop _ h w (homAp p b))
             (sym
               _
               _
               (homQuotMapCls N _ kills a)) ⟩ gop _ h (homQuotMap N _ kills (class a)) (homAp p b)
           ≡⟨ cong
             (λw. H)
-            (λw. gop H h (homQuotMap N _ kills (class a)) w)
+            (λw. gop _ h (homQuotMap N _ kills (class a)) w)
             (sym
               _
               _

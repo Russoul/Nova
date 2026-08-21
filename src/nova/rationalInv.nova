@@ -19,7 +19,7 @@ import integer (Int, intZero, intOne)
 import integerNormalize (normPair)
 import integerMul (*, intMulOneR, intMulZeroL, classPairEta)
 import eqNat (zNotS)
-import eqInt (intCanon, intCanonClass, pairEtaG)
+import eqInt (intCanon, intCanonClass)
 import prop (¬, ⊥, impIntro, impApply, absurdP)
 import rational (NZ, nzPos, nzNeg, nzToInt, Rat, mkRat, num, den, ratEta, ratZero)
 import rationalQ (Q, qcls, qZero, qOne, *, qMulInv, NZQ, qOfNzq, nzqInv, clsEqOfRel, dInt)
@@ -55,10 +55,7 @@ def nzOfPair : (a b : ℕ)
     sucPlus,
     zeroMult) ≔
   λa. ℕ-elim
-    (λb. ℕ-elim
-      (λhab. λhnz. absurdP _ (impApply (class (Z, Z) ≡ intZero) ⊥ hnz ⋆))
-      (j ihb. λhab. λhnz. ⋆ (nzNeg j, ⋆))
-      b)
+    (λb. ℕ-elim (λhab. λhnz. absurdP _ (impApply hnz ⋆)) (j ihb. λhab. λhnz. ⋆ (nzNeg j, ⋆)) b)
     (k ih. λb. ℕ-elim
       (λhab. λhnz. ⋆ (nzPos k, ⋆))
       (j ihb. λhab. λhnz. 𝟘-elim (zNotS
@@ -189,9 +186,4 @@ def qInvExists : {u : El Q} (h : Prf (¬ (u ≡ qZero))) → Prf ∥(v : El Q) �
     h) (w. ⋆ (qOfNzq
     (nzqInv
       (w .π₁)),
-    trans
-      _
-      _
-      _
-      (sym _ (u * qOfNzq (nzqInv (w .π₁))) (cong (λv. Q) (λx. x * qOfNzq (nzqInv (w .π₁))) (w .π₂)))
-      qMulInv))
+    trans _ _ _ (sym _ _ (cong (λv. Q) (λx. x * qOfNzq (nzqInv (w .π₁))) (w .π₂))) qMulInv))

@@ -18,9 +18,9 @@
 -- Prf (IntR p q) in context — no extra machinery needed).
 
 import nat (+, zeroPlusId, sucPlus)
-import integer (Int, IntR, intZero, intOne)
+import integer (Int, IntR, intZero, intOne, toInt)
 import integerNormalize (normPair, normSound, intNormalize)
-import equality (sym, trans, cong)
+import equality (sym, trans, cong, pairext, pairextD)
 import prop (↔, iffIntro, ∧, ¬, ⊥, andIntro, andFst, andSnd, impIntro, impApply)
 import eqNat (EqN, eqNRefl, eqNSound, eqNComplete, predEq)
 
@@ -88,7 +88,7 @@ def eqICompleteP : {z1 z2 : El Int} → Prf (z1 ≡ z2) → Prf (EqI z1 z2)
 
 def eqIIff : {z1 z2 : El Int} → Prf (EqI z1 z2 ↔ (z1 ≡ z2))
   using (intNormalizeId, prop.↔.unfold, prop.∧.unfold) ≔
-  λz1. λz2. iffIntro _ eqISoundP eqICompleteP
+  λz1. λz2. iffIntro eqISoundP eqICompleteP
 
 -- ===== observational equality, the computing one =====
 --
@@ -169,6 +169,17 @@ def normPairWD : (a b c d : ℕ) (h : Prf (a + d ≡ b + c)) → normPair a b �
 def intCanon : El Int → ℕ ⨯ ℕ using (integer.Int.unfold, normPairWD) ≔
   λz. quot-elim (p. normPair (p .π₁) (p .π₂)) z
 
+def intCanonToInt : (z : El Int) → toInt (intCanon z) ≡ z
+  using (classNormPairEq,
+    eqInt.intCanon.eq,
+    integer.Int.eq,
+    integer.Int.unfold,
+    integer.toInt.unfold,
+    integer.toInt.eq,
+    integerNormalize.normClass,
+    integerNormalize.normPair.eq) ≔
+  λz. quot-elim (p. classNormPairEq) z
+
 def intCanonClass : (z : El Int) → class (intCanon z) ≡ z
   using (classNormPairEq,
     eqInt.intCanon.eq,
@@ -186,22 +197,6 @@ def intCanonZero : intCanon intZero ≡ (Z, Z) ∈ El (ℕ ⨯ ℕ)
   using (eqInt.intCanon.eq, integer.intZero.eq, integerNormalize.normPair.eq) ≔
   ⋆
 
--- Σ-η, generically (a ℕ ⨯ ℕ-specific version would be matched by the
--- engine at pairs of OTHER types and rejected by the kernel)
-def pairEtaG : {A B : 𝕌} (p : El (A ⨯ B)) → (p .π₁, p .π₂) ≡ p using (sigma.eta) ≔ λA. λB. λp. ⋆
-
--- componentwise pair equality — GENERIC for the same reason as
--- pairEtaG: a ℕ ⨯ ℕ-specific version matches (first-order, type-blind)
--- at pairs of any type, and the kernel then rejects the certificate
-def pairEq2 : {A B : 𝕌} {x y : El (A ⨯ B)} → (x .π₁ ≡ y .π₁) → (x .π₂ ≡ y .π₂) → x ≡ y
-  using (hyp.rw) ≔
-  λA. λB. λx. λy. λh1. λh2. trans
-    _
-    _
-    _
-    (trans _ _ (y .π₁, y .π₂) (sym _ _ (pairEtaG x)) ⋆)
-    (pairEtaG y)
-
 -- ===== EqZ: equality that computes =====
 def EqZ : El Int → El Int → Ω ≔
   λz1. λz2. EqN (intCanon z1 .π₁) (intCanon z2 .π₁) ∧ EqN (intCanon z1 .π₂) (intCanon z2 .π₂)
@@ -213,41 +208,20 @@ def eqZRefl : (z : El Int) → Prf (EqZ z z)
     eqNat.EqN.eq,
     integer.Int.unfold,
     prop.∧.unfold) ≔
-  λz. andIntro _ _ (eqNRefl (intCanon z .π₁)) (eqNRefl (intCanon z .π₂))
+  λz. andIntro (eqNRefl (intCanon z .π₁)) (eqNRefl (intCanon z .π₂))
 
-def eqZSound : {z1 z2 : El Int} → Prf (EqZ z1 z2) → z1 ≡ z2
-  using (eqInt.EqZ.eq,
-    eqInt.EqZ.unfold,
-    eqInt.intCanon.eq,
-    eqNat.EqN.eq,
-    intCanonClass,
-    integer.Int.unfold,
-    prop.∧.unfold) ≔
+def eqZSound : {z1 z2 : El Int} → Prf (EqZ z1 z2) → z1 ≡ z2 using (eqInt.EqZ.eq) ≔
   λz1. λz2. λh. trans
     _
     _
     _
-    (sym _ _ (intCanonClass z1))
+    (sym _ _ (intCanonToInt z1))
     (trans
-      {Int}
       _
       _
       _
-      (cong
-        (λu. Int)
-        (λr. class r)
-        (pairEq2
-          (eqNSound
-            (andFst
-              (EqN (intCanon z1 .π₁) (intCanon z2 .π₁))
-              (EqN (intCanon z1 .π₂) (intCanon z2 .π₂))
-              h))
-          (eqNSound
-            (andSnd
-              (EqN (intCanon z1 .π₁) (intCanon z2 .π₁))
-              (EqN (intCanon z1 .π₂) (intCanon z2 .π₂))
-              h))))
-      (intCanonClass z2))
+      (cong _ toInt (pairext (eqNSound (andFst h)) (eqNSound (andSnd h))))
+      (intCanonToInt z2))
 
 def eqZComplete : {z1 z2 : El Int} → (z1 ≡ z2) → Prf (EqZ z1 z2)
   using (eqInt.EqZ.eq,
@@ -257,8 +231,6 @@ def eqZComplete : {z1 z2 : El Int} → (z1 ≡ z2) → Prf (EqZ z1 z2)
     integer.Int.unfold,
     prop.∧.unfold) ≔
   λz1. λz2. λh. andIntro
-    _
-    _
     (eqNComplete (cong (λu. ℕ) (λz. intCanon z .π₁) h))
     (eqNComplete (cong (λu. ℕ) (λz. intCanon z .π₂) h))
 
@@ -269,7 +241,7 @@ def eqZCompleteP : {z1 z2 : El Int} → Prf (z1 ≡ z2) → Prf (EqZ z1 z2)
   λz1. λz2. λh. eqZComplete h
 
 def eqZIff : (z1 z2 : El Int) → Prf (EqZ z1 z2 ↔ (z1 ≡ z2)) using (prop.↔.unfold, prop.∧.unfold) ≔
-  λz1. λz2. iffIntro _ eqZSoundP eqZCompleteP
+  λz1. λz2. iffIntro eqZSoundP eqZCompleteP
 
 -- ===== NeqZ: disequality that computes =====
 def NeqZ : El Int → El Int → Ω ≔ λz1. λz2. ¬ (EqZ z1 z2)
@@ -289,7 +261,7 @@ def neqZSound : {z1 z2 : El Int} → Prf (NeqZ z1 z2) → Prf (¬ (z1 ≡ z2))
     prop.⊃.eq,
     prop.⊃.unfold,
     prop.⊥.eq) ≔
-  λz1. λz2. λh. impIntro (z1 ≡ z2) ∥𝟘∥ (λe. impApply _ ⊥ h (eqZCompleteP e))
+  λz1. λz2. λh. impIntro {z1 ≡ z2} {∥𝟘∥} (λe. impApply h (eqZCompleteP e))
 
 def neqZComplete : {z1 z2 : El Int} → Prf (¬ (z1 ≡ z2)) → Prf (NeqZ z1 z2)
   using (eqInt.EqZ.eq,
@@ -309,11 +281,11 @@ def neqZComplete : {z1 z2 : El Int} → Prf (¬ (z1 ≡ z2)) → Prf (NeqZ z1 z2
     prop.⊃.unfold,
     prop.⊤.eq,
     prop.⊥.eq) ≔
-  λz1. λz2. λh. impIntro (EqZ z1 z2) ∥𝟘∥ (λe. impApply (z1 ≡ z2) ⊥ h (eqZSoundP e))
+  λz1. λz2. λh. impIntro {EqZ z1 z2} {∥𝟘∥} (λe. impApply h (eqZSoundP e))
 
 def neqZIff : (z1 z2 : El Int) → Prf (NeqZ z1 z2 ↔ ¬ (z1 ≡ z2))
   using (prop.↔.unfold, prop.∧.unfold) ≔
-  λz1. λz2. iffIntro _ neqZSound neqZComplete
+  λz1. λz2. iffIntro neqZSound neqZComplete
 
 -- ===== the payoff: an actual disequality =====
 --
@@ -338,9 +310,9 @@ def eqZOneZero : Prf (NeqZ intOne intZero)
     prop.⊃.unfold,
     prop.⊥.eq) ≔
   impIntro
-    (EqZ intOne intZero)
-    ⊥
-    (λh. andFst ⊥ (EqN (intCanon intOne .π₂) (intCanon intZero .π₂)) h)
+    {EqZ intOne intZero}
+    {⊥}
+    (λh. andFst {⊥} {EqN (intCanon intOne .π₂) (intCanon intZero .π₂)} h)
 
 def intOneNotZero : Prf (¬ (intOne ≡ intZero)) using (prop.¬.unfold, prop.⊃.unfold) ≔
   neqZSound eqZOneZero
@@ -357,4 +329,4 @@ def eqZTwo : Prf (EqZ (class (2, Z)) (class (3, S Z)))
     prop.∧.unfold,
     prop.⊤.eq,
     prop.⊥.eq) ≔
-  andIntro ∥𝟙∥ ∥𝟙∥ ⋆ ⋆
+  andIntro {∥𝟙∥} {∥𝟙∥} ⋆ ⋆

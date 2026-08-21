@@ -98,7 +98,7 @@ def qMulInvNat : {D : ℕ} → qOfNat (S D) * qInvNat D ≡ qOne
           _
           _
           (multSucId D Z)
-          (trans _ _ D (cong (λw. ℕ) (λw. D + w) (multZeroId D)) (plusZeroId D))))
+          (trans _ _ _ (cong (λw. ℕ) (λw. D + w) (multZeroId D)) (plusZeroId D))))
       (zeroPlusId D))
     (transportP (λw. qOfNat (S D) * qInvNat (mulIdx D Z) ≡ w) {qInvNat Z} {qOne} ⋆ qMulInvIdx)
 

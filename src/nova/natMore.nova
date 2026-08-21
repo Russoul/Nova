@@ -46,7 +46,7 @@ def multCancelLe : {n m : ℕ} (k : ℕ) → El (n ≤ m) → (n * S k ≡ m * S
     (trans
       _
       _
-      (n * S k + le .π₁ * S k)
+      _
       (cong (λu. ℕ) (λw. w * S k) (sym _ _ e))
       (multDistribR
         (S k)
@@ -65,7 +65,7 @@ def multCancelLe : {n m : ℕ} (k : ℕ) → El (n ≤ m) → (n * S k ≡ m * S
     _
     _
     _
-    (sym _ _ (trans _ _ n (cong (λu. ℕ) (λw. n + w) jz) (plusZeroId n)))
+    (sym _ _ (trans _ _ _ (cong (λu. ℕ) (λw. n + w) jz) (plusZeroId n)))
     e
 
 def multCancelR : (n m k : ℕ) → (n * S k ≡ m * S k) → n ≡ m ≔
@@ -242,7 +242,7 @@ def monusPlusL : {k a b : ℕ} → k + a ∸ (k + b) ≡ a ∸ b ≔
     (trans
       _
       _
-      (a + k ∸ (b + k))
+      _
       (cong (λu. ℕ) (λw. w ∸ (k + b)) (plusComm a k))
       (cong (λu. ℕ) (λw. a + k ∸ w) (plusComm b k)))
     (monusPlusR a b k)
