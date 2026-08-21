@@ -21,18 +21,8 @@ import prelude (funext, funextD)
 import equality (trans, sym, cong, transport, sigmaEq2)
 
 def regularIsProp : (f : El (ℕ → Q)) (p q : El (Regular f)) → p ≡ q
-  using (ratBound.Bnd.unfold, rationalQ.Q.unfold, real.Regular.unfold) ≔
-  λf. λp. λq. funextD {}
-    _
-    (λm. (n : ℕ) → qNeg (rBound m n) ≤ f m + qNeg (f n) ⨯ f m + qNeg (f n) ≤ rBound m n)
-    p
-    q
-    (λm. funextD {}
-      ℕ
-      (λn. qNeg (rBound m n) ≤ f m + qNeg (f n) ⨯ f m + qNeg (f n) ≤ rBound m n)
-      (p m)
-      (q m)
-      (λn. bndIsProp (rBound m n) (f m + qNeg (f n)) (p m n) (q m n)))
+  using (rationalQ.Q.unfold, real.Regular.unfold) ≔
+  λf. λp. λq. funextD (λm. funextD (λn. bndIsProp _ _ (p m n) (q m n)))
 
 -- The witness of y has to be READ at Regular (seqOf x), and the
 -- conversion Regular (seqOf y) ≐ Regular (seqOf x) is not one the

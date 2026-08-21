@@ -10,6 +10,7 @@ import integer (Int, intOne)
 import integerMul (*)
 import rational (NZ, nzPos, nzOne, nzMul, nzToInt, mkRat, Rat)
 import rationalQ (Q, qcls, +, qNeg, qZero, qOne, qAddNegR, qNegNeg, nzToIntMul)
+import ratBound (Bnd, bndIsProp)
 import rationalOrder (Sign, sPos, sZero, nzSgn, intSgn, intSgnNz, sgnQ, sgnQZero, NonNegS, ≤, sgnQAddPos)
 import equality (trans, sym, cong, transport)
 import id (Id, eqToId)
@@ -108,8 +109,7 @@ def leQZeroBound : (m n : ℕ) → El (qZero ≤ rBound m n)
 
 -- ===== the carrier =====
 -- regularity, two-sided: −(1/(m+1)+1/(n+1)) ≤ f m − f n ≤ ⋯
-def Regular : El (ℕ → Q) → 𝕌 ≔
-  λf. (m n : ℕ) → qNeg (rBound m n) ≤ f m + qNeg (f n) ⨯ f m + qNeg (f n) ≤ rBound m n
+def Regular : El (ℕ → Q) → 𝕌 ≔ λf. (m n : ℕ) → Bnd (rBound m n) (f m + qNeg (f n))
 
 def RSeq : 𝕌 ≔ (f : ℕ → Q) ⨯ Regular f
 
@@ -124,7 +124,7 @@ def Real : 𝕌 ≔ RSeq / (x y. REq x y)
 -- ===== ℚ embeds =====
 -- a constant sequence is regular: its differences are zero, and the
 -- zero-bounds transport along q − q ≡ 0
-def constReg : {q : El Q} → El (Regular (λn. q)) using (real.Regular.unfold) ≔
+def constReg : {q : El Q} → El (Regular (λn. q)) using (ratBound.Bnd.unfold, real.Regular.unfold) ≔
   λq. λm. λn. transport
     (λw. qNeg (rBound m n) ≤ w)
     (sym _ _ (qAddNegR q))
