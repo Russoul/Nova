@@ -58,7 +58,7 @@ def qrMulWDInner : {R : 𝕌}
   λR. λr. λI. λid. λa. λb. λb'. λh. transportP
     I
     (sym _ _ (rMulSub _ r a b b'))
-    (idScale _ _ _ id a (gop _ (raddGroup r) b (ginv (raddGroup r) b')) h)
+    (idScale _ _ _ id a (gop (raddGroup r) b (ginv (raddGroup r) b')) h)
 
 def qrMulWDOuter : {R : 𝕌}
   {r : El (IsCommRing R)}
@@ -76,14 +76,14 @@ def qrMulWDOuter : {R : 𝕌}
   using (subgroup.cosetRel.eq) ≔
   λR. λr. λI. λid. λa. λa'. λb. λh. transportP
     I
-    {rmul _ r (gop _ (raddGroup r) a (ginv (raddGroup r) a')) b}
-    {gop _ (raddGroup r) (rmul _ r a b) (ginv (raddGroup r) (rmul _ r a' b))}
-    (rmul _ r (gop _ (raddGroup r) a (ginv (raddGroup r) a')) b
+    {rmul _ r (gop (raddGroup r) a (ginv (raddGroup r) a')) b}
+    {gop (raddGroup r) (rmul _ r a b) (ginv (raddGroup r) (rmul _ r a' b))}
+    (rmul _ r (gop (raddGroup r) a (ginv (raddGroup r) a')) b
         ≡⟨ rMulComm
           _
           r
-          (gop _ (raddGroup r) a (ginv (raddGroup r) a'))
-          b ⟩ rmul _ r b (gop _ (raddGroup r) a (ginv (raddGroup r) a'))
+          (gop (raddGroup r) a (ginv (raddGroup r) a'))
+          b ⟩ rmul _ r b (gop (raddGroup r) a (ginv (raddGroup r) a'))
         ≡⟨ sym
           _
           _
@@ -92,24 +92,20 @@ def qrMulWDOuter : {R : 𝕌}
             r
             b
             a
-            a') ⟩ gop _ (raddGroup r) (rmul _ r b a) (ginv (raddGroup r) (rmul _ r b a'))
+            a') ⟩ gop (raddGroup r) (rmul _ r b a) (ginv (raddGroup r) (rmul _ r b a'))
         ≡⟨ cong
           (λw. R)
-          (λw. gop _ (raddGroup r) w (ginv (raddGroup r) (rmul _ r b a')))
+          (λw. gop (raddGroup r) w (ginv (raddGroup r) (rmul _ r b a')))
+          (rMulComm _ r b a) ⟩ gop (raddGroup r) (rmul _ r a b) (ginv (raddGroup r) (rmul _ r b a'))
+        ≡⟨ cong
+          (λw. R)
+          (λw. gop (raddGroup r) (rmul _ r a b) (ginv (raddGroup r) w))
           (rMulComm
             _
             r
             b
-            a) ⟩ gop _ (raddGroup r) (rmul _ r a b) (ginv (raddGroup r) (rmul _ r b a'))
-        ≡⟨ cong
-          (λw. R)
-          (λw. gop _ (raddGroup r) (rmul _ r a b) (ginv (raddGroup r) w))
-          (rMulComm
-            _
-            r
-            b
-            a') ⟩ gop _ (raddGroup r) (rmul _ r a b) (ginv (raddGroup r) (rmul _ r a' b)))
-    (idScaleR _ _ _ id b (gop _ (raddGroup r) a (ginv (raddGroup r) a')) h)
+            a') ⟩ gop (raddGroup r) (rmul _ r a b) (ginv (raddGroup r) (rmul _ r a' b)))
+    (idScaleR _ _ _ id b (gop (raddGroup r) a (ginv (raddGroup r) a')) h)
 
 -- ===== the descent, in qrCls vocabulary (B-21) =====
 def qrMulWDInnerCls : (R : 𝕌)
@@ -219,7 +215,7 @@ def qrGop : (R : 𝕌)
   (I : El R → Ω)
   (id : Prf (IsIdeal _ r I))
   (u v : El (QRing _ r I))
-  → gop _ (qrAddGroup id) u v ≡ qrAdd id u v
+  → gop (qrAddGroup id) u v ≡ qrAdd id u v
   using (qrAddGroup.eq, qrAdd.eq, groupTheory.gop.eq, quotGroup.qIsGroup.eq) ≔
   λR. λr. λI. λid. λu. λv. ⋆
 
@@ -228,7 +224,7 @@ def qrAddCls : (R : 𝕌)
   (I : El R → Ω)
   (id : Prf (IsIdeal _ r I))
   (a b : El R)
-  → qrAdd id (class a) (class b) ≡ class (gop _ (raddGroup r) a b)
+  → qrAdd id (class a) (class b) ≡ class (gop (raddGroup r) a b)
   using (QRing.eq, qrAdd.eq, quotGroup.QGroup.unfold) ≔
   λR. λr. λI. λid. λa. λb. qMulCls _ _ _ (idNormal _ r I) a b
 
@@ -390,8 +386,8 @@ def qrIsCommRing : {R : 𝕌}
                 id
                 x)),
               (λx. λy. eqToId
-                (gop _ (qrAddGroup id) x y)
-                (gop _ (qrAddGroup id) y x)
+                (gop (qrAddGroup id) x y)
+                (gop (qrAddGroup id) y x)
                 (trans
                   _
                   _
@@ -413,8 +409,8 @@ def qrIsCommRing : {R : 𝕌}
                         y
                         x))))),
                 λx. λy. λz. eqToId
-                  (qrMul _ _ _ id x (gop _ (qrAddGroup id) y z))
-                  (gop _ (qrAddGroup id) (qrMul _ _ _ id x y) (qrMul _ _ _ id x z))
+                  (qrMul _ _ _ id x (gop (qrAddGroup id) y z))
+                  (gop (qrAddGroup id) (qrMul _ _ _ id x y) (qrMul _ _ _ id x z))
                   (trans
                     _
                     _
