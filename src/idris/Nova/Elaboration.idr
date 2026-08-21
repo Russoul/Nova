@@ -335,6 +335,14 @@ probeM act = MkElabM $ \st => case runElabM act ({ probing := True } st) of
   Left _ => Right (st, Nothing)
   Right (_, x) => Right (st, Just x)
 
+||| Run an action, KEEPING its state on success and restoring the
+||| original on failure — the fail-deferral probe: unlike probeM the
+||| successful path IS the real elaboration.
+attemptM : ElabM a -> ElabM (Maybe a)
+attemptM act = MkElabM $ \st => case runElabM act st of
+  Left _ => Right (st, Nothing)
+  Right (st2, x) => Right (st2, Just x)
+
 ||| Run an action as the elaboration of a SPINE ARGUMENT: the flag
 ||| marks every site inside as mode-flippable (blank verdicts there
 ||| must hold with and without the expected type), restored after.
@@ -4141,6 +4149,23 @@ mutual
     -- inference-form arguments as they elaborate
     (sols, revArgs, revSks, pending, srcs, attrs, defers) <- walk presIn jn ((st.impTrialOn || st.svSugarOn) && not st.probing) doms slots sols0 [] [] [] [] [] []
     -- resolve every inserted hole; unsolved is a structural error
+    -- the MILLER-PATTERN tier, STRICTLY ADDITIVELY: only holes the
+    -- classic walk left unsolved may gain bindings (each source is
+    -- re-matched in pattern mode at its domain, with entries
+    -- refreshed to the joint solution so far), so every site that
+    -- already solved solves identically — committed corpora stay
+    -- valid by construction
+    let unsolvedKs = mapMaybe (\(pos, mt) => case mt of
+                        Just (SBlank _) => if isNothing (lookup pos sols) then Just pos else Nothing
+                        Nothing => if isNothing (lookup pos sols) then Just pos else Nothing
+                        Just _ => Nothing) slots
+    -- the pass's join also opens .unfold-cited (exposure-licensed)
+    -- heads: it fills only otherwise-unsolved holes, so the wider
+    -- join cannot disturb an existing solution
+    let jnX = \t => compTy (unfTy st.sig
+                     (st.eqScope ++ mapMaybe expName st.eqScope) t)
+    let sols = if null unsolvedKs then sols
+               else patternPass jnX doms (reverse revArgs) unsolvedKs (pending ++ srcs) sols
     (finalArgs, dPatches) <- resolveArgs sols defers doms (zip slots (reverse revArgs)) [] []
     -- a blank whose SUPPRESSED join binding α-differs from its
     -- final solution would solve differently as an implicit — the
@@ -4385,15 +4410,23 @@ mutual
                 st2 <- getSt
                 if sInferForm surfE && not (bareImplicitRef st2 surfE)
                   then do
-                    (e', eTy, eSk) <- asArg (inferElem ctx env site surfE)
-                    let sols2 = case mTy 0 dInst eTy sols of
-                                  Just s => s
-                                  Nothing => case mTy 0 (compTy dInst) (compTy eTy) sols of
-                                    Just s => s
-                                    Nothing => fromMaybe sols (mTy 0 (jn dInst) (jn eTy) sols)
-                    let attrs2 = attrs ++ map (\(k, _) => (k, pos))
-                                   (filter (\(k, _) => isNothing (lookup k sols)) sols2)
-                    walk pres' jn trialOn doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending) srcs attrs2 defers
+                    mres <- attemptM (asArg (inferElem ctx env site surfE))
+                    case mres of
+                      Just (e', eTy, eSk) => do
+                        let sols2 = case mTy 0 dInst eTy sols of
+                                      Just s => s
+                                      Nothing => case mTy 0 (compTy dInst) (compTy eTy) sols of
+                                        Just s => s
+                                        Nothing => fromMaybe sols (mTy 0 (jn dInst) (jn eTy) sols)
+                        let attrs2 = attrs ++ map (\(k, _) => (k, pos))
+                                       (filter (\(k, _) => isNothing (lookup k sols)) sols2)
+                        walk pres' jn trialOn doms rest sols2 (e' :: revArgs) (eSk :: revSks) ((pos, eTy) :: pending) srcs attrs2 defers
+                      -- FAIL-DEFERRAL: an inference that fails at a
+                      -- holey domain was never going to be a source —
+                      -- defer it like an intro and check it after the
+                      -- joint solve, at its final (hole-free) domain
+                      Nothing =>
+                        walk pres' jn trialOn doms rest sols (holeE pos :: revArgs) (Nd [] [] :: revSks) pending srcs attrs ((pos, surfE) :: defers)
                   else
                     -- DEFER an intro form, or a bare implicit-headed
                     -- reference, at a still-holey domain: neither is
@@ -4432,6 +4465,40 @@ mutual
                 else do
                   (e', eSk) <- asArg (checkElem ctx env site surfE dInst)
                   walk pres' jn trialOn doms rest sols (e' :: revArgs) (eSk :: revSks) pending srcs attrs defers
+
+    expName : String -> Maybe String
+    expName n = if isPrefixOf "exp:" n then Just (pack (drop 4 (unpack n))) else Nothing
+
+    refreshHole : Sols -> Elem -> Elem
+    refreshHole sols e = case e of
+      SigVar nm [<] => case holeView nm of
+        Just i => fromMaybe e (lookup i sols)
+        Nothing => e
+      _ => e
+
+    ||| the end-stage pattern pass: walk the recorded sources in
+    ||| order, match each in PATTERN mode (α, comp, licensed join) at
+    ||| its refreshed domain, and keep only bindings for the still-
+    ||| unsolved keys
+    patternPass : (jn : Ty -> Ty) -> List Ty -> List Elem -> List Nat ->
+                  List (Nat, Ty) -> Sols -> Sols
+    patternPass jn doms argsNow ks [] sols = sols
+    patternPass jn doms argsNow ks ((sp, eTy) :: more) sols =
+      case getAt sp doms of
+        Nothing => patternPass jn doms argsNow ks more sols
+        Just d =>
+          let entries = map (refreshHole sols) (take sp argsNow)
+              dHyp = substTy d (prefixSub entries)
+              found = the (Maybe Sols) $ case mTyP True 0 dHyp eTy sols of
+                        Just s2 => Just s2
+                        Nothing => case mTyP True 0 (compTy dHyp) (compTy eTy) sols of
+                          Just s2 => Just s2
+                          Nothing => mTyP True 0 (jn dHyp) (jn eTy) sols
+              sols2 = case found of
+                        Nothing => sols
+                        Just s2 => sols ++ filter (\(k2, _) =>
+                                     (k2 `elem` ks) && isNothing (lookup k2 sols)) s2
+          in patternPass jn doms argsNow ks more sols2
 
     ||| Resolve the walked slots to the final argument list, in
     ||| position order: a hole takes its joint solution (a structural

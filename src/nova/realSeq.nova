@@ -22,12 +22,12 @@ import equality (trans, sym, cong, transport, sigmaEq2)
 
 def regularIsProp : (f : El (ℕ → Q)) (p q : El (Regular f)) → p ≡ q
   using (ratBound.Bnd.unfold, rationalQ.Q.unfold, real.Regular.unfold) ≔
-  λf. λp. λq. funextD
-    ℕ
+  λf. λp. λq. funextD {}
+    _
     (λm. (n : ℕ) → qNeg (rBound m n) ≤ f m + qNeg (f n) ⨯ f m + qNeg (f n) ≤ rBound m n)
     p
     q
-    (λm. funextD
+    (λm. funextD {}
       ℕ
       (λn. qNeg (rBound m n) ≤ f m + qNeg (f n) ⨯ f m + qNeg (f n) ≤ rBound m n)
       (p m)
@@ -64,7 +64,7 @@ def rseqEqAt : {x y : El RSeq} → (seqOf x ≡ seqOf y) → x ≡ y
     (regularIsProp _ (regOf x) (transport (λf. Regular f) (sym _ _ h) (regOf y)))
 
 def rseqEq : {x y : El RSeq} → ((n : ℕ) → seqOf x n ≡ seqOf y n) → x ≡ y ≔
-  λx. λy. λe. rseqEqAt (funext _ _ (seqOf x) (seqOf y) e)
+  λx. λy. λe. rseqEqAt (funext e)
 
 -- ...and hence equal reals, without going through REq at all
 def realEqOfSeqEq : (x y : El RSeq)

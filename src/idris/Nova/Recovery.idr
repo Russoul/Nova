@@ -58,6 +58,78 @@ holeView nm = case unpack nm of
   ('?' :: ds) => parsePositive (pack ds)
   _ => Nothing
 
+-- ===== Skeleton-freedom =====
+--
+-- A SYNTHESIZED annotation (a recovered motive, an inferred ≡-domain)
+-- ships with an empty skeleton, so it may not contain STUCK
+-- ELIMINATORS — bare core ℕ-elim/⊎-elim/quot-elim need kernel
+-- payloads (motives, well-definedness) an empty skeleton cannot
+-- carry. (QElim and Corec carry their annotations inline in core and
+-- are fine.) Elision verdicts and the elided rules both require this.
+
+mutual
+  export
+  skelFreeE : Elem -> Bool
+  skelFreeE e = case e of
+    NatElim _ _ _ => False
+    SumElim _ _ _ => False
+    QuotElim _ _ => False
+    CtxVar _ => True
+    SigVar _ sp => all skelFreeE (toList sp)
+    ZeroElim t => skelFreeE t
+    OneIntro => True
+    NatIntro0 => True
+    NatIntro1 t => skelFreeE t
+    PiIntro b => skelFreeE b
+    PiApp f a => skelFreeE f && skelFreeE a
+    Let d b => skelFreeE d && skelFreeE b
+    SigmaIntro u v => skelFreeE u && skelFreeE v
+    SigmaElim1 t => skelFreeE t
+    SigmaElim2 t => skelFreeE t
+    Inj1 t => skelFreeE t
+    Inj2 t => skelFreeE t
+    ZeroTy => True
+    OneTy => True
+    NatTy => True
+    PiTy a b => skelFreeE a && skelFreeE b
+    SigmaTy a b => skelFreeE a && skelFreeE b
+    SumTy a b => skelFreeE a && skelFreeE b
+    EqTy l r ty => skelFreeE l && skelFreeE r && skelFreeT ty
+    QuotTy a r => skelFreeE a && skelFreeE r
+    Class t => skelFreeE t
+    Squash ty => skelFreeT ty
+    Star => True
+    QSortC _ _ sp => all skelFreeE (toList sp)
+    QCtor _ _ sp => all skelFreeE (toList sp)
+    QElim _ _ mots mths sp w =>
+      all skelFreeT mots && all skelFreeE mths && all skelFreeE (toList sp) && skelFreeE w
+    NuTy p => skelFreeP p
+    Out t => skelFreeE t
+    Corec p a f x => skelFreeP p && skelFreeE a && skelFreeE f && skelFreeE x
+
+  export
+  skelFreeT : Ty -> Bool
+  skelFreeT ty = case ty of
+    Ty.PiTy a b => skelFreeT a && skelFreeT b
+    Ty.SigmaTy a b => skelFreeT a && skelFreeT b
+    Ty.SumTy a b => skelFreeT a && skelFreeT b
+    El t => skelFreeE t
+    Prf t => skelFreeE t
+    Quotient a r => skelFreeT a && skelFreeE r
+    Ty.SigVar _ sp => all skelFreeE (toList sp)
+    QSort _ _ sp => all skelFreeE (toList sp)
+    Ty.NuTy p => skelFreeP p
+    _ => True
+
+  skelFreeP : Poly -> Bool
+  skelFreeP p = case p of
+    PHole => True
+    PConst a => skelFreeE a
+    PProd f g => skelFreeP f && skelFreeP g
+    PSum f g => skelFreeP f && skelFreeP g
+    PSigma a f => skelFreeE a && skelFreeP f
+    PPi a f => skelFreeE a && skelFreeP f
+
 -- ===== The matcher =====
 --
 -- Pattern against ground, accumulating hole solutions; the pattern is
@@ -75,82 +147,143 @@ Sols = List (Nat, Elem)
 -- matching under binders scope-correct: a hole binding captured at
 -- depth k must strengthen by k to be usable at the spine.
 
+-- The traversal is shared between STRENGTHENING (under-depth
+-- variables fail, spine-level ones shift down) and the PATTERN
+-- ABSTRACTION (under-depth variables remap to fresh λ binders): both
+-- are variable POLICIES over one structural walk. The policy sees
+-- the occurrence's internal depth d and the index m RELATIVE to the
+-- walk's start (m = i - d).
 mutual
   export
-  strengthenE : (c, k : Nat) -> Elem -> Maybe Elem
-  strengthenE c k e = case e of
-    CtxVar i => if i < c then Just (CtxVar i)
-                else if i < c + k then Nothing
-                else Just (CtxVar (minus i k))
-    SigVar nm sp => map (SigVar nm) (strengthenSp c k sp)
-    ZeroElim t => map ZeroElim (strengthenE c k t)
+  varMapE : (vf : (d : Nat) -> Nat -> Maybe Elem) -> (c : Nat) -> Elem -> Maybe Elem
+  varMapE vf c e = case e of
+    CtxVar i => if i < c then Just (CtxVar i) else vf c (minus i c)
+    SigVar nm sp => map (SigVar nm) (varMapSp vf c sp)
+    ZeroElim t => map ZeroElim (varMapE vf c t)
     OneIntro => Just e
     NatIntro0 => Just e
-    NatIntro1 t => map NatIntro1 (strengthenE c k t)
-    NatElim z st t => [| NatElim (strengthenE c k z) (strengthenE (c + 2) k st) (strengthenE c k t) |]
-    PiIntro b => map PiIntro (strengthenE (S c) k b)
-    PiApp f a => [| PiApp (strengthenE c k f) (strengthenE c k a) |]
-    Let d b => [| Let (strengthenE c k d) (strengthenE (c + 2) k b) |]
-    SigmaIntro u v => [| SigmaIntro (strengthenE c k u) (strengthenE c k v) |]
-    SigmaElim1 t => map SigmaElim1 (strengthenE c k t)
-    SigmaElim2 t => map SigmaElim2 (strengthenE c k t)
-    Inj1 t => map Inj1 (strengthenE c k t)
-    Inj2 t => map Inj2 (strengthenE c k t)
-    SumElim l r t => [| SumElim (strengthenE (S c) k l) (strengthenE (S c) k r) (strengthenE c k t) |]
+    NatIntro1 t => map NatIntro1 (varMapE vf c t)
+    NatElim z st t => [| NatElim (varMapE vf c z) (varMapE vf (c + 2) st) (varMapE vf c t) |]
+    PiIntro b => map PiIntro (varMapE vf (S c) b)
+    PiApp f a => [| PiApp (varMapE vf c f) (varMapE vf c a) |]
+    Let d b => [| Let (varMapE vf c d) (varMapE vf (c + 2) b) |]
+    SigmaIntro u v => [| SigmaIntro (varMapE vf c u) (varMapE vf c v) |]
+    SigmaElim1 t => map SigmaElim1 (varMapE vf c t)
+    SigmaElim2 t => map SigmaElim2 (varMapE vf c t)
+    Inj1 t => map Inj1 (varMapE vf c t)
+    Inj2 t => map Inj2 (varMapE vf c t)
+    SumElim l r t => [| SumElim (varMapE vf (S c) l) (varMapE vf (S c) r) (varMapE vf c t) |]
     ZeroTy => Just e
     OneTy => Just e
     NatTy => Just e
-    PiTy a b => [| PiTy (strengthenE c k a) (strengthenE (S c) k b) |]
-    SigmaTy a b => [| SigmaTy (strengthenE c k a) (strengthenE (S c) k b) |]
-    SumTy a b => [| SumTy (strengthenE c k a) (strengthenE c k b) |]
-    EqTy l r ty => [| EqTy (strengthenE c k l) (strengthenE c k r) (strengthenT c k ty) |]
-    QuotTy a r => [| QuotTy (strengthenE c k a) (strengthenE (c + 2) k r) |]
-    Class t => map Class (strengthenE c k t)
-    QuotElim f q => [| QuotElim (strengthenE (S c) k f) (strengthenE c k q) |]
-    Squash ty => map Squash (strengthenT c k ty)
+    PiTy a b => [| PiTy (varMapE vf c a) (varMapE vf (S c) b) |]
+    SigmaTy a b => [| SigmaTy (varMapE vf c a) (varMapE vf (S c) b) |]
+    SumTy a b => [| SumTy (varMapE vf c a) (varMapE vf c b) |]
+    EqTy l r ty => [| EqTy (varMapE vf c l) (varMapE vf c r) (varMapT vf c ty) |]
+    QuotTy a r => [| QuotTy (varMapE vf c a) (varMapE vf (c + 2) r) |]
+    Class t => map Class (varMapE vf c t)
+    QuotElim f q => [| QuotElim (varMapE vf (S c) f) (varMapE vf c q) |]
+    Squash ty => map Squash (varMapT vf c ty)
     Star => Just e
-    QSortC sig j sp => map (QSortC sig j) (strengthenSp c k sp)
-    QCtor sig j sp => map (QCtor sig j) (strengthenSp c k sp)
+    QSortC sig j sp => map (QSortC sig j) (varMapSp vf c sp)
+    QCtor sig j sp => map (QCtor sig j) (varMapSp vf c sp)
     QElim sig j mots mths sp w =>
-      do mots' <- traverse (strengthenT c k) mots
-         mths' <- traverse (strengthenE c k) mths
-         sp' <- strengthenSp c k sp
-         w' <- strengthenE c k w
+      do mots' <- traverse (varMapT vf c) mots
+         mths' <- traverse (varMapE vf c) mths
+         sp' <- varMapSp vf c sp
+         w' <- varMapE vf c w
          pure (QElim sig j mots' mths' sp' w')
-    NuTy pl => map NuTy (strengthenP c k pl)
-    Out t => map Out (strengthenE c k t)
+    NuTy pl => map NuTy (varMapP vf c pl)
+    Out t => map Out (varMapE vf c t)
     Corec pl a f x =>
-      [| Corec (strengthenP c k pl) (strengthenE c k a) (strengthenE (S c) k f) (strengthenE c k x) |]
+      [| Corec (varMapP vf c pl) (varMapE vf c a) (varMapE vf (S c) f) (varMapE vf c x) |]
 
-  strengthenSp : (c, k : Nat) -> SubNorm -> Maybe SubNorm
-  strengthenSp c k [<] = Just [<]
-  strengthenSp c k (xs :< x) = [| strengthenSp c k xs :< strengthenE c k x |]
+  varMapSp : (vf : (d : Nat) -> Nat -> Maybe Elem) -> (c : Nat) -> SubNorm -> Maybe SubNorm
+  varMapSp vf c [<] = Just [<]
+  varMapSp vf c (xs :< x) = [| varMapSp vf c xs :< varMapE vf c x |]
 
   export
-  strengthenT : (c, k : Nat) -> Ty -> Maybe Ty
-  strengthenT c k ty = case ty of
-    Ty.PiTy a b => [| Ty.PiTy (strengthenT c k a) (strengthenT (S c) k b) |]
-    Ty.SigmaTy a b => [| Ty.SigmaTy (strengthenT c k a) (strengthenT (S c) k b) |]
-    Ty.SumTy a b => [| Ty.SumTy (strengthenT c k a) (strengthenT c k b) |]
-    El t => map El (strengthenE c k t)
-    Prf t => map Prf (strengthenE c k t)
-    Quotient a r => [| Quotient (strengthenT c k a) (strengthenE (c + 2) k r) |]
-    Ty.SigVar nm sp => map (Ty.SigVar nm) (strengthenSp c k sp)
-    QSort sig j sp => map (QSort sig j) (strengthenSp c k sp)
-    Ty.NuTy pl => map Ty.NuTy (strengthenP c k pl)
+  varMapT : (vf : (d : Nat) -> Nat -> Maybe Elem) -> (c : Nat) -> Ty -> Maybe Ty
+  varMapT vf c ty = case ty of
+    Ty.PiTy a b => [| Ty.PiTy (varMapT vf c a) (varMapT vf (S c) b) |]
+    Ty.SigmaTy a b => [| Ty.SigmaTy (varMapT vf c a) (varMapT vf (S c) b) |]
+    Ty.SumTy a b => [| Ty.SumTy (varMapT vf c a) (varMapT vf c b) |]
+    El t => map El (varMapE vf c t)
+    Prf t => map Prf (varMapE vf c t)
+    Quotient a r => [| Quotient (varMapT vf c a) (varMapE vf (c + 2) r) |]
+    Ty.SigVar nm sp => map (Ty.SigVar nm) (varMapSp vf c sp)
+    QSort sig j sp => map (QSort sig j) (varMapSp vf c sp)
+    Ty.NuTy pl => map Ty.NuTy (varMapP vf c pl)
     _ => Just ty
 
-  strengthenP : (c, k : Nat) -> Poly -> Maybe Poly
-  strengthenP c k pl = case pl of
+  varMapP : (vf : (d : Nat) -> Nat -> Maybe Elem) -> (c : Nat) -> Poly -> Maybe Poly
+  varMapP vf c pl = case pl of
     PHole => Just pl
-    PConst a => map PConst (strengthenE c k a)
-    PProd f g => [| PProd (strengthenP c k f) (strengthenP c k g) |]
-    PSum f g => [| PSum (strengthenP c k f) (strengthenP c k g) |]
-    PSigma a f => [| PSigma (strengthenE c k a) (strengthenP (S c) k f) |]
-    PPi a f => [| PPi (strengthenE c k a) (strengthenP (S c) k f) |]
+    PConst a => map PConst (varMapE vf c a)
+    PProd f g => [| PProd (varMapP vf c f) (varMapP vf c g) |]
+    PSum f g => [| PSum (varMapP vf c f) (varMapP vf c g) |]
+    PSigma a f => [| PSigma (varMapE vf c a) (varMapP vf (S c) f) |]
+    PPi a f => [| PPi (varMapE vf c a) (varMapP vf (S c) f) |]
+
+||| the classic strengthening policy: a crossed binder's variable
+||| fails; a spine-level one shifts down by k
+strengthenVf : (k : Nat) -> (d : Nat) -> Nat -> Maybe Elem
+strengthenVf k d m = if m < k then Nothing else Just (CtxVar (d + minus m k))
+
+export
+strengthenE : (c, k : Nat) -> Elem -> Maybe Elem
+strengthenE c k = varMapE (strengthenVf k) c
+
+export
+strengthenT : (c, k : Nat) -> Ty -> Maybe Ty
+strengthenT c k = varMapT (strengthenVf k) c
+
+strengthenSp : (c, k : Nat) -> SubNorm -> Maybe SubNorm
+strengthenSp c k = varMapSp (strengthenVf k) c
+
+strengthenP : (c, k : Nat) -> Poly -> Maybe Poly
+strengthenP c k = varMapP (strengthenVf k) c
 
 sameE : Elem -> Elem -> Bool
 sameE a b = show a == show b
+
+||| a hole applied to bound variables: (hole index, the applied
+||| variable indices in APPLICATION order — first-applied outermost)
+patView : Elem -> List Nat -> Maybe (Nat, List Nat)
+patView (PiApp f (CtxVar c)) acc = patView f (c :: acc)
+patView (SigVar nm [<]) acc =
+  case holeView nm of
+    Just i => case acc of
+                [] => Nothing
+                _ => Just (i, acc)
+    Nothing => Nothing
+patView _ _ = Nothing
+
+allDistinct : List Nat -> Bool
+allDistinct [] = True
+allDistinct (x :: xs) = not (x `elem` xs) && allDistinct xs
+
+||| the pattern solution: λ-abstract the ground over the applied
+||| variables. An under-depth variable NOT among them would escape —
+||| the match fails; spine-level variables strengthen by k and
+||| weaken past the new binders.
+absPat : (k : Nat) -> (vars : List Nat) -> Elem -> Maybe Elem
+absPat k vars g = map (wrap (length vars)) (varMapE vf 0 g)
+ where
+  n : Nat
+  n = length vars
+
+  wrap : Nat -> Elem -> Elem
+  wrap Z b = b
+  wrap (S m) b = wrap m (PiIntro b)
+
+  vf : (d : Nat) -> Nat -> Maybe Elem
+  vf d m =
+    if m < k
+      then case lookup m (zip vars [0 .. minus n 1]) of
+             Just j => Just (CtxVar (d + minus (minus n 1) j))
+             Nothing => Nothing
+      else Just (CtxVar (d + n + minus m k))
 
 mutual
   ||| `applied` — the pattern sits in the function position of an
@@ -160,122 +293,153 @@ mutual
   ||| if it mentions a crossed binder), so bindings stay
   ||| scope-correct at the spine.
   export
-  mElem : (applied : Bool) -> (k : Nat) -> (pat : Elem) -> (ground : Elem) -> Sols -> Maybe Sols
-  mElem app k (SigVar nm [<]) g sols =
+  mElemP : (pats : Bool) -> (applied : Bool) -> (k : Nat) -> (pat : Elem) -> (ground : Elem) -> Sols -> Maybe Sols
+  mElemP pats app k (SigVar nm [<]) g sols =
     case holeView nm of
       Just i =>
         if app then Nothing else
           case strengthenE 0 k g of
             Nothing => Nothing
-            Just g' => case lookup i sols of
-              Just prev => if sameE prev g' then Just sols else Nothing
-              Nothing => Just ((i, g') :: sols)
+            Just g' =>
+              -- the bare-skeleton law, unconditionally: a hole
+              -- solution ships with an empty skeleton, so an
+              -- eliminator-bearing capture could never survive the
+              -- kernel — refuse it here and let another source (or a
+              -- spell-the-argument error) take the position
+              if not (skelFreeE g') then Nothing else
+              case lookup i sols of
+                Just prev => if sameE prev g' then Just sols else Nothing
+                Nothing => Just ((i, g') :: sols)
       Nothing => case g of
         SigVar nm' [<] => if nm == nm' then Just sols else Nothing
         _ => Nothing
-  mElem app k (SigVar nm sp) g sols =
+  mElemP pats app k (SigVar nm sp) g sols =
     case g of
-      SigVar nm' sp' => if nm == nm' then mSub k sp sp' sols else Nothing
+      SigVar nm' sp' => if nm == nm' then mSubP pats k sp sp' sols else Nothing
       _ => Nothing
-  mElem app k (CtxVar n) g sols =
+  mElemP pats app k (CtxVar n) g sols =
     case g of CtxVar n' => if n == n' then Just sols else Nothing; _ => Nothing
-  mElem app k (ZeroElim t) g sols =
-    case g of ZeroElim t' => mElem False k t t' sols; _ => Nothing
-  mElem app k OneIntro g sols =
+  mElemP pats app k (ZeroElim t) g sols =
+    case g of ZeroElim t' => mElemP pats False k t t' sols; _ => Nothing
+  mElemP pats app k OneIntro g sols =
     case g of OneIntro => Just sols; _ => Nothing
-  mElem app k NatIntro0 g sols =
+  mElemP pats app k NatIntro0 g sols =
     case g of NatIntro0 => Just sols; _ => Nothing
-  mElem app k (NatIntro1 t) g sols =
-    case g of NatIntro1 t' => mElem False k t t' sols; _ => Nothing
-  mElem app k (NatElim z st t) g sols =
+  mElemP pats app k (NatIntro1 t) g sols =
+    case g of NatIntro1 t' => mElemP pats False k t t' sols; _ => Nothing
+  mElemP pats app k (NatElim z st t) g sols =
     case g of
-      NatElim z' st' t' => mElem False k z z' sols >>= mElem False (k + 2) st st' >>= mElem False k t t'
+      NatElim z' st' t' => mElemP pats False k z z' sols >>= mElemP pats False (k + 2) st st' >>= mElemP pats False k t t'
       _ => Nothing
-  mElem app k (PiIntro b) g sols =
-    case g of PiIntro b' => mElem False (S k) b b' sols; _ => Nothing
-  mElem app k (PiApp f a) g sols =
+  mElemP pats app k (PiIntro b) g sols =
+    case g of PiIntro b' => mElemP pats False (S k) b b' sols; _ => Nothing
+  mElemP pats app k (PiApp f a) g sols =
+    case patView (PiApp f a) [] of
+      -- the MILLER-PATTERN case: a hole applied to distinct bound
+      -- variables (all under the spine's binders) matches ANY ground
+      -- by abstraction — ?B x ↦ λx. ground — uniquely and without
+      -- search. Non-pattern hole-headed spines still reject (the
+      -- flexible-head discipline); rigid heads match structurally.
+      Just (i, vars) =>
+        if not pats then structural (PiApp f a) g sols else
+        -- SKELETON-FREEDOM: the solution rides a bare skeleton, so a
+        -- captured body containing stuck eliminators (their motives
+        -- and coherences live in skeletons the kernel would need)
+        -- must reject — same law as Phase 4's synthesized annotations
+        if allDistinct vars && all (< k) vars && skelFreeE g
+          then case absPat k vars g of
+                 Nothing => Nothing
+                 Just sol => case lookup i sols of
+                   Just prev => if sameE prev sol then Just sols else Nothing
+                   Nothing => Just ((i, sol) :: sols)
+          else Nothing
+      Nothing => structural (PiApp f a) g sols
+   where
+    structural : Elem -> Elem -> Sols -> Maybe Sols
+    structural (PiApp pf pa) gg ss =
+      case gg of
+        PiApp f' a' => mElemP pats True k pf f' ss >>= mElemP pats False k pa a'
+        _ => Nothing
+    structural _ _ _ = Nothing
+  mElemP pats app k (Let d b) g sols =
+    case g of Let d' b' => mElemP pats False k d d' sols >>= mElemP pats False (k + 2) b b'; _ => Nothing
+  mElemP pats app k (SigmaIntro u v) g sols =
+    case g of SigmaIntro u' v' => mElemP pats False k u u' sols >>= mElemP pats False k v v'; _ => Nothing
+  mElemP pats app k (SigmaElim1 t) g sols =
+    case g of SigmaElim1 t' => mElemP pats False k t t' sols; _ => Nothing
+  mElemP pats app k (SigmaElim2 t) g sols =
+    case g of SigmaElim2 t' => mElemP pats False k t t' sols; _ => Nothing
+  mElemP pats app k (Inj1 t) g sols =
+    case g of Inj1 t' => mElemP pats False k t t' sols; _ => Nothing
+  mElemP pats app k (Inj2 t) g sols =
+    case g of Inj2 t' => mElemP pats False k t t' sols; _ => Nothing
+  mElemP pats app k (SumElim l r t) g sols =
     case g of
-      PiApp f' a' => mElem True k f f' sols >>= mElem False k a a'
+      SumElim l' r' t' => mElemP pats False (S k) l l' sols >>= mElemP pats False (S k) r r' >>= mElemP pats False k t t'
       _ => Nothing
-  mElem app k (Let d b) g sols =
-    case g of Let d' b' => mElem False k d d' sols >>= mElem False (k + 2) b b'; _ => Nothing
-  mElem app k (SigmaIntro u v) g sols =
-    case g of SigmaIntro u' v' => mElem False k u u' sols >>= mElem False k v v'; _ => Nothing
-  mElem app k (SigmaElim1 t) g sols =
-    case g of SigmaElim1 t' => mElem False k t t' sols; _ => Nothing
-  mElem app k (SigmaElim2 t) g sols =
-    case g of SigmaElim2 t' => mElem False k t t' sols; _ => Nothing
-  mElem app k (Inj1 t) g sols =
-    case g of Inj1 t' => mElem False k t t' sols; _ => Nothing
-  mElem app k (Inj2 t) g sols =
-    case g of Inj2 t' => mElem False k t t' sols; _ => Nothing
-  mElem app k (SumElim l r t) g sols =
+  mElemP pats app k ZeroTy g sols = case g of ZeroTy => Just sols; _ => Nothing
+  mElemP pats app k OneTy g sols = case g of OneTy => Just sols; _ => Nothing
+  mElemP pats app k NatTy g sols = case g of NatTy => Just sols; _ => Nothing
+  mElemP pats app k (PiTy a b) g sols =
+    case g of PiTy a' b' => mElemP pats False k a a' sols >>= mElemP pats False (S k) b b'; _ => Nothing
+  mElemP pats app k (SigmaTy a b) g sols =
+    case g of SigmaTy a' b' => mElemP pats False k a a' sols >>= mElemP pats False (S k) b b'; _ => Nothing
+  mElemP pats app k (SumTy a b) g sols =
+    case g of SumTy a' b' => mElemP pats False k a a' sols >>= mElemP pats False k b b'; _ => Nothing
+  mElemP pats app k (EqTy l r ty) g sols =
     case g of
-      SumElim l' r' t' => mElem False (S k) l l' sols >>= mElem False (S k) r r' >>= mElem False k t t'
+      EqTy l' r' ty' => mElemP pats False k l l' sols >>= mElemP pats False k r r' >>= mTyP pats k ty ty'
       _ => Nothing
-  mElem app k ZeroTy g sols = case g of ZeroTy => Just sols; _ => Nothing
-  mElem app k OneTy g sols = case g of OneTy => Just sols; _ => Nothing
-  mElem app k NatTy g sols = case g of NatTy => Just sols; _ => Nothing
-  mElem app k (PiTy a b) g sols =
-    case g of PiTy a' b' => mElem False k a a' sols >>= mElem False (S k) b b'; _ => Nothing
-  mElem app k (SigmaTy a b) g sols =
-    case g of SigmaTy a' b' => mElem False k a a' sols >>= mElem False (S k) b b'; _ => Nothing
-  mElem app k (SumTy a b) g sols =
-    case g of SumTy a' b' => mElem False k a a' sols >>= mElem False k b b'; _ => Nothing
-  mElem app k (EqTy l r ty) g sols =
-    case g of
-      EqTy l' r' ty' => mElem False k l l' sols >>= mElem False k r r' >>= mTy k ty ty'
-      _ => Nothing
-  mElem app k (QuotTy a r) g sols =
-    case g of QuotTy a' r' => mElem False k a a' sols >>= mElem False (k + 2) r r'; _ => Nothing
-  mElem app k (Class t) g sols =
-    case g of Class t' => mElem False k t t' sols; _ => Nothing
-  mElem app k (QuotElim f q) g sols =
-    case g of QuotElim f' q' => mElem False (S k) f f' sols >>= mElem False k q q'; _ => Nothing
-  mElem app k (Squash ty) g sols =
-    case g of Squash ty' => mTy k ty ty' sols; _ => Nothing
-  mElem app k Star g sols = case g of Star => Just sols; _ => Nothing
-  mElem app k (QSortC sig j sp) g sols =
+  mElemP pats app k (QuotTy a r) g sols =
+    case g of QuotTy a' r' => mElemP pats False k a a' sols >>= mElemP pats False (k + 2) r r'; _ => Nothing
+  mElemP pats app k (Class t) g sols =
+    case g of Class t' => mElemP pats False k t t' sols; _ => Nothing
+  mElemP pats app k (QuotElim f q) g sols =
+    case g of QuotElim f' q' => mElemP pats False (S k) f f' sols >>= mElemP pats False k q q'; _ => Nothing
+  mElemP pats app k (Squash ty) g sols =
+    case g of Squash ty' => mTyP pats k ty ty' sols; _ => Nothing
+  mElemP pats app k Star g sols = case g of Star => Just sols; _ => Nothing
+  mElemP pats app k (QSortC sig j sp) g sols =
     case g of
       QSortC sig' j' sp' =>
-        if j == j' && show sig == show sig' then mSub k sp sp' sols else Nothing
+        if j == j' && show sig == show sig' then mSubP pats k sp sp' sols else Nothing
       _ => Nothing
-  mElem app k (QCtor sig j sp) g sols =
+  mElemP pats app k (QCtor sig j sp) g sols =
     case g of
       QCtor sig' j' sp' =>
-        if j == j' && show sig == show sig' then mSub k sp sp' sols else Nothing
+        if j == j' && show sig == show sig' then mSubP pats k sp sp' sols else Nothing
       _ => Nothing
-  mElem app k (QElim sig j mots mths sp w) g sols =
+  mElemP pats app k (QElim sig j mots mths sp w) g sols =
     case g of
       QElim sig' j' mots' mths' sp' w' =>
         if j == j' && show sig == show sig'
-          then mTys k mots mots' sols >>= mElems k mths mths' >>= mSub k sp sp' >>= mElem False k w w'
+          then mTys pats k mots mots' sols >>= mElems pats k mths mths' >>= mSubP pats k sp sp' >>= mElemP pats False k w w'
           else Nothing
       _ => Nothing
-  mElem app k (NuTy p) g sols =
-    case g of NuTy p' => mPoly k p p' sols; _ => Nothing
-  mElem app k (Out t) g sols =
-    case g of Out t' => mElem False k t t' sols; _ => Nothing
-  mElem app k (Corec p a f x) g sols =
+  mElemP pats app k (NuTy p) g sols =
+    case g of NuTy p' => mPoly pats k p p' sols; _ => Nothing
+  mElemP pats app k (Out t) g sols =
+    case g of Out t' => mElemP pats False k t t' sols; _ => Nothing
+  mElemP pats app k (Corec p a f x) g sols =
     case g of
       Corec p' a' f' x' =>
-        mPoly k p p' sols >>= mElem False k a a' >>= mElem False (S k) f f' >>= mElem False k x x'
+        mPoly pats k p p' sols >>= mElemP pats False k a a' >>= mElemP pats False (S k) f f' >>= mElemP pats False k x x'
       _ => Nothing
 
-  mElems : (k : Nat) -> List Elem -> List Elem -> Sols -> Maybe Sols
-  mElems k [] [] sols = Just sols
-  mElems k (x :: xs) (y :: ys) sols = mElem False k x y sols >>= mElems k xs ys
-  mElems k _ _ _ = Nothing
+  mElems : (pats : Bool) -> (k : Nat) -> List Elem -> List Elem -> Sols -> Maybe Sols
+  mElems pats k [] [] sols = Just sols
+  mElems pats k (x :: xs) (y :: ys) sols = mElemP pats False k x y sols >>= mElems pats k xs ys
+  mElems pats k _ _ _ = Nothing
 
-  mTys : (k : Nat) -> List Ty -> List Ty -> Sols -> Maybe Sols
-  mTys k [] [] sols = Just sols
-  mTys k (x :: xs) (y :: ys) sols = mTy k x y sols >>= mTys k xs ys
-  mTys k _ _ _ = Nothing
+  mTys : (pats : Bool) -> (k : Nat) -> List Ty -> List Ty -> Sols -> Maybe Sols
+  mTys pats k [] [] sols = Just sols
+  mTys pats k (x :: xs) (y :: ys) sols = mTyP pats k x y sols >>= mTys pats k xs ys
+  mTys pats k _ _ _ = Nothing
 
-  mSub : (k : Nat) -> SubNorm -> SubNorm -> Sols -> Maybe Sols
-  mSub k [<] [<] sols = Just sols
-  mSub k (xs :< x) (ys :< y) sols = mSub k xs ys sols >>= mElem False k x y
-  mSub k _ _ _ = Nothing
+  mSubP : (pats : Bool) -> (k : Nat) -> SubNorm -> SubNorm -> Sols -> Maybe Sols
+  mSubP pats k [<] [<] sols = Just sols
+  mSubP pats k (xs :< x) (ys :< y) sols = mSubP pats k xs ys sols >>= mElemP pats False k x y
+  mSubP pats k _ _ _ = Nothing
 
   ||| The 𝕌-code of a type in the image of El-decoding — the mixed-El
   ||| case of the ↓ loop, oracle-side: a bare hole under El may bind
@@ -293,54 +457,72 @@ mutual
   codeOfTy _ = Nothing
 
   export
-  mTy : (k : Nat) -> Ty -> Ty -> Sols -> Maybe Sols
-  mTy k Ty.ZeroTy g sols = case g of Ty.ZeroTy => Just sols; _ => Nothing
-  mTy k Ty.OneTy g sols = case g of Ty.OneTy => Just sols; _ => Nothing
-  mTy k Ty.NatTy g sols = case g of Ty.NatTy => Just sols; _ => Nothing
-  mTy k UniverseTy g sols = case g of UniverseTy => Just sols; _ => Nothing
-  mTy k PropTy g sols = case g of PropTy => Just sols; _ => Nothing
-  mTy k (Ty.PiTy a b) g sols =
-    case g of Ty.PiTy a' b' => mTy k a a' sols >>= mTy (S k) b b'; _ => Nothing
-  mTy k (Ty.SigmaTy a b) g sols =
-    case g of Ty.SigmaTy a' b' => mTy k a a' sols >>= mTy (S k) b b'; _ => Nothing
-  mTy k (Ty.SumTy a b) g sols =
-    case g of Ty.SumTy a' b' => mTy k a a' sols >>= mTy k b b'; _ => Nothing
-  mTy k (El t) g sols = case g of
-    El t' => mElem False k t t' sols
+  mTyP : (pats : Bool) -> (k : Nat) -> Ty -> Ty -> Sols -> Maybe Sols
+  mTyP pats k Ty.ZeroTy g sols = case g of Ty.ZeroTy => Just sols; _ => Nothing
+  mTyP pats k Ty.OneTy g sols = case g of Ty.OneTy => Just sols; _ => Nothing
+  mTyP pats k Ty.NatTy g sols = case g of Ty.NatTy => Just sols; _ => Nothing
+  mTyP pats k UniverseTy g sols = case g of UniverseTy => Just sols; _ => Nothing
+  mTyP pats k PropTy g sols = case g of PropTy => Just sols; _ => Nothing
+  mTyP pats k (Ty.PiTy a b) g sols =
+    case g of Ty.PiTy a' b' => mTyP pats k a a' sols >>= mTyP pats (S k) b b'; _ => Nothing
+  mTyP pats k (Ty.SigmaTy a b) g sols =
+    case g of Ty.SigmaTy a' b' => mTyP pats k a a' sols >>= mTyP pats (S k) b b'; _ => Nothing
+  mTyP pats k (Ty.SumTy a b) g sols =
+    case g of Ty.SumTy a' b' => mTyP pats k a a' sols >>= mTyP pats k b b'; _ => Nothing
+  mTyP pats k (El t) g sols = case g of
+    El t' => mElemP pats False k t t' sols
     -- a bare hole under El against a DECODED rigid type binds to its
-    -- code (the matching-up-to-El-decoding of the ↓ loop's step 7)
+    -- code (the matching-up-to-El-decoding of the ↓ loop's step 7);
+    -- in PATTERN mode any El-pattern may match through the code
     _ => case t of
       SigVar nm [<] => case holeView nm of
         Just _ => case codeOfTy g of
-          Just c => mElem False k t c sols
+          Just c => mElemP pats False k t c sols
           Nothing => Nothing
         Nothing => Nothing
-      _ => Nothing
-  mTy k (Prf t) g sols = case g of Prf t' => mElem False k t t' sols; _ => Nothing
-  mTy k (Quotient a r) g sols =
-    case g of Quotient a' r' => mTy k a a' sols >>= mElem False (k + 2) r r'; _ => Nothing
-  mTy k (Ty.SigVar nm sp) g sols =
+      _ => if pats
+             then case codeOfTy g of
+                    Just c => mElemP pats False k t c sols
+                    Nothing => Nothing
+             else Nothing
+  mTyP pats k (Prf t) g sols = case g of Prf t' => mElemP pats False k t t' sols; _ => Nothing
+  mTyP pats k (Quotient a r) g sols =
+    case g of Quotient a' r' => mTyP pats k a a' sols >>= mElemP pats False (k + 2) r r'; _ => Nothing
+  mTyP pats k (Ty.SigVar nm sp) g sols =
     case g of
-      Ty.SigVar nm' sp' => if nm == nm' then mSub k sp sp' sols else Nothing
+      Ty.SigVar nm' sp' => if nm == nm' then mSubP pats k sp sp' sols else Nothing
       _ => Nothing
-  mTy k (QSort sig j sp) g sols =
+  mTyP pats k (QSort sig j sp) g sols =
     case g of
       QSort sig' j' sp' =>
-        if j == j' && show sig == show sig' then mSub k sp sp' sols else Nothing
+        if j == j' && show sig == show sig' then mSubP pats k sp sp' sols else Nothing
       _ => Nothing
-  mTy k (Ty.NuTy p) g sols = case g of Ty.NuTy p' => mPoly k p p' sols; _ => Nothing
+  mTyP pats k (Ty.NuTy p) g sols = case g of Ty.NuTy p' => mPoly pats k p p' sols; _ => Nothing
 
-  mPoly : (k : Nat) -> Poly -> Poly -> Sols -> Maybe Sols
-  mPoly k PHole g sols = case g of PHole => Just sols; _ => Nothing
-  mPoly k (PConst a) g sols = case g of PConst a' => mElem False k a a' sols; _ => Nothing
-  mPoly k (PProd f h) g sols =
-    case g of PProd f' h' => mPoly k f f' sols >>= mPoly k h h'; _ => Nothing
-  mPoly k (PSum f h) g sols =
-    case g of PSum f' h' => mPoly k f f' sols >>= mPoly k h h'; _ => Nothing
-  mPoly k (PSigma a f) g sols =
-    case g of PSigma a' f' => mElem False k a a' sols >>= mPoly (S k) f f'; _ => Nothing
-  mPoly k (PPi a f) g sols =
-    case g of PPi a' f' => mElem False k a a' sols >>= mPoly (S k) f f'; _ => Nothing
+  mPoly : (pats : Bool) -> (k : Nat) -> Poly -> Poly -> Sols -> Maybe Sols
+  mPoly pats k PHole g sols = case g of PHole => Just sols; _ => Nothing
+  mPoly pats k (PConst a) g sols = case g of PConst a' => mElemP pats False k a a' sols; _ => Nothing
+  mPoly pats k (PProd f h) g sols =
+    case g of PProd f' h' => mPoly pats k f f' sols >>= mPoly pats k h h'; _ => Nothing
+  mPoly pats k (PSum f h) g sols =
+    case g of PSum f' h' => mPoly pats k f f' sols >>= mPoly pats k h h'; _ => Nothing
+  mPoly pats k (PSigma a f) g sols =
+    case g of PSigma a' f' => mElemP pats False k a a' sols >>= mPoly pats (S k) f f'; _ => Nothing
+  mPoly pats k (PPi a f) g sols =
+    case g of PPi a' f' => mElemP pats False k a a' sols >>= mPoly pats (S k) f f'; _ => Nothing
+
+||| The public match: the CLASSIC rigid engine. The MILLER-PATTERN
+||| tier (mTyP True) is never part of the general path — the spine
+||| elaborator invokes it explicitly, in an END-STAGE pass restricted
+||| to holes the classic walk left unsolved, so every
+||| previously-solving site solves identically.
+export
+mTy : (k : Nat) -> Ty -> Ty -> Sols -> Maybe Sols
+mTy k pat g sols = mTyP False k pat g sols
+
+export
+mElem : (applied : Bool) -> (k : Nat) -> Elem -> Elem -> Sols -> Maybe Sols
+mElem app k = mElemP False app k
 
 -- ===== Telescopes =====
 
@@ -769,75 +951,3 @@ mutual
     PSum f g => PSum (absP c sc f) (absP c sc g)
     PSigma a f => PSigma (absE c sc a) (absP (S c) sc f)
     PPi a f => PPi (absE c sc a) (absP (S c) sc f)
-
--- ===== Skeleton-freedom =====
---
--- A SYNTHESIZED annotation (a recovered motive, an inferred ≡-domain)
--- ships with an empty skeleton, so it may not contain STUCK
--- ELIMINATORS — bare core ℕ-elim/⊎-elim/quot-elim need kernel
--- payloads (motives, well-definedness) an empty skeleton cannot
--- carry. (QElim and Corec carry their annotations inline in core and
--- are fine.) Elision verdicts and the elided rules both require this.
-
-mutual
-  export
-  skelFreeE : Elem -> Bool
-  skelFreeE e = case e of
-    NatElim _ _ _ => False
-    SumElim _ _ _ => False
-    QuotElim _ _ => False
-    CtxVar _ => True
-    SigVar _ sp => all skelFreeE (toList sp)
-    ZeroElim t => skelFreeE t
-    OneIntro => True
-    NatIntro0 => True
-    NatIntro1 t => skelFreeE t
-    PiIntro b => skelFreeE b
-    PiApp f a => skelFreeE f && skelFreeE a
-    Let d b => skelFreeE d && skelFreeE b
-    SigmaIntro u v => skelFreeE u && skelFreeE v
-    SigmaElim1 t => skelFreeE t
-    SigmaElim2 t => skelFreeE t
-    Inj1 t => skelFreeE t
-    Inj2 t => skelFreeE t
-    ZeroTy => True
-    OneTy => True
-    NatTy => True
-    PiTy a b => skelFreeE a && skelFreeE b
-    SigmaTy a b => skelFreeE a && skelFreeE b
-    SumTy a b => skelFreeE a && skelFreeE b
-    EqTy l r ty => skelFreeE l && skelFreeE r && skelFreeT ty
-    QuotTy a r => skelFreeE a && skelFreeE r
-    Class t => skelFreeE t
-    Squash ty => skelFreeT ty
-    Star => True
-    QSortC _ _ sp => all skelFreeE (toList sp)
-    QCtor _ _ sp => all skelFreeE (toList sp)
-    QElim _ _ mots mths sp w =>
-      all skelFreeT mots && all skelFreeE mths && all skelFreeE (toList sp) && skelFreeE w
-    NuTy p => skelFreeP p
-    Out t => skelFreeE t
-    Corec p a f x => skelFreeP p && skelFreeE a && skelFreeE f && skelFreeE x
-
-  export
-  skelFreeT : Ty -> Bool
-  skelFreeT ty = case ty of
-    Ty.PiTy a b => skelFreeT a && skelFreeT b
-    Ty.SigmaTy a b => skelFreeT a && skelFreeT b
-    Ty.SumTy a b => skelFreeT a && skelFreeT b
-    El t => skelFreeE t
-    Prf t => skelFreeE t
-    Quotient a r => skelFreeT a && skelFreeE r
-    Ty.SigVar _ sp => all skelFreeE (toList sp)
-    QSort _ _ sp => all skelFreeE (toList sp)
-    Ty.NuTy p => skelFreeP p
-    _ => True
-
-  skelFreeP : Poly -> Bool
-  skelFreeP p = case p of
-    PHole => True
-    PConst a => skelFreeE a
-    PProd f g => skelFreeP f && skelFreeP g
-    PSum f g => skelFreeP f && skelFreeP g
-    PSigma a f => skelFreeE a && skelFreeP f
-    PPi a f => skelFreeE a && skelFreeP f

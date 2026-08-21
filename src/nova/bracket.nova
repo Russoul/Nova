@@ -53,7 +53,7 @@ def brOutConst : {a b : 𝕌} (g : El (Br a) → El b) (x y : El a) → g (br x)
 def brEta : {a b : 𝕌}
   (g : El (Br a) → El b)
   (t : El (Br a))
-  → brElim (λx. g (br x)) (brOutConst g) t ≡ g t ∈ El b
+  → brElim (λx. g (br x)) (brOutConst g) t ≡ g t
   using (Br.unfold, br.eq, brElim.eq, brOutConst.eq) ≔
   λa. λb. λg. λt. quot-elim (x. ⋆) t
 

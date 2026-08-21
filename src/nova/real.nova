@@ -43,7 +43,7 @@ def qInvNatPos : (n : ℕ) → sgnQ (qInvNat n) ≡ sPos
     real.qInvNat.eq) ≔
   λn. trans
     _
-    (intSgn (nzToInt (nzMul nzOne (nzPos n))))
+    _
     _
     (cong (λv. Sign) (λv. intSgn v) (sym _ _ (nzToIntMul nzOne (nzPos n))))
     (trans _ _ sPos (intSgnNz (nzMul nzOne (nzPos n))) ⋆)

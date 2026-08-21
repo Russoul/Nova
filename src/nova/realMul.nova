@@ -139,7 +139,7 @@ def qMulRBoundIdx : (c m n : ℕ) → qOfNat (S c) * rBound (mulIdx c m) (mulIdx
   using (rationalQ.+.eq, real.qInvNat.eq, real.rBound.eq, realMul.mulIdx.eq) ≔
   λc. λm. λn. trans
     _
-    (qOfNat (S c) * qInvNat (mulIdx c m) + qOfNat (S c) * qInvNat (mulIdx c n))
+    _
     _
     (qDistribL (qOfNat (S c)) (qInvNat (mulIdx c m)) (qInvNat (mulIdx c n)))
     (trans
@@ -459,7 +459,7 @@ def wdBoundEq : {C A E n a b t k : ℕ}
         (λw. w + (qOfNat A * rBound t t + qOfNat E * rBound t b))
         (trans
           (qOfNat C * rBound a t)
-          (qOfNat C * qInvNat a + qOfNat C * qInvNat t)
+          _
           _
           (qDistribL (qOfNat C) (qInvNat a) (qInvNat t))
           (cong (λw. Q) (λw. w + qOfNat C * qInvNat t) h1)))
@@ -484,7 +484,7 @@ def wdBoundEq : {C A E n a b t k : ℕ}
           (λw. qInvNat n + qOfNat C * qInvNat t + (qOfNat A * qInvNat t + qOfNat A * qInvNat t + w))
           (trans
             (qOfNat E * rBound t b)
-            (qOfNat E * qInvNat t + qOfNat E * qInvNat b)
+            _
             _
             (qDistribL (qOfNat E) (qInvNat t) (qInvNat b))
             (cong (λw. Q) (λw. qOfNat E * qInvNat t + w) h2)))))

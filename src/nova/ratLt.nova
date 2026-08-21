@@ -110,8 +110,8 @@ def leQLtTrans : (x y z : El Q) → El (x ≤ y) → El (y < z) → El (x < z)
     (trans
       {Sign}
       _
-      (sgnQ (z + qNeg y + (y + qNeg x)))
-      sPos
+      _
+      _
       (cong (λw. Sign) (λw. sgnQ w) (sym _ _ (qSubSplit x y z)))
       (sgnQAddPosNonNeg (sgnOfLtQ h2) h1))
 
@@ -127,8 +127,8 @@ def ltQLeTrans : (x y z : El Q) → El (x < y) → El (y ≤ z) → El (x < z)
     (trans
       {Sign}
       _
-      (sgnQ (y + qNeg x + (z + qNeg y)))
-      sPos
+      _
+      _
       (cong
         (λw. Sign)
         (λw. sgnQ w)

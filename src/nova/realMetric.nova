@@ -185,12 +185,7 @@ def rleOfAbsSub : {p : El RSeq}
 
 def realDistSelf : (u : El Real) → realDist u u ≡ realZero
   using (real.Real.unfold, realAbs.realAbs.eq, realGroup.-.eq, realMetric.realDist.eq) ≔
-  λu. trans
-    _
-    (realAbs realZero)
-    _
-    (cong (λw. Real) (λw. realAbs w) {u - u} {realZero} realSubSelf)
-    realAbsZero
+  λu. trans _ _ _ (cong (λw. Real) (λw. realAbs w) {u - u} {realZero} realSubSelf) realAbsZero
 
 def realDistSym : (u v : El Real) → realDist u v ≡ realDist v u
   using (real.Real.unfold, realAbs.realAbs.eq, realGroup.-.eq, realMetric.realDist.eq) ≔

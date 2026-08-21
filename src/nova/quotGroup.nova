@@ -553,7 +553,7 @@ def qFactorEta : (G : 𝕌)
   (phi : El (QGroup _ g N) → El H)
   (c : (a a' : El G) → Prf (cosetRel _ g N a a') → phi (class a) ≡ phi (class a'))
   (u : El (QGroup _ g N))
-  → qFactor _ _ _ (λa. phi (class a)) c u ≡ phi u ∈ El H
+  → qFactor _ _ _ (λa. phi (class a)) c u ≡ phi u
   using (QGroup.unfold, qFactor.eq) ≔
   λG. λg. λN. λH. λphi. λc. λu. quot-elim (a. ⋆) u
 

@@ -668,6 +668,39 @@ Three surface truths the tool had to learn:
     pre-existing implicit before a needed override blocks the site
     like a blank does (its argument is elided; nothing to wrap).
 
+THE MILLER-PATTERN TIER AND FAIL-DEFERRAL (2026-08-21): funextD's
+{B} was uninferable — its only trace in a source's type is the
+APPLIED hole ?B x, beyond the rigid first-order matcher, and one
+failing subproblem discards a whole match (even the structurally
+clean ?A ↦ ℕ half). Both are now addressed, both ADDITIVELY:
+
+  * a hole applied to distinct bound variables is a MILLER PATTERN
+    — uniquely solvable by abstraction (?B x ↦ λx. ground), no
+    search, still first-order-decidable. The pattern tier runs as
+    an END-STAGE PASS over the recorded sources, restricted to
+    holes the classic walk left UNSOLVED and gaining only their
+    keys — every previously-solving site solves identically, which
+    is what keeps committed corpora valid (the per-call-fallback
+    version broke homQuotLawQ through first-match preemption; the
+    eager stale-hole refresh broke ratAddZeroL by flipping
+    source-feeding inferences into checks — both withdrawn). The
+    pass's join also opens .unfold-cited (exposure-licensed) heads
+    — jn proper sees only .eq citations — and El-patterns match
+    DECODED grounds through codeOfTy. Solutions obey the
+    bare-skeleton law (skelFreeE), now enforced on EVERY capture:
+    an eliminator-bearing capture could never survive the kernel.
+  * FAIL-DEFERRAL: an inference-form argument whose inference
+    FAILS at a holey domain was never going to be a source — it
+    defers like an intro (attemptM keeps state on success,
+    restores on failure) and checks after the joint solve, where
+    its domain is concrete. bisim s (map (λx. x) s) elaborates:
+    map defers, s binds bisim's carrier, map re-checks against
+    El (stream a) and its {b} solves from the expected type.
+
+The trials deliberately DO NOT model the new tiers yet (emission
+stays conservative); the corpus still gained 32 blanks and 2
+annotation elisions from the sharpened solve, byte-idempotent.
+
 Migrated so far, tool-verified, per the census: cong {A}{v}{w}
 (597 sites), sym {A} (410), trans {A} (620), transport {A}{a}{b}
 (154), transportP {A}{a}{b} (40) — nine hand-spelled blocker sites

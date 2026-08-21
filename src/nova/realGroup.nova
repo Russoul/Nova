@@ -92,7 +92,7 @@ def realSubSelf : {u : El Real} → u - u ≡ realZero
 
 def realSubZero : (u : El Real) → u - realZero ≡ u
   using (real.Real.unfold, real.realZero.eq, realAdd.+.eq, realGroup.-.eq, realNeg.realNeg.eq) ≔
-  λu. trans _ (u + realZero) _ (cong (λw. Real) (λw. u + w) realNeg.realNegZero) (realAddZeroR u)
+  λu. trans _ _ _ (cong (λw. Real) (λw. u + w) realNeg.realNegZero) (realAddZeroR u)
 
 -- (u − v) + (v − w) ≡ u − w : the three-term split
 def realSubVia : {u v w : El Real} → u - v + (v - w) ≡ u - w ≔

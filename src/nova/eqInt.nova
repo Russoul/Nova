@@ -289,7 +289,7 @@ def neqZSound : {z1 z2 : El Int} → Prf (NeqZ z1 z2) → Prf (¬ (z1 ≡ z2))
     prop.⊃.eq,
     prop.⊃.unfold,
     prop.⊥.eq) ≔
-  λz1. λz2. λh. impIntro (z1 ≡ z2) ∥𝟘∥ (λe. impApply (EqZ z1 z2) ⊥ h (eqZCompleteP e))
+  λz1. λz2. λh. impIntro (z1 ≡ z2) ∥𝟘∥ (λe. impApply _ ⊥ h (eqZCompleteP e))
 
 def neqZComplete : {z1 z2 : El Int} → Prf (¬ (z1 ≡ z2)) → Prf (NeqZ z1 z2)
   using (eqInt.EqZ.eq,

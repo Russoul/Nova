@@ -752,7 +752,7 @@ def ratNegWD : {p p' : El Rat}
     rationalQ.dInt.eq) ≔
   λp. λp'. λh. trans
     _
-    (intNeg (num p * dInt p'))
+    _
     _
     (intMulNegL (num p) (dInt p'))
     (trans
@@ -1008,7 +1008,7 @@ def ratMulOneR : {p : El Rat} → ratMul p ratOne ≡ p
     _
     (trans
       (ratMul p ratOne)
-      (mkRat (num p) (nzMul (den p) nzOne))
+      _
       _
       (cong (λu. Rat) (λx. mkRat x (nzMul (den p) nzOne)) (intMulOneR (num p)))
       (cong (λu. Rat) (λd. mkRat (num p) d) {nzMul (den p) nzOne} {den p} nzMulOneR))
@@ -1043,7 +1043,7 @@ def qMulWDInner : (p : El Rat)
     rationalQ.ratMul.eq) ≔
   λp. λq. λq'. λh. trans
     _
-    (num p * num q * (dInt p * dInt q'))
+    _
     _
     (mulCongR (num p * num q) (dInt (ratMul p q')) (dInt p * dInt q') (nzToIntMul (den p) (den q')))
     (trans
@@ -1248,7 +1248,7 @@ def dIntMul3 : (p q r : El Rat) → dInt (ratMul p (ratAdd q r)) ≡ dInt p * (d
     rationalQ.ratMul.eq) ≔
   λp. λq. λr. trans
     _
-    (dInt p * dInt (ratAdd q r))
+    _
     _
     (nzToIntMul (den p) (nzMul (den q) (den r)))
     (mulCongR (dInt p) (dInt (ratAdd q r)) (dInt q * dInt r) (nzToIntMul (den q) (den r)))
@@ -1538,7 +1538,7 @@ def nzqInvRel : (x : El NZQ)
     rationalQ.ratMul.eq) ≔
   λx. trans
     _
-    (nzToInt (x .π₁) * nzToInt (x .π₂))
+    _
     _
     (intMulOneR (nzToInt (x .π₁) * nzToInt (x .π₂)))
     (trans
