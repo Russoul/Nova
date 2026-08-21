@@ -13,6 +13,8 @@ def Int : 𝕌 ≔ (ℕ ⨯ ℕ) / (p q. p .π₁ + q .π₂ ≡ p .π₂ + q .�
 -- it back (intEffective.nova)
 def IntR : (ℕ ⨯ ℕ) → (ℕ ⨯ ℕ) → Ω ≔ λp. λq. p .π₁ + q .π₂ ≡ p .π₂ + q .π₁
 
+def toInt : (ℕ ⨯ ℕ) → El Int using (integer.Int.unfold) ≔ λr. class r
+
 -- 0 = 0: (Z,Z) and (S Z, S Z) are the same integer
 def zeroEq : class (Z, Z) ≡ class (S Z, S Z) ∈ El Int using (integer.Int.unfold) ≔ ⋆
 

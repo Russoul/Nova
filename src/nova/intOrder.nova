@@ -39,7 +39,7 @@ def intOfNatInjZ : {k : ℕ} → (intOfNat k ≡ intZero) → k ≡ Z
     integer.intZero.eq,
     nat.plusZeroId,
     nat.plusZeroId.rw) ≔
-  λk. λh. let r ≔ intEffective _ _ h in ⋆
+  λk. λh. let r ≔ intEffective h in ⋆
 
 -- x + ofNat (a + b) ≡ (x + ofNat a) + ofNat b, hypothesis-free
 def intOfNatSplit : {x : El Int} {a b : ℕ} → x + intOfNat (a + b) ≡ x + intOfNat a + intOfNat b
@@ -66,7 +66,7 @@ def intCancelL : (x a b : El Int) → (x + a ≡ x + b) → a ≡ b ≔
     _
     _
     (sym _ _ (intNegPlusCancel x a))
-    (trans _ _ b (cong (λu. Int) (λu. intNeg x + u) h) (intNegPlusCancel x b))
+    (trans _ _ _ (cong (λu. Int) (λu. intNeg x + u) h) (intNegPlusCancel x b))
 
 -- x + (y − x) ≡ y, and y − (y − x) ≡ x: the two rearrangements the
 -- order decision below hangs on
@@ -109,7 +109,7 @@ def leZTrans : {x : El Int} (y : El Int) {z : El Int} → El (x ≤ y) → El (y
         (trans
           _
           _
-          z
+          _
           (cong (λu. Int) (λu. u + intOfNat (l2 .π₁)) (idToEq _ _ _ (l1 .π₂)))
           (idToEq _ _ _ (l2 .π₂))))
 
@@ -133,7 +133,7 @@ def leZAntisym : (x y : El Int) → El (x ≤ y) → El (y ≤ x) → x ≡ y us
     (trans
       _
       _
-      x
+      _
       (cong (λu. Int) (λu. u + intOfNat (l2 .π₁)) h1)
       h2) in let sumz : intOfNat
     (l1 .π₁
@@ -166,7 +166,7 @@ def leZAntisym : (x y : El Int) → El (x ≤ y) → El (y ≤ x) → x ≡ y us
       (cong
         (λu. Int)
         (λu. x + u)
-        (sym _ _ (trans _ _ intZero (cong (λu. Int) (λu. intOfNat u) k1z) intOfNatZero))))
+        (sym _ _ (trans _ _ _ (cong (λu. Int) (λu. intOfNat u) k1z) intOfNatZero))))
     h1
 
 -- ===== monotonicity =====
@@ -342,7 +342,7 @@ def leZMultMonoNat : {x y : El Int} {m : ℕ} → El (x ≤ y) → El (x * intOf
       (trans
         _
         _
-        (y * intOfNat m)
+        _
         (cong (λv. Int) (λv. x * intOfNat m + v) (sym _ _ (intOfNatMul (le .π₁) m)))
         (trans
           _

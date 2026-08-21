@@ -17,12 +17,12 @@ import rationalOrder (≤)
 import ratBound (Bnd, bndIsProp)
 import real (rBound, Regular, RSeq, REq, Real)
 import realNeg (seqOf, regOf)
-import prelude (funext, funextD)
-import equality (trans, sym, cong, transport, sigmaEq2)
+import prelude (funext)
+import equality (trans, sym, cong, transport, pairextD)
 
 def regularIsProp : (f : El (ℕ → Q)) (p q : El (Regular f)) → p ≡ q
   using (rationalQ.Q.unfold, real.Regular.unfold) ≔
-  λf. λp. λq. funextD (λm. funextD (λn. bndIsProp _ _ (p m n) (q m n)))
+  λf. λp. λq. funext (λm. funext (λn. bndIsProp _ _ (p m n) (q m n)))
 
 -- The witness of y has to be READ at Regular (seqOf x), and the
 -- conversion Regular (seqOf y) ≐ Regular (seqOf x) is not one the
@@ -48,8 +48,11 @@ def rseqEqAt : {x y : El RSeq} → (seqOf x ≡ seqOf y) → x ≡ y
     real.rBound.eq,
     realNeg.regOf.eq,
     realNeg.seqOf.eq) ≔
-  λx. λy. λh. sigmaEq2
-    (λf. Regular f)
+  λx. λy. λh. pairextD {}
+    _
+    Regular
+    _
+    _
     h
     (regularIsProp _ (regOf x) (transport (λf. Regular f) (sym _ _ h) (regOf y)))
 

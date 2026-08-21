@@ -65,11 +65,11 @@ def natDiffClass : {a b k : ℕ} → (a + k ≡ b) → intOfNat k ≡ class (b, 
 -- effectivity of the ℤ quotient reads the two verdicts back as ℕ facts
 def natEqOfClassZero : {a b : ℕ} → (class (b, a) ≡ intZero) → b ≡ a
   using (integer.Int.unfold, integer.IntR.eq, integer.intZero.eq, nat.plusZeroId) ≔
-  λa. λb. λh. intEffective _ _ h
+  λa. λb. λh. intEffective h
 
 def natSucOfClassPos : {a b j : ℕ} → (class (S j, Z) ≡ class (b, a) ∈ El Int) → a + S j ≡ b
   using (integer.Int.unfold, integer.IntR.eq) ≔
-  λa. λb. λj. λh. trans _ _ _ (plusComm (S j) a) (trans _ _ _ (intEffective _ _ h) (zeroPlusId b))
+  λa. λb. λj. λh. trans _ _ _ (plusComm (S j) a) (trans _ _ _ (intEffective h) (zeroPlusId b))
 
 def nonNegSgnOfLe : {a b : ℕ} → El (a ≤ b) → El (NonNegS (intSgn (class (b, a))))
   using (integer.Int.unfold, natOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
@@ -110,7 +110,7 @@ def qOfNatDiffNum : {a b : ℕ}
     (trans
       _
       _
-      (intOfNat b + intNeg (intOfNat a))
+      _
       (cong
         (λv. Int)
         (λv. v + intScale nzOne (intNeg (intOfNat a)))

@@ -34,9 +34,7 @@ def ratAddGroup : El (IsGroup Q) using (group.IsGroup.unfold, monoid.IsMonoid.un
           λx. eqToId
             _
             _
-            (qAddZeroR
-              x)),
-    qNeg, (λx. eqToId (qNeg x + x) qZero (qAddNegL x)), λx. eqToId (x + qNeg x) qZero (qAddNegR x)
+            (qAddZeroR x)), qNeg, (λx. eqToId _ _ (qAddNegL x)), λx. eqToId _ _ (qAddNegR x)
 
 def ratMulMonoid : El (IsMonoid Q) using (monoid.IsMonoid.unfold) ≔
   (*),
@@ -84,7 +82,7 @@ def qOneNotZeroD : El (Id _ qOne qZero) → 𝟘
     _
     _
     _
-    p in let r ≔ qEffective ratOne ratZero h in let e ≔ intEffective _ _ r in zNotS (sym _ _ e)
+    p in let r ≔ qEffective ratOne ratZero h in let e ≔ intEffective r in zNotS (sym _ _ e)
 
 -- ℚ is a field. The inverse component is UNSQUASHED: qInv is an
 -- honest operation (rationalAlgInv), so the witness is (qInv x, law).

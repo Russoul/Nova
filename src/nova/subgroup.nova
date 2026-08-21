@@ -49,29 +49,25 @@ def sgIntro : {G : 𝕌}
               x
               y))) → ((x : El G) → Prf (N x) → Prf (N (ginv _ g x))) → Prf (IsSubgroup _ g N)
   using (IsSubgroup.eq, hasUnit.eq, closedOp.eq, closedInv.eq) ≔
-  λG. λg. λN. λu. λo. λi. andIntro
-    (hasUnit _ g N)
-    _
-    u
-    (andIntro (closedOp _ g N) (closedInv _ g N) (⋆ o) (⋆ i))
+  λG. λg. λN. λu. λo. λi. andIntro u (andIntro {} (closedOp _ g N) (closedInv _ g N) (⋆ o) (⋆ i))
 
 def sgUnit : (G : 𝕌) (g : El (IsGroup G)) (N : El G → Ω) → Prf (IsSubgroup _ g N) → Prf (N (ge g))
   using (IsSubgroup.eq, hasUnit.eq) ≔
-  λG. λg. λN. λh. andFst (hasUnit _ g N) _ h
+  λG. λg. λN. λh. andFst h
 
 def sgOp : (G : 𝕌)
   (g : El (IsGroup G))
   (N : El G → Ω)
   → Prf (IsSubgroup _ g N) → (x y : El G) → Prf (N x) → Prf (N y) → Prf (N (gop _ g x y))
   using (IsSubgroup.eq, closedOp.unfold) ≔
-  λG. λg. λN. λh. λx. λy. λhx. λhy. squash-elim (andFst _ _ (andSnd _ _ h)) (u. u x y hx hy)
+  λG. λg. λN. λh. λx. λy. λhx. λhy. squash-elim (andFst (andSnd h)) (u. u x y hx hy)
 
 def sgInv : (G : 𝕌)
   (g : El (IsGroup G))
   (N : El G → Ω)
   → Prf (IsSubgroup _ g N) → (x : El G) → Prf (N x) → Prf (N (ginv _ g x))
   using (IsSubgroup.eq, closedInv.unfold) ≔
-  λG. λg. λN. λh. λx. λhx. squash-elim (andSnd _ _ (andSnd _ _ h)) (u. u x hx)
+  λG. λg. λN. λh. λx. λhx. squash-elim (andSnd (andSnd h)) (u. u x hx)
 
 -- ===== normality =====
 --
@@ -103,7 +99,7 @@ def nmConjInv : (G : 𝕌)
   → Prf (IsNormal _ g N) → (x n : El G) → Prf (N n) → Prf (N (gop _ g (ginv _ g x) (gop _ g n x))) ≔
   λG. λg. λN. λh. λx. λn. λhn. transportP
     N
-    (cong (λw. G) (λw. gop G g (ginv _ g x) (gop _ g n w)) (gInvInv _ g x))
+    (cong (λw. G) (λw. gop _ g (ginv _ g x) (gop _ g n w)) (gInvInv _ g x))
     (nmConj _ _ _ h (ginv _ g x) n hn)
 
 -- In an ABELIAN group conjugation is the identity, so normality is
@@ -114,7 +110,7 @@ def abelianConj : {G : 𝕌}
   → ((x y : El G)
     → gop _ g x y ≡ gop _ g y x) → (x n : El G) → gop _ g x (gop _ g n (ginv _ g x)) ≡ n ≔
   λG. λg. λcomm. λx. λn. gop _ g x (gop _ g n (ginv _ g x))
-      ≡⟨ cong (λw. G) (λw. gop G g x w) (comm n (ginv _ g x)) ⟩ gop _ g x (gop _ g (ginv _ g x) n)
+      ≡⟨ cong (λw. G) (λw. gop _ g x w) (comm n (ginv _ g x)) ⟩ gop _ g x (gop _ g (ginv _ g x) n)
       ≡⟨ gCancelInner _ g x n ⟩ n
 
 def abelianNormal : {G : 𝕌}
@@ -146,7 +142,7 @@ def cosetFlip : {G : 𝕌}
   → ginv _ g (gop _ g x (ginv _ g y)) ≡ gop _ g y (ginv _ g x) ≔
   λG. λg. λx. λy. ginv _ g (gop _ g x (ginv _ g y))
       ≡⟨ gOpInv _ g x (ginv _ g y) ⟩ gop _ g (ginv _ g (ginv _ g y)) (ginv _ g x)
-      ≡⟨ cong (λw. G) (λw. gop G g w (ginv _ g x)) (gInvInv _ g y) ⟩ gop _ g y (ginv _ g x)
+      ≡⟨ cong (λw. G) (λw. gop _ g w (ginv _ g x)) (gInvInv _ g y) ⟩ gop _ g y (ginv _ g x)
 
 def cosetSymm : (G : 𝕌)
   (g : El (IsGroup G))
@@ -174,7 +170,7 @@ def cosetSplice : {G : 𝕌}
         (gop _ g y (ginv _ g z)) ⟩ gop _ g x (gop _ g (ginv _ g y) (gop _ g y (ginv _ g z)))
       ≡⟨ cong
         (λw. G)
-        (λw. gop G g x w)
+        (λw. gop _ g x w)
         (gCancelInnerInv _ g y (ginv _ g z)) ⟩ gop _ g x (ginv _ g z)
 
 def cosetTrans : (G : 𝕌)

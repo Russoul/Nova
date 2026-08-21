@@ -330,10 +330,7 @@ def qArchAt : (N : El Int)
     _
     _
     _
-    (v .π₂ .π₂) in transport
-    ArchWit
-    e
-    (qArchPos (trans _ _ sPos (cong (λw. Sign) (λw. sgnQ w) e) hp))
+    (v .π₂ .π₂) in transport ArchWit e (qArchPos (trans _ _ _ (cong (λw. Sign) (λw. sgnQ w) e) hp))
 
 -- every positive rational dominates a unit fraction. The witness is
 -- squashed: a bare Σ would ask the class to determine the index
@@ -413,18 +410,13 @@ def qAddSelfCancel : (h : El Q) → (h + h ≡ h) → h ≡ qZero ≔
         _
         _
         (qAddAssoc h h (qNeg h))
-        (trans _ _ h (cong (λw. Q) (λw. h + w) (qAddNegR h)) (qAddZeroR h))))
-    (trans _ _ qZero (cong (λw. Q) (λw. w + qNeg h) e) (qAddNegR h))
+        (trans _ _ _ (cong (λw. Q) (λw. h + w) (qAddNegR h)) (qAddZeroR h))))
+    (trans _ _ _ (cong (λw. Q) (λw. w + qNeg h) e) (qAddNegR h))
 
 -- no unit fraction is zero
 def qInvNatNotZero : (k : ℕ) → (qInvNat k ≡ qZero) → 𝟘 ≔
   λk. λe. sZeroNotPos
-    (trans
-      _
-      _
-      _
-      (sym _ _ (trans _ _ sZero (cong (λw. Sign) (λw. sgnQ w) e) sgnQZero))
-      (qInvNatPos k))
+    (trans _ _ _ (sym _ _ (trans _ _ _ (cong (λw. Sign) (λw. sgnQ w) e) sgnQZero)) (qInvNatPos k))
 
 -- a < b would give an index k with 1/(k+1) ≤ a − b ≤ 1/(2k+2), and
 -- those two unit fractions are equal only if the smaller is zero
@@ -523,7 +515,7 @@ def qFourSum : (a b y : El Q) → a + b + y + (b + a) ≡ a + a + (b + b + y)
         (trans
           _
           _
-          (a + a + (b + b))
+          _
           (cong (λw. Q) (λw. a + b + w) (qAddComm b a))
           (qPairSwap a b a b)) ⟩ a + a + (b + b) + y
       ≡⟨ qAddAssoc (a + a) (b + b) y ⟩ a + a + (b + b + y)
@@ -542,7 +534,7 @@ def leQTripleInv : (k : ℕ)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λk. transport
     (λw. qInvNat (dbl (dbl k)) + (qInvNat (dbl (dbl k)) + qInvNat (dbl (dbl k))) ≤ w)
-    (trans _ _ (qInvNat k) (cong (λw. Q) (λw. w + w) (qInvHalf (dbl k))) (qInvHalf k))
+    (trans _ _ _ (cong (λw. Q) (λw. w + w) (qInvHalf (dbl k))) (qInvHalf k))
     (leQTripleQuad (leQZeroInvNat (dbl (dbl k))))
 
 -- the converse of leQSubShift: a bound on the difference is a shifted ≤

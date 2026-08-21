@@ -51,10 +51,7 @@ def nzPosDbl : (n : ℕ) → nzToInt (nzPos (dbl n)) ≡ nzToInt (nzPos n) + nzT
       ≡⟨ nzPosInt (dbl n) ⟩ intOfNat (S (dbl n))
       ≡⟨ cong (λw. Int) (λw. intOfNat w) (sucDbl n) ⟩ intOfNat (S n + S n)
       ≡⟨ sym _ _ (intOfNatPlus (S n) (S n)) ⟩ intOfNat (S n) + intOfNat (S n)
-      ≡⟨ sym
-        _
-        (intOfNat (S n) + intOfNat (S n))
-        (cong (λw. Int) (λw. w + w) (nzPosInt n)) ⟩ nzToInt (nzPos n) + nzToInt (nzPos n)
+      ≡⟨ sym _ _ (cong (λw. Int) (λw. w + w) (nzPosInt n)) ⟩ nzToInt (nzPos n) + nzToInt (nzPos n)
 
 -- ===== the cross-multiplication =====
 -- the unit fraction at index k, as a raw fraction
@@ -154,7 +151,7 @@ def halfCross : {n : ℕ}
             n)) ⟩ (nzToInt (nzPos n) + nzToInt (nzPos n)) * (nzToInt (nzPos n) + nzToInt (nzPos n))
       ≡⟨ sym
         _
-        ((nzToInt (nzPos n) + nzToInt (nzPos n)) * (nzToInt (nzPos n) + nzToInt (nzPos n)))
+        _
         (cong
           (λw. Int)
           (λw. w * w)

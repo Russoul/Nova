@@ -45,10 +45,10 @@ def leQZeroOne : El (qZero ≤ qOne) ≔ leQZeroOfPos _ sgnQOneEq
 
 def qNeZeroOfPos : {u : El Q} → (sgnQ u ≡ sPos) → Prf (¬ (u ≡ qZero)) using (prop.¬.eq) ≔
   λu. λhp. impIntro
-    (u ≡ qZero)
-    ⊥
+    {u ≡ qZero}
+    {⊥}
     (λhz. 𝟘-elim (sZeroNotPos
-      (trans _ _ _ (sym _ _ (trans _ _ sZero (cong (λw. Sign) (λw. sgnQ w) hz) sgnQZeroEq)) hp)))
+      (trans _ _ _ (sym _ _ (trans _ _ _ (cong (λw. Sign) (λw. sgnQ w) hz) sgnQZeroEq)) hp)))
 
 def qMulInvPos : {c : El Q} → (sgnQ c ≡ sPos) → c * qInv c ≡ qOne ≔
   λc. λhp. qMulInvR (qNeZeroOfPos hp)
@@ -95,7 +95,7 @@ def leQZeroInv : {c : El Q} → (sgnQ c ≡ sPos) → El (qZero ≤ qInv c)
           (trans
             _
             _
-            sZero
+            _
             (cong
               (λw. Sign)
               (λw. sgnQ w)
@@ -116,7 +116,7 @@ def cancelR : {z c : El Q} → (sgnQ c ≡ sPos) → z * c * qInv c ≡ z ≔
     _
     _
     (qMulAssoc z c (qInv c))
-    (trans _ _ z (cong (λw. Q) (λw. z * w) (qMulInvPos hp)) (qMulOneR z))
+    (trans _ _ _ (cong (λw. Q) (λw. z * w) (qMulInvPos hp)) (qMulOneR z))
 
 def leQMulCancel : {x y : El Q} (c : El Q) → (sgnQ c ≡ sPos) → El (x * c ≤ y * c) → El (x ≤ y) ≔
   λx. λy. λc. λhp. λh. transport
@@ -143,13 +143,8 @@ def qAddSubCancel : {c u : El Q} → c + (u + qNeg c) ≡ u ≔
       _
       _
       (sym _ _ (qAddAssoc c u (qNeg c)))
-      (trans
-        _
-        _
-        (u + (c + qNeg c))
-        (cong (λw. Q) (λw. w + qNeg c) (qAddComm c u))
-        (qAddAssoc u c (qNeg c))))
-    (trans _ _ u (cong (λw. Q) (λw. u + w) (qAddNegR c)) (qAddZeroR u))
+      (trans _ _ _ (cong (λw. Q) (λw. w + qNeg c) (qAddComm c u)) (qAddAssoc u c (qNeg c))))
+    (trans _ _ _ (cong (λw. Q) (λw. u + w) (qAddNegR c)) (qAddZeroR u))
 
 -- anything above a positive is positive
 def sgnQPosOfLe : (c : El Q) {u : El Q} → (sgnQ c ≡ sPos) → El (c ≤ u) → sgnQ u ≡ sPos
@@ -186,7 +181,7 @@ def leQInvAnti : {c u : El Q} → (sgnQ c ≡ sPos) → El (c ≤ u) → El (qIn
               (trans
                 _
                 _
-                c
+                _
                 (cong
                   (λw. Q)
                   (λw. w * c)
@@ -224,7 +219,7 @@ def invFirst : (a b : El Q) → (sgnQ b ≡ sPos) → b * qInv a * qInv b ≡ qI
     _
     _
     (qMulSwap3 b (qInv a) (qInv b))
-    (trans _ _ (qInv a) (cong (λw. Q) (λw. w * qInv a) (qMulInvPos hb)) (qMulOneL (qInv a)))
+    (trans _ _ _ (cong (λw. Q) (λw. w * qInv a) (qMulInvPos hb)) (qMulOneL (qInv a)))
 
 def invSecond : (a b : El Q) → (sgnQ a ≡ sPos) → qNeg a * qInv a * qInv b ≡ qNeg (qInv b) ≔
   λa. λb. λha. trans

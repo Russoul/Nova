@@ -612,7 +612,7 @@ def realDistribR : (u v w : El Real) → (v + w) * u ≡ v * u + w * u ≔
       (trans
         _
         _
-        (v * u + w * u)
+        _
         (cong (λz. Real) (λz. z + u * w) (realMulComm u v))
         (cong (λz. Real) (λz. v * u + z) (realMulComm u w))))
 

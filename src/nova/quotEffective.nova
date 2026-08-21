@@ -28,12 +28,11 @@ def classEqOfRel : (A : 𝕌)
 -- ⟸ : class equality is an equivalence relation containing r, and r⁺ is
 -- the LEAST such, so r⁺ implies it. No quotient elimination here —
 -- leastness does all the work
-def classEqOfClosure : (A : 𝕌)
+def classEqOfClosure : {A : 𝕌}
   (r : El A → El A → Ω)
   (a b : El A)
-  → Prf (rClosure _ r a b) → Prf (class a ≡ class b ∈ El (A / (u v. r u v))) ≔
+  → Prf (rClosure r a b) → Prf (class a ≡ class b ∈ El (A / (u v. r u v))) ≔
   λA. λr. rClosureLeast
-    _
     r
     (λx. λy. class x ≡ class y ∈ El (A / (u v. r u v)))
     (λx. λy. λh. classEqOfRel _ r _ _ h)
@@ -45,64 +44,42 @@ def classEqOfClosure : (A : 𝕌)
 -- well-definedness goal is an Ω-EQUATION between two closure
 -- instances — propositional extensionality, both implications from r⁺'s
 -- own transitivity and symmetry. Nothing about r is assumed
-def clsRelWd : (A : 𝕌)
+def clsRelWd : {A : 𝕌}
   (r : El A → El A → Ω)
-  (a x y : El A)
-  → Prf (r x y) → rClosure _ r a x ≡ rClosure _ r a y
+  (a : El A)
+  {x y : El A}
+  → Prf (r x y) → rClosure r a x ≡ rClosure r a y
   using (prop.rClosure.eq, prop.rClosure.unfold) ≔
   λA. λr. λa. λx. λy. λh. propExt
-    ∥(z : El A → El A → Ω)
-      → ((v w : El A)
-        → Prf (r
-          v
-          w)
-          → Prf (z
-            v
-            w))
-        → ((v : El A)
-          → Prf (z
-            v
-            v))
-          → ((v w u : El A)
-            → Prf (z
-              v
-              w)
-              → Prf (z
-                w
-                u) → Prf (z v u)) → ((v w : El A) → Prf (z v w) → Prf (z w v)) → Prf (z a y)∥
-    (λk. rClosureTrans _ k (rClosureContains _ r _ _ h))
-    (λk. rClosureTrans y k (rClosureSymm (rClosureContains _ r _ _ h)))
+    (λk. rClosureTrans k (rClosureContains _ _ _ h))
+    (λk. rClosureTrans k (rClosureSymm (rClosureContains _ _ _ h)))
 
 -- the descent itself: quot-elim at the CONSTANT MOTIVE Ω. clsRelWd
 -- above discharges its well-definedness obligation
-def clsRel : (A : 𝕌) (r : El A → El A → Ω) (a : El A) → El (A / (u v. r u v)) → Ω using (clsRelWd) ≔
-  λA. λr. λa. λq. quot-elim (x. rClosure _ r a x) q
+def clsRel : {A : 𝕌} (r : El A → El A → Ω) (a : El A) → El (A / (u v. r u v)) → Ω using (clsRelWd) ≔
+  λA. λr. λa. λq. quot-elim (x. rClosure r a x) q
 
 -- ⟹ : EFFECTIVITY. clsRel a (class a) ≜ r⁺ a a holds by reflexivity of
 -- the closure, and the class equation transports it to b — el-quot-beta
 -- on both ends, congruence in between
-def effective : (A : 𝕌)
+def effective : {A : 𝕌}
   (r : El A → El A → Ω)
   (a b : El A)
-  → Prf (class a ≡ class b ∈ El (A / (u v. r u v))) → Prf (rClosure _ r a b)
+  → Prf (class a ≡ class b ∈ El (A / (u v. r u v))) → Prf (rClosure r a b)
   using (prop.rClosure.eq, prop.rClosure.unfold, quotEffective.clsRel.eq) ≔
-  λA. λr. λa. λb. λh. transportP (clsRel _ r a) h (rClosureRefl _ r a)
+  λA. λr. λa. λb. λh. transportP (clsRel r a) h (rClosureRefl r a)
 
 -- the characterization: quotient equality is exactly r⁺
-def classEqIff : (A : 𝕌)
+def classEqIff : {A : 𝕌}
   (r : El A → El A → Ω)
   (a b : El A)
-  → Prf ((class a ≡ class b ∈ El (A / (u v. r u v))) ↔ rClosure _ r a b)
-  using (prop.↔.unfold, prop.∧.unfold) ≔
-  λA. λr. λa. λb. iffIntro
-    (class a ≡ class b ∈ (El A / (v x. r v x)))
-    (effective _ r a b)
-    (classEqOfClosure _ r a b)
+  → Prf ((class a ≡ class b ∈ El (A / (u v. r u v))) ↔ rClosure r a b) ≔
+  λA. λr. λa. λb. iffIntro (effective r a b) (classEqOfClosure r a b)
 
 -- COROLLARY: at an equivalence relation, effectivity on the nose — r
 -- itself is an equivalence containing r, so leastness collapses r⁺ into
 -- it. This is the rule one wanted, with the hypotheses that make it true
-def effectiveAtEquiv : (A : 𝕌)
+def effectiveAtEquiv : {A : 𝕌}
   (r : El A → El A → Ω)
   → ((x : El A)
     → Prf (r
@@ -127,7 +104,6 @@ def effectiveAtEquiv : (A : 𝕌)
             x)) → (a b : El A) → Prf (class a ≡ class b ∈ El (A / (u v. r u v))) → Prf (r a b) ≔
   λA. λr. λrRefl. λrTrans. λrSymm. λa. λb. λh. rClosureLeast
     _
-    _
     r
     (λx. λy. λk. k)
     rRefl
@@ -135,17 +111,17 @@ def effectiveAtEquiv : (A : 𝕌)
     rSymm
     _
     _
-    (effective _ r _ _ h)
+    (effective r _ _ h)
 
 -- an instance of the corollary: ℕ by its own equality. The three
 -- equivalence premises are each one ⋆ — reflection makes them
 -- judgemental
 def natEq : El ℕ → El ℕ → Ω ≔ λx. λy. x ≡ y
 
-def natEqEffective : (a b : El ℕ)
+def natEqEffective : {a b : El ℕ}
   → Prf (class a ≡ class b ∈ El (ℕ / (u v. natEq u v))) → Prf (a ≡ b)
   using (hyp.rw, quotEffective.natEq.eq, quotEffective.natEq.unfold) ≔
-  effectiveAtEquiv _ natEq (λx. ⋆) (λx. λy. λz. λh1. λh2. ⋆) (λx. λy. λh. ⋆)
+  effectiveAtEquiv natEq (λx. ⋆) (λx. λy. λz. λh1. λh2. ⋆) (λx. λy. λh. ⋆)
 
 -- and the refutation, kept as evidence: at the successor graph — not an
 -- equivalence — the one-hop equation holds by el-quot-eq, the two-hop

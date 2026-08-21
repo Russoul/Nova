@@ -115,7 +115,7 @@ def realAbsZeroInv : (u : El Real) → (realAbs u ≡ realZero) → u ≡ realZe
     (transportP (λw. u ≤ w) h leRAbsSelf)
     (transportP
       (λw. w ≤ u)
-      (trans _ _ realZero (cong (λw. Real) (λw. realNeg w) h) realNegZero)
+      (trans _ _ _ (cong (λw. Real) (λw. realNeg w) h) realNegZero)
       leRNegAbsSelf)
 
 -- ===== the distance =====
@@ -144,7 +144,7 @@ def realDistCls : (p q : El RSeq) → realDist (class p) (class q) ≡ class (rA
     (cong (λw. Real) (λw. realAbs (class p + w)) {realNeg (class q)} {class (rNeg q)} realNegCls)
     (trans
       _
-      (realAbs (class (rAdd p (rNeg q))))
+      _
       (class (rAbs (rAdd p (rNeg q))))
       (cong (λw. Real) (λw. realAbs w) (realAddCls p (rNeg q)))
       realAbsCls)

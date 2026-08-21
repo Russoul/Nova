@@ -87,7 +87,6 @@ def qclsEffective : (G : 𝕌)
     N) → (a b : El G) → Prf (qcls _ g N a ≡ qcls _ _ _ b) → Prf (cosetRel _ g N a b)
   using (qcls.eq) ≔
   λG. λg. λN. λs. effectiveAtEquiv
-    _
     (cosetRel _ g N)
     (cosetRefl _ _ _ s)
     (cosetTrans _ _ _ s)
@@ -110,7 +109,7 @@ def qMulInnerAlg : {G : 𝕌}
   λG. λg. λa. λb. λb'. gop _ g a (gop _ g (gop _ g b (ginv _ g b')) (ginv _ g a))
       ≡⟨ cong
         (λw. G)
-        (λw. gop G g a w)
+        (λw. gop _ g a w)
         (gAssoc
           _
           g
@@ -132,7 +131,7 @@ def qMulInnerAlg : {G : 𝕌}
             (ginv _ g a))) ⟩ gop _ g (gop _ g a b) (gop _ g (ginv _ g b') (ginv _ g a))
       ≡⟨ cong
         (λw. G)
-        (λw. gop G g (gop _ g a b) w)
+        (λw. gop _ g (gop _ g a b) w)
         (sym _ _ (gOpInv _ g a b')) ⟩ gop _ g (gop _ g a b) (ginv _ g (gop _ g a b'))
 
 -- OUTER:  (a·b)·(a'·b)⁻¹  =  a·a'⁻¹
@@ -143,7 +142,7 @@ def qMulOuterAlg : (G : 𝕌)
   λG. λg. λa. λa'. λb. gop _ g (gop _ g a b) (ginv _ g (gop _ g a' b))
       ≡⟨ cong
         (λw. G)
-        (λw. gop G g (gop _ g a b) w)
+        (λw. gop _ g (gop _ g a b) w)
         (gOpInv _ g a' b) ⟩ gop _ g (gop _ g a b) (gop _ g (ginv _ g b) (ginv _ g a'))
       ≡⟨ gAssoc
         _
@@ -155,7 +154,7 @@ def qMulOuterAlg : (G : 𝕌)
           g
           (ginv _ g b)
           (ginv _ g a')) ⟩ gop _ g a (gop _ g b (gop _ g (ginv _ g b) (ginv _ g a')))
-      ≡⟨ cong (λw. G) (λw. gop G g a w) (gCancelInner _ g b (ginv _ g a')) ⟩ gop _ g a (ginv _ g a')
+      ≡⟨ cong (λw. G) (λw. gop _ g a w) (gCancelInner _ g b (ginv _ g a')) ⟩ gop _ g a (ginv _ g a')
 
 -- ===== the two well-definedness proofs, at relation level =====
 def qMulWDInner : {G : 𝕌}
@@ -282,11 +281,11 @@ def qInvAlg : {G : 𝕌}
   λG. λg. λa. λa'. gop _ g (ginv _ g a) (gop _ g (gop _ g a' (ginv _ g a)) a)
       ≡⟨ cong
         (λw. G)
-        (λw. gop G g (ginv _ g a) w)
+        (λw. gop _ g (ginv _ g a) w)
         (gCancelOuterInv _ g a a') ⟩ gop _ g (ginv _ g a) a'
       ≡⟨ cong
         (λw. G)
-        (λw. gop G g (ginv _ g a) w)
+        (λw. gop _ g (ginv _ g a) w)
         (sym _ _ (gInvInv _ g a')) ⟩ gop _ g (ginv _ g a) (ginv _ g (ginv _ g a'))
 
 def qInvWD : {G : 𝕌}
@@ -486,23 +485,7 @@ def qIsGroup : (G : 𝕌)
               _
               nn
               x)),
-    qInv
-      _
-      _
-      _
-      s
-      nn,
-      (λx. eqToId
-        (qMul _ _ _ nn (qInv _ _ _ s nn x) x)
-        (qUnit _ g N)
-        (qInvLaw
-          _
-          _
-          _
-          s
-          nn
-          x)),
-        λx. eqToId (qMul _ _ _ nn x (qInv _ _ _ s nn x)) (qUnit _ g N) (qInvLawR _ _ _ s nn x)
+    qInv _ _ _ s nn, (λx. eqToId _ _ (qInvLaw _ _ _ s nn x)), λx. eqToId _ _ (qInvLawR _ _ _ s nn x)
 
 def qMonoid : (G : 𝕌)
   (g : El (IsGroup G))

@@ -172,7 +172,7 @@ def qMulSubR : {y' x x' : El Q} → y' * (x + qNeg x') ≡ x * y' + qNeg (x' * y
     (trans
       _
       _
-      (x * y' + qNeg (x' * y'))
+      _
       (cong (λw. Q) (λw. w + y' * qNeg x') (qMulComm y' x))
       (cong
         (λw. Q)
@@ -189,7 +189,7 @@ def qMulDiff : (x y x' y' : El Q)
     (trans
       _
       _
-      (x * y + qNeg (x * y') + (x * y' + qNeg (x' * y')))
+      _
       (cong (λw. Q) (λw. w + y' * (x + qNeg x')) (qMulSubL x y y'))
       (cong
         (λw. Q)
@@ -213,7 +213,7 @@ def qMulSumBound : (A B : ℕ) (r : El Q) → qOfNat A * r + qOfNat B * r ≡ qO
     (trans
       _
       _
-      (qOfNat A * r + qOfNat B * r)
+      _
       (cong (λw. Q) (λw. w * r) (sym _ _ (qOfNatAdd A B)))
       (qDistribR r (qOfNat A) (qOfNat B)))
 
@@ -411,7 +411,7 @@ def qTailSum : {C A D : ℕ}
       (trans
         _
         _
-        (qOfNat (A + A + D) * t)
+        _
         (cong (λw. Q) (λw. w + qOfNat D * t) (qMulSumBound A A t))
         (qMulSumBound (A + A) D t)))
     (qMulSumBound C (A + A + D) t)
@@ -448,12 +448,7 @@ def wdBoundEq : {C A E n a b t k : ℕ}
     (trans
       _
       _
-      (qInvNat
-        n
-        + qOfNat
-          C
-          * qInvNat
-            t + (qOfNat A * qInvNat t + qOfNat A * qInvNat t + (qOfNat E * qInvNat t + qInvNat n)))
+      _
       (cong
         (λw. Q)
         (λw. w + (qOfNat A * rBound t t + qOfNat E * rBound t b))
@@ -466,13 +461,7 @@ def wdBoundEq : {C A E n a b t k : ℕ}
       (trans
         _
         _
-        (qInvNat
-          n
-          + qOfNat
-            C
-            * qInvNat
-              t
-          + (qOfNat A * qInvNat t + qOfNat A * qInvNat t + (qOfNat E * qInvNat t + qInvNat n)))
+        _
         (cong
           (λw. Q)
           (λw. qInvNat n + qOfNat C * qInvNat t + (w + qOfNat E * rBound t b))
@@ -676,8 +665,8 @@ def ssAddComm : {a b : ℕ} → S (S a) + S b ≡ S (S b) + S a ≔
       ≡⟨ cong (λw. ℕ) (λw. S w) (sucPlus a (S b)) ⟩ S (S (a + S b))
       ≡⟨ cong (λw. ℕ) (λw. S (S w)) (plusSucId a b) ⟩ S (S (S (a + b)))
       ≡⟨ cong (λw. ℕ) (λw. S (S (S w))) (plusComm b a) ⟩ S (S (S (b + a)))
-      ≡⟨ sym _ (S (S (S (b + a)))) (cong (λw. ℕ) (λw. S (S w)) (plusSucId b a)) ⟩ S (S (b + S a))
-      ≡⟨ sym _ (S (S (b + S a))) (cong (λw. ℕ) (λw. S w) (sucPlus b (S a))) ⟩ S (S b + S a)
+      ≡⟨ sym _ _ (cong (λw. ℕ) (λw. S (S w)) (plusSucId b a)) ⟩ S (S (b + S a))
+      ≡⟨ sym _ _ (cong (λw. ℕ) (λw. S w) (sucPlus b (S a))) ⟩ S (S b + S a)
       ≡⟨ sym _ _ (sucPlus (S b) (S a)) ⟩ S (S b) + S a
 
 def mulPredComm : {p q : El RSeq} → mulPred p q ≡ mulPred q p

@@ -54,4 +54,4 @@ def eqNCompleteP : {n m : ℕ} → Prf (n ≡ m) → Prf (EqN n m) using (eqNat.
   λn. λm. λh. eqNComplete h
 
 def eqNIff : (n m : ℕ) → Prf (EqN n m ↔ (n ≡ m)) using (prop.↔.unfold, prop.∧.unfold) ≔
-  λn. λm. iffIntro _ eqNSoundP eqNCompleteP
+  λn. λm. iffIntro eqNSoundP eqNCompleteP

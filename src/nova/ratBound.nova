@@ -12,10 +12,9 @@
 
 import rationalQ (Q, +, qNeg, qZero, qAddComm, qAddAssoc, qAddZeroL, qAddZeroR, qAddNegL, qAddNegR, qNegNeg)
 import rationalOrder (Sign, sPos, sNeg, sZero, sgnQ, NonNegS, ≤, leQRefl, leQOfEq, leQTrans, sZeroNotNeg, sPosNotNeg, sZeroNotPos, leQPlusMono, leQPlusMonoL, qNegAdd, qPairSwap, qSubSplit, qSubPlusCancel)
-import equality (trans, sym, cong, transport)
+import equality (trans, sym, cong, transport, pairextD)
 import id (Id, eqToId, idToEq)
 import uip (uip)
-import eqInt (pairEq2)
 
 def leQNegFlip : (x y : El Q) → El (x ≤ y) → El (qNeg y ≤ qNeg x)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold, rationalQ.Q.unfold) ≔
@@ -107,7 +106,7 @@ def bndSubEq : (b u v : El Q) → El (qZero ≤ b) → (u ≡ v) → El (Bnd b (
   λb. λu. λv. λle. λe. bndEq
     _
     _
-    (sym _ _ (trans _ _ qZero (cong (λw. Q) (λw. w + qNeg v) e) (qAddNegR v)))
+    (sym _ _ (trans _ _ _ (cong (λw. Q) (λw. w + qNeg v) e) (qAddNegR v)))
     (bndZero _ le)
 
 -- ===== reassociating a difference =====
@@ -161,7 +160,7 @@ def leQZeroOfNonNeg : (u : El Q) → El (NonNegS (sgnQ u)) → El (qZero ≤ u)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold, rationalQ.Q.unfold) ≔
   λu. λh. transport
     NonNegS
-    (sym _ (sgnQ u) (cong (λv. Sign) (λv. sgnQ v) {u + qNeg qZero} {u} qSubZeroR))
+    (sym _ _ (cong (λv. Sign) (λv. sgnQ v) {u + qNeg qZero} {u} qSubZeroR))
     h
 
 -- 0 ≤ u whenever u's sign is positive: the difference u − 0 is u
@@ -170,7 +169,7 @@ def leQZeroOfPos : (u : El Q) → (sgnQ u ≡ sPos) → El (qZero ≤ u)
   λu. λh. inj₂ (eqToId
     _
     _
-    (trans _ _ sPos (cong (λv. Sign) (λv. sgnQ v) {u + qNeg qZero} {u} qSubZeroR) h))
+    (trans _ _ _ (cong (λv. Sign) (λv. sgnQ v) {u + qNeg qZero} {u} qSubZeroR) h))
 
 -- ===== growing a bound by a nonnegative amount =====
 def leQSelfAdd : (a : El Q) {b : El Q} → El (qZero ≤ b) → El (a ≤ a + b)
@@ -235,4 +234,4 @@ def bndIsProp : (b u : El Q) (p q : El (Bnd b u)) → p ≡ q
     rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold,
     rationalQ.Q.unfold) ≔
-  λb. λu. λp. λq. pairEq2 (leQIsProp _ _ (p .π₁) (q .π₁)) (leQIsProp _ _ (p .π₂) (q .π₂))
+  λb. λu. λp. λq. pairextD (leQIsProp _ _ (p .π₁) (q .π₁)) (leQIsProp _ _ (p .π₂) (q .π₂))
