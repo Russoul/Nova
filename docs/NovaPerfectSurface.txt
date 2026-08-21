@@ -701,6 +701,25 @@ The trials deliberately DO NOT model the new tiers yet (emission
 stays conservative); the corpus still gained 32 blanks and 2
 annotation elisions from the sharpened solve, byte-idempotent.
 
+THE EXPECTED TYPE JOINS THE PASS (2026-08-21): funextD's endpoint
+holes {f g} live in the RESULT type — Prf(?f ≡ ?g ∈ El(Π-pattern))
+against Prf(p ≡ q ∈ El (Regular f)) binds them first-order,
+trivially — but the classic all-or-nothing match dies on the
+∈-domain sub-problem and the end-stage pass only re-matched
+argument sources. It now matches the EXPECTED TYPE first (the
+instantiated tail against mexp, same widened join, same
+unsolved-keys-only discipline), then the sources. With Regular
+factored through Bnd, the corpus's dependent function
+extensionality collapses to its logical content:
+
+  regularIsProp ≔ λf. λp. λq.
+    funextD (λm. funextD (λn. bndIsProp _ _ (p m n) (q m n)))
+
+— no carriers, no motives, no endpoints: every index recovered
+from the statement. (Not an η matter: the endpoints are bare
+variables; the block was match atomicity plus the pass's source
+list.)
+
 Migrated so far, tool-verified, per the census: cong {A}{v}{w}
 (597 sites), sym {A} (410), trans {A} (620), transport {A}{a}{b}
 (154), transportP {A}{a}{b} (40) — nine hand-spelled blocker sites

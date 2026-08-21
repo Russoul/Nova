@@ -4165,7 +4165,11 @@ mutual
     let jnX = \t => compTy (unfTy st.sig
                      (st.eqScope ++ mapMaybe expName st.eqScope) t)
     let sols = if null unsolvedKs then sols
-               else patternPass jnX doms (reverse revArgs) unsolvedKs (pending ++ srcs) sols
+               else patternPass jnX doms tailTy (reverse revArgs) unsolvedKs
+                      ((case mexp of
+                          Nothing => []
+                          Just c => [(Nothing, c)]) ++
+                       map (\(sp, t) => (Just sp, t)) (pending ++ srcs)) sols
     (finalArgs, dPatches) <- resolveArgs sols defers doms (zip slots (reverse revArgs)) [] []
     -- a blank whose SUPPRESSED join binding α-differs from its
     -- final solution would solve differently as an implicit — the
@@ -4476,29 +4480,33 @@ mutual
         Nothing => e
       _ => e
 
-    ||| the end-stage pattern pass: walk the recorded sources in
-    ||| order, match each in PATTERN mode (α, comp, licensed join) at
-    ||| its refreshed domain, and keep only bindings for the still-
+    ||| the end-stage pattern pass: the EXPECTED TYPE first (matched
+    ||| against the instantiated tail — where funextD's endpoint
+    ||| holes ?f, ?g live), then the recorded sources in order; each
+    ||| matched in PATTERN mode (α, comp, widened licensed join) at
+    ||| its refreshed pattern, keeping only bindings for the still-
     ||| unsolved keys
-    patternPass : (jn : Ty -> Ty) -> List Ty -> List Elem -> List Nat ->
-                  List (Nat, Ty) -> Sols -> Sols
-    patternPass jn doms argsNow ks [] sols = sols
-    patternPass jn doms argsNow ks ((sp, eTy) :: more) sols =
-      case getAt sp doms of
-        Nothing => patternPass jn doms argsNow ks more sols
-        Just d =>
-          let entries = map (refreshHole sols) (take sp argsNow)
-              dHyp = substTy d (prefixSub entries)
-              found = the (Maybe Sols) $ case mTyP True 0 dHyp eTy sols of
-                        Just s2 => Just s2
-                        Nothing => case mTyP True 0 (compTy dHyp) (compTy eTy) sols of
-                          Just s2 => Just s2
-                          Nothing => mTyP True 0 (jn dHyp) (jn eTy) sols
-              sols2 = case found of
-                        Nothing => sols
-                        Just s2 => sols ++ filter (\(k2, _) =>
-                                     (k2 `elem` ks) && isNothing (lookup k2 sols)) s2
-          in patternPass jn doms argsNow ks more sols2
+    patternPass : (jn : Ty -> Ty) -> List Ty -> Ty -> List Elem -> List Nat ->
+                  List (Maybe Nat, Ty) -> Sols -> Sols
+    patternPass jn doms tailT argsNow ks [] sols = sols
+    patternPass jn doms tailT argsNow ks ((msp, eTy) :: more) sols =
+      let mpat = the (Maybe Ty) $ case msp of
+                   Nothing => Just (substTy tailT (prefixSub (map (refreshHole sols) argsNow)))
+                   Just sp => map (\d => substTy d (prefixSub (map (refreshHole sols) (take sp argsNow))))
+                                  (getAt sp doms)
+      in case mpat of
+           Nothing => patternPass jn doms tailT argsNow ks more sols
+           Just dHyp =>
+             let found = the (Maybe Sols) $ case mTyP True 0 dHyp eTy sols of
+                           Just s2 => Just s2
+                           Nothing => case mTyP True 0 (compTy dHyp) (compTy eTy) sols of
+                             Just s2 => Just s2
+                             Nothing => mTyP True 0 (jn dHyp) (jn eTy) sols
+                 sols2 = case found of
+                           Nothing => sols
+                           Just s2 => sols ++ filter (\(k2, _) =>
+                                        (k2 `elem` ks) && isNothing (lookup k2 sols)) s2
+             in patternPass jn doms tailT argsNow ks more sols2
 
     ||| Resolve the walked slots to the final argument list, in
     ||| position order: a hole takes its joint solution (a structural
