@@ -90,16 +90,12 @@ def qclsEffective : (G : 𝕌)
 def qMulInnerAlg : {G : 𝕌}
   {g : El (IsGroup G)}
   {a b b' : El G}
-  → gop
-    _
-    g
-    a
-    (gop _ g (gop _ g b (ginv g b')) (ginv g a)) ≡ gop _ g (gop _ g a b) (ginv g (gop _ g a b')) ≔
-  λG. λg. λa. λb. λb'. gop _ g a (gop _ g (gop _ g b (ginv g b')) (ginv g a))
+  → gop g a (gop g (gop g b (ginv g b')) (ginv g a)) ≡ gop g (gop g a b) (ginv g (gop g a b')) ≔
+  λG. λg. λa. λb. λb'. gop g a (gop g (gop g b (ginv g b')) (ginv g a))
       ≡⟨ cong
         (λw. G)
-        (λw. gop _ g a w)
-        (gAssoc g b (ginv g b') (ginv g a)) ⟩ gop _ g a (gop _ g b (gop _ g (ginv g b') (ginv g a)))
+        (λw. gop g a w)
+        (gAssoc g b (ginv g b') (ginv g a)) ⟩ gop g a (gop g b (gop g (ginv g b') (ginv g a)))
       ≡⟨ sym
         _
         _
@@ -107,28 +103,28 @@ def qMulInnerAlg : {G : 𝕌}
           g
           a
           b
-          (gop _ g (ginv g b') (ginv g a))) ⟩ gop _ g (gop _ g a b) (gop _ g (ginv g b') (ginv g a))
+          (gop g (ginv g b') (ginv g a))) ⟩ gop g (gop g a b) (gop g (ginv g b') (ginv g a))
       ≡⟨ cong
         (λw. G)
-        (λw. gop _ g (gop _ g a b) w)
-        (sym _ _ (gOpInv g a b')) ⟩ gop _ g (gop _ g a b) (ginv g (gop _ g a b'))
+        (λw. gop g (gop g a b) w)
+        (sym _ _ (gOpInv g a b')) ⟩ gop g (gop g a b) (ginv g (gop g a b'))
 
 -- OUTER:  (a·b)·(a'·b)⁻¹  =  a·a'⁻¹
 def qMulOuterAlg : (G : 𝕌)
   (g : El (IsGroup G))
   (a a' b : El G)
-  → gop _ g (gop _ g a b) (ginv g (gop _ g a' b)) ≡ gop _ g a (ginv g a') ≔
-  λG. λg. λa. λa'. λb. gop _ g (gop _ g a b) (ginv g (gop _ g a' b))
+  → gop g (gop g a b) (ginv g (gop g a' b)) ≡ gop g a (ginv g a') ≔
+  λG. λg. λa. λa'. λb. gop g (gop g a b) (ginv g (gop g a' b))
       ≡⟨ cong
         (λw. G)
-        (λw. gop _ g (gop _ g a b) w)
-        (gOpInv g a' b) ⟩ gop _ g (gop _ g a b) (gop _ g (ginv g b) (ginv g a'))
+        (λw. gop g (gop g a b) w)
+        (gOpInv g a' b) ⟩ gop g (gop g a b) (gop g (ginv g b) (ginv g a'))
       ≡⟨ gAssoc
         g
         a
         b
-        (gop _ g (ginv g b) (ginv g a')) ⟩ gop _ g a (gop _ g b (gop _ g (ginv g b) (ginv g a')))
-      ≡⟨ cong (λw. G) (λw. gop _ g a w) (gCancelInner g b (ginv g a')) ⟩ gop _ g a (ginv g a')
+        (gop g (ginv g b) (ginv g a')) ⟩ gop g a (gop g b (gop g (ginv g b) (ginv g a')))
+      ≡⟨ cong (λw. G) (λw. gop g a w) (gCancelInner g b (ginv g a')) ⟩ gop g a (ginv g a')
 
 -- ===== the two well-definedness proofs, at relation level =====
 def qMulWDInner : {G : 𝕌}
@@ -136,20 +132,20 @@ def qMulWDInner : {G : 𝕌}
   {N : El G → Ω}
   → Prf (IsNormal
     g
-    N) → {a b b' : El G} → Prf (cosetRel g N b b') → Prf (cosetRel g N (gop _ g a b) (gop _ g a b'))
+    N) → {a b b' : El G} → Prf (cosetRel g N b b') → Prf (cosetRel g N (gop g a b) (gop g a b'))
   using (cosetRel.eq) ≔
   λG. λg. λN. λnn. λa. λb. λb'. λh. transportP
     N
-    {gop _ g a (gop _ g (gop _ g b (ginv g b')) (ginv g a))}
-    {gop _ g (gop _ g a b) (ginv g (gop _ g a b'))}
+    {gop g a (gop g (gop g b (ginv g b')) (ginv g a))}
+    {gop g (gop g a b) (ginv g (gop g a b'))}
     qMulInnerAlg
-    (nmConj _ _ _ nn a (gop _ g b (ginv g b')) h)
+    (nmConj _ _ _ nn a (gop g b (ginv g b')) h)
 
 def qMulWDOuter : {G : 𝕌}
   {g : El (IsGroup G)}
   {N : El G → Ω}
   {a a' b : El G}
-  → Prf (cosetRel g N a a') → Prf (cosetRel g N (gop _ g a b) (gop _ g a' b))
+  → Prf (cosetRel g N a a') → Prf (cosetRel g N (gop g a b) (gop g a' b))
   using (cosetRel.eq) ≔
   λG. λg. λN. λa. λa'. λb. λh. transportP N (sym _ _ (qMulOuterAlg _ g a a' b)) h
 
@@ -159,26 +155,21 @@ def qMulWDInnerCls : (G : 𝕌)
   (N : El G → Ω)
   → Prf (IsNormal
     g
-    N)
-    → (a b b' : El G) → Prf (cosetRel g N b b') → qcls g N (gop _ g a b) ≡ qcls _ _ (gop _ g a b')
+    N) → (a b b' : El G) → Prf (cosetRel g N b b') → qcls g N (gop g a b) ≡ qcls _ _ (gop g a b')
   using (qcls.eq) ≔
   λG. λg. λN. λnn. λa. λb. λb'. λh. classEqOfRel
     (cosetRel g N)
-    (gop _ g a b)
-    (gop _ g a b')
+    (gop g a b)
+    (gop g a b')
     (qMulWDInner nn h)
 
 def qMulWDOuterCls : {G : 𝕌}
   {g : El (IsGroup G)}
   {N : El G → Ω}
   {a a' b : El G}
-  → Prf (cosetRel g N a a') → qcls g N (gop _ g a b) ≡ qcls _ _ (gop _ g a' b)
+  → Prf (cosetRel g N a a') → qcls g N (gop g a b) ≡ qcls _ _ (gop g a' b)
   using (qcls.eq) ≔
-  λG. λg. λN. λa. λa'. λb. λh. classEqOfRel
-    (cosetRel g N)
-    (gop _ g a b)
-    (gop _ g a' b)
-    (qMulWDOuter h)
+  λG. λg. λN. λa. λa'. λb. λh. classEqOfRel (cosetRel g N) (gop g a b) (gop g a' b) (qMulWDOuter h)
 
 -- the outer half as the descent itself asks for it: the two inner
 -- eliminations agree on every element of the quotient. Where realMul
@@ -199,12 +190,12 @@ def qMulWDOuterElim : (G : 𝕌)
         x')
         → (v : El (QGroup _ g N))
           → quot-elim (w. El (QGroup _ g N))
-            (q. qcls _ _ (gop _ g x q))
-            v ≡ quot-elim (q. qcls _ _ (gop _ g x' q)) v
+            (q. qcls _ _ (gop g x q))
+            v ≡ quot-elim (q. qcls _ _ (gop g x' q)) v
   using (QGroup.unfold, qMulWDInnerCls) ≔
   λG. λg. λN. λnn. λx. λx'. λh. λv. quot-elim (w. quot-elim (z. El (QGroup _ g N))
-    (q. qcls _ _ (gop _ g x q))
-    w ≡ quot-elim (q. qcls _ _ (gop _ g x' q)) w)
+    (q. qcls _ _ (gop g x q))
+    w ≡ quot-elim (q. qcls _ _ (gop g x' q)) w)
     (c. qMulWDOuterCls h)
     v
 
@@ -214,7 +205,7 @@ def qMul : (G : 𝕌)
   (N : El G → Ω)
   → Prf (IsNormal g N) → El (QGroup _ g N) → El (QGroup _ g N) → El (QGroup _ g N)
   using (QGroup.unfold, qMulWDInnerCls, qMulWDOuterElim) ≔
-  λG. λg. λN. λnn. λu. λv. quot-elim (p. quot-elim (q. qcls _ _ (gop _ g p q)) v) u
+  λG. λg. λN. λnn. λu. λv. quot-elim (p. quot-elim (q. qcls _ _ (gop g p q)) v) u
 
 -- β on classes. Stated with the BARE `class`, not with qcls: a
 -- quot-elim substitutes `class a` for its method binder, so this is
@@ -225,7 +216,7 @@ def qMulCls : (G : 𝕌)
   (N : El G → Ω)
   (nn : Prf (IsNormal g N))
   (a b : El G)
-  → qMul _ _ _ nn (class a) (class b) ≡ class (gop _ g a b)
+  → qMul _ _ _ nn (class a) (class b) ≡ class (gop g a b)
   using (QGroup.unfold, qcls.eq, qMul.eq) ≔
   λG. λg. λN. λnn. λa. λb. ⋆
 
@@ -238,17 +229,13 @@ def qMulCls : (G : 𝕌)
 def qInvAlg : {G : 𝕌}
   {g : El (IsGroup G)}
   {a a' : El G}
-  → gop
-    _
-    g
-    (ginv g a)
-    (gop _ g (gop _ g a' (ginv g a)) a) ≡ gop _ g (ginv g a) (ginv g (ginv g a')) ≔
-  λG. λg. λa. λa'. gop _ g (ginv g a) (gop _ g (gop _ g a' (ginv g a)) a)
-      ≡⟨ cong (λw. G) (λw. gop _ g (ginv g a) w) (gCancelOuterInv g a a') ⟩ gop _ g (ginv g a) a'
+  → gop g (ginv g a) (gop g (gop g a' (ginv g a)) a) ≡ gop g (ginv g a) (ginv g (ginv g a')) ≔
+  λG. λg. λa. λa'. gop g (ginv g a) (gop g (gop g a' (ginv g a)) a)
+      ≡⟨ cong (λw. G) (λw. gop g (ginv g a) w) (gCancelOuterInv g a a') ⟩ gop g (ginv g a) a'
       ≡⟨ cong
         (λw. G)
-        (λw. gop _ g (ginv g a) w)
-        (sym _ _ (gInvInv g a')) ⟩ gop _ g (ginv g a) (ginv g (ginv g a'))
+        (λw. gop g (ginv g a) w)
+        (sym _ _ (gInvInv g a')) ⟩ gop g (ginv g a) (ginv g (ginv g a'))
 
 def qInvWD : {G : 𝕌}
   {g : El (IsGroup G)}
@@ -262,10 +249,10 @@ def qInvWD : {G : 𝕌}
   using (cosetRel.eq) ≔
   λG. λg. λN. λs. λnn. λa. λa'. λh. transportP
     N
-    {gop _ g (ginv g a) (gop _ g (gop _ g a' (ginv g a)) a)}
-    {gop _ g (ginv g a) (ginv g (ginv g a'))}
+    {gop g (ginv g a) (gop g (gop g a' (ginv g a)) a)}
+    {gop g (ginv g a) (ginv g (ginv g a'))}
     qInvAlg
-    (nmConjInv _ _ _ nn a (gop _ g a' (ginv g a)) (cosetSymm s _ _ h))
+    (nmConjInv _ _ _ nn a (gop g a' (ginv g a)) (cosetSymm s _ _ h))
 
 def qInvWDCls : (G : 𝕌)
   (g : El (IsGroup G))

@@ -22,7 +22,7 @@ import equality (transportP, sym, trans, cong)
 def hasUnit : {G : 𝕌} (g : El (IsGroup G)) (N : El G → Ω) → Ω ≔ λG. λg. λN. N (ge g)
 
 def closedOp : {G : 𝕌} (g : El (IsGroup G)) (N : El G → Ω) → Ω ≔
-  λG. λg. λN. ∥(x y : El G) → Prf (N x) → Prf (N y) → Prf (N (gop _ g x y))∥
+  λG. λg. λN. ∥(x y : El G) → Prf (N x) → Prf (N y) → Prf (N (gop g x y))∥
 
 def closedInv : {G : 𝕌} (g : El (IsGroup G)) (N : El G → Ω) → Ω ≔
   λG. λg. λN. ∥(x : El G) → Prf (N x) → Prf (N (ginv g x))∥
@@ -43,7 +43,7 @@ def sgIntro : {G : 𝕌}
         → Prf (N
           y)
           → Prf (N
-            (gop _ g x y))) → ((x : El G) → Prf (N x) → Prf (N (ginv g x))) → Prf (IsSubgroup g N)
+            (gop g x y))) → ((x : El G) → Prf (N x) → Prf (N (ginv g x))) → Prf (IsSubgroup g N)
   using (IsSubgroup.eq, hasUnit.eq, closedOp.eq, closedInv.eq) ≔
   λG. λg. λN. λu. λo. λi. andIntro u (andIntro {} (closedOp g N) (closedInv g N) (⋆ o) (⋆ i))
 
@@ -54,7 +54,7 @@ def sgUnit : {G : 𝕌} {g : El (IsGroup G)} {N : El G → Ω} → Prf (IsSubgro
 def sgOp : {G : 𝕌}
   {g : El (IsGroup G)}
   {N : El G → Ω}
-  → Prf (IsSubgroup g N) → (x y : El G) → Prf (N x) → Prf (N y) → Prf (N (gop _ g x y))
+  → Prf (IsSubgroup g N) → (x y : El G) → Prf (N x) → Prf (N y) → Prf (N (gop g x y))
   using (IsSubgroup.eq, closedOp.unfold) ≔
   λG. λg. λN. λh. λx. λy. λhx. λhy. squash-elim (andFst (andSnd h)) (u. u x y hx hy)
 
@@ -71,19 +71,19 @@ def sgInv : {G : 𝕌}
 -- This is the form the quotient's inner well-definedness proof needs
 -- verbatim, and (unlike "xN = Nx") it never mentions a coset.
 def IsNormal : {G : 𝕌} (g : El (IsGroup G)) (N : El G → Ω) → Ω ≔
-  λG. λg. λN. ∥(x n : El G) → Prf (N n) → Prf (N (gop _ g x (gop _ g n (ginv g x))))∥
+  λG. λg. λN. ∥(x n : El G) → Prf (N n) → Prf (N (gop g x (gop g n (ginv g x))))∥
 
 def nmIntro : {G : 𝕌}
   {g : El (IsGroup G)}
   {N : El G → Ω}
-  → ((x n : El G) → Prf (N n) → Prf (N (gop _ g x (gop _ g n (ginv g x))))) → Prf (IsNormal g N)
+  → ((x n : El G) → Prf (N n) → Prf (N (gop g x (gop g n (ginv g x))))) → Prf (IsNormal g N)
   using (IsNormal.eq) ≔
   λG. λg. λN. λk. ⋆ k
 
 def nmConj : (G : 𝕌)
   (g : El (IsGroup G))
   (N : El G → Ω)
-  → Prf (IsNormal g N) → (x n : El G) → Prf (N n) → Prf (N (gop _ g x (gop _ g n (ginv g x))))
+  → Prf (IsNormal g N) → (x n : El G) → Prf (N n) → Prf (N (gop g x (gop g n (ginv g x))))
   using (IsNormal.unfold) ≔
   λG. λg. λN. λh. λx. λn. λhn. squash-elim h (u. u x n hn)
 
@@ -92,10 +92,10 @@ def nmConj : (G : 𝕌)
 def nmConjInv : (G : 𝕌)
   (g : El (IsGroup G))
   (N : El G → Ω)
-  → Prf (IsNormal g N) → (x n : El G) → Prf (N n) → Prf (N (gop _ g (ginv g x) (gop _ g n x))) ≔
+  → Prf (IsNormal g N) → (x n : El G) → Prf (N n) → Prf (N (gop g (ginv g x) (gop g n x))) ≔
   λG. λg. λN. λh. λx. λn. λhn. transportP
     N
-    (cong (λw. G) (λw. gop _ g (ginv g x) (gop _ g n w)) (gInvInv g x))
+    (cong (λw. G) (λw. gop g (ginv g x) (gop g n w)) (gInvInv g x))
     (nmConj _ _ _ h (ginv g x) n hn)
 
 -- In an ABELIAN group conjugation is the identity, so normality is
@@ -103,15 +103,14 @@ def nmConjInv : (G : 𝕌)
 -- the reason the corpus's numerical quotients never had to mention it.
 def abelianConj : {G : 𝕌}
   {g : El (IsGroup G)}
-  → ((x y : El G)
-    → gop _ g x y ≡ gop _ g y x) → (x n : El G) → gop _ g x (gop _ g n (ginv g x)) ≡ n ≔
-  λG. λg. λcomm. λx. λn. gop _ g x (gop _ g n (ginv g x))
-      ≡⟨ cong (λw. G) (λw. gop _ g x w) (comm n (ginv g x)) ⟩ gop _ g x (gop _ g (ginv g x) n)
+  → ((x y : El G) → gop g x y ≡ gop g y x) → (x n : El G) → gop g x (gop g n (ginv g x)) ≡ n ≔
+  λG. λg. λcomm. λx. λn. gop g x (gop g n (ginv g x))
+      ≡⟨ cong (λw. G) (λw. gop g x w) (comm n (ginv g x)) ⟩ gop g x (gop g (ginv g x) n)
       ≡⟨ gCancelInner g x n ⟩ n
 
 def abelianNormal : {G : 𝕌}
   {g : El (IsGroup G)}
-  → ((x y : El G) → gop _ g x y ≡ gop _ g y x) → {N : El G → Ω} → Prf (IsNormal g N) ≔
+  → ((x y : El G) → gop g x y ≡ gop g y x) → {N : El G → Ω} → Prf (IsNormal g N) ≔
   λG. λg. λcomm. λN. nmIntro (λx. λn. λhn. transportP N (sym _ _ (abelianConj comm x n)) hn)
 
 -- ===== the coset relation =====
@@ -122,7 +121,7 @@ def abelianNormal : {G : 𝕌}
 -- need only that N is a SUBGROUP — normality is what makes the group
 -- operation descend, not what makes the relation an equivalence.
 def cosetRel : {G : 𝕌} (g : El (IsGroup G)) (N : El G → Ω) → El G → El G → Ω ≔
-  λG. λg. λN. λx. λy. N (gop _ g x (ginv g y))
+  λG. λg. λN. λx. λy. N (gop g x (ginv g y))
 
 def cosetRefl : {G : 𝕌}
   {g : El (IsGroup G)}
@@ -135,30 +134,30 @@ def cosetRefl : {G : 𝕌}
 def cosetFlip : {G : 𝕌}
   {g : El (IsGroup G)}
   {x y : El G}
-  → ginv g (gop _ g x (ginv g y)) ≡ gop _ g y (ginv g x) ≔
-  λG. λg. λx. λy. ginv g (gop _ g x (ginv g y))
-      ≡⟨ gOpInv g x (ginv g y) ⟩ gop _ g (ginv g (ginv g y)) (ginv g x)
-      ≡⟨ cong (λw. G) (λw. gop _ g w (ginv g x)) (gInvInv g y) ⟩ gop _ g y (ginv g x)
+  → ginv g (gop g x (ginv g y)) ≡ gop g y (ginv g x) ≔
+  λG. λg. λx. λy. ginv g (gop g x (ginv g y))
+      ≡⟨ gOpInv g x (ginv g y) ⟩ gop g (ginv g (ginv g y)) (ginv g x)
+      ≡⟨ cong (λw. G) (λw. gop g w (ginv g x)) (gInvInv g y) ⟩ gop g y (ginv g x)
 
 def cosetSymm : {G : 𝕌}
   {g : El (IsGroup G)}
   {N : El G → Ω}
   → Prf (IsSubgroup g N) → (x y : El G) → Prf (cosetRel g N x y) → Prf (cosetRel g N y x)
   using (cosetRel.eq) ≔
-  λG. λg. λN. λs. λx. λy. λh. transportP N cosetFlip (sgInv s (gop _ g x (ginv g y)) h)
+  λG. λg. λN. λs. λx. λy. λh. transportP N cosetFlip (sgInv s (gop g x (ginv g y)) h)
 
 -- (x · y⁻¹) · (y · z⁻¹) = x · z⁻¹ — the algebra behind transitivity
 def cosetSplice : {G : 𝕌}
   {g : El (IsGroup G)}
   {x y z : El G}
-  → gop _ g (gop _ g x (ginv g y)) (gop _ g y (ginv g z)) ≡ gop _ g x (ginv g z) ≔
-  λG. λg. λx. λy. λz. gop _ g (gop _ g x (ginv g y)) (gop _ g y (ginv g z))
+  → gop g (gop g x (ginv g y)) (gop g y (ginv g z)) ≡ gop g x (ginv g z) ≔
+  λG. λg. λx. λy. λz. gop g (gop g x (ginv g y)) (gop g y (ginv g z))
       ≡⟨ gAssoc
         g
         x
         (ginv g y)
-        (gop _ g y (ginv g z)) ⟩ gop _ g x (gop _ g (ginv g y) (gop _ g y (ginv g z)))
-      ≡⟨ cong (λw. G) (λw. gop _ g x w) (gCancelInnerInv g y (ginv g z)) ⟩ gop _ g x (ginv g z)
+        (gop g y (ginv g z)) ⟩ gop g x (gop g (ginv g y) (gop g y (ginv g z)))
+      ≡⟨ cong (λw. G) (λw. gop g x w) (gCancelInnerInv g y (ginv g z)) ⟩ gop g x (ginv g z)
 
 def cosetTrans : {G : 𝕌}
   {g : El (IsGroup G)}
@@ -170,4 +169,4 @@ def cosetTrans : {G : 𝕌}
   λG. λg. λN. λs. λx. λy. λz. λhxy. λhyz. transportP
     N
     cosetSplice
-    (sgOp s (gop _ g x (ginv g y)) (gop _ g y (ginv g z)) hxy hyz)
+    (sgOp s (gop g x (ginv g y)) (gop g y (ginv g z)) hxy hyz)
