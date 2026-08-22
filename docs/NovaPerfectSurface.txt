@@ -728,6 +728,50 @@ hover. Proof positions everywhere stay explicit (the census shows
 them 100% override — correctly hopeless). ~10.1s plain
 elaboration, canonical form enforced.
 
+PARAMETERIZED MODULES (2026-08-22): a file may open, after its
+imports, with a MODULE HEADER —
+
+  module {G : 𝕌} (g : El (IsGroup G))
+
+— a telescope every def in the file abstracts over. The license is
+DECLARED, not inferred (bijective-tier in character): each def
+elaborates at the parameter context and is Π/λ-CLOSED over it
+before it reaches Σ and the kernel, so the entry is byte-identical
+to the fully-spelled def's — the groupTheory migration is
+Σ-α-identical by construction. Inside the module a sibling
+reference auto-applies the parameter prefix (gop x y means gop
+{G} g x y): the prefix positions enter the spine solve as
+PRE-SEEDED SLOTS — solutions given, not holes — so written
+arguments, {t} overrides, and blanks all flow past them unchanged,
+and every downstream mechanism (recovery, trials, emission) sees
+an ordinary spine. An importer instantiates with
+
+  import (groupTheory g) (gop, ginv, …)
+
+whose arguments elaborate ONCE, at the importer's own parameter
+context, THROUGH THE SPINE SOLVE itself (any member def carries
+the prefix) — explicit parameters written, implicit ones recovered
+from their types — then weaken to each use site. Plain imports are
+unchanged: the def's telescope starts with the header params
+(header plicity, then the def's own implicit positions shifted),
+so existing sites spell exactly what they spelled before. The
+header line and instantiated imports print and re-parse through
+the same grammar; the round-trip and canonical-form gates extend
+unchanged.
+
+Corpus: groupTheory.nova is the first parameterized module — its
+19 defs read at (G, g) fixed, `def gAssoc : (x y z : El G) →
+gop (gop x y) z ≡ gop x (gop y z)`, with two external call sites
+adjusted (defs whose g was per-def IMPLICIT are now header-
+explicit; their few elided-g sites spell it). LIMIT recorded:
+a single header fixes ONE plicity per parameter, so a file whose
+defs MIX {g}/(g) (subgroup.nova's coset family vs its predicates)
+migrates only at the cost of touching the sites on the flipped
+side — subgroup stays plain until that churn is worth it. Also
+open: two instantiations of one module in one file need
+prefix-renaming imports (groupHom wants groupTheory at g AND h);
+data/clausal items inside parameterized modules are refused.
+
 CAPTURES ARE COMP-NORMALIZED (2026-08-21): a substituted domain can
 carry β-redexes — a pattern-solved dependency lands a λ in function
 position, El ((λv. Int) (intCanon z2)) — and an α-tier capture took

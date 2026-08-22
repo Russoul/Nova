@@ -1,0 +1,18 @@
+distilled 3 modules (7 items) to out
+elided 0 of 0 ∈-annotations and motives, blanked 0 arguments
+round-trip OK: ASTs identical, kernel Σ α-identical.
+import grp (IsMon, mop, mu)
+
+module {G : 𝕌} (m : El (IsMon G))
+
+def mSq : El G → El G ≔ λx. mop m x x
+
+def mSqU : El G ≔ mSq (mu m)
+
+def mSqU2 : El G ≔ mSq mSqU
+import grp (IsMon, mop, mu)
+import (mtheory hm) (mSq, mSqU)
+
+module {H : 𝕌} (hm : El (IsMon H))
+
+def sq3 : El H → El H ≔ λx. mSq (mSq (mSq x))

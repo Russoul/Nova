@@ -1,0 +1,6 @@
+import grp
+import (mtheory hm2) (mSq)
+
+module {H : 𝕌} (hm2 : El (grp.IsMon H))
+
+def sq2 : El H → El H ≔ λx. mSq (mSq x)

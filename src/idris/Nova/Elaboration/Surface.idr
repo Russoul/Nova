@@ -333,13 +333,44 @@ isOpName x = any opChar (lastSegment (unpack x))
   lastSegment ('.' :: rest) = lastSegment rest
   lastSegment (c :: rest) = if elem '.' rest then lastSegment rest else c :: rest
 
+||| An instantiation argument of a parameterized import — a name, or
+||| a name applied to further arguments: `import (groupTheory g)`,
+||| `import (groupTheory (raddGroup r))`. Resolved at ELABORATION
+||| (module params by name first, then the visibility table): the
+||| module header whose binders it references comes LATER in the
+||| file than the import line, so parse-time resolution is
+||| impossible by design.
+public export
+data SInstArg : Type where
+  IArg : String -> List SInstArg -> SInstArg
+
+showInstArg : SInstArg -> String
+showInstArg (IArg n []) = n
+showInstArg (IArg n as) =
+  "(" ++ n ++ " " ++ joinBy " " (map (\z => assert_total (showInstArg z)) as) ++ ")"
+
+export
+Show SInstArg where
+  show = showInstArg
+
 ||| import M            — M's names accessible qualified (M.x) only
 ||| import M (a, b)     — additionally, a and b accessible bare
+||| import (M a…) (b, …) — a PARAMETERIZED module instantiated at the
+|||                       given arguments: each opened name stands for
+|||                       the def with its module-parameter prefix
+|||                       pre-applied at a…
 public export
 record SImport where
   constructor MkSImport
   mname : String
+  iargs : List SInstArg
   opens : List String
+
+||| A parameterized module's header telescope, as written:
+||| (implicit?, name, domain), left to right.
+public export
+SModParams : Type
+SModParams = List (Bool, String, STy)
 
 -- ===== QIIT signature literals (the data item) =====
 
@@ -538,8 +569,13 @@ mutual
 
 export
 Show SImport where
-  show (MkSImport m []) = "import \{m}"
-  show (MkSImport m os) = "import \{m} (\{joinBy ", " os})"
+  show (MkSImport m args os) =
+    let hd = case args of
+               [] => "import \{m}"
+               _ => "import (\{m} \{joinBy " " (map show args)})"
+    in case os of
+         [] => hd
+         _ => "\{hd} (\{joinBy ", " os})"
 
 export covering
 Show SPat where

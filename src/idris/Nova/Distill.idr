@@ -762,8 +762,13 @@ renderFixity (op, AssocL, d) = "infixl \{show d} \{op}"
 renderFixity (op, AssocR, d) = "infixr \{show d} \{op}"
 
 renderImport : SImport -> String
-renderImport (MkSImport m []) = "import \{m}"
-renderImport (MkSImport m os) = "import \{m} (\{joinBy ", " os})"
+renderImport (MkSImport m args os) =
+  let hd = case args of
+             [] => "import \{m}"
+             _ => "import (\{m} \{joinBy " " (map show args)})"
+  in case os of
+       [] => hd
+       _ => "\{hd} (\{joinBy ", " os})"
 
 -- ===== Comments =====
 --
@@ -797,6 +802,18 @@ unitComments u =
     Just l => asComment (pack (drop (cast r.start.column) (unpack l)))
     Nothing => "--"
 
+||| The parameterized-module header line: `module` then the binder
+||| groups, multi-name groups re-coalesced exactly as a def telescope
+||| would be (shift-equality — the parser splits them back).
+renderModHeader : FixTable -> SModParams -> String
+renderModHeader tbl ps =
+  let groups = map (\(imp, ns, a) =>
+                     let inner = txt (joinBy " " ns) <-> txt " : " <-> pt tbl TTop True a in
+                     if imp then txt "{" <-> inner <-> txt "}" else dparen inner)
+                   (coalesceTys (map (\(imp, n, a) => (imp, n, a)) ps))
+  in renderDoc lineWidth (DGroup (txt "module " <->
+       concatDoc (intersperse (DNest 2 DLine) groups)))
+
 entrySpan : SBodyEntry -> Maybe (Int, Int)
 entrySpan (Left (mr, _)) = map (\r => (r.start.line, r.end.line)) mr
 entrySpan (Right (mr, _)) = map (\r => (r.start.line, r.end.line)) mr
@@ -817,10 +834,13 @@ renderUnit u =
       impBlock = case imps of
                    [] => []
                    _ => [joinBy "\n" imps]
+      modBlock = case u.mparams of
+                   [] => []
+                   ps => [renderModHeader u.mfix ps]
       lastBlock = case map snd leftover of
                     [] => []
                     ls => [joinBy "\n" ls]
-  in joinBy "\n\n" (headerBlock ++ impBlock ++ blocks ++ lastBlock) ++ "\n"
+  in joinBy "\n\n" (headerBlock ++ impBlock ++ modBlock ++ blocks ++ lastBlock) ++ "\n"
  where
   render1 : SBodyEntry -> String
   render1 (Left (_, f)) = renderFixity f
@@ -1029,6 +1049,9 @@ fixShow : SFixity -> String
 fixShow (op, AssocL, d) = "\{op}/l/\{show d}"
 fixShow (op, AssocR, d) = "\{op}/r/\{show d}"
 
+mpShow : (Bool, String, STy) -> String
+mpShow (imp, n, a) = "\{show imp}/\{n}/\{show a}"
+
 ||| Structural comparison of an original and a re-parsed module, via
 ||| the range-insensitive Show instances. Identity-tier contract only
 ||| (docs/NovaPerfectSurface.txt): later sugar tiers relax this check,
@@ -1041,6 +1064,8 @@ verifyUnit orig re =
     then Just "module \{orig.mname}: imports differ after distill"
   else if map (fixShow . snd) (lefts orig.mbody) /= map (fixShow . snd) (lefts re.mbody)
     then Just "module \{orig.mname}: fixity declarations differ after distill"
+  else if map mpShow orig.mparams /= map mpShow re.mparams
+    then Just "module \{orig.mname}: parameter telescope differs after distill"
   else go (map snd (rights orig.mbody)) (map snd (rights re.mbody))
  where
   go : List SItem -> List SItem -> Maybe String

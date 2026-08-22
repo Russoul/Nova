@@ -1,0 +1,3 @@
+import grp (IsMon, mop, mu)
+
+def natMon : El (IsMon ℕ) using (grp.IsMon.unfold) ≔ ((λa. λb. a), Z)

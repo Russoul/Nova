@@ -1,0 +1,6 @@
+import grp (IsMon, mop, mu)
+import (mtheory hm) (mSq, mSqU)
+
+module {H : 𝕌} (hm : El (IsMon H))
+
+def sq3 : El H → El H ≔ λx. mSq (mSq (mSq x))

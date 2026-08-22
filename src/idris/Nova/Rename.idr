@@ -190,8 +190,8 @@ parameters (rm : RenameMap, resolve : String -> String)
 
 
 rnImport : RenameMap -> SImport -> SImport
-rnImport rm (MkSImport m os) =
-  MkSImport m (map (\o => fromMaybe o (lookup "\{m}.\{o}" rm)) os)
+rnImport rm (MkSImport m args os) =
+  MkSImport m args (map (\o => fromMaybe o (lookup "\{m}.\{o}" rm)) os)
 
 rnUnit : (fixesOf : String -> FixTable) -> RenameMap -> ModUnit -> ModUnit
 rnUnit fixesOf rm u =

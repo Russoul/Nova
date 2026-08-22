@@ -1,0 +1,9 @@
+import grp (IsMon, mop, mu)
+import natmon (natMon)
+import (mtheory natMon) (mSq, mSqU)
+
+def two : El ℕ ≔ S (S Z)
+
+def four : El ℕ ≔ mSq two
+
+def alsoU : El ℕ ≔ mSqU
