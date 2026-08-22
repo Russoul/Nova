@@ -111,12 +111,12 @@ name missing from Σ, or used at the wrong syntactic class (a term
 definition in type position or vice versa), is rejected outright.
 
 Σ may be OPEN (Foundation, DEFINITIONAL AND OPEN SIGNATURES): during
-an elaboration run it carries the run's assumed equation constraints
+an elaboration run it carries the run's assumed equation holes
 and declarations. A reference to a DECLARATION is STUCK — typed
 by el-sig-decl (type entries included), no contraction — and nf leaves it as a
 neutral head. Constraint entries are nameless and never referenced by
 terms, so nf never sees them; they exist for the equational theory
-(el-sig-eq, type entries included). Only nf and equality replay tolerate open
+(an equation hole read through el-reflect). Only nf and equality replay tolerate open
 signatures: Nova.Compute (the uncertified evaluator) assumes a
 definitional Σ and rejects open entries outright.
 

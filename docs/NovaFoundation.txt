@@ -110,13 +110,15 @@
 # signature identifier
 x ::= <signature-entry-identifier>
 
-# signature context — three entry kinds; A ranges over terms
-# INCLUDING 𝕍, so type definitions, type declarations and type
-# equation constraints are the A = 𝕍 instances, not separate kinds
+# signature context — TWO entry kinds; A ranges over terms INCLUDING
+# 𝕍, so type definitions and type declarations are the A = 𝕍
+# instances. There is no constraint kind: an assumed equation is a
+# HOLE at the equation's Prf — a declaration at Prf (a₀ ≡ a₁ ∈ A),
+# read back through el-reflect and closed by INSTANTIATION with ⋆
+# (see DEFINITIONAL AND OPEN SIGNATURES)
 Σ ::= ε
     | Σ (Γ ⊦ x ≔ a : A)     # definition
     | Σ (Γ ⊦ x : A)         # declaration (a HOLE — no definiens)
-    | Σ (Γ ⊦ a ≐ a : A)     # equation constraint (nameless)
 
 # typing context
 Γ ::= ε      # empty typing context
@@ -375,36 +377,34 @@ x ∉ Σ
                                     #   surfaces as a second rule,
                                     #   the one place it does
 
-Σ Γ ⊦ a₀ : A
-Σ Γ ⊦ a₁ : A
------------------------- (sig-eq)   # A = 𝕍 is the TYPE constraint —
-Σ (Γ ⊦ a₀ ≐ a₁ : A) sig             #   the former sig-ty-eq
-
 # DEFINITIONAL AND OPEN SIGNATURES. A signature is DEFINITIONAL when
-# every entry is a definition (sig-def). The other entry kinds make
-# it OPEN: a DECLARATION is a hole — a name with a type and no
-# definiens, whose references x[e˲] are STUCK (el-sig-decl below;
-# deliberately no -beta) — and a CONSTRAINT is an assumed equation,
-# used through el-sig-eq exactly like a definitional equality. Type
-# holes and type constraints are the A = 𝕍 instances throughout.
-# Open signatures are the working states of an
-# elaboration run (docs/NovaElaboration.txt): the declarations and
-# constraints of the run's signature ARE its open proof obligations,
-# and a run is ACCEPTED only once its signature is definitional.
+# every entry is a definition (sig-def). A DECLARATION makes it OPEN:
+# a hole — a name with a type and no definiens, whose references
+# x[e˲] are STUCK (el-sig-decl below; deliberately no -beta). Type
+# holes are the A = 𝕍 instances. An assumed EQUATION is a hole at the
+# equation's Prf — an entry (Γ ⊦ h : Prf (a₀ ≡ a₁ ∈ A)), A = 𝕍 for a
+# type equation — whose reference h[e˲] yields the instantiated
+# equation by el-reflect: what the retired constraint kind provided
+# through its own rules (sig-eq/el-sig-eq) is one el-reflect away
+# from an ordinary declaration, so the kind is gone. Open signatures
+# are the working states of an elaboration run
+# (docs/NovaElaboration.txt): the declarations of the run's signature
+# ARE its open proof obligations, and a run is ACCEPTED only once its
+# signature is definitional.
 #
 # The canonical-forms semantics below reads over definitional
 # signatures only. An open signature denotes the CLASS of its
 # definitional REFINEMENTS — the signatures obtained by instantiating
-# every declaration and discharging every constraint (the two
-# admissible principles next); every judgement derived over the open
-# signature holds over each refinement. The class may be EMPTY (a hole
-# at Prf ∥𝟘∥, a constraint Z ≐ S Z : ℕ): judgements under
-# unsatisfiable assumptions carry no absolute content — which is why
-# acceptance demands a definitional signature and nothing weaker.
+# every declaration (the one admissible principle next); every
+# judgement derived over the open signature holds over each
+# refinement. The class may be EMPTY (a hole at Prf ∥𝟘∥, or at
+# Prf (Z ≡ S Z ∈ ℕ)): judgements under unsatisfiable assumptions
+# carry no absolute content — which is why acceptance demands a
+# definitional signature and nothing weaker.
 #
-# Both refinement principles are META-THEOREMS (by induction on
-# derivations), not rules of the theory — the workflow they justify is
-# edit-and-rerun, never an in-place signature surgery:
+# The refinement principle is a META-THEOREM (by induction on
+# derivations), not a rule of the theory — the workflow it justifies
+# is edit-and-rerun, never an in-place signature surgery:
 #
 # * INSTANTIATION (signature cut). If Σ (Γ ⊦ x : A) Σ' ⊦ J and
 #   Σ Γ ⊦ t : A — the filling term lives in the PREFIX preceding the
@@ -417,11 +417,11 @@ x ∉ Σ
 #   from the definition entry (el-sig-decl's conclusion is
 #   el-sig-var's) and no rule depends on x LACKING a body — the flip
 #   only refines, adding the equations x[e˲] ≜ t[e˲].
-#
-# * DISCHARGE. If Σ (Γ ⊦ a₀ ≐ a₁ : A) Σ' ⊦ J and Σ Γ ⊦ a₀ ≐ a₁ : A —
-#   the constraint is DERIVABLE in its prefix — then Σ Σ' ⊦ J: the
-#   entry deletes, every el-sig-eq use of it being derivable outright.
-#   The A = 𝕍 instance covers type constraints.
+#   DISCHARGING an equation obligation is the Prf instance: the hole
+#   h : Prf (a₀ ≡ a₁ ∈ A) fills with ⋆ exactly when the equation is
+#   derivable in its prefix (el-eq-i), the same condition the retired
+#   DISCHARGE meta-theorem demanded of a constraint — one open-entry
+#   kind, one closing move.
 #
 # Substitution action is uniform in the entry kind: el-sub-sig-var,
 # stated below for definitions, is adopted verbatim for declarations —
@@ -637,11 +637,10 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 #    the element rules at A = 𝕍 and are not restated: ty-sub, ty-sub-id,
 #    ty-sub-comp are el-sub, el-sub-id, el-sub-comp; ty-coe-ctx and
 #    ty-eq-coe-ctx are el-coe-ctx and el-eq-coe-ctx; ty-sub-cong(-fix)
-#    is el-sub-cong(-fix); ty-sig-var, ty-sig-beta, ty-sig-decl,
-#    ty-sig-eq and ty-sub-sig-var are el-sig-var, el-sig-beta,
-#    el-sig-decl, el-sig-eq and el-sub-sig-var at an entry whose A is
-#    𝕍 (their conclusion indices A[e˲], A[e˲ ∘ σ] compute to 𝕍 by the
-#    meta-clause). The FORMER-SPECIFIC rules below all remain: a
+#    is el-sub-cong(-fix); ty-sig-var, ty-sig-beta, ty-sig-decl and
+#    ty-sub-sig-var are el-sig-var, el-sig-beta, el-sig-decl and
+#    el-sub-sig-var at an entry whose A is 𝕍 (their conclusion
+#    indices A[e˲], A[e˲ ∘ σ] compute to 𝕍 by the meta-clause). The FORMER-SPECIFIC rules below all remain: a
 #    conclusion at 𝕍 with component premises at 𝕍 is not an instance
 #    of its 𝕌-code sibling (whose components sit at 𝕌, bound through
 #    El), so both members of each pair survive the merge.
@@ -693,12 +692,13 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ ⊦ A / R : 𝕍
 
 # Signature references at type entries need no rules of their own:
-# el-sig-var, el-sig-beta, el-sig-decl and el-sig-eq (in the element
-# rules) cover the A = 𝕍 entries — e.g. for (Γ ⊦ x ≔ A : 𝕍) ∈ Σ,
+# el-sig-var, el-sig-beta and el-sig-decl (in the element rules)
+# cover the A = 𝕍 entries — e.g. for (Γ ⊦ x ≔ A : 𝕍) ∈ Σ,
 # el-sig-var concludes Σ Δ ⊦ x[e˲] : 𝕍[e˲], and the index computes
 # to 𝕍 by the meta-clause. As before, a type declaration types its
 # references but never unfolds them (no -beta — the reference is
-# stuck), and a type constraint is used as a definitional equality.
+# stuck); an assumed type equation is a hole at Prf (A₀ ≡ A₁ ∈ 𝕍),
+# read back through el-reflect.
 
 # El-decoding: El of a code computes to the type it encodes.
 
@@ -2202,10 +2202,10 @@ for each point position 𝕔 of 𝒮 (𝒮(𝕔) = 𝔄, ending in El (𝕤 ī);
 #   coherence premise that the method for ins is invariant under
 #   swapping the two heads — the multiset laws, no transport.
 
-# Signature references. These four rules serve EVERY entry, type
+# Signature references. These three rules serve EVERY entry, type
 # entries included: at an A = 𝕍 entry the conclusion index A[e˲]
 # computes to 𝕍 by the meta-clause — the former ty-sig-var,
-# ty-sig-beta, ty-sig-decl, ty-sig-eq are the A = 𝕍 instances.
+# ty-sig-beta, ty-sig-decl are the A = 𝕍 instances.
 
 (Γ ⊦ x ≔ a : A) ∈ Σ
 e˲ : Δ ⇒ Γ norm
@@ -2218,18 +2218,16 @@ e˲ : Δ ⇒ Γ norm
 Σ Δ ⊦ x[e˲] ≜ a[e˲] : A[e˲]
 
 # Open-signature references (see DEFINITIONAL AND OPEN SIGNATURES): a
-# declaration types its references but never unfolds them (no -beta);
-# a constraint is used as a definitional equality.
+# declaration types its references but never unfolds them (no -beta).
+# An assumed equation needs no rule of its own: it is a hole h at the
+# equation's Prf, and el-sig-decl + el-reflect give
+# a₀[e˲] ≐ a₁[e˲] : A[e˲] from the reference h[e˲] — the retired
+# el-sig-eq, derived.
 
 (Γ ⊦ x : A) ∈ Σ
 e˲ : Δ ⇒ Γ norm
 --------------------- (el-sig-decl)
 Σ Δ ⊦ x[e˲] : A[e˲]
-
-(Γ ⊦ a₀ ≐ a₁ : A) ∈ Σ
-e˲ : Δ ⇒ Γ norm
---------------------------------- (el-sig-eq)
-Σ Δ ⊦ a₀[e˲] ≐ a₁[e˲] : A[e˲]
 
 # Substitution action: t[σ] is defined by ONE meta-level induction
 # on the term sort — the ≜-equations below together with the
@@ -2905,7 +2903,7 @@ e˲ : Γ₁ ⇒ Γ norm
 # and the sources, which cite rules by name:
 #
 #   sig-ty-def       sig-def at A = 𝕍
-#   sig-ty-eq        sig-eq at A = 𝕍
+#   sig-ty-eq        RETIRED with the constraint kind (below)
 #   (sig-ty-decl is RETAINED: the type hole is not a sig-decl
 #    instance — see its note)
 #   ty-refl/-sym/-trans   el-refl/-sym/-trans at A = 𝕍
@@ -2919,7 +2917,7 @@ e˲ : Γ₁ ⇒ Γ norm
 #   ty-sig-var       el-sig-var at an A = 𝕍 entry
 #   ty-sig-beta      el-sig-beta at an A = 𝕍 entry
 #   ty-sig-decl      el-sig-decl at an A = 𝕍 entry
-#   ty-sig-eq        el-sig-eq at an A = 𝕍 entry
+#   ty-sig-eq        RETIRED with the constraint kind (below)
 #   ty-sub-sig-var   el-sub-sig-var at an A = 𝕍 entry
 #   ty-zero-elim     DERIVABLE: el-zero-e at Prf (A ≡ B ∈ 𝕍), then
 #                    el-reflect (see THE TOP UNIVERSE)
@@ -2931,3 +2929,15 @@ e˲ : Γ₁ ⇒ Γ norm
 # ty-sub-el, ty-prf-sub, ty-sub-pi/-sigma/-sum/-quot), the ty-*-cong
 # congruences, the ty-*-inj injectivities, ty-qiit, ty-el-qiit,
 # ty-qiit-cong, ty-nu, ty-el-nu.
+#
+# The CONSTRAINT KIND's retirement (an assumed equation is a hole at
+# the equation's Prf — DEFINITIONAL AND OPEN SIGNATURES) retires:
+#
+#   sig-eq           sig-decl at Prf (a₀ ≡ a₁ ∈ A)
+#   sig-ty-eq        sig-decl at Prf (A₀ ≡ A₁ ∈ 𝕍)
+#   el-sig-eq        DERIVED: el-reflect at the hole's el-sig-decl
+#                    reference
+#   ty-sig-eq        ditto, at an A = 𝕍 equation
+#   DISCHARGE        the Prf instance of INSTANTIATION (fill the hole
+#                    with ⋆ — el-eq-i's condition is exactly the
+#                    constraint's derivability)
