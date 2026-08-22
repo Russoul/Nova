@@ -1011,7 +1011,6 @@ sigCompare a b = go (toList a) (toList b)
   showEntry : SigEntry -> String
   showEntry (SigDef ctx n body ty) = "def \{n} : \{show ty} ≔ \{show body} [\{show ctx}]"
   showEntry (SigDecl ctx n ty) = "decl \{n} : \{show ty} [\{show ctx}]"
-  showEntry (SigEq ctx l r ty) = "eq \{show l} ≐ \{show r} : \{show ty} [\{show ctx}]"
 
   go : List SigEntry -> List SigEntry -> Maybe String
   go [] [] = Nothing

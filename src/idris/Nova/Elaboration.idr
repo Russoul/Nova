@@ -2439,10 +2439,14 @@ oblView : ElabSt -> List Obligation
 oblView st = go (toList st.sig) (toList st.oblMeta)
  where
   go : List SigEntry -> List OblMeta -> List Obligation
-  go (SigEq ctx a b TopTy :: rest) (m :: ms) =
-    MkObl (displayStmt st (StTy ctx m.oenv a b)) m.osite (map (displayStmt st) m.ocomposite) m.ohint :: go rest ms
-  go (SigEq ctx a b ty :: rest) (m :: ms) =
-    MkObl (displayStmt st (StElem ctx m.oenv a b ty)) m.osite (map (displayStmt st) m.ocomposite) m.ohint :: go rest ms
+  go (SigDecl ctx n (Prf (Elem.EqTy a b TopTy)) :: rest) (m :: ms) =
+    if isOblName n
+      then MkObl (displayStmt st (StTy ctx m.oenv a b)) m.osite (map (displayStmt st) m.ocomposite) m.ohint :: go rest ms
+      else go rest (m :: ms)
+  go (SigDecl ctx n (Prf (Elem.EqTy a b ty)) :: rest) (m :: ms) =
+    if isOblName n
+      then MkObl (displayStmt st (StElem ctx m.oenv a b ty)) m.osite (map (displayStmt st) m.ocomposite) m.ohint :: go rest ms
+      else go rest (m :: ms)
   go (_ :: rest) ms = go rest ms
   go [] _ = []
 
@@ -2648,22 +2652,27 @@ assume stmt site comp = do
   -- rewrite-normalized keys nor the hint are ever read — skip them
   let cheap = st.probing && null st.assumedE && null st.assumedT
   case stmt of
+    -- an obligation enters Σ as a HOLE at the equation's Prf
+    -- (sig-decl; Foundation's constraint entry is retired), machine-
+    -- named by the per-run counter — oblMeta stays in lockstep
     StElem ctx env a b ty => do
       if cheap
-        then modifySt $ { sig $= (:< SigEq ctx a b ty)
-                        , oblMeta $= (:< MkOblMeta env site comp Nothing) }
+        then modifySt $ \s =>
+          { sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Prf (Elem.EqTy a b ty)))
+          , oblMeta $= (:< MkOblMeta env site comp Nothing) } s
         else if assumedMatchE st ctx a b ty
         then pure ()
         else modifySt $ \s =>
           let aK = rwNfElem st ctx a
               bK = rwNfElem st ctx b in
           { assumedE $= ((elemSize aK + elemSize bK, ctx, aK, bK, engNfT st ty) ::)
-          , sig $= (:< SigEq ctx a b ty)
+          , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Prf (Elem.EqTy a b ty)))
           , oblMeta $= (:< MkOblMeta env site comp (if st.probing then Nothing else hintOf st <|> blockedHint ())) } s
     StTy ctx env x y => do
       if cheap
-        then modifySt $ { sig $= (:< SigEq ctx x y TopTy)
-                        , oblMeta $= (:< MkOblMeta env site comp Nothing) }
+        then modifySt $ \s =>
+          { sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Prf (Elem.EqTy x y TopTy)))
+          , oblMeta $= (:< MkOblMeta env site comp Nothing) } s
         else do
        let x' = rwNfTy st ctx x
        let y' = rwNfTy st ctx y
@@ -2671,7 +2680,7 @@ assume stmt site comp = do
         then pure ()
         else modifySt $ \s =>
           { assumedT $= ((ctx, x', y') ::)
-          , sig $= (:< SigEq ctx x y TopTy)
+          , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Prf (Elem.EqTy x y TopTy)))
           , oblMeta $= (:< MkOblMeta env site comp (if st.probing then Nothing else hintOf st <|> blockedHint ())) } s
  where
   hintFor : ElabSt -> Stmt -> Maybe String

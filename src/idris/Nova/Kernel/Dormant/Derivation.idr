@@ -1179,7 +1179,9 @@ conclude env sig ctx (DElReflect dS) = do
 conclude env sig ctx (DElSigEq pos dSub) = do
   (es, delta) <- conclude env sig ctx dSub >>= needSubN
   case getAt pos (toList sig) of
-    Just (SigEq gamma a0 a1 a) => do
+    -- a constraint is a HOLE at the equation's Prf: read the
+    -- equation off the entry's type (el-sig-decl + el-reflect)
+    Just (SigDecl gamma _ (Prf (Elem.EqTy a0 a1 a))) => do
       if delta == gamma then pure ()
         else kerr "derivation: el-sig-eq: entry context mismatch"
       pure (JElEq (substElem a0 (embed es)) (substElem a1 (embed es))
@@ -1188,7 +1190,7 @@ conclude env sig ctx (DElSigEq pos dSub) = do
 conclude env sig ctx (DTySigEq pos dSub) = do
   (es, delta) <- conclude env sig ctx dSub >>= needSubN
   case getAt pos (toList sig) of
-    Just (SigEq gamma a0 a1 TopTy) => do
+    Just (SigDecl gamma _ (Prf (Elem.EqTy a0 a1 TopTy))) => do
       if delta == gamma then pure ()
         else kerr "derivation: el-sig-eq (type constraint): entry context mismatch"
       pure (JTyEq (substTy a0 (embed es)) (substTy a1 (embed es)))
