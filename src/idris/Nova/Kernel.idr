@@ -1449,20 +1449,34 @@ mutual
   -- the scrutinee's type is neutrally inferable
   childTyE sig ctx pexp (SumElim _ _ t) i =
     if i == 2 then inferNeK sig ctx t else pure Nothing
+  -- SHARED formers are typed at both 𝕌 (codes) and 𝕍 (types): the
+  -- parent's expected type decides where the components sit. Default
+  -- 𝕌 — an element position met only codes before the merge.
   childTyE sig ctx pexp (Elem.SumTy _ _) i =
-    pure (if i == 0 || i == 1 then Just UniverseTy else Nothing)
+    if i == 0 || i == 1 then Just <$> compClassifier sig pexp else pure Nothing
   childTyE sig ctx pexp (Elem.PiTy _ _) i =
-    pure (if i == 0 || i == 1 then Just UniverseTy else Nothing)
+    if i == 0 || i == 1 then Just <$> compClassifier sig pexp else pure Nothing
   childTyE sig ctx pexp (Elem.SigmaTy _ _) i =
-    pure (if i == 0 || i == 1 then Just UniverseTy else Nothing)
-  -- child 2 of ≡ is a TYPE child (walked by the type descent)
+    if i == 0 || i == 1 then Just <$> compClassifier sig pexp else pure Nothing
+  -- child 2 of ≡ is its ∈-type — a term at 𝕍 (or 𝕍 itself, which has
+  -- no children); children 0/1 sit at it
   childTyE sig ctx pexp (Elem.EqTy _ _ t) i =
-    pure (if i == 0 || i == 1 then Just t else Nothing)
+    case i of
+      0 => pure (Just t)
+      1 => pure (Just t)
+      2 => pure (Just TopTy)
+      _ => pure Nothing
   childTyE sig ctx pexp (QuotTy _ _) i =
     case i of
-      0 => pure (Just UniverseTy)
+      0 => Just <$> compClassifier sig pexp
       1 => pure (Just PropTy)
       _ => pure Nothing
+  childTyE sig ctx pexp (El _) i =
+    pure (if i == 0 then Just UniverseTy else Nothing)
+  childTyE sig ctx pexp (Prf _) i =
+    pure (if i == 0 then Just PropTy else Nothing)
+  childTyE sig ctx pexp (Squash _) i =
+    pure (if i == 0 then Just TopTy else Nothing)
   childTyE sig ctx pexp (SigVar x es) i =
     kSigLookup sig x >>= \entryX => case entryX of
       Just (SigDef delta _ _ _) =>
@@ -1505,6 +1519,16 @@ mutual
       then pure (Just (QSort sg k es))
       else qSpineChildTy sg k es i
   childTyE sig ctx pexp _ _ = pure Nothing
+
+  ||| The classifier a shared former's components sit at: 𝕍 when the
+  ||| parent is expected at 𝕍 (a type), 𝕌 otherwise (a code).
+  compClassifier : Sig -> Maybe Ty -> KM Ty
+  compClassifier sig Nothing = pure UniverseTy
+  compClassifier sig (Just pe) = do
+    t <- kWhnfT sig pe
+    pure (case t of
+            TopTy => TopTy
+            _ => UniverseTy)
 
   ||| Expected type of the i-th spine entry of a former carrying 𝒮
   ||| (position k's reflected binder/arity telescope).
@@ -1651,7 +1675,7 @@ goE pol sig ctx lic (i :: p) b mexp u = do
         (Elem.SumTy a c, 1) => Elem.SumTy a <$> goE pol sig ctx lic p b childTy c
         (Elem.EqTy l r t', 0) => (\l' => Elem.EqTy l' r t') <$> goE pol sig ctx lic p b childTy l
         (Elem.EqTy l r t', 1) => (\r' => Elem.EqTy l r' t') <$> goE pol sig ctx lic p b childTy r
-        (Elem.EqTy l r t', 2) => Elem.EqTy l r <$> goTy pol sig ctx lic p b t'
+        (Elem.EqTy l r t', 2) => Elem.EqTy l r <$> goE pol sig ctx lic p b childTy t'
         (QuotTy a r, 0) => (\a' => QuotTy a' r) <$> goE pol sig ctx lic p b childTy a
         (QuotTy a r, 1) => QuotTy a <$> goE pol sig ctx lic p (2 + b) childTy r
         (SigVar x es, _) =>
@@ -1669,7 +1693,9 @@ goE pol sig ctx lic (i :: p) b mexp u = do
         (Corec pf a f x, 2) => Corec pf a f <$> goE pol sig ctx lic p b childTy x
         (QuotElim f q, 0) => (\f' => QuotElim f' q) <$> goE pol sig ctx lic p (1 + b) childTy f
         (QuotElim f q, 1) => QuotElim f <$> goE pol sig ctx lic p b childTy q
-        (Squash t, 0) => Squash <$> goTy pol sig ctx lic p b t
+        (Squash t, 0) => Squash <$> goE pol sig ctx lic p b childTy t
+        (El e2, 0) => El <$> goE pol sig ctx lic p b childTy e2
+        (Prf p2, 0) => Prf <$> goE pol sig ctx lic p b childTy p2
         (QSort sg k es, _) => goQSpine es (\es' => QSort sg k es')
         (QCtor sg k es, _) => goQSpine es (\es' => QCtor sg k es')
         (QElim sg k ms fs es w, _) =>
@@ -1687,67 +1713,15 @@ stepElem pol sig ctx step tyRoot t = do
   ltyN <- kJoinTy pol sig lty
   goE pol sig ctx (le, re, ltyN) step.path 0 (Just tyRoot) t
 
-goTy pol sig ctx lic [] b u = kerr "kernel: type-path must end at an element"
-goTy pol sig ctx lic (i :: p) b (PiTy a c) =
-  case i of
-    0 => (\a' => PiTy a' c) <$> goTy pol sig ctx lic p b a
-    1 => PiTy a <$> goTy pol sig ctx lic p (1 + b) c
-    _ => kerr "kernel: bad path"
-goTy pol sig ctx lic (i :: p) b (SigmaTy a c) =
-  case i of
-    0 => (\a' => SigmaTy a' c) <$> goTy pol sig ctx lic p b a
-    1 => SigmaTy a <$> goTy pol sig ctx lic p (1 + b) c
-    _ => kerr "kernel: bad path"
-goTy pol sig ctx lic (i :: p) b (SumTy a c) =
-  case i of
-    0 => (\a' => SumTy a' c) <$> goTy pol sig ctx lic p b a
-    1 => SumTy a <$> goTy pol sig ctx lic p b c
-    _ => kerr "kernel: bad path"
-goTy pol sig ctx lic (i :: p) b (El e) =
-  if i == 0 then El <$> goE pol sig ctx lic p b (Just UniverseTy) e
-  else kerr "kernel: bad path"
-goTy pol sig ctx lic (i :: p) b (Prf e) =
-  if i == 0 then Prf <$> goE pol sig ctx lic p b (Just PropTy) e
-  else kerr "kernel: bad path"
-goTy pol sig ctx lic (i :: p) b (QuotTy a r) =
-  case i of
-    0 => (\a' => QuotTy a' r) <$> goTy pol sig ctx lic p b a
-    1 => QuotTy a <$> goE pol sig ctx lic p (2 + b) (Just PropTy) r
-    _ => kerr "kernel: bad path"
-goTy pol sig ctx lic (i :: p) b (QSort sg k es) =
-  case qEntry sg k of
-    Nothing => kerr "kernel: bad path"
-    Just entry =>
-      case reflTel sg (qwAt k) entry of
-        Left e => kerr "kernel: \{e}"
-        Right (tel, _, _) =>
-          case (subNormAt i es, telInst tel i (toList es)) of
-            (Just e, Just ety) => do
-              e' <- goE pol sig ctx lic p b (Just ety) e
-              case subNormSet i e' es of
-                Just es' => pure (QSort sg k es')
-                Nothing => kerr "kernel: bad path"
-            _ => kerr "kernel: bad path"
-goTy pol sig ctx lic (i :: p) b (SigVar x es) =
-  kSigLookup sig x >>= \entryX => case entryX of
-    Just (SigDef delta _ _ TopTy) =>
-      case (subNormAt i es, getAt i (toList delta)) of
-        (Just e, Just entryTy) => do
-          e' <- goE pol sig ctx lic p b (Just (substTy entryTy (embed (cast (take i (toList es)))))) e
-          case subNormSet i e' es of
-            Just es' => pure (SigVar x es')
-            Nothing => kerr "kernel: bad path"
-        _ => kerr "kernel: bad path"
-    _ => kerr "kernel: bad path"
-goTy pol sig ctx lic _ _ _ = kerr "kernel: bad path"
+goTy pol sig ctx lic p b t = goE pol sig ctx lic p b (Just TopTy) t
+-- (one sort, one descent: a type position is an element position
+-- expected at 𝕍 — component classifiers thread through childTyE, and
+-- an empty path rewrites the type itself by an ≡-at-𝕍 license)
 
 ||| Steps inside types: type positions have no element type; every
 ||| element child's type is structurally determined.
 stepTy : (unfs : List String) -> Sig -> Ctx -> Step -> Ty -> KM Ty
-stepTy pol sig ctx step t = do
-  (le, re, lty) <- licensed pol sig ctx step
-  ltyN <- kJoinTy pol sig lty
-  goTy pol sig ctx (le, re, ltyN) step.path 0 t
+stepTy pol sig ctx step t = stepElem pol sig ctx step TopTy t
 
 -- ===== Item-level checking over annotation skeletons =====
 --
@@ -1861,7 +1835,12 @@ mutual
     -- the (certified-equal) exposed type
     tyU <- case cert.tyEx of
              Nothing => pure ty
-             Just (tyX, c) => do kEqTyL (pol) sig ctx c ty tyX; pure tyX
+             Just (tyX, c) => do
+               case ty of
+                 TopTy => kerr "kernel: a type equation cannot carry a type bridge"
+                 _ => pure ()
+               kEqTyL (pol) sig ctx c ty tyX
+               pure tyX
     l0 <- kJoinElem pol sig l
     r0 <- kJoinElem pol sig r
     (l1, r1) <- goSteps tyU cert.steps l0 r0
@@ -1939,11 +1918,48 @@ mutual
             kCheckE sig ctx s (PiTy (Prf l1) (substTy (Prf r1) Wk)) skS
             kCheckE sig ctx t (PiTy (Prf r1) (substTy (Prf l1) Wk)) skT
           _ => kerr "kernel: propext final at a non-Ω type"
-      FPrfCong _ => kerr "kernel: Prf-congruence final on an element equation"
-      FQuotCong _ => kerr "kernel: quotient-congruence final on an element equation"
-      FPiCong _ _ => kerr "kernel: Π-congruence final on an element equation"
-      FSigmaCong _ _ => kerr "kernel: Σ-congruence final on an element equation"
-      FSumCong _ _ => kerr "kernel: ⊎-congruence final on an element equation"
+      -- TYPE-equation finals (ambient 𝕍): componentwise congruences
+      -- whose component equality is extensional and cannot flatten
+      -- into steps — formerly the separate kEqTy replay channel
+      FPrfCong c => do
+        ty' <- kWhnfT sig tyU
+        case (ty', l1, r1) of
+          (TopTy, Prf p, Prf q) => kEqElemL (pol) sig ctx c p q PropTy
+          (TopTy, _, _) => kerr "kernel: Prf-congruence final at non-Prf types"
+          _ => kerr "kernel: Prf-congruence final on an element equation"
+      FQuotCong c => do
+        ty' <- kWhnfT sig tyU
+        case (ty', l1, r1) of
+          (TopTy, QuotTy d0 r0, QuotTy d1 r1) =>
+            if d0 == d1
+              then kEqElemL (pol) sig (ctx :< d0 :< substTy d0 Wk) c r0 r1 PropTy
+              else kerr "kernel: quotient-congruence final at unequal domains"
+          (TopTy, _, _) => kerr "kernel: quotient-congruence final at non-quotient types"
+          _ => kerr "kernel: quotient-congruence final on an element equation"
+      FPiCong dc cc => do
+        ty' <- kWhnfT sig tyU
+        case (ty', l1, r1) of
+          (TopTy, Elem.PiTy d0 c0, Elem.PiTy d1 c1) => do
+            kEqElemL (pol) sig ctx dc d0 d1 TopTy
+            kEqElemL (pol) sig (ctx :< d1) cc c0 c1 TopTy
+          (TopTy, _, _) => kerr "kernel: Π-congruence final at non-Π types"
+          _ => kerr "kernel: Π-congruence final on an element equation"
+      FSigmaCong dc cc => do
+        ty' <- kWhnfT sig tyU
+        case (ty', l1, r1) of
+          (TopTy, Elem.SigmaTy d0 c0, Elem.SigmaTy d1 c1) => do
+            kEqElemL (pol) sig ctx dc d0 d1 TopTy
+            kEqElemL (pol) sig (ctx :< d1) cc c0 c1 TopTy
+          (TopTy, _, _) => kerr "kernel: Σ-congruence final at non-Σ types"
+          _ => kerr "kernel: Σ-congruence final on an element equation"
+      FSumCong lc rc => do
+        ty' <- kWhnfT sig tyU
+        case (ty', l1, r1) of
+          (TopTy, Elem.SumTy l0 r0, Elem.SumTy l1' r1') => do
+            kEqElemL (pol) sig ctx lc l0 l1' TopTy
+            kEqElemL (pol) sig ctx rc r0 r1' TopTy
+          (TopTy, _, _) => kerr "kernel: ⊎-congruence final at non-⊎ types"
+          _ => kerr "kernel: ⊎-congruence final on an element equation"
    where
     annot : String -> KM a -> KM a
     annot tag (MkKM f) = MkKM $ \st => case f st of
@@ -1966,64 +1982,10 @@ mutual
   kEqTy = kEqTyL []
 
   kEqTyL : (inh : List String) -> Sig -> Ctx -> ECert -> Ty -> Ty -> KM ()
-  kEqTyL inh sig ctx cert a b =
-    if reflCert cert && a == b then pure ()
-      else kEqTyGo (inh ++ cert.unfolds) sig ctx cert a b
-
-  kEqTyGo : (unfs : List String) -> Sig -> Ctx -> ECert -> Ty -> Ty -> KM ()
-  kEqTyGo pol sig ctx cert a b = do
-    case cert.tyEx of
-      Nothing => pure ()
-      Just _ => kerr "kernel: a type equation cannot carry a type bridge"
-    a0 <- kJoinTy pol sig a
-    b0 <- kJoinTy pol sig b
-    (a1, b1) <- goSteps cert.steps a0 b0
-    case cert.final of
-      FBeta => if a1 == b1 then pure () else kerr "kernel: types differ after replay [\{show a1} VS \{show b1}]"
-      -- ty-prf-cong: equal prop codes decode to equal types
-      FPrfCong c =>
-        case (a1, b1) of
-          (Prf p, Prf q) => kEqElemL (pol) sig ctx c p q PropTy
-          _ => kerr "kernel: Prf-congruence final at non-Prf types"
-      -- ty-quot-cong at a reflexive domain: relations equal at Ω
-      FQuotCong c =>
-        case (a1, b1) of
-          (QuotTy d0 r0, QuotTy d1 r1) =>
-            if d0 == d1
-              then kEqElemL (pol) sig (ctx :< d0 :< substTy d0 Wk) c r0 r1 PropTy
-              else kerr "kernel: quotient-congruence final at unequal domains"
-          _ => kerr "kernel: quotient-congruence final at non-quotient types"
-      -- ty-pi-cong / ty-sigma-cong: componentwise, codomain under the
-      -- right domain (equal domains give equal PERs)
-      FPiCong dc cc =>
-        case (a1, b1) of
-          (PiTy d0 c0, PiTy d1 c1) => do
-            kEqTyL (pol) sig ctx dc d0 d1
-            kEqTyL (pol) sig (ctx :< d1) cc c0 c1
-          _ => kerr "kernel: Π-congruence final at non-Π types"
-      FSigmaCong dc cc =>
-        case (a1, b1) of
-          (SigmaTy d0 c0, SigmaTy d1 c1) => do
-            kEqTyL (pol) sig ctx dc d0 d1
-            kEqTyL (pol) sig (ctx :< d1) cc c0 c1
-          _ => kerr "kernel: Σ-congruence final at non-Σ types"
-      -- ty-sum-cong: componentwise, both components over Γ
-      FSumCong lc rc =>
-        case (a1, b1) of
-          (SumTy l0 r0, SumTy l1 r1) => do
-            kEqTyL (pol) sig ctx lc l0 l1
-            kEqTyL (pol) sig ctx rc r0 r1
-          _ => kerr "kernel: ⊎-congruence final at non-⊎ types"
-      _ => kerr "kernel: unsupported final for a type equation"
-   where
-    goSteps : List Step -> Ty -> Ty -> KM (Ty, Ty)
-    goSteps [] a' b' = pure (a', b')
-    goSteps (s :: rest) a' b' =
-      if s.onLhs
-        then do a'' <- stepTy pol sig ctx s a' >>= kJoinTy pol sig
-                goSteps rest a'' b'
-        else do b'' <- stepTy pol sig ctx s b' >>= kJoinTy pol sig
-                goSteps rest a' b''
+  kEqTyL inh sig ctx cert a b = kEqElemL inh sig ctx cert a b TopTy
+  -- (one sort, one replay channel: a type equation is an element
+  -- equation at 𝕍 — the congruence finals above apply there, steps
+  -- descend with expected classifier 𝕍)
 
   ||| Γ ⊢ e ⇐ A, kernel-side.
   export
