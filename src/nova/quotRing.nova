@@ -33,8 +33,7 @@ import quotGroup (QGroup, qcls, qclsEq, qclsEffective, qMul, qMulCls, qInv, qUni
 import quotEffective (classEqOfRel)
 import equality (transportP, sym, trans, cong)
 
-def QRing : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) → 𝕌 ≔
-  λR. λr. λI. QGroup _ (raddGroup r) I
+def QRing : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) → 𝕌 ≔ λR. λr. λI. QGroup (raddGroup r) I
 
 def qrCls : {R : 𝕌} {r : El (IsCommRing R)} {I : El R → Ω} → El R → El (QRing _ r I)
   using (QRing.eq) ≔
@@ -201,14 +200,14 @@ def qrAddGroup : {R : 𝕌}
   {I : El R → Ω}
   → Prf (IsIdeal _ r I) → El (IsGroup (QRing _ r I))
   using (QRing.eq) ≔
-  λR. λr. λI. λid. qIsGroup _ _ _ (idSub id) (idNormal _ r I)
+  λR. λr. λI. λid. qIsGroup _ _ (idSub id) (idNormal _ r I)
 
 def qrAdd : {R : 𝕌}
   {r : El (IsCommRing R)}
   {I : El R → Ω}
   → Prf (IsIdeal _ r I) → El (QRing _ r I) → El (QRing _ r I) → El (QRing _ r I)
   using (QRing.eq) ≔
-  λR. λr. λI. λid. qMul _ _ _ (idNormal _ r I)
+  λR. λr. λI. λid. qMul _ _ (idNormal _ r I)
 
 def qrGop : (R : 𝕌)
   (r : El (IsCommRing R))
@@ -226,7 +225,7 @@ def qrAddCls : (R : 𝕌)
   (a b : El R)
   → qrAdd id (class a) (class b) ≡ class (gop (raddGroup r) a b)
   using (QRing.eq, qrAdd.eq, quotGroup.QGroup.unfold) ≔
-  λR. λr. λI. λid. λa. λb. qMulCls _ _ _ (idNormal _ r I) a b
+  λR. λr. λI. λid. λa. λb. qMulCls _ _ (idNormal _ r I) a b
 
 -- ===== the multiplicative laws, each a descent into Ω =====
 def qrMulAssoc : (R : 𝕌)

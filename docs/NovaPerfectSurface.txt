@@ -759,18 +759,21 @@ header line and instantiated imports print and re-parse through
 the same grammar; the round-trip and canonical-form gates extend
 unchanged.
 
-Corpus: groupTheory.nova is the first parameterized module — its
-19 defs read at (G, g) fixed, `def gAssoc : (x y z : El G) →
-gop (gop x y) z ≡ gop x (gop y z)`, with two external call sites
-adjusted (defs whose g was per-def IMPLICIT are now header-
-explicit; their few elided-g sites spell it). LIMIT recorded:
-a single header fixes ONE plicity per parameter, so a file whose
-defs MIX {g}/(g) (subgroup.nova's coset family vs its predicates)
-migrates only at the cost of touching the sites on the flipped
-side — subgroup stays plain until that churn is worth it. Also
-open: two instantiations of one module in one file need
-prefix-renaming imports (groupHom wants groupTheory at g AND h);
-data/clausal items inside parameterized modules are refused.
+Corpus: groupTheory (19 defs at (G, g) fixed), then subgroup
+((G, g); its groupTheory import INSTANTIATED — `import
+(groupTheory g) (·, e, ⁻¹, …)` — so the notation flows in:
+`def cosetSplice : x · y ⁻¹ · (y · z ⁻¹) ≡ x · z ⁻¹`,
+`def IsSubgroup : (N : El G → Ω) → Ω`), then quotGroup
+((G, g, N); both groupTheory AND subgroup instantiated at its own
+g: `def qInvLaw : … → qMul nn (qInv s nn u) u ≡ qUnit`). The
+header fixes ONE plicity per parameter, so defs whose g/N were
+per-def implicit are now header-explicit: external plain-import
+sites on the flipped side spell a blank (`cosetRefl _ s`,
+`qclsEq _ _ s a b h` — the blank solves from the proof argument's
+type), and old explicit-(G) sites drop a blank. Still open: two
+instantiations of one module in one file need prefix-renaming
+imports (groupHom wants groupTheory at g AND h); data/clausal
+items inside parameterized modules are refused.
 
 POSTFIX OPERATORS AND RENAMING IMPORTS (2026-08-22): a third
 fixity class, `postfix 9 ⁻¹`, parsed at the PROJECTION tier —
