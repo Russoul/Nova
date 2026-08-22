@@ -122,6 +122,7 @@ def rMulNeg : (R : 𝕌)
     _
     _
     (gInvUniq
+      (raddGroup r)
       (gop (raddGroup r) (rmul _ r x y) (rmul _ r x (ginv (raddGroup r) y))
           ≡⟨ sym
             _

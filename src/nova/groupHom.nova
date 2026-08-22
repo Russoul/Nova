@@ -92,6 +92,7 @@ def homInv : {G : 𝕌}
     _
     _
     (gInvUniq
+      h
       (gop h (homAp p x) (homAp p (ginv g x))
           ≡⟨ sym _ _ (homLaw p x (ginv g x)) ⟩ homAp p (gop g x (ginv g x))
           ≡⟨ cong (λw. H) (homAp p) (gInvR g x) ⟩ homAp p (ge g)
