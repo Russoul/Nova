@@ -59,6 +59,8 @@ adopted wholesale, presupposition column included:
   σ : Γ ⇒ Δ                      σ₀ ≐ σ₁ : Γ ⇒ Δ
   e˲ : Γ ⇒ Δ norm                e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm
   Γ ⊦ A : 𝕍                     Γ ⊦ A₀ ≐ A₁ : 𝕍
+  # (≐ is Foundation's derived notation for a ⋆-typing; a derivation
+  # of an equation is a derivation of that ⋆-typing)
   Γ ⊦ a : A                      Γ ⊦ a₀ ≐ a₁ : A
   Γ ⊦ Δ tel                      Γ ⊦ Δ₀ ≐ Δ₁ tel
   Γ ⊦ ē : Δ                      Γ ⊦ ē₀ ≐ ē₁ : Δ

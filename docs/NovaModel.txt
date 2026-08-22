@@ -41,6 +41,13 @@
 # model-side image of Foundation's structural commitment: a
 # type IS its head-constructor tree.
 #
+# NOTE (equality as notation): Foundation's Γ ⊦ a₀ ≐ a₁ : A is
+# derived notation for Γ ⊦ ⋆ : Prf (a₀ ≡ a₁ ∈ A); this file's
+# ≐-clauses are unchanged by that reading — the truth of the equality
+# prop and the meta-equation interpreting the judgemental spelling
+# are the SAME relation (that identity is what el-reflect/el-eq-i
+# always asserted).
+#
 # NOTATION. ⟦·⟧ is semantic interpretation (this file's use is
 # unrelated to Foundation's method-image ⟦·⟧). γ ranges over
 # semantic environments. Meta-level syntax is written with Nova's

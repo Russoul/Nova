@@ -36,11 +36,19 @@
 # equality proposition admits 𝕍, so type-equality props (A ≡ B ∈ 𝕍)
 # exist and type equality is reflection-complete like element equality
 # (see code-eq and its SEMANTICS note in the Ω block).
-# (docs/NovaModel.txt, NovaKernel.txt, NovaElaboration.txt and
-# NovaPerfectSurface.txt predate this dissolution and still present
-# the two-judgement form; their propagation is pending. The DISSOLVED
-# NAMES table at the end of this file maps every retired rule name to
-# its replacement.)
+#
+# AND NO EQUALITY JUDGEMENT. Equality reflection makes the
+# judgemental equality co-extensive with the equality PROPOSITION, so
+# the judgement dissolves into it: `Γ ⊦ a₀ ≐ a₁ : A` is DERIVED
+# NOTATION for `Γ ⊦ ⋆ : Prf (a₀ ≡ a₁ ∈ A)` — A = 𝕍 giving type
+# equality — and the remaining equality forms (contexts,
+# substitutions, telescopes, spines) are META-DEFINITIONS over it
+# (see EQUALITY in the conventions). ONE typed judgement remains.
+# The setoid model interprets both spellings as the same relation, so
+# this dissolution is purely presentational; every rule below keeps
+# its ≐-spelling, read through the notation.
+# (The DISSOLVED NAMES table at the end of this file maps every
+# retired rule name to its replacement.)
 #
 # Semantics is assigned by the SETOID MODEL: a type denotes a
 # structural CODE together with a proof-irrelevant equivalence relation
@@ -254,35 +262,49 @@ t, T ::= x [e˲]      # signature reference
 # * GROUPED CONCLUSIONS. A rule with several conclusions below the line
 #   abbreviates one rule per conclusion (same premises).
 #
-# * EQUIVALENCE RULES. Each of the six equality judgements —
+# * EQUALITY. There is ONE equality: the proposition (a₀ ≡ a₁ ∈ A).
+#   The judgemental spelling is DERIVED NOTATION —
 
-    Γ₀ ≐ Γ₁ ctx                 (contexts)
-    σ₀ ≐ σ₁ : Γ ⇒ Δ             (substitutions)
-    e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm      (normal substitutions)
-    Γ ⊦ a₀ ≐ a₁ : A             (elements — A = 𝕍 is TYPE equality)
-    Γ ⊦ Δ₀ ≐ Δ₁ tel             (telescopes)
-    Γ ⊦ ē₀ ≐ ē₁ : Δ             (element lists)
+    Γ ⊦ a₀ ≐ a₁ : A    ≜    Γ ⊦ ⋆ : Prf (a₀ ≡ a₁ ∈ A)
+
+#   — with A ranging over types AND 𝕍 (A = 𝕍 is TYPE equality). It is
+#   not a judgement form: its presuppositions are those of the
+#   unfolding, which close over code-eq's premises — exactly the two
+#   typings the retired form presupposed. The remaining equality
+#   spellings are META-DEFINITIONS over it:
 #
-#   — is governed by three rules adopted once here and not repeated per
-#   class. Writing J for the well-formedness form and J⁼ for the
-#   equality form of a class:
+#     Γ₀ ≐ Γ₁ ctx             pointwise: ε ≐ ε, and
+#                             Γ₀ ▷ A₀ ≐ Γ₁ ▷ A₁ iff Γ₀ ≐ Γ₁ ctx and
+#                             Γ₁ ⊦ A₀ ≐ A₁ : 𝕍 (the old ctx-ext-cong,
+#                             now the defining clause)
+#     σ₀ ≐ σ₁ : Γ ⇒ Δ         EXTENSIONAL: Γ ⊦ ☐ᵢ[σ₀] ≐ ☐ᵢ[σ₁] : Δ‖ᵢ[σ₁]
+#                             for every i < |Δ| — the substitution
+#                             calculus's own equations (assoc, the id
+#                             laws, wk-ext, eta, ...) are then
+#                             META-LEMMAS, by the var-sub-* clauses
+#     e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm  pointwise (sub-norm-ext-cong defining)
+#     Γ ⊦ Δ₀ ≐ Δ₁ tel         pointwise (tel-ext-cong defining)
+#     Γ ⊦ ē₀ ≐ ē₁ : Δ         pointwise (sp-ext-cong defining)
+#
+#   The EQUIVALENCE structure: for the ≐-notation it is three RULES,
+#   stated once here —
 
-    J(a)              J⁼(a₀ ≐ a₁)          J⁼(a₀ ≐ a₁)   J⁼(a₁ ≐ a₂)
-    ----------(refl)  -----------(sym)     ------------------------(trans, via a₁)
-    J⁼(a ≐ a)         J⁼(a₁ ≐ a₀)          J⁼(a₀ ≐ a₂)
+    Γ ⊦ a : A         Γ ⊦ a₀ ≐ a₁ : A       Γ ⊦ a₀ ≐ a₁ : A   Γ ⊦ a₁ ≐ a₂ : A
+    ---------(el-refl) ---------------(el-sym) --------------------------------(el-trans, via a₁)
+    Γ ⊦ a ≐ a : A     Γ ⊦ a₁ ≐ a₀ : A       Γ ⊦ a₀ ≐ a₂ : A
 
-#   (transitivity's middle subject a₁, with J(a₁), is an input of the
-#   rule). Instances are named ctx-refl, ctx-sym, ctx-trans, sub-refl,
-#   ..., sp-trans; the former ty-refl/-sym/-trans are the A = 𝕍
-#   instances of el-refl/-sym/-trans. Consequently the pointwise
-#   equality rules for constants and atoms (ε ≐ ε ctx, id ≐ id,
-#   ↑ ≐ ↑, · ≐ ·, x[e˲] ≐ x[e˲], ...) are refl instances and are not
-#   stated.
+#   (transitivity's middle subject a₁, with its typing, is an input;
+#   ty-refl/-sym/-trans of earlier presentations are the A = 𝕍
+#   instances). For the meta-defined spellings, refl/sym/trans are
+#   META-LEMMAS, pointwise from these (the former ctx-/sub-/sub-norm-/
+#   tel-/sp- refl/sym/trans instances). Pointwise equality of
+#   constants and atoms (ε ≐ ε ctx, id ≐ id, ↑ ≐ ↑, · ≐ ·,
+#   x[e˲] ≐ x[e˲], ...) are refl instances and are not stated.
 
 # * DEFINITIONAL EQUALITY. A rule concluding J ≜ K asserts the
-#   corresponding ≐-judgement and additionally marks it as a computation
+#   corresponding ≐-notation and additionally marks it as a computation
 #   step, oriented left to right. Its presuppositions are those of the
-#   underlying ≐ form.
+#   underlying ≐ spelling.
 
 # * NAMES. Every rule carries a canonical name on its inference line,
 #   following one homogeneous scheme — <class>-<former>-<kind> — where
@@ -306,26 +328,21 @@ t, T ::= x [e˲]      # signature reference
   --------------------------   ------------------------------------
   Σ sig                        —
   Γ ctx                        —
-  Γ₀ ≐ Γ₁ ctx                  Γ₀ ctx;  Γ₁ ctx
   σ : Γ ⇒ Δ                    Γ ctx;  Δ ctx
-  σ₀ ≐ σ₁ : Γ ⇒ Δ              σ₀ : Γ ⇒ Δ;  σ₁ : Γ ⇒ Δ
   e˲ : Γ ⇒ Δ norm              Γ ctx;  Δ ctx
-  e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm       e˲₀ : Γ ⇒ Δ norm;  e˲₁ : Γ ⇒ Δ norm
   Γ ⊦ A : 𝕍                   Γ ctx          (the A = 𝕍 instance)
   Γ ⊦ a : A                    Γ ⊦ A : 𝕍     (A ≠ 𝕍)
-  Γ ⊦ a₀ ≐ a₁ : A              Γ ⊦ a₀ : A;  Γ ⊦ a₁ : A
   # The typing judgement's presupposition is TWO-CASE, by the two rows
   # above: at A = 𝕍 only Γ ctx is presupposed — 𝕍 is the ONE term
   # that stands in type position without itself being typed (it has
   # no typing rule; see THE TOP UNIVERSE) — and at A ≠ 𝕍 the type's
   # own 𝕍-typing is. The rows are instances of one judgement form,
-  # not separate forms; likewise for the equality row (its A = 𝕍
-  # instance, Γ ⊦ A₀ ≐ A₁ : 𝕍, is TYPE equality, presupposing the
-  # two 𝕍-typings).
+  # not separate forms. There are NO equality rows: Γ ⊦ a₀ ≐ a₁ : A
+  # is derived notation for a ⋆-typing (its presuppositions unfold to
+  # the two typings), and the other ≐-spellings are meta-definitions
+  # — see EQUALITY in the conventions.
   Γ ⊦ Δ tel                    Γ ctx
-  Γ ⊦ Δ₀ ≐ Δ₁ tel              Γ ⊦ Δ₀ tel;  Γ ⊦ Δ₁ tel
   Γ ⊦ ē : Δ                    Γ ⊦ Δ tel
-  Γ ⊦ ē₀ ≐ ē₁ : Δ              Γ ⊦ ē₀ : Δ;  Γ ⊦ ē₁ : Δ
   Γ ⊦ Φ qctx                   Γ ctx        (qiit-context)
   Γ ; Φ ⊦ 𝔄 qty                Γ ⊦ Φ qctx   (qiit-type)
   Γ ; Φ ⊦ 𝕥 : 𝔄                Γ ; Φ ⊦ 𝔄 qty (qiit-term)
@@ -438,10 +455,21 @@ x ∉ Σ
 
 Γ₀ ≐ Γ₁ ctx
 Γ₁ ⊦ A₀ ≐ A₁ : 𝕍
---------------------- (ctx-ext-cong)
-Γ₀ ▷ A₀ ≐ Γ₁ ▷ A₁ ctx
+--------------------- (ctx-ext-cong)   # the DEFINING clause of the
+Γ₀ ▷ A₀ ≐ Γ₁ ▷ A₁ ctx                  #   pointwise meta-notation
+                                       #   (EQUALITY, conventions)
 
 ///////// Rules (ctx substitution) /////////
+#
+# SUBSTITUTION EQUALITY IS THE EXTENSIONAL META-NOTATION (EQUALITY,
+# conventions): σ₀ ≐ σ₁ : Γ ⇒ Δ says the variable images agree. The
+# equations of the calculus below (sub-empty-unique, sub-id-empty,
+# sub-eta, sub-id-pre/-post, sub-assoc, sub-wk-ext, sub-empty-comp,
+# sub-ext-post, sub-ext-unique, sub-comp-cong, sub-ext-cong, and the
+# sub-eq-coe-* transports) are therefore META-LEMMAS, established by
+# the var-sub-* clauses and el-sub-comp/el-sub-id — retained here,
+# statements and names unchanged, because the kernel and the docs
+# cite them as facts.
 
 Γ ctx
 ------------- (sub-empty)
@@ -569,8 +597,8 @@ e˲ : Γ₀ ⇒ Γ₁ norm
 
 e˲₀ ≐ e˲₁ : Γ₀ ⇒ Γ₁ norm
 Γ₀ ⊦ t₀ ≐ t₁ : A[e˲₁]
----------------------------------------- (sub-norm-ext-cong)
-(e˲₀, t₀) ≐ (e˲₁, t₁) : Γ₀ ⇒ Γ₁ ▷ A norm
+---------------------------------------- (sub-norm-ext-cong)   # defining clause of the
+(e˲₀, t₀) ≐ (e˲₁, t₁) : Γ₀ ⇒ Γ₁ ▷ A norm                       #   pointwise meta-notation
 
 e˲ : Γ₀ ⇒ Γ₁ norm
 ------------------- (sub-norm-embed) # a normal substitution is a substitution
@@ -946,8 +974,8 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 
 Γ ⊦ A₀ ≐ A₁ : 𝕍
 Γ ▷ A₁ ⊦ Δ₀ ≐ Δ₁ tel
------------------------------ (tel-ext-cong)
-Γ ⊦ A₀ ◁ Δ₀ ≐ A₁ ◁ Δ₁ tel
+----------------------------- (tel-ext-cong)   # defining clause of the
+Γ ⊦ A₀ ◁ Δ₀ ≐ A₁ ◁ Δ₁ tel                      #   pointwise meta-notation
 
 Γ₁ ⊦ Δ tel
 σ : Γ₀ ⇒ Γ₁
@@ -1503,11 +1531,20 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 
 Γ ⊦ a₀ ≐ a₁ : A
 ------------------------------ (el-eq-i) # the canonical proof of a
-Γ ⊦ ⋆ : Prf (a₀ ≡ a₁ ∈ A)                #   true equation is ⋆
+Γ ⊦ ⋆ : Prf (a₀ ≡ a₁ ∈ A)                #   true equation is ⋆ — under
+                                         #   the ≐-NOTATION this is its
+                                         #   UNFOLDING (premise and
+                                         #   conclusion are the same
+                                         #   judgement); the name is
+                                         #   kept for the citations
 
 Γ ⊦ s : Prf (a₀ ≡ a₁ ∈ A)
--------------------------- (el-reflect) # equality reflection
-Γ ⊦ a₀ ≐ a₁ : A
+-------------------------- (el-reflect) # equality reflection — read
+Γ ⊦ a₀ ≐ a₁ : A                         #   through the notation, the
+                                        #   rule that ⋆ is CANONICAL:
+                                        #   any inhabitant of an
+                                        #   equality prop yields the
+                                        #   ⋆-typing
 
 Γ ⊦ t₀ : Prf p
 Γ ⊦ t₁ : Prf p
@@ -2839,8 +2876,8 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ▷ A ⊦ Δ tel
 Γ ⊦ e₀ ≐ e₁ : A
 Γ ⊦ ē₀ ≐ ē₁ : Δ[id, e₁]
---------------------------------- (sp-ext-cong)
-Γ ⊦ (e₀, ē₀) ≐ (e₁, ē₁) : A ◁ Δ
+--------------------------------- (sp-ext-cong)   # defining clause of the
+Γ ⊦ (e₀, ē₀) ≐ (e₁, ē₁) : A ◁ Δ                   #   pointwise meta-notation
 
 Γ₁ ⊦ ē : Δ
 σ : Γ₀ ⇒ Γ₁
@@ -2888,11 +2925,13 @@ e˲ : Γ₁ ⇒ Γ norm
 # Names follow <class>-<former>-<kind> uniformly (see Conventions:
 # NAMES). Within the element class the prefix records the
 # conclusion's universe — ty- at 𝕍, code- at 𝕌, el- otherwise. The
-# equivalence schema instances are ctx-refl/-sym/-trans, sub-…,
-# sub-norm-…, el-…, tel-…, sp-… (ty-refl/-sym/-trans of earlier
-# presentations are el-refl/-sym/-trans at 𝕍). The poly class has
+# equivalence structure is three RULES for the ≐-notation (el-refl,
+# el-sym, el-trans — stated in EQUALITY; ty-refl/-sym/-trans of
+# earlier presentations are their A = 𝕍 instances) and META-LEMMAS
+# for the meta-defined spellings (the former ctx-/sub-/sub-norm-/
+# tel-/sp- refl/sym/trans instances). The poly class has
 # well-formedness rules only (polynomials are inert syntax, no
-# equality judgement). All other names appear verbatim on their
+# equality of their own). All other names appear verbatim on their
 # rules; there are no synonyms.
 
 ///////// DISSOLVED NAMES /////////
@@ -2941,3 +2980,23 @@ e˲ : Γ₁ ⇒ Γ norm
 #   DISCHARGE        the Prf instance of INSTANTIATION (fill the hole
 #                    with ⋆ — el-eq-i's condition is exactly the
 #                    constraint's derivability)
+#
+# The EQUALITY JUDGEMENT's dissolution (Γ ⊦ a₀ ≐ a₁ : A is derived
+# notation for Γ ⊦ ⋆ : Prf (a₀ ≡ a₁ ∈ A); the other ≐-spellings are
+# meta-definitions — EQUALITY, conventions) reclassifies rather than
+# renames:
+#
+#   el-eq-i          the notation's UNFOLDING (name kept — the kernel
+#                    cites it for ⋆-at-an-equality checking)
+#   el-reflect       RETAINED as a rule: ⋆ is canonical at an
+#                    inhabited equality prop
+#   el-refl/-sym/-trans   RULES for the notation (stated in EQUALITY)
+#   ctx-refl/-sym/-trans, sub-…, sub-norm-…, tel-…, sp-…
+#                    meta-lemmas (pointwise/extensional)
+#   ctx-ext-cong, sub-norm-ext-cong, tel-ext-cong, sp-ext-cong
+#                    the meta-notations' DEFINING clauses
+#   sub-empty-unique, sub-id-empty, sub-eta, sub-id-pre, sub-id-post,
+#   sub-assoc, sub-wk-ext, sub-empty-comp, sub-ext-post,
+#   sub-ext-unique, sub-comp-cong, sub-ext-cong, sub-eq-coe-dom/-cod
+#                    meta-lemmas about the extensional notation
+#                    (statements unchanged, in place)
