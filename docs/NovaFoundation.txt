@@ -44,9 +44,12 @@
 # remaining equality forms (contexts, substitutions, telescopes,
 # spines) are META-DEFINITIONS over it (see EQUALITY in the
 # conventions). ONE typed judgement remains. EQUALITY REFLECTION
-# thereby stops being a principle and becomes the definition; the
-# rule kept under the name el-reflect is ⋆-CANONICITY (any inhabitant
-# of an equality prop yields the ⋆-typing).
+# thereby stops being a principle and becomes the definition, and it
+# leaves NO primitive residue: the rule kept under the name
+# el-reflect — ⋆-canonicity, any inhabitant of an equality prop
+# yields the ⋆-typing — is itself ADMISSIBLE, forced by Ω-valuedness
+# (an inhabited prop is ≐-equal to ∥𝟙∥ by code-prop-eq, and ⋆
+# transports across; see its note in the Ω block).
 # The setoid model interprets both spellings as the same relation, so
 # this dissolution is purely presentational; every rule below keeps
 # its ≐-spelling, read through the notation.
@@ -1560,35 +1563,40 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ ⊦ ⋆ : Prf ∥A∥
 
 
-FIXME: REDUNDANT
 Γ ⊦ a₀ ≐ a₁ : A
------------------------------- (el-eq-i) # the canonical proof of a
-Γ ⊦ ⋆ : Prf (a₀ ≡ a₁ ∈ A)                #   true equation is ⋆ — under
-                                         #   the ≐-NOTATION this is its
-                                         #   UNFOLDING (premise and
-                                         #   conclusion are the same
-                                         #   judgement); the name is
-                                         #   kept for the citations
+------------------------------ (el-eq-i) # REDUNDANT — the ≐-NOTATION's
+Γ ⊦ ⋆ : Prf (a₀ ≡ a₁ ∈ A)                #   UNFOLDING: premise and
+                                         #   conclusion are the SAME
+                                         #   judgement. Displayed for
+                                         #   the kernel's citations
+                                         #   (its ⋆-at-an-equality
+                                         #   checking replays under
+                                         #   this name)
 
-FIXME: REDUNDANT
 Γ ⊦ s : Prf (a₀ ≡ a₁ ∈ A)
--------------------------- (el-reflect) # ⋆-CANONICITY. The name is
-Γ ⊦ a₀ ≐ a₁ : A                         #   historical: REFLECTION no
-                                        #   longer exists as a
-                                        #   principle — ≐ is DEFINED
-                                        #   as ⋆-inhabitation, so the
-                                        #   prop-to-judgemental passage
-                                        #   is definitional. What the
-                                        #   rule says: ANY inhabitant
-                                        #   yields the ⋆-typing. It is
-                                        #   irreducible, and needed
-                                        #   outright because ⋆ occurs
-                                        #   in TERMS (el-let's third
-                                        #   component, ⋆[σ] ≜ ⋆, the
-                                        #   QIIT equation-entry
-                                        #   reflections), whose
-                                        #   well-formedness demands
-                                        #   Γ ⊦ ⋆ : Prf (…)
+-------------------------- (el-reflect) # ⋆-CANONICITY — ADMISSIBLE:
+Γ ⊦ a₀ ≐ a₁ : A                         #   Ω-valuedness forces it, by
+                                        #   the realizer-irrelevance
+                                        #   argument above applied at
+                                        #   the equation's prop p:
+                                        #   code-prop-eq at p, ∥𝟙∥
+                                        #   (s[↑] one way, el-squash-i
+                                        #   with ()[↑] the other) gives
+                                        #   p ≐ ∥𝟙∥ : Ω; ty-prf-cong
+                                        #   and el-ty-coe then carry
+                                        #   el-squash-i's ⋆ : Prf ∥𝟙∥
+                                        #   into Prf p. (Nothing is
+                                        #   equation-specific — any
+                                        #   inhabited Prf admits ⋆ this
+                                        #   way; the ⋆'s occurring in
+                                        #   TERMS sit at reflexive
+                                        #   equations and come from
+                                        #   el-refl.) The name is
+                                        #   historical — REFLECTION is
+                                        #   definitional under the
+                                        #   ≐-notation; kept because
+                                        #   the kernel replays it
+                                        #   directly
 
 Γ ⊦ t₀ : Prf p
 Γ ⊦ t₁ : Prf p
@@ -3076,8 +3084,9 @@ e˲ : Γ₁ ⇒ Γ norm
 #
 #   el-eq-i          the notation's UNFOLDING (name kept — the kernel
 #                    cites it for ⋆-at-an-equality checking)
-#   el-reflect       RETAINED as a rule: ⋆ is canonical at an
-#                    inhabited equality prop
+#   el-reflect       ADMISSIBLE: ⋆-canonicity, forced by Ω-valuedness
+#                    (code-prop-eq at the prop and ∥𝟙∥, then
+#                    ty-prf-cong + el-ty-coe carry ⋆ across)
 #   el-refl/-sym/-trans   RULES for the notation (stated in EQUALITY)
 #   ctx-refl/-sym/-trans, sub-…, sub-norm-…, tel-…, sp-…
 #                    meta-lemmas (pointwise/extensional)
@@ -3095,8 +3104,9 @@ e˲ : Γ₁ ⇒ Γ norm
 #   el-pi-eta        RESTATED in the extensional (two-candidate) form
 #                    every other η already takes; the old single-
 #                    candidate form is the instance g₀ ≜ λ (g₁[↑] ☐₀)
-#   el-reflect       reglossed: ⋆-CANONICITY (reflection is
-#                    definitional under the ≐-notation)
+#   el-reflect       ADMISSIBLE — ⋆-canonicity, forced by
+#                    Ω-valuedness (reflection is definitional under
+#                    the ≐-notation)
 #   ADMISSIBLE, by substitution instance over el-sub-cong:
 #                    el-app-cong, el-suc-cong, el-pair-cong,
 #                    el-proj₁/₂-cong, el-inj₁/₂-cong, el-class-cong,
