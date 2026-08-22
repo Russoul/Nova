@@ -6,7 +6,7 @@
 --
 -- The additive half is subgroup.nova's IsSubgroup at the ring's
 -- additive group — nothing is restated. And because that group is
--- abelian (rAddComm), idNormal is subgroup.abelianNormal applied and
+-- abelian (rAddComm), idNormal is subgroup.abelianNormal _ applied and
 -- nothing more: an ideal is automatically a normal subgroup, so the
 -- whole of quotGroup.nova is available to R/I before a single new
 -- well-definedness proof is written. Only the MULTIPLICATION has to
@@ -16,7 +16,7 @@ import prop (∧, andIntro, andFst, andSnd)
 import monoid (IsMonoid)
 import group (IsGroup)
 import ring (IsCommRing)
-import groupTheory (gop, ge, ginv)
+import groupTheory (· as gop, e as ge, ⁻¹ as ginv)
 import ringTheory (raddGroup, rmul, rone, rMulComm, rAddComm, rMulSub)
 import subgroup (IsSubgroup, IsNormal, sgIntro, sgUnit, sgOp, sgInv, abelianNormal, cosetRel)
 import equality (transportP, sym, trans, cong)
@@ -52,7 +52,7 @@ def idScale : (R : 𝕌)
 
 -- an ideal is a normal subgroup of (R , +), because (R , +) is abelian
 def idNormal : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) → Prf (IsNormal (raddGroup r) I) ≔
-  λR. λr. λI. abelianNormal (rAddComm _ r)
+  λR. λr. λI. abelianNormal _ (rAddComm _ r)
 
 -- ===== the two closure facts the descent will want =====
 --

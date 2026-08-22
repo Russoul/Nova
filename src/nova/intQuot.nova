@@ -17,7 +17,7 @@ import rational (intAddZeroL, intAddZeroR)
 import intGroup (intAddGroup, intAddMonoid)
 import monoid (IsMonoid)
 import group (IsGroup)
-import groupTheory (gop, ge, ginv)
+import groupTheory (· as gop, e as ge, ⁻¹ as ginv)
 import subgroup (IsSubgroup, IsNormal, sgIntro, sgUnit, sgOp, sgInv, abelianNormal, cosetRel)
 import quotGroup (QGroup, qcls, qclsEq, qclsEffective, qMul, qMulCls, qInv, qUnit, qIsGroup)
 import ring (IsCommRing)
@@ -28,13 +28,13 @@ import quotRing (QRing, qrCls, qrMul, qrOne, qrAdd, qrAddGroup, qrIsCommRing)
 import equality (transportP, sym, trans, cong)
 
 def intGop : (x y : El Int) → gop intAddGroup x y ≡ x + y
-  using (groupTheory.gop.eq, intGroup.intAddGroup.eq) ≔
+  using (groupTheory.·.eq, intGroup.intAddGroup.eq) ≔
   λx. λy. ⋆
 
-def intGe : ge intAddGroup ≡ intZero using (groupTheory.ge.eq, intGroup.intAddGroup.eq) ≔ ⋆
+def intGe : ge intAddGroup ≡ intZero using (groupTheory.e.eq, intGroup.intAddGroup.eq) ≔ ⋆
 
 def intGinv : (x : El Int) → ginv intAddGroup x ≡ intNeg x
-  using (groupTheory.ginv.eq, intGroup.intAddGroup.eq) ≔
+  using (groupTheory.⁻¹.eq, intGroup.intAddGroup.eq) ≔
   λx. ⋆
 
 -- ℤ is abelian, in the group-theoretic vocabulary
@@ -85,16 +85,16 @@ def nZInv : (n x : El Int) → Prf (nZ n x) → Prf (nZ n (ginv intAddGroup x))
         ≡⟨ sym _ _ (intGinv x) ⟩ ginv intAddGroup x))
 
 def nZIsSubgroup : (n : El Int) → Prf (IsSubgroup intAddGroup (nZ n)) ≔
-  λn. sgIntro (nZUnit n) (nZOp n) (nZInv n)
+  λn. sgIntro _ (nZUnit n) (nZOp n) (nZInv n)
 
 -- ...and normal for free, ℤ being abelian
-def nZIsNormal : {n : El Int} → Prf (IsNormal intAddGroup (nZ n)) ≔ λn. abelianNormal intGopComm
+def nZIsNormal : {n : El Int} → Prf (IsNormal intAddGroup (nZ n)) ≔ λn. abelianNormal _ intGopComm
 
 -- ===== ℤ/nℤ =====
-def IntMod : El Int → 𝕌 ≔ λn. QGroup _ intAddGroup (nZ n)
+def IntMod : El Int → 𝕌 ≔ λn. QGroup intAddGroup (nZ n)
 
 def intModGroup : (n : El Int) → El (IsGroup (IntMod n)) using (IntMod.eq) ≔
-  λn. qIsGroup _ _ _ (nZIsSubgroup n) nZIsNormal
+  λn. qIsGroup _ _ (nZIsSubgroup n) nZIsNormal
 
 def intModCls : {n : El Int} → El Int → El (IntMod n) using (IntMod.eq) ≔
   λn. qcls intAddGroup (nZ n)
@@ -104,6 +104,8 @@ def intModCls : {n : El Int} → El Int → El (IntMod n) using (IntMod.eq) ≔
 def intModMulZero : {n k : El Int} → intModCls (n * k) ≡ intModCls intZero ∈ El (IntMod n)
   using (intModCls.eq, subgroup.cosetRel.eq) ≔
   λn. λk. qclsEq
+    _
+    _
     (nZIsSubgroup n)
     (n * k)
     intZero

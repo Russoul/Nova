@@ -138,6 +138,13 @@ record DeclMeta where
   ||| the declaring item's source span (LSP diagnostics)
   drange : Maybe Range
 
+||| How a reference to a parameterized-module def obtains its
+||| parameter prefix at this site (see ElabSt.preApp).
+public export
+data PreApp : Type where
+  PSelf : PreApp
+  PArgs : (depth : Nat) -> List Elem -> PreApp
+
 record ElabSt where
   constructor MkElabSt
   sig : Sig
@@ -259,9 +266,42 @@ record ElabSt where
   ||| elaborates with zero new obligations wins; none or several is a
   ||| structural error naming the qualification remedy.
   dupNames : List String
+  ||| PARAMETERIZED MODULES (docs/NovaPerfectSurface.txt): qualified
+  ||| def name → its module-parameter count. GLOBAL metadata (like
+  ||| impls): any importer needs it to know how many leading
+  ||| telescope positions are the parameter prefix
+  mpars : List (String, Nat)
+  ||| the CURRENT module's parameter telescope, elaborated:
+  ||| (name, implicit?, domain at its depth, domain skeleton) in
+  ||| binder order. Empty for an ordinary module
+  parTele : List (String, Bool, Ty, Skel)
+  ||| pre-application table of the current module: a reference to a
+  ||| listed def auto-applies its parameter prefix — PSelf (a
+  ||| sibling: the current module's own params, as context
+  ||| variables), or PArgs depth args (an instantiated import:
+  ||| argument elems elaborated at context depth `depth`, weakened
+  ||| to the site)
+  preApp : List (String, PreApp)
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [<] Nothing [] [] Nothing [] False [<] False [<] [<] [<] False False []
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [<] Nothing [] [] Nothing [] False [<] False [<] [<] [<] False False [] [] [] []
+
+||| [0, 1, …, n-1] — the leading telescope positions of a
+||| parameterized-module reference
+natsUpTo : Nat -> List Nat
+natsUpTo Z = []
+natsUpTo (S k) = natsUpTo k ++ [k]
+
+||| weaken a closed-over elem from context depth d to the current
+||| depth (n ≥ d): shift every variable by (n - d)
+wkElem : Nat -> Elem -> Elem
+wkElem Z e = e
+wkElem (S n) e = substElem (wkElem n e) Wk
+
+||| the parameter context/environment view of ElabSt.parTele
+parCtxOf : List (String, Bool, Ty, Skel) -> (Ctx, NameEnv)
+parCtxOf tele = (foldl (\c, (_, _, t, _) => c :< t) [<] tele,
+                 foldl (\e, (nm, _, _, _) => e :< nm) [<] tele)
 
 ||| Is the surface term an INFERENCE form — its type known without an
 ||| expected type? Mirrors the mode inventory
@@ -3218,6 +3258,12 @@ mutual
     let True = not (x0 `elem` st.dupNames)
       | False => throw "\{site}: '\{x0}' is overloaded (\{joinBy ", " (resolveSigAll st x0)}) and nothing here selects one — qualify it"
     let x = resolveSigName st x0
+    -- a bare reference into a PARAMETERIZED module still means the
+    -- def at THIS module's instantiation: route it through the spine
+    -- elaborator (empty spine, no trailing insertion), which
+    -- pre-applies the parameter prefix
+    let Nothing = lookup x0 st.preApp
+      | Just _ => elabImpSpine ctx env site Nothing False False x x0 mrng []
     -- cachedSigLookup: positive-only name index; the unknown-name
     -- error path below always re-scans (negatives are never cached)
     case cachedSigLookup st.sig x of
@@ -3747,7 +3793,7 @@ mutual
         pure (t', addPayload (PSwitch (certOr c)) tSk)
       else case impSpineOf st (SApp sref SUnitI) of   -- reuse the head test
       Just (_, q, _, _, _) =>
-        if maybe False (\ps => 0 `elem` ps) (lookup q st.impls)
+        if maybe False (\ps => 0 `elem` ps) (lookup q st.impls) || isJust (lookup x0 st.preApp)
           then do
             (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) True False q x0 mrng []
             c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
@@ -4049,7 +4095,12 @@ mutual
           -- split and the matcher cannot see through (its relation
           -- to the surface-level PiApp form is conversion, not α) —
           -- those spines stay on the generic rule, blankless
-          _ => if (any isBlankArg items || st.svSugarOn) && ordinaryHead st q
+          _ => if isJust (lookup x0 st.preApp)
+                 -- a PARAMETERIZED-module reference always takes the
+                 -- spine elaborator: its parameter prefix is
+                 -- pre-applied there
+                 then Just (False, q, x0, mrng, items)
+               else if (any isBlankArg items || st.svSugarOn) && ordinaryHead st q
                  then Just (False, q, x0, mrng, items)
                  else Nothing
       -- an APPLIED no-insert head — `f {} a b …` — is POSITIONAL
@@ -4059,7 +4110,9 @@ mutual
       -- homAp {} _ g _ (qIsGroup …) qProj a)
       SNoIns (SSig mrng x0) =>
         let q = resolveSigName st x0 in
-        if (any isBlankArg items || st.svSugarOn) && ordinaryHead st q
+        -- a PARAMETERIZED head must route here regardless: `f {}` is
+        -- the def at its FULL telescope, parameter prefix included
+        if (any isBlankArg items || st.svSugarOn || isJust (lookup x0 st.preApp)) && ordinaryHead st q
           then Just (True, q, x0, mrng, items)
           else Nothing
       _ => Nothing
@@ -4117,6 +4170,25 @@ mutual
       Just _ => throw "\{site}: '\{q}' is not usable as a term here"
       Nothing => throw "\{site}: unknown name '\{q}'"
     let imps = if noIns then [] else fromMaybe [] (lookup q st.impls)
+    -- PARAMETERIZED-module reference: the def's parameter prefix is
+    -- PRE-APPLIED — the leading `parN` telescope positions become
+    -- slots with their solutions seeded below (a sibling applies the
+    -- module's own parameters; an instantiated import applies its
+    -- stored arguments, weakened to this site's depth). Written
+    -- arguments never consume these positions; {…} overrides defer
+    -- past them to the def's own implicits
+    -- `f {}` is the BARE def over its full telescope — the no-insert
+    -- marker suppresses the parameter prefix too, which is how a
+    -- parameterized module references its own defs at OTHER
+    -- instances (Hom {} _ g _ (qIsGroup s nn))
+    let (parN, parVals) = the (Nat, List Elem) $ if noIns then (0, []) else case lookup x0 st.preApp of
+          Just PSelf =>
+            let k = length st.parTele in
+            (k, map (\j => CtxVar (minus (minus (length ctx) 1) j)) (natsUpTo k))
+          Just (PArgs d args) =>
+            (length args, map (wkElem (minus (length ctx) d)) args)
+          Nothing => (0, [])
+    let pars = natsUpTo parN
     recordBinderImps mrng ctx env x0 defTy imps
     -- the site's LICENSED JOIN (comp ∘ unfold[cited]) — recovery's
     -- third matching tier (docs/NovaPerfectSurface.txt, Phase 3d):
@@ -4125,7 +4197,7 @@ mutual
     -- spelling drift keeps getting rejected
     let jn = \t => compTy (unfTy st.sig st.eqScope t)
     let (doms, res) = teleOf defTy
-    (slots, leftover) <- assign imps 0 doms items
+    (slots, leftover) <- assign imps pars 0 doms items
     let m = length slots
     let tailTy = rebuildTail (drop m doms) res
     -- source 1: the expected type (throwaway holes stand at written
@@ -4145,6 +4217,10 @@ mutual
     let (sols0, jnSup) = the (Sols, Sols) $ case mexp of
                   Nothing => ([], [])
                   Just c => matchTySplit jn blankPoss (substTy tailTy (prefixSub patArgs)) c
+    -- the parameter slots' solutions, ahead of anything the expected
+    -- type matched (lookup is first-wins: a parameter is a GIVEN,
+    -- not a hole to solve)
+    let sols0 = zip pars parVals ++ sols0
     -- phase 1: walk the written spine left to right, solving from
     -- inference-form arguments as they elaborate
     (sols, revArgs, revSks, pending, srcs, attrs, defers) <- walk presIn jn ((st.impTrialOn || st.svSugarOn) && not st.probing) doms slots sols0 [] [] [] [] [] []
@@ -4321,9 +4397,16 @@ mutual
     ||| have. Like an intro form, it defers — and checks later, at a
     ||| hole-free domain, with its insertion intact.
     bareImplicitRef : ElabSt -> SElem -> Bool
-    bareImplicitRef st (SSig _ x0) = case lookup (resolveSigName st x0) st.impls of
-      Just (_ :: _) => True
-      _ => False
+    bareImplicitRef st (SSig _ x0) =
+      let q = resolveSigName st x0
+          imps = fromMaybe [] (lookup q st.impls)
+      in case lookup x0 st.preApp of
+           -- a PARAMETERIZED reference pre-applies its prefix even in
+           -- inference mode: it only defers when it has implicit
+           -- positions BEYOND the parameter prefix
+           Just _ => let k = fromMaybe 0 (lookup q st.mpars)
+                     in any (>= k) imps
+           Nothing => not (null imps)
     bareImplicitRef st _ = False
 
     ||| the written positions the walk DEFERS: intro forms, and bare
@@ -4342,36 +4425,48 @@ mutual
     ||| item. Insertion stops with the written items (trailing
     ||| implicits are not inserted); items beyond the syntactic
     ||| telescope are LEFTOVER, applied generically after.
-    assign : List Nat -> Nat -> List Ty -> List SElem ->
+    assign : List Nat -> List Nat -> Nat -> List Ty -> List SElem ->
              ElabM (List (Nat, Maybe SElem), List SElem)
-    assign imps pos (d :: ds) [] =
-      -- written items exhausted: INSERT the trailing implicit run
+    assign imps pars pos (d :: ds) [] =
+      -- a PARAMETER position always takes its slot (pre-seeded
+      -- solution — insertion regardless of mode); then, written
+      -- items exhausted: INSERT the trailing implicit run
       -- (checking position, unmarked — the expected type is the
       -- solver), stopping at the first explicit position
-      if insertTrailing && (pos `elem` imps)
+      if pos `elem` pars
         then do
-          (more, left) <- assign imps (S pos) ds []
+          (more, left) <- assign imps pars (S pos) ds []
+          pure ((pos, Nothing) :: more, left)
+      else if insertTrailing && (pos `elem` imps)
+        then do
+          (more, left) <- assign imps pars (S pos) ds []
           pure ((pos, Nothing) :: more, left)
         else pure ([], [])
-    assign imps pos [] rest = pure ([], rest)
-    assign imps pos [] [] = pure ([], [])
-    assign imps pos (d :: ds) (it :: rest) =
-      if pos `elem` imps
+    assign imps pars pos [] rest = pure ([], rest)
+    assign imps pars pos [] [] = pure ([], [])
+    assign imps pars pos (d :: ds) (it :: rest) =
+      if pos `elem` pars
+        -- every written item defers past a parameter position —
+        -- overrides included (they target the def's OWN implicits)
+        then do
+          (more, left) <- assign imps pars (S pos) ds (it :: rest)
+          pure ((pos, Nothing) :: more, left)
+      else if pos `elem` imps
         then case it of
           SImpArg t => do
-            (more, left) <- assign imps (S pos) ds rest
+            (more, left) <- assign imps pars (S pos) ds rest
             pure ((pos, Just t) :: more, left)
           -- a blank, like any non-override item, DEFERS past the
           -- implicit position (the hole is inserted; the blank
           -- stands for the next EXPLICIT position — the only place
           -- `_` may bind)
           _ => do
-            (more, left) <- assign imps (S pos) ds (it :: rest)
+            (more, left) <- assign imps pars (S pos) ds (it :: rest)
             pure ((pos, Nothing) :: more, left)
         else case it of
           SImpArg _ => throw "\{site}: {…} override at an explicit binder position of '\{q}'"
           _ => do
-            (more, left) <- assign imps (S pos) ds rest
+            (more, left) <- assign imps pars (S pos) ds rest
             pure ((pos, Just it) :: more, left)
 
     ||| One pass over the slots: elaborated core arguments accumulate
@@ -4932,6 +5027,19 @@ registerImps q ty = case impPositions ty of
   [] => pure ()
   ps => modifySt $ { impls $= ((q, ps) ::) }
 
+||| Π/λ-close an item elaborated at the module-parameter context
+||| over that telescope, skeletons in step (docs/NovaPerfectSurface,
+||| parameterized modules). Folding right: the FIRST param becomes
+||| the outermost binder.
+closeTy : List (String, Bool, Ty, Skel) -> Ty -> Skel -> (Ty, Skel)
+closeTy tele ty sk =
+  foldr (\(_, _, a, aSk), (acc, accSk) =>
+          (Ty.PiTy a acc, Nd [] [aSk, accSk])) (ty, sk) tele
+
+closeElem : Nat -> Elem -> Skel -> (Elem, Skel)
+closeElem Z e sk = (e, sk)
+closeElem (S k) e sk = closeElem k (PiIntro e) (Nd [] [sk])
+
 ||| One-shot elaboration of an item (the body of elabItem below).
 elabItemGo : SItem -> ElabM String
 
@@ -4942,6 +5050,13 @@ elabItemGo : SItem -> ElabM String
 export
 elabItem : SItem -> ElabM String
 elabItem item = withScope (if scopedMode then Just [] else Nothing) $ do
+  st <- getSt
+  -- a PARAMETERIZED module holds ordinary defs only (v1): the other
+  -- item forms close over nothing
+  case (st.parTele, item) of
+    ([], _) => pure ()
+    (_, SDef _ _ _ _) => pure ()
+    (_, _) => throw "item '\{itemName item}': only plain defs may live in a parameterized module (declarations, type defs, data and clausal items cannot close over the module parameters yet)"
   modifySt { curItem := clearBlocked (itemName item) }
   pre <- getSt
   timedM "item \{pre.modPrefix}.\{itemName item}" (elabItemGo item)
@@ -4965,10 +5080,16 @@ elabItemGo (SDef x ty body muses) = do
             pure (Just rs, eqs)
           Nothing => pure (if scopedMode then Just [] else Nothing, [])
   let (sc, eqs) = scEqs
-  -- items live in the EMPTY context: parameters are Π-binders in the
-  -- item's type, references are bare names
-  (ty', tySk) <- withScope sc (withEqScope eqs (elabTy [<] [<] "def \{x}" ty))
-  (body', bodySk) <- withScope sc (withEqScope eqs (checkElem [<] [<] "def \{x}" body ty'))
+  -- items live in the EMPTY context — or, in a PARAMETERIZED module,
+  -- in the module-parameter context, with the results Π/λ-CLOSED over
+  -- it before they reach Σ and the kernel (the entry is the same
+  -- closed artifact the fully-spelled def would produce)
+  let tele = st.parTele
+  let (pctx, penv) = parCtxOf tele
+  (ty0, tySk0) <- withScope sc (withEqScope eqs (elabTy pctx penv "def \{x}" ty))
+  (body0, bodySk0) <- withScope sc (withEqScope eqs (checkElem pctx penv "def \{x}" body ty0))
+  let (ty', tySk) = closeTy tele ty0 tySk0
+  let (body', bodySk) = closeElem (length tele) body0 bodySk0
   -- clean means the RUN is clean: an earlier item's assumption poisons
   -- everything after it (the kernel Σ cannot contain the earlier item,
   -- so references to it are unresolvable anyway)
@@ -4979,7 +5100,22 @@ elabItemGo (SDef x ty body muses) = do
   modifySt $ { sig $= (:< SigDef [<] q body' ty') }
   addVis (x, q)
   addLemma q [<] ty'
-  registerImps q ty
+  case tele of
+    [] => registerImps q ty
+    _ => do
+      -- implicit positions: the header's implicit params, then the
+      -- def's own binders SHIFTED past the parameter prefix
+      let k = length tele
+      let parImps = mapMaybe (\(j, (_, imp, _, _)) =>
+                      if imp then Just j else Nothing)
+                      (zip (natsUpTo k) tele)
+      let ownImps = map (+ k) (impPositions ty)
+      case parImps ++ ownImps of
+        [] => pure ()
+        ps => modifySt $ { impls $= ((q, ps) ::) }
+      -- the def is a PARAMETERIZED-module member: record its prefix
+      -- arity globally and make it a pre-applied SIBLING here
+      modifySt $ { mpars $= ((q, k) ::), preApp $= ((x, PSelf) ::) }
   suffix <- opensSuffix census
   pure "defined \{x}\{suffix}"
 elabItemGo (SDeclDef nrng x ty) = do
@@ -5354,6 +5490,11 @@ record ModUnit where
   ||| the module's EFFECTIVE fixity table (opened imports' + own
   ||| declarations) — the printer's, for faithful infix layout
   mfix : FixTable
+  ||| the module's PARAMETER telescope ([] = ordinary module): every
+  ||| def in the file abstracts over it, sibling references
+  ||| auto-apply it (docs/NovaPerfectSurface.txt, parameterized
+  ||| modules)
+  mparams : SModParams
   ||| each item paired with its source range (item-level granularity —
   ||| see `Nova.Elaboration.Parser.parseSFile`), for LSP diagnostics
   mitems : List (Maybe Range, SItem)
@@ -5435,6 +5576,7 @@ enterModule name imps = do
   let visible = concatMap (\(_, ls) => ls) (filter (\(m, _) => m `elem` closure) archived)
   let (cs, sh, re, hp) = sigCandParts visible
   putSt $ { modPrefix := name, vis := [<], dupNames := []
+          , parTele := [], preApp := []
           , lemmas := visible, ownLemmas := []
           , modLemmas := archived, modImports := archivedI
           , curImports := imps
@@ -5443,18 +5585,85 @@ enterModule name imps = do
 
 installImports : List SImport -> ElabM ()
 installImports [] = pure ()
-installImports (MkSImport m opens :: rest) = do
+installImports (MkSImport m _ opens :: rest) = do
   go opens
   installImports rest
  where
-  go : List String -> ElabM ()
+  go : List (String, Maybe String) -> ElabM ()
   go [] = pure ()
-  go (o :: os) = do
+  go ((o, ml) :: os) = do
     st <- getSt
     let q = "\{m}.\{o}"
     case sigLookup q st.sig of
-      Just _ => do addVis (o, q); go os
+      Just _ => do addVis (fromMaybe o ml, q); go os
       Nothing => throw "import \{m}: it defines no '\{o}'"
+
+||| Elaborate the module-header telescope into ElabSt.parTele: each
+||| domain at its depth, in binder order. Header types carry no
+||| using-clause — their formation is structural.
+installModParams : SModParams -> ElabM ()
+installModParams ps0 = go [<] [<] ps0
+ where
+  go : Ctx -> NameEnv -> SModParams -> ElabM ()
+  go ctx env [] = pure ()
+  go ctx env ((imp, x, sty) :: rest) = do
+    (t', tSk) <- elabTy ctx env "module header" sty
+    modifySt $ { parTele $= (++ [(x, imp, t', tSk)]) }
+    go (ctx :< t') (env :< x) rest
+
+||| Install the pre-application table for the module's INSTANTIATED
+||| imports: `import (M a…) (n, …)` — every def of the parameterized
+||| module M becomes reachable with its parameter prefix pre-applied
+||| at a…. The arguments are elaborated HERE, once, at the importer's
+||| own parameter context, through the SPINE SOLVE itself (any of
+||| M's defs carries the prefix): written arguments cover the
+||| explicit parameters, implicit ones are recovered from their
+||| types by the standard machinery.
+installInstApps : List SImport -> ElabM ()
+installInstApps [] = pure ()
+installInstApps (MkSImport m [] _ :: rest) = installInstApps rest
+installInstApps (MkSImport m args opens :: rest) = do
+  st <- getSt
+  let mdefs = filter (\(n, _) => isPrefixOf "\{m}." n) st.mpars
+  let (q0, k) = the (String, Nat) $ case mdefs of
+                  ((n, k1) :: _) => (n, k1)
+                  [] => ("", 0)
+  when (null mdefs) $
+    throw "import \{m}: instantiation arguments given, but '\{m}' is not a parameterized module"
+  let (pctx, penv) = parCtxOf st.parTele
+  let argSurfs = map (argSurf penv) args
+  (core, _, _) <- elabImpSpine pctx penv "import \{m} instantiation" Nothing False False q0 q0 Nothing argSurfs
+  let els = spineArgsOf core []
+  when (length els /= k) $
+    throw "import \{m}: the instantiation covers \{show (length els)} of '\{m}''s \{show k} module parameters"
+  let depth = length st.parTele
+  -- entries under the LOCAL spellings of the OPENED names: renaming
+  -- (`· as ∙`) is what lets one module be instantiated twice in one
+  -- file — a second un-renamed open of the same name would shadow
+  -- silently, so it is refused instead
+  let entries = mapMaybe (\(o, ml) =>
+                  if isJust (lookup "\{m}.\{o}" st.mpars)
+                    then Just (fromMaybe o ml, PArgs depth els)
+                    else Nothing) opens
+  traverse_ (\(nm, _) => when (isJust (lookup nm st.preApp)) $
+      throw "import \{m}: '\{nm}' already names an instantiated def in this module — rename one of the opens (`\{nm} as …`)") entries
+  modifySt $ { preApp $= (++ entries) }
+  installInstApps rest
+ where
+  envIdx : NameEnv -> String -> Maybe Nat
+  envIdx [<] x = Nothing
+  envIdx (env :< y) x = if y == x then Just 0 else map S (envIdx env x)
+
+  argSurf : NameEnv -> SInstArg -> SElem
+  argSurf env (IArg n as) =
+    let hd = case envIdx env n of
+               Just i => SVar Nothing n i
+               Nothing => SSig Nothing n
+    in foldl SApp hd (map (\z => assert_total (argSurf env z)) as)
+
+  spineArgsOf : Elem -> List Elem -> List Elem
+  spineArgsOf (PiApp f a) acc = spineArgsOf f (a :: acc)
+  spineArgsOf _ acc = acc
 
 ||| Elaborate a dependency-ordered list of modules (the loader's
 ||| output; the last unit is the root). Every non-root module must be
@@ -5483,10 +5692,10 @@ elabProgram units = go initSt units []
 
   go : ElabSt -> List ModUnit -> List String -> String
   go st [] echoes = joinBy "\n" (echoes ++ ["Error: empty program"])
-  go st (MkModUnit name imps tbl items _ _ _ :: rest) echoes = do
+  go st (MkModUnit name imps tbl mps items _ _ _ :: rest) echoes = do
     -- a fresh visibility table per module: its own imports only, and a
     -- lemma store scoped to its import closure
-    case runElabM (enterModule name (map mname imps) >> installImports imps) st of
+    case runElabM (enterModule name (map mname imps) >> installImports imps >> installModParams mps >> installInstApps imps) st of
       Left err =>
         if surveyMode && not (null rest)
           -- SURVEY MODE: an import of a dropped module cascades — drop too
@@ -5549,9 +5758,9 @@ elabProgramSt st0 units = go st0 units
 
   go : ElabSt -> List ModUnit -> Either String ElabSt
   go st [] = Left "empty program"
-  go st (MkModUnit name imps tbl items _ _ _ :: rest) =
+  go st (MkModUnit name imps tbl mps items _ _ _ :: rest) =
     let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
-    case runElabM (installImports imps) st of
+    case runElabM (installImports imps >> installModParams mps >> installInstApps imps) st of
       Left err => Left err
       Right (st, ()) =>
         case goItems st items of
@@ -5595,9 +5804,9 @@ elabProgramSig units = go initSt units
 
   go : ElabSt -> List ModUnit -> Either String Sig
   go st [] = Left "empty program"
-  go st (MkModUnit name imps tbl items _ _ _ :: rest) =
+  go st (MkModUnit name imps tbl mps items _ _ _ :: rest) =
     let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
-    case runElabM (installImports imps) st of
+    case runElabM (installImports imps >> installModParams mps >> installInstApps imps) st of
       Left err => Left err
       Right (st, ()) =>
         case goItems st items of
@@ -5616,7 +5825,7 @@ elabFile : String -> String
 elabFile content =
   case runSurfaceParser (parseSFile []) content of
     Left (_, err) => "Parse error: \{err}"
-    Right (toks, ([], decls, items, body)) => elabProgram [MkModUnit "" [] decls items toks body content]
+    Right (toks, ([], decls, mps, items, body)) => elabProgram [MkModUnit "" [] decls mps items toks body content]
     Right (_, (_, _, _, _)) => "Error: this entry point resolves no imports (use the module-aware loader)"
 
 ||| Structured, range-aware counterpart to `elabProgram` for LSP
@@ -5716,9 +5925,9 @@ elabProgramReport units = go initSt units [] [] []
 
   go : ElabSt -> List ModUnit -> List (String, Maybe Range, Obligation) -> List (String, Maybe Range, String) -> List (String, Maybe Range, String) -> ElabReport
   go st [] obls hs errs = MkElabReport obls hs [] errs
-  go st (MkModUnit name imps tbl items _ _ _ :: rest) obls hs errs =
+  go st (MkModUnit name imps tbl mps items _ _ _ :: rest) obls hs errs =
     let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
-    case runElabM (installImports imps) st of
+    case runElabM (installImports imps >> installModParams mps >> installInstApps imps) st of
       Left err => MkElabReport obls hs (binderInfos tbl st) (errs ++ [(name, Nothing, err)])
       Right (st, ()) =>
         case goItems tbl name st items of

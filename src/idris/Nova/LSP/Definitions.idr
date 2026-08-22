@@ -88,7 +88,7 @@ export
 localAliases : ModUnit -> List (String, String)
 localAliases unit =
   concatMap (\(_, item) => map (\n => (n, qualify unit.mname n)) (itemNames item)) unit.mitems
-  ++ concatMap (\imp => map (\o => (o, qualify imp.mname o)) imp.opens) unit.mimports
+  ++ concatMap (\imp => map (\(o, ml) => (fromMaybe o ml, qualify imp.mname o)) imp.opens) unit.mimports
 
 ||| Resolve a written reference (as it appears at the cursor — bare,
 ||| alias-opened, or already dotted/qualified) to its definition site.

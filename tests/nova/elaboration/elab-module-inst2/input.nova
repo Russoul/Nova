@@ -1,0 +1,7 @@
+import grp (IsMon, mop, mu)
+import (mtheory m1) (mSq, mSqU)
+import (mtheory m2) (mSq as mSq2, mSqU as mSqU2x)
+
+module {A B : 𝕌} (m1 : El (IsMon A)) (m2 : El (IsMon B))
+
+def both : El A ⨯ El B ≔ mSq mSqU, mSq2 mSqU2x

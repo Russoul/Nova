@@ -408,10 +408,11 @@ mutual
                 (rng, op) <- bounds parseOpName
                 case lookup op tbl of
                   Nothing => fail "operator '\{op}' has no fixity in scope"
+                  Just (Postfix, _) => fail "postfix operator in infix position"
                   Just (assoc, p) => do
                     guard "operator precedence" (p >= minP)
                     sp
-                    r <- climb (case assoc of AssocL => S p; AssocR => p)
+                    r <- climb (case assoc of AssocR => p; _ => S p)
                     cont (SApp (SApp (SSig rng op) l) r) minP)
         <|> pure l
 
@@ -573,6 +574,12 @@ mutual
               (do kwc '}'; cont (SNoIns e))
                 <|> (do t <- parseSElem tbl env; sp; kwc '}'
                         cont (SApp e (SImpArg t))))
+      -- a POSTFIX operator applies to the whole chain so far, at the
+      -- projection tier: f x ⁻¹ is (f x) ⁻¹, and x ⁻¹ ⁻¹ chains
+      <|> (do sp; (rng, op) <- bounds parseOpName
+              case lookup op tbl of
+                Just (Postfix, _) => cont (SApp (SSig rng op) e)
+                _ => fail "not a postfix operator")
       <|> (do sp; e' <- parseSElemAtom tbl env; cont (SApp e e'))
       <|> pure e
 
@@ -858,18 +865,18 @@ parseSClause tbl iname = do
 -- hard error while letting the clause loop end cleanly at the next
 -- item.
 export
-parseSItem : FixTable -> Rule SItem
-parseSItem tbl =
+parseSItem : FixTable -> NameEnv -> Rule SItem
+parseSItem tbl env0 =
       (do kw "def"; space; commit
           (r, x) <- bounds (parseName <|> parseOpName); sp
           kwc ':'; sp
-          ty <- parseSTy tbl [<]; sp
+          ty <- parseSTy tbl env0; sp
           -- item-level using (SearchlessElaboration.md §5.3): scopes
           -- EVERY discharge of the item — ⋆s, switches, WD premises —
           -- to the named lemmas plus hypotheses
           muses <- optional (do kw "using"; sp; ns <- parseUsingNames; sp; pure ns)
           metaEta <- optional (do kwc '['; sp; n <- parseName; sp; kwc ']'; sp; pure n)
-          mbody <- optional (do kw "≔"; sp; commit; parseSElem tbl [<])
+          mbody <- optional (do kw "≔"; sp; commit; parseSElem tbl env0)
           cls <- many (do sp; parseSClause tbl x)
           case (metaEta, mbody, cls) of
             (Nothing, Just body, []) => pure (SDef x ty body muses)
@@ -886,27 +893,45 @@ parseSItem tbl =
   <|> (do kw "type"; space; commit
           x <- parseName; sp
           kw "≔"; sp
-          ty <- parseSTy tbl [<]
+          ty <- parseSTy tbl env0
           pure (STypeDef x ty))
   <|> parseSData tbl
 
 export
+parseInstArg : Rule SInstArg
+parseInstArg =
+      (do n <- parseName; pure (IArg n []))
+  <|> (do kwc '('; sp; n <- parseDottedName
+          args <- many (do space; parseInstArg)
+          sp; kwc ')'
+          pure (IArg n args))
+
 parseSImport : Rule SImport
 parseSImport = do
   kw "import"; space; commit
-  m <- parseDottedName
+  (m, args) <- (do kwc '('; sp; m <- parseDottedName
+                   args <- some (do space; parseInstArg)
+                   sp; kwc ')'
+                   pure (m, forget args))
+           <|> (do m <- parseDottedName; pure (m, []))
   opens <- optional (do sp; kwc '('; sp
-                        n <- parseName <|> parseOpName
-                        rest <- many (do sp; kwc ','; sp; (parseName <|> parseOpName))
+                        n <- openEntry
+                        rest <- many (do sp; kwc ','; sp; openEntry)
                         sp; kwc ')'
                         pure (n :: rest))
-  pure (MkSImport m (fromMaybe [] opens))
+  pure (MkSImport m args (fromMaybe [] opens))
+ where
+  openEntry : Rule (String, Maybe String)
+  openEntry = do
+    n <- parseName <|> parseOpName
+    ml <- optional (do space; kw "as"; space; parseName <|> parseOpName)
+    pure (n, ml)
 
 ||| infixl 6 +  /  infixr 3 ⊕ — fixity for an operator NAME; takes
 ||| effect for the rest of the file and is exported with the name.
-parseFixity : Rule (String, Assoc, Nat)
+parseFixity : Rule SFixity
 parseFixity = do
-  assoc <- (kw "infixl" $> AssocL) <|> (kw "infixr" $> AssocR)
+  assoc <- (kw "infixl" $> AssocL) <|> (kw "infixr" $> AssocR) <|> (kw "postfix" $> Postfix)
   space
   commit
   (r, d) <- bounds (terminal "precedence digit (0-9)" digitTok)
@@ -929,20 +954,27 @@ parseFixity = do
 ||| diagnostics to anchor at the right item without threading Range
 ||| through STy/SElem themselves.
 export
-parseSFile : FixTable -> Rule (List SImport, FixTable, List (Maybe Range, SItem), List SBodyEntry)
+parseSFile : FixTable -> Rule (List SImport, FixTable, SModParams, List (Maybe Range, SItem), List SBodyEntry)
 parseSFile tbl0 = do
   sp
   imports <- many (do i <- parseSImport; sp; pure i)
-  (decls, items, body) <- go tbl0
-  pure (imports, decls, items, body)
+  -- the MODULE HEADER (docs/NovaPerfectSurface.txt, parameterized
+  -- modules): a telescope every def in the file abstracts over.
+  -- Items parse with the params as outermost locals
+  mhdr <- optional (do kw "module"; sp
+                       (env0, groups) <- parseBinderGroups tbl0 [<]
+                       sp; pure (env0, groups))
+  let (env0, mparams) = fromMaybe ([<], []) mhdr
+  (decls, items, body) <- go env0 tbl0
+  pure (imports, decls, mparams, items, body)
  where
-  go : FixTable -> Rule (FixTable, List (Maybe Range, SItem), List SBodyEntry)
-  go tbl =
+  go : NameEnv -> FixTable -> Rule (FixTable, List (Maybe Range, SItem), List SBodyEntry)
+  go env0 tbl =
         (do (r, f) <- bounds parseFixity; sp
-            (decls, items, body) <- go (f :: tbl)
+            (decls, items, body) <- go env0 (f :: tbl)
             pure (f :: decls, items, Left (r, f) :: body))
-    <|> (do (r, i) <- bounds (parseSItem tbl); sp
-            (decls, items, body) <- go tbl
+    <|> (do (r, i) <- bounds (parseSItem tbl env0); sp
+            (decls, items, body) <- go env0 tbl
             pure (decls, (r, i) :: items, Right (r, i) :: body))
     <|> pure ([], [], [])
 

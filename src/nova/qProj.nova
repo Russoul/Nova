@@ -1,0 +1,31 @@
+-- THE QUOTIENT PROJECTION π : G → G/N, as a homomorphism.
+--
+-- Split out of groupHom: these lemmas relate the ABSTRACT group
+-- structure qIsGroup carries to the quotient's own operations, and
+-- their second group is the quotient itself — not a parameter. They
+-- stay fully-spelled (no module header) for exactly that reason.
+
+import group (IsGroup)
+import groupTheory (· as gop, e as ge, ⁻¹ as ginv)
+import subgroup (IsSubgroup, IsNormal)
+import quotGroup (QGroup, qcls, qMul, qMulCls, qInv, qUnit, qIsGroup, qProjLaw)
+import groupHom (Hom, homAp, homIntro, homIntroAp)
+import equality (trans, sym)
+
+def qProj : {G : 𝕌}
+  {g : El (IsGroup G)}
+  {N : El G → Ω}
+  {s : Prf (IsSubgroup g N)}
+  {nn : Prf (IsNormal g N)}
+  → El (Hom g (qIsGroup _ _ s nn)) ≔
+  λG. λg. λN. λs. λnn. homIntro {} _ g _ (qIsGroup _ _ s nn) (qcls g N) (qProjLaw _ _ s nn)
+
+def qProjAp : {G : 𝕌}
+  {g : El (IsGroup G)}
+  {N : El G → Ω}
+  {s : Prf (IsSubgroup g N)}
+  {nn : Prf (IsNormal g N)}
+  {a : El G}
+  → homAp {} _ g _ (qIsGroup _ _ s nn) qProj a ≡ qcls _ _ a
+  using (qProj.eq) ≔
+  λG. λg. λN. λs. λnn. λa. homIntroAp _ _ (qcls g N) (qProjLaw _ _ s nn) a

@@ -300,12 +300,13 @@ mutual
 -- the name is the operator.
 
 public export
-data Assoc = AssocL | AssocR
+data Assoc = AssocL | AssocR | Postfix
 
 public export
 Eq Assoc where
   AssocL == AssocL = True
   AssocR == AssocR = True
+  Postfix == Postfix = True
   _ == _ = False
 
 ||| operator token ↦ (associativity, binding level 0..9); higher binds
@@ -320,7 +321,7 @@ FixTable = List (String, Assoc, Nat)
 ||| no operator may contain "--".
 public export
 opChar : Char -> Bool
-opChar c = c `elem` unpack "+-*<>=&!?%^~@#⊕⊗⊙⊞⊟∙∘·≤≥∸⧺⊥⊤∧∨⊃¬↔"
+opChar c = c `elem` unpack "+-*<>=&!?%^~@#⊕⊗⊙⊞⊟∙∘·≤≥∸⧺⊥⊤∧∨⊃¬↔⁻¹ᴳᴴ"
 
 ||| Is the (possibly qualified) name operator-shaped? Decided by its
 ||| final segment.
@@ -333,13 +334,47 @@ isOpName x = any opChar (lastSegment (unpack x))
   lastSegment ('.' :: rest) = lastSegment rest
   lastSegment (c :: rest) = if elem '.' rest then lastSegment rest else c :: rest
 
-||| import M            — M's names accessible qualified (M.x) only
-||| import M (a, b)     — additionally, a and b accessible bare
+||| An instantiation argument of a parameterized import — a name, or
+||| a name applied to further arguments: `import (groupTheory g)`,
+||| `import (groupTheory (raddGroup r))`. Resolved at ELABORATION
+||| (module params by name first, then the visibility table): the
+||| module header whose binders it references comes LATER in the
+||| file than the import line, so parse-time resolution is
+||| impossible by design.
+public export
+data SInstArg : Type where
+  IArg : String -> List SInstArg -> SInstArg
+
+showInstArg : SInstArg -> String
+showInstArg (IArg n []) = n
+showInstArg (IArg n as) =
+  "(" ++ n ++ " " ++ joinBy " " (map (\z => assert_total (showInstArg z)) as) ++ ")"
+
+export
+Show SInstArg where
+  show = showInstArg
+
+||| import M              — M's names accessible qualified (M.x) only
+||| import M (a, b)       — additionally, a and b accessible bare
+||| import M (a as x, b)  — a opened RENAMED: the importer's surface
+|||                         name for it is x (its fixity, if any,
+|||                         does not travel with a rename)
+||| import (M a…) (b, …)  — a PARAMETERIZED module instantiated at
+|||                         the given arguments: each opened name
+|||                         stands for the def with its module-
+|||                         parameter prefix pre-applied at a…
 public export
 record SImport where
   constructor MkSImport
   mname : String
-  opens : List String
+  iargs : List SInstArg
+  opens : List (String, Maybe String)
+
+||| A parameterized module's header telescope, as written:
+||| (implicit?, name, domain), left to right.
+public export
+SModParams : Type
+SModParams = List (Bool, String, STy)
 
 -- ===== QIIT signature literals (the data item) =====
 
@@ -431,7 +466,9 @@ data SItem : Type where
                 (etaName : Maybe String) -> (witness : Maybe SElem) ->
                 List SClause -> SItem
 
-||| One fixity declaration as written: (operator, associativity, level).
+||| One fixity declaration as written: (operator, associativity,
+||| level). `postfix 9 ⁻¹` is the unary suffix class, parsed at the
+||| projection tier.
 public export
 SFixity : Type
 SFixity = (String, Assoc, Nat)
@@ -538,8 +575,16 @@ mutual
 
 export
 Show SImport where
-  show (MkSImport m []) = "import \{m}"
-  show (MkSImport m os) = "import \{m} (\{joinBy ", " os})"
+  show (MkSImport m args os) =
+    let hd = case args of
+               [] => "import \{m}"
+               _ => "import (\{m} \{joinBy " " (map show args)})"
+        one = the ((String, Maybe String) -> String) $ \(o, ml) => case ml of
+                Nothing => o
+                Just l => "\{o} as \{l}"
+    in case os of
+         [] => hd
+         _ => "\{hd} (\{joinBy ", " (map one os)})"
 
 export covering
 Show SPat where

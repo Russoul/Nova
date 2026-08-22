@@ -73,7 +73,7 @@ unitResolver u =
               SDeclDef _ x _ => Just (x, qualify u.mname x)
               STypeDef x _ => Just (x, qualify u.mname x)
               _ => Nothing) u.mitems
-      opened = concatMap (\i => map (\o => (o, "\{i.mname}.\{o}")) i.opens) u.mimports
+      opened = concatMap (\i => map (\(o, ml) => (fromMaybe o ml, "\{i.mname}.\{o}")) i.opens) u.mimports
   in \x => case lookup x own of
              Just q => q
              Nothing => fromMaybe x (lookup x opened)

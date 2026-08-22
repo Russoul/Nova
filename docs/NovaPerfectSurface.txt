@@ -728,6 +728,114 @@ hover. Proof positions everywhere stay explicit (the census shows
 them 100% override — correctly hopeless). ~10.1s plain
 elaboration, canonical form enforced.
 
+PARAMETERIZED MODULES (2026-08-22): a file may open, after its
+imports, with a MODULE HEADER —
+
+  module {G : 𝕌} (g : El (IsGroup G))
+
+— a telescope every def in the file abstracts over. The license is
+DECLARED, not inferred (bijective-tier in character): each def
+elaborates at the parameter context and is Π/λ-CLOSED over it
+before it reaches Σ and the kernel, so the entry is byte-identical
+to the fully-spelled def's — the groupTheory migration is
+Σ-α-identical by construction. Inside the module a sibling
+reference auto-applies the parameter prefix (gop x y means gop
+{G} g x y): the prefix positions enter the spine solve as
+PRE-SEEDED SLOTS — solutions given, not holes — so written
+arguments, {t} overrides, and blanks all flow past them unchanged,
+and every downstream mechanism (recovery, trials, emission) sees
+an ordinary spine. An importer instantiates with
+
+  import (groupTheory g) (gop, ginv, …)
+
+whose arguments elaborate ONCE, at the importer's own parameter
+context, THROUGH THE SPINE SOLVE itself (any member def carries
+the prefix) — explicit parameters written, implicit ones recovered
+from their types — then weaken to each use site. Plain imports are
+unchanged: the def's telescope starts with the header params
+(header plicity, then the def's own implicit positions shifted),
+so existing sites spell exactly what they spelled before. The
+header line and instantiated imports print and re-parse through
+the same grammar; the round-trip and canonical-form gates extend
+unchanged.
+
+Corpus: groupTheory (19 defs at (G, g) fixed), then subgroup
+((G, g); its groupTheory import INSTANTIATED — `import
+(groupTheory g) (·, e, ⁻¹, …)` — so the notation flows in:
+`def cosetSplice : x · y ⁻¹ · (y · z ⁻¹) ≡ x · z ⁻¹`,
+`def IsSubgroup : (N : El G → Ω) → Ω`), then quotGroup
+((G, g, N); both groupTheory AND subgroup instantiated at its own
+g: `def qInvLaw : … → qMul nn (qInv s nn u) u ≡ qUnit`). The
+header fixes ONE plicity per parameter, so defs whose g/N were
+per-def implicit are now header-explicit: external plain-import
+sites on the flipped side spell a blank (`cosetRefl _ s`,
+`qclsEq _ _ s a b h` — the blank solves from the proof argument's
+type), and old explicit-(G) sites drop a blank.
+
+DOUBLE INSTANTIATION AND THE TWO-GROUP MODULES (2026-08-22): the
+pre-application table is keyed by the importer's LOCAL surface
+name, so one module instantiates twice in one file with the
+renaming machinery doing the disambiguation:
+
+  import (groupTheory g) (·, e, ⁻¹, gUnitL, gInvR)
+  import (groupTheory h) (· as ∙, e as eH, ⁻¹ as invH, …)
+
+(a second un-renamed open of the same name is refused, not
+shadowed). groupHom is parameterized at {G} (g) {H} (h) — `def
+homInv : (p : El Hom) (x : El G) → homAp p (x ⁻¹) ≡ invH (homAp
+p x)` — and groupIso at {G} (g) {H} (h) (p : El (HomRaw g h)),
+the "fix a homomorphism" chapter (all 41 defs). Related pieces:
+`f {}` — the no-insert form — suppresses the PARAMETER prefix
+too, which is how a module references its own defs at OTHER
+instances (Hom {} _ (qIsGroup _ _ s nn) _ h — the hom out of the
+quotient, blanks recovered as ever); a header type that needs a
+parameterized import BEFORE instantiation uses a plain renamed
+open (p : El (HomRaw g h) — instantiation args come later in the
+install order than the header they mention); the bare-reference
+defer heuristic treats a pre-applied reference as a usable source
+unless it has implicit positions BEYOND the parameter prefix; and
+the qProj family moved out of groupHom (its second group is the
+QUOTIENT, not a parameter — the N-less algebra split, again) into
+quotGroup (the three structure lemmas + qProjLaw) and qProj.nova
+(the projection hom proper). Still open: data/clausal items
+inside parameterized modules are refused.
+
+POSTFIX OPERATORS AND RENAMING IMPORTS (2026-08-22): a third
+fixity class, `postfix 9 ⁻¹`, parsed at the PROJECTION tier —
+`f x ⁻¹` is (f x) ⁻¹, exactly the .π₁ convention, chaining as
+x ⁻¹ ⁻¹ — and excluded from infix climb and atom positions like
+any declared operator. The mention form (⁻¹) passes it as a
+function.
+
+The group vocabulary's REAL names are now the notation — the defs
+ARE `·`, `⁻¹`, `e` (user decision: actual names, not aliases):
+
+  module {G : 𝕌} (g : El (IsGroup G))
+  infixl 7 ·
+  postfix 9 ⁻¹
+  def · : El G → El G → El G ≔ g .π₁ .π₁
+  def gAssoc : (x y z : El G) → x · y · z ≡ x · (y · z)
+  def gInvUniq : {x y : El G} → (x · y ≡ e) → x ⁻¹ ≡ y
+  def gOpInv : (x y : El G) → (x · y) ⁻¹ ≡ y ⁻¹ · x ⁻¹
+
+What makes this compatible with plain importers — who must spell
+the group argument positionally, a slot infix syntax lacks — is
+the RENAMING IMPORT:
+
+  import groupTheory (· as gop, e as ge, ⁻¹ as ginv, gAssoc, …)
+
+An `o as x` open installs the importer's surface name x for the
+Σ-def o (one visibility-table entry — the machinery predates the
+feature), so every external site keeps its existing prefix
+spelling `gop g x y` byte-for-byte; only import lines and
+qualified citations (`groupTheory.·.eq`) changed in the
+migration. A renamed open leaves its fixity behind: the operator
+role belongs to the spelling, not the def. Citations follow the
+def (`·.eq` inside the module; unqualified cites resolve through
+the rename). The distill printer renders postfix at the
+projection tier and minimal-parenthesizes operator nests; the
+canonical corpus form is enforced as ever.
+
 CAPTURES ARE COMP-NORMALIZED (2026-08-21): a substituted domain can
 carry β-redexes — a pattern-solved dependency lands a λ in function
 position, El ((λv. Int) (intCanon z2)) — and an α-tier capture took

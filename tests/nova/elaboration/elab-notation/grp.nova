@@ -1,0 +1,10 @@
+infixl 7 ∙
+postfix 9 ⁻¹
+
+def IsMon : 𝕌 → 𝕌 ≔ λG. (G → G → G) ⨯ G
+
+def mval : El (IsMon ℕ) using (grp.IsMon.unfold) ≔ ((λa. λb. a), Z)
+
+def ∙ : {G : 𝕌} (m : El (IsMon G)) → El G → El G → El G using (grp.IsMon.unfold) ≔ λG. λm. m .π₁
+
+def ⁻¹ : {G : 𝕌} → El G → El G ≔ λG. λx. x

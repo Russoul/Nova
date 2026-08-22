@@ -1,0 +1,9 @@
+import grp (IsMon, mop, mu)
+
+module {G : 𝕌} (m : El (IsMon G))
+
+def mSq : El G → El G ≔ λx. mop m x x
+
+def mSqU : El G ≔ mSq (mu m)
+
+def mSqU2 : El G ≔ mSq mSqU

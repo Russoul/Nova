@@ -54,7 +54,12 @@ importTable : FixMap -> List SImport -> FixTable
 importTable fm = concatMap
   (\i => case lookup i.mname fm of
            Nothing => []
-           Just tbl => filter (\(op, _) => op `elem` i.opens) tbl)
+           -- a RENAMED open leaves its fixity behind (the operator
+           -- role belongs to the spelling, not the def)
+           Just tbl => filter (\(op, _) =>
+             op `elem` mapMaybe (\(o, ml) => case ml of
+                                    Nothing => Just o
+                                    Just _ => Nothing) i.opens) tbl)
 
 ||| Overloaded operators must AGREE on fixity: the parse is shared,
 ||| only the elaborator's type-directed resolution distinguishes the
@@ -92,11 +97,11 @@ parseHeader label path content =
     Right (_, r) => Right r
 
 parseModule : (label : String) -> (path : String) -> FixTable -> String
-            -> Either LoadErr (SnocList (Range, TokenKind), List SImport, FixTable, List (Maybe Range, SItem), List SBodyEntry)
+            -> Either LoadErr (SnocList (Range, TokenKind), List SImport, FixTable, SModParams, List (Maybe Range, SItem), List SBodyEntry)
 parseModule label path tbl content =
   case runSurfaceParser (parseSFile tbl) content of
     Left (rng, err) => Left (MkLoadErr (Just path) rng "parse error in \{label}: \{err}")
-    Right (toks, (imps, tbl', items, body)) => Right (toks, imps, tbl', items, body)
+    Right (toks, (imps, tbl', mps, items, body)) => Right (toks, imps, tbl', mps, items, body)
 
 mutual
   ||| Resolve module `mname` and (transitively, first) its imports into
@@ -124,10 +129,10 @@ mutual
           let tbl0 = importTable fixs' hdr
           let Nothing = fixityConflict tbl0
             | Just msg => pure (Left (MkLoadErr (Just path) Nothing "module \{mname}: \{msg}"))
-          let Right (toks, imps, decls, items, body) = parseModule "module \{mname} (\{path})" path tbl0 content
+          let Right (toks, imps, decls, mps, items, body) = parseModule "module \{mname} (\{path})" path tbl0 content
             | Left err => pure (Left err)
           pure (Right (mname :: done', (mname, decls) :: fixs',
-                       acc' ++ [MkModUnit mname imps (decls ++ tbl0) items toks body content]))
+                       acc' ++ [MkModUnit mname imps (decls ++ tbl0) mps items toks body content]))
 
   loadMany : (rootDir : String) -> (visiting : List String) -> (done : List String)
            -> (fixs : FixMap) -> (acc : List ModUnit) -> List String
@@ -152,9 +157,9 @@ loadProgram rootPath = do
   let tbl0 = importTable fixs hdr
   let Nothing = fixityConflict tbl0
     | Just msg => pure (Left (MkLoadErr (Just rootPath) Nothing msg))
-  let Right (toks, imps, decls, items, body) = parseModule rootPath rootPath tbl0 content
+  let Right (toks, imps, decls, mps, items, body) = parseModule rootPath rootPath tbl0 content
     | Left err => pure (Left err)
-  pure (Right (deps ++ [MkModUnit "" imps (decls ++ tbl0) items toks body content]))
+  pure (Right (deps ++ [MkModUnit "" imps (decls ++ tbl0) mps items toks body content]))
 
 ||| Load and elaborate: the `elab` command's body.
 export

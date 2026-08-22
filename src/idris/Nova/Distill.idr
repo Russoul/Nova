@@ -228,10 +228,22 @@ infixView : FixTable -> SElem -> Maybe (String, Assoc, Nat, SElem, SElem)
 infixView tbl (SApp (SApp (SSig _ op) l) r) =
   if isOpName op && bareName op && not (isOverride l) && not (isOverride r)
     then case lookup op tbl of
+           Just (Postfix, _) => Nothing
            Just (a, p) => Just (op, a, p, l, r)
            Nothing => Nothing
     else Nothing
 infixView _ _ = Nothing
+
+||| The postfix view: `x op` for a declared-postfix operator head
+||| applied to one argument (the projection tier).
+postfixView : FixTable -> SElem -> Maybe (String, SElem)
+postfixView tbl (SApp (SSig _ op) x) =
+  if isOpName op && bareName op && not (isOverride x)
+    then case lookup op tbl of
+           Just (Postfix, _) => Just (op, x)
+           _ => Nothing
+    else Nothing
+postfixView _ _ = Nothing
 
 ||| A ground S-tower's value; numerals print for values ≥ 2 (Z and S Z
 ||| stay structural — the corpus idiom — while towers print as the
@@ -315,22 +327,24 @@ mutual
       pe tbl LPair True d <-> txt " in " <-> pe tbl LPair tr b
     SLet (x, _) d b =>
       txt "let \{x} ≔ " <-> pe tbl LPair True d <-> txt " in " <-> pe tbl LPair tr b
-    SApp f a => case infixView tbl e of
-      Just (op, assoc, p, l, r) =>
-        let lctx = case assoc of
-                     AssocL => LOpBin p (EqIf AssocL)
-                     AssocR => LOpBin p NoEq
-            rctx = case assoc of
-                     AssocL => LOpBin p NoEq
-                     AssocR => LOpBin p EqAny
-        in pe tbl lctx False l <-> DGroup (DNest 2 (DLine <-> txt "\{op} " <-> pe tbl rctx tr r))
-      Nothing =>
-        -- flatten the spine: one group, every argument at the same
-        -- break level (an overlong call breaks one-argument-per-line
-        -- at a uniform indent, never a staircase)
-        let (h, args) = spineView tbl e in
-        DGroup (pe tbl LApp False h <->
-                DNest 2 (concatDoc (map (\arg => DLine <-> pe tbl LAtom False arg) args)))
+    SApp f a => case postfixView tbl e of
+      Just (op, x) => pe tbl LApp False x <-> txt " \{op}"
+      Nothing => case infixView tbl e of
+        Just (op, assoc, p, l, r) =>
+          let lctx = case assoc of
+                       AssocR => LOpBin p NoEq
+                       _ => LOpBin p (EqIf AssocL)
+              rctx = case assoc of
+                       AssocR => LOpBin p EqAny
+                       _ => LOpBin p NoEq
+          in pe tbl lctx False l <-> DGroup (DNest 2 (DLine <-> txt "\{op} " <-> pe tbl rctx tr r))
+        Nothing =>
+          -- flatten the spine: one group, every argument at the same
+          -- break level (an overlong call breaks one-argument-per-line
+          -- at a uniform indent, never a staircase)
+          let (h, args) = spineView tbl e in
+          DGroup (pe tbl LApp False h <->
+                  DNest 2 (concatDoc (map (\arg => DLine <-> pe tbl LAtom False arg) args)))
     SProj1 t => pe tbl LApp False t <-> txt " .π₁"
     SProj2 t => pe tbl LApp False t <-> txt " .π₂"
     SSuc t => case numeralView e of
@@ -414,7 +428,9 @@ mutual
     go : SElem -> List SElem -> (SElem, List SElem)
     go (SApp f a) acc = case infixView tbl (SApp f a) of
       Just _ => (SApp f a, acc)
-      Nothing => go f (a :: acc)
+      Nothing => case postfixView tbl (SApp f a) of
+        Just _ => (SApp f a, acc)
+        Nothing => go f (a :: acc)
     go h acc = (h, acc)
 
   ||| Coalesce a telescope run into groups of shift-equal domains —
@@ -760,10 +776,19 @@ renderItemStr tbl item = renderDoc lineWidth (renderItem tbl item)
 renderFixity : SFixity -> String
 renderFixity (op, AssocL, d) = "infixl \{show d} \{op}"
 renderFixity (op, AssocR, d) = "infixr \{show d} \{op}"
+renderFixity (op, Postfix, d) = "postfix \{show d} \{op}"
 
 renderImport : SImport -> String
-renderImport (MkSImport m []) = "import \{m}"
-renderImport (MkSImport m os) = "import \{m} (\{joinBy ", " os})"
+renderImport (MkSImport m args os) =
+  let hd = case args of
+             [] => "import \{m}"
+             _ => "import (\{m} \{joinBy " " (map show args)})"
+      one = the ((String, Maybe String) -> String) $ \(o, ml) => case ml of
+              Nothing => o
+              Just l => "\{o} as \{l}"
+  in case os of
+       [] => hd
+       _ => "\{hd} (\{joinBy ", " (map one os)})"
 
 -- ===== Comments =====
 --
@@ -797,6 +822,18 @@ unitComments u =
     Just l => asComment (pack (drop (cast r.start.column) (unpack l)))
     Nothing => "--"
 
+||| The parameterized-module header line: `module` then the binder
+||| groups, multi-name groups re-coalesced exactly as a def telescope
+||| would be (shift-equality — the parser splits them back).
+renderModHeader : FixTable -> SModParams -> String
+renderModHeader tbl ps =
+  let groups = map (\(imp, ns, a) =>
+                     let inner = txt (joinBy " " ns) <-> txt " : " <-> pt tbl TTop True a in
+                     if imp then txt "{" <-> inner <-> txt "}" else dparen inner)
+                   (coalesceTys (map (\(imp, n, a) => (imp, n, a)) ps))
+  in renderDoc lineWidth (DGroup (txt "module " <->
+       concatDoc (intersperse (DNest 2 DLine) groups)))
+
 entrySpan : SBodyEntry -> Maybe (Int, Int)
 entrySpan (Left (mr, _)) = map (\r => (r.start.line, r.end.line)) mr
 entrySpan (Right (mr, _)) = map (\r => (r.start.line, r.end.line)) mr
@@ -817,10 +854,13 @@ renderUnit u =
       impBlock = case imps of
                    [] => []
                    _ => [joinBy "\n" imps]
+      modBlock = case u.mparams of
+                   [] => []
+                   ps => [renderModHeader u.mfix ps]
       lastBlock = case map snd leftover of
                     [] => []
                     ls => [joinBy "\n" ls]
-  in joinBy "\n\n" (headerBlock ++ impBlock ++ blocks ++ lastBlock) ++ "\n"
+  in joinBy "\n\n" (headerBlock ++ impBlock ++ modBlock ++ blocks ++ lastBlock) ++ "\n"
  where
   render1 : SBodyEntry -> String
   render1 (Left (_, f)) = renderFixity f
@@ -1028,6 +1068,10 @@ sigCompare a b = go (toList a) (toList b)
 fixShow : SFixity -> String
 fixShow (op, AssocL, d) = "\{op}/l/\{show d}"
 fixShow (op, AssocR, d) = "\{op}/r/\{show d}"
+fixShow (op, Postfix, d) = "\{op}/p/\{show d}"
+
+mpShow : (Bool, String, STy) -> String
+mpShow (imp, n, a) = "\{show imp}/\{n}/\{show a}"
 
 ||| Structural comparison of an original and a re-parsed module, via
 ||| the range-insensitive Show instances. Identity-tier contract only
@@ -1041,6 +1085,8 @@ verifyUnit orig re =
     then Just "module \{orig.mname}: imports differ after distill"
   else if map (fixShow . snd) (lefts orig.mbody) /= map (fixShow . snd) (lefts re.mbody)
     then Just "module \{orig.mname}: fixity declarations differ after distill"
+  else if map mpShow orig.mparams /= map mpShow re.mparams
+    then Just "module \{orig.mname}: parameter telescope differs after distill"
   else go (map snd (rights orig.mbody)) (map snd (rights re.mbody))
  where
   go : List SItem -> List SItem -> Maybe String

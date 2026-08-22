@@ -1,0 +1,10 @@
+module grp:
+defined IsMon
+defined mop
+defined mu
+module mtheory:
+defined mSq
+defined mSqU
+defined mSqU2
+defined both
+Accepted.

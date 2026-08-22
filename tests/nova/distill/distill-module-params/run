@@ -1,0 +1,6 @@
+#!/bin/sh
+rm -rf out
+"$1" distill input.nova out
+cat out/mtheory.nova
+cat out/input.nova
+rm -rf out

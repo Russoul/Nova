@@ -1,0 +1,3 @@
+import grp (IsMon, mval, ∙ as mop, ⁻¹ as rev)
+
+def probe : El ℕ ≔ rev (mop mval Z (S Z))
