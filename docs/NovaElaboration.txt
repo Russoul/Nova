@@ -75,8 +75,8 @@ precedence level n, and T{>=n} any level at or above it. The
 term/type grammar below is self-contained.
 
 # A file is a sequence of items. `def` introduces a term definition,
-# `type` a type definition — the two signature-entry forms of
-# Foundation's Σ; `data` is an ITEM MACRO that expands into a batch
+# `type` a type definition — both elaborate to Foundation's ONE
+# definition entry form, `type` as the A = 𝕍 instance; `data` is an ITEM MACRO that expands into a batch
 # of them (QIIT section below), and a def with CLAUSES is likewise an
 # item macro (Defining equations section below). Every item is declared in the EMPTY context:
 # parameters are ordinary Π-binders in the item's type (the iterated
@@ -387,7 +387,7 @@ E   — the equation store, feeding algorithmic discharge. Three sources:
       semantic in exactly that sense and no other).
 
 There is NO separate obligation store: an OBLIGATION is a constraint
-entry of Σ (Foundation: sig-eq/sig-ty-eq — the signature is OPEN
+entry of Σ (Foundation: sig-eq, type constraints at A = 𝕍 — the signature is OPEN
 during a run), appended in surfacing order. Alongside each entry the
 elaborator keeps DISPLAY METADATA — outside the theory, consumed only
 by the report printer: the item and source position that surfaced it,
@@ -438,9 +438,9 @@ el-nat-beta-s, el-sum-beta₁, el-sum-beta₂, el-quot-beta,
 el-nu-beta (out at a corec head — map_𝔽 and hᵉˡ expanding by
 Foundation's ≜-clauses), el-qiit-beta (the eliminator at a
 saturated constructor of the nf-identical signature),
-el-sig-beta/ty-sig-beta (signature
+el-sig-beta (signature
 unfolding — for DEFINITION entries; a declaration reference is stuck
-by design, el-sig-decl/ty-sig-decl, and constraint entries are
+by design, el-sig-decl, and constraint entries are
 nameless and never referenced), and the El-decoding family (ty-el-zero, ty-el-one,
 ty-el-nat, ty-el-pi, ty-el-sigma, ty-el-sum, ty-el-nu, ty-el-eq, ty-el-quot — the last
 decoding El (A / r) ≜ El A / r, the Ω-valued relation passing through
@@ -457,8 +457,8 @@ never an unsound acceptance.
 Γ ⊢ 𝟘 ⇝ 𝟘 type    Γ ⊢ 𝟙 ⇝ 𝟙 type    Γ ⊢ ℕ ⇝ ℕ type    Γ ⊢ 𝕌 ⇝ 𝕌 type
 Γ ⊢ Ω ⇝ Ω type                       # (𝟘),(𝟙),(ℕ),(𝕌),(Ω)
 
-(ε ⊦ x ≔ T type) ∈ Σ
----------------------- (e-ty-sig)                             # (x[e˲] type)
+(ε ⊦ x ≔ T : 𝕍) ∈ Σ
+---------------------- (e-ty-sig)                             # (x[e˲] at 𝕍)
 Γ ⊢ x ⇝ x[·] type
 
 # Every entry the elaborator produces is closed, so the core
@@ -1050,7 +1050,7 @@ whnf(C) = Prf (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ Prf R[id, a, b
 #      soundness — each discharge is a Foundation derivation via
 #      (el-sub-cong-fix) + congruence + transitivity + reflection.
 #   8. ASSUME: append the equation to Σ as a constraint entry (sig-eq/
-#      sig-ty-eq), record its display metadata (source position, and
+#      sig-eq at 𝕍), record its display metadata (source position, and
 #      the composite it was decomposed from, if any), and add it to E;
 #      succeed. Before assuming, probe the WHOLE store once — the same
 #      mechanisms, unscoped, plus kernel replay of the result — and
@@ -1089,7 +1089,7 @@ def x : T ≔ t          extends Σ with (ε ⊦ x ≔ t̂ : A)
 
 ε ⊢ T ⇝ A type
 ------------------------------------------------------------- (e-typedef)
-type x ≔ T             extends Σ with (ε ⊦ x ≔ A type)
+type x ≔ T             extends Σ with (ε ⊦ x ≔ A : 𝕍)
 
 ε ⊢ T ⇝ A type
 ------------------------------------------------------------- (e-decl)
