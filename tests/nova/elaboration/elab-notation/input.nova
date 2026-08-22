@@ -1,0 +1,15 @@
+import grp (IsMon, mop, mu)
+
+module {G : 𝕌} (m : El (IsMon G))
+
+infixl 7 ∙ ≔ op
+postfix 9 ⁻¹ ≔ rev
+alias u ≔ unit
+
+def op : El G → El G → El G ≔ mop m
+
+def unit : El G ≔ mu m
+
+def rev : El G → El G ≔ λx. x
+
+def probe : El G ≔ u ∙ (u ∙ u) ⁻¹

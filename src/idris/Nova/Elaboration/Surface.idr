@@ -300,12 +300,14 @@ mutual
 -- the name is the operator.
 
 public export
-data Assoc = AssocL | AssocR
+data Assoc = AssocL | AssocR | Postfix | AAlias
 
 public export
 Eq Assoc where
   AssocL == AssocL = True
   AssocR == AssocR = True
+  Postfix == Postfix = True
+  AAlias == AAlias = True
   _ == _ = False
 
 ||| operator token ↦ (associativity, binding level 0..9); higher binds
@@ -320,7 +322,7 @@ FixTable = List (String, Assoc, Nat)
 ||| no operator may contain "--".
 public export
 opChar : Char -> Bool
-opChar c = c `elem` unpack "+-*<>=&!?%^~@#⊕⊗⊙⊞⊟∙∘·≤≥∸⧺⊥⊤∧∨⊃¬↔"
+opChar c = c `elem` unpack "+-*<>=&!?%^~@#⊕⊗⊙⊞⊟∙∘·≤≥∸⧺⊥⊤∧∨⊃¬↔⁻¹"
 
 ||| Is the (possibly qualified) name operator-shaped? Decided by its
 ||| final segment.
@@ -462,10 +464,17 @@ data SItem : Type where
                 (etaName : Maybe String) -> (witness : Maybe SElem) ->
                 List SClause -> SItem
 
-||| One fixity declaration as written: (operator, associativity, level).
+||| One fixity/notation declaration as written: (operator,
+||| associativity, level, alias target). `infixl 7 ·` declares a
+||| fixity; `infixl 7 · ≔ gop` additionally makes the token a
+||| NOTATION ALIAS of a def (file-local: the parser reads `x · y`,
+||| elaboration resolves · to gop before the visibility table);
+||| `postfix 9 ⁻¹ ≔ ginv` gives postfix application `x ⁻¹`; and
+||| `alias e ≔ ge` (Assoc AAlias, level unused) aliases a PLAIN
+||| name with no operator role.
 public export
 SFixity : Type
-SFixity = (String, Assoc, Nat)
+SFixity = (String, Assoc, Nat, Maybe String)
 
 ||| A file-body entry in source order: a fixity declaration or an item
 ||| (with its item-level source range). Fixities take effect for the

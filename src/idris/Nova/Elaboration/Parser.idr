@@ -408,10 +408,12 @@ mutual
                 (rng, op) <- bounds parseOpName
                 case lookup op tbl of
                   Nothing => fail "operator '\{op}' has no fixity in scope"
+                  Just (Postfix, _) => fail "postfix operator in infix position"
+                  Just (AAlias, _) => fail "aliased name in infix position"
                   Just (assoc, p) => do
                     guard "operator precedence" (p >= minP)
                     sp
-                    r <- climb (case assoc of AssocL => S p; AssocR => p)
+                    r <- climb (case assoc of AssocR => p; _ => S p)
                     cont (SApp (SApp (SSig rng op) l) r) minP)
         <|> pure l
 
@@ -573,6 +575,12 @@ mutual
               (do kwc '}'; cont (SNoIns e))
                 <|> (do t <- parseSElem tbl env; sp; kwc '}'
                         cont (SApp e (SImpArg t))))
+      -- a POSTFIX operator applies to the whole chain so far, at the
+      -- projection tier: f x ⁻¹ is (f x) ⁻¹, and x ⁻¹ ⁻¹ chains
+      <|> (do sp; (rng, op) <- bounds parseOpName
+              case lookup op tbl of
+                Just (Postfix, _) => cont (SApp (SSig rng op) e)
+                _ => fail "not a postfix operator")
       <|> (do sp; e' <- parseSElemAtom tbl env; cont (SApp e e'))
       <|> pure e
 
@@ -916,21 +924,31 @@ parseSImport = do
 
 ||| infixl 6 +  /  infixr 3 ⊕ — fixity for an operator NAME; takes
 ||| effect for the rest of the file and is exported with the name.
-parseFixity : Rule (String, Assoc, Nat)
-parseFixity = do
-  assoc <- (kw "infixl" $> AssocL) <|> (kw "infixr" $> AssocR)
+parseFixityOp : Rule SFixity
+parseFixityOp = do
+  assoc <- (kw "infixl" $> AssocL) <|> (kw "infixr" $> AssocR) <|> (kw "postfix" $> Postfix)
   space
   commit
   (r, d) <- bounds (terminal "precedence digit (0-9)" digitTok)
   emit r Number
   space
   op <- parseOpName
-  pure (op, assoc, d)
+  mt <- optional (do sp; kw "≔"; sp; parseName <|> parseOpName)
+  pure (op, assoc, d, mt)
  where
   digitTok : Token -> Maybe Nat
   digitTok (Symbol ch) =
     if ch >= '0' && ch <= '9' then Just (cast (ord ch - ord '0')) else Nothing
   digitTok _ = Nothing
+
+parseFixity : Rule SFixity
+parseFixity =
+      (do kw "alias"; space; commit
+          n <- parseName; sp
+          kw "≔"; sp
+          t <- parseName <|> parseOpName
+          pure (n, AAlias, 0, Just t))
+  <|> parseFixityOp
 
 ||| A file: imports, then fixity declarations and items interleaved.
 ||| The initial table holds the fixities of OPENED imported operators;
@@ -957,9 +975,12 @@ parseSFile tbl0 = do
  where
   go : NameEnv -> FixTable -> Rule (FixTable, List (Maybe Range, SItem), List SBodyEntry)
   go env0 tbl =
-        (do (r, f) <- bounds parseFixity; sp
-            (decls, items, body) <- go env0 (f :: tbl)
-            pure (f :: decls, items, Left (r, f) :: body))
+        (do (r, f@(op, assoc, d, _)) <- bounds parseFixity; sp
+            -- an AAlias declares no operator: the table is for the
+            -- infix climb and the postfix chain only
+            let tbl' = case assoc of AAlias => tbl; _ => ((op, assoc, d) :: tbl)
+            (decls, items, body) <- go env0 tbl'
+            pure ((case assoc of AAlias => decls; _ => ((op, assoc, d) :: decls)), items, Left (r, f) :: body))
     <|> (do (r, i) <- bounds (parseSItem tbl env0); sp
             (decls, items, body) <- go env0 tbl
             pure (decls, (r, i) :: items, Right (r, i) :: body))

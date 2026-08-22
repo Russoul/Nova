@@ -275,6 +275,11 @@ record ElabSt where
   ||| (name, implicit?, domain at its depth, domain skeleton) in
   ||| binder order. Empty for an ordinary module
   parTele : List (String, Bool, Ty, Skel)
+  ||| the module's NOTATION ALIASES (surface token → surface target
+  ||| name, from `infixl 7 · ≔ gop` / `alias e ≔ ge` declarations):
+  ||| applied by resolveSigName BEFORE the visibility table, so an
+  ||| aliased spelling means exactly the def it targets
+  aliases : List (String, String)
   ||| pre-application table of the current module: a reference to a
   ||| listed def auto-applies its parameter prefix — PSelf (a
   ||| sibling: the current module's own params, as context
@@ -284,7 +289,7 @@ record ElabSt where
   preApp : List (String, PreApp)
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [<] Nothing [] [] Nothing [] False [<] False [<] [<] [<] False False [] [] [] []
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [<] Nothing [] [] Nothing [] False [<] False [<] [<] [<] False False [] [] [] [] []
 
 ||| [0, 1, …, n-1] — the leading telescope positions of a
 ||| parameterized-module reference
@@ -338,7 +343,10 @@ sInferForm e = case e of
 ||| opened imports), else the name itself (qualified references reach
 ||| Σ directly).
 resolveSigName : ElabSt -> String -> String
-resolveSigName st x = go st.vis
+resolveSigName st x0 = go st.vis
+ where
+  x : String
+  x = fromMaybe x0 (lookup x0 st.aliases)
  where
   go : SnocList (String, String) -> String
   go [<] = x
@@ -5563,7 +5571,7 @@ enterModule name imps = do
   let visible = concatMap (\(_, ls) => ls) (filter (\(m, _) => m `elem` closure) archived)
   let (cs, sh, re, hp) = sigCandParts visible
   putSt $ { modPrefix := name, vis := [<], dupNames := []
-          , parTele := [], preApp := []
+          , parTele := [], preApp := [], aliases := []
           , lemmas := visible, ownLemmas := []
           , modLemmas := archived, modImports := archivedI
           , curImports := imps
@@ -5584,6 +5592,14 @@ installImports (MkSImport m _ opens :: rest) = do
     case sigLookup q st.sig of
       Just _ => do addVis (o, q); go os
       Nothing => throw "import \{m}: it defines no '\{o}'"
+
+||| Install the module's notation aliases (file-scoped, like the
+||| fixities they ride on).
+installAliases : List SBodyEntry -> ElabM ()
+installAliases body =
+  modifySt $ { aliases := mapMaybe (\e => case e of
+                 Left (_, (n, _, _, Just t)) => Just (n, t)
+                 _ => Nothing) body }
 
 ||| Elaborate the module-header telescope into ElabSt.parTele: each
 ||| domain at its depth, in binder order. Header types carry no
@@ -5669,10 +5685,10 @@ elabProgram units = go initSt units []
 
   go : ElabSt -> List ModUnit -> List String -> String
   go st [] echoes = joinBy "\n" (echoes ++ ["Error: empty program"])
-  go st (MkModUnit name imps tbl mps items _ _ _ :: rest) echoes = do
+  go st (MkModUnit name imps tbl mps items _ ubody _ :: rest) echoes = do
     -- a fresh visibility table per module: its own imports only, and a
     -- lemma store scoped to its import closure
-    case runElabM (enterModule name (map mname imps) >> installImports imps >> installModParams mps >> installInstApps imps) st of
+    case runElabM (enterModule name (map mname imps) >> installImports imps >> installAliases ubody >> installModParams mps >> installInstApps imps) st of
       Left err =>
         if surveyMode && not (null rest)
           -- SURVEY MODE: an import of a dropped module cascades — drop too
@@ -5735,9 +5751,9 @@ elabProgramSt st0 units = go st0 units
 
   go : ElabSt -> List ModUnit -> Either String ElabSt
   go st [] = Left "empty program"
-  go st (MkModUnit name imps tbl mps items _ _ _ :: rest) =
+  go st (MkModUnit name imps tbl mps items _ ubody _ :: rest) =
     let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
-    case runElabM (installImports imps >> installModParams mps >> installInstApps imps) st of
+    case runElabM (installImports imps >> installAliases ubody >> installModParams mps >> installInstApps imps) st of
       Left err => Left err
       Right (st, ()) =>
         case goItems st items of
@@ -5781,9 +5797,9 @@ elabProgramSig units = go initSt units
 
   go : ElabSt -> List ModUnit -> Either String Sig
   go st [] = Left "empty program"
-  go st (MkModUnit name imps tbl mps items _ _ _ :: rest) =
+  go st (MkModUnit name imps tbl mps items _ ubody _ :: rest) =
     let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
-    case runElabM (installImports imps >> installModParams mps >> installInstApps imps) st of
+    case runElabM (installImports imps >> installAliases ubody >> installModParams mps >> installInstApps imps) st of
       Left err => Left err
       Right (st, ()) =>
         case goItems st items of
@@ -5902,9 +5918,9 @@ elabProgramReport units = go initSt units [] [] []
 
   go : ElabSt -> List ModUnit -> List (String, Maybe Range, Obligation) -> List (String, Maybe Range, String) -> List (String, Maybe Range, String) -> ElabReport
   go st [] obls hs errs = MkElabReport obls hs [] errs
-  go st (MkModUnit name imps tbl mps items _ _ _ :: rest) obls hs errs =
+  go st (MkModUnit name imps tbl mps items _ ubody _ :: rest) obls hs errs =
     let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
-    case runElabM (installImports imps >> installModParams mps >> installInstApps imps) st of
+    case runElabM (installImports imps >> installAliases ubody >> installModParams mps >> installInstApps imps) st of
       Left err => MkElabReport obls hs (binderInfos tbl st) (errs ++ [(name, Nothing, err)])
       Right (st, ()) =>
         case goItems tbl name st items of

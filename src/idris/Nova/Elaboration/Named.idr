@@ -353,8 +353,8 @@ mutual
     -- last segment — the spelling the source used
     case (isOpName op, lookup op tbl <|> lookup (lastSeg op) tbl) of
       (True, Just (assoc, p)) =>
-        let lP = case assoc of AssocL => p; AssocR => S p
-            rP = case assoc of AssocL => S p; AssocR => p
+        let lP = case assoc of AssocR => S p; _ => p
+            rP = case assoc of AssocR => p; _ => S p
             body = prettyElemOpN tbl env lP a ++ " " ++ lastSeg op ++ " " ++ prettyElemOpN tbl env rP b
         in if p < minP then "(" ++ body ++ ")" else body
       _ => prettyElemPrefixN tbl env e

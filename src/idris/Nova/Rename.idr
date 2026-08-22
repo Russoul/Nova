@@ -312,7 +312,7 @@ renamePath rootPath outDir rm = do
     | Left err => pure (Left err.lmsg)
   let Right sigOrig = elabProgramSig units
     | Left err => pure (Left ("input is not accepted; rename only transforms accepted programs:\n" ++ err))
-  let ownFixes = map (\u => (u.mname, map snd (lefts u.mbody))) units
+  let ownFixes = map (\u => (u.mname, map (\(_, (op, a, d, _)) => (op, a, d)) (lefts u.mbody))) units
   let fixesOf = \m => fromMaybe [] (lookup m ownFixes)
   let renamed = map (rnUnit fixesOf rm) units
   Right () <- writeUnits outDir (baseName rootPath) renamed

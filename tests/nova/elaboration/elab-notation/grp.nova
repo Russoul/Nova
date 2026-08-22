@@ -1,0 +1,5 @@
+def IsMon : 𝕌 → 𝕌 ≔ λG. (G → G → G) ⨯ G
+
+def mop : {G : 𝕌} (m : El (IsMon G)) → El G → El G → El G using (grp.IsMon.unfold) ≔ λG. λm. m .π₁
+
+def mu : {G : 𝕌} (m : El (IsMon G)) → El G using (grp.IsMon.unfold) ≔ λG. λm. m .π₂
