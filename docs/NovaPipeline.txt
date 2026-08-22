@@ -184,14 +184,14 @@ agent did that is not in the source file can affect the verdict.
 ////////// The obligation lifecycle (unchanged) //////////
 
 Discharge failure is never an error: the equation is assumed — as a
-CONSTRAINT ENTRY of the run's signature (Foundation: sig-eq — type
-constraints are its A = 𝕍 instances;
+HOLE at the equation's Prf in the run's signature (Foundation:
+sig-decl at Prf (a ≡ b ∈ A), A = 𝕍 for a type equation;
 Σ is OPEN mid-run) — deduplicated, and reported at end of run with its
 site and the composite it descended from. The user or AI discharges an
 obligation by prepending an ordinary def whose type is the
 obligation's statement as an equality type, and re-running. A file is
 accepted exactly when the run's final signature is DEFINITIONAL (no
-constraints and no declarations) AND the kernel replays every
+declarations, equation holes included) AND the kernel replays every
 certificate. Nothing survives between runs. (Full lifecycle,
 stratification and metatheory: docs/NovaElaboration.txt.)
 

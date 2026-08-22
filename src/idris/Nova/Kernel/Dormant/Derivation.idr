@@ -287,10 +287,12 @@ data Deriv : Type where
   ||| a squashed or unreduced spelling with DElTyCoe + the oracle
   ||| first)
   DElReflect : Deriv -> Deriv
-  ||| el-sig-eq: the atom is the POSITION of the (nameless)
+  ||| the retired constraint-use rule, derived (el-sig-decl +
+  ||| el-reflect at
+  ||| the obligation hole): the atom is the POSITION of the
   ||| constraint entry in Σ
   DElSigEq : Nat -> Deriv -> Deriv
-  ||| el-sig-eq at a type constraint (A = 𝕍)
+  ||| ditto at a type-equation hole (∈-slot 𝕍)
   DTySigEq : Nat -> Deriv -> Deriv
 
   -- ----- equality: props and η -----
@@ -1183,18 +1185,18 @@ conclude env sig ctx (DElSigEq pos dSub) = do
     -- equation off the entry's type (el-sig-decl + el-reflect)
     Just (SigDecl gamma _ (Prf (Elem.EqTy a0 a1 a))) => do
       if delta == gamma then pure ()
-        else kerr "derivation: el-sig-eq: entry context mismatch"
+        else kerr "derivation: sig-eq hole: entry context mismatch"
       pure (JElEq (substElem a0 (embed es)) (substElem a1 (embed es))
                   (substTy a (embed es)))
-    _ => kerr "derivation: el-sig-eq: no constraint entry at position \{show pos}"
+    _ => kerr "derivation: sig-eq hole: no equation hole at position \{show pos}"
 conclude env sig ctx (DTySigEq pos dSub) = do
   (es, delta) <- conclude env sig ctx dSub >>= needSubN
   case getAt pos (toList sig) of
     Just (SigDecl gamma _ (Prf (Elem.EqTy a0 a1 TopTy))) => do
       if delta == gamma then pure ()
-        else kerr "derivation: el-sig-eq (type constraint): entry context mismatch"
+        else kerr "derivation: sig-eq hole (type equation): entry context mismatch"
       pure (JTyEq (substTy a0 (embed es)) (substTy a1 (embed es)))
-    _ => kerr "derivation: el-sig-eq: no type constraint at position \{show pos}"
+    _ => kerr "derivation: sig-eq hole: no type-equation hole at position \{show pos}"
 
 -- equality: props and η
 conclude env sig ctx (DElZeroProp d0 d1) = do
