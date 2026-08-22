@@ -303,7 +303,6 @@ renameSig f = map entry
   entry : SigEntry -> SigEntry
   entry (SigDef ctx n body ty) = SigDef (map (rcT f) ctx) (f n) (rcE f body) (rcT f ty)
   entry (SigDecl ctx n ty) = SigDecl (map (rcT f) ctx) (f n) (rcT f ty)
-  entry (SigEq ctx l r ty) = SigEq (map (rcT f) ctx) (rcE f l) (rcE f r) (rcT f ty)
 
 -- ===== The driver =====
 

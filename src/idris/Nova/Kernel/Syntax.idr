@@ -2,6 +2,7 @@ module Nova.Kernel.Syntax
 
 import Data.List
 import Data.SnocList
+import Data.String
 
 mutual
   namespace Sub
@@ -225,26 +226,25 @@ public export
 SigIdentifier : Type
 SigIdentifier = String
 
-||| THREE entry kinds (Foundation: type definitions, type
-||| declarations and type equation constraints are the A = TopTy
-||| instances, not separate kinds).
+||| TWO entry kinds (Foundation: type definitions and type
+||| declarations are the A = TopTy instances; an equation CONSTRAINT
+||| is a hole at the equation's Prf — a declaration at
+||| Prf (a₀ ≡ a₁ ∈ A) — used through el-sig-decl + el-reflect and
+||| closed by INSTANTIATION with ⋆).
 public export
 data SigEntry : Type where
   ||| Γ ⊦ x ≔ a : A  (definition; a TYPE definition when A = TopTy)
   SigDef : Ctx -> SigIdentifier -> Elem -> Ty -> SigEntry
   ||| Γ ⊦ x : A  (declaration — a hole; references are stuck,
-  ||| el-sig-decl; a TYPE declaration when A = TopTy)
+  ||| el-sig-decl; a TYPE declaration when A = TopTy; an equation
+  ||| OBLIGATION when A is the equation's Prf)
   SigDecl : Ctx -> SigIdentifier -> Ty -> SigEntry
-  ||| Γ ⊦ a₀ ≐ a₁ : A  (equation constraint — nameless, sig-eq; used
-  ||| through el-sig-eq; a TYPE constraint when A = TopTy)
-  SigEq : Ctx -> Elem -> Elem -> Ty -> SigEntry
 
-||| The name a signature entry binds (constraint entries bind none).
+||| The name a signature entry binds.
 public export
 sigEntryName : SigEntry -> Maybe SigIdentifier
 sigEntryName (SigDef _ x _ _) = Just x
 sigEntryName (SigDecl _ x _) = Just x
-sigEntryName (SigEq _ _ _ _) = Nothing
 
 ||| Is this entry a definition? A signature all of whose entries are
 ||| definitions is DEFINITIONAL (Foundation: acceptance requires it).
@@ -252,6 +252,18 @@ public export
 sigEntryIsDef : SigEntry -> Bool
 sigEntryIsDef (SigDef _ _ _ _) = True
 sigEntryIsDef _ = False
+
+||| Machine names for equation-obligation holes — a spelling no
+||| surface identifier can take, so views can tell an obligation from
+||| a user declaration. Deterministic (a per-run counter), so reruns
+||| and the distill Σ-gate see stable names.
+public export
+oblName : Nat -> SigIdentifier
+oblName n = "≐#" ++ show n
+
+public export
+isOblName : SigIdentifier -> Bool
+isOblName x = isPrefixOf "≐#" x
 
 public export
 Sig : Type
