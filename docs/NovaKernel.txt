@@ -29,7 +29,7 @@ kernel-only judgement forms added:
   Σ; Γ ⊦ 𝒞 ▷ T₀ ≐ T₁             certificate replay (type equation)
   Σ; Γ ⊦ t ⇐ T ⟨sk⟩              item-level checking (skeleton sk)
   Σ; Γ ⊦ t ⇒ T ⟨sk⟩              item-level inference
-  Σ; Γ ⊦ T type ⟨sk⟩             item-level formation
+  Σ; Γ ⊦ T : 𝕍 ⟨sk⟩             item-level formation
   Σ; Γ ⊦ 𝒮 qsig ⟨sk⟩             item-level QIIT signature checking (§8)
   Σ; Γ ⊦ 𝔽 poly ⟨sk⟩             item-level polynomial checking (inside
                                  ν formation — Foundation's poly-* rules)
@@ -68,7 +68,7 @@ of fuel, are exactly:
                                                     # only when 𝒮 and 𝒮′ are
                                                     # IDENTICAL after nf
   x[e˲]              ≜  a[e˲]      (Σ ∋ Γ ⊦ x ≔ a : A)   # el-sig-beta
-  x[e˲]              ≜  T[e˲]      (Σ ∋ Γ ⊦ x ≔ T type)  # ty-sig-beta
+  x[e˲]              ≜  T[e˲]      (Σ ∋ Γ ⊦ x ≔ T : 𝕍)  # el-sig-beta at 𝕍
 
   El 𝟘               ≜  𝟘                           # El-decoding
   El 𝟙               ≜  𝟙
@@ -113,10 +113,10 @@ definition in type position or vice versa), is rejected outright.
 Σ may be OPEN (Foundation, DEFINITIONAL AND OPEN SIGNATURES): during
 an elaboration run it carries the run's assumed equation constraints
 and declarations. A reference to a DECLARATION is STUCK — typed
-by el-sig-decl/ty-sig-decl, no contraction — and nf leaves it as a
+by el-sig-decl (type entries included), no contraction — and nf leaves it as a
 neutral head. Constraint entries are nameless and never referenced by
 terms, so nf never sees them; they exist for the equational theory
-(el-sig-eq/ty-sig-eq). Only nf and equality replay tolerate open
+(el-sig-eq, type entries included). Only nf and equality replay tolerate open
 signatures: Nova.Compute (the uncertified evaluator) assumes a
 definitional Σ and rejects open entries outright.
 
@@ -659,7 +659,7 @@ Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
      syntax, each step's license carrying its own components'
      typedness (the proof's ⇒ᵖ-inferred Prf-type presupposes the
      equation's sides). Read declaratively it is a CONDITIONAL:
-     given Γ ⊦ T type — an invariant of this pass, every expected
+     given Γ ⊦ T : 𝕍 — an invariant of this pass, every expected
      type being built from the item's checked type by nf and
      structural decomposition — a successful replay makes nf(T′) a
      well-formed type ≐ T. And nf(T′) is all the continuation
@@ -757,7 +757,7 @@ Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
 
 Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
 
-  If sk carries intro-ty T ⟨skT⟩: check Σ; Γ ⊦ T type ⟨skT⟩, then
+  If sk carries intro-ty T ⟨skT⟩: check Σ; Γ ⊦ T : 𝕍 ⟨skT⟩, then
   Σ; Γ ⊦ t ⇐ T ⟨sk∖intro-ty⟩, and return T. (This is the ascription
   route: how introduction forms sit in inference position.)
 
@@ -780,7 +780,7 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
 
   ℕ-elim demands its motive — the REAL rule, no approximation here:
 
-     sk carries motive M ⟨skM⟩       Σ; Γ ▷ ℕ ⊦ M type ⟨skM⟩
+     sk carries motive M ⟨skM⟩       Σ; Γ ▷ ℕ ⊦ M : 𝕍 ⟨skM⟩
      Σ; Γ ⊦ z ⇐ M[id, Z] ⟨sk.0⟩
      Σ; Γ ▷ ℕ ▷ M ⊦ s ⇐ M[(↑, S ☐₀) ∘ ↑] ⟨sk.1⟩
      Σ; Γ ⊦ t ⇐ ℕ ⟨sk.2⟩
@@ -792,7 +792,7 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
 
      sk carries motive M ⟨skM⟩
      Σ; Γ ⊦ t ⇒ Tt ⟨sk.2⟩    nf(Tt) ⇓ A ⊎ B
-     Σ; Γ ▷ A ⊎ B ⊦ M type ⟨skM⟩
+     Σ; Γ ▷ A ⊎ B ⊦ M : 𝕍 ⟨skM⟩
      Σ; Γ ▷ A ⊦ l ⇐ M[↑, inj₁ ☐₀] ⟨sk.0⟩
      Σ; Γ ▷ B ⊦ r ⇐ M[↑, inj₂ ☐₀] ⟨sk.1⟩
      ------------------------------------------------------------
@@ -802,7 +802,7 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
 
      sk carries motive M ⟨skM⟩ and wd 𝒞
      Σ; Γ ⊦ q ⇒ Tq ⟨sk.1⟩    nf(Tq) ⇓ A / r
-     Σ; Γ ▷ A/r ⊦ M type ⟨skM⟩
+     Σ; Γ ▷ A/r ⊦ M : 𝕍 ⟨skM⟩
      Σ; Γ ▷ A ⊦ f ⇐ M[↑, class ☐₀] ⟨sk.0⟩
      Σ; Γ ▷ A ▷ A[↑] ▷ Prf r ⊦ 𝒞 ▷ f[↑³, ☐₂] ≐ f[↑³, ☐₁] : M[↑³, class ☐₂]
      ------------------------------------------------------------
@@ -822,7 +822,7 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
 
      Σ; Γ ⊦ 𝒮 qsig ⟨sk𝒮⟩    𝒮(𝕤) = 𝔎    sk carries qcoh 𝒞₁ … 𝒞ₖ
      for each sort position 𝕤ⱼ of 𝒮 (𝒮(𝕤ⱼ) = 𝔎ⱼ):
-         Σ; Γ·⌊𝔎ⱼ⌋ᵗ ▷ 𝒮.𝕤ⱼ δ ⊦ C_𝕤ⱼ type ⟨skC.j⟩             # mot
+         Σ; Γ·⌊𝔎ⱼ⌋ᵗ ▷ 𝒮.𝕤ⱼ δ ⊦ C_𝕤ⱼ : 𝕍 ⟨skC.j⟩             # mot
      for each point position 𝕔 of 𝒮 (𝒮(𝕔) = 𝔄; δ = ⌊𝔄⌋ᵗ's variables):
          Σ; Γ ⊦ m_𝕔 ⇐ 𝔄ᴰ⟨𝒮.𝕔 δ⟩ ⟨skm.𝕔⟩                     # dalg
      for each equation position 𝕔ⱼ of 𝒮
@@ -850,8 +850,8 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
   Anything else in inference position (a bare intro form with no
   ascription payload) is rejected.
 
-Formation  Σ; Γ ⊦ T type ⟨sk⟩ : structural over the type formers
-(ty-pi/sigma/sum/el/prf/quot/nu/ty-prop/ty-sig-var), El's code checked at 𝕌,
+Formation  Σ; Γ ⊦ T : 𝕍 ⟨sk⟩ : structural over the type formers
+(ty-pi/sigma/sum/el/prf/quot/nu/ty-prop; el-sig-var at type entries), El's code checked at 𝕌,
 a ν type's polynomial checked structurally (poly-hole/-const/-prod/
 -sum/-sigma/-pi: each embedded code at 𝕌, the context growing under
 the El-binders, skeleton children along in binder order),
