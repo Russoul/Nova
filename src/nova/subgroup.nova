@@ -16,7 +16,7 @@
 
 import prop (∧, andIntro, andFst, andSnd)
 import group (IsGroup)
-import groupTheory (gop, ge, ginv, gAssoc, gUnitL, gUnitR, gInvL, gInvR, gCancelInner, gCancelInnerInv, gCancelOuter, gInvUniq, gInvInv, gInvUnit, gOpInv, gCancelL, gCancelR)
+import groupTheory (· as gop, e as ge, ⁻¹ as ginv, gAssoc, gUnitL, gUnitR, gInvL, gInvR, gCancelInner, gCancelInnerInv, gCancelOuter, gInvUniq, gInvInv, gInvUnit, gOpInv, gCancelL, gCancelR)
 import equality (transportP, sym, trans, cong)
 
 def hasUnit : {G : 𝕌} (g : El (IsGroup G)) (N : El G → Ω) → Ω ≔ λG. λg. λN. N (ge g)

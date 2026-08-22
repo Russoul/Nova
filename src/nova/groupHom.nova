@@ -16,7 +16,7 @@ import id (Id, idToEq, eqToId)
 import prelude (funext)
 import monoid (IsMonoid)
 import group (IsGroup)
-import groupTheory (gop, ge, ginv, gAssoc, gUnitL, gUnitR, gInvL, gInvR, gCancelInner, gCancelInnerInv, gCancelOuter, gCancelOuterInv, gInvUniq, gInvInv, gInvUnit, gOpInv, gCancelL, gCancelR, gEqOfOpInvUnit)
+import groupTheory (· as gop, e as ge, ⁻¹ as ginv, gAssoc, gUnitL, gUnitR, gInvL, gInvR, gCancelInner, gCancelInnerInv, gCancelOuter, gCancelOuterInv, gInvUniq, gInvInv, gInvUnit, gOpInv, gCancelL, gCancelR, gEqOfOpInvUnit)
 import subgroup (IsSubgroup, IsNormal, sgUnit, sgOp, sgInv, nmConj, nmConjInv, cosetRel, cosetRefl, cosetSymm, cosetTrans, cosetFlip, cosetSplice)
 import quotGroup (QGroup, qcls, qclsEq, qclsEffective, qMul, qMulCls, qInv, qInvCls, qUnit, qIsGroup, qFactor, qFactorCls, qFactorUnique)
 import equality (transportP, sym, trans, cong)
@@ -128,7 +128,7 @@ def qopIsQMul : (G : 𝕌)
   (nn : Prf (IsNormal g N))
   (u v : El (QGroup _ g N))
   → gop (qIsGroup _ _ _ s nn) u v ≡ qMul _ _ _ nn u v
-  using (groupTheory.gop.eq, quotGroup.qIsGroup.eq) ≔
+  using (groupTheory.·.eq, quotGroup.qIsGroup.eq) ≔
   λG. λg. λN. λs. λnn. λu. λv. ⋆
 
 def qeIsQUnit : (G : 𝕌)
@@ -137,7 +137,7 @@ def qeIsQUnit : (G : 𝕌)
   (s : Prf (IsSubgroup g N))
   (nn : Prf (IsNormal g N))
   → ge (qIsGroup _ _ _ s nn) ≡ qUnit _ _ _
-  using (groupTheory.ge.eq, quotGroup.qIsGroup.eq) ≔
+  using (groupTheory.e.eq, quotGroup.qIsGroup.eq) ≔
   λG. λg. λN. λs. λnn. ⋆
 
 def qinvIsQInv : (G : 𝕌)
@@ -147,7 +147,7 @@ def qinvIsQInv : (G : 𝕌)
   (nn : Prf (IsNormal g N))
   (u : El (QGroup _ g N))
   → ginv (qIsGroup _ _ _ s nn) u ≡ qInv _ _ _ s nn u
-  using (groupTheory.ginv.eq, quotGroup.qIsGroup.eq) ≔
+  using (groupTheory.⁻¹.eq, quotGroup.qIsGroup.eq) ≔
   λG. λg. λN. λs. λnn. λu. ⋆
 
 -- ===== the quotient homomorphism π : G → G/N =====

@@ -17,7 +17,7 @@ import rational (intAddZeroL, intAddZeroR)
 import intGroup (intAddGroup, intAddMonoid)
 import monoid (IsMonoid)
 import group (IsGroup)
-import groupTheory (gop, ge, ginv)
+import groupTheory (· as gop, e as ge, ⁻¹ as ginv)
 import subgroup (IsSubgroup, IsNormal, sgIntro, sgUnit, sgOp, sgInv, abelianNormal, cosetRel)
 import quotGroup (QGroup, qcls, qclsEq, qclsEffective, qMul, qMulCls, qInv, qUnit, qIsGroup)
 import ring (IsCommRing)
@@ -28,13 +28,13 @@ import quotRing (QRing, qrCls, qrMul, qrOne, qrAdd, qrAddGroup, qrIsCommRing)
 import equality (transportP, sym, trans, cong)
 
 def intGop : (x y : El Int) → gop intAddGroup x y ≡ x + y
-  using (groupTheory.gop.eq, intGroup.intAddGroup.eq) ≔
+  using (groupTheory.·.eq, intGroup.intAddGroup.eq) ≔
   λx. λy. ⋆
 
-def intGe : ge intAddGroup ≡ intZero using (groupTheory.ge.eq, intGroup.intAddGroup.eq) ≔ ⋆
+def intGe : ge intAddGroup ≡ intZero using (groupTheory.e.eq, intGroup.intAddGroup.eq) ≔ ⋆
 
 def intGinv : (x : El Int) → ginv intAddGroup x ≡ intNeg x
-  using (groupTheory.ginv.eq, intGroup.intAddGroup.eq) ≔
+  using (groupTheory.⁻¹.eq, intGroup.intAddGroup.eq) ≔
   λx. ⋆
 
 -- ℤ is abelian, in the group-theoretic vocabulary

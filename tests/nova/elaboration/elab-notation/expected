@@ -1,9 +1,7 @@
 module grp:
 defined IsMon
-defined mop
-defined mu
-defined op
-defined unit
-defined rev
+defined mval
+defined ∙
+defined ⁻¹
 defined probe
 Accepted.

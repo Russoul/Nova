@@ -54,7 +54,12 @@ importTable : FixMap -> List SImport -> FixTable
 importTable fm = concatMap
   (\i => case lookup i.mname fm of
            Nothing => []
-           Just tbl => filter (\(op, _) => op `elem` i.opens) tbl)
+           -- a RENAMED open leaves its fixity behind (the operator
+           -- role belongs to the spelling, not the def)
+           Just tbl => filter (\(op, _) =>
+             op `elem` mapMaybe (\(o, ml) => case ml of
+                                    Nothing => Just o
+                                    Just _ => Nothing) i.opens) tbl)
 
 ||| Overloaded operators must AGREE on fixity: the parse is shared,
 ||| only the elaborator's type-directed resolution distinguishes the

@@ -772,37 +772,41 @@ open: two instantiations of one module in one file need
 prefix-renaming imports (groupHom wants groupTheory at g AND h);
 data/clausal items inside parameterized modules are refused.
 
-POSTFIX OPERATORS AND NOTATION ALIASES (2026-08-22): a third
+POSTFIX OPERATORS AND RENAMING IMPORTS (2026-08-22): a third
 fixity class, `postfix 9 ⁻¹`, parsed at the PROJECTION tier —
 `f x ⁻¹` is (f x) ⁻¹, exactly the .π₁ convention, chaining as
 x ⁻¹ ⁻¹ — and excluded from infix climb and atom positions like
-any declared operator. And any fixity declaration may carry a
-TARGET, making the token a NOTATION ALIAS of an existing def:
+any declared operator. The mention form (⁻¹) passes it as a
+function.
 
-  infixl 7 · ≔ gop
-  postfix 9 ⁻¹ ≔ ginv
-  alias e ≔ ge
+The group vocabulary's REAL names are now the notation — the defs
+ARE `·`, `⁻¹`, `e` (user decision: actual names, not aliases):
 
-The alias is FILE-LOCAL surface sugar and nothing else:
-resolveSigName maps the token to its target BEFORE the visibility
-table, so an aliased spelling elaborates to exactly the def it
-names — Σ, statements, citations, and every external module are
-untouched (`ge.eq` stays `ge.eq`; laws still match gop-spines at
-plain-import sites). This is why aliases, not renames: an infix ·
-has no slot for the group argument that plain-import sites must
-spell positionally, so the operator can only BE the name where the
-module sugar elides g — which is exactly where the alias lives.
-The mention form (⁻¹) passes the aliased def as a function.
-
-groupTheory now reads as the textbook:
-
+  module {G : 𝕌} (g : El (IsGroup G))
+  infixl 7 ·
+  postfix 9 ⁻¹
+  def · : El G → El G → El G ≔ g .π₁ .π₁
   def gAssoc : (x y z : El G) → x · y · z ≡ x · (y · z)
   def gInvUniq : {x y : El G} → (x · y ≡ e) → x ⁻¹ ≡ y
   def gOpInv : (x y : El G) → (x · y) ⁻¹ ≡ y ⁻¹ · x ⁻¹
 
-The distill printer renders postfix at the projection tier and
-minimal-parenthesizes operator nests; the canonical corpus form of
-the notation is enforced like every other spelling.
+What makes this compatible with plain importers — who must spell
+the group argument positionally, a slot infix syntax lacks — is
+the RENAMING IMPORT:
+
+  import groupTheory (· as gop, e as ge, ⁻¹ as ginv, gAssoc, …)
+
+An `o as x` open installs the importer's surface name x for the
+Σ-def o (one visibility-table entry — the machinery predates the
+feature), so every external site keeps its existing prefix
+spelling `gop g x y` byte-for-byte; only import lines and
+qualified citations (`groupTheory.·.eq`) changed in the
+migration. A renamed open leaves its fixity behind: the operator
+role belongs to the spelling, not the def. Citations follow the
+def (`·.eq` inside the module; unqualified cites resolve through
+the rename). The distill printer renders postfix at the
+projection tier and minimal-parenthesizes operator nests; the
+canonical corpus form is enforced as ever.
 
 CAPTURES ARE COMP-NORMALIZED (2026-08-21): a substituted domain can
 carry β-redexes — a pattern-solved dependency lands a λ in function

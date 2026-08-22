@@ -229,7 +229,6 @@ infixView tbl (SApp (SApp (SSig _ op) l) r) =
   if isOpName op && bareName op && not (isOverride l) && not (isOverride r)
     then case lookup op tbl of
            Just (Postfix, _) => Nothing
-           Just (AAlias, _) => Nothing
            Just (a, p) => Just (op, a, p, l, r)
            Nothing => Nothing
     else Nothing
@@ -775,22 +774,21 @@ renderItemStr tbl (STypeDef n ty) =
 renderItemStr tbl item = renderDoc lineWidth (renderItem tbl item)
 
 renderFixity : SFixity -> String
-renderFixity (op, assoc, d, mt) =
-  let tgt = the String (case mt of Nothing => ""; Just t => " ≔ \{t}")
-  in case assoc of
-       AssocL => "infixl \{show d} \{op}\{tgt}"
-       AssocR => "infixr \{show d} \{op}\{tgt}"
-       Postfix => "postfix \{show d} \{op}\{tgt}"
-       AAlias => "alias \{op}\{tgt}"
+renderFixity (op, AssocL, d) = "infixl \{show d} \{op}"
+renderFixity (op, AssocR, d) = "infixr \{show d} \{op}"
+renderFixity (op, Postfix, d) = "postfix \{show d} \{op}"
 
 renderImport : SImport -> String
 renderImport (MkSImport m args os) =
   let hd = case args of
              [] => "import \{m}"
              _ => "import (\{m} \{joinBy " " (map show args)})"
+      one = the ((String, Maybe String) -> String) $ \(o, ml) => case ml of
+              Nothing => o
+              Just l => "\{o} as \{l}"
   in case os of
        [] => hd
-       _ => "\{hd} (\{joinBy ", " os})"
+       _ => "\{hd} (\{joinBy ", " (map one os)})"
 
 -- ===== Comments =====
 --
@@ -1068,10 +1066,9 @@ sigCompare a b = go (toList a) (toList b)
 -- ===== Round-trip verification =====
 
 fixShow : SFixity -> String
-fixShow (op, assoc, d, mt) =
-  let a = the String (case assoc of
-            AssocL => "l"; AssocR => "r"; Postfix => "p"; AAlias => "a")
-  in "\{op}/\{a}/\{show d}/\{show mt}"
+fixShow (op, AssocL, d) = "\{op}/l/\{show d}"
+fixShow (op, AssocR, d) = "\{op}/r/\{show d}"
+fixShow (op, Postfix, d) = "\{op}/p/\{show d}"
 
 mpShow : (Bool, String, STy) -> String
 mpShow (imp, n, a) = "\{show imp}/\{n}/\{show a}"

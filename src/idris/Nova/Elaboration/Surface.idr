@@ -300,14 +300,13 @@ mutual
 -- the name is the operator.
 
 public export
-data Assoc = AssocL | AssocR | Postfix | AAlias
+data Assoc = AssocL | AssocR | Postfix
 
 public export
 Eq Assoc where
   AssocL == AssocL = True
   AssocR == AssocR = True
   Postfix == Postfix = True
-  AAlias == AAlias = True
   _ == _ = False
 
 ||| operator token ↦ (associativity, binding level 0..9); higher binds
@@ -355,18 +354,21 @@ export
 Show SInstArg where
   show = showInstArg
 
-||| import M            — M's names accessible qualified (M.x) only
-||| import M (a, b)     — additionally, a and b accessible bare
-||| import (M a…) (b, …) — a PARAMETERIZED module instantiated at the
-|||                       given arguments: each opened name stands for
-|||                       the def with its module-parameter prefix
-|||                       pre-applied at a…
+||| import M              — M's names accessible qualified (M.x) only
+||| import M (a, b)       — additionally, a and b accessible bare
+||| import M (a as x, b)  — a opened RENAMED: the importer's surface
+|||                         name for it is x (its fixity, if any,
+|||                         does not travel with a rename)
+||| import (M a…) (b, …)  — a PARAMETERIZED module instantiated at
+|||                         the given arguments: each opened name
+|||                         stands for the def with its module-
+|||                         parameter prefix pre-applied at a…
 public export
 record SImport where
   constructor MkSImport
   mname : String
   iargs : List SInstArg
-  opens : List String
+  opens : List (String, Maybe String)
 
 ||| A parameterized module's header telescope, as written:
 ||| (implicit?, name, domain), left to right.
@@ -464,17 +466,12 @@ data SItem : Type where
                 (etaName : Maybe String) -> (witness : Maybe SElem) ->
                 List SClause -> SItem
 
-||| One fixity/notation declaration as written: (operator,
-||| associativity, level, alias target). `infixl 7 ·` declares a
-||| fixity; `infixl 7 · ≔ gop` additionally makes the token a
-||| NOTATION ALIAS of a def (file-local: the parser reads `x · y`,
-||| elaboration resolves · to gop before the visibility table);
-||| `postfix 9 ⁻¹ ≔ ginv` gives postfix application `x ⁻¹`; and
-||| `alias e ≔ ge` (Assoc AAlias, level unused) aliases a PLAIN
-||| name with no operator role.
+||| One fixity declaration as written: (operator, associativity,
+||| level). `postfix 9 ⁻¹` is the unary suffix class, parsed at the
+||| projection tier.
 public export
 SFixity : Type
-SFixity = (String, Assoc, Nat, Maybe String)
+SFixity = (String, Assoc, Nat)
 
 ||| A file-body entry in source order: a fixity declaration or an item
 ||| (with its item-level source range). Fixities take effect for the
@@ -582,9 +579,12 @@ Show SImport where
     let hd = case args of
                [] => "import \{m}"
                _ => "import (\{m} \{joinBy " " (map show args)})"
+        one = the ((String, Maybe String) -> String) $ \(o, ml) => case ml of
+                Nothing => o
+                Just l => "\{o} as \{l}"
     in case os of
          [] => hd
-         _ => "\{hd} (\{joinBy ", " os})"
+         _ => "\{hd} (\{joinBy ", " (map one os)})"
 
 export covering
 Show SPat where

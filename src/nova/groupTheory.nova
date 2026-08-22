@@ -29,32 +29,31 @@ import equality (trans, sym, cong)
 
 module {G : 𝕌} (g : El (IsGroup G))
 
-infixl 7 · ≔ gop
-postfix 9 ⁻¹ ≔ ginv
-alias e ≔ ge
-def gop : El G → El G → El G using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔ g .π₁ .π₁
+infixl 7 ·
+postfix 9 ⁻¹
+def · : El G → El G → El G using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔ g .π₁ .π₁
 
-def ge : El G using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔ g .π₁ .π₂ .π₁
+def e : El G using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔ g .π₁ .π₂ .π₁
 
-def ginv : El G → El G using (group.IsGroup.unfold) ≔ g .π₂ .π₁
+def ⁻¹ : El G → El G using (group.IsGroup.unfold) ≔ g .π₂ .π₁
 
 -- ===== the five laws, as ≡-equations =====
 def gAssoc : (x y z : El G) → x · y · z ≡ x · (y · z)
-  using (group.IsGroup.unfold, monoid.IsMonoid.unfold, gop.eq) ≔
+  using (group.IsGroup.unfold, monoid.IsMonoid.unfold, ·.eq) ≔
   λx. λy. λz. idToEq _ _ _ (g .π₁ .π₂ .π₂ .π₁ x y z)
 
 def gUnitL : (x : El G) → e · x ≡ x
-  using (group.IsGroup.unfold, monoid.IsMonoid.unfold, gop.eq, ge.eq) ≔
+  using (group.IsGroup.unfold, monoid.IsMonoid.unfold, ·.eq, e.eq) ≔
   λx. idToEq _ _ _ (g .π₁ .π₂ .π₂ .π₂ .π₁ x)
 
 def gUnitR : (x : El G) → x · e ≡ x
-  using (group.IsGroup.unfold, monoid.IsMonoid.unfold, gop.eq, ge.eq) ≔
+  using (group.IsGroup.unfold, monoid.IsMonoid.unfold, ·.eq, e.eq) ≔
   λx. idToEq _ _ _ (g .π₁ .π₂ .π₂ .π₂ .π₂ x)
 
-def gInvL : (x : El G) → x ⁻¹ · x ≡ e using (group.IsGroup.unfold, gop.eq, ge.eq, ginv.eq) ≔
+def gInvL : (x : El G) → x ⁻¹ · x ≡ e using (group.IsGroup.unfold, ·.eq, e.eq, ⁻¹.eq) ≔
   λx. idToEq _ _ _ (g .π₂ .π₂ .π₁ x)
 
-def gInvR : (x : El G) → x · x ⁻¹ ≡ e using (group.IsGroup.unfold, gop.eq, ge.eq, ginv.eq) ≔
+def gInvR : (x : El G) → x · x ⁻¹ ≡ e using (group.IsGroup.unfold, ·.eq, e.eq, ⁻¹.eq) ≔
   λx. idToEq _ _ _ (g .π₂ .π₂ .π₂ x)
 
 -- ===== cancellation of an adjacent inverse =====

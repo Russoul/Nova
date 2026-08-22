@@ -191,7 +191,7 @@ parameters (rm : RenameMap, resolve : String -> String)
 
 rnImport : RenameMap -> SImport -> SImport
 rnImport rm (MkSImport m args os) =
-  MkSImport m args (map (\o => fromMaybe o (lookup "\{m}.\{o}" rm)) os)
+  MkSImport m args (map (\(o, ml) => (fromMaybe o (lookup "\{m}.\{o}" rm), ml)) os)
 
 rnUnit : (fixesOf : String -> FixTable) -> RenameMap -> ModUnit -> ModUnit
 rnUnit fixesOf rm u =
@@ -202,8 +202,10 @@ rnUnit fixesOf rm u =
       -- a rename can turn an opened name into an OPERATOR: its
       -- defining module's fixity must reach this unit's print table
       -- (the loader recomputes it from the renamed opens on reload)
-      opened = concatMap (\i => mapMaybe (\o => lookup o (fixesOf i.mname)
-                                                 >>= \f => Just (o, f)) i.opens) imports'
+      opened = concatMap (\i => mapMaybe (\(o, ml) => case ml of
+                                                 Just _ => Nothing
+                                                 Nothing => lookup o (fixesOf i.mname)
+                                                              >>= \f => Just (o, f)) i.opens) imports'
       mfix' = u.mfix ++ filter (\(op, _) => isNothing (lookup op u.mfix)) opened
   in { mbody := body'
      , mimports := imports'
@@ -312,7 +314,7 @@ renamePath rootPath outDir rm = do
     | Left err => pure (Left err.lmsg)
   let Right sigOrig = elabProgramSig units
     | Left err => pure (Left ("input is not accepted; rename only transforms accepted programs:\n" ++ err))
-  let ownFixes = map (\u => (u.mname, map (\(_, (op, a, d, _)) => (op, a, d)) (lefts u.mbody))) units
+  let ownFixes = map (\u => (u.mname, map snd (lefts u.mbody))) units
   let fixesOf = \m => fromMaybe [] (lookup m ownFixes)
   let renamed = map (rnUnit fixesOf rm) units
   Right () <- writeUnits outDir (baseName rootPath) renamed
