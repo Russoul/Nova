@@ -282,7 +282,9 @@ data Deriv : Type where
   DTyTrans : Deriv -> Deriv -> Deriv
   ||| el-eq-ty-coe: Γ ⊦ A₀ ≐ A₁ type;  Γ ⊦ a₀ ≐ a₁ : A₀
   DElEqTyCoe : Deriv -> Deriv -> Deriv
-  ||| el-reflect: Γ ⊦ s : Prf (a₀ ≡ a₁ ∈ A)  ⊢  Γ ⊦ a₀ ≐ a₁ : A
+  ||| el-reflect — ADMISSIBLE in Foundation (⋆-canonicity, forced by
+  ||| Ω-valuedness), replayed directly for convenience:
+  ||| Γ ⊦ s : Prf (a₀ ≡ a₁ ∈ A)  ⊢  Γ ⊦ a₀ ≐ a₁ : A
   ||| (the premise must conclude at a literal equality prop — expose
   ||| a squashed or unreduced spelling with DElTyCoe + the oracle
   ||| first)
