@@ -313,7 +313,10 @@ data Deriv : Type where
   DElSigmaEta : Deriv -> Deriv -> Deriv -> Deriv -> Deriv
 
   -- ----- equality: congruence -----
-  ||| el-lam-cong: Γ ⊦ A type (delivers the domain);  Γ ▷ A ⊦ f₀ ≐ f₁ : B
+  ||| el-lam-cong — ADMISSIBLE in Foundation (via the two-candidate
+  ||| el-pi-eta: the candidates' generic applications β-reduce to the
+  ||| bodies), replayed directly for convenience:
+  ||| Γ ⊦ A type (delivers the domain);  Γ ▷ A ⊦ f₀ ≐ f₁ : B
   DElLamCong : Deriv -> Deriv -> Deriv
   ||| el-app-cong — delivery order feq, aeq, B (Foundation lists B
   ||| first): Γ ⊦ f₀ ≐ f₁ : A → B;  Γ ⊦ a₀ ≐ a₁ : A;  Γ ▷ A ⊦ B type

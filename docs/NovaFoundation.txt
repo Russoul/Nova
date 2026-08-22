@@ -37,13 +37,16 @@
 # exist and type equality is reflection-complete like element equality
 # (see code-eq and its SEMANTICS note in the Ω block).
 #
-# AND NO EQUALITY JUDGEMENT. Equality reflection makes the
-# judgemental equality co-extensive with the equality PROPOSITION, so
-# the judgement dissolves into it: `Γ ⊦ a₀ ≐ a₁ : A` is DERIVED
-# NOTATION for `Γ ⊦ ⋆ : Prf (a₀ ≡ a₁ ∈ A)` — A = 𝕍 giving type
-# equality — and the remaining equality forms (contexts,
-# substitutions, telescopes, spines) are META-DEFINITIONS over it
-# (see EQUALITY in the conventions). ONE typed judgement remains.
+# AND NO EQUALITY JUDGEMENT. The equality proposition fully
+# internalizes judgemental equality, so the judgement dissolves into
+# it: `Γ ⊦ a₀ ≐ a₁ : A` is DERIVED NOTATION for
+# `Γ ⊦ ⋆ : Prf (a₀ ≡ a₁ ∈ A)` — A = 𝕍 giving type equality — and the
+# remaining equality forms (contexts, substitutions, telescopes,
+# spines) are META-DEFINITIONS over it (see EQUALITY in the
+# conventions). ONE typed judgement remains. EQUALITY REFLECTION
+# thereby stops being a principle and becomes the definition; the
+# rule kept under the name el-reflect is ⋆-CANONICITY (any inhabitant
+# of an equality prop yields the ⋆-typing).
 # The setoid model interprets both spellings as the same relation, so
 # this dissolution is purely presentational; every rule below keeps
 # its ≐-spelling, read through the notation.
@@ -82,8 +85,10 @@
 #    uniqueness η in el-nat-eta's style). DEFINABLE as a QIIT (a
 #    two-point signature — see SUBSUMPTION in the QIIT notes); retained
 #    as a standalone former, like ℕ and (/)
-#  * Equality proposition: (≡), Ω-valued, with reflection — used through
-#    Prf; proof-irrelevant by el-prf-prop (see the Ω block)
+#  * Equality proposition: (≡), Ω-valued and DEFINITIONALLY
+#    reflected — the judgemental spelling ≐ is notation for its
+#    ⋆-inhabitation — used through Prf; proof-irrelevant by
+#    el-prf-prop (see the Ω block)
 #  * Quotient type: (/), by an Ω-valued relation
 #  * A predicative universe: 𝕌
 #  * A universe of mere propositions: Ω (squash ∥-∥, propositional extensionality)
@@ -811,6 +816,17 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 # ty-sub-cong-fix are el-coe-ctx, el-eq-coe-ctx, el-sub-cong and
 # el-sub-cong-fix at A = 𝕍 — see THE TOP UNIVERSE note. The
 # former-specific congruences follow.)
+#
+# The four with a 𝕍-typed component (ty-pi-cong, ty-sigma-cong,
+# ty-sum-cong, ty-quot-cong) are PRIMITIVE, and irreducibly so: the
+# master congruence scheme (see the element congruence block) derives
+# a former's congruence either as a substitution instance — needing a
+# context entry at the slot's type, and nothing binds at 𝕍 — or from
+# the former's η — and 𝕍, like 𝕌, deliberately has no eliminator. They
+# are the downward duals of the ty-*-inj block: together the two
+# families ARE the commitment that type equality is equality of
+# structural codes. ty-el-cong and ty-prf-cong, whose slots are
+# 𝕌- and Ω-typed, ARE substitution instances and merely admissible.
 
 Γ ⊦ A₀ ≐ A₁ : 𝕍
 Γ ▷ A₁ ⊦ B₀ ≐ B₁ : 𝕍
@@ -833,12 +849,14 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ : 𝕍
 
 Γ ⊦ t₀ ≐ t₁ : 𝕌
----------------------------- (ty-el-cong) # El congruence: equal codes decode to equal types
-Γ ⊦ El t₀ ≐ El t₁ : 𝕍
+---------------------------- (ty-el-cong) # El congruence: equal codes decode
+Γ ⊦ El t₀ ≐ El t₁ : 𝕍                    #   to equal types. ADMISSIBLE:
+                                         #   el-sub-cong at El ☐₀ over Γ ▷ 𝕌
 
 Γ ⊦ p₀ ≐ p₁ : Ω
----------------------------- (ty-prf-cong) # with code-prop-eq this is where iff becomes ≐
-Γ ⊦ Prf p₀ ≐ Prf p₁ : 𝕍
+---------------------------- (ty-prf-cong) # with code-prop-eq this is where
+Γ ⊦ Prf p₀ ≐ Prf p₁ : 𝕍                   #   iff becomes ≐. ADMISSIBLE:
+                                          #   el-sub-cong at Prf ☐₀ over Γ ▷ Ω
 
 ///////// Type constructor injectivity /////////
 #
@@ -1123,9 +1141,21 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 --------------------------------------- (el-pi-beta)
 Γ ⊦ (λ f) e ≜ f[id, e] : B[id, e]
 
-Γ ⊦ f : A → B
+# Uniqueness (η), in the EXTENSIONAL (two-candidate) form every other
+# former's η already takes (el-nat-eta's style): two functions that
+# agree at the generic argument are equal. The classical single-
+# candidate form λ (f[↑] ☐₀) ≐ f is the instance g₀ ≜ λ (g₁[↑] ☐₀),
+# whose premise holds by el-pi-beta; conversely the two-candidate form
+# is NOT derivable from it — the step from "equal at the generic
+# argument" to "equal" is exactly ξ's content, so stating η this way
+# is what makes el-lam-cong (ξ) admissible below. The kernel's FEtaPi
+# final replays exactly this form.
+
+Γ ⊦ g₀ : A → B
+Γ ⊦ g₁ : A → B
+Γ ▷ A ⊦ g₀[↑] ☐₀ ≐ g₁[↑] ☐₀ : B
 --------------------------------- (el-pi-eta)
-Γ ⊦ λ (f[↑] ☐₀) ≐ f : A → B
+Γ ⊦ g₀ ≐ g₁ : A → B
 
 # let — the local DEFINITION: the body is typed under TWO binders,
 # the definiens' value and its UNFOLDING EQUATION, so inside b the
@@ -1529,6 +1559,8 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 --------------------- (el-squash-i)
 Γ ⊦ ⋆ : Prf ∥A∥
 
+
+FIXME: REDUNDANT
 Γ ⊦ a₀ ≐ a₁ : A
 ------------------------------ (el-eq-i) # the canonical proof of a
 Γ ⊦ ⋆ : Prf (a₀ ≡ a₁ ∈ A)                #   true equation is ⋆ — under
@@ -1538,13 +1570,25 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
                                          #   judgement); the name is
                                          #   kept for the citations
 
+FIXME: REDUNDANT
 Γ ⊦ s : Prf (a₀ ≡ a₁ ∈ A)
--------------------------- (el-reflect) # equality reflection — read
-Γ ⊦ a₀ ≐ a₁ : A                         #   through the notation, the
-                                        #   rule that ⋆ is CANONICAL:
-                                        #   any inhabitant of an
-                                        #   equality prop yields the
-                                        #   ⋆-typing
+-------------------------- (el-reflect) # ⋆-CANONICITY. The name is
+Γ ⊦ a₀ ≐ a₁ : A                         #   historical: REFLECTION no
+                                        #   longer exists as a
+                                        #   principle — ≐ is DEFINED
+                                        #   as ⋆-inhabitation, so the
+                                        #   prop-to-judgemental passage
+                                        #   is definitional. What the
+                                        #   rule says: ANY inhabitant
+                                        #   yields the ⋆-typing. It is
+                                        #   irreducible, and needed
+                                        #   outright because ⋆ occurs
+                                        #   in TERMS (el-let's third
+                                        #   component, ⋆[σ] ≜ ⋆, the
+                                        #   QIIT equation-entry
+                                        #   reflections), whose
+                                        #   well-formedness demands
+                                        #   Γ ⊦ ⋆ : Prf (…)
 
 Γ ⊦ t₀ : Prf p
 Γ ⊦ t₁ : Prf p
@@ -1975,7 +2019,10 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 # at every former; the saturated forms' instances are stated because
 # their premises live at the reflected telescope — entry i's type
 # instantiated by the LEFT spine's prefix, the sub-norm-ext-cong
-# discipline. Injectivity: 𝕌's equality is STRUCTURAL and a signature
+# discipline. Both congruences are ADMISSIBLE: substitution instances
+# at the saturated former over the reflected telescope (the element
+# congruence block's first scheme; the carried 𝒮 is fixed).
+# Injectivity: 𝕌's equality is STRUCTURAL and a signature
 # is inert syntax, so equal saturated sort codes have equal spines,
 # indexwise — the code-pi-inj block, extended to the QIIT former.
 
@@ -2478,6 +2525,26 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ₁ ⊦ a₀ ≐ a₁ : A
 
 # Congruence rules for element constructors.
+#
+# MOST ARE ADMISSIBLE, by two schemes over el-sub-cong — the MASTER
+# congruence, substitution functionality, the one primitive of this
+# block:
+#  * SUBSTITUTION INSTANCE: a former whose changing slots are
+#    non-binding is stated once at fresh variables and substituted two
+#    ways — e.g. el-app-cong is el-sub-cong at ☐₁ ☐₀ over
+#    Γ ▷ (A → B) ▷ A[↑], with (id, f₀, a₀) ≐ (id, f₁, a₁) assembled
+#    pointwise (EQUALITY, conventions). The scheme needs a context
+#    entry at the slot's type, so it reaches every slot EXCEPT
+#    𝕍-typed ones (nothing binds at 𝕍 — see the type congruence note)
+#    and binding slots (an open term cannot ride in a substitution).
+#  * VIA η: a BINDING slot goes through the former's extensional
+#    uniqueness rule instead — el-lam-cong from el-pi-eta, and each
+#    eliminator congruence from its eliminator's η (the left
+#    eliminator satisfies the right methods' β-equations, by
+#    el-sub-cong on the open method equalities).
+# The admissible rules are RETAINED below, statements and names
+# unchanged (the kernel replays several directly), each marked with
+# its derivation.
 
 Γ₁ ⊦ t₀ ≐ t₁ : A
 σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
@@ -2490,14 +2557,15 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ₀ ⊦ t₀[σ] ≐ t₁[σ] : A[σ]
 
 Γ ▷ A ⊦ f₀ ≐ f₁ : B
---------------------------- (el-lam-cong)
-Γ ⊦ λ f₀ ≐ λ f₁ : A → B
+--------------------------- (el-lam-cong) # ADMISSIBLE via el-pi-eta:
+Γ ⊦ λ f₀ ≐ λ f₁ : A → B                  #   (λf₀)[↑] ☐₀ ≐ f₀ ≐ f₁ ≐
+                                         #   (λf₁)[↑] ☐₀, by el-pi-beta
 
 Γ ▷ A ⊦ B : 𝕍
 Γ ⊦ f₀ ≐ f₁ : A → B
 Γ ⊦ a₀ ≐ a₁ : A
------------------------------------- (el-app-cong)
-Γ ⊦ f₀ a₀ ≐ f₁ a₁ : B[id, a₁]
+------------------------------------ (el-app-cong) # ADMISSIBLE: substitution
+Γ ⊦ f₀ a₀ ≐ f₁ a₁ : B[id, a₁]                       #   instance at ☐₁ ☐₀
 
 Γ ⊦ a₀ ≐ a₁ : A
 Γ ▷ A ▷ Prf (☐₀ ≡ a₁[↑] ∈ A[↑]) ⊦ b₀ ≐ b₁ : B
@@ -2505,31 +2573,32 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ let a₀ b₀ ≐ let a₁ b₁ : B[id, a₁, ⋆]
 # (the a₀- and a₁-instance contexts are equal — ctx-ext-cong with
 # code-eq-cong — so the premise is stated at the a₁ instance, as at
-# the other congruences)
+# the other congruences. ADMISSIBLE: el-let-beta both sides, then
+# el-sub-cong at the open body equality)
 
 Γ ▷ A ⊦ B : 𝕍
 Γ ⊦ a₀ ≐ a₁ : A
 Γ ⊦ b₀ ≐ b₁ : B[id, a₁]
-------------------------------------- (el-pair-cong)
-Γ ⊦ (a₀, b₀) ≐ (a₁, b₁) : A ⨯ B
+------------------------------------- (el-pair-cong) # ADMISSIBLE: substitution
+Γ ⊦ (a₀, b₀) ≐ (a₁, b₁) : A ⨯ B                      #   instance at (☐₁, ☐₀)
 
 Γ ⊦ t₀ ≐ t₁ : A ⨯ B
-------------------------------- (el-proj₁-cong)
-Γ ⊦ t₀ .π₁ ≐ t₁ .π₁ : A
+------------------------------- (el-proj₁-cong) # ADMISSIBLE: substitution
+Γ ⊦ t₀ .π₁ ≐ t₁ .π₁ : A                        #   instance at ☐₀ .π₁
 
 Γ ⊦ t₀ ≐ t₁ : A ⨯ B
-------------------------------------------- (el-proj₂-cong)
-Γ ⊦ t₀ .π₂ ≐ t₁ .π₂ : B[id, t₁ .π₁]
+------------------------------------------- (el-proj₂-cong) # ADMISSIBLE: substitution
+Γ ⊦ t₀ .π₂ ≐ t₁ .π₂ : B[id, t₁ .π₁]                        #   instance at ☐₀ .π₂
 
 Γ ⊦ B : 𝕍
 Γ ⊦ a₀ ≐ a₁ : A
---------------------------------- (el-inj₁-cong)
-Γ ⊦ inj₁ a₀ ≐ inj₁ a₁ : A ⊎ B
+--------------------------------- (el-inj₁-cong) # ADMISSIBLE: substitution
+Γ ⊦ inj₁ a₀ ≐ inj₁ a₁ : A ⊎ B                    #   instance at inj₁ ☐₀
 
 Γ ⊦ A : 𝕍
 Γ ⊦ b₀ ≐ b₁ : B
---------------------------------- (el-inj₂-cong)
-Γ ⊦ inj₂ b₀ ≐ inj₂ b₁ : A ⊎ B
+--------------------------------- (el-inj₂-cong) # ADMISSIBLE: substitution
+Γ ⊦ inj₂ b₀ ≐ inj₂ b₁ : A ⊎ B                    #   instance at inj₂ ☐₀
 
 Γ ▷ A ⊎ B ⊦ C : 𝕍
 Γ ▷ A ⊦ l₀ ≐ l₁ : C[↑, inj₁ ☐₀]
@@ -2537,10 +2606,13 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ t₀ ≐ t₁ : A ⊎ B
 ------------------------------------------------------ (el-sum-e-cong, motive C)
 Γ ⊦ ⊎-elim l₀ r₀ t₀ ≐ ⊎-elim l₁ r₁ t₁ : C[id, t₁]
+# ADMISSIBLE: scrutinee slot by substitution instance, case slots via
+# el-sum-eta (⊎-elim l₀ r₀ satisfies l₁/r₁'s β-equations by
+# el-sub-cong on the open case equalities)
 
 Γ ⊦ t₀ ≐ t₁ : ℕ
-------------------------- (el-suc-cong)
-Γ ⊦ S t₀ ≐ S t₁ : ℕ
+------------------------- (el-suc-cong) # ADMISSIBLE: substitution
+Γ ⊦ S t₀ ≐ S t₁ : ℕ                     #   instance at S ☐₀
 
 Γ ▷ ℕ ⊦ A : 𝕍
 Γ ⊦ z₀ ≐ z₁ : A[id, Z]
@@ -2548,17 +2620,22 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ t₀ ≐ t₁ : ℕ
 ------------------------------------------------------ (el-nat-e-cong, motive A)
 Γ ⊦ ℕ-elim z₀ s₀ t₀ ≐ ℕ-elim z₁ s₁ t₁ : A[id, t₁]
+# ADMISSIBLE: scrutinee and z slots by substitution instance, the s
+# slot via el-nat-eta, as at el-sum-e-cong
 
 Γ ⊦ A : 𝕍
 Γ ⊦ t₀ : 𝟘
 Γ ⊦ t₁ : 𝟘
------------------------------------- (el-zero-e-cong) # stronger than a congruence: no t⁼ premise
-Γ ⊦ 𝟘-elim t₀ ≐ 𝟘-elim t₁ : A
+------------------------------------ (el-zero-e-cong) # stronger than a congruence: no
+Γ ⊦ 𝟘-elim t₀ ≐ 𝟘-elim t₁ : A                         #   t⁼ premise. ADMISSIBLE: under
+                                                      #   t₀ : 𝟘 every equation holds
+                                                      #   (el-zero-e at the equation's
+                                                      #   Prf, then el-reflect)
 
 Γ ▷ A ▷ A[↑] ⊦ R : Ω
 Γ ⊦ a₀ ≐ a₁ : A
---------------------------------------- (el-class-cong)
-Γ ⊦ class a₀ ≐ class a₁ : A / R
+--------------------------------------- (el-class-cong) # ADMISSIBLE: substitution
+Γ ⊦ class a₀ ≐ class a₁ : A / R                         #   instance at class ☐₀
 
 Γ ▷ (A / R) ⊦ B : 𝕍
 Γ ▷ A ⊦ f₀ : B[↑, class ☐₀]
@@ -2569,8 +2646,18 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ q₀ ≐ q₁ : A / R
 ------------------------------------------------------ (el-quot-e-cong, motive B)
 Γ ⊦ quot-elim f₀ q₀ ≐ quot-elim f₁ q₁ : B[id, q₁]
+# ADMISSIBLE: scrutinee slot by substitution instance, the f slot via
+# el-quot-eta, as at el-sum-e-cong (the coherence premises feed the η)
 
-# Congruence rules for universe code constructors.
+# Congruence rules for universe code constructors. code-pi-cong,
+# code-sigma-cong and code-quot-cong are PRIMITIVE, irreducibly:
+# their changing slots either bind (the codomain/relation — an open
+# term cannot ride in a substitution) or sit beside a binder whose
+# domain changes with them, and 𝕌 deliberately has NO eliminator
+# (the Reynolds firewall), so there is no η to route them through.
+# Like the ty-*-cong four, they are the downward duals of the
+# code-*-inj block — the structural-code commitment itself.
+# code-sum-cong is non-binding and merely admissible.
 
 Γ ⊦ A₀ ≐ A₁ : 𝕌
 Γ ▷ El A₁ ⊦ B₀ ≐ B₁ : 𝕌
@@ -2584,8 +2671,9 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ ⊦ A₀ ≐ A₁ : 𝕌
 Γ ⊦ B₀ ≐ B₁ : 𝕌
-------------------------------- (code-sum-cong)
-Γ ⊦ A₀ ⊎ B₀ ≐ A₁ ⊎ B₁ : 𝕌
+------------------------------- (code-sum-cong) # ADMISSIBLE: substitution
+Γ ⊦ A₀ ⊎ B₀ ≐ A₁ ⊎ B₁ : 𝕌                       #   instance at ☐₁ ⊎ ☐₀
+                                                #   over Γ ▷ 𝕌 ▷ 𝕌
 
 Γ ⊦ A₀ ≐ A₁ : 𝕌
 Γ ▷ El A₁ ▷ (El A₁)[↑] ⊦ R₀ ≐ R₁ : Ω
@@ -3000,3 +3088,34 @@ e˲ : Γ₁ ⇒ Γ norm
 #   sub-ext-unique, sub-comp-cong, sub-ext-cong, sub-eq-coe-dom/-cod
 #                    meta-lemmas about the extensional notation
 #                    (statements unchanged, in place)
+#
+# The CONGRUENCE CONSOLIDATION reclassifies (no renames; statements
+# in place, each marked with its derivation):
+#
+#   el-pi-eta        RESTATED in the extensional (two-candidate) form
+#                    every other η already takes; the old single-
+#                    candidate form is the instance g₀ ≜ λ (g₁[↑] ☐₀)
+#   el-reflect       reglossed: ⋆-CANONICITY (reflection is
+#                    definitional under the ≐-notation)
+#   ADMISSIBLE, by substitution instance over el-sub-cong:
+#                    el-app-cong, el-suc-cong, el-pair-cong,
+#                    el-proj₁/₂-cong, el-inj₁/₂-cong, el-class-cong,
+#                    code-sum-cong, ty-el-cong, ty-prf-cong,
+#                    ty-qiit-cong, el-qiit-intro-cong
+#   ADMISSIBLE, via the extensional η's (+ el-sub-cong on the open
+#   slots):          el-lam-cong (el-pi-eta), el-nat-e-cong
+#                    (el-nat-eta), el-sum-e-cong (el-sum-eta),
+#                    el-quot-e-cong (el-quot-eta)
+#   ADMISSIBLE, otherwise:
+#                    el-let-cong (el-let-beta both sides),
+#                    el-zero-e-cong (absurdity collapse),
+#                    code-eq-cong, code-squash-cong (as before)
+#   PRIMITIVE congruence core:
+#                    el-sub-cong (the master — substitution
+#                    functionality), and the structural formers'
+#                    binder-adjacent congruences code-pi/-sigma/
+#                    -quot-cong and ty-pi/-sigma/-sum/-quot-cong —
+#                    irreducible because 𝕌 and 𝕍 have no eliminators
+#                    (no η to route through) and 𝕍 is unbindable (no
+#                    substitution instance); they are the downward
+#                    duals of the injectivity blocks
