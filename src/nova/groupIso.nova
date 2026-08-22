@@ -11,8 +11,8 @@ import bracket (Br, br, brElim, brIsProp)
 import monoid (IsMonoid)
 import group (IsGroup)
 import groupTheory (· as gop, e as ge, ⁻¹ as ginv)
-import (groupTheory g) (·, e, ⁻¹)
-import (groupTheory h) (· as ∙, e as eH, ⁻¹ as invH, gUnitL as gUnitLH, gUnitR as gUnitRH, gInvL as gInvLH, gInvR as gInvRH, gInvUnit as gInvUnitH, gAssoc as gAssocH)
+import (groupTheory g) (· as ·ᴳ, e as eG, ⁻¹ as ⁻¹ᴳ)
+import (groupTheory h) (· as ·ᴴ, e as eH, ⁻¹ as ⁻¹ᴴ, gUnitL as gUnitLH, gUnitR as gUnitRH, gInvL as gInvLH, gInvR as gInvRH, gInvUnit as gInvUnitH, gAssoc as gAssocH)
 import (subgroup g) (IsSubgroup, IsNormal, sgIntro, sgUnit, sgOp, sgInv, nmIntro, nmConj, nmConjInv, cosetRel, cosetRefl, cosetSymm, cosetTrans)
 import quotGroup (QGroup, qcls, qclsEq, qclsEffective, qMul, qMulCls, qInv, qInvCls, qUnit, qIsGroup, qFactor, qFactorCls, qFactorUnique, qopIsQMul, qeIsQUnit, qinvIsQInv)
 import groupHom (Hom as HomRaw)
@@ -22,40 +22,46 @@ import equality (transportP, transport, sym, trans, cong, pairext)
 
 module {G : 𝕌} (g : El (IsGroup G)) {H : 𝕌} (h : El (IsGroup H)) (p : El (HomRaw g h))
 
-infixl 7 ∙
+infixl 7 ·ᴳ
+infixl 7 ·ᴴ
+postfix 9 ⁻¹ᴳ
+postfix 9 ⁻¹ᴴ
 def ker : El G → Ω ≔ λx. homAp p x ≡ eH
 
-def kerOp : (x y : El G) → Prf (ker x) → Prf (ker y) → Prf (ker (x · y)) using (ker.eq) ≔
-  λx. λy. λhx. λhy. homAp p (x · y)
-      ≡⟨ homLaw p x y ⟩ homAp p x ∙ homAp p y
-      ≡⟨ cong (λw. H) (λw. w ∙ homAp p y) hx ⟩ eH ∙ homAp p y
-      ≡⟨ cong (λw. H) (λw. eH ∙ w) hy ⟩ eH ∙ eH
+def kerOp : (x y : El G) → Prf (ker x) → Prf (ker y) → Prf (ker (x ·ᴳ y)) using (ker.eq) ≔
+  λx. λy. λhx. λhy. homAp p (x ·ᴳ y)
+      ≡⟨ homLaw p x y ⟩ homAp p x ·ᴴ homAp p y
+      ≡⟨ cong (λw. H) (λw. w ·ᴴ homAp p y) hx ⟩ eH ·ᴴ homAp p y
+      ≡⟨ cong (λw. H) (λw. eH ·ᴴ w) hy ⟩ eH ·ᴴ eH
       ≡⟨ gUnitLH eH ⟩ eH
 
-def kerInv : (x : El G) → Prf (ker x) → Prf (ker (x ⁻¹)) using (ker.eq) ≔
-  λx. λhx. homAp p (x ⁻¹)
-      ≡⟨ homInv p x ⟩ invH (homAp p x)
-      ≡⟨ cong (λw. H) (λw. invH w) hx ⟩ invH eH
+def kerInv : (x : El G) → Prf (ker x) → Prf (ker (x ⁻¹ᴳ)) using (ker.eq) ≔
+  λx. λhx. homAp p (x ⁻¹ᴳ)
+      ≡⟨ homInv p x ⟩ homAp p x ⁻¹ᴴ
+      ≡⟨ cong (λw. H) (λw. w ⁻¹ᴴ) hx ⟩ eH ⁻¹ᴴ
       ≡⟨ gInvUnitH ⟩ eH
 
 def kerIsSubgroup : Prf (IsSubgroup ker) using (ker.eq) ≔ sgIntro (homUnit p) kerOp kerInv
 
--- normality, with no case analysis at all: f (x·n·x⁻¹) = f x · e · f x⁻¹
+-- normality, with no case analysis at all: f (x·n·x⁻¹) = f x ·ᴳ e ·ᴳ f x⁻¹
 -- and the two outer factors annihilate
 def kerIsNormal : Prf (IsNormal ker) using (ker.eq) ≔
   nmIntro
-    (λx. λn. λhn. homAp p (x · (n · x ⁻¹))
-        ≡⟨ homLaw p x (n · x ⁻¹) ⟩ homAp p x ∙ homAp p (n · x ⁻¹)
+    (λx. λn. λhn. homAp p (x ·ᴳ (n ·ᴳ x ⁻¹ᴳ))
+        ≡⟨ homLaw p x (n ·ᴳ x ⁻¹ᴳ) ⟩ homAp p x ·ᴴ homAp p (n ·ᴳ x ⁻¹ᴳ)
         ≡⟨ cong
           (λw. H)
-          (λw. homAp p x ∙ w)
-          (homLaw p n (x ⁻¹)) ⟩ homAp p x ∙ (homAp p n ∙ homAp p (x ⁻¹))
+          (λw. homAp p x ·ᴴ w)
+          (homLaw p n (x ⁻¹ᴳ)) ⟩ homAp p x ·ᴴ (homAp p n ·ᴴ homAp p (x ⁻¹ᴳ))
         ≡⟨ cong
           (λw. H)
-          (λw. homAp p x ∙ (w ∙ homAp p (x ⁻¹)))
-          hn ⟩ homAp p x ∙ (eH ∙ homAp p (x ⁻¹))
-        ≡⟨ cong (λw. H) (λw. homAp p x ∙ w) (gUnitLH (homAp p (x ⁻¹))) ⟩ homAp p x ∙ homAp p (x ⁻¹)
-        ≡⟨ cong (λw. H) (λw. homAp p x ∙ w) (homInv p x) ⟩ homAp p x ∙ invH (homAp p x)
+          (λw. homAp p x ·ᴴ (w ·ᴴ homAp p (x ⁻¹ᴳ)))
+          hn ⟩ homAp p x ·ᴴ (eH ·ᴴ homAp p (x ⁻¹ᴳ))
+        ≡⟨ cong
+          (λw. H)
+          (λw. homAp p x ·ᴴ w)
+          (gUnitLH (homAp p (x ⁻¹ᴳ))) ⟩ homAp p x ·ᴴ homAp p (x ⁻¹ᴳ)
+        ≡⟨ cong (λw. H) (λw. homAp p x ·ᴴ w) (homInv p x) ⟩ homAp p x ·ᴴ homAp p x ⁻¹ᴴ
         ≡⟨ gInvRH (homAp p x) ⟩ eH)
 
 -- ===== the image, with the BRACKET =====
@@ -97,7 +103,7 @@ def imIn : (x : El G) → El Im using (Im.unfold, imFib.unfold, id.Id.eq) ≔
   λx. homAp p x, br (x, refl H (homAp p x))
 
 -- ===== the fibres are closed under the group operations =====
-def imFibOp : {y1 y2 : El H} (f1 : El (imFib y1)) (f2 : El (imFib y2)) → El (imFib (y1 ∙ y2))
+def imFibOp : {y1 y2 : El H} (f1 : El (imFib y1)) (f2 : El (imFib y2)) → El (imFib (y1 ·ᴴ y2))
   using (imFib.unfold) ≔
   λy1. λy2. λf1. λf2. gop
     g
@@ -106,28 +112,31 @@ def imFibOp : {y1 y2 : El H} (f1 : El (imFib y1)) (f2 : El (imFib y2)) → El (i
     eqToId
       _
       _
-      (homAp p (f1 .π₁ · f2 .π₁)
-          ≡⟨ homLaw p (f1 .π₁) (f2 .π₁) ⟩ homAp p (f1 .π₁) ∙ homAp p (f2 .π₁)
-          ≡⟨ cong (λw. H) (λw. w ∙ homAp p (f2 .π₁)) (idToEq _ _ _ (f1 .π₂)) ⟩ y1 ∙ homAp p (f2 .π₁)
-          ≡⟨ cong (λw. H) (λw. y1 ∙ w) (idToEq _ _ _ (f2 .π₂)) ⟩ y1 ∙ y2)
+      (homAp p (f1 .π₁ ·ᴳ f2 .π₁)
+          ≡⟨ homLaw p (f1 .π₁) (f2 .π₁) ⟩ homAp p (f1 .π₁) ·ᴴ homAp p (f2 .π₁)
+          ≡⟨ cong
+            (λw. H)
+            (λw. w ·ᴴ homAp p (f2 .π₁))
+            (idToEq _ _ _ (f1 .π₂)) ⟩ y1 ·ᴴ homAp p (f2 .π₁)
+          ≡⟨ cong (λw. H) (λw. y1 ·ᴴ w) (idToEq _ _ _ (f2 .π₂)) ⟩ y1 ·ᴴ y2)
 
-def imFibInv : {y : El H} (f : El (imFib y)) → El (imFib (invH y)) using (imFib.unfold) ≔
+def imFibInv : {y : El H} (f : El (imFib y)) → El (imFib (y ⁻¹ᴴ)) using (imFib.unfold) ≔
   λy. λf. ginv
     g
     (f .π₁),
     eqToId
       _
       _
-      (homAp p (f .π₁ ⁻¹)
-          ≡⟨ homInv p (f .π₁) ⟩ invH (homAp p (f .π₁))
-          ≡⟨ cong (λw. H) (λw. invH w) (idToEq _ _ _ (f .π₂)) ⟩ invH y)
+      (homAp p (f .π₁ ⁻¹ᴳ)
+          ≡⟨ homInv p (f .π₁) ⟩ homAp p (f .π₁) ⁻¹ᴴ
+          ≡⟨ cong (λw. H) (λw. w ⁻¹ᴴ) (idToEq _ _ _ (f .π₂)) ⟩ y ⁻¹ᴴ)
 
 -- ...and the same, one bracket up. Every constancy proof here is
 -- brIsProp: the target is itself a bracket, so nothing is owed
 def imOpBrAt : {y1 y2 : El H}
   (f1 : El (imFib y1))
   (w2 : El (Br (imFib y2)))
-  → El (Br (imFib (y1 ∙ y2))) ≔
+  → El (Br (imFib (y1 ·ᴴ y2))) ≔
   λy1. λy2. λf1. λw2. brElim
     (λf2. br (imFibOp f1 f2))
     (λf2. λf2'. brIsProp (br (imFibOp f1 f2)) (br (imFibOp f1 f2')))
@@ -136,21 +145,21 @@ def imOpBrAt : {y1 y2 : El H}
 def imOpBr : {y1 y2 : El H}
   (w1 : El (Br (imFib y1)))
   (w2 : El (Br (imFib y2)))
-  → El (Br (imFib (y1 ∙ y2))) ≔
+  → El (Br (imFib (y1 ·ᴴ y2))) ≔
   λy1. λy2. λw1. λw2. brElim
     (λf1. imOpBrAt f1 w2)
     (λf1. λf1'. brIsProp (imOpBrAt f1 w2) (imOpBrAt f1' w2))
     w1
 
-def imInvBr : {y : El H} (w : El (Br (imFib y))) → El (Br (imFib (invH y))) ≔
+def imInvBr : {y : El H} (w : El (Br (imFib y))) → El (Br (imFib (y ⁻¹ᴴ))) ≔
   λy. λw. brElim (λf. br (imFibInv f)) (λf. λf'. brIsProp (br (imFibInv f)) (br (imFibInv f'))) w
 
 -- ===== the image is a group =====
-def imOp : El Im → El Im → El Im using (Im.unfold) ≔ λu. λv. u .π₁ ∙ v .π₁, imOpBr (u .π₂) (v .π₂)
+def imOp : El Im → El Im → El Im using (Im.unfold) ≔ λu. λv. u .π₁ ·ᴴ v .π₁, imOpBr (u .π₂) (v .π₂)
 
-def imUnit : El Im using (Im.unfold, imFib.unfold) ≔ eH, br (e, eqToId _ _ (homUnit p))
+def imUnit : El Im using (Im.unfold, imFib.unfold) ≔ eH, br (eG, eqToId _ _ (homUnit p))
 
-def imInv : El Im → El Im using (Im.unfold) ≔ λu. invH (u .π₁), imInvBr (u .π₂)
+def imInv : El Im → El Im using (Im.unfold) ≔ λu. u .π₁ ⁻¹ᴴ, imInvBr (u .π₂)
 
 def imIsGroup : El (IsGroup Im)
   using (group.IsGroup.unfold, monoid.IsMonoid.unfold, Im.unfold, imOp.eq, imUnit.eq, imInv.eq) ≔
@@ -207,7 +216,7 @@ def toImMap : El (QGroup g ker) → El Im ≔ λu. qFactor _ _ imIn toImConst u
 def toImCls : (a : El G) → toImMap (class a) ≡ imIn a using (quotGroup.QGroup.unfold, toImMap.eq) ≔
   λa. qFactorCls _ _ _ imIn toImConst a
 
-def imInOp : (a b : El G) → imIn (a · b) ≡ imOp (imIn a) (imIn b) using (imIn.eq, imOp.eq) ≔
+def imInOp : (a b : El G) → imIn (a ·ᴳ b) ≡ imOp (imIn a) (imIn b) using (imIn.eq, imOp.eq) ≔
   λa. λb. imEq _ _ (homLaw p a b)
 
 def toImLawQ : {u v : El (QGroup g ker)}
@@ -216,8 +225,8 @@ def toImLawQ : {u v : El (QGroup g ker)}
   λu. λv. quot-elim
     (a. quot-elim
       (b. toImMap (qMul _ _ kerIsNormal (class a) (class b))
-          ≡⟨ cong (λw. Im) (λw. toImMap w) (qMulCls _ _ kerIsNormal a b) ⟩ toImMap (class (a · b))
-          ≡⟨ toImCls (a · b) ⟩ imIn (a · b)
+          ≡⟨ cong (λw. Im) (λw. toImMap w) (qMulCls _ _ kerIsNormal a b) ⟩ toImMap (class (a ·ᴳ b))
+          ≡⟨ toImCls (a ·ᴳ b) ⟩ imIn (a ·ᴳ b)
           ≡⟨ imInOp a b ⟩ imOp (imIn a) (imIn b)
           ≡⟨ cong
             (λw. Im)
@@ -262,7 +271,7 @@ def toIm : El (Hom {} _ (qIsGroup _ _ kerIsSubgroup kerIsNormal) _ imIsGroup) �
 --
 --   any two preimages of the same y are congruent modulo ker p.
 --
--- Two lines: p (x · x'⁻¹) = p x · (p x')⁻¹ = y · y⁻¹ = e. The content
+-- Two lines: p (x ·ᴳ x'⁻¹) = p x ·ᴳ (p x')⁻¹ = y ·ᴳ y⁻¹ = e. The content
 -- is paid exactly where it is used. With ∥·∥ in place of Br there
 -- would be no obligation to pay and no map to define — squash-elim
 -- reaches only propositions, and this one lands in data.
@@ -274,13 +283,13 @@ def fromImConst : (y : El H) (f f' : El (imFib y)) → qcls g ker (f .π₁) ≡
     kerIsSubgroup
     _
     _
-    (homAp p (f .π₁ · f' .π₁ ⁻¹)
-        ≡⟨ homOpInv p (f .π₁) (f' .π₁) ⟩ homAp p (f .π₁) ∙ invH (homAp p (f' .π₁))
+    (homAp p (f .π₁ ·ᴳ f' .π₁ ⁻¹ᴳ)
+        ≡⟨ homOpInv p (f .π₁) (f' .π₁) ⟩ homAp p (f .π₁) ·ᴴ homAp p (f' .π₁) ⁻¹ᴴ
         ≡⟨ cong
           (λw. H)
-          (λw. w ∙ invH (homAp p (f' .π₁)))
-          (idToEq _ _ _ (f .π₂)) ⟩ y ∙ invH (homAp p (f' .π₁))
-        ≡⟨ cong (λw. H) (λw. y ∙ invH w) (idToEq _ _ _ (f' .π₂)) ⟩ y ∙ invH y
+          (λw. w ·ᴴ homAp p (f' .π₁) ⁻¹ᴴ)
+          (idToEq _ _ _ (f .π₂)) ⟩ y ·ᴴ homAp p (f' .π₁) ⁻¹ᴴ
+        ≡⟨ cong (λw. H) (λw. y ·ᴴ w ⁻¹ᴴ) (idToEq _ _ _ (f' .π₂)) ⟩ y ·ᴴ y ⁻¹ᴴ
         ≡⟨ gInvRH y ⟩ eH)
 
 def fromImAt : (y : El H) (w : El (Br (imFib y))) → El (QGroup g ker) using (imFib.unfold) ≔
@@ -323,7 +332,7 @@ def toImFromIm : (z : El Im) → toImMap (fromIm z) ≡ z using (Im.unfold, from
 -- ===== the canonical factorisation  p = incl ∘ φ ∘ π  =====
 def imIncFun : (u : El Im) → El H using (Im.unfold) ≔ λu. u .π₁
 
-def imIncLaw : (u v : El Im) → imIncFun (gop imIsGroup u v) ≡ imIncFun u ∙ imIncFun v
+def imIncLaw : (u v : El Im) → imIncFun (gop imIsGroup u v) ≡ imIncFun u ·ᴴ imIncFun v
   using (imIncFun.eq, imOp.eq) ≔
   λu. λv. trans _ _ _ (cong (λw. H) (λw. imIncFun w) (imopIsImOp u v)) ⋆
 
