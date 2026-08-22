@@ -194,20 +194,7 @@ isIdSpineN n es = toList es == map CtxVar (reverse [0 .. minus n 1]) && n /= 0
 
 mutual
   usesIndexTy : Nat -> Ty -> Bool
-  usesIndexTy k Ty.ZeroTy = False
-  usesIndexTy k Ty.OneTy = False
-  usesIndexTy k Ty.NatTy = False
-  usesIndexTy k Ty.UniverseTy = False
-  usesIndexTy k (Ty.PiTy a b) = usesIndexTy k a || usesIndexTy (S k) b
-  usesIndexTy k (Ty.SigmaTy a b) = usesIndexTy k a || usesIndexTy (S k) b
-  usesIndexTy k (Ty.SumTy a b) = usesIndexTy k a || usesIndexTy k b
-  usesIndexTy k (El e) = usesIndexElem k e
-  usesIndexTy k PropTy = False
-  usesIndexTy k (Prf e) = usesIndexElem k e
-  usesIndexTy k (Quotient a r) = usesIndexTy k a || usesIndexElem (S (S k)) r
-  usesIndexTy k (Ty.SigVar x es) = usesIndexSubNorm k es
-  usesIndexTy k (QSort sg j es) = usesIndexQSig k sg || usesIndexSubNorm k es
-  usesIndexTy k (Ty.NuTy f) = usesIndexPoly k f
+  usesIndexTy = usesIndexElem
 
   usesIndexQSig : Nat -> QSig -> Bool
   usesIndexQSig k = any (usesIndexQTy k)
@@ -251,6 +238,11 @@ mutual
   usesIndexElem k Elem.ZeroTy = False
   usesIndexElem k Elem.OneTy = False
   usesIndexElem k Elem.NatTy = False
+  usesIndexElem k UniverseTy = False
+  usesIndexElem k PropTy = False
+  usesIndexElem k TopTy = False
+  usesIndexElem k (El e) = usesIndexElem k e
+  usesIndexElem k (Prf e) = usesIndexElem k e
   usesIndexElem k (Elem.PiTy e e') = usesIndexElem k e || usesIndexElem (S k) e'
   usesIndexElem k (Elem.SigmaTy e e') = usesIndexElem k e || usesIndexElem (S k) e'
   usesIndexElem k (Elem.SumTy e e') = usesIndexElem k e || usesIndexElem k e'
@@ -261,7 +253,7 @@ mutual
   usesIndexElem k (QuotElim f q) = usesIndexElem k f || usesIndexElem k q
   usesIndexElem k (Squash t) = usesIndexTy k t
   usesIndexElem k Star = False
-  usesIndexElem k (QSortC sg j es) = usesIndexQSig k sg || usesIndexSubNorm k es
+  usesIndexElem k (QSort sg j es) = usesIndexQSig k sg || usesIndexSubNorm k es
   usesIndexElem k (QCtor sg j es) = usesIndexQSig k sg || usesIndexSubNorm k es
   usesIndexElem k (QElim sg j ms fs es w) =
     usesIndexQSig k sg || any (usesIndexMotive) (zip (qPositions QKSort sg) ms)
@@ -390,6 +382,8 @@ mutual
          ++ b ++ ". " ++ prettyElemN tbl (env :< b) r ++ ") "
          ++ prettyElemAtomN tbl env t
   prettyElemPrefixN tbl env (Class a) = "class " ++ prettyElemAtomN tbl env a
+  prettyElemPrefixN tbl env (El e) = "El " ++ prettyElemAtomN tbl env e
+  prettyElemPrefixN tbl env (Prf e) = "Prf " ++ prettyElemAtomN tbl env e
   prettyElemPrefixN tbl env (Elem.NuTy f) = "ν " ++ prettyPolyAtomN tbl env f
   prettyElemPrefixN tbl env (Out t) = "out " ++ prettyElemAtomN tbl env t
   prettyElemPrefixN tbl env (Corec p a f x) =
@@ -442,6 +436,9 @@ mutual
   prettyElemAtomN tbl env Elem.ZeroTy = "𝟘"
   prettyElemAtomN tbl env Elem.OneTy = "𝟙"
   prettyElemAtomN tbl env Elem.NatTy = "ℕ"
+  prettyElemAtomN tbl env UniverseTy = "𝕌"
+  prettyElemAtomN tbl env PropTy = "Ω"
+  prettyElemAtomN tbl env TopTy = "𝕍"
   prettyElemAtomN tbl env (Squash t) = "∥" ++ prettyTyN tbl env t ++ "∥"
   prettyElemAtomN tbl env (SigVar x [<]) = if isOpName x then "(" ++ x ++ ")" else x
   -- an identity-spine reference at its own context prints bare:
@@ -450,7 +447,7 @@ mutual
     if isIdSpineN (length env) es
       then x
       else x ++ "[" ++ prettySubNormN tbl env es ++ "]"
-  prettyElemAtomN tbl env (QSortC sg k es) = prettyQSortN tbl env sg k es
+  prettyElemAtomN tbl env (QSort sg k es) = prettyQSortN tbl env sg k es
   prettyElemAtomN tbl env (QCtor sg k es) = "𝒮." ++ show k ++ "[" ++ prettySubNormN tbl env es ++ "]"
   prettyElemAtomN tbl env (QElim sg k ms fs es w) =
     "𝒮." ++ show k ++ "-elim[" ++ prettySubNormN tbl env es ++ "](" ++ prettyElemN tbl env w ++ ")"
@@ -479,7 +476,7 @@ mutual
   prettyTyN tbl env ty = prettyTyArrowN tbl env ty
 
   prettyTyArrowN : FixTable -> NameEnv -> Ty -> String
-  prettyTyArrowN tbl env (Ty.PiTy a b) =
+  prettyTyArrowN tbl env (PiTy a b) =
     if usesIndexTy 0 b
       -- Domain sits inside an explicit "(x: ... )" binder, already fully
       -- delimited by the closing paren, so it can be printed unrestricted
@@ -488,13 +485,13 @@ mutual
       then let x = freshForTy a env
            in "(" ++ x ++ ":" ++ prettyTyN tbl env a ++ ") → " ++ prettyTyArrowN tbl (env :< x) b
       else prettyTyElN tbl env a ++ " → " ++ prettyTyArrowN tbl (env :< wildcard) b
-  prettyTyArrowN tbl env (Ty.SigmaTy a b) =
+  prettyTyArrowN tbl env (SigmaTy a b) =
     if usesIndexTy 0 b
       then let x = freshForTy a env
            in "(" ++ x ++ ":" ++ prettyTyN tbl env a ++ ") ⨯ " ++ prettyTyArrowN tbl (env :< x) b
       else prettyTyElN tbl env a ++ " ⨯ " ++ prettyTyArrowN tbl (env :< wildcard) b
-  prettyTyArrowN tbl env ty@(Ty.SumTy _ _) = prettyTySumN tbl env ty
-  prettyTyArrowN tbl env (Ty.Quotient a r) =
+  prettyTyArrowN tbl env ty@(SumTy _ _) = prettyTySumN tbl env ty
+  prettyTyArrowN tbl env (QuotTy a r) =
     let x = freshForTy a env
         y = freshGeneric (env :< x)
     in prettyTyElN tbl env a ++ " / (" ++ x ++ " " ++ y ++ ". " ++ prettyElemNoCommaN tbl (env :< x :< y) r ++ ")"
@@ -503,14 +500,14 @@ mutual
   -- ⊎ binds tighter than → ⨯ / (its own level; non-sum components
   -- print at the El level, which parenthesizes looser forms)
   prettyTySumN : FixTable -> NameEnv -> Ty -> String
-  prettyTySumN tbl env (Ty.SumTy a b) =
+  prettyTySumN tbl env (SumTy a b) =
     prettyTyElN tbl env a ++ " ⊎ " ++ prettyTySumN tbl env b
   prettyTySumN tbl env ty = prettyTyElN tbl env ty
 
   prettyTyElN : FixTable -> NameEnv -> Ty -> String
   prettyTyElN tbl env (El e) = "El " ++ prettyElemAtomN tbl env e
   prettyTyElN tbl env (Prf e) = "Prf " ++ prettyElemAtomN tbl env e
-  prettyTyElN tbl env (Ty.NuTy f) = "ν " ++ prettyPolyAtomN tbl env f
+  prettyTyElN tbl env (NuTy f) = "ν " ++ prettyPolyAtomN tbl env f
   prettyTyElN tbl env ty = prettyTyAtomN tbl env ty
 
   -- Polynomials, by the surface grammar's levels: binders and products
@@ -537,13 +534,14 @@ mutual
   prettyPolyAtomN tbl env f = "(" ++ prettyPolyN tbl env f ++ ")"
 
   prettyTyAtomN : FixTable -> NameEnv -> Ty -> String
-  prettyTyAtomN tbl env Ty.ZeroTy = "𝟘"
-  prettyTyAtomN tbl env Ty.OneTy = "𝟙"
-  prettyTyAtomN tbl env Ty.NatTy = "ℕ"
-  prettyTyAtomN tbl env Ty.UniverseTy = "𝕌"
-  prettyTyAtomN tbl env Ty.PropTy = "Ω"
-  prettyTyAtomN tbl env (Ty.SigVar x [<]) = if isOpName x then "(" ++ x ++ ")" else x
-  prettyTyAtomN tbl env (Ty.SigVar x es) =
+  prettyTyAtomN tbl env ZeroTy = "𝟘"
+  prettyTyAtomN tbl env OneTy = "𝟙"
+  prettyTyAtomN tbl env NatTy = "ℕ"
+  prettyTyAtomN tbl env UniverseTy = "𝕌"
+  prettyTyAtomN tbl env PropTy = "Ω"
+  prettyTyAtomN tbl env TopTy = "𝕍"
+  prettyTyAtomN tbl env (SigVar x [<]) = if isOpName x then "(" ++ x ++ ")" else x
+  prettyTyAtomN tbl env (SigVar x es) =
     if isIdSpineN (length env) es
       then x
       else x ++ "[" ++ prettySubNormN tbl env es ++ "]"

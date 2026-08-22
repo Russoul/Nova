@@ -95,6 +95,12 @@ mutual
   substElem Elem.ZeroTy        sigma = Elem.ZeroTy
   substElem Elem.OneTy         sigma = Elem.OneTy
   substElem Elem.NatTy         sigma = Elem.NatTy
+  substElem UniverseTy         sigma = UniverseTy
+  substElem PropTy             sigma = PropTy
+  -- 𝕍[σ] ≜ 𝕍 (Foundation's meta-clause: 𝕍 is a closed atom)
+  substElem TopTy              sigma = TopTy
+  substElem (El e)             sigma = El (substElem e sigma)
+  substElem (Prf e)            sigma = Prf (substElem e sigma)
   substElem (Elem.PiTy a b)    sigma = Elem.PiTy (substElem a sigma) (substElem b (under sigma))
   substElem (Elem.SigmaTy a b) sigma = Elem.SigmaTy (substElem a sigma) (substElem b (under sigma))
   substElem (Elem.SumTy a b)   sigma = Elem.SumTy (substElem a sigma) (substElem b sigma)
@@ -105,7 +111,7 @@ mutual
   substElem (QuotElim f q)     sigma = QuotElim (substElem f (under sigma)) (substElem q sigma)
   substElem (Squash t)         sigma = Squash (substTy t sigma)
   substElem Star               sigma = Star
-  substElem (QSortC sg k es)   sigma = QSortC (substQSig sg sigma) k (substSubNorm es sigma)
+  substElem (QSort sg k es)    sigma = QSort (substQSig sg sigma) k (substSubNorm es sigma)
   substElem (QCtor sg k es)    sigma = QCtor (substQSig sg sigma) k (substSubNorm es sigma)
   substElem (QElim sg k ms fs es w) sigma =
     QElim (substQSig sg sigma) k
@@ -162,25 +168,10 @@ mutual
   substPoly (PSigma a f) sigma = PSigma (substElem a sigma) (substPoly f (under sigma))
   substPoly (PPi a f)    sigma = PPi (substElem a sigma) (substPoly f (under sigma))
 
-  ||| T[σ]
+  ||| T[σ] — one sort: types are terms, one substitution action.
   export
   substTy : Ty -> Sub -> Ty
-  -- A[id] ≜ A, as at substElem
-  substTy t                     Id    = t
-  substTy Ty.ZeroTy             sigma = Ty.ZeroTy
-  substTy Ty.OneTy              sigma = Ty.OneTy
-  substTy Ty.NatTy              sigma = Ty.NatTy
-  substTy Ty.UniverseTy         sigma = Ty.UniverseTy
-  substTy (Ty.PiTy a b)         sigma = Ty.PiTy (substTy a sigma) (substTy b (under sigma))
-  substTy (Ty.SigmaTy a b)      sigma = Ty.SigmaTy (substTy a sigma) (substTy b (under sigma))
-  substTy (Ty.SumTy a b)        sigma = Ty.SumTy (substTy a sigma) (substTy b sigma)
-  substTy (El e)                sigma = El (substElem e sigma)
-  substTy PropTy                sigma = PropTy
-  substTy (Prf e)               sigma = Prf (substElem e sigma)
-  substTy (Quotient a r)        sigma = Quotient (substTy a sigma) (substElem r (under (under sigma)))
-  substTy (Ty.SigVar x es)      sigma = Ty.SigVar x (substSubNorm es sigma)
-  substTy (QSort sg k es)       sigma = QSort (substQSig sg sigma) k (substSubNorm es sigma)
-  substTy (Ty.NuTy f)           sigma = Ty.NuTy (substPoly f sigma)
+  substTy = substElem
 
 
 
@@ -229,6 +220,11 @@ mutual
   strengthenElem d Elem.ZeroTy        = Just Elem.ZeroTy
   strengthenElem d Elem.OneTy         = Just Elem.OneTy
   strengthenElem d Elem.NatTy         = Just Elem.NatTy
+  strengthenElem d UniverseTy         = Just UniverseTy
+  strengthenElem d PropTy             = Just PropTy
+  strengthenElem d TopTy              = Just TopTy
+  strengthenElem d (El e)             = El <$> strengthenElem d e
+  strengthenElem d (Prf e)            = Prf <$> strengthenElem d e
   strengthenElem d (Elem.PiTy a b)    = Elem.PiTy <$> strengthenElem d a <*> strengthenElem (1 + d) b
   strengthenElem d (Elem.SigmaTy a b) = Elem.SigmaTy <$> strengthenElem d a <*> strengthenElem (1 + d) b
   strengthenElem d (Elem.SumTy a b)   = Elem.SumTy <$> strengthenElem d a <*> strengthenElem d b
@@ -239,7 +235,7 @@ mutual
   strengthenElem d (QuotElim f q)     = QuotElim <$> strengthenElem (1 + d) f <*> strengthenElem d q
   strengthenElem d (Squash t)         = Squash <$> strengthenTy d t
   strengthenElem d Star               = Just Star
-  strengthenElem d (QSortC sg k es)   = QSortC <$> strengthenQSig d sg <*> Just k <*> strengthenSubNorm d es
+  strengthenElem d (QSort sg k es)    = QSort <$> strengthenQSig d sg <*> Just k <*> strengthenSubNorm d es
   strengthenElem d (QCtor sg k es)    = QCtor <$> strengthenQSig d sg <*> Just k <*> strengthenSubNorm d es
   strengthenElem d (QElim sg k ms fs es w) =
     QElim <$> strengthenQSig d sg <*> Just k
@@ -290,22 +286,10 @@ mutual
   strengthenSubNorm d [<] = Just [<]
   strengthenSubNorm d (es :< e) = (:<) <$> strengthenSubNorm d es <*> strengthenElem d e
 
+  ||| One sort: types are terms, one strengthening.
   export
   strengthenTy : (depth : Nat) -> Ty -> Maybe Ty
-  strengthenTy d Ty.ZeroTy         = Just Ty.ZeroTy
-  strengthenTy d Ty.OneTy          = Just Ty.OneTy
-  strengthenTy d Ty.NatTy          = Just Ty.NatTy
-  strengthenTy d Ty.UniverseTy     = Just Ty.UniverseTy
-  strengthenTy d (Ty.PiTy a b)     = Ty.PiTy <$> strengthenTy d a <*> strengthenTy (1 + d) b
-  strengthenTy d (Ty.SigmaTy a b)  = Ty.SigmaTy <$> strengthenTy d a <*> strengthenTy (1 + d) b
-  strengthenTy d (Ty.SumTy a b)    = Ty.SumTy <$> strengthenTy d a <*> strengthenTy d b
-  strengthenTy d (El e)            = El <$> strengthenElem d e
-  strengthenTy d PropTy            = Just PropTy
-  strengthenTy d (Prf e)           = Prf <$> strengthenElem d e
-  strengthenTy d (Quotient a r)    = Quotient <$> strengthenTy d a <*> strengthenElem (2 + d) r
-  strengthenTy d (Ty.SigVar x es)  = Ty.SigVar x <$> strengthenSubNorm d es
-  strengthenTy d (QSort sg k es)   = QSort <$> strengthenQSig d sg <*> Just k <*> strengthenSubNorm d es
-  strengthenTy d (Ty.NuTy f)       = Ty.NuTy <$> strengthenPoly d f
+  strengthenTy = strengthenElem
 
 ||| Only surface-shaped substitutions (flat Ext/Terminal element lists)
 ||| strengthen; Id/Wk/Chain are index-sensitive and never appear in
@@ -391,14 +375,14 @@ liftPoly : Poly -> (r : Elem) -> (u : Elem) -> (v : Elem) -> Elem
 liftPoly PHole        r u v = substElem r (Ext (Ext Id u) v)
 liftPoly (PConst a)   r u v = Elem.EqTy u v (El a)
 liftPoly (PProd f g)  r u v =
-  Squash (Ty.SigmaTy (Prf (liftPoly f r (SigmaElim1 u) (SigmaElim1 v)))
+  Squash (SigmaTy (Prf (liftPoly f r (SigmaElim1 u) (SigmaElim1 v)))
                      (substTy (Prf (liftPoly g r (SigmaElim2 u) (SigmaElim2 v))) Wk))
 liftPoly (PSum f g)   r u v =
   SumElim
     (SumElim (liftPoly f (wk2base r) (CtxVar 1) (CtxVar 0))
-             (Squash Ty.ZeroTy)
+             (Squash ZeroTy)
              (substElem v Wk))
-    (SumElim (Squash Ty.ZeroTy)
+    (SumElim (Squash ZeroTy)
              (liftPoly g (wk2base r) (CtxVar 1) (CtxVar 0))
              (substElem v Wk))
     u
@@ -406,14 +390,14 @@ liftPoly (PSum f g)   r u v =
   wk2base : Elem -> Elem
   wk2base e = substElem (substElem e (under (under Wk))) (under (under Wk))
 liftPoly (PSigma a f) r u v =
-  Squash (Ty.SigmaTy
+  Squash (SigmaTy
     (Prf (Elem.EqTy (SigmaElim1 u) (SigmaElim1 v) (El a)))
     (Prf (liftPoly (substPoly (substPoly f (Ext Id (SigmaElim1 u))) Wk)
                    (substElem r (under (under Wk)))
                    (substElem (SigmaElim2 u) Wk)
                    (substElem (SigmaElim2 v) Wk))))
 liftPoly (PPi a f)    r u v =
-  Squash (Ty.PiTy (El a)
+  Squash (PiTy (El a)
     (Prf (liftPoly f
                    (substElem r (under (under Wk)))
                    (PiApp (substElem u Wk) (CtxVar 0))

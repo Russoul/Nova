@@ -197,8 +197,6 @@ runPath rootPath name = do
       Nothing                    => Left "'\{name}' not found"
       Just (SigDef [<] _ body _) => Right (show (nfElem sig body))
       Just (SigDef _ _ _ _)      => Left "'\{name}' has a non-empty declaration context"
-      Just (SigTyDef [<] _ ty)   => Right (show (nfTy sig ty))
-      Just (SigTyDef _ _ _)      => Left "'\{name}' has a non-empty declaration context"
       -- unreachable behind elabProgramSig's acceptance gate (a
       -- definitional Σ), but the match must cover the open entries
       Just _                     => Left "'\{name}' is not a definition"

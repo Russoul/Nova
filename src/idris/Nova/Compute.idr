@@ -11,7 +11,7 @@ module Nova.Compute
 --
 -- whnfElem/whnfTy contract ONLY a term's own head redex chain, by
 -- Foundation's ≜ rules (el-pi-beta, el-sigma-beta₁/₂, el-nat-beta-z/s,
--- el-quot-beta, el-qiit-beta, el-sig-beta/ty-sig-beta, the El-decoding
+-- el-quot-beta, el-qiit-beta, el-sig-beta (type entries included), the El-decoding
 -- family) — exactly Nova.Elaboration.Beta's contraction clauses, but each
 -- one stops the instant its own head is exposed, instead of also
 -- descending into every subterm. A term with no head redex — every
@@ -41,14 +41,14 @@ module Nova.Compute
 -- component is left EXACTLY as whnf produced it — never recursed into.
 -- Concretely, comparing against each former's presupposition:
 --
---   Ty.PiTy/Elem.PiTy A B   — Γ⊦A, Γ▷A⊦B — BOTH sides left alone: Π is
+--   PiTy/Elem.PiTy A B   — Γ⊦A, Γ▷A⊦B — BOTH sides left alone: Π is
 --                             co-data (characterised by elimination, not
 --                             by what is inside it), so unlike the other
 --                             cases below this is a total exception, not
 --                             just the binder-crossing half.
 --   PiIntro f               — the λ's body: co-data, left alone (same
 --                             reason — it's Π's introduction).
---   Ty.SigmaTy/Elem.SigmaTy — Γ⊦A (recursed), Γ▷A⊦B (left alone).
+--   SigmaTy/Elem.SigmaTy — Γ⊦A (recursed), Γ▷A⊦B (left alone).
 --     A B
 --   SigmaIntro a b          — Γ⊦a : A, Γ⊦b : B[id,a] — NEITHER crosses a
 --                             binder (b's type is already instantiated
@@ -56,8 +56,8 @@ module Nova.Compute
 --                             the type former, a Σ VALUE is fully data.
 --   NatElim z s t           — Γ⊦z, Γ⊦t (recursed), Γ▷ℕ▷A⊦s (left alone).
 --   QuotElim f q            — Γ⊦q (recursed), Γ▷A⊦f (left alone).
---   Ty.Quotient/QuotTy A R  — Γ⊦A (recursed), Γ▷A▷A[↑]⊦R (left alone).
---   QSortC/QCtor/QElim      — Γ⊦es : the argument/index spine (recursed
+--   QuotTy/QuotTy A R  — Γ⊦A (recursed), Γ▷A▷A[↑]⊦R (left alone).
+--   QSort/QCtor/QElim      — Γ⊦es : the argument/index spine (recursed
 --     sg _ es / … es w       — it lives at Γ, no binder); sg itself
 --                             (and, for QElim, its motives/methods) is
 --                             inherently a bundle of binder telescopes
@@ -65,7 +65,7 @@ module Nova.Compute
 --                             scrutinee w is at Γ (recursed).
 --
 -- A concrete, testable consequence: nf of `El (a ⨯ b)` decodes to
--- `Ty.SigmaTy (El a) (El b)` and recurses only into the FIRST component
+-- `SigmaTy (El a) (El b)` and recurses only into the FIRST component
 -- (`El a` fully decodes further; `El b` does not) — contrast a Σ VALUE
 -- `(x , y)`, whose SECOND component nf recurses into just as much as
 -- the first, since there the binder is already gone (instantiated at
@@ -150,6 +150,24 @@ mutual
   whnfElem sig Elem.ZeroTy        = Elem.ZeroTy
   whnfElem sig Elem.OneTy         = Elem.OneTy
   whnfElem sig Elem.NatTy         = Elem.NatTy
+  whnfElem sig UniverseTy         = UniverseTy
+  whnfElem sig PropTy             = PropTy
+  whnfElem sig TopTy              = TopTy
+  whnfElem sig (Prf e)            = Prf e   -- no Prf computation, by design
+  -- El-decoding (ty-el-*): the code's whnf is canonical for a closed,
+  -- well-typed term
+  whnfElem sig (El e) =
+    case whnfElem sig e of
+      Elem.ZeroTy      => Elem.ZeroTy
+      Elem.OneTy       => Elem.OneTy
+      Elem.NatTy       => Elem.NatTy
+      Elem.PiTy a b    => Elem.PiTy (El a) (El b)
+      Elem.SigmaTy a b => Elem.SigmaTy (El a) (El b)
+      Elem.SumTy a b   => Elem.SumTy (El a) (El b)
+      QuotTy a r       => QuotTy (El a) r
+      QSort sg k es    => QSort sg k es   -- ty-el-qiit
+      Elem.NuTy f      => Elem.NuTy f     -- ty-el-nu
+      _ => assert_total $ idris_crash "whnfElem: El argument is not a universe code (impossible for a closed, well-typed term)"
   whnfElem sig (Elem.PiTy a b)    = Elem.PiTy a b   -- co-data
   whnfElem sig (Elem.SigmaTy a b) = Elem.SigmaTy a b
   whnfElem sig (Elem.SumTy a b)   = Elem.SumTy a b
@@ -178,7 +196,7 @@ mutual
     case whnfElem sig t of
       Corec p a f x => whnfElem sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
       _ => assert_total $ idris_crash "whnfElem: out scrutinee is not a corec head (impossible for a closed, well-typed term)"
-  whnfElem sig (QSortC sg k es)   = QSortC sg k es
+  whnfElem sig (QSort sg k es)   = QSort sg k es
   whnfElem sig (QCtor sg k es)    = QCtor sg k es
   whnfElem sig (QElim sg k ms fs es w) =
     case whnfElem sig w of
@@ -188,38 +206,11 @@ mutual
           Left err  => assert_total $ idris_crash "whnfElem: el-qiit-beta on an ill-formed eliminator: \{err}"
       _ => assert_total $ idris_crash "whnfElem: QIIT eliminator scrutinee is not a constructor (impossible for a closed, well-typed term)"
 
-  ||| T's weak head normal form.
+  ||| T's weak head normal form — one sort: one evaluator (type
+  ||| definitions unfold through the same SigDef clause).
   export
   whnfTy : Sig -> Ty -> Ty
-  whnfTy sig Ty.ZeroTy         = Ty.ZeroTy
-  whnfTy sig Ty.OneTy          = Ty.OneTy
-  whnfTy sig Ty.NatTy          = Ty.NatTy
-  whnfTy sig Ty.UniverseTy     = Ty.UniverseTy
-  whnfTy sig (Ty.PiTy a b)     = Ty.PiTy a b   -- co-data
-  whnfTy sig (Ty.SigmaTy a b)  = Ty.SigmaTy a b
-  whnfTy sig (Ty.SumTy a b)    = Ty.SumTy a b
-  whnfTy sig (Ty.NuTy f)       = Ty.NuTy f
-  whnfTy sig (El e) =
-    case whnfElem sig e of
-      Elem.ZeroTy      => Ty.ZeroTy
-      Elem.OneTy       => Ty.OneTy
-      Elem.NatTy       => Ty.NatTy
-      Elem.PiTy a b    => Ty.PiTy (El a) (El b)
-      Elem.SigmaTy a b => Ty.SigmaTy (El a) (El b)
-      Elem.SumTy a b   => Ty.SumTy (El a) (El b)
-      QuotTy a r       => Quotient (El a) r
-      QSortC sg k es   => QSort sg k es   -- ty-el-qiit
-      Elem.NuTy f      => Ty.NuTy f       -- ty-el-nu
-      _ => assert_total $ idris_crash "whnfTy: El argument is not a universe code (impossible for a closed, well-typed term)"
-  whnfTy sig PropTy            = PropTy
-  whnfTy sig (Prf e)           = Prf e
-  whnfTy sig (Quotient a r)    = Quotient a r
-  whnfTy sig (Ty.SigVar x es) =
-    case sigLookup x sig of
-      Just (SigTyDef _ _ a) => whnfTy sig (substTy a (embed es))
-      Just _                => assert_total $ idris_crash "whnfTy: signature identifier '\{x}' is not a type definition (Compute assumes a definitional Σ)"
-      Nothing               => assert_total $ idris_crash "whnfTy: signature identifier '\{x}' not found"
-  whnfTy sig (QSort sg k es)   = QSort sg k es
+  whnfTy = whnfElem
 
 mutual
   ||| t's normal form: whnf, then nf on every immediate subterm that
@@ -251,6 +242,11 @@ mutual
     go Elem.ZeroTy        = Elem.ZeroTy
     go Elem.OneTy         = Elem.OneTy
     go Elem.NatTy         = Elem.NatTy
+    go UniverseTy         = UniverseTy
+    go PropTy             = PropTy
+    go TopTy              = TopTy
+    go (El e)             = El e   -- unreachable: whnf always decodes El
+    go (Prf e)            = Prf (nfElem sig e)
     go (Elem.PiTy a b)    = Elem.PiTy a b   -- co-data: leave domain/codomain
     go (Elem.SigmaTy a b) = Elem.SigmaTy (nfElem sig a) b   -- b: under a binder, left alone
     go (Elem.SumTy a b)   = Elem.SumTy (nfElem sig a) (nfElem sig b)   -- non-dependent: BOTH recursed
@@ -265,34 +261,17 @@ mutual
         Prf p => p                -- code-squash-prf: ∥Prf p∥ ≜ p
         t'    => Squash t'
     go Star               = Star
-    go (QSortC sg k es)   = QSortC sg k (nfSubNorm sig es)   -- sg: a bundle of binder telescopes, left alone
+    go (QSort sg k es)   = QSort sg k (nfSubNorm sig es)   -- sg: a bundle of binder telescopes, left alone
     go (QCtor sg k es)    = QCtor sg k (nfSubNorm sig es)
     go (QElim sg k ms fs es w) = QElim sg k ms fs (nfSubNorm sig es) (nfElem sig w)
     go (Elem.NuTy f)      = Elem.NuTy f   -- 𝔽: embedded pieces partly under binders, left alone
     go (Out t)            = Out (nfElem sig t)
     go (Corec p a f x)    = Corec p (nfElem sig a) f (nfElem sig x)   -- f: under a binder, left alone
 
-  ||| T's normal form: whnf, then nf on every immediate subterm that
-  ||| stays in the SAME context (see nfElem).
+  ||| T's normal form — one sort: one normalizer.
   export
   nfTy : Sig -> Ty -> Ty
-  nfTy sig t0 = go (whnfTy sig t0)
-   where
-    go : Ty -> Ty
-    go Ty.ZeroTy         = Ty.ZeroTy
-    go Ty.OneTy          = Ty.OneTy
-    go Ty.NatTy          = Ty.NatTy
-    go Ty.UniverseTy     = Ty.UniverseTy
-    go (Ty.PiTy a b)     = Ty.PiTy a b   -- co-data: leave domain/codomain
-    go (Ty.SigmaTy a b)  = Ty.SigmaTy (nfTy sig a) b   -- b: under a binder, left alone
-    go (Ty.SumTy a b)    = Ty.SumTy (nfTy sig a) (nfTy sig b)   -- non-dependent: BOTH recursed
-    go (El e)            = El (nfElem sig e)
-    go PropTy            = PropTy
-    go (Prf e)           = Prf (nfElem sig e)
-    go (Quotient a r)    = Quotient (nfTy sig a) r   -- r: under a binder, left alone
-    go (Ty.SigVar x es)  = Ty.SigVar x es   -- unreachable: whnf always unfolds x[e˲]
-    go (QSort sg k es)   = QSort sg k (nfSubNorm sig es)   -- sg: a bundle of binder telescopes, left alone
-    go (Ty.NuTy f)       = Ty.NuTy f   -- 𝔽 carried, left alone
+  nfTy = nfElem
 
   export
   nfSubNorm : Sig -> SubNorm -> SubNorm

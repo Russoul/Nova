@@ -92,6 +92,11 @@ mutual
     ZeroTy => True
     OneTy => True
     NatTy => True
+    UniverseTy => True
+    PropTy => True
+    TopTy => True
+    El t => skelFreeE t
+    Prf t => skelFreeE t
     PiTy a b => skelFreeE a && skelFreeE b
     SigmaTy a b => skelFreeE a && skelFreeE b
     SumTy a b => skelFreeE a && skelFreeE b
@@ -100,7 +105,7 @@ mutual
     Class t => skelFreeE t
     Squash ty => skelFreeT ty
     Star => True
-    QSortC _ _ sp => all skelFreeE (toList sp)
+    QSort _ _ sp => all skelFreeE (toList sp)
     QCtor _ _ sp => all skelFreeE (toList sp)
     QElim _ _ mots mths sp w =>
       all skelFreeT mots && all skelFreeE mths && all skelFreeE (toList sp) && skelFreeE w
@@ -111,15 +116,15 @@ mutual
   export
   skelFreeT : Ty -> Bool
   skelFreeT ty = case ty of
-    Ty.PiTy a b => skelFreeT a && skelFreeT b
-    Ty.SigmaTy a b => skelFreeT a && skelFreeT b
-    Ty.SumTy a b => skelFreeT a && skelFreeT b
+    PiTy a b => skelFreeT a && skelFreeT b
+    SigmaTy a b => skelFreeT a && skelFreeT b
+    SumTy a b => skelFreeT a && skelFreeT b
     El t => skelFreeE t
     Prf t => skelFreeE t
-    Quotient a r => skelFreeT a && skelFreeE r
-    Ty.SigVar _ sp => all skelFreeE (toList sp)
+    QuotTy a r => skelFreeT a && skelFreeE r
+    SigVar _ sp => all skelFreeE (toList sp)
     QSort _ _ sp => all skelFreeE (toList sp)
-    Ty.NuTy p => skelFreeP p
+    NuTy p => skelFreeP p
     _ => True
 
   skelFreeP : Poly -> Bool
@@ -177,6 +182,11 @@ mutual
     ZeroTy => Just e
     OneTy => Just e
     NatTy => Just e
+    UniverseTy => Just e
+    PropTy => Just e
+    TopTy => Just e
+    El t => map El (varMapE vf c t)
+    Prf t => map Prf (varMapE vf c t)
     PiTy a b => [| PiTy (varMapE vf c a) (varMapE vf (S c) b) |]
     SigmaTy a b => [| SigmaTy (varMapE vf c a) (varMapE vf (S c) b) |]
     SumTy a b => [| SumTy (varMapE vf c a) (varMapE vf c b) |]
@@ -186,7 +196,7 @@ mutual
     QuotElim f q => [| QuotElim (varMapE vf (S c) f) (varMapE vf c q) |]
     Squash ty => map Squash (varMapT vf c ty)
     Star => Just e
-    QSortC sig j sp => map (QSortC sig j) (varMapSp vf c sp)
+    QSort sig j sp => map (QSort sig j) (varMapSp vf c sp)
     QCtor sig j sp => map (QCtor sig j) (varMapSp vf c sp)
     QElim sig j mots mths sp w =>
       do mots' <- traverse (varMapT vf c) mots
@@ -206,15 +216,15 @@ mutual
   export
   varMapT : (vf : (d : Nat) -> Nat -> Maybe Elem) -> (c : Nat) -> Ty -> Maybe Ty
   varMapT vf c ty = case ty of
-    Ty.PiTy a b => [| Ty.PiTy (varMapT vf c a) (varMapT vf (S c) b) |]
-    Ty.SigmaTy a b => [| Ty.SigmaTy (varMapT vf c a) (varMapT vf (S c) b) |]
-    Ty.SumTy a b => [| Ty.SumTy (varMapT vf c a) (varMapT vf c b) |]
+    PiTy a b => [| PiTy (varMapT vf c a) (varMapT vf (S c) b) |]
+    SigmaTy a b => [| SigmaTy (varMapT vf c a) (varMapT vf (S c) b) |]
+    SumTy a b => [| SumTy (varMapT vf c a) (varMapT vf c b) |]
     El t => map El (varMapE vf c t)
     Prf t => map Prf (varMapE vf c t)
-    Quotient a r => [| Quotient (varMapT vf c a) (varMapE vf (c + 2) r) |]
-    Ty.SigVar nm sp => map (Ty.SigVar nm) (varMapSp vf c sp)
+    QuotTy a r => [| QuotTy (varMapT vf c a) (varMapE vf (c + 2) r) |]
+    SigVar nm sp => map (SigVar nm) (varMapSp vf c sp)
     QSort sig j sp => map (QSort sig j) (varMapSp vf c sp)
-    Ty.NuTy pl => map Ty.NuTy (varMapP vf c pl)
+    NuTy pl => map NuTy (varMapP vf c pl)
     _ => Just ty
 
   varMapP : (vf : (d : Nat) -> Nat -> Maybe Elem) -> (c : Nat) -> Poly -> Maybe Poly
@@ -387,6 +397,11 @@ mutual
   mElemP pats app k ZeroTy g sols = case g of ZeroTy => Just sols; _ => Nothing
   mElemP pats app k OneTy g sols = case g of OneTy => Just sols; _ => Nothing
   mElemP pats app k NatTy g sols = case g of NatTy => Just sols; _ => Nothing
+  mElemP pats app k UniverseTy g sols = case g of UniverseTy => Just sols; _ => Nothing
+  mElemP pats app k PropTy g sols = case g of PropTy => Just sols; _ => Nothing
+  mElemP pats app k TopTy g sols = case g of TopTy => Just sols; _ => Nothing
+  mElemP pats app k (El t) g sols = case g of El t' => mElemP pats False k t t' sols; _ => Nothing
+  mElemP pats app k (Prf t) g sols = case g of Prf t' => mElemP pats False k t t' sols; _ => Nothing
   mElemP pats app k (PiTy a b) g sols =
     case g of PiTy a' b' => mElemP pats False k a a' sols >>= mElemP pats False (S k) b b'; _ => Nothing
   mElemP pats app k (SigmaTy a b) g sols =
@@ -406,9 +421,9 @@ mutual
   mElemP pats app k (Squash ty) g sols =
     case g of Squash ty' => mTyP pats k ty ty' sols; _ => Nothing
   mElemP pats app k Star g sols = case g of Star => Just sols; _ => Nothing
-  mElemP pats app k (QSortC sig j sp) g sols =
+  mElemP pats app k (QSort sig j sp) g sols =
     case g of
-      QSortC sig' j' sp' =>
+      QSort sig' j' sp' =>
         if j == j' && show sig == show sig' then mSubP pats k sp sp' sols else Nothing
       _ => Nothing
   mElemP pats app k (QCtor sig j sp) g sols =
@@ -452,30 +467,30 @@ mutual
   ||| case of the ↓ loop, oracle-side: a bare hole under El may bind
   ||| to code(B) when B decodes (ty-el-nat, ty-el-pi, …).
   codeOfTy : Ty -> Maybe Elem
-  codeOfTy Ty.ZeroTy = Just Elem.ZeroTy
-  codeOfTy Ty.OneTy = Just Elem.OneTy
-  codeOfTy Ty.NatTy = Just Elem.NatTy
-  codeOfTy (Ty.PiTy a b) = [| Elem.PiTy (codeOfTy a) (codeOfTy b) |]
-  codeOfTy (Ty.SigmaTy a b) = [| Elem.SigmaTy (codeOfTy a) (codeOfTy b) |]
-  codeOfTy (Ty.SumTy a b) = [| Elem.SumTy (codeOfTy a) (codeOfTy b) |]
-  codeOfTy (Quotient a r) = map (\c => QuotTy c r) (codeOfTy a)
+  codeOfTy ZeroTy = Just Elem.ZeroTy
+  codeOfTy OneTy = Just Elem.OneTy
+  codeOfTy NatTy = Just Elem.NatTy
+  codeOfTy (PiTy a b) = [| Elem.PiTy (codeOfTy a) (codeOfTy b) |]
+  codeOfTy (SigmaTy a b) = [| Elem.SigmaTy (codeOfTy a) (codeOfTy b) |]
+  codeOfTy (SumTy a b) = [| Elem.SumTy (codeOfTy a) (codeOfTy b) |]
+  codeOfTy (QuotTy a r) = map (\c => QuotTy c r) (codeOfTy a)
   codeOfTy (El t) = Just t
-  codeOfTy (Ty.NuTy p) = Just (Elem.NuTy p)
+  codeOfTy (NuTy p) = Just (Elem.NuTy p)
   codeOfTy _ = Nothing
 
   export
   mTyP : (pats : Bool) -> (k : Nat) -> Ty -> Ty -> Sols -> Maybe Sols
-  mTyP pats k Ty.ZeroTy g sols = case g of Ty.ZeroTy => Just sols; _ => Nothing
-  mTyP pats k Ty.OneTy g sols = case g of Ty.OneTy => Just sols; _ => Nothing
-  mTyP pats k Ty.NatTy g sols = case g of Ty.NatTy => Just sols; _ => Nothing
+  mTyP pats k ZeroTy g sols = case g of ZeroTy => Just sols; _ => Nothing
+  mTyP pats k OneTy g sols = case g of OneTy => Just sols; _ => Nothing
+  mTyP pats k NatTy g sols = case g of NatTy => Just sols; _ => Nothing
   mTyP pats k UniverseTy g sols = case g of UniverseTy => Just sols; _ => Nothing
   mTyP pats k PropTy g sols = case g of PropTy => Just sols; _ => Nothing
-  mTyP pats k (Ty.PiTy a b) g sols =
-    case g of Ty.PiTy a' b' => mTyP pats k a a' sols >>= mTyP pats (S k) b b'; _ => Nothing
-  mTyP pats k (Ty.SigmaTy a b) g sols =
-    case g of Ty.SigmaTy a' b' => mTyP pats k a a' sols >>= mTyP pats (S k) b b'; _ => Nothing
-  mTyP pats k (Ty.SumTy a b) g sols =
-    case g of Ty.SumTy a' b' => mTyP pats k a a' sols >>= mTyP pats k b b'; _ => Nothing
+  mTyP pats k (PiTy a b) g sols =
+    case g of PiTy a' b' => mTyP pats k a a' sols >>= mTyP pats (S k) b b'; _ => Nothing
+  mTyP pats k (SigmaTy a b) g sols =
+    case g of SigmaTy a' b' => mTyP pats k a a' sols >>= mTyP pats (S k) b b'; _ => Nothing
+  mTyP pats k (SumTy a b) g sols =
+    case g of SumTy a' b' => mTyP pats k a a' sols >>= mTyP pats k b b'; _ => Nothing
   mTyP pats k (El t) g sols = case g of
     El t' => mElemP pats False k t t' sols
     -- a bare hole under El against a DECODED rigid type binds to its
@@ -493,18 +508,20 @@ mutual
                     Nothing => Nothing
              else Nothing
   mTyP pats k (Prf t) g sols = case g of Prf t' => mElemP pats False k t t' sols; _ => Nothing
-  mTyP pats k (Quotient a r) g sols =
-    case g of Quotient a' r' => mTyP pats k a a' sols >>= mElemP pats False (k + 2) r r'; _ => Nothing
-  mTyP pats k (Ty.SigVar nm sp) g sols =
+  mTyP pats k (QuotTy a r) g sols =
+    case g of QuotTy a' r' => mTyP pats k a a' sols >>= mElemP pats False (k + 2) r r'; _ => Nothing
+  mTyP pats k (SigVar nm sp) g sols =
     case g of
-      Ty.SigVar nm' sp' => if nm == nm' then mSubP pats k sp sp' sols else Nothing
+      SigVar nm' sp' => if nm == nm' then mSubP pats k sp sp' sols else Nothing
       _ => Nothing
   mTyP pats k (QSort sig j sp) g sols =
     case g of
       QSort sig' j' sp' =>
         if j == j' && show sig == show sig' then mSubP pats k sp sp' sols else Nothing
       _ => Nothing
-  mTyP pats k (Ty.NuTy p) g sols = case g of Ty.NuTy p' => mPoly pats k p p' sols; _ => Nothing
+  mTyP pats k TopTy g sols = case g of TopTy => Just sols; _ => Nothing
+  mTyP pats k (NuTy p) g sols = case g of NuTy p' => mPoly pats k p p' sols; _ => Nothing
+  mTyP pats k _ g sols = Nothing
 
   mPoly : (pats : Bool) -> (k : Nat) -> Poly -> Poly -> Sols -> Maybe Sols
   mPoly pats k PHole g sols = case g of PHole => Just sols; _ => Nothing
@@ -537,7 +554,7 @@ mElem app k = mElemP False app k
 ||| written, each under its predecessors) and the residual type.
 export
 teleOf : Ty -> (List Ty, Ty)
-teleOf (Ty.PiTy a b) = let (ds, r) = teleOf b in (a :: ds, r)
+teleOf (PiTy a b) = let (ds, r) = teleOf b in (a :: ds, r)
 teleOf ty = ([], ty)
 
 ||| The substitution [t₀, …, tₖ₋₁] into a closed telescope prefix.
@@ -649,6 +666,11 @@ mutual
     ZeroTy => acc
     OneTy => acc
     NatTy => acc
+    UniverseTy => acc
+    PropTy => acc
+    TopTy => acc
+    El t => walkE True t acc
+    Prf t => walkE True t acc
     PiTy a b => walkE True a (walkE True b acc)
     SigmaTy a b => walkE True a (walkE True b acc)
     SumTy a b => walkE True a (walkE True b acc)
@@ -658,7 +680,7 @@ mutual
     QuotElim f q => walkE True f (walkE False q acc)
     Squash ty => walkT ty acc
     Star => acc
-    QSortC _ _ sp => foldl (\a, x => walkE True x a) acc (toList sp)
+    QSort _ _ sp => foldl (\a, x => walkE True x a) acc (toList sp)
     QCtor _ _ sp => foldl (\a, x => walkE True x a) acc (toList sp)
     QElim _ _ mots mths sp w =>
       let acc1 = foldl (\a, t => walkT t a) acc mots
@@ -671,15 +693,15 @@ mutual
 
   walkT : Ty -> List SpineUse -> List SpineUse
   walkT ty acc = case ty of
-    Ty.PiTy a b => walkT a (walkT b acc)
-    Ty.SigmaTy a b => walkT a (walkT b acc)
-    Ty.SumTy a b => walkT a (walkT b acc)
+    PiTy a b => walkT a (walkT b acc)
+    SigmaTy a b => walkT a (walkT b acc)
+    SumTy a b => walkT a (walkT b acc)
     El t => walkE True t acc
     Prf t => walkE True t acc
-    Quotient a r => walkT a (walkE True r acc)
-    Ty.SigVar _ sp => foldl (\a, x => walkE True x a) acc (toList sp)
+    QuotTy a r => walkT a (walkE True r acc)
+    SigVar _ sp => foldl (\a, x => walkE True x a) acc (toList sp)
     QSort _ _ sp => foldl (\a, x => walkE True x a) acc (toList sp)
-    Ty.NuTy p => walkP p acc
+    NuTy p => walkP p acc
     _ => acc
 
   walkP : Poly -> List SpineUse -> List SpineUse
@@ -697,7 +719,6 @@ collectUses sig = foldl entry [] (toList sig)
  where
   entry : List SpineUse -> SigEntry -> List SpineUse
   entry acc (SigDef _ _ body ty) = walkE True body (walkT ty acc)
-  entry acc (SigTyDef _ _ ty) = walkT ty acc
   entry acc (SigDecl _ _ ty) = walkT ty acc
   entry acc _ = acc
 
@@ -822,6 +843,11 @@ mutual
     ZeroTy => False
     OneTy => False
     NatTy => False
+    UniverseTy => False
+    PropTy => False
+    TopTy => False
+    El t => hasHolesE t
+    Prf t => hasHolesE t
     PiTy a b => hasHolesE a || hasHolesE b
     SigmaTy a b => hasHolesE a || hasHolesE b
     SumTy a b => hasHolesE a || hasHolesE b
@@ -831,7 +857,7 @@ mutual
     QuotElim f q => hasHolesE f || hasHolesE q
     Squash ty => hasHolesT ty
     Star => False
-    QSortC _ _ sp => any hasHolesE (toList sp)
+    QSort _ _ sp => any hasHolesE (toList sp)
     QCtor _ _ sp => any hasHolesE (toList sp)
     QElim _ _ mots mths sp w =>
       any hasHolesT mots || any hasHolesE mths || any hasHolesE (toList sp) || hasHolesE w
@@ -842,15 +868,15 @@ mutual
   export
   hasHolesT : Ty -> Bool
   hasHolesT ty = case ty of
-    Ty.PiTy a b => hasHolesT a || hasHolesT b
-    Ty.SigmaTy a b => hasHolesT a || hasHolesT b
-    Ty.SumTy a b => hasHolesT a || hasHolesT b
+    PiTy a b => hasHolesT a || hasHolesT b
+    SigmaTy a b => hasHolesT a || hasHolesT b
+    SumTy a b => hasHolesT a || hasHolesT b
     El t => hasHolesE t
     Prf t => hasHolesE t
-    Quotient a r => hasHolesT a || hasHolesE r
-    Ty.SigVar nm sp => isJust (holeView nm) || any hasHolesE (toList sp)
+    QuotTy a r => hasHolesT a || hasHolesE r
+    SigVar nm sp => isJust (holeView nm) || any hasHolesE (toList sp)
     QSort _ _ sp => any hasHolesE (toList sp)
-    Ty.NuTy p => hasHolesP p
+    NuTy p => hasHolesP p
     _ => False
 
   export
@@ -878,7 +904,7 @@ plugE sols e = case e of
 export
 rebuildTail : List Ty -> Ty -> Ty
 rebuildTail [] r = r
-rebuildTail (d :: ds) r = Ty.PiTy d (rebuildTail ds r)
+rebuildTail (d :: ds) r = PiTy d (rebuildTail ds r)
 
 -- ===== Scrutinee abstraction (motive recovery, Phase 4) =====
 --
@@ -918,6 +944,11 @@ mutual
       ZeroTy => e
       OneTy => e
       NatTy => e
+      UniverseTy => e
+      PropTy => e
+      TopTy => e
+      El t => El (absE c sc t)
+      Prf t => Prf (absE c sc t)
       PiTy a b => PiTy (absE c sc a) (absE (S c) sc b)
       SigmaTy a b => SigmaTy (absE c sc a) (absE (S c) sc b)
       SumTy a b => SumTy (absE c sc a) (absE c sc b)
@@ -927,7 +958,7 @@ mutual
       QuotElim f q => QuotElim (absE (S c) sc f) (absE c sc q)
       Squash ty => Squash (absT c sc ty)
       Star => e
-      QSortC sig k sp => QSortC sig k (map (absE c sc) sp)
+      QSort sig k sp => QSort sig k (map (absE c sc) sp)
       QCtor sig k sp => QCtor sig k (map (absE c sc) sp)
       QElim sig k mots mths sp w =>
         QElim sig k (map (absT c sc) mots) (map (absE c sc) mths)
@@ -939,15 +970,15 @@ mutual
   export
   absT : (c : Nat) -> (scrut : Elem) -> Ty -> Ty
   absT c sc ty = case ty of
-    Ty.PiTy a b => Ty.PiTy (absT c sc a) (absT (S c) sc b)
-    Ty.SigmaTy a b => Ty.SigmaTy (absT c sc a) (absT (S c) sc b)
-    Ty.SumTy a b => Ty.SumTy (absT c sc a) (absT c sc b)
+    PiTy a b => PiTy (absT c sc a) (absT (S c) sc b)
+    SigmaTy a b => SigmaTy (absT c sc a) (absT (S c) sc b)
+    SumTy a b => SumTy (absT c sc a) (absT c sc b)
     El t => El (absE c sc t)
     Prf t => Prf (absE c sc t)
-    Quotient a r => Quotient (absT c sc a) (absE (c + 2) sc r)
-    Ty.SigVar nm sp => Ty.SigVar nm (map (absE c sc) sp)
+    QuotTy a r => QuotTy (absT c sc a) (absE (c + 2) sc r)
+    SigVar nm sp => SigVar nm (map (absE c sc) sp)
     QSort sig k sp => QSort sig k (map (absE c sc) sp)
-    Ty.NuTy p => Ty.NuTy (absP c sc p)
+    NuTy p => NuTy (absP c sc p)
     _ => ty
 
   absP : (c : Nat) -> (scrut : Elem) -> Poly -> Poly

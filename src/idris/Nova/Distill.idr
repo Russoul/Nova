@@ -1010,11 +1010,8 @@ sigCompare a b = go (toList a) (toList b)
  where
   showEntry : SigEntry -> String
   showEntry (SigDef ctx n body ty) = "def \{n} : \{show ty} ≔ \{show body} [\{show ctx}]"
-  showEntry (SigTyDef ctx n ty) = "type \{n} ≔ \{show ty} [\{show ctx}]"
   showEntry (SigDecl ctx n ty) = "decl \{n} : \{show ty} [\{show ctx}]"
-  showEntry (SigTyDecl ctx n) = "tydecl \{n} [\{show ctx}]"
   showEntry (SigEq ctx l r ty) = "eq \{show l} ≐ \{show r} : \{show ty} [\{show ctx}]"
-  showEntry (SigTyEq ctx x y) = "tyeq \{show x} ≐ \{show y} [\{show ctx}]"
 
   go : List SigEntry -> List SigEntry -> Maybe String
   go [] [] = Nothing
