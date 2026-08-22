@@ -123,6 +123,23 @@ mutual
   compElem Elem.ZeroTy        = Elem.ZeroTy
   compElem Elem.OneTy         = Elem.OneTy
   compElem Elem.NatTy         = Elem.NatTy
+  compElem UniverseTy         = UniverseTy
+  compElem PropTy             = PropTy
+  compElem TopTy              = TopTy
+  compElem (Prf e)            = Prf (compElem e)
+  -- El-decoding (ty-el-*)
+  compElem (El e) =
+    case compElem e of
+      Elem.ZeroTy      => Elem.ZeroTy
+      Elem.OneTy       => Elem.OneTy
+      Elem.NatTy       => Elem.NatTy
+      Elem.PiTy a b    => compElem (Elem.PiTy (El a) (El b))
+      Elem.SigmaTy a b => compElem (Elem.SigmaTy (El a) (El b))
+      Elem.SumTy a b   => compElem (Elem.SumTy (El a) (El b))
+      QuotTy a r       => compElem (QuotTy (El a) r)
+      QSort sg k es    => QSort sg k es
+      Elem.NuTy f      => Elem.NuTy (compPoly f)
+      e'               => El e'
   compElem (Elem.PiTy a b)    = Elem.PiTy (compElem a) (compElem b)
   compElem (Elem.SigmaTy a b) = Elem.SigmaTy (compElem a) (compElem b)
   compElem (Elem.SumTy a b)   = Elem.SumTy (compElem a) (compElem b)
@@ -140,7 +157,7 @@ mutual
       Prf p => p
       t'    => Squash t'
   compElem Star               = Star
-  compElem (QSortC sg k es)   = QSortC (compQSig sg) k (compSubNorm es)
+  compElem (QSort sg k es)   = QSort (compQSig sg) k (compSubNorm es)
   compElem (QCtor sg k es)    = QCtor (compQSig sg) k (compSubNorm es)
   compElem (QElim sg k ms fs es w) =
     let sg' = compQSig sg
@@ -190,31 +207,7 @@ mutual
   compQSig : QSig -> QSig
   compQSig = map compQTy
 
+  ||| One sort: one computational normaliser.
   export
   compTy : Ty -> Ty
-  compTy Ty.ZeroTy        = Ty.ZeroTy
-  compTy Ty.OneTy         = Ty.OneTy
-  compTy Ty.NatTy         = Ty.NatTy
-  compTy Ty.UniverseTy    = Ty.UniverseTy
-  compTy (Ty.PiTy a b)    = Ty.PiTy (compTy a) (compTy b)
-  compTy (Ty.SigmaTy a b) = Ty.SigmaTy (compTy a) (compTy b)
-  compTy (Ty.SumTy a b)   = Ty.SumTy (compTy a) (compTy b)
-  compTy (El e) =
-    case compElem e of
-      Elem.ZeroTy      => Ty.ZeroTy
-      Elem.OneTy       => Ty.OneTy
-      Elem.NatTy       => Ty.NatTy
-      Elem.PiTy a b    => compTy (Ty.PiTy (El a) (El b))
-      Elem.SigmaTy a b => compTy (Ty.SigmaTy (El a) (El b))
-      Elem.SumTy a b   => compTy (Ty.SumTy (El a) (El b))
-      QuotTy a r       => compTy (Quotient (El a) r)
-      QSortC sg k es   => QSort sg k es
-      Elem.NuTy f      => Ty.NuTy (compPoly f)
-      e'               => El e'
-  compTy PropTy           = PropTy
-  compTy (Prf e)          = Prf (compElem e)
-  compTy (Quotient a r)   = Quotient (compTy a) (compElem r)
-  -- ty-x-β omitted, like x-β above
-  compTy (Ty.SigVar x es) = Ty.SigVar x (compSubNorm es)
-  compTy (QSort sg k es)  = QSort (compQSig sg) k (compSubNorm es)
-  compTy (Ty.NuTy f)      = Ty.NuTy (compPoly f)
+  compTy = compElem

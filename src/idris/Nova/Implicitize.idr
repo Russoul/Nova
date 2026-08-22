@@ -368,12 +368,12 @@ mutual
   dhT : Ty -> Ty -> List String
   dhT o n =
     if show o == show n then [] else case (o, n) of
-      (Ty.PiTy a b, Ty.PiTy a' b') => dhT a a' ++ dhT b b'
-      (Ty.SigmaTy a b, Ty.SigmaTy a' b') => dhT a a' ++ dhT b b'
-      (Ty.SumTy a b, Ty.SumTy a' b') => dhT a a' ++ dhT b b'
+      (PiTy a b, PiTy a' b') => dhT a a' ++ dhT b b'
+      (SigmaTy a b, SigmaTy a' b') => dhT a a' ++ dhT b b'
+      (SumTy a b, SumTy a' b') => dhT a a' ++ dhT b b'
       (El a, El b) => dhE a b
       (Prf a, Prf b) => dhE a b
-      (Quotient a r, Quotient a' r') => dhT a a' ++ dhE r r'
+      (QuotTy a r, QuotTy a' r') => dhT a a' ++ dhE r r'
       _ => []
 
 ||| The drift culprits across two Σs' entries (empty = unattributable).
@@ -383,7 +383,6 @@ driftCulprits a b = nub (go (toList a) (toList b))
   go : List SigEntry -> List SigEntry -> List String
   go (SigDef _ _ body ty :: xs) (SigDef _ _ body' ty' :: ys) =
     dhE body body' ++ dhT ty ty' ++ go xs ys
-  go (SigTyDef _ _ ty :: xs) (SigTyDef _ _ ty' :: ys) = dhT ty ty' ++ go xs ys
   go (_ :: xs) (_ :: ys) = go xs ys
   go _ _ = []
 

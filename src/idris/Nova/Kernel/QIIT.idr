@@ -153,7 +153,7 @@ mutual
   reflCode sg w t = do
     (s, args) <- codeSort sg w t
     sp <- reflArgs sg w args
-    Right (QSortC (substQSig sg w.ups) s sp)
+    Right (QSort (substQSig sg w.ups) s sp)
 
   ||| A sort-headed code's sort position and argument chain.
   export
@@ -173,10 +173,10 @@ mutual
 export
 reflQTy : QSig -> QW -> QTy -> Either QErr Ty
 reflQTy sg w (QEl code) = reflCodeTy sg w code
-reflQTy sg w (QPiExt a b) = Ty.PiTy (substTy a w.extSub) <$> reflQTy sg (crossExtVar w) b
+reflQTy sg w (QPiExt a b) = PiTy (substTy a w.extSub) <$> reflQTy sg (crossExtVar w) b
 reflQTy sg w (QPiInd u b) = do
   d <- reflCodeTy sg w u
-  Ty.PiTy d <$> reflQTy sg (crossIndVar w) b
+  PiTy d <$> reflQTy sg (crossIndVar w) b
 reflQTy sg w QU = Left "qiit: U-ended type where an El-ended one is expected"
 
 ||| ⌊·⌋ᵗ — the binder (or arity) telescope: entries outermost first,
@@ -371,7 +371,7 @@ methodTy sg mots k = do
   (dw, hd) <- dispWalk sg mots k entry
   (s, idx) <- pointHead sg dw.w hd
   cod <- motApp sg mots dw.w.ups s idx (QCtor (substQSig sg dw.w.ups) k dw.spine)
-  Right (foldr Ty.PiTy cod (toList dw.dtel))
+  Right (foldr PiTy cod (toList dw.dtel))
 
 -- ===== Method image (coherences) =====
 

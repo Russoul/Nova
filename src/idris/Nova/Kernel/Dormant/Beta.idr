@@ -80,6 +80,25 @@ mutual
   betaElem sig Elem.ZeroTy        = Elem.ZeroTy
   betaElem sig Elem.OneTy         = Elem.OneTy
   betaElem sig Elem.NatTy         = Elem.NatTy
+  betaElem sig UniverseTy         = UniverseTy
+  betaElem sig PropTy             = PropTy
+  betaElem sig TopTy              = TopTy
+  betaElem sig (Prf e)            = Prf (betaElem sig e)
+  -- El-decoding (ty-el-*): El of a canonical code computes to the
+  -- type it encodes; the decoded result is recursed into, since
+  -- decoding can expose a further decodable code.
+  betaElem sig (El e) =
+    case betaElem sig e of
+      Elem.ZeroTy      => Elem.ZeroTy
+      Elem.OneTy       => Elem.OneTy
+      Elem.NatTy       => Elem.NatTy
+      Elem.PiTy a b    => betaElem sig (Elem.PiTy (El a) (El b))
+      Elem.SigmaTy a b => betaElem sig (Elem.SigmaTy (El a) (El b))
+      Elem.SumTy a b   => betaElem sig (Elem.SumTy (El a) (El b))
+      QuotTy a r       => betaElem sig (QuotTy (El a) r)
+      QSort sg k es    => QSort sg k es           -- ty-el-qiit
+      Elem.NuTy f      => Elem.NuTy (betaPoly sig f)   -- ty-el-nu
+      e'               => El e'
   betaElem sig (Elem.PiTy a b)    = Elem.PiTy (betaElem sig a) (betaElem sig b)
   betaElem sig (Elem.SigmaTy a b) = Elem.SigmaTy (betaElem sig a) (betaElem sig b)
   betaElem sig (Elem.SumTy a b)   = Elem.SumTy (betaElem sig a) (betaElem sig b)
@@ -104,7 +123,7 @@ mutual
       Prf p => p
       t'    => Squash t'
   betaElem sig Star               = Star
-  betaElem sig (QSortC sg k es)   = QSortC (betaQSig sig sg) k (betaSubNorm sig es)
+  betaElem sig (QSort sg k es)   = QSort (betaQSig sig sg) k (betaSubNorm sig es)
   betaElem sig (QCtor sg k es)    = QCtor (betaQSig sig sg) k (betaSubNorm sig es)
   betaElem sig (QElim sg k ms fs es w) =
     let sg' = betaQSig sig sg
@@ -160,49 +179,12 @@ mutual
   betaQSig : Sig -> QSig -> QSig
   betaQSig sig = map (betaQTy sig)
 
-  ||| T, with every beta-redex rewritten: Π/Σ/ℕ-elim/quot-elim/x-β redexes
-  ||| inside an El t's argument (via betaElem), type-level x-β (unfolding a
-  ||| signature type definition x[e˲] ≜ A[e˲]), plus El-of-universe-code
-  ||| decoding — El 𝟘 ≜ 𝟘, El 𝟙 ≜ 𝟙, El ℕ ≜ ℕ, El (A → B) ≜ El A → El B,
-  ||| El (A ⨯ B) ≜ El A ⨯ El B, El (a ≡ b ∈ A) ≜ (a ≡ b ∈ El A),
-  ||| El (A / R) ≜ El A / R — see the
-  ||| El-* rules in docs/NovaFoundation.txt. The decoded result is itself
-  ||| recursed into (via betaTy again), since decoding can expose a further
-  ||| decodable code (e.g. El of a signature reference that unfolds to 𝟘).
+  ||| One sort: types are terms, one beta (the El-decoding clauses
+  ||| live in betaElem's El case; signature unfolding is el-sig-beta
+  ||| uniformly, type entries included).
   export
   betaTy : Sig -> Ty -> Ty
-  betaTy sig Ty.ZeroTy        = Ty.ZeroTy
-  betaTy sig Ty.OneTy         = Ty.OneTy
-  betaTy sig Ty.NatTy         = Ty.NatTy
-  betaTy sig Ty.UniverseTy    = Ty.UniverseTy
-  betaTy sig (Ty.PiTy a b)    = Ty.PiTy (betaTy sig a) (betaTy sig b)
-  betaTy sig (Ty.SigmaTy a b) = Ty.SigmaTy (betaTy sig a) (betaTy sig b)
-  betaTy sig (Ty.SumTy a b)   = Ty.SumTy (betaTy sig a) (betaTy sig b)
-  betaTy sig (El e) =
-    case betaElem sig e of
-      Elem.ZeroTy      => Ty.ZeroTy
-      Elem.OneTy       => Ty.OneTy
-      Elem.NatTy       => Ty.NatTy
-      Elem.PiTy a b    => betaTy sig (Ty.PiTy (El a) (El b))
-      Elem.SigmaTy a b => betaTy sig (Ty.SigmaTy (El a) (El b))
-      Elem.SumTy a b   => betaTy sig (Ty.SumTy (El a) (El b))
-      QuotTy a r       => betaTy sig (Quotient (El a) r)
-      QSortC sg k es   => QSort sg k es      -- ty-el-qiit
-      Elem.NuTy f      => Ty.NuTy (betaPoly sig f)   -- ty-el-nu
-      e'               => El e'
-  betaTy sig PropTy           = PropTy
-  betaTy sig (Prf e)          = Prf (betaElem sig e)
-  betaTy sig (Quotient a r)   = Quotient (betaTy sig a) (betaElem sig r)
-  betaTy sig (Ty.SigVar x es) =
-    let es' = betaSubNorm sig es
-    in case sigLookup x sig of
-         Just (SigTyDef _ _ a) => betaTy sig (substTy a (embed es'))
-         -- ty-sig-decl: a declaration reference is stuck (no -beta)
-         Just (SigTyDecl _ _)  => Ty.SigVar x es'
-         Just _                => assert_total $ idris_crash "betaTy: signature identifier '\{x}' is not a type entry"
-         Nothing               => assert_total $ idris_crash "betaTy: signature identifier '\{x}' not found"
-  betaTy sig (QSort sg k es)  = QSort (betaQSig sig sg) k (betaSubNorm sig es)
-  betaTy sig (Ty.NuTy f)      = Ty.NuTy (betaPoly sig f)
+  betaTy = betaElem
 
 ||| σ, with every element's own beta-redexes rewritten.
 export
@@ -283,27 +265,24 @@ mutual
     case whnfE sig t of
       Corec p a f x => whnfE sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
       t'            => Out t'
+  whnfE sig (El e) =
+    case whnfE sig e of
+      Elem.ZeroTy      => Elem.ZeroTy
+      Elem.OneTy       => Elem.OneTy
+      Elem.NatTy       => Elem.NatTy
+      Elem.PiTy a b    => Elem.PiTy (El a) (El b)
+      Elem.SigmaTy a b => Elem.SigmaTy (El a) (El b)
+      Elem.SumTy a b   => Elem.SumTy (El a) (El b)
+      QuotTy a r       => QuotTy (El a) r
+      QSort sg k es    => QSort sg k es    -- ty-el-qiit
+      Elem.NuTy f      => Elem.NuTy f      -- ty-el-nu
+      e'               => El e'
   whnfE sig e = e
 
+  ||| One sort: whnf on a type is whnf on the term.
   export
   whnfT : Sig -> Ty -> Ty
-  whnfT sig (El e) =
-    case whnfE sig e of
-      Elem.ZeroTy      => Ty.ZeroTy
-      Elem.OneTy       => Ty.OneTy
-      Elem.NatTy       => Ty.NatTy
-      Elem.PiTy a b    => Ty.PiTy (El a) (El b)
-      Elem.SigmaTy a b => Ty.SigmaTy (El a) (El b)
-      Elem.SumTy a b   => Ty.SumTy (El a) (El b)
-      QuotTy a r       => Quotient (El a) r
-      QSortC sg k es   => QSort sg k es    -- ty-el-qiit
-      Elem.NuTy f      => Ty.NuTy f        -- ty-el-nu
-      e'               => El e'
-  whnfT sig (Ty.SigVar x es) =
-    case sigLookup x sig of
-      Just (SigTyDef _ _ a) => whnfT sig (substTy a (embed es))
-      _ => Ty.SigVar x es
-  whnfT sig t = t
+  whnfT = whnfE
 
 
 -- ===== SINGLE-STEP CONTRACTION AT A PATH (the beta-at primitive;
@@ -339,24 +318,21 @@ step1E sig (QElim sg k ms fs es (QCtor sgW c theta)) =
     else Nothing
 step1E sig (Out (Corec p a f x)) =
   Just (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+step1E sig (El Elem.ZeroTy) = Just Elem.ZeroTy
+step1E sig (El Elem.OneTy) = Just Elem.OneTy
+step1E sig (El Elem.NatTy) = Just Elem.NatTy
+step1E sig (El (Elem.PiTy a b)) = Just (Elem.PiTy (El a) (El b))
+step1E sig (El (Elem.SigmaTy a b)) = Just (Elem.SigmaTy (El a) (El b))
+step1E sig (El (Elem.SumTy a b)) = Just (Elem.SumTy (El a) (El b))
+step1E sig (El (QuotTy a r)) = Just (QuotTy (El a) r)
+step1E sig (El (QSort sg k es)) = Just (QSort sg k es)
+step1E sig (El (Elem.NuTy f)) = Just (Elem.NuTy f)
 step1E sig _ = Nothing
 
+||| One sort: one single-step contraction.
 export
 step1T : Sig -> Ty -> Maybe Ty
-step1T sig (El Elem.ZeroTy) = Just Ty.ZeroTy
-step1T sig (El Elem.OneTy) = Just Ty.OneTy
-step1T sig (El Elem.NatTy) = Just Ty.NatTy
-step1T sig (El (Elem.PiTy a b)) = Just (Ty.PiTy (El a) (El b))
-step1T sig (El (Elem.SigmaTy a b)) = Just (Ty.SigmaTy (El a) (El b))
-step1T sig (El (Elem.SumTy a b)) = Just (Ty.SumTy (El a) (El b))
-step1T sig (El (QuotTy a r)) = Just (Quotient (El a) r)
-step1T sig (El (QSortC sg k es)) = Just (QSort sg k es)
-step1T sig (El (Elem.NuTy f)) = Just (Ty.NuTy f)
-step1T sig (Ty.SigVar x es) =
-  case sigLookup x sig of
-    Just (SigTyDef _ _ a) => Just (substTy a (embed es))
-    _ => Nothing
-step1T sig _ = Nothing
+step1T = step1E
 
 -- The path descent: pure spelling surgery, child indices exactly the
 -- kernel's table (docs/NovaKernel.txt path grammar; binders cross
@@ -394,7 +370,9 @@ mutual
       (Elem.SumTy a b, 1) => Elem.SumTy a <$> contractAtE sig p b
       (Elem.EqTy l r t, 0) => (\l' => Elem.EqTy l' r t) <$> contractAtE sig p l
       (Elem.EqTy l r t, 1) => (\r' => Elem.EqTy l r' t) <$> contractAtE sig p r
-      (Elem.EqTy l r t, 2) => Elem.EqTy l r <$> contractAtT sig p t
+      (Elem.EqTy l r t, 2) => Elem.EqTy l r <$> contractAtE sig p t
+      (El e2, 0) => El <$> contractAtE sig p e2
+      (Prf e2, 0) => Prf <$> contractAtE sig p e2
       (QuotTy a r, 0) => (\a' => QuotTy a' r) <$> contractAtE sig p a
       (QuotTy a r, 1) => QuotTy a <$> contractAtE sig p r
       (Elem.SigVar x es, _) =>
@@ -402,9 +380,9 @@ mutual
       (Class a, 0) => Class <$> contractAtE sig p a
       (QuotElim f q, 0) => (\f' => QuotElim f' q) <$> contractAtE sig p f
       (QuotElim f q, 1) => QuotElim f <$> contractAtE sig p q
-      (Squash t, 0) => Squash <$> contractAtT sig p t
-      (QSortC sg k es, _) =>
-        (\es' => QSortC sg k es') <$> contractSpine sig i p es
+      (Squash t, 0) => Squash <$> contractAtE sig p t
+      (QSort sg k es, _) =>
+        (\es' => QSort sg k es') <$> contractSpine sig i p es
       (QCtor sg k es, _) =>
         (\es' => QCtor sg k es') <$> contractSpine sig i p es
       (QElim sg k ms fs es w, _) =>
@@ -417,26 +395,10 @@ mutual
       (Corec pf a f x, 2) => Corec pf a f <$> contractAtE sig p x
       _ => Nothing
 
+  ||| One sort: one path-contraction.
   export
   contractAtT : Sig -> List Nat -> Ty -> Maybe Ty
-  contractAtT sig [] t = step1T sig t
-  contractAtT sig (i :: p) t =
-    case (t, i) of
-      (Ty.PiTy a b, 0) => (\a' => Ty.PiTy a' b) <$> contractAtT sig p a
-      (Ty.PiTy a b, 1) => Ty.PiTy a <$> contractAtT sig p b
-      (Ty.SigmaTy a b, 0) => (\a' => Ty.SigmaTy a' b) <$> contractAtT sig p a
-      (Ty.SigmaTy a b, 1) => Ty.SigmaTy a <$> contractAtT sig p b
-      (Ty.SumTy a b, 0) => (\a' => Ty.SumTy a' b) <$> contractAtT sig p a
-      (Ty.SumTy a b, 1) => Ty.SumTy a <$> contractAtT sig p b
-      (El e, 0) => El <$> contractAtE sig p e
-      (Prf e, 0) => Prf <$> contractAtE sig p e
-      (Quotient a r, 0) => (\a' => Quotient a' r) <$> contractAtT sig p a
-      (Quotient a r, 1) => Quotient a <$> contractAtE sig p r
-      (Ty.SigVar x es, _) =>
-        Ty.SigVar x <$> contractSpine sig i p es
-      (QSort sg k es, _) =>
-        (\es' => QSort sg k es') <$> contractSpine sig i p es
-      _ => Nothing
+  contractAtT = contractAtE
 
   contractSpine : Sig -> Nat -> List Nat -> SubNorm -> Maybe SubNorm
   contractSpine sig i p es = do
@@ -490,7 +452,9 @@ mutual
       (Elem.SumTy a b, 1) => subAtE p b
       (Elem.EqTy l r t, 0) => subAtE p l
       (Elem.EqTy l r t, 1) => subAtE p r
-      (Elem.EqTy l r t, 2) => subAtT p t
+      (Elem.EqTy l r t, 2) => subAtE p t
+      (El e2, 0) => subAtE p e2
+      (Prf e2, 0) => subAtE p e2
       (QuotTy a r, 0) => subAtE p a
       (QuotTy a r, 1) => subAtE p r
       (Elem.SigVar x es, _) => do
@@ -499,8 +463,8 @@ mutual
       (Class a, 0) => subAtE p a
       (QuotElim f q, 0) => subAtE p f
       (QuotElim f q, 1) => subAtE p q
-      (Squash t, 0) => subAtT p t
-      (QSortC sg k es, _) => do
+      (Squash t, 0) => subAtE p t
+      (QSort sg k es, _) => do
         e2 <- getAt i (toList es)
         subAtE p e2
       (QCtor sg k es, _) => do
@@ -517,28 +481,11 @@ mutual
       (Corec pf a f x, 2) => subAtE p x
       _ => Nothing
 
+  ||| One sort: one subterm reader (the Left/Right tag is vestigial —
+  ||| every position is a term position now).
   export
   subAtT : List Nat -> Ty -> Maybe (Either Elem Ty)
-  subAtT [] t = Just (Right t)
-  subAtT (i :: p) t =
-    case (t, i) of
-      (Ty.PiTy a b, 0) => subAtT p a
-      (Ty.PiTy a b, 1) => subAtT p b
-      (Ty.SigmaTy a b, 0) => subAtT p a
-      (Ty.SigmaTy a b, 1) => subAtT p b
-      (Ty.SumTy a b, 0) => subAtT p a
-      (Ty.SumTy a b, 1) => subAtT p b
-      (El e, 0) => subAtE p e
-      (Prf e, 0) => subAtE p e
-      (Quotient a r, 0) => subAtT p a
-      (Quotient a r, 1) => subAtE p r
-      (Ty.SigVar x es, _) => do
-        e2 <- getAt i (toList es)
-        subAtE p e2
-      (QSort sg k es, _) => do
-        e2 <- getAt i (toList es)
-        subAtE p e2
-      _ => Nothing
+  subAtT = subAtE
 
 mutual
   ||| The outermost-leftmost ≜ redex position inside an element.
@@ -572,15 +519,17 @@ mutual
     childIx (Elem.PiTy a b) = [(0, Left a), (1, Left b)]
     childIx (Elem.SigmaTy a b) = [(0, Left a), (1, Left b)]
     childIx (Elem.SumTy a b) = [(0, Left a), (1, Left b)]
-    childIx (Elem.EqTy l r t) = [(0, Left l), (1, Left r), (2, Right t)]
+    childIx (Elem.EqTy l r t) = [(0, Left l), (1, Left r), (2, Left t)]
+    childIx (El e2) = [(0, Left e2)]
+    childIx (Prf e2) = [(0, Left e2)]
     childIx (QuotTy a r) = [(0, Left a), (1, Left r)]
     childIx (Elem.SigVar x es) =
       map (\(i, e2) => (i, Left e2))
         (zip [0 .. minus (length (toList es)) 1] (toList es))
     childIx (Class a) = [(0, Left a)]
     childIx (QuotElim f q) = [(0, Left f), (1, Left q)]
-    childIx (Squash t) = [(0, Right t)]
-    childIx (QSortC sg k es) =
+    childIx (Squash t) = [(0, Left t)]
+    childIx (QSort sg k es) =
       map (\(i, e2) => (i, Left e2))
         (zip [0 .. minus (length (toList es)) 1] (toList es))
     childIx (QCtor sg k es) =
@@ -594,20 +543,10 @@ mutual
     childIx (Corec pf a f x) = [(0, Left a), (1, Left f), (2, Left x)]
     childIx _ = []
 
+  ||| One sort: one redex finder.
   export
   findRedexT : Sig -> Ty -> Maybe (List Nat)
-  findRedexT sig t =
-    case step1T sig t of
-      Just _ => Just []
-      Nothing =>
-        case t of
-          Ty.PiTy a b => ((0 ::) <$> findRedexT sig a) <|> ((1 ::) <$> findRedexT sig b)
-          Ty.SigmaTy a b => ((0 ::) <$> findRedexT sig a) <|> ((1 ::) <$> findRedexT sig b)
-          Ty.SumTy a b => ((0 ::) <$> findRedexT sig a) <|> ((1 ::) <$> findRedexT sig b)
-          El e => (0 ::) <$> findRedexE sig e
-          Prf e => (0 ::) <$> findRedexE sig e
-          Quotient a r => ((0 ::) <$> findRedexT sig a) <|> ((1 ::) <$> findRedexE sig r)
-          _ => Nothing
+  findRedexT = findRedexE
 
 
 ||| Replace the subterm at a path outright (the positionalizer's
@@ -644,13 +583,17 @@ replaceAtE (i :: p) r e =
     (Elem.SumTy a b, 1) => Elem.SumTy a <$> replaceAtE p r b
     (Elem.EqTy l r2 t, 0) => (\l' => Elem.EqTy l' r2 t) <$> replaceAtE p r l
     (Elem.EqTy l r2 t, 1) => (\r2' => Elem.EqTy l r2' t) <$> replaceAtE p r r2
+    (Elem.EqTy l r2 t, 2) => Elem.EqTy l r2 <$> replaceAtE p r t
+    (El e2, 0) => El <$> replaceAtE p r e2
+    (Prf e2, 0) => Prf <$> replaceAtE p r e2
+    (Squash t, 0) => Squash <$> replaceAtE p r t
     (QuotTy a r2, 0) => (\a' => QuotTy a' r2) <$> replaceAtE p r a
     (QuotTy a r2, 1) => QuotTy a <$> replaceAtE p r r2
     (Elem.SigVar x es, _) => Elem.SigVar x <$> spineSet i p es
     (Class a, 0) => Class <$> replaceAtE p r a
     (QuotElim f q, 0) => (\f' => QuotElim f' q) <$> replaceAtE p r f
     (QuotElim f q, 1) => QuotElim f <$> replaceAtE p r q
-    (QSortC sg k es, _) => (\es' => QSortC sg k es') <$> spineSet i p es
+    (QSort sg k es, _) => (\es' => QSort sg k es') <$> spineSet i p es
     (QCtor sg k es, _) => (\es' => QCtor sg k es') <$> spineSet i p es
     (QElim sg k ms fs es w, _) =>
       if i == length (toList es)

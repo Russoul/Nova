@@ -18,48 +18,12 @@ mutual
       ||| ↑  (weakening substitution)
       Wk : Sub
 
-  namespace Ty
-    public export
-    data Ty : Type where
-      ||| 𝟘
-      ZeroTy : Ty
-      ||| 𝟙
-      OneTy : Ty
-      ||| ℕ
-      NatTy : Ty
-      ||| 𝕌
-      UniverseTy : Ty
-      ||| T → T  (dependent product type, Π)
-      PiTy : Ty -> Ty -> Ty
-      ||| T ⨯ T  (dependent sum type, Σ)
-      SigmaTy : Ty -> Ty -> Ty
-      ||| T ⊎ T  (non-dependent sum type — disjoint union; both
-      ||| components live over the same context, no binder)
-      SumTy : Ty -> Ty -> Ty
-      ||| El t  (every element of the universe is a type)
-      El : Elem -> Ty
-      ||| Ω  (the universe of mere propositions — anti-structural: its
-      ||| codes are compared by inhabitation, see code-prop-eq)
-      PropTy : Ty
-      ||| Prf t  (decoding of a proposition; deliberately not El — it
-      ||| shares none of El's rules: not structural, not injective, no
-      ||| decoding computation)
-      Prf : Elem -> Ty
-      ||| T / t  (quotient type: the Elem is the Ω-valued relation,
-      ||| living two levels deeper — Γ ▷ A ▷ A[↑] — one bound variable
-      ||| per side)
-      Quotient : Ty -> Elem -> Ty
-      ||| x[e˲]  (signature type variable, applied to a (normal)
-      ||| substitution to its declaration context)
-      SigVar : String -> SubNorm -> Ty
-      ||| 𝒮.k ē  (the sort at entry position k of the carried QIIT
-      ||| signature, at index spine ē — ty-qiit)
-      QSort : QSig -> Nat -> SubNorm -> Ty
-      ||| ν 𝔽  (the coinductive type at the carried polynomial — ty-nu;
-      ||| 𝔽 is carried, so ν-equality is structural, like a QIIT's 𝒮)
-      NuTy : Poly -> Ty
-
   namespace Elem
+    ||| ONE term sort (Foundation: the type and element grammars are
+    ||| merged; a term is a TYPE when it is typed at 𝕍 — TopTy). The
+    ||| shared formers (𝟘 𝟙 ℕ → ⨯ ⊎ /, QSort, NuTy) are one
+    ||| constructor each, typed both at 𝕌 (as codes) and at 𝕍 (as
+    ||| types).
     public export
     data Elem : Type where
       ||| ☐ₙ (n-th element in the typing context)
@@ -99,28 +63,44 @@ mutual
       ||| — one bound variable over the right summand — then the
       ||| eliminee)
       SumElim : Elem -> Elem -> Elem -> Elem
-      ||| 𝟘  (universe element)
+      ||| 𝟘  (code and type)
       ZeroTy : Elem
-      ||| 𝟙  (universe element)
+      ||| 𝟙  (code and type)
       OneTy : Elem
-      ||| ℕ  (universe element)
+      ||| ℕ  (code and type)
       NatTy : Elem
-      ||| t → t  (universe element encoding Π)
+      ||| 𝕌  (the predicative universe — a type, not a code)
+      UniverseTy : Elem
+      ||| Ω  (the universe of mere propositions — a type, not a code;
+      ||| anti-structural: its codes are compared by inhabitation,
+      ||| code-prop-eq)
+      PropTy : Elem
+      ||| 𝕍  (THE TOP UNIVERSE — the one term with NO typing rule: it
+      ||| stands only in the type slot of judgements and in the ∈-slot
+      ||| of ≡; 𝕍[σ] ≜ 𝕍 is a meta-clause)
+      TopTy : Elem
+      ||| El t  (decoding: every element of the universe is a type)
+      El : Elem -> Elem
+      ||| Prf t  (decoding of a proposition; deliberately not El — it
+      ||| shares none of El's rules: not structural, not injective, no
+      ||| decoding computation)
+      Prf : Elem -> Elem
+      ||| t → t  (dependent product, Π — code and type)
       PiTy : Elem -> Elem -> Elem
-      ||| t ⨯ t  (universe element encoding Σ)
+      ||| t ⨯ t  (dependent sum, Σ — code and type)
       SigmaTy : Elem -> Elem -> Elem
-      ||| t ⊎ t  (universe element encoding ⊎ — non-dependent, no
-      ||| binder in either component)
+      ||| t ⊎ t  (non-dependent sum — code and type; no binder in
+      ||| either component)
       SumTy : Elem -> Elem -> Elem
       ||| t ≡ t ∈ T  (the equality PROPOSITION — an Ω-element; the
-      ||| third component is an arbitrary TYPE, so equality props
-      ||| exist at large types. code-eq; no 𝕌-code for equality
+      ||| third component is an arbitrary TYPE — OR TopTy, so type
+      ||| equality is a proposition. code-eq; no 𝕌-code for equality
       ||| exists, and equality inherits Ω's anti-structural
       ||| discipline: no injectivity)
       EqTy : Elem -> Elem -> Ty -> Elem
-      ||| t / t  (universe element encoding quotient: the second Elem is the
-      ||| relation code, living two levels deeper — Γ ▷ El a ▷ (El a)[↑] —
-      ||| one bound variable per side)
+      ||| t / t  (quotient — code and type; the second Elem is the
+      ||| Ω-valued relation, living two levels deeper —
+      ||| Γ ▷ A ▷ A[↑] — one bound variable per side)
       QuotTy : Elem -> Elem -> Elem
       ||| x[σ]  (signature variable, applied to a (normal) substitution to its
       ||| declaration context)
@@ -135,9 +115,10 @@ mutual
       Squash : Ty -> Elem
       ||| ⋆  (the canonical proof of a true proposition)
       Star : Elem
-      ||| 𝒮.k ē  (universe code for the sort at entry position k of the
-      ||| carried signature — SMALL signatures only, code-qiit)
-      QSortC : QSig -> Nat -> SubNorm -> Elem
+      ||| 𝒮.k ē  (the sort at entry position k of the carried QIIT
+      ||| signature, at index spine ē — a type (ty-qiit), and a code
+      ||| when 𝒮 is SMALL (code-qiit))
+      QSort : QSig -> Nat -> SubNorm -> Elem
       ||| 𝒮.k θ  (POINT constructor at entry position k, SATURATED: θ is
       ||| the full argument spine — a bare curried constructor would be a
       ||| non-λ inhabitant of a Π-type, breaking Π-canonicity)
@@ -148,8 +129,10 @@ mutual
       ||| in entry order, terms over Γ; then the index spine and the
       ||| eliminee. Coherences are CHECKED (kernel PQCoh), not stored.)
       QElim : QSig -> Nat -> List Ty -> List Elem -> SubNorm -> Elem -> Elem
-      ||| ν 𝔽  (universe code for the coinductive type — code-nu; every
-      ||| polynomial is small, the grammar enforces it)
+      ||| ν 𝔽  (the coinductive type at the carried polynomial — a type
+      ||| (ty-nu) and a code (code-nu; every polynomial is small, the
+      ||| grammar enforces it); 𝔽 is carried, so ν-equality is
+      ||| structural, like a QIIT's 𝒮)
       NuTy : Poly -> Elem
       ||| out t  (the coinductive observation — el-nu-e, the ELIMINATOR;
       ||| lazy: computes only at a corec head, el-nu-beta)
@@ -215,6 +198,13 @@ mutual
       ||| El a → 𝔽 — exponent with external domain (binds)
       PPi : Elem -> Poly -> Poly
 
+  ||| Ty is an ALIAS: with the type judgement dissolved into typing at
+  ||| 𝕍 (TopTy), types are terms — the name survives purely as a
+  ||| reading aid in signatures ("this term stands in type position").
+  public export
+  Ty : Type
+  Ty = Elem
+
   ||| A QIIT signature IS a closed qiit-context: entries in declaration
   ||| order (position 0 first), ANONYMOUS — a signature mints no names.
   public export
@@ -235,40 +225,32 @@ public export
 SigIdentifier : Type
 SigIdentifier = String
 
+||| THREE entry kinds (Foundation: type definitions, type
+||| declarations and type equation constraints are the A = TopTy
+||| instances, not separate kinds).
 public export
 data SigEntry : Type where
-  ||| Γ ⊦ x ≔ a : A  (term definition)
+  ||| Γ ⊦ x ≔ a : A  (definition; a TYPE definition when A = TopTy)
   SigDef : Ctx -> SigIdentifier -> Elem -> Ty -> SigEntry
-  ||| Γ ⊦ x ≔ A type  (type definition)
-  SigTyDef : Ctx -> SigIdentifier -> Ty -> SigEntry
-  ||| Γ ⊦ x : A  (term declaration — a hole; references are stuck,
-  ||| el-sig-decl)
+  ||| Γ ⊦ x : A  (declaration — a hole; references are stuck,
+  ||| el-sig-decl; a TYPE declaration when A = TopTy)
   SigDecl : Ctx -> SigIdentifier -> Ty -> SigEntry
-  ||| Γ ⊦ x type  (type declaration; references are stuck, ty-sig-decl)
-  SigTyDecl : Ctx -> SigIdentifier -> SigEntry
-  ||| Γ ⊦ a₀ ≐ a₁ : A  (element equation constraint — nameless,
-  ||| sig-eq; used through el-sig-eq)
+  ||| Γ ⊦ a₀ ≐ a₁ : A  (equation constraint — nameless, sig-eq; used
+  ||| through el-sig-eq; a TYPE constraint when A = TopTy)
   SigEq : Ctx -> Elem -> Elem -> Ty -> SigEntry
-  ||| Γ ⊦ A₀ ≐ A₁ type  (type equation constraint — nameless,
-  ||| sig-ty-eq; used through ty-sig-eq)
-  SigTyEq : Ctx -> Ty -> Ty -> SigEntry
 
 ||| The name a signature entry binds (constraint entries bind none).
 public export
 sigEntryName : SigEntry -> Maybe SigIdentifier
 sigEntryName (SigDef _ x _ _) = Just x
-sigEntryName (SigTyDef _ x _) = Just x
 sigEntryName (SigDecl _ x _) = Just x
-sigEntryName (SigTyDecl _ x) = Just x
 sigEntryName (SigEq _ _ _ _) = Nothing
-sigEntryName (SigTyEq _ _ _) = Nothing
 
 ||| Is this entry a definition? A signature all of whose entries are
 ||| definitions is DEFINITIONAL (Foundation: acceptance requires it).
 public export
 sigEntryIsDef : SigEntry -> Bool
 sigEntryIsDef (SigDef _ _ _ _) = True
-sigEntryIsDef (SigTyDef _ _ _) = True
 sigEntryIsDef _ = False
 
 public export
@@ -402,25 +384,6 @@ mutual
 
   public export
   covering
-  Eq Ty where
-    ZeroTy         == ZeroTy           = True
-    OneTy          == OneTy            = True
-    NatTy          == NatTy            = True
-    UniverseTy     == UniverseTy       = True
-    PiTy a b       == PiTy a' b'       = a == a' && b == b'
-    SigmaTy a b    == SigmaTy a' b'    = a == a' && b == b'
-    SumTy a b      == SumTy a' b'      = a == a' && b == b'
-    El e           == El e'            = e == e'
-    PropTy         == PropTy           = True
-    Prf e          == Prf e'           = e == e'
-    Quotient a r   == Quotient a' r'   = a == a' && r == r'
-    Ty.SigVar x s  == Ty.SigVar x' s'  = x == x' && s == s'
-    QSort s k es   == QSort s' k' es'  = s == s' && k == k' && es == es'
-    NuTy f         == NuTy f'          = f == f'
-    _              == _                = False
-
-  public export
-  covering
   Eq Elem where
     CtxVar n         == CtxVar n'          = n == n'
     ZeroElim e       == ZeroElim e'        = e == e'
@@ -440,6 +403,11 @@ mutual
     Elem.ZeroTy      == Elem.ZeroTy        = True
     Elem.OneTy       == Elem.OneTy         = True
     Elem.NatTy       == Elem.NatTy         = True
+    UniverseTy       == UniverseTy         = True
+    PropTy           == PropTy             = True
+    TopTy            == TopTy              = True
+    El e             == El e'              = e == e'
+    Prf e            == Prf e'             = e == e'
     Elem.PiTy a b    == Elem.PiTy a' b'    = a == a' && b == b'
     Elem.SigmaTy a b == Elem.SigmaTy a' b' = a == a' && b == b'
     Elem.SumTy a b   == Elem.SumTy a' b'   = a == a' && b == b'
@@ -450,7 +418,7 @@ mutual
     QuotElim f q     == QuotElim f' q'     = f == f' && q == q'
     Squash t         == Squash t'          = t == t'
     Star             == Star               = True
-    QSortC s k es    == QSortC s' k' es'   = s == s' && k == k' && es == es'
+    QSort s k es     == QSort s' k' es'    = s == s' && k == k' && es == es'
     QCtor s k es     == QCtor s' k' es'    = s == s' && k == k' && es == es'
     QElim s k ms fs es w == QElim s' k' ms' fs' es' w' =
       s == s' && k == k' && ms == ms' && fs == fs' && es == es' && w == w'
@@ -505,50 +473,6 @@ mutual
     compare Id          _           = LT
     compare _           Id          = GT
     compare Wk          Wk          = EQ
-
-  public export
-  covering
-  Ord Ty where
-    compare ZeroTy           ZeroTy             = EQ
-    compare ZeroTy           _                  = LT
-    compare _                ZeroTy             = GT
-    compare OneTy            OneTy              = EQ
-    compare OneTy            _                  = LT
-    compare _                OneTy              = GT
-    compare NatTy            NatTy              = EQ
-    compare NatTy            _                  = LT
-    compare _                NatTy              = GT
-    compare UniverseTy       UniverseTy         = EQ
-    compare UniverseTy       _                  = LT
-    compare _                UniverseTy         = GT
-    compare (PiTy a b)       (PiTy a' b')       = compare a a' <+> compare b b'
-    compare (PiTy _ _)       _                  = LT
-    compare _                (PiTy _ _)         = GT
-    compare (SigmaTy a b)    (SigmaTy a' b')    = compare a a' <+> compare b b'
-    compare (SigmaTy _ _)    _                  = LT
-    compare _                (SigmaTy _ _)      = GT
-    compare (SumTy a b)      (SumTy a' b')      = compare a a' <+> compare b b'
-    compare (SumTy _ _)      _                  = LT
-    compare _                (SumTy _ _)        = GT
-    compare (El e)           (El e')            = compare e e'
-    compare (El _)           _                  = LT
-    compare _                (El _)             = GT
-    compare PropTy           PropTy             = EQ
-    compare PropTy           _                  = LT
-    compare _                PropTy             = GT
-    compare (Prf e)          (Prf e')           = compare e e'
-    compare (Prf _)          _                  = LT
-    compare _                (Prf _)            = GT
-    compare (Quotient a r)   (Quotient a' r')   = compare a a' <+> compare r r'
-    compare (Quotient _ _)   _                  = LT
-    compare _                (Quotient _ _)     = GT
-    compare (Ty.SigVar x s)  (Ty.SigVar y t)    = compare x y <+> compare s t
-    compare (Ty.SigVar _ _)  _                  = LT
-    compare _                (Ty.SigVar _ _)    = GT
-    compare (QSort s k es)   (QSort s' k' es')  = compare s s' <+> compare k k' <+> compare es es'
-    compare (QSort _ _ _)    _                  = LT
-    compare _                (QSort _ _ _)      = GT
-    compare (NuTy f)         (NuTy f')          = compare f f'
 
   public export
   covering
@@ -607,6 +531,21 @@ mutual
     compare Elem.NatTy         Elem.NatTy           = EQ
     compare Elem.NatTy         _                    = LT
     compare _                  Elem.NatTy           = GT
+    compare UniverseTy         UniverseTy           = EQ
+    compare UniverseTy         _                    = LT
+    compare _                  UniverseTy           = GT
+    compare PropTy             PropTy               = EQ
+    compare PropTy             _                    = LT
+    compare _                  PropTy               = GT
+    compare TopTy              TopTy                = EQ
+    compare TopTy              _                    = LT
+    compare _                  TopTy                = GT
+    compare (El e)             (El e')              = compare e e'
+    compare (El _)             _                    = LT
+    compare _                  (El _)               = GT
+    compare (Prf e)            (Prf e')             = compare e e'
+    compare (Prf _)            _                    = LT
+    compare _                  (Prf _)              = GT
     compare (Elem.PiTy a b)    (Elem.PiTy a' b')    = compare a a' <+> compare b b'
     compare (Elem.PiTy _ _)    _                    = LT
     compare _                  (Elem.PiTy _ _)      = GT
@@ -637,9 +576,9 @@ mutual
     compare Star               Star                 = EQ
     compare Star               _                    = LT
     compare _                  Star                 = GT
-    compare (QSortC s k es)    (QSortC s' k' es')   = compare s s' <+> compare k k' <+> compare es es'
-    compare (QSortC _ _ _)     _                    = LT
-    compare _                  (QSortC _ _ _)       = GT
+    compare (QSort s k es)     (QSort s' k' es')    = compare s s' <+> compare k k' <+> compare es es'
+    compare (QSort _ _ _)      _                    = LT
+    compare _                  (QSort _ _ _)        = GT
     compare (QCtor s k es)     (QCtor s' k' es')    = compare s s' <+> compare k k' <+> compare es es'
     compare (QCtor _ _ _)      _                    = LT
     compare _                  (QCtor _ _ _)        = GT
@@ -716,24 +655,6 @@ mutual
 
   public export
   covering
-  Show Ty where
-    show ZeroTy = "ZeroTy"
-    show OneTy = "OneTy"
-    show NatTy = "NatTy"
-    show UniverseTy = "UniverseTy"
-    show (PiTy a b) = "PiTy (\{show a}) (\{show b})"
-    show (SigmaTy a b) = "SigmaTy (\{show a}) (\{show b})"
-    show (SumTy a b) = "SumTy (\{show a}) (\{show b})"
-    show (El e) = "El (\{show e})"
-    show PropTy = "PropTy"
-    show (Prf e) = "Prf (\{show e})"
-    show (Quotient a r) = "Quotient (\{show a}) (\{show r})"
-    show (Ty.SigVar x s) = "SigVar \{show x} (\{show s})"
-    show (QSort s k es) = "QSort (\{show s}) \{show k} (\{show es})"
-    show (NuTy f) = "NuTy (\{show f})"
-
-  public export
-  covering
   Show Elem where
     show (CtxVar n) = "CtxVar \{show n}"
     show (ZeroElim e) = "ZeroElim (\{show e})"
@@ -753,6 +674,11 @@ mutual
     show Elem.ZeroTy = "ZeroTy"
     show Elem.OneTy = "OneTy"
     show Elem.NatTy = "NatTy"
+    show UniverseTy = "UniverseTy"
+    show PropTy = "PropTy"
+    show TopTy = "TopTy"
+    show (El e) = "El (\{show e})"
+    show (Prf e) = "Prf (\{show e})"
     show (Elem.PiTy e1 e2) = "PiTy (\{show e1}) (\{show e2})"
     show (Elem.SigmaTy e1 e2) = "SigmaTy (\{show e1}) (\{show e2})"
     show (Elem.SumTy e1 e2) = "SumTy (\{show e1}) (\{show e2})"
@@ -763,7 +689,7 @@ mutual
     show (QuotElim f q) = "QuotElim (\{show f}) (\{show q})"
     show (Squash t) = "Squash (\{show t})"
     show Star = "Star"
-    show (QSortC s k es) = "QSortC (\{show s}) \{show k} (\{show es})"
+    show (QSort s k es) = "QSort (\{show s}) \{show k} (\{show es})"
     show (QCtor s k es) = "QCtor (\{show s}) \{show k} (\{show es})"
     show (QElim s k ms fs es w) =
       "QElim (\{show s}) \{show k} (\{show ms}) (\{show fs}) (\{show es}) (\{show w})"
