@@ -32,7 +32,7 @@
 # — ⟦A → B⟧ a meta function type — REFUTES: meta function types are
 # not injective in their components (Foundation's own remark: in the
 # plain set model both 𝟙 → 𝟘 and ℕ → 𝟘 are empty). So the model
-# interprets both 𝕌 and the judgement `Γ ⊦ A type` into CODE
+# interprets both 𝕌 and the top universe 𝕍 (the judgement `Γ ⊦ A : 𝕍`) into CODE
 # UNIVERSES — inductive-recursive types of names-with-decodings
 # defined in the meta — where equality of types is equality of codes,
 # and injectivity is the meta's ordinary constructor injectivity.
@@ -40,6 +40,13 @@
 # values, functions are meta functions. The codes are exactly the
 # model-side image of Foundation's structural commitment: a
 # type IS its head-constructor tree.
+#
+# NOTE (equality as notation): Foundation's Γ ⊦ a₀ ≐ a₁ : A is
+# derived notation for Γ ⊦ ⋆ : Prf (a₀ ≡ a₁ ∈ A); this file's
+# ≐-clauses are unchanged by that reading — the truth of the equality
+# prop and the meta-equation interpreting the judgemental spelling
+# are the SAME relation (that identity is what el-reflect/el-eq-i
+# always asserted).
 #
 # NOTATION. ⟦·⟧ is semantic interpretation (this file's use is
 # unrelated to Foundation's method-image ⟦·⟧). γ ranges over
@@ -69,7 +76,7 @@
 #                             like El₁ ∘ el = El₀ below;
 #  * meta funext            → every ≐-judgement under a binder
 #                             (equality of interpretations is
-#                             pointwise), el-pi-eta, ty-zero-elim;
+#                             pointwise), el-pi-eta, absurdity collapse (Foundation's retired ty-zero-elim, now derived);
 #  * meta UIP               → el-prf-prop;
 #  * meta surjective pairing→ el-sigma-eta;
 #  * induction-recursion    → the code universes (hence the
@@ -93,7 +100,7 @@
 ////////// Semantic universes //////////
 
 # Two inductive-recursive code universes, one per size. Code₀
-# interprets 𝕌; Code₁ interprets the judgement `type`. Each is a
+# interprets 𝕌; Code₁ interprets the top universe 𝕍. Each is a
 # meta-level data type of NAMES given together with its decoding
 # function; the decoding clause of each constructor is written to
 # its right.
@@ -108,7 +115,7 @@
     pi₀    : (a : Code₀) (b : El₀ a → Code₀) → Code₀  El₀ (pi₀ a b)    ≜ (x : El₀ a) → El₀ (b x)
     sigma₀ : (a : Code₀) (b : El₀ a → Code₀) → Code₀  El₀ (sigma₀ a b) ≜ (x : El₀ a) ⨯ El₀ (b x)
 
-# Large codes — the denotation of `type`. Same formers one level up,
+# Large codes — the denotation of 𝕍. Same formers one level up,
 # plus a code for 𝕌 itself and a code for equality types. eq is the
 # ONLY constructor whose decoding is an Id-type; its arguments are a
 # code and two elements of its decoding, so equality types exist at
@@ -230,7 +237,7 @@
 # entry: (Γ ⊦ x ≔ a : A) defines the meta function ⟦x⟧ ≜ ⟦a⟧ (over
 # ⟦Γ⟧), and a reference interprets by instantiation,
 # ⟦x[e˲]⟧ γ ≜ ⟦x⟧ (⟦e˲⟧ γ); ditto type definitions. el-sig-beta /
-# ty-sig-beta then hold definitionally. Open signatures are not
+# el-sig-beta (type entries included) then hold definitionally. Open signatures are not
 # interpreted: per Foundation's DEFINITIONAL AND OPEN SIGNATURES an
 # open signature denotes the class of its definitional refinements,
 # and this model interprets each refinement.
@@ -242,7 +249,7 @@
 #
 #   Γ ctx                ⟹  ⟦Γ⟧ : 𝒱₁ defined
 #   σ : Γ₀ ⇒ Γ₁          ⟹  ⟦σ⟧ : ⟦Γ₀⟧ → ⟦Γ₁⟧ defined
-#   Γ ⊦ A type           ⟹  ⟦A⟧ : ⟦Γ⟧ → Code₁ defined
+#   Γ ⊦ A : 𝕍            ⟹  ⟦A⟧ : ⟦Γ⟧ → Code₁ defined
 #   Γ ⊦ a : A            ⟹  ⟦a⟧ : (γ : ⟦Γ⟧) → El₁ (⟦A⟧ γ) defined
 #   Γ₀ ≐ Γ₁ ctx          ⟹  ⟦Γ₀⟧ = ⟦Γ₁⟧
 #   Γ ⊦ A₀ ≐ A₁ type     ⟹  ⟦A₀⟧ = ⟦A₁⟧      (pointwise, by funext)
@@ -277,7 +284,8 @@
 #    el-prf-prop ← meta UIP. code-eq congruence (equal components
 #    give equal eq-codes) is structural.
 #
-#  * ty-zero-elim. A term ⟦t⟧ : (γ : ⟦Γ⟧) → 𝟘 makes ⟦Γ⟧ empty
+#  * absurdity collapse (the derivation behind the retired
+#    ty-zero-elim). A term ⟦t⟧ : (γ : ⟦Γ⟧) → 𝟘 makes ⟦Γ⟧ empty
 #    pointwise; two code families out of an empty domain are equal
 #    by funext through 𝟘-elim.
 #
@@ -314,9 +322,10 @@
 #    syntax INTO the meta and never back; establishing that every
 #    closed ⊦ t : ℕ is ≐-equal to a numeral requires a readback and
 #    its correctness — a gluing/logical-relations argument over this
-#    model, carried out (for closed terms) in docs/NovaSyntax.txt,
-#    which uses this model twice: as the target of evaluation and
-#    for the injectivity half of canonicity. Likewise nothing here
+#    model (it would use the model twice: as the target of evaluation
+#    and for the injectivity half of canonicity). No document
+#    currently carries that argument out; canonicity is asserted as
+#    a meta-property where Foundation relies on it. Likewise nothing here
 #    is an algorithm; decidability is not addressed (and the full
 #    theory's ≐ is undecidable by design).
 

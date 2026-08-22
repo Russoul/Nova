@@ -1,13 +1,13 @@
 ////////// Preface //////////
 
-#! highlight keywords: ⊦ : ; , · [ ] ‖ .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id λ let → ⨯ ⊎ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S ⋆ Prf class inj₁ inj₂ ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ 𝟘-elim ℕ-elim quot-elim squash-elim ⊎-elim -elim qctx qty qsig ctx type tel mot dalg eprob sect norm small sig nf qpath ν 𝕏 K out corec poly map
+#! highlight keywords: ⊦ : ; , · [ ] ‖ .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id λ let → ⨯ ⊎ ≡ ∥ / Ω 𝕌 𝕍 ℕ 𝟘 𝟙 Z S ⋆ Prf class inj₁ inj₂ ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ 𝟘-elim ℕ-elim quot-elim squash-elim ⊎-elim -elim qctx qty qsig ctx tel mot dalg eprob sect norm small sig nf qpath ν 𝕏 K out corec poly map
 #! highlight tos: 𝔄 𝔅 𝕥 𝕦 𝕧 𝕤 𝕔 𝕜 𝕘 𝕒 𝕓 𝕞 Φ 𝒮 ς 𝔎 𝔽 𝔾
 #! highlight nova: Γ Δ Ξ Σ σ τ δ θ latin
 #! highlight meta: 𝑤 ρ υ π 𝒞 ℰ
 #! highlight indexed: ☐ ⬡ ‖
 # (`#!` lines are HIGHLIGHTING DECLARATIONS read by
 # tools/render-specs.py — the spec declares its own syntax tables:
-# `keywords` is the FIXED syntax, judgement-level (⊦ : ≐ type …) and
+# `keywords` is the FIXED syntax, judgement-level (⊦ : ≐ …) and
 # object-level (⬡ ▷ El ☐ λ → …) alike, rendered gold; the remaining
 # classes are the METAVARIABLE alphabets by kind — ToS, Nova
 # (`latin` marks bare Latin letters as Nova metavariables inside
@@ -21,9 +21,37 @@
 # the judgements are simultaneously-defined sorts, the rules their
 # constructors, and a term exists only at its type — the grammar below
 # is notation for constructor shapes, not a prior universe of raw terms
-# that typing then carves. docs/NovaSyntax.txt makes this reading
-# precise (a quotient inductive-inductive-recursive definition) for a
-# fragment, and classifies where every rule class lands in it.
+# that typing then carves. The reading is adopted directly, with no
+# separate formalisation document; canonicity-style consequences are
+# stated as meta-properties where they are used.
+#
+# THERE IS NO TYPE JUDGEMENT. Earlier presentations carried a separate
+# judgement pair Γ ⊦ A type / Γ ⊦ A₀ ≐ A₁ type; both are DISSOLVED
+# into the element judgements at the TOP UNIVERSE 𝕍 — Γ ⊦ A : 𝕍 and
+# Γ ⊦ A₀ ≐ A₁ : 𝕍 — and the type and element grammars are merged into
+# ONE term sort. 𝕍 is an ordinary term former with NO typing rule of
+# its own (see THE TOP UNIVERSE in the type rules); "A is a type"
+# everywhere below MEANS Γ ⊦ A : 𝕍. The dissolution is presentational
+# except at one point, where it is an extension: the type slot of the
+# equality proposition admits 𝕍, so type-equality props (A ≡ B ∈ 𝕍)
+# exist and type equality is reflection-complete like element equality
+# (see code-eq and its SEMANTICS note in the Ω block).
+#
+# AND NO EQUALITY JUDGEMENT. The equality proposition fully
+# internalizes judgemental equality, so the judgement dissolves into
+# it: `Γ ⊦ a₀ ≐ a₁ : A` is DERIVED NOTATION for
+# `Γ ⊦ ⋆ : Prf (a₀ ≡ a₁ ∈ A)` — A = 𝕍 giving type equality — and the
+# remaining equality forms (contexts, substitutions, telescopes,
+# spines) are META-DEFINITIONS over it (see EQUALITY in the
+# conventions). ONE typed judgement remains. EQUALITY REFLECTION
+# thereby stops being a principle and becomes the definition; the
+# rule kept under the name el-reflect is ⋆-CANONICITY (any inhabitant
+# of an equality prop yields the ⋆-typing).
+# The setoid model interprets both spellings as the same relation, so
+# this dissolution is purely presentational; every rule below keeps
+# its ≐-spelling, read through the notation.
+# (The DISSOLVED NAMES table at the end of this file maps every
+# retired rule name to its replacement.)
 #
 # Semantics is assigned by the SETOID MODEL: a type denotes a
 # structural CODE together with a proof-irrelevant equivalence relation
@@ -57,11 +85,17 @@
 #    uniqueness η in el-nat-eta's style). DEFINABLE as a QIIT (a
 #    two-point signature — see SUBSUMPTION in the QIIT notes); retained
 #    as a standalone former, like ℕ and (/)
-#  * Equality proposition: (≡), Ω-valued, with reflection — used through
-#    Prf; proof-irrelevant by el-prf-prop (see the Ω block)
+#  * Equality proposition: (≡), Ω-valued and DEFINITIONALLY
+#    reflected — the judgemental spelling ≐ is notation for its
+#    ⋆-inhabitation — used through Prf; proof-irrelevant by
+#    el-prf-prop (see the Ω block)
 #  * Quotient type: (/), by an Ω-valued relation
 #  * A predicative universe: 𝕌
 #  * A universe of mere propositions: Ω (squash ∥-∥, propositional extensionality)
+#  * The top universe: 𝕍 — the types are exactly its elements
+#    (Γ ⊦ A : 𝕍 is this theory's "A is a type"); 𝕍 itself is not
+#    typed: it has no typing rule, no code, and heads no context
+#    entry, Π-domain, or squash — see THE TOP UNIVERSE note
 #  * Quotient inductive-inductive types (QIITs): a SCHEME (not a single
 #    former) — for each well-formed signature 𝒮 (mutually-defined,
 #    possibly index-dependent sorts with point AND equation (path)
@@ -89,14 +123,15 @@
 # signature identifier
 x ::= <signature-entry-identifier>
 
-# signature context
+# signature context — TWO entry kinds; A ranges over terms INCLUDING
+# 𝕍, so type definitions and type declarations are the A = 𝕍
+# instances. There is no constraint kind: an assumed equation is a
+# HOLE at the equation's Prf — a declaration at Prf (a₀ ≡ a₁ ∈ A),
+# read back through el-reflect and closed by INSTANTIATION with ⋆
+# (see DEFINITIONAL AND OPEN SIGNATURES)
 Σ ::= ε
-    | Σ (Γ ⊦ x ≔ a : A)     # term definition
-    | Σ (Γ ⊦ x ≔ T type)    # type definition
-    | Σ (Γ ⊦ x : A)         # term declaration (a HOLE — no definiens)
-    | Σ (Γ ⊦ x type)        # type declaration
-    | Σ (Γ ⊦ a ≐ a : A)     # element equation constraint (nameless)
-    | Σ (Γ ⊦ T ≐ T type)    # type equation constraint (nameless)
+    | Σ (Γ ⊦ x ≔ a : A)     # definition
+    | Σ (Γ ⊦ x : A)         # declaration (a HOLE — no definiens)
 
 # typing context
 Γ ::= ε      # empty typing context
@@ -119,31 +154,34 @@ x ::= <signature-entry-identifier>
 # typing context normal substitution
 e˲, t˲, p˲ ::= · | t˲, t
 
-# type
-T ::= x [e˲]         # type in the signature context
-    | 𝟘
-    | 𝟙
-    | ℕ
-    | 𝕌              # predicative universe
-    | Ω              # universe of mere propositions
-    | T → T          # dependent product type (Π)
-    | T ⨯ T          # dependent sum type (Σ)
-    | T ⊎ T          # non-dependent sum type (disjoint union)
-    | El t           # Every element of the universe is a type
-    | T / t          # quotient type (t an Ω-valued relation)
+# term — ONE sort: the type and element grammars of earlier
+# presentations are merged. A term is a TYPE when it is typed at 𝕍.
+# DISPLAY CONVENTION: the metavariables T, A, B, C range over terms
+# standing in type position, t, a, b, e over terms in element
+# position — one grammar, two reading aids. The formers 𝟘 𝟙 ℕ → ⨯ ⊎ /
+# (and the QIIT sorts and ν) are typed BOTH at 𝕌 (as codes) and at 𝕍
+# (as types): one spelling, two typing rules — intrinsically two
+# constructors sharing notation, mediated by the El-decoding
+# equations (ty-el-*).
+t, T ::= x [e˲]      # signature reference
+    | ☐ᵢ             # i-th element in the typing context
+    | 𝕌              # predicative universe (a type; not a code)
+    | Ω              # universe of mere propositions (a type; not a code)
+    | 𝕍              # THE TOP UNIVERSE — the one term with NO typing
+                     #   rule: it stands only in the type slot of
+                     #   judgements and in the ∈-slot of ≡ — see THE
+                     #   TOP UNIVERSE note in the type rules
+    | El t           # decoding: every element of the universe is a type
     | Prf t          # decoding of a proposition (Ω's El; deliberately not
                      #   written El: it shares none of El's rules — not
                      #   structural, not injective, no decoding computation)
-    | 𝒮.𝕤 ē          # sort 𝕤 of a QIIT signature 𝒮 at index spine ē
-                     #   (see "Quotient inductive-inductive types"); 𝒮 is
-                     #   carried in the type, so QIIT equality is structural
-    | ν 𝔽            # coinductive type at polynomial 𝔽 (see "Coinductive
-                     #   types"); 𝔽 is carried in the type, so ν-equality
-                     #   is structural
-
-# element
-t ::= x [e˲]         # element in the signature context
-    | ☐ᵢ             # i-th element in the typing context
+    | 𝟘              # empty type — code and type
+    | 𝟙              # unit type — code and type
+    | ℕ              # naturals — code and type
+    | t → t          # dependent product (Π) — code and type
+    | t ⨯ t          # dependent sum (Σ) — code and type
+    | t ⊎ t          # non-dependent sum (disjoint union) — code and type
+    | t / t          # quotient by an Ω-valued relation — code and type
     | λ t            # dependent product type introduction
     | t t            # dependent product type elimination
     | let t t        # let-expression (definiens, body — the body
@@ -156,16 +194,10 @@ t ::= x [e˲]         # element in the signature context
     | inj₂ t         # non-dependent sum type introduction (right)
     | ⊎-elim t t t   # non-dependent sum type elimination
                      #   (left case, right case, eliminee)
-    | 𝟘              # element of the universe
-    | 𝟙              # element of the universe
-    | ℕ              # element of the universe
-    | t → t          # element of the universe (encodes Π)
-    | t ⨯ t          # element of the universe (encodes Σ)
-    | t ⊎ t          # element of the universe (encodes ⊎)
     | t ≡ t ∈ T      # equality PROPOSITION — an Ω-element; T an
-                     #   arbitrary TYPE, so equality props exist at
-                     #   large types (see the Ω block)
-    | t / t          # element of the universe (encodes quotient)
+                     #   arbitrary type OR 𝕍 itself, so equality props
+                     #   exist at large types and type equality is a
+                     #   proposition (see the Ω block)
     | 𝟘-elim t
     | ()             # the only element of 𝟙
     | Z
@@ -176,15 +208,21 @@ t ::= x [e˲]         # element in the signature context
     | ∥T∥            # squash: proposition from an arbitrary type (an element
                      #   form embedding a type — the converse direction of El)
     | ⋆              # the canonical proof of a true proposition
-    | 𝒮.𝕤 ē          # universe code for the sort 𝕤 of a SMALL 𝒮 at ē
+    | 𝒮.𝕤 ē          # sort 𝕤 of a QIIT signature 𝒮 at index spine ē —
+                     #   a type, and a code when 𝒮 is SMALL; 𝒮 is
+                     #   carried in the term, so QIIT equality is
+                     #   structural (see "Quotient inductive-inductive
+                     #   types")
     | 𝒮.𝕔 θ          # POINT constructor 𝕔 of 𝒮, SATURATED: θ a full
                      #   argument spine, like every other former
                      #   (equation constructors mint no term: their
                      #   content is a judgement — see el-qiit-path)
     | 𝒮.𝕤-elim ℰ ē t # QIIT eliminator (elimination problem ℰ, indices ē,
                      #   eliminee t) — see the QIIT section
-    | ν 𝔽            # universe code for the coinductive type at 𝔽
-                     #   (every polynomial is small — see "Coinductive types")
+    | ν 𝔽            # coinductive type at polynomial 𝔽 — a type and a
+                     #   code (every polynomial is small); 𝔽 is carried
+                     #   in the term, so ν-equality is structural (see
+                     #   "Coinductive types")
     | out t          # coinductive observation (the ELIMINATOR)
     | corec 𝔽 t t t  # corecursor (the INTRODUCTION: polynomial, carrier
                      #   code, coalgebra body, seed — 𝔽 and the carrier are
@@ -220,8 +258,8 @@ t ::= x [e˲]         # element in the signature context
 #   retained premises and the conclusion, add their presuppositions, and
 #   close transitively). Expansion: add the closure back as explicit
 #   premises — this recovers the previous exhaustive style, where e.g.
-#   `Γ ▷ A ⊦ f : B` was always accompanied by `Γ ctx`, `Γ ⊦ A type` and
-#   `Γ ▷ A ⊦ B type`. Premises NOT in the closure are never omitted: in
+#   `Γ ▷ A ⊦ f : B` was always accompanied by `Γ ctx`, `Γ ⊦ A : 𝕍` and
+#   `Γ ▷ A ⊦ B : 𝕍`. Premises NOT in the closure are never omitted: in
 #   particular eliminator motives, the middle subject of a transitivity,
 #   and the data of the coercion rules are genuine inputs and always
 #   appear.
@@ -229,40 +267,61 @@ t ::= x [e˲]         # element in the signature context
 # * GROUPED CONCLUSIONS. A rule with several conclusions below the line
 #   abbreviates one rule per conclusion (same premises).
 #
-# * EQUIVALENCE RULES. Each of the seven equality judgements —
+# * EQUALITY. There is ONE equality: the proposition (a₀ ≡ a₁ ∈ A).
+#   The judgemental spelling is DERIVED NOTATION —
 
-    Γ₀ ≐ Γ₁ ctx                 (contexts)
-    σ₀ ≐ σ₁ : Γ ⇒ Δ             (substitutions)
-    e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm      (normal substitutions)
-    Γ ⊦ A₀ ≐ A₁ type            (types)
-    Γ ⊦ a₀ ≐ a₁ : A             (elements)
-    Γ ⊦ Δ₀ ≐ Δ₁ tel             (telescopes)
-    Γ ⊦ ē₀ ≐ ē₁ : Δ             (element lists)
+    Γ ⊦ a₀ ≐ a₁ : A    ≜    Γ ⊦ ⋆ : Prf (a₀ ≡ a₁ ∈ A)
+
+#   — with A ranging over types AND 𝕍 (A = 𝕍 is TYPE equality). It is
+#   not a judgement form: its presuppositions are those of the
+#   unfolding, which close over code-eq's premises — exactly the two
+#   typings the retired form presupposed. The remaining equality
+#   spellings are META-DEFINITIONS over it:
 #
-#   — is governed by three rules adopted once here and not repeated per
-#   class. Writing J for the well-formedness form and J⁼ for the
-#   equality form of a class:
+#     Γ₀ ≐ Γ₁ ctx             pointwise: ε ≐ ε, and
+#                             Γ₀ ▷ A₀ ≐ Γ₁ ▷ A₁ iff Γ₀ ≐ Γ₁ ctx and
+#                             Γ₁ ⊦ A₀ ≐ A₁ : 𝕍 (the old ctx-ext-cong,
+#                             now the defining clause)
+#     σ₀ ≐ σ₁ : Γ ⇒ Δ         EXTENSIONAL: Γ ⊦ ☐ᵢ[σ₀] ≐ ☐ᵢ[σ₁] : Δ‖ᵢ[σ₁]
+#                             for every i < |Δ| — the substitution
+#                             calculus's own equations (assoc, the id
+#                             laws, wk-ext, eta, ...) are then
+#                             META-LEMMAS, by the var-sub-* clauses
+#     e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm  pointwise (sub-norm-ext-cong defining)
+#     Γ ⊦ Δ₀ ≐ Δ₁ tel         pointwise (tel-ext-cong defining)
+#     Γ ⊦ ē₀ ≐ ē₁ : Δ         pointwise (sp-ext-cong defining)
+#
+#   The EQUIVALENCE structure: for the ≐-notation it is three RULES,
+#   stated once here —
 
-    J(a)              J⁼(a₀ ≐ a₁)          J⁼(a₀ ≐ a₁)   J⁼(a₁ ≐ a₂)
-    ----------(refl)  -----------(sym)     ------------------------(trans, via a₁)
-    J⁼(a ≐ a)         J⁼(a₁ ≐ a₀)          J⁼(a₀ ≐ a₂)
+    Γ ⊦ a : A         Γ ⊦ a₀ ≐ a₁ : A       Γ ⊦ a₀ ≐ a₁ : A   Γ ⊦ a₁ ≐ a₂ : A
+    ---------(el-refl) ---------------(el-sym) --------------------------------(el-trans, via a₁)
+    Γ ⊦ a ≐ a : A     Γ ⊦ a₁ ≐ a₀ : A       Γ ⊦ a₀ ≐ a₂ : A
 
-#   (transitivity's middle subject a₁, with J(a₁), is an input of the
-#   rule). Instances are named ctx-refl, ctx-sym, ctx-trans, sub-refl,
-#   ..., sp-trans. Consequently the pointwise equality rules for
+#   (transitivity's middle subject a₁, with its typing, is an input;
+#   ty-refl/-sym/-trans of earlier presentations are the A = 𝕍
+#   instances). For the meta-defined spellings, refl/sym/trans are
+#   META-LEMMAS, pointwise from these (the former ctx-/sub-/sub-norm-/
+#   tel-/sp- refl/sym/trans instances). Pointwise equality of
 #   constants and atoms (ε ≐ ε ctx, id ≐ id, ↑ ≐ ↑, · ≐ ·,
 #   x[e˲] ≐ x[e˲], ...) are refl instances and are not stated.
 
 # * DEFINITIONAL EQUALITY. A rule concluding J ≜ K asserts the
-#   corresponding ≐-judgement and additionally marks it as a computation
+#   corresponding ≐-notation and additionally marks it as a computation
 #   step, oriented left to right. Its presuppositions are those of the
-#   underlying ≐ form.
+#   underlying ≐ spelling.
 
 # * NAMES. Every rule carries a canonical name on its inference line,
 #   following one homogeneous scheme — <class>-<former>-<kind> — where
-#   the class is the judgement class (ctx, sub, sub-norm, ty, el, code, poly,
-#   tel, sp), the former names the connective or constructor, and the
-#   kind distinguishes introduction (i), elimination (e), computation
+#   the class prefix names the judgement class (ctx, sub, sub-norm,
+#   el, tel, sp, poly), EXCEPT that within the element class the
+#   prefix records the conclusion's universe: ty- for conclusions at
+#   𝕍 (types), code- for conclusions at 𝕌 (codes), el- otherwise.
+#   (The ty judgement class is dissolved into el at 𝕍; the prefix
+#   survives as a naming convention precisely so that rule names are
+#   stable across the dissolution — see DISSOLVED NAMES at the end.)
+#   The former names the connective or constructor, and the kind
+#   distinguishes introduction (i), elimination (e), computation
 #   (beta), uniqueness (eta), congruence (cong), injectivity (inj),
 #   substitution action (sub), and coercion (coe). These names are the
 #   ones docs/NovaKernel.txt and docs/NovaElaboration.txt cite; there
@@ -274,19 +333,21 @@ t ::= x [e˲]         # element in the signature context
   --------------------------   ------------------------------------
   Σ sig                        —
   Γ ctx                        —
-  Γ₀ ≐ Γ₁ ctx                  Γ₀ ctx;  Γ₁ ctx
   σ : Γ ⇒ Δ                    Γ ctx;  Δ ctx
-  σ₀ ≐ σ₁ : Γ ⇒ Δ              σ₀ : Γ ⇒ Δ;  σ₁ : Γ ⇒ Δ
   e˲ : Γ ⇒ Δ norm              Γ ctx;  Δ ctx
-  e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm       e˲₀ : Γ ⇒ Δ norm;  e˲₁ : Γ ⇒ Δ norm
-  Γ ⊦ A type                   Γ ctx
-  Γ ⊦ A₀ ≐ A₁ type             Γ ⊦ A₀ type;  Γ ⊦ A₁ type
-  Γ ⊦ a : A                    Γ ⊦ A type
-  Γ ⊦ a₀ ≐ a₁ : A              Γ ⊦ a₀ : A;  Γ ⊦ a₁ : A
+  Γ ⊦ A : 𝕍                   Γ ctx          (the A = 𝕍 instance)
+  Γ ⊦ a : A                    Γ ⊦ A : 𝕍     (A ≠ 𝕍)
+  # The typing judgement's presupposition is TWO-CASE, by the two rows
+  # above: at A = 𝕍 only Γ ctx is presupposed — 𝕍 is the ONE term
+  # that stands in type position without itself being typed (it has
+  # no typing rule; see THE TOP UNIVERSE) — and at A ≠ 𝕍 the type's
+  # own 𝕍-typing is. The rows are instances of one judgement form,
+  # not separate forms. There are NO equality rows: Γ ⊦ a₀ ≐ a₁ : A
+  # is derived notation for a ⋆-typing (its presuppositions unfold to
+  # the two typings), and the other ≐-spellings are meta-definitions
+  # — see EQUALITY in the conventions.
   Γ ⊦ Δ tel                    Γ ctx
-  Γ ⊦ Δ₀ ≐ Δ₁ tel              Γ ⊦ Δ₀ tel;  Γ ⊦ Δ₁ tel
   Γ ⊦ ē : Δ                    Γ ⊦ Δ tel
-  Γ ⊦ ē₀ ≐ ē₁ : Δ              Γ ⊦ ē₀ : Δ;  Γ ⊦ ē₁ : Δ
   Γ ⊦ Φ qctx                   Γ ctx        (qiit-context)
   Γ ; Φ ⊦ 𝔄 qty                Γ ⊦ Φ qctx   (qiit-type)
   Γ ; Φ ⊦ 𝕥 : 𝔄                Γ ; Φ ⊦ 𝔄 qty (qiit-term)
@@ -304,9 +365,14 @@ t ::= x [e˲]         # element in the signature context
   # own: they are compared structurally, per IDENTITY in each scheme's
   # section.
 
-# A context extension Γ ▷ A presupposes Γ ctx and Γ ⊦ A type, so a
+# A context extension Γ ▷ A presupposes Γ ctx and Γ ⊦ A : 𝕍, so a
 # premise stated under Γ ▷ A carries A's well-formedness with it (and
-# likewise for iterated extensions).
+# likewise for iterated extensions). Because Γ ⊦ 𝕍 : 𝕍 is not
+# derivable, Γ ▷ 𝕍 is ill-formed: contexts cannot bind a variable
+# ranging over all types — a genuine 𝕍-typing derivation is demanded
+# wherever a term is CONSUMED as a type (ctx-ext, Π/Σ components,
+# telescope entries, motives), and only the type SLOT of judgements
+# admits 𝕍 itself.
 
 ///////// Rules (sig) /////////
 
@@ -315,78 +381,72 @@ t ::= x [e˲]         # element in the signature context
 
 Σ Γ ⊦ a : A
 x ∉ Σ
---------------------- (sig-def)
-Σ (Γ ⊦ x ≔ a : A) sig
+--------------------- (sig-def)     # A = 𝕍 is the TYPE definition —
+Σ (Γ ⊦ x ≔ a : A) sig               #   the former sig-ty-def
 
-Σ Γ ⊦ A type
-x ∉ Σ
----------------------- (sig-ty-def)
-Σ (Γ ⊦ x ≔ A type) sig
-
-Σ Γ ⊦ A type
+Σ Γ ⊦ A : 𝕍
 x ∉ Σ
 ------------------ (sig-decl)
 Σ (Γ ⊦ x : A) sig
 
 Σ Γ ctx
 x ∉ Σ
-------------------- (sig-ty-decl)
-Σ (Γ ⊦ x type) sig
-
-Σ Γ ⊦ a₀ : A
-Σ Γ ⊦ a₁ : A
------------------------- (sig-eq)
-Σ (Γ ⊦ a₀ ≐ a₁ : A) sig
-
-Σ Γ ⊦ A₀ type
-Σ Γ ⊦ A₁ type
--------------------------- (sig-ty-eq)
-Σ (Γ ⊦ A₀ ≐ A₁ type) sig
+------------------- (sig-ty-decl)   # the A = 𝕍 declaration (a TYPE
+Σ (Γ ⊦ x : 𝕍) sig                   #   hole) is NOT a sig-decl
+                                    #   instance — 𝕍 admits no
+                                    #   Σ Γ ⊦ 𝕍 : 𝕍 premise, so the
+                                    #   two-case presupposition
+                                    #   surfaces as a second rule,
+                                    #   the one place it does
 
 # DEFINITIONAL AND OPEN SIGNATURES. A signature is DEFINITIONAL when
-# every entry is a definition (sig-def/sig-ty-def). The other entry
-# kinds make it OPEN: a DECLARATION is a hole — a name with a type and
-# no definiens, whose references x[e˲] are STUCK (el-sig-decl /
-# ty-sig-decl below; deliberately no -beta) — and a CONSTRAINT is an
-# assumed equation, used through el-sig-eq/ty-sig-eq exactly like a
-# definitional equality. Open signatures are the working states of an
-# elaboration run (docs/NovaElaboration.txt): the declarations and
-# constraints of the run's signature ARE its open proof obligations,
-# and a run is ACCEPTED only once its signature is definitional.
+# every entry is a definition (sig-def). A DECLARATION makes it OPEN:
+# a hole — a name with a type and no definiens, whose references
+# x[e˲] are STUCK (el-sig-decl below; deliberately no -beta). Type
+# holes are the A = 𝕍 instances. An assumed EQUATION is a hole at the
+# equation's Prf — an entry (Γ ⊦ h : Prf (a₀ ≡ a₁ ∈ A)), A = 𝕍 for a
+# type equation — whose reference h[e˲] yields the instantiated
+# equation by el-reflect: what the retired constraint kind provided
+# through its own rules (sig-eq/el-sig-eq) is one el-reflect away
+# from an ordinary declaration, so the kind is gone. Open signatures
+# are the working states of an elaboration run
+# (docs/NovaElaboration.txt): the declarations of the run's signature
+# ARE its open proof obligations, and a run is ACCEPTED only once its
+# signature is definitional.
 #
 # The canonical-forms semantics below reads over definitional
 # signatures only. An open signature denotes the CLASS of its
 # definitional REFINEMENTS — the signatures obtained by instantiating
-# every declaration and discharging every constraint (the two
-# admissible principles next); every judgement derived over the open
-# signature holds over each refinement. The class may be EMPTY (a hole
-# at Prf ∥𝟘∥, a constraint Z ≐ S Z : ℕ): judgements under
-# unsatisfiable assumptions carry no absolute content — which is why
-# acceptance demands a definitional signature and nothing weaker.
+# every declaration (the one admissible principle next); every
+# judgement derived over the open signature holds over each
+# refinement. The class may be EMPTY (a hole at Prf ∥𝟘∥, or at
+# Prf (Z ≡ S Z ∈ ℕ)): judgements under unsatisfiable assumptions
+# carry no absolute content — which is why acceptance demands a
+# definitional signature and nothing weaker.
 #
-# Both refinement principles are META-THEOREMS (by induction on
-# derivations), not rules of the theory — the workflow they justify is
-# edit-and-rerun, never an in-place signature surgery:
+# The refinement principle is a META-THEOREM (by induction on
+# derivations), not a rule of the theory — the workflow it justifies
+# is edit-and-rerun, never an in-place signature surgery:
 #
 # * INSTANTIATION (signature cut). If Σ (Γ ⊦ x : A) Σ' ⊦ J and
 #   Σ Γ ⊦ t : A — the filling term lives in the PREFIX preceding the
 #   hole — then Σ Σ'[t/x] ⊦ J[t/x], where [t/x] replaces every
-#   reference x[e˲] by t[e˲]. Ditto for a type declaration filled by
-#   Σ Γ ⊦ T type. The IN-PLACE variant needs no substitution at all:
+#   reference x[e˲] by t[e˲]. The A = 𝕍 instance covers type
+#   declarations, filled by Σ Γ ⊦ T : 𝕍. The IN-PLACE variant needs
+#   no substitution at all:
 #   Σ (Γ ⊦ x ≔ t : A) Σ' ⊦ J follows directly, since every rule that
 #   applied to the declaration entry has its conclusion re-derivable
 #   from the definition entry (el-sig-decl's conclusion is
 #   el-sig-var's) and no rule depends on x LACKING a body — the flip
 #   only refines, adding the equations x[e˲] ≜ t[e˲].
+#   DISCHARGING an equation obligation is the Prf instance: the hole
+#   h : Prf (a₀ ≡ a₁ ∈ A) fills with ⋆ exactly when the equation is
+#   derivable in its prefix (el-eq-i), the same condition the retired
+#   DISCHARGE meta-theorem demanded of a constraint — one open-entry
+#   kind, one closing move.
 #
-# * DISCHARGE. If Σ (Γ ⊦ a₀ ≐ a₁ : A) Σ' ⊦ J and Σ Γ ⊦ a₀ ≐ a₁ : A —
-#   the constraint is DERIVABLE in its prefix — then Σ Σ' ⊦ J: the
-#   entry deletes, every el-sig-eq use of it being derivable outright.
-#   Ditto for type constraints via ty-sig-eq.
-#
-# Substitution action is uniform in the entry kind: the -sub-sig-var
-# rules (ty-sub-sig-var, el-sub-sig-var), stated below for
-# definitions, are adopted verbatim for declarations —
+# Substitution action is uniform in the entry kind: el-sub-sig-var,
+# stated below for definitions, is adopted verbatim for declarations —
 # x[e˲][σ] ≜ x[e˲ ∘ σ] whichever entry x names.
 
 ///////// Rules (ctx) /////////
@@ -394,16 +454,27 @@ x ∉ Σ
 --------- (ctx-empty)
 ε ctx
 
-Γ ⊦ A type
+Γ ⊦ A : 𝕍
 ----------- (ctx-ext)
 Γ ▷ A ctx
 
 Γ₀ ≐ Γ₁ ctx
-Γ₁ ⊦ A₀ ≐ A₁ type
---------------------- (ctx-ext-cong)
-Γ₀ ▷ A₀ ≐ Γ₁ ▷ A₁ ctx
+Γ₁ ⊦ A₀ ≐ A₁ : 𝕍
+--------------------- (ctx-ext-cong)   # the DEFINING clause of the
+Γ₀ ▷ A₀ ≐ Γ₁ ▷ A₁ ctx                  #   pointwise meta-notation
+                                       #   (EQUALITY, conventions)
 
 ///////// Rules (ctx substitution) /////////
+#
+# SUBSTITUTION EQUALITY IS THE EXTENSIONAL META-NOTATION (EQUALITY,
+# conventions): σ₀ ≐ σ₁ : Γ ⇒ Δ says the variable images agree. The
+# equations of the calculus below (sub-empty-unique, sub-id-empty,
+# sub-eta, sub-id-pre/-post, sub-assoc, sub-wk-ext, sub-empty-comp,
+# sub-ext-post, sub-ext-unique, sub-comp-cong, sub-ext-cong, and the
+# sub-eq-coe-* transports) are therefore META-LEMMAS, established by
+# the var-sub-* clauses and el-sub-comp/el-sub-id — retained here,
+# statements and names unchanged, because the kernel and the docs
+# cite them as facts.
 
 Γ ctx
 ------------- (sub-empty)
@@ -427,14 +498,14 @@ x ∉ Σ
 ------------- (sub-id)
 id : Γ ⇒ Γ
 
-Γ ⊦ A type
+Γ ⊦ A : 𝕍
 ---------------- (sub-wk)
 ↑ : Γ ▷ A ⇒ Γ
 
 ------------------ (sub-id-empty)
 id ≐ · : ε ⇒ ε
 
-Γ ⊦ A type
+Γ ⊦ A : 𝕍
 ------------------------------ (sub-eta) # admissible by meta-level induction
 ↑, ☐₀ ≐ id : Γ ▷ A ⇒ Γ ▷ A
 
@@ -468,7 +539,7 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 (σ, t) ∘ τ ≐ (σ ∘ τ, t[τ]) : Γ₀ ⇒ Γ₂ ▷ A
 
 σ : Γ₀ ⇒ Γ₁
-Γ₁ ⊦ A type
+Γ₁ ⊦ A : 𝕍
 ------------------------------------- (sub-lift) # natural substitution (admissible)
 σ⁺ ≜ (σ ∘ ↑, ☐₀) : Γ₀ ▷ A[σ] ⇒ Γ₁ ▷ A
 
@@ -531,8 +602,8 @@ e˲ : Γ₀ ⇒ Γ₁ norm
 
 e˲₀ ≐ e˲₁ : Γ₀ ⇒ Γ₁ norm
 Γ₀ ⊦ t₀ ≐ t₁ : A[e˲₁]
----------------------------------------- (sub-norm-ext-cong)
-(e˲₀, t₀) ≐ (e˲₁, t₁) : Γ₀ ⇒ Γ₁ ▷ A norm
+---------------------------------------- (sub-norm-ext-cong)   # defining clause of the
+(e˲₀, t₀) ≐ (e˲₁, t₁) : Γ₀ ⇒ Γ₁ ▷ A norm                       #   pointwise meta-notation
 
 e˲ : Γ₀ ⇒ Γ₁ norm
 ------------------- (sub-norm-embed) # a normal substitution is a substitution
@@ -570,215 +641,222 @@ e˲ ≐ t˲ : Γ ⇒ Δ norm
 ------------------------- (sub-norm-eq-coe-cod)
 e˲ ≐ t˲ : Γ ⇒ Δ' norm
 
-///////// Rules (type) /////////
+///////// Rules (types — typing at 𝕍) /////////
+#
+# THE TOP UNIVERSE 𝕍. The types are the terms typed at 𝕍; the rules
+# of this section are the old type-formation and type-equality rules,
+# re-read as element rules whose conclusions sit at 𝕍. The design of
+# 𝕍 in full:
+#
+#  * 𝕍 is an ordinary TERM FORMER with NO typing rule: no Γ ⊦ 𝕍 : 𝕍
+#    (Girard), no code in 𝕌, no level tower above it. It stands only
+#    in the type slot of the judgements (licensed by the two-case
+#    presupposition row) and in the ∈-slot of ≡ (code-eq's endpoints
+#    are typing judgements, so their slot is a judgement slot too).
+#  * Every EXCLUSION is by absence of a derivation, not by grammar:
+#    Γ ▷ 𝕍 (type variables in contexts), 𝕍-domain and 𝕍-codomain
+#    Π-types (quantification over all types), ∥𝕍∥, telescope entries
+#    and motives at 𝕍 — each would need Γ ⊦ 𝕍 : 𝕍 through its
+#    premises; El 𝕍 would need Γ ⊦ 𝕍 : 𝕌; and 𝕍 has no typing at
+#    all. The theory's
+#    stratification (𝕌 predicative, Ω impredicative-but-irrelevant,
+#    the top unnamed-no-longer) is exactly what it was.
+#  * 𝕍[σ] ≜ 𝕍 is a META-CLAUSE of the substitution action, not a
+#    judgemental rule — 𝕍 is not typed, so an equation about it has
+#    no judgemental home, and needs none: 𝕍 occurs only in judgement
+#    slots, where indices are computed by the meta-operations (the
+#    Γ‖ₙ precedent).
+#  * The GENERAL rules of the old type judgement are now instances of
+#    the element rules at A = 𝕍 and are not restated: ty-sub, ty-sub-id,
+#    ty-sub-comp are el-sub, el-sub-id, el-sub-comp; ty-coe-ctx and
+#    ty-eq-coe-ctx are el-coe-ctx and el-eq-coe-ctx; ty-sub-cong(-fix)
+#    is el-sub-cong(-fix); ty-sig-var, ty-sig-beta, ty-sig-decl and
+#    ty-sub-sig-var are el-sig-var, el-sig-beta, el-sig-decl and
+#    el-sub-sig-var at an entry whose A is 𝕍 (their conclusion
+#    indices A[e˲], A[e˲ ∘ σ] compute to 𝕍 by the meta-clause). The FORMER-SPECIFIC rules below all remain: a
+#    conclusion at 𝕍 with component premises at 𝕍 is not an instance
+#    of its 𝕌-code sibling (whose components sit at 𝕌, bound through
+#    El), so both members of each pair survive the merge.
+#  * ty-zero-elim (type equality from absurdity) is DERIVABLE and
+#    retired: from Γ ⊦ t : 𝟘, el-zero-e at the type
+#    Prf (A ≡ B ∈ 𝕍) — code-eq admits 𝕍, see the Ω block — gives
+#    𝟘-elim t : Prf (A ≡ B ∈ 𝕍), and el-reflect concludes
+#    Γ ⊦ A ≐ B : 𝕍. (The same derivation gives a ≐ b : C at ANY type
+#    under absurdity — absurdity collapses every equation, type
+#    equations included.)
+#  * NAMING. Rules concluding at 𝕍 keep their ty- prefix (see NAMES
+#    in the conventions): the prefix now reads "typing at 𝕍", as
+#    code- reads "typing at 𝕌".
 
 Γ ctx
 -----------------------
-Γ ⊦ 𝟘 type   (ty-zero)
-Γ ⊦ 𝟙 type   (ty-one)
-Γ ⊦ ℕ type   (ty-nat)
-Γ ⊦ 𝕌 type   (ty-univ)
-Γ ⊦ Ω type   (ty-prop)
+Γ ⊦ 𝟘 : 𝕍   (ty-zero)
+Γ ⊦ 𝟙 : 𝕍   (ty-one)
+Γ ⊦ ℕ : 𝕍   (ty-nat)
+Γ ⊦ 𝕌 : 𝕍   (ty-univ)
+Γ ⊦ Ω : 𝕍   (ty-prop)
 
-Γ ⊦ A type
-Γ ▷ A ⊦ B type
+Γ ⊦ A : 𝕍
+Γ ▷ A ⊦ B : 𝕍
 ------------------ (ty-pi)
-Γ ⊦ A → B type
+Γ ⊦ A → B : 𝕍
 
-Γ ⊦ A type
-Γ ▷ A ⊦ B type
+Γ ⊦ A : 𝕍
+Γ ▷ A ⊦ B : 𝕍
 ------------------ (ty-sigma)
-Γ ⊦ A ⨯ B type
+Γ ⊦ A ⨯ B : 𝕍
 
-Γ ⊦ A type
-Γ ⊦ B type
+Γ ⊦ A : 𝕍
+Γ ⊦ B : 𝕍
 ------------------ (ty-sum)     # non-dependent: B over Γ, not Γ ▷ A
-Γ ⊦ A ⊎ B type
+Γ ⊦ A ⊎ B : 𝕍
 
 Γ ⊦ A : 𝕌
 ----------------- (ty-el)
-Γ ⊦ El A type
+Γ ⊦ El A : 𝕍
 
 Γ ⊦ p : Ω
 ------------------ (ty-prf)
-Γ ⊦ Prf p type
+Γ ⊦ Prf p : 𝕍
 
-Γ ⊦ A type
+Γ ⊦ A : 𝕍
 Γ ▷ A ▷ A[↑] ⊦ R : Ω
 ----------------------- (ty-quot)
-Γ ⊦ A / R type
+Γ ⊦ A / R : 𝕍
 
-(Γ ⊦ x ≔ A type) ∈ Σ
-e˲ : Δ ⇒ Γ norm
----------------------- (ty-sig-var)
-Σ Δ ⊦ x[e˲] type
-
-(Γ ⊦ x ≔ A type) ∈ Σ
-e˲ : Δ ⇒ Γ norm
--------------------------- (ty-sig-beta)
-Σ Δ ⊦ x[e˲] ≜ A[e˲] type
-
-# Open-signature references: a type declaration types its references
-# but never unfolds them (no -beta — the reference is stuck); a type
-# constraint is used as a definitional equality.
-
-(Γ ⊦ x type) ∈ Σ
-e˲ : Δ ⇒ Γ norm
------------------- (ty-sig-decl)
-Σ Δ ⊦ x[e˲] type
-
-(Γ ⊦ A₀ ≐ A₁ type) ∈ Σ
-e˲ : Δ ⇒ Γ norm
------------------------------- (ty-sig-eq)
-Σ Δ ⊦ A₀[e˲] ≐ A₁[e˲] type
+# Signature references at type entries need no rules of their own:
+# el-sig-var, el-sig-beta and el-sig-decl (in the element rules)
+# cover the A = 𝕍 entries — e.g. for (Γ ⊦ x ≔ A : 𝕍) ∈ Σ,
+# el-sig-var concludes Σ Δ ⊦ x[e˲] : 𝕍[e˲], and the index computes
+# to 𝕍 by the meta-clause. As before, a type declaration types its
+# references but never unfolds them (no -beta — the reference is
+# stuck); an assumed type equation is a hole at Prf (A₀ ≡ A₁ ∈ 𝕍),
+# read back through el-reflect.
 
 # El-decoding: El of a code computes to the type it encodes.
 
 Γ ctx
 ------------------------------------------------
-Γ ⊦ El 𝟘 ≜ 𝟘 type   (ty-el-zero)
-Γ ⊦ El 𝟙 ≜ 𝟙 type   (ty-el-one)
-Γ ⊦ El ℕ ≜ ℕ type   (ty-el-nat)
+Γ ⊦ El 𝟘 ≜ 𝟘 : 𝕍   (ty-el-zero)
+Γ ⊦ El 𝟙 ≜ 𝟙 : 𝕍   (ty-el-one)
+Γ ⊦ El ℕ ≜ ℕ : 𝕍   (ty-el-nat)
 
 Γ ⊦ A : 𝕌
 Γ ▷ El A ⊦ B : 𝕌
 ---------------------------------- (ty-el-pi)
-Γ ⊦ El (A → B) ≜ El A → El B type
+Γ ⊦ El (A → B) ≜ El A → El B : 𝕍
 
 Γ ⊦ A : 𝕌
 Γ ▷ El A ⊦ B : 𝕌
 ---------------------------------- (ty-el-sigma)
-Γ ⊦ El (A ⨯ B) ≜ El A ⨯ El B type
+Γ ⊦ El (A ⨯ B) ≜ El A ⨯ El B : 𝕍
 
 Γ ⊦ A : 𝕌
 Γ ⊦ B : 𝕌
 ---------------------------------- (ty-el-sum)
-Γ ⊦ El (A ⊎ B) ≜ El A ⊎ El B type
+Γ ⊦ El (A ⊎ B) ≜ El A ⊎ El B : 𝕍
 
 Γ ⊦ A : 𝕌
 Γ ▷ El A ▷ (El A)[↑] ⊦ R : Ω
 ---------------------------------- (ty-el-quot)
-Γ ⊦ El (A / R) ≜ El A / R type
+Γ ⊦ El (A / R) ≜ El A / R : 𝕍
 
-# Substitution action on types: A[σ] is defined by meta-level
-# induction on A via the ≜-equations below.
-
-Γ₁ ⊦ A type
-σ : Γ₀ ⇒ Γ₁
------------------- (ty-sub)
-Γ₀ ⊦ A[σ] type
-
-Γ ⊦ A type
---------------------- (ty-sub-id) # true on the nose by induction on A
-Γ ⊦ A[id] ≐ A type
-
-Γ₂ ⊦ A type
-σ : Γ₁ ⇒ Γ₂
-τ : Γ₀ ⇒ Γ₁
------------------------------- (ty-sub-comp) # true on the nose by induction on A
-Γ₀ ⊦ A[σ ∘ τ] ≐ A[σ][τ] type
+# Substitution action: one meta-level induction on the (single) term
+# sort defines t[σ]; the ≜-rules below assert its 𝕍-typings, their
+# code-* siblings (el-sub-code-*, el-sub-atoms) its 𝕌-typings — one
+# action, two families of well-typedness facts. The general rules
+# (action typing, id, comp) are el-sub, el-sub-id, el-sub-comp at
+# A = 𝕍 — see THE TOP UNIVERSE note. There is no ≜-line for 𝕍
+# itself: 𝕍[σ] ≜ 𝕍 is the meta-clause.
 
 σ : Γ₀ ⇒ Γ₁
 ------------------------------------------------------------------------- (ty-sub-atoms)
-Γ₀ ⊦ 𝟘[σ] ≜ 𝟘 type
-Γ₀ ⊦ 𝟙[σ] ≜ 𝟙 type
-Γ₀ ⊦ ℕ[σ] ≜ ℕ type
-Γ₀ ⊦ 𝕌[σ] ≜ 𝕌 type
-Γ₀ ⊦ Ω[σ] ≜ Ω type
+Γ₀ ⊦ 𝟘[σ] ≜ 𝟘 : 𝕍
+Γ₀ ⊦ 𝟙[σ] ≜ 𝟙 : 𝕍
+Γ₀ ⊦ ℕ[σ] ≜ ℕ : 𝕍
+Γ₀ ⊦ 𝕌[σ] ≜ 𝕌 : 𝕍
+Γ₀ ⊦ Ω[σ] ≜ Ω : 𝕍
 
 Γ₁ ⊦ t : 𝕌
 σ : Γ₀ ⇒ Γ₁
 ------------------------------- (ty-sub-el)
-Γ₀ ⊦ (El t)[σ] ≜ El t[σ] type
+Γ₀ ⊦ (El t)[σ] ≜ El t[σ] : 𝕍
 
 Γ₁ ⊦ p : Ω
 σ : Γ₀ ⇒ Γ₁
 ---------------------------------- (ty-prf-sub)
-Γ₀ ⊦ (Prf p)[σ] ≜ Prf p[σ] type
+Γ₀ ⊦ (Prf p)[σ] ≜ Prf p[σ] : 𝕍
 
-Γ₁ ⊦ A type
-Γ₁ ▷ A ⊦ B type
+Γ₁ ⊦ A : 𝕍
+Γ₁ ▷ A ⊦ B : 𝕍
 σ : Γ₀ ⇒ Γ₁
 --------------------------------------- (ty-sub-pi)
-Γ₀ ⊦ (A → B)[σ] ≜ A[σ] → B[σ⁺] type
+Γ₀ ⊦ (A → B)[σ] ≜ A[σ] → B[σ⁺] : 𝕍
 
-Γ₁ ⊦ A type
-Γ₁ ▷ A ⊦ B type
+Γ₁ ⊦ A : 𝕍
+Γ₁ ▷ A ⊦ B : 𝕍
 σ : Γ₀ ⇒ Γ₁
 --------------------------------------- (ty-sub-sigma)
-Γ₀ ⊦ (A ⨯ B)[σ] ≜ A[σ] ⨯ B[σ⁺] type
+Γ₀ ⊦ (A ⨯ B)[σ] ≜ A[σ] ⨯ B[σ⁺] : 𝕍
 
-Γ₁ ⊦ A type
-Γ₁ ⊦ B type
+Γ₁ ⊦ A : 𝕍
+Γ₁ ⊦ B : 𝕍
 σ : Γ₀ ⇒ Γ₁
 --------------------------------------- (ty-sub-sum)
-Γ₀ ⊦ (A ⊎ B)[σ] ≜ A[σ] ⊎ B[σ] type
+Γ₀ ⊦ (A ⊎ B)[σ] ≜ A[σ] ⊎ B[σ] : 𝕍
 
-Γ₁ ⊦ A type
+Γ₁ ⊦ A : 𝕍
 Γ₁ ▷ A ▷ A[↑] ⊦ R : Ω
 σ : Γ₀ ⇒ Γ₁
 ---------------------------------------- (ty-sub-quot)
-Γ₀ ⊦ (A / R)[σ] ≜ A[σ] / R[σ⁺⁺] type
+Γ₀ ⊦ (A / R)[σ] ≜ A[σ] / R[σ⁺⁺] : 𝕍
 
-(Γ ⊦ x ≔ A type) ∈ Σ
-e˲ : Γ₁ ⇒ Γ norm
-σ : Γ₀ ⇒ Γ₁
------------------------------------ (ty-sub-sig-var)
-Σ Γ₀ ⊦ x[e˲][σ] ≜ x[e˲ ∘ σ] type
+# (ty-sub-sig-var is el-sub-sig-var at a type entry; ty-zero-elim is
+# derivable; ty-coe-ctx, ty-eq-coe-ctx, ty-sub-cong and
+# ty-sub-cong-fix are el-coe-ctx, el-eq-coe-ctx, el-sub-cong and
+# el-sub-cong-fix at A = 𝕍 — see THE TOP UNIVERSE note. The
+# former-specific congruences follow.)
+#
+# The four with a 𝕍-typed component (ty-pi-cong, ty-sigma-cong,
+# ty-sum-cong, ty-quot-cong) are PRIMITIVE, and irreducibly so: the
+# master congruence scheme (see the element congruence block) derives
+# a former's congruence either as a substitution instance — needing a
+# context entry at the slot's type, and nothing binds at 𝕍 — or from
+# the former's η — and 𝕍, like 𝕌, deliberately has no eliminator. They
+# are the downward duals of the ty-*-inj block: together the two
+# families ARE the commitment that type equality is equality of
+# structural codes. ty-el-cong and ty-prf-cong, whose slots are
+# 𝕌- and Ω-typed, ARE substitution instances and merely admissible.
 
-Γ ⊦ A type
-Γ ⊦ B type
-Γ ⊦ t : 𝟘
------------------- (ty-zero-elim) # type equality from absurdity
-Γ ⊦ A ≐ B type
-
-Γ₀ ≐ Γ₁ ctx
-Γ₀ ⊦ A type
---------------- (ty-coe-ctx)
-Γ₁ ⊦ A type
-
-Γ₀ ≐ Γ₁ ctx
-Γ₀ ⊦ A ≐ B type
-------------------- (ty-eq-coe-ctx)
-Γ₁ ⊦ A ≐ B type
-
-Δ ⊦ A₀ ≐ A₁ type
-σ₀ ≐ σ₁ : Γ ⇒ Δ
------------------------------- (ty-sub-cong)
-Γ ⊦ A₀[σ₀] ≐ A₁[σ₁] type
-
-Δ ⊦ A₀ ≐ A₁ type
-σ : Γ ⇒ Δ
------------------------------- (ty-sub-cong-fix) # admissible: specialize via sub-refl
-Γ ⊦ A₀[σ] ≐ A₁[σ] type
-
-Γ ⊦ A₀ ≐ A₁ type
-Γ ▷ A₁ ⊦ B₀ ≐ B₁ type
+Γ ⊦ A₀ ≐ A₁ : 𝕍
+Γ ▷ A₁ ⊦ B₀ ≐ B₁ : 𝕍
 ------------------------------- (ty-pi-cong)
-Γ ⊦ A₀ → B₀ ≐ A₁ → B₁ type
+Γ ⊦ A₀ → B₀ ≐ A₁ → B₁ : 𝕍
 
-Γ ⊦ A₀ ≐ A₁ type
-Γ ▷ A₁ ⊦ B₀ ≐ B₁ type
+Γ ⊦ A₀ ≐ A₁ : 𝕍
+Γ ▷ A₁ ⊦ B₀ ≐ B₁ : 𝕍
 ------------------------------- (ty-sigma-cong)
-Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ type
+Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ : 𝕍
 
-Γ ⊦ A₀ ≐ A₁ type
-Γ ⊦ B₀ ≐ B₁ type
+Γ ⊦ A₀ ≐ A₁ : 𝕍
+Γ ⊦ B₀ ≐ B₁ : 𝕍
 ------------------------------- (ty-sum-cong)
-Γ ⊦ A₀ ⊎ B₀ ≐ A₁ ⊎ B₁ type
+Γ ⊦ A₀ ⊎ B₀ ≐ A₁ ⊎ B₁ : 𝕍
 
-Γ ⊦ A₀ ≐ A₁ type
+Γ ⊦ A₀ ≐ A₁ : 𝕍
 Γ ▷ A₁ ▷ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
 -------------------------------- (ty-quot-cong)
-Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ type
+Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ : 𝕍
 
 Γ ⊦ t₀ ≐ t₁ : 𝕌
----------------------------- (ty-el-cong) # El congruence: equal codes decode to equal types
-Γ ⊦ El t₀ ≐ El t₁ type
+---------------------------- (ty-el-cong) # El congruence: equal codes decode
+Γ ⊦ El t₀ ≐ El t₁ : 𝕍                    #   to equal types. ADMISSIBLE:
+                                         #   el-sub-cong at El ☐₀ over Γ ▷ 𝕌
 
 Γ ⊦ p₀ ≐ p₁ : Ω
----------------------------- (ty-prf-cong) # with code-prop-eq this is where iff becomes ≐
-Γ ⊦ Prf p₀ ≐ Prf p₁ type
+---------------------------- (ty-prf-cong) # with code-prop-eq this is where
+Γ ⊦ Prf p₀ ≐ Prf p₁ : 𝕍                   #   iff becomes ≐. ADMISSIBLE:
+                                          #   el-sub-cong at Prf ☐₀ over Γ ▷ Ω
 
 ///////// Type constructor injectivity /////////
 #
@@ -840,33 +918,33 @@ e˲ : Γ₁ ⇒ Γ norm
 #    refutation. The TYPE former ⊎ is injective by rule below, like
 #    every other structural former.
 
-Γ ▷ A₀ ⊦ B₀ type
-Γ ▷ A₁ ⊦ B₁ type
-Γ ⊦ A₀ → B₀ ≐ A₁ → B₁ type
+Γ ▷ A₀ ⊦ B₀ : 𝕍
+Γ ▷ A₁ ⊦ B₁ : 𝕍
+Γ ⊦ A₀ → B₀ ≐ A₁ → B₁ : 𝕍
 ------------------------------ (ty-pi-inj)
-Γ ⊦ A₀ ≐ A₁ type
-Γ ▷ A₁ ⊦ B₀ ≐ B₁ type
+Γ ⊦ A₀ ≐ A₁ : 𝕍
+Γ ▷ A₁ ⊦ B₀ ≐ B₁ : 𝕍
 
-Γ ▷ A₀ ⊦ B₀ type
-Γ ▷ A₁ ⊦ B₁ type
-Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ type
+Γ ▷ A₀ ⊦ B₀ : 𝕍
+Γ ▷ A₁ ⊦ B₁ : 𝕍
+Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ : 𝕍
 ------------------------------ (ty-sigma-inj)
-Γ ⊦ A₀ ≐ A₁ type
-Γ ▷ A₁ ⊦ B₀ ≐ B₁ type
+Γ ⊦ A₀ ≐ A₁ : 𝕍
+Γ ▷ A₁ ⊦ B₀ ≐ B₁ : 𝕍
 
-Γ ⊦ A₀ ⊎ B₀ ≐ A₁ ⊎ B₁ type
+Γ ⊦ A₀ ⊎ B₀ ≐ A₁ ⊎ B₁ : 𝕍
 ------------------------------ (ty-sum-inj)   # non-dependent: both
-Γ ⊦ A₀ ≐ A₁ type                              #   components over Γ
-Γ ⊦ B₀ ≐ B₁ type
+Γ ⊦ A₀ ≐ A₁ : 𝕍                              #   components over Γ
+Γ ⊦ B₀ ≐ B₁ : 𝕍
 
 Γ ▷ A₀ ▷ A₀[↑] ⊦ R₀ : Ω
 Γ ▷ A₁ ▷ A₁[↑] ⊦ R₁ : Ω
-Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ type
+Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ : 𝕍
 --------------------------------- (ty-quot-inj)
-Γ ⊦ A₀ ≐ A₁ type
+Γ ⊦ A₀ ≐ A₁ : 𝕍
 Γ ▷ A₁ ▷ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
 
-Γ ⊦ El t₀ ≐ El t₁ type
+Γ ⊦ El t₀ ≐ El t₁ : 𝕍
 -------------------------- (ty-el-inj)
 Γ ⊦ t₀ ≐ t₁ : 𝕌
 
@@ -907,15 +985,15 @@ e˲ : Γ₁ ⇒ Γ norm
 ------------- (tel-empty)
 Γ ⊦ ε tel
 
-Γ ⊦ A type
+Γ ⊦ A : 𝕍
 Γ ▷ A ⊦ Δ tel
 ----------------- (tel-ext)
 Γ ⊦ A ◁ Δ tel
 
-Γ ⊦ A₀ ≐ A₁ type
+Γ ⊦ A₀ ≐ A₁ : 𝕍
 Γ ▷ A₁ ⊦ Δ₀ ≐ Δ₁ tel
------------------------------ (tel-ext-cong)
-Γ ⊦ A₀ ◁ Δ₀ ≐ A₁ ◁ Δ₁ tel
+----------------------------- (tel-ext-cong)   # defining clause of the
+Γ ⊦ A₀ ◁ Δ₀ ≐ A₁ ◁ Δ₁ tel                      #   pointwise meta-notation
 
 Γ₁ ⊦ Δ tel
 σ : Γ₀ ⇒ Γ₁
@@ -926,7 +1004,7 @@ e˲ : Γ₁ ⇒ Γ norm
 --------------------- (tel-sub-empty)
 Γ₀ ⊦ ε[σ] ≜ ε tel
 
-Γ₁ ⊦ A type
+Γ₁ ⊦ A : 𝕍
 Γ₁ ▷ A ⊦ Δ tel
 σ : Γ₀ ⇒ Γ₁
 ---------------------------------------- (tel-sub-ext)
@@ -983,7 +1061,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 # 𝟘 and 𝟙.
 
-Γ ⊦ A type
+Γ ⊦ A : 𝕍
 Γ ⊦ t : 𝟘
 -------------------- (el-zero-e)
 Γ ⊦ 𝟘-elim t : A
@@ -1012,27 +1090,27 @@ e˲ : Γ₁ ⇒ Γ norm
 --------------- (el-nat-s)
 Γ ⊦ S t : ℕ
 
-Γ ▷ ℕ ⊦ A type
+Γ ▷ ℕ ⊦ A : 𝕍
 Γ ⊦ z : A[id, Z]
 Γ ▷ ℕ ▷ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
 Γ ⊦ t : ℕ
 -------------------------------- (el-nat-e, motive A)
 Γ ⊦ ℕ-elim z s t : A[id, t]
 
-Γ ▷ ℕ ⊦ A type
+Γ ▷ ℕ ⊦ A : 𝕍
 Γ ⊦ z : A[id, Z]
 Γ ▷ ℕ ▷ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
 ------------------------------------ (el-nat-beta-z)
 Γ ⊦ ℕ-elim z s Z ≜ z : A[id, Z]
 
-Γ ▷ ℕ ⊦ A type
+Γ ▷ ℕ ⊦ A : 𝕍
 Γ ⊦ z : A[id, Z]
 Γ ▷ ℕ ▷ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
 Γ ⊦ t : ℕ
 --------------------------------------------------------------- (el-nat-beta-s)
 Γ ⊦ ℕ-elim z s (S t) ≜ s[id, t, ℕ-elim z s t] : A[id, S t]
 
-Γ ▷ ℕ ⊦ A type
+Γ ▷ ℕ ⊦ A : 𝕍
 Γ ▷ ℕ ⊦ f₀ : A
 Γ ▷ ℕ ⊦ f₁ : A
 Γ ⊦ z : A[id, Z]
@@ -1052,7 +1130,7 @@ e˲ : Γ₁ ⇒ Γ norm
 ---------------------- (el-pi-i)
 Γ ⊦ λ f : A → B
 
-Γ ▷ A ⊦ B type
+Γ ▷ A ⊦ B : 𝕍
 Γ ⊦ f : A → B
 Γ ⊦ e : A
 ------------------------ (el-pi-e)
@@ -1063,9 +1141,21 @@ e˲ : Γ₁ ⇒ Γ norm
 --------------------------------------- (el-pi-beta)
 Γ ⊦ (λ f) e ≜ f[id, e] : B[id, e]
 
-Γ ⊦ f : A → B
+# Uniqueness (η), in the EXTENSIONAL (two-candidate) form every other
+# former's η already takes (el-nat-eta's style): two functions that
+# agree at the generic argument are equal. The classical single-
+# candidate form λ (f[↑] ☐₀) ≐ f is the instance g₀ ≜ λ (g₁[↑] ☐₀),
+# whose premise holds by el-pi-beta; conversely the two-candidate form
+# is NOT derivable from it — the step from "equal at the generic
+# argument" to "equal" is exactly ξ's content, so stating η this way
+# is what makes el-lam-cong (ξ) admissible below. The kernel's FEtaPi
+# final replays exactly this form.
+
+Γ ⊦ g₀ : A → B
+Γ ⊦ g₁ : A → B
+Γ ▷ A ⊦ g₀[↑] ☐₀ ≐ g₁[↑] ☐₀ : B
 --------------------------------- (el-pi-eta)
-Γ ⊦ λ (f[↑] ☐₀) ≐ f : A → B
+Γ ⊦ g₀ ≐ g₁ : A → B
 
 # let — the local DEFINITION: the body is typed under TWO binders,
 # the definiens' value and its UNFOLDING EQUATION, so inside b the
@@ -1099,7 +1189,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 # Σ.
 
-Γ ▷ A ⊦ B type
+Γ ▷ A ⊦ B : 𝕍
 Γ ⊦ a : A
 Γ ⊦ b : B[id, a]
 ---------------------- (el-sigma-i)
@@ -1113,13 +1203,13 @@ e˲ : Γ₁ ⇒ Γ norm
 ------------------------------ (el-sigma-e₂)
 Γ ⊦ t .π₂ : B[id, t .π₁]
 
-Γ ▷ A ⊦ B type
+Γ ▷ A ⊦ B : 𝕍
 Γ ⊦ a : A
 Γ ⊦ b : B[id, a]
 ----------------------------- (el-sigma-beta₁)
 Γ ⊦ (a, b) .π₁ ≜ a : A
 
-Γ ▷ A ⊦ B type
+Γ ▷ A ⊦ B : 𝕍
 Γ ⊦ a : A
 Γ ⊦ b : B[id, a]
 ------------------------------------ (el-sigma-beta₂)
@@ -1135,38 +1225,38 @@ e˲ : Γ₁ ⇒ Γ norm
 # el-nat-eta's shape: any map out of A ⊎ B that agrees with the case
 # functions on both injections IS the eliminator.
 
-Γ ⊦ B type
+Γ ⊦ B : 𝕍
 Γ ⊦ a : A
 ------------------------ (el-sum-i₁)
 Γ ⊦ inj₁ a : A ⊎ B
 
-Γ ⊦ A type
+Γ ⊦ A : 𝕍
 Γ ⊦ b : B
 ------------------------ (el-sum-i₂)
 Γ ⊦ inj₂ b : A ⊎ B
 
-Γ ▷ A ⊎ B ⊦ C type
+Γ ▷ A ⊎ B ⊦ C : 𝕍
 Γ ▷ A ⊦ l : C[↑, inj₁ ☐₀]
 Γ ▷ B ⊦ r : C[↑, inj₂ ☐₀]
 Γ ⊦ t : A ⊎ B
 ---------------------------------- (el-sum-e, motive C)
 Γ ⊦ ⊎-elim l r t : C[id, t]
 
-Γ ▷ A ⊎ B ⊦ C type
+Γ ▷ A ⊎ B ⊦ C : 𝕍
 Γ ▷ A ⊦ l : C[↑, inj₁ ☐₀]
 Γ ▷ B ⊦ r : C[↑, inj₂ ☐₀]
 Γ ⊦ a : A
 ------------------------------------------------------------ (el-sum-beta₁)
 Γ ⊦ ⊎-elim l r (inj₁ a) ≜ l[id, a] : C[id, inj₁ a]
 
-Γ ▷ A ⊎ B ⊦ C type
+Γ ▷ A ⊎ B ⊦ C : 𝕍
 Γ ▷ A ⊦ l : C[↑, inj₁ ☐₀]
 Γ ▷ B ⊦ r : C[↑, inj₂ ☐₀]
 Γ ⊦ b : B
 ------------------------------------------------------------ (el-sum-beta₂)
 Γ ⊦ ⊎-elim l r (inj₂ b) ≜ r[id, b] : C[id, inj₂ b]
 
-Γ ▷ A ⊎ B ⊦ C type
+Γ ▷ A ⊎ B ⊦ C : 𝕍
 Γ ▷ A ⊎ B ⊦ g : C
 Γ ▷ A ⊦ l : C[↑, inj₁ ☐₀]
 Γ ▷ B ⊦ r : C[↑, inj₂ ☐₀]
@@ -1198,21 +1288,21 @@ e˲ : Γ₁ ⇒ Γ norm
 ------------------------------------ (el-quot-eq) # R-related elements have equal classes
 Γ ⊦ class a ≐ class b : A / R
 
-Γ ▷ (A / R) ⊦ B type
+Γ ▷ (A / R) ⊦ B : 𝕍
 Γ ▷ A ⊦ f : B[↑, class ☐₀]
 Γ ▷ A ▷ A[↑] ▷ Prf R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
 Γ ⊦ q : A / R
 ------------------------------------ (el-quot-e, motive B)
 Γ ⊦ quot-elim f q : B[id, q]
 
-Γ ▷ (A / R) ⊦ B type
+Γ ▷ (A / R) ⊦ B : 𝕍
 Γ ▷ A ⊦ f : B[↑, class ☐₀]
 Γ ▷ A ▷ A[↑] ▷ Prf R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
 Γ ⊦ a : A
 ------------------------------------------------------------ (el-quot-beta)
 Γ ⊦ quot-elim f (class a) ≜ f[id, a] : B[id, class a]
 
-Γ ▷ (A / R) ⊦ B type
+Γ ▷ (A / R) ⊦ B : 𝕍
 Γ ▷ (A / R) ⊦ g : B
 Γ ▷ A ⊦ f : B[↑, class ☐₀]
 Γ ▷ A ▷ A[↑] ▷ Prf R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
@@ -1238,7 +1328,8 @@ e˲ : Γ₁ ⇒ Γ norm
 # INHABITATION alone (code-prop-eq). Each discipline is sound only on
 # its own side of the fence, so the universes must not mix: there is
 # no code for Ω or for Prf p in 𝕌, and no Ω analogue of any
-# inj rule.
+# inj rule. (And no code for 𝕍 ANYWHERE — 𝕍 is not typed at all;
+# see THE TOP UNIVERSE.)
 #
 # PROPOSITIONAL EQUALITY LIVES HERE: (a₀ ≡ a₁ ∈ A) is an ELEMENT of
 # Ω, not a type (the OTT design — observational equality in a
@@ -1251,8 +1342,16 @@ e˲ : Γ₁ ⇒ Γ norm
 #    between iff-equal props UNCHANGED (a true equation is ≐-equal to
 #    ∥𝟙∥ at Ω), so every inhabited Prf must have literally the same
 #    canonical form.
-#  * A is an ARBITRARY type: equality props exist at large types
-#    (a₀ ≡ a₁ ∈ 𝕌 : Ω), where the old code former could not go.
+#  * A is an ARBITRARY type — OR 𝕍 ITSELF: equality props exist at
+#    large types (a₀ ≡ a₁ ∈ 𝕌 : Ω), where the old code former could
+#    not go, and at the top, (A ≡ B ∈ 𝕍) : Ω — TYPE EQUALITY IS A
+#    PROPOSITION. code-eq needs no special case for this: its
+#    endpoint premises are typing judgements, whose type slot admits
+#    𝕍 by the presupposition row. With el-eq-i and el-reflect at
+#    A = 𝕍, type equality is reflection-complete exactly like element
+#    equality — a type-equality hypothesis is an ordinary context
+#    entry h : Prf (A ≡ B ∈ 𝕍), and ty-zero-elim of earlier
+#    presentations is derivable (see THE TOP UNIVERSE).
 #  * Ω-positions take equations directly — quotient relations need no
 #    squash (ℕ ⨯ ℕ / (p q. p .π₁ + q .π₂ ≡ p .π₂ + q .π₁ ∈ ℕ)), and
 #    the squashed-equality connective below is subsumed.
@@ -1385,6 +1484,17 @@ e˲ : Γ₁ ⇒ Γ norm
 #    related either way) — where ∥A∥ is true iff ⟦A⟧'s carrier is
 #    inhabited, and (a₀ ≡ a₁ ∈ A) is true iff ⟦a₀⟧ ~ ⟦a₁⟧ in ⟦A⟧'s
 #    relation; ∥A∥ ~ ∥B∥ : Ω iff A and B are equi-inhabited.
+#    THE ∈-𝕍 INSTANCE: (A ≡ B ∈ 𝕍) is true iff ⟦A⟧ and ⟦B⟧ are EQUAL
+#    CODES — the model's type equality, which is exactly what
+#    el-reflect at 𝕍 reads back. This is the one point where the
+#    dissolution EXTENDS the theory, and it is sound by the same
+#    two-layer construction: prop-truth is defined against the full
+#    type system anyway, and code equality of the large universe is
+#    available at that stage; the new prop's Prf is the same
+#    subsingleton as every other, so nothing is storable through it
+#    (no Hurkens vector), ≡ still has no 𝕌-code (equality is
+#    Ω-valued), and 𝕍 itself remains untyped — the firewall clauses
+#    of the impredicativity note are untouched.
 #    code-prop-eq holds on the nose (iff-equal props have IDENTICAL
 #    denotations); el-squash-e-* are validated by instantiating their
 #    premise at any carrier element — the conclusion never consults
@@ -1414,26 +1524,31 @@ e˲ : Γ₁ ⇒ Γ norm
 #    price that two quotient types may denote the same setoid while
 #    remaining distinct types.
 
-Γ ⊦ A type
+Γ ⊦ A : 𝕍
 ------------------ (code-squash)
 Γ ⊦ ∥A∥ : Ω
 
 Γ ⊦ a₀ : A
 Γ ⊦ a₁ : A
---------------------------- (code-eq) # A an ARBITRARY type — equality
-Γ ⊦ (a₀ ≡ a₁ ∈ A) : Ω                 #   props exist at large types
+--------------------------- (code-eq) # A an ARBITRARY type OR 𝕍 —
+Γ ⊦ (a₀ ≡ a₁ ∈ A) : Ω                 #   equality props exist at large
+                                      #   types and at the top: type
+                                      #   equality is a proposition
 
 Γ ⊦ p : Ω
 ---------------------------- (code-squash-prf) # squash is idempotent on
 Γ ⊦ ∥Prf p∥ ≜ p : Ω                             #   props — an Ω-level ≜,
                                                 #   NOT a Prf-decoding
 
-Γ ⊦ A₀ ≐ A₁ type
+Γ ⊦ A₀ ≐ A₁ : 𝕍
 Γ ⊦ a₀ ≐ a₁ : A₁
 Γ ⊦ b₀ ≐ b₁ : A₁
 --------------------------------------------- (code-eq-cong) # admissible via
 Γ ⊦ (a₀ ≡ b₀ ∈ A₀) ≐ (a₁ ≡ b₁ ∈ A₁) : Ω                      #   code-prop-eq +
                                                              #   el-reflect/el-eq-i
+# (the ∈-𝕍 instance fixes A₀ = A₁ = 𝕍 and drops the first premise —
+# 𝕍 admits no ≐-judgement of its own, and needs none: the same
+# code-prop-eq derivation covers it, with endpoints at 𝕍)
 
 Γ ▷ Prf p ⊦ s : (Prf q)[↑]
 Γ ▷ Prf q ⊦ t : (Prf p)[↑]
@@ -1444,13 +1559,36 @@ e˲ : Γ₁ ⇒ Γ norm
 --------------------- (el-squash-i)
 Γ ⊦ ⋆ : Prf ∥A∥
 
+
+FIXME: REDUNDANT
 Γ ⊦ a₀ ≐ a₁ : A
 ------------------------------ (el-eq-i) # the canonical proof of a
-Γ ⊦ ⋆ : Prf (a₀ ≡ a₁ ∈ A)                #   true equation is ⋆
+Γ ⊦ ⋆ : Prf (a₀ ≡ a₁ ∈ A)                #   true equation is ⋆ — under
+                                         #   the ≐-NOTATION this is its
+                                         #   UNFOLDING (premise and
+                                         #   conclusion are the same
+                                         #   judgement); the name is
+                                         #   kept for the citations
 
+FIXME: REDUNDANT
 Γ ⊦ s : Prf (a₀ ≡ a₁ ∈ A)
--------------------------- (el-reflect) # equality reflection
-Γ ⊦ a₀ ≐ a₁ : A
+-------------------------- (el-reflect) # ⋆-CANONICITY. The name is
+Γ ⊦ a₀ ≐ a₁ : A                         #   historical: REFLECTION no
+                                        #   longer exists as a
+                                        #   principle — ≐ is DEFINED
+                                        #   as ⋆-inhabitation, so the
+                                        #   prop-to-judgemental passage
+                                        #   is definitional. What the
+                                        #   rule says: ANY inhabitant
+                                        #   yields the ⋆-typing. It is
+                                        #   irreducible, and needed
+                                        #   outright because ⋆ occurs
+                                        #   in TERMS (el-let's third
+                                        #   component, ⋆[σ] ≜ ⋆, the
+                                        #   QIIT equation-entry
+                                        #   reflections), whose
+                                        #   well-formedness demands
+                                        #   Γ ⊦ ⋆ : Prf (…)
 
 Γ ⊦ t₀ : Prf p
 Γ ⊦ t₁ : Prf p
@@ -1633,7 +1771,7 @@ e˲ : Γ₁ ⇒ Γ norm
 ------------------ (qty-el)
 Γ ; Φ ⊦ El 𝕥 qty
 
-Γ ⊦ A type      Γ ▷ A ; Φ[↑] ⊦ 𝔄 qty
+Γ ⊦ A : 𝕍      Γ ▷ A ; Φ[↑] ⊦ 𝔄 qty
 ------------------------------------- (qty-pi-ext)   # binds a NOVA variable:
 Γ ; Φ ⊦ A ⇛ 𝔄 qty                                    #   the Nova zone grows
 
@@ -1732,7 +1870,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ ⊦ 𝒮 qsig      𝒮(𝕜) = 𝔄  (𝔄 El-ended)
 ----------------------------------------- (refl-qty)
-Γ ⊦ ⌊𝔄⌋ type
+Γ ⊦ ⌊𝔄⌋ : 𝕍
 
 Γ ⊦ 𝒮 qsig      𝒮(𝕤) = 𝔎  (𝔎 U-ended)
 ----------------------------------------- (refl-arity)
@@ -1806,8 +1944,8 @@ e˲ : Γ₁ ⇒ Γ norm
 # semantic one is the commitment the code-injectivity block already
 # makes: models collapsing structurally-distinct types are excluded.)
 #
-# A NAME for a QIIT is an ordinary definition x ≔ 𝒮.𝕤 type (which
-# unfolds, ty-sig-beta). Comparing two uses of the same name is then the
+# A NAME for a QIIT is an ordinary definition x ≔ 𝒮.𝕤 : 𝕍 (which
+# unfolds, el-sig-beta). Comparing two uses of the same name is then the
 # ordinary rigid-rigid-before-δ discipline — try the name, compare
 # substitutions, unfold only on mismatch — nothing QIIT-specific, and it
 # keeps the common case cheap without any bespoke rule. Consequently the
@@ -1826,7 +1964,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ ⊦ 𝒮 qsig      𝒮(𝕤) = 𝔎  (𝔎 U-ended)      Γ ⊦ ē : ⌊𝔎⌋ᵗ
 ------------------------------------------------------------- (ty-qiit)
-Γ ⊦ 𝒮.𝕤 ē type
+Γ ⊦ 𝒮.𝕤 ē : 𝕍
 
 # A signature is SMALL when every Nova type it embeds (the external Π
 # domains) is itself codable — of the form El a, or Prf p (props are
@@ -1846,14 +1984,14 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ ⊦ 𝒮 qsig      𝒮(𝕤) = 𝔎  (𝔎 U-ended)      Γ ⊦ ē : ⌊𝔎⌋ᵗ
 ------------------------------------------------------------- (ty-el-qiit)
-Γ ⊦ El (𝒮.𝕤 ē) ≜ 𝒮.𝕤 ē type
+Γ ⊦ El (𝒮.𝕤 ē) ≜ 𝒮.𝕤 ē : 𝕍
 
 # INTRODUCTION — point constructor, FULLY SATURATED: θ supplies every
 # argument at once, and 𝒮.𝕔 θ is the canonical form of its sort. A
 # bare curried 𝒮.𝕔 : ⌊𝔄⌋ is deliberately NOT a term: in the empty
 # context it would be a non-λ inhabitant of a Π-type, breaking
-# canonicity at Π (a closed Π-inhabitant is a λ —
-# docs/NovaSyntax.txt's gluing theorem) — the same violation the
+# canonicity at Π (a closed Π-inhabitant is a λ — a meta-property of
+# definitional signatures, by the usual gluing argument) — the same violation the
 # judgemental el-qiit-path avoids at ≡-types. Nothing is lost: a
 # partial application is a λ away, λ (𝒮.𝕔 (…, ☐₀)).
 
@@ -1881,14 +2019,17 @@ e˲ : Γ₁ ⇒ Γ norm
 # at every former; the saturated forms' instances are stated because
 # their premises live at the reflected telescope — entry i's type
 # instantiated by the LEFT spine's prefix, the sub-norm-ext-cong
-# discipline. Injectivity: 𝕌's equality is STRUCTURAL and a signature
+# discipline. Both congruences are ADMISSIBLE: substitution instances
+# at the saturated former over the reflected telescope (the element
+# congruence block's first scheme; the carried 𝒮 is fixed).
+# Injectivity: 𝕌's equality is STRUCTURAL and a signature
 # is inert syntax, so equal saturated sort codes have equal spines,
 # indexwise — the code-pi-inj block, extended to the QIIT former.
 
 Γ ⊦ 𝒮 qsig      Γ ⊦ e₀ᵢ ≐ e₁ᵢ : Eᵢ   (entrywise; Eᵢ is entry i of
                 ⌊𝒮(𝕤)⌋ᵗ, instantiated by ē₀'s prefix)
 ------------------------------------------------------------- (ty-qiit-cong)
-Γ ⊦ 𝒮.𝕤 ē₀ ≐ 𝒮.𝕤 ē₁ type
+Γ ⊦ 𝒮.𝕤 ē₀ ≐ 𝒮.𝕤 ē₁ : 𝕍
 
 Γ ⊦ 𝒮 qsig      Γ ⊦ e₀ᵢ ≐ e₁ᵢ : Eᵢ   (entrywise at a point
                 constructor's telescope ⌊𝒮(𝕔)⌋ᵗ, same discipline)
@@ -1914,7 +2055,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ ⊦ 𝒮 qsig
 for each sort position 𝕤 of 𝒮 (𝒮(𝕤) = 𝔎):
-    Γ·⌊𝔎⌋ᵗ ▷ 𝒮.𝕤 δ ⊦ C_𝕤 type
+    Γ·⌊𝔎⌋ᵗ ▷ 𝒮.𝕤 δ ⊦ C_𝕤 : 𝕍
 --------------------------------------------- (mot)
 Γ ⊦ C̄ : 𝒮 mot
 
@@ -1932,7 +2073,7 @@ for each sort position 𝕤 of 𝒮 (𝒮(𝕤) = 𝔎):
 Γ ⊦ C̄ : 𝒮 mot      𝒮(𝕜) = 𝔄  (𝔄 ending in El (𝕤 ī))
 Γ ⋈ 𝔄 ⊦ e : ⌊El (𝕤 ī)⌋_{𝑤_𝔄}
 ------------------------------------------------------ (disp-ty)
-Γ ⊦ 𝔄ᴰ⟨e⟩ type
+Γ ⊦ 𝔄ᴰ⟨e⟩ : 𝕍
 
 Γ ⊦ C̄ : 𝒮 mot      𝒮(𝕜) = 𝔄  (𝔄 El-ended)
 -------------------------------------------- (disp-tel)
@@ -2145,7 +2286,10 @@ for each point position 𝕔 of 𝒮 (𝒮(𝕔) = 𝔄, ending in El (𝕤 ī);
 #   coherence premise that the method for ins is invariant under
 #   swapping the two heads — the multiset laws, no transport.
 
-# Signature references.
+# Signature references. These three rules serve EVERY entry, type
+# entries included: at an A = 𝕍 entry the conclusion index A[e˲]
+# computes to 𝕍 by the meta-clause — the former ty-sig-var,
+# ty-sig-beta, ty-sig-decl are the A = 𝕍 instances.
 
 (Γ ⊦ x ≔ a : A) ∈ Σ
 e˲ : Δ ⇒ Γ norm
@@ -2158,21 +2302,23 @@ e˲ : Δ ⇒ Γ norm
 Σ Δ ⊦ x[e˲] ≜ a[e˲] : A[e˲]
 
 # Open-signature references (see DEFINITIONAL AND OPEN SIGNATURES): a
-# declaration types its references but never unfolds them (no -beta);
-# an element constraint is used as a definitional equality.
+# declaration types its references but never unfolds them (no -beta).
+# An assumed equation needs no rule of its own: it is a hole h at the
+# equation's Prf, and el-sig-decl + el-reflect give
+# a₀[e˲] ≐ a₁[e˲] : A[e˲] from the reference h[e˲] — the retired
+# el-sig-eq, derived.
 
 (Γ ⊦ x : A) ∈ Σ
 e˲ : Δ ⇒ Γ norm
 --------------------- (el-sig-decl)
 Σ Δ ⊦ x[e˲] : A[e˲]
 
-(Γ ⊦ a₀ ≐ a₁ : A) ∈ Σ
-e˲ : Δ ⇒ Γ norm
---------------------------------- (el-sig-eq)
-Σ Δ ⊦ a₀[e˲] ≐ a₁[e˲] : A[e˲]
-
-# Substitution action on elements: t[σ] is defined by meta-level
-# induction on t via the ≜-equations below.
+# Substitution action: t[σ] is defined by ONE meta-level induction
+# on the term sort — the ≜-equations below together with the
+# type-former clauses in the type rules (ty-sub-*), plus the
+# meta-clause 𝕍[σ] ≜ 𝕍. el-sub, el-sub-id and el-sub-comp below
+# state the general facts for the WHOLE sort: their A = 𝕍 instances
+# are the former ty-sub, ty-sub-id and ty-sub-comp.
 
 Γ₁ ⊦ t : A
 σ : Γ₀ ⇒ Γ₁
@@ -2222,7 +2368,7 @@ e˲ : Δ ⇒ Γ norm
 ------------------------------------------ (el-sub-code-quot)
 Γ₀ ⊦ (A / R)[σ] ≜ A[σ] / R[σ⁺⁺] : 𝕌
 
-Γ₁ ⊦ A type
+Γ₁ ⊦ A : 𝕍
 σ : Γ₀ ⇒ Γ₁
 ------------------------------------ (el-sub-squash)
 Γ₀ ⊦ ∥A∥[σ] ≜ ∥A[σ]∥ : Ω
@@ -2232,7 +2378,7 @@ e˲ : Δ ⇒ Γ norm
 ---------------------------------------------- (el-sub-lam)
 Γ₀ ⊦ (λ f)[σ] ≜ λ f[σ⁺] : A[σ] → B[σ⁺]
 
-Γ₁ ▷ A ⊦ B type
+Γ₁ ▷ A ⊦ B : 𝕍
 Γ₁ ⊦ f : A → B
 Γ₁ ⊦ e : A
 σ : Γ₀ ⇒ Γ₁
@@ -2248,7 +2394,7 @@ e˲ : Δ ⇒ Γ norm
 # lands as the unfolding equation OF a[σ] — the RHS is the let at
 # a[σ] — and ⋆[σ] ≜ ⋆ keeps the conclusion type in shape)
 
-Γ₁ ▷ A ⊦ B type
+Γ₁ ▷ A ⊦ B : 𝕍
 Γ₁ ⊦ a : A
 Γ₁ ⊦ b : B[id, a]
 σ : Γ₀ ⇒ Γ₁
@@ -2265,19 +2411,19 @@ e˲ : Δ ⇒ Γ norm
 ------------------------------------------------------- (el-sub-proj₂)
 Γ₀ ⊦ (t .π₂)[σ] ≜ t[σ] .π₂ : B[σ, t[σ] .π₁]
 
-Γ₁ ⊦ B type
+Γ₁ ⊦ B : 𝕍
 Γ₁ ⊦ a : A
 σ : Γ₀ ⇒ Γ₁
 ------------------------------------------------ (el-sub-inj₁)
 Γ₀ ⊦ (inj₁ a)[σ] ≜ inj₁ a[σ] : A[σ] ⊎ B[σ]
 
-Γ₁ ⊦ A type
+Γ₁ ⊦ A : 𝕍
 Γ₁ ⊦ b : B
 σ : Γ₀ ⇒ Γ₁
 ------------------------------------------------ (el-sub-inj₂)
 Γ₀ ⊦ (inj₂ b)[σ] ≜ inj₂ b[σ] : A[σ] ⊎ B[σ]
 
-Γ ▷ A ⊎ B ⊦ C type
+Γ ▷ A ⊎ B ⊦ C : 𝕍
 Γ ▷ A ⊦ l : C[↑, inj₁ ☐₀]
 Γ ▷ B ⊦ r : C[↑, inj₂ ☐₀]
 Γ ⊦ t : A ⊎ B
@@ -2296,7 +2442,7 @@ e˲ : Δ ⇒ Γ norm
 --------------------------------- (el-sub-star)
 Γ₀ ⊦ ⋆[σ] ≜ ⋆ : (Prf p)[σ]
 
-Γ ▷ ℕ ⊦ A type
+Γ ▷ ℕ ⊦ A : 𝕍
 Γ ⊦ z : A[id, Z]
 Γ ▷ ℕ ▷ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
 Γ ⊦ t : ℕ
@@ -2310,7 +2456,7 @@ e˲ : Δ ⇒ Γ norm
 ---------------------------------------------------- (el-sub-class)
 Δ ⊦ (class a)[σ] ≜ class a[σ] : A[σ] / R[σ⁺⁺]
 
-Γ ▷ (A / R) ⊦ B type
+Γ ▷ (A / R) ⊦ B : 𝕍
 Γ ▷ A ⊦ f : B[↑, class ☐₀]
 Γ ▷ A ▷ A[↑] ▷ Prf R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
 Γ ⊦ q : A / R
@@ -2318,7 +2464,7 @@ e˲ : Δ ⇒ Γ norm
 ------------------------------------------------------------------ (el-sub-quot-e)
 Δ ⊦ (quot-elim f q)[σ] ≜ quot-elim f[σ⁺] q[σ] : B[σ, q[σ]]
 
-Γ ⊦ A type
+Γ ⊦ A : 𝕍
 Γ ⊦ t : 𝟘
 σ : Δ ⇒ Γ
 --------------------------------------------- (el-sub-zero-e)
@@ -2336,7 +2482,7 @@ e˲ : Δ ⇒ Γ norm
 Δ ⊦ ☐ₙ₊₁[σ, t] ≜ ☐ₙ[σ] : B[σ]
 
 Γ ⊦ ☐ₙ : B
-Γ ⊦ A type
+Γ ⊦ A : 𝕍
 ----------------------------------- (var-sub-wk)
 Γ ▷ A ⊦ ☐ₙ[↑] ≜ ☐ₙ₊₁ : B[↑]
 
@@ -2358,27 +2504,47 @@ e˲ : Γ₁ ⇒ Γ norm
 
 # Coercion.
 
-Γ ⊦ A₀ ≐ A₁ type
+Γ ⊦ A₀ ≐ A₁ : 𝕍
 Γ ⊦ a : A₀
 -------------------- (el-ty-coe)
 Γ ⊦ a : A₁
 
-Γ ⊦ A₀ ≐ A₁ type
+Γ ⊦ A₀ ≐ A₁ : 𝕍
 Γ ⊦ a₀ ≐ a₁ : A₀
 -------------------- (el-eq-ty-coe)
 Γ ⊦ a₀ ≐ a₁ : A₁
 
 Γ₀ ≐ Γ₁ ctx
 Γ₀ ⊦ a : A
---------------- (el-coe-ctx)
+--------------- (el-coe-ctx)     # A = 𝕍: the former ty-coe-ctx
 Γ₁ ⊦ a : A
 
 Γ₀ ≐ Γ₁ ctx
 Γ₀ ⊦ a₀ ≐ a₁ : A
--------------------- (el-eq-coe-ctx)
+-------------------- (el-eq-coe-ctx)   # A = 𝕍: the former ty-eq-coe-ctx
 Γ₁ ⊦ a₀ ≐ a₁ : A
 
 # Congruence rules for element constructors.
+#
+# MOST ARE ADMISSIBLE, by two schemes over el-sub-cong — the MASTER
+# congruence, substitution functionality, the one primitive of this
+# block:
+#  * SUBSTITUTION INSTANCE: a former whose changing slots are
+#    non-binding is stated once at fresh variables and substituted two
+#    ways — e.g. el-app-cong is el-sub-cong at ☐₁ ☐₀ over
+#    Γ ▷ (A → B) ▷ A[↑], with (id, f₀, a₀) ≐ (id, f₁, a₁) assembled
+#    pointwise (EQUALITY, conventions). The scheme needs a context
+#    entry at the slot's type, so it reaches every slot EXCEPT
+#    𝕍-typed ones (nothing binds at 𝕍 — see the type congruence note)
+#    and binding slots (an open term cannot ride in a substitution).
+#  * VIA η: a BINDING slot goes through the former's extensional
+#    uniqueness rule instead — el-lam-cong from el-pi-eta, and each
+#    eliminator congruence from its eliminator's η (the left
+#    eliminator satisfies the right methods' β-equations, by
+#    el-sub-cong on the open method equalities).
+# The admissible rules are RETAINED below, statements and names
+# unchanged (the kernel replays several directly), each marked with
+# its derivation.
 
 Γ₁ ⊦ t₀ ≐ t₁ : A
 σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
@@ -2391,14 +2557,15 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ₀ ⊦ t₀[σ] ≐ t₁[σ] : A[σ]
 
 Γ ▷ A ⊦ f₀ ≐ f₁ : B
---------------------------- (el-lam-cong)
-Γ ⊦ λ f₀ ≐ λ f₁ : A → B
+--------------------------- (el-lam-cong) # ADMISSIBLE via el-pi-eta:
+Γ ⊦ λ f₀ ≐ λ f₁ : A → B                  #   (λf₀)[↑] ☐₀ ≐ f₀ ≐ f₁ ≐
+                                         #   (λf₁)[↑] ☐₀, by el-pi-beta
 
-Γ ▷ A ⊦ B type
+Γ ▷ A ⊦ B : 𝕍
 Γ ⊦ f₀ ≐ f₁ : A → B
 Γ ⊦ a₀ ≐ a₁ : A
------------------------------------- (el-app-cong)
-Γ ⊦ f₀ a₀ ≐ f₁ a₁ : B[id, a₁]
+------------------------------------ (el-app-cong) # ADMISSIBLE: substitution
+Γ ⊦ f₀ a₀ ≐ f₁ a₁ : B[id, a₁]                       #   instance at ☐₁ ☐₀
 
 Γ ⊦ a₀ ≐ a₁ : A
 Γ ▷ A ▷ Prf (☐₀ ≡ a₁[↑] ∈ A[↑]) ⊦ b₀ ≐ b₁ : B
@@ -2406,62 +2573,71 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ let a₀ b₀ ≐ let a₁ b₁ : B[id, a₁, ⋆]
 # (the a₀- and a₁-instance contexts are equal — ctx-ext-cong with
 # code-eq-cong — so the premise is stated at the a₁ instance, as at
-# the other congruences)
+# the other congruences. ADMISSIBLE: el-let-beta both sides, then
+# el-sub-cong at the open body equality)
 
-Γ ▷ A ⊦ B type
+Γ ▷ A ⊦ B : 𝕍
 Γ ⊦ a₀ ≐ a₁ : A
 Γ ⊦ b₀ ≐ b₁ : B[id, a₁]
-------------------------------------- (el-pair-cong)
-Γ ⊦ (a₀, b₀) ≐ (a₁, b₁) : A ⨯ B
+------------------------------------- (el-pair-cong) # ADMISSIBLE: substitution
+Γ ⊦ (a₀, b₀) ≐ (a₁, b₁) : A ⨯ B                      #   instance at (☐₁, ☐₀)
 
 Γ ⊦ t₀ ≐ t₁ : A ⨯ B
-------------------------------- (el-proj₁-cong)
-Γ ⊦ t₀ .π₁ ≐ t₁ .π₁ : A
+------------------------------- (el-proj₁-cong) # ADMISSIBLE: substitution
+Γ ⊦ t₀ .π₁ ≐ t₁ .π₁ : A                        #   instance at ☐₀ .π₁
 
 Γ ⊦ t₀ ≐ t₁ : A ⨯ B
-------------------------------------------- (el-proj₂-cong)
-Γ ⊦ t₀ .π₂ ≐ t₁ .π₂ : B[id, t₁ .π₁]
+------------------------------------------- (el-proj₂-cong) # ADMISSIBLE: substitution
+Γ ⊦ t₀ .π₂ ≐ t₁ .π₂ : B[id, t₁ .π₁]                        #   instance at ☐₀ .π₂
 
-Γ ⊦ B type
+Γ ⊦ B : 𝕍
 Γ ⊦ a₀ ≐ a₁ : A
---------------------------------- (el-inj₁-cong)
-Γ ⊦ inj₁ a₀ ≐ inj₁ a₁ : A ⊎ B
+--------------------------------- (el-inj₁-cong) # ADMISSIBLE: substitution
+Γ ⊦ inj₁ a₀ ≐ inj₁ a₁ : A ⊎ B                    #   instance at inj₁ ☐₀
 
-Γ ⊦ A type
+Γ ⊦ A : 𝕍
 Γ ⊦ b₀ ≐ b₁ : B
---------------------------------- (el-inj₂-cong)
-Γ ⊦ inj₂ b₀ ≐ inj₂ b₁ : A ⊎ B
+--------------------------------- (el-inj₂-cong) # ADMISSIBLE: substitution
+Γ ⊦ inj₂ b₀ ≐ inj₂ b₁ : A ⊎ B                    #   instance at inj₂ ☐₀
 
-Γ ▷ A ⊎ B ⊦ C type
+Γ ▷ A ⊎ B ⊦ C : 𝕍
 Γ ▷ A ⊦ l₀ ≐ l₁ : C[↑, inj₁ ☐₀]
 Γ ▷ B ⊦ r₀ ≐ r₁ : C[↑, inj₂ ☐₀]
 Γ ⊦ t₀ ≐ t₁ : A ⊎ B
 ------------------------------------------------------ (el-sum-e-cong, motive C)
 Γ ⊦ ⊎-elim l₀ r₀ t₀ ≐ ⊎-elim l₁ r₁ t₁ : C[id, t₁]
+# ADMISSIBLE: scrutinee slot by substitution instance, case slots via
+# el-sum-eta (⊎-elim l₀ r₀ satisfies l₁/r₁'s β-equations by
+# el-sub-cong on the open case equalities)
 
 Γ ⊦ t₀ ≐ t₁ : ℕ
-------------------------- (el-suc-cong)
-Γ ⊦ S t₀ ≐ S t₁ : ℕ
+------------------------- (el-suc-cong) # ADMISSIBLE: substitution
+Γ ⊦ S t₀ ≐ S t₁ : ℕ                     #   instance at S ☐₀
 
-Γ ▷ ℕ ⊦ A type
+Γ ▷ ℕ ⊦ A : 𝕍
 Γ ⊦ z₀ ≐ z₁ : A[id, Z]
 Γ ▷ ℕ ▷ A ⊦ s₀ ≐ s₁ : A[↑ ∘ ↑, S ☐₁]
 Γ ⊦ t₀ ≐ t₁ : ℕ
 ------------------------------------------------------ (el-nat-e-cong, motive A)
 Γ ⊦ ℕ-elim z₀ s₀ t₀ ≐ ℕ-elim z₁ s₁ t₁ : A[id, t₁]
+# ADMISSIBLE: scrutinee and z slots by substitution instance, the s
+# slot via el-nat-eta, as at el-sum-e-cong
 
-Γ ⊦ A type
+Γ ⊦ A : 𝕍
 Γ ⊦ t₀ : 𝟘
 Γ ⊦ t₁ : 𝟘
------------------------------------- (el-zero-e-cong) # stronger than a congruence: no t⁼ premise
-Γ ⊦ 𝟘-elim t₀ ≐ 𝟘-elim t₁ : A
+------------------------------------ (el-zero-e-cong) # stronger than a congruence: no
+Γ ⊦ 𝟘-elim t₀ ≐ 𝟘-elim t₁ : A                         #   t⁼ premise. ADMISSIBLE: under
+                                                      #   t₀ : 𝟘 every equation holds
+                                                      #   (el-zero-e at the equation's
+                                                      #   Prf, then el-reflect)
 
 Γ ▷ A ▷ A[↑] ⊦ R : Ω
 Γ ⊦ a₀ ≐ a₁ : A
---------------------------------------- (el-class-cong)
-Γ ⊦ class a₀ ≐ class a₁ : A / R
+--------------------------------------- (el-class-cong) # ADMISSIBLE: substitution
+Γ ⊦ class a₀ ≐ class a₁ : A / R                         #   instance at class ☐₀
 
-Γ ▷ (A / R) ⊦ B type
+Γ ▷ (A / R) ⊦ B : 𝕍
 Γ ▷ A ⊦ f₀ : B[↑, class ☐₀]
 Γ ▷ A ⊦ f₁ : B[↑, class ☐₀]
 Γ ▷ A ▷ A[↑] ▷ Prf R ⊦ f₀[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f₀[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
@@ -2470,8 +2646,18 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ q₀ ≐ q₁ : A / R
 ------------------------------------------------------ (el-quot-e-cong, motive B)
 Γ ⊦ quot-elim f₀ q₀ ≐ quot-elim f₁ q₁ : B[id, q₁]
+# ADMISSIBLE: scrutinee slot by substitution instance, the f slot via
+# el-quot-eta, as at el-sum-e-cong (the coherence premises feed the η)
 
-# Congruence rules for universe code constructors.
+# Congruence rules for universe code constructors. code-pi-cong,
+# code-sigma-cong and code-quot-cong are PRIMITIVE, irreducibly:
+# their changing slots either bind (the codomain/relation — an open
+# term cannot ride in a substitution) or sit beside a binder whose
+# domain changes with them, and 𝕌 deliberately has NO eliminator
+# (the Reynolds firewall), so there is no η to route them through.
+# Like the ty-*-cong four, they are the downward duals of the
+# code-*-inj block — the structural-code commitment itself.
+# code-sum-cong is non-binding and merely admissible.
 
 Γ ⊦ A₀ ≐ A₁ : 𝕌
 Γ ▷ El A₁ ⊦ B₀ ≐ B₁ : 𝕌
@@ -2485,15 +2671,16 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ ⊦ A₀ ≐ A₁ : 𝕌
 Γ ⊦ B₀ ≐ B₁ : 𝕌
-------------------------------- (code-sum-cong)
-Γ ⊦ A₀ ⊎ B₀ ≐ A₁ ⊎ B₁ : 𝕌
+------------------------------- (code-sum-cong) # ADMISSIBLE: substitution
+Γ ⊦ A₀ ⊎ B₀ ≐ A₁ ⊎ B₁ : 𝕌                       #   instance at ☐₁ ⊎ ☐₀
+                                                #   over Γ ▷ 𝕌 ▷ 𝕌
 
 Γ ⊦ A₀ ≐ A₁ : 𝕌
 Γ ▷ El A₁ ▷ (El A₁)[↑] ⊦ R₀ ≐ R₁ : Ω
 --------------------------------------- (code-quot-cong)
 Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ : 𝕌
 
-Γ ⊦ A₀ ≐ A₁ type
+Γ ⊦ A₀ ≐ A₁ : 𝕍
 --------------------------- (code-squash-cong) # admissible via code-prop-eq + el-ty-coe
 Γ ⊦ ∥A₀∥ ≐ ∥A₁∥ : Ω
 
@@ -2609,7 +2796,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ ⊦ 𝔽 poly
 --------------- (ty-nu)
-Γ ⊦ ν 𝔽 type
+Γ ⊦ ν 𝔽 : 𝕍
 
 Γ ⊦ 𝔽 poly
 --------------- (code-nu)
@@ -2617,7 +2804,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ ⊦ 𝔽 poly
 --------------------------- (ty-el-nu)
-Γ ⊦ El (ν 𝔽) ≜ ν 𝔽 type
+Γ ⊦ El (ν 𝔽) ≜ ν 𝔽 : 𝕍
 
 # ELIMINATION — the observation. A sort of this scheme has no
 # constructor canonical forms; out is the only way to consume it,
@@ -2777,8 +2964,8 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ▷ A ⊦ Δ tel
 Γ ⊦ e₀ ≐ e₁ : A
 Γ ⊦ ē₀ ≐ ē₁ : Δ[id, e₁]
---------------------------------- (sp-ext-cong)
-Γ ⊦ (e₀, ē₀) ≐ (e₁, ē₁) : A ◁ Δ
+--------------------------------- (sp-ext-cong)   # defining clause of the
+Γ ⊦ (e₀, ē₀) ≐ (e₁, ē₁) : A ◁ Δ                   #   pointwise meta-notation
 
 Γ₁ ⊦ ē : Δ
 σ : Γ₀ ⇒ Γ₁
@@ -2823,9 +3010,112 @@ e˲ : Γ₁ ⇒ Γ norm
 
 ///////// Rule name scheme /////////
 
-# Names follow <class>-<former>-<kind> uniformly (see Conventions).
-# The equivalence schema instances are ctx-refl/-sym/-trans, sub-…,
-# sub-norm-…, ty-…, el-…, tel-…, sp-…. The poly class has
+# Names follow <class>-<former>-<kind> uniformly (see Conventions:
+# NAMES). Within the element class the prefix records the
+# conclusion's universe — ty- at 𝕍, code- at 𝕌, el- otherwise. The
+# equivalence structure is three RULES for the ≐-notation (el-refl,
+# el-sym, el-trans — stated in EQUALITY; ty-refl/-sym/-trans of
+# earlier presentations are their A = 𝕍 instances) and META-LEMMAS
+# for the meta-defined spellings (the former ctx-/sub-/sub-norm-/
+# tel-/sp- refl/sym/trans instances). The poly class has
 # well-formedness rules only (polynomials are inert syntax, no
-# equality judgement). All other names appear verbatim on their
+# equality of their own). All other names appear verbatim on their
 # rules; there are no synonyms.
+
+///////// DISSOLVED NAMES /////////
+
+# The type judgement's dissolution retires these rule names. Every
+# retired name maps to the rule (or derivation) that replaces it —
+# for the propagation of docs/NovaKernel.txt, docs/NovaElaboration.txt
+# and the sources, which cite rules by name:
+#
+#   sig-ty-def       sig-def at A = 𝕍
+#   sig-ty-eq        RETIRED with the constraint kind (below)
+#   (sig-ty-decl is RETAINED: the type hole is not a sig-decl
+#    instance — see its note)
+#   ty-refl/-sym/-trans   el-refl/-sym/-trans at A = 𝕍
+#   ty-sub           el-sub at A = 𝕍 (index 𝕍[σ] ≜ 𝕍, meta-clause)
+#   ty-sub-id        el-sub-id at A = 𝕍
+#   ty-sub-comp      el-sub-comp at A = 𝕍
+#   ty-coe-ctx       el-coe-ctx at A = 𝕍
+#   ty-eq-coe-ctx    el-eq-coe-ctx at A = 𝕍
+#   ty-sub-cong      el-sub-cong at A = 𝕍
+#   ty-sub-cong-fix  el-sub-cong-fix at A = 𝕍
+#   ty-sig-var       el-sig-var at an A = 𝕍 entry
+#   ty-sig-beta      el-sig-beta at an A = 𝕍 entry
+#   ty-sig-decl      el-sig-decl at an A = 𝕍 entry
+#   ty-sig-eq        RETIRED with the constraint kind (below)
+#   ty-sub-sig-var   el-sub-sig-var at an A = 𝕍 entry
+#   ty-zero-elim     DERIVABLE: el-zero-e at Prf (A ≡ B ∈ 𝕍), then
+#                    el-reflect (see THE TOP UNIVERSE)
+#
+# All other ty-* names are RETAINED, denoting the same rules with
+# conclusions now written at 𝕍: ty-zero/-one/-nat/-univ/-prop, ty-pi,
+# ty-sigma, ty-sum, ty-el, ty-prf, ty-quot, the ty-el-* decodings,
+# the former-specific ty-sub-* substitution actions (ty-sub-atoms,
+# ty-sub-el, ty-prf-sub, ty-sub-pi/-sigma/-sum/-quot), the ty-*-cong
+# congruences, the ty-*-inj injectivities, ty-qiit, ty-el-qiit,
+# ty-qiit-cong, ty-nu, ty-el-nu.
+#
+# The CONSTRAINT KIND's retirement (an assumed equation is a hole at
+# the equation's Prf — DEFINITIONAL AND OPEN SIGNATURES) retires:
+#
+#   sig-eq           sig-decl at Prf (a₀ ≡ a₁ ∈ A)
+#   sig-ty-eq        sig-decl at Prf (A₀ ≡ A₁ ∈ 𝕍)
+#   el-sig-eq        DERIVED: el-reflect at the hole's el-sig-decl
+#                    reference
+#   ty-sig-eq        ditto, at an A = 𝕍 equation
+#   DISCHARGE        the Prf instance of INSTANTIATION (fill the hole
+#                    with ⋆ — el-eq-i's condition is exactly the
+#                    constraint's derivability)
+#
+# The EQUALITY JUDGEMENT's dissolution (Γ ⊦ a₀ ≐ a₁ : A is derived
+# notation for Γ ⊦ ⋆ : Prf (a₀ ≡ a₁ ∈ A); the other ≐-spellings are
+# meta-definitions — EQUALITY, conventions) reclassifies rather than
+# renames:
+#
+#   el-eq-i          the notation's UNFOLDING (name kept — the kernel
+#                    cites it for ⋆-at-an-equality checking)
+#   el-reflect       RETAINED as a rule: ⋆ is canonical at an
+#                    inhabited equality prop
+#   el-refl/-sym/-trans   RULES for the notation (stated in EQUALITY)
+#   ctx-refl/-sym/-trans, sub-…, sub-norm-…, tel-…, sp-…
+#                    meta-lemmas (pointwise/extensional)
+#   ctx-ext-cong, sub-norm-ext-cong, tel-ext-cong, sp-ext-cong
+#                    the meta-notations' DEFINING clauses
+#   sub-empty-unique, sub-id-empty, sub-eta, sub-id-pre, sub-id-post,
+#   sub-assoc, sub-wk-ext, sub-empty-comp, sub-ext-post,
+#   sub-ext-unique, sub-comp-cong, sub-ext-cong, sub-eq-coe-dom/-cod
+#                    meta-lemmas about the extensional notation
+#                    (statements unchanged, in place)
+#
+# The CONGRUENCE CONSOLIDATION reclassifies (no renames; statements
+# in place, each marked with its derivation):
+#
+#   el-pi-eta        RESTATED in the extensional (two-candidate) form
+#                    every other η already takes; the old single-
+#                    candidate form is the instance g₀ ≜ λ (g₁[↑] ☐₀)
+#   el-reflect       reglossed: ⋆-CANONICITY (reflection is
+#                    definitional under the ≐-notation)
+#   ADMISSIBLE, by substitution instance over el-sub-cong:
+#                    el-app-cong, el-suc-cong, el-pair-cong,
+#                    el-proj₁/₂-cong, el-inj₁/₂-cong, el-class-cong,
+#                    code-sum-cong, ty-el-cong, ty-prf-cong,
+#                    ty-qiit-cong, el-qiit-intro-cong
+#   ADMISSIBLE, via the extensional η's (+ el-sub-cong on the open
+#   slots):          el-lam-cong (el-pi-eta), el-nat-e-cong
+#                    (el-nat-eta), el-sum-e-cong (el-sum-eta),
+#                    el-quot-e-cong (el-quot-eta)
+#   ADMISSIBLE, otherwise:
+#                    el-let-cong (el-let-beta both sides),
+#                    el-zero-e-cong (absurdity collapse),
+#                    code-eq-cong, code-squash-cong (as before)
+#   PRIMITIVE congruence core:
+#                    el-sub-cong (the master — substitution
+#                    functionality), and the structural formers'
+#                    binder-adjacent congruences code-pi/-sigma/
+#                    -quot-cong and ty-pi/-sigma/-sum/-quot-cong —
+#                    irreducible because 𝕌 and 𝕍 have no eliminators
+#                    (no η to route through) and 𝕍 is unbindable (no
+#                    substitution instance); they are the downward
+#                    duals of the injectivity blocks

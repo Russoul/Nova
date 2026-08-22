@@ -58,7 +58,9 @@ adopted wholesale, presupposition column included:
   Σ sig                          Γ ctx            Γ₀ ≐ Γ₁ ctx
   σ : Γ ⇒ Δ                      σ₀ ≐ σ₁ : Γ ⇒ Δ
   e˲ : Γ ⇒ Δ norm                e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm
-  Γ ⊦ A type                     Γ ⊦ A₀ ≐ A₁ type
+  Γ ⊦ A : 𝕍                     Γ ⊦ A₀ ≐ A₁ : 𝕍
+  # (≐ is Foundation's derived notation for a ⋆-typing; a derivation
+  # of an equation is a derivation of that ⋆-typing)
   Γ ⊦ a : A                      Γ ⊦ a₀ ≐ a₁ : A
   Γ ⊦ Δ tel                      Γ ⊦ Δ₀ ≐ Δ₁ tel
   Γ ⊦ ē : Δ                      Γ ⊦ ē₀ ≐ ē₁ : Δ
@@ -96,7 +98,7 @@ index, a signature reference's name, a QIIT position.
     premise delivers. A spelling is USED when it enters a later
     premise's CONTEXT or a side condition — contexts are INPUTS to
     replay, so their spellings must be delivered by a PRECEDING
-    premise (el-pi-i's domain A, delivered by Γ ⊦ A type before the
+    premise (el-pi-i's domain A, delivered by Γ ⊦ A : 𝕍 before the
     body premise extends Γ with it; a checker without that demand
     would accept λ f : A → B with garbage A). A spelling that
     appears only in the CONCLUSION is an OUTPUT, delivered by the
@@ -174,7 +176,7 @@ per row of the judgement-form table:
   P
 
 e.g. from Γ ⊦ t₀ ≐ t₁ : A conclude Γ ⊦ t₀ : A (or t₁ : A, or by
-chaining Γ ⊦ A type). Justified once, by the meta-theorem; audited
+chaining Γ ⊦ A : 𝕍). Justified once, by the meta-theorem; audited
 once, against the table. This is what keeps derivations linear:
 a rewrite chain threads the typing of its intermediate spellings
 through projections from each step's conclusion instead of
@@ -184,12 +186,12 @@ usually a projection.
 ////////// Admissible addition 1½: formation inversion //////////
 
 The dual of projection, for the Π/Σ formation premises Foundation
-retains (el-pi-e's Γ ▷ A ⊦ B type, and kin): a former-headed
+retains (el-pi-e's Γ ▷ A ⊦ B : 𝕍, and kin): a former-headed
 formation delivers its parts.
 
-  D concludes Γ ⊦ Π A B type
+  D concludes Γ ⊦ Π A B : 𝕍
   --------------------------- (inv-pi-dom)     and inv-pi-cod,
-  Γ ⊦ A type                                   inv-sigma-dom/cod,
+  Γ ⊦ A : 𝕍                                   inv-sigma-dom/cod,
                                                inv-prf-eq-lhs/rhs/ty,
                                                inv-prf-code, inv-el-code,
                                                inv-code-eq-lhs/rhs/ty
@@ -222,9 +224,9 @@ keeps computation out of the trees:
   ------------------------------------------- (nf-expand)
   Γ ⊦ t ≐ t′ : A
 
-  Γ ⊦ A type       nf(A) ⇓ A′
+  Γ ⊦ A : 𝕍       nf(A) ⇓ A′
   ------------------------------------------- (nf-expand-ty)
-  Γ ⊦ A ≐ A′ type
+  Γ ⊦ A ≐ A′ : 𝕍
 
 nf is today's normalizer unchanged — Foundation's ≜ rules clause for
 clause, one fuel unit per contraction, exhaustion = rejection. The
@@ -243,9 +245,9 @@ comparison:
   ---------------------------------------------- (nf-eq)
   Γ ⊦ t₀ ≐ t₁ : A            # ≝ trans(nf-expand t₀, sym(nf-expand t₁))
 
-  Γ ⊦ A₀ type     Γ ⊦ A₁ type     nf(A₀) = nf(A₁)
+  Γ ⊦ A₀ : 𝕍     Γ ⊦ A₁ : 𝕍     nf(A₀) = nf(A₁)
   ------------------------------------------------ (nf-eq-ty)
-  Γ ⊦ A₀ ≐ A₁ type
+  Γ ⊦ A₀ ≐ A₁ : 𝕍
  WHNF: deliberately not a separate rule. The
 trusted surface is identical — whnf and nf share the ≜-clause set,
 and the fixpoint driver was never the dangerous part — while a
@@ -270,9 +272,9 @@ regions untouched.
   --------------------------------------------------------- (beta-at)
   Γ ⊦ t ≐ t′ : A
 
-  Γ ⊦ A type       A|p ≜-contracts, A[p ↦ contractum] = A′
+  Γ ⊦ A : 𝕍       A|p ≜-contracts, A[p ↦ contractum] = A′
   --------------------------------------------------------- (beta-at-ty)
-  Γ ⊦ A ≐ A′ type
+  Γ ⊦ A ≐ A′ : 𝕍
 
 The justification is the nf oracle's own: subject reduction. The
 subterm at p carries NO typing premise of its own — the root's
@@ -331,21 +333,21 @@ discipline; the recurring shapes, by example (each premise's replay
 DELIVERS its concluded spellings to the ones after it and to the
 side conditions):
 
-  el-pi-i      demands: Γ ⊦ A type (delivers A);  Γ ▷ A ⊦ f : B.
+  el-pi-i      demands: Γ ⊦ A : 𝕍 (delivers A);  Γ ▷ A ⊦ f : B.
                concludes λ f : A → B — B read off the body premise;
                its formation is presupposition-derivable, so it is
                neither demanded nor carried.
   el-pi-e      demands: f : Π A B;  e : A′;
                side condition A′ = A (α). Conversion is never silent:
                a mismatch needs an explicit el-ty-coe node.
-  el-sigma-i   demands: u : A (delivers A);  Γ ▷ A ⊦ B type
+  el-sigma-i   demands: u : A (delivers A);  Γ ▷ A ⊦ B : 𝕍
                (delivers the family — USED by the side condition, so
                it must precede);  v : T,  side condition
                T = B[id, u] (α, after substitution).
-  el-nat-e     demands: Γ ▷ ℕ ⊦ A type — the motive, delivered by
+  el-nat-e     demands: Γ ▷ ℕ ⊦ A : 𝕍 — the motive, delivered by
                Foundation's own retained formation premise;
                z : A[id, Z];  s (under Γ ▷ ℕ ▷ A);  t : ℕ.
-  el-ty-coe    demands: t : A;  Γ ⊦ A′ ≐ B type;  side condition
+  el-ty-coe    demands: t : A;  Γ ⊦ A′ ≐ B : 𝕍;  side condition
                A′ = A (α).  concludes t : B — the target delivered
                by the equation premise.
   *-trans      demands: the two equation premises; side condition:
@@ -401,7 +403,7 @@ side conditions):
 An item artifact is (name, type spelling T, body spelling t) plus
 two derivations, both in the EMPTY context:
 
-  D_T concluding  ε ⊦ T type
+  D_T concluding  ε ⊦ T : 𝕍
   D_t concluding  ε ⊦ t : T      (T α-equal to D_T's subject)
 
 The kernel replays both, α-compares the concluded spellings against

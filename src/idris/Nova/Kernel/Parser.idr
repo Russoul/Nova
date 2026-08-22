@@ -247,7 +247,7 @@ mutual
   -- e₀ ≡ e₁ ∈ A      (sugar: the ≡-TYPE is Prf of the equality prop)
   -- A → B             (PiTy)
   -- A ⨯ B             (SigmaTy)
-  -- A / r             (Quotient; r is an Ω-valued Elem)
+  -- A / r             (QuotTy; r is an Ω-valued Elem)
   -- El e              (El, e is an Elem atom)
   -- Prf e             (Prf, e is an Elem atom)
   -- 𝟘 𝟙 ℕ 𝕌 Ω        (constant types)
@@ -259,7 +259,7 @@ mutual
             e1 <- parseElemPrefix; sp
             str_ "∈"; sp
             a  <- parseTyArrow
-            pure (Ty.Prf (Elem.EqTy e0 e1 a)))
+            pure (Prf (Elem.EqTy e0 e1 a)))
     <|> parseTyArrow
 
   -- A → B  or  A ⨯ B  or  A / r  (right-associative infix)
@@ -267,9 +267,9 @@ mutual
   parseTyArrow : Rule Ty
   parseTyArrow = do
     a <- parseTySum
-    (do sp; str_ "→"; sp; b <- parseTyArrow; pure (Ty.PiTy a b))
-      <|> (do sp; str_ "⨯"; sp; b <- parseTyArrow; pure (Ty.SigmaTy a b))
-      <|> (do sp; str_ "/"; sp; r <- parseElemNoComma; pure (Ty.Quotient a r))
+    (do sp; str_ "→"; sp; b <- parseTyArrow; pure (PiTy a b))
+      <|> (do sp; str_ "⨯"; sp; b <- parseTyArrow; pure (SigmaTy a b))
+      <|> (do sp; str_ "/"; sp; r <- parseElemNoComma; pure (QuotTy a r))
       <|> pure a
 
   -- A ⊎ B (right-assoc, non-dependent) — tighter than → ⨯ /
@@ -277,7 +277,7 @@ mutual
   parseTySum : Rule Ty
   parseTySum = do
     a <- parseTyEl
-    (do sp; str_ "⊎"; sp; b <- parseTySum; pure (Ty.SumTy a b))
+    (do sp; str_ "⊎"; sp; b <- parseTySum; pure (SumTy a b))
       <|> pure a
 
   -- El e / Prf e  (prefix, argument is an Elem atom)
@@ -286,7 +286,7 @@ mutual
   parseTyEl =
         (do str_ "El"; space; e <- parseElemAtom; pure (El e))
     <|> (do str_ "Prf"; space; e <- parseElemAtom; pure (Prf e))
-    <|> (do str_ "ν"; space; f <- parsePolyAtom; pure (Ty.NuTy f))
+    <|> (do str_ "ν"; space; f <- parsePolyAtom; pure (NuTy f))
     <|> parseTyAtom
 
   -- Polynomials (one-hole codes): binders and products at the top,
@@ -319,14 +319,14 @@ mutual
   covering
   parseTyAtom : Rule Ty
   parseTyAtom =
-        (str_ "𝟘" $> Ty.ZeroTy)
-    <|> (str_ "𝟙" $> Ty.OneTy)
-    <|> (str_ "ℕ" $> Ty.NatTy)
-    <|> (str_ "𝕌" $> Ty.UniverseTy)
-    <|> (str_ "Ω" $> Ty.PropTy)
+        (str_ "𝟘" $> ZeroTy)
+    <|> (str_ "𝟙" $> OneTy)
+    <|> (str_ "ℕ" $> NatTy)
+    <|> (str_ "𝕌" $> UniverseTy)
+    <|> (str_ "Ω" $> PropTy)
     <|> (do x <- parseSigIdentifier
             sp; char_ '['; sp; es <- parseSubNorm; sp; char_ ']'
-            pure (Ty.SigVar x es))
+            pure (SigVar x es))
     <|> inParen parseTy
 
 -- ===== Convenience runner =====

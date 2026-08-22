@@ -236,6 +236,11 @@ mutual
     ZeroTy => e
     OneTy => e
     NatTy => e
+    UniverseTy => e
+    PropTy => e
+    TopTy => e
+    El t => El (rcE f t)
+    Prf t => Prf (rcE f t)
     PiTy a b => PiTy (rcE f a) (rcE f b)
     SigmaTy a b => SigmaTy (rcE f a) (rcE f b)
     SumTy a b => SumTy (rcE f a) (rcE f b)
@@ -245,7 +250,7 @@ mutual
     QuotElim g q => QuotElim (rcE f g) (rcE f q)
     Squash ty => Squash (rcT f ty)
     Star => e
-    QSortC sg k sp => QSortC (rcQSig f sg) k (map (rcE f) sp)
+    QSort sg k sp => QSort (rcQSig f sg) k (map (rcE f) sp)
     QCtor sg k sp => QCtor (rcQSig f sg) k (map (rcE f) sp)
     QElim sg k mots mths sp w =>
       QElim (rcQSig f sg) k (map (rcT f) mots) (map (rcE f) mths)
@@ -256,15 +261,15 @@ mutual
 
   rcT : (String -> String) -> Ty -> Ty
   rcT f ty = case ty of
-    Ty.SigVar n sp => Ty.SigVar (f n) (map (rcE f) sp)
-    Ty.PiTy a b => Ty.PiTy (rcT f a) (rcT f b)
-    Ty.SigmaTy a b => Ty.SigmaTy (rcT f a) (rcT f b)
-    Ty.SumTy a b => Ty.SumTy (rcT f a) (rcT f b)
+    SigVar n sp => SigVar (f n) (map (rcE f) sp)
+    PiTy a b => PiTy (rcT f a) (rcT f b)
+    SigmaTy a b => SigmaTy (rcT f a) (rcT f b)
+    SumTy a b => SumTy (rcT f a) (rcT f b)
     El t => El (rcE f t)
     Prf t => Prf (rcE f t)
-    Quotient a r => Quotient (rcT f a) (rcE f r)
+    QuotTy a r => QuotTy (rcT f a) (rcE f r)
     QSort sg k sp => QSort (rcQSig f sg) k (map (rcE f) sp)
-    Ty.NuTy p => Ty.NuTy (rcP f p)
+    NuTy p => NuTy (rcP f p)
     _ => ty
 
   rcP : (String -> String) -> Poly -> Poly
@@ -297,11 +302,7 @@ renameSig f = map entry
  where
   entry : SigEntry -> SigEntry
   entry (SigDef ctx n body ty) = SigDef (map (rcT f) ctx) (f n) (rcE f body) (rcT f ty)
-  entry (SigTyDef ctx n ty) = SigTyDef (map (rcT f) ctx) (f n) (rcT f ty)
   entry (SigDecl ctx n ty) = SigDecl (map (rcT f) ctx) (f n) (rcT f ty)
-  entry (SigTyDecl ctx n) = SigTyDecl (map (rcT f) ctx) (f n)
-  entry (SigEq ctx l r ty) = SigEq (map (rcT f) ctx) (rcE f l) (rcE f r) (rcT f ty)
-  entry (SigTyEq ctx a b) = SigTyEq (map (rcT f) ctx) (rcT f a) (rcT f b)
 
 -- ===== The driver =====
 

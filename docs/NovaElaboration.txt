@@ -75,8 +75,8 @@ precedence level n, and T{>=n} any level at or above it. The
 term/type grammar below is self-contained.
 
 # A file is a sequence of items. `def` introduces a term definition,
-# `type` a type definition — the two signature-entry forms of
-# Foundation's Σ; `data` is an ITEM MACRO that expands into a batch
+# `type` a type definition — both elaborate to Foundation's ONE
+# definition entry form, `type` as the A = 𝕍 instance; `data` is an ITEM MACRO that expands into a batch
 # of them (QIIT section below), and a def with CLAUSES is likewise an
 # item macro (Defining equations section below). Every item is declared in the EMPTY context:
 # parameters are ordinary Π-binders in the item's type (the iterated
@@ -364,7 +364,7 @@ E   — the equation store, feeding algorithmic discharge. Three sources:
         S-component closure is included too (derivable via a
         predecessor, no rule needed). class is NOT decomposed:
         quotients are not injective.
-      * ASSUMED CONSTRAINTS: every equation constraint of Σ (each one
+      * ASSUMED OBLIGATIONS: every equation hole of Σ (each one
         an equation assumed by ↓ below), so that the run continues
         coherently and the same mismatch never surfaces twice.
 
@@ -372,7 +372,7 @@ E   — the equation store, feeding algorithmic discharge. Three sources:
       consults only the site's SCOPE — the lemmas the enclosing item
       NAMES (its `using` clause; a `⋆ using`/chain overrides locally)
       plus the HYPOTHESES of the context, which are always in scope,
-      plus the assumed-constraint deduplication. An item without a
+      plus the assumed-obligation deduplication. An item without a
       clause scopes to hypotheses alone. Consequences: whether an item
       is accepted is a function of the item, not of the store or its
       order; per-conversion cost is proportional to the named set, not
@@ -386,23 +386,24 @@ E   — the equation store, feeding algorithmic discharge. Three sources:
       acceptance (a property of the stored form; import order remains
       semantic in exactly that sense and no other).
 
-There is NO separate obligation store: an OBLIGATION is a constraint
-entry of Σ (Foundation: sig-eq/sig-ty-eq — the signature is OPEN
-during a run), appended in surfacing order. Alongside each entry the
+There is NO separate obligation store: an OBLIGATION is an entry of
+Σ — a machine-named hole at the equation's Prf (Foundation: sig-decl
+at Prf (a ≡ b ∈ A); the signature is OPEN during a run) — appended in
+surfacing order. Alongside each entry the
 elaborator keeps DISPLAY METADATA — outside the theory, consumed only
 by the report printer: the item and source position that surfaced it,
 the binder-name environment of its context, and — when its two sides
 were themselves elaborated under earlier assumptions — a note naming
 the composite equation it was decomposed from. The report enumerates
-Σ's constraint entries in order, and a run is ACCEPTED exactly when
-its final Σ is DEFINITIONAL (Foundation: no constraints and no
-declarations).
+Σ's equation holes in order, and a run is ACCEPTED exactly when its
+final Σ is DEFINITIONAL (Foundation: no declarations — equation
+holes included).
 
 The distinction that keeps this sound: entries of E may be USED freely
-by conversion during the run, but a constraint is only ever CLOSED —
+by conversion during the run, but an obligation is only ever CLOSED —
 absent from the next run's Σ — because a lemma accepted earlier on
 that LATER RUN discharges the site that would have minted it. Within a
-run, an equation that matches an already-assumed constraint is
+run, an equation that matches an already-assumed obligation is
 deduplicated against it, not discharged by it. Assumptions therefore
 can never launder themselves into proofs; the wall between "assumed"
 and "proven" is crossed only by the prepend-and-rerun cycle.
@@ -438,10 +439,10 @@ el-nat-beta-s, el-sum-beta₁, el-sum-beta₂, el-quot-beta,
 el-nu-beta (out at a corec head — map_𝔽 and hᵉˡ expanding by
 Foundation's ≜-clauses), el-qiit-beta (the eliminator at a
 saturated constructor of the nf-identical signature),
-el-sig-beta/ty-sig-beta (signature
+el-sig-beta (signature
 unfolding — for DEFINITION entries; a declaration reference is stuck
-by design, el-sig-decl/ty-sig-decl, and constraint entries are
-nameless and never referenced), and the El-decoding family (ty-el-zero, ty-el-one,
+by design, el-sig-decl, and obligation holes are machine-named and
+never referenced by elaborator output), and the El-decoding family (ty-el-zero, ty-el-one,
 ty-el-nat, ty-el-pi, ty-el-sigma, ty-el-sum, ty-el-nu, ty-el-eq, ty-el-quot — the last
 decoding El (A / r) ≜ El A / r, the Ω-valued relation passing through
 undecoded — and ty-el-qiit, El (𝒮.𝕤 ē) ≜ 𝒮.𝕤 ē; Prf ∥A∥ has no
@@ -457,8 +458,8 @@ never an unsound acceptance.
 Γ ⊢ 𝟘 ⇝ 𝟘 type    Γ ⊢ 𝟙 ⇝ 𝟙 type    Γ ⊢ ℕ ⇝ ℕ type    Γ ⊢ 𝕌 ⇝ 𝕌 type
 Γ ⊢ Ω ⇝ Ω type                       # (𝟘),(𝟙),(ℕ),(𝕌),(Ω)
 
-(ε ⊦ x ≔ T type) ∈ Σ
----------------------- (e-ty-sig)                             # (x[e˲] type)
+(ε ⊦ x ≔ T : 𝕍) ∈ Σ
+---------------------- (e-ty-sig)                             # (x[e˲] at 𝕍)
 Γ ⊢ x ⇝ x[·] type
 
 # Every entry the elaborator produces is closed, so the core
@@ -732,7 +733,7 @@ whnf(C) = Prf p        (e-star's premises, verbatim)
 
 # HOLES ARE REMOVED. The e-hole/e-ty-hole rules, solvable-hole
 # pattern solving (declaration-to-definition flips), the kernel-Σ
-# mirror and the item-end constraint deletion that lived here were
+# mirror and the item-end obligation deletion that lived here were
 # measured as the dominant elaboration cost and the sole source of
 # non-monotone Σ mutation, and were removed together with the surface
 # forms (`?x`, `_`-leading identifiers; the `_` BINDER wildcard is a
@@ -1049,8 +1050,9 @@ whnf(C) = Prf (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ Prf R[id, a, b
 #      completeness upgrade; none of these mechanisms affects
 #      soundness — each discharge is a Foundation derivation via
 #      (el-sub-cong-fix) + congruence + transitivity + reflection.
-#   8. ASSUME: append the equation to Σ as a constraint entry (sig-eq/
-#      sig-ty-eq), record its display metadata (source position, and
+#   8. ASSUME: append the equation to Σ as a machine-named HOLE at
+#      its Prf (sig-decl at Prf (a ≡ b ∈ A), ∈-slot 𝕍 for a type
+#      equation), record its display metadata (source position, and
 #      the composite it was decomposed from, if any), and add it to E;
 #      succeed. Before assuming, probe the WHOLE store once — the same
 #      mechanisms, unscoped, plus kernel replay of the result — and
@@ -1063,8 +1065,8 @@ whnf(C) = Prf (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ Prf R[id, a, b
 # Invariant (statement well-formedness): every equation reaching ↓ has
 # both sides produced by elaboration at the stated type, in the stated
 # context, under the assumptions active at that moment. Consequently
-# each constraint entry is well-formed against its Σ PREFIX — exactly
-# the premise shape of sig-eq — and the report order is always a valid
+# each obligation hole is well-formed against its Σ PREFIX — exactly
+# the premise shape of the equation's Prf — and the report order is always a valid
 # discharge order. An obligation whose statement
 # depends on earlier assumptions is annotated with them; prove those
 # first (or in one joint lemma) and the later statement becomes
@@ -1089,7 +1091,7 @@ def x : T ≔ t          extends Σ with (ε ⊦ x ≔ t̂ : A)
 
 ε ⊢ T ⇝ A type
 ------------------------------------------------------------- (e-typedef)
-type x ≔ T             extends Σ with (ε ⊦ x ≔ A type)
+type x ≔ T             extends Σ with (ε ⊦ x ≔ A : 𝕍)
 
 ε ⊢ T ⇝ A type
 ------------------------------------------------------------- (e-decl)

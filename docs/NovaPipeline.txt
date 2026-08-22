@@ -79,7 +79,7 @@ Consequences of the split:
 
 Foundation's core syntax stays BARE — and the kernel, checking
 spellings, necessarily works extrinsically even though the theory's
-official reading is intrinsic (docs/NovaSyntax.txt): a spelling
+official reading is intrinsic (NovaFoundation's preface): a spelling
 inhabits many types at once (a spelling and its El-decoding; an index
 and its lemma-equal form), so "the type of a subterm" is not
 recoverable from the artifact — only a chosen spelling. Nothing judgmentally inert belongs in
@@ -184,13 +184,14 @@ agent did that is not in the source file can affect the verdict.
 ////////// The obligation lifecycle (unchanged) //////////
 
 Discharge failure is never an error: the equation is assumed — as a
-CONSTRAINT ENTRY of the run's signature (Foundation: sig-eq/sig-ty-eq;
+HOLE at the equation's Prf in the run's signature (Foundation:
+sig-decl at Prf (a ≡ b ∈ A), A = 𝕍 for a type equation;
 Σ is OPEN mid-run) — deduplicated, and reported at end of run with its
 site and the composite it descended from. The user or AI discharges an
 obligation by prepending an ordinary def whose type is the
 obligation's statement as an equality type, and re-running. A file is
 accepted exactly when the run's final signature is DEFINITIONAL (no
-constraints and no declarations) AND the kernel replays every
+declarations, equation holes included) AND the kernel replays every
 certificate. Nothing survives between runs. (Full lifecycle,
 stratification and metatheory: docs/NovaElaboration.txt.)
 
