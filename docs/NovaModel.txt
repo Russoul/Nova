@@ -314,9 +314,10 @@
 #    syntax INTO the meta and never back; establishing that every
 #    closed ⊦ t : ℕ is ≐-equal to a numeral requires a readback and
 #    its correctness — a gluing/logical-relations argument over this
-#    model, carried out (for closed terms) in docs/NovaSyntax.txt,
-#    which uses this model twice: as the target of evaluation and
-#    for the injectivity half of canonicity. Likewise nothing here
+#    model (it would use the model twice: as the target of evaluation
+#    and for the injectivity half of canonicity). No document
+#    currently carries that argument out; canonicity is asserted as
+#    a meta-property where Foundation relies on it. Likewise nothing here
 #    is an algorithm; decidability is not addressed (and the full
 #    theory's ≐ is undecidable by design).
 
