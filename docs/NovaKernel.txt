@@ -25,8 +25,13 @@ kernel-only judgement forms added:
   nf(t) ⇓ t′ , nf(T) ⇓ T′        fuel-bounded normalization
   Σ; Γ ⊦ p ⇒ᵖ T                  proof-spine inference
   Σ; Γ ⊦ p ⇐ᵖ T                  proof-argument checking
-  Σ; Γ ⊦ 𝒞 ▷ t₀ ≐ t₁ : T         certificate replay (element equation)
-  Σ; Γ ⊦ 𝒞 ▷ T₀ ≐ T₁             certificate replay (type equation)
+  Σ; Γ ⊦ 𝒞 ▷ t₀ ≐ t₁ : T         certificate replay — ONE channel;
+                                 a type equation is the T = 𝕍
+                                 instance (the type-congruence finals
+                                 apply exactly there). Foundation's ≐
+                                 is derived notation for a ⋆-typing,
+                                 and a certificate is precisely the
+                                 evidence that replay checks it by
   Σ; Γ ⊦ t ⇐ T ⟨sk⟩              item-level checking (skeleton sk)
   Σ; Γ ⊦ t ⇒ T ⟨sk⟩              item-level inference
   Σ; Γ ⊦ T : 𝕍 ⟨sk⟩             item-level formation
