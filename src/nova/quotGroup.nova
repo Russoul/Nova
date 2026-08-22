@@ -32,6 +32,7 @@
 import id (Id, eqToId)
 import monoid (IsMonoid)
 import group (IsGroup)
+import groupTheory (· as gop, e as ge, ⁻¹ as ginv)
 import (groupTheory g) (·, e, ⁻¹, gAssoc, gUnitL, gUnitR, gInvL, gInvR, gCancelInner, gCancelInnerInv, gCancelOuter, gCancelOuterInv, gInvUniq, gInvInv, gInvUnit, gOpInv, gCancelL, gCancelR)
 import (subgroup g) (IsSubgroup, IsNormal, sgUnit, sgOp, sgInv, nmConj, nmConjInv, cosetRel, cosetRefl, cosetSymm, cosetTrans, cosetFlip, cosetSplice)
 import quotEffective (classEqOfRel, effectiveAtEquiv)
@@ -336,3 +337,35 @@ def qFactorUnique : (H : 𝕌)
   → ((a : El G) → phi (class a) ≡ psi (class a)) → (u : El QGroup) → phi u ≡ psi u
   using (QGroup.unfold) ≔
   λH. λphi. λpsi. λe. λu. quot-elim (a. e a) u
+
+-- ===== the abstract structure on the quotient IS the quotient structure =====
+def qopIsQMul : (s : Prf (IsSubgroup N))
+  (nn : Prf (IsNormal N))
+  (u v : El QGroup)
+  → gop (qIsGroup s nn) u v ≡ qMul nn u v
+  using (groupTheory.·.eq, qIsGroup.eq) ≔
+  λs. λnn. λu. λv. ⋆
+
+def qeIsQUnit : (s : Prf (IsSubgroup N)) (nn : Prf (IsNormal N)) → ge (qIsGroup s nn) ≡ qUnit
+  using (groupTheory.e.eq, qIsGroup.eq) ≔
+  λs. λnn. ⋆
+
+def qinvIsQInv : (s : Prf (IsSubgroup N))
+  (nn : Prf (IsNormal N))
+  (u : El QGroup)
+  → ginv (qIsGroup s nn) u ≡ qInv s nn u
+  using (groupTheory.⁻¹.eq, qIsGroup.eq) ≔
+  λs. λnn. λu. ⋆
+
+-- ===== the quotient homomorphism π : G → G/N =====
+def qProjLaw : (s : Prf (IsSubgroup N))
+  (nn : Prf (IsNormal N))
+  (x y : El G)
+  → qcls (x · y) ≡ gop (qIsGroup s nn) (qcls x) (qcls y)
+  using (quotGroup.qcls.eq) ≔
+  λs. λnn. λx. λy. trans
+    _
+    _
+    _
+    (sym (qMul nn (qcls x) (qcls y)) (qcls (x · y)) (qMulCls nn x y))
+    (sym _ _ (qopIsQMul s nn (qcls x) (qcls y)))

@@ -3262,7 +3262,7 @@ mutual
     -- def at THIS module's instantiation: route it through the spine
     -- elaborator (empty spine, no trailing insertion), which
     -- pre-applies the parameter prefix
-    let Nothing = lookup x st.preApp
+    let Nothing = lookup x0 st.preApp
       | Just _ => elabImpSpine ctx env site Nothing False False x x0 mrng []
     -- cachedSigLookup: positive-only name index; the unknown-name
     -- error path below always re-scans (negatives are never cached)
@@ -3793,7 +3793,7 @@ mutual
         pure (t', addPayload (PSwitch (certOr c)) tSk)
       else case impSpineOf st (SApp sref SUnitI) of   -- reuse the head test
       Just (_, q, _, _, _) =>
-        if maybe False (\ps => 0 `elem` ps) (lookup q st.impls) || isJust (lookup q st.preApp)
+        if maybe False (\ps => 0 `elem` ps) (lookup q st.impls) || isJust (lookup x0 st.preApp)
           then do
             (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) True False q x0 mrng []
             c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
@@ -4095,7 +4095,7 @@ mutual
           -- split and the matcher cannot see through (its relation
           -- to the surface-level PiApp form is conversion, not α) —
           -- those spines stay on the generic rule, blankless
-          _ => if isJust (lookup q st.preApp)
+          _ => if isJust (lookup x0 st.preApp)
                  -- a PARAMETERIZED-module reference always takes the
                  -- spine elaborator: its parameter prefix is
                  -- pre-applied there
@@ -4110,7 +4110,9 @@ mutual
       -- homAp {} _ g _ (qIsGroup …) qProj a)
       SNoIns (SSig mrng x0) =>
         let q = resolveSigName st x0 in
-        if (any isBlankArg items || st.svSugarOn) && ordinaryHead st q
+        -- a PARAMETERIZED head must route here regardless: `f {}` is
+        -- the def at its FULL telescope, parameter prefix included
+        if (any isBlankArg items || st.svSugarOn || isJust (lookup x0 st.preApp)) && ordinaryHead st q
           then Just (True, q, x0, mrng, items)
           else Nothing
       _ => Nothing
@@ -4175,7 +4177,11 @@ mutual
     -- stored arguments, weakened to this site's depth). Written
     -- arguments never consume these positions; {…} overrides defer
     -- past them to the def's own implicits
-    let (parN, parVals) = the (Nat, List Elem) $ case lookup q st.preApp of
+    -- `f {}` is the BARE def over its full telescope — the no-insert
+    -- marker suppresses the parameter prefix too, which is how a
+    -- parameterized module references its own defs at OTHER
+    -- instances (Hom {} _ g _ (qIsGroup s nn))
+    let (parN, parVals) = the (Nat, List Elem) $ if noIns then (0, []) else case lookup x0 st.preApp of
           Just PSelf =>
             let k = length st.parTele in
             (k, map (\j => CtxVar (minus (minus (length ctx) 1) j)) (natsUpTo k))
@@ -4391,9 +4397,16 @@ mutual
     ||| have. Like an intro form, it defers — and checks later, at a
     ||| hole-free domain, with its insertion intact.
     bareImplicitRef : ElabSt -> SElem -> Bool
-    bareImplicitRef st (SSig _ x0) = case lookup (resolveSigName st x0) st.impls of
-      Just (_ :: _) => True
-      _ => False
+    bareImplicitRef st (SSig _ x0) =
+      let q = resolveSigName st x0
+          imps = fromMaybe [] (lookup q st.impls)
+      in case lookup x0 st.preApp of
+           -- a PARAMETERIZED reference pre-applies its prefix even in
+           -- inference mode: it only defers when it has implicit
+           -- positions BEYOND the parameter prefix
+           Just _ => let k = fromMaybe 0 (lookup q st.mpars)
+                     in any (>= k) imps
+           Nothing => not (null imps)
     bareImplicitRef st _ = False
 
     ||| the written positions the walk DEFERS: intro forms, and bare
@@ -5102,7 +5115,7 @@ elabItemGo (SDef x ty body muses) = do
         ps => modifySt $ { impls $= ((q, ps) ::) }
       -- the def is a PARAMETERIZED-module member: record its prefix
       -- arity globally and make it a pre-applied SIBLING here
-      modifySt $ { mpars $= ((q, k) ::), preApp $= ((q, PSelf) ::) }
+      modifySt $ { mpars $= ((q, k) ::), preApp $= ((x, PSelf) ::) }
   suffix <- opensSuffix census
   pure "defined \{x}\{suffix}"
 elabItemGo (SDeclDef nrng x ty) = do
@@ -5609,7 +5622,7 @@ installModParams ps0 = go [<] [<] ps0
 installInstApps : List SImport -> ElabM ()
 installInstApps [] = pure ()
 installInstApps (MkSImport m [] _ :: rest) = installInstApps rest
-installInstApps (MkSImport m args _ :: rest) = do
+installInstApps (MkSImport m args opens :: rest) = do
   st <- getSt
   let mdefs = filter (\(n, _) => isPrefixOf "\{m}." n) st.mpars
   let (q0, k) = the (String, Nat) $ case mdefs of
@@ -5624,7 +5637,17 @@ installInstApps (MkSImport m args _ :: rest) = do
   when (length els /= k) $
     throw "import \{m}: the instantiation covers \{show (length els)} of '\{m}''s \{show k} module parameters"
   let depth = length st.parTele
-  modifySt $ { preApp $= (++ map (\(n, _) => (n, PArgs depth els)) mdefs) }
+  -- entries under the LOCAL spellings of the OPENED names: renaming
+  -- (`· as ∙`) is what lets one module be instantiated twice in one
+  -- file — a second un-renamed open of the same name would shadow
+  -- silently, so it is refused instead
+  let entries = mapMaybe (\(o, ml) =>
+                  if isJust (lookup "\{m}.\{o}" st.mpars)
+                    then Just (fromMaybe o ml, PArgs depth els)
+                    else Nothing) opens
+  traverse_ (\(nm, _) => when (isJust (lookup nm st.preApp)) $
+      throw "import \{m}: '\{nm}' already names an instantiated def in this module — rename one of the opens (`\{nm} as …`)") entries
+  modifySt $ { preApp $= (++ entries) }
   installInstApps rest
  where
   envIdx : NameEnv -> String -> Maybe Nat

@@ -770,10 +770,35 @@ header fixes ONE plicity per parameter, so defs whose g/N were
 per-def implicit are now header-explicit: external plain-import
 sites on the flipped side spell a blank (`cosetRefl _ s`,
 `qclsEq _ _ s a b h` — the blank solves from the proof argument's
-type), and old explicit-(G) sites drop a blank. Still open: two
-instantiations of one module in one file need prefix-renaming
-imports (groupHom wants groupTheory at g AND h); data/clausal
-items inside parameterized modules are refused.
+type), and old explicit-(G) sites drop a blank.
+
+DOUBLE INSTANTIATION AND THE TWO-GROUP MODULES (2026-08-22): the
+pre-application table is keyed by the importer's LOCAL surface
+name, so one module instantiates twice in one file with the
+renaming machinery doing the disambiguation:
+
+  import (groupTheory g) (·, e, ⁻¹, gUnitL, gInvR)
+  import (groupTheory h) (· as ∙, e as eH, ⁻¹ as invH, …)
+
+(a second un-renamed open of the same name is refused, not
+shadowed). groupHom is parameterized at {G} (g) {H} (h) — `def
+homInv : (p : El Hom) (x : El G) → homAp p (x ⁻¹) ≡ invH (homAp
+p x)` — and groupIso at {G} (g) {H} (h) (p : El (HomRaw g h)),
+the "fix a homomorphism" chapter (all 41 defs). Related pieces:
+`f {}` — the no-insert form — suppresses the PARAMETER prefix
+too, which is how a module references its own defs at OTHER
+instances (Hom {} _ (qIsGroup _ _ s nn) _ h — the hom out of the
+quotient, blanks recovered as ever); a header type that needs a
+parameterized import BEFORE instantiation uses a plain renamed
+open (p : El (HomRaw g h) — instantiation args come later in the
+install order than the header they mention); the bare-reference
+defer heuristic treats a pre-applied reference as a usable source
+unless it has implicit positions BEYOND the parameter prefix; and
+the qProj family moved out of groupHom (its second group is the
+QUOTIENT, not a parameter — the N-less algebra split, again) into
+quotGroup (the three structure lemmas + qProjLaw) and qProj.nova
+(the projection hom proper). Still open: data/clausal items
+inside parameterized modules are refused.
 
 POSTFIX OPERATORS AND RENAMING IMPORTS (2026-08-22): a third
 fixity class, `postfix 9 ⁻¹`, parsed at the PROJECTION tier —
