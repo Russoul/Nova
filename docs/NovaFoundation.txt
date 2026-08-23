@@ -66,8 +66,9 @@
 #
 # NOTE: well-typed terms need not normalize in an inconsistent context.
 # Equality reflection makes typability hypothesis-sensitive: e.g. under
-# Γ ∋ h : Prf (A ≡ (A → A) ∈ 𝕌), reflection gives El A ≐ El A → El A, so
-# self-application types and ω ω is well-formed at El A, where ω ≜ λx. x x
+# Γ ∋ h : Prf (A ≡ (A → A) ∈ 𝕌), the equation A ≐ A → A holds (and
+# lifts to types by code-lift-eq), so
+# self-application types and ω ω is well-formed at A, where ω ≜ λx. x x
 # — yet ω ω has no normal form. Normalization is therefore a property of terms
 # in consistent contexts only; any procedure that beta-normalizes a
 # well-formed term (as the checker does when storing and comparing facts)
@@ -163,9 +164,9 @@ e˲, t˲, p˲ ::= · | t˲, t
 # standing in type position, t, a, b, e over terms in element
 # position — one grammar, two reading aids. The formers 𝟘 𝟙 ℕ → ⨯ ⊎ /
 # (and the QIIT sorts and ν) are typed BOTH at 𝕌 (as codes) and at 𝕍
-# (as types): one spelling, two typing rules — intrinsically two
-# constructors sharing notation, mediated by the El-decoding
-# equations (ty-el-*).
+# (as types): at 𝕌 by their code-* rules, whence at 𝕍 by CUMULATIVITY
+# (code-lift — El is retired), and at 𝕍 with LARGE components by
+# their ty-* rules.
 t, T ::= x [e˲]      # signature reference
     | ☐ᵢ             # i-th element in the typing context
     | 𝕌              # predicative universe (a type; not a code)
@@ -174,10 +175,11 @@ t, T ::= x [e˲]      # signature reference
                      #   rule: it stands only in the type slot of
                      #   judgements and in the ∈-slot of ≡ — see THE
                      #   TOP UNIVERSE note in the type rules
-    | El t           # decoding: every element of the universe is a type
-    | Prf t          # decoding of a proposition (Ω's El; deliberately not
-                     #   written El: it shares none of El's rules — not
-                     #   structural, not injective, no decoding computation)
+    | Prf t          # decoding of a proposition — a REAL former,
+                     #   unlike 𝕌's retired El: props do not become
+                     #   types by mere cumulativity (Prf is not
+                     #   structural, not injective, and has no
+                     #   computation)
     | 𝟘              # empty type — code and type
     | 𝟙              # unit type — code and type
     | ℕ              # naturals — code and type
@@ -209,7 +211,7 @@ t, T ::= x [e˲]      # signature reference
     | class t        # quotient type introduction
     | quot-elim t t  # quotient type elimination
     | ∥T∥            # squash: proposition from an arbitrary type (an element
-                     #   form embedding a type — the converse direction of El)
+                     #   form embedding a type — the converse direction of Prf)
     | ⋆              # the canonical proof of a true proposition
     | 𝒮.𝕤 ē          # sort 𝕤 of a QIIT signature 𝒮 at index spine ē —
                      #   a type, and a code when 𝒮 is SMALL; 𝒮 is
@@ -660,8 +662,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 #    Γ ▷ 𝕍 (type variables in contexts), 𝕍-domain and 𝕍-codomain
 #    Π-types (quantification over all types), ∥𝕍∥, telescope entries
 #    and motives at 𝕍 — each would need Γ ⊦ 𝕍 : 𝕍 through its
-#    premises; El 𝕍 would need Γ ⊦ 𝕍 : 𝕌; and 𝕍 has no typing at
-#    all. The theory's
+#    premises, and 𝕍 has no typing at all. The theory's
 #    stratification (𝕌 predicative, Ω impredicative-but-irrelevant,
 #    the top unnamed-no-longer) is exactly what it was.
 #  * 𝕍[σ] ≜ 𝕍 is a META-CLAUSE of the substitution action, not a
@@ -678,8 +679,9 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 #    el-sub-sig-var at an entry whose A is 𝕍 (their conclusion
 #    indices A[e˲], A[e˲ ∘ σ] compute to 𝕍 by the meta-clause). The FORMER-SPECIFIC rules below all remain: a
 #    conclusion at 𝕍 with component premises at 𝕍 is not an instance
-#    of its 𝕌-code sibling (whose components sit at 𝕌, bound through
-#    El), so both members of each pair survive the merge.
+#    of its 𝕌-code sibling (whose components sit at 𝕌), so both
+#    members of each pair survive the merge — though the 𝕌-instances
+#    now also reach 𝕍 through code-lift.
 #  * ty-zero-elim (type equality from absurdity) is DERIVABLE and
 #    retired: from Γ ⊦ t : 𝟘, el-zero-e at the type
 #    Prf (A ≡ B ∈ 𝕍) — code-eq admits 𝕍, see the Ω block — gives
@@ -693,9 +695,9 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 
 Γ ctx
 -----------------------
-Γ ⊦ 𝟘 : 𝕍   (ty-zero)
-Γ ⊦ 𝟙 : 𝕍   (ty-one)
-Γ ⊦ ℕ : 𝕍   (ty-nat)
+Γ ⊦ 𝟘 : 𝕍   (ty-zero)   # ADMISSIBLE — code-lift at code-zero
+Γ ⊦ 𝟙 : 𝕍   (ty-one)    # ADMISSIBLE — code-lift at code-one
+Γ ⊦ ℕ : 𝕍   (ty-nat)    # ADMISSIBLE — code-lift at code-nat
 Γ ⊦ 𝕌 : 𝕍   (ty-univ)
 Γ ⊦ Ω : 𝕍   (ty-prop)
 
@@ -714,9 +716,38 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 ------------------ (ty-sum)     # non-dependent: B over Γ, not Γ ▷ A
 Γ ⊦ A ⊎ B : 𝕍
 
-Γ ⊦ A : 𝕌
------------------ (ty-el)
-Γ ⊦ El A : 𝕍
+# CUMULATIVITY — El is RETIRED: every element of 𝕌 IS a type, by the
+# lift below, and its equality lifts and restricts. The three rules
+# are the invisible remnant of the retired decoding former —
+# code-lift is ty-el, code-lift-eq is ty-el-cong, code-restrict is
+# ty-el-inj — and with nothing left to decode, the ty-el-*
+# computation rules are VACUOUS (each equation's two sides are now
+# one term). code-restrict is MANDATORY, not optional: it is what
+# keeps the equality props (a ≡ b ∈ 𝕌) and (a ≡ b ∈ 𝕍) equi-true at
+# codes (whence ≐-equal by code-prop-eq), so facts established at 𝕍
+# descend to 𝕌. SEMANTICS: the small codes are a sub-collection of
+# the large ones (NovaModel's `el` embedding, now an inclusion); the
+# lift is that inclusion, and type equality restricted to 𝕌's image
+# is 𝕌's own — exactly code-restrict. Consequently ty-zero, ty-one
+# and ty-nat above are ADMISSIBLE (code-lift at code-zero/-one/-nat),
+# retained in the grouped display; ty-pi/-sigma/-sum/-quot remain
+# primitive for their LARGE instances, their small instances now also
+# arriving via code-lift — coherently, both routes conclude the same
+# judgement.
+
+Γ ⊦ a : 𝕌
+----------------- (code-lift)
+Γ ⊦ a : 𝕍
+
+Γ ⊦ a₀ ≐ a₁ : 𝕌
+----------------- (code-lift-eq)
+Γ ⊦ a₀ ≐ a₁ : 𝕍
+
+Γ ⊦ a₀ : 𝕌
+Γ ⊦ a₁ : 𝕌
+Γ ⊦ a₀ ≐ a₁ : 𝕍
+----------------- (code-restrict)
+Γ ⊦ a₀ ≐ a₁ : 𝕌
 
 Γ ⊦ p : Ω
 ------------------ (ty-prf)
@@ -736,34 +767,6 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 # stuck); an assumed type equation is a hole at Prf (A₀ ≡ A₁ ∈ 𝕍),
 # read back through el-reflect.
 
-# El-decoding: El of a code computes to the type it encodes.
-
-Γ ctx
-------------------------------------------------
-Γ ⊦ El 𝟘 ≜ 𝟘 : 𝕍   (ty-el-zero)
-Γ ⊦ El 𝟙 ≜ 𝟙 : 𝕍   (ty-el-one)
-Γ ⊦ El ℕ ≜ ℕ : 𝕍   (ty-el-nat)
-
-Γ ⊦ A : 𝕌
-Γ ▷ El A ⊦ B : 𝕌
----------------------------------- (ty-el-pi)
-Γ ⊦ El (A → B) ≜ El A → El B : 𝕍
-
-Γ ⊦ A : 𝕌
-Γ ▷ El A ⊦ B : 𝕌
----------------------------------- (ty-el-sigma)
-Γ ⊦ El (A ⨯ B) ≜ El A ⨯ El B : 𝕍
-
-Γ ⊦ A : 𝕌
-Γ ⊦ B : 𝕌
----------------------------------- (ty-el-sum)
-Γ ⊦ El (A ⊎ B) ≜ El A ⊎ El B : 𝕍
-
-Γ ⊦ A : 𝕌
-Γ ▷ El A ▷ (El A)[↑] ⊦ R : Ω
----------------------------------- (ty-el-quot)
-Γ ⊦ El (A / R) ≜ El A / R : 𝕍
-
 # Substitution action: one meta-level induction on the (single) term
 # sort defines t[σ]; the ≜-rules below assert its 𝕍-typings, their
 # code-* siblings (el-sub-code-*, el-sub-atoms) its 𝕌-typings — one
@@ -779,11 +782,6 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ₀ ⊦ ℕ[σ] ≜ ℕ : 𝕍
 Γ₀ ⊦ 𝕌[σ] ≜ 𝕌 : 𝕍
 Γ₀ ⊦ Ω[σ] ≜ Ω : 𝕍
-
-Γ₁ ⊦ t : 𝕌
-σ : Γ₀ ⇒ Γ₁
-------------------------------- (ty-sub-el)
-Γ₀ ⊦ (El t)[σ] ≜ El t[σ] : 𝕍
 
 Γ₁ ⊦ p : Ω
 σ : Γ₀ ⇒ Γ₁
@@ -850,11 +848,6 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ ▷ A₁ ▷ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
 -------------------------------- (ty-quot-cong)
 Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ : 𝕍
-
-Γ ⊦ t₀ ≐ t₁ : 𝕌
----------------------------- (ty-el-cong) # El congruence: equal codes decode
-Γ ⊦ El t₀ ≐ El t₁ : 𝕍                    #   to equal types. ADMISSIBLE:
-                                         #   el-sub-cong at El ☐₀ over Γ ▷ 𝕌
 
 Γ ⊦ p₀ ≐ p₁ : Ω
 ---------------------------- (ty-prf-cong) # with code-prop-eq this is where
@@ -947,40 +940,36 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ ⊦ A₀ ≐ A₁ : 𝕍
 Γ ▷ A₁ ▷ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
 
-Γ ⊦ El t₀ ≐ El t₁ : 𝕍
--------------------------- (ty-el-inj)
-Γ ⊦ t₀ ≐ t₁ : 𝕌
-
 # The same principles one level down, for the universe codes: the
 # setoid model gives 𝕌 a structural universe of codes (Code₀ in
 # docs/NovaModel.txt), so the code constructors are injective as
 # elements of 𝕌.
 
-Γ ▷ El a₀ ⊦ b₀ : 𝕌
-Γ ▷ El a₁ ⊦ b₁ : 𝕌
+Γ ▷ a₀ ⊦ b₀ : 𝕌
+Γ ▷ a₁ ⊦ b₁ : 𝕌
 Γ ⊦ a₀ → b₀ ≐ a₁ → b₁ : 𝕌
 ------------------------------ (code-pi-inj)
 Γ ⊦ a₀ ≐ a₁ : 𝕌
-Γ ▷ El a₁ ⊦ b₀ ≐ b₁ : 𝕌
+Γ ▷ a₁ ⊦ b₀ ≐ b₁ : 𝕌
 
-Γ ▷ El a₀ ⊦ b₀ : 𝕌
-Γ ▷ El a₁ ⊦ b₁ : 𝕌
+Γ ▷ a₀ ⊦ b₀ : 𝕌
+Γ ▷ a₁ ⊦ b₁ : 𝕌
 Γ ⊦ a₀ ⨯ b₀ ≐ a₁ ⨯ b₁ : 𝕌
 ------------------------------ (code-sigma-inj)
 Γ ⊦ a₀ ≐ a₁ : 𝕌
-Γ ▷ El a₁ ⊦ b₀ ≐ b₁ : 𝕌
+Γ ▷ a₁ ⊦ b₀ ≐ b₁ : 𝕌
 
 Γ ⊦ a₀ ⊎ b₀ ≐ a₁ ⊎ b₁ : 𝕌
 ------------------------------ (code-sum-inj)
 Γ ⊦ a₀ ≐ a₁ : 𝕌
 Γ ⊦ b₀ ≐ b₁ : 𝕌
 
-Γ ▷ El a₀ ▷ (El a₀)[↑] ⊦ r₀ : Ω
-Γ ▷ El a₁ ▷ (El a₁)[↑] ⊦ r₁ : Ω
+Γ ▷ a₀ ▷ a₀[↑] ⊦ r₀ : Ω
+Γ ▷ a₁ ▷ a₁[↑] ⊦ r₁ : Ω
 Γ ⊦ a₀ / r₀ ≐ a₁ / r₁ : 𝕌
 ---------------------------------------- (code-quot-inj)
 Γ ⊦ a₀ ≐ a₁ : 𝕌
-Γ ▷ El a₁ ▷ (El a₁)[↑] ⊦ r₀ ≐ r₁ : Ω
+Γ ▷ a₁ ▷ a₁[↑] ⊦ r₀ ≐ r₁ : Ω
 
 ///////// Rules (tel) /////////
 
@@ -1043,12 +1032,12 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ ⊦ ℕ : 𝕌    (code-nat)
 
 Γ ⊦ A : 𝕌
-Γ ▷ El A ⊦ B : 𝕌
+Γ ▷ A ⊦ B : 𝕌
 -------------------- (code-pi)
 Γ ⊦ A → B : 𝕌
 
 Γ ⊦ A : 𝕌
-Γ ▷ El A ⊦ B : 𝕌
+Γ ▷ A ⊦ B : 𝕌
 -------------------- (code-sigma)
 Γ ⊦ A ⨯ B : 𝕌
 
@@ -1058,7 +1047,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ ⊦ A ⊎ B : 𝕌
 
 Γ ⊦ A : 𝕌
-Γ ▷ El A ▷ (El A)[↑] ⊦ R : Ω
+Γ ▷ A ▷ A[↑] ⊦ R : Ω
 ------------------------------ (code-quot)
 Γ ⊦ A / R : 𝕌
 
@@ -1422,7 +1411,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 #        large, so no type contains its own powerset. Note that
 #        prf-codes themselves are DERIVABLE from the Ω-valued
 #        quotient slot: with Id the QIIT identity family over a
-#        small carrier (Id : (x y : El a) ⇛ U ; refl : (x : El a) ⇛
+#        small carrier (Id : (x y : a) ⇛ U ; refl : (x : a) ⇛
 #        El (Id x x) — a small signature, so Id â t u : 𝕌), take
 #        prf r ≜ Id (ℕ / r̂) (class Z) (class (S Z)), a 𝕌-code whose
 #        decoding is inhabited iff r — el-quot-eq plus el-qiit-intro
@@ -1436,7 +1425,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 #        clause: no code for Ω ITSELF. Propositions and powersets
 #        embed only into the CODES of 𝕌 — a large collection — never
 #        into the elements of a small type: equality has no 𝕌-code
-#        at all (it is Ω-valued), El A → 𝕌 is large, and
+#        at all (it is Ω-valued), A → 𝕌 is large, and
 #        quotient elements cannot store a proposition (coherence
 #        forces eliminators out of 𝟙/r̂-style types constant).
 #    Payoff: least relations by intersection — e.g. an equivalence
@@ -1509,14 +1498,14 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 #    construction, as in the impredicative-Prop setoid models (and,
 #    before them, the PER models of CC). The Ω-valued quotient slot
 #    adds no further impredicative dependency: the quotient clause
-#    consumes Ω-truth POINTWISE (⟦El (A / R)⟧ keeps ⟦El A⟧'s carrier
+#    consumes Ω-truth POINTWISE (⟦A / R⟧ keeps ⟦A⟧'s carrier
 #    and coarsens its relation by the truth of R at each pair — in
 #    the setoid model a quotient is FREE), so quotient codes stay
 #    small however impredicative their relation — propositional
 #    resizing, in HoTT terms, which the setoid model validates.
 #    PRECISELY: the coarsened relation must still be an EQUIVALENCE
 #    (that is what a setoid is), so it is the equivalence closure of
-#    ⟦El A⟧'s relation together with R's truth — exactly R⁺'s
+#    ⟦A⟧'s relation together with R's truth — exactly R⁺'s
 #    denotation. "Coarsens by the truth of R at each pair" is the
 #    closure's description only when R is already an equivalence
 #    containing ≐_A; in general read the closure, and effectivity
@@ -1964,9 +1953,9 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 # — and the primitive (/) is kept for convenience, not necessity.
 
 # FORMATION. The sort-𝕤 type of 𝒮 at an index spine ē (against the
-# reflected arity of 𝕤's kind), and its universe code, with El
-# bridging. A sort has no ι/β of its own — its only computation is the
-# eliminator's β. (Every QIIT former is SATURATED — spine-applied,
+# reflected arity of 𝕤's kind), and its universe code — the code IS
+# the type, by code-lift. A sort has no ι/β of its own — its only
+# computation is the eliminator's β. (Every QIIT former is SATURATED — spine-applied,
 # like S t, class a and every other Nova former. The ToS is curried
 # internally; currying stops at the Nova boundary.)
 
@@ -1975,7 +1964,9 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ ⊦ 𝒮.𝕤 ē : 𝕍
 
 # A signature is SMALL when every Nova type it embeds (the external Π
-# domains) is itself codable — of the form El a, or Prf p (props are
+# domains) is itself codable — TYPED AT 𝕌 (with El retired this is a
+# judgemental premise, not a syntactic shape; the kernel checks it),
+# or a Prf p (props are
 # size-free: subsingleton setoids, per the Ω block). Only SMALL
 # signatures get a universe code. This is the ty-pi/code-pi divide,
 # and here it is load-bearing: with a LARGE external domain — say
@@ -1989,10 +1980,6 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ ⊦ 𝒮 qsig      𝒮 small      𝒮(𝕤) = 𝔎  (𝔎 U-ended)      Γ ⊦ ē : ⌊𝔎⌋ᵗ
 --------------------------------------------------------------------------- (code-qiit)
 Γ ⊦ 𝒮.𝕤 ē : 𝕌
-
-Γ ⊦ 𝒮 qsig      𝒮(𝕤) = 𝔎  (𝔎 U-ended)      Γ ⊦ ē : ⌊𝔎⌋ᵗ
-------------------------------------------------------------- (ty-el-qiit)
-Γ ⊦ El (𝒮.𝕤 ē) ≜ 𝒮.𝕤 ē : 𝕍
 
 # INTRODUCTION — point constructor, FULLY SATURATED: θ supplies every
 # argument at once, and 𝒮.𝕔 θ is the canonical form of its sort. A
@@ -2249,7 +2236,7 @@ for each point position 𝕔 of 𝒮 (𝒮(𝕔) = 𝔄, ending in El (𝕤 ī);
 #     convenience but are now DERIVABLE, each a one-line signature.
 #     (At the CODE level the signatures are small — ℕ's embeds no Nova
 #     types at all, and code-quot's arity, A : 𝕌 with R : Ω, is
-#     exactly El a and Prf R domains — so code-nat/code-quot are
+#     exactly 𝕌-typed and Prf domains — so code-nat/code-quot are
 #     subsumed too.)
 #   * RELAXATION. Strict positivity is GRAMMATICAL — Π domains are
 #     only Nova types (sort-free: the Nova zone has no inductive
@@ -2353,13 +2340,13 @@ e˲ : Δ ⇒ Γ norm
 Γ₀ ⊦ (S t)[σ] ≜ S t[σ] : ℕ
 
 Γ₁ ⊦ A : 𝕌
-Γ₁ ▷ El A ⊦ B : 𝕌
+Γ₁ ▷ A ⊦ B : 𝕌
 σ : Γ₀ ⇒ Γ₁
 ---------------------------------------- (el-sub-code-pi)
 Γ₀ ⊦ (A → B)[σ] ≜ A[σ] → B[σ⁺] : 𝕌
 
 Γ₁ ⊦ A : 𝕌
-Γ₁ ▷ El A ⊦ B : 𝕌
+Γ₁ ▷ A ⊦ B : 𝕌
 σ : Γ₀ ⇒ Γ₁
 ---------------------------------------- (el-sub-code-sigma)
 Γ₀ ⊦ (A ⨯ B)[σ] ≜ A[σ] ⨯ B[σ⁺] : 𝕌
@@ -2371,7 +2358,7 @@ e˲ : Δ ⇒ Γ norm
 Γ₀ ⊦ (A ⊎ B)[σ] ≜ A[σ] ⊎ B[σ] : 𝕌
 
 Γ₁ ⊦ A : 𝕌
-Γ₁ ▷ El A ▷ (El A)[↑] ⊦ R : Ω
+Γ₁ ▷ A ▷ A[↑] ⊦ R : Ω
 σ : Γ₀ ⇒ Γ₁
 ------------------------------------------ (el-sub-code-quot)
 Γ₀ ⊦ (A / R)[σ] ≜ A[σ] / R[σ⁺⁺] : 𝕌
@@ -2668,12 +2655,12 @@ e˲ : Γ₁ ⇒ Γ norm
 # code-sum-cong is non-binding and merely admissible.
 
 Γ ⊦ A₀ ≐ A₁ : 𝕌
-Γ ▷ El A₁ ⊦ B₀ ≐ B₁ : 𝕌
+Γ ▷ A₁ ⊦ B₀ ≐ B₁ : 𝕌
 ------------------------------- (code-pi-cong)
 Γ ⊦ A₀ → B₀ ≐ A₁ → B₁ : 𝕌
 
 Γ ⊦ A₀ ≐ A₁ : 𝕌
-Γ ▷ El A₁ ⊦ B₀ ≐ B₁ : 𝕌
+Γ ▷ A₁ ⊦ B₀ ≐ B₁ : 𝕌
 ------------------------------- (code-sigma-cong)
 Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ : 𝕌
 
@@ -2684,7 +2671,7 @@ e˲ : Γ₁ ⇒ Γ norm
                                                 #   over Γ ▷ 𝕌 ▷ 𝕌
 
 Γ ⊦ A₀ ≐ A₁ : 𝕌
-Γ ▷ El A₁ ▷ (El A₁)[↑] ⊦ R₀ ≐ R₁ : Ω
+Γ ▷ A₁ ▷ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
 --------------------------------------- (code-quot-cong)
 Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ : 𝕌
 
@@ -2715,7 +2702,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 # POLYNOMIALS — grammar. External pieces are CODES, so every
 # polynomial is small and ν 𝔽 always has a code (no smallness side
-# condition — the grammar enforces it). A left-hand `El a` BINDS a
+# condition — the grammar enforces it). A left-hand CODE `a` BINDS a
 # Nova variable in its body, exactly as code-sigma/code-pi bind; the
 # two product forms are distinguished by their left-hand side (K a
 # ⨯ … is the non-binding instance of the same shape). The hole 𝕏
@@ -2729,9 +2716,9 @@ e˲ : Γ₁ ⇒ Γ norm
            | K a             # constant at a code
            | 𝔽 ⨯ 𝔾           # product
            | 𝔽 ⊎ 𝔾           # sum — onto the native ⊎
-           | El a ⨯ 𝔽        # dependent pair over external data
+           | a ⨯ 𝔽        # dependent pair over external data
                              #   (binds a NOVA variable)
-           | El a → 𝔽        # exponent with external domain
+           | a → 𝔽        # exponent with external domain
                              #   (binds a NOVA variable)
 
 Γ ctx
@@ -2750,13 +2737,13 @@ e˲ : Γ₁ ⇒ Γ norm
 ---------------------------- (poly-sum)
 Γ ⊦ 𝔽 ⊎ 𝔾 poly
 
-Γ ⊦ a : 𝕌      Γ ▷ El a ⊦ 𝔽 poly
+Γ ⊦ a : 𝕌      Γ ▷ a ⊦ 𝔽 poly
 ---------------------------------- (poly-sigma)
-Γ ⊦ El a ⨯ 𝔽 poly
+Γ ⊦ a ⨯ 𝔽 poly
 
-Γ ⊦ a : 𝕌      Γ ▷ El a ⊦ 𝔽 poly
+Γ ⊦ a : 𝕌      Γ ▷ a ⊦ 𝔽 poly
 ---------------------------------- (poly-pi)
-Γ ⊦ El a → 𝔽 poly
+Γ ⊦ a → 𝔽 poly
 
 # REFLECTION ⌊𝔽⌋(c) — the code with the hole filled by Γ ⊦ c : 𝕌
 # (≜-defined by meta-level induction on 𝔽, like the QIIT ⌊·⌋; c
@@ -2766,11 +2753,11 @@ e˲ : Γ₁ ⇒ Γ norm
     ⌊K a⌋(c)        ≜ a
     ⌊𝔽 ⨯ 𝔾⌋(c)      ≜ ⌊𝔽⌋(c) ⨯ ⌊𝔾⌋(c)[↑]      # code-sigma, non-dependent
     ⌊𝔽 ⊎ 𝔾⌋(c)      ≜ ⌊𝔽⌋(c) ⊎ ⌊𝔾⌋(c)         # code-sum, direct
-    ⌊El a ⨯ 𝔽⌋(c)   ≜ a ⨯ ⌊𝔽⌋(c[↑])
-    ⌊El a → 𝔽⌋(c)   ≜ a → ⌊𝔽⌋(c[↑])
+    ⌊a ⨯ 𝔽⌋(c)   ≜ a ⨯ ⌊𝔽⌋(c[↑])
+    ⌊a → 𝔽⌋(c)   ≜ a → ⌊𝔽⌋(c[↑])
 
-# FUNCTORIAL ACTION map_𝔽 — for Γ ⊦ g : El c₀ → El c₁, a function
-# term Γ ⊦ map_𝔽 g : El ⌊𝔽⌋(c₀) → El ⌊𝔽⌋(c₁), ≜-defined by
+# FUNCTORIAL ACTION map_𝔽 — for Γ ⊦ g : c₀ → c₁, a function
+# term Γ ⊦ map_𝔽 g : ⌊𝔽⌋(c₀) → ⌊𝔽⌋(c₁), ≜-defined by
 # meta-level induction on 𝔽 (clauses written applied; at the binding
 # formers the recursion proceeds at the instantiated body and g
 # weakens under the binder; the sum clause is ⊎-elim at constant
@@ -2780,8 +2767,8 @@ e˲ : Γ₁ ⇒ Γ norm
     map_{K a} g x         ≜ x
     map_{𝔽 ⨯ 𝔾} g p       ≜ (map_𝔽 g (p .π₁) , map_𝔾 g (p .π₂))
     map_{𝔽 ⊎ 𝔾} g s       ≜ ⊎-elim (inj₁ (map_𝔽 g[↑] ☐₀)) (inj₂ (map_𝔾 g[↑] ☐₀)) s
-    map_{El a ⨯ 𝔽} g p    ≜ (p .π₁ , map_𝔽 g (p .π₂))
-    map_{El a → 𝔽} g f    ≜ λ (map_𝔽 g[↑] (f[↑] ☐₀))
+    map_{a ⨯ 𝔽} g p    ≜ (p .π₁ , map_𝔽 g (p .π₂))
+    map_{a → 𝔽} g f    ≜ λ (map_𝔽 g[↑] (f[↑] ☐₀))
 
 # The FUNCTOR LAWS — map_𝔽 (λ ☐₀) ≐ λ ☐₀ and
 # map_𝔽 (g₁ ∘ g₀-composite) ≐ map_𝔽 g₁ ∘ map_𝔽 g₀ pointwise — are
@@ -2794,7 +2781,7 @@ e˲ : Γ₁ ⇒ Γ norm
 # syntax, compared componentwise (embedded Nova pieces by the
 # existing congruence/injectivity rules), iso-recursive: the
 # comparison never unfolds the fixpoint into its body. ν 𝔽 and
-# El ⌊𝔽⌋(ν 𝔽) are ISOMORPHIC (out one way; the derivable in below
+# ⌊𝔽⌋(ν 𝔽) are ISOMORPHIC (out one way; the derivable in below
 # the other) and deliberately never ≐ — same commitment as the QIIT
 # IDENTITY paragraph. Congruence and injectivity are structural, by
 # that meta-recursion (code-nu-cong/-inj are the componentwise
@@ -2810,10 +2797,6 @@ e˲ : Γ₁ ⇒ Γ norm
 --------------- (code-nu)
 Γ ⊦ ν 𝔽 : 𝕌
 
-Γ ⊦ 𝔽 poly
---------------------------- (ty-el-nu)
-Γ ⊦ El (ν 𝔽) ≜ ν 𝔽 : 𝕍
-
 # ELIMINATION — the observation. A sort of this scheme has no
 # constructor canonical forms; out is the only way to consume it,
 # and the only computation is β below (out of a neutral is
@@ -2821,7 +2804,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ ⊦ 𝔽 poly      Γ ⊦ t : ν 𝔽
 ------------------------------ (el-nu-e)
-Γ ⊦ out t : El ⌊𝔽⌋(ν 𝔽)
+Γ ⊦ out t : ⌊𝔽⌋(ν 𝔽)
 
 # INTRODUCTION — the corecursor: any coalgebra maps in. The
 # polynomial 𝔽 and the carrier code a are CARRIED by the term (like
@@ -2831,8 +2814,8 @@ e˲ : Γ₁ ⇒ Γ norm
 # (cf. φᵉˡ at el-qiit-beta):
 
 Γ ⊦ 𝔽 poly      Γ ⊦ a : 𝕌
-Γ ▷ El a ⊦ f : El ⌊𝔽⌋(a)[↑]
-Γ ⊦ x : El a
+Γ ▷ a ⊦ f : ⌊𝔽⌋(a)[↑]
+Γ ⊦ x : a
 ------------------------------ (el-nu-i)
 Γ ⊦ corec 𝔽 a f x : ν 𝔽
 
@@ -2840,19 +2823,19 @@ e˲ : Γ₁ ⇒ Γ norm
 # coalgebra one step and re-wraps the recursive positions:
 
 Γ ⊦ 𝔽 poly      Γ ⊦ a : 𝕌
-Γ ▷ El a ⊦ f : El ⌊𝔽⌋(a)[↑]
-Γ ⊦ x : El a
+Γ ▷ a ⊦ f : ⌊𝔽⌋(a)[↑]
+Γ ⊦ x : a
 ------------------------------------------------------------- (el-nu-beta)
-Γ ⊦ out (corec 𝔽 a f x) ≜ map_𝔽 hᵉˡ (f[id, x]) : El ⌊𝔽⌋(ν 𝔽)
+Γ ⊦ out (corec 𝔽 a f x) ≜ map_𝔽 hᵉˡ (f[id, x]) : ⌊𝔽⌋(ν 𝔽)
 
 # UNIQUENESS (η) — the coinduction principle, el-quot-eta's shape:
 # any candidate commuting with the observation IS the corecursor.
 
 Γ ⊦ 𝔽 poly      Γ ⊦ a : 𝕌
-Γ ▷ El a ⊦ f : El ⌊𝔽⌋(a)[↑]
-Γ ▷ El a ⊦ h : (ν 𝔽)[↑]
-Γ ▷ El a ⊦ out h ≐ map_𝔽 ((λ h)[↑]) f : El ⌊𝔽⌋(ν 𝔽)[↑]
-Γ ⊦ x : El a
+Γ ▷ a ⊦ f : ⌊𝔽⌋(a)[↑]
+Γ ▷ a ⊦ h : (ν 𝔽)[↑]
+Γ ▷ a ⊦ out h ≐ map_𝔽 ((λ h)[↑]) f : ⌊𝔽⌋(ν 𝔽)[↑]
+Γ ⊦ x : a
 ------------------------------------------------------------- (el-nu-eta)
 Γ ⊦ h[id, x] ≐ corec 𝔽 a f x : ν 𝔽
 
@@ -2872,7 +2855,7 @@ e˲ : Γ₁ ⇒ Γ norm
 # binder the clauses cross; its own two binders lift over it):
 #
 #     lift_𝕏(R) u v          ≜ R[id, u, v]
-#     lift_{K a}(R) u v      ≜ u ≡ v ∈ El a
+#     lift_{K a}(R) u v      ≜ u ≡ v ∈ a
 #     lift_{𝔽 ⨯ 𝔾}(R) u v    ≜ ∥Prf (lift_𝔽(R) (u .π₁) (v .π₁))
 #                                 ⨯ Prf (lift_𝔾(R) (u .π₂) (v .π₂))∥
 #     lift_{𝔽 ⊎ 𝔾}(R) u v    ≜ ⊎-elim at motive Ω, on u then v:
@@ -2881,13 +2864,13 @@ e˲ : Γ₁ ⇒ Γ norm
 #                              — definitional collapse at canonical
 #                              forms, the tag mismatch judgementally
 #                              visible
-#     lift_{El a ⨯ 𝔽}(R) u v ≜ ∥(h : Prf (u .π₁ ≡ v .π₁ ∈ El a))
+#     lift_{a ⨯ 𝔽}(R) u v ≜ ∥(h : Prf (u .π₁ ≡ v .π₁ ∈ a))
 #                                 ⨯ Prf (lift_{𝔽[u .π₁]}(R) (u .π₂) (v .π₂))∥
 #                              # the two instances are ≐ under h by
 #                              # el-reflect — no transport, the same
 #                              # extensional degeneration as the
 #                              # QIIT ᴰ-clauses
-#     lift_{El a → 𝔽}(R) u v ≜ ∥(x : El a) → Prf (lift_𝔽(R) (u x) (v x))∥
+#     lift_{a → 𝔽}(R) u v ≜ ∥(x : a) → Prf (lift_𝔽(R) (u x) (v x))∥
 
 Γ ⊦ 𝔽 poly
 Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ⊦ R : Ω
@@ -2919,11 +2902,11 @@ e˲ : Γ₁ ⇒ Γ norm
 #   * LAMBEK. in ≜ λ (corec 𝔽 ⌊𝔽⌋(ν 𝔽) (map_𝔽 (λ (out ☐₀)) ☐₀) ☐₀)
 #     inverts out
 #     up to ≐ — out ∘ in by el-nu-beta plus the functor laws,
-#     in ∘ out by el-nu-eta — so ν 𝔽 ≅ El ⌊𝔽⌋(ν 𝔽) elementwise,
+#     in ∘ out by el-nu-eta — so ν 𝔽 ≅ ⌊𝔽⌋(ν 𝔽) elementwise,
 #     while the TYPES stay structurally distinct (IDENTITY above).
 #   * SUBSUMPTION (conservativity). Every ν 𝔽 is definable: with
 #     F̂ⁿ(𝟙) : 𝕌 by ℕ-elim at motive 𝕌, the ℕ-indexed limit
-#         (g : ℕ → El (F̂ⁿ 𝟙)-family) ⨯ Prf (restriction coherence)
+#         (g : ℕ → (F̂ⁿ 𝟙)-family) ⨯ Prf (restriction coherence)
 #     is a final 𝔽-coalgebra — containers preserve this limit — with
 #     out, corec and both laws provable (β up to lemmas, η by
 #     ℕ-induction and funext-via-reflection). The scheme is retained
@@ -2951,7 +2934,7 @@ e˲ : Γ₁ ⇒ Γ norm
 #     Conat     ≜ ν (K 𝟙 ⊎ 𝕏)
 #     Colist a  ≜ ν (K 𝟙 ⊎ (K a ⨯ 𝕏))
 #     Cotree a  ≜ ν (K 𝟙 ⊎ (K a ⨯ (𝕏 ⨯ 𝕏)))    # leaf/node infinite trees
-#     Moore a b ≜ ν (K b ⨯ (El a → 𝕏))
+#     Moore a b ≜ ν (K b ⨯ (a → 𝕏))
 #   head, tail, and friends are out followed by projections and
 #   ⊎-elim; constructors (cons, and Cotree's leaf/node) are in
 #   instances. Surface codata declarations elaborate to
@@ -3059,11 +3042,10 @@ e˲ : Γ₁ ⇒ Γ norm
 #
 # All other ty-* names are RETAINED, denoting the same rules with
 # conclusions now written at 𝕍: ty-zero/-one/-nat/-univ/-prop, ty-pi,
-# ty-sigma, ty-sum, ty-el, ty-prf, ty-quot, the ty-el-* decodings,
-# the former-specific ty-sub-* substitution actions (ty-sub-atoms,
-# ty-sub-el, ty-prf-sub, ty-sub-pi/-sigma/-sum/-quot), the ty-*-cong
-# congruences, the ty-*-inj injectivities, ty-qiit, ty-el-qiit,
-# ty-qiit-cong, ty-nu, ty-el-nu.
+# ty-sigma, ty-sum, ty-prf, ty-quot, the former-specific ty-sub-*
+# substitution actions (ty-sub-atoms, ty-prf-sub,
+# ty-sub-pi/-sigma/-sum/-quot), the ty-*-cong congruences, the
+# ty-*-inj injectivities, ty-qiit, ty-qiit-cong, ty-nu.
 #
 # The CONSTRAINT KIND's retirement (an assumed equation is a hole at
 # the equation's Prf — DEFINITIONAL AND OPEN SIGNATURES) retires:
@@ -3129,3 +3111,22 @@ e˲ : Γ₁ ⇒ Γ norm
 #                    (no η to route through) and 𝕍 is unbindable (no
 #                    substitution instance); they are the downward
 #                    duals of the injectivity blocks
+
+# EL'S RETIREMENT (cumulativity replaces the decoding former; the ToS
+# and the polynomial grammar keep their OWN El, which never was the
+# Nova former):
+#
+#   ty-el            code-lift (Γ ⊦ a : 𝕌 ⟹ Γ ⊦ a : 𝕍)
+#   ty-el-cong       code-lift-eq
+#   ty-el-inj        code-restrict
+#   ty-el-zero/-one/-nat/-pi/-sigma/-sum/-quot, ty-el-qiit, ty-el-nu
+#                    VACUOUS: each decoding equation's two sides are
+#                    now one term
+#   ty-sub-el        gone with the former
+#   ty-zero/-one/-nat
+#                    now ADMISSIBLE (code-lift at code-zero/-one/-nat);
+#                    retained in the grouped display
+#   smallness (code-qiit's side condition)
+#                    "external Π domains are El- or Prf-headed"
+#                    becomes the judgemental premise "typed at 𝕌, or a
+#                    Prf"
