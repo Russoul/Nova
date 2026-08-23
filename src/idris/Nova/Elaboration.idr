@@ -626,23 +626,14 @@ strengthenElemN (S n) e = strengthenElem 0 e >>= strengthenElemN n
 --   * j ≥ b + k        — base-rigid: target must be ☐_{j - k + d}.
 
 codeOf : Ty -> Maybe Elem
-codeOf ZeroTy = Just Elem.ZeroTy
-codeOf OneTy = Just Elem.OneTy
-codeOf NatTy = Just Elem.NatTy
-codeOf (PiTy a b) = Elem.PiTy <$> codeOf a <*> codeOf b
-codeOf (SigmaTy a b) = Elem.SigmaTy <$> codeOf a <*> codeOf b
-codeOf (SumTy a b) = Elem.SumTy <$> codeOf a <*> codeOf b
--- the relation is an Ω-element in BOTH the type former and the code:
--- El (A / R) ≜ El A / R, so it passes through unchanged
-codeOf (QuotTy a r) = QuotTy <$> codeOf a <*> Just r
-codeOf (NuTy f) = Just (Elem.NuTy f)
-codeOf (El e) = Just e
--- code-qiit: a sort's code is the sort former itself (smallness is
--- enforced wherever the code is USED — inferP rejects large ones)
-codeOf (QSort sg k es) = Just (QSort sg k es)
--- Ω and Prf p deliberately have NO codes in 𝕌 (the load-bearing
--- prohibition of the Ω design — see docs/NovaFoundation.txt)
-codeOf _ = Nothing
+codeOf UniverseTy = Nothing
+codeOf PropTy = Nothing
+codeOf TopTy = Nothing
+codeOf (Prf _) = Nothing
+-- everything else IS its own code (El retired); the large formers
+-- above are the only exclusions the syntax can see — smallness of
+-- the rest is the kernel gate's question
+codeOf t = Just t
 
 Bindings : Type
 Bindings = List (Nat, Elem)
@@ -750,7 +741,6 @@ matchElemP k d b (QElim sg j ms fs es w) (QElim sg' j' ms' fs' es' w') =
 matchElemP k d b UniverseTy UniverseTy = Just
 matchElemP k d b PropTy PropTy = Just
 matchElemP k d b TopTy TopTy = Just
-matchElemP k d b (El e) (El e') = matchElemP k d b e e'
 matchElemP k d b (Prf e) (Prf e') = matchElemP k d b e e'
 matchElemP _ _ _ _ _ = const Nothing
 
@@ -792,11 +782,6 @@ matchTyP k d b (SigmaTy a c) (SigmaTy a' c') =
   \bs => matchTyP k d b a a' bs >>= matchTyP k d (1 + b) c c'
 matchTyP k d b (SumTy a c) (SumTy a' c') =
   \bs => matchTyP k d b a a' bs >>= matchTyP k d b c c'
-matchTyP k d b (El e) (El e') = matchElemP k d b e e'
--- normalization El-decodes codes inside carried signatures (El ℕc ≜ ℕ),
--- so a pattern `El e` whose e is parameter-headed can face the DECODED
--- rigid type: match e against the target's code instead
-matchTyP k d b (El e) tgt = \bs => codeOf tgt >>= \c => matchElemP k d b e c bs
 matchTyP k d b (Prf e) (Prf e') = matchElemP k d b e e'
 matchTyP k d b (QuotTy a r) (QuotTy a' r') =
   \bs => matchTyP k d b a a' bs >>= matchElemP k d (2 + b) r r'
@@ -810,7 +795,10 @@ matchTyP k d b (SigVar x es) (SigVar x' es') =
 matchTyP k d b (QSort sg j es) (QSort sg' j' es') =
   if j == j' then \bs => matchQSigP k d b sg sg' bs >>= matchSpineP k d b es es'
   else const Nothing
-matchTyP _ _ _ _ _ = const Nothing
+-- El retired: a non-former pattern in type position is a CODE
+-- pattern (possibly parameter-headed) — match it against the ground
+-- as a code
+matchTyP k d b t tgt = \bs => codeOf tgt >>= \c => matchElemP k d b t c bs
 
 ||| Build the instantiating substitution: pattern context base ▷ p_{k-1}
 ||| ▷ ... ▷ p₀ into the match site (Γ + d). Base part is ↑ᵈ; each bound
@@ -870,7 +858,6 @@ elemSize Elem.NatTy = 1
 elemSize UniverseTy = 1
 elemSize PropTy = 1
 elemSize TopTy = 1
-elemSize (El e) = S (elemSize e)
 elemSize (Prf e) = S (elemSize e)
 elemSize (Elem.PiTy a b) = S (elemSize a + elemSize b)
 elemSize (Elem.SigmaTy a b) = S (elemSize a + elemSize b)
@@ -965,7 +952,6 @@ permutative c = isJust (go 0 c.lhs c.rhs [])
   go b UniverseTy UniverseTy m = Just m
   go b PropTy PropTy m = Just m
   go b TopTy TopTy m = Just m
-  go b (El e) (El e') m = go b e e' m
   go b (Prf e) (Prf e') m = go b e e' m
   go _ _ _ _ = Nothing
 
@@ -981,7 +967,6 @@ permutative c = isJust (go 0 c.lhs c.rhs [])
   goT b (PiTy a d) (PiTy a' d') m = goT b a a' m >>= goT (1+b) d d'
   goT b (SigmaTy a d) (SigmaTy a' d') m = goT b a a' m >>= goT (1+b) d d'
   goT b (SumTy a d) (SumTy a' d') m = goT b a a' m >>= goT b d d'
-  goT b (El e) (El e') m = go b e e' m
   goT b (Prf e) (Prf e') m = go b e e' m
   goT b (QuotTy a r) (QuotTy a' r') m = goT b a a' m >>= go (2+b) r r'
   goT b (SigVar x es) (SigVar x' es') m =
@@ -993,7 +978,9 @@ permutative c = isJust (go 0 c.lhs c.rhs [])
     goSNT _ _ _ = Nothing
   goT b (QSort sg j es) (QSort sg' j' es') m =
     if sg == sg' && j == j' then goSp b es es' m else Nothing
-  goT _ _ _ _ = Nothing
+  -- a non-former type pair is a CODE pair (El retired): compare as
+  -- elements — a Nothing here would misclassify code-typed lemmas
+  goT b x y m = go b x y m
 
 ||| Candidates usable as REWRITE rules (strictly-shrinking first;
 ||| permutative and growing equations never rewrite).
@@ -1180,7 +1167,6 @@ rewriteElemS side c pi d t =
     at 0 0 a (\a' => Corec p a' f x)
       <|> at 1 1 f (\f' => Corec p a f' x)
       <|> at 2 0 x (\x' => Corec p a f x')
-  descend (El e) = at 0 0 e El
   descend (Prf e) = at 0 0 e Prf
   descend _ = Nothing
 
@@ -1200,8 +1186,6 @@ rewriteTyS side c pi d (SigmaTy a b) =
 rewriteTyS side c pi d (SumTy a b) =
   ((\(a', st) => (SumTy a' b, st)) <$> rewriteTyS side c (0 :: pi) d a)
     <|> ((\(b', st) => (SumTy a b', st)) <$> rewriteTyS side c (1 :: pi) d b)
-rewriteTyS side c pi d (El e) =
-  (\(e', st) => (El e', st)) <$> rewriteElemS side c (0 :: pi) d e
 rewriteTyS side c pi d (QuotTy a r) =
   ((\(a', st) => (QuotTy a' r, st)) <$> rewriteTyS side c (0 :: pi) d a)
     <|> ((\(r', st) => (QuotTy a r', st)) <$> rewriteElemS side c (1 :: pi) (2 + d) r)
@@ -1240,7 +1224,10 @@ rewriteTyS side c pi d (SigVar x es) =
   firstJ [] = Nothing
   firstJ (Just x' :: _) = Just x'
   firstJ (Nothing :: rest) = firstJ rest
-rewriteTyS side c pi d _ = Nothing
+-- a non-former type is a CODE (El retired): rewrite through it as an
+-- element — the kernel replays type steps via stepElem at 𝕍, so the
+-- element child indexing is the type child indexing
+rewriteTyS side c pi d t = rewriteElemS side c pi d t
 
 -- ===== Normalize-and-rewrite (step-recording) =====
 
@@ -1291,7 +1278,6 @@ mutual
   unfElem sig unfs UniverseTy        = UniverseTy
   unfElem sig unfs PropTy            = PropTy
   unfElem sig unfs TopTy             = TopTy
-  unfElem sig unfs (El e)            = El (unfElem sig unfs e)
   unfElem sig unfs (Prf e)           = Prf (unfElem sig unfs e)
   unfElem sig unfs (Elem.EqTy l r t) = Elem.EqTy (unfElem sig unfs l) (unfElem sig unfs r) (unfTy sig unfs t)
   unfElem sig unfs (QuotTy a r)      = QuotTy (unfElem sig unfs a) (unfElem sig unfs r)
@@ -1457,25 +1443,29 @@ mutual
   exposeE st e = e
 
   exposeT : ElabSt -> Ty -> Ty
-  exposeT st (El e) =
-    case exposeE st e of
-      Elem.ZeroTy      => ZeroTy
-      Elem.OneTy       => OneTy
-      Elem.NatTy       => NatTy
-      Elem.PiTy a b    => PiTy (El a) (El b)
-      Elem.SigmaTy a b => SigmaTy (El a) (El b)
-      Elem.SumTy a b   => SumTy (El a) (El b)
-      QuotTy a r       => QuotTy (El a) r
-      QSort sg k es   => QSort sg k es
-      Elem.NuTy f      => NuTy f
-      e'               => El e'
+  -- El retired: a type head is exposed whatever its entry's
+  -- classifier — TYPE POSITION is the license (the old El clause's
+  -- free code exposure, now direct); non-former heads (applications,
+  -- eliminations) expose through exposeE
   exposeT st (SigVar x es) =
     if not (expOK st x) then bump "expblock \{st.modPrefix}:\{st.curItem}|\{x}" 1
                                (noteBlocked x
                                  (audit "EXPOSE-BLOCKED \{st.modPrefix}:\{st.curItem} \{x} — cite \{x}.unfold" (SigVar x es))) else
     case cachedSigLookup st.sig x of
-      Just (SigDef _ _ a TopTy) => bump "unf \{st.modPrefix}:\{st.curItem}|\{x}" 1 (exposeT st (substTy a (embed es)))
+      Just (SigDef _ _ a _) => bump "unf \{st.modPrefix}:\{st.curItem}|\{x}" 1 (exposeT st (substTy a (embed es)))
       _ => SigVar x es
+  exposeT st t@(PiApp _ _) = case exposeE st t of
+    t'@(PiApp _ _) => t'
+    t' => exposeT st t'
+  exposeT st t@(SigmaElim1 _) = case exposeE st t of
+    t'@(SigmaElim1 _) => t'
+    t' => exposeT st t'
+  exposeT st t@(SigmaElim2 _) = case exposeE st t of
+    t'@(SigmaElim2 _) => t'
+    t' => exposeT st t'
+  exposeT st t@(NatElim _ _ _) = case exposeE st t of
+    t'@(NatElim _ _ _) => t'
+    t' => exposeT st t'
   exposeT st t = t
 
 ||| The engine normalizer for EQUATION-SIDE positions: δ-free
@@ -1593,17 +1583,17 @@ closeCand c =
   go (NatIntro1 x) (NatIntro1 y) = comp SelSuc x y
   go (Elem.PiTy a0 b0) (Elem.PiTy a1 b1) =
     comp SelDom a0 a1
-    ++ closeCand (child (\bs => SelCod <$> lookup 0 bs) 1 [El a1] b0 b1)
+    ++ closeCand (child (\bs => SelCod <$> lookup 0 bs) 1 [a1] b0 b1)
   go (Elem.SigmaTy a0 b0) (Elem.SigmaTy a1 b1) =
     comp SelDom a0 a1
-    ++ closeCand (child (\bs => SelCod <$> lookup 0 bs) 1 [El a1] b0 b1)
+    ++ closeCand (child (\bs => SelCod <$> lookup 0 bs) 1 [a1] b0 b1)
   go (Elem.SumTy a0 b0) (Elem.SumTy a1 b1) =
     -- code-sum-inj: both components at 𝕌, neither under a binder
     comp SelSumL a0 a1 ++ comp SelSumR b0 b1
   go (QuotTy a0 r0) (QuotTy a1 r1) =
     comp SelQDom a0 a1
     ++ closeCand (child (\bs => [| SelQRel (lookup 1 bs) (lookup 0 bs) |]) 2
-                        [El a1, substTy (El a1) Wk] r0 r1)
+                        [a1, substTy a1 Wk] r0 r1)
   go _ _ = []
 
 ||| Eq-typed hypotheses of Γ (leading Πs peeled) as candidates with base
@@ -2032,11 +2022,11 @@ mutual
       else Nothing
   spCongC dep st cs ctx (Elem.PiTy a b) (Elem.PiTy a' b') = do
     stA <- spEqElemC dep st cs ctx a a' UniverseTy >>= flatSteps
-    cB <- spEqElemC dep st (extendCS cs) (ctx :< El a') b b' UniverseTy
+    cB <- spEqElemC dep st (extendCS cs) (ctx :< a') b b' UniverseTy
     if stepFree cB then Just (prefixSteps 0 stA) else Nothing
   spCongC dep st cs ctx (Elem.SigmaTy a b) (Elem.SigmaTy a' b') = do
     stA <- spEqElemC dep st cs ctx a a' UniverseTy >>= flatSteps
-    cB <- spEqElemC dep st (extendCS cs) (ctx :< El a') b b' UniverseTy
+    cB <- spEqElemC dep st (extendCS cs) (ctx :< a') b b' UniverseTy
     if stepFree cB then Just (prefixSteps 0 stA) else Nothing
   spCongC dep st cs ctx (Elem.SumTy a b) (Elem.SumTy a' b') = do
     -- non-dependent: BOTH components may carry steps (no binder to
@@ -2046,7 +2036,7 @@ mutual
     pure (prefixSteps 0 stA ++ prefixSteps 1 stB)
   spCongC dep st cs ctx (QuotTy a r) (QuotTy a' r') = do
     stA <- spEqElemC dep st cs ctx a a' UniverseTy >>= flatSteps
-    cR <- spEqElemC dep st (extendCS (extendCS cs)) (ctx :< El a' :< substTy (El a') Wk) r r' PropTy
+    cR <- spEqElemC dep st (extendCS (extendCS cs)) (ctx :< a' :< substTy a' Wk) r r' PropTy
     if stepFree cR then Just (prefixSteps 0 stA) else Nothing
   spCongC dep st cs ctx (Squash x) (Squash y) =
     prefixSteps 0 <$> (spEqTyC dep st cs ctx x y >>= flatSteps)
@@ -2184,7 +2174,23 @@ mutual
         base = bump "rwnf-ty" (nowNs () - t0) (aSteps ++ bSteps) in
     ((\rest => MkECert (base ++ rest) FBeta) <$> go a b)
       <|> congFinal a b base
+      <|> codeFall a b base
    where
+    -- El retired: a type equation whose sides are CODES is the 𝕌
+    -- element equation (code-lift-eq / code-restrict) — delegate to
+    -- the element engine, where the scope's candidates, rewriting
+    -- and the injectivity selectors live. Untrusted, like everything
+    -- here: the certificate replays through the shared channel.
+    codeFall : Ty -> Ty -> List Step -> Maybe ECert
+    codeFall a b base = do
+      _ <- codeOf a
+      _ <- codeOf b
+      MkECertF tyEx ss f unfs <- spEqElemC dep st cs ctx a b UniverseTy
+      case tyEx of
+        -- a bridged element certificate cannot absorb the type-side
+        -- normalization steps soundly — keep only the unbridged shape
+        Just _ => if null base then Just (MkECertF tyEx ss f unfs) else Nothing
+        Nothing => Just (MkECertF Nothing (base ++ ss) f unfs)
     -- head-level congruence finals: extensional components (Ω-valued)
     -- cannot be flattened into steps, so ty-prf-cong / ty-quot-cong
     -- carry a nested certificate instead
@@ -2245,16 +2251,8 @@ mutual
           sub <- spEqElemC dep st (extendCS (extendCS cs)) (ctx :< a1 :< substTy a1 Wk) r0 r1 PropTy
           if stepFree sub then Just (prefixSteps 0 stA) else Nothing
         (Prf x, Prf y) => flatE False 0 ctx x y PropTy
-        (El x, El y) => flatE False 0 ctx x y UniverseTy
-        (El x, rigid) => do c <- codeOf rigid
-                            flatE True 0 ctx x c UniverseTy
-        (rigid, El y) => do c <- codeOf rigid
-                            -- rewrite the El side (the rhs here)
-                            cE <- spEqElemC dep st cs ctx c y UniverseTy
-                            steps <- flatSteps cE
-                            if any (\s => s.onLhs) steps
-                              then Nothing
-                              else Just (prefixSteps 0 steps)
+        -- El retired: mixed decoded-vs-code shapes no longer exist —
+        -- a code in type position IS its own spelling
         _ => Nothing
 
 ||| Dedup-only matching against already-assumed obligations (dirty runs;
@@ -2388,17 +2386,17 @@ mutual
     let zsg = map (resugarQTy st) sg
         zes = resugarSub st es in
     case resugarQ st (QSort zsg k zes) of
-      Just code => El code
+      Just code => code
       Nothing => QSort zsg k zes
   resugarTy st (PiTy a b) = PiTy (resugarTy st a) (resugarTy st b)
   resugarTy st (SigmaTy a b) = SigmaTy (resugarTy st a) (resugarTy st b)
   resugarTy st (SumTy a b) = SumTy (resugarTy st a) (resugarTy st b)
-  resugarTy st (El e) = El (resugarElem st e)
   resugarTy st (Prf e) = Prf (resugarElem st e)
   resugarTy st (QuotTy a r) = QuotTy (resugarTy st a) (resugarElem st r)
   resugarTy st (SigVar x es) = SigVar x (resugarSub st es)
   resugarTy st (NuTy f) = NuTy (resugarPoly st f)
-  resugarTy st t = t
+  -- a non-former type is a CODE (El retired) — resugar as an element
+  resugarTy st t = resugarElem st t
 
   resugarSub : ElabSt -> SubNorm -> SubNorm
   resugarSub st [<] = [<]
@@ -2531,7 +2529,6 @@ mutual
   refsE UniverseTy acc = acc
   refsE PropTy acc = acc
   refsE TopTy acc = acc
-  refsE (El e) acc = refsE e acc
   refsE (Prf e) acc = refsE e acc
   refsE (Elem.PiTy a b) acc = refsE b (refsE a acc)
   refsE (Elem.SigmaTy a b) acc = refsE b (refsE a acc)
@@ -2866,17 +2863,17 @@ mutual
                   _ => assume cur site comp)
           (Elem.PiTy x c, Elem.PiTy x' c', UniverseTy) => do
             ignore $ convElem ctx env site comp' x x' UniverseTy
-            ignore $ convElem (ctx :< El x') (env :< "x") site comp' c c' UniverseTy
+            ignore $ convElem (ctx :< x') (env :< "x") site comp' c c' UniverseTy
           (Elem.SigmaTy x c, Elem.SigmaTy x' c', UniverseTy) => do
             ignore $ convElem ctx env site comp' x x' UniverseTy
-            ignore $ convElem (ctx :< El x') (env :< "x") site comp' c c' UniverseTy
+            ignore $ convElem (ctx :< x') (env :< "x") site comp' c c' UniverseTy
           (Elem.SumTy x c, Elem.SumTy x' c', UniverseTy) => do
             -- code-sum-inj: both components at 𝕌 over Γ (no binder)
             ignore $ convElem ctx env site comp' x x' UniverseTy
             ignore $ convElem ctx env site comp' c c' UniverseTy
           (QuotTy x r, QuotTy x' r', UniverseTy) => do
             ignore $ convElem ctx env site comp' x x' UniverseTy
-            ignore $ convElem (ctx :< El x' :< substTy (El x') Wk) (env :< "x" :< "y") site comp' r r' PropTy
+            ignore $ convElem (ctx :< x' :< substTy x' Wk) (env :< "x" :< "y") site comp' r r' PropTy
           -- code-qiit identity: structural, like ty-qiit (the code and
           -- the type decode to the same former)
           (QSort sg0 k0 es0, QSort sg1 k1 es1, UniverseTy) =>
@@ -2985,14 +2982,7 @@ mutual
             case polyDom0Pieces f0 f1 of
               Just pieces => traverse_ (\(e0, e1) => ignore $ convElem ctx env site comp' e0 e1 UniverseTy) pieces
               Nothing => assume cur site comp
-          (El x, El y) => ignore $ convElem ctx env site comp' x y UniverseTy
           (Prf x, Prf y) => ignore $ convElem ctx env site comp' x y PropTy
-          (El x, rigid) => case codeOf rigid of
-                             Just c => ignore $ convElem ctx env site comp' x c UniverseTy
-                             Nothing => assume cur site comp
-          (rigid, El y) => case codeOf rigid of
-                             Just c => ignore $ convElem ctx env site comp' c y UniverseTy
-                             Nothing => assume cur site comp
           _ => case again of
                  Just (aR, bR) => decomposeT site cur comp' aR bR Nothing
                  Nothing => assume cur site comp
@@ -3128,13 +3118,13 @@ mutual
     pure (PSum f' g', fSks ++ gSks)
   elabPoly ctx env site (SPSigma (xn, xr) a f) = do
     (a', aSk) <- checkElem ctx env site a UniverseTy
-    recordBinder xr ctx env xn (El a')
-    (f', fSks) <- elabPoly (ctx :< El a') (env :< xn) site f
+    recordBinder xr ctx env xn a'
+    (f', fSks) <- elabPoly (ctx :< a') (env :< xn) site f
     pure (PSigma a' f', aSk :: fSks)
   elabPoly ctx env site (SPPi (xn, xr) a f) = do
     (a', aSk) <- checkElem ctx env site a UniverseTy
-    recordBinder xr ctx env xn (El a')
-    (f', fSks) <- elabPoly (ctx :< El a') (env :< xn) site f
+    recordBinder xr ctx env xn a'
+    (f', fSks) <- elabPoly (ctx :< a') (env :< xn) site f
     pure (PPi a' f', aSk :: fSks)
 
   elabTy : Ctx -> NameEnv -> String -> STy -> ElabM (Ty, Skel)
@@ -3151,7 +3141,15 @@ mutual
       Just (SigDef [<] _ _ TopTy) => pure (SigVar x [<], Nd [] [])
       Just (SigDef _ _ _ TopTy) => throw "\{site}: '\{x}' has a non-empty declaration context"
       Just (SigDecl [<] _ TopTy) => pure (SigVar x [<], Nd [] [])
-      Just _ => throw "\{site}: '\{x}' is not usable as a type here"
+      -- CUMULATIVITY (El retired): a 𝕌-classified reference is a
+      -- code — a type
+      Just (SigDef [<] _ _ UniverseTy) => pure (SigVar x [<], Nd [] [])
+      Just (SigDecl [<] _ UniverseTy) => pure (SigVar x [<], Nd [] [])
+      -- anything else: elaborate as a term and demand a code — covers
+      -- entries whose 𝕌-classification is behind a definition
+      Just _ => do
+        (e', eSk) <- checkElem ctx env site (SSig Nothing x) UniverseTy
+        pure (e', eSk)
       Nothing => throw "\{site}: unknown signature name '\{x}'"
   elabTy ctx env site (STyPi x a b) = do
     (a', aSk) <- elabTy ctx env site a
@@ -3196,9 +3194,10 @@ mutual
     -- LEFT first (a deterministic rule, not a search)
     (l', r', t', lSk, rSk) <- elabEqSides ctx env site l r
     pure (Prf (Elem.EqTy l' r' t'), Nd [] [Nd [] [lSk, rSk, Nd [] []]])
+  -- a CODE in type position (El retired: the code is the type)
   elabTy ctx env site (STyEl e) = do
     (e', eSk) <- checkElem ctx env site e UniverseTy
-    pure (El e', Nd [] [eSk])
+    pure (e', eSk)
   elabTy ctx env site STyProp = pure (PropTy, Nd [] [])
   elabTy ctx env site (STyPrf e) = do
     (e', eSk) <- checkElem ctx env site e PropTy
@@ -3339,11 +3338,11 @@ mutual
   inferElem ctx env site SNatC = pure (Elem.NatTy, UniverseTy, Nd [] [])
   inferElem ctx env site (SPiC x a b) = do
     (a', aSk) <- checkElem ctx env site a UniverseTy
-    (b', bSk) <- checkElem (ctx :< El a') (env :< x) site b UniverseTy
+    (b', bSk) <- checkElem (ctx :< a') (env :< x) site b UniverseTy
     pure (Elem.PiTy a' b', UniverseTy, Nd [] [aSk, bSk])
   inferElem ctx env site (SSigmaC x a b) = do
     (a', aSk) <- checkElem ctx env site a UniverseTy
-    (b', bSk) <- checkElem (ctx :< El a') (env :< x) site b UniverseTy
+    (b', bSk) <- checkElem (ctx :< a') (env :< x) site b UniverseTy
     pure (Elem.SigmaTy a' b', UniverseTy, Nd [] [aSk, bSk])
   inferElem ctx env site (SSumC a b) = do
     (a', aSk) <- checkElem ctx env site a UniverseTy
@@ -3351,9 +3350,9 @@ mutual
     pure (Elem.SumTy a' b', UniverseTy, Nd [] [aSk, bSk])
   inferElem ctx env site (SQuotC a (nx, nxr) (ny, nyr) r) = do
     (a', aSk) <- checkElem ctx env site a UniverseTy
-    recordBinder nxr ctx env nx (El a')
-    recordBinder nyr (ctx :< El a') (env :< nx) ny (substTy (El a') Wk)
-    (r', rSk) <- checkElem (ctx :< El a' :< substTy (El a') Wk) (env :< nx :< ny) site r PropTy
+    recordBinder nxr ctx env nx a'
+    recordBinder nyr (ctx :< a') (env :< nx) ny (substTy a' Wk)
+    (r', rSk) <- checkElem (ctx :< a' :< substTy a' Wk) (env :< nx :< ny) site r PropTy
     pure (QuotTy a' r', UniverseTy, Nd [] [aSk, rSk])
   inferElem ctx env site (SSquash t) = do
     (t', tSk) <- elabTy ctx env site t
@@ -3390,7 +3389,7 @@ mutual
     (t', tTy, tSk) <- inferElem ctx env site t
     st <- getSt
     case preferNu st ctx tTy of
-      Just (p, _) => pure (Out t', El (reflectPoly p (Elem.NuTy p)), Nd [] [tSk])
+      Just (p, _) => pure (Out t', reflectPoly p (Elem.NuTy p), Nd [] [tSk])
       Nothing => throw "\{site}: out scrutinee has non-ν type\{structuralHint ()}"
   inferElem ctx env site (SCorec _ _ _ _) =
     throw "\{site}: cannot infer the type of corec (the polynomial comes from the expected ν-type)\{structuralHint ()}"
@@ -3447,10 +3446,10 @@ mutual
     case preferNu st ctx ty of
       Just (p, exp) => do
         (a', aSk) <- checkElem ctx env site a UniverseTy
-        recordBinder xr ctx env xn (El a')
-        (f', fSk) <- checkElem (ctx :< El a') (env :< xn) site f
-                       (substTy (El (reflectPoly p a')) Wk)
-        (u', uSk) <- checkElem ctx env site u (El a')
+        recordBinder xr ctx env xn a'
+        (f', fSk) <- checkElem (ctx :< a') (env :< xn) site f
+                       (substTy (reflectPoly p a') Wk)
+        (u', uSk) <- checkElem ctx env site u a'
         pure (Corec p a' f' u', withExpose exp (Nd [] [aSk, fSk, uSk]))
       Nothing => throw "\{site}: corec checked against a non-ν type\{structuralHint ()}"
   checkElem ctx env site (SCoind (xn, xr) (yn, yr) rS pS (mxn, mxr) (myn, myr) (mhn, mhr) qS) ty = do
@@ -5113,7 +5112,9 @@ elabItemGo (SData params decls) = do
     entry <- entryAt site sg k
     (tel, _, _) <- liftQE site (reflTel sg (qwAt k) entry)
     let n = length tel
-    if qSigSmall sg
+    st <- getSt
+    let isSmall = kQSigSmallB st.sig kernelFuel ([<] <>< ptys) sg
+    if isSmall
       then do
         let ty = wrapParams ptys (foldr PiTy UniverseTy tel)
         let body = wrapLams (np + n) (QSort (sgAt sg n) k (varSpine n))
@@ -5173,7 +5174,7 @@ elabItemGo (SData params decls) = do
     (sTel0, _, _) <- liftQE site (reflTel sg (qwAt s) sEntry)
     let nI = length sTel0
     let wrapMot : Elem -> Ty
-        wrapMot = if prop then Prf else El
+        wrapMot = if prop then Prf else id
     let motEnd : Ty
         motEnd = if prop then PropTy else UniverseTy
     -- motive TYPES as seen `extra` binders after the LAST motive
@@ -5227,7 +5228,9 @@ elabItemGo (SData params decls) = do
                 let sgJ = sgAt sg (nS + nM + j)
                 (dtel, spineArgs, lhs, rhs, cty) <- liftQE site (coherenceAt sgJ mots (mVarsAt (nM + j)) ej)
                 let dlen = length dtel
-                let swc = MkECert [MkStep True [0, 1] (LPath (sgAt sgJ dlen) ej spineArgs) [] True] FBeta
+                -- path [1]: the rhs argument of the (bare, El retired)
+                -- motive application C ī ⌊r⌋
+                let swc = MkECert [MkStep True [1] (LPath (sgAt sgJ dlen) ej spineArgs) [] True] FBeta
                 -- the ≡-TYPE became Prf (eq-prop): one more skeleton
                 -- level (Prf's child 0 is the prop; its children are
                 -- l, r and the carried type)

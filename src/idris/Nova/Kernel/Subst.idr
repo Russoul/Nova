@@ -99,7 +99,6 @@ mutual
   substElem PropTy             sigma = PropTy
   -- 𝕍[σ] ≜ 𝕍 (Foundation's meta-clause: 𝕍 is a closed atom)
   substElem TopTy              sigma = TopTy
-  substElem (El e)             sigma = El (substElem e sigma)
   substElem (Prf e)            sigma = Prf (substElem e sigma)
   substElem (Elem.PiTy a b)    sigma = Elem.PiTy (substElem a sigma) (substElem b (under sigma))
   substElem (Elem.SigmaTy a b) sigma = Elem.SigmaTy (substElem a sigma) (substElem b (under sigma))
@@ -223,7 +222,6 @@ mutual
   strengthenElem d UniverseTy         = Just UniverseTy
   strengthenElem d PropTy             = Just PropTy
   strengthenElem d TopTy              = Just TopTy
-  strengthenElem d (El e)             = El <$> strengthenElem d e
   strengthenElem d (Prf e)            = Prf <$> strengthenElem d e
   strengthenElem d (Elem.PiTy a b)    = Elem.PiTy <$> strengthenElem d a <*> strengthenElem (1 + d) b
   strengthenElem d (Elem.SigmaTy a b) = Elem.SigmaTy <$> strengthenElem d a <*> strengthenElem (1 + d) b
@@ -373,7 +371,7 @@ corecFun p a f =
 export covering
 liftPoly : Poly -> (r : Elem) -> (u : Elem) -> (v : Elem) -> Elem
 liftPoly PHole        r u v = substElem r (Ext (Ext Id u) v)
-liftPoly (PConst a)   r u v = Elem.EqTy u v (El a)
+liftPoly (PConst a)   r u v = Elem.EqTy u v a
 liftPoly (PProd f g)  r u v =
   Squash (SigmaTy (Prf (liftPoly f r (SigmaElim1 u) (SigmaElim1 v)))
                      (substTy (Prf (liftPoly g r (SigmaElim2 u) (SigmaElim2 v))) Wk))
@@ -391,13 +389,13 @@ liftPoly (PSum f g)   r u v =
   wk2base e = substElem (substElem e (under (under Wk))) (under (under Wk))
 liftPoly (PSigma a f) r u v =
   Squash (SigmaTy
-    (Prf (Elem.EqTy (SigmaElim1 u) (SigmaElim1 v) (El a)))
+    (Prf (Elem.EqTy (SigmaElim1 u) (SigmaElim1 v) a))
     (Prf (liftPoly (substPoly (substPoly f (Ext Id (SigmaElim1 u))) Wk)
                    (substElem r (under (under Wk)))
                    (substElem (SigmaElim2 u) Wk)
                    (substElem (SigmaElim2 v) Wk))))
 liftPoly (PPi a f)    r u v =
-  Squash (PiTy (El a)
+  Squash (PiTy a
     (Prf (liftPoly f
                    (substElem r (under (under Wk)))
                    (PiApp (substElem u Wk) (CtxVar 0))

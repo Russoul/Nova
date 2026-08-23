@@ -1,27 +1,27 @@
 -- sum clause: conat, the classic ∞ = ∞ + 1
 def conat : 𝕌 ≔ ν (K 𝟙 ⊎ 𝕏)
-def cinf : El conat using (conat.unfold) ≔ corec (s : 𝟙. inj₂ s) ()
-def csucc : El conat → El conat using (conat.unfold) ≔
-  λn. corec (p : 𝟙 ⊎ conat. inj₂ (⊎-elim (w. 𝟙 ⊎ El conat) (u. inj₁ u) (m. out m) p)) (out n)
-def infSucc : cinf ≡ csucc cinf ∈ El conat using (hyp.rw, conat.unfold, conat.eq, cinf.eq, csucc.eq) ≔
-  coind (x y. ∥(x ≡ cinf ∈ El conat) ⨯ (y ≡ csucc cinf ∈ El conat)∥)
+def cinf : conat using (conat.unfold) ≔ corec (s : 𝟙. inj₂ s) ()
+def csucc : conat → conat using (conat.unfold) ≔
+  λn. corec (p : 𝟙 ⊎ conat. inj₂ (⊎-elim (w. 𝟙 ⊎ conat) (u. inj₁ u) (m. out m) p)) (out n)
+def infSucc : cinf ≡ csucc cinf ∈ conat using (hyp.rw, conat.unfold, conat.eq, cinf.eq, csucc.eq) ≔
+  coind (x y. ∥(x ≡ cinf ∈ conat) ⨯ (y ≡ csucc cinf ∈ conat)∥)
         (⋆ ((⋆ , ⋆)))
         (x y h. squash-elim h (w. ⋆ ((⋆ , ⋆))))
 
 -- exponent clause: Moore machines, constant machines over two carriers
 def moore : 𝕌 ≔ ν (K ℕ ⨯ ((i : ℕ) → 𝕏))
-def m1 : El moore using (moore.unfold) ≔ corec (s : 𝟙. (Z , λi. s)) ()
-def m2 : El moore using (moore.unfold) ≔ corec (s : ℕ. (Z , λi. s)) Z
-def mEq : m1 ≡ m2 ∈ El moore using (hyp.rw, moore.unfold, moore.eq, m1.eq, m2.eq) ≔
-  coind (x y. ∥(x ≡ m1 ∈ El moore) ⨯ (y ≡ m2 ∈ El moore)∥)
+def m1 : moore using (moore.unfold) ≔ corec (s : 𝟙. (Z , λi. s)) ()
+def m2 : moore using (moore.unfold) ≔ corec (s : ℕ. (Z , λi. s)) Z
+def mEq : m1 ≡ m2 ∈ moore using (hyp.rw, moore.unfold, moore.eq, m1.eq, m2.eq) ≔
+  coind (x y. ∥(x ≡ m1 ∈ moore) ⨯ (y ≡ m2 ∈ moore)∥)
         (⋆ ((⋆ , ⋆)))
         (x y h. squash-elim h (w. ⋆ ((⋆ , ⋆ (λi. ⋆ ((⋆ , ⋆)))))))
 
 -- dependent-pair clause: a binder polynomial
 def dep : 𝕌 ≔ ν ((n : ℕ) ⨯ 𝕏)
-def d1 : El dep using (dep.unfold) ≔ corec (s : 𝟙. (Z , s)) ()
-def d2 : El dep using (dep.unfold) ≔ corec (s : ℕ. (Z , s)) Z
-def dEq : d1 ≡ d2 ∈ El dep using (hyp.rw, dep.unfold, dep.eq, d1.eq, d2.eq) ≔
-  coind (x y. ∥(x ≡ d1 ∈ El dep) ⨯ (y ≡ d2 ∈ El dep)∥)
+def d1 : dep using (dep.unfold) ≔ corec (s : 𝟙. (Z , s)) ()
+def d2 : dep using (dep.unfold) ≔ corec (s : ℕ. (Z , s)) Z
+def dEq : d1 ≡ d2 ∈ dep using (hyp.rw, dep.unfold, dep.eq, d1.eq, d2.eq) ≔
+  coind (x y. ∥(x ≡ d1 ∈ dep) ⨯ (y ≡ d2 ∈ dep)∥)
         (⋆ ((⋆ , ⋆)))
         (x y h. squash-elim h (w. ⋆ ((⋆ , ⋆ ((⋆ , ⋆))))))

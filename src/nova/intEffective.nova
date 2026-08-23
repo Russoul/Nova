@@ -55,7 +55,7 @@ def intRTrans : {p q s : ℕ ⨯ ℕ} → Prf (IntR p q) → Prf (IntR q s) → 
   λp. λq. λs. λh1. λh2. cancelTrans _ _ h1 h2
 
 -- EFFECTIVITY for Int, on the nose
-def intEffective : {p q : ℕ ⨯ ℕ} → Prf (class p ≡ class q ∈ El Int) → Prf (IntR p q)
+def intEffective : {p q : ℕ ⨯ ℕ} → Prf (class p ≡ class q ∈ Int) → Prf (IntR p q)
   using (integer.Int.unfold, integer.IntR.unfold) ≔
   effectiveAtEquiv IntR (intRRefl {}) (intRTrans {}) (intRSymm {})
 

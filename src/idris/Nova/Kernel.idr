@@ -246,6 +246,13 @@ Monad KM where
 kerr : KErr -> KM a
 kerr e = MkKM $ \_ => Left e
 
+||| Run a sub-check, converting failure into False (state as of the
+||| failure is discarded; success keeps the fuel spent).
+kTry : KM () -> KM Bool
+kTry (MkKM f) = MkKM $ \st => case f st of
+  Left _ => Right (False, st)
+  Right ((), st') => Right (True, st')
+
 ||| One ≜-contraction's worth of fuel.
 burn : KM ()
 burn = MkKM $ \st => case st.fuel of
@@ -332,20 +339,6 @@ mutual
   kElem sig PropTy = pure PropTy
   kElem sig TopTy = pure TopTy
   kElem sig (Prf p) = Prf <$> kElem sig p
-  -- El-decoding (ty-el-*), one fuel per decode step
-  kElem sig (El e) = do
-    e' <- kElem sig e
-    case e' of
-      Elem.ZeroTy => do burn; pure Elem.ZeroTy
-      Elem.OneTy => do burn; pure Elem.OneTy
-      Elem.NatTy => do burn; pure Elem.NatTy
-      Elem.PiTy a b => do burn; kElem sig (Elem.PiTy (El a) (El b))
-      Elem.SigmaTy a b => do burn; kElem sig (Elem.SigmaTy (El a) (El b))
-      Elem.SumTy a b => do burn; kElem sig (Elem.SumTy (El a) (El b))
-      QuotTy a r => do burn; kElem sig (QuotTy (El a) r)
-      QSort sg k es => do burn; pure (QSort sg k es)   -- ty-el-qiit
-      Elem.NuTy f => do burn; pure (Elem.NuTy f)       -- ty-el-nu
-      _ => pure (El e')
   kElem sig (Elem.PiTy a b) = [| Elem.PiTy (kElem sig a) (kElem sig b) |]
   kElem sig (Elem.SigmaTy a b) = [| Elem.SigmaTy (kElem sig a) (kElem sig b) |]
   kElem sig (Elem.SumTy a b) = [| Elem.SumTy (kElem sig a) (kElem sig b) |]
@@ -522,19 +515,6 @@ mutual
     case t' of
       Corec p a f x => do burn; kWhnfE sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
       _ => pure (Out t')
-  kWhnfE sig (El e) = do
-    e' <- kWhnfE sig e
-    case e' of
-      Elem.ZeroTy => do burn; pure Elem.ZeroTy
-      Elem.OneTy => do burn; pure Elem.OneTy
-      Elem.NatTy => do burn; pure Elem.NatTy
-      Elem.PiTy a b => do burn; pure (Elem.PiTy (El a) (El b))
-      Elem.SigmaTy a b => do burn; pure (Elem.SigmaTy (El a) (El b))
-      Elem.SumTy a b => do burn; pure (Elem.SumTy (El a) (El b))
-      QuotTy a r => do burn; pure (QuotTy (El a) r)
-      QSort sg k es => do burn; pure (QSort sg k es)
-      Elem.NuTy f => do burn; pure (Elem.NuTy f)
-      _ => pure (El e')
   kWhnfE sig e = pure e
 
   ||| One sort: one weak-head normalizer.
@@ -602,23 +582,6 @@ mutual
   kJoinElem u sig PropTy = pure PropTy
   kJoinElem u sig TopTy = pure TopTy
   kJoinElem u sig (Prf p) = Prf <$> kJoinElem u sig p
-  -- El: TYPE heads expose freely (El-decoding through weak-head δ of
-  -- the code) — the head-exposure discipline; the code position joins
-  -- under the licenses only.
-  kJoinElem u sig (El e) = do
-    e' <- kJoinElem u sig e
-    w <- kWhnfE sig e'
-    case w of
-      Elem.ZeroTy => do burn; pure Elem.ZeroTy
-      Elem.OneTy => do burn; pure Elem.OneTy
-      Elem.NatTy => do burn; pure Elem.NatTy
-      Elem.PiTy a b => do burn; kJoinElem u sig (Elem.PiTy (El a) (El b))
-      Elem.SigmaTy a b => do burn; kJoinElem u sig (Elem.SigmaTy (El a) (El b))
-      Elem.SumTy a b => do burn; kJoinElem u sig (Elem.SumTy (El a) (El b))
-      QuotTy a r => do burn; kJoinElem u sig (QuotTy (El a) r)
-      QSort sg k es => do burn; [| QSort (kJoinQSig u sig sg) (pure k) (kJoinSubNorm u sig es) |]
-      Elem.NuTy f => do burn; Elem.NuTy <$> kJoinPoly u sig f
-      _ => pure (El e')
   kJoinElem u sig (Elem.PiTy a b) = [| Elem.PiTy (kJoinElem u sig a) (kJoinElem u sig b) |]
   kJoinElem u sig (Elem.SigmaTy a b) = [| Elem.SigmaTy (kJoinElem u sig a) (kJoinElem u sig b) |]
   kJoinElem u sig (Elem.SumTy a b) = [| Elem.SumTy (kJoinElem u sig a) (kJoinElem u sig b) |]
@@ -725,7 +688,7 @@ mutual
 --       | EqTy l r T→0,1,2ᵗ | QuotTyᶜ a r→0,1(2) | SigVar es→0.. (left
 --         to right) | Class a→0 | QuotElim f q→0(1),1 | ∥T∥→0(t)
 --   Ty:   PiTy a b→0,1(1) | SigmaTy a b→0,1(1)
---       | El e→0(e) | Prf p→0(e) | QuotTy a r→0,1(e)(2)
+--       | Prf p→0(e) | QuotTy a r→0,1(e)(2)
 --       | SigVar es→0.. (e)
 --   (e) marks descent into an Elem child, (t) into a Ty child.
 
@@ -832,7 +795,6 @@ mutual
       0 => (\a' => SumTy a' c) <$> pathT p b f a
       1 => (\c' => SumTy a c') <$> pathT p b f c
       _ => Left "kernel: bad path"
-  pathT (i :: p) b f (El e) = if i == 0 then El <$> pathE p b f e else Left "kernel: bad path"
   pathT (i :: p) b f (Prf e) = if i == 0 then Prf <$> pathE p b f e else Left "kernel: bad path"
   pathT (i :: p) b f (QuotTy a r) =
     case i of
@@ -905,7 +867,7 @@ mutual
   inferP sig ctx (Out t) = do
     tTy <- inferP sig ctx t >>= kWhnfT sig
     case tTy of
-      NuTy f => pure (El (reflectPoly f (Elem.NuTy f)))
+      NuTy f => pure (reflectPoly f (Elem.NuTy f))
       _ => kerr "kernel: proof observes a non-ν element"
   inferP sig ctx OneIntro = pure OneTy
   inferP sig ctx NatIntro0 = pure NatTy
@@ -918,11 +880,11 @@ mutual
   inferP sig ctx Elem.NatTy = pure UniverseTy
   inferP sig ctx (Elem.PiTy a b) = do
     checkP sig ctx a UniverseTy
-    checkP sig (ctx :< El a) b UniverseTy
+    checkP sig (ctx :< a) b UniverseTy
     pure UniverseTy
   inferP sig ctx (Elem.SigmaTy a b) = do
     checkP sig ctx a UniverseTy
-    checkP sig (ctx :< El a) b UniverseTy
+    checkP sig (ctx :< a) b UniverseTy
     pure UniverseTy
   inferP sig ctx (Elem.SumTy a b) = do
     checkP sig ctx a UniverseTy
@@ -930,7 +892,7 @@ mutual
     pure UniverseTy
   inferP sig ctx (QuotTy a r) = do
     checkP sig ctx a UniverseTy
-    checkP sig (ctx :< El a :< substTy (El a) Wk) r PropTy
+    checkP sig (ctx :< a :< substTy a Wk) r PropTy
     pure UniverseTy
   inferP sig ctx (Elem.EqTy l r t) = do
     -- code-eq: T an arbitrary type OR 𝕍 itself (type equality is a
@@ -950,8 +912,7 @@ mutual
   -- at a QIIT sort code)
   inferP sig ctx (QSort sg k es) = do
     sg' <- kQSig sig sg
-    if qSigSmall sg' then pure ()
-      else kerr "kernel: universe code for a LARGE signature (code-qiit requires smallness)"
+    checkSmallP sig ctx sg'
     checkQSpineP sig ctx sg' k es
     pure UniverseTy
   -- el-qiit-elim as a proof-spine element (an unfolded recursive
@@ -1088,8 +1049,8 @@ mutual
         pT' <- kPoly sig pT
         if p' == pT' then pure () else kerr "kernel: corec proof carries a different polynomial than its ν-type"
         checkP sig ctx a UniverseTy
-        checkP sig (ctx :< El a) f (substTy (El (reflectPoly p a)) Wk)
-        checkP sig ctx x (El a)
+        checkP sig (ctx :< a) f (substTy (reflectPoly p a) Wk)
+        checkP sig ctx x a
       _ => kerr "kernel: corec proof at non-ν type"
   -- el-qiit-intro as a proof argument (spec §3): the saturated
   -- constructor at its sort, the term's signature nf-identical to the
@@ -1197,8 +1158,28 @@ mutual
   checkPolyP sig ctx (PConst a)   = checkP sig ctx a UniverseTy
   checkPolyP sig ctx (PProd f g)  = do checkPolyP sig ctx f; checkPolyP sig ctx g
   checkPolyP sig ctx (PSum f g)   = do checkPolyP sig ctx f; checkPolyP sig ctx g
-  checkPolyP sig ctx (PSigma a f) = do checkP sig ctx a UniverseTy; checkPolyP sig (ctx :< El a) f
-  checkPolyP sig ctx (PPi a f)    = do checkP sig ctx a UniverseTy; checkPolyP sig (ctx :< El a) f
+  checkPolyP sig ctx (PSigma a f) = do checkP sig ctx a UniverseTy; checkPolyP sig (ctx :< a) f
+  checkPolyP sig ctx (PPi a f)    = do checkP sig ctx a UniverseTy; checkPolyP sig (ctx :< a) f
+
+  ||| SMALLNESS (code-qiit's side condition), judgemental now that El
+  ||| is retired: every external Π domain is Prf-headed or typed at 𝕌,
+  ||| checked in its own external context.
+  checkSmallP : Sig -> Ctx -> QSig -> KM ()
+  checkSmallP sig ctx sg = go sg
+   where
+    small : Ctx -> Ty -> KM Bool
+    small ectx (Prf _) = pure True
+    small ectx a = kTry (checkP sig ectx a UniverseTy)
+    walk : Ctx -> QTy -> KM ()
+    walk ectx (QPiExt a rest) = do
+      ok <- small ectx a
+      if ok then walk (ectx :< a) rest
+        else kerr "kernel: universe code for a LARGE signature (code-qiit requires smallness)"
+    walk ectx (QPiInd _ rest) = walk ectx rest
+    walk ectx _ = pure ()
+    go : QSig -> KM ()
+    go [] = pure ()
+    go (e :: rest) = do walk ctx e; go rest
 
   ||| Γ ⊢ A type, tiny-checker side (needed for eliminator motives that
   ||| arrive inside proof spines).
@@ -1217,7 +1198,6 @@ mutual
   checkTyP sig ctx (SumTy a b) = do
     checkTyP sig ctx a
     checkTyP sig ctx b
-  checkTyP sig ctx (El e) = checkP sig ctx e UniverseTy
   checkTyP sig ctx (Prf p) = checkP sig ctx p PropTy
   checkTyP sig ctx (QuotTy a r) = do
     checkTyP sig ctx a
@@ -1230,10 +1210,11 @@ mutual
     kSigLookup sig x >>= \entryX => case entryX of
       Just (SigDef delta _ _ TopTy) => checkSubstP sig ctx (toList es) (toList delta)
       Just (SigDecl delta _ TopTy) => checkSubstP sig ctx (toList es) (toList delta)
-      _ => kerr "kernel: bad signature reference in proof type"
-  -- one sort: everything else (element formers, and 𝕍 itself — no
-  -- Γ ⊦ 𝕍 : 𝕍) is not a type former
-  checkTyP sig ctx t = kerr "kernel: not a type former in type position"
+      -- CUMULATIVITY: a 𝕌-classified reference is a code — a type
+      _ => checkP sig ctx (SigVar x es) UniverseTy
+  -- CUMULATIVITY (code-lift): anything else in type position must be
+  -- a CODE — check it at 𝕌 (𝕍 itself still fails: no Γ ⊦ 𝕍 : 𝕌)
+  checkTyP sig ctx t = checkP sig ctx t UniverseTy
 
 -- ===== Selector application =====
 
@@ -1248,10 +1229,10 @@ applySel sig ctx (l, r, _) sel = do
     -- binder-crossing selectors: the instantiation elements come from
     -- the (untrusted) certificate, so el-sub-cong-fix's premise is CHECKED
     (SelCod u, Elem.PiTy _ b0, Elem.PiTy a1 b1) => do
-      checkP sig ctx u (El a1)
+      checkP sig ctx u a1
       pure (substElem b0 (Ext Id u), substElem b1 (Ext Id u), UniverseTy)
     (SelCod u, Elem.SigmaTy _ b0, Elem.SigmaTy a1 b1) => do
-      checkP sig ctx u (El a1)
+      checkP sig ctx u a1
       pure (substElem b0 (Ext Id u), substElem b1 (Ext Id u), UniverseTy)
     -- code-sum-inj: non-dependent, both components at 𝕌 directly
     (SelSumL, Elem.SumTy a0 _, Elem.SumTy a1 _) => pure (a0, a1, UniverseTy)
@@ -1259,8 +1240,8 @@ applySel sig ctx (l, r, _) sel = do
     (SelQDom, QuotTy a0 _, QuotTy a1 _) => pure (a0, a1, UniverseTy)
     -- code-quot-inj: the relation components live at Ω
     (SelQRel u v, QuotTy _ r0, QuotTy a1 r1) => do
-      checkP sig ctx u (El a1)
-      checkP sig ctx v (El a1)
+      checkP sig ctx u a1
+      checkP sig ctx v a1
       pure (substElem r0 (Ext (Ext Id u) v), substElem r1 (Ext (Ext Id u) v), PropTy)
     -- QIIT code injectivity, indexwise: the signatures and sort must be
     -- nf-identical and the spines must AGREE before i (so the entry
@@ -1471,8 +1452,6 @@ mutual
       0 => Just <$> compClassifier sig pexp
       1 => pure (Just PropTy)
       _ => pure Nothing
-  childTyE sig ctx pexp (El _) i =
-    pure (if i == 0 then Just UniverseTy else Nothing)
   childTyE sig ctx pexp (Prf _) i =
     pure (if i == 0 then Just PropTy else Nothing)
   childTyE sig ctx pexp (Squash _) i =
@@ -1508,7 +1487,7 @@ mutual
   childTyE sig ctx pexp (Corec _ a _ _) i =
     case i of
       0 => pure (Just UniverseTy)
-      2 => pure (Just (El a))
+      2 => pure (Just a)
       _ => pure Nothing
   -- QIIT formers: spine child i's type is the reflected telescope's
   -- entry i, instantiated by the earlier children — always determined
@@ -1568,7 +1547,7 @@ mutual
       Just tTy => do
         t' <- kWhnfT sig tTy
         case t' of
-          NuTy f => pure (Just (El (reflectPoly f (Elem.NuTy f))))
+          NuTy f => pure (Just (reflectPoly f (Elem.NuTy f)))
           _ => pure Nothing
       Nothing => pure Nothing
   inferNeK sig ctx (SigVar x es) =
@@ -1622,10 +1601,14 @@ goE pol sig ctx lic@(le, re, ltyN) [] b mexp u = do
   -- together with kWhnf* exposure if the kernel ever goes
   -- fully license-bounded (docs/PerfNotes.md).
   tyOk <- if expN == weakenTyN b ltyN
+            -- CUMULATIVITY (code-lift-eq): a licensed equation at 𝕌
+            -- applies at a type position (expected 𝕍)
+            then pure True
+            else if expN == TopTy && weakenTyN b ltyN == UniverseTy
             then pure True
             else do e1 <- kTy sig expN
                     e2 <- kTy sig (weakenTyN b ltyN)
-                    pure (e1 == e2)
+                    pure (e1 == e2 || (e1 == TopTy && e2 == UniverseTy))
   if not tyOk
     then kerr "kernel: step type does not match the position"
     else if u == weakenN b le
@@ -1694,7 +1677,6 @@ goE pol sig ctx lic (i :: p) b mexp u = do
         (QuotElim f q, 0) => (\f' => QuotElim f' q) <$> goE pol sig ctx lic p (1 + b) childTy f
         (QuotElim f q, 1) => QuotElim f <$> goE pol sig ctx lic p b childTy q
         (Squash t, 0) => Squash <$> goE pol sig ctx lic p b childTy t
-        (El e2, 0) => El <$> goE pol sig ctx lic p b childTy e2
         (Prf p2, 0) => Prf <$> goE pol sig ctx lic p b childTy p2
         (QSort sg k es, _) => goQSpine es (\es' => QSort sg k es')
         (QCtor sg k es, _) => goQSpine es (\es' => QCtor sg k es')
@@ -1702,7 +1684,7 @@ goE pol sig ctx lic (i :: p) b mexp u = do
           if i == length (toList es)
             then (\w' => QElim sg k ms fs es w') <$> goE pol sig ctx lic p b childTy w
             else goQSpine es (\es' => QElim sg k ms fs es' w)
-        _ => kerr "kernel: bad or type-undetermined path"
+        _ => kerr "kernel: bad or type-undetermined path [i=\{show i}, at \{show u}]"
 
 ||| Apply one step to an element known (by the replay invariant) to be
 ||| well-typed at tyRoot: descend the path computing expected types,
@@ -2122,8 +2104,8 @@ mutual
                 if p' == pT' then pure ()
                   else kerr "kernel: corec carries a different polynomial than its ν-type"
                 kCheckE sig ctx aC UniverseTy (skelChild 0 sk)
-                kCheckE sig (ctx :< El aC) f (substTy (El (reflectPoly p aC)) Wk) (skelChild 1 sk)
-                kCheckE sig ctx x (El aC) (skelChild 2 sk)
+                kCheckE sig (ctx :< aC) f (substTy (reflectPoly p aC) Wk) (skelChild 1 sk)
+                kCheckE sig ctx x aC (skelChild 2 sk)
               _ => kerr "kernel: corec checked at a non-ν type"
           ZeroElim t => kCheckE sig ctx t ZeroTy (skelChild 0 sk)
           -- el-let (spec §8): definiens INFERRED (an intro-form
@@ -2234,7 +2216,7 @@ mutual
           Out t => do
             tTy <- kInferE sig ctx t (skelChild 0 sk) >>= kWhnfT sig
             case tTy of
-              NuTy f => pure (El (reflectPoly f (Elem.NuTy f)))
+              NuTy f => pure (reflectPoly f (Elem.NuTy f))
               _ => kerr "kernel: observing a non-ν element"
           -- el-let (spec §8): let infers when its body does; the
           -- result substitutes the value and the ⋆-proof away
@@ -2289,9 +2271,7 @@ mutual
           QSort sg k es => do
             -- code-qiit: SMALL signatures only
             kQSigCheck sig ctx sg
-            if qSigSmall sg
-              then pure ()
-              else kerr "kernel: universe code for a LARGE signature (code-qiit requires smallness)"
+            kQSigSmall sig ctx sg
             kQSortSpine sig ctx sg k es sk
             pure UniverseTy
           QElim sg k mots mths es w =>
@@ -2359,11 +2339,11 @@ mutual
           Elem.NatTy => pure UniverseTy
           Elem.PiTy a b => do
             kCheckE sig ctx a UniverseTy (skelChild 0 sk)
-            kCheckE sig (ctx :< El a) b UniverseTy (skelChild 1 sk)
+            kCheckE sig (ctx :< a) b UniverseTy (skelChild 1 sk)
             pure UniverseTy
           Elem.SigmaTy a b => do
             kCheckE sig ctx a UniverseTy (skelChild 0 sk)
-            kCheckE sig (ctx :< El a) b UniverseTy (skelChild 1 sk)
+            kCheckE sig (ctx :< a) b UniverseTy (skelChild 1 sk)
             pure UniverseTy
           Elem.SumTy a b => do
             kCheckE sig ctx a UniverseTy (skelChild 0 sk)
@@ -2376,7 +2356,7 @@ mutual
             pure UniverseTy
           QuotTy a r => do
             kCheckE sig ctx a UniverseTy (skelChild 0 sk)
-            kCheckE sig (ctx :< El a :< substTy (El a) Wk) r PropTy (skelChild 1 sk)
+            kCheckE sig (ctx :< a :< substTy a Wk) r PropTy (skelChild 1 sk)
             pure UniverseTy
           Squash t => do
             kCheckTyK sig ctx t (skelChild 0 sk)
@@ -2413,10 +2393,31 @@ mutual
     kCheckPolyK sig ctx g i' sk
   kCheckPolyK sig ctx (PSigma a f) i sk = do
     kCheckE sig ctx a UniverseTy (skelChild i sk)
-    kCheckPolyK sig (ctx :< El a) f (S i) sk
+    kCheckPolyK sig (ctx :< a) f (S i) sk
   kCheckPolyK sig ctx (PPi a f)    i sk = do
     kCheckE sig ctx a UniverseTy (skelChild i sk)
-    kCheckPolyK sig (ctx :< El a) f (S i) sk
+    kCheckPolyK sig (ctx :< a) f (S i) sk
+
+  ||| SMALLNESS (code-qiit's side condition), kernel-side: judgemental
+  ||| now that El is retired — every external Π domain is Prf-headed
+  ||| or typed at 𝕌, checked in its own external context.
+  export
+  kQSigSmall : Sig -> Ctx -> QSig -> KM ()
+  kQSigSmall sig ctx sg = go sg
+   where
+    small : Ctx -> Ty -> KM Bool
+    small ectx (Prf _) = pure True
+    small ectx a = kTry (kCheckE sig ectx a UniverseTy (Nd [] []))
+    walk : Ctx -> QTy -> KM ()
+    walk ectx (QPiExt a rest) = do
+      ok <- small ectx a
+      if ok then walk (ectx :< a) rest
+        else kerr "kernel: universe code for a LARGE signature (code-qiit requires smallness)"
+    walk ectx (QPiInd _ rest) = walk ectx rest
+    walk ectx _ = pure ()
+    go : QSig -> KM ()
+    go [] = pure ()
+    go (e :: rest) = do walk ctx e; go rest
 
   ||| Γ ⊢ A type, kernel-side.
   export
@@ -2434,7 +2435,6 @@ mutual
   kCheckTyK sig ctx (SumTy a b) sk = do
     kCheckTyK sig ctx a (skelChild 0 sk)
     kCheckTyK sig ctx b (skelChild 1 sk)
-  kCheckTyK sig ctx (El e) sk = kCheckE sig ctx e UniverseTy (skelChild 0 sk)
   kCheckTyK sig ctx PropTy _ = pure ()
   kCheckTyK sig ctx (Prf p) sk = kCheckE sig ctx p PropTy (skelChild 0 sk)
   kCheckTyK sig ctx (QuotTy a r) sk = do
@@ -2454,13 +2454,14 @@ mutual
         kCheckSubstK sig ctx (toList es) (toList delta) (childSkels' sk)
       Just (SigDecl delta _ TopTy) =>
         kCheckSubstK sig ctx (toList es) (toList delta) (childSkels' sk)
-      _ => kerr "kernel: bad signature type reference"
+      -- CUMULATIVITY: a 𝕌-classified reference is a code — a type
+      _ => kCheckE sig ctx (SigVar x es) UniverseTy sk
    where
     childSkels' : Skel -> List Skel
     childSkels' (Nd _ cs) = cs
-  -- one sort: element formers, and 𝕍 itself (no Γ ⊦ 𝕍 : 𝕍), are not
-  -- type formers
-  kCheckTyK sig ctx t _ = kerr "kernel: not a type former in type position"
+  -- CUMULATIVITY (code-lift): anything else in type position must be
+  -- a CODE — check it at 𝕌 (𝕍 itself still fails: no Γ ⊦ 𝕍 : 𝕌)
+  kCheckTyK sig ctx t sk = kCheckE sig ctx t UniverseTy sk
 
   ||| Γ ⊦ 𝒮 qsig — Foundation's qctx/qty/qtm read as a syntax-directed
   ||| algorithm, for the fragment the elaborator emits: SORT entries
@@ -2682,6 +2683,18 @@ kTele sig ctx [] = pure ctx
 kTele sig ctx ((ty, sk) :: rest) = do
   kCheckTyK sig ctx ty sk
   kTele sig (ctx :< ty) rest
+
+||| Decidable smallness probe for callers outside the fuel monad
+||| (the elaborator's data-item emitter): True iff every external Π
+||| domain of the signature is Prf-headed or checks at 𝕌 — over the
+||| given ambient context (a parameterized literal's externals mention
+||| the parameter variables).
+export
+kQSigSmallB : Sig -> Nat -> Ctx -> QSig -> Bool
+kQSigSmallB sig fuel ctx sg =
+  case runKM (kQSigSmall sig ctx sg) fuel of
+    Right _ => True
+    Left _ => False
 
 ||| Infer the type of a BARE (skeleton-free) core — recovery's
 ||| capture-typing source. Nothing when the core is an intro form

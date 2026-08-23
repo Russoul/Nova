@@ -12,21 +12,21 @@ import prelude (funext)
 
 def IsNatAlgebra : 𝕌 → 𝕌 ≔ λA. (z : A) ⨯ A → A
 
-def NatAlgHom : (A B : 𝕌) → El (IsNatAlgebra A) → El (IsNatAlgebra B) → 𝕌
+def NatAlgHom : (A B : 𝕌) → IsNatAlgebra A → IsNatAlgebra B → 𝕌
   using (natAlgebra.IsNatAlgebra.unfold) ≔
   λA. λB. λa. λb. (h : A → B)
     ⨯ Id _ (h (a .π₁)) (b .π₁) ⨯ (x : A) → Id _ (h (a .π₂ x)) (b .π₂ (h x))
 
 -- ℕ is an ℕ-algebra (S eta-expanded: constructors are not functions).
-def natAlg : El (IsNatAlgebra ℕ) using (natAlgebra.IsNatAlgebra.unfold) ≔ Z, λn. S n
+def natAlg : IsNatAlgebra ℕ using (natAlgebra.IsNatAlgebra.unfold) ≔ Z, λn. S n
 
 -- The fold: iterate the algebra's endomap from its point.
-def natFold : (A : 𝕌) → El (IsNatAlgebra A) → ℕ → El A using (natAlgebra.IsNatAlgebra.unfold) ≔
+def natFold : (A : 𝕌) → IsNatAlgebra A → ℕ → A using (natAlgebra.IsNatAlgebra.unfold) ≔
   λA. λa. λn. ℕ-elim (a .π₁) (k ih. a .π₂ ih) n
 
 -- EXISTENCE: the fold is a homomorphism into any algebra — both laws
 -- are δβ-computations (ℕ-elim at Z and at S), so each ⋆ is free.
-def natAlgInitial : (A : 𝕌) (a : El (IsNatAlgebra A)) → El (NatAlgHom _ _ natAlg a)
+def natAlgInitial : (A : 𝕌) (a : IsNatAlgebra A) → NatAlgHom _ _ natAlg a
   using (id.Id.eq,
     natAlgebra.IsNatAlgebra.unfold,
     natAlgebra.NatAlgHom.unfold,
@@ -39,8 +39,8 @@ def natAlgInitial : (A : 𝕌) (a : El (IsNatAlgebra A)) → El (NatAlgHom _ _ n
 -- as hypotheses; the base joins at a's point, the step joins at
 -- a's endomap of the induction hypothesis' common value.
 def natAlgHomUnique : (A : 𝕌)
-  (a : El (IsNatAlgebra A))
-  (f g : El (NatAlgHom _ _ natAlg a))
+  (a : IsNatAlgebra A)
+  (f g : NatAlgHom _ _ natAlg a)
   (n : ℕ)
   → f .π₁ n ≡ g .π₁ n
   using (hyp.rw,
@@ -69,9 +69,6 @@ def natAlgHomUnique : (A : 𝕌)
     n
 
 -- and at FUNCTION level, one funext away.
-def natAlgHomUniqueFun : (A : 𝕌)
-  (a : El (IsNatAlgebra A))
-  (f g : El (NatAlgHom _ _ natAlg a))
-  → f .π₁ ≡ g .π₁
+def natAlgHomUniqueFun : (A : 𝕌) (a : IsNatAlgebra A) (f g : NatAlgHom _ _ natAlg a) → f .π₁ ≡ g .π₁
   using (natAlgebra.NatAlgHom.unfold) ≔
   λA. λa. λf. λg. funext (natAlgHomUnique _ _ f g)

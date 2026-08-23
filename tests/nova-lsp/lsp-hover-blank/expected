@@ -2,7 +2,7 @@ LEGEND: ["keyword", "variable", "operator", "number", "comment"]
 CAPS: hover=true definition=true documentSymbol=true
 DIAGNOSTICS (0):
 ELABTIME: reported
-TOKENS (173):
+TOKENS (165):
   L1:1+3 keyword
   L1:5+3 variable
   L1:9+1 keyword
@@ -13,28 +13,25 @@ TOKENS (173):
   L1:18+1 keyword
   L1:19+1 keyword
   L1:21+1 keyword
-  L1:23+2 keyword
-  L1:26+1 variable
-  L1:28+1 keyword
-  L1:30+2 keyword
-  L1:33+1 variable
+  L1:23+1 variable
+  L1:25+1 keyword
+  L1:27+1 variable
+  L1:29+1 keyword
+  L1:31+1 variable
+  L1:33+1 keyword
   L1:35+1 keyword
-  L1:37+2 keyword
+  L1:36+1 variable
+  L1:37+1 keyword
+  L1:39+1 keyword
   L1:40+1 variable
-  L1:42+1 keyword
-  L1:44+1 keyword
-  L1:45+1 variable
-  L1:46+1 keyword
-  L1:48+1 keyword
-  L1:49+1 variable
-  L1:50+1 keyword
-  L1:52+1 keyword
-  L1:53+1 variable
-  L1:54+1 keyword
-  L1:56+1 keyword
-  L1:57+1 variable
-  L1:58+1 keyword
-  L1:60+1 variable
+  L1:41+1 keyword
+  L1:43+1 keyword
+  L1:44+1 variable
+  L1:45+1 keyword
+  L1:47+1 keyword
+  L1:48+1 variable
+  L1:49+1 keyword
+  L1:51+1 variable
   L3:1+3 keyword
   L3:5+6 variable
   L3:12+1 keyword
@@ -48,25 +45,24 @@ TOKENS (173):
   L3:25+1 variable
   L3:27+1 variable
   L3:29+1 keyword
-  L3:31+2 keyword
-  L3:34+1 variable
-  L3:35+1 keyword
-  L3:37+1 keyword
+  L3:31+1 variable
+  L3:32+1 keyword
+  L3:34+1 keyword
+  L3:36+1 keyword
+  L3:37+1 variable
   L3:39+1 keyword
-  L3:40+1 variable
+  L3:41+1 variable
   L3:42+1 keyword
-  L3:44+1 variable
-  L3:45+1 keyword
-  L3:47+1 keyword
+  L3:44+1 keyword
+  L3:46+1 keyword
+  L3:47+1 variable
   L3:49+1 keyword
-  L3:50+1 variable
+  L3:51+1 variable
   L3:52+1 keyword
-  L3:54+1 variable
-  L3:55+1 keyword
-  L3:57+1 keyword
-  L3:59+1 variable
-  L3:61+1 keyword
-  L3:63+1 variable
+  L3:54+1 keyword
+  L3:56+1 variable
+  L3:58+1 keyword
+  L3:60+1 variable
   L4:3+1 keyword
   L4:5+1 keyword
   L4:6+1 variable
@@ -98,26 +94,23 @@ TOKENS (173):
   L6:1+3 keyword
   L6:5+6 variable
   L6:12+1 keyword
-  L6:14+2 keyword
-  L6:17+1 keyword
-  L6:19+1 keyword
-  L6:21+2 keyword
+  L6:14+1 keyword
+  L6:16+1 keyword
+  L6:18+1 keyword
+  L6:20+1 keyword
+  L6:22+1 keyword
   L6:24+1 keyword
   L6:26+1 keyword
-  L6:28+2 keyword
-  L6:31+1 keyword
-  L6:33+1 keyword
-  L6:35+1 keyword
-  L6:36+1 variable
-  L6:37+1 keyword
-  L6:39+1 keyword
+  L6:27+1 variable
+  L6:28+1 keyword
+  L6:30+1 keyword
+  L6:31+1 variable
+  L6:32+1 keyword
+  L6:34+3 variable
+  L6:38+1 variable
   L6:40+1 variable
-  L6:41+1 keyword
-  L6:43+3 variable
-  L6:47+1 variable
-  L6:49+1 variable
-  L6:51+1 variable
-  L6:53+1 variable
+  L6:42+1 variable
+  L6:44+1 variable
   L8:1+3 keyword
   L8:5+8 variable
   L8:14+1 keyword
@@ -131,25 +124,24 @@ TOKENS (173):
   L8:27+1 variable
   L8:29+1 variable
   L8:31+1 keyword
-  L8:33+2 keyword
-  L8:36+1 variable
-  L8:37+1 keyword
-  L8:39+1 keyword
+  L8:33+1 variable
+  L8:34+1 keyword
+  L8:36+1 keyword
+  L8:38+1 keyword
+  L8:39+1 variable
   L8:41+1 keyword
-  L8:42+1 variable
+  L8:43+1 variable
   L8:44+1 keyword
-  L8:46+1 variable
-  L8:47+1 keyword
-  L8:49+1 keyword
+  L8:46+1 keyword
+  L8:48+1 keyword
+  L8:49+1 variable
   L8:51+1 keyword
-  L8:52+1 variable
+  L8:53+1 variable
   L8:54+1 keyword
-  L8:56+1 variable
-  L8:57+1 keyword
-  L8:59+1 keyword
-  L8:61+1 variable
-  L8:63+1 keyword
-  L8:65+1 variable
+  L8:56+1 keyword
+  L8:58+1 variable
+  L8:60+1 keyword
+  L8:62+1 variable
   L9:3+1 keyword
   L9:5+1 keyword
   L9:6+1 variable
@@ -177,12 +169,12 @@ TOKENS (173):
   L9:44+1 variable
   L9:46+1 variable
 SYMBOLS (4):
-  cst (kind 12) [L1:1-L1:61]
+  cst (kind 12) [L1:1-L1:52]
   trans3 (kind 12) [L3:1-L4:48]
-  useCst (kind 12) [L6:1-L6:54]
+  useCst (kind 12) [L6:1-L6:45]
   useTrans (kind 12) [L8:1-L9:47]
 DEFINITION(_ _ n u): null
-HOVER(_ _ n u): [L6:47-L6:48] ```nova ⏎ _ : 𝕌 ≔ ℕ ⏎ -- solved from the expected type ⏎ ```
+HOVER(_ _ n u): [L6:38-L6:39] ```nova ⏎ _ : 𝕌 ≔ ℕ ⏎ -- solved from the expected type ⏎ ```
 DIAGNOSTICS FOR FIXTURE (0):
 ELABTIME: reported
 SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
@@ -191,7 +183,7 @@ LEGEND: ["keyword", "variable", "operator", "number", "comment"]
 CAPS: hover=true definition=true documentSymbol=true
 DIAGNOSTICS (0):
 ELABTIME: reported
-TOKENS (173):
+TOKENS (165):
   L1:1+3 keyword
   L1:5+3 variable
   L1:9+1 keyword
@@ -202,28 +194,25 @@ TOKENS (173):
   L1:18+1 keyword
   L1:19+1 keyword
   L1:21+1 keyword
-  L1:23+2 keyword
-  L1:26+1 variable
-  L1:28+1 keyword
-  L1:30+2 keyword
-  L1:33+1 variable
+  L1:23+1 variable
+  L1:25+1 keyword
+  L1:27+1 variable
+  L1:29+1 keyword
+  L1:31+1 variable
+  L1:33+1 keyword
   L1:35+1 keyword
-  L1:37+2 keyword
+  L1:36+1 variable
+  L1:37+1 keyword
+  L1:39+1 keyword
   L1:40+1 variable
-  L1:42+1 keyword
-  L1:44+1 keyword
-  L1:45+1 variable
-  L1:46+1 keyword
-  L1:48+1 keyword
-  L1:49+1 variable
-  L1:50+1 keyword
-  L1:52+1 keyword
-  L1:53+1 variable
-  L1:54+1 keyword
-  L1:56+1 keyword
-  L1:57+1 variable
-  L1:58+1 keyword
-  L1:60+1 variable
+  L1:41+1 keyword
+  L1:43+1 keyword
+  L1:44+1 variable
+  L1:45+1 keyword
+  L1:47+1 keyword
+  L1:48+1 variable
+  L1:49+1 keyword
+  L1:51+1 variable
   L3:1+3 keyword
   L3:5+6 variable
   L3:12+1 keyword
@@ -237,25 +226,24 @@ TOKENS (173):
   L3:25+1 variable
   L3:27+1 variable
   L3:29+1 keyword
-  L3:31+2 keyword
-  L3:34+1 variable
-  L3:35+1 keyword
-  L3:37+1 keyword
+  L3:31+1 variable
+  L3:32+1 keyword
+  L3:34+1 keyword
+  L3:36+1 keyword
+  L3:37+1 variable
   L3:39+1 keyword
-  L3:40+1 variable
+  L3:41+1 variable
   L3:42+1 keyword
-  L3:44+1 variable
-  L3:45+1 keyword
-  L3:47+1 keyword
+  L3:44+1 keyword
+  L3:46+1 keyword
+  L3:47+1 variable
   L3:49+1 keyword
-  L3:50+1 variable
+  L3:51+1 variable
   L3:52+1 keyword
-  L3:54+1 variable
-  L3:55+1 keyword
-  L3:57+1 keyword
-  L3:59+1 variable
-  L3:61+1 keyword
-  L3:63+1 variable
+  L3:54+1 keyword
+  L3:56+1 variable
+  L3:58+1 keyword
+  L3:60+1 variable
   L4:3+1 keyword
   L4:5+1 keyword
   L4:6+1 variable
@@ -287,26 +275,23 @@ TOKENS (173):
   L6:1+3 keyword
   L6:5+6 variable
   L6:12+1 keyword
-  L6:14+2 keyword
-  L6:17+1 keyword
-  L6:19+1 keyword
-  L6:21+2 keyword
+  L6:14+1 keyword
+  L6:16+1 keyword
+  L6:18+1 keyword
+  L6:20+1 keyword
+  L6:22+1 keyword
   L6:24+1 keyword
   L6:26+1 keyword
-  L6:28+2 keyword
-  L6:31+1 keyword
-  L6:33+1 keyword
-  L6:35+1 keyword
-  L6:36+1 variable
-  L6:37+1 keyword
-  L6:39+1 keyword
+  L6:27+1 variable
+  L6:28+1 keyword
+  L6:30+1 keyword
+  L6:31+1 variable
+  L6:32+1 keyword
+  L6:34+3 variable
+  L6:38+1 variable
   L6:40+1 variable
-  L6:41+1 keyword
-  L6:43+3 variable
-  L6:47+1 variable
-  L6:49+1 variable
-  L6:51+1 variable
-  L6:53+1 variable
+  L6:42+1 variable
+  L6:44+1 variable
   L8:1+3 keyword
   L8:5+8 variable
   L8:14+1 keyword
@@ -320,25 +305,24 @@ TOKENS (173):
   L8:27+1 variable
   L8:29+1 variable
   L8:31+1 keyword
-  L8:33+2 keyword
-  L8:36+1 variable
-  L8:37+1 keyword
-  L8:39+1 keyword
+  L8:33+1 variable
+  L8:34+1 keyword
+  L8:36+1 keyword
+  L8:38+1 keyword
+  L8:39+1 variable
   L8:41+1 keyword
-  L8:42+1 variable
+  L8:43+1 variable
   L8:44+1 keyword
-  L8:46+1 variable
-  L8:47+1 keyword
-  L8:49+1 keyword
+  L8:46+1 keyword
+  L8:48+1 keyword
+  L8:49+1 variable
   L8:51+1 keyword
-  L8:52+1 variable
+  L8:53+1 variable
   L8:54+1 keyword
-  L8:56+1 variable
-  L8:57+1 keyword
-  L8:59+1 keyword
-  L8:61+1 variable
-  L8:63+1 keyword
-  L8:65+1 variable
+  L8:56+1 keyword
+  L8:58+1 variable
+  L8:60+1 keyword
+  L8:62+1 variable
   L9:3+1 keyword
   L9:5+1 keyword
   L9:6+1 variable
@@ -366,12 +350,12 @@ TOKENS (173):
   L9:44+1 variable
   L9:46+1 variable
 SYMBOLS (4):
-  cst (kind 12) [L1:1-L1:61]
+  cst (kind 12) [L1:1-L1:52]
   trans3 (kind 12) [L3:1-L4:48]
-  useCst (kind 12) [L6:1-L6:54]
+  useCst (kind 12) [L6:1-L6:45]
   useTrans (kind 12) [L8:1-L9:47]
 DEFINITION(_ n u): null
-HOVER(_ n u): [L6:49-L6:50] ```nova ⏎ _ : 𝕌 ≔ 𝟙 ⏎ -- solved from the type of u ⏎ ```
+HOVER(_ n u): [L6:40-L6:41] ```nova ⏎ _ : 𝕌 ≔ 𝟙 ⏎ -- solved from the type of u ⏎ ```
 DIAGNOSTICS FOR FIXTURE (0):
 ELABTIME: reported
 SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
@@ -380,7 +364,7 @@ LEGEND: ["keyword", "variable", "operator", "number", "comment"]
 CAPS: hover=true definition=true documentSymbol=true
 DIAGNOSTICS (0):
 ELABTIME: reported
-TOKENS (173):
+TOKENS (165):
   L1:1+3 keyword
   L1:5+3 variable
   L1:9+1 keyword
@@ -391,28 +375,25 @@ TOKENS (173):
   L1:18+1 keyword
   L1:19+1 keyword
   L1:21+1 keyword
-  L1:23+2 keyword
-  L1:26+1 variable
-  L1:28+1 keyword
-  L1:30+2 keyword
-  L1:33+1 variable
+  L1:23+1 variable
+  L1:25+1 keyword
+  L1:27+1 variable
+  L1:29+1 keyword
+  L1:31+1 variable
+  L1:33+1 keyword
   L1:35+1 keyword
-  L1:37+2 keyword
+  L1:36+1 variable
+  L1:37+1 keyword
+  L1:39+1 keyword
   L1:40+1 variable
-  L1:42+1 keyword
-  L1:44+1 keyword
-  L1:45+1 variable
-  L1:46+1 keyword
-  L1:48+1 keyword
-  L1:49+1 variable
-  L1:50+1 keyword
-  L1:52+1 keyword
-  L1:53+1 variable
-  L1:54+1 keyword
-  L1:56+1 keyword
-  L1:57+1 variable
-  L1:58+1 keyword
-  L1:60+1 variable
+  L1:41+1 keyword
+  L1:43+1 keyword
+  L1:44+1 variable
+  L1:45+1 keyword
+  L1:47+1 keyword
+  L1:48+1 variable
+  L1:49+1 keyword
+  L1:51+1 variable
   L3:1+3 keyword
   L3:5+6 variable
   L3:12+1 keyword
@@ -426,25 +407,24 @@ TOKENS (173):
   L3:25+1 variable
   L3:27+1 variable
   L3:29+1 keyword
-  L3:31+2 keyword
-  L3:34+1 variable
-  L3:35+1 keyword
-  L3:37+1 keyword
+  L3:31+1 variable
+  L3:32+1 keyword
+  L3:34+1 keyword
+  L3:36+1 keyword
+  L3:37+1 variable
   L3:39+1 keyword
-  L3:40+1 variable
+  L3:41+1 variable
   L3:42+1 keyword
-  L3:44+1 variable
-  L3:45+1 keyword
-  L3:47+1 keyword
+  L3:44+1 keyword
+  L3:46+1 keyword
+  L3:47+1 variable
   L3:49+1 keyword
-  L3:50+1 variable
+  L3:51+1 variable
   L3:52+1 keyword
-  L3:54+1 variable
-  L3:55+1 keyword
-  L3:57+1 keyword
-  L3:59+1 variable
-  L3:61+1 keyword
-  L3:63+1 variable
+  L3:54+1 keyword
+  L3:56+1 variable
+  L3:58+1 keyword
+  L3:60+1 variable
   L4:3+1 keyword
   L4:5+1 keyword
   L4:6+1 variable
@@ -476,26 +456,23 @@ TOKENS (173):
   L6:1+3 keyword
   L6:5+6 variable
   L6:12+1 keyword
-  L6:14+2 keyword
-  L6:17+1 keyword
-  L6:19+1 keyword
-  L6:21+2 keyword
+  L6:14+1 keyword
+  L6:16+1 keyword
+  L6:18+1 keyword
+  L6:20+1 keyword
+  L6:22+1 keyword
   L6:24+1 keyword
   L6:26+1 keyword
-  L6:28+2 keyword
-  L6:31+1 keyword
-  L6:33+1 keyword
-  L6:35+1 keyword
-  L6:36+1 variable
-  L6:37+1 keyword
-  L6:39+1 keyword
+  L6:27+1 variable
+  L6:28+1 keyword
+  L6:30+1 keyword
+  L6:31+1 variable
+  L6:32+1 keyword
+  L6:34+3 variable
+  L6:38+1 variable
   L6:40+1 variable
-  L6:41+1 keyword
-  L6:43+3 variable
-  L6:47+1 variable
-  L6:49+1 variable
-  L6:51+1 variable
-  L6:53+1 variable
+  L6:42+1 variable
+  L6:44+1 variable
   L8:1+3 keyword
   L8:5+8 variable
   L8:14+1 keyword
@@ -509,25 +486,24 @@ TOKENS (173):
   L8:27+1 variable
   L8:29+1 variable
   L8:31+1 keyword
-  L8:33+2 keyword
-  L8:36+1 variable
-  L8:37+1 keyword
-  L8:39+1 keyword
+  L8:33+1 variable
+  L8:34+1 keyword
+  L8:36+1 keyword
+  L8:38+1 keyword
+  L8:39+1 variable
   L8:41+1 keyword
-  L8:42+1 variable
+  L8:43+1 variable
   L8:44+1 keyword
-  L8:46+1 variable
-  L8:47+1 keyword
-  L8:49+1 keyword
+  L8:46+1 keyword
+  L8:48+1 keyword
+  L8:49+1 variable
   L8:51+1 keyword
-  L8:52+1 variable
+  L8:53+1 variable
   L8:54+1 keyword
-  L8:56+1 variable
-  L8:57+1 keyword
-  L8:59+1 keyword
-  L8:61+1 variable
-  L8:63+1 keyword
-  L8:65+1 variable
+  L8:56+1 keyword
+  L8:58+1 variable
+  L8:60+1 keyword
+  L8:62+1 variable
   L9:3+1 keyword
   L9:5+1 keyword
   L9:6+1 variable
@@ -555,12 +531,12 @@ TOKENS (173):
   L9:44+1 variable
   L9:46+1 variable
 SYMBOLS (4):
-  cst (kind 12) [L1:1-L1:61]
+  cst (kind 12) [L1:1-L1:52]
   trans3 (kind 12) [L3:1-L4:48]
-  useCst (kind 12) [L6:1-L6:54]
+  useCst (kind 12) [L6:1-L6:45]
   useTrans (kind 12) [L8:1-L9:47]
 DEFINITION(_ _ p q): null
-HOVER(_ _ p q): [L9:40-L9:41] ```nova ⏎ _ : El A ≔ b ⏎ -- solved from the type of p ⏎ ```
+HOVER(_ _ p q): [L9:40-L9:41] ```nova ⏎ _ : A ≔ b ⏎ -- solved from the type of p ⏎ ```
 DIAGNOSTICS FOR FIXTURE (0):
 ELABTIME: reported
 SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh

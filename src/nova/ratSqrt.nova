@@ -41,33 +41,30 @@ import equality (trans, sym, cong, transport, transportP)
 
 def sqNat : ℕ → ℕ ≔ λD. S D * S D
 
-def qScaled : El Q → ℕ → El Q ≔ λu. λD. u * qOfNat (sqNat D)
+def qScaled : Q → ℕ → Q ≔ λu. λD. u * qOfNat (sqNat D)
 
-def leQZeroScaled : {u : El Q} (D : ℕ) → El (qZero ≤ u) → El (qZero ≤ qScaled u D)
-  using (qScaled.eq) ≔
+def leQZeroScaled : {u : Q} (D : ℕ) → (qZero ≤ u) → (qZero ≤ qScaled u D) using (qScaled.eq) ≔
   λu. λD. λnn. leQZeroMul nn (leQZeroNat (sqNat D))
 
 -- ⌊u⁺·(D+1)²⌋, the natural the root is taken of
-def qFl : El Q → ℕ → ℕ ≔ λu. λD. qFloor (qScaled u D)
+def qFl : Q → ℕ → ℕ ≔ λu. λD. qFloor (qScaled u D)
 
-def qSqrtNum : El Q → ℕ → ℕ ≔ λu. λD. isqrt (qFl u D)
+def qSqrtNum : Q → ℕ → ℕ ≔ λu. λD. isqrt (qFl u D)
 
-def qSqrtAt : El Q → ℕ → El Q ≔ λu. λD. qOfNat (qSqrtNum u D) * qInvNat D
+def qSqrtAt : Q → ℕ → Q ≔ λu. λD. qOfNat (qSqrtNum u D) * qInvNat D
 
 -- ===== the four facts =====
-def leQFlBelow : {u : El Q} (D : ℕ) → El (qZero ≤ u) → El (qOfNat (qFl u D) ≤ qScaled u D)
-  using (qFl.eq) ≔
+def leQFlBelow : {u : Q} (D : ℕ) → (qZero ≤ u) → (qOfNat (qFl u D) ≤ qScaled u D) using (qFl.eq) ≔
   λu. λD. λnn. leQFloor (leQZeroScaled D nn)
 
-def leQFlAbove : (u : El Q) (D : ℕ) → El (qScaled u D ≤ qOfNat (S (qFl u D)))
+def leQFlAbove : (u : Q) (D : ℕ) → (qScaled u D ≤ qOfNat (S (qFl u D)))
   using (qFl.eq, qScaled.eq, ratCeil.qNatBound.eq) ≔
   λu. λD. leQBound (qScaled u D)
 
-def sqrtNumLe : (u : El Q) (D : ℕ) → El (qSqrtNum u D * qSqrtNum u D ≤ qFl u D)
-  using (qSqrtNum.eq) ≔
+def sqrtNumLe : (u : Q) (D : ℕ) → (qSqrtNum u D * qSqrtNum u D ≤ qFl u D) using (qSqrtNum.eq) ≔
   λu. λD. isqrtLe (qFl u D)
 
-def sqrtNumUpper : (u : El Q) (D : ℕ) → El (S (qFl u D) ≤ S (qSqrtNum u D) * S (qSqrtNum u D))
+def sqrtNumUpper : (u : Q) (D : ℕ) → (S (qFl u D) ≤ S (qSqrtNum u D) * S (qSqrtNum u D))
   using (qSqrtNum.eq) ≔
   λu. λD. isqrtUpper (qFl u D)
 
@@ -162,13 +159,13 @@ def qInvNatMulIdx : {c m : ℕ} → qInvNat (mulIdx c m) ≡ qInvNat c * qInvNat
 --
 -- from u⁺ ≤ v⁺ + d and d·(Dm+1)²(Dn+1)² ≤ T. Everything in it is a
 -- chain of ≤; no strict order and no division appear.
-def qMulSwap3 : (x y z : El Q) → x * y * z ≡ x * z * y ≔
+def qMulSwap3 : (x y z : Q) → x * y * z ≡ x * z * y ≔
   λx. λy. λz. x * y * z
       ≡⟨ qMulAssoc x y z ⟩ x * (y * z)
       ≡⟨ cong (λw. Q) (λw. x * w) (qMulComm y z) ⟩ x * (z * y)
       ≡⟨ sym _ _ (qMulAssoc x z y) ⟩ x * z * y
 
-def qDistrib3 : (x y z w : El Q) → (x + y) * z * w ≡ x * z * w + y * z * w ≔
+def qDistrib3 : (x y z w : Q) → (x + y) * z * w ≡ x * z * w + y * z * w ≔
   λx. λy. λz. λw. (x + y) * z * w
       ≡⟨ cong (λt. Q) (λt. t * w) (qDistribR z x y) ⟩ (x * z + y * z) * w
       ≡⟨ qDistribR w (x * z) (y * z) ⟩ x * z * w + y * z * w
@@ -178,19 +175,19 @@ def qNatSumEq : (a b T : ℕ) → qOfNat a * qOfNat b + qOfNat T ≡ qOfNat (a *
       ≡⟨ cong (λw. Q) (λw. w + qOfNat T) (qOfNatMul a b) ⟩ qOfNat (a * b) + qOfNat T
       ≡⟨ qOfNatAdd (a * b) T ⟩ qOfNat (a * b + T)
 
-def flCompare : {u v : El Q}
+def flCompare : {u v : Q}
   {Dm Dn T : ℕ}
-  (d : El Q)
-  → El (qZero
+  (d : Q)
+  → (qZero
     ≤ u)
-    → El (u
+    → (u
       ≤ v
         + d)
-      → El (d
+      → (d
         * qOfNat
           (sqNat
             Dm)
-        * qOfNat (sqNat Dn) ≤ qOfNat T) → El (qFl u Dm * sqNat Dn ≤ S (qFl v Dn) * sqNat Dm + T)
+        * qOfNat (sqNat Dn) ≤ qOfNat T) → (qFl u Dm * sqNat Dn ≤ S (qFl v Dn) * sqNat Dm + T)
   using (qScaled.eq) ≔
   λu. λv. λDm. λDn. λT. λd. λnnu. λh1. λh2. leNOfQ
     (transport
@@ -231,21 +228,20 @@ def mulSq : (a b : ℕ) → a * b * (a * b) ≡ a * a * (b * b) ≔
       ≡⟨ cong (λw. ℕ) (λw. a * w) (multLeftComm b a b) ⟩ a * (a * (b * b))
       ≡⟨ sym _ _ (multAssoc a a (b * b)) ⟩ a * a * (b * b)
 
-def sqrtCompareN : {u v : El Q}
+def sqrtCompareN : {u v : Q}
   {Dm Dn T : ℕ}
-  (d : El Q)
-  → El (qZero
+  (d : Q)
+  → (qZero
     ≤ u)
-    → El (u
+    → (u
       ≤ v
         + d)
-      → El (d
+      → (d
         * qOfNat
           (sqNat
             Dm)
         * qOfNat
-          (sqNat
-            Dn) ≤ qOfNat T) → El (qSqrtNum u Dm * S Dn ≤ S (qSqrtNum v Dn) * S Dm + S (isqrt T))
+          (sqNat Dn) ≤ qOfNat T) → (qSqrtNum u Dm * S Dn ≤ S (qSqrtNum v Dn) * S Dm + S (isqrt T))
   using (sqNat.eq) ≔
   λu. λv. λDm. λDn. λT. λd. λnnu. λh1. λh2. sqrtStepN
     (transport
@@ -270,14 +266,14 @@ def sqrtCompareN : {u v : El Q}
               (leMultMonoR (sqNat Dm) (sqrtNumUpper v Dn)))))))
 
 -- ===== ...and back to a comparison of approximants =====
-def qMulLeftComm : (x y z : El Q) → x * (y * z) ≡ y * (x * z) ≔
+def qMulLeftComm : (x y z : Q) → x * (y * z) ≡ y * (x * z) ≔
   λx. λy. λz. x * (y * z)
       ≡⟨ sym _ _ (qMulAssoc x y z) ⟩ x * y * z
       ≡⟨ cong (λw. Q) (λw. w * z) (qMulComm x y) ⟩ y * x * z
       ≡⟨ qMulAssoc y x z ⟩ y * (x * z)
 
 -- the denominator cancels its own numeral, exactly
-def cancelDen : {A : El Q} {D : ℕ} {e : El Q} → A * qOfNat (S D) * (e * qInvNat D) ≡ A * e ≔
+def cancelDen : {A : Q} {D : ℕ} {e : Q} → A * qOfNat (S D) * (e * qInvNat D) ≡ A * e ≔
   λA. λD. λe. A * qOfNat (S D) * (e * qInvNat D)
       ≡⟨ qMulAssoc A (qOfNat (S D)) (e * qInvNat D) ⟩ A * (qOfNat (S D) * (e * qInvNat D))
       ≡⟨ cong
@@ -295,12 +291,12 @@ def cancelDen : {A : El Q} {D : ℕ} {e : El Q} → A * qOfNat (S D) * (e * qInv
 -- a ℕ inequality between cross-multiplied numerators IS a ℚ
 -- inequality between the fractions
 def crossToQ : {a b e Dm Dn : ℕ}
-  → El (a
+  → (a
     * S Dn
     ≤ b
       * S Dm
       + e)
-    → El (qOfNat a * qInvNat Dm ≤ qOfNat b * qInvNat Dn + qOfNat e * (qInvNat Dm * qInvNat Dn)) ≔
+    → (qOfNat a * qInvNat Dm ≤ qOfNat b * qInvNat Dn + qOfNat e * (qInvNat Dm * qInvNat Dn)) ≔
   λa. λb. λe. λDm. λDn. λle. transport
     (λw. w ≤ qOfNat b * qInvNat Dn + qOfNat e * (qInvNat Dm * qInvNat Dn))
     {qOfNat a * qOfNat (S Dn) * (qInvNat Dm * qInvNat Dn)}
@@ -337,15 +333,15 @@ def crossToQ : {a b e Dm Dn : ℕ}
 -- given u⁺ ≤ v⁺ + d and d·(Dm+1)²(Dn+1)² ≤ T. The first slack term is
 -- the approximation error at n; the second is √ of the gap d, and it
 -- is where "√ is not Lipschitz" is paid for.
-def leQSqrtStep : {u v : El Q}
+def leQSqrtStep : {u v : Q}
   {Dm Dn T : ℕ}
-  (d : El Q)
-  → El (qZero
+  (d : Q)
+  → (qZero
     ≤ u)
-    → El (u
+    → (u
       ≤ v
         + d)
-      → El (d
+      → (d
         * qOfNat
           (sqNat
             Dm)
@@ -354,7 +350,7 @@ def leQSqrtStep : {u v : El Q}
             Dn)
         ≤ qOfNat
           T)
-        → El (qSqrtAt
+        → (qSqrtAt
           u
           Dm ≤ qSqrtAt v Dn + qInvNat Dn + qOfNat (S (isqrt T)) * (qInvNat Dm * qInvNat Dn))
   using (qSqrtAt.eq) ≔

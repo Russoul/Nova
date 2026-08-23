@@ -11,7 +11,7 @@ import id (eqToId)
 import monoid (IsMonoid)
 import group (IsGroup)
 
-def intAddGroup : El (IsGroup Int) using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔
+def intAddGroup : IsGroup Int using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔
   ((+),
     intZero,
       (λx. λy. λz. eqToId
@@ -32,5 +32,5 @@ def intAddGroup : El (IsGroup Int) using (group.IsGroup.unfold, monoid.IsMonoid.
             (intAddZeroR x)), intNeg, (λx. eqToId _ _ (intAddNegL x)), λx. eqToId _ _ (intAddNegR x)
 
 -- the underlying monoid is the group's first component
-def intAddMonoid : El (IsMonoid Int) using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔
+def intAddMonoid : IsMonoid Int using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔
   intAddGroup .π₁

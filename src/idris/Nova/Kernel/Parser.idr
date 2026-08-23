@@ -280,12 +280,12 @@ mutual
     (do sp; str_ "⊎"; sp; b <- parseTySum; pure (SumTy a b))
       <|> pure a
 
-  -- El e / Prf e  (prefix, argument is an Elem atom)
+  -- Prf e  (prefix, argument is an Elem atom; El is retired — a code
+  -- in type position is just the code)
   covering
   parseTyEl : Rule Ty
   parseTyEl =
-        (do str_ "El"; space; e <- parseElemAtom; pure (El e))
-    <|> (do str_ "Prf"; space; e <- parseElemAtom; pure (Prf e))
+        (do str_ "Prf"; space; e <- parseElemAtom; pure (Prf e))
     <|> (do str_ "ν"; space; f <- parsePolyAtom; pure (NuTy f))
     <|> parseTyAtom
 
@@ -294,12 +294,14 @@ mutual
   covering
   parsePoly : Rule Poly
   parsePoly =
-        (do str_ "El"; space; a <- parseElemAtom; sp
-            (do str_ "⨯"; sp; f <- parsePoly; pure (PSigma a f))
-              <|> (do str_ "→"; sp; f <- parsePoly; pure (PPi a f)))
-    <|> (do f <- parsePolySum
+        (do f <- parsePolySum
             (do sp; str_ "⨯"; sp; g <- parsePoly; pure (PProd f g))
               <|> pure f)
+    -- binding forms: a CODE left-hand side (El retired) binds a Nova
+    -- variable in the body
+    <|> (do a <- parseElemAtom; sp
+            (do str_ "⨯"; sp; f <- parsePoly; pure (PSigma a f))
+              <|> (do str_ "→"; sp; f <- parsePoly; pure (PPi a f)))
 
   covering
   parsePolySum : Rule Poly
@@ -328,6 +330,8 @@ mutual
             sp; char_ '['; sp; es <- parseSubNorm; sp; char_ ']'
             pure (SigVar x es))
     <|> inParen parseTy
+    -- El retired: a code atom in type position is the type
+    <|> parseElemAtom
 
 -- ===== Convenience runner =====
 

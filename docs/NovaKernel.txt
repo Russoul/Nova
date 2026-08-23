@@ -75,15 +75,8 @@ of fuel, are exactly:
   x[e˲]              ≜  a[e˲]      (Σ ∋ Γ ⊦ x ≔ a : A)   # el-sig-beta
   x[e˲]              ≜  T[e˲]      (Σ ∋ Γ ⊦ x ≔ T : 𝕍)  # el-sig-beta at 𝕍
 
-  El 𝟘               ≜  𝟘                           # El-decoding
-  El 𝟙               ≜  𝟙
-  El ℕ               ≜  ℕ
-  El (a → b)         ≜  El a → El b
-  El (a ⨯ b)         ≜  El a ⨯ El b
-  El (a ⊎ b)         ≜  El a ⊎ El b
-  El (a / r)         ≜  El a / r      # the Ω-valued relation is NOT decoded
-  El (𝒮.𝕤 ē)         ≜  𝒮.𝕤 ē        # ty-el-qiit
-  El (ν 𝔽)           ≜  ν 𝔽          # ty-el-nu
+(El is retired — a small code IS its type, by cumulativity
+code-lift; there are no decoding clauses.)
 
 Ω adds exactly ONE contraction clause:
 
@@ -221,7 +214,7 @@ Child indexing, shared by paths, the typed descent (§6) and skeletons
              out t → 0               corec 𝔽 a f x → 0, 1(1), 2
              ν 𝔽 (code) → (none)
   types:     A → B → 0, 1(1)         A ⨯ B → 0, 1(1)
-             A ⊎ B → 0, 1            El e → 0ᵉ               Prf e → 0ᵉ
+             A ⊎ B → 0, 1            Prf e → 0ᵉ
              A / r → 0, 1ᵉ(2)        x[e˲] → 0..ᵉ
              𝒮.𝕤 ē → 0..ᵉ            ν 𝔽 → (none)
   (ᶜ marks universe codes; ᵉ marks descent into an element child, ᵗ into
@@ -263,7 +256,8 @@ its index spine checked positionally against the reflected arity:
 
   Σ; Γ ⊦ ℕc ⇒ᵖ 𝕌     (likewise 𝟘c, 𝟙c; Π/Σ/⊎/quot/≡ codes componentwise;
                       a ν code checks its polynomial's embedded pieces at 𝕌
-                      in binder order, the context growing under El-binders)
+                      in binder order, the context growing by the binders'
+                      domain codes)
 
   𝒮 small   𝒮(𝕜) = 𝔄 ending in U   Σ; Γ ⊦ ē ⇐ᵖ ⌊𝔄⌋ᵗ (entrywise)
   --------------------------------------------------------------
@@ -299,10 +293,10 @@ introduction forms structurally and falls back to infer-and-compare:
 
   Σ; Γ ⊦ t ⇒ᵖ Tt   nf(Tt) ⇓ ν 𝔽
   --------------------------------------   # el-nu-e: fully
-  Σ; Γ ⊦ out t ⇒ᵖ El ⌊𝔽⌋(ν 𝔽)             # inference-driven
+  Σ; Γ ⊦ out t ⇒ᵖ ⌊𝔽⌋(ν 𝔽)                # inference-driven
 
   nf(T) ⇓ ν 𝔽   (the term's carried 𝔽 nf-identical to nf(T)'s)
-  Σ; Γ ⊦ a ⇐ᵖ 𝕌   Σ; Γ ▷ El a ⊦ f ⇐ᵖ El ⌊𝔽⌋(a)[↑]   Σ; Γ ⊦ x ⇐ᵖ El a
+  Σ; Γ ⊦ a ⇐ᵖ 𝕌   Σ; Γ ▷ a ⊦ f ⇐ᵖ ⌊𝔽⌋(a)[↑]   Σ; Γ ⊦ x ⇐ᵖ a
   --------------------------------------------------------------------
   Σ; Γ ⊦ corec 𝔽 a f x ⇐ᵖ T               # el-nu-i
 
@@ -386,7 +380,7 @@ do not match is rejected.
   dom      : (a₀ → b₀) ≐ (a₁ → b₁) : 𝕌 ⇒  a₀ ≐ a₁ : 𝕌
              # code-pi-inj (also code-sigma-inj for pair codes)
   cod u    : (a₀ → b₀) ≐ (a₁ → b₁) : 𝕌 ⇒  b₀[id,u] ≐ b₁[id,u] : 𝕌
-             requires  Σ; Γ ⊦ u ⇐ᵖ El a₁
+             requires  Σ; Γ ⊦ u ⇐ᵖ a₁
              # code-pi-inj second component, instantiated at u (el-sub-cong-fix)
   suml     : (a₀ ⊎ b₀) ≐ (a₁ ⊎ b₁) : 𝕌 ⇒  a₀ ≐ a₁ : 𝕌
   sumr     : (a₀ ⊎ b₀) ≐ (a₁ ⊎ b₁) : 𝕌 ⇒  b₀ ≐ b₁ : 𝕌
@@ -394,7 +388,7 @@ do not match is rejected.
              # crosses a binder and no instantiation element is needed
   qdom     : (a₀ / r₀) ≐ (a₁ / r₁) : 𝕌 ⇒  a₀ ≐ a₁ : 𝕌      # code-quot-inj
   qrel u v : (a₀ / r₀) ≐ (a₁ / r₁) : 𝕌 ⇒  r₀[id,u,v] ≐ r₁[id,u,v] : Ω
-             requires  Σ; Γ ⊦ u ⇐ᵖ El a₁   Σ; Γ ⊦ v ⇐ᵖ El a₁
+             requires  Σ; Γ ⊦ u ⇐ᵖ a₁   Σ; Γ ⊦ v ⇐ᵖ a₁
              # the relation components live at Ω, not 𝕌
   qidx i   : 𝒮.𝕤 ē₀ ≐ 𝒮.𝕤 ē₁ : 𝕌  ⇒  ē₀ᵢ ≐ ē₁ᵢ : Eᵢ
              requires the spines nf-EQUAL before i, so the entry type
@@ -499,7 +493,7 @@ type E; — means undetermined):
   quot-elim f q   child 0 : —, child 1 : ⇒ᴺ(q)
   out t           child 0 : ⇒ᴺ(t)
   corec 𝔽 a f x   child 0 : 𝕌, child 1 : —   # carrier-dependent (like
-                  child 2 : El a              # quot-elim's case function)
+                  child 2 : a                 # quot-elim's case function)
   𝒮.𝕤 ē (code)    child i : entry i of ⌊𝔎⌋ᵗ, instantiated by the
                             preceding children     (𝒮(𝕤) = 𝔎)
   𝒮.𝕔 θ           child i : entry i of ⌊𝔄⌋ᵗ, likewise   (𝒮(𝕔) = 𝔄)
@@ -513,8 +507,8 @@ whose types are recoverable without annotations.
 Steps inside TYPES (used by type certificates) walk the type formers
 (no rewrite may end at a type position — types are rewritten through
 their element children): the element entry points are the code under
-El (expected type 𝕌), the code under Prf and the relation of A / r
-(both expected type Ω), signature-entry arguments (the telescope
+Prf and the relation of A / r (both expected type Ω),
+signature-entry arguments (the telescope
 type), and the index spine of a sort application 𝒮.𝕤 ē (the arity
 entry types, as above). The sides of an equation are reached THROUGH
 Prf's Ω-element child: Prf (l ≡ r ∈ T) descends 0ᵉ to the prop, then
@@ -533,8 +527,8 @@ final):
 
   1. TYPE BRIDGE. If tyEx = (T′, 𝒞ᵀ): replay Σ; Γ ⊦ 𝒞ᵀ ▷ T ≐ T′ and
      continue at T′ in place of T. Justification: judgementally equal
-     types have equal PERs (ty-el-cong / el-ty-coe collapse the
-     membership), so the equation judgement is invariant under it.
+     types have equal PERs (el-ty-coe collapses the membership), so
+     the equation judgement is invariant under it.
      The bridge is the equation-level counterpart of the item level's
      head-exposure payload (§8): it lets steps land at positions whose
      structure only a lemma-normalized spelling of T exposes.
@@ -618,9 +612,9 @@ stated there by meta-recursion; the finals FQuotCong-style shortcut is
 what makes a signature-piece equation usable without descending into
 the carried 𝒮, which paths cannot do — A3, §9). The same final closes
 a CODE equation 𝒮₀.𝕤 ē₀ ≐ 𝒮₁.𝕤 ē₁ : 𝕌 in element replay, provided
-both signatures pass the smallness scan (§8). El-decoding inside nf
-gives ty-el-cong for free; a universe-code equation is transported
-through El by normalization, not by a rule.
+both signatures pass the smallness scan (§8). A universe-code
+equation is already a type equation by cumulativity (code-lift-eq) —
+no transport is involved.
 
 ////////// 8. The item level: skeletons //////////
 
@@ -727,8 +721,8 @@ Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
      Σ; Γ ⊦ class a ⇐ T ⟨sk⟩
 
      nf(T) ⇓ ν 𝔽    (the term's carried 𝔽 nf-identical to nf(T)'s)
-     Σ; Γ ⊦ a ⇐ 𝕌 ⟨sk.0⟩    Σ; Γ ▷ El a ⊦ f ⇐ El ⌊𝔽⌋(a)[↑] ⟨sk.1⟩
-     Σ; Γ ⊦ x ⇐ El a ⟨sk.2⟩
+     Σ; Γ ⊦ a ⇐ 𝕌 ⟨sk.0⟩    Σ; Γ ▷ a ⊦ f ⇐ ⌊𝔽⌋(a)[↑] ⟨sk.1⟩
+     Σ; Γ ⊦ x ⇐ a ⟨sk.2⟩
      ------------------------------------------------------------
      Σ; Γ ⊦ corec 𝔽 a f x ⇐ T ⟨sk⟩                      # el-nu-i
 
@@ -819,7 +813,7 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
 
      Σ; Γ ⊦ t ⇒ Tt ⟨sk.0⟩    nf(Tt) ⇓ ν 𝔽
      ------------------------------------------------------------
-     Σ; Γ ⊦ out t ⇒ El ⌊𝔽⌋(ν 𝔽)                        # el-nu-e
+     Σ; Γ ⊦ out t ⇒ ⌊𝔽⌋(ν 𝔽)                           # el-nu-e
 
   The QIIT eliminator carries its own motives and methods (ℰ = C̄ ; m̄
   in the TERM, Foundation's design), so no motive payload is needed —
@@ -844,22 +838,25 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
   quot-elim's wd certificate, one per equation entry.
 
   Universe codes infer at 𝕌 with components checked at 𝕌 (their
-  binder children under El of the domain code), EXCEPT the quotient
-  code's relation, checked at Ω: el-*-in-universe. Squash ∥A∥ infers
+  binder children under the domain code itself — a code is a type,
+  code-lift), EXCEPT the quotient code's relation, checked at Ω:
+  el-*-in-universe. Squash ∥A∥ infers
   at Ω with A checked as a type; an equality prop (l ≡ r ∈ A) infers
   at Ω with A checked as a type and the sides checked at A (code-eq). A sort application 𝒮.𝕤 ē infers at 𝕌
   when 𝒮 additionally passes the SMALLNESS scan — every external Π
-  domain of every entry of the form El a or Prf p, a purely syntactic
-  check (code-qiit) — with the spine checked as under formation below.
+  domain of every entry either Prf-headed or checkable at 𝕌
+  (code-qiit) — with the spine checked as under formation below.
 
   Anything else in inference position (a bare intro form with no
   ascription payload) is rejected.
 
 Formation  Σ; Γ ⊦ T : 𝕍 ⟨sk⟩ : structural over the type formers
-(ty-pi/sigma/sum/el/prf/quot/nu/ty-prop; el-sig-var at type entries), El's code checked at 𝕌,
+(ty-pi/sigma/sum/prf/quot/nu/ty-prop; el-sig-var at type entries);
+anything that is not a large former falls through to checking at 𝕌
+(cumulativity, code-lift);
 a ν type's polynomial checked structurally (poly-hole/-const/-prod/
--sum/-sigma/-pi: each embedded code at 𝕌, the context growing under
-the El-binders, skeleton children along in binder order),
+-sum/-sigma/-pi: each embedded code at 𝕌, the context growing by the
+binders' domain codes, skeleton children along in binder order),
 Prf's code and the quotient's relation checked at Ω, signature-type
 arguments checked against their telescope — all with skeleton
 children along. A sort

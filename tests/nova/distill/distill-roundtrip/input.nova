@@ -25,9 +25,9 @@ def ⊞ : ℕ → ℕ → ℕ [oplusEta]
   | S m ⊞ n ≔ S (m ⊞ n) [oplusS]
 data ( Bag : U
      ; nil : El Bag
-     ; ins : (x : El ℕ) (m : El Bag) → El Bag
-     ; swp : (x : El ℕ) (y : El ℕ) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )
-def size : El Bag → ℕ using (Bag.eq) ≔
+     ; ins : (x : ℕ) (m : El Bag) → El Bag
+     ; swp : (x : ℕ) (y : ℕ) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )
+def size : Bag → ℕ using (Bag.eq) ≔
   λm. BagElim (λb. ℕ) Z (λx. λr. λih. S ih) (λx. λy. λr. λih. ⋆) m
 def pairFn : (ℕ → ℕ) ⨯ ℕ ≔ ((λx. x), Z)
 def letTest : ℕ ≔ let k : ℕ ≔ S Z in k + k

@@ -154,20 +154,6 @@ mutual
   whnfElem sig PropTy             = PropTy
   whnfElem sig TopTy              = TopTy
   whnfElem sig (Prf e)            = Prf e   -- no Prf computation, by design
-  -- El-decoding (ty-el-*): the code's whnf is canonical for a closed,
-  -- well-typed term
-  whnfElem sig (El e) =
-    case whnfElem sig e of
-      Elem.ZeroTy      => Elem.ZeroTy
-      Elem.OneTy       => Elem.OneTy
-      Elem.NatTy       => Elem.NatTy
-      Elem.PiTy a b    => Elem.PiTy (El a) (El b)
-      Elem.SigmaTy a b => Elem.SigmaTy (El a) (El b)
-      Elem.SumTy a b   => Elem.SumTy (El a) (El b)
-      QuotTy a r       => QuotTy (El a) r
-      QSort sg k es    => QSort sg k es   -- ty-el-qiit
-      Elem.NuTy f      => Elem.NuTy f     -- ty-el-nu
-      _ => assert_total $ idris_crash "whnfElem: El argument is not a universe code (impossible for a closed, well-typed term)"
   whnfElem sig (Elem.PiTy a b)    = Elem.PiTy a b   -- co-data
   whnfElem sig (Elem.SigmaTy a b) = Elem.SigmaTy a b
   whnfElem sig (Elem.SumTy a b)   = Elem.SumTy a b
@@ -245,7 +231,6 @@ mutual
     go UniverseTy         = UniverseTy
     go PropTy             = PropTy
     go TopTy              = TopTy
-    go (El e)             = El e   -- unreachable: whnf always decodes El
     go (Prf e)            = Prf (nfElem sig e)
     go (Elem.PiTy a b)    = Elem.PiTy a b   -- co-data: leave domain/codomain
     go (Elem.SigmaTy a b) = Elem.SigmaTy (nfElem sig a) b   -- b: under a binder, left alone

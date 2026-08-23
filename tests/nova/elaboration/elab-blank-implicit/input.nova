@@ -1,8 +1,8 @@
 -- a blank never binds to an implicit position: it defers past the
 -- inserted hole to the next EXPLICIT position
-def propId : {A : 𝕌} (B : 𝕌) → El B → El A → El A ≔ λA. λB. λb. λa. a
+def propId : {A : 𝕌} (B : 𝕌) → B → A → A ≔ λA. λB. λb. λa. a
 
-def use : El ℕ → El 𝟙 → El ℕ ≔ λn. λu. propId _ u n
+def use : ℕ → 𝟙 → ℕ ≔ λn. λu. propId _ u n
 
 -- and composes with overloads: the blank contributes no type, the
 -- other arguments select the candidate
@@ -11,6 +11,6 @@ def + : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim x (n ih. S ih) y
 
 def dup : (n : ℕ) → ℕ ≔ λn. n + n
 
-def cst : (A B : 𝕌) → El A → El B → El A ≔ λA. λB. λa. λb. a
+def cst : (A B : 𝕌) → A → B → A ≔ λA. λB. λa. λb. a
 
 def blankInOp : ℕ → ℕ ≔ λn. cst _ _ n () + n

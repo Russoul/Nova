@@ -285,13 +285,25 @@ mutual
             pure (x, y, r))
     <|> (do r <- parseSElemPrefix tbl (env :< wildcard :< wildcard); pure ((wildcard, Nothing), (wildcard, Nothing), r))
 
-  -- T{2}: El / Prf
+  -- T{2}: Prf / ν / atoms and CODE APPLICATION SPINES (El is retired:
+  -- a code in type position is spelled directly — `Vect n`, a bound
+  -- 𝕌-variable, a computed code in parens)
   parseSTyEl : FixTable -> NameEnv -> Rule STy
   parseSTyEl tbl env =
-        (do kw "El"; space; e <- parseSElemAtom tbl env; pure (STyEl e))
-    <|> (do kw "Prf"; space; e <- parseSElemAtom tbl env; pure (STyPrf e))
+        (do kw "Prf"; space; e <- parseSElemAtom tbl env; pure (STyPrf e))
     <|> (do kw "ν"; space; f <- parseSPolyAtom tbl env; pure (STyNu f))
-    <|> parseSTyAtom tbl env
+    <|> (do t <- parseSTyAtom tbl env
+            args <- many (do space; parseSElemAtom tbl env)
+            case args of
+              [] => pure t
+              _ => case tyHeadElem t of
+                     Just h => pure (STyEl (foldl SApp h args))
+                     Nothing => fail "arguments applied to a type former")
+   where
+    tyHeadElem : STy -> Maybe SElem
+    tyHeadElem (STySig x) = Just (SSig Nothing x)
+    tyHeadElem (STyEl e) = Just e
+    tyHeadElem _ = Nothing
 
   -- Polynomials (NovaElaboration.txt, F{·} grammar): binders and
   -- products at the top, sums tighter, atoms innermost.
@@ -334,8 +346,18 @@ mutual
               -- metavariable redesign. Binder wildcards are a separate
               -- production and unaffected.
               ('_' :: rest) => fail "holes are not supported (spell the type)"
-              _ => pure (STySig x))
+              _ =>
+                case resolveVar env x of
+                  -- a BINDER name in type position is a bound CODE
+                  -- (El retired: the code is the type)
+                  Just i  => pure (STyEl (SVar r x i))
+                  Nothing => pure (STySig x))
     <|> (do kwc '('; sp; t <- parseSTy tbl env; sp; kwc ')'; pure t)
+        -- a parenthesized ELEMENT in type position is a CODE — the
+        -- type grammar's spines cover only atom-headed applications,
+        -- so operator applications ((a ≤ b)) and other element forms
+        -- land here (El retired: the code is the type)
+    <|> (do kwc '('; sp; e <- parseSElemNoComma tbl env; sp; kwc ')'; pure (STyEl e))
 
   -- t{0}: top-level comma = pair (right-assoc)
   export
@@ -676,6 +698,10 @@ mutual
 sqDomain : FixTable -> NameEnv -> NameEnv -> Rule (Either STy SQTm)
 sqDomain tbl tos ext =
       (do kw "El"; space; q <- sqCode tbl tos ext; pure (Right q))
+      -- the QIIT sublanguage keeps El: `El a` at a NON-ToS name is a
+      -- small EXTERNAL domain (the code as a type; canonical distill
+      -- form spells it bare)
+  <|> (do kw "El"; space; e <- parseSElemAtom tbl ext; pure (Left (STyEl e)))
   <|> (Left <$> parseSTy tbl ext)
 
 ||| An ANONYMOUS domain: like `sqDomain`, but the external case stops
@@ -686,6 +712,7 @@ sqDomain tbl tos ext =
 sqDomainNoArrow : FixTable -> NameEnv -> NameEnv -> Rule (Either STy SQTm)
 sqDomainNoArrow tbl tos ext =
       (do kw "El"; space; q <- sqCode tbl tos ext; pure (Right q))
+  <|> (do kw "El"; space; e <- parseSElemAtom tbl ext; pure (Left (STyEl e)))
   <|> (Left <$> parseSTyEl tbl ext)
 
 sqRes : FixTable -> NameEnv -> NameEnv -> Rule SQRes

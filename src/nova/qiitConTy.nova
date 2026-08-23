@@ -10,13 +10,13 @@ data ( Con : U
      ; arr : (gamma : El Con) → El (Ty gamma) → El (Ty gamma) → El (Ty gamma) )
 
 -- a context: nil ▷ unit ▷ (unit → unit)
-def g1 : El Con using (qiitConTy.Con.unfold) ≔ ext nil (unit nil)
+def g1 : Con using (qiitConTy.Con.unfold) ≔ ext nil (unit nil)
 
-def g2 : El Con using (qiitConTy.Con.unfold) ≔ ext g1 (arr g1 (unit g1) (unit g1))
+def g2 : Con using (qiitConTy.Con.unfold) ≔ ext g1 (arr g1 (unit g1) (unit g1))
 
 -- mutual elimination: the LENGTH of a context and the SIZE of a type,
 -- one elimination problem (both motives, all four methods)
-def clen : El Con → ℕ using (qiitConTy.Con.unfold) ≔
+def clen : Con → ℕ using (qiitConTy.Con.unfold) ≔
   λg. ConElim
     (λw. ℕ)
     (λg. λw. ℕ)
@@ -38,7 +38,7 @@ def clenG2 : clen g2 ≡ 2
   ⋆
 
 -- the same elimination problem read at the Ty motive: type size
-def tsize : (g : El Con) → El (Ty g) → ℕ using (qiitConTy.Con.unfold, qiitConTy.Ty.unfold) ≔
+def tsize : (g : Con) → Ty g → ℕ using (qiitConTy.Con.unfold, qiitConTy.Ty.unfold) ≔
   λg. λt. TyElim
     (λw. ℕ)
     (λg. λw. ℕ)

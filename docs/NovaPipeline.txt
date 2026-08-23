@@ -55,7 +55,7 @@ every judgement from its own Σ using only:
   * type synthesis over the annotated tree (annotations supply what
     synthesis cannot invent — see artifact format);
   * FUEL-BOUNDED beta conversion (Foundation's ≜ rules: the beta
-    family, El-decoding, signature unfolding) — step budgets come
+    family, signature unfolding) — step budgets come
     from the certificate, exhaustion means
     REJECT, so the kernel is total: every artifact gets a verdict;
   * CERTIFICATE REPLAY: at a conversion site, apply the recorded trace
@@ -80,8 +80,8 @@ Consequences of the split:
 Foundation's core syntax stays BARE — and the kernel, checking
 spellings, necessarily works extrinsically even though the theory's
 official reading is intrinsic (NovaFoundation's preface): a spelling
-inhabits many types at once (a spelling and its El-decoding; an index
-and its lemma-equal form), so "the type of a subterm" is not
+inhabits many types at once (a small code at 𝕌 and, lifted, at 𝕍; an
+index and its lemma-equal form), so "the type of a subterm" is not
 recoverable from the artifact — only a chosen spelling. Nothing judgmentally inert belongs in
 the theory's syntax: no coercion or transport term formers, no type
 annotations, no J. (Coercion is a RULE — el-ty-coe — and stays one.
@@ -290,7 +290,7 @@ a site's candidates are the enclosing item's `using`-named lemmas
 plus its hypotheses — never the whole store, which survives only as
 the advisory `hint:` probe on failed discharges. In front of the
 engine sit two free conversion tiers: α-identity and the δ-free
-computational join (β/ι/El-decoding without definition unfolding),
+computational join (β/ι without definition unfolding),
 which between them close the overwhelming majority of sites.
 Surface holes/metavariables are REMOVED (the first implementation
 was measured as the dominant elaboration cost and the only source

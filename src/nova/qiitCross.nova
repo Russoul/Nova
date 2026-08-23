@@ -4,27 +4,26 @@
 
 data ( L : U
      ; lnil : El L
-     ; lcons : El ℕ → El L → El L )
+     ; lcons : ℕ → El L → El L )
 
 data [a : 𝕌] ( Bag : U
      ; bnil : El Bag
-     ; bins : El a → El Bag → El Bag
-     ; bswp : (x : El a) (y : El a) (m : El Bag) → bins x (bins y m) ≡ bins y (bins x m) ∈ El Bag )
+     ; bins : a → El Bag → El Bag
+     ; bswp : (x : a) (y : a) (m : El Bag) → bins x (bins y m) ≡ bins y (bins x m) ∈ El Bag )
 
 -- 2. elimination INTO a QIIT: bag append — the motive is the Bag code
 --    itself, and the coherence is exactly the swap lemma
-def bapp : {a : 𝕌} → El (Bag a) → El (Bag a) → El (Bag a)
-  using (bswp, qiitCross.Bag.unfold, qiitCross.bins.eq) ≔
+def bapp : {a : 𝕌} → Bag a → Bag a → Bag a using (bswp, qiitCross.Bag.unfold, qiitCross.bins.eq) ≔
   λa. λm. λn. BagElim a (λw. Bag a) n (λx. λr. λih. bins a x ih) (λx. λy. λr. λih. ⋆) m
 
 -- 3. a map BETWEEN QIITs: the order-forgetting quotient map L → Bag ℕ
-def toBag : El L → El (Bag ℕ)
+def toBag : L → Bag ℕ
   using (qiitCross.Bag.eq, qiitCross.Bag.unfold, qiitCross.L.eq, qiitCross.L.unfold) ≔
   λt. LElim (λw. Bag ℕ) (bnil ℕ) (λx. λr. λih. bins ℕ x ih) t
 
 -- toBag coequalizes adjacent transpositions (the universal property's
 -- defining triangle, at the generators): by β + the swap lemma
-def toBagSwap : (x y : El ℕ) (t : El L) → toBag (lcons x (lcons y t)) ≡ toBag (lcons y (lcons x t))
+def toBagSwap : (x y : ℕ) (t : L) → toBag (lcons x (lcons y t)) ≡ toBag (lcons y (lcons x t))
   using (bswp,
     qiitCross.Bag.unfold,
     qiitCross.L.eq,
@@ -36,20 +35,19 @@ def toBagSwap : (x y : El ℕ) (t : El L) → toBag (lcons x (lcons y t)) ≡ to
   λx. λy. λt. ⋆
 
 -- 4. a QIIT whose signature EMBEDS a previous QIIT's reflection: trees
---    with bag-of-naturals labels (El (Bag ℕ) is an external domain
+--    with bag-of-naturals labels ((Bag ℕ) is an external domain
 --    carrying the whole Bag signature inside it)
 data ( P : U
-     ; leaf : El (Bag ℕ) → El P
+     ; leaf : Bag ℕ → El P
      ; node : El P → El P → El P )
 
 -- flatten a tree by appending its bags — elimination whose methods use
 -- the previous eliminator-derived function
-def flatten : El P → El (Bag ℕ) using (qiitCross.Bag.unfold, qiitCross.P.unfold) ≔
+def flatten : P → Bag ℕ using (qiitCross.Bag.unfold, qiitCross.P.unfold) ≔
   λp. PElim (λw. Bag ℕ) (λb. b) (λl. λihl. λr. λihr. bapp ihl ihr) p
 
 -- computation across all three QIITs at once
-def two : El (Bag ℕ) using (qiitCross.Bag.eq, qiitCross.Bag.unfold) ≔
-  bins ℕ Z (bins ℕ (S Z) (bnil ℕ))
+def two : Bag ℕ using (qiitCross.Bag.eq, qiitCross.Bag.unfold) ≔ bins ℕ Z (bins ℕ (S Z) (bnil ℕ))
 
 def flatTest : flatten (node (leaf (toBag (lcons Z lnil))) (leaf (bins ℕ (S Z) (bnil ℕ)))) ≡ two
   using (qiitCross.Bag.eq,

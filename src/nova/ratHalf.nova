@@ -29,7 +29,7 @@ def dbl : ℕ → ℕ ≔ λn. S (n + n)
 
 -- ===== the Int identity behind it =====
 -- 4g² two ways: distribute right, then collect left
-def intDblSquare : (g : El Int) → (g + g + (g + g)) * g ≡ (g + g) * (g + g)
+def intDblSquare : (g : Int) → (g + g + (g + g)) * g ≡ (g + g) * (g + g)
   using (integer.Int.unfold) ≔
   λg. (g + g + (g + g)) * g
       ≡⟨ intMulDistribR (g + g) (g + g) g ⟩ (g + g) * g + (g + g) * g
@@ -55,16 +55,15 @@ def nzPosDbl : (n : ℕ) → nzToInt (nzPos (dbl n)) ≡ nzToInt (nzPos n) + nzT
 
 -- ===== the cross-multiplication =====
 -- the unit fraction at index k, as a raw fraction
-def unitRat : ℕ → El Rat using (rational.Rat.unfold) ≔ λk. mkRat intOne (nzPos k)
+def unitRat : ℕ → Rat using (rational.Rat.unfold) ≔ λk. mkRat intOne (nzPos k)
 
 -- scaling 1 by d is just d
-def scaleOne : {d : El NZ} → intScale d intOne ≡ nzToInt d
+def scaleOne : {d : NZ} → intScale d intOne ≡ nzToInt d
   using (integer.intOne.eq, rational.NZ.unfold) ≔
   λd. intScaleToInt
 
 -- the numerator of 1/d + 1/d is d + d
-def unitAddNum : {d : El NZ}
-  → num (ratAdd (mkRat intOne d) (mkRat intOne d)) ≡ nzToInt d + nzToInt d
+def unitAddNum : {d : NZ} → num (ratAdd (mkRat intOne d) (mkRat intOne d)) ≡ nzToInt d + nzToInt d
   using (integer.intNeg.eq,
     integer.intOne.eq,
     integerAdd.+.eq,
@@ -78,8 +77,7 @@ def unitAddNum : {d : El NZ}
   λd. cong (λw. Int) (λw. w + w) {intScale d intOne} {nzToInt d} scaleOne
 
 -- ...and its denominator is d·d
-def unitAddDen : {d : El NZ}
-  → dInt (ratAdd (mkRat intOne d) (mkRat intOne d)) ≡ nzToInt d * nzToInt d
+def unitAddDen : {d : NZ} → dInt (ratAdd (mkRat intOne d) (mkRat intOne d)) ≡ nzToInt d * nzToInt d
   using (integer.intOne.eq,
     integerAdd.+.eq,
     rational.NZ.unfold,
@@ -194,13 +192,13 @@ def qInvHalf : (n : ℕ) → qInvNat (dbl n) + qInvNat (dbl n) ≡ qInvNat n
     (clsEqOfRel _ _ (halfRel n))
 
 -- ===== the halved bound, as an inequality =====
-def leQZeroInvNat : (n : ℕ) → El (qZero ≤ qInvNat n)
+def leQZeroInvNat : (n : ℕ) → (qZero ≤ qInvNat n)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λn. leQZeroOfPos _ (qInvNatPos n)
 
 -- 1/(2n+2) ≤ 1/(n+1): the halved bound is at most the original,
 -- because the other half is nonnegative
-def leQInvDbl : (n : ℕ) → El (qInvNat (dbl n) ≤ qInvNat n)
+def leQInvDbl : (n : ℕ) → (qInvNat (dbl n) ≤ qInvNat n)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λn. transport
     (λw. qInvNat (dbl n) ≤ w)

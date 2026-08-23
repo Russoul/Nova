@@ -1,1 +1,1 @@
-def refl3 : (A : 𝕌) (a : El A) → a ≡ a ≔ λA. λa. ⋆
+def refl3 : (A : 𝕌) (a : A) → a ≡ a ≔ λA. λa. ⋆

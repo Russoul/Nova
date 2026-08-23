@@ -1,3 +1,3 @@
-def cst : {A : 𝕌} (a : El A) {B : 𝕌} (b : El B) → El A ≔ λA. λa. λB. λb. a
+def cst : {A : 𝕌} (a : A) {B : 𝕌} (b : B) → A ≔ λA. λa. λB. λb. a
 
-def use : El ℕ → El 𝟙 → El ℕ ≔ λn. λu. cst n u
+def use : ℕ → 𝟙 → ℕ ≔ λn. λu. cst n u

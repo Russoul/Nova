@@ -193,7 +193,7 @@ data Deriv : Type where
   DTySigma : Deriv -> Deriv -> Deriv
   ||| ty-sum (non-dependent: B over Γ)
   DTySum : Deriv -> Deriv -> Deriv
-  ||| ty-el: Γ ⊦ A : 𝕌  ⊢  Γ ⊦ El A type
+  ||| code-lift (El retired — cumulativity): Γ ⊦ a : 𝕌  ⊢  Γ ⊦ a type
   DTyEl : Deriv -> Deriv
   ||| ty-prf: Γ ⊦ p : Ω  ⊢  Γ ⊦ Prf p type
   DTyPrf : Deriv -> Deriv
@@ -212,13 +212,13 @@ data Deriv : Type where
   DElSig : String -> Deriv -> Deriv
   ||| code-zero / code-one / code-nat
   DCodeZero, DCodeOne, DCodeNat : Deriv
-  ||| code-pi: Γ ⊦ A : 𝕌;  Γ ▷ El A ⊦ B : 𝕌  ⊢  Γ ⊦ A → B : 𝕌
+  ||| code-pi: Γ ⊦ A : 𝕌;  Γ ▷ A ⊦ B : 𝕌  ⊢  Γ ⊦ A → B : 𝕌
   DCodePi : Deriv -> Deriv -> Deriv
   ||| code-sigma
   DCodeSigma : Deriv -> Deriv -> Deriv
   ||| code-sum (both over Γ)
   DCodeSum : Deriv -> Deriv -> Deriv
-  ||| code-quot: Γ ⊦ A : 𝕌;  Γ ▷ El A ▷ (El A)[↑] ⊦ R : Ω
+  ||| code-quot: Γ ⊦ A : 𝕌;  Γ ▷ A ▷ A[↑] ⊦ R : Ω
   DCodeQuot : Deriv -> Deriv -> Deriv
   ||| code-eq (the equality PROP): delivery order T, l, r —
   ||| Γ ⊦ T type;  Γ ⊦ l : T;  Γ ⊦ r : T  ⊢  Γ ⊦ (l ≡ r ∈ T) : Ω
@@ -336,7 +336,7 @@ data Deriv : Type where
   DTyPiCong : Deriv -> Deriv -> Deriv
   DTySigmaCong : Deriv -> Deriv -> Deriv
   DTySumCong : Deriv -> Deriv -> Deriv
-  ||| ty-el-cong: Γ ⊦ a ≐ b : 𝕌
+  ||| code-lift-eq: Γ ⊦ a ≐ b : 𝕌  ⊢  Γ ⊦ a ≐ b : 𝕍
   DTyElCong : Deriv -> Deriv
   ||| ty-quot-cong: Γ ⊦ A₀ ≐ A₁ type;  Γ ▷ A₁ ▷ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
   DTyQuotCong : Deriv -> Deriv -> Deriv
@@ -355,7 +355,7 @@ data Deriv : Type where
   DElClassCong : Deriv -> Deriv -> Deriv
   DElInj1Cong : Deriv -> Deriv -> Deriv
   DElInj2Cong : Deriv -> Deriv -> Deriv
-  ||| the universe-code congruences (bodies under El a₁)
+  ||| the universe-code congruences (bodies under a₁)
   DCodePiCong : Deriv -> Deriv -> Deriv
   DCodeSigmaCong : Deriv -> Deriv -> Deriv
   DCodeSumCong : Deriv -> Deriv -> Deriv
@@ -373,7 +373,7 @@ data Deriv : Type where
   DTySumInjR : Deriv -> Deriv
   DTyQuotInjDom : Deriv -> Deriv -> Deriv -> Deriv
   DTyQuotInjRel : Deriv -> Deriv -> Deriv -> Deriv
-  DTyElInj : Deriv -> Deriv
+  DTyElInj : Deriv -> Deriv -> Deriv -> Deriv    -- code-restrict
   DCodePiInjDom : Deriv -> Deriv -> Deriv -> Deriv
   DCodePiInjCod : Deriv -> Deriv -> Deriv -> Deriv
   DCodeSigmaInjDom : Deriv -> Deriv -> Deriv -> Deriv
@@ -426,8 +426,7 @@ data Deriv : Type where
   DInvPrfEqTy : Deriv -> Deriv
   ||| from Γ ⊦ Prf p type conclude Γ ⊦ p : Ω
   DInvPrfCode : Deriv -> Deriv
-  ||| from Γ ⊦ El a type conclude Γ ⊦ a : 𝕌
-  DInvElCode : Deriv -> Deriv
+
   ||| typing inversion of the equality code (code-eq's premises):
   ||| from Γ ⊦ (l ≡ r ∈ t) : Ω conclude Γ ⊦ l : t (…r : t, …t type)
   DInvCodeEqL : Deriv -> Deriv
@@ -442,8 +441,7 @@ data Deriv : Type where
   ||| at p. The path is an atom naming the position, like a
   ||| variable's index.
   DBetaAt : List Nat -> Deriv -> Deriv
-  ||| … and at the type level (El-decoding and type-level unfolding
-  ||| included)
+  ||| … and at the type level (type-level unfolding included)
   DBetaAtTy : List Nat -> Deriv -> Deriv
   ||| nf-expand: Γ ⊦ t : A  ⊢  Γ ⊦ t ≐ nf(t) : A
   DNfExpand : Deriv -> Deriv
@@ -566,7 +564,7 @@ data Deriv : Type where
   -- ----- the ν layer -----
   ||| poly-hole / poly-const / poly-prod / poly-sum / poly-sigma /
   ||| poly-pi — one node per Foundation rule (the binding formers'
-  ||| bodies under Γ ▷ El a)
+  ||| bodies under Γ ▷ a)
   DPolyHole : Deriv
   DPolyConst : Deriv -> Deriv
   DPolyProd : Deriv -> Deriv -> Deriv
@@ -576,10 +574,10 @@ data Deriv : Type where
   ||| ty-nu / code-nu
   DTyNu : Deriv -> Deriv
   DCodeNu : Deriv -> Deriv
-  ||| el-nu-e: Γ ⊦ 𝔽 poly;  Γ ⊦ t : ν 𝔽  ⊢  Γ ⊦ out t : El ⌊𝔽⌋(ν 𝔽)
+  ||| el-nu-e: Γ ⊦ 𝔽 poly;  Γ ⊦ t : ν 𝔽  ⊢  Γ ⊦ out t : ⌊𝔽⌋(ν 𝔽)
   DElNuE : Deriv -> Deriv -> Deriv
-  ||| el-nu-i: Γ ⊦ 𝔽 poly;  Γ ⊦ a : 𝕌;  Γ ▷ El a ⊦ f : El ⌊𝔽⌋(a)[↑];
-  ||| Γ ⊦ x : El a  ⊢  Γ ⊦ corec 𝔽 a f x : ν 𝔽
+  ||| el-nu-i: Γ ⊦ 𝔽 poly;  Γ ⊦ a : 𝕌;  Γ ▷ a ⊦ f : ⌊𝔽⌋(a)[↑];
+  ||| Γ ⊦ x : a  ⊢  Γ ⊦ corec 𝔽 a f x : ν 𝔽
   DElNuI : Deriv -> Deriv -> Deriv -> Deriv -> Deriv
   ||| el-nu-coind — delivery order 𝔽, t₀, t₁, R (over ▷ν𝔽▷(ν𝔽)[↑]),
   ||| p : Prf R[id,t₀,t₁], q (the one-step closure at lift_𝔽(R)):
@@ -827,10 +825,10 @@ codeBinInj env sig ctx rule proj dB0 dB1 dEq = do
   alphaTy rule ty UniverseTy
   case (proj l, proj r) of
     (Just (a0, b0), Just (a1, b1)) => do
-      (b0', b0ty) <- conclude env sig (ctx :< El a0) dB0 >>= needEl
+      (b0', b0ty) <- conclude env sig (ctx :< a0) dB0 >>= needEl
       alphaTy rule b0ty UniverseTy
       alphaEl rule b0' b0
-      (b1', b1ty) <- conclude env sig (ctx :< El a1) dB1 >>= needEl
+      (b1', b1ty) <- conclude env sig (ctx :< a1) dB1 >>= needEl
       alphaTy rule b1ty UniverseTy
       alphaEl rule b1' b1
       pure (a0, a1, b0, b1)
@@ -856,10 +854,10 @@ codeQuotInj env sig ctx dR0 dR1 dEq = do
   alphaTy "code-quot-inj" ty UniverseTy
   case (l, r) of
     (Elem.QuotTy a0 r0, Elem.QuotTy a1 r1) => do
-      (r0', r0ty) <- conclude env sig (ctx :< El a0 :< wkTy (El a0)) dR0 >>= needEl
+      (r0', r0ty) <- conclude env sig (ctx :< a0 :< wkTy a0) dR0 >>= needEl
       alphaTy "code-quot-inj" r0ty PropTy
       alphaEl "code-quot-inj" r0' r0
-      (r1', r1ty) <- conclude env sig (ctx :< El a1 :< wkTy (El a1)) dR1 >>= needEl
+      (r1', r1ty) <- conclude env sig (ctx :< a1 :< wkTy a1) dR1 >>= needEl
       alphaTy "code-quot-inj" r1ty PropTy
       alphaEl "code-quot-inj" r1' r1
       pure (a0, a1, r0, r1)
@@ -971,8 +969,8 @@ conclude env sig ctx (DTySum dA dB) = do
   pure (JTy (SumTy a b))
 conclude env sig ctx (DTyEl dA) = do
   (a, ty) <- conclude env sig ctx dA >>= needEl
-  alphaTy "ty-el" ty UniverseTy
-  pure (JTy (El a))
+  alphaTy "code-lift" ty UniverseTy
+  pure (JTy a)
 conclude env sig ctx (DTyPrf dP) = do
   (p, ty) <- conclude env sig ctx dP >>= needEl
   alphaTy "ty-prf" ty PropTy
@@ -1021,13 +1019,13 @@ conclude env sig ctx DCodeNat = pure (JEl Elem.NatTy UniverseTy)
 conclude env sig ctx (DCodePi dA dB) = do
   (a, aty) <- conclude env sig ctx dA >>= needEl
   alphaTy "code-pi" aty UniverseTy
-  (b, bty) <- conclude env sig (ctx :< El a) dB >>= needEl
+  (b, bty) <- conclude env sig (ctx :< a) dB >>= needEl
   alphaTy "code-pi" bty UniverseTy
   pure (JEl (Elem.PiTy a b) UniverseTy)
 conclude env sig ctx (DCodeSigma dA dB) = do
   (a, aty) <- conclude env sig ctx dA >>= needEl
   alphaTy "code-sigma" aty UniverseTy
-  (b, bty) <- conclude env sig (ctx :< El a) dB >>= needEl
+  (b, bty) <- conclude env sig (ctx :< a) dB >>= needEl
   alphaTy "code-sigma" bty UniverseTy
   pure (JEl (Elem.SigmaTy a b) UniverseTy)
 conclude env sig ctx (DCodeSum dA dB) = do
@@ -1039,7 +1037,7 @@ conclude env sig ctx (DCodeSum dA dB) = do
 conclude env sig ctx (DCodeQuot dA dR) = do
   (a, aty) <- conclude env sig ctx dA >>= needEl
   alphaTy "code-quot" aty UniverseTy
-  (r, rty) <- conclude env sig (ctx :< El a :< wkTy (El a)) dR >>= needEl
+  (r, rty) <- conclude env sig (ctx :< a :< wkTy a) dR >>= needEl
   alphaTy "code-quot" rty PropTy
   pure (JEl (Elem.QuotTy a r) UniverseTy)
 conclude env sig ctx (DCodeEq dT dL dR) = do
@@ -1318,9 +1316,10 @@ conclude env sig ctx (DTyQuotCong dA dR) = do
   alphaTy "ty-quot-cong" rty PropTy
   pure (JTyEq (QuotTy a0 r0) (QuotTy a1 r1))
 conclude env sig ctx (DTyElCong d) = do
+  -- code-lift-eq: an equality at 𝕌 lifts to a type equality
   (a, b, ty) <- conclude env sig ctx d >>= needElEq
-  alphaTy "ty-el-cong" ty UniverseTy
-  pure (JTyEq (El a) (El b))
+  alphaTy "code-lift-eq" ty UniverseTy
+  pure (JTyEq a b)
 conclude env sig ctx (DTyPrfCong d) = do
   (p, q, ty) <- conclude env sig ctx d >>= needElEq
   alphaTy "ty-prf-cong" ty PropTy
@@ -1404,13 +1403,13 @@ conclude env sig ctx (DElInj2Cong dB dA) = do
 conclude env sig ctx (DCodePiCong dA dB) = do
   (a0, a1, aty) <- conclude env sig ctx dA >>= needElEq
   alphaTy "code-pi-cong" aty UniverseTy
-  (b0, b1, bty) <- conclude env sig (ctx :< El a1) dB >>= needElEq
+  (b0, b1, bty) <- conclude env sig (ctx :< a1) dB >>= needElEq
   alphaTy "code-pi-cong" bty UniverseTy
   pure (JElEq (Elem.PiTy a0 b0) (Elem.PiTy a1 b1) UniverseTy)
 conclude env sig ctx (DCodeSigmaCong dA dB) = do
   (a0, a1, aty) <- conclude env sig ctx dA >>= needElEq
   alphaTy "code-sigma-cong" aty UniverseTy
-  (b0, b1, bty) <- conclude env sig (ctx :< El a1) dB >>= needElEq
+  (b0, b1, bty) <- conclude env sig (ctx :< a1) dB >>= needElEq
   alphaTy "code-sigma-cong" bty UniverseTy
   pure (JElEq (Elem.SigmaTy a0 b0) (Elem.SigmaTy a1 b1) UniverseTy)
 conclude env sig ctx (DCodeSumCong dA dB) = do
@@ -1422,7 +1421,7 @@ conclude env sig ctx (DCodeSumCong dA dB) = do
 conclude env sig ctx (DCodeQuotCong dA dR) = do
   (a0, a1, aty) <- conclude env sig ctx dA >>= needElEq
   alphaTy "code-quot-cong" aty UniverseTy
-  (r0, r1, rty) <- conclude env sig (ctx :< El a1 :< wkTy (El a1)) dR >>= needElEq
+  (r0, r1, rty) <- conclude env sig (ctx :< a1 :< wkTy a1) dR >>= needElEq
   alphaTy "code-quot-cong" rty PropTy
   pure (JElEq (Elem.QuotTy a0 r0) (Elem.QuotTy a1 r1) UniverseTy)
 conclude env sig ctx (DCodeSquashCong dA) = do
@@ -1465,11 +1464,20 @@ conclude env sig ctx (DTyQuotInjDom dR0 dR1 dEq) = do
 conclude env sig ctx (DTyQuotInjRel dR0 dR1 dEq) = do
   (a0, a1, r0, r1) <- tyQuotInj env sig ctx dR0 dR1 dEq
   pure (JElEq r0 r1 PropTy)
-conclude env sig ctx (DTyElInj dEq) = do
+conclude env sig ctx (DTyElInj d0 d1 dEq) = do
+  -- code-restrict: a type equality between 𝕌-typed sides descends
+  (a0, ty0) <- conclude env sig ctx d0 >>= needEl
+  alphaTy "code-restrict (left)" ty0 UniverseTy
+  (a1, ty1) <- conclude env sig ctx d1 >>= needEl
+  alphaTy "code-restrict (right)" ty1 UniverseTy
   (l, r) <- conclude env sig ctx dEq >>= needTyEq
-  case (l, r) of
-    (El t0, El t1) => pure (JElEq t0 t1 UniverseTy)
-    _ => kerr "derivation: ty-el-inj: not an El equation"
+  alphaTy2 "code-restrict" l a0 r a1
+  pure (JElEq a0 a1 UniverseTy)
+ where
+  alphaTy2 : String -> Ty -> Ty -> Ty -> Ty -> KM ()
+  alphaTy2 rule l a0 r a1 =
+    if l == a0 && r == a1 then pure ()
+      else kerr "derivation: \{rule}: equation sides do not match the typings"
 conclude env sig ctx (DCodePiInjDom dB0 dB1 dEq) = do
   (a0, a1, b0, b1) <- codeBinInj env sig ctx "code-pi-inj" piCProj dB0 dB1 dEq
   pure (JElEq a0 a1 UniverseTy)
@@ -1707,11 +1715,6 @@ conclude env sig ctx (DInvPrfCode d) = do
   case t of
     Prf p => pure (JEl p PropTy)
     _ => kerr "derivation: inv-prf-code: premise not a Prf formation"
-conclude env sig ctx (DInvElCode d) = do
-  t <- conclude env sig ctx d >>= needTy
-  case t of
-    El a => pure (JEl a UniverseTy)
-    _ => kerr "derivation: inv-el-code: premise not an El formation"
 conclude env sig ctx (DInvCodeEqL d) = do
   (c, cty) <- conclude env sig ctx d >>= needEl
   alphaTy "inv-code-eq-lhs" cty PropTy
@@ -1946,12 +1949,12 @@ conclude env sig ctx (DPolySum dF dG) = do
 conclude env sig ctx (DPolySigma dA dF) = do
   (a, aty) <- conclude env sig ctx dA >>= needEl
   alphaTy "poly-sigma" aty UniverseTy
-  f <- conclude env sig (ctx :< El a) dF >>= needPoly
+  f <- conclude env sig (ctx :< a) dF >>= needPoly
   pure (JPoly (PSigma a f))
 conclude env sig ctx (DPolyPi dA dF) = do
   (a, aty) <- conclude env sig ctx dA >>= needEl
   alphaTy "poly-pi" aty UniverseTy
-  f <- conclude env sig (ctx :< El a) dF >>= needPoly
+  f <- conclude env sig (ctx :< a) dF >>= needPoly
   pure (JPoly (PPi a f))
 conclude env sig ctx (DTyNu dF) = do
   f <- conclude env sig ctx dF >>= needPoly
@@ -1963,15 +1966,15 @@ conclude env sig ctx (DElNuE dF dT) = do
   f <- conclude env sig ctx dF >>= needPoly
   (t, tty) <- conclude env sig ctx dT >>= needEl
   alphaTy "el-nu-e" tty (NuTy f)
-  pure (JEl (Out t) (El (reflectPoly f (Elem.NuTy f))))
+  pure (JEl (Out t) (reflectPoly f (Elem.NuTy f)))
 conclude env sig ctx (DElNuI dF dA dBody dX) = do
   f <- conclude env sig ctx dF >>= needPoly
   (a, aty) <- conclude env sig ctx dA >>= needEl
   alphaTy "el-nu-i (carrier)" aty UniverseTy
-  (body, bty) <- conclude env sig (ctx :< El a) dBody >>= needEl
-  alphaTy "el-nu-i (coalgebra)" bty (wkTy (El (reflectPoly f a)))
+  (body, bty) <- conclude env sig (ctx :< a) dBody >>= needEl
+  alphaTy "el-nu-i (coalgebra)" bty (wkTy (reflectPoly f a))
   (x, xty) <- conclude env sig ctx dX >>= needEl
-  alphaTy "el-nu-i (seed)" xty (El a)
+  alphaTy "el-nu-i (seed)" xty a
   pure (JEl (Corec f a body x) (NuTy f))
 conclude env sig ctx (DElNuCoind dF dT0 dT1 dR dP dQ) = do
   f <- conclude env sig ctx dF >>= needPoly
@@ -2058,8 +2061,7 @@ conclude env sig ctx (DTyQSortCong k dSig ds) = do
     goChk tel (S i) rest es0
 conclude env sig ctx (DCodeQSort k dSig ds) = do
   sg <- conclude env sig ctx dSig >>= needQSig
-  if qSigSmall sg then pure ()
-    else kerr "derivation: code-qiit: signature not small"
+  kQSigSmall sig ctx sg
   (entry, tel) <- qArity sg k
   es <- qSpine env "code-qiit" sig ctx ds tel
   pure (JEl (QSort sg k (cast es)) UniverseTy)

@@ -3,7 +3,7 @@
 -- the squash removed — and removing the squash is exactly what turns
 -- "an inverse exists" into "here is the inverse".
 --
--- It is definable because intCanon is an honest FUNCTION El Int → ℕ ⨯ ℕ
+-- It is definable because intCanon is an honest FUNCTION Int → ℕ ⨯ ℕ
 -- (its well-definedness was discharged in eqInt.nova), so the case
 -- analysis below is on nats, not on a quotient: no further
 -- well-definedness obligation arises, and nothing has to be erased.
@@ -23,7 +23,7 @@ import equality (trans, sym, cong)
 
 def nzOfPairD : (a b : ℕ)
   (hab : Prf (a * b ≡ Z))
-  → ((e : El NZ) ⨯ Prf (nzToInt e ≡ class (a, b))) ⊎ Prf (class (a, b) ≡ intZero)
+  → ((e : NZ) ⨯ Prf (nzToInt e ≡ class (a, b))) ⊎ Prf (class (a, b) ≡ intZero)
   using (integer.Int.unfold,
     integer.intZero.eq,
     rational.nzNeg.eq,
@@ -41,18 +41,18 @@ def nzOfPairD : (a b : ℕ)
     a
 
 -- kept abstract in p, as always (docs/ProvingFeedback.md D-3)
-def nzOfIntAt : {z : El Int}
+def nzOfIntAt : {z : Int}
   (p : ℕ ⨯ ℕ)
   (hz : Prf (class p ≡ z))
   (hab : Prf (p .π₁ * p .π₂ ≡ Z))
-  → ((e : El NZ) ⨯ Prf (nzToInt e ≡ z)) ⊎ Prf (z ≡ intZero)
+  → ((e : NZ) ⨯ Prf (nzToInt e ≡ z)) ⊎ Prf (z ≡ intZero)
   using (classPairEta, integer.Int.unfold) ≔
   λz. λp. λhz. λhab. ⊎-elim
     (u. inj₁ (u .π₁, trans _ _ _ (u .π₂) (trans _ _ _ (classPairEta p) hz)))
     (u. inj₂ (trans _ _ _ (sym _ _ (trans _ _ _ (classPairEta p) hz)) u))
     (nzOfPairD _ _ hab)
 
-def nzOfInt : (z : El Int) → ((e : El NZ) ⨯ Prf (nzToInt e ≡ z)) ⊎ Prf (z ≡ intZero)
+def nzOfInt : (z : Int) → ((e : NZ) ⨯ Prf (nzToInt e ≡ z)) ⊎ Prf (z ≡ intZero)
   using (intCanonClass) ≔
   λz. nzOfIntAt _ (intCanonClass z) (intCanonProdZero z)
 
@@ -61,13 +61,13 @@ def nzOfInt : (z : El Int) → ((e : El NZ) ⨯ Prf (nzToInt e ≡ z)) ⊎ Prf (
 -- effectivity is for. Before intEffective.nova landed the only route
 -- was through a computing observational equality (eqInt.nova's EqZ);
 -- now the class equation hands IntR back directly.
-def intNeqOfNotRel : {p q : ℕ ⨯ ℕ} (k : Prf (IntR p q) → 𝟘) → Prf (¬ (class p ≡ class q ∈ El Int))
+def intNeqOfNotRel : {p q : ℕ ⨯ ℕ} (k : Prf (IntR p q) → 𝟘) → Prf (¬ (class p ≡ class q ∈ Int))
   using (integer.Int.unfold, prop.¬.unfold, prop.⊃.unfold, prop.⊥.unfold) ≔
   λp. λq. λk. notIntro _ (λh. ⋆ (k (intEffective h)))
 
 -- IntR (S n , Z) (Z , Z) reduces to S n ≡ Z, and IntR (Z , S n) (Z , Z)
 -- to Z ≡ S n — both refuted by eqNat.nova's zNotS
-def nzToIntNonZero : (e : El NZ) → Prf (¬ (nzToInt e ≡ intZero))
+def nzToIntNonZero : (e : NZ) → Prf (¬ (nzToInt e ≡ intZero))
   using (integer.IntR.eq,
     integer.IntR.unfold,
     integer.intZero.eq,
@@ -83,8 +83,8 @@ def nzToIntNonZero : (e : El NZ) → Prf (¬ (nzToInt e ≡ intZero))
 --
 -- Constructive, and with no double-negation: the view above DECIDES
 -- whether x is zero, so the argument is a case split, not a refutation.
-def intNoZeroDiv : {x : El Int}
-  (y : El Int)
+def intNoZeroDiv : {x : Int}
+  (y : Int)
   (hxy : Prf (x * y ≡ intZero))
   (hy : Prf (¬ (y ≡ intZero)))
   → x ≡ intZero ≔

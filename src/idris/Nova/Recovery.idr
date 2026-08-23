@@ -95,7 +95,6 @@ mutual
     UniverseTy => True
     PropTy => True
     TopTy => True
-    El t => skelFreeE t
     Prf t => skelFreeE t
     PiTy a b => skelFreeE a && skelFreeE b
     SigmaTy a b => skelFreeE a && skelFreeE b
@@ -114,18 +113,10 @@ mutual
     Corec p a f x => skelFreeP p && skelFreeE a && skelFreeE f && skelFreeE x
 
   export
+  ||| One sort (El retired): a code type carries eliminators exactly
+  ||| where the element walk finds them — no former-only shortcut.
   skelFreeT : Ty -> Bool
-  skelFreeT ty = case ty of
-    PiTy a b => skelFreeT a && skelFreeT b
-    SigmaTy a b => skelFreeT a && skelFreeT b
-    SumTy a b => skelFreeT a && skelFreeT b
-    El t => skelFreeE t
-    Prf t => skelFreeE t
-    QuotTy a r => skelFreeT a && skelFreeE r
-    SigVar _ sp => all skelFreeE (toList sp)
-    QSort _ _ sp => all skelFreeE (toList sp)
-    NuTy p => skelFreeP p
-    _ => True
+  skelFreeT = skelFreeE
 
   skelFreeP : Poly -> Bool
   skelFreeP p = case p of
@@ -185,7 +176,6 @@ mutual
     UniverseTy => Just e
     PropTy => Just e
     TopTy => Just e
-    El t => map El (varMapE vf c t)
     Prf t => map Prf (varMapE vf c t)
     PiTy a b => [| PiTy (varMapE vf c a) (varMapE vf (S c) b) |]
     SigmaTy a b => [| SigmaTy (varMapE vf c a) (varMapE vf (S c) b) |]
@@ -213,19 +203,12 @@ mutual
   varMapSp vf c [<] = Just [<]
   varMapSp vf c (xs :< x) = [| varMapSp vf c xs :< varMapE vf c x |]
 
+  ||| One sort (El retired): a former-only walk here would leave the
+  ||| indices inside a CODE type (an application spine, a bound code)
+  ||| untouched — silent capture under strengthening/weakening.
   export
   varMapT : (vf : (d : Nat) -> Nat -> Maybe Elem) -> (c : Nat) -> Ty -> Maybe Ty
-  varMapT vf c ty = case ty of
-    PiTy a b => [| PiTy (varMapT vf c a) (varMapT vf (S c) b) |]
-    SigmaTy a b => [| SigmaTy (varMapT vf c a) (varMapT vf (S c) b) |]
-    SumTy a b => [| SumTy (varMapT vf c a) (varMapT vf c b) |]
-    El t => map El (varMapE vf c t)
-    Prf t => map Prf (varMapE vf c t)
-    QuotTy a r => [| QuotTy (varMapT vf c a) (varMapE vf (c + 2) r) |]
-    SigVar nm sp => map (SigVar nm) (varMapSp vf c sp)
-    QSort sig j sp => map (QSort sig j) (varMapSp vf c sp)
-    NuTy pl => map NuTy (varMapP vf c pl)
-    _ => Just ty
+  varMapT = varMapE
 
   varMapP : (vf : (d : Nat) -> Nat -> Maybe Elem) -> (c : Nat) -> Poly -> Maybe Poly
   varMapP vf c pl = case pl of
@@ -400,7 +383,6 @@ mutual
   mElemP pats app k UniverseTy g sols = case g of UniverseTy => Just sols; _ => Nothing
   mElemP pats app k PropTy g sols = case g of PropTy => Just sols; _ => Nothing
   mElemP pats app k TopTy g sols = case g of TopTy => Just sols; _ => Nothing
-  mElemP pats app k (El t) g sols = case g of El t' => mElemP pats False k t t' sols; _ => Nothing
   mElemP pats app k (Prf t) g sols = case g of Prf t' => mElemP pats False k t t' sols; _ => Nothing
   mElemP pats app k (PiTy a b) g sols =
     case g of PiTy a' b' => mElemP pats False k a a' sols >>= mElemP pats False (S k) b b'; _ => Nothing
@@ -463,20 +445,15 @@ mutual
   mSubP pats k (xs :< x) (ys :< y) sols = mSubP pats k xs ys sols >>= mElemP pats False k x y
   mSubP pats k _ _ _ = Nothing
 
-  ||| The 𝕌-code of a type in the image of El-decoding — the mixed-El
-  ||| case of the ↓ loop, oracle-side: a bare hole under El may bind
-  ||| to code(B) when B decodes (ty-el-nat, ty-el-pi, …).
+  ||| The 𝕌-code of a type (El retired: for the shared formers the
+  ||| code IS the type, so this is now the identity on them; large
+  ||| formers have none).
   codeOfTy : Ty -> Maybe Elem
-  codeOfTy ZeroTy = Just Elem.ZeroTy
-  codeOfTy OneTy = Just Elem.OneTy
-  codeOfTy NatTy = Just Elem.NatTy
-  codeOfTy (PiTy a b) = [| Elem.PiTy (codeOfTy a) (codeOfTy b) |]
-  codeOfTy (SigmaTy a b) = [| Elem.SigmaTy (codeOfTy a) (codeOfTy b) |]
-  codeOfTy (SumTy a b) = [| Elem.SumTy (codeOfTy a) (codeOfTy b) |]
-  codeOfTy (QuotTy a r) = map (\c => QuotTy c r) (codeOfTy a)
-  codeOfTy (El t) = Just t
-  codeOfTy (NuTy p) = Just (Elem.NuTy p)
-  codeOfTy _ = Nothing
+  codeOfTy UniverseTy = Nothing
+  codeOfTy PropTy = Nothing
+  codeOfTy TopTy = Nothing
+  codeOfTy (Prf _) = Nothing
+  codeOfTy t = Just t
 
   export
   mTyP : (pats : Bool) -> (k : Nat) -> Ty -> Ty -> Sols -> Maybe Sols
@@ -491,29 +468,16 @@ mutual
     case g of SigmaTy a' b' => mTyP pats k a a' sols >>= mTyP pats (S k) b b'; _ => Nothing
   mTyP pats k (SumTy a b) g sols =
     case g of SumTy a' b' => mTyP pats k a a' sols >>= mTyP pats k b b'; _ => Nothing
-  mTyP pats k (El t) g sols = case g of
-    El t' => mElemP pats False k t t' sols
-    -- a bare hole under El against a DECODED rigid type binds to its
-    -- code (the matching-up-to-El-decoding of the ↓ loop's step 7);
-    -- in PATTERN mode any El-pattern may match through the code
-    _ => case t of
-      SigVar nm [<] => case holeView nm of
-        Just _ => case codeOfTy g of
-          Just c => mElemP pats False k t c sols
-          Nothing => Nothing
-        Nothing => Nothing
-      _ => if pats
-             then case codeOfTy g of
-                    Just c => mElemP pats False k t c sols
-                    Nothing => Nothing
-             else Nothing
   mTyP pats k (Prf t) g sols = case g of Prf t' => mElemP pats False k t t' sols; _ => Nothing
   mTyP pats k (QuotTy a r) g sols =
     case g of QuotTy a' r' => mTyP pats k a a' sols >>= mElemP pats False (k + 2) r r'; _ => Nothing
+  -- SigVar in type position is a code pattern like any other — in
+  -- particular a HOLE head must bind against a non-SigVar ground, so
+  -- delegate to the elem matcher instead of demanding a SigVar ground
   mTyP pats k (SigVar nm sp) g sols =
-    case g of
-      SigVar nm' sp' => if nm == nm' then mSubP pats k sp sp' sols else Nothing
-      _ => Nothing
+    case codeOfTy g of
+      Just c => mElemP pats False k (SigVar nm sp) c sols
+      Nothing => Nothing
   mTyP pats k (QSort sig j sp) g sols =
     case g of
       QSort sig' j' sp' =>
@@ -521,7 +485,12 @@ mutual
       _ => Nothing
   mTyP pats k TopTy g sols = case g of TopTy => Just sols; _ => Nothing
   mTyP pats k (NuTy p) g sols = case g of NuTy p' => mPoly pats k p p' sols; _ => Nothing
-  mTyP pats k _ g sols = Nothing
+  -- El retired: a non-former pattern in type position is a CODE
+  -- pattern (possibly hole-headed) — match it against the ground as
+  -- a code (untrusted; the kernel gate rejects ill-typed bindings)
+  mTyP pats k t g sols = case codeOfTy g of
+    Just c => mElemP pats False k t c sols
+    Nothing => Nothing
 
   mPoly : (pats : Bool) -> (k : Nat) -> Poly -> Poly -> Sols -> Maybe Sols
   mPoly pats k PHole g sols = case g of PHole => Just sols; _ => Nothing
@@ -669,7 +638,6 @@ mutual
     UniverseTy => acc
     PropTy => acc
     TopTy => acc
-    El t => walkE True t acc
     Prf t => walkE True t acc
     PiTy a b => walkE True a (walkE True b acc)
     SigmaTy a b => walkE True a (walkE True b acc)
@@ -692,17 +660,7 @@ mutual
     Corec p a f x => walkP p (walkE True a (walkE True f (walkE True x acc)))
 
   walkT : Ty -> List SpineUse -> List SpineUse
-  walkT ty acc = case ty of
-    PiTy a b => walkT a (walkT b acc)
-    SigmaTy a b => walkT a (walkT b acc)
-    SumTy a b => walkT a (walkT b acc)
-    El t => walkE True t acc
-    Prf t => walkE True t acc
-    QuotTy a r => walkT a (walkE True r acc)
-    SigVar _ sp => foldl (\a, x => walkE True x a) acc (toList sp)
-    QSort _ _ sp => foldl (\a, x => walkE True x a) acc (toList sp)
-    NuTy p => walkP p acc
-    _ => acc
+  walkT = walkE True
 
   walkP : Poly -> List SpineUse -> List SpineUse
   walkP p acc = case p of
@@ -846,7 +804,6 @@ mutual
     UniverseTy => False
     PropTy => False
     TopTy => False
-    El t => hasHolesE t
     Prf t => hasHolesE t
     PiTy a b => hasHolesE a || hasHolesE b
     SigmaTy a b => hasHolesE a || hasHolesE b
@@ -865,19 +822,14 @@ mutual
     Out t => hasHolesE t
     Corec p a f x => hasHolesP p || hasHolesE a || hasHolesE f || hasHolesE x
 
+  ||| One sort (El retired): a type is an element, and a CODE type —
+  ||| an application spine, say — carries holes exactly where the
+  ||| element walk finds them. A former-only walk here would miss
+  ||| `isZeroCode ?0` and let the spine walk check an argument at a
+  ||| still-holey domain.
   export
   hasHolesT : Ty -> Bool
-  hasHolesT ty = case ty of
-    PiTy a b => hasHolesT a || hasHolesT b
-    SigmaTy a b => hasHolesT a || hasHolesT b
-    SumTy a b => hasHolesT a || hasHolesT b
-    El t => hasHolesE t
-    Prf t => hasHolesE t
-    QuotTy a r => hasHolesT a || hasHolesE r
-    SigVar nm sp => isJust (holeView nm) || any hasHolesE (toList sp)
-    QSort _ _ sp => any hasHolesE (toList sp)
-    NuTy p => hasHolesP p
-    _ => False
+  hasHolesT = hasHolesE
 
   export
   hasHolesP : Poly -> Bool
@@ -947,7 +899,6 @@ mutual
       UniverseTy => e
       PropTy => e
       TopTy => e
-      El t => El (absE c sc t)
       Prf t => Prf (absE c sc t)
       PiTy a b => PiTy (absE c sc a) (absE (S c) sc b)
       SigmaTy a b => SigmaTy (absE c sc a) (absE (S c) sc b)
@@ -967,19 +918,13 @@ mutual
       Out t => Out (absE c sc t)
       Corec p a f x => Corec (absP c sc p) (absE c sc a) (absE (S c) sc f) (absE c sc x)
 
+  ||| One sort (El retired): a type abstracts as its element spelling.
+  ||| A former-only walk here would return a CODE type (an application
+  ||| spine, a bound code) UNSHIFTED — silently capturing the new
+  ||| binder — and would miss scrutinee occurrences inside it.
   export
   absT : (c : Nat) -> (scrut : Elem) -> Ty -> Ty
-  absT c sc ty = case ty of
-    PiTy a b => PiTy (absT c sc a) (absT (S c) sc b)
-    SigmaTy a b => SigmaTy (absT c sc a) (absT (S c) sc b)
-    SumTy a b => SumTy (absT c sc a) (absT c sc b)
-    El t => El (absE c sc t)
-    Prf t => Prf (absE c sc t)
-    QuotTy a r => QuotTy (absT c sc a) (absE (c + 2) sc r)
-    SigVar nm sp => SigVar nm (map (absE c sc) sp)
-    QSort sig k sp => QSort sig k (map (absE c sc) sp)
-    NuTy p => NuTy (absP c sc p)
-    _ => ty
+  absT = absE
 
   absP : (c : Nat) -> (scrut : Elem) -> Poly -> Poly
   absP c sc p = case p of

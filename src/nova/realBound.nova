@@ -20,7 +20,7 @@ import real (qInvNat, rBound, RSeq, Regular)
 import realNeg (seqOf, regOf, regBnd)
 import equality (trans, sym, cong, transport)
 
-def leQInvOne : (k : ℕ) → El (qInvNat k ≤ qOfNat (S Z))
+def leQInvOne : (k : ℕ) → (qInvNat k ≤ qOfNat (S Z))
   using (id.Id.eq,
     intOrder.intOfNat.eq,
     integer.intOne.eq,
@@ -43,7 +43,7 @@ def leQInvOne : (k : ℕ) → El (qInvNat k ≤ qOfNat (S Z))
     real.qInvNat.eq) ≔
   λk. leQFracOfNat (transport (λw. S Z ≤ w) (sym _ _ (oneMult (S k))) (leSucMono (leZero k)))
 
-def leQBoundTwo : (n : ℕ) → El (rBound n Z ≤ qOfNat 2)
+def leQBoundTwo : (n : ℕ) → (rBound n Z ≤ qOfNat 2)
   using (id.Id.eq,
     nat.+.eq,
     ratNat.qOfNat.eq,
@@ -65,7 +65,7 @@ def leQBoundTwo : (n : ℕ) → El (rBound n Z ≤ qOfNat 2)
     (leQAdd _ _ _ _ (leQInvOne n) (leQInvOne Z))
 
 -- ===== a + (b − a) ≡ b =====
-def qAddSubCancelL : (a b : El Q) → a + (b + qNeg a) ≡ b using (rationalQ.Q.unfold) ≔
+def qAddSubCancelL : (a b : Q) → a + (b + qNeg a) ≡ b using (rationalQ.Q.unfold) ≔
   λa. λb. a + (b + qNeg a)
       ≡⟨ cong (λw. Q) (λw. a + w) (qAddComm b (qNeg a)) ⟩ a + (qNeg a + b)
       ≡⟨ sym _ _ (qAddAssoc a (qNeg a) b) ⟩ a + qNeg a + b
@@ -73,9 +73,9 @@ def qAddSubCancelL : (a b : El Q) → a + (b + qNeg a) ≡ b using (rationalQ.Q.
       ≡⟨ qAddZeroL b ⟩ b
 
 -- ===== the bound =====
-def seqBound : El RSeq → ℕ ≔ λp. S (S (qNatBound (seqOf p Z)))
+def seqBound : RSeq → ℕ ≔ λp. S (S (qNatBound (seqOf p Z)))
 
-def bndSeqBound : (p : El RSeq) (n : ℕ) → El (Bnd (qOfNat (seqBound p)) (seqOf p n))
+def bndSeqBound : (p : RSeq) (n : ℕ) → Bnd (qOfNat (seqBound p)) (seqOf p n)
   using (nat.+.eq,
     ratBound.Bnd.unfold,
     ratCeil.qNatBound.eq,
@@ -101,7 +101,7 @@ def bndSeqBound : (p : El RSeq) (n : ℕ) → El (Bnd (qOfNat (seqBound p)) (seq
 
 -- the bound is a successor, and in fact at least 2 — which is what
 -- lets the product's sampling index be written without a predecessor
-def seqBoundPos : {p : El RSeq} → El (qZero ≤ qOfNat (seqBound p))
+def seqBoundPos : {p : RSeq} → (qZero ≤ qOfNat (seqBound p))
   using (ratNat.qOfNatZero,
     rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold,

@@ -22,7 +22,7 @@ import ratArch (intSgnOfNatNonNeg)
 import equality (trans, sym, cong, transport)
 import id (Id, idToEq, eqToId)
 
-def qOfNat : ℕ → El Q using (rationalQ.Q.unfold) ≔ λk. qcls (mkRat (intOfNat k) nzOne)
+def qOfNat : ℕ → Q using (rationalQ.Q.unfold) ≔ λk. qcls (mkRat (intOfNat k) nzOne)
 
 def qOfNatZero : qOfNat Z ≡ qZero
   using (intOrder.intOfNat.eq,
@@ -67,18 +67,18 @@ def natEqOfClassZero : {a b : ℕ} → (class (b, a) ≡ intZero) → b ≡ a
   using (integer.Int.unfold, integer.IntR.eq, integer.intZero.eq, nat.plusZeroId) ≔
   λa. λb. λh. intEffective h
 
-def natSucOfClassPos : {a b j : ℕ} → (class (S j, Z) ≡ class (b, a) ∈ El Int) → a + S j ≡ b
+def natSucOfClassPos : {a b j : ℕ} → (class (S j, Z) ≡ class (b, a) ∈ Int) → a + S j ≡ b
   using (integer.Int.unfold, integer.IntR.eq) ≔
   λa. λb. λj. λh. trans _ _ _ (plusComm (S j) a) (trans _ _ _ (intEffective h) (zeroPlusId b))
 
-def nonNegSgnOfLe : {a b : ℕ} → El (a ≤ b) → El (NonNegS (intSgn (class (b, a))))
+def nonNegSgnOfLe : {a b : ℕ} → (a ≤ b) → NonNegS (intSgn (class (b, a)))
   using (integer.Int.unfold, natOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λa. λb. λle. transport
     NonNegS
     (cong (λv. Sign) (λv. intSgn v) (natDiffClass (idToEq _ _ _ (le .π₂))))
     intSgnOfNatNonNeg
 
-def leOfNonNegSgn : {a b : ℕ} → El (NonNegS (intSgn (class (b, a)))) → El (a ≤ b)
+def leOfNonNegSgn : {a b : ℕ} → NonNegS (intSgn (class (b, a))) → (a ≤ b)
   using (id.Id.unfold,
     integer.Int.unfold,
     natOrder.≤.unfold,
@@ -183,7 +183,7 @@ def sgnQOfNatDiff : (a b : ℕ) → sgnQ (qOfNat b + qNeg (qOfNat a)) ≡ intSgn
       qOfNatDiffNum)
     (cong (λv. Sign) (λv. intSgn v) (intMulOneR (class (b, a))))
 
-def leQOfNat : {a b : ℕ} → El (a ≤ b) → El (qOfNat a ≤ qOfNat b)
+def leQOfNat : {a b : ℕ} → (a ≤ b) → (qOfNat a ≤ qOfNat b)
   using (id.Id.unfold,
     integer.Int.unfold,
     natOrder.≤.unfold,
@@ -191,7 +191,7 @@ def leQOfNat : {a b : ℕ} → El (a ≤ b) → El (qOfNat a ≤ qOfNat b)
     rationalOrder.NonNegS.unfold) ≔
   λa. λb. λle. transport NonNegS (sym _ _ (sgnQOfNatDiff a b)) (nonNegSgnOfLe le)
 
-def leNOfQ : {a b : ℕ} → El (qOfNat a ≤ qOfNat b) → El (a ≤ b)
+def leNOfQ : {a b : ℕ} → (qOfNat a ≤ qOfNat b) → (a ≤ b)
   using (integer.Int.unfold,
     natOrder.≤.unfold,
     rationalOrder.≤.unfold,
@@ -241,7 +241,7 @@ def qOfNatAdd : (a b : ℕ) → qOfNat a + qOfNat b ≡ qOfNat (a + b)
 
 -- ...and the same for the product. Both denominators are 1, so ratMul
 -- is just intMul on the numerators once nzMul nzOne nzOne collapses.
-def ratMulUnit : (x y : El Int)
+def ratMulUnit : (x y : Int)
   → ratMul (mkRat x nzOne) (mkRat y nzOne) ≡ mkRat (x * y) (nzMul nzOne nzOne)
   using (rationalQ.ratMul.eq, rational.mkRat.eq, rational.num.eq, rational.den.eq) ≔
   λx. λy. ⋆
@@ -281,7 +281,7 @@ def qOfNatSuc : (c : ℕ) → qOfNat (S c) ≡ qOfNat c + qOne ≔
       ≡⟨ sym _ _ (qOfNatAdd c (S Z)) ⟩ qOfNat c + qOfNat (S Z)
       ≡⟨ cong (λw. Q) (λw. qOfNat c + w) qOfNatOne ⟩ qOfNat c + qOne
 
-def qMulSucNat : (c : ℕ) (x : El Q) → qOfNat (S c) * x ≡ qOfNat c * x + x ≔
+def qMulSucNat : (c : ℕ) (x : Q) → qOfNat (S c) * x ≡ qOfNat c * x + x ≔
   λc. λx. qOfNat (S c) * x
       ≡⟨ cong (λw. Q) (λw. w * x) (qOfNatSuc c) ⟩ (qOfNat c + qOne) * x
       ≡⟨ qDistribR x (qOfNat c) qOne ⟩ qOfNat c * x + qOne * x

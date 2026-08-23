@@ -559,7 +559,8 @@ mutual
     STyQuot a (x, _) (y, _) r =>
       pt tbl TSum False a <-> txt " / (\{x} \{y}. " <-> pe tbl LNoComma True r <-> txt ")"
     STySum a b => pt tbl TEl False a <-> txt " ⊎ " <-> pt tbl TSum False b
-    STyEl e => txt "El " <-> pe tbl LAtom False e
+    -- El retired: a code in type position prints as the code itself
+    STyEl e => pe tbl LPrefix False e
     STyPrf e => txt "Prf " <-> pe tbl LAtom False e
     STyNu f => txt "ν " <-> pp tbl PAtom f
     STySig x => txt x

@@ -6,5 +6,5 @@ def squashFun : Prf ∥(n : ℕ) → ℕ∥ ≔ ⋆ (λn. n)
 def squashFst : (p : Ω) → Prf ∥Prf p ⨯ Prf p∥ → Prf p ≔
   λp. λh. squash-elim h (u. u .π₁)
 -- both combined: functoriality of ∥-∥
-def squashMap : (A : 𝕌) (B : 𝕌) → (El A → El B) → Prf ∥El A∥ → Prf ∥El B∥ ≔
+def squashMap : (A : 𝕌) (B : 𝕌) → (A → B) → Prf ∥A∥ → Prf ∥B∥ ≔
   λA. λB. λf. λh. squash-elim h (a. ⋆ (f a))

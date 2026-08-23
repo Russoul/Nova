@@ -289,8 +289,9 @@ deterministic pass — the expected type first (matched against the
 instantiated telescope tail; this is what lets a λ argument's domain
 arrive solved), then the inferred types of explicit inference-form
 arguments left to right; matching is syntactic, then both sides
-under the δ-free computational normalizer, with the mixed-El case
-(a bare hole under El binds to code(B) of a decoded rigid type);
+under the δ-free computational normalizer (a bare hole in type
+position is a code pattern — El is retired — and binds the ground
+type directly);
 solved domains check normally, hole-bearing domains take the
 infer-then-convert route whose ↓ emits the ordinary certificate or
 obligation. An unsolved position is a structural error naming the
@@ -445,8 +446,9 @@ every SigVar). Renamed: intAdd/qAdd/realAdd → `+` (infixl 6),
 intMul/qMul/realMul → `*` (infixl 7), realSub → `-` (infixl 6),
 LeN/LeZ/LeQ/LeR → `≤` (infixl 4), LtQ/LtR → `<` (infixl 4) — one
 token per concept across ℕ/ℤ/ℚ/ℝ, resolved per site. The corpus
-now reads `(u v : El Q) → u + v ≡ v + u` and
-`El (x ≤ y) → El (y ≤ z) → El (x ≤ z)`.
+now reads `(u v : Q) → u + v ≡ v + u` and
+`(x ≤ y) → (y ≤ z) → (x ≤ z)` (spellings updated at El's
+retirement; the entry predates it).
 
 Performance of resolution, measured and fixed to the cost model
 (the operatorized corpus elaborates at ~7.8s against the ~7s
@@ -545,7 +547,7 @@ solves in the plain pass, against ~7.8s spelled).
 THE SECOND BLANK WAVE (2026-08-20): a hand-blanked edit exposed
 three over-conservative gates, each now refined — +653 blanks:
 
-  * PAIRS WERE INELIGIBLE: an intro checked against an El-code
+  * PAIRS WERE INELIGIBLE: an intro checked against a code type
     carries a PExpose payload; a TRIVIAL exposure (the code head
     opened by computation alone) is kernel-rederivable and now
     passes eligibility — licensed exposure still keeps its
@@ -612,8 +614,8 @@ census then showing cong's A recoverable at every one of 597 sites
 and v/w at 499 of them, cong became the first arithmetic-scale
 IMPLICIT-BINDER migration since Phase 3c:
 
-  cong : {A : 𝕌} (B : El A → 𝕌) (f : (v : El A) → El (B v))
-         {v w : El A} → (v ≡ w) → f v ≡ f w
+  cong : {A : 𝕌} (B : A → 𝕌) (f : (v : A) → B v)
+         {v w : A} → (v ≡ w) → f v ≡ f w
 
 Sites read `cong (λw. G) (λw. gop G g w b) (gInvR _ g a)`; the 98
 sites in inference positions (chain links, spine arguments), where
@@ -685,8 +687,8 @@ clean ?A ↦ ℕ half). Both are now addressed, both ADDITIVELY:
     eager stale-hole refresh broke ratAddZeroL by flipping
     source-feeding inferences into checks — both withdrawn). The
     pass's join also opens .unfold-cited (exposure-licensed) heads
-    — jn proper sees only .eq citations — and El-patterns match
-    DECODED grounds through codeOfTy. Solutions obey the
+    — jn proper sees only .eq citations — and code patterns in
+    type position match grounds through codeOfTy. Solutions obey the
     bare-skeleton law (skelFreeE), now enforced on EVERY capture:
     an eliminator-bearing capture could never survive the kernel.
   * FAIL-DEFERRAL: an inference-form argument whose inference
@@ -695,15 +697,15 @@ clean ?A ↦ ℕ half). Both are now addressed, both ADDITIVELY:
     restores on failure) and checks after the joint solve, where
     its domain is concrete. bisim s (map (λx. x) s) elaborates:
     map defers, s binds bisim's carrier, map re-checks against
-    El (stream a) and its {b} solves from the expected type.
+    stream a and its {b} solves from the expected type.
 
 The trials deliberately DO NOT model the new tiers yet (emission
 stays conservative); the corpus still gained 32 blanks and 2
 annotation elisions from the sharpened solve, byte-idempotent.
 
 THE EXPECTED TYPE JOINS THE PASS (2026-08-21): funextD's endpoint
-holes {f g} live in the RESULT type — Prf(?f ≡ ?g ∈ El(Π-pattern))
-against Prf(p ≡ q ∈ El (Regular f)) binds them first-order,
+holes {f g} live in the RESULT type — Prf(?f ≡ ?g ∈ Π-pattern)
+against Prf(p ≡ q ∈ Regular f) binds them first-order,
 trivially — but the classic all-or-nothing match dies on the
 ∈-domain sub-problem and the end-stage pass only re-matched
 argument sources. It now matches the EXPECTED TYPE first (the
@@ -730,7 +732,8 @@ elaboration, canonical form enforced.
 
 CAPTURES ARE COMP-NORMALIZED (2026-08-21): a substituted domain can
 carry β-redexes — a pattern-solved dependency lands a λ in function
-position, El ((λv. Int) (intCanon z2)) — and an α-tier capture took
+position, (λv. Int) (intCanon z2) in type position — and an α-tier
+capture took
 the redex spelling verbatim; the kernel then rejects the core at an
 inference position ("term not inferable"). Every hole capture now
 passes through compElem at binding time, in the ordinary case and

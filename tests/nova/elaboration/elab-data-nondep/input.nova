@@ -1,15 +1,15 @@
 -- Non-dependent Π syntax in data entries: a bare domain binds an
--- anonymous binder (cls : El a → El Q), mixing freely with named
+-- anonymous binder (cls : a → Q), mixing freely with named
 -- groups and arrows between groups; external and Prf domains may
 -- stand bare mid-telescope too.
-data [a : 𝕌] [r : El a → El a → Ω]
+data [a : 𝕌] [r : a → a → Ω]
      ( Q : U
-     ; cls : El a → El Q
-     ; qeq : (x : El a) (y : El a) → Prf (r x y) → cls x ≡ cls y ∈ El Q )
+     ; cls : a → El Q
+     ; qeq : (x : a) (y : a) → Prf (r x y) → cls x ≡ cls y ∈ El Q )
 
-data ( V : El ℕ → U
+data ( V : ℕ → U
      ; vnil : El (V Z)
-     ; vcons : (n : El ℕ) → El (V n) → El (V (S n)) )
+     ; vcons : (n : ℕ) → El (V n) → El (V (S n)) )
 
-def two : El (V (S (S Z))) using (V.eq) ≔ vcons (S Z) (vcons Z vnil)
-def q1 : (x : El ℕ) → El (Q ℕ (λv. λw. ∥𝟙∥)) using (Q.eq) ≔ λx. cls ℕ (λv. λw. ∥𝟙∥) x
+def two : (V (S (S Z))) using (V.eq) ≔ vcons (S Z) (vcons Z vnil)
+def q1 : (x : ℕ) → (Q ℕ (λv. λw. ∥𝟙∥)) using (Q.eq) ≔ λx. cls ℕ (λv. λw. ∥𝟙∥) x

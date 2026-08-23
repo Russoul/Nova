@@ -1,6 +1,6 @@
 -- THE SQUARE ROOT of a NONNEGATIVE real.
 --
---   realSqrt : (x : El Real) → El (NonNegR x) → El Real
+--   realSqrt : (x : Real) → (NonNegR x) → Real
 --
 -- No total √, and no truncation inside it. The witness is
 -- realPos.NonNegR — x together with a POINTWISE NONNEGATIVE
@@ -72,7 +72,7 @@ def sqrtIdx : ℕ → ℕ ≔ λk. mulIdx (dbl k) (dbl k)
 def sqrtT : ℕ → ℕ → ℕ ≔ λm. λn. sqNat (sqrtDepth n) + sqNat (sqrtDepth m)
 
 -- ===== the scaling is exact =====
-def qMulSq : (x y : El Q) → x * y * (x * y) ≡ x * x * (y * y) ≔
+def qMulSq : (x y : Q) → x * y * (x * y) ≡ x * x * (y * y) ≔
   λx. λy. x * y * (x * y)
       ≡⟨ qMulAssoc x y (x * y) ⟩ x * (y * (x * y))
       ≡⟨ cong (λw. Q) (λw. x * w) (qMulLeftComm y x y) ⟩ x * (x * (y * y))
@@ -174,7 +174,7 @@ def scaleEq : (a b : ℕ)
       ≡⟨ qOfNatAdd (sqNat b) (sqNat a) ⟩ qOfNat (sqNat b + sqNat a)
 
 -- ===== the slack fits =====
-def cancelMid : (D : ℕ) (e : El Q) → qOfNat (S D) * (e * qInvNat D) ≡ e ≔
+def cancelMid : (D : ℕ) (e : Q) → qOfNat (S D) * (e * qInvNat D) ≡ e ≔
   λD. λe. qOfNat (S D) * (e * qInvNat D)
       ≡⟨ qMulLeftComm (qOfNat (S D)) e (qInvNat D) ⟩ e * (qOfNat (S D) * qInvNat D)
       ≡⟨ cong (λw. Q) (λw. e * w) {qOfNat (S D) * qInvNat D} {qOne} qMulInvNat ⟩ e * qOne
@@ -210,7 +210,7 @@ def slackEq : {Dm Dn : ℕ}
       ≡⟨ cong (λw. Q) (λw. qInvNat Dm + w) (cancelMid Dm (qInvNat Dn)) ⟩ qInvNat Dm + qInvNat Dn
 
 def sqrtSlack : (m n : ℕ)
-  → El (qOfNat
+  → (qOfNat
     (S (isqrt
       (sqrtT
         m
@@ -230,7 +230,7 @@ def sqrtSlack : (m n : ℕ)
       (leQZeroMul (leQZeroInvNat (sqrtDepth m)) (leQZeroInvNat (sqrtDepth n))))
 
 -- y + (x + y) ≤ (x + x) + (y + y), for nonnegative x
-def slackFits : {x y : El Q} → El (qZero ≤ x) → El (y + (x + y) ≤ x + x + (y + y)) ≔
+def slackFits : {x y : Q} → (qZero ≤ x) → (y + (x + y) ≤ x + x + (y + y)) ≔
   λx. λy. λhx. transport
     (λw. w ≤ x + x + (y + y))
     (sym
@@ -269,24 +269,24 @@ def rBoundHalves : {m n : ℕ}
 -- possibly different representatives, each at least as deep as φ of
 -- its index. Stating it once with the sample indices abstract covers
 -- all three, and is why the modulus costs so little.
-def sqrtDirGen : {p : El RSeq}
-  (p' : El RSeq)
+def sqrtDirGen : {p : RSeq}
+  (p' : RSeq)
   {a b m n : ℕ}
-  → El (qZero
+  → (qZero
     ≤ seqOf
       p
       a)
-    → El (qInvNat
+    → (qInvNat
       a
       ≤ qInvNat
         (sqrtIdx
           m))
-      → El (qInvNat
+      → (qInvNat
         b
         ≤ qInvNat
           (sqrtIdx
             n))
-        → El (Bnd
+        → Bnd
           (rBound a b)
           (seqOf
             p
@@ -294,8 +294,8 @@ def sqrtDirGen : {p : El RSeq}
             + qNeg
               (seqOf
                 p'
-                b)))
-          → El (qSqrtAt (seqOf p a) (sqrtDepth m) ≤ qSqrtAt (seqOf p' b) (sqrtDepth n) + rBound m n)
+                b))
+          → (qSqrtAt (seqOf p a) (sqrtDepth m) ≤ qSqrtAt (seqOf p' b) (sqrtDepth n) + rBound m n)
   using (real.rBound.eq, sqrtDepth.eq, sqrtIdx.eq, sqrtT.eq) ≔
   λp. λp'. λa. λb. λm. λn. λnn. λda. λdb. λgap. leQTrans
     _
@@ -357,12 +357,12 @@ def sqrtDirGen : {p : El RSeq}
             (slackFits (leQZeroInvNat (sqrtDepth m)))))))
 
 -- ===== use 1: regularity =====
-def sqrtSeqNN : El RSeq → El (ℕ → Q) ≔ λp. λn. qSqrtAt (seqOf p (sqrtIdx n)) (sqrtDepth n)
+def sqrtSeqNN : RSeq → ℕ → Q ≔ λp. λn. qSqrtAt (seqOf p (sqrtIdx n)) (sqrtDepth n)
 
-def sqrtRegAtNN : (p : El RSeq)
-  (nn : (n : ℕ) → El (qZero ≤ seqOf p n))
+def sqrtRegAtNN : (p : RSeq)
+  (nn : (n : ℕ) → (qZero ≤ seqOf p n))
   (m n : ℕ)
-  → El (Bnd (rBound m n) (sqrtSeqNN p m + qNeg (sqrtSeqNN p n)))
+  → Bnd (rBound m n) (sqrtSeqNN p m + qNeg (sqrtSeqNN p n))
   using (sqrtSeqNN.eq) ≔
   λp. λnn. λm. λn. bndOfBothLe
     _
@@ -389,17 +389,16 @@ def sqrtRegAtNN : (p : El RSeq)
           (leQRefl (qInvNat (sqrtIdx m)))
           (regBnd _ (regOf p) (sqrtIdx n) (sqrtIdx m)))))
 
-def rSqrtNN : (p : El RSeq) → ((n : ℕ) → El (qZero ≤ seqOf p n)) → El RSeq
-  using (real.RSeq.unfold) ≔
+def rSqrtNN : (p : RSeq) → ((n : ℕ) → (qZero ≤ seqOf p n)) → RSeq using (real.RSeq.unfold) ≔
   λp. λnn. sqrtSeqNN p, bndReg (sqrtRegAtNN _ nn)
 
 -- ===== use 2: any two nonnegative presentations agree =====
 --
 -- This is the whole of brElim's obligation now. With the modulus gone
 -- there is nothing else to be independent of.
-def rSqrtWDNN : {p p' : El RSeq}
-  (nn : (n : ℕ) → El (qZero ≤ seqOf p n))
-  (nn' : (n : ℕ) → El (qZero ≤ seqOf p' n))
+def rSqrtWDNN : {p p' : RSeq}
+  (nn : (n : ℕ) → (qZero ≤ seqOf p n))
+  (nn' : (n : ℕ) → (qZero ≤ seqOf p' n))
   → Prf (REq p p') → Prf (REq (rSqrtNN _ nn) (rSqrtNN _ nn'))
   using (real.REq.unfold,
     real.RSeq.unfold,
@@ -438,11 +437,11 @@ def rSqrtWDNN : {p p' : El RSeq}
             (u (sqrtIdx n)))))))
 
 -- ===== the descent =====
-def sqrtFromNN : (x : El Real) → El (NonNegPayload x) → El Real
+def sqrtFromNN : (x : Real) → NonNegPayload x → Real
   using (real.Real.unfold, real.RSeq.unfold, real.Regular.unfold) ≔
   λx. λd. class (rSqrtNN _ (nnAt _ d))
 
-def sqrtNNConst : (x : El Real) (d d' : El (NonNegPayload x)) → sqrtFromNN _ d ≡ sqrtFromNN _ d'
+def sqrtNNConst : (x : Real) (d d' : NonNegPayload x) → sqrtFromNN _ d ≡ sqrtFromNN _ d'
   using (real.Real.unfold, real.RSeq.unfold, real.Regular.unfold, sqrtFromNN.eq) ≔
   λx. λd. λd'. realEqOfREq
     _
@@ -452,11 +451,11 @@ def sqrtNNConst : (x : El Real) (d d' : El (NonNegPayload x)) → sqrtFromNN _ d
       (nnAt _ d')
       (reqOfClassEq (trans _ _ _ (nnRepEq _ d) (sym _ _ (nnRepEq _ d')))))
 
-def realSqrt : (x : El Real) → El (NonNegR x) → El Real using (NonNegR.eq) ≔
+def realSqrt : (x : Real) → NonNegR x → Real using (NonNegR.eq) ≔
   λx. λw. brElim (sqrtFromNN x) (sqrtNNConst x) w
 
-def realSqrtRep : {x : El Real}
-  {d : El (NonNegPayload x)}
+def realSqrtRep : {x : Real}
+  {d : NonNegPayload x}
   → realSqrt _ (br d) ≡ class (rSqrtNN _ (nnAt _ d))
   using (real.Real.unfold,
     real.RSeq.unfold,
@@ -523,9 +522,9 @@ def qSqrtAtZero : {D : ℕ} → qSqrtAt qZero D ≡ qZero
         isqrtZero))
     (trans _ _ qZero (cong (λw. Q) (λw. w * qInvNat D) qOfNatZero) qMulZeroL)
 
-def zeroRep : El RSeq using (real.RSeq.unfold) ≔ (λn. qZero), constReg
+def zeroRep : RSeq using (real.RSeq.unfold) ≔ (λn. qZero), constReg
 
-def zeroNN : (n : ℕ) → El (qZero ≤ seqOf zeroRep n)
+def zeroNN : (n : ℕ) → (qZero ≤ seqOf zeroRep n)
   using (real.RSeq.unfold, zeroRep.eq, realNeg.seqOf.eq) ≔
   λn. leQRefl qZero
 
@@ -542,7 +541,7 @@ def clsZeroRep : class zeroRep ≡ realZero
     zeroRep.eq) ≔
   ⋆
 
-def realSqrtZero : (w : El (NonNegR realZero)) → realSqrt _ w ≡ realZero
+def realSqrtZero : (w : NonNegR realZero) → realSqrt _ w ≡ realZero
   using (real.Real.unfold,
     real.RSeq.unfold,
     real.Regular.unfold,

@@ -53,19 +53,19 @@ def intAddCross : (a1 a2 b1 b2 c1 c2 : ℕ)
 -- OUTER argument — proven by quotient elimination with an ≡-motive
 def intAddWDOuter : (a b : ℕ ⨯ ℕ)
   (h : Prf (a .π₁ + b .π₂ ≡ a .π₂ + b .π₁))
-  (zy : El Int)
-  → quot-elim (z. El Int)
+  (zy : Int)
+  → quot-elim (z. Int)
     (x. class (a .π₁ + x .π₁, a .π₂ + x .π₂))
     zy ≡ quot-elim (x. class (b .π₁ + x .π₁, b .π₂ + x .π₂)) zy
   using (intAddCross, intAddWD, integer.Int.unfold, plusAssoc) ≔
-  λa. λb. λh. λzy. quot-elim (q. quot-elim (z. El Int)
+  λa. λb. λh. λzy. quot-elim (q. quot-elim (z. Int)
     (x. class (a .π₁ + x .π₁, a .π₂ + x .π₂))
     q ≡ quot-elim (x. class (b .π₁ + x .π₁, b .π₂ + x .π₂)) q)
     (c. ⋆)
     zy
 
 infixl 6 +
-def + : El Int → El Int → El Int using (intAddWD, intAddWDOuter, integer.Int.unfold, plusAssoc) ≔
+def + : Int → Int → Int using (intAddWD, intAddWDOuter, integer.Int.unfold, plusAssoc) ≔
   λzx. λzy. quot-elim (a. quot-elim (b. class (a .π₁ + b .π₁, a .π₂ + b .π₂)) zy) zx
 
 def intAddTest : class (Z, Z) + class (S Z, S Z) ≡ class (S Z, S Z)
@@ -83,7 +83,7 @@ def crossComm : (x y z w : ℕ) → x + y + (z + w) ≡ w + z + (y + x) ≔
 
 -- commutativity: two quotient eliminations at ≡-motives reduce to the
 -- representative-level cross-sum permutation
-def intAddComm : (x y : El Int) → x + y ≡ y + x
+def intAddComm : (x y : Int) → x + y ≡ y + x
   using (crossComm,
     integer.Int.unfold,
     integerAdd.+.eq,
@@ -95,6 +95,6 @@ def intAddComm : (x y : El Int) → x + y ≡ y + x
 
 -- associativity: three eliminations; the representatives reassociate
 -- by plusAssoc and close by commutativity of the cross sum
-def intAddAssoc : (x y z : El Int) → x + y + z ≡ x + (y + z)
+def intAddAssoc : (x y z : Int) → x + y + z ≡ x + (y + z)
   using (hyp.rw, integerAdd.+.eq, integer.Int.eq, integer.Int.unfold, plusAssoc, plusAssoc.rw) ≔
   λx. λy. λz. quot-elim (a. quot-elim (b. quot-elim (c. ⋆) z) y) x

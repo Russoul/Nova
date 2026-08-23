@@ -1,6 +1,6 @@
 -- UIP for the identity QIIT, via its eliminator. In intensional MLTT
 -- J cannot prove UIP (Hofmann–Streicher); here it can, because the
--- would-be-ill-typed motive "w ≡ refl a u ∈ El (Id a u v)" becomes
+-- would-be-ill-typed motive "w ≡ refl a u ∈ (Id a u v)" becomes
 -- well-typed under a reflected index equation — the motive carries
 -- that equation INSIDE a squashed Π, so its binder is in scope (and
 -- reflected) exactly while the codomain is typed.
@@ -10,18 +10,18 @@
 import id (Id, refl, IdElimP, idToEq)
 import equality (sym, trans)
 
-def idCanon : {a : 𝕌} {x y : El a} (p : El (Id _ x y)) (h : x ≡ y) → p ≡ refl a x
+def idCanon : {a : 𝕌} {x y : a} (p : Id _ x y) (h : x ≡ y) → p ≡ refl a x
   using (hyp.rw, id.Id.eq, id.Id.unfold, id.refl.eq) ≔
   λa. λx. λy. λp. λh. squash-elim (IdElimP
     a
-    (λu. λv. λw. ∥(k : u ≡ v) → w ≡ refl a u ∈ El (Id _ u v)∥)
+    (λu. λv. λw. ∥(k : u ≡ v) → w ≡ refl a u ∈ Id _ u v∥)
     (λu. ⋆ (λk. ⋆))
     x
     y
     p) (f. f h)
 
 -- uniqueness of identity proofs: both are refl, by canonicity.
-def uip : {a : 𝕌} {x y : El a} {p q : El (Id _ x y)} → p ≡ q
+def uip : {a : 𝕌} {x y : a} {p q : Id _ x y} → p ≡ q
   using (hyp.rw, id.Id.eq, id.Id.unfold, id.idToEq.eq) ≔
   λa. λx. λy. λp. λq. let h ≔ idToEq
     _
