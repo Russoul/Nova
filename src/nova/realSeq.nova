@@ -20,7 +20,7 @@ import realNeg (seqOf, regOf)
 import prelude (funext)
 import equality (trans, sym, cong, transport, pairext)
 
-def regularIsProp : (f : El (ℕ → Q)) (p q : El (Regular f)) → p ≡ q
+def regularIsProp : (f : ℕ → Q) (p q : Regular f) → p ≡ q
   using (rationalQ.Q.unfold, real.Regular.unfold) ≔
   λf. λp. λq. funext (λm. funext (λn. bndIsProp _ _ (p m n) (q m n)))
 
@@ -31,7 +31,7 @@ def regularIsProp : (f : El (ℕ → Q)) (p q : El (Regular f)) → p ≡ q
 -- it is the identity function, so nothing is inserted, but its
 -- SIGNATURE does the retyping and the conversion is never demanded
 -- here (D-3: it was discharged once, at an abstract motive).
-def rseqEqAt : {x y : El RSeq} → (seqOf x ≡ seqOf y) → x ≡ y
+def rseqEqAt : {x y : RSeq} → (seqOf x ≡ seqOf y) → x ≡ y
   using (equality.sym.eq,
     equality.transport.eq,
     id.Id.eq,
@@ -56,12 +56,11 @@ def rseqEqAt : {x y : El RSeq} → (seqOf x ≡ seqOf y) → x ≡ y
     h
     (regularIsProp _ (regOf x) (transport (λf. Regular f) (sym _ _ h) (regOf y)))
 
-def rseqEq : {x y : El RSeq} → ((n : ℕ) → seqOf x n ≡ seqOf y n) → x ≡ y ≔
+def rseqEq : {x y : RSeq} → ((n : ℕ) → seqOf x n ≡ seqOf y n) → x ≡ y ≔
   λx. λy. λe. rseqEqAt (funext e)
 
 -- ...and hence equal reals, without going through REq at all
-def realEqOfSeqEq : (x y : El RSeq)
-  → ((n : ℕ) → seqOf x n ≡ seqOf y n) → class x ≡ class y ∈ El Real
+def realEqOfSeqEq : (x y : RSeq) → ((n : ℕ) → seqOf x n ≡ seqOf y n) → class x ≡ class y ∈ Real
   using (real.Real.unfold) ≔
   λx. λy. λe. cong (λw. Real) (λw. class w) (rseqEq e)
 
@@ -77,14 +76,14 @@ def realEqOfSeqEq : (x y : El RSeq)
 -- Stated once, generically in the operation: realAdd, realMax and
 -- realMin each spend it in one line, in place of a transcription of
 -- their inner proof with the arguments swapped.
-def wdOuterOfComm : (op : El RSeq → El RSeq → El RSeq)
-  → ((a b : El RSeq)
+def wdOuterOfComm : (op : RSeq → RSeq → RSeq)
+  → ((a b : RSeq)
     → op
       a
       b ≡ op
       b
       a)
-    → ((a b b' : El RSeq)
+    → ((a b b' : RSeq)
       → Prf (REq
         b
         b')
@@ -92,8 +91,7 @@ def wdOuterOfComm : (op : El RSeq → El RSeq → El RSeq)
           a
           b) ≡ class (op
           a
-          b') ∈ El Real)
-      → (x x' c : El RSeq) → Prf (REq x x') → class (op x c) ≡ class (op x' c) ∈ El Real
+          b') ∈ Real) → (x x' c : RSeq) → Prf (REq x x') → class (op x c) ≡ class (op x' c) ∈ Real
   using (real.Real.unfold) ≔
   λop. λcomm. λinner. λx. λx'. λc. λh. trans
     _

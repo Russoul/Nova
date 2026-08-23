@@ -27,7 +27,7 @@ def multZeroInv : (j k : ℕ) → (j * S k ≡ Z) → j ≡ Z ≔
 
 -- cancellation by S k, under the assumption that the smaller side is
 -- known: the surplus times S k is zero, hence zero
-def multCancelLe : {n m : ℕ} (k : ℕ) → El (n ≤ m) → (n * S k ≡ m * S k) → n ≡ m
+def multCancelLe : {n m : ℕ} (k : ℕ) → (n ≤ m) → (n * S k ≡ m * S k) → n ≡ m
   using (id.Id.unfold, nat.plusZeroId, natOrder.≤.unfold) ≔
   λn. λm. λk. λle. λh. let e : n
     + le .π₁ ≡ m ≔ idToEq
@@ -51,7 +51,7 @@ def multCancelLe : {n m : ℕ} (k : ℕ) → El (n ≤ m) → (n * S k ≡ m * S
       (multDistribR
         (S k)
         n
-        (le .π₁))) in let jz : le .π₁ ≡ Z ∈ ℕ ≔ multZeroInv
+        (le .π₁))) in let jz : le .π₁ ≡ Z ≔ multZeroInv
     _
     _
     (sym
@@ -118,7 +118,7 @@ def monusSelf : {a : ℕ} → a ∸ a ≡ Z
   λa. ℕ-elim ⋆ (k ih. ⋆) a
 
 -- ...so a ≤ b makes a − b vanish
-def monusZeroOfLe : (a b : ℕ) → El (a ≤ b) → a ∸ b ≡ Z using (id.Id.unfold, natOrder.≤.unfold) ≔
+def monusZeroOfLe : (a b : ℕ) → (a ≤ b) → a ∸ b ≡ Z using (id.Id.unfold, natOrder.≤.unfold) ≔
   λa. λb. λle. a ∸ b
       ≡⟨ cong (λu. ℕ) (λw. a ∸ w) (sym _ _ (idToEq _ _ _ (le .π₂))) ⟩ a ∸ (a + le .π₁)
       ≡⟨ monusPlus a a (le .π₁) ⟩ a ∸ a ∸ le .π₁
@@ -126,7 +126,7 @@ def monusZeroOfLe : (a b : ℕ) → El (a ≤ b) → a ∸ b ≡ Z using (id.Id.
       ≡⟨ zeroMonus (le .π₁) ⟩ Z
 
 -- ...and a ≤ b makes the difference add back
-def leMonusPlus : {a b : ℕ} → El (a ≤ b) → a + (b ∸ a) ≡ b using (id.Id.unfold, natOrder.≤.unfold) ≔
+def leMonusPlus : {a b : ℕ} → (a ≤ b) → a + (b ∸ a) ≡ b using (id.Id.unfold, natOrder.≤.unfold) ≔
   λa. λb. λle. let e : a
     + le .π₁ ≡ b ≔ idToEq
     _
@@ -144,13 +144,13 @@ def natMax : ℕ → ℕ → ℕ ≔ λa. λb. a + (b ∸ a)
 def natMin : ℕ → ℕ → ℕ ≔ λa. λb. a ∸ (a ∸ b)
 
 -- a sits under the max by construction: the witness is the difference
-def leMaxL : (a b : ℕ) → El (a ≤ natMax a b) using (natMore.natMax.eq, natOrder.≤.unfold) ≔
+def leMaxL : (a b : ℕ) → (a ≤ natMax a b) using (natMore.natMax.eq, natOrder.≤.unfold) ≔
   λa. λb. b ∸ a, eqToId _ _ ⋆
 
 -- and so does b, once the two cases are settled
 -- a ≤ b : the max IS b
 -- b ≤ a : the max is a, and b ≤ a
-def leMaxR : (a b : ℕ) → El (b ≤ natMax a b)
+def leMaxR : (a b : ℕ) → (b ≤ natMax a b)
   using (id.Id.unfold, natMore.natMax.eq, natOrder.≤.unfold) ≔
   λa. λb. ⊎-elim
     (le. Z, eqToId _ _ (trans _ _ _ (plusZeroId b) (sym (natMax a b) _ (leMonusPlus le))))

@@ -6,12 +6,12 @@ verified: re-parse identical, elaboration accepted, kernel Σ α-identical.
 -- argument), a data-carrying binder that must stay explicit, and a
 -- checking-position use recoverable from the expected type
 
-def id2 : {A : 𝕌} (a : El A) → El A ≔ λA. λa. a
+def id2 : {A : 𝕌} (a : A) → A ≔ λA. λa. a
 
-def use : (B : 𝕌) (b : El B) → El B ≔ λB. λb. id2 b
+def use : (B : 𝕌) (b : B) → B ≔ λB. λb. id2 b
 
-def sym2 : {A : 𝕌} {a b : El A} → (a ≡ b ∈ El A) → b ≡ a ∈ El A ≔ λA. λa. λb. λh. ⋆
+def sym2 : {A : 𝕌} {a b : A} → (a ≡ b ∈ A) → b ≡ a ∈ A ≔ λA. λa. λb. λh. ⋆
 
-def refl2 : (A : 𝕌) (a : El A) → a ≡ a ∈ El A ≔ λA. λa. ⋆
+def refl2 : (A : 𝕌) (a : A) → a ≡ a ∈ A ≔ λA. λa. ⋆
 
-def useSym : (C : 𝕌) (x y : El C) → (x ≡ y ∈ El C) → x ≡ y ∈ El C ≔ λC. λx. λy. λh. sym2 (sym2 h)
+def useSym : (C : 𝕌) (x y : C) → (x ≡ y ∈ C) → x ≡ y ∈ C ≔ λC. λx. λy. λh. sym2 (sym2 h)

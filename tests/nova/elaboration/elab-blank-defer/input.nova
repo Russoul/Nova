@@ -4,9 +4,9 @@
 -- type-determining proof in the spine
 
 def cong2 : (A : 𝕌)
-  (B : El A → 𝕌)
-  (f : (x : El A) → El (B x))
-  (a b : El A) → (a ≡ b) → f a ≡ f b ∈ El (B b)
+  (B : A → 𝕌)
+  (f : (x : A) → (B x))
+  (a b : A) → (a ≡ b) → f a ≡ f b ∈ (B b)
   using (hyp.rw) ≔ λA. λB. λf. λa. λb. λh. ⋆
 
 def double : ℕ → ℕ ≔ λn. ℕ-elim Z (k ih. S (S ih)) n

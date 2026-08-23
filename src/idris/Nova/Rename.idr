@@ -239,7 +239,6 @@ mutual
     UniverseTy => e
     PropTy => e
     TopTy => e
-    El t => El (rcE f t)
     Prf t => Prf (rcE f t)
     PiTy a b => PiTy (rcE f a) (rcE f b)
     SigmaTy a b => SigmaTy (rcE f a) (rcE f b)
@@ -259,18 +258,11 @@ mutual
     Out t => Out (rcE f t)
     Corec p a g x => Corec (rcP f p) (rcE f a) (rcE f g) (rcE f x)
 
+  ||| One sort (El retired): a code type carries names exactly where
+  ||| the element walk finds them — a former-only walk would leave a
+  ||| renamed reference stale inside an application-spine type.
   rcT : (String -> String) -> Ty -> Ty
-  rcT f ty = case ty of
-    SigVar n sp => SigVar (f n) (map (rcE f) sp)
-    PiTy a b => PiTy (rcT f a) (rcT f b)
-    SigmaTy a b => SigmaTy (rcT f a) (rcT f b)
-    SumTy a b => SumTy (rcT f a) (rcT f b)
-    El t => El (rcE f t)
-    Prf t => Prf (rcE f t)
-    QuotTy a r => QuotTy (rcT f a) (rcE f r)
-    QSort sg k sp => QSort (rcQSig f sg) k (map (rcE f) sp)
-    NuTy p => NuTy (rcP f p)
-    _ => ty
+  rcT = rcE
 
   rcP : (String -> String) -> Poly -> Poly
   rcP f p = case p of

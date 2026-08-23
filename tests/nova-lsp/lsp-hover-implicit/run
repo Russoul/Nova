@@ -1,5 +1,5 @@
 #!/bin/sh
 # a signature reference's hover reintroduces the surface implicitness
-# the kernel type does not carry: {A:𝕌} (a:El A) {B:𝕌} …
+# the kernel type does not carry: {A:𝕌} (a:A) {B:𝕌} …
 DIR="$(cd "$(dirname "$0")" && pwd)"
 "$1" lsp "$NOVA_LSP_BIN" "$DIR/fixture.nova" "cst n"

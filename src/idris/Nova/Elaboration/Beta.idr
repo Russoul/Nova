@@ -127,19 +127,6 @@ mutual
   compElem PropTy             = PropTy
   compElem TopTy              = TopTy
   compElem (Prf e)            = Prf (compElem e)
-  -- El-decoding (ty-el-*)
-  compElem (El e) =
-    case compElem e of
-      Elem.ZeroTy      => Elem.ZeroTy
-      Elem.OneTy       => Elem.OneTy
-      Elem.NatTy       => Elem.NatTy
-      Elem.PiTy a b    => compElem (Elem.PiTy (El a) (El b))
-      Elem.SigmaTy a b => compElem (Elem.SigmaTy (El a) (El b))
-      Elem.SumTy a b   => compElem (Elem.SumTy (El a) (El b))
-      QuotTy a r       => compElem (QuotTy (El a) r)
-      QSort sg k es    => QSort sg k es
-      Elem.NuTy f      => Elem.NuTy (compPoly f)
-      e'               => El e'
   compElem (Elem.PiTy a b)    = Elem.PiTy (compElem a) (compElem b)
   compElem (Elem.SigmaTy a b) = Elem.SigmaTy (compElem a) (compElem b)
   compElem (Elem.SumTy a b)   = Elem.SumTy (compElem a) (compElem b)

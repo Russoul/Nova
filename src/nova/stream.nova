@@ -11,52 +11,52 @@
 
 def stream : 𝕌 → 𝕌 ≔ λa. ν (K a ⨯ 𝕏)
 
-def hd : {a : 𝕌} → El (stream a) → El a using (stream.stream.unfold) ≔ λa. λt. (out t) .π₁
+def hd : {a : 𝕌} → stream a → a using (stream.stream.unfold) ≔ λa. λt. (out t) .π₁
 
-def tl : {a : 𝕌} → El (stream a) → El (stream a) using (stream.stream.unfold) ≔ λa. λt. (out t) .π₂
+def tl : {a : 𝕌} → stream a → stream a using (stream.stream.unfold) ≔ λa. λt. (out t) .π₂
 
 -- cons, by corecursion at the one-step carrier a ⨯ stream a: emit the
 -- stored head, then continue by OBSERVING the stored tail — Lambek's
 -- in, specialized
-def cons : {a : 𝕌} → El a → El (stream a) → El (stream a) using (stream.stream.unfold) ≔
+def cons : {a : 𝕌} → a → stream a → stream a using (stream.stream.unfold) ≔
   λa. λx. λs. corec (p : a ⨯ stream a. p .π₁, out (p .π₂)) (x, s)
 
 -- iterate f x: the stream x, f x, f (f x), …
-def iterate : {a : 𝕌} → (El a → El a) → El a → El (stream a) using (stream.stream.unfold) ≔
+def iterate : {a : 𝕌} → (a → a) → a → stream a using (stream.stream.unfold) ≔
   λa. λf. λx. corec (s : a. s, f s) x
 
 -- β-lemmas: one el-nu-beta step each (plus pairing/projections)
-def hdCons : {a : 𝕌} (x : El a) (s : El (stream a)) → hd (cons x s) ≡ x
+def hdCons : {a : 𝕌} (x : a) (s : stream a) → hd (cons x s) ≡ x
   using (cons.eq, hd.eq, hyp.rw, stream.eq, stream.stream.unfold) ≔
   λa. λx. λs. ⋆
 
-def hdIterate : {a : 𝕌} (f : El a → El a) (x : El a) → hd (iterate f x) ≡ x
+def hdIterate : {a : 𝕌} (f : a → a) (x : a) → hd (iterate f x) ≡ x
   using (hd.eq, hyp.rw, iterate.eq) ≔
   λa. λf. λx. ⋆
 
 -- two observation steps: the tail of an iterate is the iterate of the
 -- image — hd ∘ tl commutes with one application of f
-def hdTlIterate : {a : 𝕌} (f : El a → El a) (x : El a) → hd (tl (iterate f x)) ≡ f x
+def hdTlIterate : {a : 𝕌} (f : a → a) (x : a) → hd (tl (iterate f x)) ≡ f x
   using (hd.eq, hyp.rw, iterate.eq, tl.eq) ≔
   λa. λf. λx. ⋆
 
 -- the head under one cons-then-tail: reaches the stored tail's head
-def hdTlCons : {a : 𝕌} (x : El a) (s : El (stream a)) → hd (tl (cons x s)) ≡ hd s
+def hdTlCons : {a : 𝕌} (x : a) (s : stream a) → hd (tl (cons x s)) ≡ hd s
   using (cons.eq, hd.eq, stream.stream.unfold, tl.eq) ≔
   λa. λx. λs. ⋆
 
 -- map over streams: relabel every element, by corecursion on the
 -- source stream itself
-def map : {a b : 𝕌} → (El a → El b) → El (stream a) → El (stream b) using (stream.stream.unfold) ≔
+def map : {a b : 𝕌} → (a → b) → stream a → stream b using (stream.stream.unfold) ≔
   λa. λb. λf. λt. corec (s : stream a. f (hd s), tl s) t
 
 -- map commutes with the observations — the finite-depth shadow of
 -- the (η-needing) map-fusion laws, closed by pure computation
-def hdMap : {a b : 𝕌} (f : El a → El b) (t : El (stream a)) → hd (map f t) ≡ f (hd t)
+def hdMap : {a b : 𝕌} (f : a → b) (t : stream a) → hd (map f t) ≡ f (hd t)
   using (hd.eq, hyp.rw, map.eq, stream.eq, stream.stream.unfold) ≔
   λa. λb. λf. λt. ⋆
 
-def hdTlMap : {a b : 𝕌} (f : El a → El b) (t : El (stream a)) → hd (tl (map f t)) ≡ f (hd (tl t))
+def hdTlMap : {a b : 𝕌} (f : a → b) (t : stream a) → hd (tl (map f t)) ≡ f (hd (tl t))
   using (hd.eq, hyp.rw, map.eq, stream.eq, stream.stream.unfold, tl.eq) ≔
   λa. λb. λf. λt. ⋆
 
@@ -64,10 +64,9 @@ def hdTlMap : {a b : 𝕌} (f : El a → El b) (t : El (stream a)) → hd (tl (m
 -- η-needing laws close. tlCons: the tail of a cons is the consed
 -- stream — by coinduction with a GRAPH invariant: u is v's image
 -- under the one-step machine, for SOME v.
-def tlCons : {a : 𝕌} (x : El a) (s : El (stream a)) → tl (cons x s) ≡ s
+def tlCons : {a : 𝕌} (x : a) (s : stream a) → tl (cons x s) ≡ s
   using (cons.eq, hyp.rw, stream.eq, stream.stream.unfold, tl.eq) ≔
-  λa. λx. λs. coind (u v. ∥(w : El (stream a))
-    ⨯ (u ≡ corec (p : a ⨯ stream
-      a. p .π₁, out (p .π₂)) (out w) ∈ El (stream a)) ⨯ v ≡ w ∈ El (stream a)∥)
+  λa. λx. λs. coind (u v. ∥(w : stream a)
+    ⨯ (u ≡ corec (p : a ⨯ stream a. p .π₁, out (p .π₂)) (out w) ∈ stream a) ⨯ v ≡ w ∈ stream a∥)
     (⋆ (s, ⋆, ⋆))
     (u v h. squash-elim h (w. ⋆ (⋆, ⋆ ((out (w .π₁)) .π₂, ⋆, ⋆))))

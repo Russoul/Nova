@@ -17,7 +17,7 @@ import monoid (IsMonoid)
 import group (IsGroup)
 import ring (IsCommRing)
 
-def intCommRing : El (IsCommRing Int) using (intGroup.intAddGroup.eq, ring.IsCommRing.unfold) ≔
+def intCommRing : IsCommRing Int using (intGroup.intAddGroup.eq, ring.IsCommRing.unfold) ≔
   intAddGroup,
     (*),
       intOne,

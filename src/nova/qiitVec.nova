@@ -3,24 +3,24 @@
 -- dependent elimination at an indexed motive — and the functions at
 -- the same generality.
 
-data [a : 𝕌] ( V : El ℕ → U
+data [a : 𝕌] ( V : ℕ → U
      ; vnil : El (V Z)
-     ; vcons : (n : El ℕ) → El a → El (V n) → El (V (S n)) )
+     ; vcons : (n : ℕ) → a → El (V n) → El (V (S n)) )
 
 -- the GENERIC FOLD: one dependent elimination for every carrier and
 -- every result code
-def vfold : (a : 𝕌) {b : 𝕌} (z : El b) (c : El a → El b → El b) (n : El ℕ) → El (V a n) → El b
+def vfold : (a : 𝕌) {b : 𝕌} (z : b) (c : a → b → b) (n : ℕ) → V a n → b
   using (qiitVec.V.eq, qiitVec.V.unfold) ≔
   λa. λb. λz. λc. λn. λv. VElim a (λm. λw. b) z (λm. λx. λxs. λih. c x ih) n v
 
 -- generic length and an instance-level sum, both folds
-def vlen : (a : 𝕌) (n : El ℕ) → El (V a n) → ℕ ≔ λa. λn. λv. vfold _ Z (λx. λih. S ih) _ v
+def vlen : (a : 𝕌) (n : ℕ) → V a n → ℕ ≔ λa. λn. λv. vfold _ Z (λx. λih. S ih) _ v
 
 def plusV : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim y (n ih. S ih) x
 
-def vsum : (n : El ℕ) → El (V ℕ n) → ℕ ≔ λn. λv. vfold _ Z (λx. λih. plusV x ih) _ v
+def vsum : (n : ℕ) → V ℕ n → ℕ ≔ λn. λv. vfold _ Z (λx. λih. plusV x ih) _ v
 
-def single : El (V ℕ (S Z)) using (qiitVec.V.eq, qiitVec.V.unfold) ≔ vcons ℕ Z 3 (vnil ℕ)
+def single : V ℕ (S Z) using (qiitVec.V.eq, qiitVec.V.unfold) ≔ vcons ℕ Z 3 (vnil ℕ)
 
 def vsumSingle : vsum _ single ≡ 3
   using (qiitVec.VElim.eq,

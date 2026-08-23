@@ -84,21 +84,6 @@ mutual
   betaElem sig PropTy             = PropTy
   betaElem sig TopTy              = TopTy
   betaElem sig (Prf e)            = Prf (betaElem sig e)
-  -- El-decoding (ty-el-*): El of a canonical code computes to the
-  -- type it encodes; the decoded result is recursed into, since
-  -- decoding can expose a further decodable code.
-  betaElem sig (El e) =
-    case betaElem sig e of
-      Elem.ZeroTy      => Elem.ZeroTy
-      Elem.OneTy       => Elem.OneTy
-      Elem.NatTy       => Elem.NatTy
-      Elem.PiTy a b    => betaElem sig (Elem.PiTy (El a) (El b))
-      Elem.SigmaTy a b => betaElem sig (Elem.SigmaTy (El a) (El b))
-      Elem.SumTy a b   => betaElem sig (Elem.SumTy (El a) (El b))
-      QuotTy a r       => betaElem sig (QuotTy (El a) r)
-      QSort sg k es    => QSort sg k es           -- ty-el-qiit
-      Elem.NuTy f      => Elem.NuTy (betaPoly sig f)   -- ty-el-nu
-      e'               => El e'
   betaElem sig (Elem.PiTy a b)    = Elem.PiTy (betaElem sig a) (betaElem sig b)
   betaElem sig (Elem.SigmaTy a b) = Elem.SigmaTy (betaElem sig a) (betaElem sig b)
   betaElem sig (Elem.SumTy a b)   = Elem.SumTy (betaElem sig a) (betaElem sig b)
@@ -265,18 +250,6 @@ mutual
     case whnfE sig t of
       Corec p a f x => whnfE sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
       t'            => Out t'
-  whnfE sig (El e) =
-    case whnfE sig e of
-      Elem.ZeroTy      => Elem.ZeroTy
-      Elem.OneTy       => Elem.OneTy
-      Elem.NatTy       => Elem.NatTy
-      Elem.PiTy a b    => Elem.PiTy (El a) (El b)
-      Elem.SigmaTy a b => Elem.SigmaTy (El a) (El b)
-      Elem.SumTy a b   => Elem.SumTy (El a) (El b)
-      QuotTy a r       => QuotTy (El a) r
-      QSort sg k es    => QSort sg k es    -- ty-el-qiit
-      Elem.NuTy f      => Elem.NuTy f      -- ty-el-nu
-      e'               => El e'
   whnfE sig e = e
 
   ||| One sort: whnf on a type is whnf on the term.
@@ -318,15 +291,6 @@ step1E sig (QElim sg k ms fs es (QCtor sgW c theta)) =
     else Nothing
 step1E sig (Out (Corec p a f x)) =
   Just (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
-step1E sig (El Elem.ZeroTy) = Just Elem.ZeroTy
-step1E sig (El Elem.OneTy) = Just Elem.OneTy
-step1E sig (El Elem.NatTy) = Just Elem.NatTy
-step1E sig (El (Elem.PiTy a b)) = Just (Elem.PiTy (El a) (El b))
-step1E sig (El (Elem.SigmaTy a b)) = Just (Elem.SigmaTy (El a) (El b))
-step1E sig (El (Elem.SumTy a b)) = Just (Elem.SumTy (El a) (El b))
-step1E sig (El (QuotTy a r)) = Just (QuotTy (El a) r)
-step1E sig (El (QSort sg k es)) = Just (QSort sg k es)
-step1E sig (El (Elem.NuTy f)) = Just (Elem.NuTy f)
 step1E sig _ = Nothing
 
 ||| One sort: one single-step contraction.
@@ -371,7 +335,6 @@ mutual
       (Elem.EqTy l r t, 0) => (\l' => Elem.EqTy l' r t) <$> contractAtE sig p l
       (Elem.EqTy l r t, 1) => (\r' => Elem.EqTy l r' t) <$> contractAtE sig p r
       (Elem.EqTy l r t, 2) => Elem.EqTy l r <$> contractAtE sig p t
-      (El e2, 0) => El <$> contractAtE sig p e2
       (Prf e2, 0) => Prf <$> contractAtE sig p e2
       (QuotTy a r, 0) => (\a' => QuotTy a' r) <$> contractAtE sig p a
       (QuotTy a r, 1) => QuotTy a <$> contractAtE sig p r
@@ -453,7 +416,6 @@ mutual
       (Elem.EqTy l r t, 0) => subAtE p l
       (Elem.EqTy l r t, 1) => subAtE p r
       (Elem.EqTy l r t, 2) => subAtE p t
-      (El e2, 0) => subAtE p e2
       (Prf e2, 0) => subAtE p e2
       (QuotTy a r, 0) => subAtE p a
       (QuotTy a r, 1) => subAtE p r
@@ -520,7 +482,6 @@ mutual
     childIx (Elem.SigmaTy a b) = [(0, Left a), (1, Left b)]
     childIx (Elem.SumTy a b) = [(0, Left a), (1, Left b)]
     childIx (Elem.EqTy l r t) = [(0, Left l), (1, Left r), (2, Left t)]
-    childIx (El e2) = [(0, Left e2)]
     childIx (Prf e2) = [(0, Left e2)]
     childIx (QuotTy a r) = [(0, Left a), (1, Left r)]
     childIx (Elem.SigVar x es) =
@@ -584,7 +545,6 @@ replaceAtE (i :: p) r e =
     (Elem.EqTy l r2 t, 0) => (\l' => Elem.EqTy l' r2 t) <$> replaceAtE p r l
     (Elem.EqTy l r2 t, 1) => (\r2' => Elem.EqTy l r2' t) <$> replaceAtE p r r2
     (Elem.EqTy l r2 t, 2) => Elem.EqTy l r2 <$> replaceAtE p r t
-    (El e2, 0) => El <$> replaceAtE p r e2
     (Prf e2, 0) => Prf <$> replaceAtE p r e2
     (Squash t, 0) => Squash <$> replaceAtE p r t
     (QuotTy a r2, 0) => (\a' => QuotTy a' r2) <$> replaceAtE p r a

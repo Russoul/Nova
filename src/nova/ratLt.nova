@@ -11,19 +11,19 @@ import equality (trans, sym, cong, transport)
 import id (Id, eqToId, idToEq)
 
 infixl 4 <
-def < : El Q → El Q → 𝕌 ≔ λx. λy. Id _ (sgnQ (y + qNeg x)) sPos
+def < : Q → Q → 𝕌 ≔ λx. λy. Id _ (sgnQ (y + qNeg x)) sPos
 
-def ltQOfSgn : (x y : El Q) → (sgnQ (y + qNeg x) ≡ sPos) → El (x < y)
+def ltQOfSgn : (x y : Q) → (sgnQ (y + qNeg x) ≡ sPos) → (x < y)
   using (id.Id.unfold, ratLt.<.unfold, rationalQ.Q.unfold) ≔
   λx. λy. λh. eqToId _ _ h
 
-def sgnOfLtQ : {x y : El Q} → El (x < y) → sgnQ (y + qNeg x) ≡ sPos
+def sgnOfLtQ : {x y : Q} → (x < y) → sgnQ (y + qNeg x) ≡ sPos
   using (id.Id.unfold, ratLt.<.unfold, rationalQ.Q.unfold) ≔
   λx. λy. λh. idToEq _ _ _ h
 
 -- strict implies non-strict, on the nose: a positive sign IS a
 -- nonnegative one
-def leQOfLtQ : {x y : El Q} → El (x < y) → El (x ≤ y)
+def leQOfLtQ : {x y : Q} → (x < y) → (x ≤ y)
   using (id.Id.unfold,
     ratLt.<.unfold,
     rationalOrder.≤.unfold,
@@ -31,12 +31,12 @@ def leQOfLtQ : {x y : El Q} → El (x < y) → El (x ≤ y)
     rationalQ.Q.unfold) ≔
   λx. λy. λh. inj₂ h
 
-def ltQZero : (u : El Q) → El (qZero < u) → El (qZero ≤ u)
+def ltQZero : (u : Q) → (qZero < u) → (qZero ≤ u)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λu. λh. leQOfLtQ h
 
 -- ===== irreflexivity and asymmetry =====
-def ltQIrrefl : (x : El Q) → El (x < x) → 𝟘 ≔
+def ltQIrrefl : (x : Q) → (x < x) → 𝟘 ≔
   λx. λh. sZeroNotPos
     (trans
       _
@@ -45,7 +45,7 @@ def ltQIrrefl : (x : El Q) → El (x < x) → 𝟘 ≔
       (sym _ _ (trans _ _ _ (cong (λw. Sign) (λw. sgnQ w) (qAddNegR x)) sgnQZero))
       (sgnOfLtQ h))
 
-def ltQAsym : (x y : El Q) → El (x < y) → El (y < x) → 𝟘
+def ltQAsym : (x y : Q) → (x < y) → (y < x) → 𝟘
   using (id.Id.unfold,
     ratLt.<.unfold,
     rationalOrder.Sign.unfold,
@@ -71,7 +71,7 @@ def ltQAsym : (x y : El Q) → El (x < y) → El (y < x) → 𝟘
 
 -- ===== transitivity, in all four mixed forms =====
 -- a positive plus a NONNEGATIVE is positive: the zero case collapses
-def sgnQAddPosNonNeg : {a b : El Q} → (sgnQ a ≡ sPos) → El (NonNegS (sgnQ b)) → sgnQ (a + b) ≡ sPos
+def sgnQAddPosNonNeg : {a b : Q} → (sgnQ a ≡ sPos) → NonNegS (sgnQ b) → sgnQ (a + b) ≡ sPos
   using (rationalOrder.NonNegS.unfold) ≔
   λa. λb. λha. λhb. ⊎-elim
     (h0. trans
@@ -86,8 +86,7 @@ def sgnQAddPosNonNeg : {a b : El Q} → (sgnQ a ≡ sPos) → El (NonNegS (sgnQ 
     (hp. sgnQAddPos _ _ ha (idToEq _ _ _ hp))
     hb
 
-def ltQTrans : (x y z : El Q) → El (x < y) → El (y < z) → El (x < z)
-  using (id.Id.unfold, ratLt.<.unfold) ≔
+def ltQTrans : (x y z : Q) → (x < y) → (y < z) → (x < z) using (id.Id.unfold, ratLt.<.unfold) ≔
   λx. λy. λz. λh1. λh2. ltQOfSgn
     _
     _
@@ -98,7 +97,7 @@ def ltQTrans : (x y z : El Q) → El (x < y) → El (y < z) → El (x < z)
       (cong (λw. Sign) (λw. sgnQ w) (sym _ _ (qSubSplit x y z)))
       (sgnQAddPos _ _ (sgnOfLtQ h2) (sgnOfLtQ h1)))
 
-def leQLtTrans : (x y z : El Q) → El (x ≤ y) → El (y < z) → El (x < z)
+def leQLtTrans : (x y z : Q) → (x ≤ y) → (y < z) → (x < z)
   using (id.Id.unfold,
     ratLt.<.unfold,
     rationalOrder.≤.unfold,
@@ -115,7 +114,7 @@ def leQLtTrans : (x y z : El Q) → El (x ≤ y) → El (y < z) → El (x < z)
       (cong (λw. Sign) (λw. sgnQ w) (sym _ _ (qSubSplit x y z)))
       (sgnQAddPosNonNeg (sgnOfLtQ h2) h1))
 
-def ltQLeTrans : (x y z : El Q) → El (x < y) → El (y ≤ z) → El (x < z)
+def ltQLeTrans : (x y z : Q) → (x < y) → (y ≤ z) → (x < z)
   using (id.Id.unfold,
     ratLt.<.unfold,
     rationalOrder.≤.unfold,
@@ -136,7 +135,7 @@ def ltQLeTrans : (x y z : El Q) → El (x < y) → El (y ≤ z) → El (x < z)
       (sgnQAddPosNonNeg (sgnOfLtQ h1) h2))
 
 -- ===== trichotomy =====
-def ltQTrichotomy : (x y : El Q) → El (x < y) ⊎ El (Id _ x y) ⊎ El (y < x)
+def ltQTrichotomy : (x y : Q) → (x < y) ⊎ Id _ x y ⊎ (y < x)
   using (id.Id.eq,
     id.Id.unfold,
     ratLt.<.eq,
@@ -166,14 +165,14 @@ def ltQTrichotomy : (x y : El Q) → El (x < y) ⊎ El (Id _ x y) ⊎ El (y < x)
     (sgnCases (sgnQ (y + qNeg x)))
 
 -- ===== compatibility with addition =====
-def ltQPlusMono : (x y w : El Q) → El (x < y) → El (x + w < y + w)
+def ltQPlusMono : (x y w : Q) → (x < y) → (x + w < y + w)
   using (id.Id.unfold, ratLt.<.unfold, rationalQ.Q.unfold) ≔
   λx. λy. λw. λh. transport
     (λs. Id _ s sPos)
     (sym _ _ (cong (λv. Sign) (λv. sgnQ v) (qSubPlusCancel x y w)))
     h
 
-def ltQPlusMonoL : (x y w : El Q) → El (x < y) → El (w + x < w + y)
+def ltQPlusMonoL : (x y w : Q) → (x < y) → (w + x < w + y)
   using (id.Id.unfold, ratLt.<.unfold, rationalQ.Q.unfold) ≔
   λx. λy. λw. λh. transport
     (λs. Id _ s sPos)

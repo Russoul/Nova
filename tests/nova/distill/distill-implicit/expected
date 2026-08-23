@@ -3,7 +3,7 @@ elided 6 of 6 ∈-annotations and motives, blanked 0 arguments
 round-trip OK: ASTs identical, kernel Σ α-identical.
 def two : ℕ ≔ 2
 
-def id2 : {A : 𝕌} (a : El A) → El A ≔ λA. λa. a
+def id2 : {A : 𝕌} (a : A) → A ≔ λA. λa. a
 
 def useId : ℕ ≔ id2 two
 
@@ -11,8 +11,8 @@ def useOverride : ℕ ≔ id2 {ℕ} two
 
 def constF : ℕ → ℕ ≔ id2 (λx. x)
 
-def sym2 : {A : 𝕌} {a b : El A} → (a ≡ b) → b ≡ a ≔ λA. λa. λb. λh. ⋆
+def sym2 : {A : 𝕌} {a b : A} → (a ≡ b) → b ≡ a ≔ λA. λa. λb. λh. ⋆
 
-def flip2 : (C : 𝕌) (x y : El C) → (x ≡ y) → y ≡ x ≔ λC. λx. λy. λh. sym2 h
+def flip2 : (C : 𝕌) (x y : C) → (x ≡ y) → y ≡ x ≔ λC. λx. λy. λh. sym2 h
 
-def flipFlip : (C : 𝕌) (x y : El C) → (x ≡ y) → x ≡ y ≔ λC. λx. λy. λh. sym2 (sym2 h)
+def flipFlip : (C : 𝕌) (x y : C) → (x ≡ y) → x ≡ y ≔ λC. λx. λy. λh. sym2 (sym2 h)

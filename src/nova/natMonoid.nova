@@ -7,7 +7,7 @@ import nat (+, *, plusAssoc, zeroPlusId, plusZeroId, multAssoc, sucPlus)
 import id (eqToId)
 import monoid (IsMonoid)
 
-def natAddMonoid : El (IsMonoid ℕ) using (monoid.IsMonoid.unfold) ≔
+def natAddMonoid : IsMonoid ℕ using (monoid.IsMonoid.unfold) ≔
   (+),
     Z,
       (λx. λy. λz. eqToId
@@ -32,7 +32,7 @@ def oneMultL : (n : ℕ) → S Z * n ≡ n
   λn. ℕ-elim ⋆ (k ih. ⋆) n
 
 -- (ℕ, *, 1) is a monoid.
-def natMulMonoid : El (IsMonoid ℕ) using (monoid.IsMonoid.unfold) ≔
+def natMulMonoid : IsMonoid ℕ using (monoid.IsMonoid.unfold) ≔
   (*),
     S Z,
       (λx. λy. λz. eqToId

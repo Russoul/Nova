@@ -1,6 +1,6 @@
 -- el-quot-eq at an ARBITRARY Ω-valued relation: the witness is supplied
 -- (e-star-quot-wit), so the relation need not be ∥𝟙∥- or ≡-shaped — here
 -- it is an opaque relation variable.
-def classEqOfRel : (A : 𝕌) (r : El A → El A → Ω) (x : El A) (y : El A) →
-  Prf (r x y) → class x ≡ class y ∈ El (A / (u v. r u v)) ≔
+def classEqOfRel : (A : 𝕌) (r : A → A → Ω) (x : A) (y : A) →
+  Prf (r x y) → class x ≡ class y ∈ (A / (u v. r u v)) ≔
   λA. λr. λx. λy. λh. ⋆ h

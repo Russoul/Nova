@@ -158,7 +158,10 @@ export
 freshForTy : Ty -> NameEnv -> String
 freshForTy NatTy = freshFromList candidatesNat
 freshForTy UniverseTy = freshFromList candidatesUniv
-freshForTy (El _) = freshFromList candidatesEl
+-- El retired: a neutral code in type position gets the El-slot names
+freshForTy (SigVar _ _) = freshFromList candidatesEl
+freshForTy (CtxVar _) = freshFromList candidatesEl
+freshForTy (PiApp _ _) = freshFromList candidatesEl
 freshForTy PropTy = freshFromList candidatesProp
 freshForTy (Prf _) = freshFromList candidatesPrf
 freshForTy _ = freshFromList candidatesGeneric
@@ -241,7 +244,6 @@ mutual
   usesIndexElem k UniverseTy = False
   usesIndexElem k PropTy = False
   usesIndexElem k TopTy = False
-  usesIndexElem k (El e) = usesIndexElem k e
   usesIndexElem k (Prf e) = usesIndexElem k e
   usesIndexElem k (Elem.PiTy e e') = usesIndexElem k e || usesIndexElem (S k) e'
   usesIndexElem k (Elem.SigmaTy e e') = usesIndexElem k e || usesIndexElem (S k) e'
@@ -321,7 +323,7 @@ mutual
   prettyElemNoCommaN tbl env (Elem.EqTy e0 e1 t2) =
     prettyElemOpN tbl env 0 e0 ++ " ≡ " ++ prettyElemOpN tbl env 0 e1 ++ " ∈ " ++ prettyTyArrowN tbl env t2
   prettyElemNoCommaN tbl env (QuotTy e r) =
-    let x = freshForTy (El e) env
+    let x = freshForTy e env
         y = freshGeneric (env :< x)
     in prettyElemOpN tbl env 0 e ++ " / (" ++ x ++ " " ++ y ++ ". " ++ prettyElemNoCommaN tbl (env :< x :< y) r ++ ")"
   prettyElemNoCommaN tbl env e = prettyElemOpN tbl env 0 e
@@ -382,7 +384,6 @@ mutual
          ++ b ++ ". " ++ prettyElemN tbl (env :< b) r ++ ") "
          ++ prettyElemAtomN tbl env t
   prettyElemPrefixN tbl env (Class a) = "class " ++ prettyElemAtomN tbl env a
-  prettyElemPrefixN tbl env (El e) = "El " ++ prettyElemAtomN tbl env e
   prettyElemPrefixN tbl env (Prf e) = "Prf " ++ prettyElemAtomN tbl env e
   prettyElemPrefixN tbl env (Elem.NuTy f) = "ν " ++ prettyPolyAtomN tbl env f
   prettyElemPrefixN tbl env (Out t) = "out " ++ prettyElemAtomN tbl env t
@@ -505,7 +506,6 @@ mutual
   prettyTySumN tbl env ty = prettyTyElN tbl env ty
 
   prettyTyElN : FixTable -> NameEnv -> Ty -> String
-  prettyTyElN tbl env (El e) = "El " ++ prettyElemAtomN tbl env e
   prettyTyElN tbl env (Prf e) = "Prf " ++ prettyElemAtomN tbl env e
   prettyTyElN tbl env (NuTy f) = "ν " ++ prettyPolyAtomN tbl env f
   prettyTyElN tbl env ty = prettyTyAtomN tbl env ty
@@ -546,7 +546,16 @@ mutual
       then x
       else x ++ "[" ++ prettySubNormN tbl env es ++ "]"
   prettyTyAtomN tbl env (QSort sg k es) = prettyQSortN tbl env sg k es
-  prettyTyAtomN tbl env ty = "(" ++ prettyTyN tbl env ty ++ ")"
+  -- a non-former type is a CODE (El retired): print it as an element
+  -- — recursing into prettyTyN here would loop, since no type clause
+  -- will ever match it
+  prettyTyAtomN tbl env ty@(PiTy _ _) = "(" ++ prettyTyN tbl env ty ++ ")"
+  prettyTyAtomN tbl env ty@(SigmaTy _ _) = "(" ++ prettyTyN tbl env ty ++ ")"
+  prettyTyAtomN tbl env ty@(SumTy _ _) = "(" ++ prettyTyN tbl env ty ++ ")"
+  prettyTyAtomN tbl env ty@(QuotTy _ _) = "(" ++ prettyTyN tbl env ty ++ ")"
+  prettyTyAtomN tbl env ty@(Prf _) = "(" ++ prettyTyN tbl env ty ++ ")"
+  prettyTyAtomN tbl env ty@(NuTy _) = "(" ++ prettyTyN tbl env ty ++ ")"
+  prettyTyAtomN tbl env ty = prettyElemAtomN tbl env ty
 
 -- ===== Ctx =====
 

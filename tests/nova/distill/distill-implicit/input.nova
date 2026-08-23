@@ -1,10 +1,10 @@
 def two : ℕ ≔ 2
-def id2 : {A : 𝕌} (a : El A) → El A ≔ λA. λa. a
+def id2 : {A : 𝕌} (a : A) → A ≔ λA. λa. a
 def useId : ℕ ≔ id2 two
 def useOverride : ℕ ≔ id2 {ℕ} two
 def constF : ℕ → ℕ ≔ id2 (λx. x)
-def sym2 : {A : 𝕌} {a b : El A} → (a ≡ b ∈ El A) → b ≡ a ∈ El A ≔ λA. λa. λb. λh. ⋆
-def flip2 : (C : 𝕌) (x y : El C) → (x ≡ y ∈ El C) → y ≡ x ∈ El C ≔
+def sym2 : {A : 𝕌} {a b : A} → (a ≡ b ∈ A) → b ≡ a ∈ A ≔ λA. λa. λb. λh. ⋆
+def flip2 : (C : 𝕌) (x y : C) → (x ≡ y ∈ C) → y ≡ x ∈ C ≔
   λC. λx. λy. λh. sym2 h
-def flipFlip : (C : 𝕌) (x y : El C) → (x ≡ y ∈ El C) → x ≡ y ∈ El C ≔
+def flipFlip : (C : 𝕌) (x y : C) → (x ≡ y ∈ C) → x ≡ y ∈ C ≔
   λC. λx. λy. λh. sym2 (sym2 h)

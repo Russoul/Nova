@@ -16,7 +16,8 @@
 # normalization (see Scope).
 #
 # FRAGMENT. The formers 𝟘, 𝟙, ℕ, Π, Σ, the universe 𝕌 with its codes
-# {𝟘, 𝟙, ℕ, →, ⨯} and El-decoding, and extensional equality in the
+# {𝟘, 𝟙, ℕ, →, ⨯} and cumulativity (code-lift), and extensional
+# equality in the
 # composite form Prf (a₀ ≡ a₁ ∈ A) — formation (code-eq under Prf),
 # introduction (el-eq-i), reflection (el-reflect), and proof
 # irrelevance (el-prf-prop). Signatures are DEFINITIONAL only. Judgement
@@ -27,7 +28,8 @@
 # quotients, QIITs.
 #
 # THE ONE DESIGN DECISION. Types are NOT interpreted as meta-types.
-# Foundation's injectivity block (ty-pi-inj, ty-sigma-inj, ty-el-inj,
+# Foundation's injectivity block (ty-pi-inj, ty-sigma-inj,
+# code-restrict,
 # code-pi-inj, ...) is a semantic commitment that the naive reading
 # — ⟦A → B⟧ a meta function type — REFUTES: meta function types are
 # not injective in their components (Foundation's own remark: in the
@@ -133,9 +135,10 @@
     eq     : (c : Code₁) (x y : El₁ c) → Code₁        El₁ (eq c x y)   ≜ Id (x, y)
 
 # The embedding of small codes into large ones is a DEFINED
-# RECURSION, not a constructor — this is what makes the El-decoding
-# rules (ty-el-zero ... ty-el-sigma) hold definitionally rather than
-# clash with structural code equality:
+# RECURSION, not a constructor — this is what interprets CUMULATIVITY
+# (code-lift): a small code used as a type is its embedded large
+# code, definitionally, rather than clashing with structural code
+# equality:
 
     el : Code₀ → Code₁
     el zero₀         ≜ zero₁
@@ -153,7 +156,7 @@
 #  * INJECTIVITY: el c = el c′ implies c = c′. (el maps distinct
 #    constructors to distinct constructors and is injective on each
 #    argument, recursively; note el never produces univ or eq.)
-#    This is the semantic content of ty-el-inj.
+#    This is the semantic content of code-restrict.
 
 ////////// The CwF //////////
 
@@ -200,7 +203,9 @@
     ⟦𝕌⟧ γ                     ≜ univ
     ⟦A → B⟧ γ                 ≜ pi₁    (⟦A⟧ γ) (λ x. ⟦B⟧ (γ, x))
     ⟦A ⨯ B⟧ γ                 ≜ sigma₁ (⟦A⟧ γ) (λ x. ⟦B⟧ (γ, x))
-    ⟦El t⟧ γ                  ≜ el (⟦t⟧ γ)
+    ⟦t⟧ γ                     ≜ el (⟦t⟧ᵉˡ γ)   # t a small code used as
+                                               # a type — code-lift; ⟦·⟧ᵉˡ
+                                               # its element interpretation
     ⟦Prf (a₀ ≡ a₁ ∈ A)⟧ γ     ≜ eq (⟦A⟧ γ) (⟦a₀⟧ γ) (⟦a₁⟧ γ)
     ⟦A[σ]⟧                    ≜ ⟦A⟧ ∘ ⟦σ⟧
     # In this fragment Prf appears only in the composite above; Ω is
@@ -301,7 +306,7 @@
 #        functions, i.e. pointwise — exactly the rules' under-binder
 #        conclusions.
 #      code-pi-inj, code-sigma-inj ← the same at Code₀.
-#      ty-el-inj                 ← the el-injectivity lemma above.
+#      code-restrict             ← the el-injectivity lemma above.
 #    No-confusion (a Π-type never equal to ℕ, ...) holds in the
 #    model by the meta's no-confusion for inductive types —
 #    consistent with Foundation, which keeps it a meta-property.

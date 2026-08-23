@@ -12,11 +12,11 @@ import ratArch (leQSubShift, leQAddShift)
 import equality (trans, sym, cong, transport)
 import id (Id, eqToId, idToEq)
 
-def qMax : El Q → El Q → El Q using (rationalQ.Q.unfold) ≔
+def qMax : Q → Q → Q using (rationalQ.Q.unfold) ≔
   λu. λv. ⊎-elim (nn. v) (hn. u) (sgnCases (sgnQ (v + qNeg u)))
 
 -- ===== the lattice characterisation =====
-def leQMaxL : (u v : El Q) → El (u ≤ qMax u v)
+def leQMaxL : (u v : Q) → (u ≤ qMax u v)
   using (id.Id.eq,
     ratMax.qMax.eq,
     rationalOrder.≤.unfold,
@@ -29,14 +29,14 @@ def leQMaxL : (u v : El Q) → El (u ≤ qMax u v)
     rationalQ.Q.unfold,
     rationalQ.+.eq,
     rationalQ.qNeg.eq) ≔
-  λu. λv. ⊎-elim (w. El (u ≤ ⊎-elim (nn. v) (hn. u) w))
+  λu. λv. ⊎-elim (w. (u ≤ ⊎-elim (nn. v) (hn. u) w))
     (nn. nn)
     (hn. leQRefl _)
     (sgnCases (sgnQ (v + qNeg u)))
 
 -- v < u : the flipped difference is positive, and u − v IS the
 -- negation of v − u
-def leQMaxR : (u v : El Q) → El (v ≤ qMax u v)
+def leQMaxR : (u v : Q) → (v ≤ qMax u v)
   using (id.Id.eq,
     ratMax.qMax.eq,
     rationalOrder.≤.unfold,
@@ -49,7 +49,7 @@ def leQMaxR : (u v : El Q) → El (v ≤ qMax u v)
     rationalQ.Q.unfold,
     rationalQ.+.eq,
     rationalQ.qNeg.eq) ≔
-  λu. λv. ⊎-elim (w. El (v ≤ ⊎-elim (nn. v) (hn. u) w))
+  λu. λv. ⊎-elim (w. (v ≤ ⊎-elim (nn. v) (hn. u) w))
     (nn. leQRefl _)
     (hn. inj₂ (eqToId
       _
@@ -62,7 +62,7 @@ def leQMaxR : (u v : El Q) → El (v ≤ qMax u v)
         (sgnQNegOfNeg hn))))
     (sgnCases (sgnQ (v + qNeg u)))
 
-def qMaxLub : {u v w : El Q} → El (u ≤ w) → El (v ≤ w) → El (qMax u v ≤ w)
+def qMaxLub : {u v w : Q} → (u ≤ w) → (v ≤ w) → (qMax u v ≤ w)
   using (id.Id.eq,
     ratMax.qMax.eq,
     rationalOrder.≤.unfold,
@@ -75,19 +75,19 @@ def qMaxLub : {u v w : El Q} → El (u ≤ w) → El (v ≤ w) → El (qMax u v 
     rationalQ.Q.unfold,
     rationalQ.+.eq,
     rationalQ.qNeg.eq) ≔
-  λu. λv. λw. λh1. λh2. ⊎-elim (t. El (⊎-elim (nn. v) (hn. u) t ≤ w))
+  λu. λv. λw. λh1. λh2. ⊎-elim (t. (⊎-elim (nn. v) (hn. u) t ≤ w))
     (nn. h2)
     (hn. h1)
     (sgnCases (sgnQ (v + qNeg u)))
 
 -- ===== Lipschitz =====
 -- a two-sided bound on a difference is a pair of shifted ≤'s
-def leQAddOfBnd : {b u v : El Q} → El (Bnd b (u + qNeg v)) → El (u ≤ v + b)
+def leQAddOfBnd : {b u v : Q} → Bnd b (u + qNeg v) → (u ≤ v + b)
   using (ratBound.Bnd.unfold, rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λb. λu. λv. λh. leQAddShift _ (h .π₂)
 
-def bndMaxSub : (b a c a' c' : El Q)
-  → El (Bnd b (a + qNeg c)) → El (Bnd b (a' + qNeg c')) → El (Bnd b (qMax a a' + qNeg (qMax c c')))
+def bndMaxSub : (b a c a' c' : Q)
+  → Bnd b (a + qNeg c) → Bnd b (a' + qNeg c') → Bnd b (qMax a a' + qNeg (qMax c c'))
   using (ratBound.Bnd.unfold) ≔
   λb. λa. λc. λa'. λc'. λh1. λh2. bndOfBothLe
     _
@@ -105,16 +105,16 @@ def bndMaxSub : (b a c a' c' : El Q)
         (leQTrans _ _ _ (leQAddOfBnd (bndSubSym _ _ _ h1)) (leQPlusMono b (leQMaxL a a')))
         (leQTrans _ _ _ (leQAddOfBnd (bndSubSym _ _ _ h2)) (leQPlusMono b (leQMaxR a a')))))
 
-def qMaxSelf : (u : El Q) → qMax u u ≡ u ≔
+def qMaxSelf : (u : Q) → qMax u u ≡ u ≔
   λu. leQAntisym (qMaxLub (leQRefl u) (leQRefl u)) (leQMaxL u u)
 
-def qMaxComm : (u v : El Q) → qMax u v ≡ qMax v u ≔
+def qMaxComm : (u v : Q) → qMax u v ≡ qMax v u ≔
   λu. λv. leQAntisym (qMaxLub (leQMaxR v u) (leQMaxL v u)) (qMaxLub (leQMaxR u v) (leQMaxL u v))
 
 -- ===== the dual =====
-def qMin : El Q → El Q → El Q using (rationalQ.Q.unfold) ≔ λu. λv. qNeg (qMax (qNeg u) (qNeg v))
+def qMin : Q → Q → Q using (rationalQ.Q.unfold) ≔ λu. λv. qNeg (qMax (qNeg u) (qNeg v))
 
-def leQMinL : (u v : El Q) → El (qMin u v ≤ u)
+def leQMinL : (u v : Q) → (qMin u v ≤ u)
   using (id.Id.eq,
     ratMax.qMax.eq,
     ratMax.qMin.eq,
@@ -129,7 +129,7 @@ def leQMinL : (u v : El Q) → El (qMin u v ≤ u)
     rationalQ.qNeg.eq) ≔
   λu. λv. transport (λw. qMin u v ≤ w) (qNegNeg u) (leQNegFlip _ _ (leQMaxL (qNeg u) (qNeg v)))
 
-def leQMinR : (u v : El Q) → El (qMin u v ≤ v)
+def leQMinR : (u v : Q) → (qMin u v ≤ v)
   using (id.Id.eq,
     ratMax.qMax.eq,
     ratMax.qMin.eq,
@@ -144,7 +144,7 @@ def leQMinR : (u v : El Q) → El (qMin u v ≤ v)
     rationalQ.qNeg.eq) ≔
   λu. λv. transport (λw. qMin u v ≤ w) (qNegNeg v) (leQNegFlip _ _ (leQMaxR (qNeg u) (qNeg v)))
 
-def qMinGlb : {u v w : El Q} → El (w ≤ u) → El (w ≤ v) → El (w ≤ qMin u v)
+def qMinGlb : {u v w : Q} → (w ≤ u) → (w ≤ v) → (w ≤ qMin u v)
   using (id.Id.eq,
     ratMax.qMax.eq,
     ratMax.qMin.eq,
@@ -162,17 +162,17 @@ def qMinGlb : {u v w : El Q} → El (w ≤ u) → El (w ≤ v) → El (w ≤ qMi
     (qNegNeg w)
     (leQNegFlip _ _ (qMaxLub (leQNegFlip _ _ h1) (leQNegFlip _ _ h2)))
 
-def qMinComm : (u v : El Q) → qMin u v ≡ qMin v u
+def qMinComm : (u v : Q) → qMin u v ≡ qMin v u
   using (ratMax.qMax.eq, ratMax.qMin.eq, rationalQ.Q.unfold, rationalQ.qNeg.eq) ≔
   λu. λv. cong (λw. Q) (λw. qNeg w) (qMaxComm (qNeg u) (qNeg v))
 
 -- (−a) − (−c) ≡ c − a : the difference of negations is reversed
-def qNegDiff : (a c : El Q) → qNeg a + qNeg (qNeg c) ≡ c + qNeg a ≔
+def qNegDiff : (a c : Q) → qNeg a + qNeg (qNeg c) ≡ c + qNeg a ≔
   λa. λc. trans _ _ _ (cong (λw. Q) (λw. qNeg a + w) (qNegNeg c)) (qAddComm (qNeg a) c)
 
 -- min is 1-Lipschitz because max is: the negations cancel
-def bndMinSub : (b a c a' c' : El Q)
-  → El (Bnd b (a + qNeg c)) → El (Bnd b (a' + qNeg c')) → El (Bnd b (qMin a a' + qNeg (qMin c c')))
+def bndMinSub : (b a c a' c' : Q)
+  → Bnd b (a + qNeg c) → Bnd b (a' + qNeg c') → Bnd b (qMin a a' + qNeg (qMin c c'))
   using (ratBound.Bnd.unfold,
     ratMax.qMax.eq,
     ratMax.qMin.eq,
@@ -205,7 +205,7 @@ def bndMinSub : (b a c a' c' : El Q)
 -- a shifted greatest-lower-bound: w ≤ a + r and w ≤ b + r give
 -- w ≤ min a b + r. (The max side needs no such lemma — qMaxLub's
 -- target is already an upper bound.)
-def qMinGlbShift : (a b w r : El Q) → El (w ≤ a + r) → El (w ≤ b + r) → El (w ≤ qMin a b + r)
+def qMinGlbShift : (a b w r : Q) → (w ≤ a + r) → (w ≤ b + r) → (w ≤ qMin a b + r)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λa. λb. λw. λr. λh1. λh2. transport
     (λt. t ≤ qMin a b + r)

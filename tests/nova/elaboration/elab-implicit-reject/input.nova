@@ -1,2 +1,2 @@
-def id2 : {A : 𝕌} (a : El A) → El A ≔ λA. λa. a
+def id2 : {A : 𝕌} (a : A) → A ≔ λA. λa. a
 def bad : ℕ ≔ let g ≔ id2 (λx. x) in Z

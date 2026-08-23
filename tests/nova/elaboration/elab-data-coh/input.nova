@@ -3,10 +3,10 @@
 -- reported — never silently accepted).
 data ( Bag : U
      ; nil : El Bag
-     ; ins : (x : El ℕ) (m : El Bag) → El Bag
-     ; swp : (x : El ℕ) (y : El ℕ) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )
+     ; ins : (x : ℕ) (m : El Bag) → El Bag
+     ; swp : (x : ℕ) (y : ℕ) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )
 
 -- "first element or zero": ins x _ ↦ x ignores the tail's image, so
 -- swapping changes the result — the coherence ⋆ cannot discharge
-def headOr0 : El Bag → ℕ using (Bag.eq) ≔
+def headOr0 : Bag → ℕ using (Bag.eq) ≔
   λm. BagElim (λb. ℕ) Z (λx. λr. λih. x) (λx. λy. λr. λih. ⋆) m

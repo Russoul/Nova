@@ -35,16 +35,16 @@ import id (eqToId)
 import realBound (seqBound, bndSeqBound, seqBoundPos)
 import equality (trans, sym, cong, transport)
 
-def rZero : El RSeq using (real.RSeq.unfold) ≔ (λn. qZero), constReg
+def rZero : RSeq using (real.RSeq.unfold) ≔ (λn. qZero), constReg
 
-def rOne : El RSeq using (real.RSeq.unfold) ≔ (λn. qOne), constReg
+def rOne : RSeq using (real.RSeq.unfold) ≔ (λn. qOne), constReg
 
 -- ===== u · 0 = 0, pointwise =====
-def rMulZeroR : {p : El RSeq} → rMul p rZero ≡ rZero
+def rMulZeroR : {p : RSeq} → rMul p rZero ≡ rZero
   using (rZero.eq, realMul.mulSeq.eq, realMul.rMul.eq, realNeg.seqOf.eq) ≔
   λp. rseqEq (λn. qMulZeroR (seqOf p (mulIdx (mulPred p rZero) n)))
 
-def realMulZeroR : {u : El Real} → u * realZero ≡ realZero
+def realMulZeroR : {u : Real} → u * realZero ≡ realZero
   using (rZero.eq, real.Real.unfold, real.realOfQ.eq, real.realZero.eq) ≔
   λu. quot-elim
     (p. trans
@@ -55,12 +55,12 @@ def realMulZeroR : {u : El Real} → u * realZero ≡ realZero
       (cong (λw. Real) (λw. class w) {rMul p rZero} {rZero} rMulZeroR))
     u
 
-def realMulZeroL : {u : El Real} → realZero * u ≡ realZero ≔
+def realMulZeroL : {u : Real} → realZero * u ≡ realZero ≔
   λu. trans _ _ _ (realMulComm realZero u) realMulZeroR
 
 -- ===== the deepening inequality =====
 -- multiplying a nonnegative by S c ≥ 1 only grows it
-def leQSelfMulNat : {c : ℕ} {x : El Q} → El (qZero ≤ x) → El (x ≤ qOfNat (S c) * x) ≔
+def leQSelfMulNat : {c : ℕ} {x : Q} → (qZero ≤ x) → (x ≤ qOfNat (S c) * x) ≔
   λc. λx. λhx. transport
     {Q}
     (λw. x ≤ w)
@@ -71,7 +71,7 @@ def leQSelfMulNat : {c : ℕ} {x : El Q} → El (qZero ≤ x) → El (x ≤ qOfN
 -- ...so sampling deeper gives a smaller harmonic bound. The EQUATION
 -- qMulInvIdx is what makes this free: the factor is exact, so the
 -- inequality is just "times S c is not smaller".
-def leQInvIdx : (c m : ℕ) → El (qInvNat (mulIdx c m) ≤ qInvNat m) ≔
+def leQInvIdx : (c m : ℕ) → (qInvNat (mulIdx c m) ≤ qInvNat m) ≔
   λc. λm. transport
     {Q}
     (λw. qInvNat (mulIdx c m) ≤ w)
@@ -80,16 +80,16 @@ def leQInvIdx : (c m : ℕ) → El (qInvNat (mulIdx c m) ≤ qInvNat m) ≔
     qMulInvIdx
     (leQSelfMulNat (leQZeroInvNat (mulIdx c m)))
 
-def leQRBoundIdx : (c m : ℕ) → El (rBound (mulIdx c m) m ≤ rBound m m) using (real.rBound.eq) ≔
+def leQRBoundIdx : (c m : ℕ) → (rBound (mulIdx c m) m ≤ rBound m m) using (real.rBound.eq) ≔
   λc. λm. leQPlusMono (qInvNat m) (leQInvIdx c m)
 
 -- ===== u · 1 = u =====
 -- the product's value at the deep index IS the original's, since the
 -- second factor is 1 at every index
-def mulOneAt : (x y : El Q) → x + qNeg y ≡ x * qOne + qNeg y ≔
+def mulOneAt : (x y : Q) → x + qNeg y ≡ x * qOne + qNeg y ≔
   λx. λy. cong (λw. Q) (λw. w + qNeg y) (sym _ _ (qMulOneR x))
 
-def rMulOneWD : (p : El RSeq) → Prf (REq (rMul p rOne) p)
+def rMulOneWD : (p : RSeq) → Prf (REq (rMul p rOne) p)
   using (rOne.eq, realMul.mulSeq.eq, realMul.rMul.eq, realNeg.seqOf.eq) ≔
   λp. reqOf
     _
@@ -105,13 +105,13 @@ def rMulOneWD : (p : El RSeq) → Prf (REq (rMul p rOne) p)
         (mulOneAt (seqOf p (mulIdx (mulPred p rOne) n)) (seqOf p n))
         (regBnd _ (regOf p) (mulIdx (mulPred p rOne) n) n)))
 
-def realMulOneR : (u : El Real) → u * realOne ≡ u
+def realMulOneR : (u : Real) → u * realOne ≡ u
   using (rOne.eq, real.Real.unfold, real.realOfQ.eq, real.realOne.eq) ≔
   λu. quot-elim
     (p. trans _ (class (rMul p rOne)) _ (realMulCls rOne) (realEqOfREq _ _ (rMulOneWD p)))
     u
 
-def realMulOneL : (u : El Real) → realOne * u ≡ u ≔
+def realMulOneL : (u : Real) → realOne * u ≡ u ≔
   λu. trans _ _ _ (realMulComm realOne u) (realMulOneR u)
 
 -- ===== the closeness criterion =====
@@ -136,14 +136,14 @@ def realMulOneL : (u : El Real) → realOne * u ≡ u ≔
 -- qMulSucNat still matches (the poison rule).
 -- No inequality between fractions is needed anywhere — only that one
 -- equation.
-def kkY : (K : ℕ) (y : El Q) → qOfNat (K + K) * y ≡ qOfNat K * (y + y) ≔
+def kkY : (K : ℕ) (y : Q) → qOfNat (K + K) * y ≡ qOfNat K * (y + y) ≔
   λK. λy. qOfNat (K + K) * y
       ≡⟨ cong (λv. Q) (λv. v * y) (sym _ _ (qOfNatAdd K K)) ⟩ (qOfNat K + qOfNat K) * y
       ≡⟨ qDistribR y (qOfNat K) (qOfNat K) ⟩ qOfNat K * y + qOfNat K * y
       ≡⟨ sym _ _ (qDistribL (qOfNat K) y y) ⟩ qOfNat K * (y + y)
 
 -- y + (K·(y + y) + y) is (2K + 2)·y
-def twoKTwo : (K : ℕ) (y : El Q) → y + (qOfNat K * (y + y) + y) ≡ qOfNat (S (S (K + K))) * y ≔
+def twoKTwo : (K : ℕ) (y : Q) → y + (qOfNat K * (y + y) + y) ≡ qOfNat (S (S (K + K))) * y ≔
   λK. λy. y + (qOfNat K * (y + y) + y)
       ≡⟨ qAddComm y (qOfNat K * (y + y) + y) ⟩ qOfNat K * (y + y) + y + y
       ≡⟨ cong (λv. Q) (λv. v + y + y) (sym _ _ (kkY K y)) ⟩ qOfNat (K + K) * y + y + y
@@ -154,10 +154,10 @@ def twoKTwo : (K : ℕ) (y : El Q) → y + (qOfNat K * (y + y) + y) ≡ qOfNat (
 -- The factor equation is an ARGUMENT: at the call site w is 1/(l + 1)
 -- and the equation is qMulInvIdx, so the deep index never has to be
 -- looked at (B-16).
-def closeBoundEq : (x : El Q)
-  {y : El Q}
+def closeBoundEq : (x : Q)
+  {y : Q}
   {K : ℕ}
-  {w : El Q}
+  {w : Q}
   → (qOfNat (S (S (K + K))) * y ≡ w) → x + y + (qOfNat K * (y + y) + (y + x)) ≡ x + x + w ≔
   λx. λy. λK. λw. λhw. x + y + (qOfNat K * (y + y) + (y + x))
       ≡⟨ qRearr5 x y (qOfNat K * (y + y)) y ⟩ x + x + (y + (qOfNat K * (y + y) + y))
@@ -165,31 +165,31 @@ def closeBoundEq : (x : El Q)
       ≡⟨ cong (λv. Q) (λv. x + x + v) hw ⟩ x + x + w
 
 -- the three-leg chain, abstract in the sequences and the deep index
-def closeStepGen : (f g : El (ℕ → Q))
+def closeStepGen : (f g : ℕ → Q)
   (K n N : ℕ)
-  (w : El Q)
-  → El (Bnd
+  (w : Q)
+  → Bnd
     (rBound n N)
     (f
       n
       + qNeg
         (f
-          N)))
-    → El (Bnd
+          N))
+    → Bnd
       (qOfNat K * rBound N N)
       (f
         N
         + qNeg
           (g
-            N)))
-      → El (Bnd
+            N))
+      → Bnd
         (rBound N n)
         (g
           N
           + qNeg
             (g
-              n)))
-        → (qOfNat (S (S (K + K))) * qInvNat N ≡ w) → El (Bnd (rBound n n + w) (f n + qNeg (g n)))
+              n))
+        → (qOfNat (S (S (K + K))) * qInvNat N ≡ w) → Bnd (rBound n n + w) (f n + qNeg (g n))
   using (real.rBound.eq) ≔
   λf. λg. λK. λn. λN. λw. λh1. λh2. λh3. λhw. bndEqB
     (rBound n N + (qOfNat K * rBound N N + rBound N n))
@@ -198,9 +198,9 @@ def closeStepGen : (f g : El (ℕ → Q))
     (closeBoundEq (qInvNat n) hw)
     (bndVia _ _ _ _ _ h1 (bndVia _ _ _ _ _ h2 h3))
 
-def reqOfClose : {u v : El RSeq}
+def reqOfClose : {u v : RSeq}
   (K : ℕ)
-  → ((n : ℕ) → El (Bnd (qOfNat K * rBound n n) (seqOf u n + qNeg (seqOf v n)))) → Prf (REq u v) ≔
+  → ((n : ℕ) → Bnd (qOfNat K * rBound n n) (seqOf u n + qNeg (seqOf v n))) → Prf (REq u v) ≔
   λu. λv. λK. λh. reqOf
     _
     _
@@ -231,97 +231,96 @@ def reqOfClose : {u v : El RSeq}
 -- bndMulSub at the COMMON modulus rBound m m, and add. The constant
 -- that comes out is (A + B) + (A + C), which is exactly what
 -- reqOfClose is willing to absorb.
-def qSubPair : (a b c d : El Q) → a + qNeg c + (b + qNeg d) ≡ a + b + qNeg (c + d) ≔
+def qSubPair : (a b c d : Q) → a + qNeg c + (b + qNeg d) ≡ a + b + qNeg (c + d) ≔
   λa. λb. λc. λd. a + qNeg c + (b + qNeg d)
       ≡⟨ qPairSwap a (qNeg c) b (qNeg d) ⟩ a + b + (qNeg c + qNeg d)
       ≡⟨ cong (λv. Q) (λv. a + b + v) (sym _ _ (qNegAdd c d)) ⟩ a + b + qNeg (c + d)
 
 -- two samples of one regular sequence, both at least as deep as m,
 -- differ by at most rBound m m
-def bndDeep : (f : El (ℕ → Q))
+def bndDeep : (f : ℕ → Q)
   → ((a b : ℕ)
-    → El (Bnd
+    → Bnd
       (rBound a b)
       (f
         a
         + qNeg
           (f
-            b))))
+            b)))
     → (a b m : ℕ)
-      → El (qInvNat
-        a ≤ qInvNat m) → El (qInvNat b ≤ qInvNat m) → El (Bnd (rBound m m) (f a + qNeg (f b)))
+      → (qInvNat a ≤ qInvNat m) → (qInvNat b ≤ qInvNat m) → Bnd (rBound m m) (f a + qNeg (f b))
   using (real.rBound.eq) ≔
   λf. λhf. λa. λb. λm. λha. λhb. bndWeaken (rBound a b) _ _ (leQAdd _ _ _ _ ha hb) (hf a b)
 
-def distribStepGen : (f g h : El (ℕ → Q))
+def distribStepGen : (f g h : ℕ → Q)
   (A B C m i t j k : ℕ)
   → ((a : ℕ)
-    → El (Bnd
+    → Bnd
       (qOfNat A)
       (f
-        a)))
+        a))
     → ((a : ℕ)
-      → El (Bnd
+      → Bnd
         (qOfNat B)
         (g
-          a)))
+          a))
       → ((a : ℕ)
-        → El (Bnd
+        → Bnd
           (qOfNat C)
           (h
-            a)))
+            a))
         → ((a b : ℕ)
-          → El (Bnd
+          → Bnd
             (rBound a b)
             (f
               a
               + qNeg
                 (f
-                  b))))
+                  b)))
           → ((a b : ℕ)
-            → El (Bnd
+            → Bnd
               (rBound a b)
               (g
                 a
                 + qNeg
                   (g
-                    b))))
+                    b)))
             → ((a b : ℕ)
-              → El (Bnd
+              → Bnd
                 (rBound a b)
                 (h
                   a
                   + qNeg
                     (h
-                      b))))
-              → El (qInvNat
+                      b)))
+              → (qInvNat
                 i
                 ≤ qInvNat
                   m)
-                → El (qInvNat
+                → (qInvNat
                   t
                   ≤ qInvNat
                     m)
-                  → El (qInvNat
+                  → (qInvNat
                     j
                     ≤ qInvNat
                       m)
-                    → El (qInvNat
+                    → (qInvNat
                       k
                       ≤ qInvNat
                         m)
-                      → El (qZero
+                      → (qZero
                         ≤ qOfNat
                           A)
-                        → El (qZero
+                        → (qZero
                           ≤ qOfNat
                             B)
-                          → El (qZero
+                          → (qZero
                             ≤ qOfNat
                               C)
-                            → El (Bnd
+                            → Bnd
                               (qOfNat (A + B + (A + C)) * rBound m m)
-                              (f i * (g t + h t) + qNeg (f j * g j + f k * h k))) ≔
+                              (f i * (g t + h t) + qNeg (f j * g j + f k * h k)) ≔
   λf. λg. λh. λA. λB. λC. λm. λi. λt. λj. λk. λhfB. λhgB. λhhB. λhfR. λhgR. λhhR. λdi. λdt. λdj. λdk. λhA. λhB. λhC. bndEq
     _
     _
@@ -361,7 +360,7 @@ def distribStepGen : (f g h : El (ℕ → Q))
           hC
           (leQZeroBound m m))))
 
-def rDistrib : (p q r : El RSeq) → Prf (REq (rMul p (rAdd q r)) (rAdd (rMul p q) (rMul p r)))
+def rDistrib : (p q r : RSeq) → Prf (REq (rMul p (rAdd q r)) (rAdd (rMul p q) (rMul p r)))
   using (realAdd.addSeq.eq, realAdd.rAdd.eq, realMul.mulSeq.eq, realMul.rMul.eq, realNeg.seqOf.eq) ≔
   λp. λq. λr. reqOfClose
     (seqBound p + seqBound q + (seqBound p + seqBound r))
@@ -396,7 +395,7 @@ def rDistrib : (p q r : El RSeq) → Prf (REq (rMul p (rAdd q r)) (rAdd (rMul p 
       seqBoundPos
       seqBoundPos)
 
-def realDistribL : (u v w : El Real) → u * (v + w) ≡ u * v + u * w
+def realDistribL : (u v w : Real) → u * (v + w) ≡ u * v + u * w
   using (real.Real.unfold, realAdd.+.eq, realMul.*.eq) ≔
   λu. λv. λw. quot-elim (p. quot-elim (q. quot-elim (r. realEqOfREq _ _ (rDistrib p q r)) w) v) u
 
@@ -417,7 +416,7 @@ def realDistribL : (u v w : El Real) → u * (v + w) ≡ u * v + u * w
 -- so the outer estimate needs the two moduli to differ — bndMulSubQ.
 -- The constant that falls out is A·B + C·(A + B), a natural, which is
 -- all reqOfClose asks for.
-def leQZeroAdd : {u v : El Q} → El (qZero ≤ u) → El (qZero ≤ v) → El (qZero ≤ u + v) ≔
+def leQZeroAdd : {u v : Q} → (qZero ≤ u) → (qZero ≤ v) → (qZero ≤ u + v) ≔
   λu. λv. λhu. λhv. leQTrans _ _ _ hu (leQSelfAdd u hv)
 
 -- α·β + γ·(α + β), as a rational, is the natural A·B + C·(A + B)
@@ -440,9 +439,9 @@ def kappaEq : (A B C : ℕ)
 
 -- (αβ)d + γ(αd + βd) ≡ κ·d, with κ = αβ + γ(α + β) given as an
 -- argument (the factor, parameterised — B-16 again)
-def assocBoundEq : {al be ga : El Q}
-  (d : El Q)
-  {kp : El Q}
+def assocBoundEq : {al be ga : Q}
+  (d : Q)
+  {kp : Q}
   → (al * be + ga * (al + be) ≡ kp) → al * be * d + ga * (al * d + be * d) ≡ kp * d ≔
   λal. λbe. λga. λd. λkp. λhk. al * be * d + ga * (al * d + be * d)
       ≡⟨ cong
@@ -456,75 +455,75 @@ def assocBoundEq : {al be ga : El Q}
       ≡⟨ sym _ _ (qDistribR d (al * be) (ga * (al + be))) ⟩ (al * be + ga * (al + be)) * d
       ≡⟨ cong (λv. Q) (λv. v * d) hk ⟩ kp * d
 
-def assocStepGen : (f g h : El (ℕ → Q))
+def assocStepGen : (f g h : ℕ → Q)
   (A B C m a i j b : ℕ)
   → ((z : ℕ)
-    → El (Bnd
+    → Bnd
       (qOfNat A)
       (f
-        z)))
+        z))
     → ((z : ℕ)
-      → El (Bnd
+      → Bnd
         (qOfNat B)
         (g
-          z)))
+          z))
       → ((z : ℕ)
-        → El (Bnd
+        → Bnd
           (qOfNat C)
           (h
-            z)))
+            z))
         → ((z w : ℕ)
-          → El (Bnd
+          → Bnd
             (rBound z w)
             (f
               z
               + qNeg
                 (f
-                  w))))
+                  w)))
           → ((z w : ℕ)
-            → El (Bnd
+            → Bnd
               (rBound z w)
               (g
                 z
                 + qNeg
                   (g
-                    w))))
+                    w)))
             → ((z w : ℕ)
-              → El (Bnd
+              → Bnd
                 (rBound z w)
                 (h
                   z
                   + qNeg
                     (h
-                      w))))
-              → El (qInvNat
+                      w)))
+              → (qInvNat
                 a
                 ≤ qInvNat
                   m)
-                → El (qInvNat
+                → (qInvNat
                   i
                   ≤ qInvNat
                     m)
-                  → El (qInvNat
+                  → (qInvNat
                     j
                     ≤ qInvNat
                       m)
-                    → El (qInvNat
+                    → (qInvNat
                       b
                       ≤ qInvNat
                         m)
-                      → El (qZero
+                      → (qZero
                         ≤ qOfNat
                           A)
-                        → El (qZero
+                        → (qZero
                           ≤ qOfNat
                             B)
-                          → El (qZero
+                          → (qZero
                             ≤ qOfNat
                               C)
-                            → El (Bnd
+                            → Bnd
                               (qOfNat (A * B + C * (A + B)) * rBound m m)
-                              (f a * g a * h i + qNeg (f j * (g b * h b)))) ≔
+                              (f a * g a * h i + qNeg (f j * (g b * h b))) ≔
   λf. λg. λh. λA. λB. λC. λm. λa. λi. λj. λb. λhfB. λhgB. λhhB. λhfR. λhgR. λhhR. λda. λdi. λdj. λdb. λhA. λhB. λhC. bndEq
     _
     _
@@ -552,7 +551,7 @@ def assocStepGen : (f g h : El (ℕ → Q))
         (leQZeroBound m m)
         (leQZeroAdd (leQZeroMul hA (leQZeroBound m m)) (leQZeroMul hB (leQZeroBound m m)))))
 
-def rAssoc : (p q r : El RSeq) → Prf (REq (rMul (rMul p q) r) (rMul p (rMul q r)))
+def rAssoc : (p q r : RSeq) → Prf (REq (rMul (rMul p q) r) (rMul p (rMul q r)))
   using (realMul.mulSeq.eq, realMul.rMul.eq, realNeg.seqOf.eq) ≔
   λp. λq. λr. reqOfClose
     (seqBound p * seqBound q + seqBound r * (seqBound p + seqBound q))
@@ -592,13 +591,12 @@ def rAssoc : (p q r : El RSeq) → Prf (REq (rMul (rMul p q) r) (rMul p (rMul q 
       seqBoundPos
       seqBoundPos)
 
-def realMulAssoc : (u v w : El Real) → u * v * w ≡ u * (v * w)
-  using (real.Real.unfold, realMul.*.eq) ≔
+def realMulAssoc : (u v w : Real) → u * v * w ≡ u * (v * w) using (real.Real.unfold, realMul.*.eq) ≔
   λu. λv. λw. quot-elim (p. quot-elim (q. quot-elim (r. realEqOfREq _ _ (rAssoc p q r)) w) v) u
 
 -- ===== the remaining laws, and the structure =====
 -- right distributivity, by commuting into the left one
-def realDistribR : (u v w : El Real) → (v + w) * u ≡ v * u + w * u ≔
+def realDistribR : (u v w : Real) → (v + w) * u ≡ v * u + w * u ≔
   λu. λv. λw. trans
     _
     _
@@ -618,7 +616,7 @@ def realDistribR : (u v w : El Real) → (v + w) * u ≡ v * u + w * u ≔
 
 -- (−u)·v = −(u·v), a RING consequence: (−u)·v is an additive inverse
 -- of u·v, and inverses are unique. No estimate, no representatives.
-def realMulNeg : {u v : El Real} → realNeg u * v ≡ realNeg (u * v) ≔
+def realMulNeg : {u v : Real} → realNeg u * v ≡ realNeg (u * v) ≔
   λu. λv. realNegUnique
     _
     _
@@ -629,7 +627,7 @@ def realMulNeg : {u v : El Real} → realNeg u * v ≡ realNeg (u * v) ≔
       (sym _ _ (realDistribR v u (realNeg u)))
       (trans _ _ realZero (cong (λz. Real) (λz. z * v) (realAddNegR u)) realMulZeroL))
 
-def realMulNegR : (u v : El Real) → u * realNeg v ≡ realNeg (u * v) ≔
+def realMulNegR : (u v : Real) → u * realNeg v ≡ realNeg (u * v) ≔
   λu. λv. trans
     _
     _
@@ -639,7 +637,7 @@ def realMulNegR : (u v : El Real) → u * realNeg v ≡ realNeg (u * v) ≔
 
 -- ...so ℝ is a commutative ring, and the laws above are exactly its
 -- components
-def realCommRing : El (IsCommRing Real) using (realGroup.realAddGroup.eq, ring.IsCommRing.unfold) ≔
+def realCommRing : IsCommRing Real using (realGroup.realAddGroup.eq, ring.IsCommRing.unfold) ≔
   realAddGroup,
     (*),
       realOne,

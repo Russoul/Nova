@@ -16,7 +16,7 @@ import monoid (IsMonoid)
 import group (IsGroup)
 import field (IsField)
 
-def ratAddGroup : El (IsGroup Q) using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔
+def ratAddGroup : IsGroup Q using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔
   ((+),
     qZero,
       (λx. λy. λz. eqToId
@@ -36,7 +36,7 @@ def ratAddGroup : El (IsGroup Q) using (group.IsGroup.unfold, monoid.IsMonoid.un
             _
             (qAddZeroR x)), qNeg, (λx. eqToId _ _ (qAddNegL x)), λx. eqToId _ _ (qAddNegR x)
 
-def ratMulMonoid : El (IsMonoid Q) using (monoid.IsMonoid.unfold) ≔
+def ratMulMonoid : IsMonoid Q using (monoid.IsMonoid.unfold) ≔
   (*),
     qOne,
       (λx. λy. λz. eqToId
@@ -51,7 +51,7 @@ def ratMulMonoid : El (IsMonoid Q) using (monoid.IsMonoid.unfold) ≔
 -- relation (which δβ-computes to class (S Z , Z) ≡ class (Z , Z)),
 -- intEffective turns THAT into its ℕ relation (which computes to
 -- S Z ≡ Z), and zNotS transports () across it into 𝟘.
-def qOneNotZeroD : El (Id _ qOne qZero) → 𝟘
+def qOneNotZeroD : Id _ qOne qZero → 𝟘
   using (id.Id.unfold,
     integer.Int.eq,
     integer.IntR.eq,
@@ -89,7 +89,7 @@ def qOneNotZeroD : El (Id _ qOne qZero) → 𝟘
 -- Its nonzero hypothesis arrives as an Id-refutation k; the Ω-side
 -- negation qMulInvR needs is one bridge away — an Ω-equality would
 -- give an Id (eqToId), k would give 𝟘, and ⋆ witnesses ⊥ from it.
-def ratField : El (IsField Q)
+def ratField : IsField Q
   using (field.IsField.unfold,
     id.Id.eq,
     prop.⊥.unfold,
@@ -105,35 +105,31 @@ def ratField : El (IsField Q)
   ratAddGroup,
     ratMulMonoid,
       (λx. λy. eqToId
-        (x + y)
-        (y + x)
+        _
+        _
         (qAddComm
           x
           y)),
         (λx. λy. eqToId
-          (x * y)
-          (y * x)
+          _
+          _
           (qMulComm
             x
             y)),
           (λx. λy. λz. eqToId
-            (x * (y + z))
-            (x * y + x * z)
+            _
+            _
             (qDistribL
               x
               y
               z)),
             (λx. λy. λz. eqToId
-              ((y + z) * x)
-              (y * x + z * x)
+              _
+              _
               (qDistribR
                 x
                 y
                 z)),
               qOneNotZeroD,
                 λx. λk. qInv
-                  x,
-                  eqToId
-                    (x * qInv x)
-                    qOne
-                    (qMulInvR (notIntro (x ≡ qZero) (λe. ⋆ (k (eqToId _ qZero e)))))
+                  x, eqToId _ _ (qMulInvR (notIntro (x ≡ qZero) (λe. ⋆ (k (eqToId _ qZero e)))))

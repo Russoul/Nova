@@ -144,14 +144,16 @@ fixity ::= infixl d op | infixr d op          # d a digit 0-9
 # Q is the ToS type grammar of a data entry — Foundation's qiit-types
 # in surface clothes (→ inside a data literal is Foundation's ⇛;
 # binder groups iterate as everywhere, and a NON-DEPENDENT domain may
-# stand bare, binding an anonymous binder — cls : El a → El Q):
+# stand bare, binding an anonymous binder — cls : a → El Q):
 #   Q ::= U | El q | ((x : D))+ → Q | D → Q
 # with q a ToS code (a sort name applied to arguments, or l ≡ r
 # between sort elements) and D a domain CLASSIFIED BY NAME RESOLUTION:
 # `El q` whose head resolves to a sort of the SAME literal (or an ≡
 # between such elements) is an INDUCTIVE domain; any other surface
 # type is EXTERNAL, elaborated as an ordinary type over the external
-# binders in scope. No new expression syntax exists outside the
+# binders in scope (a legacy `El c` spelling of an external code c is
+# still parsed inside data literals, but the canonical form is bare —
+# El exists only in the ToS). No new expression syntax exists outside the
 # literal: everything a data item provides reaches the file as
 # ordinary defs (see the QIIT section).
 
@@ -182,7 +184,10 @@ fixity ::= infixl d op | infixr d op          # d a digit 0-9
 # Types. Elaboration needs no rule keywords and no context prefixes —
 # the context is always implicit in where a subterm sits.
 T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | Ω | x | (T{≥0})
-T{2} ::= El t{≥4} | Prf t{≥4} | ν F{≥2}
+T{2} ::= Prf t{≥4} | ν F{≥2} | T{≥4} t{≥4}*
+# El is retired (Foundation, CUMULATIVITY): a CODE in type position
+# IS the type — a name atom resolving to a binder or a 𝕌-classified
+# item is a code, and it may take an application spine (Vect n)
 T{1} ::= ((x:T{≥0}))+ → T{≥0} | ((x:T{≥0}))+ ⨯ T{≥0}
        | T{≥1½} / (x y. t{≥1})
 T{1½} ::= T{≥2} ⊎ T{≥1½}
@@ -439,14 +444,12 @@ el-nat-beta-s, el-sum-beta₁, el-sum-beta₂, el-quot-beta,
 el-nu-beta (out at a corec head — map_𝔽 and hᵉˡ expanding by
 Foundation's ≜-clauses), el-qiit-beta (the eliminator at a
 saturated constructor of the nf-identical signature),
-el-sig-beta (signature
+and el-sig-beta (signature
 unfolding — for DEFINITION entries; a declaration reference is stuck
 by design, el-sig-decl, and obligation holes are machine-named and
-never referenced by elaborator output), and the El-decoding family (ty-el-zero, ty-el-one,
-ty-el-nat, ty-el-pi, ty-el-sigma, ty-el-sum, ty-el-nu, ty-el-eq, ty-el-quot — the last
-decoding El (A / r) ≜ El A / r, the Ω-valued relation passing through
-undecoded — and ty-el-qiit, El (𝒮.𝕤 ē) ≜ 𝒮.𝕤 ē; Prf ∥A∥ has no
-decoding rule). Per
+never referenced by elaborator output). El is retired, so there is
+no decoding family — a code is its own type (code-lift); Prf ∥A∥
+has no contraction. Per
 Foundation's preface, normalization of well-formed terms
 may diverge under inconsistent hypotheses; whnf is therefore
 fuel-bounded, and fuel exhaustion is treated as "neutral" — a
@@ -465,7 +468,10 @@ never an unsound acceptance.
 # Every entry the elaborator produces is closed, so the core
 # reference always carries the empty substitution. (Foundation's
 # general x[e˲] stays available to the kernel; it just never appears
-# in elaborator output.)
+# in elaborator output.) A 𝕌-classified entry in type position is a
+# code and stands as the type directly (code-lift); an entry whose
+# 𝕌-classification hides behind a definition elaborates as a term
+# checked at 𝕌.
 
 Γ ⊢ T ⇝ A type
 Γ ▷ x:A ⊢ U ⇝ B type
@@ -498,9 +504,9 @@ never an unsound acceptance.
 Γ ⊢ 𝕏 ⇝ 𝕏 poly                                    (e-poly-hole)
 Γ ⊢ t ⇐ 𝕌 ⇝ a   ⟹   Γ ⊢ K t ⇝ K a poly           (e-poly-const)
 componentwise at F ⨯ G and F ⊎ G                  (e-poly-prod, e-poly-sum)
-Γ ⊢ t ⇐ 𝕌 ⇝ a   Γ ▷ x:El a ⊢ F ⇝ 𝔽 poly
-   ⟹   Γ ⊢ (x:t) ⨯ F ⇝ El a ⨯ 𝔽 poly             (e-poly-sigma)
-   ⟹   Γ ⊢ (x:t) → F ⇝ El a → 𝔽 poly             (e-poly-pi)
+Γ ⊢ t ⇐ 𝕌 ⇝ a   Γ ▷ x:a ⊢ F ⇝ 𝔽 poly
+   ⟹   Γ ⊢ (x:t) ⨯ F ⇝ a ⨯ 𝔽 poly                (e-poly-sigma)
+   ⟹   Γ ⊢ (x:t) → F ⇝ a → 𝔽 poly                (e-poly-pi)
 
 Γ ⊢ p ⇐ Ω ⇝ p̂
 ------------------- (e-ty-prf)                                # (Prf p)
@@ -515,8 +521,12 @@ componentwise at F ⨯ G and F ⊎ G                  (e-poly-prod, e-poly-sum)
 # denotes is the Prf of the equality prop (ty-prf over code-eq)
 
 Γ ⊢ t ⇐ 𝕌 ⇝ a
-------------------- (e-ty-el)                                 # (El A)
-Γ ⊢ El t ⇝ El a type
+------------------- (e-ty-el)                            # (code-lift)
+Γ ⊢ t ⇝ a type
+# the CODE-AS-TYPE rule: any surface type that is none of the former
+# shapes above — a name resolving to a code, an application spine, a
+# parenthesized element — elaborates as an element checked at 𝕌 and
+# stands as the type (cumulativity)
 
 //////////// Element elaboration: inference /////////////
 
@@ -591,7 +601,7 @@ componentwise at F ⨯ G and F ⊎ G                  (e-poly-prod, e-poly-sum)
 
 Γ ⊢ t ⇒ C ⇝ t̂        whnf(C) = ν 𝔽
 ------------------------------------------ (e-out)
-Γ ⊢ out t ⇒ El ⌊𝔽⌋(ν 𝔽) ⇝ out t̂           # (out t)
+Γ ⊢ out t ⇒ ⌊𝔽⌋(ν 𝔽) ⇝ out t̂              # (out t)
 # fully inference-driven, like the projections: no motive, the
 # polynomial read off the scrutinee's whnf type
 
@@ -614,7 +624,7 @@ componentwise at F ⨯ G and F ⊎ G                  (e-poly-prod, e-poly-sum)
 # Universe codes infer at 𝕌, mirroring their formation rules:
 Γ ⊢ 𝟘 ⇒ 𝕌 ⇝ 𝟘      (likewise 𝟙, ℕ)                            # (𝟘 : 𝕌) etc.
 
-Γ ⊢ t ⇐ 𝕌 ⇝ a        Γ ▷ x:El a ⊢ u ⇐ 𝕌 ⇝ b
+Γ ⊢ t ⇐ 𝕌 ⇝ a        Γ ▷ x:a ⊢ u ⇐ 𝕌 ⇝ b
 ---------------------------------------------- (e-code-pi)    # (A → B : 𝕌)
 Γ ⊢ (x:t) → u ⇒ 𝕌 ⇝ a → b
    (e-code-sigma analogous for ⨯)                             # (A ⨯ B : 𝕌)
@@ -622,9 +632,9 @@ componentwise at F ⨯ G and F ⊎ G                  (e-poly-prod, e-poly-sum)
 Γ ⊢ t ⇐ 𝕌 ⇝ a        Γ ⊢ u ⇐ 𝕌 ⇝ b
 ------------------------------------ (e-code-sum)             # (A ⊎ B : 𝕌)
 Γ ⊢ t ⊎ u ⇒ 𝕌 ⇝ a ⊎ b
-   # non-dependent: u is checked over Γ, not Γ ▷ El a
+   # non-dependent: u is checked over Γ, not Γ ▷ a
 
-Γ ⊢ t ⇐ 𝕌 ⇝ a        Γ ▷ x:El a ▷ y:(El a)[↑] ⊢ r ⇐ Ω ⇝ r̂
+Γ ⊢ t ⇐ 𝕌 ⇝ a        Γ ▷ x:a ▷ y:a[↑] ⊢ r ⇐ Ω ⇝ r̂
 ------------------------------------------------------------ (e-code-quot)
 Γ ⊢ t / (x y. r) ⇒ 𝕌 ⇝ a / r̂                                  # (A / r : 𝕌)
    # the relation is checked at Ω, not 𝕌
@@ -672,7 +682,7 @@ whnf(C) = A / r        Γ ⊢ a ⇐ A ⇝ â
 Γ ⊢ class a ⇐ C ⇝ class â
 
 whnf(C) = ν 𝔽        Γ ⊢ t ⇐ 𝕌 ⇝ a
-Γ ▷ x:El a ⊢ f ⇐ El ⌊𝔽⌋(a)[↑] ⇝ f̂        Γ ⊢ u ⇐ El a ⇝ û
+Γ ▷ x:a ⊢ f ⇐ ⌊𝔽⌋(a)[↑] ⇝ f̂        Γ ⊢ u ⇐ a ⇝ û
 ------------------------------------------------------------ (e-corec)
 Γ ⊢ corec (x : t. f) u ⇐ C ⇝ corec 𝔽 a f̂ û    # (corec 𝔽 a f x)
 # checking-only, like λ and class: the polynomial comes from the
@@ -876,8 +886,8 @@ whnf(C) = Prf (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ Prf R[id, a, b
 #      of a long explicit proof's switch conversions.
 #   ½. COMPUTATIONAL join: both sides normalized by every ≜ rule
 #      EXCEPT signature unfolding — Π/Σ/ℕ/⊎/quotient/QIIT/ν
-#      eliminations at their introductions, let, El-decoding; a
-#      definition reference is STUCK — and α-compared. This is the
+#      eliminations at their introductions, let; a definition
+#      reference is STUCK — and α-compared. This is the
 #      strict sense of "trivial by computation": it costs
 #      surface-sized work (definitions never open, so there is no
 #      δ-blowup to walk), consults no store and no hypotheses, and
@@ -886,7 +896,7 @@ whnf(C) = Prf (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ Prf R[id, a, b
 #      sides differ as written, so the replay stays as the canary for
 #      any engine/kernel normaliser disagreement).
 #   1. whnf both sides (this alone discharges everything the old
-#      derivation machinery called "by computation": β, El-decoding,
+#      derivation machinery called "by computation": β and
 #      signature unfolding).
 #   2. α-equal → discharged.
 #   3. Same rigid head → DECOMPOSE into component equations, each fed
@@ -894,7 +904,7 @@ whnf(C) = Prf (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ Prf R[id, a, b
 #      FAITHFUL — an equivalence, not merely sufficiency: downward it
 #      is Foundation's congruence rules, upward Foundation's
 #      injectivity rules (ty-pi-inj, ty-sigma-inj, ty-quot-inj,
-#      ty-eq-inj, ty-el-inj and their
+#      ty-eq-inj, code-restrict and their
 #      𝕌-code counterparts — see "Type constructor injectivity" there,
 #      including the semantic commitment they encode). Two cases remain
 #      merely sufficient: class-equations decomposed to their
@@ -921,7 +931,6 @@ whnf(C) = Prf (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ Prf R[id, a, b
 #                                  (code-eq-cong — merely SUFFICIENT at
 #                                  Ω, where ≐ is iff; the faithful
 #                                  route is propext)
-#        El a      ≐ El b       ⇐  a ≐ b : 𝕌
 #        ∥A∥       ≐ ∥B∥        ⇐  A ≐ B type (sufficient), OR — the
 #                                  faithful route at Ω — code-prop-eq
 #                                  (propext): the two implications
@@ -981,17 +990,12 @@ whnf(C) = Prf (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ Prf R[id, a, b
 #                                  rule (docs/NovaKernel.txt §6) — so
 #                                  a wrong guess is a failed replay,
 #                                  never a wrong acceptance.
-#   4. Mixed El: whnf leaves `El a` (a neutral) against a rigid type B.
-#      When B is in the image of El-decoding with codable components
-#      (𝟘, 𝟙, ℕ, arrows/pairs/quotients/eq of codable parts), reduce to
-#      a ≐ code(B) : 𝕌 — sufficient via El-congruence + El-decoding.
-#      Otherwise fall through to 7.
-#   5. Prop-discharge: an element equation at type 𝟙, 𝟘, or Prf p is
+#   4. Prop-discharge: an element equation at type 𝟙, 𝟘, or Prf p is
 #      discharged outright — Foundation's el-one-prop, el-zero-prop,
 #      el-prf-prop (proof irrelevance: any two proofs of a proposition
 #      are equal; equality proofs included, since ≡ is Ω-valued and
 #      its proofs live at Prf).
-#   6. η: comparison at Π ALWAYS moves under the binder via el-pi-eta
+#   5. η: comparison at Π ALWAYS moves under the binder via el-pi-eta
 #      (both sides applied to ☐₀, the context extended, the scope's
 #      candidates weakened along — proof heads, recorded
 #      normalization steps and parameter types all shift). A λ side
@@ -1007,7 +1011,7 @@ whnf(C) = Prf (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ Prf R[id, a, b
 #      intro-guarded), and SAME-TAG INJECTIONS at ⊎ compare by their
 #      payloads at the branch type (the inj final; el-one-prop then
 #      closes 𝟙 payloads — how a three-valued sign's cases pay).
-#   7. SCOPED STORE USE — three complementary mechanisms over the
+#   6. SCOPED STORE USE — three complementary mechanisms over the
 #      site's SCOPE (the named lemmas + hypotheses; see THE SCOPE in
 #      Elaboration state — never the whole store):
 #      * REWRITING: equations usable as terminating rules — strictly
@@ -1031,12 +1035,10 @@ whnf(C) = Prf (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ Prf R[id, a, b
 #        Prf (equality props included) or 𝟙 type whose instance
 #        discharges as a side condition.
 #        This is how permutative and hypothesis-conditional lemmas
-#        discharge. Matching is up to El-DECODING: normalization
-#        decodes El c at concrete codes (El ℕc ≜ ℕ) — inside carried
-#        QIIT signatures too — so a pattern position El p (p a
-#        parameter) facing a decoded rigid type binds p to that
-#        type's code. A generic bag-swap lemma thus discharges its
-#        ℕ-instantiated goals.
+#        discharge. A code parameter in type position is an ordinary
+#        pattern position (a code IS a type): a pattern position p (p
+#        a parameter) facing a rigid type binds p to it. A generic
+#        bag-swap lemma thus discharges its ℕ-instantiated goals.
 #      * TRANSITIVITY HOPS: a candidate that rewriting cannot apply
 #        may rewrite one side WHOLESALE, recursing with a small
 #        depth budget — chaining e.g. an exchange law, a hypothesis,
@@ -1167,7 +1169,8 @@ The EXPANSION, for each entry of the accepted 𝒮 (⌊·⌋, ⌊·⌋ᵗ, ·ᴰ
 
   * SORT 𝕤 : 𝔎, 𝒮 small —
         def n : Π(⌊𝔎⌋ᵗ). 𝕌 ≔ λ…. 𝒮.𝕤 δ            # code-qiit
-    (a code-valued family; users write El (n ī). If 𝒮 is LARGE: a
+    (a code-valued family; users write n ī in type position — the
+    code is the type. If 𝒮 is LARGE: a
     nullary sort becomes  type n ≔ 𝒮.𝕤 ·  and an INDEXED large sort is
     a structural error — a large family has no spelling in the
     closed-item discipline; see the e-typedef note. The escape hatch is
@@ -1190,13 +1193,13 @@ The EXPANSION, for each entry of the accepted 𝒮 (⌊·⌋, ⌊·⌋ᵗ, ·ᴰ
   * ELIMINATORS, two defs per sort 𝕤 (surface names cannot contain
     '-'). The CODE-VALUED one, named nElim:
         def nElim :
-             (C₁ : Π(⌊𝔎₁⌋ᵗ). El (𝒮.𝕤₁ δ) → 𝕌) → …          # motives,
+             (C₁ : Π(⌊𝔎₁⌋ᵗ). 𝒮.𝕤₁ δ → 𝕌) → …               # motives,
                                                             # one per sort
-          →  (m𝕔 : ⌊𝔄ᴰ⟨𝒮.𝕔 δ⟩ with El∘C for C⌋) → …         # methods, one
+          →  (m𝕔 : ⌊𝔄ᴰ⟨𝒮.𝕔 δ⟩⌋) → …                         # methods, one
                                                             # per point ctor
-          →  (h𝕔 : Π(𝔄ᴰᵗ). Prf (⟦l⟧ ≡ ⟦r⟧ ∈ El (C… ))) → …  # COHERENCES,
+          →  (h𝕔 : Π(𝔄ᴰᵗ). Prf (⟦l⟧ ≡ ⟦r⟧ ∈ C… )) → …       # COHERENCES,
                                                             # one per eq ctor
-          →  Π(⌊𝔎⌋ᵗ) → (w : El (𝒮.𝕤 δ)) → El (C_𝕤 δ w)
+          →  Π(⌊𝔎⌋ᵗ) → (w : 𝒮.𝕤 δ) → C_𝕤 δ w
           ≔ λ…. 𝒮.𝕤-elim ℰ δ w        # ℰ = the bound motive/method
                                        # variables, as Foundation's C̄ ; m̄
 
@@ -1215,18 +1218,18 @@ The EXPANSION, for each entry of the accepted 𝒮 (⌊·⌋, ⌊·⌋ᵗ, ·ᴰ
     is why the eliminator needs no inline-motive surface form.
 
   * The PROP-VALUED eliminator, named nElimP: same shape with Ω for
-    𝕌 and Prf ∘ C for El ∘ C — and NO coherence arguments at all:
+    𝕌 and Prf ∘ C for bare C — and NO coherence arguments at all:
     its coherence sides live at a Prf motive, where el-prf-prop
     closes them outright, so the emitted qcoh certificates are bare
     FProp finals. This is the induction principle for PROPOSITIONS —
     in particular for equality props, which is how open equational
     facts about a QIIT are proven now that equality has no 𝕌-code
     (e.g. plusQzr in qiitNat.nova: NElimP at the motive
-    (λn. (plusQ n z ≡ n ∈ El N))):
+    (λn. (plusQ n z ≡ n ∈ N))):
         def nElimP :
-             (C₁ : Π(⌊𝔎₁⌋ᵗ). El (𝒮.𝕤₁ δ) → Ω) → …          # motives
+             (C₁ : Π(⌊𝔎₁⌋ᵗ). 𝒮.𝕤₁ δ → Ω) → …               # motives
           →  (m𝕔 : ⌊𝔄ᴰ⟨𝒮.𝕔 δ⟩ with Prf∘C for C⌋) → …        # methods
-          →  Π(⌊𝔎⌋ᵗ) → (w : El (𝒮.𝕤 δ)) → Prf (C_𝕤 δ w)
+          →  Π(⌊𝔎⌋ᵗ) → (w : 𝒮.𝕤 δ) → Prf (C_𝕤 δ w)
           ≔ λ…. 𝒮.𝕤-elim ℰ δ w
 
 Motives in the generated eliminators are 𝕌- respectively Ω-valued —
@@ -1239,27 +1242,31 @@ here with a small external domain so the sort is codable):
 
   data ( Bag : U
        ; nil : El Bag
-       ; ins : (x : El a) (m : El Bag) → El Bag
-       ; swp : (x : El a) (y : El a) (m : El Bag)
+       ; ins : (x : a) (m : El Bag) → El Bag
+       ; swp : (x : a) (y : a) (m : El Bag)
                  → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )
+
+(inside the literal, El marks the INDUCTIVE domains — it is the ToS's
+own El, kept per Foundation; external domains are ordinary types, so
+the carrier code a stands bare)
 
 expands to (𝒮 the elaborated signature, positions 0..3):
 
   def Bag  : 𝕌 ≔ 𝒮.0 ·
-  def nil  : El Bag ≔ 𝒮.1 ·
-  def ins  : El a → El Bag → El Bag ≔ λx. λm. 𝒮.2 (x, m)
-  def swp  : (x : El a) (y : El a) (m : El Bag)
-               → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag
+  def nil  : Bag ≔ 𝒮.1 ·
+  def ins  : a → Bag → Bag ≔ λx. λm. 𝒮.2 (x, m)
+  def swp  : (x : a) (y : a) (m : Bag)
+               → ins x (ins y m) ≡ ins y (ins x m) ∈ Bag
            ≔ λx. λy. λm. ⋆                       # qpath-licensed
   def BagElim :
-        (C : El Bag → 𝕌)
-      → (mnil : El (C nil))
-      → (mins : (x : El a) (m : El Bag) → El (C m) → El (C (ins x m)))
-      → (hswp : (x : El a) (y : El a) (m : El Bag) (mᴰ : El (C m))
+        (C : Bag → 𝕌)
+      → (mnil : C nil)
+      → (mins : (x : a) (m : Bag) → C m → C (ins x m))
+      → (hswp : (x : a) (y : a) (m : Bag) (mᴰ : C m)
                   → mins x (ins y m) (mins y m mᴰ)
                     ≡ mins y (ins x m) (mins x m mᴰ)
-                    ∈ El (C (ins x (ins y m))))
-      → (w : El Bag) → El (C w)
+                    ∈ C (ins x (ins y m)))
+      → (w : Bag) → C w
       ≔ λC. λmnil. λmins. λhswp. λw. 𝒮.0-elim ℰ · w
                           # ℰ = (C ; mnil, mins) from the binders;
                           # the coherence discharges from hswp (E's
@@ -1376,8 +1383,8 @@ pointwise, exhibit that g satisfies the clauses.
 #     there is a single clause (the NO-SPLIT form).
 #   * whnf(Aⱼ) is ℕ and the split patterns are exactly Z and S m
 #     (each once, either order), or whnf(Aⱼ) is a ⊎ and they are
-#     exactly inj₁ a and inj₂ b (El-decodings included — ty-el-nat,
-#     ty-el-sum).
+#     exactly inj₁ a and inj₂ b (a code position is a type
+#     position — code-lift — so a whnf ℕ/⊎ CODE qualifies too).
 #   * recursion is STRUCTURAL: f does not occur in the Z / inj₁ /
 #     inj₂ / no-split bodies, and each of its occurrences in the
 #     S-clause body heads an application of at least j arguments
@@ -1534,9 +1541,9 @@ At end of run, obligations are reported in surfacing order:
     [1] (n : ℕ) ⊢ plus n Z ≐ n : ℕ
         at: vappend_nil, line 14 (checking ⋆)
         hint: closes with plus_zero
-    [2] (n m : ℕ) (a : 𝕌) (xs : El (vect n a)) ⊢ ...
+    [2] (n m : ℕ) (a : 𝕌) (xs : vect n a) ⊢ ...
         at: vappend_assoc, line 22 (switch: inferred vs expected type)
-        from composite: El (vect (plus n Z) a) ≐ El (vect n a) type
+        from composite: vect (plus n Z) a ≐ vect n a type
         statement uses: [1]
 
 Report conventions:
@@ -1566,7 +1573,7 @@ it at the surfacing item:
 
   def vappend_nil : ... using (plus_zero) ≔ ...
 
-On rerun, the reflected equation is in the site's scope and step 7
+On rerun, the reflected equation is in the site's scope and step 6
 discharges silently. The proof itself is whatever the theory
 requires — `⋆` when the equation is by computation, an ℕ-elim with
 an equality motive for inductive content, a calc chain for equational

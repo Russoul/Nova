@@ -2,5 +2,5 @@ defined data (A, mkA)
 defined data (B, mkB, extB)
 defined bad [+1 obligation]
 open obligations (1):
-  [1] ⊢ El A ≐ El B type
+  [1] ⊢ A ≐ B type
       at: def bad: inferred vs expected type

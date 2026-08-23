@@ -2,21 +2,21 @@
 -- (Foundation's Γ ⊦ 𝒮 qsig); every generated def abstracts over it.
 data [a : 𝕌] ( Bag : U
              ; nil : El Bag
-             ; ins : (x : El a) (m : El Bag) → El Bag
-             ; swp : (x : El a) (y : El a) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )
+             ; ins : (x : a) (m : El Bag) → El Bag
+             ; swp : (x : a) (y : a) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )
 
 -- instantiate at ℕ: the imposed equation, both routes
-def swapN : ins ℕ Z (ins ℕ (S Z) (nil ℕ)) ≡ ins ℕ (S Z) (ins ℕ Z (nil ℕ)) ∈ El (Bag ℕ) using (Bag.eq, ins.eq, nil.eq) ≔
+def swapN : ins ℕ Z (ins ℕ (S Z) (nil ℕ)) ≡ ins ℕ (S Z) (ins ℕ Z (nil ℕ)) ∈ (Bag ℕ) using (Bag.eq, ins.eq, nil.eq) ≔
   swp ℕ Z (S Z) (nil ℕ)
 
-def swapN' : ins ℕ Z (ins ℕ (S Z) (nil ℕ)) ≡ ins ℕ (S Z) (ins ℕ Z (nil ℕ)) ∈ El (Bag ℕ) using (Bag.eq, swapN) ≔ ⋆
+def swapN' : ins ℕ Z (ins ℕ (S Z) (nil ℕ)) ≡ ins ℕ (S Z) (ins ℕ Z (nil ℕ)) ∈ (Bag ℕ) using (Bag.eq, swapN) ≔ ⋆
 
 -- polymorphic size, defined once for every a
-def sizeP : (a : 𝕌) → El (Bag a) → ℕ using (Bag.eq) ≔
+def sizeP : (a : 𝕌) → (Bag a) → ℕ using (Bag.eq) ≔
   λa. λm. BagElim a (λb. ℕ) Z (λx. λr. λih. S ih) (λx. λy. λr. λih. ⋆) m
 
 def sizeTwoN : sizeP ℕ (ins ℕ Z (ins ℕ (S Z) (nil ℕ))) ≡ S (S Z) ∈ ℕ using (Bag.eq, BagElim.eq, ins.eq, nil.eq, sizeP.eq) ≔ ⋆
 
 -- a second instantiation: bags of units
-def oneU : El (Bag 𝟙) using (Bag.eq) ≔ ins 𝟙 () (nil 𝟙)
+def oneU : (Bag 𝟙) using (Bag.eq) ≔ ins 𝟙 () (nil 𝟙)
 def sizeU : sizeP 𝟙 oneU ≡ S Z ∈ ℕ using (BagElim.eq, ins.eq, nil.eq, oneU.eq, sizeP.eq) ≔ ⋆

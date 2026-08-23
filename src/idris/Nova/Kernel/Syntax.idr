@@ -80,11 +80,10 @@ mutual
       ||| stands only in the type slot of judgements and in the ∈-slot
       ||| of ≡; 𝕍[σ] ≜ 𝕍 is a meta-clause)
       TopTy : Elem
-      ||| El t  (decoding: every element of the universe is a type)
-      El : Elem -> Elem
-      ||| Prf t  (decoding of a proposition; deliberately not El — it
-      ||| shares none of El's rules: not structural, not injective, no
-      ||| decoding computation)
+      ||| Prf t  (decoding of a proposition — a REAL former, unlike
+      ||| 𝕌's retired El: props do not become types by mere
+      ||| cumulativity; Prf is not structural, not injective, and has
+      ||| no computation)
       Prf : Elem -> Elem
       ||| t → t  (dependent product, Π — code and type)
       PiTy : Elem -> Elem -> Elem
@@ -111,8 +110,7 @@ mutual
       ||| quot-elim t t (quotient type elimination: the recursion function,
       ||| then the eliminee)
       QuotElim : Elem -> Elem -> Elem
-      ||| ∥T∥  (squash: the proposition of an arbitrary type — an element
-      ||| form embedding a type, the converse direction of El)
+      ||| ∥T∥  (squash: the proposition of an arbitrary type)
       Squash : Ty -> Elem
       ||| ⋆  (the canonical proof of a true proposition)
       Star : Elem
@@ -140,7 +138,7 @@ mutual
       Out : Elem -> Elem
       ||| corec 𝔽 a f x  (the corecursor — el-nu-i, the INTRODUCTION:
       ||| carried polynomial, carrier code, coalgebra body — one bound
-      ||| variable over El a — and seed. 𝔽 and a are CARRIED, like ℰ at
+      ||| variable over the carrier a — and seed. 𝔽 and a are CARRIED, like ℰ at
       ||| QElim: el-nu-beta consumes map_𝔽, so the redex is
       ||| self-contained)
       Corec : Poly -> Elem -> Elem -> Elem -> Elem
@@ -353,21 +351,21 @@ public export
 qEntry : QSig -> Nat -> Maybe QTy
 qEntry sg k = getAt k sg
 
-||| SMALLNESS scan (code-qiit's side condition): every external Π domain
-||| anywhere in the signature is El- or Prf-headed — codable, so the
-||| universe's PER construction never consults its own totality.
+||| SMALLNESS (code-qiit's side condition) is JUDGEMENTAL now that El
+||| is retired: every external Π domain must be typed at 𝕌 or be
+||| Prf-headed. The kernel checks it (kQSigSmall); this module keeps
+||| only the external-domain enumeration the checkers walk.
 public export
-qSigSmall : QSig -> Bool
-qSigSmall = all smallEntry
+qSigExtDomains : QSig -> List (Nat, Ty)
+qSigExtDomains sg = concatMap entryDoms sg
  where
-  smallDom : Ty -> Bool
-  smallDom (El _) = True
-  smallDom (Prf _) = True
-  smallDom _ = False
-  smallEntry : QTy -> Bool
-  smallEntry (QPiExt a b) = smallDom a && smallEntry b
-  smallEntry (QPiInd _ b) = smallEntry b
-  smallEntry _ = True
+  entryDoms : QTy -> List (Nat, Ty)
+  entryDoms = go 0
+   where
+    go : Nat -> QTy -> List (Nat, Ty)
+    go d (QPiExt a b) = (d, a) :: go (S d) b
+    go d (QPiInd _ b) = go d b
+    go d _ = []
 
 ||| Number of binders of the sort at position k (its index arity).
 public export
@@ -418,7 +416,6 @@ mutual
     UniverseTy       == UniverseTy         = True
     PropTy           == PropTy             = True
     TopTy            == TopTy              = True
-    El e             == El e'              = e == e'
     Prf e            == Prf e'             = e == e'
     Elem.PiTy a b    == Elem.PiTy a' b'    = a == a' && b == b'
     Elem.SigmaTy a b == Elem.SigmaTy a' b' = a == a' && b == b'
@@ -552,9 +549,6 @@ mutual
     compare TopTy              TopTy                = EQ
     compare TopTy              _                    = LT
     compare _                  TopTy                = GT
-    compare (El e)             (El e')              = compare e e'
-    compare (El _)             _                    = LT
-    compare _                  (El _)               = GT
     compare (Prf e)            (Prf e')             = compare e e'
     compare (Prf _)            _                    = LT
     compare _                  (Prf _)              = GT
@@ -689,7 +683,6 @@ mutual
     show UniverseTy = "UniverseTy"
     show PropTy = "PropTy"
     show TopTy = "TopTy"
-    show (El e) = "El (\{show e})"
     show (Prf e) = "Prf (\{show e})"
     show (Elem.PiTy e1 e2) = "PiTy (\{show e1}) (\{show e2})"
     show (Elem.SigmaTy e1 e2) = "SigmaTy (\{show e1}) (\{show e2})"

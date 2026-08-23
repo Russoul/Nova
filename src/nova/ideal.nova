@@ -21,37 +21,37 @@ import ringTheory (raddGroup, rmul, rone, rMulComm, rAddComm, rMulSub)
 import subgroup (IsSubgroup, IsNormal, sgIntro, sgUnit, sgOp, sgInv, abelianNormal, cosetRel)
 import equality (transportP, sym, trans, cong)
 
-def closedScale : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) → Ω ≔
-  λR. λr. λI. ∥(a x : El R) → Prf (I x) → Prf (I (rmul _ r a x))∥
+def closedScale : (R : 𝕌) (r : IsCommRing R) (I : R → Ω) → Ω ≔
+  λR. λr. λI. ∥(a x : R) → Prf (I x) → Prf (I (rmul _ r a x))∥
 
-def IsIdeal : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) → Ω ≔
+def IsIdeal : (R : 𝕌) (r : IsCommRing R) (I : R → Ω) → Ω ≔
   λR. λr. λI. IsSubgroup (raddGroup r) I ∧ closedScale _ r I
 
 def idIntro : {R : 𝕌}
-  {r : El (IsCommRing R)}
-  {I : El R → Ω}
+  {r : IsCommRing R}
+  {I : R → Ω}
   → Prf (IsSubgroup
     (raddGroup r)
-    I) → ((a x : El R) → Prf (I x) → Prf (I (rmul _ r a x))) → Prf (IsIdeal _ r I)
+    I) → ((a x : R) → Prf (I x) → Prf (I (rmul _ r a x))) → Prf (IsIdeal _ r I)
   using (IsIdeal.eq, closedScale.eq) ≔
   λR. λr. λI. λsub. λsc. andIntro sub (⋆ sc)
 
 def idSub : {R : 𝕌}
-  {r : El (IsCommRing R)}
-  {I : El R → Ω}
+  {r : IsCommRing R}
+  {I : R → Ω}
   → Prf (IsIdeal _ r I) → Prf (IsSubgroup (raddGroup r) I)
   using (IsIdeal.eq) ≔
   λR. λr. λI. λh. andFst h
 
 def idScale : (R : 𝕌)
-  (r : El (IsCommRing R))
-  (I : El R → Ω)
-  → Prf (IsIdeal _ r I) → (a x : El R) → Prf (I x) → Prf (I (rmul _ r a x))
+  (r : IsCommRing R)
+  (I : R → Ω)
+  → Prf (IsIdeal _ r I) → (a x : R) → Prf (I x) → Prf (I (rmul _ r a x))
   using (IsIdeal.eq, closedScale.unfold) ≔
   λR. λr. λI. λh. λa. λx. λhx. squash-elim (andSnd h) (u. u a x hx)
 
 -- an ideal is a normal subgroup of (R , +), because (R , +) is abelian
-def idNormal : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) → Prf (IsNormal (raddGroup r) I) ≔
+def idNormal : (R : 𝕌) (r : IsCommRing R) (I : R → Ω) → Prf (IsNormal (raddGroup r) I) ≔
   λR. λr. λI. abelianNormal (rAddComm _ r)
 
 -- ===== the two closure facts the descent will want =====
@@ -64,7 +64,7 @@ def idNormal : (R : 𝕌) (r : El (IsCommRing R)) (I : El R → Ω) → Prf (IsN
 -- group operation is here paid for by commutativity — which is exactly
 -- what "commutative ring" buys and what a group does not have.
 def idScaleR : (R : 𝕌)
-  (r : El (IsCommRing R))
-  (I : El R → Ω)
-  → Prf (IsIdeal _ r I) → (a x : El R) → Prf (I x) → Prf (I (rmul _ r x a)) ≔
+  (r : IsCommRing R)
+  (I : R → Ω)
+  → Prf (IsIdeal _ r I) → (a x : R) → Prf (I x) → Prf (I (rmul _ r x a)) ≔
   λR. λr. λI. λh. λa. λx. λhx. transportP I (rMulComm _ r a x) (idScale _ _ _ h a x hx)

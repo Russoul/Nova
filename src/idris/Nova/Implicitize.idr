@@ -371,10 +371,10 @@ mutual
       (PiTy a b, PiTy a' b') => dhT a a' ++ dhT b b'
       (SigmaTy a b, SigmaTy a' b') => dhT a a' ++ dhT b b'
       (SumTy a b, SumTy a' b') => dhT a a' ++ dhT b b'
-      (El a, El b) => dhE a b
       (Prf a, Prf b) => dhE a b
       (QuotTy a r, QuotTy a' r') => dhT a a' ++ dhE r r'
-      _ => []
+      -- code types (El retired): attribute drift as elements
+      _ => dhE o n
 
 ||| The drift culprits across two Σs' entries (empty = unattributable).
 driftCulprits : Sig -> Sig -> List String

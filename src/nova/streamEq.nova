@@ -11,23 +11,22 @@
 import prelude (id, ∘)
 import stream (stream, hd, tl, map, iterate)
 
-def tlN : {a : 𝕌} → ℕ → El (stream a) → El (stream a) using (stream.stream.unfold) ≔
+def tlN : {a : 𝕌} → ℕ → stream a → stream a using (stream.stream.unfold) ≔
   λa. λn. ℕ-elim (λs. s) (m ih. λs. ih (tl s)) n
 
 -- the n-th observation
-def nth : {a : 𝕌} → ℕ → El (stream a) → El a ≔ λa. λn. λs. hd (tlN n s)
+def nth : {a : 𝕌} → ℕ → stream a → a ≔ λa. λn. λs. hd (tlN n s)
 
 -- observational equality, in Ω
-def obsEq : {a : 𝕌} → El (stream a) → El (stream a) → Ω ≔
-  λa. λs. λt. ∥(n : ℕ) → Prf (nth n s ≡ nth n t)∥
+def obsEq : {a : 𝕌} → stream a → stream a → Ω ≔ λa. λs. λt. ∥(n : ℕ) → Prf (nth n s ≡ nth n t)∥
 
 -- reflexivity: every observation is ≐-reflexive
-def obsEqRefl : {a : 𝕌} (s : El (stream a)) → Prf (obsEq s s) using (streamEq.obsEq.unfold) ≔
+def obsEqRefl : {a : 𝕌} (s : stream a) → Prf (obsEq s s) using (streamEq.obsEq.unfold) ≔
   λa. λs. ⋆ (λn. ⋆)
 
 -- map commutes with EVERY observation, by ℕ-induction — the step is
 -- judgemental: tl (map f s) ≐ map f (tl s) is one el-nu-beta
-def nthMap : {a b : 𝕌} (f : El a → El b) (n : ℕ) (s : El (stream a)) → nth n (map f s) ≡ f (nth n s)
+def nthMap : {a b : 𝕌} (f : a → b) (n : ℕ) (s : stream a) → nth n (map f s) ≡ f (nth n s)
   using (nth.eq,
     stream.hd.eq,
     stream.map.eq,
@@ -40,16 +39,16 @@ def nthMap : {a b : 𝕌} (f : El a → El b) (n : ℕ) (s : El (stream a)) → 
 -- mapping the identity is observationally the identity — the
 -- η-needing `map id s ≡ s` weakened to its observational shadow,
 -- where it is PROVABLE
-def mapIdObsEq : {a : 𝕌} (s : El (stream a)) → Prf (obsEq (map (id {a}) s) s)
+def mapIdObsEq : {a : 𝕌} (s : stream a) → Prf (obsEq (map (id {a}) s) s)
   using (streamEq.obsEq.unfold, prelude.id.eq) ≔
   λa. λs. ⋆ (λn. nthMap (id {a}) n s)
 
 -- likewise map fusion, observationally: composing maps is mapping
 -- the composite
 def mapFuseObsEq : {a b c : 𝕌}
-  (f : El a → El b)
-  (g : El b → El c)
-  (s : El (stream a))
+  (f : a → b)
+  (g : b → c)
+  (s : stream a)
   → Prf (obsEq (map g (map f s)) (map (g ∘ f) s))
   using (nth.eq,
     stream.hd.eq,
@@ -60,7 +59,7 @@ def mapFuseObsEq : {a b c : 𝕌}
     stream.tl.eq,
     streamEq.obsEq.unfold,
     tlN.eq) ≔
-  λa. λb. λc. λf. λg. λs. ⋆ (λn. (ℕ-elim (m. (t : El (stream a))
+  λa. λb. λc. λf. λg. λs. ⋆ (λn. (ℕ-elim (m. (t : stream a)
     → nth m (map g (map f t)) ≡ nth m (map (g ∘ f) t))
     (λt. ⋆)
     (m ih. λt. ih (tl t))
@@ -68,9 +67,6 @@ def mapFuseObsEq : {a b c : 𝕌}
     s)
 
 -- the tail of an iterate is the iterate of the image, observationally
-def iterShiftObsEq : {a : 𝕌}
-  (f : El a → El a)
-  (x : El a)
-  → Prf (obsEq (tl (iterate f x)) (iterate f (f x)))
+def iterShiftObsEq : {a : 𝕌} (f : a → a) (x : a) → Prf (obsEq (tl (iterate f x)) (iterate f (f x)))
   using (hyp.rw, stream.iterate.eq, stream.stream.eq, stream.tl.eq, streamEq.obsEq.unfold) ≔
   λa. λf. λx. ⋆ (λn. ⋆)

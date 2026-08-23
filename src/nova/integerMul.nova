@@ -163,8 +163,8 @@ def intMulWDRep : (a1 a2 b1 b2 c1 c2 : ℕ)
 -- relation intMulWDRep proves
 def intMulWDOuter : (a b : ℕ ⨯ ℕ)
   (h : Prf (a .π₁ + b .π₂ ≡ a .π₂ + b .π₁))
-  (zy : El Int)
-  → quot-elim (z. El Int)
+  (zy : Int)
+  → quot-elim (z. Int)
     (x. class (a .π₁ * x .π₁ + a .π₂ * x .π₂, a .π₁ * x .π₂ + a .π₂ * x .π₁))
     zy ≡ quot-elim (x. class (b .π₁ * x .π₁ + b .π₂ * x .π₂, b .π₁ * x .π₂ + b .π₂ * x .π₁)) zy
   using (distribBack,
@@ -177,7 +177,7 @@ def intMulWDOuter : (a b : ℕ ⨯ ℕ)
     plusComm,
     sum4Distrib,
     sum4DistribR) ≔
-  λa. λb. λh. λzy. quot-elim (q. quot-elim (z. El Int)
+  λa. λb. λh. λzy. quot-elim (q. quot-elim (z. Int)
     (x. class (a .π₁ * x .π₁ + a .π₂ * x .π₂, a .π₁ * x .π₂ + a .π₂ * x .π₁))
     q ≡ quot-elim (x. class (b .π₁ * x .π₁ + b .π₂ * x .π₂, b .π₁ * x .π₂ + b .π₂ * x .π₁)) q)
     (c. ⋆)
@@ -185,7 +185,7 @@ def intMulWDOuter : (a b : ℕ ⨯ ℕ)
 
 -- ===== multiplication =====
 infixl 7 *
-def * : El Int → El Int → El Int
+def * : Int → Int → Int
   using (distribBackR,
     intMulWDOuter,
     integer.Int.unfold,
@@ -206,8 +206,7 @@ def intMulTest2 : class (Z, 2) * class (3, Z) ≡ class (Z, 6)
   ⋆
 
 -- ===== the ring laws =====
-def classPairEta : (p : ℕ ⨯ ℕ) → class (p .π₁, p .π₂) ≡ class p ∈ El Int
-  using (integer.Int.unfold) ≔
+def classPairEta : (p : ℕ ⨯ ℕ) → class (p .π₁, p .π₂) ≡ class p ∈ Int using (integer.Int.unfold) ≔
   λp. cong (λu. Int) (λr. class r) (paireta p)
 
 def oneMult : (m : ℕ) → S Z * m ≡ m using (multComm) ≔
@@ -215,15 +214,14 @@ def oneMult : (m : ℕ) → S Z * m ≡ m using (multComm) ≔
 
 -- class (u₁,u₂) ≡ class (v₁,v₂) from the two component equations:
 -- reflection makes the components judgemental, so this is one ⋆
-def classCong2 : {u1 u2 v1 v2 : ℕ}
-  → (u1 ≡ v1) → (u2 ≡ v2) → class (u1, u2) ≡ class (v1, v2) ∈ El Int
+def classCong2 : {u1 u2 v1 v2 : ℕ} → (u1 ≡ v1) → (u2 ≡ v2) → class (u1, u2) ≡ class (v1, v2) ∈ Int
   using (hyp.rw, integer.Int.unfold) ≔
   λu1. λu2. λv1. λv2. λh1. λh2. ⋆
 
 -- multiplication by 1 on the LEFT does not compute (nat.nova's * is
 -- recursive in its SECOND argument), so oneMult/zeroMult have to fire
 -- before Σ-η can close it; on the right it is all β (intMulOneR)
-def intMulOneL : (z : El Int) → intOne * z ≡ z
+def intMulOneL : (z : Int) → intOne * z ≡ z
   using (classPairEta,
     integer.Int.unfold,
     integer.intOne.eq,
@@ -236,7 +234,7 @@ def intMulOneL : (z : El Int) → intOne * z ≡ z
     zeroMult.rw) ≔
   λz. quot-elim (p. trans (class (p .π₁, p .π₂)) _ _ ⋆ (classPairEta p)) z
 
-def intMulOneR : (z : El Int) → z * intOne ≡ z
+def intMulOneR : (z : Int) → z * intOne ≡ z
   using (classPairEta,
     integer.Int.unfold,
     integer.intOne.eq,
@@ -251,7 +249,7 @@ def intMulOneR : (z : El Int) → z * intOne ≡ z
     zeroPlusId.rw) ≔
   λz. quot-elim (p. classPairEta p) z
 
-def intMulZeroL : (z : El Int) → intZero * z ≡ intZero
+def intMulZeroL : (z : Int) → intZero * z ≡ intZero
   using (distribBack,
     distribBack.rw,
     hyp.rw,
@@ -263,7 +261,7 @@ def intMulZeroL : (z : El Int) → intZero * z ≡ intZero
     zeroMult.rw) ≔
   λz. quot-elim (p. ⋆) z
 
-def intMulZeroR : {z : El Int} → z * intZero ≡ intZero
+def intMulZeroR : {z : Int} → z * intZero ≡ intZero
   using (integer.Int.unfold, integer.intZero.eq, integerMul.*.eq) ≔
   λz. quot-elim (p. ⋆) z
 
@@ -277,7 +275,7 @@ def mulComm2 : (u1 u2 v1 v2 : ℕ) → u1 * v1 + u2 * v2 ≡ v1 * u1 + v2 * u2 �
     (cong (λw. ℕ) (λw. w + u2 * v2) (multComm v1 u1))
     (cong (λw. ℕ) (λw. v1 * u1 + w) (multComm v2 u2))
 
-def intMulComm : (x y : El Int) → x * y ≡ y * x
+def intMulComm : (x y : Int) → x * y ≡ y * x
   using (integer.Int.unfold, integerMul.*.eq, plusAssoc) ≔
   λx. λy. quot-elim
     (a. quot-elim
@@ -292,7 +290,7 @@ def intMulComm : (x y : El Int) → x * y ≡ y * x
       y)
     x
 
-def intMulAssoc : (x y z : El Int) → x * y * z ≡ x * (y * z)
+def intMulAssoc : (x y z : Int) → x * y * z ≡ x * (y * z)
   using (assocRep, integer.Int.unfold, integerMul.*.eq) ≔
   λx. λy. λz. quot-elim
     (a. quot-elim
@@ -304,7 +302,7 @@ def intMulAssoc : (x y z : El Int) → x * y * z ≡ x * (y * z)
       y)
     x
 
-def intMulDistribL : (x y z : El Int) → x * (y + z) ≡ x * y + x * z
+def intMulDistribL : (x y z : Int) → x * (y + z) ≡ x * y + x * z
   using (hyp.rw,
     integerMul.*.eq,
     integer.Int.eq,
@@ -318,16 +316,16 @@ def intMulDistribL : (x y z : El Int) → x * (y + z) ≡ x * y + x * z
 
 -- congruence in both arguments, for building chains: reflection makes
 -- the hypotheses judgemental, so each is one ⋆
-def intAddCong2 : (x y u v : El Int) → (x ≡ u) → (y ≡ v) → x + y ≡ u + v
+def intAddCong2 : (x y u v : Int) → (x ≡ u) → (y ≡ v) → x + y ≡ u + v
   using (hyp.rw, integer.Int.unfold) ≔
   λx. λy. λu. λv. λh1. λh2. ⋆
 
-def intMulCong2 : (x y u v : El Int) → (x ≡ u) → (y ≡ v) → x * y ≡ u * v
+def intMulCong2 : (x y u v : Int) → (x ≡ u) → (y ≡ v) → x * y ≡ u * v
   using (hyp.rw, integer.Int.unfold) ≔
   λx. λy. λu. λv. λh1. λh2. ⋆
 
 -- distributivity on the right, from the left law by commuting thrice
-def intMulDistribR : (x y z : El Int) → (x + y) * z ≡ x * z + y * z ≔
+def intMulDistribR : (x y z : Int) → (x + y) * z ≡ x * z + y * z ≔
   λx. λy. λz. trans
     _
     _
@@ -336,12 +334,12 @@ def intMulDistribR : (x y z : El Int) → (x + y) * z ≡ x * z + y * z ≔
     (intAddCong2 _ _ _ _ (intMulComm z x) (intMulComm z y))
 
 -- ===== negation =====
-def intNegNeg : (z : El Int) → intNeg (intNeg z) ≡ z
+def intNegNeg : (z : Int) → intNeg (intNeg z) ≡ z
   using (classPairEta, integer.Int.unfold, integer.intNeg.eq) ≔
   λz. quot-elim (p. classPairEta p) z
 
 -- z + (−z) = 0: on representatives the relation is p₁+p₂ ≡ p₂+p₁
-def intAddNegR : (z : El Int) → z + intNeg z ≡ intZero
+def intAddNegR : (z : Int) → z + intNeg z ≡ intZero
   using (integer.Int.unfold,
     integer.intNeg.eq,
     integer.intZero.eq,
@@ -352,7 +350,7 @@ def intAddNegR : (z : El Int) → z + intNeg z ≡ intZero
     plusZeroId.rw) ≔
   λz. quot-elim (p. ⋆) z
 
-def intAddNegL : (z : El Int) → intNeg z + z ≡ intZero
+def intAddNegL : (z : Int) → intNeg z + z ≡ intZero
   using (integer.Int.unfold,
     integer.intNeg.eq,
     integer.intZero.eq,
@@ -365,7 +363,7 @@ def intAddNegL : (z : El Int) → intNeg z + z ≡ intZero
 
 -- (−x)·y = −(x·y): the two representatives differ by plusComm in each
 -- component
-def intMulNegL : (x y : El Int) → intNeg x * y ≡ intNeg (x * y)
+def intMulNegL : (x y : Int) → intNeg x * y ≡ intNeg (x * y)
   using (integer.Int.unfold, integer.intNeg.eq, integerMul.*.eq) ≔
   λx. λy. quot-elim
     (a. quot-elim
@@ -375,7 +373,7 @@ def intMulNegL : (x y : El Int) → intNeg x * y ≡ intNeg (x * y)
       y)
     x
 
-def intMulNegR : (x y : El Int) → x * intNeg y ≡ intNeg (x * y) using (intMulNegL) ≔
+def intMulNegR : (x y : Int) → x * intNeg y ≡ intNeg (x * y) using (intMulNegL) ≔
   λx. λy. trans
     _
     _

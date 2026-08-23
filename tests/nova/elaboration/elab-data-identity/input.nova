@@ -3,5 +3,5 @@
 -- unfold to the same signature.
 data ( P : U ; mkP : El P )
 data ( P2 : U ; mkP2 : El P2 )
-def coerce : El P → El P2 using (P.eq, P2.eq) ≔ λx. x
-def same : mkP ≡ mkP2 ∈ El P2 using (P2.eq, mkP.eq, mkP2.eq) ≔ ⋆
+def coerce : P → P2 using (P.eq, P2.eq) ≔ λx. x
+def same : mkP ≡ mkP2 ∈ P2 using (P2.eq, mkP.eq, mkP2.eq) ≔ ⋆

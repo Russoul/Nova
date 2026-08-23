@@ -2,15 +2,15 @@
 -- by the spine oracle (expected type first, then inferred types of
 -- written inference-form arguments)
 
-def trans3 : (A : 𝕌) (x y z : El A) → (x ≡ y) → (y ≡ z) → x ≡ z
+def trans3 : (A : 𝕌) (x y z : A) → (x ≡ y) → (y ≡ z) → x ≡ z
   ≔ λA. λx. λy. λz. λp. λq. x ≡⟨ p ⟩ y ≡⟨ q ⟩ z
 
 -- solved from the proofs' inferred types (inference position: the
 -- expected type contributes only the endpoints)
-def useTrans : (A : 𝕌) (a b c : El A) → (a ≡ b) → (b ≡ c) → a ≡ c
+def useTrans : (A : 𝕌) (a b c : A) → (a ≡ b) → (b ≡ c) → a ≡ c
   ≔ λA. λa. λb. λc. λp. λq. trans3 _ _ _ _ p q
 
-def cst : (A B : 𝕌) → El A → El B → El A ≔ λA. λB. λa. λb. a
+def cst : (A B : 𝕌) → A → B → A ≔ λA. λB. λa. λb. a
 
 -- nested blanks: the inner spine's blank solves from its own argument
-def useCst : El ℕ → El 𝟙 → El ℕ ≔ λn. λu. cst _ _ (cst _ _ n u) u
+def useCst : ℕ → 𝟙 → ℕ ≔ λn. λu. cst _ _ (cst _ _ n u) u

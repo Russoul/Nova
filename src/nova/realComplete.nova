@@ -16,7 +16,7 @@
 -- 1/(m+1) + 2/(n+1) and misses.
 --
 -- Note this is completeness for a sequence given WITH representatives.
--- Phrasing it for an arbitrary `X : ℕ → El Real` would need a choice
+-- Phrasing it for an arbitrary `X : ℕ → Real` would need a choice
 -- of representative for each X n, i.e. countable choice, which is not
 -- derivable here — the quotient has no section.
 -- ===== four quarter-fractions make one =====
@@ -53,7 +53,7 @@ def qInvQuarter : {j : ℕ}
     (qInvHalf j)
 
 -- (a+b) + ((a+b) + (b+b)) ≡ (a+a) + ((b+b) + (b+b)) : both are 2a + 4b
-def qSum6 : (a b : El Q) → a + b + (a + b + (b + b)) ≡ a + a + (b + b + (b + b))
+def qSum6 : (a b : Q) → a + b + (a + b + (b + b)) ≡ a + a + (b + b + (b + b))
   using (rationalQ.Q.unfold) ≔
   λa. λb. a + b + (a + b + (b + b))
       ≡⟨ sym _ _ (qAddAssoc (a + b) (a + b) (b + b)) ⟩ a + b + (a + b) + (b + b)
@@ -62,7 +62,7 @@ def qSum6 : (a b : El Q) → a + b + (a + b + (b + b)) ≡ a + a + (b + b + (b +
 
 -- 2a + 4b sits under 4a + 4b, i.e. under rBound m n
 def leQQuarterSum : (m n : ℕ)
-  → El (qInvNat
+  → (qInvNat
     (qtr
       m)
     + qInvNat
@@ -131,17 +131,16 @@ def leQQuarterSum : (m n : ℕ)
 -- a regular sequence OF REALS, read off the representatives: at every
 -- index j the two representatives are within the reals' separation
 -- plus the two moduli
-def RegSeqR : El (ℕ → RSeq) → 𝕌 ≔
+def RegSeqR : (ℕ → RSeq) → 𝕌 ≔
   λx. (m n j : ℕ) → Bnd (rBound m n + rBound j j) (seqOf (x m) j + qNeg (seqOf (x n) j))
 
 -- ===== the limit =====
-def limSeq : El (ℕ → RSeq) → El (ℕ → Q) using (rationalQ.Q.unfold) ≔
-  λx. λj. seqOf (x (qtr j)) (qtr j)
+def limSeq : (ℕ → RSeq) → ℕ → Q using (rationalQ.Q.unfold) ≔ λx. λj. seqOf (x (qtr j)) (qtr j)
 
 -- |L m − L n| ≤ |x_qm(qm) − x_qm(qn)| + |x_qm(qn) − x_qn(qn)|
 --             ≤ (αm + αn)            + ((αm + αn) + (αn + αn))
 --             = 2αm + 4αn  ≤  4αm + 4αn  =  rBound m n
-def limReg : {x : El (ℕ → RSeq)} → El (RegSeqR x) → El (Regular (limSeq x))
+def limReg : {x : ℕ → RSeq} → RegSeqR x → Regular (limSeq x)
   using (id.Id.eq,
     ratBound.Bnd.unfold,
     rationalOrder.Sign.eq,
@@ -182,16 +181,14 @@ def limReg : {x : El (ℕ → RSeq)} → El (RegSeqR x) → El (Regular (limSeq 
           (regBnd _ (regOf (x (qtr m))) (qtr m) (qtr n))
           (h (qtr m) (qtr n) (qtr n)))))
 
-def rLim : (x : El (ℕ → RSeq)) → El (RegSeqR x) → El RSeq using (real.RSeq.unfold) ≔
-  λx. λh. limSeq x, limReg h
+def rLim : (x : ℕ → RSeq) → RegSeqR x → RSeq using (real.RSeq.unfold) ≔ λx. λh. limSeq x, limReg h
 
-def realLim : (x : El (ℕ → RSeq)) → El (RegSeqR x) → El Real using (real.Real.unfold) ≔
-  λx. λh. class (rLim _ h)
+def realLim : (x : ℕ → RSeq) → RegSeqR x → Real using (real.Real.unfold) ≔ λx. λh. class (rLim _ h)
 
 -- ===== convergence =====
 -- (b+a) + ((g+a) + (a+a)) ≡ g + (b + ((a+a)+(a+a))) : both are
 -- b + g + 4a, with the four quarter-fractions collected on the right
-def qSum7 : (b g a : El Q) → b + a + (g + a + (a + a)) ≡ g + (b + (a + a + (a + a)))
+def qSum7 : (b g a : Q) → b + a + (g + a + (a + a)) ≡ g + (b + (a + a + (a + a)))
   using (rationalQ.Q.unfold) ≔
   λb. λg. λa. b + a + (g + a + (a + a))
       ≡⟨ sym _ _ (qAddAssoc (b + a) (g + a) (a + a)) ⟩ b + a + (g + a) + (a + a)
@@ -204,10 +201,10 @@ def qSum7 : (b g a : El Q) → b + a + (g + a + (a + a)) ≡ g + (b + (a + a + (
 --                ≤ (β + α)            + ((γ + α) + (α + α))
 --                = β + γ + 4α  =  γ + 2β  =  1/(n+1) + 2/(j+1)
 -- — an equality, not a weakening: quarter depth is exactly enough
-def limClose : (x : El (ℕ → RSeq))
-  (h : El (RegSeqR x))
+def limClose : (x : ℕ → RSeq)
+  (h : RegSeqR x)
   (n j : ℕ)
-  → El (Bnd (qInvNat n + rBound j j) (seqOf (x n) j + qNeg (limSeq x j)))
+  → Bnd (qInvNat n + rBound j j) (seqOf (x n) j + qNeg (limSeq x j))
   using (id.Id.eq,
     ratBound.Bnd.unfold,
     rationalOrder.Sign.eq,
@@ -245,8 +242,8 @@ def limClose : (x : El (ℕ → RSeq))
 -- d(X n, L) ≤ 1/(n+1). The pointwise estimate is taken at the doubled
 -- index the distance samples at, where the modulus rBound (2j+1)(2j+1)
 -- is exactly 1/(j+1) and so sits under rBound j j.
-def realLimClose : (x : El (ℕ → RSeq))
-  (h : El (RegSeqR x))
+def realLimClose : (x : ℕ → RSeq)
+  (h : RegSeqR x)
   (n : ℕ)
   → Prf (realDist (class (x n)) (realLim _ h) ≤ realOfQ (qInvNat n))
   using (real.Real.unfold,
@@ -277,8 +274,8 @@ def realLimClose : (x : El (ℕ → RSeq))
 
 -- ...and the hypothesis really does say what it should: a pointwise
 -- RegSeqR makes the reals themselves 1/(m+1) + 1/(n+1)-close)
-def regSeqRSound : (x : El (ℕ → RSeq))
-  (h : El (RegSeqR x))
+def regSeqRSound : (x : ℕ → RSeq)
+  (h : RegSeqR x)
   (m n : ℕ)
   → Prf (realDist (class (x m)) (class (x n)) ≤ realOfQ (rBound m n))
   using (real.Real.unfold,
