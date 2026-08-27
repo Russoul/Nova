@@ -100,7 +100,7 @@ parseName = do
                            else Nothing
               _ => Nothing)
     let name = pack (c :: cs)
-    -- S/Z/Refl/class are also reserved: unlike def/type/El/Prf/import/
+    -- S/Z/Refl/class are also reserved: unlike def/type/El/import/
     -- infixl/infixr they're syntactically valid identifiers, so without
     -- this a shadowing binder would parse fine and only misbehave at a
     -- REFERENCE site — loudly for S/class (they consume a following atom,
@@ -113,7 +113,7 @@ parseName = do
     -- with the elided ≡ (docs/NovaPerfectSurface.txt, Phase 4): an
     -- ∈-less equality's right side is an application chain, which
     -- would otherwise swallow a following using-clause
-    guard "Reserved keyword" (name /= "def" && name /= "type" && name /= "El" && name /= "Prf" &&
+    guard "Reserved keyword" (name /= "def" && name /= "type" && name /= "El" &&
                               name /= "import" && name /= "infixl" && name /= "infixr" &&
                               name /= "S" && name /= "Z" && name /= "class" &&
                               name /= "data" && name /= "let" && name /= "in" &&
@@ -290,12 +290,9 @@ mutual
   -- 𝕌-variable, a computed code in parens)
   parseSTyEl : FixTable -> NameEnv -> Rule STy
   parseSTyEl tbl env =
-        -- LEGACY `Prf p` (Prf retired: the prop is the type; the
-        -- canonical spelling is bare — this production only keeps old
-        -- files readable, and elabTy erases the node)
-        (do kw "Prf"; space; e <- parseSElemAtom tbl env; pure (STyPrf e))
-        -- a SQUASH standing as a type (prop-lift)
-    <|> (do kw "∥"; sp; t <- parseSTy tbl env; sp; kw "∥"; pure (STyEl (SSquash t)))
+        -- a SQUASH standing as a type (prop-lift; Prf is retired
+        -- WITHOUT a legacy spelling — a prop stands bare)
+        (do kw "∥"; sp; t <- parseSTy tbl env; sp; kw "∥"; pure (STyEl (SSquash t)))
     <|> (do kw "ν"; space; f <- parseSPolyAtom tbl env; pure (STyNu f))
     <|> (do t <- parseSTyAtom tbl env
             args <- many (do space; parseSElemAtom tbl env)

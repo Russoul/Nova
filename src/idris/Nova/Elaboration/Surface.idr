@@ -57,9 +57,6 @@ mutual
     STyEl : SElem -> STy
     ||| Ω
     STyProp : STy
-    ||| LEGACY `Prf t` (Prf retired — elaborates to the bare prop;
-    ||| never printed in canonical form)
-    STyPrf : SElem -> STy
     ||| ν F — the coinductive type at a surface polynomial
     STyNu : SPoly -> STy
 
@@ -279,7 +276,6 @@ mutual
   shiftTy c (STyEq rng l r t) = STyEq rng (shiftElem c l) (shiftElem c r) (map (shiftTy c) t)
   shiftTy c (STyEl e) = STyEl (shiftElem c e)
   shiftTy c STyProp = STyProp
-  shiftTy c (STyPrf e) = STyPrf (shiftElem c e)
   shiftTy c (STyNu f) = STyNu (shiftPoly c f)
 
   public export
@@ -476,7 +472,6 @@ mutual
     show (STyEl e) = "El (\{show e})"
     show (STyNu f) = "Nu (\{show f})"
     show STyProp = "Ω"
-    show (STyPrf e) = "Prf (\{show e})"
 
   export covering
   Show SElem where

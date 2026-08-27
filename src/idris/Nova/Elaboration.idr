@@ -3280,11 +3280,6 @@ mutual
     (e', eSk) <- checkElem ctx env site e cls
     pure (e', eSk)
   elabTy ctx env site STyProp = pure (PropTy, Nd [] [])
-  -- a PROP in type position (Prf retired: the prop is the type; the
-  -- node survives for legacy `Prf p` spellings, elaborated bare)
-  elabTy ctx env site (STyPrf e) = do
-    (e', eSk) <- checkElem ctx env site e PropTy
-    pure (e', eSk)
   export
   inferElem : Ctx -> NameEnv -> String -> SElem -> ElabM (Elem, Ty, Skel)
   inferElem ctx env site (SVar mrng n i) =

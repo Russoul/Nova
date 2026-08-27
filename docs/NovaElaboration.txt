@@ -191,8 +191,9 @@ T{2} ::= ν F{≥2} | ∥T{≥0}∥ | T{≥4} t{≥4}* | t-atom
 # application spine (Vect n, R x y), a squash, an operator-shaped
 # name (⊥), or a parenthesized element ((a ≤ b)). The classifier is
 # read off a discarded inference probe: Ω-valued spellings elaborate
-# at Ω, everything else at 𝕌. (A legacy `Prf t{≥4}` spelling still
-# parses and elaborates to the bare prop.)
+# at Ω, everything else at 𝕌. There is NO legacy `Prf` spelling —
+# the keyword is gone from the grammar and `Prf` is an ordinary
+# identifier.
 T{1} ::= ((x:T{≥0}))+ → T{≥0} | ((x:T{≥0}))+ ⨯ T{≥0}
        | T{≥1½} / (x y. t{≥1})
 T{1½} ::= T{≥2} ⊎ T{≥1½}
@@ -516,12 +517,8 @@ componentwise at F ⨯ G and F ⊎ G                  (e-poly-prod, e-poly-sum)
    ⟹   Γ ⊢ (x:t) ⨯ F ⇝ a ⨯ 𝔽 poly                (e-poly-sigma)
    ⟹   Γ ⊢ (x:t) → F ⇝ a → 𝔽 poly                (e-poly-pi)
 
-Γ ⊢ p ⇐ Ω ⇝ p̂
-------------------- (e-ty-prf)                          # (prop-lift)
-Γ ⊢ Prf p ⇝ p̂ type
-# LEGACY: `Prf p` still parses; the node erases — the prop is the
-# type. Ω-valued spellings without the keyword route through e-ty-el
-# below with the probe reading Ω.
+# (e-ty-prf is GONE with its keyword: a proposition in type position
+# routes through e-ty-el below with the probe reading Ω.)
 
 Γ ⊢ T ⇝ A type
 Γ ⊢ t₀ ⇐ A ⇝ a₀

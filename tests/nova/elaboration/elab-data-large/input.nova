@@ -1,4 +1,4 @@
--- A LARGE signature (an external domain that is not El/Prf): the sort
+-- A LARGE signature (an external domain neither 𝕌- nor Ω-typed): the sort
 -- still forms a perfectly good TYPE (emitted as a type item), it just
 -- has no universe code — the ty-pi/code-pi divide, load-bearing
 -- (code-qiit's smallness prevents the type-in-type retract).
