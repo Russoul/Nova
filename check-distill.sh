@@ -6,11 +6,18 @@
 # it byte for byte (the corpus was rewritten into this form; edits
 # that leave canonical form are re-normalized by
 #   build/exec/nova distill src/nova/all.nova <tmp> && cp <tmp>/*.nova src/nova/ ).
+#
+# NOVA_BIN=<path>  use that `nova` instead of building one with pack.
 set -e
-pack build nova.ipkg
+if [ -n "${NOVA_BIN:-}" ]; then
+  NOVA="$NOVA_BIN"
+else
+  pack build nova.ipkg
+  NOVA="build/exec/nova"
+fi
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-build/exec/nova distill src/nova/all.nova "$tmp"
+"$NOVA" distill src/nova/all.nova "$tmp"
 fail=0
 for f in "$tmp"/*.nova; do
   if ! diff -q "$f" "src/nova/$(basename "$f")" > /dev/null; then

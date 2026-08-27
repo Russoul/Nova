@@ -11,12 +11,19 @@
 #   --per-file   elaborate each module separately as well (the old
 #                behaviour; ~5x slower, and the only way to catch a
 #                module that all.nova forgot to list)
+#
+# NOVA_BIN=<path>  use that `nova` instead of building one with pack.
 set -u
 cd "$(dirname "$0")"
 
-pack build nova.ipkg >/dev/null || exit 1
+# NOVA_BIN names an already-built `nova`; without it, build one with pack.
+if [ -n "${NOVA_BIN:-}" ]; then
+  APP="$NOVA_BIN"
+else
+  pack build nova.ipkg >/dev/null || exit 1
+  APP="build/exec/nova"
+fi
 
-APP="build/exec/nova"
 ALL="src/nova/all.nova"
 
 # all.nova must list every module, or the fast path would silently skip
