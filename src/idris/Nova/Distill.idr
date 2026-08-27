@@ -525,7 +525,6 @@ mutual
     STyQuot _ _ _ _ => CTArrow
     STySum _ _ => CTSum
     STyEl _ => CTEl
-    STyPrf _ => CTEl
     STyNu _ => CTEl
     _ => CTAtom
 
@@ -561,7 +560,6 @@ mutual
     STySum a b => pt tbl TEl False a <-> txt " ⊎ " <-> pt tbl TSum False b
     -- El retired: a code in type position prints as the code itself
     STyEl e => pe tbl LPrefix False e
-    STyPrf e => txt "Prf " <-> pe tbl LAtom False e
     STyNu f => txt "ν " <-> pp tbl PAtom f
     STySig x => txt x
     STyZero => txt "𝟘"
@@ -956,7 +954,6 @@ parameters (ok : Range -> Bool, blankAt : Range -> Nat -> Bool)
           then let (l', r') = elideSides l r in STyEq rng l' r' Nothing
           else STyEq rng (esE l) (esE r) (map esT t)
       STyEl t => STyEl (esE t)
-      STyPrf t => STyPrf (esE t)
       STyNu f => STyNu (esP f)
       _ => ty
 

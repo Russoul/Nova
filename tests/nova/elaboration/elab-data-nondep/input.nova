@@ -1,6 +1,6 @@
 -- Non-dependent Π syntax in data entries: a bare domain binds an
 -- anonymous binder (cls : a → Q), mixing freely with named
--- groups and arrows between groups; external and Prf domains may
+-- groups and arrows between groups; external and prop domains may
 -- stand bare mid-telescope too.
 data [a : 𝕌] [r : a → a → Ω]
      ( Q : U

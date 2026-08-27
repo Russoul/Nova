@@ -146,7 +146,6 @@ parameters (rm : RenameMap, resolve : String -> String)
       STyQuot a x y r => STyQuot (rnT a) x y (rnE r)
       STyEq rng l r t => STyEq rng (rnE l) (rnE r) (map rnT t)
       STyEl t => STyEl (rnE t)
-      STyPrf t => STyPrf (rnE t)
       STyNu f => STyNu (rnP f)
       _ => ty
 

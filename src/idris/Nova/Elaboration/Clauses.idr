@@ -121,7 +121,6 @@ mutual
   mapRefsTy f g d (STyEq rng l r t) = STyEq rng (mapRefsE f g d l) (mapRefsE f g d r) (map (mapRefsTy f g d) t)
   mapRefsTy f g d (STyEl e) = STyEl (mapRefsE f g d e)
   mapRefsTy f g d STyProp = STyProp
-  mapRefsTy f g d (STyPrf e) = STyPrf (mapRefsE f g d e)
   mapRefsTy f g d (STyNu p) = STyNu (mapRefsP f g d p)
 
   mapRefsP : (onVar : Nat -> Maybe Range -> String -> Nat -> SElem) ->
@@ -227,7 +226,6 @@ mutual
   occursTy f (STyEq _ l r t) = occursE f l || occursE f r || maybe False (occursTy f) t
   occursTy f (STyEl e) = occursE f e
   occursTy f STyProp = False
-  occursTy f (STyPrf e) = occursE f e
   occursTy f (STyNu p) = occursP f p
 
   occursP : String -> SPoly -> Bool
@@ -369,7 +367,6 @@ mutual
        pure (STyEq rng l' r' t')
   rwTy f mk lead d (STyEl e) = STyEl <$> rwE f mk lead d e
   rwTy f mk lead d STyProp = Just STyProp
-  rwTy f mk lead d (STyPrf e) = STyPrf <$> rwE f mk lead d e
   rwTy f mk lead d (STyNu p) = STyNu <$> rwP f mk lead d p
 
   rwP : (f : String) -> (mk : Nat) -> (lead : List Nat) -> Nat -> SPoly -> Maybe SPoly

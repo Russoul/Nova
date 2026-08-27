@@ -1,5 +1,5 @@
 -- an unprovable equation paid INSIDE a let body: the obligation's
 -- context shows the let's two entries — the value and its unfolding
--- hypothesis (rendered as an anonymous Prf entry)
+-- hypothesis (rendered as an anonymous equation entry)
 def letObl : (n : ℕ) → ℕ ≔
   λn. let m ≔ S n in ((λh. m) : (m ≡ Z ∈ ℕ) → ℕ) ⋆

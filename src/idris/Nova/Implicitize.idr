@@ -245,7 +245,6 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
       STyQuot a x y r => STyQuot (xfT a) x y (xfE r)
       STyEq rng l r t => STyEq rng (xfE l) (xfE r) (map xfT t)
       STyEl t => STyEl (xfE t)
-      STyPrf t => STyPrf (xfE t)
       STyNu f => STyNu (xfP f)
       _ => ty
 
@@ -550,7 +549,6 @@ sitesOfUnit resolve q u = concatMap (\(_, it) => goItem it) u.mitems
       STyQuot a _ _ r => goT a ++ goE r
       STyEq _ l r t => goE l ++ goE r ++ concatMap goT (toList t)
       STyEl t => goE t
-      STyPrf t => goE t
       STyNu f => goP f
       _ => []
 
