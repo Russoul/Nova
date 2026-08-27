@@ -1,0 +1,63 @@
+{
+  "nodes": {
+    "just-a-parser": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1787058262,
+        "narHash": "sha256-TCdm4Cb4GbMKIvQNFHFTgY4coDIKUNHsQYmZmyoxxmE=",
+        "owner": "Russoul",
+        "repo": "Just-a-Parser",
+        "rev": "de33675918ec518de60a6d4ebad1f8d9815a4d66",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Russoul",
+        "repo": "Just-a-Parser",
+        "rev": "de33675918ec518de60a6d4ebad1f8d9815a4d66",
+        "type": "github"
+      }
+    },
+    "lsp-lib": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1755177633,
+        "narHash": "sha256-maXHx/OrflIdV7XPfDCRShUGZekLbLOSFQPHnL6DxnI=",
+        "owner": "idris-community",
+        "repo": "lsp-lib",
+        "rev": "ca77e80a392b8cfeee3aaeb150069957699cdb82",
+        "type": "github"
+      },
+      "original": {
+        "owner": "idris-community",
+        "repo": "lsp-lib",
+        "rev": "ca77e80a392b8cfeee3aaeb150069957699cdb82",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1787498568,
+        "narHash": "sha256-9i/VTdusq/+NM/tz+J1Re+ojkMB8MBf0QshnYfzHz30=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "56c02bc00adcf003215cc4bd996d6efaf4cff188",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "just-a-parser": "just-a-parser",
+        "lsp-lib": "lsp-lib",
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

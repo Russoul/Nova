@@ -15,3 +15,27 @@ sources online at [russoul.github.io/Nova](https://russoul.github.io/Nova/).
 ### Dependencies
 
 [Just-a-Parser](https://github.com/Russoul/Just-a-Parser)
+
+### Building
+
+With [pack](https://github.com/stefan-hoeck/idris2-pack):
+
+```
+make build     # pack build nova.ipkg  ->  build/exec/nova
+make test      # golden tests + the elaboration gate
+```
+
+With [Nix](https://nixos.org) (flakes) — `pack.toml`'s pins are
+mirrored in `flake.nix`, so nothing is bootstrapped or fetched at
+build time:
+
+```
+nix build                # the nova elaborator
+nix run . -- elab src/nova/all.nova
+nix flake check          # every CI gate: tests, elaborations, distill, specs, site
+nix develop              # a shell where `idris2 --build nova.ipkg` just works
+```
+
+Also buildable: `nix build .#nova-lsp` (language server),
+`.#nova-docs` (HTML renderer), `.#nova-tests` (golden-test driver) and
+`.#site` (the rendered specs and corpus published to GitHub Pages).
