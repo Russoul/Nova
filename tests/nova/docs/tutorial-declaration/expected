@@ -1,0 +1,7 @@
+defined plus by clauses (plus, plusZ, plusS, plusEta)
+defined double by clauses (double, doubleEq, doubleEta)
+declared plusZr [+1 declaration]
+defined doubleZ
+open declarations (1):
+  [plusZr] ⊢ ? : (n:ℕ) → (plus n Z ≡ n ∈ ℕ)
+      at: def plusZr

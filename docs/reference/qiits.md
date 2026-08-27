@@ -1,8 +1,9 @@
-# The `data` item: QIITs
+# Quotient inductive-inductive types
 %stub
 
-One item introduces a quotient inductive-inductive signature, and
-expands into ordinary definitions.
+[Defining your own types](#own-types) used the `data` item in its
+simplest form. This chapter is the whole of it: indices, sorts indexed
+by other sorts, and constructors that impose **equations**.
 
 ## The signature literal
 

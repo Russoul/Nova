@@ -44,5 +44,8 @@ The failures that cost the most time, with their symptoms.
 
 ## Lexical traps
 
-- Greek letters are not identifiers; `--` inside an operator is a
-  comment.
+- Greek letters are not identifiers. The parse error points at the
+  character and names its code point
+  ([Reading and typing Nova](#notation)).
+- `--` inside an operator token is a comment, so no operator contains
+  it.

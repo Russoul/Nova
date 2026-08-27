@@ -8,9 +8,11 @@ fixed Markdown subset (see BLOCK GRAMMAR below); the chapter order and
 the part titles live in PARTS here, so chapters are files named by
 slug and never by number.
 
-A chapter whose second line is `%stub` is an OUTLINE, not prose: it
-renders with a stub badge and is counted in the progress line, so the
-page is honest about what is written and what is only planned.
+A chapter's second line may carry a status marker. `%stub` means the
+chapter is an OUTLINE, not prose; `%revise` means it is written but
+pitched at the wrong reader and awaits a re-pitch. Both render a badge
+and are counted in the progress line, so the page is honest about what
+is finished, what is only planned, and what is stale.
 
 Nova code fences (```nova) are highlighted with the same token classes
 the LSP sends an editor (Nova.LSP.Capabilities' legend: keyword,
@@ -31,7 +33,7 @@ the source.
 
 BLOCK GRAMMAR
   # Title            chapter heading (first line of every file)
-  %stub              outline marker (second line, optional)
+  %stub / %revise    status marker (second line, optional)
   ## / ###           section / subsection
   ```lang … ```      code fence (nova = highlighted AND checked against
                      src/nova; nova-sketch = highlighted, not checked;
@@ -62,51 +64,64 @@ SRC = ROOT / "docs" / "reference"
 # The book's spine. Order and grouping are HERE; chapter files are
 # named by slug so inserting a chapter never renumbers the corpus.
 PARTS = [
-    ("Getting started", [
+    ("Orientation", [
         "introduction",
+        "proofs-and-programs",
         "installation",
         "first-file",
-        "first-proofs",
     ]),
-    ("Lexical structure and items", [
-        "lexical",
-        "items",
-        "modules",
+    ("Writing Nova", [
+        "notation",
+        "definitions",
+        "let",
         "operators",
+        "modules",
     ]),
-    ("Types and terms", [
-        "universes",
-        "functions",
-        "bidirectional",
-        "implicits",
+    ("Data and recursion", [
+        "base-types",
         "pairs",
         "sums",
-        "naturals",
-        "let",
+        "own-types",
+        "recursion",
+        "clausal-defs",
     ]),
-    ("Equality and propositions", [
-        "equality",
-        "coherence",
+    ("Types that depend on values", [
+        "dependent-types",
+        "pi-types",
+        "sigma-types",
+        "universes",
+        "implicits",
+        "indexed-families",
+        "bidirectional",
+    ]),
+    ("Propositions and proofs", [
         "propositions",
+        "equality",
+        "reflection",
+        "induction-proofs",
         "calc-chains",
+        "connectives",
         "quotients",
     ]),
-    ("Defining your own types", [
-        "data",
-        "clausal-defs",
-        "coinduction",
-    ]),
-    ("Proving in Nova", [
+    ("Working with the checker", [
+        "report-and-holes",
         "discharge",
         "using-clauses",
-        "report",
         "recipes",
         "pitfalls",
+    ]),
+    ("Coming from Agda", [
+        "agda-map",
+        "agda-equality",
+        "coherence",
+    ]),
+    ("Beyond the basics", [
+        "qiits",
+        "coinduction",
     ]),
     ("Reference", [
         "grammar",
         "precedence",
-        "notation",
         "generated-names",
         "library",
         "tooling",
@@ -212,8 +227,12 @@ class Chapter:
         # the TOC is plain text; the heading keeps its inline markup
         self.title_text = self.title.replace("`", "")
         self.title_html = inline(self.title)
-        self.stub = len(lines) > 1 and lines[1].strip() == "%stub"
-        self.lines = lines[2:] if self.stub else lines[1:]
+        marker = lines[1].strip() if len(lines) > 1 else ""
+        if marker.startswith("%") and marker not in ("%stub", "%revise"):
+            sys.exit(f"{path}: unknown status marker {marker!r}")
+        self.stub = marker == "%stub"
+        self.revise = marker == "%revise"
+        self.lines = lines[2:] if marker.startswith("%") else lines[1:]
         self.sections = []          # (text, anchor) for every ##
         self.snippets = []          # (lang, code) for every code fence
         self.body = self.render()
@@ -363,10 +382,13 @@ body {
 .toc-sec { display:block; margin:.05rem 0 .05rem .8rem; color:var(--faint);
   text-decoration:none; }
 .toc-ch:hover, .toc-sec:hover { color:var(--link); }
-.toc-ch.stub::after { content:"outline"; float:right; font-size:9.5px;
+.toc-ch.stub::after, .toc-ch.revise::after {
+  float:right; font-size:9.5px;
   letter-spacing:.05em; text-transform:uppercase; color:var(--faint);
   border:1px solid var(--hair); border-radius:3px; padding:0 .25rem;
   font-weight:400; }
+.toc-ch.stub::after { content:"outline"; }
+.toc-ch.revise::after { content:"revise"; }
 main { flex:1; min-width:0; max-width:72ch; padding:1.2rem 0 6rem; }
 header.book { margin:.6rem 0 2.4rem; }
 header.book h1 { font-size:2.1rem; margin:0 0 .3rem; border:none; padding:0; }
@@ -419,7 +441,7 @@ th { font-family:ui-sans-serif,system-ui,sans-serif; font-size:.85em;
    in the slack between main's 72ch cap and #wrap — the page body must
    never scroll sideways. Narrower than that, pre's own overflow-x
    handles it. */
-@media (min-width: 1200px) { pre.code { margin-right:-8rem; } }
+@media (min-width: 1200px) { pre.code { margin-right:-9rem; } }
 :target { scroll-margin-top:1rem; }
 a:focus-visible { outline:2px solid var(--link); outline-offset:2px; }
 /* code token classes — the LSP legend, as in tools/nova-docs.css */
@@ -565,12 +587,14 @@ def assemble(parts, out_path):
     chapters = sum((cs for _, cs in parts), [])
     check_xrefs(chapters)
     written = sum(1 for c in chapters if not c.stub)
+    revise = sum(1 for c in chapters if c.revise)
 
     nav = ['<nav id="toc"><a class="home" href="index.html">← Nova</a>']
     for title, chs in parts:
         nav.append(f"<details open><summary>{html.escape(title)}</summary>")
         for c in chs:
-            cls = "toc-ch stub" if c.stub else "toc-ch"
+            cls = ("toc-ch stub" if c.stub
+                   else "toc-ch revise" if c.revise else "toc-ch")
             nav.append(f'<a class="{cls}" href="#{c.slug}">'
                        f"{c.num}. {html.escape(c.title_text)}</a>")
             for text, a in c.sections:
@@ -583,7 +607,9 @@ def assemble(parts, out_path):
             "<p>A guided tour of the surface language: how to write it, how to "
             "read it, and how proofs get discharged.</p>",
             f'<p class="progress">Draft — {written} of {len(chapters)} chapters '
-            "written; the rest are outlines. The normative documents are the "
+            + (f"written ({revise} awaiting a re-pitch); "
+               if revise else "written; ")
+            + "the rest are outlines. The normative documents are the "
             '<a href="specs.html">theory specs</a>; where this book and a spec '
             "disagree, the spec is right.</p>",
             "</header>"]
@@ -596,6 +622,11 @@ def assemble(parts, out_path):
             if c.stub:
                 main.append('<p class="stubnote">Outline only — this chapter '
                             "sketches what it will cover.</p>")
+            elif c.revise:
+                main.append('<p class="stubnote">Written for an earlier '
+                            "audience — the content stands, but the pitch "
+                            "still assumes a reader who has used a proof "
+                            "assistant before.</p>")
             main.append(c.body)
             main.append("</section>")
 
@@ -646,7 +677,8 @@ def main():
     langs = [l for _, cs in parts for c in cs for l, _ in c.snippets]
     quoted = sum(1 for l in langs if l in ("nova", "report"))
     sketch = sum(1 for l in langs if l == "nova-sketch")
-    print(f"{out}: {total} chapters, {written} written, "
+    revise = sum(1 for _, cs in parts for c in cs if c.revise)
+    print(f"{out}: {total} chapters, {written} written ({revise} to re-pitch), "
           f"{total - written} outlines; {quoted} snippets quoted from the "
           f"sources, {sketch} illustrative")
 

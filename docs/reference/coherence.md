@@ -212,7 +212,7 @@ And for equational goals the coherences do not merely become trivial —
 they do not exist. Every sort gets a second, prop-valued eliminator
 `<Sort>ElimP` whose motives land in `Ω`, and it takes **no coherence
 arguments at all**, because proof irrelevance already closes them
-([The `data` item](#data)).
+([Quotient inductive-inductive types](#qiits)).
 
 ## Example: quotient lifts carry the respect proof, and nothing else
 

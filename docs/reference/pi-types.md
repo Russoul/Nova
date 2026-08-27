@@ -1,7 +1,8 @@
-# Functions
+# Π-types
 %stub
 
-Π-types, λ, application, and the sugar that keeps statements readable.
+Function types whose result mentions the argument, and the sugar that
+keeps a statement readable.
 
 ## Π-types
 

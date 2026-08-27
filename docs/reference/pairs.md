@@ -1,31 +1,25 @@
-# Pairs and Σ-types
+# Pairs
 %stub
 
-Dependent pairs, projections, and the code-versus-type trap.
+Products, projections, and the notation you will meet everywhere.
 
-## Σ-types
+## Building and taking apart
 
-- `(x : A) ⨯ B` and the non-dependent `A ⨯ B`; binder groups iterate as
-  for `→`.
+- `a , b` builds; `.π₁` and `.π₂` project.
+- `,` is right-associative, so `a , b , c` needs no parentheses and a
+  triple is a pair whose second component is a pair.
 
-## Pairing and projection
+## The type
 
-- `a , b` is right-associative, so nested pairs need no parentheses.
-- `.π₁` and `.π₂` project and **infer**.
+- `A ⨯ B`, with the dependent form deferred to
+  [Σ-types](#sigma-types).
 
 ## η
 
-- Σ-η is judgemental; `paireta` and `pairext` in `equality.nova` are the
-  surface consequences.
+- A pair **is** its two projections, judgementally — so the two ways of
+  writing the same pair are interchangeable with no lemma.
 
-## Codes versus types
+## Where pairs show up
 
-- A Σ-**code** binds over a code, a Σ-**type** over a type. Getting this
-  wrong drops the binder silently, and the error surfaces as
-  `unknown name` at the use site, lines away.
-
-## Records, idiomatically
-
-- Structures as nested Σ-codes (`monoid.nova`, `group.nova`), and why
-  laws are stated with `Id` rather than `≡` when they must live inside a
-  code.
+- Multiple results, structures, and the "value plus evidence about it"
+  idiom that dependent pairs make precise.

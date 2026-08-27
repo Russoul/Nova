@@ -1,8 +1,9 @@
-# Propositions and squashing
+# Propositions
 %stub
 
-`Ω` is the universe of mere propositions; this chapter is how to live in
-it.
+A proposition is a type whose inhabitants carry no information — only
+the fact that there is one. `Ω` is where they live, and this chapter is
+what changes when a type is one.
 
 ## `Ω`, and propositions as types
 

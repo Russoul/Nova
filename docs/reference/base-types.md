@@ -1,8 +1,9 @@
-# Natural numbers and eliminators
+# The built-in types
 %stub
 
-`ℕ` is primitive, and its eliminator sets the pattern every other
-eliminator follows.
+Four types come with the language: the empty type, the unit type, the
+natural numbers, and — because types are values here — the universes
+that classify the rest.
 
 ## `ℕ`
 

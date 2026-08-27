@@ -1,4 +1,5 @@
 # Equality
+%revise
 
 Equality in Nova is a **proposition**, and a proved equation becomes a
 **judgemental** one. Those two sentences explain most of what looks
@@ -107,7 +108,7 @@ type-equality judgement to learn and no coercion to insert.
 
 Reflection makes type checking undecidable. Nova does not respond with a
 search: an equation the checker cannot derive is **assumed and
-reported** ([Reading the report](#report)). The practical consequence is that proofs feel
+reported** ([Reading the report](#report-and-holes)). The practical consequence is that proofs feel
 less like construction and more like *supplying the right facts in the
 right scope*.
 

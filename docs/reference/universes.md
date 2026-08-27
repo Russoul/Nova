@@ -24,7 +24,7 @@
 ## Small versus large
 
 - What makes a type large, and why a large sort cannot be code-valued or
-  parameterised ([The `data` item](#data) revisits this).
+  parameterised ([QIITs](#qiits) revisits this).
 
 ## Type formers at a glance
 
