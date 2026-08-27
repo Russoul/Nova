@@ -38,9 +38,8 @@ def regOf : (x : RSeq) → Regular (seqOf x)
   λx. x .π₂
 
 -- REq is a squashed pointwise bound; intro takes the witness, elim is
--- squash-elim (the target below is always a Prf, so this is legal)
-def reqOf : (x y : RSeq)
-  → ((n : ℕ) → Bnd (rBound n n) (seqOf x n + qNeg (seqOf y n))) → Prf (REq x y)
+-- squash-elim (the target below is always a prop, so this is legal)
+def reqOf : (x y : RSeq) → ((n : ℕ) → Bnd (rBound n n) (seqOf x n + qNeg (seqOf y n))) → REq x y
   using (id.Id.eq,
     ratBound.Bnd.unfold,
     rationalOrder.Sign.eq,
@@ -64,13 +63,13 @@ def rBoundSym : (m n : ℕ) → rBound m n ≡ rBound n m
 -- ===== reflexivity and symmetry of REq =====
 -- pointwise-equal sequences are REq-close: every difference is zero,
 -- and zero is bounded by the (nonnegative) rBound
-def reqOfPointwise : {x y : RSeq} → ((n : ℕ) → seqOf x n ≡ seqOf y n) → Prf (REq x y)
+def reqOfPointwise : {x y : RSeq} → ((n : ℕ) → seqOf x n ≡ seqOf y n) → REq x y
   using (real.REq.unfold) ≔
   λx. λy. λe. reqOf _ _ (λn. bndSubEq _ _ _ (leQZeroBound n n) (e n))
 
-def reqRefl : {x : RSeq} → Prf (REq x x) using (real.REq.unfold) ≔ λx. reqOfPointwise (λn. ⋆)
+def reqRefl : {x : RSeq} → REq x x using (real.REq.unfold) ≔ λx. reqOfPointwise (λn. ⋆)
 
-def reqSym : {x y : RSeq} → Prf (REq x y) → Prf (REq y x)
+def reqSym : {x y : RSeq} → REq x y → REq y x
   using (id.Id.eq,
     ratBound.Bnd.unfold,
     rationalOrder.Sign.eq,
@@ -91,7 +90,7 @@ def reqSym : {x y : RSeq} → Prf (REq x y) → Prf (REq y x)
 
 -- classes are equal as soon as the representatives are close
 -- (el-quot-eq), and pointwise equality suffices
-def realEqOfREq : (x y : RSeq) → Prf (REq x y) → class x ≡ class y ∈ Real using (real.Real.unfold) ≔
+def realEqOfREq : (x y : RSeq) → REq x y → class x ≡ class y ∈ Real using (real.Real.unfold) ≔
   λx. λy. λh. ⋆ h
 
 def realEqOfPointwise : (x y : RSeq) → ((n : ℕ) → seqOf x n ≡ seqOf y n) → class x ≡ class y ∈ Real
@@ -133,7 +132,7 @@ def negReg : {f : ℕ → Q} → Regular f → Regular (negSeq f)
 def rNeg : RSeq → RSeq using (real.RSeq.unfold) ≔ λx. negSeq (seqOf x), negReg (regOf x)
 
 -- negation respects closeness — same reversal, one index at a time
-def rNegWD : {x y : RSeq} → Prf (REq x y) → Prf (REq (rNeg x) (rNeg y))
+def rNegWD : {x y : RSeq} → REq x y → REq (rNeg x) (rNeg y)
   using (id.Id.eq,
     ratBound.Bnd.unfold,
     rational.ratAdd.eq,
@@ -164,7 +163,7 @@ def rNegWD : {x y : RSeq} → Prf (REq x y) → Prf (REq (rNeg x) (rNeg y))
       (sym _ _ (qNegSub (seqOf x n) (seqOf y n)))
       (bndSubSym (rBound n n) (seqOf x n) (seqOf y n) (u n))))
 
-def rNegWDCls : (x y : RSeq) (h : Prf (REq x y)) → class (rNeg x) ≡ class (rNeg y) ∈ Real
+def rNegWDCls : (x y : RSeq) (h : REq x y) → class (rNeg x) ≡ class (rNeg y) ∈ Real
   using (real.Real.unfold) ≔
   λx. λy. λh. realEqOfREq _ _ (rNegWD h)
 

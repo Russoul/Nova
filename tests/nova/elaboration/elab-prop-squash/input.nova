@@ -1,5 +1,5 @@
 -- el-squash-i: ⋆ inhabits the squash of any inhabited type
-def truth : Prf ∥𝟙∥ ≔ ⋆
-def eqSquash : (a : ℕ) → Prf ∥a ≡ a ∈ ℕ∥ ≔ λa. ⋆
+def truth : ∥𝟙∥ ≔ ⋆
+def eqSquash : (a : ℕ) → ∥a ≡ a ∈ ℕ∥ ≔ λa. ⋆
 -- el-prf-prop: proof irrelevance — any two proofs of a prop are equal
-def irrel : (p : Ω) (x : Prf p) (y : Prf p) → x ≡ y ∈ Prf p ≔ λp. λx. λy. ⋆
+def irrel : (p : Ω) (x : p) (y : p) → x ≡ y ∈ p ≔ λp. λx. λy. ⋆

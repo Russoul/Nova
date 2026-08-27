@@ -629,7 +629,8 @@ codeOf : Ty -> Maybe Elem
 codeOf UniverseTy = Nothing
 codeOf PropTy = Nothing
 codeOf TopTy = Nothing
-codeOf (Prf _) = Nothing
+codeOf (Elem.EqTy _ _ _) = Nothing
+codeOf (Squash _) = Nothing
 -- everything else IS its own code (El retired); the large formers
 -- above are the only exclusions the syntax can see — smallness of
 -- the rest is the kernel gate's question
@@ -741,7 +742,6 @@ matchElemP k d b (QElim sg j ms fs es w) (QElim sg' j' ms' fs' es' w') =
 matchElemP k d b UniverseTy UniverseTy = Just
 matchElemP k d b PropTy PropTy = Just
 matchElemP k d b TopTy TopTy = Just
-matchElemP k d b (Prf e) (Prf e') = matchElemP k d b e e'
 matchElemP _ _ _ _ _ = const Nothing
 
 matchSpineP k d b [<] [<] = Just
@@ -782,7 +782,6 @@ matchTyP k d b (SigmaTy a c) (SigmaTy a' c') =
   \bs => matchTyP k d b a a' bs >>= matchTyP k d (1 + b) c c'
 matchTyP k d b (SumTy a c) (SumTy a' c') =
   \bs => matchTyP k d b a a' bs >>= matchTyP k d b c c'
-matchTyP k d b (Prf e) (Prf e') = matchElemP k d b e e'
 matchTyP k d b (QuotTy a r) (QuotTy a' r') =
   \bs => matchTyP k d b a a' bs >>= matchElemP k d (2 + b) r r'
 matchTyP k d b (SigVar x es) (SigVar x' es') =
@@ -858,7 +857,6 @@ elemSize Elem.NatTy = 1
 elemSize UniverseTy = 1
 elemSize PropTy = 1
 elemSize TopTy = 1
-elemSize (Prf e) = S (elemSize e)
 elemSize (Elem.PiTy a b) = S (elemSize a + elemSize b)
 elemSize (Elem.SigmaTy a b) = S (elemSize a + elemSize b)
 elemSize (Elem.SumTy a b) = S (elemSize a + elemSize b)
@@ -952,7 +950,6 @@ permutative c = isJust (go 0 c.lhs c.rhs [])
   go b UniverseTy UniverseTy m = Just m
   go b PropTy PropTy m = Just m
   go b TopTy TopTy m = Just m
-  go b (Prf e) (Prf e') m = go b e e' m
   go _ _ _ _ = Nothing
 
   goSp b [<] [<] m = Just m
@@ -967,7 +964,6 @@ permutative c = isJust (go 0 c.lhs c.rhs [])
   goT b (PiTy a d) (PiTy a' d') m = goT b a a' m >>= goT (1+b) d d'
   goT b (SigmaTy a d) (SigmaTy a' d') m = goT b a a' m >>= goT (1+b) d d'
   goT b (SumTy a d) (SumTy a' d') m = goT b a a' m >>= goT b d d'
-  goT b (Prf e) (Prf e') m = go b e e' m
   goT b (QuotTy a r) (QuotTy a' r') m = goT b a a' m >>= go (2+b) r r'
   goT b (SigVar x es) (SigVar x' es') m =
     if x == x' then goSNT es es' m else Nothing
@@ -1167,7 +1163,6 @@ rewriteElemS side c pi d t =
     at 0 0 a (\a' => Corec p a' f x)
       <|> at 1 1 f (\f' => Corec p a f' x)
       <|> at 2 0 x (\x' => Corec p a f x')
-  descend (Prf e) = at 0 0 e Prf
   descend _ = Nothing
 
 rewriteTyS side c pi d ZeroTy = Nothing
@@ -1175,8 +1170,6 @@ rewriteTyS side c pi d OneTy = Nothing
 rewriteTyS side c pi d NatTy = Nothing
 rewriteTyS side c pi d UniverseTy = Nothing
 rewriteTyS side c pi d PropTy = Nothing
-rewriteTyS side c pi d (Prf e) =
-  (\(e', st) => (Prf e', st)) <$> rewriteElemS side c (0 :: pi) d e
 rewriteTyS side c pi d (PiTy a b) =
   ((\(a', st) => (PiTy a' b, st)) <$> rewriteTyS side c (0 :: pi) d a)
     <|> ((\(b', st) => (PiTy a b', st)) <$> rewriteTyS side c (1 :: pi) (1 + d) b)
@@ -1278,7 +1271,6 @@ mutual
   unfElem sig unfs UniverseTy        = UniverseTy
   unfElem sig unfs PropTy            = PropTy
   unfElem sig unfs TopTy             = TopTy
-  unfElem sig unfs (Prf e)           = Prf (unfElem sig unfs e)
   unfElem sig unfs (Elem.EqTy l r t) = Elem.EqTy (unfElem sig unfs l) (unfElem sig unfs r) (unfTy sig unfs t)
   unfElem sig unfs (QuotTy a r)      = QuotTy (unfElem sig unfs a) (unfElem sig unfs r)
   unfElem sig unfs (SigVar x es) =
@@ -1425,7 +1417,9 @@ mutual
       q'      => QuotElim f q'
   exposeE st (Squash t) =
     case exposeT st t of
-      Prf p => exposeE st p
+      -- code-squash-idem's syntax-directed instances
+      p@(Elem.EqTy _ _ _) => exposeE st p
+      p@(Squash _)        => exposeE st p
       t'    => Squash t'
   exposeE st (QElim sg k ms fs es w) =
     case exposeE st w of
@@ -1481,6 +1475,25 @@ engJoinE st e = compElem (unfElem st.sig st.eqScope e)
 
 engNfT : ElabSt -> Ty -> Ty
 engNfT st t = compTy t
+
+||| Is this type a PROPOSITION? Syntax-directed at the Ω formers
+||| (≡/∥·∥ — the head marks it, the role the retired Prf head used to
+||| play), through exposure; a NEUTRAL type is a prop exactly when
+||| its kernel-inferred type is Ω. UNTRUSTED like everything here —
+||| the kernel's kIsProp re-establishes prop-ness at replay.
+isPropTy : ElabSt -> Ctx -> Ty -> Bool
+isPropTy st ctx t = case t of
+  Elem.EqTy _ _ _ => True
+  Squash _ => True
+  -- the RAW spelling first: a neutral spine (≤ x y) checks at Ω AS
+  -- WRITTEN, while its exposure may be a stuck eliminator whose type
+  -- nothing can recover (kIsPropB also covers ⊎-elim's
+  -- constant-motive checking — the relator's stuck props)
+  _ => kIsPropB st.kernelSig kernelFuel ctx t
+       || (case exposeT st t of
+             Elem.EqTy _ _ _ => True
+             Squash _ => True
+             t' => kIsPropB st.kernelSig kernelFuel ctx t')
 
 ||| Blocked head exposures as an obligation hint (peeked, not drained —
 ||| an item's obligations share the notes).
@@ -1611,15 +1624,14 @@ hypCands st rw ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length 
   toPSteps : List Step -> List PStep
   toPSteps = map (\s => MkPStep s.path (licProof s.lic) s.sels s.flip)
 
-  -- a hypothesis licenses an equation when its (peeled) type is a Prf
-  -- whose prop normalizes to an equality (the one pathway — squashed
-  -- spellings converge by code-squash-prf during normalization)
+  -- a hypothesis licenses an equation when its (peeled) type IS an
+  -- equality prop (the prop is the type — Prf retired; squashed
+  -- spellings converge by code-squash-idem during normalization)
   eqShape : Ty -> Maybe (Elem, Elem, Ty)
-  eqShape (Prf p) =
-    case exposeCode st p of
-      Elem.EqTy l r t => Just (l, r, t)
+  eqShape t =
+    case exposeCode st t of
+      Elem.EqTy l r ty => Just (l, r, ty)
       _ => Nothing
-  eqShape _ = Nothing
 
   candAt : Nat -> Maybe Cand
   candAt i = do
@@ -1642,9 +1654,9 @@ hypCands st rw ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length 
       Nothing => Nothing
 
   -- a GROUND hypothesis whose type is a (nested, non-dependent) Σ of
-  -- Prf-equalities licenses one candidate per component, the proof
-  -- element being the projection chain (el-reflect takes any
-  -- Prf-typed term, so a projection is a legitimate witness). This is
+  -- equality props licenses one candidate per component, the proof
+  -- element being the projection chain (el-reflect takes any term at
+  -- an equality prop, so a projection is a legitimate witness). This is
   -- the shape squash-elim binds when an invariant is a conjunction.
   groundEqCand : Elem -> (Elem, Elem, Ty) -> Cand
   groundEqCand prf (l, r, t) =
@@ -1658,16 +1670,15 @@ hypCands st rw ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length 
       Z => []
       S fuel' =>
         case exposeT st ty of
-          Prf p =>
-            case exposeCode st p of
-              Elem.EqTy l r t => [(proj, (l, r, t))]
-              _ => []
           SigmaTy a b =>
             -- dependent Σs instantiate the body at the projection —
             -- existential invariants (Σ of data and equations) land here
             pairEqs fuel' (SigmaElim1 proj) a ++
             pairEqs fuel' (SigmaElim2 proj) (substTy b (Ext Id (SigmaElim1 proj)))
-          _ => []
+          -- an equality prop AS the component type (Prf retired)
+          tyX => case exposeCode st tyX of
+                   Elem.EqTy l r t => [(proj, (l, r, t))]
+                   _ => []
 
   candsAt : Nat -> List Cand
   candsAt i =
@@ -1921,8 +1932,11 @@ mutual
       Elem.EqTy l r t => do sub <- spEqElemC dep st cs ctx l r t
                             pure (MkECert [] (FWitness (Just sub)))
       _ => Nothing
-  -- el-prf-prop: proof irrelevance — any two elements of Prf p are equal
-  spEqStructC dep st cs ctx a b (Prf _) = Just (MkECert [] FProp)
+  -- el-prf-prop: proof irrelevance — any two elements of a PROP are
+  -- equal (≡-/∥·∥-headed types ARE props; a NEUTRAL prop is caught by
+  -- the judgemental catch-all below)
+  spEqStructC dep st cs ctx a b (Elem.EqTy _ _ _) = Just (MkECert [] FProp)
+  spEqStructC dep st cs ctx a b (Squash _) = Just (MkECert [] FProp)
   -- code-prop-eq: mutually implied prop codes are equal; each direction
   -- is ⋆ with a synthesized witness under the other side's hypothesis
   spEqStructC dep st cs ctx a b PropTy = do
@@ -1930,13 +1944,13 @@ mutual
     (be, bsk) <- mkImpl b a
     pure (MkECert [] (FPropExt fe fsk be bsk))
    where
-    -- Prf src → Prf tgt, as a λ whose body is a proof of (Prf tgt)[↑]
-    -- under ctx ▷ Prf src: 𝟙-shaped squashes outright, equality props
-    -- by a nested discharge (which may use the hypothesis as a rewrite
-    -- candidate)
+    -- src → tgt (props are types — prop-lift), as a λ whose body is a
+    -- proof of tgt[↑] under ctx ▷ src: 𝟙-shaped squashes outright,
+    -- equality props by a nested discharge (which may use the
+    -- hypothesis as a rewrite candidate)
     mkImpl : Elem -> Elem -> Maybe (Elem, Skel)
     mkImpl src tgt =
-      let ctx' = ctx :< Prf src in
+      let ctx' = ctx :< src in
       case engNfE st (substElem tgt Wk) of
         Squash sq => case engNfT st sq of
           OneTy => Just (lam (Nd [PSquashWit OneIntro (Nd [] [])] []))
@@ -1948,7 +1962,11 @@ mutual
      where
       lam : Skel -> (Elem, Skel)
       lam bodySk = (PiIntro Star, Nd [] [bodySk])
-  spEqStructC _ _ _ _ _ _ _ = Nothing
+  -- a NEUTRAL prop type: the judgemental question (el-prf-prop's
+  -- p : Ω premise); the kernel's kIsProp re-checks at replay
+  spEqStructC dep st cs ctx a b ty =
+    audit "SPEQSTRUCT-NEUTRAL ty=\{show ty} isProp=\{show (isPropTy st ctx ty)} inf=\{show (kInferBare st.kernelSig kernelFuel ctx ty)}"
+      (if isPropTy st ctx ty then Just (MkECert [] FProp) else Nothing)
 
   ||| Syntactic congruence descent: same-headed sides compared
   ||| componentwise; children flattened as path-prefixed steps.
@@ -2078,15 +2096,13 @@ mutual
     hypWitness lN rN =
       firstJ (map (\i =>
         case engNfT st <$> ctxLookup ctx i of
-          Just (Prf p) => case engNfE st p of
-            Elem.EqTy hl hr _ =>
-              if (engNfE st hl == lN && engNfE st hr == rN)
-                then Just (CtxVar i)
-                else Nothing
-            _ => Nothing
+          Just (Elem.EqTy hl hr _) =>
+            if (engNfE st hl == lN && engNfE st hr == rN)
+              then Just (CtxVar i)
+              else Nothing
           _ => Nothing) [0 .. minus (length ctx) 1])
 
-    ||| A hypothesis whose (normalized) type is exactly this Prf type.
+    ||| A hypothesis whose (normalized) type is exactly this prop.
     hypPrfWitness : Ty -> Maybe Elem
     hypPrfWitness want =
       firstJ (map (\i =>
@@ -2094,7 +2110,7 @@ mutual
           Just h => if h == want then Just (CtxVar i) else Nothing
           Nothing => Nothing) [0 .. minus (length ctx) 1])
 
-    ||| An element witnessing an unbound ≡-, 𝟙- or Prf-typed parameter.
+    ||| An element witnessing an unbound ≡-, 𝟙- or prop-typed parameter.
     condElem : Cand -> Bindings -> Nat -> Maybe Elem
     condElem c bs p =
       case lookup p bs of
@@ -2102,19 +2118,32 @@ mutual
         Nothing => do
           tp <- paramTy c p
           sigma <- condSub c.params p bs
-          case exposeT st (substTy tp sigma) of
+          let tpI = substTy tp sigma
+          -- a hypothesis stated in the parameter's own (UNEXPOSED)
+          -- spelling wins first — exposure below only classifies the
+          -- shape (the retired Prf head used to keep the two apart)
+          case exposeT st tpI of
             OneTy => Just OneIntro
-            Prf pr =>
-              hypPrfWitness (Prf (engNfE st pr))
-              <|> (case engNfE st pr of
-                     Squash OneTy => Just Star
-                     Elem.EqTy l r _ =>
-                       let lN = engNfE st l
-                           rN = engNfE st r in
-                       hypWitness lN rN
-                       <|> (if lN == rN then Just Star else Nothing)
+            tpX@(Squash sq) =>
+              hypPrfWitness (engNfT st tpI)
+              <|> hypPrfWitness (engNfT st tpX)
+              <|> (case engNfT st sq of
+                     OneTy => Just Star
                      _ => Nothing)
-            _ => Nothing
+            tpX@(Elem.EqTy l r _) =>
+              hypPrfWitness (engNfT st tpI)
+              <|> hypPrfWitness (engNfT st tpX)
+              <|> (let lN = engNfE st l
+                       rN = engNfE st r in
+                   hypWitness lN rN
+                   <|> (if lN == rN then Just Star else Nothing))
+            -- a NEUTRAL prop-typed parameter: witnessed by a
+            -- same-typed hypothesis (proof irrelevance makes the
+            -- choice canonical — data-typed parameters stay unbound)
+            tpX => do
+              guard (isPropTy st ctx tpX)
+              hypPrfWitness (engNfT st tpI)
+                <|> hypPrfWitness (engNfT st tpX)
 
     complete : Cand -> Bindings -> Maybe Bindings
     complete c bs =
@@ -2183,6 +2212,9 @@ mutual
     -- here: the certificate replays through the shared channel.
     codeFall : Ty -> Ty -> List Step -> Maybe ECert
     codeFall a b base = do
+      -- props are NOT 𝕌-codes (no prop-resize) — codeOf excludes the
+      -- Ω formers; neutral props slip through and fail 𝕌-replay
+      -- harmlessly
       _ <- codeOf a
       _ <- codeOf b
       MkECertF tyEx ss f unfs <- spEqElemC dep st cs ctx a b UniverseTy
@@ -2192,12 +2224,9 @@ mutual
         Just _ => if null base then Just (MkECertF tyEx ss f unfs) else Nothing
         Nothing => Just (MkECertF Nothing (base ++ ss) f unfs)
     -- head-level congruence finals: extensional components (Ω-valued)
-    -- cannot be flattened into steps, so ty-prf-cong / ty-quot-cong
+    -- cannot be flattened into steps, so prop-lift-eq / ty-quot-cong
     -- carry a nested certificate instead
     congFinal : Ty -> Ty -> List Step -> Maybe ECert
-    congFinal (Prf p) (Prf q) base = do
-      sub <- spEqElemC dep st cs ctx p q PropTy
-      pure (MkECert base (FPrfCong sub))
     -- ty-pi-cong / ty-sigma-cong: an Ω-valued component (a Prf
     -- codomain, say) cannot flatten into steps — carry component
     -- certificates instead
@@ -2220,7 +2249,14 @@ mutual
                    (ctx :< a0 :< substTy a0 Wk) r0 r1 PropTy
           pure (MkECert base (FQuotCong sub))
         else Nothing
-    congFinal _ _ _ = Nothing
+    -- prop-lift-eq (Prf retired): a type equation between PROPS is
+    -- the Ω equation, where code-prop-eq's extensional discipline
+    -- lives — mixed Ω-former pairs included (∥𝟙∥ ≐ a true equation).
+    -- The kernel re-checks prop-ness at the FPrfCong final.
+    congFinal p q base = do
+      guard (isPropTy st ctx p && isPropTy st ctx q)
+      sub <- spEqElemC dep st cs ctx p q PropTy
+      pure (MkECert base (FPrfCong sub))
     flatE : Bool -> Nat -> Ctx -> Elem -> Elem -> Ty -> Maybe (List Step)
     flatE lhsOnly i ctx' x y t = do
       c <- spEqElemC dep st cs ctx' x y t
@@ -2250,7 +2286,14 @@ mutual
           stA <- go a0 a1
           sub <- spEqElemC dep st (extendCS (extendCS cs)) (ctx :< a1 :< substTy a1 Wk) r0 r1 PropTy
           if stepFree sub then Just (prefixSteps 0 stA) else Nothing
-        (Prf x, Prf y) => flatE False 0 ctx x y PropTy
+        -- prop pairs at the same Ω former flatten at Ω (Prf retired:
+        -- the prop IS the type, so the steps' paths stand UNPREFIXED —
+        -- there is no wrapper child to descend); mixed pairs go
+        -- through congFinal
+        (x@(Elem.EqTy _ _ _), y@(Elem.EqTy _ _ _)) =>
+          spEqElemC dep st cs ctx x y PropTy >>= flatSteps
+        (x@(Squash _), y@(Squash _)) =>
+          spEqElemC dep st cs ctx x y PropTy >>= flatSteps
         -- El retired: mixed decoded-vs-code shapes no longer exist —
         -- a code in type position IS its own spelling
         _ => Nothing
@@ -2316,8 +2359,9 @@ resugarQ st occ = go (toList st.sig)
   headMatch (QSort _ kP _) (QSort _ k _) = kP == k
   headMatch (QCtor _ cP _) (QCtor _ c _) = cP == c
   -- an eliminator occurrence: the emitted def's motive/method
-  -- positions are λ-binders, i.e. pure pattern variables — and the
-  -- El-/Prf-wrapped motive shapes keep the Elim/ElimP twins disjoint
+  -- positions are λ-binders, i.e. pure pattern variables — the
+  -- Elim/ElimP twins stay disjoint because their motives are
+  -- differently-typed terms (𝕌- vs Ω-valued C), never α-equal
   headMatch (QElim _ jP _ _ _ _) (QElim _ j _ _ _ _) = jP == j
   headMatch _ _ = False
 
@@ -2338,7 +2382,7 @@ resugarQ st occ = go (toList st.sig)
 -- DISPLAY normalization: reported statements, obligation sides and
 -- declaration types are shown with every β-redex contracted (λ,
 -- projections, eliminators at constructors, El-decoding,
--- code-squash-prf) while DEFINITIONS stay folded — δ is the one
+-- code-squash-idem) while DEFINITIONS stay folded — δ is the one
 -- contraction display never takes, so terms keep the user's names.
 -- The contraction is exactly the tier-½ normalizer
 -- (Nova.Elaboration.Beta), reused; on top of it, QIIT formers are
@@ -2391,7 +2435,6 @@ mutual
   resugarTy st (PiTy a b) = PiTy (resugarTy st a) (resugarTy st b)
   resugarTy st (SigmaTy a b) = SigmaTy (resugarTy st a) (resugarTy st b)
   resugarTy st (SumTy a b) = SumTy (resugarTy st a) (resugarTy st b)
-  resugarTy st (Prf e) = Prf (resugarElem st e)
   resugarTy st (QuotTy a r) = QuotTy (resugarTy st a) (resugarElem st r)
   resugarTy st (SigVar x es) = SigVar x (resugarSub st es)
   resugarTy st (NuTy f) = NuTy (resugarPoly st f)
@@ -2437,11 +2480,11 @@ oblView : ElabSt -> List Obligation
 oblView st = go (toList st.sig) (toList st.oblMeta)
  where
   go : List SigEntry -> List OblMeta -> List Obligation
-  go (SigDecl ctx n (Prf (Elem.EqTy a b TopTy)) :: rest) (m :: ms) =
+  go (SigDecl ctx n (Elem.EqTy a b TopTy) :: rest) (m :: ms) =
     if isOblName n
       then MkObl (displayStmt st (StTy ctx m.oenv a b)) m.osite (map (displayStmt st) m.ocomposite) m.ohint :: go rest ms
       else go rest (m :: ms)
-  go (SigDecl ctx n (Prf (Elem.EqTy a b ty)) :: rest) (m :: ms) =
+  go (SigDecl ctx n (Elem.EqTy a b ty) :: rest) (m :: ms) =
     if isOblName n
       then MkObl (displayStmt st (StElem ctx m.oenv a b ty)) m.osite (map (displayStmt st) m.ocomposite) m.ohint :: go rest ms
       else go rest (m :: ms)
@@ -2529,7 +2572,6 @@ mutual
   refsE UniverseTy acc = acc
   refsE PropTy acc = acc
   refsE TopTy acc = acc
-  refsE (Prf e) acc = refsE e acc
   refsE (Elem.PiTy a b) acc = refsE b (refsE a acc)
   refsE (Elem.SigmaTy a b) acc = refsE b (refsE a acc)
   refsE (Elem.SumTy a b) acc = refsE b (refsE a acc)
@@ -2649,13 +2691,13 @@ assume stmt site comp = do
   -- rewrite-normalized keys nor the hint are ever read — skip them
   let cheap = st.probing && null st.assumedE && null st.assumedT
   case stmt of
-    -- an obligation enters Σ as a HOLE at the equation's Prf
+    -- an obligation enters Σ as a HOLE at the equation's prop
     -- (sig-decl; Foundation's constraint entry is retired), machine-
     -- named by the per-run counter — oblMeta stays in lockstep
     StElem ctx env a b ty => do
       if cheap
         then modifySt $ \s =>
-          { sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Prf (Elem.EqTy a b ty)))
+          { sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty))
           , oblMeta $= (:< MkOblMeta env site comp Nothing) } s
         else if assumedMatchE st ctx a b ty
         then pure ()
@@ -2663,12 +2705,12 @@ assume stmt site comp = do
           let aK = rwNfElem st ctx a
               bK = rwNfElem st ctx b in
           { assumedE $= ((elemSize aK + elemSize bK, ctx, aK, bK, engNfT st ty) ::)
-          , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Prf (Elem.EqTy a b ty)))
+          , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty))
           , oblMeta $= (:< MkOblMeta env site comp (if st.probing then Nothing else hintOf st <|> blockedHint ())) } s
     StTy ctx env x y => do
       if cheap
         then modifySt $ \s =>
-          { sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Prf (Elem.EqTy x y TopTy)))
+          { sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy))
           , oblMeta $= (:< MkOblMeta env site comp Nothing) } s
         else do
        let x' = rwNfTy st ctx x
@@ -2677,7 +2719,7 @@ assume stmt site comp = do
         then pure ()
         else modifySt $ \s =>
           { assumedT $= ((ctx, x', y') ::)
-          , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Prf (Elem.EqTy x y TopTy)))
+          , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy))
           , oblMeta $= (:< MkOblMeta env site comp (if st.probing then Nothing else hintOf st <|> blockedHint ())) } s
  where
   hintFor : ElabSt -> Stmt -> Maybe String
@@ -2982,7 +3024,12 @@ mutual
             case polyDom0Pieces f0 f1 of
               Just pieces => traverse_ (\(e0, e1) => ignore $ convElem ctx env site comp' e0 e1 UniverseTy) pieces
               Nothing => assume cur site comp
-          (Prf x, Prf y) => ignore $ convElem ctx env site comp' x y PropTy
+          -- prop pairs (Prf retired): decompose to the Ω equation —
+          -- mixed Ω-former pairs included (propext equates them)
+          (x@(Elem.EqTy _ _ _), y@(Elem.EqTy _ _ _)) => ignore $ convElem ctx env site comp' x y PropTy
+          (x@(Squash _), y@(Squash _)) => ignore $ convElem ctx env site comp' x y PropTy
+          (x@(Elem.EqTy _ _ _), y@(Squash _)) => ignore $ convElem ctx env site comp' x y PropTy
+          (x@(Squash _), y@(Elem.EqTy _ _ _)) => ignore $ convElem ctx env site comp' x y PropTy
           _ => case again of
                  Just (aR, bR) => decomposeT site cur comp' aR bR Nothing
                  Nothing => assume cur site comp
@@ -3065,7 +3112,7 @@ exposeProp : ElabSt -> Ctx -> Ty -> Elem -> (Elem, Maybe (Ty, ECert))
 exposeProp st ctx ty p =
   let pR = rwNfElem st ctx p in
   if pR == p then audit "EXPOSEPROP no-rewrite (eqScope \{show st.eqScope})" (p, Nothing)
-  else case exposeCert st ctx ty (Prf pR) of
+  else case exposeCert st ctx ty pR of
          Just e2 => (pR, Just e2)
          Nothing => audit "EXPOSEPROP bridge-fail" (p, Nothing)
 
@@ -3085,13 +3132,25 @@ preferQuot st ctx ty = case exposeHead st ty of
                                 tyX@(QuotTy a r) => (\e => (a, r, Just e)) <$> exposeCert st ctx ty tyX
                                 _ => Nothing
 
+||| The expected type AS a proposition (Prf retired: the prop IS the
+||| type). Syntax-directed at the Ω formers, through exposure; a
+||| NEUTRAL type is a prop exactly when its kernel-inferred type is Ω
+||| — with no exposure certificate, since nothing is unwrapped.
 preferPrf : ElabSt -> Ctx -> Ty -> Maybe (Elem, Maybe (Ty, ECert))
-preferPrf st ctx (Prf p) = Just (p, Nothing)
-preferPrf st ctx ty = case exposeHead st ty of
-                        tyX@(Prf p) => Just (p, Just (tyX, MkECert [] FBeta))
-                        _ => case rwNfTy st ctx ty of
-                               tyX@(Prf p) => (\e => (p, Just e)) <$> exposeCert st ctx ty tyX
-                               _ => Nothing
+preferPrf st ctx p@(Elem.EqTy _ _ _) = Just (p, Nothing)
+preferPrf st ctx p@(Squash _) = Just (p, Nothing)
+preferPrf st ctx ty = if kIsPropB st.kernelSig kernelFuel ctx ty
+  -- a kernel-checkable Ω-neutral stays AS WRITTEN (no exposure — the
+  -- callers expose for themselves exactly where a shape is needed,
+  -- and downstream types keep the user's spelling)
+  then Just (ty, Nothing)
+  else case exposeHead st ty of
+         tyX@(Elem.EqTy _ _ _) => Just (tyX, Just (tyX, MkECert [] FBeta))
+         tyX@(Squash _) => Just (tyX, Just (tyX, MkECert [] FBeta))
+         _ => case rwNfTy st ctx ty of
+                tyX@(Elem.EqTy _ _ _) => (\e => (tyX, Just e)) <$> exposeCert st ctx ty tyX
+                tyX@(Squash _) => (\e => (tyX, Just e)) <$> exposeCert st ctx ty tyX
+                _ => Nothing
 
 ||| Attach a PExpose payload when exposure happened by normalization.
 withExpose : Maybe (Ty, ECert) -> Skel -> Skel
@@ -3141,14 +3200,24 @@ mutual
       Just (SigDef [<] _ _ TopTy) => pure (SigVar x [<], Nd [] [])
       Just (SigDef _ _ _ TopTy) => throw "\{site}: '\{x}' has a non-empty declaration context"
       Just (SigDecl [<] _ TopTy) => pure (SigVar x [<], Nd [] [])
-      -- CUMULATIVITY (El retired): a 𝕌-classified reference is a
-      -- code — a type
+      -- CUMULATIVITY (El and Prf retired): a 𝕌- or Ω-classified
+      -- reference is a code or a prop — a type either way
       Just (SigDef [<] _ _ UniverseTy) => pure (SigVar x [<], Nd [] [])
       Just (SigDecl [<] _ UniverseTy) => pure (SigVar x [<], Nd [] [])
-      -- anything else: elaborate as a term and demand a code — covers
-      -- entries whose 𝕌-classification is behind a definition
+      Just (SigDef [<] _ _ PropTy) => pure (SigVar x [<], Nd [] [])
+      Just (SigDecl [<] _ PropTy) => pure (SigVar x [<], Nd [] [])
+      -- anything else: elaborate as a term at the classifier the
+      -- probe reads off (covers entries whose 𝕌/Ω-classification is
+      -- behind a definition)
       Just _ => do
-        (e', eSk) <- checkElem ctx env site (SSig Nothing x) UniverseTy
+        mty <- probeM (inferElem ctx env site (SSig Nothing x))
+        st2 <- getSt
+        let cls = the Ty $ case mty of
+                    Just (_, ty, _) => case engNfT st2 ty of
+                                         PropTy => PropTy
+                                         _ => UniverseTy
+                    Nothing => UniverseTy
+        (e', eSk) <- checkElem ctx env site (SSig Nothing x) cls
         pure (e', eSk)
       Nothing => throw "\{site}: unknown signature name '\{x}'"
   elabTy ctx env site (STyPi x a b) = do
@@ -3180,28 +3249,42 @@ mutual
     (f', fSks) <- elabPoly ctx env site f
     pure (NuTy f', Nd [] fSks)
   elabTy ctx env site (STyEq rng l r (Just t)) = do
-    -- e-ty-eq: the surface ≡-TYPE elaborates to Prf of the equality
-    -- prop (equality is Ω-valued)
+    -- e-ty-eq: the surface ≡-TYPE IS the equality prop, standing as
+    -- a type (prop-lift; equality is Ω-valued)
     (t', tSk) <- elabTy ctx env site t
     (l', lSk) <- checkElem ctx env site l t'
     (r', rSk) <- checkElem ctx env site r t'
     -- the ∈-elision trial (docs/NovaPerfectSurface.txt, Phase 4):
     -- would the elided form recover t' α-exactly by inferring a side?
     sugarTrial rng (eqElideVerdict ctx env site l r t')
-    pure (Prf (Elem.EqTy l' r' t'), Nd [] [Nd [] [lSk, rSk, tSk]])
+    pure (Elem.EqTy l' r' t', Nd [] [lSk, rSk, tSk])
   elabTy ctx env site (STyEq rng l r Nothing) = do
     -- the ELIDED ≡-type: the domain is the inferred type of a side,
     -- LEFT first (a deterministic rule, not a search)
     (l', r', t', lSk, rSk) <- elabEqSides ctx env site l r
-    pure (Prf (Elem.EqTy l' r' t'), Nd [] [Nd [] [lSk, rSk, Nd [] []]])
+    pure (Elem.EqTy l' r' t', Nd [] [lSk, rSk, Nd [] []])
   -- a CODE in type position (El retired: the code is the type)
+  -- a CODE or a PROP in type position (El and Prf retired: the code
+  -- / the prop is the type). The classifier is read off a DISCARDED
+  -- inference probe — Ω-formers and Ω-valued spines land at Ω,
+  -- everything else (blanks included) checks at 𝕌, the overwhelmingly
+  -- common classifier
   elabTy ctx env site (STyEl e) = do
-    (e', eSk) <- checkElem ctx env site e UniverseTy
+    mty <- probeM (inferElem ctx env site e)
+    st <- getSt
+    let cls = the Ty $ case mty of
+                Just (_, ty, _) => case engNfT st ty of
+                                     PropTy => PropTy
+                                     _ => UniverseTy
+                Nothing => UniverseTy
+    (e', eSk) <- checkElem ctx env site e cls
     pure (e', eSk)
   elabTy ctx env site STyProp = pure (PropTy, Nd [] [])
+  -- a PROP in type position (Prf retired: the prop is the type; the
+  -- node survives for legacy `Prf p` spellings, elaborated bare)
   elabTy ctx env site (STyPrf e) = do
     (e', eSk) <- checkElem ctx env site e PropTy
-    pure (Prf e', Nd [] [eSk])
+    pure (e', eSk)
   export
   inferElem : Ctx -> NameEnv -> String -> SElem -> ElabM (Elem, Ty, Skel)
   inferElem ctx env site (SVar mrng n i) =
@@ -3271,12 +3354,12 @@ mutual
   inferElem ctx env site (SLet (x, xr) e b) = do
     -- e-let: the definiens is INFERRED (an annotated surface let
     -- arrives as an ascribed definiens); the body is elaborated under
-    -- the value AND its unfolding hypothesis — a Prf of an equality
-    -- prop, so E's HYPOTHESIS source reflects x ≐ e into discharge
+    -- the value AND its unfolding hypothesis — an equality prop, so
+    -- E's HYPOTHESIS source reflects x ≐ e into discharge
     -- automatically: the definition is transparent inside the body
     (e', eTy, eSk) <- inferElem ctx env site e
     recordBinder xr ctx env x eTy
-    let hyp = Prf (Elem.EqTy (CtxVar 0) (substElem e' Wk) (substTy eTy Wk))
+    let hyp = Elem.EqTy (CtxVar 0) (substElem e' Wk) (substTy eTy Wk)
     (b', bTy, bSk) <- inferElem (ctx :< eTy :< hyp) (env :< x :< wildcard) site b
     pure (Let e' b', substTy bTy (Ext (Ext Id e') Star), Nd [] [eSk, bSk])
   inferElem ctx env site (SNatElim Nothing _ _ _ _ _) =
@@ -3323,13 +3406,20 @@ mutual
         (f', fSk) <- checkElem (ctx :< a) (env :< an) site f
                        (substTy motTy (Ext Wk (Class (CtxVar 0))))
         -- well-definedness: f respects R (Foundation's f⁼ premise; the
-        -- hypothesis is the DECODED relation, Prf R)
+        -- hypothesis binds the relation instance directly — prop-lift).
+        -- An Ω-VALUED motive closes it outright: the sides inhabit a
+        -- prop instance (el-prf-prop — tested on the MOTIVE, whose
+        -- spine shape survives where the stuck instance's prop-ness
+        -- is unreadable)
         let wk3 = Chain Wk (Chain Wk Wk)
-        wd <- convElem (ctx :< a :< substTy a Wk :< Prf r) (env :< an :< (an ++ "'") :< "h")
-          "\{site}: well-definedness of quot-elim case" Nothing
-          (substElem f' (Ext wk3 (CtxVar 2)))
-          (substElem f' (Ext wk3 (CtxVar 1)))
-          (substTy motTy (Ext wk3 (Class (CtxVar 2))))
+        st2 <- getSt
+        wd <- if isPropTy st2 (ctx :< QuotTy a r) motTy
+          then pure (Just (MkECert [] FProp))
+          else convElem (ctx :< a :< substTy a Wk :< r) (env :< an :< (an ++ "'") :< "h")
+            "\{site}: well-definedness of quot-elim case" Nothing
+            (substElem f' (Ext wk3 (CtxVar 2)))
+            (substElem f' (Ext wk3 (CtxVar 1)))
+            (substTy motTy (Ext wk3 (Class (CtxVar 2))))
         pure (QuotElim f' q', substTy motTy (Ext Id q'),
               Nd [PMotive motTy motSk, PWD (certOr wd)] [fSk, qSk])
       Nothing => throw "\{site}: quot-elim scrutinee has non-quotient type\{structuralHint ()}"
@@ -3364,7 +3454,7 @@ mutual
   inferElem ctx env site (SStarUsing _ _) =
     throw "\{site}: cannot infer the type of ⋆ using (…)\{structuralHint ()}"
   inferElem ctx env site (SChain _ _) =
-    throw "\{site}: cannot infer the type of a chain (its equality comes from the expected Prf type)\{structuralHint ()}"
+    throw "\{site}: cannot infer the type of a chain (its equality comes from the expected prop)\{structuralHint ()}"
   inferElem ctx env site (SSquashElim _ _ _) =
     throw "\{site}: cannot infer the type of squash-elim\{structuralHint ()}"
   inferElem ctx env site (SEqC rng l r (Just t)) = do
@@ -3394,7 +3484,7 @@ mutual
   inferElem ctx env site (SCorec _ _ _ _) =
     throw "\{site}: cannot infer the type of corec (the polynomial comes from the expected ν-type)\{structuralHint ()}"
   inferElem ctx env site (SCoind _ _ _ _ _ _ _ _) =
-    throw "\{site}: cannot infer the type of coind (the equation comes from the expected Prf type)\{structuralHint ()}"
+    throw "\{site}: cannot infer the type of coind (the equation comes from the expected prop)\{structuralHint ()}"
   inferElem ctx env site (SInj1 _) =
     throw "\{site}: cannot infer the type of inj₁ (the other summand is undetermined)\{structuralHint ()}"
   inferElem ctx env site (SInj2 _) =
@@ -3453,11 +3543,11 @@ mutual
         pure (Corec p a' f' u', withExpose exp (Nd [] [aSk, fSk, uSk]))
       Nothing => throw "\{site}: corec checked against a non-ν type\{structuralHint ()}"
   checkElem ctx env site (SCoind (xn, xr) (yn, yr) rS pS (mxn, mxr) (myn, myr) (mhn, mhr) qS) ty = do
-    -- e-coind: el-nu-coind's surface form, at Prf (l ≡ r ∈ El (ν F)) —
+    -- e-coind: el-nu-coind's surface form, at (l ≡ r ∈ ν F) —
     -- invariant, endpoint proof, one-step closure at the relator
     st <- getSt
     case preferPrf st ctx ty of
-      Nothing => throw "\{site}: coind checked against a non-Prf type\{structuralHint ()}"
+      Nothing => throw "\{site}: coind checked against a non-propositional type\{structuralHint ()}"
       Just (pc, exp) => do
         let pcUse = case pc of
                       Elem.EqTy _ _ _ => pc
@@ -3476,16 +3566,16 @@ mutual
                 recordBinder xr ctx env xn nuT
                 recordBinder yr (ctx :< nuT) (env :< xn) yn (substTy nuT Wk)
                 (r', skR) <- checkElem (ctx :< nuT :< substTy nuT Wk) (env :< xn :< yn) site rS PropTy
-                (p', skp) <- checkElem ctx env site pS (Prf (substElem r' (Ext (Ext Id l) rhs)))
-                let ctx3 = ctx :< nuT :< substTy nuT Wk :< Prf r'
+                (p', skp) <- checkElem ctx env site pS (substElem r' (Ext (Ext Id l) rhs))
+                let ctx3 = ctx :< nuT :< substTy nuT Wk :< r'
                 let wk3 = Chain Wk (Chain Wk Wk)
                 let f3 = substPoly f wk3
                 let r3 = substElem r' (under (under wk3))
                 recordBinder mxr ctx env mxn nuT
                 recordBinder myr (ctx :< nuT) (env :< mxn) myn (substTy nuT Wk)
-                recordBinder mhr (ctx :< nuT :< substTy nuT Wk) (env :< mxn :< myn) mhn (Prf r')
+                recordBinder mhr (ctx :< nuT :< substTy nuT Wk) (env :< mxn :< myn) mhn r'
                 (q', skq) <- checkElem ctx3 (env :< mxn :< myn :< mhn) site qS
-                               (Prf (liftPoly f3 r3 (Out (CtxVar 2)) (Out (CtxVar 1))))
+                               (liftPoly f3 r3 (Out (CtxVar 2)) (Out (CtxVar 1)))
                 pure (Star, withExpose exp (Nd [PNuCoind r' skR p' skp q' skq] []))
           _ => throw "\{site}: coind checked against a non-equality proposition\{structuralHint ()}"
   checkElem ctx env site (SClass a) ty = do
@@ -3505,7 +3595,7 @@ mutual
     recordBinder mrng ctx env "⋆" ty
     st <- getSt
     case preferPrf st ctx ty of
-      Nothing => throw "\{site}: ⋆ checked against a non-Prf type\{structuralHint ()}"
+      Nothing => throw "\{site}: ⋆ checked against a non-propositional type\{structuralHint ()}"
       Just (p, exp) => do
         -- el-eq-i / el-squash-i: an equality prop is THE payment rule
         -- (checking ⋆ emits its equation into ↓); a squashed 𝟙 is
@@ -3553,7 +3643,7 @@ mutual
   checkElem ctx env site (SChain x0 links) ty = do
     st <- getSt
     case preferPrf st ctx ty of
-      Nothing => throw "\{site}: a chain proves an equality — checked against a non-Prf type\{structuralHint ()}"
+      Nothing => throw "\{site}: a chain proves an equality — checked against a non-propositional type\{structuralHint ()}"
       Just (p, exp) => do
         let pUse = case p of
                      Elem.EqTy _ _ _ => p
@@ -3575,13 +3665,11 @@ mutual
     linkCand j = do
       (j', jTy, _) <- inferElem ctx env site j
       st <- getSt
-      case exposeHead st jTy of
-        Prf pj => case exposeCode st pj of
-          Elem.EqTy u v _ =>
-            pure (closeCand (MkCand "chain link" 0 []
-                    (engNfE st u) (engNfE st v)
-                    (\wk, _ => Just (weakenElemN wk j', [])) [] []))
-          _ => throw "\{site}: a chain justification must prove an equation"
+      case exposeCode st jTy of
+        Elem.EqTy u v _ =>
+          pure (closeCand (MkCand "chain link" 0 []
+                  (engNfE st u) (engNfE st v)
+                  (\wk, _ => Just (weakenElemN wk j', [])) [] []))
         _ => throw "\{site}: a chain justification must prove an equation"
 
     ||| discharge each adjacency against ITS link only; a failure is
@@ -3636,7 +3724,7 @@ mutual
   checkElem ctx env site (SStarWit w) ty = do
     st <- getSt
     case preferPrf st ctx ty of
-      Nothing => throw "\{site}: ⋆ checked against a non-Prf type\{structuralHint ()}"
+      Nothing => throw "\{site}: ⋆ checked against a non-propositional type\{structuralHint ()}"
       Just (p, exp) =>
         -- el-squash-i, general form: w proves the squashee directly,
         -- whatever its shape. At an equality prop, any proof will do
@@ -3663,41 +3751,39 @@ mutual
             -- very equation.
             mcert <- case (exposeHead st qty, pl, pr, w) of
               (PropTy, _, _, SPair f g) => do
-                let pTy = Prf pl
-                let qTy = Prf pr
-                (f', fSk) <- checkElem ctx env site f (PiTy pTy (substTy qTy Wk))
-                (g', gSk) <- checkElem ctx env site g (PiTy qTy (substTy pTy Wk))
+                (f', fSk) <- checkElem ctx env site f (PiTy pl (substTy pr Wk))
+                (g', gSk) <- checkElem ctx env site g (PiTy pr (substTy pl Wk))
                 pure (Just (MkECert [] (FPropExt f' fSk g' gSk)))
               (QuotTy _ rel, Class a, Class b, _) => do
                 (w', wSk) <- checkElem ctx env site w
-                               (Prf (substElem rel (Ext (Ext Id a) b)))
+                               (substElem rel (Ext (Ext Id a) b))
                 pure (Just (MkECert [] (FWitnessPrf w' wSk)))
               _ => pure Nothing
             case mcert of
               Just cert => pure (Star, withExpose exp (Nd [PReflEq cert] []))
               Nothing => do
-                (w', _) <- checkElem ctx env site w (Prf pN)
+                (w', _) <- checkElem ctx env site w pN
                 let cert = MkECertF Nothing [MkStep True [] (LProof w') [] False] FBeta st.eqScope
                 pure (Star, withExpose exp (Nd [PReflEq cert] []))
-          _ => throw "\{site}: ⋆ checked against Prf of a non-∥∥ code\{structuralHint ()}"
+          _ => throw "\{site}: ⋆ ⟨witness⟩ checked against a non-evident proposition\{structuralHint ()}"
   checkElem ctx env site (SSquashElim e xn body) ty = do
     st <- getSt
     (e', eTy, eSk) <- inferElem ctx env site e
     case preferPrf st ctx eTy of
-      Nothing => throw "\{site}: squash-elim scrutinee has non-Prf type\{structuralHint ()}"
+      Nothing => throw "\{site}: squash-elim scrutinee has a non-∥∥ type\{structuralHint ()}"
       Just (p, _) =>
         case exposeCode st p of
           Squash a =>
-            -- el-squash-e-prf: body proves (Prf q)[↑] under a
-            -- hypothetical inhabitant of the raw squashee a; the goal
-            -- must itself be Prf q — no elimination into arbitrary types
+            -- el-squash-e-prf: body proves q[↑] under a hypothetical
+            -- inhabitant of the raw squashee a; the goal must itself
+            -- be a PROP — no elimination into arbitrary types
             case preferPrf st ctx ty of
-              Nothing => throw "\{site}: squash-elim checked against a non-Prf goal (el-squash-e-prf reaches only further propositions)\{structuralHint ()}"
+              Nothing => throw "\{site}: squash-elim checked against a non-propositional goal (el-squash-e-prf reaches only further propositions)\{structuralHint ()}"
               Just (q, exp) => do
                 recordBinder (snd xn) ctx env (fst xn) a
-                (body', bodySk) <- checkElem (ctx :< a) (env :< fst xn) site body (substTy (Prf q) Wk)
+                (body', bodySk) <- checkElem (ctx :< a) (env :< fst xn) site body (substTy q Wk)
                 pure (Star, withExpose exp (Nd [PSquashElim e' eSk body' bodySk] []))
-          _ => throw "\{site}: squash-elim scrutinee checked against Prf of a non-∥∥ code\{structuralHint ()}"
+          _ => throw "\{site}: squash-elim scrutinee has a non-∥∥ type\{structuralHint ()}"
   checkElem ctx env site (SLet (x, xr) e b) ty = do
     -- e-let-check: let PROPAGATES the ambient mode to its body (a
     -- checking-only body form works under a let without ascription).
@@ -3706,7 +3792,7 @@ mutual
     -- NovaKernel.txt §8, el-let)
     (e', eTy, eSk) <- inferElem ctx env site e
     recordBinder xr ctx env x eTy
-    let hyp = Prf (Elem.EqTy (CtxVar 0) (substElem e' Wk) (substTy eTy Wk))
+    let hyp = Elem.EqTy (CtxVar 0) (substElem e' Wk) (substTy eTy Wk)
     (b', bSk) <- checkElem (ctx :< eTy :< hyp) (env :< x :< wildcard) site b
                    (substTy (substTy ty Wk) Wk)
     pure (Let e' b', Nd [] [eSk, bSk])
@@ -3819,11 +3905,14 @@ mutual
         (f', fSk) <- checkElem (ctx :< a) (env :< an) site f
                        (substTy motTy (Ext Wk (Class (CtxVar 0))))
         let wk3 = Chain Wk (Chain Wk Wk)
-        wd <- convElem (ctx :< a :< substTy a Wk :< Prf rel) (env :< an :< (an ++ "'") :< "h")
-          "\{site}: well-definedness of quot-elim case" Nothing
-          (substElem f' (Ext wk3 (CtxVar 2)))
-          (substElem f' (Ext wk3 (CtxVar 1)))
-          (substTy motTy (Ext wk3 (Class (CtxVar 2))))
+        st2 <- getSt
+        wd <- if isPropTy st2 (ctx :< QuotTy a rel) motTy
+          then pure (Just (MkECert [] FProp))
+          else convElem (ctx :< a :< substTy a Wk :< rel) (env :< an :< (an ++ "'") :< "h")
+            "\{site}: well-definedness of quot-elim case" Nothing
+            (substElem f' (Ext wk3 (CtxVar 2)))
+            (substElem f' (Ext wk3 (CtxVar 1)))
+            (substTy motTy (Ext wk3 (Class (CtxVar 2))))
         c <- convTy ctx env "\{site}: inferred vs expected type" Nothing (substTy motTy (Ext Id q')) cTy
         pure (QuotElim f' q',
               addPayload (PSwitch (certOr c)) (Nd [PMotive motTy (Nd [] []), PWD (certOr wd)] [fSk, qSk]))
@@ -4764,22 +4853,20 @@ mutual
 
 -- ===== Items =====
 
-||| Register a just-accepted definition's equation (if its type peels to
-||| a Prf of an equality prop) as a rewrite candidate: the WHOLE
-||| context (telescope + peeled Πs) is parametric, so the lemma
-||| applies in any context.
+||| Register a just-accepted definition's equation (if its type peels
+||| to an equality prop) as a rewrite candidate: the WHOLE context
+||| (telescope + peeled Πs) is parametric, so the lemma applies in
+||| any context.
 addLemma : String -> Ctx -> Ty -> ElabM ()
 addLemma name delta ty = withEqScope ["exp:*"] $ do
   st <- getSt
   let (delta', peeled) = peelPis delta (peelNf st ty)
-  -- equality is Ω-valued: a lemma registers when its peeled type is a
-  -- Prf whose prop normalizes to an equality (squashed spellings
-  -- converge here by code-squash-prf)
+  -- equality is Ω-valued: a lemma registers when its peeled type IS
+  -- an equality prop (squashed spellings converge here by
+  -- code-squash-idem)
   let meq : Maybe (Elem, Elem, Ty) =
-        case peeled of
-          Prf p => case exposeCode st p of
-                     Elem.EqTy l r t => Just (l, r, t)
-                     _ => Nothing
+        case exposeCode st peeled of
+          Elem.EqTy l r t => Just (l, r, t)
           _ => Nothing
   case meq of
     Just (l, r, t) =>
@@ -5132,7 +5219,8 @@ elabItemGo (SData params decls) = do
     let body = wrapLams (np + n) (QCtor (sgAt sg n) k (varSpine n))
     emitCoreDef site nm (wrapParams ptys ty0) (Nd [] []) body (Nd [] [])
 
-  ||| An equation constructor: a ⋆-lemma (Prf-typed), licensed by
+  ||| An equation constructor: a ⋆-lemma (typed at the equality
+  ||| prop), licensed by
   ||| el-qiit-path (a qpath step behind the ⋆'s equation certificate).
   ||| On later
   ||| items this def is an accepted lemma, so the QIIT's imposed
@@ -5146,7 +5234,7 @@ elabItemGo (SData params decls) = do
     rE <- liftQE site (reflTm sg wEnd rq)
     uT <- liftQE site (reflCodeTy sg wEnd uq)
     let n = length tel
-    let ty = wrapParams ptys (foldr PiTy (Prf (Elem.EqTy lE rE uT)) tel)
+    let ty = wrapParams ptys (foldr PiTy (Elem.EqTy lE rE uT) tel)
     let body = wrapLams (np + n) Star
     let cert = MkECert [MkStep True [] (LPath (sgAt sg n) k (varSpine n)) [] False] FBeta
     emitCoreDef site nm ty (Nd [] []) body (nestSkel (np + n) (Nd [PReflEq cert] []))
@@ -5157,9 +5245,9 @@ elabItemGo (SData params decls) = do
   ||| core eliminator; its qcoh certificates replay from the coherence
   ||| binders by el-reflect.
   ||| The eliminator def for sort s. Two flavors: prop=False is the
-  ||| code-valued one (motives … → 𝕌, coherences as Prf-typed
+  ||| code-valued one (motives … → 𝕌, coherences as prop-typed
   ||| hypothesis binders); prop=True is the Ω-valued one (motives
-  ||| … → Ω, results through Prf) — by proof irrelevance its
+  ||| … → Ω, results the props themselves) — by proof irrelevance its
   ||| coherences hold outright (el-prf-prop), so it takes NO
   ||| coherence arguments and its qcoh certificates are bare FProp.
   emitElim : String -> (Nat, List Ty) -> QSig -> Nat -> (prop : Bool) -> String -> ElabM ()
@@ -5173,8 +5261,10 @@ elabItemGo (SData params decls) = do
     sEntry <- entryAt site sg s
     (sTel0, _, _) <- liftQE site (reflTel sg (qwAt s) sEntry)
     let nI = length sTel0
+    -- Prf retired: 𝕌- and Ω-valued motives alike stand bare (a code
+    -- or a prop is its type)
     let wrapMot : Elem -> Ty
-        wrapMot = if prop then Prf else id
+        wrapMot = id
     let motEnd : Ty
         motEnd = if prop then PropTy else UniverseTy
     -- motive TYPES as seen `extra` binders after the LAST motive
@@ -5231,11 +5321,10 @@ elabItemGo (SData params decls) = do
                 -- path [1]: the rhs argument of the (bare, El retired)
                 -- motive application C ī ⌊r⌋
                 let swc = MkECert [MkStep True [1] (LPath (sgAt sgJ dlen) ej spineArgs) [] True] FBeta
-                -- the ≡-TYPE became Prf (eq-prop): one more skeleton
-                -- level (Prf's child 0 is the prop; its children are
-                -- l, r and the carried type)
-                let eqSk = Nd [] [Nd [] [Nd [] [], Nd [PSwitch swc] [], Nd [] []]]
-                pure (foldr PiTy (Prf (Elem.EqTy lhs rhs cty)) dtel, nestPiSkel dlen eqSk))
+                -- the ≡-TYPE IS the eq-prop (Prf retired): children
+                -- l, r and the carried type
+                let eqSk = Nd [] [Nd [] [], Nd [PSwitch swc] [], Nd [] []]
+                pure (foldr PiTy (Elem.EqTy lhs rhs cty) dtel, nestPiSkel dlen eqSk))
             (zipWithIndex 0 eqPs)
     let hTys = map (\x => fst {a=Ty} {b=Skel} x) hTysSk
     let hSks = map (\x => snd {a=Ty} {b=Skel} x) hTysSk
@@ -5267,8 +5356,9 @@ elabItemGo (SData params decls) = do
                  (QElim (sgAt sg bigN) s motsEnd mthsEnd (cast idxAtEnd) (CtxVar 0))
     -- coherence certificates. Code flavor: each replays from its
     -- hypothesis binder, applied to the ᴰ-context's variables (one
-    -- step, then FBeta). Prop flavor: the coherence sides live at a
-    -- Prf motive, so proof irrelevance closes them outright (FProp).
+    -- step, then FBeta). Prop flavor: the coherence sides live at an
+    -- Ω-valued motive, so proof irrelevance closes them outright
+    -- (FProp).
     cohCerts <- if prop
       then pure (map (const (MkECert [] FProp)) eqPs)
       else traverse (\p => case p of

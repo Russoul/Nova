@@ -78,16 +78,18 @@ of fuel, are exactly:
 (El is retired — a small code IS its type, by cumulativity
 code-lift; there are no decoding clauses.)
 
-Ω adds exactly ONE contraction clause:
+Ω adds exactly TWO contraction clauses — the syntax-directed
+instances of the admissible code-squash-idem (Prf is retired: a
+prop's OWN head marks it, and an Ω-NEUTRAL under ∥·∥ stays stuck):
 
-  ∥Prf p∥            ≜  p             # code-squash-prf (squash is
-                                      # idempotent on props)
+  ∥(l ≡ r ∈ A)∥      ≜  (l ≡ r ∈ A)   # code-squash-idem instances
+  ∥∥A∥∥              ≜  ∥A∥           #   (squash is idempotent on props)
 
-Otherwise Prf and ∥-∥ are inert: Prf ∥A∥ does NOT reduce to A
+Otherwise ∥-∥ is inert: ∥A∥, as a type, does NOT reduce to A
 (realizer irrelevance is the point of the squash), equality props
 (l ≡ r ∈ A) — Ω-valued, per Foundation — have no contraction, and ⋆
-has no eliminator. nf treats Prf/Ω/∥-∥/≡/⋆ congruently beyond the
-clause above.
+has no eliminator. nf treats Ω/∥-∥/≡/⋆ congruently beyond the
+clauses above.
 
 QIIT formers (NovaFoundation.txt, QIIT section) normalize congruently
 everywhere they embed Nova syntax — inside a carried signature's
@@ -176,13 +178,15 @@ implementation's names):
 
   The three Ω finals: propext is code-prop-eq — the sides are prop codes
   and s, t are the two implications, CHECKED as typings at their
-  function types (Γ ⊦ s ⇐ Prf p → Prf q and symmetrically; §7 on why
-  the function form rather than the hypothetical one); prfCong is ty-prf-cong
-  on a TYPE equation (both sides Prf-headed, 𝒞 proves the codes equal at
-  Ω); quotCong is ty-quot-cong at a reflexive domain (both sides A / _,
-  𝒞 proves the relations equal at Ω under the domain twice). FProp also
-  closes an equation at a Prf type (el-prf-prop: proof irrelevance),
-  alongside its 𝟙/𝟘 cases. qiitCong is the QIIT congruence (§7): both
+  function types (Γ ⊦ s ⇐ p → q and symmetrically — props are types,
+  prop-lift; §7 on why the function form rather than the hypothetical
+  one); prfCong is prop-lift-eq on a TYPE equation (both sides
+  PROPOSITIONS — checked, the lift's load-bearing side condition — 𝒞
+  proves them equal at Ω); quotCong is ty-quot-cong at a reflexive
+  domain (both sides A / _, 𝒞 proves the relations equal at Ω under
+  the domain twice). FProp also closes an equation at a PROPOSITION
+  (el-prf-prop: proof irrelevance — ≡-/∥·∥-headed, or a neutral that
+  checks at Ω), alongside its 𝟙/𝟘 cases. qiitCong is the QIIT congruence (§7): both
   sides sort applications at the same sort position, the first
   certificate vector aligning the two signatures' embedded Nova
   pieces, the second the index spines.
@@ -199,7 +203,7 @@ Child indexing, shared by paths, the typed descent (§6) and skeletons
   elements:  𝟘-elim t → 0            S t → 0
              ℕ-elim z s t → 0, 1(2), 2
              λ f → 0(1)              f e → 0, 1
-             let a b → 0, 1(2)       # body under value + unfolding-Prf binders
+             let a b → 0, 1(2)       # body under value + unfolding-equation binders
              (a , b) → 0, 1          t.π₁ / t.π₂ → 0
              inj₁ t / inj₂ t → 0     ⊎-elim l r t → 0(1), 1(1), 2
              a →ᶜ b → 0, 1(1)        a ⨯ᶜ b → 0, 1(1)
@@ -214,8 +218,8 @@ Child indexing, shared by paths, the typed descent (§6) and skeletons
              out t → 0               corec 𝔽 a f x → 0, 1(1), 2
              ν 𝔽 (code) → (none)
   types:     A → B → 0, 1(1)         A ⨯ B → 0, 1(1)
-             A ⊎ B → 0, 1            Prf e → 0ᵉ
-             A / r → 0, 1ᵉ(2)        x[e˲] → 0..ᵉ
+             A ⊎ B → 0, 1            A / r → 0, 1ᵉ(2)
+             x[e˲] → 0..ᵉ
              𝒮.𝕤 ē → 0..ᵉ            ν 𝔽 → (none)
   (ᶜ marks universe codes; ᵉ marks descent into an element child, ᵗ into
    a type child. The quotient relation is an Ω-valued element child. A
@@ -306,13 +310,13 @@ introduction forms structurally and falls back to infer-and-compare:
   Σ; Γ ⊦ 𝒮.𝕔 θ ⇐ᵖ T                                    # the term's 𝒮 and
                                                        # nf(T)'s nf-identical
 
-  nf(T) ⇓ Prf ∥𝟙∥                       nf(T) ⇓ Prf (l ≡ r ∈ A)   nf(l) = nf(r)
-  ----------------                      -------------------------------------
+  nf(T) ⇓ ∥𝟙∥                           nf(T) ⇓ (l ≡ r ∈ A)   nf(l) = nf(r)
+  ----------------                      -----------------------------------
   Σ; Γ ⊦ ⋆ ⇐ᵖ T                         Σ; Γ ⊦ ⋆ ⇐ᵖ T
   # el-squash-i with an evident witness, respectively el-eq-i after
   # the sides are seen ≜-equal. Equality is Ω-valued, so BOTH proofs
   # are ⋆ — Refl does not exist in the core. Squashed spellings
-  # (∥Prf (l ≡ r ∈ A)∥) converge by code-squash-prf during nf.
+  # (∥(l ≡ r ∈ A)∥) converge by code-squash-idem's instances during nf.
 
   nf(T) ⇓ A → B   Σ; Γ ▷ A ⊦ f ⇐ᵖ B     Σ; Γ ⊦ t ⇐ᵖ 𝟘
   ---------------------------------     ------------------------
@@ -342,17 +346,17 @@ item level checks lets directly (§8).
 A step (onLhs, path, lic, sels, flip) licenses one equation, derived —
 never assumed — from its license. For a proof license p:
 
-  Σ; Γ ⊦ p ⇒ᵖ T    nf(T) ⇓ Prf q    nf(q) ⇓ (l ≡ r ∈ A)
+  Σ; Γ ⊦ p ⇒ᵖ T    nf(T) ⇓ (l ≡ r ∈ A)
   (l′, r′, A′) = sels applied to (l, r, A)         (§5)
   ------------------------------------------------------------
   step licenses  nf(l′) ≐ nf(r′) : A′    (swapped when flip)
 
 This is equality reflection (el-reflect) read certificate-side: the
-proof element is checked, its Prf-type's equality prop exposed, and
-the judgemental equation extracted. Equality is Ω-valued, so this is
-the ONE pathway — the old bare-≡ and squashed-reflection routes
-coincide (a squashed spelling normalizes to the prop by
-code-squash-prf). Any other proof type is rejected.
+proof element is checked, its type — the equality prop itself, Prf
+retired — exposed, and the judgemental equation extracted. Equality
+is Ω-valued, so this is the ONE pathway — squashed spellings
+normalize to the prop by code-squash-idem's instances. Any other
+proof type is rejected.
 
 A step's license may instead be a PATH LICENSE, qpath 𝕔 θ, citing an
 imposed equation of the signature carried by the REWRITE POSITION'S
@@ -506,13 +510,13 @@ whose types are recoverable without annotations.
 
 Steps inside TYPES (used by type certificates) walk the type formers
 (no rewrite may end at a type position — types are rewritten through
-their element children): the element entry points are the code under
-Prf and the relation of A / r (both expected type Ω),
+their element children): the element entry points are the squashee
+of ∥·∥ (a type child), the relation of A / r (expected type Ω),
 signature-entry arguments (the telescope
 type), and the index spine of a sort application 𝒮.𝕤 ē (the arity
-entry types, as above). The sides of an equation are reached THROUGH
-Prf's Ω-element child: Prf (l ≡ r ∈ T) descends 0ᵉ to the prop, then
-0/1 to a side (expected type T).
+entry types, as above). The sides of an equation-prop TYPE are its
+own children (Prf retired — the prop is the type): (l ≡ r ∈ T)
+descends 0/1 to a side (expected type T), 2ᵗ into T.
 
 Soundness note: the positional check is load-bearing. Equality is
 type-relative in this theory (a class equation at one quotient says
@@ -539,8 +543,12 @@ final):
 
   beta         nf-equal sides:  l = r  syntactically after ≜.
                # el-eq via ≜-chains
-  prop         nf(T) ⇓ 𝟙 or 𝟘 or Prf p.  # el-one-prop / el-zero-prop /
-               # el-prf-prop (proof irrelevance)
+  prop         nf(T) ⇓ 𝟙 or 𝟘, or T is a PROPOSITION — ≡-/∥·∥-headed,
+               # or a neutral that checks at Ω (kIsProp: the raw
+               # spelling first, since whnf can unfold a prop spine
+               # into a stuck eliminator).  # el-one-prop /
+               # el-zero-prop / el-prf-prop (proof irrelevance; the
+               # retired Prf head was the p : Ω premise's proxy)
   witness 𝒞?   sides are class a ≐ class b and nf(T) ⇓ A / r;
                then by the shape of nf(r[id, a, b]) (an Ω code):
                  ⇓ ∥𝟙∥              — accepted (witness ())
@@ -551,7 +559,7 @@ final):
                # the proof-carrying final below
   witnessPrf w σ
                sides are class a ≐ class b and nf(T) ⇓ A / r; check
-               Σ; Γ ⊦ w ⇐ Prf r[id, a, b] with skeleton σ (§8).
+               Σ; Γ ⊦ w ⇐ r[id, a, b] with skeleton σ (§8).
                # el-quot-eq, faithful: its premise, presented. The
                # relation is an ARBITRARY Ω-valued term — impredicative
                # closures, conjunctions, disjunctions, relation
@@ -572,8 +580,9 @@ final):
   propext f σ g σ′
                nf(T) ⇓ Ω, sides prop codes p, q; check the two
                implications as typings, AS FUNCTIONS over Γ
-               (Γ ⊦ f ⇐ Prf p → Prf q and symmetrically). Equivalent
-               to the hypothetical form (Γ ▷ Prf p ⊦ f ☐₀ ⇐ Prf q[↑])
+               (Γ ⊦ f ⇐ p → q and symmetrically — prop-lift).
+               Equivalent
+               to the hypothetical form (Γ ▷ p ⊦ f ☐₀ ⇐ q[↑])
                by Π intro/elim, and the form a surface term can hand
                over: a checked term's variable indices are fixed
                against the context it was written in, so a proof the
@@ -584,13 +593,14 @@ Type equations — Σ; Γ ⊦ 𝒞 ▷ T₀ ≐ T₁: no bridge is admissible (a
 bridge on a type equation would be circular), steps apply through the
 type formers as in §6. The final is beta (nf-equal types), or one of
 the extensional-component congruences whose components cannot be
-flattened into steps: prfCong 𝒞 (both sides Prf-headed, 𝒞 proves the
-codes equal at Ω — ty-prf-cong), quotCong 𝒞 (both sides A / _ at a
+flattened into steps: prfCong 𝒞 (both sides PROPOSITIONS — checked
+by kIsProp, the lift's load-bearing side condition — 𝒞 proves them
+equal at Ω: prop-lift-eq), quotCong 𝒞 (both sides A / _ at a
 common domain, 𝒞 proves the relations equal at Ω — ty-quot-cong),
 piCong 𝒞 𝒞 / sigmaCong 𝒞 𝒞 (ty-pi-cong / ty-sigma-cong,
 componentwise: domain certificate, then codomain certificate under
 the RIGHT domain — needed exactly when a component's equality is
-itself extensional, e.g. a Prf codomain equal only by propext),
+itself extensional, e.g. a prop codomain equal only by propext),
 sumCong 𝒞 𝒞 (ty-sum-cong, componentwise — both components over Γ,
 no binder to cross),
 nuCong 𝒞̄ (both sides ν types/codes ν 𝔽₀ / ν 𝔽₁: the polynomials must
@@ -634,10 +644,10 @@ payloads:
     | wd 𝒞                (PWD)       quot-elim well-definedness
     | expose T 𝒞          (PExpose)   head exposure at a checked intro
     | squash-wit e ⟨sk⟩   (PSquashWit) the witness behind a checked
-                                      ⋆ : Prf ∥A∥ (el-squash-i)
+                                      ⋆ : ∥A∥ (el-squash-i)
     | squash-elim e ⟨ske⟩  (PSquashElim) el-squash-e-prf: scrutinee e
-        b ⟨skb⟩                       (inhabiting Prf ∥A∥) and a body b
-                                      proving (Prf q)[↑] under the raw
+        b ⟨skb⟩                       (inhabiting ∥A∥) and a body b
+                                      proving q[↑] under the raw
                                       squashee A
     | qcoh 𝒞₁ … 𝒞ₖ        (PQCoh)    QIIT eliminator coherences, one
                                       certificate per equation entry
@@ -656,8 +666,8 @@ Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
      replay, and none is needed: replay is EXTRINSIC — spelling
      surgery presupposing neither side — both sides entering as bare
      syntax, each step's license carrying its own components'
-     typedness (the proof's ⇒ᵖ-inferred Prf-type presupposes the
-     equation's sides). Read declaratively it is a CONDITIONAL:
+     typedness (the proof's ⇒ᵖ-inferred equality prop presupposes
+     the equation's sides). Read declaratively it is a CONDITIONAL:
      given Γ ⊦ T : 𝕍 — an invariant of this pass, every expected
      type being built from the item's checked type by nf and
      structural decomposition — a successful replay makes nf(T′) a
@@ -676,7 +686,7 @@ Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
      Σ; Γ ⊦ λ f ⇐ T ⟨sk⟩
 
      Σ; Γ ⊦ a ⇒ A ⟨sk.0⟩
-     Σ; Γ ▷ A ▷ Prf (☐₀ ≡ a[↑] ∈ A[↑]) ⊦ b ⇐ T[↑ ∘ ↑] ⟨sk.1⟩
+     Σ; Γ ▷ A ▷ (☐₀ ≡ a[↑] ∈ A[↑]) ⊦ b ⇐ T[↑ ∘ ↑] ⟨sk.1⟩
      --------------------------------------------------------
      Σ; Γ ⊦ let a b ⇐ T ⟨sk⟩                            # el-let
      # T lives over Γ, so checking b at T[↑ ∘ ↑] is fully general,
@@ -690,7 +700,7 @@ Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
      ---------------------------------------------------------------
      Σ; Γ ⊦ (u , v) ⇐ T ⟨sk⟩                            # el-sigma-i
 
-     nf(T) ⇓ Prf (l ≡ r ∈ A)   sk carries refl-eq 𝒞   𝒞 ▷ l ≐ r : A
+     nf(T) ⇓ (l ≡ r ∈ A)   sk carries refl-eq 𝒞   𝒞 ▷ l ≐ r : A
      ---------------------------------------------------------------
      Σ; Γ ⊦ ⋆ ⇐ T ⟨sk⟩                       # el-eq-i over replay
      # disambiguated from the squash rules below by nf(T)'s prop head
@@ -701,11 +711,11 @@ Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
   terms, not replay certificates — the premises are prop
   inhabitations, exactly the item-level checker's job):
 
-     nf(T) ⇓ Prf p    nf(p) ⇓ (l ≡ r ∈ E)    nf(E) ⇓ ν 𝔽
+     nf(T) ⇓ (l ≡ r ∈ E)    nf(E) ⇓ ν 𝔽
      sk carries coind R ⟨skR⟩, p̂ ⟨skp⟩, q̂ ⟨skq⟩
      Σ; Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ⊦ R ⇐ Ω ⟨skR⟩
-     Σ; Γ ⊦ p̂ ⇐ Prf R[id, l, r] ⟨skp⟩
-     Σ; Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ▷ Prf R ⊦ q̂ ⇐ Prf (lift_𝔽(R) (out ☐₂) (out ☐₁)) ⟨skq⟩
+     Σ; Γ ⊦ p̂ ⇐ R[id, l, r] ⟨skp⟩
+     Σ; Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ▷ R ⊦ q̂ ⇐ lift_𝔽(R) (out ☐₂) (out ☐₁) ⟨skq⟩
      -------------------------------------------------------------------
      Σ; Γ ⊦ ⋆ ⇐ T ⟨sk⟩                       # el-nu-coind
      # lift_𝔽 is the RELATOR (Foundation, coinductive section) —
@@ -736,12 +746,13 @@ Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
      # everywhere. The term's 𝒮 is NOT re-checked here — it is nf(T)'s
      # signature, already validated where T was.
 
-     nf(T) ⇓ Prf ∥A∥    sk carries squash-wit e ⟨ske⟩   Σ; Γ ⊦ e ⇐ A ⟨ske⟩
+     nf(T) ⇓ ∥A∥    sk carries squash-wit e ⟨ske⟩   Σ; Γ ⊦ e ⇐ A ⟨ske⟩
      -------------------------------------------------------------------
      Σ; Γ ⊦ ⋆ ⇐ T ⟨sk⟩                                  # el-squash-i
 
-     nf(T) ⇓ Prf q    sk carries squash-elim e ⟨ske⟩ b ⟨skb⟩
-     Σ; Γ ⊦ e ⇒ Prf ∥A∥ ⟨ske⟩    Σ; Γ ▷ A ⊦ b ⇐ (Prf q)[↑] ⟨skb⟩
+     T a PROPOSITION (kIsProp, on the RAW spelling — el-squash-e-prf's
+     q : Ω premise)    sk carries squash-elim e ⟨ske⟩ b ⟨skb⟩
+     Σ; Γ ⊦ e ⇒ ∥A∥ ⟨ske⟩    Σ; Γ ▷ A ⊦ b ⇐ T[↑] ⟨skb⟩
      ----------------------------------------------------------
      Σ; Γ ⊦ ⋆ ⇐ T ⟨sk⟩                            # el-squash-e-prf
      # disambiguated from el-squash-i above purely by which payload sk
@@ -773,7 +784,7 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
   let infers when its body does (definiens inferred, as in checking):
 
      Σ; Γ ⊦ a ⇒ A ⟨sk.0⟩
-     Σ; Γ ▷ A ▷ Prf (☐₀ ≡ a[↑] ∈ A[↑]) ⊦ b ⇒ B ⟨sk.1⟩
+     Σ; Γ ▷ A ▷ (☐₀ ≡ a[↑] ∈ A[↑]) ⊦ b ⇒ B ⟨sk.1⟩
      ------------------------------------------------------------
      Σ; Γ ⊦ let a b ⇒ B[id, a, ⋆]                       # el-let
 
@@ -803,10 +814,15 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
      Σ; Γ ⊦ q ⇒ Tq ⟨sk.1⟩    nf(Tq) ⇓ A / r
      Σ; Γ ▷ A/r ⊦ M : 𝕍 ⟨skM⟩
      Σ; Γ ▷ A ⊦ f ⇐ M[↑, class ☐₀] ⟨sk.0⟩
-     Σ; Γ ▷ A ▷ A[↑] ▷ Prf r ⊦ 𝒞 ▷ f[↑³, ☐₂] ≐ f[↑³, ☐₁] : M[↑³, class ☐₂]
+     M a prop (kIsProp) ⟹ well-definedness holds OUTRIGHT
+     (el-prf-prop — the ElimP rationale; the MOTIVE is tested, whose
+     spine shape survives where a stuck instance's prop-ness is
+     unreadable); otherwise:
+     Σ; Γ ▷ A ▷ A[↑] ▷ r ⊦ 𝒞 ▷ f[↑³, ☐₂] ≐ f[↑³, ☐₁] : M[↑³, class ☐₂]
      ------------------------------------------------------------
      Σ; Γ ⊦ quot-elim f q ⇒ M[id, q]                    # el-quot-e
-  (the well-definedness hypothesis is Prf r — the DECODED relation)
+  (the well-definedness hypothesis binds the relation instance
+  directly — prop-lift)
 
   out is fully inference-driven — no motive, no skeleton payload
   beyond the scrutinee's:
@@ -844,7 +860,7 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
   at Ω with A checked as a type; an equality prop (l ≡ r ∈ A) infers
   at Ω with A checked as a type and the sides checked at A (code-eq). A sort application 𝒮.𝕤 ē infers at 𝕌
   when 𝒮 additionally passes the SMALLNESS scan — every external Π
-  domain of every entry either Prf-headed or checkable at 𝕌
+  domain of every entry checkable at 𝕌 or at Ω
   (code-qiit) — with the spine checked as under formation below.
 
   Anything else in inference position (a bare intro form with no
@@ -857,7 +873,9 @@ anything that is not a large former falls through to checking at 𝕌
 a ν type's polynomial checked structurally (poly-hole/-const/-prod/
 -sum/-sigma/-pi: each embedded code at 𝕌, the context growing by the
 binders' domain codes, skeleton children along in binder order),
-Prf's code and the quotient's relation checked at Ω, signature-type
+the squashee of ∥·∥ checked as a type, the quotient's relation and
+the sides/∈-type of an equality prop checked at Ω's rules,
+signature-type
 arguments checked against their telescope — all with skeleton
 children along. A sort
 application adds ty-qiit: Σ; Γ ⊦ 𝒮 qsig ⟨sk𝒮⟩, 𝒮(𝕤) = 𝔎 U-ended, and

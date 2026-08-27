@@ -4,7 +4,7 @@ open declarations (4):
       at: def fib
   [fibZ] ⊢ ? : fib Z ≡ Z ∈ ℕ
       at: def fibZ
-  [fibS] ⊢ ? : (n:ℕ) → Prf (fib (S n) ≡ fib (S n) ∈ ℕ)
+  [fibS] ⊢ ? : (n:ℕ) → (fib (S n) ≡ fib (S n) ∈ ℕ)
       at: def fibS
-  [fibEta] ⊢ ? : (x:ℕ → ℕ) → Prf (x Z ≡ Z ∈ ℕ) → ((n:ℕ) → Prf (x (S n) ≡ x (S n) ∈ ℕ)) → (n:ℕ) → Prf (x n ≡ fib n ∈ ℕ)
+  [fibEta] ⊢ ? : (x:ℕ → ℕ) → (x Z ≡ Z ∈ ℕ) → ((n:ℕ) → (x (S n) ≡ x (S n) ∈ ℕ)) → (n:ℕ) → (x n ≡ fib n ∈ ℕ)
       at: def fibEta

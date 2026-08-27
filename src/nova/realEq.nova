@@ -101,7 +101,7 @@ def reqStep : (x y z : RSeq)
               (bndVia _ _ _ _ _ (u (dbl (qtr k))) (v (dbl (qtr k))))))
           (regBnd _ (regOf z) (dbl (qtr k)) n))))
 
-def reqTrans : {x : RSeq} (y : RSeq) {z : RSeq} → Prf (REq x y) → Prf (REq y z) → Prf (REq x z)
+def reqTrans : {x : RSeq} (y : RSeq) {z : RSeq} → REq x y → REq y z → REq x z
   using (id.Id.eq,
     ratBound.Bnd.unfold,
     rationalOrder.Sign.eq,
@@ -122,6 +122,6 @@ def reqTrans : {x : RSeq} (y : RSeq) {z : RSeq} → Prf (REq x y) → Prf (REq y
 
 -- ...so REq-related representatives name the same real, and the
 -- quotient is by an honest equivalence
-def realEqTrans : (x y z : RSeq) → Prf (REq x y) → Prf (REq y z) → class x ≡ class z ∈ Real
+def realEqTrans : (x y z : RSeq) → REq x y → REq y z → class x ≡ class z ∈ Real
   using (real.Real.unfold) ≔
   λx. λy. λz. λh1. λh2. realEqOfREq _ _ (reqTrans _ h1 h2)

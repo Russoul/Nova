@@ -34,7 +34,7 @@ def addCongR : {x y z : Int} → (y ≡ z) → x + y ≡ x + z
 
 -- x·d ≡ y·d with d ≠ 0 gives x ≡ y: the difference times d is zero,
 -- so the difference is zero
-def intMulCancel : (x y d : Int) (h : Prf (x * d ≡ y * d)) (hd : Prf (¬ (d ≡ intZero))) → x ≡ y
+def intMulCancel : (x y d : Int) (h : x * d ≡ y * d) (hd : ¬ (d ≡ intZero)) → x ≡ y
   using (intAddNegL, intMulNegL, intAddZeroL, intAddZeroR) ≔
   λx. λy. λd. λh. λhd. sym
     _
@@ -86,9 +86,9 @@ def mulSwapRight : {a b c : Int} → a * b * c ≡ a * c * b using (integer.Int.
       ≡⟨ mulCongR a _ _ (intMulComm b c) ⟩ a * (c * b)
       ≡⟨ intMulAssoc a c b ⟩ a * c * b
 
-def ratRRefl : (p : Rat) → Prf (RatR p p) using (rationalQ.RatR.unfold) ≔ λp. ⋆
+def ratRRefl : (p : Rat) → RatR p p using (rationalQ.RatR.unfold) ≔ λp. ⋆
 
-def ratRSymm : (p q : Rat) → Prf (RatR p q) → Prf (RatR q p)
+def ratRSymm : (p q : Rat) → RatR p q → RatR q p
   using (integer.Int.eq,
     integer.Int.unfold,
     integerMul.*.eq,
@@ -103,7 +103,7 @@ def ratRSymm : (p q : Rat) → Prf (RatR p q) → Prf (RatR q p)
 -- multiply the goal through by the middle denominator, walk it across
 -- the two hypotheses, and cancel — the middle denominator is non-zero
 -- because it is the image of an NZ
-def ratRTrans : (p q r : Rat) → Prf (RatR p q) → Prf (RatR q r) → Prf (RatR p r)
+def ratRTrans : (p q r : Rat) → RatR p q → RatR q r → RatR p r
   using (intMulAssoc,
     integer.Int.eq,
     integer.Int.unfold,
@@ -144,7 +144,7 @@ def ratRTrans : (p q r : Rat) → Prf (RatR p q) → Prf (RatR q r) → Prf (Rat
     (nzToIntNonZero (den q))
 
 -- ===== effectivity =====
-def qEffective : (p q : Rat) → Prf (class p ≡ class q ∈ Q) → Prf (RatR p q)
+def qEffective : (p q : Rat) → (class p ≡ class q ∈ Q) → RatR p q
   using (integer.Int.unfold,
     rational.NZ.unfold,
     rational.Rat.unfold,
@@ -154,7 +154,7 @@ def qEffective : (p q : Rat) → Prf (class p ≡ class q ∈ Q) → Prf (RatR p
 
 -- the converse of rationalInv.nova's ratZeroOfNumZero, which needed
 -- effectivity and so could not be stated until now
-def numZeroOfRatZero : (p : Rat) (h : Prf (class p ≡ qZero)) → num p ≡ intZero
+def numZeroOfRatZero : (p : Rat) (h : class p ≡ qZero) → num p ≡ intZero
   using (intMulOneR,
     intMulZeroL,
     integer.Int.eq,
@@ -189,12 +189,12 @@ def numZeroOfRatZero : (p : Rat) (h : Prf (class p ≡ qZero)) → num p ≡ int
       (qEffective _ ratZero h)
       (intMulZeroL (dInt p)))
 
-def numZeroIff : (p : Rat) → Prf ((class p ≡ qZero) ↔ (num p ≡ intZero))
+def numZeroIff : (p : Rat) → ((class p ≡ qZero) ↔ (num p ≡ intZero))
   using (prop.↔.unfold, prop.∧.unfold, rationalQ.Q.unfold) ≔
   λp. iffIntro (numZeroOfRatZero p) (ratZeroOfNumZero p)
 
 -- ===== the image of NZQ is exactly the non-zero rationals =====
-def qOfNzqNonZero : (x : NZQ) → Prf (¬ (qOfNzq x ≡ qZero))
+def qOfNzqNonZero : (x : NZQ) → ¬ (qOfNzq x ≡ qZero)
   using (prop.¬.unfold,
     prop.⊃.unfold,
     rational.NZ.unfold,
@@ -209,7 +209,7 @@ def qOfNzqNonZero : (x : NZQ) → Prf (¬ (qOfNzq x ≡ qZero))
 
 -- so "non-zero" and "of the form qOfNzq x" coincide — the classical
 -- description of ℚ's units, with the structural one
-def qNonZeroIffNzq : (u : Q) → Prf (¬ (u ≡ qZero) ↔ ∥(x : NZQ) ⨯ Prf (qOfNzq x ≡ u)∥)
+def qNonZeroIffNzq : (u : Q) → (¬ (u ≡ qZero) ↔ ∥(x : NZQ) ⨯ qOfNzq x ≡ u∥)
   using (prop.↔.unfold, prop.∧.unfold) ≔
   λu. iffIntro
     (λh. qNonZeroIsNzq h)
@@ -219,7 +219,7 @@ def qNonZeroIffNzq : (u : Q) → Prf (¬ (u ≡ qZero) ↔ ∥(x : NZQ) ⨯ Prf 
 
 -- ===== the field axiom, classically =====
 -- 1 ≠ 0: nzToInt nzOne IS intOne, and the image of an NZ misses zero
-def qOneNotZero : Prf (¬ (qOne ≡ qZero))
+def qOneNotZero : ¬ (qOne ≡ qZero)
   using (integer.intOne.eq,
     prop.¬.unfold,
     prop.⊃.unfold,
@@ -236,7 +236,7 @@ def qOneNotZero : Prf (¬ (qOne ≡ qZero))
 
 -- INVERTIBLE ⟺ NON-ZERO. Forwards is the inverse theorem; backwards,
 -- a zero u would make 1 = u·v = 0·v = 0
-def qInvertibleIffNonZero : (u : Q) → Prf (¬ (u ≡ qZero) ↔ ∥(v : Q) ⨯ Prf (u * v ≡ qOne)∥)
+def qInvertibleIffNonZero : (u : Q) → (¬ (u ≡ qZero) ↔ ∥(v : Q) ⨯ u * v ≡ qOne∥)
   using (integer.Int.unfold,
     prop.↔.unfold,
     prop.∧.unfold,

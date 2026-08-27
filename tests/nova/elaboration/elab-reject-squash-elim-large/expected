@@ -1,1 +1,1 @@
-Error: def choice: squash-elim checked against a non-Prf goal (el-squash-e-prf reaches only further propositions) (ascribe the term: `(t : T)`)
+Error: def choice: squash-elim checked against a non-propositional goal (el-squash-e-prf reaches only further propositions) (ascribe the term: `(t : T)`)

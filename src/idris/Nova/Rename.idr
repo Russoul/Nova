@@ -239,7 +239,6 @@ mutual
     UniverseTy => e
     PropTy => e
     TopTy => e
-    Prf t => Prf (rcE f t)
     PiTy a b => PiTy (rcE f a) (rcE f b)
     SigmaTy a b => SigmaTy (rcE f a) (rcE f b)
     SumTy a b => SumTy (rcE f a) (rcE f b)

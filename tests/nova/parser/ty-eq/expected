@@ -1,1 +1,1 @@
-Prf (EqTy (NatIntro0) (NatIntro0) (NatTy))
+EqTy (NatIntro0) (NatIntro0) (NatTy)

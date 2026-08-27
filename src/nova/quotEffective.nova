@@ -22,7 +22,7 @@ import equality (transportP, sym, trans)
 def classEqOfRel : {A : 𝕌}
   (r : A → A → Ω)
   (x y : A)
-  → Prf (r x y) → class x ≡ class y ∈ A / (u v. r u v) ≔
+  → r x y → class x ≡ class y ∈ A / (u v. r u v) ≔
   λA. λr. λx. λy. λh. ⋆ h
 
 -- ⟸ : class equality is an equivalence relation containing r, and r⁺ is
@@ -31,7 +31,7 @@ def classEqOfRel : {A : 𝕌}
 def classEqOfClosure : {A : 𝕌}
   (r : A → A → Ω)
   (a b : A)
-  → Prf (rClosure r a b) → Prf (class a ≡ class b ∈ (A / (u v. r u v))) ≔
+  → rClosure r a b → class a ≡ class b ∈ A / (u v. r u v) ≔
   λA. λr. rClosureLeast
     r
     (λx. λy. class x ≡ class y ∈ (A / (u v. r u v)))
@@ -44,11 +44,7 @@ def classEqOfClosure : {A : 𝕌}
 -- well-definedness goal is an Ω-EQUATION between two closure
 -- instances — propositional extensionality, both implications from r⁺'s
 -- own transitivity and symmetry. Nothing about r is assumed
-def clsRelWd : {A : 𝕌}
-  (r : A → A → Ω)
-  (a : A)
-  {x y : A}
-  → Prf (r x y) → rClosure r a x ≡ rClosure r a y
+def clsRelWd : {A : 𝕌} (r : A → A → Ω) (a : A) {x y : A} → r x y → rClosure r a x ≡ rClosure r a y
   using (prop.rClosure.eq, prop.rClosure.unfold) ≔
   λA. λr. λa. λx. λy. λh. propExt
     (λk. rClosureTrans k (rClosureContains _ _ _ h))
@@ -65,7 +61,7 @@ def clsRel : {A : 𝕌} (r : A → A → Ω) (a : A) → (A / (u v. r u v)) → 
 def effective : {A : 𝕌}
   (r : A → A → Ω)
   (a b : A)
-  → Prf (class a ≡ class b ∈ (A / (u v. r u v))) → Prf (rClosure r a b)
+  → (class a ≡ class b ∈ A / (u v. r u v)) → rClosure r a b
   using (prop.rClosure.eq, prop.rClosure.unfold, quotEffective.clsRel.eq) ≔
   λA. λr. λa. λb. λh. transportP (clsRel r a) h (rClosureRefl r a)
 
@@ -73,7 +69,7 @@ def effective : {A : 𝕌}
 def classEqIff : {A : 𝕌}
   (r : A → A → Ω)
   (a b : A)
-  → Prf ((class a ≡ class b ∈ (A / (u v. r u v))) ↔ rClosure r a b) ≔
+  → ((class a ≡ class b ∈ (A / (u v. r u v))) ↔ rClosure r a b) ≔
   λA. λr. λa. λb. iffIntro (effective r a b) (classEqOfClosure r a b)
 
 -- COROLLARY: at an equivalence relation, effectivity on the nose — r
@@ -82,24 +78,20 @@ def classEqIff : {A : 𝕌}
 def effectiveAtEquiv : {A : 𝕌}
   (r : A → A → Ω)
   → ((x : A)
-    → Prf (r
+    → r
       x
-      x))
+      x)
     → ((x y z : A)
-      → Prf (r
+      → r
         x
-        y)
-        → Prf (r
+        y
+        → r
           y
-          z)
-          → Prf (r
+          z
+          → r
             x
-            z))
-      → ((x y : A)
-        → Prf (r
-          x
-          y)
-          → Prf (r y x)) → (a b : A) → Prf (class a ≡ class b ∈ (A / (u v. r u v))) → Prf (r a b) ≔
+            z)
+      → ((x y : A) → r x y → r y x) → (a b : A) → (class a ≡ class b ∈ A / (u v. r u v)) → r a b ≔
   λA. λr. λrRefl. λrTrans. λrSymm. λa. λb. λh. rClosureLeast
     _
     r
@@ -116,7 +108,7 @@ def effectiveAtEquiv : {A : 𝕌}
 -- judgemental
 def natEq : ℕ → ℕ → Ω ≔ λx. λy. x ≡ y
 
-def natEqEffective : {a b : ℕ} → Prf (class a ≡ class b ∈ (ℕ / (u v. natEq u v))) → Prf (a ≡ b)
+def natEqEffective : {a b : ℕ} → (class a ≡ class b ∈ ℕ / (u v. natEq u v)) → a ≡ b
   using (hyp.rw, quotEffective.natEq.eq, quotEffective.natEq.unfold) ≔
   effectiveAtEquiv natEq (λx. ⋆) (λx. λy. λz. λh1. λh2. ⋆) (λx. λy. λh. ⋆)
 
@@ -124,7 +116,7 @@ def natEqEffective : {a b : ℕ} → Prf (class a ≡ class b ∈ (ℕ / (u v. n
 -- equivalence — the one-hop equation holds by el-quot-eq, the two-hop
 -- one by transitivity through it, and the BACKWARD one by symmetry. A
 -- rule reading r off any of the last two would inhabit
--- Prf (S Z ≡ S (S Z) ∈ ℕ) and collapse ℕ. (Chaining is not automatic:
+-- (S Z ≡ S (S Z) ∈ ℕ) and collapse ℕ. (Chaining is not automatic:
 -- sgHop2 goes through sgHop1 as a rewrite candidate, so the hops must
 -- be named — drop sgHop1 and sgHop2 stops elaborating)
 def SG : 𝕌 ≔ ℕ / (n m. S n ≡ m)

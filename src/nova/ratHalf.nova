@@ -169,7 +169,7 @@ def halfCross : {n : ℕ}
         (unitNum n) ⟩ num (unitRat n) * dInt (ratAdd (unitRat (dbl n)) (unitRat (dbl n)))
 
 -- 1/(2n+2) + 1/(2n+2) ~ 1/(n+1): the relation is halfCross, decoded
-def halfRel : (n : ℕ) → Prf (RatR (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) (unitRat n))
+def halfRel : (n : ℕ) → RatR (ratAdd (unitRat (dbl n)) (unitRat (dbl n))) (unitRat n)
   using (rationalQ.RatR.eq, rationalQ.RatR.unfold) ≔
   λn. halfCross
 

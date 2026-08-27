@@ -163,7 +163,9 @@ freshForTy (SigVar _ _) = freshFromList candidatesEl
 freshForTy (CtxVar _) = freshFromList candidatesEl
 freshForTy (PiApp _ _) = freshFromList candidatesEl
 freshForTy PropTy = freshFromList candidatesProp
-freshForTy (Prf _) = freshFromList candidatesPrf
+-- Prf retired: a prop in type position gets the proof-flavored names
+freshForTy (Elem.EqTy _ _ _) = freshFromList candidatesPrf
+freshForTy (Squash _) = freshFromList candidatesPrf
 freshForTy _ = freshFromList candidatesGeneric
 
 export
@@ -244,7 +246,6 @@ mutual
   usesIndexElem k UniverseTy = False
   usesIndexElem k PropTy = False
   usesIndexElem k TopTy = False
-  usesIndexElem k (Prf e) = usesIndexElem k e
   usesIndexElem k (Elem.PiTy e e') = usesIndexElem k e || usesIndexElem (S k) e'
   usesIndexElem k (Elem.SigmaTy e e') = usesIndexElem k e || usesIndexElem (S k) e'
   usesIndexElem k (Elem.SumTy e e') = usesIndexElem k e || usesIndexElem k e'
@@ -384,7 +385,6 @@ mutual
          ++ b ++ ". " ++ prettyElemN tbl (env :< b) r ++ ") "
          ++ prettyElemAtomN tbl env t
   prettyElemPrefixN tbl env (Class a) = "class " ++ prettyElemAtomN tbl env a
-  prettyElemPrefixN tbl env (Prf e) = "Prf " ++ prettyElemAtomN tbl env e
   prettyElemPrefixN tbl env (Elem.NuTy f) = "ν " ++ prettyPolyAtomN tbl env f
   prettyElemPrefixN tbl env (Out t) = "out " ++ prettyElemAtomN tbl env t
   prettyElemPrefixN tbl env (Corec p a f x) =
@@ -471,8 +471,8 @@ mutual
 
   export
   prettyTyN : FixTable -> NameEnv -> Ty -> String
-  prettyTyN tbl env (Prf (Elem.EqTy e0 e1 a)) =
-    -- the surface sugar: Prf of an equality prop prints as the ≡-type
+  prettyTyN tbl env (Elem.EqTy e0 e1 a) =
+    -- the equality prop IS the ≡-type (Prf retired)
     prettyElemOpN tbl env 0 e0 ++ " ≡ " ++ prettyElemOpN tbl env 0 e1 ++ " ∈ " ++ prettyTyArrowN tbl env a
   prettyTyN tbl env ty = prettyTyArrowN tbl env ty
 
@@ -506,7 +506,6 @@ mutual
   prettyTySumN tbl env ty = prettyTyElN tbl env ty
 
   prettyTyElN : FixTable -> NameEnv -> Ty -> String
-  prettyTyElN tbl env (Prf e) = "Prf " ++ prettyElemAtomN tbl env e
   prettyTyElN tbl env (NuTy f) = "ν " ++ prettyPolyAtomN tbl env f
   prettyTyElN tbl env ty = prettyTyAtomN tbl env ty
 
@@ -553,7 +552,6 @@ mutual
   prettyTyAtomN tbl env ty@(SigmaTy _ _) = "(" ++ prettyTyN tbl env ty ++ ")"
   prettyTyAtomN tbl env ty@(SumTy _ _) = "(" ++ prettyTyN tbl env ty ++ ")"
   prettyTyAtomN tbl env ty@(QuotTy _ _) = "(" ++ prettyTyN tbl env ty ++ ")"
-  prettyTyAtomN tbl env ty@(Prf _) = "(" ++ prettyTyN tbl env ty ++ ")"
   prettyTyAtomN tbl env ty@(NuTy _) = "(" ++ prettyTyN tbl env ty ++ ")"
   prettyTyAtomN tbl env ty = prettyElemAtomN tbl env ty
 

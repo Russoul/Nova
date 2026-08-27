@@ -3,5 +3,5 @@ defined zeros
 defined ones
 defined bad [+1 obligation]
 open obligations (1):
-  [1] (x : ν (K ℕ ⨯ 𝕏)) (y : ν (K ℕ ⨯ 𝕏)) (h : Prf ∥Prf (x ≡ zeros ∈ (stream ℕ)) ⨯ Prf (y ≡ ones ∈ (stream ℕ))∥) (w : Prf (x ≡ zeros ∈ (stream ℕ)) ⨯ Prf (y ≡ ones ∈ (stream ℕ))) ⊢ (out x) .π₁ ≐ (out y) .π₁ : ℕ
+  [1] (x : ν (K ℕ ⨯ 𝕏)) (y : ν (K ℕ ⨯ 𝕏)) (h : ∥(x ≡ zeros ∈ (stream ℕ)) ⨯ (y ≡ ones ∈ (stream ℕ))∥) (w : (x ≡ zeros ∈ (stream ℕ)) ⨯ (y ≡ ones ∈ (stream ℕ))) ⊢ (out x) .π₁ ≐ (out y) .π₁ : ℕ
       at: def bad: checking ⋆

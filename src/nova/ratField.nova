@@ -45,7 +45,7 @@ def ratMulMonoid : IsMonoid Q using (monoid.IsMonoid.unfold) ≔
         (qMulAssoc x y z)), (λx. eqToId _ _ (qMulOneL x)), λx. eqToId _ _ (qMulOneR x)
 
 -- Nontriviality at the DATA level: an element of 𝟘 from Id Q 1 0.
--- Prf ⊥ could never produce one — the route is the effectivity chain
+-- a ⊥-proof could never produce one — the route is the effectivity chain
 -- down to ℕ, where a 𝕌-valued discriminator exists: reflect the Id to
 -- a class equation, qEffective turns it into the cross-multiplied Int
 -- relation (which δβ-computes to class (S Z , Z) ≡ class (Z , Z)),

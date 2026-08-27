@@ -158,7 +158,7 @@ def leQFloorAt : (N : Int) (d : NZ) → (qOfNat (qFloor (qcls (mkRat N d))) ≤ 
     d in transport (λw. qOfNat (qFloor w) ≤ qAbs w) (idToEq _ _ _ (v .π₂ .π₂)) leQFloorPos
 
 -- ===== ...and on the quotient =====
-def leQFloorAbsSq : (u : Q) → Prf ∥(qOfNat (qFloor u) ≤ qAbs u)∥
+def leQFloorAbsSq : (u : Q) → ∥(qOfNat (qFloor u) ≤ qAbs u)∥
   using (integer.Int.unfold, rational.Rat.unfold, rationalQ.Q.unfold, rationalQ.qcls.eq) ≔
   λu. quot-elim
     (p. ⋆ (transport

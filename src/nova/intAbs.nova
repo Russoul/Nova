@@ -237,7 +237,7 @@ def intAbsMul : (x y : Int) → intAbs (x * y) ≡ intAbs x * intAbs y
 -- from a difference pair, and matches.
 def magPair : (ℕ ⨯ ℕ) → ℕ ≔ λr. r .π₁ ∸ r .π₂ + (r .π₂ ∸ r .π₁)
 
-def magPairWD : (r r' : ℕ ⨯ ℕ) (h : Prf (IntR r r')) → magPair r ≡ magPair r'
+def magPairWD : (r r' : ℕ ⨯ ℕ) (h : IntR r r') → magPair r ≡ magPair r'
   using (intAbs.magPair.eq, integer.IntR.eq, integer.IntR.unfold) ≔
   λr. λr'. λh. trans
     _

@@ -14,10 +14,10 @@ module Nova.Kernel.Dormant.Beta
 -- contraction (e.g. unfolding x[e˲] to a lambda that's then immediately
 -- applied) still gets caught in the same call.
 --
--- El-(/) (El (A / R) ≜ El A / R — the relation is an Ω-element and is NOT
--- decoded) is handled the same way as El-(→)/El-(⨯): Elem.QuotTy is the
--- universe code, decoded by betaTy's El case below. Prf has NO decoding
--- rule (Prf ∥A∥ does not reduce to A — that is the point of the squash).
+-- Squash contracts only at the syntax-directed instances of the
+-- admissible code-squash-idem (∥∥A∥∥, ∥(a≡b∈A)∥ — a prop's own head
+-- marks it); an Ω-NEUTRAL under ∥·∥ is stuck. ∥A∥ as a type does NOT
+-- reduce to A — that is the point of the squash.
 
 import Data.List
 import Data.SnocList
@@ -83,7 +83,6 @@ mutual
   betaElem sig UniverseTy         = UniverseTy
   betaElem sig PropTy             = PropTy
   betaElem sig TopTy              = TopTy
-  betaElem sig (Prf e)            = Prf (betaElem sig e)
   betaElem sig (Elem.PiTy a b)    = Elem.PiTy (betaElem sig a) (betaElem sig b)
   betaElem sig (Elem.SigmaTy a b) = Elem.SigmaTy (betaElem sig a) (betaElem sig b)
   betaElem sig (Elem.SumTy a b)   = Elem.SumTy (betaElem sig a) (betaElem sig b)
@@ -102,10 +101,12 @@ mutual
     case betaElem sig q of
       Class a => betaElem sig (substElem (betaElem sig f) (Ext Id a))
       q'      => QuotElim (betaElem sig f) q'
-  -- code-squash-prf: squash is idempotent on props — ∥Prf p∥ ≜ p
+  -- code-squash-idem, syntax-directed instances: squash is idempotent
+  -- on props, and ≡-/∥·∥-headed types ARE props
   betaElem sig (Squash t)         =
     case betaTy sig t of
-      Prf p => p
+      p@(Elem.EqTy _ _ _) => p
+      p@(Squash _)        => p
       t'    => Squash t'
   betaElem sig Star               = Star
   betaElem sig (QSort sg k es)   = QSort (betaQSig sig sg) k (betaSubNorm sig es)
@@ -233,7 +234,8 @@ mutual
       q'      => QuotElim f q'
   whnfE sig (Squash t) =
     case whnfT sig t of
-      Prf p => whnfE sig p       -- code-squash-prf
+      p@(Elem.EqTy _ _ _) => p   -- code-squash-idem (syntax-directed
+      p@(Squash _)        => p   --   instances; Ω-neutrals stay stuck)
       t'    => Squash t'
   whnfE sig (QElim sg k ms fs es w) =
     case whnfE sig w of
@@ -282,7 +284,8 @@ step1E sig (Elem.SigVar x es) =
     Just (SigDef _ _ a _) => Just (substElem a (embed es))
     _ => Nothing
 step1E sig (QuotElim f (Class a)) = Just (substElem f (Ext Id a))
-step1E sig (Squash (Prf p)) = Just p
+step1E sig (Squash p@(Elem.EqTy _ _ _)) = Just p
+step1E sig (Squash p@(Squash _)) = Just p
 step1E sig (QElim sg k ms fs es (QCtor sgW c theta)) =
   if sgW == sg
     then case qElimBetaRhs sg ms fs c theta of
@@ -335,7 +338,6 @@ mutual
       (Elem.EqTy l r t, 0) => (\l' => Elem.EqTy l' r t) <$> contractAtE sig p l
       (Elem.EqTy l r t, 1) => (\r' => Elem.EqTy l r' t) <$> contractAtE sig p r
       (Elem.EqTy l r t, 2) => Elem.EqTy l r <$> contractAtE sig p t
-      (Prf e2, 0) => Prf <$> contractAtE sig p e2
       (QuotTy a r, 0) => (\a' => QuotTy a' r) <$> contractAtE sig p a
       (QuotTy a r, 1) => QuotTy a <$> contractAtE sig p r
       (Elem.SigVar x es, _) =>
@@ -416,7 +418,6 @@ mutual
       (Elem.EqTy l r t, 0) => subAtE p l
       (Elem.EqTy l r t, 1) => subAtE p r
       (Elem.EqTy l r t, 2) => subAtE p t
-      (Prf e2, 0) => subAtE p e2
       (QuotTy a r, 0) => subAtE p a
       (QuotTy a r, 1) => subAtE p r
       (Elem.SigVar x es, _) => do
@@ -482,7 +483,6 @@ mutual
     childIx (Elem.SigmaTy a b) = [(0, Left a), (1, Left b)]
     childIx (Elem.SumTy a b) = [(0, Left a), (1, Left b)]
     childIx (Elem.EqTy l r t) = [(0, Left l), (1, Left r), (2, Left t)]
-    childIx (Prf e2) = [(0, Left e2)]
     childIx (QuotTy a r) = [(0, Left a), (1, Left r)]
     childIx (Elem.SigVar x es) =
       map (\(i, e2) => (i, Left e2))
@@ -545,7 +545,6 @@ replaceAtE (i :: p) r e =
     (Elem.EqTy l r2 t, 0) => (\l' => Elem.EqTy l' r2 t) <$> replaceAtE p r l
     (Elem.EqTy l r2 t, 1) => (\r2' => Elem.EqTy l r2' t) <$> replaceAtE p r r2
     (Elem.EqTy l r2 t, 2) => Elem.EqTy l r2 <$> replaceAtE p r t
-    (Prf e2, 0) => Prf <$> replaceAtE p r e2
     (Squash t, 0) => Squash <$> replaceAtE p r t
     (QuotTy a r2, 0) => (\a' => QuotTy a' r2) <$> replaceAtE p r a
     (QuotTy a r2, 1) => QuotTy a <$> replaceAtE p r r2

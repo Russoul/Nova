@@ -1,6 +1,6 @@
 -- RSeq IS A SET, and its equality is equality of the underlying
 -- sequence. This is what `uip` bought: a regularity witness is data
--- (a Σ-code cannot carry a `Prf`), but it is data with exactly one
+-- (a Σ-code cannot carry a prop), but it is data with exactly one
 -- inhabitant per f — `bndIsProp` at every index pair, then dependent
 -- funext twice.
 --
@@ -84,14 +84,14 @@ def wdOuterOfComm : (op : RSeq → RSeq → RSeq)
       b
       a)
     → ((a b b' : RSeq)
-      → Prf (REq
+      → REq
         b
-        b')
+        b'
         → class (op
           a
           b) ≡ class (op
           a
-          b') ∈ Real) → (x x' c : RSeq) → Prf (REq x x') → class (op x c) ≡ class (op x' c) ∈ Real
+          b') ∈ Real) → (x x' c : RSeq) → REq x x' → class (op x c) ≡ class (op x' c) ∈ Real
   using (real.Real.unfold) ≔
   λop. λcomm. λinner. λx. λx'. λc. λh. trans
     _

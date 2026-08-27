@@ -86,18 +86,18 @@ mutual
     ||| quot-elim well-definedness (f respects R)
     PWD : ECert -> Payload
     ||| head exposure at a checked introduction form: the expected type
-    ||| rewritten to expose its Π/Σ/quotient/≡/Prf head, with the
+    ||| rewritten to expose its Π/Σ/quotient/≡ head, with the
     ||| certificate for the conversion. The exposed type's own
     ||| well-formedness follows from the original's by subject
     ||| reduction; the intro checks against the exposed form and
     ||| coercion transports the result.
     PExpose : Ty -> ECert -> Payload
-    ||| the witness behind a checked ⋆ : Prf ∥A∥ (el-squash-i: an
+    ||| the witness behind a checked ⋆ : ∥A∥ (el-squash-i: an
     ||| inhabitant of the squashee)
     PSquashWit : Elem -> Skel -> Payload
     ||| the hypothetical proof behind a checked squash-elim
-    ||| (el-squash-e-prf): scrutinee inhabiting Prf ∥A∥, plus a body
-    ||| proving (Prf q)[↑] under the raw squashee A
+    ||| (el-squash-e-prf): scrutinee inhabiting ∥A∥, plus a body
+    ||| proving q[↑] under the raw squashee A
     PSquashElim : Elem -> Skel -> Elem -> Skel -> Payload
     ||| QIIT eliminator coherences — one certificate per equation entry
     ||| of the carried signature, replayed in the entry's ᴰ-context
@@ -119,7 +119,9 @@ mutual
     ||| compare beta-normal forms
     FBeta : Final
     ||| the equation's type normalizes to 𝟙 or 𝟘 (el-one-prop/
-    ||| el-zero-prop) or to Prf p (el-prf-prop: proof irrelevance)
+    ||| el-zero-prop) or to a PROPOSITION — ≡-/∥·∥-headed, or a
+    ||| neutral that checks at Ω (el-prf-prop: proof irrelevance; the
+    ||| retired Prf head was the premise p : Ω's syntactic proxy)
     FProp : Final
     ||| class a ≐ class b at A / R via the relation's shape:
     ||| R[id,a,b] ⇝ ∥T∥ with T ⇝ 𝟙 (witness ()) or T ⇝ an ≡-type whose
@@ -127,7 +129,7 @@ mutual
     ||| el-quot-eq)
     FWitness : Maybe ECert -> Final
     ||| el-quot-eq with the witness SUPPLIED: class a ≐ class b at
-    ||| A / R by a proof of Prf R[id,a,b], checked with its skeleton.
+    ||| A / R by a proof of R[id,a,b], checked with its skeleton.
     ||| FWitness above re-derives the witness from the relation's
     ||| SHAPE and so reaches only ∥𝟙∥ and equality props; this is the
     ||| faithful route, at an arbitrary Ω-valued relation — the
@@ -143,14 +145,17 @@ mutual
     FEtaSigma : ECert -> ECert -> Final
     ||| code-prop-eq (propositional extensionality) at Ω: mutually
     ||| implied prop codes are equal. Carries the two implications as
-    ||| FUNCTIONS over Γ — f : Prf p → Prf q and g : Prf q → Prf p —
+    ||| FUNCTIONS over Γ — f : p → q and g : q → p (props are types,
+    ||| prop-lift) —
     ||| with their checking skeletons. (Equivalent to carrying the
-    ||| hypothetical proofs f ☐₀ / g ☐₀ under Γ ▷ Prf p / Γ ▷ Prf q,
+    ||| hypothetical proofs f ☐₀ / g ☐₀ under Γ ▷ p / Γ ▷ q,
     ||| by Π intro/elim; the function form is what a surface term can
     ||| hand over, since a checked term's variable indices are fixed
     ||| against the context it was written in.)
     FPropExt : Elem -> Skel -> Elem -> Skel -> Final
-    ||| ty-prf-cong for a TYPE certificate: both sides are Prf-headed
+    ||| prop-lift-eq for a TYPE certificate: both sides are PROPS
+    ||| (checked — the lift's side condition is load-bearing) and the
+    ||| nested certificate equates them at Ω
     ||| and the nested certificate proves the codes equal at Ω
     FPrfCong : ECert -> Final
     ||| ty-quot-cong (reflexive domain) for a TYPE certificate: both
@@ -338,7 +343,6 @@ mutual
   kElem sig UniverseTy = pure UniverseTy
   kElem sig PropTy = pure PropTy
   kElem sig TopTy = pure TopTy
-  kElem sig (Prf p) = Prf <$> kElem sig p
   kElem sig (Elem.PiTy a b) = [| Elem.PiTy (kElem sig a) (kElem sig b) |]
   kElem sig (Elem.SigmaTy a b) = [| Elem.SigmaTy (kElem sig a) (kElem sig b) |]
   kElem sig (Elem.SumTy a b) = [| Elem.SumTy (kElem sig a) (kElem sig b) |]
@@ -373,8 +377,10 @@ mutual
   kElem sig (Squash t) = do
     t' <- kTy sig t
     case t' of
-      -- code-squash-prf: ∥Prf p∥ ≜ p (squash is idempotent on props)
-      Prf p => do burn; pure p
+      -- code-squash-idem, syntax-directed instances (≡-/∥·∥-headed
+      -- types ARE props; Ω-neutrals stay stuck)
+      p@(Elem.EqTy _ _ _) => do burn; pure p
+      p@(Squash _) => do burn; pure p
       _ => pure (Squash t')
   kElem sig Star = pure Star
   kElem sig (QSort sg k es) = [| QSort (kQSig sig sg) (pure k) (kSubNorm sig es) |]
@@ -497,7 +503,8 @@ mutual
   kWhnfE sig (Squash t) = do
     t' <- kWhnfT sig t
     case t' of
-      Prf p => do burn; kWhnfE sig p
+      p@(Elem.EqTy _ _ _) => do burn; pure p
+      p@(Squash _) => do burn; pure p
       _ => pure (Squash t')
   kWhnfE sig (QElim sg k ms fs es w) = do
     w' <- kWhnfE sig w
@@ -581,7 +588,6 @@ mutual
   kJoinElem u sig UniverseTy = pure UniverseTy
   kJoinElem u sig PropTy = pure PropTy
   kJoinElem u sig TopTy = pure TopTy
-  kJoinElem u sig (Prf p) = Prf <$> kJoinElem u sig p
   kJoinElem u sig (Elem.PiTy a b) = [| Elem.PiTy (kJoinElem u sig a) (kJoinElem u sig b) |]
   kJoinElem u sig (Elem.SigmaTy a b) = [| Elem.SigmaTy (kJoinElem u sig a) (kJoinElem u sig b) |]
   kJoinElem u sig (Elem.SumTy a b) = [| Elem.SumTy (kJoinElem u sig a) (kJoinElem u sig b) |]
@@ -621,7 +627,8 @@ mutual
   kJoinElem u sig (Squash t) = do
     t' <- kJoinTy u sig t
     case t' of
-      Prf p => do burn; pure p
+      p@(Elem.EqTy _ _ _) => do burn; pure p
+      p@(Squash _) => do burn; pure p
       _ => pure (Squash t')
   kJoinElem u sig Star = pure Star
   kJoinElem u sig (QSort sg k es) = [| QSort (kJoinQSig u sig sg) (pure k) (kJoinSubNorm u sig es) |]
@@ -688,7 +695,7 @@ mutual
 --       | EqTy l r T→0,1,2ᵗ | QuotTyᶜ a r→0,1(2) | SigVar es→0.. (left
 --         to right) | Class a→0 | QuotElim f q→0(1),1 | ∥T∥→0(t)
 --   Ty:   PiTy a b→0,1(1) | SigmaTy a b→0,1(1)
---       | Prf p→0(e) | QuotTy a r→0,1(e)(2)
+--       | QuotTy a r→0,1(e)(2)
 --       | SigVar es→0.. (e)
 --   (e) marks descent into an Elem child, (t) into a Ty child.
 
@@ -795,7 +802,6 @@ mutual
       0 => (\a' => SumTy a' c) <$> pathT p b f a
       1 => (\c' => SumTy a c') <$> pathT p b f c
       _ => Left "kernel: bad path"
-  pathT (i :: p) b f (Prf e) = if i == 0 then Prf <$> pathE p b f e else Left "kernel: bad path"
   pathT (i :: p) b f (QuotTy a r) =
     case i of
       0 => (\a' => QuotTy a' r) <$> pathT p b f a
@@ -960,11 +966,12 @@ mutual
         goCoherences (ej :: ejs) = do
           (_, _, lhs, rhs, cty) <- liftQ (coherenceAt sg' mots mths ej)
           ctyN <- kTy sig cty
-          case ctyN of
+          isP <- kIsProp sig ctx ctyN
+          case isP of
             -- a prop-flavored eliminator: its coherences hold outright
             -- by proof irrelevance (el-prf-prop)
-            Prf _ => pure ()
-            _ => do
+            True => pure ()
+            False => do
               lhs' <- kElem sig lhs
               rhs' <- kElem sig rhs
               if lhs' == rhs' then pure ()
@@ -994,26 +1001,22 @@ mutual
     case ty' of
       QuotTy dom _ => checkP sig ctx a dom
       _ => kerr "kernel: class proof at non-quotient type"
-  -- ⋆ as a proof argument: accepted at an EVIDENT Prf — a squashed 𝟙
+  -- ⋆ as a proof argument: accepted at an EVIDENT prop — a squashed 𝟙
   -- (el-squash-i with the evident witness), or an equality prop with
-  -- beta-equal sides (el-eq-i)
+  -- beta-equal sides (el-eq-i); props stand as types (prop-lift)
   checkP sig ctx Star ty = do
     ty' <- kTy sig ty
     case ty' of
-      Prf p => do
-        p' <- kElem sig p
-        case p' of
-          Squash sq => do
-            sq' <- kTy sig sq
-            case sq' of
-              OneTy => pure ()
-              _ => kerr "kernel: ⋆ proof at a non-evident squash"
-          Elem.EqTy l r _ => do
-            l' <- kElem sig l
-            r' <- kElem sig r
-            if l' == r' then pure () else kerr "kernel: ⋆ proof at a non-evident equation"
-          _ => kerr "kernel: ⋆ proof at a non-evident proposition"
-      _ => kerr "kernel: ⋆ proof at a non-Prf type"
+      Squash sq => do
+        sq' <- kTy sig sq
+        case sq' of
+          OneTy => pure ()
+          _ => kerr "kernel: ⋆ proof at a non-evident squash"
+      Elem.EqTy l r _ => do
+        l' <- kElem sig l
+        r' <- kElem sig r
+        if l' == r' then pure () else kerr "kernel: ⋆ proof at a non-evident equation"
+      _ => kerr "kernel: ⋆ proof at a non-evident proposition"
   checkP sig ctx (SigmaIntro u v) ty = do
     ty' <- kTy sig ty
     case ty' of
@@ -1161,15 +1164,52 @@ mutual
   checkPolyP sig ctx (PSigma a f) = do checkP sig ctx a UniverseTy; checkPolyP sig (ctx :< a) f
   checkPolyP sig ctx (PPi a f)    = do checkP sig ctx a UniverseTy; checkPolyP sig (ctx :< a) f
 
+  ||| Is this type a PROPOSITION? Syntax-directed at the Ω formers
+  ||| (≡/∥·∥ — a prop's own head marks it, the role the retired Prf
+  ||| head used to play); a NEUTRAL type takes the judgemental
+  ||| question — a kTry-check at Ω. Large formers and atoms answer
+  ||| False outright. This is prop-lift's side condition, load-bearing
+  ||| wherever a prop-only rule fires (el-prf-prop, prop-lift-eq,
+  ||| el-squash-e-prf's goal).
+  kIsProp : Sig -> Ctx -> Ty -> KM Bool
+  kIsProp sig ctx t =
+    case t of
+      Elem.EqTy _ _ _ => pure True
+      Squash _ => pure True
+      ZeroTy => pure False
+      OneTy => pure False
+      NatTy => pure False
+      UniverseTy => pure False
+      PropTy => pure False
+      TopTy => pure False
+      PiTy _ _ => pure False
+      SigmaTy _ _ => pure False
+      SumTy _ _ => pure False
+      QuotTy _ _ => pure False
+      NuTy _ => pure False
+      _ => do
+        -- the RAW spelling first: a neutral spine (≤ x y) checks at Ω
+        -- as written, while its whnf may unfold to a stuck eliminator
+        -- whose type nothing can recover
+        ok <- kTry (checkP sig ctx t PropTy)
+        if ok then pure True else do
+          t' <- kWhnfT sig t
+          case t' of
+            Elem.EqTy _ _ _ => pure True
+            Squash _ => pure True
+            _ => kTry (checkP sig ctx t' PropTy)
+
   ||| SMALLNESS (code-qiit's side condition), judgemental now that El
-  ||| is retired: every external Π domain is Prf-headed or typed at 𝕌,
-  ||| checked in its own external context.
+  ||| and Prf are retired: every external Π domain is typed at 𝕌 or
+  ||| at Ω (the DISJUNCTION is deliberate — no prop-resize), checked
+  ||| in its own external context.
   checkSmallP : Sig -> Ctx -> QSig -> KM ()
   checkSmallP sig ctx sg = go sg
    where
     small : Ctx -> Ty -> KM Bool
-    small ectx (Prf _) = pure True
-    small ectx a = kTry (checkP sig ectx a UniverseTy)
+    small ectx a = do
+      u <- kTry (checkP sig ectx a UniverseTy)
+      if u then pure True else kTry (checkP sig ectx a PropTy)
     walk : Ctx -> QTy -> KM ()
     walk ectx (QPiExt a rest) = do
       ok <- small ectx a
@@ -1198,7 +1238,10 @@ mutual
   checkTyP sig ctx (SumTy a b) = do
     checkTyP sig ctx a
     checkTyP sig ctx b
-  checkTyP sig ctx (Prf p) = checkP sig ctx p PropTy
+  -- the Ω formers are types by prop-lift; their formation is code-eq
+  -- / code-squash, checked at Ω
+  checkTyP sig ctx t@(Elem.EqTy _ _ _) = checkP sig ctx t PropTy
+  checkTyP sig ctx t@(Squash _) = checkP sig ctx t PropTy
   checkTyP sig ctx (QuotTy a r) = do
     checkTyP sig ctx a
     checkP sig (ctx :< a :< substTy a Wk) r PropTy
@@ -1210,11 +1253,17 @@ mutual
     kSigLookup sig x >>= \entryX => case entryX of
       Just (SigDef delta _ _ TopTy) => checkSubstP sig ctx (toList es) (toList delta)
       Just (SigDecl delta _ TopTy) => checkSubstP sig ctx (toList es) (toList delta)
-      -- CUMULATIVITY: a 𝕌-classified reference is a code — a type
-      _ => checkP sig ctx (SigVar x es) UniverseTy
-  -- CUMULATIVITY (code-lift): anything else in type position must be
-  -- a CODE — check it at 𝕌 (𝕍 itself still fails: no Γ ⊦ 𝕍 : 𝕌)
-  checkTyP sig ctx t = checkP sig ctx t UniverseTy
+      -- CUMULATIVITY: a 𝕌- or Ω-classified reference is a code or a
+      -- prop — a type either way (code-lift / prop-lift)
+      _ => do
+        ok <- kTry (checkP sig ctx (SigVar x es) UniverseTy)
+        if ok then pure () else checkP sig ctx (SigVar x es) PropTy
+  -- CUMULATIVITY (code-lift / prop-lift): anything else in type
+  -- position must be a CODE or a PROP — check at 𝕌, then at Ω
+  -- (𝕍 itself still fails both: no Γ ⊦ 𝕍 : 𝕌 and no Γ ⊦ 𝕍 : Ω)
+  checkTyP sig ctx t = do
+    ok <- kTry (checkP sig ctx t UniverseTy)
+    if ok then pure () else checkP sig ctx t PropTy
 
 -- ===== Selector application =====
 
@@ -1266,8 +1315,9 @@ applySel sig ctx (l, r, _) sel = do
     _ => kerr "kernel: selector does not apply"
 
 ||| The equation a step licenses (with its type). For a PROOF license:
-||| infer the proof, expose the ≡-type (a Prf ∥l ≡ r ∈ t∥ type licenses
-||| the same equation — squashed reflection). For a PATH license: the
+||| infer the proof, expose the ≡-prop (an ∥l ≡ r ∈ t∥ type licenses
+||| the same equation — squashed reflection; the squash contracts by
+||| code-squash-idem's syntax-directed instance during nf). For a PATH license: the
 ||| imposed equation of the carried signature at the given spine
 ||| (el-qiit-path read certificate-side) — the signature itself is
 ||| validated by the descent's positional type check, which compares
@@ -1281,15 +1331,11 @@ licensed pol sig ctx step = do
   rN <- kJoinElem pol sig r'
   pure (if step.flip then (rN, lN, t') else (lN, rN, t'))
  where
-  -- equality is Ω-valued: the one license pathway is a Prf whose prop
-  -- normalizes to an equality (squashed spellings converge here by
-  -- code-squash-prf during nf)
+  -- equality is Ω-valued: the one license pathway is the equality
+  -- prop itself, standing as the proof's type (squashed spellings
+  -- converge by code-squash-idem's instances during nf)
   exposeEq : Ty -> KM (Elem, Elem, Ty)
-  exposeEq (Prf p) = do
-    p' <- kWhnfE sig p
-    case p' of
-      Elem.EqTy l r t => pure (l, r, t)
-      _ => kerr "kernel: step proof is not an equality"
+  exposeEq (Elem.EqTy l r t) = pure (l, r, t)
   exposeEq _ = kerr "kernel: step proof is not an equality"
 
   base : StepLic -> KM (Elem, Elem, Ty)
@@ -1452,8 +1498,6 @@ mutual
       0 => Just <$> compClassifier sig pexp
       1 => pure (Just PropTy)
       _ => pure Nothing
-  childTyE sig ctx pexp (Prf _) i =
-    pure (if i == 0 then Just PropTy else Nothing)
   childTyE sig ctx pexp (Squash _) i =
     pure (if i == 0 then Just TopTy else Nothing)
   childTyE sig ctx pexp (SigVar x es) i =
@@ -1677,7 +1721,6 @@ goE pol sig ctx lic (i :: p) b mexp u = do
         (QuotElim f q, 0) => (\f' => QuotElim f' q) <$> goE pol sig ctx lic p (1 + b) childTy f
         (QuotElim f q, 1) => QuotElim f <$> goE pol sig ctx lic p b childTy q
         (Squash t, 0) => Squash <$> goE pol sig ctx lic p b childTy t
-        (Prf p2, 0) => Prf <$> goE pol sig ctx lic p b childTy p2
         (QSort sg k es, _) => goQSpine es (\es' => QSort sg k es')
         (QCtor sg k es, _) => goQSpine es (\es' => QCtor sg k es')
         (QElim sg k ms fs es w, _) =>
@@ -1840,8 +1883,14 @@ mutual
         case ty' of
           OneTy => pure ()
           ZeroTy => pure ()
-          Prf _ => pure ()      -- el-prf-prop: proof irrelevance
-          _ => kerr "kernel: Prop final at a non-propositional type"
+          -- el-prf-prop: proof irrelevance — an ≡-/∥·∥-headed type IS
+          -- a prop; a neutral takes the judgemental question at Ω
+          Elem.EqTy _ _ _ => pure ()
+          Squash _ => pure ()
+          _ => do
+            ok <- kIsProp sig ctx ty'
+            if ok then pure ()
+              else kerr "kernel: Prop final at a non-propositional type"
       FWitness mc => do
         ty' <- kWhnfT sig tyU
         case (l1, r1, ty') of
@@ -1866,7 +1915,7 @@ mutual
         case (l1, r1, ty') of
           (Class a, Class b, QuotTy _ rel) => do
             relInst <- kJoinElem pol sig (substElem rel (Ext (Ext Id a) b))
-            kCheckE sig ctx w (Prf relInst) skW
+            kCheckE sig ctx w relInst skW
           _ => kerr "kernel: supplied-witness final at a non-class equation"
       FInj c => do
         ty' <- kWhnfT sig tyU
@@ -1897,18 +1946,25 @@ mutual
         ty' <- kWhnfT sig tyU
         case ty' of
           PropTy => do
-            kCheckE sig ctx s (PiTy (Prf l1) (substTy (Prf r1) Wk)) skS
-            kCheckE sig ctx t (PiTy (Prf r1) (substTy (Prf l1) Wk)) skT
+            kCheckE sig ctx s (PiTy l1 (substTy r1 Wk)) skS
+            kCheckE sig ctx t (PiTy r1 (substTy l1 Wk)) skT
           _ => kerr "kernel: propext final at a non-Ω type"
       -- TYPE-equation finals (ambient 𝕍): componentwise congruences
       -- whose component equality is extensional and cannot flatten
       -- into steps — formerly the separate kEqTy replay channel
       FPrfCong c => do
+        -- prop-lift-eq: the sides MUST be props (the lift's side
+        -- condition is load-bearing — without it a code equation
+        -- could be smuggled through Ω's extensional discipline)
         ty' <- kWhnfT sig tyU
-        case (ty', l1, r1) of
-          (TopTy, Prf p, Prf q) => kEqElemL (pol) sig ctx c p q PropTy
-          (TopTy, _, _) => kerr "kernel: Prf-congruence final at non-Prf types"
-          _ => kerr "kernel: Prf-congruence final on an element equation"
+        case ty' of
+          TopTy => do
+            okL <- kIsProp sig ctx l1
+            okR <- kIsProp sig ctx r1
+            if okL && okR
+              then kEqElemL (pol) sig ctx c l1 r1 PropTy
+              else kerr "kernel: prop-lift-eq final at non-prop types"
+          _ => kerr "kernel: prop-lift-eq final on an element equation"
       FQuotCong c => do
         ty' <- kWhnfT sig tyU
         case (ty', l1, r1) of
@@ -2007,12 +2063,8 @@ mutual
               Just (cert, _) => do
                 ty' <- kWhnfT sig ty
                 case ty' of
-                  Prf p => do
-                    p' <- kWhnfE sig p
-                    case p' of
-                      Elem.EqTy l r t => kEqElem sig ctx cert l r t
-                      _ => kerr "kernel: refl-eq payload at a non-equality prop"
-                  _ => kerr "kernel: ⋆ checked at a non-Prf type"
+                  Elem.EqTy l r t => kEqElem sig ctx cert l r t
+                  _ => kerr "kernel: refl-eq payload at a non-equality prop"
               Nothing =>
                -- el-nu-coind: ⋆ at an equality prop over a ν-type,
                -- by COINDUCTION — invariant, endpoint proof, and
@@ -2022,59 +2074,52 @@ mutual
                 Just ((r, skR, pw, skp, qw, skq), _) => do
                   ty' <- kWhnfT sig ty
                   case ty' of
-                    Prf pc => do
-                      pc' <- kWhnfE sig pc
-                      case pc' of
-                        Elem.EqTy l rhs ety => do
-                          ety' <- kWhnfT sig ety
-                          case ety' of
-                            NuTy f => do
-                              let nuT = NuTy f
-                              -- the invariant is an Ω-relation
-                              kCheckE sig (ctx :< nuT :< substTy nuT Wk) r PropTy skR
-                              -- it holds at the endpoints
-                              kCheckE sig ctx pw (Prf (substElem r (Ext (Ext Id l) rhs))) skp
-                              -- one-step closure under the generic hypotheses
-                              let ctx3 = ctx :< nuT :< substTy nuT Wk :< Prf r
-                              let wk3 = Chain Wk (Chain Wk Wk)
-                              let f3 = substPoly f wk3
-                              let r3 = substElem r (under (under wk3))
-                              kCheckE sig ctx3 qw
-                                (Prf (liftPoly f3 r3 (Out (CtxVar 2)) (Out (CtxVar 1)))) skq
-                            _ => kerr "kernel: coinduction payload at an equation over a non-ν type"
-                        _ => kerr "kernel: coinduction payload at a non-equality prop"
-                    _ => kerr "kernel: ⋆ checked at a non-Prf type"
+                    Elem.EqTy l rhs ety => do
+                      ety' <- kWhnfT sig ety
+                      case ety' of
+                        NuTy f => do
+                          let nuT = NuTy f
+                          -- the invariant is an Ω-relation
+                          kCheckE sig (ctx :< nuT :< substTy nuT Wk) r PropTy skR
+                          -- it holds at the endpoints (the prop is
+                          -- the type — prop-lift)
+                          kCheckE sig ctx pw (substElem r (Ext (Ext Id l) rhs)) skp
+                          -- one-step closure under the generic hypotheses
+                          let ctx3 = ctx :< nuT :< substTy nuT Wk :< r
+                          let wk3 = Chain Wk (Chain Wk Wk)
+                          let f3 = substPoly f wk3
+                          let r3 = substElem r (under (under wk3))
+                          kCheckE sig ctx3 qw
+                            (liftPoly f3 r3 (Out (CtxVar 2)) (Out (CtxVar 1))) skq
+                        _ => kerr "kernel: coinduction payload at an equation over a non-ν type"
+                    _ => kerr "kernel: coinduction payload at a non-equality prop"
                 Nothing =>
-                -- el-squash-i: ⋆ : Prf ∥A∥ carries its witness (an
+                -- el-squash-i: ⋆ : ∥A∥ carries its witness (an
                 -- inhabitant of the squashee) as a payload
                  case takeP pSquashWit sk of
                   Just ((wit, witSk), _) => do
                     ty' <- kWhnfT sig ty
                     case ty' of
-                      Prf p => do
-                        p' <- kWhnfE sig p
-                        case p' of
-                          Squash sq => kCheckE sig ctx wit sq witSk
-                          _ => kerr "kernel: ⋆ checked at Prf of a non-∥∥ code"
-                      _ => kerr "kernel: ⋆ checked at a non-Prf type"
+                      Squash sq => kCheckE sig ctx wit sq witSk
+                      _ => kerr "kernel: ⋆ checked at a non-∥∥ type"
                   -- el-squash-e-prf: squash-elim carries its scrutinee
-                  -- (inhabiting Prf ∥A∥) and a body proving (Prf q)[↑]
-                  -- under the raw squashee A
+                  -- (inhabiting ∥A∥) and a body proving q[↑] under the
+                  -- raw squashee A; the goal must be a PROP (the
+                  -- rule's q : Ω premise)
                   Nothing => case takeP pSquashElim sk of
                     Just ((scrut, scrutSk, body, bodySk), _) => do
                       scrutTy <- kInferE sig ctx scrut scrutSk
                       scrutTy' <- kWhnfT sig scrutTy
                       case scrutTy' of
-                        Prf p => do
-                          p' <- kWhnfE sig p
-                          case p' of
-                            Squash a => do
-                              ty' <- kWhnfT sig ty
-                              case ty' of
-                                Prf _ => kCheckE sig (ctx :< a) body (substTy ty Wk) bodySk
-                                _ => kerr "kernel: squash-elim checked at a non-Prf goal"
-                            _ => kerr "kernel: squash-elim scrutinee at Prf of a non-∥∥ code"
-                        _ => kerr "kernel: squash-elim scrutinee has non-Prf type"
+                        Squash a => do
+                          -- prop-ness of the goal AS WRITTEN (kIsProp
+                          -- whnfs for itself; whnf-first would unfold
+                          -- a ≤-spine into a stuck eliminator)
+                          okQ <- kIsProp sig ctx ty
+                          if okQ
+                            then kCheckE sig (ctx :< a) body (substTy ty Wk) bodySk
+                            else kerr "kernel: squash-elim checked at a non-prop goal"
+                        _ => kerr "kernel: squash-elim scrutinee has a non-∥∥ type"
                     Nothing => kerr "kernel: ⋆ without its witness or squash-elim annotation"
           Inj1 a => do
             ty' <- kWhnfT sig ty
@@ -2115,7 +2160,7 @@ mutual
           -- makes (id, a, ⋆) ∘ (↑ ∘ ↑) ≐ id
           Let a b => do
             aTy <- kInferE sig ctx a (skelChild 0 sk)
-            let hyp = Prf (Elem.EqTy (CtxVar 0) (substElem a Wk) (substTy aTy Wk))
+            let hyp = Elem.EqTy (CtxVar 0) (substElem a Wk) (substTy aTy Wk)
             kCheckE sig (ctx :< aTy :< hyp) b (weakenTyN 2 ty) (skelChild 1 sk)
           QCtor sgC c theta => do
             -- el-qiit-intro, SATURATED. The signature is nf(T)'s own —
@@ -2222,7 +2267,7 @@ mutual
           -- result substitutes the value and the ⋆-proof away
           Let a b => do
             aTy <- kInferE sig ctx a (skelChild 0 sk)
-            let hyp = Prf (Elem.EqTy (CtxVar 0) (substElem a Wk) (substTy aTy Wk))
+            let hyp = Elem.EqTy (CtxVar 0) (substElem a Wk) (substTy aTy Wk)
             bTy <- kInferE sig (ctx :< aTy :< hyp) b (skelChild 1 sk)
             pure (substTy bTy (Ext (Ext Id a) Star))
           NatElim z st t =>
@@ -2260,11 +2305,19 @@ mutual
                     kCheckTyK sig (ctx :< QuotTy a r) mot motSk
                     kCheckE sig (ctx :< a) f
                       (substTy mot (Ext Wk (Class (CtxVar 0)))) (skelChild 0 sk)
-                    let wk3 = Chain Wk (Chain Wk Wk)
-                    kEqElem sig (ctx :< a :< substTy a Wk :< Prf r) wd
-                      (substElem f (Ext wk3 (CtxVar 2)))
-                      (substElem f (Ext wk3 (CtxVar 1)))
-                      (substTy mot (Ext wk3 (Class (CtxVar 2))))
+                    -- an Ω-VALUED motive closes well-definedness
+                    -- outright: the equation's sides inhabit a prop
+                    -- instance (el-prf-prop; the ElimP rationale).
+                    -- Testing the MOTIVE, not its instantiation — the
+                    -- instance can be a stuck eliminator prop-ness
+                    -- cannot be read off (Prf's head used to carry it)
+                    mIsP <- kIsProp sig (ctx :< QuotTy a r) mot
+                    if mIsP then pure () else do
+                      let wk3 = Chain Wk (Chain Wk Wk)
+                      kEqElem sig (ctx :< a :< substTy a Wk :< r) wd
+                        (substElem f (Ext wk3 (CtxVar 2)))
+                        (substElem f (Ext wk3 (CtxVar 1)))
+                        (substTy mot (Ext wk3 (Class (CtxVar 2))))
                     pure (substTy mot (Ext Id q))
                   _ => kerr "kernel: quot-elim of a non-quotient"
               _ => kerr "kernel: quot-elim without motive/well-definedness annotations"
@@ -2399,15 +2452,16 @@ mutual
     kCheckPolyK sig (ctx :< a) f (S i) sk
 
   ||| SMALLNESS (code-qiit's side condition), kernel-side: judgemental
-  ||| now that El is retired — every external Π domain is Prf-headed
+  ||| now that El and Prf are retired — every external Π domain typed
   ||| or typed at 𝕌, checked in its own external context.
   export
   kQSigSmall : Sig -> Ctx -> QSig -> KM ()
   kQSigSmall sig ctx sg = go sg
    where
     small : Ctx -> Ty -> KM Bool
-    small ectx (Prf _) = pure True
-    small ectx a = kTry (kCheckE sig ectx a UniverseTy (Nd [] []))
+    small ectx a = do
+      u <- kTry (kCheckE sig ectx a UniverseTy (Nd [] []))
+      if u then pure True else kTry (kCheckE sig ectx a PropTy (Nd [] []))
     walk : Ctx -> QTy -> KM ()
     walk ectx (QPiExt a rest) = do
       ok <- small ectx a
@@ -2436,7 +2490,9 @@ mutual
     kCheckTyK sig ctx a (skelChild 0 sk)
     kCheckTyK sig ctx b (skelChild 1 sk)
   kCheckTyK sig ctx PropTy _ = pure ()
-  kCheckTyK sig ctx (Prf p) sk = kCheckE sig ctx p PropTy (skelChild 0 sk)
+  -- the Ω formers are types by prop-lift (code-eq / code-squash)
+  kCheckTyK sig ctx t@(Elem.EqTy _ _ _) sk = kCheckE sig ctx t PropTy sk
+  kCheckTyK sig ctx t@(Squash _) sk = kCheckE sig ctx t PropTy sk
   kCheckTyK sig ctx (QuotTy a r) sk = do
     kCheckTyK sig ctx a (skelChild 0 sk)
     kCheckE sig (ctx :< a :< substTy a Wk) r PropTy (skelChild 1 sk)
@@ -2454,14 +2510,20 @@ mutual
         kCheckSubstK sig ctx (toList es) (toList delta) (childSkels' sk)
       Just (SigDecl delta _ TopTy) =>
         kCheckSubstK sig ctx (toList es) (toList delta) (childSkels' sk)
-      -- CUMULATIVITY: a 𝕌-classified reference is a code — a type
-      _ => kCheckE sig ctx (SigVar x es) UniverseTy sk
+      -- CUMULATIVITY: a 𝕌- or Ω-classified reference is a code or a
+      -- prop — a type either way (code-lift / prop-lift)
+      _ => do
+        ok <- kTry (kCheckE sig ctx (SigVar x es) UniverseTy sk)
+        if ok then pure () else kCheckE sig ctx (SigVar x es) PropTy sk
    where
     childSkels' : Skel -> List Skel
     childSkels' (Nd _ cs) = cs
-  -- CUMULATIVITY (code-lift): anything else in type position must be
-  -- a CODE — check it at 𝕌 (𝕍 itself still fails: no Γ ⊦ 𝕍 : 𝕌)
-  kCheckTyK sig ctx t sk = kCheckE sig ctx t UniverseTy sk
+  -- CUMULATIVITY (code-lift / prop-lift): anything else in type
+  -- position must be a CODE or a PROP — check at 𝕌, then at Ω
+  -- (𝕍 itself still fails both)
+  kCheckTyK sig ctx t sk = do
+    ok <- kTry (kCheckE sig ctx t UniverseTy sk)
+    if ok then pure () else kCheckE sig ctx t PropTy sk
 
   ||| Γ ⊦ 𝒮 qsig — Foundation's qctx/qty/qtm read as a syntax-directed
   ||| algorithm, for the fragment the elaborator emits: SORT entries
@@ -2684,9 +2746,20 @@ kTele sig ctx ((ty, sk) :: rest) = do
   kCheckTyK sig ctx ty sk
   kTele sig (ctx :< ty) rest
 
+||| Decidable prop-ness probe for callers outside the fuel monad
+||| (the elaborator's preferPrf/isPropTy): True iff the type is a
+||| PROPOSITION — kIsProp's discipline, raw checkP-at-Ω first (which
+||| covers ⊎-elim's constant-motive checking clause), then whnf.
+export
+kIsPropB : Sig -> Nat -> Ctx -> Ty -> Bool
+kIsPropB sig fuel ctx t =
+  case runKM (kIsProp sig ctx t) fuel of
+    Right (b, _) => b
+    Left _ => False
+
 ||| Decidable smallness probe for callers outside the fuel monad
 ||| (the elaborator's data-item emitter): True iff every external Π
-||| domain of the signature is Prf-headed or checks at 𝕌 — over the
+||| domain of the signature checks at 𝕌 or at Ω — over the
 ||| given ambient context (a parameterized literal's externals mention
 ||| the parameter variables).
 export

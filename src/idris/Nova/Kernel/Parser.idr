@@ -244,12 +244,11 @@ mutual
   -- Elem depends back on Ty for ∥T∥'s squashee, so the two live in one
   -- mutual block.
 
-  -- e₀ ≡ e₁ ∈ A      (sugar: the ≡-TYPE is Prf of the equality prop)
+  -- e₀ ≡ e₁ ∈ A      (the equality prop, standing as a type — prop-lift)
   -- A → B             (PiTy)
   -- A ⨯ B             (SigmaTy)
   -- A / r             (QuotTy; r is an Ω-valued Elem)
   -- El e              (El, e is an Elem atom)
-  -- Prf e             (Prf, e is an Elem atom)
   -- 𝟘 𝟙 ℕ 𝕌 Ω        (constant types)
   export covering
   parseTy : Rule Ty
@@ -259,7 +258,7 @@ mutual
             e1 <- parseElemPrefix; sp
             str_ "∈"; sp
             a  <- parseTyArrow
-            pure (Prf (Elem.EqTy e0 e1 a)))
+            pure (Elem.EqTy e0 e1 a))
     <|> parseTyArrow
 
   -- A → B  or  A ⨯ B  or  A / r  (right-associative infix)
@@ -280,13 +279,12 @@ mutual
     (do sp; str_ "⊎"; sp; b <- parseTySum; pure (SumTy a b))
       <|> pure a
 
-  -- Prf e  (prefix, argument is an Elem atom; El is retired — a code
-  -- in type position is just the code)
+  -- ν F  (El and Prf are retired — a code or a prop in type position
+  -- is just the code / the prop)
   covering
   parseTyEl : Rule Ty
   parseTyEl =
-        (do str_ "Prf"; space; e <- parseElemAtom; pure (Prf e))
-    <|> (do str_ "ν"; space; f <- parsePolyAtom; pure (NuTy f))
+        (do str_ "ν"; space; f <- parsePolyAtom; pure (NuTy f))
     <|> parseTyAtom
 
   -- Polynomials (one-hole codes): binders and products at the top,

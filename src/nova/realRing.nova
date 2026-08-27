@@ -89,7 +89,7 @@ def leQRBoundIdx : (c m : ℕ) → (rBound (mulIdx c m) m ≤ rBound m m) using 
 def mulOneAt : (x y : Q) → x + qNeg y ≡ x * qOne + qNeg y ≔
   λx. λy. cong (λw. Q) (λw. w + qNeg y) (sym _ _ (qMulOneR x))
 
-def rMulOneWD : (p : RSeq) → Prf (REq (rMul p rOne) p)
+def rMulOneWD : (p : RSeq) → REq (rMul p rOne) p
   using (rOne.eq, realMul.mulSeq.eq, realMul.rMul.eq, realNeg.seqOf.eq) ≔
   λp. reqOf
     _
@@ -200,7 +200,7 @@ def closeStepGen : (f g : ℕ → Q)
 
 def reqOfClose : {u v : RSeq}
   (K : ℕ)
-  → ((n : ℕ) → Bnd (qOfNat K * rBound n n) (seqOf u n + qNeg (seqOf v n))) → Prf (REq u v) ≔
+  → ((n : ℕ) → Bnd (qOfNat K * rBound n n) (seqOf u n + qNeg (seqOf v n))) → REq u v ≔
   λu. λv. λK. λh. reqOf
     _
     _
@@ -360,7 +360,7 @@ def distribStepGen : (f g h : ℕ → Q)
           hC
           (leQZeroBound m m))))
 
-def rDistrib : (p q r : RSeq) → Prf (REq (rMul p (rAdd q r)) (rAdd (rMul p q) (rMul p r)))
+def rDistrib : (p q r : RSeq) → REq (rMul p (rAdd q r)) (rAdd (rMul p q) (rMul p r))
   using (realAdd.addSeq.eq, realAdd.rAdd.eq, realMul.mulSeq.eq, realMul.rMul.eq, realNeg.seqOf.eq) ≔
   λp. λq. λr. reqOfClose
     (seqBound p + seqBound q + (seqBound p + seqBound r))
@@ -551,7 +551,7 @@ def assocStepGen : (f g h : ℕ → Q)
         (leQZeroBound m m)
         (leQZeroAdd (leQZeroMul hA (leQZeroBound m m)) (leQZeroMul hB (leQZeroBound m m)))))
 
-def rAssoc : (p q r : RSeq) → Prf (REq (rMul (rMul p q) r) (rMul p (rMul q r)))
+def rAssoc : (p q r : RSeq) → REq (rMul (rMul p q) r) (rMul p (rMul q r))
   using (realMul.mulSeq.eq, realMul.rMul.eq, realNeg.seqOf.eq) ≔
   λp. λq. λr. reqOfClose
     (seqBound p * seqBound q + seqBound r * (seqBound p + seqBound q))

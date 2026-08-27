@@ -95,7 +95,6 @@ mutual
     UniverseTy => True
     PropTy => True
     TopTy => True
-    Prf t => skelFreeE t
     PiTy a b => skelFreeE a && skelFreeE b
     SigmaTy a b => skelFreeE a && skelFreeE b
     SumTy a b => skelFreeE a && skelFreeE b
@@ -176,7 +175,6 @@ mutual
     UniverseTy => Just e
     PropTy => Just e
     TopTy => Just e
-    Prf t => map Prf (varMapE vf c t)
     PiTy a b => [| PiTy (varMapE vf c a) (varMapE vf (S c) b) |]
     SigmaTy a b => [| SigmaTy (varMapE vf c a) (varMapE vf (S c) b) |]
     SumTy a b => [| SumTy (varMapE vf c a) (varMapE vf c b) |]
@@ -383,7 +381,6 @@ mutual
   mElemP pats app k UniverseTy g sols = case g of UniverseTy => Just sols; _ => Nothing
   mElemP pats app k PropTy g sols = case g of PropTy => Just sols; _ => Nothing
   mElemP pats app k TopTy g sols = case g of TopTy => Just sols; _ => Nothing
-  mElemP pats app k (Prf t) g sols = case g of Prf t' => mElemP pats False k t t' sols; _ => Nothing
   mElemP pats app k (PiTy a b) g sols =
     case g of PiTy a' b' => mElemP pats False k a a' sols >>= mElemP pats False (S k) b b'; _ => Nothing
   mElemP pats app k (SigmaTy a b) g sols =
@@ -452,7 +449,6 @@ mutual
   codeOfTy UniverseTy = Nothing
   codeOfTy PropTy = Nothing
   codeOfTy TopTy = Nothing
-  codeOfTy (Prf _) = Nothing
   codeOfTy t = Just t
 
   export
@@ -468,7 +464,6 @@ mutual
     case g of SigmaTy a' b' => mTyP pats k a a' sols >>= mTyP pats (S k) b b'; _ => Nothing
   mTyP pats k (SumTy a b) g sols =
     case g of SumTy a' b' => mTyP pats k a a' sols >>= mTyP pats k b b'; _ => Nothing
-  mTyP pats k (Prf t) g sols = case g of Prf t' => mElemP pats False k t t' sols; _ => Nothing
   mTyP pats k (QuotTy a r) g sols =
     case g of QuotTy a' r' => mTyP pats k a a' sols >>= mElemP pats False (k + 2) r r'; _ => Nothing
   -- SigVar in type position is a code pattern like any other — in
@@ -638,7 +633,6 @@ mutual
     UniverseTy => acc
     PropTy => acc
     TopTy => acc
-    Prf t => walkE True t acc
     PiTy a b => walkE True a (walkE True b acc)
     SigmaTy a b => walkE True a (walkE True b acc)
     SumTy a b => walkE True a (walkE True b acc)
@@ -804,7 +798,6 @@ mutual
     UniverseTy => False
     PropTy => False
     TopTy => False
-    Prf t => hasHolesE t
     PiTy a b => hasHolesE a || hasHolesE b
     SigmaTy a b => hasHolesE a || hasHolesE b
     SumTy a b => hasHolesE a || hasHolesE b
@@ -899,7 +892,6 @@ mutual
       UniverseTy => e
       PropTy => e
       TopTy => e
-      Prf t => Prf (absE c sc t)
       PiTy a b => PiTy (absE c sc a) (absE (S c) sc b)
       SigmaTy a b => SigmaTy (absE c sc a) (absE (S c) sc b)
       SumTy a b => SumTy (absE c sc a) (absE c sc b)

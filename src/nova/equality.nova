@@ -20,10 +20,9 @@ def transport : {A : 𝕌} (P : A → 𝕌) {a b : A} → (a ≡ b) → P a → 
 
 -- transport at a PROP motive: equality is Ω-valued, so prop-indexed
 -- facts move along an equation the same way elements do — the proof
--- itself, at the other instance (Prf (P a) ≐ Prf (P b) by congruence
+-- itself, at the other instance ((P a) ≐ (P b) by congruence
 -- over the reflected hypothesis)
-def transportP : {A : 𝕌} (P : A → Ω) {a b : A} → (a ≡ b) → Prf (P a) → Prf (P b) ≔
-  λA. λP. λa. λb. λh. λp. p
+def transportP : {A : 𝕌} (P : A → Ω) {a b : A} → (a ≡ b) → P a → P b ≔ λA. λP. λa. λb. λh. λp. p
 
 -- dependent congruence: in an extensional theory it is one ⋆, since
 -- reflecting the hypothesis makes the sides and their types equal

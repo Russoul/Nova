@@ -1,8 +1,8 @@
 -- Rationals over integer.nova's Int, with a STRUCTURALLY non-zero
 -- denominator.
 --
--- Why not `(d : Int) ⨯ Prf (d ≢ 0)`: Prf has no 𝕌-code (there is no
--- code for Ω or for Prf p in 𝕌 — NovaFoundation.txt's Ω section says
+-- Why not `(d : Int) ⨯ (d ≢ 0)`: has no 𝕌-code (there is no
+-- code for Ω or for p in 𝕌 — NovaFoundation.txt's Ω section says
 -- so outright), so a Σ carrying a proof cannot be a code and Rat would
 -- be a large `type`: no Rat, no generic (A : 𝕌) combinators, no use
 -- as a code anywhere. Worse, it would be practically uninhabited —

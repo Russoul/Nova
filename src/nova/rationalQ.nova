@@ -158,7 +158,7 @@ def qHalfTest : qcls half ≡ qcls (mkRat (class (2, Z)) (nzPos 3))
 -- distributivity; the n₁-terms are the SAME four factors rearranged,
 -- and the n₂-terms differ exactly by the hypothesis.
 def crossAddWD : {n1 d1 n2 d2 n3 d3 : Int}
-  (h : Prf (n2 * d3 ≡ n3 * d2))
+  (h : n2 * d3 ≡ n3 * d2)
   → (d2 * n1 + d1 * n2) * (d1 * d3) ≡ (d3 * n1 + d1 * n3) * (d1 * d2) ≔
   λn1. λd1. λn2. λd2. λn3. λd3. λh. trans
     _
@@ -236,7 +236,7 @@ def ratAddDenMul : (p q : Rat) → dInt (ratAdd p q) ≡ dInt p * dInt q
 -- rejects; the same route as lemma applications is unconstrained)
 def qAddWDInner : (p : Rat)
   {q q' : Rat}
-  (h : Prf (RatR q q'))
+  (h : RatR q q')
   → num (ratAdd p q) * dInt (ratAdd p q') ≡ num (ratAdd p q') * dInt (ratAdd p q)
   using (integer.Int.unfold,
     rational.NZ.unfold,
@@ -257,7 +257,7 @@ def qAddWDInner : (p : Rat)
       (sym _ _ (intMulCong2 _ _ _ _ (ratAddNumMul p q') (ratAddDenMul p q))))
 
 -- el-quot-eq: a proof of the relation gives equal classes
-def clsEqOfRel : (p q : Rat) → Prf (RatR p q) → class p ≡ class q ∈ Q
+def clsEqOfRel : (p q : Rat) → RatR p q → class p ≡ class q ∈ Q
   using (Q.eq,
     RatR.eq,
     integer.Int.unfold,
@@ -268,9 +268,7 @@ def clsEqOfRel : (p q : Rat) → Prf (RatR p q) → class p ≡ class q ∈ Q
     rationalQ.RatR.unfold) ≔
   λp. λq. λh. ⋆
 
-def qAddWDInnerCls : {p q q' : Rat}
-  (h : Prf (RatR q q'))
-  → class (ratAdd p q) ≡ class (ratAdd p q') ∈ Q
+def qAddWDInnerCls : {p q q' : Rat} (h : RatR q q') → class (ratAdd p q) ≡ class (ratAdd p q') ∈ Q
   using (integer.Int.eq,
     integer.Int.unfold,
     integerMul.*.eq,
@@ -286,9 +284,7 @@ def qAddWDInnerCls : {p q q' : Rat}
 
 -- the OUTER case needs no new arithmetic: ratAddComm turns it into
 -- the inner one with the arguments swapped
-def qAddWDOuterCls : {p p' c : Rat}
-  (h : Prf (RatR p p'))
-  → class (ratAdd p c) ≡ class (ratAdd p' c) ∈ Q
+def qAddWDOuterCls : {p p' c : Rat} (h : RatR p p') → class (ratAdd p c) ≡ class (ratAdd p' c) ∈ Q
   using (rationalQ.Q.unfold) ≔
   λp. λp'. λc. λh. trans
     _
@@ -305,7 +301,7 @@ def qAddWDOuterCls : {p p' c : Rat}
 
 -- ...in the quot-elim shape the elaborator asks for
 def qAddWDOuter : (p p' : Rat)
-  (h : Prf (RatR p p'))
+  (h : RatR p p')
   (v : Q)
   → quot-elim (w. Q) (x. class (ratAdd p x)) v ≡ quot-elim (x. class (ratAdd p' x)) v
   using (integer.Int.unfold,
@@ -728,7 +724,7 @@ def qAddThirdsAssoc : qcls third + (qcls third + qcls third) ≡ qOne
 -- ===== negation: ℚ is a group =====
 -- negation respects the relation: (−n₁)·d₁′ ≡ −(n₁·d₁′) ≡ −(n₁′·d₁)
 def ratNegWD : {p p' : Rat}
-  (h : Prf (RatR p p'))
+  (h : RatR p p')
   → num (ratNeg p) * dInt (ratNeg p') ≡ num (ratNeg p') * dInt (ratNeg p)
   using (intMulNegL,
     integer.Int.eq,
@@ -757,7 +753,7 @@ def ratNegWD : {p p' : Rat}
       (cong (λu. Int) intNeg {num p * dInt p'} {num p' * dInt p} h)
       (sym _ _ (intMulNegL (num p') (dInt p))))
 
-def ratNegWDCls : (p p' : Rat) (h : Prf (RatR p p')) → class (ratNeg p) ≡ class (ratNeg p') ∈ Q
+def ratNegWDCls : (p p' : Rat) (h : RatR p p') → class (ratNeg p) ≡ class (ratNeg p') ∈ Q
   using (intMulNegL,
     integer.Int.eq,
     integer.Int.unfold,
@@ -1009,14 +1005,14 @@ def ratMulOneR : {p : Rat} → ratMul p ratOne ≡ p
 
 -- d₃·n₂ ≡ d₂·n₃, the relatedness hypothesis with both products
 -- commuted; it comes up in every well-definedness proof
-def relFlip : (n2 d2 n3 d3 : Int) (h : Prf (n2 * d3 ≡ n3 * d2)) → d3 * n2 ≡ d2 * n3 ≔
+def relFlip : (n2 d2 n3 d3 : Int) (h : n2 * d3 ≡ n3 * d2) → d3 * n2 ≡ d2 * n3 ≔
   λn2. λd2. λn3. λd3. λh. trans _ _ _ (intMulComm d3 n2) (trans _ _ _ h (intMulComm n3 d2))
 
 -- inner well-definedness of ratMul — explicit trans (see qAddWDInner:
 -- strict replay rejects chain steps under quot-elim scrutinees)
 def qMulWDInner : (p : Rat)
   {q q' : Rat}
-  (h : Prf (RatR q q'))
+  (h : RatR q q')
   → num (ratMul p q) * dInt (ratMul p q') ≡ num (ratMul p q') * dInt (ratMul p q)
   using (integer.Int.eq,
     integer.Int.unfold,
@@ -1063,9 +1059,7 @@ def qMulWDInner : (p : Rat)
               (dInt p * dInt q)
               (nzToIntMul (den p) (den q)))))))
 
-def qMulWDInnerCls : {p q q' : Rat}
-  (h : Prf (RatR q q'))
-  → class (ratMul p q) ≡ class (ratMul p q') ∈ Q
+def qMulWDInnerCls : {p q q' : Rat} (h : RatR q q') → class (ratMul p q) ≡ class (ratMul p q') ∈ Q
   using (integer.Int.eq,
     integer.Int.unfold,
     integerMul.*.eq,
@@ -1079,9 +1073,7 @@ def qMulWDInnerCls : {p q q' : Rat}
     rationalQ.ratMul.eq) ≔
   λp. λq. λq'. λh. clsEqOfRel _ _ (qMulWDInner p h)
 
-def qMulWDOuterCls : {p p' c : Rat}
-  (h : Prf (RatR p p'))
-  → class (ratMul p c) ≡ class (ratMul p' c) ∈ Q
+def qMulWDOuterCls : {p p' c : Rat} (h : RatR p p') → class (ratMul p c) ≡ class (ratMul p' c) ∈ Q
   using (rationalQ.Q.unfold) ≔
   λp. λp'. λc. λh. trans
     _
@@ -1097,7 +1089,7 @@ def qMulWDOuterCls : {p p' c : Rat}
       (cong (λu. Q) (λr. class r) (sym _ _ (ratMulComm p' c))))
 
 def qMulWDOuter : (p p' : Rat)
-  (h : Prf (RatR p p'))
+  (h : RatR p p')
   (v : Q)
   → quot-elim (w. Q) (x. class (ratMul p x)) v ≡ quot-elim (x. class (ratMul p' x)) v
   using (integer.Int.unfold,
@@ -1485,7 +1477,7 @@ def qMulZeroR : (u : Q) → u * qZero ≡ qZero using (qMulZeroL) ≔
 
 -- Reciprocals. A rational has an inverse exactly when its NUMERATOR is
 -- non-zero, and — as with denominators — that cannot be carried as a
--- proof: Prf has no 𝕌-code, realizers are irrelevant, so no function
+-- proof: has no 𝕌-code, realizers are irrelevant, so no function
 -- could dispatch on such a proof to build the inverse. So the non-zero
 -- rationals get their own code, with BOTH components drawn from NZ;
 -- inversion is then total, and is just the swap.

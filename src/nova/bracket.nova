@@ -1,8 +1,8 @@
 -- The bracket type [A] ≜ A / ⊤ (Awodey–Bauer), as a 𝕌-CODE.
 --
 -- Nova has two truncations. ∥T∥ : Ω is the irrelevant one: Ω compares
--- its elements by inhabitation alone (code-prop-eq), so Prf ∥T∥ has
--- the single canonical form ⋆ and there is no Prf-beta — the witness
+-- its elements by inhabitation alone (code-prop-eq), so ∥T∥ has
+-- the single canonical form ⋆ and a prop never exposes it — the witness
 -- is unrecoverable, and elimination is confined to props and equations
 -- (NovaFoundation.txt:1267, :1296).
 --
@@ -51,14 +51,14 @@ def brEta : {a b : 𝕌} (g : Br a → b) (t : Br a) → brElim (λx. g (br x)) 
 
 -- ---------------------------------------------------------------
 -- br is surjective — merely, but that is all a bracket can say
-def brSurj : {a : 𝕌} (t : Br a) → Prf ∥(x : a) ⨯ br x ≡ t∥ using (Br.unfold, br.eq) ≔
+def brSurj : {a : 𝕌} (t : Br a) → ∥(x : a) ⨯ br x ≡ t∥ using (Br.unfold, br.eq) ≔
   λa. λt. quot-elim (x. ⋆ (x, ⋆)) t
 
 -- ---------------------------------------------------------------
 -- [A] and A have the same Ω-squash: the bracket is a REFINEMENT of
 -- ∥·∥, carrying strictly more (it keeps the witness) and asserting
 -- exactly the same thing.
-def brToSquash : {a : 𝕌} → Br a → Prf ∥a∥ using (Br.unfold) ≔ λa. λt. quot-elim (x. ⋆ x) t
+def brToSquash : {a : 𝕌} → Br a → ∥a∥ using (Br.unfold) ≔ λa. λt. quot-elim (x. ⋆ x) t
 
 def brSquashEq : {a : 𝕌} → ∥Br a∥ ≡ ∥a∥ using (Br.unfold, br.eq, brToSquash.eq) ≔
   λa. propExt (λh. squash-elim h (t. brToSquash t)) (λh. squash-elim h (x. ⋆ (br x)))
@@ -86,7 +86,7 @@ def brUnitJoin : {a : 𝕌} (s : Br (Br a)) → br (brJoin s) ≡ s ≔ λa. λs
 -- ---------------------------------------------------------------
 -- The bracket REFLECTS emptiness — by ordinary elimination.
 --
--- Compare prop.absurdP: Prf ⊥ → 𝟘 is NOT available that way
+-- Compare prop.absurdP: a ⊥-proof → 𝟘 is NOT available that way
 -- (el-squash-e-prf reaches only further propositions); prop.absurd has
 -- to detour through el-reflect on a false equation. Here quot-elim
 -- lands in 𝟘 directly, because the scrutinee still holds its witness.
@@ -121,7 +121,7 @@ def brDescrEta : {a : 𝕌} (s : (x y : a) → x ≡ y) (t : Br a) → br (brDes
 -- ≡ is Ω-valued and has no 𝕌-code, so the subsingleton is built from
 -- the Id QIIT instead: Fib n ≜ (m : ℕ) ⨯ Id ℕ m n, an "∃m. m = n"
 -- that IS a code. uip makes it a subsingleton, brDescr opens it.
--- Its Ω twin, Prf ∥(Fib n)∥, says exactly the same thing
+-- Its Ω twin, ∥(Fib n)∥, says exactly the same thing
 -- (brSquashEq) and yields nothing.
 def Fib : ℕ → 𝕌 ≔ λn. (m : ℕ) ⨯ Id _ m n
 

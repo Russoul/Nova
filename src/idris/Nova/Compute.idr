@@ -153,7 +153,6 @@ mutual
   whnfElem sig UniverseTy         = UniverseTy
   whnfElem sig PropTy             = PropTy
   whnfElem sig TopTy              = TopTy
-  whnfElem sig (Prf e)            = Prf e   -- no Prf computation, by design
   whnfElem sig (Elem.PiTy a b)    = Elem.PiTy a b   -- co-data
   whnfElem sig (Elem.SigmaTy a b) = Elem.SigmaTy a b
   whnfElem sig (Elem.SumTy a b)   = Elem.SumTy a b
@@ -173,7 +172,8 @@ mutual
       _ => assert_total $ idris_crash "whnfElem: quot-elim scrutinee is not a class (impossible for a closed, well-typed term)"
   whnfElem sig (Squash t)         =
     case whnfTy sig t of
-      Prf p => whnfElem sig p     -- code-squash-prf: ∥Prf p∥ ≜ p
+      p@(Elem.EqTy _ _ _) => p    -- code-squash-idem (syntax-directed
+      p@(Squash _)        => p    --   instances; Ω-neutrals stay stuck)
       t'    => Squash t'
   whnfElem sig Star               = Star
   whnfElem sig (Elem.NuTy f)      = Elem.NuTy f
@@ -231,7 +231,6 @@ mutual
     go UniverseTy         = UniverseTy
     go PropTy             = PropTy
     go TopTy              = TopTy
-    go (Prf e)            = Prf (nfElem sig e)
     go (Elem.PiTy a b)    = Elem.PiTy a b   -- co-data: leave domain/codomain
     go (Elem.SigmaTy a b) = Elem.SigmaTy (nfElem sig a) b   -- b: under a binder, left alone
     go (Elem.SumTy a b)   = Elem.SumTy (nfElem sig a) (nfElem sig b)   -- non-dependent: BOTH recursed
@@ -243,7 +242,8 @@ mutual
     go (QuotElim f q)     = QuotElim f (nfElem sig q)   -- f: under a binder, left alone
     go (Squash t)         =
       case nfTy sig t of
-        Prf p => p                -- code-squash-prf: ∥Prf p∥ ≜ p
+        p@(Elem.EqTy _ _ _) => p  -- code-squash-idem instances
+        p@(Squash _)        => p
         t'    => Squash t'
     go Star               = Star
     go (QSort sg k es)   = QSort sg k (nfSubNorm sig es)   -- sg: a bundle of binder telescopes, left alone

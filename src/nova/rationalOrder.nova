@@ -203,7 +203,7 @@ def ratSgn : Rat → Sign using (rationalOrder.Sign.unfold) ≔ λp. intSgn (num
 -- RatR p q cross-multiplies; scale each side's num·den by the OTHER
 -- side's den², interchange, and rewrite across the relation — signs
 -- survive because squares do (intSgnMulSq)
-def ratSgnWD : (p q : Rat) → Prf (RatR p q) → ratSgn p ≡ ratSgn q
+def ratSgnWD : (p q : Rat) → RatR p q → ratSgn p ≡ ratSgn q
   using (integer.Int.eq,
     integer.Int.unfold,
     integerMul.*.eq,
@@ -568,10 +568,10 @@ def sNegNotPos : (sNeg ≡ sPos) → 𝟘
   λh. transport sIsPos (sym _ _ h) ()
 
 -- ===== views: a sign verdict names the integer's shape =====
-def intSgnPosView : (z : Int) → (intSgn z ≡ sPos) → (k : ℕ) ⨯ Prf (nzToInt (nzPos k) ≡ z)
+def intSgnPosView : (z : Int) → (intSgn z ≡ sPos) → (k : ℕ) ⨯ nzToInt (nzPos k) ≡ z
   using (integer.Int.unfold, rational.NZ.unfold, rational.nzNeg.eq, rational.nzPos.eq) ≔
   λz. λh. ⊎-elim
-    (u. (⊎-elim (w. Prf (nzToInt w ≡ z) → (k : ℕ) ⨯ Prf (nzToInt (nzPos k) ≡ z))
+    (u. (⊎-elim (w. (nzToInt w ≡ z) → (k : ℕ) ⨯ nzToInt (nzPos k) ≡ z)
       (k. λhe. k, he)
       (k. λhe. 𝟘-elim (sNegNotPos
         (trans
@@ -597,7 +597,7 @@ def intSgnPosView : (z : Int) → (intSgn z ≡ sPos) → (k : ℕ) ⨯ Prf (nzT
 def intSgnZeroView : (z : Int) → (intSgn z ≡ sZero) → z ≡ intZero
   using (integer.Int.unfold, rational.NZ.unfold, rational.nzNeg.eq, rational.nzPos.eq) ≔
   λz. λh. ⊎-elim
-    (u. (⊎-elim (w. Prf (nzToInt w ≡ z) → z ≡ intZero)
+    (u. (⊎-elim (w. (nzToInt w ≡ z) → z ≡ intZero)
       (k. λhe. 𝟘-elim (sZeroNotPos
         (trans
           _

@@ -1,6 +1,6 @@
 -- POSITIVITY THAT CARRIES ITS MODULUS.
 --
--- `LtR realZero x` is `∥(k : ℕ) ⨯ Prf (…)∥` — an Ω-squash, so the k is
+-- `LtR realZero x` is `∥(k : ℕ) ⨯ (…)∥` — an Ω-squash, so the k is
 -- gone for good: squash-elim reaches only propositions, and a
 -- CONSTRUCTION needs the k. That single line (realLt.nova:35) is the
 -- only place in the ℕ→ℝ tower where truncation hides something a
@@ -17,7 +17,7 @@
 -- independent of it. That price is exactly the theorem one owes
 -- anyway to call the result a function of x.
 --
--- PosR x → Prf (LtR realZero x) holds; the converse does not, and
+-- PosR x → (LtR realZero x) holds; the converse does not, and
 -- cannot. That asymmetry is the constructive content: knowing
 -- propositionally that x is positive genuinely does not hand you a
 -- rate.
@@ -47,14 +47,14 @@ import propCode (prfC, prfIntro, prfElim)
 import id (Id, idToEq, eqToId)
 import equality (trans, sym, cong, transport, transportP)
 
-def reqCongR : (p y y' : RSeq) → Prf (REq y y') → REq p y ≡ REq p y' ≔
+def reqCongR : (p y y' : RSeq) → REq y y' → REq p y ≡ REq p y' ≔
   λp. λy. λy'. λh. propExt (λa. reqTrans _ a h) (λa. reqTrans _ a (reqSym h))
 
 def reqAt : RSeq → Real → Ω
   using (real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold, reqCongR) ≔
   λp. λz. quot-elim (y. REq p y) z
 
-def reqOfClassEq : {p p' : RSeq} → (class p ≡ class p' ∈ Real) → Prf (REq p p')
+def reqOfClassEq : {p p' : RSeq} → (class p ≡ class p' ∈ Real) → REq p p'
   using (real.RSeq.unfold, real.Real.unfold, real.Regular.unfold, real.REq.unfold, reqAt.eq) ≔
   λp. λp'. λe. transportP (λz. reqAt p z) e reqRefl
 
@@ -68,7 +68,7 @@ def PosPayload : Real → 𝕌 using (real.RSeq.unfold, real.Real.unfold, real.R
 
 def PosR : Real → 𝕌 ≔ λx. Br (PosPayload x)
 
-def posMk : (x : Real) (p : RSeq) (k : ℕ) → (class p ≡ x) → Prf (realOfQ (qInvNat k) ≤ x) → PosR x
+def posMk : (x : Real) (p : RSeq) (k : ℕ) → (class p ≡ x) → (realOfQ (qInvNat k) ≤ x) → PosR x
   using (PosPayload.unfold, PosR.eq, real.Real.unfold, real.RSeq.unfold, real.Regular.unfold) ≔
   λx. λp. λk. λe. λh. br (p, k, prfIntro h, eqToId _ _ e)
 
@@ -76,7 +76,7 @@ def posRep : (x : Real) → PosPayload x → RSeq using (PosPayload.unfold) ≔ 
 
 def posK : (x : Real) → PosPayload x → ℕ using (PosPayload.unfold) ≔ λx. λd. d .π₂ .π₁
 
-def posBound : {x : Real} {d : PosPayload x} → Prf (realOfQ (qInvNat (posK _ d)) ≤ x)
+def posBound : {x : Real} {d : PosPayload x} → (realOfQ (qInvNat (posK _ d)) ≤ x)
   using (PosPayload.unfold, posK.eq) ≔
   λx. λd. prfElim (realOfQ (qInvNat (d .π₂ .π₁)) ≤ x) (d .π₂ .π₂ .π₁)
 
@@ -87,12 +87,12 @@ def posRepEq : (x : Real) (d : PosPayload x) → class (posRep _ d) ≡ x
 -- the bound, read at the payload's own representative
 def posBoundRep : (x : Real)
   (d : PosPayload x)
-  → Prf (realOfQ (qInvNat (posK _ d)) ≤ class (posRep _ d))
+  → (realOfQ (qInvNat (posK _ d)) ≤ class (posRep _ d))
   using (real.Real.unfold, real.RSeq.unfold, real.Regular.unfold) ≔
   λx. λd. transportP (λv. realOfQ (qInvNat (posK _ d)) ≤ v) (sym _ _ (posRepEq _ d)) posBound
 
 -- the bracket implies the squash — one way only
-def posToLt : (x : Real) → PosR x → Prf (realZero < x) using (PosPayload.unfold, PosR.eq, posK.eq) ≔
+def posToLt : (x : Real) → PosR x → (realZero < x) using (PosPayload.unfold, PosR.eq, posK.eq) ≔
   λx. λw. squash-elim (brToSquash
     w) (d. ltROf
     _
@@ -171,7 +171,7 @@ def leQRBoundDeep : (k i : ℕ) → (rBound (mulIdx (dbl k) i) (mulIdx (dbl k) i
 -- from the Ω-level bound because ≤ on ℚ is decidable (leQUnsquash).
 def posSampleNN : (p : RSeq)
   (k : ℕ)
-  → Prf (realOfQ (qInvNat k) ≤ class p) → (i : ℕ) → (qZero ≤ seqOf p (mulIdx (dbl k) i))
+  → (realOfQ (qInvNat k) ≤ class p) → (i : ℕ) → (qZero ≤ seqOf p (mulIdx (dbl k) i))
   using (real.Real.unfold,
     real.RSeq.unfold,
     real.Regular.unfold,
@@ -251,7 +251,7 @@ def clampNN : (p : RSeq) (n : ℕ) → (qZero ≤ seqOf (clampRSeq p) n)
   λp. λn. leQMaxR (seqOf p n) qZero
 
 -- the clamp changes nothing, precisely because x ≥ 0
-def clampREq : {p : RSeq} → Prf (realZero ≤ class p) → Prf (REq (clampRSeq p) p)
+def clampREq : {p : RSeq} → (realZero ≤ class p) → REq (clampRSeq p) p
   using (real.Real.unfold,
     real.RSeq.unfold,
     real.Regular.unfold,
@@ -276,7 +276,7 @@ def clampREq : {p : RSeq} → Prf (realZero ≤ class p) → Prf (REq (clampRSeq
         (qNegNeg (seqOf p n))
         (leQNegFlip _ _ (transport (λw. w ≤ rBound n n) (qAddZeroL (qNeg (seqOf p n))) (u n))))))
 
-def nonNegMk : (x : Real) (p : RSeq) → (class p ≡ x) → Prf (realZero ≤ x) → NonNegR x
+def nonNegMk : (x : Real) (p : RSeq) → (class p ≡ x) → (realZero ≤ x) → NonNegR x
   using (NonNegPayload.unfold,
     NonNegR.eq,
     real.Real.unfold,

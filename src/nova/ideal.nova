@@ -22,7 +22,7 @@ import subgroup (IsSubgroup, IsNormal, sgIntro, sgUnit, sgOp, sgInv, abelianNorm
 import equality (transportP, sym, trans, cong)
 
 def closedScale : (R : 𝕌) (r : IsCommRing R) (I : R → Ω) → Ω ≔
-  λR. λr. λI. ∥(a x : R) → Prf (I x) → Prf (I (rmul _ r a x))∥
+  λR. λr. λI. ∥(a x : R) → I x → I (rmul _ r a x)∥
 
 def IsIdeal : (R : 𝕌) (r : IsCommRing R) (I : R → Ω) → Ω ≔
   λR. λr. λI. IsSubgroup (raddGroup r) I ∧ closedScale _ r I
@@ -30,28 +30,23 @@ def IsIdeal : (R : 𝕌) (r : IsCommRing R) (I : R → Ω) → Ω ≔
 def idIntro : {R : 𝕌}
   {r : IsCommRing R}
   {I : R → Ω}
-  → Prf (IsSubgroup
-    (raddGroup r)
-    I) → ((a x : R) → Prf (I x) → Prf (I (rmul _ r a x))) → Prf (IsIdeal _ r I)
+  → IsSubgroup (raddGroup r) I → ((a x : R) → I x → I (rmul _ r a x)) → IsIdeal _ r I
   using (IsIdeal.eq, closedScale.eq) ≔
   λR. λr. λI. λsub. λsc. andIntro sub (⋆ sc)
 
-def idSub : {R : 𝕌}
-  {r : IsCommRing R}
-  {I : R → Ω}
-  → Prf (IsIdeal _ r I) → Prf (IsSubgroup (raddGroup r) I)
+def idSub : {R : 𝕌} {r : IsCommRing R} {I : R → Ω} → IsIdeal _ r I → IsSubgroup (raddGroup r) I
   using (IsIdeal.eq) ≔
   λR. λr. λI. λh. andFst h
 
 def idScale : (R : 𝕌)
   (r : IsCommRing R)
   (I : R → Ω)
-  → Prf (IsIdeal _ r I) → (a x : R) → Prf (I x) → Prf (I (rmul _ r a x))
+  → IsIdeal _ r I → (a x : R) → I x → I (rmul _ r a x)
   using (IsIdeal.eq, closedScale.unfold) ≔
   λR. λr. λI. λh. λa. λx. λhx. squash-elim (andSnd h) (u. u a x hx)
 
 -- an ideal is a normal subgroup of (R , +), because (R , +) is abelian
-def idNormal : (R : 𝕌) (r : IsCommRing R) (I : R → Ω) → Prf (IsNormal (raddGroup r) I) ≔
+def idNormal : (R : 𝕌) (r : IsCommRing R) (I : R → Ω) → IsNormal (raddGroup r) I ≔
   λR. λr. λI. abelianNormal (rAddComm _ r)
 
 -- ===== the two closure facts the descent will want =====
@@ -66,5 +61,5 @@ def idNormal : (R : 𝕌) (r : IsCommRing R) (I : R → Ω) → Prf (IsNormal (r
 def idScaleR : (R : 𝕌)
   (r : IsCommRing R)
   (I : R → Ω)
-  → Prf (IsIdeal _ r I) → (a x : R) → Prf (I x) → Prf (I (rmul _ r x a)) ≔
+  → IsIdeal _ r I → (a x : R) → I x → I (rmul _ r x a) ≔
   λR. λr. λI. λh. λa. λx. λhx. transportP I (rMulComm _ r a x) (idScale _ _ _ h a x hx)

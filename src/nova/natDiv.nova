@@ -23,7 +23,7 @@ def natCase : {C : 𝕌} → C → (ℕ → C) → ℕ → C ≔ λC. λz. λs. 
 -- there, which is what lets a division step know a > b. Two copies,
 -- because a motive into Ω and a motive into 𝕌 are different rules and
 -- the division spec needs one of each (the quotient equation is a
--- Prf, the remainder bound is data).
+-- a prop, the remainder bound is data).
 def natCaseElimEqD : (C : 𝕌)
   (P : C → 𝕌)
   (z : C)
@@ -38,7 +38,7 @@ def natCaseElimEq : (C : 𝕌)
   (z : C)
   (s : ℕ → C)
   (n : ℕ)
-  → ((n ≡ Z) → Prf (P z)) → ((m : ℕ) → (n ≡ S m) → Prf (P (s m))) → Prf (P (natCase z s n))
+  → ((n ≡ Z) → P z) → ((m : ℕ) → (n ≡ S m) → P (s m)) → P (natCase z s n)
   using (natDiv.natCase.eq) ≔
   λC. λP. λz. λs. λn. ℕ-elim (λh0. λh1. h0 ⋆) (k' rec. λh0. λh1. h1 k' ⋆) n
 

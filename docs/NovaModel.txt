@@ -18,7 +18,8 @@
 # FRAGMENT. The formers 𝟘, 𝟙, ℕ, Π, Σ, the universe 𝕌 with its codes
 # {𝟘, 𝟙, ℕ, →, ⨯} and cumulativity (code-lift), and extensional
 # equality in the
-# composite form Prf (a₀ ≡ a₁ ∈ A) — formation (code-eq under Prf),
+# composite form (a₀ ≡ a₁ ∈ A), the prop standing as its own type
+# (prop-lift; Prf is retired) — formation (code-eq),
 # introduction (el-eq-i), reflection (el-reflect), and proof
 # irrelevance (el-prf-prop). Signatures are DEFINITIONAL only. Judgement
 # classes covered: sig, ctx, sub, sub-norm, ty, el, and the coercion
@@ -44,7 +45,7 @@
 # type IS its head-constructor tree.
 #
 # NOTE (equality as notation): Foundation's Γ ⊦ a₀ ≐ a₁ : A is
-# derived notation for Γ ⊦ ⋆ : Prf (a₀ ≡ a₁ ∈ A); this file's
+# derived notation for Γ ⊦ ⋆ : (a₀ ≡ a₁ ∈ A); this file's
 # ≐-clauses are unchanged by that reading — the truth of the equality
 # prop and the meta-equation interpreting the judgemental spelling
 # are the SAME relation (that identity is what el-reflect/el-eq-i
@@ -206,9 +207,12 @@
     ⟦t⟧ γ                     ≜ el (⟦t⟧ᵉˡ γ)   # t a small code used as
                                                # a type — code-lift; ⟦·⟧ᵉˡ
                                                # its element interpretation
-    ⟦Prf (a₀ ≡ a₁ ∈ A)⟧ γ     ≜ eq (⟦A⟧ γ) (⟦a₀⟧ γ) (⟦a₁⟧ γ)
+    ⟦(a₀ ≡ a₁ ∈ A)⟧ γ         ≜ eq (⟦A⟧ γ) (⟦a₀⟧ γ) (⟦a₁⟧ γ)
+                              # the prop as a type — prop-lift; eq is
+                              # the prop summand's constructor,
+                              # quotiented by iff
     ⟦A[σ]⟧                    ≜ ⟦A⟧ ∘ ⟦σ⟧
-    # In this fragment Prf appears only in the composite above; Ω is
+    # In this fragment props appear only in the composite above; Ω is
     # not itself a type of the fragment.
 
 # Elements — ⟦t⟧ : (γ : ⟦Γ⟧) → El₁ (⟦A⟧ γ). The universe codes
@@ -343,7 +347,7 @@
 #    price for a constructive-friendly meta. The upgrade is the
 #    truth-value interpretation: in a CLASSICAL meta, interpret
 #    equality codes by excluded-middle case split —
-#    ⟦Prf (a₀ ≡ a₁ ∈ A)⟧ γ ≜ one₁ if ⟦a₀⟧ γ = ⟦a₁⟧ γ, zero₁
+#    ⟦(a₀ ≡ a₁ ∈ A)⟧ γ, as a type, ≜ one₁ if ⟦a₀⟧ γ = ⟦a₁⟧ γ, zero₁
 #    otherwise — and ⟦⋆⟧ ≜ (). Then iff-equal equations denote the
 #    SAME code, prop-ext holds, and this clause is the germ of the
 #    full Ω interpretation: Ω as a small complete lattice of meta

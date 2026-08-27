@@ -25,7 +25,7 @@ def kerOp : (G : 𝕌)
   (h : IsGroup H)
   (p : Hom g h)
   (x y : G)
-  → Prf (ker _ _ _ _ p x) → Prf (ker _ _ _ _ p y) → Prf (ker _ _ _ _ p (gop g x y))
+  → ker _ _ _ _ p x → ker _ _ _ _ p y → ker _ _ _ _ p (gop g x y)
   using (ker.eq) ≔
   λG. λg. λH. λh. λp. λx. λy. λhx. λhy. homAp p (gop g x y)
       ≡⟨ homLaw p x y ⟩ gop h (homAp p x) (homAp p y)
@@ -39,7 +39,7 @@ def kerInv : (G : 𝕌)
   (h : IsGroup H)
   (p : Hom g h)
   (x : G)
-  → Prf (ker _ _ _ _ p x) → Prf (ker _ _ _ _ p (ginv g x))
+  → ker _ _ _ _ p x → ker _ _ _ _ p (ginv g x)
   using (ker.eq) ≔
   λG. λg. λH. λh. λp. λx. λhx. homAp p (ginv g x)
       ≡⟨ homInv p x ⟩ ginv h (homAp p x)
@@ -51,7 +51,7 @@ def kerIsSubgroup : (G : 𝕌)
   (H : 𝕌)
   (h : IsGroup H)
   (p : Hom g h)
-  → Prf (IsSubgroup g (ker _ _ _ _ p))
+  → IsSubgroup g (ker _ _ _ _ p)
   using (ker.eq) ≔
   λG. λg. λH. λh. λp. sgIntro (homUnit p) (kerOp _ _ _ _ p) (kerInv _ _ _ _ p)
 
@@ -62,7 +62,7 @@ def kerIsNormal : (G : 𝕌)
   (H : 𝕌)
   (h : IsGroup H)
   (p : Hom g h)
-  → Prf (IsNormal g (ker _ _ _ _ p))
+  → IsNormal g (ker _ _ _ _ p)
   using (ker.eq) ≔
   λG. λg. λH. λh. λp. nmIntro
     (λx. λn. λhn. homAp p (gop g x (gop g n (ginv g x)))
@@ -352,7 +352,7 @@ def kerKills : (G : 𝕌)
   (h : IsGroup H)
   (p : Hom g h)
   (x : G)
-  → Prf (ker _ _ _ _ p x) → homAp p x ≡ ge h
+  → ker _ _ _ _ p x → homAp p x ≡ ge h
   using (ker.eq) ≔
   λG. λg. λH. λh. λp. λx. λk. k
 
@@ -362,7 +362,7 @@ def toImConst : (G : 𝕌)
   (h : IsGroup H)
   (p : Hom g h)
   (a a' : G)
-  → Prf (cosetRel g (ker _ _ _ _ p) a a') → imIn _ _ _ _ p a ≡ imIn _ _ _ _ _ a'
+  → cosetRel g (ker _ _ _ _ p) a a' → imIn _ _ _ _ p a ≡ imIn _ _ _ _ _ a'
   using (imIn.eq) ≔
   λG. λg. λH. λh. λp. λa. λa'. λr. imEq _ _ _ _ _ _ _ (homKillConst _ p (kerKills _ _ _ _ p) _ _ r)
 

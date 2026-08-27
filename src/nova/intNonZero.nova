@@ -22,8 +22,8 @@ import rationalInv (nzOfPair, notIntro, notApply, intCanonProdZero)
 import equality (trans, sym, cong)
 
 def nzOfPairD : (a b : ℕ)
-  (hab : Prf (a * b ≡ Z))
-  → ((e : NZ) ⨯ Prf (nzToInt e ≡ class (a, b))) ⊎ Prf (class (a, b) ≡ intZero)
+  (hab : a * b ≡ Z)
+  → ((e : NZ) ⨯ nzToInt e ≡ class (a, b)) ⊎ (class (a, b) ≡ intZero)
   using (integer.Int.unfold,
     integer.intZero.eq,
     rational.nzNeg.eq,
@@ -43,17 +43,16 @@ def nzOfPairD : (a b : ℕ)
 -- kept abstract in p, as always (docs/ProvingFeedback.md D-3)
 def nzOfIntAt : {z : Int}
   (p : ℕ ⨯ ℕ)
-  (hz : Prf (class p ≡ z))
-  (hab : Prf (p .π₁ * p .π₂ ≡ Z))
-  → ((e : NZ) ⨯ Prf (nzToInt e ≡ z)) ⊎ Prf (z ≡ intZero)
+  (hz : class p ≡ z)
+  (hab : p .π₁ * p .π₂ ≡ Z)
+  → ((e : NZ) ⨯ nzToInt e ≡ z) ⊎ (z ≡ intZero)
   using (classPairEta, integer.Int.unfold) ≔
   λz. λp. λhz. λhab. ⊎-elim
     (u. inj₁ (u .π₁, trans _ _ _ (u .π₂) (trans _ _ _ (classPairEta p) hz)))
     (u. inj₂ (trans _ _ _ (sym _ _ (trans _ _ _ (classPairEta p) hz)) u))
     (nzOfPairD _ _ hab)
 
-def nzOfInt : (z : Int) → ((e : NZ) ⨯ Prf (nzToInt e ≡ z)) ⊎ Prf (z ≡ intZero)
-  using (intCanonClass) ≔
+def nzOfInt : (z : Int) → ((e : NZ) ⨯ nzToInt e ≡ z) ⊎ (z ≡ intZero) using (intCanonClass) ≔
   λz. nzOfIntAt _ (intCanonClass z) (intCanonProdZero z)
 
 -- ===== the image of NZ misses zero =====
@@ -61,13 +60,13 @@ def nzOfInt : (z : Int) → ((e : NZ) ⨯ Prf (nzToInt e ≡ z)) ⊎ Prf (z ≡ 
 -- effectivity is for. Before intEffective.nova landed the only route
 -- was through a computing observational equality (eqInt.nova's EqZ);
 -- now the class equation hands IntR back directly.
-def intNeqOfNotRel : {p q : ℕ ⨯ ℕ} (k : Prf (IntR p q) → 𝟘) → Prf (¬ (class p ≡ class q ∈ Int))
+def intNeqOfNotRel : {p q : ℕ ⨯ ℕ} (k : IntR p q → 𝟘) → ¬ (class p ≡ class q ∈ Int)
   using (integer.Int.unfold, prop.¬.unfold, prop.⊃.unfold, prop.⊥.unfold) ≔
   λp. λq. λk. notIntro _ (λh. ⋆ (k (intEffective h)))
 
 -- IntR (S n , Z) (Z , Z) reduces to S n ≡ Z, and IntR (Z , S n) (Z , Z)
 -- to Z ≡ S n — both refuted by eqNat.nova's zNotS
-def nzToIntNonZero : (e : NZ) → Prf (¬ (nzToInt e ≡ intZero))
+def nzToIntNonZero : (e : NZ) → ¬ (nzToInt e ≡ intZero)
   using (integer.IntR.eq,
     integer.IntR.unfold,
     integer.intZero.eq,
@@ -85,8 +84,8 @@ def nzToIntNonZero : (e : NZ) → Prf (¬ (nzToInt e ≡ intZero))
 -- whether x is zero, so the argument is a case split, not a refutation.
 def intNoZeroDiv : {x : Int}
   (y : Int)
-  (hxy : Prf (x * y ≡ intZero))
-  (hy : Prf (¬ (y ≡ intZero)))
+  (hxy : x * y ≡ intZero)
+  (hy : ¬ (y ≡ intZero))
   → x ≡ intZero ≔
   λx. λy. λhxy. λhy. ⊎-elim
     (ex. ⊎-elim

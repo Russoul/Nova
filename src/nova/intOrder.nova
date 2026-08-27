@@ -351,8 +351,7 @@ def leZMultMonoNat : {x y : Int} {m : ℕ} → (x ≤ y) → (x * intOfNat m ≤
           (cong (λv. Int) (λv. v * intOfNat m) (idToEq _ _ _ (le .π₂)))))
 
 -- a nonneg integer is a natural, witnessed
-def leZNonNegView : (c : Int) → (intZero ≤ c) → (m : ℕ) ⨯ Prf (intOfNat m ≡ c)
-  using (intOrder.≤.unfold) ≔
+def leZNonNegView : (c : Int) → (intZero ≤ c) → (m : ℕ) ⨯ intOfNat m ≡ c using (intOrder.≤.unfold) ≔
   λc. λle. le .π₁, trans _ _ _ (sym _ _ (intAddZeroL (intOfNat (le .π₁)))) (idToEq _ _ _ (le .π₂))
 
 -- scaling by a NONNEGATIVE integer preserves the order: view the

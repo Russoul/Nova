@@ -1,10 +1,10 @@
 -- el-squash-i, general form: `⋆ ⟨witness⟩` reaches squashees of any
 -- shape (here Π), not just the evident 𝟙-/≡-shapes bare ⋆ handles
-def squashFun : Prf ∥(n : ℕ) → ℕ∥ ≔ ⋆ (λn. n)
+def squashFun : ∥(n : ℕ) → ℕ∥ ≔ ⋆ (λn. n)
 -- el-squash-e-prf: eliminate a squashed proof into a further
 -- proposition via a hypothetical inhabitant of the raw squashee
-def squashFst : (p : Ω) → Prf ∥Prf p ⨯ Prf p∥ → Prf p ≔
+def squashFst : (p : Ω) → ∥p ⨯ p∥ → p ≔
   λp. λh. squash-elim h (u. u .π₁)
 -- both combined: functoriality of ∥-∥
-def squashMap : (A : 𝕌) (B : 𝕌) → (A → B) → Prf ∥A∥ → Prf ∥B∥ ≔
+def squashMap : (A : 𝕌) (B : 𝕌) → (A → B) → ∥A∥ → ∥B∥ ≔
   λA. λB. λf. λh. squash-elim h (a. ⋆ (f a))

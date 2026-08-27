@@ -74,9 +74,9 @@ def qMulIdxDen : (c m : ℕ)
     (cong (λu. Int) (λw. intOfNat w) (sucMulIdx c m))
 
 def qMulIdxRel : (c m : ℕ)
-  → Prf (RatR
+  → RatR
     (ratMul (mkRat (intOfNat (S c)) nzOne) (mkRat intOne (nzPos (mulIdx c m))))
-    (mkRat intOne (nzPos m)))
+    (mkRat intOne (nzPos m))
   using (intOrder.intOfNat.eq,
     integer.Int.eq,
     integer.intOne.eq,
@@ -607,7 +607,7 @@ def rMulWDStep : (p q q' : RSeq)
     (qMulInvIdxC (facEqPair p q'))
     (qMulInvIdxC (facEqDeep p q q'))
 
-def rMulWDInner : (p : RSeq) {q q' : RSeq} → Prf (REq q q') → Prf (REq (rMul p q) (rMul p q'))
+def rMulWDInner : (p : RSeq) {q q' : RSeq} → REq q q' → REq (rMul p q) (rMul p q')
   using (ratBound.Bnd.eq,
     rationalOrder.≤.eq,
     rationalQ.+.eq,
@@ -641,9 +641,7 @@ def rMulWDInner : (p : RSeq) {q q' : RSeq} → Prf (REq q q') → Prf (REq (rMul
 -- strict engine, because the cong motive puts the two ceilings in the
 -- conversion; abstracted, it is free and the call site cites three
 -- unfolds. D-3 still earns its keep.
-def rMulWDInnerCls : (p q q' : RSeq)
-  (h : Prf (REq q q'))
-  → class (rMul p q) ≡ class (rMul p q') ∈ Real
+def rMulWDInnerCls : (p q q' : RSeq) (h : REq q q') → class (rMul p q) ≡ class (rMul p q') ∈ Real
   using (real.REq.unfold, real.RSeq.unfold, real.Real.unfold) ≔
   λp. λq. λq'. λh. realEqOfREq _ _ (rMulWDInner p h)
 
@@ -686,14 +684,12 @@ def rMulComm : {x y : RSeq} → rMul x y ≡ rMul y x
   λx. λy. rseqEq (λn. mulSeqCommAt (seqOf x) (seqOf y) (mulPred x y) (mulPred y x) n mulPredComm)
 
 -- outer well-definedness, spent in one line against commutativity
-def rMulWDOuterCls : {x x' c : RSeq}
-  (h : Prf (REq x x'))
-  → class (rMul x c) ≡ class (rMul x' c) ∈ Real
+def rMulWDOuterCls : {x x' c : RSeq} (h : REq x x') → class (rMul x c) ≡ class (rMul x' c) ∈ Real
   using (real.REq.unfold, real.RSeq.unfold, real.Real.unfold) ≔
   wdOuterOfComm rMul (rMulComm {}) rMulWDInnerCls
 
 def rMulWDOuter : (x x' : RSeq)
-  (h : Prf (REq x x'))
+  (h : REq x x')
   (v : Real)
   → quot-elim (w. Real) (q. class (rMul x q)) v ≡ quot-elim (q. class (rMul x' q)) v
   using (rMulWDInnerCls, real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold) ≔

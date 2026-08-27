@@ -99,7 +99,6 @@ mutual
   substElem PropTy             sigma = PropTy
   -- 𝕍[σ] ≜ 𝕍 (Foundation's meta-clause: 𝕍 is a closed atom)
   substElem TopTy              sigma = TopTy
-  substElem (Prf e)            sigma = Prf (substElem e sigma)
   substElem (Elem.PiTy a b)    sigma = Elem.PiTy (substElem a sigma) (substElem b (under sigma))
   substElem (Elem.SigmaTy a b) sigma = Elem.SigmaTy (substElem a sigma) (substElem b (under sigma))
   substElem (Elem.SumTy a b)   sigma = Elem.SumTy (substElem a sigma) (substElem b sigma)
@@ -222,7 +221,6 @@ mutual
   strengthenElem d UniverseTy         = Just UniverseTy
   strengthenElem d PropTy             = Just PropTy
   strengthenElem d TopTy              = Just TopTy
-  strengthenElem d (Prf e)            = Prf <$> strengthenElem d e
   strengthenElem d (Elem.PiTy a b)    = Elem.PiTy <$> strengthenElem d a <*> strengthenElem (1 + d) b
   strengthenElem d (Elem.SigmaTy a b) = Elem.SigmaTy <$> strengthenElem d a <*> strengthenElem (1 + d) b
   strengthenElem d (Elem.SumTy a b)   = Elem.SumTy <$> strengthenElem d a <*> strengthenElem d b
@@ -362,7 +360,8 @@ corecFun p a f =
 ||| right); u and v are elements of El ⌊𝔽⌋(c)'s decoding in the
 ||| ambient context; the result is an Ω-element there. One clause per
 ||| former: the hole instantiates R, constants compare by ≡, products
-||| are Ω-conjunctions (squashed Σ of Prfs), sums match tags by a
+||| are Ω-conjunctions (squashed Σ of props — a prop is a type,
+||| prop-lift), sums match tags by a
 ||| dependent ⊎-elim at motive Ω (⊥ off the diagonal, definitional
 ||| collapse on it), the dependent pair binds the first-component
 ||| equation so the instances are ≐ by reflection (no transport), and
@@ -373,8 +372,8 @@ liftPoly : Poly -> (r : Elem) -> (u : Elem) -> (v : Elem) -> Elem
 liftPoly PHole        r u v = substElem r (Ext (Ext Id u) v)
 liftPoly (PConst a)   r u v = Elem.EqTy u v a
 liftPoly (PProd f g)  r u v =
-  Squash (SigmaTy (Prf (liftPoly f r (SigmaElim1 u) (SigmaElim1 v)))
-                     (substTy (Prf (liftPoly g r (SigmaElim2 u) (SigmaElim2 v))) Wk))
+  Squash (SigmaTy (liftPoly f r (SigmaElim1 u) (SigmaElim1 v))
+                     (substTy (liftPoly g r (SigmaElim2 u) (SigmaElim2 v)) Wk))
 liftPoly (PSum f g)   r u v =
   SumElim
     (SumElim (liftPoly f (wk2base r) (CtxVar 1) (CtxVar 0))
@@ -389,14 +388,14 @@ liftPoly (PSum f g)   r u v =
   wk2base e = substElem (substElem e (under (under Wk))) (under (under Wk))
 liftPoly (PSigma a f) r u v =
   Squash (SigmaTy
-    (Prf (Elem.EqTy (SigmaElim1 u) (SigmaElim1 v) a))
-    (Prf (liftPoly (substPoly (substPoly f (Ext Id (SigmaElim1 u))) Wk)
-                   (substElem r (under (under Wk)))
-                   (substElem (SigmaElim2 u) Wk)
-                   (substElem (SigmaElim2 v) Wk))))
+    (Elem.EqTy (SigmaElim1 u) (SigmaElim1 v) a)
+    (liftPoly (substPoly (substPoly f (Ext Id (SigmaElim1 u))) Wk)
+              (substElem r (under (under Wk)))
+              (substElem (SigmaElim2 u) Wk)
+              (substElem (SigmaElim2 v) Wk)))
 liftPoly (PPi a f)    r u v =
   Squash (PiTy a
-    (Prf (liftPoly f
-                   (substElem r (under (under Wk)))
-                   (PiApp (substElem u Wk) (CtxVar 0))
-                   (PiApp (substElem v Wk) (CtxVar 0)))))
+    (liftPoly f
+              (substElem r (under (under Wk)))
+              (PiApp (substElem u Wk) (CtxVar 0))
+              (PiApp (substElem v Wk) (CtxVar 0))))
