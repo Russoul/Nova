@@ -195,7 +195,7 @@ data Deriv : Type where
   DTySum : Deriv -> Deriv -> Deriv
   ||| code-lift (El retired — cumulativity): Γ ⊦ a : 𝕌  ⊢  Γ ⊦ a type
   DTyEl : Deriv -> Deriv
-  ||| ty-prf: Γ ⊦ p : Ω  ⊢  Γ ⊦ Prf p type
+  ||| prop-lift (Prf retired — prop-cumulativity): Γ ⊦ p : Ω  ⊢  Γ ⊦ p type
   DTyPrf : Deriv -> Deriv
   ||| ty-quot: Γ ⊦ A type;  Γ ▷ A ▷ A[↑] ⊦ R : Ω  ⊢  Γ ⊦ A / R type
   DTyQuot : Deriv -> Deriv -> Deriv
@@ -241,7 +241,7 @@ data Deriv : Type where
   ||| el-pi-e — delivery order f, e, B (Foundation lists B first):
   ||| Γ ⊦ f : A → B;  Γ ⊦ e : A;  Γ ▷ A ⊦ B type
   DElPiE : Deriv -> Deriv -> Deriv -> Deriv
-  ||| el-let: Γ ⊦ a : A;  Γ ▷ A ▷ Prf (☐₀ ≡ a[↑] ∈ A[↑]) ⊦ b : B
+  ||| el-let: Γ ⊦ a : A;  Γ ▷ A ▷ (☐₀ ≡ a[↑] ∈ A[↑]) ⊦ b : B
   DElLet : Deriv -> Deriv -> Deriv
   ||| el-sigma-i — delivery order a, B, b (Foundation lists B first):
   ||| Γ ⊦ a : A;  Γ ▷ A ⊦ B type;  Γ ⊦ b : B[id, a]
@@ -257,13 +257,13 @@ data Deriv : Type where
   ||| Γ ⊦ t : A ⊎ B;  Γ ▷ A ⊎ B ⊦ C type;
   ||| Γ ▷ A ⊦ l : C[↑, inj₁ ☐₀];  Γ ▷ B ⊦ r : C[↑, inj₂ ☐₀]
   DElSumE : Deriv -> Deriv -> Deriv -> Deriv -> Deriv
-  ||| el-squash-i: Γ ⊦ t : A  ⊢  Γ ⊦ ⋆ : Prf ∥A∥
+  ||| el-squash-i: Γ ⊦ t : A  ⊢  Γ ⊦ ⋆ : ∥A∥
   DElSquashI : Deriv -> Deriv
-  ||| el-eq-i: Γ ⊦ a₀ ≐ a₁ : A  ⊢  Γ ⊦ ⋆ : Prf (a₀ ≡ a₁ ∈ A)
+  ||| el-eq-i: Γ ⊦ a₀ ≐ a₁ : A  ⊢  Γ ⊦ ⋆ : (a₀ ≡ a₁ ∈ A)
   DElEqI : Deriv -> Deriv
   ||| el-squash-e-prf — delivery order q (the target prop), s, t:
-  ||| Γ ⊦ q : Ω;  Γ ⊦ s : Prf ∥A∥;  Γ ▷ A ⊦ t : (Prf q)[↑]
-  ||| ⊢  Γ ⊦ ⋆ : Prf q
+  ||| Γ ⊦ q : Ω;  Γ ⊦ s : ∥A∥;  Γ ▷ A ⊦ t : q[↑]
+  ||| ⊢  Γ ⊦ ⋆ : q
   DElSquashEPrf : Deriv -> Deriv -> Deriv -> Deriv
   ||| el-ty-coe: Γ ⊦ A₀ ≐ A₁ type;  Γ ⊦ a : A₀  ⊢  Γ ⊦ a : A₁
   DElTyCoe : Deriv -> Deriv -> Deriv
@@ -284,7 +284,7 @@ data Deriv : Type where
   DElEqTyCoe : Deriv -> Deriv -> Deriv
   ||| el-reflect — ADMISSIBLE in Foundation (⋆-canonicity, forced by
   ||| Ω-valuedness), replayed directly for convenience:
-  ||| Γ ⊦ s : Prf (a₀ ≡ a₁ ∈ A)  ⊢  Γ ⊦ a₀ ≐ a₁ : A
+  ||| Γ ⊦ s : (a₀ ≡ a₁ ∈ A)  ⊢  Γ ⊦ a₀ ≐ a₁ : A
   ||| (the premise must conclude at a literal equality prop — expose
   ||| a squashed or unreduced spelling with DElTyCoe + the oracle
   ||| first)
@@ -298,14 +298,16 @@ data Deriv : Type where
   DTySigEq : Nat -> Deriv -> Deriv
 
   -- ----- equality: props and η -----
-  ||| el-zero-prop / el-one-prop / el-prf-prop
+  ||| el-zero-prop / el-one-prop / el-prf-prop (the last now 3-ary:
+  ||| the p : Ω premise replaces the retired Prf head — delivery
+  ||| order p, t₀, t₁)
   DElZeroProp : Deriv -> Deriv -> Deriv
   DElOneProp : Deriv -> Deriv -> Deriv
-  DElPrfProp : Deriv -> Deriv -> Deriv
+  DElPrfProp : Deriv -> Deriv -> Deriv -> Deriv
   ||| code-prop-eq (propositional extensionality) — delivery order
   ||| p, q, then the two hypothetical proofs:
   ||| Γ ⊦ p : Ω;  Γ ⊦ q : Ω;
-  ||| Γ ▷ Prf p ⊦ s : (Prf q)[↑];  Γ ▷ Prf q ⊦ t : (Prf p)[↑]
+  ||| Γ ▷ p ⊦ s : q[↑];  Γ ▷ q ⊦ t : p[↑]  (props are types, prop-lift)
   DCodePropEq : Deriv -> Deriv -> Deriv -> Deriv -> Deriv
   ||| el-pi-eta, TWO-CANDIDATE (judgemental function extensionality):
   ||| f₀, f₁ : A → B;  Γ ▷ A ⊦ f₀[↑] ☐₀ ≐ f₁[↑] ☐₀ : B  ⊢  f₀ ≐ f₁
@@ -348,7 +350,7 @@ data Deriv : Type where
   DElSumECong : Deriv -> Deriv -> Deriv -> Deriv -> Deriv
   DElZeroECong : Deriv -> Deriv -> Deriv -> Deriv
   DElQuotECong : Deriv -> Deriv -> Deriv -> Deriv -> Deriv -> Deriv -> Deriv -> Deriv
-  ||| el-let-cong: aeq; beq under Γ ▷ A ▷ Prf (☐₀ ≡ a₁[↑] ∈ A[↑])
+  ||| el-let-cong: aeq; beq under Γ ▷ A ▷ (☐₀ ≡ a₁[↑] ∈ A[↑])
   DElLetCong : Deriv -> Deriv -> Deriv
   ||| el-class-cong (delivery order aeq, R) / el-inj₁-cong (aeq, B) /
   ||| el-inj₂-cong (beq, A)
@@ -388,7 +390,7 @@ data Deriv : Type where
   ||| conclude ē₀ᵢ ≐ ē₁ᵢ : Eᵢ (entry i of the reflected telescope,
   ||| instantiated by the shared prefix)
   DCodeQSortInjIdx : Nat -> Deriv -> Deriv
-  ||| ty-prf-cong: Γ ⊦ p ≐ q : Ω
+  ||| prop-lift-eq: Γ ⊦ p ≐ q : Ω  ⊢  Γ ⊦ p ≐ q : 𝕍
   DTyPrfCong : Deriv -> Deriv
 
   -- ----- normal substitutions -----
@@ -419,12 +421,15 @@ data Deriv : Type where
   ||| the Σ instances
   DInvSigmaDom : Deriv -> Deriv
   DInvSigmaCod : Deriv -> Deriv
-  ||| the Prf-equality instances: from Γ ⊦ Prf (a ≡ b ∈ A) type
-  ||| conclude Γ ⊦ a : A (…b : A, …A type)
+  ||| the equality-prop instances: from Γ ⊦ (a ≡ b ∈ A) type
+  ||| conclude Γ ⊦ a : A (…b : A, …A type) — sound: code-eq (via
+  ||| prop-lift) is the only formation with that head
   DInvPrfEqL : Deriv -> Deriv
   DInvPrfEqR : Deriv -> Deriv
   DInvPrfEqTy : Deriv -> Deriv
-  ||| from Γ ⊦ Prf p type conclude Γ ⊦ p : Ω
+  ||| from Γ ⊦ p type, p ≡-/∥·∥-headed, conclude Γ ⊦ p : Ω (the Ω
+  ||| formers' formation inversion — syntax-directed; a NEUTRAL type
+  ||| admits no such inversion)
   DInvPrfCode : Deriv -> Deriv
 
   ||| typing inversion of the equality code (code-eq's premises):
@@ -466,12 +471,12 @@ data Deriv : Type where
   ||| Γ ⊦ a : A;  Γ ▷ A ▷ A[↑] ⊦ R : Ω  ⊢  Γ ⊦ class a : A / R
   DElQuotI : Deriv -> Deriv -> Deriv
   ||| el-quot-eq — delivery order a, b, R, r:
-  ||| Γ ⊦ r : Prf R[id, a, b]  ⊢  Γ ⊦ class a ≐ class b : A / R
+  ||| Γ ⊦ r : R[id, a, b]  ⊢  Γ ⊦ class a ≐ class b : A / R
   DElQuotEq : Deriv -> Deriv -> Deriv -> Deriv -> Deriv
   ||| el-quot-e (motive B retained) — delivery order q (delivers
   ||| A / R), B, f, the well-definedness equation:
   ||| Γ ▷ (A/R) ⊦ B type;  Γ ▷ A ⊦ f : B[↑, class ☐₀];
-  ||| Γ ▷ A ▷ A[↑] ▷ Prf R ⊦ f[↑∘↑∘↑, ☐₂] ≐ f[↑∘↑∘↑, ☐₁]
+  ||| Γ ▷ A ▷ A[↑] ▷ R ⊦ f[↑∘↑∘↑, ☐₂] ≐ f[↑∘↑∘↑, ☐₁]
   |||   : B[↑∘↑∘↑, class ☐₂]
   DElQuotE : Deriv -> Deriv -> Deriv -> Deriv -> Deriv
   ||| el-quot-eta — delivery order q, B, g, f, well-definedness,
@@ -580,7 +585,7 @@ data Deriv : Type where
   ||| Γ ⊦ x : a  ⊢  Γ ⊦ corec 𝔽 a f x : ν 𝔽
   DElNuI : Deriv -> Deriv -> Deriv -> Deriv -> Deriv
   ||| el-nu-coind — delivery order 𝔽, t₀, t₁, R (over ▷ν𝔽▷(ν𝔽)[↑]),
-  ||| p : Prf R[id,t₀,t₁], q (the one-step closure at lift_𝔽(R)):
+  ||| p : R[id,t₀,t₁], q (the one-step closure at lift_𝔽(R)):
   ||| concludes t₀ ≐ t₁ : ν 𝔽
   DElNuCoind : Deriv -> Deriv -> Deriv -> Deriv -> Deriv -> Deriv -> Deriv
 
@@ -973,8 +978,8 @@ conclude env sig ctx (DTyEl dA) = do
   pure (JTy a)
 conclude env sig ctx (DTyPrf dP) = do
   (p, ty) <- conclude env sig ctx dP >>= needEl
-  alphaTy "ty-prf" ty PropTy
-  pure (JTy (Prf p))
+  alphaTy "prop-lift" ty PropTy
+  pure (JTy p)
 conclude env sig ctx (DTyQuot dA dR) = do
   a <- conclude env sig ctx dA >>= needTy
   (r, rty) <- conclude env sig (ctx :< a :< wkTy a) dR >>= needEl
@@ -1087,7 +1092,7 @@ conclude env sig ctx (DElPiE dF dE dB) = do
     _ => kerr "derivation: el-pi-e: function premise not at a Π type"
 conclude env sig ctx (DElLet dA dB) = do
   (a, aty) <- conclude env sig ctx dA >>= needEl
-  let hyp = Prf (Elem.EqTy (CtxVar 0) (wkEl a) (wkTy aty))
+  let hyp = Elem.EqTy (CtxVar 0) (wkEl a) (wkTy aty)
   (b, bty) <- conclude env sig (ctx :< aty :< hyp) dB >>= needEl
   pure (JEl (Let a b) (substTy bty (Ext (Ext Id a) Star)))
 conclude env sig ctx (DElSigmaI dA dB dV) = do
@@ -1127,19 +1132,19 @@ conclude env sig ctx (DElSumE dT dC dL dR) = do
     _ => kerr "derivation: el-sum-e: scrutinee not at a ⊎ type"
 conclude env sig ctx (DElSquashI dT) = do
   (_, a) <- conclude env sig ctx dT >>= needEl
-  pure (JEl Star (Prf (Squash a)))
+  pure (JEl Star (Squash a))
 conclude env sig ctx (DElEqI dEq) = do
   (a0, a1, a) <- conclude env sig ctx dEq >>= needElEq
-  pure (JEl Star (Prf (Elem.EqTy a0 a1 a)))
+  pure (JEl Star (Elem.EqTy a0 a1 a))
 conclude env sig ctx (DElSquashEPrf dQ dS dT) = do
   (q, qty) <- conclude env sig ctx dQ >>= needEl
   alphaTy "el-squash-e-prf (q)" qty PropTy
   (_, sty) <- conclude env sig ctx dS >>= needEl
   case sty of
-    Prf (Squash a) => do
+    Squash a => do
       (_, tty) <- conclude env sig (ctx :< a) dT >>= needEl
-      alphaTy "el-squash-e-prf (t)" tty (wkTy (Prf q))
-      pure (JEl Star (Prf q))
+      alphaTy "el-squash-e-prf (t)" tty (wkTy q)
+      pure (JEl Star q)
     _ => kerr "derivation: el-squash-e-prf: premise not at a squash"
 conclude env sig ctx (DElTyCoe dEq dA) = do
   (a0, a1) <- conclude env sig ctx dEq >>= needTyEq
@@ -1179,14 +1184,14 @@ conclude env sig ctx (DElEqTyCoe dTyEq dEq) = do
 conclude env sig ctx (DElReflect dS) = do
   (_, sty) <- conclude env sig ctx dS >>= needEl
   case sty of
-    Prf (Elem.EqTy a0 a1 a) => pure (JElEq a0 a1 a)
+    Elem.EqTy a0 a1 a => pure (JElEq a0 a1 a)
     _ => kerr "derivation: el-reflect: premise not at a literal equality prop"
 conclude env sig ctx (DElSigEq pos dSub) = do
   (es, delta) <- conclude env sig ctx dSub >>= needSubN
   case getAt pos (toList sig) of
-    -- a constraint is a HOLE at the equation's Prf: read the
+    -- a constraint is a HOLE at the equation's prop: read the
     -- equation off the entry's type (el-sig-decl + el-reflect)
-    Just (SigDecl gamma _ (Prf (Elem.EqTy a0 a1 a))) => do
+    Just (SigDecl gamma _ (Elem.EqTy a0 a1 a)) => do
       if delta == gamma then pure ()
         else kerr "derivation: sig-eq hole: entry context mismatch"
       pure (JElEq (substElem a0 (embed es)) (substElem a1 (embed es))
@@ -1195,7 +1200,7 @@ conclude env sig ctx (DElSigEq pos dSub) = do
 conclude env sig ctx (DTySigEq pos dSub) = do
   (es, delta) <- conclude env sig ctx dSub >>= needSubN
   case getAt pos (toList sig) of
-    Just (SigDecl gamma _ (Prf (Elem.EqTy a0 a1 TopTy))) => do
+    Just (SigDecl gamma _ (Elem.EqTy a0 a1 TopTy)) => do
       if delta == gamma then pure ()
         else kerr "derivation: sig-eq hole (type equation): entry context mismatch"
       pure (JTyEq (substTy a0 (embed es)) (substTy a1 (embed es)))
@@ -1214,23 +1219,24 @@ conclude env sig ctx (DElOneProp d0 d1) = do
   (t1, ty1) <- conclude env sig ctx d1 >>= needEl
   alphaTy "el-one-prop" ty1 OneTy
   pure (JElEq t0 t1 OneTy)
-conclude env sig ctx (DElPrfProp d0 d1) = do
+conclude env sig ctx (DElPrfProp dP d0 d1) = do
+  -- the p : Ω premise replaces the retired Prf head
+  (p, pty) <- conclude env sig ctx dP >>= needEl
+  alphaTy "el-prf-prop (p : Ω)" pty PropTy
   (t0, ty0) <- conclude env sig ctx d0 >>= needEl
-  case ty0 of
-    Prf p => do
-      (t1, ty1) <- conclude env sig ctx d1 >>= needEl
-      alphaTy "el-prf-prop" ty1 (Prf p)
-      pure (JElEq t0 t1 (Prf p))
-    _ => kerr "derivation: el-prf-prop: premise not at a Prf type"
+  alphaTy "el-prf-prop" ty0 p
+  (t1, ty1) <- conclude env sig ctx d1 >>= needEl
+  alphaTy "el-prf-prop" ty1 p
+  pure (JElEq t0 t1 p)
 conclude env sig ctx (DCodePropEq dP dQ dS dT) = do
   (p, pty) <- conclude env sig ctx dP >>= needEl
   alphaTy "code-prop-eq" pty PropTy
   (q, qty) <- conclude env sig ctx dQ >>= needEl
   alphaTy "code-prop-eq" qty PropTy
-  (_, sty) <- conclude env sig (ctx :< Prf p) dS >>= needEl
-  alphaTy "code-prop-eq (→)" sty (wkTy (Prf q))
-  (_, tty) <- conclude env sig (ctx :< Prf q) dT >>= needEl
-  alphaTy "code-prop-eq (←)" tty (wkTy (Prf p))
+  (_, sty) <- conclude env sig (ctx :< p) dS >>= needEl
+  alphaTy "code-prop-eq (→)" sty (wkTy q)
+  (_, tty) <- conclude env sig (ctx :< q) dT >>= needEl
+  alphaTy "code-prop-eq (←)" tty (wkTy p)
   pure (JElEq p q PropTy)
 conclude env sig ctx (DElPiEta dF0 dF1 dEq) = do
   (f0, f0ty) <- conclude env sig ctx dF0 >>= needEl
@@ -1322,8 +1328,8 @@ conclude env sig ctx (DTyElCong d) = do
   pure (JTyEq a b)
 conclude env sig ctx (DTyPrfCong d) = do
   (p, q, ty) <- conclude env sig ctx d >>= needElEq
-  alphaTy "ty-prf-cong" ty PropTy
-  pure (JTyEq (Prf p) (Prf q))
+  alphaTy "prop-lift-eq" ty PropTy
+  pure (JTyEq p q)
 
 
 -- eliminator and remaining congruences
@@ -1366,7 +1372,7 @@ conclude env sig ctx (DElQuotECong dQ dB dF0 dF1 dW0 dW1 dFeq) = do
       (f1, f1ty) <- conclude env sig (ctx :< a) dF1 >>= needEl
       alphaTy "el-quot-e-cong (f₁)" f1ty cse
       let wk3 = Chain Wk (Chain Wk Wk)
-      let wdCtx = ctx :< a :< wkTy a :< Prf r
+      let wdCtx = ctx :< a :< wkTy a :< r
       let wdTy = substTy b (Ext wk3 (Class (CtxVar 2)))
       (w0l, w0r, w0ty) <- conclude env sig wdCtx dW0 >>= needElEq
       alphaEl "el-quot-e-cong (wd₀ l)" w0l (substElem f0 (Ext wk3 (CtxVar 2)))
@@ -1384,7 +1390,7 @@ conclude env sig ctx (DElQuotECong dQ dB dF0 dF1 dW0 dW1 dFeq) = do
     _ => kerr "derivation: el-quot-e-cong: scrutinees not at a quotient type"
 conclude env sig ctx (DElLetCong dA dB) = do
   (a0, a1, aty) <- conclude env sig ctx dA >>= needElEq
-  let hyp = Prf (Elem.EqTy (CtxVar 0) (wkEl a1) (wkTy aty))
+  let hyp = Elem.EqTy (CtxVar 0) (wkEl a1) (wkTy aty)
   (b0, b1, bty) <- conclude env sig (ctx :< aty :< hyp) dB >>= needElEq
   pure (JElEq (Let a0 b0) (Let a1 b1) (substTy bty (Ext (Ext Id a1) Star)))
 conclude env sig ctx (DElClassCong dA dR) = do
@@ -1698,23 +1704,24 @@ conclude env sig ctx (DInvSigmaCod d) =
 conclude env sig ctx (DInvPrfEqL d) = do
   t <- conclude env sig ctx d >>= needTy
   case t of
-    Prf (Elem.EqTy a _ ty) => pure (JEl a ty)
-    _ => kerr "derivation: inv-prf-eq-lhs: premise not a Prf-equality formation"
+    Elem.EqTy a _ ty => pure (JEl a ty)
+    _ => kerr "derivation: inv-prf-eq-lhs: premise not an equality-prop formation"
 conclude env sig ctx (DInvPrfEqR d) = do
   t <- conclude env sig ctx d >>= needTy
   case t of
-    Prf (Elem.EqTy _ b ty) => pure (JEl b ty)
-    _ => kerr "derivation: inv-prf-eq-rhs: premise not a Prf-equality formation"
+    Elem.EqTy _ b ty => pure (JEl b ty)
+    _ => kerr "derivation: inv-prf-eq-rhs: premise not an equality-prop formation"
 conclude env sig ctx (DInvPrfEqTy d) = do
   t <- conclude env sig ctx d >>= needTy
   case t of
-    Prf (Elem.EqTy _ _ ty) => pure (JTy ty)
-    _ => kerr "derivation: inv-prf-eq-ty: premise not a Prf-equality formation"
+    Elem.EqTy _ _ ty => pure (JTy ty)
+    _ => kerr "derivation: inv-prf-eq-ty: premise not an equality-prop formation"
 conclude env sig ctx (DInvPrfCode d) = do
   t <- conclude env sig ctx d >>= needTy
   case t of
-    Prf p => pure (JEl p PropTy)
-    _ => kerr "derivation: inv-prf-code: premise not a Prf formation"
+    p@(Elem.EqTy _ _ _) => pure (JEl p PropTy)
+    p@(Squash _) => pure (JEl p PropTy)
+    _ => kerr "derivation: inv-prf-code: premise not an Ω-former formation"
 conclude env sig ctx (DInvCodeEqL d) = do
   (c, cty) <- conclude env sig ctx d >>= needEl
   alphaTy "inv-code-eq-lhs" cty PropTy
@@ -1805,7 +1812,7 @@ conclude env sig ctx (DElQuotEq dA dB dR dW) = do
   alphaTy "el-quot-eq" rty PropTy
   (_, wty) <- conclude env sig ctx dW >>= needEl
   alphaTy "el-quot-eq (witness)" wty
-    (Prf (substElem r (Ext (Ext Id a) b)))
+    (substElem r (Ext (Ext Id a) b))
   pure (JElEq (Class a) (Class b) (QuotTy aty r))
 conclude env sig ctx (DElQuotE dQ dB dF dResp) = do
   (q, qty) <- conclude env sig ctx dQ >>= needEl
@@ -1815,7 +1822,7 @@ conclude env sig ctx (DElQuotE dQ dB dF dResp) = do
       (f, fty) <- conclude env sig (ctx :< a) dF >>= needEl
       alphaTy "el-quot-e (case)" fty (substTy b (Ext Wk (Class (CtxVar 0))))
       let wk3 = Chain Wk (Chain Wk Wk)
-      (l, r', ety) <- conclude env sig (ctx :< a :< wkTy a :< Prf r) dResp >>= needElEq
+      (l, r', ety) <- conclude env sig (ctx :< a :< wkTy a :< r) dResp >>= needElEq
       alphaEl "el-quot-e (wd l)" l (substElem f (Ext wk3 (CtxVar 2)))
       alphaEl "el-quot-e (wd r)" r' (substElem f (Ext wk3 (CtxVar 1)))
       alphaTy "el-quot-e (wd ty)" ety (substTy b (Ext wk3 (Class (CtxVar 2))))
@@ -1831,7 +1838,7 @@ conclude env sig ctx (DElQuotEta dQ dB dG dF dResp dAg) = do
       (f, fty) <- conclude env sig (ctx :< a) dF >>= needEl
       alphaTy "el-quot-eta (f)" fty (substTy b (Ext Wk (Class (CtxVar 0))))
       let wk3 = Chain Wk (Chain Wk Wk)
-      (l, r', ety) <- conclude env sig (ctx :< a :< wkTy a :< Prf r) dResp >>= needElEq
+      (l, r', ety) <- conclude env sig (ctx :< a :< wkTy a :< r) dResp >>= needElEq
       alphaEl "el-quot-eta (wd l)" l (substElem f (Ext wk3 (CtxVar 2)))
       alphaEl "el-quot-eta (wd r)" r' (substElem f (Ext wk3 (CtxVar 1)))
       alphaTy "el-quot-eta (wd ty)" ety (substTy b (Ext wk3 (Class (CtxVar 2))))
@@ -1987,12 +1994,12 @@ conclude env sig ctx (DElNuCoind dF dT0 dT1 dR dP dQ) = do
   alphaTy "el-nu-coind (R)" rty PropTy
   (_, pty) <- conclude env sig ctx dP >>= needEl
   alphaTy "el-nu-coind (endpoint)" pty
-    (Prf (substElem r (Ext (Ext Id t0) t1)))
+    (substElem r (Ext (Ext Id t0) t1))
   let wk3 = Chain Wk (Chain Wk Wk)
-  (_, qty) <- conclude env sig (ctx :< nuT :< substTy nuT Wk :< Prf r) dQ >>= needEl
+  (_, qty) <- conclude env sig (ctx :< nuT :< substTy nuT Wk :< r) dQ >>= needEl
   alphaTy "el-nu-coind (closure)" qty
-    (Prf (liftPoly (substPoly f wk3) (substElem r (under (under wk3)))
-            (Out (CtxVar 2)) (Out (CtxVar 1))))
+    (liftPoly (substPoly f wk3) (substElem r (under (under wk3)))
+            (Out (CtxVar 2)) (Out (CtxVar 1)))
   pure (JElEq t0 t1 nuT)
 
 -- the ToS layer

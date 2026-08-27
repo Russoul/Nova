@@ -3,8 +3,9 @@ module Nova.Elaboration.Beta
 -- The ELABORATOR's COMPUTATIONAL normaliser (comp*): every "by
 -- definition" (≜) rule of docs/NovaFoundation.txt EXCEPT signature
 -- unfolding (x-β / ty-x-β) — Π-β, Σ-β₁, Σ-β₂, ℕ-elim-β, quot-elim-β,
--- el-qiit-beta, el-nu-beta, let, code-squash-prf, and the El-decoding
--- rules. Definition references are STUCK: δ happens only under the
+-- el-qiit-beta, el-nu-beta, let, and code-squash-idem's
+-- syntax-directed instances. Definition references are STUCK: δ
+-- happens only under the
 -- named licenses (see Nova.Elaboration's unfElem/exposeE), never
 -- ambiently — the strict-conversion architecture. UNTRUSTED: the
 -- kernel has its own normalisers and never consults these.
@@ -126,7 +127,6 @@ mutual
   compElem UniverseTy         = UniverseTy
   compElem PropTy             = PropTy
   compElem TopTy              = TopTy
-  compElem (Prf e)            = Prf (compElem e)
   compElem (Elem.PiTy a b)    = Elem.PiTy (compElem a) (compElem b)
   compElem (Elem.SigmaTy a b) = Elem.SigmaTy (compElem a) (compElem b)
   compElem (Elem.SumTy a b)   = Elem.SumTy (compElem a) (compElem b)
@@ -141,7 +141,8 @@ mutual
       q'      => QuotElim (compElem f) q'
   compElem (Squash t)         =
     case compTy t of
-      Prf p => p
+      p@(Elem.EqTy _ _ _) => p  -- code-squash-idem instances
+      p@(Squash _)        => p
       t'    => Squash t'
   compElem Star               = Star
   compElem (QSort sg k es)   = QSort (compQSig sg) k (compSubNorm es)

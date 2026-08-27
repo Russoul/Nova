@@ -245,7 +245,7 @@ def limClose : (x : ℕ → RSeq)
 def realLimClose : (x : ℕ → RSeq)
   (h : RegSeqR x)
   (n : ℕ)
-  → Prf (realDist (class (x n)) (realLim _ h) ≤ realOfQ (qInvNat n))
+  → (realDist (class (x n)) (realLim _ h) ≤ realOfQ (qInvNat n))
   using (real.Real.unfold,
     real.RSeq.unfold,
     real.Regular.unfold,
@@ -277,7 +277,7 @@ def realLimClose : (x : ℕ → RSeq)
 def regSeqRSound : (x : ℕ → RSeq)
   (h : RegSeqR x)
   (m n : ℕ)
-  → Prf (realDist (class (x m)) (class (x n)) ≤ realOfQ (rBound m n))
+  → (realDist (class (x m)) (class (x n)) ≤ realOfQ (rBound m n))
   using (real.Real.unfold,
     real.RSeq.unfold,
     real.Regular.unfold,

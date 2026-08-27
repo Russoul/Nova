@@ -107,9 +107,7 @@ def rAdd : RSeq → RSeq → RSeq using (real.RSeq.unfold) ≔
 -- construction appears.
 def reqOfRAdd : (p q r : RSeq)
   → ((n : ℕ)
-    → Bnd
-      (rBound n n)
-      (seqOf p (dbl n) + seqOf q (dbl n) + qNeg (seqOf r n))) → Prf (REq (rAdd p q) r)
+    → Bnd (rBound n n) (seqOf p (dbl n) + seqOf q (dbl n) + qNeg (seqOf r n))) → REq (rAdd p q) r
   using (real.RSeq.unfold,
     real.Regular.unfold,
     real.REq.unfold,
@@ -118,7 +116,7 @@ def reqOfRAdd : (p q r : RSeq)
     realNeg.seqOf.eq) ≔
   λp. λq. λr. λf. reqOf _ _ f
 
-def rAddWDInner : (x : RSeq) {y y' : RSeq} → Prf (REq y y') → Prf (REq (rAdd x y) (rAdd x y'))
+def rAddWDInner : (x : RSeq) {y y' : RSeq} → REq y y' → REq (rAdd x y) (rAdd x y')
   using (id.Id.eq,
     ratBound.Bnd.unfold,
     ratHalf.dbl.eq,
@@ -148,9 +146,7 @@ def rAddWDInner : (x : RSeq) {y y' : RSeq} → Prf (REq y y') → Prf (REq (rAdd
       (sym _ _ (qSubPlusCancelL (seqOf y' (dbl n)) (seqOf y (dbl n)) (seqOf x (dbl n))))
       (bndWeaken _ _ (seqOf y (dbl n) + qNeg (seqOf y' (dbl n))) (leQBoundDblDiag n) (u (dbl n)))))
 
-def rAddWDInnerCls : (x y y' : RSeq)
-  (h : Prf (REq y y'))
-  → class (rAdd x y) ≡ class (rAdd x y') ∈ Real
+def rAddWDInnerCls : (x y y' : RSeq) (h : REq y y') → class (rAdd x y) ≡ class (rAdd x y') ∈ Real
   using (real.Real.unfold) ≔
   λx. λy. λy'. λh. realEqOfREq _ _ (rAddWDInner x h)
 
@@ -170,15 +166,13 @@ def rAddComm : {x y : RSeq} → rAdd x y ≡ rAdd y x
 
 -- ...so the OUTER case needs no new arithmetic: commuting turns it
 -- into the inner one with the arguments swapped
-def rAddWDOuterCls : {x x' c : RSeq}
-  (h : Prf (REq x x'))
-  → class (rAdd x c) ≡ class (rAdd x' c) ∈ Real
+def rAddWDOuterCls : {x x' c : RSeq} (h : REq x x') → class (rAdd x c) ≡ class (rAdd x' c) ∈ Real
   using (real.Real.unfold) ≔
   wdOuterOfComm rAdd (rAddComm {}) rAddWDInnerCls
 
 -- ...in the quot-elim shape the elaborator asks for
 def rAddWDOuter : (x x' : RSeq)
-  (h : Prf (REq x x'))
+  (h : REq x x')
   (v : Real)
   → quot-elim (w. Real) (q. class (rAdd x q)) v ≡ quot-elim (q. class (rAdd x' q)) v
   using (rAddWDInnerCls, real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold) ≔

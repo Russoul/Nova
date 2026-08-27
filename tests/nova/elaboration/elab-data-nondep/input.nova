@@ -5,7 +5,7 @@
 data [a : 𝕌] [r : a → a → Ω]
      ( Q : U
      ; cls : a → El Q
-     ; qeq : (x : a) (y : a) → Prf (r x y) → cls x ≡ cls y ∈ El Q )
+     ; qeq : (x : a) (y : a) → (r x y) → cls x ≡ cls y ∈ El Q )
 
 data ( V : ℕ → U
      ; vnil : El (V Z)

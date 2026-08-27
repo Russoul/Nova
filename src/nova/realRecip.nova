@@ -5,7 +5,7 @@
 -- This is where the MODULUS is unavoidable. √ could make do with a
 -- nonnegative presentation, because its estimate only needed the
 -- samples to be ≥ 0. 1/x needs them bounded AWAY from zero — a rate —
--- and a rate is exactly what PosR carries and what Prf (LtR 0 x)
+-- and a rate is exactly what PosR carries and what (LtR 0 x)
 -- cannot give up.
 --
 -- With modulus k, sample at
@@ -200,7 +200,7 @@ def halfSubEq : (A : Q) → A + A + qNeg A ≡ A ≔
 
 def posSampleLo : {p : RSeq}
   {k : ℕ}
-  → Prf (realOfQ (qInvNat k) ≤ class p) → (n : ℕ) → (recipLo k ≤ seqOf p (recipIdx k n))
+  → (realOfQ (qInvNat k) ≤ class p) → (n : ℕ) → (recipLo k ≤ seqOf p (recipIdx k n))
   using (real.Real.unfold,
     real.RSeq.unfold,
     real.Regular.unfold,
@@ -237,7 +237,7 @@ def posSampleLo : {p : RSeq}
 
 def posSampleSgn : (p : RSeq)
   (k : ℕ)
-  (h : Prf (realOfQ (qInvNat k) ≤ class p))
+  (h : (realOfQ (qInvNat k) ≤ class p))
   (n : ℕ)
   → sgnQ (seqOf p (recipIdx k n)) ≡ sPos
   using (real.Real.unfold, real.RSeq.unfold, real.Regular.unfold) ≔
@@ -295,7 +295,7 @@ def recipSeq : RSeq → ℕ → ℕ → Q ≔ λp. λk. λn. qInv (seqOf p (reci
 
 def recipRegAt : (p : RSeq)
   (k : ℕ)
-  (h : Prf (realOfQ (qInvNat k) ≤ class p))
+  (h : (realOfQ (qInvNat k) ≤ class p))
   (m n : ℕ)
   → Bnd (rBound m n) (recipSeq p k m + qNeg (recipSeq p k n))
   using (real.Real.unfold, real.RSeq.unfold, real.Regular.unfold, recipSeq.eq) ≔
@@ -318,7 +318,7 @@ def recipRegAt : (p : RSeq)
       (leQZeroBound (recipIdx k m) (recipIdx k n))
       (bndSubSym _ _ _ (regBnd _ (regOf p) (recipIdx k m) (recipIdx k n))))
 
-def rRecip : (p : RSeq) (k : ℕ) → Prf (realOfQ (qInvNat k) ≤ class p) → RSeq
+def rRecip : (p : RSeq) (k : ℕ) → (realOfQ (qInvNat k) ≤ class p) → RSeq
   using (real.Real.unfold, real.RSeq.unfold, real.Regular.unfold) ≔
   λp. λk. λh. recipSeq p k, bndReg (recipRegAt _ _ h)
 
@@ -426,9 +426,9 @@ def deepR : (k n : ℕ) → (qInvNat (recipIdx k n) ≤ qInvNat n) using (recipI
 
 def recipWDGen : {p p' : RSeq}
   (k k' : ℕ)
-  (h : Prf (realOfQ (qInvNat k) ≤ class p))
-  (h' : Prf (realOfQ (qInvNat k') ≤ class p'))
-  → Prf (REq p p') → Prf (REq (rRecip _ _ h) (rRecip _ _ h'))
+  (h : (realOfQ (qInvNat k) ≤ class p))
+  (h' : (realOfQ (qInvNat k') ≤ class p'))
+  → REq p p' → REq (rRecip _ _ h) (rRecip _ _ h')
   using (rRecip.eq,
     ratBound.Bnd.unfold,
     real.REq.unfold,

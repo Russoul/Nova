@@ -2,14 +2,14 @@
 -- addition of pairs is well-defined in its second argument: the
 -- cross-sum equation, conditional on the relation hypothesis
 -- the relation is Ω-valued now, so the conditional hypothesis is the
--- squash Prf ∥…∥; reflection unsquashes it where the proof is used
+-- squash ∥…∥; reflection unsquashes it where the proof is used
 
 import nat (+, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusComm, plusAssoc, swapLeft)
 import integer (Int)
 import equality (cong)
 
 def intAddWD : (a1 a2 b1 b2 c1 c2 : ℕ)
-  (h : Prf (b1 + c2 ≡ b2 + c1))
+  (h : b1 + c2 ≡ b2 + c1)
   → a1 + b1 + (a2 + c2) ≡ a2 + b2 + (a1 + c1)
   using (hyp.rw,
     plusAssoc,
@@ -26,7 +26,7 @@ def intAddWD : (a1 a2 b1 b2 c1 c2 : ℕ)
 
 -- cross-sum well-definedness in the OUTER argument, conditional on h
 def intAddCross : (a1 a2 b1 b2 c1 c2 : ℕ)
-  (h : Prf (a1 + b2 ≡ a2 + b1))
+  (h : a1 + b2 ≡ a2 + b1)
   → a1 + c1 + (b2 + c2) ≡ a2 + c2 + (b1 + c1)
   using (hyp.rw,
     plusAssoc,
@@ -52,7 +52,7 @@ def intAddCross : (a1 a2 b1 b2 c1 c2 : ℕ)
 -- the same, one level up: the inner elimination is well-defined in the
 -- OUTER argument — proven by quotient elimination with an ≡-motive
 def intAddWDOuter : (a b : ℕ ⨯ ℕ)
-  (h : Prf (a .π₁ + b .π₂ ≡ a .π₂ + b .π₁))
+  (h : a .π₁ + b .π₂ ≡ a .π₂ + b .π₁)
   (zy : Int)
   → quot-elim (z. Int)
     (x. class (a .π₁ + x .π₁, a .π₂ + x .π₂))

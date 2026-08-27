@@ -52,15 +52,15 @@ def nZfib : Int → Int → 𝕌 ≔ λn. λx. (k : Int) ⨯ Id _ (n * k) x
 
 def nZ : Int → Int → Ω ≔ λn. λx. ∥nZfib n x∥
 
-def nZIntro : (n x k : Int) → (n * k ≡ x) → Prf (nZ n x) using (nZ.eq, nZfib.unfold) ≔
+def nZIntro : (n x k : Int) → (n * k ≡ x) → nZ n x using (nZ.eq, nZfib.unfold) ≔
   λn. λx. λk. λe. ⋆ (k, eqToId _ _ e)
 
 -- 0 = n · 0
-def nZUnit : (n : Int) → Prf (nZ n (ge intAddGroup)) ≔
+def nZUnit : (n : Int) → nZ n (ge intAddGroup) ≔
   λn. nZIntro _ _ _ (trans (n * intZero) _ _ intMulZeroR (sym _ _ intGe))
 
 -- n·k₁ + n·k₂ = n·(k₁+k₂)
-def nZOp : (n x y : Int) → Prf (nZ n x) → Prf (nZ n y) → Prf (nZ n (gop intAddGroup x y))
+def nZOp : (n x y : Int) → nZ n x → nZ n y → nZ n (gop intAddGroup x y)
   using (nZ.eq, nZfib.unfold) ≔
   λn. λx. λy. λhx. λhy. squash-elim hx (u. squash-elim hy (v. nZIntro
     _
@@ -73,8 +73,7 @@ def nZOp : (n x y : Int) → Prf (nZ n x) → Prf (nZ n y) → Prf (nZ n (gop in
         ≡⟨ sym _ _ (intGop x y) ⟩ gop intAddGroup x y)))
 
 -- n·(−k) = −(n·k)
-def nZInv : (n x : Int) → Prf (nZ n x) → Prf (nZ n (ginv intAddGroup x))
-  using (nZ.eq, nZfib.unfold) ≔
+def nZInv : (n x : Int) → nZ n x → nZ n (ginv intAddGroup x) using (nZ.eq, nZfib.unfold) ≔
   λn. λx. λhx. squash-elim hx (u. nZIntro
     _
     _
@@ -84,11 +83,11 @@ def nZInv : (n x : Int) → Prf (nZ n x) → Prf (nZ n (ginv intAddGroup x))
         ≡⟨ cong (λw. Int) (λw. intNeg w) (idToEq _ _ _ (u .π₂)) ⟩ intNeg x
         ≡⟨ sym _ _ (intGinv x) ⟩ ginv intAddGroup x))
 
-def nZIsSubgroup : (n : Int) → Prf (IsSubgroup intAddGroup (nZ n)) ≔
+def nZIsSubgroup : (n : Int) → IsSubgroup intAddGroup (nZ n) ≔
   λn. sgIntro (nZUnit n) (nZOp n) (nZInv n)
 
 -- ...and normal for free, ℤ being abelian
-def nZIsNormal : {n : Int} → Prf (IsNormal intAddGroup (nZ n)) ≔ λn. abelianNormal intGopComm
+def nZIsNormal : {n : Int} → IsNormal intAddGroup (nZ n) ≔ λn. abelianNormal intGopComm
 
 -- ===== ℤ/nℤ =====
 def IntMod : Int → 𝕌 ≔ λn. QGroup _ intAddGroup (nZ n)
@@ -147,8 +146,7 @@ def nZScaleAlg : (n a k : Int) → a * (n * k) ≡ n * (a * k) ≔
       ≡⟨ cong (λw. Int) (λw. w * k) (intMulComm a n) ⟩ n * a * k
       ≡⟨ intMulAssoc n a k ⟩ n * (a * k)
 
-def nZScale : (n a x : Int) → Prf (nZ n x) → Prf (nZ n (rmul _ intCommRing a x))
-  using (nZ.eq, nZfib.unfold) ≔
+def nZScale : (n a x : Int) → nZ n x → nZ n (rmul _ intCommRing a x) using (nZ.eq, nZfib.unfold) ≔
   λn. λa. λx. λhx. squash-elim hx (u. nZIntro
     _
     _
@@ -158,7 +156,7 @@ def nZScale : (n a x : Int) → Prf (nZ n x) → Prf (nZ n (rmul _ intCommRing a
         ≡⟨ cong (λw. Int) (λw. a * w) (idToEq _ _ _ (u .π₂)) ⟩ a * x
         ≡⟨ sym _ _ (intRmul a x) ⟩ rmul _ intCommRing a x))
 
-def nZIsIdeal : (n : Int) → Prf (IsIdeal _ intCommRing (nZ n)) using (intRaddGroup.rw) ≔
+def nZIsIdeal : (n : Int) → IsIdeal _ intCommRing (nZ n) using (intRaddGroup.rw) ≔
   λn. idIntro (nZIsSubgroup n) (nZScale n)
 
 -- ℤ/nℤ, as a commutative ring

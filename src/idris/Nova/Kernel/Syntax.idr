@@ -45,7 +45,7 @@ mutual
       PiApp : Elem -> Elem -> Elem
       ||| let a b  (let-expression: definiens, then body. The body
       ||| binds the definiens' VALUE and its UNFOLDING EQUATION —
-      ||| Γ ▷ A ▷ Prf (☐₀ ≡ a[↑] ∈ A[↑]), el-let — so the definiendum
+      ||| Γ ▷ A ▷ (☐₀ ≡ a[↑] ∈ A[↑]), el-let — so the definiendum
       ||| unfolds judgementally inside it. Always a redex: el-let-beta
       ||| contracts to b[id, a, ⋆], so normal forms contain no let.)
       Let : Elem -> Elem -> Elem
@@ -80,11 +80,6 @@ mutual
       ||| stands only in the type slot of judgements and in the ∈-slot
       ||| of ≡; 𝕍[σ] ≜ 𝕍 is a meta-clause)
       TopTy : Elem
-      ||| Prf t  (decoding of a proposition — a REAL former, unlike
-      ||| 𝕌's retired El: props do not become types by mere
-      ||| cumulativity; Prf is not structural, not injective, and has
-      ||| no computation)
-      Prf : Elem -> Elem
       ||| t → t  (dependent product, Π — code and type)
       PiTy : Elem -> Elem -> Elem
       ||| t ⨯ t  (dependent sum, Σ — code and type)
@@ -226,8 +221,8 @@ SigIdentifier = String
 
 ||| TWO entry kinds (Foundation: type definitions and type
 ||| declarations are the A = TopTy instances; an equation CONSTRAINT
-||| is a hole at the equation's Prf — a declaration at
-||| Prf (a₀ ≡ a₁ ∈ A) — used through el-sig-decl + el-reflect and
+||| is a hole at the equation's prop — a declaration at
+||| (a₀ ≡ a₁ ∈ A) — used through el-sig-decl + el-reflect and
 ||| closed by INSTANTIATION with ⋆).
 public export
 data SigEntry : Type where
@@ -235,7 +230,7 @@ data SigEntry : Type where
   SigDef : Ctx -> SigIdentifier -> Elem -> Ty -> SigEntry
   ||| Γ ⊦ x : A  (declaration — a hole; references are stuck,
   ||| el-sig-decl; a TYPE declaration when A = TopTy; an equation
-  ||| OBLIGATION when A is the equation's Prf)
+  ||| OBLIGATION when A is the equation's prop)
   SigDecl : Ctx -> SigIdentifier -> Ty -> SigEntry
 
 ||| The name a signature entry binds.
@@ -352,8 +347,8 @@ qEntry : QSig -> Nat -> Maybe QTy
 qEntry sg k = getAt k sg
 
 ||| SMALLNESS (code-qiit's side condition) is JUDGEMENTAL now that El
-||| is retired: every external Π domain must be typed at 𝕌 or be
-||| Prf-headed. The kernel checks it (kQSigSmall); this module keeps
+||| and Prf are retired: every external Π domain must be typed at 𝕌
+||| or at Ω. The kernel checks it (kQSigSmall); this module keeps
 ||| only the external-domain enumeration the checkers walk.
 public export
 qSigExtDomains : QSig -> List (Nat, Ty)
@@ -416,7 +411,6 @@ mutual
     UniverseTy       == UniverseTy         = True
     PropTy           == PropTy             = True
     TopTy            == TopTy              = True
-    Prf e            == Prf e'             = e == e'
     Elem.PiTy a b    == Elem.PiTy a' b'    = a == a' && b == b'
     Elem.SigmaTy a b == Elem.SigmaTy a' b' = a == a' && b == b'
     Elem.SumTy a b   == Elem.SumTy a' b'   = a == a' && b == b'
@@ -549,9 +543,6 @@ mutual
     compare TopTy              TopTy                = EQ
     compare TopTy              _                    = LT
     compare _                  TopTy                = GT
-    compare (Prf e)            (Prf e')             = compare e e'
-    compare (Prf _)            _                    = LT
-    compare _                  (Prf _)              = GT
     compare (Elem.PiTy a b)    (Elem.PiTy a' b')    = compare a a' <+> compare b b'
     compare (Elem.PiTy _ _)    _                    = LT
     compare _                  (Elem.PiTy _ _)      = GT
@@ -683,7 +674,6 @@ mutual
     show UniverseTy = "UniverseTy"
     show PropTy = "PropTy"
     show TopTy = "TopTy"
-    show (Prf e) = "Prf (\{show e})"
     show (Elem.PiTy e1 e2) = "PiTy (\{show e1}) (\{show e2})"
     show (Elem.SigmaTy e1 e2) = "SigmaTy (\{show e1}) (\{show e2})"
     show (Elem.SumTy e1 e2) = "SumTy (\{show e1}) (\{show e2})"

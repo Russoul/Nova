@@ -57,7 +57,8 @@ mutual
     STyEl : SElem -> STy
     ||| Ω
     STyProp : STy
-    ||| Prf t
+    ||| LEGACY `Prf t` (Prf retired — elaborates to the bare prop;
+    ||| never printed in canonical form)
     STyPrf : SElem -> STy
     ||| ν F — the coinductive type at a surface polynomial
     STyNu : SPoly -> STy
@@ -144,9 +145,9 @@ mutual
     ||| expected ν-type)
     SCorec : (x : SName) -> SElem -> SElem -> SElem -> SElem
     ||| coind (x y. R) p (x y h. q) — COINDUCTION (el-nu-coind),
-    ||| checked at Prf (l ≡ r ∈ El (ν F)): invariant R (Ω-valued,
+    ||| checked at (l ≡ r ∈ ν F): invariant R (Ω-valued,
     ||| over the two sides), p a proof of R l r, q the one-step
-    ||| closure — under generic x y and h : Prf (R x y), a proof
+    ||| closure — under generic x y and h : R x y, a proof
     ||| that the observations are lift_𝔽(R)-related
     SCoind : (nx, ny : SName) -> SElem -> SElem ->
              (mx, my, mh : SName) -> SElem -> SElem
@@ -174,7 +175,7 @@ mutual
     SSquashElim : SElem -> (name : SName) -> SElem -> SElem
     ||| x ≡⟨ e ⟩ y ≡⟨ e' ⟩ z — a CALC CHAIN
     ||| (docs/SearchlessElaboration.md §5.2), checking-only at
-    ||| Prf (l ≡ r ∈ A): the head and each subsequent term are
+    ||| (l ≡ r ∈ A): the head and each subsequent term are
     ||| midpoints (each stated once), and each link's justification e
     ||| is an INFERABLE proof of some equation; the adjacency between
     ||| consecutive midpoints is discharged by computation plus that

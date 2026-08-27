@@ -36,7 +36,7 @@ def qFloorRep : Rat → ℕ ≔ λp. divN (intMag (num p)) (nzMag (den p))
 -- chain: every link here rewrites inside intMag's quot-elim, which a
 -- chain step may not do (B-1/B-13).
 def crossAbs : (p p' : Rat)
-  → Prf (RatR p p') → intMag (num p) * S (nzMag (den p')) ≡ intMag (num p') * S (nzMag (den p))
+  → RatR p p' → intMag (num p) * S (nzMag (den p')) ≡ intMag (num p') * S (nzMag (den p))
   using (integer.Int.eq,
     integer.Int.unfold,
     integerMul.*.eq,
@@ -79,7 +79,7 @@ def qFloorWD : {N : Int}
   {d : NZ}
   {N' : Int}
   {d' : NZ}
-  (h : Prf (N * nzToInt d' ≡ N' * nzToInt d))
+  (h : N * nzToInt d' ≡ N' * nzToInt d)
   → divN (intMag N) (nzMag d) ≡ divN (intMag N') (nzMag d')
   using (intAbs.intMag.eq,
     intAbs.nzMag.eq,
@@ -98,9 +98,7 @@ def qFloorWD : {N : Int}
 -- the same fact, restated over whole representatives: this is the
 -- vocabulary the quot-elim well-definedness goal is phrased in
 def qFloorRepWD : (p p' : Rat)
-  → Prf (RatR
-    p
-    p') → divN (intMag (p .π₁)) (nzMag (p .π₂)) ≡ divN (intMag (p' .π₁)) (nzMag (p' .π₂))
+  → RatR p p' → divN (intMag (p .π₁)) (nzMag (p .π₂)) ≡ divN (intMag (p' .π₁)) (nzMag (p' .π₂))
   using (integer.Int.unfold,
     rational.NZ.unfold,
     rational.Rat.unfold,
@@ -278,7 +276,7 @@ def intOfNatMagNonNeg : {z : Int} → NonNegS (intSgn z) → intOfNat (intMag z)
     rational.nzToInt.eq,
     rationalOrder.NonNegS.unfold) ≔
   λz. λnn. ⊎-elim
-    (e. (⊎-elim (w. Prf (nzToInt w ≡ z) → intOfNat (intMag z) ≡ z)
+    (e. (⊎-elim (w. (nzToInt w ≡ z) → intOfNat (intMag z) ≡ z)
       (n. λhe. trans
         _
         _
@@ -452,8 +450,7 @@ def leQBoundPos : {M : Int}
     rationalQ.qNeg.eq,
     rationalQ.qcls.eq) ≔
   λM. λb. ⊎-elim (w. (qcls (mkRat M (nzPos b)) ≤ qOfNat (S (divN (intMag M) b))))
-    (e. (⊎-elim (w. Prf (nzToInt
-      w ≡ M) → (qcls (mkRat M (nzPos b)) ≤ qOfNat (S (divN (intMag M) b))))
+    (e. (⊎-elim (w. (nzToInt w ≡ M) → (qcls (mkRat M (nzPos b)) ≤ qOfNat (S (divN (intMag M) b))))
       (n. λhe. transport
         (λv. qcls (mkRat v (nzPos b)) ≤ qOfNat (S (divN (intMag M) b)))
         (intOfNatMagNonNeg
@@ -533,7 +530,7 @@ def leQBoundAt : (N : Int) (d : NZ) → (qcls (mkRat N d) ≤ qOfNat (qNatBound 
 
 -- squashed first, so the descent is free; then unsquashed, because ≤
 -- is decidable
-def leQBoundSq : (u : Q) → Prf ∥(u ≤ qOfNat (qNatBound u))∥
+def leQBoundSq : (u : Q) → ∥(u ≤ qOfNat (qNatBound u))∥
   using (id.Id.eq,
     integer.Int.unfold,
     ratCeil.qNatBound.eq,

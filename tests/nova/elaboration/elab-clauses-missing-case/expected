@@ -2,7 +2,7 @@ declared pred and its equations (pred, predS, predEta) — clauses outside the s
 open declarations (3):
   [pred] ⊢ ? : ℕ → ℕ
       at: def pred
-  [predS] ⊢ ? : (n:ℕ) → Prf (pred (S n) ≡ n ∈ ℕ)
+  [predS] ⊢ ? : (n:ℕ) → (pred (S n) ≡ n ∈ ℕ)
       at: def predS
-  [predEta] ⊢ ? : (x:ℕ → ℕ) → ((n:ℕ) → Prf (x (S n) ≡ n ∈ ℕ)) → (n:ℕ) → Prf (x n ≡ pred n ∈ ℕ)
+  [predEta] ⊢ ? : (x:ℕ → ℕ) → ((n:ℕ) → (x (S n) ≡ n ∈ ℕ)) → (n:ℕ) → (x n ≡ pred n ∈ ℕ)
       at: def predEta

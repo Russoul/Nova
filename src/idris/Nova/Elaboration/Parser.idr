@@ -285,12 +285,17 @@ mutual
             pure (x, y, r))
     <|> (do r <- parseSElemPrefix tbl (env :< wildcard :< wildcard); pure ((wildcard, Nothing), (wildcard, Nothing), r))
 
-  -- T{2}: Prf / ν / atoms and CODE APPLICATION SPINES (El is retired:
+  -- T{2}: ν / atoms and CODE APPLICATION SPINES (El is retired:
   -- a code in type position is spelled directly — `Vect n`, a bound
   -- 𝕌-variable, a computed code in parens)
   parseSTyEl : FixTable -> NameEnv -> Rule STy
   parseSTyEl tbl env =
+        -- LEGACY `Prf p` (Prf retired: the prop is the type; the
+        -- canonical spelling is bare — this production only keeps old
+        -- files readable, and elabTy erases the node)
         (do kw "Prf"; space; e <- parseSElemAtom tbl env; pure (STyPrf e))
+        -- a SQUASH standing as a type (prop-lift)
+    <|> (do kw "∥"; sp; t <- parseSTy tbl env; sp; kw "∥"; pure (STyEl (SSquash t)))
     <|> (do kw "ν"; space; f <- parseSPolyAtom tbl env; pure (STyNu f))
     <|> (do t <- parseSTyAtom tbl env
             args <- many (do space; parseSElemAtom tbl env)
@@ -358,6 +363,10 @@ mutual
         -- so operator applications ((a ≤ b)) and other element forms
         -- land here (El retired: the code is the type)
     <|> (do kwc '('; sp; e <- parseSElemNoComma tbl env; sp; kwc ')'; pure (STyEl e))
+        -- a bare ELEMENT ATOM in type position — operator-shaped
+        -- names in particular (⊥, ⊤ — Prf retired: a nullary prop
+        -- stands as a type under its own name)
+    <|> (do e <- parseSElemAtom tbl env; pure (STyEl e))
 
   -- t{0}: top-level comma = pair (right-assoc)
   export

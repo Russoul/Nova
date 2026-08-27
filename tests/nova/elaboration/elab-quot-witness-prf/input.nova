@@ -2,5 +2,5 @@
 -- (e-star-quot-wit), so the relation need not be ∥𝟙∥- or ≡-shaped — here
 -- it is an opaque relation variable.
 def classEqOfRel : (A : 𝕌) (r : A → A → Ω) (x : A) (y : A) →
-  Prf (r x y) → class x ≡ class y ∈ (A / (u v. r u v)) ≔
+  (r x y) → class x ≡ class y ∈ (A / (u v. r u v)) ≔
   λA. λr. λx. λy. λh. ⋆ h

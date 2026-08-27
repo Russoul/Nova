@@ -38,7 +38,7 @@ def maxReg : {f g : ℕ → Q} → Regular f → Regular g → Regular (maxSeq f
 def rMax : RSeq → RSeq → RSeq using (real.RSeq.unfold) ≔
   λx. λy. maxSeq (seqOf x) (seqOf y), maxReg (regOf x) (regOf y)
 
-def rMaxWDInner : (x : RSeq) {y y' : RSeq} → Prf (REq y y') → Prf (REq (rMax x y) (rMax x y'))
+def rMaxWDInner : (x : RSeq) {y y' : RSeq} → REq y y' → REq (rMax x y) (rMax x y')
   using (id.Id.eq,
     ratBound.Bnd.unfold,
     ratMax.qMax.eq,
@@ -72,9 +72,7 @@ def rMaxWDInner : (x : RSeq) {y y' : RSeq} → Prf (REq y y') → Prf (REq (rMax
       (bndSubEq _ (seqOf x n) (seqOf x n) (leQZeroBound n n) ⋆)
       (u n)))
 
-def rMaxWDInnerCls : (x y y' : RSeq)
-  (h : Prf (REq y y'))
-  → class (rMax x y) ≡ class (rMax x y') ∈ Real
+def rMaxWDInnerCls : (x y y' : RSeq) (h : REq y y') → class (rMax x y) ≡ class (rMax x y') ∈ Real
   using (real.Real.unfold) ≔
   λx. λy. λy'. λh. realEqOfREq _ _ (rMaxWDInner x h)
 
@@ -93,14 +91,12 @@ def rMaxComm : (x y : RSeq) → rMax x y ≡ rMax y x
     realNeg.seqOf.eq) ≔
   λx. λy. rseqEq (λn. qMaxComm (seqOf x n) (seqOf y n))
 
-def rMaxWDOuterCls : {x x' c : RSeq}
-  (h : Prf (REq x x'))
-  → class (rMax x c) ≡ class (rMax x' c) ∈ Real
+def rMaxWDOuterCls : {x x' c : RSeq} (h : REq x x') → class (rMax x c) ≡ class (rMax x' c) ∈ Real
   using (real.Real.unfold) ≔
   wdOuterOfComm rMax rMaxComm rMaxWDInnerCls
 
 def rMaxWDOuter : (x x' : RSeq)
-  (h : Prf (REq x x'))
+  (h : REq x x')
   (v : Real)
   → quot-elim (w. Real) (q. class (rMax x q)) v ≡ quot-elim (q. class (rMax x' q)) v
   using (rMaxWDInnerCls, real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold) ≔
@@ -149,7 +145,7 @@ def minReg : {f g : ℕ → Q} → Regular f → Regular g → Regular (minSeq f
 def rMin : RSeq → RSeq → RSeq using (real.RSeq.unfold) ≔
   λx. λy. minSeq (seqOf x) (seqOf y), minReg (regOf x) (regOf y)
 
-def rMinWDInner : (x : RSeq) {y y' : RSeq} → Prf (REq y y') → Prf (REq (rMin x y) (rMin x y'))
+def rMinWDInner : (x : RSeq) {y y' : RSeq} → REq y y' → REq (rMin x y) (rMin x y')
   using (id.Id.eq,
     ratBound.Bnd.unfold,
     ratMax.qMax.eq,
@@ -185,9 +181,7 @@ def rMinWDInner : (x : RSeq) {y y' : RSeq} → Prf (REq y y') → Prf (REq (rMin
       (bndSubEq _ (seqOf x n) (seqOf x n) (leQZeroBound n n) ⋆)
       (u n)))
 
-def rMinWDInnerCls : (x y y' : RSeq)
-  (h : Prf (REq y y'))
-  → class (rMin x y) ≡ class (rMin x y') ∈ Real
+def rMinWDInnerCls : (x y y' : RSeq) (h : REq y y') → class (rMin x y) ≡ class (rMin x y') ∈ Real
   using (real.Real.unfold) ≔
   λx. λy. λy'. λh. realEqOfREq _ _ (rMinWDInner x h)
 
@@ -202,14 +196,12 @@ def rMinComm : (x y : RSeq) → rMin x y ≡ rMin y x
     realNeg.seqOf.eq) ≔
   λx. λy. rseqEq (λn. qMinComm (seqOf x n) (seqOf y n))
 
-def rMinWDOuterCls : {x x' c : RSeq}
-  (h : Prf (REq x x'))
-  → class (rMin x c) ≡ class (rMin x' c) ∈ Real
+def rMinWDOuterCls : {x x' c : RSeq} (h : REq x x') → class (rMin x c) ≡ class (rMin x' c) ∈ Real
   using (real.Real.unfold) ≔
   wdOuterOfComm rMin rMinComm rMinWDInnerCls
 
 def rMinWDOuter : (x x' : RSeq)
-  (h : Prf (REq x x'))
+  (h : REq x x')
   (v : Real)
   → quot-elim (w. Real) (q. class (rMin x q)) v ≡ quot-elim (q. class (rMin x' q)) v
   using (rMinWDInnerCls, real.REq.unfold, real.RSeq.unfold, real.Real.unfold, real.Regular.unfold) ≔
@@ -237,7 +229,7 @@ def realMinCls : (x y : RSeq) → realMin (class x) (class y) ≡ class (rMin x 
   λx. λy. ⋆
 
 -- ===== the lattice laws =====
-def rleMaxL : {x y : RSeq} → Prf (RLeP x (rMax x y))
+def rleMaxL : {x y : RSeq} → RLeP x (rMax x y)
   using (id.Id.eq,
     ratMax.qMax.eq,
     rational.ratAdd.eq,
@@ -270,7 +262,7 @@ def rleMaxL : {x y : RSeq} → Prf (RLeP x (rMax x y))
       (leQSubZero (leQMaxL (seqOf x n) (seqOf y n)))
       (leQZeroBound n n))
 
-def rleMaxR : {x y : RSeq} → Prf (RLeP y (rMax x y))
+def rleMaxR : {x y : RSeq} → RLeP y (rMax x y)
   using (id.Id.eq,
     ratMax.qMax.eq,
     rational.ratAdd.eq,
@@ -304,7 +296,7 @@ def rleMaxR : {x y : RSeq} → Prf (RLeP y (rMax x y))
       (leQZeroBound n n))
 
 -- least upper bound: the two shifted ≤'s combine by qMaxLub and shift back
-def rMaxLub : {x y z : RSeq} → Prf (RLeP x z) → Prf (RLeP y z) → Prf (RLeP (rMax x y) z)
+def rMaxLub : {x y z : RSeq} → RLeP x z → RLeP y z → RLeP (rMax x y) z
   using (id.Id.eq,
     ratMax.qMax.eq,
     rational.ratAdd.eq,
@@ -335,7 +327,7 @@ def rMaxLub : {x y z : RSeq} → Prf (RLeP x z) → Prf (RLeP y z) → Prf (RLeP
       _
       (qMaxLub (leQAddShift _ (u n)) (leQAddShift _ (v n))))))
 
-def rleMinL : {x y : RSeq} → Prf (RLeP (rMin x y) x)
+def rleMinL : {x y : RSeq} → RLeP (rMin x y) x
   using (id.Id.eq,
     ratMax.qMax.eq,
     ratMax.qMin.eq,
@@ -368,7 +360,7 @@ def rleMinL : {x y : RSeq} → Prf (RLeP (rMin x y) x)
       (leQSubZero (leQMinL (seqOf x n) (seqOf y n)))
       (leQZeroBound n n))
 
-def rleMinR : {x y : RSeq} → Prf (RLeP (rMin x y) y)
+def rleMinR : {x y : RSeq} → RLeP (rMin x y) y
   using (id.Id.eq,
     ratMax.qMax.eq,
     ratMax.qMin.eq,
@@ -401,7 +393,7 @@ def rleMinR : {x y : RSeq} → Prf (RLeP (rMin x y) y)
       (leQSubZero (leQMinR (seqOf x n) (seqOf y n)))
       (leQZeroBound n n))
 
-def rMinGlb : {x y z : RSeq} → Prf (RLeP z x) → Prf (RLeP z y) → Prf (RLeP z (rMin x y))
+def rMinGlb : {x y z : RSeq} → RLeP z x → RLeP z y → RLeP z (rMin x y)
   using (id.Id.eq,
     ratMax.qMax.eq,
     ratMax.qMin.eq,
@@ -433,7 +425,7 @@ def rMinGlb : {x y z : RSeq} → Prf (RLeP z x) → Prf (RLeP z y) → Prf (RLeP
       (qMinGlbShift _ _ _ _ (leQAddShift _ (u n)) (leQAddShift _ (v n))))))
 
 -- ===== lifted to ℝ =====
-def leRMaxL : (u v : Real) → Prf (u ≤ realMax u v)
+def leRMaxL : (u v : Real) → (u ≤ realMax u v)
   using (real.REq.unfold,
     real.RSeq.unfold,
     real.Real.unfold,
@@ -445,7 +437,7 @@ def leRMaxL : (u v : Real) → Prf (u ≤ realMax u v)
     realOrder.RLeP.eq) ≔
   λu. λv. quot-elim (x. quot-elim (y. rleMaxL) v) u
 
-def leRMaxR : (u v : Real) → Prf (v ≤ realMax u v)
+def leRMaxR : (u v : Real) → (v ≤ realMax u v)
   using (real.REq.unfold,
     real.RSeq.unfold,
     real.Real.unfold,
@@ -457,7 +449,7 @@ def leRMaxR : (u v : Real) → Prf (v ≤ realMax u v)
     realOrder.RLeP.eq) ≔
   λu. λv. quot-elim (x. quot-elim (y. rleMaxR) v) u
 
-def leRMinL : (u v : Real) → Prf (realMin u v ≤ u)
+def leRMinL : (u v : Real) → (realMin u v ≤ u)
   using (real.REq.unfold,
     real.RSeq.unfold,
     real.Real.unfold,
@@ -470,7 +462,7 @@ def leRMinL : (u v : Real) → Prf (realMin u v ≤ u)
     realOrder.RLeP.eq) ≔
   λu. λv. quot-elim (x. quot-elim (y. rleMinL) v) u
 
-def leRMinR : (u v : Real) → Prf (realMin u v ≤ v)
+def leRMinR : (u v : Real) → (realMin u v ≤ v)
   using (real.REq.unfold,
     real.RSeq.unfold,
     real.Real.unfold,
@@ -483,7 +475,7 @@ def leRMinR : (u v : Real) → Prf (realMin u v ≤ v)
     realOrder.RLeP.eq) ≔
   λu. λv. quot-elim (x. quot-elim (y. rleMinR) v) u
 
-def leRMaxLub : (u v w : Real) → Prf (u ≤ w) → Prf (v ≤ w) → Prf (realMax u v ≤ w)
+def leRMaxLub : (u v w : Real) → (u ≤ w) → (v ≤ w) → (realMax u v ≤ w)
   using (real.REq.unfold,
     real.RSeq.unfold,
     real.Real.unfold,
@@ -499,7 +491,7 @@ def leRMaxLub : (u v w : Real) → Prf (u ≤ w) → Prf (v ≤ w) → Prf (real
     realOrder.leRCls) ≔
   λu. λv. λw. quot-elim (x. quot-elim (y. quot-elim (z. λp. λq. rMaxLub p q) w) v) u
 
-def leRMinGlb : (u v w : Real) → Prf (w ≤ u) → Prf (w ≤ v) → Prf (w ≤ realMin u v)
+def leRMinGlb : (u v w : Real) → (w ≤ u) → (w ≤ v) → (w ≤ realMin u v)
   using (real.REq.unfold,
     real.RSeq.unfold,
     real.Real.unfold,

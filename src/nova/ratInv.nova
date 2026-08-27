@@ -43,7 +43,7 @@ def sgnQOneEq : sgnQ qOne ≡ sPos ≔ transportP (λw. sgnQ w ≡ sPos) qInvNat
 
 def leQZeroOne : (qZero ≤ qOne) ≔ leQZeroOfPos _ sgnQOneEq
 
-def qNeZeroOfPos : {u : Q} → (sgnQ u ≡ sPos) → Prf (¬ (u ≡ qZero)) using (prop.¬.eq) ≔
+def qNeZeroOfPos : {u : Q} → (sgnQ u ≡ sPos) → ¬ (u ≡ qZero) using (prop.¬.eq) ≔
   λu. λhp. impIntro
     {u ≡ qZero}
     {⊥}

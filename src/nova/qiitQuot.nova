@@ -1,11 +1,11 @@
 -- The quotient, SUBSUMED GENERICALLY (docs/NovaFoundation.txt,
 -- IDENTITY note): the signature for A / R over its full ambient
 -- Γ = [a : 𝕌][r : a → a → Ω] — an arbitrary carrier and an
--- arbitrary Ω-valued relation, cls x ≡ cls y imposed under Prf (r x y).
+-- arbitrary Ω-valued relation, cls x ≡ cls y imposed under (r x y).
 
 data [a : 𝕌] [r : a → a → Ω] ( Q : U
      ; cls : a → El Q
-     ; qeq : (x : a) (y : a) → Prf (r x y) → cls x ≡ cls y ∈ El Q )
+     ; qeq : (x : a) (y : a) → r x y → cls x ≡ cls y ∈ El Q )
 
 -- the GENERIC QUOTIENT LIFT: a function out of the quotient, from a
 -- function on the carrier plus a respect proof — quot-elim's f/f⁼ at
@@ -15,7 +15,7 @@ def qlift : (a : 𝕌)
   (r : a → a → Ω)
   {b : 𝕌}
   (f : a → b)
-  (resp : (x y : a) → Prf (r x y) → f x ≡ f y)
+  (resp : (x y : a) → r x y → f x ≡ f y)
   → Q _ r → b
   using (qiitQuot.Q.unfold) ≔
   λa. λr. λb. λf. λresp. λq. QElim a r (λw. b) (λx. f x) (λx. λy. λh. resp x y h) q
@@ -24,7 +24,7 @@ def qliftBeta : (a : 𝕌)
   (r : a → a → Ω)
   (b : 𝕌)
   (f : a → b)
-  (resp : (x y : a) → Prf (r x y) → f x ≡ f y)
+  (resp : (x y : a) → r x y → f x ≡ f y)
   (x : a)
   → qlift _ (λy. λz. r y z) f resp (cls a r x) ≡ f x
   using (qiitQuot.Q.eq, qiitQuot.QElim.eq, qiitQuot.cls.eq, qiitQuot.qlift.eq) ≔

@@ -114,8 +114,8 @@ mutual
           QKPoint => do
             sp <- reflArgs sg w args
             Right (QCtor (substQSig sg w.ups) k sp)
-          -- an EQUATION entry mints no term: its reflected ≡-type holds
-          -- by el-qiit-path, and ⋆ inhabits its Prf (el-eq-i)
+          -- an EQUATION entry mints no term: its reflected ≡-prop holds
+          -- by el-qiit-path, and ⋆ inhabits it (el-eq-i)
           QKEq => Right Star
           QKSort => Left "qiit: a sort is a type former, not a term"
 
@@ -136,7 +136,7 @@ mutual
     l' <- reflTm sg w l
     r' <- reflTm sg w r
     u' <- reflCodeTy sg w u
-    Right (Prf (Elem.EqTy l' r' u'))
+    Right (Elem.EqTy l' r' u')
   reflCodeTy sg w t = do
     (s, args) <- codeSort sg w t
     sp <- reflArgs sg w args

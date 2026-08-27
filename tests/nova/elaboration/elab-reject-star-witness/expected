@@ -1,1 +1,1 @@
-Error: def bad: ⋆ checked against Prf of a non-∥∥ code (ascribe the term: `(t : T)`)
+Error: def bad: ⋆ ⟨witness⟩ checked against a non-evident proposition (ascribe the term: `(t : T)`)

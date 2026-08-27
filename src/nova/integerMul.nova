@@ -135,7 +135,7 @@ def sum4DistribR : (x1 x2 y1 y2 c1 c2 : ℕ)
 -- inner: y varies. Both sides regroup to a₁·t + a₂·t′ with t and t′
 -- interchanged, and h makes t ≐ t′.
 def intMulWD : (a1 a2 b1 b2 c1 c2 : ℕ)
-  (h : Prf (b1 + c2 ≡ b2 + c1))
+  (h : b1 + c2 ≡ b2 + c1)
   → a1 * b1 + a2 * b2 + (a1 * c2 + a2 * c1) ≡ a1 * b2 + a2 * b1 + (a1 * c1 + a2 * c2)
   using (distribBack, distribBackR, hyp.rw, plusAssoc, sum4Distrib) ≔
   λa1. λa2. λb1. λb2. λc1. λc2. λh. trans
@@ -147,7 +147,7 @@ def intMulWD : (a1 a2 b1 b2 c1 c2 : ℕ)
 
 -- outer: x varies; the same regrouping, by the right factor
 def intMulWDRep : (a1 a2 b1 b2 c1 c2 : ℕ)
-  (h : Prf (a1 + b2 ≡ a2 + b1))
+  (h : a1 + b2 ≡ a2 + b1)
   → a1 * c1 + a2 * c2 + (b1 * c2 + b2 * c1) ≡ a1 * c2 + a2 * c1 + (b1 * c1 + b2 * c2)
   using (distribBack, hyp.rw, plusAssoc, plusComm, sum4DistribR) ≔
   λa1. λa2. λb1. λb2. λc1. λc2. λh. trans
@@ -162,7 +162,7 @@ def intMulWDRep : (a1 a2 b1 b2 c1 c2 : ℕ)
 -- eliminate the remaining argument and the goal becomes the nat
 -- relation intMulWDRep proves
 def intMulWDOuter : (a b : ℕ ⨯ ℕ)
-  (h : Prf (a .π₁ + b .π₂ ≡ a .π₂ + b .π₁))
+  (h : a .π₁ + b .π₂ ≡ a .π₂ + b .π₁)
   (zy : Int)
   → quot-elim (z. Int)
     (x. class (a .π₁ * x .π₁ + a .π₂ * x .π₂, a .π₁ * x .π₂ + a .π₂ * x .π₁))

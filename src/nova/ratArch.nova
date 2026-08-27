@@ -267,7 +267,7 @@ def qArchPos : {M : Int}
     rational.nzToInt.eq,
     rationalQ.qcls.eq) ≔
   λM. λb. λhp. ⊎-elim
-    (u. (⊎-elim (w. Prf (nzToInt w ≡ M) → ArchWit (qcls (mkRat M (nzPos b))))
+    (u. (⊎-elim (w. (nzToInt w ≡ M) → ArchWit (qcls (mkRat M (nzPos b))))
       (a. λhe. b,
         transport
           (λv. qInvNat b ≤ v)
@@ -329,7 +329,7 @@ def qArchAt : (N : Int) (d : NZ) → (sgnQ (qcls (mkRat N d)) ≡ sPos) → Arch
 
 -- every positive rational dominates a unit fraction. The witness is
 -- squashed: a bare Σ would ask the class to determine the index
-def qArch : (u : Q) → (sgnQ u ≡ sPos) → Prf ∥ArchWit u∥
+def qArch : (u : Q) → (sgnQ u ≡ sPos) → ∥ArchWit u∥
   using (id.Id.eq,
     integer.Int.unfold,
     ratArch.ArchWit.unfold,
@@ -366,7 +366,7 @@ def qArch : (u : Q) → (sgnQ u ≡ sPos) → Prf ∥ArchWit u∥
 -- ===== the closeness principle =====
 -- a decidable goal is reachable from ⊥ : an order fact is a SIGN
 -- verdict, and ⊥ proves the equation that verdict needs
-def leQOfFalse : {x y : Q} → Prf ⊥ → (x ≤ y)
+def leQOfFalse : {x y : Q} → ⊥ → (x ≤ y)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λx. λy. λf. inj₁ (eqToId _ _ (absurdP (sgnQ (y + qNeg x) ≡ sZero) f))
 
@@ -415,7 +415,7 @@ def qInvNatNotZero : (k : ℕ) → (qInvNat k ≡ qZero) → 𝟘 ≔
 
 -- a < b would give an index k with 1/(k+1) ≤ a − b ≤ 1/(2k+2), and
 -- those two unit fractions are equal only if the smaller is zero
-def archContra : (a b : Q) → ((k : ℕ) → (a ≤ b + qInvNat k)) → Id _ (sgnQ (b + qNeg a)) sNeg → Prf ⊥
+def archContra : (a b : Q) → ((k : ℕ) → (a ≤ b + qInvNat k)) → Id _ (sgnQ (b + qNeg a)) sNeg → ⊥
   using (equality.cong.eq,
     equality.trans.eq,
     hyp.rw,
@@ -543,7 +543,7 @@ def leQAddShift : (a : Q) {b q : Q} → (a + qNeg b ≤ q) → (a ≤ b + q)
 -- the two sides, so matching leaves it unsolved (E-1). Landing in the
 -- SQUASH instead makes the descent free — proof irrelevance closes it
 -- — and this recovers the datum, by deciding and refuting.
-def leQUnsquash : (x : Q) {y : Q} → Prf ∥(x ≤ y)∥ → (x ≤ y)
+def leQUnsquash : (x : Q) {y : Q} → ∥(x ≤ y)∥ → (x ≤ y)
   using (id.Id.unfold,
     prop.⊥.unfold,
     rationalOrder.≤.unfold,

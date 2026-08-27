@@ -184,8 +184,8 @@ agent did that is not in the source file can affect the verdict.
 ////////// The obligation lifecycle (unchanged) //////////
 
 Discharge failure is never an error: the equation is assumed — as a
-HOLE at the equation's Prf in the run's signature (Foundation:
-sig-decl at Prf (a ≡ b ∈ A), A = 𝕍 for a type equation;
+HOLE at the equation's prop in the run's signature (Foundation:
+sig-decl at (a ≡ b ∈ A), A = 𝕍 for a type equation;
 Σ is OPEN mid-run) — deduplicated, and reported at end of run with its
 site and the composite it descended from. The user or AI discharges an
 obligation by prepending an ordinary def whose type is the

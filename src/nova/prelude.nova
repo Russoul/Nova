@@ -3,11 +3,11 @@ def id : {A : 𝕌} (x : A) → A ≔ λA. λx. x
 infixr 1 ∘
 def ∘ : {A B C : 𝕌} (g : B → C) (f : A → B) → A → C ≔ λA. λB. λC. λg. λf. λx. g (f x)
 
-def idP : {A : Ω} (x : Prf A) → Prf A ≔ λA. λx. x
+def idP : {A : Ω} (x : A) → A ≔ λA. λx. x
 
 def const : {A B : 𝕌} (x : A) (y : B) → A ≔ λA. λB. λx. λy. x
 
-def constP : {A B : Ω} (x : Prf A) (y : Prf B) → Prf A ≔ λA. λB. λx. λy. x
+def constP : {A B : Ω} (x : A) (y : B) → A ≔ λA. λB. λx. λy. x
 
 -- Function extensionality — a theorem here, not an axiom: reflect the
 -- pointwise hypothesis under the binder and the sides are equal by

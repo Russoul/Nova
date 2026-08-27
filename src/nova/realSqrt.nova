@@ -399,7 +399,7 @@ def rSqrtNN : (p : RSeq) → ((n : ℕ) → (qZero ≤ seqOf p n)) → RSeq usin
 def rSqrtWDNN : {p p' : RSeq}
   (nn : (n : ℕ) → (qZero ≤ seqOf p n))
   (nn' : (n : ℕ) → (qZero ≤ seqOf p' n))
-  → Prf (REq p p') → Prf (REq (rSqrtNN _ nn) (rSqrtNN _ nn'))
+  → REq p p' → REq (rSqrtNN _ nn) (rSqrtNN _ nn')
   using (real.REq.unfold,
     real.RSeq.unfold,
     real.Regular.unfold,

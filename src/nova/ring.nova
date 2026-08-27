@@ -1,6 +1,6 @@
 -- COMMUTATIVE RINGS, in the same style as monoid.nova and group.nova:
 -- a Σ-code whose components are the operations followed by their
--- laws, stated with `Id` because a code cannot carry a `Prf`.
+-- laws, stated with `Id` because a code cannot carry a prop.
 --
 -- The additive part is reused wholesale — an IsGroup, whose operation
 -- is reached as `add .π₁ .π₁` and whose unit is `add .π₁ .π₂ .π₁`.

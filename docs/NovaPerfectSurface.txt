@@ -704,8 +704,8 @@ stays conservative); the corpus still gained 32 blanks and 2
 annotation elisions from the sharpened solve, byte-idempotent.
 
 THE EXPECTED TYPE JOINS THE PASS (2026-08-21): funextD's endpoint
-holes {f g} live in the RESULT type — Prf(?f ≡ ?g ∈ Π-pattern)
-against Prf(p ≡ q ∈ Regular f) binds them first-order,
+holes {f g} live in the RESULT type — (?f ≡ ?g ∈ Π-pattern)
+against (p ≡ q ∈ Regular f) binds them first-order,
 trivially — but the classic all-or-nothing match dies on the
 ∈-domain sub-problem and the end-stage pass only re-matched
 argument sources. It now matches the EXPECTED TYPE first (the
