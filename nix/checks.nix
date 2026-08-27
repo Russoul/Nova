@@ -39,6 +39,19 @@ let
     ];
   };
 
+  # The reference QUOTES the corpus and the goldens rather than copying
+  # them, so its check reads both on top of what the specs check needs.
+  reference = fs.toSource {
+    inherit root;
+    fileset = fs.unions [
+      ../docs
+      ../tools
+      ../src/nova
+      ../tests
+      (fs.fileFilter (f: f.hasExt "idr") ../src/idris)
+    ];
+  };
+
   mkCheck =
     name:
     {
@@ -116,6 +129,19 @@ in
         nvim --headless -u editors/nvim/test/attach.lua src/nova/nat.nova
       '';
     };
+
+  # Every ```nova block in docs/reference occurs verbatim in src/nova or
+  # a golden's input, every ```report block in a golden's expected
+  # output, every cited path exists, and every rule-shaped citation
+  # names a rule the specs define. Also run by ./test.sh (the Nova Docs
+  # pool); repeated here because it needs no Idris build.
+  reference = mkCheck "reference" {
+    src = reference;
+    nativeBuildInputs = [ pkgs.python3 ];
+    script = ''
+      python3 tools/render-reference.py --check
+    '';
+  };
 
   # Rule-shaped citations in src/idris must all be defined by a spec,
   # and rule names must be unique.

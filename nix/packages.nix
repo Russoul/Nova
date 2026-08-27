@@ -95,12 +95,14 @@ rec {
     ];
   };
 
-  # The GitHub Pages site: the rendered specs, the rendered corpus and
-  # the landing page — the artifact .github/workflows/nova.yml deploys.
+  # The GitHub Pages site: the rendered specs, the language reference,
+  # the rendered corpus and the landing page — the artifact
+  # .github/workflows/nova.yml deploys.
   site = pkgs.runCommand "nova-site" { nativeBuildInputs = [ pkgs.python3 ]; } ''
     cd ${siteSrc}
     mkdir -p $out/nova
     python3 tools/render-specs.py --out $out/specs.html
+    python3 tools/render-reference.py --out $out/reference.html
     ${nova-docs}/bin/nova-docs $out/nova src/nova/*.nova
     cp tools/nova-docs.css $out/nova/
     cp tools/pages-index.html $out/index.html

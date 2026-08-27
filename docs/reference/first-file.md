@@ -20,7 +20,7 @@ def plus : ℕ → ℕ → ℕ
 Check it:
 
 ```bash
-build/exec/nova elab first.nova
+nova elab first.nova
 ```
 
 ```report

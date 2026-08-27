@@ -15,6 +15,10 @@ Everything the repository gives you beyond the checker.
 ## The test suite
 
 - `./test.sh`, the golden framework, and `--only`.
+- `nix flake check` — the same gates plus the spec cross-check, the
+  reference's own checks and the docs site, each as a flake check.
+- `nix develop` for a shell where `idris2 --build nova.ipkg` works
+  without a bootstrap.
 
 ## The LSP server
 
@@ -23,7 +27,8 @@ Everything the repository gives you beyond the checker.
 ## Rendering the documentation
 
 - `tools/render-specs.py` (specs), `nova-docs` (sources),
-  `tools/render-reference.py` (this book).
+  `tools/render-reference.py` (this book) — and `nix build .#site`,
+  which runs all three into the tree that is published.
 
 ## The pipeline
 

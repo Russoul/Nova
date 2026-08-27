@@ -40,7 +40,8 @@ nix develop              # a shell where `idris2 --build nova.ipkg` just works
 
 Also buildable: `nix build .#nova-lsp` (language server),
 `.#nova-docs` (HTML renderer), `.#nova-tests` (golden-test driver),
-`.#site` (the rendered specs and corpus published to GitHub Pages),
+`.#site` (the rendered specs, language reference and corpus
+published to GitHub Pages),
 `.#vscode-extension` (the VS Code extension) and `.#nvim-plugin` (the
 neovim plugin).
 

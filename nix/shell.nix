@@ -16,7 +16,7 @@ in
   default = pkgs.mkShell {
     packages = [
       pkgs.idris2
-      pkgs.python3 # tools/render-specs.py
+      pkgs.python3 # tools/render-specs.py, tools/render-reference.py
     ];
 
     IDRIS2_PACKAGE_PATH = lib.makeSearchPath "lib/idris2-${pkgs.idris2.version}" libs;

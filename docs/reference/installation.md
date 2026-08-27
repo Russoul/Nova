@@ -4,52 +4,74 @@ Nova is a checker you run over a file, not a REPL you sit inside. This
 chapter gets you a working binary and shows you the loop you will
 spend the rest of the book in.
 
-## Prerequisites
+## Two ways to get a binary
 
-Nova is written in [Idris 2](https://github.com/idris-lang/Idris2) and
-built with [pack](https://github.com/stefan-hoeck/idris2-pack), which
-manages the Idris compiler and every dependency for you. You need:
+Nova is written in [Idris 2](https://github.com/idris-lang/Idris2),
+and there are two supported ways to build it. Both work; pick by which
+tool you already have.
+
+### With Nix
+
+If you have [Nix](https://nixos.org) with flakes enabled, there is
+nothing to install and nothing to configure:
+
+```bash
+nix run . -- elab src/nova/nat.nova
+```
+
+That builds the checker if it is not built already and runs it. Every
+dependency — the compiler, the parser library, the language-server
+library — is pinned in `flake.lock`, and the expensive parts come
+prebuilt from the public binary cache, so a cold start builds only
+Nova itself and its two small dependencies.
+
+For a binary you can invoke repeatedly:
+
+```bash
+nix build          # ./result/bin/nova
+```
+
+This is the shorter road for a newcomer, because it cannot fail
+halfway through bootstrapping a compiler.
+
+### With pack
+
+[pack](https://github.com/stefan-hoeck/idris2-pack) is the Idris
+package manager, and the route to use if you are already developing
+in Idris. You need:
 
 - **Chez Scheme** — Idris 2's backend.
 - **GMP** — the arbitrary-precision arithmetic library (`libgmp-dev`
   on Debian-family systems).
-- **pack** — install it once by following its README; it bootstraps
-  Idris 2 itself.
-- **git**, to clone this repository.
+- **pack** itself, which bootstraps the compiler.
 
-Everything else is pinned in `pack.toml`: the exact Idris commit, the
-package collection, and the two custom dependencies
-([Just-a-Parser](https://github.com/Russoul/Just-a-Parser) for the
-parser and `lsp-lib` for the editor server). You do not fetch those by
-hand; pack reads the pins and does it.
-
-## Building
-
-From the repository root:
+Then:
 
 ```bash
 pack build nova.ipkg
 ```
 
-That produces `build/exec/nova`. It takes a while the first time,
-because pack is building the compiler as well; afterwards it is
-incremental.
+That produces `build/exec/nova`. The first build takes a while,
+because pack is building the compiler too; afterwards it is
+incremental. `pack install-app nova.ipkg` puts `nova` on your `PATH`.
 
-If you would rather have `nova` on your `PATH` than type the path:
+The two routes pin the same dependency versions — `flake.nix` mirrors
+`pack.toml` — but not the same compiler: pack follows the pinned
+Idris nightly, Nix follows the release in nixpkgs. Both are tested in
+CI.
 
-```bash
-pack install-app nova.ipkg
-```
-
-Throughout this book commands are written as `build/exec/nova …`, the
-form that works straight after a build.
+> **How commands are written in this book.** From here on you will see
+> `nova elab file.nova`. Read that as whichever you set up:
+> `nix run . -- elab file.nova`, `./result/bin/nova elab file.nova`,
+> `build/exec/nova elab file.nova`, or plain `nova` if it is on your
+> `PATH`.
 
 ## Checking a file
 
 There is one command you will use constantly:
 
 ```bash
-build/exec/nova elab src/nova/nat.nova
+nova elab src/nova/nat.nova
 ```
 
 `elab` reads the file, checks every item in order, and prints what it
@@ -115,7 +137,7 @@ The corpus takes advantage of this: `src/nova/all.nova` imports every
 module, so one run checks everything.
 
 ```bash
-build/exec/nova elab src/nova/all.nova
+nova elab src/nova/all.nova
 ```
 
 ## The loop
@@ -139,7 +161,7 @@ session to lose and no ordering of commands to remember.
 `nova` has a handful of other modes; two are worth knowing early.
 
 ```bash
-build/exec/nova run <file> <name>
+nova run <file> <name>
 ```
 
 `run` requires the file to be accepted, then evaluates one top-level
@@ -150,7 +172,7 @@ comes out as `NatIntro1 (NatIntro1 (NatIntro1 (NatIntro1
 pretty-printer.
 
 ```bash
-build/exec/nova distill <file> <out-dir>
+nova distill <file> <out-dir>
 ```
 
 `distill` prints the file's modules back out as surface text and
@@ -166,11 +188,12 @@ each.
 An LSP server is built separately:
 
 ```bash
-pack build nova-lsp.ipkg
+nix build .#nova-lsp        # ./result/bin/nova-lsp
+pack build nova-lsp.ipkg    # build/exec/nova-lsp
 ```
 
-Point your editor's generic LSP client at `build/exec/nova-lsp` for
-`.nova` files. There is no packaged extension for any editor yet, so
+Point your editor's generic LSP client at that binary for `.nova`
+files. There is no packaged extension for any editor yet, so
 this is the manual route. What the server currently provides:
 
 - **Diagnostics** — errors and obligations, in place, as you save.
@@ -188,26 +211,28 @@ Completion, formatting and rename are deliberately not provided.
 
 ## Checking your work against the repository
 
-Two scripts run everything:
+Under Nix, one command runs every gate CI runs — the golden test
+suite, the elaboration gate, the distill round trip, the spec
+cross-check, this book's own checks, and the docs site:
 
 ```bash
-./test.sh
+nix flake check
 ```
 
-runs the golden test suite and re-checks the whole corpus, and
-
-```bash
-./check-distill.sh
-```
-
-verifies that `src/nova` is in canonical printed form. If you
-contribute a corpus file, both must pass.
+Without Nix, the same ground is covered by two scripts: `./test.sh`
+for the golden suite and the elaboration gate, and `./check-distill.sh`
+for canonical printed form. If you contribute a corpus file, they must
+pass either way.
 
 ## If it will not build
 
+- **`nix` says the flake is not supported.** Flakes need to be enabled:
+  add `experimental-features = nix-command flakes` to your Nix
+  configuration.
 - **pack cannot resolve the collection.** `pack.toml` pins a package
   collection and a compiler commit; a transient failure is usually a
-  third-party host being unreachable, and retrying is the fix.
+  third-party host being unreachable, and retrying is the fix. This
+  failure mode is the reason the Nix route exists.
 - **A stale build directory.** `rm -rf build` and build again.
 - **The glyphs come out as boxes.** That is a font problem, not a
   build problem — see [Reading and typing Nova](#notation).
