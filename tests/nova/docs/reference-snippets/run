@@ -1,0 +1,7 @@
+#!/bin/sh
+# The language reference quotes the corpus and the goldens rather than
+# copying them; this checks every quotation is still faithful, that
+# every cited file exists, and that every cited rule name is one the
+# specs still define. The renderer resolves paths from its own
+# location, so the test's working directory does not matter.
+python3 ../../../../tools/render-reference.py --check

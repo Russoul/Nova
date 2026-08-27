@@ -52,6 +52,9 @@ pools = sequence
   , testsInDir "tests/nova/survey" "Nova Survey"
   , testsInDir "tests/nova/implicitize" "Nova Implicitize"
   , testsInDir "tests/nova/eliminate" "Nova Eliminate"
+  -- the language reference quotes src/nova and the goldens instead of
+  -- copying them; this pool checks the quotations are still faithful
+  , testsInDir "tests/nova/docs" "Nova Docs"
   , testsInDir "tests/nova-lsp" "Nova LSP"
   ]
 
