@@ -1,0 +1,8 @@
+declared f and its equations (f, fZ, fEta) — clauses outside the structural fragment [+3 declarations]
+open declarations (3):
+  [f] ⊢ ? : ℕ → ℕ
+      at: def f
+  [fZ] ⊢ ? : f Z ≡ Z ∈ ℕ
+      at: def fZ
+  [fEta] ⊢ ? : (x:ℕ → ℕ) → (x Z ≡ Z ∈ ℕ) → (n:ℕ) → (x n ≡ f n ∈ ℕ)
+      at: def fEta

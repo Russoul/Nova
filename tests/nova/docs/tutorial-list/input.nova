@@ -1,0 +1,12 @@
+data [a : 𝕌] ( List : U
+     ; nil : El List
+     ; cons : a → El List → El List )
+
+def twoZeros : List ℕ using (List.unfold) ≔ cons ℕ Z (cons ℕ Z (nil ℕ))
+
+def length : (a : 𝕌) → List a → ℕ using (List.unfold) ≔
+  λa. λl. ListElim a (λw. ℕ) Z (λx. λr. λih. S ih) l
+
+def lengthTwoZeros : length _ twoZeros ≡ 2
+  using (List.eq, ListElim.eq, cons.eq, length.eq, nil.eq, twoZeros.eq) ≔
+  ⋆

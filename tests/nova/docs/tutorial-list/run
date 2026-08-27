@@ -1,0 +1,5 @@
+#!/bin/sh
+# The worked example of Part III: a user-defined List, built, folded
+# and computed with. Pinned so the chapters that quote it cannot drift
+# from what the checker accepts.
+"$1" elab input.nova

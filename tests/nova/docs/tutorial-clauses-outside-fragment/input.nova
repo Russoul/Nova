@@ -1,0 +1,6 @@
+-- An incomplete split is outside the structural fragment, so the
+-- macro writes down the CONTRACT instead of building the function:
+-- the definition, each clause as an equation, and uniqueness, all
+-- three as declarations the file still owes.
+def f : ℕ → ℕ
+  | f Z ≔ Z

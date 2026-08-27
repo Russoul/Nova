@@ -1,0 +1,9 @@
+def swap : (ℕ ⨯ 𝟙) → 𝟙 ⨯ ℕ ≔ λp. p .π₂ , p .π₁
+
+def firstOfTwo : (ℕ ⨯ 𝟙) → ℕ ≔ λp. p .π₁
+
+def pairEta : (p : ℕ ⨯ 𝟙) → (p .π₁ , p .π₂) ≡ p using (sigma.eta) ≔ λp. ⋆
+
+def unswap : (𝟙 ⨯ ℕ) → ℕ ⨯ 𝟙 ≔ λp. p .π₂ , p .π₁
+
+def roundTrip : (p : ℕ ⨯ 𝟙) → unswap (swap p) ≡ p using (sigma.eta, swap.eq, unswap.eq) ≔ λp. ⋆

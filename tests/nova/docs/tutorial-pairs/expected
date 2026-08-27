@@ -1,0 +1,6 @@
+defined swap
+defined firstOfTwo
+defined pairEta
+defined unswap
+defined roundTrip
+Accepted.
