@@ -8,29 +8,76 @@ on:
     branches:
       - '*'
 
+# A superseded PR run has nothing worth finishing; main runs are left
+# alone so every commit's site artifact is actually produced.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
 
-  specs:
-    runs-on: ubuntu-24.04
+  # The gates, from the flake: `nix flake check` runs the spec
+  # cross-check, the golden test suite, the elaboration gate, the
+  # distill round-trip and the docs render (nix/checks.nix).
+  #
+  # No toolchain cache is configured, and none is needed: flake.lock
+  # pins every dependency, and everything expensive — the Idris2
+  # compiler, chez, the prelude libraries — is fetched prebuilt from
+  # cache.nixos.org. A cold run builds only just-a-parser, lsp-lib and
+  # the four Nova executables.
+  nix:
+    strategy:
+      fail-fast: false
+      matrix:
+        # The two platforms anyone actually uses: CI's, and the one
+        # Nova is developed on. aarch64-linux and x86_64-darwin stay
+        # declared in flake.nix but ungated — there is no FFI and no C
+        # here, so platform-specific breakage is unlikely.
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # fails on rule-shaped citations in src/idris that no spec defines
-      # (typos / undocumented rules) and on duplicate rule names
-      - name: Cross-check spec rules against sources
-        run: python3 tools/render-specs.py --check
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
 
-      - name: Render specs
-        run: python3 tools/render-specs.py --out build/docs/specs.html
+      # Logs are printed only on failure: a passing run would otherwise
+      # bury itself in the LSP tests' debug output.
+      - name: Run every gate
+        run: nix flake check
 
-      - name: Upload rendered specs
+      # Built here rather than in a job of its own so the Pages
+      # artifact reuses this leg's store instead of rebuilding Nova on
+      # a third machine.
+      - name: Build the docs site
+        if: matrix.os == 'ubuntu-24.04'
+        run: |
+          nix build .#site --out-link result-site
+          # Dereference the store symlink and restore write permission;
+          # upload-artifact cannot read a /nix/store path directly.
+          cp -rL result-site site
+          chmod -R u+w site
+
+      - name: Upload the docs site
+        if: matrix.os == 'ubuntu-24.04'
         uses: actions/upload-artifact@v4
         with:
-          name: rendered-specs
-          path: build/docs/specs.html
+          name: site
+          path: site
 
-  build-and-test:
+  # A smoke test for the toolchain the flake does NOT use: pack.toml
+  # pins Idris2 at 0e9b01d, while the flake takes nixpkgs' 0.8.0
+  # release. Without this job nothing would exercise the compiler Nova
+  # is actually developed against.
+  #
+  # Compile-only on purpose. The gates above already run the full suite;
+  # this exists to catch a nightly that stops accepting the sources, and
+  # a second full test run would not pay for itself.
+  pack:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -85,35 +132,14 @@ jobs:
           done
           exit 1
 
-      - name: Build Nova
+      - name: Build Nova against the pinned nightly
         run: pack build nova.ipkg
 
-      - name: Run tests
-        run: ./test.sh
-
-      # src/nova is kept in CANONICAL DISTILL FORM
-      # (docs/NovaPerfectSurface.txt): distilling the corpus must
-      # reproduce it byte for byte
-      - name: Check canonical distill form
-        run: ./check-distill.sh
-
-      - name: Build nova-docs
-        run: pack build nova-docs.ipkg
-
-      - name: Render Nova sources
-        run: |
-          mkdir -p build/docs/nova
-          pack run nova-docs.ipkg build/docs/nova src/nova/*.nova
-          cp tools/nova-docs.css build/docs/nova/
-
-      - name: Upload rendered Nova sources
-        uses: actions/upload-artifact@v4
-        with:
-          name: rendered-nova-docs
-          path: build/docs/nova
-
+  # Deliberately NOT gated on `pack`: the site is produced by the `nix`
+  # job, and making its deploy hostage to micropack's third-party
+  # resolution would re-import the flakiness the flake exists to avoid.
   deploy-pages:
-    needs: [specs, build-and-test]
+    needs: [nix]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-24.04
     permissions:
@@ -123,23 +149,11 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download rendered specs
+      - name: Download the docs site
         uses: actions/download-artifact@v4
         with:
-          name: rendered-specs
+          name: site
           path: site
-
-      - name: Download rendered Nova sources
-        uses: actions/download-artifact@v4
-        with:
-          name: rendered-nova-docs
-          path: site/nova
-
-      - name: Add landing page
-        run: cp tools/pages-index.html site/index.html
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
