@@ -1563,17 +1563,36 @@ pointwise, exhibit that g satisfies the clauses.
 # infix) spellings headed by the item's own name and REREAD as
 # patterns: every argument position must be a variable or a
 # constructor pattern — Z, S p, inj₁ p, inj₂ p, any depth, possibly
-# parenthesized; all clauses spell the same number k ≥ 1 of
-# positions, covering the leading k columns of the item's type
-# (Π's past the k-th stay inside B — the generated equations then
-# sit at a Π-type, which ≡ embeds like any other). Any other LHS
-# spelling is a structural error — missing structure, not a failed
-# equation (the dividing line of Judgement forms). The clause
-# separator is ≔, as at def: a clause IS a definiens, given
-# pointwise (`=` remains an ordinary operator token). The marker |
-# is RESERVED — withdrawn from the operator alphabet — because a
-# clause may directly follow the witness form's definiens, where an
-# infix reading would capture it.
+# parenthesized. IMPLICIT columns follow the term syntax's
+# conventions, exactly as at the copattern item: {x}-spelled or
+# ELIDED (the binder then named by the item's type, invisible to
+# the RHS), and constructor patterns never sit at an implicit
+# column. The spelled positions ALIGN against the item's leading
+# Π-columns — an implicit column consumes a {x} if one is next and
+# is elided otherwise, an explicit column consumes the next pattern
+# — and all clauses must consume the same columns; Π's past the
+# consumed columns stay inside B (the generated equations then sit
+# at a Π-type, which ≡ embeds like any other). Recursive calls in
+# the bodies elide or {…}-spell f's implicit arguments likewise; an
+# ELIDED call argument reads as the ambient column, VERIFIED by the
+# clause lemma's β-discharge (a wrong reading is an obligation with
+# a spell-it remedy, never a wrong acceptance — the copattern
+# macro's probe, not replicated here, would tighten this to a
+# pre-expansion degrade). Any other LHS spelling is a structural
+# error — missing structure, not a failed equation (the dividing
+# line of Judgement forms). The clause separator is ≔, as at def: a
+# clause IS a definiens, given pointwise (`=` remains an ordinary
+# operator token). The marker | is RESERVED — withdrawn from the
+# operator alphabet — because a clause may directly follow the
+# witness form's definiens, where an infix reading would capture
+# it. The item takes a USING-CLAUSE, as at the copattern item: it
+# scopes every generated item's discharges (riding along with the
+# generated citations), and the generated statements follow the
+# term-syntax spelling conventions — f's spines carry {…} overrides
+# at its implicit positions, the uniqueness candidate g (a
+# variable, which never inserts) applies fully and plainly with its
+# clause hypotheses REBUILT for that spelling, and the generated
+# lemmas' Π-binders mirror the columns' implicitness.
 
 # NAMES. The expansion mints Σ names; the reproducibility invariant
 # demands they be a pure function of the source. For an
@@ -1757,9 +1776,9 @@ downstream is copattern-aware.
 # copattern clause (observation SPLITTING — several clauses at
 # projections of out — is future work). Names: fOut for the lemma
 # ([n] overrides), fEta for uniqueness ([m] after the type);
-# operator-named items must override both. UNLIKE the clausal def,
-# the item takes a using-clause: it scopes the generated items'
-# discharges AND licenses the macro's own PROBE — run against a
+# operator-named items must override both. The item's using-clause
+# scopes the generated items' discharges (as at the clausal def)
+# AND licenses the macro's own PROBE — run against a
 # state snapshot, so it leaves no trace. The probe exposes the
 # item's head type to its ν 𝔽 (a codata-style head is always
 # spelled through a def, so the license is load-bearing; the corpus
@@ -2517,9 +2536,10 @@ Two corollaries worth keeping in view while implementing:
   worth their report noise.
 * Congruence/transitivity closure (e-graph) for the HINT probe's
   completeness — the advisory layer is where a stronger search is
-  pure upside. (The `using` clauses themselves have landed, item- and
-  site-level, as the scoped-discharge semantics above; deferred:
-  a clause slot for the clausal-def and data item macros.)
+  pure upside. (The `using` clauses have landed everywhere — item-
+  and site-level, and on the clausal-def and copattern item macros,
+  whose generated items carry the citations along; deferred: a
+  clause slot for the data item macro.)
 * Incremental re-elaboration (caching per item) — requires recording
   per-item assumption sets; whole-file re-runs make this unnecessary
   at current scale.
@@ -2536,10 +2556,10 @@ Two corollaries worth keeping in view while implementing:
   section; each item fills the same three artifact slots): nested
   patterns and multi-column splits (split trees); QIIT splits —
   point-only signatures first, quotiented sorts demanding
-  per-clause-pair well-definedness after; implicit leading columns
-  for the PATTERN fragment's peel (the copattern item takes them —
-  Defining observations — by the same placement conventions, which
-  would retrofit); copattern extensions
+  per-clause-pair well-definedness after (implicit columns have
+  landed for both macros, by the shared placement conventions;
+  deferred there: the probe verification of elided call arguments,
+  copattern-only today); copattern extensions
   (basic copatterns have landed, implicit columns included):
   observation SPLITTING (several clauses at projections of out, and
   DEFINED observations like hd/tl — which wants a codata item macro

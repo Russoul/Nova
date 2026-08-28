@@ -655,6 +655,7 @@ renderQDecl tbl (MkSQDecl n bs res) =
 mutual
   renderPat : SPat -> String
   renderPat (SPVar (x, _)) = x
+  renderPat (SPImpVar (x, _)) = "{\{x}}"
   renderPat SPZero = "Z"
   renderPat (SPSuc p) = "S \{renderPatAtom p}"
   renderPat (SPInj1 p) = "inj₁ \{renderPatAtom p}"
@@ -663,6 +664,7 @@ mutual
   renderPatAtom : SPat -> String
   renderPatAtom p = case p of
     SPVar (x, _) => x
+    SPImpVar (x, _) => "{\{x}}"
     SPZero => "Z"
     _ => "(\{renderPat p})"
 
@@ -731,8 +733,9 @@ renderItemBare tbl (SData params ds) =
      _ => txt "( " <->
           concatD (intersperse (DNest 5 DHard <-> txt "; ") (map (renderQDecl tbl) ds)) <->
           txt " )")
-renderItemBare tbl (SClausalDef _ n ty eta wit cls) =
+renderItemBare tbl (SClausalDef _ n ty mu eta wit cls) =
   txt "def \{n} : " <-> pt tbl TTop False ty <->
+  renderUsing mu <->
   (case eta of
      Nothing => DNil
      Just e => txt " [\{e}]") <->
@@ -1034,8 +1037,8 @@ parameters (ok : Range -> Bool, blankAt : Range -> Nat -> Bool)
   esItem (SDeclDef r x ty) = SDeclDef r x (esT ty)
   esItem (STypeDef x ty) = STypeDef x (esT ty)
   esItem (SData params ds) = SData (map (\(x, t) => (x, esT t)) params) (map esQDecl ds)
-  esItem (SClausalDef r x ty eta wit cls) =
-    SClausalDef r x (esT ty) eta (map esE wit) (map ({ crhs $= esE }) cls)
+  esItem (SClausalDef r x ty mu eta wit cls) =
+    SClausalDef r x (esT ty) mu eta (map esE wit) (map ({ crhs $= esE }) cls)
   esItem (SCopatternDef r x ty mu eta wit cvars rhs cn) =
     SCopatternDef r x (esT ty) mu eta (map esE wit) cvars (esE rhs) cn
 

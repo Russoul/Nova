@@ -1058,6 +1058,9 @@ mutual
         (kw "Z" $> SPZero)
     <|> (patTower <$> parseNumeral)
     <|> (do kwc '('; sp; p <- parsePat; sp; kwc ')'; pure p)
+    -- {x} — a variable at an IMPLICIT column (term-syntax
+    -- conventions; rejected inside constructor patterns by alignment)
+    <|> (do kwc '{'; sp; x <- parseNameR; sp; kwc '}'; pure (SPImpVar x))
     <|> (do x <- parseNameR; pure (SPVar x))
    where
     patTower : Nat -> SPat
@@ -1073,6 +1076,10 @@ patVarsOf = foldl goP []
  where
   goP : List SName -> SPat -> List SName
   goP acc (SPVar x) =
+    if fst x /= wildcard && elem (fst x) (map fst acc)
+      then acc
+      else acc ++ [x]
+  goP acc (SPImpVar x) =
     if fst x /= wildcard && elem (fst x) (map fst acc)
       then acc
       else acc ++ [x]
@@ -1227,9 +1234,7 @@ parseSItem tbl =
                 Nothing => pure (SDeclDef r x ty)
                 Just _ => fail "!a declaration discharges nothing — a using-clause is for defs with a definiens"
             (_, _, [], (c :: cs)) =>
-              case muses of
-                Nothing => pure (SClausalDef r x ty metaEta mbody (c :: cs))
-                Just _ => fail "!a using-clause on a clausal def is not supported yet"
+              pure (SClausalDef r x ty muses metaEta mbody (c :: cs))
             (_, _, [(vars, rhs, cn)], []) =>
               pure (SCopatternDef r x ty muses metaEta mbody vars rhs cn)
             (_, _, (_ :: _ :: _), []) => fail "!an item takes at most one copattern clause"

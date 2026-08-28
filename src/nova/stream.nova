@@ -14,9 +14,11 @@
 
 def stream : 𝕌 → 𝕌 ≔ λa. ν (K a × 𝕏)
 
-def hd : {a : 𝕌} → stream a → a using (stream.stream.unfold) ≔ λa. λt. (out t) .π₁
+def hd : {a : 𝕌} → stream a → a using (stream.stream.unfold)
+  | hd t ≔ (out t) .π₁
 
-def tl : {a : 𝕌} → stream a → stream a using (stream.stream.unfold) ≔ λa. λt. (out t) .π₂
+def tl : {a : 𝕌} → stream a → stream a using (stream.stream.unfold)
+  | tl t ≔ (out t) .π₂
 
 def cons : {a : 𝕌} → a → stream a → stream a using (stream.stream.unfold)
   | out (cons x s) ≔ x, s

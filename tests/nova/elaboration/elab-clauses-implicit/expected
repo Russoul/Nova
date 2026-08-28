@@ -1,0 +1,7 @@
+defined stream
+defined hd by clauses (hd, hdEq, hdEta)
+defined tl by clauses (tl, tlEq, tlEta)
+defined nth by clauses (nth, nthZ, nthS, nthEta)
+defined nth2 by clauses (nth2, nth2Z, nth2S, nth2Eta)
+defined dup by clauses (dup, dupZ, dupS, dupEta)
+Accepted.

@@ -1,0 +1,18 @@
+-- pattern clauses over implicit columns + using
+def stream : 𝕌 → 𝕌 ≔ λa. ν (K a × 𝕏)
+def hd : {a : 𝕌} → stream a → a using (stream.unfold)
+  | hd t ≔ (out t) .π₁
+def tl : {a : 𝕌} → stream a → stream a using (stream.unfold)
+  | tl t ≔ (out t) .π₂
+-- ℕ-split with a leading elided implicit; the recursive call elides it too
+def nth : {a : 𝕌} → ℕ → stream a → a using (stream.unfold)
+  | nth Z s ≔ hd s
+  | nth (S n) s ≔ nth n (tl s)
+-- the {a}-spelled forms, LHS and call
+def nth2 : {a : 𝕌} → ℕ → stream a → a using (stream.unfold)
+  | nth2 {a} Z s ≔ hd s
+  | nth2 {a} (S n) s ≔ nth2 {a} n (tl s)
+-- an explicit item with a using-clause (the other half of the ask)
+def dup : ℕ → ℕ
+  | dup Z ≔ Z
+  | dup (S n) ≔ S (S (dup n))

@@ -6041,7 +6041,7 @@ elabItemGo irng (SCopatternDef nrng x ty muses etaName witness cargs crhs cname)
                Nothing => checkPairs ms cs
     checkPairs _ _ = Just "internal: the elaborated body's calls disagree with the analysis"
 
-elabItemGo irng (SClausalDef nrng x ty etaName witness clauses) = do
+elabItemGo irng (SClausalDef nrng x ty muses etaName witness clauses) = do
   -- a def with DEFINING EQUATIONS (docs/NovaElaboration.txt,
   -- "Defining equations"): an ITEM MACRO. The expansion is pure
   -- surface-level synthesis (Nova.Elaboration.Clauses); the batch —
@@ -6050,10 +6050,20 @@ elabItemGo irng (SClausalDef nrng x ty etaName witness clauses) = do
   -- obligations, lemma registration, kernel checking and the report
   -- need no clause awareness at all. A Left is a STRUCTURAL error;
   -- everything non-structural degrades inside the expansion (witness
-  -- tier / declaration tier) rather than failing.
+  -- tier / declaration tier) rather than failing. Unlike the
+  -- copattern macro, no probe runs: elided implicit call arguments
+  -- read as the ambient columns, VERIFIED by the clause lemmas'
+  -- β-discharge (a wrong reading is an obligation, never a wrong
+  -- acceptance).
   census <- openCensus
-  case expandClausal nrng x ty etaName witness clauses of
-    Left err => throw "def \{x}: \{err}"
+  scEqs <- the (ElabM (Maybe (List String), List String)) $ case muses of
+          Just ns => do
+            (rs, eqs) <- resolveUsingNames (MkSite "def \{x}" irng) ns
+            pure (Just rs, eqs)
+          Nothing => pure (if scopedMode then Just [] else Nothing, [])
+  let (sc, eqs) = scEqs
+  case expandClausal nrng x ty muses etaName witness clauses of
+    Left err => throwAt irng "def \{x}: \{err}"
     Right (MkExpansion items echo) => do
       -- each batch item is its OWN item for anything keyed by the
       -- item name: the profile labels, and the Σ names a hole is
@@ -6061,9 +6071,12 @@ elabItemGo irng (SClausalDef nrng x ty etaName witness clauses) = do
       -- once in the definition body and once in that clause's
       -- equation lemma — two goals, so two entries, not a name
       -- collision). `elabItem` re-sets this at the next real item.
-      ignore $ traverse (\(r, it) => do
+      -- The batch also elaborates under the ITEM's scope, so the
+      -- DECLARATION tier's types see its exposure licenses (an SDef
+      -- of the batch installs its own generated scope over this)
+      ignore $ withScope sc (withEqScope eqs (traverse (\(r, it) => do
         modifySt { curItem := clearBlocked (itemName it) }
-        elabItemGo (r <|> irng) it) items
+        elabItemGo (r <|> irng) it) items))
       suffix <- opensSuffix census
       pure (echo ++ suffix)
 
@@ -6319,7 +6332,8 @@ failedLine n = "Error: \{show n} item\{if n == 1 then "" else "s"} failed to ela
 ||| are simply skipped.
 declFallback : Maybe Range -> SItem -> Maybe (Maybe Range, SItem)
 declFallback irng (SDef x ty _ _) = Just (irng, SDeclDef irng x ty)
-declFallback irng (SClausalDef nrng x ty _ _ _) = Just (irng, SDeclDef (nrng <|> irng) x ty)
+declFallback irng (SClausalDef nrng x ty _ _ _ _) = Just (irng, SDeclDef (nrng <|> irng) x ty)
+declFallback irng (SCopatternDef nrng x ty _ _ _ _ _ _) = Just (irng, SDeclDef (nrng <|> irng) x ty)
 declFallback _ _ = Nothing
 
 ||| The holes a FAILED item had already minted, as report views. Its

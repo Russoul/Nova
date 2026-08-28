@@ -53,6 +53,8 @@ mutual
   mapRefsE : (onVar : Nat -> Maybe Range -> String -> Nat -> SElem) ->
              (onSig : Nat -> Maybe Range -> String -> SElem) ->
              Nat -> SElem -> SElem
+  mapRefsE f g d (SPos r e) = SPos r (mapRefsE f g d e)
+  mapRefsE f g d e@(SHole _ _) = e
   mapRefsE f g d (SVar r n i) = if i < d then SVar r n i else f d r n i
   mapRefsE f g d (SSig r x) = g d r x
   mapRefsE f g d SUnitI = SUnitI
@@ -106,12 +108,11 @@ mutual
   mapRefsE f g d (SImpArg e) = SImpArg (mapRefsE f g d e)
   mapRefsE f g d (SNoIns e) = SNoIns (mapRefsE f g d e)
   mapRefsE f g d e@(SBlank _) = e
-  mapRefsE f g d e@(SHole _ _) = e
-  mapRefsE f g d (SPos r e) = SPos r (mapRefsE f g d e)
 
   mapRefsTy : (onVar : Nat -> Maybe Range -> String -> Nat -> SElem) ->
               (onSig : Nat -> Maybe Range -> String -> SElem) ->
               Nat -> STy -> STy
+  mapRefsTy f g d (STyPos r t) = STyPos r (mapRefsTy f g d t)
   mapRefsTy f g d STyZero = STyZero
   mapRefsTy f g d STyOne = STyOne
   mapRefsTy f g d STyNat = STyNat
@@ -126,7 +127,6 @@ mutual
   mapRefsTy f g d (STyEl e) = STyEl (mapRefsE f g d e)
   mapRefsTy f g d STyProp = STyProp
   mapRefsTy f g d (STyNu p) = STyNu (mapRefsP f g d p)
-  mapRefsTy f g d (STyPos r t) = STyPos r (mapRefsTy f g d t)
 
   mapRefsP : (onVar : Nat -> Maybe Range -> String -> Nat -> SElem) ->
              (onSig : Nat -> Maybe Range -> String -> SElem) ->
@@ -173,6 +173,8 @@ replaceSigTy f gname base =
 
 mutual
   occursE : String -> SElem -> Bool
+  occursE f (SPos _ e) = occursE f e
+  occursE f (SHole _ _) = False
   occursE f (SVar _ _ _) = False
   occursE f (SSig _ x) = x == f
   occursE f SUnitI = False
@@ -216,10 +218,9 @@ mutual
   occursE f (SImpArg e) = occursE f e
   occursE f (SNoIns e) = occursE f e
   occursE f (SBlank _) = False
-  occursE f (SHole _ _) = False
-  occursE f (SPos _ e) = occursE f e
 
   occursTy : String -> STy -> Bool
+  occursTy f (STyPos _ t) = occursTy f t
   occursTy f STyZero = False
   occursTy f STyOne = False
   occursTy f STyNat = False
@@ -234,7 +235,6 @@ mutual
   occursTy f (STyEl e) = occursE f e
   occursTy f STyProp = False
   occursTy f (STyNu p) = occursP f p
-  occursTy f (STyPos _ t) = occursTy f t
 
   occursP : String -> SPoly -> Bool
   occursP f SPHole = False
@@ -244,7 +244,7 @@ mutual
   occursP f (SPSigma _ a p) = occursE f a || occursP f p
   occursP f (SPPi _ a p) = occursE f a || occursP f p
 
--- ===== Structural-recursion rewriting =====
+-- ===== Spine rewriting =====
 
 ||| Application spine, head-first.
 unwind : SElem -> (SElem, List SElem)
@@ -256,139 +256,171 @@ spine : SElem -> List SElem -> SElem
 spine = foldl SApp
 
 mutual
-  ||| Replace every application spine `f a₁ … aₙ` (n ≥ |lead|) whose
-  ||| leading arguments are exactly the required variables — the
-  ||| clause's earlier column variables, then the predecessor — by the
-  ||| MARKER variable (top-level index `mk`) applied to the remaining
-  ||| (rewritten) arguments. Nothing if any occurrence of f survives
-  ||| in another shape: the recursion is not structural.
-  rwE : (f : String) -> (mk : Nat) -> (lead : List Nat) -> Nat -> SElem -> Maybe SElem
-  rwE f mk lead d e@(SApp _ _) =
+  ||| Rewrite application SPINES: at each spine (head, arguments) at
+  ||| binder depth d the callback may replace the whole spine — the
+  ||| replacement is NOT revisited, so a callback wanting its
+  ||| arguments rewritten recurses itself — and a declining callback
+  ||| lets the walk recurse into the head and the arguments. Bare
+  ||| heads are offered with an empty argument list.
+  mapSpinesE : (repl : Nat -> SElem -> List SElem -> Maybe SElem) -> Nat -> SElem -> SElem
+  mapSpinesE repl d (SPos r e) = SPos r (mapSpinesE repl d e)
+  mapSpinesE repl d e@(SHole _ _) = e
+  mapSpinesE repl d e@(SApp _ _) =
     let (h, args) = unwind e in
-    case unPos h of
-      SSig r x =>
-        if x == f
-          then do
-            let (las, rest) = splitAt (length lead) args
-            if length las == length lead && all (\(want, got) => isReqVar (want + d) got) (zip lead las)
-              then do
-                rest' <- traverse (rwE f mk lead d) rest
-                pure (spine (SVar Nothing "ih" (mk + d)) rest')
-              else Nothing
-          else do
-            args' <- traverse (rwE f mk lead d) args
-            pure (spine (SSig r x) args')
-      _ => do
-        h' <- rwE f mk lead d h
-        args' <- traverse (rwE f mk lead d) args
-        pure (spine h' args')
-   where
-    isReqVar : Nat -> SElem -> Bool
-    isReqVar want e = case unPos e of
-      SVar _ _ i => i == want
-      _ => False
-  rwE f mk lead d (SVar r n i) = Just (SVar r n i)
-  rwE f mk lead d (SSig r x) = if x == f then Nothing else Just (SSig r x)
-  rwE f mk lead d SUnitI = Just SUnitI
-  rwE f mk lead d SZeroN = Just SZeroN
-  rwE f mk lead d (SSuc t) = SSuc <$> rwE f mk lead d t
-  rwE f mk lead d (SLam x t) = SLam x <$> rwE f mk lead (S d) t
-  rwE f mk lead d (SLet x e b) = [| SLet (pure x) (rwE f mk lead d e) (rwE f mk lead (S (S d)) b) |]
-  rwE f mk lead d (SPair a b) = [| SPair (rwE f mk lead d a) (rwE f mk lead d b) |]
-  rwE f mk lead d (SProj1 t) = SProj1 <$> rwE f mk lead d t
-  rwE f mk lead d (SProj2 t) = SProj2 <$> rwE f mk lead d t
-  rwE f mk lead d SZeroC = Just SZeroC
-  rwE f mk lead d SOneC = Just SOneC
-  rwE f mk lead d SNatC = Just SNatC
-  rwE f mk lead d (SPiC x a b) = [| SPiC (pure x) (rwE f mk lead d a) (rwE f mk lead (S d) b) |]
-  rwE f mk lead d (SSigmaC x a b) = [| SSigmaC (pure x) (rwE f mk lead d a) (rwE f mk lead (S d) b) |]
-  rwE f mk lead d (SSumC a b) = [| SSumC (rwE f mk lead d a) (rwE f mk lead d b) |]
-  rwE f mk lead d (SQuotC a x y r) =
-    do a' <- rwE f mk lead d a; r' <- rwE f mk lead (S (S d)) r; pure (SQuotC a' x y r')
-  rwE f mk lead d (SEqC rng l r t) =
-    do l' <- rwE f mk lead d l
-       r' <- rwE f mk lead d r
-       t' <- traverse (rwTy f mk lead d) t
-       pure (SEqC rng l' r' t')
-  rwE f mk lead d (SZeroElim t) = SZeroElim <$> rwE f mk lead d t
-  rwE f mk lead d (SNatElim mot z n2 ih s t) = do
-    mot' <- traverse (\(n, m) => map (\m' => (n, m')) (rwTy f mk lead (S d) m)) mot
-    z' <- rwE f mk lead d z
-    s' <- rwE f mk lead (S (S d)) s
-    t' <- rwE f mk lead d t
-    pure (SNatElim mot' z' n2 ih s' t')
-  rwE f mk lead d (SInj1 t) = SInj1 <$> rwE f mk lead d t
-  rwE f mk lead d (SInj2 t) = SInj2 <$> rwE f mk lead d t
-  rwE f mk lead d (SSumElim mot a l b r t) = do
-    mot' <- traverse (\(z, m) => map (\m' => (z, m')) (rwTy f mk lead (S d) m)) mot
-    l' <- rwE f mk lead (S d) l
-    r' <- rwE f mk lead (S d) r
-    t' <- rwE f mk lead d t
-    pure (SSumElim mot' a l' b r' t')
-  rwE f mk lead d (SClass t) = SClass <$> rwE f mk lead d t
-  rwE f mk lead d (SQuotElim mot a g q) = do
-    mot' <- traverse (\(z, m) => map (\m' => (z, m')) (rwTy f mk lead (S d) m)) mot
-    g' <- rwE f mk lead (S d) g
-    q' <- rwE f mk lead d q
-    pure (SQuotElim mot' a g' q')
-  rwE f mk lead d (SNuC p) = SNuC <$> rwP f mk lead d p
-  rwE f mk lead d (SOut e) = SOut <$> rwE f mk lead d e
-  rwE f mk lead d (SCorec x a g u) =
-    do a' <- rwE f mk lead d a; g' <- rwE f mk lead (S d) g; u' <- rwE f mk lead d u
-       pure (SCorec x a' g' u')
-  rwE f mk lead d (SCoind nx ny r pw mx my mh q) =
-    do r' <- rwE f mk lead (S (S d)) r; pw' <- rwE f mk lead d pw
-       q' <- rwE f mk lead (S (S (S d))) q
-       pure (SCoind nx ny r' pw' mx my mh q')
-  rwE f mk lead d (SSquash t) = SSquash <$> rwTy f mk lead d t
-  rwE f mk lead d e@(SStar _) = Just e
-  rwE f mk lead d e@(SStarUsing _ _) = Just e
-  rwE f mk lead d (SStarWit e) = SStarWit <$> rwE f mk lead d e
-  rwE f mk lead d (SChain x ls) =
-    do x' <- rwE f mk lead d x
-       ls' <- traverse (\(j, y) => do j' <- rwE f mk lead d j
-                                      y' <- rwE f mk lead d y
-                                      pure (j', y')) ls
-       pure (SChain x' ls')
-  rwE f mk lead d (SSquashElim e x body) =
-    do e' <- rwE f mk lead d e; body' <- rwE f mk lead (S d) body
-       pure (SSquashElim e' x body')
-  rwE f mk lead d (SAnn e ty) = [| SAnn (rwE f mk lead d e) (rwTy f mk lead d ty) |]
-  rwE f mk lead d (SImpArg e) = [| SImpArg (rwE f mk lead d e) |]
-  rwE f mk lead d (SNoIns e) = [| SNoIns (rwE f mk lead d e) |]
-  rwE f mk lead d e@(SBlank _) = Just e
-  rwE f mk lead d e@(SHole _ _) = Just e
-  rwE f mk lead d (SPos r e) = SPos r <$> rwE f mk lead d e
+    case repl d h args of
+      Just r => r
+      Nothing => spine (mapSpinesE repl d h) (map (mapSpinesE repl d) args)
+  mapSpinesE repl d e@(SVar _ _ _) = fromMaybe e (repl d e [])
+  mapSpinesE repl d e@(SSig _ _) = fromMaybe e (repl d e [])
+  mapSpinesE repl d SUnitI = SUnitI
+  mapSpinesE repl d SZeroN = SZeroN
+  mapSpinesE repl d (SSuc t) = SSuc (mapSpinesE repl d t)
+  mapSpinesE repl d (SLam x t) = SLam x (mapSpinesE repl (S d) t)
+  mapSpinesE repl d (SLet x e b) = SLet x (mapSpinesE repl d e) (mapSpinesE repl (S (S d)) b)
+  mapSpinesE repl d (SPair a b) = SPair (mapSpinesE repl d a) (mapSpinesE repl d b)
+  mapSpinesE repl d (SProj1 t) = SProj1 (mapSpinesE repl d t)
+  mapSpinesE repl d (SProj2 t) = SProj2 (mapSpinesE repl d t)
+  mapSpinesE repl d SZeroC = SZeroC
+  mapSpinesE repl d SOneC = SOneC
+  mapSpinesE repl d SNatC = SNatC
+  mapSpinesE repl d (SPiC x a b) = SPiC x (mapSpinesE repl d a) (mapSpinesE repl (S d) b)
+  mapSpinesE repl d (SSigmaC x a b) = SSigmaC x (mapSpinesE repl d a) (mapSpinesE repl (S d) b)
+  mapSpinesE repl d (SSumC a b) = SSumC (mapSpinesE repl d a) (mapSpinesE repl d b)
+  mapSpinesE repl d (SQuotC a x y r) = SQuotC (mapSpinesE repl d a) x y (mapSpinesE repl (S (S d)) r)
+  mapSpinesE repl d (SEqC rng l r t) =
+    SEqC rng (mapSpinesE repl d l) (mapSpinesE repl d r) (map (mapSpinesT repl d) t)
+  mapSpinesE repl d (SZeroElim t) = SZeroElim (mapSpinesE repl d t)
+  mapSpinesE repl d (SNatElim mot z n2 ih s t) =
+    SNatElim (map (\(n, m) => (n, mapSpinesT repl (S d) m)) mot) (mapSpinesE repl d z) n2 ih
+             (mapSpinesE repl (S (S d)) s) (mapSpinesE repl d t)
+  mapSpinesE repl d (SInj1 t) = SInj1 (mapSpinesE repl d t)
+  mapSpinesE repl d (SInj2 t) = SInj2 (mapSpinesE repl d t)
+  mapSpinesE repl d (SSumElim mot a l b r t) =
+    SSumElim (map (\(z, m) => (z, mapSpinesT repl (S d) m)) mot) a (mapSpinesE repl (S d) l) b
+             (mapSpinesE repl (S d) r) (mapSpinesE repl d t)
+  mapSpinesE repl d (SClass t) = SClass (mapSpinesE repl d t)
+  mapSpinesE repl d (SQuotElim mot a f q) =
+    SQuotElim (map (\(z, m) => (z, mapSpinesT repl (S d) m)) mot) a (mapSpinesE repl (S d) f)
+              (mapSpinesE repl d q)
+  mapSpinesE repl d (SNuC p) = SNuC (mapSpinesP repl d p)
+  mapSpinesE repl d (SOut e) = SOut (mapSpinesE repl d e)
+  mapSpinesE repl d (SCorec x a f u) =
+    SCorec x (mapSpinesE repl d a) (mapSpinesE repl (S d) f) (mapSpinesE repl d u)
+  mapSpinesE repl d (SCoind nx ny r pw mx my mh q) =
+    SCoind nx ny (mapSpinesE repl (S (S d)) r) (mapSpinesE repl d pw) mx my mh
+           (mapSpinesE repl (S (S (S d))) q)
+  mapSpinesE repl d (SSquash t) = SSquash (mapSpinesT repl d t)
+  mapSpinesE repl d e@(SStar _) = e
+  mapSpinesE repl d e@(SStarUsing _ _) = e
+  mapSpinesE repl d (SStarWit e) = SStarWit (mapSpinesE repl d e)
+  mapSpinesE repl d (SSquashElim e x body) =
+    SSquashElim (mapSpinesE repl d e) x (mapSpinesE repl (S d) body)
+  mapSpinesE repl d (SChain x ls) =
+    SChain (mapSpinesE repl d x)
+           (map (\(j, y) => (mapSpinesE repl d j, mapSpinesE repl d y)) ls)
+  mapSpinesE repl d (SAnn e ty) = SAnn (mapSpinesE repl d e) (mapSpinesT repl d ty)
+  mapSpinesE repl d (SImpArg e) = SImpArg (mapSpinesE repl d e)
+  mapSpinesE repl d (SNoIns e) = SNoIns (mapSpinesE repl d e)
+  mapSpinesE repl d e@(SBlank _) = e
 
-  rwTy : (f : String) -> (mk : Nat) -> (lead : List Nat) -> Nat -> STy -> Maybe STy
-  rwTy f mk lead d STyZero = Just STyZero
-  rwTy f mk lead d STyOne = Just STyOne
-  rwTy f mk lead d STyNat = Just STyNat
-  rwTy f mk lead d STyUniv = Just STyUniv
-  rwTy f mk lead d (STySig x) = if x == f then Nothing else Just (STySig x)
-  rwTy f mk lead d (STyPi x a b) = [| STyPi (pure x) (rwTy f mk lead d a) (rwTy f mk lead (S d) b) |]
-  rwTy f mk lead d (STyImpPi x a b) = [| STyImpPi (pure x) (rwTy f mk lead d a) (rwTy f mk lead (S d) b) |]
-  rwTy f mk lead d (STySigma x a b) = [| STySigma (pure x) (rwTy f mk lead d a) (rwTy f mk lead (S d) b) |]
-  rwTy f mk lead d (STySum a b) = [| STySum (rwTy f mk lead d a) (rwTy f mk lead d b) |]
-  rwTy f mk lead d (STyQuot a x y r) =
-    do a' <- rwTy f mk lead d a; r' <- rwE f mk lead (S (S d)) r; pure (STyQuot a' x y r')
-  rwTy f mk lead d (STyEq rng l r t) =
-    do l' <- rwE f mk lead d l
-       r' <- rwE f mk lead d r
-       t' <- traverse (rwTy f mk lead d) t
-       pure (STyEq rng l' r' t')
-  rwTy f mk lead d (STyEl e) = STyEl <$> rwE f mk lead d e
-  rwTy f mk lead d (STyPos r t) = STyPos r <$> rwTy f mk lead d t
-  rwTy f mk lead d STyProp = Just STyProp
-  rwTy f mk lead d (STyNu p) = STyNu <$> rwP f mk lead d p
+  mapSpinesT : (repl : Nat -> SElem -> List SElem -> Maybe SElem) -> Nat -> STy -> STy
+  mapSpinesT repl d (STyPos r t) = STyPos r (mapSpinesT repl d t)
+  mapSpinesT repl d STyZero = STyZero
+  mapSpinesT repl d STyOne = STyOne
+  mapSpinesT repl d STyNat = STyNat
+  mapSpinesT repl d STyUniv = STyUniv
+  mapSpinesT repl d t@(STySig _) = t
+  mapSpinesT repl d (STyPi x a b) = STyPi x (mapSpinesT repl d a) (mapSpinesT repl (S d) b)
+  mapSpinesT repl d (STyImpPi x a b) = STyImpPi x (mapSpinesT repl d a) (mapSpinesT repl (S d) b)
+  mapSpinesT repl d (STySigma x a b) = STySigma x (mapSpinesT repl d a) (mapSpinesT repl (S d) b)
+  mapSpinesT repl d (STySum a b) = STySum (mapSpinesT repl d a) (mapSpinesT repl d b)
+  mapSpinesT repl d (STyQuot a x y r) = STyQuot (mapSpinesT repl d a) x y (mapSpinesE repl (S (S d)) r)
+  mapSpinesT repl d (STyEq rng l r t) =
+    STyEq rng (mapSpinesE repl d l) (mapSpinesE repl d r) (map (mapSpinesT repl d) t)
+  mapSpinesT repl d (STyEl e) = STyEl (mapSpinesE repl d e)
+  mapSpinesT repl d STyProp = STyProp
+  mapSpinesT repl d (STyNu p) = STyNu (mapSpinesP repl d p)
 
-  rwP : (f : String) -> (mk : Nat) -> (lead : List Nat) -> Nat -> SPoly -> Maybe SPoly
-  rwP f mk lead d SPHole = Just SPHole
-  rwP f mk lead d (SPConst a) = SPConst <$> rwE f mk lead d a
-  rwP f mk lead d (SPProd p q) = [| SPProd (rwP f mk lead d p) (rwP f mk lead d q) |]
-  rwP f mk lead d (SPSum p q) = [| SPSum (rwP f mk lead d p) (rwP f mk lead d q) |]
-  rwP f mk lead d (SPSigma x a p) = [| SPSigma (pure x) (rwE f mk lead d a) (rwP f mk lead (S d) p) |]
-  rwP f mk lead d (SPPi x a p) = [| SPPi (pure x) (rwE f mk lead d a) (rwP f mk lead (S d) p) |]
+  mapSpinesP : (repl : Nat -> SElem -> List SElem -> Maybe SElem) -> Nat -> SPoly -> SPoly
+  mapSpinesP repl d SPHole = SPHole
+  mapSpinesP repl d (SPConst a) = SPConst (mapSpinesE repl d a)
+  mapSpinesP repl d (SPProd p q) = SPProd (mapSpinesP repl d p) (mapSpinesP repl d q)
+  mapSpinesP repl d (SPSum p q) = SPSum (mapSpinesP repl d p) (mapSpinesP repl d q)
+  mapSpinesP repl d (SPSigma x a p) = SPSigma x (mapSpinesE repl d a) (mapSpinesP repl (S d) p)
+  mapSpinesP repl d (SPPi x a p) = SPPi x (mapSpinesE repl d a) (mapSpinesP repl (S d) p)
+
+-- ===== Call alignment (term-syntax conventions) =====
+
+||| Align a call's SPELLED arguments to the item's columns: an
+||| implicit column consumes a {t} override if one is next and is
+||| otherwise ELIDED — its value the column's own variable in the
+||| clause telescope (colFill, weakened by the depth; verified
+||| downstream by the clause lemma's β-discharge) — an explicit
+||| column consumes the next plain argument. Exhausted arguments stop
+||| the walk (a PARTIAL application — legal past the split column);
+||| arguments beyond the columns stay applied (Π's past the k-th
+||| live inside B). Nothing = misaligned ({t} at an explicit column,
+||| or an elided implicit at a constructor-pattern column).
+alignCallP : (colImps : List Bool) -> (colFill : List (Maybe (SName, Nat))) ->
+             (d : Nat) -> List SElem -> Maybe (List SElem, List SElem)
+alignCallP colImps colFill d args = go colImps colFill args
+ where
+  consA : SElem -> (List SElem, List SElem) -> (List SElem, List SElem)
+  consA v (vs, ex) = (v :: vs, ex)
+  go : List Bool -> List (Maybe (SName, Nat)) -> List SElem -> Maybe (List SElem, List SElem)
+  go _ _ [] = Just ([], [])
+  go [] _ rest = Just ([], rest)
+  go (True :: is) (mf :: fs) (a0 :: as) =
+    case unPos a0 of
+      SImpArg t => consA t <$> go is fs as
+      _ => do (nm, top) <- mf
+              consA (SVar (snd nm) (fst nm) (d + top)) <$> go is fs (a0 :: as)
+  go (True :: is) (mf :: fs) [] = do
+    (nm, top) <- mf
+    consA (SVar (snd nm) (fst nm) (d + top)) <$> go is fs []
+  go (False :: is) (_ :: fs) (a0 :: as) =
+    case unPos a0 of
+      SImpArg _ => Nothing
+      _ => consA a0 <$> go is fs as
+  go _ [] _ = Nothing
+
+-- ===== Structural-recursion rewriting =====
+
+||| Replace every application spine of `f` whose ALIGNED leading
+||| arguments are exactly the required variables — the clause's
+||| earlier column variables, then the predecessor — by the MARKER
+||| variable (top-level index `mk`) applied to the remaining
+||| (rewritten) aligned arguments. Nothing if any occurrence of f
+||| survives in another shape (a misaligned or unguarded call is left
+||| in place and fails the final occurrence check): the recursion is
+||| not structural.
+rwCalls : (f : String) -> (mk : Nat) -> (lead : List Nat) ->
+          (colImps : List Bool) -> (colFill : List (Maybe (SName, Nat))) ->
+          SElem -> Maybe SElem
+rwCalls fname mk lead colImps colFill e0 =
+  let r = mapSpinesE repl 0 e0 in
+  if occursE fname r then Nothing else Just r
+ where
+  isReqVar : Nat -> SElem -> Bool
+  isReqVar want e = case unPos e of
+    SVar _ _ i => i == want
+    _ => False
+  repl : Nat -> SElem -> List SElem -> Maybe SElem
+  repl d (SSig _ x) args =
+    if x /= fname then Nothing else do
+      (aligned, extras) <- alignCallP colImps colFill d args
+      let (las, rest) = splitAt (length lead) aligned
+      let True = length las == length lead
+        | False => Nothing
+      let True = all (\(want, got) => isReqVar (want + d) got) (zip lead las)
+        | False => Nothing
+      -- nested calls inside the remaining arguments rewrite too; a
+      -- failure there survives as an f-occurrence and fails the
+      -- final check
+      pure (spine (SVar Nothing "ih" (mk + d))
+                  (map (mapSpinesE repl d) (rest ++ extras)))
+  repl _ _ _ = Nothing
+
 
 -- ===== Columns and patterns =====
 
@@ -415,16 +447,16 @@ tyNat : STy -> Bool
 tyNat ty = case unPosTy ty of
   STyNat => True
   STyEl e => case unPos e of
-               SNatC => True
-               _ => False
+    SNatC => True
+    _ => False
   _ => False
 
 tySumParts : STy -> Maybe (STy, STy)
 tySumParts ty = case unPosTy ty of
   STySum a b => Just (a, b)
   STyEl e => case unPos e of
-               SSumC a b => Just (STyEl a, STyEl b)
-               _ => Nothing
+    SSumC a b => Just (STyEl a, STyEl b)
+    _ => Nothing
   _ => Nothing
 
 ||| A pattern with its variable's telescope SLOT resolved (0-based,
@@ -450,6 +482,10 @@ assignSlots pats =
  where
   goP : List String -> SPat -> (PatSk, List String)
   goP seen (SPVar x) =
+    case (fst x /= wildcard, indexOf (fst x) seen) of
+      (True, Just i) => (KVar x i False, seen)
+      _ => (KVar x (length seen) True, seen ++ [fst x])
+  goP seen (SPImpVar x) =
     case (fst x /= wildcard, indexOf (fst x) seen) of
       (True, Just i) => (KVar x i False, seen)
       _ => (KVar x (length seen) True, seen ++ [fst x])
@@ -494,37 +530,150 @@ typePat a (KInj2 p) =
     Just (_, r) => typePat r p
     Nothing => Left "pattern inj₂ … at a column whose type is not a ⊎"
 
-||| Per-clause data: the pattern telescope (outermost first), the
-||| resolved pattern skeletons, and the LHS argument spine over the
-||| full telescope.
+||| Per-clause data: the pattern telescope (outermost first) with the
+||| per-entry implicitness of its binders (an implicit column's
+||| variable — spelled {x} or elided — binds implicitly in the
+||| generated lemma), the resolved pattern skeletons, and the LHS
+||| argument spine over the full telescope.
 record ClauseData where
   constructor MkClauseData
   csks : List PatSk
   ctele : List (SName, STy)
+  cimps : List Bool
   cargs : List SElem
 
-buildClauseData : List (String, STy) -> SClause -> Either String ClauseData
-buildClauseData cols clause = do
+buildClauseData : List (String, STy) -> List Bool -> SClause -> Either String ClauseData
+buildClauseData cols colImps clause = do
   let (sks, nslots) = assignSlots clause.cpats
-  tele <- go 0 [] (map snd cols) sks
+  (tele, imps) <- go 0 [] (map snd cols) colImps sks
   let args = map (patTerm nslots) sks
   if length tele == length clause.cvars
-    then Right (MkClauseData sks tele args)
+    then Right (MkClauseData sks tele imps args)
     else Left "internal: pattern telescope disagrees with the parser's"
  where
   -- position by position: transport the column type to the telescope
   -- context (substituting the EARLIER positions' pattern terms — kept
   -- in `past`, most recent first — for the earlier column variables),
   -- then read the position's binder off the pattern
-  go : (bound : Nat) -> (past : List PatSk) -> List STy -> List PatSk ->
-       Either String (List (SName, STy))
-  go bound past [] [] = Right []
-  go bound past (a :: as) (sk :: sks) = do
+  go : (bound : Nat) -> (past : List PatSk) -> List STy -> List Bool -> List PatSk ->
+       Either String (List (SName, STy), List Bool)
+  go bound past [] _ [] = Right ([], [])
+  go bound past (a :: as) imps (sk :: sks) = do
     let a' = remapFreeTy (\d => maybe SUnitI (patTerm bound) (nth d past)) a
     binds <- typePat a' sk
-    rest <- go (bound + length binds) (sk :: past) as sks
-    pure (binds ++ rest)
-  go _ _ _ _ = Left "internal: column/pattern arity mismatch"
+    let imp = case imps of { (i :: _) => i ; [] => False }
+    (rest, rimps) <- go (bound + length binds) (sk :: past) as (drop 1 imps) sks
+    pure (binds ++ rest, map (const imp) binds ++ rimps)
+  go _ _ _ _ _ = Left "internal: column/pattern arity mismatch"
+
+||| The clause telescope's variables, mirroring the parser's
+||| patVarsOf: one slot per variable in order of first appearance,
+||| wildcards always fresh.
+patVarsC : List SPat -> List SName
+patVarsC = foldl goP []
+ where
+  goP : List SName -> SPat -> List SName
+  goP acc (SPVar x) =
+    if fst x /= wildcard && elem (fst x) (map fst acc) then acc else acc ++ [x]
+  goP acc (SPImpVar x) =
+    if fst x /= wildcard && elem (fst x) (map fst acc) then acc else acc ++ [x]
+  goP acc SPZero = acc
+  goP acc (SPSuc p) = goP acc p
+  goP acc (SPInj1 p) = goP acc p
+  goP acc (SPInj2 p) = goP acc p
+
+-- ===== Column alignment (term-syntax conventions) =====
+
+||| Does a pattern contain a {…} below its top level?
+hasNestedImp : SPat -> Bool
+hasNestedImp (SPVar _) = False
+hasNestedImp (SPImpVar _) = True
+hasNestedImp SPZero = False
+hasNestedImp (SPSuc p) = hasNestedImp p
+hasNestedImp (SPInj1 p) = hasNestedImp p
+hasNestedImp (SPInj2 p) = hasNestedImp p
+
+||| Align one clause's SPELLED patterns against the item's leading
+||| Π-columns, per the term syntax's conventions: an implicit column
+||| consumes a {x} pattern if one is next and is otherwise ELIDED (a
+||| fresh variable named by the type's own binder); an explicit
+||| column consumes the next pattern, which must not be {…}-marked
+||| (at the top or nested — constructor patterns never sit at
+||| implicit columns). The walk stops when the spelled patterns are
+||| exhausted: trailing columns stay inside B, as before. Returns the
+||| consumed columns (implicitness, binder name, type), the EXPANDED
+||| pattern list with per-pattern elision flags, and the remainder
+||| type.
+alignClausePats : STy -> List SPat ->
+                  Either String (List (Bool, String, STy), List (SPat, Bool), STy)
+alignClausePats ty pats = go [] ty pats
+ where
+  taken : List String
+  taken = map fst (patVarsC pats)
+  fresh : List String -> String -> String
+  fresh used n = if elem n (taken ++ used) then fresh used (n ++ "'") else n
+  go : (used : List String) -> STy -> List SPat ->
+       Either String (List (Bool, String, STy), List (SPat, Bool), STy)
+  go used (STyPos _ t) ps@(_ :: _) = go used t ps
+  go used t [] = Right ([], [], t)
+  go used (STyImpPi x a b) (SPImpVar v :: ps) =
+    (\(cs, es, r) => ((True, x, a) :: cs, (SPImpVar v, False) :: es, r)) <$> go used b ps
+  go used (STyImpPi x a b) ps =
+    let x' = fresh used x in
+    (\(cs, es, r) => ((True, x, a) :: cs, (SPImpVar (x', Nothing), True) :: es, r))
+      <$> go (x' :: used) b ps
+  go used (STyPi x a b) (SPImpVar _ :: _) =
+    Left "a {…} pattern at an explicit column"
+  go used (STyPi x a b) (p :: ps) =
+    if hasNestedImp p
+      then Left "a {…} pattern inside a constructor pattern"
+      else (\(cs, es, r) => ((False, x, a) :: cs, (p, False) :: es, r)) <$> go used b ps
+  go used _ (_ :: _) =
+    Left "the clauses spell more pattern positions than the item's type shows Π-columns"
+
+||| Reindex a clause RHS from the SPELLED patterns' slot environment
+||| (what the parser bound) to the EXPANDED one — the elided implicit
+||| binders' slots interleave, order-preserving.
+remapClauseRhs : (expanded : List (SPat, Bool)) -> SElem -> SElem
+remapClauseRhs expanded rhs =
+  let flags = slotFlags [] expanded
+      n = length flags
+      spelledSlots = map fst (filter (not . snd) (tag 0 flags))
+      m = length spelledSlots
+  in mapRefsE (\dd, r, nm, i =>
+       case nth (minus m (S (minus i dd))) spelledSlots of
+         Just s' => SVar r nm (dd + minus n (S s'))
+         Nothing => SVar r nm i)
+     keepSig 0 rhs
+ where
+  tag : Nat -> List Bool -> List (Nat, Bool)
+  tag i [] = []
+  tag i (b :: bs) = (i, b) :: tag (S i) bs
+  extSeen : List String -> SPat -> List String
+  extSeen seen (SPVar x) =
+    if fst x /= wildcard && elem (fst x) seen then seen else seen ++ [fst x]
+  extSeen seen (SPImpVar x) =
+    if fst x /= wildcard && elem (fst x) seen then seen else seen ++ [fst x]
+  extSeen seen SPZero = seen
+  extSeen seen (SPSuc p) = extSeen seen p
+  extSeen seen (SPInj1 p) = extSeen seen p
+  extSeen seen (SPInj2 p) = extSeen seen p
+  ||| per expanded slot, in slot order: does it come from an ELIDED
+  ||| pattern?
+  slotFlags : List String -> List (SPat, Bool) -> List Bool
+  slotFlags seen [] = []
+  slotFlags seen ((p, el) :: rest) =
+    let seen' = extSeen seen p
+    in replicate (minus (length seen') (length seen)) el ++ slotFlags seen' rest
+
+||| The per-column FILL data of one (expanded) clause: for a
+||| variable-pattern column, its binder and top-level telescope index
+||| — what an elided implicit call argument aligns to.
+colFillOf : (sks : List PatSk) -> (nslots : Nat) -> List (Maybe (SName, Nat))
+colFillOf sks nslots =
+  map (\sk => case sk of
+                KVar nm s _ => Just (nm, minus nslots (S s))
+                _ => Nothing) sks
 
 -- ===== The structural fragment =====
 
@@ -546,6 +695,7 @@ data Shape : Type where
 
 isVarPat : SPat -> Bool
 isVarPat (SPVar _) = True
+isVarPat (SPImpVar _) = True
 isVarPat _ = False
 
 ||| Linear: no non-wildcard variable occurs twice in one clause's LHS.
@@ -556,6 +706,7 @@ linearClause c =
  where
   patNames : SPat -> List String
   patNames (SPVar x) = [fst x]
+  patNames (SPImpVar x) = [fst x]
   patNames SPZero = []
   patNames (SPSuc p) = patNames p
   patNames (SPInj1 p) = patNames p
@@ -630,18 +781,21 @@ colBinder cols i =
 ||| The witness ρ for an ℕ split at 1-based column j of k: eliminate
 ||| the split variable at the Π-motive over the trailing columns.
 ||| Nothing when the recursion is not structural.
-rhoNat : (fname : String) -> (cols : List (String, STy)) -> (b : STy) ->
+rhoNat : (fname : String) -> (cols : List (String, STy)) -> (colImps : List Bool) ->
+         (b : STy) ->
          (j, k : Nat) -> (zc, sc : SClause) -> (mvar : SName) -> Maybe SElem
-rhoNat fname cols b j k zc sc mvar = do
+rhoNat fname cols colImps b j k zc sc mvar = do
   let kj = minus k j
   -- the Z-clause must not mention f at all
   let False = occursE fname zc.crhs
     | True => Nothing
   -- required leading arguments of a recursive call: the clause's own
   -- column variables (top-level indices k−1 … k−j+1), then the
-  -- predecessor (k−j)
+  -- predecessor (k−j) — calls align by the term-syntax conventions
+  -- (elided implicit arguments read as the ambient columns)
   let lead = map (\i => minus k i) [1 .. j]
-  sBody <- rwE fname k lead 0 sc.crhs
+  let (ssks, snslots) = assignSlots sc.cpats
+  sBody <- rwCalls fname k lead colImps (colFillOf ssks snslots) sc.crhs
   let zBody = wrapSLams (drop (minus j 1) zc.cvars) (shiftE kj 1 zc.crhs)
   let sBody' = wrapSLams (drop j sc.cvars) (remapIdxE (msMap kj) sBody)
   let mot = motChain (drop j cols) (shiftTy (S kj) 1 b)
@@ -687,23 +841,26 @@ rhoNone fname c = do
   pure (wrapSLams c.cvars c.crhs)
 
 ||| The pointwise uniqueness STATEMENT:
-|||   (g : T) → (h₁ : clause₁[g/f]) → … → (x₁:A₁) → … → g x̄ ≡ f x̄ ∈ B
-||| The h-binders reuse the clause lemmas' names (display only); the
-||| trailing binders are the columns, so the equation's sides
-||| determine them — the h's are SIDE CONDITIONS in E's documented
-||| sense.
+|||   (g : T) → (h₁ : clause₁-for-g) → … → (x₁:A₁) → … → g x̄ ≡ f x̄ ∈ B
+||| The h-binders reuse the clause lemmas' names (display only) and
+||| their types arrive PRE-BUILT for the variable head (a variable
+||| never inserts, so the g-spines apply fully and plainly while f's
+||| carry its {…} overrides); the trailing binders are the columns,
+||| so the equation's sides determine them — the h's are SIDE
+||| CONDITIONS in E's documented sense.
 etaType : (fname : String) -> (ty : STy) -> (cols : List (String, STy)) ->
-          (b : STy) -> (lemNames : List String) -> (lemTys : List STy) -> STy
-etaType fname ty cols b lemNames lemTys =
+          (colImps : List Bool) -> (b : STy) ->
+          (lemNames : List String) -> (hypTys : List STy) -> STy
+etaType fname ty cols colImps b lemNames hypTys =
   let k = length cols
-      m = length lemTys
+      m = length hypTys
       hyps = the (List (SName, STy))
-               (zipWith (\i, nt => ((fst nt, Nothing), replaceSigTy fname "g" i (snd nt)))
-                        [0 .. minus m 1] (zip lemNames lemTys))
+               (zipWith (\n, t => ((n, Nothing), t)) lemNames hypTys)
       colBinds = the (List (SName, STy)) (map (\(x, a) => ((x, Nothing), a)) cols)
       args = map (\i => SVar Nothing (colName i) (minus k i)) [1 .. k]
+      fargs = zipWith (\imp, a => if imp then SImpArg a else a) colImps args
       concl = STyEq Nothing (spine (SVar Nothing "g" (k + m)) args)
-                    (spine (SSig Nothing fname) args) (Just b)
+                    (spine (SSig Nothing fname) fargs) (Just b)
   in STyPi "g" ty (wrapSPis hyps (wrapSPis colBinds concl))
  where
   colName : Nat -> String
@@ -722,10 +879,11 @@ etaBodyStar m k lemNames cols =
     (wrapSLams (map (\n => (n, Nothing)) lemNames)
       (wrapSLams (map (\(x, _) => (x, Nothing)) cols) (SStar Nothing)))
 
-etaBodyElim : (fname : String) -> (cols : List (String, STy)) -> (b : STy) ->
+etaBodyElim : (fname : String) -> (cols : List (String, STy)) ->
+              (colImps : List Bool) -> (b : STy) ->
               (j, k, m : Nat) -> (lemNames : List String) ->
               (isNat : Bool) -> (v1, v2 : SName) -> SElem
-etaBodyElim fname cols b j k m lemNames isNat v1 v2 =
+etaBodyElim fname cols colImps b j k m lemNames isNat v1 v2 =
   let kj = minus k j
       trailing = drop j cols
       -- context at the motive's equation: [g, h's, x₁…x_j, x, trailing]
@@ -733,8 +891,9 @@ etaBodyElim fname cols b j k m lemNames isNat v1 v2 =
                     (if i < j then (minus k i) + 1
                      else if i == j then kj
                      else minus k i)) [1 .. k]
+      fargs = zipWith (\imp, a => if imp then SImpArg a else a) colImps args
       concl = STyEq Nothing (spine (SVar Nothing "g" (m + k + 1)) args)
-                    (spine (SSig Nothing fname) args)
+                    (spine (SSig Nothing fname) fargs)
                     (Just (shiftTy (S kj) 1 b))
       mot = motChain trailing concl
       trailLams = wrapSLams (map (\(x, _) => (x, Nothing)) trailing) (SStar Nothing)
@@ -757,6 +916,7 @@ defaultTag c = go c.cpats
  where
   tag : SPat -> Maybe String
   tag (SPVar _) = Nothing
+  tag (SPImpVar _) = Nothing
   tag SPZero = Just "Z"
   tag (SPSuc _) = Just "S"
   tag (SPInj1 _) = Just "Inl"
@@ -795,21 +955,33 @@ record Expansion where
 ||| declarations — one semantics, three labor divisions.
 export
 expandClausal : (nrng : Maybe Range) -> (fname : String) -> STy ->
+                (muses : Maybe (List String)) ->
                 (etaName : Maybe String) -> (witness : Maybe SElem) ->
                 List SClause -> Either String Expansion
-expandClausal nrng fname ty etaName witness clauses = do
-  -- arity and columns
-  k <- case map (length . cpats) clauses of
-         [] => Left "at least one clause is required"
-         (n :: ns) =>
-           if not (all (== n) ns)
-             then Left "clauses disagree on the number of pattern positions"
-             else if n == 0
-               then Left "a clause must spell at least one pattern position"
-               else Right n
-  (cols, b) <- maybe (Left ("the clauses spell \{show k} pattern positions, "
-                            ++ "but the item's type does not show \{show k} leading Π-columns"))
-                     Right (peelPis k ty)
+expandClausal nrng fname ty muses etaName witness clauses = do
+  -- ALIGNMENT: each clause's spelled patterns against the item's
+  -- leading Π-columns (implicit columns {x}-spelled or elided, per
+  -- the term syntax); all clauses must consume the same columns
+  let True = not (null clauses)
+    | False => Left "at least one clause is required"
+  aligned <- traverse (\c => alignClausePats ty c.cpats) clauses
+  (cols3, b) <- the (Either String (List (Bool, String, STy), STy)) $
+    case aligned of
+      ((cs, _, r) :: rest) =>
+        if all (\(cs', _, _) => length cs' == length cs) rest
+          then Right (cs, r)
+          else Left "clauses disagree on the number of pattern positions"
+      [] => Left "at least one clause is required"
+  let k = length cols3
+  let True = k >= 1
+    | False => Left "a clause must spell at least one pattern position"
+  let colImps = map (\(i, _, _) => i) cols3
+  let cols = map (\(_, x, a) => (x, a)) cols3
+  -- the EXPANDED clauses: elided implicit binders inserted, RHSs
+  -- reindexed from the spelled to the full telescope
+  let eclauses = zipWith (\c, al => case al of
+        (_, eps, _) => MkSClause (map fst eps) (patVarsC (map fst eps))
+                                 (remapClauseRhs eps c.crhs) c.cname c.crange) clauses aligned
   -- names: deterministic defaults; an operator-named item has no
   -- identifier to prefix, so every override is mandatory
   lemNames <-
@@ -823,22 +995,24 @@ expandClausal nrng fname ty etaName witness clauses = do
                  Right etaName
       else Right (fromMaybe (fname ++ "Eta") etaName)
   -- per-clause telescopes and lemma statements
-  cds <- traverse (buildClauseData cols) clauses
-  let lemTys = zipWith (mkLemTy cols b k) clauses cds
+  cds <- traverse (buildClauseData cols colImps) eclauses
+  let lemTys = zipWith (mkLemTy colImps b k) eclauses cds
   -- the λ's here are pure scaffolding over a ⋆ — their binders reuse
   -- the pattern variables' SPANS, which would pull the lemma's
-  -- obligations onto a variable inside a pattern. The lemma is about
-  -- the CLAUSE, so the scaffolding keeps the display names and drops
-  -- the ranges (the Π-binders of `mkLemTy` keep theirs, which is what
-  -- ascribes a type to the written pattern variable on hover).
+  -- obligations onto a variable inside a pattern: keep the display
+  -- names, drop the ranges (the Π-binders of mkLemTy keep theirs)
   let lemBodies = map (\cd => wrapSLams (map (\(n, _) => (n, Nothing)) (map fst cd.ctele))
                                         (SStar Nothing)) cds
   let m = length clauses
-  let eTy = etaType fname ty cols b lemNames lemTys
-  let shape = analyzeShape cols clauses
-  let eBodySynth = map (shapedEtaBody cols b k m lemNames) shape
+  let hypTys = zipWith3 (mkLemTyG colImps b k) (rangeFrom0 m) eclauses cds
+  let eTy = etaType fname ty cols colImps b lemNames hypTys
+  let shape = analyzeShape cols eclauses
+  let eBodySynth = map (shapedEtaBody cols colImps b k m lemNames) shape
   let eBodyStar = etaBodyStar m k lemNames cols
   let names = fname :: lemNames ++ [etaN]
+  let musesL = fromMaybe [] muses
+  let lemUses = nub (musesL ++ [fname ++ ".eq"])
+  let etaUses = nub (musesL ++ lemNames ++ map (++ ".rw") lemNames ++ [fname ++ ".eq", "hyp.rw"])
   case witness of
     Just w =>
       -- WITNESS TIER: existence is the user's; the clause lemmas pay
@@ -847,26 +1021,27 @@ expandClausal nrng fname ty etaName witness clauses = do
       -- are fragment-shaped — it rewrites by the clause lemmas, never
       -- by unfolding the witness
       Right (MkExpansion
-               ((nrng, SDef fname ty w Nothing)
+               ((nrng, SDef fname ty w muses)
                   -- the clause lemmas hold by the definition's own
                   -- computation: cite its defining equation explicitly
                   -- (the join needs the license to unfold the definition
                   -- it otherwise), and the uniqueness proof cites the
-                  -- clause lemmas it rewrites by
-                  :: atClauses (zipWith3 (\n, t, b => SDef n t b (Just [fname ++ ".eq"])) lemNames lemTys lemBodies)
-                  ++ [(nrng, SDef etaN eTy (fromMaybe eBodyStar eBodySynth) (Just (lemNames ++ map (++ ".rw") lemNames ++ [fname ++ ".eq", "hyp.rw"])))])
+                  -- clause lemmas it rewrites by; the item's own
+                  -- using-clause rides along on every generated item
+                  :: atClauses (zipWith3 (\n, t, bo => SDef n t bo (Just lemUses)) lemNames lemTys lemBodies)
+                  ++ [(nrng, SDef etaN eTy (fromMaybe eBodyStar eBodySynth) (Just etaUses))])
                "defined \{fname} by clauses via witness (\{joinBy ", " names})")
     Nothing =>
-      case (shape, shape >>= shapedRho cols b k) of
+      case (shape, shape >>= shapedRho cols colImps b k) of
         (Just _, Just rho) =>
           -- THE FRAGMENT: everything synthesized
           Right (MkExpansion
-                   ((nrng, SDef fname ty rho Nothing)
+                   ((nrng, SDef fname ty rho muses)
                       -- as at the witness tier: clause lemmas cite the
                       -- defining equation, uniqueness cites the clause
                       -- lemmas
-                      :: atClauses (zipWith3 (\n, t, b => SDef n t b (Just [fname ++ ".eq"])) lemNames lemTys lemBodies)
-                      ++ [(nrng, SDef etaN eTy (fromMaybe eBodyStar eBodySynth) (Just (lemNames ++ map (++ ".rw") lemNames ++ [fname ++ ".eq", "hyp.rw"])))])
+                      :: atClauses (zipWith3 (\n, t, bo => SDef n t bo (Just lemUses)) lemNames lemTys lemBodies)
+                      ++ [(nrng, SDef etaN eTy (fromMaybe eBodyStar eBodySynth) (Just etaUses))])
                    "defined \{fname} by clauses (\{joinBy ", " names})")
         _ =>
           -- DECLARATION TIER: the whole batch demotes to named rigid
@@ -881,32 +1056,68 @@ expandClausal nrng fname ty etaName witness clauses = do
                    ("declared \{fname} and its equations (\{joinBy ", " names})"
                     ++ " — clauses outside the structural fragment"))
  where
-  ||| The generated per-clause items, each paired with its clause's
-  ||| own span (the lists are built by zipping over `clauses`, so they
-  ||| are in clause order and of the same length).
   atClauses : List SItem -> List (Maybe Range, SItem)
   atClauses = zip (map crange clauses)
 
+  rangeFrom0 : Nat -> List Nat
+  rangeFrom0 Z = []
+  rangeFrom0 (S n) = rangeFrom0 n ++ [n]
+
+  ||| Π-closure MIRRORING the columns' implicitness (a generated
+  ||| lemma reads and applies like a hand-written one).
+  wrapSPisM : List (Bool, (SName, STy)) -> STy -> STy
+  wrapSPisM xs t =
+    foldr (\p, r => case p of
+             (True, (x, a)) => STyImpPi (fst x) a r
+             (False, (x, a)) => STyPi (fst x) a r) t xs
+
   ||| Π(Γᵢ). f p̄ᵢ ≡ tᵢ ∈ B[p̄ᵢ] — the clause, Π-closed over its pattern
-  ||| telescope; recursive occurrences in tᵢ stay references to f.
-  mkLemTy : List (String, STy) -> STy -> Nat -> SClause -> ClauseData -> STy
-  mkLemTy cols b k clause cd =
+  ||| telescope (implicitness mirrored); recursive occurrences in tᵢ
+  ||| stay references to f, and f's implicit positions ride as {…}
+  ||| overrides in the LHS spine.
+  mkLemTy : List Bool -> STy -> Nat -> SClause -> ClauseData -> STy
+  mkLemTy colImps b k clause cd =
     let bigL = length cd.ctele
-        lhs = spine (SSig Nothing fname) cd.cargs
+        fargs = zipWith (\imp, a => if imp then SImpArg a else a) colImps cd.cargs
+        lhs = spine (SSig Nothing fname) fargs
         bC = remapFreeTy (\d => maybe SUnitI (patTerm bigL) (nth d (reverse cd.csks))) b
-    in wrapSPis cd.ctele (STyEq Nothing lhs clause.crhs (Just bC))
+    in wrapSPisM (zip cd.cimps cd.ctele) (STyEq Nothing lhs clause.crhs (Just bC))
 
-  shapedRho : List (String, STy) -> STy -> Nat -> Shape -> Maybe SElem
-  shapedRho cols b k (ShNone c) = rhoNone fname c
-  shapedRho cols b k (ShNat j zc sc mvar) = rhoNat fname cols b j k zc sc mvar
-  shapedRho cols b k (ShSum j lc avar rc bvar) = rhoSum fname cols b j k lc avar rc bvar
+  ||| The clause FOR A CANDIDATE VARIABLE g — the uniqueness lemma's
+  ||| hypothesis at position `base` (that many binders sit between g
+  ||| and this hypothesis's own Π). A variable never inserts, so the
+  ||| g-spines apply fully and plainly: the LHS over the pattern
+  ||| telescope, and every recursive call in the RHS respelled with
+  ||| its ALIGNED argument values (elided implicits filled by their
+  ||| column variables).
+  mkLemTyG : List Bool -> STy -> Nat -> (base : Nat) -> SClause -> ClauseData -> STy
+  mkLemTyG colImps b k base clause cd =
+    let bigL = length cd.ctele
+        cfill = colFillOf cd.csks bigL
+        lhs = spine (SVar Nothing "g" (base + bigL)) cd.cargs
+        rhs = mapSpinesE (replG cfill bigL) 0 clause.crhs
+        bC = remapFreeTy (\d => maybe SUnitI (patTerm bigL) (nth d (reverse cd.csks))) b
+    in wrapSPisM (zip cd.cimps cd.ctele) (STyEq Nothing lhs rhs (Just bC))
+   where
+    replG : List (Maybe (SName, Nat)) -> Nat -> Nat -> SElem -> List SElem -> Maybe SElem
+    replG cfill bigL d (SSig _ x) args =
+      if x /= fname then Nothing else do
+        (as, extras) <- alignCallP colImps cfill d args
+        pure (spine (SVar Nothing "g" (base + bigL + d))
+                    (map (mapSpinesE (replG cfill bigL) d) (as ++ extras)))
+    replG _ _ _ _ _ = Nothing
 
-  shapedEtaBody : List (String, STy) -> STy -> Nat -> Nat -> List String -> Shape -> SElem
-  shapedEtaBody cols b k m lemNames (ShNone _) = etaBodyStar m k lemNames cols
-  shapedEtaBody cols b k m lemNames (ShNat j _ sc mvar) =
-    etaBodyElim fname cols b j k m lemNames True mvar ("ih", Nothing)
-  shapedEtaBody cols b k m lemNames (ShSum j _ avar _ bvar) =
-    etaBodyElim fname cols b j k m lemNames False avar bvar
+  shapedRho : List (String, STy) -> List Bool -> STy -> Nat -> Shape -> Maybe SElem
+  shapedRho cols colImps b k (ShNone c) = rhoNone fname c
+  shapedRho cols colImps b k (ShNat j zc sc mvar) = rhoNat fname cols colImps b j k zc sc mvar
+  shapedRho cols colImps b k (ShSum j lc avar rc bvar) = rhoSum fname cols b j k lc avar rc bvar
+
+  shapedEtaBody : List (String, STy) -> List Bool -> STy -> Nat -> Nat -> List String -> Shape -> SElem
+  shapedEtaBody cols colImps b k m lemNames (ShNone _) = etaBodyStar m k lemNames cols
+  shapedEtaBody cols colImps b k m lemNames (ShNat j _ sc mvar) =
+    etaBodyElim fname cols colImps b j k m lemNames True mvar ("ih", Nothing)
+  shapedEtaBody cols colImps b k m lemNames (ShSum j _ avar _ bvar) =
+    etaBodyElim fname cols colImps b j k m lemNames False avar bvar
 
 -- ===== The copattern def item =====
 --
