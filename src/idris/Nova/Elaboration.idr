@@ -775,6 +775,8 @@ matchQTyP : (k : Nat) -> (d : Nat) -> (b : Nat) -> QTy -> QTy -> Bindings -> May
 
 matchQTmP : (k : Nat) -> (d : Nat) -> (b : Nat) -> QTm -> QTm -> Bindings -> Maybe Bindings
 
+matchPolyP : (k : Nat) -> (d : Nat) -> (b : Nat) -> Poly -> Poly -> Bindings -> Maybe Bindings
+
 matchElemP : (k : Nat) -> (d : Nat) -> (b : Nat) -> (pat : Elem) -> (tgt : Elem) -> Bindings -> Maybe Bindings
 matchElemP k d b (CtxVar j) tgt =
   if j < b
@@ -859,7 +861,27 @@ matchElemP k d b (QElim sg j ms fs es w) (QElim sg' j' ms' fs' es' w') =
 matchElemP k d b UniverseTy UniverseTy = Just
 matchElemP k d b PropTy PropTy = Just
 matchElemP k d b TopTy TopTy = Just
+-- coinductive formers: the carried polynomial is matched through its
+-- embedded Nova pieces (former shapes rigid, binders crossed), like
+-- the QIIT formers' carried signatures above
+matchElemP k d b (Out t) (Out t') = matchElemP k d b t t'
+matchElemP k d b (Corec p a f x) (Corec p' a' f' x') =
+  \bs => matchPolyP k d b p p' bs >>= matchElemP k d b a a'
+      >>= matchElemP k d (1 + b) f f' >>= matchElemP k d b x x'
+matchElemP k d b (Elem.NuTy p) (Elem.NuTy p') = matchPolyP k d b p p'
 matchElemP _ _ _ _ _ = const Nothing
+
+matchPolyP k d b PHole PHole = Just
+matchPolyP k d b (PConst a) (PConst a') = matchElemP k d b a a'
+matchPolyP k d b (PProd f g) (PProd f' g') =
+  \bs => matchPolyP k d b f f' bs >>= matchPolyP k d b g g'
+matchPolyP k d b (PSum f g) (PSum f' g') =
+  \bs => matchPolyP k d b f f' bs >>= matchPolyP k d b g g'
+matchPolyP k d b (PSigma a f) (PSigma a' f') =
+  \bs => matchElemP k d b a a' bs >>= matchPolyP k d (1 + b) f f'
+matchPolyP k d b (PPi a f) (PPi a' f') =
+  \bs => matchElemP k d b a a' bs >>= matchPolyP k d (1 + b) f f'
+matchPolyP _ _ _ _ _ = const Nothing
 
 matchSpineP k d b [<] [<] = Just
 matchSpineP k d b (es :< e) (es' :< e') = \bs => matchSpineP k d b es es' bs >>= matchElemP k d b e e'
@@ -1127,6 +1149,16 @@ orderedParts cs =
   clauseShaped c =
     case spineArgs c.lhs of
       (SigVar _ _, args) => any ctorHeaded args
+      -- an OBSERVATION equation — out at a definition- or
+      -- fixed-variable-headed spine — is one el-nu-beta ι-step stated
+      -- in the abstraction's own vocabulary: the observation lemma of
+      -- a copattern def, and the g-clause hypothesis of its
+      -- uniqueness proof, are exactly this. (A parameter-headed
+      -- scrutinee would match ANY observation — excluded.)
+      (Out t, _) => case spineArgs t of
+                      (SigVar _ _, _) => True
+                      (CtxVar j, _) => j >= c.params
+                      _ => False
       _ => False
   -- a VARIABLE-DEFINITION rule — ground, ☐ₙ ⇝ t with ☐ₙ not in t —
   -- terminates regardless of size (each application strictly removes
@@ -1208,14 +1240,22 @@ rewriteElemS side c pi d t =
                   <$> rewriteElemS side c (i :: pi) d e
         Nothing => Nothing) [0 .. minus (length xs) 1])
 
+  -- Certificate-bearing rewriting (this engine feeds kernel-replayed
+  -- steps) does not descend into children whose positional TYPE the
+  -- kernel's typed descent cannot determine while crossing binders
+  -- (childTyE: an eliminator's cases, a λ's body, a corecursor's
+  -- coalgebra): a step there would be rejected at replay ("step at a
+  -- type-undetermined position"). The same subterm is reached after
+  -- the enclosing eliminator computes — so scrutinees rewrite FIRST
+  -- and the collapse surfaces the branch at depth 0 (the relator's
+  -- ⊎-elim at rewritten observations is the motivating case).
   descend : Elem -> Maybe (Elem, List Step)
   descend (ZeroElim u)       = at 0 0 u ZeroElim
   descend (NatIntro1 u)      = at 0 0 u NatIntro1
   descend (NatElim z s u)    =
-    first [ at 0 0 z (\z' => NatElim z' s u)
-          , at 1 2 s (\s' => NatElim z s' u)
-          , at 2 0 u (\u' => NatElim z s u') ]
-  descend (PiIntro f)        = at 0 1 f PiIntro
+    first [ at 2 0 u (\u' => NatElim z s u')
+          , at 0 0 z (\z' => NatElim z' s u) ]
+  descend (PiIntro f)        = Nothing
   descend (PiApp f e)        =
     first [ at 0 0 f (\f' => PiApp f' e)
           , at 1 0 e (\e' => PiApp f e') ]
@@ -1226,10 +1266,7 @@ rewriteElemS side c pi d t =
   descend (SigmaElim2 u)     = at 0 0 u SigmaElim2
   descend (Inj1 u)           = at 0 0 u Inj1
   descend (Inj2 u)           = at 0 0 u Inj2
-  descend (SumElim l r u)    =
-    first [ at 0 1 l (\l' => SumElim l' r u)
-          , at 1 1 r (\r' => SumElim l r' u)
-          , at 2 0 u (\u' => SumElim l r u') ]
+  descend (SumElim l r u)    = at 2 0 u (\u' => SumElim l r u')
   descend (Elem.PiTy a c')   =
     first [ at 0 0 a (\a' => Elem.PiTy a' c')
           , at 1 1 c' (\c'' => Elem.PiTy a c'') ]
@@ -1261,9 +1298,7 @@ rewriteElemS side c pi d t =
                     <$> rewriteElemS side c (i :: pi) d e
           Nothing => Nothing) [0 .. minus (length xs) 1])
   descend (Class a)          = at 0 0 a Class
-  descend (QuotElim f q)     =
-    first [ at 0 1 f (\f' => QuotElim f' q)
-          , at 1 0 q (\q' => QuotElim f q') ]
+  descend (QuotElim f q)     = at 1 0 q (\q' => QuotElim f q')
   descend (Squash t)         =
     (\(t', st) => (Squash t', st)) <$> rewriteTyS side c (0 :: pi) d t
   -- QIIT formers: spines and the eliminee are addressable; the carried
@@ -1278,7 +1313,6 @@ rewriteElemS side c pi d t =
   descend (Out t) = at 0 0 t Out
   descend (Corec p a f x) =
     at 0 0 a (\a' => Corec p a' f x)
-      <|> at 1 1 f (\f' => Corec p a f' x)
       <|> at 2 0 x (\x' => Corec p a f x')
   descend _ = Nothing
 
@@ -1549,7 +1583,7 @@ mutual
       w' => QElim sg k ms fs es w'
   exposeE st (Out t) =
     case exposeE st t of
-      Corec p a f x => exposeE st (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+      Corec p a f x => exposeE st (mapPoly p (corecCopair p a f) (substElem f (Ext Id x)))
       t'            => Out t'
   exposeE st e = e
 
@@ -3399,10 +3433,13 @@ exposeCert st ctx ty tyX =
   -- binder, say) must not poison the item.
   timed "expose" $ \_ =>
     let cs = mkCandSet st ctx in
-    do c <- map ({ unfolds := st.eqScope }) (spEqTyC spDepth st cs ctx ty tyX)
-       case kCheckEqTy st.sig ctx kernelFuel c ty tyX of
-         Right () => Just (tyX, c)
-         Left _ => Nothing
+    case spEqTyC spDepth st cs ctx ty tyX of
+      Nothing => audit "EXPOSECERT no-cert" Nothing
+      Just c0 =>
+        let c = { unfolds := st.eqScope } c0 in
+        case kCheckEqTy st.sig ctx kernelFuel c ty tyX of
+          Right () => Just (tyX, c)
+          Left err => audit "EXPOSECERT kernel-reject: \{err} [paths \{show (map (.path) c.steps)}]" Nothing
 
 preferPi : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, ECert))
 preferPi st ctx (PiTy a b) = Just (a, b, Nothing)
@@ -3961,7 +3998,7 @@ mutual
         (a', aSk) <- checkElem ctx env site a UniverseTy
         recordBinder xr ctx env xn a'
         (f', fSk) <- checkElem (ctx :< a') (env :< xn) site f
-                       (substTy (reflectPoly p a') Wk)
+                       (substTy (reflectPoly p (Elem.SumTy (Elem.NuTy p) a')) Wk)
         (u', uSk) <- checkElem ctx env site u a'
         pure (Corec p a' f' u', withExpose exp (Nd [] [aSk, fSk, uSk]))
       Nothing => throwShape site env "corec checked against" ty "a ν type"
@@ -3998,7 +4035,7 @@ mutual
                 recordBinder myr (ctx :< nuT) (env :< mxn) myn (substTy nuT Wk)
                 recordBinder mhr (ctx :< nuT :< substTy nuT Wk) (env :< mxn :< myn) mhn r'
                 (q', skq) <- checkElem ctx3 (env :< mxn :< myn :< mhn) site qS
-                               (liftPoly f3 r3 (Out (CtxVar 2)) (Out (CtxVar 1)))
+                               (liftPoly f3 (Elem.NuTy f3) r3 (Out (CtxVar 2)) (Out (CtxVar 1)))
                 pure (Star, withExpose exp (Nd [PNuCoind r' skR p' skp q' skq] []))
           _ => throwShape site env "coind checked against" ty "an equality proposition"
   checkElemAt ctx env site (SClass a) ty = do
@@ -5887,6 +5924,122 @@ elabItemGo irng (SData params decls) = do
     upto : Nat -> List Nat
     upto Z = []
     upto (S n) = upto n ++ [n]
+
+elabItemGo irng (SCopatternDef nrng x ty muses etaName witness cargs crhs cname) = do
+  -- a def with a DEFINING OBSERVATION (docs/NovaElaboration.txt,
+  -- "Defining observations"): the clausal def's dual. Stage 1 is
+  -- pure ALIGNMENT (Nova.Elaboration.Clauses): LHS arguments against
+  -- the item's columns per the term-syntax placement conventions.
+  -- Stage 2 is the PROBE, against a state snapshot so it leaves no
+  -- trace: the type elaborated and its head exposed to ν 𝔽 under the
+  -- item's own using licenses (the shape is the one input the
+  -- surface cannot provide), and — when the body's calls carry
+  -- ELIDED implicit arguments — the clause RHS elaborated once with
+  -- the item pre-declared, so the analysis reads the
+  -- insertion-RESOLVED spines: an elided argument that resolved away
+  -- from its ambient column variable has no surface spelling for the
+  -- seed, and the expansion degrades with a spell-it remedy. Stage 3
+  -- is the pure expansion; the batch elaborates through the ordinary
+  -- item pipeline.
+  census <- openCensus
+  al <- either (\e => throwAt irng "def \{x}: \{e}") pure (copatternAlign x ty cargs crhs)
+  let k = length al.ccols
+  st0 <- getSt
+  scEqs <- the (ElabM (Maybe (List String), List String)) $ case muses of
+          Just ns => do
+            (rs, eqs) <- resolveUsingNames (MkSite "def \{x}" irng) ns
+            pure (Just rs, eqs)
+          Nothing => pure (if scopedMode then Just [] else Nothing, [])
+  let (sc, eqs) = scEqs
+  (pol, elidedBad) <- withScope sc (withEqScope eqs (do
+           (ty', _) <- elabTy [<] [<] (MkSite "def \{x}" irng) ty
+           (pol, ctxK) <- nuHead [<] k ty'
+           bad <- probeElided al k ty' pol ctxK
+           pure (pol, bad)))
+  modifySt (const st0)
+  case expandCopattern nrng x ty muses etaName witness al cname pol elidedBad of
+    Left err => throwAt irng "def \{x}: \{err}"
+    Right (MkExpansion items echo) => do
+      -- the batch elaborates under the item's scope so the
+      -- DECLARATION tier's types see its exposure licenses (an SDef
+      -- of the batch installs its own generated scope over this);
+      -- each batch item is its OWN item for anything keyed by the
+      -- item name, exactly as at the clausal def below
+      ignore $ withScope sc (withEqScope eqs (traverse (\(r, it) => do
+        modifySt { curItem := clearBlocked (itemName it) }
+        elabItemGo (r <|> irng) it) items))
+      suffix <- opensSuffix census
+      pure (echo ++ suffix)
+ where
+  ||| Peel the copattern's columns off the elaborated type (returning
+  ||| the column context), then expose the head to its ν 𝔽 (whnf
+  ||| through cited unfold licenses — the corpus idiom of naming the
+  ||| head type's definition in the item's using clause).
+  nuHead : Ctx -> Nat -> Ty -> ElabM (Poly, Ctx)
+  nuHead ctx Z headTy = do
+    st <- getSt
+    case preferNu st ctx headTy of
+      Just (p, _) => pure (p, ctx)
+      Nothing => throwAt irng ("def \{x}: the copattern's head type does not expose a ν-type"
+                        ++ " (cite the type definition's .unfold name in the item's using clause)")
+  nuHead ctx (S n) piTy = do
+    st <- getSt
+    case preferPi st ctx piTy of
+      Just (a, b, _) => nuHead (ctx :< a) n b
+      Nothing => throwAt irng ("def \{x}: the copattern spells more argument positions"
+                        ++ " than the item's type shows Π-columns")
+
+  ||| Verify the ELIDED implicit call arguments against the
+  ||| insertion-resolved core body: each must be its ambient column
+  ||| variable. Runs only for fragment-shaped bodies whose calls
+  ||| elide something; runs under probeM, so a failing elaboration
+  ||| leaves no trace and no verdict (the real pipeline reports it).
+  probeElided : CoAligned -> Nat -> Ty -> Poly -> Ctx -> ElabM (Maybe String)
+  probeElided al k ty' pol ctxK =
+    case copatternProbeCalls x al.ccols pol al.crhsFull of
+      Nothing => pure Nothing
+      Just masks =>
+        if not (any (\(_, m) => any id m) masks) then pure Nothing else do
+          r <- probeM (do
+                 -- the item is pre-declared under a MACHINE name
+                 -- (aliased for the body's bare references), never its
+                 -- real one: the global Σ-entry name index caches
+                 -- positively on first lookup, and a cached probe
+                 -- DECLARATION under the real name would shadow the
+                 -- batch's later definition for every unfold
+                 -- (sigEntryIx's stability invariant — Σ only extends)
+                 let pq = "probe#" ++ x
+                 modifySt $ { sig $= (:< SigDecl [<] pq ty') }
+                 addVis (x, pq)
+                 registerImps pq ty
+                 let env = [<] <>< map (fst . cnm) al.ccols
+                 (rhsC, _) <- checkElem ctxK env (MkSite "def \{x}" irng) al.crhsFull
+                                (reflectPoly pol (Elem.NuTy pol))
+                 pure (pq, rhsC))
+          pure $ case r of
+            Nothing => Nothing
+            Just (pq, rhsC) =>
+              case coreHoleCalls pq pol 0 rhsC of
+                Nothing => Just "internal: the elaborated body's shape disagrees with the analysis"
+                Just cores => checkPairs masks cores
+   where
+    badAt : (d : Nat) -> Nat -> List Bool -> List Elem -> Maybe Nat
+    badAt d c [] _ = Nothing
+    badAt d c (True :: ms) (a :: as) =
+      if a == CtxVar (d + minus k c) then badAt d (S c) ms as else Just c
+    badAt d c (False :: ms) (_ :: as) = badAt d (S c) ms as
+    badAt d c _ [] = Just c
+    checkPairs : List (Nat, List Bool) -> List (Nat, List Elem) -> Maybe String
+    checkPairs [] [] = Nothing
+    checkPairs ((d, m) :: ms) ((d', args) :: cs) =
+      if d /= d' || length args /= k
+        then Just "internal: the elaborated body's calls disagree with the analysis"
+        else case badAt d 1 m args of
+               Just c =>
+                 let nm = maybe "?" (fst . cnm) (getAt (minus c 1) al.ccols)
+                 in Just ("the elided implicit argument {\{nm}} of a corecursive call varies — spell it at the call")
+               Nothing => checkPairs ms cs
+    checkPairs _ _ = Just "internal: the elaborated body's calls disagree with the analysis"
 
 elabItemGo irng (SClausalDef nrng x ty etaName witness clauses) = do
   -- a def with DEFINING EQUATIONS (docs/NovaElaboration.txt,

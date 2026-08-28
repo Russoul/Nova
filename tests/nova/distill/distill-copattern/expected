@@ -1,0 +1,18 @@
+distilled 1 modules (6 items) to out
+elided 0 of 0 ∈-annotations and motives, blanked 0 arguments
+round-trip OK: ASTs identical, kernel Σ α-identical.
+def conat : 𝕌 ≔ ν (K 𝟙 ⊎ 𝕏)
+
+def czero : conat using (conat.unfold)
+  | out czero ≔ inj₁ ()
+
+def csucc : conat → conat using (conat.unfold) [succUnique]
+  | out (csucc n) ≔ inj₂ n [outSucc]
+
+def costream : 𝕌 → 𝕌 ≔ λa. ν (K a × 𝕏)
+
+def repeat : {a : 𝕌} → a → costream a using (costream.unfold)
+  | out (repeat x) ≔ x, repeat x
+
+def repeatSpelled : {a : 𝕌} → a → costream a using (costream.unfold)
+  | out (repeatSpelled {a} x) ≔ x, repeatSpelled {a} x

@@ -56,6 +56,7 @@ itemNames (SDeclDef _ x _) = [x]
 itemNames (STypeDef x _) = [x]
 itemNames (SData _ decls) = map dqname decls
 itemNames (SClausalDef _ x _ eta _ cls) = clausalNames x eta cls
+itemNames (SCopatternDef _ x _ _ eta _ _ _ cn) = copatternNames x cn eta
 
 ||| Σ's own qualification: bare in the root file, module-prefixed
 ||| otherwise (`Nova.Elaboration.emitCoreDef`'s `q`).
@@ -169,3 +170,4 @@ documentSymbols lns = concatMap toSymbols
       STypeDef x _  => [mkSymbol lns x Class r]
       SData _ decls => map (\d => mkSymbol lns d.dqname (declSymbolKind d.dqres) r) decls
       SClausalDef _ x _ eta _ cls => map (\n => mkSymbol lns n Function r) (clausalNames x eta cls)
+      SCopatternDef _ x _ _ eta _ _ _ cn => map (\n => mkSymbol lns n Function r) (copatternNames x cn eta)

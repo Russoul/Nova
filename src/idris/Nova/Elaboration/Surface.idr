@@ -684,6 +684,26 @@ data SItem : Type where
   SClausalDef : (nrng : Maybe Range) -> String -> STy ->
                 (etaName : Maybe String) -> (witness : Maybe SElem) ->
                 List SClause -> SItem
+  ||| def x : T (using (…))? [eta]? (≔ t)? | out (x ȳ) ≔ t [n]? — a
+  ||| def with a DEFINING OBSERVATION (the COPATTERN item, the clausal
+  ||| def's dual — docs/NovaElaboration.txt, "Defining observations"):
+  ||| an ITEM MACRO expanding into the definition proper (a
+  ||| synthesized primitive corecursor, the user's witness t, or a
+  ||| declaration), the Π-closed observation lemma (named by the
+  ||| clause's [n] override), and the pointwise uniqueness lemma
+  ||| (named by the [eta] override). The LHS follows ordinary term
+  ||| syntax: an entry is a plain variable at an explicit column or a
+  ||| {x}-spelled one (the Bool) at an implicit column — elided
+  ||| implicit columns are absent, their binders named by the item's
+  ||| type. The RHS is parsed in the SPELLED variables' environment;
+  ||| the item-level using-clause both scopes the generated items'
+  ||| discharges and licenses the macro's own exposure of the head
+  ||| type to its ν 𝔽
+  SCopatternDef : (nrng : Maybe Range) -> String -> STy ->
+                  (muses : Maybe (List String)) ->
+                  (etaName : Maybe String) -> (witness : Maybe SElem) ->
+                  (cargs : List (SName, Bool)) -> (crhs : SElem) ->
+                  (cname : Maybe String) -> SItem
 
 ||| One fixity declaration as written: (operator, associativity, level).
 public export
@@ -720,6 +740,8 @@ stripPosItem (SData ps ds) =
 stripPosItem (SClausalDef r n ty eta wit cls) =
   SClausalDef r n (stripPosTy ty) eta (map stripPos wit)
               (map (\c => { crhs := stripPos c.crhs } c) cls)
+stripPosItem (SCopatternDef r n ty mu eta wit cargs rhs cn) =
+  SCopatternDef r n (stripPosTy ty) mu eta (map stripPos wit) cargs (stripPos rhs) cn
 
 export
 itemName : SItem -> String
@@ -730,6 +752,7 @@ itemName (SData _ ds) = case ds of
   (d :: _) => d.dqname
   [] => "data"
 itemName (SClausalDef _ n _ _ _ _) = n
+itemName (SCopatternDef _ n _ _ _ _ _ _ _) = n
 
 -- ===== Show instances (parser golden tests) =====
 
@@ -873,3 +896,18 @@ Show SItem where
       ++ maybe "" (\n => " [\{n}]") eta
       ++ maybe "" (\t => " := \{show t}") w
       ++ concatMap (\c => " \{show c}") cls
+  show (SCopatternDef _ x ty mu eta w args rhs cn) =
+    "def \{x} : \{show ty}"
+      ++ (case mu of
+            Nothing => ""
+            Just ns => " using (\{joinBy ", " ns})")
+      ++ maybe "" (\n => " [\{n}]") eta
+      ++ maybe "" (\t => " := \{show t}") w
+      ++ (case args of
+            [] => " | out \{x} := \{show rhs}"
+            _ => " | out (" ++ joinBy " " (x :: map showArg args) ++ ") := \{show rhs}")
+      ++ maybe "" (\n => " [\{n}]") cn
+   where
+    showArg : (SName, Bool) -> String
+    showArg (n, True) = "{\{fst n}}"
+    showArg (n, False) = fst n

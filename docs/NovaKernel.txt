@@ -64,11 +64,17 @@ of fuel, are exactly:
   ⊎-elim l r (inj₁ a) ≜ l[id, a]                    # el-sum-beta₁
   ⊎-elim l r (inj₂ b) ≜ r[id, b]                    # el-sum-beta₂
   quot-elim f (class a) ≜ f[id, a]                  # el-quot-beta
-  out (corec 𝔽 a f x) ≜ map_𝔽 hᵉˡ f[id, x]         # el-nu-beta; map_𝔽 and
+  out (corec 𝔽 a f x) ≜ map_𝔽 [𝕚𝕕 ‖ hᵉˡ] f[id, x]  # el-nu-beta; map_𝔽, the
+                                                    # stop-or-continue copair
+                                                    # [𝕚𝕕 ‖ hᵉˡ] and
                                                     # hᵉˡ = λ (corec 𝔽 a f[↑] ☐₀)
                                                     # expand by Foundation's
                                                     # ≜-clauses at contraction
-                                                    # time (one fuel unit)
+                                                    # time (one fuel unit); a
+                                                    # STOPPED hole releases its
+                                                    # element bare once the
+                                                    # copair's ⊎-elim meets the
+                                                    # coalgebra's injection
   𝒮.𝕤-elim ℰ ē (𝒮′.𝕔 θ) ≜ m_𝕔 θ⟨φᵉˡ⟩               # el-qiit-beta; fires
                                                     # only when 𝒮 and 𝒮′ are
                                                     # IDENTICAL after nf
@@ -300,9 +306,11 @@ introduction forms structurally and falls back to infer-and-compare:
   Σ; Γ ⊦ out t ⇒ᵖ ⌊𝔽⌋(ν 𝔽)                # inference-driven
 
   nf(T) ⇓ ν 𝔽   (the term's carried 𝔽 nf-identical to nf(T)'s)
-  Σ; Γ ⊦ a ⇐ᵖ 𝕌   Σ; Γ ▷ a ⊦ f ⇐ᵖ ⌊𝔽⌋(a)[↑]   Σ; Γ ⊦ x ⇐ᵖ a
+  Σ; Γ ⊦ a ⇐ᵖ 𝕌   Σ; Γ ▷ a ⊦ f ⇐ᵖ ⌊𝔽⌋((ν 𝔽 ⊎ a))[↑]   Σ; Γ ⊦ x ⇐ᵖ a
   --------------------------------------------------------------------
-  Σ; Γ ⊦ corec 𝔽 a f x ⇐ᵖ T               # el-nu-i
+  Σ; Γ ⊦ corec 𝔽 a f x ⇐ᵖ T               # el-nu-i (primitive
+                                          # corecursion: holes are
+                                          # stop-or-continue)
 
   nf(T) ⇓ 𝒮.𝕤 ē   𝒮(𝕔) = 𝔄 ending in El (𝕤 ī)
   Σ; Γ ⊦ θ ⇐ᵖ ⌊𝔄⌋ᵗ (entrywise)   nf(⌊ī⌋[θ]) = nf(ē)
@@ -718,9 +726,11 @@ Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
      Σ; Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ▷ R ⊦ q̂ ⇐ lift_𝔽(R) (out ☐₂) (out ☐₁) ⟨skq⟩
      -------------------------------------------------------------------
      Σ; Γ ⊦ ⋆ ⇐ T ⟨sk⟩                       # el-nu-coind
-     # lift_𝔽 is the RELATOR (Foundation, coinductive section) —
-     # KERNEL-computed from 𝔽 and R, like out's result type; the
-     # closure's type is the rule's shape, never elaborator-supplied
+     # lift_𝔽 is the RELATOR (Foundation, coinductive section; its
+     # hole clause is UP TO EQUALITY — ∥R ⊎ (u ≡ v ∈ ν 𝔽)∥, so a
+     # stopped position closes by reflexivity) — KERNEL-computed
+     # from 𝔽 and R, like out's result type; the closure's type is
+     # the rule's shape, never elaborator-supplied
 
      nf(T) ⇓ A ⊎ B    Σ; Γ ⊦ a ⇐ A ⟨sk.0⟩
      -------------------------------------               # el-sum-i₁
@@ -731,7 +741,7 @@ Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
      Σ; Γ ⊦ class a ⇐ T ⟨sk⟩
 
      nf(T) ⇓ ν 𝔽    (the term's carried 𝔽 nf-identical to nf(T)'s)
-     Σ; Γ ⊦ a ⇐ 𝕌 ⟨sk.0⟩    Σ; Γ ▷ a ⊦ f ⇐ ⌊𝔽⌋(a)[↑] ⟨sk.1⟩
+     Σ; Γ ⊦ a ⇐ 𝕌 ⟨sk.0⟩    Σ; Γ ▷ a ⊦ f ⇐ ⌊𝔽⌋((ν 𝔽 ⊎ a))[↑] ⟨sk.1⟩
      Σ; Γ ⊦ x ⇐ a ⟨sk.2⟩
      ------------------------------------------------------------
      Σ; Γ ⊦ corec 𝔽 a f x ⇐ T ⟨sk⟩                      # el-nu-i

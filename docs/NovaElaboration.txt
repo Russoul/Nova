@@ -529,7 +529,8 @@ whnf(–) is weak-head normalization by Foundation's ≜ rules:
 el-pi-beta, el-let-beta (a let is always a redex — no whnf ever
 returns one), el-sigma-beta₁, el-sigma-beta₂, el-nat-beta-z,
 el-nat-beta-s, el-sum-beta₁, el-sum-beta₂, el-quot-beta,
-el-nu-beta (out at a corec head — map_𝔽 and hᵉˡ expanding by
+el-nu-beta (out at a corec head — map_𝔽, the stop-or-continue
+copair [𝕚𝕕 ‖ hᵉˡ] and hᵉˡ expanding by
 Foundation's ≜-clauses), el-qiit-beta (the eliminator at a
 saturated constructor of the nf-identical signature),
 and el-sig-beta (signature
@@ -875,11 +876,14 @@ whnf(C) = A / r        Γ ⊢ a ⇐ A ⇝ â
 Γ ⊢ class a ⇐ C ⇝ class â
 
 whnf(C) = ν 𝔽        Γ ⊢ t ⇐ 𝕌 ⇝ a
-Γ ▷ x:a ⊢ f ⇐ ⌊𝔽⌋(a)[↑] ⇝ f̂        Γ ⊢ u ⇐ a ⇝ û
+Γ ▷ x:a ⊢ f ⇐ ⌊𝔽⌋((ν 𝔽 ⊎ a))[↑] ⇝ f̂        Γ ⊢ u ⇐ a ⇝ û
 ------------------------------------------------------------ (e-corec)
 Γ ⊢ corec (x : t. f) u ⇐ C ⇝ corec 𝔽 a f̂ û    # (corec 𝔽 a f x)
 # checking-only, like λ and class: the polynomial comes from the
-# expected type. In ⇒ position, ascribe.
+# expected type. In ⇒ position, ascribe. The coalgebra's holes are
+# STOP-OR-CONTINUE (Foundation's primitive corecursion): inj₁ stops
+# at an existing element of the ν-type, inj₂ continues from a new
+# seed — a stopped element is released bare by el-nu-beta.
 
 whnf(C) = (l ≡ r ∈ E)    whnf(E) = ν 𝔽
 Γ ▷ x:ν 𝔽 ▷ y:(ν 𝔽)[↑] ⊢ R ⇐ Ω ⇝ R̂
@@ -891,7 +895,11 @@ whnf(C) = (l ≡ r ∈ E)    whnf(E) = ν 𝔽
 # endpoint proof and closure ship in the skeleton payload
 # (docs/NovaKernel.txt §8). The closure's expected type is the
 # RELATOR at the generic observations — its sub-goals surface as
-# ordinary obligations, dischargeable by the usual loop. Two engine
+# ordinary obligations, dischargeable by the usual loop. The
+# relator's hole clause is UP TO EQUALITY (∥R ⊎ (u ≡ v ∈ ν 𝔽)∥):
+# a graph invariant needs no diagonal disjunct of its own — a hole
+# whose two sides are the same stopped element closes by
+# ⋆ (inj₂ ⋆), reflexivity in the equality leg. Two engine
 # facts make the closure proofs ergonomic: (1) a GROUND hypothesis
 # whose type is a (possibly dependent) Σ-tree of equality props
 # licenses one rewrite candidate per component, the proof element
@@ -1700,6 +1708,148 @@ pointwise, exhibit that g satisfies the clauses.
 # way to fill the same three artifact slots — new synthesis tactics,
 # never new semantics.
 
+//////////// Defining observations: the copattern item /////////////
+
+The clausal def's DUAL, for definitions INTO a ν-type. The item
+
+  def cons : (a : 𝕌) → a → stream a → stream a using (stream.unfold)
+    | out (cons a x s) ≔ (x , s)
+
+states the definiendum's one OBSERVATION and asserts that it
+DETERMINES it — that the space of solutions
+
+  (ρ : (a : 𝕌) → a → stream a → stream a)
+    ⨯ ((a : 𝕌) (x : a) (s : stream a) → out (ρ a x s) ≡ (x , s) ∈ a ⨯ stream a)
+
+is CONTRACTIBLE — and expands into a batch of ordinary defs naming
+that assertion's pieces: the definition (EXISTENCE, a synthesized
+primitive corecursor), the Π-closed OBSERVATION LEMMA consOut with
+body λ…. ⋆, and the pointwise UNIQUENESS lemma consEta
+
+  def consEta : (g : (a : 𝕌) → a → stream a → stream a)
+              → (consOut : (a : 𝕌) (x : a) (s : stream a)
+                             → out (g a x s) ≡ (x , s))
+              → (a : 𝕌) (x : a) (s : stream a) → g a x s ≡ cons a x s
+
+whose body is coind at the GRAPH invariant (below). As at the
+clausal def, the macro adds nothing to Σ beyond the batch; nothing
+downstream is copattern-aware.
+
+# SURFACE FORM. One clause, `| out (f x̄) ≔ t [n]?` — x̄ distinct
+# variables covering the leading Π-columns, spelled by the TERM
+# SYNTAX'S OWN CONVENTIONS: an explicit column's binder is a plain
+# variable; an implicit column's is {x}-spelled or ELIDED, in which
+# case its binder name comes from the item's type and the RHS cannot
+# reference it. The parens delimit the APPLIED observation (the LHS
+# is the term out (f x̄) spelled literally); at zero columns there is
+# no application and the spelling is bare — `out f` — which is also
+# the canonical (distill) form there. Corecursive calls in the body
+# follow the same conventions — implicit arguments elided or
+# {…}-spelled — and PLACEMENT is resolved by the macro itself,
+# syntactically: which positions are implicit is a pure function of
+# the item's own type. The VALUES of elided call arguments are read
+# off the elaborated body by the caller's PROBE (below): an elided
+# argument that resolved to anything but its ambient column variable
+# has no surface spelling for the seed, and the item degrades with a
+# spell-it remedy. The RHS is parsed in x̄'s
+# environment; recursive occurrences stay REFERENCES to f. Copattern
+# and pattern clauses cannot mix, and the item takes at most one
+# copattern clause (observation SPLITTING — several clauses at
+# projections of out — is future work). Names: fOut for the lemma
+# ([n] overrides), fEta for uniqueness ([m] after the type);
+# operator-named items must override both. UNLIKE the clausal def,
+# the item takes a using-clause: it scopes the generated items'
+# discharges AND licenses the macro's own PROBE — run against a
+# state snapshot, so it leaves no trace. The probe exposes the
+# item's head type to its ν 𝔽 (a codata-style head is always
+# spelled through a def, so the license is load-bearing; the corpus
+# idiom cites the type definition's .unfold), and — only when the
+# body's calls carry elided implicit arguments — elaborates the
+# clause RHS once with the item pre-declared, reading the
+# insertion-RESOLVED call spines: conversion to the corecursor
+# happens AFTER the placement of implicits is resolved. (The probe
+# declares the item under a MACHINE name: the Σ-entry name index
+# caches positively on first lookup, and a probe declaration cached
+# under the real name would shadow the batch's later definition.)
+# Only the polynomial's SHAPE is consulted beyond that: every
+# generated statement spells types the user's source already
+# spells, the generated equations' ∈-annotations elided (inferred
+# from their out-headed left sides). The generated spines follow
+# the same term-syntax conventions: the item's own name is applied
+# through {…} overrides at its implicit positions (insertion
+# consumes them positionally), a candidate VARIABLE g with every
+# argument plain (variables never insert), and the generated
+# lemma's Π-binders mirror the item's implicitness.
+
+# THE CORECURSIVE FRAGMENT — the bodies the macro compiles. The dual
+# of the pattern fragment's discipline: constructors move from the
+# LHS patterns to the RHS body, which must be LITERAL constructor
+# forms read against 𝔽's shape — pairs at the products, an injection
+# at a sum, a λ at an exponent, f-free terms at the constants — down
+# to the HOLE positions, where each subterm is either
+#   * a SATURATED corecursive call f ē (all k arguments, none
+#     mentioning f — a nested call is not guarded), or
+#   * an f-free element of the ν-type (a STOP).
+# The columns split at the longest PREFIX passed unchanged by every
+# call: prefix columns stay λ-bound outside the corecursor (so
+# parameters never enter the seed), the varying suffix becomes the
+# SEED — a right-nested Σ-code of the varying columns' types, which
+# must therefore spell universe codes (the fragment's SMALLNESS
+# condition; 𝟙 at an empty suffix). Membership is syntactic and
+# deterministic.
+
+# SYNTHESIS. The witness re-tags the body's holes for Foundation's
+# primitive corecursor — a call CONTINUES at its seed tuple, a stop
+# STOPS:
+#
+#   ρ ≔ λx̄. corec (s : σ. t̂) ⟨x̄ᵥ⟩       # σ the seed Σ-code
+#   t̂ ≔ t [ f x̄ₚ ē ↦ inj₂ ⟨ē⟩ ; v ↦ inj₁ v at the holes;
+#           varying columns ↦ projections of s ]
+#
+# The observation lemma's λ…. ⋆ closes by COMPUTATION in every case:
+# unfolding f (el-sig-beta), one el-nu-beta step, and the copair's
+# ⊎-elim meeting the coalgebra's injections — a stop releases its
+# element BARE (the reason Foundation adopts the apomorphism), a
+# continue re-wraps to the same corec the RHS's unfolded call
+# β-reduces to. Once accepted the lemma is the definition's
+# INTERFACE, exactly as at the clausal def: later conversions match
+# it in one step (an OBSERVATION-SHAPED candidate — out at a
+# definition- or fixed-variable-headed spine — is admitted as a
+# rewrite rule regardless of size, the el-nu-beta counterpart of the
+# clause-shaped admission, docs/SearchlessElaboration.md §12).
+#
+# The fEta body is coind at the pure GRAPH invariant
+#
+#   R u v ≜ ∥(ȳ : varying) ⨯ (u ≡ g x̄ₚ ȳ) ⨯ (v ≡ f x̄ₚ ȳ)∥
+#
+# endpoint ⋆ ⟨(x̄ᵥ, (⋆, ⋆))⟩, closure squash-elim on the hypothesis
+# and a shape-directed ⋆-tree: the observations rewrite by the
+# g-clause hypothesis and fOut — landing LITERAL constructors, so
+# the relator's ⊎-elims collapse definitionally (the fragment's
+# shape discipline is exactly what un-sticks them) — then
+# K-positions close by reflexivity, calls re-enter the graph
+# (inj₁, witnessed by the call's own seed arguments), and stops
+# close in the relator's UP-TO-EQUALITY leg (inj₂ ⋆) — no diagonal
+# disjunct, no per-item copy lemma, no scrutiny of a neutral
+# observation anywhere. If the engine ever misses, the residue is an
+# ordinary obligation, never a wrong acceptance.
+
+# OUTSIDE THE FRAGMENT the item DEGRADES, the clausal def's tiers
+# verbatim: WITH a witness the observation lemma pays with ⋆
+# (undischarged → an ordinary sited obligation) and fEta is still
+# synthesized whenever the body is fragment-shaped; WITHOUT one the
+# batch demotes to DECLARATIONS, the observation lemma registering
+# as a declared equation (the abstract-interface idiom). Three
+# tiers, one semantics.
+
+# ADEQUACY, dual to the clausal def's: existence is el-nu-beta,
+# uniqueness is el-nu-eta reached through el-nu-coind's ⋆-payload
+# (the admissible relational form the kernel replays — caveat A5's
+# ν half); together the solution space is contractible and the item
+# denotes ITS unique inhabitant. And no body needs a PRODUCTIVITY
+# argument, now or ever: everything compiles to the corecursor, and
+# totality is the theory's.
+
 //////////// Modules /////////////
 
 A MODULE is a file; a dotted module name resolves against the root
@@ -2386,8 +2536,16 @@ Two corollaries worth keeping in view while implementing:
   section; each item fills the same three artifact slots): nested
   patterns and multi-column splits (split trees); QIIT splits —
   point-only signatures first, quotiented sorts demanding
-  per-clause-pair well-definedness after; COPATTERN clauses
-  (out (f x̄) ≔ …) compiling to corec, uniqueness by el-nu-coind
-  with the graph invariant as the bisimulation; strong induction /
-  course-of-values as an alternative existence synthesis; mutual
-  blocks as a single QIIT elimination problem.
+  per-clause-pair well-definedness after; implicit leading columns
+  for the PATTERN fragment's peel (the copattern item takes them —
+  Defining observations — by the same placement conventions, which
+  would retrofit); copattern extensions
+  (basic copatterns have landed, implicit columns included):
+  observation SPLITTING (several clauses at projections of out, and
+  DEFINED observations like hd/tl — which wants a codata item macro
+  minting the type, its observations and their structure, the data
+  item's dual), and the dual next rung, course-of-values ↔
+  futumorphism: strong induction as an alternative existence
+  synthesis, a free-monad seed letting copattern bodies emit
+  several observation layers at once; mutual blocks as a single
+  QIIT elimination problem.

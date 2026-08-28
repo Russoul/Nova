@@ -1,0 +1,25 @@
+-- the copattern item across the fragment's shapes: stop-only (cons,
+-- cboth), all-continue at an all-prefix seed (repeat), a varying
+-- seed (iterate, map), and the MIXED two-hole case (graft) — each
+-- expanding to existence + observation lemma (β) + uniqueness (coind
+-- at the graph invariant, stops closing in the up-to-equality leg)
+def stream : 𝕌 → 𝕌 ≔ λa. ν (K a × 𝕏)
+def hd : (a : 𝕌) → stream a → a using (stream.unfold) ≔ λa. λt. (out t) .π₁
+def tl : (a : 𝕌) → stream a → stream a using (stream.unfold) ≔ λa. λt. (out t) .π₂
+def cons : (a : 𝕌) → a → stream a → stream a using (stream.unfold)
+  | out (cons a x s) ≔ (x , s)
+def repeat : (a : 𝕌) → a → stream a using (stream.unfold)
+  | out (repeat a x) ≔ (x , repeat a x)
+def iterate : (a : 𝕌) → (a → a) → a → stream a using (stream.unfold)
+  | out (iterate a f x) ≔ (x , iterate a f (f x))
+def map : (a b : 𝕌) → (a → b) → stream a → stream b using (stream.unfold)
+  | out (map a b f t) ≔ (f (hd a t) , map a b f (tl a t))
+-- the generated observation lemma pays a later β-proof
+def tlCons : (a : 𝕌) (x : a) (s : stream a) → tl a (cons a x s) ≡ s
+  using (consOut.rw, hyp.rw, stream.unfold, tl.eq) ≔
+  λa. λx. λs. ⋆
+def cotree : 𝕌 → 𝕌 ≔ λa. ν (K 𝟙 ⊎ (K a × (𝕏 × 𝕏)))
+def cboth : (a : 𝕌) → a → cotree a → cotree a using (cotree.unfold)
+  | out (cboth a x t) ≔ inj₂ (x , (t , t))
+def graft : (a : 𝕌) → cotree a → stream a → cotree a using (cotree.unfold, stream.unfold)
+  | out (graft a t s) ≔ inj₂ (hd a s , (t , graft a t (tl a s)))

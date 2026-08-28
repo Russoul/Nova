@@ -74,8 +74,10 @@ def mapIdBisim : {a : 𝕌} (s : stream a) → bisim (map (id {a}) s) s
 
 -- THE REFLECTION: bisimilarity implies equality — el-nu-coind's
 -- surface form, with bisim ITSELF as the invariant and the unfold
--- laws as the one-step closure. This is the theorem that upgrades
--- every observational result below it to a judgemental equation.
+-- laws as the one-step closure (the relator's hole is up to
+-- equality, so the tail half re-enters the invariant through inj₁).
+-- This is the theorem that upgrades every observational result
+-- below it to a judgemental equation.
 def bisimReflect : {a : 𝕌} {s t : stream a} → bisim s t → s ≡ t
   using (bisim.eq,
     hyp.rw,
@@ -84,7 +86,7 @@ def bisimReflect : {a : 𝕌} {s t : stream a} → bisim s t → s ≡ t
     stream.stream.unfold,
     stream.tl.eq,
     streamBisim.bisim.unfold) ≔
-  λa. λs. λt. λh. coind (x y. bisim x y) h (x y hb. ⋆ (bisimHd hb, bisimTl hb))
+  λa. λs. λt. λh. coind (x y. bisim x y) h (x y hb. ⋆ (bisimHd hb, ⋆ (inj₁ (bisimTl hb))))
 
 def obsEqReflect : {a : 𝕌} {s t : stream a} → obsEq s t → s ≡ t ≔
   λa. λs. λt. λh. bisimReflect (obsEqBisim h)

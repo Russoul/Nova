@@ -740,6 +740,30 @@ renderItemBare tbl (SClausalDef _ n ty eta wit cls) =
      Nothing => DNil
      Just w => txt " ≔ " <-> pe tbl LPair True w) <->
   concatD (map (\c => DNest 2 (DHard <-> renderClause tbl n c)) cls)
+renderItemBare tbl (SCopatternDef _ n ty mu eta wit cargs rhs cn) =
+  txt "def \{n} : " <-> pt tbl TTop False ty <->
+  renderUsing mu <->
+  (case eta of
+     Nothing => DNil
+     Just e => txt " [\{e}]") <->
+  (case wit of
+     Nothing => DNil
+     Just w => txt " ≔ " <-> pe tbl LPair True w) <->
+  DNest 2 (DHard <->
+    -- the parens delimit the applied observation; at zero columns
+    -- `out f` IS the term, so the canonical spelling is bare. An
+    -- implicit column's spelled binder prints in {…}, as written
+    (case cargs of
+       [] => txt "| out \{n} ≔ "
+       _ => txt "| out (\{joinBy " " (n :: map renderArg cargs)}) ≔ ") <->
+    pe tbl LPair True rhs <->
+    (case cn of
+       Nothing => DNil
+       Just m => txt " [\{m}]"))
+ where
+  renderArg : (SName, Bool) -> String
+  renderArg (nm, True) = "{\{fst nm}}"
+  renderArg (nm, False) = fst nm
 
 renderItem : FixTable -> SItem -> Doc
 renderItem tbl item = renderItemBare tbl (stripPosItem item)
@@ -1012,6 +1036,8 @@ parameters (ok : Range -> Bool, blankAt : Range -> Nat -> Bool)
   esItem (SData params ds) = SData (map (\(x, t) => (x, esT t)) params) (map esQDecl ds)
   esItem (SClausalDef r x ty eta wit cls) =
     SClausalDef r x (esT ty) eta (map esE wit) (map ({ crhs $= esE }) cls)
+  esItem (SCopatternDef r x ty mu eta wit cvars rhs cn) =
+    SCopatternDef r x (esT ty) mu eta (map esE wit) cvars (esE rhs) cn
 
 ||| Apply the verdict map to one module.
 elideSugar : List (String, Range, Bool) -> List (String, Range, Nat) -> ModUnit -> ModUnit

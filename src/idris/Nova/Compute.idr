@@ -180,7 +180,7 @@ mutual
   whnfElem sig (Corec p a f x)    = Corec p a f x   -- co-data: a corec head is canonical
   whnfElem sig (Out t) =
     case whnfElem sig t of
-      Corec p a f x => whnfElem sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+      Corec p a f x => whnfElem sig (mapPoly p (corecCopair p a f) (substElem f (Ext Id x)))
       _ => assert_total $ idris_crash "whnfElem: out scrutinee is not a corec head (impossible for a closed, well-typed term)"
   whnfElem sig (QSort sg k es)   = QSort sg k es
   whnfElem sig (QCtor sg k es)    = QCtor sg k es

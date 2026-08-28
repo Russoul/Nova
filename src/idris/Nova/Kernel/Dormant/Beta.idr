@@ -130,8 +130,8 @@ mutual
   betaElem sig (Out t) =
     case betaElem sig t of
       -- el-nu-beta: out at a corec head runs the coalgebra one step
-      -- and re-wraps the recursive positions (map_𝔽 hᵉˡ f[id, x])
-      Corec p a f x => betaElem sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+      -- and re-wraps the recursive positions (map_𝔽 [𝕚𝕕 ‖ hᵉˡ] f[id, x])
+      Corec p a f x => betaElem sig (mapPoly p (corecCopair p a f) (substElem f (Ext Id x)))
       t'            => Out t'
   betaElem sig (Corec p a f x) =
     Corec (betaPoly sig p) (betaElem sig a) (betaElem sig f) (betaElem sig x)
@@ -250,7 +250,7 @@ mutual
       w' => QElim sg k ms fs es w'
   whnfE sig (Out t) =
     case whnfE sig t of
-      Corec p a f x => whnfE sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+      Corec p a f x => whnfE sig (mapPoly p (corecCopair p a f) (substElem f (Ext Id x)))
       t'            => Out t'
   whnfE sig e = e
 
@@ -293,7 +293,7 @@ step1E sig (QElim sg k ms fs es (QCtor sgW c theta)) =
            Left _ => Nothing
     else Nothing
 step1E sig (Out (Corec p a f x)) =
-  Just (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+  Just (mapPoly p (corecCopair p a f) (substElem f (Ext Id x)))
 step1E sig _ = Nothing
 
 ||| One sort: one single-step contraction.

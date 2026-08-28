@@ -581,7 +581,7 @@ data Deriv : Type where
   DCodeNu : Deriv -> Deriv
   ||| el-nu-e: Γ ⊦ 𝔽 poly;  Γ ⊦ t : ν 𝔽  ⊢  Γ ⊦ out t : ⌊𝔽⌋(ν 𝔽)
   DElNuE : Deriv -> Deriv -> Deriv
-  ||| el-nu-i: Γ ⊦ 𝔽 poly;  Γ ⊦ a : 𝕌;  Γ ▷ a ⊦ f : ⌊𝔽⌋(a)[↑];
+  ||| el-nu-i: Γ ⊦ 𝔽 poly;  Γ ⊦ a : 𝕌;  Γ ▷ a ⊦ f : ⌊𝔽⌋((ν 𝔽 ⊎ a))[↑];
   ||| Γ ⊦ x : a  ⊢  Γ ⊦ corec 𝔽 a f x : ν 𝔽
   DElNuI : Deriv -> Deriv -> Deriv -> Deriv -> Deriv
   ||| el-nu-coind — delivery order 𝔽, t₀, t₁, R (over ▷ν𝔽▷(ν𝔽)[↑]),
@@ -1979,7 +1979,7 @@ conclude env sig ctx (DElNuI dF dA dBody dX) = do
   (a, aty) <- conclude env sig ctx dA >>= needEl
   alphaTy "el-nu-i (carrier)" aty UniverseTy
   (body, bty) <- conclude env sig (ctx :< a) dBody >>= needEl
-  alphaTy "el-nu-i (coalgebra)" bty (wkTy (reflectPoly f a))
+  alphaTy "el-nu-i (coalgebra)" bty (wkTy (reflectPoly f (Elem.SumTy (Elem.NuTy f) a)))
   (x, xty) <- conclude env sig ctx dX >>= needEl
   alphaTy "el-nu-i (seed)" xty a
   pure (JEl (Corec f a body x) (NuTy f))
@@ -1998,7 +1998,8 @@ conclude env sig ctx (DElNuCoind dF dT0 dT1 dR dP dQ) = do
   let wk3 = Chain Wk (Chain Wk Wk)
   (_, qty) <- conclude env sig (ctx :< nuT :< substTy nuT Wk :< r) dQ >>= needEl
   alphaTy "el-nu-coind (closure)" qty
-    (liftPoly (substPoly f wk3) (substElem r (under (under wk3)))
+    (liftPoly (substPoly f wk3) (Elem.NuTy (substPoly f wk3))
+            (substElem r (under (under wk3)))
             (Out (CtxVar 2)) (Out (CtxVar 1)))
   pure (JElEq t0 t1 nuT)
 

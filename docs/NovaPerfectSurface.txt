@@ -170,7 +170,7 @@ touched only in a slice whose survey has made the case.
     checks, checking position only); type-directed operator
     disambiguation (print bare iff resolution in the file's import
     environment uniquely recovers the same Σ name).
-  Phase 5 — ITEM LEVEL + DISPLAY DIVIDENDS. Clausal-def/data
+  Phase 5 — ITEM LEVEL + DISPLAY DIVIDENDS. Clausal-def/copattern/data
     recognition by re-expansion + comparison; citation minimization;
     certificate→chain DISPLAY rendering; reports/LSP onto the shared
     engine.

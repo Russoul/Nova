@@ -1,0 +1,9 @@
+defined stream
+defined hd
+defined tl
+defined cons by copattern (cons, consOut, consEta)
+defined iterate by copattern (iterate, iterateOut, iterateEta)
+defined repeat by copattern (repeat, repeatOut, repeatEta)
+defined map by copattern (map, mapOut, mapEta)
+defined tlCons
+Accepted.

@@ -117,9 +117,11 @@
 #  * Coinductive types: a second SCHEME, dual to QIITs in its smallest
 #    useful form — for each POLYNOMIAL 𝔽 (a one-hole strictly positive
 #    code), the type ν 𝔽, its observation out (the eliminator), its
-#    corecursor corec (the introduction), β running one observation
-#    step, and a uniqueness law that is the coinduction principle
-#    (bisimulation implies equality). Every ν 𝔽 is DERIVABLE (an
+#    corecursor corec (the introduction — PRIMITIVE corecursion, the
+#    apomorphism: each hole either continues from a seed or STOPS
+#    with an existing element), β running one observation step, and a
+#    uniqueness law that is the coinduction principle (bisimulation
+#    UP TO EQUALITY implies equality). Every ν 𝔽 is DERIVABLE (an
 #    ℕ-indexed limit — see SUBSUMPTION in the coinductive notes);
 #    the scheme is kept for structural identity and one-step β.
 
@@ -233,7 +235,9 @@ t, T ::= x [e˲]      # signature reference
     | corec 𝔽 t t t  # corecursor (the INTRODUCTION: polynomial, carrier
                      #   code, coalgebra body, seed — 𝔽 and the carrier are
                      #   CARRIED, like ℰ at 𝒮.𝕤-elim: el-nu-beta consumes
-                     #   map_𝔽, so the redex must be self-contained)
+                     #   map_𝔽, so the redex must be self-contained; the
+                     #   coalgebra is PRIMITIVE-corecursive — its holes are
+                     #   ν 𝔽 ⊎ carrier, stop-or-continue)
 
 # (type) telescope
 Δ ::= ε | T ◁ Δ
@@ -2759,7 +2763,8 @@ e˲ : Γ₁ ⇒ Γ norm
 # POLYNOMIAL 𝔽 — a one-hole strictly positive code, no binders over
 # the hole, no internal fixpoints — the rules below license the
 # coinductive type ν 𝔽, its observation out (the ELIMINATOR), its
-# corecursor corec (the INTRODUCTION), a β-law running one
+# corecursor corec (the INTRODUCTION — PRIMITIVE corecursion, the
+# apomorphism: stop-or-continue at every hole), a β-law running one
 # observation step, and a uniqueness law (η) that IS the coinduction
 # principle. The polarity is Π's, not ℕ's: canonical forms are
 # corec-headed, out forces lazily, and elements are compared by
@@ -2881,34 +2886,44 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ out t : ⌊𝔽⌋(ν 𝔽)
 
 # INTRODUCTION — the corecursor: any coalgebra maps in. The
-# polynomial 𝔽 and the carrier code a are CARRIED by the term (like
-# ℰ at 𝒮.𝕤-elim — β consumes map_𝔽, so the redex is
-# self-contained); f is the coalgebra body, x the seed. Write
-# hᵉˡ ≜ λ (corec 𝔽 a f[↑] ☐₀) for the corecursor as a function term
-# (cf. φᵉˡ at el-qiit-beta):
+# corecursion is PRIMITIVE (the apomorphism, dual to primitive
+# recursion's access to the predecessor): the coalgebra fills each
+# hole with ν 𝔽 ⊎ a — inj₁ STOPS the machine at an existing element,
+# inj₂ CONTINUES it from a new seed. Iteration-style corecursion is
+# the no-stop instance (every hole inj₂). The polynomial 𝔽 and the
+# carrier code a are CARRIED by the term (like ℰ at 𝒮.𝕤-elim — β
+# consumes map_𝔽, so the redex is self-contained); f is the
+# coalgebra body, x the seed. For a function term g into ν 𝔽 write
+# [𝕚𝕕 ‖ g] ≜ λ (⊎-elim ☐₀ (g[↑ ∘ ↑] ☐₀) ☐₀) — the STOP-OR-CONTINUE
+# copair (ν 𝔽 ⊎ c) → ν 𝔽 — and hᵉˡ ≜ λ (corec 𝔽 a f[↑] ☐₀) for the
+# corecursor as a function term (cf. φᵉˡ at el-qiit-beta):
 
 Γ ⊦ 𝔽 poly      Γ ⊦ a : 𝕌
-Γ ▷ a ⊦ f : ⌊𝔽⌋(a)[↑]
+Γ ▷ a ⊦ f : ⌊𝔽⌋((ν 𝔽 ⊎ a))[↑]
 Γ ⊦ x : a
 ------------------------------ (el-nu-i)
 Γ ⊦ corec 𝔽 a f x : ν 𝔽
 
 # COMPUTATION (β) — observing a corecursive value runs the
-# coalgebra one step and re-wraps the recursive positions:
+# coalgebra one step, re-wraps the CONTINUED positions and releases
+# the STOPPED ones: the copair's ⊎-elim meets the coalgebra's
+# injections, so a stopped element emerges BARE, judgementally —
+# the reason the scheme adopts the apomorphism primitively (see
+# SUBSUMPTION):
 
 Γ ⊦ 𝔽 poly      Γ ⊦ a : 𝕌
-Γ ▷ a ⊦ f : ⌊𝔽⌋(a)[↑]
+Γ ▷ a ⊦ f : ⌊𝔽⌋((ν 𝔽 ⊎ a))[↑]
 Γ ⊦ x : a
-------------------------------------------------------------- (el-nu-beta)
-Γ ⊦ out (corec 𝔽 a f x) ≜ map_𝔽 hᵉˡ (f[id, x]) : ⌊𝔽⌋(ν 𝔽)
+------------------------------------------------------------------- (el-nu-beta)
+Γ ⊦ out (corec 𝔽 a f x) ≜ map_𝔽 [𝕚𝕕 ‖ hᵉˡ] (f[id, x]) : ⌊𝔽⌋(ν 𝔽)
 
 # UNIQUENESS (η) — the coinduction principle, el-quot-eta's shape:
 # any candidate commuting with the observation IS the corecursor.
 
 Γ ⊦ 𝔽 poly      Γ ⊦ a : 𝕌
-Γ ▷ a ⊦ f : ⌊𝔽⌋(a)[↑]
+Γ ▷ a ⊦ f : ⌊𝔽⌋((ν 𝔽 ⊎ a))[↑]
 Γ ▷ a ⊦ h : (ν 𝔽)[↑]
-Γ ▷ a ⊦ out h ≐ map_𝔽 ((λ h)[↑]) f : ⌊𝔽⌋(ν 𝔽)[↑]
+Γ ▷ a ⊦ out h ≐ map_𝔽 [𝕚𝕕 ‖ (λ h)][↑] f : ⌊𝔽⌋(ν 𝔽)[↑]
 Γ ⊦ x : a
 ------------------------------------------------------------- (el-nu-eta)
 Γ ⊦ h[id, x] ≐ corec 𝔽 a f x : ν 𝔽
@@ -2926,9 +2941,12 @@ e˲ : Γ₁ ⇒ Γ norm
 # one more ≜-meta-operation, the RELATOR lift_𝔽(R) — the relation
 # lifting of a polynomial: for Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ⊦ R : Ω and
 # elements u, v of ⌊𝔽⌋(ν 𝔽)'s decoding (R's base weakens under every
-# binder the clauses cross; its own two binders lift over it):
+# binder the clauses cross; its own two binders lift over it). The
+# hole clause is UP TO EQUALITY — a candidate bisimulation need not
+# re-relate elements that are already equal, the companion move that
+# lets a stopped position (el-nu-i) close by reflexivity:
 #
-#     lift_𝕏(R) u v          ≜ R[id, u, v]
+#     lift_𝕏(R) u v          ≜ ∥R[id, u, v] ⊎ (u ≡ v ∈ ν 𝔽)∥
 #     lift_{K a}(R) u v      ≜ u ≡ v ∈ a
 #     lift_{𝔽 × 𝔾}(R) u v    ≜ ∥(lift_𝔽(R) (u .π₁) (v .π₁))
 #                                 × (lift_𝔾(R) (u .π₂) (v .π₂))∥
@@ -2954,15 +2972,25 @@ e˲ : Γ₁ ⇒ Γ norm
 ------------------------------------------------------------------- (el-nu-coind)
 Γ ⊦ t₀ ≐ t₁ : ν 𝔽
 
-# DERIVATION (why admissible). From R build the subset carrier
-# b ≜ (νᶜ × νᶜ) × prf R — νᶜ the ν-code, prf the derivable prf-code
-# of the Ω block's impredicativity note — with the coalgebra
-# observing the FIRST component, the closure q transporting the
-# invariant to the tails; both projections commute with out (the
-# second by q's head equations, reflected), so el-nu-eta equates
-# them through the corecursor, and instantiating at (t₀, t₁, p)
-# gives the conclusion. The kernel replays the rule as stated
-# instead (a ⋆-payload — docs/NovaKernel.txt §8): the subset-carrier
+# DERIVATION (why admissible). First, UP TO EQUALITY is harmless:
+# let R′ ≜ R ∨ (☐₁ ≡ ☐₀ ∈ ν 𝔽). The closure premise makes R′ a
+# plain bisimulation — on the R leg by the premise itself, and on
+# the ≡ leg because the relator is REFLEXIVE ON EQUALS: for u ≐ v,
+# lift_𝔽(R′) (out u) (out v) holds by meta-induction on 𝔽, a
+# dependent ⊎-elim on the observation at each sum former (a
+# DERIVATION, where dependent elimination is free — not a kernel
+# step), reflexive equations at the constants and the ≡ leg of R′
+# at the holes. So it suffices to derive the rule for a plain
+# bisimulation R′. From R′ build the subset carrier
+# b ≜ (νᶜ × νᶜ) × prf R′ — νᶜ the ν-code, prf the derivable
+# prf-code of the Ω block's impredicativity note — with the
+# coalgebra observing the FIRST component (all holes CONTINUED —
+# the no-stop instance), the closure q transporting the invariant
+# to the tails; both projections commute with out (the second by
+# q's head equations, reflected), so el-nu-eta equates them through
+# the corecursor, and instantiating at (t₀, t₁, p) gives the
+# conclusion. The kernel replays the rule as stated instead (a
+# ⋆-payload — docs/NovaKernel.txt §8): the subset-carrier
 # construction is the JUSTIFICATION, not the implementation.
 
 # SUBSTITUTION ACTION. Substitution acts through the carried
@@ -2973,13 +3001,22 @@ e˲ : Γ₁ ⇒ Γ norm
 #     (corec 𝔽 a f x)[σ]  ≜ corec 𝔽[σ] a[σ] f[σ⁺] x[σ]
 
 # NOTES.
-#   * LAMBEK. in ≜ λ (corec 𝔽 ⌊𝔽⌋(ν 𝔽) (map_𝔽 (λ (out ☐₀)) ☐₀) ☐₀)
-#     inverts out
-#     up to ≐ — out ∘ in by el-nu-beta plus the functor laws,
-#     in ∘ out by el-nu-eta — so ν 𝔽 ≅ ⌊𝔽⌋(ν 𝔽) elementwise,
-#     while the TYPES stay structurally distinct (IDENTITY above).
-#   * SUBSUMPTION (conservativity). Every ν 𝔽 is definable: with
-#     F̂ⁿ(𝟙) : 𝕌 by ℕ-elim at motive 𝕌, the ℕ-indexed limit
+#   * LAMBEK. in ≜ λ (corec 𝔽 ⌊𝔽⌋(ν 𝔽) (map_𝔽 inj₁ ☐₀) ☐₀) — the
+#     ALL-STOP machine — inverts out up to ≐: out ∘ in by
+#     el-nu-beta plus the functor laws (definitional at canonical
+#     arguments — every stop releases its element bare), in ∘ out
+#     by el-nu-eta — so ν 𝔽 ≅ ⌊𝔽⌋(ν 𝔽) elementwise, while the
+#     TYPES stay structurally distinct (IDENTITY above).
+#   * SUBSUMPTION (conservativity). Two layers. The apomorphism is
+#     derivable from iteration-style corecursion: run the no-stop
+#     corecursor at carrier νᶜ ⊎ a, coalgebra [map_𝔽 inj₁ ∘ out ‖ f]
+#     — the left leg a COPY machine replaying an existing element
+#     observation by observation. β at a stop then holds only up to
+#     the copy-leg identity (an el-nu-eta corollary), which is why
+#     the scheme adopts the apomorphism PRIMITIVELY: a stopped
+#     element is released judgementally, in one step. And the base
+#     scheme itself is definable: with F̂ⁿ(𝟙) : 𝕌 by ℕ-elim at
+#     motive 𝕌, the ℕ-indexed limit
 #         (g : ℕ → (F̂ⁿ 𝟙)-family) × (restriction coherence)
 #     is a final 𝔽-coalgebra — containers preserve this limit — with
 #     out, corec and both laws provable (β up to lemmas, η by
@@ -2990,9 +3027,12 @@ e˲ : Γ₁ ⇒ Γ norm
 #   * SEMANTICS. In the setoid model the carrier of ν 𝔽 is the
 #     meta-level limit above (the descending chain of the monotone
 #     operator, converging at ω), and the relation is the LARGEST
-#     BISIMULATION — el-nu-eta is finality, validated on the nose.
-#     Models that fail finality are hereby excluded, as models
-#     failing initiality are by the QIIT notes.
+#     BISIMULATION — el-nu-eta is finality, validated on the nose
+#     (the apomorphism's universal property is finality's corollary,
+#     and equality is contained in the largest bisimulation, so the
+#     up-to-equality relator is validated too). Models that fail
+#     finality are hereby excluded, as models failing initiality are
+#     by the QIIT notes.
 #   * DELIBERATE OMISSIONS, each with a known upgrade path: no
 #     internal fixpoints in the grammar (interleaved nesting like
 #     ν of X ↦ A × List X needs the inner functor reified to
@@ -3010,9 +3050,11 @@ e˲ : Γ₁ ⇒ Γ norm
 #     Cotree a  ≜ ν (K 𝟙 ⊎ (K a × (𝕏 × 𝕏)))    # leaf/node infinite trees
 #     Moore a b ≜ ν (K b × (a → 𝕏))
 #   head, tail, and friends are out followed by projections and
-#   ⊎-elim; constructors (cons, and Cotree's leaf/node) are in
-#   instances. Surface codata declarations elaborate to
-#   ν-polynomials — docs/NovaElaboration.txt's business.
+#   ⊎-elim; constructors (cons, and Cotree's leaf/node) are ONE-STOP
+#   machines — corec at carrier 𝟙, every hole stopped at a stored
+#   argument, so their observation equations are β (cons's tail IS
+#   the consed stream, judgementally). Surface codata declarations
+#   elaborate to ν-polynomials — docs/NovaElaboration.txt's business.
 
 ///////// Rules (elem list) /////////
 

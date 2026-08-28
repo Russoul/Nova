@@ -33,6 +33,8 @@ import Data.String
 
 import Me.Russoul.Text.Range
 
+import Nova.Kernel.Syntax
+
 import Nova.Elaboration.Named
 import Nova.Elaboration.Surface
 
@@ -905,3 +907,609 @@ expandClausal nrng fname ty etaName witness clauses = do
     etaBodyElim fname cols b j k m lemNames True mvar ("ih", Nothing)
   shapedEtaBody cols b k m lemNames (ShSum j _ avar _ bvar) =
     etaBodyElim fname cols b j k m lemNames False avar bvar
+
+-- ===== The copattern def item =====
+--
+-- The DUAL macro (docs/NovaElaboration.txt, "Defining observations"):
+-- a def into a ν-type whose single clause specifies its OBSERVATION,
+--
+--   def f : (x₁ : A₁) → … → (xₖ : Aₖ) → B      -- whnf(B) = ν 𝔽
+--     | out (f x̄) ≔ t
+--
+-- asserts contractibility of
+--
+--   (ρ : Π…B) ⨯ (Π x̄. out (ρ x̄) ≡ t[ρ/f] ∈ ⌊𝔽⌋(B))
+--
+-- and expands into the batch naming that assertion's pieces:
+--   * EXISTENCE — f ≔ λx̄. corec (s : σ. t̂) ⟨seeds⟩: the body READ
+--     AGAINST THE POLYNOMIAL'S SHAPE (constructors move from the
+--     pattern LHS to the copattern RHS — literal pairs, injections
+--     and λ's down to the hole positions), each hole either a
+--     saturated corecursive call (CONTINUE — inj₂ at the varying
+--     columns' seed tuple) or an f-free element (STOP — inj₁,
+--     released bare by el-nu-beta). The columns split into the
+--     longest PREFIX passed unchanged by every call (λ-bound outside
+--     the corecursor, so parameters never enter the seed) and the
+--     varying suffix (the seed, a Σ-code — the smallness condition
+--     of the fragment);
+--   * the OBSERVATION LEMMA fOut : Π x̄. out (f x̄) ≡ t, body λ…. ⋆ —
+--     β in EVERY case, primitive corecursion's payoff (a stop's
+--     ⊎-elim meets its injection; a continue re-wraps to the same
+--     corec the unfolded recursive reference β-reduces to);
+--   * UNIQUENESS fEta — pointwise, by coind at the pure GRAPH
+--     invariant ∥(ȳ : varying) ⨯ (u ≡ g x̄ₚ ȳ) ⨯ (v ≡ f x̄ₚ ȳ)∥: the
+--     closure rewrites the observations by the g-clause hypothesis
+--     and fOut, landing literal constructors (the fragment's shape
+--     discipline is exactly what un-sticks the relator), K-positions
+--     closing by reflexivity, calls re-entering the graph (inj₁),
+--     stops closing in the relator's up-to-equality leg (inj₂ ⋆).
+--
+-- IMPLICIT COLUMNS follow the term-syntax conventions everywhere: an
+-- implicit column's LHS binder is spelled {x} or elided (named by the
+-- item's type); a corecursive call's implicit argument is spelled
+-- {t} or elided; the generated statements apply the item's own name
+-- through {…} overrides (insertion consumes them positionally) and a
+-- candidate VARIABLE g with every argument plain (variables never
+-- insert). PLACEMENT is resolved here, syntactically — which
+-- positions are implicit is a pure function of the item's own type —
+-- while the VALUES of elided call arguments are read off the
+-- elaborated (insertion-resolved) body by the caller's probe: an
+-- elided argument that resolved to anything but its ambient column
+-- variable has no surface spelling for the seed, so the item
+-- degrades with a spell-it remedy (expandCopattern's elidedBad).
+--
+-- The polynomial arrives from the caller as its SHAPE only
+-- (elabItemGo exposes the item's head type to ν 𝔽 under the item's
+-- using licenses); its embedded pieces are never consulted — every
+-- generated statement spells types the user's source already spells
+-- (the ∈-annotations of the generated equations are elided, inferred
+-- from their out-headed left sides). Tiers degrade exactly as at the
+-- clausal def: witness-supplied existence keeps the lemma ⋆'s as
+-- ordinary obligations; outside the fragment without a witness the
+-- batch demotes to declarations.
+
+||| [1 .. k] that is empty at k = 0 (Idris ranges descend).
+range1 : Nat -> List Nat
+range1 Z = []
+range1 (S n) = range1 n ++ [S n]
+
+||| A column type as a universe CODE — the syntactic conversion
+||| behind the seed-smallness condition. Nothing (degrade) where no
+||| code spelling exists (𝕌, Ω, ≡, an implicit Π, a type-def
+||| reference).
+tyToCode : STy -> Maybe SElem
+tyToCode (STyPos _ t) = tyToCode t
+tyToCode STyZero = Just SZeroC
+tyToCode STyOne = Just SOneC
+tyToCode STyNat = Just SNatC
+tyToCode (STyEl e) = Just e
+tyToCode (STyPi x a b) = [| SPiC (pure x) (tyToCode a) (tyToCode b) |]
+tyToCode (STySigma x a b) = [| SSigmaC (pure x) (tyToCode a) (tyToCode b) |]
+tyToCode (STySum a b) = [| SSumC (tyToCode a) (tyToCode b) |]
+tyToCode (STyQuot a x y r) = (\a' => SQuotC a' x y r) <$> tyToCode a
+tyToCode (STyNu p) = Just (SNuC p)
+tyToCode _ = Nothing
+
+||| Nested pair spelling of a seed tuple (𝟙's element at zero
+||| components).
+mkTuple : List SElem -> SElem
+mkTuple [] = SUnitI
+mkTuple [e] = e
+mkTuple (e :: es) = SPair e (mkTuple es)
+
+||| Peel ALL leading Π-columns, implicit and explicit — a copattern
+||| item's columns (the observation is of the fully applied item;
+||| every leading Π is a column since the head must be the ν-type).
+peelAllPis : STy -> (List (Bool, String, STy), STy)
+peelAllPis (STyPos _ t) = peelAllPis t
+peelAllPis (STyPi x a b) = let (cs, r) = peelAllPis b in ((False, x, a) :: cs, r)
+peelAllPis (STyImpPi x a b) = let (cs, r) = peelAllPis b in ((True, x, a) :: cs, r)
+peelAllPis t = ([], t)
+
+||| One ALIGNED copattern column: its binder (the LHS spelling, or
+||| the type's own binder name when an implicit column is elided),
+||| implicitness, whether the LHS spelled it, and its type.
+public export
+record CoCol where
+  constructor MkCoCol
+  cnm : SName
+  cimp : Bool
+  cspelled : Bool
+  cty : STy
+
+public export
+record CoAligned where
+  constructor MkCoAligned
+  ccols : List CoCol
+  ||| the clause RHS reindexed from the SPELLED-variable environment
+  ||| the parser bound to the FULL column telescope
+  crhsFull : SElem
+
+||| Stage 1 — ALIGNMENT, pure and total over the surface: LHS
+||| arguments against the item's columns (an implicit column takes a
+||| {x} if one is next and is elided otherwise; an explicit column
+||| takes the next plain variable), then the RHS reindexed to the
+||| full telescope. Left = structural error.
+export
+copatternAlign : (fname : String) -> STy -> (cargs : List (SName, Bool)) ->
+                 (crhs : SElem) -> Either String CoAligned
+copatternAlign fname ty cargs crhs = do
+  let (rawCols, _) = peelAllPis ty
+  cols <- go rawCols cargs
+  let nms = filter (/= wildcard) (map (fst . cnm) (filter (.cspelled) cols))
+  let True = length nms == length (nub nms)
+    | False => Left "the copattern's argument variables must be distinct"
+  let k = length cols
+  -- spelled columns in order, as 1-based column numbers
+  let spelled = the (List Nat)
+                  (map Builtin.fst (filter (\p => (snd p).cspelled) (zip (range1 k) cols)))
+  let m = length spelled
+  -- spelled de Bruijn slot s (innermost = 0) sits at column
+  -- spelled_(m−s); its full-telescope index is k − that column
+  let rhs = mapRefsE (\dd, r, n, i =>
+              case nth (minus m (S (minus i dd))) spelled of
+                Just c => SVar r n (dd + minus k c)
+                Nothing => SVar r n i)   -- unreachable: parser bound m vars
+              keepSig 0 crhs
+  pure (MkCoAligned cols rhs)
+ where
+  go : List (Bool, String, STy) -> List (SName, Bool) -> Either String (List CoCol)
+  go [] [] = Right []
+  go [] (_ :: _) = Left "the copattern spells more arguments than the item's type shows Π-columns"
+  go ((True, tn, a) :: cols) ((n, True) :: as) = (MkCoCol n True True a ::) <$> go cols as
+  go ((True, tn, a) :: cols) as = (MkCoCol (tn, Nothing) True False a ::) <$> go cols as
+  go ((False, tn, a) :: cols) ((n, False) :: as) = (MkCoCol n False True a ::) <$> go cols as
+  go ((False, tn, a) :: cols) ((n, True) :: as) =
+    Left "a {…} argument at an explicit column of the copattern"
+  go ((False, tn, a) :: cols) [] = Left "the copattern leaves an explicit column unspelled"
+
+||| Align a corecursive call's SPELLED arguments to the columns —
+||| the placement rule of the term syntax: an implicit column
+||| consumes a {t} override if one is next and is otherwise ELIDED
+||| (its value the ambient column variable, subject to the probe's
+||| verification); an explicit column consumes the next plain
+||| argument. Nothing = the call is not saturated (or misspelled).
+||| Returns the FULL k argument values and the elided mask.
+alignCall : List CoCol -> (k, d : Nat) -> List SElem -> Maybe (List SElem, List Bool)
+alignCall cols k d args = go 1 cols args
+ where
+  cons2 : SElem -> Bool -> (List SElem, List Bool) -> (List SElem, List Bool)
+  cons2 v e (vs, es) = (v :: vs, e :: es)
+  go : Nat -> List CoCol -> List SElem -> Maybe (List SElem, List Bool)
+  go c [] [] = Just ([], [])
+  go c [] (_ :: _) = Nothing
+  go c (col :: rest) (a0 :: as) =
+    case (col.cimp, unPos a0) of
+      (True, SImpArg t) => cons2 t False <$> go (S c) rest as
+      (True, _) =>
+        cons2 (SVar Nothing (fst col.cnm) (d + minus k c)) True
+          <$> go (S c) rest (a0 :: as)
+      (False, SImpArg _) => Nothing
+      (False, _) => cons2 a0 False <$> go (S c) rest as
+  go c (col :: rest) [] =
+    if col.cimp
+      then cons2 (SVar Nothing (fst col.cnm) (d + minus k c)) True <$> go (S c) rest []
+      else Nothing
+
+||| A hole position's classification: STOP at an f-free element, or
+||| CONTINUE through a saturated corecursive call (every column
+||| covered per the placement rule, no argument mentioning f — a
+||| nested call is not guarded).
+data CoHole = CoStop SElem | CoCall (List SElem) (List Bool)
+
+classifyHole : (fname : String) -> (cols : List CoCol) -> (d : Nat) ->
+               SElem -> Either String CoHole
+classifyHole fname cols d e =
+  let (h, args) = unwind e
+      k = length cols in
+  case unPos h of
+    SSig _ x =>
+      if x /= fname then stop
+      else if any (occursE fname) args
+        then Left "a corecursive call's arguments must not themselves mention \{fname}"
+      else case alignCall cols k d args of
+        Just (vals, mask) => Right (CoCall vals mask)
+        Nothing => Left "a corecursive call must be saturated (every column covered)"
+    _ => stop
+ where
+  stop : Either String CoHole
+  stop = if occursE fname e
+           then Left "an occurrence of \{fname} at a hole position must head a saturated corecursive call"
+           else Right (CoStop e)
+
+||| Phase 1 — read the body against the polynomial's shape,
+||| collecting every corecursive call with its binder depth, aligned
+||| argument values and elided mask. The shape demands literal
+||| constructors down to the holes; anything else is outside the
+||| fragment (a degrade, not an error).
+analyzeBody : (fname : String) -> (cols : List CoCol) -> Poly -> Nat -> SElem ->
+              Either String (List (Nat, List SElem, List Bool))
+analyzeBody fname cols = go
+ where
+  free : Nat -> SElem -> Either String ()
+  free d e = if occursE fname e
+               then Left "an external (non-hole) component must not mention \{fname}"
+               else Right ()
+  go : Poly -> Nat -> SElem -> Either String (List (Nat, List SElem, List Bool))
+  go p d (SPos _ e) = go p d e
+  go PHole d e = classifyHole fname cols d e >>= \h => case h of
+      CoStop _ => Right []
+      CoCall vals mask => Right [(d, vals, mask)]
+  go (PConst _) d e = free d e $> []
+  go (PProd f g) d (SPair a b) = (++) <$> go f d a <*> go g d b
+  go (PProd _ _) d _ = Left "the body at a product position must be a literal pair"
+  go (PSum f g) d (SInj1 a) = go f d a
+  go (PSum f g) d (SInj2 b) = go g d b
+  go (PSum _ _) d _ = Left "the body at a sum position must be a literal injection"
+  go (PSigma _ f) d (SPair a b) = do free d a; go f d b
+  go (PSigma _ _) d _ = Left "the body at a dependent-pair position must be a literal pair"
+  go (PPi _ f) d (SLam _ b) = go f (S d) b
+  go (PPi _ _) d _ = Left "the body at an exponent position must be a literal λ"
+
+||| The per-call elided masks of a fragment-shaped body — the probe's
+||| worklist (Nothing when the body is outside the fragment, where
+||| the tiers take over).
+export
+copatternProbeCalls : (fname : String) -> List CoCol -> Poly -> SElem ->
+                      Maybe (List (Nat, List Bool))
+copatternProbeCalls fname cols pol rhs =
+  case analyzeBody fname cols pol 0 rhs of
+    Left _ => Nothing
+    Right calls => Just (map (\(d, _, m) => (d, m)) calls)
+
+||| The CORE-side hole calls: the same shape walk over the
+||| elaborated (insertion-resolved) body, collecting each corecursive
+||| spine's depth and full argument list — what the probe compares
+||| the elided masks against. Nothing on a shape mismatch (degrade
+||| safely).
+export
+coreHoleCalls : (fq : String) -> Poly -> Nat -> Elem -> Maybe (List (Nat, List Elem))
+coreHoleCalls fq = go
+ where
+  spineOf : Elem -> (Elem, List Elem)
+  spineOf (PiApp f e) = let (h, as) = spineOf f in (h, as ++ [e])
+  spineOf e = (e, [])
+  go : Poly -> Nat -> Elem -> Maybe (List (Nat, List Elem))
+  go PHole d e = case spineOf e of
+      (SigVar x _, args) => Just (if x == fq then [(d, args)] else [])
+      _ => Just []
+  go (PConst _) d e = Just []
+  go (PProd f g) d (SigmaIntro a b) = (++) <$> go f d a <*> go g d b
+  go (PSum f g) d (Inj1 a) = go f d a
+  go (PSum f g) d (Inj2 b) = go g d b
+  go (PSigma _ f) d (SigmaIntro a b) = go f d b
+  go (PPi _ f) d (PiIntro b) = go f (S d) b
+  go _ _ _ = Nothing
+
+||| How many leading columns a call passes unchanged (its aligned
+||| value the column's own variable).
+callPrefix : (k : Nat) -> (Nat, List SElem, List Bool) -> Nat
+callPrefix k (d, vals, _) = go 1 vals
+ where
+  go : Nat -> List SElem -> Nat
+  go i (a :: rest) = case unPos a of
+    SVar _ _ v => if v == d + minus k i then S (go (S i) rest) else 0
+    _ => 0
+  go i [] = 0
+
+||| Seed projection: the i-th (1-based) of nv varying components of
+||| the seed variable at index `base` — the last component carries no
+||| .π₁ (the tuple is right-nested).
+seedProj : (sv : String) -> (base, i, nv : Nat) -> SElem
+seedProj sv base i nv =
+  let s = SVar Nothing sv base in
+  if nv == 1 then s
+  else if i == nv then pi2s (minus i 1) s
+  else SProj1 (pi2s (minus i 1) s)
+ where
+  pi2s : Nat -> SElem -> SElem
+  pi2s Z acc = acc
+  pi2s (S m) acc = pi2s m (SProj2 acc)
+
+||| Phase 2a — the coalgebra body: the full-telescope environment
+||| [x̄] (+ d locals) remapped to [x̄, s] (+ d locals): prefix columns
+||| to their λ-binders (one binder, s, interposes), varying columns
+||| to seed projections; each hole tagged inj₁ (stop, remapped
+||| element) or inj₂ (continue, the call's varying values as a seed
+||| tuple).
+walkCoalg : (fname : String) -> (cols : List CoCol) -> (j, nv : Nat) -> (sv : String) ->
+            Poly -> Nat -> SElem -> Either String SElem
+walkCoalg fname cols j nv sv = go
+ where
+  k : Nat
+  k = length cols
+  rm : Nat -> SElem -> SElem
+  rm d e = mapRefsE (\dd, r, n, i =>
+             let c = minus k (minus i dd) in
+             if c <= j then SVar r n (S i)
+                       else seedProj sv dd (minus c j) nv)
+           keepSig d e
+  go : Poly -> Nat -> SElem -> Either String SElem
+  go p d (SPos _ e) = go p d e
+  go PHole d e = classifyHole fname cols d e >>= \h => case h of
+      CoStop v => Right (SInj1 (rm d v))
+      CoCall vals _ => Right (SInj2 (mkTuple (map (rm d) (drop j vals))))
+  go (PConst _) d e = Right (rm d e)
+  go (PProd f g) d (SPair a b) = [| SPair (go f d a) (go g d b) |]
+  go (PSigma _ f) d (SPair a b) = SPair (rm d a) <$> go f d b
+  go (PSum f g) d (SInj1 a) = SInj1 <$> go f d a
+  go (PSum f g) d (SInj2 b) = SInj2 <$> go g d b
+  go (PPi _ f) d (SLam x b) = SLam x <$> go f (S d) b
+  go _ d _ = Left "internal: copattern shape mismatch after analysis"
+
+||| Phase 2b — the uniqueness closure's payload: a proof of the
+||| relator at the two rewritten observation bodies, read off the
+||| same shape. Environment [g, h, x̄, u, v, hb, w] (+ d locals): the
+||| clause environment remaps prefix columns to the λ-binders (u, v,
+||| hb, w interpose) and varying columns to projections of the graph
+||| witness w (uniformly .π₁ ∘ .π₂ⁱ⁻¹ — the equation pair follows the
+||| seed components).
+walkPayload : (fname : String) -> (cols : List CoCol) -> (j : Nat) ->
+              Poly -> Nat -> SElem -> Either String SElem
+walkPayload fname cols j = go
+ where
+  k : Nat
+  k = length cols
+  star : SElem
+  star = SStar Nothing
+  cloProj : (base, i : Nat) -> SElem
+  cloProj base i = SProj1 (pi2s (minus i 1) (SVar Nothing "w" base))
+   where
+    pi2s : Nat -> SElem -> SElem
+    pi2s Z acc = acc
+    pi2s (S m) acc = pi2s m (SProj2 acc)
+  rm : Nat -> SElem -> SElem
+  rm d e = mapRefsE (\dd, r, n, i =>
+             let c = minus k (minus i dd) in
+             if c <= j then SVar r n (4 + i)
+                       else cloProj dd (minus c j))
+           keepSig d e
+  go : Poly -> Nat -> SElem -> Either String SElem
+  go p d (SPos _ e) = go p d e
+  go PHole d e = classifyHole fname cols d e >>= \h => case h of
+      CoStop _ => Right (SStarWit (SInj2 star))
+      CoCall vals _ =>
+        Right (SStarWit (SInj1 (SStarWit
+          (foldr SPair (SPair star star) (map (rm d) (drop j vals))))))
+  go (PConst _) d e = Right star
+  go (PProd f g) d (SPair a b) =
+    (\l, r => SStarWit (SPair l r)) <$> go f d a <*> go g d b
+  go (PSigma _ f) d (SPair a b) = (\r => SStarWit (SPair star r)) <$> go f d b
+  go (PSum f g) d (SInj1 a) = go f d a
+  go (PSum f g) d (SInj2 b) = go g d b
+  go (PPi _ f) d (SLam x b) = (\r => SStarWit (SLam x r)) <$> go f (S d) b
+  go _ d _ = Left "internal: copattern shape mismatch after analysis"
+
+||| Every Σ-name a copattern item mints — a pure function of the
+||| source, per the reproducibility invariant. Used by the expansion
+||| and the LSP's symbol listing.
+export
+copatternNames : String -> (cname : Maybe String) -> (etaName : Maybe String) -> List String
+copatternNames fname cname etaName =
+  [fname, fromMaybe (fname ++ "Out") cname, fromMaybe (fname ++ "Eta") etaName]
+
+||| Expand a copattern def into its batch, given the aligned columns
+||| and RHS, the head polynomial's shape, and the probe's verdict on
+||| elided call arguments (Just = an elided implicit resolved away
+||| from its ambient column — a degrade with a spell-it remedy).
+||| Left = STRUCTURAL error; everything else degrades through the
+||| tiers, as at expandClausal.
+export
+expandCopattern : (nrng : Maybe Range) -> (fname : String) -> STy ->
+                  (muses : Maybe (List String)) ->
+                  (etaName : Maybe String) -> (witness : Maybe SElem) ->
+                  (al : CoAligned) -> (cname : Maybe String) ->
+                  (pol : Poly) -> (elidedBad : Maybe String) ->
+                  Either String Expansion
+expandCopattern nrng fname ty muses etaName witness al cname pol elidedBad = do
+  let cols = al.ccols
+  let crhs = al.crhsFull
+  let k = length cols
+  lemN <- if isOpName fname
+            then maybe (Left "an operator-named item requires a [name] override on its observation clause")
+                       Right cname
+            else Right (fromMaybe (fname ++ "Out") cname)
+  etaN <- if isOpName fname
+            then maybe (Left "an operator-named item requires a [name] override (after the type) for the uniqueness lemma")
+                       Right etaName
+            else Right (fromMaybe (fname ++ "Eta") etaName)
+  -- the item's own spine: {…} overrides at the implicit positions
+  -- (insertion consumes them); a VARIABLE candidate's spine: every
+  -- argument plain (variables never insert)
+  let fArgsAt = the ((Nat -> Nat) -> List SElem) $ \ix =>
+                  map (\(c, col) =>
+                        let v = SVar Nothing (fst col.cnm) (ix c) in
+                        if col.cimp then SImpArg v else v)
+                      (zip (range1 k) cols)
+  let gArgsAt = the ((Nat -> Nat) -> List SElem) $ \ix =>
+                  map (\(c, col) => SVar Nothing (fst col.cnm) (ix c))
+                      (zip (range1 k) cols)
+  let lemTy = wrapSPisI cols
+                (STyEq Nothing (SOut (spine (SSig Nothing fname) (fArgsAt (\c => minus k c))))
+                       crhs Nothing)
+  let lemBody = wrapSLams (map (.cnm) cols) (SStar Nothing)
+  let eTy = etaCoType cols k fArgsAt gArgsAt lemN
+  let musesL = fromMaybe [] muses
+  let lemUses = nub (musesL ++ [fname ++ ".eq"])
+  let etaUses = nub (musesL ++ [lemN, lemN ++ ".rw", fname ++ ".eq", "hyp.rw"])
+  let names = [fname, lemN, etaN]
+  let synth = fragmentSynth cols k lemN fArgsAt
+  case witness of
+    Just w =>
+      -- WITNESS TIER: existence is the user's; the observation lemma
+      -- pays with ⋆ (an undischarged ⋆ is an ordinary obligation);
+      -- uniqueness is still synthesized whenever the body is
+      -- fragment-shaped — it rewrites by the lemma, never by
+      -- unfolding the witness
+      Right (MkExpansion
+               [ (nrng, SDef fname ty w muses)
+               , (nrng, SDef lemN lemTy lemBody (Just lemUses))
+               , (nrng, SDef etaN eTy (either (const (etaCoStar cols lemN)) snd synth) (Just etaUses)) ]
+               "defined \{fname} by copattern via witness (\{joinBy ", " names})")
+    Nothing =>
+      case synth of
+        Right (rho, eBody) =>
+          -- THE FRAGMENT: everything synthesized
+          Right (MkExpansion
+                   [ (nrng, SDef fname ty rho muses)
+                   , (nrng, SDef lemN lemTy lemBody (Just lemUses))
+                   , (nrng, SDef etaN eTy eBody (Just etaUses)) ]
+                   "defined \{fname} by copattern (\{joinBy ", " names})")
+        Left why =>
+          -- DECLARATION TIER: the batch demotes; the observation
+          -- lemma registers as a declared equation (the
+          -- abstract-interface idiom)
+          Right (MkExpansion
+                   [ (nrng, SDeclDef nrng fname ty)
+                   , (nrng, SDeclDef Nothing lemN lemTy)
+                   , (nrng, SDeclDef Nothing etaN eTy) ]
+                   ("declared \{fname} and its observation (\{joinBy ", " names})"
+                    ++ " — outside the corecursive fragment: \{why}"))
+ where
+  colNm : List CoCol -> Nat -> String
+  colNm cs c = maybe "_" (fst . cnm) (nth (minus c 1) cs)
+
+  ||| Π-closure MIRRORING the columns' implicitness (the generated
+  ||| lemma reads and applies like a hand-written one).
+  wrapSPisI : List CoCol -> STy -> STy
+  wrapSPisI cs t =
+    foldr (\c, r => (if c.cimp then STyImpPi else STyPi) (fst c.cnm) c.cty r) t cs
+
+  ||| The clause RHS respelled for the VARIABLE candidate g: each
+  ||| corecursive call becomes g applied to its FULL aligned values,
+  ||| all plain (g never inserts; elided implicits are their column
+  ||| variables — the fragment's verified reading). Environment
+  ||| [g, x̄] (+ locals): column indices unchanged, g at depth + k.
+  walkG : List CoCol -> Poly -> Nat -> SElem -> Either String SElem
+  walkG cols pl d0 e0 = go pl d0 e0
+   where
+    k : Nat
+    k = length cols
+    go : Poly -> Nat -> SElem -> Either String SElem
+    go p d (SPos _ e) = go p d e
+    go PHole d e = classifyHole fname cols d e >>= \h => case h of
+        CoStop v => Right v
+        CoCall vals _ => Right (spine (SVar Nothing "g" (d + k)) vals)
+    go (PConst _) d e = Right e
+    go (PProd f g') d (SPair a b) = [| SPair (go f d a) (go g' d b) |]
+    go (PSigma _ f) d (SPair a b) = SPair a <$> go f d b
+    go (PSum f g') d (SInj1 a) = SInj1 <$> go f d a
+    go (PSum f g') d (SInj2 b) = SInj2 <$> go g' d b
+    go (PPi _ f) d (SLam x b) = SLam x <$> go f (S d) b
+    go _ d _ = Left "shape"
+
+  ||| Fallback g-respell for non-fragment bodies (degrade tiers):
+  ||| every f-reference becomes the variable, arguments kept as
+  ||| written (a surviving {…} mark under the now-variable head is
+  ||| rejected by elaboration — acceptable in a tier that is already
+  ||| outside the fragment).
+  gFallback : Nat -> SElem -> SElem
+  gFallback base e =
+    mapRefsE (\_, r, n, i => SVar r n i)
+             (\d, r, x => if x == fname then SVar r "g" (base + d) else SSig r x)
+             0 e
+
+  ||| (g : T) → (h : the observation clause FOR g) → (x̄) →
+  ||| g x̄ ≡ f x̄ — pointwise, the h a SIDE CONDITION in E's
+  ||| documented sense. h's statement applies g fully and plainly.
+  etaCoType : (cols : List CoCol) -> (k : Nat) ->
+              (fArgsAt : (Nat -> Nat) -> List SElem) ->
+              (gArgsAt : (Nat -> Nat) -> List SElem) ->
+              (lemN : String) -> STy
+  etaCoType cols k fArgsAt gArgsAt lemN =
+    let rhsG = either (const (gFallback k al.crhsFull)) id (walkG cols pol 0 al.crhsFull)
+        hTy = wrapSPisI cols
+                (STyEq Nothing (SOut (spine (SVar Nothing "g" k) (gArgsAt (\c => minus k c))))
+                       rhsG Nothing)
+        concl = STyEq Nothing (spine (SVar Nothing "g" (k + 1)) (gArgsAt (\c => minus k c)))
+                       (spine (SSig Nothing fname) (fArgsAt (\c => minus k c))) Nothing
+    in STyPi "g" ty (STyPi lemN hTy
+         (foldr (\c, r => STyPi (fst c.cnm) c.cty r) concl cols))
+
+  etaCoStar : (cols : List CoCol) -> (lemN : String) -> SElem
+  etaCoStar cols lemN =
+    SLam ("g", Nothing) (SLam (lemN, Nothing)
+      (wrapSLams (map (.cnm) cols) (SStar Nothing)))
+
+  ||| The seed carrier: the varying columns' types as a right-nested
+  ||| Σ-code (𝟙 at zero components). The i-th component's type crosses
+  ||| the earlier varying binders unchanged (they re-bind the same
+  ||| columns); its prefix-column references shift past the seed
+  ||| binder's displacement.
+  mkCarrier : (j, nv : Nat) -> List CoCol -> Either String SElem
+  mkCarrier j nv [] = Right SOneC
+  mkCarrier j nv varying = go 0 varying
+   where
+    conv : Nat -> STy -> Either String SElem
+    conv i a = maybe (Left "a varying argument's type spells no universe code (the corecursion seed must be small)")
+                     Right (tyToCode (shiftTy i nv a))
+    go : Nat -> List CoCol -> Either String SElem
+    go i [c] = conv i c.cty
+    go i (c :: rest) = [| SSigmaC (pure (fst c.cnm)) (conv i c.cty) (go (S i) rest) |]
+    go i [] = Left "internal: empty varying telescope"
+
+  ||| The uniqueness proof: coind at the graph invariant
+  ||| ∥(ȳ : varying) ⨯ (u ≡ g x̄ₚ ȳ) ⨯ (v ≡ f x̄ₚ ȳ)∥, endpoints by the
+  ||| λ-bound varying columns, closure by squash-elim on the
+  ||| hypothesis and the shape-directed payload.
+  etaCoBody : (cols : List CoCol) -> (k, j, nv : Nat) ->
+              (varying : List CoCol) -> (lemN : String) -> (qpay : SElem) -> SElem
+  etaCoBody cols k j nv varying lemN qpay =
+    let rTy = graphTy 0 varying
+        p = SStarWit (foldr SPair (SPair (SStar Nothing) (SStar Nothing))
+              (map (\c => SVar Nothing (colNm cols c) (minus k c))
+                   (drop j (range1 k))))
+    in SLam ("g", Nothing) (SLam (lemN, Nothing)
+         (wrapSLams (map (.cnm) cols)
+           (SCoind ("u", Nothing) ("v", Nothing) (SSquash rTy) p
+                   ("u", Nothing) ("v", Nothing) ("hb", Nothing)
+                   (SSquashElim (SVar Nothing "hb" 0) ("w", Nothing) qpay))))
+   where
+    impAt : Nat -> Bool
+    impAt c = maybe False (.cimp) (nth (minus c 1) cols)
+    ||| The graph's Σ-tree: the varying binders, then the two
+    ||| equations. The i-th (0-based) varying type's source
+    ||| environment is [cols₁..j+i]: earlier-varying references are
+    ||| innermost-aligned in the target (the graph re-binds the same
+    ||| columns), prefix references sit nv + 2 deeper (u, v — cutoff
+    ||| i, amount nv + 2). The f-spine carries its {…} overrides;
+    ||| the g-spine is plain.
+    graphTy : Nat -> List CoCol -> STy
+    graphTy i [] =
+      let gArgs = map (\c => SVar Nothing (colNm cols c)
+                        (if c <= j then nv + 2 + minus k c
+                                   else minus nv (minus c j)))
+                      (range1 k)
+          fArgs = map (\c =>
+                    let v = SVar Nothing (colNm cols c)
+                              (if c <= j then nv + 3 + minus k c
+                                         else minus (S nv) (minus c j)) in
+                    if impAt c then SImpArg v else v)
+                      (range1 k)
+      in STySigma "_"
+           (STyEq Nothing (SVar Nothing "u" (nv + 1))
+                  (spine (SVar Nothing "g" (nv + 3 + k)) gArgs) Nothing)
+           (STyEq Nothing (SVar Nothing "v" (nv + 1))
+                  (spine (SSig Nothing fname) fArgs) Nothing)
+    graphTy i (c :: rest) =
+      STySigma (fst c.cnm) (shiftTy i (nv + 2) c.cty) (graphTy (S i) rest)
+
+  ||| The fragment analysis and full synthesis: (ρ, eta body).
+  fragmentSynth : (cols : List CoCol) -> (k : Nat) -> (lemN : String) ->
+                  (fArgsAt : (Nat -> Nat) -> List SElem) ->
+                  Either String (SElem, SElem)
+  fragmentSynth cols k lemN fArgsAt = do
+    calls <- analyzeBody fname cols pol 0 al.crhsFull
+    case elidedBad of
+      Just why => Left why
+      Nothing => do
+        let j = foldl (\acc, c => min acc (callPrefix k c)) k calls
+        let nv = minus k j
+        let varying = drop j cols
+        carrier <- mkCarrier j nv varying
+        cbody <- walkCoalg fname cols j nv "s" pol 0 al.crhsFull
+        let seed = mkTuple (map (\c => SVar Nothing (colNm cols c) (minus k c))
+                                (drop j (range1 k)))
+        let rho = wrapSLams (map (.cnm) cols) (SCorec ("s", Nothing) carrier cbody seed)
+        qpay <- walkPayload fname cols j pol 0 al.crhsFull
+        pure (rho, etaCoBody cols k j nv varying lemN qpay)

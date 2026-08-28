@@ -1129,27 +1129,68 @@ parseClauseLhs iname =
         (do h <- parseHead; ignore (many (do sp; parsePatAtom)); pure h)
     <|> (do ignore parsePat; sp; parseOpName)
 
-||| clause ::= | lhs ≔ t ([n])? — the RHS is parsed in the LHS's
-||| binder telescope; the optional [n] names the clause's equation
-||| lemma.
-parseSClauseRaw : FixTable -> String -> Rule SClause
-parseSClauseRaw tbl iname = do
+||| A parsed clause: Left is a COPATTERN clause (its LHS arguments —
+||| plain variables and {x}-spelled implicit ones — RHS and [n]
+||| override; docs/NovaElaboration.txt, "Defining observations"),
+||| Right an ordinary pattern clause.
+SParsedClause : Type
+SParsedClause = Either (List (SName, Bool), SElem, Maybe String) SClause
+
+||| clause ::= | out (n x*) ≔ t ([m])?      — a COPATTERN clause
+|||          | | out n ≔ t ([m])?          — its zero-column spelling
+|||          | | lhs ≔ t ([n])?            — a pattern clause
+||| The RHS is parsed in the LHS's binder telescope; the optional [n]
+||| names the clause's equation lemma. The copattern form is tried
+||| first — its `out` head cannot begin a pattern LHS (whose head must
+||| be the item's own name).
+parseSAnyClauseRaw : FixTable -> String -> Rule SParsedClause
+parseSAnyClauseRaw tbl iname = do
   kwc '|'; sp
   commit
-  pats <- parseClauseLhs iname
-  sp; kw2 "≔" ":="; sp
-  let vars = patVarsOf pats
-  rhs <- parseSElem tbl ([<] <>< map fst vars)
-  mn <- optional (do sp; kwc '['; sp; n <- parseName; sp; kwc ']'; pure n)
-  pure (MkSClause pats vars rhs mn Nothing)
+  parseCo <|> parseOrd
+ where
+  lemName : Rule (Maybe String)
+  lemName = optional (do sp; kwc '['; sp; n <- parseName; sp; kwc ']'; pure n)
+  ||| A copattern LHS argument, following ordinary term syntax: a
+  ||| plain variable (an explicit column) or {x} (an implicit one).
+  parseCoArg : Rule (SName, Bool)
+  parseCoArg =
+        (do kwc '{'; sp; n <- parseNameR; sp; kwc '}'; pure (n, True))
+    <|> (do n <- parseNameR; pure (n, False))
+  parseCo : Rule SParsedClause
+  parseCo = do
+    kw "out"; sp
+    vars <- (do kwc '('; sp
+                h <- parseName
+                guard "the copattern head must be the item's name" (h == iname)
+                vs <- many (do sp; parseCoArg)
+                sp; kwc ')'
+                pure vs)
+        <|> (do h <- parseName
+                guard "the copattern head must be the item's name" (h == iname)
+                pure [])
+    sp; kw2 "≔" ":="; sp
+    rhs <- parseSElem tbl ([<] <>< map (fst . fst) vars)
+    mn <- lemName
+    pure (Left (vars, rhs, mn))
+  parseOrd : Rule SParsedClause
+  parseOrd = do
+    pats <- parseClauseLhs iname
+    sp; kw2 "≔" ":="; sp
+    let vars = patVarsOf pats
+    rhs <- parseSElem tbl ([<] <>< map fst vars)
+    mn <- lemName
+    pure (Right (MkSClause pats vars rhs mn Nothing))
 
-||| The clause with its own source span attached — what the item macro
-||| reports its generated equation lemma at.
-export
-parseSClause : FixTable -> String -> Rule SClause
-parseSClause tbl iname = do
-  (r, c) <- bounds (parseSClauseRaw tbl iname)
-  pure ({ crange := r } c)
+||| Each clause with its own source span attached — what the item
+||| macro reports an ordinary clause's generated equation lemma at
+||| (the copattern item reports at the item level).
+parseSAnyClause : FixTable -> String -> Rule SParsedClause
+parseSAnyClause tbl iname = do
+  (r, c) <- bounds (parseSAnyClauseRaw tbl iname)
+  pure (case c of
+          Right cl => Right ({ crange := r } cl)
+          l => l)
 
 -- COMMITS: after an item's leading keyword the parse can be nothing
 -- else, so commit — a failure deep inside the item then propagates
@@ -1174,19 +1215,26 @@ parseSItem tbl =
           muses <- optional (do kw "using"; sp; ns <- parseUsingNames; sp; pure ns)
           metaEta <- optional (do kwc '['; sp; n <- parseName; sp; kwc ']'; sp; pure n)
           mbody <- optional (do kw2 "≔" ":="; sp; commit; parseSElem tbl [<])
-          cls <- many (do sp; parseSClause tbl x)
-          case (metaEta, mbody, cls) of
-            (Nothing, Just body, []) => pure (SDef x ty body muses)
+          cls <- many (do sp; parseSAnyClause tbl x)
+          let cos = the (List (List (SName, Bool), SElem, Maybe String))
+                        (mapMaybe (either Just (const Nothing)) cls)
+          let ords = the (List SClause) (mapMaybe (either (const Nothing) Just) cls)
+          case (metaEta, mbody, cos, ords) of
+            (Nothing, Just body, [], []) => pure (SDef x ty body muses)
             -- a def without a definiens: a DECLARATION
-            (Nothing, Nothing, []) =>
+            (Nothing, Nothing, [], []) =>
               case muses of
                 Nothing => pure (SDeclDef r x ty)
                 Just _ => fail "!a declaration discharges nothing — a using-clause is for defs with a definiens"
-            (_, _, (c :: cs)) =>
+            (_, _, [], (c :: cs)) =>
               case muses of
                 Nothing => pure (SClausalDef r x ty metaEta mbody (c :: cs))
                 Just _ => fail "!a using-clause on a clausal def is not supported yet"
-            (Just _, _, []) => fail "!a uniqueness-name override must be followed by clauses")
+            (_, _, [(vars, rhs, cn)], []) =>
+              pure (SCopatternDef r x ty muses metaEta mbody vars rhs cn)
+            (_, _, (_ :: _ :: _), []) => fail "!an item takes at most one copattern clause"
+            (_, _, (_ :: _), (_ :: _)) => fail "!copattern and pattern clauses cannot mix on one item"
+            (_, _, [], []) => fail "!a uniqueness-name override must be followed by clauses")
   <|> (do kw "type"; space; commit
           x <- parseName; sp
           kw2 "≔" ":="; sp
