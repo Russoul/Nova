@@ -235,7 +235,7 @@ mutual
                 pure (foldr (\(imp, x, t), acc =>
                               if imp then STyImpPi x t acc else STyPi x t acc) b groups))
               <|> (do kw "⨯"; sp
-                      guard "→ (implicit binders are Π-only: {x : T} ⨯ … is not a type)"
+                      guard "!implicit binders are Π-only: {x : T} ⨯ … is not a type"
                             (all (\(imp, _, _) => not imp) groups)
                       b <- parseSTy tbl env'
                       pure (foldr (\(_, x, t), acc => STySigma x t acc) b groups)))
@@ -301,7 +301,7 @@ mutual
               [] => pure t
               _ => case tyHeadElem t of
                      Just h => pure (STyEl (foldl SApp h args))
-                     Nothing => fail "no argument here (this type former takes none)")
+                     Nothing => fail "!this type former takes no arguments")
    where
     tyHeadElem : STy -> Maybe SElem
     tyHeadElem (STySig x) = Just (SSig Nothing x)
@@ -348,7 +348,7 @@ mutual
               -- removed (PerfNotes "The cost of a hole") ahead of the
               -- metavariable redesign. Binder wildcards are a separate
               -- production and unaffected.
-              ('_' :: rest) => fail "a type (holes are not supported — spell it out)"
+              ('_' :: rest) => fail "!holes are not supported — spell the type out"
               _ =>
                 case resolveVar env x of
                   -- a BINDER name in type position is a bound CODE
@@ -644,7 +644,7 @@ mutual
               -- hole") ahead of the metavariable redesign. Binder
               -- wildcards are a separate production and unaffected.
               ['_'] => pure (SBlank r)
-              ('_' :: rest) => fail "a term (holes are not supported — spell it out)"
+              ('_' :: rest) => fail "!holes are not supported — spell the term out"
               _ =>
                 case resolveVar env x of
                   Just i  => pure (SVar r x i)
@@ -852,11 +852,11 @@ patVarsOf = foldl goP []
 parseClauseLhs : String -> Rule (List SPat)
 parseClauseLhs iname =
       (do h <- parseHead
-          guard "a clause headed by the item's own name" (h == iname)
+          guard "!every clause must be headed by the item's own name" (h == iname)
           many (do sp; parsePatAtom))
   <|> (do p1 <- parsePat; sp
           op <- parseOpName
-          guard "a clause headed by the item's own name" (op == iname)
+          guard "!every clause must be headed by the item's own name" (op == iname)
           sp
           p2 <- parsePat
           pure [p1, p2])
@@ -911,12 +911,12 @@ parseSItem tbl =
             (Nothing, Nothing, []) =>
               case muses of
                 Nothing => pure (SDeclDef r x ty)
-                Just _ => fail "no using-clause here (a declaration discharges nothing)"
+                Just _ => fail "!a declaration discharges nothing — a using-clause is for defs with a definiens"
             (_, _, (c :: cs)) =>
               case muses of
                 Nothing => pure (SClausalDef r x ty metaEta mbody (c :: cs))
-                Just _ => fail "no using-clause here (not supported on a clausal def yet)"
-            (Just _, _, []) => fail "clauses (a uniqueness-name override must be followed by them)")
+                Just _ => fail "!a using-clause on a clausal def is not supported yet"
+            (Just _, _, []) => fail "!a uniqueness-name override must be followed by clauses")
   <|> (do kw "type"; space; commit
           x <- parseName; sp
           kw "≔"; sp

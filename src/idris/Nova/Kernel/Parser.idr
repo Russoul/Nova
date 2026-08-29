@@ -343,6 +343,9 @@ mutual
 -- (`Nova.Diagnostic`), so what these produce is the location-free
 -- half: what the grammar wanted, and what it found instead.
 
+dropPrefix : String -> String -> Maybe String
+dropPrefix p s = if isPrefixOf p s then Just (substr (length p) (length s) s) else Nothing
+
 ||| Humanize one accumulated expectation. The combinator library
 ||| spells a character terminal "Expected symbol: x" and a string one
 ||| "Expected string: xs" (the lexer emits one token per CHARACTER, so
@@ -352,12 +355,9 @@ mutual
 humanExpectation : String -> String
 humanExpectation s =
   fromMaybe s $
-        (\c => "'\{c}'") <$> dropPrefix "Expected symbol: "
-    <|> (\c => "'\{c}'") <$> dropPrefix "Expected string: "
-    <|> ("end of input" <$ dropPrefix "Expected end of input")
- where
-  dropPrefix : String -> Maybe String
-  dropPrefix p = if isPrefixOf p s then Just (substr (length p) (length s) s) else Nothing
+        (\c => "'\{c}'") <$> dropPrefix "Expected symbol: " s
+    <|> (\c => "'\{c}'") <$> dropPrefix "Expected string: " s
+    <|> ("end of input" <$ dropPrefix "Expected end of input" s)
 
 ||| "a", "a or b", "a, b or c" — the expectation listing.
 oneOf : List String -> String
@@ -381,26 +381,74 @@ found ((_, Symbol c) :: _) = "found '\{cast {to = String} c}'"
 found ((_, Whitespace) :: _) = "found whitespace"
 found ((_, Comment _) :: _) = "found a comment"
 
-||| The message half of a parse failure: expectations and what was
-||| found. Carries no position — `Nova.Diagnostic` places it.
+||| Split the accumulated expectations into what the grammar WANTED
+||| here and the DIAGNOSES it recorded. A hand-written `fail`/`guard`
+||| message that explains a rejection rather than naming a legal
+||| continuation is marked with a leading "!" at its call site; those
+||| read as notes (or, when nothing legal remains to name, as the
+||| message itself) instead of being wedged into "expected …".
+splitDiagnoses : List String -> (List String, List String)
+splitDiagnoses [] = ([], [])
+splitDiagnoses (x :: xs) =
+  let (ws, ds) = splitDiagnoses xs in
+  if isPrefixOf "!" x
+    then (ws, substr 1 (length x) x :: ds)
+    else (x :: ws, ds)
+
+||| The lexer emits one token per CHARACTER, so a multi-character
+||| keyword fails BOTH as its first letter and as its whole spelling
+||| ("'l' OR 'let'"). Drop the letter — unless it is a legal token in
+||| its own right, which the grammar says by also expecting it AS a
+||| string ('ℕ' beside 'ℕ-elim').
+dropKeywordHeads : List String -> List String
+dropKeywordHeads xs = filter keep xs
+ where
+  strings : List String
+  strings = mapMaybe (dropPrefix "Expected string: ") xs
+  keep : String -> Bool
+  keep x = case dropPrefix "Expected symbol: " x of
+    Nothing => True
+    Just c => elem c strings || not (any (\y => length y > 1 && isPrefixOf c y) strings)
+
+||| Long listings are noise, not information: a term-start position
+||| can legally continue two dozen ways.
+capped : List String -> List String
+capped xs = case splitAt 9 xs of
+  (shown, []) => shown
+  (shown, rest) => shown ++ ["\{show (length rest)} more"]
+
+||| The message half of a parse failure: what was legal here, and what
+||| was found instead. Carries no position — `Nova.Diagnostic` places
+||| it.
 export
 parseErrMessage : ParsingError Token st -> String
 parseErrMessage (Error expected _ _ _ leftover) =
   -- the same absorption `showExpected` applies (an expectation
   -- contained in another is redundant to print), kept here so the
   -- pieces stay a LIST all the way to the listing
-  let kept = filter (\x => not (any (\y => x /= y && isInfixOf x y) expected)) expected in
-  "expected \{oneOf (nub (map humanExpectation kept))}, but \{found leftover}"
+  let kept = filter (\x => not (any (\y => x /= y && isInfixOf x y) expected)) expected
+      (wanted, diagnoses) = splitDiagnoses kept
+      shown = capped (nub (map humanExpectation (dropKeywordHeads wanted))) in
+  case (shown, diagnoses) of
+    ([], []) => "cannot parse this, but \{found leftover}"
+    ([], d :: _) => d
+    _ => "expected \{oneOf shown}, but \{found leftover}"
 
-||| Secondary lines for a parse failure: where the parser had
-||| committed, which is the construct the failure sits inside
+||| Secondary lines for a parse failure: any diagnosis the grammar
+||| recorded that did not become the message itself, then where the
+||| parser had committed — the construct the failure sits inside
 ||| (`commit` is placed right after an item's or a definiens' opening
 ||| keyword — see `Nova.Elaboration.Parser`).
 export
 parseErrNotes : ParsingError Token st -> List String
-parseErrNotes (Error _ _ Nothing _ _) = []
-parseErrNotes (Error _ _ (Just p) _ _) =
-  ["while parsing the construct beginning at \{show (p.line + 1)}:\{show (p.column + 1)}"]
+parseErrNotes (Error expected _ commit _ _) =
+  let (wanted, diagnoses) = splitDiagnoses expected
+      kept = case wanted of
+               [] => drop 1 diagnoses  -- the first one IS the message
+               _  => diagnoses in
+  kept ++ (case commit of
+             Nothing => []
+             Just p => ["while parsing the construct beginning at \{show (p.line + 1)}:\{show (p.column + 1)}"])
 
 -- ===== Convenience runner =====
 
