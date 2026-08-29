@@ -5627,7 +5627,7 @@ enterModule name file fix imps = do
 
 installImports : List SImport -> ElabM ()
 installImports [] = pure ()
-installImports (MkSImport m opens _ :: rest) = do
+installImports (MkSImport m opens irng :: rest) = do
   go opens
   installImports rest
  where
@@ -5638,7 +5638,7 @@ installImports (MkSImport m opens _ :: rest) = do
     let q = "\{m}.\{o}"
     case sigLookup q st.sig of
       Just _ => do addVis (o, q); go os
-      Nothing => throw "import \{m}: it defines no '\{o}'"
+      Nothing => throwAt irng "import \{m}: it defines no '\{o}'"
 
 ||| Elaborate a dependency-ordered list of modules (the loader's
 ||| output; the last unit is the root). Every non-root module must be
@@ -5732,21 +5732,23 @@ export
 elabProgramSt : ElabSt -> List ModUnit -> Either String ElabSt
 elabProgramSt st0 units = go st0 units
  where
-  goItems : ElabSt -> List (Maybe Range, SItem) -> Either String ElabSt
-  goItems st [] = Right st
-  goItems st ((rng, item) :: rest) =
+  goItems : (path : String) -> (src : String) -> ElabSt -> List (Maybe Range, SItem)
+         -> Either String ElabSt
+  goItems path src st [] = Right st
+  goItems path src st ((rng, item) :: rest) =
     case runElabM (elabItem rng item) st of
-      Left err => Left err.emsg
-      Right (st', _) => goItems st' rest
+      Left err => Left (render (MkDiag Err (Just path) (Just src)
+                                       (err.erange <|> rng) (withBlockedHint err.emsg) []))
+      Right (st', _) => goItems path src st' rest
 
   go : ElabSt -> List ModUnit -> Either String ElabSt
   go st [] = Left "empty program"
-  go st (MkModUnit name path imps tbl items _ _ _ :: rest) =
+  go st (MkModUnit name path imps tbl items _ _ src :: rest) =
     let st = either (const st) fst (runElabM (enterModule name path tbl (map mname imps)) st) in
     case runElabM (installImports imps) st of
-      Left err => Left err.emsg
+      Left err => Left (render (MkDiag Err (Just path) (Just src) err.erange err.emsg []))
       Right (st, ()) =>
-        case goItems st items of
+        case goItems path src st items of
           Left err => Left err
           Right st' =>
             case openReport tbl st' of
@@ -5778,21 +5780,23 @@ export
 elabProgramSig : List ModUnit -> Either String Sig
 elabProgramSig units = go initSt units
  where
-  goItems : ElabSt -> List (Maybe Range, SItem) -> Either String ElabSt
-  goItems st [] = Right st
-  goItems st ((rng, item) :: rest) =
+  goItems : (path : String) -> (src : String) -> ElabSt -> List (Maybe Range, SItem)
+         -> Either String ElabSt
+  goItems path src st [] = Right st
+  goItems path src st ((rng, item) :: rest) =
     case runElabM (elabItem rng item) st of
-      Left err => Left err.emsg
-      Right (st', _) => goItems st' rest
+      Left err => Left (render (MkDiag Err (Just path) (Just src)
+                                       (err.erange <|> rng) (withBlockedHint err.emsg) []))
+      Right (st', _) => goItems path src st' rest
 
   go : ElabSt -> List ModUnit -> Either String Sig
   go st [] = Left "empty program"
-  go st (MkModUnit name path imps tbl items _ _ _ :: rest) =
+  go st (MkModUnit name path imps tbl items _ _ src :: rest) =
     let st = either (const st) fst (runElabM (enterModule name path tbl (map mname imps)) st) in
     case runElabM (installImports imps) st of
-      Left err => Left err.emsg
+      Left err => Left (render (MkDiag Err (Just path) (Just src) err.erange err.emsg []))
       Right (st, ()) =>
-        case goItems st items of
+        case goItems path src st items of
           Left err => Left err
           Right st' =>
             case openReport tbl st' of

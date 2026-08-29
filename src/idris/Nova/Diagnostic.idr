@@ -111,3 +111,15 @@ render d =
        (Nothing, Just r) => "\{showPos r.start}: "
        (Nothing, Nothing) => "") ++
     "\{sevName d.dsev}: \{d.dmsg}"
+
+||| The failure line a command prints. Everything below `elab` funnels
+||| its failure out as a plain String: some are already-rendered
+||| diagnostics (they carry their own "error:" header), the rest are
+||| bare messages with nothing to locate them. This gives the latter
+||| the header they lack without doubling it on the former.
+export
+errorLine : String -> String
+errorLine msg =
+  if isPrefixOf "\{sevName Err}: " msg || isInfixOf ": \{sevName Err}: " msg
+    then msg
+    else "\{sevName Err}: \{msg}"

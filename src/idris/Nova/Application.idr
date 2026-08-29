@@ -5,6 +5,7 @@ import Data.List1
 import Data.Maybe
 import Data.String
 
+import Nova.Diagnostic
 import Nova.Distill
 import Nova.Elaboration.Loader
 import Nova.Implicitize
@@ -73,17 +74,17 @@ main = do
     (_ :: "run" :: surfaceFile :: name :: []) => do
       result <- runPath surfaceFile name
       case result of
-        Left err  => do putStrLn "Error: \{err}"; exitFailure
+        Left err  => do putStrLn (errorLine err); exitFailure
         Right val => putStrLn val
     (_ :: "distill" :: surfaceFile :: outDir :: []) => do
       result <- distillPath surfaceFile outDir
       case result of
-        Left err  => do putStrLn "Error: \{err}"; exitFailure
+        Left err  => do putStrLn (errorLine err); exitFailure
         Right msg => putStrLn msg
     (_ :: "survey" :: surfaceFile :: []) => do
       result <- sigPath surfaceFile
       case result of
-        Left err  => do putStrLn "Error: \{err}"; exitFailure
+        Left err  => do putStrLn (errorLine err); exitFailure
         Right sig => putStrLn (surveyReport sig)
     (_ :: "rename" :: surfaceFile :: outDir :: pairs@(_ :: _)) => do
       let rm = mapMaybe (\p => case forget (split (== '=') p) of
@@ -91,22 +92,22 @@ main = do
                                   _ => Nothing) pairs
       result <- renamePath surfaceFile outDir rm
       case result of
-        Left err  => do putStrLn "Error: \{err}"; exitFailure
+        Left err  => do putStrLn (errorLine err); exitFailure
         Right msg => putStrLn msg
     (_ :: "implicitize" :: surfaceFile :: outDir :: []) => do
       result <- implicitizePath surfaceFile outDir
       case result of
-        Left err  => do putStrLn "Error: \{err}"; exitFailure
+        Left err  => do putStrLn (errorLine err); exitFailure
         Right msg => putStrLn msg
     -- targeted migration: one def, chosen explicit positions
     (_ :: "implicitize" :: surfaceFile :: outDir :: name :: poss@(_ :: _)) => do
       result <- migrateDefPath surfaceFile outDir name (mapMaybe parsePositive poss)
       case result of
-        Left err  => do putStrLn "Error: \{err}"; exitFailure
+        Left err  => do putStrLn (errorLine err); exitFailure
         Right msg => putStrLn msg
     (_ :: "census" :: surfaceFile :: names@(_ :: _)) => do
       result <- censusPath surfaceFile names
       case result of
-        Left err  => do putStrLn "Error: \{err}"; exitFailure
+        Left err  => do putStrLn (errorLine err); exitFailure
         Right msg => putStrLn msg
     _ => die usage
