@@ -166,7 +166,7 @@ hrefResolver path lns aliases index pages r k =
 renderFile : String -> IO (Either String (String, String))
 renderFile path = do
   Right units <- loadProgram path
-    | Left err => pure (Left err.lmsg)
+    | Left err => pure (Left (showLoadErr err))
   let Just root = last' units
     | Nothing => pure (Left "loadProgram returned no modules for \{path}")
   Right source <- readFile path

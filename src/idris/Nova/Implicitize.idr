@@ -406,7 +406,7 @@ export
 implicitizePath : (rootPath : String) -> (outDir : String) -> IO (Either String String)
 implicitizePath rootPath outDir = do
   Right units <- loadProgram rootPath
-    | Left err => pure (Left err.lmsg)
+    | Left err => pure (Left (showLoadErr err))
   let Right sigOrig = elabProgramSig units
     | Left err => pure (Left ("input is not accepted; implicitize only transforms accepted programs:\n" ++ err))
   let defNames = defItemNames units
@@ -428,7 +428,7 @@ implicitizePath rootPath outDir = do
       Right () <- writeUnits outDir (baseName rootPath) dropUnits
         | Left err => pure (Left err)
       Right units' <- loadProgram (outDir ++ "/" ++ baseName rootPath)
-        | Left err => pure (Left ("implicitized output failed to load: " ++ err.lmsg))
+        | Left err => pure (Left ("implicitized output failed to load: " ++ showLoadErr err))
       let Nothing = verifyUnits dropUnits units'
         | Just err => pure (Left err)
       () <- clearSigEntryIx
@@ -620,7 +620,7 @@ export
 censusPath : (rootPath : String) -> List String -> IO (Either String String)
 censusPath rootPath names = do
   Right units <- loadProgram rootPath
-    | Left err => pure (Left err.lmsg)
+    | Left err => pure (Left (showLoadErr err))
   let Right (_, _, blanks, _) = elabProgramSugar units
     | Left err => pure (Left ("input is not accepted; census needs an accepted program:\n" ++ err))
   case the (Either String (List (String, STy))) (traverse (findDef units) names) of
@@ -657,7 +657,7 @@ migrateDefPath : (rootPath : String) -> (outDir : String) ->
                  (name : String) -> List Nat -> IO (Either String String)
 migrateDefPath rootPath outDir name poss = do
   Right units <- loadProgram rootPath
-    | Left err => pure (Left err.lmsg)
+    | Left err => pure (Left (showLoadErr err))
   let Right sigOrig = elabProgramSig units
     | Left err => pure (Left ("input is not accepted; migrate needs an accepted program:\n" ++ err))
   case findDef units name of
@@ -711,7 +711,7 @@ migrateDefPath rootPath outDir name poss = do
       Right () <- writeUnits outDir (baseName rootPath) finalUnits
         | Left err => pure (Left err)
       Right units2 <- loadProgram (outDir ++ "/" ++ baseName rootPath)
-        | Left err => pure (Left ("migrated output failed to load: " ++ err.lmsg))
+        | Left err => pure (Left ("migrated output failed to load: " ++ showLoadErr err))
       let Nothing = verifyUnits finalUnits units2
         | Just err => pure (Left err)
       () <- clearSigEntryIx

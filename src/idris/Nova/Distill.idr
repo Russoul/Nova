@@ -1134,7 +1134,7 @@ export
 distillPath : (rootPath : String) -> (outDir : String) -> IO (Either String String)
 distillPath rootPath outDir = do
   Right units <- loadProgram rootPath
-    | Left err => pure (Left err.lmsg)
+    | Left err => pure (Left (showLoadErr err))
   -- the acceptance run doubles as the SUGAR TRIAL: per written
   -- ∈-annotation and motive, would the elided form recover it
   -- α-exactly? (docs/NovaPerfectSurface.txt, Phase 4)
@@ -1156,7 +1156,7 @@ distillPath rootPath outDir = do
   Right () <- writeUnits outDir (baseName rootPath) elided
     | Left err => pure (Left err)
   Right units' <- loadProgram (outDir ++ "/" ++ baseName rootPath)
-    | Left err => pure (Left ("distilled output failed to load: " ++ err.lmsg))
+    | Left err => pure (Left ("distilled output failed to load: " ++ showLoadErr err))
   let Nothing = verifyUnits elided units'
     | Just err => pure (Left err)
   () <- clearSigEntryIx

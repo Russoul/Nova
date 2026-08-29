@@ -1,6 +1,6 @@
 defined cong2
 defined double
 defined useCong
-input.nova:20:1: error: def bad: cannot infer the blank at argument #0 of 'cong2' — spell the argument
+input.nova:20:47: error: def bad: cannot infer the blank at argument #0 of 'cong2' — spell the argument
 20 | def bad : (n : ℕ) → double n ≡ double n ≔ λn. cong2 _ (λu. ℕ) (λx. double x) _ _ ⋆
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |                                               ^^^^^
