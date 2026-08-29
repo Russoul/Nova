@@ -1,6 +1,9 @@
 module Nova.Kernel.Parser
 
+import Data.List
+import Data.Maybe
 import Data.SnocList
+import Data.String
 
 import Me.Russoul.Text.Lexer.Token
 import Me.Russoul.Text.Lexer
@@ -191,13 +194,13 @@ mutual
   export covering
   parseSigIdentifier : Rule String
   parseSigIdentifier = do
-    c  <- terminal "identifier start" $ \tok =>
+    c  <- terminal "an identifier" $ \tok =>
             case tok of
               Symbol ch => if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_'
                            then Just ch
                            else Nothing
               _ => Nothing
-    cs <- many (terminal "identifier char" $ \tok =>
+    cs <- many (terminal "more of the identifier" $ \tok =>
             case tok of
               Symbol ch => if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
                               (ch >= '0' && ch <= '9') || ch == '_'
@@ -205,7 +208,7 @@ mutual
                            else Nothing
               _ => Nothing)
     let name = pack (c :: cs)
-    guard "Reserved keyword" (name /= "via" && name /= "to")
+    guard "an identifier ('\{name}' is a reserved keyword)" (name /= "via" && name /= "to")
     pure name
 
   -- Atomic elements: constants, or parenthesised expression.
@@ -227,7 +230,7 @@ mutual
                                    (ch >= '0' && ch <= '9') || ch == '_' || ch == '\''
                       _ => False))
             case next of
-              Just _ => fail "keyword is a prefix of an identifier"
+              Just _ => fail "a keyword (this one runs on into an identifier)"
               Nothing => pure NatIntro0)
     <|> (str_ "⋆"    $> Star)
     <|> (do str_ "∥"; sp; t <- parseTy; sp; str_ "∥"; pure (Squash t))
@@ -331,24 +334,80 @@ mutual
     -- El retired: a code atom in type position is the type
     <|> parseElemAtom
 
--- ===== Convenience runner =====
+-- ===== Parse-error rendering =====
 
--- `ParsingError`'s own `Show` requires `Show st`, and `st` is now the
--- token-classification accumulator (see `TokenKind`) — showing that as
--- part of a parse error would be internal noise, not useful to a
--- reader, so this reports the same fields except the trailing state
--- dump.
+-- `ParsingError`'s own `Show` is a debugging dump: internal jargon
+-- ("PARSING ERROR", "Last commited"), the state accumulator, and
+-- positions spelled inline. None of that belongs in a compiler
+-- diagnostic — the LOCATION is the renderer's job
+-- (`Nova.Diagnostic`), so what these produce is the location-free
+-- half: what the grammar wanted, and what it found instead.
+
+||| Humanize one accumulated expectation. The combinator library
+||| spells a character terminal "Expected symbol: x" and a string one
+||| "Expected string: xs" (the lexer emits one token per CHARACTER, so
+||| even a keyword is matched letter by letter); everything else is a
+||| hand-written label from this grammar's own `terminal`/`fail`/
+||| `guard` calls and already reads as prose.
+humanExpectation : String -> String
+humanExpectation s =
+  fromMaybe s $
+        (\c => "'\{c}'") <$> dropPrefix "Expected symbol: "
+    <|> (\c => "'\{c}'") <$> dropPrefix "Expected string: "
+    <|> ("end of input" <$ dropPrefix "Expected end of input")
+ where
+  dropPrefix : String -> Maybe String
+  dropPrefix p = if isPrefixOf p s then Just (substr (length p) (length s) s) else Nothing
+
+||| "a", "a or b", "a, b or c" — the expectation listing.
+oneOf : List String -> String
+oneOf [] = "something else"
+oneOf [x] = x
+oneOf xs = case unsnoc' xs of
+  Nothing => "something else"
+  Just (init, last) => "\{joinBy ", " init} or \{last}"
+ where
+  unsnoc' : List String -> Maybe (List String, String)
+  unsnoc' ys = case reverse ys of
+    [] => Nothing
+    (y :: rest) => Just (reverse rest, y)
+
+||| What the parser was looking at when it gave up. Tokens are single
+||| characters (see `Me.Russoul.Text.Lexer`), so this names the
+||| character rather than pretending to a wider token.
+found : List (Range, Token) -> String
+found [] = "reached the end of the file"
+found ((_, Symbol c) :: _) = "found '\{cast {to = String} c}'"
+found ((_, Whitespace) :: _) = "found whitespace"
+found ((_, Comment _) :: _) = "found a comment"
+
+||| The message half of a parse failure: expectations and what was
+||| found. Carries no position — `Nova.Diagnostic` places it.
 export
-showParseErr : Show tok => ParsingError tok st -> String
-showParseErr (Error expected _ commitBounds errorBounds leftover) =
-  "PARSING ERROR: " ++ showExpected expected ++ " " ++ show @{RangeOrPosition} errorBounds
-  ++ "\n" ++ show @{Commit} commitBounds
-  ++ "\n" ++ show @{Leftover} leftover
+parseErrMessage : ParsingError Token st -> String
+parseErrMessage (Error expected _ _ _ leftover) =
+  -- the same absorption `showExpected` applies (an expectation
+  -- contained in another is redundant to print), kept here so the
+  -- pieces stay a LIST all the way to the listing
+  let kept = filter (\x => not (any (\y => x /= y && isInfixOf x y) expected)) expected in
+  "expected \{oneOf (nub (map humanExpectation kept))}, but \{found leftover}"
+
+||| Secondary lines for a parse failure: where the parser had
+||| committed, which is the construct the failure sits inside
+||| (`commit` is placed right after an item's or a definiens' opening
+||| keyword — see `Nova.Elaboration.Parser`).
+export
+parseErrNotes : ParsingError Token st -> List String
+parseErrNotes (Error _ _ Nothing _ _) = []
+parseErrNotes (Error _ _ (Just p) _ _) =
+  ["while parsing the construct beginning at \{show (p.line + 1)}:\{show (p.column + 1)}"]
+
+-- ===== Convenience runner =====
 
 export
 runParser : Rule a -> String -> Either String a
 runParser rule input =
   let (_, toks) = tokenise (unpack input) in
   case parseWith [<] (rule <* eof) toks of
-    Left err  => Left (showParseErr err)
+    Left err  => Left (parseErrMessage err)
     Right (_, _, x, _) => Right x

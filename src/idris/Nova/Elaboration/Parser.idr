@@ -56,7 +56,7 @@ kw s = do
                 Symbol ch => isNameTail ch
                 _ => False))
       case next of
-        Just _ => fail "keyword is a prefix of an identifier"
+        Just _ => fail "a keyword (this one runs on into an identifier)"
         Nothing => pure ()
     Nothing => pure ()
   emit r Keyword
@@ -86,13 +86,13 @@ parseName = do
  where
   parseNameRaw : Rule String
   parseNameRaw = do
-    c  <- terminal "identifier start" $ \tok =>
+    c  <- terminal "an identifier" $ \tok =>
             case tok of
               Symbol ch => if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_'
                            then Just ch
                            else Nothing
               _ => Nothing
-    cs <- many (terminal "identifier char" $ \tok =>
+    cs <- many (terminal "more of the identifier" $ \tok =>
             case tok of
               Symbol ch => if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
                               (ch >= '0' && ch <= '9') || ch == '_' || ch == '\''
@@ -113,7 +113,8 @@ parseName = do
     -- with the elided ≡ (docs/NovaPerfectSurface.txt, Phase 4): an
     -- ∈-less equality's right side is an application chain, which
     -- would otherwise swallow a following using-clause
-    guard "Reserved keyword" (name /= "def" && name /= "type" && name /= "El" &&
+    guard "an identifier ('\{name}' is a reserved keyword)"
+                             (name /= "def" && name /= "type" && name /= "El" &&
                               name /= "import" && name /= "infixl" && name /= "infixr" &&
                               name /= "S" && name /= "Z" && name /= "class" &&
                               name /= "data" && name /= "let" && name /= "in" &&
@@ -129,7 +130,7 @@ parseNumeral = do
   pure (foldl (\acc, d => acc * 10 + d) 0 ds)
  where
   digit : Rule Nat
-  digit = terminal "decimal digit" $ \tok => case tok of
+  digit = terminal "a decimal digit" $ \tok => case tok of
     Symbol ch => if ch >= '0' && ch <= '9'
                    then Just (cast (ord ch - ord '0'))
                    else Nothing
@@ -168,8 +169,8 @@ parseOpName = do
   opTok _ = Nothing
   parseOpNameRaw : Rule String
   parseOpNameRaw = do
-    c <- terminal "operator char" opTok
-    cs <- many (terminal "operator char" opTok)
+    c <- terminal "an operator" opTok
+    cs <- many (terminal "more of the operator" opTok)
     pure (pack (c :: cs))
 
 ||| A possibly-qualified operator (+ or M.+): the mention form's and
@@ -234,7 +235,7 @@ mutual
                 pure (foldr (\(imp, x, t), acc =>
                               if imp then STyImpPi x t acc else STyPi x t acc) b groups))
               <|> (do kw "⨯"; sp
-                      guard "implicit binders are Π-only ({x : T} ⨯ … is not a type)"
+                      guard "→ (implicit binders are Π-only: {x : T} ⨯ … is not a type)"
                             (all (\(imp, _, _) => not imp) groups)
                       b <- parseSTy tbl env'
                       pure (foldr (\(_, x, t), acc => STySigma x t acc) b groups)))
@@ -300,7 +301,7 @@ mutual
               [] => pure t
               _ => case tyHeadElem t of
                      Just h => pure (STyEl (foldl SApp h args))
-                     Nothing => fail "arguments applied to a type former")
+                     Nothing => fail "no argument here (this type former takes none)")
    where
     tyHeadElem : STy -> Maybe SElem
     tyHeadElem (STySig x) = Just (SSig Nothing x)
@@ -347,7 +348,7 @@ mutual
               -- removed (PerfNotes "The cost of a hole") ahead of the
               -- metavariable redesign. Binder wildcards are a separate
               -- production and unaffected.
-              ('_' :: rest) => fail "holes are not supported (spell the type)"
+              ('_' :: rest) => fail "a type (holes are not supported — spell it out)"
               _ =>
                 case resolveVar env x of
                   -- a BINDER name in type position is a bound CODE
@@ -435,9 +436,9 @@ mutual
             (do sp
                 (rng, op) <- bounds parseOpName
                 case lookup op tbl of
-                  Nothing => fail "operator '\{op}' has no fixity in scope"
+                  Nothing => fail "an operator with a fixity in scope ('\{op}' has none)"
                   Just (assoc, p) => do
-                    guard "operator precedence" (p >= minP)
+                    guard "an operator binding at least this tightly" (p >= minP)
                     sp
                     r <- climb (case assoc of AssocL => S p; AssocR => p)
                     cont (SApp (SApp (SSig rng op) l) r) minP)
@@ -615,7 +616,7 @@ mutual
     <|> (do (rng, op) <- bounds parseOpName
             case lookup op tbl of
               Nothing => pure (SSig rng op)
-              Just _ => fail "infix operator in atom position")
+              Just _ => fail "an atom (a declared infix operator cannot begin one)")
     <|> (do kwc '('
             sp
             unit <- optional (kwc ')')
@@ -643,7 +644,7 @@ mutual
               -- hole") ahead of the metavariable redesign. Binder
               -- wildcards are a separate production and unaffected.
               ['_'] => pure (SBlank r)
-              ('_' :: rest) => fail "holes are not supported (spell the term)"
+              ('_' :: rest) => fail "a term (holes are not supported — spell it out)"
               _ =>
                 case resolveVar env x of
                   Just i  => pure (SVar r x i)
@@ -673,7 +674,7 @@ tosName tos = do
   x <- parseName
   case resolveVar tos x of
     Just i => pure (x, i)
-    Nothing => do guard "a ToS-scope name" False
+    Nothing => do guard "a name bound by the signature literal" False
                   pure ("", 0)
 
 mutual
@@ -851,11 +852,11 @@ patVarsOf = foldl goP []
 parseClauseLhs : String -> Rule (List SPat)
 parseClauseLhs iname =
       (do h <- parseHead
-          guard "the clause head must be the item's name" (h == iname)
+          guard "a clause headed by the item's own name" (h == iname)
           many (do sp; parsePatAtom))
   <|> (do p1 <- parsePat; sp
           op <- parseOpName
-          guard "the clause head must be the item's name" (op == iname)
+          guard "a clause headed by the item's own name" (op == iname)
           sp
           p2 <- parsePat
           pure [p1, p2])
@@ -910,12 +911,12 @@ parseSItem tbl =
             (Nothing, Nothing, []) =>
               case muses of
                 Nothing => pure (SDeclDef r x ty)
-                Just _ => fail "a declaration discharges nothing — using is for defs with a definiens"
+                Just _ => fail "no using-clause here (a declaration discharges nothing)"
             (_, _, (c :: cs)) =>
               case muses of
                 Nothing => pure (SClausalDef r x ty metaEta mbody (c :: cs))
-                Just _ => fail "using on a clausal def is not supported yet"
-            (Just _, _, []) => fail "clauses expected after a uniqueness-name override")
+                Just _ => fail "no using-clause here (not supported on a clausal def yet)"
+            (Just _, _, []) => fail "clauses (a uniqueness-name override must be followed by them)")
   <|> (do kw "type"; space; commit
           x <- parseName; sp
           kw "≔"; sp
@@ -926,14 +927,16 @@ parseSItem tbl =
 export
 parseSImport : Rule SImport
 parseSImport = do
-  kw "import"; space; commit
-  m <- parseDottedName
-  opens <- optional (do sp; kwc '('; sp
-                        n <- parseName <|> parseOpName
-                        rest <- many (do sp; kwc ','; sp; (parseName <|> parseOpName))
-                        sp; kwc ')'
-                        pure (n :: rest))
-  pure (MkSImport m (fromMaybe [] opens))
+  (r, (m, opens)) <- bounds $ do
+    kw "import"; space; commit
+    m <- parseDottedName
+    opens <- optional (do sp; kwc '('; sp
+                          n <- parseName <|> parseOpName
+                          rest <- many (do sp; kwc ','; sp; (parseName <|> parseOpName))
+                          sp; kwc ')'
+                          pure (n :: rest))
+    pure (m, opens)
+  pure (MkSImport m (fromMaybe [] opens) r)
 
 ||| infixl 6 +  /  infixr 3 ⊕ — fixity for an operator NAME; takes
 ||| effect for the rest of the file and is exported with the name.
@@ -942,7 +945,7 @@ parseFixity = do
   assoc <- (kw "infixl" $> AssocL) <|> (kw "infixr" $> AssocR)
   space
   commit
-  (r, d) <- bounds (terminal "precedence digit (0-9)" digitTok)
+  (r, d) <- bounds (terminal "a precedence digit (0-9)" digitTok)
   emit r Number
   space
   op <- parseOpName
@@ -987,7 +990,7 @@ parseSHeader : Rule (List SImport)
 parseSHeader = do
   sp
   imports <- many (do i <- parseSImport; sp; pure i)
-  ignore (many (terminal "any token" anyTok))
+  ignore (many (terminal "any token at all" anyTok))
   pure imports
  where
   anyTok : Token -> Maybe ()
@@ -1037,12 +1040,21 @@ parseErrRange err =
     Left r  => r
     Right p => MkRange p (MkPosition p.line (p.column + 1))
 
+||| A parse failure, in the shape `Nova.Diagnostic` renders: the span
+||| it points at, the location-free message, and secondary notes.
+public export
+record ParseFail where
+  constructor MkParseFail
+  pfrange : Maybe Range
+  pfmsg : String
+  pfnotes : List String
+
 export
-runSurfaceParser : Rule a -> String -> Either (Maybe Range, String) (SnocList (Range, TokenKind), a)
+runSurfaceParser : Rule a -> String -> Either ParseFail (SnocList (Range, TokenKind), a)
 runSurfaceParser rule input =
   let (commentRanges, toks) = tokenise (unpack input)
       srcLines = lines input in
   case parseWith [<] (rule <* eof) (normaliseTokens toks) of
-    Left err  => Left (Just (parseErrRange err), showParseErr err)
+    Left err  => Left (MkParseFail (Just (parseErrRange err)) (parseErrMessage err) (parseErrNotes err))
     Right (kinds, _, x, _) =>
       Right (kinds <>< map (\r => (clipCommentRange srcLines r, Comment)) (toList commentRanges), x)

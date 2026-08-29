@@ -761,8 +761,8 @@ renderFixity (op, AssocL, d) = "infixl \{show d} \{op}"
 renderFixity (op, AssocR, d) = "infixr \{show d} \{op}"
 
 renderImport : SImport -> String
-renderImport (MkSImport m []) = "import \{m}"
-renderImport (MkSImport m os) = "import \{m} (\{joinBy ", " os})"
+renderImport (MkSImport m [] _) = "import \{m}"
+renderImport (MkSImport m os _) = "import \{m} (\{joinBy ", " os})"
 
 -- ===== Comments =====
 --

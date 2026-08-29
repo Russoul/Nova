@@ -1,2 +1,4 @@
 defined cst
-Error: def bad: cannot infer the blank at argument #1 of 'cst' — spell the argument
+input.nova:5:1: error: def bad: cannot infer the blank at argument #1 of 'cst' — spell the argument
+5 | def bad : ℕ → ℕ ≔ λn. cst _ _ n
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

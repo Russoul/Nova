@@ -337,6 +337,10 @@ record SImport where
   constructor MkSImport
   mname : String
   opens : List String
+  ||| the import line's own span — a load failure blamed on this
+  ||| import (unreadable module, missing opened name, cycle) points
+  ||| HERE rather than at the importing file as a whole
+  irange : Maybe Range
 
 -- ===== QIIT signature literals (the data item) =====
 
@@ -534,8 +538,8 @@ mutual
 
 export
 Show SImport where
-  show (MkSImport m []) = "import \{m}"
-  show (MkSImport m os) = "import \{m} (\{joinBy ", " os})"
+  show (MkSImport m [] _) = "import \{m}"
+  show (MkSImport m os _) = "import \{m} (\{joinBy ", " os})"
 
 export covering
 Show SPat where

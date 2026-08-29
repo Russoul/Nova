@@ -6,7 +6,8 @@ depends = contrib, just-a-parser, lsp-lib
 executable = nova-docs
 main = Nova.Docs.Render
 
-modules = Nova.Kernel.Syntax
+modules = Nova.Diagnostic
+        , Nova.Kernel.Syntax
         , Nova.Kernel.Subst
         , Nova.Kernel
         , Nova.Kernel.QIIT
