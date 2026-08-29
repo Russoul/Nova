@@ -8,5 +8,5 @@ defined scopedItem
 defined scopedItemBad [+1 obligation]
 open obligations (1):
   [1] (a : ℕ) (b : ℕ) ⊢ a + b ≐ b + a : ℕ
-      at: def scopedItemBad: checking ⋆
+      at: input.nova:23:11: def scopedItemBad: checking ⋆
       hint: closes with scopedItem

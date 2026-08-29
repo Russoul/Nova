@@ -3,4 +3,4 @@ defined one [+1 obligation]
 defined two
 open obligations (1):
   [1] (n : ℕ) ⊢ plus Z n ≐ n : ℕ
-      at: def one: checking ⋆
+      at: input.nova:2:44: def one: checking ⋆

@@ -1,7 +1,7 @@
 declared fib and its equations (fib, fibZ, fibS, fibEta) — clauses outside the structural fragment [+4 declarations]
 open declarations (4):
   [fib] ⊢ ? : ℕ → ℕ
-      at: def fib
+      at: input.nova:1:5: def fib
   [fibZ] ⊢ ? : fib Z ≡ Z ∈ ℕ
       at: def fibZ
   [fibS] ⊢ ? : (n:ℕ) → (fib (S n) ≡ fib (S n) ∈ ℕ)

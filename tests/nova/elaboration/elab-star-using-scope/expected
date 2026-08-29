@@ -7,5 +7,5 @@ defined plusComm
 defined scopedBad [+1 obligation]
 open obligations (1):
   [1] (a : ℕ) (b : ℕ) ⊢ a + b ≐ b + a : ℕ
-      at: def scopedBad: checking ⋆
+      at: input.nova:17:63: def scopedBad: checking ⋆
       hint: closes with plusComm
