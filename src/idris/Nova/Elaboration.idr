@@ -101,6 +101,35 @@ record Cand where
   preL : List PStep
   postR : List PStep
 
+||| WHERE elaboration currently is: the item that owns the work (the
+||| "def foo" every message is prefixed with) and the span of the
+||| innermost surface node descended into that recorded one. Most
+||| surface nodes record no range, so the span is the narrowest one
+||| SEEN so far, not necessarily the node being elaborated — a
+||| conservative over-approximation, never a wrong file or item.
+|||
+||| `Interpolation` yields just the name, so every "\{site}: …"
+||| message reads exactly as it did when a site was a bare String.
+public export
+record Site where
+  constructor MkSite
+  sname : String
+  srange : Maybe Range
+
+public export
+Interpolation Site where
+  interpolate s = s.sname
+
+||| Narrow a site to a surface node's own span; a node without one
+||| leaves the site where it was.
+at : Site -> Maybe Range -> Site
+at s Nothing = s
+at s r = { srange := r } s
+
+||| A derived site: the same span, said more specifically.
+sub : Site -> String -> Site
+sub s n = { sname := n } s
+
 data Stmt : Type where
   StElem : Ctx -> NameEnv -> Elem -> Elem -> Ty -> Stmt
   StTy : Ctx -> NameEnv -> Ty -> Ty -> Stmt
@@ -108,7 +137,7 @@ data Stmt : Type where
 record Obligation where
   constructor MkObl
   stmt : Stmt
-  site : String
+  site : Site
   composite : Maybe Stmt
   ||| advisory (docs/SearchlessElaboration.md §5.4): what a one-shot
   ||| GLOBAL-store probe found when this SCOPED site failed — search
@@ -123,7 +152,7 @@ record Obligation where
 record OblMeta where
   constructor MkOblMeta
   oenv : NameEnv
-  osite : String
+  osite : Site
   ocomposite : Maybe Stmt
   ||| advisory hint recorded at assume time (§5.4) — display only
   ohint : Maybe String
@@ -319,8 +348,16 @@ resolveSigAll st x =
 
 -- ===== Elaboration monad =====
 
-Err : Type
-Err = String
+||| An elaboration failure. `erange` is the span the elaborator was
+||| working on when it gave up — refined as `checkElem`/`inferElem`/
+||| `elabTy` descend past a surface node that records one (see `Site`)
+||| — and Nothing where nothing narrower than the item is known; the
+||| caller widens it to the item's own span then.
+public export
+record Err where
+  constructor MkErr
+  erange : Maybe Range
+  emsg : String
 
 data ElabM : Type -> Type where
   MkElabM : (ElabSt -> Either Err (ElabSt, a)) -> ElabM a
@@ -377,8 +414,14 @@ modifySt f = MkElabM $ \st => Right (f st, ())
 putSt : ElabSt -> ElabM ()
 putSt st = modifySt (const st)
 
-throw : Err -> ElabM a
-throw e = MkElabM $ \_ => Left e
+||| Fail with no span of its own: the caller places it at the
+||| enclosing item.
+throw : String -> ElabM a
+throw e = MkElabM $ \_ => Left (MkErr Nothing e)
+
+||| Fail AT a span — the surface node the message is about.
+throwAt : Maybe Range -> String -> ElabM a
+throwAt r e = MkElabM $ \_ => Left (MkErr r e)
 
 ||| Install a visibility alias, tracking OVERLOADS: a name gaining a
 ||| second distinct target joins dupNames.
@@ -481,7 +524,7 @@ resolveEqName st n = do
 ||| absent from Σ, or present but not an equation lemma of the visible
 ||| store, is a structural error — it could only scope the site to
 ||| nothing. `<def>.eq` names resolve to eq-unfold licenses (snd).
-resolveUsingNames : String -> List String -> ElabM (List String, List String)
+resolveUsingNames : Site -> List String -> ElabM (List String, List String)
 resolveUsingNames site ns = do
   st <- getSt
   -- builtin licenses (`pi.eta`/`sigma.eta`/`hyp.rw`) and `<def>.eq`
@@ -504,11 +547,11 @@ resolveUsingNames site ns = do
   let rs = map (resolveFlex st) lemNs
   traverse_ (\x =>
     case sigLookup x st.sig of
-      Nothing => throw "\{site}: using: unknown name '\{x}'"
+      Nothing => throwAt site.srange "\{site}: using: unknown name '\{x}'"
       Just _ =>
         if any (\c => c.candName == x) st.lemmas
           then pure ()
-          else throw "\{site}: using: '\{x}' is not an equation lemma in the visible store") rs
+          else throwAt site.srange "\{site}: using: '\{x}' is not an equation lemma in the visible store") rs
   pure (rs, eqNs)
 
 ||| Run an action with site-local candidates, an EMPTY Σ-scope (a
@@ -2683,7 +2726,7 @@ hintT st ctx x y = lemmaHint <|> eqHint
 ||| Σ as a constraint entry — sig-eq (type constraints at A = 𝕍); the signature is OPEN
 ||| from here until a rerun stops minting the entry — and record its
 ||| display metadata alongside.
-assume : Stmt -> String -> Maybe Stmt -> ElabM ()
+assume : Stmt -> Site -> Maybe Stmt -> ElabM ()
 assume stmt site comp = do
   st <- getSt
   -- inside an overload PROBE with no standing assumptions (the clean
@@ -2749,7 +2792,7 @@ mutual
   ||| replayed certificate; Left = the site string, annotated when the
   ||| engine produced a certificate that failed replay (engine bug
   ||| signal, reported on the obligation).
-  attemptE : Ctx -> String -> Elem -> Elem -> Ty -> ElabM (Either String ECert)
+  attemptE : Ctx -> Site -> Elem -> Elem -> Ty -> ElabM (Either Site ECert)
   attemptE ctx site a b ty =
     -- TIER 0 (↓ step 0): α-identical sides discharge by REFLEXIVITY —
     -- no candidate assembly, no engine, and no eager replay: kernel
@@ -2771,7 +2814,7 @@ mutual
             let cert = bump "comp-eq-elem" 1 (MkECert [] FBeta)
             case kCheckEqElem st.sig ctx kernelFuel cert a b ty of
               Right () => pure (Right cert)
-              Left kerrMsg => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
+              Left kerrMsg => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
           else do
             let t0 = nowNs ()
             let cs0 = mkCandSet st ctx
@@ -2801,9 +2844,9 @@ mutual
                     -- item-end deletion pass; it belongs at the site)
                     case kCheckEqElem st.sig ctx kernelFuel (MkECertF Nothing [] FBeta st.eqScope) a b ty of
                       Right () => pure (Right (MkECertF Nothing [] FBeta st.eqScope))
-                      Left _ => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
+                      Left _ => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
 
-  attemptT : Ctx -> String -> Ty -> Ty -> ElabM (Either String ECert)
+  attemptT : Ctx -> Site -> Ty -> Ty -> ElabM (Either Site ECert)
   attemptT ctx site tyA tyB =
     -- TIER 0, as at attemptE: identical types are equal by reflexivity
     if tyA == tyB
@@ -2816,7 +2859,7 @@ mutual
             let cert = bump "comp-eq-ty" 1 (MkECert [] FBeta)
             case kCheckEqTy st.sig ctx kernelFuel cert tyA tyB of
               Right () => pure (Right cert)
-              Left kerrMsg => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
+              Left kerrMsg => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
           else do
             let t0 = nowNs ()
             let cs = mkCandSet st ctx
@@ -2836,10 +2879,10 @@ mutual
                     -- bare-beta rescue, as at attemptE
                     case kCheckEqTy st.sig ctx kernelFuel (MkECertF Nothing [] FBeta st.eqScope) tyA tyB of
                       Right () => pure (Right (MkECertF Nothing [] FBeta st.eqScope))
-                      Left _ => pure (Left (site ++ " [replay failed: " ++ kerrMsg ++ "]"))
+                      Left _ => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
 
   ||| Γ ⊢ a ≐ b : A ↓ — always succeeds; assumes what it cannot discharge.
-  convElem : Ctx -> NameEnv -> String -> Maybe Stmt -> Elem -> Elem -> Ty -> ElabM (Maybe ECert)
+  convElem : Ctx -> NameEnv -> Site -> Maybe Stmt -> Elem -> Elem -> Ty -> ElabM (Maybe ECert)
   convElem ctx env site comp a b ty = do
     r <- attemptE ctx site a b ty
     case r of
@@ -2873,7 +2916,7 @@ mutual
                   Left site3 => do assume cur site3 comp; pure Nothing
               else pure Nothing
    where
-    decompose : String -> Stmt -> Maybe Stmt -> Elem -> Elem -> Maybe (Elem, Elem) -> Ty -> ElabM ()
+    decompose : Site -> Stmt -> Maybe Stmt -> Elem -> Elem -> Maybe (Elem, Elem) -> Ty -> ElabM ()
     decompose site cur comp' a' b' again tyW = do
         st <- getSt
         case (a', b', tyW) of
@@ -2967,7 +3010,7 @@ mutual
                  Nothing => assume cur site comp
 
   ||| Γ ⊢ A ≐ B type ↓
-  convTy : Ctx -> NameEnv -> String -> Maybe Stmt -> Ty -> Ty -> ElabM (Maybe ECert)
+  convTy : Ctx -> NameEnv -> Site -> Maybe Stmt -> Ty -> Ty -> ElabM (Maybe ECert)
   convTy ctx env site comp tyA tyB = do
     r <- attemptT ctx site tyA tyB
     case r of
@@ -2992,7 +3035,7 @@ mutual
                   Left site3 => do assume cur site3 comp; pure Nothing
               else pure Nothing
    where
-    decomposeT : String -> Stmt -> Maybe Stmt -> Ty -> Ty -> Maybe (Ty, Ty) -> ElabM ()
+    decomposeT : Site -> Stmt -> Maybe Stmt -> Ty -> Ty -> Maybe (Ty, Ty) -> ElabM ()
     decomposeT site cur comp' tyA' tyB' again = do
         st <- getSt
         case (tyA', tyB') of
@@ -3163,7 +3206,7 @@ mutual
   ||| Γ ⊢ F ⇝ 𝔽 poly (e-poly-*): each embedded piece a code at 𝕌, the
   ||| context growing under the binder forms; skeleton children
   ||| accumulate in binder order (the kernel's kCheckPolyK order).
-  elabPoly : Ctx -> NameEnv -> String -> SPoly -> ElabM (Poly, List Skel)
+  elabPoly : Ctx -> NameEnv -> Site -> SPoly -> ElabM (Poly, List Skel)
   elabPoly ctx env site SPHole = pure (PHole, [])
   elabPoly ctx env site (SPConst a) = do
     (a', aSk) <- checkElem ctx env site a UniverseTy
@@ -3187,19 +3230,27 @@ mutual
     (f', fSks) <- elabPoly (ctx :< a') (env :< xn) site f
     pure (PPi a' f', aSk :: fSks)
 
-  elabTy : Ctx -> NameEnv -> String -> STy -> ElabM (Ty, Skel)
-  elabTy ctx env site STyZero = pure (ZeroTy, Nd [] [])
-  elabTy ctx env site STyOne = pure (OneTy, Nd [] [])
-  elabTy ctx env site STyNat = pure (NatTy, Nd [] [])
-  elabTy ctx env site STyUniv = pure (UniverseTy, Nd [] [])
-  elabTy ctx env site (STySig x0) = do
+  -- Each of the three narrows the reported site to the node's own
+  -- head span before dispatching (`Nova.Elaboration.Surface.headRange`),
+  -- so an error names the sub-expression it is about rather than the
+  -- whole item. `*At` is the clause group; the wrapper is what
+  -- everything (including the clauses, recursively) calls.
+  elabTy : Ctx -> NameEnv -> Site -> STy -> ElabM (Ty, Skel)
+  elabTy ctx env site t = elabTyAt ctx env (at site (headRangeTy t)) t
+
+  elabTyAt : Ctx -> NameEnv -> Site -> STy -> ElabM (Ty, Skel)
+  elabTyAt ctx env site STyZero = pure (ZeroTy, Nd [] [])
+  elabTyAt ctx env site STyOne = pure (OneTy, Nd [] [])
+  elabTyAt ctx env site STyNat = pure (NatTy, Nd [] [])
+  elabTyAt ctx env site STyUniv = pure (UniverseTy, Nd [] [])
+  elabTyAt ctx env site (STySig x0) = do
     st <- getSt
     let x = resolveSigName st x0
     case sigLookup x st.sig of
       -- items are always declared in ε, so the reference carries the
       -- empty substitution
       Just (SigDef [<] _ _ TopTy) => pure (SigVar x [<], Nd [] [])
-      Just (SigDef _ _ _ TopTy) => throw "\{site}: '\{x}' has a non-empty declaration context"
+      Just (SigDef _ _ _ TopTy) => throwAt site.srange "\{site}: '\{x}' has a non-empty declaration context"
       Just (SigDecl [<] _ TopTy) => pure (SigVar x [<], Nd [] [])
       -- CUMULATIVITY (El and Prf retired): a 𝕌- or Ω-classified
       -- reference is a code or a prop — a type either way
@@ -3220,36 +3271,36 @@ mutual
                     Nothing => UniverseTy
         (e', eSk) <- checkElem ctx env site (SSig Nothing x) cls
         pure (e', eSk)
-      Nothing => throw "\{site}: unknown signature name '\{x}'"
-  elabTy ctx env site (STyPi x a b) = do
+      Nothing => throwAt site.srange "\{site}: unknown signature name '\{x}'"
+  elabTyAt ctx env site (STyPi x a b) = do
     (a', aSk) <- elabTy ctx env site a
     (b', bSk) <- elabTy (ctx :< a') (env :< x) site b
     pure (PiTy a' b', Nd [] [aSk, bSk])
   -- an implicit binder elaborates exactly as an explicit one: the
   -- core is bare, implicitness is per-def METADATA (ElabSt.impls)
-  elabTy ctx env site (STyImpPi x a b) = do
+  elabTyAt ctx env site (STyImpPi x a b) = do
     (a', aSk) <- elabTy ctx env site a
     (b', bSk) <- elabTy (ctx :< a') (env :< x) site b
     pure (PiTy a' b', Nd [] [aSk, bSk])
-  elabTy ctx env site (STySigma x a b) = do
+  elabTyAt ctx env site (STySigma x a b) = do
     (a', aSk) <- elabTy ctx env site a
     (b', bSk) <- elabTy (ctx :< a') (env :< x) site b
     pure (SigmaTy a' b', Nd [] [aSk, bSk])
-  elabTy ctx env site (STySum a b) = do
+  elabTyAt ctx env site (STySum a b) = do
     (a', aSk) <- elabTy ctx env site a
     (b', bSk) <- elabTy ctx env site b
     pure (SumTy a' b', Nd [] [aSk, bSk])
-  elabTy ctx env site (STyQuot a (nx, nxr) (ny, nyr) r) = do
+  elabTyAt ctx env site (STyQuot a (nx, nxr) (ny, nyr) r) = do
     (a', aSk) <- elabTy ctx env site a
     recordBinder nxr ctx env nx a'
     recordBinder nyr (ctx :< a') (env :< nx) ny (substTy a' Wk)
     (r', rSk) <- checkElem (ctx :< a' :< substTy a' Wk) (env :< nx :< ny) site r PropTy
     pure (QuotTy a' r', Nd [] [aSk, rSk])
-  elabTy ctx env site (STyNu f) = do
+  elabTyAt ctx env site (STyNu f) = do
     -- e-ty-nu
     (f', fSks) <- elabPoly ctx env site f
     pure (NuTy f', Nd [] fSks)
-  elabTy ctx env site (STyEq rng l r (Just t)) = do
+  elabTyAt ctx env site (STyEq rng l r (Just t)) = do
     -- e-ty-eq: the surface ≡-TYPE IS the equality prop, standing as
     -- a type (prop-lift; equality is Ω-valued)
     (t', tSk) <- elabTy ctx env site t
@@ -3259,7 +3310,7 @@ mutual
     -- would the elided form recover t' α-exactly by inferring a side?
     sugarTrial rng (eqElideVerdict ctx env site l r t')
     pure (Elem.EqTy l' r' t', Nd [] [lSk, rSk, tSk])
-  elabTy ctx env site (STyEq rng l r Nothing) = do
+  elabTyAt ctx env site (STyEq rng l r Nothing) = do
     -- the ELIDED ≡-type: the domain is the inferred type of a side,
     -- LEFT first (a deterministic rule, not a search)
     (l', r', t', lSk, rSk) <- elabEqSides ctx env site l r
@@ -3270,7 +3321,7 @@ mutual
   -- inference probe — Ω-formers and Ω-valued spines land at Ω,
   -- everything else (blanks included) checks at 𝕌, the overwhelmingly
   -- common classifier
-  elabTy ctx env site (STyEl e) = do
+  elabTyAt ctx env site (STyEl e) = do
     mty <- probeM (inferElem ctx env site e)
     st <- getSt
     let cls = the Ty $ case mty of
@@ -3280,19 +3331,22 @@ mutual
                 Nothing => UniverseTy
     (e', eSk) <- checkElem ctx env site e cls
     pure (e', eSk)
-  elabTy ctx env site STyProp = pure (PropTy, Nd [] [])
+  elabTyAt ctx env site STyProp = pure (PropTy, Nd [] [])
   export
-  inferElem : Ctx -> NameEnv -> String -> SElem -> ElabM (Elem, Ty, Skel)
-  inferElem ctx env site (SVar mrng n i) =
+  inferElem : Ctx -> NameEnv -> Site -> SElem -> ElabM (Elem, Ty, Skel)
+  inferElem ctx env site e = inferElemAt ctx env (at site (headRange e)) e
+
+  inferElemAt : Ctx -> NameEnv -> Site -> SElem -> ElabM (Elem, Ty, Skel)
+  inferElemAt ctx env site (SVar mrng n i) =
     case ctxLookup ctx i of
       Just ty => do
         recordBinder mrng ctx env n ty
         pure (CtxVar i, ty, Nd [] [])
-      Nothing => throw "\{site}: variable index out of bounds"
-  inferElem ctx env site (SSig mrng x0) = do
+      Nothing => throwAt site.srange "\{site}: variable index out of bounds"
+  inferElemAt ctx env site (SSig mrng x0) = do
     st <- getSt
     let True = not (x0 `elem` st.dupNames)
-      | False => throw "\{site}: '\{x0}' is overloaded (\{joinBy ", " (resolveSigAll st x0)}) and nothing here selects one — qualify it"
+      | False => throwAt site.srange "\{site}: '\{x0}' is overloaded (\{joinBy ", " (resolveSigAll st x0)}) and nothing here selects one — qualify it"
     let x = resolveSigName st x0
     -- cachedSigLookup: positive-only name index; the unknown-name
     -- error path below always re-scans (negatives are never cached)
@@ -3300,18 +3354,18 @@ mutual
       Just (SigDef [<] _ _ ty) => do
         recordBinderImps mrng ctx env x0 ty (fromMaybe [] (lookup x st.impls))
         pure (SigVar x [<], ty, Nd [] [])
-      Just (SigDef _ _ _ _) => throw "\{site}: '\{x}' has a non-empty declaration context"
+      Just (SigDef _ _ _ _) => throwAt site.srange "\{site}: '\{x}' has a non-empty declaration context"
       Just (SigDecl [<] _ ty) => do
         recordBinderImps mrng ctx env x0 ty (fromMaybe [] (lookup x st.impls))
         pure (SigVar x [<], ty, Nd [] [])
-      Just _ => throw "\{site}: '\{x}' is not usable as a term here"
-      Nothing => throw "\{site}: unknown name '\{x}'"
-  inferElem ctx env site SUnitI = pure (OneIntro, OneTy, Nd [] [])
-  inferElem ctx env site SZeroN = pure (NatIntro0, NatTy, Nd [] [])
-  inferElem ctx env site (SSuc t) = do
+      Just _ => throwAt site.srange "\{site}: '\{x}' is not usable as a term here"
+      Nothing => throwAt site.srange "\{site}: unknown name '\{x}'"
+  inferElemAt ctx env site SUnitI = pure (OneIntro, OneTy, Nd [] [])
+  inferElemAt ctx env site SZeroN = pure (NatIntro0, NatTy, Nd [] [])
+  inferElemAt ctx env site (SSuc t) = do
     (t', tSk) <- checkElem ctx env site t NatTy
     pure (NatIntro1 t', NatTy, Nd [] [tSk])
-  inferElem ctx env site sapp@(SApp f e) = do
+  inferElemAt ctx env site sapp@(SApp f e) = do
     st <- getSt
     case overloadOf st sapp of
       Just (x0, mrng, items, cands) =>
@@ -3325,29 +3379,29 @@ mutual
             Just (a, b, _) => do
               (e', eSk) <- checkElem ctx env site e a
               pure (PiApp f' e', substTy b (Ext Id e'), Nd [] [fSk, eSk])
-            Nothing => throw "\{site}: cannot apply a term of non-Π type\{structuralHint ()}"
-  inferElem ctx env site (SImpArg _) =
-    throw "\{site}: a {…} override is only legal at an implicit binder position of an applied definition"
-  inferElem ctx env site (SBlank _) =
-    throw "\{site}: a blank (_) is only legal at an explicit binder position of an applied definition — spell the term"
-  inferElem ctx env site (SNoIns e) = inferElem ctx env site e
-  inferElem ctx env site (SProj1 t) = do
+            Nothing => throwAt site.srange "\{site}: cannot apply a term of non-Π type\{structuralHint ()}"
+  inferElemAt ctx env site (SImpArg _) =
+    throwAt site.srange "\{site}: a {…} override is only legal at an implicit binder position of an applied definition"
+  inferElemAt ctx env site (SBlank mrng) =
+    throwAt site.srange "\{site}: a blank (_) is only legal at an explicit binder position of an applied definition — spell the term"
+  inferElemAt ctx env site (SNoIns e) = inferElem ctx env site e
+  inferElemAt ctx env site (SProj1 t) = do
     (t', tTy, tSk) <- inferElem ctx env site t
     st <- getSt
     case preferSigma st ctx tTy of
       Just (a, b, _) => pure (SigmaElim1 t', a, Nd [] [tSk])
-      Nothing => throw "\{site}: cannot project from a term of non-⨯ type\{structuralHint ()}"
-  inferElem ctx env site (SProj2 t) = do
+      Nothing => throwAt site.srange "\{site}: cannot project from a term of non-⨯ type\{structuralHint ()}"
+  inferElemAt ctx env site (SProj2 t) = do
     (t', tTy, tSk) <- inferElem ctx env site t
     st <- getSt
     case preferSigma st ctx tTy of
       Just (a, b, _) => pure (SigmaElim2 t', substTy b (Ext Id (SigmaElim1 t')), Nd [] [tSk])
-      Nothing => throw "\{site}: cannot project from a term of non-⨯ type\{structuralHint ()}"
-  inferElem ctx env site (SAnn t ty) = do
+      Nothing => throwAt site.srange "\{site}: cannot project from a term of non-⨯ type\{structuralHint ()}"
+  inferElemAt ctx env site (SAnn t ty) = do
     (ty', tySk) <- elabTy ctx env site ty
     (t', tSk) <- checkElem ctx env site t ty'
     pure (t', ty', addPayload (PIntroTy ty' tySk) tSk)
-  inferElem ctx env site (SLet (x, xr) e b) = do
+  inferElemAt ctx env site (SLet (x, xr) e b) = do
     -- e-let: the definiens is INFERRED (an annotated surface let
     -- arrives as an ascribed definiens); the body is elaborated under
     -- the value AND its unfolding hypothesis — an equality prop, so
@@ -3358,13 +3412,13 @@ mutual
     let hyp = Elem.EqTy (CtxVar 0) (substElem e' Wk) (substTy eTy Wk)
     (b', bTy, bSk) <- inferElem (ctx :< eTy :< hyp) (env :< x :< wildcard) site b
     pure (Let e' b', substTy bTy (Ext (Ext Id e') Star), Nd [] [eSk, bSk])
-  inferElem ctx env site (SNatElim Nothing _ _ _ _ _) =
-    throw "\{site}: ℕ-elim without a motive infers nothing — write (n. T), or use it in checking position"
-  inferElem ctx env site (SSumElim Nothing _ _ _ _ _) =
-    throw "\{site}: ⊎-elim without a motive infers nothing — write (z. T), or use it in checking position"
-  inferElem ctx env site (SQuotElim Nothing _ _ _) =
-    throw "\{site}: quot-elim without a motive infers nothing — write (z. T), or use it in checking position"
-  inferElem ctx env site (SNatElim (Just ((n, nr), mot)) z (n2, n2r) (ih, ihr) s t) = do
+  inferElemAt ctx env site (SNatElim Nothing _ _ _ _ _) =
+    throwAt site.srange "\{site}: ℕ-elim without a motive infers nothing — write (n. T), or use it in checking position"
+  inferElemAt ctx env site (SSumElim Nothing _ _ _ _ _) =
+    throwAt site.srange "\{site}: ⊎-elim without a motive infers nothing — write (z. T), or use it in checking position"
+  inferElemAt ctx env site (SQuotElim Nothing _ _ _) =
+    throwAt site.srange "\{site}: quot-elim without a motive infers nothing — write (z. T), or use it in checking position"
+  inferElemAt ctx env site (SNatElim (Just ((n, nr), mot)) z (n2, n2r) (ih, ihr) s t) = do
     recordBinder nr ctx env n NatTy
     (motTy, motSk) <- elabTy (ctx :< NatTy) (env :< n) site mot
     (z', zSk) <- checkElem ctx env site z (substTy motTy (Ext Id NatIntro0))
@@ -3375,7 +3429,7 @@ mutual
     (t', tSk) <- checkElem ctx env site t NatTy
     pure (NatElim z' s' t', substTy motTy (Ext Id t'),
           Nd [PMotive motTy motSk] [zSk, sSk, tSk])
-  inferElem ctx env site (SSumElim (Just ((zn, zr), mot)) (an, ar) l (bn, br) r t) = do
+  inferElemAt ctx env site (SSumElim (Just ((zn, zr), mot)) (an, ar) l (bn, br) r t) = do
     (t', tTy, tSk) <- inferElem ctx env site t
     st <- getSt
     case preferSum st ctx tTy of
@@ -3390,8 +3444,8 @@ mutual
                        (substTy motTy (Ext Wk (Inj2 (CtxVar 0))))
         pure (SumElim l' r' t', substTy motTy (Ext Id t'),
               Nd [PMotive motTy motSk] [lSk, rSk, tSk])
-      Nothing => throw "\{site}: ⊎-elim scrutinee has non-⊎ type\{structuralHint ()}"
-  inferElem ctx env site (SQuotElim (Just ((zn, zr), mot)) (an, ar) f q) = do
+      Nothing => throwAt site.srange "\{site}: ⊎-elim scrutinee has non-⊎ type\{structuralHint ()}"
+  inferElemAt ctx env site (SQuotElim (Just ((zn, zr), mot)) (an, ar) f q) = do
     (q', qTy, qSk) <- inferElem ctx env site q
     st <- getSt
     case preferQuot st ctx qTy of
@@ -3412,48 +3466,48 @@ mutual
         wd <- if isPropTy st2 (ctx :< QuotTy a r) motTy
           then pure (Just (MkECert [] FProp))
           else convElem (ctx :< a :< substTy a Wk :< r) (env :< an :< (an ++ "'") :< "h")
-            "\{site}: well-definedness of quot-elim case" Nothing
+            (sub site "\{site}: well-definedness of quot-elim case") Nothing
             (substElem f' (Ext wk3 (CtxVar 2)))
             (substElem f' (Ext wk3 (CtxVar 1)))
             (substTy motTy (Ext wk3 (Class (CtxVar 2))))
         pure (QuotElim f' q', substTy motTy (Ext Id q'),
               Nd [PMotive motTy motSk, PWD (certOr wd)] [fSk, qSk])
-      Nothing => throw "\{site}: quot-elim scrutinee has non-quotient type\{structuralHint ()}"
-  inferElem ctx env site SZeroC = pure (Elem.ZeroTy, UniverseTy, Nd [] [])
-  inferElem ctx env site SOneC = pure (Elem.OneTy, UniverseTy, Nd [] [])
-  inferElem ctx env site SNatC = pure (Elem.NatTy, UniverseTy, Nd [] [])
-  inferElem ctx env site (SPiC x a b) = do
+      Nothing => throwAt site.srange "\{site}: quot-elim scrutinee has non-quotient type\{structuralHint ()}"
+  inferElemAt ctx env site SZeroC = pure (Elem.ZeroTy, UniverseTy, Nd [] [])
+  inferElemAt ctx env site SOneC = pure (Elem.OneTy, UniverseTy, Nd [] [])
+  inferElemAt ctx env site SNatC = pure (Elem.NatTy, UniverseTy, Nd [] [])
+  inferElemAt ctx env site (SPiC x a b) = do
     (a', aSk) <- checkElem ctx env site a UniverseTy
     (b', bSk) <- checkElem (ctx :< a') (env :< x) site b UniverseTy
     pure (Elem.PiTy a' b', UniverseTy, Nd [] [aSk, bSk])
-  inferElem ctx env site (SSigmaC x a b) = do
+  inferElemAt ctx env site (SSigmaC x a b) = do
     (a', aSk) <- checkElem ctx env site a UniverseTy
     (b', bSk) <- checkElem (ctx :< a') (env :< x) site b UniverseTy
     pure (Elem.SigmaTy a' b', UniverseTy, Nd [] [aSk, bSk])
-  inferElem ctx env site (SSumC a b) = do
+  inferElemAt ctx env site (SSumC a b) = do
     (a', aSk) <- checkElem ctx env site a UniverseTy
     (b', bSk) <- checkElem ctx env site b UniverseTy
     pure (Elem.SumTy a' b', UniverseTy, Nd [] [aSk, bSk])
-  inferElem ctx env site (SQuotC a (nx, nxr) (ny, nyr) r) = do
+  inferElemAt ctx env site (SQuotC a (nx, nxr) (ny, nyr) r) = do
     (a', aSk) <- checkElem ctx env site a UniverseTy
     recordBinder nxr ctx env nx a'
     recordBinder nyr (ctx :< a') (env :< nx) ny (substTy a' Wk)
     (r', rSk) <- checkElem (ctx :< a' :< substTy a' Wk) (env :< nx :< ny) site r PropTy
     pure (QuotTy a' r', UniverseTy, Nd [] [aSk, rSk])
-  inferElem ctx env site (SSquash t) = do
+  inferElemAt ctx env site (SSquash t) = do
     (t', tSk) <- elabTy ctx env site t
     pure (Squash t', PropTy, Nd [] [tSk])
-  inferElem ctx env site (SStar _) =
-    throw "\{site}: cannot infer the type of ⋆\{structuralHint ()}"
-  inferElem ctx env site (SStarWit _) =
-    throw "\{site}: cannot infer the type of ⋆ ⟨witness⟩\{structuralHint ()}"
-  inferElem ctx env site (SStarUsing _ _) =
-    throw "\{site}: cannot infer the type of ⋆ using (…)\{structuralHint ()}"
-  inferElem ctx env site (SChain _ _) =
-    throw "\{site}: cannot infer the type of a chain (its equality comes from the expected prop)\{structuralHint ()}"
-  inferElem ctx env site (SSquashElim _ _ _) =
-    throw "\{site}: cannot infer the type of squash-elim\{structuralHint ()}"
-  inferElem ctx env site (SEqC rng l r (Just t)) = do
+  inferElemAt ctx env site (SStar mrng) =
+    throwAt site.srange "\{site}: cannot infer the type of ⋆\{structuralHint ()}"
+  inferElemAt ctx env site (SStarWit _) =
+    throwAt site.srange "\{site}: cannot infer the type of ⋆ ⟨witness⟩\{structuralHint ()}"
+  inferElemAt ctx env site (SStarUsing mrng _) =
+    throwAt site.srange "\{site}: cannot infer the type of ⋆ using (…)\{structuralHint ()}"
+  inferElemAt ctx env site (SChain _ _) =
+    throwAt site.srange "\{site}: cannot infer the type of a chain (its equality comes from the expected prop)\{structuralHint ()}"
+  inferElemAt ctx env site (SSquashElim _ _ _) =
+    throwAt site.srange "\{site}: cannot infer the type of squash-elim\{structuralHint ()}"
+  inferElemAt ctx env site (SEqC rng l r (Just t)) = do
     -- e-eq: the equality PROP — the ambient is a TYPE (large types
     -- included); there is no 𝕌-code for equality
     (t', tSk) <- elabTy ctx env site t
@@ -3461,72 +3515,75 @@ mutual
     (r', rSk) <- checkElem ctx env site r t'
     sugarTrial rng (eqElideVerdict ctx env site l r t')
     pure (Elem.EqTy l' r' t', PropTy, Nd [] [lSk, rSk, tSk])
-  inferElem ctx env site (SEqC rng l r Nothing) = do
+  inferElemAt ctx env site (SEqC rng l r Nothing) = do
     -- the elided equality prop: domain inferred from a side
     (l', r', t', lSk, rSk) <- elabEqSides ctx env site l r
     pure (Elem.EqTy l' r' t', PropTy, Nd [] [lSk, rSk, Nd [] []])
-  inferElem ctx env site (SNuC f) = do
+  inferElemAt ctx env site (SNuC f) = do
     -- e-code-nu
     (f', fSks) <- elabPoly ctx env site f
     pure (Elem.NuTy f', UniverseTy, Nd [] fSks)
-  inferElem ctx env site (SOut t) = do
+  inferElemAt ctx env site (SOut t) = do
     -- e-out: fully inference-driven, the polynomial read off the
     -- scrutinee's type
     (t', tTy, tSk) <- inferElem ctx env site t
     st <- getSt
     case preferNu st ctx tTy of
       Just (p, _) => pure (Out t', reflectPoly p (Elem.NuTy p), Nd [] [tSk])
-      Nothing => throw "\{site}: out scrutinee has non-ν type\{structuralHint ()}"
-  inferElem ctx env site (SCorec _ _ _ _) =
-    throw "\{site}: cannot infer the type of corec (the polynomial comes from the expected ν-type)\{structuralHint ()}"
-  inferElem ctx env site (SCoind _ _ _ _ _ _ _ _) =
-    throw "\{site}: cannot infer the type of coind (the equation comes from the expected prop)\{structuralHint ()}"
-  inferElem ctx env site (SInj1 _) =
-    throw "\{site}: cannot infer the type of inj₁ (the other summand is undetermined)\{structuralHint ()}"
-  inferElem ctx env site (SInj2 _) =
-    throw "\{site}: cannot infer the type of inj₂ (the other summand is undetermined)\{structuralHint ()}"
-  inferElem ctx env site (SLam _ _) =
-    throw "\{site}: cannot infer the type of a λ\{structuralHint ()}"
-  inferElem ctx env site (SPair _ _) =
-    throw "\{site}: cannot infer the type of a pair\{structuralHint ()}"
-  inferElem ctx env site (SClass _) =
-    throw "\{site}: cannot infer the type of class\{structuralHint ()}"
-  inferElem ctx env site (SZeroElim _) =
-    throw "\{site}: cannot infer the type of 𝟘-elim\{structuralHint ()}"
+      Nothing => throwAt site.srange "\{site}: out scrutinee has non-ν type\{structuralHint ()}"
+  inferElemAt ctx env site (SCorec _ _ _ _) =
+    throwAt site.srange "\{site}: cannot infer the type of corec (the polynomial comes from the expected ν-type)\{structuralHint ()}"
+  inferElemAt ctx env site (SCoind _ _ _ _ _ _ _ _) =
+    throwAt site.srange "\{site}: cannot infer the type of coind (the equation comes from the expected prop)\{structuralHint ()}"
+  inferElemAt ctx env site (SInj1 _) =
+    throwAt site.srange "\{site}: cannot infer the type of inj₁ (the other summand is undetermined)\{structuralHint ()}"
+  inferElemAt ctx env site (SInj2 _) =
+    throwAt site.srange "\{site}: cannot infer the type of inj₂ (the other summand is undetermined)\{structuralHint ()}"
+  inferElemAt ctx env site (SLam _ _) =
+    throwAt site.srange "\{site}: cannot infer the type of a λ\{structuralHint ()}"
+  inferElemAt ctx env site (SPair _ _) =
+    throwAt site.srange "\{site}: cannot infer the type of a pair\{structuralHint ()}"
+  inferElemAt ctx env site (SClass _) =
+    throwAt site.srange "\{site}: cannot infer the type of class\{structuralHint ()}"
+  inferElemAt ctx env site (SZeroElim _) =
+    throwAt site.srange "\{site}: cannot infer the type of 𝟘-elim\{structuralHint ()}"
 
   export
-  checkElem : Ctx -> NameEnv -> String -> SElem -> Ty -> ElabM (Elem, Skel)
-  checkElem ctx env site (SLam (x, xr) t) ty = do
+  checkElem : Ctx -> NameEnv -> Site -> SElem -> Ty -> ElabM (Elem, Skel)
+  checkElem ctx env site e ty = checkElemAt ctx env (at site (headRange e)) e ty
+
+  checkElemAt : Ctx -> NameEnv -> Site -> SElem -> Ty -> ElabM (Elem, Skel)
+  checkElemAt ctx env site (SLam (x, xr) t) ty = do
     st <- getSt
     case preferPi st ctx ty of
       Just (a, b, exp) => do
         recordBinder xr ctx env x a
         (t', tSk) <- checkElem (ctx :< a) (env :< x) site t b
         pure (PiIntro t', withExpose exp (Nd [] [tSk]))
-      Nothing => throw "\{site}: λ checked against a non-Π type\{structuralHint ()}"
-  checkElem ctx env site (SPair u v) ty = do
+      Nothing => throwAt site.srange "\{site}: λ checked against a non-Π type\{structuralHint ()}"
+  checkElemAt ctx env site (SPair u v) ty = do
     st <- getSt
     case preferSigma st ctx ty of
       Just (a, b, exp) => do
         (u', uSk) <- checkElem ctx env site u a
         (v', vSk) <- checkElem ctx env site v (substTy b (Ext Id u'))
         pure (SigmaIntro u' v', withExpose exp (Nd [] [uSk, vSk]))
-      Nothing => throw "\{site}: pair checked against a non-⨯ type\{structuralHint ()}"
-  checkElem ctx env site (SInj1 a) ty = do
+      Nothing => throwAt site.srange "\{site}: pair checked against a non-⨯ type\{structuralHint ()}"
+  checkElemAt ctx env site (SInj1 a) ty = do
     st <- getSt
     case preferSum st ctx ty of
       Just (dom, _, exp) => do
         (a', aSk) <- checkElem ctx env site a dom
         pure (Inj1 a', withExpose exp (Nd [] [aSk]))
-      Nothing => throw "\{site}: inj₁ checked against a non-⊎ type\{structuralHint ()}"
-  checkElem ctx env site (SInj2 b) ty = do
+      Nothing => throwAt site.srange "\{site}: inj₁ checked against a non-⊎ type\{structuralHint ()}"
+  checkElemAt ctx env site (SInj2 b) ty = do
     st <- getSt
     case preferSum st ctx ty of
       Just (_, cod, exp) => do
         (b', bSk) <- checkElem ctx env site b cod
         pure (Inj2 b', withExpose exp (Nd [] [bSk]))
-      Nothing => throw "\{site}: inj₂ checked against a non-⊎ type\{structuralHint ()}"
-  checkElem ctx env site (SCorec (xn, xr) a f u) ty = do
+      Nothing => throwAt site.srange "\{site}: inj₂ checked against a non-⊎ type\{structuralHint ()}"
+  checkElemAt ctx env site (SCorec (xn, xr) a f u) ty = do
     -- e-corec: checking-only, like λ and class
     st <- getSt
     case preferNu st ctx ty of
@@ -3537,13 +3594,13 @@ mutual
                        (substTy (reflectPoly p a') Wk)
         (u', uSk) <- checkElem ctx env site u a'
         pure (Corec p a' f' u', withExpose exp (Nd [] [aSk, fSk, uSk]))
-      Nothing => throw "\{site}: corec checked against a non-ν type\{structuralHint ()}"
-  checkElem ctx env site (SCoind (xn, xr) (yn, yr) rS pS (mxn, mxr) (myn, myr) (mhn, mhr) qS) ty = do
+      Nothing => throwAt site.srange "\{site}: corec checked against a non-ν type\{structuralHint ()}"
+  checkElemAt ctx env site (SCoind (xn, xr) (yn, yr) rS pS (mxn, mxr) (myn, myr) (mhn, mhr) qS) ty = do
     -- e-coind: el-nu-coind's surface form, at (l ≡ r ∈ ν F) —
     -- invariant, endpoint proof, one-step closure at the relator
     st <- getSt
     case preferPrf st ctx ty of
-      Nothing => throw "\{site}: coind checked against a non-propositional type\{structuralHint ()}"
+      Nothing => throwAt site.srange "\{site}: coind checked against a non-propositional type\{structuralHint ()}"
       Just (pc, exp) => do
         let pcUse = case pc of
                       Elem.EqTy _ _ _ => pc
@@ -3556,7 +3613,7 @@ mutual
                               NuTy f => Just f
                               _ => Nothing
             case fM of
-              Nothing => throw "\{site}: coind at an equation over a non-ν type\{structuralHint ()}"
+              Nothing => throwAt site.srange "\{site}: coind at an equation over a non-ν type\{structuralHint ()}"
               Just f => do
                 let nuT = NuTy f
                 recordBinder xr ctx env xn nuT
@@ -3573,25 +3630,25 @@ mutual
                 (q', skq) <- checkElem ctx3 (env :< mxn :< myn :< mhn) site qS
                                (liftPoly f3 r3 (Out (CtxVar 2)) (Out (CtxVar 1)))
                 pure (Star, withExpose exp (Nd [PNuCoind r' skR p' skp q' skq] []))
-          _ => throw "\{site}: coind checked against a non-equality proposition\{structuralHint ()}"
-  checkElem ctx env site (SClass a) ty = do
+          _ => throwAt site.srange "\{site}: coind checked against a non-equality proposition\{structuralHint ()}"
+  checkElemAt ctx env site (SClass a) ty = do
     st <- getSt
     case preferQuot st ctx ty of
       Just (dom, rel, exp) => do
         (a', aSk) <- checkElem ctx env site a dom
         pure (Class a', withExpose exp (Nd [] [aSk]))
-      Nothing => throw "\{site}: class checked against a non-quotient type\{structuralHint ()}"
-  checkElem ctx env site (SZeroElim t) ty = do
+      Nothing => throwAt site.srange "\{site}: class checked against a non-quotient type\{structuralHint ()}"
+  checkElemAt ctx env site (SZeroElim t) ty = do
     (t', tSk) <- checkElem ctx env site t ZeroTy
     pure (ZeroElim t', Nd [] [tSk])
-  checkElem ctx env site (SStar mrng) ty = do
+  checkElemAt ctx env site (SStar mrng) ty = do
     -- the LSP hover for a ⋆: ascribe the PROVED PROPOSITION — the
     -- expected type at the site, display-resugared by the same
     -- table that ascribes binders
     recordBinder mrng ctx env "⋆" ty
     st <- getSt
     case preferPrf st ctx ty of
-      Nothing => throw "\{site}: ⋆ checked against a non-propositional type\{structuralHint ()}"
+      Nothing => throwAt site.srange "\{site}: ⋆ checked against a non-propositional type\{structuralHint ()}"
       Just (p, exp) => do
         -- el-eq-i / el-squash-i: an equality prop is THE payment rule
         -- (checking ⋆ emits its equation into ↓); a squashed 𝟙 is
@@ -3609,13 +3666,13 @@ mutual
                  (pR, Nothing) => (pR, exp)
         case pUse of
           Elem.EqTy l r t => do
-            c <- convElem ctx env "\{site}: checking ⋆" Nothing l r t
+            c <- convElem ctx env (sub site "\{site}: checking ⋆") Nothing l r t
             pure (Star, withExpose exp (Nd [PReflEq (certOr c)] []))
           Squash sq =>
             case exposeHead st sq of
               OneTy => pure (Star, withExpose exp (Nd [PSquashWit OneIntro (Nd [] [])] []))
-              _ => throw "\{site}: ⋆ can prove only equality props and 𝟙-shaped squashes automatically (write `⋆ ⟨witness⟩` to supply one directly)"
-          _ => throw "\{site}: ⋆ checked against a non-evident proposition\{structuralHint ()}"
+              _ => throwAt site.srange "\{site}: ⋆ can prove only equality props and 𝟙-shaped squashes automatically (write `⋆ ⟨witness⟩` to supply one directly)"
+          _ => throwAt site.srange "\{site}: ⋆ checked against a non-evident proposition\{structuralHint ()}"
   -- ⋆ using (…): the SStar rule verbatim, under a discharge scope —
   -- only the named lemmas (plus hypotheses) participate, so the site
   -- is deterministic and module-local (SearchlessElaboration.md §5.3).
@@ -3623,7 +3680,7 @@ mutual
   -- that is absent, or present but not an equation lemma of the
   -- visible store, is a structural error — it could only scope the
   -- site to nothing.
-  checkElem ctx env site (SStarUsing mrng ns) ty = do
+  checkElemAt ctx env site (SStarUsing mrng ns) ty = do
     (rs, eqs) <- resolveUsingNames site ns
     withScope (Just rs) (withEqScope eqs (checkElem ctx env site (SStar mrng) ty))
   -- e-chain (docs/SearchlessElaboration.md §5.2): x ≡⟨ e ⟩ y … at
@@ -3636,10 +3693,10 @@ mutual
   -- discharges once with every link in scope and one hop of depth per
   -- link; the certificate composition (bridging, positional steps,
   -- flips) is the engine's ordinary step materialization. Erases to ⋆.
-  checkElem ctx env site (SChain x0 links) ty = do
+  checkElemAt ctx env site (SChain x0 links) ty = do
     st <- getSt
     case preferPrf st ctx ty of
-      Nothing => throw "\{site}: a chain proves an equality — checked against a non-propositional type\{structuralHint ()}"
+      Nothing => throwAt site.srange "\{site}: a chain proves an equality — checked against a non-propositional type\{structuralHint ()}"
       Just (p, exp) => do
         let pUse = case p of
                      Elem.EqTy _ _ _ => p
@@ -3652,7 +3709,7 @@ mutual
             adjCerts <- adjacencies tA 1 x0' (zip cands mids)
             cert <- composite tA l r cands adjCerts
             pure (Star, withExpose exp (Nd [PReflEq (certOr cert)] []))
-          _ => throw "\{site}: chain checked against a non-equality proposition\{structuralHint ()}"
+          _ => throwAt site.srange "\{site}: chain checked against a non-equality proposition\{structuralHint ()}"
    where
     ||| a link justification, inferred and reflected into a ground
     ||| candidate (closed under component decomposition, like a
@@ -3666,7 +3723,7 @@ mutual
           pure (closeCand (MkCand "chain link" 0 []
                   (engNfE st u) (engNfE st v)
                   (\wk, _ => Just (weakenElemN wk j', [])) [] []))
-        _ => throw "\{site}: a chain justification must prove an equation"
+        _ => throwAt site.srange "\{site}: a chain justification must prove an equation"
 
     ||| discharge each adjacency against ITS link only; a failure is
     ||| an ordinary obligation sited at its step (and, being scoped,
@@ -3675,7 +3732,7 @@ mutual
     adjacencies tA i prev [] = pure []
     adjacencies tA i prev ((cs, next) :: rest) = do
       m <- withLocal cs spDepth $
-             convElem ctx env "\{site}: chain, step \{show i}" Nothing prev next tA
+             convElem ctx env (sub site "\{site}: chain, step \{show i}") Nothing prev next tA
       ms <- adjacencies tA (S i) next rest
       pure (m :: ms)
 
@@ -3716,11 +3773,11 @@ mutual
       fallback : ElabM (Maybe ECert)
       fallback =
         withLocal (concat cands) (length links + spDepth) $
-          convElem ctx env "\{site}: checking chain" Nothing l r tA
-  checkElem ctx env site (SStarWit w) ty = do
+          convElem ctx env (sub site "\{site}: checking chain") Nothing l r tA
+  checkElemAt ctx env site (SStarWit w) ty = do
     st <- getSt
     case preferPrf st ctx ty of
-      Nothing => throw "\{site}: ⋆ checked against a non-propositional type\{structuralHint ()}"
+      Nothing => throwAt site.srange "\{site}: ⋆ checked against a non-propositional type\{structuralHint ()}"
       Just (p, exp) =>
         -- el-squash-i, general form: w proves the squashee directly,
         -- whatever its shape. At an equality prop, any proof will do
@@ -3761,12 +3818,12 @@ mutual
                 (w', _) <- checkElem ctx env site w pN
                 let cert = MkECertF Nothing [MkStep True [] (LProof w') [] False] FBeta st.eqScope
                 pure (Star, withExpose exp (Nd [PReflEq cert] []))
-          _ => throw "\{site}: ⋆ ⟨witness⟩ checked against a non-evident proposition\{structuralHint ()}"
-  checkElem ctx env site (SSquashElim e xn body) ty = do
+          _ => throwAt site.srange "\{site}: ⋆ ⟨witness⟩ checked against a non-evident proposition\{structuralHint ()}"
+  checkElemAt ctx env site (SSquashElim e xn body) ty = do
     st <- getSt
     (e', eTy, eSk) <- inferElem ctx env site e
     case preferPrf st ctx eTy of
-      Nothing => throw "\{site}: squash-elim scrutinee has a non-∥∥ type\{structuralHint ()}"
+      Nothing => throwAt site.srange "\{site}: squash-elim scrutinee has a non-∥∥ type\{structuralHint ()}"
       Just (p, _) =>
         case exposeCode st p of
           Squash a =>
@@ -3774,13 +3831,13 @@ mutual
             -- inhabitant of the raw squashee a; the goal must itself
             -- be a PROP — no elimination into arbitrary types
             case preferPrf st ctx ty of
-              Nothing => throw "\{site}: squash-elim checked against a non-propositional goal (el-squash-e-prf reaches only further propositions)\{structuralHint ()}"
+              Nothing => throwAt site.srange "\{site}: squash-elim checked against a non-propositional goal (el-squash-e-prf reaches only further propositions)\{structuralHint ()}"
               Just (q, exp) => do
                 recordBinder (snd xn) ctx env (fst xn) a
                 (body', bodySk) <- checkElem (ctx :< a) (env :< fst xn) site body (substTy q Wk)
                 pure (Star, withExpose exp (Nd [PSquashElim e' eSk body' bodySk] []))
-          _ => throw "\{site}: squash-elim scrutinee has a non-∥∥ type\{structuralHint ()}"
-  checkElem ctx env site (SLet (x, xr) e b) ty = do
+          _ => throwAt site.srange "\{site}: squash-elim scrutinee has a non-∥∥ type\{structuralHint ()}"
+  checkElemAt ctx env site (SLet (x, xr) e b) ty = do
     -- e-let-check: let PROPAGATES the ambient mode to its body (a
     -- checking-only body form works under a let without ascription).
     -- The expected type lives over Γ, so the body checks at its double
@@ -3799,104 +3856,104 @@ mutual
   -- expected type solves them; `f {}` suppresses — the
   -- function-passing form); the ordinary e-switch conversion still
   -- closes the site
-  checkElem ctx env site sapp@(SApp _ _) ty = do
+  checkElemAt ctx env site sapp@(SApp _ _) ty = do
     st <- getSt
     case overloadOf st sapp of
       Just (x0, mrng, items, cands) => do
         (t', inferred, tSk) <- resolveOverload ctx env site (Just ty) x0 mrng items cands
-        c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
+        c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
         pure (t', addPayload (PSwitch (certOr c)) tSk)
       Nothing => case impSpineOf st sapp of
         Just (noIns, q, x0, mrng, items) => do
           (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) (not noIns) noIns q x0 mrng items
-          c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
+          c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
           pure (t', addPayload (PSwitch (certOr c)) tSk)
         Nothing => do
           (t', inferred, tSk) <- inferElem ctx env site sapp
-          c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
+          c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
           pure (t', addPayload (PSwitch (certOr c)) tSk)
   -- a BARE reference of an implicit-binder def in checking position
   -- inserts its leading implicit run, solved from the expected type
-  checkElem ctx env site sref@(SSig mrng x0) ty = do
+  checkElemAt ctx env site sref@(SSig mrng x0) ty = do
     st <- getSt
     if x0 `elem` st.dupNames
       then do
         (t', inferred, tSk) <- resolveOverload ctx env site (Just ty) x0 mrng [] (resolveSigAll st x0)
-        c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
+        c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
         pure (t', addPayload (PSwitch (certOr c)) tSk)
       else case impSpineOf st (SApp sref SUnitI) of   -- reuse the head test
       Just (_, q, _, _, _) =>
         if maybe False (\ps => 0 `elem` ps) (lookup q st.impls)
           then do
             (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) True False q x0 mrng []
-            c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
+            c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
             pure (t', addPayload (PSwitch (certOr c)) tSk)
           else do
             (t', inferred, tSk) <- inferElem ctx env site sref
-            c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
+            c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
             pure (t', addPayload (PSwitch (certOr c)) tSk)
       Nothing => do
         (t', inferred, tSk) <- inferElem ctx env site sref
-        c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
+        c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
         pure (t', addPayload (PSwitch (certOr c)) tSk)
   -- {} — the NO-INSERT marker: elaborate the wrapped reference/spine
   -- without trailing insertion (implicit positions BETWEEN written
   -- arguments still recover as usual)
-  checkElem ctx env site (SNoIns e) ty = do
+  checkElemAt ctx env site (SNoIns e) ty = do
     st <- getSt
     case impSpineOf st e of
       Just (_, q, x0, mrng, items) => do
         (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) False False q x0 mrng items
-        c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
+        c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
         pure (t', addPayload (PSwitch (certOr c)) tSk)
       Nothing => do
         (t', inferred, tSk) <- inferElem ctx env site e
-        c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
+        c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
         pure (t', addPayload (PSwitch (certOr c)) tSk)
   -- ELIDED-MOTIVE eliminators (docs/NovaPerfectSurface.txt, Phase
   -- 4): checking-only — the motive is recovered by ABSTRACTING the
   -- scrutinee in the expected type (absT), so instantiating it back
   -- at the scrutinee reproduces the expected type exactly and the
   -- switch is α-trivial
-  checkElem ctx env site (SNatElim Nothing z (n2, n2r) (ih, ihr) s t) cTy = do
+  checkElemAt ctx env site (SNatElim Nothing z (n2, n2r) (ih, ihr) s t) cTy = do
     (t', tSk) <- checkElem ctx env site t NatTy
     let motTy = absT 0 t' cTy
     unless (skelFreeT motTy) $
-      throw "\{site}: the recovered motive contains a stuck eliminator — write the motive: (n. T)"
+      throwAt site.srange "\{site}: the recovered motive contains a stuck eliminator — write the motive: (n. T)"
     (z', zSk) <- checkElem ctx env site z (substTy motTy (Ext Id NatIntro0))
     recordBinder n2r ctx env n2 NatTy
     recordBinder ihr (ctx :< NatTy) (env :< n2) ih motTy
     (s', sSk) <- checkElem (ctx :< NatTy :< motTy) (env :< n2 :< ih) site s
                    (substTy motTy (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk))
-    c <- convTy ctx env "\{site}: inferred vs expected type" Nothing (substTy motTy (Ext Id t')) cTy
+    c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing (substTy motTy (Ext Id t')) cTy
     pure (NatElim z' s' t',
           addPayload (PSwitch (certOr c)) (Nd [PMotive motTy (Nd [] [])] [zSk, sSk, tSk]))
-  checkElem ctx env site (SSumElim Nothing (an, ar) l (bn, br) r t) cTy = do
+  checkElemAt ctx env site (SSumElim Nothing (an, ar) l (bn, br) r t) cTy = do
     (t', tTy, tSk) <- inferElem ctx env site t
     st <- getSt
     case preferSum st ctx tTy of
       Just (a, b, _) => do
         let motTy = absT 0 t' cTy
         unless (skelFreeT motTy) $
-          throw "\{site}: the recovered motive contains a stuck eliminator — write the motive: (z. T)"
+          throwAt site.srange "\{site}: the recovered motive contains a stuck eliminator — write the motive: (z. T)"
         recordBinder ar ctx env an a
         (l', lSk) <- checkElem (ctx :< a) (env :< an) site l
                        (substTy motTy (Ext Wk (Inj1 (CtxVar 0))))
         recordBinder br ctx env bn b
         (r', rSk) <- checkElem (ctx :< b) (env :< bn) site r
                        (substTy motTy (Ext Wk (Inj2 (CtxVar 0))))
-        c <- convTy ctx env "\{site}: inferred vs expected type" Nothing (substTy motTy (Ext Id t')) cTy
+        c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing (substTy motTy (Ext Id t')) cTy
         pure (SumElim l' r' t',
               addPayload (PSwitch (certOr c)) (Nd [PMotive motTy (Nd [] [])] [lSk, rSk, tSk]))
-      Nothing => throw "\{site}: ⊎-elim scrutinee has non-⊎ type\{structuralHint ()}"
-  checkElem ctx env site (SQuotElim Nothing (an, ar) f q) cTy = do
+      Nothing => throwAt site.srange "\{site}: ⊎-elim scrutinee has non-⊎ type\{structuralHint ()}"
+  checkElemAt ctx env site (SQuotElim Nothing (an, ar) f q) cTy = do
     (q', qTy, qSk) <- inferElem ctx env site q
     st <- getSt
     case preferQuot st ctx qTy of
       Just (a, rel, _) => do
         let motTy = absT 0 q' cTy
         unless (skelFreeT motTy) $
-          throw "\{site}: the recovered motive contains a stuck eliminator — write the motive: (z. T)"
+          throwAt site.srange "\{site}: the recovered motive contains a stuck eliminator — write the motive: (z. T)"
         recordBinder ar ctx env an a
         (f', fSk) <- checkElem (ctx :< a) (env :< an) site f
                        (substTy motTy (Ext Wk (Class (CtxVar 0))))
@@ -3905,18 +3962,18 @@ mutual
         wd <- if isPropTy st2 (ctx :< QuotTy a rel) motTy
           then pure (Just (MkECert [] FProp))
           else convElem (ctx :< a :< substTy a Wk :< rel) (env :< an :< (an ++ "'") :< "h")
-            "\{site}: well-definedness of quot-elim case" Nothing
+            (sub site "\{site}: well-definedness of quot-elim case") Nothing
             (substElem f' (Ext wk3 (CtxVar 2)))
             (substElem f' (Ext wk3 (CtxVar 1)))
             (substTy motTy (Ext wk3 (Class (CtxVar 2))))
-        c <- convTy ctx env "\{site}: inferred vs expected type" Nothing (substTy motTy (Ext Id q')) cTy
+        c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing (substTy motTy (Ext Id q')) cTy
         pure (QuotElim f' q',
               addPayload (PSwitch (certOr c)) (Nd [PMotive motTy (Nd [] []), PWD (certOr wd)] [fSk, qSk]))
-      Nothing => throw "\{site}: quot-elim scrutinee has non-quotient type\{structuralHint ()}"
-  checkElem ctx env site t ty = do
+      Nothing => throwAt site.srange "\{site}: quot-elim scrutinee has non-quotient type\{structuralHint ()}"
+  checkElemAt ctx env site t ty = do
     (t', inferred, tSk) <- inferElem ctx env site t
     motiveTrial ctx env site t t' tSk ty
-    c <- convTy ctx env "\{site}: inferred vs expected type" Nothing inferred ty
+    c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
     pure (t', addPayload (PSwitch (certOr c)) tSk)
 
   ||| Record the sugar trial's verdict at a ranged site (Phase 4).
@@ -3931,7 +3988,7 @@ mutual
 
   ||| Would the elided ≡ recover the written domain α-exactly?
   ||| Mirrors elabEqSides exactly: the left side first.
-  eqElideVerdict : Ctx -> NameEnv -> String -> SElem -> SElem -> Ty -> ElabM Bool
+  eqElideVerdict : Ctx -> NameEnv -> Site -> SElem -> SElem -> Ty -> ElabM Bool
   eqElideVerdict ctx env site l r t' =
     if sInferForm l
       then do res <- probeM (inferElem ctx env site l)
@@ -3949,28 +4006,28 @@ mutual
   ||| LEFT side (right as fallback when the left is an intro form) —
   ||| a deterministic rule, not a search. Both sides intro is a
   ||| structural error whose remedy is the ∈-annotation.
-  elabEqSides : Ctx -> NameEnv -> String -> SElem -> SElem -> ElabM (Elem, Elem, Ty, Skel, Skel)
+  elabEqSides : Ctx -> NameEnv -> Site -> SElem -> SElem -> ElabM (Elem, Elem, Ty, Skel, Skel)
   elabEqSides ctx env site l r =
     if sInferForm l
       then do
         (l', t', lSk) <- inferElem ctx env site l
         unless (skelFreeT t') $
-          throw "\{site}: the inferred equality domain contains a stuck eliminator — annotate it: l ≡ r ∈ T"
+          throwAt site.srange "\{site}: the inferred equality domain contains a stuck eliminator — annotate it: l ≡ r ∈ T"
         (r', rSk) <- checkElem ctx env site r t'
         pure (l', r', t', lSk, rSk)
       else if sInferForm r
         then do
           (r', t', rSk) <- inferElem ctx env site r
           unless (skelFreeT t') $
-            throw "\{site}: the inferred equality domain contains a stuck eliminator — annotate it: l ≡ r ∈ T"
+            throwAt site.srange "\{site}: the inferred equality domain contains a stuck eliminator — annotate it: l ≡ r ∈ T"
           (l', lSk) <- checkElem ctx env site l t'
           pure (l', r', t', lSk, rSk)
-        else throw "\{site}: cannot infer the equality's domain — annotate it: l ≡ r ∈ T"
+        else throwAt site.srange "\{site}: cannot infer the equality's domain — annotate it: l ≡ r ∈ T"
 
   ||| The MOTIVE trial: at a checking-position eliminator with a
   ||| written motive, record whether abstracting the scrutinee in the
   ||| expected type reproduces it α-exactly.
-  motiveTrial : Ctx -> NameEnv -> String -> SElem -> Elem -> Skel -> Ty -> ElabM ()
+  motiveTrial : Ctx -> NameEnv -> Site -> SElem -> Elem -> Skel -> Ty -> ElabM ()
   motiveTrial ctx env site surf core sk cTy = do
     st <- getSt
     when st.svSugarOn $ case (motRangeOf surf, motPayload sk, scrutOf core) of
@@ -4029,7 +4086,7 @@ mutual
   ||| re-elaborates for real; none or several is a structural error
   ||| whose remedy is qualification (the mention form (M.op), or
   ||| opening only one candidate).
-  resolveOverload : Ctx -> NameEnv -> String -> Maybe Ty -> (x0 : String) ->
+  resolveOverload : Ctx -> NameEnv -> Site -> Maybe Ty -> (x0 : String) ->
                     Maybe Range -> List SElem -> List String -> ElabM (Elem, Ty, Skel)
   resolveOverload ctx env site mexp x0 mrng items cands0 = do
     -- pre-elaborate the INFERENCE-FORM arguments once — candidates
@@ -4103,7 +4160,7 @@ mutual
       before <- oblCount
       (_, ty', _) <- run pres q
       case mexp of
-        Just c => ignore (convTy ctx env "\{site}: overload fit" Nothing ty' c)
+        Just c => ignore (convTy ctx env (sub site "\{site}: overload fit") Nothing ty' c)
         Nothing => pure ()
       after <- oblCount
       pure (minus after before)
@@ -4176,7 +4233,7 @@ mutual
   ||| touched. An unsolved position is a STRUCTURAL error naming the
   ||| remedy ({…}). Matching is syntactic first, then both sides
   ||| under the δ-free computational normalizer — never the store.
-  elabImpSpine : Ctx -> NameEnv -> String -> Maybe Ty -> (insertTrailing : Bool) ->
+  elabImpSpine : Ctx -> NameEnv -> Site -> Maybe Ty -> (insertTrailing : Bool) ->
                  (noIns : Bool) ->
                  (q : String) -> (x0 : String) -> Maybe Range -> List SElem ->
                  ElabM (Elem, Ty, Skel)
@@ -4187,7 +4244,7 @@ mutual
   ||| an argument already elaborated once at the site, consumed by
   ||| the walk instead of re-elaborating.
   elabImpSpineP : List (Maybe (Elem, Ty, Skel)) ->
-                 Ctx -> NameEnv -> String -> Maybe Ty -> (insertTrailing : Bool) ->
+                 Ctx -> NameEnv -> Site -> Maybe Ty -> (insertTrailing : Bool) ->
                  (noIns : Bool) ->
                  (q : String) -> (x0 : String) -> Maybe Range -> List SElem ->
                  ElabM (Elem, Ty, Skel)
@@ -4196,8 +4253,8 @@ mutual
     defTy <- case cachedSigLookup st.sig q of
       Just (SigDef [<] _ _ ty) => pure ty
       Just (SigDecl [<] _ ty) => pure ty
-      Just _ => throw "\{site}: '\{q}' is not usable as a term here"
-      Nothing => throw "\{site}: unknown name '\{q}'"
+      Just _ => throwAt site.srange "\{site}: '\{q}' is not usable as a term here"
+      Nothing => throwAt site.srange "\{site}: unknown name '\{q}'"
     let imps = if noIns then [] else fromMaybe [] (lookup q st.impls)
     recordBinderImps mrng ctx env x0 defTy imps
     -- the site's LICENSED JOIN (comp ∘ unfold[cited]) — recovery's
@@ -4451,7 +4508,7 @@ mutual
             (more, left) <- assign imps (S pos) ds (it :: rest)
             pure ((pos, Nothing) :: more, left)
         else case it of
-          SImpArg _ => throw "\{site}: {…} override at an explicit binder position of '\{q}'"
+          SImpArg _ => throwAt site.srange "\{site}: {…} override at an explicit binder position of '\{q}'"
           _ => do
             (more, left) <- assign imps (S pos) ds rest
             pure ((pos, Just it) :: more, left)
@@ -4486,7 +4543,7 @@ mutual
                                [] => (Nothing, [])
         dInst <- case getAt pos doms of
                    Just d => pure (substTy d (prefixSub (reverse revArgs)))
-                   Nothing => throw "\{site}: internal — slot beyond the telescope"
+                   Nothing => throwAt site.srange "\{site}: internal — slot beyond the telescope"
         case pre of
           -- a PRE-ELABORATED argument (overload resolution): use its
           -- inferred type, defer the domain conversion like the
@@ -4639,10 +4696,10 @@ mutual
         Just surfE => do
           d <- case getAt pos doms of
                  Just d => pure d
-                 Nothing => throw "\{site}: internal — deferred slot beyond the telescope"
+                 Nothing => throwAt site.srange "\{site}: internal — deferred slot beyond the telescope"
           let dFinal = substTy d (prefixSub (reverse acc))
           when (hasHolesT dFinal) $
-            throw "\{site}: argument #\{show pos} of '\{q}' has an undetermined domain — a blank it depends on found no source; spell the blank"
+            throwAt site.srange "\{site}: argument #\{show pos} of '\{q}' has an undetermined domain — a blank it depends on found no source; spell the blank"
           (e', eSk) <- asArg (checkElem ctx env site surfE dFinal)
           resolveArgs sols defers doms rest (e' :: acc) ((pos, eSk) :: patches)
         Nothing =>
@@ -4650,8 +4707,8 @@ mutual
             then case lookup pos sols of
               Just v => resolveArgs sols defers doms rest (v :: acc) patches
               Nothing => case mt of
-                Just (SBlank _) => throw "\{site}: cannot infer the blank at argument #\{show pos} of '\{q}' — spell the argument"
-                _ => throw "\{site}: cannot infer implicit argument #\{show pos} of '\{q}' — supply it with {…}, or pass the bare function with \{q} {}"
+                Just (SBlank _) => throwAt site.srange "\{site}: cannot infer the blank at argument #\{show pos} of '\{q}' — spell the argument"
+                _ => throwAt site.srange "\{site}: cannot infer implicit argument #\{show pos} of '\{q}' — supply it with {…}, or pass the bare function with \{q} {}"
             else resolveArgs sols defers doms rest (arg :: acc) patches
 
     ||| The hypothetical elided solve, replaying `walk`'s discipline
@@ -4820,16 +4877,16 @@ mutual
     patchPending doms finalArgs sks ((pos, eTy) :: more) = do
       dFinal <- case getAt pos doms of
                   Just d => pure (substTy d (prefixSub (take pos finalArgs)))
-                  Nothing => throw "\{site}: internal — pending position out of range"
-      when (hasHolesT dFinal) $ throw "\{site}: INTERNAL imp-leak dFinal pos=\{show pos} q=\{q}"
-      when (hasHolesT eTy) $ throw "\{site}: INTERNAL imp-leak eTy pos=\{show pos} q=\{q}"
+                  Nothing => throwAt site.srange "\{site}: internal — pending position out of range"
+      when (hasHolesT dFinal) $ throwAt site.srange "\{site}: INTERNAL imp-leak dFinal pos=\{show pos} q=\{q}"
+      when (hasHolesT eTy) $ throwAt site.srange "\{site}: INTERNAL imp-leak eTy pos=\{show pos} q=\{q}"
       -- INFERRED ≐ EXPECTED, the e-switch orientation: the kernel
       -- replays the switch certificate in that direction, and a
       -- licensed (step-carrying) certificate is direction-sensitive
       -- (α/comp-closed ones are symmetric, which is why the deferred
       -- route could pass reversed arguments unnoticed until a blank
       -- first deferred a hyp.rw-needing conversion)
-      c <- convTy ctx env "\{site}: implicit-spine argument type" Nothing eTy dFinal
+      c <- convTy ctx env (sub site "\{site}: implicit-spine argument type") Nothing eTy dFinal
       patchPending doms finalArgs (mapAt pos (addPayload (PSwitch (certOr c))) sks) more
 
 
@@ -4838,14 +4895,14 @@ mutual
     continueApp : (Elem, Ty, Skel) -> List SElem -> ElabM (Elem, Ty, Skel)
     continueApp acc [] = pure acc
     continueApp (f', fTy, fSk) (it :: rest) = case it of
-      SImpArg _ => throw "\{site}: {…} override beyond the Π-telescope of '\{q}'"
+      SImpArg _ => throwAt site.srange "\{site}: {…} override beyond the Π-telescope of '\{q}'"
       _ => do
         st <- getSt
         case preferPi st ctx fTy of
           Just (a, b, _) => do
             (e', eSk) <- asArg (checkElem ctx env site it a)
             continueApp (PiApp f' e', substTy b (Ext Id e'), Nd [] [fSk, eSk]) rest
-          Nothing => throw "\{site}: cannot apply a term of non-Π type\{structuralHint ()}"
+          Nothing => throwAt site.srange "\{site}: cannot apply a term of non-Π type\{structuralHint ()}"
 
 -- ===== Items =====
 
@@ -4908,18 +4965,18 @@ kernelAccept name check clean = do
         Right entry => modifySt $ { kernelSig $= (:< entry) }
         Left err => throw "\{name}: KERNEL REJECTED the elaborated item: \{err}"
 
-liftQE : String -> Either QErr a -> ElabM a
-liftQE site (Left e) = throw "\{site}: \{e}"
+liftQE : Site -> Either QErr a -> ElabM a
+liftQE site (Left e) = throwAt site.srange "\{site}: \{e}"
 liftQE site (Right x) = pure x
 
 ||| Emit one core definition item: kernel-check, extend Σ, register a
 ||| lemma if it is ≡-typed. Mirrors elabItem's tail for surface defs.
-emitCoreDef : String -> String -> Ty -> Skel -> Elem -> Skel -> ElabM ()
+emitCoreDef : Site -> String -> Ty -> Skel -> Elem -> Skel -> ElabM ()
 emitCoreDef site x ty tySk body bodySk = do
   st <- getSt
   let q = if st.modPrefix == "" then x else "\{st.modPrefix}.\{x}"
   case sigLookup q st.sig of
-    Just _ => throw "\{site}: duplicate signature name '\{x}'"
+    Just _ => throwAt site.srange "\{site}: duplicate signature name '\{x}'"
     Nothing => pure ()
   after <- oblCount
   kernelAccept "\{site} \{x}"
@@ -4929,12 +4986,12 @@ emitCoreDef site x ty tySk body bodySk = do
   addVis (x, q)
   addLemma q [<] ty
 
-emitCoreTyDef : String -> String -> Ty -> Skel -> ElabM ()
+emitCoreTyDef : Site -> String -> Ty -> Skel -> ElabM ()
 emitCoreTyDef site x ty tySk = do
   st <- getSt
   let q = if st.modPrefix == "" then x else "\{st.modPrefix}.\{x}"
   case sigLookup q st.sig of
-    Just _ => throw "\{site}: duplicate signature name '\{x}'"
+    Just _ => throwAt site.srange "\{site}: duplicate signature name '\{x}'"
     Nothing => pure ()
   after <- oblCount
   kernelAccept "\{site} \{x}"
@@ -5013,27 +5070,27 @@ registerImps q ty = case impPositions ty of
   ps => modifySt $ { impls $= ((q, ps) ::) }
 
 ||| One-shot elaboration of an item (the body of elabItem below).
-elabItemGo : SItem -> ElabM String
+elabItemGo : (irng : Maybe Range) -> SItem -> ElabM String
 
 ||| Elaborate an item under the searchless default scope: hypotheses
 ||| and computation only, unless the def's using-clause overrides it
 ||| (the SDef handler installs the resolved names over this).
 ||| NOVA_GLOBAL_STORE=1 restores the historical whole-store search.
 export
-elabItem : SItem -> ElabM String
-elabItem item = withScope (if scopedMode then Just [] else Nothing) $ do
+elabItem : (irng : Maybe Range) -> SItem -> ElabM String
+elabItem irng item = withScope (if scopedMode then Just [] else Nothing) $ do
   modifySt { curItem := clearBlocked (itemName item) }
   pre <- getSt
-  timedM "item \{pre.modPrefix}.\{itemName item}" (elabItemGo item)
+  timedM "item \{pre.modPrefix}.\{itemName item}" (elabItemGo irng item)
 
-elabItemGo (SDef x ty body muses) = do
+elabItemGo irng (SDef x ty body muses) = do
   census <- openCensus
   st <- getSt
   -- the Σ-name is qualified by the module; the root file's entries
   -- stay bare
   let q = if st.modPrefix == "" then x else "\{st.modPrefix}.\{x}"
   case sigLookup q st.sig of
-    Just _ => throw "def \{x}: duplicate signature name"
+    Just _ => throwAt irng "def \{x}: duplicate signature name"
     Nothing => pure ()
   -- the item's discharge scope: its using-clause if it has one; under
   -- NOVA_SCOPED, an unannotated item sees hypotheses and computation
@@ -5041,14 +5098,14 @@ elabItemGo (SDef x ty body muses) = do
   -- otherwise the full store (the historical behavior)
   scEqs <- the (ElabM (Maybe (List String), List String)) $ case muses of
           Just ns => do
-            (rs, eqs) <- resolveUsingNames "def \{x}" ns
+            (rs, eqs) <- resolveUsingNames (MkSite "def \{x}" irng) ns
             pure (Just rs, eqs)
           Nothing => pure (if scopedMode then Just [] else Nothing, [])
   let (sc, eqs) = scEqs
   -- items live in the EMPTY context: parameters are Π-binders in the
   -- item's type, references are bare names
-  (ty', tySk) <- withScope sc (withEqScope eqs (elabTy [<] [<] "def \{x}" ty))
-  (body', bodySk) <- withScope sc (withEqScope eqs (checkElem [<] [<] "def \{x}" body ty'))
+  (ty', tySk) <- withScope sc (withEqScope eqs (elabTy [<] [<] (MkSite "def \{x}" irng) ty))
+  (body', bodySk) <- withScope sc (withEqScope eqs (checkElem [<] [<] (MkSite "def \{x}" irng) body ty'))
   -- clean means the RUN is clean: an earlier item's assumption poisons
   -- everything after it (the kernel Σ cannot contain the earlier item,
   -- so references to it are unresolvable anyway)
@@ -5062,7 +5119,7 @@ elabItemGo (SDef x ty body muses) = do
   registerImps q ty
   suffix <- opensSuffix census
   pure "defined \{x}\{suffix}"
-elabItemGo (SDeclDef nrng x ty) = do
+elabItemGo irng (SDeclDef nrng x ty) = do
   -- a DECLARATION (docs/NovaFoundation.txt, sig-decl at ε): a stuck
   -- named entry — reported as open, blocking acceptance; references
   -- type by el-sig-decl. The remedy is supplying the definiens (or importing a
@@ -5071,9 +5128,9 @@ elabItemGo (SDeclDef nrng x ty) = do
   st <- getSt
   let q = if st.modPrefix == "" then x else "\{st.modPrefix}.\{x}"
   case sigLookup q st.sig of
-    Just _ => throw "def \{x}: duplicate signature name"
+    Just _ => throwAt irng "def \{x}: duplicate signature name"
     Nothing => pure ()
-  (ty', tySk) <- elabTy [<] [<] "def \{x}" ty
+  (ty', tySk) <- elabTy [<] [<] (MkSite "def \{x}" irng) ty
   modifySt $ { sig $= (:< SigDecl [<] q ty')
              , declMeta $= (:< MkDeclMeta q [<] "def \{x}" nrng) }
   addVis (x, q)
@@ -5085,14 +5142,14 @@ elabItemGo (SDeclDef nrng x ty) = do
   registerImps q ty
   suffix <- opensSuffix census
   pure "declared \{x}\{suffix}"
-elabItemGo (STypeDef x ty) = do
+elabItemGo irng (STypeDef x ty) = do
   census <- openCensus
   st <- getSt
   let q = if st.modPrefix == "" then x else "\{st.modPrefix}.\{x}"
   case sigLookup q st.sig of
-    Just _ => throw "type \{x}: duplicate signature name"
+    Just _ => throwAt irng "type \{x}: duplicate signature name"
     Nothing => pure ()
-  (ty', tySk) <- elabTy [<] [<] "type \{x}" ty
+  (ty', tySk) <- elabTy [<] [<] (MkSite "type \{x}" irng) ty
   after <- oblCount
   kernelAccept "type \{x}"
     (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty' tySk))
@@ -5101,13 +5158,13 @@ elabItemGo (STypeDef x ty) = do
   addVis (x, q)
   suffix <- opensSuffix census
   pure "defined type \{x}\{suffix}"
-elabItemGo (SData params decls) = do
+elabItemGo irng (SData params decls) = do
   census <- openCensus
-  let site = "data " ++ (case decls of
-                           (d :: _) => d.dqname
-                           [] => "")
+  let site = MkSite ("data " ++ (case decls of
+                                   (d :: _) => d.dqname
+                                   [] => "")) irng
   case decls of
-    [] => throw "\{site}: empty data literal"
+    [] => throwAt site.srange "\{site}: empty data literal"
     _ => pure ()
   -- 0. the ambient PARAMETER telescope (Foundation's Γ ⊦ 𝒮 qsig): the
   --    signature is elaborated OVER it, and every emitted def is
@@ -5138,7 +5195,7 @@ elabItemGo (SData params decls) = do
   zipWithIndex _ [] = []
   zipWithIndex i (x :: xs) = (i, x) :: zipWithIndex (S i) xs
 
-  elabParams : String -> Ctx -> NameEnv -> List (String, STy)
+  elabParams : Site -> Ctx -> NameEnv -> List (String, STy)
             -> ElabM (Ctx, NameEnv, List Ty)
   elabParams site ctx env [] = pure (ctx, env, [])
   elabParams site ctx env ((x, t) :: rest) = do
@@ -5152,7 +5209,7 @@ elabItemGo (SData params decls) = do
   wrapParams : List Ty -> Ty -> Ty
   wrapParams ptys ty = foldr PiTy ty ptys
 
-  elabSQTm : String -> Ctx -> NameEnv -> SQTm -> ElabM QTm
+  elabSQTm : Site -> Ctx -> NameEnv -> SQTm -> ElabM QTm
   elabSQTm site ectx env (SQVar _ i) = pure (QVar i)
   elabSQTm site ectx env (SQAppE f e) = do
     f' <- elabSQTm site ectx env f
@@ -5163,7 +5220,7 @@ elabItemGo (SData params decls) = do
   elabSQTm site ectx env (SQAppI f a) =
     [| QAppI (elabSQTm site ectx env f) (elabSQTm site ectx env a) |]
 
-  elabDecl : String -> Ctx -> NameEnv -> SQDecl -> ElabM QTy
+  elabDecl : Site -> Ctx -> NameEnv -> SQDecl -> ElabM QTy
   elabDecl site pctx penv d = go pctx penv d.dqbinders
    where
     go : Ctx -> NameEnv -> List (String, Either STy SQTm) -> ElabM QTy
@@ -5182,15 +5239,15 @@ elabItemGo (SData params decls) = do
         u' <- elabSQTm site ectx env u
         pure (QEl (QEqC l' r' u'))
 
-  entryAt : String -> QSig -> Nat -> ElabM QTy
+  entryAt : Site -> QSig -> Nat -> ElabM QTy
   entryAt site sg k = case qEntry sg k of
     Just e => pure e
-    Nothing => throw "\{site}: internal — entry out of range"
+    Nothing => throwAt site.srange "\{site}: internal — entry out of range"
 
   ||| A sort: a code-valued def when the signature is SMALL; for a
   ||| LARGE signature, a type item (nullary sorts only — an indexed
   ||| large family has no closed-item spelling).
-  emitSort : String -> (Nat, List Ty) -> QSig -> Nat -> String -> ElabM ()
+  emitSort : Site -> (Nat, List Ty) -> QSig -> Nat -> String -> ElabM ()
   emitSort site (np, ptys) sg k nm = do
     entry <- entryAt site sg k
     (tel, _, _) <- liftQE site (reflTel sg (qwAt k) entry)
@@ -5204,10 +5261,10 @@ elabItemGo (SData params decls) = do
         emitCoreDef site nm ty (Nd [] []) body (Nd [] [])
       else if n == 0 && np == 0
         then emitCoreTyDef site nm (QSort sg k [<]) (Nd [] [])
-        else throw "\{site}: an indexed or parameterized sort of a LARGE signature has no closed-item spelling (make the signature small)"
+        else throwAt site.srange "\{site}: an indexed or parameterized sort of a LARGE signature has no closed-item spelling (make the signature small)"
 
   ||| A point constructor: the saturated former, η-expanded once.
-  emitCtor : String -> (Nat, List Ty) -> QSig -> Nat -> String -> ElabM ()
+  emitCtor : Site -> (Nat, List Ty) -> QSig -> Nat -> String -> ElabM ()
   emitCtor site (np, ptys) sg k nm = do
     entry <- entryAt site sg k
     ty0 <- liftQE site (reflQTy sg (qwAt k) entry)
@@ -5221,7 +5278,7 @@ elabItemGo (SData params decls) = do
   ||| On later
   ||| items this def is an accepted lemma, so the QIIT's imposed
   ||| equations feed discharge through the standard store.
-  emitEq : String -> (Nat, List Ty) -> QSig -> Nat -> String -> ElabM ()
+  emitEq : Site -> (Nat, List Ty) -> QSig -> Nat -> String -> ElabM ()
   emitEq site (np, ptys) sg k nm = do
     entry <- entryAt site sg k
     (tel, wEnd, hd) <- liftQE site (reflTel sg (qwAt k) entry)
@@ -5246,7 +5303,7 @@ elabItemGo (SData params decls) = do
   ||| … → Ω, results the props themselves) — by proof irrelevance its
   ||| coherences hold outright (el-prf-prop), so it takes NO
   ||| coherence arguments and its qcoh certificates are bare FProp.
-  emitElim : String -> (Nat, List Ty) -> QSig -> Nat -> (prop : Bool) -> String -> ElabM ()
+  emitElim : Site -> (Nat, List Ty) -> QSig -> Nat -> (prop : Bool) -> String -> ElabM ()
   emitElim site (np, ptys) sg s prop nm = do
     let sortPs = qPositions QKSort sg
     let pointPs = qPositions QKPoint sg
@@ -5333,7 +5390,7 @@ elabItemGo (SData params decls) = do
     -- everything
     ordS <- case qOrdinal QKSort sg s of
               Just o => pure o
-              Nothing => throw "\{site}: internal — sort ordinal"
+              Nothing => throwAt site.srange "\{site}: internal — sort ordinal"
     let cS = minus nS (S ordS) + nM + nH + nI + 1
     let idxAtEnd = toList (substSubNorm (varSpine nI) Wk)
     let resTy = wrapMot (PiApp (applyChain (CtxVar cS) idxAtEnd) (CtxVar 0))
@@ -5372,7 +5429,7 @@ elabItemGo (SData params decls) = do
     upto Z = []
     upto (S n) = upto n ++ [n]
 
-elabItemGo (SClausalDef nrng x ty etaName witness clauses) = do
+elabItemGo irng (SClausalDef nrng x ty etaName witness clauses) = do
   -- a def with DEFINING EQUATIONS (docs/NovaElaboration.txt,
   -- "Defining equations"): an ITEM MACRO. The expansion is pure
   -- surface-level synthesis (Nova.Elaboration.Clauses); the batch —
@@ -5386,7 +5443,7 @@ elabItemGo (SClausalDef nrng x ty etaName witness clauses) = do
   case expandClausal nrng x ty etaName witness clauses of
     Left err => throw "def \{x}: \{err}"
     Right (MkExpansion items echo) => do
-      ignore $ traverse elabItemGo items
+      ignore $ traverse (elabItemGo irng) items
       suffix <- opensSuffix census
       pure (echo ++ suffix)
 
@@ -5568,8 +5625,11 @@ elabProgram units = go initSt units []
          -> Either (List String, String) (ElabSt, List String)
   goItems path src st [] = Right (st, [])
   goItems path src st ((rng, item) :: rest) =
-    case runElabM (elabItem item) st of
-      Left err => Left ([], render (MkDiag Err (Just path) (Just src) rng (withBlockedHint err) []))
+    case runElabM (elabItem rng item) st of
+      -- the elaborator's own span when it narrowed one, the item's
+      -- otherwise
+      Left err => Left ([], render (MkDiag Err (Just path) (Just src)
+                                           (err.erange <|> rng) (withBlockedHint err.emsg) []))
       Right (st', echo) =>
         case goItems path src st' rest of
           Left (echoes, err) => Left (echo :: echoes, err)
@@ -5584,8 +5644,8 @@ elabProgram units = go initSt units []
       Left err =>
         if surveyMode && not (null rest)
           -- SURVEY MODE: an import of a dropped module cascades — drop too
-          then go st rest (echoes ++ ["warning: module \{name} DROPPED (strict survey): \{err}"])
-          else joinBy "\n" (echoes ++ [render (MkDiag Err (Just path) (Just src) Nothing err [])])
+          then go st rest (echoes ++ ["warning: module \{name} DROPPED (strict survey): \{err.emsg}"])
+          else joinBy "\n" (echoes ++ [render (MkDiag Err (Just path) (Just src) err.erange err.emsg [])])
       Right (st, ()) =>
         let hdr = if name == "" then [] else ["module \{name}:"] in
         case goItems path src st items of
@@ -5637,9 +5697,9 @@ elabProgramSt st0 units = go st0 units
  where
   goItems : ElabSt -> List (Maybe Range, SItem) -> Either String ElabSt
   goItems st [] = Right st
-  goItems st ((_, item) :: rest) =
-    case runElabM (elabItem item) st of
-      Left err => Left err
+  goItems st ((rng, item) :: rest) =
+    case runElabM (elabItem rng item) st of
+      Left err => Left err.emsg
       Right (st', _) => goItems st' rest
 
   go : ElabSt -> List ModUnit -> Either String ElabSt
@@ -5647,7 +5707,7 @@ elabProgramSt st0 units = go st0 units
   go st (MkModUnit name _ imps tbl items _ _ _ :: rest) =
     let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
     case runElabM (installImports imps) st of
-      Left err => Left err
+      Left err => Left err.emsg
       Right (st, ()) =>
         case goItems st items of
           Left err => Left err
@@ -5683,9 +5743,9 @@ elabProgramSig units = go initSt units
  where
   goItems : ElabSt -> List (Maybe Range, SItem) -> Either String ElabSt
   goItems st [] = Right st
-  goItems st ((_, item) :: rest) =
-    case runElabM (elabItem item) st of
-      Left err => Left err
+  goItems st ((rng, item) :: rest) =
+    case runElabM (elabItem rng item) st of
+      Left err => Left err.emsg
       Right (st', _) => goItems st' rest
 
   go : ElabSt -> List ModUnit -> Either String Sig
@@ -5693,7 +5753,7 @@ elabProgramSig units = go initSt units
   go st (MkModUnit name _ imps tbl items _ _ _ :: rest) =
     let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
     case runElabM (installImports imps) st of
-      Left err => Left err
+      Left err => Left err.emsg
       Right (st, ()) =>
         case goItems st items of
           Left err => Left err
@@ -5799,8 +5859,8 @@ elabProgramReport units = go initSt units [] [] []
                     (ElabSt, Tagged)
   goItems tbl mname st [] = Right (st, ([], []))
   goItems tbl mname st ((rng, item) :: rest) =
-    case runElabM (elabItem item) st of
-      Left err => Left (([], []), rng, withBlockedHint err)
+    case runElabM (elabItem rng item) st of
+      Left err => Left (([], []), err.erange <|> rng, withBlockedHint err.emsg)
       Right (st', _) =>
         let tagged = map (\o => (mname, rng, o)) (newObls st st')
             -- a declaration diagnostic lands on the declaring item
@@ -5814,7 +5874,7 @@ elabProgramReport units = go initSt units [] [] []
   go st (MkModUnit name _ imps tbl items _ _ _ :: rest) obls hs errs =
     let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
     case runElabM (installImports imps) st of
-      Left err => MkElabReport obls hs (binderInfos tbl st) (errs ++ [(name, Nothing, err)])
+      Left err => MkElabReport obls hs (binderInfos tbl st) (errs ++ [(name, err.erange, err.emsg)])
       Right (st, ()) =>
         case goItems tbl name st items of
           Left ((itemObls, itemHs), rng, err) => MkElabReport (obls ++ itemObls) (hs ++ itemHs) [] (errs ++ [(name, rng, err)])

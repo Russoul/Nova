@@ -300,7 +300,7 @@ export
 renamePath : (rootPath : String) -> (outDir : String) -> RenameMap -> IO (Either String String)
 renamePath rootPath outDir rm = do
   Right units <- loadProgram rootPath
-    | Left err => pure (Left err.lmsg)
+    | Left err => pure (Left (showLoadErr err))
   let Right sigOrig = elabProgramSig units
     | Left err => pure (Left ("input is not accepted; rename only transforms accepted programs:\n" ++ err))
   let ownFixes = map (\u => (u.mname, map snd (lefts u.mbody))) units
@@ -309,7 +309,7 @@ renamePath rootPath outDir rm = do
   Right () <- writeUnits outDir (baseName rootPath) renamed
     | Left err => pure (Left err)
   Right units' <- loadProgram (outDir ++ "/" ++ baseName rootPath)
-    | Left err => pure (Left ("renamed output failed to load: " ++ err.lmsg))
+    | Left err => pure (Left ("renamed output failed to load: " ++ showLoadErr err))
   let Nothing = verifyUnits renamed units'
     | Just err => pure (Left err)
   () <- clearSigEntryIx

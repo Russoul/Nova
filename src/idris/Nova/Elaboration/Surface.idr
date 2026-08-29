@@ -199,6 +199,100 @@ mutual
     ||| expected type — docs/NovaPerfectSurface.txt, Phase 3d)
     SNoIns : SElem -> SElem
 
+-- ===== Source spans =====
+--
+-- Only a handful of nodes record a range of their own: the leaves a
+-- name resolves at (SVar/SSig), the elided-sugar keys (SEqC/STyEq),
+-- the proof atoms (SStar/SStarUsing/SBlank) and every binder name.
+-- That is enough to place an error INSIDE an item without giving
+-- every node a span of its own: a compound's position is its HEAD's —
+-- the leftmost leaf of an application or projection spine, the binder
+-- of an abstraction, the scrutinee of an eliminator. `headRange`
+-- reads it off, and the elaborator narrows the reported site to it as
+-- it descends (see `Nova.Elaboration.Site`).
+--
+-- Nothing means "no better idea than the enclosing item" — never a
+-- wrong position.
+
+mutual
+  public export
+  headRange : SElem -> Maybe Range
+  headRange (SVar r _ _) = r
+  headRange (SSig r _) = r
+  headRange (SStar r) = r
+  headRange (SStarUsing r _) = r
+  headRange (SBlank r) = r
+  headRange (SEqC r _ _ _) = r
+  headRange SUnitI = Nothing
+  headRange SZeroN = Nothing
+  headRange SZeroC = Nothing
+  headRange SOneC = Nothing
+  headRange SNatC = Nothing
+  -- spines and wrappers: the head carries the position
+  -- an argument's span is better than none: a head with no range
+  -- of its own (a numeral, say) still places the spine
+  headRange (SApp f e) = headRange f <|> headRange e
+  headRange (SProj1 t) = headRange t
+  headRange (SProj2 t) = headRange t
+  headRange (SNoIns t) = headRange t
+  headRange (SImpArg t) = headRange t
+  headRange (SAnn t _) = headRange t
+  headRange (SSuc t) = headRange t
+  headRange (SInj1 t) = headRange t
+  headRange (SInj2 t) = headRange t
+  headRange (SClass t) = headRange t
+  headRange (SZeroElim t) = headRange t
+  headRange (SOut t) = headRange t
+  headRange (SStarWit e) = headRange e
+  headRange (SPair a b) = headRange a <|> headRange b
+  headRange (SChain h _) = headRange h
+  headRange (SSquash t) = headRangeTy t
+  headRange (SSquashElim e _ _) = headRange e
+  headRange (SNuC f) = headRangePoly f
+  headRange (SSumC a b) = headRange a <|> headRange b
+  headRange (SPiC _ a _) = headRange a
+  headRange (SSigmaC _ a _) = headRange a
+  headRange (SQuotC a _ _ _) = headRange a
+  -- binders: the bound name's own span
+  headRange (SLam (_, r) _) = r
+  headRange (SLet (_, r) _ _) = r
+  headRange (SCorec (_, r) _ _ _) = r
+  headRange (SCoind (_, r) _ _ _ _ _ _ _) = r
+  -- eliminators: the motive binder when written, the scrutinee's head
+  -- otherwise (a motive-less eliminator is checking-position sugar)
+  headRange (SNatElim (Just ((_, r), _)) _ _ _ _ _) = r
+  headRange (SNatElim Nothing _ _ _ _ t) = headRange t
+  headRange (SSumElim (Just ((_, r), _)) _ _ _ _ _) = r
+  headRange (SSumElim Nothing _ _ _ _ t) = headRange t
+  headRange (SQuotElim (Just ((_, r), _)) _ _ _) = r
+  headRange (SQuotElim Nothing _ _ q) = headRange q
+
+  public export
+  headRangeTy : STy -> Maybe Range
+  headRangeTy (STyEq r _ _ _) = r
+  headRangeTy (STyEl e) = headRange e
+  headRangeTy (STyPi _ a _) = headRangeTy a
+  headRangeTy (STyImpPi _ a _) = headRangeTy a
+  headRangeTy (STySigma _ a _) = headRangeTy a
+  headRangeTy (STySum a b) = headRangeTy a <|> headRangeTy b
+  headRangeTy (STyQuot a _ _ _) = headRangeTy a
+  headRangeTy (STyNu f) = headRangePoly f
+  headRangeTy STyZero = Nothing
+  headRangeTy STyOne = Nothing
+  headRangeTy STyNat = Nothing
+  headRangeTy STyUniv = Nothing
+  headRangeTy STyProp = Nothing
+  headRangeTy (STySig _) = Nothing
+
+  public export
+  headRangePoly : SPoly -> Maybe Range
+  headRangePoly SPHole = Nothing
+  headRangePoly (SPConst e) = headRange e
+  headRangePoly (SPProd f g) = headRangePoly f <|> headRangePoly g
+  headRangePoly (SPSum f g) = headRangePoly f <|> headRangePoly g
+  headRangePoly (SPSigma (_, r) _ _) = r
+  headRangePoly (SPPi (_, r) _ _) = r
+
 -- ===== Weakening =====
 --
 -- Shift every variable index ≥ the cutoff up by one. This is how a
