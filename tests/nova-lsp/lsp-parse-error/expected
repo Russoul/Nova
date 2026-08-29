@@ -1,16 +1,12 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
 CAPS: hover=true definition=true documentSymbol=true
 DIAGNOSTICS (1):
-  [L2:21-L2:22] (error) parse error in DIR/fixture.nova: PARSING ERROR: Reserved keyword @ L2:21
-Last commited @ L2:18
-Next token: Whitespace @ L2:21-L2:22
+  [L2:21-L2:22] (error) expected an identifier ('S' is a reserved keyword), but found whitespace
 TOKENS (0):
 SYMBOLS (0):
 DEFINITION(def): null
 HOVER(def): null
 DIAGNOSTICS FOR FIXTURE (1):
-  [L2:21-L2:22] (error) parse error in DIR/fixture.nova: PARSING ERROR: Reserved keyword @ L2:21
-Last commited @ L2:18
-Next token: Whitespace @ L2:21-L2:22
+  [L2:21-L2:22] (error) expected an identifier ('S' is a reserved keyword), but found whitespace
 SERVER REQUEST AFTER DIDSAVE: none
 SERVER EXIT CODE: 0

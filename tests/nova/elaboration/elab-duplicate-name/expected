@@ -1,2 +1,4 @@
 defined x
-Error: def x: duplicate signature name
+input.nova:2:1: error: def x: duplicate signature name
+2 | def x : ℕ ≔ S Z
+  | ^^^^^^^^^^^^^^^

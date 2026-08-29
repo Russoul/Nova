@@ -51,6 +51,7 @@ import Nova.Kernel
 import Me.Russoul.Text.Position
 import Me.Russoul.Text.Range
 import Nova.Elaboration.Named
+import Nova.Diagnostic
 import Nova.Elaboration.Surface
 import Nova.Elaboration.Clauses
 import Nova.Elaboration.Parser
@@ -5436,6 +5437,9 @@ public export
 record ModUnit where
   constructor MkModUnit
   mname : String
+  ||| the file the module was read from, spelled as the loader
+  ||| resolved it — a diagnostic's location prefix
+  mpath : String
   mimports : List SImport
   ||| the module's EFFECTIVE fixity table (opened imports' + own
   ||| declarations) — the printer's, for faithful infix layout
@@ -5529,7 +5533,7 @@ enterModule name imps = do
 
 installImports : List SImport -> ElabM ()
 installImports [] = pure ()
-installImports (MkSImport m opens :: rest) = do
+installImports (MkSImport m opens _ :: rest) = do
   go opens
   installImports rest
  where
@@ -5557,19 +5561,23 @@ elabProgram units = go initSt units []
        Nothing => "Accepted."
        Just rep => rep)
 
-  goItems : ElabSt -> List (Maybe Range, SItem) -> Either (List String, String) (ElabSt, List String)
-  goItems st [] = Right (st, [])
-  goItems st ((_, item) :: rest) =
+  -- an item's failure is reported AT the item: the diagnostic carries
+  -- the file, the item's span and a source excerpt (item-level
+  -- granularity — that is as fine as `mitems` records)
+  goItems : (path : String) -> (src : String) -> ElabSt -> List (Maybe Range, SItem)
+         -> Either (List String, String) (ElabSt, List String)
+  goItems path src st [] = Right (st, [])
+  goItems path src st ((rng, item) :: rest) =
     case runElabM (elabItem item) st of
-      Left err => Left ([], withBlockedHint err)
+      Left err => Left ([], render (MkDiag Err (Just path) (Just src) rng (withBlockedHint err) []))
       Right (st', echo) =>
-        case goItems st' rest of
+        case goItems path src st' rest of
           Left (echoes, err) => Left (echo :: echoes, err)
           Right (st'', echoes) => Right (st'', echo :: echoes)
 
   go : ElabSt -> List ModUnit -> List String -> String
   go st [] echoes = joinBy "\n" (echoes ++ ["Error: empty program"])
-  go st (MkModUnit name imps tbl items _ _ _ :: rest) echoes = do
+  go st (MkModUnit name path imps tbl items _ _ src :: rest) echoes = do
     -- a fresh visibility table per module: its own imports only, and a
     -- lemma store scoped to its import closure
     case runElabM (enterModule name (map mname imps) >> installImports imps) st of
@@ -5577,10 +5585,10 @@ elabProgram units = go initSt units []
         if surveyMode && not (null rest)
           -- SURVEY MODE: an import of a dropped module cascades — drop too
           then go st rest (echoes ++ ["warning: module \{name} DROPPED (strict survey): \{err}"])
-          else joinBy "\n" (echoes ++ ["Error: \{err}"])
+          else joinBy "\n" (echoes ++ [render (MkDiag Err (Just path) (Just src) Nothing err [])])
       Right (st, ()) =>
         let hdr = if name == "" then [] else ["module \{name}:"] in
-        case goItems st items of
+        case goItems path src st items of
           Left (itemEchoes, err) =>
             if surveyMode && not (null rest)
               -- SURVEY MODE: a hard failure (automation the strict
@@ -5588,7 +5596,8 @@ elabProgram units = go initSt units []
               -- continues — its importers cascade into the same path
               then go st rest (echoes ++ hdr ++ itemEchoes ++
                      ["warning: module \{name} DROPPED (strict survey): \{err}"])
-              else joinBy "\n" (echoes ++ hdr ++ itemEchoes ++ ["Error: \{err}"])
+              -- `err` is already a rendered diagnostic (goItems)
+              else joinBy "\n" (echoes ++ hdr ++ itemEchoes ++ [err])
           Right (st', itemEchoes) =>
             case rest of
               [] => finish tbl st' (echoes ++ hdr ++ itemEchoes)
@@ -5635,7 +5644,7 @@ elabProgramSt st0 units = go st0 units
 
   go : ElabSt -> List ModUnit -> Either String ElabSt
   go st [] = Left "empty program"
-  go st (MkModUnit name imps tbl items _ _ _ :: rest) =
+  go st (MkModUnit name _ imps tbl items _ _ _ :: rest) =
     let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
     case runElabM (installImports imps) st of
       Left err => Left err
@@ -5681,7 +5690,7 @@ elabProgramSig units = go initSt units
 
   go : ElabSt -> List ModUnit -> Either String Sig
   go st [] = Left "empty program"
-  go st (MkModUnit name imps tbl items _ _ _ :: rest) =
+  go st (MkModUnit name _ imps tbl items _ _ _ :: rest) =
     let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
     case runElabM (installImports imps) st of
       Left err => Left err
@@ -5701,8 +5710,8 @@ export
 elabFile : String -> String
 elabFile content =
   case runSurfaceParser (parseSFile []) content of
-    Left (_, err) => "Parse error: \{err}"
-    Right (toks, ([], decls, items, body)) => elabProgram [MkModUnit "" [] decls items toks body content]
+    Left pf => render (MkDiag Err Nothing (Just content) pf.pfrange pf.pfmsg pf.pfnotes)
+    Right (toks, ([], decls, items, body)) => elabProgram [MkModUnit "" "<input>" [] decls items toks body content]
     Right (_, (_, _, _, _)) => "Error: this entry point resolves no imports (use the module-aware loader)"
 
 ||| Structured, range-aware counterpart to `elabProgram` for LSP
@@ -5802,7 +5811,7 @@ elabProgramReport units = go initSt units [] [] []
 
   go : ElabSt -> List ModUnit -> List (String, Maybe Range, Obligation) -> List (String, Maybe Range, String) -> List (String, Maybe Range, String) -> ElabReport
   go st [] obls hs errs = MkElabReport obls hs [] errs
-  go st (MkModUnit name imps tbl items _ _ _ :: rest) obls hs errs =
+  go st (MkModUnit name _ imps tbl items _ _ _ :: rest) obls hs errs =
     let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
     case runElabM (installImports imps) st of
       Left err => MkElabReport obls hs (binderInfos tbl st) (errs ++ [(name, Nothing, err)])

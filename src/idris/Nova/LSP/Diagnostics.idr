@@ -9,6 +9,7 @@ import Language.LSP.Message.Location
 import Me.Russoul.Text.Range
 import Me.Russoul.Text.Position
 
+import Nova.Diagnostic
 import Nova.Elaboration
 import Nova.Elaboration.Loader
 import Nova.Elaboration.Surface
@@ -54,11 +55,13 @@ mkParseDiagnostic : Location.Range -> String -> Diagnostic
 mkParseDiagnostic = mkDiagnostic
 
 ||| A hard failure from `Nova.Elaboration.Loader.loadProgram` itself
-||| (parse error, file not found, import cycle, ...). A parse error in
-||| the OPEN document itself lands on its actual span (the loader
-||| carries the failing file and range); anything else — a failure in
-||| an imported file included, whose positions belong to a different
-||| document — stays whole-document, with the message naming the file.
+||| (parse error, file not found, import cycle, ...). A failure in the
+||| OPEN document itself lands on its actual span (the loader carries
+||| the failing file and range) with the bare message; anything else —
+||| a failure in an imported file, whose positions belong to a
+||| different document — stays whole-document, and the message is
+||| prefixed with where it actually is (the LoadErr message itself is
+||| location-free: `Nova.Diagnostic` normally supplies the location).
 export
 loadErrorDiagnostic : (source : String) -> (rootPath : String) -> LoadErr -> Diagnostic
 loadErrorDiagnostic source rootPath err =
@@ -66,7 +69,9 @@ loadErrorDiagnostic source rootPath err =
     (Just f, Just r) =>
       if f == rootPath
         then mkDiagnostic (toLspRange (lines source) r) err.lmsg
-        else mkDiagnostic wholeDocument err.lmsg
+        else mkDiagnostic wholeDocument "in \{showLoc f r}: \{err.lmsg}"
+    (Just f, Nothing) => mkDiagnostic wholeDocument
+      (if f == rootPath then err.lmsg else "in \{f}: \{err.lmsg}")
     _ => mkDiagnostic wholeDocument err.lmsg
 
 ||| Diagnostics for one open document's `ElabReport` — see

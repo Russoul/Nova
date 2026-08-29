@@ -3,7 +3,8 @@ version = 0.1.0
 
 depends = contrib, just-a-parser, lsp-lib
 
-modules = Nova.LSP.Ref
+modules = Nova.Diagnostic
+        , Nova.LSP.Ref
         , Nova.LSP.Log
         , Nova.LSP.Configuration
         , Nova.LSP.Capabilities

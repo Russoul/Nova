@@ -3,7 +3,8 @@ version = 0.1.0
 
 depends = contrib, just-a-parser, test, lsp-lib
 
-modules = Nova.Kernel.Syntax
+modules = Nova.Diagnostic
+        , Nova.Kernel.Syntax
         , Nova.Kernel.Subst
         , Nova.Kernel
         , Nova.Kernel.QIIT
