@@ -225,6 +225,9 @@ record ElabSt where
   ||| obligation or declaration is reported at (they outlive the
   ||| module that minted them: the root's report lists every module's)
   modFile : String
+  ||| the module's effective fixity table — an error that names a TYPE
+  ||| renders it the way the user writes it, infix and all
+  modFix : FixTable
   ||| the item currently elaborating (surface name; "" between items) —
   ||| exposure-survey attribution
   curItem : String
@@ -302,7 +305,7 @@ record ElabSt where
   dupNames : List String
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" "" [<] Nothing [] [] Nothing [] False [<] False [<] [<] [<] False False []
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [] "" [<] Nothing [] [] Nothing [] False [<] False [<] [<] [<] False False []
 
 ||| Is the surface term an INFERENCE form — its type known without an
 ||| expected type? Mirrors the mode inventory
@@ -3095,6 +3098,16 @@ mutual
 structuralHint : () -> String
 structuralHint () = " (ascribe the term: `(t : T)`)"
 
+||| A SHAPE rejection: the term is well-formed, the type it met is the
+||| wrong SHAPE. What that type WAS is the whole diagnosis, so these
+||| say it — rendered the way the module writes it (its own fixities),
+||| display-normalized like every other reported type.
+throwShape : Site -> NameEnv -> (lead : String) -> Ty -> (wanted : String) -> ElabM a
+throwShape site env lead ty wanted = do
+  st <- getSt
+  let shown = prettyTyN st.modFix env (displayTy st ty)
+  throwAt site.srange "\{site}: \{lead} \{shown}, which is not \{wanted}\{structuralHint ()}"
+
 ||| Annotate an item-level error with any head exposures the strict
 ||| whitelist blocked during the item — drained HERE, after every
 ||| discharge attempt has run, so ordering games inside the item
@@ -3391,7 +3404,7 @@ mutual
             Just (a, b, _) => do
               (e', eSk) <- checkElem ctx env site e a
               pure (PiApp f' e', substTy b (Ext Id e'), Nd [] [fSk, eSk])
-            Nothing => throwAt site.srange "\{site}: cannot apply a term of non-Π type\{structuralHint ()}"
+            Nothing => throwShape site env "cannot apply a term of type" fTy "a Π type"
   inferElemAt ctx env site (SImpArg _) =
     throwAt site.srange "\{site}: a {…} override is only legal at an implicit binder position of an applied definition"
   inferElemAt ctx env site (SBlank mrng) =
@@ -3402,13 +3415,13 @@ mutual
     st <- getSt
     case preferSigma st ctx tTy of
       Just (a, b, _) => pure (SigmaElim1 t', a, Nd [] [tSk])
-      Nothing => throwAt site.srange "\{site}: cannot project from a term of non-⨯ type\{structuralHint ()}"
+      Nothing => throwShape site env "cannot project from a term of type" tTy "a ⨯ type"
   inferElemAt ctx env site (SProj2 t) = do
     (t', tTy, tSk) <- inferElem ctx env site t
     st <- getSt
     case preferSigma st ctx tTy of
       Just (a, b, _) => pure (SigmaElim2 t', substTy b (Ext Id (SigmaElim1 t')), Nd [] [tSk])
-      Nothing => throwAt site.srange "\{site}: cannot project from a term of non-⨯ type\{structuralHint ()}"
+      Nothing => throwShape site env "cannot project from a term of type" tTy "a ⨯ type"
   inferElemAt ctx env site (SAnn t ty) = do
     (ty', tySk) <- elabTy ctx env site ty
     (t', tSk) <- checkElem ctx env site t ty'
@@ -3456,7 +3469,7 @@ mutual
                        (substTy motTy (Ext Wk (Inj2 (CtxVar 0))))
         pure (SumElim l' r' t', substTy motTy (Ext Id t'),
               Nd [PMotive motTy motSk] [lSk, rSk, tSk])
-      Nothing => throwAt site.srange "\{site}: ⊎-elim scrutinee has non-⊎ type\{structuralHint ()}"
+      Nothing => throwShape site env "⊎-elim scrutinee has type" tTy "a ⊎ type"
   inferElemAt ctx env site (SQuotElim (Just ((zn, zr), mot)) (an, ar) f q) = do
     (q', qTy, qSk) <- inferElem ctx env site q
     st <- getSt
@@ -3484,7 +3497,7 @@ mutual
             (substTy motTy (Ext wk3 (Class (CtxVar 2))))
         pure (QuotElim f' q', substTy motTy (Ext Id q'),
               Nd [PMotive motTy motSk, PWD (certOr wd)] [fSk, qSk])
-      Nothing => throwAt site.srange "\{site}: quot-elim scrutinee has non-quotient type\{structuralHint ()}"
+      Nothing => throwShape site env "quot-elim scrutinee has type" qTy "a quotient type"
   inferElemAt ctx env site SZeroC = pure (Elem.ZeroTy, UniverseTy, Nd [] [])
   inferElemAt ctx env site SOneC = pure (Elem.OneTy, UniverseTy, Nd [] [])
   inferElemAt ctx env site SNatC = pure (Elem.NatTy, UniverseTy, Nd [] [])
@@ -3542,7 +3555,7 @@ mutual
     st <- getSt
     case preferNu st ctx tTy of
       Just (p, _) => pure (Out t', reflectPoly p (Elem.NuTy p), Nd [] [tSk])
-      Nothing => throwAt site.srange "\{site}: out scrutinee has non-ν type\{structuralHint ()}"
+      Nothing => throwShape site env "out scrutinee has type" tTy "a ν type"
   inferElemAt ctx env site (SCorec _ _ _ _) =
     throwAt site.srange "\{site}: cannot infer the type of corec (the polynomial comes from the expected ν-type)\{structuralHint ()}"
   inferElemAt ctx env site (SCoind _ _ _ _ _ _ _ _) =
@@ -3572,7 +3585,7 @@ mutual
         recordBinder xr ctx env x a
         (t', tSk) <- checkElem (ctx :< a) (env :< x) site t b
         pure (PiIntro t', withExpose exp (Nd [] [tSk]))
-      Nothing => throwAt site.srange "\{site}: λ checked against a non-Π type\{structuralHint ()}"
+      Nothing => throwShape site env "λ checked against" ty "a Π type"
   checkElemAt ctx env site (SPair u v) ty = do
     st <- getSt
     case preferSigma st ctx ty of
@@ -3580,21 +3593,21 @@ mutual
         (u', uSk) <- checkElem ctx env site u a
         (v', vSk) <- checkElem ctx env site v (substTy b (Ext Id u'))
         pure (SigmaIntro u' v', withExpose exp (Nd [] [uSk, vSk]))
-      Nothing => throwAt site.srange "\{site}: pair checked against a non-⨯ type\{structuralHint ()}"
+      Nothing => throwShape site env "pair checked against" ty "a ⨯ type"
   checkElemAt ctx env site (SInj1 a) ty = do
     st <- getSt
     case preferSum st ctx ty of
       Just (dom, _, exp) => do
         (a', aSk) <- checkElem ctx env site a dom
         pure (Inj1 a', withExpose exp (Nd [] [aSk]))
-      Nothing => throwAt site.srange "\{site}: inj₁ checked against a non-⊎ type\{structuralHint ()}"
+      Nothing => throwShape site env "inj₁ checked against" ty "a ⊎ type"
   checkElemAt ctx env site (SInj2 b) ty = do
     st <- getSt
     case preferSum st ctx ty of
       Just (_, cod, exp) => do
         (b', bSk) <- checkElem ctx env site b cod
         pure (Inj2 b', withExpose exp (Nd [] [bSk]))
-      Nothing => throwAt site.srange "\{site}: inj₂ checked against a non-⊎ type\{structuralHint ()}"
+      Nothing => throwShape site env "inj₂ checked against" ty "a ⊎ type"
   checkElemAt ctx env site (SCorec (xn, xr) a f u) ty = do
     -- e-corec: checking-only, like λ and class
     st <- getSt
@@ -3606,13 +3619,13 @@ mutual
                        (substTy (reflectPoly p a') Wk)
         (u', uSk) <- checkElem ctx env site u a'
         pure (Corec p a' f' u', withExpose exp (Nd [] [aSk, fSk, uSk]))
-      Nothing => throwAt site.srange "\{site}: corec checked against a non-ν type\{structuralHint ()}"
+      Nothing => throwShape site env "corec checked against" ty "a ν type"
   checkElemAt ctx env site (SCoind (xn, xr) (yn, yr) rS pS (mxn, mxr) (myn, myr) (mhn, mhr) qS) ty = do
     -- e-coind: el-nu-coind's surface form, at (l ≡ r ∈ ν F) —
     -- invariant, endpoint proof, one-step closure at the relator
     st <- getSt
     case preferPrf st ctx ty of
-      Nothing => throwAt site.srange "\{site}: coind checked against a non-propositional type\{structuralHint ()}"
+      Nothing => throwShape site env "coind checked against" ty "a proposition"
       Just (pc, exp) => do
         let pcUse = case pc of
                       Elem.EqTy _ _ _ => pc
@@ -3625,7 +3638,7 @@ mutual
                               NuTy f => Just f
                               _ => Nothing
             case fM of
-              Nothing => throwAt site.srange "\{site}: coind at an equation over a non-ν type\{structuralHint ()}"
+              Nothing => throwShape site env "coind proves an equation over" ety "a ν type"
               Just f => do
                 let nuT = NuTy f
                 recordBinder xr ctx env xn nuT
@@ -3642,14 +3655,14 @@ mutual
                 (q', skq) <- checkElem ctx3 (env :< mxn :< myn :< mhn) site qS
                                (liftPoly f3 r3 (Out (CtxVar 2)) (Out (CtxVar 1)))
                 pure (Star, withExpose exp (Nd [PNuCoind r' skR p' skp q' skq] []))
-          _ => throwAt site.srange "\{site}: coind checked against a non-equality proposition\{structuralHint ()}"
+          _ => throwShape site env "coind checked against" ty "an equality proposition"
   checkElemAt ctx env site (SClass a) ty = do
     st <- getSt
     case preferQuot st ctx ty of
       Just (dom, rel, exp) => do
         (a', aSk) <- checkElem ctx env site a dom
         pure (Class a', withExpose exp (Nd [] [aSk]))
-      Nothing => throwAt site.srange "\{site}: class checked against a non-quotient type\{structuralHint ()}"
+      Nothing => throwShape site env "class checked against" ty "a quotient type"
   checkElemAt ctx env site (SZeroElim t) ty = do
     (t', tSk) <- checkElem ctx env site t ZeroTy
     pure (ZeroElim t', Nd [] [tSk])
@@ -3660,7 +3673,7 @@ mutual
     recordBinder mrng ctx env "⋆" ty
     st <- getSt
     case preferPrf st ctx ty of
-      Nothing => throwAt site.srange "\{site}: ⋆ checked against a non-propositional type\{structuralHint ()}"
+      Nothing => throwShape site env "⋆ checked against" ty "a proposition"
       Just (p, exp) => do
         -- el-eq-i / el-squash-i: an equality prop is THE payment rule
         -- (checking ⋆ emits its equation into ↓); a squashed 𝟙 is
@@ -3684,7 +3697,7 @@ mutual
             case exposeHead st sq of
               OneTy => pure (Star, withExpose exp (Nd [PSquashWit OneIntro (Nd [] [])] []))
               _ => throwAt site.srange "\{site}: ⋆ can prove only equality props and 𝟙-shaped squashes automatically (write `⋆ ⟨witness⟩` to supply one directly)"
-          _ => throwAt site.srange "\{site}: ⋆ checked against a non-evident proposition\{structuralHint ()}"
+          _ => throwShape site env "⋆ checked against" ty "an evident proposition"
   -- ⋆ using (…): the SStar rule verbatim, under a discharge scope —
   -- only the named lemmas (plus hypotheses) participate, so the site
   -- is deterministic and module-local (SearchlessElaboration.md §5.3).
@@ -3708,7 +3721,7 @@ mutual
   checkElemAt ctx env site (SChain x0 links) ty = do
     st <- getSt
     case preferPrf st ctx ty of
-      Nothing => throwAt site.srange "\{site}: a chain proves an equality — checked against a non-propositional type\{structuralHint ()}"
+      Nothing => throwShape site env "a chain proves an equality, but is checked against" ty "a proposition"
       Just (p, exp) => do
         let pUse = case p of
                      Elem.EqTy _ _ _ => p
@@ -3721,7 +3734,7 @@ mutual
             adjCerts <- adjacencies tA 1 x0' (zip cands mids)
             cert <- composite tA l r cands adjCerts
             pure (Star, withExpose exp (Nd [PReflEq (certOr cert)] []))
-          _ => throwAt site.srange "\{site}: chain checked against a non-equality proposition\{structuralHint ()}"
+          _ => throwShape site env "chain checked against" ty "an equality proposition"
    where
     ||| a link justification, inferred and reflected into a ground
     ||| candidate (closed under component decomposition, like a
@@ -3789,7 +3802,7 @@ mutual
   checkElemAt ctx env site (SStarWit w) ty = do
     st <- getSt
     case preferPrf st ctx ty of
-      Nothing => throwAt site.srange "\{site}: ⋆ checked against a non-propositional type\{structuralHint ()}"
+      Nothing => throwShape site env "⋆ checked against" ty "a proposition"
       Just (p, exp) =>
         -- el-squash-i, general form: w proves the squashee directly,
         -- whatever its shape. At an equality prop, any proof will do
@@ -3830,12 +3843,12 @@ mutual
                 (w', _) <- checkElem ctx env site w pN
                 let cert = MkECertF Nothing [MkStep True [] (LProof w') [] False] FBeta st.eqScope
                 pure (Star, withExpose exp (Nd [PReflEq cert] []))
-          _ => throwAt site.srange "\{site}: ⋆ ⟨witness⟩ checked against a non-evident proposition\{structuralHint ()}"
+          _ => throwShape site env "⋆ ⟨witness⟩ checked against" ty "an evident proposition"
   checkElemAt ctx env site (SSquashElim e xn body) ty = do
     st <- getSt
     (e', eTy, eSk) <- inferElem ctx env site e
     case preferPrf st ctx eTy of
-      Nothing => throwAt site.srange "\{site}: squash-elim scrutinee has a non-∥∥ type\{structuralHint ()}"
+      Nothing => throwShape site env "squash-elim scrutinee has type" eTy "a ∥∥ proposition"
       Just (p, _) =>
         case exposeCode st p of
           Squash a =>
@@ -3843,12 +3856,12 @@ mutual
             -- inhabitant of the raw squashee a; the goal must itself
             -- be a PROP — no elimination into arbitrary types
             case preferPrf st ctx ty of
-              Nothing => throwAt site.srange "\{site}: squash-elim checked against a non-propositional goal (el-squash-e-prf reaches only further propositions)\{structuralHint ()}"
+              Nothing => throwShape site env "squash-elim checked against" ty "a proposition (el-squash-e-prf reaches only further propositions)"
               Just (q, exp) => do
                 recordBinder (snd xn) ctx env (fst xn) a
                 (body', bodySk) <- checkElem (ctx :< a) (env :< fst xn) site body (substTy q Wk)
                 pure (Star, withExpose exp (Nd [PSquashElim e' eSk body' bodySk] []))
-          _ => throwAt site.srange "\{site}: squash-elim scrutinee has a non-∥∥ type\{structuralHint ()}"
+          _ => throwShape site env "squash-elim scrutinee has type" eTy "a ∥∥ proposition"
   checkElemAt ctx env site (SLet (x, xr) e b) ty = do
     -- e-let-check: let PROPAGATES the ambient mode to its body (a
     -- checking-only body form works under a let without ascription).
@@ -3957,7 +3970,7 @@ mutual
         c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing (substTy motTy (Ext Id t')) cTy
         pure (SumElim l' r' t',
               addPayload (PSwitch (certOr c)) (Nd [PMotive motTy (Nd [] [])] [lSk, rSk, tSk]))
-      Nothing => throwAt site.srange "\{site}: ⊎-elim scrutinee has non-⊎ type\{structuralHint ()}"
+      Nothing => throwShape site env "⊎-elim scrutinee has type" tTy "a ⊎ type"
   checkElemAt ctx env site (SQuotElim Nothing (an, ar) f q) cTy = do
     (q', qTy, qSk) <- inferElem ctx env site q
     st <- getSt
@@ -3981,7 +3994,7 @@ mutual
         c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing (substTy motTy (Ext Id q')) cTy
         pure (QuotElim f' q',
               addPayload (PSwitch (certOr c)) (Nd [PMotive motTy (Nd [] []), PWD (certOr wd)] [fSk, qSk]))
-      Nothing => throwAt site.srange "\{site}: quot-elim scrutinee has non-quotient type\{structuralHint ()}"
+      Nothing => throwShape site env "quot-elim scrutinee has type" qTy "a quotient type"
   checkElemAt ctx env site t ty = do
     (t', inferred, tSk) <- inferElem ctx env site t
     motiveTrial ctx env site t t' tSk ty
@@ -4914,7 +4927,7 @@ mutual
           Just (a, b, _) => do
             (e', eSk) <- asArg (checkElem ctx env site it a)
             continueApp (PiApp f' e', substTy b (Ext Id e'), Nd [] [fSk, eSk]) rest
-          Nothing => throwAt site.srange "\{site}: cannot apply a term of non-Π type\{structuralHint ()}"
+          Nothing => throwShape site env "cannot apply a term of type" fTy "a Π type"
 
 -- ===== Items =====
 
@@ -5595,8 +5608,8 @@ modClosure imps = go (S (length imps)) []
 ||| next module's import closure. The visible list is the closure's
 ||| archives concatenated in newest-module-first order — exactly the
 ||| flattened order a standalone run of that module produces.
-enterModule : (name : String) -> (file : String) -> List String -> ElabM ()
-enterModule name file imps = do
+enterModule : (name : String) -> (file : String) -> (fix : FixTable) -> List String -> ElabM ()
+enterModule name file fix imps = do
   st <- getSt
   let archived = if st.modPrefix == "" && isNil st.ownLemmas
                    then st.modLemmas
@@ -5605,7 +5618,7 @@ enterModule name file imps = do
   let closure = modClosure archivedI imps
   let visible = concatMap (\(_, ls) => ls) (filter (\(m, _) => m `elem` closure) archived)
   let (cs, sh, re, hp) = sigCandParts visible
-  putSt $ { modPrefix := name, modFile := file, vis := [<], dupNames := []
+  putSt $ { modPrefix := name, modFile := file, modFix := fix, vis := [<], dupNames := []
           , lemmas := visible, ownLemmas := []
           , modLemmas := archived, modImports := archivedI
           , curImports := imps
@@ -5664,7 +5677,7 @@ elabProgram units = go initSt units []
   go st (MkModUnit name path imps tbl items _ _ src :: rest) echoes = do
     -- a fresh visibility table per module: its own imports only, and a
     -- lemma store scoped to its import closure
-    case runElabM (enterModule name path (map mname imps) >> installImports imps) st of
+    case runElabM (enterModule name path tbl (map mname imps) >> installImports imps) st of
       Left err =>
         if surveyMode && not (null rest)
           -- SURVEY MODE: an import of a dropped module cascades — drop too
@@ -5729,7 +5742,7 @@ elabProgramSt st0 units = go st0 units
   go : ElabSt -> List ModUnit -> Either String ElabSt
   go st [] = Left "empty program"
   go st (MkModUnit name path imps tbl items _ _ _ :: rest) =
-    let st = either (const st) fst (runElabM (enterModule name path (map mname imps)) st) in
+    let st = either (const st) fst (runElabM (enterModule name path tbl (map mname imps)) st) in
     case runElabM (installImports imps) st of
       Left err => Left err.emsg
       Right (st, ()) =>
@@ -5775,7 +5788,7 @@ elabProgramSig units = go initSt units
   go : ElabSt -> List ModUnit -> Either String Sig
   go st [] = Left "empty program"
   go st (MkModUnit name path imps tbl items _ _ _ :: rest) =
-    let st = either (const st) fst (runElabM (enterModule name path (map mname imps)) st) in
+    let st = either (const st) fst (runElabM (enterModule name path tbl (map mname imps)) st) in
     case runElabM (installImports imps) st of
       Left err => Left err.emsg
       Right (st, ()) =>
@@ -5898,7 +5911,7 @@ elabProgramReport units = go initSt units [] [] []
   go : ElabSt -> List ModUnit -> List (String, Maybe Range, Obligation) -> List (String, Maybe Range, String) -> List (String, Maybe Range, String) -> ElabReport
   go st [] obls hs errs = MkElabReport obls hs [] errs
   go st (MkModUnit name path imps tbl items _ _ _ :: rest) obls hs errs =
-    let st = either (const st) fst (runElabM (enterModule name path (map mname imps)) st) in
+    let st = either (const st) fst (runElabM (enterModule name path tbl (map mname imps)) st) in
     case runElabM (installImports imps) st of
       Left err => MkElabReport obls hs (binderInfos tbl st) (errs ++ [(name, err.erange, err.emsg)])
       Right (st, ()) =>
