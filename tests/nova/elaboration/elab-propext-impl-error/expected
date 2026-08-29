@@ -1,8 +1,8 @@
 defined bad [+2 obligations]
 open obligations (2):
   [1] (p : Ω) (q : Ω) (f : p → p) (x : p) ⊢ p ≐ q type
-      at: def bad: inferred vs expected type
+      at: input.nova:4:18: def bad: inferred vs expected type
       from composite: (p : Ω) (q : Ω) (f : p → p) ⊢ p → p ≐ p → q type
   [2] (p : Ω) (q : Ω) (f : p → p) ⊢ p ≐ q type
-      at: def bad: inferred vs expected type
+      at: input.nova:4:22: def bad: inferred vs expected type
       from composite: (p : Ω) (q : Ω) (f : p → p) ⊢ p → p ≐ q → p type

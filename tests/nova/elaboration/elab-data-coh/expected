@@ -2,4 +2,4 @@ defined data (Bag, nil, ins, swp)
 defined headOr0 [+1 obligation]
 open obligations (1):
   [1] (m : Bag) (x : ℕ) (y : ℕ) (r : Bag) (ih : ℕ) ⊢ x ≐ y : ℕ
-      at: def headOr0: checking ⋆
+      at: input.nova:12:60: def headOr0: checking ⋆

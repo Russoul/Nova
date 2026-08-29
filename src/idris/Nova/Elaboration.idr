@@ -138,6 +138,8 @@ record Obligation where
   constructor MkObl
   stmt : Stmt
   site : Site
+  ||| the file `site`'s span belongs to
+  file : String
   composite : Maybe Stmt
   ||| advisory (docs/SearchlessElaboration.md §5.4): what a one-shot
   ||| GLOBAL-store probe found when this SCOPED site failed — search
@@ -153,6 +155,9 @@ record OblMeta where
   constructor MkOblMeta
   oenv : NameEnv
   osite : Site
+  ||| the file the site's span belongs to — obligations outlive the
+  ||| module that minted them
+  ofile : String
   ocomposite : Maybe Stmt
   ||| advisory hint recorded at assume time (§5.4) — display only
   ohint : Maybe String
@@ -165,6 +170,8 @@ record DeclMeta where
   dname : String
   denv : NameEnv
   dsite : String
+  ||| the file `drange` belongs to
+  dfile : String
   ||| the declaring item's source span (LSP diagnostics)
   drange : Maybe Range
 
@@ -214,6 +221,10 @@ record ElabSt where
   ||| dotted name of the module being elaborated; "" = the root file,
   ||| whose entries stay unqualified
   modPrefix : String
+  ||| the file that module was read from — the location prefix an
+  ||| obligation or declaration is reported at (they outlive the
+  ||| module that minted them: the root's report lists every module's)
+  modFile : String
   ||| the item currently elaborating (surface name; "" between items) —
   ||| exposure-survey attribution
   curItem : String
@@ -291,7 +302,7 @@ record ElabSt where
   dupNames : List String
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [<] Nothing [] [] Nothing [] False [<] False [<] [<] [<] False False []
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" "" [<] Nothing [] [] Nothing [] False [<] False [<] [<] [<] False False []
 
 ||| Is the surface term an INFERENCE form — its type known without an
 ||| expected type? Mirrors the mode inventory
@@ -2526,11 +2537,11 @@ oblView st = go (toList st.sig) (toList st.oblMeta)
   go : List SigEntry -> List OblMeta -> List Obligation
   go (SigDecl ctx n (Elem.EqTy a b TopTy) :: rest) (m :: ms) =
     if isOblName n
-      then MkObl (displayStmt st (StTy ctx m.oenv a b)) m.osite (map (displayStmt st) m.ocomposite) m.ohint :: go rest ms
+      then MkObl (displayStmt st (StTy ctx m.oenv a b)) m.osite m.ofile (map (displayStmt st) m.ocomposite) m.ohint :: go rest ms
       else go rest (m :: ms)
   go (SigDecl ctx n (Elem.EqTy a b ty) :: rest) (m :: ms) =
     if isOblName n
-      then MkObl (displayStmt st (StElem ctx m.oenv a b ty)) m.osite (map (displayStmt st) m.ocomposite) m.ohint :: go rest ms
+      then MkObl (displayStmt st (StElem ctx m.oenv a b ty)) m.osite m.ofile (map (displayStmt st) m.ocomposite) m.ohint :: go rest ms
       else go rest (m :: ms)
   go (_ :: rest) ms = go rest ms
   go [] _ = []
@@ -2544,6 +2555,7 @@ record DeclView where
   dvenv : NameEnv
   dvty : Maybe Ty
   dvsite : String
+  dvfile : String
   dvrange : Maybe Range
 
 ||| The declaration report view: Σ's declaration entries zipped with
@@ -2554,8 +2566,8 @@ declView st = mapMaybe view (toList st.sig)
   metaFor : String -> Maybe DeclMeta
   metaFor x = find (\m => m.dname == x) (toList st.declMeta)
   view : SigEntry -> Maybe DeclView
-  view (SigDecl ctx x TopTy) = map (\m => MkDeclView x (displayCtx st ctx) m.denv Nothing m.dsite m.drange) (metaFor x)
-  view (SigDecl ctx x ty) = map (\m => MkDeclView x (displayCtx st ctx) m.denv (Just (displayTy st ty)) m.dsite m.drange) (metaFor x)
+  view (SigDecl ctx x TopTy) = map (\m => MkDeclView x (displayCtx st ctx) m.denv Nothing m.dsite m.dfile m.drange) (metaFor x)
+  view (SigDecl ctx x ty) = map (\m => MkDeclView x (displayCtx st ctx) m.denv (Just (displayTy st ty)) m.dsite m.dfile m.drange) (metaFor x)
   view _ = Nothing
 
 ||| Σ-lemma names a certificate's steps rely on: heads of LProof
@@ -2742,7 +2754,7 @@ assume stmt site comp = do
       if cheap
         then modifySt $ \s =>
           { sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty))
-          , oblMeta $= (:< MkOblMeta env site comp Nothing) } s
+          , oblMeta $= (:< MkOblMeta env site st.modFile comp Nothing) } s
         else if assumedMatchE st ctx a b ty
         then pure ()
         else modifySt $ \s =>
@@ -2750,12 +2762,12 @@ assume stmt site comp = do
               bK = rwNfElem st ctx b in
           { assumedE $= ((elemSize aK + elemSize bK, ctx, aK, bK, engNfT st ty) ::)
           , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty))
-          , oblMeta $= (:< MkOblMeta env site comp (if st.probing then Nothing else hintOf st <|> blockedHint ())) } s
+          , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint ())) } s
     StTy ctx env x y => do
       if cheap
         then modifySt $ \s =>
           { sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy))
-          , oblMeta $= (:< MkOblMeta env site comp Nothing) } s
+          , oblMeta $= (:< MkOblMeta env site st.modFile comp Nothing) } s
         else do
        let x' = rwNfTy st ctx x
        let y' = rwNfTy st ctx y
@@ -2764,7 +2776,7 @@ assume stmt site comp = do
         else modifySt $ \s =>
           { assumedT $= ((ctx, x', y') ::)
           , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy))
-          , oblMeta $= (:< MkOblMeta env site comp (if st.probing then Nothing else hintOf st <|> blockedHint ())) } s
+          , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint ())) } s
  where
   hintFor : ElabSt -> Stmt -> Maybe String
   hintFor st (StElem ctx _ a b ty) = hintE st ctx a b ty
@@ -5132,7 +5144,7 @@ elabItemGo irng (SDeclDef nrng x ty) = do
     Nothing => pure ()
   (ty', tySk) <- elabTy [<] [<] (MkSite "def \{x}" irng) ty
   modifySt $ { sig $= (:< SigDecl [<] q ty')
-             , declMeta $= (:< MkDeclMeta q [<] "def \{x}" nrng) }
+             , declMeta $= (:< MkDeclMeta q [<] "def \{x}" st.modFile nrng) }
   addVis (x, q)
   -- a DECLARED equation is a lemma like any accepted one: its stuck
   -- reference is a proof element (el-sig-decl), so el-reflect makes
@@ -5480,13 +5492,20 @@ export
 prettyObligation : FixTable -> Nat -> Obligation -> String
 prettyObligation tbl i obl =
   "  [\{show (S i)}] \{prettyStmt tbl obl.stmt}\n" ++
-  "      at: \{obl.site}" ++
+  "      at: \{oblLoc}\{obl.site}" ++
   (case obl.composite of
      Nothing => ""
      Just c => "\n      from composite: \{prettyStmt tbl c}") ++
   (case obl.hint of
      Nothing => ""
      Just h => "\n      hint: \{h}")
+ where
+  -- an obligation the elaborator localized inside its item gets a
+  -- jumpable "file:line:col: " prefix; one it could not stays bare
+  oblLoc : String
+  oblLoc = case obl.site.srange of
+    Just r => "\{showLoc obl.file r}: "
+    Nothing => ""
 
 ||| One module of a program: its dotted name ("" for the root file,
 ||| whose entries stay unqualified), its import lines, its items.
@@ -5531,7 +5550,12 @@ prettyDecl tbl h =
   (case h.dvty of
      Just ty => "⊢ ? : \{prettyTyN tbl h.dvenv ty}"
      Nothing => "⊢ ? type") ++
-  "\n      at: \{h.dvsite}"
+  "\n      at: \{declLoc}\{h.dvsite}"
+ where
+  declLoc : String
+  declLoc = case h.dvrange of
+    Just r => "\{showLoc h.dvfile r}: "
+    Nothing => ""
 
 declReport : FixTable -> List DeclView -> String
 declReport tbl hs =
@@ -5571,8 +5595,8 @@ modClosure imps = go (S (length imps)) []
 ||| next module's import closure. The visible list is the closure's
 ||| archives concatenated in newest-module-first order — exactly the
 ||| flattened order a standalone run of that module produces.
-enterModule : String -> List String -> ElabM ()
-enterModule name imps = do
+enterModule : (name : String) -> (file : String) -> List String -> ElabM ()
+enterModule name file imps = do
   st <- getSt
   let archived = if st.modPrefix == "" && isNil st.ownLemmas
                    then st.modLemmas
@@ -5581,7 +5605,7 @@ enterModule name imps = do
   let closure = modClosure archivedI imps
   let visible = concatMap (\(_, ls) => ls) (filter (\(m, _) => m `elem` closure) archived)
   let (cs, sh, re, hp) = sigCandParts visible
-  putSt $ { modPrefix := name, vis := [<], dupNames := []
+  putSt $ { modPrefix := name, modFile := file, vis := [<], dupNames := []
           , lemmas := visible, ownLemmas := []
           , modLemmas := archived, modImports := archivedI
           , curImports := imps
@@ -5640,7 +5664,7 @@ elabProgram units = go initSt units []
   go st (MkModUnit name path imps tbl items _ _ src :: rest) echoes = do
     -- a fresh visibility table per module: its own imports only, and a
     -- lemma store scoped to its import closure
-    case runElabM (enterModule name (map mname imps) >> installImports imps) st of
+    case runElabM (enterModule name path (map mname imps) >> installImports imps) st of
       Left err =>
         if surveyMode && not (null rest)
           -- SURVEY MODE: an import of a dropped module cascades — drop too
@@ -5704,8 +5728,8 @@ elabProgramSt st0 units = go st0 units
 
   go : ElabSt -> List ModUnit -> Either String ElabSt
   go st [] = Left "empty program"
-  go st (MkModUnit name _ imps tbl items _ _ _ :: rest) =
-    let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
+  go st (MkModUnit name path imps tbl items _ _ _ :: rest) =
+    let st = either (const st) fst (runElabM (enterModule name path (map mname imps)) st) in
     case runElabM (installImports imps) st of
       Left err => Left err.emsg
       Right (st, ()) =>
@@ -5750,8 +5774,8 @@ elabProgramSig units = go initSt units
 
   go : ElabSt -> List ModUnit -> Either String Sig
   go st [] = Left "empty program"
-  go st (MkModUnit name _ imps tbl items _ _ _ :: rest) =
-    let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
+  go st (MkModUnit name path imps tbl items _ _ _ :: rest) =
+    let st = either (const st) fst (runElabM (enterModule name path (map mname imps)) st) in
     case runElabM (installImports imps) st of
       Left err => Left err.emsg
       Right (st, ()) =>
@@ -5862,7 +5886,9 @@ elabProgramReport units = go initSt units [] [] []
     case runElabM (elabItem rng item) st of
       Left err => Left (([], []), err.erange <|> rng, withBlockedHint err.emsg)
       Right (st', _) =>
-        let tagged = map (\o => (mname, rng, o)) (newObls st st')
+        -- an obligation the elaborator localized reports at ITS span,
+        -- not at the whole item (same narrowing the CLI report shows)
+        let tagged = map (\o => (mname, o.site.srange <|> rng, o)) (newObls st st')
             -- a declaration diagnostic lands on the declaring item
             taggedH = map (\h => (mname, h.dvrange <|> rng, prettyDecl tbl h)) (newDecls st st') in
         case goItems tbl mname st' rest of
@@ -5871,8 +5897,8 @@ elabProgramReport units = go initSt units [] [] []
 
   go : ElabSt -> List ModUnit -> List (String, Maybe Range, Obligation) -> List (String, Maybe Range, String) -> List (String, Maybe Range, String) -> ElabReport
   go st [] obls hs errs = MkElabReport obls hs [] errs
-  go st (MkModUnit name _ imps tbl items _ _ _ :: rest) obls hs errs =
-    let st = either (const st) fst (runElabM (enterModule name (map mname imps)) st) in
+  go st (MkModUnit name path imps tbl items _ _ _ :: rest) obls hs errs =
+    let st = either (const st) fst (runElabM (enterModule name path (map mname imps)) st) in
     case runElabM (installImports imps) st of
       Left err => MkElabReport obls hs (binderInfos tbl st) (errs ++ [(name, err.erange, err.emsg)])
       Right (st, ()) =>

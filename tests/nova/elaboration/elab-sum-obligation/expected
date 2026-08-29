@@ -1,4 +1,4 @@
 defined bad [+1 obligation]
 open obligations (1):
   [1] (a : 𝕌) (x : a) ⊢ inj₁ x ≐ inj₂ x : a ⊎ a
-      at: def bad: checking ⋆
+      at: input.nova:3:65: def bad: checking ⋆

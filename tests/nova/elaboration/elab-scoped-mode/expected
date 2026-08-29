@@ -10,5 +10,5 @@ defined needsStore [+1 obligation]
 defined named
 open obligations (1):
   [1] (a : ℕ) (b : ℕ) ⊢ a + b ≐ b + a : ℕ
-      at: def needsStore: checking ⋆
+      at: input.nova:22:64: def needsStore: checking ⋆
       hint: closes with plusComm
