@@ -1,3 +1,5 @@
 module nat:
 defined plus
-input.nova: error: import nat: it defines no 'nonexistent'
+input.nova:1:1: error: import nat: it defines no 'nonexistent'
+1 | import nat (nonexistent)
+  | ^^^^^^^^^^^^^^^^^^^^^^^^

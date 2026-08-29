@@ -12,6 +12,7 @@ import Nova.Kernel.Syntax
 import Nova.Kernel.Parser
 import Nova.Kernel
 import Nova.Kernel.Dormant.Tests
+import Nova.Diagnostic
 import Nova.Distill
 import Nova.Implicitize
 import Nova.Recovery
@@ -66,25 +67,25 @@ main = do
     (_ :: "eval" :: file :: name :: []) => do
       result <- runPath file name
       case result of
-        Left err  => putStrLn "Error: \{err}"
+        Left err  => putStrLn (errorLine err)
         Right val => putStrLn val
     -- Nova.Application's `survey` command, for the survey goldens
     (_ :: "survey" :: file :: []) => do
       result <- sigPath file
       case result of
-        Left err  => putStrLn "Error: \{err}"
+        Left err  => putStrLn (errorLine err)
         Right sig => putStrLn (surveyReport sig)
     -- Nova.Application's `implicitize` command, for its goldens
     (_ :: "implicitize" :: file :: outDir :: []) => do
       result <- implicitizePath file outDir
       case result of
-        Left err  => putStrLn "Error: \{err}"
+        Left err  => putStrLn (errorLine err)
         Right msg => putStrLn msg
     -- Nova.Application's `distill` command, for the distill goldens
     (_ :: "distill" :: file :: outDir :: []) => do
       result <- distillPath file outDir
       case result of
-        Left err  => putStrLn "Error: \{err}"
+        Left err  => putStrLn (errorLine err)
         Right msg => putStrLn msg
     (_ :: "lsp" :: lspBin :: fixture :: word :: []) => runLspTest lspBin fixture word
     _ => do
