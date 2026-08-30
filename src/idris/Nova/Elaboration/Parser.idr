@@ -914,20 +914,41 @@ patVarsOf = foldl goP []
 parseClauseLhs : String -> Rule (List SPat)
 parseClauseLhs iname =
       (do h <- parseHead
-          guard "!every clause must be headed by the item's own name" (h == iname)
+          guard headed (h == iname)
           many (do sp; parsePatAtom))
   <|> (do p1 <- parsePat; sp
           op <- parseOpName
-          guard "!every clause must be headed by the item's own name" (op == iname)
+          guard headed (op == iname)
           sp
           p2 <- parsePat
           pure [p1, p2])
+      -- Neither spelling was headed by the item's name. The guards
+      -- above cannot say so: inside a choice a guard is a branch
+      -- REJECTION — the engine reports whichever branch read
+      -- furthest, so one branch's message is routinely outrun by its
+      -- sibling's, and neither branch may speak for the other anyway
+      -- (a name-headed LHS is exactly how the infix spelling starts:
+      -- `| x + y ≔ …` for `def +`). So the DIAGNOSIS is its own last
+      -- branch: it re-reads the same LHS with the head check dropped,
+      -- which takes it at least as far as any sibling got, and fails
+      -- there saying what is actually wrong.
+  <|> (do h <- anyHead
+          fail "!every clause must be headed by the item's own name ('\{iname}'), not '\{h}'")
  where
+  headed : String
+  headed = "a clause headed by '\{iname}'"
+
   parseHead : Rule String
   parseHead =
         parseName
     <|> parseOpName
     <|> (do kwc '('; sp; op <- parseOpRef; sp; kwc ')'; pure op)
+
+  ||| The LHS's head under either spelling, head check dropped.
+  anyHead : Rule String
+  anyHead =
+        (do h <- parseHead; ignore (many (do sp; parsePatAtom)); pure h)
+    <|> (do ignore parsePat; sp; parseOpName)
 
 ||| clause ::= | lhs ≔ t ([n])? — the RHS is parsed in the LHS's
 ||| binder telescope; the optional [n] names the clause's equation
