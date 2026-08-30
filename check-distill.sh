@@ -4,8 +4,8 @@
 # re-elaboration identical, both runs accepted — AND enforce that
 # src/nova is in CANONICAL DISTILL FORM: distilling it must reproduce
 # it byte for byte (the corpus was rewritten into this form; edits
-# that leave canonical form are re-normalized by
-#   build/exec/nova distill src/nova/all.nova <tmp> && cp <tmp>/*.nova src/nova/ ).
+# that leave canonical form are re-normalized by ./normalize-corpus.sh,
+# or `make normalize` — this gate's fix half).
 #
 # NOVA_BIN=<path>  use that `nova` instead of building one with pack.
 set -e
@@ -26,7 +26,7 @@ for f in "$tmp"/*.nova; do
   fi
 done
 if [ "$fail" -ne 0 ]; then
-  echo "check-distill: FAILED — re-normalize with 'nova distill' (see header)"
+  echo "check-distill: FAILED — run ./normalize-corpus.sh to fix"
   exit 1
 fi
 echo "check-distill: corpus round-trip OK, canonical form verified"
