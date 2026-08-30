@@ -1,4 +1,4 @@
-.PHONY: build install test clean
+.PHONY: build install test normalize clean
 
 build:
 	pack build nova.ipkg
@@ -8,6 +8,9 @@ install:
 
 test:
 	./test.sh
+
+normalize:
+	./normalize-corpus.sh
 
 clean:
 	rm -rf build
