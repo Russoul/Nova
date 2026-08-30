@@ -422,7 +422,9 @@ capped xs = case splitAt 9 xs of
 ||| it.
 export
 parseErrMessage : ParsingError Token st -> String
-parseErrMessage (Error expected _ _ _ leftover) =
+parseErrMessage err =
+  let expected = err.expected
+      leftover = err.leftover in
   -- the same absorption `showExpected` applies (an expectation
   -- contained in another is redundant to print), kept here so the
   -- pieces stay a LIST all the way to the listing
@@ -441,8 +443,9 @@ parseErrMessage (Error expected _ _ _ leftover) =
 ||| keyword — see `Nova.Elaboration.Parser`).
 export
 parseErrNotes : ParsingError Token st -> List String
-parseErrNotes (Error expected _ commit _ _) =
-  let (wanted, diagnoses) = splitDiagnoses expected
+parseErrNotes err =
+  let commit = err.commit
+      (wanted, diagnoses) = splitDiagnoses err.expected
       kept = case wanted of
                [] => drop 1 diagnoses  -- the first one IS the message
                _  => diagnoses in
