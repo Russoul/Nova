@@ -3095,8 +3095,14 @@ mutual
 
 -- ===== Bidirectional elaboration =====
 
+||| The remedy for an INFERENCE failure, and only for one: the form
+||| has no type of its own, and an ascription is exactly what puts it
+||| back into checking mode. A CHECKING failure — the expected type
+||| was the wrong shape — is not helped by re-ascribing the term with
+||| the type that was already expected, so those say nothing here;
+||| naming the type they got is the whole diagnosis (`throwShape`).
 structuralHint : () -> String
-structuralHint () = " (ascribe the term: `(t : T)`)"
+structuralHint () = " — ascribe it: `(t : T)`"
 
 ||| A SHAPE rejection: the term is well-formed, the type it met is the
 ||| wrong SHAPE. What that type WAS is the whole diagnosis, so these
@@ -3106,7 +3112,7 @@ throwShape : Site -> NameEnv -> (lead : String) -> Ty -> (wanted : String) -> El
 throwShape site env lead ty wanted = do
   st <- getSt
   let shown = prettyTyN st.modFix env (displayTy st ty)
-  throwAt site.srange "\{site}: \{lead} \{shown}, which is not \{wanted}\{structuralHint ()}"
+  throwAt site.srange "\{site}: \{lead} \{shown}, which is not \{wanted}"
 
 ||| Annotate an item-level error with any head exposures the strict
 ||| whitelist blocked during the item — drained HERE, after every
