@@ -3,6 +3,6 @@ open declarations (3):
   [pred] ⊢ ? : ℕ → ℕ
       at: input.nova:1:5: def pred
   [predS] ⊢ ? : (n:ℕ) → (pred (S n) ≡ n ∈ ℕ)
-      at: def predS
+      at: input.nova:2:3: def predS
   [predEta] ⊢ ? : (x:ℕ → ℕ) → ((n:ℕ) → (x (S n) ≡ n ∈ ℕ)) → (n:ℕ) → (x n ≡ pred n ∈ ℕ)
-      at: def predEta
+      at: input.nova:1:5: def predEta

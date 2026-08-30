@@ -5506,7 +5506,7 @@ elabItemGo irng (SClausalDef nrng x ty etaName witness clauses) = do
   case expandClausal nrng x ty etaName witness clauses of
     Left err => throw "def \{x}: \{err}"
     Right (MkExpansion items echo) => do
-      ignore $ traverse (elabItemGo irng) items
+      ignore $ traverse (\(r, it) => elabItemGo (r <|> irng) it) items
       suffix <- opensSuffix census
       pure (echo ++ suffix)
 

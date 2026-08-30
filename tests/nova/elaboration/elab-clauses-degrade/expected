@@ -3,8 +3,8 @@ open declarations (4):
   [fib] ⊢ ? : ℕ → ℕ
       at: input.nova:1:5: def fib
   [fibZ] ⊢ ? : fib Z ≡ Z ∈ ℕ
-      at: def fibZ
+      at: input.nova:2:3: def fibZ
   [fibS] ⊢ ? : (n:ℕ) → (fib (S n) ≡ fib (S n) ∈ ℕ)
-      at: def fibS
+      at: input.nova:3:3: def fibS
   [fibEta] ⊢ ? : (x:ℕ → ℕ) → (x Z ≡ Z ∈ ℕ) → ((n:ℕ) → (x (S n) ≡ x (S n) ∈ ℕ)) → (n:ℕ) → (x n ≡ fib n ∈ ℕ)
-      at: def fibEta
+      at: input.nova:1:5: def fibEta
