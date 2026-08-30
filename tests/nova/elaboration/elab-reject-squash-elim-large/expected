@@ -1,3 +1,3 @@
-input.nova:3:28: error: def choice: squash-elim checked against ℕ, which is not a proposition (el-squash-e-prf reaches only further propositions) (ascribe the term: `(t : T)`)
+input.nova:3:28: error: def choice: squash-elim checked against ℕ, which is not a proposition (el-squash-e-prf reaches only further propositions)
 3 | def choice : ∥ℕ∥ → ℕ ≔ λh. squash-elim h (n. n)
   |                            ^^^^^^^^^^^^^^^^^^^^
