@@ -660,7 +660,7 @@ mutual
     _ => "(\{renderPat p})"
 
 renderClause : FixTable -> String -> SClause -> Doc
-renderClause tbl iname (MkSClause pats _ rhs mn) =
+renderClause tbl iname (MkSClause pats _ rhs mn _) =
   let lhs = case (isOpName iname, pats) of
               -- an operator-named item's two-pattern clause lays out
               -- infix (the corpus spelling); operands sit at full

@@ -954,7 +954,13 @@ parseClauseLhs iname =
       -- which takes it at least as far as any sibling got, and fails
       -- there saying what is actually wrong.
   <|> (do h <- anyHead
-          fail "!every clause must be headed by the item's own name ('\{iname}'), not '\{h}'")
+          fatal "!every clause must be headed by the item's own name ('\{iname}'), not '\{h}'")
+      -- no head under either spelling — `| Z ≔ …` for `| f Z ≔ …`.
+      -- This branch consumes nothing, so it could never outrun a
+      -- sibling on depth; FATAL is what lets it be heard. Both
+      -- diagnosing branches are fatal, so the one that read a head
+      -- (and can name it) ends the alternation before this one.
+  <|> fatal "!every clause must be headed by the item's own name ('\{iname}')"
  where
   headed : String
   headed = "a clause headed by '\{iname}'"
@@ -974,8 +980,8 @@ parseClauseLhs iname =
 ||| clause ::= | lhs ≔ t ([n])? — the RHS is parsed in the LHS's
 ||| binder telescope; the optional [n] names the clause's equation
 ||| lemma.
-parseSClause : FixTable -> String -> Rule SClause
-parseSClause tbl iname = do
+parseSClauseRaw : FixTable -> String -> Rule SClause
+parseSClauseRaw tbl iname = do
   kwc '|'; sp
   commit
   pats <- parseClauseLhs iname
@@ -983,7 +989,15 @@ parseSClause tbl iname = do
   let vars = patVarsOf pats
   rhs <- parseSElem tbl ([<] <>< map fst vars)
   mn <- optional (do sp; kwc '['; sp; n <- parseName; sp; kwc ']'; pure n)
-  pure (MkSClause pats vars rhs mn)
+  pure (MkSClause pats vars rhs mn Nothing)
+
+||| The clause with its own source span attached — what the item macro
+||| reports its generated equation lemma at.
+export
+parseSClause : FixTable -> String -> Rule SClause
+parseSClause tbl iname = do
+  (r, c) <- bounds (parseSClauseRaw tbl iname)
+  pure ({ crange := r } c)
 
 -- COMMITS: after an item's leading keyword the parse can be nothing
 -- else, so commit — a failure deep inside the item then propagates

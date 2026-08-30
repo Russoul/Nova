@@ -640,6 +640,10 @@ record SClause where
   crhs : SElem
   ||| the [name] override for this clause's equation lemma
   cname : Maybe String
+  ||| the clause's own source span. The item macro expands each clause
+  ||| into an equation lemma of its own, and that lemma is ABOUT this
+  ||| clause — it is where its obligations and failures belong
+  crange : Maybe Range
 
 public export
 data SItem : Type where
@@ -814,7 +818,7 @@ Show SPat where
 
 export covering
 Show SClause where
-  show (MkSClause ps _ rhs mn) =
+  show (MkSClause ps _ rhs mn _) =
     "| " ++ joinBy " " (map show ps) ++ " := " ++ show rhs
       ++ maybe "" (\n => " [\{n}]") mn
 

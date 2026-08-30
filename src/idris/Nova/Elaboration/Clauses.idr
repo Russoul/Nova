@@ -775,7 +775,11 @@ clausalNames fname etaName cls =
 public export
 record Expansion where
   constructor MkExpansion
-  items : List SItem
+  ||| each generated item with the source it is ABOUT: a clause lemma
+  ||| is about its clause, the definition and the uniqueness lemma
+  ||| about the item as a whole. That range is what the elaborator
+  ||| reports the item's failures and obligations at.
+  items : List (Maybe Range, SItem)
   echo : String
 
 ||| Expand a clausal def into its batch (docs/NovaElaboration.txt,
@@ -816,7 +820,14 @@ expandClausal nrng fname ty etaName witness clauses = do
   -- per-clause telescopes and lemma statements
   cds <- traverse (buildClauseData cols) clauses
   let lemTys = zipWith (mkLemTy cols b k) clauses cds
-  let lemBodies = map (\cd => wrapSLams (map fst cd.ctele) (SStar Nothing)) cds
+  -- the λ's here are pure scaffolding over a ⋆ — their binders reuse
+  -- the pattern variables' SPANS, which would pull the lemma's
+  -- obligations onto a variable inside a pattern. The lemma is about
+  -- the CLAUSE, so the scaffolding keeps the display names and drops
+  -- the ranges (the Π-binders of `mkLemTy` keep theirs, which is what
+  -- ascribes a type to the written pattern variable on hover).
+  let lemBodies = map (\cd => wrapSLams (map (\(n, _) => (n, Nothing)) (map fst cd.ctele))
+                                        (SStar Nothing)) cds
   let m = length clauses
   let eTy = etaType fname ty cols b lemNames lemTys
   let shape = analyzeShape cols clauses
@@ -831,26 +842,26 @@ expandClausal nrng fname ty etaName witness clauses = do
       -- are fragment-shaped — it rewrites by the clause lemmas, never
       -- by unfolding the witness
       Right (MkExpansion
-               (SDef fname ty w Nothing
+               ((nrng, SDef fname ty w Nothing)
                   -- the clause lemmas hold by the definition's own
                   -- computation: cite its defining equation explicitly
                   -- (the join needs the license to unfold the definition
                   -- it otherwise), and the uniqueness proof cites the
                   -- clause lemmas it rewrites by
-                  :: zipWith3 (\n, t, b => SDef n t b (Just [fname ++ ".eq"])) lemNames lemTys lemBodies
-                  ++ [SDef etaN eTy (fromMaybe eBodyStar eBodySynth) (Just (lemNames ++ map (++ ".rw") lemNames ++ [fname ++ ".eq", "hyp.rw"]))])
+                  :: atClauses (zipWith3 (\n, t, b => SDef n t b (Just [fname ++ ".eq"])) lemNames lemTys lemBodies)
+                  ++ [(nrng, SDef etaN eTy (fromMaybe eBodyStar eBodySynth) (Just (lemNames ++ map (++ ".rw") lemNames ++ [fname ++ ".eq", "hyp.rw"])))])
                "defined \{fname} by clauses via witness (\{joinBy ", " names})")
     Nothing =>
       case (shape, shape >>= shapedRho cols b k) of
         (Just _, Just rho) =>
           -- THE FRAGMENT: everything synthesized
           Right (MkExpansion
-                   (SDef fname ty rho Nothing
+                   ((nrng, SDef fname ty rho Nothing)
                       -- as at the witness tier: clause lemmas cite the
                       -- defining equation, uniqueness cites the clause
                       -- lemmas
-                      :: zipWith3 (\n, t, b => SDef n t b (Just [fname ++ ".eq"])) lemNames lemTys lemBodies
-                      ++ [SDef etaN eTy (fromMaybe eBodyStar eBodySynth) (Just (lemNames ++ map (++ ".rw") lemNames ++ [fname ++ ".eq", "hyp.rw"]))])
+                      :: atClauses (zipWith3 (\n, t, b => SDef n t b (Just [fname ++ ".eq"])) lemNames lemTys lemBodies)
+                      ++ [(nrng, SDef etaN eTy (fromMaybe eBodyStar eBodySynth) (Just (lemNames ++ map (++ ".rw") lemNames ++ [fname ++ ".eq", "hyp.rw"])))])
                    "defined \{fname} by clauses (\{joinBy ", " names})")
         _ =>
           -- DECLARATION TIER: the whole batch demotes to named rigid
@@ -858,12 +869,19 @@ expandClausal nrng fname ty etaName witness clauses = do
           -- declared equations (the abstract-interface idiom), so the
           -- file downstream elaborates against the interface
           Right (MkExpansion
-                   (SDeclDef nrng fname ty
-                      :: zipWith (SDeclDef Nothing) lemNames lemTys
-                      ++ [SDeclDef Nothing etaN eTy])
+                   ((nrng, SDeclDef nrng fname ty)
+                      :: zipWith3 (\r, n, t => (r, SDeclDef r n t))
+                                  (map crange clauses) lemNames lemTys
+                      ++ [(nrng, SDeclDef nrng etaN eTy)])
                    ("declared \{fname} and its equations (\{joinBy ", " names})"
                     ++ " — clauses outside the structural fragment"))
  where
+  ||| The generated per-clause items, each paired with its clause's
+  ||| own span (the lists are built by zipping over `clauses`, so they
+  ||| are in clause order and of the same length).
+  atClauses : List SItem -> List (Maybe Range, SItem)
+  atClauses = zip (map crange clauses)
+
   ||| Π(Γᵢ). f p̄ᵢ ≡ tᵢ ∈ B[p̄ᵢ] — the clause, Π-closed over its pattern
   ||| telescope; recursive occurrences in tᵢ stay references to f.
   mkLemTy : List (String, STy) -> STy -> Nat -> SClause -> ClauseData -> STy
