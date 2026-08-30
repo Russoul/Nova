@@ -59,6 +59,8 @@ mutual
     STyProp : STy
     ||| ν F — the coinductive type at a surface polynomial
     STyNu : SPoly -> STy
+    ||| T@r — a source span on a type; transparent, like `SPos`
+    STyPos : Range -> STy -> STy
 
   ||| Surface polynomials — the one-hole codes of Foundation's
   ||| coinductive section. External pieces are element-level CODES; a
@@ -192,6 +194,12 @@ mutual
     ||| implicit position it is a structural error (those are elided
     ||| by default — {t} overrides them)
     SBlank : Maybe Range -> SElem
+    ||| t@r — a SOURCE SPAN on a term. Transparent: it carries no
+    ||| meaning, `Show` skips it, and every structural test goes
+    ||| through `unPos`. The parser attaches one at every grammar
+    ||| level, so an elaboration error can name the exact
+    ||| sub-expression it is about rather than the whole item
+    SPos : Range -> SElem -> SElem
     ||| f {} — the NO-INSERT marker: suppress trailing-implicit
     ||| insertion at this reference/spine (the function-passing form:
     ||| a checking-position reference of an implicit-binder def
@@ -200,6 +208,138 @@ mutual
     SNoIns : SElem -> SElem
 
 -- ===== Source spans =====
+--
+-- `SPos`/`STyPos` are TRANSPARENT: they carry a source range and
+-- nothing else. The parser attaches one at every grammar level (so
+-- every sub-expression has an exact span, from a bare `Z` to a whole
+-- application chain), the elaborator narrows the reported site to
+-- them as it descends, and everything else strips them — `Show` skips
+-- them, so the distiller's AST-identity contract is unaffected, and
+-- every structural test on a term goes through `unPos`.
+
+||| Attach a span. A level of the grammar that adds no node of its own
+||| hands its child straight back, so re-wrapping REPLACES rather than
+||| nests — the two spans coincide there anyway.
+public export
+atPos : Maybe Range -> SElem -> SElem
+atPos Nothing e = e
+atPos (Just r) (SPos _ e) = SPos r e
+atPos (Just r) e = SPos r e
+
+public export
+atPosTy : Maybe Range -> STy -> STy
+atPosTy Nothing t = t
+atPosTy (Just r) (STyPos _ t) = STyPos r t
+atPosTy (Just r) t = STyPos r t
+
+||| Peel the spans off the front of a term. EVERY structural test on a
+||| surface term goes through this: a span is metadata, never part of
+||| a term's shape.
+public export
+unPos : SElem -> SElem
+unPos (SPos _ e) = unPos e
+unPos e = e
+
+public export
+unPosTy : STy -> STy
+unPosTy (STyPos _ t) = unPosTy t
+unPosTy t = t
+
+public export
+posOf : SElem -> Maybe Range
+posOf (SPos r _) = Just r
+posOf _ = Nothing
+
+public export
+posOfTy : STy -> Maybe Range
+posOfTy (STyPos r _) = Just r
+posOfTy _ = Nothing
+
+-- The printer and the AST rewriters have no use for spans and inspect
+-- term SHAPES freely, including a child's; rather than teach every
+-- one of them to look through a wrapper, they take a stripped tree.
+
+mutual
+  ||| Remove every span, at every depth.
+  public export
+  covering
+  stripPos : SElem -> SElem
+  stripPos (SPos _ e) = stripPos e
+  stripPos e@(SVar _ _ _) = e
+  stripPos e@(SSig _ _) = e
+  stripPos SUnitI = SUnitI
+  stripPos SZeroN = SZeroN
+  stripPos (SSuc t) = SSuc (stripPos t)
+  stripPos (SLam x b) = SLam x (stripPos b)
+  stripPos (SLet x d b) = SLet x (stripPos d) (stripPos b)
+  stripPos (SApp f a) = SApp (stripPos f) (stripPos a)
+  stripPos (SPair a b) = SPair (stripPos a) (stripPos b)
+  stripPos (SProj1 t) = SProj1 (stripPos t)
+  stripPos (SProj2 t) = SProj2 (stripPos t)
+  stripPos SZeroC = SZeroC
+  stripPos SOneC = SOneC
+  stripPos SNatC = SNatC
+  stripPos (SPiC x a b) = SPiC x (stripPos a) (stripPos b)
+  stripPos (SSigmaC x a b) = SSigmaC x (stripPos a) (stripPos b)
+  stripPos (SSumC a b) = SSumC (stripPos a) (stripPos b)
+  stripPos (SQuotC a x y r) = SQuotC (stripPos a) x y (stripPos r)
+  stripPos (SEqC rng l r t) = SEqC rng (stripPos l) (stripPos r) (map stripPosTy t)
+  stripPos (SZeroElim t) = SZeroElim (stripPos t)
+  stripPos (SNatElim mot z n2 ih st t) =
+    SNatElim (map (\(n, m) => (n, stripPosTy m)) mot) (stripPos z) n2 ih (stripPos st) (stripPos t)
+  stripPos (SInj1 t) = SInj1 (stripPos t)
+  stripPos (SInj2 t) = SInj2 (stripPos t)
+  stripPos (SSumElim mot a l b r t) =
+    SSumElim (map (\(z, m) => (z, stripPosTy m)) mot) a (stripPos l) b (stripPos r) (stripPos t)
+  stripPos (SClass t) = SClass (stripPos t)
+  stripPos (SQuotElim mot a f q) =
+    SQuotElim (map (\(z, m) => (z, stripPosTy m)) mot) a (stripPos f) (stripPos q)
+  stripPos (SNuC f) = SNuC (stripPosPoly f)
+  stripPos (SOut t) = SOut (stripPos t)
+  stripPos (SCorec x a f u) = SCorec x (stripPos a) (stripPos f) (stripPos u)
+  stripPos (SCoind nx ny r pw mx my mh q) =
+    SCoind nx ny (stripPos r) (stripPos pw) mx my mh (stripPos q)
+  stripPos (SSquash t) = SSquash (stripPosTy t)
+  stripPos e@(SStar _) = e
+  stripPos (SStarWit e) = SStarWit (stripPos e)
+  stripPos e@(SStarUsing _ _) = e
+  stripPos (SSquashElim e x b) = SSquashElim (stripPos e) x (stripPos b)
+  stripPos (SChain h ls) = SChain (stripPos h) (map (\(j, m) => (stripPos j, stripPos m)) ls)
+  stripPos (SAnn t ty) = SAnn (stripPos t) (stripPosTy ty)
+  stripPos (SImpArg t) = SImpArg (stripPos t)
+  stripPos (SNoIns t) = SNoIns (stripPos t)
+  stripPos e@(SBlank _) = e
+
+  public export
+  covering
+  stripPosTy : STy -> STy
+  stripPosTy (STyPos _ t) = stripPosTy t
+  stripPosTy STyZero = STyZero
+  stripPosTy STyOne = STyOne
+  stripPosTy STyNat = STyNat
+  stripPosTy STyUniv = STyUniv
+  stripPosTy t@(STySig _) = t
+  stripPosTy (STyPi x a b) = STyPi x (stripPosTy a) (stripPosTy b)
+  stripPosTy (STyImpPi x a b) = STyImpPi x (stripPosTy a) (stripPosTy b)
+  stripPosTy (STySigma x a b) = STySigma x (stripPosTy a) (stripPosTy b)
+  stripPosTy (STySum a b) = STySum (stripPosTy a) (stripPosTy b)
+  stripPosTy (STyQuot a x y r) = STyQuot (stripPosTy a) x y (stripPos r)
+  stripPosTy (STyEq rng l r t) = STyEq rng (stripPos l) (stripPos r) (map stripPosTy t)
+  stripPosTy (STyEl e) = STyEl (stripPos e)
+  stripPosTy STyProp = STyProp
+  stripPosTy (STyNu f) = STyNu (stripPosPoly f)
+
+  public export
+  covering
+  stripPosPoly : SPoly -> SPoly
+  stripPosPoly SPHole = SPHole
+  stripPosPoly (SPConst e) = SPConst (stripPos e)
+  stripPosPoly (SPProd f g) = SPProd (stripPosPoly f) (stripPosPoly g)
+  stripPosPoly (SPSum f g) = SPSum (stripPosPoly f) (stripPosPoly g)
+  stripPosPoly (SPSigma x a f) = SPSigma x (stripPos a) (stripPosPoly f)
+  stripPosPoly (SPPi x a f) = SPPi x (stripPos a) (stripPosPoly f)
+
+
 --
 -- Only a handful of nodes record a range of their own: the leaves a
 -- name resolves at (SVar/SSig), the elided-sugar keys (SEqC/STyEq),
@@ -217,6 +357,7 @@ mutual
 mutual
   public export
   headRange : SElem -> Maybe Range
+  headRange (SPos r _) = Just r
   headRange (SVar r _ _) = r
   headRange (SSig r _) = r
   headRange (SStar r) = r
@@ -269,6 +410,7 @@ mutual
 
   public export
   headRangeTy : STy -> Maybe Range
+  headRangeTy (STyPos r _) = Just r
   headRangeTy (STyEq r _ _ _) = r
   headRangeTy (STyEl e) = headRange e
   headRangeTy (STyPi _ a _) = headRangeTy a
@@ -353,6 +495,7 @@ mutual
   shiftElem c (SImpArg t) = SImpArg (shiftElem c t)
   shiftElem c (SNoIns t) = SNoIns (shiftElem c t)
   shiftElem c e@(SBlank _) = e
+  shiftElem c (SPos r e) = SPos r (shiftElem c e)
 
   public export
   covering
@@ -371,6 +514,7 @@ mutual
   shiftTy c (STyEl e) = STyEl (shiftElem c e)
   shiftTy c STyProp = STyProp
   shiftTy c (STyNu f) = STyNu (shiftPoly c f)
+  shiftTy c (STyPos r t) = STyPos r (shiftTy c t)
 
   public export
   covering
@@ -541,6 +685,27 @@ public export
 SBodyEntry : Type
 SBodyEntry = Either (Maybe Range, SFixity) (Maybe Range, SItem)
 
+||| An item with every span removed. The PRINTER takes one: it
+||| inspects term shapes freely, a child's included, and a span
+||| between a node and its parent would defeat those tests. Stripping
+||| once at the boundary keeps every one of them written against bare
+||| syntax (`Nova.Distill`).
+export
+covering
+stripPosItem : SItem -> SItem
+stripPosItem (SDef n ty body mu) = SDef n (stripPosTy ty) (stripPos body) mu
+stripPosItem (SDeclDef r n ty) = SDeclDef r n (stripPosTy ty)
+stripPosItem (STypeDef n ty) = STypeDef n (stripPosTy ty)
+stripPosItem (SData ps ds) =
+  SData (map (\(x, t) => (x, stripPosTy t)) ps) (map stripQDecl ds)
+ where
+  stripQDecl : SQDecl -> SQDecl
+  stripQDecl d =
+    { dqbinders := map (\(x, b) => (x, mapFst stripPosTy b)) d.dqbinders } d
+stripPosItem (SClausalDef r n ty eta wit cls) =
+  SClausalDef r n (stripPosTy ty) eta (map stripPos wit)
+              (map (\c => { crhs := stripPos c.crhs } c) cls)
+
 export
 itemName : SItem -> String
 itemName (SDef n _ _ _) = n
@@ -556,6 +721,9 @@ itemName (SClausalDef _ n _ _ _ _) = n
 mutual
   export covering
   Show STy where
+    -- a span is metadata, not structure: SKIPPING it here is what
+    -- makes `show` the distiller's range-insensitive comparator
+    show (STyPos _ t) = show t
     show STyZero = "𝟘"
     show STyOne = "𝟙"
     show STyNat = "ℕ"
@@ -573,6 +741,7 @@ mutual
 
   export covering
   Show SElem where
+    show (SPos _ e) = show e
     show (SVar _ n i) = "\{n}@\{show i}"
     show (SSig _ x) = "\{x}@sig"
     show SUnitI = "()"

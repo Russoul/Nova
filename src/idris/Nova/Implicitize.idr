@@ -152,7 +152,7 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
     mkWrap : List Nat -> (Nat, SElem) -> Maybe SElem
     mkWrap poss (i, a) =
       if i `elem` poss
-        then case a of
+        then case unPos a of
                SBlank _ => Nothing
                _ => Just (SImpArg a)
         else Just a
@@ -168,7 +168,7 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
         Nothing => Just a
         Just p2 =>
           if not (p2 `elem` poss) then Just a
-          else case a of
+          else case unPos a of
             SBlank _ => Nothing
             _ => case mrng of
               Just r => if any (\(r2, pp) => pp == p2 && show r2 == show r) drops
@@ -178,6 +178,8 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
   mutual
     xfE : SElem -> SElem
     xfE e = case e of
+      -- spans stop here: this tree's destination is the printer
+      SPos _ t => xfE t
       SApp _ _ =>
         let (hd, args) = spine e []
             hd' = case hd of
@@ -233,8 +235,9 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
       SBlank _ => e
      where
       spine : SElem -> List SElem -> (SElem, List SElem)
-      spine (SApp f a) acc = spine f (a :: acc)
-      spine h acc = (h, acc)
+      spine e acc = case unPos e of
+        SApp f a => spine f (a :: acc)
+        h => (h, acc)
 
     xfT : STy -> STy
     xfT ty = case ty of
@@ -246,6 +249,7 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
       STyEq rng l r t => STyEq rng (xfE l) (xfE r) (map xfT t)
       STyEl t => STyEl (xfE t)
       STyNu f => STyNu (xfP f)
+      STyPos _ t => xfT t
       _ => ty
 
     xfP : SPoly -> SPoly
@@ -535,10 +539,12 @@ sitesOfUnit resolve q u = concatMap (\(_, it) => goItem it) u.mitems
       SImpArg t => goE t
       SNoIns t => goE t
       SBlank _ => []
+      SPos _ t => goE t
      where
       spine : SElem -> List SElem -> (SElem, List SElem)
-      spine (SApp f a) acc = spine f (a :: acc)
-      spine h acc = (h, acc)
+      spine e acc = case unPos e of
+        SApp f a => spine f (a :: acc)
+        h => (h, acc)
 
     goT : STy -> List (Maybe Range, List SElem)
     goT ty = case ty of
@@ -550,6 +556,7 @@ sitesOfUnit resolve q u = concatMap (\(_, it) => goItem it) u.mitems
       STyEq _ l r t => goE l ++ goE r ++ concatMap goT (toList t)
       STyEl t => goE t
       STyNu f => goP f
+      STyPos _ t => goT t
       _ => []
 
     goP : SPoly -> List (Maybe Range, List SElem)

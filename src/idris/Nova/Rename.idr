@@ -135,6 +135,8 @@ parameters (rm : RenameMap, resolve : String -> String)
       SImpArg t => SImpArg (rnE t)
       SNoIns t => SNoIns (rnE t)
       SBlank _ => e
+      -- spans stop here: the renamed tree goes straight to the printer
+      SPos _ t => rnE t
 
     rnT : STy -> STy
     rnT ty = case ty of
@@ -147,6 +149,7 @@ parameters (rm : RenameMap, resolve : String -> String)
       STyEq rng l r t => STyEq rng (rnE l) (rnE r) (map rnT t)
       STyEl t => STyEl (rnE t)
       STyNu f => STyNu (rnP f)
+      STyPos _ t => rnT t
       _ => ty
 
     rnP : SPoly -> SPoly

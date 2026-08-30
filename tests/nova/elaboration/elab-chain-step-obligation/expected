@@ -7,5 +7,5 @@ defined plusComm
 defined chainBad [+1 obligation]
 open obligations (1):
   [1] (a : ℕ) (b : ℕ) ⊢ a + b ≐ b + a : ℕ
-      at: input.nova:19:11: def chainBad: chain, step 2
+      at: input.nova:21:25: def chainBad: chain, step 2
       hint: closes with plusComm

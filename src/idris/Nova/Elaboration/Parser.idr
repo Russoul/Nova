@@ -209,10 +209,21 @@ foldGroups f ((x, t) :: rest) b = f x t (foldGroups f rest b)
 -- ===== Types and elements (mutually recursive) =====
 
 mutual
+  -- Every level of the term and type grammar records the span of what
+  -- it parsed (`atPos`/`atPosTy`), so an elaboration error can name
+  -- the exact sub-expression it is about. A level that adds no node
+  -- of its own hands its child straight back and the two spans
+  -- coincide, so re-wrapping replaces rather than nests.
+
   -- T{0}: eq-type on top, then the arrow level
   export
   parseSTy : FixTable -> NameEnv -> Rule STy
-  parseSTy tbl env =
+  parseSTy tbl env = do
+    (r, x) <- bounds (parseSTyRaw tbl env)
+    pure (atPosTy r x)
+
+  parseSTyRaw : FixTable -> NameEnv -> Rule STy
+  parseSTyRaw tbl env =
         (do (r, (e0, e1, ma)) <- bounds (do
               e0 <- parseSElemOp tbl env; sp
               kw "≡"; sp
@@ -226,7 +237,12 @@ mutual
   -- Binder groups iterate: (x:T) (y:U) → B ≡ (x:T) → (y:U) → B
   -- (and likewise for ⨯).
   parseSTyArrow : FixTable -> NameEnv -> Rule STy
-  parseSTyArrow tbl env =
+  parseSTyArrow tbl env = do
+    (r, x) <- bounds (parseSTyArrowRaw tbl env)
+    pure (atPosTy r x)
+
+  parseSTyArrowRaw : FixTable -> NameEnv -> Rule STy
+  parseSTyArrowRaw tbl env =
         -- the codomain is full T{≥0}: a trailing ≡-type needs no parens,
         -- so lemma statements read as written
         (do (env', groups) <- parseBinderGroups tbl env
@@ -290,7 +306,12 @@ mutual
   -- a code in type position is spelled directly — `Vect n`, a bound
   -- 𝕌-variable, a computed code in parens)
   parseSTyEl : FixTable -> NameEnv -> Rule STy
-  parseSTyEl tbl env =
+  parseSTyEl tbl env = do
+    (r, x) <- bounds (parseSTyElRaw tbl env)
+    pure (atPosTy r x)
+
+  parseSTyElRaw : FixTable -> NameEnv -> Rule STy
+  parseSTyElRaw tbl env =
         -- a SQUASH standing as a type (prop-lift; Prf is retired
         -- WITHOUT a legacy spelling — a prop stands bare)
         (do kw "∥"; sp; t <- parseSTy tbl env; sp; kw "∥"; pure (STyEl (SSquash t)))
@@ -304,9 +325,10 @@ mutual
                      Nothing => fail "!this type former takes no arguments")
    where
     tyHeadElem : STy -> Maybe SElem
-    tyHeadElem (STySig x) = Just (SSig Nothing x)
-    tyHeadElem (STyEl e) = Just e
-    tyHeadElem _ = Nothing
+    tyHeadElem ty = case unPosTy ty of
+      STySig x => Just (SSig Nothing x)
+      STyEl e => Just e
+      _ => Nothing
 
   -- Polynomials (NovaElaboration.txt, F{·} grammar): binders and
   -- products at the top, sums tighter, atoms innermost.
@@ -336,7 +358,12 @@ mutual
 
   -- T{4}: atoms
   parseSTyAtom : FixTable -> NameEnv -> Rule STy
-  parseSTyAtom tbl env =
+  parseSTyAtom tbl env = do
+    (r, x) <- bounds (parseSTyAtomRaw tbl env)
+    pure (atPosTy r x)
+
+  parseSTyAtomRaw : FixTable -> NameEnv -> Rule STy
+  parseSTyAtomRaw tbl env =
         (kw "𝟘" $> STyZero)
     <|> (kw "𝟙" $> STyOne)
     <|> (kw "ℕ" $> STyNat)
@@ -370,6 +397,11 @@ mutual
   export
   parseSElem : FixTable -> NameEnv -> Rule SElem
   parseSElem tbl env = do
+    (r, x) <- bounds (parseSElemRaw tbl env)
+    pure (atPos r x)
+
+  parseSElemRaw : FixTable -> NameEnv -> Rule SElem
+  parseSElemRaw tbl env = do
     e <- parseSElemNoComma tbl env
     (do sp; kwc ','; sp; e' <- parseSElem tbl env; pure (SPair e e'))
       <|> pure e
@@ -377,7 +409,12 @@ mutual
   -- t{1}: universe-code binder/infix forms and eq-code; binder groups
   -- iterate exactly as at the type level
   parseSElemNoComma : FixTable -> NameEnv -> Rule SElem
-  parseSElemNoComma tbl env =
+  parseSElemNoComma tbl env = do
+    (r, x) <- bounds (parseSElemNoCommaRaw tbl env)
+    pure (atPos r x)
+
+  parseSElemNoCommaRaw : FixTable -> NameEnv -> Rule SElem
+  parseSElemNoCommaRaw tbl env =
         (do (env', groups) <- parseBinderGroupsC tbl env
             sp
             (do kw "→"; sp; b <- parseSElemNoComma tbl env'; pure (foldGroups SPiC groups b))
@@ -415,6 +452,11 @@ mutual
   -- infix code formers
   parseSElemSumC : FixTable -> NameEnv -> Rule SElem
   parseSElemSumC tbl env = do
+    (r, x) <- bounds (parseSElemSumCRaw tbl env)
+    pure (atPos r x)
+
+  parseSElemSumCRaw : FixTable -> NameEnv -> Rule SElem
+  parseSElemSumCRaw tbl env = do
     e <- parseSElemOp tbl env
     (do sp; kw "⊎"; sp; e' <- parseSElemSumC tbl env; pure (SSumC e e'))
       <|> pure e
@@ -423,7 +465,12 @@ mutual
   -- fixity table. An operator token is a NAME; infix use is
   -- application of it.
   parseSElemOp : FixTable -> NameEnv -> Rule SElem
-  parseSElemOp tbl env = climb 0
+  parseSElemOp tbl env = do
+    (r, x) <- bounds (parseSElemOpRaw tbl env)
+    pure (atPos r x)
+
+  parseSElemOpRaw : FixTable -> NameEnv -> Rule SElem
+  parseSElemOpRaw tbl env = climb 0
    where
     mutual
       climb : Nat -> Rule SElem
@@ -472,7 +519,12 @@ mutual
 
   -- t{2}: prefix forms, motive-first eliminators
   parseSElemPrefix : FixTable -> NameEnv -> Rule SElem
-  parseSElemPrefix tbl env =
+  parseSElemPrefix tbl env = do
+    (r, x) <- bounds (parseSElemPrefixRaw tbl env)
+    pure (atPos r x)
+
+  parseSElemPrefixRaw : FixTable -> NameEnv -> Rule SElem
+  parseSElemPrefixRaw tbl env =
         -- λ's body extends MAXIMALLY (ProvingFeedback F-1): over
         -- operators, the code formers → ⨯ ⊎ /, ≡-elements, calc
         -- chains, AND pairs — λx. ℕ ⨯ ℕ is λx. (ℕ ⨯ ℕ), and
@@ -586,6 +638,11 @@ mutual
   -- t{3}: application / projection chains
   parseSElemApp : FixTable -> NameEnv -> Rule SElem
   parseSElemApp tbl env = do
+    (r, x) <- bounds (parseSElemAppRaw tbl env)
+    pure (atPos r x)
+
+  parseSElemAppRaw : FixTable -> NameEnv -> Rule SElem
+  parseSElemAppRaw tbl env = do
     e <- parseSElemAtom tbl env
     cont e
    where
@@ -607,7 +664,12 @@ mutual
 
   -- t{5}: atoms, including ascription
   parseSElemAtom : FixTable -> NameEnv -> Rule SElem
-  parseSElemAtom tbl env =
+  parseSElemAtom tbl env = do
+    (r, x) <- bounds (parseSElemAtomRaw tbl env)
+    pure (atPos r x)
+
+  parseSElemAtomRaw : FixTable -> NameEnv -> Rule SElem
+  parseSElemAtomRaw tbl env =
         -- mention form: (+) — the operator as an ordinary reference
         (do (r, op) <- bounds (do kwc '('; sp; op <- parseOpRef; sp; kwc ')'; pure op); pure (SSig r op))
         -- a FIXITY-FREE operator token is an ordinary name atom (⊥, ⊤,

@@ -313,7 +313,7 @@ initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] ""
 ||| nothing.
 export
 sInferForm : SElem -> Bool
-sInferForm e = case e of
+sInferForm e0 = case unPos e0 of
   SLam _ _ => False
   SLet _ _ _ => False
   SPair _ _ => False
@@ -3357,6 +3357,10 @@ mutual
     (e', eSk) <- checkElem ctx env site e cls
     pure (e', eSk)
   elabTyAt ctx env site STyProp = pure (PropTy, Nd [] [])
+  -- The site is ALREADY this node's span (the wrapper installed it),
+  -- so dispatch to the worker: going back through `elabTy` would
+  -- re-narrow to the child's head and throw the exact span away.
+  elabTyAt ctx env site (STyPos _ t) = elabTyAt ctx env site t
   export
   inferElem : Ctx -> NameEnv -> Site -> SElem -> ElabM (Elem, Ty, Skel)
   inferElem ctx env site e = inferElemAt ctx env (at site (headRange e)) e
@@ -3410,6 +3414,7 @@ mutual
   inferElemAt ctx env site (SBlank mrng) =
     throwAt site.srange "\{site}: a blank (_) is only legal at an explicit binder position of an applied definition — spell the term"
   inferElemAt ctx env site (SNoIns e) = inferElem ctx env site e
+  inferElemAt ctx env site (SPos _ e) = inferElemAt ctx env site e
   inferElemAt ctx env site (SProj1 t) = do
     (t', tTy, tSk) <- inferElem ctx env site t
     st <- getSt
@@ -3731,7 +3736,9 @@ mutual
             (x0', _) <- checkElem ctx env site x0 tA
             mids <- traverse (\(_, x) => map fst (checkElem ctx env site x tA)) links
             cands <- traverse (\(j, _) => linkCand j) links
-            adjCerts <- adjacencies tA 1 x0' (zip cands mids)
+            adjCerts <- adjacencies tA 1 x0'
+                          (zipWith (\(_, mx), (cs, nx) => (headRange mx, cs, nx))
+                                   links (zip cands mids))
             cert <- composite tA l r cands adjCerts
             pure (Star, withExpose exp (Nd [PReflEq (certOr cert)] []))
           _ => throwShape site env "chain checked against" ty "an equality proposition"
@@ -3753,11 +3760,13 @@ mutual
     ||| discharge each adjacency against ITS link only; a failure is
     ||| an ordinary obligation sited at its step (and, being scoped,
     ||| gets a global-store hint if one exists)
-    adjacencies : Ty -> Nat -> Elem -> List (List Cand, Elem) -> ElabM (List (Maybe ECert))
+    adjacencies : Ty -> Nat -> Elem -> List (Maybe Range, List Cand, Elem) -> ElabM (List (Maybe ECert))
     adjacencies tA i prev [] = pure []
-    adjacencies tA i prev ((cs, next) :: rest) = do
+    adjacencies tA i prev ((rng, cs, next) :: rest) = do
+      -- the step reports at ITS OWN midpoint, not at the chain
       m <- withLocal cs spDepth $
-             convElem ctx env (sub site "\{site}: chain, step \{show i}") Nothing prev next tA
+             convElem ctx env (at (sub site "\{site}: chain, step \{show i}") rng)
+                      Nothing prev next tA
       ms <- adjacencies tA (S i) next rest
       pure (m :: ms)
 
@@ -3827,7 +3836,7 @@ mutual
             -- two representatives, whatever the relation's shape.
             -- Anything else keeps the license reading — w proves this
             -- very equation.
-            mcert <- case (exposeHead st qty, pl, pr, w) of
+            mcert <- case (exposeHead st qty, pl, pr, unPos w) of
               (PropTy, _, _, SPair f g) => do
                 (f', fSk) <- checkElem ctx env site f (PiTy pl (substTy pr Wk))
                 (g', gSk) <- checkElem ctx env site g (PiTy pr (substTy pl Wk))
@@ -3995,6 +4004,8 @@ mutual
         pure (QuotElim f' q',
               addPayload (PSwitch (certOr c)) (Nd [PMotive motTy (Nd [] []), PWD (certOr wd)] [fSk, qSk]))
       Nothing => throwShape site env "quot-elim scrutinee has type" qTy "a quotient type"
+  -- as in `elabTyAt`: the site is already this node's own span
+  checkElemAt ctx env site (SPos _ e) ty = checkElemAt ctx env site e ty
   checkElemAt ctx env site t ty = do
     (t', inferred, tSk) <- inferElem ctx env site t
     motiveTrial ctx env site t t' tSk ty
@@ -4087,7 +4098,7 @@ mutual
   overloadOf : ElabSt -> SElem -> Maybe (String, Maybe Range, List SElem, List String)
   overloadOf st e =
     if null st.dupNames then Nothing else
-      case e of
+      case unPos e of
         SApp _ _ =>
           let (h, items) = surfSpine e [] in
           case h of
@@ -4098,9 +4109,15 @@ mutual
             _ => Nothing
         _ => Nothing
    where
+    -- spine arguments are inspected by SHAPE all through the
+    -- implicit machinery (a blank, a {…} override, an ordinary
+    -- term), so the walk hands back BARE nodes. No position is lost:
+    -- an argument keeps the spans of its own children, which is what
+    -- `checkElem` narrows to when it elaborates one.
     surfSpine : SElem -> List SElem -> (SElem, List SElem)
-    surfSpine (SApp f a) acc = surfSpine f (a :: acc)
-    surfSpine h acc = (h, acc)
+    surfSpine e acc = case unPos e of
+      SApp f a => surfSpine f (unPos a :: acc)
+      h => (h, acc)
 
   ||| TYPE-DIRECTED overload resolution (docs/NovaPerfectSurface.txt,
   ||| Phase 4): probe each candidate — the whole spine, isolated and
@@ -4221,16 +4238,19 @@ mutual
       -- position is explicit, and a blank may stand at any of them,
       -- solved by the same oracle (the manual-implicitization form:
       -- homAp {} _ g _ (qIsGroup …) qProj a)
-      SNoIns (SSig mrng x0) =>
-        let q = resolveSigName st x0 in
-        if (any isBlankArg items || st.svSugarOn) && ordinaryHead st q
-          then Just (True, q, x0, mrng, items)
-          else Nothing
+      SNoIns h2 => case unPos h2 of
+        SSig mrng x0 =>
+          let q = resolveSigName st x0 in
+          if (any isBlankArg items || st.svSugarOn) && ordinaryHead st q
+            then Just (True, q, x0, mrng, items)
+            else Nothing
+        _ => Nothing
       _ => Nothing
    where
     isBlankArg : SElem -> Bool
-    isBlankArg (SBlank _) = True
-    isBlankArg _ = False
+    isBlankArg e = case unPos e of
+      SBlank _ => True
+      _ => False
 
     isQSort : Ty -> Bool
     isQSort (QSort _ _ _) = True
@@ -4244,9 +4264,11 @@ mutual
                                  not (any isQSort (res :: doms))
       _ => False
 
+    -- bare nodes out, as in `overloadOf` above
     surfSpine : SElem -> List SElem -> (SElem, List SElem)
-    surfSpine (SApp f a) acc = surfSpine f (a :: acc)
-    surfSpine h acc = (h, acc)
+    surfSpine e acc = case unPos e of
+      SApp f a => surfSpine f (unPos a :: acc)
+      h => (h, acc)
 
   ||| Elaborate an application spine of an implicit-binder definition
   ||| (docs/NovaPerfectSurface.txt, Phase 3): implicit positions up to
@@ -4485,10 +4507,11 @@ mutual
     ||| have. Like an intro form, it defers — and checks later, at a
     ||| hole-free domain, with its insertion intact.
     bareImplicitRef : ElabSt -> SElem -> Bool
-    bareImplicitRef st (SSig _ x0) = case lookup (resolveSigName st x0) st.impls of
-      Just (_ :: _) => True
+    bareImplicitRef st e = case unPos e of
+      SSig _ x0 => case lookup (resolveSigName st x0) st.impls of
+                     Just (_ :: _) => True
+                     _ => False
       _ => False
-    bareImplicitRef st _ = False
 
     ||| the written positions the walk DEFERS: intro forms, and bare
     ||| implicit-headed references (blank slots are holes, not
@@ -4524,7 +4547,9 @@ mutual
         then case it of
           SImpArg t => do
             (more, left) <- assign imps (S pos) ds rest
-            pure ((pos, Just t) :: more, left)
+            -- BARE: the slot's term is inspected by shape further
+            -- down (is it a blank?), like every spine argument
+            pure ((pos, Just (unPos t)) :: more, left)
           -- a blank, like any non-override item, DEFERS past the
           -- implicit position (the hole is inserted; the blank
           -- stands for the next EXPLICIT position — the only place
@@ -4732,7 +4757,8 @@ mutual
             then case lookup pos sols of
               Just v => resolveArgs sols defers doms rest (v :: acc) patches
               Nothing => case mt of
-                Just (SBlank _) => throwAt site.srange "\{site}: cannot infer the blank at argument #\{show pos} of '\{q}' — spell the argument"
+                -- at the blank ITSELF, when it was written with one
+                Just (SBlank brng) => throwAt (brng <|> site.srange) "\{site}: cannot infer the blank at argument #\{show pos} of '\{q}' — spell the argument"
                 _ => throwAt site.srange "\{site}: cannot infer implicit argument #\{show pos} of '\{q}' — supply it with {…}, or pass the bare function with \{q} {}"
             else resolveArgs sols defers doms rest (arg :: acc) patches
 
@@ -5084,9 +5110,10 @@ impPositions : STy -> List Nat
 impPositions = go 0
  where
   go : Nat -> STy -> List Nat
-  go i (STyPi _ _ b) = go (S i) b
-  go i (STyImpPi _ _ b) = i :: go (S i) b
-  go i _ = []
+  go i ty = case unPosTy ty of
+    STyPi _ _ b => go (S i) b
+    STyImpPi _ _ b => i :: go (S i) b
+    _ => []
 
 ||| Register an accepted item's implicit positions, if any.
 registerImps : String -> STy -> ElabM ()
