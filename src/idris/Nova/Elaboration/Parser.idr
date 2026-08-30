@@ -333,7 +333,11 @@ mutual
               [] => pure t
               _ => case tyHeadElem t of
                      Just h => pure (STyEl (foldl SApp h args))
-                     Nothing => fail "!this type former takes no arguments")
+                     -- FATAL: `parseSTy` already tried the equality
+                     -- production, and nothing above reads an applied
+                     -- type former either, so this verdict must not be
+                     -- outrun by a sibling's expectation
+                     Nothing => fatal "!this type former takes no arguments")
    where
     tyHeadElem : STy -> Maybe SElem
     tyHeadElem ty = case unPosTy ty of

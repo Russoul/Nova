@@ -3,17 +3,17 @@
     "just-a-parser": {
       "flake": false,
       "locked": {
-        "lastModified": 1787058262,
-        "narHash": "sha256-TCdm4Cb4GbMKIvQNFHFTgY4coDIKUNHsQYmZmyoxxmE=",
+        "lastModified": 1788109665,
+        "narHash": "sha256-lzFEq5uRT/71CeAfuEU7LSUj4dDufZI4FxhYzwzGdmg=",
         "owner": "Russoul",
         "repo": "Just-a-Parser",
-        "rev": "de33675918ec518de60a6d4ebad1f8d9815a4d66",
+        "rev": "bd6acd473ef0f3fcd1bdc5fba0032b96a7b9313b",
         "type": "github"
       },
       "original": {
         "owner": "Russoul",
         "repo": "Just-a-Parser",
-        "rev": "de33675918ec518de60a6d4ebad1f8d9815a4d66",
+        "rev": "bd6acd473ef0f3fcd1bdc5fba0032b96a7b9313b",
         "type": "github"
       }
     },

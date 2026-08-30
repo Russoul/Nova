@@ -8,7 +8,7 @@
     # compiler itself, and the `contrib`/`test` libraries that ship with
     # it, come from nixpkgs.
     just-a-parser = {
-      url = "github:Russoul/Just-a-Parser/de33675918ec518de60a6d4ebad1f8d9815a4d66";
+      url = "github:Russoul/Just-a-Parser/bd6acd473ef0f3fcd1bdc5fba0032b96a7b9313b";
       flake = false;
     };
     lsp-lib = {
