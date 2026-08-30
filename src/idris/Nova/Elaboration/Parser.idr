@@ -202,6 +202,17 @@ parseUsingNames =
           pure (n :: ns))
   <|> (do n <- usingName; pure [n])
 
+||| Grow a spine step's span: from the head's start to what this step
+||| consumed. Every PREFIX of an application or projection chain is a
+||| node of its own — `f a` inside `f a b` — and each wants its own
+||| position, so the level's single span (which covers the whole
+||| chain) is not enough.
+grew : (head : SElem) -> (step : Maybe Range) -> SElem -> SElem
+grew hd step new =
+  atPos (case (posOf hd, step) of
+           (Just a, Just b) => Just (union a b)
+           (a, b) => a <|> b) new
+
 foldGroups : (String -> a -> b -> b) -> List (String, a) -> b -> b
 foldGroups f [] b = b
 foldGroups f ((x, t) :: rest) b = f x t (foldGroups f rest b)
@@ -480,15 +491,17 @@ mutual
 
       cont : SElem -> Nat -> Rule SElem
       cont l minP =
-            (do sp
-                (rng, op) <- bounds parseOpName
-                case lookup op tbl of
-                  Nothing => fail "an operator with a fixity in scope ('\{op}' has none)"
-                  Just (assoc, p) => do
-                    guard "an operator binding at least this tightly" (p >= minP)
-                    sp
-                    r <- climb (case assoc of AssocL => S p; AssocR => p)
-                    cont (SApp (SApp (SSig rng op) l) r) minP)
+            (do (span, (rng, op, r)) <- bounds (do
+                  sp
+                  (rng, op) <- bounds parseOpName
+                  case lookup op tbl of
+                    Nothing => fail "an operator with a fixity in scope ('\{op}' has none)"
+                    Just (assoc, p) => do
+                      guard "an operator binding at least this tightly" (p >= minP)
+                      sp
+                      r <- climb (case assoc of AssocL => S p; AssocR => p)
+                      pure (rng, op, r))
+                cont (grew l span (SApp (SApp (SSig rng op) l) r)) minP)
         <|> pure l
 
   -- multi-name groups as at the type level (shiftElem for the
@@ -648,18 +661,22 @@ mutual
    where
     cont : SElem -> Rule SElem
     cont e =
-          (do sp; kw ".π₁"; cont (SProj1 e))
-      <|> (do sp; kw ".π₂"; cont (SProj2 e))
+          (do (r, _) <- bounds (do sp; kw ".π₁"); cont (grew e r (SProj1 e)))
+      <|> (do (r, _) <- bounds (do sp; kw ".π₂"); cont (grew e r (SProj2 e)))
       -- {t} — an implicit-position override argument — and {} — the
       -- NO-INSERT marker, suppressing trailing-implicit insertion
       -- (docs/NovaPerfectSurface.txt, Phases 3b/3d); NB `{-` opens a
       -- comment at the lexer, so an override starting with an
       -- operator needs a space: { -x } — the Haskell convention
-      <|> (do sp; kwc '{'; sp
-              (do kwc '}'; cont (SNoIns e))
-                <|> (do t <- parseSElem tbl env; sp; kwc '}'
-                        cont (SApp e (SImpArg t))))
-      <|> (do sp; e' <- parseSElemAtom tbl env; cont (SApp e e'))
+      <|> (do (r, mt) <- bounds (do
+                sp; kwc '{'; sp
+                (do kwc '}'; pure Nothing)
+                  <|> (do t <- parseSElem tbl env; sp; kwc '}'; pure (Just t)))
+              case mt of
+                Nothing => cont (grew e r (SNoIns e))
+                Just t => cont (grew e r (SApp e (SImpArg t))))
+      <|> (do (r, e') <- bounds (do sp; parseSElemAtom tbl env)
+              cont (grew e r (SApp e e')))
       <|> pure e
 
   -- t{5}: atoms, including ascription

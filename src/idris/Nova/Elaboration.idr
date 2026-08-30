@@ -3909,7 +3909,8 @@ mutual
           c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
           pure (t', addPayload (PSwitch (certOr c)) tSk)
         Nothing => do
-          (t', inferred, tSk) <- inferElem ctx env site sapp
+          -- the SAME node: `inferElemAt` keeps the span the site holds
+          (t', inferred, tSk) <- inferElemAt ctx env site sapp
           c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
           pure (t', addPayload (PSwitch (certOr c)) tSk)
   -- a BARE reference of an implicit-binder def in checking position
@@ -3929,11 +3930,11 @@ mutual
             c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
             pure (t', addPayload (PSwitch (certOr c)) tSk)
           else do
-            (t', inferred, tSk) <- inferElem ctx env site sref
+            (t', inferred, tSk) <- inferElemAt ctx env site sref
             c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
             pure (t', addPayload (PSwitch (certOr c)) tSk)
       Nothing => do
-        (t', inferred, tSk) <- inferElem ctx env site sref
+        (t', inferred, tSk) <- inferElemAt ctx env site sref
         c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
         pure (t', addPayload (PSwitch (certOr c)) tSk)
   -- {} — the NO-INSERT marker: elaborate the wrapped reference/spine
@@ -4012,8 +4013,12 @@ mutual
       Nothing => throwShape site env "quot-elim scrutinee has type" qTy "a quotient type"
   -- as in `elabTyAt`: the site is already this node's own span
   checkElemAt ctx env site (SPos _ e) ty = checkElemAt ctx env site e ty
+  -- `inferElemAt`, not `inferElem`: this is the SAME node, whose span
+  -- the site already holds. Re-entering through the wrapper would
+  -- re-derive a span from the node's head and report the application
+  -- at its function, the projection at its scrutinee.
   checkElemAt ctx env site t ty = do
-    (t', inferred, tSk) <- inferElem ctx env site t
+    (t', inferred, tSk) <- inferElemAt ctx env site t
     motiveTrial ctx env site t t' tSk ty
     c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
     pure (t', addPayload (PSwitch (certOr c)) tSk)
