@@ -306,6 +306,7 @@ mutual
 
   peRaw : FixTable -> (tr : Bool) -> SElem -> Doc
   peRaw tbl tr e = case e of
+    SPos _ t => peRaw tbl tr t
     SPair u v => pe tbl LNoComma False u <-> txt "," <-> brk (pe tbl LPair tr v)
     SLam (x, _) b => txt "λ\{x}. " <-> pe tbl LPair tr b
     -- an ascribed definiens prints in the annotated-let form (the two
@@ -541,6 +542,7 @@ mutual
 
   ptRaw : FixTable -> STy -> Doc
   ptRaw tbl ty = case ty of
+    STyPos _ t => ptRaw tbl t
     STyEq _ l r mt =>
       pe tbl LOp0 False l <-> txt " ≡ " <-> eqSideT tbl mt r <->
       (case mt of
@@ -704,14 +706,17 @@ seam hdr bod =
     else renderDoc lineWidth hdr ++ "\n" ++
          renderDoc lineWidth (DNest 2 (txt "  " <-> bod))
 
-renderItem : FixTable -> SItem -> Doc
-renderItem tbl (SDef n ty body mu) =
+-- The printer inspects term shapes, a child's included, so it is
+-- written against BARE syntax: the two entry points below strip the
+-- item's spans once, and nothing under them looks through a wrapper.
+renderItemBare : FixTable -> SItem -> Doc
+renderItemBare tbl (SDef n ty body mu) =
   -- unreachable through renderItemStr (kept total for other callers)
   txt "def \{n} : " <-> pt tbl TTop False ty <-> renderUsing mu <->
   txt " ≔" <-> DGroup (DNest 2 (DLine <-> pe tbl LPair True body))
-renderItem tbl (SDeclDef _ n ty) = txt "def \{n} : " <-> pt tbl TTop False ty
-renderItem tbl (STypeDef n ty) = txt "type \{n} ≔ " <-> pt tbl TTop True ty
-renderItem tbl (SData params ds) =
+renderItemBare tbl (SDeclDef _ n ty) = txt "def \{n} : " <-> pt tbl TTop False ty
+renderItemBare tbl (STypeDef n ty) = txt "type \{n} ≔ " <-> pt tbl TTop True ty
+renderItemBare tbl (SData params ds) =
   txt "data " <->
   concatD (map (\(x, t) => txt "[\{x} : " <-> pt tbl TTop True t <-> txt "] ") params) <->
   (case ds of
@@ -719,7 +724,7 @@ renderItem tbl (SData params ds) =
      _ => txt "( " <->
           concatD (intersperse (DNest 5 DHard <-> txt "; ") (map (renderQDecl tbl) ds)) <->
           txt " )")
-renderItem tbl (SClausalDef _ n ty eta wit cls) =
+renderItemBare tbl (SClausalDef _ n ty eta wit cls) =
   txt "def \{n} : " <-> pt tbl TTop False ty <->
   (case eta of
      Nothing => DNil
@@ -729,8 +734,11 @@ renderItem tbl (SClausalDef _ n ty eta wit cls) =
      Just w => txt " ≔ " <-> pe tbl LPair True w) <->
   concatD (map (\c => DNest 2 (DHard <-> renderClause tbl n c)) cls)
 
-renderItemStr : FixTable -> SItem -> String
-renderItemStr tbl (SDef n ty body mu) =
+renderItem : FixTable -> SItem -> Doc
+renderItem tbl item = renderItemBare tbl (stripPosItem item)
+
+renderItemStrBare : FixTable -> SItem -> String
+renderItemStrBare tbl (SDef n ty body mu) =
   let tyPart = txt "def \{n} : " <-> pt tbl TTop False ty
       usePart = renderUsing mu
       bod = pe tbl LPair True body
@@ -752,9 +760,12 @@ renderItemStr tbl (SDef n ty body mu) =
        Nothing =>
          renderDoc lineWidth (tyPart <-> txt " ≔") ++ "\n" ++
          renderDoc lineWidth (DNest 2 (txt "  " <-> bod))
-renderItemStr tbl (STypeDef n ty) =
+renderItemStrBare tbl (STypeDef n ty) =
   seam (txt "type \{n} ≔") (pt tbl TTop True ty)
-renderItemStr tbl item = renderDoc lineWidth (renderItem tbl item)
+renderItemStrBare tbl item = renderDoc lineWidth (renderItemBare tbl item)
+
+renderItemStr : FixTable -> SItem -> String
+renderItemStr tbl item = renderItemStrBare tbl (stripPosItem item)
 
 renderFixity : SFixity -> String
 renderFixity (op, AssocL, d) = "infixl \{show d} \{op}"
@@ -866,7 +877,7 @@ parameters (ok : Range -> Bool, blankAt : Range -> Nat -> Bool)
       -- re-elaborates to the same core)
       SApp f a =>
         let (h, items) = surfSpine e [] in
-        case h of
+        case unPos h of
           SSig (Just rng) _ =>
             foldl SApp h (blankItems rng 0 items)
           _ => SApp (esE f) (esE a)
@@ -907,10 +918,14 @@ parameters (ok : Range -> Bool, blankAt : Range -> Nat -> Bool)
       SImpArg t => SImpArg (esE t)
       SNoIns t => SNoIns (esE t)
       SBlank _ => e
+      -- spans go no further: this tree's destination is the PRINTER,
+      -- which takes bare syntax
+      SPos _ t => esE t
 
     surfSpine : SElem -> List SElem -> (SElem, List SElem)
-    surfSpine (SApp f a) acc = surfSpine f (a :: acc)
-    surfSpine h acc = (h, acc)
+    surfSpine e acc = case unPos e of
+      SApp f a => surfSpine f (a :: acc)
+      h => (h, acc)
 
     blankItems : Range -> Nat -> List SElem -> List SElem
     blankItems rng i [] = []
@@ -928,7 +943,7 @@ parameters (ok : Range -> Bool, blankAt : Range -> Nat -> Bool)
         else (esE l, keepRootMotive r)
 
     keepRootMotive : SElem -> SElem
-    keepRootMotive e = case e of
+    keepRootMotive e = case unPos e of
       SNatElim (Just (n, m)) z n2 ih st t =>
         SNatElim (Just (n, esT m)) (esE z) n2 ih (esE st) (esE t)
       SSumElim (Just (z, m)) a lb b rb t =>
@@ -955,6 +970,7 @@ parameters (ok : Range -> Bool, blankAt : Range -> Nat -> Bool)
           else STyEq rng (esE l) (esE r) (map esT t)
       STyEl t => STyEl (esE t)
       STyNu f => STyNu (esP f)
+      STyPos _ t => esT t
       _ => ty
 
     esP : SPoly -> SPoly

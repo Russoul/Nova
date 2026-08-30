@@ -104,6 +104,7 @@ mutual
   mapRefsE f g d (SImpArg e) = SImpArg (mapRefsE f g d e)
   mapRefsE f g d (SNoIns e) = SNoIns (mapRefsE f g d e)
   mapRefsE f g d e@(SBlank _) = e
+  mapRefsE f g d (SPos r e) = SPos r (mapRefsE f g d e)
 
   mapRefsTy : (onVar : Nat -> Maybe Range -> String -> Nat -> SElem) ->
               (onSig : Nat -> Maybe Range -> String -> SElem) ->
@@ -122,6 +123,7 @@ mutual
   mapRefsTy f g d (STyEl e) = STyEl (mapRefsE f g d e)
   mapRefsTy f g d STyProp = STyProp
   mapRefsTy f g d (STyNu p) = STyNu (mapRefsP f g d p)
+  mapRefsTy f g d (STyPos r t) = STyPos r (mapRefsTy f g d t)
 
   mapRefsP : (onVar : Nat -> Maybe Range -> String -> Nat -> SElem) ->
              (onSig : Nat -> Maybe Range -> String -> SElem) ->
@@ -211,6 +213,7 @@ mutual
   occursE f (SImpArg e) = occursE f e
   occursE f (SNoIns e) = occursE f e
   occursE f (SBlank _) = False
+  occursE f (SPos _ e) = occursE f e
 
   occursTy : String -> STy -> Bool
   occursTy f STyZero = False
@@ -227,6 +230,7 @@ mutual
   occursTy f (STyEl e) = occursE f e
   occursTy f STyProp = False
   occursTy f (STyNu p) = occursP f p
+  occursTy f (STyPos _ t) = occursTy f t
 
   occursP : String -> SPoly -> Bool
   occursP f SPHole = False
@@ -240,8 +244,9 @@ mutual
 
 ||| Application spine, head-first.
 unwind : SElem -> (SElem, List SElem)
-unwind (SApp g e) = let (h, as) = unwind g in (h, as ++ [e])
-unwind e = (e, [])
+unwind e = case unPos e of
+  SApp g a => let (h, as) = unwind g in (h, as ++ [a])
+  h => (h, [])
 
 spine : SElem -> List SElem -> SElem
 spine = foldl SApp
@@ -256,7 +261,7 @@ mutual
   rwE : (f : String) -> (mk : Nat) -> (lead : List Nat) -> Nat -> SElem -> Maybe SElem
   rwE f mk lead d e@(SApp _ _) =
     let (h, args) = unwind e in
-    case h of
+    case unPos h of
       SSig r x =>
         if x == f
           then do
@@ -275,8 +280,9 @@ mutual
         pure (spine h' args')
    where
     isReqVar : Nat -> SElem -> Bool
-    isReqVar want (SVar _ _ i) = i == want
-    isReqVar _ _ = False
+    isReqVar want e = case unPos e of
+      SVar _ _ i => i == want
+      _ => False
   rwE f mk lead d (SVar r n i) = Just (SVar r n i)
   rwE f mk lead d (SSig r x) = if x == f then Nothing else Just (SSig r x)
   rwE f mk lead d SUnitI = Just SUnitI
@@ -347,6 +353,7 @@ mutual
   rwE f mk lead d (SImpArg e) = [| SImpArg (rwE f mk lead d e) |]
   rwE f mk lead d (SNoIns e) = [| SNoIns (rwE f mk lead d e) |]
   rwE f mk lead d e@(SBlank _) = Just e
+  rwE f mk lead d (SPos r e) = SPos r <$> rwE f mk lead d e
 
   rwTy : (f : String) -> (mk : Nat) -> (lead : List Nat) -> Nat -> STy -> Maybe STy
   rwTy f mk lead d STyZero = Just STyZero
@@ -366,6 +373,7 @@ mutual
        t' <- traverse (rwTy f mk lead d) t
        pure (STyEq rng l' r' t')
   rwTy f mk lead d (STyEl e) = STyEl <$> rwE f mk lead d e
+  rwTy f mk lead d (STyPos r t) = STyPos r <$> rwTy f mk lead d t
   rwTy f mk lead d STyProp = Just STyProp
   rwTy f mk lead d (STyNu p) = STyNu <$> rwP f mk lead d p
 
@@ -389,23 +397,30 @@ nth (S n) (_ :: xs) = nth n xs
 ||| Π-type — the generated equations then sit at a function type).
 peelPis : Nat -> STy -> Maybe (List (String, STy), STy)
 peelPis Z ty = Just ([], ty)
-peelPis (S n) (STyPi x a b) = do
-  (cols, rest) <- peelPis n b
-  pure ((x, a) :: cols, rest)
-peelPis (S n) _ = Nothing
+peelPis (S n) ty = case unPosTy ty of
+  STyPi x a b => do
+    (cols, rest) <- peelPis n b
+    pure ((x, a) :: cols, rest)
+  _ => Nothing
 
 ||| Syntactic ℕ-recognition (the spec reads whnf(Aⱼ); the syntactic
 ||| approximation only narrows the FRAGMENT — unrecognized split
 ||| types degrade, which is always sound).
 tyNat : STy -> Bool
-tyNat STyNat = True
-tyNat (STyEl SNatC) = True
-tyNat _ = False
+tyNat ty = case unPosTy ty of
+  STyNat => True
+  STyEl e => case unPos e of
+               SNatC => True
+               _ => False
+  _ => False
 
 tySumParts : STy -> Maybe (STy, STy)
-tySumParts (STySum a b) = Just (a, b)
-tySumParts (STyEl (SSumC a b)) = Just (STyEl a, STyEl b)
-tySumParts _ = Nothing
+tySumParts ty = case unPosTy ty of
+  STySum a b => Just (a, b)
+  STyEl e => case unPos e of
+               SSumC a b => Just (STyEl a, STyEl b)
+               _ => Nothing
+  _ => Nothing
 
 ||| A pattern with its variable's telescope SLOT resolved (0-based,
 ||| outermost first) and whether this occurrence BINDS the slot (a

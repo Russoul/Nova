@@ -1,4 +1,4 @@
 defined id2
 input.nova:2:23: error: def bad: cannot infer implicit argument #0 of 'id2' — supply it with {…}, or pass the bare function with id2 {}
 2 | def bad : ℕ ≔ let g ≔ id2 (λx. x) in Z
-  |                       ^^^
+  |                       ^^^^^^^^^^^

@@ -1,4 +1,4 @@
 defined notEq
 input.nova:4:25: error: def refl0: using: 'notEq' is not an equation lemma in the visible store
 4 | def refl0 : Z ≡ Z ∈ ℕ ≔ ⋆ using notEq
-  |                         ^
+  |                         ^^^^^^^^^^^^^
