@@ -1,0 +1,12 @@
+-- ONE ≡ production, shared by the type and element positions
+-- (docs/NovaElaboration.txt, T{0} and t{1}). The two used to disagree on
+-- both operands, so each of these four spellings parsed in exactly one
+-- of the two positions; all four parse in both.
+
+-- the ⊎ code reaches the SIDES
+def sumSideTy : 𝟙 ⊎ 𝟙 ≡ 𝟙 ⊎ 𝟙 ∈ 𝕌 ≔ ⋆
+def sumSideEl : Ω ≔ 𝟙 ⊎ 𝟙 ≡ 𝟙 ⊎ 𝟙 ∈ 𝕌
+
+-- an arrow reaches the ∈-TYPE
+def arrowInTy : (λx. x) ≡ (λx. x) ∈ 𝟙 → 𝟙 ≔ ⋆
+def arrowInEl : Ω ≔ (λx. x) ≡ (λx. x) ∈ 𝟙 → 𝟙

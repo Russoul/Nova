@@ -29,7 +29,7 @@ import prop (⊥)
 import equality (trans, sym, cong, transport, transportP)
 
 infixl 4 <
-def < : Real → Real → Ω ≔ λu. λv. ∥(k : ℕ) ⨯ (u + realOfQ (qInvNat k) ≤ v)∥
+def < : Real → Real → Ω ≔ λu. λv. ∥(k : ℕ) × (u + realOfQ (qInvNat k) ≤ v)∥
 
 def ltROf : (u v : Real) (k : ℕ) → (u + realOfQ (qInvNat k) ≤ v) → (u < v) using (realLt.<.unfold) ≔
   λu. λv. λk. λh. ⋆ (k, h)

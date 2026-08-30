@@ -1,0 +1,26 @@
+-- × IS TWO OPERATORS (docs/NovaElaboration.txt, T{1} and T{1¾}).
+-- Each definition below is inhabited by a term that ONLY typechecks
+-- under the intended reading, so the test pins the shape, not just
+-- the fact that it parses.
+
+-- NON-DEPENDENT × binds tighter than →: the uncurrying shape, bare.
+def uncurry : 𝟙 × 𝟙 → 𝟙 ≔ λp. ()
+
+-- ...and tighter than ⊎: product before sum, as * before + .
+def sumOfProd : 𝟙 ⊎ 𝟙 × 𝟙 ≔ inj₂ ((), ())
+def prodThenSum : 𝟙 × 𝟙 ⊎ 𝟙 ≔ inj₁ ((), ())
+
+-- ...and right-associates.
+def prodAssoc : 𝟙 × 𝟙 × 𝟙 ≔ (), (), ()
+
+-- The BINDER form stays at →'s level: its body is still maximal, so
+-- the Σ-as-record idiom keeps a trailing law/equation unparenthesized.
+def binderBodyArrow : (z : 𝟙) × 𝟙 → 𝟙 ≔ (), λx. x
+def binderBodyEq : (z : 𝟙) × z ≡ () ∈ 𝟙 ≔ (), ⋆
+
+-- A binder group beats the ≡ branch's ascription reading: this is a Σ
+-- over an equation, not an equation between (z : 𝟙) × z and ().
+def binderBeatsAscription : Ω ≔ ∥(z : 𝟙) × z ≡ () ∈ 𝟙∥
+
+-- A genuine ascription still reaches the ≡ branch.
+def ascription : Ω ≔ (() : 𝟙) ≡ () ∈ 𝟙

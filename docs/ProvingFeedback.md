@@ -30,7 +30,7 @@ The natural definition of a subtype — carry the property as a proof
 component — cannot be a code:
 
 ```
-type Rat ≔ (n : El Int) ⨯ (d : El Int) ⨯ Prf (¬ (d ≡ intZero ∈ El Int))
+type Rat ≔ (n : El Int) × (d : El Int) × Prf (¬ (d ≡ intZero ∈ El Int))
 ```
 
 is a *large* type: no `El Rat`, no generic `(A : 𝕌)` combinators from
@@ -44,7 +44,7 @@ non-zeroness **structurally** (`NZ ≔ ℕ ⊎ ℕ`, denoting ±(n+1)).
 Even with a large proof-carrying type, a *function* cannot use the
 proof: proofs are irrelevant, so `qInv : (u : El Q) → Prf (u ≢ 0) →
 El Q` cannot inspect the witness to build an inverse. Reciprocals
-therefore needed a second structural code, `NZQ ≔ NZ ⨯ NZ`, with a
+therefore needed a second structural code, `NZQ ≔ NZ × NZ`, with a
 total inversion (the swap) and an embedding into ℚ. The resulting
 field statement is honest but non-classical in shape.
 
@@ -118,7 +118,7 @@ outright). An eliminator into a data-carrying C could therefore never
 reduce: a closed term of a Σ-type would be stuck, never a pair. The
 rule would buy derivations, not algorithms.
 
-Concretely, in this development: `(v : El Q) ⨯ Prf (qMul u v ≡ qOne)`
+Concretely, in this development: `(v : El Q) × Prf (qMul u v ≡ qOne)`
 IS a subsingleton (inverses are unique — `qInvUniqueVal`,
 `qInvWitnessUnique` in `rationalAlgInv.nova`), so the rule would have
 derived the non-erased inverse straight from the squashed one, deleting
@@ -165,7 +165,7 @@ It is tempting to read `reg` as the modulus of convergence, and in a
 Cauchy-with-modulus carrier
 
 ```
-((f : ℕ → Q) ⨯ (μ : ℕ → ℕ) ⨯ ⟨∀ε ∀m n ≥ μ ε. |f m − f n| ≤ ε⟩)
+((f : ℕ → Q) × (μ : ℕ → ℕ) × ⟨∀ε ∀m n ≥ μ ε. |f m − f n| ≤ ε⟩)
 ```
 
 it would be exactly that: `μ` is load-bearing data, you cannot compute
@@ -177,7 +177,7 @@ type:
 ```
 def Regular : El (ℕ → Q) → 𝕌 ≔
   λf. ((m : ℕ) (n : ℕ) → (LeQ (qNeg (rBound m n)) (f m − f n)
-                          ⨯ LeQ (f m − f n) (rBound m n)))
+                          × LeQ (f m − f n) (rBound m n)))
 ```
 
 `rBound m n` is a fixed function of the indices. Every element of
@@ -262,8 +262,8 @@ abstract motive (D-3).
 difference is not bookkeeping:
 
 ```
-PosR x     ≜ Br ((p : RSeq) ⨯ (k : ℕ) ⨯ prfC (x ≥ 1/(k+1)) ⨯ Id Real (class p) x)
-NonNegR x  ≜ Br ((p : RSeq) ⨯ ((n : ℕ) → LeQ qZero (seqOf p n)) ⨯ Id Real (class p) x)
+PosR x     ≜ Br ((p : RSeq) × (k : ℕ) × prfC (x ≥ 1/(k+1)) × Id Real (class p) x)
+NonNegR x  ≜ Br ((p : RSeq) × ((n : ℕ) → LeQ qZero (seqOf p n)) × Id Real (class p) x)
 ```
 
 `PosR` carries a MODULUS — a rate of separation from zero. `NonNegR`
@@ -372,10 +372,10 @@ sides differing only by `(q.π₁, q.π₂)` vs `q`.
 
 ### B-3. Lemma matching is first-order and type-blind
 
-A `ℕ ⨯ ℕ`-specific
+A `ℕ × ℕ`-specific
 
 ```
-def pairEta : (p : ℕ ⨯ ℕ) → (p .π₁ , p .π₂) ≡ p ∈ El (ℕ ⨯ ℕ)
+def pairEta : (p : ℕ × ℕ) → (p .π₁ , p .π₂) ≡ p ∈ El (ℕ × ℕ)
 ```
 
 fired at a pair of type `El Rat`; the kernel then rejected the
@@ -385,14 +385,14 @@ only when imported into a module that also imported the offending
 lemma.
 
 Rule of thumb learned: *state η/congruence-shaped lemmas generically*
-(`(A : 𝕌) (B : 𝕌) (p : El (A ⨯ B)) → …`), because a lemma will be tried
+(`(A : 𝕌) (B : 𝕌) (p : El (A × B)) → …`), because a lemma will be tried
 anywhere its shape matches, regardless of type.
 
 **Suggested fix:** check the candidate's type at the match position
 before using it (the kernel already does; the engine should too).
 
 *Recurred* with a **conditional** lemma: `eqInt.nova`'s
-`pairEq2 : (x y : ℕ ⨯ ℕ) → x.π₁ ≡ y.π₁ → x.π₂ ≡ y.π₂ → x ≡ y`, whose
+`pairEq2 : (x y : ℕ × ℕ) → x.π₁ ≡ y.π₁ → x.π₂ ≡ y.π₂ → x ≡ y`, whose
 conclusion is two variables, matched at `El Rat` (its side conditions
 being discharged there by β/η) and again broke an importing module.
 Generalising it over `(A B : 𝕌)` fixed it. So the rule is not just
@@ -888,7 +888,7 @@ The fix is to stop transporting the witness: put the REPRESENTATIVE
 inside the payload,
 
 ```
-PosPayload x ≔ ((p : RSeq) ⨯ (k : ℕ) ⨯ prfC (…) ⨯ Id Real (class p) x)
+PosPayload x ≔ ((p : RSeq) × (k : ℕ) × prfC (…) × Id Real (class p) x)
 ```
 
 so the descent is ONE brElim and there is no dependent motive at all.
@@ -1161,8 +1161,8 @@ The route that works: extract the canonical representative as a **pair
 of nats** rather than deciding inside `Ω`.
 
 ```
-def intCanon : El Int → ℕ ⨯ ℕ ≔
-  λz. quot-elim (w. ℕ ⨯ ℕ) (p. normPair (p .π₁) (p .π₂)) z
+def intCanon : El Int → ℕ × ℕ ≔
+  λz. quot-elim (w. ℕ × ℕ) (p. normPair (p .π₁) (p .π₂)) z
 ```
 
 Its well-definedness is `normPair a b ≡ normPair c d` whenever
@@ -1197,7 +1197,7 @@ definition), state the lemma over a **variable** and instantiate it in
 one application:
 
 ```
-def intNZViewAt : (z : El Int) (p : ℕ ⨯ ℕ) (hz : Prf (class p ≡ z ∈ El Int)) … 
+def intNZViewAt : (z : El Int) (p : ℕ × ℕ) (hz : Prf (class p ≡ z ∈ El Int)) … 
 def intNZView   : … ≔ λz. λhnz. intNZViewAt z (intCanon z) (intCanonClass z) …
 ```
 
@@ -1212,11 +1212,11 @@ This one rewrite turned three stuck obligations into `Accepted.`
 
 ### D-4. Replace a squashed existential with a data-valued view
 
-`Prf ∥(e : El NZ) ⨯ Prf (nzToInt e ≡ z)∥` says an integer is the image
-of some non-zero one; `((e : El NZ) ⨯ Prf (nzToInt e ≡ z)) ⊎ Prf (z ≡ 0)`
+`Prf ∥(e : El NZ) × Prf (nzToInt e ≡ z)∥` says an integer is the image
+of some non-zero one; `((e : El NZ) × Prf (nzToInt e ≡ z)) ⊎ Prf (z ≡ 0)`
 *decides* it and hands back the witness as data. The second is
 definable for the same reason the first is — the case analysis runs on
-`intCanon z`, an ordinary **function** `El Int → ℕ ⨯ ℕ` — so no extra
+`intCanon z`, an ordinary **function** `El Int → ℕ × ℕ` — so no extra
 well-definedness obligation appears, and nothing is erased.
 
 That one change is what turns "an inverse exists" into "here is the
@@ -1279,7 +1279,7 @@ split, and every triangle inequality would then be a four-way case
 analysis. Defining instead
 
 ```
-Bnd : El Q → El Q → 𝕌 ≔ λb. λu. (LeQ (qNeg b) u ⨯ LeQ u b)
+Bnd : El Q → El Q → 𝕌 ≔ λb. λu. (LeQ (qNeg b) u × LeQ u b)
 ```
 
 makes the triangle inequality a *pair of independent monotonicity
@@ -1305,7 +1305,7 @@ and for `<` that proof is genuinely hard — it needs a quantitative
 Stating it one level up instead —
 
 ```
-LtR u v  ≜  ∥(k : ℕ) ⨯ Prf (LeR (realAdd u (realOfQ (qInvNat k))) v)∥
+LtR u v  ≜  ∥(k : ℕ) × Prf (LeR (realAdd u (realOfQ (qInvNat k))) v)∥
 ```
 
 — makes invariance FREE: every constituent (`LeR`, `realAdd`,
@@ -1355,7 +1355,7 @@ truncation stops being a matter of taste.
 Written with the Ω-squash,
 
 ```
-im p ≜ ((y : El H) ⨯ ∥(x : El G) ⨯ Id H (p x) y∥)
+im p ≜ ((y : El H) × ∥(x : El G) × Id H (p x) y∥)
 ```
 
 the theorem is NOT PROVABLE, and nothing in the corpus can rescue it.
@@ -1370,7 +1370,7 @@ bracket.nova's Br is the other truncation: `Br a ≜ a / (x y. ∥𝟙∥)`, a
 an arbitrary type at the price of a constancy proof. With
 
 ```
-Im p ≜ ((y : H) ⨯ Br ((x : G) ⨯ Id H (p x) y))
+Im p ≜ ((y : H) × Br ((x : G) × Id H (p x) y))
 ```
 
 the inverse is writable, and — this is the part worth having — the
@@ -1519,15 +1519,15 @@ name subterms but does not remove the repetition in `trans`.
 
 ## F. Syntax
 
-### F-1. λ bodies do not extend past `⨯` — RESOLVED
+### F-1. λ bodies do not extend past `×` — RESOLVED
 
 ```
-cong ℕ (λu. ℕ ⨯ ℕ) …
+cong ℕ (λu. ℕ × ℕ) …
 ```
 
-parses as `(λu. ℕ) ⨯ ℕ`, and the resulting error is
+parses as `(λu. ℕ) × ℕ`, and the resulting error is
 `λ checked against a non-Π type (ascribe the term: (t : T))`, which
-points nowhere near the cause. `(λu. (ℕ ⨯ ℕ))` is fine. The known
+points nowhere near the cause. `(λu. (ℕ × ℕ))` is fine. The known
 pitfall about parenthesising equality-typed λ bodies applies to
 Σ-codes too.
 
@@ -1572,24 +1572,24 @@ Both spellings occur throughout the corpus and they are not
 interchangeable:
 
 ```
-def T : 𝕌 ≔ ((m : Int) ⨯ Id Int m m)                 -- code:  domain is a CODE
-def V : (z : El Int) → ((e : El NZ) ⨯ Prf (…)) ⊎ …   -- type:  domain is El CODE
+def T : 𝕌 ≔ ((m : Int) × Id Int m m)                 -- code:  domain is a CODE
+def V : (z : El Int) → ((e : El NZ) × Prf (…)) ⊎ …   -- type:  domain is El CODE
 ```
 
 Writing the second form where a code is expected —
-`def T : 𝕌 ≔ ((m : El Int) ⨯ Id Int m m)` — fails with
+`def T : 𝕌 ≔ ((m : El Int) × Id Int m m)` — fails with
 
 ```
 Error: def T: unknown name 'm'
 ```
 
 i.e. the binder is silently not a binder, and the error points at the
-*use* of `m`, several lines away, with no mention of `⨯` or of codes.
+*use* of `m`, several lines away, with no mention of `×` or of codes.
 This cost the most wall-clock of anything in the ℝ development per
 character typed, because the message sends you looking for a missing
 import.
 
-**Suggested fix:** when a `⨯`/`→` domain in code position is an `El`
+**Suggested fix:** when a `×`/`→` domain in code position is an `El`
 application, say "a Σ-code binds over a code; drop the `El`" rather
 than failing on the body.
 
@@ -1679,7 +1679,7 @@ Things that had to be built before the actual development could start:
   every lemma in `ratBound`/`ratArch`/`realAdd` is a `≡⟨ ⟩` chain, and
   they read as the mathematics does. E-2's complaint is answered.
 * **[ℝ] Quotient descent scales.** ℝ is a quotient of a Σ over a
-  function space into a quotient of a Σ over a quotient of ℕ ⨯ ℕ, four
+  function space into a quotient of a Σ over a quotient of ℕ × ℕ, four
   levels deep, and the descent recipe (`clsEqOfRel`-analogue +
   `quot-elim` at an ≡- or Ω-motive + an inner/outer well-definedness
   pair) worked unchanged at every level. Ten operations descended

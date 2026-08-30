@@ -76,7 +76,7 @@ mutual
 
   -- e₁ , e₂          (right-assoc SigmaIntro)
   -- e₁ → e₂          (right-assoc PiTy element)
-  -- e₁ ⨯ e₂          (right-assoc SigmaTy element)
+  -- e₁ × e₂          (right-assoc SigmaTy element)
   -- e₁ / e₂          (right-assoc QuotTy element)
   -- e₀ ≡ e₁ ∈ A      (EqTy element: the Ω-valued equality prop; A a TYPE)
   -- λ e               (PiIntro)
@@ -107,7 +107,7 @@ mutual
   parseElemNoComma = do
     e <- parseElemSum
     (do sp; str_ "→"; sp; e' <- parseElemNoComma; pure (Elem.PiTy e e'))
-      <|> (do sp; str_ "⨯"; sp; e' <- parseElemNoComma; pure (Elem.SigmaTy e e'))
+      <|> (do sp; str_ "×"; sp; e' <- parseElemNoComma; pure (Elem.SigmaTy e e'))
       <|> (do sp; str_ "/"; sp; e' <- parseElemNoComma; pure (Elem.QuotTy e e'))
       <|> (do sp; str_ "≡"; sp
               e1 <- parseElemSum; sp; str_ "∈"; sp
@@ -249,7 +249,7 @@ mutual
 
   -- e₀ ≡ e₁ ∈ A      (the equality prop, standing as a type — prop-lift)
   -- A → B             (PiTy)
-  -- A ⨯ B             (SigmaTy)
+  -- A × B             (SigmaTy)
   -- A / r             (QuotTy; r is an Ω-valued Elem)
   -- El e              (El, e is an Elem atom)
   -- 𝟘 𝟙 ℕ 𝕌 Ω        (constant types)
@@ -264,17 +264,17 @@ mutual
             pure (Elem.EqTy e0 e1 a))
     <|> parseTyArrow
 
-  -- A → B  or  A ⨯ B  or  A / r  (right-associative infix)
+  -- A → B  or  A × B  or  A / r  (right-associative infix)
   covering
   parseTyArrow : Rule Ty
   parseTyArrow = do
     a <- parseTySum
     (do sp; str_ "→"; sp; b <- parseTyArrow; pure (PiTy a b))
-      <|> (do sp; str_ "⨯"; sp; b <- parseTyArrow; pure (SigmaTy a b))
+      <|> (do sp; str_ "×"; sp; b <- parseTyArrow; pure (SigmaTy a b))
       <|> (do sp; str_ "/"; sp; r <- parseElemNoComma; pure (QuotTy a r))
       <|> pure a
 
-  -- A ⊎ B (right-assoc, non-dependent) — tighter than → ⨯ /
+  -- A ⊎ B (right-assoc, non-dependent) — tighter than → × /
   covering
   parseTySum : Rule Ty
   parseTySum = do
@@ -296,12 +296,12 @@ mutual
   parsePoly : Rule Poly
   parsePoly =
         (do f <- parsePolySum
-            (do sp; str_ "⨯"; sp; g <- parsePoly; pure (PProd f g))
+            (do sp; str_ "×"; sp; g <- parsePoly; pure (PProd f g))
               <|> pure f)
     -- binding forms: a CODE left-hand side (El retired) binds a Nova
     -- variable in the body
     <|> (do a <- parseElemAtom; sp
-            (do str_ "⨯"; sp; f <- parsePoly; pure (PSigma a f))
+            (do str_ "×"; sp; f <- parsePoly; pure (PSigma a f))
               <|> (do str_ "→"; sp; f <- parsePoly; pure (PPi a f)))
 
   covering

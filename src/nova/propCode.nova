@@ -19,7 +19,7 @@
 -- What this buys and what it does not. It buys Σ-CODES that mention
 -- propositions, which is what a bracketed existential needs: the
 -- payload of "x is positive with modulus k" is
--- ((k : ℕ) ⨯ prfC (…k…)), a code, so it can be quotiented. It does
+-- ((k : ℕ) × prfC (…k…)), a code, so it can be quotiented. It does
 -- NOT buy data out of a proof: eliminating prfC returns a proof of r and
 -- nothing more, because quotient elements cannot store a proposition
 -- — coherence forces such eliminators constant. Data that depends on

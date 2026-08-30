@@ -312,7 +312,7 @@ data Deriv : Type where
   ||| el-pi-eta, TWO-CANDIDATE (judgemental function extensionality):
   ||| f₀, f₁ : A → B;  Γ ▷ A ⊦ f₀[↑] ☐₀ ≐ f₁[↑] ☐₀ : B  ⊢  f₀ ≐ f₁
   DElPiEta : Deriv -> Deriv -> Deriv -> Deriv
-  ||| el-sigma-eta, TWO-CANDIDATE: t₀, t₁ : A ⨯ B; the projections
+  ||| el-sigma-eta, TWO-CANDIDATE: t₀, t₁ : A × B; the projections
   ||| pairwise equal (π₂ at B[id, t₀.π₁])  ⊢  t₀ ≐ t₁
   DElSigmaEta : Deriv -> Deriv -> Deriv -> Deriv -> Deriv
 
@@ -1105,12 +1105,12 @@ conclude env sig ctx (DElSigmaE1 dT) = do
   (t, tty) <- conclude env sig ctx dT >>= needEl
   case tty of
     SigmaTy a _ => pure (JEl (SigmaElim1 t) a)
-    _ => kerr "derivation: el-sigma-e₁: premise not at a ⨯ type"
+    _ => kerr "derivation: el-sigma-e₁: premise not at a × type"
 conclude env sig ctx (DElSigmaE2 dT) = do
   (t, tty) <- conclude env sig ctx dT >>= needEl
   case tty of
     SigmaTy _ b => pure (JEl (SigmaElim2 t) (substTy b (Ext Id (SigmaElim1 t))))
-    _ => kerr "derivation: el-sigma-e₂: premise not at a ⨯ type"
+    _ => kerr "derivation: el-sigma-e₂: premise not at a × type"
 conclude env sig ctx (DElSumI1 dA dB) = do
   (a, aty) <- conclude env sig ctx dA >>= needEl
   b <- conclude env sig ctx dB >>= needTy
@@ -1265,7 +1265,7 @@ conclude env sig ctx (DElSigmaEta dT0 dT1 dP1 dP2) = do
       alphaEl "el-sigma-eta (π₂ r)" p2r (SigmaElim2 t1)
       alphaTy "el-sigma-eta (π₂ ty)" p2ty (substTy b (Ext Id (SigmaElim1 t0)))
       pure (JElEq t0 t1 (SigmaTy a b))
-    _ => kerr "derivation: el-sigma-eta: candidates not at a ⨯ type"
+    _ => kerr "derivation: el-sigma-eta: candidates not at a × type"
 
 -- equality: congruence
 conclude env sig ctx (DElLamCong dA dF) = do
@@ -1296,14 +1296,14 @@ conclude env sig ctx (DElProj1Cong d) = do
   (t0, t1, tty) <- conclude env sig ctx d >>= needElEq
   case tty of
     SigmaTy a _ => pure (JElEq (SigmaElim1 t0) (SigmaElim1 t1) a)
-    _ => kerr "derivation: el-proj₁-cong: premise not at a ⨯ type"
+    _ => kerr "derivation: el-proj₁-cong: premise not at a × type"
 conclude env sig ctx (DElProj2Cong d) = do
   (t0, t1, tty) <- conclude env sig ctx d >>= needElEq
   case tty of
     SigmaTy _ b =>
       pure (JElEq (SigmaElim2 t0) (SigmaElim2 t1)
                   (substTy b (Ext Id (SigmaElim1 t1))))
-    _ => kerr "derivation: el-proj₂-cong: premise not at a ⨯ type"
+    _ => kerr "derivation: el-proj₂-cong: premise not at a × type"
 conclude env sig ctx (DTyPiCong dD dC) = do
   (a0, a1) <- conclude env sig ctx dD >>= needTyEq
   (b0, b1) <- conclude env sig (ctx :< a1) dC >>= needTyEq

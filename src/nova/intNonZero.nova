@@ -3,7 +3,7 @@
 -- the squash removed — and removing the squash is exactly what turns
 -- "an inverse exists" into "here is the inverse".
 --
--- It is definable because intCanon is an honest FUNCTION Int → ℕ ⨯ ℕ
+-- It is definable because intCanon is an honest FUNCTION Int → ℕ × ℕ
 -- (its well-definedness was discharged in eqInt.nova), so the case
 -- analysis below is on nats, not on a quotient: no further
 -- well-definedness obligation arises, and nothing has to be erased.
@@ -23,7 +23,7 @@ import equality (trans, sym, cong)
 
 def nzOfPairD : (a b : ℕ)
   (hab : a * b ≡ Z)
-  → ((e : NZ) ⨯ nzToInt e ≡ class (a, b)) ⊎ (class (a, b) ≡ intZero)
+  → ((e : NZ) × nzToInt e ≡ class (a, b)) ⊎ (class (a, b) ≡ intZero)
   using (integer.Int.unfold,
     integer.intZero.eq,
     rational.nzNeg.eq,
@@ -42,17 +42,17 @@ def nzOfPairD : (a b : ℕ)
 
 -- kept abstract in p, as always (docs/ProvingFeedback.md D-3)
 def nzOfIntAt : {z : Int}
-  (p : ℕ ⨯ ℕ)
+  (p : ℕ × ℕ)
   (hz : class p ≡ z)
   (hab : p .π₁ * p .π₂ ≡ Z)
-  → ((e : NZ) ⨯ nzToInt e ≡ z) ⊎ (z ≡ intZero)
+  → ((e : NZ) × nzToInt e ≡ z) ⊎ (z ≡ intZero)
   using (classPairEta, integer.Int.unfold) ≔
   λz. λp. λhz. λhab. ⊎-elim
     (u. inj₁ (u .π₁, trans _ _ _ (u .π₂) (trans _ _ _ (classPairEta p) hz)))
     (u. inj₂ (trans _ _ _ (sym _ _ (trans _ _ _ (classPairEta p) hz)) u))
     (nzOfPairD _ _ hab)
 
-def nzOfInt : (z : Int) → ((e : NZ) ⨯ nzToInt e ≡ z) ⊎ (z ≡ intZero) using (intCanonClass) ≔
+def nzOfInt : (z : Int) → ((e : NZ) × nzToInt e ≡ z) ⊎ (z ≡ intZero) using (intCanonClass) ≔
   λz. nzOfIntAt _ (intCanonClass z) (intCanonProdZero z)
 
 -- ===== the image of NZ misses zero =====
@@ -60,7 +60,7 @@ def nzOfInt : (z : Int) → ((e : NZ) ⨯ nzToInt e ≡ z) ⊎ (z ≡ intZero) u
 -- effectivity is for. Before intEffective.nova landed the only route
 -- was through a computing observational equality (eqInt.nova's EqZ);
 -- now the class equation hands IntR back directly.
-def intNeqOfNotRel : {p q : ℕ ⨯ ℕ} (k : IntR p q → 𝟘) → ¬ (class p ≡ class q ∈ Int)
+def intNeqOfNotRel : {p q : ℕ × ℕ} (k : IntR p q → 𝟘) → ¬ (class p ≡ class q ∈ Int)
   using (integer.Int.unfold, prop.¬.unfold, prop.⊃.unfold, prop.⊥.unfold) ≔
   λp. λq. λk. notIntro _ (λh. ⋆ (k (intEffective h)))
 

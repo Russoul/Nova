@@ -10,12 +10,12 @@
 import id (Id, idToEq, eqToId)
 import prelude (funext)
 
-def IsNatAlgebra : 𝕌 → 𝕌 ≔ λA. (z : A) ⨯ A → A
+def IsNatAlgebra : 𝕌 → 𝕌 ≔ λA. (z : A) × A → A
 
 def NatAlgHom : (A B : 𝕌) → IsNatAlgebra A → IsNatAlgebra B → 𝕌
   using (natAlgebra.IsNatAlgebra.unfold) ≔
   λA. λB. λa. λb. (h : A → B)
-    ⨯ Id _ (h (a .π₁)) (b .π₁) ⨯ (x : A) → Id _ (h (a .π₂ x)) (b .π₂ (h x))
+    × Id _ (h (a .π₁)) (b .π₁) × ((x : A) → Id _ (h (a .π₂ x)) (b .π₂ (h x)))
 
 -- ℕ is an ℕ-algebra (S eta-expanded: constructors are not functions).
 def natAlg : IsNatAlgebra ℕ using (natAlgebra.IsNatAlgebra.unfold) ≔ Z, λn. S n

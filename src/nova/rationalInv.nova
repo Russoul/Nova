@@ -40,7 +40,7 @@ def intCanonProdZero : (z : Int) → intCanon z .π₁ * intCanon z .π₂ ≡ Z
 def nzOfPair : (a b : ℕ)
   (hab : a * b ≡ Z)
   (hnz : ¬ (class (a, b) ≡ intZero))
-  → ∥(e : NZ) ⨯ nzToInt e ≡ class (a, b)∥
+  → ∥(e : NZ) × nzToInt e ≡ class (a, b)∥
   using (integer.Int.eq,
     integer.Int.unfold,
     integer.intZero.eq,
@@ -81,11 +81,11 @@ def notApply : (p : Ω) → ¬ p → p → ⊥ using (prop.¬.unfold, prop.⊃.u
 -- relation and the kernel then refuses the step (the eliminee is not
 -- ⇒ᴺ-inferable).
 def intNZViewAt : {z : Int}
-  (p : ℕ ⨯ ℕ)
+  (p : ℕ × ℕ)
   (hz : class p ≡ z)
   (hab : p .π₁ * p .π₂ ≡ Z)
   (hnz : ¬ (z ≡ intZero))
-  → ∥(e : NZ) ⨯ nzToInt e ≡ z∥
+  → ∥(e : NZ) × nzToInt e ≡ z∥
   using (classPairEta, integer.Int.unfold) ≔
   λz. λp. λhz. λhab. λhnz. squash-elim (nzOfPair
     _
@@ -103,7 +103,7 @@ def intNZViewAt : {z : Int}
           (sym _ _ (trans _ _ _ (classPairEta p) hz))
           e)))) (w. ⋆ (w .π₁, trans _ _ _ (w .π₂) (trans _ _ _ (classPairEta p) hz)))
 
-def intNZView : (z : Int) (hnz : ¬ (z ≡ intZero)) → ∥(e : NZ) ⨯ nzToInt e ≡ z∥
+def intNZView : (z : Int) (hnz : ¬ (z ≡ intZero)) → ∥(e : NZ) × nzToInt e ≡ z∥
   using (intCanonProdZero) ≔
   λz. λhnz. intNZViewAt _ (intCanonClass z) (intCanonProdZero z) hnz
 
@@ -148,7 +148,7 @@ def numNonZero : {p : Rat} (h : ¬ (class p ≡ qZero)) → ¬ (num p ≡ intZer
   λp. λh. notIntro _ (λe. notApply _ h (ratZeroOfNumZero _ e))
 
 -- ===== every non-zero rational is qOfNzq of something =====
-def qNonZeroIsNzq : {u : Q} (h : ¬ (u ≡ qZero)) → ∥(x : NZQ) ⨯ qOfNzq x ≡ u∥
+def qNonZeroIsNzq : {u : Q} (h : ¬ (u ≡ qZero)) → ∥(x : NZQ) × qOfNzq x ≡ u∥
   using (integer.Int.unfold,
     prop.¬.unfold,
     prop.⊃.unfold,
@@ -179,7 +179,7 @@ def qNonZeroIsNzq : {u : Q} (h : ¬ (u ≡ qZero)) → ∥(x : NZQ) ⨯ qOfNzq x
     u
 
 -- ===== the theorem =====
-def qInvExists : {u : Q} (h : ¬ (u ≡ qZero)) → ∥(v : Q) ⨯ u * v ≡ qOne∥ ≔
+def qInvExists : {u : Q} (h : ¬ (u ≡ qZero)) → ∥(v : Q) × u * v ≡ qOne∥ ≔
   λu. λh. squash-elim (qNonZeroIsNzq
     h) (w. ⋆ (qOfNzq
     (nzqInv

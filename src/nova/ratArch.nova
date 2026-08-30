@@ -170,7 +170,7 @@ def qNegDen : (N : Int) (b : ℕ) → qcls (mkRat (intNeg N) (nzPos b)) ≡ qcls
   λN. λb. clsEqOfRel (mkRat (intNeg N) (nzPos b)) (mkRat N (nzNeg b)) (negDenCross N b)
 
 -- every rational has a representative with a POSITIVE denominator
-def PosDenView : Q → 𝕌 ≔ λu. (M : Int) (b : ℕ) ⨯ Id _ (qcls (mkRat M (nzPos b))) u
+def PosDenView : Q → 𝕌 ≔ λu. (M : Int) (b : ℕ) × Id _ (qcls (mkRat M (nzPos b))) u
 
 def qPosDenView : (N : Int) (d : NZ) → PosDenView (qcls (mkRat N d))
   using (id.Id.eq,
@@ -249,7 +249,7 @@ def sgnZeroOverPos : {b : ℕ} → sgnQ (qcls (mkRat intZero (nzPos b))) ≡ sZe
     intSgnZero
 
 -- ===== the theorem =====
-def ArchWit : Q → 𝕌 ≔ λu. (k : ℕ) ⨯ qInvNat k ≤ u
+def ArchWit : Q → 𝕌 ≔ λu. (k : ℕ) × qInvNat k ≤ u
 
 -- with a positive denominator fixed, decide the numerator: positive
 -- gives the index, zero and negative contradict positivity

@@ -1,0 +1,18 @@
+defined +
+defined id
+defined idP
+defined absurd
+defined unit
+defined prod
+defined uncurry
+defined sum
+defined swap
+defined squash
+defined plusZ
+defined four
+defined chain
+defined lamX
+defined prodX
+defined NatAlg
+defined Setoid
+Accepted.

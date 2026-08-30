@@ -3426,13 +3426,13 @@ mutual
     st <- getSt
     case preferSigma st ctx tTy of
       Just (a, b, _) => pure (SigmaElim1 t', a, Nd [] [tSk])
-      Nothing => throwShape site env "cannot project from a term of type" tTy "a ⨯ type"
+      Nothing => throwShape site env "cannot project from a term of type" tTy "a × type"
   inferElemAt ctx env site (SProj2 t) = do
     (t', tTy, tSk) <- inferElem ctx env site t
     st <- getSt
     case preferSigma st ctx tTy of
       Just (a, b, _) => pure (SigmaElim2 t', substTy b (Ext Id (SigmaElim1 t')), Nd [] [tSk])
-      Nothing => throwShape site env "cannot project from a term of type" tTy "a ⨯ type"
+      Nothing => throwShape site env "cannot project from a term of type" tTy "a × type"
   inferElemAt ctx env site (SAnn t ty) = do
     (ty', tySk) <- elabTy ctx env site ty
     (t', tSk) <- checkElem ctx env site t ty'
@@ -3604,7 +3604,7 @@ mutual
         (u', uSk) <- checkElem ctx env site u a
         (v', vSk) <- checkElem ctx env site v (substTy b (Ext Id u'))
         pure (SigmaIntro u' v', withExpose exp (Nd [] [uSk, vSk]))
-      Nothing => throwShape site env "pair checked against" ty "a ⨯ type"
+      Nothing => throwShape site env "pair checked against" ty "a × type"
   checkElemAt ctx env site (SInj1 a) ty = do
     st <- getSt
     case preferSum st ctx ty of

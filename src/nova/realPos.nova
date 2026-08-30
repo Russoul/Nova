@@ -1,6 +1,6 @@
 -- POSITIVITY THAT CARRIES ITS MODULUS.
 --
--- `LtR realZero x` is `∥(k : ℕ) ⨯ (…)∥` — an Ω-squash, so the k is
+-- `LtR realZero x` is `∥(k : ℕ) × (…)∥` — an Ω-squash, so the k is
 -- gone for good: squash-elim reaches only propositions, and a
 -- CONSTRUCTION needs the k. That single line (realLt.nova:35) is the
 -- only place in the ℕ→ℝ tower where truncation hides something a
@@ -10,7 +10,7 @@
 -- So positivity is repackaged here, in the bracket instead of the
 -- squash:
 --
---   PosR x ≜ Br ((k : ℕ) ⨯ prfC (LeR (realOfQ (qInvNat k)) x))
+--   PosR x ≜ Br ((k : ℕ) × prfC (LeR (realOfQ (qInvNat k)) x))
 --
 -- `class` retains its representative, so brElim lands in arbitrary
 -- types — the k comes back, at the price of proving the result
@@ -64,7 +64,7 @@ def reqOfClassEq : {p p' : RSeq} → (class p ≡ class p' ∈ Real) → REq p p
 -- rewrite underneath prfC — a path the kernel refuses to replay (B-1).
 -- With the representative inside, √ is ONE elimination.
 def PosPayload : Real → 𝕌 using (real.RSeq.unfold, real.Real.unfold, real.Regular.unfold) ≔
-  λx. (p : RSeq) (k : ℕ) ⨯ prfC (realOfQ (qInvNat k) ≤ x) ⨯ Id _ (class p) x
+  λx. (p : RSeq) (k : ℕ) × prfC (realOfQ (qInvNat k) ≤ x) × Id _ (class p) x
 
 def PosR : Real → 𝕌 ≔ λx. Br (PosPayload x)
 
@@ -207,7 +207,7 @@ def posSampleNN : (p : RSeq)
 -- any representative, max(·,0) is regular, pointwise nonnegative, and
 -- REq to the original precisely because x ≥ 0 gives p_n ≥ −rBound n n.
 def NonNegPayload : Real → 𝕌 using (real.Real.unfold, real.RSeq.unfold, real.Regular.unfold) ≔
-  λx. (p : RSeq) ⨯ ((n : ℕ) → qZero ≤ seqOf p n) ⨯ Id _ (class p) x
+  λx. (p : RSeq) × ((n : ℕ) → qZero ≤ seqOf p n) × Id _ (class p) x
 
 def NonNegR : Real → 𝕌 ≔ λx. Br (NonNegPayload x)
 

@@ -209,7 +209,7 @@ def qOfNzqNonZero : (x : NZQ) → ¬ (qOfNzq x ≡ qZero)
 
 -- so "non-zero" and "of the form qOfNzq x" coincide — the classical
 -- description of ℚ's units, with the structural one
-def qNonZeroIffNzq : (u : Q) → (¬ (u ≡ qZero) ↔ ∥(x : NZQ) ⨯ qOfNzq x ≡ u∥)
+def qNonZeroIffNzq : (u : Q) → (¬ (u ≡ qZero) ↔ ∥(x : NZQ) × qOfNzq x ≡ u∥)
   using (prop.↔.unfold, prop.∧.unfold) ≔
   λu. iffIntro
     (λh. qNonZeroIsNzq h)
@@ -236,7 +236,7 @@ def qOneNotZero : ¬ (qOne ≡ qZero)
 
 -- INVERTIBLE ⟺ NON-ZERO. Forwards is the inverse theorem; backwards,
 -- a zero u would make 1 = u·v = 0·v = 0
-def qInvertibleIffNonZero : (u : Q) → (¬ (u ≡ qZero) ↔ ∥(v : Q) ⨯ u * v ≡ qOne∥)
+def qInvertibleIffNonZero : (u : Q) → (¬ (u ≡ qZero) ↔ ∥(v : Q) × u * v ≡ qOne∥)
   using (integer.Int.unfold,
     prop.↔.unfold,
     prop.∧.unfold,

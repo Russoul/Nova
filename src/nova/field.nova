@@ -17,19 +17,19 @@ import group (IsGroup)
 def IsField : 𝕌 → 𝕌 using (group.IsGroup.unfold, monoid.IsMonoid.unfold) ≔
   λF. (g : IsGroup F)
     (mm : IsMonoid F)
-    ⨯ let add ≔ g .π₁ .π₁ in let zero ≔ g .π₁ .π₂ .π₁ in let mul ≔ mm .π₁ in let one ≔ mm .π₂ .π₁ in ((x y : F)
+    × let add ≔ g .π₁ .π₁ in let zero ≔ g .π₁ .π₂ .π₁ in let mul ≔ mm .π₁ in let one ≔ mm .π₂ .π₁ in ((x y : F)
       → Id
         _
         (add x y)
         (add
           y
-          x)) ⨯ ((x y : F)
+          x)) × ((x y : F)
       → Id
         _
         (mul x y)
         (mul
           y
-          x)) ⨯ ((x y z : F)
+          x)) × ((x y z : F)
       → Id
         _
         (mul x (add y z))
@@ -37,7 +37,7 @@ def IsField : 𝕌 → 𝕌 using (group.IsGroup.unfold, monoid.IsMonoid.unfold)
           (mul x y)
           (mul
             x
-            z))) ⨯ ((x y z : F)
+            z))) × ((x y z : F)
       → Id
         _
         (mul (add y z) x)
@@ -45,5 +45,5 @@ def IsField : 𝕌 → 𝕌 using (group.IsGroup.unfold, monoid.IsMonoid.unfold)
           (mul y x)
           (mul
             z
-            x))) ⨯ ((p : Id _ one zero)
-      → 𝟘) ⨯ (x : F) (k : (p : Id _ x zero) → 𝟘) → (y : F) ⨯ Id _ (mul x y) one
+            x))) × ((p : Id _ one zero)
+      → 𝟘) × ((x : F) (k : (p : Id _ x zero) → 𝟘) → (y : F) × Id _ (mul x y) one)

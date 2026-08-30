@@ -3,7 +3,7 @@
 import nat (+, plusZeroId, plusSucId, zeroPlusId)
 import integer (Int)
 
-def normPair : ℕ → ℕ → ℕ ⨯ ℕ ≔ λa. ℕ-elim (λb. Z, b) (n ih. λb. ℕ-elim (S n, Z) (m ihb. ih m) b) a
+def normPair : ℕ → ℕ → ℕ × ℕ ≔ λa. ℕ-elim (λb. Z, b) (n ih. λb. ℕ-elim (S n, Z) (m ihb. ih m) b) a
 
 -- the three defining equations of normPair, in folded vocabulary, so
 -- they can fire as rewrite rules without unfolding normPair in goals

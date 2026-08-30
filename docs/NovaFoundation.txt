@@ -1,6 +1,6 @@
 ////////// Preface //////////
 
-#! highlight keywords: ⊦ : ; , · [ ] ‖ .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id λ let → ⨯ ⊎ ≡ ∥ / Ω 𝕌 𝕍 ℕ 𝟘 𝟙 Z S ⋆ class inj₁ inj₂ ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ 𝟘-elim ℕ-elim quot-elim squash-elim ⊎-elim -elim qctx qty qsig ctx tel mot dalg eprob sect norm small sig nf qpath ν 𝕏 K out corec poly map
+#! highlight keywords: ⊦ : ; , · [ ] ‖ .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id λ let → × ⊎ ≡ ∥ / Ω 𝕌 𝕍 ℕ 𝟘 𝟙 Z S ⋆ class inj₁ inj₂ ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ 𝟘-elim ℕ-elim quot-elim squash-elim ⊎-elim -elim qctx qty qsig ctx tel mot dalg eprob sect norm small sig nf qpath ν 𝕏 K out corec poly map
 #! highlight tos: 𝔄 𝔅 𝕥 𝕦 𝕧 𝕤 𝕔 𝕜 𝕘 𝕒 𝕓 𝕞 Φ 𝒮 ς 𝔎 𝔽 𝔾
 #! highlight nova: Γ Δ Ξ Σ σ τ δ θ latin
 #! highlight meta: 𝑤 ρ υ π 𝒞 ℰ
@@ -84,7 +84,7 @@
 #  * Unit type: 𝟙
 #  * Natural numbers type: ℕ
 #  * Dependent product type: (→)
-#  * Dependent sum type: (⨯)
+#  * Dependent sum type: (×)
 #  * Non-dependent sum type: (⊎) — the disjoint union, with injections
 #    inj₁/inj₂ and a dependent eliminator ⊎-elim (β on each injection,
 #    uniqueness η in el-nat-eta's style). DEFINABLE as a QIIT (a
@@ -163,7 +163,7 @@ e˲, t˲, p˲ ::= · | t˲, t
 # presentations are merged. A term is a TYPE when it is typed at 𝕍.
 # DISPLAY CONVENTION: the metavariables T, A, B, C range over terms
 # standing in type position, t, a, b, e over terms in element
-# position — one grammar, two reading aids. The formers 𝟘 𝟙 ℕ → ⨯ ⊎ /
+# position — one grammar, two reading aids. The formers 𝟘 𝟙 ℕ → × ⊎ /
 # (and the QIIT sorts and ν) are typed BOTH at 𝕌 (as codes) and at 𝕍
 # (as types): at 𝕌 by their code-* rules, whence at 𝕍 by CUMULATIVITY
 # (code-lift — El is retired), and at 𝕍 with LARGE components by
@@ -182,7 +182,7 @@ t, T ::= x [e˲]      # signature reference
     | 𝟙              # unit type — code and type
     | ℕ              # naturals — code and type
     | t → t          # dependent product (Π) — code and type
-    | t ⨯ t          # dependent sum (Σ) — code and type
+    | t × t          # dependent sum (Σ) — code and type
     | t ⊎ t          # non-dependent sum (disjoint union) — code and type
     | t / t          # quotient by an Ω-valued relation — code and type
     | λ t            # dependent product type introduction
@@ -710,7 +710,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ ⊦ A : 𝕍
 Γ ▷ A ⊦ B : 𝕍
 ------------------ (ty-sigma)
-Γ ⊦ A ⨯ B : 𝕍
+Γ ⊦ A × B : 𝕍
 
 Γ ⊦ A : 𝕍
 Γ ⊦ B : 𝕍
@@ -835,7 +835,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ₁ ▷ A ⊦ B : 𝕍
 σ : Γ₀ ⇒ Γ₁
 --------------------------------------- (ty-sub-sigma)
-Γ₀ ⊦ (A ⨯ B)[σ] ≜ A[σ] ⨯ B[σ⁺] : 𝕍
+Γ₀ ⊦ (A × B)[σ] ≜ A[σ] × B[σ⁺] : 𝕍
 
 Γ₁ ⊦ A : 𝕍
 Γ₁ ⊦ B : 𝕍
@@ -877,7 +877,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ ⊦ A₀ ≐ A₁ : 𝕍
 Γ ▷ A₁ ⊦ B₀ ≐ B₁ : 𝕍
 ------------------------------- (ty-sigma-cong)
-Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ : 𝕍
+Γ ⊦ A₀ × B₀ ≐ A₁ × B₁ : 𝕍
 
 Γ ⊦ A₀ ≐ A₁ : 𝕍
 Γ ⊦ B₀ ≐ B₁ : 𝕍
@@ -963,7 +963,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 
 Γ ▷ A₀ ⊦ B₀ : 𝕍
 Γ ▷ A₁ ⊦ B₁ : 𝕍
-Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ : 𝕍
+Γ ⊦ A₀ × B₀ ≐ A₁ × B₁ : 𝕍
 ------------------------------ (ty-sigma-inj)
 Γ ⊦ A₀ ≐ A₁ : 𝕍
 Γ ▷ A₁ ⊦ B₀ ≐ B₁ : 𝕍
@@ -994,7 +994,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 
 Γ ▷ a₀ ⊦ b₀ : 𝕌
 Γ ▷ a₁ ⊦ b₁ : 𝕌
-Γ ⊦ a₀ ⨯ b₀ ≐ a₁ ⨯ b₁ : 𝕌
+Γ ⊦ a₀ × b₀ ≐ a₁ × b₁ : 𝕌
 ------------------------------ (code-sigma-inj)
 Γ ⊦ a₀ ≐ a₁ : 𝕌
 Γ ▷ a₁ ⊦ b₀ ≐ b₁ : 𝕌
@@ -1079,7 +1079,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ ⊦ A : 𝕌
 Γ ▷ A ⊦ B : 𝕌
 -------------------- (code-sigma)
-Γ ⊦ A ⨯ B : 𝕌
+Γ ⊦ A × B : 𝕌
 
 Γ ⊦ A : 𝕌
 Γ ⊦ B : 𝕌
@@ -1225,13 +1225,13 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ ⊦ a : A
 Γ ⊦ b : B[id, a]
 ---------------------- (el-sigma-i)
-Γ ⊦ (a , b) : A ⨯ B
+Γ ⊦ (a , b) : A × B
 
-Γ ⊦ t : A ⨯ B
+Γ ⊦ t : A × B
 ------------------- (el-sigma-e₁)
 Γ ⊦ t .π₁ : A
 
-Γ ⊦ t : A ⨯ B
+Γ ⊦ t : A × B
 ------------------------------ (el-sigma-e₂)
 Γ ⊦ t .π₂ : B[id, t .π₁]
 
@@ -1247,9 +1247,9 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 ------------------------------------ (el-sigma-beta₂)
 Γ ⊦ (a, b) .π₂ ≜ b : B[id, a]
 
-Γ ⊦ t : A ⨯ B
+Γ ⊦ t : A × B
 ------------------------------------ (el-sigma-eta)
-Γ ⊦ (t .π₁ , t .π₂) ≐ t : A ⨯ B
+Γ ⊦ (t .π₁ , t .π₂) ≐ t : A × B
 
 # ⊎ — the non-dependent sum (disjoint union). Two injections; the
 # eliminator is DEPENDENT (motive C over Γ ▷ A ⊎ B), with β on each
@@ -1386,7 +1386,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 #    entry h : (A ≡ B ∈ 𝕍), and ty-zero-elim of earlier
 #    presentations is derivable (see THE TOP UNIVERSE).
 #  * Ω-positions take equations directly — quotient relations need no
-#    squash (ℕ ⨯ ℕ / (p q. p .π₁ + q .π₂ ≡ p .π₂ + q .π₁ ∈ ℕ)), and
+#    squash (ℕ × ℕ / (p q. p .π₁ + q .π₂ ≡ p .π₂ + q .π₁ ∈ ℕ)), and
 #    the squashed-equality connective below is subsumed.
 #  * NO injectivity and NO 𝕌-code, both inherited from Ω's
 #    discipline. Losing the code means equational content cannot be
@@ -1410,9 +1410,9 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 #    unchanged.
 #  * Squash is the only way in: ∥-∥ takes an arbitrary TYPE, not a
 #    𝕌-code, so the connectives are signature definitions, not rules —
-#      ⊤ ≔ ∥𝟙∥,  ⊥ ≔ ∥𝟘∥,  p ∧ q ≔ ∥p ⨯ q[↑]∥,
+#      ⊤ ≔ ∥𝟙∥,  ⊥ ≔ ∥𝟘∥,  p ∧ q ≔ ∥p × q[↑]∥,
 #      p ⊃ q ≔ ∥p → q[↑]∥,  ∀ over A ≔ ∥A → p∥,
-#      ∃ over A ≔ ∥A ⨯ p∥
+#      ∃ over A ≔ ∥A × p∥
 #    (props stand directly in the domains and components — prop-lift)
 #    — equality (≡) is the one PRIMITIVE prop beside ∥-∥ (squashing
 #    it again is redundant by code-squash-idem). Every other definable
@@ -2422,7 +2422,7 @@ e˲ : Δ ⇒ Γ norm
 Γ₁ ▷ A ⊦ B : 𝕌
 σ : Γ₀ ⇒ Γ₁
 ---------------------------------------- (el-sub-code-sigma)
-Γ₀ ⊦ (A ⨯ B)[σ] ≜ A[σ] ⨯ B[σ⁺] : 𝕌
+Γ₀ ⊦ (A × B)[σ] ≜ A[σ] × B[σ⁺] : 𝕌
 
 Γ₁ ⊦ A : 𝕌
 Γ₁ ⊦ B : 𝕌
@@ -2467,14 +2467,14 @@ e˲ : Δ ⇒ Γ norm
 Γ₁ ⊦ b : B[id, a]
 σ : Γ₀ ⇒ Γ₁
 ------------------------------------------------------ (el-sub-pair)
-Γ₀ ⊦ (a , b)[σ] ≜ a[σ] , b[σ] : A[σ] ⨯ B[σ⁺]
+Γ₀ ⊦ (a , b)[σ] ≜ a[σ] , b[σ] : A[σ] × B[σ⁺]
 
-Γ₁ ⊦ t : A ⨯ B
+Γ₁ ⊦ t : A × B
 σ : Γ₀ ⇒ Γ₁
 ------------------------------------------ (el-sub-proj₁)
 Γ₀ ⊦ (t .π₁)[σ] ≜ t[σ] .π₁ : A[σ]
 
-Γ₁ ⊦ t : A ⨯ B
+Γ₁ ⊦ t : A × B
 σ : Γ₀ ⇒ Γ₁
 ------------------------------------------------------- (el-sub-proj₂)
 Γ₀ ⊦ (t .π₂)[σ] ≜ t[σ] .π₂ : B[σ, t[σ] .π₁]
@@ -2649,13 +2649,13 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ a₀ ≐ a₁ : A
 Γ ⊦ b₀ ≐ b₁ : B[id, a₁]
 ------------------------------------- (el-pair-cong) # ADMISSIBLE: substitution
-Γ ⊦ (a₀, b₀) ≐ (a₁, b₁) : A ⨯ B                      #   instance at (☐₁, ☐₀)
+Γ ⊦ (a₀, b₀) ≐ (a₁, b₁) : A × B                      #   instance at (☐₁, ☐₀)
 
-Γ ⊦ t₀ ≐ t₁ : A ⨯ B
+Γ ⊦ t₀ ≐ t₁ : A × B
 ------------------------------- (el-proj₁-cong) # ADMISSIBLE: substitution
 Γ ⊦ t₀ .π₁ ≐ t₁ .π₁ : A                        #   instance at ☐₀ .π₁
 
-Γ ⊦ t₀ ≐ t₁ : A ⨯ B
+Γ ⊦ t₀ ≐ t₁ : A × B
 ------------------------------------------- (el-proj₂-cong) # ADMISSIBLE: substitution
 Γ ⊦ t₀ .π₂ ≐ t₁ .π₂ : B[id, t₁ .π₁]                        #   instance at ☐₀ .π₂
 
@@ -2736,7 +2736,7 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ A₀ ≐ A₁ : 𝕌
 Γ ▷ A₁ ⊦ B₀ ≐ B₁ : 𝕌
 ------------------------------- (code-sigma-cong)
-Γ ⊦ A₀ ⨯ B₀ ≐ A₁ ⨯ B₁ : 𝕌
+Γ ⊦ A₀ × B₀ ≐ A₁ × B₁ : 𝕌
 
 Γ ⊦ A₀ ≐ A₁ : 𝕌
 Γ ⊦ B₀ ≐ B₁ : 𝕌
@@ -2779,7 +2779,7 @@ e˲ : Γ₁ ⇒ Γ norm
 # condition — the grammar enforces it). A left-hand CODE `a` BINDS a
 # Nova variable in its body, exactly as code-sigma/code-pi bind; the
 # two product forms are distinguished by their left-hand side (K a
-# ⨯ … is the non-binding instance of the same shape). The hole 𝕏
+# × … is the non-binding instance of the same shape). The hole 𝕏
 # never occurs left of a → — strict positivity is GRAMMATICAL, with
 # nothing to check (the same decidable-proxy commitment as
 # RELAXATION in the QIIT notes: here the semantic condition is that
@@ -2788,9 +2788,9 @@ e˲ : Γ₁ ⇒ Γ norm
 #   polynomial
     𝔽, 𝔾 ::= 𝕏               # the hole
            | K a             # constant at a code
-           | 𝔽 ⨯ 𝔾           # product
+           | 𝔽 × 𝔾           # product
            | 𝔽 ⊎ 𝔾           # sum — onto the native ⊎
-           | a ⨯ 𝔽        # dependent pair over external data
+           | a × 𝔽        # dependent pair over external data
                              #   (binds a NOVA variable)
            | a → 𝔽        # exponent with external domain
                              #   (binds a NOVA variable)
@@ -2805,7 +2805,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ ⊦ 𝔽 poly      Γ ⊦ 𝔾 poly
 ---------------------------- (poly-prod)
-Γ ⊦ 𝔽 ⨯ 𝔾 poly
+Γ ⊦ 𝔽 × 𝔾 poly
 
 Γ ⊦ 𝔽 poly      Γ ⊦ 𝔾 poly
 ---------------------------- (poly-sum)
@@ -2813,7 +2813,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ ⊦ a : 𝕌      Γ ▷ a ⊦ 𝔽 poly
 ---------------------------------- (poly-sigma)
-Γ ⊦ a ⨯ 𝔽 poly
+Γ ⊦ a × 𝔽 poly
 
 Γ ⊦ a : 𝕌      Γ ▷ a ⊦ 𝔽 poly
 ---------------------------------- (poly-pi)
@@ -2825,9 +2825,9 @@ e˲ : Γ₁ ⇒ Γ norm
 
     ⌊𝕏⌋(c)          ≜ c
     ⌊K a⌋(c)        ≜ a
-    ⌊𝔽 ⨯ 𝔾⌋(c)      ≜ ⌊𝔽⌋(c) ⨯ ⌊𝔾⌋(c)[↑]      # code-sigma, non-dependent
+    ⌊𝔽 × 𝔾⌋(c)      ≜ ⌊𝔽⌋(c) × ⌊𝔾⌋(c)[↑]      # code-sigma, non-dependent
     ⌊𝔽 ⊎ 𝔾⌋(c)      ≜ ⌊𝔽⌋(c) ⊎ ⌊𝔾⌋(c)         # code-sum, direct
-    ⌊a ⨯ 𝔽⌋(c)   ≜ a ⨯ ⌊𝔽⌋(c[↑])
+    ⌊a × 𝔽⌋(c)   ≜ a × ⌊𝔽⌋(c[↑])
     ⌊a → 𝔽⌋(c)   ≜ a → ⌊𝔽⌋(c[↑])
 
 # FUNCTORIAL ACTION map_𝔽 — for Γ ⊦ g : c₀ → c₁, a function
@@ -2839,9 +2839,9 @@ e˲ : Γ₁ ⇒ Γ norm
 
     map_𝕏 g x             ≜ g x
     map_{K a} g x         ≜ x
-    map_{𝔽 ⨯ 𝔾} g p       ≜ (map_𝔽 g (p .π₁) , map_𝔾 g (p .π₂))
+    map_{𝔽 × 𝔾} g p       ≜ (map_𝔽 g (p .π₁) , map_𝔾 g (p .π₂))
     map_{𝔽 ⊎ 𝔾} g s       ≜ ⊎-elim (inj₁ (map_𝔽 g[↑] ☐₀)) (inj₂ (map_𝔾 g[↑] ☐₀)) s
-    map_{a ⨯ 𝔽} g p    ≜ (p .π₁ , map_𝔽 g (p .π₂))
+    map_{a × 𝔽} g p    ≜ (p .π₁ , map_𝔽 g (p .π₂))
     map_{a → 𝔽} g f    ≜ λ (map_𝔽 g[↑] (f[↑] ☐₀))
 
 # The FUNCTOR LAWS — map_𝔽 (λ ☐₀) ≐ λ ☐₀ and
@@ -2930,16 +2930,16 @@ e˲ : Γ₁ ⇒ Γ norm
 #
 #     lift_𝕏(R) u v          ≜ R[id, u, v]
 #     lift_{K a}(R) u v      ≜ u ≡ v ∈ a
-#     lift_{𝔽 ⨯ 𝔾}(R) u v    ≜ ∥(lift_𝔽(R) (u .π₁) (v .π₁))
-#                                 ⨯ (lift_𝔾(R) (u .π₂) (v .π₂))∥
+#     lift_{𝔽 × 𝔾}(R) u v    ≜ ∥(lift_𝔽(R) (u .π₁) (v .π₁))
+#                                 × (lift_𝔾(R) (u .π₂) (v .π₂))∥
 #     lift_{𝔽 ⊎ 𝔾}(R) u v    ≜ ⊎-elim at motive Ω, on u then v:
 #                              the diagonal branches lift the
 #                              payloads, the off-diagonal ones are ⊥
 #                              — definitional collapse at canonical
 #                              forms, the tag mismatch judgementally
 #                              visible
-#     lift_{a ⨯ 𝔽}(R) u v ≜ ∥(h : u .π₁ ≡ v .π₁ ∈ a)
-#                                 ⨯ (lift_{𝔽[u .π₁]}(R) (u .π₂) (v .π₂))∥
+#     lift_{a × 𝔽}(R) u v ≜ ∥(h : u .π₁ ≡ v .π₁ ∈ a)
+#                                 × (lift_{𝔽[u .π₁]}(R) (u .π₂) (v .π₂))∥
 #                              # the two instances are ≐ under h by
 #                              # el-reflect — no transport, the same
 #                              # extensional degeneration as the
@@ -2955,7 +2955,7 @@ e˲ : Γ₁ ⇒ Γ norm
 Γ ⊦ t₀ ≐ t₁ : ν 𝔽
 
 # DERIVATION (why admissible). From R build the subset carrier
-# b ≜ (νᶜ ⨯ νᶜ) ⨯ prf R — νᶜ the ν-code, prf the derivable prf-code
+# b ≜ (νᶜ × νᶜ) × prf R — νᶜ the ν-code, prf the derivable prf-code
 # of the Ω block's impredicativity note — with the coalgebra
 # observing the FIRST component, the closure q transporting the
 # invariant to the tails; both projections commute with out (the
@@ -2980,7 +2980,7 @@ e˲ : Γ₁ ⇒ Γ norm
 #     while the TYPES stay structurally distinct (IDENTITY above).
 #   * SUBSUMPTION (conservativity). Every ν 𝔽 is definable: with
 #     F̂ⁿ(𝟙) : 𝕌 by ℕ-elim at motive 𝕌, the ℕ-indexed limit
-#         (g : ℕ → (F̂ⁿ 𝟙)-family) ⨯ (restriction coherence)
+#         (g : ℕ → (F̂ⁿ 𝟙)-family) × (restriction coherence)
 #     is a final 𝔽-coalgebra — containers preserve this limit — with
 #     out, corec and both laws provable (β up to lemmas, η by
 #     ℕ-induction and funext-via-reflection). The scheme is retained
@@ -2995,7 +2995,7 @@ e˲ : Γ₁ ⇒ Γ norm
 #     failing initiality are by the QIIT notes.
 #   * DELIBERATE OMISSIONS, each with a known upgrade path: no
 #     internal fixpoints in the grammar (interleaved nesting like
-#     ν of X ↦ A ⨯ List X needs the inner functor reified to
+#     ν of X ↦ A × List X needs the inner functor reified to
 #     shape-and-positions form by hand; non-interleaved nesting is
 #     free through K-constants at previously formed ν/QIIT codes);
 #     no indexed or mutual coinductive sorts and no coequations
@@ -3004,11 +3004,11 @@ e˲ : Γ₁ ⇒ Γ norm
 #     branching, which the finitary ToS grammar excludes).
 #
 # EXAMPLES.
-#     Stream a  ≜ ν (K a ⨯ 𝕏)
+#     Stream a  ≜ ν (K a × 𝕏)
 #     Conat     ≜ ν (K 𝟙 ⊎ 𝕏)
-#     Colist a  ≜ ν (K 𝟙 ⊎ (K a ⨯ 𝕏))
-#     Cotree a  ≜ ν (K 𝟙 ⊎ (K a ⨯ (𝕏 ⨯ 𝕏)))    # leaf/node infinite trees
-#     Moore a b ≜ ν (K b ⨯ (a → 𝕏))
+#     Colist a  ≜ ν (K 𝟙 ⊎ (K a × 𝕏))
+#     Cotree a  ≜ ν (K 𝟙 ⊎ (K a × (𝕏 × 𝕏)))    # leaf/node infinite trees
+#     Moore a b ≜ ν (K b × (a → 𝕏))
 #   head, tail, and friends are out followed by projections and
 #   ⊎-elim; constructors (cons, and Cotree's leaf/node) are in
 #   instances. Surface codata declarations elaborate to

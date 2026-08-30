@@ -2,4 +2,4 @@
 -- hypothesis (Foundation's →-inj-𝕌)
 def useInj : (a : 𝕌) (b : 𝕌) (h : (a → 𝟙) ≡ (b → 𝟙) ∈ 𝕌) (x : a) → b ≔ λa. λb. λh. λx. x
 -- and through (El-inj is the type-level route the elaborator takes)
-def useInjPair : (a : 𝕌) (b : 𝕌) (c : 𝕌) (h : (a ⨯ c) ≡ (b ⨯ c) ∈ 𝕌) (x : a) → b ≔ λa. λb. λc. λh. λx. x
+def useInjPair : (a : 𝕌) (b : 𝕌) (c : 𝕌) (h : (a × c) ≡ (b × c) ∈ 𝕌) (x : a) → b ≔ λa. λb. λc. λh. λx. x

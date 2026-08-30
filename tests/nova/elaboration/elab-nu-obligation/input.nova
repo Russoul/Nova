@@ -1,10 +1,10 @@
 -- coinduction with a NON-closing invariant: the closure's head
 -- component is Z ≐ S Z, which stays an OBLIGATION (not an error) —
 -- the coind payload composes with the ordinary obligation loop
-def stream : 𝕌 → 𝕌 ≔ λa. ν (K a ⨯ 𝕏)
+def stream : 𝕌 → 𝕌 ≔ λa. ν (K a × 𝕏)
 def zeros : (stream ℕ) using (stream.unfold) ≔ corec (s : 𝟙. (Z , s)) ()
 def ones : (stream ℕ) using (stream.unfold) ≔ corec (s : 𝟙. (S Z , s)) ()
 def bad : zeros ≡ ones ∈ (stream ℕ) using (hyp.rw, stream.unfold, zeros.eq, ones.eq, stream.eq) ≔
-  coind (x y. ∥(x ≡ zeros ∈ (stream ℕ)) ⨯ (y ≡ ones ∈ (stream ℕ))∥)
+  coind (x y. ∥(x ≡ zeros ∈ (stream ℕ)) × (y ≡ ones ∈ (stream ℕ))∥)
         (⋆ ((⋆ , ⋆)))
         (x y h. squash-elim h (w. ⋆ ((⋆ , ⋆ ((⋆ , ⋆))))))

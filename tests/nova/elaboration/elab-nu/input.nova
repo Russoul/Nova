@@ -1,6 +1,6 @@
 -- ν formation, corec introduction, out observation; both β-lemmas
 -- close by computation (el-nu-beta)
-def stream : 𝕌 → 𝕌 ≔ λa. ν (K a ⨯ 𝕏)
+def stream : 𝕌 → 𝕌 ≔ λa. ν (K a × 𝕏)
 def iterate : (a : 𝕌) → (a → a) → a → (stream a) using (stream.unfold) ≔
   λa. λf. λx. corec (s : a. (s , f s)) x
 def hd : (a : 𝕌) → (stream a) → a using (stream.unfold) ≔ λa. λt. (out t) .π₁

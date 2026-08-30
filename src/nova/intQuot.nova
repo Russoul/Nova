@@ -48,7 +48,7 @@ def intGopComm : (x y : Int) → gop intAddGroup x y ≡ gop intAddGroup y x ≔
 -- nothing below ever needs the multiplier back as data — the three
 -- closure proofs each unpack their hypotheses and repackage a new
 -- witness, which is exactly what el-squash-e-prf allows.
-def nZfib : Int → Int → 𝕌 ≔ λn. λx. (k : Int) ⨯ Id _ (n * k) x
+def nZfib : Int → Int → 𝕌 ≔ λn. λx. (k : Int) × Id _ (n * k) x
 
 def nZ : Int → Int → Ω ≔ λn. λx. ∥nZfib n x∥
 

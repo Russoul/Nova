@@ -102,7 +102,7 @@ def fuelStep : {a b f' : ℕ} → (a ≤ S f') → (S b ≤ a) → (a ∸ S b �
 
 -- ===== division =====
 -- dmAux f a b = (q , r) with a ≡ q·(b+1) + r and r ≤ b, whenever a ≤ f
-def dmAux : ℕ → ℕ → ℕ → ℕ ⨯ ℕ ≔
+def dmAux : ℕ → ℕ → ℕ → ℕ × ℕ ≔
   λf. ℕ-elim
     (λa. λb. Z, a)
     (f' ih. λa. λb. natCase (Z, a) (λm. S (ih (a ∸ S b) b .π₁), ih (a ∸ S b) b .π₂) (a ∸ b))
@@ -126,7 +126,7 @@ def dmAuxEq : {f a b : ℕ} → (a ≤ f) → a ≡ dmAux f a b .π₁ * S b + d
   λf. ℕ-elim
     (λa. λb. λle. ⋆)
     (f' ih. λa. λb. λle. natCaseElimEq
-      (ℕ ⨯ ℕ)
+      (ℕ × ℕ)
       (λp. a ≡ p .π₁ * S b + p .π₂)
       (Z, a)
       (λm. S (dmAux f' (a ∸ S b) b .π₁), dmAux f' (a ∸ S b) b .π₂)
@@ -158,7 +158,7 @@ def dmAuxLe : {f a b : ℕ} → (a ≤ f) → (dmAux f a b .π₂ ≤ b)
   λf. ℕ-elim
     (λa. λb. λle. transport (λw. w ≤ b) (sym _ _ (leZeroInv le)) (leZero b))
     (f' ih. λa. λb. λle. natCaseElimEqD
-      (ℕ ⨯ ℕ)
+      (ℕ × ℕ)
       (λp. p .π₂ ≤ b)
       (Z, a)
       (λm. S (dmAux f' (a ∸ S b) b .π₁), dmAux f' (a ∸ S b) b .π₂)

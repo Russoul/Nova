@@ -125,20 +125,22 @@ brk d = DGroup (DNest 2 (DLine <-> d))
 -- ===== Printing levels =====
 
 ||| How an infix operand context treats a child operator of EQUAL
-||| precedence (strictly-greater always fits). Precedence climbing is
-||| order-sensitive at equal precedence: the left operand of a
-||| left-associative operator re-folds correctly only if its own head
-||| operator is also left-associative; the right operand of a
-||| right-associative operator re-folds correctly whatever the child's
-||| associativity; every other equal-precedence pairing must
-||| parenthesize.
-data EqPol = NoEq | EqIf Assoc | EqAny
+||| precedence (strictly-greater always fits). At equal precedence a
+||| bare operand re-folds correctly only when the child's associativity
+||| MATCHES the parent's and leans the parent's way: the left operand of
+||| a left-associative operator, the right operand of a
+||| right-associative one. Every other equal-precedence pairing must
+||| parenthesize — including the mixed-associativity ones, which the
+||| parser now rejects outright (Parser.parseSElemOp), so printing one
+||| bare would emit a file that no longer re-parses.
+data EqPol = NoEq | EqIf Assoc
 
 ||| Element-level printing contexts, one per parser operand position.
 data ELvl
   = LPair          -- t{0}: parseSElem (pairs allowed)
   | LNoComma       -- t{1}: parseSElemNoComma
   | LSumC          -- t{1¼}: parseSElemSumC
+  | LProdC         -- t{1⅜}: parseSElemProdC (the non-dependent × code)
   | LOp0           -- entry into parseSElemOp (climb 0)
   | LOpBin Nat EqPol -- an infix operand: child op precedence must
                      -- exceed the level, or equal it per the policy
@@ -151,6 +153,7 @@ data ECls
   = CPair
   | CNoComma
   | CSumC
+  | CProdC
   | COp Nat Assoc
   | CPrefix
   | CApp
@@ -161,29 +164,32 @@ fitsE CPair lvl = case lvl of LPair => True; _ => False
 fitsE CNoComma lvl = case lvl of LPair => True; LNoComma => True; _ => False
 fitsE CSumC lvl = case lvl of
   LPair => True; LNoComma => True; LSumC => True; _ => False
+fitsE CProdC lvl = case lvl of
+  LPair => True; LNoComma => True; LSumC => True; LProdC => True; _ => False
 fitsE (COp p a) lvl = case lvl of
-  LPair => True; LNoComma => True; LSumC => True; LOp0 => True
+  LPair => True; LNoComma => True; LSumC => True; LProdC => True; LOp0 => True
   LOpBin m pol => p > m || (p == m && ok pol)
   _ => False
  where
   ok : EqPol -> Bool
   ok NoEq = False
   ok (EqIf a') = a == a'
-  ok EqAny = True
 fitsE CPrefix lvl = case lvl of LApp => False; LAtom => False; _ => True
 fitsE CApp lvl = case lvl of LAtom => False; _ => True
 fitsE CAtom _ = True
 
 ||| Type-level printing contexts (T{0}, T{1}, T{1½}, T{2}, T{4}).
-data TLvl = TTop | TArrow | TSum | TEl | TAtom
+data TLvl = TTop | TArrow | TSum | TProd | TEl | TAtom
 
-data TCls = CTTop | CTArrow | CTSum | CTEl | CTAtom
+data TCls = CTTop | CTArrow | CTSum | CTProd | CTEl | CTAtom
 
 fitsT : TCls -> TLvl -> Bool
 fitsT CTTop lvl = case lvl of TTop => True; _ => False
 fitsT CTArrow lvl = case lvl of TTop => True; TArrow => True; _ => False
 fitsT CTSum lvl = case lvl of
   TTop => True; TArrow => True; TSum => True; _ => False
+fitsT CTProd lvl = case lvl of
+  TTop => True; TArrow => True; TSum => True; TProd => True; _ => False
 fitsT CTEl lvl = case lvl of TAtom => False; _ => True
 fitsT CTAtom _ = True
 
@@ -256,7 +262,7 @@ mutual
     SLam _ _ => CPrefix
     SLet _ _ _ => CPrefix
     SPiC _ _ _ => CNoComma
-    SSigmaC _ _ _ => CNoComma
+    SSigmaC x _ _ => if x == wildcard then CProdC else CNoComma
     SQuotC _ _ _ _ => CNoComma
     SEqC _ _ _ _ => CNoComma
     SChain _ _ => CNoComma
@@ -323,7 +329,7 @@ mutual
                      AssocR => LOpBin p NoEq
             rctx = case assoc of
                      AssocL => LOpBin p NoEq
-                     AssocR => LOpBin p EqAny
+                     AssocR => LOpBin p (EqIf AssocR)
         in pe tbl lctx False l <-> DGroup (DNest 2 (DLine <-> txt "\{op} " <-> pe tbl rctx tr r))
       Nothing =>
         -- flatten the spine: one group, every argument at the same
@@ -376,16 +382,16 @@ mutual
     SEqC _ l r mty =>
       pe tbl LSumC False l <-> txt " ≡ " <-> eqSide tbl mty r <->
       (case mty of
-         Just ty => txt " ∈ " <-> pt tbl TEl False ty
+         Just ty => txt " ∈ " <-> pt tbl TArrow False ty
          Nothing => DNil)
-    SSumC a b => pe tbl LOp0 False a <-> txt " ⊎ " <-> pe tbl LSumC tr b
+    SSumC a b => pe tbl LProdC False a <-> txt " ⊎ " <-> pe tbl LSumC tr b
     SPiC x a b =>
       if x == wildcard
         then pe tbl LSumC False a <-> txt " → " <-> pe tbl LNoComma tr b
         else piCRun tbl tr [(x, a)] b
     SSigmaC x a b =>
       if x == wildcard
-        then pe tbl LSumC False a <-> txt " ⨯ " <-> pe tbl LNoComma tr b
+        then pe tbl LOp0 False a <-> txt " × " <-> pe tbl LProdC tr b
         else sigmaCRun tbl tr [(x, a)] b
     SQuotC a (x, _) (y, _) r =>
       pe tbl LSumC False a <-> txt " / (\{x} \{y}. " <-> pe tbl LNoComma True r <-> txt ")"
@@ -463,8 +469,8 @@ mutual
   tySigmaRun tbl acc (STySigma x a b) =
     if x /= wildcard
       then tySigmaRun tbl (acc ++ [(False, x, a)]) b
-      else tyRunEnd tbl "⨯" acc (STySigma x a b)
-  tySigmaRun tbl acc cod = tyRunEnd tbl "⨯" acc cod
+      else tyRunEnd tbl "×" acc (STySigma x a b)
+  tySigmaRun tbl acc cod = tyRunEnd tbl "×" acc cod
 
   tyRunEnd : FixTable -> (arrow : String) -> List (Bool, String, STy) -> STy -> Doc
   tyRunEnd tbl arrow acc cod =
@@ -490,8 +496,8 @@ mutual
   sigmaCRun tbl tr acc (SSigmaC x a b) =
     if x /= wildcard
       then sigmaCRun tbl tr (acc ++ [(x, a)]) b
-      else cRunEnd tbl tr "⨯" acc (SSigmaC x a b)
-  sigmaCRun tbl tr acc cod = cRunEnd tbl tr "⨯" acc cod
+      else cRunEnd tbl tr "×" acc (SSigmaC x a b)
+  sigmaCRun tbl tr acc cod = cRunEnd tbl tr "×" acc cod
 
   cRunEnd : FixTable -> (tr : Bool) -> (arrow : String) -> List (String, SElem) -> SElem -> Doc
   cRunEnd tbl tr arrow acc cod =
@@ -509,7 +515,7 @@ mutual
 
   eqSideT : FixTable -> Maybe STy -> SElem -> Doc
   eqSideT tbl Nothing (SStar _) = txt "(⋆)"
-  eqSideT tbl _ r = pe tbl LOp0 False r
+  eqSideT tbl _ r = pe tbl LSumC False r
 
   ||| A written motive group, trailing space included; nothing when
   ||| elided.
@@ -522,7 +528,7 @@ mutual
     STyEq _ _ _ _ => CTTop
     STyPi _ _ _ => CTArrow
     STyImpPi _ _ _ => CTArrow
-    STySigma _ _ _ => CTArrow
+    STySigma x _ _ => if x == wildcard then CTProd else CTArrow
     STyQuot _ _ _ _ => CTArrow
     STySum _ _ => CTSum
     STyEl _ => CTEl
@@ -544,7 +550,7 @@ mutual
   ptRaw tbl ty = case ty of
     STyPos _ t => ptRaw tbl t
     STyEq _ l r mt =>
-      pe tbl LOp0 False l <-> txt " ≡ " <-> eqSideT tbl mt r <->
+      pe tbl LSumC False l <-> txt " ≡ " <-> eqSideT tbl mt r <->
       (case mt of
          Just t => txt " ∈ " <-> pt tbl TArrow True t
          Nothing => DNil)
@@ -555,11 +561,11 @@ mutual
     STyImpPi x a b => tyPiRun tbl [(True, x, a)] b
     STySigma x a b =>
       if x == wildcard
-        then pt tbl TSum False a <-> DGroup (DNest 2 (DLine <-> txt "⨯ " <-> pt tbl TTop True b))
+        then pt tbl TEl False a <-> DGroup (DNest 2 (DLine <-> txt "× " <-> pt tbl TProd True b))
         else tySigmaRun tbl [(False, x, a)] b
     STyQuot a (x, _) (y, _) r =>
       pt tbl TSum False a <-> txt " / (\{x} \{y}. " <-> pe tbl LNoComma True r <-> txt ")"
-    STySum a b => pt tbl TEl False a <-> txt " ⊎ " <-> pt tbl TSum False b
+    STySum a b => pt tbl TProd False a <-> txt " ⊎ " <-> pt tbl TSum False b
     -- El retired: a code in type position prints as the code itself
     STyEl e => pe tbl LPrefix False e
     STyNu f => txt "ν " <-> pp tbl PAtom f
@@ -586,9 +592,9 @@ mutual
 
   ppRaw : FixTable -> SPoly -> Doc
   ppRaw tbl f = case f of
-    SPProd g h => pp tbl PSum g <-> txt " ⨯ " <-> pp tbl PTop h
+    SPProd g h => pp tbl PSum g <-> txt " × " <-> pp tbl PTop h
     SPSigma (x, _) a g =>
-      dparen (txt "\{x} : " <-> pe tbl LNoComma True a) <-> txt " ⨯ " <-> pp tbl PTop g
+      dparen (txt "\{x} : " <-> pe tbl LNoComma True a) <-> txt " × " <-> pp tbl PTop g
     SPPi (x, _) a g =>
       dparen (txt "\{x} : " <-> pe tbl LNoComma True a) <-> txt " → " <-> pp tbl PTop g
     SPSum g h => pp tbl PAtom g <-> txt " ⊎ " <-> pp tbl PSum h

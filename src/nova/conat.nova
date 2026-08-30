@@ -35,6 +35,6 @@ def outSuccInf : out (csucc cinf) ≡ inj₂ (csucc cinf) ∈ 𝟙 ⊎ conat
 -- variable-definition equations, and collapses definitionally on the
 -- inj₂/inj₂ diagonal.
 def infSucc : cinf ≡ csucc cinf using (cinf.eq, csucc.eq, hyp.rw, conat.unfold) ≔
-  coind (x y. ∥(x ≡ cinf ∈ conat) ⨯ y ≡ csucc cinf ∈ conat∥)
+  coind (x y. ∥(x ≡ cinf ∈ conat) × (y ≡ csucc cinf ∈ conat)∥)
     (⋆ (⋆, ⋆))
     (x y h. squash-elim h (w. ⋆ (⋆, ⋆)))

@@ -568,10 +568,10 @@ def sNegNotPos : (sNeg ≡ sPos) → 𝟘
   λh. transport sIsPos (sym _ _ h) ()
 
 -- ===== views: a sign verdict names the integer's shape =====
-def intSgnPosView : (z : Int) → (intSgn z ≡ sPos) → (k : ℕ) ⨯ nzToInt (nzPos k) ≡ z
+def intSgnPosView : (z : Int) → (intSgn z ≡ sPos) → (k : ℕ) × nzToInt (nzPos k) ≡ z
   using (integer.Int.unfold, rational.NZ.unfold, rational.nzNeg.eq, rational.nzPos.eq) ≔
   λz. λh. ⊎-elim
-    (u. (⊎-elim (w. (nzToInt w ≡ z) → (k : ℕ) ⨯ nzToInt (nzPos k) ≡ z)
+    (u. (⊎-elim (w. (nzToInt w ≡ z) → (k : ℕ) × nzToInt (nzPos k) ≡ z)
       (k. λhe. k, he)
       (k. λhe. 𝟘-elim (sNegNotPos
         (trans

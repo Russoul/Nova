@@ -125,14 +125,14 @@ infixl 6 +                        -- fixity; operators ARE names: def + : ℕ �
 data [a : 𝕌] ( … )                -- QIIT signature (see below)
 ```
 
-Types: `𝟘 𝟙 ℕ 𝕌 Ω`, `(x : T) → U` and `T → U`, `(x : T) ⨯ U`,
-`T ⊎ U` (non-dependent disjoint union; binds TIGHTER than → ⨯, so
+Types: `𝟘 𝟙 ℕ 𝕌 Ω`, `(x : T) → U` and `T → U`, `(x : T) × U`,
+`T ⊎ U` (non-dependent disjoint union; binds TIGHTER than → ×, so
 `A ⊎ B → C` is `(A ⊎ B) → C`),
 `l ≡ r ∈ T` (SUGAR for `Prf (l ≡ r ∈ T)` — equality is an Ω-valued
 PROPOSITION), `El t`, `T / (x y. r)` (r is Ω-valued), `Prf p`,
 `ν F` (coinductive type at a one-hole polynomial `F ::= 𝕏 | K t |
-F ⨯ F | F ⊎ F | (x:t) ⨯ F | (x:t) → F` — external pieces are codes;
-e.g. `ν (K a ⨯ 𝕏)` is streams of `a`).
+F × F | F ⊎ F | (x:t) × F | (x:t) → F` — external pieces are codes;
+e.g. `ν (K a × 𝕏)` is streams of `a`).
 `∥T∥` squashes any type to a proposition; `∥Prf p∥ ≜ p`.
 
 Elements: `λx. t`; application by juxtaposition; `(t : T)` ascription
@@ -225,7 +225,7 @@ data [a : 𝕌] [r : El a → El a → Ω]
 - The obligation report shows NORMALIZED sides; state lemmas against
   what the report prints, not against your source spelling.
 - A Σ-CODE binds over a code, a Σ-TYPE over `El` of one:
-  `((m : Int) ⨯ Id Int m m)` is a code, `((e : El NZ) ⨯ Prf p) ⊎ …` is a
+  `((m : Int) × Id Int m m)` is a code, `((e : El NZ) × Prf p) ⊎ …` is a
   type. Writing `El` in code position silently drops the binder and the
   error is `unknown name 'm'` at the USE, several lines away.
 - `class a ≡ class b` is discharged automatically only when the

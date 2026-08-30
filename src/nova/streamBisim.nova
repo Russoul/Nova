@@ -17,7 +17,7 @@ import streamEq (tlN, nth, obsEq, obsEqRefl, nthMap, mapIdObsEq, mapFuseObsEq)
 
 def bisim : {a : 𝕌} → stream a → stream a → Ω ≔
   λa. λs. λt. ∥(r : stream a → stream a → Ω)
-    ⨯ ((x y : stream a) → r x y → (hd x ≡ hd y) ⨯ r (tl x) (tl y)) ⨯ r s t∥
+    × ((x y : stream a) → r x y → (hd x ≡ hd y) × r (tl x) (tl y)) × r s t∥
 
 -- UNFOLD, head half: bisimilar streams agree at the head
 def bisimHd : {a : 𝕌} {s t : stream a} → bisim s t → hd s ≡ hd t using (streamBisim.bisim.unfold) ≔

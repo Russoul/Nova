@@ -22,7 +22,7 @@ mutual
   namespace Elem
     ||| ONE term sort (Foundation: the type and element grammars are
     ||| merged; a term is a TYPE when it is typed at 𝕍 — TopTy). The
-    ||| shared formers (𝟘 𝟙 ℕ → ⨯ ⊎ /, QSort, NuTy) are one
+    ||| shared formers (𝟘 𝟙 ℕ → × ⊎ /, QSort, NuTy) are one
     ||| constructor each, typed both at 𝕌 (as codes) and at 𝕍 (as
     ||| types).
     public export
@@ -82,7 +82,7 @@ mutual
       TopTy : Elem
       ||| t → t  (dependent product, Π — code and type)
       PiTy : Elem -> Elem -> Elem
-      ||| t ⨯ t  (dependent sum, Σ — code and type)
+      ||| t × t  (dependent sum, Σ — code and type)
       SigmaTy : Elem -> Elem -> Elem
       ||| t ⊎ t  (non-dependent sum — code and type; no binder in
       ||| either component)
@@ -183,11 +183,11 @@ mutual
       PHole : Poly
       ||| K a — constant at a code
       PConst : Elem -> Poly
-      ||| 𝔽 ⨯ 𝔾 — product (non-binding)
+      ||| 𝔽 × 𝔾 — product (non-binding)
       PProd : Poly -> Poly -> Poly
       ||| 𝔽 ⊎ 𝔾 — sum
       PSum : Poly -> Poly -> Poly
-      ||| El a ⨯ 𝔽 — dependent pair over external data (binds)
+      ||| El a × 𝔽 — dependent pair over external data (binds)
       PSigma : Elem -> Poly -> Poly
       ||| El a → 𝔽 — exponent with external domain (binds)
       PPi : Elem -> Poly -> Poly

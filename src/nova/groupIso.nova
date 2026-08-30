@@ -89,7 +89,7 @@ def kerIsNormal : (G : 𝕌)
 --
 -- This is the choice the whole theorem turns on. The obvious spelling
 --
---   im p ≜ ((y : H) ⨯ ∥(x : G) ⨯ Id H (p x) y∥)
+--   im p ≜ ((y : H) × ∥(x : G) × Id H (p x) y∥)
 --
 -- is unusable: ∥·∥ lives in Ω, el-squash-e-prf reaches only further
 -- PROPOSITIONS, and the inverse map G/ker p ← im p has to land in
@@ -101,7 +101,7 @@ def kerIsNormal : (G : 𝕌)
 -- a 𝕌-CODE whose `class` RETAINS its representative, so brElim lands
 -- in an arbitrary type at the price of a constancy proof. Defining
 --
---   Im p ≜ ((y : H) ⨯ Br ((x : G) ⨯ Id H (p x) y))
+--   Im p ≜ ((y : H) × Br ((x : G) × Id H (p x) y))
 --
 -- makes the inverse map writable, and the constancy obligation brElim
 -- charges for it is EXACTLY "any two preimages of y agree modulo
@@ -113,10 +113,10 @@ def kerIsNormal : (G : 𝕌)
 -- two elements of Im with equal first components are equal outright,
 -- and every law of Im reduces to the corresponding law of H.
 def imFib : (G : 𝕌) (g : IsGroup G) (H : 𝕌) (h : IsGroup H) (p : Hom g h) (y : H) → 𝕌 ≔
-  λG. λg. λH. λh. λp. λy. (x : G) ⨯ Id _ (homAp p x) y
+  λG. λg. λH. λh. λp. λy. (x : G) × Id _ (homAp p x) y
 
 def Im : (G : 𝕌) (g : IsGroup G) (H : 𝕌) (h : IsGroup H) (p : Hom g h) → 𝕌 ≔
-  λG. λg. λH. λh. λp. (y : H) ⨯ Br (imFib _ _ _ _ p y)
+  λG. λg. λH. λh. λp. (y : H) × Br (imFib _ _ _ _ p y)
 
 -- an element of the image is determined by its H-component
 def imEq : (G : 𝕌)

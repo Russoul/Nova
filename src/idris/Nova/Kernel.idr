@@ -38,8 +38,8 @@ import Nova.Kernel.QIIT
 public export
 data Sel : Type where
   SelSuc : Sel                       -- S x ≐ S y ⇒ x ≐ y : ℕ
-  SelDom : Sel                       -- (a₀→b₀) ≐ (a₁→b₁) : 𝕌 ⇒ a₀ ≐ a₁ : 𝕌 (also ⨯)
-  SelCod : Elem -> Sel               -- ⇒ b₀[id,u] ≐ b₁[id,u] : 𝕌 (also ⨯)
+  SelDom : Sel                       -- (a₀→b₀) ≐ (a₁→b₁) : 𝕌 ⇒ a₀ ≐ a₁ : 𝕌 (also ×)
+  SelCod : Elem -> Sel               -- ⇒ b₀[id,u] ≐ b₁[id,u] : 𝕌 (also ×)
   SelSumL : Sel                      -- (a₀⊎b₀) ≐ (a₁⊎b₁) : 𝕌 ⇒ a₀ ≐ a₁ : 𝕌
   SelSumR : Sel                      -- ⇒ b₀ ≐ b₁ : 𝕌 (non-dependent: no
                                      -- binder, no instantiation element)
@@ -1021,7 +1021,7 @@ mutual
     ty' <- kTy sig ty
     case ty' of
       SigmaTy a b => do checkP sig ctx u a; checkP sig ctx v (substTy b (Ext Id u))
-      _ => kerr "kernel: pair proof at non-⨯ type"
+      _ => kerr "kernel: pair proof at non-× type"
   -- el-sum-i₁ / el-sum-i₂ as proof arguments
   checkP sig ctx (Inj1 a) ty = do
     ty' <- kTy sig ty
@@ -1405,7 +1405,7 @@ mutual
   childTyE : Sig -> Ctx -> Maybe Ty -> Elem -> Nat -> KM (Maybe Ty)
   -- SINGLE-COLUMN matching, deliberately: one clause per former, the
   -- child index (a Nat — nested S-patterns!) and the expected-type
-  -- Maybe dispatched in the BODY. The former ⨯ index ⨯ Maybe product
+  -- Maybe dispatched in the BODY. The former × index × Maybe product
   -- pattern this replaces made the compile-time case tree and its
   -- coverage check the single most expensive item in the file
   -- (~23s / most of the peak RSS).
@@ -2054,7 +2054,7 @@ mutual
               SigmaTy a b => do
                 kCheckE sig ctx u a (skelChild 0 sk)
                 kCheckE sig ctx v (substTy b (Ext Id u)) (skelChild 1 sk)
-              _ => kerr "kernel: pair checked at a non-⨯ type"
+              _ => kerr "kernel: pair checked at a non-× type"
           Star =>
             -- el-eq-i over replay: ⋆ at an equality prop, the
             -- equation certified (refl-eq payload); otherwise the

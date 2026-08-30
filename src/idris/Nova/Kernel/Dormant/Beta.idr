@@ -4,7 +4,7 @@ module Nova.Kernel.Dormant.Beta
 -- Elem/SubNorm, matching every "by definition" (≜) computation
 -- rule in docs/NovaFoundation.txt — Π-β, Σ-β₁, Σ-β₂, ℕ-elim-β-Z,
 -- ℕ-elim-β-S, quote-elim-β, x-β (signature-variable unfolding), and the
--- El-𝟘/El-𝟙/El-ℕ/El-(→)/El-(⨯)/El-(≡)/El-(/) decoding rules.
+-- El-𝟘/El-𝟙/El-ℕ/El-(→)/El-(×)/El-(≡)/El-(/) decoding rules.
 --
 -- Every function takes the signature Σ as its first argument, since
 -- unfolding a SigVar (x-β) needs it — unlike every other rule here, that

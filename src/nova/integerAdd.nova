@@ -51,7 +51,7 @@ def intAddCross : (a1 a2 b1 b2 c1 c2 : ℕ)
 
 -- the same, one level up: the inner elimination is well-defined in the
 -- OUTER argument — proven by quotient elimination with an ≡-motive
-def intAddWDOuter : (a b : ℕ ⨯ ℕ)
+def intAddWDOuter : (a b : ℕ × ℕ)
   (h : a .π₁ + b .π₂ ≡ a .π₂ + b .π₁)
   (zy : Int)
   → quot-elim (z. Int)

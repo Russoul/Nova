@@ -1,5 +1,5 @@
 -- Observational equality of Int, and its logical equivalence with the
--- built-in ≡ ∈ Int. Int is a quotient (ℕ ⨯ ℕ) / IntR, so its OWN
+-- built-in ≡ ∈ Int. Int is a quotient (ℕ × ℕ) / IntR, so its OWN
 -- defining relation is already the natural "observational" candidate —
 -- but lifting IntR to Int × Int directly (via a double quot-elim
 -- landing in Ω) needs its well-definedness proved as an Ω-code
@@ -24,13 +24,13 @@ import equality (sym, trans, cong, pairext)
 import prop (↔, iffIntro, ∧, ¬, ⊥, andIntro, andFst, andSnd, impIntro, impApply)
 import eqNat (EqN, eqNRefl, eqNSound, eqNComplete, predEq)
 
-def classEqOfRel : {p q : ℕ ⨯ ℕ} → IntR p q → class p ≡ class q ∈ Int
+def classEqOfRel : {p q : ℕ × ℕ} → IntR p q → class p ≡ class q ∈ Int
   using (integer.Int.unfold, integer.IntR.unfold) ≔
   λp. λq. λh. ⋆
 
 -- normPair's own representative is IntR-related to its input (that's
 -- normSound), so its class is the same Int
-def classNormPairEq : {p : ℕ ⨯ ℕ} → class (normPair (p .π₁) (p .π₂)) ≡ class p ∈ Int
+def classNormPairEq : {p : ℕ × ℕ} → class (normPair (p .π₁) (p .π₂)) ≡ class p ∈ Int
   using (integer.Int.unfold,
     integer.IntR.eq,
     integerNormalize.normClass,
@@ -97,7 +97,7 @@ def eqIIff : {z1 z2 : Int} → (EqI z1 z2 ↔ (z1 ≡ z2))
 -- a PAIR OF NATS and compares componentwise with eqNat.nova's EqN.
 --
 -- Extracting the representative is the whole difficulty. It is a
--- quot-elim landing in ℕ ⨯ ℕ, so its well-definedness is
+-- quot-elim landing in ℕ × ℕ, so its well-definedness is
 --   normPair a b ≡ normPair c d  whenever  a + d ≡ b + c,
 -- a NAT-level equation — no propositional extensionality anywhere,
 -- which is what blocked the direct Ω-valued comparison (see the note
@@ -143,7 +143,7 @@ def normPairWD : (a b c d : ℕ) (h : a + d ≡ b + c) → normPair a b ≡ norm
         _
         _
         (sym _ _ (normPairLeftZ b c))
-        (cong (λu. ℕ ⨯ ℕ) (λx. normPair c x) (sym _ _ (trans _ _ _ (sym _ _ (zeroPlusId d)) h)))))
+        (cong (λu. ℕ × ℕ) (λx. normPair c x) (sym _ _ (trans _ _ _ (sym _ _ (zeroPlusId d)) h)))))
     (a' ih. λb. ℕ-elim
       (λc. λd. λh. trans
         _
@@ -155,7 +155,7 @@ def normPairWD : (a b c d : ℕ) (h : a + d ≡ b + c) → normPair a b ≡ norm
           _
           _
           (sym _ _ (normPairRightZ (S a') d))
-          (cong (λu. ℕ ⨯ ℕ) (λx. normPair x d) (trans _ _ _ h (zeroPlusId c)))))
+          (cong (λu. ℕ × ℕ) (λx. normPair x d) (trans _ _ _ h (zeroPlusId c)))))
       (b' ihb. λc. λd. λh. ih
         b'
         c
@@ -165,7 +165,7 @@ def normPairWD : (a b c d : ℕ) (h : a + d ≡ b + c) → normPair a b ≡ norm
     a
 
 -- the canonical representative of an integer
-def intCanon : Int → ℕ ⨯ ℕ using (integer.Int.unfold, normPairWD) ≔
+def intCanon : Int → ℕ × ℕ using (integer.Int.unfold, normPairWD) ≔
   λz. quot-elim (p. normPair (p .π₁) (p .π₂)) z
 
 def intCanonToInt : (z : Int) → toInt (intCanon z) ≡ z
