@@ -1,7 +1,7 @@
 -- Rationals over integer.nova's Int, with a STRUCTURALLY non-zero
 -- denominator.
 --
--- Why not `(d : Int) ⨯ (d ≢ 0)`: has no 𝕌-code (there is no
+-- Why not `(d : Int) × (d ≢ 0)`: has no 𝕌-code (there is no
 -- code for Ω or for p in 𝕌 — NovaFoundation.txt's Ω section says
 -- so outright), so a Σ carrying a proof cannot be a code and Rat would
 -- be a large `type`: no Rat, no generic (A : 𝕌) combinators, no use
@@ -204,7 +204,7 @@ def intScaleToInt : {d : NZ} → intScale d (class (S Z, Z)) ≡ nzToInt d
   λd. ⊎-elim (n. ⋆) (n. ⋆) d
 
 -- ===== the rationals =====
-def Rat : 𝕌 ≔ Int ⨯ NZ
+def Rat : 𝕌 ≔ Int × NZ
 
 def mkRat : Int → NZ → Rat using (rational.Rat.unfold) ≔ λn. λd. n, d
 

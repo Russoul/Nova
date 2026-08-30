@@ -762,8 +762,8 @@ non-unique tier: a GUESSED solution is only admissible with
 post-verification against every occurrence of the hole (an
 obligation-free probe re-elaboration); syntactic guards asymptote
 short of soundness. The non-dependent case needs no tier at all:
-pairext's {B} is a bare hole — use pairext at A ⨯ B, pairextD at
-(a : A) ⨯ B a, overriding {B} at inference positions.
+pairext's {B} is a bare hole — use pairext at A × B, pairextD at
+(a : A) × B a, overriding {B} at inference positions.
 
 CAPTURE-TYPING SOURCES (2026-08-21): the principled mechanism the
 constant tier approximated. A solved hole's value is a bare,
@@ -776,7 +776,7 @@ source list as (Just pos, inferred type) — the pass already knows
 how to match a position's instantiated domain — and the pass
 re-runs for still-unsolved keys, to a fixpoint bounded by the
 unsolved count. The Σ-typed case is the payoff: matching
-(a : ?A) ⨯ ?B a against the value's actual Σ-type puts ?B a under
+(a : ?A) × ?B a against the value's actual Σ-type puts ?B a under
 the Σ's own binder, where the Miller tier solves it UNIQUELY —
 pairextD's {B} from the pair's type, DEPENDENT OR NOT (the probe
 that killed the constant tier now solves B ≔ λm. Id ℕ m n

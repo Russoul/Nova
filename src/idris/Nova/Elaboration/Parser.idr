@@ -66,6 +66,20 @@ kwc c = do
   (r, ()) <- bounds (char_ c)
   emit r Keyword
 
+||| A token with an ASCII FALLBACK spelling (docs/NovaElaboration.txt,
+||| "ASCII fallbacks"). Both spellings parse to the same AST; the
+||| Unicode form is tried first and is the only one the distill printer
+||| ever emits, so a file written in ASCII normalizes to Unicode.
+|||
+||| Every fallback is unusable as an operator NAME, which is what keeps
+||| `def == : …` from shadowing the equality token. Most get that for
+||| free — an operator name is a maximal run of Surface.opChar, so any
+||| spelling carrying a non-opChar (`\\`, `:`, `|`, `.`, a letter)
+||| cannot be one. The two that are pure opChar runs, `->` and `==`,
+||| are reserved explicitly in parseOpName below.
+kw2 : (unicode : String) -> (ascii : String) -> Rule ()
+kw2 u a = kw u <|> kw a
+
 -- NameEnv and `wildcard` are reused from the derivation named parser —
 -- they are front-end-generic (a snoc-list of names, "_").
 
@@ -118,7 +132,16 @@ parseName = do
                               name /= "import" && name /= "infixl" && name /= "infixr" &&
                               name /= "S" && name /= "Z" && name /= "class" &&
                               name /= "data" && name /= "let" && name /= "in" &&
-                              name /= "using")
+                              name /= "using" &&
+    -- the ASCII spellings of 𝕌 Ω ℕ 𝟘 𝟙 and of the injections: valid
+    -- identifiers, so they need the same reservation S/Z/class do, or a
+    -- binder of that name would shadow the constructor or constant at
+    -- every later reference. The UNICODE spellings need no entry and
+    -- could take none: ₁ 𝟘 ℕ are not identifier characters, so inj₁ and
+    -- the constants are unshadowable already.
+                              name /= "Set" && name /= "Prop" &&
+                              name /= "Nat" && name /= "Void" && name /= "Unit" &&
+                              name /= "inj1" && name /= "inj2")
     pure name
 
 ||| A decimal numeral — sugar for an S-tower over Z (a maximal digit
@@ -171,7 +194,14 @@ parseOpName = do
   parseOpNameRaw = do
     c <- terminal "an operator" opTok
     cs <- many (terminal "more of the operator" opTok)
-    pure (pack (c :: cs))
+    let name = pack (c :: cs)
+    -- The ASCII fallbacks for → and ≡. Every other fallback carries a
+    -- non-opChar and so could never be lexed as an operator name; these
+    -- two are pure opChar runs, so the exclusion is explicit — without
+    -- it `def -> : …` would shadow the arrow token itself.
+    guard "an operator name (-> and == spell reserved tokens)"
+          (name /= "->" && name /= "==")
+    pure name
 
 ||| A possibly-qualified operator (+ or M.+): the mention form's and
 ||| the definition header's name grammar.
@@ -233,51 +263,89 @@ mutual
     (r, x) <- bounds (parseSTyRaw tbl env)
     pure (atPosTy r x)
 
+  -- ONE ≡ production, shared with the element level (SEqC below): sides
+  -- at t{≥1¼} so the ⊎ code reaches them, ∈-type at T{≥1} so an arrow
+  -- reaches it. The two positions used to disagree on BOTH operands
+  -- (type: sides t{≥1½}, ∈-type T{≥1}; element: sides t{≥1¼}, ∈-type
+  -- T{≥2}), so `A ⊎ B ≡ C` parsed only as an element and
+  -- `a ≡ b ∈ A → B` only as a type. Unified at the more permissive
+  -- level of each pair, so no spelling that parsed before stops.
+  --
+  -- The BINDER form is tried FIRST, ahead of the ≡ branch. A binder
+  -- group and an ASCRIPTION are the same tokens — `(x : a)` — and the ≡
+  -- branch's sides can now reach the non-dependent ×, so without this
+  -- ordering `∥(x : a) × br x ≡ t∥` (bracket.brSurj) parses as the
+  -- equation `((x : a) × br x) ≡ t` over an ascribed, unbound `x`
+  -- instead of the Σ over an equation that it says. The binder branch
+  -- only commits once a → or × follows its groups, so a genuine
+  -- ascription — `(x : A) ≡ y` — still falls through to the ≡ branch.
   parseSTyRaw : FixTable -> NameEnv -> Rule STy
   parseSTyRaw tbl env =
-        (do (r, (e0, e1, ma)) <- bounds (do
-              e0 <- parseSElemOp tbl env; sp
-              kw "≡"; sp
-              e1 <- parseSElemOp tbl env
-              ma <- optional (do sp; kw "∈"; sp; parseSTyArrow tbl env)
+        parseSTyBinder tbl env
+    <|> (do (r, (e0, e1, ma)) <- bounds (do
+              e0 <- parseSElemSumC tbl env; sp
+              kw2 "≡" "=="; sp
+              e1 <- parseSElemSumC tbl env
+              ma <- optional (do sp; kw2 "∈" "\\in"; sp; parseSTyArrow tbl env)
               pure (e0, e1, ma))
             pure (STyEq r e0 e1 ma))
-    <|> parseSTyArrow tbl env
+    <|> parseSTyInfix tbl env
 
   -- T{1}: named binder forms and the sugared right-assoc infixes.
   -- Binder groups iterate: (x:T) (y:U) → B ≡ (x:T) → (y:U) → B
-  -- (and likewise for ⨯).
+  -- (and likewise for ×).
   parseSTyArrow : FixTable -> NameEnv -> Rule STy
   parseSTyArrow tbl env = do
     (r, x) <- bounds (parseSTyArrowRaw tbl env)
     pure (atPosTy r x)
 
   parseSTyArrowRaw : FixTable -> NameEnv -> Rule STy
-  parseSTyArrowRaw tbl env =
-        -- the codomain is full T{≥0}: a trailing ≡-type needs no parens,
-        -- so lemma statements read as written
-        (do (env', groups) <- parseBinderGroups tbl env
-            sp
-            (do kw "→"; sp; b <- parseSTy tbl env'
-                pure (foldr (\(imp, x, t), acc =>
-                              if imp then STyImpPi x t acc else STyPi x t acc) b groups))
-              <|> (do kw "⨯"; sp
-                      guard "!implicit binders are Π-only: {x : T} ⨯ … is not a type"
-                            (all (\(imp, _, _) => not imp) groups)
-                      b <- parseSTy tbl env'
-                      pure (foldr (\(_, x, t), acc => STySigma x t acc) b groups)))
-    <|> (do a <- parseSTySum tbl env
-            (do sp; kw "→"; sp; b <- parseSTy tbl (env :< wildcard); pure (STyPi wildcard a b))
-              <|> (do sp; kw "⨯"; sp; b <- parseSTy tbl (env :< wildcard); pure (STySigma wildcard a b))
-              <|> (do sp; kw "/"; sp; (x, y, r) <- parseQuotRel tbl env; pure (STyQuot a x y r))
-              <|> pure a)
+  parseSTyArrowRaw tbl env = parseSTyBinder tbl env <|> parseSTyInfix tbl env
 
-  -- T{1½}: ⊎ — non-dependent, right-assoc, binds TIGHTER than → ⨯ /
-  -- (Agda's convention: A ⊎ B → C is (A ⊎ B) → C)
+  -- T{1}, binder half. The body is full T{≥0} — a trailing ≡-type needs
+  -- no parens, so lemma statements read as written, and the Σ-of-record
+  -- idiom keeps its last field bare.
+  parseSTyBinder : FixTable -> NameEnv -> Rule STy
+  parseSTyBinder tbl env =
+    do (env', groups) <- parseBinderGroups tbl env
+       sp
+       (do kw2 "→" "->"; sp; b <- parseSTy tbl env'
+           pure (foldr (\(imp, x, t), acc =>
+                         if imp then STyImpPi x t acc else STyPi x t acc) b groups))
+         <|> (do kw2 "×" "\\x"; sp
+                 guard "!implicit binders are Π-only: {x : T} × … is not a type"
+                       (all (\(imp, _, _) => not imp) groups)
+                 b <- parseSTy tbl env'
+                 pure (foldr (\(_, x, t), acc => STySigma x t acc) b groups))
+
+  -- T{1}, non-binder half: the sugared right-assoc → and the quotient.
+  -- Non-dependent × is NOT here — it lives at T{1¾}, below ⊎.
+  parseSTyInfix : FixTable -> NameEnv -> Rule STy
+  parseSTyInfix tbl env =
+    do a <- parseSTySum tbl env
+       (do sp; kw2 "→" "->"; sp; b <- parseSTy tbl (env :< wildcard); pure (STyPi wildcard a b))
+         <|> (do sp; kw "/"; sp; (x, y, r) <- parseQuotRel tbl env; pure (STyQuot a x y r))
+         <|> pure a
+
+  -- T{1½}: ⊎ — non-dependent, right-assoc, binds TIGHTER than the T{1}
+  -- binder forms (A ⊎ B → C is (A ⊎ B) → C) and LOOSER than ×:
+  -- A ⊎ B × C is A ⊎ (B × C), product before sum, as at the element
+  -- level where * (infixl 7) binds tighter than + (infixl 6).
   parseSTySum : FixTable -> NameEnv -> Rule STy
   parseSTySum tbl env = do
+    a <- parseSTyProd tbl env
+    (do sp; kw2 "⊎" "\\/"; sp; b <- parseSTySum tbl env; pure (STySum a b))
+      <|> pure a
+
+  -- T{1¾}: NON-DEPENDENT × — right-assoc, tighter than ⊎, so A × B → C
+  -- is (A × B) → C (the uncurrying shape reads without parentheses).
+  -- The BINDER form (x : A) × B stays up at T{1} beside →, where its
+  -- body extends maximally: the two are different operators sharing a
+  -- token, and `A × B` is therefore NO LONGER sugar for `(_ : A) × B`.
+  parseSTyProd : FixTable -> NameEnv -> Rule STy
+  parseSTyProd tbl env = do
     a <- parseSTyEl tbl env
-    (do sp; kw "⊎"; sp; b <- parseSTySum tbl env; pure (STySum a b))
+    (do sp; kw2 "×" "\\x"; sp; b <- parseSTyProd tbl (env :< wildcard); pure (STySigma wildcard a b))
       <|> pure a
 
   -- one or more (x:T) / {x:T} groups, each scoping over the ones
@@ -325,8 +393,8 @@ mutual
   parseSTyElRaw tbl env =
         -- a SQUASH standing as a type (prop-lift; Prf is retired
         -- WITHOUT a legacy spelling — a prop stands bare)
-        (do kw "∥"; sp; t <- parseSTy tbl env; sp; kw "∥"; pure (STyEl (SSquash t)))
-    <|> (do kw "ν"; space; f <- parseSPolyAtom tbl env; pure (STyNu f))
+        (do kw2 "∥" "||"; sp; t <- parseSTy tbl env; sp; kw2 "∥" "||"; pure (STyEl (SSquash t)))
+    <|> (do kw2 "ν" "\\nu"; space; f <- parseSPolyAtom tbl env; pure (STyNu f))
     <|> (do t <- parseSTyAtom tbl env
             args <- many (do space; parseSElemAtom tbl env)
             case args of
@@ -351,23 +419,23 @@ mutual
   parseSPoly tbl env =
         (do kwc '('; sp; x <- parseNameR; sp; kwc ':'; sp
             a <- parseSElemNoComma tbl env; sp; kwc ')'; sp
-            (do kw "⨯"; sp; f <- parseSPoly tbl (env :< fst x); pure (SPSigma x a f))
-              <|> (do kw "→"; sp; f <- parseSPoly tbl (env :< fst x); pure (SPPi x a f)))
+            (do kw2 "×" "\\x"; sp; f <- parseSPoly tbl (env :< fst x); pure (SPSigma x a f))
+              <|> (do kw2 "→" "->"; sp; f <- parseSPoly tbl (env :< fst x); pure (SPPi x a f)))
     <|> (do f <- parseSPolySum tbl env
-            (do sp; kw "⨯"; sp; g <- parseSPoly tbl env; pure (SPProd f g))
+            (do sp; kw2 "×" "\\x"; sp; g <- parseSPoly tbl env; pure (SPProd f g))
               <|> pure f)
 
-  -- F{1½}: ⊎, right-assoc, tighter than ⨯ (as everywhere)
+  -- F{1½}: ⊎, right-assoc, tighter than × (as everywhere)
   parseSPolySum : FixTable -> NameEnv -> Rule SPoly
   parseSPolySum tbl env = do
     f <- parseSPolyAtom tbl env
-    (do sp; kw "⊎"; sp; g <- parseSPolySum tbl env; pure (SPSum f g))
+    (do sp; kw2 "⊎" "\\/"; sp; g <- parseSPolySum tbl env; pure (SPSum f g))
       <|> pure f
 
   -- F{2}: atoms — the hole, constants, parens
   parseSPolyAtom : FixTable -> NameEnv -> Rule SPoly
   parseSPolyAtom tbl env =
-        (kw "𝕏" $> SPHole)
+        (kw2 "𝕏" "\\X" $> SPHole)
     <|> (do kw "K"; space; a <- parseSElemAtom tbl env; pure (SPConst a))
     <|> (do kwc '('; sp; f <- parseSPoly tbl env; sp; kwc ')'; pure f)
 
@@ -379,11 +447,11 @@ mutual
 
   parseSTyAtomRaw : FixTable -> NameEnv -> Rule STy
   parseSTyAtomRaw tbl env =
-        (kw "𝟘" $> STyZero)
-    <|> (kw "𝟙" $> STyOne)
-    <|> (kw "ℕ" $> STyNat)
-    <|> (kw "𝕌" $> STyUniv)
-    <|> (kw "Ω" $> STyProp)
+        (kw2 "𝟘" "Void" $> STyZero)
+    <|> (kw2 "𝟙" "Unit" $> STyOne)
+    <|> (kw2 "ℕ" "Nat" $> STyNat)
+    <|> (kw2 "𝕌" "Set" $> STyUniv)
+    <|> (kw2 "Ω" "Prop" $> STyProp)
     <|> (do (r, x) <- bounds parseDottedName
             case unpack x of
               -- `_`-leading identifiers were HOLES; the machinery is
@@ -432,20 +500,19 @@ mutual
   parseSElemNoCommaRaw tbl env =
         (do (env', groups) <- parseBinderGroupsC tbl env
             sp
-            (do kw "→"; sp; b <- parseSElemNoComma tbl env'; pure (foldGroups SPiC groups b))
-              <|> (do kw "⨯"; sp; b <- parseSElemNoComma tbl env'; pure (foldGroups SSigmaC groups b)))
+            (do kw2 "→" "->"; sp; b <- parseSElemNoComma tbl env'; pure (foldGroups SPiC groups b))
+              <|> (do kw2 "×" "\\x"; sp; b <- parseSElemNoComma tbl env'; pure (foldGroups SSigmaC groups b)))
     <|> (do e <- parseSElemSumC tbl env
-            (do sp; kw "→"; sp; e' <- parseSElemNoComma tbl (env :< wildcard); pure (SPiC wildcard e e'))
-              <|> (do sp; kw "⨯"; sp; e' <- parseSElemNoComma tbl (env :< wildcard); pure (SSigmaC wildcard e e'))
+            (do sp; kw2 "→" "->"; sp; e' <- parseSElemNoComma tbl (env :< wildcard); pure (SPiC wildcard e e'))
               <|> (do sp; kw "/"; sp; (x, y, r) <- parseQuotRelC tbl env; pure (SQuotC e x y r))
               -- calc chain: ≡⟨ … ⟩ disambiguates from the equality
               -- prop by its very next character (backtracking)
               <|> (do sp; links <- parseChainLinks tbl env
                       pure (SChain e links))
               <|> (do (r, (e1, mt2)) <- bounds (do
-                        sp; kw "≡"; sp
+                        sp; kw2 "≡" "=="; sp
                         e1 <- parseSElemSumC tbl env
-                        mt2 <- optional (do sp; kw "∈"; sp; parseSTyEl tbl env)
+                        mt2 <- optional (do sp; kw2 "∈" "\\in"; sp; parseSTyArrow tbl env)
                         pure (e1, mt2))
                       pure (SEqC r e e1 mt2))
               <|> pure e)
@@ -456,15 +523,15 @@ mutual
   -- prop's own side level
   parseChainLinks : FixTable -> NameEnv -> Rule (List (SElem, SElem))
   parseChainLinks tbl env = do
-    kw "≡⟨"; sp
+    kw2 "≡⟨" "\\<"; sp
     j <- parseSElem tbl env
-    sp; kw "⟩"; sp
+    sp; kw2 "⟩" "\\>"; sp
     x <- parseSElemSumC tbl env
     rest <- optional (do sp; parseChainLinks tbl env)
     pure ((j, x) :: fromMaybe [] rest)
 
-  -- t{1¼}: the ⊎ code — like the ⊎ type, tighter than the other
-  -- infix code formers
+  -- t{1¼}: the ⊎ code — like the ⊎ type, tighter than the t{1} binder
+  -- forms and looser than the × code below
   parseSElemSumC : FixTable -> NameEnv -> Rule SElem
   parseSElemSumC tbl env = do
     (r, x) <- bounds (parseSElemSumCRaw tbl env)
@@ -472,8 +539,22 @@ mutual
 
   parseSElemSumCRaw : FixTable -> NameEnv -> Rule SElem
   parseSElemSumCRaw tbl env = do
+    e <- parseSElemProdC tbl env
+    (do sp; kw2 "⊎" "\\/"; sp; e' <- parseSElemSumC tbl env; pure (SSumC e e'))
+      <|> pure e
+
+  -- t{1⅜}: the NON-DEPENDENT × code — right-assoc, tighter than ⊎ and
+  -- looser than the declared operators, mirroring T{1¾} at the type
+  -- level. The binder form (x : a) × b stays at t{1}; see parseSTyProd
+  parseSElemProdC : FixTable -> NameEnv -> Rule SElem
+  parseSElemProdC tbl env = do
+    (r, x) <- bounds (parseSElemProdCRaw tbl env)
+    pure (atPos r x)
+
+  parseSElemProdCRaw : FixTable -> NameEnv -> Rule SElem
+  parseSElemProdCRaw tbl env = do
     e <- parseSElemOp tbl env
-    (do sp; kw "⊎"; sp; e' <- parseSElemSumC tbl env; pure (SSumC e e'))
+    (do sp; kw2 "×" "\\x"; sp; e' <- parseSElemProdC tbl (env :< wildcard); pure (SSigmaC wildcard e e'))
       <|> pure e
 
   -- t{1½}: declared infix operators — precedence climbing over the
@@ -484,28 +565,58 @@ mutual
     (r, x) <- bounds (parseSElemOpRaw tbl env)
     pure (atPos r x)
 
+  -- `cur` is the operator this operand chain is already committed to at
+  -- the current precedence: the one last folded in here, or — when we
+  -- descended through a RIGHT-associative operator, which passes its own
+  -- precedence down — that parent. Two operators of EQUAL precedence and
+  -- DIFFERENT associativity meeting under it have no agreed reading, and
+  -- climbing would otherwise pick one silently by written order (the
+  -- first operator's associativity winning): `a ≤ b ∨ c` folding left
+  -- while `a ∨ b ≤ c` folds right, for the same pair of fixities.
   parseSElemOpRaw : FixTable -> NameEnv -> Rule SElem
-  parseSElemOpRaw tbl env = climb 0
+  parseSElemOpRaw tbl env = climb 0 Nothing
    where
     mutual
-      climb : Nat -> Rule SElem
-      climb minP = do
+      climb : Nat -> Maybe (Nat, Assoc, String) -> Rule SElem
+      climb minP cur = do
         l <- parseSElemPrefix tbl env
-        cont l minP
+        cont l minP cur
 
-      cont : SElem -> Nat -> Rule SElem
-      cont l minP =
-            (do (span, (rng, op, r)) <- bounds (do
+      cont : SElem -> Nat -> Maybe (Nat, Assoc, String) -> Rule SElem
+      cont l minP cur =
+            (do (span, (rng, op, assoc, p, r)) <- bounds (do
                   sp
                   (rng, op) <- bounds parseOpName
                   case lookup op tbl of
                     Nothing => fail "an operator with a fixity in scope ('\{op}' has none)"
                     Just (assoc, p) => do
                       guard "an operator binding at least this tightly" (p >= minP)
+                      -- FATAL, not a branch rejection: no sibling could
+                      -- legitimately parse what this branch has read —
+                      -- the clash is a property of the fixity table and
+                      -- the two consumed tokens, and no minP would have
+                      -- accepted it. The two guards above ARE branch
+                      -- rejections (the loop's normal exits) and stay
+                      -- ordinary failures. NB fatal escapes optional and
+                      -- many too, so a clash inside `optional (… ∈ …)`
+                      -- or a chain justification aborts rather than
+                      -- yielding Nothing — deliberate: there is no
+                      -- reading of the clash to fall back to.
+                      case cur of
+                        Just (q, a, prev) =>
+                          when (p == q && a /= assoc) $
+                            let msg = "!'\{prev}' and '\{op}' both have precedence \{show p} but associate in opposite directions — parenthesize, or give them different precedences" in
+                            -- located at the SECOND operator, so the caret
+                            -- lands on it rather than on the position
+                            -- parsing stopped at (the space past it, which
+                            -- is all a bare `fatal` can synthesize)
+                            maybe (fatal msg) (\r => fatalLoc r msg) rng
+                        Nothing => pure ()
                       sp
                       r <- climb (case assoc of AssocL => S p; AssocR => p)
-                      pure (rng, op, r))
-                cont (grew l span (SApp (SApp (SSig rng op) l) r)) minP)
+                                 (case assoc of AssocL => Nothing; AssocR => Just (p, assoc, op))
+                      pure (rng, op, assoc, p, r))
+                cont (grew l span (SApp (SApp (SSig rng op) l) r)) minP (Just (p, assoc, op)))
         <|> pure l
 
   -- multi-name groups as at the type level (shiftElem for the
@@ -543,12 +654,12 @@ mutual
   parseSElemPrefixRaw : FixTable -> NameEnv -> Rule SElem
   parseSElemPrefixRaw tbl env =
         -- λ's body extends MAXIMALLY (ProvingFeedback F-1): over
-        -- operators, the code formers → ⨯ ⊎ /, ≡-elements, calc
-        -- chains, AND pairs — λx. ℕ ⨯ ℕ is λx. (ℕ ⨯ ℕ), and
+        -- operators, the code formers → × ⊎ /, ≡-elements, calc
+        -- chains, AND pairs — λx. ℕ × ℕ is λx. (ℕ × ℕ), and
         -- λx. a , b is λx. (a , b). A λ that is a non-final pair
         -- component must therefore be parenthesised, the
         -- Agda/Haskell convention.
-        (do kw "λ"; sp; x <- parseNameR; sp; kwc '.'; sp
+        (do kw2 "λ" "\\"; sp; x <- parseNameR; sp; kwc '.'; sp
             e <- parseSElem tbl (env :< fst x)
             pure (SLam x e))
         -- let x ≔ e in b / let x : T ≔ e in b — the annotated form is
@@ -561,13 +672,13 @@ mutual
         -- resolvable) holding index 0
     <|> (do kw "let"; space; x <- parseNameR; sp
             manno <- optional (do kwc ':'; sp; t <- parseSTy tbl env; sp; pure t)
-            kw "≔"; sp
+            kw2 "≔" ":="; sp
             e <- parseSElem tbl env; sp
             kw "in"; sp
             b <- parseSElem tbl (env :< fst x :< wildcard)
             pure (SLet x (maybe e (SAnn e) manno) b))
-    <|> (do kw "𝟘-elim"; space; e <- parseSElemAtom tbl env; pure (SZeroElim e))
-    <|> (do kw "ℕ-elim"; space
+    <|> (do kw2 "𝟘-elim" "Void-elim"; space; e <- parseSElemAtom tbl env; pure (SZeroElim e))
+    <|> (do kw2 "ℕ-elim" "Nat-elim"; space
             -- the motive group is safely optional here: z is an ATOM,
             -- and no valid element atom has the (name. …) shape
             mmot <- optional (do
@@ -580,14 +691,14 @@ mutual
             t <- parseSElemAtom tbl env
             pure (SNatElim mmot z n2 ih s t))
     <|> (do kw "S"; space; e <- parseSElemAtom tbl env; pure (SSuc e))
-    <|> (do kw "inj₁"; space; e <- parseSElemAtom tbl env; pure (SInj1 e))
-    <|> (do kw "inj₂"; space; e <- parseSElemAtom tbl env; pure (SInj2 e))
+    <|> (do kw2 "inj₁" "inj1"; space; e <- parseSElemAtom tbl env; pure (SInj1 e))
+    <|> (do kw2 "inj₂" "inj2"; space; e <- parseSElemAtom tbl env; pure (SInj2 e))
         -- ⊎-elim with an explicit motive, then the motive-less form
         -- (checking-only): a case group (x. ELEM) whose body is a
         -- bare name also parses as a motive group (z. TYPE), so the
         -- three-group spelling is tried first and the two-group
         -- spelling is the fallback
-    <|> (do kw "⊎-elim"; space
+    <|> (do kw2 "⊎-elim" "\\/-elim"; space
             kwc '('; sp; z <- parseNameR; sp; kwc '.'; sp
             mot <- parseSTy tbl (env :< fst z); sp; kwc ')'; sp
             kwc '('; sp; a <- parseNameR; sp; kwc '.'; sp
@@ -596,7 +707,7 @@ mutual
             r <- parseSElem tbl (env :< fst b); sp; kwc ')'; sp
             t <- parseSElemAtom tbl env
             pure (SSumElim (Just (z, mot)) a l b r t))
-    <|> (do kw "⊎-elim"; space
+    <|> (do kw2 "⊎-elim" "\\/-elim"; space
             kwc '('; sp; a <- parseNameR; sp; kwc '.'; sp
             l <- parseSElem tbl (env :< fst a); sp; kwc ')'; sp
             kwc '('; sp; b <- parseNameR; sp; kwc '.'; sp
@@ -604,7 +715,7 @@ mutual
             t <- parseSElemAtom tbl env
             pure (SSumElim Nothing a l b r t))
     <|> (do kw "class"; space; e <- parseSElemAtom tbl env; pure (SClass e))
-    <|> (do kw "ν"; space; f <- parseSPolyAtom tbl env; pure (SNuC f))
+    <|> (do kw2 "ν" "\\nu"; space; f <- parseSPolyAtom tbl env; pure (SNuC f))
     <|> (do kw "out"; space; e <- parseSElemAtom tbl env; pure (SOut e))
     <|> (do kw "corec"; space
             kwc '('; sp; x <- parseNameR; sp; kwc ':'; sp
@@ -638,7 +749,7 @@ mutual
             kwc '('; sp; x <- parseNameR; sp; kwc '.'; sp
             body <- parseSElem tbl (env :< fst x); sp; kwc ')'
             pure (SSquashElim e x body))
-    <|> (do (r, _) <- bounds (kw "⋆")
+    <|> (do (r, _) <- bounds (kw2 "⋆" "\\star")
             -- `using` is a CONTEXTUAL keyword: recognized only here,
             -- immediately after ⋆ (a witness genuinely named `using`
             -- is written parenthesized: ⋆ (using))
@@ -665,8 +776,8 @@ mutual
    where
     cont : SElem -> Rule SElem
     cont e =
-          (do (r, _) <- bounds (do sp; kw ".π₁"); cont (grew e r (SProj1 e)))
-      <|> (do (r, _) <- bounds (do sp; kw ".π₂"); cont (grew e r (SProj2 e)))
+          (do (r, _) <- bounds (do sp; kw2 ".π₁" ".1"); cont (grew e r (SProj1 e)))
+      <|> (do (r, _) <- bounds (do sp; kw2 ".π₂" ".2"); cont (grew e r (SProj2 e)))
       -- {t} — an implicit-position override argument — and {} — the
       -- NO-INSERT marker, suppressing trailing-implicit insertion
       -- (docs/NovaPerfectSurface.txt, Phases 3b/3d); NB `{-` opens a
@@ -713,11 +824,11 @@ mutual
                   <|> (do kwc ')'; pure e))
     <|> (kw "Z"    $> SZeroN)
     <|> (sucTower <$> parseNumeral)
-    <|> (do (r, _) <- bounds (kw "⋆"); pure (SStar r))
-    <|> (do kw "∥"; sp; t <- parseSTy tbl env; sp; kw "∥"; pure (SSquash t))
-    <|> (kw "𝟘"   $> SZeroC)
-    <|> (kw "𝟙"   $> SOneC)
-    <|> (kw "ℕ"   $> SNatC)
+    <|> (do (r, _) <- bounds (kw2 "⋆" "\\star"); pure (SStar r))
+    <|> (do kw2 "∥" "||"; sp; t <- parseSTy tbl env; sp; kw2 "∥" "||"; pure (SSquash t))
+    <|> (kw2 "𝟘" "Void"   $> SZeroC)
+    <|> (kw2 "𝟙" "Unit"   $> SOneC)
+    <|> (kw2 "ℕ" "Nat"   $> SNatC)
     <|> (do (r, x) <- bounds parseDottedName
             case unpack x of
               -- a BARE `_` is a BLANK: a per-site elided argument at
@@ -808,8 +919,8 @@ sqDomainNoArrow tbl tos ext =
 sqRes : FixTable -> NameEnv -> NameEnv -> Rule SQRes
 sqRes tbl tos ext =
       (do kw "U"; pure SQResU)
-  <|> (do l <- sqChain tbl tos ext; sp; kw "≡"; sp
-          r <- sqChain tbl tos ext; sp; kw "∈"; sp
+  <|> (do l <- sqChain tbl tos ext; sp; kw2 "≡" "=="; sp
+          r <- sqChain tbl tos ext; sp; kw2 "∈" "\\in"; sp
           kw "El"; space; u <- sqCode tbl tos ext
           pure (SQResEq l r u))
   <|> (do kw "El"; space; q <- sqCode tbl tos ext; pure (SQResEl q))
@@ -839,11 +950,11 @@ sqBinders tbl tos ext = do
 sqTele : FixTable -> NameEnv -> NameEnv -> Rule (List (String, Either STy SQTm), SQRes)
 sqTele tbl tos ext =
       (do (tos', ext', bs) <- sqBinders tbl tos ext
-          sp; kw "→"; sp
+          sp; kw2 "→" "->"; sp
           (rest, res) <- sqTele tbl tos' ext'
           pure (bs ++ rest, res))
   <|> (do d <- sqDomainNoArrow tbl tos ext
-          sp; kw "→"; sp
+          sp; kw2 "→" "->"; sp
           let tos' = case d of { Left _ => tos; Right _ => tos :< wildcard }
           let ext' = case d of { Left _ => ext :< wildcard; Right _ => ext }
           (rest, res) <- sqTele tbl tos' ext'
@@ -897,8 +1008,8 @@ mutual
   parsePat : Rule SPat
   parsePat =
         (do kw "S"; space; p <- parsePatAtom; pure (SPSuc p))
-    <|> (do kw "inj₁"; space; p <- parsePatAtom; pure (SPInj1 p))
-    <|> (do kw "inj₂"; space; p <- parsePatAtom; pure (SPInj2 p))
+    <|> (do kw2 "inj₁" "inj1"; space; p <- parsePatAtom; pure (SPInj1 p))
+    <|> (do kw2 "inj₂" "inj2"; space; p <- parsePatAtom; pure (SPInj2 p))
     <|> parsePatAtom
 
   parsePatAtom : Rule SPat
@@ -985,7 +1096,7 @@ parseSClauseRaw tbl iname = do
   kwc '|'; sp
   commit
   pats <- parseClauseLhs iname
-  sp; kw "≔"; sp
+  sp; kw2 "≔" ":="; sp
   let vars = patVarsOf pats
   rhs <- parseSElem tbl ([<] <>< map fst vars)
   mn <- optional (do sp; kwc '['; sp; n <- parseName; sp; kwc ']'; pure n)
@@ -1021,7 +1132,7 @@ parseSItem tbl =
           -- to the named lemmas plus hypotheses
           muses <- optional (do kw "using"; sp; ns <- parseUsingNames; sp; pure ns)
           metaEta <- optional (do kwc '['; sp; n <- parseName; sp; kwc ']'; sp; pure n)
-          mbody <- optional (do kw "≔"; sp; commit; parseSElem tbl [<])
+          mbody <- optional (do kw2 "≔" ":="; sp; commit; parseSElem tbl [<])
           cls <- many (do sp; parseSClause tbl x)
           case (metaEta, mbody, cls) of
             (Nothing, Just body, []) => pure (SDef x ty body muses)
@@ -1037,7 +1148,7 @@ parseSItem tbl =
             (Just _, _, []) => fail "!a uniqueness-name override must be followed by clauses")
   <|> (do kw "type"; space; commit
           x <- parseName; sp
-          kw "≔"; sp
+          kw2 "≔" ":="; sp
           ty <- parseSTy tbl [<]
           pure (STypeDef x ty))
   <|> parseSData tbl

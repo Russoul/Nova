@@ -18,4 +18,4 @@ def IsMonoid : 𝕌 → 𝕌 ≔
     (e : M)
     (assoc : (x y z : M) → Id _ (op (op x y) z) (op x (op y z)))
     (unitL : (x : M) → Id _ (op e x) x)
-    ⨯ (x : M) → Id _ (op x e) x
+    × (x : M) → Id _ (op x e) x

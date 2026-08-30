@@ -61,7 +61,7 @@ DIRECTIVE_RE = re.compile(r"^#!\s*highlight\s+(keywords|tos|nova|meta|indexed):\
 DEFAULT_VOCAB = {
     # FIXED syntax — judgement-level and object-level alike
     "keywords": ("⊦ : ; , · [ ] ‖ .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ ⇓ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id "
-                 "λ → ⨯ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S Refl ⋆ Prf class ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ "
+                 "λ → × ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S Refl ⋆ Prf class ⌊ ⌋ ⟦ ⟧ ⋈ ⋉ ᴰ "
                  "𝟘-elim ℕ-elim quot-elim squash-elim -elim "
                  "qctx qty qsig ctx type tel mot dalg eprob sect norm small "
                  "sig nf qpath").split(),

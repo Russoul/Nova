@@ -10,7 +10,7 @@ import equality (trans, sym, cong)
 import id (Id, idToEq, eqToId)
 
 infixl 4 ≤
-def ≤ : ℕ → ℕ → 𝕌 ≔ λa. λb. (k : ℕ) ⨯ Id _ (a + k) b
+def ≤ : ℕ → ℕ → 𝕌 ≔ λa. λb. (k : ℕ) × Id _ (a + k) b
 
 -- ===== basics =====
 def leRefl : (a : ℕ) → (a ≤ a) using (natOrder.≤.unfold) ≔ λa. Z, eqToId _ _ (plusZeroId a)

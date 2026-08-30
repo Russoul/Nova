@@ -173,7 +173,7 @@ into one file failed with
 
 ```
 Error: module intEffective has open obligations and cannot be imported
-  [1] (p : ℕ ⨯ ℕ) ⊢ p .π₁ ≐ p .π₂ : ℕ
+  [1] (p : ℕ × ℕ) ⊢ p .π₁ ≐ p .π₂ : ℕ
       at: def intRRefl: checking ⋆ [replay failed: proof argument type mismatch]
 ```
 

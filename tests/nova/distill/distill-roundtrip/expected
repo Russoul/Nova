@@ -43,7 +43,7 @@ data ( Bag : U
 
 def size : Bag → ℕ using (Bag.eq) ≔ λm. BagElim (λb. ℕ) Z (λx. λr. λih. S ih) (λx. λy. λr. λih. ⋆) m
 
-def pairFn : (ℕ → ℕ) ⨯ ℕ ≔ (λx. x), Z
+def pairFn : (ℕ → ℕ) × ℕ ≔ (λx. x), Z
 
 def letTest : ℕ ≔ let k : ℕ ≔ S Z in k + k
 

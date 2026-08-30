@@ -179,8 +179,8 @@ freshIH = freshFromList candidatesIH
 -- ===== Occurs check =====
 --
 -- Whether de Bruijn index `k` appears free in a Ty/Elem/SubNorm — used to
--- decide whether a Pi/Sigma binder can use the `A → B`/`A ⨯ B` sugar
--- (dropping the name entirely) instead of `(x:A) → B`/`(x:A) ⨯ B`: if the
+-- decide whether a Pi/Sigma binder can use the `A → B`/`A × B` sugar
+-- (dropping the name entirely) instead of `(x:A) → B`/`(x:A) × B`: if the
 -- codomain never references the domain's bound variable, there's nothing
 -- to name. Mirrors the printer's own binder-depth bookkeeping exactly —
 -- each nested binder increments `k` by however many slots it introduces.
@@ -318,8 +318,8 @@ mutual
   prettyElemNoCommaN tbl env (Elem.SigmaTy e e') =
     if usesIndexElem 0 e'
       then let x = freshGeneric env
-           in "(" ++ x ++ ":" ++ prettyElemN tbl env e ++ ") ⨯ " ++ prettyElemNoCommaN tbl (env :< x) e'
-      else prettyElemOpN tbl env 0 e ++ " ⨯ " ++ prettyElemNoCommaN tbl (env :< wildcard) e'
+           in "(" ++ x ++ ":" ++ prettyElemN tbl env e ++ ") × " ++ prettyElemNoCommaN tbl (env :< x) e'
+      else prettyElemOpN tbl env 0 e ++ " × " ++ prettyElemNoCommaN tbl (env :< wildcard) e'
   prettyElemNoCommaN tbl env e@(Elem.SumTy _ _) = prettyElemSumN tbl env e
   prettyElemNoCommaN tbl env (Elem.EqTy e0 e1 t2) =
     prettyElemOpN tbl env 0 e0 ++ " ≡ " ++ prettyElemOpN tbl env 0 e1 ++ " ∈ " ++ prettyTyArrowN tbl env t2
@@ -489,8 +489,8 @@ mutual
   prettyTyArrowN tbl env (SigmaTy a b) =
     if usesIndexTy 0 b
       then let x = freshForTy a env
-           in "(" ++ x ++ ":" ++ prettyTyN tbl env a ++ ") ⨯ " ++ prettyTyArrowN tbl (env :< x) b
-      else prettyTyElN tbl env a ++ " ⨯ " ++ prettyTyArrowN tbl (env :< wildcard) b
+           in "(" ++ x ++ ":" ++ prettyTyN tbl env a ++ ") × " ++ prettyTyArrowN tbl (env :< x) b
+      else prettyTyElN tbl env a ++ " × " ++ prettyTyArrowN tbl (env :< wildcard) b
   prettyTyArrowN tbl env ty@(SumTy _ _) = prettyTySumN tbl env ty
   prettyTyArrowN tbl env (QuotTy a r) =
     let x = freshForTy a env
@@ -498,7 +498,7 @@ mutual
     in prettyTyElN tbl env a ++ " / (" ++ x ++ " " ++ y ++ ". " ++ prettyElemNoCommaN tbl (env :< x :< y) r ++ ")"
   prettyTyArrowN tbl env ty = prettyTyElN tbl env ty
 
-  -- ⊎ binds tighter than → ⨯ / (its own level; non-sum components
+  -- ⊎ binds tighter than → × / (its own level; non-sum components
   -- print at the El level, which parenthesizes looser forms)
   prettyTySumN : FixTable -> NameEnv -> Ty -> String
   prettyTySumN tbl env (SumTy a b) =
@@ -513,10 +513,10 @@ mutual
   -- at the top, sums tighter, atoms (𝕏, K t, parens) innermost.
   prettyPolyN : FixTable -> NameEnv -> Poly -> String
   prettyPolyN tbl env (PProd f g) =
-    prettyPolySumN tbl env f ++ " ⨯ " ++ prettyPolyN tbl env g
+    prettyPolySumN tbl env f ++ " × " ++ prettyPolyN tbl env g
   prettyPolyN tbl env (PSigma a f) =
     let x = if usesIndexPoly 0 f then freshGeneric env else wildcard
-    in "(" ++ x ++ ":" ++ prettyElemNoCommaN tbl env a ++ ") ⨯ " ++ prettyPolyN tbl (env :< x) f
+    in "(" ++ x ++ ":" ++ prettyElemNoCommaN tbl env a ++ ") × " ++ prettyPolyN tbl (env :< x) f
   prettyPolyN tbl env (PPi a f) =
     let x = if usesIndexPoly 0 f then freshGeneric env else wildcard
     in "(" ++ x ++ ":" ++ prettyElemNoCommaN tbl env a ++ ") → " ++ prettyPolyN tbl (env :< x) f

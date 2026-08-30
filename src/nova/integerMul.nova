@@ -161,7 +161,7 @@ def intMulWDRep : (a1 a2 b1 b2 c1 c2 : ℕ)
 -- actually asks for (integerAdd.nova's intAddWDOuter, one level up):
 -- eliminate the remaining argument and the goal becomes the nat
 -- relation intMulWDRep proves
-def intMulWDOuter : (a b : ℕ ⨯ ℕ)
+def intMulWDOuter : (a b : ℕ × ℕ)
   (h : a .π₁ + b .π₂ ≡ a .π₂ + b .π₁)
   (zy : Int)
   → quot-elim (z. Int)
@@ -206,7 +206,7 @@ def intMulTest2 : class (Z, 2) * class (3, Z) ≡ class (Z, 6)
   ⋆
 
 -- ===== the ring laws =====
-def classPairEta : (p : ℕ ⨯ ℕ) → class (p .π₁, p .π₂) ≡ class p ∈ Int using (integer.Int.unfold) ≔
+def classPairEta : (p : ℕ × ℕ) → class (p .π₁, p .π₂) ≡ class p ∈ Int using (integer.Int.unfold) ≔
   λp. cong (λu. Int) (λr. class r) (paireta p)
 
 def oneMult : (m : ℕ) → S Z * m ≡ m using (multComm) ≔

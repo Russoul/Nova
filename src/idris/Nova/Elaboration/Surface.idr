@@ -42,7 +42,7 @@ mutual
     ||| first-order oracle; `f {t}` overrides the next implicit
     ||| position explicitly
     STyImpPi : (name : String) -> STy -> STy -> STy
-    ||| (x:T) ⨯ U
+    ||| (x:T) × U
     STySigma : (name : String) -> STy -> STy -> STy
     ||| T ⊎ U — non-dependent, no binder
     STySum : STy -> STy -> STy
@@ -71,11 +71,11 @@ mutual
     SPHole : SPoly
     ||| K t — constant at a code
     SPConst : SElem -> SPoly
-    ||| F ⨯ G — product (non-binding)
+    ||| F × G — product (non-binding)
     SPProd : SPoly -> SPoly -> SPoly
     ||| F ⊎ G — sum
     SPSum : SPoly -> SPoly -> SPoly
-    ||| (x:t) ⨯ F — dependent pair over external data (binds)
+    ||| (x:t) × F — dependent pair over external data (binds)
     SPSigma : (x : SName) -> SElem -> SPoly -> SPoly
     ||| (x:t) → F — exponent with external domain (binds)
     SPPi : (x : SName) -> SElem -> SPoly -> SPoly
@@ -108,7 +108,7 @@ mutual
     SNatC : SElem
     ||| (x:t) → u  (code)
     SPiC : (name : String) -> SElem -> SElem -> SElem
-    ||| (x:t) ⨯ u  (code)
+    ||| (x:t) × u  (code)
     SSigmaC : (name : String) -> SElem -> SElem -> SElem
     ||| t ⊎ u  (code — non-dependent, no binder)
     SSumC : SElem -> SElem -> SElem
@@ -550,7 +550,7 @@ FixTable : Type
 FixTable = List (String, Assoc, Nat)
 
 ||| The operator alphabet. Excludes the reserved theory tokens
-||| (→ ⨯ ≡ ∈ ≔ / . , : parens) — and `|`, the clause marker of the
+||| (→ × ≡ ∈ ≔ / . , : parens) — and `|`, the clause marker of the
 ||| clausal def item — and comment dashes are eaten by the lexer, so
 ||| no operator may contain "--".
 public export

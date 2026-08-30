@@ -111,13 +111,13 @@ def leQZeroBound : (m n : ℕ) → (qZero ≤ rBound m n)
 -- regularity, two-sided: −(1/(m+1)+1/(n+1)) ≤ f m − f n ≤ ⋯
 def Regular : (ℕ → Q) → 𝕌 ≔ λf. (m n : ℕ) → Bnd (rBound m n) (f m + qNeg (f n))
 
-def RSeq : 𝕌 ≔ (f : ℕ → Q) ⨯ Regular f
+def RSeq : 𝕌 ≔ (f : ℕ → Q) × Regular f
 
 -- eventual closeness: |x_n − y_n| ≤ 2/(n+1), squashed — the relation
 -- is a PROPOSITION (Ω), as a quotient's must be
 def REq : RSeq → RSeq → Ω using (real.RSeq.unfold) ≔
   λx. λy. ∥((n : ℕ)
-    → qNeg (rBound n n) ≤ x .π₁ n + qNeg (y .π₁ n) ⨯ x .π₁ n + qNeg (y .π₁ n) ≤ rBound n n)∥
+    → qNeg (rBound n n) ≤ x .π₁ n + qNeg (y .π₁ n) × x .π₁ n + qNeg (y .π₁ n) ≤ rBound n n)∥
 
 def Real : 𝕌 ≔ RSeq / (x y. REq x y)
 

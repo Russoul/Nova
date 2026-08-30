@@ -18,7 +18,7 @@ import pathlib
 
 WS = " \t\n"
 # depth-0 tokens that disqualify a group from the +/* fragment
-OTHER_OPS = {"≡", "∈", "→", "↔", "⊃", "∨", "∧", "⨯", ",", "≔", "⊞",
+OTHER_OPS = {"≡", "∈", "→", "↔", "⊃", "∨", "∧", "×", ",", "≔", "⊞",
              "≤", "<", ":", "/", "|", "∥"}
 
 

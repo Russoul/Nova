@@ -21,7 +21,7 @@ import id (Id, idToEq, eqToId)
 def intOfNat : ℕ → Int using (integer.Int.unfold) ≔ λn. class (n, Z)
 
 infixl 4 ≤
-def ≤ : Int → Int → 𝕌 ≔ λx. λy. (k : ℕ) ⨯ Id _ (x + intOfNat k) y
+def ≤ : Int → Int → 𝕌 ≔ λx. λy. (k : ℕ) × Id _ (x + intOfNat k) y
 
 -- ===== glue: intOfNat is an order-embedding-ready map =====
 def intOfNatZero : intOfNat Z ≡ intZero
@@ -250,7 +250,7 @@ def clsOfRelLe : (a b k : ℕ) → (a + k ≡ b) → class (k, Z) ≡ class (b, 
   using (intOrder.clsOfRelGe, integer.Int.unfold, plusComm, zeroPlusId) ≔
   λa. λb. λk. λh. ⋆
 
-def intNegClass : (p : ℕ ⨯ ℕ) → intNeg (class p) ≡ class (p .π₂, p .π₁)
+def intNegClass : (p : ℕ × ℕ) → intNeg (class p) ≡ class (p .π₂, p .π₁)
   using (integer.Int.unfold, integer.intNeg.eq) ≔
   λp. ⋆
 
@@ -351,7 +351,7 @@ def leZMultMonoNat : {x y : Int} {m : ℕ} → (x ≤ y) → (x * intOfNat m ≤
           (cong (λv. Int) (λv. v * intOfNat m) (idToEq _ _ _ (le .π₂)))))
 
 -- a nonneg integer is a natural, witnessed
-def leZNonNegView : (c : Int) → (intZero ≤ c) → (m : ℕ) ⨯ intOfNat m ≡ c using (intOrder.≤.unfold) ≔
+def leZNonNegView : (c : Int) → (intZero ≤ c) → (m : ℕ) × intOfNat m ≡ c using (intOrder.≤.unfold) ≔
   λc. λle. le .π₁, trans _ _ _ (sym _ _ (intAddZeroL (intOfNat (le .π₁)))) (idToEq _ _ _ (le .π₂))
 
 -- scaling by a NONNEGATIVE integer preserves the order: view the

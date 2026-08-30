@@ -1,0 +1,33 @@
+-- Every token's ASCII FALLBACK (docs/NovaElaboration.txt). The whole
+-- file is ASCII; `nova distill` renders it back in Unicode, which is
+-- the pairing's normal form. Includes the two spellings that had to be
+-- reserved (-> and ==) and the \x / lambda-binding-x collision.
+infixl 6 +
+def + : Nat -> Nat -> Nat := \x. \y. Nat-elim x (n ih. S ih) y
+
+def id : {A : Set} (x : A) -> A := \A. \x. x
+def idP : {A : Prop} (x : A) -> A := \A. \x. x
+def absurd : {A : Set} -> Void -> A := \A. \v. Void-elim v
+def unit : Unit := ()
+
+def prod : Set -> Set -> Set := \a. \b. a \x b
+def uncurry : Nat \x Nat -> Nat := \p. p .1 + p .2
+def sum : Set -> Set -> Set := \a. \b. a \/ b
+def swap : {a b : Set} -> a \/ b -> b \/ a :=
+  \a. \b. \s. \/-elim (z. b \/ a) (u. inj2 u) (v. inj1 v) s
+
+def squash : Set -> Prop := \a. ||a||
+def plusZ : (n : Nat) -> n + Z == n \in Nat using (+.eq) := \n. \star
+def four : Nat := 2 + 2
+
+def chain : (n : Nat) -> Z + n == n \in Nat using (+.eq, plusZ) :=
+  \n. Nat-elim \star (k ih. \star) n
+
+-- a lambda binding exactly `x` still wins over the \x product token:
+-- lambda is tried first and demands its `.`
+def lamX : Nat -> Nat := \x. x
+def prodX : Nat \x Nat -> Nat := \p. p .1
+
+-- identifiers merely STARTING with a reserved constant are unaffected
+def NatAlg : Set := Nat
+def Setoid : Set := Nat

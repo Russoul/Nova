@@ -16,7 +16,7 @@
 # normalization (see Scope).
 #
 # FRAGMENT. The formers 𝟘, 𝟙, ℕ, Π, Σ, the universe 𝕌 with its codes
-# {𝟘, 𝟙, ℕ, →, ⨯} and cumulativity (code-lift), and extensional
+# {𝟘, 𝟙, ℕ, →, ×} and cumulativity (code-lift), and extensional
 # equality in the
 # composite form (a₀ ≡ a₁ ∈ A), the prop standing as its own type
 # (prop-lift; Prf is retired) — formation (code-eq),
@@ -54,7 +54,7 @@
 # NOTATION. ⟦·⟧ is semantic interpretation (this file's use is
 # unrelated to Foundation's method-image ⟦·⟧). γ ranges over
 # semantic environments. Meta-level syntax is written with Nova's
-# symbols (λ, →, ⨯, Σ-pairs (·,·)) — the meta is itself a type
+# symbols (λ, →, ×, Σ-pairs (·,·)) — the meta is itself a type
 # theory, and context disambiguates. ≜ marks defining clauses of the
 # interpretation (meta-level definitions), as elsewhere.
 
@@ -116,7 +116,7 @@
     one₀   : Code₀                                    El₀ one₀         ≜ 𝟙
     nat₀   : Code₀                                    El₀ nat₀         ≜ ℕ
     pi₀    : (a : Code₀) (b : El₀ a → Code₀) → Code₀  El₀ (pi₀ a b)    ≜ (x : El₀ a) → El₀ (b x)
-    sigma₀ : (a : Code₀) (b : El₀ a → Code₀) → Code₀  El₀ (sigma₀ a b) ≜ (x : El₀ a) ⨯ El₀ (b x)
+    sigma₀ : (a : Code₀) (b : El₀ a → Code₀) → Code₀  El₀ (sigma₀ a b) ≜ (x : El₀ a) × El₀ (b x)
 
 # Large codes — the denotation of 𝕍. Same formers one level up,
 # plus a code for 𝕌 itself and a code for equality types. eq is the
@@ -131,7 +131,7 @@
     one₁   : Code₁                                    El₁ one₁         ≜ 𝟙
     nat₁   : Code₁                                    El₁ nat₁         ≜ ℕ
     pi₁    : (a : Code₁) (b : El₁ a → Code₁) → Code₁  El₁ (pi₁ a b)    ≜ (x : El₁ a) → El₁ (b x)
-    sigma₁ : (a : Code₁) (b : El₁ a → Code₁) → Code₁  El₁ (sigma₁ a b) ≜ (x : El₁ a) ⨯ El₁ (b x)
+    sigma₁ : (a : Code₁) (b : El₁ a → Code₁) → Code₁  El₁ (sigma₁ a b) ≜ (x : El₁ a) × El₁ (b x)
     univ   : Code₁                                    El₁ univ         ≜ Code₀
     eq     : (c : Code₁) (x y : El₁ c) → Code₁        El₁ (eq c x y)   ≜ Id (x, y)
 
@@ -170,7 +170,7 @@
 #   Tm(X, A)       ≜ (γ : X) → El₁ (A γ)
 #   A[f]           ≜ A ∘ f                    (substitution = composition)
 #   terminal       𝟙
-#   comprehension  X.A ≜ (γ : X) ⨯ El₁ (A γ),  p ≜ .π₁,  q ≜ .π₂
+#   comprehension  X.A ≜ (γ : X) × El₁ (A γ),  p ≜ .π₁,  q ≜ .π₂
 #
 # The interpretation below is the evident partial map from raw
 # syntax into this CwF: partial because raw syntax includes garbage;
@@ -182,7 +182,7 @@
 # Contexts and substitutions.
 
     ⟦ε⟧       ≜ 𝟙
-    ⟦Γ ▷ A⟧   ≜ (γ : ⟦Γ⟧) ⨯ El₁ (⟦A⟧ γ)
+    ⟦Γ ▷ A⟧   ≜ (γ : ⟦Γ⟧) × El₁ (⟦A⟧ γ)
 
     ⟦·⟧ γ       ≜ ()
     ⟦σ, t⟧ γ    ≜ (⟦σ⟧ γ , ⟦t⟧ γ)
@@ -203,7 +203,7 @@
     ⟦ℕ⟧ γ                     ≜ nat₁
     ⟦𝕌⟧ γ                     ≜ univ
     ⟦A → B⟧ γ                 ≜ pi₁    (⟦A⟧ γ) (λ x. ⟦B⟧ (γ, x))
-    ⟦A ⨯ B⟧ γ                 ≜ sigma₁ (⟦A⟧ γ) (λ x. ⟦B⟧ (γ, x))
+    ⟦A × B⟧ γ                 ≜ sigma₁ (⟦A⟧ γ) (λ x. ⟦B⟧ (γ, x))
     ⟦t⟧ γ                     ≜ el (⟦t⟧ᵉˡ γ)   # t a small code used as
                                                # a type — code-lift; ⟦·⟧ᵉˡ
                                                # its element interpretation
@@ -224,7 +224,7 @@
     ⟦𝟙⟧ γ         ≜ one₀
     ⟦ℕ⟧ γ         ≜ nat₀
     ⟦t → u⟧ γ     ≜ pi₀    (⟦t⟧ γ) (λ x. ⟦u⟧ (γ, x))
-    ⟦t ⨯ u⟧ γ     ≜ sigma₀ (⟦t⟧ γ) (λ x. ⟦u⟧ (γ, x))
+    ⟦t × u⟧ γ     ≜ sigma₀ (⟦t⟧ γ) (λ x. ⟦u⟧ (γ, x))
 
     ⟦()⟧ γ            ≜ ()
     ⟦Z⟧ γ             ≜ Z

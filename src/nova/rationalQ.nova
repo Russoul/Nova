@@ -1481,7 +1481,7 @@ def qMulZeroR : (u : Q) → u * qZero ≡ qZero using (qMulZeroL) ≔
 -- could dispatch on such a proof to build the inverse. So the non-zero
 -- rationals get their own code, with BOTH components drawn from NZ;
 -- inversion is then total, and is just the swap.
-def NZQ : 𝕌 ≔ NZ ⨯ NZ
+def NZQ : 𝕌 ≔ NZ × NZ
 
 def nzqToRat : NZQ → Rat using (rational.Rat.unfold, rationalQ.NZQ.unfold) ≔
   λx. mkRat (nzToInt (x .π₁)) (x .π₂)

@@ -19,4 +19,4 @@ def IsCommRing : 𝕌 → 𝕌 using (group.IsGroup.unfold, monoid.IsMonoid.unfo
     (mulComm : (x y : R) → Id _ (mul x y) (mul y x))
     (mulOne : (x : R) → Id _ (mul x one) x)
     (addComm : (x y : R) → Id _ (add .π₁ .π₁ x y) (add .π₁ .π₁ y x))
-    ⨯ (x y z : R) → Id _ (mul x (add .π₁ .π₁ y z)) (add .π₁ .π₁ (mul x y) (mul x z))
+    × (x y z : R) → Id _ (mul x (add .π₁ .π₁ y z)) (add .π₁ .π₁ (mul x y) (mul x z))

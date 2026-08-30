@@ -64,7 +64,7 @@ module Nova.Compute
 --                             and is left alone whole; QElim's own
 --                             scrutinee w is at Γ (recursed).
 --
--- A concrete, testable consequence: nf of `El (a ⨯ b)` decodes to
+-- A concrete, testable consequence: nf of `El (a × b)` decodes to
 -- `SigmaTy (El a) (El b)` and recurses only into the FIRST component
 -- (`El a` fully decodes further; `El b` does not) — contrast a Σ VALUE
 -- `(x , y)`, whose SECOND component nf recurses into just as much as

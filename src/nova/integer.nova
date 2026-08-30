@@ -5,15 +5,15 @@
 
 import nat (+)
 
-def Int : 𝕌 ≔ (ℕ ⨯ ℕ) / (p q. p .π₁ + q .π₂ ≡ p .π₂ + q .π₁)
+def Int : 𝕌 ≔ ℕ × ℕ / (p q. p .π₁ + q .π₂ ≡ p .π₂ + q .π₁)
 
 -- Int's own quotient relation, named: the relation slot above written as
 -- an ordinary function, for callers that need to SPEAK about it — a
 -- witness for it gives equal classes (el-quot-eq), and effectivity gives
 -- it back (intEffective.nova)
-def IntR : (ℕ ⨯ ℕ) → (ℕ ⨯ ℕ) → Ω ≔ λp. λq. p .π₁ + q .π₂ ≡ p .π₂ + q .π₁
+def IntR : ℕ × ℕ → ℕ × ℕ → Ω ≔ λp. λq. p .π₁ + q .π₂ ≡ p .π₂ + q .π₁
 
-def toInt : (ℕ ⨯ ℕ) → Int using (integer.Int.unfold) ≔ λr. class r
+def toInt : ℕ × ℕ → Int using (integer.Int.unfold) ≔ λr. class r
 
 -- 0 = 0: (Z,Z) and (S Z, S Z) are the same integer
 def zeroEq : class (Z, Z) ≡ class (S Z, S Z) ∈ Int using (integer.Int.unfold) ≔ ⋆

@@ -63,7 +63,7 @@ derivCases =
       (DElRefl (DElNatS (DElVar 0)))
       (DElRefl (DElNatS (DElVar 0)))
       (DElNatS DElNatZ))
-    -- the ν layer: formation at K ℕ ⨯ 𝕏
+    -- the ν layer: formation at K ℕ × 𝕏
   , ("nu-type", DTyNu (DPolyProd (DPolyConst DCodeNat) DPolyHole))
     -- el-sub-cong-fix: a reflexive equation over ▷ℕ, instantiated
   , ("sub-fix", DElSubCongFix

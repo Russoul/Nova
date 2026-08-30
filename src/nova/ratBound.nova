@@ -41,7 +41,7 @@ def leQAdd : (x y z w : Q) → (x ≤ y) → (z ≤ w) → (x + z ≤ y + w)
   λx. λy. λz. λw. λh1. λh2. leQTrans _ _ _ (leQPlusMono z h1) (leQPlusMonoL _ _ y h2)
 
 -- ===== the bound relation =====
-def Bnd : Q → Q → 𝕌 ≔ λb. λu. qNeg b ≤ u ⨯ u ≤ b
+def Bnd : Q → Q → 𝕌 ≔ λb. λu. qNeg b ≤ u × u ≤ b
 
 def bndLo : (b u : Q) → Bnd b u → (qNeg b ≤ u)
   using (ratBound.Bnd.unfold, rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔

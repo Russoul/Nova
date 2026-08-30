@@ -1,0 +1,4 @@
+input.nova:9:23: error: '⊕' and '⊙' both have precedence 4 but associate in opposite directions — parenthesize, or give them different precedences
+9 | def clash : ℕ ≔ 1 ⊕ 2 ⊙ 3
+  |                       ^
+  note: while parsing the construct beginning at 9:17

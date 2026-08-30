@@ -6,7 +6,7 @@
 -- computes a multiplicative inverse (and returns 0 at 0), together
 -- with the non-erased existence statement
 --
---   (u : Q) (h : (u ≢ 0)) → (v : Q) ⨯ (qMul u v ≡ qOne)
+--   (u : Q) (h : (u ≢ 0)) → (v : Q) × (qMul u v ≡ qOne)
 --
 -- whose first component IS the inverse, not a squashed promise.
 --
@@ -32,7 +32,7 @@ import rationalQ (Q, qcls, qZero, qOne, *, ratMul, RatR, clsEqOfRel, dInt, nzToI
 import rationalInv (notIntro, notApply, numNonZero)
 import equality (trans, sym, cong)
 
-def invRepAt : (p : Rat) → ((e : NZ) ⨯ nzToInt e ≡ num p) ⊎ (num p ≡ intZero) → Rat
+def invRepAt : (p : Rat) → ((e : NZ) × nzToInt e ≡ num p) ⊎ (num p ≡ intZero) → Rat
   using (rational.Rat.unfold) ≔
   λp. λv. ⊎-elim (u. mkRat (dInt p) (u .π₁)) (u. ratZero) v
 
@@ -45,8 +45,8 @@ def invRep : Rat → Rat using (rational.Rat.unfold) ≔ λp. invRepAt _ (nzOfIn
 -- both zero: both inverses are the junk value
 def invRepWDAt : {p p' : Rat}
   (h : RatR p p')
-  (v : ((e : NZ) ⨯ nzToInt e ≡ num p) ⊎ (num p ≡ intZero))
-  (v' : ((e : NZ) ⨯ nzToInt e ≡ num p') ⊎ (num p' ≡ intZero))
+  (v : ((e : NZ) × nzToInt e ≡ num p) ⊎ (num p ≡ intZero))
+  (v' : ((e : NZ) × nzToInt e ≡ num p') ⊎ (num p' ≡ intZero))
   → num (invRepAt _ v) * dInt (invRepAt _ v') ≡ num (invRepAt _ v') * dInt (invRepAt _ v)
   using (intMulOneR,
     intMulZeroL,
@@ -250,7 +250,7 @@ def invRepRel : {p : Rat}
 
 def invRepCorrectAt : {p : Rat}
   (hnz : ¬ (num p ≡ intZero))
-  (v : ((e : NZ) ⨯ nzToInt e ≡ num p) ⊎ (num p ≡ intZero))
+  (v : ((e : NZ) × nzToInt e ≡ num p) ⊎ (num p ≡ intZero))
   → class (ratMul p (invRepAt _ v)) ≡ qOne
   using (intMulZeroR,
     integer.Int.eq,
@@ -309,7 +309,7 @@ def qMulInvR : {u : Q} (h : ¬ (u ≡ qZero)) → u * qInv u ≡ qOne
 -- ===== the non-erased existence statement =====
 --
 -- a Σ-TYPE, not a squash: the first component is the inverse itself
-def qInvExistsD : (u : Q) (h : ¬ (u ≡ qZero)) → (v : Q) ⨯ u * v ≡ qOne ≔ λu. λh. qInv u, qMulInvR h
+def qInvExistsD : (u : Q) (h : ¬ (u ≡ qZero)) → (v : Q) × u * v ≡ qOne ≔ λu. λh. qInv u, qMulInvR h
 
 -- and it computes: (⅓)⁻¹ = 3
 def qInvThird : qInv (qcls third) ≡ qcls (mkRat (class (3, Z)) (nzPos Z))
@@ -347,7 +347,7 @@ def qInvThird : qInv (qcls third) ≡ qcls (mkRat (class (3, Z)) (nzPos Z))
 
 -- ===== the inverse type is a proposition =====
 --
--- Inverses are unique, so ((v : Q) ⨯ (qMul u v ≡ qOne)) has at
+-- Inverses are unique, so ((v : Q) × (qMul u v ≡ qOne)) has at
 -- most one element: it is an h-prop, even though it is not a prop.
 -- (See docs/ProvingFeedback.md A-5 on what an eliminator into such
 -- types would and would not buy.)
@@ -387,7 +387,7 @@ def invPairCong : {u a a' : Q}
   {b : u * a ≡ qOne}
   {b' : u * a' ≡ qOne}
   (h : a ≡ a')
-  → (a, b) ≡ (a', b') ∈ (v : Q) ⨯ u * v ≡ qOne
+  → (a, b) ≡ (a', b') ∈ (v : Q) × u * v ≡ qOne
   using (hyp.rw, rationalQ.Q.unfold, sigma.eta) ≔
   λu. λa. λa'. λb. λb'. λh. ⋆
 
@@ -395,5 +395,5 @@ def invPairCong : {u a a' : Q}
 def qInvWitnessUnique : (u a a' : Q)
   (b : u * a ≡ qOne)
   (b' : u * a' ≡ qOne)
-  → (a, b) ≡ (a', b') ∈ (v : Q) ⨯ u * v ≡ qOne ≔
+  → (a, b) ≡ (a', b') ∈ (v : Q) × u * v ≡ qOne ≔
   λu. λa. λa'. λb. λb'. invPairCong (qInvUniqueVal _ b b')

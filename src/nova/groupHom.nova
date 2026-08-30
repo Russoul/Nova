@@ -25,7 +25,7 @@ def IsHom : {G : 𝕌} (g : IsGroup G) {H : 𝕌} (h : IsGroup H) → (G → H) 
   λG. λg. λH. λh. λf. (x y : G) → Id _ (f (gop g x y)) (gop h (f x) (f y))
 
 def Hom : {G : 𝕌} (g : IsGroup G) {H : 𝕌} (h : IsGroup H) → 𝕌 ≔
-  λG. λg. λH. λh. (f : G → H) ⨯ IsHom g h f
+  λG. λg. λH. λh. (f : G → H) × IsHom g h f
 
 def homAp : {G : 𝕌} {g : IsGroup G} {H : 𝕌} {h : IsGroup H} → Hom g h → G → H using (Hom.unfold) ≔
   λG. λg. λH. λh. λp. λa. p .π₁ a

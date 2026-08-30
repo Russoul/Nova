@@ -48,7 +48,7 @@ def ⊥ : Ω ≔ ∥𝟘∥
 def ⊤ : Ω ≔ ∥𝟙∥
 
 infixr 5 ∧
-def ∧ : Ω → Ω → Ω ≔ λp. λq. ∥p ⨯ q∥
+def ∧ : Ω → Ω → Ω ≔ λp. λq. ∥p × q∥
 
 infixr 3 ⊃
 def ⊃ : Ω → Ω → Ω ≔ λp. λq. ∥p → q∥

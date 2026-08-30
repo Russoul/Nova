@@ -36,7 +36,7 @@ def eqToIdBeta : (a : 𝕌) (x : a) → eqToId _ _ ⋆ ≡ refl a x ∈ Id _ x x
 
 -- equality as DATA in a small type — what the Ω-valued ≡ cannot do
 -- (no 𝕌-code) and Id restores: a subset code by an equation
-def OnlyZ : 𝕌 ≔ (n : ℕ) ⨯ Id _ n Z
+def OnlyZ : 𝕌 ≔ (n : ℕ) × Id _ n Z
 
 def onlyZ : OnlyZ using (id.Id.eq, id.OnlyZ.unfold) ≔ Z, refl ℕ Z
 

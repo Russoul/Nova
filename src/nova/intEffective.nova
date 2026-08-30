@@ -41,21 +41,21 @@ def cancelTrans : {a b : ℕ} (c d : ℕ) {e f : ℕ} → (a + d ≡ b + c) → 
 
 -- IntR is an equivalence. Reflexivity and symmetry are commutativity, so
 -- one ⋆ each; transitivity is cancelTrans at the four components
-def intRRefl : {p : ℕ ⨯ ℕ} → IntR p p using (integer.IntR.unfold, plusComm) ≔ λp. ⋆
+def intRRefl : {p : ℕ × ℕ} → IntR p p using (integer.IntR.unfold, plusComm) ≔ λp. ⋆
 
-def intRSymm : {p q : ℕ ⨯ ℕ} → IntR p q → IntR q p
+def intRSymm : {p q : ℕ × ℕ} → IntR p q → IntR q p
   using (integer.IntR.eq, integer.IntR.unfold, plusComm) ≔
   λp. λq. λh. q .π₁ + p .π₂
       ≡⟨ plusComm (p .π₂) (q .π₁) ⟩ p .π₂ + q .π₁
       ≡⟨ h ⟩ p .π₁ + q .π₂
       ≡⟨ plusComm (q .π₂) (p .π₁) ⟩ q .π₂ + p .π₁
 
-def intRTrans : {p q s : ℕ ⨯ ℕ} → IntR p q → IntR q s → IntR p s
+def intRTrans : {p q s : ℕ × ℕ} → IntR p q → IntR q s → IntR p s
   using (integer.IntR.eq, integer.IntR.unfold) ≔
   λp. λq. λs. λh1. λh2. cancelTrans _ _ h1 h2
 
 -- EFFECTIVITY for Int, on the nose
-def intEffective : {p q : ℕ ⨯ ℕ} → (class p ≡ class q ∈ Int) → IntR p q
+def intEffective : {p q : ℕ × ℕ} → (class p ≡ class q ∈ Int) → IntR p q
   using (integer.Int.unfold, integer.IntR.unfold) ≔
   effectiveAtEquiv IntR (intRRefl {}) (intRTrans {}) (intRSymm {})
 
