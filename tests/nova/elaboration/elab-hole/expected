@@ -1,0 +1,12 @@
+defined double [+1 declaration]
+defined useSum [+1 declaration]
+defined pair [+2 declarations]
+open holes (4):
+  [?body] (n : ℕ) ⊢ ?body : ℕ
+      at: input.nova:3:26: def double
+  [?refl] (n : ℕ) ⊢ ?refl : n ≡ n ∈ ℕ
+      at: input.nova:5:40: def useSum
+  [?left] (n : ℕ) ⊢ ?left : ℕ
+      at: input.nova:8:35: def pair
+  [?right] (n : ℕ) ⊢ ?right : ℕ
+      at: input.nova:8:42: def pair

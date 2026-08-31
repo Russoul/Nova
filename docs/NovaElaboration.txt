@@ -69,7 +69,12 @@ A blank never binds to an implicit position (it defers past
 inserted holes to the next explicit position), never appears in
 constructor/eliminator spines (QSort-internal telescopes), and an
 unsolvable blank is a structural error naming the remedy. `_`
-alone in binder position is the wildcard binder, never resolvable; T{n}/t{n} names the
+alone in binder position is the wildcard binder, never resolvable.
+`?x` is a HOLE (e-hole below): the `?` is an operator character, so
+the reservation is exactly `?` IMMEDIATELY FOLLOWED BY AN IDENTIFIER
+START — `?`, `?!` and `<?>` still lex as operator names. A hole's
+label resolves against nothing, neither Γ nor Σ, so no identifier
+keyword is reserved from it. T{n}/t{n} names the
 type/term grammar at
 precedence level n, and T{>=n} any level at or above it. The
 term/type grammar below is self-contained.
@@ -297,7 +302,7 @@ T{0} ::= t{≥1¼} ≡ t{≥1¼} ∈ T{≥1}
 #   3. corec takes its state CARRIER inline, as a binder annotation —
 #      corec (x : a. f) u — the carrier code is not recoverable from
 #      the expected ν-type, so it is mandatory syntax, like a motive.
-t{5} ::= x | () | Z | ⋆ | ∥T{≥0}∥ | 𝟘 | 𝟙 | ℕ | (t{≥0}) | (t{≥0} : T{≥0})
+t{5} ::= x | ?x | () | Z | ⋆ | ∥T{≥0}∥ | 𝟘 | 𝟙 | ℕ | (t{≥0}) | (t{≥0} : T{≥0})
 t{3} ::= t{≥3} t{≥4} | t{≥3} .π₁ | t{≥3} .π₂                 (left-assoc)
 t{2} ::= λx. t{≥0}                    # the body extends MAXIMALLY:
                                       #   over operators, the code
@@ -746,6 +751,49 @@ componentwise at F × G and F ⊎ G                  (e-poly-prod, e-poly-sum)
 
 //////////// Element elaboration: checking /////////////
 
+Γ ⊢ A type        `?x` not yet minted in this item
+-------------------------------------------------------- (e-hole)  # (?x)
+Γ ⊢ ?x ⇐ A ⇝ ?ᵢₜₑₘ.x[δ]        Σ ⇒ Σ, (Γ ⊦ ?ᵢₜₑₘ.x : A)
+# A HOLE: a goal the operator left open. It enters Σ as a SIG-DECL at
+# the ambient context and the expected type — the SAME entry kind an
+# obligation is (an obligation is a hole at an equation's prop), so
+# acceptance needs no new gate: a signature with a hole in it is not
+# definitional. δ is the identity spine of Γ, the entry referenced at
+# its own context; the reference is stuck (el-sig-decl), like any
+# declaration's.
+#
+# CHECKING-ONLY, and INERT. Checking-only because A is where the
+# hole's type comes from: an inference position supplies none, and
+# guessing one is what the ascription `(?x : T)` is for. Inert
+# because NOTHING SOLVES IT — no unification, no pattern solving, no
+# declaration-to-definition flip. That is the design, not an
+# omission: PerfNotes "The cost of a hole" measured the SOLVER as
+# ~98% of a hole-bearing item's cost (a doomed full discharge attempt
+# before each solve, a def-nf cache wipe on every non-monotone flip,
+# per-solve kernel work, the whole-item rerun), and an inert hole
+# pays none of it. Σ still only ever EXTENDS during a run, the ↓ loop
+# gains no new code path, and a hole-free file meets not one added
+# instruction — measured: elaborate and load-parse phases both
+# unchanged on the corpus.
+#
+# What a hole costs is confined to the item that has one: a
+# conversion mentioning a stuck hole cannot join, so it becomes an
+# ordinary obligation. That is usually informative rather than noise
+# — the obligation states what the hole would have to be.
+#
+# The label is the operator's, and is unique per ITEM: the Σ name is
+# `?` + the qualified item + the label, so it is stable across reruns
+# (written, not counted) and two items may both write `?goal`. A
+# second `?x` in one item is a structural error.
+#
+# "Item" here means the item whose Σ entry is being built, which for
+# an item MACRO is a GENERATED item, not the written one: a `?x` in a
+# clause RHS is elaborated once in the eliminator body, once in that
+# clause's equation lemma and once in the uniqueness lemma, at three
+# different contexts, so it mints three holes and reports three
+# goals. That is the honest account — filling the clause commits to
+# all three at once.
+
 # Introduction forms check against the whnf of the expected type.
 # A rigid shape mismatch here (λ against a non-Π, class against a
 # non-quotient, ...) is a structural error, not an obligation: if the
@@ -833,21 +881,27 @@ C a PROPOSITION        (e-star's premises, verbatim)
 # that is unknown, or not an equation lemma of the visible store, is
 # a structural error.
 
-# HOLES ARE REMOVED. The e-hole/e-ty-hole rules, solvable-hole
-# pattern solving (declaration-to-definition flips), the kernel-Σ
-# mirror and the item-end obligation deletion that lived here were
-# measured as the dominant elaboration cost and the sole source of
-# non-monotone Σ mutation, and were removed together with the surface
-# forms (`?x`, `_`-leading identifiers; the `_` BINDER wildcard is a
-# separate production and remains). See PerfNotes "The cost of a
-# hole" for the anatomy and Future work for the redesign. (The
-# BLANK — a bare `_` argument, see Surface syntax — is not a hole in
-# this sense: it is spine-local, solved in the same deterministic
+# HOLE SOLVING IS REMOVED. Solvable-hole pattern solving
+# (declaration-to-definition flips), the kernel-Σ mirror and the
+# item-end obligation deletion that lived here were measured as the
+# dominant elaboration cost and the sole source of non-monotone Σ
+# mutation, and were removed. See PerfNotes "The cost of a hole" for
+# the anatomy.
+#
+# The SURFACE hole came back without them: `?x` is e-hole (Element
+# elaboration: checking) — checking-only, minted as a sig-decl,
+# reported, and never solved. Nothing below this line applies to it,
+# which is exactly why it is affordable. What stayed removed is the
+# `_`-leading identifier spelling and every mechanism that would make
+# a hole participate in ↓.
+#
+# (The BLANK — a bare `_` argument, see Surface syntax — is a hole in
+# neither sense: it is spine-local, solved in the same deterministic
 # pass as an inserted implicit, touches neither Σ nor ↓, and errors
 # structurally when unsolved.) One
-# consequence worth stating: Σ now only ever EXTENDS during a run, so
-# every name's entry — and every cached normal form — is stable for
-# the run's lifetime.
+# consequence worth stating: Σ still only ever EXTENDS during a run,
+# so every name's entry — and every cached normal form — is stable
+# for the run's lifetime.
 
 whnf(C) = ∥A∥        Γ ⊢ e ⇐ A ⇝ ê
 ------------------------------------ (e-star-wit)             # (⋆ e)
@@ -1684,6 +1738,43 @@ content the file genuinely needed, and the file ends up a
 self-contained record of WHY it is accepted: every fact each item
 depends on is written at the item.
 
+The report has THREE blocks, in this order: open holes, open
+obligations, open declarations. Holes come first because they are the
+goals the operator asked for; a hole renders like a declaration (it
+is one) but names itself:
+
+  open holes (1):
+    [?body] (a : 𝕌) (s : stream a) ⊢ ?body : hd s ≡ hd s ∈ a
+        at: bisimHd.nova:5:37: def bisimHd
+
+Acceptance is unchanged and needs no new rule: a hole is a
+non-definition entry of Σ, so a file with one is not definitional.
+
+//////////// Recovery /////////////
+
+An item that fails to elaborate does not end the run. Its diagnostic
+is rendered AT the item, the holes it had already reached are
+rendered with it, and elaboration continues with the next item. The
+run's verdict counts the failures.
+
+The failed item's STATE IS DISCARDED — nothing a broken item built
+reaches Σ, so it cannot contribute a definition, and the salvaged
+holes are display material only. What replaces it is a DECLARATION of
+its own signature (`def x : T` with no definiens, the sig-decl item),
+so that later items' references to it still resolve. That declaration
+is reported as open and blocks acceptance exactly as a written one
+does: recovery never turns a failure into an acceptance, it only
+stops one broken proof from hiding every goal after it.
+
+Items with no signature to declare recover nothing and are skipped: a
+`data` literal, or a def whose failure was in its TYPE. A module-level
+failure (an unresolvable import) is not item-recoverable either —
+nothing after it has a signature to elaborate against.
+
+The strict entry points do NOT recover: the paths that demand full
+acceptance (the compute and distill consumers) still stop at the
+first failure, since a recovered run is by construction not accepted.
+
 //////////// Metatheory: the soundness contract /////////////
 
 Let T₀ be the theory of docs/NovaFoundation.txt over the accepted
@@ -1740,7 +1831,9 @@ Two corollaries worth keeping in view while implementing:
 
 //////////// Future work (explicitly out of scope here) /////////////
 
-* Holes / metavariables, REDESIGNED. The removed implementation's
+* Hole SOLVING, redesigned. (The hole itself has landed — e-hole,
+  inert and checking-only; what is future work is a hole that gets
+  SOLVED.) The removed implementation's
   failure modes are the requirements list (ProvingFeedback E-1/E-1½,
   PerfNotes "The cost of a hole"): solving must be goal-directed and
   run BEFORE any discharge attempt; solutions must live in a separate
@@ -1750,6 +1843,18 @@ Two corollaries worth keeping in view while implementing:
   and certificates must be assembled once, against settled
   solutions. Ground-only obligations and the erasure-step
   restrictions sketched previously still apply.
+* Holes in INFERENCE positions. e-hole is checking-only, so an
+  eliminator's scrutinee (`squash-elim ?a (w. ?b)`), an application
+  head, a `let` definiens and an annotation-free `≡` side all reject
+  a bare hole and name the ascription remedy. Each of those positions
+  DEMANDS A SHAPE (Π, ×, ⊎, ∥∥, ν, a quotient, an equation type),
+  and every one of the ~30 shape checks that would reject a hole is
+  already a FAILURE branch — a path a correct hole-free program never
+  enters. So a shape-directed tier that mints the demanded shape
+  with fresh 𝕍-typed component holes, rather than inferring a type
+  the site does not have, would cost nothing on the success path.
+  Minting the shape directly (rather than solving an unrefined type
+  hole afterwards) is what keeps Σ monotone.
 * Congruence/transitivity closure (e-graph) for the HINT probe's
   completeness — the advisory layer is where a stronger search is
   pure upside. (The `using` clauses themselves have landed, item- and

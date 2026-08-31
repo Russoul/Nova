@@ -1,0 +1,3 @@
+-- the holes a FAILED item reached before it broke are rendered at
+-- the failure: nothing it built survives, but the goals do
+def broken : ℕ × ℕ ≔ (?reached, noSuchName)

@@ -135,6 +135,7 @@ parameters (rm : RenameMap, resolve : String -> String)
       SImpArg t => SImpArg (rnE t)
       SNoIns t => SNoIns (rnE t)
       SBlank _ => e
+      SHole _ _ => e
       -- spans stop here: the renamed tree goes straight to the printer
       SPos _ t => rnE t
 

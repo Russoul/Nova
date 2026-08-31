@@ -194,6 +194,14 @@ mutual
     ||| implicit position it is a structural error (those are elided
     ||| by default — {t} overrides them)
     SBlank : Maybe Range -> SElem
+    ||| ?x — a named HOLE: a goal the operator left open, minted as a
+    ||| sig-decl at the ambient context and the expected type
+    ||| (docs/NovaElaboration.txt, e-hole). CHECKING-ONLY and INERT —
+    ||| nothing ever solves it, so Î£ stays monotone and the discharge
+    ||| engine is untouched (PerfNotes "The cost of a hole": the
+    ||| measured cost was the SOLVER, not the hole). The range is the
+    ||| `?x` token's, for the report and the LSP diagnostic
+    SHole : Maybe Range -> (name : String) -> SElem
     ||| t@r — a SOURCE SPAN on a term. Transparent: it carries no
     ||| meaning, `Show` skips it, and every structural test goes
     ||| through `unPos`. The parser attaches one at every grammar
@@ -309,6 +317,7 @@ mutual
   stripPos (SImpArg t) = SImpArg (stripPos t)
   stripPos (SNoIns t) = SNoIns (stripPos t)
   stripPos e@(SBlank _) = e
+  stripPos e@(SHole _ _) = e
 
   public export
   covering
@@ -363,6 +372,7 @@ mutual
   headRange (SStar r) = r
   headRange (SStarUsing r _) = r
   headRange (SBlank r) = r
+  headRange (SHole r _) = r
   headRange (SEqC r _ _ _) = r
   headRange SUnitI = Nothing
   headRange SZeroN = Nothing
@@ -495,6 +505,7 @@ mutual
   shiftElem c (SImpArg t) = SImpArg (shiftElem c t)
   shiftElem c (SNoIns t) = SNoIns (shiftElem c t)
   shiftElem c e@(SBlank _) = e
+  shiftElem c e@(SHole _ _) = e
   shiftElem c (SPos r e) = SPos r (shiftElem c e)
 
   public export
@@ -792,6 +803,7 @@ mutual
     show (SImpArg t) = "Imp (\{show t})"
     show (SNoIns t) = "NoIns (\{show t})"
     show (SBlank _) = "_"
+    show (SHole _ n) = "?\{n}"
 
   public export
   covering

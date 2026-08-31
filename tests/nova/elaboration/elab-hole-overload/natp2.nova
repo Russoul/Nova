@@ -1,0 +1,2 @@
+infixl 6 +
+def + : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim x (n ih. S ih) y

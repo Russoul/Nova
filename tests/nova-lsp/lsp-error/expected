@@ -1,6 +1,8 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
 CAPS: hover=true definition=true documentSymbol=true
-DIAGNOSTICS (1):
+DIAGNOSTICS (2):
+  [L1:1-L1:29] (warning)   [bad] ⊢ ? : ℕ
+      at: DIR/fixture.nova:1:1: def bad
   [L1:15-L1:29] (error) def bad: unknown name 'undefinedThing'
 ELABTIME: reported
 TOKENS (6):
@@ -14,7 +16,9 @@ SYMBOLS (1):
   bad (kind 12) [L1:1-L1:29]
 DEFINITION(undefinedThing): null
 HOVER(undefinedThing): null
-DIAGNOSTICS FOR FIXTURE (1):
+DIAGNOSTICS FOR FIXTURE (2):
+  [L1:1-L1:29] (warning)   [bad] ⊢ ? : ℕ
+      at: DIR/fixture.nova:1:1: def bad
   [L1:15-L1:29] (error) def bad: unknown name 'undefinedThing'
 ELABTIME: reported
 SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh

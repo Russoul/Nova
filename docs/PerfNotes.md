@@ -440,6 +440,41 @@ ones the growth curve will surface: load+parse scales with the corpus,
 and the metavariable redesign must not reintroduce mechanisms 1–4 of
 "The cost of a hole" above.
 
+## The inert hole: `?x` at zero measured cost
+
+The surface hole is back (`?x`, NovaElaboration.txt e-hole) WITHOUT
+the solver. Mechanisms 1, 2 and 4 of "The cost of a hole" are all
+consequences of solving — the doomed pre-solve attempt, the cache
+demolition on each non-monotone flip, the per-solve kernel work and
+rerun — so an inert hole, minted as a sig-decl and never solved, pays
+none of them. Mechanism 3 (tier starvation) survives, confined to the
+item that has a hole: a conversion mentioning a stuck hole cannot
+join and becomes an obligation, once, with no re-attempt.
+
+Measured A/B on `all.nova`: two binaries, runs INTERLEAVED (wall
+drifts several percent between sessions on this machine — only
+interleaving makes the comparison mean anything), NOVA_PROFILE phase
+totals rather than wall, three rounds each, means below.
+
+```
+                     HEAD      holes, final     holes, FIRST CUT
+phase-elaborate      3651 ms   3646 ms (-0.1%)  3873 vs 3897 base
+phase-load-parse     1171 ms   1179 ms (+0.7%)  1290 vs 1226 (+5.2%)
+```
+
+Both differences are inside the round-to-round spread (±20 ms). The
+elaborate phase never moved — the point of the design.
+
+The first cut's load-parse regression was NOT the hole: it was the hole's
+PRODUCTION, placed ahead of the atom alternatives, probing for `?` at
+every atom of every file. Since `?` is an opChar, a `?` that starts
+an atom is already the operator alternative's token; recognizing the
+hole there instead costs one string comparison on a path an operator
+token reached anyway, and the regression disappeared. Worth recording
+as the general shape: for a feature only some files use, the cost to
+watch is rarely the feature's own code — it is the dispatch that asks
+every file whether it wanted it.
+
 ## The ℝ regression: substitution towers
 
 The completeness/abs/metric development blew the corpus up from ~2.2s

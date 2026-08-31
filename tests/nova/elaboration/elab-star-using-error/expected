@@ -2,3 +2,8 @@ defined notEq
 input.nova:4:25: error: def refl0: using: 'notEq' is not an equation lemma in the visible store
 4 | def refl0 : Z ≡ Z ∈ ℕ ≔ ⋆ using notEq
   |                         ^^^^^^^^^^^^^
+declared refl0 [+1 declaration]
+open declarations (1):
+  [refl0] ⊢ ? : Z ≡ Z ∈ ℕ
+      at: input.nova:4:1: def refl0
+Error: 1 item failed to elaborate

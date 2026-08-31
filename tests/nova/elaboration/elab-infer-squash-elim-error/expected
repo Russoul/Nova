@@ -1,3 +1,8 @@
 input.nova:3:25: error: def bad: cannot infer the type of squash-elim — ascribe it: `(t : T)`
 3 | def bad : ∥𝟙∥ → ℕ ≔ λh. (squash-elim h (u. u)) Z
   |                         ^^^^^^^^^^^^^^^^^^^^^^
+declared bad [+1 declaration]
+open declarations (1):
+  [bad] ⊢ ? : ∥𝟙∥ → ℕ
+      at: input.nova:3:1: def bad
+Error: 1 item failed to elaborate

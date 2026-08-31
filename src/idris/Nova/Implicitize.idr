@@ -233,6 +233,7 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
       SImpArg t => SImpArg (xfE t)
       SNoIns t => SNoIns (xfE t)
       SBlank _ => e
+      SHole _ _ => e
      where
       spine : SElem -> List SElem -> (SElem, List SElem)
       spine e acc = case unPos e of
@@ -539,6 +540,7 @@ sitesOfUnit resolve q u = concatMap (\(_, it) => goItem it) u.mitems
       SImpArg t => goE t
       SNoIns t => goE t
       SBlank _ => []
+      SHole _ _ => []
       SPos _ t => goE t
      where
       spine : SElem -> List SElem -> (SElem, List SElem)

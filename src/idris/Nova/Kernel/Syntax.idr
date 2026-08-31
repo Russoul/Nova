@@ -258,6 +258,26 @@ public export
 isOblName : SigIdentifier -> Bool
 isOblName x = isPrefixOf "≐#" x
 
+||| Machine names for user HOLES (`?x` in a surface term) — like
+||| `oblName`, a spelling no surface identifier can take, so a view
+||| can tell a hole from a user declaration. The suffix is the
+||| enclosing item plus the operator's own label
+||| (`?streamBisim.bisimHd.a`): unique across a run and stable
+||| between reruns, since it is written, not counted.
+public export
+holeName : (item : String) -> (label : String) -> SigIdentifier
+holeName item label = if item == "" then "?" ++ label else "?" ++ item ++ "." ++ label
+
+public export
+isHoleName : SigIdentifier -> Bool
+isHoleName x = isPrefixOf "?" x
+
+||| The label the operator wrote, recovered from a hole's Σ name —
+||| what the report shows (`?a`, not `?mod.item.a`).
+public export
+holeLabel : SigIdentifier -> String
+holeLabel x = "?" ++ pack (reverse (takeWhile (/= '.') (reverse (unpack x))))
+
 public export
 Sig : Type
 Sig = SnocList SigEntry

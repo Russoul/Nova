@@ -1,0 +1,13 @@
+defined dbl by clauses (dbl, dblZ, dblS, dblEta) [+2 obligations, +3 declarations]
+open holes (3):
+  [?step] (_ : ℕ) (n : ℕ) (ih : ℕ) ⊢ ?step : ℕ
+      at: input.nova:7:17: def dbl
+  [?step] (n : ℕ) ⊢ ?step : ℕ
+      at: input.nova:7:17: def dblS
+  [?step] (g : ℕ → ℕ) (dblZ : g Z ≡ Z ∈ ℕ) (n : ℕ) ⊢ ?step : ℕ
+      at: input.nova:7:17: def dblEta
+open obligations (2):
+  [1] (n : ℕ) ⊢ dbl (S n) ≐ ?dblS.step : ℕ
+      at: input.nova:7:3: def dblS: checking ⋆
+  [2] (g : ℕ → ℕ) (dblZ : g Z ≡ Z ∈ ℕ) (dblS : (n:ℕ) → (g (S n) ≡ ?dblEta.step ∈ ℕ)) (_ : ℕ) (n : ℕ) (ih : g n ≡ dbl n ∈ ℕ) ⊢ g (S n) ≐ dbl (S n) : ℕ
+      at: input.nova:5:5: def dblEta: checking ⋆

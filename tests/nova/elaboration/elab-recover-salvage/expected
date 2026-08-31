@@ -1,0 +1,11 @@
+input.nova:3:33: error: def broken: unknown name 'noSuchName'
+3 | def broken : ℕ × ℕ ≔ (?reached, noSuchName)
+  |                                 ^^^^^^^^^^
+holes reached before the failure (1):
+  [?reached] ⊢ ?reached : ℕ
+      at: input.nova:3:23: def broken
+declared broken [+1 declaration]
+open declarations (1):
+  [broken] ⊢ ? : ℕ × ℕ
+      at: input.nova:3:1: def broken
+Error: 1 item failed to elaborate
