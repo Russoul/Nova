@@ -21,15 +21,36 @@ From the flake, which bakes in the matching server:
 nix run github:Russoul/Nova#install-nvim-plugin
 ```
 
-That links the plugin into `~/.local/share/nvim/site/pack/nova/start/`,
-which neovim loads on its own. Then:
+That links the plugin into `~/.local/share/nvim/site/pack/nova/start/`.
+What happens next depends on whether anything has touched `packpath`.
+
+**Plain neovim** loads `pack/*/start` on its own and the plugin sets
+itself up, so there is nothing to add to your config. To pass options,
+set `vim.g.nova` — it has to be a variable rather than a `require` call,
+because `init.lua` is sourced *before* packages reach the runtimepath:
 
 ```lua
+vim.g.nova = { elabtime = { notify = true } }
+```
+
+`vim.g.nova = false` disables the automatic setup if you would rather
+call `require("nova").setup{}` yourself.
+
+**With lazy.nvim**, or any manager that resets `packpath`, neovim never
+scans that directory and none of the above happens. Add it explicitly:
+
+```lua
+vim.opt.rtp:append(vim.fn.stdpath("data") .. "/site/pack/nova/start/nova")
 require("nova").setup()
 ```
 
-With a plugin manager instead, point it at `editors/nvim` in a checkout
-— in which case `nova-lsp` must be on `PATH`, or named explicitly:
+The symlink is stable across reinstalls — only its target moves — so
+this line does not need revisiting. `require` works here because the
+directory joins the runtimepath on the line above.
+
+**From a checkout**, point your plugin manager at `editors/nvim` and
+call setup as usual. Nothing is baked in that way, so `nova-lsp` must
+be on `PATH` or named explicitly:
 
 ```lua
 require("nova").setup({ cmd = "/path/to/nova-lsp" })

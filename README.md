@@ -54,8 +54,11 @@ nothing to configure and the two cannot drift apart:
 
 ```
 nix run .#install-vscode-extension
-nix run .#install-nvim-plugin     # then: require("nova").setup()
+nix run .#install-nvim-plugin
 ```
 
-See `editors/nvim/README.md` for options and for using it with a
-plugin manager instead.
+Plain neovim loads the plugin from `pack/*/start` on its own and it
+sets itself up, so there is nothing to add to your config; under
+lazy.nvim, which resets `packpath`, one line in `init.lua` is needed.
+See `editors/vscode/README.md` and `editors/nvim/README.md` for
+options, and for using either with a plugin manager instead.

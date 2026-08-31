@@ -20,6 +20,7 @@ let
           fileset = lib.fileset.unions [
             ../editors/nvim/lua
             ../editors/nvim/ftdetect
+            ../editors/nvim/plugin
             ../editors/nvim/README.md
           ];
         };
@@ -68,7 +69,12 @@ let
 
       echo "linked $target -> ${plugin}"
       echo
-      echo "Add to your config:"
+      echo "Plain neovim loads pack/*/start on its own and the plugin sets"
+      echo "itself up — nothing to add. Options go in vim.g.nova = { ... }."
+      echo
+      echo "With lazy.nvim, or anything else that resets 'packpath', neovim"
+      echo "never scans that directory. Add it explicitly in init.lua:"
+      echo "    vim.opt.rtp:append(vim.fn.stdpath(\"data\") .. \"/site/pack/nova/start/nova\")"
       echo "    require(\"nova\").setup()"
       echo
       echo "The plugin talks to:"

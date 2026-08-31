@@ -99,6 +99,15 @@ end
 function M.setup(opts)
   opts = vim.tbl_extend("force", default_opts, opts or {})
 
+  -- Also registered in ftdetect/, which covers the case where this
+  -- plugin is on the runtimepath at startup and setup() never runs.
+  -- Repeating it here is not redundant: ftdetect/ scripts are sourced
+  -- once, when `filetype on` executes during startup, so a plugin whose
+  -- directory joins the runtimepath later — a plugin manager that
+  -- resets 'packpath', an rtp:append from init.lua — never gets its
+  -- ftdetect sourced at all. vim.filetype.add is idempotent.
+  vim.filetype.add({ extension = { nova = "nova" } })
+
   if opts.elabtime ~= false then
     require("nova.elabtime").setup(type(opts.elabtime) == "table" and opts.elabtime or {})
   end
@@ -113,11 +122,18 @@ function M.setup(opts)
     desc = "Start nova-lsp for .nova buffers",
   })
 
-  -- setup() may well run after the first .nova buffer is already open
-  -- (a session restore, or a lazy-loaded plugin spec).
+  -- setup() may well run after .nova buffers are already open (a
+  -- session restore, a lazy-loaded spec, or simply detection having
+  -- been unavailable when they were read). Setting the filetype fires
+  -- the autocmd above, so both cases funnel through one path.
   for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_loaded(bufnr) and vim.bo[bufnr].filetype == "nova" then
-      start(bufnr, opts)
+    if vim.api.nvim_buf_is_loaded(bufnr) then
+      local name = vim.api.nvim_buf_get_name(bufnr)
+      if vim.bo[bufnr].filetype == "nova" then
+        start(bufnr, opts)
+      elseif name:sub(-5) == ".nova" then
+        vim.bo[bufnr].filetype = "nova"
+      end
     end
   end
 end
