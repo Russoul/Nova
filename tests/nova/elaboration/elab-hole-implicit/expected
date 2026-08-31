@@ -1,0 +1,21 @@
+defined cong
+defined withVar
+defined withHole [+3 obligations, +4 declarations]
+open holes (4):
+  [?p/imp0] (A : 𝕌) (x : A) (y : A) (p : x ≡ y ∈ A) ⊢ ?p/imp0 : 𝕌
+      at: input.nova:16:40: def withHole
+  [?p/imp3] (A : 𝕌) (x : A) (y : A) (p : x ≡ y ∈ A) ⊢ ?p/imp3 : ?p/imp0
+      at: input.nova:16:40: def withHole
+  [?p/imp4] (A : 𝕌) (x : A) (y : A) (p : x ≡ y ∈ A) ⊢ ?p/imp4 : ?p/imp0
+      at: input.nova:16:40: def withHole
+  [?p] (A : 𝕌) (x : A) (y : A) (p : x ≡ y ∈ A) ⊢ ?p : ?p/imp3 ≡ ?p/imp4 ∈ ?p/imp0
+      at: input.nova:16:40: def withHole
+open obligations (3):
+  [1] (A : 𝕌) (x : A) (y : A) (p : x ≡ y ∈ A) (v : ?p/imp0) ⊢ ?p/imp0[A, x, y, p] ≐ A type
+      at: input.nova:16:37: def withHole: inferred vs expected type
+  [2] (A : 𝕌) (x : A) (y : A) (p : x ≡ y ∈ A) ⊢ ?p/imp3 ≐ x : A
+      at: input.nova:16:19: def withHole: inferred vs expected type
+      from composite: (A : 𝕌) (x : A) (y : A) (p : x ≡ y ∈ A) ⊢ ?p/imp3 ≡ ?p/imp4 ∈ A ≐ x ≡ x ∈ A type
+  [3] (A : 𝕌) (x : A) (y : A) (p : x ≡ y ∈ A) ⊢ ?p/imp4 ≐ x : A
+      at: input.nova:16:19: def withHole: inferred vs expected type
+      from composite: (A : 𝕌) (x : A) (y : A) (p : x ≡ y ∈ A) ⊢ ?p/imp3 ≡ ?p/imp4 ∈ A ≐ x ≡ x ∈ A type

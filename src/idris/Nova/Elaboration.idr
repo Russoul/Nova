@@ -3148,6 +3148,17 @@ mintHole ctx env site hrng label ty = do
              , declMeta $= (:< MkDeclMeta q env "\{site}" st.modFile (hrng <|> site.srange)) }
   pure (SigVar q (varSpine (length ctx)))
 
+||| The first argument of a written spine that is a HOLE, with its
+||| span and label. A hole infers nothing, so a spine carrying one
+||| cannot offer the implicit sources an ordinary argument would —
+||| which is what makes an unsolved implicit there a hole rather than
+||| an error (see `resolveArgs`).
+holeArg : List SElem -> Maybe (Maybe Range, String)
+holeArg [] = Nothing
+holeArg (e :: rest) = case unPos e of
+  SHole hrng x => Just (hrng, x)
+  _ => holeArg rest
+
 ||| A SHAPE rejection: the term is well-formed, the type it met is the
 ||| wrong SHAPE. What that type WAS is the whole diagnosis, so these
 ||| say it — rendered the way the module writes it (its own fixities),
@@ -4904,7 +4915,33 @@ mutual
               Nothing => case mt of
                 -- at the blank ITSELF, when it was written with one
                 Just (SBlank brng) => throwAt (brng <|> site.srange) "\{site}: cannot infer the blank at argument #\{show pos} of '\{q}' — spell the argument"
-                _ => throwAt site.srange "\{site}: cannot infer implicit argument #\{show pos} of '\{q}' — supply it with {…}, or pass the bare function with \{q} {}"
+                _ => case holeArg items of
+                  -- An implicit that NO SOURCE determined, in a spine
+                  -- one of whose arguments is a HOLE. The hole infers
+                  -- nothing, so the source that would have fixed this
+                  -- implicit is exactly the one the operator declined
+                  -- to write — the implicit is as unknown as the hole
+                  -- and becomes one too, at its own declared domain.
+                  -- e-hole-shape one level up: `cong B f ?p` reports
+                  -- `?p : ?p/imp3 ≡ ?p/imp4 ∈ ?p/imp0` instead of
+                  -- failing, and the goals downstream of it survive.
+                  --
+                  -- Only reachable once the oracle has exhausted every
+                  -- source, so a hole-free spine never comes here.
+                  Just (hrng, label) =>
+                    case getAt pos doms of
+                      Nothing => throwAt site.srange "\{site}: internal — implicit slot beyond the telescope"
+                      Just d =>
+                        let dFinal = substTy d (prefixSub (reverse acc)) in
+                        -- a domain still carrying the oracle's own
+                        -- placeholders is not a type to declare
+                        -- anything at; that is the honest error
+                        if hasHolesT dFinal
+                          then throwAt site.srange "\{site}: cannot infer implicit argument #\{show pos} of '\{q}' — supply it with {…}, or pass the bare function with \{q} {}"
+                          else do
+                            v <- mintHole ctx env site hrng "\{label}/imp\{show pos}" dFinal
+                            resolveArgs sols defers doms rest (v :: acc) patches
+                  Nothing => throwAt site.srange "\{site}: cannot infer implicit argument #\{show pos} of '\{q}' — supply it with {…}, or pass the bare function with \{q} {}"
             else resolveArgs sols defers doms rest (arg :: acc) patches
 
     ||| The hypothetical elided solve, replaying `walk`'s discipline
