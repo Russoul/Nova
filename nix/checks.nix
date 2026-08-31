@@ -21,6 +21,15 @@ let
     ];
   };
 
+  # The headless neovim test, plus a corpus file for it to open.
+  nvimSrc = fs.toSource {
+    inherit root;
+    fileset = fs.unions [
+      ../editors/nvim/test
+      ../src/nova
+    ];
+  };
+
   specs = fs.toSource {
     inherit root;
     fileset = fs.unions [
@@ -89,6 +98,24 @@ in
   # The VS Code extension packages, which also proves the nova-lsp path
   # substitution still finds its placeholder in extension.js.
   vscode-extension = (import ./vscode.nix { inherit pkgs inputs; }).extension;
+
+  # Drives a real (headless) neovim with only this plugin on the
+  # runtimepath: filetype detection, the baked server path, a live
+  # nova-lsp attached to the buffer, the capabilities it advertises,
+  # and an actual documentSymbol round trip.
+  nvim-plugin =
+    let
+      nvim = import ./nvim.nix { inherit pkgs inputs; };
+    in
+    mkCheck "nvim-plugin" {
+      src = nvimSrc;
+      nativeBuildInputs = [ pkgs.neovim ];
+      script = ''
+        export HOME=$TMPDIR
+        export NOVA_NVIM_PLUGIN=${nvim.plugin}
+        nvim --headless -u editors/nvim/test/attach.lua src/nova/nat.nova
+      '';
+    };
 
   # Rule-shaped citations in src/idris must all be defined by a spec,
   # and rule names must be unique.
