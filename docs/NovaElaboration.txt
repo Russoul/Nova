@@ -830,6 +830,26 @@ whnf-shape(position) = F(A₁ … Aₙ)        each Aᵢ undetermined
 # fixes no domain, and `out`'s ν carries a POLYNOMIAL, which has no
 # hole form.
 
+# THE IMPLICIT-SPINE COROLLARY. The same reading applies one level up,
+# at the implicit-spine oracle (docs/NovaPerfectSurface.txt, Phase 3).
+# An implicit position is solved from the SOURCES a spine offers: the
+# expected type, and the types of its inference-form arguments. A HOLE
+# argument is not an inference form and offers nothing — so an
+# implicit whose only source was that argument is exactly as
+# undetermined as the hole, and becomes one too (`?<hole>/imp<pos>`,
+# at its own declared domain), instead of the structural error that
+# would take the item's remaining goals with it:
+#
+#   cong (λv. A) (λv. v) p    {A} {v} {w} read off p's type
+#   cong (λv. A) (λv. v) ?p   ?p : ?p/imp3 ≡ ?p/imp4 ∈ ?p/imp0
+#
+# and the conversions that follow say what each has to be
+# (`?p/imp3 ≐ x`). This fires only after the oracle has exhausted
+# every source, so a hole-free spine never reaches it; an implicit
+# whose instantiated domain still carries the oracle's own
+# placeholders is not a type to declare anything at, and keeps the
+# error.
+
 # Introduction forms check against the whnf of the expected type.
 # A rigid shape mismatch here (λ against a non-Π, class against a
 # non-quotient, ...) is a structural error, not an obligation: if the

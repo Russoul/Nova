@@ -1,0 +1,16 @@
+-- An implicit the oracle could not determine, in a spine one of whose
+-- arguments is a HOLE. `p` below is an inference form, so its type
+-- supplies {A}, {v}, {w}; `?p` supplies nothing, and those implicits
+-- are exactly as unknown as the hole — so they become holes too,
+-- rather than a "cannot infer implicit argument" error that would
+-- take every goal after it down with the item.
+--
+-- The conversions that follow then say what each one has to be.
+def cong : {A : 𝕌} (B : A → 𝕌) (f : (v : A) → B v) {v w : A} → (v ≡ w) → f v ≡ f w ≔
+  λA. λB. λf. λv. λw. λh. ⋆
+
+def withVar : (A : 𝕌) (x y : A) → (x ≡ y) → x ≡ x ≔
+  λA. λx. λy. λp. cong (λv. A) (λv. v) p
+
+def withHole : (A : 𝕌) (x y : A) → (x ≡ y) → x ≡ x ≔
+  λA. λx. λy. λp. cong (λv. A) (λv. v) ?p
