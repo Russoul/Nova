@@ -38,8 +38,9 @@ nix develop              # a shell where `idris2 --build nova.ipkg` just works
 
 Also buildable: `nix build .#nova-lsp` (language server),
 `.#nova-docs` (HTML renderer), `.#nova-tests` (golden-test driver),
-`.#site` (the rendered specs and corpus published to GitHub Pages) and
-`.#vscode-extension` (the VS Code extension).
+`.#site` (the rendered specs and corpus published to GitHub Pages),
+`.#vscode-extension` (the VS Code extension) and `.#nvim-plugin` (the
+neovim plugin).
 
 ### Editor support
 
@@ -47,13 +48,14 @@ Also buildable: `nix build .#nova-lsp` (language server),
 symbols and semantic highlighting, and reports each load's elaboration
 time as a `nova/elabTime` notification.
 
-For VS Code, `editors/vscode` is a thin client for it. Installing it
-from the flake bakes in the matching `nova-lsp`, so there is nothing to
-configure and the two cannot drift apart:
+`editors/vscode` and `editors/nvim` are clients for it. Installing
+either from the flake bakes in the matching `nova-lsp`, so there is
+nothing to configure and the two cannot drift apart:
 
 ```
 nix run .#install-vscode-extension
+nix run .#install-nvim-plugin     # then: require("nova").setup()
 ```
 
-For neovim, `tools/nova-elabtime.lua` renders the timing notification;
-register `nova-lsp` with your LSP client as usual.
+See `editors/nvim/README.md` for options and for using it with a
+plugin manager instead.

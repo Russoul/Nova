@@ -34,11 +34,13 @@
         let
           novaPkgs = import ./nix/packages.nix { inherit pkgs inputs; };
           vscode = import ./nix/vscode.nix { inherit pkgs inputs; };
+          nvim = import ./nix/nvim.nix { inherit pkgs inputs; };
         in
         novaPkgs
         // {
           default = novaPkgs.nova;
           vscode-extension = vscode.extension;
+          nvim-plugin = nvim.plugin;
         }
       );
 
@@ -51,6 +53,7 @@
         let
           novaPkgs = import ./nix/packages.nix { inherit pkgs inputs; };
           vscode = import ./nix/vscode.nix { inherit pkgs inputs; };
+          nvim = import ./nix/nvim.nix { inherit pkgs inputs; };
           app = name: {
             type = "app";
             program = "${novaPkgs.${name}}/bin/${name}";
@@ -84,6 +87,11 @@
               echo "  nix build .#vscode-extension           build the .vsix only" >&2
               exit 2
             ''}";
+          };
+
+          install-nvim-plugin = {
+            type = "app";
+            program = "${pkgs.lib.getExe nvim.installer}";
           };
         }
       );
