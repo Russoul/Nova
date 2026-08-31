@@ -21,7 +21,13 @@ local function check(name, ok, detail)
   end
 end
 
-require("nova").setup()
+-- Deliberately NOT `require("nova").setup()`: that is not how a package
+-- install reaches the user. Neovim sources plugin/ scripts for
+-- pack/*/start itself, so the test goes through the same door, which is
+-- what caught init.lua running before packages are on the runtimepath.
+vim.cmd("runtime! plugin/*.lua")
+
+check("plugin/ auto-setup ran", vim.g.loaded_nova == true)
 
 -- The plugin was built by nix, so the baked path must have replaced the
 -- placeholder; otherwise the test below would silently be exercising
