@@ -67,6 +67,24 @@
             type = "app";
             program = "${pkgs.lib.getExe vscode.installer}";
           };
+
+          # `packages.vscode-extension` is a .vsix, which contains no
+          # executable — so `nix run .#vscode-extension` would fail with
+          # a bare "No such file or directory" that reads like a broken
+          # build rather than a wrong attribute. Say so instead. It
+          # deliberately does NOT just install: a `run` that silently
+          # modified the user's editor would be a worse surprise than
+          # the error it replaces.
+          vscode-extension = {
+            type = "app";
+            program = "${pkgs.writeShellScript "nova-vscode-extension-hint" ''
+              echo "'.#vscode-extension' is a package (a .vsix), not a runnable program." >&2
+              echo >&2
+              echo "  nix run   .#install-vscode-extension   install it into VS Code" >&2
+              echo "  nix build .#vscode-extension           build the .vsix only" >&2
+              exit 2
+            ''}";
+          };
         }
       );
 
