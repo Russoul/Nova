@@ -1,0 +1,8 @@
+-- A named hole reports its goal: the ambient context, with binder
+-- names, and the type the checking position expects.
+def double : ℕ → ℕ ≔ λn. ?body
+
+def useSum : (n : ℕ) → n ≡ n ∈ ℕ ≔ λn. ?refl
+
+-- two holes of one item, each at its own goal
+def pair : (n : ℕ) → ℕ × ℕ ≔ λn. (?left, ?right)

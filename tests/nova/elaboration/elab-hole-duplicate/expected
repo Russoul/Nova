@@ -1,0 +1,11 @@
+input.nova:3:24: error: def bad: duplicate hole ?x — every hole of an item needs its own name
+3 | def bad : ℕ × ℕ ≔ (?x, ?x)
+  |                        ^^
+holes reached before the failure (1):
+  [?x] ⊢ ?x : ℕ
+      at: input.nova:3:20: def bad
+declared bad [+1 declaration]
+open declarations (1):
+  [bad] ⊢ ? : ℕ × ℕ
+      at: input.nova:3:1: def bad
+Error: 1 item failed to elaborate

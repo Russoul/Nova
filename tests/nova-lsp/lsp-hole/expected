@@ -1,0 +1,65 @@
+LEGEND: ["keyword", "variable", "operator", "number", "comment"]
+CAPS: hover=true definition=true documentSymbol=true
+DIAGNOSTICS (1):
+  [L3:30-L3:35] (warning)   [?goal] (n : ℕ) ⊢ ?goal : ℕ
+      at: DIR/fixture.nova:3:30: def open
+ELABTIME: reported
+TOKENS (47):
+  L1:1+60 comment
+  L2:1+3 keyword
+  L2:5+4 variable
+  L2:10+1 keyword
+  L2:12+1 keyword
+  L2:14+1 keyword
+  L2:16+1 keyword
+  L2:18+1 keyword
+  L2:20+1 keyword
+  L2:22+1 keyword
+  L2:24+1 keyword
+  L2:25+1 variable
+  L2:26+1 keyword
+  L2:28+1 keyword
+  L2:29+1 variable
+  L2:30+1 keyword
+  L2:32+6 keyword
+  L2:39+1 keyword
+  L2:40+1 variable
+  L2:41+1 keyword
+  L2:43+1 keyword
+  L2:44+1 keyword
+  L2:46+1 variable
+  L2:48+1 keyword
+  L2:49+1 variable
+  L2:51+2 variable
+  L2:53+1 keyword
+  L2:55+1 keyword
+  L2:57+2 variable
+  L2:59+1 keyword
+  L2:61+1 variable
+  L3:1+3 keyword
+  L3:5+4 variable
+  L3:10+1 keyword
+  L3:12+1 keyword
+  L3:13+1 variable
+  L3:15+1 keyword
+  L3:17+1 keyword
+  L3:18+1 keyword
+  L3:20+1 keyword
+  L3:22+1 keyword
+  L3:24+1 keyword
+  L3:26+1 keyword
+  L3:27+1 variable
+  L3:28+1 keyword
+  L3:30+1 operator
+  L3:31+4 variable
+SYMBOLS (2):
+  plus (kind 12) [L2:1-L2:62]
+  open (kind 12) [L3:1-L3:35]
+DEFINITION(plus): SAME FILE [L2:1-L2:62]
+HOVER(plus): null
+DIAGNOSTICS FOR FIXTURE (1):
+  [L3:30-L3:35] (warning)   [?goal] (n : ℕ) ⊢ ?goal : ℕ
+      at: DIR/fixture.nova:3:30: def open
+ELABTIME: reported
+SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
+SERVER EXIT CODE: 0

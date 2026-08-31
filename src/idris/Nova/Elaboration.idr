@@ -314,6 +314,7 @@ initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] ""
 export
 sInferForm : SElem -> Bool
 sInferForm e0 = case unPos e0 of
+  SHole _ _ => False
   SLam _ _ => False
   SLet _ _ _ => False
   SPair _ _ => False
@@ -373,10 +374,17 @@ record Err where
   erange : Maybe Range
   emsg : String
 
+||| The failure channel carries the state AS OF THE THROW alongside
+||| the error. It is SALVAGE MATERIAL, not a resumption point: the
+||| item folds render the holes and obligations that state records
+||| and then discard it, continuing from the state BEFORE the item
+||| (docs/NovaElaboration.txt, item recovery). Nothing salvaged ever
+||| reaches Σ, so a broken item cannot contribute a definition — it
+||| only gets to say what it had learned before it broke.
 data ElabM : Type -> Type where
-  MkElabM : (ElabSt -> Either Err (ElabSt, a)) -> ElabM a
+  MkElabM : (ElabSt -> Either (ElabSt, Err) (ElabSt, a)) -> ElabM a
 
-runElabM : ElabM a -> ElabSt -> Either Err (ElabSt, a)
+runElabM : ElabM a -> ElabSt -> Either (ElabSt, Err) (ElabSt, a)
 runElabM (MkElabM f) = f
 
 ||| Run an action for its RESULT only: state is restored afterwards
@@ -431,11 +439,11 @@ putSt st = modifySt (const st)
 ||| Fail with no span of its own: the caller places it at the
 ||| enclosing item.
 throw : String -> ElabM a
-throw e = MkElabM $ \_ => Left (MkErr Nothing e)
+throw e = MkElabM $ \st => Left (st, MkErr Nothing e)
 
 ||| Fail AT a span — the surface node the message is about.
 throwAt : Maybe Range -> String -> ElabM a
-throwAt r e = MkElabM $ \_ => Left (MkErr r e)
+throwAt r e = MkElabM $ \st => Left (st, MkErr r e)
 
 ||| Install a visibility alias, tracking OVERLOADS: a name gaining a
 ||| second distinct target joins dupNames.
@@ -3419,6 +3427,11 @@ mutual
     throwAt site.srange "\{site}: a {…} override is only legal at an implicit binder position of an applied definition"
   inferElemAt ctx env site (SBlank mrng) =
     throwAt site.srange "\{site}: a blank (_) is only legal at an explicit binder position of an applied definition — spell the term"
+  inferElemAt ctx env site (SHole mrng x) =
+    -- e-hole is CHECKING-ONLY: a hole is minted at the expected type,
+    -- and an inference position supplies none. Nothing is guessed —
+    -- the remedy is the same lever every checking-only form uses
+    throwAt (mrng <|> site.srange) "\{site}: the hole ?\{x} stands where no type is expected — ascribe it: `(?\{x} : T)`"
   inferElemAt ctx env site (SNoIns e) = inferElem ctx env site e
   inferElemAt ctx env site (SPos _ e) = inferElemAt ctx env site e
   inferElemAt ctx env site (SProj1 t) = do
@@ -3589,6 +3602,33 @@ mutual
   checkElem ctx env site e ty = checkElemAt ctx env (at site (headRange e)) e ty
 
   checkElemAt : Ctx -> NameEnv -> Site -> SElem -> Ty -> ElabM (Elem, Skel)
+  checkElemAt ctx env site (SHole hrng x) ty = do
+    -- e-hole. The goal enters Σ as a SIG-DECL at the ambient context
+    -- and the expected type — the same entry kind an obligation is
+    -- (an obligation is a hole at an equation's prop), so the report,
+    -- the acceptance gate (`oblCount` counts every non-definition
+    -- entry) and the LSP diagnostic all come for free.
+    --
+    -- The hole is INERT: nothing ever solves it, nothing flips it to
+    -- a definition. That is the whole design. PerfNotes "The cost of
+    -- a hole" measured the SOLVER — the doomed pre-solve discharge
+    -- attempt, the cache demolition on every non-monotone flip, the
+    -- per-solve kernel work, the whole-item rerun — not the hole; an
+    -- inert hole pays none of it, Σ still only ever extends, and a
+    -- hole-free file meets not one new instruction.
+    --
+    -- The reference is the entry at its OWN context, so the spine is
+    -- the identity (and prints bare, `?f.a` not `?f.a[…]`).
+    st <- getSt
+    let item = if st.modPrefix == "" then st.curItem else "\{st.modPrefix}.\{st.curItem}"
+    let q = holeName item x
+    case sigLookup q st.sig of
+      Just _ => throwAt (hrng <|> site.srange)
+                  "\{site}: duplicate hole ?\{x} — every hole of an item needs its own name"
+      Nothing => pure ()
+    modifySt $ { sig $= (:< SigDecl ctx q ty)
+               , declMeta $= (:< MkDeclMeta q env "\{site}" st.modFile (hrng <|> site.srange)) }
+    pure (SigVar q (varSpine (length ctx)), Nd [] [])
   checkElemAt ctx env site (SLam (x, xr) t) ty = do
     st <- getSt
     case preferPi st ctx ty of
@@ -4210,12 +4250,17 @@ mutual
 
     probeFit : List (Maybe (Elem, Ty, Skel)) -> String -> ElabM (Maybe Nat)
     probeFit pres q = probeM $ do
-      before <- oblCount
+      -- CONSTRAINTS, not every open entry: the question is whether
+      -- this candidate fits without ASSUMING an equation. A hole the
+      -- operator wrote inside the spine is not evidence against any
+      -- candidate — counting it would make every branch look unclean
+      -- and turn `1 + ?x` into a bogus ambiguity error
+      before <- constraintCountM
       (_, ty', _) <- run pres q
       case mexp of
         Just c => ignore (convTy ctx env (sub site "\{site}: overload fit") Nothing ty' c)
         Nothing => pure ()
-      after <- oblCount
+      after <- constraintCountM
       pure (minus after before)
 
   ||| The implicit-spine view: the whole application chain, when its
@@ -5506,7 +5551,15 @@ elabItemGo irng (SClausalDef nrng x ty etaName witness clauses) = do
   case expandClausal nrng x ty etaName witness clauses of
     Left err => throw "def \{x}: \{err}"
     Right (MkExpansion items echo) => do
-      ignore $ traverse (\(r, it) => elabItemGo (r <|> irng) it) items
+      -- each batch item is its OWN item for anything keyed by the
+      -- item name: the profile labels, and the Σ names a hole is
+      -- minted under (a `?x` written in a clause RHS is elaborated
+      -- once in the definition body and once in that clause's
+      -- equation lemma — two goals, so two entries, not a name
+      -- collision). `elabItem` re-sets this at the next real item.
+      ignore $ traverse (\(r, it) => do
+        modifySt { curItem := clearBlocked (itemName it) }
+        elabItemGo (r <|> irng) it) items
       suffix <- opensSuffix census
       pure (echo ++ suffix)
 
@@ -5597,12 +5650,21 @@ export
 prettyDecl : FixTable -> DeclView -> String
 prettyDecl tbl h =
   let tele = prettyTelescope tbl h.dvctx h.dvenv in
-  "  [\{h.dvname}] " ++ (if tele == "" then "" else tele ++ " ") ++
+  "  [\{label}] " ++ (if tele == "" then "" else tele ++ " ") ++
   (case h.dvty of
-     Just ty => "⊢ ? : \{prettyTyN tbl h.dvenv ty}"
-     Nothing => "⊢ ? type") ++
+     Just ty => "⊢ \{goal} : \{prettyTyN tbl h.dvenv ty}"
+     Nothing => "⊢ \{goal} type") ++
   "\n      at: \{declLoc}\{h.dvsite}"
  where
+  -- a HOLE shows the label the operator wrote (`?a`), not the
+  -- run-unique Σ name it was minted under (`?mod.item.a`); a
+  -- declaration shows its name and an anonymous `?` goal
+  label : String
+  label = if isHoleName h.dvname then holeLabel h.dvname else h.dvname
+
+  goal : String
+  goal = if isHoleName h.dvname then holeLabel h.dvname else "?"
+
   declLoc : String
   declLoc = case h.dvrange of
     Just r => "\{showLoc h.dvfile r}: "
@@ -5613,15 +5675,25 @@ declReport tbl hs =
   "open declarations (\{show (length hs)}):\n" ++
   joinBy "\n" (map (prettyDecl tbl) hs)
 
+||| Holes are declarations too (same Σ entry kind), but they are the
+||| operator's OWN markers rather than an abstract interface's — they
+||| get their own block so a hole-driven session reads its goals
+||| without the axioms in the way.
+holeReport : FixTable -> List DeclView -> String
+holeReport tbl hs =
+  "open holes (\{show (length hs)}):\n" ++
+  joinBy "\n" (map (prettyDecl tbl) hs)
+
 ||| The composed end-of-run report of everything keeping Σ
 ||| non-definitional; empty exactly when the run is accepted.
 openReport : FixTable -> ElabSt -> Maybe String
 openReport tbl st =
-  case (oblView st, declView st) of
-    ([], []) => Nothing
-    (os, hs) => Just $ joinBy "\n"
-      ((case os of [] => []; _ => [oblReport tbl os]) ++
-       (case hs of [] => []; _ => [declReport tbl hs]))
+  case (oblView st, partition (isHoleName . dvname) (declView st)) of
+    ([], ([], [])) => Nothing
+    (os, (holes, ds)) => Just $ joinBy "\n"
+      ((case holes of [] => []; _ => [holeReport tbl holes]) ++
+       (case os of [] => []; _ => [oblReport tbl os]) ++
+       (case ds of [] => []; _ => [declReport tbl ds]))
 
 ||| Install a module's import aliases: each opened name must exist in
 ||| the imported module's Σ segment.
@@ -5678,83 +5750,126 @@ installImports (MkSImport m opens irng :: rest) = do
       Just _ => do addVis (o, q); go os
       Nothing => throwAt irng "import \{m}: it defines no '\{o}'"
 
+||| The verdict line of a run that recovered from item failures: the
+||| diagnostics themselves are already rendered in place, at their
+||| items — this is what stops the run reading as accepted.
+failedLine : Nat -> String
+failedLine n = "Error: \{show n} item\{if n == 1 then "" else "s"} failed to elaborate"
+
+||| ITEM RECOVERY (docs/NovaElaboration.txt, "Recovery"). An item
+||| that fails to elaborate is retried as a bare DECLARATION of its
+||| own signature: later items' references to it still resolve, so
+||| one broken proof no longer hides every goal after it. The
+||| declaration is reported as open and blocks acceptance exactly as
+||| a written `def x : T` does, so a failed def can never pass for a
+||| definition. Items with no signature to declare (a `data` literal,
+||| a declaration that failed on its own type) recover nothing and
+||| are simply skipped.
+declFallback : Maybe Range -> SItem -> Maybe (Maybe Range, SItem)
+declFallback irng (SDef x ty _ _) = Just (irng, SDeclDef irng x ty)
+declFallback irng (SClausalDef nrng x ty _ _ _) = Just (irng, SDeclDef (nrng <|> irng) x ty)
+declFallback _ _ = Nothing
+
+||| The holes a FAILED item had already minted, as report views. Its
+||| state never survives — nothing a broken item built reaches Σ —
+||| but the goals it reached before it broke are exactly what writing
+||| holes is for, so they are rendered at the failure and discarded
+||| with everything else. Display only: `before` is what elaboration
+||| continues from.
+salvagedHoles : (before, after : ElabSt) -> List DeclView
+salvagedHoles before after =
+  filter (isHoleName . dvname)
+    (drop (length (toList before.declMeta)) (declView after))
+
 ||| Elaborate a dependency-ordered list of modules (the loader's
 ||| output; the last unit is the root). Every non-root module must be
 ||| ACCEPTED — clean and fully kernel-checked — before anything may
 ||| import it; the root reports its obligations as usual.
 export
 elabProgram : List ModUnit -> String
-elabProgram units = go initSt units []
+elabProgram units = go initSt units [] Z
  where
-  finish : FixTable -> ElabSt -> List String -> String
-  finish tbl st echoes =
+  finish : FixTable -> ElabSt -> List String -> Nat -> String
+  finish tbl st echoes nerrs =
     joinBy "\n" echoes ++ "\n" ++
     (case openReport tbl st of
-       Nothing => "Accepted."
-       Just rep => rep)
+       Nothing => if nerrs == Z then "Accepted." else failedLine nerrs
+       Just rep => if nerrs == Z then rep else rep ++ "\n" ++ failedLine nerrs)
 
   -- an item's failure is reported AT the item: the diagnostic carries
   -- the file, the item's span and a source excerpt (item-level
-  -- granularity — that is as fine as `mitems` records)
-  goItems : (path : String) -> (src : String) -> ElabSt -> List (Maybe Range, SItem)
-         -> Either (List String, String) (ElabSt, List String)
-  goItems path src st [] = Right (st, [])
-  goItems path src st ((rng, item) :: rest) =
+  -- granularity — that is as fine as `mitems` records). The run then
+  -- CONTINUES (item recovery): the failure is rendered in place,
+  -- whatever goals the item reached are rendered with it, the item
+  -- falls back to a declaration of its signature, and the next item
+  -- elaborates. Errors are counted so acceptance still fails.
+  goItems : FixTable -> (path : String) -> (src : String) -> ElabSt
+         -> List (Maybe Range, SItem) -> (ElabSt, List String, Nat)
+  goItems tbl path src st [] = (st, [], Z)
+  goItems tbl path src st ((rng, item) :: rest) =
     case runElabM (elabItem rng item) st of
       -- the elaborator's own span when it narrowed one, the item's
       -- otherwise
-      Left err => Left ([], render (MkDiag Err (Just path) (Just src)
-                                           (err.erange <|> rng) (withBlockedHint err.emsg) []))
+      Left (stFail, err) =>
+        let diag = render (MkDiag Err (Just path) (Just src)
+                             (err.erange <|> rng) (withBlockedHint err.emsg) [])
+            salv = case salvagedHoles st stFail of
+                     [] => []
+                     hs => ["holes reached before the failure (\{show (length hs)}):\n" ++
+                            joinBy "\n" (map (prettyDecl tbl) hs)]
+            -- the fallback runs from the PRE-item state: nothing the
+            -- broken item built is kept
+            (stNext, declEcho) =
+              case declFallback rng item >>= \(r, it) =>
+                     either (const Nothing) Just (runElabM (elabItem r it) st) of
+                Just (st2, echo) => (st2, [echo])
+                Nothing => (st, [])
+            (st'', echoes, n) = goItems tbl path src stNext rest in
+        (st'', (diag :: salv) ++ declEcho ++ echoes, S n)
       Right (st', echo) =>
-        case goItems path src st' rest of
-          Left (echoes, err) => Left (echo :: echoes, err)
-          Right (st'', echoes) => Right (st'', echo :: echoes)
+        let (st'', echoes, n) = goItems tbl path src st' rest in
+        (st'', echo :: echoes, n)
 
-  go : ElabSt -> List ModUnit -> List String -> String
-  go st [] echoes = joinBy "\n" (echoes ++ ["Error: empty program"])
-  go st (MkModUnit name path imps tbl items _ _ src :: rest) echoes = do
+  go : ElabSt -> List ModUnit -> List String -> Nat -> String
+  go st [] echoes nerrs = joinBy "\n" (echoes ++ ["Error: empty program"])
+  go st (MkModUnit name path imps tbl items _ _ src :: rest) echoes nerrs = do
     -- a fresh visibility table per module: its own imports only, and a
     -- lemma store scoped to its import closure
     case runElabM (enterModule name path tbl (map mname imps) >> installImports imps) st of
-      Left err =>
+      -- an import failure is NOT item-recoverable: nothing after it
+      -- has a signature to elaborate against
+      Left (_, err) =>
         if surveyMode && not (null rest)
           -- SURVEY MODE: an import of a dropped module cascades — drop too
-          then go st rest (echoes ++ ["warning: module \{name} DROPPED (strict survey): \{err.emsg}"])
+          then go st rest (echoes ++ ["warning: module \{name} DROPPED (strict survey): \{err.emsg}"]) (S nerrs)
           else joinBy "\n" (echoes ++ [render (MkDiag Err (Just path) (Just src) err.erange err.emsg [])])
       Right (st, ()) =>
-        let hdr = if name == "" then [] else ["module \{name}:"] in
-        case goItems path src st items of
-          Left (itemEchoes, err) =>
-            if surveyMode && not (null rest)
-              -- SURVEY MODE: a hard failure (automation the strict
-              -- subset removed, mid-checking) drops the module and
-              -- continues — its importers cascade into the same path
-              then go st rest (echoes ++ hdr ++ itemEchoes ++
-                     ["warning: module \{name} DROPPED (strict survey): \{err}"])
-              -- `err` is already a rendered diagnostic (goItems)
-              else joinBy "\n" (echoes ++ hdr ++ itemEchoes ++ [err])
-          Right (st', itemEchoes) =>
-            case rest of
-              [] => finish tbl st' (echoes ++ hdr ++ itemEchoes)
-              _ =>
-                -- only ACCEPTED modules are importable: a module's
-                -- signature segment must be DEFINITIONAL
-                if surveyMode
-                  -- SURVEY MODE: continue past the gate so ONE run maps
-                  -- the whole corpus's fallout. COUNT open entries
-                  -- instead of rendering the report — the report renders
-                  -- every accumulated obligation and is quadratic across
-                  -- modules (the root still renders the full report once)
-                  then let opens = \s => length (filter (not . sigEntryIsDef) (toList s))
-                           d = minus (opens st'.sig) (opens st.sig) in
-                       go st' rest (echoes ++ hdr ++ itemEchoes ++
-                         (if d == 0 then []
-                          else ["warning: module \{name}: +\{show d} open entries (strict survey)"]))
-                  else case openReport tbl st' of
-                    Nothing => go st' rest (echoes ++ hdr ++ itemEchoes)
-                    Just rep => joinBy "\n" (echoes ++ hdr ++ itemEchoes) ++ "\n" ++
-                          rep ++ "\n" ++
-                          "Error: module \{name} has open obligations and cannot be imported"
+        let hdr = if name == "" then [] else ["module \{name}:"]
+            (st', itemEchoes, itemErrs) = goItems tbl path src st items
+            nerrs' = nerrs + itemErrs in
+        case rest of
+          [] => finish tbl st' (echoes ++ hdr ++ itemEchoes) nerrs'
+          _ =>
+            -- only ACCEPTED modules are importable: a module's
+            -- signature segment must be DEFINITIONAL, and no item of
+            -- it may have failed (a failed `data` literal leaves no
+            -- open entry behind to catch it)
+            if surveyMode
+              -- SURVEY MODE: continue past the gate so ONE run maps
+              -- the whole corpus's fallout. COUNT open entries
+              -- instead of rendering the report — the report renders
+              -- every accumulated obligation and is quadratic across
+              -- modules (the root still renders the full report once)
+              then let opens = \s => length (filter (not . sigEntryIsDef) (toList s))
+                       d = minus (opens st'.sig) (opens st.sig) in
+                   go st' rest (echoes ++ hdr ++ itemEchoes ++
+                     (if d == 0 then []
+                      else ["warning: module \{name}: +\{show d} open entries (strict survey)"])) nerrs'
+              else case (openReport tbl st', itemErrs) of
+                (Nothing, Z) => go st' rest (echoes ++ hdr ++ itemEchoes) nerrs'
+                (mrep, _) => joinBy "\n" (echoes ++ hdr ++ itemEchoes) ++ "\n" ++
+                      (case mrep of Nothing => ""; Just rep => rep ++ "\n") ++
+                      "Error: module \{name} has open obligations and cannot be imported"
 
 ||| Elaborate a dependency-ordered program to its final kernel Σ,
 ||| requiring the ENTIRE program — root included — to be accepted with
@@ -5775,7 +5890,7 @@ elabProgramSt st0 units = go st0 units
   goItems path src st [] = Right st
   goItems path src st ((rng, item) :: rest) =
     case runElabM (elabItem rng item) st of
-      Left err => Left (render (MkDiag Err (Just path) (Just src)
+      Left (_, err) => Left (render (MkDiag Err (Just path) (Just src)
                                        (err.erange <|> rng) (withBlockedHint err.emsg) []))
       Right (st', _) => goItems path src st' rest
 
@@ -5784,7 +5899,7 @@ elabProgramSt st0 units = go st0 units
   go st (MkModUnit name path imps tbl items _ _ src :: rest) =
     let st = either (const st) fst (runElabM (enterModule name path tbl (map mname imps)) st) in
     case runElabM (installImports imps) st of
-      Left err => Left (render (MkDiag Err (Just path) (Just src) err.erange err.emsg []))
+      Left (_, err) => Left (render (MkDiag Err (Just path) (Just src) err.erange err.emsg []))
       Right (st, ()) =>
         case goItems path src st items of
           Left err => Left err
@@ -5823,7 +5938,7 @@ elabProgramSig units = go initSt units
   goItems path src st [] = Right st
   goItems path src st ((rng, item) :: rest) =
     case runElabM (elabItem rng item) st of
-      Left err => Left (render (MkDiag Err (Just path) (Just src)
+      Left (_, err) => Left (render (MkDiag Err (Just path) (Just src)
                                        (err.erange <|> rng) (withBlockedHint err.emsg) []))
       Right (st', _) => goItems path src st' rest
 
@@ -5832,7 +5947,7 @@ elabProgramSig units = go initSt units
   go st (MkModUnit name path imps tbl items _ _ src :: rest) =
     let st = either (const st) fst (runElabM (enterModule name path tbl (map mname imps)) st) in
     case runElabM (installImports imps) st of
-      Left err => Left (render (MkDiag Err (Just path) (Just src) err.erange err.emsg []))
+      Left (_, err) => Left (render (MkDiag Err (Just path) (Just src) err.erange err.emsg []))
       Right (st, ()) =>
         case goItems path src st items of
           Left err => Left err
@@ -5911,8 +6026,10 @@ record ElabReport where
   ||| the ROOT module's binder occurrences with rendered types —
   ||| hover ascription for λ/eliminator binders
   binderTable : List (Range, String)
-  ||| at most one per run — elaboration of a dependency-ordered program
-  ||| stops at the first hard failure, same as `elabProgram`
+  ||| one per FAILED ITEM (item recovery: a broken item is reported,
+  ||| falls back to a declaration of its signature, and the run goes
+  ||| on), plus at most one module-level failure — an unresolvable
+  ||| import or a module that cannot be imported open
   errors : List (String, Maybe Range, String)
 
 export
@@ -5933,39 +6050,56 @@ elabProgramReport units = go initSt units [] [] []
   Tagged : Type
   Tagged = (List (String, Maybe Range, Obligation), List (String, Maybe Range, String))
 
+  -- an obligation or declaration the elaborator localized reports at
+  -- ITS span, not at the whole item (same narrowing the CLI shows)
+  tag : FixTable -> String -> Maybe Range -> (before, after : ElabSt) -> Tagged
+  tag tbl mname rng before after =
+    ( map (\o => (mname, o.site.srange <|> rng, o)) (newObls before after)
+    , map (\h => (mname, h.dvrange <|> rng, prettyDecl tbl h)) (newDecls before after))
+
+  ||| Same item recovery as the CLI fold: a failed item is reported,
+  ||| its holes are salvaged as diagnostics of their own spans, it
+  ||| falls back to a declaration of its signature, and the run
+  ||| continues — so an editor shows every goal of a file, not just
+  ||| those before its first broken proof.
   goItems : FixTable -> String -> ElabSt -> List (Maybe Range, SItem)
-          -> Either (Tagged, Maybe Range, String)
-                    (ElabSt, Tagged)
-  goItems tbl mname st [] = Right (st, ([], []))
+          -> (ElabSt, Tagged, List (String, Maybe Range, String))
+  goItems tbl mname st [] = (st, ([], []), [])
   goItems tbl mname st ((rng, item) :: rest) =
     case runElabM (elabItem rng item) st of
-      Left err => Left (([], []), err.erange <|> rng, withBlockedHint err.emsg)
+      Left (stFail, err) =>
+        let salv = map (\h => (mname, h.dvrange <|> rng, prettyDecl tbl h))
+                       (salvagedHoles st stFail)
+            (stNext, declTagged) =
+              case declFallback rng item >>= \(r, it) =>
+                     either (const Nothing) Just (runElabM (elabItem r it) st) of
+                Just (st2, _) => (st2, tag tbl mname rng st st2)
+                Nothing => (st, ([], []))
+            (st'', (obls, hs), errs) = goItems tbl mname stNext rest in
+        (st'', (fst declTagged ++ obls, salv ++ snd declTagged ++ hs),
+         (mname, err.erange <|> rng, withBlockedHint err.emsg) :: errs)
       Right (st', _) =>
-        -- an obligation the elaborator localized reports at ITS span,
-        -- not at the whole item (same narrowing the CLI report shows)
-        let tagged = map (\o => (mname, o.site.srange <|> rng, o)) (newObls st st')
-            -- a declaration diagnostic lands on the declaring item
-            taggedH = map (\h => (mname, h.dvrange <|> rng, prettyDecl tbl h)) (newDecls st st') in
-        case goItems tbl mname st' rest of
-          Left ((obls, hs), r, err) => Left ((tagged ++ obls, taggedH ++ hs), r, err)
-          Right (st'', (obls, hs)) => Right (st'', (tagged ++ obls, taggedH ++ hs))
+        let (tObls, tHs) = tag tbl mname rng st st'
+            (st'', (obls, hs), errs) = goItems tbl mname st' rest in
+        (st'', (tObls ++ obls, tHs ++ hs), errs)
 
   go : ElabSt -> List ModUnit -> List (String, Maybe Range, Obligation) -> List (String, Maybe Range, String) -> List (String, Maybe Range, String) -> ElabReport
   go st [] obls hs errs = MkElabReport obls hs [] errs
   go st (MkModUnit name path imps tbl items _ _ _ :: rest) obls hs errs =
     let st = either (const st) fst (runElabM (enterModule name path tbl (map mname imps)) st) in
     case runElabM (installImports imps) st of
-      Left err => MkElabReport obls hs (binderInfos tbl st) (errs ++ [(name, err.erange, err.emsg)])
+      Left (_, err) => MkElabReport obls hs (binderInfos tbl st) (errs ++ [(name, err.erange, err.emsg)])
       Right (st, ()) =>
-        case goItems tbl name st items of
-          Left ((itemObls, itemHs), rng, err) => MkElabReport (obls ++ itemObls) (hs ++ itemHs) [] (errs ++ [(name, rng, err)])
-          Right (st', (itemObls, itemHs)) =>
-            case rest of
-              [] => MkElabReport (obls ++ itemObls) (hs ++ itemHs) (binderInfos tbl st') errs
+        let (st', (itemObls, itemHs), itemErrs) = goItems tbl name st items
+            obls = obls ++ itemObls
+            hs = hs ++ itemHs
+            errs = errs ++ itemErrs in
+        case rest of
+              [] => MkElabReport obls hs (binderInfos tbl st') errs
               _ =>
                 -- only ACCEPTED modules are importable: a module's
                 -- signature segment must be DEFINITIONAL
-                case (oblView st', declView st') of
-                  ([], []) => go st' rest (obls ++ itemObls) (hs ++ itemHs) errs
-                  _ => MkElabReport (obls ++ itemObls) (hs ++ itemHs) (binderInfos tbl st')
+                case (oblView st', declView st', itemErrs) of
+                  ([], [], []) => go st' rest obls hs errs
+                  _ => MkElabReport obls hs (binderInfos tbl st')
                          (errs ++ [(name, Nothing, "module \{name} has open obligations and cannot be imported")])

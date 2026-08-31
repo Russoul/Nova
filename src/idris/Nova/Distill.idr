@@ -408,6 +408,7 @@ mutual
     SImpArg t => txt "{" <-> pe tbl LPair True t <-> txt "}"
     SNoIns t => pe tbl LApp False t <-> txt " {}"
     SBlank _ => txt "_"
+    SHole _ x => txt "?\{x}"
 
   concatDoc : List Doc -> Doc
   concatDoc = foldr DCat DNil
@@ -924,6 +925,7 @@ parameters (ok : Range -> Bool, blankAt : Range -> Nat -> Bool)
       SImpArg t => SImpArg (esE t)
       SNoIns t => SNoIns (esE t)
       SBlank _ => e
+      SHole _ _ => e
       -- spans go no further: this tree's destination is the PRINTER,
       -- which takes bare syntax
       SPos _ t => esE t

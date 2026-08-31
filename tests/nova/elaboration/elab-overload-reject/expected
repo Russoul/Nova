@@ -5,3 +5,8 @@ defined +
 input.nova:5:1: error: def amb: '+' is ambiguous here — natp2.+, natp.+ all fit; qualify one, e.g. the mention form
 5 | def amb : ℕ ≔ 1 + 2
   | ^^^^^^^^^^^^^^^^^^^
+declared amb [+1 declaration]
+open declarations (1):
+  [amb] ⊢ ? : ℕ
+      at: input.nova:5:1: def amb
+Error: 1 item failed to elaborate

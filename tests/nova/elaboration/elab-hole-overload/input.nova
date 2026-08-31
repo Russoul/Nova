@@ -1,0 +1,7 @@
+-- A hole inside an OVERLOADED spine must not decide the overload:
+-- the fit probe counts assumed CONSTRAINTS, not open entries, so a
+-- hole the operator wrote is not evidence against any candidate.
+-- The reported error is the real one — both '+' still fit.
+import natp (+)
+import natp2 (+)
+def amb : ℕ ≔ 1 + ?x

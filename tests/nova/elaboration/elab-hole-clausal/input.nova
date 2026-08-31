@@ -1,0 +1,7 @@
+-- A clausal def is an ITEM MACRO, so a hole in a clause RHS is
+-- elaborated once per generated item — the eliminator body, the
+-- clause's equation lemma, the uniqueness lemma. Each is its own
+-- goal, in its own context, and each is reported.
+def dbl : ℕ → ℕ
+  | dbl Z ≔ Z
+  | dbl (S n) ≔ ?step

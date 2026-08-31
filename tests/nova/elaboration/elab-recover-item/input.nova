@@ -1,0 +1,9 @@
+-- ITEM RECOVERY: `broken` fails, is reported at its own item, falls
+-- back to a DECLARATION of its signature, and the run continues —
+-- so `later`'s goal is still reached and `uses` still resolves the
+-- broken name.
+def broken : ℕ ≔ noSuchName
+
+def later : ℕ → ℕ ≔ λn. ?goal
+
+def uses : ℕ ≔ broken

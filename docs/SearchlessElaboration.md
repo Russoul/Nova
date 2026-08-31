@@ -592,6 +592,13 @@ anymore; the only state an item leaves behind is its own entries. The
 metavariable redesign starts from this clean base, with E-1/E-1½ and
 PerfNotes "The cost of a hole" as its requirements list.)*
 
+*(Later update: the surface hole `?x` came back, INERT — minted as a
+sig-decl at the ambient context and the expected type, reported, and
+never solved. It changes nothing in this document: the ↓ loop gains
+no code path, Σ still only extends, and the measured elaborate phase
+is unchanged. Only the SOLVER stayed removed; see NovaElaboration.txt
+e-hole and PerfNotes "The inert hole".)*
+
 ## 16. Experiment inventory
 
 Everything below is measurement scaffolding or experiment, not design

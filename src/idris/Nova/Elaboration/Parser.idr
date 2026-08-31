@@ -144,6 +144,25 @@ parseName = do
                               name /= "inj1" && name /= "inj2")
     pure name
 
+||| The label of a `?x` HOLE. Identifier-shaped, but NOT an
+||| identifier: a hole name resolves against nothing — not Γ, not Σ
+||| — so the keyword reservations `parseName` carries (they exist to
+||| stop a binder from shadowing a constant at a REFERENCE site) have
+||| nothing to protect here. `?in` is a fine name for a goal.
+parseHoleLabel : Rule String
+parseHoleLabel = do
+  c  <- terminal "a hole name" $ \tok =>
+          case tok of
+            Symbol ch => if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_'
+                         then Just ch
+                         else Nothing
+            _ => Nothing
+  cs <- many (terminal "more of the hole name" $ \tok =>
+          case tok of
+            Symbol ch => if isNameTail ch then Just ch else Nothing
+            _ => Nothing)
+  pure (pack (c :: cs))
+
 ||| A decimal numeral — sugar for an S-tower over Z (a maximal digit
 ||| run; identifiers cannot start with a digit, so no ambiguity).
 parseNumeral : Rule Nat
@@ -454,11 +473,12 @@ mutual
     <|> (kw2 "Ω" "Prop" $> STyProp)
     <|> (do (r, x) <- bounds parseDottedName
             case unpack x of
-              -- `_`-leading identifiers were HOLES; the machinery is
-              -- removed (PerfNotes "The cost of a hole") ahead of the
-              -- metavariable redesign. Binder wildcards are a separate
-              -- production and unaffected.
-              ('_' :: rest) => fail "!holes are not supported — spell the type out"
+              -- `_`-leading identifiers were the OLD hole spelling;
+              -- holes are written `?x` now, and are ELEMENT forms
+              -- (e-hole is checking-only, and a type position offers
+              -- nothing to check against). Binder wildcards are a
+              -- separate production and unaffected.
+              ('_' :: rest) => fail "!a `_`-leading name is not a hole — spell the type out (holes are `?x`, and only in term position)"
               _ =>
                 case resolveVar env x of
                   -- a BINDER name in type position is a bound CODE
@@ -806,11 +826,32 @@ mutual
         (do (r, op) <- bounds (do kwc '('; sp; op <- parseOpRef; sp; kwc ')'; pure op); pure (SSig r op))
         -- a FIXITY-FREE operator token is an ordinary name atom (⊥, ⊤,
         -- prefix-applied ¬); declared-infix operators are excluded, so
-        -- application juxtaposition never captures them
-    <|> (do (rng, op) <- bounds parseOpName
-            case lookup op tbl of
-              Nothing => pure (SSig rng op)
-              Just _ => fail "an atom (a declared infix operator cannot begin one)")
+        -- application juxtaposition never captures them.
+        --
+        -- ?x — a named HOLE (docs/NovaElaboration.txt, e-hole) — is
+        -- read HERE rather than as a production of its own, because
+        -- `?` is an opChar: a `?` that starts an atom is already this
+        -- alternative's token, so recognizing the hole costs one
+        -- string comparison on a path an operator token reached
+        -- anyway. A production ahead of this one would instead probe
+        -- for `?` at EVERY atom of every file — measured at +6% on
+        -- the corpus's load-parse phase, which is exactly the kind of
+        -- cost a hole-free file must not pay. The maximal opChar run
+        -- decides: `?` before an identifier start is a hole, while
+        -- `?`, `?!` and `<?>` still lex as operator names
+    <|> (do (rng, res) <- bounds (the (Rule (Either String (Maybe Range, String))) $ do
+              (orng, op) <- bounds parseOpName
+              if op == "?"
+                then do (lrng, x) <- bounds parseHoleLabel
+                        emit lrng Identifier
+                        pure (Left x)
+                else pure (Right (orng, op)))
+            case res of
+              Left x => pure (SHole rng x)
+              Right (orng, op) =>
+                case lookup op tbl of
+                  Nothing => pure (SSig orng op)
+                  Just _ => fail "an atom (a declared infix operator cannot begin one)")
     <|> (do kwc '('
             sp
             unit <- optional (kwc ')')
@@ -833,12 +874,12 @@ mutual
             case unpack x of
               -- a BARE `_` is a BLANK: a per-site elided argument at
               -- an explicit Π position (docs/NovaPerfectSurface.txt,
-              -- Phase 4). Other `_`-leading identifiers were HOLES;
-              -- that machinery is removed (PerfNotes "The cost of a
-              -- hole") ahead of the metavariable redesign. Binder
-              -- wildcards are a separate production and unaffected.
+              -- Phase 4). Other `_`-leading identifiers were the OLD
+              -- hole spelling; holes are written `?x` now (e-hole).
+              -- Binder wildcards are a separate production and
+              -- unaffected.
               ['_'] => pure (SBlank r)
-              ('_' :: rest) => fail "!holes are not supported — spell the term out"
+              ('_' :: rest) => fail "!a `_`-leading name is not a hole — holes are written `?x`"
               _ =>
                 case resolveVar env x of
                   Just i  => pure (SVar r x i)

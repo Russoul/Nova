@@ -2,3 +2,4 @@ defined x
 input.nova:2:1: error: def x: duplicate signature name
 2 | def x : ℕ ≔ S Z
   | ^^^^^^^^^^^^^^^
+Error: 1 item failed to elaborate
