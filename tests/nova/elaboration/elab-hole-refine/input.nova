@@ -1,0 +1,28 @@
+-- REFINEMENT. A run with holes carries constraints that SAY what its
+-- synthetic holes are; reading them back turns the elaborator's own
+-- scaffolding into the goal the operator actually faces. Only
+-- SYNTHETIC holes are instantiated — a written hole is the question,
+-- and answering it would be a guess.
+def cong : {A : 𝕌} (B : A → 𝕌) (f : (v : A) → B v) {v w : A} → (v ≡ w) → f v ≡ f w ≔
+  λA. λB. λf. λv. λw. λh. ⋆
+
+-- {A} {v} {w} had no source but the hole; the constraints then said
+-- what each had to be, so the goal reads as if they had been written
+def implicits : (A : 𝕌) (x y : A) → (x ≡ y) → x ≡ x ≔
+  λA. λx. λy. λp. cong (λv. A) (λv. v) ?p
+
+-- the squashee is fixed by the body's own goal
+def squashee : (p : ∥ℕ∥) → ∥ℕ∥ ≔ λp. squash-elim ?e (w. ⋆ w)
+
+-- NOT refined: `?mid` is the operator's own hole. The two adjacencies
+-- say what it must be on each side and are left standing as such.
+def rfl : (n : ℕ) → n ≡ n ≔ λn. ⋆
+
+def written : (n : ℕ) → Z ≡ Z ∈ ℕ ≔ λn. Z ≡⟨ rfl Z ⟩ ?mid ≡⟨ rfl Z ⟩ Z
+
+-- NOT refined: nothing constrains a ⊎-elim scrutinee's summands, and
+-- `?f/cod` is constrained only at ONE instance, which does not
+-- determine a family
+def undetermined : ℕ ≔ ⊎-elim (z. ℕ) (a. Z) (b. Z) ?s
+
+def instanceOnly : ℕ ≔ ?f Z

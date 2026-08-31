@@ -500,6 +500,29 @@ pre-existing wart for top-level declarations while it is there. The
 rule this keeps confirming: put the cost where the rare thing
 happens, never where the common thing passes through.
 
+## Unification, at the only moment it is free
+
+The obvious next want — "run unification so hole types get refined" —
+is the removed solver by another name, unless it is placed where it
+costs nothing. It is: a run's constraints already SAY what its
+synthetic holes are (`?p/imp3 ≐ x`), and reading them back is a
+report-time pass over Σ, after elaboration is over. It reads and never
+writes, so none of mechanisms 1–4 can apply: nothing is left to
+re-attempt, no entry flips, no cached normal form goes stale, no item
+reruns. The pass is skipped outright unless Σ holds a hole.
+
+```
+                     before    with refinement
+phase-elaborate      3686 ms   3673 ms
+phase-load-parse     1183 ms   1190 ms
+```
+
+Interleaved, four rounds, both differences inside the spread. The
+lesson generalises past holes: a question that is expensive to answer
+DURING elaboration may be free to answer afterwards, if what you need
+from it is an explanation rather than a decision. Here the elaborator
+never needs the solution — only the reader does.
+
 ## The ℝ regression: substitution towers
 
 The completeness/abs/metric development blew the corpus up from ~2.2s

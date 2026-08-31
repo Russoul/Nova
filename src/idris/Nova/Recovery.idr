@@ -772,6 +772,66 @@ surveyReport sig =
 
 -- ===== Hole detection (for the elaborator's spine recovery) =====
 
+-- Does any Σ REFERENCE in the term satisfy `p`? One traversal, two
+-- questions: the spine oracle asks whether its own placeholders
+-- survive (`hasHolesE`), and the elaborator's hole refinement asks
+-- whether a candidate solution mentions a given name — an occurs
+-- check. Nothing else about the term is inspected, so the name test
+-- is the whole of the difference.
+mutual
+  export
+  anySigNameE : (String -> Bool) -> Elem -> Bool
+  anySigNameE p e = case e of
+    SigVar nm sp => p nm || any (anySigNameE p) (toList sp)
+    CtxVar _ => False
+    ZeroElim t => anySigNameE p t
+    OneIntro => False
+    NatIntro0 => False
+    NatIntro1 t => anySigNameE p t
+    NatElim z s t => anySigNameE p z || anySigNameE p s || anySigNameE p t
+    PiIntro b => anySigNameE p b
+    PiApp f a => anySigNameE p f || anySigNameE p a
+    Let d b => anySigNameE p d || anySigNameE p b
+    SigmaIntro u v => anySigNameE p u || anySigNameE p v
+    SigmaElim1 t => anySigNameE p t
+    SigmaElim2 t => anySigNameE p t
+    Inj1 t => anySigNameE p t
+    Inj2 t => anySigNameE p t
+    SumElim l r t => anySigNameE p l || anySigNameE p r || anySigNameE p t
+    ZeroTy => False
+    OneTy => False
+    NatTy => False
+    UniverseTy => False
+    PropTy => False
+    TopTy => False
+    Elem.PiTy a b => anySigNameE p a || anySigNameE p b
+    Elem.SigmaTy a b => anySigNameE p a || anySigNameE p b
+    Elem.SumTy a b => anySigNameE p a || anySigNameE p b
+    Elem.EqTy l r t => anySigNameE p l || anySigNameE p r || anySigNameE p t
+    QuotTy a r => anySigNameE p a || anySigNameE p r
+    Class a => anySigNameE p a
+    QuotElim f q => anySigNameE p f || anySigNameE p q
+    Squash t => anySigNameE p t
+    Star => False
+    QSort _ _ sp => any (anySigNameE p) (toList sp)
+    QCtor _ _ sp => any (anySigNameE p) (toList sp)
+    QElim _ _ mots mths sp w =>
+      any (anySigNameE p) mots || any (anySigNameE p) mths
+        || any (anySigNameE p) (toList sp) || anySigNameE p w
+    NuTy poly => anySigNameP p poly
+    Out t => anySigNameE p t
+    Corec poly a f x => anySigNameP p poly || anySigNameE p a || anySigNameE p f || anySigNameE p x
+
+  export
+  anySigNameP : (String -> Bool) -> Poly -> Bool
+  anySigNameP p poly = case poly of
+    PHole => False
+    PConst a => anySigNameE p a
+    PProd f g => anySigNameP p f || anySigNameP p g
+    PSum f g => anySigNameP p f || anySigNameP p g
+    PSigma a f => anySigNameE p a || anySigNameP p f
+    PPi a f => anySigNameE p a || anySigNameP p f
+
 mutual
   export
   hasHolesE : Elem -> Bool
