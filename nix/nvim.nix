@@ -67,6 +67,26 @@ let
       # stale half-copy behind and a reinstall is atomic.
       ln -sfn "${plugin}" "$target"
 
+      # Drop neovim's compiled-Lua cache for this plugin. `vim.loader`
+      # (on by default since 0.10) keys each entry on (path, mtime,
+      # size), and installing from the store PINS ALL THREE: the path
+      # is this fixed target, every store file has mtime 1, and two
+      # builds of lua/nova/init.lua differ only in a 32-character
+      # store hash — so the file is byte-for-byte the same LENGTH
+      # every time. The cache can therefore never notice a reinstall,
+      # and neovim keeps running the previous plugin, talking to the
+      # previous nova-lsp, with no symptom but stale behaviour. This
+      # is the invalidation mtime=1 defeats; the entries are pure
+      # cache and neovim rebuilds them on the next start.
+      #
+      # vim.loader names each entry after the module's path with `/`,
+      # `\` and `:` percent-encoded, so the target is its own prefix.
+      luac_dir="''${XDG_CACHE_HOME:-$HOME/.cache}/nvim/luac"
+      if [ -d "$luac_dir" ]; then
+        encoded="''${target//[\/\\:]/%2f}"
+        rm -f "$luac_dir/$encoded"*
+      fi
+
       echo "linked $target -> ${plugin}"
       echo
       echo "Plain neovim loads pack/*/start on its own and the plugin sets"
