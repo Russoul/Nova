@@ -1,0 +1,16 @@
+-- SHAPE-DEMANDING POSITIONS. A hole has no type to infer, but each of
+-- these positions already fixes the type's FORMER, so the hole is
+-- minted at that former and every component the position leaves open
+-- becomes a derived type hole (`?h/role`). Nothing is solved: the
+-- conversions that follow surface as obligations saying what each
+-- component would have to be.
+def proj  : ℕ ≔ ?p .π₁
+def proj2 : ℕ ≔ ?q .π₂
+def sums  : ℕ ≔ ⊎-elim (z. ℕ) (a. Z) (b. Z) ?s
+def app   : ℕ ≔ ?f Z
+def quotE : ℕ ≔ quot-elim (z. ℕ) (a. Z) ?c
+
+-- the motivating case: the scrutinee fixes ∥-∥, so the BODY's hole
+-- still gets its real goal, under a hypothetical inhabitant of the
+-- (open) squashee
+def squashE : (n : ℕ) → ∥ℕ∥ ≔ λn. squash-elim ?e (w. ?body)
