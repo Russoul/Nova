@@ -475,6 +475,31 @@ as the general shape: for a feature only some files use, the cost to
 watch is rarely the feature's own code — it is the dispatch that asks
 every file whether it wanted it.
 
+The shape-demanding tier (e-hole-shape: a hole at a scrutinee or an
+application head, minted at the former its position fixes) repeated
+the lesson exactly. The tier itself is free — it fires once per
+eliminator occurrence in the SOURCE, not per conversion — and
+measured as noise over eight interleaved rounds:
+
+```
+                     Tier A    + Tier B
+phase-elaborate      3721 ms   3713 ms
+phase-load-parse     1188 ms   1191 ms
+```
+
+But the first cut cost **+1.5% on elaborate**, from a one-line
+reordering nowhere near the feature. Reporting a hole as
+"head exposure blocked for ?p/fst — cite ?p/fst.unfold" is nonsense: a
+hole is a DECLARATION and has no `.unfold`. The obvious fix was to
+classify the name in `exposeE`/`exposeT` before calling it blocked —
+which moved a `cachedSigLookup` ahead of `expOK` on a branch taken by
+every blocked head of every conversion, and paid for it. The same
+correction at RENDER time — filter uncitable names where the note is
+phrased, once per obligation — is free, and fixes the identical
+pre-existing wart for top-level declarations while it is there. The
+rule this keeps confirming: put the cost where the rare thing
+happens, never where the common thing passes through.
+
 ## The ℝ regression: substitution towers
 
 The completeness/abs/metric development blew the corpus up from ~2.2s

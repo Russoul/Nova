@@ -1563,9 +1563,21 @@ isPropTy st ctx t = case t of
 
 ||| Blocked head exposures as an obligation hint (peeked, not drained —
 ||| an item's obligations share the notes).
-blockedHint : () -> Maybe String
-blockedHint () =
-  case peekBlocked () of
+||| Only a DEFINITION has an `.unfold` to cite. A DECLARATION — an
+||| abstract interface's axiom, or a hole — reaches the same blocked
+||| branch of `exposeE`, being equally stuck there, but naming it
+||| would advertise a remedy that cannot exist. Filtered HERE, at
+||| render time, and not in `exposeE`: that branch is hot, and
+||| classifying every blocked head just to phrase a note nobody may
+||| read measured at +1.5% on the corpus's elaborate phase.
+citable : Sig -> List String -> List String
+citable sig = filter (\x => case sigLookup x sig of
+                              Just (SigDef _ _ _ _) => True
+                              _ => False)
+
+blockedHint : Sig -> Maybe String
+blockedHint sig =
+  case citable sig (peekBlocked ()) of
     [] => Nothing
     ns => Just ("head exposure blocked for " ++ joinBy ", " ns
                 ++ " — cite " ++ joinBy ", " (map (++ ".unfold") ns))
@@ -2773,7 +2785,7 @@ assume stmt site comp = do
               bK = rwNfElem st ctx b in
           { assumedE $= ((elemSize aK + elemSize bK, ctx, aK, bK, engNfT st ty) ::)
           , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty))
-          , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint ())) } s
+          , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint st.sig)) } s
     StTy ctx env x y => do
       if cheap
         then modifySt $ \s =>
@@ -2787,7 +2799,7 @@ assume stmt site comp = do
         else modifySt $ \s =>
           { assumedT $= ((ctx, x', y') ::)
           , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy))
-          , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint ())) } s
+          , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint st.sig)) } s
  where
   hintFor : ElabSt -> Stmt -> Maybe String
   hintFor st (StElem ctx _ a b ty) = hintE st ctx a b ty
@@ -3112,6 +3124,30 @@ mutual
 structuralHint : () -> String
 structuralHint () = " — ascribe it: `(t : T)`"
 
+||| Mint a HOLE: a sig-decl at the given context and type, with its
+||| report metadata, returning the stuck reference. The entry is
+||| declared at its OWN context, so the reference's spine is the
+||| identity (and prints bare).
+|||
+||| The single place a hole enters Σ. Two callers: e-hole itself, for
+||| the `?x` the operator wrote, and the shape-demanding positions,
+||| for the DERIVED type holes a demanded former needs at each
+||| component the position does not determine. A derived hole is
+||| labelled `<hole>/<role>` — `/` cannot occur in a written label, so
+||| a derived name can never collide with one.
+mintHole : Ctx -> NameEnv -> Site -> Maybe Range -> (label : String) -> Ty -> ElabM Elem
+mintHole ctx env site hrng label ty = do
+  st <- getSt
+  let item = if st.modPrefix == "" then st.curItem else "\{st.modPrefix}.\{st.curItem}"
+  let q = holeName item label
+  case sigLookup q st.sig of
+    Just _ => throwAt (hrng <|> site.srange)
+                "\{site}: duplicate hole ?\{label} — every hole of an item needs its own name"
+    Nothing => pure ()
+  modifySt $ { sig $= (:< SigDecl ctx q ty)
+             , declMeta $= (:< MkDeclMeta q env "\{site}" st.modFile (hrng <|> site.srange)) }
+  pure (SigVar q (varSpine (length ctx)))
+
 ||| A SHAPE rejection: the term is well-formed, the type it met is the
 ||| wrong SHAPE. What that type WAS is the whole diagnosis, so these
 ||| say it — rendered the way the module writes it (its own fixities),
@@ -3127,9 +3163,9 @@ throwShape site env lead ty wanted = do
 ||| discharge attempt has run, so ordering games inside the item
 ||| cannot hide them.
 export
-withBlockedHint : String -> String
-withBlockedHint err =
-  case drainBlocked () of
+withBlockedHint : Sig -> String -> String
+withBlockedHint sig err =
+  case citable sig (drainBlocked ()) of
     [] => err
     ns => err ++ "\n  note: head exposure blocked for " ++ joinBy ", " ns
               ++ " — cite " ++ joinBy ", " (map (++ ".unfold") ns)
@@ -3379,6 +3415,67 @@ mutual
   inferElem : Ctx -> NameEnv -> Site -> SElem -> ElabM (Elem, Ty, Skel)
   inferElem ctx env site e = inferElemAt ctx env (at site (headRange e)) e
 
+  ||| `inferElem` at a position that DEMANDS A SHAPE — an
+  ||| eliminator's scrutinee, an application's head. An ordinary term
+  ||| infers as usual and the caller checks its shape as before.
+  |||
+  ||| A HOLE there has no type to infer, but it does not need one:
+  ||| the position's own rule already fixes the type's FORMER. So the
+  ||| hole is minted AT that former, with a fresh type hole standing
+  ||| for each component the position leaves undetermined (e-hole,
+  ||| "shape-demanding positions"). Nothing is searched for, nothing
+  ||| is solved, and Σ stays monotone — the shape is READ OFF the
+  ||| rule, not recovered from anything, and the components stay open
+  ||| and get reported like every other hole.
+  |||
+  ||| The former is minted DIRECTLY rather than by refining an
+  ||| unshaped hole afterwards, which is what keeps this free of the
+  ||| in-place Σ mutation PerfNotes "The cost of a hole" indicts.
+  inferShaped : Ctx -> NameEnv -> Site -> SElem
+             -> (mkShape : (label : String) -> ElabM Ty) -> ElabM (Elem, Ty, Skel)
+  inferShaped ctx env site e mkShape = case unPos e of
+    SHole _ x => do
+      ty <- mkShape x
+      (e', sk) <- checkElem ctx env site e ty
+      pure (e', ty, sk)
+    _ => inferElem ctx env site e
+
+  ||| The Π a bare `?f` is applied at: domain and codomain both open.
+  piShape : Ctx -> NameEnv -> Site -> Maybe Range -> String -> ElabM Ty
+  piShape ctx env site hrng x = do
+    a <- mintHole ctx env site hrng "\{x}/dom" TopTy
+    b <- mintHole (ctx :< a) (env :< wildcard) site hrng "\{x}/cod" TopTy
+    pure (PiTy a b)
+
+  ||| The × a bare hole is projected from.
+  sigmaShape : Ctx -> NameEnv -> Site -> Maybe Range -> String -> ElabM Ty
+  sigmaShape ctx env site hrng x = do
+    a <- mintHole ctx env site hrng "\{x}/fst" TopTy
+    b <- mintHole (ctx :< a) (env :< wildcard) site hrng "\{x}/snd" TopTy
+    pure (SigmaTy a b)
+
+  ||| The ⊎ a bare hole is eliminated at (non-dependent: no binder).
+  sumShape : Ctx -> NameEnv -> Site -> Maybe Range -> String -> ElabM Ty
+  sumShape ctx env site hrng x = do
+    a <- mintHole ctx env site hrng "\{x}/left" TopTy
+    b <- mintHole ctx env site hrng "\{x}/right" TopTy
+    pure (SumTy a b)
+
+  ||| The quotient a bare hole is eliminated at: the carrier, and the
+  ||| Ω-valued relation two levels deeper (one binder per side).
+  quotShape : Ctx -> NameEnv -> Site -> Maybe Range -> String -> ElabM Ty
+  quotShape ctx env site hrng x = do
+    a <- mintHole ctx env site hrng "\{x}/carrier" TopTy
+    r <- mintHole (ctx :< a :< substTy a Wk) (env :< wildcard :< wildcard) site hrng
+           "\{x}/rel" PropTy
+    pure (QuotTy a r)
+
+  ||| The ∥-∥ a bare hole is squash-eliminated at.
+  squashShape : Ctx -> NameEnv -> Site -> Maybe Range -> String -> ElabM Ty
+  squashShape ctx env site hrng x = do
+    a <- mintHole ctx env site hrng "\{x}/squashee" TopTy
+    pure (Squash a)
+
   inferElemAt : Ctx -> NameEnv -> Site -> SElem -> ElabM (Elem, Ty, Skel)
   inferElemAt ctx env site (SVar mrng n i) =
     case ctxLookup ctx i of
@@ -3416,7 +3513,7 @@ mutual
       Nothing => case impSpineOf st sapp of
         Just (noIns, q, x0, mrng, items) => elabImpSpine ctx env site Nothing False noIns q x0 mrng items
         Nothing => do
-          (f', fTy, fSk) <- inferElem ctx env site f
+          (f', fTy, fSk) <- inferShaped ctx env site f (piShape ctx env site (headRange f))
           st <- getSt
           case preferPi st ctx fTy of
             Just (a, b, _) => do
@@ -3435,13 +3532,13 @@ mutual
   inferElemAt ctx env site (SNoIns e) = inferElem ctx env site e
   inferElemAt ctx env site (SPos _ e) = inferElemAt ctx env site e
   inferElemAt ctx env site (SProj1 t) = do
-    (t', tTy, tSk) <- inferElem ctx env site t
+    (t', tTy, tSk) <- inferShaped ctx env site t (sigmaShape ctx env site (headRange t))
     st <- getSt
     case preferSigma st ctx tTy of
       Just (a, b, _) => pure (SigmaElim1 t', a, Nd [] [tSk])
       Nothing => throwShape site env "cannot project from a term of type" tTy "a × type"
   inferElemAt ctx env site (SProj2 t) = do
-    (t', tTy, tSk) <- inferElem ctx env site t
+    (t', tTy, tSk) <- inferShaped ctx env site t (sigmaShape ctx env site (headRange t))
     st <- getSt
     case preferSigma st ctx tTy of
       Just (a, b, _) => pure (SigmaElim2 t', substTy b (Ext Id (SigmaElim1 t')), Nd [] [tSk])
@@ -3479,7 +3576,7 @@ mutual
     pure (NatElim z' s' t', substTy motTy (Ext Id t'),
           Nd [PMotive motTy motSk] [zSk, sSk, tSk])
   inferElemAt ctx env site (SSumElim (Just ((zn, zr), mot)) (an, ar) l (bn, br) r t) = do
-    (t', tTy, tSk) <- inferElem ctx env site t
+    (t', tTy, tSk) <- inferShaped ctx env site t (sumShape ctx env site (headRange t))
     st <- getSt
     case preferSum st ctx tTy of
       Just (a, b, _) => do
@@ -3495,7 +3592,7 @@ mutual
               Nd [PMotive motTy motSk] [lSk, rSk, tSk])
       Nothing => throwShape site env "⊎-elim scrutinee has type" tTy "a ⊎ type"
   inferElemAt ctx env site (SQuotElim (Just ((zn, zr), mot)) (an, ar) f q) = do
-    (q', qTy, qSk) <- inferElem ctx env site q
+    (q', qTy, qSk) <- inferShaped ctx env site q (quotShape ctx env site (headRange q))
     st <- getSt
     case preferQuot st ctx qTy of
       Just (a, r, _) => do
@@ -3619,16 +3716,8 @@ mutual
     --
     -- The reference is the entry at its OWN context, so the spine is
     -- the identity (and prints bare, `?f.a` not `?f.a[…]`).
-    st <- getSt
-    let item = if st.modPrefix == "" then st.curItem else "\{st.modPrefix}.\{st.curItem}"
-    let q = holeName item x
-    case sigLookup q st.sig of
-      Just _ => throwAt (hrng <|> site.srange)
-                  "\{site}: duplicate hole ?\{x} — every hole of an item needs its own name"
-      Nothing => pure ()
-    modifySt $ { sig $= (:< SigDecl ctx q ty)
-               , declMeta $= (:< MkDeclMeta q env "\{site}" st.modFile (hrng <|> site.srange)) }
-    pure (SigVar q (varSpine (length ctx)), Nd [] [])
+    h <- mintHole ctx env site hrng x ty
+    pure (h, Nd [] [])
   checkElemAt ctx env site (SLam (x, xr) t) ty = do
     st <- getSt
     case preferPi st ctx ty of
@@ -3901,7 +3990,7 @@ mutual
           _ => throwShape site env "⋆ ⟨witness⟩ checked against" ty "an evident proposition"
   checkElemAt ctx env site (SSquashElim e xn body) ty = do
     st <- getSt
-    (e', eTy, eSk) <- inferElem ctx env site e
+    (e', eTy, eSk) <- inferShaped ctx env site e (squashShape ctx env site (headRange e))
     case preferPrf st ctx eTy of
       Nothing => throwShape site env "squash-elim scrutinee has type" eTy "a ∥∥ proposition"
       Just (p, _) =>
@@ -4010,7 +4099,7 @@ mutual
     pure (NatElim z' s' t',
           addPayload (PSwitch (certOr c)) (Nd [PMotive motTy (Nd [] [])] [zSk, sSk, tSk]))
   checkElemAt ctx env site (SSumElim Nothing (an, ar) l (bn, br) r t) cTy = do
-    (t', tTy, tSk) <- inferElem ctx env site t
+    (t', tTy, tSk) <- inferShaped ctx env site t (sumShape ctx env site (headRange t))
     st <- getSt
     case preferSum st ctx tTy of
       Just (a, b, _) => do
@@ -4028,7 +4117,7 @@ mutual
               addPayload (PSwitch (certOr c)) (Nd [PMotive motTy (Nd [] [])] [lSk, rSk, tSk]))
       Nothing => throwShape site env "⊎-elim scrutinee has type" tTy "a ⊎ type"
   checkElemAt ctx env site (SQuotElim Nothing (an, ar) f q) cTy = do
-    (q', qTy, qSk) <- inferElem ctx env site q
+    (q', qTy, qSk) <- inferShaped ctx env site q (quotShape ctx env site (headRange q))
     st <- getSt
     case preferQuot st ctx qTy of
       Just (a, rel, _) => do
@@ -5812,7 +5901,7 @@ elabProgram units = go initSt units [] Z
       -- otherwise
       Left (stFail, err) =>
         let diag = render (MkDiag Err (Just path) (Just src)
-                             (err.erange <|> rng) (withBlockedHint err.emsg) [])
+                             (err.erange <|> rng) (withBlockedHint stFail.sig err.emsg) [])
             salv = case salvagedHoles st stFail of
                      [] => []
                      hs => ["holes reached before the failure (\{show (length hs)}):\n" ++
@@ -5890,8 +5979,8 @@ elabProgramSt st0 units = go st0 units
   goItems path src st [] = Right st
   goItems path src st ((rng, item) :: rest) =
     case runElabM (elabItem rng item) st of
-      Left (_, err) => Left (render (MkDiag Err (Just path) (Just src)
-                                       (err.erange <|> rng) (withBlockedHint err.emsg) []))
+      Left (stFail, err) => Left (render (MkDiag Err (Just path) (Just src)
+                                       (err.erange <|> rng) (withBlockedHint stFail.sig err.emsg) []))
       Right (st', _) => goItems path src st' rest
 
   go : ElabSt -> List ModUnit -> Either String ElabSt
@@ -5938,8 +6027,8 @@ elabProgramSig units = go initSt units
   goItems path src st [] = Right st
   goItems path src st ((rng, item) :: rest) =
     case runElabM (elabItem rng item) st of
-      Left (_, err) => Left (render (MkDiag Err (Just path) (Just src)
-                                       (err.erange <|> rng) (withBlockedHint err.emsg) []))
+      Left (stFail, err) => Left (render (MkDiag Err (Just path) (Just src)
+                                       (err.erange <|> rng) (withBlockedHint stFail.sig err.emsg) []))
       Right (st', _) => goItems path src st' rest
 
   go : ElabSt -> List ModUnit -> Either String Sig
@@ -6077,7 +6166,7 @@ elabProgramReport units = go initSt units [] [] []
                 Nothing => (st, ([], []))
             (st'', (obls, hs), errs) = goItems tbl mname stNext rest in
         (st'', (fst declTagged ++ obls, salv ++ snd declTagged ++ hs),
-         (mname, err.erange <|> rng, withBlockedHint err.emsg) :: errs)
+         (mname, err.erange <|> rng, withBlockedHint stFail.sig err.emsg) :: errs)
       Right (st', _) =>
         let (tObls, tHs) = tag tbl mname rng st st'
             (st'', (obls, hs), errs) = goItems tbl mname st' rest in

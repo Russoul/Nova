@@ -1,0 +1,52 @@
+defined proj [+1 obligation, +3 declarations]
+defined proj2 [+1 obligation, +3 declarations]
+defined sums [+3 declarations]
+defined app [+2 obligations, +3 declarations]
+defined quotE [+3 declarations]
+defined squashE [+3 declarations]
+open holes (18):
+  [?p/fst] ⊢ ?p/fst type
+      at: input.nova:7:17: def proj
+  [?p/snd] (_ : ?p/fst) ⊢ ?p/snd type
+      at: input.nova:7:17: def proj
+  [?p] ⊢ ?p : (v:?p/fst) × ?p/snd
+      at: input.nova:7:17: def proj
+  [?q/fst] ⊢ ?q/fst type
+      at: input.nova:8:17: def proj2
+  [?q/snd] (_ : ?q/fst) ⊢ ?q/snd type
+      at: input.nova:8:17: def proj2
+  [?q] ⊢ ?q : (v:?q/fst) × ?q/snd
+      at: input.nova:8:17: def proj2
+  [?s/left] ⊢ ?s/left type
+      at: input.nova:9:45: def sums
+  [?s/right] ⊢ ?s/right type
+      at: input.nova:9:45: def sums
+  [?s] ⊢ ?s : ?s/left ⊎ ?s/right
+      at: input.nova:9:45: def sums
+  [?f/dom] ⊢ ?f/dom type
+      at: input.nova:10:17: def app
+  [?f/cod] (_ : ?f/dom) ⊢ ?f/cod type
+      at: input.nova:10:17: def app
+  [?f] ⊢ ?f : (v:?f/dom) → ?f/cod
+      at: input.nova:10:17: def app
+  [?c/carrier] ⊢ ?c/carrier type
+      at: input.nova:11:41: def quotE
+  [?c/rel] (_ : ?c/carrier) (_ : ?c/carrier) ⊢ ?c/rel : Ω
+      at: input.nova:11:41: def quotE
+  [?c] ⊢ ?c : ?c/carrier / (v x. ?c/rel)
+      at: input.nova:11:41: def quotE
+  [?e/squashee] (n : ℕ) ⊢ ?e/squashee type
+      at: input.nova:16:47: def squashE
+  [?e] (n : ℕ) ⊢ ?e : ∥?e/squashee∥
+      at: input.nova:16:47: def squashE
+  [?body] (n : ℕ) (w : ?e/squashee) ⊢ ?body : ∥ℕ∥
+      at: input.nova:16:54: def squashE
+open obligations (4):
+  [1] ⊢ ?p/fst ≐ ℕ type
+      at: input.nova:7:17: def proj: inferred vs expected type
+  [2] ⊢ ?q/snd[?q .π₁] ≐ ℕ type
+      at: input.nova:8:17: def proj2: inferred vs expected type
+  [3] ⊢ ℕ ≐ ?f/dom type
+      at: input.nova:10:20: def app: inferred vs expected type
+  [4] ⊢ ?f/cod[Z] ≐ ℕ type
+      at: input.nova:10:17: def app: inferred vs expected type

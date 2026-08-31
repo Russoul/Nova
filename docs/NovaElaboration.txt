@@ -764,8 +764,9 @@ componentwise at F × G and F ⊎ G                  (e-poly-prod, e-poly-sum)
 #
 # CHECKING-ONLY, and INERT. Checking-only because A is where the
 # hole's type comes from: an inference position supplies none, and
-# guessing one is what the ascription `(?x : T)` is for. Inert
-# because NOTHING SOLVES IT — no unification, no pattern solving, no
+# guessing one is what the ascription `(?x : T)` is for — except at a
+# SHAPE-DEMANDING position, which supplies one without guessing (see
+# below). Inert because NOTHING SOLVES IT — no unification, no pattern solving, no
 # declaration-to-definition flip. That is the design, not an
 # omission: PerfNotes "The cost of a hole" measured the SOLVER as
 # ~98% of a hole-bearing item's cost (a doomed full discharge attempt
@@ -793,6 +794,41 @@ componentwise at F × G and F ⊎ G                  (e-poly-prod, e-poly-sum)
 # different contexts, so it mints three holes and reports three
 # goals. That is the honest account — filling the clause commits to
 # all three at once.
+
+whnf-shape(position) = F(A₁ … Aₙ)        each Aᵢ undetermined
+--------------------------------------------------- (e-hole-shape)
+Γ ⊢ ?x ⇐ F(?x/r₁ … ?x/rₙ)                          # (?x at a
+                                                   #  scrutinee)
+# SHAPE-DEMANDING POSITIONS. An eliminator's scrutinee and an
+# application's head are inference positions, but not blank ones:
+# each one's rule already fixes the FORMER of the type it will
+# accept. So a hole there is not rejected — it is minted at that
+# former, with a fresh type hole (e-hole again, at 𝕍 or Ω) standing
+# for each component the position leaves undetermined, named
+# `?x/<role>`. `/` cannot occur in a written label, so a derived name
+# can never collide with one.
+#
+#   position                     former minted
+#   f in (f a)                   (?f/dom) → ?f/cod
+#   t in (t .π₁ / t .π₂)         (?t/fst) × ?t/snd
+#   scrutinee of ⊎-elim          ?t/left ⊎ ?t/right
+#   scrutinee of quot-elim       ?t/carrier / (x y. ?t/rel)
+#   scrutinee of squash-elim     ∥?t/squashee∥
+#   scrutinee of 𝟘-elim, ℕ-elim  𝟘, ℕ — already CHECKING positions,
+#                                so plain e-hole covers them
+#
+# Nothing is searched for and nothing is solved: the former is READ
+# OFF the rule. The former is minted DIRECTLY rather than by refining
+# an unshaped hole afterwards — that is what keeps the tier free of
+# the in-place Σ mutation this document's HOLE SOLVING note indicts.
+# The components stay open, get reported like any hole, and the
+# conversions that follow surface as obligations SAYING what each
+# would have to be (`?f/dom ≐ ℕ`) — which is the useful half.
+#
+# Positions that demand NOTHING keep rejecting, with the ascription
+# remedy: a `let` definiens fixes no former, an annotation-free `≡`
+# fixes no domain, and `out`'s ν carries a POLYNOMIAL, which has no
+# hole form.
 
 # Introduction forms check against the whnf of the expected type.
 # A rigid shape mismatch here (λ against a non-Π, class against a
@@ -1843,18 +1879,16 @@ Two corollaries worth keeping in view while implementing:
   and certificates must be assembled once, against settled
   solutions. Ground-only obligations and the erasure-step
   restrictions sketched previously still apply.
-* Holes in INFERENCE positions. e-hole is checking-only, so an
-  eliminator's scrutinee (`squash-elim ?a (w. ?b)`), an application
-  head, a `let` definiens and an annotation-free `≡` side all reject
-  a bare hole and name the ascription remedy. Each of those positions
-  DEMANDS A SHAPE (Π, ×, ⊎, ∥∥, ν, a quotient, an equation type),
-  and every one of the ~30 shape checks that would reject a hole is
-  already a FAILURE branch — a path a correct hole-free program never
-  enters. So a shape-directed tier that mints the demanded shape
-  with fresh 𝕍-typed component holes, rather than inferring a type
-  the site does not have, would cost nothing on the success path.
-  Minting the shape directly (rather than solving an unrefined type
-  hole afterwards) is what keeps Σ monotone.
+* Holes at the REMAINING inference positions. e-hole-shape covers
+  every position whose rule fixes a former; what is left fixes none.
+  A `let` definiens and an annotation-free `≡` side could take a bare
+  type hole for the missing type/domain — cheap, but of little use
+  until something can fill it. `out` would need a hole form for
+  POLYNOMIALS, which the grammar does not have; a chain link's
+  justification would need one for an equation type, which is three
+  components deep and reads worse than the `∈`-annotation it
+  replaces. None of these is blocked — they are just not obviously
+  worth their report noise.
 * Congruence/transitivity closure (e-graph) for the HINT probe's
   completeness — the advisory layer is where a stronger search is
   pure upside. (The `using` clauses themselves have landed, item- and

@@ -190,6 +190,18 @@ freshIH = freshFromList candidatesIH
 lastSeg : String -> String
 lastSeg x = pack (reverse (takeWhile (/= '.') (reverse (unpack x))))
 
+||| How a Σ name SPELLS at an occurrence. A HOLE prints as the label
+||| its operator wrote (`?a`, `?a/squashee`) rather than the
+||| run-unique name it was minted under (`?mod.item.a/…`): the
+||| qualification is machine-made, never written, and only noise in a
+||| goal. Everything else prints as it is, parenthesised when it is
+||| operator-shaped.
+export
+sigRefN : SigIdentifier -> String
+sigRefN x =
+  if isHoleName x then holeLabel x
+  else if isOpName x then "(" ++ x ++ ")" else x
+
 ||| Is this spine the identity substitution over a context of length
 ||| n — ☐ₙ₋₁, ..., ☐₀? (How a Σ entry minted at the ambient context
 ||| is referenced at its own site.)
@@ -441,13 +453,13 @@ mutual
   prettyElemAtomN tbl env PropTy = "Ω"
   prettyElemAtomN tbl env TopTy = "𝕍"
   prettyElemAtomN tbl env (Squash t) = "∥" ++ prettyTyN tbl env t ++ "∥"
-  prettyElemAtomN tbl env (SigVar x [<]) = if isOpName x then "(" ++ x ++ ")" else x
+  prettyElemAtomN tbl env (SigVar x [<]) = sigRefN x
   -- an identity-spine reference at its own context prints bare:
   -- `x`, not `x[n]`
   prettyElemAtomN tbl env (SigVar x es) =
     if isIdSpineN (length env) es
-      then x
-      else x ++ "[" ++ prettySubNormN tbl env es ++ "]"
+      then sigRefN x
+      else sigRefN x ++ "[" ++ prettySubNormN tbl env es ++ "]"
   prettyElemAtomN tbl env (QSort sg k es) = prettyQSortN tbl env sg k es
   prettyElemAtomN tbl env (QCtor sg k es) = "𝒮." ++ show k ++ "[" ++ prettySubNormN tbl env es ++ "]"
   prettyElemAtomN tbl env (QElim sg k ms fs es w) =
@@ -539,11 +551,11 @@ mutual
   prettyTyAtomN tbl env UniverseTy = "𝕌"
   prettyTyAtomN tbl env PropTy = "Ω"
   prettyTyAtomN tbl env TopTy = "𝕍"
-  prettyTyAtomN tbl env (SigVar x [<]) = if isOpName x then "(" ++ x ++ ")" else x
+  prettyTyAtomN tbl env (SigVar x [<]) = sigRefN x
   prettyTyAtomN tbl env (SigVar x es) =
     if isIdSpineN (length env) es
-      then x
-      else x ++ "[" ++ prettySubNormN tbl env es ++ "]"
+      then sigRefN x
+      else sigRefN x ++ "[" ++ prettySubNormN tbl env es ++ "]"
   prettyTyAtomN tbl env (QSort sg k es) = prettyQSortN tbl env sg k es
   -- a non-former type is a CODE (El retired): print it as an element
   -- — recursing into prettyTyN here would loop, since no type clause

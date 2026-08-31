@@ -1,3 +1,8 @@
--- e-hole is CHECKING-ONLY: an inference position supplies no type,
--- and nothing is guessed. The remedy names the ascription lever.
-def bad : ℕ ≔ (?f) Z
+-- e-hole is CHECKING-ONLY. A position that demands a SHAPE mints one
+-- (elab-hole-shaped), but a position that demands NOTHING has nothing
+-- to mint: a let definiens fixes no former, so the hole is rejected
+-- and the remedy names the ascription lever. Same for `out`, whose
+-- ν carries a POLYNOMIAL — which has no hole form at all.
+def viaLet : ℕ ≔ let x ≔ ?e in x
+
+def viaOut : ℕ ≔ out ?s
