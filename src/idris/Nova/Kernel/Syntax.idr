@@ -272,11 +272,33 @@ public export
 isHoleName : SigIdentifier -> Bool
 isHoleName x = isPrefixOf "?" x
 
+||| Is this hole SYNTHETIC — minted by the elaborator for a part the
+||| operator did not write (a demanded shape's component, an implicit
+||| no source determined), rather than written as `?x`? A synthetic
+||| label carries `/`, which a WRITTEN label cannot: the parser reads
+||| a hole label as an identifier.
+|||
+||| The distinction is what the refinement pass is allowed to act on.
+||| A synthetic hole stands for something the elaborator itself made
+||| up, so determining it from the run's own constraints returns
+||| information the operator never supplied. A WRITTEN hole is the
+||| operator's question; answering it for them would be a guess, and
+||| is never done.
+public export
+isSyntheticHole : SigIdentifier -> Bool
+isSyntheticHole x = isHoleName x && elem '/' (unpack x)
+
 ||| The label the operator wrote, recovered from a hole's Σ name —
 ||| what the report shows (`?a`, not `?mod.item.a`).
 public export
 holeLabel : SigIdentifier -> String
 holeLabel x = "?" ++ pack (reverse (takeWhile (/= '.') (reverse (unpack x))))
+
+||| The WRITTEN hole a synthetic one belongs to: `?a/squashee` is a
+||| part of `?a`. Everything before the first `/` of the label.
+public export
+holeOwner : SigIdentifier -> String
+holeOwner x = pack (takeWhile (/= '/') (unpack (holeLabel x)))
 
 public export
 Sig : Type

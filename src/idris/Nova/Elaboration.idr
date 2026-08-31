@@ -296,6 +296,14 @@ record ElabSt where
   ||| enclosing position is blanked, so only their blank verdicts
   ||| must hold in both modes
   inArg : Bool
+  ||| SOLVED synthetic holes, from the refinement pass (`refineHoles`).
+  ||| DISPLAY ONLY, and computed only when a report is rendered: the
+  ||| pass runs after elaboration is over, reads the run's own
+  ||| constraint entries, and never touches Σ — so this is a
+  ||| metacontext in the sense the removed solver's flips were not.
+  ||| Empty on every run that has no holes, which is what keeps
+  ||| `resugarElem`'s lookup free.
+  holeSols : List (String, Elem)
   ||| surface names visible with TWO OR MORE distinct Σ targets — the
   ||| OVERLOADED names (docs/NovaPerfectSurface.txt, Phase 4:
   ||| operator overloading). A reference to one resolves
@@ -305,7 +313,7 @@ record ElabSt where
   dupNames : List String
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [] "" [<] Nothing [] [] Nothing [] False [<] False [<] [<] [<] False False []
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [] "" [<] Nothing [] [] Nothing [] False [<] False [<] [<] [<] False False [] []
 
 ||| Is the surface term an INFERENCE form — its type known without an
 ||| expected type? Mirrors the mode inventory
@@ -2496,7 +2504,16 @@ mutual
   resugarElem st (Class a) = Class (resugarElem st a)
   resugarElem st (QuotElim f q) = QuotElim (resugarElem st f) (resugarElem st q)
   resugarElem st (Squash t) = Squash (resugarTy st t)
-  resugarElem st (SigVar x es) = SigVar x (resugarSub st es)
+  resugarElem st (SigVar x es) =
+    -- a SOLVED synthetic hole shows its value, not its name: that is
+    -- the whole point of the refinement pass. `holeSols` is empty on
+    -- every run without holes, and this is the display path anyway,
+    -- so no elaboration ever pays for the lookup. Solutions are
+    -- hole-free by construction (`refineHoles` rejects any that is
+    -- not), so the recursion terminates in one step.
+    case lookup x st.holeSols of
+      Just t => resugarElem st (substElem t (embed es))
+      Nothing => SigVar x (resugarSub st es)
   resugarElem st (Elem.NuTy f) = Elem.NuTy (resugarPoly st f)
   resugarElem st (Out t) = Out (resugarElem st t)
   resugarElem st (Corec f a g x) =
@@ -2514,7 +2531,11 @@ mutual
   resugarTy st (SigmaTy a b) = SigmaTy (resugarTy st a) (resugarTy st b)
   resugarTy st (SumTy a b) = SumTy (resugarTy st a) (resugarTy st b)
   resugarTy st (QuotTy a r) = QuotTy (resugarTy st a) (resugarElem st r)
-  resugarTy st (SigVar x es) = SigVar x (resugarSub st es)
+  resugarTy st (SigVar x es) =
+    -- the type-position twin of the element clause above
+    case lookup x st.holeSols of
+      Just t => resugarTy st (substTy t (embed es))
+      Nothing => SigVar x (resugarSub st es)
   resugarTy st (NuTy f) = NuTy (resugarPoly st f)
   -- a non-former type is a CODE (El retired) — resugar as an element
   resugarTy st t = resugarElem st t
@@ -2552,6 +2573,105 @@ displayStmt st (StElem ctx env a b ty) =
   StElem (displayCtx st ctx) env (displayElem st a) (displayElem st b) (displayTy st ty)
 displayStmt st (StTy ctx env a b) =
   StTy (displayCtx st ctx) env (displayTy st a) (displayTy st b)
+-- ===== Hole refinement =====
+--
+-- A run with holes carries constraints that SAY what its synthetic
+-- holes are: `?p/imp3 ≐ x`, `?p/imp0 ≐ stream a`. Reading them back
+-- turns an unhelpful `?p : ?p/imp3 ≡ ?p/imp4 ∈ ?p/imp0` into the goal
+-- the operator actually faces, `?p : x ≡ y ∈ stream a`, and retires
+-- the constraints that said so.
+--
+-- This is NOT the removed solver, and the difference is the whole
+-- design (PerfNotes "The cost of a hole"). It runs ONCE, after
+-- elaboration is over, at the moment a report is rendered. It reads Σ
+-- and never writes it — no declaration-to-definition flip, no cache
+-- invalidation, no re-attempt, no whole-item rerun. It cannot change
+-- what anything elaborates to, because nothing elaborates afterwards.
+-- And it cannot change ACCEPTANCE: a synthetic hole exists only
+-- because a WRITTEN one does, and written holes are never solved, so
+-- Σ stays non-definitional either way.
+
+||| The shift of a spine that is the identity of a length-`n` context
+||| weakened past `k` inner binders — `☐ₙ₊ₖ₋₁, …, ☐ₖ`. This is the
+||| only spine shape `mintHole` produces (the identity at the hole's
+||| own context) and the only one substitution then weakens it into,
+||| so recognising it is recognising a solvable occurrence. Anything
+||| else — a spine substitution turned it into real terms — is left
+||| alone.
+spineShift : (n : Nat) -> SubNorm -> Maybe Nat
+spineShift n sp =
+  let es = toList sp in
+  if length es /= n then Nothing else
+  case last' es of
+    Nothing => Just 0
+    Just (CtxVar k) => if es == map CtxVar (reverse [k .. k + minus n 1])
+                         then Just k else Nothing
+    Just _ => Nothing
+
+||| Strengthen past `k` inner binders: the partial inverse of the
+||| weakening `spineShift` measured. Fails exactly when the term
+||| mentions one of them — the SCOPE check, which is what stops a
+||| solution from escaping the context its hole was declared at.
+strengthenBy : Nat -> Elem -> Maybe Elem
+strengthenBy Z t = Just t
+strengthenBy (S k) t = strengthenElem 0 t >>= strengthenBy k
+
+||| Read one constraint side as a solution for a synthetic hole.
+||| Every condition here is a restriction, and each earns its place:
+||| the name must be SYNTHETIC (a written hole is the operator's
+||| question); the spine must be a weakened identity (else the
+||| occurrence is not a variable pattern and the solution is not
+||| unique); the term must strengthen into the hole's own context
+||| (scope); and it must mention no synthetic hole at all, which makes
+||| the solution set trivially acyclic — so `resugarElem` expands it
+||| in one step and the OCCURS check comes free with it.
+trySolveSide : Sig -> (lhs : Elem) -> (rhs : Elem) -> Maybe (String, Elem)
+trySolveSide sig (SigVar h sp) t =
+  if not (isSyntheticHole h) then Nothing else
+  case sigLookup h sig of
+    Just (SigDecl dctx _ _) => do
+      k <- spineShift (length dctx) sp
+      t' <- strengthenBy k t
+      if anySigNameE isSyntheticHole t' then Nothing else Just (h, t')
+    _ => Nothing
+trySolveSide _ _ _ = Nothing
+
+||| The run's synthetic-hole solutions, read off its own constraint
+||| entries. One pass: a solution's right-hand side is hole-free, so
+||| substituting it can never expose a new solvable side, and a second
+||| round could not find anything the first did not. First solution
+||| for a name wins.
+solveHoles : Sig -> List (String, Elem)
+solveHoles sig = go (toList sig) []
+ where
+  add : List (String, Elem) -> Maybe (String, Elem) -> List (String, Elem)
+  add acc Nothing = acc
+  add acc (Just (h, t)) = if isJust (lookup h acc) then acc else (h, t) :: acc
+
+  go : List SigEntry -> List (String, Elem) -> List (String, Elem)
+  go [] acc = acc
+  go (SigDecl ctx n (Elem.EqTy a b _) :: rest) acc =
+    if not (isOblName n) then go rest acc
+    else
+      -- COMP-NORMALIZE both sides first, exactly as the report does
+      -- before printing them. A stored side is raw: `(λ_. A) v` is
+      -- what the elaborator built where the reader sees `A`, and the
+      -- redex mentions the very binder the scope check must not see.
+      -- Solving the term the reader is shown is also the only honest
+      -- thing — the solution appears in their goals.
+      let a' = compElem a
+          b' = compElem b in
+      go rest (add (add acc (trySolveSide sig a' b')) (trySolveSide sig b' a'))
+  go (_ :: rest) acc = go rest acc
+
+||| Install the refinement for a report. Skipped outright when the run
+||| minted no hole, so an ordinary run walks Σ once and stops.
+refineHoles : ElabSt -> ElabSt
+refineHoles st =
+  if not (any (maybe False isHoleName . sigEntryName) (toList st.sig))
+    then st
+    else { holeSols := solveHoles st.sig } st
+
 ||| The report view: Σ's constraint entries — the run's obligations,
 ||| in surfacing order — zipped with their display metadata.
 oblView : ElabSt -> List Obligation
@@ -3167,7 +3287,17 @@ throwShape : Site -> NameEnv -> (lead : String) -> Ty -> (wanted : String) -> El
 throwShape site env lead ty wanted = do
   st <- getSt
   let shown = prettyTyN st.modFix env (displayTy st ty)
-  throwAt site.srange "\{site}: \{lead} \{shown}, which is not \{wanted}"
+  -- A type that IS an undetermined part of a hole needs saying so.
+  -- `?f (λx. …)`: the λ has no type of its own and `?f`'s domain has
+  -- no source, so neither side can start — and "which is not a Π
+  -- type" alone reads like a mistake in the term rather than a gap
+  -- the operator left open.
+  let note = case ty of
+               SigVar h _ => if isSyntheticHole h
+                               then " — \{holeLabel h} is an undetermined part of \{holeOwner h}, so nothing here fixes it: ascribe this argument, or spell \{holeOwner h}"
+                               else ""
+               _ => ""
+  throwAt site.srange "\{site}: \{lead} \{shown}, which is not \{wanted}\{note}"
 
 ||| Annotate an item-level error with any head exposures the strict
 ||| whitelist blocked during the item — drained HERE, after every
@@ -5810,11 +5940,28 @@ holeReport tbl hs =
   "open holes (\{show (length hs)}):\n" ++
   joinBy "\n" (map (prettyDecl tbl) hs)
 
+||| An obligation the refinement DISCHARGED: filling in the synthetic
+||| holes the run's own constraints determine made both sides the same
+||| term. It said what a hole was, the hole now says it, and repeating
+||| it as an open obligation would be noise.
+oblDischarged : Obligation -> Bool
+oblDischarged o = case o.stmt of
+  StElem _ _ a b _ => a == b
+  StTy _ _ a b => a == b
+
+||| A synthetic hole the refinement FILLED IN is no longer open — its
+||| value is what the goals that mention it now show.
+declSolved : ElabSt -> DeclView -> Bool
+declSolved st h = isSyntheticHole h.dvname && isJust (lookup h.dvname st.holeSols)
+
 ||| The composed end-of-run report of everything keeping Σ
 ||| non-definitional; empty exactly when the run is accepted.
 openReport : FixTable -> ElabSt -> Maybe String
-openReport tbl st =
-  case (oblView st, partition (isHoleName . dvname) (declView st)) of
+openReport tbl st0 =
+  let st = refineHoles st0 in
+  case ( filter (not . oblDischarged) (oblView st)
+       , partition (isHoleName . dvname)
+           (filter (not . declSolved st) (declView st))) of
     ([], ([], [])) => Nothing
     (os, (holes, ds)) => Just $ joinBy "\n"
       ((case holes of [] => []; _ => [holeReport tbl holes]) ++

@@ -1806,6 +1806,56 @@ is one) but names itself:
 Acceptance is unchanged and needs no new rule: a hole is a
 non-definition entry of Σ, so a file with one is not definitional.
 
+//////////// Refinement /////////////
+
+A run with holes carries constraints that SAY what its synthetic holes
+are: `?p/imp3 ≐ x`, `?e/squashee ≐ ℕ`. Reading them back turns the
+elaborator's own scaffolding into the goal the operator actually
+faces — `?p : ?p/imp3 ≡ ?p/imp4 ∈ ?p/imp0` becomes `?p : x ≡ y ∈ A`,
+and the constraints that said so are retired.
+
+ONLY SYNTHETIC HOLES ARE INSTANTIATED. A synthetic hole (e-hole-shape,
+and the implicit-spine corollary) stands for something the elaborator
+made up, so determining it from the run's own constraints returns no
+information the operator did not already supply. A WRITTEN hole is the
+operator's question; answering it for them would be a guess, and is
+never done — a `?mid` in a calc chain keeps its adjacencies as open
+obligations, which is exactly the statement of what it must be.
+
+The rule is ordinary Miller pattern unification, restricted:
+
+  `?h[δ] ≐ t`, with `?h` SYNTHETIC, δ the identity substitution of
+  `?h`'s own declaration context weakened past k inner binders, and t
+  strengthening past those k (the SCOPE check) into a term mentioning
+  no synthetic hole (which makes the solution set trivially acyclic,
+  so the occurs check comes with it)
+  ⇒ `?h := t`
+
+Both sides are comp-normalized first, exactly as the report normalizes
+them before printing: a stored side is raw, and `(λ_. A) v` — what the
+elaborator built where the reader sees `A` — mentions the very binder
+the scope check must not see. Solving the term the reader is shown is
+also the only honest thing, since the solution appears in their goals.
+
+One pass suffices: a solution's right-hand side is hole-free, so
+substituting it can never expose a new solvable side.
+
+WHAT THIS IS NOT. It is not the removed solver, and the difference is
+the whole design (PerfNotes "The cost of a hole"). It runs ONCE, after
+elaboration is over, at the moment a report is rendered. It reads Σ and
+never writes it: no declaration-to-definition flip, no cache
+invalidation, no re-attempt, no whole-item rerun. It cannot change what
+anything elaborates to, because nothing elaborates afterwards. And it
+cannot change ACCEPTANCE — a synthetic hole exists only because a
+written one does, and written holes are never solved, so Σ stays
+non-definitional either way.
+
+Its LIMIT is worth stating, because the report shows it. A component
+constrained only at an INSTANCE is not determined by it: `?f Z` yields
+`?f/cod[Z] ≐ ℕ`, which fixes the codomain at Z and says nothing about
+the family, so `?f/cod` stays open. Guessing a constant family from one
+instance is the withdrawn constant tier, and stays withdrawn.
+
 //////////// Recovery /////////////
 
 An item that fails to elaborate does not end the run. Its diagnostic

@@ -1,0 +1,29 @@
+defined cong
+defined implicits [+3 obligations, +4 declarations]
+defined squashee [+1 obligation, +2 declarations]
+defined rfl
+defined written [+1 obligation, +1 declaration]
+defined undetermined [+3 declarations]
+defined instanceOnly [+2 obligations, +3 declarations]
+open holes (8):
+  [?p] (A : 𝕌) (x : A) (y : A) (p : x ≡ y ∈ A) ⊢ ?p : x ≡ x ∈ A
+      at: input.nova:12:40: def implicits
+  [?e] (p : ∥ℕ∥) ⊢ ?e : ∥ℕ∥
+      at: input.nova:15:50: def squashee
+  [?mid] (n : ℕ) ⊢ ?mid : ℕ
+      at: input.nova:21:54: def written
+  [?s/left] ⊢ ?s/left type
+      at: input.nova:26:52: def undetermined
+  [?s/right] ⊢ ?s/right type
+      at: input.nova:26:52: def undetermined
+  [?s] ⊢ ?s : ?s/left ⊎ ?s/right
+      at: input.nova:26:52: def undetermined
+  [?f/cod] (_ : ℕ) ⊢ ?f/cod type
+      at: input.nova:28:24: def instanceOnly
+  [?f] ⊢ ?f : (n:ℕ) → ?f/cod
+      at: input.nova:28:24: def instanceOnly
+open obligations (2):
+  [1] (n : ℕ) ⊢ Z ≐ ?mid : ℕ
+      at: input.nova:21:54: def written: chain, step 1
+  [2] ⊢ ?f/cod[Z] ≐ ℕ type
+      at: input.nova:28:24: def instanceOnly: inferred vs expected type
