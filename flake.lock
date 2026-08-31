@@ -20,17 +20,17 @@
     "lsp-lib": {
       "flake": false,
       "locked": {
-        "lastModified": 1755177633,
-        "narHash": "sha256-maXHx/OrflIdV7XPfDCRShUGZekLbLOSFQPHnL6DxnI=",
+        "lastModified": 1788180988,
+        "narHash": "sha256-UlSM5Q6EwPgBaCe9TfDZ2VSq0pvEo0V+5d2tZDZ109Y=",
         "owner": "idris-community",
         "repo": "lsp-lib",
-        "rev": "ca77e80a392b8cfeee3aaeb150069957699cdb82",
+        "rev": "512504c6680f9ee45d82f1cc06c596cc0be7c4ea",
         "type": "github"
       },
       "original": {
         "owner": "idris-community",
         "repo": "lsp-lib",
-        "rev": "ca77e80a392b8cfeee3aaeb150069957699cdb82",
+        "rev": "512504c6680f9ee45d82f1cc06c596cc0be7c4ea",
         "type": "github"
       }
     },
