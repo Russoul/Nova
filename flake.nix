@@ -12,7 +12,7 @@
       flake = false;
     };
     lsp-lib = {
-      url = "github:idris-community/lsp-lib/ca77e80a392b8cfeee3aaeb150069957699cdb82";
+      url = "github:idris-community/lsp-lib/512504c6680f9ee45d82f1cc06c596cc0be7c4ea";
       flake = false;
     };
   };

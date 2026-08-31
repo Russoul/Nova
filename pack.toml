@@ -17,7 +17,7 @@ packagePath = false
 [custom.all.lsp-lib]
 type        = "github"
 url         = "https://github.com/idris-community/lsp-lib"
-commit      = "ca77e80a392b8cfeee3aaeb150069957699cdb82"
+commit      = "512504c6680f9ee45d82f1cc06c596cc0be7c4ea"
 ipkg        = "lsp-lib.ipkg"
 packagePath = false
 
