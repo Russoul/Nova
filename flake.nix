@@ -33,8 +33,13 @@
         pkgs:
         let
           novaPkgs = import ./nix/packages.nix { inherit pkgs inputs; };
+          vscode = import ./nix/vscode.nix { inherit pkgs inputs; };
         in
-        novaPkgs // { default = novaPkgs.nova; }
+        novaPkgs
+        // {
+          default = novaPkgs.nova;
+          vscode-extension = vscode.extension;
+        }
       );
 
       checks = forAllSystems (pkgs: import ./nix/checks.nix { inherit pkgs inputs; });
@@ -45,6 +50,7 @@
         pkgs:
         let
           novaPkgs = import ./nix/packages.nix { inherit pkgs inputs; };
+          vscode = import ./nix/vscode.nix { inherit pkgs inputs; };
           app = name: {
             type = "app";
             program = "${novaPkgs.${name}}/bin/${name}";
@@ -56,6 +62,11 @@
           nova-lsp = app "nova-lsp";
           nova-docs = app "nova-docs";
           nova-tests = app "nova-tests";
+
+          install-vscode-extension = {
+            type = "app";
+            program = "${pkgs.lib.getExe vscode.installer}";
+          };
         }
       );
 

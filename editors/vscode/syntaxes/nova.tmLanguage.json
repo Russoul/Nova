@@ -1,0 +1,47 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Nova",
+  "scopeName": "source.nova",
+  "comment": "Deliberately minimal. nova-lsp classifies every token itself and publishes semantic tokens (Nova.LSP.SemanticTokens), which is what actually colours a .nova file; this grammar only covers the moment before the server has answered, and files the server could not load. Keeping it to comments, reserved words and numbers avoids a second, drifting copy of the lexer — anything richer belongs in the server.",
+  "patterns": [
+    { "include": "#comment-block" },
+    { "include": "#comment-line" },
+    { "include": "#keyword" },
+    { "include": "#constant" },
+    { "include": "#number" }
+  ],
+  "repository": {
+    "comment-line": {
+      "name": "comment.line.double-dash.nova",
+      "match": "--.*$"
+    },
+    "comment-block": {
+      "name": "comment.block.nova",
+      "begin": "\\{-",
+      "end": "-\\}",
+      "patterns": [{ "include": "#comment-block" }]
+    },
+    "keyword": {
+      "comment": "The reserved words of Nova.Elaboration.Parser. The lookarounds rather than \\b keep `Z'` and `data'`, which are ordinary identifiers, from matching.",
+      "name": "keyword.other.nova",
+      "match": "(?<![A-Za-z0-9_'])(def|type|data|class|import|infixl|infixr|let|in|using|El)(?![A-Za-z0-9_'])"
+    },
+    "constant": {
+      "comment": "Reserved constants and constructors, both spellings. The Unicode forms are not identifier characters, so they need no lookarounds.",
+      "patterns": [
+        {
+          "name": "constant.language.nova",
+          "match": "(?<![A-Za-z0-9_'])(S|Z|Set|Prop|Nat|Void|Unit|inj1|inj2)(?![A-Za-z0-9_'])"
+        },
+        {
+          "name": "constant.language.nova",
+          "match": "[𝕌Ωℕ𝟘𝟙⋆]|inj[₁₂]"
+        }
+      ]
+    },
+    "number": {
+      "name": "constant.numeric.nova",
+      "match": "(?<![A-Za-z0-9_'])[0-9]+(?![A-Za-z0-9_'])"
+    }
+  }
+}

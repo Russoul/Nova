@@ -1,0 +1,76 @@
+{
+  "name": "nova",
+  "displayName": "Nova",
+  "description": "Language support for Nova: diagnostics, hover, go-to-definition, document symbols and semantic highlighting, served by nova-lsp.",
+  "version": "0.1.0",
+  "license": "Unlicense",
+  "publisher": "russoul",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Russoul/Nova.git"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "engines": {
+    "vscode": "^1.82.0"
+  },
+  "main": "./extension.js",
+  "activationEvents": [
+    "onLanguage:nova"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "nova",
+        "aliases": [
+          "Nova"
+        ],
+        "extensions": [
+          ".nova"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "nova",
+        "scopeName": "source.nova",
+        "path": "./syntaxes/nova.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "nova.restartServer",
+        "title": "Nova: Restart Language Server"
+      },
+      {
+        "command": "nova.showServerLog",
+        "title": "Nova: Show Language Server Log"
+      }
+    ],
+    "configuration": {
+      "title": "Nova",
+      "properties": {
+        "nova.lsp.path": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Path to the `nova-lsp` executable. Leave empty to use, in order: the `NOVA_LSP_BIN` environment variable, the server this extension was built against (Nix builds only), then `nova-lsp` on `PATH`."
+        },
+        "nova.elabTime.show": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Show elaboration time in the status bar after each load. The server reports it via the `nova/elabTime` notification, on open and on save."
+        }
+      }
+    },
+    "configurationDefaults": {
+      "[nova]": {
+        "editor.semanticHighlighting.enabled": true
+      }
+    }
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  }
+}
