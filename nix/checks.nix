@@ -86,6 +86,10 @@ in
   # renders to HTML.
   site = novaPkgs.site;
 
+  # The VS Code extension packages, which also proves the nova-lsp path
+  # substitution still finds its placeholder in extension.js.
+  vscode-extension = (import ./vscode.nix { inherit pkgs inputs; }).extension;
+
   # Rule-shaped citations in src/idris must all be defined by a spec,
   # and rule names must be unique.
   spec-rules = mkCheck "spec-rules" {

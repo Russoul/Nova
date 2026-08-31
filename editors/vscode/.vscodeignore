@@ -1,0 +1,5 @@
+# Everything else in this directory is part of the extension. The
+# lockfile is a build input (npm ci / npmDepsHash), not something the
+# packaged extension needs at runtime.
+.vscodeignore
+package-lock.json
