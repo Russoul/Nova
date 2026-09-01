@@ -1,0 +1,11 @@
+#!/bin/sh
+rm -rf out
+mkdir out
+"$1" eliminate input.nova 12:63 h > out/input.nova
+sed -n "12p" out/input.nova
+"$1" eliminate input.nova 19:46 x | sed -n "19p"
+echo "--- and one the item has not cited its way into:"
+"$1" eliminate input.nova 16:44 h
+echo "--- re-elaborated:"
+"$1" elab out/input.nova
+rm -rf out

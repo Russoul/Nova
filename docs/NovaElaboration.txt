@@ -1931,6 +1931,18 @@ disk never sees a keystroke, so a buffer that has moved on is caught
 by the client refusing the stamp rather than by the server misplacing
 a span.
 
+WHICH ELIMINATION A VARIABLE HAS is read off its type with the head
+EXPOSED, not as the report prints it. A type is usually WRITTEN as a
+definition — `bisim s t` is a squash and nothing about the folded
+spelling says so — so classifying on the display form would see a
+signature reference and offer nothing. The display form is what is
+printed BACK, since that is what the operator reads. Exposure here
+runs with the unfold whitelist OPEN: `expOK`'s licence governs what a
+PROOF may unfold and belongs to the surfacing item, while this needs
+only the SHAPE. Whether the elaborator may then follow the same
+unfolding is the trial's question, and its answer names the remedy —
+the item's own `using (<name>.unfold)`.
+
 THE PRIMITIVE is scrutinee abstraction — `absT 0 x A`, the same
 operation that recovers an elided motive (docs/NovaPerfectSurface.txt,
 the sugar tiers). Every form below is that abstraction, instantiated:

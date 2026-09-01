@@ -1,0 +1,19 @@
+def cited : (n : ℕ) → sq n → sq n using (sq.unfold) ≔ λn. λh. (squash-elim h (h. ?g1Sq))
+def v : alias → ℕ using (alias.unfold) ≔ λx. (⊎-elim (x. ?g3Inl) (x. ?g3Inr) x)
+--- and one the item has not cited its way into:
+the elimination does not elaborate, so it is not offered:
+def bare: squash-elim scrutinee has type (sq n), which is not a ∥∥ proposition
+  note: this reads h's type through sq; the item may need `using (sq.unfold)`
+--- re-elaborated:
+defined sq
+defined alias
+defined cited [+1 declaration]
+defined bare [+1 declaration]
+defined v [+1 declaration]
+open holes (3):
+  [?g1Sq] (n : ℕ) (h : (sq n)) (h : ℕ) ⊢ ?g1Sq : (sq n)
+      at: out/input.nova:12:82: def cited
+  [?g2] (n : ℕ) (h : (sq n)) ⊢ ?g2 : (sq n)
+      at: out/input.nova:16:44: def bare
+  [?g3] (x : alias) ⊢ ?g3 : ℕ
+      at: out/input.nova:19:46: def v

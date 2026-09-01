@@ -410,9 +410,9 @@ layoutApp col hd args =
 ||| — and trying the preferred one first, with the other behind it,
 ||| keeps that judgement out of this module and in the trial.
 export
-eliminate : FixTable -> Options -> (taken : List String) -> (qiits : List QIITInfo)
-         -> DeclView -> (var : String) -> Either String (List (Range, String))
-eliminate tbl opts taken qiits h var =
+eliminate : Options -> (taken : List String) -> (qiits : List QIITInfo)
+         -> HoleView -> (var : String) -> Either String (List (Range, String))
+eliminate opts taken qiits v var =
   case (h.dvrange, h.dvty) of
     (Nothing, _) => Left "the hole has no source span to replace"
     (_, Nothing) => Left "a TYPE hole has no goal to eliminate into"
@@ -426,6 +426,10 @@ eliminate tbl opts taken qiits h var =
           Nothing => Left "\{var} is not a variable of this goal's context"
           Just vty =>
             let px      = posOfIndex n k
+                -- the same entry, head EXPOSED: what the former is
+                -- read off, since the display form keeps a definition
+                -- folded (`bisim s t`, whose former is a squash)
+                vtyX    = fromMaybe vty (at (posOfIndex n k) tysX)
                 label   = bareLabel h.dvname
                 col     = rng.start.column
                 gen     = closure tys px
@@ -460,7 +464,7 @@ eliminate tbl opts taken qiits h var =
                 bare    = null gen && skelFreeT (absT 0 (CtxVar k) goal)
                 lbl     = \i, tag => freshLabel taken (pick opts.optLabels i (label ++ tag))
                 own     = freshLabel taken label
-            in case ( former vty
+            in case ( former vtyX
                     , captureCheck tys nms renamed gen px n goal
                         <|> anonCheck tys nms gen n goal ) of
                  (_, Just err) => Left err
@@ -543,6 +547,18 @@ eliminate tbl opts taken qiits h var =
                                         (prettyElemN tbl scope l)
                      _ => Left "\{var} : neither side of this equation is a variable"
  where
+  tbl : FixTable
+  tbl = v.hvFix
+
+  h : DeclView
+  h = v.hvDecl
+
+  ||| CLASSIFY on the exposed context, PRINT from the display one: a
+  ||| type is usually written as a definition, and its former shows
+  ||| only after exposure.
+  tysX : List Ty
+  tysX = toList v.hvCtxX
+
   ||| A QIIT sort, recognized through the def that NAMES it, with the
   ||| arguments it stands at.
   qiitAt : List QIITInfo -> Ty -> Maybe (QIITInfo, List Elem)
@@ -709,12 +725,12 @@ parseOpts = go defaultOptions
 ||| the same item. The hole being replaced is not among them — its own
 ||| text is what goes away, so a retype may keep its label.
 export
-siblingLabels : List (String, FixTable, DeclView) -> DeclView -> List String
+siblingLabels : List HoleView -> DeclView -> List String
 siblingLabels hs h =
-  [ bareLabel v.dvname
-  | (_, _, v) <- hs
-  , holeItem v.dvname == holeItem h.dvname
-  , bareLabel v.dvname /= bareLabel h.dvname ]
+  [ bareLabel v.hvDecl.dvname
+  | v <- hs
+  , holeItem v.hvDecl.dvname == holeItem h.dvname
+  , bareLabel v.hvDecl.dvname /= bareLabel h.dvname ]
 
 ||| WHAT THIS HOLE OFFERS: one entry per context variable that has an
 ||| elimination, with the variable's name, its type as the report would
@@ -725,11 +741,11 @@ siblingLabels hs h =
 ||| at the hole, since resolution takes the innermost binding of a name
 ||| (Name resolution). Neither is an anonymous entry.
 export
-offers : FixTable -> (taken : List String) -> (qiits : List QIITInfo) -> DeclView
+offers : (taken : List String) -> (qiits : List QIITInfo) -> HoleView
       -> List (String, String, Bool)
-offers tbl taken qiits h =
-  let tys = toList h.dvctx
-      nms = toList h.dvenv
+offers taken qiits v =
+  let tys = toList v.hvDecl.dvctx
+      nms = toList v.hvDecl.dvenv
       n   = length tys
   in mapMaybe (offer tys nms n) [0 .. minus n 1]
  where
@@ -737,16 +753,16 @@ offers tbl taken qiits h =
   offer tys nms n p =
     let var = nameOr nms p in
     if var == wildcard then Nothing
-    else if resolveName h.dvenv var /= Just (posOfIndex n p) then Nothing
-    else case eliminate tbl defaultOptions taken qiits h var of
+    else if resolveName v.hvDecl.dvenv var /= Just (posOfIndex n p) then Nothing
+    else case eliminate defaultOptions taken qiits v var of
       Left _ => Nothing
       Right [] => Nothing
       Right ((_, shallow) :: _) =>
-        let deep = case eliminate tbl ({ optDeep := True } defaultOptions) taken qiits h var of
+        let deep = case eliminate ({ optDeep := True } defaultOptions) taken qiits v var of
                      Right ((_, t) :: _) => t /= shallow
                      _ => False
         in Just ( var
-                , prettyTyN tbl (toSnoc (take p nms)) (fromMaybe TopTy (at p tys))
+                , prettyTyN v.hvFix (toSnoc (take p nms)) (fromMaybe TopTy (at p tys))
                 , deep )
 
 ||| Does this hole's own span cover the given (0-based) position?
@@ -760,8 +776,8 @@ covers line col h = case h.dvrange of
 ||| The holes of the ROOT module: a command edits the file it was
 ||| given, so only that module's holes are addressable.
 export
-rootHoles : ElabReport -> List (FixTable, DeclView)
-rootHoles report = [ (tbl, h) | (m, tbl, h) <- report.holes, m == "" ]
+rootHoles : ElabReport -> List HoleView
+rootHoles report = filter (\v => v.hvModule == "") report.holes
 
 ||| The one hole whose own `?x` span covers a position.
 |||
@@ -770,9 +786,9 @@ rootHoles report = [ (tbl, h) | (m, tbl, h) <- report.holes, m == "" ]
 ||| one text cannot serve them all (docs/NovaElaboration.txt,
 ||| Restrictions).
 export
-holeAt : ElabReport -> (line, col : Int) -> Either String (FixTable, DeclView)
+holeAt : ElabReport -> (line, col : Int) -> Either String HoleView
 holeAt report line col =
-  case filter (\th => covers line col (snd th)) (rootHoles report) of
+  case filter (\v => covers line col v.hvDecl) (rootHoles report) of
     [th] => Right th
     []   => Left "no hole at \{show (line + 1)}:\{show (col + 1)}"
     hs   => Left "\{show (length hs)} holes share this span — an item macro elaborates its body more than once, and one text cannot serve every context"
@@ -781,11 +797,25 @@ holeAt report line col =
 ||| chose one (the code action's resolve step, which addresses the
 ||| hole it offered rather than a position that may have moved).
 export
-holeNamed : ElabReport -> (sigName : String) -> Maybe (FixTable, DeclView)
+holeNamed : ElabReport -> (sigName : String) -> Maybe HoleView
 holeNamed report x =
-  case filter (\th => (snd th).dvname == x) (rootHoles report) of
-    (th :: _) => Just th
-    []        => Nothing
+  case filter (\v => v.hvDecl.dvname == x) (rootHoles report) of
+    (v :: _) => Just v
+    []       => Nothing
+
+||| The definition an elimination had to READ THROUGH to find its
+||| former: the display type is folded (`bisim s t`), classification
+||| ran on the exposed one, and the elaborator will only follow the
+||| same unfolding where the item CITES it. Naming it turns a trial
+||| failure into the standard remedy.
+export
+unfoldHint : HoleView -> (var : String) -> Maybe String
+unfoldHint v var = do
+  k <- resolveName v.hvDecl.dvenv var
+  let n = length (toList v.hvDecl.dvctx)
+  folded <- at (posOfIndex n k) (toList v.hvDecl.dvctx)
+  exposed <- at (posOfIndex n k) (toList v.hvCtxX)
+  if show folded == show exposed then Nothing else Nothing <|> map fst (spineHead folded)
 
 ||| VERIFIED, NOT TRUSTED (docs/NovaElaboration.txt): the candidate is
 ||| re-parsed and re-elaborated before it is handed back, and rejected
@@ -818,23 +848,28 @@ verify rootPath content = do
 ||| caller already has the run that found the hole, so this re-runs the
 ||| elaborator exactly once — on the candidate.
 export
-eliminateEdit : (rootPath, src : String) -> (tbl : FixTable) -> (h : DeclView)
+eliminateEdit : (rootPath, src : String) -> (v : HoleView)
              -> (taken : List String) -> (qiits : List QIITInfo) -> (var : String)
              -> Options -> IO (Either String (Range, String))
-eliminateEdit rootPath src tbl h taken qiits var opts =
-  case eliminate tbl opts taken qiits h var of
+eliminateEdit rootPath src v taken qiits var opts =
+  case eliminate opts taken qiits v var of
     Left err => pure (Left err)
     Right cands => go cands
  where
   -- the first candidate that ELABORATES wins; the last one's failure
   -- is what the operator is told about, since the preferred forms
   -- differ only in what the elaborator was asked to recover
+  note : String
+  note = case unfoldHint v var of
+    Just x => "\n  note: this reads \{var}'s type through \{x}; the item may need `using (\{x}.unfold)`"
+    Nothing => ""
+
   go : List (Range, String) -> IO (Either String (Range, String))
   go [] = pure (Left "no form of this elimination elaborates")
   go ((rng, txt) :: rest) = do
     Nothing <- verify rootPath (spliceAt src rng txt)
       | Just err => case rest of
-          [] => pure (Left "the elimination does not elaborate, so it is not offered:\n\{err}")
+          [] => pure (Left "the elimination does not elaborate, so it is not offered:\n\{err}\{note}")
           _  => go rest
     pure (Right (rng, txt))
 
@@ -852,8 +887,8 @@ eliminatePath rootPath line col var opts = do
   let report = elabProgramReport units
   case holeAt report line col of
     Left err => pure (Left err)
-    Right (tbl, h) => do
-      Right (rng, txt) <- eliminateEdit rootPath src tbl h (siblingLabels report.holes h) report.qiits var opts
+    Right v => do
+      Right (rng, txt) <- eliminateEdit rootPath src v (siblingLabels report.holes v.hvDecl) report.qiits var opts
         | Left err => pure (Left (if isPrefixOf "the elimination" err
                                     then err
                                     else "\{rootPath}:\{show (line + 1)}:\{show (col + 1)}: \{err}"))

@@ -2748,6 +2748,23 @@ record DeclView where
   dvfile : String
   dvrange : Maybe Range
 
+||| One hole, as a type-directed transformation needs it: its module,
+||| that module's fixity table (the printer's), the view the report
+||| renders — and the context with each entry's HEAD EXPOSED.
+|||
+||| The two contexts differ, and both are needed. A type is usually
+||| WRITTEN as a definition (`bisim s t`), and its former appears only
+||| after exposure, so classifying on the display form would see a
+||| signature reference and offer nothing. The display form is what the
+||| operator READS, so that is what gets printed back.
+public export
+record HoleView where
+  constructor MkHoleView
+  hvModule : String
+  hvFix    : FixTable
+  hvDecl   : DeclView
+  hvCtxX   : Ctx
+
 ||| The declaration report view: Σ's declaration entries zipped with
 ||| their display metadata, in minting order.
 declView : ElabSt -> List DeclView
@@ -6397,13 +6414,11 @@ record ElabReport where
   ||| open declarations, pre-rendered (module, range, report text) —
   ||| the range is the declaring item's
   decls : List (String, Maybe Range, String)
-  ||| every HOLE of the run, STRUCTURED: its module, that module's
-  ||| fixity table (the printer's) and the view itself — context,
-  ||| type and its own `?x` span. `decls` renders these for display;
-  ||| this is what in-place elimination READS (docs/
+  ||| every HOLE of the run, STRUCTURED. `decls` renders these for
+  ||| display; this is what in-place elimination READS (docs/
   ||| NovaElaboration.txt, In-place elimination), which needs the
   ||| context and goal as terms, not as report text.
-  holes : List (String, FixTable, DeclView)
+  holes : List HoleView
   ||| one per SORT of every `data` item the run elaborated: what
   ||| applying a generated eliminator needs, which the carried
   ||| signature does not say (the names).
@@ -6435,11 +6450,25 @@ elabProgramReport units = go initSt units [] [] [] []
   Tagged : Type
   Tagged = ( List (String, Maybe Range, Obligation)
            , List (String, Maybe Range, String)
-           , List (String, FixTable, DeclView) )
+           , List HoleView )
 
-  ||| The HOLES among a batch of new declarations, kept structured.
-  holesOf : FixTable -> String -> List DeclView -> List (String, FixTable, DeclView)
-  holesOf tbl mname hs = [ (mname, tbl, h) | h <- hs, isHoleName h.dvname ]
+  ||| The HOLES among a batch of new declarations, kept structured —
+  ||| with each one's context HEAD-EXPOSED alongside the display form.
+  ||| Exposure is normalization, so it is paid here, per hole, and not
+  ||| in `declView`, which every module boundary calls just to ask
+  ||| whether anything is open.
+  holesOf : ElabSt -> FixTable -> String -> List DeclView -> List HoleView
+  holesOf st tbl mname hs =
+    -- exposure with the whitelist OPEN. `expOK`'s licence governs what
+    -- a PROOF may unfold, and it is the surfacing item's, spent by the
+    -- time a report is rendered; what this needs is only the SHAPE, to
+    -- decide which elimination a variable has. Whether the elaborator
+    -- may then see that shape is the trial's question, and the remedy
+    -- is the item's own `using` clause. Opening it here also keeps
+    -- report-time classification out of the blocked-exposure log.
+    let stX = { eqScope $= ("exp:*" ::) } st in
+    [ MkHoleView mname tbl h (map (exposeHead stX) h.dvctx)
+    | h <- hs, isHoleName h.dvname ]
 
   -- an obligation or declaration the elaborator localized reports at
   -- ITS span, not at the whole item (same narrowing the CLI shows)
@@ -6448,7 +6477,7 @@ elabProgramReport units = go initSt units [] [] [] []
     let ds = newDecls before after in
     ( map (\o => (mname, o.site.srange <|> rng, o)) (newObls before after)
     , map (\h => (mname, h.dvrange <|> rng, prettyDecl tbl h)) ds
-    , holesOf tbl mname ds )
+    , holesOf after tbl mname ds )
 
   ||| Same item recovery as the CLI fold: a failed item is reported,
   ||| its holes are salvaged as diagnostics of their own spans, it
@@ -6470,14 +6499,14 @@ elabProgramReport units = go initSt units [] [] [] []
                 Nothing => (st, ([], [], []))
             (st'', (obls, hs, sts), errs) = goItems tbl mname stNext rest in
         (st'', (dObls ++ obls, salv ++ dHs ++ hs,
-                holesOf tbl mname salvaged ++ dSt ++ sts),
+                holesOf stFail tbl mname salvaged ++ dSt ++ sts),
          (mname, err.erange <|> rng, withBlockedHint stFail.sig err.emsg) :: errs)
       Right (st', _) =>
         let (tObls, tHs, tSt) = tag tbl mname rng st st'
             (st'', (obls, hs, sts), errs) = goItems tbl mname st' rest in
         (st'', (tObls ++ obls, tHs ++ hs, tSt ++ sts), errs)
 
-  go : ElabSt -> List ModUnit -> List (String, Maybe Range, Obligation) -> List (String, Maybe Range, String) -> List (String, FixTable, DeclView) -> List (String, Maybe Range, String) -> ElabReport
+  go : ElabSt -> List ModUnit -> List (String, Maybe Range, Obligation) -> List (String, Maybe Range, String) -> List HoleView -> List (String, Maybe Range, String) -> ElabReport
   go st [] obls hs sts errs = MkElabReport obls hs sts (toList st.qiits) [] errs
   go st (MkModUnit name path imps tbl items _ _ _ :: rest) obls hs sts errs =
     let st = either (const st) fst (runElabM (enterModule name path tbl (map mname imps)) st) in
