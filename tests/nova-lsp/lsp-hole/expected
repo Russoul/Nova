@@ -1,5 +1,5 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
-CAPS: hover=true definition=true documentSymbol=true
+CAPS: hover=true definition=true documentSymbol=true codeAction={"codeActionKinds":["refactor.rewrite"],"resolveProvider":true}
 DIAGNOSTICS (1):
   [L3:30-L3:35] (warning)   [?goal] (n : ℕ) ⊢ ?goal : ℕ
       at: DIR/fixture.nova:3:30: def open
@@ -57,6 +57,7 @@ SYMBOLS (2):
   open (kind 12) [L3:1-L3:35]
 DEFINITION(plus): SAME FILE [L2:1-L2:62]
 HOVER(plus): null
+CODE ACTIONS(plus) (0):
 DIAGNOSTICS FOR FIXTURE (1):
   [L3:30-L3:35] (warning)   [?goal] (n : ℕ) ⊢ ?goal : ℕ
       at: DIR/fixture.nova:3:30: def open

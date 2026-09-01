@@ -1,0 +1,16 @@
+-- el-let leaves TWO entries in the context — the value and its
+-- unfolding equation — where the source wrote ONE binding, so the
+-- report folds the pair back into an annotated let (The report,
+-- conventions). Nested lets fold one binding each; unfolded, they
+-- would double the context of every goal after them.
+def f : (n : ℕ) → ℕ ≔ λn. let m ≔ n in ?goal
+
+def g : (n : ℕ) → ℕ ≔ λn. let m ≔ n in let k ≔ m in ?deep
+
+-- The fold is by SHAPE and by ANONYMITY. A NAMED hypothesis of the
+-- let shape is a hypothesis the operator introduced, and stays one.
+def named : (n : ℕ) (m : ℕ) → (m ≡ n ∈ ℕ) → ℕ ≔ λn. λm. λp. ?keep
+
+-- An ANONYMOUS one folds, which states exactly what it says: m is
+-- this context's name for n.
+def anon : (n : ℕ) (m : ℕ) → (m ≡ n ∈ ℕ) → ℕ ≔ λn. λm. λ_. ?fold

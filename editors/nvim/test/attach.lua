@@ -52,6 +52,13 @@ if attached then
   check("definition", caps.definitionProvider ~= nil and caps.definitionProvider ~= false)
   check("documentSymbol", caps.documentSymbolProvider ~= nil and caps.documentSymbolProvider ~= false)
   check("semanticTokens", caps.semanticTokensProvider ~= nil)
+  -- in-place elimination is a code action, and its edit is computed on
+  -- resolve: a client that does not see BOTH flags never asks
+  check("codeAction", caps.codeActionProvider ~= nil and caps.codeActionProvider ~= false)
+  check(
+    "codeAction resolve",
+    type(caps.codeActionProvider) == "table" and caps.codeActionProvider.resolveProvider == true
+  )
 
   -- The legend the plugin deliberately does NOT copy. If this ever
   -- changes, neovim's native mapping follows it and the plugin needs no

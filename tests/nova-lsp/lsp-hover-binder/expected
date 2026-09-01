@@ -1,5 +1,5 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
-CAPS: hover=true definition=true documentSymbol=true
+CAPS: hover=true definition=true documentSymbol=true codeAction={"codeActionKinds":["refactor.rewrite"],"resolveProvider":true}
 DIAGNOSTICS (0):
 ELABTIME: reported
 TOKENS (44):
@@ -52,6 +52,7 @@ SYMBOLS (2):
   four (kind 12) [L2:1-L2:41]
 DEFINITION(lofo): null
 HOVER(lofo): [L1:23-L1:27] ```nova ⏎ lofo : ℕ ⏎ ```
+CODE ACTIONS(lofo) (0):
 DIAGNOSTICS FOR FIXTURE (0):
 ELABTIME: reported
 SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh

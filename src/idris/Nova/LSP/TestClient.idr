@@ -193,6 +193,32 @@ renderToken lns (line, col, len, kind) =
       ce = cpColAt lns line (col + len)
   in "  L\{show (line + 1)}:\{show (cs + 1)}+\{show (ce - cs)} \{kind}"
 
+||| An LSP range as the goldens print one: 1-based, codepoint columns.
+renderRangeJ : (lns : List String) -> JSON -> String
+renderRangeJ lns r = fromMaybe "?" $ do
+  sl <- getPath ["start", "line"] r >>= asInt
+  sc <- getPath ["start", "character"] r >>= asInt
+  el <- getPath ["end", "line"] r >>= asInt
+  ec <- getPath ["end", "character"] r >>= asInt
+  pure "L\{show (sl + 1)}:\{show (cpColAt lns sl sc + 1)}-L\{show (el + 1)}:\{show (cpColAt lns el ec + 1)}"
+
+||| The workspace edit a resolved code action carries: where it lands,
+||| the document version it is STAMPED with (a client refuses an edit
+||| whose stamp its buffer has moved past), and the text itself.
+renderResolved : (lns : List String) -> JSON -> List String
+renderResolved lns j =
+  case (do dcs <- getPath ["result", "edit", "documentChanges"] j >>= asArray
+           dc  <- head' dcs
+           es  <- getPath ["edits"] dc >>= asArray
+           e   <- head' es
+           rng <- getField "range" e
+           txt <- getPath ["newText"] e >>= asString
+           pure (getPath ["textDocument", "version"] dc, rng, txt)) of
+    Nothing => ["  (no edit)"]
+    Just (ver, rng, txt) =>
+      "  at \{renderRangeJ lns rng}, version \{stringify (fromMaybe JNull ver)}"
+        :: map ("  | " ++) (lines txt)
+
 renderDiagnostic : (lns : List String) -> JSON -> String
 renderDiagnostic lns d =
   let range = fromMaybe "?" (do
@@ -363,7 +389,7 @@ runLspTest lspBinPath fixtureAbsPath word = do
   -- REAL client (unlike this one) refuses to send requests the server
   -- did not advertise, so a handler behind a false flag is dead code
   let cap = \k => stringify (fromMaybe JNull (getPath ["result", "capabilities", k] initResp))
-  putStrLn "CAPS: hover=\{cap "hoverProvider"} definition=\{cap "definitionProvider"} documentSymbol=\{cap "documentSymbolProvider"}"
+  putStrLn "CAPS: hover=\{cap "hoverProvider"} definition=\{cap "definitionProvider"} documentSymbol=\{cap "documentSymbolProvider"} codeAction=\{cap "codeActionProvider"}"
 
   writeMessage proc.input (notif "initialized" (JObject []))
 
@@ -427,6 +453,32 @@ runLspTest lspBinPath fixtureAbsPath word = do
     | Nothing => dieMsg "no response to hover"
   let hovResult = fromMaybe JNull (getField "result" hovResp)
   putStrLn "HOVER(\{word}): \{renderHover lns hovResult}"
+
+  -- CODE ACTIONS at the same position. At a hole, in-place elimination
+  -- offers one per variable of its context that has one; anywhere else
+  -- the list is empty. The EDIT is not in the offer — the server
+  -- computes it on RESOLVE, where it verifies the candidate by
+  -- re-elaborating the file it would land in, once, for the one the
+  -- operator picked.
+  let posJ = JObject [("line", JNumber (cast wline)), ("character", JNumber (cast wch))]
+  writeMessage proc.input (req 8 "textDocument/codeAction" (JObject
+    [ ("textDocument", JObject [("uri", JString uri)])
+    , ("range", JObject [("start", posJ), ("end", posJ)])
+    , ("context", JObject [("diagnostics", JArray [])])
+    ]))
+  Just caResp <- readDraining proc.output uri lns normalise
+    | Nothing => dieMsg "no response to codeAction"
+  let acts = fromMaybe [] (getField "result" caResp >>= asArray)
+  putStrLn "CODE ACTIONS(\{word}) (\{show (length acts)}):"
+  traverse_ (\a => putStrLn ("  " ++ fromMaybe "?" (getPath ["title"] a >>= asString))) acts
+  case acts of
+    [] => pure ()
+    (a :: _) => do
+      writeMessage proc.input (req 9 "codeAction/resolve" a)
+      Just resResp <- readDraining proc.output uri lns normalise
+        | Nothing => dieMsg "no response to codeAction/resolve"
+      putStrLn "RESOLVED (the first):"
+      traverse_ (putStrLn . normalise) (renderResolved lns resResp)
 
   -- a save reloads the document (fresh diagnostics for it and any
   -- cross-file targets, drained here) and — when the reload SUCCEEDS

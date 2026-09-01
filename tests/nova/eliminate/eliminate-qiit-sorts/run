@@ -1,0 +1,10 @@
+#!/bin/sh
+rm -rf out
+mkdir out
+"$1" eliminate input.nova 14:23 c > out/input.nova
+sed -n "14,21p" out/input.nova
+echo "--- re-elaborated (the other sort's motive is a goal of its own):"
+"$1" elab out/input.nova
+echo "--- the indexed sort is not offered:"
+"$1" eliminate input.nova 16:40 t
+rm -rf out

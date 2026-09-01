@@ -1,0 +1,14 @@
+-- A QIIT sort has no expression-level eliminator: what it has is the
+-- pair of eliminator lemmas its `data` item generated, and eliminating
+-- a variable of one is APPLYING one (docs/NovaElaboration.txt,
+-- In-place elimination). Parameters first, then one motive per SORT of
+-- the signature, then a method per point constructor — η-expanded, so
+-- each goal is stated at the constructor it belongs to rather than at
+-- a Π type — then a coherence per equation constructor, then the
+-- eliminee.
+data [a : 𝕌] ( Bag : U
+     ; nil : El Bag
+     ; ins : a → El Bag → El Bag
+     ; swp : (x : a) (y : a) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )
+
+def sz : (a : 𝕌) → Bag a → ℕ ≔ λa. λm. ?goal

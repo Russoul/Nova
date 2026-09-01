@@ -1,0 +1,14 @@
+def c : (x : ℕ × ℕ) → P (x .π₁) ≔ λx. (let x1 ≔ x .π₁ in
+                                       let x2 ≔ x .π₂ in
+                                       (((ℕ-elim (x1. (_ : x1 ≡ x .π₁ ∈ ℕ) → (P x1))
+                                         (λ_. ?gZ)
+                                         (x1 ih. λ_. ?gS)
+                                         x1) ⋆) : (P x1)))
+--- re-elaborated (each branch is handed the equation):
+defined P
+defined c [+2 declarations]
+open holes (2):
+  [?gZ] (x : ℕ × ℕ) (x1 : ℕ ≔ x .π₁) (x2 : ℕ ≔ x .π₂) (_ : Z ≡ x .π₁ ∈ ℕ) ⊢ ?gZ : (P Z)
+      at: out/input.nova:14:47: def c
+  [?gS] (x : ℕ × ℕ) (x1 : ℕ ≔ x .π₁) (x2 : ℕ ≔ x .π₂) (x1 : ℕ) (ih : (x1 ≡ x .π₁ ∈ ℕ) → (P x1)) (_ : S x1 ≡ x .π₁ ∈ ℕ) ⊢ ?gS : (P (S x1))
+      at: out/input.nova:15:54: def c

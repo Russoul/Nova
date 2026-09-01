@@ -1,0 +1,11 @@
+#!/bin/sh
+rm -rf out
+mkdir out
+"$1" eliminate input.nova 9:39 x | sed -n "9,12p"
+"$1" eliminate input.nova 13:45 x --deep | sed -n "13,18p"
+"$1" eliminate input.nova 16:39 x | sed -n "16,18p"
+"$1" eliminate input.nova 20:65 h > out/input.nova
+sed -n "20p" out/input.nova
+echo "--- re-elaborated (the switch closes by reflection, no obligation):"
+"$1" elab out/input.nova
+rm -rf out

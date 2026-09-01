@@ -1,5 +1,5 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
-CAPS: hover=true definition=true documentSymbol=true
+CAPS: hover=true definition=true documentSymbol=true codeAction={"codeActionKinds":["refactor.rewrite"],"resolveProvider":true}
 DIAGNOSTICS (0):
 ELABTIME: reported
 TOKENS (165):
@@ -175,12 +175,13 @@ SYMBOLS (4):
   useTrans (kind 12) [L8:1-L9:47]
 DEFINITION(_ _ n u): null
 HOVER(_ _ n u): [L6:38-L6:39] ```nova ⏎ _ : 𝕌 ≔ ℕ ⏎ -- solved from the expected type ⏎ ```
+CODE ACTIONS(_ _ n u) (0):
 DIAGNOSTICS FOR FIXTURE (0):
 ELABTIME: reported
 SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
 SERVER EXIT CODE: 0
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
-CAPS: hover=true definition=true documentSymbol=true
+CAPS: hover=true definition=true documentSymbol=true codeAction={"codeActionKinds":["refactor.rewrite"],"resolveProvider":true}
 DIAGNOSTICS (0):
 ELABTIME: reported
 TOKENS (165):
@@ -356,12 +357,13 @@ SYMBOLS (4):
   useTrans (kind 12) [L8:1-L9:47]
 DEFINITION(_ n u): null
 HOVER(_ n u): [L6:40-L6:41] ```nova ⏎ _ : 𝕌 ≔ 𝟙 ⏎ -- solved from the type of u ⏎ ```
+CODE ACTIONS(_ n u) (0):
 DIAGNOSTICS FOR FIXTURE (0):
 ELABTIME: reported
 SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
 SERVER EXIT CODE: 0
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
-CAPS: hover=true definition=true documentSymbol=true
+CAPS: hover=true definition=true documentSymbol=true codeAction={"codeActionKinds":["refactor.rewrite"],"resolveProvider":true}
 DIAGNOSTICS (0):
 ELABTIME: reported
 TOKENS (165):
@@ -537,6 +539,7 @@ SYMBOLS (4):
   useTrans (kind 12) [L8:1-L9:47]
 DEFINITION(_ _ p q): null
 HOVER(_ _ p q): [L9:40-L9:41] ```nova ⏎ _ : A ≔ b ⏎ -- solved from the type of p ⏎ ```
+CODE ACTIONS(_ _ p q) (0):
 DIAGNOSTICS FOR FIXTURE (0):
 ELABTIME: reported
 SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh

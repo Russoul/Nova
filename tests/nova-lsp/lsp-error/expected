@@ -1,5 +1,5 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
-CAPS: hover=true definition=true documentSymbol=true
+CAPS: hover=true definition=true documentSymbol=true codeAction={"codeActionKinds":["refactor.rewrite"],"resolveProvider":true}
 DIAGNOSTICS (2):
   [L1:1-L1:29] (warning)   [bad] ⊢ ? : ℕ
       at: DIR/fixture.nova:1:1: def bad
@@ -16,6 +16,7 @@ SYMBOLS (1):
   bad (kind 12) [L1:1-L1:29]
 DEFINITION(undefinedThing): null
 HOVER(undefinedThing): null
+CODE ACTIONS(undefinedThing) (0):
 DIAGNOSTICS FOR FIXTURE (2):
   [L1:1-L1:29] (warning)   [bad] ⊢ ? : ℕ
       at: DIR/fixture.nova:1:1: def bad

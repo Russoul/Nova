@@ -1,0 +1,16 @@
+-- A MUTUAL signature has one motive per SORT, and only the eliminated
+-- sort's is determined: the others are unconstrained, so they are
+-- minted as holes at their own declared domains and the methods that
+-- land at them are stated there. An INDEXED sort is not offered — its
+-- motive must abstract the indices too, which scrutinee abstraction
+-- alone does not do.
+data ( Con : U
+     ; Ty : El Con → U
+     ; nil : El Con
+     ; ext : (gamma : El Con) → El (Ty gamma) → El Con
+     ; unit : (gamma : El Con) → El (Ty gamma)
+     ; arr : (gamma : El Con) → El (Ty gamma) → El (Ty gamma) → El (Ty gamma) )
+
+def d : Con → ℕ ≔ λc. ?goal
+
+def e : (g : Con) → Ty g → ℕ ≔ λg. λt. ?indexed

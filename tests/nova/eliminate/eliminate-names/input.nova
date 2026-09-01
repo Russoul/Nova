@@ -1,0 +1,19 @@
+-- Every name the transformation invents is a DEFAULT the operator may
+-- override, slot by slot (docs/NovaElaboration.txt, Names), and two
+-- conditions are CHECKED rather than assumed.
+def P : ℕ → 𝕌 ≔ λn. ℕ
+
+-- ℕ: the predecessor and the induction hypothesis; then the labels
+def f : (n : ℕ) → ℕ ≔ λn. ?goal
+
+-- ×: one slot per component, in emission order
+def p : (x : ℕ × ℕ) → P (x .π₁) ≔ λx. ?g1
+
+-- a generated binder may SHADOW only names the emitted text does not
+-- mention: the motive here prints `m`, so a binder named `m` would
+-- capture it
+def c : (m : ℕ) → (n : ℕ) → (h : P n → P m) → ℕ ≔ λm. λn. λh. ?g2
+
+-- a variable whose type has no eliminator, and which no equation of
+-- the context has as a side
+def q : (g : ℕ → ℕ) → ℕ ≔ λg. ?g3

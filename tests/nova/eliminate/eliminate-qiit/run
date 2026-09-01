@@ -1,0 +1,8 @@
+#!/bin/sh
+rm -rf out
+mkdir out
+"$1" eliminate input.nova 14:40 m > out/input.nova
+sed -n "14,20p" out/input.nova
+echo "--- re-elaborated (the coherence STATES what the method must respect):"
+"$1" elab out/input.nova
+rm -rf out

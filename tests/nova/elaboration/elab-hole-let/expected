@@ -1,0 +1,13 @@
+defined f [+1 declaration]
+defined g [+1 declaration]
+defined named [+1 declaration]
+defined anon [+1 declaration]
+open holes (4):
+  [?goal] (n : ℕ) (m : ℕ ≔ n) ⊢ ?goal : ℕ
+      at: input.nova:6:40: def f
+  [?deep] (n : ℕ) (m : ℕ ≔ n) (k : ℕ ≔ m) ⊢ ?deep : ℕ
+      at: input.nova:8:53: def g
+  [?keep] (n : ℕ) (m : ℕ) (p : m ≡ n ∈ ℕ) ⊢ ?keep : ℕ
+      at: input.nova:12:61: def named
+  [?fold] (n : ℕ) (m : ℕ ≔ n) ⊢ ?fold : ℕ
+      at: input.nova:16:60: def anon

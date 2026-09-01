@@ -1,0 +1,8 @@
+#!/bin/sh
+rm -rf out
+mkdir out
+"$1" eliminate input.nova 5:27 n > out/input.nova
+cat out/input.nova
+echo "--- re-elaborated:"
+"$1" elab out/input.nova
+rm -rf out

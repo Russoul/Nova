@@ -1,0 +1,13 @@
+#!/bin/sh
+rm -rf out
+mkdir out
+"$1" eliminate input.nova 7:31 x | sed -n "7p"
+"$1" eliminate input.nova 9:27 x | sed -n "9p"
+"$1" eliminate input.nova 13:31 x | sed -n "13p"
+"$1" eliminate input.nova 11:46 x > out/input.nova
+sed -n "11p" out/input.nova
+echo "--- re-elaborated (quot-elim owes its well-definedness):"
+"$1" elab out/input.nova
+echo "--- and one the trial rejects:"
+"$1" eliminate input.nova 18:31 x
+rm -rf out
