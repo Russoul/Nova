@@ -1848,6 +1848,14 @@ also the only honest thing, since the solution appears in their goals.
 One pass suffices: a solution's right-hand side is hole-free, so
 substituting it can never expose a new solvable side.
 
+BOTH REPORTS APPLY IT. The pass runs once, at the end of a run, so a
+report that tags its entries PER ITEM — as the range-aware one an
+editor consumes does — cannot see it while it folds; it applies the
+pass when it finishes, re-displaying what it accumulated through the
+refined state and dropping what refinement retired. A goal an editor
+shows and a goal the command prints are one goal, and an obligation
+that says what a synthetic hole is belongs to neither.
+
 WHAT THIS IS NOT. It is not the removed solver, and the difference is
 the whole design (PerfNotes "The cost of a hole"). It runs ONCE, after
 elaboration is over, at the moment a report is rendered. It reads Σ and

@@ -6449,7 +6449,7 @@ elabProgramReport units = go initSt units [] [] [] []
 
   Tagged : Type
   Tagged = ( List (String, Maybe Range, Obligation)
-           , List (String, Maybe Range, String)
+           , List (String, Maybe Range, FixTable, DeclView)
            , List HoleView )
 
   ||| The HOLES among a batch of new declarations, kept structured —
@@ -6476,7 +6476,7 @@ elabProgramReport units = go initSt units [] [] [] []
   tag tbl mname rng before after =
     let ds = newDecls before after in
     ( map (\o => (mname, o.site.srange <|> rng, o)) (newObls before after)
-    , map (\h => (mname, h.dvrange <|> rng, prettyDecl tbl h)) ds
+    , map (\h => (mname, h.dvrange <|> rng, tbl, h)) ds
     , holesOf after tbl mname ds )
 
   ||| Same item recovery as the CLI fold: a failed item is reported,
@@ -6491,7 +6491,7 @@ elabProgramReport units = go initSt units [] [] [] []
     case runElabM (elabItem rng item) st of
       Left (stFail, err) =>
         let salvaged = salvagedHoles st stFail
-            salv = map (\h => (mname, h.dvrange <|> rng, prettyDecl tbl h)) salvaged
+            salv = map (\h => (mname, h.dvrange <|> rng, tbl, h)) salvaged
             (stNext, (dObls, dHs, dSt)) =
               case declFallback rng item >>= \(r, it) =>
                      either (const Nothing) Just (runElabM (elabItem r it) st) of
@@ -6506,12 +6506,50 @@ elabProgramReport units = go initSt units [] [] [] []
             (st'', (obls, hs, sts), errs) = goItems tbl mname st' rest in
         (st'', (tObls ++ obls, tHs ++ hs, tSt ++ sts), errs)
 
-  go : ElabSt -> List ModUnit -> List (String, Maybe Range, Obligation) -> List (String, Maybe Range, String) -> List HoleView -> List (String, Maybe Range, String) -> ElabReport
-  go st [] obls hs sts errs = MkElabReport obls hs sts (toList st.qiits) [] errs
+  ||| A declaration re-displayed through the refined state: the
+  ||| synthetic holes its context and goal mention become their values.
+  refineDecl : ElabSt -> DeclView -> DeclView
+  refineDecl st d = { dvctx $= map (displayTy st), dvty $= map (displayTy st) } d
+
+  ||| REFINEMENT reaches this report too. It is a whole-run pass —
+  ||| it reads the run's own constraints back and says what its
+  ||| SYNTHETIC holes are — so it can only run once everything has
+  ||| elaborated, which is after the per-item tagging above has
+  ||| happened. `openReport` (the CLI's) applies it by rebuilding its
+  ||| views from the final state; this one applies it to what it
+  ||| accumulated, and the two must agree: a goal an editor shows and
+  ||| a goal the command prints are one goal.
+  |||
+  ||| Solutions are substituted by re-DISPLAYING each stored form
+  ||| through the refined state (`resugarElem` consults holeSols by Σ
+  ||| name), and what refinement retired is then dropped: an
+  ||| obligation whose sides became the same term, a synthetic hole
+  ||| that got a value.
+  finish : ElabSt -> List (String, Maybe Range, Obligation)
+        -> List (String, Maybe Range, FixTable, DeclView) -> List HoleView
+        -> List (Range, String) -> List (String, Maybe Range, String)
+        -> ElabReport
+  finish st0 obls hs sts binders errs =
+    let st = refineHoles st0
+        obls' = [ (m, r, o') | (m, r, o) <- obls
+                             , let o' = { stmt := displayStmt st o.stmt
+                                        , composite $= map (displayStmt st) } o
+                             , not (oblDischarged o') ]
+        hs' = [ (m, r, prettyDecl tbl (refineDecl st d))
+              | (m, r, tbl, d) <- hs, not (declSolved st d) ]
+        -- the EXPOSED context is refined alongside the display one:
+        -- an entry that mentions a synthetic hole must say the same
+        -- thing in both, or classification and printing disagree
+        sts' = [ { hvDecl $= refineDecl st, hvCtxX $= map (displayTy st) } v
+               | v <- sts, not (declSolved st v.hvDecl) ]
+    in MkElabReport obls' hs' sts' (toList st.qiits) binders errs
+
+  go : ElabSt -> List ModUnit -> List (String, Maybe Range, Obligation) -> List (String, Maybe Range, FixTable, DeclView) -> List HoleView -> List (String, Maybe Range, String) -> ElabReport
+  go st [] obls hs sts errs = finish st obls hs sts [] errs
   go st (MkModUnit name path imps tbl items _ _ _ :: rest) obls hs sts errs =
     let st = either (const st) fst (runElabM (enterModule name path tbl (map mname imps)) st) in
     case runElabM (installImports imps) st of
-      Left (_, err) => MkElabReport obls hs sts (toList st.qiits) (binderInfos tbl st) (errs ++ [(name, err.erange, err.emsg)])
+      Left (_, err) => finish st obls hs sts (binderInfos tbl st) (errs ++ [(name, err.erange, err.emsg)])
       Right (st, ()) =>
         let (st', (itemObls, itemHs, itemSts), itemErrs) = goItems tbl name st items
             obls = obls ++ itemObls
@@ -6519,11 +6557,11 @@ elabProgramReport units = go initSt units [] [] [] []
             sts = sts ++ itemSts
             errs = errs ++ itemErrs in
         case rest of
-              [] => MkElabReport obls hs sts (toList st'.qiits) (binderInfos tbl st') errs
+              [] => finish st' obls hs sts (binderInfos tbl st') errs
               _ =>
                 -- only ACCEPTED modules are importable: a module's
                 -- signature segment must be DEFINITIONAL
                 case (oblView st', declView st', itemErrs) of
                   ([], [], []) => go st' rest obls hs sts errs
-                  _ => MkElabReport obls hs sts (toList st'.qiits) (binderInfos tbl st')
+                  _ => finish st' obls hs sts (binderInfos tbl st')
                          (errs ++ [(name, Nothing, "module \{name} has open obligations and cannot be imported")])

@@ -1,0 +1,12 @@
+-- REFINEMENT reaches the editor's diagnostics, not just the command's
+-- report. A hole is not an inference form, so a spine carrying one
+-- offers its implicits no source and they become synthetic holes of
+-- their own; the run's own constraints then SAY what each is, and the
+-- pass reads them back. Un-refined, the hole below reads at the
+-- elaborator's placeholders instead of at the operator's question,
+-- beside three obligations and three goals that are scaffolding.
+def cong2 : {A : 𝕌} (B : A → 𝕌) (f : (v : A) → B v) {v w : A} → (v ≡ w) → f v ≡ f w ∈ B w ≔
+  λA. λB. λf. λv. λw. λh. ⋆
+
+def use : (A : 𝕌) (g : A → A) (x y : A) → (x ≡ y) → g x ≡ g y ∈ A ≔
+  λA. λg. λx. λy. λh. cong2 (λv. A) (λv. g v) ?p
