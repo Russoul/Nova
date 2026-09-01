@@ -1,0 +1,18 @@
+-- The positive formers that are not ℕ. 𝟘 leaves no hole at all;
+-- quot-elim's well-definedness arrives as an ordinary obligation, no
+-- new mechanism; squash-elim does not refine the goal AT ALL — by
+-- el-squash-e-prf its body is checked at the same proposition, with a
+-- witness added to the context — so it adds a hypothesis rather than
+-- splitting a goal (docs/NovaElaboration.txt, In-place elimination).
+def s : (x : ℕ ⊎ ℕ) → ℕ ≔ λx. ?g1
+
+def z : (x : 𝟘) → ℕ ≔ λx. ?g2
+
+def q : (x : ℕ / (a b. a ≡ b ∈ ℕ)) → ℕ ≔ λx. ?g3
+
+def w : (x : ∥ℕ∥) → ∥ℕ∥ ≔ λx. ?g4
+
+-- squash-elim reaches only further PROPOSITIONS, so at this goal the
+-- elimination does not elaborate — and the trial says so instead of
+-- handing back a broken file (verified, not trusted)
+def bad : (x : ∥ℕ∥) → ℕ ≔ λx. ?g5

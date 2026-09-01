@@ -27,6 +27,7 @@ modules = Nova.Diagnostic
         , Nova.Recovery
         , Nova.Implicitize
         , Nova.Rename
+        , Nova.Eliminate
         , Nova.Application
 
         , Solver.CommutativeMonoid

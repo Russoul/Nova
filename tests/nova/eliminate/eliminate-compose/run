@@ -1,0 +1,8 @@
+#!/bin/sh
+rm -rf out
+mkdir out
+"$1" eliminate input.nova 13:41 x1 > out/input.nova
+sed -n "11,17p" out/input.nova
+echo "--- re-elaborated (each branch is handed the equation):"
+"$1" elab out/input.nova
+rm -rf out

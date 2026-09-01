@@ -1,5 +1,5 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
-CAPS: hover=true definition=true documentSymbol=true
+CAPS: hover=true definition=true documentSymbol=true codeAction={"codeActionKinds":["refactor.rewrite"],"resolveProvider":true}
 DIAGNOSTICS (0):
 ELABTIME: reported
 TOKENS (77):
@@ -86,12 +86,13 @@ SYMBOLS (3):
   sZero (kind 12) [L5:1-L5:63]
 DEFINITION(⋆): null
 HOVER(⋆): [L3:63-L3:64] ```nova ⏎ ⋆ : plus n Z ≡ n ∈ ℕ ⏎ ```
+CODE ACTIONS(⋆) (0):
 DIAGNOSTICS FOR FIXTURE (0):
 ELABTIME: reported
 SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
 SERVER EXIT CODE: 0
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
-CAPS: hover=true definition=true documentSymbol=true
+CAPS: hover=true definition=true documentSymbol=true codeAction={"codeActionKinds":["refactor.rewrite"],"resolveProvider":true}
 DIAGNOSTICS (0):
 ELABTIME: reported
 TOKENS (77):
@@ -178,6 +179,7 @@ SYMBOLS (3):
   sZero (kind 12) [L5:1-L5:63]
 DEFINITION(⋆ using): null
 HOVER(⋆ using): [L5:34-L5:35] ```nova ⏎ ⋆ : plus (S Z) Z ≡ S Z ∈ ℕ ⏎ ```
+CODE ACTIONS(⋆ using) (0):
 DIAGNOSTICS FOR FIXTURE (0):
 ELABTIME: reported
 SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh

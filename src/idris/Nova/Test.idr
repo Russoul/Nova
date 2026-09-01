@@ -16,6 +16,7 @@ import Nova.Diagnostic
 import Nova.Distill
 import Nova.Implicitize
 import Nova.Recovery
+import Nova.Eliminate
 import Nova.Elaboration.Named
 import Nova.Elaboration
 import Nova.Elaboration.Loader
@@ -50,6 +51,7 @@ pools = sequence
   , testsInDir "tests/nova/distill" "Nova Distill"
   , testsInDir "tests/nova/survey" "Nova Survey"
   , testsInDir "tests/nova/implicitize" "Nova Implicitize"
+  , testsInDir "tests/nova/eliminate" "Nova Eliminate"
   , testsInDir "tests/nova-lsp" "Nova LSP"
   ]
 
@@ -87,6 +89,15 @@ main = do
       case result of
         Left err  => putStrLn (errorLine err)
         Right msg => putStrLn msg
+    -- Nova.Application's `eliminate` command, for its goldens
+    (_ :: "eliminate" :: file :: loc :: var :: flags) => do
+      case parseLoc loc of
+        Nothing => putStrLn "eliminate: position must be LINE:COL (1-based)"
+        Just (l, c) => do
+          result <- eliminatePath file (l - 1) (c - 1) var (parseOpts flags)
+          case result of
+            Left err  => putStrLn err
+            Right out => putStr out
     (_ :: "lsp" :: lspBin :: fixture :: word :: []) => runLspTest lspBin fixture word
     _ => do
       ps <- pools

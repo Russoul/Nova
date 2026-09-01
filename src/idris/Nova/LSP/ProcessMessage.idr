@@ -17,7 +17,9 @@ import System.File
 
 import Nova.Kernel.Parser
 import Nova.Elaboration
+import Nova.Elaboration.Surface
 import Nova.Elaboration.Loader
+import Nova.Eliminate
 
 import Nova.LSP.Ref
 import Nova.LSP.Configuration
@@ -108,7 +110,7 @@ loadURI uri version = do
   t1 <- clockTime Monotonic
   let dt = timeDifference t1 t0
   let ms = seconds dt * 1000 + nanoseconds dt `div` 1000000
-  setDoc uri (MkDocState source root index report)
+  setDoc uri (MkDocState source root index report version)
   sendDiagnostics uri version (toDiagnostics source root.mfix report)
   -- AFTER the diagnostics, so clients render the state before its
   -- timing (and the test client's read order stays deterministic)
@@ -173,6 +175,43 @@ whenNotShutdownNotification k =
 
 whenActiveNotification : Ref LSPConf LSPConfiguration => (InitializeParams -> IO ()) -> IO ()
 whenActiveNotification = whenNotShutdownNotification . whenInitializedNotification
+
+-- ===== in-place elimination =====
+--
+-- One action per variable of the hole's context that HAS an
+-- elimination (docs/NovaElaboration.txt, In-place elimination), each
+-- carrying only what resolve needs to recompute it. The EDIT is not
+-- computed here: every candidate is verified by re-elaborating the
+-- file it would land in, and doing that per offer would cost one
+-- elaboration per variable. Resolve pays it once, for the one picked.
+
+||| What an offered action carries across the resolve round trip. The
+||| hole travels by its Σ NAME, not by position: the buffer may have
+||| moved under us between the offer and the pick, and a stale
+||| position would silently address a different hole, where a stale
+||| name simply is not found.
+actionData : DocumentURI -> (holeName, var : String) -> (deep : Bool) -> JSON
+actionData uri holeName var deep = JObject
+  [ ("uri", toJSON uri)
+  , ("hole", JString holeName)
+  , ("var", JString var)
+  , ("deep", JBoolean deep)
+  ]
+
+readActionData : JSON -> Maybe (DocumentURI, String, String, Bool)
+readActionData (JObject fs) = do
+  uri  <- lookup "uri" fs >>= fromJSON
+  hole <- lookup "hole" fs >>= asString
+  var  <- lookup "var" fs >>= asString
+  let deep = case lookup "deep" fs of
+               Just (JBoolean b) => b
+               _ => False
+  pure (uri, hole, var, deep)
+ where
+  asString : JSON -> Maybe String
+  asString (JString x) = Just x
+  asString _ = Nothing
+readActionData _ = Nothing
 
 -- ===== requests =====
 
@@ -240,6 +279,62 @@ handleRequest TextDocumentDefinition params = whenActiveRequest $ \_ => do
         pure (pure (make MkNull))
   let loc = MkLocation (pathToURI file) (toLspRange (lines targetSource) rng)
   pure (pure (make loc))
+
+handleRequest TextDocumentCodeAction params = whenActiveRequest $ \_ => do
+  logI Channel "Received codeAction request for \{show params.textDocument.uri}"
+  let none = the (List (OneOf [Command, CodeAction])) []
+  Just doc <- getDoc params.textDocument.uri
+    | Nothing => pure (pure (make none))
+  let lns = lines doc.source
+  let pos = fromLspPosition lns params.range.start
+  -- the hole the cursor is IN; a range covering several holes is not
+  -- a request to eliminate in all of them
+  let Right (tbl, h) = holeAt doc.report pos.line pos.column
+    | Left _ => pure (pure (make none))
+  let taken = siblingLabels doc.report.holes h
+  let acts = concatMap (action params.textDocument.uri h) (offers tbl taken doc.report.qiits h)
+  pure (pure (make (the (List (OneOf [Command, CodeAction])) (map make acts))))
+ where
+  action : DocumentURI -> DeclView -> (String, String, Bool) -> List CodeAction
+  action u h (var, ty, hasDeep) =
+    let one = MkCodeAction
+                { title       = "eliminate \{var} : \{ty}"
+                , kind        = Just RefactorRewrite
+                , diagnostics = Nothing
+                , isPreferred = Nothing
+                , disabled    = Nothing
+                , edit        = Nothing
+                , command     = Nothing
+                , data_       = Just (actionData u h.dvname var False)
+                }
+    in one :: (if hasDeep
+                 then [ { title := "eliminate \{var} : \{ty} (fully)"
+                        , data_ := Just (actionData u h.dvname var True) } one ]
+                 else [])
+
+handleRequest CodeActionResolve params = whenActiveRequest $ \_ => do
+  logI Channel "Received codeAction/resolve request"
+  let Just d = params.data_
+    | Nothing => pure (Left (invalidParams "code action carries no data to resolve"))
+  let Just (uri, holeName, var, deep) = readActionData d
+    | Nothing => pure (Left (invalidParams "unrecognised code action data"))
+  Just doc <- getDoc uri
+    | Nothing => pure (Left (invalidParams "\{show uri} is not open"))
+  let Just (tbl, h) = holeNamed doc.report holeName
+    | Nothing => pure (Left (invalidRequest "the hole this action was offered at is gone — save and try again"))
+  let opts = { optDeep := deep } defaultOptions
+  Right (rng, txt) <- eliminateEdit uri.path doc.source tbl h (siblingLabels doc.report.holes h) doc.report.qiits var opts
+    | Left err => do
+        logW Server "eliminate \{var} at \{holeName}: \{err}"
+        pure (Left (invalidRequest err))
+  let edit = MkTextEdit (toLspRange (lines doc.source) rng) txt
+  -- STAMPED with the version the content was loaded at: this server
+  -- reloads from disk and ignores didChange, so it cannot itself know
+  -- the buffer has moved on — the client checks the stamp and refuses
+  let tde = MkTextDocumentEdit
+              (MkOptionalVersionedTextDocumentIdentifier uri doc.version)
+              [make edit]
+  pure (pure ({ edit := Just (MkWorkspaceEdit Nothing (Just [make tde]) Nothing) } params))
 
 handleRequest method params = whenActiveRequest $ \_ => do
   logW Channel "Received unsupported \{show (toJSON method)} request"

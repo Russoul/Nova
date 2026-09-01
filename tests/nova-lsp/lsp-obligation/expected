@@ -1,5 +1,5 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
-CAPS: hover=true definition=true documentSymbol=true
+CAPS: hover=true definition=true documentSymbol=true codeAction={"codeActionKinds":["refactor.rewrite"],"resolveProvider":true}
 DIAGNOSTICS (1):
   [L3:51-L3:52] (error)   [1] (n : ℕ) ⊢ plus Z n ≐ n : ℕ
       at: DIR/fixture.nova:3:51: def needsLemma: checking ⋆
@@ -62,6 +62,7 @@ SYMBOLS (2):
   needsLemma (kind 12) [L3:1-L3:52]
 DEFINITION(plus): SAME FILE [L1:1-L1:62]
 HOVER(plus): null
+CODE ACTIONS(plus) (0):
 DIAGNOSTICS FOR FIXTURE (1):
   [L3:51-L3:52] (error)   [1] (n : ℕ) ⊢ plus Z n ≐ n : ℕ
       at: DIR/fixture.nova:3:51: def needsLemma: checking ⋆

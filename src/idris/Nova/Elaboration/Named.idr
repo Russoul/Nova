@@ -210,6 +210,7 @@ isIdSpineN n es = toList es == map CtxVar (reverse [0 .. minus n 1]) && n /= 0
 
 
 mutual
+  export
   usesIndexTy : Nat -> Ty -> Bool
   usesIndexTy = usesIndexElem
 
@@ -236,6 +237,7 @@ mutual
   usesIndexPoly k (PSigma a f) = usesIndexElem k a || usesIndexPoly (S k) f
   usesIndexPoly k (PPi a f) = usesIndexElem k a || usesIndexPoly (S k) f
 
+  export
   usesIndexElem : Nat -> Elem -> Bool
   usesIndexElem k (CtxVar n) = n == k
   usesIndexElem k (ZeroElim e) = usesIndexElem k e

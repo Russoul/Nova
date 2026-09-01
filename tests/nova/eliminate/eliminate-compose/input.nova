@@ -1,0 +1,13 @@
+-- THE CLOSURE RULE SUBSUMES THE CONVOY. A let leaves its unfolding
+-- equation in the context (el-let), so a component named by a Σ split
+-- sits next to (x1 ≡ x .π₁). That entry MENTIONS x1, hence joins the
+-- dependency-closed suffix the moment x1 is eliminated, and the
+-- Π-closure carries it into the motive by the ordinary rule — no
+-- convoy case, no second motive discipline. The entry is ANONYMOUS,
+-- so it is re-applied as ⋆: proofs are irrelevant, and the ambient
+-- inhabitant discharges it.
+def P : ℕ → 𝕌 ≔ λn. ℕ
+
+def c : (x : ℕ × ℕ) → P (x .π₁) ≔ λx. (let x1 ≔ x .π₁ in
+                                       let x2 ≔ x .π₂ in
+                                       (?g : (P x1)))

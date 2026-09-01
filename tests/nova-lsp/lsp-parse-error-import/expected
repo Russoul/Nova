@@ -1,5 +1,5 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
-CAPS: hover=true definition=true documentSymbol=true
+CAPS: hover=true definition=true documentSymbol=true codeAction={"codeActionKinds":["refactor.rewrite"],"resolveProvider":true}
 DIAGNOSTICS (1):
   [L1:1-L1:1] (error) in DIR/broken.nova:2:18: expected an identifier ('S' is a reserved keyword), but found whitespace
 DIAGNOSTICS FOR broken.nova (1):
@@ -8,6 +8,7 @@ TOKENS (0):
 SYMBOLS (0):
 DEFINITION(ok): null
 HOVER(ok): null
+CODE ACTIONS(ok) (0):
 DIAGNOSTICS FOR broken.nova (0):
 DIAGNOSTICS FOR FIXTURE (1):
   [L1:1-L1:1] (error) in DIR/broken.nova:2:18: expected an identifier ('S' is a reserved keyword), but found whitespace

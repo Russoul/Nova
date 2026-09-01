@@ -175,6 +175,45 @@ record DeclMeta where
   ||| the declaring item's source span (LSP diagnostics)
   drange : Maybe Range
 
+||| One argument of a QIIT constructor: the name the `data` item wrote
+||| for it, and whether it is INDUCTIVE — an inductive argument is
+||| followed in the method's telescope by its induction hypothesis (the
+||| ᴰ-walk's order, Nova.Kernel.QIIT.dispWalk).
+public export
+record QIITArg where
+  constructor MkQIITArg
+  qaName      : String
+  qaInductive : Bool
+
+public export
+record QIITCtor where
+  constructor MkQIITCtor
+  qcName : String
+  qcArgs : List QIITArg
+
+||| One SORT of a `data` item, with everything APPLYING its generated
+||| eliminator needs (docs/NovaElaboration.txt, In-place elimination) —
+||| the shapes are in the carried signature, but the NAMES the item
+||| minted are not, and neither are the binder names it wrote.
+public export
+record QIITInfo where
+  constructor MkQIITInfo
+  ||| the sort's own def name, qualified as Σ has it
+  qiSort    : String
+  ||| parameters the generated defs Π-bind before everything else, so a
+  ||| use site applies them first
+  qiParams  : Nat
+  ||| this sort's own index arity
+  qiIndices : Nat
+  ||| every sort of the signature, in entry order — one MOTIVE each —
+  ||| and this one's ordinal among them
+  qiSorts   : List String
+  qiPos     : Nat
+  ||| one METHOD per point constructor, one COHERENCE per equation
+  ||| constructor (the code-valued eliminator only)
+  qiPoints  : List QIITCtor
+  qiEqs     : List QIITCtor
+
 record ElabSt where
   constructor MkElabSt
   sig : Sig
@@ -311,9 +350,13 @@ record ElabSt where
   ||| elaborates with zero new obligations wins; none or several is a
   ||| structural error naming the qualification remedy.
   dupNames : List String
+  ||| one per SORT of every `data` item the run elaborated, in item
+  ||| order. What in-place elimination reads to apply a generated
+  ||| eliminator: the signature says the shapes, this says the names.
+  qiits : SnocList QIITInfo
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [] "" [<] Nothing [] [] Nothing [] False [<] False [<] [<] [<] False False [] []
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [] "" [<] Nothing [] [] Nothing [] False [<] False [<] [<] [<] False False [] [] [<]
 
 ||| Is the surface term an INFERENCE form — its type known without an
 ||| expected type? Mirrors the mode inventory
@@ -2691,6 +2734,10 @@ oblView st = go (toList st.sig) (toList st.oblMeta)
 
 ||| One declaration for the report: its Σ-name, context (with binder
 ||| names), type (Nothing for a type declaration) and declaring item.
+||| PUBLIC because a hole is one of these, and in-place elimination
+||| (docs/NovaElaboration.txt) reads a hole's context, type and span
+||| to build the term that fills it.
+public export
 record DeclView where
   constructor MkDeclView
   dvname : String
@@ -5552,9 +5599,40 @@ elabItemGo irng (SData params decls) = do
                    emitElim site pre sg k True d.dqname
       QKPoint => emitCtor site pre sg k d.dqname
       QKEq => emitEq site pre sg k d.dqname) named
+  -- 3. RECORD what the expansion named, per sort: the shapes are in
+  --    the carried signature, but the names this item minted — and the
+  --    binder names it wrote — are nowhere else. In-place elimination
+  --    reads them to apply the generated eliminator.
+  st <- getSt
+  let qual : String -> String
+      qual x = if st.modPrefix == "" then x else "\{st.modPrefix}.\{x}"
+  let kindOf : Nat -> QEntryKind
+      kindOf k = qEntryKind (fromMaybe QU (qEntry sg k))
+  let atKind : QEntryKind -> (SQDecl -> a) -> List a
+      atKind want f = mapMaybe (\(k, d) => case (kindOf k, want) of
+                                             (QKSort, QKSort)   => Just (f d)
+                                             (QKPoint, QKPoint) => Just (f d)
+                                             (QKEq, QKEq)       => Just (f d)
+                                             _ => Nothing) named
+  let sortNames = atKind QKSort (\d => qual d.dqname)
+  let points = atKind QKPoint ctorOf
+  let eqs = atKind QKEq ctorOf
+  let sorts = atKind QKSort id
+  modifySt $ { qiits $= \acc => foldl (:<) acc
+                 (map (\(i, d) =>
+                    MkQIITInfo (qual d.dqname) (length params) (length d.dqbinders)
+                               sortNames i points eqs)
+                      (zipWithIndex 0 sorts)) }
   suffix <- opensSuffix census
   pure ("defined data (" ++ joinBy ", " (map (.dqname) decls) ++ ")" ++ suffix)
  where
+  ||| A constructor's arguments, in order: an inductive one (a code
+  ||| domain) is followed by its induction hypothesis in the method's
+  ||| telescope, so the two are recorded as one entry.
+  ctorOf : SQDecl -> QIITCtor
+  ctorOf d = MkQIITCtor d.dqname
+               (map (\(x, dom) => MkQIITArg x (either (const False) (const True) dom)) d.dqbinders)
+
   zipWithIndex : Nat -> List a -> List (Nat, a)
   zipWithIndex _ [] = []
   zipWithIndex i (x :: xs) = (i, x) :: zipWithIndex (S i) xs
@@ -5824,9 +5902,32 @@ elabItemGo irng (SClausalDef nrng x ty etaName witness clauses) = do
 prettyTelescope : FixTable -> Ctx -> NameEnv -> String
 prettyTelescope tbl ctx env = go (toList ctx) (toList env)
  where
+  -- A LET leaves TWO entries behind (el-let: the value, then its
+  -- unfolding equation ☐₀ ≡ e[↑] ∈ A[↑], minted anonymous by
+  -- e-let). The source wrote ONE binding, so the report prints one:
+  -- the definiens is read back off the equation and shown in the
+  -- annotated-let order. Recognized by SHAPE, so a hand-written
+  -- hypothesis of that shape folds too — it says the same thing.
+  -- Without this a nested let, or an in-place Σ split, doubles the
+  -- context of every goal after it.
+  letFold : (bnd : Ty) -> (hyp : Ty) -> (hypName : String) -> Maybe Elem
+  letFold bnd (Elem.EqTy (CtxVar 0) rhs hty) hypName =
+    if hypName == wildcard && hty == substTy bnd Wk then Just rhs else Nothing
+  letFold _ _ _ = Nothing
+
   -- print left-to-right; each entry's type prints under the env prefix
   go' : SnocList String -> List Ty -> List String -> List String
   go' pfx [] _ = []
+  go' pfx (ty :: hyp :: tys) (n :: h :: ns) =
+    case letFold ty hyp h of
+      -- the definiens lives one binder in (e[↑]), so it prints under
+      -- the prefix the BOUND name extends — the same env the
+      -- equation entry itself would have printed under
+      Just rhs =>
+        "(\{n} : \{prettyTyN tbl pfx ty} ≔ \{prettyElemN tbl (pfx :< n) rhs})"
+          :: go' (pfx :< n :< h) tys ns
+      Nothing =>
+        "(\{n} : \{prettyTyN tbl pfx ty})" :: go' (pfx :< n) (hyp :: tys) (h :: ns)
   go' pfx (ty :: tys) (n :: ns) =
     "(\{n} : \{prettyTyN tbl pfx ty})" :: go' (pfx :< n) tys ns
   go' pfx (ty :: tys) [] =
@@ -6296,6 +6397,17 @@ record ElabReport where
   ||| open declarations, pre-rendered (module, range, report text) —
   ||| the range is the declaring item's
   decls : List (String, Maybe Range, String)
+  ||| every HOLE of the run, STRUCTURED: its module, that module's
+  ||| fixity table (the printer's) and the view itself — context,
+  ||| type and its own `?x` span. `decls` renders these for display;
+  ||| this is what in-place elimination READS (docs/
+  ||| NovaElaboration.txt, In-place elimination), which needs the
+  ||| context and goal as terms, not as report text.
+  holes : List (String, FixTable, DeclView)
+  ||| one per SORT of every `data` item the run elaborated: what
+  ||| applying a generated eliminator needs, which the carried
+  ||| signature does not say (the names).
+  qiits : List QIITInfo
   ||| the ROOT module's binder occurrences with rendered types —
   ||| hover ascription for λ/eliminator binders
   binderTable : List (Range, String)
@@ -6307,7 +6419,7 @@ record ElabReport where
 
 export
 elabProgramReport : List ModUnit -> ElabReport
-elabProgramReport units = go initSt units [] [] []
+elabProgramReport units = go initSt units [] [] [] []
  where
   -- newly-appended obligations/declarations since `before`: both only
   -- ever grow by `:<` (see `assume` and the SDeclDef handler), so
@@ -6321,14 +6433,22 @@ elabProgramReport units = go initSt units [] [] []
     drop (length (toList before.declMeta)) (declView after)
 
   Tagged : Type
-  Tagged = (List (String, Maybe Range, Obligation), List (String, Maybe Range, String))
+  Tagged = ( List (String, Maybe Range, Obligation)
+           , List (String, Maybe Range, String)
+           , List (String, FixTable, DeclView) )
+
+  ||| The HOLES among a batch of new declarations, kept structured.
+  holesOf : FixTable -> String -> List DeclView -> List (String, FixTable, DeclView)
+  holesOf tbl mname hs = [ (mname, tbl, h) | h <- hs, isHoleName h.dvname ]
 
   -- an obligation or declaration the elaborator localized reports at
   -- ITS span, not at the whole item (same narrowing the CLI shows)
   tag : FixTable -> String -> Maybe Range -> (before, after : ElabSt) -> Tagged
   tag tbl mname rng before after =
+    let ds = newDecls before after in
     ( map (\o => (mname, o.site.srange <|> rng, o)) (newObls before after)
-    , map (\h => (mname, h.dvrange <|> rng, prettyDecl tbl h)) (newDecls before after))
+    , map (\h => (mname, h.dvrange <|> rng, prettyDecl tbl h)) ds
+    , holesOf tbl mname ds )
 
   ||| Same item recovery as the CLI fold: a failed item is reported,
   ||| its holes are salvaged as diagnostics of their own spans, it
@@ -6337,42 +6457,44 @@ elabProgramReport units = go initSt units [] [] []
   ||| those before its first broken proof.
   goItems : FixTable -> String -> ElabSt -> List (Maybe Range, SItem)
           -> (ElabSt, Tagged, List (String, Maybe Range, String))
-  goItems tbl mname st [] = (st, ([], []), [])
+  goItems tbl mname st [] = (st, ([], [], []), [])
   goItems tbl mname st ((rng, item) :: rest) =
     case runElabM (elabItem rng item) st of
       Left (stFail, err) =>
-        let salv = map (\h => (mname, h.dvrange <|> rng, prettyDecl tbl h))
-                       (salvagedHoles st stFail)
-            (stNext, declTagged) =
+        let salvaged = salvagedHoles st stFail
+            salv = map (\h => (mname, h.dvrange <|> rng, prettyDecl tbl h)) salvaged
+            (stNext, (dObls, dHs, dSt)) =
               case declFallback rng item >>= \(r, it) =>
                      either (const Nothing) Just (runElabM (elabItem r it) st) of
                 Just (st2, _) => (st2, tag tbl mname rng st st2)
-                Nothing => (st, ([], []))
-            (st'', (obls, hs), errs) = goItems tbl mname stNext rest in
-        (st'', (fst declTagged ++ obls, salv ++ snd declTagged ++ hs),
+                Nothing => (st, ([], [], []))
+            (st'', (obls, hs, sts), errs) = goItems tbl mname stNext rest in
+        (st'', (dObls ++ obls, salv ++ dHs ++ hs,
+                holesOf tbl mname salvaged ++ dSt ++ sts),
          (mname, err.erange <|> rng, withBlockedHint stFail.sig err.emsg) :: errs)
       Right (st', _) =>
-        let (tObls, tHs) = tag tbl mname rng st st'
-            (st'', (obls, hs), errs) = goItems tbl mname st' rest in
-        (st'', (tObls ++ obls, tHs ++ hs), errs)
+        let (tObls, tHs, tSt) = tag tbl mname rng st st'
+            (st'', (obls, hs, sts), errs) = goItems tbl mname st' rest in
+        (st'', (tObls ++ obls, tHs ++ hs, tSt ++ sts), errs)
 
-  go : ElabSt -> List ModUnit -> List (String, Maybe Range, Obligation) -> List (String, Maybe Range, String) -> List (String, Maybe Range, String) -> ElabReport
-  go st [] obls hs errs = MkElabReport obls hs [] errs
-  go st (MkModUnit name path imps tbl items _ _ _ :: rest) obls hs errs =
+  go : ElabSt -> List ModUnit -> List (String, Maybe Range, Obligation) -> List (String, Maybe Range, String) -> List (String, FixTable, DeclView) -> List (String, Maybe Range, String) -> ElabReport
+  go st [] obls hs sts errs = MkElabReport obls hs sts (toList st.qiits) [] errs
+  go st (MkModUnit name path imps tbl items _ _ _ :: rest) obls hs sts errs =
     let st = either (const st) fst (runElabM (enterModule name path tbl (map mname imps)) st) in
     case runElabM (installImports imps) st of
-      Left (_, err) => MkElabReport obls hs (binderInfos tbl st) (errs ++ [(name, err.erange, err.emsg)])
+      Left (_, err) => MkElabReport obls hs sts (toList st.qiits) (binderInfos tbl st) (errs ++ [(name, err.erange, err.emsg)])
       Right (st, ()) =>
-        let (st', (itemObls, itemHs), itemErrs) = goItems tbl name st items
+        let (st', (itemObls, itemHs, itemSts), itemErrs) = goItems tbl name st items
             obls = obls ++ itemObls
             hs = hs ++ itemHs
+            sts = sts ++ itemSts
             errs = errs ++ itemErrs in
         case rest of
-              [] => MkElabReport obls hs (binderInfos tbl st') errs
+              [] => MkElabReport obls hs sts (toList st'.qiits) (binderInfos tbl st') errs
               _ =>
                 -- only ACCEPTED modules are importable: a module's
                 -- signature segment must be DEFINITIONAL
                 case (oblView st', declView st', itemErrs) of
-                  ([], [], []) => go st' rest obls hs errs
-                  _ => MkElabReport obls hs (binderInfos tbl st')
+                  ([], [], []) => go st' rest obls hs sts errs
+                  _ => MkElabReport obls hs sts (toList st'.qiits) (binderInfos tbl st')
                          (errs ++ [(name, Nothing, "module \{name} has open obligations and cannot be imported")])

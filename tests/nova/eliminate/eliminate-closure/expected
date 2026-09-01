@@ -1,0 +1,43 @@
+-- A hypothesis AFTER the variable depends on it, so it joins the
+-- dependency-closed suffix: the motive Π-closes it, each branch
+-- λ-abstracts it, the result is re-applied. `k` depends on nothing
+-- and stays where it is. The IH is then a FUNCTION over what the
+-- motive closed.
+def P : ℕ → 𝕌 ≔ λn. ℕ
+
+def dep : (n : ℕ) → (h : P n) → (k : ℕ) → P n ≔ λn. λh. λk. ((ℕ-elim (n. (h : (P n)) → (P n))
+                                                             (λh. ?goalZ)
+                                                             (n ih. λh. ?goalS)
+                                                             n) h)
+
+-- re-applying the closure makes an APPLICATION, and a hole is an
+-- ATOM, so the whole thing takes one more pair of parentheses — here
+-- the hole sits in an argument position, where a bare re-application
+-- would re-associate into the enclosing spine
+def use : (f : ℕ → ℕ) → (n : ℕ) → (h : P n) → ℕ ≔ λf. λn. λh. f ?arg
+--- re-elaborated:
+defined P
+defined dep [+2 declarations]
+defined use [+1 declaration]
+open holes (3):
+  [?goalZ] (n : ℕ) (h : (P n)) (k : ℕ) (h : (P Z)) ⊢ ?goalZ : (P Z)
+      at: out/input.nova:9:67: def dep
+  [?goalS] (n : ℕ) (h : (P n)) (k : ℕ) (n : ℕ) (ih : (P n) → (P n)) (h : (P (S n))) ⊢ ?goalS : (P (S n))
+      at: out/input.nova:10:73: def dep
+  [?arg] (f : ℕ → ℕ) (n : ℕ) (h : (P n)) ⊢ ?arg : ℕ
+      at: out/input.nova:17:65: def use
+--- and at an ARGUMENT position:
+def use : (f : ℕ → ℕ) → (n : ℕ) → (h : P n) → ℕ ≔ λf. λn. λh. f ((ℕ-elim (n. (h : (P n)) → ℕ)
+                                                                 (λh. ?argZ)
+                                                                 (n ih. λh. ?argS)
+                                                                 n) h)
+defined P
+defined dep [+1 declaration]
+defined use [+2 declarations]
+open holes (3):
+  [?goal] (n : ℕ) (h : (P n)) (k : ℕ) ⊢ ?goal : (P n)
+      at: out/arg.nova:8:61: def dep
+  [?argZ] (f : ℕ → ℕ) (n : ℕ) (h : (P n)) (h : (P Z)) ⊢ ?argZ : ℕ
+      at: out/arg.nova:15:71: def use
+  [?argS] (f : ℕ → ℕ) (n : ℕ) (h : (P n)) (n : ℕ) (ih : (P n) → ℕ) (h : (P (S n))) ⊢ ?argS : ℕ
+      at: out/arg.nova:16:77: def use

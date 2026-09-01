@@ -53,6 +53,19 @@ tokenTypeNames = map tokenKindName tokenKinds
 semanticTokensLegend : SemanticTokensLegend
 semanticTokensLegend = MkSemanticTokensLegend tokenTypeNames []
 
+||| In-place elimination is offered as a REFACTOR at a hole
+||| (docs/NovaElaboration.txt, In-place elimination). The edit is
+||| computed on RESOLVE, not here: each candidate is verified by
+||| re-elaborating the file it would land in, and doing that for every
+||| variable of every hole in range would cost one elaboration per
+||| offer. Resolve pays it once, for the one the operator picked.
+codeActionOptions : CodeActionOptions
+codeActionOptions = MkCodeActionOptions
+  { workDoneProgress = Nothing
+  , codeActionKinds  = Just [RefactorRewrite]
+  , resolveProvider  = Just True
+  }
+
 semanticTokensOptions : SemanticTokensOptions
 semanticTokensOptions = MkSemanticTokensOptions
   semanticTokensLegend
@@ -62,7 +75,7 @@ semanticTokensOptions = MkSemanticTokensOptions
 ||| Default server capabilities sent to clients during `initialize`.
 ||| Implemented (see `Nova.LSP.ProcessMessage`): textDocumentSync,
 ||| semanticTokensProvider, hoverProvider, definitionProvider,
-||| documentSymbolProvider. Everything else is explicitly disabled
+||| documentSymbolProvider, codeActionProvider (with resolve). Everything else is explicitly disabled
 ||| rather than left `Nothing`, so a client never mistakes "we didn't
 ||| say" for "try it anyway".
 export
@@ -80,7 +93,7 @@ serverCapabilities =
     , referencesProvider               = Just (make False)
     , documentHighlightProvider        = Just (make False)
     , documentSymbolProvider           = Just (make True)
-    , codeActionProvider               = Just (make False)
+    , codeActionProvider               = Just (make codeActionOptions)
     , codeLensProvider                 = Nothing
     , documentLinkProvider             = Nothing
     , colorProvider                    = Just (make False)

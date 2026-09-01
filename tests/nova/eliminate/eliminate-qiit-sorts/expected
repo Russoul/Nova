@@ -1,0 +1,27 @@
+def d : Con → ℕ ≔ λc. (ConElim (λc. ℕ)
+                       ?goalTy
+                       ?goalNil
+                       (λgamma. λihgamma. λa2. λiha2. ?goalExt)
+                       (λgamma. λih. ?goalUnit)
+                       (λgamma. λihgamma. λa2. λiha2. λa3. λiha3. ?goalArr)
+                       c)
+
+--- re-elaborated (the other sort's motive is a goal of its own):
+defined data (Con, Ty, nil, ext, unit, arr)
+defined d [+1 obligation, +5 declarations]
+defined e [+1 declaration]
+open holes (6):
+  [?goalTy] (c : Con) ⊢ ?goalTy : (v:Con) → (Ty v) → 𝕌
+      at: out/input.nova:15:24: def d
+  [?goalNil] (c : Con) ⊢ ?goalNil : ℕ
+      at: out/input.nova:16:24: def d
+  [?goalExt] (c : Con) (gamma : Con) (ihgamma : ℕ) (a2 : (Ty gamma)) (iha2 : (?goalTy[c] gamma a2)) ⊢ ?goalExt : ℕ
+      at: out/input.nova:17:55: def d
+  [?goalUnit] (c : Con) (gamma : Con) (ih : ℕ) ⊢ ?goalUnit : (?goalTy[c] gamma (unit gamma))
+      at: out/input.nova:18:38: def d
+  [?goalArr] (c : Con) (gamma : Con) (ihgamma : ℕ) (a2 : (Ty gamma)) (iha2 : (?goalTy[c] gamma a2)) (a3 : (Ty gamma)) (iha3 : (?goalTy[c] gamma a3)) ⊢ ?goalArr : (?goalTy[c] gamma (arr gamma a2 a3))
+      at: out/input.nova:19:67: def d
+  [?indexed] (g : Con) (t : (Ty g)) ⊢ ?indexed : ℕ
+      at: out/input.nova:22:40: def e
+--- the indexed sort is not offered:
+input.nova:16:40: t : Ty is an INDEXED sort, whose motive must abstract its indices too — not yet emitted

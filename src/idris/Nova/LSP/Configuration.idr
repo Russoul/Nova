@@ -32,6 +32,12 @@ record DocState where
   rootUnit : ModUnit
   defIndex : List (String, String, Range)
   report   : ElabReport
+  ||| the version the client last told us this content was at, if it
+  ||| told us. A workspace edit is STAMPED with it, so a client
+  ||| refuses an edit computed against text the buffer has moved past
+  ||| — the server cannot know that itself, since it ignores didChange
+  ||| and reloads from DISK (see Nova.LSP.ProcessMessage).
+  version  : Maybe Int
 
 ||| Type for the LSP server configuration.
 public export

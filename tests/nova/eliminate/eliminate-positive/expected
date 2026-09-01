@@ -1,0 +1,27 @@
+def s : (x : ℕ ⊎ ℕ) → ℕ ≔ λx. (⊎-elim (x. ?g1Inl) (x. ?g1Inr) x)
+def z : (x : 𝟘) → ℕ ≔ λx. (𝟘-elim x)
+def w : (x : ∥ℕ∥) → ∥ℕ∥ ≔ λx. (squash-elim x (x. ?g4Sq))
+def q : (x : ℕ / (a b. a ≡ b ∈ ℕ)) → ℕ ≔ λx. (quot-elim (x. ?g3Cls) x)
+--- re-elaborated (quot-elim owes its well-definedness):
+defined s [+1 declaration]
+defined z [+1 declaration]
+defined q [+1 obligation, +1 declaration]
+defined w [+1 declaration]
+defined bad [+1 declaration]
+open holes (5):
+  [?g1] (x : ℕ ⊎ ℕ) ⊢ ?g1 : ℕ
+      at: out/input.nova:7:31: def s
+  [?g2] (x : 𝟘) ⊢ ?g2 : ℕ
+      at: out/input.nova:9:27: def z
+  [?g3Cls] (x : ℕ / (n x. n ≡ x ∈ ℕ)) (x : ℕ) ⊢ ?g3Cls : ℕ
+      at: out/input.nova:11:61: def q
+  [?g4] (x : ∥ℕ∥) ⊢ ?g4 : ∥ℕ∥
+      at: out/input.nova:13:31: def w
+  [?g5] (x : ∥ℕ∥) ⊢ ?g5 : ℕ
+      at: out/input.nova:18:31: def bad
+open obligations (1):
+  [1] (x : ℕ / (n x. n ≡ x ∈ ℕ)) (x : ℕ) (x' : ℕ) (h : x ≡ x' ∈ ℕ) ⊢ ?g3Cls[x, x] ≐ ?g3Cls[x, x'] : ℕ
+      at: out/input.nova:11:46: def q: well-definedness of quot-elim case
+--- and one the trial rejects:
+the elimination does not elaborate, so it is not offered:
+def bad: squash-elim checked against ℕ, which is not a proposition (el-squash-e-prf reaches only further propositions)

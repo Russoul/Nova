@@ -1,0 +1,20 @@
+-- The RETYPE tier: × and ≡ have an η respectively a reflection
+-- principle in place of an eliminator, so the refined goal IS the
+-- original judgementally and the artifact is an ascribed hole. The
+-- ascription is the elimination: without it the let body would be
+-- checked against the goal it always had.
+def P : ℕ → 𝕌 ≔ λn. ℕ
+
+-- one step down: the components are named, and the goal reads at them
+def p : (x : ℕ × ℕ) → P (x .π₁) ≔ λx. ?g1
+
+-- fully iterated, depth-first, intermediates kept so every let is a
+-- one-step projection
+def d : (x : (ℕ × ℕ) × ℕ) → P (x .π₂) ≔ λx. ?g2
+
+-- a 𝟙 component contributes () and binds nothing
+def u : (x : ℕ × 𝟙) → P (x .π₁) ≔ λx. ?g3
+
+-- an equation binds nothing at all: what other theories build from J
+-- is a change of ascription, closed by reflecting the hypothesis
+def r : (a : ℕ) → (b : ℕ) → (h : a ≡ b ∈ ℕ) → P a ≔ λa. λb. λh. ?g4

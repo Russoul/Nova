@@ -1,0 +1,12 @@
+#!/bin/sh
+"$1" eliminate input.nova 7:27 n --name k --name rec | sed -n "7p"
+"$1" eliminate input.nova 7:27 n --label base --label step | sed -n "7p"
+"$1" eliminate input.nova 10:39 x --name fst --name snd | sed -n "10,12p"
+echo "--- a safe rename of the closed hypothesis:"
+"$1" eliminate input.nova 15:63 n --name "" --name "" --name hyp | sed -n "15,18p"
+echo "--- and one that would capture:"
+"$1" eliminate input.nova 15:63 n --name "" --name "" --name m
+echo "--- a name that is not in the context:"
+"$1" eliminate input.nova 10:39 nosuch
+echo "--- a variable with no eliminator and no equation:"
+"$1" eliminate input.nova 19:31 g

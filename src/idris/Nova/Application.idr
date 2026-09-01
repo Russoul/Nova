@@ -8,6 +8,7 @@ import Data.String
 import Nova.Diagnostic
 import Nova.Distill
 import Nova.Elaboration.Loader
+import Nova.Eliminate
 import Nova.Implicitize
 import Nova.Kernel.Syntax
 import Nova.Profile
@@ -24,6 +25,7 @@ usage = unlines
   , "  nova elab <surface-file>"
   , "  nova run <surface-file> <name>"
   , "  nova distill <surface-file> <out-dir>"
+  , "  nova eliminate <surface-file> <line>:<col> <var> [flags]"
   , ""
   , "elab: elaborates a .nova surface file (see docs/NovaElaboration.txt):"
   , "items are checked in order against the kernel's signature; the"
@@ -54,6 +56,14 @@ usage = unlines
   , "position, how many sites recover the argument (elidable), how"
   , "many already write a blank, and how many would need a {…}"
   , "override — the measured basis for a targeted migration."
+  , ""
+  , "eliminate <file> <line>:<col> <var>: fills the HOLE whose own"
+  , "span covers that position by ELIMINATING the named variable of"
+  , "its context, and prints the resulting file"
+  , "(docs/NovaElaboration.txt, In-place elimination). The position is"
+  , "1-based, as the report prints it. Flags: --deep (a Σ split"
+  , "iterates to the leaves), --name <n> (fill the next name slot),"
+  , "--label <l> (the next new hole's label)."
   , ""
   , "implicitize: rewrites the file's module closure into <out-dir>"
   , "with survey-approved binder positions made implicit ({x : A})"
@@ -105,6 +115,13 @@ main = do
       case result of
         Left err  => do putStrLn (errorLine err); exitFailure
         Right msg => putStrLn msg
+    (_ :: "eliminate" :: surfaceFile :: loc :: var :: flags) => do
+      let Just (l, c) = parseLoc loc
+        | Nothing => die "eliminate: position must be LINE:COL (1-based)"
+      result <- eliminatePath surfaceFile (l - 1) (c - 1) var (parseOpts flags)
+      case result of
+        Left err  => do putStrLn err; exitFailure
+        Right out => putStr out
     (_ :: "census" :: surfaceFile :: names@(_ :: _)) => do
       result <- censusPath surfaceFile names
       case result of

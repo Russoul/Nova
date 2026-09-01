@@ -1770,6 +1770,14 @@ Report conventions:
   * `statement uses:` lists the earlier obligations under which this
     statement is well-formed; discharge those first. (Coarse
     approximation — "all earlier ones" — is a legal fallback.)
+  * A LET's TWO context entries — the value and its unfolding
+    equation (el-let) — print folded back into the one binding the
+    source wrote, in the annotated-let order: (m : ℕ ≔ n + n).
+    Unfolded, a nested let — or a Σ split (In-place elimination) —
+    doubles the context of every goal after it where the source has
+    single bindings. The fold is by SHAPE: an ANONYMOUS (☐₀ ≡ e ∈ A)
+    entry directly after its own binder, so a hand-written hypothesis
+    of that shape folds too, which states exactly what it says.
   * Deduplication is by statement, so each equation appears once no
     matter how many sites hit it.
   * Exit status: accepted iff the list is empty.
@@ -1881,6 +1889,352 @@ The strict entry points do NOT recover: the paths that demand full
 acceptance (the compute and distill consumers) still stop at the
 first failure, since a recovered run is by construction not accepted.
 
+//////////// In-place elimination /////////////
+
+A hole is a goal, and the operator's next move is usually to ELIMINATE
+a variable of its context. That move is mechanical, and this section
+specifies the machinery that makes it: given an open hole and a
+variable of the hole's context, replace THE HOLE'S SPAN with a term
+that eliminates that variable, leaving one new hole per goal that
+remains. It is reached as an editor code action and as a CLI command;
+neither is a language feature, and both drive the one emitter
+specified here.
+
+Nothing in it extends the elaborator, the kernel, or Σ. The
+transformation READS a finished run — a hole already carries its
+context, its type and its own source span, being a Σ sig-decl with
+report metadata (e-hole) — and WRITES surface text, which the next run
+elaborates like any other file. What it writes are WRITTEN holes: the
+operator asked for them, so Refinement never instantiates them.
+
+The result is VERIFIED, NOT TRUSTED. The candidate text is re-parsed
+and re-elaborated before it is offered, and rejected unless every item
+still elaborates. New GOALS are expected — they are the point — and so
+are a quot-elim's well-definedness premise and the switch conversions
+named below; an item-level FAILURE is not, and it is how a form's own
+restriction is enforced without a second implementation of it (a
+squash-elim at a goal that is no proposition fails, and the trial says
+so). This is the discipline of the
+implicitize migration's per-site trial (docs/NovaPerfectSurface.txt,
+Phase 3c): a source-to-source rewrite earns acceptance by RE-RUNNING
+the elaborator, never by reasoning about what the elaborator would
+have done.
+
+THE EDITOR SURFACE follows from that cost. A code action is OFFERED
+per variable of the hole's context that has an elimination, read off
+this same emitter — so what is offered is what will be written — and
+the EDIT is computed on RESOLVE, for the one the operator picked. The
+trial is an elaboration; paying it per offer would multiply it by the
+context, and paying it per pick is one. The edit is STAMPED with the
+document version it was computed against: a server that reloads from
+disk never sees a keystroke, so a buffer that has moved on is caught
+by the client refusing the stamp rather than by the server misplacing
+a span.
+
+THE PRIMITIVE is scrutinee abstraction — `absT 0 x A`, the same
+operation that recovers an elided motive (docs/NovaPerfectSurface.txt,
+the sugar tiers). Every form below is that abstraction, instantiated:
+
+  at the variable's constructors      the motive of an eliminator
+  at (x .π₁, x .π₂)                   a Σ split
+  at the other side of an equation    a rewrite
+
+//// The two tiers ////
+
+Which artifact an elimination produces is settled by ONE question: is
+the refined goal CONVERTIBLE to the original?
+
+  POSITIVE — ℕ, ⊎, 𝟘, A / r, ∥A∥, QIIT sorts. The type has a
+  branching eliminator, each branch's goal is a DIFFERENT type
+  (A[Z/x] is not A[x]), and the artifact is the eliminator, with a
+  hole per branch.
+
+  RETYPE — ×, 𝟙, ≡. The type has an η or reflection principle in
+  place of an eliminator, the refined goal IS the original
+  judgementally, and the artifact is an ascribed hole. The
+  elimination is a change of PRESENTATION — which is what a goal is
+  for.
+
+The split settles the context question too, and settles it entirely:
+
+  * a RETYPE never abstracts the context. Its goal converts with the
+    old one, so every hypothesis after the variable stays usable where
+    it stands — the ones that mention the variable included.
+  * a POSITIVE abstracts EXACTLY the dependency-closed suffix. It has
+    to: a hypothesis stated at x says nothing a branch can use.
+
+//// The positive tier ////
+
+Write Γ = Γ₀ ▷ (x : X) ▷ Δ for the hole's context, split at the
+variable being eliminated, and A for its goal.
+
+THE DEPENDENCY-CLOSED SUFFIX Δ_g ⊆ Δ is the least subsequence holding
+every entry of Δ whose type mentions x, and every later entry whose
+type mentions an entry of Δ_g. Order is preserved; entries outside Δ_g
+stay where they are, and the types in Δ_g may mention them freely.
+
+Δ_g EMPTY is the common case — the variable is the innermost binder,
+or nothing after it depends on it — and takes the MOTIVE-LESS form,
+the canonical spelling the distiller elides to anyway:
+
+  (ℕ-elim ?aZ (x ih. ?aS) x)
+
+The motive the elaborator recovers is `absT 0 x A`, so the goals are
+A[Z/x] and, under x and ih : A, A[S x/x]: nothing is written that the
+elaborator would not have reconstructed. The form is emitted only when
+that recovery SUCCEEDS — the recovered motive must be skeleton-free
+(docs/NovaPerfectSurface.txt) — which the emitter settles with the
+elaborator's own predicate rather than by guessing. Otherwise the
+motive is written, as it is below.
+
+Δ_g NON-EMPTY: the motive Π-CLOSES it, each branch λ-abstracts it, and
+the result is re-applied to the variables it closed —
+
+  (ℕ-elim (x. (d₁ : D₁) → … → (dₖ : Dₖ) → A)
+          (λd₁. … λdₖ. ?aZ)
+          (x ih. λd₁. … λdₖ. ?aS)
+          x) d₁ … dₖ
+
+— the shape the clausal def's splitter already synthesizes (Defining
+equations: "the motive that Π-CLOSES the trailing columns"), for the
+same reason: the closure is what makes the induction hypothesis a
+FUNCTION over the trailing entries.
+
+NO SUBSTITUTION IS PERFORMED. Each Dᵢ and A print under a RENAMING of
+the hole's own name environment — the eliminated variable's slot holds
+the motive's binder, each generalized entry's slot holds its λ-bound
+copy, every other slot is unchanged. The de Bruijn indices already
+line up, since the motive binder stands where x stood: the
+transformation moves NAMES, not terms.
+
+SHADOWING IS THE REFINEMENT. By default every generated binder reuses
+the name it refines — the predecessor is x again, each generalized dᵢ
+is dᵢ again — so the stale outer copies become unreachable BY NAME
+inside the branch, which is the intent: a branch should not reach the
+un-refined variable by accident. The reported context shows both
+copies, a context being free to repeat a name (resolution takes the
+innermost), which is the honest display of what the term binds.
+
+THE CLOSURE RULE SUBSUMES THE CONVOY. A let leaves its unfolding
+equation in the context (el-let), so a component named by a retype
+sits next to (x1 ≡ x .π₁). That entry MENTIONS x1, hence joins Δ_g the
+moment x1 is eliminated, and the Π-closure carries it into the motive
+by the ordinary rule:
+
+  (ℕ-elim (x1. (_ : x1 ≡ x .π₁ ∈ ℕ) → A)
+          (λ_. ?aZ) (x1 ih. λ_. ?aS) x1) ⋆
+
+The Z branch is handed (Z ≡ x .π₁), which by reflection is exactly
+what makes every standing fact about x .π₁ usable at Z. What other
+presentations reach for a dedicated equation motive to obtain, the
+minimal closure produces on its own — no convoy case, no second
+motive discipline.
+
+AN ANONYMOUS ENTRY IS RE-APPLIED AS ⋆, which is what makes that work.
+`_` resolves to nothing (Name resolution), so an entry the source left
+unnamed has no spelling to re-apply — and a let's unfolding equation
+is exactly such an entry. A PROPOSITION needs none: proofs are
+irrelevant, so ⋆ stands for it and the ambient inhabitant discharges
+it. An anonymous entry that is not evidently a proposition, or one the
+emitted text would have to MENTION rather than merely re-apply, is
+REFUSED instead of emitted as a blank; the remedy is to name that
+binder.
+
+The other formers are the same story with their own binders:
+
+  x : A ⊎ B   (⊎-elim (x. ?aInl) (x. ?aInr) x)
+  x : 𝟘       (𝟘-elim x)                     — no hole remains
+  x : A / r   (quot-elim (x. ?aCls) x)       — well-definedness
+                                               arrives as an ordinary
+                                               obligation, no new
+                                               mechanism
+  x : ∥A∥     (squash-elim x (x. ?aSq))      — el-squash-e-prf, so
+                                               OFFERED ONLY at a
+                                               propositional goal
+  x : 𝒮.𝕤 ē   (nElimP C̄ m̄ ē x)     at a propositional goal
+              (nElim C̄ m̄ ⋆̄ ē x)    at a 𝕌-valued one
+
+Δ_g concerns only the formers that HAVE a motive: ⊎ and quot take its
+form exactly as ℕ does — motive written, branches λ-closed, result
+re-applied. 𝟘-elim checks against the goal whatever it is and leaves
+no branch to close. squash-elim does not refine the goal AT ALL: by
+el-squash-e-prf its body is checked at the same proposition, with a
+witness of A added to the context, so it adds a hypothesis rather
+than splitting a goal — there is nothing for a motive to abstract and
+nothing to Π-close, at any Δ.
+
+A QIIT sort has no expression-level eliminator (Future work); what it
+has is the pair of eliminator lemmas its data item generates, and
+eliminating a variable of a sort is APPLYING one. C̄ is one motive per
+SORT of the signature: the eliminated sort's is `λē. λx. A` at the
+abstraction, and the others are unconstrained, so they are minted as
+holes at their own declared domains. The methods m̄ are minted
+η-EXPANDED — a λ per constructor argument and, right after an
+inductive one, its induction hypothesis (the ᴰ-walk's own order) —
+so each goal is stated at the constructor it belongs to rather than
+at a Π type. nElim's coherences ⋆̄ are η-expanded the same way and
+end in ⋆, their type being a Π into an equation: discharged by
+computation where the methods respect the imposed equation, and
+surfaced as an ordinary obligation STATING what they must respect
+where they do not. A goal
+that is neither propositional nor 𝕌-valued has no surface eliminator
+to apply and is not offered; neither is an INDEXED sort whose indices
+are not distinct variables (Future work).
+
+//// The retype tier ////
+
+A Σ variable is eliminated by NAMING ITS COMPONENTS and restating the
+goal at the pair they form:
+
+  let x1 ≔ x .π₁ in
+  let x2 ≔ x .π₂ in
+  (?a : A[(x1, x2)/x])
+
+THE ASCRIPTION IS THE ELIMINATION. Without it the let body is checked
+against the goal it always had and the hole is minted at A[x] —
+nothing is refined. With it the hole is minted at the written type
+(e-ann), and the switch conversion A[(x1,x2)/x] ≐ A[x] closes on the
+spot: a let is always a redex (el-let-beta), so x1 and x2 reduce to
+their projections and the leaf (x .π₁, x .π₂) ≐ x is el-sigma-eta.
+The corpus writes this by hand already — letExpr.nova's letShared
+restates a goal at an abbreviation the same way.
+
+FULLY ITERATED is the same emission run depth-first, keeping the
+intermediate names so that every let stays a ONE-STEP projection:
+
+  let x1 ≔ x .π₁ in
+  let x11 ≔ x1 .π₁ in
+  let x12 ≔ x1 .π₂ in
+  let x2 ≔ x .π₂ in
+  (?a : A[((x11, x12), x2)/x])
+
+Iteration follows the head exposure the projection rule itself uses,
+so a component splits exactly when `.π₁` would elaborate on it —
+through a definition that unfolds to a × included. A 𝟙 component
+contributes () and binds nothing. It terminates structurally (a Σ
+entry cannot reference itself), with fuel as the backstop, and it is
+offered only where it DIFFERS from the one-step form.
+
+𝟙 alone is the degenerate case: no components, no lets.
+
+  (?a : A[()/x])
+
+An EQUALITY hypothesis eliminates a variable while binding nothing at
+all. With h : (u ≡ v ∈ A) in the context and u a variable,
+
+  (?a : A[v/u])
+
+and the switch closes by reflecting h. el-reflect is not a principle
+here but the definition of the judgement (docs/NovaFoundation.txt), so
+what other theories build from J is a change of ascription — which is
+why the corpus can define transport as the identity function. Either
+orientation is available (v for u, or u for v where v is the
+variable); the side eliminated must be a variable, the other may be
+any term.
+
+VACUOUS ASCRIPTIONS ARE OMITTED. Where the substitution leaves the
+goal alone — the variable does not occur in it — the retype emits a
+bare hole and keeps its lets; a rewrite that changes nothing is not
+offered at all.
+
+//// Names ////
+
+Every name the transformation invents is a DEFAULT the operator may
+override. Each form carries an ordered list of NAME SLOTS; the caller
+supplies a prefix of it, and the rest take their defaults:
+
+  ℕ-elim        predecessor, induction hypothesis    x, ih
+  ⊎-elim        left binder, right binder            x, x
+  quot-elim     representative                       x
+  squash-elim   witness                              x
+  𝟘-elim        —
+  × one step    the two components                   x1, x2
+  × iterated    one per projection path, in
+                emission order                       x1, x11, x12, x2
+  𝟙, ≡          —
+  QIIT          per method, one per constructor
+                argument and per induction
+                hypothesis                           the constructor's
+                                                     own binder names;
+                                                     ih (or ih<arg>
+                                                     where a
+                                                     constructor
+                                                     recurses more
+                                                     than once); a<i>
+                                                     where the item
+                                                     left an argument
+                                                     anonymous
+  any of them   then one per generalized entry
+                of Δ_g, in order                     the entry's own
+
+where x is the eliminated variable's own name and the defaults SHADOW,
+as above. A generalized entry of Δ_g is a slot too, one each, in
+order, AFTER the form's own — its default is the entry's own name,
+since the point of generalizing it is that the branch reaches the
+refined copy under the name it already knows. The motive binder is
+not a slot: it stands for the eliminated variable and takes its name,
+which is the one thing the emitted text is guaranteed not to mention.
+
+New HOLE LABELS are overridable the same way. They default to the
+parent hole's label plus the splitter's own constructor tags — ?aZ,
+?aS, ?aInl, ?aInr, ?aCls, ?aSq, and the constructor's name at a QIIT
+method — freshened against the labels the item already carries (a
+second ?a in one item is a structural error, e-hole). Like every
+generated name in this document they are a pure function of the
+source.
+
+Two conditions are CHECKED, not assumed:
+
+  * `_` is admissible only at a slot the emitted text never mentions.
+    A wildcard resolves to nothing (Name resolution), so a component
+    named `_` whose name stands in the restated goal is rejected
+    rather than silently emitted.
+  * A supplied name may SHADOW only names the emitted text does not
+    mention. The renaming above places names, not terms, so a binder
+    capturing an occurrence in a printed type or goal would change
+    what that occurrence means; the emitter names the occurrence it
+    would capture and rejects the choice. The defaults always pass —
+    what they shadow is the eliminated variable, which by construction
+    the emitted text no longer mentions.
+
+//// Splicing ////
+
+The replacement is PARENTHESIZED. A hole is an atom (t{5}) and the
+eliminators are t{2}, so a bare splice would re-associate wherever the
+hole stood in an argument or a scrutinee position; parenthesized, it
+is an atom again and fits every position a hole could occupy.
+
+Inside the replacement no precedence question arises at all, and that
+is by construction: every slot the transformation fills is either a
+fully delimited group — a motive (n. T), a case (a. t), an ascription
+— or an ATOM (a variable, a hole). No printed sub-term is ever placed
+where its own level would decide the parentheses. Continuation lines
+indent to the hole's own column.
+
+//// Restrictions ////
+
+ONE HOLE PER SPAN. An item macro elaborates its bodies more than once
+— a `?x` in a clause RHS is minted three times, at three different
+contexts (e-hole) — and a span carrying several holes has no single
+answer, since one text would have to serve three goals. The
+transformation is offered only where the span carries exactly one
+hole, and says so where it does not.
+
+Deferred, none of it blocked: indexed QIIT sorts (the generalization
+their motive needs is not scrutinee abstraction, and where the indices
+are not variables the honest route is the equation motive — an
+instance of the retype tier, since reflection makes the carried
+equation usable with no eliminator); `out` at a ν variable, which is
+an observation and refines no goal; and a CLAUSAL variant, answering
+the same request by splitting the item into clauses instead of filling
+the hole (Defining equations) — the better artifact where it applies,
+and a much larger edit.
+
+A retype's lets are read back as lets: el-let puts TWO entries in the
+context per let, and the report folds such a pair into the one binding
+the source wrote (The report, conventions). Without it a Σ split of
+any depth would double the context of every goal after it.
+
 //////////// Metatheory: the soundness contract /////////////
 
 Let T₀ be the theory of docs/NovaFoundation.txt over the accepted
@@ -1972,6 +2326,10 @@ Two corollaries worth keeping in view while implementing:
   type/element positions (today a QIIT is reachable only through a
   data item's generated names); indexed sorts of LARGE signatures
   (unnameable in the closed-item discipline).
+* In-place elimination past its own Restrictions (that section):
+  indexed QIIT sorts, the ν observation, and the CLAUSAL variant that
+  splits the item into clauses instead of filling the hole. Each is a
+  further artifact for the one request, not a further judgement.
 * Clausal defs beyond the structural fragment (Defining equations
   section; each item fills the same three artifact slots): nested
   patterns and multi-column splits (split trees); QIIT splits —
