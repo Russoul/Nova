@@ -657,6 +657,17 @@ eliminate opts taken qiits v var =
           then Left "the goal does not mention \{nameOr nms p}, so rewriting it refines nothing"
           else Right [(rng, "(?\{label} : \{restate tbl nms n p (atomize txt) goal})")]
 
+  ||| Why a type offers nothing of its own. A ν HAS an eliminator —
+  ||| `out` — and saying it does not would be false: what it does not
+  ||| have is a case analysis, since observing a stream refines no goal
+  ||| (docs/NovaElaboration.txt, Restrictions). Everything else that
+  ||| reaches here genuinely eliminates in no way at all: a universe, a
+  ||| Π, a neutral.
+  noEliminator : (px : Nat) -> String
+  noEliminator px = case at px (toList v.hvCtxX) of
+    Just (Elem.NuTy _) => "`out` at a ν OBSERVES rather than splits, so it refines no goal"
+    _ => "this type has no eliminator"
+
   ||| No former of its own: the variable may still be eliminable by an
   ||| EQUATION of the context that has it as a side — reflection makes
   ||| that a change of ascription, with no eliminator at all.
@@ -675,7 +686,7 @@ eliminate opts taken qiits v var =
                                  _ => Nothing)
                         [0 .. minus n 1]
     in case reverse hyps of
-         [] => Left "\{var} : this type has no eliminator, and no equation of the context has it as a side"
+         [] => Left "\{var} : \{noEliminator px}, and no equation of the context has it as a side"
          ((q, other) :: _) =>
            retype tbl nms n px goal label
              (prettyElemN tbl (toSnoc (take q (map (nameOr nms) [0 .. minus n 1]))) other)
