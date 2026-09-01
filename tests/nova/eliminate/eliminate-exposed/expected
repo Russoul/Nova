@@ -11,9 +11,9 @@ defined cited [+1 declaration]
 defined bare [+1 declaration]
 defined v [+1 declaration]
 open holes (3):
-  [?g1Sq] (n : ℕ) (h : (sq n)) (h : ℕ) ⊢ ?g1Sq : (sq n)
+  [?g1Sq] (n : ℕ) (h : ∥ℕ∥) (h : ℕ) ⊢ ?g1Sq : ∥ℕ∥
       at: out/input.nova:12:82: def cited
   [?g2] (n : ℕ) (h : (sq n)) ⊢ ?g2 : (sq n)
       at: out/input.nova:16:44: def bare
-  [?g3] (x : alias) ⊢ ?g3 : ℕ
+  [?g3] (x : ℕ ⊎ ℕ) ⊢ ?g3 : ℕ
       at: out/input.nova:19:46: def v

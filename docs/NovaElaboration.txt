@@ -1810,6 +1810,55 @@ its goals show at once; that is the honest account of what filling it
 commits to, and it is why the span is readable where it is not
 rewritable (In-place elimination, Restrictions).
 
+WHAT A GOAL IS PRINTED AS is decided by the UNFOLD LICENCE of the
+item that surfaced it. A report computes the licensed unfolds rather
+than showing the folded spelling: for every definition the item cited
+— `<def>.unfold`, or `<def>.eq`, which subsumes it — each occurrence
+of that definition in the printed judgement is replaced by its body.
+Nothing else is unfolded, so a name the item did not cite is printed
+as written, and an item that cited nothing reads exactly as it did
+before there were licences at all.
+
+ONE LAYER, at each position as WRITTEN. A licensed occurrence is
+replaced by its body and the traversal does not re-enter that body:
+what the unfolding revealed is shown as the definition wrote it, so a
+`bisim s t` cited as `bisim.unfold` opens into its squash with the
+`stream a` inside still folded — the same `stream a` opens only where
+it is the written form. This is the whole difference between a goal
+that answers "what shape is this?" and one that restates the file:
+unfolding to a fixpoint composes every cited definition at once, and
+`bisimReflect`, which cites six, becomes unreadable at exactly the
+moment its goal matters most.
+
+TYPES AND TERMS ALIKE. The licence is about what the operator is
+entitled to see, not about which slot of a judgement it sits in, so
+an obligation's SIDES unfold under it too — `hd a (repeat a v) ≐ v`
+prints as `(out (repeat a v)) .π₁ ≐ v` where `hd.eq` is cited. (This
+is the DISPLAY pass. The rule that equation sides never δ-expand is
+about the JOIN, which decides acceptance and is untouched: what the
+operator reads changed, what the kernel checks did not.)
+
+A DEFINITION WHOSE BODY MENTIONS A HOLE is printed by name, licence
+or not. It unfolds to that hole under the hole's own context spine —
+the elaborator's bookkeeping, and never an answer — so the citation
+buys the reader nothing and costs them the name they wrote: a clausal
+`dbl` whose `S` clause is `?step` would turn its own clause equation
+into `?step[…] ≐ ?step`. The test reads Σ alone, and not which holes
+have been solved yet, so that the two reports cannot disagree: the
+command's renders from the final state and an editor's renders per
+item, and a licence that shrank as a run progressed would print one
+goal two ways. (This too is the display's question alone. The JOIN
+unfolds whatever is licensed, legible or not, because acceptance
+turns on it.)
+
+THE LICENCE IS THE SURFACING ITEM'S, captured where the hole or
+obligation was minted. A report is rendered at end of module, long
+after the citing item finished and its eq-scope was restored, so
+reading the ambient scope at print time would print each goal under
+whatever licence the LAST item happened to hold. The unfold set is
+therefore recorded alongside the site and the file — display
+metadata, like the span and the hint.
+
 The report has THREE blocks, in this order: open holes, open
 obligations, open declarations. Holes come first because they are the
 goals the operator asked for; a hole renders like a declaration (it
@@ -1948,16 +1997,29 @@ by the client refusing the stamp rather than by the server misplacing
 a span.
 
 WHICH ELIMINATION A VARIABLE HAS is read off its type with the head
-EXPOSED, not as the report prints it. A type is usually WRITTEN as a
-definition — `bisim s t` is a squash and nothing about the folded
-spelling says so — so classifying on the display form would see a
-signature reference and offer nothing. The display form is what is
-printed BACK, since that is what the operator reads. Exposure here
-runs with the unfold whitelist OPEN: `expOK`'s licence governs what a
+EXPOSED, independently of what the report prints. A type is usually
+WRITTEN as a definition — `bisim s t` is a squash and nothing about
+the folded spelling says so — so classifying on the printed form
+would be classifying on someone else's decision. Exposure here runs
+with the unfold whitelist OPEN: `expOK`'s licence governs what a
 PROOF may unfold and belongs to the surfacing item, while this needs
 only the SHAPE. Whether the elaborator may then follow the same
 unfolding is the trial's question, and its answer names the remedy —
 the item's own `using (<name>.unfold)`.
+
+The report is a SEPARATE consumer and answers a separate question. It
+prints under the surfacing item's licence, and so computes the
+unfolds that item cited and no others (The report, what a goal is
+printed as); classification computes the shape whether or not any
+were cited. The two agree wherever the item cited the definition in
+question and diverge where it did not — which is the point: an
+uncited `sq n` still HAS an elimination to offer, and still prints as
+`sq n`, with the trial naming `sq.unfold` as what would let the
+offered edit through. Both contexts are therefore carried side by
+side (`HoleView`: the display form and the exposed one), and an
+entry refined by hole solutions is refined in both, or the goal an
+operator reads and the offer they are given stop being about the
+same variable.
 
 THE PRIMITIVE is scrutinee abstraction — `absT 0 x A`, the same
 operation that recovers an elided motive (docs/NovaPerfectSurface.txt,

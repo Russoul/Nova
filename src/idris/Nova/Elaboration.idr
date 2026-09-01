@@ -161,6 +161,11 @@ record OblMeta where
   ocomposite : Maybe Stmt
   ||| advisory hint recorded at assume time (§5.4) — display only
   ohint : Maybe String
+  ||| the UNFOLD LICENCE in force where this obligation surfaced — the
+  ||| surfacing item's eq-scope, captured here because it is spent by
+  ||| the time the report is rendered (docs/NovaElaboration.txt, what
+  ||| a report prints)
+  ounfs : List String
 
 ||| Display metadata of one declaration — same discipline as OblMeta:
 ||| the declaration itself is a sig-decl entry of Σ; this record is
@@ -174,6 +179,10 @@ record DeclMeta where
   dfile : String
   ||| the declaring item's source span (LSP diagnostics)
   drange : Maybe Range
+  ||| the UNFOLD LICENCE in force where this declaration surfaced —
+  ||| the declaring item's eq-scope, captured for the same reason
+  ||| `OblMeta.ounfs` is
+  dunfs : List String
 
 ||| One argument of a QIIT constructor: the name the `data` item wrote
 ||| for it, and whether it is INDUCTIVE — an inductive argument is
@@ -1348,94 +1357,185 @@ tryCands : List Cand -> (Cand -> Maybe a) -> Maybe a
 tryCands [] f = Nothing
 tryCands (c :: cs) f = f c <|> tryCands cs f
 
--- ===== whitelisted δ for equation joins (`<def>.eq` citations) =====
+mutual
+  ||| Signature references of a term, accumulated — the unfold hint's
+  ||| candidate pool (one traversal, no rendering).
+  refsE : Elem -> SnocList String -> SnocList String
+  refsE (CtxVar _) acc = acc
+  refsE (ZeroElim t) acc = refsE t acc
+  refsE OneIntro acc = acc
+  refsE NatIntro0 acc = acc
+  refsE (NatIntro1 t) acc = refsE t acc
+  refsE (NatElim z s t) acc = refsE t (refsE s (refsE z acc))
+  refsE (PiIntro f) acc = refsE f acc
+  refsE (PiApp f e) acc = refsE e (refsE f acc)
+  refsE (Let a b) acc = refsE b (refsE a acc)
+  refsE (SigmaIntro a b) acc = refsE b (refsE a acc)
+  refsE (SigmaElim1 t) acc = refsE t acc
+  refsE (SigmaElim2 t) acc = refsE t acc
+  refsE (Inj1 t) acc = refsE t acc
+  refsE (Inj2 t) acc = refsE t acc
+  refsE (SumElim l r t) acc = refsE t (refsE r (refsE l acc))
+  refsE Elem.ZeroTy acc = acc
+  refsE Elem.OneTy acc = acc
+  refsE Elem.NatTy acc = acc
+  refsE UniverseTy acc = acc
+  refsE PropTy acc = acc
+  refsE TopTy acc = acc
+  refsE (Elem.PiTy a b) acc = refsE b (refsE a acc)
+  refsE (Elem.SigmaTy a b) acc = refsE b (refsE a acc)
+  refsE (Elem.SumTy a b) acc = refsE b (refsE a acc)
+  refsE (Elem.EqTy l r t) acc = refsT t (refsE r (refsE l acc))
+  refsE (QuotTy a r) acc = refsE r (refsE a acc)
+  refsE (SigVar x es) acc = foldl (\a, e => refsE e a) (acc :< x) es
+  refsE (Class a) acc = refsE a acc
+  refsE (QuotElim f q) acc = refsE q (refsE f acc)
+  refsE (Squash t) acc = refsT t acc
+  refsE Star acc = acc
+  refsE (QSort _ _ es) acc = foldl (\a, e => refsE e a) acc es
+  refsE (QCtor _ _ es) acc = foldl (\a, e => refsE e a) acc es
+  refsE (QElim _ _ ms fs es w) acc =
+    refsE w (foldl (\a, e => refsE e a)
+              (foldl (\a, e => refsE e a)
+                (foldl (\a, t => refsT t a) acc ms) fs) es)
+  refsE (Elem.NuTy _) acc = acc
+  refsE (Out t) acc = refsE t acc
+  refsE (Corec _ a f x) acc = refsE x (refsE f (refsE a acc))
+
+  refsT : Ty -> SnocList String -> SnocList String
+  refsT = refsE
+
+-- ===== whitelisted δ: the joins, and the report =====
 --
 -- unfElem/unfTy replace every SigVar reference to a LICENSED term
--- definition by its body — recursively (a body may cite another
--- licensed name; Σ is a DAG, so this terminates) — leaving everything
--- else as written. The strict join is then compElem/compTy of the
--- result: α + computation + exactly the cited unfoldings. Type-level
--- SigVars stay stuck here: type-abbreviation exposure is the
--- (separate) head-exposure whitelist's domain.
+-- definition by its body, leaving everything else as written. Two
+-- consumers, and `deep` is which one is asking.
+--
+-- DEEP (the join, `<def>.eq` citations) re-enters each body — one may
+-- cite another licensed name, and Σ is a DAG, so this terminates. The
+-- strict join is then compElem/compTy of the result: α + computation
+-- + exactly the cited unfoldings.
+--
+-- SHALLOW (the report, docs/NovaElaboration.txt: what a goal is
+-- printed as) stops at each body: one layer, at each position as
+-- WRITTEN. Unfolding to a fixpoint composes every citation at once,
+-- and a goal citing several becomes unreadable at the moment it
+-- matters most; one layer answers "what shape is this?" and leaves
+-- what it revealed spelled as the definition spells it.
+--
+-- Type-level SigVars stay stuck for the JOIN: type-abbreviation
+-- exposure is the (separate) head-exposure whitelist's domain, which
+-- is why a report unfolds a type only because its item cited it.
 
 mutual
-  unfSubNorm : Sig -> List String -> SubNorm -> SubNorm
-  unfSubNorm sig unfs [<] = [<]
-  unfSubNorm sig unfs (es :< e) = unfSubNorm sig unfs es :< unfElem sig unfs e
+  unfSubNorm : Sig -> (deep : Bool) -> List String -> SubNorm -> SubNorm
+  unfSubNorm sig deep unfs [<] = [<]
+  unfSubNorm sig deep unfs (es :< e) = unfSubNorm sig deep unfs es :< unfElem sig deep unfs e
 
-  unfElem : Sig -> List String -> Elem -> Elem
-  unfElem sig unfs e@(CtxVar _)      = e
-  unfElem sig unfs (ZeroElim t)      = ZeroElim (unfElem sig unfs t)
-  unfElem sig unfs OneIntro          = OneIntro
-  unfElem sig unfs NatIntro0         = NatIntro0
-  unfElem sig unfs (NatIntro1 t)     = NatIntro1 (unfElem sig unfs t)
-  unfElem sig unfs (NatElim z s t)   = NatElim (unfElem sig unfs z) (unfElem sig unfs s) (unfElem sig unfs t)
-  unfElem sig unfs (PiIntro f)       = PiIntro (unfElem sig unfs f)
-  unfElem sig unfs (PiApp f e)       = PiApp (unfElem sig unfs f) (unfElem sig unfs e)
-  unfElem sig unfs (Let a b)         = Let (unfElem sig unfs a) (unfElem sig unfs b)
-  unfElem sig unfs (SigmaIntro a b)  = SigmaIntro (unfElem sig unfs a) (unfElem sig unfs b)
-  unfElem sig unfs (SigmaElim1 t)    = SigmaElim1 (unfElem sig unfs t)
-  unfElem sig unfs (SigmaElim2 t)    = SigmaElim2 (unfElem sig unfs t)
-  unfElem sig unfs (Inj1 t)          = Inj1 (unfElem sig unfs t)
-  unfElem sig unfs (Inj2 t)          = Inj2 (unfElem sig unfs t)
-  unfElem sig unfs (SumElim l r t)   = SumElim (unfElem sig unfs l) (unfElem sig unfs r) (unfElem sig unfs t)
-  unfElem sig unfs Elem.ZeroTy       = Elem.ZeroTy
-  unfElem sig unfs Elem.OneTy        = Elem.OneTy
-  unfElem sig unfs Elem.NatTy        = Elem.NatTy
-  unfElem sig unfs (Elem.PiTy a b)   = Elem.PiTy (unfElem sig unfs a) (unfElem sig unfs b)
-  unfElem sig unfs (Elem.SigmaTy a b) = Elem.SigmaTy (unfElem sig unfs a) (unfElem sig unfs b)
-  unfElem sig unfs (Elem.SumTy a b)  = Elem.SumTy (unfElem sig unfs a) (unfElem sig unfs b)
-  unfElem sig unfs UniverseTy        = UniverseTy
-  unfElem sig unfs PropTy            = PropTy
-  unfElem sig unfs TopTy             = TopTy
-  unfElem sig unfs (Elem.EqTy l r t) = Elem.EqTy (unfElem sig unfs l) (unfElem sig unfs r) (unfTy sig unfs t)
-  unfElem sig unfs (QuotTy a r)      = QuotTy (unfElem sig unfs a) (unfElem sig unfs r)
-  unfElem sig unfs (SigVar x es) =
-    let es' = unfSubNorm sig unfs es in
+  unfElem : Sig -> (deep : Bool) -> List String -> Elem -> Elem
+  unfElem sig deep unfs e@(CtxVar _)      = e
+  unfElem sig deep unfs (ZeroElim t)      = ZeroElim (unfElem sig deep unfs t)
+  unfElem sig deep unfs OneIntro          = OneIntro
+  unfElem sig deep unfs NatIntro0         = NatIntro0
+  unfElem sig deep unfs (NatIntro1 t)     = NatIntro1 (unfElem sig deep unfs t)
+  unfElem sig deep unfs (NatElim z s t)   = NatElim (unfElem sig deep unfs z) (unfElem sig deep unfs s) (unfElem sig deep unfs t)
+  unfElem sig deep unfs (PiIntro f)       = PiIntro (unfElem sig deep unfs f)
+  unfElem sig deep unfs (PiApp f e)       = PiApp (unfElem sig deep unfs f) (unfElem sig deep unfs e)
+  unfElem sig deep unfs (Let a b)         = Let (unfElem sig deep unfs a) (unfElem sig deep unfs b)
+  unfElem sig deep unfs (SigmaIntro a b)  = SigmaIntro (unfElem sig deep unfs a) (unfElem sig deep unfs b)
+  unfElem sig deep unfs (SigmaElim1 t)    = SigmaElim1 (unfElem sig deep unfs t)
+  unfElem sig deep unfs (SigmaElim2 t)    = SigmaElim2 (unfElem sig deep unfs t)
+  unfElem sig deep unfs (Inj1 t)          = Inj1 (unfElem sig deep unfs t)
+  unfElem sig deep unfs (Inj2 t)          = Inj2 (unfElem sig deep unfs t)
+  unfElem sig deep unfs (SumElim l r t)   = SumElim (unfElem sig deep unfs l) (unfElem sig deep unfs r) (unfElem sig deep unfs t)
+  unfElem sig deep unfs Elem.ZeroTy       = Elem.ZeroTy
+  unfElem sig deep unfs Elem.OneTy        = Elem.OneTy
+  unfElem sig deep unfs Elem.NatTy        = Elem.NatTy
+  unfElem sig deep unfs (Elem.PiTy a b)   = Elem.PiTy (unfElem sig deep unfs a) (unfElem sig deep unfs b)
+  unfElem sig deep unfs (Elem.SigmaTy a b) = Elem.SigmaTy (unfElem sig deep unfs a) (unfElem sig deep unfs b)
+  unfElem sig deep unfs (Elem.SumTy a b)  = Elem.SumTy (unfElem sig deep unfs a) (unfElem sig deep unfs b)
+  unfElem sig deep unfs UniverseTy        = UniverseTy
+  unfElem sig deep unfs PropTy            = PropTy
+  unfElem sig deep unfs TopTy             = TopTy
+  unfElem sig deep unfs (Elem.EqTy l r t) = Elem.EqTy (unfElem sig deep unfs l) (unfElem sig deep unfs r) (unfTy sig deep unfs t)
+  unfElem sig deep unfs (QuotTy a r)      = QuotTy (unfElem sig deep unfs a) (unfElem sig deep unfs r)
+  unfElem sig deep unfs (SigVar x es) =
+    let es' = unfSubNorm sig deep unfs es in
     if elem x unfs
       then case cachedSigLookup sig x of
-             Just (SigDef _ _ a _) => unfElem sig unfs (substElem a (embed es'))
+             Just (SigDef _ _ a _) =>
+               let body = substElem a (embed es') in
+               if deep then unfElem sig deep unfs body else body
              _ => SigVar x es'
       else SigVar x es'
-  unfElem sig unfs (Class a)         = Class (unfElem sig unfs a)
-  unfElem sig unfs (QuotElim f q)    = QuotElim (unfElem sig unfs f) (unfElem sig unfs q)
-  unfElem sig unfs (Squash t)        = Squash (unfTy sig unfs t)
-  unfElem sig unfs Star              = Star
-  unfElem sig unfs (QSort sg k es)  = QSort (unfQSig sig unfs sg) k (unfSubNorm sig unfs es)
-  unfElem sig unfs (QCtor sg k es)   = QCtor (unfQSig sig unfs sg) k (unfSubNorm sig unfs es)
-  unfElem sig unfs (QElim sg k ms fs es w) =
-    QElim (unfQSig sig unfs sg) k (map (unfTy sig unfs) ms) (map (unfElem sig unfs) fs)
-      (unfSubNorm sig unfs es) (unfElem sig unfs w)
-  unfElem sig unfs (Elem.NuTy f)     = Elem.NuTy (unfPoly sig unfs f)
-  unfElem sig unfs (Out t)           = Out (unfElem sig unfs t)
-  unfElem sig unfs (Corec p a f x)   =
-    Corec (unfPoly sig unfs p) (unfElem sig unfs a) (unfElem sig unfs f) (unfElem sig unfs x)
+  unfElem sig deep unfs (Class a)         = Class (unfElem sig deep unfs a)
+  unfElem sig deep unfs (QuotElim f q)    = QuotElim (unfElem sig deep unfs f) (unfElem sig deep unfs q)
+  unfElem sig deep unfs (Squash t)        = Squash (unfTy sig deep unfs t)
+  unfElem sig deep unfs Star              = Star
+  unfElem sig deep unfs (QSort sg k es)  = QSort (unfQSig sig deep unfs sg) k (unfSubNorm sig deep unfs es)
+  unfElem sig deep unfs (QCtor sg k es)   = QCtor (unfQSig sig deep unfs sg) k (unfSubNorm sig deep unfs es)
+  unfElem sig deep unfs (QElim sg k ms fs es w) =
+    QElim (unfQSig sig deep unfs sg) k (map (unfTy sig deep unfs) ms) (map (unfElem sig deep unfs) fs)
+      (unfSubNorm sig deep unfs es) (unfElem sig deep unfs w)
+  unfElem sig deep unfs (Elem.NuTy f)     = Elem.NuTy (unfPoly sig deep unfs f)
+  unfElem sig deep unfs (Out t)           = Out (unfElem sig deep unfs t)
+  unfElem sig deep unfs (Corec p a f x)   =
+    Corec (unfPoly sig deep unfs p) (unfElem sig deep unfs a) (unfElem sig deep unfs f) (unfElem sig deep unfs x)
 
-  unfPoly : Sig -> List String -> Poly -> Poly
-  unfPoly sig unfs PHole        = PHole
-  unfPoly sig unfs (PConst a)   = PConst (unfElem sig unfs a)
-  unfPoly sig unfs (PProd f g)  = PProd (unfPoly sig unfs f) (unfPoly sig unfs g)
-  unfPoly sig unfs (PSum f g)   = PSum (unfPoly sig unfs f) (unfPoly sig unfs g)
-  unfPoly sig unfs (PSigma a f) = PSigma (unfElem sig unfs a) (unfPoly sig unfs f)
-  unfPoly sig unfs (PPi a f)    = PPi (unfElem sig unfs a) (unfPoly sig unfs f)
+  unfPoly : Sig -> (deep : Bool) -> List String -> Poly -> Poly
+  unfPoly sig deep unfs PHole        = PHole
+  unfPoly sig deep unfs (PConst a)   = PConst (unfElem sig deep unfs a)
+  unfPoly sig deep unfs (PProd f g)  = PProd (unfPoly sig deep unfs f) (unfPoly sig deep unfs g)
+  unfPoly sig deep unfs (PSum f g)   = PSum (unfPoly sig deep unfs f) (unfPoly sig deep unfs g)
+  unfPoly sig deep unfs (PSigma a f) = PSigma (unfElem sig deep unfs a) (unfPoly sig deep unfs f)
+  unfPoly sig deep unfs (PPi a f)    = PPi (unfElem sig deep unfs a) (unfPoly sig deep unfs f)
 
-  unfQTm : Sig -> List String -> QTm -> QTm
-  unfQTm sig unfs (QVar i)     = QVar i
-  unfQTm sig unfs (QAppE f e)  = QAppE (unfQTm sig unfs f) (unfElem sig unfs e)
-  unfQTm sig unfs (QAppI f a)  = QAppI (unfQTm sig unfs f) (unfQTm sig unfs a)
-  unfQTm sig unfs (QEqC l r u) = QEqC (unfQTm sig unfs l) (unfQTm sig unfs r) (unfQTm sig unfs u)
+  unfQTm : Sig -> (deep : Bool) -> List String -> QTm -> QTm
+  unfQTm sig deep unfs (QVar i)     = QVar i
+  unfQTm sig deep unfs (QAppE f e)  = QAppE (unfQTm sig deep unfs f) (unfElem sig deep unfs e)
+  unfQTm sig deep unfs (QAppI f a)  = QAppI (unfQTm sig deep unfs f) (unfQTm sig deep unfs a)
+  unfQTm sig deep unfs (QEqC l r u) = QEqC (unfQTm sig deep unfs l) (unfQTm sig deep unfs r) (unfQTm sig deep unfs u)
 
-  unfQTy : Sig -> List String -> QTy -> QTy
-  unfQTy sig unfs QU           = QU
-  unfQTy sig unfs (QEl t)      = QEl (unfQTm sig unfs t)
-  unfQTy sig unfs (QPiExt a b) = QPiExt (unfTy sig unfs a) (unfQTy sig unfs b)
-  unfQTy sig unfs (QPiInd u b) = QPiInd (unfQTm sig unfs u) (unfQTy sig unfs b)
+  unfQTy : Sig -> (deep : Bool) -> List String -> QTy -> QTy
+  unfQTy sig deep unfs QU           = QU
+  unfQTy sig deep unfs (QEl t)      = QEl (unfQTm sig deep unfs t)
+  unfQTy sig deep unfs (QPiExt a b) = QPiExt (unfTy sig deep unfs a) (unfQTy sig deep unfs b)
+  unfQTy sig deep unfs (QPiInd u b) = QPiInd (unfQTm sig deep unfs u) (unfQTy sig deep unfs b)
 
-  unfQSig : Sig -> List String -> QSig -> QSig
-  unfQSig sig unfs = map (unfQTy sig unfs)
+  unfQSig : Sig -> (deep : Bool) -> List String -> QSig -> QSig
+  unfQSig sig deep unfs = map (unfQTy sig deep unfs)
 
-  unfTy : Sig -> List String -> Ty -> Ty
+  unfTy : Sig -> (deep : Bool) -> List String -> Ty -> Ty
   unfTy = unfElem
+
+||| Every definition a site's `using` clause licensed the DISPLAY to
+||| unfold, under the ONE name `unfElem` keys on. A citation arrives
+||| in the eq-scope in the shape its family uses — `<def>.eq` bare,
+||| `<def>.unfold` as `exp:<def>` — and both license the unfolding;
+||| the markers of the other families (`hyp.rw`, `rw:<lemma>`, the
+||| etas) pass through and simply never match a Σ name.
+|||
+||| A definition whose body MENTIONS A HOLE is dropped from the set.
+||| It unfolds to that hole under its own context spine — the
+||| elaborator's bookkeeping, where the name the operator wrote says
+||| strictly more — so `dbl (S n) ≐ ?step` stays the goal it is
+||| instead of restating `?step` on both sides. The test reads Σ and
+||| nothing else, deliberately: the CLI report renders from the final
+||| state and an editor's renders per item, and a set that depended on
+||| which holes were solved YET would have them print differently.
+||| This is the display's question alone — the JOIN unfolds whatever
+||| is licensed, since acceptance turns on the unfolding whether or
+||| not it is legible.
+dispUnfs : Sig -> List String -> List String
+dispUnfs sig ns = filter opens (ns ++ mapMaybe expName ns)
+ where
+  expName : String -> Maybe String
+  expName n = if isPrefixOf "exp:" n then Just (pack (drop 4 (unpack n))) else Nothing
+
+  opens : String -> Bool
+  opens x = case cachedSigLookup sig x of
+    Just (SigDef _ _ body _) => not (any isHoleName (toList (refsE body [<])))
+    _ => True
 
 ||| The join normal form of a side — comp plus the site's licensed
 ||| unfoldings — extended, under a cited `hyp.rw` / `<lemma>.rw`
@@ -1443,7 +1543,7 @@ mutual
 ||| (hypotheses, chain links, named Σ-lemmas; never the whole store).
 rwNfElemS : Sig -> (unfs : List String) -> List Cand -> (side : Bool) -> Elem -> (Elem, List Step)
 rwNfElemS sig unfs cands side e =
-  let start = compElem (unfElem sig unfs e) in
+  let start = compElem (unfElem sig True unfs e) in
   if elem "hyp.rw" unfs || any (isPrefixOf "rw:") unfs
     then goS rwFuel [start] start []
     else (start, [])
@@ -1456,13 +1556,13 @@ rwNfElemS sig unfs cands side e =
   goS (S fuel) seen t acc =
     case tryCands hypCs (\c => rewriteElemS side c [] 0 t) of
       Just (t', st) =>
-        let t'' = compElem (unfElem sig unfs t') in
+        let t'' = compElem (unfElem sig True unfs t') in
         if elem t'' seen then (t, acc) else goS fuel (t'' :: seen) t'' (acc ++ st)
       Nothing => (t, acc)
 
 rwNfTyS : Sig -> (unfs : List String) -> List Cand -> (side : Bool) -> Ty -> (Ty, List Step)
 rwNfTyS sig unfs cands side ty =
-  let start = compTy (unfTy sig unfs ty) in
+  let start = compTy (unfTy sig True unfs ty) in
   if elem "hyp.rw" unfs || any (isPrefixOf "rw:") unfs
     then goS rwFuel [start] start []
     else (start, [])
@@ -1475,7 +1575,7 @@ rwNfTyS sig unfs cands side ty =
   goS (S fuel) seen t acc =
     case tryCands hypCs (\c => rewriteTyS side c [] 0 t) of
       Just (t', st) =>
-        let t'' = compTy (unfTy sig unfs t') in
+        let t'' = compTy (unfTy sig True unfs t') in
         if elem t'' seen then (t, acc) else goS fuel (t'' :: seen) t'' (acc ++ st)
       Nothing => (t, acc)
 
@@ -1588,7 +1688,7 @@ engNfE st e = compElem e
 ||| site's licensed unfoldings — for positions that must stay in the
 ||| join vocabulary (hop residues).
 engJoinE : ElabSt -> Elem -> Elem
-engJoinE st e = compElem (unfElem st.sig st.eqScope e)
+engJoinE st e = compElem (unfElem st.sig True st.eqScope e)
 
 engNfT : ElabSt -> Ty -> Ty
 engNfT st t = compTy t
@@ -2601,21 +2701,43 @@ mutual
   resugarPoly st (PSigma a f) = PSigma (resugarElem st a) (resugarPoly st f)
   resugarPoly st (PPi a f) = PPi (resugarElem st a) (resugarPoly st f)
 
+-- ===== The display forms =====
+--
+-- Each takes the UNFOLD LICENCE of the site whose form this is: the
+-- eq-scope that was in force where the thing surfaced, not the
+-- ambient one (a report is rendered long after that item finished).
+-- `[]` — the licence of a site that cited nothing — leaves the term
+-- exactly as it was written, which is what every non-report caller
+-- passes.
+
+displayElemIn : ElabSt -> List String -> Elem -> Elem
+displayElemIn st unfs = resugarElem st . compElem . unfElem st.sig False (dispUnfs st.sig unfs)
+
+displayTyIn : ElabSt -> List String -> Ty -> Ty
+displayTyIn st unfs = resugarTy st . compTy . unfTy st.sig False (dispUnfs st.sig unfs)
+
+displayCtxIn : ElabSt -> List String -> Ctx -> Ctx
+displayCtxIn st unfs [<] = [<]
+displayCtxIn st unfs (rest :< ty) = displayCtxIn st unfs rest :< displayTyIn st unfs ty
+
+displayStmtIn : ElabSt -> List String -> Stmt -> Stmt
+displayStmtIn st unfs (StElem ctx env a b ty) =
+  StElem (displayCtxIn st unfs ctx) env
+    (displayElemIn st unfs a) (displayElemIn st unfs b) (displayTyIn st unfs ty)
+displayStmtIn st unfs (StTy ctx env a b) =
+  StTy (displayCtxIn st unfs ctx) env (displayTyIn st unfs a) (displayTyIn st unfs b)
+
 displayElem : ElabSt -> Elem -> Elem
-displayElem st = resugarElem st . compElem
+displayElem st = displayElemIn st []
 
 displayTy : ElabSt -> Ty -> Ty
-displayTy st = resugarTy st . compTy
+displayTy st = displayTyIn st []
 
 displayCtx : ElabSt -> Ctx -> Ctx
-displayCtx st [<] = [<]
-displayCtx st (rest :< ty) = displayCtx st rest :< displayTy st ty
+displayCtx st = displayCtxIn st []
 
 displayStmt : ElabSt -> Stmt -> Stmt
-displayStmt st (StElem ctx env a b ty) =
-  StElem (displayCtx st ctx) env (displayElem st a) (displayElem st b) (displayTy st ty)
-displayStmt st (StTy ctx env a b) =
-  StTy (displayCtx st ctx) env (displayTy st a) (displayTy st b)
+displayStmt st = displayStmtIn st []
 -- ===== Hole refinement =====
 --
 -- A run with holes carries constraints that SAY what its synthetic
@@ -2723,11 +2845,11 @@ oblView st = go (toList st.sig) (toList st.oblMeta)
   go : List SigEntry -> List OblMeta -> List Obligation
   go (SigDecl ctx n (Elem.EqTy a b TopTy) :: rest) (m :: ms) =
     if isOblName n
-      then MkObl (displayStmt st (StTy ctx m.oenv a b)) m.osite m.ofile (map (displayStmt st) m.ocomposite) m.ohint :: go rest ms
+      then MkObl (displayStmtIn st m.ounfs (StTy ctx m.oenv a b)) m.osite m.ofile (map (displayStmtIn st m.ounfs) m.ocomposite) m.ohint :: go rest ms
       else go rest (m :: ms)
   go (SigDecl ctx n (Elem.EqTy a b ty) :: rest) (m :: ms) =
     if isOblName n
-      then MkObl (displayStmt st (StElem ctx m.oenv a b ty)) m.osite m.ofile (map (displayStmt st) m.ocomposite) m.ohint :: go rest ms
+      then MkObl (displayStmtIn st m.ounfs (StElem ctx m.oenv a b ty)) m.osite m.ofile (map (displayStmtIn st m.ounfs) m.ocomposite) m.ohint :: go rest ms
       else go rest (m :: ms)
   go (_ :: rest) ms = go rest ms
   go [] _ = []
@@ -2752,11 +2874,13 @@ record DeclView where
 ||| that module's fixity table (the printer's), the view the report
 ||| renders — and the context with each entry's HEAD EXPOSED.
 |||
-||| The two contexts differ, and both are needed. A type is usually
-||| WRITTEN as a definition (`bisim s t`), and its former appears only
-||| after exposure, so classifying on the display form would see a
-||| signature reference and offer nothing. The display form is what the
-||| operator READS, so that is what gets printed back.
+||| The two contexts differ, and both are needed. The display form
+||| computes the unfolds the hole's own item CITED and no others; this
+||| one computes the shape whether or not any were cited, because a
+||| variable of an uncited `sq n` still has an elimination to offer
+||| (docs/NovaElaboration.txt, which elimination a variable has). The
+||| display form is what the operator READS, so that is what gets
+||| printed back.
 public export
 record HoleView where
   constructor MkHoleView
@@ -2774,7 +2898,7 @@ declView st = mapMaybe view (toList st.sig)
   metaFor x = find (\m => m.dname == x) (toList st.declMeta)
   view : SigEntry -> Maybe DeclView
   view (SigDecl ctx x TopTy) = map (\m => MkDeclView x (displayCtx st ctx) m.denv Nothing m.dsite m.dfile m.drange) (metaFor x)
-  view (SigDecl ctx x ty) = map (\m => MkDeclView x (displayCtx st ctx) m.denv (Just (displayTy st ty)) m.dsite m.dfile m.drange) (metaFor x)
+  view (SigDecl ctx x ty) = map (\m => MkDeclView x (displayCtxIn st m.dunfs ctx) m.denv (Just (displayTyIn st m.dunfs ty)) m.dsite m.dfile m.drange) (metaFor x)
   view _ = Nothing
 
 ||| Σ-lemma names a certificate's steps rely on: heads of LProof
@@ -2809,54 +2933,6 @@ hintNamesC (MkECertF tyEx steps final _) =
   fromFinal (FSigmaCong c1 c2) = hintNamesC c1 ++ hintNamesC c2
   fromFinal (FSumCong c1 c2) = hintNamesC c1 ++ hintNamesC c2
   fromFinal _ = []
-
-mutual
-  ||| Signature references of a term, accumulated — the unfold hint's
-  ||| candidate pool (one traversal, no rendering).
-  refsE : Elem -> SnocList String -> SnocList String
-  refsE (CtxVar _) acc = acc
-  refsE (ZeroElim t) acc = refsE t acc
-  refsE OneIntro acc = acc
-  refsE NatIntro0 acc = acc
-  refsE (NatIntro1 t) acc = refsE t acc
-  refsE (NatElim z s t) acc = refsE t (refsE s (refsE z acc))
-  refsE (PiIntro f) acc = refsE f acc
-  refsE (PiApp f e) acc = refsE e (refsE f acc)
-  refsE (Let a b) acc = refsE b (refsE a acc)
-  refsE (SigmaIntro a b) acc = refsE b (refsE a acc)
-  refsE (SigmaElim1 t) acc = refsE t acc
-  refsE (SigmaElim2 t) acc = refsE t acc
-  refsE (Inj1 t) acc = refsE t acc
-  refsE (Inj2 t) acc = refsE t acc
-  refsE (SumElim l r t) acc = refsE t (refsE r (refsE l acc))
-  refsE Elem.ZeroTy acc = acc
-  refsE Elem.OneTy acc = acc
-  refsE Elem.NatTy acc = acc
-  refsE UniverseTy acc = acc
-  refsE PropTy acc = acc
-  refsE TopTy acc = acc
-  refsE (Elem.PiTy a b) acc = refsE b (refsE a acc)
-  refsE (Elem.SigmaTy a b) acc = refsE b (refsE a acc)
-  refsE (Elem.SumTy a b) acc = refsE b (refsE a acc)
-  refsE (Elem.EqTy l r t) acc = refsT t (refsE r (refsE l acc))
-  refsE (QuotTy a r) acc = refsE r (refsE a acc)
-  refsE (SigVar x es) acc = foldl (\a, e => refsE e a) (acc :< x) es
-  refsE (Class a) acc = refsE a acc
-  refsE (QuotElim f q) acc = refsE q (refsE f acc)
-  refsE (Squash t) acc = refsT t acc
-  refsE Star acc = acc
-  refsE (QSort _ _ es) acc = foldl (\a, e => refsE e a) acc es
-  refsE (QCtor _ _ es) acc = foldl (\a, e => refsE e a) acc es
-  refsE (QElim _ _ ms fs es w) acc =
-    refsE w (foldl (\a, e => refsE e a)
-              (foldl (\a, e => refsE e a)
-                (foldl (\a, t => refsT t a) acc ms) fs) es)
-  refsE (Elem.NuTy _) acc = acc
-  refsE (Out t) acc = refsE t acc
-  refsE (Corec _ a f x) acc = refsE x (refsE f (refsE a acc))
-
-  refsT : Ty -> SnocList String -> SnocList String
-  refsT = refsE
 
 ||| The term-definition names among a collected reference pool.
 defNamesOf : ElabSt -> SnocList String -> List String
@@ -2899,8 +2975,8 @@ hintE st ctx a b ty = lemmaHint <|> eqHint
     go Z ns = Nothing
     go (S k) ns =
       if null ns then Nothing else
-      let a' = compElem (unfElem st.sig ns a)
-          b' = compElem (unfElem st.sig ns b) in
+      let a' = compElem (unfElem st.sig True ns a)
+          b' = compElem (unfElem st.sig True ns b) in
       if a' == b'
         then Just "closes by citing \{joinBy ", " (map (++ ".eq") ns)}"
         else
@@ -2933,8 +3009,8 @@ hintT st ctx x y = lemmaHint <|> eqHint
     go Z ns = Nothing
     go (S k) ns =
       if null ns then Nothing else
-      let x' = compTy (unfTy st.sig ns x)
-          y' = compTy (unfTy st.sig ns y) in
+      let x' = compTy (unfTy st.sig True ns x)
+          y' = compTy (unfTy st.sig True ns y) in
       if x' == y'
         then Just "closes by citing \{joinBy ", " (map (++ ".eq") ns)}"
         else
@@ -2961,7 +3037,7 @@ assume stmt site comp = do
       if cheap
         then modifySt $ \s =>
           { sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty))
-          , oblMeta $= (:< MkOblMeta env site st.modFile comp Nothing) } s
+          , oblMeta $= (:< MkOblMeta env site st.modFile comp Nothing st.eqScope) } s
         else if assumedMatchE st ctx a b ty
         then pure ()
         else modifySt $ \s =>
@@ -2969,12 +3045,12 @@ assume stmt site comp = do
               bK = rwNfElem st ctx b in
           { assumedE $= ((elemSize aK + elemSize bK, ctx, aK, bK, engNfT st ty) ::)
           , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty))
-          , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint st.sig)) } s
+          , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint st.sig) st.eqScope) } s
     StTy ctx env x y => do
       if cheap
         then modifySt $ \s =>
           { sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy))
-          , oblMeta $= (:< MkOblMeta env site st.modFile comp Nothing) } s
+          , oblMeta $= (:< MkOblMeta env site st.modFile comp Nothing st.eqScope) } s
         else do
        let x' = rwNfTy st ctx x
        let y' = rwNfTy st ctx y
@@ -2983,7 +3059,7 @@ assume stmt site comp = do
         else modifySt $ \s =>
           { assumedT $= ((ctx, x', y') ::)
           , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy))
-          , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint st.sig)) } s
+          , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint st.sig) st.eqScope) } s
  where
   hintFor : ElabSt -> Stmt -> Maybe String
   hintFor st (StElem ctx _ a b ty) = hintE st ctx a b ty
@@ -3329,7 +3405,7 @@ mintHole ctx env site hrng label ty = do
                 "\{site}: duplicate hole ?\{label} — every hole of an item needs its own name"
     Nothing => pure ()
   modifySt $ { sig $= (:< SigDecl ctx q ty)
-             , declMeta $= (:< MkDeclMeta q env "\{site}" st.modFile (hrng <|> site.srange)) }
+             , declMeta $= (:< MkDeclMeta q env "\{site}" st.modFile (hrng <|> site.srange) st.eqScope) }
   pure (SigVar q (varSpine (length ctx)))
 
 ||| The first argument of a written spine that is a HOLE, with its
@@ -4495,7 +4571,7 @@ mutual
     -- conversions still verify it. STAGE 2 (ties, or an empty
     -- filter): the obligation-free conversion probes.
     st <- getSt
-    let jn = \t => compTy (unfTy st.sig st.eqScope t)
+    let jn = \t => compTy (unfTy st.sig True st.eqScope t)
     let quick = filter (quickFit st jn pres) cands
     case quick of
       [q] => run pres q
@@ -4659,7 +4735,7 @@ mutual
     -- sees through definitional scaffolding the site itself licensed;
     -- captured bindings are still α-verified downstream, so value
     -- spelling drift keeps getting rejected
-    let jn = \t => compTy (unfTy st.sig st.eqScope t)
+    let jn = \t => compTy (unfTy st.sig True st.eqScope t)
     let (doms, res) = teleOf defTy
     (slots, leftover) <- assign imps 0 doms items
     let m = length slots
@@ -4698,7 +4774,7 @@ mutual
     -- the pass's join also opens .unfold-cited (exposure-licensed)
     -- heads: it fills only otherwise-unsolved holes, so the wider
     -- join cannot disturb an existing solution
-    let jnX = \t => compTy (unfTy st.sig
+    let jnX = \t => compTy (unfTy st.sig True
                      (st.eqScope ++ mapMaybe expName st.eqScope) t)
     let argsNow = reverse revArgs
     let passSrcs = (case mexp of
@@ -5560,7 +5636,7 @@ elabItemGo irng (SDeclDef nrng x ty) = do
     Nothing => pure ()
   (ty', tySk) <- elabTy [<] [<] (MkSite "def \{x}" irng) ty
   modifySt $ { sig $= (:< SigDecl [<] q ty')
-             , declMeta $= (:< MkDeclMeta q [<] "def \{x}" st.modFile nrng) }
+             , declMeta $= (:< MkDeclMeta q [<] "def \{x}" st.modFile nrng st.eqScope) }
   addVis (x, q)
   -- a DECLARED equation is a lemma like any accepted one: its stuck
   -- reference is a proof element (el-sig-decl), so el-reflect makes
