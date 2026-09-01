@@ -1802,6 +1802,14 @@ content the file genuinely needed, and the file ends up a
 self-contained record of WHY it is accepted: every fact each item
 depends on is written at the item.
 
+HOVERING A HOLE shows the same judgement without the framing — no
+label bracket, no location, since the label is the token under the
+cursor and the location is where the operator already is. An item
+MACRO mints one hole per generated item at the SAME span, so all of
+its goals show at once; that is the honest account of what filling it
+commits to, and it is why the span is readable where it is not
+rewritable (In-place elimination, Restrictions).
+
 The report has THREE blocks, in this order: open holes, open
 obligations, open declarations. Holes come first because they are the
 goals the operator asked for; a hole renders like a declaration (it

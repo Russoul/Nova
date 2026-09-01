@@ -79,7 +79,7 @@ SYMBOLS (2):
   P (kind 12) [L7:1-L7:22]
   m (kind 12) [L9:1-L10:24]
 DEFINITION(?goal): null
-HOVER(?goal): null
+HOVER(?goal): [L10:19-L10:24] ```nova ⏎ (n : ℕ) (h : (P n)) (x : (ℕ × ℕ) × ℕ) (s : ℕ ⊎ ℕ) ⊢ ?goal : (P n) ⏎ ```
 CODE ACTIONS(?goal) (5):
   eliminate n : ℕ
   eliminate h : (P n)
