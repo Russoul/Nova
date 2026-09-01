@@ -1,8 +1,8 @@
 -- A type is usually WRITTEN as a definition, and its former shows
 -- only after head EXPOSURE — `bisim s t` in the corpus is a squash,
 -- and nothing about the folded spelling says so. Classification runs
--- on the EXPOSED context; what is printed back is the folded one,
--- which is what the operator reads.
+-- on the EXPOSED context whether or not the item CITED the unfold;
+-- printing computes the citations — `cited` reads ∥ℕ∥, `bare` sq n.
 def sq : ℕ → Ω ≔ λn. ∥ℕ∥
 
 def alias : 𝕌 ≔ ℕ ⊎ ℕ
