@@ -1,0 +1,19 @@
+-- A type is usually WRITTEN as a definition, and its former shows
+-- only after head EXPOSURE — `bisim s t` in the corpus is a squash,
+-- and nothing about the folded spelling says so. Classification runs
+-- on the EXPOSED context; what is printed back is the folded one,
+-- which is what the operator reads.
+def sq : ℕ → Ω ≔ λn. ∥ℕ∥
+
+def alias : 𝕌 ≔ ℕ ⊎ ℕ
+
+-- the elaborator follows the same unfolding only where the item CITES
+-- it, so this one goes through
+def cited : (n : ℕ) → sq n → sq n using (sq.unfold) ≔ λn. λh. ?g1
+
+-- and this one does not: the trial refuses it, and names the citation
+-- that would let it through
+def bare : (n : ℕ) → sq n → sq n ≔ λn. λh. ?g2
+
+-- a sum behind a definition, likewise
+def v : alias → ℕ using (alias.unfold) ≔ λx. ?g3

@@ -289,10 +289,10 @@ handleRequest TextDocumentCodeAction params = whenActiveRequest $ \_ => do
   let pos = fromLspPosition lns params.range.start
   -- the hole the cursor is IN; a range covering several holes is not
   -- a request to eliminate in all of them
-  let Right (tbl, h) = holeAt doc.report pos.line pos.column
+  let Right v = holeAt doc.report pos.line pos.column
     | Left _ => pure (pure (make none))
-  let taken = siblingLabels doc.report.holes h
-  let acts = concatMap (action params.textDocument.uri h) (offers tbl taken doc.report.qiits h)
+  let taken = siblingLabels doc.report.holes v.hvDecl
+  let acts = concatMap (action params.textDocument.uri v.hvDecl) (offers taken doc.report.qiits v)
   pure (pure (make (the (List (OneOf [Command, CodeAction])) (map make acts))))
  where
   action : DocumentURI -> DeclView -> (String, String, Bool) -> List CodeAction
@@ -320,10 +320,10 @@ handleRequest CodeActionResolve params = whenActiveRequest $ \_ => do
     | Nothing => pure (Left (invalidParams "unrecognised code action data"))
   Just doc <- getDoc uri
     | Nothing => pure (Left (invalidParams "\{show uri} is not open"))
-  let Just (tbl, h) = holeNamed doc.report holeName
+  let Just v = holeNamed doc.report holeName
     | Nothing => pure (Left (invalidRequest "the hole this action was offered at is gone — save and try again"))
   let opts = { optDeep := deep } defaultOptions
-  Right (rng, txt) <- eliminateEdit uri.path doc.source tbl h (siblingLabels doc.report.holes h) doc.report.qiits var opts
+  Right (rng, txt) <- eliminateEdit uri.path doc.source v (siblingLabels doc.report.holes v.hvDecl) doc.report.qiits var opts
     | Left err => do
         logW Server "eliminate \{var} at \{holeName}: \{err}"
         pure (Left (invalidRequest err))
