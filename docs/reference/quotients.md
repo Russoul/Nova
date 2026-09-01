@@ -32,4 +32,4 @@ Quotient types are primitive, and the relation is Ω-valued.
 
 ## Worked example
 
-- The integers as a quotient of `ℕ ⨯ ℕ`, and the rationals above them.
+- The integers as a quotient of `ℕ × ℕ`, and the rationals above them.

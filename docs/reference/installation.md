@@ -109,7 +109,9 @@ def bad : ℕ ≔ y
 ```
 
 ```report
-Error: def bad: unknown name 'y'
+input.nova:1:15: error: def bad: unknown name 'y'
+1 | def bad : ℕ ≔ y
+  |               ^
 ```
 
 Errors stop the run. They are what you would expect from any compiler,
@@ -119,7 +121,7 @@ and they mean what they say.
 in an ordinary compiler: the file makes sense, but the checker could
 not derive some equation it needed, so it lists what it had to assume.
 Chapter 1 showed one. These are **obligations**, they are a normal
-part of writing a file, and [Reading the report](#report-and-holes) is
+part of writing a file, and [Reading the report](#report) is
 devoted to them. A file with obligations is not accepted, and the exit
 status is non-zero.
 
@@ -151,7 +153,7 @@ In practice you will:
 5. Run again.
 
 That fourth step is the one that will be unfamiliar, and it is the
-subject of [Part VI](#report-and-holes). What is worth noticing now is
+subject of [Part VI](#report). What is worth noticing now is
 that nothing here is interactive: the file is the whole state, and
 running the checker is the only feedback mechanism. There is no
 session to lose and no ordering of commands to remember.
@@ -185,22 +187,30 @@ each.
 
 ## Editor support
 
-An LSP server is built separately:
+There are packaged clients for two editors. Installing either from the
+flake bakes in the matching language server, so there is nothing to
+configure and the two cannot drift apart:
+
+```bash
+nix run .#install-vscode-extension
+nix run .#install-nvim-plugin
+```
+
+For any other editor, build the server and point a generic LSP client
+at the binary for `.nova` files:
 
 ```bash
 nix build .#nova-lsp        # ./result/bin/nova-lsp
 pack build nova-lsp.ipkg    # build/exec/nova-lsp
 ```
 
-Point your editor's generic LSP client at that binary for `.nova`
-files. There is no packaged extension for any editor yet, so
-this is the manual route. What the server currently provides:
+What the server provides:
 
-- **Diagnostics** — errors and obligations, in place, as you save.
-- **Hover** — the type at a binder or an implicit; what a blank was
-  solved to and why; and, on a `⋆`, the goal it is standing in for.
-  That last one is Nova's equivalent of asking an editor "what goes
-  here?".
+- **Diagnostics** — errors, obligations and open holes, in place, as
+  you save.
+- **Hover** — the goal of a `?` hole or of a `⋆`; the type at a binder
+  or an implicit; what a blank was solved to, and why. This is the
+  fastest way to ask "what goes here?".
 - **Go to definition**, including across an import.
 - **Document symbols** and **semantic tokens** — the same
   classification that colours the

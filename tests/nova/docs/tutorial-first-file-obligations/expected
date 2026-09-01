@@ -4,7 +4,7 @@ defined plusZl [+1 obligation]
 defined plusZr [+1 obligation]
 open obligations (2):
   [1] (n : ℕ) ⊢ plus Z n ≐ n : ℕ
-      at: def plusZl: checking ⋆
+      at: input.nova:8:43: def plusZl: checking ⋆
       hint: closes with plusZ
   [2] (n : ℕ) ⊢ plus n Z ≐ n : ℕ
-      at: def plusZr: checking ⋆
+      at: input.nova:10:43: def plusZr: checking ⋆

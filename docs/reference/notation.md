@@ -20,7 +20,7 @@ them.
 | --- | --- | --- | --- |
 | `≔` | "is defined as" | the body of a definition | U+2254 |
 | `→` | "to", or "arrow" | function type | U+2192 |
-| `⨯` | "cross" | pair type | U+2A2F |
+| `×` | "cross" | pair type | U+00D7 |
 | `⊎` | "or", or "uplus" | disjoint union | U+228E |
 | `ℕ` | "nat" | the natural numbers | U+2115 |
 | `𝟘` | "empty" | the empty type | U+1D7D8 |
@@ -78,16 +78,37 @@ almost everything above.
 | `\||` | `∥` | | `\_1` `\_2` | `₁` `₂` |
 | `\<` `\>` | `⟨` `⟩` | | `\le` `\neg` | `≤` `¬` |
 
-`⨯` is the awkward one. It is **not** `\times`: that gives `×`
-(U+00D7), a different character that will not parse. In an
-Agda-style mode the cross family is reached with `\x` or `\times` and
-you cycle to the variant you want; make sure you land on U+2A2F.
-
 Without an input mode, three fallbacks work fine: copy the glyphs out
 of the tables above, define editor snippets for the dozen you actually
 use, or enter them by code point with your system's hex input. The
 language server does not insert glyphs for you — it deliberately
 provides no completion.
+
+## Or write ASCII
+
+Every non-ASCII token has an ASCII spelling. Both parse to the same
+thing, you may mix them freely in one file, and the printer always
+emits the Unicode form — so an ASCII-written file *normalises* to
+Unicode when it is distilled.
+
+| | | | | | |
+| --- | --- | --- | --- | --- | --- |
+| `->` `→` | `\` `λ` | `\x` `×` | `:=` `≔` | `==` `≡` | `\in` `∈` |
+| `\|\|` `∥` | `\/` `⊎` | `\star` `⋆` | `\nu` `ν` | `\X` `𝕏` | `.1` `.2` |
+| `Set` `𝕌` | `Prop` `Ω` | `Nat` `ℕ` | `Void` `𝟘` | `Unit` `𝟙` | `inj1` `inj2` |
+
+So this file is accepted, and distils to the Unicode you have been
+reading:
+
+```nova-sketch
+def idNat : Nat -> Nat := \x. x
+```
+
+Two wrinkles. The seven fallbacks that are valid identifiers — `Set`,
+`Prop`, `Nat`, `Void`, `Unit`, `inj1`, `inj2` — become reserved words,
+so you cannot use them as names of your own (a name merely *beginning*
+with one, like `Setoid`, is fine). And `λ` is tried before `\x`, so
+`\x. e` is a lambda binding `x` while `A \x B` is the product.
 
 ## Look-alikes that will not parse
 
@@ -96,7 +117,7 @@ identical at normal font sizes, and only the left one is Nova.
 
 | Nova wants | Not | Which is |
 | --- | --- | --- |
-| `⨯` U+2A2F | `×` U+00D7 | the ordinary multiplication sign |
+| `×` U+00D7 | `⨯` U+2A2F | vector-or-cross-product — unrecognised here |
 | `⋆` U+22C6 | `∗` U+2217, `★` U+2605, `*` | asterisk operator, black star, ASCII |
 | `∥` U+2225 | `‖` U+2016, `\|\|` | double vertical line, two ASCII bars |
 | `⟨ ⟩` U+27E8/9 | `<` `>`, `⟪ ⟫` | ASCII angles, doubled angles |

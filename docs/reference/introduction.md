@@ -121,7 +121,7 @@ this:
 ```report
 open obligations (1):
   [1] ⊢ Z ≐ S Z : ℕ
-      at: def bad: checking ⋆
+      at: input.nova:3:25: def bad: checking ⋆
 ```
 
 Read it as: *at the `⋆` in `def bad`, I needed `Z` and `S Z` to be the
@@ -135,7 +135,7 @@ this." It is not always a bug: very often it is something true that
 needs a lemma you have not written yet. A file is accepted only when
 the list is empty, and getting it there — read the obligation, prove
 it, name it, re-run — is the working rhythm of Nova.
-[Reading the report](#report-and-holes) is the chapter on this, and
+[Reading the report](#report) is the chapter on this, and
 you will want it early.
 
 ## Five things to know before you start

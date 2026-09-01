@@ -119,11 +119,11 @@ A type abbreviation is **opaque**, exactly like any other definition.
 This surprises people, so it is worth seeing the failure:
 
 ```text
-Error: def origin: pair checked against a non-⨯ type
+Error: def origin: pair checked against a non-× type
   note: head exposure blocked for Pair — cite Pair.unfold
 ```
 
-`Pair` was defined as `ℕ ⨯ ℕ`, and a pair was offered for it, but the
+`Pair` was defined as `ℕ × ℕ`, and a pair was offered for it, but the
 checker will not look inside a name unless the item lets it. Note the
 second line: the error names the remedy, and adding
 `using (Pair.unfold)` to that definition fixes it. This is the same

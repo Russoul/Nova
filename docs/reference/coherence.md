@@ -70,7 +70,7 @@ constructor family, which sharpens the point — nothing here is
 definitional by pattern matching:
 
 ```nova
-def vect : ℕ → 𝕌 → 𝕌 ≔ λx. λy. ℕ-elim 𝟙 (n ih. y ⨯ ih) x
+def vect : ℕ → 𝕌 → 𝕌 ≔ λx. λy. ℕ-elim 𝟙 (n ih. y × ih) x
 ```
 
 Append is an induction on the first length:
@@ -88,7 +88,7 @@ Look at the two cases against the types they are checked at.
   recurses on its **second** argument, so `Z + m` is stuck. In an
   intensional setting you would write
   `subst (Vec A) (sym (+-identityˡ m)) w`. Here you write `w`.
-- **Step.** The body is a pair, of type `A ⨯ vect (k + m) A`, checked
+- **Step.** The body is a pair, of type `A × vect (k + m) A`, checked
   against `vect (S k + m) A`. Again not definitional: it needs
   `S k + m ≡ S (k + m)`. In an intensional setting, another `subst`.
   Here, a pair.

@@ -126,11 +126,11 @@ declared f and its equations (f, fZ, fEta) — clauses outside the structural fr
 ```report
 open declarations (3):
   [f] ⊢ ? : ℕ → ℕ
-      at: def f
+      at: input.nova:5:5: def f
   [fZ] ⊢ ? : f Z ≡ Z ∈ ℕ
-      at: def fZ
+      at: input.nova:6:3: def fZ
   [fEta] ⊢ ? : (x:ℕ → ℕ) → (x Z ≡ Z ∈ ℕ) → (n:ℕ) → (x n ≡ f n ∈ ℕ)
-      at: def fEta
+      at: input.nova:5:5: def fEta
 ```
 
 The macro could not build the function, so it wrote down the

@@ -62,7 +62,7 @@ it, and it does not work:
 
 ```report
   [1] (n : ℕ) ⊢ plus Z n ≐ n : ℕ
-      at: def plusZl: checking ⋆
+      at: input.nova:8:43: def plusZl: checking ⋆
       hint: closes with plusZ
 ```
 
@@ -97,7 +97,7 @@ def plusZr : (n : ℕ) → plus n Z ≡ n ≔ λn. ⋆
 
 ```report
   [2] (n : ℕ) ⊢ plus n Z ≐ n : ℕ
-      at: def plusZr: checking ⋆
+      at: input.nova:10:43: def plusZr: checking ⋆
 ```
 
 Same shape of report, one crucial difference: **no hint**. Nothing in
@@ -160,32 +160,41 @@ is which.
 You do not have to write a proof in one go, and you should not try.
 Nova gives you three ways to leave a gap and ask what belongs in it.
 
-### `⋆` is the hole
+### Leave a hole and ask
 
-Nova has no `?goal` syntax. It does not need one, because `⋆` already
-plays that role: it marks the spot where a proof is owed, and you can
-ask what is owed there. With the language server running
-([Editor support](#installation)), put the cursor on any `⋆` and
-hover. You get its goal:
+Write `?` followed by a name wherever a term is expected, and the
+checker tells you what belongs there:
 
-```text
-⋆ : plus n Z ≡ n ∈ ℕ
+```nova-sketch
+def plusZr : (n : ℕ) → plus n Z ≡ n using (plusZ, plus.eq) ≔ λn. ℕ-elim ⋆ (k ih. ?step) n
 ```
 
-Hover works whether or not the `⋆` succeeded, so this is also how you
-inspect a goal you have already closed — useful when you want to know
-*what* you just proved. Hovering a binder gives its type, and hovering
-a `_` shows you what the checker inferred there and why.
+```text
+open holes (1):
+  [?step] (n : ℕ) (k : ℕ) (ih : plus k Z ≡ k ∈ ℕ) ⊢ ?step : plus (S k) Z ≡ S k ∈ ℕ
+```
+
+Everything to the left of `⊢` is what you have to work with; to the
+right is what you owe. A hole is **inert** — nothing will quietly
+solve it, and a file containing one is never accepted — so it is a
+question you ask, not a gap that might get papered over.
+
+With the language server ([Editor support](#installation)) you need
+not even re-run: hovering a hole shows its goal in place. Hovering a
+`⋆` shows what that `⋆` is proving, whether or not it succeeded —
+useful when you want to know *what* you just proved. Hovering a binder
+gives its type, and hovering a `_` shows what the checker inferred
+there and why.
 
 ### An unclosed goal prints itself
 
-Without an editor you get the same information from the report,
-because an obligation *is* the goal. Suppose the step case of that
+A `⋆` you could not discharge tells you the same thing, because an
+obligation *is* a goal. Suppose the step case of that
 induction had not gone through:
 
 ```report
   [1] (n : ℕ) (k : ℕ) (ih : plus k Z ≡ k ∈ ℕ) ⊢ plus (S k) Z ≐ S k : ℕ
-      at: def plusZr: checking ⋆
+      at: input.nova:5:80: def plusZr: checking ⋆
 ```
 
 Everything to the left of `⊢` is what you have to work with, and it is
@@ -213,7 +222,7 @@ declared plusZr [+1 declaration]
 ```report
 open declarations (1):
   [plusZr] ⊢ ? : (n:ℕ) → (plus n Z ≡ n ∈ ℕ)
-      at: def plusZr
+      at: input.nova:8:5: def plusZr
 ```
 
 Note the shape of that entry: a name, and the type of the thing you
@@ -245,9 +254,9 @@ That asymmetry never goes away, and picking the convenient direction
 when you have the choice is a genuine skill
 ([Proof recipes](#recipes)).
 
-**You can always ask.** Between hovering a `⋆`, reading an obligation
-and declaring a lemma you have not proved yet, there is never a reason
-to sit and stare at a proof wondering what the checker wants.
+**You can always ask.** Between a `?` hole, an obligation, and
+declaring a lemma you have not proved yet, there is never a reason to
+sit and stare at a proof wondering what the checker wants.
 
 ## Where to go next
 

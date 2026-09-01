@@ -7,14 +7,14 @@ with the restriction lifted.
 
 ## Building and taking apart
 
-`A ⨯ B` is the type, `,` builds, and `.π₁` and `.π₂` project:
+`A × B` is the type, `,` builds, and `.π₁` and `.π₂` project:
 
 ```nova
-def swap : (ℕ ⨯ 𝟙) → 𝟙 ⨯ ℕ ≔ λp. p .π₂ , p .π₁
+def swap : (ℕ × 𝟙) → 𝟙 × ℕ ≔ λp. p .π₂ , p .π₁
 ```
 
 ```nova
-def firstOfTwo : (ℕ ⨯ 𝟙) → ℕ ≔ λp. p .π₁
+def firstOfTwo : (ℕ × 𝟙) → ℕ ≔ λp. p .π₁
 ```
 
 Note the space in `p .π₁`. The projections are postfix and bind
@@ -27,25 +27,29 @@ brackets. Nova has no n-ary tuples and no records; a structure with
 five fields is four nested pairs, and [Σ-types](#sigma-types) shows
 how the corpus makes that pleasant.
 
-## The precedence trap
+## Precedence
 
-`⨯` and `→` sit at the **same** precedence level and both associate
-to the right. That is not what most languages do, and it catches
-everybody once:
+`×` binds tighter than `→` and tighter than `⊎`, so the readings are
+the ones you would guess:
 
-```nova-sketch
-def swap : ℕ ⨯ 𝟙 → 𝟙 ⨯ ℕ ≔ λp. p .π₂ , p .π₁
-```
+| Written | Means |
+| --- | --- |
+| `A × B → C` | `(A × B) → C` |
+| `A ⊎ B × C` | `A ⊎ (B × C)` |
+| `A × B × C` | `A × (B × C)` |
 
-```text
-Error: def swap: λ checked against a non-Π type
-```
+Product beating sum matches the arithmetic the notation is borrowed
+from, and matches Nova's own operators, where `*` binds tighter than
+`+`. The examples above parenthesise `(ℕ × 𝟙)` anyway, which is never
+wrong and is often kinder to a reader.
 
-The type was read as `ℕ ⨯ (𝟙 → (𝟙 ⨯ ℕ))` — a *pair* type — so a λ has
-nowhere to go. Write `(ℕ ⨯ 𝟙) → 𝟙 ⨯ ℕ`, as the working version above
-does. The rule to remember: **a `⨯` on the left of an arrow needs
-parentheses.** (`⊎` is different — it binds tighter than both, so
-`A ⊎ B → C` reads the way you expect. [Sums](#sums) says more.)
+There is one place `×` does *not* stop where you expect. The **binder**
+form, `(x : A) × B`, sits beside `→` and takes its body maximally, so
+everything after it belongs to the pair — which is what keeps the
+record idiom in [Σ-types](#sigma-types) readable, and means
+`A × B` is not merely shorthand for `(_ : A) × B`. A `×` whose
+right-hand side is an arrow, an equation or a quotient needs
+parentheses: `P × ((x : G) → Q)`.
 
 ## η: a pair is its projections
 
@@ -53,7 +57,7 @@ Rebuilding a pair from its own two halves gives back the pair, and the
 checker will confirm it — if the item asks:
 
 ```nova
-def pairEta : (p : ℕ ⨯ 𝟙) → (p .π₁ , p .π₂) ≡ p using (sigma.eta) ≔ λp. ⋆
+def pairEta : (p : ℕ × 𝟙) → (p .π₁ , p .π₂) ≡ p using (sigma.eta) ≔ λp. ⋆
 ```
 
 The `sigma.eta` licence is the interesting part. This is a *judgemental*
@@ -67,7 +71,7 @@ rather than a proof.
 Once licensed, it makes round trips free:
 
 ```nova
-def roundTrip : (p : ℕ ⨯ 𝟙) → unswap (swap p) ≡ p using (sigma.eta, swap.eq, unswap.eq) ≔ λp. ⋆
+def roundTrip : (p : ℕ × 𝟙) → unswap (swap p) ≡ p using (sigma.eta, swap.eq, unswap.eq) ≔ λp. ⋆
 ```
 
 `⋆`, with no induction: unfold the two functions, and η closes what is

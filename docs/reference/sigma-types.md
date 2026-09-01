@@ -5,7 +5,7 @@ Pairs whose second component's type depends on the first.
 
 ## Syntax
 
-- `(x : A) ⨯ B` and the non-dependent `A ⨯ B`; binder groups iterate as
+- `(x : A) × B` and the non-dependent `A × B`; binder groups iterate as
   for `→`.
 - `a , b` is right-associative, so nested pairs need no parentheses.
 - `.π₁` and `.π₂` project.

@@ -16,7 +16,7 @@ for the first time.
 - `⋆` is the proof of every proposition. Writing it is a **request**:
   "checker, please see that these are equal."
 - If it can, you are done. If it cannot, you get an obligation
-  ([Reading the report](#report-and-holes)) — not an error.
+  ([Reading the report](#report)) — not an error.
 
 ## Why this is unusual
 

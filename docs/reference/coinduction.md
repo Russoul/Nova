@@ -6,9 +6,9 @@ coinduction.
 
 ## Polynomials
 
-- `F ::= 𝕏 | K t | F ⨯ F | F ⊎ F | (x : t) ⨯ F | (x : t) → F`; external
+- `F ::= 𝕏 | K t | F × F | F ⊎ F | (x : t) × F | (x : t) → F`; external
   pieces are codes, and `𝕏` is the hole.
-- `ν (K a ⨯ 𝕏)` is streams of `a`; `ν (𝟙 ⊎ 𝕏)` is the conaturals.
+- `ν (K a × 𝕏)` is streams of `a`; `ν (𝟙 ⊎ 𝕏)` is the conaturals.
 
 ## Observation and corecursion
 

@@ -20,7 +20,7 @@ write `inj₁ x` where an `A ⊎ B` is wanted and it works — but it is
 why an injection cannot appear where the checker has nothing to check
 it against ([Checking and inference](#bidirectional)).
 
-`⊎` binds **tighter** than `→` and `⨯`, so `A ⊎ B → C` means
+`⊎` binds **tighter** than `→` and `×`, so `A ⊎ B → C` means
 `(A ⊎ B) → C`, which is the reading you want. That is the opposite of
 the trap in [Pairs](#pairs) — Nova follows Agda's convention here.
 

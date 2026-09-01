@@ -15,7 +15,7 @@ The central idea, in one chapter, before any of the machinery.
 - **Π** — a function type whose codomain mentions the argument:
   `(n : ℕ) → Vect n a`.
 - **Σ** — a pair type whose second component's type mentions the first:
-  `(n : ℕ) ⨯ Vect n a`.
+  `(n : ℕ) × Vect n a`.
 - Familiar arrows and products are the special case where the
   dependency is unused.
 

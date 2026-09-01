@@ -35,7 +35,7 @@ find it clearer. The report always prints it.
 > relation, an argument at `Ω`. It is the same proposition either way,
 > and that uniformity is what retiring the wrapper bought. Quotient
 > relations are Ω-valued, which is why
-> `ℕ ⨯ ℕ / (p q. p .π₁ + q .π₂ ≡ p .π₂ + q .π₁ ∈ ℕ)` needs no squash.
+> `ℕ × ℕ / (p q. p .π₁ + q .π₂ ≡ p .π₂ + q .π₁ ∈ ℕ)` needs no squash.
 
 ## `⋆` is the proof
 
@@ -108,7 +108,7 @@ type-equality judgement to learn and no coercion to insert.
 
 Reflection makes type checking undecidable. Nova does not respond with a
 search: an equation the checker cannot derive is **assumed and
-reported** ([Reading the report](#report-and-holes)). The practical consequence is that proofs feel
+reported** ([Reading the report](#report)). The practical consequence is that proofs feel
 less like construction and more like *supplying the right facts in the
 right scope*.
 

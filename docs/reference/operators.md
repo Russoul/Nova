@@ -26,7 +26,7 @@ An operator token is any run of characters from the operator alphabet:
 ```
 
 Runs are maximal, so `<=` is one token and not two. The reserved
-theory symbols `→ ⨯ ≡ ∈ ≔ / . , :` are not in the alphabet, `|` is
+theory symbols `→ × ≡ ∈ ≔ / . , :` are not in the alphabet, `|` is
 the clause marker, and `--` opens a comment, so no operator can
 contain it. Ordinary alphanumeric names are never operators, and
 local binders are never operator-shaped.
@@ -55,6 +55,21 @@ The library's choices, for calibration:
 | 3 | `⊃` | implication |
 | 2 | `↔` | equivalence |
 | 1 | `∘` | composition |
+
+## Mixing associativities
+
+Two operators at the same precedence that associate in opposite
+directions have no agreed reading, so Nova refuses rather than picking
+one:
+
+```text
+error: '<#' and '>#' both have precedence 4 but associate in opposite
+directions — parenthesize, or give them different precedences
+```
+
+This is worth knowing because the library contains such a pair —
+`∨` is `infixr 4` and `≤` is `infixl 4` — which simply never meet in
+one expression. If yours do, parenthesise.
 
 ## Without a fixity
 

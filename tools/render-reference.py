@@ -104,7 +104,8 @@ PARTS = [
         "quotients",
     ]),
     ("Working with the checker", [
-        "report-and-holes",
+        "report",
+        "holes",
         "discharge",
         "using-clauses",
         "recipes",
@@ -147,7 +148,7 @@ KEYWORDS = [
 # fixed theory syntax that is NOT identifier-shaped. Longest first —
 # the alternation is tried in order.
 SYMBOLS = [
-    "≡⟨", "⟩", ".π₁", ".π₂", "≔", "→", "⨯", "⊎", "≡", "∈", "λ", "ν",
+    "≡⟨", "⟩", ".π₁", ".π₂", "≔", "→", "×", "⊎", "≡", "∈", "λ", "ν",
     "𝕏", "𝕌", "Ω", "ℕ", "𝟘", "𝟙", "∥", "⋆", "/",
 ]
 

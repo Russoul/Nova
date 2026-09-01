@@ -46,10 +46,10 @@ type *is*.
 
 | To say | Write | A value of it is |
 | --- | --- | --- |
-| A and B | `A ⨯ B` | a pair: a proof of each |
+| A and B | `A × B` | a pair: a proof of each |
 | A implies B | `A → B` | a function taking a proof of A to a proof of B |
 | for every `x : X`, `P x` | `(x : X) → P x` | a function taking each `x` to a proof of `P x` |
-| there is an `x : X` with `P x` | `(x : X) ⨯ P x` | a pair: a witness, and a proof about it |
+| there is an `x : X` with `P x` | `(x : X) × P x` | a pair: a witness, and a proof about it |
 | false | `𝟘` | nothing at all — the type is empty |
 | true | `𝟙` | the single value `()` |
 | not A | `A → 𝟘` | a way to turn a proof of A into an absurdity |
@@ -99,7 +99,7 @@ Existence is where the correspondence gets its teeth. Here is a type
 whose values are natural numbers *carrying evidence about themselves*:
 
 ```nova
-def OnlyZ : 𝕌 ≔ (n : ℕ) ⨯ Id _ n Z
+def OnlyZ : 𝕌 ≔ (n : ℕ) × Id _ n Z
 ```
 
 Read it as: a number `n`, paired with evidence that `n` is `Z`.
