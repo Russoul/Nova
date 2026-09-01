@@ -1,0 +1,4 @@
+input.nova:8:32: c : `out` at a ν OBSERVES rather than splits, so it refines no goal, and no equation of the context has it as a side
+input.nova:10:58: f : this type has no eliminator, and no equation of the context has it as a side
+input.nova:10:58: A : this type has no eliminator, and no equation of the context has it as a side
+input.nova:10:58: x : this type has no eliminator, and no equation of the context has it as a side

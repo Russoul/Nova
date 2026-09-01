@@ -2241,6 +2241,32 @@ indent to the hole's own column.
 
 //// Restrictions ////
 
+WHAT A SCRUTINEE MAY BE, in one place — the tiers above say how, this
+says whether, and every "not offered" here is a message the operator
+gets AT the variable rather than a silence:
+
+  ℕ  ⊎  𝟘  /  ∥∥     its eliminator, a hole per branch (∥∥ only at a
+                     propositional goal, which the trial enforces)
+  a QIIT sort        the eliminator lemma its data item generated —
+                     NON-INDEXED sorts only
+  ×  𝟙  ≡            retype: an ascribed hole, nothing abstracted
+  a DEFINITION       whatever its head exposes to — `bisim s t` is a
+                     squash, and is eliminated as one
+  ν                  NOT OFFERED. `out` observes rather than splits,
+                     so it refines no goal; there is nothing for a
+                     motive to abstract
+  an INDEXED sort    NOT OFFERED. Its motive must abstract the indices
+                     too, which scrutinee abstraction does not do, and
+                     where the indices are not variables the honest
+                     route is the equation motive — an instance of the
+                     retype tier, since reflection makes the carried
+                     equation usable with no eliminator
+  𝕌  Ω  𝕍  Π         NOTHING TO DEFER: these eliminate in no way at
+                     all, and a variable at one is not a gap
+  anything else      an EQUATION of the context that has it as a side,
+                     if there is one — the retype tier again; else
+                     nothing
+
 ONE HOLE PER SPAN. An item macro elaborates its bodies more than once
 — a `?x` in a clause RHS is minted three times, at three different
 contexts (e-hole) — and a span carrying several holes has no single
@@ -2251,15 +2277,10 @@ DISABLED there, carrying that reason, rather than answering with
 silence at a span the operator can plainly see a goal at (hovering it
 shows all three).
 
-Deferred, none of it blocked: indexed QIIT sorts (the generalization
-their motive needs is not scrutinee abstraction, and where the indices
-are not variables the honest route is the equation motive — an
-instance of the retype tier, since reflection makes the carried
-equation usable with no eliminator); `out` at a ν variable, which is
-an observation and refines no goal; and a CLAUSAL variant, answering
-the same request by splitting the item into clauses instead of filling
-the hole (Defining equations) — the better artifact where it applies,
-and a much larger edit.
+None of the table's two deferrals is blocked, and neither is the
+CLAUSAL variant — answering the same request by splitting the item into
+clauses instead of filling the hole (Defining equations), the better
+artifact where it applies, and a much larger edit.
 
 A retype's lets are read back as lets: el-let puts TWO entries in the
 context per let, and the report folds such a pair into the one binding

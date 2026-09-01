@@ -1,0 +1,10 @@
+-- What a scrutinee may NOT be (docs/NovaElaboration.txt, In-place
+-- elimination, Restrictions). Every refusal is a message AT the
+-- variable, and a DEFERRED former is told apart from one that
+-- eliminates in no way at all: `out` exists, so saying a ν has no
+-- eliminator would be false.
+def conat : 𝕌 ≔ ν (K 𝟙 ⊎ 𝕏)
+
+def observed : conat → ℕ ≔ λc. ?g1
+
+def opaque : (A : 𝕌) → (f : A → A) → A → ℕ ≔ λA. λf. λx. ?g2
