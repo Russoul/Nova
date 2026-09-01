@@ -470,8 +470,11 @@ runLspTest lspBinPath fixtureAbsPath word = do
     | Nothing => dieMsg "no response to codeAction"
   let acts = fromMaybe [] (getField "result" caResp >>= asArray)
   putStrLn "CODE ACTIONS(\{word}) (\{show (length acts)}):"
-  traverse_ (\a => putStrLn ("  " ++ fromMaybe "?" (getPath ["title"] a >>= asString))) acts
-  case acts of
+  traverse_ (\a => putStrLn ("  " ++ fromMaybe "?" (getPath ["title"] a >>= asString)
+                              ++ (case getPath ["disabled", "reason"] a >>= asString of
+                                    Just why => " [disabled: \{why}]"
+                                    Nothing => ""))) acts
+  case filter (\a => isNothing (getPath ["disabled"] a)) acts of
     [] => pure ()
     (a :: _) => do
       writeMessage proc.input (req 9 "codeAction/resolve" a)

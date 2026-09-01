@@ -301,12 +301,32 @@ handleRequest TextDocumentCodeAction params = whenActiveRequest $ \_ => do
   let pos = fromLspPosition lns params.range.start
   -- the hole the cursor is IN; a range covering several holes is not
   -- a request to eliminate in all of them
-  let Right v = holeAt doc.report pos.line pos.column
-    | Left _ => pure (pure (make none))
-  let taken = siblingLabels doc.report.holes v.hvDecl
-  let acts = concatMap (action params.textDocument.uri v.hvDecl) (offers taken doc.report.qiits v)
-  pure (pure (make (the (List (OneOf [Command, CodeAction])) (map make acts))))
+  case holesAt doc.report pos.line pos.column of
+    [] => pure (pure (make none))
+    [v] => do
+      let taken = siblingLabels doc.report.holes v.hvDecl
+      let acts = concatMap (action params.textDocument.uri v.hvDecl) (offers taken doc.report.qiits v)
+      pure (pure (make (the (List (OneOf [Command, CodeAction])) (map make acts))))
+    hs =>
+      -- an item macro mints one hole per generated item at this span,
+      -- so there is no single text to offer. Say so where the operator
+      -- asked, rather than answering with silence: a DISABLED action
+      -- carries its own reason, and a client renders it
+      pure (pure (make (the (List (OneOf [Command, CodeAction]))
+                            [make (unavailable (sharedSpanReason (length hs)))])))
  where
+  unavailable : String -> CodeAction
+  unavailable why = MkCodeAction
+    { title       = "eliminate a variable of this hole's context"
+    , kind        = Just RefactorRewrite
+    , diagnostics = Nothing
+    , isPreferred = Nothing
+    , disabled    = Just (MkDisabled why)
+    , edit        = Nothing
+    , command     = Nothing
+    , data_       = Nothing
+    }
+
   action : DocumentURI -> DeclView -> (String, String, Bool) -> List CodeAction
   action u h (var, ty, hasDeep) =
     let one = MkCodeAction
