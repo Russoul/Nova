@@ -1,0 +1,11 @@
+-- Hovering a hole shows its GOAL — the same judgement the diagnostic
+-- at that span carries, without the report's framing, since the label
+-- is the token under the cursor and the location is where you are.
+--
+-- A clausal def is an ITEM MACRO, so one written hole is elaborated
+-- once per generated item — the eliminator body, the clause's equation
+-- lemma, the uniqueness lemma — each at its own context. All three
+-- show: reading them is fine, it is rewriting that needs one answer.
+def dbl : ℕ → ℕ
+  | dbl Z ≔ Z
+  | dbl (S n) ≔ ?st

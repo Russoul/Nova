@@ -151,7 +151,7 @@ SYMBOLS (2):
   cong2 (kind 12) [L8:1-L9:28]
   use (kind 12) [L11:1-L12:49]
 DEFINITION(?p): null
-HOVER(?p): null
+HOVER(?p): [L12:47-L12:49] ```nova ⏎ (A : 𝕌) (g : A → A) (x : A) (y : A) (h : x ≡ y ∈ A) ⊢ ?p : x ≡ y ∈ A ⏎ ```
 CODE ACTIONS(?p) (3):
   eliminate x : A
   eliminate y : A

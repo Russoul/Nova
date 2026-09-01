@@ -1,0 +1,65 @@
+LEGEND: ["keyword", "variable", "operator", "number", "comment"]
+CAPS: hover=true definition=true documentSymbol=true codeAction={"codeActionKinds":["refactor.rewrite"],"resolveProvider":true}
+DIAGNOSTICS (5):
+  [L11:3-L11:20] (error)   [1] (n : ℕ) ⊢ dbl (S n) ≐ ?st : ℕ
+      at: DIR/fixture.nova:11:3: def dblS: checking ⋆
+  [L9:5-L9:8] (error)   [1] (g : ℕ → ℕ) (dblZ : g Z ≡ Z ∈ ℕ) (dblS : (n:ℕ) → (g (S n) ≡ ?st ∈ ℕ)) (_ : ℕ) (n : ℕ) (ih : g n ≡ dbl n ∈ ℕ) ⊢ g (S n) ≐ dbl (S n) : ℕ
+      at: DIR/fixture.nova:9:5: def dblEta: checking ⋆
+  [L11:17-L11:20] (warning)   [?st] (_ : ℕ) (n : ℕ) (ih : ℕ) ⊢ ?st : ℕ
+      at: DIR/fixture.nova:11:17: def dbl
+  [L11:17-L11:20] (warning)   [?st] (n : ℕ) ⊢ ?st : ℕ
+      at: DIR/fixture.nova:11:17: def dblS
+  [L11:17-L11:20] (warning)   [?st] (g : ℕ → ℕ) (dblZ : g Z ≡ Z ∈ ℕ) (n : ℕ) ⊢ ?st : ℕ
+      at: DIR/fixture.nova:11:17: def dblEta
+ELABTIME: reported
+TOKENS (28):
+  L1:1+69 comment
+  L2:1+70 comment
+  L3:1+67 comment
+  L4:1+2 comment
+  L5:1+68 comment
+  L6:1+71 comment
+  L7:1+67 comment
+  L8:1+69 comment
+  L9:1+3 keyword
+  L9:5+3 variable
+  L9:9+1 keyword
+  L9:11+1 keyword
+  L9:13+1 keyword
+  L9:15+1 keyword
+  L10:3+1 keyword
+  L10:5+3 variable
+  L10:9+1 keyword
+  L10:11+1 keyword
+  L10:13+1 keyword
+  L11:3+1 keyword
+  L11:5+3 variable
+  L11:9+1 keyword
+  L11:10+1 keyword
+  L11:12+1 variable
+  L11:13+1 keyword
+  L11:15+1 keyword
+  L11:17+1 operator
+  L11:18+2 variable
+SYMBOLS (4):
+  dbl (kind 12) [L9:1-L11:20]
+  dblZ (kind 12) [L9:1-L11:20]
+  dblS (kind 12) [L9:1-L11:20]
+  dblEta (kind 12) [L9:1-L11:20]
+DEFINITION(?st): null
+HOVER(?st): [L11:17-L11:20] ```nova ⏎ (_ : ℕ) (n : ℕ) (ih : ℕ) ⊢ ?st : ℕ ⏎ (n : ℕ) ⊢ ?st : ℕ ⏎ (g : ℕ → ℕ) (dblZ : g Z ≡ Z ∈ ℕ) (n : ℕ) ⊢ ?st : ℕ ⏎ ```
+CODE ACTIONS(?st) (0):
+DIAGNOSTICS FOR FIXTURE (5):
+  [L11:3-L11:20] (error)   [1] (n : ℕ) ⊢ dbl (S n) ≐ ?st : ℕ
+      at: DIR/fixture.nova:11:3: def dblS: checking ⋆
+  [L9:5-L9:8] (error)   [1] (g : ℕ → ℕ) (dblZ : g Z ≡ Z ∈ ℕ) (dblS : (n:ℕ) → (g (S n) ≡ ?st ∈ ℕ)) (_ : ℕ) (n : ℕ) (ih : g n ≡ dbl n ∈ ℕ) ⊢ g (S n) ≐ dbl (S n) : ℕ
+      at: DIR/fixture.nova:9:5: def dblEta: checking ⋆
+  [L11:17-L11:20] (warning)   [?st] (_ : ℕ) (n : ℕ) (ih : ℕ) ⊢ ?st : ℕ
+      at: DIR/fixture.nova:11:17: def dbl
+  [L11:17-L11:20] (warning)   [?st] (n : ℕ) ⊢ ?st : ℕ
+      at: DIR/fixture.nova:11:17: def dblS
+  [L11:17-L11:20] (warning)   [?st] (g : ℕ → ℕ) (dblZ : g Z ≡ Z ∈ ℕ) (n : ℕ) ⊢ ?st : ℕ
+      at: DIR/fixture.nova:11:17: def dblEta
+ELABTIME: reported
+SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
+SERVER EXIT CODE: 0

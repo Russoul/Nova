@@ -779,16 +779,23 @@ export
 rootHoles : ElabReport -> List HoleView
 rootHoles report = filter (\v => v.hvModule == "") report.holes
 
+||| Every hole whose own `?x` span covers a position — an item macro
+||| elaborates its bodies more than once, so one span may carry several,
+||| at several contexts. Reading them is fine; REWRITING needs the one
+||| (`holeAt`).
+export
+holesAt : ElabReport -> (line, col : Int) -> List HoleView
+holesAt report line col = filter (\v => covers line col v.hvDecl) (rootHoles report)
+
 ||| The one hole whose own `?x` span covers a position.
 |||
-||| ONE HOLE PER SPAN. An item macro elaborates its bodies more than
-||| once, so a span may carry several holes at several contexts, and
-||| one text cannot serve them all (docs/NovaElaboration.txt,
-||| Restrictions).
+||| ONE HOLE PER SPAN. A span carrying several holes has no single
+||| answer, since one text would have to serve every context
+||| (docs/NovaElaboration.txt, Restrictions).
 export
 holeAt : ElabReport -> (line, col : Int) -> Either String HoleView
 holeAt report line col =
-  case filter (\v => covers line col v.hvDecl) (rootHoles report) of
+  case holesAt report line col of
     [th] => Right th
     []   => Left "no hole at \{show (line + 1)}:\{show (col + 1)}"
     hs   => Left "\{show (length hs)} holes share this span — an item macro elaborates its body more than once, and one text cannot serve every context"

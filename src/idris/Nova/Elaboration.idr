@@ -6018,26 +6018,34 @@ oblReport tbl os =
   "open obligations (\{show (length os)}):\n" ++
   joinBy "\n" (zipWith (prettyObligation tbl) [0 .. minus (length os) 1] os)
 
+||| The JUDGEMENT alone — context, turnstile, goal — with no label
+||| bracket and no location. What a HOVER shows, since the operator is
+||| already standing at the thing and the label is the token under the
+||| cursor. `prettyDecl` is this plus the report's framing.
+export
+prettyGoal : FixTable -> DeclView -> String
+prettyGoal tbl h =
+  let tele = prettyTelescope tbl h.dvctx h.dvenv in
+  (if tele == "" then "" else tele ++ " ") ++
+  (case h.dvty of
+     Just ty => "⊢ \{goalName h} : \{prettyTyN tbl h.dvenv ty}"
+     Nothing => "⊢ \{goalName h} type")
+ where
+  -- a HOLE shows the label the operator wrote (`?a`), not the
+  -- run-unique Σ name it was minted under (`?mod.item.a`); a
+  -- declaration shows an anonymous `?` goal
+  goalName : DeclView -> String
+  goalName d = if isHoleName d.dvname then holeLabel d.dvname else "?"
+
 ||| Render one declaration for the report (exported for LSP consumers,
 ||| like prettyObligation).
 export
 prettyDecl : FixTable -> DeclView -> String
 prettyDecl tbl h =
-  let tele = prettyTelescope tbl h.dvctx h.dvenv in
-  "  [\{label}] " ++ (if tele == "" then "" else tele ++ " ") ++
-  (case h.dvty of
-     Just ty => "⊢ \{goal} : \{prettyTyN tbl h.dvenv ty}"
-     Nothing => "⊢ \{goal} type") ++
-  "\n      at: \{declLoc}\{h.dvsite}"
+  "  [\{label}] " ++ prettyGoal tbl h ++ "\n      at: \{declLoc}\{h.dvsite}"
  where
-  -- a HOLE shows the label the operator wrote (`?a`), not the
-  -- run-unique Σ name it was minted under (`?mod.item.a`); a
-  -- declaration shows its name and an anonymous `?` goal
   label : String
   label = if isHoleName h.dvname then holeLabel h.dvname else h.dvname
-
-  goal : String
-  goal = if isHoleName h.dvname then holeLabel h.dvname else "?"
 
   declLoc : String
   declLoc = case h.dvrange of

@@ -253,12 +253,24 @@ handleRequest TextDocumentHover params = whenActiveRequest $ \_ => do
     | Nothing => pure (pure (make MkNull))
   let lns = lines doc.source
   let pos = fromLspPosition lns params.position
-  -- binder occurrences: ascribe the elaborated type
-  case [ (r, txt) | (r, txt) <- doc.report.binderTable, posInRange pos r ] of
-    ((r, txt) :: _) => do
-      let content = MkMarkupContent Markdown ("```nova\n" ++ txt ++ "\n```")
-      pure (pure (make (MkHover (make content) (Just (toLspRange lns r)))))
-    [] => pure (pure (make MkNull))
+  -- a HOLE first: its goal is the thing the operator is asking about,
+  -- and it is what the diagnostic at that span says. An item macro
+  -- mints one per generated item at the SAME span (a `?x` in a clause
+  -- RHS is three goals, at three contexts), so all of them show —
+  -- reading them is fine, it is rewriting that needs a single answer
+  case holesAt doc.report pos.line pos.column of
+    (v :: rest) => do
+      let txts = map (\w => prettyGoal w.hvFix w.hvDecl) (v :: rest)
+      let content = MkMarkupContent Markdown ("```nova\n" ++ joinBy "\n" txts ++ "\n```")
+      let rng = maybe (toLspRange lns (MkRange pos pos)) (toLspRange lns) v.hvDecl.dvrange
+      pure (pure (make (MkHover (make content) (Just rng))))
+    [] =>
+      -- binder occurrences: ascribe the elaborated type
+      case [ (r, txt) | (r, txt) <- doc.report.binderTable, posInRange pos r ] of
+        ((r, txt) :: _) => do
+          let content = MkMarkupContent Markdown ("```nova\n" ++ txt ++ "\n```")
+          pure (pure (make (MkHover (make content) (Just (toLspRange lns r)))))
+        [] => pure (pure (make MkNull))
  where
   posInRange : Me.Russoul.Text.Position.Position -> Me.Russoul.Text.Range.Range -> Bool
   posInRange p (MkRange s e) = s <= p && p <= e
