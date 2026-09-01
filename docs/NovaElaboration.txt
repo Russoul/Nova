@@ -2246,7 +2246,10 @@ ONE HOLE PER SPAN. An item macro elaborates its bodies more than once
 contexts (e-hole) — and a span carrying several holes has no single
 answer, since one text would have to serve three goals. The
 transformation is offered only where the span carries exactly one
-hole, and says so where it does not.
+hole, and says so where it does not: the editor's action is offered
+DISABLED there, carrying that reason, rather than answering with
+silence at a span the operator can plainly see a goal at (hovering it
+shows all three).
 
 Deferred, none of it blocked: indexed QIIT sorts (the generalization
 their motive needs is not scrutinee abstraction, and where the indices

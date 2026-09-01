@@ -48,7 +48,8 @@ SYMBOLS (4):
   dblEta (kind 12) [L9:1-L11:20]
 DEFINITION(?st): null
 HOVER(?st): [L11:17-L11:20] ```nova ⏎ (_ : ℕ) (n : ℕ) (ih : ℕ) ⊢ ?st : ℕ ⏎ (n : ℕ) ⊢ ?st : ℕ ⏎ (g : ℕ → ℕ) (dblZ : g Z ≡ Z ∈ ℕ) (n : ℕ) ⊢ ?st : ℕ ⏎ ```
-CODE ACTIONS(?st) (0):
+CODE ACTIONS(?st) (1):
+  eliminate a variable of this hole's context [disabled: 3 holes share this span — an item macro elaborates its body more than once, and one text cannot serve every context]
 DIAGNOSTICS FOR FIXTURE (5):
   [L11:3-L11:20] (error)   [1] (n : ℕ) ⊢ dbl (S n) ≐ ?st : ℕ
       at: DIR/fixture.nova:11:3: def dblS: checking ⋆

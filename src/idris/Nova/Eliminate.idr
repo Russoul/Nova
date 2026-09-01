@@ -787,18 +787,25 @@ export
 holesAt : ElabReport -> (line, col : Int) -> List HoleView
 holesAt report line col = filter (\v => covers line col v.hvDecl) (rootHoles report)
 
+||| ONE HOLE PER SPAN, said once: a caller that offers the action and a
+||| caller that performs it give the same reason for refusing.
+export
+sharedSpanReason : (holes : Nat) -> String
+sharedSpanReason n =
+  "\{show n} holes share this span — an item macro elaborates its body more than once, and one text cannot serve every context"
+
 ||| The one hole whose own `?x` span covers a position.
 |||
-||| ONE HOLE PER SPAN. A span carrying several holes has no single
-||| answer, since one text would have to serve every context
-||| (docs/NovaElaboration.txt, Restrictions).
+||| A span carrying several holes has no single answer, since one text
+||| would have to serve every context (docs/NovaElaboration.txt,
+||| Restrictions).
 export
 holeAt : ElabReport -> (line, col : Int) -> Either String HoleView
 holeAt report line col =
   case holesAt report line col of
     [th] => Right th
     []   => Left "no hole at \{show (line + 1)}:\{show (col + 1)}"
-    hs   => Left "\{show (length hs)} holes share this span — an item macro elaborates its body more than once, and one text cannot serve every context"
+    hs   => Left (sharedSpanReason (length hs))
 
 ||| The hole minted under a given Σ name, for a caller that already
 ||| chose one (the code action's resolve step, which addresses the
