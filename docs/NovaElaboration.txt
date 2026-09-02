@@ -273,6 +273,11 @@ T{2} ::= ν F{≥2} | ∥T{≥0}∥ | T{≥4} (t{≥4} | {t{≥0}} | {} | .π₁
 # puts ABOVE a spine: an operator application ((a ≤ b)), a
 # keyword-headed code ((out t)), a λ, a pair. The parens re-enter the
 # element grammar whole.
+# THE T AND t LADDERS ARE SLATED TO MERGE: types are terms at 𝕍, and
+# this pair of ladders is the last place the dissolved distinction
+# survives. THE TERM GRAMMAR MERGE, below, carries the target grammar,
+# the universe rule and the staging; until it lands, the ladders here
+# are what the parser does.
 T{1} ::= ((x:T{≥0}))+ → T{≥0} | ((x:T{≥0}))+ × T{≥0}
        | T{≥1½} → T{≥0} | T{≥1½} / (x y. t{≥1})
 T{1½} ::= T{≥1¾} ⊎ T{≥1½}
@@ -2534,6 +2539,121 @@ Two corollaries worth keeping in view while implementing:
     What it buys is determinism — acceptance is a function of the
     file — and per-conversion cost proportional to the named set.
     The measured case for the design is docs/SearchlessElaboration.md.
+
+//////////// The term grammar merge (staged) /////////////
+
+Foundation has NO TYPE JUDGEMENT: both type judgements dissolve into
+the element judgements at 𝕍, and "the type and element grammars are
+merged into ONE term sort" (NovaFoundation.txt, preface). The kernel
+says the same in its own signature — `Ty = Elem`, an alias kept
+"purely as a reading aid". THE SURFACE IS THE LAST LAYER WHERE THE
+SPLIT IS REAL, and what it holds there is a DUPLICATE of nearly every
+former:
+
+  T{·}                       t{·}
+  ----                       ----
+  STyPi / STyImpPi           SPiC (no implicit variant)
+  STySigma                   SSigmaC
+  STySum                     SSumC
+  STyQuot                    SQuotC
+  STyEq                      SEqC (identical payload)
+  STyZero / STyOne / STyNat  SZeroC / SOneC / SNatC
+  STyNu                      SNuC
+  STyUniv / STyProp          — none —
+
+The pairs are not two readings of one former. They land on the SAME
+core node and differ only in the universe their parts are checked at
+— 𝕍 for the type spelling, 𝕌 for the code — so the distinction is a
+CLASSIFIER ANNOTATION encoded as AST shape, and cumulativity
+(code-lift) already relates the two. Below the surface this same
+duplication was collapsed under pressure: every former-only Ty walk
+was found to no-op on a code type — holes leaking into checked
+domains, capture-prone motives, skipped strengthening, a looping
+printer — and each now aliases or delegates to its Elem twin, ONE
+SORT, ONE WALK. The surface copy is what survived, and the merge is
+that collapse reaching its last layer.
+
+//// The target: one ladder ////
+
+The t ladder SUBSUMES the T ladder. Every T production has a t
+counterpart at the mirrored position, and t carries levels T never
+had:
+
+  pairs         t{0}             T has none
+  ⊎ / ×         t{1¼} / t{1⅜}    against T{1½} / T{1¾}: the same
+                                 relative order under different
+                                 labels; the merged ladder keeps t's
+  infix ops     t{1½}            T has none — this is exactly why
+                                 `(a ≤ b)` in type position needs its
+                                 parentheses today
+  λ / let       t{2}             T has none
+  keyword       t{2½}            ν and ∥·∥ already live at BOTH
+  spine         t{3}             the same steps at both, since T{2}
+                                 took the element spine's
+
+So merging DELETES T rather than reconciling two ladders. Two
+additions make the t ladder total:
+
+  * 𝕌 and Ω become ELEMENT ATOMS. They are type-only today, which is
+    why `K 𝕌` does not parse; in the kernel they are already terms
+    (Elem's 𝕌 and Ω, typed at 𝕍). Adding them turns a parse error
+    into a type error, which is the better report.
+
+  * IMPLICIT BINDER GROUPS reach the element level. `{x : T}` is read
+    only by the type-level binder rule today, so STyImpPi has no code
+    counterpart at all. The brace GROUP and the brace STEP of a spine
+    are disjoint: a group carries a `:` (`{x : T}`, `{x y : T}`) and
+    an override never can, an ascription being parenthesized — and a
+    group is read only at the START of the binder branch, never after
+    a spine head (see T{2} above).
+
+//// The universe is CHECKING-DIRECTED ////
+
+One merged former must do what two did. `(x : A) → B` checks its
+parts at 𝕍 as a type and at 𝕌 as a code, and the two readings are NOT
+interchangeable: `𝕌 → 𝕌` is a legal type and not a legal code.
+
+THE EXPECTED TYPE DECIDES — checking the former at 𝕍 checks its parts
+at 𝕍, checking it at 𝕌 checks them at 𝕌. In INFERENCE position, where
+no expectation says, the former infers at 𝕌 and lifts by code-lift,
+with the discarded-inference probe as the fallback: the device
+e-ty-sig already uses to classify an entry whose 𝕌- or Ω-valuedness
+hides behind a definition.
+
+//// Stages ////
+
+Each stage leaves the tree green on all four gates (./test.sh,
+./check-distill.sh, ./check-elaborations.sh, render-specs --check).
+
+  0. THIS SECTION — the language decision, recorded before the code
+     moves.                                                  [landed]
+
+  1. ADDITIVE parser work: 𝕌/Ω element atoms, brace groups in the
+     element binder rule. Both grammars still live, and goldens show
+     every T spelling also parsing element-side to its code
+     counterpart.
+
+  2. parseSTy DELEGATES — `STyEl <$> parseSElem` — and the T-ladder
+     rules go. STy shrinks to the code-as-type node and its span
+     wrapper. The surface-AST goldens re-record here (STyPi ↦ SPiC)
+     while the corpus TEXT must not move: tyPiRun and piCRun already
+     emit identical output, and that invariant is this stage's test.
+
+  3. elabTy becomes checkElem at 𝕍 and the elabTyAt clauses go. The
+     name classifier stays — it answers a question the merge does not
+     remove.
+
+  4. The printer's type ladder (TLvl / classT / fitsT) and its paired
+     run folders collapse into the element printer. readsAsType goes
+     with them: the code-as-type POSITION stops being special, which
+     is the tell that the merge is the right direction.
+
+  5. STy is deleted, mirroring the kernel's alias. Surface's parallel
+     traversals, Implicitize's implicit-binder metadata, Rename,
+     Recovery, Clauses, the LSP, and sqDomain's Either follow.
+
+Until stage 5 lands, the grammar above describes the implementation
+and this section describes where it is going.
 
 //////////// Future work (explicitly out of scope here) /////////////
 
