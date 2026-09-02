@@ -1,0 +1,26 @@
+-- unsquash: the ∥∥ VARIABLE elimination (docs/NovaElaboration.txt,
+-- e-unsquash). The body is elaborated where the variable is GONE and
+-- a witness of the squashee stands innermost instead. The witness's
+-- position is forced — el-squash-e-prf binds it there, and Π-closing
+-- to move it earlier would make the goal a Π, which is never a prop.
+def P : ℕ → Ω ≔ λn. n ≡ n ∈ ℕ
+
+-- the plain case: the variable goes, the witness arrives
+def plain : (w : ∥ℕ∥) → Z ≡ Z ∈ ℕ ≔ λw. unsquash (x. ⋆) w
+
+-- entries on both sides of the variable, none naming it
+def around : (n : ℕ) (w : ∥ℕ∥) (h : P n) → P n using (P.eq) ≔
+  λn. λw. λh. unsquash (x. h) w
+
+-- the witness is usable, and the rest of the family takes it from there
+def viaSum : (a b : Ω) (w : ∥a ⊎ b∥) → ∥b ⊎ a∥ ≔
+  λa. λb. λw. unsquash (x. ⋆ (sum-elim (l. inj₂ l) (r. inj₁ r) x)) w
+
+-- nested, reaching an outer binder
+def nested : (p : ℕ × ℕ) (w : ∥ℕ∥) → Z ≡ Z ∈ ℕ
+  ≔ λp. λw. sigma-elim (a b. unsquash (x. ⋆) w) p
+def nestedTwice : (w : ∥ℕ∥) (v : ∥ℕ∥) (n : ℕ) → n ≡ n ∈ ℕ
+  ≔ λw. λv. λn. unsquash (x. unsquash (y. ⋆) v) w
+
+-- a HOLE: its goal is stated where the variable is gone
+def hole : (n : ℕ) (w : ∥ℕ∥) (h : P n) → P n ≔ λn. λw. λh. unsquash (x. ?g) w

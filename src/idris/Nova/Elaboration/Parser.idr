@@ -370,6 +370,21 @@ sumSplitBranch i b = mapVarsE remap b
   remap (S m) = if m == i then Nothing           -- w itself: eliminated
                 else Just m                      -- everything else stands
 
+||| The body of `unsquash (x. t) w`, reindexed from the context it was
+||| PARSED against — the site's binders with x pushed innermost — to
+||| the one it is ELABORATED in, where w is gone and x stands innermost
+||| still. The two have the SAME LENGTH, one entry for the other, so
+||| the entries before w keep their indices and those after it are
+||| already where they belong; only w's own slot disappears.
+unsquashBody : (i : Nat) -> SElem -> Maybe SElem
+unsquashBody i b = mapVarsE remap b
+ where
+  remap : Nat -> Maybe Nat
+  remap k =
+    if k <= i then Just k                 -- x, then the entries after w
+    else if k == S i then Nothing         -- w itself: eliminated
+    else Just (minus k 1)                 -- the entries before it
+
 -- ===== Types and elements (mutually recursive) =====
 
 mutual
@@ -758,6 +773,21 @@ mutual
               -- own spans. The proof keeps its parse indices; nothing
               -- ever reads them
               _ => pure (SEqElim p x w))
+        -- unsquash (x. t) w — the ∥∥ VARIABLE elimination. Method
+        -- first, scrutinee last, as everywhere in the family; the body
+        -- is reindexed against its own context once w is read
+        -- (docs/NovaElaboration.txt, e-unsquash)
+    <|> (do kw "unsquash"; space; commit
+            kwc '('; sp; x <- parseNameR; sp; kwc '.'; sp
+            b <- parseSElem tbl (env :< fst x); sp; kwc ')'; sp
+            w <- parseSElemAtom tbl env
+            case unPos w of
+              SVar wrng nm i => case unsquashBody i b of
+                Just b' => pure (SUnsquash x b' w)
+                Nothing =>
+                  let msg = "an unsquash body free of '\{nm}' — the variable this eliminates, so the body's context has no such entry (it has the witness \{fst x} instead)" in
+                  maybe (fail msg) (\r => failLoc r msg) (posOf w <|> wrng)
+              _ => pure (SUnsquash x b w))
         -- sum-elim (a. l) (b. r) w — the ⊎ VARIABLE elimination.
         -- Methods first, scrutinee last, as everywhere in the family;
         -- each branch is reindexed against ITS OWN elimination

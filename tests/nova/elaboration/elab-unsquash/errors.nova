@@ -1,0 +1,12 @@
+-- the scrutinee must be a VARIABLE — squash-elim is the form that
+-- takes any proof
+def notVar : (w : ∥ℕ∥) → Z ≡ Z ∈ ℕ ≔ λw. unsquash (x. ⋆) (⋆ Z)
+-- ... of a ∥∥ type
+def notSquash : (n : ℕ) → Z ≡ Z ∈ ℕ ≔ λn. unsquash (x. ⋆) n
+-- neither the goal nor a hypothesis after it may NAME the variable:
+-- removing it leaves no proof of ∥A∥ to stand in its place, and unlike
+-- ≡-elim's [refl/w] there is nothing to mint
+def inGoal : (w : ∥ℕ∥) → w ≡ w ∈ ∥ℕ∥ ≔ λw. unsquash (x. ⋆) w
+def inHyp : (w : ∥ℕ∥) (h : w ≡ w ∈ ∥ℕ∥) → Z ≡ Z ∈ ℕ ≔ λw. λh. unsquash (x. ⋆) w
+-- and the goal must be a proposition, which el-squash-e-prf demands
+def notProp : (w : ∥ℕ∥) → ℕ ≔ λw. unsquash (x. x) w

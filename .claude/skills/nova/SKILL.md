@@ -152,6 +152,13 @@ after them — the goal included — reads at t. Reflection already makes
 it changes is the CONTEXT, which is what makes a `?hole` under it
 readable. Naming x or w inside p is an error; a goal that mentions the
 PROOF w is fine — the site mints reflexivity to stand in its place);
+`unsquash (x. t) w` (the ∥∥ VARIABLE elimination: w must be a VARIABLE
+of a ∥∥ type, and t is written where w is GONE and the witness x
+stands innermost. CHECKING-ONLY, and the goal must be a PROPOSITION —
+both from el-squash-e-prf. The difference from `squash-elim h (x. b)`
+is only that h disappears; the witness lands innermost either way,
+which is forced, since a Π is never a prop. A type naming w blocks it
+— nothing is left to stand in its place);
 `sum-elim (a. l) (b. r) w` (the ⊎ VARIABLE elimination: w must be a
 VARIABLE of a ⊎ type, and each branch is written where w is GONE and
 its own binder stands there instead, so every later hypothesis — and

@@ -83,6 +83,7 @@ import letExpr
 import sigmaElim
 import eqElim
 import sumElim
+import unsquash
 import qiitBag
 import qiitConTy
 import qiitCross
