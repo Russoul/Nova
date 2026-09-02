@@ -221,6 +221,16 @@ readable one-item-per-line output (a proper layout engine arrives
 with Phase 2, where it matters); printing obligations through the new
 engine; any elision.
 
+Parenthesization is by the grammar's own levels, with ONE stylistic
+exception. A keyword-headed form (t{2½}: `out t`, `S n`, an
+eliminator) may head a spine, so both `out t .π₂` and `out t u` parse
+as the grammar intends. The printer emits the first BARE and the
+second PARENTHESIZED — `(out t) u` — because a projection announces
+itself with a postfix marker, while a spine argument is juxtaposed
+exactly as the eliminator's OWN arguments are, and the parens are
+then the only thing showing where its syntax ends. Both spellings
+re-parse identically; the choice is readability, not correctness.
+
 ////////// Status //////////
 
 Phase 1: implemented — Nova.Distill (the renderer and the module
