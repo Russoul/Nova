@@ -1,18 +1,24 @@
-distilled 1 modules (4 items) to out
+distilled 1 modules (6 items) to out
 elided 0 of 0 ∈-annotations and motives, blanked 0 arguments
 round-trip OK: ASTs identical, kernel Σ α-identical.
 -- distill golden: a CODE standing as a type is bracketed by the TYPE
--- grammar (T{2}), which reads an atom head with argument and
--- PROJECTION steps and nothing else. So the projection prints bare
--- and the implicit override keeps its parentheses — the parens are
--- what re-enters the element grammar, since `{` opens an implicit
--- BINDER group at that position
+-- grammar (T{2}), whose spine takes the ELEMENT spine's steps — an
+-- argument, an implicit override, the no-insert marker, a projection.
+-- All of those print bare; what parenthesizes is what the element
+-- ladder puts ABOVE a spine, and the parens re-enter the element
+-- grammar whole
 
+infixl 4 ≤
 def P : 𝕌 × 𝕌 ≔ ℕ, 𝟙
 
--- written parenthesized; the projection spine reads it back bare
+-- both written parenthesized; the spine reads them back bare
 def f : P .π₁ → P .π₁ ≔ λx. x
 
 def Vec : {a : 𝕌} → ℕ → 𝕌 ≔ λa. λn. ℕ
 
-def g : (Vec {ℕ} 3) → ℕ using (Vec.eq) ≔ λx. x
+def g : Vec {ℕ} 3 → ℕ using (Vec.eq) ≔ λx. x
+
+-- an operator application is above the spine, so its parentheses stay
+def ≤ : ℕ → ℕ → 𝕌 ≔ λa. λb. ℕ
+
+def h : (Z ≤ Z) → ℕ using (≤.eq) ≔ λx. x

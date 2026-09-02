@@ -232,15 +232,16 @@ then the only thing showing where its syntax ends. Both spellings
 re-parse identically; the choice is readability, not correctness.
 
 A CODE STANDING AS A TYPE is bracketed by the TYPE grammar, not by the
-element ladder. T{2} reads a code spine as an ATOM head with argument
-and projection steps — `Vect n`, `P .π₁`, `f x .π₁` — so those print
-bare, and everything else parenthesizes: an implicit override
-(`(Vect {ℕ} n)`, since `{` opens an implicit binder group at that
-position), an infix application (`(a ≤ b)`), a keyword-headed code, a
-λ. The printer's predicate is the mirror of the parser's production
-and is meant to be read beside it (Distill.readsAsType against
-Parser.parseSTyElRaw); the element ladder cannot decide this position,
-because the two grammars admit different things there.
+element ladder. T{2} reads a code spine as an ATOM head carrying the
+element spine's own steps — arguments, implicit overrides, the
+no-insert marker, projections — so `Vect n`, `Vect {ℕ} n`, `P .π₁` and
+`f x .π₁` all print BARE, and what parenthesizes is what the element
+ladder puts above a spine: an infix application (`(a ≤ b)`), a
+keyword-headed code (`(out t)`), a λ, a pair. The printer's predicate
+is the mirror of the parser's production and is meant to be read
+beside it (Distill.readsAsType against Parser.parseSTyElRaw); the
+element ladder cannot decide this position on its own, because it
+brackets by what an ELEMENT context reads and this is a type one.
 
 ////////// Status //////////
 
