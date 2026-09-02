@@ -29,9 +29,9 @@ import prop (⊥)
 import equality (trans, sym, cong, transport, transportP)
 
 infixl 4 <
-def < : Real → Real → Ω ≔ λu. λv. ∥(k : ℕ) × (u + realOfQ (qInvNat k) ≤ v)∥
+def < : Real → Real → Ω ≔ λu. λv. ∥(k : ℕ) × u + realOfQ (qInvNat k) ≤ v∥
 
-def ltROf : (u v : Real) (k : ℕ) → (u + realOfQ (qInvNat k) ≤ v) → (u < v) using (realLt.<.unfold) ≔
+def ltROf : (u v : Real) (k : ℕ) → u + realOfQ (qInvNat k) ≤ v → u < v using (realLt.<.unfold) ≔
   λu. λv. λk. λh. ⋆ (k, h)
 
 -- ===== ℝ group algebra the proofs need =====
@@ -49,7 +49,7 @@ def realAddSwapR : (u q w : Real) → u + q + w ≡ u + w + q using (real.Real.u
       ≡⟨ sym _ _ (realAddAssoc u w q) ⟩ u + w + q
 
 -- 0 ≤ 1/(k+1), lifted
-def leRZeroInv : (k : ℕ) → (realZero ≤ realOfQ (qInvNat k))
+def leRZeroInv : (k : ℕ) → realZero ≤ realOfQ (qInvNat k)
   using (rationalQ.qZero.eq,
     real.qInvNat.eq,
     real.realOfQ.eq,
@@ -62,7 +62,7 @@ def leRZeroInv : (k : ℕ) → (realZero ≤ realOfQ (qInvNat k))
   λk. leROfQ _ _ (leQZeroInvNat k)
 
 -- u ≤ u + 1/(k+1)
-def leRSelfInv : (u : Real) (k : ℕ) → (u ≤ u + realOfQ (qInvNat k)) using (realOrder.≤.unfold) ≔
+def leRSelfInv : (u : Real) (k : ℕ) → u ≤ u + realOfQ (qInvNat k) using (realOrder.≤.unfold) ≔
   λu. λk. transportP
     (λw. w ≤ u + realOfQ (qInvNat k))
     (realAdd.realAddZeroL u)
@@ -74,13 +74,13 @@ def leRSelfInv : (u : Real) (k : ℕ) → (u ≤ u + realOfQ (qInvNat k)) using 
       (leRAddMono (leRZeroInv k)))
 
 -- ===== the order laws =====
-def leROfLtR : (u v : Real) → (u < v) → (u ≤ v) using (realLt.<.unfold, realOrder.≤.unfold) ≔
+def leROfLtR : (u v : Real) → u < v → u ≤ v using (realLt.<.unfold, realOrder.≤.unfold) ≔
   λu. λv. λh. squash-elim h (w. leRTrans _ _ _ (leRSelfInv u (w .π₁)) (w .π₂))
 
-def ltRTrans : (u v t : Real) → (u < v) → (v < t) → (u < t) using (realLt.<.unfold) ≔
+def ltRTrans : (u v t : Real) → u < v → v < t → u < t using (realLt.<.unfold) ≔
   λu. λv. λt. λh1. λh2. squash-elim h1 (w. ltROf _ _ _ (leRTrans _ _ _ (w .π₂) (leROfLtR _ _ h2)))
 
-def leRLtTrans : (u v t : Real) → (u ≤ v) → (v < t) → (u < t) using (realLt.<.unfold) ≔
+def leRLtTrans : (u v t : Real) → u ≤ v → v < t → u < t using (realLt.<.unfold) ≔
   λu. λv. λt. λh1. λh2. squash-elim h2 (w. ltROf
     _
     _
@@ -92,11 +92,11 @@ def leRLtTrans : (u v t : Real) → (u ≤ v) → (v < t) → (u < t) using (rea
       (leRAddMono h1)
       (w .π₂)))
 
-def ltRLeTrans : (u v t : Real) → (u < v) → (v ≤ t) → (u < t) using (realLt.<.unfold) ≔
+def ltRLeTrans : (u v t : Real) → u < v → v ≤ t → u < t using (realLt.<.unfold) ≔
   λu. λv. λt. λh1. λh2. squash-elim h1 (w. ltROf _ _ _ (leRTrans _ _ _ (w .π₂) h2))
 
 -- irreflexivity: strip u from both sides, then read the result off in ℚ
-def ltRIrrefl : (u : Real) → (u < u) → ⊥
+def ltRIrrefl : (u : Real) → u < u → ⊥
   using (prop.⊥.unfold,
     rationalQ.qZero.eq,
     real.Real.unfold,
@@ -124,7 +124,7 @@ def ltRIrrefl : (u : Real) → (u < u) → ⊥
 -- ===== ℚ ↪ ℝ preserves and reflects the strict order =====
 -- p < q in ℚ: the Archimedean witness supplies the index, and the
 -- squash it comes in is absorbed by LtR's own
-def ltROfQ : {p q : Q} → (p < q) → (realOfQ p < realOfQ q)
+def ltROfQ : {p q : Q} → p < q → realOfQ p < realOfQ q
   using (ratArch.ArchWit.unfold, realLt.<.unfold) ≔
   λp. λq. λh. squash-elim (qArch
     _
@@ -147,7 +147,7 @@ def ltROfQ : {p q : Q} → (p < q) → (realOfQ p < realOfQ q)
             (qPlusNegCancelR q p)
             (leQPlusMono p (w .π₂)))))))
 
-def ltRZeroOne : (realZero < realOne)
+def ltRZeroOne : realZero < realOne
   using (ratBound.qNegZeroQ.rw,
     rationalOrder.Sign.unfold,
     rationalQ.qAddZeroR.rw,
@@ -160,7 +160,7 @@ def ltRZeroOne : (realZero < realOne)
   ltROfQ (ltQOfSgn qZero qOne ⋆)
 
 -- ===== compatibility with addition =====
-def ltRAddMono : (u v t : Real) → (u < v) → (u + t < v + t) using (realLt.<.unfold) ≔
+def ltRAddMono : (u v t : Real) → u < v → u + t < v + t using (realLt.<.unfold) ≔
   λu. λv. λt. λh. squash-elim h (w. ltROf
     _
     _

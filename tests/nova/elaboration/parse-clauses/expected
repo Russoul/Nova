@@ -1,1 +1,1 @@
-def plus : Pi _ (ℕ) (Pi _ (ℕ) (ℕ)) [pe] := Z | Z n := n@0 [pz] | S (m) n := S (App (App (plus@sig) (m@1)) (n@0))
+def plus : PiC _ (ℕc) (PiC _ (ℕc) (ℕc)) [pe] := Z | Z n := n@0 [pz] | S (m) n := S (App (App (plus@sig) (m@1)) (n@0))

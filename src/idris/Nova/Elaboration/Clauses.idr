@@ -115,21 +115,7 @@ mutual
   mapRefsTy : (onVar : Nat -> Maybe Range -> String -> Nat -> SElem) ->
               (onSig : Nat -> Maybe Range -> String -> SElem) ->
               Nat -> STy -> STy
-  mapRefsTy f g d STyZero = STyZero
-  mapRefsTy f g d STyOne = STyOne
-  mapRefsTy f g d STyNat = STyNat
-  mapRefsTy f g d STyUniv = STyUniv
-  mapRefsTy f g d (STySig x) = STySig x
-  mapRefsTy f g d (STyPi x a b) = STyPi x (mapRefsTy f g d a) (mapRefsTy f g (S d) b)
-  mapRefsTy f g d (STyImpPi x a b) = STyImpPi x (mapRefsTy f g d a) (mapRefsTy f g (S d) b)
-  mapRefsTy f g d (STySigma x a b) = STySigma x (mapRefsTy f g d a) (mapRefsTy f g (S d) b)
-  mapRefsTy f g d (STySum a b) = STySum (mapRefsTy f g d a) (mapRefsTy f g d b)
-  mapRefsTy f g d (STyQuot a x y r) = STyQuot (mapRefsTy f g d a) x y (mapRefsE f g (S (S d)) r)
-  mapRefsTy f g d (STyEq rng l r t) = STyEq rng (mapRefsE f g d l) (mapRefsE f g d r) (map (mapRefsTy f g d) t)
-  mapRefsTy f g d (STyEl e) = STyEl (mapRefsE f g d e)
-  mapRefsTy f g d STyProp = STyProp
-  mapRefsTy f g d (STyNu p) = STyNu (mapRefsP f g d p)
-  mapRefsTy f g d (STyPos r t) = STyPos r (mapRefsTy f g d t)
+  mapRefsTy = mapRefsE
 
   mapRefsP : (onVar : Nat -> Maybe Range -> String -> Nat -> SElem) ->
              (onSig : Nat -> Maybe Range -> String -> SElem) ->
@@ -227,21 +213,7 @@ mutual
   occursE f (SPos _ e) = occursE f e
 
   occursTy : String -> STy -> Bool
-  occursTy f STyZero = False
-  occursTy f STyOne = False
-  occursTy f STyNat = False
-  occursTy f STyUniv = False
-  occursTy f (STySig x) = x == f
-  occursTy f (STyPi _ a b) = occursTy f a || occursTy f b
-  occursTy f (STyImpPi _ a b) = occursTy f a || occursTy f b
-  occursTy f (STySigma _ a b) = occursTy f a || occursTy f b
-  occursTy f (STySum a b) = occursTy f a || occursTy f b
-  occursTy f (STyQuot a _ _ r) = occursTy f a || occursE f r
-  occursTy f (STyEq _ l r t) = occursE f l || occursE f r || maybe False (occursTy f) t
-  occursTy f (STyEl e) = occursE f e
-  occursTy f STyProp = False
-  occursTy f (STyNu p) = occursP f p
-  occursTy f (STyPos _ t) = occursTy f t
+  occursTy = occursE
 
   occursP : String -> SPoly -> Bool
   occursP f SPHole = False
@@ -374,26 +346,7 @@ mutual
   rwE f mk lead d (SPos r e) = SPos r <$> rwE f mk lead d e
 
   rwTy : (f : String) -> (mk : Nat) -> (lead : List Nat) -> Nat -> STy -> Maybe STy
-  rwTy f mk lead d STyZero = Just STyZero
-  rwTy f mk lead d STyOne = Just STyOne
-  rwTy f mk lead d STyNat = Just STyNat
-  rwTy f mk lead d STyUniv = Just STyUniv
-  rwTy f mk lead d (STySig x) = if x == f then Nothing else Just (STySig x)
-  rwTy f mk lead d (STyPi x a b) = [| STyPi (pure x) (rwTy f mk lead d a) (rwTy f mk lead (S d) b) |]
-  rwTy f mk lead d (STyImpPi x a b) = [| STyImpPi (pure x) (rwTy f mk lead d a) (rwTy f mk lead (S d) b) |]
-  rwTy f mk lead d (STySigma x a b) = [| STySigma (pure x) (rwTy f mk lead d a) (rwTy f mk lead (S d) b) |]
-  rwTy f mk lead d (STySum a b) = [| STySum (rwTy f mk lead d a) (rwTy f mk lead d b) |]
-  rwTy f mk lead d (STyQuot a x y r) =
-    do a' <- rwTy f mk lead d a; r' <- rwE f mk lead (S (S d)) r; pure (STyQuot a' x y r')
-  rwTy f mk lead d (STyEq rng l r t) =
-    do l' <- rwE f mk lead d l
-       r' <- rwE f mk lead d r
-       t' <- traverse (rwTy f mk lead d) t
-       pure (STyEq rng l' r' t')
-  rwTy f mk lead d (STyEl e) = STyEl <$> rwE f mk lead d e
-  rwTy f mk lead d (STyPos r t) = STyPos r <$> rwTy f mk lead d t
-  rwTy f mk lead d STyProp = Just STyProp
-  rwTy f mk lead d (STyNu p) = STyNu <$> rwP f mk lead d p
+  rwTy = rwE
 
   rwP : (f : String) -> (mk : Nat) -> (lead : List Nat) -> Nat -> SPoly -> Maybe SPoly
   rwP f mk lead d SPHole = Just SPHole
@@ -416,7 +369,7 @@ nth (S n) (_ :: xs) = nth n xs
 peelPis : Nat -> STy -> Maybe (List (String, STy), STy)
 peelPis Z ty = Just ([], ty)
 peelPis (S n) ty = case unPosTy ty of
-  STyPi x a b => do
+  SPiC x a b => do
     (cols, rest) <- peelPis n b
     pure ((x, a) :: cols, rest)
   _ => Nothing
@@ -425,19 +378,15 @@ peelPis (S n) ty = case unPosTy ty of
 ||| approximation only narrows the FRAGMENT — unrecognized split
 ||| types degrade, which is always sound).
 tyNat : STy -> Bool
+-- one sort, one case: the type spelling and the code spelling of ℕ
+-- were two nodes and are now one
 tyNat ty = case unPosTy ty of
-  STyNat => True
-  STyEl e => case unPos e of
-               SNatC => True
-               _ => False
+  SNatC => True
   _ => False
 
 tySumParts : STy -> Maybe (STy, STy)
 tySumParts ty = case unPosTy ty of
-  STySum a b => Just (a, b)
-  STyEl e => case unPos e of
-               SSumC a b => Just (STyEl a, STyEl b)
-               _ => Nothing
+  SSumC a b => Just (a, b)
   _ => Nothing
 
 ||| A pattern with its variable's telescope SLOT resolved (0-based,
@@ -496,7 +445,7 @@ typePat a (KVar x _ False) = Right []
 typePat a KZero =
   if tyNat a then Right [] else Left "pattern Z at a column whose type is not ℕ"
 typePat a (KSuc p) =
-  if tyNat a then typePat STyNat p
+  if tyNat a then typePat SNatC p
              else Left "pattern S … at a column whose type is not ℕ"
 typePat a (KInj1 p) =
   case tySumParts a of
@@ -614,7 +563,7 @@ wrapSLams : List SName -> SElem -> SElem
 wrapSLams xs e = foldr SLam e xs
 
 wrapSPis : List (SName, STy) -> STy -> STy
-wrapSPis xs t = foldr (\(x, a), r => STyPi (fst x) a r) t xs
+wrapSPis xs t = foldr (\(x, a), r => SPiC (fst x) a r) t xs
 
 ||| The Π-closure of the trailing columns over the split variable:
 ||| the eliminator motive's chain. Piece d of the chain (0-based)
@@ -625,7 +574,7 @@ motChain trailing result = go 0 trailing
  where
   go : Nat -> List (String, STy) -> STy
   go d [] = result
-  go d ((x, a) :: rest) = STyPi x (shiftTy (S d) 1 a) (go (S d) rest)
+  go d ((x, a) :: rest) = SPiC x (shiftTy (S d) 1 a) (go (S d) rest)
 
 ||| λ-binders for the leading j columns (display names from the type's
 ||| own binders).
@@ -715,9 +664,9 @@ etaType fname ty cols b lemNames lemTys =
                         [0 .. minus m 1] (zip lemNames lemTys))
       colBinds = the (List (SName, STy)) (map (\(x, a) => ((x, Nothing), a)) cols)
       args = map (\i => SVar Nothing (colName i) (minus k i)) [1 .. k]
-      concl = STyEq Nothing (spine (SVar Nothing "g" (k + m)) args)
+      concl = SEqC Nothing (spine (SVar Nothing "g" (k + m)) args)
                     (spine (SSig Nothing fname) args) (Just b)
-  in STyPi "g" ty (wrapSPis hyps (wrapSPis colBinds concl))
+  in SPiC "g" ty (wrapSPis hyps (wrapSPis colBinds concl))
  where
   colName : Nat -> String
   colName i = maybe "_" fst (nth (minus i 1) cols)
@@ -746,7 +695,7 @@ etaBodyElim fname cols b j k m lemNames isNat v1 v2 =
                     (if i < j then (minus k i) + 1
                      else if i == j then kj
                      else minus k i)) [1 .. k]
-      concl = STyEq Nothing (spine (SVar Nothing "g" (m + k + 1)) args)
+      concl = SEqC Nothing (spine (SVar Nothing "g" (m + k + 1)) args)
                     (spine (SSig Nothing fname) args)
                     (Just (shiftTy (S kj) 1 b))
       mot = motChain trailing concl
@@ -907,7 +856,7 @@ expandClausal nrng fname ty etaName witness clauses = do
     let bigL = length cd.ctele
         lhs = spine (SSig Nothing fname) cd.cargs
         bC = remapFreeTy (\d => maybe SUnitI (patTerm bigL) (nth d (reverse cd.csks))) b
-    in wrapSPis cd.ctele (STyEq Nothing lhs clause.crhs (Just bC))
+    in wrapSPis cd.ctele (SEqC Nothing lhs clause.crhs (Just bC))
 
   shapedRho : List (String, STy) -> STy -> Nat -> Shape -> Maybe SElem
   shapedRho cols b k (ShNone c) = rhoNone fname c

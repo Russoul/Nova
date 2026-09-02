@@ -189,21 +189,6 @@ fitsE CKeyword lvl = case lvl of LApp => False; LAtom => False; _ => True
 fitsE CApp lvl = case lvl of LAtom => False; _ => True
 fitsE CAtom _ = True
 
-||| Type-level printing contexts (T{0}, T{1}, T{1½}, T{2}, T{4}).
-data TLvl = TTop | TArrow | TSum | TProd | TEl | TAtom
-
-data TCls = CTTop | CTArrow | CTSum | CTProd | CTEl | CTAtom
-
-fitsT : TCls -> TLvl -> Bool
-fitsT CTTop lvl = case lvl of TTop => True; _ => False
-fitsT CTArrow lvl = case lvl of TTop => True; TArrow => True; _ => False
-fitsT CTSum lvl = case lvl of
-  TTop => True; TArrow => True; TSum => True; _ => False
-fitsT CTProd lvl = case lvl of
-  TTop => True; TArrow => True; TSum => True; TProd => True; _ => False
-fitsT CTEl lvl = case lvl of TAtom => False; _ => True
-fitsT CTAtom _ = True
-
 ||| Polynomial printing contexts (F{0/1}, F{1½}, F{2}).
 data PLvl = PTop | PSum | PAtom
 
@@ -323,35 +308,6 @@ mutual
       then peRaw tbl tr e
       else dparen (peRaw tbl True e)
 
-  ||| A CODE standing as a TYPE (El is retired: the code IS the type).
-  ||| Bracketed by what the TYPE grammar can read back rather than by
-  ||| the element ladder — the two disagree, and the grammar wins.
-  pcode : FixTable -> SElem -> Doc
-  pcode tbl e =
-    if readsAsType tbl e
-      then peRaw tbl True e
-      else dparen (peRaw tbl True e)
-
-  ||| Does the TYPE grammar read this code back BARE? Its spine is an
-  ||| ATOM head carrying the element spine's own steps — arguments,
-  ||| implicit overrides, the no-insert marker, projections — and
-  ||| nothing else (Parser.parseSTyElRaw — read the two together). So
-  ||| what parenthesizes is what the element ladder puts ABOVE a spine:
-  ||| an infix application, a keyword-headed form, a λ, a pair. The
-  ||| parens re-enter the element grammar whole, where every form is
-  ||| legible.
-  readsAsType : FixTable -> SElem -> Bool
-  readsAsType tbl e = case unPos e of
-    SApp f _ => case infixView tbl (unPos e) of
-      Just _ => False
-      Nothing => readsAsType tbl f
-    SNoIns t => readsAsType tbl t
-    SProj1 t => readsAsType tbl t
-    SProj2 t => readsAsType tbl t
-    h => case classE tbl h of
-           CAtom => True
-           _ => False
-
   peRaw : FixTable -> (tr : Bool) -> SElem -> Doc
   peRaw tbl tr e = case e of
     SPos _ t => peRaw tbl tr t
@@ -360,7 +316,7 @@ mutual
     -- an ascribed definiens prints in the annotated-let form (the two
     -- spellings parse to the same AST)
     SLet (x, _) (SAnn d ty) b =>
-      txt "let \{x} : " <-> pt tbl TTop True ty <-> txt " ≔ " <->
+      txt "let \{x} : " <-> pe tbl LNoComma True ty <-> txt " ≔ " <->
       pe tbl LPair True d <-> txt " in " <-> pe tbl LPair tr b
     SLet (x, _) d b =>
       txt "let \{x} ≔ " <-> pe tbl LPair True d <-> txt " in " <-> pe tbl LPair tr b
@@ -428,13 +384,17 @@ mutual
     SEqC _ l r mty =>
       pe tbl LSumC False l <-> txt " ≡ " <-> eqSide tbl mty r <->
       (case mty of
-         Just ty => txt " ∈ " <-> pt tbl TArrow False ty
+         Just ty => txt " ∈ " <-> pe tbl LNoComma False ty
          Nothing => DNil)
     SSumC a b => pe tbl LProdC False a <-> txt " ⊎ " <-> pe tbl LSumC tr b
     SImpPiC x a b => piCRun tbl tr [(True, x, a)] b
+    -- the non-dependent arrow breaks BEFORE its `→` when the line does
+    -- not fit — a long chain of them is how a lemma statement reads,
+    -- and it must not run off the page
     SPiC x a b =>
       if x == wildcard
-        then pe tbl LSumC False a <-> txt " → " <-> pe tbl LNoComma tr b
+        then pe tbl LSumC False a <->
+             DGroup (DNest 2 (DLine <-> txt "→ " <-> pe tbl LNoComma True b))
         else piCRun tbl tr [(False, x, a)] b
     SSigmaC x a b =>
       if x == wildcard
@@ -447,13 +407,13 @@ mutual
     SUnitI => txt "()"
     SZeroN => txt "Z"
     SStar _ => txt "⋆"
-    SSquash ty => txt "∥" <-> pt tbl TTop True ty <-> txt "∥"
+    SSquash ty => txt "∥" <-> pe tbl LNoComma True ty <-> txt "∥"
     SZeroC => txt "𝟘"
     SOneC => txt "𝟙"
     SNatC => txt "ℕ"
     SUnivC => txt "𝕌"
     SPropC => txt "Ω"
-    SAnn t ty => dparen (pe tbl LPair True t <-> txt " : " <-> pt tbl TTop True ty)
+    SAnn t ty => dparen (pe tbl LPair True t <-> txt " : " <-> pe tbl LNoComma True ty)
     SImpArg t => txt "{" <-> pe tbl LPair True t <-> txt "}"
     SNoIns t => pe tbl LApp False t <-> txt " {}"
     SBlank _ => txt "_"
@@ -479,17 +439,6 @@ mutual
   ||| (the range-insensitive Show is the comparator, so a hand-written
   ||| `(x : A) (y : A)` with the right indices groups too). Groups
   ||| never mix implicit and explicit binders.
-  coalesceTys : List (Bool, String, STy) -> List (Bool, List String, STy)
-  coalesceTys [] = []
-  coalesceTys ((imp, x, a) :: rest) = go [x] a a rest
-   where
-    go : List String -> STy -> STy -> List (Bool, String, STy) -> List (Bool, List String, STy)
-    go names first prev ((imp', y, b) :: more) =
-      if imp' == imp && show b == show (shiftTy 0 prev)
-        then go (names ++ [y]) first b more
-        else (imp, names, first) :: coalesceTys ((imp', y, b) :: more)
-    go names first prev [] = [(imp, names, first)]
-
   coalesceElems : List (Bool, String, SElem) -> List (Bool, List String, SElem)
   coalesceElems [] = []
   coalesceElems ((imp, x, a) :: rest) = go [x] a a rest
@@ -504,36 +453,6 @@ mutual
   ||| Compact a run of consecutively NAMED Π-binders into binder
   ||| groups — `(x y : A) (z : B) → C` — the corpus idiom; the
   ||| grouped and arrow-chained spellings parse to the same AST.
-  ||| Π-runs collect implicit binders too ({x : A} — always named;
-  ||| a wildcard EXPLICIT binder ends the run as the name-dropped
-  ||| arrow form).
-  tyPiRun : FixTable -> List (Bool, String, STy) -> STy -> Doc
-  tyPiRun tbl acc (STyPi x a b) =
-    if x /= wildcard
-      then tyPiRun tbl (acc ++ [(False, x, a)]) b
-      else tyRunEnd tbl "→" acc (STyPi x a b)
-  tyPiRun tbl acc (STyImpPi x a b) = tyPiRun tbl (acc ++ [(True, x, a)]) b
-  tyPiRun tbl acc cod = tyRunEnd tbl "→" acc cod
-
-  tySigmaRun : FixTable -> List (Bool, String, STy) -> STy -> Doc
-  tySigmaRun tbl acc (STySigma x a b) =
-    if x /= wildcard
-      then tySigmaRun tbl (acc ++ [(False, x, a)]) b
-      else tyRunEnd tbl "×" acc (STySigma x a b)
-  tySigmaRun tbl acc cod = tyRunEnd tbl "×" acc cod
-
-  tyRunEnd : FixTable -> (arrow : String) -> List (Bool, String, STy) -> STy -> Doc
-  tyRunEnd tbl arrow acc cod =
-    -- ONE group over the whole telescope: a long telescope breaks at
-    -- its binder seams (all of them, uniformly indented), which also
-    -- localizes every domain-internal fits scan to its own binder
-    let groups = map (\(imp, ns, a) =>
-                       let inner = txt (joinBy " " ns) <-> txt " : " <-> pt tbl TTop True a in
-                       if imp then txt "{" <-> inner <-> txt "}" else dparen inner)
-                     (coalesceTys acc)
-    in DGroup (concatDoc (intersperse (DNest 2 DLine) groups) <->
-               DNest 2 (DLine <-> txt "\{arrow} " <-> pt tbl TTop True cod))
-
   ||| The 𝕌-code counterpart (parseBinderGroupsC folds the same way).
   piCRun : FixTable -> (tr : Bool) -> List (Bool, String, SElem) -> SElem -> Doc
   piCRun tbl tr acc (SPiC x a b) =
@@ -566,68 +485,11 @@ mutual
   eqSide tbl Nothing (SStar _) = txt "(⋆)"
   eqSide tbl _ r = pe tbl LSumC False r
 
-  eqSideT : FixTable -> Maybe STy -> SElem -> Doc
-  eqSideT tbl Nothing (SStar _) = txt "(⋆)"
-  eqSideT tbl _ r = pe tbl LSumC False r
-
   ||| A written motive group, trailing space included; nothing when
   ||| elided.
   motDoc : FixTable -> Maybe (SName, STy) -> Doc
   motDoc tbl Nothing = DNil
-  motDoc tbl (Just ((z, _), mot)) = txt " (\{z}. " <-> pt tbl TTop True mot <-> txt ")"
-
-  classT : STy -> TCls
-  classT ty = case ty of
-    STyEq _ _ _ _ => CTTop
-    STyPi _ _ _ => CTArrow
-    STyImpPi _ _ _ => CTArrow
-    STySigma x _ _ => if x == wildcard then CTProd else CTArrow
-    STyQuot _ _ _ _ => CTArrow
-    STySum _ _ => CTSum
-    STyEl _ => CTEl
-    STyNu _ => CTEl
-    _ => CTAtom
-
-  ||| Render a type into the given context level. Types contain no
-  ||| swallowers of their own (a λ inside a type is always behind a
-  ||| delimiter the grammar provides), so no trailing flag is needed —
-  ||| `tr` is accepted for symmetry with the element printer and to
-  ||| keep call sites honest about their positions.
-  pt : FixTable -> TLvl -> (tr : Bool) -> STy -> Doc
-  pt tbl lvl tr ty =
-    if fitsT (classT ty) lvl
-      then ptRaw tbl ty
-      else dparen (ptRaw tbl ty)
-
-  ptRaw : FixTable -> STy -> Doc
-  ptRaw tbl ty = case ty of
-    STyPos _ t => ptRaw tbl t
-    STyEq _ l r mt =>
-      pe tbl LSumC False l <-> txt " ≡ " <-> eqSideT tbl mt r <->
-      (case mt of
-         Just t => txt " ∈ " <-> pt tbl TArrow True t
-         Nothing => DNil)
-    STyPi x a b =>
-      if x == wildcard
-        then pt tbl TSum False a <-> DGroup (DNest 2 (DLine <-> txt "→ " <-> pt tbl TTop True b))
-        else tyPiRun tbl [(False, x, a)] b
-    STyImpPi x a b => tyPiRun tbl [(True, x, a)] b
-    STySigma x a b =>
-      if x == wildcard
-        then pt tbl TEl False a <-> DGroup (DNest 2 (DLine <-> txt "× " <-> pt tbl TProd True b))
-        else tySigmaRun tbl [(False, x, a)] b
-    STyQuot a (x, _) (y, _) r =>
-      pt tbl TSum False a <-> txt " / (\{x} \{y}. " <-> pe tbl LNoComma True r <-> txt ")"
-    STySum a b => pt tbl TProd False a <-> txt " ⊎ " <-> pt tbl TSum False b
-    -- El retired: a code in type position prints as the code itself
-    STyEl e => pcode tbl e
-    STyNu f => txt "ν " <-> pp tbl PAtom f
-    STySig x => txt x
-    STyZero => txt "𝟘"
-    STyOne => txt "𝟙"
-    STyNat => txt "ℕ"
-    STyUniv => txt "𝕌"
-    STyProp => txt "Ω"
+  motDoc tbl (Just ((z, _), mot)) = txt " (\{z}. " <-> pe tbl LNoComma True mot <-> txt ")"
 
   classP : SPoly -> PCls
   classP f = case f of
@@ -680,7 +542,7 @@ renderQRes tbl (SQResEq l r u) =
   pq tbl False l <-> txt " ≡ " <-> pq tbl False r <-> txt " ∈ El " <-> pq tbl True u
 
 renderQDomain : FixTable -> Either STy SQTm -> Doc
-renderQDomain tbl (Left ty) = pt tbl TTop True ty
+renderQDomain tbl (Left ty) = pe tbl LNoComma True ty
 renderQDomain tbl (Right q) = txt "El " <-> pq tbl True q
 
 ||| Anonymous domains stand bare (the external case at T{2} —
@@ -691,7 +553,7 @@ renderQBinders tbl [] = DNil
 renderQBinders tbl bs@((x, d) :: rest) =
   if x == wildcard
     then (case d of
-            Left ty => pt tbl TEl False ty
+            Left ty => pe tbl LOp0 False ty
             Right q => txt "El " <-> pq tbl True q) <-> txt " → " <-> renderQBinders tbl rest
     else let (run, more) = span (\(y, _) => y /= wildcard) bs in
          concatDoc (intersperse (txt " ")
@@ -771,20 +633,20 @@ seam hdr bod =
 renderItemBare : FixTable -> SItem -> Doc
 renderItemBare tbl (SDef n ty body mu) =
   -- unreachable through renderItemStr (kept total for other callers)
-  txt "def \{n} : " <-> pt tbl TTop False ty <-> renderUsing mu <->
+  txt "def \{n} : " <-> pe tbl LNoComma False ty <-> renderUsing mu <->
   txt " ≔" <-> DGroup (DNest 2 (DLine <-> pe tbl LPair True body))
-renderItemBare tbl (SDeclDef _ n ty) = txt "def \{n} : " <-> pt tbl TTop False ty
-renderItemBare tbl (STypeDef n ty) = txt "type \{n} ≔ " <-> pt tbl TTop True ty
+renderItemBare tbl (SDeclDef _ n ty) = txt "def \{n} : " <-> pe tbl LNoComma False ty
+renderItemBare tbl (STypeDef n ty) = txt "type \{n} ≔ " <-> pe tbl LNoComma True ty
 renderItemBare tbl (SData params ds) =
   txt "data " <->
-  concatD (map (\(x, t) => txt "[\{x} : " <-> pt tbl TTop True t <-> txt "] ") params) <->
+  concatD (map (\(x, t) => txt "[\{x} : " <-> pe tbl LNoComma True t <-> txt "] ") params) <->
   (case ds of
      [d] => txt "( " <-> renderQDecl tbl d <-> txt " )"
      _ => txt "( " <->
           concatD (intersperse (DNest 5 DHard <-> txt "; ") (map (renderQDecl tbl) ds)) <->
           txt " )")
 renderItemBare tbl (SClausalDef _ n ty eta wit cls) =
-  txt "def \{n} : " <-> pt tbl TTop False ty <->
+  txt "def \{n} : " <-> pe tbl LNoComma False ty <->
   (case eta of
      Nothing => DNil
      Just e => txt " [\{e}]") <->
@@ -798,7 +660,7 @@ renderItem tbl item = renderItemBare tbl (stripPosItem item)
 
 renderItemStrBare : FixTable -> SItem -> String
 renderItemStrBare tbl (SDef n ty body mu) =
-  let tyPart = txt "def \{n} : " <-> pt tbl TTop False ty
+  let tyPart = txt "def \{n} : " <-> pe tbl LNoComma False ty
       usePart = renderUsing mu
       bod = pe tbl LPair True body
   in if flatW tyPart + flatW usePart + 3 + flatW bod <= lineWidth
@@ -820,7 +682,7 @@ renderItemStrBare tbl (SDef n ty body mu) =
          renderDoc lineWidth (tyPart <-> txt " ≔") ++ "\n" ++
          renderDoc lineWidth (DNest 2 (txt "  " <-> bod))
 renderItemStrBare tbl (STypeDef n ty) =
-  seam (txt "type \{n} ≔") (pt tbl TTop True ty)
+  seam (txt "type \{n} ≔") (pe tbl LNoComma True ty)
 renderItemStrBare tbl item = renderDoc lineWidth (renderItemBare tbl item)
 
 renderItemStr : FixTable -> SItem -> String
@@ -1022,20 +884,7 @@ parameters (ok : Range -> Bool, blankAt : Range -> Nat -> Bool)
       if maybe False ok mr then Nothing else Just ((z, mr), esT mot)
 
     esT : STy -> STy
-    esT ty = case ty of
-      STyPi x a b => STyPi x (esT a) (esT b)
-      STyImpPi x a b => STyImpPi x (esT a) (esT b)
-      STySigma x a b => STySigma x (esT a) (esT b)
-      STySum a b => STySum (esT a) (esT b)
-      STyQuot a x y r => STyQuot (esT a) x y (esE r)
-      STyEq rng l r t =>
-        if maybe False ok rng
-          then let (l', r') = elideSides l r in STyEq rng l' r' Nothing
-          else STyEq rng (esE l) (esE r) (map esT t)
-      STyEl t => STyEl (esE t)
-      STyNu f => STyNu (esP f)
-      STyPos _ t => esT t
-      _ => ty
+    esT = esE
 
     esP : SPoly -> SPoly
     esP pl = case pl of

@@ -43,8 +43,7 @@ def natCaseElimEq : (C : 𝕌)
   λC. λP. λz. λs. λn. ℕ-elim (λh0. λh1. h0 ⋆) (k' rec. λh0. λh1. h1 k' ⋆) n
 
 -- ===== comparison, read off monus =====
-def leOfMonusZero : {a b : ℕ} → (a ∸ b ≡ Z) → (a ≤ b)
-  using (natMore.monusZeroR, natOrder.≤.unfold) ≔
+def leOfMonusZero : {a b : ℕ} → (a ∸ b ≡ Z) → a ≤ b using (natMore.monusZeroR, natOrder.≤.unfold) ≔
   λa. ℕ-elim
     (λb. λh. leZero _)
     (a' ih. λb. ℕ-elim
@@ -53,7 +52,7 @@ def leOfMonusZero : {a b : ℕ} → (a ∸ b ≡ Z) → (a ≤ b)
       b)
     a
 
-def ltOfMonusSuc : {a b : ℕ} (m : ℕ) → (a ∸ b ≡ S m) → (S b ≤ a) using (natOrder.≤.unfold) ≔
+def ltOfMonusSuc : {a b : ℕ} (m : ℕ) → (a ∸ b ≡ S m) → S b ≤ a using (natOrder.≤.unfold) ≔
   λa. ℕ-elim
     (λb. λm. λh. 𝟘-elim (zNotS (trans _ _ _ (sym _ _ (zeroMonus b)) h)))
     (a' ih. λb. ℕ-elim
@@ -65,7 +64,7 @@ def ltOfMonusSuc : {a b : ℕ} (m : ℕ) → (a ∸ b ≡ S m) → (S b ≤ a) u
 -- ===== the fuel decreases =====
 -- if a ≤ S f' and b < a then a − (b+1) ≤ f' : peel the successor off
 -- both sides of (b+1) + (a − (b+1)) + k ≡ S f'
-def fuelStep : {a b f' : ℕ} → (a ≤ S f') → (S b ≤ a) → (a ∸ S b ≤ f')
+def fuelStep : {a b f' : ℕ} → a ≤ S f' → S b ≤ a → a ∸ S b ≤ f'
   using (id.Id.unfold, natOrder.≤.unfold) ≔
   λa. λb. λf'. λle. λlt. b
     + le .π₁,
@@ -113,7 +112,7 @@ def divN : ℕ → ℕ → ℕ ≔ λa. λb. dmAux a a b .π₁
 def modN : ℕ → ℕ → ℕ ≔ λa. λb. dmAux a a b .π₂
 
 -- ===== the specification =====
-def dmAuxEq : {f a b : ℕ} → (a ≤ f) → a ≡ dmAux f a b .π₁ * S b + dmAux f a b .π₂
+def dmAuxEq : {f a b : ℕ} → a ≤ f → a ≡ dmAux f a b .π₁ * S b + dmAux f a b .π₂
   using (hyp.rw,
     id.Id.unfold,
     natDiv.dmAux.eq,
@@ -153,7 +152,7 @@ def dmAuxEq : {f a b : ℕ} → (a ≤ f) → a ≡ dmAux f a b .π₁ * S b + d
               (sym _ _ (sucMult (dmAux f' (a ∸ S b) b .π₁) (S b))))))))
     f
 
-def dmAuxLe : {f a b : ℕ} → (a ≤ f) → (dmAux f a b .π₂ ≤ b)
+def dmAuxLe : {f a b : ℕ} → a ≤ f → dmAux f a b .π₂ ≤ b
   using (id.Id.eq, id.Id.unfold, natDiv.dmAux.eq, natDiv.natCase.eq, natOrder.≤.unfold) ≔
   λf. ℕ-elim
     (λa. λb. λle. transport (λw. w ≤ b) (sym _ _ (leZeroInv le)) (leZero b))
@@ -174,7 +173,7 @@ def divModEq : (a b : ℕ) → a ≡ divN a b * S b + modN a b
   using (natDiv.divN.eq, natDiv.dmAux.eq, natDiv.modN.eq) ≔
   λa. λb. dmAuxEq (leRefl a)
 
-def modLe : (a b : ℕ) → (modN a b ≤ b)
+def modLe : (a b : ℕ) → modN a b ≤ b
   using (id.Id.eq, natDiv.dmAux.eq, natDiv.modN.eq, natOrder.≤.unfold) ≔
   λa. λb. dmAuxLe (leRefl a)
 
@@ -189,7 +188,7 @@ def modTest : modN 7 (S Z) ≡ S Z
 
 -- ===== uniqueness of the quotient =====
 -- no natural is below its own successor's floor
-def leSucNotSelf : (a : ℕ) → (S a ≤ a) → 𝟘 using (id.Id.unfold, nat.plusSucId, natOrder.≤.unfold) ≔
+def leSucNotSelf : (a : ℕ) → S a ≤ a → 𝟘 using (id.Id.unfold, nat.plusSucId, natOrder.≤.unfold) ≔
   λa. λle. zNotS
     (sym
       _
@@ -211,7 +210,7 @@ def leSucNotSelf : (a : ℕ) → (S a ≤ a) → 𝟘 using (id.Id.unfold, nat.p
           (sym _ _ (plusZeroId a)))))
 
 -- d·(d'+1) is strictly below (d+1)·(d'+1)
-def ltProdSuc : (d d' : ℕ) → (S (d * S d') ≤ S d * S d') using (nat.plusSucId, natOrder.≤.unfold) ≔
+def ltProdSuc : (d d' : ℕ) → S (d * S d') ≤ S d * S d' using (nat.plusSucId, natOrder.≤.unfold) ≔
   λd. λd'. d',
     eqToId
       _
@@ -275,7 +274,7 @@ def divCancel : (q : ℕ)
 
 -- ...and that multiple has to be zero: one more copy of (d+1)(d'+1)
 -- would already exceed r·(d'+1), which r ≤ d keeps strictly below it
-def divKZero : (r d r' d' : ℕ) {k : ℕ} → (r ≤ d) → (r * S d' ≡ k * (S d' * S d) + r' * S d) → k ≡ Z
+def divKZero : (r d r' d' : ℕ) {k : ℕ} → r ≤ d → (r * S d' ≡ k * (S d' * S d) + r' * S d) → k ≡ Z
   using (natOrder.≤.unfold) ≔
   λr. λd. λr'. λd'. λk. ℕ-elim
     (λb. λh. ⋆)
@@ -325,7 +324,7 @@ def divKZero : (r d r' d' : ℕ) {k : ℕ} → (r ≤ d) → (r * S d' ≡ k * (
 
 -- ===== equal rationals have equal floors =====
 def divNUniqueLe : {m d m' d' : ℕ}
-  → (m * S d' ≡ m' * S d) → (divN m d ≤ divN m' d') → divN m d ≡ divN m' d'
+  → (m * S d' ≡ m' * S d) → divN m d ≤ divN m' d' → divN m d ≡ divN m' d'
   using (natOrder.≤.unfold) ≔
   λm. λd. λm'. λd'. λh. λle. trans
     _
@@ -377,7 +376,7 @@ def divNUnique : {m d m' d' : ℕ} → (m * S d' ≡ m' * S d) → divN m d ≡ 
 
 -- a is strictly below (a div (b+1) + 1)·(b+1): the remainder is at
 -- most b, so one more divisor overshoots
-def leDivSuc : (m b : ℕ) → (m ≤ S (divN m b) * S b) using (natOrder.≤.unfold) ≔
+def leDivSuc : (m b : ℕ) → m ≤ S (divN m b) * S b using (natOrder.≤.unfold) ≔
   λm. λb. S b
     ∸ modN
       m

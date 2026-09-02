@@ -35,13 +35,12 @@ def leQFour : (f h : ℕ → Q)
     → Regular
       h
       → (n k : ℕ)
-        → (f
+        → f
           (dbl
             (qtr
               k))
           + qNeg
-            (h
-              (dbl (qtr k))) ≤ rBound (qtr k) (qtr k)) → (f n + qNeg (h n) ≤ rBound n n + qInvNat k)
+            (h (dbl (qtr k))) ≤ rBound (qtr k) (qtr k) → f n + qNeg (h n) ≤ rBound n n + qInvNat k
   using (id.Id.eq,
     ratBound.Bnd.unfold,
     ratHalf.dbl.eq,
@@ -82,15 +81,15 @@ def leQFour : (f h : ℕ → Q)
       (leQTripleInv k))
 
 -- ===== the relation on representatives =====
-def RLeP : RSeq → RSeq → Ω ≔ λx. λy. ∥((n : ℕ) → seqOf x n + qNeg (seqOf y n) ≤ rBound n n)∥
+def RLeP : RSeq → RSeq → Ω ≔ λx. λy. ∥(n : ℕ) → seqOf x n + qNeg (seqOf y n) ≤ rBound n n∥
 
-def rleOf : (x y : RSeq) → ((n : ℕ) → (seqOf x n + qNeg (seqOf y n) ≤ rBound n n)) → RLeP x y
+def rleOf : (x y : RSeq) → ((n : ℕ) → seqOf x n + qNeg (seqOf y n) ≤ rBound n n) → RLeP x y
   using (realOrder.RLeP.unfold) ≔
   λx. λy. λh. ⋆ h
 
 -- THE workhorse: a pointwise bound four times too large still gives ≤
 def rleOfDouble : (x z : RSeq)
-  → ((j : ℕ) → (seqOf x j + qNeg (seqOf z j) ≤ rBound j j + rBound j j)) → RLeP x z
+  → ((j : ℕ) → seqOf x j + qNeg (seqOf z j) ≤ rBound j j + rBound j j) → RLeP x z
   using (realOrder.RLeP.unfold) ≔
   λx. λz. λd. rleOf
     _
@@ -203,7 +202,7 @@ def leRCls : (x y : RSeq) → class x ≤ class y ≡ RLeP x y
   λx. λy. ⋆
 
 -- ===== the order laws =====
-def leRRefl : {u : Real} → (u ≤ u)
+def leRRefl : {u : Real} → u ≤ u
   using (real.REq.unfold,
     real.RSeq.unfold,
     real.Real.unfold,
@@ -212,7 +211,7 @@ def leRRefl : {u : Real} → (u ≤ u)
     realOrder.leRCls) ≔
   λu. quot-elim (x. rleRefl x) u
 
-def leRTrans : (u v w : Real) → (u ≤ v) → (v ≤ w) → (u ≤ w)
+def leRTrans : (u v w : Real) → u ≤ v → v ≤ w → u ≤ w
   using (real.REq.unfold,
     real.RSeq.unfold,
     real.Real.unfold,
@@ -232,7 +231,7 @@ def rleAntisym : (x y : RSeq) → RLeP x y → RLeP y x → REq x y
     _
     (λn. bndOfBothLe _ _ (u n) (v n))))
 
-def leRAntisym : {u v : Real} → (u ≤ v) → (v ≤ u) → u ≡ v
+def leRAntisym : {u v : Real} → u ≤ v → v ≤ u → u ≡ v
   using (real.REq.unfold,
     real.RSeq.unfold,
     real.Real.unfold,
@@ -276,7 +275,7 @@ def rleAddMono : {x y c : RSeq} → RLeP x y → RLeP (rAdd x c) (rAdd y c)
       (sym _ _ (qSubPlusCancel (seqOf y (dbl n)) (seqOf x (dbl n)) (seqOf c (dbl n))))
       (leQTrans _ _ _ (u (dbl n)) (leQBoundDblDiag n))))
 
-def leRAddMono : {u v w : Real} → (u ≤ v) → (u + w ≤ v + w)
+def leRAddMono : {u v w : Real} → u ≤ v → u + w ≤ v + w
   using (real.REq.unfold,
     real.RSeq.unfold,
     real.Real.unfold,
@@ -294,11 +293,11 @@ def leRAddMono : {u v w : Real} → (u ≤ v) → (u + w ≤ v + w)
 
 -- ===== ℚ embeds order-preservingly =====
 -- p ≤ q in ℚ gives p − q ≤ 0
-def leQSubZero : {p q : Q} → (p ≤ q) → (p + qNeg q ≤ qZero)
+def leQSubZero : {p q : Q} → p ≤ q → p + qNeg q ≤ qZero
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λp. λq. λle. transport (λw. p + qNeg q ≤ w) (qAddNegR q) (leQPlusMono (qNeg q) le)
 
-def leROfQ : (p q : Q) → (p ≤ q) → (realOfQ p ≤ realOfQ q)
+def leROfQ : (p q : Q) → p ≤ q → realOfQ p ≤ realOfQ q
   using (id.Id.eq,
     rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold,
@@ -365,10 +364,10 @@ def sgnQOnePos : sgnQ qOne ≡ sPos
     rationalQ.qcls.eq) ≔
   ⋆
 
-def leQZeroOne : (qZero ≤ qOne) using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
+def leQZeroOne : qZero ≤ qOne using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   leQZeroOfPos _ sgnQOnePos
 
-def leRZeroOne : (realZero ≤ realOne)
+def leRZeroOne : realZero ≤ realOne
   using (rationalQ.qOne.eq,
     rationalQ.qZero.eq,
     real.realOfQ.eq,
@@ -387,7 +386,7 @@ def leRZeroOne : (realZero ≤ realOne)
 -- sequence's closeness bound at index 2k+1 is exactly 1/(k+1), so
 -- p ≤ q + 1/(k+1) for every k, and leQOfArch closes it. The verdict is
 -- DATA, so the squash is opened only inside the refuted branch (D-6).
-def leQOfLeR : {p : Q} (q : Q) → (realOfQ p ≤ realOfQ q) → (p ≤ q)
+def leQOfLeR : {p : Q} (q : Q) → realOfQ p ≤ realOfQ q → p ≤ q
   using (id.Id.eq,
     id.Id.unfold,
     prop.⊥.unfold,
@@ -460,7 +459,7 @@ def rleNeg : {x y : RSeq} → RLeP x y → RLeP (rNeg y) (rNeg x)
     _
     (λn. transport (λw. w ≤ rBound n n) (sym _ _ (qNegSub (seqOf y n) (seqOf x n))) (u n)))
 
-def leRNeg : (u v : Real) → (u ≤ v) → (realNeg v ≤ realNeg u)
+def leRNeg : (u v : Real) → u ≤ v → realNeg v ≤ realNeg u
   using (real.REq.unfold,
     real.RSeq.unfold,
     real.Real.unfold,

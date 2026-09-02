@@ -244,10 +244,8 @@ def bndMulSubQ : {x y x' y' a b d e : Q}
           (x
             + qNeg
               x')
-          → (qZero
-            ≤ a)
-            → (qZero
-              ≤ b) → (qZero ≤ d) → (qZero ≤ e) → Bnd (a * d + b * e) (x * y + qNeg (x' * y')) ≔
+          → qZero
+            ≤ a → qZero ≤ b → qZero ≤ d → qZero ≤ e → Bnd (a * d + b * e) (x * y + qNeg (x' * y')) ≔
   λx. λy. λx'. λy'. λa. λb. λd. λe. λhx. λhy'. λhd. λhe. λha. λhb. λhd0. λhe0. bndEq
     _
     _
@@ -273,10 +271,9 @@ def bndMulSub : {x y x' y' : Q}
           (x
             + qNeg
               x')
-          → (qZero
+          → qZero
             ≤ qOfNat
-              A)
-            → (qZero ≤ qOfNat B) → (qZero ≤ d) → Bnd (qOfNat (A + B) * d) (x * y + qNeg (x' * y')) ≔
+              A → qZero ≤ qOfNat B → qZero ≤ d → Bnd (qOfNat (A + B) * d) (x * y + qNeg (x' * y')) ≔
   λx. λy. λx'. λy'. λA. λB. λd. λhx. λhy'. λhg. λhf. λhA. λhB. λhd. bndEqB
     _
     _
@@ -312,11 +309,10 @@ def bndMulDiffGen : (f g : ℕ → Q)
             + qNeg
               (f
                 b))
-          → (qZero
+          → qZero
             ≤ qOfNat
-              A)
-            → (qZero
-              ≤ qOfNat B) → Bnd (qOfNat (A + B) * rBound a b) (f a * g a + qNeg (f b * g b)) ≔
+              A
+            → qZero ≤ qOfNat B → Bnd (qOfNat (A + B) * rBound a b) (f a * g a + qNeg (f b * g b)) ≔
   λf. λg. λA. λB. λa. λb. λhfa. λhgb. λhg. λhf. λhA. λhB. bndMulSub
     hfa
     hgb
@@ -509,9 +505,9 @@ def rMulWDGen : (f g g' : ℕ → Q)
   (hgR : (i j : ℕ) → Bnd (rBound i j) (g i + qNeg (g j)))
   (hg'R : (i j : ℕ) → Bnd (rBound i j) (g' i + qNeg (g' j)))
   (hq : (j : ℕ) → Bnd (rBound j j) (g j + qNeg (g' j)))
-  (hA : (qZero ≤ qOfNat A))
-  (hB : (qZero ≤ qOfNat B))
-  (hB' : (qZero ≤ qOfNat B'))
+  (hA : qZero ≤ qOfNat A)
+  (hB : qZero ≤ qOfNat B)
+  (hB' : qZero ≤ qOfNat B')
   (n k a b t : ℕ)
   → (qOfNat
     (A

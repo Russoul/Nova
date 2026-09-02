@@ -1,9 +1,8 @@
--- distill golden: a CODE standing as a type is bracketed by the TYPE
--- grammar (T{2}), whose spine takes the ELEMENT spine's steps — an
--- argument, an implicit override, the no-insert marker, a projection.
--- All of those print bare; what parenthesizes is what the element
--- ladder puts ABOVE a spine, and the parens re-enter the element
--- grammar whole
+-- distill golden: a code standing as a type is printed by the ONE term
+-- printer, at the level its position parses at — spine steps
+-- (arguments, implicit overrides, the no-insert marker, projections)
+-- and infix applications all stand bare, because a type position is
+-- an ordinary element position (THE TERM GRAMMAR MERGE)
 
 infixl 4 ≤
 
@@ -16,7 +15,8 @@ def Vec : {a : 𝕌} → ℕ → 𝕌 ≔ λa. λn. ℕ
 
 def g : (Vec {ℕ} 3) → ℕ using (Vec.eq) ≔ λx. x
 
--- an operator application is above the spine, so its parentheses stay
+-- an operator application needs no parentheses either: with the type
+-- and term grammars merged there is no level between them to lose
 def ≤ : ℕ → ℕ → 𝕌 ≔ λa. λb. ℕ
 
 def h : (Z ≤ Z) → ℕ using (≤.eq) ≔ λx. x

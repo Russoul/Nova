@@ -53,5 +53,5 @@ def eqNSoundP : {n m : ℕ} → EqN n m → n ≡ m ≔ λn. λm. λh. ⋆ (eqNS
 def eqNCompleteP : {n m : ℕ} → (n ≡ m) → EqN n m using (eqNat.EqN.unfold) ≔
   λn. λm. λh. eqNComplete h
 
-def eqNIff : (n m : ℕ) → (EqN n m ↔ (n ≡ m)) using (prop.↔.unfold, prop.∧.unfold) ≔
+def eqNIff : (n m : ℕ) → EqN n m ↔ (n ≡ m) using (prop.↔.unfold, prop.∧.unfold) ≔
   λn. λm. iffIntro eqNSoundP eqNCompleteP

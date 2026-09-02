@@ -16,7 +16,7 @@ def qMax : Q → Q → Q using (rationalQ.Q.unfold) ≔
   λu. λv. ⊎-elim (nn. v) (hn. u) (sgnCases (sgnQ (v + qNeg u)))
 
 -- ===== the lattice characterisation =====
-def leQMaxL : (u v : Q) → (u ≤ qMax u v)
+def leQMaxL : (u v : Q) → u ≤ qMax u v
   using (id.Id.eq,
     ratMax.qMax.eq,
     rationalOrder.≤.unfold,
@@ -29,14 +29,14 @@ def leQMaxL : (u v : Q) → (u ≤ qMax u v)
     rationalQ.Q.unfold,
     rationalQ.+.eq,
     rationalQ.qNeg.eq) ≔
-  λu. λv. ⊎-elim (w. (u ≤ ⊎-elim (nn. v) (hn. u) w))
+  λu. λv. ⊎-elim (w. u ≤ ⊎-elim (nn. v) (hn. u) w)
     (nn. nn)
     (hn. leQRefl _)
     (sgnCases (sgnQ (v + qNeg u)))
 
 -- v < u : the flipped difference is positive, and u − v IS the
 -- negation of v − u
-def leQMaxR : (u v : Q) → (v ≤ qMax u v)
+def leQMaxR : (u v : Q) → v ≤ qMax u v
   using (id.Id.eq,
     ratMax.qMax.eq,
     rationalOrder.≤.unfold,
@@ -49,7 +49,7 @@ def leQMaxR : (u v : Q) → (v ≤ qMax u v)
     rationalQ.Q.unfold,
     rationalQ.+.eq,
     rationalQ.qNeg.eq) ≔
-  λu. λv. ⊎-elim (w. (v ≤ ⊎-elim (nn. v) (hn. u) w))
+  λu. λv. ⊎-elim (w. v ≤ ⊎-elim (nn. v) (hn. u) w)
     (nn. leQRefl _)
     (hn. inj₂ (eqToId
       _
@@ -62,7 +62,7 @@ def leQMaxR : (u v : Q) → (v ≤ qMax u v)
         (sgnQNegOfNeg hn))))
     (sgnCases (sgnQ (v + qNeg u)))
 
-def qMaxLub : {u v w : Q} → (u ≤ w) → (v ≤ w) → (qMax u v ≤ w)
+def qMaxLub : {u v w : Q} → u ≤ w → v ≤ w → qMax u v ≤ w
   using (id.Id.eq,
     ratMax.qMax.eq,
     rationalOrder.≤.unfold,
@@ -75,14 +75,14 @@ def qMaxLub : {u v w : Q} → (u ≤ w) → (v ≤ w) → (qMax u v ≤ w)
     rationalQ.Q.unfold,
     rationalQ.+.eq,
     rationalQ.qNeg.eq) ≔
-  λu. λv. λw. λh1. λh2. ⊎-elim (t. (⊎-elim (nn. v) (hn. u) t ≤ w))
+  λu. λv. λw. λh1. λh2. ⊎-elim (t. ⊎-elim (nn. v) (hn. u) t ≤ w)
     (nn. h2)
     (hn. h1)
     (sgnCases (sgnQ (v + qNeg u)))
 
 -- ===== Lipschitz =====
 -- a two-sided bound on a difference is a pair of shifted ≤'s
-def leQAddOfBnd : {b u v : Q} → Bnd b (u + qNeg v) → (u ≤ v + b)
+def leQAddOfBnd : {b u v : Q} → Bnd b (u + qNeg v) → u ≤ v + b
   using (ratBound.Bnd.unfold, rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λb. λu. λv. λh. leQAddShift _ (h .π₂)
 
@@ -114,7 +114,7 @@ def qMaxComm : (u v : Q) → qMax u v ≡ qMax v u ≔
 -- ===== the dual =====
 def qMin : Q → Q → Q using (rationalQ.Q.unfold) ≔ λu. λv. qNeg (qMax (qNeg u) (qNeg v))
 
-def leQMinL : (u v : Q) → (qMin u v ≤ u)
+def leQMinL : (u v : Q) → qMin u v ≤ u
   using (id.Id.eq,
     ratMax.qMax.eq,
     ratMax.qMin.eq,
@@ -129,7 +129,7 @@ def leQMinL : (u v : Q) → (qMin u v ≤ u)
     rationalQ.qNeg.eq) ≔
   λu. λv. transport (λw. qMin u v ≤ w) (qNegNeg u) (leQNegFlip _ _ (leQMaxL (qNeg u) (qNeg v)))
 
-def leQMinR : (u v : Q) → (qMin u v ≤ v)
+def leQMinR : (u v : Q) → qMin u v ≤ v
   using (id.Id.eq,
     ratMax.qMax.eq,
     ratMax.qMin.eq,
@@ -144,7 +144,7 @@ def leQMinR : (u v : Q) → (qMin u v ≤ v)
     rationalQ.qNeg.eq) ≔
   λu. λv. transport (λw. qMin u v ≤ w) (qNegNeg v) (leQNegFlip _ _ (leQMaxR (qNeg u) (qNeg v)))
 
-def qMinGlb : {u v w : Q} → (w ≤ u) → (w ≤ v) → (w ≤ qMin u v)
+def qMinGlb : {u v w : Q} → w ≤ u → w ≤ v → w ≤ qMin u v
   using (id.Id.eq,
     ratMax.qMax.eq,
     ratMax.qMin.eq,
@@ -205,7 +205,7 @@ def bndMinSub : (b a c a' c' : Q)
 -- a shifted greatest-lower-bound: w ≤ a + r and w ≤ b + r give
 -- w ≤ min a b + r. (The max side needs no such lemma — qMaxLub's
 -- target is already an upper bound.)
-def qMinGlbShift : (a b w r : Q) → (w ≤ a + r) → (w ≤ b + r) → (w ≤ qMin a b + r)
+def qMinGlbShift : (a b w r : Q) → w ≤ a + r → w ≤ b + r → w ≤ qMin a b + r
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λa. λb. λw. λr. λh1. λh2. transport
     (λt. t ≤ qMin a b + r)

@@ -200,7 +200,7 @@ def rleZeroAbs : {x : RSeq} → RLeP ((λn. qZero), constReg) (rAbs x)
       (leQSubZero (leQZeroAbs (seqOf x n)))
       (leQZeroBound n n))
 
-def leRZeroAbs : (u : Real) → (realZero ≤ realAbs u)
+def leRZeroAbs : (u : Real) → realZero ≤ realAbs u
   using (equality.sym.eq,
     equality.transport.eq,
     rational.ratZero.eq,
@@ -276,7 +276,7 @@ def rleAbsTriangle : {x y : RSeq} → RLeP (rAbs (rAdd x y)) (rAdd (rAbs x) (rAb
       (leQSubZero (qAbsTriangle (seqOf x (dbl n)) (seqOf y (dbl n))))
       (leQZeroBound n n))
 
-def leRAbsTriangle : {u v : Real} → (realAbs (u + v) ≤ realAbs u + realAbs v)
+def leRAbsTriangle : {u v : Real} → realAbs (u + v) ≤ realAbs u + realAbs v
   using (real.REq.unfold,
     real.RSeq.unfold,
     real.Real.unfold,

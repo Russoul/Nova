@@ -488,10 +488,10 @@ def NonNegS : Sign → 𝕌 ≔ λs. Id _ s sZero ⊎ Id _ s sPos
 infixl 4 ≤
 def ≤ : Q → Q → 𝕌 ≔ λx. λy. NonNegS (sgnQ (y + qNeg x))
 
-def leQRefl : (x : Q) → (x ≤ x) using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
+def leQRefl : (x : Q) → x ≤ x using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λx. inj₁ (eqToId _ _ (trans _ _ _ (cong (λu. Sign) (λu. sgnQ u) (qAddNegR x)) sgnQZero))
 
-def leQOfEq : (x y : Q) → (x ≡ y) → (x ≤ y)
+def leQOfEq : (x y : Q) → (x ≡ y) → x ≤ y
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λx. λy. λh. inj₁ (eqToId
     _
@@ -517,7 +517,7 @@ def sgnCases : (s : Sign) → NonNegS s ⊎ Id _ s sNeg
     s
 
 -- totality: decide the difference's sign; a negative difference flips
-def leQTotal : (x y : Q) → (x ≤ y) ⊎ (y ≤ x)
+def leQTotal : (x y : Q) → x ≤ y ⊎ y ≤ x
   using (id.Id.unfold,
     rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold,
@@ -956,7 +956,7 @@ def qDiffZero : {a b : Q} → (a + qNeg b ≡ qZero) → a ≡ b ≔
     (trans _ _ _ (cong (λw. Q) (λw. w + b) h) (qAddZeroL b))
 
 -- ===== transitivity and antisymmetry =====
-def leQTrans : (x y z : Q) → (x ≤ y) → (y ≤ z) → (x ≤ z)
+def leQTrans : (x y z : Q) → x ≤ y → y ≤ z → x ≤ z
   using (id.Id.unfold, rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold, rationalQ.Q.unfold) ≔
   λx. λy. λz. λl1. λl2. let comb : sgnQ
     (z
@@ -1037,7 +1037,7 @@ def leQTrans : (x y z : Q) → (x ≤ y) → (y ≤ z) → (x ≤ z)
       l2)
     l1
 
-def leQAntisym : {x y : Q} → (x ≤ y) → (y ≤ x) → x ≡ y
+def leQAntisym : {x y : Q} → x ≤ y → y ≤ x → x ≡ y
   using (id.Id.unfold,
     rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold,
@@ -1089,14 +1089,14 @@ def qSubPlusCancel : (x y w : Q) → y + w + qNeg (x + w) ≡ y + qNeg x using (
       ≡⟨ qAddZeroR (y + qNeg x) ⟩ y + qNeg x
 
 -- monotonicity of + : one transport along the cancelled difference
-def leQPlusMono : {x y : Q} (w : Q) → (x ≤ y) → (x + w ≤ y + w)
+def leQPlusMono : {x y : Q} (w : Q) → x ≤ y → x + w ≤ y + w
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold, rationalQ.Q.unfold) ≔
   λx. λy. λw. λle. transport
     NonNegS
     (sym _ _ (cong (λv. Sign) (λv. sgnQ v) (qSubPlusCancel x y w)))
     le
 
-def leQPlusMonoL : (x y w : Q) → (x ≤ y) → (w + x ≤ w + y)
+def leQPlusMonoL : (x y w : Q) → x ≤ y → w + x ≤ w + y
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λx. λy. λw. λle. transport
     (λv. v ≤ w + y)
@@ -1197,7 +1197,7 @@ def qSubDistribR : (x y c : Q) → (y + qNeg x) * c ≡ y * c + qNeg (x * c)
 -- c ≡ 0: both products are zero, difference too
 -- c positive: case the difference's sign
 -- y − x ≡ 0: products differ by zero
-def leQMulMono : (x y : Q) {c : Q} → (x ≤ y) → (qZero ≤ c) → (x * c ≤ y * c)
+def leQMulMono : (x y : Q) {c : Q} → x ≤ y → qZero ≤ c → x * c ≤ y * c
   using (integer.intNeg.eq,
     integer.intZero.eq,
     rational.den.eq,

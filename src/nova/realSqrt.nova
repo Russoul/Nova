@@ -210,13 +210,13 @@ def slackEq : {Dm Dn : ℕ}
       ≡⟨ cong (λw. Q) (λw. qInvNat Dm + w) (cancelMid Dm (qInvNat Dn)) ⟩ qInvNat Dm + qInvNat Dn
 
 def sqrtSlack : (m n : ℕ)
-  → (qOfNat
+  → qOfNat
     (S (isqrt
       (sqrtT
         m
         n)))
     * (qInvNat
-      (sqrtDepth m) * qInvNat (sqrtDepth n)) ≤ qInvNat (sqrtDepth m) + qInvNat (sqrtDepth n))
+      (sqrtDepth m) * qInvNat (sqrtDepth n)) ≤ qInvNat (sqrtDepth m) + qInvNat (sqrtDepth n)
   using (ratSqrt.sqNat.eq, sqrtT.eq) ≔
   λm. λn. transport
     (λw. qOfNat (S (isqrt (sqrtT m n))) * (qInvNat (sqrtDepth m) * qInvNat (sqrtDepth n)) ≤ w)
@@ -230,7 +230,7 @@ def sqrtSlack : (m n : ℕ)
       (leQZeroMul (leQZeroInvNat (sqrtDepth m)) (leQZeroInvNat (sqrtDepth n))))
 
 -- y + (x + y) ≤ (x + x) + (y + y), for nonnegative x
-def slackFits : {x y : Q} → (qZero ≤ x) → (y + (x + y) ≤ x + x + (y + y)) ≔
+def slackFits : {x y : Q} → qZero ≤ x → y + (x + y) ≤ x + x + (y + y) ≔
   λx. λy. λhx. transport
     (λw. w ≤ x + x + (y + y))
     (sym
@@ -272,20 +272,20 @@ def rBoundHalves : {m n : ℕ}
 def sqrtDirGen : {p : RSeq}
   (p' : RSeq)
   {a b m n : ℕ}
-  → (qZero
+  → qZero
     ≤ seqOf
       p
-      a)
-    → (qInvNat
+      a
+    → qInvNat
       a
       ≤ qInvNat
         (sqrtIdx
-          m))
-      → (qInvNat
+          m)
+      → qInvNat
         b
         ≤ qInvNat
           (sqrtIdx
-            n))
+            n)
         → Bnd
           (rBound a b)
           (seqOf
@@ -295,7 +295,7 @@ def sqrtDirGen : {p : RSeq}
               (seqOf
                 p'
                 b))
-          → (qSqrtAt (seqOf p a) (sqrtDepth m) ≤ qSqrtAt (seqOf p' b) (sqrtDepth n) + rBound m n)
+          → qSqrtAt (seqOf p a) (sqrtDepth m) ≤ qSqrtAt (seqOf p' b) (sqrtDepth n) + rBound m n
   using (real.rBound.eq, sqrtDepth.eq, sqrtIdx.eq, sqrtT.eq) ≔
   λp. λp'. λa. λb. λm. λn. λnn. λda. λdb. λgap. leQTrans
     _
@@ -360,7 +360,7 @@ def sqrtDirGen : {p : RSeq}
 def sqrtSeqNN : RSeq → ℕ → Q ≔ λp. λn. qSqrtAt (seqOf p (sqrtIdx n)) (sqrtDepth n)
 
 def sqrtRegAtNN : (p : RSeq)
-  (nn : (n : ℕ) → (qZero ≤ seqOf p n))
+  (nn : (n : ℕ) → qZero ≤ seqOf p n)
   (m n : ℕ)
   → Bnd (rBound m n) (sqrtSeqNN p m + qNeg (sqrtSeqNN p n))
   using (sqrtSeqNN.eq) ≔
@@ -389,7 +389,7 @@ def sqrtRegAtNN : (p : RSeq)
           (leQRefl (qInvNat (sqrtIdx m)))
           (regBnd _ (regOf p) (sqrtIdx n) (sqrtIdx m)))))
 
-def rSqrtNN : (p : RSeq) → ((n : ℕ) → (qZero ≤ seqOf p n)) → RSeq using (real.RSeq.unfold) ≔
+def rSqrtNN : (p : RSeq) → ((n : ℕ) → qZero ≤ seqOf p n) → RSeq using (real.RSeq.unfold) ≔
   λp. λnn. sqrtSeqNN p, bndReg (sqrtRegAtNN _ nn)
 
 -- ===== use 2: any two nonnegative presentations agree =====
@@ -397,8 +397,8 @@ def rSqrtNN : (p : RSeq) → ((n : ℕ) → (qZero ≤ seqOf p n)) → RSeq usin
 -- This is the whole of brElim's obligation now. With the modulus gone
 -- there is nothing else to be independent of.
 def rSqrtWDNN : {p p' : RSeq}
-  (nn : (n : ℕ) → (qZero ≤ seqOf p n))
-  (nn' : (n : ℕ) → (qZero ≤ seqOf p' n))
+  (nn : (n : ℕ) → qZero ≤ seqOf p n)
+  (nn' : (n : ℕ) → qZero ≤ seqOf p' n)
   → REq p p' → REq (rSqrtNN _ nn) (rSqrtNN _ nn')
   using (real.REq.unfold,
     real.RSeq.unfold,
@@ -524,7 +524,7 @@ def qSqrtAtZero : {D : ℕ} → qSqrtAt qZero D ≡ qZero
 
 def zeroRep : RSeq using (real.RSeq.unfold) ≔ (λn. qZero), constReg
 
-def zeroNN : (n : ℕ) → (qZero ≤ seqOf zeroRep n)
+def zeroNN : (n : ℕ) → qZero ≤ seqOf zeroRep n
   using (real.RSeq.unfold, zeroRep.eq, realNeg.seqOf.eq) ≔
   λn. leQRefl qZero
 

@@ -24,19 +24,19 @@ import natDiv (natCase, natCaseElimEqD, leOfMonusZero, ltOfMonusSuc, leSucNotSel
 import equality (trans, sym, cong, transport)
 import id (Id, idToEq, eqToId)
 
-def leSplit : {b a : ℕ} → (b ≤ a) → (a ≤ b) ⊎ (S b ≤ a) using (natOrder.≤.unfold) ≔
-  λb. λa. λh. (ℕ-elim (k. (b + k ≡ a) → (a ≤ b) ⊎ (S b ≤ a))
+def leSplit : {b a : ℕ} → b ≤ a → a ≤ b ⊎ S b ≤ a using (natOrder.≤.unfold) ≔
+  λb. λa. λh. (ℕ-elim (k. (b + k ≡ a) → a ≤ b ⊎ S b ≤ a)
     (λe. inj₁ (leOfEq (sym _ _ (trans _ _ _ (sym _ _ (plusZeroId b)) e))))
     (j rec. λe. inj₂ (j,
       eqToId _ _ (trans _ _ _ (trans _ _ _ (sucPlus b j) (sym _ _ (plusSucId b j))) e)))
     (h .π₁))
     (idToEq _ _ _ (h .π₂))
 
-def natCompare : (a b : ℕ) → (a ≤ b) ⊎ (S b ≤ a) ≔
+def natCompare : (a b : ℕ) → a ≤ b ⊎ S b ≤ a ≔
   λa. λb. ⊎-elim (h. inj₁ h) (h. leSplit h) (leTotal a b)
 
 -- ===== squares are monotone =====
-def leMultMono : {a b c d : ℕ} → (a ≤ b) → (c ≤ d) → (a * c ≤ b * d) using (natOrder.≤.unfold) ≔
+def leMultMono : {a b c d : ℕ} → a ≤ b → c ≤ d → a * c ≤ b * d using (natOrder.≤.unfold) ≔
   λa. λb. λc. λd. λh1. λh2. leTrans
     _
     _
@@ -47,11 +47,11 @@ def leMultMono : {a b c d : ℕ} → (a ≤ b) → (c ≤ d) → (a * c ≤ b * 
       (multComm b d)
       (transport (λw. w ≤ d * b) (multComm b c) (leMultMonoR b h2)))
 
-def leSquare : {a b : ℕ} → (a ≤ b) → (a * a ≤ b * b) ≔ λa. λb. λh. leMultMono h h
+def leSquare : {a b : ℕ} → a ≤ b → a * a ≤ b * b ≔ λa. λb. λh. leMultMono h h
 
 -- a positive number is at most its own square, which is why searching
 -- up to m is enough
-def leSelfSquare : (j : ℕ) → (S j ≤ S j * S j) using (natOrder.≤.unfold) ≔
+def leSelfSquare : (j : ℕ) → S j ≤ S j * S j using (natOrder.≤.unfold) ≔
   λj. j * S j, eqToId _ _ (sym _ _ (sucMult j (S j)))
 
 -- ===== the search =====
@@ -60,7 +60,7 @@ def isqrtAux : ℕ → ℕ → ℕ ≔ λm. λf. ℕ-elim Z (f' ih. natCase (S f
 def isqrt : ℕ → ℕ ≔ λm. isqrtAux m m
 
 -- ===== it is a lower approximant =====
-def isqrtAuxLe : {m f : ℕ} → (isqrtAux m f * isqrtAux m f ≤ m) using (isqrtAux.eq, nat.*.eq) ≔
+def isqrtAuxLe : {m f : ℕ} → isqrtAux m f * isqrtAux m f ≤ m using (isqrtAux.eq, nat.*.eq) ≔
   λm. λf. ℕ-elim
     (leZero m)
     (f' ih. natCaseElimEqD
@@ -74,7 +74,7 @@ def isqrtAuxLe : {m f : ℕ} → (isqrtAux m f * isqrtAux m f ≤ m) using (isqr
     f
 
 -- ===== ...and the largest one =====
-def isqrtAuxMax : {m f k : ℕ} → (k * k ≤ m) → (k ≤ f) → (k ≤ isqrtAux m f) using (isqrtAux.eq) ≔
+def isqrtAuxMax : {m f k : ℕ} → k * k ≤ m → k ≤ f → k ≤ isqrtAux m f using (isqrtAux.eq) ≔
   λm. λf. ℕ-elim
     (λk. λhk. λhf. hf)
     (f' ih. λk. λhk. λhf. natCaseElimEqD
@@ -84,7 +84,7 @@ def isqrtAuxMax : {m f k : ℕ} → (k * k ≤ m) → (k ≤ f) → (k ≤ isqrt
       (λw. isqrtAux m f')
       (S f' * S f' ∸ m)
       (λe. hf)
-      (λj. λe. ⊎-elim (w. (k ≤ isqrtAux m f'))
+      (λj. λe. ⊎-elim (w. k ≤ isqrtAux m f')
         (h. ih k hk h)
         (h. 𝟘-elim (leSucNotSelf
           _
@@ -92,14 +92,14 @@ def isqrtAuxMax : {m f k : ℕ} → (k * k ≤ m) → (k ≤ f) → (k ≤ isqrt
         (natCompare k f')))
     f
 
-def isqrtLe : (m : ℕ) → (isqrt m * isqrt m ≤ m) using (isqrt.eq) ≔ λm. isqrtAuxLe
+def isqrtLe : (m : ℕ) → isqrt m * isqrt m ≤ m using (isqrt.eq) ≔ λm. isqrtAuxLe
 
-def isqrtMax : {m k : ℕ} → (k * k ≤ m) → (k ≤ m) → (k ≤ isqrt m) using (isqrt.eq) ≔
+def isqrtMax : {m k : ℕ} → k * k ≤ m → k ≤ m → k ≤ isqrt m using (isqrt.eq) ≔
   λm. λk. λh1. λh2. isqrtAuxMax h1 h2
 
 -- the upper bound: if S (isqrt m) squared still fit under m, isqrt m
 -- would have found it, and would be at least its own successor
-def isqrtUpper : (m : ℕ) → (S m ≤ S (isqrt m) * S (isqrt m)) ≔
+def isqrtUpper : (m : ℕ) → S m ≤ S (isqrt m) * S (isqrt m) ≔
   λm. ⊎-elim
     (h. 𝟘-elim (leSucNotSelf _ (isqrtMax h (leTrans _ _ _ (leSelfSquare (isqrt m)) h))))
     (h. h)
@@ -114,10 +114,10 @@ def isqrtUpper : (m : ℕ) → (S m ≤ S (isqrt m) * S (isqrt m)) ≔
 -- and its ℚ counterpart is not: ℚ has no strict multiplication
 -- monotonicity in the corpus, and getting it would mean sign
 -- multiplicativity or division. At ℕ, natCompare settles it.
-def ltSqSuc : (y : ℕ) → (S (y * y) ≤ S y * S y) ≔
+def ltSqSuc : (y : ℕ) → S (y * y) ≤ S y * S y ≔
   λy. leTrans _ _ _ (leSucMono (leMultMono (leRefl y) (leSucSelf y))) (ltProdSuc y y)
 
-def leOfSqLe : {x y : ℕ} → (x * x ≤ y * y) → (x ≤ y) ≔
+def leOfSqLe : {x y : ℕ} → x * x ≤ y * y → x ≤ y ≔
   λx. λy. λh. ⊎-elim
     (le. le)
     (lt. 𝟘-elim (leSucNotSelf _ (leTrans _ _ _ (leTrans _ _ _ (ltSqSuc y) (leSquare lt)) h)))
@@ -143,14 +143,14 @@ def sqExpand : (y c : ℕ) → (y + c) * (y + c) ≡ y * y + y * c + (y * c + c 
         (λw. y * y + y * c + (w + c * c))
         (multComm y c) ⟩ y * y + y * c + (y * c + c * c)
 
-def sqSumLe : (y c : ℕ) → (y * y + c * c ≤ (y + c) * (y + c)) using (natOrder.≤.unfold) ≔
+def sqSumLe : (y c : ℕ) → y * y + c * c ≤ (y + c) * (y + c) using (natOrder.≤.unfold) ≔
   λy. λc. y
     * c
     + y
       * c,
     eqToId _ _ (trans (y * y + c * c + (y * c + y * c)) _ _ plus4Swap (sym _ _ (sqExpand y c)))
 
-def sqrtStepN : {x y T : ℕ} → (x * x ≤ y * y + T) → (x ≤ y + S (isqrt T)) ≔
+def sqrtStepN : {x y T : ℕ} → x * x ≤ y * y + T → x ≤ y + S (isqrt T) ≔
   λx. λy. λT. λh. leOfSqLe
     (leTrans
       _
@@ -165,7 +165,7 @@ def sqrtStepN : {x y T : ℕ} → (x * x ≤ y * y + T) → (x ≤ y + S (isqrt 
         (sqSumLe y (S (isqrt T)))))
 
 -- ===== isqrt is strictly under any c whose square overshoots =====
-def isqrtLtOfLt : (T : ℕ) {c : ℕ} → (S T ≤ c * c) → (S (isqrt T) ≤ c) ≔
+def isqrtLtOfLt : (T : ℕ) {c : ℕ} → S T ≤ c * c → S (isqrt T) ≤ c ≔
   λT. λc. λh. ⊎-elim
     (le. 𝟘-elim (leSucNotSelf _ (leTrans _ _ _ h (leTrans _ _ _ (leSquare le) (isqrtLe T)))))
     (lt. lt)
@@ -183,7 +183,7 @@ def plus4Mid : (a p q b : ℕ) → a + p + (q + b) ≡ a + b + (p + q) ≔
 def sucMultSuc : (x y : ℕ) → S x * S y ≡ S (x + S x * y) ≔
   λx. λy. S x * S y ≡⟨ multSucId (S x) y ⟩ S x + S x * y ≡⟨ sucPlus x (S x * y) ⟩ S (x + S x * y)
 
-def sqSumStrict : (x y : ℕ) → (S (S x * S x + S y * S y) ≤ (S x + S y) * (S x + S y))
+def sqSumStrict : (x y : ℕ) → S (S x * S x + S y * S y) ≤ (S x + S y) * (S x + S y)
   using (natOrder.≤.unfold) ≔
   λx. λy. x
     + S x

@@ -62,12 +62,12 @@ def qSum6 : (a b : Q) → a + b + (a + b + (b + b)) ≡ a + a + (b + b + (b + b)
 
 -- 2a + 4b sits under 4a + 4b, i.e. under rBound m n
 def leQQuarterSum : (m n : ℕ)
-  → (qInvNat
+  → qInvNat
     (qtr
       m)
     + qInvNat
       (qtr
-        m) + (qInvNat (qtr n) + qInvNat (qtr n) + (qInvNat (qtr n) + qInvNat (qtr n))) ≤ rBound m n)
+        m) + (qInvNat (qtr n) + qInvNat (qtr n) + (qInvNat (qtr n) + qInvNat (qtr n))) ≤ rBound m n
   using (id.Id.eq,
     ratHalf.dbl.eq,
     rationalOrder.≤.unfold,
@@ -245,7 +245,7 @@ def limClose : (x : ℕ → RSeq)
 def realLimClose : (x : ℕ → RSeq)
   (h : RegSeqR x)
   (n : ℕ)
-  → (realDist (class (x n)) (realLim _ h) ≤ realOfQ (qInvNat n))
+  → realDist (class (x n)) (realLim _ h) ≤ realOfQ (qInvNat n)
   using (real.Real.unfold,
     real.RSeq.unfold,
     real.Regular.unfold,
@@ -277,7 +277,7 @@ def realLimClose : (x : ℕ → RSeq)
 def regSeqRSound : (x : ℕ → RSeq)
   (h : RegSeqR x)
   (m n : ℕ)
-  → (realDist (class (x m)) (class (x n)) ≤ realOfQ (rBound m n))
+  → realDist (class (x m)) (class (x n)) ≤ realOfQ (rBound m n)
   using (real.Real.unfold,
     real.RSeq.unfold,
     real.Regular.unfold,

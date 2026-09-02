@@ -58,18 +58,18 @@ def ¬ : Ω → Ω ≔ λp. p ⊃ ⊥
 infixr 4 ∨
 def ∨ : Ω → Ω → Ω ≔ λp. λq. ∥(r : Ω) → (p → r) → (q → r) → r∥
 
-def andIntro : {p q : Ω} → p → q → (p ∧ q) using (prop.∧.unfold) ≔ λp. λq. λx. λy. ⋆ (x, y)
+def andIntro : {p q : Ω} → p → q → p ∧ q using (prop.∧.unfold) ≔ λp. λq. λx. λy. ⋆ (x, y)
 
-def andFst : {p q : Ω} → (p ∧ q) → p using (prop.∧.unfold) ≔ λp. λq. λh. squash-elim h (u. u .π₁)
+def andFst : {p q : Ω} → p ∧ q → p using (prop.∧.unfold) ≔ λp. λq. λh. squash-elim h (u. u .π₁)
 
-def andSnd : {p q : Ω} → (p ∧ q) → q using (prop.∧.unfold) ≔ λp. λq. λh. squash-elim h (u. u .π₂)
+def andSnd : {p q : Ω} → p ∧ q → q using (prop.∧.unfold) ≔ λp. λq. λh. squash-elim h (u. u .π₂)
 
-def andElim : {p q x : Ω} → (p ∧ q) → (p → q → x) → x using (prop.∧.unfold) ≔
+def andElim : {p q x : Ω} → p ∧ q → (p → q → x) → x using (prop.∧.unfold) ≔
   λp. λq. λx. λi. λf. squash-elim i (u. f (u .π₁) (u .π₂))
 
-def impIntro : {p q : Ω} → (p → q) → (p ⊃ q) using (prop.⊃.unfold) ≔ λp. λq. λf. ⋆ f
+def impIntro : {p q : Ω} → (p → q) → p ⊃ q using (prop.⊃.unfold) ≔ λp. λq. λf. ⋆ f
 
-def impApply : {p q : Ω} → (p ⊃ q) → p → q using (prop.⊃.unfold) ≔
+def impApply : {p q : Ω} → p ⊃ q → p → q using (prop.⊃.unfold) ≔
   λp. λq. λh. λx. squash-elim h (f. f x)
 
 -- ⊥ ≜ ∥𝟘∥, so 𝟘-elim cannot consume a proof of ⊥ directly: a refutation
@@ -97,11 +97,11 @@ def absurd : ⊥ → 𝟘 using (prop.isZeroCode.eq) ≔ λh. transport isZeroCo
 -- ELIMINATION of a ⊥-proof can give: 𝟘-elim consumes the escaped 𝟘.
 def absurdD : (A : 𝕌) → ⊥ → A ≔ λA. λh. 𝟘-elim (absurd h)
 
-def orInl : {p q : Ω} → p → (p ∨ q) using (prop.∨.unfold) ≔ λp. λq. λx. ⋆ (λr. λf. λg. f x)
+def orInl : {p q : Ω} → p → p ∨ q using (prop.∨.unfold) ≔ λp. λq. λx. ⋆ (λr. λf. λg. f x)
 
-def orInr : {p q : Ω} → q → (p ∨ q) using (prop.∨.unfold) ≔ λp. λq. λy. ⋆ (λr. λf. λg. g y)
+def orInr : {p q : Ω} → q → p ∨ q using (prop.∨.unfold) ≔ λp. λq. λy. ⋆ (λr. λf. λg. g y)
 
-def orElim : (p q c : Ω) → (p ∨ q) → (p → c) → (q → c) → c using (prop.∨.unfold) ≔
+def orElim : (p q c : Ω) → p ∨ q → (p → c) → (q → c) → c using (prop.∨.unfold) ≔
   λp. λq. λc. λh. λf. λg. squash-elim h (u. u c f g)
 
 -- Logical equivalence, as a pair of implications (∧ + ⊃ already
@@ -109,25 +109,25 @@ def orElim : (p q c : Ω) → (p ∨ q) → (p → c) → (q → c) → c using 
 infixr 2 ↔
 def ↔ : Ω → Ω → Ω ≔ λp. λq. (p ⊃ q) ∧ (q ⊃ p)
 
-def iffIntro : {p q : Ω} → (p → q) → (q → p) → (p ↔ q) using (prop.↔.eq) ≔
+def iffIntro : {p q : Ω} → (p → q) → (q → p) → p ↔ q using (prop.↔.eq) ≔
   λp. λq. λf. λg. andIntro (impIntro f) (impIntro g)
 
-def iffLeft : {p q : Ω} → (p ↔ q) → p → q using (prop.↔.eq) ≔ λp. λq. λh. impApply (andFst h)
+def iffLeft : {p q : Ω} → p ↔ q → p → q using (prop.↔.eq) ≔ λp. λq. λh. impApply (andFst h)
 
-def iffRight : {p q : Ω} → (p ↔ q) → q → p using (prop.↔.eq) ≔ λp. λq. λh. impApply (andSnd h)
+def iffRight : {p q : Ω} → p ↔ q → q → p using (prop.↔.eq) ≔ λp. λq. λh. impApply (andSnd h)
 
 -- code-prop-eq against ↔: iff-equal propositions are EQUAL codes, so
 -- one can be rewritten to the other anywhere a prop is expected
-def propExtOfIff : {p q : Ω} → (p ↔ q) → p ≡ q ≔ λp. λq. λh. propExt (iffLeft h) (iffRight h)
+def propExtOfIff : {p q : Ω} → p ↔ q → p ≡ q ≔ λp. λq. λh. propExt (iffLeft h) (iffRight h)
 
 -- Curry/uncurry as a logical equivalence (each direction its own
 -- lemma, rather than a literal code-prop-eq equality — code-prop-eq's
 -- automatic search is still 𝟙-/≡-shaped only; only el-squash-i/
 -- el-squash-e-prf were generalized).
-def curry : {p q c : Ω} → (p ∧ q ⊃ c) → (p ⊃ q ⊃ c) using (prop.⊃.eq, prop.⊃.unfold) ≔
+def curry : {p q c : Ω} → p ∧ q ⊃ c → p ⊃ q ⊃ c using (prop.⊃.eq, prop.⊃.unfold) ≔
   λp. λq. λc. λh. impIntro (λx. impIntro (λy. impApply h (andIntro x y)))
 
-def uncurry : {p q c : Ω} → (p ⊃ q ⊃ c) → (p ∧ q ⊃ c) using (prop.⊃.unfold) ≔
+def uncurry : {p q c : Ω} → p ⊃ q ⊃ c → p ∧ q ⊃ c using (prop.⊃.unfold) ≔
   λp. λq. λc. λh. impIntro (λpq. impApply (impApply h (andFst pq)) (andSnd pq))
 
 -- Weak/intuitionistic excluded middle: ¬¬(p ∨ ¬p) holds constructively

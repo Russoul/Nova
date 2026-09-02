@@ -22,7 +22,7 @@ def eqToId : {a : 𝕌} (x y : a) → (x ≡ y) → Id _ x y using (hyp.rw, id.I
   λa. λx. λy. λh. refl a x
 
 -- the bridge, packaged: Id and ≡ are the same proposition up to iff
-def idIffEq : {a : 𝕌} {x y : a} → (∥Id _ x y∥ ↔ (x ≡ y))
+def idIffEq : {a : 𝕌} {x y : a} → ∥Id _ x y∥ ↔ (x ≡ y)
   using (id.Id.unfold, prop.↔.unfold, prop.∧.unfold) ≔
   λa. λx. λy. iffIntro (λh. squash-elim h (p. idToEq _ x y p)) (λh. ⋆ (eqToId _ _ h))
 
