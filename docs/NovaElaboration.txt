@@ -74,10 +74,12 @@ alone in binder position is the wildcard binder, never resolvable.
 the reservation is exactly `?` IMMEDIATELY FOLLOWED BY AN IDENTIFIER
 START — `?`, `?!` and `<?>` still lex as operator names. A hole's
 label resolves against nothing, neither Γ nor Σ, so no identifier
-keyword is reserved from it. T{n}/t{n} names the
-type/term grammar at
-precedence level n, and T{>=n} any level at or above it. The
-term/type grammar below is self-contained.
+keyword is reserved from it. t{n} names the ONE
+term grammar at precedence
+level n, and t{>=n} any level at or above it — a position that stands
+as a TYPE names its level the same way (there is no separate type
+grammar; see TYPE POSITIONS below). The grammar below is
+self-contained.
 
 # A file is a sequence of items. `def` introduces a term definition,
 # `type` a type definition — both elaborate to Foundation's ONE
@@ -91,7 +93,7 @@ term/type grammar below is self-contained.
 # ones — so the normal-substitution syntax x[t˲] has no surface form.
 file  ::= import* (item | fixity)*
 imp   ::= import M | import M (n (, n)*)
-item  ::= def  n : T{≥0} uses? ≔ t{≥0}
+item  ::= def  n : t{≥1} uses? ≔ t{≥0}
                                               # uses ::= using n
                                               #        | using (n (, n)*)
                                               #   — the item's DISCHARGE
@@ -106,18 +108,18 @@ item  ::= def  n : T{≥0} uses? ≔ t{≥0}
                                               #   sees hypotheses only.
                                               #   See Conversion and
                                               #   discharge below.
-        | def  n : T{≥0}                      # a DECLARATION — a def
+        | def  n : t{≥1}                      # a DECLARATION — a def
                                               #   without a definiens
                                               #   (sig-decl at ε);
                                               #   see e-decl in Items
-        | type x ≔ T{≥0}
-        | data ([x : T{≥0}])* ( n : Q (; n : Q)* )
+        | type x ≔ t{≥1}
+        | data ([x : t{≥1}])* ( n : Q (; n : Q)* )
                                               # a QIIT signature literal —
                                               #   an ITEM MACRO over an
                                               #   ambient PARAMETER
                                               #   telescope, see the QIIT
                                               #   section below
-        | def  n : T{≥0} ([n])? (≔ t{≥0})? clause+
+        | def  n : t{≥1} ([n])? (≔ t{≥0})? clause+
                                               # a def with DEFINING
                                               #   EQUATIONS — an ITEM
                                               #   MACRO; the optional [n]
@@ -228,10 +230,10 @@ fixity ::= infixl d op | infixr d op          # d a digit 0-9
 # `out` is reserved for the ordinary reason: it is a valid identifier
 # that CONSUMES A FOLLOWING ATOM, so a binder named `out` parsed fine
 # and misbehaved at every later reference. It has a second, quieter
-# failure the others do not — `out` is a plain identifier in TYPE
-# position too (the type grammar reads no keyword-headed code), so an
-# unreserved `out t` there read as an APPLICATION OF A SIGNATURE NAME
-# and asked after an `out` nobody declared. The remaining
+# failure the others do not: back when a type position had a grammar
+# of its own, which read no keyword-headed code, an unreserved `out t`
+# there read as an APPLICATION OF A SIGNATURE NAME and asked after an
+# `out` nobody declared. The remaining
 # keyword-headed forms need no entry: 𝟘-elim, ⊎-elim, quot-elim and
 # squash-elim carry a `-`, and ν, ⋆, inj₁, inj₂ are not identifiers at
 # all. corec and coind ARE identifiers and stay free deliberately:
@@ -244,80 +246,72 @@ fixity ::= infixl d op | infixr d op          # d a digit 0-9
 # `A \x B` is the product; likewise `\star. e`, `\nu. e`, `\X. e`
 # bind those names rather than spelling ⋆, ν, 𝕏.
 
-# Types. Elaboration needs no rule keywords and no context prefixes —
-# the context is always implicit in where a subterm sits.
-T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | Ω | x | (T{≥0})
-T{2} ::= ν F{≥2} | ∥T{≥0}∥ | T{≥4} (t{≥4} | {t{≥0}} | {} | .π₁ | .π₂)* | t-atom
+# TYPE POSITIONS. There is no type grammar: types are terms at 𝕍
+# (NovaFoundation.txt, THERE IS NO TYPE JUDGEMENT), so a position that
+# stands as a type enters the ONE ladder below at a stated level.
+#
+#   an item's type, a binder domain, an ascription, a motive,
+#   an ∈-annotation, a squashee                        → t{≥1}
+#   a data literal's anonymous external domain         → t{≥2}
+#
+# t{≥1} and not t{≥0} because a type is not a pair: a comma after a
+# type belongs to whatever encloses it. t{≥2} stops the QIIT literal's
+# external domain before the entry's own `→` (`ℕ → El Q` is TWO
+# pieces).
+#
+# WHAT A TYPE MAY THEREFORE BE: every t{≥1} form. The former type
+# grammar's own productions — the binder forms, → × ⊎ /, the equality
+# prop, the constants 𝟘 𝟙 ℕ 𝕌 Ω — are t{1} productions and read
+# unchanged. What the merge ADDED to these positions is what the t
+# ladder always had and the type ladder lacked: INFIX OPERATORS (so
+# `a ≤ b` stands as a type bare, where it used to need parentheses),
+# λ and let, and the keyword-headed forms. What still parenthesizes
+# is only what sits ABOVE the entry level — a pair.
+#
 # El and Prf are retired (Foundation, CUMULATIVITY and
 # PROP-CUMULATIVITY): a CODE or a PROP in type position IS the type —
 # a name atom resolving to a binder or a 𝕌-/Ω-classified item, an
-# application spine (Vect n, R x y), a PROJECTION of one (P .π₁: a
-# code is an element, and the element may be reached by projecting,
-# so the spine reads those steps too), a squash, an operator-shaped
-# name (⊥), or a parenthesized element ((a ≤ b)). The classifier is
-# read off a discarded inference probe: Ω-valued spellings elaborate
-# at Ω, everything else at 𝕌. There is NO legacy `Prf` spelling —
-# the keyword is gone from the grammar and `Prf` is an ordinary
-# identifier.
-# THE SPINE'S STEPS ARE THE ELEMENT SPINE'S (t{3}), to the token:
-# arguments, implicit overrides, the no-insert marker, projections —
-# `Vect n`, `Vect {ℕ} n`, `f {}`, `P .π₁`. A brace step and an implicit
-# BINDER GROUP share their opening token and are told apart the way a
-# reader tells them apart: a GROUP carries a `:` (`{x : T}`,
-# `{x y : T}`) and an OVERRIDE never can, an ascription being
-# parenthesized. They cannot meet in any case — a group is read only at
-# the START of the T{1} binder branch, never after a spine head — so
-# `{x : A} {y : B} → C` is two groups and `Vect {ℕ} n → C` is a spine,
-# with no spelling in between.
-# What stays PARENTHESIZED in type position is what the element ladder
-# puts ABOVE a spine: an operator application ((a ≤ b)), a
-# keyword-headed code ((out t)), a λ, a pair. The parens re-enter the
-# element grammar whole.
-# THE T LADDER IS GONE — types are terms at 𝕍, and a type position
-# enters the term grammar at the level that reads what the T level
-# read. The productions below are kept as the READING of those
-# positions (which forms reach them, at which precedence); the parser
-# has one ladder, the t ladder. See THE TERM GRAMMAR MERGE.
-T{1} ::= ((x:T{≥0}))+ → T{≥0} | ((x:T{≥0}))+ × T{≥0}
-       | T{≥1½} → T{≥0} | T{≥1½} / (x y. t{≥1})
-T{1½} ::= T{≥1¾} ⊎ T{≥1½}
-T{1¾} ::= T{≥2} × T{≥1¾}
+# application spine (Vect n, R x y), a projection of one (P .π₁), an
+# implicit override (Vect {ℕ} n), a squash, an operator-shaped name
+# (⊥). The classifier is read off a discarded inference probe:
+# Ω-valued spellings elaborate at Ω, everything else at 𝕌, and the
+# forms whose PARTS are checked at 𝕍 have their own rules (e-ty-pi and
+# the rest below). There is NO legacy `Prf` spelling — the keyword is
+# gone from the grammar and `Prf` is an ordinary identifier.
+#
+# THE EQUALITY PROP is one production, at t{1}: `t{≥1¼} ≡ t{≥1¼} ∈
+# t{≥1}`. The sides sit at t{≥1¼}, so declared operators (n + Z ≡ n)
+# and the ⊎ code both reach them; the ∈-type at t{≥1}, so an arrow
+# reaches it — `∈ A → B` is unambiguously `∈ (A → B)`. A ≡ in DOMAIN
+# position still needs parens. The quotient relation is an Ω-valued
+# ELEMENT. EQUALITY IS Ω-VALUED (NovaFoundation.txt, Ω block): the
+# ≡-type IS the equality prop standing as a type (e-ty-eq; prop-lift),
+# and its proof is ⋆, like every proposition's — there is no Refl, in
+# the core or on the surface.
+#
 # × IS TWO OPERATORS SHARING A TOKEN, at two levels:
-#   * the BINDER form ((x:A)) × B sits at T{1} beside →, and like →'s
-#     codomain its body is full T{≥0}. That is what keeps the
+#   * the BINDER form ((x:A)) × B sits at t{1} beside →, and like →'s
+#     codomain its body is maximal. That is what keeps the
 #     Σ-as-record idiom's last field bare — a law, an equation, a
 #     nested Σ all follow the × without parentheses.
-#   * the NON-DEPENDENT form A × B sits at T{1¾}, right-associative,
-#     BELOW ⊎ and above the atoms, so (a) A × B → C is (A × B) → C,
+#   * the NON-DEPENDENT form A × B sits at t{1⅜}, right-associative,
+#     BELOW ⊎ and above the operators, so (a) A × B → C is (A × B) → C,
 #     the uncurrying shape, and (b) A ⊎ B × C is A ⊎ (B × C):
-#     PRODUCT BINDS TIGHTER THAN SUM, as it does at the element level
-#     where * (infixl 7) binds tighter than + (infixl 6), and as the
-#     ⊎/× semiring with units 𝟘/𝟙 asks.
+#     PRODUCT BINDS TIGHTER THAN SUM, as the declared operators have
+#     it (* at 7 over + at 6) and as the ⊎/× semiring with units 𝟘/𝟙
+#     asks.
 # CONSEQUENCE, deliberate: `A × B` is NOT sugar for `(_:A) × B`. The
 # wildcard spelling is the binder form and keeps the maximal body; the
-# bare spelling stops at T{1¾}. The name-dropping sugar below covers
+# bare spelling stops at t{1⅜}. The name-dropping sugar below covers
 # → and / only. (A × whose right operand is a →, a ≡ or a quotient
 # therefore needs parentheses: `P × ((x : G) → Q)`.)
-# ⊎ is NON-DEPENDENT (no binder form), right-associative, and binds
-# TIGHTER than the T{1} forms (A ⊎ B → C is (A ⊎ B) → C) and LOOSER
-# than ×; the T{1} infixes take their left operand at T{≥1½}
-T{0} ::= t{≥1¼} ≡ t{≥1¼} ∈ T{≥1}
-# ONE ≡ production, shared with the element level (t{1} below): the
-# sides sit at t{≥1¼}, so declared operators (n + Z ≡ n) and the ⊎
-# code both reach them, and the ∈-type at T{≥1}, so an arrow reaches
-# it. A ≡-type in DOMAIN position still needs parens — the T{1}
-# infixes take their left operand at T{≥1½} — so `∈ A → B` is
-# unambiguously `∈ (A → B)`.
-# the quotient relation is an Ω-valued ELEMENT (t), not a type.
-# EQUALITY IS Ω-VALUED (NovaFoundation.txt, Ω block): the surface
-# ≡-TYPE above IS the equality prop, standing as a type (e-ty-eq;
-# prop-lift).
-# The proof of an equality is ⋆, like every proposition's; there is
-# no Refl, in the core or on the surface.
+# ⊎ is NON-DEPENDENT (no binder form), right-associative, binding
+# TIGHTER than the t{1} forms (A ⊎ B → C is (A ⊎ B) → C) and LOOSER
+# than ×.
 
 # Binder groups ITERATE: (x:T) (y:U) → B parses as (x:T) → (y:U) → B
 # (each group scopes over the ones after it; likewise for ×), and the
-# codomain is full T{≥0}, so a lemma statement needs no parentheses:
+# codomain is full t{≥1}, so a lemma statement needs no parentheses:
 #     (n : ℕ) (m : ℕ) → plus n m ≡ plus m n ∈ ℕ
 # A group may bind several names at one written domain — (x y : T) —
 # and a BRACE group {x : T} marks an IMPLICIT Π-binder: inserted at
@@ -341,7 +335,7 @@ T{0} ::= t{≥1¼} ≡ t{≥1¼} ∈ T{≥1}
 #   3. corec takes its state CARRIER inline, as a binder annotation —
 #      corec (x : a. f) u — the carrier code is not recoverable from
 #      the expected ν-type, so it is mandatory syntax, like a motive.
-t{5} ::= x | ?x | () | Z | ⋆ | ∥T{≥0}∥ | 𝟘 | 𝟙 | ℕ | (t{≥0}) | (t{≥0} : T{≥0})
+t{5} ::= x | ?x | () | Z | ⋆ | ∥t{≥1}∥ | 𝟘 | 𝟙 | ℕ | (t{≥0}) | (t{≥0} : t{≥1})
 t{3} ::= t{≥3} t{≥4} | t{≥3} .π₁ | t{≥3} .π₂ | t{2½}         (left-assoc)
                                       # a KEYWORD-HEADED form (t{2½}
                                       #   below) is a spine HEAD, so a
@@ -355,13 +349,13 @@ t{3} ::= t{≥3} t{≥4} | t{≥3} .π₁ | t{≥3} .π₂ | t{2½}         (lef
                                       #   is read INSIDE the body
 t{2½} ::= 𝟘-elim t{≥4}
         | S t{≥4}
-        | ℕ-elim (n. T{≥0}) t{≥4} (n ih. t{≥4}) t{≥4}          # motive, z, s, scrutinee
+        | ℕ-elim (n. t{≥1}) t{≥4} (n ih. t{≥4}) t{≥4}          # motive, z, s, scrutinee
         | inj₁ t{≥4}
         | inj₂ t{≥4}
-        | ⊎-elim (z. T{≥0}) (a. t{≥0}) (b. t{≥0}) t{≥4}        # motive, left case,
+        | ⊎-elim (z. t{≥1}) (a. t{≥0}) (b. t{≥0}) t{≥4}        # motive, left case,
                                                                #   right case, scrutinee
         | class t{≥4}
-        | quot-elim (z. T{≥0}) (a. t{≥0}) t{≥4}                # motive, case fn, scrutinee
+        | quot-elim (z. t{≥1}) (a. t{≥0}) t{≥4}                # motive, case fn, scrutinee
         | sigma-elim (x y. t{≥0}) t{≥4}                        # components, SCRUTINEE —
                                                                #   a VARIABLE of a × type;
                                                                #   no motive (see e-sigmaelim)
@@ -394,17 +388,17 @@ t{2} ::= λx. t{≥0}                    # the body extends MAXIMALLY:
        | let x ≔ t{≥0} in t{≥0}                               # let-expression;
                                                               #   body maximal,
                                                               #   like λ's
-       | let x : T{≥0} ≔ t{≥0} in t{≥0}                       #   (annotated
+       | let x : t{≥1} ≔ t{≥0} in t{≥0}                       #   (annotated
                                                               #   definiens) —
                                                               #   see e-let
 t{1} ::= ((x:t{≥0}))+ → t{≥1} | ((x:t{≥0}))+ × t{≥1}
        | t{≥1¼} → t{≥1} | t{≥1¼} / (x y. t{≥1})
                                                               # universe codes
-       | t{≥1¼} ≡ t{≥1¼} ∈ T{≥1}     # the equality PROP (an Ω-element);
+       | t{≥1¼} ≡ t{≥1¼} ∈ t{≥1}     # the equality PROP (an Ω-element);
                                      #   ∈ embeds a TYPE, like ∥-∥.
-                                     #   Operand levels are T{0}'s
-                                     #   above, to the token — one
-                                     #   production, two positions
+                                     #   ONE production: the ≡-type
+                                     #   and the ≡-code are the same
+                                     #   node at the same levels
        | t{≥1¼} (≡⟨ t{≥0} ⟩ t{≥1¼})+
                 # a CALC CHAIN — a checking-only PROOF form at
                 #   an (l ≡ r ∈ A) goal: midpoints stated once, each link's
@@ -416,14 +410,11 @@ t{1} ::= ((x:t{≥0}))+ → t{≥1} | ((x:t{≥0}))+ × t{≥1}
 t{1¼} ::= t{≥1⅜} ⊎ t{≥1¼}            # the ⊎ code — tighter than the
                                      #   t{1} forms, looser than ×,
                                      #   exactly like its type
-t{1⅜} ::= t{≥1½} × t{≥1⅜}            # the NON-DEPENDENT × code, at
-                                     #   T{1¾}'s place in this ladder;
-                                     #   the BINDER form stays at t{1}
-                                     #   with a maximal body. See the
-                                     #   T{1¾} note above — the split
-                                     #   is the same at both levels,
-                                     #   and `a × b` is likewise NOT
-                                     #   sugar for `(_:a) × b`
+t{1⅜} ::= t{≥1½} × t{≥1⅜}            # the NON-DEPENDENT ×; the BINDER
+                                     #   form stays at t{1} with a
+                                     #   maximal body. See TYPE
+                                     #   POSITIONS above: `a × b` is
+                                     #   NOT sugar for `(_:a) × b`
 # ∥T∥ (squash), ≡ (equality props) and ⋆ (the canonical proof) are
 # the Ω introductions; a squashed type is an Ω-valued element. Bare ⋆
 # (t{5}) auto-synthesizes only for evident propositions — a squashed
@@ -446,7 +437,8 @@ F{0} ::= F{≥1}
 
 # Name-dropping sugar: `A → B` for `(_:A) → B`, `A / R` for
 # `A / (_ _. R)`, `_` in any binder. NOT ×: the bare and wildcard
-# spellings are different operators at different levels (T{1¾} above).
+# spellings are different operators at different levels (see TYPE
+# POSITIONS above).
 
 //////// Name resolution (front end, before elaboration) ////////
 
@@ -2605,7 +2597,7 @@ additions make the t ladder total:
     are disjoint: a group carries a `:` (`{x : T}`, `{x y : T}`) and
     an override never can, an ascription being parenthesized — and a
     group is read only at the START of the binder branch, never after
-    a spine head (see T{2} above).
+    a spine head (see TYPE POSITIONS above).
 
 //// The universe is CHECKING-DIRECTED ////
 
