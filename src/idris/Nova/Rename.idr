@@ -106,7 +106,10 @@ parameters (rm : RenameMap, resolve : String -> String)
       SZeroC => e
       SOneC => e
       SNatC => e
+      SUnivC => e
+      SPropC => e
       SPiC x a b => SPiC x (rnE a) (rnE b)
+      SImpPiC x a b => SImpPiC x (rnE a) (rnE b)
       SSigmaC x a b => SSigmaC x (rnE a) (rnE b)
       SSumC a b => SSumC (rnE a) (rnE b)
       SQuotC a x y r => SQuotC (rnE a) x y (rnE r)

@@ -302,6 +302,12 @@ sigmaElimBody i b = mapVarsE remap 0 b
       if m < i then Just (m + d)               -- inside Γ₁: unchanged
       else if m == i then Nothing              -- w itself: eliminated
       else Just (S m + d)                      -- inside Γ₀: one further out
+||| foldGroups over groups carrying an IMPLICIT flag; the former is
+||| chosen per group (Π implicit or explicit, × always explicit).
+foldGroupsC : (Bool -> String -> a -> b -> b) -> List (Bool, String, a) -> b -> b
+foldGroupsC f [] b = b
+foldGroupsC f ((imp, x, t) :: rest) b = f imp x t (foldGroupsC f rest b)
+
 ||| One step of a CODE SPINE standing in TYPE position (T{2}): the
 ||| same steps the ELEMENT spine takes (Parser.parseSpine) — an
 ||| argument, an implicit override, the no-insert marker, a projection.
@@ -602,8 +608,14 @@ mutual
   parseSElemNoCommaRaw tbl env =
         (do (env', groups) <- parseBinderGroupsC tbl env
             sp
-            (do kw2 "→" "->"; sp; b <- parseSElemNoComma tbl env'; pure (foldGroups SPiC groups b))
-              <|> (do kw2 "×" "\\x"; sp; b <- parseSElemNoComma tbl env'; pure (foldGroups SSigmaC groups b)))
+            (do kw2 "→" "->"; sp; b <- parseSElemNoComma tbl env'
+                pure (foldGroupsC (\imp => if imp then SImpPiC else SPiC) groups b))
+              -- an implicit binder is Π-only, as at the type level
+              <|> (do kw2 "×" "\\x"; sp
+                      guard "!implicit binders are Π-only: {x : a} × … is not a code"
+                            (all (\(imp, _, _) => not imp) groups)
+                      b <- parseSElemNoComma tbl env'
+                      pure (foldGroupsC (\_ => SSigmaC) groups b)))
     <|> (do e <- parseSElemSumC tbl env
             (do sp; kw2 "→" "->"; sp; e' <- parseSElemNoComma tbl (env :< wildcard); pure (SPiC wildcard e e'))
               <|> (do sp; kw "/"; sp; (x, y, r) <- parseQuotRelC tbl env; pure (SQuotC e x y r))
@@ -723,22 +735,29 @@ mutual
 
   -- multi-name groups as at the type level (shiftElem for the
   -- weakened copies)
-  parseBinderGroupsC : FixTable -> NameEnv -> Rule (NameEnv, List (String, SElem))
+  -- Groups iterate and may be IMPLICIT — `{x : a}` — exactly as at the
+  -- type level. A group and a spine's brace STEP share their opening
+  -- token and are disjoint by the `:` a group must carry and an
+  -- override cannot (an ascription is parenthesized); a group is read
+  -- only HERE, at the head of the binder branch, never after a spine
+  -- head. See docs/NovaElaboration.txt, THE TERM GRAMMAR MERGE.
+  parseBinderGroupsC : FixTable -> NameEnv -> Rule (NameEnv, List (Bool, String, SElem))
   parseBinderGroupsC tbl env = do
-    kwc '('; sp; x <- parseName
+    (imp, close) <- (kwc '(' $> (False, ')')) <|> (kwc '{' $> (True, '}'))
+    sp; x <- parseName
     xs <- many (do space; parseName)
     sp; kwc ':'; sp
-    a <- parseSElem tbl env; sp; kwc ')'
+    a <- parseSElem tbl env; sp; kwc close
     let names = x :: xs
     let env1 = env <>< names
     rest <- optional (do sp; parseBinderGroupsC tbl env1)
     case rest of
-      Nothing => pure (env1, groupElems names a)
-      Just (env', groups) => pure (env', groupElems names a ++ groups)
+      Nothing => pure (env1, groupElems imp names a)
+      Just (env', groups) => pure (env', groupElems imp names a ++ groups)
    where
-    groupElems : List String -> SElem -> List (String, SElem)
-    groupElems [] _ = []
-    groupElems (n :: ns) a = (n, a) :: groupElems ns (shiftElem 0 a)
+    groupElems : Bool -> List String -> SElem -> List (Bool, String, SElem)
+    groupElems _ [] _ = []
+    groupElems imp (n :: ns) a = (imp, n, a) :: groupElems imp ns (shiftElem 0 a)
 
   parseQuotRelC : FixTable -> NameEnv -> Rule (SName, SName, SElem)
   parseQuotRelC tbl env =
@@ -996,6 +1015,11 @@ mutual
     <|> (kw2 "𝟘" "Void"   $> SZeroC)
     <|> (kw2 "𝟙" "Unit"   $> SOneC)
     <|> (kw2 "ℕ" "Nat"   $> SNatC)
+        -- 𝕌 and Ω are TERMS (typed at 𝕍). They read here so that a
+        -- type position can be an ordinary element position — see
+        -- docs/NovaElaboration.txt, THE TERM GRAMMAR MERGE
+    <|> (kw2 "𝕌" "Set"    $> SUnivC)
+    <|> (kw2 "Ω" "Prop"   $> SPropC)
     <|> (do (r, x) <- bounds parseDottedName
             case unpack x of
               -- a BARE `_` is a BLANK: a per-site elided argument at

@@ -65,7 +65,10 @@ mutual
   mapRefsE f g d SZeroC = SZeroC
   mapRefsE f g d SOneC = SOneC
   mapRefsE f g d SNatC = SNatC
+  mapRefsE f g d SUnivC = SUnivC
+  mapRefsE f g d SPropC = SPropC
   mapRefsE f g d (SPiC x a b) = SPiC x (mapRefsE f g d a) (mapRefsE f g (S d) b)
+  mapRefsE f g d (SImpPiC x a b) = SImpPiC x (mapRefsE f g d a) (mapRefsE f g (S d) b)
   mapRefsE f g d (SSigmaC x a b) = SSigmaC x (mapRefsE f g d a) (mapRefsE f g (S d) b)
   mapRefsE f g d (SSumC a b) = SSumC (mapRefsE f g d a) (mapRefsE f g d b)
   mapRefsE f g d (SQuotC a x y r) = SQuotC (mapRefsE f g d a) x y (mapRefsE f g (S (S d)) r)
@@ -187,7 +190,10 @@ mutual
   occursE f SZeroC = False
   occursE f SOneC = False
   occursE f SNatC = False
+  occursE f SUnivC = False
+  occursE f SPropC = False
   occursE f (SPiC _ a b) = occursE f a || occursE f b
+  occursE f (SImpPiC _ a b) = occursE f a || occursE f b
   occursE f (SSigmaC _ a b) = occursE f a || occursE f b
   occursE f (SSumC a b) = occursE f a || occursE f b
   occursE f (SQuotC a _ _ r) = occursE f a || occursE f r
@@ -301,7 +307,10 @@ mutual
   rwE f mk lead d SZeroC = Just SZeroC
   rwE f mk lead d SOneC = Just SOneC
   rwE f mk lead d SNatC = Just SNatC
+  rwE f mk lead d SUnivC = Just SUnivC
+  rwE f mk lead d SPropC = Just SPropC
   rwE f mk lead d (SPiC x a b) = [| SPiC (pure x) (rwE f mk lead d a) (rwE f mk lead (S d) b) |]
+  rwE f mk lead d (SImpPiC x a b) = [| SImpPiC (pure x) (rwE f mk lead d a) (rwE f mk lead (S d) b) |]
   rwE f mk lead d (SSigmaC x a b) = [| SSigmaC (pure x) (rwE f mk lead d a) (rwE f mk lead (S d) b) |]
   rwE f mk lead d (SSumC a b) = [| SSumC (rwE f mk lead d a) (rwE f mk lead d b) |]
   rwE f mk lead d (SQuotC a x y r) =
