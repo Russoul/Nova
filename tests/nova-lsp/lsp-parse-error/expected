@@ -1,13 +1,13 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
 CAPS: hover=true definition=true documentSymbol=true codeAction={"codeActionKinds":["refactor.rewrite"],"resolveProvider":true}
 DIAGNOSTICS (1):
-  [L2:21-L2:22] (error) expected 'e' or an identifier ('S' is a reserved keyword), but found whitespace
+  [L2:21-L2:22] (error) expected 'Set' or an identifier ('S' is a reserved keyword), but found whitespace
 TOKENS (0):
 SYMBOLS (0):
 DEFINITION(def): null
 HOVER(def): null
 CODE ACTIONS(def) (0):
 DIAGNOSTICS FOR FIXTURE (1):
-  [L2:21-L2:22] (error) expected 'e' or an identifier ('S' is a reserved keyword), but found whitespace
+  [L2:21-L2:22] (error) expected 'Set' or an identifier ('S' is a reserved keyword), but found whitespace
 SERVER REQUEST AFTER DIDSAVE: none
 SERVER EXIT CODE: 0
