@@ -85,7 +85,7 @@ def eqISoundP : {z1 z2 : Int} → EqI z1 z2 → z1 ≡ z2 using (intNormalizeId)
 def eqICompleteP : {z1 z2 : Int} → (z1 ≡ z2) → EqI z1 z2 using (eqInt.EqI.unfold, intNormalizeId) ≔
   λz1. λz2. λh. eqIComplete h
 
-def eqIIff : {z1 z2 : Int} → (EqI z1 z2 ↔ (z1 ≡ z2))
+def eqIIff : {z1 z2 : Int} → EqI z1 z2 ↔ (z1 ≡ z2)
   using (intNormalizeId, prop.↔.unfold, prop.∧.unfold) ≔
   λz1. λz2. iffIntro eqISoundP eqICompleteP
 
@@ -238,7 +238,7 @@ def eqZSoundP : {z1 z2 : Int} → EqZ z1 z2 → z1 ≡ z2 ≔ λz1. λz2. λh. e
 def eqZCompleteP : {z1 z2 : Int} → (z1 ≡ z2) → EqZ z1 z2 using (eqInt.EqZ.unfold, prop.∧.unfold) ≔
   λz1. λz2. λh. eqZComplete h
 
-def eqZIff : (z1 z2 : Int) → (EqZ z1 z2 ↔ (z1 ≡ z2)) using (prop.↔.unfold, prop.∧.unfold) ≔
+def eqZIff : (z1 z2 : Int) → EqZ z1 z2 ↔ (z1 ≡ z2) using (prop.↔.unfold, prop.∧.unfold) ≔
   λz1. λz2. iffIntro eqZSoundP eqZCompleteP
 
 -- ===== NeqZ: disequality that computes =====
@@ -281,7 +281,7 @@ def neqZComplete : {z1 z2 : Int} → ¬ (z1 ≡ z2) → NeqZ z1 z2
     prop.⊥.eq) ≔
   λz1. λz2. λh. impIntro {EqZ z1 z2} {∥𝟘∥} (λe. impApply h (eqZSoundP e))
 
-def neqZIff : (z1 z2 : Int) → (NeqZ z1 z2 ↔ ¬ (z1 ≡ z2)) using (prop.↔.unfold, prop.∧.unfold) ≔
+def neqZIff : (z1 z2 : Int) → NeqZ z1 z2 ↔ ¬ (z1 ≡ z2) using (prop.↔.unfold, prop.∧.unfold) ≔
   λz1. λz2. iffIntro neqZSound neqZComplete
 
 -- ===== the payoff: an actual disequality =====

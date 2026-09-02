@@ -231,17 +231,17 @@ exactly as the eliminator's OWN arguments are, and the parens are
 then the only thing showing where its syntax ends. Both spellings
 re-parse identically; the choice is readability, not correctness.
 
-A CODE STANDING AS A TYPE is bracketed by the TYPE grammar, not by the
-element ladder. T{2} reads a code spine as an ATOM head carrying the
-element spine's own steps — arguments, implicit overrides, the
-no-insert marker, projections — so `Vect n`, `Vect {ℕ} n`, `P .π₁` and
-`f x .π₁` all print BARE, and what parenthesizes is what the element
-ladder puts above a spine: an infix application (`(a ≤ b)`), a
-keyword-headed code (`(out t)`), a λ, a pair. The printer's predicate
-is the mirror of the parser's production and is meant to be read
-beside it (Distill.readsAsType against Parser.parseSTyElRaw); the
-element ladder cannot decide this position on its own, because it
-brackets by what an ELEMENT context reads and this is a type one.
+A CODE STANDING AS A TYPE needs no rule of its own any more. With the
+type and term grammars merged (docs/NovaElaboration.txt, THE TERM
+GRAMMAR MERGE) a type position IS an element position, so it prints
+through the one element printer at the level that position parses at,
+and the ladder brackets it like any other operand: `Vect n`,
+`Vect {ℕ} n`, `P .π₁`, `f x .π₁` and `a ≤ b` all stand bare. The
+predicate that used to decide this position (readsAsType, written as
+the mirror of a type-only spine production) is gone with the position's
+specialness — which is the clearest evidence the merge was the right
+shape, since that predicate existed only to reconcile two grammars
+that disagreed about one place.
 
 ////////// Status //////////
 

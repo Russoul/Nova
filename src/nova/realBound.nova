@@ -20,7 +20,7 @@ import real (qInvNat, rBound, RSeq, Regular)
 import realNeg (seqOf, regOf, regBnd)
 import equality (trans, sym, cong, transport)
 
-def leQInvOne : (k : ℕ) → (qInvNat k ≤ qOfNat (S Z))
+def leQInvOne : (k : ℕ) → qInvNat k ≤ qOfNat (S Z)
   using (id.Id.eq,
     intOrder.intOfNat.eq,
     integer.intOne.eq,
@@ -43,7 +43,7 @@ def leQInvOne : (k : ℕ) → (qInvNat k ≤ qOfNat (S Z))
     real.qInvNat.eq) ≔
   λk. leQFracOfNat (transport (λw. S Z ≤ w) (sym _ _ (oneMult (S k))) (leSucMono (leZero k)))
 
-def leQBoundTwo : (n : ℕ) → (rBound n Z ≤ qOfNat 2)
+def leQBoundTwo : (n : ℕ) → rBound n Z ≤ qOfNat 2
   using (id.Id.eq,
     nat.+.eq,
     ratNat.qOfNat.eq,
@@ -101,7 +101,7 @@ def bndSeqBound : (p : RSeq) (n : ℕ) → Bnd (qOfNat (seqBound p)) (seqOf p n)
 
 -- the bound is a successor, and in fact at least 2 — which is what
 -- lets the product's sampling index be written without a predecessor
-def seqBoundPos : {p : RSeq} → (qZero ≤ qOfNat (seqBound p))
+def seqBoundPos : {p : RSeq} → qZero ≤ qOfNat (seqBound p)
   using (ratNat.qOfNatZero,
     rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold,

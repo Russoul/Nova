@@ -43,7 +43,7 @@ def sqNat : ℕ → ℕ ≔ λD. S D * S D
 
 def qScaled : Q → ℕ → Q ≔ λu. λD. u * qOfNat (sqNat D)
 
-def leQZeroScaled : {u : Q} (D : ℕ) → (qZero ≤ u) → (qZero ≤ qScaled u D) using (qScaled.eq) ≔
+def leQZeroScaled : {u : Q} (D : ℕ) → qZero ≤ u → qZero ≤ qScaled u D using (qScaled.eq) ≔
   λu. λD. λnn. leQZeroMul nn (leQZeroNat (sqNat D))
 
 -- ⌊u⁺·(D+1)²⌋, the natural the root is taken of
@@ -54,17 +54,17 @@ def qSqrtNum : Q → ℕ → ℕ ≔ λu. λD. isqrt (qFl u D)
 def qSqrtAt : Q → ℕ → Q ≔ λu. λD. qOfNat (qSqrtNum u D) * qInvNat D
 
 -- ===== the four facts =====
-def leQFlBelow : {u : Q} (D : ℕ) → (qZero ≤ u) → (qOfNat (qFl u D) ≤ qScaled u D) using (qFl.eq) ≔
+def leQFlBelow : {u : Q} (D : ℕ) → qZero ≤ u → qOfNat (qFl u D) ≤ qScaled u D using (qFl.eq) ≔
   λu. λD. λnn. leQFloor (leQZeroScaled D nn)
 
-def leQFlAbove : (u : Q) (D : ℕ) → (qScaled u D ≤ qOfNat (S (qFl u D)))
+def leQFlAbove : (u : Q) (D : ℕ) → qScaled u D ≤ qOfNat (S (qFl u D))
   using (qFl.eq, qScaled.eq, ratCeil.qNatBound.eq) ≔
   λu. λD. leQBound (qScaled u D)
 
-def sqrtNumLe : (u : Q) (D : ℕ) → (qSqrtNum u D * qSqrtNum u D ≤ qFl u D) using (qSqrtNum.eq) ≔
+def sqrtNumLe : (u : Q) (D : ℕ) → qSqrtNum u D * qSqrtNum u D ≤ qFl u D using (qSqrtNum.eq) ≔
   λu. λD. isqrtLe (qFl u D)
 
-def sqrtNumUpper : (u : Q) (D : ℕ) → (S (qFl u D) ≤ S (qSqrtNum u D) * S (qSqrtNum u D))
+def sqrtNumUpper : (u : Q) (D : ℕ) → S (qFl u D) ≤ S (qSqrtNum u D) * S (qSqrtNum u D)
   using (qSqrtNum.eq) ≔
   λu. λD. isqrtUpper (qFl u D)
 
@@ -178,16 +178,15 @@ def qNatSumEq : (a b T : ℕ) → qOfNat a * qOfNat b + qOfNat T ≡ qOfNat (a *
 def flCompare : {u v : Q}
   {Dm Dn T : ℕ}
   (d : Q)
-  → (qZero
-    ≤ u)
-    → (u
+  → qZero
+    ≤ u
+    → u
       ≤ v
-        + d)
-      → (d
+        + d
+      → d
         * qOfNat
           (sqNat
-            Dm)
-        * qOfNat (sqNat Dn) ≤ qOfNat T) → (qFl u Dm * sqNat Dn ≤ S (qFl v Dn) * sqNat Dm + T)
+            Dm) * qOfNat (sqNat Dn) ≤ qOfNat T → qFl u Dm * sqNat Dn ≤ S (qFl v Dn) * sqNat Dm + T
   using (qScaled.eq) ≔
   λu. λv. λDm. λDn. λT. λd. λnnu. λh1. λh2. leNOfQ
     (transport
@@ -231,17 +230,17 @@ def mulSq : (a b : ℕ) → a * b * (a * b) ≡ a * a * (b * b) ≔
 def sqrtCompareN : {u v : Q}
   {Dm Dn T : ℕ}
   (d : Q)
-  → (qZero
-    ≤ u)
-    → (u
+  → qZero
+    ≤ u
+    → u
       ≤ v
-        + d)
-      → (d
+        + d
+      → d
         * qOfNat
           (sqNat
             Dm)
         * qOfNat
-          (sqNat Dn) ≤ qOfNat T) → (qSqrtNum u Dm * S Dn ≤ S (qSqrtNum v Dn) * S Dm + S (isqrt T))
+          (sqNat Dn) ≤ qOfNat T → qSqrtNum u Dm * S Dn ≤ S (qSqrtNum v Dn) * S Dm + S (isqrt T)
   using (sqNat.eq) ≔
   λu. λv. λDm. λDn. λT. λd. λnnu. λh1. λh2. sqrtStepN
     (transport
@@ -291,12 +290,11 @@ def cancelDen : {A : Q} {D : ℕ} {e : Q} → A * qOfNat (S D) * (e * qInvNat D)
 -- a ℕ inequality between cross-multiplied numerators IS a ℚ
 -- inequality between the fractions
 def crossToQ : {a b e Dm Dn : ℕ}
-  → (a
+  → a
     * S Dn
     ≤ b
       * S Dm
-      + e)
-    → (qOfNat a * qInvNat Dm ≤ qOfNat b * qInvNat Dn + qOfNat e * (qInvNat Dm * qInvNat Dn)) ≔
+      + e → qOfNat a * qInvNat Dm ≤ qOfNat b * qInvNat Dn + qOfNat e * (qInvNat Dm * qInvNat Dn) ≔
   λa. λb. λe. λDm. λDn. λle. transport
     (λw. w ≤ qOfNat b * qInvNat Dn + qOfNat e * (qInvNat Dm * qInvNat Dn))
     {qOfNat a * qOfNat (S Dn) * (qInvNat Dm * qInvNat Dn)}
@@ -336,12 +334,12 @@ def crossToQ : {a b e Dm Dn : ℕ}
 def leQSqrtStep : {u v : Q}
   {Dm Dn T : ℕ}
   (d : Q)
-  → (qZero
-    ≤ u)
-    → (u
+  → qZero
+    ≤ u
+    → u
       ≤ v
-        + d)
-      → (d
+        + d
+      → d
         * qOfNat
           (sqNat
             Dm)
@@ -349,10 +347,10 @@ def leQSqrtStep : {u v : Q}
           (sqNat
             Dn)
         ≤ qOfNat
-          T)
-        → (qSqrtAt
+          T
+        → qSqrtAt
           u
-          Dm ≤ qSqrtAt v Dn + qInvNat Dn + qOfNat (S (isqrt T)) * (qInvNat Dm * qInvNat Dn))
+          Dm ≤ qSqrtAt v Dn + qInvNat Dn + qOfNat (S (isqrt T)) * (qInvNat Dm * qInvNat Dn)
   using (qSqrtAt.eq) ≔
   λu. λv. λDm. λDn. λT. λd. λnnu. λh1. λh2. transport
     (λw. qSqrtAt u Dm ≤ w + qOfNat (S (isqrt T)) * (qInvNat Dm * qInvNat Dn))

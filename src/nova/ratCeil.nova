@@ -373,7 +373,7 @@ def qDiffNatFrac : {m b K : ℕ}
         nzMulOneL)
       ⋆)
 
-def leQFracOfNat : {m b K : ℕ} → (m ≤ K * S b) → (qcls (mkRat (intOfNat m) (nzPos b)) ≤ qOfNat K)
+def leQFracOfNat : {m b K : ℕ} → m ≤ K * S b → qcls (mkRat (intOfNat m) (nzPos b)) ≤ qOfNat K
   using (id.Id.unfold,
     integer.Int.unfold,
     natOrder.≤.unfold,
@@ -398,7 +398,7 @@ def leQFracOfNat : {m b K : ℕ} → (m ≤ K * S b) → (qcls (mkRat (intOfNat 
     (nonNegSgnOfLe (transport (λw. m ≤ w) (multComm (S b) K) le))
 
 -- ===== the bound really bounds =====
-def leQZeroNat : (K : ℕ) → (qZero ≤ qOfNat K)
+def leQZeroNat : (K : ℕ) → qZero ≤ qOfNat K
   using (ratNat.qOfNatZero,
     rationalOrder.≤.unfold,
     rationalOrder.NonNegS.unfold,
@@ -409,7 +409,7 @@ def leQZeroNat : (K : ℕ) → (qZero ≤ qOfNat K)
 -- division estimate, negative ones are below zero and so below it too
 def leQBoundPos : {M : Int}
   {b : ℕ}
-  → (qcls (mkRat M (nzPos b)) ≤ qOfNat (qNatBound (qcls (mkRat M (nzPos b)))))
+  → qcls (mkRat M (nzPos b)) ≤ qOfNat (qNatBound (qcls (mkRat M (nzPos b))))
   using (id.Id.eq,
     intAbs.intMag.eq,
     intAbs.magPair.eq,
@@ -449,8 +449,8 @@ def leQBoundPos : {M : Int}
     rationalQ.+.eq,
     rationalQ.qNeg.eq,
     rationalQ.qcls.eq) ≔
-  λM. λb. ⊎-elim (w. (qcls (mkRat M (nzPos b)) ≤ qOfNat (S (divN (intMag M) b))))
-    (e. (⊎-elim (w. (nzToInt w ≡ M) → (qcls (mkRat M (nzPos b)) ≤ qOfNat (S (divN (intMag M) b))))
+  λM. λb. ⊎-elim (w. qcls (mkRat M (nzPos b)) ≤ qOfNat (S (divN (intMag M) b)))
+    (e. (⊎-elim (w. (nzToInt w ≡ M) → qcls (mkRat M (nzPos b)) ≤ qOfNat (S (divN (intMag M) b)))
       (n. λhe. transport
         (λv. qcls (mkRat v (nzPos b)) ≤ qOfNat (S (divN (intMag M) b)))
         (intOfNatMagNonNeg
@@ -522,7 +522,7 @@ def leQBoundPos : {M : Int}
     (nzOfInt M)
 
 -- ...at any representative, by normalizing the denominator's sign
-def leQBoundAt : (N : Int) (d : NZ) → (qcls (mkRat N d) ≤ qOfNat (qNatBound (qcls (mkRat N d))))
+def leQBoundAt : (N : Int) (d : NZ) → qcls (mkRat N d) ≤ qOfNat (qNatBound (qcls (mkRat N d)))
   using (ratArch.PosDenView.unfold, rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λN. λd. let v ≔ qPosDenView
     N
@@ -530,7 +530,7 @@ def leQBoundAt : (N : Int) (d : NZ) → (qcls (mkRat N d) ≤ qOfNat (qNatBound 
 
 -- squashed first, so the descent is free; then unsquashed, because ≤
 -- is decidable
-def leQBoundSq : (u : Q) → ∥(u ≤ qOfNat (qNatBound u))∥
+def leQBoundSq : (u : Q) → ∥u ≤ qOfNat (qNatBound u)∥
   using (id.Id.eq,
     integer.Int.unfold,
     ratCeil.qNatBound.eq,
@@ -556,7 +556,7 @@ def leQBoundSq : (u : Q) → ∥(u ≤ qOfNat (qNatBound u))∥
       (leQBoundAt (num p) (den p))))
     u
 
-def leQBound : (u : Q) → (u ≤ qOfNat (qNatBound u))
+def leQBound : (u : Q) → u ≤ qOfNat (qNatBound u)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λu. leQUnsquash _ (leQBoundSq u)
 

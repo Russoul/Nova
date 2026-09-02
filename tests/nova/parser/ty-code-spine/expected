@@ -1,1 +1,1 @@
-Pi _ (El (P1 (App (App (Vect@sig) (Imp (ℕc))) (n@sig)))) (C)
+PiC _ (P1 (App (App (Vect@sig) (Imp (ℕc))) (n@sig))) (C@sig)

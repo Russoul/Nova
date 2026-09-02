@@ -72,7 +72,7 @@ def qNegZero : qNeg qZero ≡ qZero
   ⋆
 
 -- −(bound) ≤ 0 ≤ bound
-def leQNegBoundZero : {m n : ℕ} → (qNeg (rBound m n) ≤ qZero)
+def leQNegBoundZero : {m n : ℕ} → qNeg (rBound m n) ≤ qZero
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λm. λn. inj₂ (eqToId
     _
@@ -87,7 +87,7 @@ def leQNegBoundZero : {m n : ℕ} → (qNeg (rBound m n) ≤ qZero)
         (trans _ _ _ (rationalQ.qAddZeroL (qNeg (qNeg (rBound m n)))) (qNegNeg (rBound m n))))
       rBoundPos))
 
-def leQZeroBound : (m n : ℕ) → (qZero ≤ rBound m n)
+def leQZeroBound : (m n : ℕ) → qZero ≤ rBound m n
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λm. λn. inj₂ (eqToId
     _
@@ -116,8 +116,8 @@ def RSeq : 𝕌 ≔ (f : ℕ → Q) × Regular f
 -- eventual closeness: |x_n − y_n| ≤ 2/(n+1), squashed — the relation
 -- is a PROPOSITION (Ω), as a quotient's must be
 def REq : RSeq → RSeq → Ω using (real.RSeq.unfold) ≔
-  λx. λy. ∥((n : ℕ)
-    → qNeg (rBound n n) ≤ x .π₁ n + qNeg (y .π₁ n) × x .π₁ n + qNeg (y .π₁ n) ≤ rBound n n)∥
+  λx. λy. ∥(n : ℕ)
+    → qNeg (rBound n n) ≤ x .π₁ n + qNeg (y .π₁ n) × x .π₁ n + qNeg (y .π₁ n) ≤ rBound n n∥
 
 def Real : 𝕌 ≔ RSeq / (x y. REq x y)
 

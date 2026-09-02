@@ -1,1 +1,1 @@
-Quot (ℕ) n m (Squash (Eq (n@1) (m@0) (ℕ)))
+QuotC (ℕc) n m (Squash (EqC (n@1) (m@0) (ℕc)))

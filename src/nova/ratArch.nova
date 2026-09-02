@@ -138,7 +138,7 @@ def qDiffFracInv : (a b : ℕ) → qFrac (S a) b + qNeg (qInvNat b) ≡ qFrac (S
     {intOfNat (S b * a)}
     fracNumEq
 
-def leQInvFrac : {a b : ℕ} → (qInvNat b ≤ qFrac (S a) b)
+def leQInvFrac : {a b : ℕ} → qInvNat b ≤ qFrac (S a) b
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λa. λb. transport (λw. NonNegS (sgnQ w)) (sym _ _ (qDiffFracInv a b)) nonNegSgnFrac
 
@@ -366,7 +366,7 @@ def qArch : (u : Q) → (sgnQ u ≡ sPos) → ∥ArchWit u∥
 -- ===== the closeness principle =====
 -- a decidable goal is reachable from ⊥ : an order fact is a SIGN
 -- verdict, and ⊥ proves the equation that verdict needs
-def leQOfFalse : {x y : Q} → ⊥ → (x ≤ y)
+def leQOfFalse : {x y : Q} → ⊥ → x ≤ y
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λx. λy. λf. inj₁ (eqToId _ _ (absurdP (sgnQ (y + qNeg x) ≡ sZero) f))
 
@@ -387,7 +387,7 @@ def qShiftEq : (a b q : Q) → b + q + qNeg a ≡ q + qNeg (a + qNeg b) using (r
       ≡⟨ qAddAssoc q b (qNeg a) ⟩ q + (b + qNeg a)
       ≡⟨ cong (λw. Q) (λw. q + w) (sym _ _ (qSubFlip a b)) ⟩ q + qNeg (a + qNeg b)
 
-def leQSubShift : (a b : Q) {q : Q} → (a ≤ b + q) → (a + qNeg b ≤ q)
+def leQSubShift : (a b : Q) {q : Q} → a ≤ b + q → a + qNeg b ≤ q
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold, rationalQ.Q.unfold) ≔
   λa. λb. λq. transport (λw. NonNegS (sgnQ w)) (qShiftEq a b q)
 
@@ -415,7 +415,7 @@ def qInvNatNotZero : (k : ℕ) → (qInvNat k ≡ qZero) → 𝟘 ≔
 
 -- a < b would give an index k with 1/(k+1) ≤ a − b ≤ 1/(2k+2), and
 -- those two unit fractions are equal only if the smaller is zero
-def archContra : (a b : Q) → ((k : ℕ) → (a ≤ b + qInvNat k)) → Id _ (sgnQ (b + qNeg a)) sNeg → ⊥
+def archContra : (a b : Q) → ((k : ℕ) → a ≤ b + qInvNat k) → Id _ (sgnQ (b + qNeg a)) sNeg → ⊥
   using (equality.cong.eq,
     equality.trans.eq,
     hyp.rw,
@@ -463,7 +463,7 @@ def archContra : (a b : Q) → ((k : ℕ) → (a ≤ b + qInvNat k)) → Id _ (s
       (w .π₁)) in ⋆ (qInvNatNotZero _ (qAddSelfCancel _ (trans _ _ _ (qInvHalf (w .π₁)) hup))))
 
 -- ...so "a ≤ b + 1/(k+1) for every k" collapses to "a ≤ b"
-def leQOfArch : (a b : Q) → ((k : ℕ) → (a ≤ b + qInvNat k)) → (a ≤ b)
+def leQOfArch : (a b : Q) → ((k : ℕ) → a ≤ b + qInvNat k) → a ≤ b
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold, rationalQ.Q.unfold) ≔
   λa. λb. λhyp. ⊎-elim
     (nn. nn)
@@ -514,7 +514,7 @@ def qFourSum : (a b y : Q) → a + b + y + (b + a) ≡ a + a + (b + b + y) using
       ≡⟨ qAddAssoc (a + a) (b + b) y ⟩ a + a + (b + b + y)
 
 -- three copies sit under four
-def leQTripleQuad : {h : Q} → (qZero ≤ h) → (h + (h + h) ≤ h + h + (h + h))
+def leQTripleQuad : {h : Q} → qZero ≤ h → h + (h + h) ≤ h + h + (h + h)
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λh. λnn. transport
     (λw. w ≤ h + h + (h + h))
@@ -523,7 +523,7 @@ def leQTripleQuad : {h : Q} → (qZero ≤ h) → (h + (h + h) ≤ h + h + (h + 
 
 -- ...so three quarter-fractions fit inside one: 3/(4k+4) ≤ 1/(k+1)
 def leQTripleInv : (k : ℕ)
-  → (qInvNat (dbl (dbl k)) + (qInvNat (dbl (dbl k)) + qInvNat (dbl (dbl k))) ≤ qInvNat k)
+  → qInvNat (dbl (dbl k)) + (qInvNat (dbl (dbl k)) + qInvNat (dbl (dbl k))) ≤ qInvNat k
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λk. transport
     (λw. qInvNat (dbl (dbl k)) + (qInvNat (dbl (dbl k)) + qInvNat (dbl (dbl k))) ≤ w)
@@ -531,7 +531,7 @@ def leQTripleInv : (k : ℕ)
     (leQTripleQuad (leQZeroInvNat (dbl (dbl k))))
 
 -- the converse of leQSubShift: a bound on the difference is a shifted ≤
-def leQAddShift : (a : Q) {b q : Q} → (a + qNeg b ≤ q) → (a ≤ b + q)
+def leQAddShift : (a : Q) {b q : Q} → a + qNeg b ≤ q → a ≤ b + q
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold, rationalQ.Q.unfold) ≔
   λa. λb. λq. transport (λw. NonNegS (sgnQ w)) (sym _ _ (qShiftEq a b q))
 
@@ -543,7 +543,7 @@ def leQAddShift : (a : Q) {b q : Q} → (a + qNeg b ≤ q) → (a ≤ b + q)
 -- the two sides, so matching leaves it unsolved (E-1). Landing in the
 -- SQUASH instead makes the descent free — proof irrelevance closes it
 -- — and this recovers the datum, by deciding and refuting.
-def leQUnsquash : (x : Q) {y : Q} → ∥(x ≤ y)∥ → (x ≤ y)
+def leQUnsquash : (x : Q) {y : Q} → ∥x ≤ y∥ → x ≤ y
   using (id.Id.unfold,
     prop.⊥.unfold,
     rationalOrder.≤.unfold,

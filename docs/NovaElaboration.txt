@@ -273,11 +273,11 @@ T{2} ::= ν F{≥2} | ∥T{≥0}∥ | T{≥4} (t{≥4} | {t{≥0}} | {} | .π₁
 # puts ABOVE a spine: an operator application ((a ≤ b)), a
 # keyword-headed code ((out t)), a λ, a pair. The parens re-enter the
 # element grammar whole.
-# THE T AND t LADDERS ARE SLATED TO MERGE: types are terms at 𝕍, and
-# this pair of ladders is the last place the dissolved distinction
-# survives. THE TERM GRAMMAR MERGE, below, carries the target grammar,
-# the universe rule and the staging; until it lands, the ladders here
-# are what the parser does.
+# THE T LADDER IS GONE — types are terms at 𝕍, and a type position
+# enters the term grammar at the level that reads what the T level
+# read. The productions below are kept as the READING of those
+# positions (which forms reach them, at which precedence); the parser
+# has one ladder, the t ladder. See THE TERM GRAMMAR MERGE.
 T{1} ::= ((x:T{≥0}))+ → T{≥0} | ((x:T{≥0}))+ × T{≥0}
        | T{≥1½} → T{≥0} | T{≥1½} / (x y. t{≥1})
 T{1½} ::= T{≥1¾} ⊎ T{≥1½}
@@ -2631,29 +2631,45 @@ Each stage leaves the tree green on all four gates (./test.sh,
   1. ADDITIVE parser work: 𝕌/Ω element atoms, brace groups in the
      element binder rule. Both grammars still live, and goldens show
      every T spelling also parsing element-side to its code
-     counterpart.
+     counterpart.                                            [landed]
 
-  2. parseSTy DELEGATES — `STyEl <$> parseSElem` — and the T-ladder
-     rules go. STy shrinks to the code-as-type node and its span
-     wrapper. The surface-AST goldens re-record here (STyPi ↦ SPiC)
-     while the corpus TEXT must not move: tyPiRun and piCRun already
-     emit identical output, and that invariant is this stage's test.
+  2-5. THE SWITCH, in one step. Each stage below was planned as its
+     own, and they cannot be: the moment parseSTy hands back an
+     element, elabTy must read one (or every type fails to elaborate)
+     and the printer must print one (or every type prints
+     parenthesized). What lands together is:
 
-  3. elabTy becomes checkElem at 𝕍 and the elabTyAt clauses go. The
-     name classifier stays — it answers a question the merge does not
-     remove.
+       * every type position entering the term grammar at the level
+         that reads what the T level read — T{0}/T{1} at t{1}
+         (parseSElemNoComma: not t{0}, since a type is not a pair and
+         a trailing comma belongs to whatever encloses it), T{2} at
+         t{2};
+       * elabTy dispatching on term constructors, its former clauses
+         checking their parts at 𝕍 and a LAST clause — any other term
+         — taking the code-or-prop reading at 𝕌 or Ω. That last
+         clause is where the classifier probe lives, and it is what
+         makes the rule checking-directed: the position, not the
+         spelling, decides the universe;
+       * the printer's type ladder (TLvl / classT / fitsT / ptRaw)
+         and its paired run folders collapsing into the element
+         printer, readsAsType going with them — the code-as-type
+         position stops being special, which is the tell;
+       * STy becoming an ALIAS for SElem, mirroring the kernel's
+         `Ty = Elem`, with every Ty-suffixed traversal an alias of
+         its Elem twin. Several of those twins were former-only walks
+         with silent catch-alls — the bug shape the El retirement
+         found and patched at every instance; aliasing removes the
+         shape itself.                                       [landed]
 
-  4. The printer's type ladder (TLvl / classT / fitsT) and its paired
-     run folders collapse into the element printer. readsAsType goes
-     with them: the code-as-type POSITION stops being special, which
-     is the tell that the merge is the right direction.
-
-  5. STy is deleted, mirroring the kernel's alias. Surface's parallel
-     traversals, Implicitize's implicit-binder metadata, Rename,
-     Recovery, Clauses, the LSP, and sqDomain's Either follow.
-
-Until stage 5 lands, the grammar above describes the implementation
-and this section describes where it is going.
+THE CORPUS TEXT DOES MOVE, in one way that was not foreseen when this
+section was written: 37 files lose parentheses. Every one is an infix
+application standing as a type — `(x ≤ y) → (y ≤ z) → (x ≤ z)` becomes
+`x ≤ y → y ≤ z → x ≤ z` — because the T ladder had NO infix level and
+the t ladder does. Token streams are otherwise identical (the check is
+a paren-and-whitespace-blind comparison over all 37), and the
+round-trip gate holds throughout: ASTs identical, kernel Σ α-identical.
+The binder and arrow shapes are unmoved, as expected — tyPiRun and
+piCRun always emitted the same text.
 
 //////////// Future work (explicitly out of scope here) /////////////
 

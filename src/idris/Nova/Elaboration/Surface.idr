@@ -25,44 +25,6 @@ SName : Type
 SName = (String, Maybe Range)
 
 mutual
-  public export
-  data STy : Type where
-    STyZero : STy
-    STyOne : STy
-    STyNat : STy
-    STyUniv : STy
-    ||| x — reference to a signature type definition
-    STySig : String -> STy
-    ||| (x:T) → U
-    STyPi : (name : String) -> STy -> STy -> STy
-    ||| {x:T} → U — an IMPLICIT Π-binder (docs/NovaPerfectSurface.txt,
-    ||| Phase 3): elaborates exactly as STyPi (the core is bare — no
-    ||| implicitness reaches the theory), but a def whose type carries
-    ||| leading-telescope implicit binders has those argument positions
-    ||| INSERTED at application sites, recovered by the rigid
-    ||| first-order oracle; `f {t}` overrides the next implicit
-    ||| position explicitly
-    STyImpPi : (name : String) -> STy -> STy -> STy
-    ||| (x:T) × U
-    STySigma : (name : String) -> STy -> STy -> STy
-    ||| T ⊎ U — non-dependent, no binder
-    STySum : STy -> STy -> STy
-    ||| T / (x y. r) — r is an Ω-valued element
-    STyQuot : STy -> (nx, ny : SName) -> SElem -> STy
-    ||| t ≡ t (∈ T)? — the ∈-annotation is OPTIONAL
-    ||| (docs/NovaPerfectSurface.txt, Phase 4): when absent, the
-    ||| domain is recovered by INFERRING a side (left first); the
-    ||| range keys the distiller's elision trial
-    STyEq : Maybe Range -> SElem -> SElem -> Maybe STy -> STy
-    ||| El t
-    STyEl : SElem -> STy
-    ||| Ω
-    STyProp : STy
-    ||| ν F — the coinductive type at a surface polynomial
-    STyNu : SPoly -> STy
-    ||| T@r — a source span on a type; transparent, like `SPos`
-    STyPos : Range -> STy -> STy
-
   ||| Surface polynomials — the one-hole codes of Foundation's
   ||| coinductive section. External pieces are element-level CODES; a
   ||| left-hand (x:t) binds x in the body.
@@ -119,7 +81,7 @@ mutual
     SPiC : (name : String) -> SElem -> SElem -> SElem
     ||| {x:t} → u  (code) — an IMPLICIT Π-binder, elaborating exactly
     ||| as SPiC (the core is bare; implicitness is per-def metadata).
-    ||| The type level's STyImpPi twin, needed at the element level
+    ||| The former type level's implicit binder, needed here for
     ||| for the same reason every other former has one
     SImpPiC : (name : String) -> SElem -> SElem -> SElem
     ||| (x:t) × u  (code)
@@ -131,23 +93,23 @@ mutual
     ||| t ≡ t (∈ T)? — the equality PROP (an Ω-element; the ∈-slot
     ||| embeds a TYPE, like ∥-∥); the ∈-annotation is optional, as at
     ||| the type level
-    SEqC : Maybe Range -> SElem -> SElem -> Maybe STy -> SElem
+    SEqC : Maybe Range -> SElem -> SElem -> Maybe SElem -> SElem
     SZeroElim : SElem -> SElem
     ||| ℕ-elim (n. T)? z (n ih. s) t — motive-first; the motive is
     ||| OPTIONAL in checking position (docs/NovaPerfectSurface.txt,
     ||| Phase 4): when absent it is recovered by abstracting the
     ||| scrutinee in the expected type
-    SNatElim : Maybe (SName, STy) -> SElem -> (n2, ih : SName) -> SElem -> SElem -> SElem
+    SNatElim : Maybe (SName, SElem) -> SElem -> (n2, ih : SName) -> SElem -> SElem -> SElem
     ||| inj₁ t / inj₂ t — sum introductions
     SInj1 : SElem -> SElem
     SInj2 : SElem -> SElem
     ||| ⊎-elim (z. T)? (a. l) (b. r) t — motive, left case, right
     ||| case, scrutinee; motive optional in checking position
-    SSumElim : Maybe (SName, STy) -> (a : SName) -> SElem -> (b : SName) -> SElem -> SElem -> SElem
+    SSumElim : Maybe (SName, SElem) -> (a : SName) -> SElem -> (b : SName) -> SElem -> SElem -> SElem
     SClass : SElem -> SElem
     ||| quot-elim (z. T)? (a. f) q — motive-first; motive optional in
     ||| checking position
-    SQuotElim : Maybe (SName, STy) -> (a : SName) -> SElem -> SElem -> SElem
+    SQuotElim : Maybe (SName, SElem) -> (a : SName) -> SElem -> SElem -> SElem
     ||| sigma-elim (x y. t) w — the Σ VARIABLE elimination
     ||| (docs/NovaElaboration.txt, e-sigmaelim). w is a VARIABLE of a
     ||| × type, and t is elaborated in the context that variable's
@@ -177,7 +139,7 @@ mutual
     SCoind : (nx, ny : SName) -> SElem -> SElem ->
              (mx, my, mh : SName) -> SElem -> SElem
     ||| ∥T∥ — squash: proposition from an arbitrary type
-    SSquash : STy -> SElem
+    SSquash : SElem -> SElem
     ||| ⋆ — the canonical proof of a true proposition (evident 𝟙-/
     ||| ≡-shaped squashees only; the witness is auto-synthesized)
     ||| the range (when source-written) feeds the LSP hover: a ⋆
@@ -208,7 +170,7 @@ mutual
     ||| store. Erases to ⋆, like every equality proof.
     SChain : SElem -> List (SElem, SElem) -> SElem
     ||| (t : T) — ascription; the lever into inference mode
-    SAnn : SElem -> STy -> SElem
+    SAnn : SElem -> SElem -> SElem
     ||| {t} — an explicit override for the next IMPLICIT binder
     ||| position of the applied definition; legal only as an
     ||| application argument (elaboration rejects it anywhere else)
@@ -243,13 +205,23 @@ mutual
 
 -- ===== Source spans =====
 --
--- `SPos`/`STyPos` are TRANSPARENT: they carry a source range and
+-- `SPos` is TRANSPARENT: they carry a source range and
 -- nothing else. The parser attaches one at every grammar level (so
 -- every sub-expression has an exact span, from a bare `Z` to a whole
 -- application chain), the elaborator narrows the reported site to
 -- them as it descends, and everything else strips them — `Show` skips
 -- them, so the distiller's AST-identity contract is unaffected, and
 -- every structural test on a term goes through `unPos`.
+
+||| TYPES ARE TERMS. Foundation dissolved the type judgement into
+||| typing at 𝕍 and merged the two grammars into one term sort; the
+||| kernel says the same in its own signature (`Ty = Elem`). STy is
+||| that alias here — the name survives as a reading aid, marking a
+||| position whose term stands as a type (docs/NovaElaboration.txt,
+||| THE TERM GRAMMAR MERGE).
+public export
+STy : Type
+STy = SElem
 
 ||| Attach a span. A level of the grammar that adds no node of its own
 ||| hands its child straight back, so re-wrapping REPLACES rather than
@@ -260,11 +232,12 @@ atPos Nothing e = e
 atPos (Just r) (SPos _ e) = SPos r e
 atPos (Just r) e = SPos r e
 
+||| ONE SORT, ONE WALK: every Ty-suffixed helper below is its SElem
+||| twin under another name, kept so the call sites still say which
+||| positions stand as types.
 public export
 atPosTy : Maybe Range -> STy -> STy
-atPosTy Nothing t = t
-atPosTy (Just r) (STyPos _ t) = STyPos r t
-atPosTy (Just r) t = STyPos r t
+atPosTy = atPos
 
 ||| Peel the spans off the front of a term. EVERY structural test on a
 ||| surface term goes through this: a span is metadata, never part of
@@ -276,8 +249,7 @@ unPos e = e
 
 public export
 unPosTy : STy -> STy
-unPosTy (STyPos _ t) = unPosTy t
-unPosTy t = t
+unPosTy = unPos
 
 public export
 posOf : SElem -> Maybe Range
@@ -286,8 +258,7 @@ posOf _ = Nothing
 
 public export
 posOfTy : STy -> Maybe Range
-posOfTy (STyPos r _) = Just r
-posOfTy _ = Nothing
+posOfTy = posOf
 
 -- The printer and the AST rewriters have no use for spans and inspect
 -- term SHAPES freely, including a child's; rather than teach every
@@ -320,53 +291,34 @@ mutual
   stripPos (SSigmaC x a b) = SSigmaC x (stripPos a) (stripPos b)
   stripPos (SSumC a b) = SSumC (stripPos a) (stripPos b)
   stripPos (SQuotC a x y r) = SQuotC (stripPos a) x y (stripPos r)
-  stripPos (SEqC rng l r t) = SEqC rng (stripPos l) (stripPos r) (map stripPosTy t)
+  stripPos (SEqC rng l r t) = SEqC rng (stripPos l) (stripPos r) (map stripPos t)
   stripPos (SZeroElim t) = SZeroElim (stripPos t)
   stripPos (SNatElim mot z n2 ih st t) =
-    SNatElim (map (\(n, m) => (n, stripPosTy m)) mot) (stripPos z) n2 ih (stripPos st) (stripPos t)
+    SNatElim (map (\(n, m) => (n, stripPos m)) mot) (stripPos z) n2 ih (stripPos st) (stripPos t)
   stripPos (SInj1 t) = SInj1 (stripPos t)
   stripPos (SInj2 t) = SInj2 (stripPos t)
   stripPos (SSumElim mot a l b r t) =
-    SSumElim (map (\(z, m) => (z, stripPosTy m)) mot) a (stripPos l) b (stripPos r) (stripPos t)
+    SSumElim (map (\(z, m) => (z, stripPos m)) mot) a (stripPos l) b (stripPos r) (stripPos t)
   stripPos (SClass t) = SClass (stripPos t)
   stripPos (SQuotElim mot a f q) =
-    SQuotElim (map (\(z, m) => (z, stripPosTy m)) mot) a (stripPos f) (stripPos q)
+    SQuotElim (map (\(z, m) => (z, stripPos m)) mot) a (stripPos f) (stripPos q)
   stripPos (SSigmaElim nx ny b w) = SSigmaElim nx ny (stripPos b) (stripPos w)
   stripPos (SNuC f) = SNuC (stripPosPoly f)
   stripPos (SOut t) = SOut (stripPos t)
   stripPos (SCorec x a f u) = SCorec x (stripPos a) (stripPos f) (stripPos u)
   stripPos (SCoind nx ny r pw mx my mh q) =
     SCoind nx ny (stripPos r) (stripPos pw) mx my mh (stripPos q)
-  stripPos (SSquash t) = SSquash (stripPosTy t)
+  stripPos (SSquash t) = SSquash (stripPos t)
   stripPos e@(SStar _) = e
   stripPos (SStarWit e) = SStarWit (stripPos e)
   stripPos e@(SStarUsing _ _) = e
   stripPos (SSquashElim e x b) = SSquashElim (stripPos e) x (stripPos b)
   stripPos (SChain h ls) = SChain (stripPos h) (map (\(j, m) => (stripPos j, stripPos m)) ls)
-  stripPos (SAnn t ty) = SAnn (stripPos t) (stripPosTy ty)
+  stripPos (SAnn t ty) = SAnn (stripPos t) (stripPos ty)
   stripPos (SImpArg t) = SImpArg (stripPos t)
   stripPos (SNoIns t) = SNoIns (stripPos t)
   stripPos e@(SBlank _) = e
   stripPos e@(SHole _ _) = e
-
-  public export
-  covering
-  stripPosTy : STy -> STy
-  stripPosTy (STyPos _ t) = stripPosTy t
-  stripPosTy STyZero = STyZero
-  stripPosTy STyOne = STyOne
-  stripPosTy STyNat = STyNat
-  stripPosTy STyUniv = STyUniv
-  stripPosTy t@(STySig _) = t
-  stripPosTy (STyPi x a b) = STyPi x (stripPosTy a) (stripPosTy b)
-  stripPosTy (STyImpPi x a b) = STyImpPi x (stripPosTy a) (stripPosTy b)
-  stripPosTy (STySigma x a b) = STySigma x (stripPosTy a) (stripPosTy b)
-  stripPosTy (STySum a b) = STySum (stripPosTy a) (stripPosTy b)
-  stripPosTy (STyQuot a x y r) = STyQuot (stripPosTy a) x y (stripPos r)
-  stripPosTy (STyEq rng l r t) = STyEq rng (stripPos l) (stripPos r) (map stripPosTy t)
-  stripPosTy (STyEl e) = STyEl (stripPos e)
-  stripPosTy STyProp = STyProp
-  stripPosTy (STyNu f) = STyNu (stripPosPoly f)
 
   public export
   covering
@@ -422,19 +374,19 @@ mutual
   mapVarsE f d (SQuotC a x y r) =
     [| SQuotC (mapVarsE f d a) (pure x) (pure y) (mapVarsE f (S (S d)) r) |]
   mapVarsE f d (SEqC rng l r t) =
-    [| SEqC (pure rng) (mapVarsE f d l) (mapVarsE f d r) (traverse (mapVarsTy f d) t) |]
+    [| SEqC (pure rng) (mapVarsE f d l) (mapVarsE f d r) (traverse (mapVarsE f d) t) |]
   mapVarsE f d (SZeroElim t) = SZeroElim <$> mapVarsE f d t
   mapVarsE f d (SNatElim mot z n2 ih s t) =
-    [| SNatElim (traverse (\(n, m) => (n,) <$> mapVarsTy f (S d) m) mot) (mapVarsE f d z)
+    [| SNatElim (traverse (\(n, m) => (n,) <$> mapVarsE f (S d) m) mot) (mapVarsE f d z)
                 (pure n2) (pure ih) (mapVarsE f (S (S d)) s) (mapVarsE f d t) |]
   mapVarsE f d (SInj1 t) = SInj1 <$> mapVarsE f d t
   mapVarsE f d (SInj2 t) = SInj2 <$> mapVarsE f d t
   mapVarsE f d (SSumElim mot a l b r t) =
-    [| SSumElim (traverse (\(z, m) => (z,) <$> mapVarsTy f (S d) m) mot) (pure a)
+    [| SSumElim (traverse (\(z, m) => (z,) <$> mapVarsE f (S d) m) mot) (pure a)
                 (mapVarsE f (S d) l) (pure b) (mapVarsE f (S d) r) (mapVarsE f d t) |]
   mapVarsE f d (SClass t) = SClass <$> mapVarsE f d t
   mapVarsE f d (SQuotElim mot a g q) =
-    [| SQuotElim (traverse (\(z, m) => (z,) <$> mapVarsTy f (S d) m) mot) (pure a)
+    [| SQuotElim (traverse (\(z, m) => (z,) <$> mapVarsE f (S d) m) mot) (pure a)
                  (mapVarsE f (S d) g) (mapVarsE f d q) |]
   mapVarsE f d (SSigmaElim nx ny b w) =
     [| SSigmaElim (pure nx) (pure ny) (mapVarsE f (S (S d)) b) (mapVarsE f d w) |]
@@ -445,7 +397,7 @@ mutual
   mapVarsE f d (SCoind nx ny r pw mx my mh q) =
     [| SCoind (pure nx) (pure ny) (mapVarsE f (S (S d)) r) (mapVarsE f d pw)
               (pure mx) (pure my) (pure mh) (mapVarsE f (S (S (S d))) q) |]
-  mapVarsE f d (SSquash t) = SSquash <$> mapVarsTy f d t
+  mapVarsE f d (SSquash t) = SSquash <$> mapVarsE f d t
   mapVarsE f d e@(SStar _) = Just e
   mapVarsE f d (SStarWit e) = SStarWit <$> mapVarsE f d e
   mapVarsE f d e@(SStarUsing _ _) = Just e
@@ -454,33 +406,12 @@ mutual
   mapVarsE f d (SChain h ls) =
     [| SChain (mapVarsE f d h)
               (traverse (\(j, m) => [| MkPair (mapVarsE f d j) (mapVarsE f d m) |]) ls) |]
-  mapVarsE f d (SAnn t ty) = [| SAnn (mapVarsE f d t) (mapVarsTy f d ty) |]
+  mapVarsE f d (SAnn t ty) = [| SAnn (mapVarsE f d t) (mapVarsE f d ty) |]
   mapVarsE f d (SImpArg t) = SImpArg <$> mapVarsE f d t
   mapVarsE f d (SNoIns t) = SNoIns <$> mapVarsE f d t
   mapVarsE f d e@(SBlank _) = Just e
   mapVarsE f d e@(SHole _ _) = Just e
   mapVarsE f d (SPos r t) = SPos r <$> mapVarsE f d t
-
-  public export
-  covering
-  mapVarsTy : (f : Nat -> Nat -> Maybe Nat) -> Nat -> STy -> Maybe STy
-  mapVarsTy f d STyZero = Just STyZero
-  mapVarsTy f d STyOne = Just STyOne
-  mapVarsTy f d STyNat = Just STyNat
-  mapVarsTy f d STyUniv = Just STyUniv
-  mapVarsTy f d t@(STySig _) = Just t
-  mapVarsTy f d (STyPi x a b) = [| STyPi (pure x) (mapVarsTy f d a) (mapVarsTy f (S d) b) |]
-  mapVarsTy f d (STyImpPi x a b) = [| STyImpPi (pure x) (mapVarsTy f d a) (mapVarsTy f (S d) b) |]
-  mapVarsTy f d (STySigma x a b) = [| STySigma (pure x) (mapVarsTy f d a) (mapVarsTy f (S d) b) |]
-  mapVarsTy f d (STySum a b) = [| STySum (mapVarsTy f d a) (mapVarsTy f d b) |]
-  mapVarsTy f d (STyQuot a x y r) =
-    [| STyQuot (mapVarsTy f d a) (pure x) (pure y) (mapVarsE f (S (S d)) r) |]
-  mapVarsTy f d (STyEq rng l r t) =
-    [| STyEq (pure rng) (mapVarsE f d l) (mapVarsE f d r) (traverse (mapVarsTy f d) t) |]
-  mapVarsTy f d (STyEl e) = STyEl <$> mapVarsE f d e
-  mapVarsTy f d STyProp = Just STyProp
-  mapVarsTy f d (STyNu p) = STyNu <$> mapVarsPoly f d p
-  mapVarsTy f d (STyPos r t) = STyPos r <$> mapVarsTy f d t
 
   public export
   covering
@@ -496,6 +427,14 @@ mutual
 
 
 --
+
+
+||| ONE SORT, ONE WALK: a term in TYPE position is a term, so the
+||| Ty-suffixed remap is its Elem twin under another name.
+public export
+covering
+mapVarsTy : (f : Nat -> Nat -> Maybe Nat) -> Nat -> STy -> Maybe STy
+mapVarsTy = mapVarsE
 -- Only a handful of nodes record a range of their own: the leaves a
 -- name resolves at (SVar/SSig), the elided-sugar keys (SEqC/STyEq),
 -- the proof atoms (SStar/SStarUsing/SBlank) and every binder name.
@@ -545,7 +484,7 @@ mutual
   headRange (SStarWit e) = headRange e
   headRange (SPair a b) = headRange a <|> headRange b
   headRange (SChain h _) = headRange h
-  headRange (SSquash t) = headRangeTy t
+  headRange (SSquash t) = headRange t
   headRange (SSquashElim e _ _) = headRange e
   headRange (SNuC f) = headRangePoly f
   headRange (SSumC a b) = headRange a <|> headRange b
@@ -569,24 +508,6 @@ mutual
   -- sigma-elim has no motive: the scrutinee's head places it (the
   -- variable it eliminates is what every message here is about)
   headRange (SSigmaElim _ _ _ w) = headRange w
-
-  public export
-  headRangeTy : STy -> Maybe Range
-  headRangeTy (STyPos r _) = Just r
-  headRangeTy (STyEq r _ _ _) = r
-  headRangeTy (STyEl e) = headRange e
-  headRangeTy (STyPi _ a _) = headRangeTy a
-  headRangeTy (STyImpPi _ a _) = headRangeTy a
-  headRangeTy (STySigma _ a _) = headRangeTy a
-  headRangeTy (STySum a b) = headRangeTy a <|> headRangeTy b
-  headRangeTy (STyQuot a _ _ _) = headRangeTy a
-  headRangeTy (STyNu f) = headRangePoly f
-  headRangeTy STyZero = Nothing
-  headRangeTy STyOne = Nothing
-  headRangeTy STyNat = Nothing
-  headRangeTy STyUniv = Nothing
-  headRangeTy STyProp = Nothing
-  headRangeTy (STySig _) = Nothing
 
   public export
   headRangePoly : SPoly -> Maybe Range
@@ -615,11 +536,6 @@ public export
 covering
 shiftElem : (c : Nat) -> SElem -> SElem
 shiftElem c e = fromMaybe e (mapVarsE (\d, i => Just (if i >= c + d then S i else i)) 0 e)
-
-public export
-covering
-shiftTy : (c : Nat) -> STy -> STy
-shiftTy c t = fromMaybe t (mapVarsTy (\d, i => Just (if i >= c + d then S i else i)) 0 t)
 
 public export
 covering
@@ -667,6 +583,24 @@ isOpName x = any opChar (lastSegment (unpack x))
   lastSegment [] = []
   lastSegment ('.' :: rest) = lastSegment rest
   lastSegment (c :: rest) = if elem '.' rest then lastSegment rest else c :: rest
+
+||| ONE SORT, ONE WALK: the Ty-suffixed traversals are their SElem
+||| twins under another name, kept so that call sites still say which
+||| positions stand as types.
+public export
+covering
+stripPosTy : STy -> STy
+stripPosTy = stripPos
+
+public export
+covering
+headRangeTy : STy -> Maybe Range
+headRangeTy = headRange
+
+public export
+covering
+shiftTy : (c : Nat) -> STy -> STy
+shiftTy = shiftElem
 
 ||| import M            — M's names accessible qualified (M.x) only
 ||| import M (a, b)     — additionally, a and b accessible bare
@@ -797,17 +731,17 @@ SBodyEntry = Either (Maybe Range, SFixity) (Maybe Range, SItem)
 export
 covering
 stripPosItem : SItem -> SItem
-stripPosItem (SDef n ty body mu) = SDef n (stripPosTy ty) (stripPos body) mu
-stripPosItem (SDeclDef r n ty) = SDeclDef r n (stripPosTy ty)
-stripPosItem (STypeDef n ty) = STypeDef n (stripPosTy ty)
+stripPosItem (SDef n ty body mu) = SDef n (stripPos ty) (stripPos body) mu
+stripPosItem (SDeclDef r n ty) = SDeclDef r n (stripPos ty)
+stripPosItem (STypeDef n ty) = STypeDef n (stripPos ty)
 stripPosItem (SData ps ds) =
-  SData (map (\(x, t) => (x, stripPosTy t)) ps) (map stripQDecl ds)
+  SData (map (\(x, t) => (x, stripPos t)) ps) (map stripQDecl ds)
  where
   stripQDecl : SQDecl -> SQDecl
   stripQDecl d =
-    { dqbinders := map (\(x, b) => (x, mapFst stripPosTy b)) d.dqbinders } d
+    { dqbinders := map (\(x, b) => (x, mapFst stripPos b)) d.dqbinders } d
 stripPosItem (SClausalDef r n ty eta wit cls) =
-  SClausalDef r n (stripPosTy ty) eta (map stripPos wit)
+  SClausalDef r n (stripPos ty) eta (map stripPos wit)
               (map (\c => { crhs := stripPos c.crhs } c) cls)
 
 export
@@ -823,26 +757,6 @@ itemName (SClausalDef _ n _ _ _ _) = n
 -- ===== Show instances (parser golden tests) =====
 
 mutual
-  export covering
-  Show STy where
-    -- a span is metadata, not structure: SKIPPING it here is what
-    -- makes `show` the distiller's range-insensitive comparator
-    show (STyPos _ t) = show t
-    show STyZero = "𝟘"
-    show STyOne = "𝟙"
-    show STyNat = "ℕ"
-    show STyUniv = "𝕌"
-    show (STySig x) = "\{x}"
-    show (STyPi x a b) = "Pi \{x} (\{show a}) (\{show b})"
-    show (STyImpPi x a b) = "ImpPi \{x} (\{show a}) (\{show b})"
-    show (STySigma x a b) = "Sigma \{x} (\{show a}) (\{show b})"
-    show (STySum a b) = "Sum (\{show a}) (\{show b})"
-    show (STyQuot a x y r) = "Quot (\{show a}) \{fst x} \{fst y} (\{show r})"
-    show (STyEq _ l r t) = "Eq (\{show l}) (\{show r}) (\{maybe "_" show t})"
-    show (STyEl e) = "El (\{show e})"
-    show (STyNu f) = "Nu (\{show f})"
-    show STyProp = "Ω"
-
   export covering
   Show SElem where
     show (SPos _ e) = show e

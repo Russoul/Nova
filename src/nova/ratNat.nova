@@ -71,14 +71,14 @@ def natSucOfClassPos : {a b j : ℕ} → (class (S j, Z) ≡ class (b, a) ∈ In
   using (integer.Int.unfold, integer.IntR.eq) ≔
   λa. λb. λj. λh. trans _ _ _ (plusComm (S j) a) (trans _ _ _ (intEffective h) (zeroPlusId b))
 
-def nonNegSgnOfLe : {a b : ℕ} → (a ≤ b) → NonNegS (intSgn (class (b, a)))
+def nonNegSgnOfLe : {a b : ℕ} → a ≤ b → NonNegS (intSgn (class (b, a)))
   using (integer.Int.unfold, natOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λa. λb. λle. transport
     NonNegS
     (cong (λv. Sign) (λv. intSgn v) (natDiffClass (idToEq _ _ _ (le .π₂))))
     intSgnOfNatNonNeg
 
-def leOfNonNegSgn : {a b : ℕ} → NonNegS (intSgn (class (b, a))) → (a ≤ b)
+def leOfNonNegSgn : {a b : ℕ} → NonNegS (intSgn (class (b, a))) → a ≤ b
   using (id.Id.unfold,
     integer.Int.unfold,
     natOrder.≤.unfold,
@@ -183,7 +183,7 @@ def sgnQOfNatDiff : (a b : ℕ) → sgnQ (qOfNat b + qNeg (qOfNat a)) ≡ intSgn
       qOfNatDiffNum)
     (cong (λv. Sign) (λv. intSgn v) (intMulOneR (class (b, a))))
 
-def leQOfNat : {a b : ℕ} → (a ≤ b) → (qOfNat a ≤ qOfNat b)
+def leQOfNat : {a b : ℕ} → a ≤ b → qOfNat a ≤ qOfNat b
   using (id.Id.unfold,
     integer.Int.unfold,
     natOrder.≤.unfold,
@@ -191,7 +191,7 @@ def leQOfNat : {a b : ℕ} → (a ≤ b) → (qOfNat a ≤ qOfNat b)
     rationalOrder.NonNegS.unfold) ≔
   λa. λb. λle. transport NonNegS (sym _ _ (sgnQOfNatDiff a b)) (nonNegSgnOfLe le)
 
-def leNOfQ : {a b : ℕ} → (qOfNat a ≤ qOfNat b) → (a ≤ b)
+def leNOfQ : {a b : ℕ} → qOfNat a ≤ qOfNat b → a ≤ b
   using (integer.Int.unfold,
     natOrder.≤.unfold,
     rationalOrder.≤.unfold,

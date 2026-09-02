@@ -69,7 +69,7 @@ def effective : {A : 𝕌}
 def classEqIff : {A : 𝕌}
   (r : A → A → Ω)
   (a b : A)
-  → ((class a ≡ class b ∈ A / (u v. r u v)) ↔ rClosure r a b) ≔
+  → (class a ≡ class b ∈ A / (u v. r u v)) ↔ rClosure r a b ≔
   λA. λr. λa. λb. iffIntro (effective r a b) (classEqOfClosure r a b)
 
 -- COROLLARY: at an equivalence relation, effectivity on the nose — r

@@ -39,7 +39,7 @@ def rBoundHalf : (m n : ℕ) → rBound (dbl m) (dbl n) + rBound (dbl m) (dbl n)
       ≡⟨ cong (λw. Q) (λw. qInvNat m + w) (qInvHalf n) ⟩ rBound m n
 
 -- sampling the LEFT index deeper only shrinks the bound
-def leQBoundDblL : (m n : ℕ) → (rBound (dbl m) n ≤ rBound m n)
+def leQBoundDblL : (m n : ℕ) → rBound (dbl m) n ≤ rBound m n
   using (id.Id.eq,
     ratHalf.dbl.eq,
     rationalOrder.≤.unfold,
@@ -56,7 +56,7 @@ def leQBoundDblL : (m n : ℕ) → (rBound (dbl m) n ≤ rBound m n)
 
 -- the diagonal doubled bound IS the halved unit fraction, and it sits
 -- under the diagonal bound at the original index
-def leQBoundDblDiag : (n : ℕ) → (rBound (dbl n) (dbl n) ≤ rBound n n)
+def leQBoundDblDiag : (n : ℕ) → rBound (dbl n) (dbl n) ≤ rBound n n
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λn. transport
     (λw. rBound (dbl n) (dbl n) ≤ w)

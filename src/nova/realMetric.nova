@@ -22,7 +22,7 @@ import realOrder (RLeP, rleOf, ≤, leRAntisym, leRTrans, leQSubZero)
 import realGroup (-, realSubSelf, realSubVia, realNegSub, realSubZeroInv)
 import equality (trans, sym, cong, transport, transportP)
 
-def leRAbsSelf : {u : Real} → (u ≤ realAbs u)
+def leRAbsSelf : {u : Real} → u ≤ realAbs u
   using (id.Id.eq,
     ratAbs.qAbs.eq,
     ratBound.Bnd.unfold,
@@ -63,7 +63,7 @@ def leRAbsSelf : {u : Real} → (u ≤ realAbs u)
         (leQZeroBound n n)))
     u
 
-def leRNegAbsSelf : {u : Real} → (realNeg (realAbs u) ≤ u)
+def leRNegAbsSelf : {u : Real} → realNeg (realAbs u) ≤ u
   using (id.Id.eq,
     ratAbs.qAbs.eq,
     ratBound.Bnd.unfold,
@@ -159,13 +159,13 @@ def rleOfAbsSub : {p : RSeq}
   (q : RSeq)
   {b : Q}
   → ((j : ℕ)
-    → (qAbs
+    → qAbs
       (seqOf
         p
         (dbl
           j)
         + qNeg
-          (seqOf q (dbl j))) ≤ b + rBound j j)) → RLeP (rAbs (rAdd p (rNeg q))) ((λk. b), constReg)
+          (seqOf q (dbl j))) ≤ b + rBound j j) → RLeP (rAbs (rAdd p (rNeg q))) ((λk. b), constReg)
   using (real.RSeq.unfold,
     real.Regular.unfold,
     realAbs.rAbs.eq,
@@ -194,7 +194,7 @@ def realDistSym : (u v : Real) → realDist u v ≡ realDist v u
     (sym _ _ (realAbsNeg (u - v)))
     (cong (λw. Real) (λw. realAbs w) {realNeg (u - v)} {v - u} realNegSub)
 
-def leRZeroDist : (u v : Real) → (realZero ≤ realDist u v)
+def leRZeroDist : (u v : Real) → realZero ≤ realDist u v
   using (real.Real.unfold,
     real.realOfQ.unfold,
     real.realZero.eq,
@@ -216,7 +216,7 @@ def realDistZeroInv : (u v : Real) → (realDist u v ≡ realZero) → u ≡ v
   λu. λv. λh. realSubZeroInv (realAbsZeroInv (u - v) h)
 
 -- the triangle inequality: |·| adds along the three-term split
-def realDistTriangle : (u v w : Real) → (realDist u w ≤ realDist u v + realDist v w)
+def realDistTriangle : (u v w : Real) → realDist u w ≤ realDist u v + realDist v w
   using (real.Real.unfold,
     realAbs.realAbs.eq,
     realAbs.realAbs.unfold,

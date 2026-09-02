@@ -13,22 +13,22 @@ infixl 4 ≤
 def ≤ : ℕ → ℕ → 𝕌 ≔ λa. λb. (k : ℕ) × Id _ (a + k) b
 
 -- ===== basics =====
-def leRefl : (a : ℕ) → (a ≤ a) using (natOrder.≤.unfold) ≔ λa. Z, eqToId _ _ (plusZeroId a)
+def leRefl : (a : ℕ) → a ≤ a using (natOrder.≤.unfold) ≔ λa. Z, eqToId _ _ (plusZeroId a)
 
-def leOfEq : {a b : ℕ} → (a ≡ b) → (a ≤ b) using (natOrder.≤.unfold) ≔
+def leOfEq : {a b : ℕ} → (a ≡ b) → a ≤ b using (natOrder.≤.unfold) ≔
   λa. λb. λh. Z, eqToId _ _ (trans _ _ _ (plusZeroId a) h)
 
-def leZero : (a : ℕ) → (Z ≤ a) using (natOrder.≤.unfold) ≔ λa. a, eqToId _ _ (zeroPlusId a)
+def leZero : (a : ℕ) → Z ≤ a using (natOrder.≤.unfold) ≔ λa. a, eqToId _ _ (zeroPlusId a)
 
 -- a + S Z unwinds to S a by computation alone
-def leSucSelf : (a : ℕ) → (a ≤ S a) using (nat.+.eq, natOrder.≤.unfold) ≔ λa. S Z, eqToId _ _ ⋆
+def leSucSelf : (a : ℕ) → a ≤ S a using (nat.+.eq, natOrder.≤.unfold) ≔ λa. S Z, eqToId _ _ ⋆
 
-def leStep : {a b : ℕ} → (a ≤ b) → (a ≤ S b)
+def leStep : {a b : ℕ} → a ≤ b → a ≤ S b
   using (+.eq, natOrder.≤.eq, id.Id.unfold, id.idToEq.eq, natOrder.≤.unfold) ≔
   λa. λb. λle. S (le .π₁), eqToId _ _ (let h ≔ idToEq _ _ _ (le .π₂) in ⋆)
 
 -- ===== transitivity, antisymmetry =====
-def leTrans : (a b c : ℕ) → (a ≤ b) → (b ≤ c) → (a ≤ c) using (id.Id.unfold, natOrder.≤.unfold) ≔
+def leTrans : (a b c : ℕ) → a ≤ b → b ≤ c → a ≤ c using (id.Id.unfold, natOrder.≤.unfold) ≔
   λa. λb. λc. λl1. λl2. l1 .π₁
     + l2 .π₁,
     eqToId
@@ -54,10 +54,10 @@ def sumZeroR : (x y : ℕ) → (x + y ≡ Z) → y ≡ Z using (nat.plusSucId) �
 def sumZeroL : (x y : ℕ) → (x + y ≡ Z) → x ≡ Z ≔
   λx. λy. λh. sumZeroR _ _ (trans _ _ _ (plusComm x y) h)
 
-def leZeroInv : {a : ℕ} → (a ≤ Z) → a ≡ Z using (natOrder.≤.unfold) ≔
+def leZeroInv : {a : ℕ} → a ≤ Z → a ≡ Z using (natOrder.≤.unfold) ≔
   λa. λle. sumZeroL _ _ (trans _ _ Z (idToEq _ _ _ (le .π₂)) ⋆)
 
-def leAntisym : (a b : ℕ) → (a ≤ b) → (b ≤ a) → a ≡ b using (id.Id.unfold, natOrder.≤.unfold) ≔
+def leAntisym : (a b : ℕ) → a ≤ b → b ≤ a → a ≡ b using (id.Id.unfold, natOrder.≤.unfold) ≔
   λa. λb. λl1. λl2. let h1 ≔ idToEq
     _
     _
@@ -89,7 +89,7 @@ def leAntisym : (a b : ℕ) → (a ≤ b) → (b ≤ a) → a ≡ b using (id.Id
     kz in a ≡⟨ sym _ _ (plusZeroId a) ⟩ a + Z ≡⟨ plusCongR a (sym _ _ k1z) ⟩ a + l1 .π₁ ≡⟨ h1 ⟩ b
 
 -- ===== monotonicity =====
-def leSucMono : {a b : ℕ} → (a ≤ b) → (S a ≤ S b) using (id.Id.unfold, natOrder.≤.unfold) ≔
+def leSucMono : {a b : ℕ} → a ≤ b → S a ≤ S b using (id.Id.unfold, natOrder.≤.unfold) ≔
   λa. λb. λle. le .π₁,
     eqToId
       _
@@ -102,7 +102,7 @@ def leSucMono : {a b : ℕ} → (a ≤ b) → (S a ≤ S b) using (id.Id.unfold,
           ≡⟨ sucPlus a (le .π₁) ⟩ S (a + le .π₁)
           ≡⟨ cong (λu. ℕ) (λu. S u) h ⟩ S b)
 
-def leSucInv : (a b : ℕ) → (S a ≤ S b) → (a ≤ b) using (id.Id.unfold, natOrder.≤.unfold) ≔
+def leSucInv : (a b : ℕ) → S a ≤ S b → a ≤ b using (id.Id.unfold, natOrder.≤.unfold) ≔
   λa. λb. λle. le .π₁,
     eqToId
       _
@@ -116,7 +116,7 @@ def leSucInv : (a b : ℕ) → (S a ≤ S b) → (a ≤ b) using (id.Id.unfold, 
           _
           (le .π₂) in S (a + le .π₁) ≡⟨ sym _ _ (sucPlus a (le .π₁)) ⟩ S a + le .π₁ ≡⟨ h ⟩ S b))
 
-def lePlusMonoR : {a : ℕ} (b c : ℕ) → (a ≤ b) → (a + c ≤ b + c)
+def lePlusMonoR : {a : ℕ} (b c : ℕ) → a ≤ b → a + c ≤ b + c
   using (id.Id.unfold, natOrder.≤.unfold) ≔
   λa. λb. λc. λle. le .π₁,
     eqToId
@@ -132,7 +132,7 @@ def lePlusMonoR : {a : ℕ} (b c : ℕ) → (a ≤ b) → (a + c ≤ b + c)
           ≡⟨ sym _ _ (plusAssoc a (le .π₁) c) ⟩ a + le .π₁ + c
           ≡⟨ plusCongL c h ⟩ b + c)
 
-def lePlusMonoL : {a b : ℕ} (c : ℕ) → (a ≤ b) → (c + a ≤ c + b) using (natOrder.≤.unfold) ≔
+def lePlusMonoL : {a b : ℕ} (c : ℕ) → a ≤ b → c + a ≤ c + b using (natOrder.≤.unfold) ≔
   λa. λb. λc. λle. leTrans
     _
     _
@@ -140,7 +140,7 @@ def lePlusMonoL : {a b : ℕ} (c : ℕ) → (a ≤ b) → (c + a ≤ c + b) usin
     (leOfEq (plusComm a c))
     (leTrans _ _ _ (lePlusMonoR _ c le) (leOfEq (plusComm c b)))
 
-def leMultMonoR : {a b : ℕ} (c : ℕ) → (a ≤ b) → (a * c ≤ b * c)
+def leMultMonoR : {a b : ℕ} (c : ℕ) → a ≤ b → a * c ≤ b * c
   using (id.Id.unfold, natOrder.≤.unfold) ≔
   λa. λb. λc. λle. le .π₁
     * c,
@@ -159,7 +159,7 @@ def leMultMonoR : {a b : ℕ} (c : ℕ) → (a ≤ b) → (a * c ≤ b * c)
           ≡⟨ cong (λu. ℕ) (λu. u * c) h ⟩ b * c)
 
 -- ===== totality: the DECISION, as data =====
-def leTotal : (a b : ℕ) → (a ≤ b) ⊎ (b ≤ a) ≔
+def leTotal : (a b : ℕ) → a ≤ b ⊎ b ≤ a ≔
   λa. ℕ-elim
     (λb. inj₁ (leZero _))
     (j ih. λb. ℕ-elim

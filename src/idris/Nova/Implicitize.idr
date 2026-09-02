@@ -121,9 +121,9 @@ impTy : List Nat -> STy -> STy
 impTy poss = go 0
  where
   go : Nat -> STy -> STy
-  go i (STyPi x a b) =
-    if i `elem` poss then STyImpPi x a (go (S i) b) else STyPi x a (go (S i) b)
-  go i (STyImpPi x a b) = STyImpPi x a (go (S i) b)
+  go i (SPiC x a b) =
+    if i `elem` poss then SImpPiC x a (go (S i) b) else SPiC x a (go (S i) b)
+  go i (SImpPiC x a b) = SImpPiC x a (go (S i) b)
   go i ty = ty
 
 parameters (resolve : String -> String, cands : List (String, List Nat), mode : IMode)
@@ -244,18 +244,10 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
         SApp f a => spine f (a :: acc)
         h => (h, acc)
 
+    -- one sort, one walk: the Ty walk WAS a former-only copy with a
+    -- silent catch-all, the exact shape that no-oped on a code type
     xfT : STy -> STy
-    xfT ty = case ty of
-      STyPi x a b => STyPi x (xfT a) (xfT b)
-      STyImpPi x a b => STyImpPi x (xfT a) (xfT b)
-      STySigma x a b => STySigma x (xfT a) (xfT b)
-      STySum a b => STySum (xfT a) (xfT b)
-      STyQuot a x y r => STyQuot (xfT a) x y (xfE r)
-      STyEq rng l r t => STyEq rng (xfE l) (xfE r) (map xfT t)
-      STyEl t => STyEl (xfE t)
-      STyNu f => STyNu (xfP f)
-      STyPos _ t => xfT t
-      _ => ty
+    xfT = xfE
 
     xfP : SPoly -> SPoly
     xfP p = case p of
@@ -557,17 +549,7 @@ sitesOfUnit resolve q u = concatMap (\(_, it) => goItem it) u.mitems
         h => (h, acc)
 
     goT : STy -> List (Maybe Range, List SElem)
-    goT ty = case ty of
-      STyPi _ a b => goT a ++ goT b
-      STyImpPi _ a b => goT a ++ goT b
-      STySigma _ a b => goT a ++ goT b
-      STySum a b => goT a ++ goT b
-      STyQuot a _ _ r => goT a ++ goE r
-      STyEq _ l r t => goE l ++ goE r ++ concatMap goT (toList t)
-      STyEl t => goE t
-      STyNu f => goP f
-      STyPos _ t => goT t
-      _ => []
+    goT = goE
 
     goP : SPoly -> List (Maybe Range, List SElem)
     goP pl = case pl of
@@ -607,8 +589,8 @@ leadingBinders : STy -> List (Nat, Bool)
 leadingBinders = go 0
  where
   go : Nat -> STy -> List (Nat, Bool)
-  go i (STyPi _ _ b) = (i, False) :: go (S i) b
-  go i (STyImpPi _ _ b) = (i, True) :: go (S i) b
+  go i (SPiC _ _ b) = (i, False) :: go (S i) b
+  go i (SImpPiC _ _ b) = (i, True) :: go (S i) b
   go i _ = []
 
 ||| run the override-form trial for the given candidates; returns the

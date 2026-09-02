@@ -425,7 +425,7 @@ def rMinGlb : {x y z : RSeq} → RLeP z x → RLeP z y → RLeP z (rMin x y)
       (qMinGlbShift _ _ _ _ (leQAddShift _ (u n)) (leQAddShift _ (v n))))))
 
 -- ===== lifted to ℝ =====
-def leRMaxL : (u v : Real) → (u ≤ realMax u v)
+def leRMaxL : (u v : Real) → u ≤ realMax u v
   using (real.REq.unfold,
     real.RSeq.unfold,
     real.Real.unfold,
@@ -437,7 +437,7 @@ def leRMaxL : (u v : Real) → (u ≤ realMax u v)
     realOrder.RLeP.eq) ≔
   λu. λv. quot-elim (x. quot-elim (y. rleMaxL) v) u
 
-def leRMaxR : (u v : Real) → (v ≤ realMax u v)
+def leRMaxR : (u v : Real) → v ≤ realMax u v
   using (real.REq.unfold,
     real.RSeq.unfold,
     real.Real.unfold,
@@ -449,7 +449,7 @@ def leRMaxR : (u v : Real) → (v ≤ realMax u v)
     realOrder.RLeP.eq) ≔
   λu. λv. quot-elim (x. quot-elim (y. rleMaxR) v) u
 
-def leRMinL : (u v : Real) → (realMin u v ≤ u)
+def leRMinL : (u v : Real) → realMin u v ≤ u
   using (real.REq.unfold,
     real.RSeq.unfold,
     real.Real.unfold,
@@ -462,7 +462,7 @@ def leRMinL : (u v : Real) → (realMin u v ≤ u)
     realOrder.RLeP.eq) ≔
   λu. λv. quot-elim (x. quot-elim (y. rleMinL) v) u
 
-def leRMinR : (u v : Real) → (realMin u v ≤ v)
+def leRMinR : (u v : Real) → realMin u v ≤ v
   using (real.REq.unfold,
     real.RSeq.unfold,
     real.Real.unfold,
@@ -475,7 +475,7 @@ def leRMinR : (u v : Real) → (realMin u v ≤ v)
     realOrder.RLeP.eq) ≔
   λu. λv. quot-elim (x. quot-elim (y. rleMinR) v) u
 
-def leRMaxLub : (u v w : Real) → (u ≤ w) → (v ≤ w) → (realMax u v ≤ w)
+def leRMaxLub : (u v w : Real) → u ≤ w → v ≤ w → realMax u v ≤ w
   using (real.REq.unfold,
     real.RSeq.unfold,
     real.Real.unfold,
@@ -491,7 +491,7 @@ def leRMaxLub : (u v w : Real) → (u ≤ w) → (v ≤ w) → (realMax u v ≤ 
     realOrder.leRCls) ≔
   λu. λv. λw. quot-elim (x. quot-elim (y. quot-elim (z. λp. λq. rMaxLub p q) w) v) u
 
-def leRMinGlb : (u v w : Real) → (w ≤ u) → (w ≤ v) → (w ≤ realMin u v)
+def leRMinGlb : (u v w : Real) → w ≤ u → w ≤ v → w ≤ realMin u v
   using (real.REq.unfold,
     real.RSeq.unfold,
     real.Real.unfold,

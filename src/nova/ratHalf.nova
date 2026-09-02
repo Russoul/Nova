@@ -192,13 +192,13 @@ def qInvHalf : (n : ℕ) → qInvNat (dbl n) + qInvNat (dbl n) ≡ qInvNat n
     (clsEqOfRel _ _ (halfRel n))
 
 -- ===== the halved bound, as an inequality =====
-def leQZeroInvNat : (n : ℕ) → (qZero ≤ qInvNat n)
+def leQZeroInvNat : (n : ℕ) → qZero ≤ qInvNat n
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λn. leQZeroOfPos _ (qInvNatPos n)
 
 -- 1/(2n+2) ≤ 1/(n+1): the halved bound is at most the original,
 -- because the other half is nonnegative
-def leQInvDbl : (n : ℕ) → (qInvNat (dbl n) ≤ qInvNat n)
+def leQInvDbl : (n : ℕ) → qInvNat (dbl n) ≤ qInvNat n
   using (rationalOrder.≤.unfold, rationalOrder.NonNegS.unfold) ≔
   λn. transport
     (λw. qInvNat (dbl n) ≤ w)

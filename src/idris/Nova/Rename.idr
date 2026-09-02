@@ -144,18 +144,7 @@ parameters (rm : RenameMap, resolve : String -> String)
       SPos _ t => rnE t
 
     rnT : STy -> STy
-    rnT ty = case ty of
-      STySig n => STySig (refName n)
-      STyPi x a b => STyPi x (rnT a) (rnT b)
-      STyImpPi x a b => STyImpPi x (rnT a) (rnT b)
-      STySigma x a b => STySigma x (rnT a) (rnT b)
-      STySum a b => STySum (rnT a) (rnT b)
-      STyQuot a x y r => STyQuot (rnT a) x y (rnE r)
-      STyEq rng l r t => STyEq rng (rnE l) (rnE r) (map rnT t)
-      STyEl t => STyEl (rnE t)
-      STyNu f => STyNu (rnP f)
-      STyPos _ t => rnT t
-      _ => ty
+    rnT = rnE
 
     rnP : SPoly -> SPoly
     rnP p = case p of

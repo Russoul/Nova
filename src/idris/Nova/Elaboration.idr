@@ -3754,11 +3754,11 @@ mutual
   elabTy ctx env site t = elabTyAt ctx env (at site (headRangeTy t)) t
 
   elabTyAt : Ctx -> NameEnv -> Site -> STy -> ElabM (Ty, Skel)
-  elabTyAt ctx env site STyZero = pure (ZeroTy, Nd [] [])
-  elabTyAt ctx env site STyOne = pure (OneTy, Nd [] [])
-  elabTyAt ctx env site STyNat = pure (NatTy, Nd [] [])
-  elabTyAt ctx env site STyUniv = pure (UniverseTy, Nd [] [])
-  elabTyAt ctx env site (STySig x0) = do
+  elabTyAt ctx env site SZeroC = pure (ZeroTy, Nd [] [])
+  elabTyAt ctx env site SOneC = pure (OneTy, Nd [] [])
+  elabTyAt ctx env site SNatC = pure (NatTy, Nd [] [])
+  elabTyAt ctx env site SUnivC = pure (UniverseTy, Nd [] [])
+  elabTyAt ctx env site (SSig _ x0) = do
     st <- getSt
     let x = resolveSigName st x0
     case sigLookup x st.sig of
@@ -3787,35 +3787,35 @@ mutual
         (e', eSk) <- checkElem ctx env site (SSig Nothing x) cls
         pure (e', eSk)
       Nothing => throwAt site.srange "\{site}: unknown signature name '\{x}'"
-  elabTyAt ctx env site (STyPi x a b) = do
+  elabTyAt ctx env site (SPiC x a b) = do
     (a', aSk) <- elabTy ctx env site a
     (b', bSk) <- elabTy (ctx :< a') (env :< x) site b
     pure (PiTy a' b', Nd [] [aSk, bSk])
   -- an implicit binder elaborates exactly as an explicit one: the
   -- core is bare, implicitness is per-def METADATA (ElabSt.impls)
-  elabTyAt ctx env site (STyImpPi x a b) = do
+  elabTyAt ctx env site (SImpPiC x a b) = do
     (a', aSk) <- elabTy ctx env site a
     (b', bSk) <- elabTy (ctx :< a') (env :< x) site b
     pure (PiTy a' b', Nd [] [aSk, bSk])
-  elabTyAt ctx env site (STySigma x a b) = do
+  elabTyAt ctx env site (SSigmaC x a b) = do
     (a', aSk) <- elabTy ctx env site a
     (b', bSk) <- elabTy (ctx :< a') (env :< x) site b
     pure (SigmaTy a' b', Nd [] [aSk, bSk])
-  elabTyAt ctx env site (STySum a b) = do
+  elabTyAt ctx env site (SSumC a b) = do
     (a', aSk) <- elabTy ctx env site a
     (b', bSk) <- elabTy ctx env site b
     pure (SumTy a' b', Nd [] [aSk, bSk])
-  elabTyAt ctx env site (STyQuot a (nx, nxr) (ny, nyr) r) = do
+  elabTyAt ctx env site (SQuotC a (nx, nxr) (ny, nyr) r) = do
     (a', aSk) <- elabTy ctx env site a
     recordBinder nxr ctx env nx a'
     recordBinder nyr (ctx :< a') (env :< nx) ny (substTy a' Wk)
     (r', rSk) <- checkElem (ctx :< a' :< substTy a' Wk) (env :< nx :< ny) site r PropTy
     pure (QuotTy a' r', Nd [] [aSk, rSk])
-  elabTyAt ctx env site (STyNu f) = do
+  elabTyAt ctx env site (SNuC f) = do
     -- e-ty-nu
     (f', fSks) <- elabPoly ctx env site f
     pure (NuTy f', Nd [] fSks)
-  elabTyAt ctx env site (STyEq rng l r (Just t)) = do
+  elabTyAt ctx env site (SEqC rng l r (Just t)) = do
     -- e-ty-eq: the surface ≡-TYPE IS the equality prop, standing as
     -- a type (prop-lift; equality is Ω-valued)
     (t', tSk) <- elabTy ctx env site t
@@ -3825,18 +3825,26 @@ mutual
     -- would the elided form recover t' α-exactly by inferring a side?
     sugarTrial rng (eqElideVerdict ctx env site l r t')
     pure (Elem.EqTy l' r' t', Nd [] [lSk, rSk, tSk])
-  elabTyAt ctx env site (STyEq rng l r Nothing) = do
+  elabTyAt ctx env site (SEqC rng l r Nothing) = do
     -- the ELIDED ≡-type: the domain is the inferred type of a side,
     -- LEFT first (a deterministic rule, not a search)
     (l', r', t', lSk, rSk) <- elabEqSides ctx env site l r
     pure (Elem.EqTy l' r' t', Nd [] [lSk, rSk, Nd [] []])
-  -- a CODE in type position (El retired: the code is the type)
-  -- a CODE or a PROP in type position (El and Prf retired: the code
-  -- / the prop is the type). The classifier is read off a DISCARDED
-  -- inference probe — Ω-formers and Ω-valued spines land at Ω,
-  -- everything else (blanks included) checks at 𝕌, the overwhelmingly
-  -- common classifier
-  elabTyAt ctx env site (STyEl e) = do
+  elabTyAt ctx env site SPropC = pure (PropTy, Nd [] [])
+  -- The site is ALREADY this node's span (the wrapper installed it),
+  -- so dispatch to the worker: going back through `elabTy` would
+  -- re-narrow to the child's head and throw the exact span away.
+  elabTyAt ctx env site (SPos _ t) = elabTyAt ctx env site t
+  -- ANY OTHER TERM standing as a type — a spine, a bound variable, a
+  -- λ, an eliminator: the CODE-OR-PROP case (El and Prf retired, so
+  -- the code / the prop IS the type). It is the LAST clause because
+  -- the merged grammar has no separate type syntax to dispatch on:
+  -- the clauses above are the forms whose PARTS are checked at 𝕍, and
+  -- everything else is checked at 𝕌 or Ω and lifts. The classifier is
+  -- read off a DISCARDED inference probe — Ω-formers and Ω-valued
+  -- spines land at Ω, everything else (blanks included) checks at 𝕌,
+  -- the overwhelmingly common classifier
+  elabTyAt ctx env site e = do
     mty <- probeM (inferElem ctx env site e)
     st <- getSt
     let cls = the Ty $ case mty of
@@ -3846,11 +3854,6 @@ mutual
                 Nothing => UniverseTy
     (e', eSk) <- checkElem ctx env site e cls
     pure (e', eSk)
-  elabTyAt ctx env site STyProp = pure (PropTy, Nd [] [])
-  -- The site is ALREADY this node's span (the wrapper installed it),
-  -- so dispatch to the worker: going back through `elabTy` would
-  -- re-narrow to the child's head and throw the exact span away.
-  elabTyAt ctx env site (STyPos _ t) = elabTyAt ctx env site t
   export
   inferElem : Ctx -> NameEnv -> Site -> SElem -> ElabM (Elem, Ty, Skel)
   inferElem ctx env site e = inferElemAt ctx env (at site (headRange e)) e
@@ -5855,8 +5858,8 @@ impPositions = go 0
  where
   go : Nat -> STy -> List Nat
   go i ty = case unPosTy ty of
-    STyPi _ _ b => go (S i) b
-    STyImpPi _ _ b => i :: go (S i) b
+    SPiC _ _ b => go (S i) b
+    SImpPiC _ _ b => i :: go (S i) b
     _ => []
 
 ||| Register an accepted item's implicit positions, if any.

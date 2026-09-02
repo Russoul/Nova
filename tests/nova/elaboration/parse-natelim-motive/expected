@@ -1,1 +1,1 @@
-NatElim n (ℕ) (Z) n ih (S (ih@0)) (S (Z))
+NatElim n (ℕc) (Z) n ih (S (ih@0)) (S (Z))

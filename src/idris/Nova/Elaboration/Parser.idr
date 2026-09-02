@@ -308,40 +308,6 @@ foldGroupsC : (Bool -> String -> a -> b -> b) -> List (Bool, String, a) -> b -> 
 foldGroupsC f [] b = b
 foldGroupsC f ((imp, x, t) :: rest) b = f imp x t (foldGroupsC f rest b)
 
-||| One step of a CODE SPINE standing in TYPE position (T{2}): the
-||| same steps the ELEMENT spine takes (Parser.parseSpine) — an
-||| argument, an implicit override, the no-insert marker, a projection.
-||| A code is an element, and the element it is may be reached by
-||| applying, overriding or projecting: `P .π₁` is a perfectly good 𝕌
-||| when P : 𝕌 × 𝕌, and `Vect {ℕ} n` is one wherever `Vect` is.
-|||
-||| The BRACE step and the implicit BINDER GROUP share their opening
-||| token and are told apart the way the reader tells them apart: a
-||| group carries a `:` (`{x : T}`, `{x y : T}`), and an override never
-||| can, since an ascription is parenthesized. They cannot collide in
-||| any case — a group is only ever read at the START of the T{1}
-||| binder branch, never after a spine head — but the brace step is
-||| ordered last of the delimited ones so a group's reading is the one
-||| that is tried first, wherever both could begin.
-|||
-||| What stays parenthesized in type position is what the ELEMENT
-||| ladder puts above a spine: an operator application, a keyword-headed
-||| form, a λ, a pair. Parentheses re-enter the element grammar whole.
-data CodeStep = CArg SElem | CImp SElem | CNoIns | CProj1 | CProj2
-
-applyStep : SElem -> CodeStep -> SElem
-applyStep h (CArg a) = SApp h a
-applyStep h (CImp a) = SApp h (SImpArg a)
-applyStep h CNoIns = SNoIns h
-applyStep h CProj1 = SProj1 h
-applyStep h CProj2 = SProj2 h
-
-isProj : CodeStep -> Bool
-isProj (CArg _) = False
-isProj (CImp _) = False
-isProj CNoIns = False
-isProj _ = True
-
 -- ===== Types and elements (mutually recursive) =====
 
 mutual
@@ -351,174 +317,33 @@ mutual
   -- of its own hands its child straight back and the two spans
   -- coincide, so re-wrapping replaces rather than nests.
 
-  -- T{0}: eq-type on top, then the arrow level
+  -- ===== Type positions are ELEMENT positions =====
+  --
+  -- The T ladder is gone (docs/NovaElaboration.txt, THE TERM GRAMMAR
+  -- MERGE): types are terms at 𝕍, so a type position enters the ONE
+  -- term grammar at the level that reads what the T level read.
+  --
+  --   T{0}, T{1} → t{1}  parseSElemNoComma: binder groups, → × ⊎ /,
+  --                      the equality prop, calc chains. NOT t{0}: a
+  --                      type is not a pair, and a comma at the end of
+  --                      a type belongs to whatever encloses it
+  --   T{2}       → t{2}  parseSElemPrefix: keyword forms and spines
+  --
+  -- What each position GAINS is what the t ladder always had and T
+  -- lacked: infix operators (so `a ≤ b` needs no parentheses as a
+  -- type), λ and let, the keyword-headed forms.
   export
   parseSTy : FixTable -> NameEnv -> Rule STy
-  parseSTy tbl env = do
-    (r, x) <- bounds (parseSTyRaw tbl env)
-    pure (atPosTy r x)
+  parseSTy = parseSElemNoComma
 
-  -- ONE ≡ production, shared with the element level (SEqC below): sides
-  -- at t{≥1¼} so the ⊎ code reaches them, ∈-type at T{≥1} so an arrow
-  -- reaches it. The two positions used to disagree on BOTH operands
-  -- (type: sides t{≥1½}, ∈-type T{≥1}; element: sides t{≥1¼}, ∈-type
-  -- T{≥2}), so `A ⊎ B ≡ C` parsed only as an element and
-  -- `a ≡ b ∈ A → B` only as a type. Unified at the more permissive
-  -- level of each pair, so no spelling that parsed before stops.
-  --
-  -- The BINDER form is tried FIRST, ahead of the ≡ branch. A binder
-  -- group and an ASCRIPTION are the same tokens — `(x : a)` — and the ≡
-  -- branch's sides can now reach the non-dependent ×, so without this
-  -- ordering `∥(x : a) × br x ≡ t∥` (bracket.brSurj) parses as the
-  -- equation `((x : a) × br x) ≡ t` over an ascribed, unbound `x`
-  -- instead of the Σ over an equation that it says. The binder branch
-  -- only commits once a → or × follows its groups, so a genuine
-  -- ascription — `(x : A) ≡ y` — still falls through to the ≡ branch.
-  parseSTyRaw : FixTable -> NameEnv -> Rule STy
-  parseSTyRaw tbl env =
-        parseSTyBinder tbl env
-    <|> (do (r, (e0, e1, ma)) <- bounds (do
-              e0 <- parseSElemSumC tbl env; sp
-              kw2 "≡" "=="; sp
-              e1 <- parseSElemSumC tbl env
-              ma <- optional (do sp; kw2 "∈" "\\in"; sp; parseSTyArrow tbl env)
-              pure (e0, e1, ma))
-            pure (STyEq r e0 e1 ma))
-    <|> parseSTyInfix tbl env
-
-  -- T{1}: named binder forms and the sugared right-assoc infixes.
-  -- Binder groups iterate: (x:T) (y:U) → B ≡ (x:T) → (y:U) → B
-  -- (and likewise for ×).
+  ||| The ∈-annotation's level, and every other former T{≥1} position.
   parseSTyArrow : FixTable -> NameEnv -> Rule STy
-  parseSTyArrow tbl env = do
-    (r, x) <- bounds (parseSTyArrowRaw tbl env)
-    pure (atPosTy r x)
+  parseSTyArrow = parseSElemNoComma
 
-  parseSTyArrowRaw : FixTable -> NameEnv -> Rule STy
-  parseSTyArrowRaw tbl env = parseSTyBinder tbl env <|> parseSTyInfix tbl env
-
-  -- T{1}, binder half. The body is full T{≥0} — a trailing ≡-type needs
-  -- no parens, so lemma statements read as written, and the Σ-of-record
-  -- idiom keeps its last field bare.
-  parseSTyBinder : FixTable -> NameEnv -> Rule STy
-  parseSTyBinder tbl env =
-    do (env', groups) <- parseBinderGroups tbl env
-       sp
-       (do kw2 "→" "->"; sp; b <- parseSTy tbl env'
-           pure (foldr (\(imp, x, t), acc =>
-                         if imp then STyImpPi x t acc else STyPi x t acc) b groups))
-         <|> (do kw2 "×" "\\x"; sp
-                 guard "!implicit binders are Π-only: {x : T} × … is not a type"
-                       (all (\(imp, _, _) => not imp) groups)
-                 b <- parseSTy tbl env'
-                 pure (foldr (\(_, x, t), acc => STySigma x t acc) b groups))
-
-  -- T{1}, non-binder half: the sugared right-assoc → and the quotient.
-  -- Non-dependent × is NOT here — it lives at T{1¾}, below ⊎.
-  parseSTyInfix : FixTable -> NameEnv -> Rule STy
-  parseSTyInfix tbl env =
-    do a <- parseSTySum tbl env
-       (do sp; kw2 "→" "->"; sp; b <- parseSTy tbl (env :< wildcard); pure (STyPi wildcard a b))
-         <|> (do sp; kw "/"; sp; (x, y, r) <- parseQuotRel tbl env; pure (STyQuot a x y r))
-         <|> pure a
-
-  -- T{1½}: ⊎ — non-dependent, right-assoc, binds TIGHTER than the T{1}
-  -- binder forms (A ⊎ B → C is (A ⊎ B) → C) and LOOSER than ×:
-  -- A ⊎ B × C is A ⊎ (B × C), product before sum, as at the element
-  -- level where * (infixl 7) binds tighter than + (infixl 6).
-  parseSTySum : FixTable -> NameEnv -> Rule STy
-  parseSTySum tbl env = do
-    a <- parseSTyProd tbl env
-    (do sp; kw2 "⊎" "\\/"; sp; b <- parseSTySum tbl env; pure (STySum a b))
-      <|> pure a
-
-  -- T{1¾}: NON-DEPENDENT × — right-assoc, tighter than ⊎, so A × B → C
-  -- is (A × B) → C (the uncurrying shape reads without parentheses).
-  -- The BINDER form (x : A) × B stays up at T{1} beside →, where its
-  -- body extends maximally: the two are different operators sharing a
-  -- token, and `A × B` is therefore NO LONGER sugar for `(_ : A) × B`.
-  parseSTyProd : FixTable -> NameEnv -> Rule STy
-  parseSTyProd tbl env = do
-    a <- parseSTyEl tbl env
-    (do sp; kw2 "×" "\\x"; sp; b <- parseSTyProd tbl (env :< wildcard); pure (STySigma wildcard a b))
-      <|> pure a
-
-  -- one or more (x:T) / {x:T} groups, each scoping over the ones
-  -- after it — braces mark IMPLICIT binders (STyImpPi,
-  -- docs/NovaPerfectSurface.txt Phase 3). A group may bind SEVERAL
-  -- names at one written domain — (x y : T) — none scoping over the
-  -- domain: each name past the first takes the domain WEAKENED by
-  -- its predecessors (Nova.Elaboration.Surface, shiftTy), so the
-  -- sugar is index arithmetic, not re-parsing
-  parseBinderGroups : FixTable -> NameEnv -> Rule (NameEnv, List (Bool, String, STy))
-  parseBinderGroups tbl env = do
-    (imp, close) <- (kwc '(' $> (False, ')')) <|> (kwc '{' $> (True, '}'))
-    sp; x <- parseName
-    xs <- many (do space; parseName)
-    sp; kwc ':'; sp
-    a <- parseSTy tbl env; sp; kwc close
-    let names = x :: xs
-    let env1 = env <>< names
-    rest <- optional (do sp; parseBinderGroups tbl env1)
-    case rest of
-      Nothing => pure (env1, groupTys imp names a)
-      Just (env', groups) => pure (env', groupTys imp names a ++ groups)
-   where
-    groupTys : Bool -> List String -> STy -> List (Bool, String, STy)
-    groupTys _ [] _ = []
-    groupTys imp (n :: ns) a = (imp, n, a) :: groupTys imp ns (shiftTy 0 a)
-
-  -- (x y. r)  or bare r as sugar for (_ _. r) — r is an Ω-valued ELEMENT
-  parseQuotRel : FixTable -> NameEnv -> Rule (SName, SName, SElem)
-  parseQuotRel tbl env =
-        (do kwc '('; sp; x <- parseNameR; space; y <- parseNameR
-            sp; kwc '.'; sp; r <- parseSElemNoComma tbl (env :< fst x :< fst y); sp; kwc ')'
-            pure (x, y, r))
-    <|> (do r <- parseSElemPrefix tbl (env :< wildcard :< wildcard); pure ((wildcard, Nothing), (wildcard, Nothing), r))
-
-  -- T{2}: ν / atoms and CODE SPINES, whose steps are the element
-  -- spine's (El is retired: a code in type position is spelled
-  -- directly — `Vect n`, `Vect {ℕ} n`, a bound 𝕌-variable, `P .π₁`,
-  -- a computed code in parens)
+  ||| Former T{2} — the QIIT literal's anonymous external domain, which
+  ||| must stop before the entry's own `→`.
   parseSTyEl : FixTable -> NameEnv -> Rule STy
-  parseSTyEl tbl env = do
-    (r, x) <- bounds (parseSTyElRaw tbl env)
-    pure (atPosTy r x)
-
-  parseSTyElRaw : FixTable -> NameEnv -> Rule STy
-  parseSTyElRaw tbl env =
-        -- a SQUASH standing as a type (prop-lift; Prf is retired
-        -- WITHOUT a legacy spelling — a prop stands bare)
-        (do kw2 "∥" "||"; sp; t <- parseSTy tbl env; sp; kw2 "∥" "||"; pure (STyEl (SSquash t)))
-    <|> (do kw2 "ν" "\\nu"; space; f <- parseSPolyAtom tbl env; pure (STyNu f))
-    <|> (do t <- parseSTyAtom tbl env
-            steps <- many (   (do sp; kw2 ".π₁" ".1"; pure CProj1)
-                          <|> (do sp; kw2 ".π₂" ".2"; pure CProj2)
-                          <|> (do sp; kwc '{'; sp
-                                  (do kwc '}'; pure CNoIns)
-                                    <|> (do a <- parseSElem tbl env; sp; kwc '}'
-                                            pure (CImp a)))
-                          <|> (do space; CArg <$> parseSElemAtom tbl env))
-            case steps of
-              [] => pure t
-              _ => case tyHeadElem t of
-                     Just h => pure (STyEl (foldl applyStep h steps))
-                     -- FATAL: `parseSTy` already tried the equality
-                     -- production, and nothing above reads an applied
-                     -- type former either, so this verdict must not be
-                     -- outrun by a sibling's expectation. Nothing reads
-                     -- a `.` after a TYPE either, so the projection
-                     -- verdict is as final as the argument one
-                     Nothing =>
-                       fatal (if any isProj steps
-                                then "!this type former cannot be projected"
-                                else "!this type former takes no arguments"))
-   where
-    tyHeadElem : STy -> Maybe SElem
-    tyHeadElem ty = case unPosTy ty of
-      STySig x => Just (SSig Nothing x)
-      STyEl e => Just e
-      _ => Nothing
+  parseSTyEl = parseSElemPrefix
 
   -- Polynomials (NovaElaboration.txt, F{·} grammar): binders and
   -- products at the top, sums tighter, atoms innermost.
@@ -545,44 +370,6 @@ mutual
         (kw2 "𝕏" "\\X" $> SPHole)
     <|> (do kw "K"; space; a <- parseSElemAtom tbl env; pure (SPConst a))
     <|> (do kwc '('; sp; f <- parseSPoly tbl env; sp; kwc ')'; pure f)
-
-  -- T{4}: atoms
-  parseSTyAtom : FixTable -> NameEnv -> Rule STy
-  parseSTyAtom tbl env = do
-    (r, x) <- bounds (parseSTyAtomRaw tbl env)
-    pure (atPosTy r x)
-
-  parseSTyAtomRaw : FixTable -> NameEnv -> Rule STy
-  parseSTyAtomRaw tbl env =
-        (kw2 "𝟘" "Void" $> STyZero)
-    <|> (kw2 "𝟙" "Unit" $> STyOne)
-    <|> (kw2 "ℕ" "Nat" $> STyNat)
-    <|> (kw2 "𝕌" "Set" $> STyUniv)
-    <|> (kw2 "Ω" "Prop" $> STyProp)
-    <|> (do (r, x) <- bounds parseDottedName
-            case unpack x of
-              -- `_`-leading identifiers were the OLD hole spelling;
-              -- holes are written `?x` now, and are ELEMENT forms
-              -- (e-hole is checking-only, and a type position offers
-              -- nothing to check against). Binder wildcards are a
-              -- separate production and unaffected.
-              ('_' :: rest) => fail "!a `_`-leading name is not a hole — spell the type out (holes are `?x`, and only in term position)"
-              _ =>
-                case resolveVar env x of
-                  -- a BINDER name in type position is a bound CODE
-                  -- (El retired: the code is the type)
-                  Just i  => pure (STyEl (SVar r x i))
-                  Nothing => pure (STySig x))
-    <|> (do kwc '('; sp; t <- parseSTy tbl env; sp; kwc ')'; pure t)
-        -- a parenthesized ELEMENT in type position is a CODE — the
-        -- type grammar's spines cover only atom-headed applications,
-        -- so operator applications ((a ≤ b)) and other element forms
-        -- land here (El retired: the code is the type)
-    <|> (do kwc '('; sp; e <- parseSElemNoComma tbl env; sp; kwc ')'; pure (STyEl e))
-        -- a bare ELEMENT ATOM in type position — operator-shaped
-        -- names in particular (⊥, ⊤ — Prf retired: a nullary prop
-        -- stands as a type under its own name)
-    <|> (do e <- parseSElemAtom tbl env; pure (STyEl e))
 
   -- t{0}: top-level comma = pair (right-assoc)
   export
@@ -659,7 +446,7 @@ mutual
 
   -- t{1⅜}: the NON-DEPENDENT × code — right-assoc, tighter than ⊎ and
   -- looser than the declared operators, mirroring T{1¾} at the type
-  -- level. The binder form (x : a) × b stays at t{1}; see parseSTyProd
+  -- level. The binder form (x : a) × b stays at t{1}
   parseSElemProdC : FixTable -> NameEnv -> Rule SElem
   parseSElemProdC tbl env = do
     (r, x) <- bounds (parseSElemProdCRaw tbl env)
