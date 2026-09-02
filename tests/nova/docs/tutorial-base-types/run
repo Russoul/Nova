@@ -1,0 +1,4 @@
+#!/bin/sh
+# A worked example the language reference quotes. Pinned so the
+# chapter cannot drift from what the checker accepts.
+"$1" elab input.nova

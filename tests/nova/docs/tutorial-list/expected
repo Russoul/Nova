@@ -1,0 +1,5 @@
+defined data (List, nil, cons)
+defined twoZeros
+defined length
+defined lengthTwoZeros
+Accepted.

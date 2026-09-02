@@ -9,8 +9,10 @@ Written in [Idris2](https://github.com/idris-lang/Idris2).
 See `docs/NovaFoundation.txt` for the theory, `docs/NovaPipeline.txt`
 for the architecture, `docs/NovaElaboration.txt` for the surface
 syntax and elaborator, and `docs/NovaKernel.txt` for the kernel rules.
-Browse the rendered specs and syntax-highlighted `src/nova/*.nova`
-sources online at [russoul.github.io/Nova](https://russoul.github.io/Nova/).
+The human-facing tour of the surface language is `docs/reference/`,
+rendered by `tools/render-reference.py`. Browse it, the rendered specs
+and the syntax-highlighted `src/nova/*.nova` sources online at
+[russoul.github.io/Nova](https://russoul.github.io/Nova/).
 
 ### Dependencies
 
@@ -38,7 +40,8 @@ nix develop              # a shell where `idris2 --build nova.ipkg` just works
 
 Also buildable: `nix build .#nova-lsp` (language server),
 `.#nova-docs` (HTML renderer), `.#nova-tests` (golden-test driver),
-`.#site` (the rendered specs and corpus published to GitHub Pages),
+`.#site` (the rendered specs, language reference and corpus
+published to GitHub Pages),
 `.#vscode-extension` (the VS Code extension) and `.#nvim-plugin` (the
 neovim plugin).
 

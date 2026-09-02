@@ -1,0 +1,5 @@
+#!/bin/sh
+# The language reference's tutorial file, and the transcript chapter 4
+# quotes. Pinned here so a change to the checker's output breaks the
+# chapter instead of stranding a reader on a stale walkthrough.
+"$1" elab input.nova

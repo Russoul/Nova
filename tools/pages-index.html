@@ -51,6 +51,7 @@ h1 .nova { color:var(--nova); }
   font-family:ui-sans-serif,system-ui,sans-serif; color:var(--card-accent, var(--nova));
 }
 .card p { margin:0; color:var(--faint); font-size:.95rem; }
+#reference { --card-accent: var(--nova); }
 #specs { --card-accent: var(--gold); }
 #sources { --card-accent: var(--tos); }
 footer {
@@ -69,6 +70,10 @@ footer a { color:var(--link); }
   kernel re-checks.
 </p>
 <div class="cards">
+  <a class="card" id="reference" href="reference.html">
+    <h2>Language reference</h2>
+    <p>A guided tour of the surface language &mdash; tutorial first, reference second.</p>
+  </a>
   <a class="card" id="specs" href="specs.html">
     <h2>Theory specs</h2>
     <p>NovaFoundation, NovaModel, NovaKernel, NovaElaboration, NovaPipeline &mdash; the rules, rendered.</p>

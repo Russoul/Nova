@@ -1,0 +1,11 @@
+def absurd : 𝟘 → ℕ ≔ λx. 𝟘-elim x
+
+def unit : 𝟙 ≔ ()
+
+def unitIsUnique : (x y : 𝟙) → x ≡ y ≔ λx. λy. ⋆
+
+def five : ℕ ≔ 5
+
+def fiveIsSuccFour : 5 ≡ S 4 ≔ ⋆
+
+def isZero : ℕ → 𝕌 ≔ λn. ℕ-elim 𝟙 (k ih. 𝟘) n

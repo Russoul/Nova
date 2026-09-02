@@ -1,0 +1,5 @@
+defined plus by clauses (plus, plusZ, plusS, plusEta)
+defined plusZr [+1 obligation]
+open obligations (1):
+  [1] (n : ℕ) (k : ℕ) (ih : plus k Z ≡ k ∈ ℕ) ⊢ plus (S k) Z ≐ S k : ℕ
+      at: input.nova:5:80: def plusZr: checking ⋆

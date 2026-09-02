@@ -1,0 +1,5 @@
+def plus : ℕ → ℕ → ℕ
+  | plus Z n ≔ n
+  | plus (S m) n ≔ S (plus m n)
+
+def plusZr : (n : ℕ) → plus n Z ≡ n using (plusZ, plusS) ≔ λn. ℕ-elim ⋆ (k ih. ⋆) n
