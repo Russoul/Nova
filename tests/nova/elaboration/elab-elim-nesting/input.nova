@@ -1,0 +1,30 @@
+-- The VARIABLE-ELIMINATING forms nested inside one another. Each of
+-- them REPLACES a context entry rather than extending the context, so
+-- the parser's reindexing must descend COMPOSED with the inner node's
+-- own — otherwise an outer binder named from an inner branch is
+-- silently mis-shifted and the result is a well-typed WRONG term.
+--
+-- Elaborating is therefore not enough to test it: each value is pinned
+-- by an equation, which is what fails when the wrong variable is
+-- picked up.
+
+-- inner body is the OUTER binder `a`, so f (m,n) (u,v) must be m
+def f : (p : ℕ × ℕ) (q : ℕ × ℕ) → ℕ
+  ≔ λp. λq. sigma-elim (a b. sigma-elim (c d. a) q) p
+def fPins : f (1, 0) (0, 0) ≡ 1 using (f.eq) ≔ ⋆
+
+-- a sum-elim nested in a sigma-elim's body, reaching the outer binders
+def g : (p : ℕ × ℕ) (w : ℕ ⊎ ℕ) → ℕ
+  ≔ λp. λw. sigma-elim (a b. sum-elim (u. a) (v. b) w) p
+def gPinsL : g (1, 2) (inj₁ 0) ≡ 1 using (g.eq) ≔ ⋆
+def gPinsR : g (1, 2) (inj₂ 0) ≡ 2 using (g.eq) ≔ ⋆
+
+-- a sigma-elim nested in a sum-elim's branch, reaching the branch binder
+def h : (w : ℕ ⊎ ℕ) (p : ℕ × ℕ) → ℕ
+  ≔ λw. λp. sum-elim (u. sigma-elim (a b. u) p) (v. v) w
+def hPins : h (inj₁ 7) (0, 0) ≡ 7 using (h.eq) ≔ ⋆
+
+-- an ≡-elim nested inside a sigma-elim's body
+def k : (p : ℕ × ℕ) (x : ℕ) (w : x ≡ Z) → ℕ
+  ≔ λp. λx. λw. sigma-elim (a b. ≡-elim a x w) p
+def kPins : k (5, 0) Z ⋆ ≡ 5 using (k.eq) ≔ ⋆
