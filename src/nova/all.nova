@@ -81,6 +81,7 @@ import rationalInv
 import intNonZero
 import letExpr
 import sigmaElim
+import eqElim
 import qiitBag
 import qiitConTy
 import qiitCross

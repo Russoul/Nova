@@ -87,6 +87,8 @@ mutual
     SQuotElim (map (\(z, m) => (z, mapRefsTy f g (S d) m)) mot) a (mapRefsE f g (S d) h) (mapRefsE f g d q)
   mapRefsE f g d (SSigmaElim nx ny b w) =
     SSigmaElim nx ny (mapRefsE f g (S (S d)) b) (mapRefsE f g d w)
+  mapRefsE f g d (SEqElim p x w) =
+    SEqElim (mapRefsE f g d p) (mapRefsE f g d x) (mapRefsE f g d w)
   mapRefsE f g d (SNuC p) = SNuC (mapRefsP f g d p)
   mapRefsE f g d (SOut e) = SOut (mapRefsE f g d e)
   mapRefsE f g d (SCorec x a h u) =
@@ -194,6 +196,7 @@ mutual
   occursE f (SClass t) = occursE f t
   occursE f (SQuotElim mot _ g q) = maybe False (occursTy f . snd) mot || occursE f g || occursE f q
   occursE f (SSigmaElim _ _ b w) = occursE f b || occursE f w
+  occursE f (SEqElim p x w) = occursE f p || occursE f x || occursE f w
   occursE f (SNuC p) = occursP f p
   occursE f (SOut e) = occursE f e
   occursE f (SCorec _ a g u) = occursE f a || occursE f g || occursE f u
@@ -325,6 +328,9 @@ mutual
   rwE f mk lead d (SSigmaElim nx ny b w) =
     do b' <- rwE f mk lead (S (S d)) b; w' <- rwE f mk lead d w
        pure (SSigmaElim nx ny b' w')
+  rwE f mk lead d (SEqElim p x w) =
+    do p' <- rwE f mk lead d p; x' <- rwE f mk lead d x; w' <- rwE f mk lead d w
+       pure (SEqElim p' x' w')
   rwE f mk lead d (SSquash t) = SSquash <$> rwTy f mk lead d t
   rwE f mk lead d e@(SStar _) = Just e
   rwE f mk lead d e@(SStarUsing _ _) = Just e

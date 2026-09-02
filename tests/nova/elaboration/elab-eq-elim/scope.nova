@@ -1,0 +1,3 @@
+-- neither eliminated variable is in the proof's context: naming one is
+-- a resolution error, reported where they are eliminated
+def gone : (x : ℕ) (w : x ≡ Z) → ℕ ≔ λx. λw. ≡-elim x x w

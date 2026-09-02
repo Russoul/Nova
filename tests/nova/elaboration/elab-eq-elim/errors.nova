@@ -1,0 +1,13 @@
+-- the scrutinee must be a VARIABLE ...
+def notVar : (x : ℕ) (w : x ≡ Z) → ℕ ≔ λx. λw. ≡-elim Z (S x) w
+-- ... and so must the equation
+def notHyp : (x : ℕ) (w : x ≡ Z) → ℕ ≔ λx. λw. ≡-elim Z x ⋆
+-- the equation must stand INSIDE the variable it names
+def outside : (w : Z ≡ Z) (x : ℕ) → ℕ ≔ λw. λx. ≡-elim Z x w
+-- ... and must have that variable on a side
+def offSide : (x : ℕ) (n : ℕ) (w : n ≡ Z) → ℕ ≔ λx. λn. λw. ≡-elim Z x w
+-- ... and be an equation at all
+def notEq : (x : ℕ) (w : ℕ) → ℕ ≔ λx. λw. ≡-elim Z x w
+-- the other side must stand OUTSIDE the variable's own entry
+def notOutside : (x : ℕ) (w : x ≡ S x) → ℕ ≔ λx. λw. ≡-elim Z x w
+-- the proof may not name what it eliminates (see scope.nova)

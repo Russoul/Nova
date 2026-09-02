@@ -1,0 +1,58 @@
+defined P
+defined pin
+defined pinFlipped
+defined between
+defined after
+defined atTerm
+defined infer
+defined hole [+1 declaration]
+defined large
+defined proofInGoal
+defined proofInHyp
+open holes (1):
+  [?g] (h : (P Z)) ⊢ ?g : (P Z)
+      at: input.nova:25:69: def hole
+--- the shapes the two scrutinees must have:
+errors.nova:2:57: error: def notVar: ≡-elim eliminates a VARIABLE — this scrutinee is not one
+2 | def notVar : (x : ℕ) (w : x ≡ Z) → ℕ ≔ λx. λw. ≡-elim Z (S x) w
+  |                                                         ^^^^^
+declared notVar [+1 declaration]
+errors.nova:4:59: error: def notHyp: ≡-elim eliminates a HYPOTHESIS — this equation is not one (name it first: `let w ≔ …`)
+4 | def notHyp : (x : ℕ) (w : x ≡ Z) → ℕ ≔ λx. λw. ≡-elim Z x ⋆
+  |                                                           ^
+declared notHyp [+1 declaration]
+errors.nova:6:60: error: def outside: ≡-elim: 'w' must stand INSIDE 'x' — its type names that variable, so it cannot be bound before it
+6 | def outside : (w : Z ≡ Z) (x : ℕ) → ℕ ≔ λw. λx. ≡-elim Z x w
+  |                                                            ^
+declared outside [+1 declaration]
+errors.nova:8:61: error: def offSide: ≡-elim: the equation proved by 'w' is n ≡ Z ∈ ℕ, which is not one with 'x' on a side
+8 | def offSide : (x : ℕ) (n : ℕ) (w : n ≡ Z) → ℕ ≔ λx. λn. λw. ≡-elim Z x w
+  |                                                             ^^^^^^^^^^^^
+declared offSide [+1 declaration]
+errors.nova:10:43: error: def notEq: ≡-elim: 'w' has type ℕ, which is not an equality proposition
+10 | def notEq : (x : ℕ) (w : ℕ) → ℕ ≔ λx. λw. ≡-elim Z x w
+   |                                           ^^^^^^^^^^^^
+declared notEq [+1 declaration]
+errors.nova:12:63: error: def notOutside: ≡-elim: the other side of 'w' mentions 'x' or a hypothesis after it, so it does not stand where the elimination needs it
+12 | def notOutside : (x : ℕ) (w : x ≡ S x) → ℕ ≔ λx. λw. ≡-elim Z x w
+   |                                                               ^
+declared notOutside [+1 declaration]
+open declarations (6):
+  [notVar] ⊢ ? : (n:ℕ) → (n ≡ Z ∈ ℕ) → ℕ
+      at: errors.nova:2:1: def notVar
+  [notHyp] ⊢ ? : (n:ℕ) → (n ≡ Z ∈ ℕ) → ℕ
+      at: errors.nova:4:1: def notHyp
+  [outside] ⊢ ? : (Z ≡ Z ∈ ℕ) → ℕ → ℕ
+      at: errors.nova:6:1: def outside
+  [offSide] ⊢ ? : ℕ → (n:ℕ) → (n ≡ Z ∈ ℕ) → ℕ
+      at: errors.nova:8:1: def offSide
+  [notEq] ⊢ ? : ℕ → ℕ → ℕ
+      at: errors.nova:10:1: def notEq
+  [notOutside] ⊢ ? : (n:ℕ) → (n ≡ S n ∈ ℕ) → ℕ
+      at: errors.nova:12:1: def notOutside
+Error: 6 items failed to elaborate
+--- the proof cannot name what it eliminates:
+scope.nova:3:55: error: expected a ≡-elim proof free of 'x' and 'w' — the variables this eliminates, so the proof's context has no such entry, but reached the end of the file
+3 | def gone : (x : ℕ) (w : x ≡ Z) → ℕ ≔ λx. λw. ≡-elim x x w
+  |                                                       ^
+  note: while parsing the construct beginning at 3:53

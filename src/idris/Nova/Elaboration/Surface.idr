@@ -110,6 +110,18 @@ mutual
     ||| quot-elim (z. T)? (a. f) q — motive-first; motive optional in
     ||| checking position
     SQuotElim : Maybe (SName, SElem) -> (a : SName) -> SElem -> SElem -> SElem
+    ||| ≡-elim p x w — the EQUALITY variable elimination
+    ||| (docs/NovaElaboration.txt, e-eqelim). x is a VARIABLE and w a
+    ||| variable of an equation with x on one side and a term t on the
+    ||| other, t standing OUTSIDE x's own entry; p is elaborated in the
+    ||| context that pair's elimination gives: x and w both gone, every
+    ||| entry between and after them refined at t (and at refl for w),
+    ||| as is the goal. No motive: substituting t for x IS the motive.
+    |||
+    ||| Like SSigmaElim, p's indices are counted against THAT context —
+    ||| the parser reindexes it once it has read the two variables
+    ||| (Parser.eqElimProof).
+    SEqElim : (prf : SElem) -> (evar : SElem) -> (eqvar : SElem) -> SElem
     ||| sigma-elim (x y. t) w — the Σ VARIABLE elimination
     ||| (docs/NovaElaboration.txt, e-sigmaelim). w is a VARIABLE of a
     ||| × type, and t is elaborated in the context that variable's
@@ -303,6 +315,7 @@ mutual
   stripPos (SQuotElim mot a f q) =
     SQuotElim (map (\(z, m) => (z, stripPos m)) mot) a (stripPos f) (stripPos q)
   stripPos (SSigmaElim nx ny b w) = SSigmaElim nx ny (stripPos b) (stripPos w)
+  stripPos (SEqElim p x w) = SEqElim (stripPos p) (stripPos x) (stripPos w)
   stripPos (SNuC f) = SNuC (stripPosPoly f)
   stripPos (SOut t) = SOut (stripPos t)
   stripPos (SCorec x a f u) = SCorec x (stripPos a) (stripPos f) (stripPos u)
@@ -390,6 +403,10 @@ mutual
                  (mapVarsE f (S d) g) (mapVarsE f d q) |]
   mapVarsE f d (SSigmaElim nx ny b w) =
     [| SSigmaElim (pure nx) (pure ny) (mapVarsE f (S (S d)) b) (mapVarsE f d w) |]
+  -- ≡-elim binds nothing: the elimination REMOVES two entries, so
+  -- every component stands at the site's own depth
+  mapVarsE f d (SEqElim p x w) =
+    [| SEqElim (mapVarsE f d p) (mapVarsE f d x) (mapVarsE f d w) |]
   mapVarsE f d (SNuC p) = SNuC <$> mapVarsPoly f d p
   mapVarsE f d (SOut t) = SOut <$> mapVarsE f d t
   mapVarsE f d (SCorec x a g u) =
@@ -508,6 +525,9 @@ mutual
   -- sigma-elim has no motive: the scrutinee's head places it (the
   -- variable it eliminates is what every message here is about)
   headRange (SSigmaElim _ _ _ w) = headRange w
+  -- the VARIABLE being eliminated places it: every message here is
+  -- about it or the equation that specialises it
+  headRange (SEqElim _ x w) = headRange x <|> headRange w
 
   public export
   headRangePoly : SPoly -> Maybe Range
@@ -792,6 +812,7 @@ mutual
     show (SClass t) = "Class (\{show t})"
     show (SQuotElim mot a f q) =
       "QuotElim \{maybe "_" (fst . fst) mot} (\{maybe "_" (show . snd) mot}) \{fst a} (\{show f}) (\{show q})"
+    show (SEqElim p x w) = "EqElim (\{show p}) (\{show x}) (\{show w})"
     show (SSigmaElim nx ny b w) =
       "SigmaElim \{fst nx} \{fst ny} (\{show b}) (\{show w})"
     show (SNuC f) = "NuC (\{show f})"

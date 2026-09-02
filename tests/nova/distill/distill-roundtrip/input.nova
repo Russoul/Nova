@@ -40,3 +40,5 @@ def addPair : (a b : ℕ) → ℕ ≔ λa. λb. a + b
 def addPair' : (a : ℕ) (b : ℕ) → a + b ≡ addPair a b ∈ ℕ using (addPair.eq) ≔ λa. λb. ⋆
 def swapPair : (p : ℕ × ℕ) → ℕ × ℕ ≔ λp. sigma-elim (a b. b, a) p
 def onWholeVar : (p : ℕ × ℕ) (q : ℕ) (r : ℕ) (s : ℕ) → p ≡ p ∈ ℕ × ℕ ≔ λp. λq. λr. λs. sigma-elim (a b. ⋆) p
+def pinVar : (x : ℕ) (h : ℕ) (w : x ≡ Z) → ℕ ≔ λx. λh. λw. ≡-elim h x w
+def pinLong : (x : ℕ) (h : ℕ) (n : ℕ) (m : ℕ) (w : x ≡ Z) → x + x ≡ Z + Z ∈ ℕ ≔ λx. λh. λn. λm. λw. ≡-elim ⋆ x w
